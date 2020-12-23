@@ -2,17 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package walk
 
 import (
+	"go/constant"
+	"go/token"
+	"sort"
+
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
-	"go/constant"
-	"go/token"
-	"sort"
 )
 
 // walkswitch walks a switch statement.

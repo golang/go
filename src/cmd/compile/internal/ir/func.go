@@ -288,3 +288,24 @@ func MarkFunc(n *Name) {
 	n.Class_ = PFUNC
 	n.Sym().SetFunc(true)
 }
+
+// ClosureDebugRuntimeCheck applies boilerplate checks for debug flags
+// and compiling runtime
+func ClosureDebugRuntimeCheck(clo *ClosureExpr) {
+	if base.Debug.Closure > 0 {
+		if clo.Esc() == EscHeap {
+			base.WarnfAt(clo.Pos(), "heap closure, captured vars = %v", clo.Func.ClosureVars)
+		} else {
+			base.WarnfAt(clo.Pos(), "stack closure, captured vars = %v", clo.Func.ClosureVars)
+		}
+	}
+	if base.Flag.CompilingRuntime && clo.Esc() == EscHeap {
+		base.ErrorfAt(clo.Pos(), "heap-allocated closure, not allowed in runtime")
+	}
+}
+
+// IsTrivialClosure reports whether closure clo has an
+// empty list of captured vars.
+func IsTrivialClosure(clo *ClosureExpr) bool {
+	return len(clo.Func.ClosureVars) == 0
+}

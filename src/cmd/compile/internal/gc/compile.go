@@ -17,6 +17,7 @@ import (
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/compile/internal/walk"
 )
 
 // "Portable" code generation.
@@ -61,7 +62,7 @@ func compile(fn *ir.Func) {
 	ssagen.InitLSym(fn, true)
 
 	errorsBefore := base.Errors()
-	walk(fn)
+	walk.Walk(fn)
 	if base.Errors() > errorsBefore {
 		return
 	}

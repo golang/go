@@ -1834,3 +1834,29 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 }
 
 var ZeroSize int64
+
+// MarkTypeUsedInInterface marks that type t is converted to an interface.
+// This information is used in the linker in dead method elimination.
+func MarkTypeUsedInInterface(t *types.Type, from *obj.LSym) {
+	tsym := TypeSym(t).Linksym()
+	// Emit a marker relocation. The linker will know the type is converted
+	// to an interface if "from" is reachable.
+	r := obj.Addrel(from)
+	r.Sym = tsym
+	r.Type = objabi.R_USEIFACE
+}
+
+// MarkUsedIfaceMethod marks that an interface method is used in the current
+// function. n is OCALLINTER node.
+func MarkUsedIfaceMethod(n *ir.CallExpr) {
+	dot := n.X.(*ir.SelectorExpr)
+	ityp := dot.X.Type()
+	tsym := TypeSym(ityp).Linksym()
+	r := obj.Addrel(ir.CurFunc.LSym)
+	r.Sym = tsym
+	// dot.Xoffset is the method index * Widthptr (the offset of code pointer
+	// in itab).
+	midx := dot.Offset / int64(types.PtrSize)
+	r.Add = InterfaceMethodOffset(ityp, midx)
+	r.Type = objabi.R_USEIFACEMETHOD
+}

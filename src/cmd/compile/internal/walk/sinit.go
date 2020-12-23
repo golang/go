@@ -2,357 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package walk
 
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/staticdata"
+	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
-	"fmt"
 )
-
-type InitEntry struct {
-	Xoffset int64   // struct, array only
-	Expr    ir.Node // bytes of run-time computed expressions
-}
-
-type InitPlan struct {
-	E []InitEntry
-}
-
-// An InitSchedule is used to decompose assignment statements into
-// static and dynamic initialization parts. Static initializations are
-// handled by populating variables' linker symbol data, while dynamic
-// initializations are accumulated to be executed in order.
-type InitSchedule struct {
-	// out is the ordered list of dynamic initialization
-	// statements.
-	out []ir.Node
-
-	initplans map[ir.Node]*InitPlan
-	inittemps map[ir.Node]*ir.Name
-}
-
-func (s *InitSchedule) append(n ir.Node) {
-	s.out = append(s.out, n)
-}
-
-// staticInit adds an initialization statement n to the schedule.
-func (s *InitSchedule) staticInit(n ir.Node) {
-	if !s.tryStaticInit(n) {
-		if base.Flag.Percent != 0 {
-			ir.Dump("nonstatic", n)
-		}
-		s.append(n)
-	}
-}
-
-// tryStaticInit attempts to statically execute an initialization
-// statement and reports whether it succeeded.
-func (s *InitSchedule) tryStaticInit(nn ir.Node) bool {
-	// Only worry about simple "l = r" assignments. Multiple
-	// variable/expression OAS2 assignments have already been
-	// replaced by multiple simple OAS assignments, and the other
-	// OAS2* assignments mostly necessitate dynamic execution
-	// anyway.
-	if nn.Op() != ir.OAS {
-		return false
-	}
-	n := nn.(*ir.AssignStmt)
-	if ir.IsBlank(n.X) && !anySideEffects(n.Y) {
-		// Discard.
-		return true
-	}
-	lno := ir.SetPos(n)
-	defer func() { base.Pos = lno }()
-	nam := n.X.(*ir.Name)
-	return s.staticassign(nam, 0, n.Y, nam.Type())
-}
-
-// like staticassign but we are copying an already
-// initialized value r.
-func (s *InitSchedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Type) bool {
-	if rn.Class_ == ir.PFUNC {
-		// TODO if roff != 0 { panic }
-		staticdata.InitFunc(l, loff, rn)
-		return true
-	}
-	if rn.Class_ != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
-		return false
-	}
-	if rn.Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value
-		return false
-	}
-	if rn.Defn.Op() != ir.OAS {
-		return false
-	}
-	if rn.Type().IsString() { // perhaps overwritten by cmd/link -X (#34675)
-		return false
-	}
-	orig := rn
-	r := rn.Defn.(*ir.AssignStmt).Y
-
-	for r.Op() == ir.OCONVNOP && !types.Identical(r.Type(), typ) {
-		r = r.(*ir.ConvExpr).X
-	}
-
-	switch r.Op() {
-	case ir.OMETHEXPR:
-		r = r.(*ir.MethodExpr).FuncName()
-		fallthrough
-	case ir.ONAME:
-		r := r.(*ir.Name)
-		if s.staticcopy(l, loff, r, typ) {
-			return true
-		}
-		// We may have skipped past one or more OCONVNOPs, so
-		// use conv to ensure r is assignable to l (#13263).
-		dst := ir.Node(l)
-		if loff != 0 || !types.Identical(typ, l.Type()) {
-			dst = ir.NewNameOffsetExpr(base.Pos, l, loff, typ)
-		}
-		s.append(ir.NewAssignStmt(base.Pos, dst, typecheck.Conv(r, typ)))
-		return true
-
-	case ir.ONIL:
-		return true
-
-	case ir.OLITERAL:
-		if ir.IsZero(r) {
-			return true
-		}
-		litsym(l, loff, r, int(typ.Width))
-		return true
-
-	case ir.OADDR:
-		r := r.(*ir.AddrExpr)
-		if a := r.X; a.Op() == ir.ONAME {
-			a := a.(*ir.Name)
-			staticdata.InitAddr(l, loff, a, 0)
-			return true
-		}
-
-	case ir.OPTRLIT:
-		r := r.(*ir.AddrExpr)
-		switch r.X.Op() {
-		case ir.OARRAYLIT, ir.OSLICELIT, ir.OSTRUCTLIT, ir.OMAPLIT:
-			// copy pointer
-			staticdata.InitAddr(l, loff, s.inittemps[r], 0)
-			return true
-		}
-
-	case ir.OSLICELIT:
-		r := r.(*ir.CompLitExpr)
-		// copy slice
-		staticdata.InitSlice(l, loff, s.inittemps[r], r.Len)
-		return true
-
-	case ir.OARRAYLIT, ir.OSTRUCTLIT:
-		r := r.(*ir.CompLitExpr)
-		p := s.initplans[r]
-		for i := range p.E {
-			e := &p.E[i]
-			typ := e.Expr.Type()
-			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
-				litsym(l, loff+e.Xoffset, e.Expr, int(typ.Width))
-				continue
-			}
-			x := e.Expr
-			if x.Op() == ir.OMETHEXPR {
-				x = x.(*ir.MethodExpr).FuncName()
-			}
-			if x.Op() == ir.ONAME && s.staticcopy(l, loff+e.Xoffset, x.(*ir.Name), typ) {
-				continue
-			}
-			// Requires computation, but we're
-			// copying someone else's computation.
-			ll := ir.NewNameOffsetExpr(base.Pos, l, loff+e.Xoffset, typ)
-			rr := ir.NewNameOffsetExpr(base.Pos, orig, e.Xoffset, typ)
-			ir.SetPos(rr)
-			s.append(ir.NewAssignStmt(base.Pos, ll, rr))
-		}
-
-		return true
-	}
-
-	return false
-}
-
-func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *types.Type) bool {
-	for r.Op() == ir.OCONVNOP {
-		r = r.(*ir.ConvExpr).X
-	}
-
-	switch r.Op() {
-	case ir.ONAME:
-		r := r.(*ir.Name)
-		return s.staticcopy(l, loff, r, typ)
-
-	case ir.OMETHEXPR:
-		r := r.(*ir.MethodExpr)
-		return s.staticcopy(l, loff, r.FuncName(), typ)
-
-	case ir.ONIL:
-		return true
-
-	case ir.OLITERAL:
-		if ir.IsZero(r) {
-			return true
-		}
-		litsym(l, loff, r, int(typ.Width))
-		return true
-
-	case ir.OADDR:
-		r := r.(*ir.AddrExpr)
-		if name, offset, ok := stataddr(r.X); ok {
-			staticdata.InitAddr(l, loff, name, offset)
-			return true
-		}
-		fallthrough
-
-	case ir.OPTRLIT:
-		r := r.(*ir.AddrExpr)
-		switch r.X.Op() {
-		case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT, ir.OSTRUCTLIT:
-			// Init pointer.
-			a := staticname(r.X.Type())
-
-			s.inittemps[r] = a
-			staticdata.InitAddr(l, loff, a, 0)
-
-			// Init underlying literal.
-			if !s.staticassign(a, 0, r.X, a.Type()) {
-				s.append(ir.NewAssignStmt(base.Pos, a, r.X))
-			}
-			return true
-		}
-		//dump("not static ptrlit", r);
-
-	case ir.OSTR2BYTES:
-		r := r.(*ir.ConvExpr)
-		if l.Class_ == ir.PEXTERN && r.X.Op() == ir.OLITERAL {
-			sval := ir.StringVal(r.X)
-			staticdata.InitSliceBytes(l, loff, sval)
-			return true
-		}
-
-	case ir.OSLICELIT:
-		r := r.(*ir.CompLitExpr)
-		s.initplan(r)
-		// Init slice.
-		ta := types.NewArray(r.Type().Elem(), r.Len)
-		ta.SetNoalg(true)
-		a := staticname(ta)
-		s.inittemps[r] = a
-		staticdata.InitSlice(l, loff, a, r.Len)
-		// Fall through to init underlying array.
-		l = a
-		loff = 0
-		fallthrough
-
-	case ir.OARRAYLIT, ir.OSTRUCTLIT:
-		r := r.(*ir.CompLitExpr)
-		s.initplan(r)
-
-		p := s.initplans[r]
-		for i := range p.E {
-			e := &p.E[i]
-			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
-				litsym(l, loff+e.Xoffset, e.Expr, int(e.Expr.Type().Width))
-				continue
-			}
-			ir.SetPos(e.Expr)
-			if !s.staticassign(l, loff+e.Xoffset, e.Expr, e.Expr.Type()) {
-				a := ir.NewNameOffsetExpr(base.Pos, l, loff+e.Xoffset, e.Expr.Type())
-				s.append(ir.NewAssignStmt(base.Pos, a, e.Expr))
-			}
-		}
-
-		return true
-
-	case ir.OMAPLIT:
-		break
-
-	case ir.OCLOSURE:
-		r := r.(*ir.ClosureExpr)
-		if hasemptycvars(r) {
-			if base.Debug.Closure > 0 {
-				base.WarnfAt(r.Pos(), "closure converted to global")
-			}
-			// Closures with no captured variables are globals,
-			// so the assignment can be done at link time.
-			// TODO if roff != 0 { panic }
-			staticdata.InitFunc(l, loff, r.Func.Nname)
-			return true
-		}
-		closuredebugruntimecheck(r)
-
-	case ir.OCONVIFACE:
-		// This logic is mirrored in isStaticCompositeLiteral.
-		// If you change something here, change it there, and vice versa.
-
-		// Determine the underlying concrete type and value we are converting from.
-		r := r.(*ir.ConvExpr)
-		val := ir.Node(r)
-		for val.Op() == ir.OCONVIFACE {
-			val = val.(*ir.ConvExpr).X
-		}
-
-		if val.Type().IsInterface() {
-			// val is an interface type.
-			// If val is nil, we can statically initialize l;
-			// both words are zero and so there no work to do, so report success.
-			// If val is non-nil, we have no concrete type to record,
-			// and we won't be able to statically initialize its value, so report failure.
-			return val.Op() == ir.ONIL
-		}
-
-		markTypeUsedInInterface(val.Type(), l.Sym().Linksym())
-
-		var itab *ir.AddrExpr
-		if typ.IsEmptyInterface() {
-			itab = reflectdata.TypePtr(val.Type())
-		} else {
-			itab = reflectdata.ITabAddr(val.Type(), typ)
-		}
-
-		// Create a copy of l to modify while we emit data.
-
-		// Emit itab, advance offset.
-		staticdata.InitAddr(l, loff, itab.X.(*ir.Name), 0)
-
-		// Emit data.
-		if types.IsDirectIface(val.Type()) {
-			if val.Op() == ir.ONIL {
-				// Nil is zero, nothing to do.
-				return true
-			}
-			// Copy val directly into n.
-			ir.SetPos(val)
-			if !s.staticassign(l, loff+int64(types.PtrSize), val, val.Type()) {
-				a := ir.NewNameOffsetExpr(base.Pos, l, loff+int64(types.PtrSize), val.Type())
-				s.append(ir.NewAssignStmt(base.Pos, a, val))
-			}
-		} else {
-			// Construct temp to hold val, write pointer to temp into n.
-			a := staticname(val.Type())
-			s.inittemps[val] = a
-			if !s.staticassign(a, 0, val, val.Type()) {
-				s.append(ir.NewAssignStmt(base.Pos, a, val))
-			}
-			staticdata.InitAddr(l, loff+int64(types.PtrSize), a, 0)
-		}
-
-		return true
-	}
-
-	//dump("not static", r);
-	return false
-}
 
 // initContext is the context in which static data is populated.
 // It is either in an init function or in any other function.
@@ -378,29 +38,9 @@ func (c initContext) String() string {
 	return "inNonInitFunction"
 }
 
-// from here down is the walk analysis
-// of composite literals.
-// most of the work is to generate
-// data statements for the constant
-// part of the composite literal.
-
-var statuniqgen int // name generator for static temps
-
-// staticname returns a name backed by a (writable) static data symbol.
-// Use readonlystaticname for read-only node.
-func staticname(t *types.Type) *ir.Name {
-	// Don't use lookupN; it interns the resulting string, but these are all unique.
-	n := typecheck.NewName(typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen)))
-	statuniqgen++
-	typecheck.Declare(n, ir.PEXTERN)
-	n.SetType(t)
-	n.Sym().Linksym().Set(obj.AttrLocal, true)
-	return n
-}
-
 // readonlystaticname returns a name backed by a (writable) static data symbol.
 func readonlystaticname(t *types.Type) *ir.Name {
-	n := staticname(t)
+	n := staticinit.StaticName(t)
 	n.MarkReadonly()
 	n.Sym().Linksym().Set(obj.AttrContentAddressable, true)
 	return n
@@ -572,7 +212,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 
 	for _, r := range n.List {
 		a, value := splitnode(r)
-		if a == ir.BlankNode && !anySideEffects(value) {
+		if a == ir.BlankNode && !staticinit.AnySideEffects(value) {
 			// Discard.
 			continue
 		}
@@ -629,14 +269,14 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 
 	if ctxt == inNonInitFunction {
 		// put everything into static array
-		vstat := staticname(t)
+		vstat := staticinit.StaticName(t)
 
 		fixedlit(ctxt, initKindStatic, n, vstat, init)
 		fixedlit(ctxt, initKindDynamic, n, vstat, init)
 
 		// copy static to slice
 		var_ = typecheck.AssignExpr(var_)
-		name, offset, ok := stataddr(var_)
+		name, offset, ok := staticinit.StaticLoc(var_)
 		if !ok || name.Class_ != ir.PEXTERN {
 			base.Fatalf("slicelit: %v", var_)
 		}
@@ -672,7 +312,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 		if ctxt == inInitFunction {
 			vstat = readonlystaticname(t)
 		} else {
-			vstat = staticname(t)
+			vstat = staticinit.StaticName(t)
 		}
 		fixedlit(ctxt, initKindStatic, n, vstat, init)
 	}
@@ -993,150 +633,19 @@ func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
 	return true
 }
 
-func getlit(lit ir.Node) int {
-	if ir.IsSmallIntConst(lit) {
-		return int(ir.Int64Val(lit))
-	}
-	return -1
-}
-
-// stataddr returns the static address of n, if n has one, or else nil.
-func stataddr(n ir.Node) (name *ir.Name, offset int64, ok bool) {
-	if n == nil {
-		return nil, 0, false
-	}
-
-	switch n.Op() {
-	case ir.ONAME:
-		n := n.(*ir.Name)
-		return n, 0, true
-
-	case ir.OMETHEXPR:
-		n := n.(*ir.MethodExpr)
-		return stataddr(n.FuncName())
-
-	case ir.ODOT:
-		n := n.(*ir.SelectorExpr)
-		if name, offset, ok = stataddr(n.X); !ok {
-			break
-		}
-		offset += n.Offset
-		return name, offset, true
-
-	case ir.OINDEX:
-		n := n.(*ir.IndexExpr)
-		if n.X.Type().IsSlice() {
-			break
-		}
-		if name, offset, ok = stataddr(n.X); !ok {
-			break
-		}
-		l := getlit(n.Index)
-		if l < 0 {
-			break
-		}
-
-		// Check for overflow.
-		if n.Type().Width != 0 && types.MaxWidth/n.Type().Width <= int64(l) {
-			break
-		}
-		offset += int64(l) * n.Type().Width
-		return name, offset, true
-	}
-
-	return nil, 0, false
-}
-
-func (s *InitSchedule) initplan(n ir.Node) {
-	if s.initplans[n] != nil {
-		return
-	}
-	p := new(InitPlan)
-	s.initplans[n] = p
-	switch n.Op() {
-	default:
-		base.Fatalf("initplan")
-
-	case ir.OARRAYLIT, ir.OSLICELIT:
-		n := n.(*ir.CompLitExpr)
-		var k int64
-		for _, a := range n.List {
-			if a.Op() == ir.OKEY {
-				kv := a.(*ir.KeyExpr)
-				k = typecheck.IndexConst(kv.Key)
-				if k < 0 {
-					base.Fatalf("initplan arraylit: invalid index %v", kv.Key)
-				}
-				a = kv.Value
-			}
-			s.addvalue(p, k*n.Type().Elem().Width, a)
-			k++
-		}
-
-	case ir.OSTRUCTLIT:
-		n := n.(*ir.CompLitExpr)
-		for _, a := range n.List {
-			if a.Op() != ir.OSTRUCTKEY {
-				base.Fatalf("initplan structlit")
-			}
-			a := a.(*ir.StructKeyExpr)
-			if a.Field.IsBlank() {
-				continue
-			}
-			s.addvalue(p, a.Offset, a.Value)
-		}
-
-	case ir.OMAPLIT:
-		n := n.(*ir.CompLitExpr)
-		for _, a := range n.List {
-			if a.Op() != ir.OKEY {
-				base.Fatalf("initplan maplit")
-			}
-			a := a.(*ir.KeyExpr)
-			s.addvalue(p, -1, a.Value)
-		}
-	}
-}
-
-func (s *InitSchedule) addvalue(p *InitPlan, xoffset int64, n ir.Node) {
-	// special case: zero can be dropped entirely
-	if ir.IsZero(n) {
-		return
-	}
-
-	// special case: inline struct and array (not slice) literals
-	if isvaluelit(n) {
-		s.initplan(n)
-		q := s.initplans[n]
-		for _, qe := range q.E {
-			// qe is a copy; we are not modifying entries in q.E
-			qe.Xoffset += xoffset
-			p.E = append(p.E, qe)
-		}
-		return
-	}
-
-	// add to plan
-	p.E = append(p.E, InitEntry{Xoffset: xoffset, Expr: n})
-}
-
-func isvaluelit(n ir.Node) bool {
-	return n.Op() == ir.OARRAYLIT || n.Op() == ir.OSTRUCTLIT
-}
-
 func genAsStatic(as *ir.AssignStmt) {
 	if as.X.Type() == nil {
 		base.Fatalf("genAsStatic as.Left not typechecked")
 	}
 
-	name, offset, ok := stataddr(as.X)
+	name, offset, ok := staticinit.StaticLoc(as.X)
 	if !ok || (name.Class_ != ir.PEXTERN && as.X != ir.BlankNode) {
 		base.Fatalf("genAsStatic: lhs %v", as.X)
 	}
 
 	switch r := as.Y; r.Op() {
 	case ir.OLITERAL:
-		litsym(name, offset, r, int(r.Type().Width))
+		staticdata.InitConst(name, offset, r, int(r.Type().Width))
 		return
 	case ir.OMETHEXPR:
 		r := r.(*ir.MethodExpr)

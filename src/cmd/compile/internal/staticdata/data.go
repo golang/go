@@ -7,6 +7,7 @@ package staticdata
 import (
 	"crypto/sha256"
 	"fmt"
+	"go/constant"
 	"io"
 	"io/ioutil"
 	"os"
@@ -292,5 +293,61 @@ func WriteFuncSyms() {
 		sf := s.Pkg.Lookup(ir.FuncSymName(s)).Linksym()
 		objw.SymPtr(sf, 0, s.Linksym(), 0)
 		objw.Global(sf, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
+	}
+}
+
+// InitConst writes the static literal c to n.
+// Neither n nor c is modified.
+func InitConst(n *ir.Name, noff int64, c ir.Node, wid int) {
+	if n.Op() != ir.ONAME {
+		base.Fatalf("litsym n op %v", n.Op())
+	}
+	if n.Sym() == nil {
+		base.Fatalf("litsym nil n sym")
+	}
+	if c.Op() == ir.ONIL {
+		return
+	}
+	if c.Op() != ir.OLITERAL {
+		base.Fatalf("litsym c op %v", c.Op())
+	}
+	s := n.Sym().Linksym()
+	switch u := c.Val(); u.Kind() {
+	case constant.Bool:
+		i := int64(obj.Bool2int(constant.BoolVal(u)))
+		s.WriteInt(base.Ctxt, noff, wid, i)
+
+	case constant.Int:
+		s.WriteInt(base.Ctxt, noff, wid, ir.IntVal(c.Type(), u))
+
+	case constant.Float:
+		f, _ := constant.Float64Val(u)
+		switch c.Type().Kind() {
+		case types.TFLOAT32:
+			s.WriteFloat32(base.Ctxt, noff, float32(f))
+		case types.TFLOAT64:
+			s.WriteFloat64(base.Ctxt, noff, f)
+		}
+
+	case constant.Complex:
+		re, _ := constant.Float64Val(constant.Real(u))
+		im, _ := constant.Float64Val(constant.Imag(u))
+		switch c.Type().Kind() {
+		case types.TCOMPLEX64:
+			s.WriteFloat32(base.Ctxt, noff, float32(re))
+			s.WriteFloat32(base.Ctxt, noff+4, float32(im))
+		case types.TCOMPLEX128:
+			s.WriteFloat64(base.Ctxt, noff, re)
+			s.WriteFloat64(base.Ctxt, noff+8, im)
+		}
+
+	case constant.String:
+		i := constant.StringVal(u)
+		symdata := StringSym(n.Pos(), i)
+		s.WriteAddr(base.Ctxt, noff, types.PtrSize, symdata, 0)
+		s.WriteInt(base.Ctxt, noff+int64(types.PtrSize), types.PtrSize, int64(len(i)))
+
+	default:
+		base.Fatalf("litsym unhandled OLITERAL %v", c)
 	}
 }

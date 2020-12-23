@@ -11,6 +11,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/staticinit"
 )
 
 // Package initialization
@@ -77,9 +78,9 @@ type InitOrder struct {
 // corresponding list of statements to include in the init() function
 // body.
 func initOrder(l []ir.Node) []ir.Node {
-	s := InitSchedule{
-		initplans: make(map[ir.Node]*InitPlan),
-		inittemps: make(map[ir.Node]*ir.Name),
+	s := staticinit.Schedule{
+		Plans: make(map[ir.Node]*staticinit.Plan),
+		Temps: make(map[ir.Node]*ir.Name),
 	}
 	o := InitOrder{
 		blocking: make(map[ir.Node][]ir.Node),
@@ -91,7 +92,7 @@ func initOrder(l []ir.Node) []ir.Node {
 		switch n.Op() {
 		case ir.OAS, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
 			o.processAssign(n)
-			o.flushReady(s.staticInit)
+			o.flushReady(s.StaticInit)
 		case ir.ODCLCONST, ir.ODCLFUNC, ir.ODCLTYPE:
 			// nop
 		default:
@@ -124,7 +125,7 @@ func initOrder(l []ir.Node) []ir.Node {
 		base.Fatalf("expected empty map: %v", o.blocking)
 	}
 
-	return s.out
+	return s.Out
 }
 
 func (o *InitOrder) processAssign(n ir.Node) {

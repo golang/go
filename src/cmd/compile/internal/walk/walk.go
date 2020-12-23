@@ -2,9 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package walk
 
 import (
+	"encoding/binary"
+	"errors"
+	"fmt"
+	"go/constant"
+	"go/token"
+	"strings"
+
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/escape"
 	"cmd/compile/internal/ir"
@@ -17,19 +24,13 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
-	"encoding/binary"
-	"errors"
-	"fmt"
-	"go/constant"
-	"go/token"
-	"strings"
 )
 
 // The constant is known to runtime.
 const tmpstringbufsize = 32
 const zeroValSize = 1024 // must match value of runtime/map.go:maxZero
 
-func walk(fn *ir.Func) {
+func Walk(fn *ir.Func) {
 	ir.CurFunc = fn
 	errorsBefore := base.Errors()
 	order(fn)
@@ -670,7 +671,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.CallExpr)
 		if n.Op() == ir.OCALLINTER {
 			usemethod(n)
-			markUsedIfaceMethod(n)
+			reflectdata.MarkUsedIfaceMethod(n)
 		}
 
 		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.OCLOSURE {
@@ -933,7 +934,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		toType := n.Type()
 
 		if !fromType.IsInterface() && !ir.IsBlank(ir.CurFunc.Nname) { // skip unnamed functions (func _())
-			markTypeUsedInInterface(fromType, ir.CurFunc.LSym)
+			reflectdata.MarkTypeUsedInInterface(fromType, ir.CurFunc.LSym)
 		}
 
 		// typeword generates the type word of the interface value.
@@ -1706,32 +1707,6 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 	// No return! Each case must return (or panic),
 	// to avoid confusion about what gets returned
 	// in the presence of type assertions.
-}
-
-// markTypeUsedInInterface marks that type t is converted to an interface.
-// This information is used in the linker in dead method elimination.
-func markTypeUsedInInterface(t *types.Type, from *obj.LSym) {
-	tsym := reflectdata.TypeSym(t).Linksym()
-	// Emit a marker relocation. The linker will know the type is converted
-	// to an interface if "from" is reachable.
-	r := obj.Addrel(from)
-	r.Sym = tsym
-	r.Type = objabi.R_USEIFACE
-}
-
-// markUsedIfaceMethod marks that an interface method is used in the current
-// function. n is OCALLINTER node.
-func markUsedIfaceMethod(n *ir.CallExpr) {
-	dot := n.X.(*ir.SelectorExpr)
-	ityp := dot.X.Type()
-	tsym := reflectdata.TypeSym(ityp).Linksym()
-	r := obj.Addrel(ir.CurFunc.LSym)
-	r.Sym = tsym
-	// dot.Xoffset is the method index * Widthptr (the offset of code pointer
-	// in itab).
-	midx := dot.Offset / int64(types.PtrSize)
-	r.Add = reflectdata.InterfaceMethodOffset(ityp, midx)
-	r.Type = objabi.R_USEIFACEMETHOD
 }
 
 // rtconvfn returns the parameter and result types that will be used by a
@@ -3735,94 +3710,6 @@ func usefield(n *ir.SelectorExpr) {
 		ir.CurFunc.FieldTrack = make(map[*types.Sym]struct{})
 	}
 	ir.CurFunc.FieldTrack[sym] = struct{}{}
-}
-
-// anySideEffects reports whether n contains any operations that could have observable side effects.
-func anySideEffects(n ir.Node) bool {
-	return ir.Any(n, func(n ir.Node) bool {
-		switch n.Op() {
-		// Assume side effects unless we know otherwise.
-		default:
-			return true
-
-		// No side effects here (arguments are checked separately).
-		case ir.ONAME,
-			ir.ONONAME,
-			ir.OTYPE,
-			ir.OPACK,
-			ir.OLITERAL,
-			ir.ONIL,
-			ir.OADD,
-			ir.OSUB,
-			ir.OOR,
-			ir.OXOR,
-			ir.OADDSTR,
-			ir.OADDR,
-			ir.OANDAND,
-			ir.OBYTES2STR,
-			ir.ORUNES2STR,
-			ir.OSTR2BYTES,
-			ir.OSTR2RUNES,
-			ir.OCAP,
-			ir.OCOMPLIT,
-			ir.OMAPLIT,
-			ir.OSTRUCTLIT,
-			ir.OARRAYLIT,
-			ir.OSLICELIT,
-			ir.OPTRLIT,
-			ir.OCONV,
-			ir.OCONVIFACE,
-			ir.OCONVNOP,
-			ir.ODOT,
-			ir.OEQ,
-			ir.ONE,
-			ir.OLT,
-			ir.OLE,
-			ir.OGT,
-			ir.OGE,
-			ir.OKEY,
-			ir.OSTRUCTKEY,
-			ir.OLEN,
-			ir.OMUL,
-			ir.OLSH,
-			ir.ORSH,
-			ir.OAND,
-			ir.OANDNOT,
-			ir.ONEW,
-			ir.ONOT,
-			ir.OBITNOT,
-			ir.OPLUS,
-			ir.ONEG,
-			ir.OOROR,
-			ir.OPAREN,
-			ir.ORUNESTR,
-			ir.OREAL,
-			ir.OIMAG,
-			ir.OCOMPLEX:
-			return false
-
-		// Only possible side effect is division by zero.
-		case ir.ODIV, ir.OMOD:
-			n := n.(*ir.BinaryExpr)
-			if n.Y.Op() != ir.OLITERAL || constant.Sign(n.Y.Val()) == 0 {
-				return true
-			}
-
-		// Only possible side effect is panic on invalid size,
-		// but many makechan and makemap use size zero, which is definitely OK.
-		case ir.OMAKECHAN, ir.OMAKEMAP:
-			n := n.(*ir.MakeExpr)
-			if !ir.IsConst(n.Len, constant.Int) || constant.Sign(n.Len.Val()) != 0 {
-				return true
-			}
-
-		// Only possible side effect is panic on invalid size.
-		// TODO(rsc): Merge with previous case (probably breaks toolstash -cmp).
-		case ir.OMAKESLICE, ir.OMAKESLICECOPY:
-			return true
-		}
-		return false
-	})
 }
 
 // Rewrite

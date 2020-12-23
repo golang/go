@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package walk
 
 import (
 	"cmd/compile/internal/base"
@@ -12,9 +12,9 @@ import (
 	"cmd/internal/src"
 )
 
-// transformclosure is called in a separate phase after escape analysis.
+// Closure is called in a separate phase after escape analysis.
 // It transform closure bodies to properly reference captured variables.
-func transformclosure(fn *ir.Func) {
+func Closure(fn *ir.Func) {
 	lno := base.Pos
 	base.Pos = fn.Pos()
 
@@ -115,38 +115,17 @@ func transformclosure(fn *ir.Func) {
 	base.Pos = lno
 }
 
-// hasemptycvars reports whether closure clo has an
-// empty list of captured vars.
-func hasemptycvars(clo *ir.ClosureExpr) bool {
-	return len(clo.Func.ClosureVars) == 0
-}
-
-// closuredebugruntimecheck applies boilerplate checks for debug flags
-// and compiling runtime
-func closuredebugruntimecheck(clo *ir.ClosureExpr) {
-	if base.Debug.Closure > 0 {
-		if clo.Esc() == ir.EscHeap {
-			base.WarnfAt(clo.Pos(), "heap closure, captured vars = %v", clo.Func.ClosureVars)
-		} else {
-			base.WarnfAt(clo.Pos(), "stack closure, captured vars = %v", clo.Func.ClosureVars)
-		}
-	}
-	if base.Flag.CompilingRuntime && clo.Esc() == ir.EscHeap {
-		base.ErrorfAt(clo.Pos(), "heap-allocated closure, not allowed in runtime")
-	}
-}
-
 func walkclosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 	fn := clo.Func
 
 	// If no closure vars, don't bother wrapping.
-	if hasemptycvars(clo) {
+	if ir.IsTrivialClosure(clo) {
 		if base.Debug.Closure > 0 {
 			base.WarnfAt(clo.Pos(), "closure converted to global")
 		}
 		return fn.Nname
 	}
-	closuredebugruntimecheck(clo)
+	ir.ClosureDebugRuntimeCheck(clo)
 
 	typ := typecheck.ClosureType(clo)
 
