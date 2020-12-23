@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -228,22 +229,22 @@ func dvarint(x *obj.LSym, off int, v int64) int {
 		panic(fmt.Sprintf("dvarint: bad offset for funcdata - %v", v))
 	}
 	if v < 1<<7 {
-		return duint8(x, off, uint8(v))
+		return objw.Uint8(x, off, uint8(v))
 	}
-	off = duint8(x, off, uint8((v&127)|128))
+	off = objw.Uint8(x, off, uint8((v&127)|128))
 	if v < 1<<14 {
-		return duint8(x, off, uint8(v>>7))
+		return objw.Uint8(x, off, uint8(v>>7))
 	}
-	off = duint8(x, off, uint8(((v>>7)&127)|128))
+	off = objw.Uint8(x, off, uint8(((v>>7)&127)|128))
 	if v < 1<<21 {
-		return duint8(x, off, uint8(v>>14))
+		return objw.Uint8(x, off, uint8(v>>14))
 	}
-	off = duint8(x, off, uint8(((v>>14)&127)|128))
+	off = objw.Uint8(x, off, uint8(((v>>14)&127)|128))
 	if v < 1<<28 {
-		return duint8(x, off, uint8(v>>21))
+		return objw.Uint8(x, off, uint8(v>>21))
 	}
-	off = duint8(x, off, uint8(((v>>21)&127)|128))
-	return duint8(x, off, uint8(v>>28))
+	off = objw.Uint8(x, off, uint8(((v>>21)&127)|128))
+	return objw.Uint8(x, off, uint8(v>>28))
 }
 
 // emitOpenDeferInfo emits FUNCDATA information about the defers in a function
@@ -6281,7 +6282,7 @@ func (s *state) addNamedValue(n *ir.Name, v *ssa.Value) {
 }
 
 // Generate a disconnected call to a runtime routine and a return.
-func gencallret(pp *Progs, sym *obj.LSym) *obj.Prog {
+func gencallret(pp *objw.Progs, sym *obj.LSym) *obj.Prog {
 	p := pp.Prog(obj.ACALL)
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
@@ -6298,7 +6299,7 @@ type Branch struct {
 
 // SSAGenState contains state needed during Prog generation.
 type SSAGenState struct {
-	pp *Progs
+	pp *objw.Progs
 
 	// Branches remembers all the branch instructions we've seen
 	// and where they would like to go.
@@ -6344,12 +6345,12 @@ func (s *SSAGenState) Prog(as obj.As) *obj.Prog {
 
 // Pc returns the current Prog.
 func (s *SSAGenState) Pc() *obj.Prog {
-	return s.pp.next
+	return s.pp.Next
 }
 
 // SetPos sets the current source position.
 func (s *SSAGenState) SetPos(pos src.XPos) {
-	s.pp.pos = pos
+	s.pp.Pos = pos
 }
 
 // Br emits a single branch instruction and returns the instruction.
@@ -6385,7 +6386,7 @@ func (s *SSAGenState) DebugFriendlySetPosFrom(v *ssa.Value) {
 			}
 			s.SetPos(p)
 		} else {
-			s.SetPos(s.pp.pos.WithNotStmt())
+			s.SetPos(s.pp.Pos.WithNotStmt())
 		}
 	}
 }
@@ -6397,7 +6398,7 @@ func (s byXoffset) Len() int           { return len(s) }
 func (s byXoffset) Less(i, j int) bool { return s[i].FrameOffset() < s[j].FrameOffset() }
 func (s byXoffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
-func emitStackObjects(e *ssafn, pp *Progs) {
+func emitStackObjects(e *ssafn, pp *objw.Progs) {
 	var vars []*ir.Name
 	for _, n := range e.curfn.Dcl {
 		if livenessShouldTrack(n) && n.Addrtaken() {
@@ -6415,21 +6416,21 @@ func emitStackObjects(e *ssafn, pp *Progs) {
 	// Format must match runtime/stack.go:stackObjectRecord.
 	x := e.curfn.LSym.Func().StackObjects
 	off := 0
-	off = duintptr(x, off, uint64(len(vars)))
+	off = objw.Uintptr(x, off, uint64(len(vars)))
 	for _, v := range vars {
 		// Note: arguments and return values have non-negative Xoffset,
 		// in which case the offset is relative to argp.
 		// Locals have a negative Xoffset, in which case the offset is relative to varp.
-		off = duintptr(x, off, uint64(v.FrameOffset()))
+		off = objw.Uintptr(x, off, uint64(v.FrameOffset()))
 		if !types.TypeSym(v.Type()).Siggen() {
 			e.Fatalf(v.Pos(), "stack object's type symbol not generated for type %s", v.Type())
 		}
-		off = dsymptr(x, off, dtypesym(v.Type()), 0)
+		off = objw.SymPtr(x, off, dtypesym(v.Type()), 0)
 	}
 
 	// Emit a funcdata pointing at the stack object data.
 	p := pp.Prog(obj.AFUNCDATA)
-	Addrconst(&p.From, objabi.FUNCDATA_StackObjects)
+	p.From.SetConst(objabi.FUNCDATA_StackObjects)
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
 	p.To.Sym = x
@@ -6442,7 +6443,7 @@ func emitStackObjects(e *ssafn, pp *Progs) {
 }
 
 // genssa appends entries to pp for each instruction in f.
-func genssa(f *ssa.Func, pp *Progs) {
+func genssa(f *ssa.Func, pp *objw.Progs) {
 	var s SSAGenState
 
 	e := f.Frontend().(*ssafn)
@@ -6455,7 +6456,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		// This function uses open-coded defers -- write out the funcdata
 		// info that we computed at the end of genssa.
 		p := pp.Prog(obj.AFUNCDATA)
-		Addrconst(&p.From, objabi.FUNCDATA_OpenCodedDeferInfo)
+		p.From.SetConst(objabi.FUNCDATA_OpenCodedDeferInfo)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = openDeferInfo
@@ -6471,7 +6472,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		progToValue = make(map[*obj.Prog]*ssa.Value, f.NumValues())
 		progToBlock = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
 		f.Logf("genssa %s\n", f.Name)
-		progToBlock[s.pp.next] = f.Blocks[0]
+		progToBlock[s.pp.Next] = f.Blocks[0]
 	}
 
 	s.ScratchFpMem = e.scratchFpMem
@@ -6509,7 +6510,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 
 	// Emit basic blocks
 	for i, b := range f.Blocks {
-		s.bstart[b.ID] = s.pp.next
+		s.bstart[b.ID] = s.pp.Next
 		s.lineRunStart = nil
 
 		// Attach a "default" liveness info. Normally this will be
@@ -6518,12 +6519,12 @@ func genssa(f *ssa.Func, pp *Progs) {
 		// instruction. We won't use the actual liveness map on a
 		// control instruction. Just mark it something that is
 		// preemptible, unless this function is "all unsafe".
-		s.pp.nextLive = LivenessIndex{-1, allUnsafe(f)}
+		s.pp.NextLive = objw.LivenessIndex{StackMapIndex: -1, IsUnsafePoint: allUnsafe(f)}
 
 		// Emit values in block
 		thearch.SSAMarkMoves(&s, b)
 		for _, v := range b.Values {
-			x := s.pp.next
+			x := s.pp.Next
 			s.DebugFriendlySetPosFrom(v)
 
 			switch v.Op {
@@ -6561,7 +6562,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 			default:
 				// Attach this safe point to the next
 				// instruction.
-				s.pp.nextLive = s.livenessMap.Get(v)
+				s.pp.NextLive = s.livenessMap.Get(v)
 
 				// Special case for first line in function; move it to the start.
 				if firstPos != src.NoXPos {
@@ -6573,17 +6574,17 @@ func genssa(f *ssa.Func, pp *Progs) {
 			}
 
 			if base.Ctxt.Flag_locationlists {
-				valueToProgAfter[v.ID] = s.pp.next
+				valueToProgAfter[v.ID] = s.pp.Next
 			}
 
 			if f.PrintOrHtmlSSA {
-				for ; x != s.pp.next; x = x.Link {
+				for ; x != s.pp.Next; x = x.Link {
 					progToValue[x] = v
 				}
 			}
 		}
 		// If this is an empty infinite loop, stick a hardware NOP in there so that debuggers are less confused.
-		if s.bstart[b.ID] == s.pp.next && len(b.Succs) == 1 && b.Succs[0].Block() == b {
+		if s.bstart[b.ID] == s.pp.Next && len(b.Succs) == 1 && b.Succs[0].Block() == b {
 			p := thearch.Ginsnop(s.pp)
 			p.Pos = p.Pos.WithIsStmt()
 			if b.Pos == src.NoXPos {
@@ -6603,11 +6604,11 @@ func genssa(f *ssa.Func, pp *Progs) {
 			// line numbers for otherwise empty blocks.
 			next = f.Blocks[i+1]
 		}
-		x := s.pp.next
+		x := s.pp.Next
 		s.SetPos(b.Pos)
 		thearch.SSAGenBlock(&s, b, next)
 		if f.PrintOrHtmlSSA {
-			for ; x != s.pp.next; x = x.Link {
+			for ; x != s.pp.Next; x = x.Link {
 				progToBlock[x] = b
 			}
 		}
@@ -6623,7 +6624,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		// When doing open-coded defers, generate a disconnected call to
 		// deferreturn and a return. This will be used to during panic
 		// recovery to unwind the stack and return back to the runtime.
-		s.pp.nextLive = s.livenessMap.deferreturn
+		s.pp.NextLive = s.livenessMap.deferreturn
 		gencallret(pp, ir.Syms.Deferreturn)
 	}
 
@@ -6655,7 +6656,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 				// some of the inline marks.
 				// Use this instruction instead.
 				p.Pos = p.Pos.WithIsStmt() // promote position to a statement
-				pp.curfn.LSym.Func().AddInlMark(p, inlMarks[m])
+				pp.CurFunc.LSym.Func().AddInlMark(p, inlMarks[m])
 				// Make the inline mark a real nop, so it doesn't generate any code.
 				m.As = obj.ANOP
 				m.Pos = src.NoXPos
@@ -6667,7 +6668,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		// Any unmatched inline marks now need to be added to the inlining tree (and will generate a nop instruction).
 		for _, p := range inlMarkList {
 			if p.As != obj.ANOP {
-				pp.curfn.LSym.Func().AddInlMark(p, inlMarks[p])
+				pp.CurFunc.LSym.Func().AddInlMark(p, inlMarks[p])
 			}
 		}
 	}
@@ -7048,7 +7049,7 @@ func (s *SSAGenState) AddrScratch(a *obj.Addr) {
 // Call returns a new CALL instruction for the SSA value v.
 // It uses PrepareCall to prepare the call.
 func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
-	pPosIsStmt := s.pp.pos.IsStmt() // The statement-ness fo the call comes from ssaGenState
+	pPosIsStmt := s.pp.Pos.IsStmt() // The statement-ness fo the call comes from ssaGenState
 	s.PrepareCall(v)
 
 	p := s.Prog(obj.ACALL)
@@ -7106,7 +7107,7 @@ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
 		// Record call graph information for nowritebarrierrec
 		// analysis.
 		if nowritebarrierrecCheck != nil {
-			nowritebarrierrecCheck.recordCall(s.pp.curfn, call.Fn, v.Pos)
+			nowritebarrierrecCheck.recordCall(s.pp.CurFunc, call.Fn, v.Pos)
 		}
 	}
 

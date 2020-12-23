@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/objw"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -206,19 +207,19 @@ func initEmbed(v *ir.Name) {
 		}
 		sym := v.Sym().Linksym()
 		off := 0
-		off = dsymptr(sym, off, fsym, 0)       // data string
-		off = duintptr(sym, off, uint64(size)) // len
+		off = objw.SymPtr(sym, off, fsym, 0)       // data string
+		off = objw.Uintptr(sym, off, uint64(size)) // len
 		if kind == embedBytes {
-			duintptr(sym, off, uint64(size)) // cap for slice
+			objw.Uintptr(sym, off, uint64(size)) // cap for slice
 		}
 
 	case embedFiles:
 		slicedata := base.Ctxt.Lookup(`"".` + v.Sym().Name + `.files`)
 		off := 0
 		// []files pointed at by Files
-		off = dsymptr(slicedata, off, slicedata, 3*types.PtrSize) // []file, pointing just past slice
-		off = duintptr(slicedata, off, uint64(len(files)))
-		off = duintptr(slicedata, off, uint64(len(files)))
+		off = objw.SymPtr(slicedata, off, slicedata, 3*types.PtrSize) // []file, pointing just past slice
+		off = objw.Uintptr(slicedata, off, uint64(len(files)))
+		off = objw.Uintptr(slicedata, off, uint64(len(files)))
 
 		// embed/embed.go type file is:
 		//	name string
@@ -228,25 +229,25 @@ func initEmbed(v *ir.Name) {
 		const hashSize = 16
 		hash := make([]byte, hashSize)
 		for _, file := range files {
-			off = dsymptr(slicedata, off, stringsym(v.Pos(), file), 0) // file string
-			off = duintptr(slicedata, off, uint64(len(file)))
+			off = objw.SymPtr(slicedata, off, stringsym(v.Pos(), file), 0) // file string
+			off = objw.Uintptr(slicedata, off, uint64(len(file)))
 			if strings.HasSuffix(file, "/") {
 				// entry for directory - no data
-				off = duintptr(slicedata, off, 0)
-				off = duintptr(slicedata, off, 0)
+				off = objw.Uintptr(slicedata, off, 0)
+				off = objw.Uintptr(slicedata, off, 0)
 				off += hashSize
 			} else {
 				fsym, size, err := fileStringSym(v.Pos(), base.Flag.Cfg.Embed.Files[file], true, hash)
 				if err != nil {
 					base.ErrorfAt(v.Pos(), "embed %s: %v", file, err)
 				}
-				off = dsymptr(slicedata, off, fsym, 0) // data string
-				off = duintptr(slicedata, off, uint64(size))
+				off = objw.SymPtr(slicedata, off, fsym, 0) // data string
+				off = objw.Uintptr(slicedata, off, uint64(size))
 				off = int(slicedata.WriteBytes(base.Ctxt, int64(off), hash))
 			}
 		}
-		ggloblsym(slicedata, int32(off), obj.RODATA|obj.LOCAL)
+		objw.Global(slicedata, int32(off), obj.RODATA|obj.LOCAL)
 		sym := v.Sym().Linksym()
-		dsymptr(sym, 0, slicedata, 0)
+		objw.SymPtr(sym, 0, slicedata, 0)
 	}
 }

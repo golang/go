@@ -582,7 +582,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = arm64.REGTMP
 		p2.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p2, p)
+		p2.To.SetTarget(p)
 	case ssa.OpARM64LoweredAtomicExchange64Variant,
 		ssa.OpARM64LoweredAtomicExchange32Variant:
 		swap := arm64.ASWPALD
@@ -636,7 +636,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = arm64.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p3, p)
+		p3.To.SetTarget(p)
 	case ssa.OpARM64LoweredAtomicAdd64Variant,
 		ssa.OpARM64LoweredAtomicAdd32Variant:
 		// LDADDAL	Rarg1, (Rarg0), Rout
@@ -700,13 +700,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p4.From.Type = obj.TYPE_REG
 		p4.From.Reg = arm64.REGTMP
 		p4.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p4, p)
+		p4.To.SetTarget(p)
 		p5 := s.Prog(arm64.ACSET)
 		p5.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
 		p5.From.Reg = arm64.COND_EQ
 		p5.To.Type = obj.TYPE_REG
 		p5.To.Reg = out
-		gc.Patch(p2, p5)
+		p2.To.SetTarget(p5)
 	case ssa.OpARM64LoweredAtomicCas64Variant,
 		ssa.OpARM64LoweredAtomicCas32Variant:
 		// Rarg0: ptr
@@ -794,7 +794,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = arm64.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p3, p)
+		p3.To.SetTarget(p)
 	case ssa.OpARM64LoweredAtomicAnd8Variant,
 		ssa.OpARM64LoweredAtomicAnd32Variant:
 		atomic_clear := arm64.ALDCLRALW
@@ -982,7 +982,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p2.Reg = arm64.REG_R16
 		p3 := s.Prog(arm64.ABLE)
 		p3.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p3, p)
+		p3.To.SetTarget(p)
 	case ssa.OpARM64DUFFCOPY:
 		p := s.Prog(obj.ADUFFCOPY)
 		p.To.Type = obj.TYPE_MEM
@@ -1015,7 +1015,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.Reg = arm64.REG_R16
 		p4 := s.Prog(arm64.ABLE)
 		p4.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p4, p)
+		p4.To.SetTarget(p)
 	case ssa.OpARM64CALLstatic, ssa.OpARM64CALLclosure, ssa.OpARM64CALLinter:
 		s.Call(v)
 	case ssa.OpARM64LoweredWB:

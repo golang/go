@@ -428,7 +428,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p4.From.Reg = v.Args[1].Reg()
 		p4.Reg = mips.REG_R1
 		p4.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p4, p2)
+		p4.To.SetTarget(p2)
 	case ssa.OpMIPS64DUFFCOPY:
 		p := s.Prog(obj.ADUFFCOPY)
 		p.To.Type = obj.TYPE_MEM
@@ -490,7 +490,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p6.From.Reg = v.Args[2].Reg()
 		p6.Reg = mips.REG_R1
 		p6.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p6, p2)
+		p6.To.SetTarget(p2)
 	case ssa.OpMIPS64CALLstatic, ssa.OpMIPS64CALLclosure, ssa.OpMIPS64CALLinter:
 		s.Call(v)
 	case ssa.OpMIPS64LoweredWB:
@@ -579,7 +579,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = mips.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p3, p)
+		p3.To.SetTarget(p)
 		s.Prog(mips.ASYNC)
 	case ssa.OpMIPS64LoweredAtomicAdd32, ssa.OpMIPS64LoweredAtomicAdd64:
 		// SYNC
@@ -616,7 +616,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = mips.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p3, p)
+		p3.To.SetTarget(p)
 		s.Prog(mips.ASYNC)
 		p4 := s.Prog(mips.AADDVU)
 		p4.From.Type = obj.TYPE_REG
@@ -659,7 +659,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = mips.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p3, p)
+		p3.To.SetTarget(p)
 		s.Prog(mips.ASYNC)
 		p4 := s.Prog(mips.AADDVU)
 		p4.From.Type = obj.TYPE_CONST
@@ -712,9 +712,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p5.From.Type = obj.TYPE_REG
 		p5.From.Reg = v.Reg0()
 		p5.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p5, p1)
+		p5.To.SetTarget(p1)
 		p6 := s.Prog(mips.ASYNC)
-		gc.Patch(p2, p6)
+		p2.To.SetTarget(p6)
 	case ssa.OpMIPS64LoweredNilCheck:
 		// Issue a load which will fault if arg is nil.
 		p := s.Prog(mips.AMOVB)
@@ -751,7 +751,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.To.Type = obj.TYPE_REG
 		p3.To.Reg = v.Reg()
 		p4 := s.Prog(obj.ANOP) // not a machine instruction, for branch to land
-		gc.Patch(p2, p4)
+		p2.To.SetTarget(p4)
 	case ssa.OpMIPS64LoweredGetClosurePtr:
 		// Closure pointer is R22 (mips.REGCTXT).
 		gc.CheckLoweredGetClosurePtr(v)

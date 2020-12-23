@@ -6,7 +6,9 @@ package gc
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/bitvec"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -34,13 +36,13 @@ func emitptrargsmap(fn *ir.Func) {
 	}
 	lsym := base.Ctxt.Lookup(fn.LSym.Name + ".args_stackmap")
 	nptr := int(fn.Type().ArgWidth() / int64(types.PtrSize))
-	bv := bvalloc(int32(nptr) * 2)
+	bv := bitvec.New(int32(nptr) * 2)
 	nbitmap := 1
 	if fn.Type().NumResults() > 0 {
 		nbitmap = 2
 	}
-	off := duint32(lsym, 0, uint32(nbitmap))
-	off = duint32(lsym, off, uint32(bv.n))
+	off := objw.Uint32(lsym, 0, uint32(nbitmap))
+	off = objw.Uint32(lsym, off, uint32(bv.N))
 
 	if ir.IsMethod(fn) {
 		onebitwalktype1(fn.Type().Recvs(), 0, bv)
@@ -48,14 +50,14 @@ func emitptrargsmap(fn *ir.Func) {
 	if fn.Type().NumParams() > 0 {
 		onebitwalktype1(fn.Type().Params(), 0, bv)
 	}
-	off = dbvec(lsym, off, bv)
+	off = objw.BitVec(lsym, off, bv)
 
 	if fn.Type().NumResults() > 0 {
 		onebitwalktype1(fn.Type().Results(), 0, bv)
-		off = dbvec(lsym, off, bv)
+		off = objw.BitVec(lsym, off, bv)
 	}
 
-	ggloblsym(lsym, int32(off), obj.RODATA|obj.LOCAL)
+	objw.Global(lsym, int32(off), obj.RODATA|obj.LOCAL)
 }
 
 // cmpstackvarlt reports whether the stack variable a sorts before b.
@@ -314,7 +316,7 @@ func compileSSA(fn *ir.Func, worker int) {
 		largeStackFramesMu.Unlock()
 		return
 	}
-	pp := newProgs(fn, worker)
+	pp := objw.NewProgs(fn, worker)
 	defer pp.Free()
 	genssa(f, pp)
 	// Check frame size again.

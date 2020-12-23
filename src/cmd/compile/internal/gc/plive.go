@@ -16,7 +16,9 @@ package gc
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/bitvec"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -88,15 +90,15 @@ type BlockEffects struct {
 	//
 	//	uevar: upward exposed variables (used before set in block)
 	//	varkill: killed variables (set in block)
-	uevar   bvec
-	varkill bvec
+	uevar   bitvec.BitVec
+	varkill bitvec.BitVec
 
 	// Computed during Liveness.solve using control flow information:
 	//
 	//	livein: variables live at block entry
 	//	liveout: variables live at block exit
-	livein  bvec
-	liveout bvec
+	livein  bitvec.BitVec
+	liveout bitvec.BitVec
 }
 
 // A collection of global state used by liveness analysis.
@@ -114,84 +116,54 @@ type Liveness struct {
 	allUnsafe bool
 	// unsafePoints bit i is set if Value ID i is an unsafe-point
 	// (preemption is not allowed). Only valid if !allUnsafe.
-	unsafePoints bvec
+	unsafePoints bitvec.BitVec
 
 	// An array with a bit vector for each safe point in the
 	// current Block during Liveness.epilogue. Indexed in Value
 	// order for that block. Additionally, for the entry block
 	// livevars[0] is the entry bitmap. Liveness.compact moves
 	// these to stackMaps.
-	livevars []bvec
+	livevars []bitvec.BitVec
 
 	// livenessMap maps from safe points (i.e., CALLs) to their
 	// liveness map indexes.
 	livenessMap LivenessMap
 	stackMapSet bvecSet
-	stackMaps   []bvec
+	stackMaps   []bitvec.BitVec
 
 	cache progeffectscache
 }
 
 // LivenessMap maps from *ssa.Value to LivenessIndex.
 type LivenessMap struct {
-	vals map[ssa.ID]LivenessIndex
+	vals map[ssa.ID]objw.LivenessIndex
 	// The set of live, pointer-containing variables at the deferreturn
 	// call (only set when open-coded defers are used).
-	deferreturn LivenessIndex
+	deferreturn objw.LivenessIndex
 }
 
 func (m *LivenessMap) reset() {
 	if m.vals == nil {
-		m.vals = make(map[ssa.ID]LivenessIndex)
+		m.vals = make(map[ssa.ID]objw.LivenessIndex)
 	} else {
 		for k := range m.vals {
 			delete(m.vals, k)
 		}
 	}
-	m.deferreturn = LivenessDontCare
+	m.deferreturn = objw.LivenessDontCare
 }
 
-func (m *LivenessMap) set(v *ssa.Value, i LivenessIndex) {
+func (m *LivenessMap) set(v *ssa.Value, i objw.LivenessIndex) {
 	m.vals[v.ID] = i
 }
 
-func (m LivenessMap) Get(v *ssa.Value) LivenessIndex {
+func (m LivenessMap) Get(v *ssa.Value) objw.LivenessIndex {
 	// If v isn't in the map, then it's a "don't care" and not an
 	// unsafe-point.
 	if idx, ok := m.vals[v.ID]; ok {
 		return idx
 	}
-	return LivenessIndex{StackMapDontCare, false}
-}
-
-// LivenessIndex stores the liveness map information for a Value.
-type LivenessIndex struct {
-	stackMapIndex int
-
-	// isUnsafePoint indicates that this is an unsafe-point.
-	//
-	// Note that it's possible for a call Value to have a stack
-	// map while also being an unsafe-point. This means it cannot
-	// be preempted at this instruction, but that a preemption or
-	// stack growth may happen in the called function.
-	isUnsafePoint bool
-}
-
-// LivenessDontCare indicates that the liveness information doesn't
-// matter. Currently it is used in deferreturn liveness when we don't
-// actually need it. It should never be emitted to the PCDATA stream.
-var LivenessDontCare = LivenessIndex{StackMapDontCare, true}
-
-// StackMapDontCare indicates that the stack map index at a Value
-// doesn't matter.
-//
-// This is a sentinel value that should never be emitted to the PCDATA
-// stream. We use -1000 because that's obviously never a valid stack
-// index (but -1 is).
-const StackMapDontCare = -1000
-
-func (idx LivenessIndex) StackMapValid() bool {
-	return idx.stackMapIndex != StackMapDontCare
+	return objw.LivenessIndex{StackMapIndex: objw.StackMapDontCare, IsUnsafePoint: false}
 }
 
 type progeffectscache struct {
@@ -380,7 +352,7 @@ func newliveness(fn *ir.Func, f *ssa.Func, vars []*ir.Name, idx map[*ir.Name]int
 		if cap(lc.be) >= f.NumBlocks() {
 			lv.be = lc.be[:f.NumBlocks()]
 		}
-		lv.livenessMap = LivenessMap{vals: lc.livenessMap.vals, deferreturn: LivenessDontCare}
+		lv.livenessMap = LivenessMap{vals: lc.livenessMap.vals, deferreturn: objw.LivenessDontCare}
 		lc.livenessMap.vals = nil
 	}
 	if lv.be == nil {
@@ -389,14 +361,14 @@ func newliveness(fn *ir.Func, f *ssa.Func, vars []*ir.Name, idx map[*ir.Name]int
 
 	nblocks := int32(len(f.Blocks))
 	nvars := int32(len(vars))
-	bulk := bvbulkalloc(nvars, nblocks*7)
+	bulk := bitvec.NewBulk(nvars, nblocks*7)
 	for _, b := range f.Blocks {
 		be := lv.blockEffects(b)
 
-		be.uevar = bulk.next()
-		be.varkill = bulk.next()
-		be.livein = bulk.next()
-		be.liveout = bulk.next()
+		be.uevar = bulk.Next()
+		be.varkill = bulk.Next()
+		be.livein = bulk.Next()
+		be.liveout = bulk.Next()
 	}
 	lv.livenessMap.reset()
 
@@ -411,7 +383,7 @@ func (lv *Liveness) blockEffects(b *ssa.Block) *BlockEffects {
 // NOTE: The bitmap for a specific type t could be cached in t after
 // the first run and then simply copied into bv at the correct offset
 // on future calls with the same type t.
-func onebitwalktype1(t *types.Type, off int64, bv bvec) {
+func onebitwalktype1(t *types.Type, off int64, bv bitvec.BitVec) {
 	if t.Align > 0 && off&int64(t.Align-1) != 0 {
 		base.Fatalf("onebitwalktype1: invalid initial alignment: type %v has alignment %d, but offset is %v", t, t.Align, off)
 	}
@@ -487,7 +459,7 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 // Generates live pointer value maps for arguments and local variables. The
 // this argument and the in arguments are always assumed live. The vars
 // argument is a slice of *Nodes.
-func (lv *Liveness) pointerMap(liveout bvec, vars []*ir.Name, args, locals bvec) {
+func (lv *Liveness) pointerMap(liveout bitvec.BitVec, vars []*ir.Name, args, locals bitvec.BitVec) {
 	for i := int32(0); ; i++ {
 		i = liveout.Next(i)
 		if i < 0 {
@@ -527,7 +499,7 @@ func (lv *Liveness) markUnsafePoints() {
 		return
 	}
 
-	lv.unsafePoints = bvalloc(int32(lv.f.NumValues()))
+	lv.unsafePoints = bitvec.New(int32(lv.f.NumValues()))
 
 	// Mark architecture-specific unsafe points.
 	for _, b := range lv.f.Blocks {
@@ -638,11 +610,11 @@ func (lv *Liveness) markUnsafePoints() {
 	// nice to only flood as far as the unsafe.Pointer -> uintptr
 	// conversion, but it's hard to know which argument of an Add
 	// or Sub to follow.
-	var flooded bvec
+	var flooded bitvec.BitVec
 	var flood func(b *ssa.Block, vi int)
 	flood = func(b *ssa.Block, vi int) {
-		if flooded.n == 0 {
-			flooded = bvalloc(int32(lv.f.NumBlocks()))
+		if flooded.N == 0 {
+			flooded = bitvec.New(int32(lv.f.NumBlocks()))
 		}
 		if flooded.Get(int32(b.ID)) {
 			return
@@ -725,8 +697,8 @@ func (lv *Liveness) solve() {
 	// These temporary bitvectors exist to avoid successive allocations and
 	// frees within the loop.
 	nvars := int32(len(lv.vars))
-	newlivein := bvalloc(nvars)
-	newliveout := bvalloc(nvars)
+	newlivein := bitvec.New(nvars)
+	newliveout := bitvec.New(nvars)
 
 	// Walk blocks in postorder ordering. This improves convergence.
 	po := lv.f.Postorder()
@@ -783,8 +755,8 @@ func (lv *Liveness) solve() {
 // variables at each safe point locations.
 func (lv *Liveness) epilogue() {
 	nvars := int32(len(lv.vars))
-	liveout := bvalloc(nvars)
-	livedefer := bvalloc(nvars) // always-live variables
+	liveout := bitvec.New(nvars)
+	livedefer := bitvec.New(nvars) // always-live variables
 
 	// If there is a defer (that could recover), then all output
 	// parameters are live all the time.  In addition, any locals
@@ -838,7 +810,7 @@ func (lv *Liveness) epilogue() {
 
 	{
 		// Reserve an entry for function entry.
-		live := bvalloc(nvars)
+		live := bitvec.New(nvars)
 		lv.livevars = append(lv.livevars, live)
 	}
 
@@ -852,7 +824,7 @@ func (lv *Liveness) epilogue() {
 				continue
 			}
 
-			live := bvalloc(nvars)
+			live := bitvec.New(nvars)
 			lv.livevars = append(lv.livevars, live)
 		}
 
@@ -910,16 +882,16 @@ func (lv *Liveness) epilogue() {
 
 	// If we have an open-coded deferreturn call, make a liveness map for it.
 	if lv.fn.OpenCodedDeferDisallowed() {
-		lv.livenessMap.deferreturn = LivenessDontCare
+		lv.livenessMap.deferreturn = objw.LivenessDontCare
 	} else {
-		lv.livenessMap.deferreturn = LivenessIndex{
-			stackMapIndex: lv.stackMapSet.add(livedefer),
-			isUnsafePoint: false,
+		lv.livenessMap.deferreturn = objw.LivenessIndex{
+			StackMapIndex: lv.stackMapSet.add(livedefer),
+			IsUnsafePoint: false,
 		}
 	}
 
 	// Done compacting. Throw out the stack map set.
-	lv.stackMaps = lv.stackMapSet.extractUniqe()
+	lv.stackMaps = lv.stackMapSet.extractUnique()
 	lv.stackMapSet = bvecSet{}
 
 	// Useful sanity check: on entry to the function,
@@ -958,9 +930,9 @@ func (lv *Liveness) compact(b *ssa.Block) {
 	for _, v := range b.Values {
 		hasStackMap := lv.hasStackMap(v)
 		isUnsafePoint := lv.allUnsafe || lv.unsafePoints.Get(int32(v.ID))
-		idx := LivenessIndex{StackMapDontCare, isUnsafePoint}
+		idx := objw.LivenessIndex{StackMapIndex: objw.StackMapDontCare, IsUnsafePoint: isUnsafePoint}
 		if hasStackMap {
-			idx.stackMapIndex = lv.stackMapSet.add(lv.livevars[pos])
+			idx.StackMapIndex = lv.stackMapSet.add(lv.livevars[pos])
 			pos++
 		}
 		if hasStackMap || isUnsafePoint {
@@ -972,7 +944,7 @@ func (lv *Liveness) compact(b *ssa.Block) {
 	lv.livevars = lv.livevars[:0]
 }
 
-func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
+func (lv *Liveness) showlive(v *ssa.Value, live bitvec.BitVec) {
 	if base.Flag.Live == 0 || ir.FuncName(lv.fn) == "init" || strings.HasPrefix(ir.FuncName(lv.fn), ".") {
 		return
 	}
@@ -1012,7 +984,7 @@ func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
 	base.WarnfAt(pos, s)
 }
 
-func (lv *Liveness) printbvec(printed bool, name string, live bvec) bool {
+func (lv *Liveness) printbvec(printed bool, name string, live bitvec.BitVec) bool {
 	if live.IsEmpty() {
 		return printed
 	}
@@ -1128,7 +1100,7 @@ func (lv *Liveness) printDebug() {
 				fmt.Printf("\tlive=")
 				printed = false
 				if pcdata.StackMapValid() {
-					live := lv.stackMaps[pcdata.stackMapIndex]
+					live := lv.stackMaps[pcdata.StackMapIndex]
 					for j, n := range lv.vars {
 						if !live.Get(int32(j)) {
 							continue
@@ -1143,7 +1115,7 @@ func (lv *Liveness) printDebug() {
 				fmt.Printf("\n")
 			}
 
-			if pcdata.isUnsafePoint {
+			if pcdata.IsUnsafePoint {
 				fmt.Printf("\tunsafe-point\n")
 			}
 		}
@@ -1196,13 +1168,13 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
 	// Temporary symbols for encoding bitmaps.
 	var argsSymTmp, liveSymTmp obj.LSym
 
-	args := bvalloc(int32(maxArgs / int64(types.PtrSize)))
-	aoff := duint32(&argsSymTmp, 0, uint32(len(lv.stackMaps))) // number of bitmaps
-	aoff = duint32(&argsSymTmp, aoff, uint32(args.n))          // number of bits in each bitmap
+	args := bitvec.New(int32(maxArgs / int64(types.PtrSize)))
+	aoff := objw.Uint32(&argsSymTmp, 0, uint32(len(lv.stackMaps))) // number of bitmaps
+	aoff = objw.Uint32(&argsSymTmp, aoff, uint32(args.N))          // number of bits in each bitmap
 
-	locals := bvalloc(int32(maxLocals / int64(types.PtrSize)))
-	loff := duint32(&liveSymTmp, 0, uint32(len(lv.stackMaps))) // number of bitmaps
-	loff = duint32(&liveSymTmp, loff, uint32(locals.n))        // number of bits in each bitmap
+	locals := bitvec.New(int32(maxLocals / int64(types.PtrSize)))
+	loff := objw.Uint32(&liveSymTmp, 0, uint32(len(lv.stackMaps))) // number of bitmaps
+	loff = objw.Uint32(&liveSymTmp, loff, uint32(locals.N))        // number of bits in each bitmap
 
 	for _, live := range lv.stackMaps {
 		args.Clear()
@@ -1210,8 +1182,8 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
 
 		lv.pointerMap(live, lv.vars, args, locals)
 
-		aoff = dbvec(&argsSymTmp, aoff, args)
-		loff = dbvec(&liveSymTmp, loff, locals)
+		aoff = objw.BitVec(&argsSymTmp, aoff, args)
+		loff = objw.BitVec(&liveSymTmp, loff, locals)
 	}
 
 	// Give these LSyms content-addressable names,
@@ -1233,7 +1205,7 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
 // pointer variables in the function and emits a runtime data
 // structure read by the garbage collector.
 // Returns a map from GC safe points to their corresponding stack map index.
-func liveness(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *Progs) LivenessMap {
+func liveness(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs) LivenessMap {
 	// Construct the global liveness state.
 	vars, idx := getvariables(curfn)
 	lv := newliveness(curfn, f, vars, idx, stkptrsize)
@@ -1247,7 +1219,7 @@ func liveness(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *Progs) Liveness
 		for _, b := range f.Blocks {
 			for _, val := range b.Values {
 				if idx := lv.livenessMap.Get(val); idx.StackMapValid() {
-					lv.showlive(val, lv.stackMaps[idx.stackMapIndex])
+					lv.showlive(val, lv.stackMaps[idx.StackMapIndex])
 				}
 			}
 		}
@@ -1276,13 +1248,13 @@ func liveness(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *Progs) Liveness
 	fninfo.GCArgs, fninfo.GCLocals = lv.emit()
 
 	p := pp.Prog(obj.AFUNCDATA)
-	Addrconst(&p.From, objabi.FUNCDATA_ArgsPointerMaps)
+	p.From.SetConst(objabi.FUNCDATA_ArgsPointerMaps)
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
 	p.To.Sym = fninfo.GCArgs
 
 	p = pp.Prog(obj.AFUNCDATA)
-	Addrconst(&p.From, objabi.FUNCDATA_LocalsPointerMaps)
+	p.From.SetConst(objabi.FUNCDATA_LocalsPointerMaps)
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
 	p.To.Sym = fninfo.GCLocals

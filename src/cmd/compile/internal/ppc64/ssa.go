@@ -210,7 +210,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// BNE retry
 		p3 := s.Prog(ppc64.ABNE)
 		p3.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p3, p)
+		p3.To.SetTarget(p)
 
 	case ssa.OpPPC64LoweredAtomicAdd32,
 		ssa.OpPPC64LoweredAtomicAdd64:
@@ -254,7 +254,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// BNE retry
 		p4 := s.Prog(ppc64.ABNE)
 		p4.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p4, p)
+		p4.To.SetTarget(p)
 
 		// Ensure a 32 bit result
 		if v.Op == ssa.OpPPC64LoweredAtomicAdd32 {
@@ -300,7 +300,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// BNE retry
 		p2 := s.Prog(ppc64.ABNE)
 		p2.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p2, p)
+		p2.To.SetTarget(p)
 		// ISYNC
 		pisync := s.Prog(ppc64.AISYNC)
 		pisync.To.Type = obj.TYPE_NONE
@@ -348,7 +348,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// ISYNC
 		pisync := s.Prog(ppc64.AISYNC)
 		pisync.To.Type = obj.TYPE_NONE
-		gc.Patch(p2, pisync)
+		p2.To.SetTarget(pisync)
 
 	case ssa.OpPPC64LoweredAtomicStore8,
 		ssa.OpPPC64LoweredAtomicStore32,
@@ -439,7 +439,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// BNE retry
 		p4 := s.Prog(ppc64.ABNE)
 		p4.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p4, p)
+		p4.To.SetTarget(p)
 		// LWSYNC - Assuming shared data not write-through-required nor
 		// caching-inhibited. See Appendix B.2.1.1 in the ISA 2.07b.
 		// If the operation is a CAS-Release, then synchronization is not necessary.
@@ -462,10 +462,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p7.From.Offset = 0
 		p7.To.Type = obj.TYPE_REG
 		p7.To.Reg = out
-		gc.Patch(p2, p7)
+		p2.To.SetTarget(p7)
 		// done (label)
 		p8 := s.Prog(obj.ANOP)
-		gc.Patch(p6, p8)
+		p6.To.SetTarget(p8)
 
 	case ssa.OpPPC64LoweredGetClosurePtr:
 		// Closure pointer is R11 (already)
@@ -539,10 +539,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = r
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r0
-		gc.Patch(pbahead, p)
+		pbahead.To.SetTarget(p)
 
 		p = s.Prog(obj.ANOP)
-		gc.Patch(pbover, p)
+		pbover.To.SetTarget(p)
 
 	case ssa.OpPPC64DIVW:
 		// word-width version of above
@@ -574,10 +574,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = r
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r0
-		gc.Patch(pbahead, p)
+		pbahead.To.SetTarget(p)
 
 		p = s.Prog(obj.ANOP)
-		gc.Patch(pbover, p)
+		pbover.To.SetTarget(p)
 
 	case ssa.OpPPC64CLRLSLWI:
 		r := v.Reg()
@@ -1028,7 +1028,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.From.Offset = ppc64.BO_BCTR
 			p.Reg = ppc64.REG_R0
 			p.To.Type = obj.TYPE_BRANCH
-			gc.Patch(p, top)
+			p.To.SetTarget(top)
 		}
 		// When ctr == 1 the loop was not generated but
 		// there are at least 64 bytes to clear, so add
@@ -1228,7 +1228,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.From.Offset = ppc64.BO_BCTR
 			p.Reg = ppc64.REG_R0
 			p.To.Type = obj.TYPE_BRANCH
-			gc.Patch(p, top)
+			p.To.SetTarget(top)
 		}
 
 		// when ctr == 1 the loop was not generated but
@@ -1407,7 +1407,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.From.Offset = ppc64.BO_BCTR
 			p.Reg = ppc64.REG_R0
 			p.To.Type = obj.TYPE_BRANCH
-			gc.Patch(p, top)
+			p.To.SetTarget(top)
 
 			// srcReg and dstReg were incremented in the loop, so
 			// later instructions start with offset 0.
@@ -1654,7 +1654,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.From.Offset = ppc64.BO_BCTR
 			p.Reg = ppc64.REG_R0
 			p.To.Type = obj.TYPE_BRANCH
-			gc.Patch(p, top)
+			p.To.SetTarget(top)
 
 			// srcReg and dstReg were incremented in the loop, so
 			// later instructions start with offset 0.
@@ -1840,7 +1840,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 			// NOP (so the BNE has somewhere to land)
 			nop := s.Prog(obj.ANOP)
-			gc.Patch(p2, nop)
+			p2.To.SetTarget(nop)
 
 		} else {
 			// Issue a load which will fault if arg is nil.
