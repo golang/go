@@ -21,17 +21,18 @@ func envOr(key, value string) string {
 var (
 	defaultGOROOT string // set by linker
 
-	GOROOT   = envOr("GOROOT", defaultGOROOT)
-	GOARCH   = envOr("GOARCH", defaultGOARCH)
-	GOOS     = envOr("GOOS", defaultGOOS)
-	GO386    = envOr("GO386", defaultGO386)
-	GOARM    = goarm()
-	GOMIPS   = gomips()
-	GOMIPS64 = gomips64()
-	GOPPC64  = goppc64()
-	GOWASM   = gowasm()
-	GO_LDSO  = defaultGO_LDSO
-	Version  = version
+	GOROOT       = envOr("GOROOT", defaultGOROOT)
+	GOARCH       = envOr("GOARCH", defaultGOARCH)
+	GOOS         = envOr("GOOS", defaultGOOS)
+	GOEXPERIMENT = envOr("GOEXPERIMENT", defaultGOEXPERIMENT)
+	GO386        = envOr("GO386", defaultGO386)
+	GOARM        = goarm()
+	GOMIPS       = gomips()
+	GOMIPS64     = gomips64()
+	GOPPC64      = goppc64()
+	GOWASM       = gowasm()
+	GO_LDSO      = defaultGO_LDSO
+	Version      = version
 )
 
 const (
@@ -124,7 +125,7 @@ func Getgoextlinkenabled() string {
 }
 
 func init() {
-	for _, f := range strings.Split(goexperiment, ",") {
+	for _, f := range strings.Split(GOEXPERIMENT, ",") {
 		if f != "" {
 			addexp(f)
 		}

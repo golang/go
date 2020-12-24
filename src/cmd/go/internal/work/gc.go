@@ -343,18 +343,6 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
 	}
 	if objabi.IsRuntimePackagePath(pkgpath) {
 		args = append(args, "-compiling-runtime")
-		if objabi.Regabi_enabled != 0 {
-			// In order to make it easier to port runtime assembly
-			// to the register ABI, we introduce a macro
-			// indicating the experiment is enabled.
-			//
-			// Note: a similar change also appears in
-			// cmd/dist/build.go.
-			//
-			// TODO(austin): Remove this once we commit to the
-			// register ABI (#40724).
-			args = append(args, "-D=GOEXPERIMENT_REGABI=1")
-		}
 	}
 
 	if cfg.Goarch == "mips" || cfg.Goarch == "mipsle" {

@@ -20,7 +20,6 @@ import (
 //	package sys
 //
 //	const TheVersion = <version>
-//	const Goexperiment = <goexperiment>
 //	const StackGuardMultiplier = <multiplier value>
 //
 func mkzversion(dir, file string) {
@@ -30,7 +29,6 @@ func mkzversion(dir, file string) {
 	fmt.Fprintf(&buf, "package sys\n")
 	fmt.Fprintln(&buf)
 	fmt.Fprintf(&buf, "const TheVersion = `%s`\n", findgoversion())
-	fmt.Fprintf(&buf, "const Goexperiment = `%s`\n", os.Getenv("GOEXPERIMENT"))
 	fmt.Fprintf(&buf, "const StackGuardMultiplierDefault = %d\n", stackGuardMultiplierDefault())
 
 	writefile(buf.String(), file, writeSkipSame)
@@ -48,10 +46,10 @@ func mkzversion(dir, file string) {
 //	const defaultGOPPC64 = <goppc64>
 //	const defaultGOOS = runtime.GOOS
 //	const defaultGOARCH = runtime.GOARCH
+//	const defaultGOEXPERIMENT = <goexperiment>
 //	const defaultGO_EXTLINK_ENABLED = <goextlinkenabled>
 //	const version = <version>
 //	const stackGuardMultiplierDefault = <multiplier value>
-//	const goexperiment = <goexperiment>
 //
 // The use of runtime.GOOS and runtime.GOARCH makes sure that
 // a cross-compiled compiler expects to compile for its own target
@@ -77,11 +75,11 @@ func mkzbootstrap(file string) {
 	fmt.Fprintf(&buf, "const defaultGOPPC64 = `%s`\n", goppc64)
 	fmt.Fprintf(&buf, "const defaultGOOS = runtime.GOOS\n")
 	fmt.Fprintf(&buf, "const defaultGOARCH = runtime.GOARCH\n")
+	fmt.Fprintf(&buf, "const defaultGOEXPERIMENT = `%s`\n", goexperiment)
 	fmt.Fprintf(&buf, "const defaultGO_EXTLINK_ENABLED = `%s`\n", goextlinkenabled)
 	fmt.Fprintf(&buf, "const defaultGO_LDSO = `%s`\n", defaultldso)
 	fmt.Fprintf(&buf, "const version = `%s`\n", findgoversion())
 	fmt.Fprintf(&buf, "const stackGuardMultiplierDefault = %d\n", stackGuardMultiplierDefault())
-	fmt.Fprintf(&buf, "const goexperiment = `%s`\n", os.Getenv("GOEXPERIMENT"))
 
 	writefile(buf.String(), file, writeSkipSame)
 }
