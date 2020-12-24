@@ -64,8 +64,6 @@ var (
 	defaultOptions *Options
 )
 
-//go:generate go run golang.org/x/tools/internal/lsp/source/genapijson -output api_json.go
-
 // DefaultOptions is the options that are used for Gopls execution independent
 // of any externally provided configuration (LSP initialization, command
 // invokation, etc.).
@@ -102,34 +100,42 @@ func DefaultOptions() *Options {
 				SupportedCommands: commands,
 			},
 			UserOptions: UserOptions{
-				HoverKind:  FullDocumentation,
-				LinkTarget: "pkg.go.dev",
-				Codelenses: map[string]bool{
-					CommandGenerate.Name:          true,
-					CommandRegenerateCgo.Name:     true,
-					CommandTidy.Name:              true,
-					CommandToggleDetails.Name:     false,
-					CommandUpgradeDependency.Name: true,
-					CommandVendor.Name:            true,
+				BuildOptions: BuildOptions{
+					ExpandWorkspaceToModule:     true,
+					ExperimentalPackageCacheKey: true,
 				},
-				LinksInHover:   true,
-				ImportShortcut: Both,
-				Matcher:        Fuzzy,
-				SymbolMatcher:  SymbolFuzzy,
-				SymbolStyle:    DynamicSymbols,
-			},
-			DebuggingOptions: DebuggingOptions{
-				CompletionBudget: 100 * time.Millisecond,
-			},
-			ExperimentalOptions: ExperimentalOptions{
-				ExpandWorkspaceToModule:      true,
-				ExperimentalPackageCacheKey:  true,
-				ExperimentalDiagnosticsDelay: 250 * time.Millisecond,
-				Annotations: map[Annotation]bool{
-					Bounds: true,
-					Escape: true,
-					Inline: true,
-					Nil:    true,
+				UIOptions: UIOptions{
+					DiagnosticOptions: DiagnosticOptions{
+						ExperimentalDiagnosticsDelay: 250 * time.Millisecond,
+						Annotations: map[Annotation]bool{
+							Bounds: true,
+							Escape: true,
+							Inline: true,
+							Nil:    true,
+						},
+					},
+					DocumentationOptions: DocumentationOptions{
+						HoverKind:    FullDocumentation,
+						LinkTarget:   "pkg.go.dev",
+						LinksInHover: true,
+					},
+					NavigationOptions: NavigationOptions{
+						ImportShortcut: Both,
+						SymbolMatcher:  SymbolFuzzy,
+						SymbolStyle:    DynamicSymbols,
+					},
+					CompletionOptions: CompletionOptions{
+						Matcher:          Fuzzy,
+						CompletionBudget: 100 * time.Millisecond,
+					},
+					Codelenses: map[string]bool{
+						CommandGenerate.Name:          true,
+						CommandRegenerateCgo.Name:     true,
+						CommandTidy.Name:              true,
+						CommandToggleDetails.Name:     false,
+						CommandUpgradeDependency.Name: true,
+						CommandVendor.Name:            true,
+					},
 				},
 			},
 			InternalOptions: InternalOptions{
@@ -159,8 +165,6 @@ type Options struct {
 	ClientOptions
 	ServerOptions
 	UserOptions
-	DebuggingOptions
-	ExperimentalOptions
 	InternalOptions
 	Hooks
 }
@@ -186,9 +190,7 @@ type ServerOptions struct {
 	SupportedCommands    []string
 }
 
-// UserOptions holds custom Gopls configuration (not part of the LSP) that is
-// modified by the client.
-type UserOptions struct {
+type BuildOptions struct {
 	// BuildFlags is the set of flags passed on to the build system when invoked.
 	// It is applied to queries like `go list`, which is used when discovering files.
 	// The most common use is to set `-tags`.
@@ -196,85 +198,6 @@ type UserOptions struct {
 
 	// Env adds environment variables to external commands run by `gopls`, most notably `go list`.
 	Env map[string]string
-
-	// HoverKind controls the information that appears in the hover text.
-	// SingleLine and Structured are intended for use only by authors of editor plugins.
-	HoverKind HoverKind
-
-	// Placeholders enables placeholders for function parameters or struct fields in completion responses.
-	UsePlaceholders bool
-
-	// LinkTarget controls where documentation links go.
-	// It might be one of:
-	//
-	// * `"godoc.org"`
-	// * `"pkg.go.dev"`
-	//
-	// If company chooses to use its own `godoc.org`, its address can be used as well.
-	LinkTarget string
-
-	// Local is the equivalent of the `goimports -local` flag, which puts imports beginning with this string after 3rd-party packages.
-	// It should be the prefix of the import path whose imports should be grouped separately.
-	Local string
-
-	// Gofumpt indicates if we should run gofumpt formatting.
-	Gofumpt bool
-
-	// Analyses specify analyses that the user would like to enable or disable.
-	// A map of the names of analysis passes that should be enabled/disabled.
-	// A full list of analyzers that gopls uses can be found [here](analyzers.md)
-	//
-	// Example Usage:
-	// ```json5
-	// ...
-	// "analyses": {
-	//   "unreachable": false, // Disable the unreachable analyzer.
-	//   "unusedparams": true  // Enable the unusedparams analyzer.
-	// }
-	// ...
-	// ```
-	Analyses map[string]bool
-
-	// Codelenses overrides the enabled/disabled state of code lenses. See the "Code Lenses"
-	// section of settings.md for the list of supported lenses.
-	//
-	// Example Usage:
-	// ```json5
-	// "gopls": {
-	// ...
-	//   "codelenses": {
-	//     "generate": false,  // Don't show the `go generate` lens.
-	//     "gc_details": true  // Show a code lens toggling the display of gc's choices.
-	//   }
-	// ...
-	// }
-	// ```
-	Codelenses map[string]bool
-
-	// LinksInHover toggles the presence of links to documentation in hover.
-	LinksInHover bool
-
-	// ImportShortcut specifies whether import statements should link to
-	// documentation or go to definitions.
-	ImportShortcut ImportShortcut
-
-	// Matcher sets the algorithm that is used when calculating completion candidates.
-	Matcher Matcher
-
-	// SymbolMatcher sets the algorithm that is used when finding workspace symbols.
-	SymbolMatcher SymbolMatcher
-
-	// SymbolStyle controls how symbols are qualified in symbol responses.
-	//
-	// Example Usage:
-	// ```json5
-	// "gopls": {
-	// ...
-	//   "symbolStyle": "dynamic",
-	// ...
-	// }
-	// ```
-	SymbolStyle SymbolStyle
 
 	// DirectoryFilters can be used to exclude unwanted directories from the
 	// workspace. By default, all directories are included. Filters are an
@@ -288,6 +211,176 @@ type UserOptions struct {
 	// Include only project_a: `-` (exclude everything), `+project_a`
 	// Include only project_a, but not node_modules inside it: `-`, `+project_a`, `-project_a/node_modules`
 	DirectoryFilters []string
+
+	// ExpandWorkspaceToModule instructs `gopls` to adjust the scope of the
+	// workspace to find the best available module root. `gopls` first looks for
+	// a go.mod file in any parent directory of the workspace folder, expanding
+	// the scope to that directory if it exists. If no viable parent directory is
+	// found, gopls will check if there is exactly one child directory containing
+	// a go.mod file, narrowing the scope to that directory if it exists.
+	ExpandWorkspaceToModule bool `status:"experimental"`
+
+	// ExperimentalWorkspaceModule opts a user into the experimental support
+	// for multi-module workspaces.
+	ExperimentalWorkspaceModule bool `status:"experimental"`
+
+	// ExperimentalPackageCacheKey controls whether to use a coarser cache key
+	// for package type information to increase cache hits. This setting removes
+	// the user's environment, build flags, and working directory from the cache
+	// key, which should be a safe change as all relevant inputs into the type
+	// checking pass are already hashed into the key. This is temporarily guarded
+	// by an experiment because caching behavior is subtle and difficult to
+	// comprehensively test.
+	ExperimentalPackageCacheKey bool `status:"experimental"`
+
+	// AllowModfileModifications disables -mod=readonly, allowing imports from
+	// out-of-scope modules. This option will eventually be removed.
+	AllowModfileModifications bool `status:"experimental"`
+
+	// AllowImplicitNetworkAccess disables GOPROXY=off, allowing implicit module
+	// downloads rather than requiring user action. This option will eventually
+	// be removed.
+	AllowImplicitNetworkAccess bool `status:"experimental"`
+}
+
+type UIOptions struct {
+	DocumentationOptions
+	CompletionOptions
+	NavigationOptions
+	DiagnosticOptions
+
+	// Codelenses overrides the enabled/disabled state of code lenses. See the "Code Lenses"
+	// section of settings.md for the list of supported lenses.
+	//
+	// Example Usage:
+	//
+	// ```json5
+	// "gopls": {
+	// ...
+	//   "codelens": {
+	//     "generate": false,  // Don't show the `go generate` lens.
+	//     "gc_details": true  // Show a code lens toggling the display of gc's choices.
+	//   }
+	// ...
+	// }
+	// ```
+	Codelenses map[string]bool
+
+	// SemanticTokens controls whether the LSP server will send
+	// semantic tokens to the client.
+	SemanticTokens bool `status:"experimental"`
+}
+
+type CompletionOptions struct {
+	// Placeholders enables placeholders for function parameters or struct
+	// fields in completion responses.
+	UsePlaceholders bool
+
+	// CompletionBudget is the soft latency goal for completion requests. Most
+	// requests finish in a couple milliseconds, but in some cases deep
+	// completions can take much longer. As we use up our budget we
+	// dynamically reduce the search scope to ensure we return timely
+	// results. Zero means unlimited.
+	CompletionBudget time.Duration `status:"debug"`
+
+	// Matcher sets the algorithm that is used when calculating completion
+	// candidates.
+	Matcher Matcher `status:"advanced"`
+}
+
+type DocumentationOptions struct {
+	// HoverKind controls the information that appears in the hover text.
+	// SingleLine and Structured are intended for use only by authors of editor plugins.
+	HoverKind HoverKind
+
+	// LinkTarget controls where documentation links go.
+	// It might be one of:
+	//
+	// * `"godoc.org"`
+	// * `"pkg.go.dev"`
+	//
+	// If company chooses to use its own `godoc.org`, its address can be used as well.
+	LinkTarget string
+
+	// LinksInHover toggles the presence of links to documentation in hover.
+	LinksInHover bool
+}
+
+type FormattingOptions struct {
+	// Local is the equivalent of the `goimports -local` flag, which puts
+	// imports beginning with this string after third-party packages. It should
+	// be the prefix of the import path whose imports should be grouped
+	// separately.
+	Local string
+
+	// Gofumpt indicates if we should run gofumpt formatting.
+	Gofumpt bool
+}
+
+type DiagnosticOptions struct {
+	// Analyses specify analyses that the user would like to enable or disable.
+	// A map of the names of analysis passes that should be enabled/disabled.
+	// A full list of analyzers that gopls uses can be found [here](analyzers.md)
+	//
+	// Example Usage:
+	//
+	// ```json5
+	// ...
+	// "analyses": {
+	//   "unreachable": false, // Disable the unreachable analyzer.
+	//   "unusedparams": true  // Enable the unusedparams analyzer.
+	// }
+	// ...
+	// ```
+	Analyses map[string]bool
+
+	// Staticcheck enables additional analyses from staticcheck.io.
+	Staticcheck bool `status:"experimental"`
+
+	// Annotations specifies the various kinds of optimization diagnostics
+	// that should be reported by the gc_details command.
+	Annotations map[Annotation]bool `status:"experimental"`
+
+	// ExperimentalDiagnosticsDelay controls the amount of time that gopls waits
+	// after the most recent file modification before computing deep diagnostics.
+	// Simple diagnostics (parsing and type-checking) are always run immediately
+	// on recently modified packages.
+	//
+	// This option must be set to a valid duration string, for example `"250ms"`.
+	ExperimentalDiagnosticsDelay time.Duration `status:"experimental"`
+}
+
+type NavigationOptions struct {
+	// ImportShortcut specifies whether import statements should link to
+	// documentation or go to definitions.
+	ImportShortcut ImportShortcut
+
+	// SymbolMatcher sets the algorithm that is used when finding workspace symbols.
+	SymbolMatcher SymbolMatcher `status:"advanced"`
+
+	// SymbolStyle controls how symbols are qualified in symbol responses.
+	//
+	// Example Usage:
+	//
+	// ```json5
+	// "gopls": {
+	// ...
+	//   "symbolStyle": "dynamic",
+	// ...
+	// }
+	// ```
+	SymbolStyle SymbolStyle `status:"advanced"`
+}
+
+// UserOptions holds custom Gopls configuration (not part of the LSP) that is
+// modified by the client.
+type UserOptions struct {
+	BuildOptions
+	UIOptions
+	FormattingOptions
+
+	// VerboseOutput enables additional debug logging.
+	VerboseOutput bool `status:"debug"`
 }
 
 // EnvSlice returns Env as a slice of k=v strings.
@@ -322,75 +415,6 @@ type Hooks struct {
 	TypeErrorAnalyzers   map[string]Analyzer
 	ConvenienceAnalyzers map[string]Analyzer
 	StaticcheckAnalyzers map[string]Analyzer
-}
-
-// ExperimentalOptions defines configuration for features under active
-// development. WARNING: This configuration will be changed in the future. It
-// only exists while these features are under development.
-type ExperimentalOptions struct {
-
-	// Annotations specifies the various kinds of optimization diagnostics
-	// that should be reported by the gc_details command.
-	Annotations map[Annotation]bool
-
-	// Staticcheck enables additional analyses from staticcheck.io.
-	Staticcheck bool
-
-	// SemanticTokens controls whether the LSP server will send
-	// semantic tokens to the client.
-	SemanticTokens bool
-
-	// ExpandWorkspaceToModule instructs `gopls` to adjust the scope of the
-	// workspace to find the best available module root. `gopls` first looks for
-	// a go.mod file in any parent directory of the workspace folder, expanding
-	// the scope to that directory if it exists. If no viable parent directory is
-	// found, gopls will check if there is exactly one child directory containing
-	// a go.mod file, narrowing the scope to that directory if it exists.
-	ExpandWorkspaceToModule bool
-
-	// ExperimentalWorkspaceModule opts a user into the experimental support
-	// for multi-module workspaces.
-	ExperimentalWorkspaceModule bool
-
-	// ExperimentalDiagnosticsDelay controls the amount of time that gopls waits
-	// after the most recent file modification before computing deep diagnostics.
-	// Simple diagnostics (parsing and type-checking) are always run immediately
-	// on recently modified packages.
-	//
-	// This option must be set to a valid duration string, for example `"250ms"`.
-	ExperimentalDiagnosticsDelay time.Duration
-
-	// ExperimentalPackageCacheKey controls whether to use a coarser cache key
-	// for package type information to increase cache hits. This setting removes
-	// the user's environment, build flags, and working directory from the cache
-	// key, which should be a safe change as all relevant inputs into the type
-	// checking pass are already hashed into the key. This is temporarily guarded
-	// by an experiment because caching behavior is subtle and difficult to
-	// comprehensively test.
-	ExperimentalPackageCacheKey bool
-
-	// AllowModfileModifications disables -mod=readonly, allowing imports from
-	// out-of-scope modules. This option will eventually be removed.
-	AllowModfileModifications bool
-
-	// AllowImplicitNetworkAccess disables GOPROXY=off, allowing implicit module
-	// downloads rather than requiring user action. This option will eventually
-	// be removed.
-	AllowImplicitNetworkAccess bool
-}
-
-// DebuggingOptions should not affect the logical execution of Gopls, but may
-// be altered for debugging purposes.
-type DebuggingOptions struct {
-	// VerboseOutput enables additional debug logging.
-	VerboseOutput bool
-
-	// CompletionBudget is the soft latency goal for completion requests. Most
-	// requests finish in a couple milliseconds, but in some cases deep
-	// completions can take much longer. As we use up our budget we
-	// dynamically reduce the search scope to ensure we return timely
-	// results. Zero means unlimited.
-	CompletionBudget time.Duration
 }
 
 // InternalOptions contains settings that are not intended for use by the
@@ -544,8 +568,9 @@ func SetOptions(options *Options, opts interface{}) OptionResults {
 				options.enableAllExperiments()
 			}
 		}
+		seen := map[string]struct{}{}
 		for name, value := range opts {
-			results = append(results, options.set(name, value))
+			results = append(results, options.set(name, value, seen))
 		}
 		// Finally, enable any experimental features that are specified in
 		// maps, which allows users to individually toggle them on or off.
@@ -589,10 +614,8 @@ func (o *Options) ForClientCapabilities(caps protocol.ClientCapabilities) {
 
 func (o *Options) Clone() *Options {
 	result := &Options{
-		ClientOptions:       o.ClientOptions,
-		DebuggingOptions:    o.DebuggingOptions,
-		ExperimentalOptions: o.ExperimentalOptions,
-		InternalOptions:     o.InternalOptions,
+		ClientOptions:   o.ClientOptions,
+		InternalOptions: o.InternalOptions,
 		Hooks: Hooks{
 			GoDiff:        o.Hooks.GoDiff,
 			ComputeEdits:  o.Hooks.ComputeEdits,
@@ -657,8 +680,17 @@ func (o *Options) enableAllExperimentMaps() {
 	}
 }
 
-func (o *Options) set(name string, value interface{}) OptionResult {
+func (o *Options) set(name string, value interface{}, seen map[string]struct{}) OptionResult {
+	// Flatten the name in case we get options with a hierarchy.
+	split := strings.Split(name, ".")
+	name = split[len(split)-1]
+
 	result := OptionResult{Name: name, Value: value}
+	if _, ok := seen[name]; ok {
+		result.errorf("duplicate configuration for %s", name)
+	}
+	seen[name] = struct{}{}
+
 	switch name {
 	case "env":
 		menv, ok := value.(map[string]interface{})
@@ -1133,6 +1165,8 @@ type OptionJSON struct {
 	Doc        string
 	EnumValues []EnumValue
 	Default    string
+	Status     string
+	Hierarchy  string
 }
 
 type EnumValue struct {

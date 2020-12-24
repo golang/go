@@ -89,6 +89,13 @@ func TestSetOption(t *testing.T) {
 			},
 		},
 		{
+			name:  "ui.documentation.hoverKind",
+			value: "Structured",
+			check: func(o Options) bool {
+				return o.HoverKind == Structured
+			},
+		},
+		{
 			name:  "matcher",
 			value: "Fuzzy",
 			check: func(o Options) bool {
@@ -163,7 +170,7 @@ func TestSetOption(t *testing.T) {
 
 	for _, test := range tests {
 		var opts Options
-		result := opts.set(test.name, test.value)
+		result := opts.set(test.name, test.value, map[string]struct{}{})
 		if (result.Error != nil) != test.wantError {
 			t.Fatalf("Options.set(%q, %v): result.Error = %v, want error: %t", test.name, test.value, result.Error, test.wantError)
 		}

@@ -14,6 +14,7 @@ import (
 	"go/format"
 	"go/token"
 	"go/types"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -22,6 +23,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/sanity-io/litter"
 	"golang.org/x/tools/go/ast/astutil"
@@ -75,16 +77,19 @@ func loadAPI() (*source.APIJSON, error) {
 		Options: map[string][]*source.OptionJSON{},
 	}
 	defaults := source.DefaultOptions()
-	for _, cat := range []reflect.Value{
-		reflect.ValueOf(defaults.DebuggingOptions),
+	for _, category := range []reflect.Value{
 		reflect.ValueOf(defaults.UserOptions),
-		reflect.ValueOf(defaults.ExperimentalOptions),
 	} {
-		opts, err := loadOptions(cat, pkg)
+		// Find the type information and ast.File corresponding to the category.
+		optsType := pkg.Types.Scope().Lookup(category.Type().Name())
+		if optsType == nil {
+			return nil, fmt.Errorf("could not find %v in scope %v", category.Type().Name(), pkg.Types.Scope())
+		}
+		opts, err := loadOptions(category, optsType, pkg, "")
 		if err != nil {
 			return nil, err
 		}
-		catName := strings.TrimSuffix(cat.Type().Name(), "Options")
+		catName := strings.TrimSuffix(category.Type().Name(), "Options")
 		api.Options[catName] = opts
 	}
 
@@ -109,13 +114,7 @@ func loadAPI() (*source.APIJSON, error) {
 	return api, nil
 }
 
-func loadOptions(category reflect.Value, pkg *packages.Package) ([]*source.OptionJSON, error) {
-	// Find the type information and ast.File corresponding to the category.
-	optsType := pkg.Types.Scope().Lookup(category.Type().Name())
-	if optsType == nil {
-		return nil, fmt.Errorf("could not find %v in scope %v", category.Type().Name(), pkg.Types.Scope())
-	}
-
+func loadOptions(category reflect.Value, optsType types.Object, pkg *packages.Package, hierarchy string) ([]*source.OptionJSON, error) {
 	file, err := fileForPos(pkg, optsType.Pos())
 	if err != nil {
 		return nil, err
@@ -131,6 +130,21 @@ func loadOptions(category reflect.Value, pkg *packages.Package) ([]*source.Optio
 	for i := 0; i < optsStruct.NumFields(); i++ {
 		// The types field gives us the type.
 		typesField := optsStruct.Field(i)
+
+		// If the field name ends with "Options", assume it is a struct with
+		// additional options and process it recursively.
+		if h := strings.TrimSuffix(typesField.Name(), "Options"); h != typesField.Name() {
+			// Keep track of the parent structs.
+			if hierarchy != "" {
+				h = hierarchy + "." + h
+			}
+			options, err := loadOptions(category, typesField, pkg, strings.ToLower(h))
+			if err != nil {
+				return nil, err
+			}
+			opts = append(opts, options...)
+			continue
+		}
 		path, _ := astutil.PathEnclosingInterval(file, typesField.Pos(), typesField.Pos())
 		if len(path) < 2 {
 			return nil, fmt.Errorf("could not find AST node for field %v", typesField)
@@ -183,6 +197,12 @@ func loadOptions(category reflect.Value, pkg *packages.Package) ([]*source.Optio
 				typ = strings.Replace(typ, m.Key().String(), m.Key().Underlying().String(), 1)
 			}
 		}
+		// Get the status of the field by checking its struct tags.
+		reflectStructField, ok := category.Type().FieldByName(typesField.Name())
+		if !ok {
+			return nil, fmt.Errorf("no struct field for %s", typesField.Name())
+		}
+		status := reflectStructField.Tag.Get("status")
 
 		opts = append(opts, &source.OptionJSON{
 			Name:       lowerFirst(typesField.Name()),
@@ -190,6 +210,8 @@ func loadOptions(category reflect.Value, pkg *packages.Package) ([]*source.Optio
 			Doc:        lowerFirst(astField.Doc.Text()),
 			Default:    string(defBytes),
 			EnumValues: enumValues,
+			Status:     status,
+			Hierarchy:  hierarchy,
 		})
 	}
 	return opts, nil
@@ -411,34 +433,39 @@ func rewriteAPI(input []byte, api *source.APIJSON) ([]byte, error) {
 
 var parBreakRE = regexp.MustCompile("\n{2,}")
 
+type optionsGroup struct {
+	title   string
+	final   string
+	level   int
+	options []*source.OptionJSON
+}
+
 func rewriteSettings(doc []byte, api *source.APIJSON) ([]byte, error) {
 	result := doc
 	for category, opts := range api.Options {
+		groups := collectGroups(opts)
+
+		// First, print a table of contents.
 		section := bytes.NewBuffer(nil)
-		for _, opt := range opts {
-			var enumValues strings.Builder
-			if len(opt.EnumValues) > 0 {
-				var msg string
-				if opt.Type == "enum" {
-					msg = "\nMust be one of:\n\n"
-				} else {
-					msg = "\nCan contain any of:\n\n"
-				}
-				enumValues.WriteString(msg)
-				for i, val := range opt.EnumValues {
-					if val.Doc != "" {
-						// Don't break the list item by starting a new paragraph.
-						unbroken := parBreakRE.ReplaceAllString(val.Doc, "\\\n")
-						fmt.Fprintf(&enumValues, "* %s", unbroken)
-					} else {
-						fmt.Fprintf(&enumValues, "* `%s`", val.Value)
-					}
-					if i < len(opt.EnumValues)-1 {
-						fmt.Fprint(&enumValues, "\n")
-					}
-				}
+		fmt.Fprintln(section, "")
+		for _, h := range groups {
+			writeBullet(section, h.final, h.level)
+		}
+		fmt.Fprintln(section, "")
+
+		// Currently, the settings document has a title and a subtitle, so
+		// start at level 3 for a header beginning with "###".
+		baseLevel := 3
+		for _, h := range groups {
+			level := baseLevel + h.level
+			writeTitle(section, h.final, level)
+			for _, opt := range h.options {
+				header := strMultiply("#", level+1)
+				fmt.Fprintf(section, "%s **%v** *%v*\n\n", header, opt.Name, opt.Type)
+				writeStatus(section, opt.Status)
+				enumValues := collectEnumValues(opt)
+				fmt.Fprintf(section, "%v%v\nDefault: `%v`.\n\n", opt.Doc, enumValues, opt.Default)
 			}
-			fmt.Fprintf(section, "### **%v** *%v*\n%v%v\n\nDefault: `%v`.\n", opt.Name, opt.Type, opt.Doc, enumValues.String(), opt.Default)
 		}
 		var err error
 		result, err = replaceSection(result, category, section.Bytes())
@@ -449,9 +476,131 @@ func rewriteSettings(doc []byte, api *source.APIJSON) ([]byte, error) {
 
 	section := bytes.NewBuffer(nil)
 	for _, lens := range api.Lenses {
-		fmt.Fprintf(section, "### **%v**\nIdentifier: `%v`\n\n%v\n\n", lens.Title, lens.Lens, lens.Doc)
+		fmt.Fprintf(section, "### **%v**\n\nIdentifier: `%v`\n\n%v\n", lens.Title, lens.Lens, lens.Doc)
 	}
 	return replaceSection(result, "Lenses", section.Bytes())
+}
+
+func collectGroups(opts []*source.OptionJSON) []optionsGroup {
+	optsByHierarchy := map[string][]*source.OptionJSON{}
+	for _, opt := range opts {
+		optsByHierarchy[opt.Hierarchy] = append(optsByHierarchy[opt.Hierarchy], opt)
+	}
+
+	// As a hack, assume that uncategorized items are less important to
+	// users and force the empty string to the end of the list.
+	var containsEmpty bool
+	var sorted []string
+	for h := range optsByHierarchy {
+		if h == "" {
+			containsEmpty = true
+			continue
+		}
+		sorted = append(sorted, h)
+	}
+	sort.Strings(sorted)
+	if containsEmpty {
+		sorted = append(sorted, "")
+	}
+	var groups []optionsGroup
+	baseLevel := 0
+	for _, h := range sorted {
+		split := strings.SplitAfter(h, ".")
+		last := split[len(split)-1]
+		// Hack to capitalize all of UI.
+		if last == "ui" {
+			last = "UI"
+		}
+		// A hierarchy may look like "ui.formatting". If "ui" has no
+		// options of its own, it may not be added to the map, but it
+		// still needs a heading.
+		components := strings.Split(h, ".")
+		for i := 1; i < len(components); i++ {
+			parent := strings.Join(components[0:i], ".")
+			if _, ok := optsByHierarchy[parent]; !ok {
+				groups = append(groups, optionsGroup{
+					title: parent,
+					final: last,
+					level: baseLevel + i,
+				})
+			}
+		}
+		groups = append(groups, optionsGroup{
+			title:   h,
+			final:   last,
+			level:   baseLevel + strings.Count(h, "."),
+			options: optsByHierarchy[h],
+		})
+	}
+	return groups
+}
+
+func collectEnumValues(opt *source.OptionJSON) string {
+	var enumValues strings.Builder
+	if len(opt.EnumValues) > 0 {
+		var msg string
+		if opt.Type == "enum" {
+			msg = "\nMust be one of:\n\n"
+		} else {
+			msg = "\nCan contain any of:\n\n"
+		}
+		enumValues.WriteString(msg)
+		for i, val := range opt.EnumValues {
+			if val.Doc != "" {
+				unbroken := parBreakRE.ReplaceAllString(val.Doc, "\\\n")
+				fmt.Fprintf(&enumValues, "* %s", unbroken)
+			} else {
+				fmt.Fprintf(&enumValues, "* `%s`", val.Value)
+			}
+			if i < len(opt.EnumValues)-1 {
+				fmt.Fprint(&enumValues, "\n")
+			}
+		}
+	}
+	return enumValues.String()
+}
+
+func writeBullet(w io.Writer, title string, level int) {
+	if title == "" {
+		return
+	}
+	// Capitalize the first letter of each title.
+	prefix := strMultiply("  ", level)
+	fmt.Fprintf(w, "%s* [%s](#%s)\n", prefix, capitalize(title), strings.ToLower(title))
+}
+
+func writeTitle(w io.Writer, title string, level int) {
+	if title == "" {
+		return
+	}
+	// Capitalize the first letter of each title.
+	fmt.Fprintf(w, "%s %s\n\n", strMultiply("#", level), capitalize(title))
+}
+
+func writeStatus(section io.Writer, status string) {
+	switch status {
+	case "":
+	case "advanced":
+		fmt.Fprint(section, "**This is an advanced setting and should not be configured by most `gopls` users.**\n\n")
+	case "debug":
+		fmt.Fprint(section, "**This setting is for debugging purposes only.**\n\n")
+	case "experimental":
+		fmt.Fprint(section, "**This setting is experimental and may be deleted.**\n\n")
+	default:
+		fmt.Fprintf(section, "**Status: %s.**\n\n", status)
+	}
+}
+
+func capitalize(s string) string {
+	return string(unicode.ToUpper(rune(s[0]))) + s[1:]
+}
+
+func strMultiply(str string, count int) string {
+	var result string
+	for i := 0; i < count; i++ {
+		result += string(str)
+	}
+	return result
 }
 
 func rewriteCommands(doc []byte, api *source.APIJSON) ([]byte, error) {
