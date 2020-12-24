@@ -1690,6 +1690,11 @@ func checkassignlist(stmt ir.Node, l ir.Nodes) {
 }
 
 func checkassignto(src *types.Type, dst ir.Node) {
+	// TODO(mdempsky): Handle all untyped types correctly.
+	if src == types.UntypedBool && dst.Type().IsBoolean() {
+		return
+	}
+
 	if op, why := assignop(src, dst.Type()); op == ir.OXXX {
 		base.Errorf("cannot assign %v to %L in multiple assignment%s", src, dst, why)
 		return
