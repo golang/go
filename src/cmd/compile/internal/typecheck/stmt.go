@@ -11,13 +11,20 @@ import (
 	"cmd/internal/src"
 )
 
+func RangeExprType(t *types.Type) *types.Type {
+	if t.IsPtr() && t.Elem().IsArray() {
+		return t.Elem()
+	}
+	return t
+}
+
 func typecheckrangeExpr(n *ir.RangeStmt) {
 	n.X = Expr(n.X)
-
-	t := n.X.Type()
-	if t == nil {
+	if n.X.Type() == nil {
 		return
 	}
+
+	t := RangeExprType(n.X.Type())
 	// delicate little dance.  see typecheckas2
 	if n.Key != nil && !ir.DeclaredBy(n.Key, n) {
 		n.Key = AssignExpr(n.Key)
@@ -25,10 +32,6 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
 	if n.Value != nil && !ir.DeclaredBy(n.Value, n) {
 		n.Value = AssignExpr(n.Value)
 	}
-	if t.IsPtr() && t.Elem().IsArray() {
-		t = t.Elem()
-	}
-	n.SetType(t)
 
 	var tk, tv *types.Type
 	toomany := false
