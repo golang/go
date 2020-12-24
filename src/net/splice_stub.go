@@ -12,3 +12,7 @@ import "io"
 func splice(c *netFD, r io.Reader) (int64, error, bool) {
 	return 0, nil, false
 }
+
+func spliceW(c *netFD, w io.Writer) (int64, error, bool) {
+	return 0, nil, false
+}

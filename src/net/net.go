@@ -658,6 +658,17 @@ func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
 	return io.Copy(writerOnly{w}, r)
 }
 
+type readerOnly struct {
+	io.Reader
+}
+
+// Fallback implementation of io.WriteTo's WriteTo, when splice isn't
+// applicable.
+func genericWriteTo(w io.Writer, r io.Reader) (n int64, err error) {
+	// Use wrapper to hide existing r.ReadFrom from io.Copy.
+	return io.Copy(w, readerOnly{r})
+}
+
 // Limit the number of concurrent cgo-using goroutines, because
 // each will block an entire operating system thread. The usual culprit
 // is resolving many DNS names in separate goroutines but the DNS
