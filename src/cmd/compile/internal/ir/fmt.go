@@ -444,12 +444,15 @@ func stmtFmt(n Node, s fmt.State) {
 			break
 		}
 
-		if len(n.Vars) == 0 {
-			fmt.Fprintf(s, "for range %v { %v }", n.X, n.Body)
-			break
+		fmt.Fprint(s, "for")
+		if n.Key != nil {
+			fmt.Fprintf(s, " %v", n.Key)
+			if n.Value != nil {
+				fmt.Fprintf(s, ", %v", n.Value)
+			}
+			fmt.Fprint(s, " =")
 		}
-
-		fmt.Fprintf(s, "for %.v = range %v { %v }", n.Vars, n.X, n.Body)
+		fmt.Fprintf(s, " range %v { %v }", n.X, n.Body)
 
 	case OSELECT:
 		n := n.(*SelectStmt)

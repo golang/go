@@ -19,19 +19,18 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
 		return
 	}
 	// delicate little dance.  see typecheckas2
-	ls := n.Vars
-	for i1, n1 := range ls {
-		if !ir.DeclaredBy(n1, n) {
-			ls[i1] = AssignExpr(ls[i1])
-		}
+	if n.Key != nil && !ir.DeclaredBy(n.Key, n) {
+		n.Key = AssignExpr(n.Key)
 	}
-
+	if n.Value != nil && !ir.DeclaredBy(n.Value, n) {
+		n.Value = AssignExpr(n.Value)
+	}
 	if t.IsPtr() && t.Elem().IsArray() {
 		t = t.Elem()
 	}
 	n.SetType(t)
 
-	var t1, t2 *types.Type
+	var tk, tv *types.Type
 	toomany := false
 	switch t.Kind() {
 	default:
@@ -39,12 +38,12 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
 		return
 
 	case types.TARRAY, types.TSLICE:
-		t1 = types.Types[types.TINT]
-		t2 = t.Elem()
+		tk = types.Types[types.TINT]
+		tv = t.Elem()
 
 	case types.TMAP:
-		t1 = t.Key()
-		t2 = t.Elem()
+		tk = t.Key()
+		tv = t.Elem()
 
 	case types.TCHAN:
 		if !t.ChanDir().CanRecv() {
@@ -52,61 +51,35 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
 			return
 		}
 
-		t1 = t.Elem()
-		t2 = nil
-		if len(n.Vars) == 2 {
+		tk = t.Elem()
+		tv = nil
+		if n.Value != nil {
 			toomany = true
 		}
 
 	case types.TSTRING:
-		t1 = types.Types[types.TINT]
-		t2 = types.RuneType
+		tk = types.Types[types.TINT]
+		tv = types.RuneType
 	}
 
-	if len(n.Vars) > 2 || toomany {
+	if toomany {
 		base.ErrorfAt(n.Pos(), "too many variables in range")
 	}
 
-	var v1, v2 ir.Node
-	if len(n.Vars) != 0 {
-		v1 = n.Vars[0]
-	}
-	if len(n.Vars) > 1 {
-		v2 = n.Vars[1]
-	}
-
-	// this is not only an optimization but also a requirement in the spec.
-	// "if the second iteration variable is the blank identifier, the range
-	// clause is equivalent to the same clause with only the first variable
-	// present."
-	if ir.IsBlank(v2) {
-		if v1 != nil {
-			n.Vars = []ir.Node{v1}
-		}
-		v2 = nil
-	}
-
-	if v1 != nil {
-		if ir.DeclaredBy(v1, n) {
-			v1.SetType(t1)
-		} else if v1.Type() != nil {
-			if op, why := assignop(t1, v1.Type()); op == ir.OXXX {
-				base.ErrorfAt(n.Pos(), "cannot assign type %v to %L in range%s", t1, v1, why)
+	do := func(nn ir.Node, t *types.Type) {
+		if nn != nil {
+			if ir.DeclaredBy(nn, n) {
+				nn.SetType(t)
+			} else if nn.Type() != nil {
+				if op, why := assignop(t, nn.Type()); op == ir.OXXX {
+					base.ErrorfAt(n.Pos(), "cannot assign type %v to %L in range%s", t, nn, why)
+				}
 			}
+			checkassign(n, nn)
 		}
-		checkassign(n, v1)
 	}
-
-	if v2 != nil {
-		if ir.DeclaredBy(v2, n) {
-			v2.SetType(t2)
-		} else if v2.Type() != nil {
-			if op, why := assignop(t2, v2.Type()); op == ir.OXXX {
-				base.ErrorfAt(n.Pos(), "cannot assign type %v to %L in range%s", t2, v2, why)
-			}
-		}
-		checkassign(n, v2)
-	}
+	do(n.Key, tk)
+	do(n.Value, tv)
 }
 
 // type check assignment.
@@ -399,11 +372,11 @@ func tcRange(n *ir.RangeStmt) {
 
 	// second half of dance, the first half being typecheckrangeExpr
 	n.SetTypecheck(1)
-	ls := n.Vars
-	for i1, n1 := range ls {
-		if n1.Typecheck() == 0 {
-			ls[i1] = AssignExpr(ls[i1])
-		}
+	if n.Key != nil && n.Key.Typecheck() == 0 {
+		n.Key = AssignExpr(n.Key)
+	}
+	if n.Value != nil && n.Value.Typecheck() == 0 {
+		n.Value = AssignExpr(n.Value)
 	}
 
 	decldepth++

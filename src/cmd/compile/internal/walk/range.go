@@ -61,15 +61,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 	a := nrange.X
 	lno := ir.SetPos(a)
 
-	var v1, v2 ir.Node
-	l := len(nrange.Vars)
-	if l > 0 {
-		v1 = nrange.Vars[0]
-	}
-
-	if l > 1 {
-		v2 = nrange.Vars[1]
-	}
+	v1, v2 := nrange.Key, nrange.Value
 
 	if ir.IsBlank(v2) {
 		v2 = nil
@@ -343,15 +335,11 @@ func isMapClear(n *ir.RangeStmt) bool {
 		return false
 	}
 
-	if n.Op() != ir.ORANGE || n.Type().Kind() != types.TMAP || len(n.Vars) != 1 {
+	if n.Op() != ir.ORANGE || n.Type().Kind() != types.TMAP || n.Key == nil || n.Value != nil {
 		return false
 	}
 
-	k := n.Vars[0]
-	if k == nil || ir.IsBlank(k) {
-		return false
-	}
-
+	k := n.Key
 	// Require k to be a new variable name.
 	if !ir.DeclaredBy(k, n) {
 		return false

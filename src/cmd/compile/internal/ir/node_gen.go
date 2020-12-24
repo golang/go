@@ -724,22 +724,23 @@ func (n *RangeStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *RangeStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
-	c.Vars = c.Vars.Copy()
 	c.Body = c.Body.Copy()
 	return &c
 }
 func (n *RangeStmt) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.Vars, err, do)
 	err = maybeDo(n.X, err, do)
+	err = maybeDo(n.Key, err, do)
+	err = maybeDo(n.Value, err, do)
 	err = maybeDoList(n.Body, err, do)
 	return err
 }
 func (n *RangeStmt) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
-	editList(n.Vars, edit)
 	n.X = maybeEdit(n.X, edit)
+	n.Key = maybeEdit(n.Key, edit)
+	n.Value = maybeEdit(n.Value, edit)
 	editList(n.Body, edit)
 }
 

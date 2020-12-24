@@ -1028,7 +1028,9 @@ func (r *importReader) node() ir.Node {
 		return ir.NewForStmt(pos, init, cond, post, r.stmtList())
 
 	case ir.ORANGE:
-		return ir.NewRangeStmt(r.pos(), r.stmtList(), r.expr(), r.stmtList())
+		pos := r.pos()
+		k, v := r.exprsOrNil()
+		return ir.NewRangeStmt(pos, k, v, r.expr(), r.stmtList())
 
 	case ir.OSELECT:
 		pos := r.pos()

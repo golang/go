@@ -347,21 +347,19 @@ func (e *escape) stmt(n ir.Node) {
 		e.loopDepth--
 
 	case ir.ORANGE:
-		// for List = range Right { Nbody }
+		// for Key, Value = range X { Body }
 		n := n.(*ir.RangeStmt)
 		e.loopDepth++
-		ks := e.addrs(n.Vars)
+		e.addr(n.Key)
+		k := e.addr(n.Value)
 		e.block(n.Body)
 		e.loopDepth--
 
-		// Right is evaluated outside the loop.
-		k := e.discardHole()
-		if len(ks) >= 2 {
-			if n.X.Type().IsArray() {
-				k = ks[1].note(n, "range")
-			} else {
-				k = ks[1].deref(n, "range-deref")
-			}
+		// X is evaluated outside the loop.
+		if n.X.Type().IsArray() {
+			k = k.note(n, "range")
+		} else {
+			k = k.deref(n, "range-deref")
 		}
 		e.expr(e.later(k), n.X)
 
