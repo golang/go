@@ -6027,7 +6027,7 @@ func setMaxThreads(in int) (out int) {
 }
 
 func haveexperiment(name string) bool {
-	x := sys.Goexperiment
+	x := sys.GOEXPERIMENT
 	for x != "" {
 		xname := ""
 		i := bytealg.IndexByteString(x, ',')

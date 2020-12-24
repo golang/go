@@ -276,6 +276,10 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		key, val := cfg.GetArchEnv()
 		fmt.Fprintf(h, "%s=%s\n", key, val)
 
+		if exp := cfg.Getenv("GOEXPERIMENT"); exp != "" {
+			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", exp)
+		}
+
 		// TODO(rsc): Convince compiler team not to add more magic environment variables,
 		// or perhaps restrict the environment variables passed to subprocesses.
 		// Because these are clumsy, undocumented special-case hacks
@@ -1245,6 +1249,10 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 		// GOARM, GOMIPS, etc.
 		key, val := cfg.GetArchEnv()
 		fmt.Fprintf(h, "%s=%s\n", key, val)
+
+		if exp := cfg.Getenv("GOEXPERIMENT"); exp != "" {
+			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", exp)
+		}
 
 		// The linker writes source file paths that say GOROOT_FINAL, but
 		// only if -trimpath is not specified (see ld() in gc.go).

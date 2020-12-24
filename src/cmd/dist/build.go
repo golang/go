@@ -39,6 +39,7 @@ var (
 	goextlinkenabled string
 	gogcflags        string // For running built compiler
 	goldflags        string
+	goexperiment     string
 	workdir          string
 	tooldir          string
 	oldgoos          string
@@ -193,6 +194,9 @@ func xinit() {
 		}
 		goextlinkenabled = b
 	}
+
+	goexperiment = os.Getenv("GOEXPERIMENT")
+	// TODO(mdempsky): Validate known experiments?
 
 	gogcflags = os.Getenv("BOOT_GO_GCFLAGS")
 	goldflags = os.Getenv("BOOT_GO_LDFLAGS")
@@ -834,18 +838,6 @@ func runInstall(pkg string, ch chan struct{}) {
 	goasmh := pathf("%s/go_asm.h", workdir)
 	if IsRuntimePackagePath(pkg) {
 		asmArgs = append(asmArgs, "-compiling-runtime")
-		if os.Getenv("GOEXPERIMENT") == "regabi" {
-			// In order to make it easier to port runtime assembly
-			// to the register ABI, we introduce a macro
-			// indicating the experiment is enabled.
-			//
-			// Note: a similar change also appears in
-			// cmd/go/internal/work/gc.go.
-			//
-			// TODO(austin): Remove this once we commit to the
-			// register ABI (#40724).
-			asmArgs = append(asmArgs, "-D=GOEXPERIMENT_REGABI=1")
-		}
 	}
 
 	// Collect symabis from assembly code.
