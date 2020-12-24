@@ -843,7 +843,8 @@ func (o *orderState) stmt(n ir.Node) {
 		n.X = o.expr(n.X, nil)
 
 		orderBody := true
-		switch n.Type().Kind() {
+		xt := typecheck.RangeExprType(n.X.Type())
+		switch xt.Kind() {
 		default:
 			base.Fatalf("order.stmt range %v", n.Type())
 
@@ -885,7 +886,7 @@ func (o *orderState) stmt(n ir.Node) {
 
 			// n.Prealloc is the temp for the iterator.
 			// hiter contains pointers and needs to be zeroed.
-			n.Prealloc = o.newTemp(reflectdata.MapIterType(n.Type()), true)
+			n.Prealloc = o.newTemp(reflectdata.MapIterType(xt), true)
 		}
 		n.Key = o.exprInPlace(n.Key)
 		n.Value = o.exprInPlace(n.Value)

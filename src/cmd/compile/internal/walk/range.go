@@ -56,9 +56,8 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 	//	hb: hidden bool
 	//	a, v1, v2: not hidden aggregate, val 1, 2
 
-	t := nrange.Type()
-
 	a := nrange.X
+	t := typecheck.RangeExprType(a.Type())
 	lno := ir.SetPos(a)
 
 	v1, v2 := nrange.Key, nrange.Value
@@ -113,7 +112,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		}
 
 		// for v1, v2 := range ha { body }
-		if cheapComputableIndex(nrange.Type().Elem().Width) {
+		if cheapComputableIndex(t.Elem().Width) {
 			// v1, v2 = hv1, ha[hv1]
 			tmp := ir.NewIndexExpr(base.Pos, ha, hv1)
 			tmp.SetBounded(true)
@@ -142,7 +141,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		ifGuard.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv1, hn)
 		nfor.SetOp(ir.OFORUNTIL)
 
-		hp := typecheck.Temp(types.NewPtr(nrange.Type().Elem()))
+		hp := typecheck.Temp(types.NewPtr(t.Elem()))
 		tmp := ir.NewIndexExpr(base.Pos, ha, ir.NewInt(0))
 		tmp.SetBounded(true)
 		init = append(init, ir.NewAssignStmt(base.Pos, hp, typecheck.NodAddr(tmp)))
@@ -335,7 +334,8 @@ func isMapClear(n *ir.RangeStmt) bool {
 		return false
 	}
 
-	if n.Op() != ir.ORANGE || n.Type().Kind() != types.TMAP || n.Key == nil || n.Value != nil {
+	t := n.X.Type()
+	if n.Op() != ir.ORANGE || t.Kind() != types.TMAP || n.Key == nil || n.Value != nil {
 		return false
 	}
 
@@ -360,7 +360,7 @@ func isMapClear(n *ir.RangeStmt) bool {
 	}
 
 	// Keys where equality is not reflexive can not be deleted from maps.
-	if !types.IsReflexive(m.Type().Key()) {
+	if !types.IsReflexive(t.Key()) {
 		return false
 	}
 
@@ -416,7 +416,7 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 		return nil
 	}
 
-	elemsize := loop.Type().Elem().Width
+	elemsize := typecheck.RangeExprType(loop.X.Type()).Elem().Width
 	if elemsize <= 0 || !ir.IsZero(stmt.Y) {
 		return nil
 	}

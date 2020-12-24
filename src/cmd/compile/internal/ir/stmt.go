@@ -300,7 +300,6 @@ type RangeStmt struct {
 	Value    Node
 	Body     Nodes
 	HasBreak bool
-	typ      *types.Type // TODO(rsc): Remove - use X.Type() instead
 	Prealloc *Name
 }
 
@@ -311,9 +310,6 @@ func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node) *RangeStmt {
 	n.Body.Set(body)
 	return n
 }
-
-func (n *RangeStmt) Type() *types.Type     { return n.typ }
-func (n *RangeStmt) SetType(x *types.Type) { n.typ = x }
 
 // A ReturnStmt is a return statement.
 type ReturnStmt struct {
