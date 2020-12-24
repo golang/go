@@ -1070,6 +1070,19 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 	// Is sel a qualified identifier?
 	if id, ok := sel.X.(*ast.Ident); ok {
 		if pkgName, ok := c.pkg.GetTypesInfo().Uses[id].(*types.PkgName); ok {
+			var pkg source.Package
+			for _, imp := range c.pkg.Imports() {
+				if imp.PkgPath() == pkgName.Imported().Path() {
+					pkg = imp
+				}
+			}
+			// If the package is not imported, try searching for unimported
+			// completions.
+			if pkg == nil && c.opts.unimported {
+				if err := c.unimportedMembers(ctx, id); err != nil {
+					return err
+				}
+			}
 			candidates := c.packageMembers(pkgName.Imported(), stdScore, nil)
 			for _, cand := range candidates {
 				c.deepState.enqueue(cand)

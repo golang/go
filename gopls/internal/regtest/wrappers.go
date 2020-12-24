@@ -331,6 +331,15 @@ func (e *Env) Completion(path string, pos fake.Pos) *protocol.CompletionList {
 	return completions
 }
 
+// AcceptCompletion accepts a completion for the given item at the given
+// position.
+func (e *Env) AcceptCompletion(path string, pos fake.Pos, item protocol.CompletionItem) {
+	e.T.Helper()
+	if err := e.Editor.AcceptCompletion(e.Ctx, path, pos, item); err != nil {
+		e.T.Fatal(err)
+	}
+}
+
 // CodeAction calls testDocument/codeAction for the given path, and calls
 // t.Fatal if there are errors.
 func (e *Env) CodeAction(path string) []protocol.CodeAction {

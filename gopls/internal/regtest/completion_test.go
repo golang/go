@@ -213,3 +213,60 @@ func compareCompletionResults(want []string, gotItems []protocol.CompletionItem)
 
 	return ""
 }
+
+func TestUnimportedCompletion(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- main.go --
+package main
+
+func main() {
+	_ = blah
+}
+`
+	withOptions(
+		ProxyFiles(proxy),
+	).run(t, mod, func(t *testing.T, env *Env) {
+		// Explicitly download example.com so it's added to the module cache
+		// and offered as an unimported completion.
+		env.RunGoCommand("get", "example.com@v1.2.3")
+		env.RunGoCommand("mod", "tidy")
+
+		// Trigger unimported completions for the example.com/blah package.
+		env.OpenFile("main.go")
+		pos := env.RegexpSearch("main.go", "ah")
+		completions := env.Completion("main.go", pos)
+		if len(completions.Items) == 0 {
+			t.Fatalf("no completion items")
+		}
+		env.AcceptCompletion("main.go", pos, completions.Items[0])
+
+		// Trigger completions once again for the blah.<> selector.
+		env.RegexpReplace("main.go", "_ = blah", "_ = blah.")
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 2),
+		)
+		pos = env.RegexpSearch("main.go", "\n}")
+		completions = env.Completion("main.go", pos)
+		if len(completions.Items) != 1 {
+			t.Fatalf("expected 1 completion item, got %v", len(completions.Items))
+		}
+		item := completions.Items[0]
+		if item.Label != "Name" {
+			t.Fatalf("expected completion item blah.Name, got %v", item.Label)
+		}
+		env.AcceptCompletion("main.go", pos, item)
+
+		// Await the diagnostics to add example.com/blah to the go.mod file.
+		env.SaveBufferWithoutActions("main.go")
+		env.Await(
+			env.DiagnosticAtRegexp("go.mod", "module mod.com"),
+			env.DiagnosticAtRegexp("main.go", `"example.com/blah"`),
+		)
+	})
+}

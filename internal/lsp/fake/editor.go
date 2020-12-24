@@ -907,6 +907,23 @@ func (e *Editor) Completion(ctx context.Context, path string, pos Pos) (*protoco
 	return completions, nil
 }
 
+// AcceptCompletion accepts a completion for the given item at the given
+// position.
+func (e *Editor) AcceptCompletion(ctx context.Context, path string, pos Pos, item protocol.CompletionItem) error {
+	if e.Server == nil {
+		return nil
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	_, ok := e.buffers[path]
+	if !ok {
+		return fmt.Errorf("buffer %q is not open", path)
+	}
+	return e.editBufferLocked(ctx, path, convertEdits(append([]protocol.TextEdit{
+		*item.TextEdit,
+	}, item.AdditionalTextEdits...)))
+}
+
 // References executes a reference request on the server.
 func (e *Editor) References(ctx context.Context, path string, pos Pos) ([]protocol.Location, error) {
 	if e.Server == nil {
