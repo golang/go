@@ -842,7 +842,7 @@ func tcSlice(n *ir.SliceExpr) ir.Node {
 		return n
 	}
 	if l.Type().IsArray() {
-		if !ir.IsAssignable(n.X) {
+		if !ir.IsAddressable(n.X) {
 			base.Errorf("invalid operation %v (slice of unaddressable value)", n)
 			n.SetType(nil)
 			return n

@@ -235,7 +235,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 // because we emit explicit VARKILL instructions marking the end of those
 // temporaries' lifetimes.
 func isaddrokay(n ir.Node) bool {
-	return ir.IsAssignable(n) && (n.Op() != ir.ONAME || n.(*ir.Name).Class_ == ir.PEXTERN || ir.IsAutoTmp(n))
+	return ir.IsAddressable(n) && (n.Op() != ir.ONAME || n.(*ir.Name).Class_ == ir.PEXTERN || ir.IsAutoTmp(n))
 }
 
 // addrTemp ensures that n is okay to pass by address to runtime routines.

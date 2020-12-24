@@ -2736,7 +2736,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		// SSA, then load just the selected field. This
 		// prevents false memory dependencies in race/msan
 		// instrumentation.
-		if ir.IsAssignable(n) && !s.canSSA(n) {
+		if ir.IsAddressable(n) && !s.canSSA(n) {
 			p := s.addr(n)
 			return s.load(n.Type(), p)
 		}
