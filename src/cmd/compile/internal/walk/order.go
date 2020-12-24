@@ -848,7 +848,7 @@ func (o *orderState) stmt(n ir.Node) {
 			base.Fatalf("order.stmt range %v", n.Type())
 
 		case types.TARRAY, types.TSLICE:
-			if len(n.Vars) < 2 || ir.IsBlank(n.Vars[1]) {
+			if n.Value == nil || ir.IsBlank(n.Value) {
 				// for i := range x will only use x once, to compute len(x).
 				// No need to copy it.
 				break
@@ -887,7 +887,8 @@ func (o *orderState) stmt(n ir.Node) {
 			// hiter contains pointers and needs to be zeroed.
 			n.Prealloc = o.newTemp(reflectdata.MapIterType(n.Type()), true)
 		}
-		o.exprListInPlace(n.Vars)
+		n.Key = o.exprInPlace(n.Key)
+		n.Value = o.exprInPlace(n.Value)
 		if orderBody {
 			orderBlock(&n.Body, o.free)
 		}

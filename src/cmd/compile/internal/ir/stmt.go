@@ -290,25 +290,24 @@ func NewLabelStmt(pos src.XPos, label *types.Sym) *LabelStmt {
 
 func (n *LabelStmt) Sym() *types.Sym { return n.Label }
 
-// A RangeStmt is a range loop: for Vars = range X { Stmts }
-// Op can be OFOR or OFORUNTIL (!Cond).
+// A RangeStmt is a range loop: for Key, Value = range X { Body }
 type RangeStmt struct {
 	miniStmt
 	Label    *types.Sym
-	Vars     Nodes // TODO(rsc): Replace with Key, Value Node
 	Def      bool
 	X        Node
+	Key      Node
+	Value    Node
 	Body     Nodes
 	HasBreak bool
 	typ      *types.Type // TODO(rsc): Remove - use X.Type() instead
 	Prealloc *Name
 }
 
-func NewRangeStmt(pos src.XPos, vars []Node, x Node, body []Node) *RangeStmt {
-	n := &RangeStmt{X: x}
+func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node) *RangeStmt {
+	n := &RangeStmt{X: x, Key: key, Value: value}
 	n.pos = pos
 	n.op = ORANGE
-	n.Vars.Set(vars)
 	n.Body.Set(body)
 	return n
 }
