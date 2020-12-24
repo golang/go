@@ -63,6 +63,7 @@ func _() {
 	_ = f1()               // ok
 	_, _ = f2()            // ok
 	_ = f2()               // ERROR "assignment mismatch: 1 variable but f2 returns 2 values"
+	_ = f1(), 0            // ERROR "assignment mismatch: 1 variable but 2 values"
 	T.M0                   // ERROR "T.M0 evaluated but not used"
 	t.M0                   // ERROR "t.M0 evaluated but not used"
 	cap                    // ERROR "use of builtin cap not in function call"
