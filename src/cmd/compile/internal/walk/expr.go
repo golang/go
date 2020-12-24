@@ -429,7 +429,7 @@ func safeExpr(n ir.Node, init *ir.Nodes) ir.Node {
 	}
 
 	// make a copy; must not be used as an lvalue
-	if ir.IsAssignable(n) {
+	if ir.IsAddressable(n) {
 		base.Fatalf("missing lvalue case in safeexpr: %v", n)
 	}
 	return cheapExpr(n, init)

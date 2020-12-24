@@ -1638,7 +1638,7 @@ func nonexported(sym *types.Sym) bool {
 }
 
 func checklvalue(n ir.Node, verb string) {
-	if !ir.IsAssignable(n) {
+	if !ir.IsAddressable(n) {
 		base.Errorf("cannot %s %v", verb, n)
 	}
 }
@@ -1656,7 +1656,7 @@ func checkassign(stmt ir.Node, n ir.Node) {
 		}
 	}
 
-	if ir.IsAssignable(n) {
+	if ir.IsAddressable(n) {
 		return
 	}
 	if n.Op() == ir.OINDEXMAP {

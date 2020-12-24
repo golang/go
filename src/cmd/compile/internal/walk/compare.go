@@ -155,7 +155,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	// Chose not to inline. Call equality function directly.
 	if !inline {
 		// eq algs take pointers; cmpl and cmpr must be addressable
-		if !ir.IsAssignable(cmpl) || !ir.IsAssignable(cmpr) {
+		if !ir.IsAddressable(cmpl) || !ir.IsAddressable(cmpr) {
 			base.Fatalf("arguments of comparison must be lvalues - %v %v", cmpl, cmpr)
 		}
 

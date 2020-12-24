@@ -776,12 +776,12 @@ func IsZero(n Node) bool {
 }
 
 // lvalue etc
-func IsAssignable(n Node) bool {
+func IsAddressable(n Node) bool {
 	switch n.Op() {
 	case OINDEX:
 		n := n.(*IndexExpr)
 		if n.X.Type() != nil && n.X.Type().IsArray() {
-			return IsAssignable(n.X)
+			return IsAddressable(n.X)
 		}
 		if n.X.Type() != nil && n.X.Type().IsString() {
 			return false
@@ -792,7 +792,7 @@ func IsAssignable(n Node) bool {
 
 	case ODOT:
 		n := n.(*SelectorExpr)
-		return IsAssignable(n.X)
+		return IsAddressable(n.X)
 
 	case ONAME:
 		n := n.(*Name)
