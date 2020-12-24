@@ -10,6 +10,9 @@
 */
 package builtin
 
+// any is an universal type, shorthand of interface{}
+type any interface{}
+
 // bool is the set of boolean values, true and false.
 type bool bool
 
