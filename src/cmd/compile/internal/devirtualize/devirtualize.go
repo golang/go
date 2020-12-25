@@ -1,29 +1,10 @@
-// Copyright 2011 The Go Authors. All rights reserved.
+// Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
-//
-// The inlining facility makes 2 passes: first caninl determines which
-// functions are suitable for inlining, and for those that are it
-// saves a copy of the body. Then inlcalls walks each function body to
-// expand calls to inlinable functions.
-//
-// The Debug.l flag controls the aggressiveness. Note that main() swaps level 0 and 1,
-// making 1 the default and -l disable. Additional levels (beyond -l) may be buggy and
-// are not supported.
-//      0: disabled
-//      1: 80-nodes leaf functions, oneliners, panic, lazy typechecking (default)
-//      2: (unassigned)
-//      3: (unassigned)
-//      4: allow non-leaf functions
-//
-// At some point this may get another default and become switch-offable with -N.
-//
-// The -d typcheckinl flag enables early typechecking of all imported bodies,
-// which is useful to flush out bugs.
-//
-// The Debug.m flag enables diagnostic output.  a single -m is useful for verifying
-// which calls get inlined or not, more is for debugging, and may go away at any point.
 
+// Package devirtualize implements a simple "devirtualization"
+// optimization pass, which replaces interface method calls with
+// direct concrete-type method calls where possible.
 package devirtualize
 
 import (
@@ -33,18 +14,21 @@ import (
 	"cmd/compile/internal/types"
 )
 
-// Devirtualize replaces interface method calls within fn with direct
-// concrete-type method calls where applicable.
+// Func devirtualizes calls within fn where possible.
 func Func(fn *ir.Func) {
 	ir.CurFunc = fn
 	ir.VisitList(fn.Body, func(n ir.Node) {
-		if n.Op() == ir.OCALLINTER {
-			Call(n.(*ir.CallExpr))
+		if call, ok := n.(*ir.CallExpr); ok {
+			Call(call)
 		}
 	})
 }
 
+// Call devirtualizes the given call if possible.
 func Call(call *ir.CallExpr) {
+	if call.Op() != ir.OCALLINTER {
+		return
+	}
 	sel := call.X.(*ir.SelectorExpr)
 	r := ir.StaticValue(sel.X)
 	if r.Op() != ir.OCONVIFACE {
