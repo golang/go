@@ -207,6 +207,7 @@ type PackageInternal struct {
 	BuildInfo         string               // add this info to package main
 	TestmainGo        *[]byte              // content for _testmain.go
 	Embed             map[string][]string  // //go:embed comment mapping
+	OrigImportPath    string               // original import path before adding '_test' suffix
 
 	Asmflags   []string // -asmflags for this package
 	Gcflags    []string // -gcflags for this package
@@ -402,6 +403,7 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.EmbedPatterns = pp.EmbedPatterns
 	p.TestEmbedPatterns = pp.TestEmbedPatterns
 	p.XTestEmbedPatterns = pp.XTestEmbedPatterns
+	p.Internal.OrigImportPath = pp.ImportPath
 }
 
 // A PackageError describes an error loading information about a package.

@@ -204,6 +204,7 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
 		}
 		ptest.Internal.Embed = testEmbed
 		ptest.EmbedFiles = str.StringList(p.EmbedFiles, p.TestEmbedFiles)
+		ptest.Internal.OrigImportPath = p.Internal.OrigImportPath
 		ptest.collectDeps()
 	} else {
 		ptest = p
@@ -233,11 +234,12 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
 				Imports:    ximports,
 				RawImports: rawXTestImports,
 
-				Asmflags:   p.Internal.Asmflags,
-				Gcflags:    p.Internal.Gcflags,
-				Ldflags:    p.Internal.Ldflags,
-				Gccgoflags: p.Internal.Gccgoflags,
-				Embed:      xtestEmbed,
+				Asmflags:       p.Internal.Asmflags,
+				Gcflags:        p.Internal.Gcflags,
+				Ldflags:        p.Internal.Ldflags,
+				Gccgoflags:     p.Internal.Gccgoflags,
+				Embed:          xtestEmbed,
+				OrigImportPath: p.Internal.OrigImportPath,
 			},
 		}
 		if pxtestNeedsPtest {
@@ -258,12 +260,13 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
 			Module:     p.Module,
 		},
 		Internal: PackageInternal{
-			Build:      &build.Package{Name: "main"},
-			BuildInfo:  p.Internal.BuildInfo,
-			Asmflags:   p.Internal.Asmflags,
-			Gcflags:    p.Internal.Gcflags,
-			Ldflags:    p.Internal.Ldflags,
-			Gccgoflags: p.Internal.Gccgoflags,
+			Build:          &build.Package{Name: "main"},
+			BuildInfo:      p.Internal.BuildInfo,
+			Asmflags:       p.Internal.Asmflags,
+			Gcflags:        p.Internal.Gcflags,
+			Ldflags:        p.Internal.Ldflags,
+			Gccgoflags:     p.Internal.Gccgoflags,
+			OrigImportPath: p.Internal.OrigImportPath,
 		},
 	}
 
