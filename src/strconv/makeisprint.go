@@ -37,7 +37,7 @@ var (
 func bsearch16(a []uint16, x uint16) int {
 	i, j := 0, len(a)
 	for i < j {
-		h := i + (j-i)/2
+		h := i + (j-i)>>1
 		if a[h] < x {
 			i = h + 1
 		} else {
@@ -52,7 +52,7 @@ func bsearch16(a []uint16, x uint16) int {
 func bsearch32(a []uint32, x uint32) int {
 	i, j := 0, len(a)
 	for i < j {
-		h := i + (j-i)/2
+		h := i + (j-i)>>1
 		if a[h] < x {
 			i = h + 1
 		} else {

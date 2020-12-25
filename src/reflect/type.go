@@ -1723,7 +1723,7 @@ func typesByString(s string) []*rtype {
 		// This is a copy of sort.Search, with f(h) replaced by (*typ[h].String() >= s).
 		i, j := 0, len(offs)
 		for i < j {
-			h := i + (j-i)/2 // avoid overflow when computing h
+			h := i + (j-i)>>1 // avoid overflow when computing h
 			// i ≤ h < j
 			if !(rtypeOff(section, offs[h]).String() >= s) {
 				i = h + 1 // preserves f(i-1) == false
