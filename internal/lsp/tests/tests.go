@@ -1131,6 +1131,9 @@ func (data *Data) collectIncomingCalls(src span.Span, calls []span.Span) {
 }
 
 func (data *Data) collectOutgoingCalls(src span.Span, calls []span.Span) {
+	if data.CallHierarchy[src] == nil {
+		data.CallHierarchy[src] = &CallHierarchyResult{}
+	}
 	for _, call := range calls {
 		m, err := data.Mapper(call.URI())
 		if err != nil {
@@ -1141,19 +1144,11 @@ func (data *Data) collectOutgoingCalls(src span.Span, calls []span.Span) {
 			data.t.Fatal(err)
 		}
 		// we're only comparing protocol.range
-		if data.CallHierarchy[src] != nil {
-			data.CallHierarchy[src].OutgoingCalls = append(data.CallHierarchy[src].OutgoingCalls,
-				protocol.CallHierarchyItem{
-					URI:   protocol.DocumentURI(call.URI()),
-					Range: rng,
-				})
-		} else {
-			data.CallHierarchy[src] = &CallHierarchyResult{
-				OutgoingCalls: []protocol.CallHierarchyItem{
-					{URI: protocol.DocumentURI(call.URI()), Range: rng},
-				},
-			}
-		}
+		data.CallHierarchy[src].OutgoingCalls = append(data.CallHierarchy[src].OutgoingCalls,
+			protocol.CallHierarchyItem{
+				URI:   protocol.DocumentURI(call.URI()),
+				Range: rng,
+			})
 	}
 }
 

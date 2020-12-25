@@ -26,12 +26,14 @@ var x = func() { //@mark(hierarchyLiteral, "func"),mark(hierarchyLiteralOut, "x"
 }
 
 // D is exported to test incoming/outgoing calls across packages
-func D() { //@mark(hierarchyD, "D"),incomingcalls(hierarchyD, hierarchyA, hierarchyB, hierarchyC, hierarchyLiteral, incomingA),outgoingcalls(hierarchyD, hierarchyE, hierarchyF, hierarchyG, hierarchyLiteralOut, outgoingB)
+func D() { //@mark(hierarchyD, "D"),incomingcalls(hierarchyD, hierarchyA, hierarchyB, hierarchyC, hierarchyLiteral, incomingA),outgoingcalls(hierarchyD, hierarchyE, hierarchyF, hierarchyG, hierarchyLiteralOut, outgoingB, hierarchyFoo)
 	e()
 	x()
 	F()
 	g()
 	outgoing.B()
+	foo := func() {} //@mark(hierarchyFoo, "foo"),incomingcalls(hierarchyFoo, hierarchyD),outgoingcalls(hierarchyFoo)
+	foo()
 }
 
 func e() {} //@mark(hierarchyE, "e")

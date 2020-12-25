@@ -193,7 +193,9 @@ func OutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	if _, ok := identifier.Declaration.obj.Type().Underlying().(*types.Signature); !ok {
 		return nil, nil
 	}
-
+	if identifier.Declaration.node == nil {
+		return nil, nil
+	}
 	if len(identifier.Declaration.MappedRange) == 0 {
 		return nil, nil
 	}
