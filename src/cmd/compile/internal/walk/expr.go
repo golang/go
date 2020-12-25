@@ -535,21 +535,30 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 		return // already walked
 	}
 
-	params := n.X.Type().Params()
 	args := n.Args
 
 	n.X = walkExpr(n.X, init)
 	walkExprList(args, init)
 
-	// If this is a method call, add the receiver at the beginning of the args.
+	// If this is a method call t.M(...),
+	// rewrite into a function call T.M(t, ...).
+	// TODO(mdempsky): Do this right after type checking.
 	if n.Op() == ir.OCALLMETH {
 		withRecv := make([]ir.Node, len(args)+1)
 		dot := n.X.(*ir.SelectorExpr)
 		withRecv[0] = dot.X
-		dot.X = nil
 		copy(withRecv[1:], args)
 		args = withRecv
+
+		dot = ir.NewSelectorExpr(dot.Pos(), ir.OXDOT, ir.TypeNode(dot.X.Type()), dot.Selection.Sym)
+		fn := typecheck.Expr(dot).(*ir.MethodExpr).FuncName()
+		fn.Type().Size()
+
+		n.SetOp(ir.OCALLFUNC)
+		n.X = fn
 	}
+
+	params := n.X.Type().Params()
 
 	// For any argument whose evaluation might require a function call,
 	// store that argument into a temporary variable,
@@ -559,16 +568,7 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 	for i, arg := range args {
 		updateHasCall(arg)
 		// Determine param type.
-		var t *types.Type
-		if n.Op() == ir.OCALLMETH {
-			if i == 0 {
-				t = n.X.Type().Recv().Type
-			} else {
-				t = params.Field(i - 1).Type
-			}
-		} else {
-			t = params.Field(i).Type
-		}
+		t := params.Field(i).Type
 		if base.Flag.Cfg.Instrumenting || fncall(arg, t) {
 			// make assignment of fncall to tempAt
 			tmp := typecheck.Temp(t)

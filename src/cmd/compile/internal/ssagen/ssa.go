@@ -214,10 +214,7 @@ func InitConfig() {
 func getParam(n *ir.CallExpr, i int) *types.Field {
 	t := n.X.Type()
 	if n.Op() == ir.OCALLMETH {
-		if i == 0 {
-			return t.Recv()
-		}
-		return t.Params().Field(i - 1)
+		base.Fatalf("OCALLMETH missed by walkCall")
 	}
 	return t.Params().Field(i)
 }
@@ -1166,7 +1163,7 @@ func (s *state) stmt(n ir.Node) {
 		}
 		fallthrough
 
-	case ir.OCALLMETH, ir.OCALLINTER:
+	case ir.OCALLINTER:
 		n := n.(*ir.CallExpr)
 		s.callResult(n, callNormal)
 		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class_ == ir.PFUNC {
@@ -4396,16 +4393,7 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
 			opendefer.closure = closure
 		}
 	} else if n.Op() == ir.OCALLMETH {
-		if fn.Op() != ir.ODOTMETH {
-			base.Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
-		}
-		fn := fn.(*ir.SelectorExpr)
-		closureVal := s.getMethodClosure(fn)
-		// We must always store the function value in a stack slot for the
-		// runtime panic code to use. But in the defer exit code, we will
-		// call the method directly.
-		closure := s.openDeferSave(nil, fn.Type(), closureVal)
-		opendefer.closureNode = closure.Aux.(*ir.Name)
+		base.Fatalf("OCALLMETH missed by walkCall")
 	} else {
 		if fn.Op() != ir.ODOTINTER {
 			base.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op())
@@ -4679,18 +4667,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			s.maybeNilCheckClosure(closure, k)
 		}
 	case ir.OCALLMETH:
-		if fn.Op() != ir.ODOTMETH {
-			s.Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
-		}
-		fn := fn.(*ir.SelectorExpr)
-		testLateExpansion = k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f)
-		if k == callNormal {
-			sym = fn.Sel
-			break
-		}
-		closure = s.getMethodClosure(fn)
-		// Note: receiver is already present in n.Rlist, so we don't
-		// want to set it here.
+		base.Fatalf("OCALLMETH missed by walkCall")
 	case ir.OCALLINTER:
 		if fn.Op() != ir.ODOTINTER {
 			s.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op())
@@ -4755,9 +4732,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		}
 		// Set receiver (for method calls).
 		if n.Op() == ir.OCALLMETH {
-			f := ft.Recv()
-			s.storeArgWithBase(args[0], f.Type, addr, off+f.Offset)
-			args = args[1:]
+			base.Fatalf("OCALLMETH missed by walkCall")
 		}
 		// Set other args.
 		for _, f := range ft.Params().Fields().Slice() {
@@ -4825,11 +4800,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		t := n.X.Type()
 		args := n.Rargs
 		if n.Op() == ir.OCALLMETH {
-			f := t.Recv()
-			ACArg, arg := s.putArg(args[0], f.Type, argStart+f.Offset, testLateExpansion)
-			ACArgs = append(ACArgs, ACArg)
-			callArgs = append(callArgs, arg)
-			args = args[1:]
+			base.Fatalf("OCALLMETH missed by walkCall")
 		}
 		for i, n := range args {
 			f := t.Params().Field(i)
@@ -4945,22 +4916,6 @@ func (s *state) maybeNilCheckClosure(closure *ssa.Value, k callKind) {
 		// TODO(neelance): On other architectures this should be eliminated by the optimization steps
 		s.nilCheck(closure)
 	}
-}
-
-// getMethodClosure returns a value representing the closure for a method call
-func (s *state) getMethodClosure(fn *ir.SelectorExpr) *ssa.Value {
-	// Make a name n2 for the function.
-	// fn.Sym might be sync.(*Mutex).Unlock.
-	// Make a PFUNC node out of that, then evaluate it.
-	// We get back an SSA value representing &sync.(*Mutex).Unlock·f.
-	// We can then pass that to defer or go.
-	n2 := ir.NewNameAt(fn.Pos(), fn.Sel)
-	n2.Curfn = s.curfn
-	n2.Class_ = ir.PFUNC
-	// n2.Sym already existed, so it's already marked as a function.
-	n2.SetPos(fn.Pos())
-	n2.SetType(types.Types[types.TUINT8]) // fake type for a static closure. Could use runtime.funcval if we had it.
-	return s.expr(n2)
 }
 
 // getClosureAndRcvr returns values for the appropriate closure and receiver of an
@@ -5089,7 +5044,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 		}
 		addr := s.addr(n.X)
 		return s.newValue1(ssa.OpCopy, t, addr) // ensure that addr has the right type
-	case ir.OCALLFUNC, ir.OCALLINTER, ir.OCALLMETH:
+	case ir.OCALLFUNC, ir.OCALLINTER:
 		n := n.(*ir.CallExpr)
 		return s.callAddr(n, callNormal)
 	case ir.ODOTTYPE:
