@@ -73,6 +73,7 @@ func ExampleSendMail() {
 	// and send the email all in one step.
 	to := []string{"recipient@example.net"}
 	msg := []byte("To: recipient@example.net\r\n" +
+		"From: sender@example.org\r\n" +
 		"Subject: discount Gophers!\r\n" +
 		"\r\n" +
 		"This is the email body.\r\n")
