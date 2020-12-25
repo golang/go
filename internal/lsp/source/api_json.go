@@ -402,4 +402,201 @@ var GeneratedAPIJSON = &APIJSON{
 			Doc:   "gc_details controls calculation of gc annotations.\n",
 		},
 	},
+	Analyzers: []*AnalyzerJSON{
+		{
+			Name:    "asmdecl",
+			Doc:     "report mismatches between assembly files and Go declarations",
+			Default: true,
+		},
+		{
+			Name:    "assign",
+			Doc:     "check for useless assignments\n\nThis checker reports assignments of the form x = x or a[i] = a[i].\nThese are almost always useless, and even when they aren't they are\nusually a mistake.",
+			Default: true,
+		},
+		{
+			Name:    "atomic",
+			Doc:     "check for common mistakes using the sync/atomic package\n\nThe atomic checker looks for assignment statements of the form:\n\n\tx = atomic.AddUint64(&x, 1)\n\nwhich are not atomic.",
+			Default: true,
+		},
+		{
+			Name:    "atomicalign",
+			Doc:     "check for non-64-bits-aligned arguments to sync/atomic functions",
+			Default: true,
+		},
+		{
+			Name:    "bools",
+			Doc:     "check for common mistakes involving boolean operators",
+			Default: true,
+		},
+		{
+			Name:    "buildtag",
+			Doc:     "check that +build tags are well-formed and correctly located",
+			Default: true,
+		},
+		{
+			Name:    "cgocall",
+			Doc:     "detect some violations of the cgo pointer passing rules\n\nCheck for invalid cgo pointer passing.\nThis looks for code that uses cgo to call C code passing values\nwhose types are almost always invalid according to the cgo pointer\nsharing rules.\nSpecifically, it warns about attempts to pass a Go chan, map, func,\nor slice to C, either directly, or via a pointer, array, or struct.",
+			Default: true,
+		},
+		{
+			Name:    "composites",
+			Doc:     "check for unkeyed composite literals\n\nThis analyzer reports a diagnostic for composite literals of struct\ntypes imported from another package that do not use the field-keyed\nsyntax. Such literals are fragile because the addition of a new field\n(even if unexported) to the struct will cause compilation to fail.\n\nAs an example,\n\n\terr = &net.DNSConfigError{err}\n\nshould be replaced by:\n\n\terr = &net.DNSConfigError{Err: err}\n",
+			Default: true,
+		},
+		{
+			Name:    "copylocks",
+			Doc:     "check for locks erroneously passed by value\n\nInadvertently copying a value containing a lock, such as sync.Mutex or\nsync.WaitGroup, may cause both copies to malfunction. Generally such\nvalues should be referred to through a pointer.",
+			Default: true,
+		},
+		{
+			Name:    "deepequalerrors",
+			Doc:     "check for calls of reflect.DeepEqual on error values\n\nThe deepequalerrors checker looks for calls of the form:\n\n    reflect.DeepEqual(err1, err2)\n\nwhere err1 and err2 are errors. Using reflect.DeepEqual to compare\nerrors is discouraged.",
+			Default: true,
+		},
+		{
+			Name:    "errorsas",
+			Doc:     "report passing non-pointer or non-error values to errors.As\n\nThe errorsas analysis reports calls to errors.As where the type\nof the second argument is not a pointer to a type implementing error.",
+			Default: true,
+		},
+		{
+			Name:    "fieldalignment",
+			Doc:     "find structs that would take less memory if their fields were sorted\n\nThis analyzer find structs that can be rearranged to take less memory, and provides\na suggested edit with the optimal order.\n",
+			Default: false,
+		},
+		{
+			Name:    "httpresponse",
+			Doc:     "check for mistakes using HTTP responses\n\nA common mistake when using the net/http package is to defer a function\ncall to close the http.Response Body before checking the error that\ndetermines whether the response is valid:\n\n\tresp, err := http.Head(url)\n\tdefer resp.Body.Close()\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\t// (defer statement belongs here)\n\nThis checker helps uncover latent nil dereference bugs by reporting a\ndiagnostic for such mistakes.",
+			Default: true,
+		},
+		{
+			Name:    "ifaceassert",
+			Doc:     "detect impossible interface-to-interface type assertions\n\nThis checker flags type assertions v.(T) and corresponding type-switch cases\nin which the static type V of v is an interface that cannot possibly implement\nthe target interface T. This occurs when V and T contain methods with the same\nname but different signatures. Example:\n\n\tvar v interface {\n\t\tRead()\n\t}\n\t_ = v.(io.Reader)\n\nThe Read method in v has a different signature than the Read method in\nio.Reader, so this assertion cannot succeed.\n",
+			Default: true,
+		},
+		{
+			Name:    "loopclosure",
+			Doc:     "check references to loop variables from within nested functions\n\nThis analyzer checks for references to loop variables from within a\nfunction literal inside the loop body. It checks only instances where\nthe function literal is called in a defer or go statement that is the\nlast statement in the loop body, as otherwise we would need whole\nprogram analysis.\n\nFor example:\n\n\tfor i, v := range s {\n\t\tgo func() {\n\t\t\tprintln(i, v) // not what you might expect\n\t\t}()\n\t}\n\nSee: https://golang.org/doc/go_faq.html#closures_and_goroutines",
+			Default: true,
+		},
+		{
+			Name:    "lostcancel",
+			Doc:     "check cancel func returned by context.WithCancel is called\n\nThe cancellation function returned by context.WithCancel, WithTimeout,\nand WithDeadline must be called or the new context will remain live\nuntil its parent context is cancelled.\n(The background context is never cancelled.)",
+			Default: true,
+		},
+		{
+			Name:    "nilfunc",
+			Doc:     "check for useless comparisons between functions and nil\n\nA useless comparison is one like f == nil as opposed to f() == nil.",
+			Default: true,
+		},
+		{
+			Name:    "printf",
+			Doc:     "check consistency of Printf format strings and arguments\n\nThe check applies to known functions (for example, those in package fmt)\nas well as any detected wrappers of known functions.\n\nA function that wants to avail itself of printf checking but is not\nfound by this analyzer's heuristics (for example, due to use of\ndynamic calls) can insert a bogus call:\n\n\tif false {\n\t\t_ = fmt.Sprintf(format, args...) // enable printf checking\n\t}\n\nThe -funcs flag specifies a comma-separated list of names of additional\nknown formatting functions or methods. If the name contains a period,\nit must denote a specific function using one of the following forms:\n\n\tdir/pkg.Function\n\tdir/pkg.Type.Method\n\t(*dir/pkg.Type).Method\n\nOtherwise the name is interpreted as a case-insensitive unqualified\nidentifier such as \"errorf\". Either way, if a listed name ends in f, the\nfunction is assumed to be Printf-like, taking a format string before the\nargument list. Otherwise it is assumed to be Print-like, taking a list\nof arguments with no format string.\n",
+			Default: true,
+		},
+		{
+			Name:    "shadow",
+			Doc:     "check for possible unintended shadowing of variables\n\nThis analyzer check for shadowed variables.\nA shadowed variable is a variable declared in an inner scope\nwith the same name and type as a variable in an outer scope,\nand where the outer variable is mentioned after the inner one\nis declared.\n\n(This definition can be refined; the module generates too many\nfalse positives and is not yet enabled by default.)\n\nFor example:\n\n\tfunc BadRead(f *os.File, buf []byte) error {\n\t\tvar err error\n\t\tfor {\n\t\t\tn, err := f.Read(buf) // shadows the function variable 'err'\n\t\t\tif err != nil {\n\t\t\t\tbreak // causes return of wrong value\n\t\t\t}\n\t\t\tfoo(buf)\n\t\t}\n\t\treturn err\n\t}\n",
+			Default: false,
+		},
+		{
+			Name:    "shift",
+			Doc:     "check for shifts that equal or exceed the width of the integer",
+			Default: true,
+		},
+		{
+			Name:    "simplifycompositelit",
+			Doc:     "check for composite literal simplifications\n\nAn array, slice, or map composite literal of the form:\n\t[]T{T{}, T{}}\nwill be simplified to:\n\t[]T{{}, {}}\n\nThis is one of the simplifications that \"gofmt -s\" applies.",
+			Default: true,
+		},
+		{
+			Name:    "simplifyrange",
+			Doc:     "check for range statement simplifications\n\nA range of the form:\n\tfor x, _ = range v {...}\nwill be simplified to:\n\tfor x = range v {...}\n\nA range of the form:\n\tfor _ = range v {...}\nwill be simplified to:\n\tfor range v {...}\n\nThis is one of the simplifications that \"gofmt -s\" applies.",
+			Default: true,
+		},
+		{
+			Name:    "simplifyslice",
+			Doc:     "check for slice simplifications\n\nA slice expression of the form:\n\ts[a:len(s)]\nwill be simplified to:\n\ts[a:]\n\nThis is one of the simplifications that \"gofmt -s\" applies.",
+			Default: true,
+		},
+		{
+			Name:    "sortslice",
+			Doc:     "check the argument type of sort.Slice\n\nsort.Slice requires an argument of a slice type. Check that\nthe interface{} value passed to sort.Slice is actually a slice.",
+			Default: true,
+		},
+		{
+			Name:    "stdmethods",
+			Doc:     "check signature of methods of well-known interfaces\n\nSometimes a type may be intended to satisfy an interface but may fail to\ndo so because of a mistake in its method signature.\nFor example, the result of this WriteTo method should be (int64, error),\nnot error, to satisfy io.WriterTo:\n\n\ttype myWriterTo struct{...}\n        func (myWriterTo) WriteTo(w io.Writer) error { ... }\n\nThis check ensures that each method whose name matches one of several\nwell-known interface methods from the standard library has the correct\nsignature for that interface.\n\nChecked method names include:\n\tFormat GobEncode GobDecode MarshalJSON MarshalXML\n\tPeek ReadByte ReadFrom ReadRune Scan Seek\n\tUnmarshalJSON UnreadByte UnreadRune WriteByte\n\tWriteTo\n",
+			Default: true,
+		},
+		{
+			Name:    "stringintconv",
+			Doc:     "check for string(int) conversions\n\nThis checker flags conversions of the form string(x) where x is an integer\n(but not byte or rune) type. Such conversions are discouraged because they\nreturn the UTF-8 representation of the Unicode code point x, and not a decimal\nstring representation of x as one might expect. Furthermore, if x denotes an\ninvalid code point, the conversion cannot be statically rejected.\n\nFor conversions that intend on using the code point, consider replacing them\nwith string(rune(x)). Otherwise, strconv.Itoa and its equivalents return the\nstring representation of the value in the desired base.\n",
+			Default: true,
+		},
+		{
+			Name:    "structtag",
+			Doc:     "check that struct field tags conform to reflect.StructTag.Get\n\nAlso report certain struct tags (json, xml) used with unexported fields.",
+			Default: true,
+		},
+		{
+			Name:    "testinggoroutine",
+			Doc:     "report calls to (*testing.T).Fatal from goroutines started by a test.\n\nFunctions that abruptly terminate a test, such as the Fatal, Fatalf, FailNow, and\nSkip{,f,Now} methods of *testing.T, must be called from the test goroutine itself.\nThis checker detects calls to these functions that occur within a goroutine\nstarted by the test. For example:\n\nfunc TestFoo(t *testing.T) {\n    go func() {\n        t.Fatal(\"oops\") // error: (*T).Fatal called from non-test goroutine\n    }()\n}\n",
+			Default: true,
+		},
+		{
+			Name:    "tests",
+			Doc:     "check for common mistaken usages of tests and examples\n\nThe tests checker walks Test, Benchmark and Example functions checking\nmalformed names, wrong signatures and examples documenting non-existent\nidentifiers.\n\nPlease see the documentation for package testing in golang.org/pkg/testing\nfor the conventions that are enforced for Tests, Benchmarks, and Examples.",
+			Default: true,
+		},
+		{
+			Name:    "unmarshal",
+			Doc:     "report passing non-pointer or non-interface values to unmarshal\n\nThe unmarshal analysis reports calls to functions such as json.Unmarshal\nin which the argument type is not a pointer or an interface.",
+			Default: true,
+		},
+		{
+			Name:    "unreachable",
+			Doc:     "check for unreachable code\n\nThe unreachable analyzer finds statements that execution can never reach\nbecause they are preceded by an return statement, a call to panic, an\ninfinite loop, or similar constructs.",
+			Default: true,
+		},
+		{
+			Name:    "unsafeptr",
+			Doc:     "check for invalid conversions of uintptr to unsafe.Pointer\n\nThe unsafeptr analyzer reports likely incorrect uses of unsafe.Pointer\nto convert integers to pointers. A conversion from uintptr to\nunsafe.Pointer is invalid if it implies that there is a uintptr-typed\nword in memory that holds a pointer value, because that word will be\ninvisible to stack copying and to the garbage collector.",
+			Default: true,
+		},
+		{
+			Name:    "unusedparams",
+			Doc:     "check for unused parameters of functions\n\nThe unusedparams analyzer checks functions to see if there are\nany parameters that are not being used.\n\nTo reduce false positives it ignores:\n- methods\n- parameters that do not have a name or are underscored\n- functions in test files\n- functions with empty bodies or those with just a return stmt",
+			Default: false,
+		},
+		{
+			Name:    "unusedresult",
+			Doc:     "check for unused results of calls to some functions\n\nSome functions like fmt.Errorf return a result and have no side effects,\nso it is always a mistake to discard the result. This analyzer reports\ncalls to certain functions in which the result of the call is ignored.\n\nThe set of functions may be controlled using flags.",
+			Default: true,
+		},
+		{
+			Name:    "fillreturns",
+			Doc:     "suggested fixes for \"wrong number of return values (want %d, got %d)\"\n\nThis checker provides suggested fixes for type errors of the\ntype \"wrong number of return values (want %d, got %d)\". For example:\n\tfunc m() (int, string, *bool, error) {\n\t\treturn\n\t}\nwill turn into\n\tfunc m() (int, string, *bool, error) {\n\t\treturn 0, \"\", nil, nil\n\t}\n\nThis functionality is similar to https://github.com/sqs/goreturns.\n",
+			Default: true,
+		},
+		{
+			Name:    "nonewvars",
+			Doc:     "suggested fixes for \"no new vars on left side of :=\"\n\nThis checker provides suggested fixes for type errors of the\ntype \"no new vars on left side of :=\". For example:\n\tz := 1\n\tz := 2\nwill turn into\n\tz := 1\n\tz = 2\n",
+			Default: true,
+		},
+		{
+			Name:    "noresultvalues",
+			Doc:     "suggested fixes for \"no result values expected\"\n\nThis checker provides suggested fixes for type errors of the\ntype \"no result values expected\". For example:\n\tfunc z() { return nil }\nwill turn into\n\tfunc z() { return }\n",
+			Default: true,
+		},
+		{
+			Name:    "undeclaredname",
+			Doc:     "suggested fixes for \"undeclared name: <>\"\n\nThis checker provides suggested fixes for type errors of the\ntype \"undeclared name: <>\". It will insert a new statement:\n\"<> := \".",
+			Default: true,
+		},
+		{
+			Name:    "fillstruct",
+			Doc:     "note incomplete struct initializations\n\nThis analyzer provides diagnostics for any struct literals that do not have\nany fields initialized. Because the suggested fix for this analysis is\nexpensive to compute, callers should compute it separately, using the\nSuggestedFix function below.\n",
+			Default: true,
+		},
+	},
 }

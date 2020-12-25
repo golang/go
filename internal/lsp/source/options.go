@@ -1121,9 +1121,10 @@ func urlRegexp() *regexp.Regexp {
 }
 
 type APIJSON struct {
-	Options  map[string][]*OptionJSON
-	Commands []*CommandJSON
-	Lenses   []*LensJSON
+	Options   map[string][]*OptionJSON
+	Commands  []*CommandJSON
+	Lenses    []*LensJSON
+	Analyzers []*AnalyzerJSON
 }
 
 type OptionJSON struct {
@@ -1149,4 +1150,10 @@ type LensJSON struct {
 	Lens  string
 	Title string
 	Doc   string
+}
+
+type AnalyzerJSON struct {
+	Name    string
+	Doc     string
+	Default bool
 }

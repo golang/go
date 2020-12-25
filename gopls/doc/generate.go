@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -49,6 +50,9 @@ func doMain(baseDir string, write bool) (bool, error) {
 		return ok, err
 	}
 	if ok, err := rewriteFile(filepath.Join(baseDir, "gopls/doc/commands.md"), api, write, rewriteCommands); !ok || err != nil {
+		return ok, err
+	}
+	if ok, err := rewriteFile(filepath.Join(baseDir, "gopls/doc/analyzers.md"), api, write, rewriteAnalyzers); !ok || err != nil {
 		return ok, err
 	}
 
@@ -93,6 +97,14 @@ func loadAPI() (*source.APIJSON, error) {
 	// Transform the internal command name to the external command name.
 	for _, c := range api.Commands {
 		c.Command = source.CommandPrefix + c.Command
+	}
+	for _, m := range []map[string]source.Analyzer{
+		defaults.DefaultAnalyzers,
+		defaults.TypeErrorAnalyzers,
+		defaults.ConvenienceAnalyzers,
+		// Don't yet add staticcheck analyzers.
+	} {
+		api.Analyzers = append(api.Analyzers, loadAnalyzers(m)...)
 	}
 	return api, nil
 }
@@ -320,6 +332,24 @@ func loadLenses(commands []*source.CommandJSON) []*source.LensJSON {
 	return lenses
 }
 
+func loadAnalyzers(m map[string]source.Analyzer) []*source.AnalyzerJSON {
+	var sorted []string
+	for _, a := range m {
+		sorted = append(sorted, a.Analyzer.Name)
+	}
+	sort.Strings(sorted)
+	var json []*source.AnalyzerJSON
+	for _, name := range sorted {
+		a := m[name]
+		json = append(json, &source.AnalyzerJSON{
+			Name:    a.Analyzer.Name,
+			Doc:     a.Analyzer.Doc,
+			Default: a.Enabled,
+		})
+	}
+	return json
+}
+
 func lowerFirst(x string) string {
 	if x == "" {
 		return x
@@ -369,6 +399,7 @@ func rewriteAPI(input []byte, api *source.APIJSON) ([]byte, error) {
 	apiStr = strings.ReplaceAll(apiStr, ": []*OptionJSON", ":")
 	apiStr = strings.ReplaceAll(apiStr, "&CommandJSON", "")
 	apiStr = strings.ReplaceAll(apiStr, "&LensJSON", "")
+	apiStr = strings.ReplaceAll(apiStr, "&AnalyzerJSON", "")
 	apiStr = strings.ReplaceAll(apiStr, "  EnumValue{", "{")
 	apiBytes, err := format.Source([]byte(apiStr))
 	if err != nil {
@@ -429,6 +460,21 @@ func rewriteCommands(doc []byte, api *source.APIJSON) ([]byte, error) {
 		fmt.Fprintf(section, "### **%v**\nIdentifier: `%v`\n\n%v\n\n", command.Title, command.Command, command.Doc)
 	}
 	return replaceSection(doc, "Commands", section.Bytes())
+}
+
+func rewriteAnalyzers(doc []byte, api *source.APIJSON) ([]byte, error) {
+	section := bytes.NewBuffer(nil)
+	for _, analyzer := range api.Analyzers {
+		fmt.Fprintf(section, "## **%v**\n\n", analyzer.Name)
+		fmt.Fprintf(section, "%s\n\n", analyzer.Doc)
+		switch analyzer.Default {
+		case true:
+			fmt.Fprintf(section, "**Enabled by default.**\n\n")
+		case false:
+			fmt.Fprintf(section, "**Disabled by default. Enable it by setting `\"analyses\": {\"%s\": true}`.**\n\n", analyzer.Name)
+		}
+	}
+	return replaceSection(doc, "Analyzers", section.Bytes())
 }
 
 func replaceSection(doc []byte, sectionName string, replacement []byte) ([]byte, error) {
