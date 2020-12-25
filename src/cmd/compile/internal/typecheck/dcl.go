@@ -556,6 +556,9 @@ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	if t == nil {
 		base.Fatalf("tempAt called with nil type")
 	}
+	if t.Kind() == types.TFUNC && t.Recv() != nil {
+		base.Fatalf("misuse of method type: %v", t)
+	}
 
 	s := &types.Sym{
 		Name: autotmpname(len(curfn.Dcl)),

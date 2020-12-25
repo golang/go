@@ -836,8 +836,7 @@ func TypeSym(t *types.Type) *types.Sym {
 		base.Fatalf("typenamesym %v", t)
 	}
 	if t.Kind() == types.TFUNC && t.Recv() != nil {
-		// TODO(mdempsky): Fix callers and make fatal.
-		t = typecheck.NewMethodType(t, t.Recv().Type)
+		base.Fatalf("misuse of method type: %v", t)
 	}
 	s := types.TypeSym(t)
 	signatmu.Lock()
