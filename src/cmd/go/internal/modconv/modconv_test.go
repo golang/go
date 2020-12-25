@@ -7,7 +7,7 @@ package modconv
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -42,7 +42,7 @@ func Test(t *testing.T) {
 			if Converters[extMap[ext]] == nil {
 				t.Fatalf("Converters[%q] == nil", extMap[ext])
 			}
-			data, err := ioutil.ReadFile(test)
+			data, err := os.ReadFile(test)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -50,7 +50,7 @@ func Test(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			want, err := ioutil.ReadFile(test[:len(test)-len(ext)] + ".out")
+			want, err := os.ReadFile(test[:len(test)-len(ext)] + ".out")
 			if err != nil {
 				t.Error(err)
 			}

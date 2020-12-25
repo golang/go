@@ -37,6 +37,7 @@ func main() {
 	ctxt := obj.Linknew(architecture.LinkArch)
 	ctxt.Debugasm = flags.PrintOut
 	ctxt.Flag_dynlink = *flags.Dynlink
+	ctxt.Flag_linkshared = *flags.Linkshared
 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
 	ctxt.IsAsm = true
 	ctxt.Pkgpath = *flags.Importpath

@@ -6,7 +6,7 @@ package embedtest_test
 
 import (
 	"embed"
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -59,7 +59,7 @@ func TestXGlobal(t *testing.T) {
 	testString(t, concurrency2, "concurrency2", "Concurrency is not parallelism.\n")
 	testString(t, string(glass2), "glass2", "I can eat glass and it doesn't hurt me.\n")
 
-	big, err := ioutil.ReadFile("testdata/ascii.txt")
+	big, err := os.ReadFile("testdata/ascii.txt")
 	if err != nil {
 		t.Fatal(err)
 	}

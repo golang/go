@@ -43,7 +43,7 @@ func main() {
 		ar = openArchive(os.Args[2], os.O_RDONLY, os.Args[3:])
 		ar.scan(ar.printContents)
 	case 'r':
-		ar = openArchive(os.Args[2], os.O_RDWR, os.Args[3:])
+		ar = openArchive(os.Args[2], os.O_RDWR|os.O_CREATE, os.Args[3:])
 		ar.addFiles()
 	case 'c':
 		ar = openArchive(os.Args[2], os.O_RDWR|os.O_TRUNC|os.O_CREATE, os.Args[3:])
@@ -124,10 +124,13 @@ func openArchive(name string, mode int, files []string) *Archive {
 		log.Fatal(err)
 	}
 	var a *archive.Archive
-	if mode&os.O_CREATE != 0 { // the c command
+	if mode&os.O_TRUNC != 0 { // the c command
 		a, err = archive.New(f)
 	} else {
 		a, err = archive.Parse(f, verbose)
+		if err != nil && mode&os.O_CREATE != 0 { // the r command
+			a, err = archive.New(f)
+		}
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -315,20 +318,25 @@ func (ar *Archive) extractContents1(e *archive.Entry, out io.Writer) {
 }
 
 // isGoCompilerObjFile reports whether file is an object file created
-// by the Go compiler, which is an archive file with exactly two entries:
-// __.PKGDEF and _go_.o.
+// by the Go compiler, which is an archive file with exactly one entry
+// of __.PKGDEF, or _go_.o, or both entries.
 func isGoCompilerObjFile(a *archive.Archive) bool {
-	if len(a.Entries) != 2 {
+	switch len(a.Entries) {
+	case 1:
+		return (a.Entries[0].Type == archive.EntryGoObj && a.Entries[0].Name == "_go_.o") ||
+			(a.Entries[0].Type == archive.EntryPkgDef && a.Entries[0].Name == "__.PKGDEF")
+	case 2:
+		var foundPkgDef, foundGo bool
+		for _, e := range a.Entries {
+			if e.Type == archive.EntryPkgDef && e.Name == "__.PKGDEF" {
+				foundPkgDef = true
+			}
+			if e.Type == archive.EntryGoObj && e.Name == "_go_.o" {
+				foundGo = true
+			}
+		}
+		return foundPkgDef && foundGo
+	default:
 		return false
 	}
-	var foundPkgDef, foundGo bool
-	for _, e := range a.Entries {
-		if e.Type == archive.EntryPkgDef && e.Name == "__.PKGDEF" {
-			foundPkgDef = true
-		}
-		if e.Type == archive.EntryGoObj && e.Name == "_go_.o" {
-			foundGo = true
-		}
-	}
-	return foundPkgDef && foundGo
 }

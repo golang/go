@@ -531,6 +531,7 @@
 // fold ADDL into LEAL
 (ADDLconst [c] (LEAL [d] {s} x)) && is32Bit(int64(c)+int64(d)) => (LEAL [c+d] {s} x)
 (LEAL [c] {s} (ADDLconst [d] x)) && is32Bit(int64(c)+int64(d)) => (LEAL [c+d] {s} x)
+(ADDLconst [c] x:(SP)) => (LEAL [c] x) // so it is rematerializeable
 (LEAL [c] {s} (ADDL x y)) && x.Op != OpSB && y.Op != OpSB => (LEAL1 [c] {s} x y)
 (ADDL x (LEAL [c] {s} y)) && x.Op != OpSB && y.Op != OpSB => (LEAL1 [c] {s} x y)
 

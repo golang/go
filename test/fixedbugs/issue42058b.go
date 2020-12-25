@@ -6,7 +6,7 @@
 
 package p
 
-var c chan [2 << 16]byte // ERROR "channel element type too large"
+var c chan [2 << 16]byte // GC_ERROR "channel element type too large"
 
 func f() {
 	_ = 42

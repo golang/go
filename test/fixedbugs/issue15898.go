@@ -8,11 +8,11 @@ package p
 
 func f(e interface{}) {
 	switch e.(type) {
-	case nil, nil: // ERROR "multiple nil cases in type switch"
+	case nil, nil: // ERROR "multiple nil cases in type switch|duplicate type in switch"
 	}
 
 	switch e.(type) {
 	case nil:
-	case nil: // ERROR "multiple nil cases in type switch"
+	case nil: // ERROR "multiple nil cases in type switch|duplicate type in switch"
 	}
 }

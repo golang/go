@@ -5,7 +5,6 @@
 package demangle
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 )
@@ -23,7 +22,10 @@ type AST interface {
 	// Copy an AST with possible transformations.
 	// If the skip function returns true, no copy is required.
 	// If the copy function returns nil, no copy is required.
-	// Otherwise the AST returned by copy is used in a copy of the full AST.
+	// The Copy method will do the right thing if copy returns nil
+	// for some components of an AST but not others, so a good
+	// copy function will only return non-nil for AST values that
+	// need to change.
 	// Copy itself returns either a copy or nil.
 	Copy(copy func(AST) AST, skip func(AST) bool) AST
 
@@ -51,7 +53,7 @@ func ASTToString(a AST, options ...Option) string {
 type printState struct {
 	tparams bool // whether to print template parameters
 
-	buf  bytes.Buffer
+	buf  strings.Builder
 	last byte // Last byte written to buffer.
 
 	// The inner field is a list of items to print for a type
@@ -398,13 +400,172 @@ func (tp *TemplateParam) goString(indent int, field string) string {
 	return fmt.Sprintf("%*s%sTemplateParam: Template: %p; Index %d", indent, "", field, tp.Template, tp.Index)
 }
 
+// LambdaAuto is a lambda auto parameter.
+type LambdaAuto struct {
+	Index int
+}
+
+func (la *LambdaAuto) print(ps *printState) {
+	// We print the index plus 1 because that is what the standard
+	// demangler does.
+	fmt.Fprintf(&ps.buf, "auto:%d", la.Index+1)
+}
+
+func (la *LambdaAuto) Traverse(fn func(AST) bool) {
+	fn(la)
+}
+
+func (la *LambdaAuto) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+	if skip(la) {
+		return nil
+	}
+	return fn(la)
+}
+
+func (la *LambdaAuto) GoString() string {
+	return la.goString(0, "")
+}
+
+func (la *LambdaAuto) goString(indent int, field string) string {
+	return fmt.Sprintf("%*s%sLambdaAuto: Index %d", indent, "", field, la.Index)
+}
+
 // Qualifiers is an ordered list of type qualifiers.
-type Qualifiers []string
+type Qualifiers struct {
+	Qualifiers []AST
+}
+
+func (qs *Qualifiers) print(ps *printState) {
+	first := true
+	for _, q := range qs.Qualifiers {
+		if !first {
+			ps.writeByte(' ')
+		}
+		q.print(ps)
+		first = false
+	}
+}
+
+func (qs *Qualifiers) Traverse(fn func(AST) bool) {
+	if fn(qs) {
+		for _, q := range qs.Qualifiers {
+			q.Traverse(fn)
+		}
+	}
+}
+
+func (qs *Qualifiers) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+	if skip(qs) {
+		return nil
+	}
+	changed := false
+	qualifiers := make([]AST, len(qs.Qualifiers))
+	for i, q := range qs.Qualifiers {
+		qc := q.Copy(fn, skip)
+		if qc == nil {
+			qualifiers[i] = q
+		} else {
+			qualifiers[i] = qc
+			changed = true
+		}
+	}
+	if !changed {
+		return fn(qs)
+	}
+	qs = &Qualifiers{Qualifiers: qualifiers}
+	if r := fn(qs); r != nil {
+		return r
+	}
+	return qs
+}
+
+func (qs *Qualifiers) GoString() string {
+	return qs.goString(0, "")
+}
+
+func (qs *Qualifiers) goString(indent int, field string) string {
+	quals := fmt.Sprintf("%*s%s", indent, "", field)
+	for _, q := range qs.Qualifiers {
+		quals += "\n"
+		quals += q.goString(indent+2, "")
+	}
+	return quals
+}
+
+// Qualifier is a single type qualifier.
+type Qualifier struct {
+	Name  string // qualifier name: const, volatile, etc.
+	Exprs []AST  // can be non-nil for noexcept and throw
+}
+
+func (q *Qualifier) print(ps *printState) {
+	ps.writeString(q.Name)
+	if len(q.Exprs) > 0 {
+		ps.writeByte('(')
+		first := true
+		for _, e := range q.Exprs {
+			if !first {
+				ps.writeString(", ")
+			}
+			ps.print(e)
+			first = false
+		}
+		ps.writeByte(')')
+	}
+}
+
+func (q *Qualifier) Traverse(fn func(AST) bool) {
+	if fn(q) {
+		for _, e := range q.Exprs {
+			e.Traverse(fn)
+		}
+	}
+}
+
+func (q *Qualifier) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+	if skip(q) {
+		return nil
+	}
+	exprs := make([]AST, len(q.Exprs))
+	changed := false
+	for i, e := range q.Exprs {
+		ec := e.Copy(fn, skip)
+		if ec == nil {
+			exprs[i] = e
+		} else {
+			exprs[i] = ec
+			changed = true
+		}
+	}
+	if !changed {
+		return fn(q)
+	}
+	q = &Qualifier{Name: q.Name, Exprs: exprs}
+	if r := fn(q); r != nil {
+		return r
+	}
+	return q
+}
+
+func (q *Qualifier) GoString() string {
+	return q.goString(0, "Qualifier: ")
+}
+
+func (q *Qualifier) goString(indent int, field string) string {
+	qs := fmt.Sprintf("%*s%s%s", indent, "", field, q.Name)
+	if len(q.Exprs) > 0 {
+		for i, e := range q.Exprs {
+			qs += "\n"
+			qs += e.goString(indent+2, fmt.Sprintf("%d: ", i))
+		}
+	}
+	return qs
+}
 
 // TypeWithQualifiers is a type with standard qualifiers.
 type TypeWithQualifiers struct {
 	Base       AST
-	Qualifiers Qualifiers
+	Qualifiers AST
 }
 
 func (twq *TypeWithQualifiers) print(ps *printState) {
@@ -414,7 +575,7 @@ func (twq *TypeWithQualifiers) print(ps *printState) {
 	if len(ps.inner) > 0 {
 		// The qualifier wasn't printed by Base.
 		ps.writeByte(' ')
-		ps.writeString(strings.Join(twq.Qualifiers, " "))
+		ps.print(twq.Qualifiers)
 		ps.inner = ps.inner[:len(ps.inner)-1]
 	}
 }
@@ -422,7 +583,7 @@ func (twq *TypeWithQualifiers) print(ps *printState) {
 // Print qualifiers as an inner type by just printing the qualifiers.
 func (twq *TypeWithQualifiers) printInner(ps *printState) {
 	ps.writeByte(' ')
-	ps.writeString(strings.Join(twq.Qualifiers, " "))
+	ps.print(twq.Qualifiers)
 }
 
 func (twq *TypeWithQualifiers) Traverse(fn func(AST) bool) {
@@ -436,10 +597,17 @@ func (twq *TypeWithQualifiers) Copy(fn func(AST) AST, skip func(AST) bool) AST {
 		return nil
 	}
 	base := twq.Base.Copy(fn, skip)
-	if base == nil {
+	quals := twq.Qualifiers.Copy(fn, skip)
+	if base == nil && quals == nil {
 		return fn(twq)
 	}
-	twq = &TypeWithQualifiers{Base: base, Qualifiers: twq.Qualifiers}
+	if base == nil {
+		base = twq.Base
+	}
+	if quals == nil {
+		quals = twq.Qualifiers
+	}
+	twq = &TypeWithQualifiers{Base: base, Qualifiers: quals}
 	if r := fn(twq); r != nil {
 		return r
 	}
@@ -451,14 +619,15 @@ func (twq *TypeWithQualifiers) GoString() string {
 }
 
 func (twq *TypeWithQualifiers) goString(indent int, field string) string {
-	return fmt.Sprintf("%*s%sTypeWithQualifiers: Qualifiers: %s\n%s", indent, "", field,
-		twq.Qualifiers, twq.Base.goString(indent+2, "Base: "))
+	return fmt.Sprintf("%*s%sTypeWithQualifiers:\n%s\n%s", indent, "", field,
+		twq.Qualifiers.goString(indent+2, "Qualifiers: "),
+		twq.Base.goString(indent+2, "Base: "))
 }
 
 // MethodWithQualifiers is a method with qualifiers.
 type MethodWithQualifiers struct {
 	Method       AST
-	Qualifiers   Qualifiers
+	Qualifiers   AST
 	RefQualifier string // "" or "&" or "&&"
 }
 
@@ -467,9 +636,9 @@ func (mwq *MethodWithQualifiers) print(ps *printState) {
 	ps.inner = append(ps.inner, mwq)
 	ps.print(mwq.Method)
 	if len(ps.inner) > 0 {
-		if len(mwq.Qualifiers) > 0 {
+		if mwq.Qualifiers != nil {
 			ps.writeByte(' ')
-			ps.writeString(strings.Join(mwq.Qualifiers, " "))
+			ps.print(mwq.Qualifiers)
 		}
 		if mwq.RefQualifier != "" {
 			ps.writeByte(' ')
@@ -480,9 +649,9 @@ func (mwq *MethodWithQualifiers) print(ps *printState) {
 }
 
 func (mwq *MethodWithQualifiers) printInner(ps *printState) {
-	if len(mwq.Qualifiers) > 0 {
+	if mwq.Qualifiers != nil {
 		ps.writeByte(' ')
-		ps.writeString(strings.Join(mwq.Qualifiers, " "))
+		ps.print(mwq.Qualifiers)
 	}
 	if mwq.RefQualifier != "" {
 		ps.writeByte(' ')
@@ -501,10 +670,20 @@ func (mwq *MethodWithQualifiers) Copy(fn func(AST) AST, skip func(AST) bool) AST
 		return nil
 	}
 	method := mwq.Method.Copy(fn, skip)
-	if method == nil {
+	var quals AST
+	if mwq.Qualifiers != nil {
+		quals = mwq.Qualifiers.Copy(fn, skip)
+	}
+	if method == nil && quals == nil {
 		return fn(mwq)
 	}
-	mwq = &MethodWithQualifiers{Method: method, Qualifiers: mwq.Qualifiers, RefQualifier: mwq.RefQualifier}
+	if method == nil {
+		method = mwq.Method
+	}
+	if quals == nil {
+		quals = mwq.Qualifiers
+	}
+	mwq = &MethodWithQualifiers{Method: method, Qualifiers: quals, RefQualifier: mwq.RefQualifier}
 	if r := fn(mwq); r != nil {
 		return r
 	}
@@ -517,14 +696,14 @@ func (mwq *MethodWithQualifiers) GoString() string {
 
 func (mwq *MethodWithQualifiers) goString(indent int, field string) string {
 	var q string
-	if len(mwq.Qualifiers) > 0 {
-		q += fmt.Sprintf(" Qualifiers: %v", mwq.Qualifiers)
+	if mwq.Qualifiers != nil {
+		q += "\n" + mwq.Qualifiers.goString(indent+2, "Qualifiers: ")
 	}
 	if mwq.RefQualifier != "" {
 		if q != "" {
-			q += ";"
+			q += "\n"
 		}
-		q += " RefQualifier: " + mwq.RefQualifier
+		q += fmt.Sprintf("%*s%s%s", indent+2, "", "RefQualifier: ", mwq.RefQualifier)
 	}
 	return fmt.Sprintf("%*s%sMethodWithQualifiers:%s\n%s", indent, "", field,
 		q, mwq.Method.goString(indent+2, "Method: "))
@@ -1955,6 +2134,22 @@ func (u *Unary) goString(indent int, field string) string {
 		u.Expr.goString(indent+2, "Expr: "))
 }
 
+// isDesignatedInitializer reports whether x is a designated
+// initializer.
+func isDesignatedInitializer(x AST) bool {
+	switch x := x.(type) {
+	case *Binary:
+		if op, ok := x.Op.(*Operator); ok {
+			return op.Name == "=" || op.Name == "]="
+		}
+	case *Trinary:
+		if op, ok := x.Op.(*Operator); ok {
+			return op.Name == "[...]="
+		}
+	}
+	return false
+}
+
 // Binary is a binary operation in an expression.
 type Binary struct {
 	Op    AST
@@ -1975,6 +2170,27 @@ func (b *Binary) print(ps *printState) {
 		return
 	}
 
+	if isDesignatedInitializer(b) {
+		if op.Name == "=" {
+			ps.writeByte('.')
+		} else {
+			ps.writeByte('[')
+		}
+		ps.print(b.Left)
+		if op.Name == "]=" {
+			ps.writeByte(']')
+		}
+		if isDesignatedInitializer(b.Right) {
+			// Don't add anything between designated
+			// initializer chains.
+			ps.print(b.Right)
+		} else {
+			ps.writeByte('=')
+			parenthesize(ps, b.Right)
+		}
+		return
+	}
+
 	// Use an extra set of parentheses around an expression that
 	// uses the greater-than operator, so that it does not get
 	// confused with the '>' that ends template parameters.
@@ -1984,15 +2200,28 @@ func (b *Binary) print(ps *printState) {
 
 	left := b.Left
 
-	// A function call in an expression should not print the types
-	// of the arguments.
+	// For a function call in an expression, don't print the types
+	// of the arguments unless there is a return type.
+	skipParens := false
 	if op != nil && op.Name == "()" {
 		if ty, ok := b.Left.(*Typed); ok {
-			left = ty.Name
+			if ft, ok := ty.Type.(*FunctionType); ok {
+				if ft.Return == nil {
+					left = ty.Name
+				} else {
+					skipParens = true
+				}
+			} else {
+				left = ty.Name
+			}
 		}
 	}
 
-	parenthesize(ps, left)
+	if skipParens {
+		ps.print(left)
+	} else {
+		parenthesize(ps, left)
+	}
 
 	if op != nil && op.Name == "[]" {
 		ps.writeByte('[')
@@ -2070,6 +2299,23 @@ type Trinary struct {
 }
 
 func (t *Trinary) print(ps *printState) {
+	if isDesignatedInitializer(t) {
+		ps.writeByte('[')
+		ps.print(t.First)
+		ps.writeString(" ... ")
+		ps.print(t.Second)
+		ps.writeByte(']')
+		if isDesignatedInitializer(t.Third) {
+			// Don't add anything between designated
+			// initializer chains.
+			ps.print(t.Third)
+		} else {
+			ps.writeByte('=')
+			parenthesize(ps, t.Third)
+		}
+		return
+	}
+
 	parenthesize(ps, t.First)
 	ps.writeByte('?')
 	parenthesize(ps, t.Second)
@@ -2362,6 +2608,9 @@ func (l *Literal) print(ps *printState) {
 				ps.writeString("true")
 				return
 			}
+		} else if b.Name == "decltype(nullptr)" && l.Val == "" {
+			ps.print(l.Type)
+			return
 		} else {
 			isFloat = builtinTypeFloat[b.Name]
 		}
@@ -2819,6 +3068,83 @@ func (s *Special2) goString(indent int, field string) string {
 	return fmt.Sprintf("%*s%sSpecial2: Prefix: %s\n%s\n%*sMiddle: %s\n%s", indent, "", field,
 		s.Prefix, s.Val1.goString(indent+2, "Val1: "),
 		indent+2, "", s.Middle, s.Val2.goString(indent+2, "Val2: "))
+}
+
+// EnableIf is used by clang for an enable_if attribute.
+type EnableIf struct {
+	Type AST
+	Args []AST
+}
+
+func (ei *EnableIf) print(ps *printState) {
+	ps.print(ei.Type)
+	ps.writeString(" [enable_if:")
+	first := true
+	for _, a := range ei.Args {
+		if !first {
+			ps.writeString(", ")
+		}
+		ps.print(a)
+		first = false
+	}
+	ps.writeString("]")
+}
+
+func (ei *EnableIf) Traverse(fn func(AST) bool) {
+	if fn(ei) {
+		ei.Type.Traverse(fn)
+		for _, a := range ei.Args {
+			a.Traverse(fn)
+		}
+	}
+}
+
+func (ei *EnableIf) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+	if skip(ei) {
+		return nil
+	}
+	typ := ei.Type.Copy(fn, skip)
+	argsChanged := false
+	args := make([]AST, len(ei.Args))
+	for i, a := range ei.Args {
+		ac := a.Copy(fn, skip)
+		if ac == nil {
+			args[i] = a
+		} else {
+			args[i] = ac
+			argsChanged = true
+		}
+	}
+	if typ == nil && !argsChanged {
+		return fn(ei)
+	}
+	if typ == nil {
+		typ = ei.Type
+	}
+	ei = &EnableIf{Type: typ, Args: args}
+	if r := fn(ei); r != nil {
+		return r
+	}
+	return ei
+}
+
+func (ei *EnableIf) GoString() string {
+	return ei.goString(0, "")
+}
+
+func (ei *EnableIf) goString(indent int, field string) string {
+	var args string
+	if len(ei.Args) == 0 {
+		args = fmt.Sprintf("%*sArgs: nil", indent+2, "")
+	} else {
+		args = fmt.Sprintf("%*sArgs:", indent+2, "")
+		for i, a := range ei.Args {
+			args += "\n"
+			args += a.goString(indent+4, fmt.Sprintf("%d: ", i))
+		}
+	}
+	return fmt.Sprintf("%*s%sEnableIf:\n%s\n%s", indent, "", field,
+		ei.Type.goString(indent+2, "Type: "), args)
 }
 
 // Print the inner types.

@@ -12,10 +12,10 @@ import (
 	"fmt"
 	"go/build"
 	"internal/lazyregexp"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,6 +28,7 @@ import (
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/search"
+	"cmd/go/internal/str"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -445,13 +446,13 @@ func CreateModFile(ctx context.Context, modPath string) {
 	// this is an existing project. Walking the tree for packages would be more
 	// accurate, but could take much longer.
 	empty := true
-	fis, _ := ioutil.ReadDir(modRoot)
-	for _, fi := range fis {
-		name := fi.Name()
+	files, _ := os.ReadDir(modRoot)
+	for _, f := range files {
+		name := f.Name()
 		if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
 			continue
 		}
-		if strings.HasSuffix(name, ".go") || fi.IsDir() {
+		if strings.HasSuffix(name, ".go") || f.IsDir() {
 			empty = false
 			break
 		}
@@ -632,7 +633,7 @@ func setDefaultBuildMod() {
 func convertLegacyConfig(modPath string) (from string, err error) {
 	for _, name := range altConfigs {
 		cfg := filepath.Join(modRoot, name)
-		data, err := ioutil.ReadFile(cfg)
+		data, err := os.ReadFile(cfg)
 		if err == nil {
 			convert := modconv.Converters[name]
 			if convert == nil {
@@ -731,9 +732,9 @@ func findModulePath(dir string) (string, error) {
 
 	// Cast about for import comments,
 	// first in top-level directory, then in subdirectories.
-	list, _ := ioutil.ReadDir(dir)
+	list, _ := os.ReadDir(dir)
 	for _, info := range list {
-		if info.Mode().IsRegular() && strings.HasSuffix(info.Name(), ".go") {
+		if info.Type().IsRegular() && strings.HasSuffix(info.Name(), ".go") {
 			if com := findImportComment(filepath.Join(dir, info.Name())); com != "" {
 				return com, nil
 			}
@@ -741,9 +742,9 @@ func findModulePath(dir string) (string, error) {
 	}
 	for _, info1 := range list {
 		if info1.IsDir() {
-			files, _ := ioutil.ReadDir(filepath.Join(dir, info1.Name()))
+			files, _ := os.ReadDir(filepath.Join(dir, info1.Name()))
 			for _, info2 := range files {
-				if info2.Mode().IsRegular() && strings.HasSuffix(info2.Name(), ".go") {
+				if info2.Type().IsRegular() && strings.HasSuffix(info2.Name(), ".go") {
 					if com := findImportComment(filepath.Join(dir, info1.Name(), info2.Name())); com != "" {
 						return path.Dir(com), nil
 					}
@@ -753,7 +754,7 @@ func findModulePath(dir string) (string, error) {
 	}
 
 	// Look for Godeps.json declaring import path.
-	data, _ := ioutil.ReadFile(filepath.Join(dir, "Godeps/Godeps.json"))
+	data, _ := os.ReadFile(filepath.Join(dir, "Godeps/Godeps.json"))
 	var cfg1 struct{ ImportPath string }
 	json.Unmarshal(data, &cfg1)
 	if cfg1.ImportPath != "" {
@@ -761,7 +762,7 @@ func findModulePath(dir string) (string, error) {
 	}
 
 	// Look for vendor.json declaring import path.
-	data, _ = ioutil.ReadFile(filepath.Join(dir, "vendor/vendor.json"))
+	data, _ = os.ReadFile(filepath.Join(dir, "vendor/vendor.json"))
 	var cfg2 struct{ RootPath string }
 	json.Unmarshal(data, &cfg2)
 	if cfg2.RootPath != "" {
@@ -813,7 +814,7 @@ var (
 )
 
 func findImportComment(file string) string {
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		return ""
 	}
@@ -846,13 +847,15 @@ func AllowWriteGoMod() {
 // MinReqs returns a Reqs with minimal additional dependencies of Target,
 // as will be written to go.mod.
 func MinReqs() mvs.Reqs {
-	var retain []string
+	retain := append([]string{}, additionalExplicitRequirements...)
 	for _, m := range buildList[1:] {
 		_, explicit := index.require[m]
 		if explicit || loaded.direct[m.Path] {
 			retain = append(retain, m.Path)
 		}
 	}
+	sort.Strings(retain)
+	str.Uniq(&retain)
 	min, err := mvs.Req(Target, retain, &mvsReqs{buildList: buildList})
 	if err != nil {
 		base.Fatalf("go: %v", err)
@@ -1018,7 +1021,7 @@ func keepSums(addDirect bool) map[module.Version]bool {
 			}
 		}
 		for _, pkg := range loaded.pkgs {
-			if pkg.testOf != nil || pkg.inStd {
+			if pkg.testOf != nil || pkg.inStd || module.CheckImportPath(pkg.path) != nil {
 				continue
 			}
 			for prefix := pkg.path; prefix != "."; prefix = path.Dir(prefix) {

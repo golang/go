@@ -7,13 +7,12 @@
 package exec
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 )
 
 func TestLookPathUnixEmptyPath(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "TestLookPathUnixEmptyPath")
+	tmp, err := os.MkdirTemp("", "TestLookPathUnixEmptyPath")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
 	}

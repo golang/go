@@ -10,9 +10,9 @@ package build
 import (
 	"bytes"
 	"fmt"
+	"go/token"
 	"internal/testenv"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -162,6 +162,9 @@ var depsRules = `
 	< internal/poll
 	< os
 	< os/signal;
+
+	io/fs
+	< embed;
 
 	unicode, fmt !< os, os/signal;
 
@@ -510,8 +513,8 @@ func listStdPkgs(goroot string) ([]string, error) {
 	var pkgs []string
 
 	src := filepath.Join(goroot, "src") + string(filepath.Separator)
-	walkFn := func(path string, fi fs.FileInfo, err error) error {
-		if err != nil || !fi.IsDir() || path == src {
+	walkFn := func(path string, d fs.DirEntry, err error) error {
+		if err != nil || !d.IsDir() || path == src {
 			return nil
 		}
 
@@ -528,7 +531,7 @@ func listStdPkgs(goroot string) ([]string, error) {
 		pkgs = append(pkgs, strings.TrimPrefix(name, "vendor/"))
 		return nil
 	}
-	if err := filepath.Walk(src, walkFn); err != nil {
+	if err := filepath.WalkDir(src, walkFn); err != nil {
 		return nil, err
 	}
 	return pkgs, nil
@@ -597,12 +600,13 @@ func findImports(pkg string) ([]string, error) {
 		vpkg = "vendor/" + pkg
 	}
 	dir := filepath.Join(Default.GOROOT, "src", vpkg)
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
 	var imports []string
 	var haveImport = map[string]bool{}
+	fset := token.NewFileSet()
 	for _, file := range files {
 		name := file.Name()
 		if name == "slice_go14.go" || name == "slice_go18.go" {
@@ -612,8 +616,10 @@ func findImports(pkg string) ([]string, error) {
 		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 			continue
 		}
-		var info fileInfo
-		info.name = filepath.Join(dir, name)
+		info := fileInfo{
+			name: filepath.Join(dir, name),
+			fset: fset,
+		}
 		f, err := os.Open(info.name)
 		if err != nil {
 			return nil, err
@@ -839,5 +845,24 @@ func TestStdlibLowercase(t *testing.T) {
 		if strings.ToLower(pkgname) != pkgname {
 			t.Errorf("package %q should not use upper-case path", pkgname)
 		}
+	}
+}
+
+// TestFindImports tests that findImports works.  See #43249.
+func TestFindImports(t *testing.T) {
+	imports, err := findImports("go/build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("go/build imports %q", imports)
+	want := []string{"bytes", "os", "path/filepath", "strings"}
+wantLoop:
+	for _, w := range want {
+		for _, imp := range imports {
+			if imp == w {
+				continue wantLoop
+			}
+		}
+		t.Errorf("expected to find %q in import list", w)
 	}
 }

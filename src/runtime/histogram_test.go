@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"math"
 	. "runtime"
 	"testing"
 )
@@ -32,8 +33,8 @@ func TestTimeHistogram(t *testing.T) {
 			h.Record(base + v)
 		}
 	}
-	// Hit the overflow bucket.
-	h.Record(int64(^uint64(0) >> 1))
+	// Hit the underflow bucket.
+	h.Record(int64(-1))
 
 	// Check to make sure there's exactly one count in each
 	// bucket.
@@ -41,7 +42,7 @@ func TestTimeHistogram(t *testing.T) {
 		for j := uint(0); j < TimeHistNumSubBuckets; j++ {
 			c, ok := h.Count(i, j)
 			if !ok {
-				t.Errorf("hit overflow bucket unexpectedly: (%d, %d)", i, j)
+				t.Errorf("hit underflow bucket unexpectedly: (%d, %d)", i, j)
 			} else if c != 1 {
 				t.Errorf("bucket (%d, %d) has count that is not 1: %d", i, j, c)
 			}
@@ -49,10 +50,21 @@ func TestTimeHistogram(t *testing.T) {
 	}
 	c, ok := h.Count(TimeHistNumSuperBuckets, 0)
 	if ok {
-		t.Errorf("expected to hit overflow bucket: (%d, %d)", TimeHistNumSuperBuckets, 0)
+		t.Errorf("expected to hit underflow bucket: (%d, %d)", TimeHistNumSuperBuckets, 0)
 	}
 	if c != 1 {
-		t.Errorf("overflow bucket has count that is not 1: %d", c)
+		t.Errorf("underflow bucket has count that is not 1: %d", c)
 	}
+
+	// Check overflow behavior.
+	// By hitting a high value, we should just be adding into the highest bucket.
+	h.Record(math.MaxInt64)
+	c, ok = h.Count(TimeHistNumSuperBuckets-1, TimeHistNumSubBuckets-1)
+	if !ok {
+		t.Error("hit underflow bucket in highest bucket unexpectedly")
+	} else if c != 2 {
+		t.Errorf("highest has count that is not 2: %d", c)
+	}
+
 	dummyTimeHistogram = TimeHistogram{}
 }

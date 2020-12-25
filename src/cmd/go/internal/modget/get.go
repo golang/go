@@ -434,34 +434,13 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// directory.
 	if !*getD && len(pkgPatterns) > 0 {
 		work.BuildInit()
-		pkgs := load.PackagesForBuild(ctx, pkgPatterns)
+		pkgs := load.PackagesAndErrors(ctx, pkgPatterns)
+		load.CheckPackageErrors(pkgs)
 		work.InstallPackages(ctx, pkgPatterns, pkgs)
-
-		haveExe := false
-		for _, pkg := range pkgs {
-			if pkg.Name == "main" {
-				haveExe = true
-				break
-			}
-		}
-		if haveExe {
-			fmt.Fprint(os.Stderr, "go get: installing executables with 'go get' in module mode is deprecated.")
-			var altMsg string
-			if modload.HasModRoot() {
-				altMsg = `
-	To adjust dependencies of the current module, use 'go get -d'.
-	To install using requirements of the current module, use 'go install'.
-	To install ignoring the current module, use 'go install' with a version,
-	like 'go install example.com/cmd@latest'.
-`
-			} else {
-				altMsg = "\n\tUse 'go install pkg@version' instead.\n"
-			}
-			fmt.Fprint(os.Stderr, altMsg)
-			fmt.Fprint(os.Stderr, "\tSee 'go help get' and 'go help install' for more information.\n")
-		}
-		// TODO(golang.org/issue/40276): link to HTML documentation explaining
-		// what's changing and gives more examples.
+		// TODO(#40276): After Go 1.16, print a deprecation notice when building
+		// and installing main packages. 'go install pkg' or
+		// 'go install pkg@version' should be used instead.
+		// Give the specific argument to use if possible.
 	}
 
 	if !modload.HasModRoot() {

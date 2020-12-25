@@ -309,6 +309,7 @@ var (
 	growslice,
 	msanread,
 	msanwrite,
+	msanmove,
 	newobject,
 	newproc,
 	panicdivide,

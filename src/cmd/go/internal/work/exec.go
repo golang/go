@@ -16,7 +16,6 @@ import (
 	"internal/lazyregexp"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
@@ -94,7 +93,7 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 				base.Fatalf("go: refusing to write action graph to %v\n", file)
 			}
 			js := actionGraphJSON(root)
-			if err := ioutil.WriteFile(file, []byte(js), 0666); err != nil {
+			if err := os.WriteFile(file, []byte(js), 0666); err != nil {
 				fmt.Fprintf(os.Stderr, "go: writing action graph: %v\n", err)
 				base.SetExitStatus(1)
 			}
@@ -636,7 +635,7 @@ OverlayLoop:
 			sfiles, gccfiles = filter(sfiles, sfiles[:0], gccfiles)
 		} else {
 			for _, sfile := range sfiles {
-				data, err := ioutil.ReadFile(filepath.Join(a.Package.Dir, sfile))
+				data, err := os.ReadFile(filepath.Join(a.Package.Dir, sfile))
 				if err == nil {
 					if bytes.HasPrefix(data, []byte("TEXT")) || bytes.Contains(data, []byte("\nTEXT")) ||
 						bytes.HasPrefix(data, []byte("DATA")) || bytes.Contains(data, []byte("\nDATA")) ||
@@ -1471,7 +1470,7 @@ func (b *Builder) installShlibname(ctx context.Context, a *Action) error {
 
 	// TODO: BuildN
 	a1 := a.Deps[0]
-	err := ioutil.WriteFile(a.Target, []byte(filepath.Base(a1.Target)+"\n"), 0666)
+	err := os.WriteFile(a.Target, []byte(filepath.Base(a1.Target)+"\n"), 0666)
 	if err != nil {
 		return err
 	}
@@ -1788,7 +1787,7 @@ func (b *Builder) writeFile(file string, text []byte) error {
 	if cfg.BuildN {
 		return nil
 	}
-	return ioutil.WriteFile(file, text, 0666)
+	return os.WriteFile(file, text, 0666)
 }
 
 // Install the cgo export header file, if there is one.
@@ -2537,7 +2536,7 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 
 	tmp := os.DevNull
 	if runtime.GOOS == "windows" {
-		f, err := ioutil.TempFile(b.WorkDir, "")
+		f, err := os.CreateTemp(b.WorkDir, "")
 		if err != nil {
 			return false
 		}
@@ -2840,7 +2839,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 				continue
 			}
 
-			src, err := ioutil.ReadFile(f)
+			src, err := os.ReadFile(f)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3070,7 +3069,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
 		return "$INTBITS", nil
 	}
 	src := filepath.Join(b.WorkDir, "swig_intsize.go")
-	if err = ioutil.WriteFile(src, []byte(swigIntSizeCode), 0666); err != nil {
+	if err = os.WriteFile(src, []byte(swigIntSizeCode), 0666); err != nil {
 		return
 	}
 	srcs := []string{src}
@@ -3230,14 +3229,14 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
 		return
 	}
 
-	tf, err := ioutil.TempFile("", "args")
+	tf, err := os.CreateTemp("", "args")
 	if err != nil {
 		log.Fatalf("error writing long arguments to response file: %v", err)
 	}
 	cleanup = func() { os.Remove(tf.Name()) }
 	var buf bytes.Buffer
 	for _, arg := range cmd.Args[1:] {
-		fmt.Fprintf(&buf, "%s\n", arg)
+		fmt.Fprintf(&buf, "%s\n", encodeArg(arg))
 	}
 	if _, err := tf.Write(buf.Bytes()); err != nil {
 		tf.Close()
@@ -3252,6 +3251,12 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
 	return cleanup
 }
 
+// Windows has a limit of 32 KB arguments. To be conservative and not worry
+// about whether that includes spaces or not, just use 30 KB. Darwin's limit is
+// less clear. The OS claims 256KB, but we've seen failures with arglen as
+// small as 50KB.
+const ArgLengthForResponseFile = (30 << 10)
+
 func useResponseFile(path string, argLen int) bool {
 	// Unless the program uses objabi.Flagparse, which understands
 	// response files, don't use response files.
@@ -3263,11 +3268,7 @@ func useResponseFile(path string, argLen int) bool {
 		return false
 	}
 
-	// Windows has a limit of 32 KB arguments. To be conservative and not
-	// worry about whether that includes spaces or not, just use 30 KB.
-	// Darwin's limit is less clear. The OS claims 256KB, but we've seen
-	// failures with arglen as small as 50KB.
-	if argLen > (30 << 10) {
+	if argLen > ArgLengthForResponseFile {
 		return true
 	}
 
@@ -3279,4 +3280,26 @@ func useResponseFile(path string, argLen int) bool {
 	}
 
 	return false
+}
+
+// encodeArg encodes an argument for response file writing.
+func encodeArg(arg string) string {
+	// If there aren't any characters we need to reencode, fastpath out.
+	if !strings.ContainsAny(arg, "\\\n") {
+		return arg
+	}
+	var b strings.Builder
+	for _, r := range arg {
+		switch r {
+		case '\\':
+			b.WriteByte('\\')
+			b.WriteByte('\\')
+		case '\n':
+			b.WriteByte('\\')
+			b.WriteByte('n')
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }

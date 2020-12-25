@@ -6,6 +6,7 @@ package ld
 
 import (
 	"bytes"
+	"cmd/internal/codesign"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
@@ -17,6 +18,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"unsafe"
 )
 
 type MachoHdr struct {
@@ -244,6 +246,8 @@ const (
 	BIND_SUBOPCODE_THREADED_SET_BIND_ORDINAL_TABLE_SIZE_ULEB = 0x00
 	BIND_SUBOPCODE_THREADED_APPLY                            = 0x01
 )
+
+const machoHeaderSize64 = 8 * 4 // size of 64-bit Mach-O header
 
 // Mach-O file writing
 // https://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
@@ -643,6 +647,8 @@ func asmbMacho(ctxt *Link) {
 	}
 	ctxt.Out.SeekSet(0)
 
+	ldr := ctxt.loader
+
 	/* apple MACH */
 	va := *FlagTextAddr - int64(HEADR)
 
@@ -757,25 +763,27 @@ func asmbMacho(ctxt *Link) {
 		}
 	}
 
+	var codesigOff int64
 	if !*FlagD {
-		ldr := ctxt.loader
-
-		// must match domacholink below
+		// must match doMachoLink below
 		s1 := ldr.SymSize(ldr.Lookup(".machorebase", 0))
 		s2 := ldr.SymSize(ldr.Lookup(".machobind", 0))
 		s3 := ldr.SymSize(ldr.Lookup(".machosymtab", 0))
 		s4 := ldr.SymSize(ctxt.ArchSyms.LinkEditPLT)
 		s5 := ldr.SymSize(ctxt.ArchSyms.LinkEditGOT)
 		s6 := ldr.SymSize(ldr.Lookup(".machosymstr", 0))
+		s7 := ldr.SymSize(ldr.Lookup(".machocodesig", 0))
 
 		if ctxt.LinkMode != LinkExternal {
 			ms := newMachoSeg("__LINKEDIT", 0)
 			ms.vaddr = uint64(Rnd(int64(Segdata.Vaddr+Segdata.Length), int64(*FlagRound)))
-			ms.vsize = uint64(s1 + s2 + s3 + s4 + s5 + s6)
+			ms.vsize = uint64(s1 + s2 + s3 + s4 + s5 + s6 + s7)
 			ms.fileoffset = uint64(linkoff)
 			ms.filesize = ms.vsize
 			ms.prot1 = 1
 			ms.prot2 = 1
+
+			codesigOff = linkoff + s1 + s2 + s3 + s4 + s5 + s6
 		}
 
 		if ctxt.LinkMode != LinkExternal && ctxt.IsPIE() {
@@ -814,11 +822,30 @@ func asmbMacho(ctxt *Link) {
 				stringtouint32(ml.data[4:], lib)
 			}
 		}
+
+		if ctxt.IsInternal() && ctxt.NeedCodeSign() {
+			ml := newMachoLoad(ctxt.Arch, LC_CODE_SIGNATURE, 2)
+			ml.data[0] = uint32(codesigOff)
+			ml.data[1] = uint32(s7)
+		}
 	}
 
 	a := machowrite(ctxt, ctxt.Arch, ctxt.Out, ctxt.LinkMode)
 	if int32(a) > HEADR {
 		Exitf("HEADR too small: %d > %d", a, HEADR)
+	}
+
+	// Now we have written everything. Compute the code signature (which
+	// is a hash of the file content, so it must be done at last.)
+	if ctxt.IsInternal() && ctxt.NeedCodeSign() {
+		cs := ldr.Lookup(".machocodesig", 0)
+		data := ctxt.Out.Data()
+		if int64(len(data)) != codesigOff {
+			panic("wrong size")
+		}
+		codesign.Sign(ldr.Data(cs), bytes.NewReader(data), "a.out", codesigOff, int64(Segtext.Fileoff), int64(Segtext.Filelen), ctxt.IsExe() || ctxt.IsPIE())
+		ctxt.Out.SeekSet(codesigOff)
+		ctxt.Out.Write(ldr.Data(cs))
 	}
 }
 
@@ -942,6 +969,15 @@ func machosymorder(ctxt *Link) {
 	}
 }
 
+// AddMachoSym adds s to Mach-O symbol table, used in GenSymLate.
+// Currently only used on ARM64 when external linking.
+func AddMachoSym(ldr *loader.Loader, s loader.Sym) {
+	ldr.SetSymDynid(s, int32(nsortsym))
+	sortsym = append(sortsym, s)
+	nsortsym++
+	nkind[symkind(ldr, s)]++
+}
+
 // machoShouldExport reports whether a symbol needs to be exported.
 //
 // When dynamically linking, all non-local variables and plugin-exported
@@ -1057,7 +1093,6 @@ func machodysymtab(ctxt *Link, base int64) {
 
 func doMachoLink(ctxt *Link) int64 {
 	machosymtab(ctxt)
-
 	machoDyldInfo(ctxt)
 
 	ldr := ctxt.loader
@@ -1069,6 +1104,8 @@ func doMachoLink(ctxt *Link) int64 {
 	s4 := ctxt.ArchSyms.LinkEditPLT
 	s5 := ctxt.ArchSyms.LinkEditGOT
 	s6 := ldr.Lookup(".machosymstr", 0)
+
+	size := ldr.SymSize(s1) + ldr.SymSize(s2) + ldr.SymSize(s3) + ldr.SymSize(s4) + ldr.SymSize(s5) + ldr.SymSize(s6)
 
 	// Force the linkedit section to end on a 16-byte
 	// boundary. This allows pure (non-cgo) Go binaries
@@ -1087,12 +1124,13 @@ func doMachoLink(ctxt *Link) int64 {
 	// boundary, codesign_allocate will not need to apply
 	// any alignment padding itself, working around the
 	// issue.
-	s6b := ldr.MakeSymbolUpdater(s6)
-	for s6b.Size()%16 != 0 {
-		s6b.AddUint8(0)
+	if size%16 != 0 {
+		n := 16 - size%16
+		s6b := ldr.MakeSymbolUpdater(s6)
+		s6b.Grow(s6b.Size() + n)
+		s6b.SetSize(s6b.Size() + n)
+		size += n
 	}
-
-	size := int(ldr.SymSize(s1) + ldr.SymSize(s2) + ldr.SymSize(s3) + ldr.SymSize(s4) + ldr.SymSize(s5) + ldr.SymSize(s6))
 
 	if size > 0 {
 		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound)) + Rnd(int64(Segrelrodata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))
@@ -1104,9 +1142,13 @@ func doMachoLink(ctxt *Link) int64 {
 		ctxt.Out.Write(ldr.Data(s4))
 		ctxt.Out.Write(ldr.Data(s5))
 		ctxt.Out.Write(ldr.Data(s6))
+
+		// Add code signature if necessary. This must be the last.
+		s7 := machoCodeSigSym(ctxt, linkoff+size)
+		size += ldr.SymSize(s7)
 	}
 
-	return Rnd(int64(size), int64(*FlagRound))
+	return Rnd(size, int64(*FlagRound))
 }
 
 func machorelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym) {
@@ -1377,4 +1419,110 @@ func machoDyldInfo(ctxt *Link) {
 	// Without it, the symbols are not dynamically exported, so they cannot be
 	// e.g. dlsym'd. But internal linking is not the default in that case, so
 	// it is fine.
+}
+
+// machoCodeSigSym creates and returns a symbol for code signature.
+// The symbol context is left as zeros, which will be generated at the end
+// (as it depends on the rest of the file).
+func machoCodeSigSym(ctxt *Link, codeSize int64) loader.Sym {
+	ldr := ctxt.loader
+	cs := ldr.CreateSymForUpdate(".machocodesig", 0)
+	if !ctxt.NeedCodeSign() || ctxt.IsExternal() {
+		return cs.Sym()
+	}
+	sz := codesign.Size(codeSize, "a.out")
+	cs.Grow(sz)
+	cs.SetSize(sz)
+	return cs.Sym()
+}
+
+// machoCodeSign code-signs Mach-O file fname with an ad-hoc signature.
+// This is used for updating an external linker generated binary.
+func machoCodeSign(ctxt *Link, fname string) error {
+	f, err := os.OpenFile(fname, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	mf, err := macho.NewFile(f)
+	if err != nil {
+		return err
+	}
+	if mf.Magic != macho.Magic64 {
+		Exitf("not 64-bit Mach-O file: %s", fname)
+	}
+
+	// Find existing LC_CODE_SIGNATURE and __LINKEDIT segment
+	var sigOff, sigSz, csCmdOff, linkeditOff int64
+	var linkeditSeg, textSeg *macho.Segment
+	loadOff := int64(machoHeaderSize64)
+	get32 := mf.ByteOrder.Uint32
+	for _, l := range mf.Loads {
+		data := l.Raw()
+		cmd, sz := get32(data), get32(data[4:])
+		if cmd == LC_CODE_SIGNATURE {
+			sigOff = int64(get32(data[8:]))
+			sigSz = int64(get32(data[12:]))
+			csCmdOff = loadOff
+		}
+		if seg, ok := l.(*macho.Segment); ok {
+			switch seg.Name {
+			case "__LINKEDIT":
+				linkeditSeg = seg
+				linkeditOff = loadOff
+			case "__TEXT":
+				textSeg = seg
+			}
+		}
+		loadOff += int64(sz)
+	}
+
+	if sigOff == 0 {
+		// The C linker doesn't generate a signed binary, for some reason.
+		// Skip.
+		return nil
+	}
+
+	fi, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	if sigOff+sigSz != fi.Size() {
+		// We don't expect anything after the signature (this will invalidate
+		// the signature anyway.)
+		return fmt.Errorf("unexpected content after code signature")
+	}
+
+	sz := codesign.Size(sigOff, "a.out")
+	if sz != sigSz {
+		// Update the load command,
+		var tmp [8]byte
+		mf.ByteOrder.PutUint32(tmp[:4], uint32(sz))
+		_, err = f.WriteAt(tmp[:4], csCmdOff+12)
+		if err != nil {
+			return err
+		}
+
+		// Uodate the __LINKEDIT segment.
+		segSz := sigOff + sz - int64(linkeditSeg.Offset)
+		mf.ByteOrder.PutUint64(tmp[:8], uint64(segSz))
+		_, err = f.WriteAt(tmp[:8], int64(linkeditOff)+int64(unsafe.Offsetof(macho.Segment64{}.Memsz)))
+		if err != nil {
+			return err
+		}
+		_, err = f.WriteAt(tmp[:8], int64(linkeditOff)+int64(unsafe.Offsetof(macho.Segment64{}.Filesz)))
+		if err != nil {
+			return err
+		}
+	}
+
+	cs := make([]byte, sz)
+	codesign.Sign(cs, f, "a.out", sigOff, int64(textSeg.Offset), int64(textSeg.Filesz), ctxt.IsExe() || ctxt.IsPIE())
+	_, err = f.WriteAt(cs, sigOff)
+	if err != nil {
+		return err
+	}
+	err = f.Truncate(sigOff + sz)
+	return err
 }

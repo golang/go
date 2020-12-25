@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -136,7 +135,7 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
 	if err := os.MkdirAll(parentDir, 0777); err != nil {
 		return "", err
 	}
-	if err := ioutil.WriteFile(partialPath, nil, 0666); err != nil {
+	if err := os.WriteFile(partialPath, nil, 0666); err != nil {
 		return "", err
 	}
 	if err := modzip.Unzip(dir, mod, zipfile); err != nil {
@@ -223,7 +222,7 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	// contents of the file (by hashing it) before we commit it. Because the file
 	// is zip-compressed, we need an actual file — or at least an io.ReaderAt — to
 	// validate it: we can't just tee the stream as we write it.
-	f, err := ioutil.TempFile(filepath.Dir(zipfile), filepath.Base(renameio.Pattern(zipfile)))
+	f, err := os.CreateTemp(filepath.Dir(zipfile), filepath.Base(renameio.Pattern(zipfile)))
 	if err != nil {
 		return err
 	}
@@ -318,9 +317,10 @@ func makeDirsReadOnly(dir string) {
 		mode fs.FileMode
 	}
 	var dirs []pathMode // in lexical order
-	filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
-		if err == nil && info.Mode()&0222 != 0 {
-			if info.IsDir() {
+	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err == nil && d.IsDir() {
+			info, err := d.Info()
+			if err == nil && info.Mode()&0222 != 0 {
 				dirs = append(dirs, pathMode{path, info.Mode()})
 			}
 		}
@@ -337,7 +337,7 @@ func makeDirsReadOnly(dir string) {
 // any permission changes needed to do so.
 func RemoveAll(dir string) error {
 	// Module cache has 0555 directories; make them writable in order to remove content.
-	filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
+	filepath.WalkDir(dir, func(path string, info fs.DirEntry, err error) error {
 		if err != nil {
 			return nil // ignore errors walking in file system
 		}

@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
@@ -520,7 +519,7 @@ func TestWriter(t *testing.T) {
 			}
 
 			if v.file != "" {
-				want, err := ioutil.ReadFile(v.file)
+				want, err := os.ReadFile(v.file)
 				if err != nil {
 					t.Fatalf("ReadFile() = %v, want nil", err)
 				}

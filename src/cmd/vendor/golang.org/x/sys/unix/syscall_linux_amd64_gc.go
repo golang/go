@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build amd64,linux
-// +build !gccgo
+// +build gc
 
 package unix
 

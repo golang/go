@@ -1027,6 +1027,19 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (ADDLconst [c] x:(SP))
+	// result: (LEAL [c] x)
+	for {
+		c := auxIntToInt32(v.AuxInt)
+		x := v_0
+		if x.Op != OpSP {
+			break
+		}
+		v.reset(Op386LEAL)
+		v.AuxInt = int32ToAuxInt(c)
+		v.AddArg(x)
+		return true
+	}
 	// match: (ADDLconst [c] (LEAL1 [d] {s} x y))
 	// cond: is32Bit(int64(c)+int64(d))
 	// result: (LEAL1 [c+d] {s} x y)

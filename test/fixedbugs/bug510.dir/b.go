@@ -2,6 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package cpu
+package main
 
-const GOOS = "freebsd"
+import "./a"
+
+func main() {
+	_, ok := a.F().(*map[int]bool)
+	if !ok {
+		panic("bad type")
+	}
+}

@@ -1313,7 +1313,7 @@ func mexit(osStack bool) {
 		throw("locked m0 woke up")
 	}
 
-	sigblock()
+	sigblock(true)
 	unminit()
 
 	// Free the gsignal stack.
@@ -1363,7 +1363,7 @@ found:
 	checkdead()
 	unlock(&sched.lock)
 
-	if GOOS == "darwin" {
+	if GOOS == "darwin" || GOOS == "ios" {
 		// Make sure pendingPreemptSignals is correct when an M exits.
 		// For #41702.
 		if atomic.Load(&m.signalPending) != 0 {
@@ -1515,6 +1515,7 @@ func syscall_runtime_doAllThreadsSyscall(fn func(bool) bool) {
 	if netpollinited() {
 		netpollBreak()
 	}
+	sigRecvPrepareForFixup()
 	_g_ := getg()
 	if raceenabled {
 		// For m's running without racectx, we loan out the
@@ -1754,7 +1755,7 @@ func needm() {
 	// starting a new m to run Go code via newosproc.
 	var sigmask sigset
 	sigsave(&sigmask)
-	sigblock()
+	sigblock(false)
 
 	// Lock extra list, take head, unlock popped list.
 	// nilokay=false is safe here because of the invariant above,
@@ -1903,7 +1904,7 @@ func dropm() {
 	// Setg(nil) clears g, which is the signal handler's cue not to run Go handlers.
 	// It's important not to try to handle a signal between those two steps.
 	sigmask := mp.sigmask
-	sigblock()
+	sigblock(false)
 	unminit()
 
 	mnext := lockextra(true)
@@ -2882,7 +2883,9 @@ func wakeNetPoller(when int64) {
 	} else {
 		// There are no threads in the network poller, try to get
 		// one there so it can handle new timers.
-		wakep()
+		if GOOS != "plan9" { // Temporary workaround - see issue #42303.
+			wakep()
+		}
 	}
 }
 
@@ -3774,7 +3777,7 @@ func beforefork() {
 	// group. See issue #18600.
 	gp.m.locks++
 	sigsave(&gp.m.sigmask)
-	sigblock()
+	sigblock(false)
 
 	// This function is called before fork in syscall package.
 	// Code between fork and exec must not allocate memory nor even try to grow stack.
@@ -3852,7 +3855,7 @@ func syscall_runtime_BeforeExec() {
 
 	// On Darwin, wait for all pending preemption signals to
 	// be received. See issue #41702.
-	if GOOS == "darwin" {
+	if GOOS == "darwin" || GOOS == "ios" {
 		for int32(atomic.Load(&pendingPreemptSignals)) > 0 {
 			osyield()
 		}
@@ -5128,6 +5131,26 @@ func sysmon() {
 			}
 		}
 		mDoFixup()
+		if GOOS == "netbsd" {
+			// netpoll is responsible for waiting for timer
+			// expiration, so we typically don't have to worry
+			// about starting an M to service timers. (Note that
+			// sleep for timeSleepUntil above simply ensures sysmon
+			// starts running again when that timer expiration may
+			// cause Go code to run again).
+			//
+			// However, netbsd has a kernel bug that sometimes
+			// misses netpollBreak wake-ups, which can lead to
+			// unbounded delays servicing timers. If we detect this
+			// overrun, then startm to get something to handle the
+			// timer.
+			//
+			// See issue 42515 and
+			// https://gnats.netbsd.org/cgi-bin/query-pr-single.pl?number=50094.
+			if next, _ := timeSleepUntil(); next < now {
+				startm(nil, false)
+			}
+		}
 		if atomic.Load(&scavenge.sysmonWake) != 0 {
 			// Kick the scavenger awake if someone requested it.
 			wakeScavenger()
