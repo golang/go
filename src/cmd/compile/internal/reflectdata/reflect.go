@@ -835,6 +835,10 @@ func TypeSym(t *types.Type) *types.Sym {
 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() {
 		base.Fatalf("typenamesym %v", t)
 	}
+	if t.Kind() == types.TFUNC && t.Recv() != nil {
+		// TODO(mdempsky): Fix callers and make fatal.
+		t = typecheck.NewMethodType(t, t.Recv().Type)
+	}
 	s := types.TypeSym(t)
 	signatmu.Lock()
 	NeedRuntimeType(t)
