@@ -256,6 +256,26 @@ var readEmbedTests = []struct {
 		[]string{"x", "y", "z"},
 	},
 	{
+		"package p\nimport \"embed\"\nvar s = \"/*\"\n//go:embed x\nvar files embed.FS",
+		[]string{"x"},
+	},
+	{
+		`package p
+		 import "embed"
+		 var s = "\"\\\\"
+		 //go:embed x
+		 var files embed.FS`,
+		[]string{"x"},
+	},
+	{
+		"package p\nimport \"embed\"\nvar s = `/*`\n//go:embed x\nvar files embed.FS",
+		[]string{"x"},
+	},
+	{
+		"package p\nimport \"embed\"\nvar s = z/ *y\n//go:embed pointer\nvar pointer embed.FS",
+		[]string{"pointer"},
+	},
+	{
 		"package p\n//go:embed x y z\n", // no import, no scan
 		nil,
 	},
