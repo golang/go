@@ -22,11 +22,28 @@ var GeneratedAPIJSON = &APIJSON{
 		},
 		"Experimental": {
 			{
-				Name:       "annotations",
-				Type:       "map[string]bool",
-				Doc:        "annotations suppress various kinds of optimization diagnostics\nthat would be reported by the gc_details command.\n * noNilcheck suppresses display of nilchecks.\n * noEscape suppresses escape choices.\n * noInline suppresses inlining choices.\n * noBounds suppresses bounds checking diagnostics.\n",
-				EnumValues: nil,
-				Default:    "{}",
+				Name: "annotations",
+				Type: "map[string]bool",
+				Doc:  "annotations specifies the various kinds of optimization diagnostics\nthat should be reported by the gc_details command.\n",
+				EnumValues: []EnumValue{
+					{
+						Value: "\"bounds\"",
+						Doc:   "`\"bounds\"` controls bounds checking diagnostics.\n",
+					},
+					{
+						Value: "\"escape\"",
+						Doc:   "`\"escape\"` controls diagnostics about escape choices.\n",
+					},
+					{
+						Value: "\"inline\"",
+						Doc:   "`\"inline\"` controls diagnostics about inlining choices.\n",
+					},
+					{
+						Value: "\"nil\"",
+						Doc:   "`\"nil\"` controls nil checks.\n",
+					},
+				},
+				Default: "{\"bounds\":true,\"escape\":true,\"inline\":true,\"nil\":true}",
 			},
 			{
 				Name:       "staticcheck",

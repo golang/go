@@ -163,12 +163,21 @@ func loadOptions(category reflect.Value, pkg *packages.Package) ([]*source.Optio
 			typ = "enum"
 		}
 
+		// Track any maps whose keys are enums.
+		enumValues := enums[typesField.Type()]
+		if m, ok := typesField.Type().(*types.Map); ok {
+			if e, ok := enums[m.Key()]; ok {
+				enumValues = e
+				typ = strings.Replace(typ, m.Key().String(), m.Key().Underlying().String(), 1)
+			}
+		}
+
 		opts = append(opts, &source.OptionJSON{
 			Name:       lowerFirst(typesField.Name()),
 			Type:       typ,
 			Doc:        lowerFirst(astField.Doc.Text()),
 			Default:    string(defBytes),
-			EnumValues: enums[typesField.Type()],
+			EnumValues: enumValues,
 		})
 	}
 	return opts, nil
@@ -378,14 +387,23 @@ func rewriteSettings(doc []byte, api *source.APIJSON) ([]byte, error) {
 		for _, opt := range opts {
 			var enumValues strings.Builder
 			if len(opt.EnumValues) > 0 {
-				enumValues.WriteString("Must be one of:\n\n")
-				for _, val := range opt.EnumValues {
+				var msg string
+				if opt.Type == "enum" {
+					msg = "\nMust be one of:\n\n"
+				} else {
+					msg = "\nCan contain any of:\n\n"
+				}
+				enumValues.WriteString(msg)
+				for i, val := range opt.EnumValues {
 					if val.Doc != "" {
 						// Don't break the list item by starting a new paragraph.
 						unbroken := parBreakRE.ReplaceAllString(val.Doc, "\\\n")
-						fmt.Fprintf(&enumValues, " * %s\n", unbroken)
+						fmt.Fprintf(&enumValues, "* %s", unbroken)
 					} else {
-						fmt.Fprintf(&enumValues, " * `%s`\n", val.Value)
+						fmt.Fprintf(&enumValues, "* `%s`", val.Value)
+					}
+					if i < len(opt.EnumValues)-1 {
+						fmt.Fprint(&enumValues, "\n")
 					}
 				}
 			}

@@ -148,6 +148,17 @@ func TestSetOption(t *testing.T) {
 				return len(o.DirectoryFilters) == 0
 			},
 		},
+		{
+			name: "annotations",
+			value: map[string]interface{}{
+				"Nil":      false,
+				"noBounds": true,
+			},
+			wantError: true,
+			check: func(o Options) bool {
+				return !o.Annotations[Nil] && !o.Annotations[Bounds]
+			},
+		},
 	}
 
 	for _, test := range tests {

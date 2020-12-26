@@ -19,6 +19,22 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
+type Annotation string
+
+const (
+	// Nil controls nil checks.
+	Nil Annotation = "nil"
+
+	// Escape controls diagnostics about escape choices.
+	Escape Annotation = "escape"
+
+	// Inline controls diagnostics about inlining choices.
+	Inline Annotation = "inline"
+
+	// Bounds controls bounds checking diagnostics.
+	Bounds Annotation = "bounds"
+)
+
 func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, pkgDir span.URI) (map[VersionedFileIdentity][]*Diagnostic, error) {
 	outDir := filepath.Join(os.TempDir(), fmt.Sprintf("gopls-%d.details", os.Getpid()))
 
@@ -113,7 +129,7 @@ func parseDetailsFile(filename string, options *Options) (span.URI, []*Diagnosti
 		if msg != "" {
 			msg = fmt.Sprintf("%s(%s)", msg, d.Message)
 		}
-		if skipDiagnostic(msg, d.Source, options) {
+		if !showDiagnostic(msg, d.Source, options) {
 			continue
 		}
 		var related []RelatedInformation
@@ -138,24 +154,27 @@ func parseDetailsFile(filename string, options *Options) (span.URI, []*Diagnosti
 	return uri, diagnostics, nil
 }
 
-// skipDiagnostic reports whether a given diagnostic should be shown to the end
+// showDiagnostic reports whether a given diagnostic should be shown to the end
 // user, given the current options.
-func skipDiagnostic(msg, source string, o *Options) bool {
+func showDiagnostic(msg, source string, o *Options) bool {
 	if source != "go compiler" {
 		return false
 	}
+	if o.Annotations == nil {
+		return true
+	}
 	switch {
-	case o.Annotations["noInline"]:
-		return strings.HasPrefix(msg, "canInline") ||
-			strings.HasPrefix(msg, "cannotInline") ||
-			strings.HasPrefix(msg, "inlineCall")
-	case o.Annotations["noEscape"]:
-		return strings.HasPrefix(msg, "escape") || msg == "leak"
-	case o.Annotations["noNilcheck"]:
-		return strings.HasPrefix(msg, "nilcheck")
-	case o.Annotations["noBounds"]:
-		return strings.HasPrefix(msg, "isInBounds") ||
-			strings.HasPrefix(msg, "isSliceInBounds")
+	case strings.HasPrefix(msg, "canInline") ||
+		strings.HasPrefix(msg, "cannotInline") ||
+		strings.HasPrefix(msg, "inlineCall"):
+		return o.Annotations[Inline]
+	case strings.HasPrefix(msg, "escape") || msg == "leak":
+		return o.Annotations[Escape]
+	case strings.HasPrefix(msg, "nilcheck"):
+		return o.Annotations[Nil]
+	case strings.HasPrefix(msg, "isInBounds") ||
+		strings.HasPrefix(msg, "isSliceInBounds"):
+		return o.Annotations[Bounds]
 	}
 	return false
 }

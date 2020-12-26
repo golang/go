@@ -36,18 +36,18 @@ Default: `{}`.
 ### **hoverKind** *enum*
 hoverKind controls the information that appears in the hover text.
 SingleLine and Structured are intended for use only by authors of editor plugins.
+
 Must be one of:
 
- * `"FullDocumentation"`
- * `"NoDocumentation"`
- * `"SingleLine"`
- * `"Structured"` is an experimental setting that returns a structured hover format.
+* `"FullDocumentation"`
+* `"NoDocumentation"`
+* `"SingleLine"`
+* `"Structured"` is an experimental setting that returns a structured hover format.
 This format separates the signature from the documentation, so that the client
 can do more manipulation of these fields.\
 This should only be used by clients that support this behavior.
 
- * `"SynopsisDocumentation"`
-
+* `"SynopsisDocumentation"`
 
 Default: `"FullDocumentation"`.
 ### **usePlaceholders** *bool*
@@ -120,32 +120,32 @@ Default: `true`.
 ### **importShortcut** *enum*
 importShortcut specifies whether import statements should link to
 documentation or go to definitions.
+
 Must be one of:
 
- * `"Both"`
- * `"Definition"`
- * `"Link"`
-
+* `"Both"`
+* `"Definition"`
+* `"Link"`
 
 Default: `"Both"`.
 ### **matcher** *enum*
 matcher sets the algorithm that is used when calculating completion candidates.
+
 Must be one of:
 
- * `"CaseInsensitive"`
- * `"CaseSensitive"`
- * `"Fuzzy"`
-
+* `"CaseInsensitive"`
+* `"CaseSensitive"`
+* `"Fuzzy"`
 
 Default: `"Fuzzy"`.
 ### **symbolMatcher** *enum*
 symbolMatcher sets the algorithm that is used when finding workspace symbols.
+
 Must be one of:
 
- * `"CaseInsensitive"`
- * `"CaseSensitive"`
- * `"Fuzzy"`
-
+* `"CaseInsensitive"`
+* `"CaseSensitive"`
+* `"Fuzzy"`
 
 Default: `"Fuzzy"`.
 ### **symbolStyle** *enum*
@@ -159,19 +159,19 @@ Example Usage:
 ...
 }
 ```
+
 Must be one of:
 
- * `"Dynamic"` uses whichever qualifier results in the highest scoring
+* `"Dynamic"` uses whichever qualifier results in the highest scoring
 match for the given symbol query. Here a "qualifier" is any "/" or "."
 delimited suffix of the fully qualified symbol. i.e. "to/pkg.Foo.Field" or
 just "Foo.Field".
 
- * `"Full"` is fully qualified symbols, i.e.
+* `"Full"` is fully qualified symbols, i.e.
 "path/to/pkg.Foo.Field".
 
- * `"Package"` is package qualified symbols i.e.
+* `"Package"` is package qualified symbols i.e.
 "pkg.Foo.Field".
-
 
 
 Default: `"Dynamic"`.
@@ -198,15 +198,21 @@ The below settings are considered experimental. They may be deprecated or change
 
 <!-- BEGIN Experimental: DO NOT MANUALLY EDIT THIS SECTION -->
 ### **annotations** *map[string]bool*
-annotations suppress various kinds of optimization diagnostics
-that would be reported by the gc_details command.
- * noNilcheck suppresses display of nilchecks.
- * noEscape suppresses escape choices.
- * noInline suppresses inlining choices.
- * noBounds suppresses bounds checking diagnostics.
+annotations specifies the various kinds of optimization diagnostics
+that should be reported by the gc_details command.
+
+Can contain any of:
+
+* `"bounds"` controls bounds checking diagnostics.
+
+* `"escape"` controls diagnostics about escape choices.
+
+* `"inline"` controls diagnostics about inlining choices.
+
+* `"nil"` controls nil checks.
 
 
-Default: `{}`.
+Default: `{"bounds":true,"escape":true,"inline":true,"nil":true}`.
 ### **staticcheck** *bool*
 staticcheck enables additional analyses from staticcheck.io.
 
