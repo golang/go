@@ -1328,6 +1328,7 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 			// Already in the process of diagnosing an error.
 			return f2
 		}
+		orig := n.X
 		tt := n.X.Type()
 		types.CalcSize(tt)
 		rcvr := f2.Type.Recv().Type
@@ -1358,20 +1359,28 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 			}
 		}
 
-		implicit, ll := n.Implicit(), n.X
-		for ll != nil && (ll.Op() == ir.ODOT || ll.Op() == ir.ODOTPTR || ll.Op() == ir.ODEREF) {
-			switch l := ll.(type) {
+		// Check that we haven't implicitly dereferenced any defined pointer types.
+		for x := n.X; ; {
+			var inner ir.Node
+			implicit := false
+			switch x := x.(type) {
+			case *ir.AddrExpr:
+				inner, implicit = x.X, x.Implicit()
 			case *ir.SelectorExpr:
-				implicit, ll = l.Implicit(), l.X
+				inner, implicit = x.X, x.Implicit()
 			case *ir.StarExpr:
-				implicit, ll = l.Implicit(), l.X
+				inner, implicit = x.X, x.Implicit()
 			}
-		}
-		if implicit && ll.Type().IsPtr() && ll.Type().Sym() != nil && ll.Type().Sym().Def != nil && ir.AsNode(ll.Type().Sym().Def).Op() == ir.OTYPE {
-			// It is invalid to automatically dereference a named pointer type when selecting a method.
-			// Make n.Left == ll to clarify error message.
-			n.X = ll
-			return nil
+			if !implicit {
+				break
+			}
+			if inner.Type().Sym() != nil && (x.Op() == ir.ODEREF || x.Op() == ir.ODOTPTR) {
+				// Found an implicit dereference of a defined pointer type.
+				// Restore n.X for better error message.
+				n.X = orig
+				return nil
+			}
+			x = inner
 		}
 
 		n.Selection = f2
