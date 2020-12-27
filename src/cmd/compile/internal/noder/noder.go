@@ -1202,14 +1202,14 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
 	if l := n.Tag; l != nil && l.Op() == ir.OTYPESW {
 		tswitch = l.(*ir.TypeSwitchGuard)
 	}
-	n.Cases.Set(p.caseClauses(stmt.Body, tswitch, stmt.Rbrace))
+	n.Cases = p.caseClauses(stmt.Body, tswitch, stmt.Rbrace)
 
 	p.closeScope(stmt.Rbrace)
 	return n
 }
 
-func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitchGuard, rbrace syntax.Pos) []ir.Node {
-	nodes := make([]ir.Node, 0, len(clauses))
+func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitchGuard, rbrace syntax.Pos) []*ir.CaseStmt {
+	nodes := make([]*ir.CaseStmt, 0, len(clauses))
 	for i, clause := range clauses {
 		p.setlineno(clause)
 		if i > 0 {
@@ -1266,8 +1266,8 @@ func (p *noder) simpleStmt(stmt syntax.SimpleStmt) []ir.Node {
 	return []ir.Node{p.stmt(stmt)}
 }
 
-func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []ir.Node {
-	nodes := make([]ir.Node, len(clauses))
+func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*ir.CaseStmt {
+	nodes := make([]*ir.CaseStmt, len(clauses))
 	for i, clause := range clauses {
 		p.setlineno(clause)
 		if i > 0 {

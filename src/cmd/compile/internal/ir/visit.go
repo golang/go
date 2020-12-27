@@ -217,10 +217,9 @@ func EditChildren(n Node, edit func(Node) Node) {
 // Note that editList only calls edit on the nodes in the list, not their children.
 // If x's children should be processed, edit(x) must call EditChildren(x, edit) itself.
 func editList(list Nodes, edit func(Node) Node) {
-	s := list
 	for i, x := range list {
 		if x != nil {
-			s[i] = edit(x)
+			list[i] = edit(x)
 		}
 	}
 }

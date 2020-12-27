@@ -914,7 +914,6 @@ func (o *orderState) stmt(n ir.Node) {
 		n := n.(*ir.SelectStmt)
 		t := o.markTemp()
 		for _, ncas := range n.Cases {
-			ncas := ncas.(*ir.CaseStmt)
 			r := ncas.Comm
 			ir.SetPos(ncas)
 
@@ -996,7 +995,6 @@ func (o *orderState) stmt(n ir.Node) {
 		// Also insert any ninit queued during the previous loop.
 		// (The temporary cleaning must follow that ninit work.)
 		for _, cas := range n.Cases {
-			cas := cas.(*ir.CaseStmt)
 			orderBlock(&cas.Body, o.free)
 			cas.Body.Prepend(o.cleanTempNoPop(t)...)
 
@@ -1036,13 +1034,12 @@ func (o *orderState) stmt(n ir.Node) {
 		n := n.(*ir.SwitchStmt)
 		if base.Debug.Libfuzzer != 0 && !hasDefaultCase(n) {
 			// Add empty "default:" case for instrumentation.
-			n.Cases.Append(ir.NewCaseStmt(base.Pos, nil, nil))
+			n.Cases = append(n.Cases, ir.NewCaseStmt(base.Pos, nil, nil))
 		}
 
 		t := o.markTemp()
 		n.Tag = o.expr(n.Tag, nil)
 		for _, ncas := range n.Cases {
-			ncas := ncas.(*ir.CaseStmt)
 			o.exprListInPlace(ncas.List)
 			orderBlock(&ncas.Body, o.free)
 		}
@@ -1056,7 +1053,6 @@ func (o *orderState) stmt(n ir.Node) {
 
 func hasDefaultCase(n *ir.SwitchStmt) bool {
 	for _, ncas := range n.Cases {
-		ncas := ncas.(*ir.CaseStmt)
 		if len(ncas.List) == 0 {
 			return true
 		}

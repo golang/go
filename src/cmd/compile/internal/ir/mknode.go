@@ -37,6 +37,7 @@ func main() {
 	nodeType := lookup("Node")
 	ntypeType := lookup("Ntype")
 	nodesType := lookup("Nodes")
+	slicePtrCaseStmtType := types.NewSlice(types.NewPointer(lookup("CaseStmt")))
 	ptrFieldType := types.NewPointer(lookup("Field"))
 	slicePtrFieldType := types.NewSlice(ptrFieldType)
 	ptrIdentType := types.NewPointer(lookup("Ident"))
@@ -76,6 +77,8 @@ func main() {
 				switch {
 				case is(nodesType):
 					fmt.Fprintf(&buf, "c.%s = c.%s.Copy()\n", name, name)
+				case is(slicePtrCaseStmtType):
+					fmt.Fprintf(&buf, "c.%s = copyCases(c.%s)\n", name, name)
 				case is(ptrFieldType):
 					fmt.Fprintf(&buf, "if c.%s != nil { c.%s = c.%s.copy() }\n", name, name, name)
 				case is(slicePtrFieldType):
@@ -94,6 +97,8 @@ func main() {
 				fmt.Fprintf(&buf, "err = maybeDo(n.%s, err, do)\n", name)
 			case is(nodesType):
 				fmt.Fprintf(&buf, "err = maybeDoList(n.%s, err, do)\n", name)
+			case is(slicePtrCaseStmtType):
+				fmt.Fprintf(&buf, "err = maybeDoCases(n.%s, err, do)\n", name)
 			case is(ptrFieldType):
 				fmt.Fprintf(&buf, "err = maybeDoField(n.%s, err, do)\n", name)
 			case is(slicePtrFieldType):
@@ -113,6 +118,8 @@ func main() {
 				fmt.Fprintf(&buf, "n.%s = toNtype(maybeEdit(n.%s, edit))\n", name, name)
 			case is(nodesType):
 				fmt.Fprintf(&buf, "editList(n.%s, edit)\n", name)
+			case is(slicePtrCaseStmtType):
+				fmt.Fprintf(&buf, "editCases(n.%s, edit)\n", name)
 			case is(ptrFieldType):
 				fmt.Fprintf(&buf, "editField(n.%s, edit)\n", name)
 			case is(slicePtrFieldType):

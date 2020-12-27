@@ -21,7 +21,7 @@ func walkSelect(sel *ir.SelectStmt) {
 	sel.PtrInit().Set(nil)
 
 	init = append(init, walkSelectCases(sel.Cases)...)
-	sel.Cases = ir.Nodes{}
+	sel.Cases = nil
 
 	sel.Compiled.Set(init)
 	walkStmtList(sel.Compiled)
@@ -29,7 +29,7 @@ func walkSelect(sel *ir.SelectStmt) {
 	base.Pos = lno
 }
 
-func walkSelectCases(cases ir.Nodes) []ir.Node {
+func walkSelectCases(cases []*ir.CaseStmt) []ir.Node {
 	ncas := len(cases)
 	sellineno := base.Pos
 
@@ -40,7 +40,7 @@ func walkSelectCases(cases ir.Nodes) []ir.Node {
 
 	// optimization: one-case select: single op.
 	if ncas == 1 {
-		cas := cases[0].(*ir.CaseStmt)
+		cas := cases[0]
 		ir.SetPos(cas)
 		l := cas.Init()
 		if cas.Comm != nil { // not default:
@@ -75,7 +75,6 @@ func walkSelectCases(cases ir.Nodes) []ir.Node {
 	// this rewrite is used by both the general code and the next optimization.
 	var dflt *ir.CaseStmt
 	for _, cas := range cases {
-		cas := cas.(*ir.CaseStmt)
 		ir.SetPos(cas)
 		n := cas.Comm
 		if n == nil {
@@ -99,9 +98,9 @@ func walkSelectCases(cases ir.Nodes) []ir.Node {
 
 	// optimization: two-case select but one is default: single non-blocking op.
 	if ncas == 2 && dflt != nil {
-		cas := cases[0].(*ir.CaseStmt)
+		cas := cases[0]
 		if cas == dflt {
-			cas = cases[1].(*ir.CaseStmt)
+			cas = cases[1]
 		}
 
 		n := cas.Comm
@@ -170,7 +169,6 @@ func walkSelectCases(cases ir.Nodes) []ir.Node {
 
 	// register cases
 	for _, cas := range cases {
-		cas := cas.(*ir.CaseStmt)
 		ir.SetPos(cas)
 
 		init = append(init, cas.Init()...)

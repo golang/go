@@ -364,8 +364,6 @@ func tcSelect(sel *ir.SelectStmt) {
 	lno := ir.SetPos(sel)
 	Stmts(sel.Init())
 	for _, ncase := range sel.Cases {
-		ncase := ncase.(*ir.CaseStmt)
-
 		if len(ncase.List) == 0 {
 			// default
 			if def != nil {
@@ -508,7 +506,6 @@ func tcSwitchExpr(n *ir.SwitchStmt) {
 	var defCase ir.Node
 	var cs constSet
 	for _, ncase := range n.Cases {
-		ncase := ncase.(*ir.CaseStmt)
 		ls := ncase.List
 		if len(ls) == 0 { // default:
 			if defCase != nil {
@@ -577,7 +574,6 @@ func tcSwitchType(n *ir.SwitchStmt) {
 	var defCase, nilCase ir.Node
 	var ts typeSet
 	for _, ncase := range n.Cases {
-		ncase := ncase.(*ir.CaseStmt)
 		ls := ncase.List
 		if len(ls) == 0 { // default:
 			if defCase != nil {
