@@ -395,10 +395,35 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
 //
 // function calls have been removed.
 func reorder3(all []*ir.AssignStmt) []ir.Node {
+	var assigned ir.NameSet
+	var memWrite bool
+
+	// affected reports whether expression n could be affected by
+	// the assignments applied so far.
+	affected := func(n ir.Node) bool {
+		return ir.Any(n, func(n ir.Node) bool {
+			if n.Op() == ir.ONAME && assigned.Has(n.(*ir.Name)) {
+				return true
+			}
+			if memWrite && readsMemory(n) {
+				return true
+			}
+			return false
+		})
+	}
+
 	// If a needed expression may be affected by an
 	// earlier assignment, make an early copy of that
 	// expression and use the copy instead.
 	var early []ir.Node
+	save := func(np *ir.Node) {
+		if n := *np; affected(n) {
+			tmp := ir.Node(typecheck.Temp(n.Type()))
+			as := typecheck.Stmt(ir.NewAssignStmt(base.Pos, tmp, n))
+			early = append(early, as)
+			*np = tmp
+		}
+	}
 
 	var mapinit ir.Nodes
 	for i, n := range all {
@@ -407,19 +432,18 @@ func reorder3(all []*ir.AssignStmt) []ir.Node {
 		// Save subexpressions needed on left side.
 		// Drill through non-dereferences.
 		for {
-			switch ll := l; ll.Op() {
-			case ir.ODOT:
-				ll := ll.(*ir.SelectorExpr)
-				l = ll.X
-				continue
-			case ir.OPAREN:
-				ll := ll.(*ir.ParenExpr)
-				l = ll.X
-				continue
-			case ir.OINDEX:
-				ll := ll.(*ir.IndexExpr)
+			switch ll := l.(type) {
+			case *ir.IndexExpr:
 				if ll.X.Type().IsArray() {
-					ll.Index = reorder3save(ll.Index, all, i, &early)
+					save(&ll.Index)
+					l = ll.X
+					continue
+				}
+			case *ir.ParenExpr:
+				l = ll.X
+				continue
+			case *ir.SelectorExpr:
+				if ll.Op() == ir.ODOT {
 					l = ll.X
 					continue
 				}
@@ -427,31 +451,42 @@ func reorder3(all []*ir.AssignStmt) []ir.Node {
 			break
 		}
 
+		var name *ir.Name
 		switch l.Op() {
 		default:
 			base.Fatalf("reorder3 unexpected lvalue %v", l.Op())
 
 		case ir.ONAME:
-			break
+			name = l.(*ir.Name)
 
 		case ir.OINDEX, ir.OINDEXMAP:
 			l := l.(*ir.IndexExpr)
-			l.X = reorder3save(l.X, all, i, &early)
-			l.Index = reorder3save(l.Index, all, i, &early)
+			save(&l.X)
+			save(&l.Index)
 			if l.Op() == ir.OINDEXMAP {
 				all[i] = convas(all[i], &mapinit)
 			}
 
 		case ir.ODEREF:
 			l := l.(*ir.StarExpr)
-			l.X = reorder3save(l.X, all, i, &early)
+			save(&l.X)
 		case ir.ODOTPTR:
 			l := l.(*ir.SelectorExpr)
-			l.X = reorder3save(l.X, all, i, &early)
+			save(&l.X)
 		}
 
 		// Save expression on right side.
-		all[i].Y = reorder3save(all[i].Y, all, i, &early)
+		save(&all[i].Y)
+
+		if name == nil || name.Addrtaken() || name.Class_ == ir.PEXTERN || name.Class_ == ir.PAUTOHEAP {
+			memWrite = true
+			continue
+		}
+		if ir.IsBlank(name) {
+			// We can ignore assignments to blank.
+			continue
+		}
+		assigned.Add(name)
 	}
 
 	early = append(mapinit, early...)
@@ -461,145 +496,43 @@ func reorder3(all []*ir.AssignStmt) []ir.Node {
 	return early
 }
 
-// if the evaluation of *np would be affected by the
-// assignments in all up to but not including the ith assignment,
-// copy into a temporary during *early and
-// replace *np with that temp.
-// The result of reorder3save MUST be assigned back to n, e.g.
-// 	n.Left = reorder3save(n.Left, all, i, early)
-func reorder3save(n ir.Node, all []*ir.AssignStmt, i int, early *[]ir.Node) ir.Node {
-	if !aliased(n, all[:i]) {
-		return n
-	}
+// readsMemory reports whether the evaluation n directly reads from
+// memory that might be written to indirectly.
+func readsMemory(n ir.Node) bool {
+	switch n.Op() {
+	case ir.ONAME:
+		n := n.(*ir.Name)
+		return n.Class_ == ir.PEXTERN || n.Class_ == ir.PAUTOHEAP || n.Addrtaken()
 
-	q := ir.Node(typecheck.Temp(n.Type()))
-	as := typecheck.Stmt(ir.NewAssignStmt(base.Pos, q, n))
-	*early = append(*early, as)
-	return q
-}
-
-// Is it possible that the computation of r might be
-// affected by assignments in all?
-func aliased(r ir.Node, all []*ir.AssignStmt) bool {
-	if r == nil {
+	case ir.OADD,
+		ir.OAND,
+		ir.OANDAND,
+		ir.OANDNOT,
+		ir.OBITNOT,
+		ir.OCONV,
+		ir.OCONVIFACE,
+		ir.OCONVNOP,
+		ir.ODIV,
+		ir.ODOT,
+		ir.ODOTTYPE,
+		ir.OLITERAL,
+		ir.OLSH,
+		ir.OMOD,
+		ir.OMUL,
+		ir.ONEG,
+		ir.ONIL,
+		ir.OOR,
+		ir.OOROR,
+		ir.OPAREN,
+		ir.OPLUS,
+		ir.ORSH,
+		ir.OSUB,
+		ir.OXOR:
 		return false
 	}
 
-	// Treat all fields of a struct as referring to the whole struct.
-	// We could do better but we would have to keep track of the fields.
-	for r.Op() == ir.ODOT {
-		r = r.(*ir.SelectorExpr).X
-	}
-
-	// Look for obvious aliasing: a variable being assigned
-	// during the all list and appearing in n.
-	// Also record whether there are any writes to addressable
-	// memory (either main memory or variables whose addresses
-	// have been taken).
-	memwrite := false
-	for _, as := range all {
-		// We can ignore assignments to blank.
-		if ir.IsBlank(as.X) {
-			continue
-		}
-
-		lv := ir.OuterValue(as.X)
-		if lv.Op() != ir.ONAME {
-			memwrite = true
-			continue
-		}
-		l := lv.(*ir.Name)
-
-		switch l.Class_ {
-		default:
-			base.Fatalf("unexpected class: %v, %v", l, l.Class_)
-
-		case ir.PAUTOHEAP, ir.PEXTERN:
-			memwrite = true
-			continue
-
-		case ir.PAUTO, ir.PPARAM, ir.PPARAMOUT:
-			if l.Name().Addrtaken() {
-				memwrite = true
-				continue
-			}
-
-			if refersToName(l, r) {
-				// Direct hit: l appears in r.
-				return true
-			}
-		}
-	}
-
-	// The variables being written do not appear in r.
-	// However, r might refer to computed addresses
-	// that are being written.
-
-	// If no computed addresses are affected by the writes, no aliasing.
-	if !memwrite {
-		return false
-	}
-
-	// If r does not refer to any variables whose addresses have been taken,
-	// then the only possible writes to r would be directly to the variables,
-	// and we checked those above, so no aliasing problems.
-	if !anyAddrTaken(r) {
-		return false
-	}
-
-	// Otherwise, both the writes and r refer to computed memory addresses.
-	// Assume that they might conflict.
+	// Be conservative.
 	return true
-}
-
-// anyAddrTaken reports whether the evaluation n,
-// which appears on the left side of an assignment,
-// may refer to variables whose addresses have been taken.
-func anyAddrTaken(n ir.Node) bool {
-	return ir.Any(n, func(n ir.Node) bool {
-		switch n.Op() {
-		case ir.ONAME:
-			n := n.(*ir.Name)
-			return n.Class_ == ir.PEXTERN || n.Class_ == ir.PAUTOHEAP || n.Name().Addrtaken()
-
-		case ir.ODOT: // but not ODOTPTR - should have been handled in aliased.
-			base.Fatalf("anyAddrTaken unexpected ODOT")
-
-		case ir.OADD,
-			ir.OAND,
-			ir.OANDAND,
-			ir.OANDNOT,
-			ir.OBITNOT,
-			ir.OCONV,
-			ir.OCONVIFACE,
-			ir.OCONVNOP,
-			ir.ODIV,
-			ir.ODOTTYPE,
-			ir.OLITERAL,
-			ir.OLSH,
-			ir.OMOD,
-			ir.OMUL,
-			ir.ONEG,
-			ir.ONIL,
-			ir.OOR,
-			ir.OOROR,
-			ir.OPAREN,
-			ir.OPLUS,
-			ir.ORSH,
-			ir.OSUB,
-			ir.OXOR:
-			return false
-		}
-		// Be conservative.
-		return true
-	})
-}
-
-// refersToName reports whether r refers to name.
-func refersToName(name *ir.Name, r ir.Node) bool {
-	return ir.Any(r, func(r ir.Node) bool {
-		return r.Op() == ir.ONAME && r == name
-	})
 }
 
 // refersToCommonName reports whether any name
