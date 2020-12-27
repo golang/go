@@ -33,7 +33,6 @@ package objw
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -173,7 +172,7 @@ func (pp *Progs) Prog(as obj.As) *obj.Prog {
 	p.Pos = pp.Pos
 	if pp.Pos.IsStmt() == src.PosIsStmt {
 		// Clear IsStmt for later Progs at this pos provided that as can be marked as a stmt
-		if ssa.LosesStmtMark(as) {
+		if LosesStmtMark(as) {
 			return p
 		}
 		pp.Pos = pp.Pos.WithNotStmt()
@@ -215,4 +214,13 @@ func (pp *Progs) SetText(fn *ir.Func) {
 	ptxt.From.Type = obj.TYPE_MEM
 	ptxt.From.Name = obj.NAME_EXTERN
 	ptxt.From.Sym = fn.LSym
+}
+
+// LosesStmtMark reports whether a prog with op as loses its statement mark on the way to DWARF.
+// The attributes from some opcodes are lost in translation.
+// TODO: this is an artifact of how funcpctab combines information for instructions at a single PC.
+// Should try to fix it there.
+func LosesStmtMark(as obj.As) bool {
+	// is_stmt does not work for these; it DOES for ANOP even though that generates no code.
+	return as == obj.APCDATA || as == obj.AFUNCDATA
 }
