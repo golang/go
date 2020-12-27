@@ -495,55 +495,6 @@ func readsMemory(n ir.Node) bool {
 	return true
 }
 
-// refersToCommonName reports whether any name
-// appears in common between l and r.
-// This is called from sinit.go.
-func refersToCommonName(l ir.Node, r ir.Node) bool {
-	if l == nil || r == nil {
-		return false
-	}
-
-	// This could be written elegantly as a Find nested inside a Find:
-	//
-	//	found := ir.Find(l, func(l ir.Node) interface{} {
-	//		if l.Op() == ir.ONAME {
-	//			return ir.Find(r, func(r ir.Node) interface{} {
-	//				if r.Op() == ir.ONAME && l.Name() == r.Name() {
-	//					return r
-	//				}
-	//				return nil
-	//			})
-	//		}
-	//		return nil
-	//	})
-	//	return found != nil
-	//
-	// But that would allocate a new closure for the inner Find
-	// for each name found on the left side.
-	// It may not matter at all, but the below way of writing it
-	// only allocates two closures, not O(|L|) closures.
-
-	var doL, doR func(ir.Node) error
-	var targetL *ir.Name
-	doR = func(r ir.Node) error {
-		if r.Op() == ir.ONAME && r.Name() == targetL {
-			return stop
-		}
-		return ir.DoChildren(r, doR)
-	}
-	doL = func(l ir.Node) error {
-		if l.Op() == ir.ONAME {
-			l := l.(*ir.Name)
-			targetL = l.Name()
-			if doR(r) == stop {
-				return stop
-			}
-		}
-		return ir.DoChildren(l, doL)
-	}
-	return doL(l) == stop
-}
-
 // expand append(l1, l2...) to
 //   init {
 //     s := l1
