@@ -571,7 +571,6 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 	}
 
 	n.X = typecheck(n.X, ctxExpr|ctxType)
-
 	n.X = DefaultLit(n.X, nil)
 
 	t := n.X.Type()
@@ -580,8 +579,6 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 		n.SetType(nil)
 		return n
 	}
-
-	s := n.Sel
 
 	if n.X.Op() == ir.OTYPE {
 		return typecheckMethodExpr(n)
@@ -629,7 +626,10 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 	}
 
 	if (n.Op() == ir.ODOTINTER || n.Op() == ir.ODOTMETH) && top&ctxCallee == 0 {
-		return tcCallPart(n, s)
+		// Create top-level function.
+		fn := makepartialcall(n)
+
+		return ir.NewCallPartExpr(n.Pos(), n.X, n.Selection, fn)
 	}
 	return n
 }

@@ -249,7 +249,9 @@ var globClosgen int32
 
 // makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
 // for partial calls.
-func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.Func {
+func makepartialcall(dot *ir.SelectorExpr) *ir.Func {
+	t0 := dot.Type()
+	meth := dot.Sel
 	rcvrtype := dot.X.Type()
 	sym := ir.MethodSymSuffix(rcvrtype, meth, "-fm")
 
@@ -263,11 +265,10 @@ func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.
 	ir.CurFunc = nil
 
 	// Set line number equal to the line number where the method is declared.
-	var m *types.Field
-	if lookdot0(meth, rcvrtype, &m, false) == 1 && m.Pos.IsKnown() {
-		base.Pos = m.Pos
+	if pos := dot.Selection.Pos; pos.IsKnown() {
+		base.Pos = pos
 	}
-	// Note: !m.Pos.IsKnown() happens for method expressions where
+	// Note: !dot.Selection.Pos.IsKnown() happens for method expressions where
 	// the method is implicitly declared. The Error method of the
 	// built-in error type is one such method.  We leave the line
 	// number at the use of the method expression in this
@@ -280,6 +281,7 @@ func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.
 	fn := DeclFunc(sym, tfn)
 	fn.SetDupok(true)
 	fn.SetNeedctxt(true)
+	fn.SetWrapper(true)
 
 	// Declare and initialize variable holding receiver.
 	cr := ir.NewClosureRead(rcvrtype, types.Rnd(int64(types.PtrSize), int64(rcvrtype.Align)))
@@ -380,23 +382,6 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 	}
 
 	Target.Decls = append(Target.Decls, fn)
-}
-
-func tcCallPart(n ir.Node, sym *types.Sym) *ir.CallPartExpr {
-	switch n.Op() {
-	case ir.ODOTINTER, ir.ODOTMETH:
-		break
-
-	default:
-		base.Fatalf("invalid typecheckpartialcall")
-	}
-	dot := n.(*ir.SelectorExpr)
-
-	// Create top-level function.
-	fn := makepartialcall(dot, dot.Type(), sym)
-	fn.SetWrapper(true)
-
-	return ir.NewCallPartExpr(dot.Pos(), dot.X, dot.Selection, fn)
 }
 
 // type check function definition

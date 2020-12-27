@@ -324,19 +324,17 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		if t == nil {
 			base.Fatalf("no function type for [%p] %+v\n", n.X, n.X)
 		}
-		if types.IsRuntimePkg(n.X.Sym().Pkg) {
-			fn := n.X.Sym().Name
-			if fn == "heapBits.nextArena" {
-				// Special case: explicitly allow
-				// mid-stack inlining of
-				// runtime.heapBits.next even though
-				// it calls slow-path
-				// runtime.heapBits.nextArena.
-				break
-			}
+		fn := ir.MethodExprName(n.X).Func
+		if types.IsRuntimePkg(fn.Sym().Pkg) && fn.Sym().Name == "heapBits.nextArena" {
+			// Special case: explicitly allow
+			// mid-stack inlining of
+			// runtime.heapBits.next even though
+			// it calls slow-path
+			// runtime.heapBits.nextArena.
+			break
 		}
-		if inlfn := ir.MethodExprName(n.X).Func; inlfn.Inl != nil {
-			v.budget -= inlfn.Inl.Cost
+		if fn.Inl != nil {
+			v.budget -= fn.Inl.Cost
 			break
 		}
 		// Call cost for non-leaf inlining.
@@ -531,7 +529,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 		// Prevent inlining some reflect.Value methods when using checkptr,
 		// even when package reflect was compiled without it (#35073).
 		n := n.(*ir.CallExpr)
-		if s := n.X.Sym(); base.Debug.Checkptr != 0 && types.IsReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
+		if s := ir.MethodExprName(n.X).Sym(); base.Debug.Checkptr != 0 && types.IsReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
 			return n
 		}
 	}
