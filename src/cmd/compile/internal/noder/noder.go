@@ -1266,8 +1266,8 @@ func (p *noder) simpleStmt(stmt syntax.SimpleStmt) []ir.Node {
 	return []ir.Node{p.stmt(stmt)}
 }
 
-func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*ir.CaseStmt {
-	nodes := make([]*ir.CaseStmt, len(clauses))
+func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*ir.CommStmt {
+	nodes := make([]*ir.CommStmt, len(clauses))
 	for i, clause := range clauses {
 		p.setlineno(clause)
 		if i > 0 {
@@ -1275,7 +1275,7 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*
 		}
 		p.openScope(clause.Pos())
 
-		nodes[i] = ir.NewCaseStmt(p.pos(clause), p.simpleStmt(clause.Comm), p.stmts(clause.Body))
+		nodes[i] = ir.NewCommStmt(p.pos(clause), p.simpleStmt(clause.Comm), p.stmts(clause.Body))
 	}
 	if len(clauses) > 0 {
 		p.closeScope(rbrace)

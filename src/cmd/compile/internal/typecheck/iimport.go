@@ -789,6 +789,14 @@ func (r *importReader) caseList(switchExpr ir.Node) []*ir.CaseStmt {
 	return cases
 }
 
+func (r *importReader) commList() []*ir.CommStmt {
+	cases := make([]*ir.CommStmt, r.uint64())
+	for i := range cases {
+		cases[i] = ir.NewCommStmt(r.pos(), r.stmtList(), r.stmtList())
+	}
+	return cases
+}
+
 func (r *importReader) exprList() []ir.Node {
 	var list []ir.Node
 	for {
@@ -1035,7 +1043,7 @@ func (r *importReader) node() ir.Node {
 	case ir.OSELECT:
 		pos := r.pos()
 		init := r.stmtList()
-		n := ir.NewSelectStmt(pos, r.caseList(nil))
+		n := ir.NewSelectStmt(pos, r.commList())
 		n.PtrInit().Set(init)
 		return n
 
