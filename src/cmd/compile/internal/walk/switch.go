@@ -318,15 +318,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 	sw.Compiled.Append(ifNil)
 
 	// Load hash from type or itab.
-	dotHash := ir.NewSelectorExpr(base.Pos, ir.ODOTPTR, itab, nil)
-	dotHash.SetType(types.Types[types.TUINT32])
-	dotHash.SetTypecheck(1)
-	if s.facename.Type().IsEmptyInterface() {
-		dotHash.Offset = int64(2 * types.PtrSize) // offset of hash in runtime._type
-	} else {
-		dotHash.Offset = int64(2 * types.PtrSize) // offset of hash in runtime.itab
-	}
-	dotHash.SetBounded(true) // guaranteed not to fault
+	dotHash := typeHashFieldOf(base.Pos, itab)
 	s.hashname = copyExpr(dotHash, dotHash.Type(), &sw.Compiled)
 
 	br := ir.NewBranchStmt(base.Pos, ir.OBREAK, nil)
@@ -408,6 +400,32 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 
 	walkStmtList(sw.Compiled)
 }
+
+// typeHashFieldOf returns an expression to select the type hash field
+// from an interface's descriptor word (whether a *runtime._type or
+// *runtime.itab pointer).
+func typeHashFieldOf(pos src.XPos, itab *ir.UnaryExpr) *ir.SelectorExpr {
+	if itab.Op() != ir.OITAB {
+		base.Fatalf("expected OITAB, got %v", itab.Op())
+	}
+	var hashField *types.Field
+	if itab.X.Type().IsEmptyInterface() {
+		// runtime._type's hash field
+		if rtypeHashField == nil {
+			rtypeHashField = runtimeField("hash", int64(2*types.PtrSize), types.Types[types.TUINT32])
+		}
+		hashField = rtypeHashField
+	} else {
+		// runtime.itab's hash field
+		if itabHashField == nil {
+			itabHashField = runtimeField("hash", int64(2*types.PtrSize), types.Types[types.TUINT32])
+		}
+		hashField = itabHashField
+	}
+	return boundedDotPtr(pos, itab, hashField)
+}
+
+var rtypeHashField, itabHashField *types.Field
 
 // A typeSwitch walks a type switch.
 type typeSwitch struct {
