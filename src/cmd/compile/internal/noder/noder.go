@@ -1838,7 +1838,6 @@ func oldname(s *types.Sym) ir.Node {
 			c = typecheck.NewName(s)
 			c.Class_ = ir.PAUTOHEAP
 			c.SetIsClosureVar(true)
-			c.SetIsDDD(n.IsDDD())
 			c.Defn = n
 
 			// Link into list of active closure variables.

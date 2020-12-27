@@ -447,7 +447,6 @@ func funcarg(n *ir.Field, ctxt ir.Class) {
 	name := ir.NewNameAt(n.Pos, n.Sym)
 	n.Decl = name
 	name.Ntype = n.Ntype
-	name.SetIsDDD(n.IsDDD)
 	Declare(name, ctxt)
 
 	vargen++
@@ -461,7 +460,6 @@ func funcarg2(f *types.Field, ctxt ir.Class) {
 	n := ir.NewNameAt(f.Pos, f.Sym)
 	f.Nname = n
 	n.SetType(f.Type)
-	n.SetIsDDD(f.IsDDD())
 	Declare(n, ctxt)
 }
 
