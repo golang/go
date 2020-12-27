@@ -268,7 +268,6 @@ const (
 	nameInlLocal              // PAUTO created by inliner, derived from callee local
 	nameOpenDeferSlot         // if temporary var storing info for open-coded defers
 	nameLibfuzzerExtraCounter // if PEXTERN should be assigned to __libfuzzer_extra_counters section
-	nameIsDDD                 // is function argument a ...
 	nameAlias                 // is type name an alias
 )
 
@@ -286,7 +285,6 @@ func (n *Name) InlFormal() bool             { return n.flags&nameInlFormal != 0 
 func (n *Name) InlLocal() bool              { return n.flags&nameInlLocal != 0 }
 func (n *Name) OpenDeferSlot() bool         { return n.flags&nameOpenDeferSlot != 0 }
 func (n *Name) LibfuzzerExtraCounter() bool { return n.flags&nameLibfuzzerExtraCounter != 0 }
-func (n *Name) IsDDD() bool                 { return n.flags&nameIsDDD != 0 }
 
 func (n *Name) SetCaptured(b bool)              { n.flags.set(nameCaptured, b) }
 func (n *Name) setReadonly(b bool)              { n.flags.set(nameReadonly, b) }
@@ -302,7 +300,6 @@ func (n *Name) SetInlFormal(b bool)             { n.flags.set(nameInlFormal, b) 
 func (n *Name) SetInlLocal(b bool)              { n.flags.set(nameInlLocal, b) }
 func (n *Name) SetOpenDeferSlot(b bool)         { n.flags.set(nameOpenDeferSlot, b) }
 func (n *Name) SetLibfuzzerExtraCounter(b bool) { n.flags.set(nameLibfuzzerExtraCounter, b) }
-func (n *Name) SetIsDDD(b bool)                 { n.flags.set(nameIsDDD, b) }
 
 // MarkReadonly indicates that n is an ONAME with readonly contents.
 func (n *Name) MarkReadonly() {
