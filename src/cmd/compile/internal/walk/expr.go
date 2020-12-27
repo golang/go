@@ -26,15 +26,6 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 		return n
 	}
 
-	// Eagerly checkwidth all expressions for the back end.
-	if n.Type() != nil && !n.Type().WidthCalculated() {
-		switch n.Type().Kind() {
-		case types.TBLANK, types.TNIL, types.TIDEAL:
-		default:
-			types.CheckSize(n.Type())
-		}
-	}
-
 	if init == n.PtrInit() {
 		// not okay to use n->ninit when walking n,
 		// because we might replace n with some other node
@@ -70,23 +61,14 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 
 	n = walkExpr1(n, init)
 
-	// Expressions that are constant at run time but not
-	// considered const by the language spec are not turned into
-	// constants until walk. For example, if n is y%1 == 0, the
-	// walk of y%1 may have replaced it by 0.
-	// Check whether n with its updated args is itself now a constant.
-	t := n.Type()
-	n = typecheck.EvalConst(n)
-	if n.Type() != t {
-		base.Fatalf("evconst changed Type: %v had type %v, now %v", n, t, n.Type())
+	// Eagerly compute sizes of all expressions for the back end.
+	if typ := n.Type(); typ != nil && typ.Kind() != types.TBLANK && !typ.IsFuncArgStruct() {
+		types.CheckSize(typ)
 	}
-	if n.Op() == ir.OLITERAL {
-		n = typecheck.Expr(n)
+	if ir.IsConst(n, constant.String) {
 		// Emit string symbol now to avoid emitting
 		// any concurrently during the backend.
-		if v := n.Val(); v.Kind() == constant.String {
-			_ = staticdata.StringSym(n.Pos(), constant.StringVal(v))
-		}
+		_ = staticdata.StringSym(n.Pos(), constant.StringVal(n.Val()))
 	}
 
 	updateHasCall(n)
