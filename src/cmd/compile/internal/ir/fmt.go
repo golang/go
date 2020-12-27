@@ -478,7 +478,7 @@ func stmtFmt(n Node, s fmt.State) {
 		fmt.Fprintf(s, " { %v }", n.Cases)
 
 	case OCASE:
-		n := n.(*CaseStmt)
+		n := n.(*CaseClause)
 		if len(n.List) != 0 {
 			fmt.Fprintf(s, "case %.v", n.List)
 		} else {

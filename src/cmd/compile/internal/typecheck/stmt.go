@@ -360,7 +360,7 @@ func tcReturn(n *ir.ReturnStmt) ir.Node {
 
 // select
 func tcSelect(sel *ir.SelectStmt) {
-	var def *ir.CommStmt
+	var def *ir.CommClause
 	lno := ir.SetPos(sel)
 	Stmts(sel.Init())
 	for _, ncase := range sel.Cases {
