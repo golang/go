@@ -553,7 +553,6 @@ var itabTypeField *types.Field
 func boundedDotPtr(pos src.XPos, ptr ir.Node, field *types.Field) *ir.SelectorExpr {
 	sel := ir.NewSelectorExpr(pos, ir.ODOTPTR, ptr, field.Sym)
 	sel.Selection = field
-	sel.Offset = field.Offset
 	sel.SetType(field.Type)
 	sel.SetTypecheck(1)
 	sel.SetBounded(true) // guaranteed not to fault

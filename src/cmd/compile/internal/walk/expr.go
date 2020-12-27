@@ -965,22 +965,13 @@ func usefield(n *ir.SelectorExpr) {
 	case ir.ODOT, ir.ODOTPTR:
 		break
 	}
-	if n.Sel == nil {
-		// No field name.  This DOTPTR was built by the compiler for access
-		// to runtime data structures.  Ignore.
-		return
-	}
 
-	t := n.X.Type()
-	if t.IsPtr() {
-		t = t.Elem()
-	}
 	field := n.Selection
 	if field == nil {
 		base.Fatalf("usefield %v %v without paramfld", n.X.Type(), n.Sel)
 	}
-	if field.Sym != n.Sel || field.Offset != n.Offset {
-		base.Fatalf("field inconsistency: %v,%v != %v,%v", field.Sym, field.Offset, n.Sel, n.Offset)
+	if field.Sym != n.Sel {
+		base.Fatalf("field inconsistency: %v != %v", field.Sym, n.Sel)
 	}
 	if !strings.Contains(field.Note, "go:\"track\"") {
 		return

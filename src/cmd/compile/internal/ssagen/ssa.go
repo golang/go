@@ -2743,7 +2743,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 	case ir.ODOTPTR:
 		n := n.(*ir.SelectorExpr)
 		p := s.exprPtr(n.X, n.Bounded(), n.Pos())
-		p = s.newValue1I(ssa.OpOffPtr, types.NewPtr(n.Type()), n.Offset, p)
+		p = s.newValue1I(ssa.OpOffPtr, types.NewPtr(n.Type()), n.Offset(), p)
 		return s.load(n.Type(), p)
 
 	case ir.OINDEX:
@@ -4924,7 +4924,7 @@ func (s *state) getClosureAndRcvr(fn *ir.SelectorExpr) (*ssa.Value, *ssa.Value) 
 	i := s.expr(fn.X)
 	itab := s.newValue1(ssa.OpITab, types.Types[types.TUINTPTR], i)
 	s.nilCheck(itab)
-	itabidx := fn.Offset + 2*int64(types.PtrSize) + 8 // offset of fun field in runtime.itab
+	itabidx := fn.Offset() + 2*int64(types.PtrSize) + 8 // offset of fun field in runtime.itab
 	closure := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.UintptrPtr, itabidx, itab)
 	rcvr := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, i)
 	return closure, rcvr
@@ -5028,11 +5028,11 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 	case ir.ODOT:
 		n := n.(*ir.SelectorExpr)
 		p := s.addr(n.X)
-		return s.newValue1I(ssa.OpOffPtr, t, n.Offset, p)
+		return s.newValue1I(ssa.OpOffPtr, t, n.Offset(), p)
 	case ir.ODOTPTR:
 		n := n.(*ir.SelectorExpr)
 		p := s.exprPtr(n.X, n.Bounded(), n.Pos())
-		return s.newValue1I(ssa.OpOffPtr, t, n.Offset, p)
+		return s.newValue1I(ssa.OpOffPtr, t, n.Offset(), p)
 	case ir.OCLOSUREREAD:
 		n := n.(*ir.ClosureReadExpr)
 		return s.newValue1I(ssa.OpOffPtr, t, n.Offset,
@@ -7069,21 +7069,17 @@ func (s *State) UseArgs(n int64) {
 // fieldIdx finds the index of the field referred to by the ODOT node n.
 func fieldIdx(n *ir.SelectorExpr) int {
 	t := n.X.Type()
-	f := n.Sel
 	if !t.IsStruct() {
 		panic("ODOT's LHS is not a struct")
 	}
 
-	var i int
-	for _, t1 := range t.Fields().Slice() {
-		if t1.Sym != f {
-			i++
-			continue
+	for i, f := range t.Fields().Slice() {
+		if f.Sym == n.Sel {
+			if f.Offset != n.Offset() {
+				panic("field offset doesn't match")
+			}
+			return i
 		}
-		if t1.Offset != n.Offset {
-			panic("field offset doesn't match")
-		}
-		return i
 	}
 	panic(fmt.Sprintf("can't find field in expr %v\n", n))
 
