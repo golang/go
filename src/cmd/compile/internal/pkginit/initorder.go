@@ -289,10 +289,6 @@ func (d *initDeps) inspectList(l ir.Nodes) { ir.VisitList(l, d.cachedVisit()) }
 // referenced by n, if any.
 func (d *initDeps) visit(n ir.Node) {
 	switch n.Op() {
-	case ir.OMETHEXPR:
-		n := n.(*ir.MethodExpr)
-		d.foundDep(ir.MethodExprName(n))
-
 	case ir.ONAME:
 		n := n.(*ir.Name)
 		switch n.Class_ {
@@ -304,7 +300,7 @@ func (d *initDeps) visit(n ir.Node) {
 		n := n.(*ir.ClosureExpr)
 		d.inspectList(n.Func.Body)
 
-	case ir.ODOTMETH, ir.OCALLPART:
+	case ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
 		d.foundDep(ir.MethodExprName(n))
 	}
 }
