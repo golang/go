@@ -71,7 +71,6 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 	var defaultGoto ir.Node
 	var body ir.Nodes
 	for _, ncase := range sw.Cases {
-		ncase := ncase.(*ir.CaseStmt)
 		label := typecheck.AutoLabel(".s")
 		jmp := ir.NewBranchStmt(ncase.Pos(), ir.OGOTO, label)
 
@@ -96,7 +95,7 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 			body.Append(br)
 		}
 	}
-	sw.Cases.Set(nil)
+	sw.Cases = nil
 
 	if defaultGoto == nil {
 		br := ir.NewBranchStmt(base.Pos, ir.OBREAK, nil)
@@ -259,7 +258,6 @@ func allCaseExprsAreSideEffectFree(sw *ir.SwitchStmt) bool {
 	// enough.
 
 	for _, ncase := range sw.Cases {
-		ncase := ncase.(*ir.CaseStmt)
 		for _, v := range ncase.List {
 			if v.Op() != ir.OLITERAL {
 				return false
@@ -325,7 +323,6 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 	var defaultGoto, nilGoto ir.Node
 	var body ir.Nodes
 	for _, ncase := range sw.Cases {
-		ncase := ncase.(*ir.CaseStmt)
 		caseVar := ncase.Var
 
 		// For single-type cases with an interface type,
@@ -384,7 +381,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 		body.Append(ncase.Body...)
 		body.Append(br)
 	}
-	sw.Cases.Set(nil)
+	sw.Cases = nil
 
 	if defaultGoto == nil {
 		defaultGoto = br

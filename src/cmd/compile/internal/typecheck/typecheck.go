@@ -2103,7 +2103,6 @@ func isTermNode(n ir.Node) bool {
 		}
 		def := false
 		for _, cas := range n.Cases {
-			cas := cas.(*ir.CaseStmt)
 			if !isTermNodes(cas.Body) {
 				return false
 			}
@@ -2119,7 +2118,6 @@ func isTermNode(n ir.Node) bool {
 			return false
 		}
 		for _, cas := range n.Cases {
-			cas := cas.(*ir.CaseStmt)
 			if !isTermNodes(cas.Body) {
 				return false
 			}
@@ -2218,9 +2216,6 @@ func deadcodeslice(nn *ir.Nodes) {
 		case ir.OBLOCK:
 			n := n.(*ir.BlockStmt)
 			deadcodeslice(&n.List)
-		case ir.OCASE:
-			n := n.(*ir.CaseStmt)
-			deadcodeslice(&n.Body)
 		case ir.OFOR:
 			n := n.(*ir.ForStmt)
 			deadcodeslice(&n.Body)
@@ -2233,10 +2228,14 @@ func deadcodeslice(nn *ir.Nodes) {
 			deadcodeslice(&n.Body)
 		case ir.OSELECT:
 			n := n.(*ir.SelectStmt)
-			deadcodeslice(&n.Cases)
+			for _, cas := range n.Cases {
+				deadcodeslice(&cas.Body)
+			}
 		case ir.OSWITCH:
 			n := n.(*ir.SwitchStmt)
-			deadcodeslice(&n.Cases)
+			for _, cas := range n.Cases {
+				deadcodeslice(&cas.Body)
+			}
 		}
 
 		if cut {

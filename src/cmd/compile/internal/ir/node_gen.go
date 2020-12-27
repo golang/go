@@ -781,20 +781,20 @@ func (n *SelectStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *SelectStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
-	c.Cases = c.Cases.Copy()
+	c.Cases = copyCases(c.Cases)
 	c.Compiled = c.Compiled.Copy()
 	return &c
 }
 func (n *SelectStmt) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.Cases, err, do)
+	err = maybeDoCases(n.Cases, err, do)
 	err = maybeDoList(n.Compiled, err, do)
 	return err
 }
 func (n *SelectStmt) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
-	editList(n.Cases, edit)
+	editCases(n.Cases, edit)
 	editList(n.Compiled, edit)
 }
 
@@ -945,7 +945,7 @@ func (n *SwitchStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *SwitchStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
-	c.Cases = c.Cases.Copy()
+	c.Cases = copyCases(c.Cases)
 	c.Compiled = c.Compiled.Copy()
 	return &c
 }
@@ -953,14 +953,14 @@ func (n *SwitchStmt) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.Tag, err, do)
-	err = maybeDoList(n.Cases, err, do)
+	err = maybeDoCases(n.Cases, err, do)
 	err = maybeDoList(n.Compiled, err, do)
 	return err
 }
 func (n *SwitchStmt) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 	n.Tag = maybeEdit(n.Tag, edit)
-	editList(n.Cases, edit)
+	editCases(n.Cases, edit)
 	editList(n.Compiled, edit)
 }
 

@@ -369,7 +369,6 @@ func (e *escape) stmt(n ir.Node) {
 
 		var ks []hole
 		for _, cas := range n.Cases { // cases
-			cas := cas.(*ir.CaseStmt)
 			if typesw && n.Tag.(*ir.TypeSwitchGuard).Tag != nil {
 				cv := cas.Var
 				k := e.dcl(cv) // type switch variables have no ODCL.
@@ -391,7 +390,6 @@ func (e *escape) stmt(n ir.Node) {
 	case ir.OSELECT:
 		n := n.(*ir.SelectStmt)
 		for _, cas := range n.Cases {
-			cas := cas.(*ir.CaseStmt)
 			e.stmt(cas.Comm)
 			e.block(cas.Body)
 		}

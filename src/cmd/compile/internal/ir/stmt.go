@@ -191,6 +191,37 @@ func NewCaseStmt(pos src.XPos, list, body []Node) *CaseStmt {
 	return n
 }
 
+func copyCases(list []*CaseStmt) []*CaseStmt {
+	if list == nil {
+		return nil
+	}
+	c := make([]*CaseStmt, len(list))
+	copy(c, list)
+	return c
+}
+
+func maybeDoCases(list []*CaseStmt, err error, do func(Node) error) error {
+	if err != nil {
+		return err
+	}
+	for _, x := range list {
+		if x != nil {
+			if err := do(x); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func editCases(list []*CaseStmt, edit func(Node) Node) {
+	for i, x := range list {
+		if x != nil {
+			list[i] = edit(x).(*CaseStmt)
+		}
+	}
+}
+
 // A ForStmt is a non-range for loop: for Init; Cond; Post { Body }
 // Op can be OFOR or OFORUNTIL (!Cond).
 type ForStmt struct {
@@ -334,18 +365,18 @@ func (n *ReturnStmt) SetOrig(x Node) { n.orig = x }
 type SelectStmt struct {
 	miniStmt
 	Label    *types.Sym
-	Cases    Nodes
+	Cases    []*CaseStmt
 	HasBreak bool
 
 	// TODO(rsc): Instead of recording here, replace with a block?
 	Compiled Nodes // compiled form, after walkswitch
 }
 
-func NewSelectStmt(pos src.XPos, cases []Node) *SelectStmt {
+func NewSelectStmt(pos src.XPos, cases []*CaseStmt) *SelectStmt {
 	n := &SelectStmt{}
 	n.pos = pos
 	n.op = OSELECT
-	n.Cases.Set(cases)
+	n.Cases = cases
 	return n
 }
 
@@ -367,7 +398,7 @@ func NewSendStmt(pos src.XPos, ch, value Node) *SendStmt {
 type SwitchStmt struct {
 	miniStmt
 	Tag      Node
-	Cases    Nodes // list of *CaseStmt
+	Cases    []*CaseStmt
 	Label    *types.Sym
 	HasBreak bool
 
@@ -375,11 +406,11 @@ type SwitchStmt struct {
 	Compiled Nodes // compiled form, after walkswitch
 }
 
-func NewSwitchStmt(pos src.XPos, tag Node, cases []Node) *SwitchStmt {
+func NewSwitchStmt(pos src.XPos, tag Node, cases []*CaseStmt) *SwitchStmt {
 	n := &SwitchStmt{Tag: tag}
 	n.pos = pos
 	n.op = OSWITCH
-	n.Cases.Set(cases)
+	n.Cases = cases
 	return n
 }
 

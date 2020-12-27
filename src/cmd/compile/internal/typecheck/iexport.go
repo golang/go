@@ -1181,10 +1181,9 @@ func isNamedTypeSwitch(x ir.Node) bool {
 	return ok && guard.Tag != nil
 }
 
-func (w *exportWriter) caseList(cases []ir.Node, namedTypeSwitch bool) {
+func (w *exportWriter) caseList(cases []*ir.CaseStmt, namedTypeSwitch bool) {
 	w.uint64(uint64(len(cases)))
 	for _, cas := range cases {
-		cas := cas.(*ir.CaseStmt)
 		w.pos(cas.Pos())
 		w.stmtList(cas.List)
 		if namedTypeSwitch {
