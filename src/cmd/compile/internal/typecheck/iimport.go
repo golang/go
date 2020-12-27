@@ -767,10 +767,10 @@ func (r *importReader) stmtList() []ir.Node {
 	return list
 }
 
-func (r *importReader) caseList(switchExpr ir.Node) []*ir.CaseStmt {
+func (r *importReader) caseList(switchExpr ir.Node) []*ir.CaseClause {
 	namedTypeSwitch := isNamedTypeSwitch(switchExpr)
 
-	cases := make([]*ir.CaseStmt, r.uint64())
+	cases := make([]*ir.CaseClause, r.uint64())
 	for i := range cases {
 		cas := ir.NewCaseStmt(r.pos(), nil, nil)
 		cas.List.Set(r.stmtList())
@@ -789,8 +789,8 @@ func (r *importReader) caseList(switchExpr ir.Node) []*ir.CaseStmt {
 	return cases
 }
 
-func (r *importReader) commList() []*ir.CommStmt {
-	cases := make([]*ir.CommStmt, r.uint64())
+func (r *importReader) commList() []*ir.CommClause {
+	cases := make([]*ir.CommClause, r.uint64())
 	for i := range cases {
 		cases[i] = ir.NewCommStmt(r.pos(), r.node(), r.stmtList())
 	}

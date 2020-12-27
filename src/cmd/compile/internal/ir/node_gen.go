@@ -226,15 +226,15 @@ func (n *CallPartExpr) editChildren(edit func(Node) Node) {
 	n.X = maybeEdit(n.X, edit)
 }
 
-func (n *CaseStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *CaseStmt) copy() Node {
+func (n *CaseClause) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *CaseClause) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
 	c.List = c.List.Copy()
 	c.Body = c.Body.Copy()
 	return &c
 }
-func (n *CaseStmt) doChildren(do func(Node) error) error {
+func (n *CaseClause) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.Var, err, do)
@@ -242,7 +242,7 @@ func (n *CaseStmt) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.Body, err, do)
 	return err
 }
-func (n *CaseStmt) editChildren(edit func(Node) Node) {
+func (n *CaseClause) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 	n.Var = maybeEdit(n.Var, edit)
 	editList(n.List, edit)
@@ -293,21 +293,21 @@ func (n *ClosureReadExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 }
 
-func (n *CommStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *CommStmt) copy() Node {
+func (n *CommClause) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *CommClause) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
 	c.Body = c.Body.Copy()
 	return &c
 }
-func (n *CommStmt) doChildren(do func(Node) error) error {
+func (n *CommClause) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.Comm, err, do)
 	err = maybeDoList(n.Body, err, do)
 	return err
 }
-func (n *CommStmt) editChildren(edit func(Node) Node) {
+func (n *CommClause) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 	n.Comm = maybeEdit(n.Comm, edit)
 	editList(n.Body, edit)

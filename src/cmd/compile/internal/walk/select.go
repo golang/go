@@ -29,7 +29,7 @@ func walkSelect(sel *ir.SelectStmt) {
 	base.Pos = lno
 }
 
-func walkSelectCases(cases []*ir.CommStmt) []ir.Node {
+func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 	ncas := len(cases)
 	sellineno := base.Pos
 
@@ -73,7 +73,7 @@ func walkSelectCases(cases []*ir.CommStmt) []ir.Node {
 
 	// convert case value arguments to addresses.
 	// this rewrite is used by both the general code and the next optimization.
-	var dflt *ir.CommStmt
+	var dflt *ir.CommClause
 	for _, cas := range cases {
 		ir.SetPos(cas)
 		n := cas.Comm
@@ -146,7 +146,7 @@ func walkSelectCases(cases []*ir.CommStmt) []ir.Node {
 	if dflt != nil {
 		ncas--
 	}
-	casorder := make([]*ir.CommStmt, ncas)
+	casorder := make([]*ir.CommClause, ncas)
 	nsends, nrecvs := 0, 0
 
 	var init []ir.Node
@@ -242,7 +242,7 @@ func walkSelectCases(cases []*ir.CommStmt) []ir.Node {
 	}
 
 	// dispatch cases
-	dispatch := func(cond ir.Node, cas *ir.CommStmt) {
+	dispatch := func(cond ir.Node, cas *ir.CommClause) {
 		cond = typecheck.Expr(cond)
 		cond = typecheck.DefaultLit(cond, nil)
 

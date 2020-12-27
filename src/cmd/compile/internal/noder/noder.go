@@ -1212,8 +1212,8 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
 	return n
 }
 
-func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitchGuard, rbrace syntax.Pos) []*ir.CaseStmt {
-	nodes := make([]*ir.CaseStmt, 0, len(clauses))
+func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitchGuard, rbrace syntax.Pos) []*ir.CaseClause {
+	nodes := make([]*ir.CaseClause, 0, len(clauses))
 	for i, clause := range clauses {
 		p.setlineno(clause)
 		if i > 0 {
@@ -1263,8 +1263,8 @@ func (p *noder) selectStmt(stmt *syntax.SelectStmt) ir.Node {
 	return ir.NewSelectStmt(p.pos(stmt), p.commClauses(stmt.Body, stmt.Rbrace))
 }
 
-func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*ir.CommStmt {
-	nodes := make([]*ir.CommStmt, len(clauses))
+func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*ir.CommClause {
+	nodes := make([]*ir.CommClause, len(clauses))
 	for i, clause := range clauses {
 		p.setlineno(clause)
 		if i > 0 {
