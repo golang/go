@@ -16,8 +16,8 @@ import (
 	"cmd/compile/internal/escape"
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/typebits"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/gcprog"
@@ -1552,7 +1552,7 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
 	}
 
 	vec := bitvec.New(8 * int32(len(ptrmask)))
-	liveness.SetTypeBits(t, 0, vec)
+	typebits.Set(t, 0, vec)
 
 	nptr := types.PtrDataSize(t) / int64(types.PtrSize)
 	for i := int64(0); i < nptr; i++ {
