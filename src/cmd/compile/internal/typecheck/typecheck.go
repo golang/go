@@ -1297,7 +1297,6 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 			return nil
 		}
 
-		n.Sel = ir.MethodSym(n.X.Type(), f2.Sym)
 		n.Selection = f2
 		n.SetType(f2.Type)
 		n.SetOp(ir.ODOTMETH)

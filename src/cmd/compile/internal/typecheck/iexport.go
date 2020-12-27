@@ -594,23 +594,15 @@ func (w *exportWriter) selector(s *types.Sym) {
 		base.Fatalf("missing currPkg")
 	}
 
-	// Method selectors are rewritten into method symbols (of the
-	// form T.M) during typechecking, but we want to write out
-	// just the bare method name.
-	name := s.Name
-	if i := strings.LastIndex(name, "."); i >= 0 {
-		name = name[i+1:]
-	} else {
-		pkg := w.currPkg
-		if types.IsExported(name) {
-			pkg = types.LocalPkg
-		}
-		if s.Pkg != pkg {
-			base.Fatalf("package mismatch in selector: %v in package %q, but want %q", s, s.Pkg.Path, pkg.Path)
-		}
+	pkg := w.currPkg
+	if types.IsExported(s.Name) {
+		pkg = types.LocalPkg
+	}
+	if s.Pkg != pkg {
+		base.Fatalf("package mismatch in selector: %v in package %q, but want %q", s, s.Pkg.Path, pkg.Path)
 	}
 
-	w.string(name)
+	w.string(s.Name)
 }
 
 func (w *exportWriter) typ(t *types.Type) {

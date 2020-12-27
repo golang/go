@@ -180,15 +180,6 @@ func symfmt(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
 	b.WriteString(s.Name)
 }
 
-func SymMethodName(s *Sym) string {
-	// Skip leading "type." in method name
-	name := s.Name
-	if i := strings.LastIndex(name, "."); i >= 0 {
-		name = name[i+1:]
-	}
-	return name
-}
-
 // Type
 
 var BasicTypeNames = []string{
@@ -595,7 +586,10 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 			if funarg != FunargNone {
 				name = fmt.Sprint(f.Nname)
 			} else if verb == 'L' {
-				name = SymMethodName(s)
+				name = s.Name
+				if name == ".F" {
+					name = "F" // Hack for toolstash -cmp.
+				}
 				if !IsExported(name) && mode != fmtTypeIDName {
 					name = sconv(s, 0, mode) // qualify non-exported names (used on structs, not on funarg)
 				}

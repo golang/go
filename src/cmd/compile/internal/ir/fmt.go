@@ -756,7 +756,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 			fmt.Fprint(s, ".<nil>")
 			return
 		}
-		fmt.Fprintf(s, ".%s", types.SymMethodName(n.Method.Sym))
+		fmt.Fprintf(s, ".%s", n.Method.Sym.Name)
 
 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 		n := n.(*SelectorExpr)
@@ -765,7 +765,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 			fmt.Fprint(s, ".<nil>")
 			return
 		}
-		fmt.Fprintf(s, ".%s", types.SymMethodName(n.Sel))
+		fmt.Fprintf(s, ".%s", n.Sel.Name)
 
 	case ODOTTYPE, ODOTTYPE2:
 		n := n.(*TypeAssertExpr)
