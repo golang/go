@@ -297,54 +297,6 @@ func fncall(l ir.Node, rt *types.Type) bool {
 	return true
 }
 
-func ascompatee(op ir.Op, nl, nr []ir.Node, init *ir.Nodes) []ir.Node {
-	// check assign expression list to
-	// an expression list. called in
-	//	expr-list = expr-list
-
-	// ensure order of evaluation for function calls
-	for i := range nl {
-		nl[i] = safeExpr(nl[i], init)
-	}
-	for i1 := range nr {
-		nr[i1] = safeExpr(nr[i1], init)
-	}
-
-	var nn []*ir.AssignStmt
-	i := 0
-	for ; i < len(nl); i++ {
-		if i >= len(nr) {
-			break
-		}
-		// Do not generate 'x = x' during return. See issue 4014.
-		if op == ir.ORETURN && ir.SameSafeExpr(nl[i], nr[i]) {
-			continue
-		}
-		nn = append(nn, ascompatee1(nl[i], nr[i], init))
-	}
-
-	// cannot happen: caller checked that lists had same length
-	if i < len(nl) || i < len(nr) {
-		var nln, nrn ir.Nodes
-		nln.Set(nl)
-		nrn.Set(nr)
-		base.Fatalf("error in shape across %+v %v %+v / %d %d [%s]", nln, op, nrn, len(nl), len(nr), ir.FuncName(ir.CurFunc))
-	}
-	return reorder3(nn)
-}
-
-func ascompatee1(l ir.Node, r ir.Node, init *ir.Nodes) *ir.AssignStmt {
-	// convas will turn map assigns into function calls,
-	// making it impossible for reorder3 to work.
-	n := ir.NewAssignStmt(base.Pos, l, r)
-
-	if l.Op() == ir.OINDEXMAP {
-		return n
-	}
-
-	return convas(n, init)
-}
-
 // check assign type list to
 // an expression list. called in
 //	expr-list = func()
@@ -387,14 +339,23 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
 	return append(nn, mm...)
 }
 
-// reorder3
-// from ascompatee
-//	a,b = c,d
-// simultaneous assignment. there cannot
-// be later use of an earlier lvalue.
-//
-// function calls have been removed.
-func reorder3(all []*ir.AssignStmt) []ir.Node {
+// check assign expression list to
+// an expression list. called in
+//	expr-list = expr-list
+func ascompatee(op ir.Op, nl, nr []ir.Node, init *ir.Nodes) []ir.Node {
+	// cannot happen: should have been rejected during type checking
+	if len(nl) != len(nr) {
+		base.Fatalf("assignment operands mismatch: %+v / %+v", ir.Nodes(nl), ir.Nodes(nr))
+	}
+
+	// ensure order of evaluation for function calls
+	for i := range nl {
+		nl[i] = safeExpr(nl[i], init)
+	}
+	for i := range nr {
+		nr[i] = safeExpr(nr[i], init)
+	}
+
 	var assigned ir.NameSet
 	var memWrite bool
 
@@ -425,9 +386,16 @@ func reorder3(all []*ir.AssignStmt) []ir.Node {
 		}
 	}
 
-	var mapinit ir.Nodes
-	for i, n := range all {
-		l := n.X
+	var late []ir.Node
+	for i, l := range nl {
+		r := nr[i]
+
+		// Do not generate 'x = x' during return. See issue 4014.
+		if op == ir.ORETURN && ir.SameSafeExpr(l, r) {
+			continue
+		}
+
+		as := ir.NewAssignStmt(base.Pos, l, r)
 
 		// Save subexpressions needed on left side.
 		// Drill through non-dereferences.
@@ -454,19 +422,13 @@ func reorder3(all []*ir.AssignStmt) []ir.Node {
 		var name *ir.Name
 		switch l.Op() {
 		default:
-			base.Fatalf("reorder3 unexpected lvalue %v", l.Op())
-
+			base.Fatalf("unexpected lvalue %v", l.Op())
 		case ir.ONAME:
 			name = l.(*ir.Name)
-
 		case ir.OINDEX, ir.OINDEXMAP:
 			l := l.(*ir.IndexExpr)
 			save(&l.X)
 			save(&l.Index)
-			if l.Op() == ir.OINDEXMAP {
-				all[i] = convas(all[i], &mapinit)
-			}
-
 		case ir.ODEREF:
 			l := l.(*ir.StarExpr)
 			save(&l.X)
@@ -476,7 +438,9 @@ func reorder3(all []*ir.AssignStmt) []ir.Node {
 		}
 
 		// Save expression on right side.
-		save(&all[i].Y)
+		save(&as.Y)
+
+		late = append(late, convas(as, init))
 
 		if name == nil || name.Addrtaken() || name.Class_ == ir.PEXTERN || name.Class_ == ir.PAUTOHEAP {
 			memWrite = true
@@ -489,11 +453,7 @@ func reorder3(all []*ir.AssignStmt) []ir.Node {
 		assigned.Add(name)
 	}
 
-	early = append(mapinit, early...)
-	for _, as := range all {
-		early = append(early, as)
-	}
-	return early
+	return append(early, late...)
 }
 
 // readsMemory reports whether the evaluation n directly reads from
