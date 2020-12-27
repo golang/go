@@ -1232,7 +1232,7 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 		if f1.Offset == types.BADWIDTH {
 			base.Fatalf("lookdot badwidth %v %p", f1, f1)
 		}
-		n.Offset = f1.Offset
+		n.Selection = f1
 		n.SetType(f1.Type)
 		if t.IsInterface() {
 			if n.X.Type().IsPtr() {
@@ -1243,7 +1243,6 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 
 			n.SetOp(ir.ODOTINTER)
 		}
-		n.Selection = f1
 		return f1
 	}
 
@@ -1299,10 +1298,9 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 		}
 
 		n.Sel = ir.MethodSym(n.X.Type(), f2.Sym)
-		n.Offset = f2.Offset
+		n.Selection = f2
 		n.SetType(f2.Type)
 		n.SetOp(ir.ODOTMETH)
-		n.Selection = f2
 
 		return f2
 	}

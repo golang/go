@@ -929,7 +929,7 @@ func evalunsafe(n ir.Node) int64 {
 				fallthrough
 			case ir.ODOT:
 				r := r.(*ir.SelectorExpr)
-				v += r.Offset
+				v += r.Offset()
 				next = r.X
 			default:
 				ir.Dump("unsafenmagic", tsel)

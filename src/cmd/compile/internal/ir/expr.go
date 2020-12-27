@@ -572,14 +572,12 @@ type SelectorExpr struct {
 	miniExpr
 	X         Node
 	Sel       *types.Sym
-	Offset    int64
 	Selection *types.Field
 }
 
 func NewSelectorExpr(pos src.XPos, op Op, x Node, sel *types.Sym) *SelectorExpr {
 	n := &SelectorExpr{X: x, Sel: sel}
 	n.pos = pos
-	n.Offset = types.BADWIDTH
 	n.SetOp(op)
 	return n
 }
@@ -596,6 +594,7 @@ func (n *SelectorExpr) SetOp(op Op) {
 func (n *SelectorExpr) Sym() *types.Sym    { return n.Sel }
 func (n *SelectorExpr) Implicit() bool     { return n.flags&miniExprImplicit != 0 }
 func (n *SelectorExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
+func (n *SelectorExpr) Offset() int64      { return n.Selection.Offset }
 
 // Before type-checking, bytes.Buffer is a SelectorExpr.
 // After type-checking it becomes a Name.

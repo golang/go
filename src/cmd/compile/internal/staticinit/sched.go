@@ -469,7 +469,7 @@ func StaticLoc(n ir.Node) (name *ir.Name, offset int64, ok bool) {
 		if name, offset, ok = StaticLoc(n.X); !ok {
 			break
 		}
-		offset += n.Offset
+		offset += n.Offset()
 		return name, offset, true
 
 	case ir.OINDEX:

@@ -1863,7 +1863,7 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 	r.Sym = tsym
 	// dot.Xoffset is the method index * Widthptr (the offset of code pointer
 	// in itab).
-	midx := dot.Offset / int64(types.PtrSize)
+	midx := dot.Offset() / int64(types.PtrSize)
 	r.Add = InterfaceMethodOffset(ityp, midx)
 	r.Type = objabi.R_USEIFACEMETHOD
 }
