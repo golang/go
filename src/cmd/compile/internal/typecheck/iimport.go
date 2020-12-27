@@ -71,7 +71,12 @@ func ImportBody(fn *ir.Func) {
 		base.Fatalf("missing import reader for %v", fn)
 	}
 
+	if inimport {
+		base.Fatalf("recursive inimport")
+	}
+	inimport = true
 	r.doInline(fn)
+	inimport = false
 }
 
 func importReaderFor(sym *types.Sym, importers map[*types.Sym]iimporterAndOffset) *importReader {

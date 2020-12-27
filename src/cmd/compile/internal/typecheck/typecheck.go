@@ -251,13 +251,7 @@ func Resolve(n ir.Node) (res ir.Node) {
 			}
 		}
 
-		if inimport {
-			base.Fatalf("recursive inimport")
-		}
-		inimport = true
-		n = expandDecl(n)
-		inimport = false
-		return n
+		return expandDecl(n)
 	}
 
 	r := ir.AsNode(n.Sym().Def)
