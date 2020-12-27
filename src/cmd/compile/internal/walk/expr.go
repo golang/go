@@ -88,7 +88,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		base.Fatalf("walkexpr: switch 1 unknown op %+v", n.Op())
 		panic("unreachable")
 
-	case ir.ONONAME, ir.OGETG, ir.ONEWOBJ, ir.OMETHEXPR:
+	case ir.ONONAME, ir.OGETG, ir.ONEWOBJ:
 		return n
 
 	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL, ir.ONAMEOFFSET:
@@ -97,6 +97,11 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		// If these return early, make sure to still call
 		// stringsym for constant strings.
 		return n
+
+	case ir.OMETHEXPR:
+		// TODO(mdempsky): Do this right after type checking.
+		n := n.(*ir.MethodExpr)
+		return n.FuncName()
 
 	case ir.ONOT, ir.ONEG, ir.OPLUS, ir.OBITNOT, ir.OREAL, ir.OIMAG, ir.OSPTR, ir.OITAB, ir.OIDATA:
 		n := n.(*ir.UnaryExpr)
@@ -517,30 +522,27 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 		return // already walked
 	}
 
-	args := n.Args
-
-	n.X = walkExpr(n.X, init)
-	walkExprList(args, init)
-
 	// If this is a method call t.M(...),
 	// rewrite into a function call T.M(t, ...).
 	// TODO(mdempsky): Do this right after type checking.
 	if n.Op() == ir.OCALLMETH {
-		withRecv := make([]ir.Node, len(args)+1)
+		withRecv := make([]ir.Node, len(n.Args)+1)
 		dot := n.X.(*ir.SelectorExpr)
 		withRecv[0] = dot.X
-		copy(withRecv[1:], args)
-		args = withRecv
+		copy(withRecv[1:], n.Args)
+		n.Args = withRecv
 
 		dot = ir.NewSelectorExpr(dot.Pos(), ir.OXDOT, ir.TypeNode(dot.X.Type()), dot.Selection.Sym)
-		fn := typecheck.Expr(dot).(*ir.MethodExpr).FuncName()
-		fn.Type().Size()
 
 		n.SetOp(ir.OCALLFUNC)
-		n.X = fn
+		n.X = typecheck.Expr(dot)
 	}
 
+	args := n.Args
 	params := n.X.Type().Params()
+
+	n.X = walkExpr(n.X, init)
+	walkExprList(args, init)
 
 	// For any argument whose evaluation might require a function call,
 	// store that argument into a temporary variable,
