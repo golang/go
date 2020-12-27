@@ -220,13 +220,12 @@ func editCases(list []*CaseStmt, edit func(Node) Node) {
 
 type CommStmt struct {
 	miniStmt
-	List Nodes // list of expressions for switch, early select
-	Comm Node  // communication case (Exprs[0]) after select is type-checked
+	Comm Node  // communication case
 	Body Nodes
 }
 
-func NewCommStmt(pos src.XPos, list, body []Node) *CommStmt {
-	n := &CommStmt{List: list, Body: body}
+func NewCommStmt(pos src.XPos, comm Node, body []Node) *CommStmt {
+	n := &CommStmt{Comm: comm, Body: body}
 	n.pos = pos
 	n.op = OCASE
 	return n
@@ -274,11 +273,13 @@ type ForStmt struct {
 	HasBreak bool
 }
 
-func NewForStmt(pos src.XPos, init []Node, cond, post Node, body []Node) *ForStmt {
+func NewForStmt(pos src.XPos, init Node, cond, post Node, body []Node) *ForStmt {
 	n := &ForStmt{Cond: cond, Post: post}
 	n.pos = pos
 	n.op = OFOR
-	n.init.Set(init)
+	if init != nil {
+		n.init = []Node{init}
+	}
 	n.Body.Set(body)
 	return n
 }

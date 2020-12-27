@@ -1149,9 +1149,11 @@ func (p *noder) blockStmt(stmt *syntax.BlockStmt) []ir.Node {
 
 func (p *noder) ifStmt(stmt *syntax.IfStmt) ir.Node {
 	p.openScope(stmt.Pos())
-	init := p.simpleStmt(stmt.Init)
+	init := p.stmt(stmt.Init)
 	n := ir.NewIfStmt(p.pos(stmt), p.expr(stmt.Cond), p.blockStmt(stmt.Then), nil)
-	*n.PtrInit() = init
+	if init != nil {
+		*n.PtrInit() = []ir.Node{init}
+	}
 	if stmt.Else != nil {
 		e := p.stmt(stmt.Else)
 		if e.Op() == ir.OBLOCK {
@@ -1186,7 +1188,7 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) ir.Node {
 		return n
 	}
 
-	n := ir.NewForStmt(p.pos(stmt), p.simpleStmt(stmt.Init), p.expr(stmt.Cond), p.stmt(stmt.Post), p.blockStmt(stmt.Body))
+	n := ir.NewForStmt(p.pos(stmt), p.stmt(stmt.Init), p.expr(stmt.Cond), p.stmt(stmt.Post), p.blockStmt(stmt.Body))
 	p.closeAnotherScope()
 	return n
 }
@@ -1194,9 +1196,11 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) ir.Node {
 func (p *noder) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
 	p.openScope(stmt.Pos())
 
-	init := p.simpleStmt(stmt.Init)
+	init := p.stmt(stmt.Init)
 	n := ir.NewSwitchStmt(p.pos(stmt), p.expr(stmt.Tag), nil)
-	*n.PtrInit() = init
+	if init != nil {
+		*n.PtrInit() = []ir.Node{init}
+	}
 
 	var tswitch *ir.TypeSwitchGuard
 	if l := n.Tag; l != nil && l.Op() == ir.OTYPESW {
@@ -1259,13 +1263,6 @@ func (p *noder) selectStmt(stmt *syntax.SelectStmt) ir.Node {
 	return ir.NewSelectStmt(p.pos(stmt), p.commClauses(stmt.Body, stmt.Rbrace))
 }
 
-func (p *noder) simpleStmt(stmt syntax.SimpleStmt) []ir.Node {
-	if stmt == nil {
-		return nil
-	}
-	return []ir.Node{p.stmt(stmt)}
-}
-
 func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*ir.CommStmt {
 	nodes := make([]*ir.CommStmt, len(clauses))
 	for i, clause := range clauses {
@@ -1275,7 +1272,7 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*
 		}
 		p.openScope(clause.Pos())
 
-		nodes[i] = ir.NewCommStmt(p.pos(clause), p.simpleStmt(clause.Comm), p.stmts(clause.Body))
+		nodes[i] = ir.NewCommStmt(p.pos(clause), p.stmt(clause.Comm), p.stmts(clause.Body))
 	}
 	if len(clauses) > 0 {
 		p.closeScope(rbrace)
