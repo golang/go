@@ -169,10 +169,6 @@ func forNodeFields(typName string, typ *types.Struct, f func(name string, is fun
 		case "orig":
 			continue
 		}
-		switch typName + "." + v.Name() {
-		case "AddStringExpr.Alloc":
-			continue
-		}
 		f(v.Name(), func(t types.Type) bool { return types.Identical(t, v.Type()) })
 	}
 }
