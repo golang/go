@@ -297,21 +297,18 @@ func (n *CommStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *CommStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
-	c.List = c.List.Copy()
 	c.Body = c.Body.Copy()
 	return &c
 }
 func (n *CommStmt) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.List, err, do)
 	err = maybeDo(n.Comm, err, do)
 	err = maybeDoList(n.Body, err, do)
 	return err
 }
 func (n *CommStmt) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
-	editList(n.List, edit)
 	n.Comm = maybeEdit(n.Comm, edit)
 	editList(n.Body, edit)
 }

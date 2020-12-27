@@ -792,7 +792,7 @@ func (r *importReader) caseList(switchExpr ir.Node) []*ir.CaseStmt {
 func (r *importReader) commList() []*ir.CommStmt {
 	cases := make([]*ir.CommStmt, r.uint64())
 	for i := range cases {
-		cases[i] = ir.NewCommStmt(r.pos(), r.stmtList(), r.stmtList())
+		cases[i] = ir.NewCommStmt(r.pos(), r.node(), r.stmtList())
 	}
 	return cases
 }
@@ -1033,7 +1033,9 @@ func (r *importReader) node() ir.Node {
 	case ir.OFOR:
 		pos, init := r.pos(), r.stmtList()
 		cond, post := r.exprsOrNil()
-		return ir.NewForStmt(pos, init, cond, post, r.stmtList())
+		n := ir.NewForStmt(pos, nil, cond, post, r.stmtList())
+		n.PtrInit().Set(init)
+		return n
 
 	case ir.ORANGE:
 		pos := r.pos()

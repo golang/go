@@ -1197,7 +1197,7 @@ func (w *exportWriter) commList(cases []*ir.CommStmt) {
 	w.uint64(uint64(len(cases)))
 	for _, cas := range cases {
 		w.pos(cas.Pos())
-		w.stmtList(cas.List)
+		w.node(cas.Comm)
 		w.stmtList(cas.Body)
 	}
 }

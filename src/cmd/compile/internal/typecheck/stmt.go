@@ -360,29 +360,23 @@ func tcReturn(n *ir.ReturnStmt) ir.Node {
 
 // select
 func tcSelect(sel *ir.SelectStmt) {
-	var def ir.Node
+	var def *ir.CommStmt
 	lno := ir.SetPos(sel)
 	Stmts(sel.Init())
 	for _, ncase := range sel.Cases {
-		if len(ncase.List) == 0 {
+		if ncase.Comm == nil {
 			// default
 			if def != nil {
 				base.ErrorfAt(ncase.Pos(), "multiple defaults in select (first at %v)", ir.Line(def))
 			} else {
 				def = ncase
 			}
-		} else if len(ncase.List) > 1 {
-			base.ErrorfAt(ncase.Pos(), "select cases cannot be lists")
 		} else {
-			ncase.List[0] = Stmt(ncase.List[0])
-			n := ncase.List[0]
+			n := Stmt(ncase.Comm)
 			ncase.Comm = n
-			ncase.List.Set(nil)
-			oselrecv2 := func(dst, recv ir.Node, colas bool) {
-				n := ir.NewAssignListStmt(n.Pos(), ir.OSELRECV2, nil, nil)
-				n.Lhs = []ir.Node{dst, ir.BlankNode}
-				n.Rhs = []ir.Node{recv}
-				n.Def = colas
+			oselrecv2 := func(dst, recv ir.Node, def bool) {
+				n := ir.NewAssignListStmt(n.Pos(), ir.OSELRECV2, []ir.Node{dst, ir.BlankNode}, []ir.Node{recv})
+				n.Def = def
 				n.SetTypecheck(1)
 				ncase.Comm = n
 			}
