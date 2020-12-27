@@ -178,19 +178,17 @@ type CaseStmt struct {
 	miniStmt
 	Var  Node  // declared variable for this case in type switch
 	List Nodes // list of expressions for switch, early select
-	Comm Node  // communication case (Exprs[0]) after select is type-checked
 	Body Nodes
 }
 
 func NewCaseStmt(pos src.XPos, list, body []Node) *CaseStmt {
-	n := &CaseStmt{}
+	n := &CaseStmt{List: list, Body: body}
 	n.pos = pos
 	n.op = OCASE
-	n.List.Set(list)
-	n.Body.Set(body)
 	return n
 }
 
+// TODO(mdempsky): Generate these with mknode.go.
 func copyCases(list []*CaseStmt) []*CaseStmt {
 	if list == nil {
 		return nil
@@ -199,7 +197,6 @@ func copyCases(list []*CaseStmt) []*CaseStmt {
 	copy(c, list)
 	return c
 }
-
 func maybeDoCases(list []*CaseStmt, err error, do func(Node) error) error {
 	if err != nil {
 		return err
@@ -213,11 +210,54 @@ func maybeDoCases(list []*CaseStmt, err error, do func(Node) error) error {
 	}
 	return nil
 }
-
 func editCases(list []*CaseStmt, edit func(Node) Node) {
 	for i, x := range list {
 		if x != nil {
 			list[i] = edit(x).(*CaseStmt)
+		}
+	}
+}
+
+type CommStmt struct {
+	miniStmt
+	List Nodes // list of expressions for switch, early select
+	Comm Node  // communication case (Exprs[0]) after select is type-checked
+	Body Nodes
+}
+
+func NewCommStmt(pos src.XPos, list, body []Node) *CommStmt {
+	n := &CommStmt{List: list, Body: body}
+	n.pos = pos
+	n.op = OCASE
+	return n
+}
+
+// TODO(mdempsky): Generate these with mknode.go.
+func copyComms(list []*CommStmt) []*CommStmt {
+	if list == nil {
+		return nil
+	}
+	c := make([]*CommStmt, len(list))
+	copy(c, list)
+	return c
+}
+func maybeDoComms(list []*CommStmt, err error, do func(Node) error) error {
+	if err != nil {
+		return err
+	}
+	for _, x := range list {
+		if x != nil {
+			if err := do(x); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+func editComms(list []*CommStmt, edit func(Node) Node) {
+	for i, x := range list {
+		if x != nil {
+			list[i] = edit(x).(*CommStmt)
 		}
 	}
 }
@@ -365,18 +405,17 @@ func (n *ReturnStmt) SetOrig(x Node) { n.orig = x }
 type SelectStmt struct {
 	miniStmt
 	Label    *types.Sym
-	Cases    []*CaseStmt
+	Cases    []*CommStmt
 	HasBreak bool
 
 	// TODO(rsc): Instead of recording here, replace with a block?
 	Compiled Nodes // compiled form, after walkswitch
 }
 
-func NewSelectStmt(pos src.XPos, cases []*CaseStmt) *SelectStmt {
-	n := &SelectStmt{}
+func NewSelectStmt(pos src.XPos, cases []*CommStmt) *SelectStmt {
+	n := &SelectStmt{Cases: cases}
 	n.pos = pos
 	n.op = OSELECT
-	n.Cases = cases
 	return n
 }
 
@@ -407,10 +446,9 @@ type SwitchStmt struct {
 }
 
 func NewSwitchStmt(pos src.XPos, tag Node, cases []*CaseStmt) *SwitchStmt {
-	n := &SwitchStmt{Tag: tag}
+	n := &SwitchStmt{Tag: tag, Cases: cases}
 	n.pos = pos
 	n.op = OSWITCH
-	n.Cases = cases
 	return n
 }
 

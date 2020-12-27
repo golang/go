@@ -239,7 +239,6 @@ func (n *CaseStmt) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.Var, err, do)
 	err = maybeDoList(n.List, err, do)
-	err = maybeDo(n.Comm, err, do)
 	err = maybeDoList(n.Body, err, do)
 	return err
 }
@@ -247,7 +246,6 @@ func (n *CaseStmt) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 	n.Var = maybeEdit(n.Var, edit)
 	editList(n.List, edit)
-	n.Comm = maybeEdit(n.Comm, edit)
 	editList(n.Body, edit)
 }
 
@@ -293,6 +291,29 @@ func (n *ClosureReadExpr) doChildren(do func(Node) error) error {
 }
 func (n *ClosureReadExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
+}
+
+func (n *CommStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *CommStmt) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	c.List = c.List.Copy()
+	c.Body = c.Body.Copy()
+	return &c
+}
+func (n *CommStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	err = maybeDoList(n.List, err, do)
+	err = maybeDo(n.Comm, err, do)
+	err = maybeDoList(n.Body, err, do)
+	return err
+}
+func (n *CommStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	editList(n.List, edit)
+	n.Comm = maybeEdit(n.Comm, edit)
+	editList(n.Body, edit)
 }
 
 func (n *CompLitExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
@@ -781,20 +802,20 @@ func (n *SelectStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *SelectStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
-	c.Cases = copyCases(c.Cases)
+	c.Cases = copyComms(c.Cases)
 	c.Compiled = c.Compiled.Copy()
 	return &c
 }
 func (n *SelectStmt) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
-	err = maybeDoCases(n.Cases, err, do)
+	err = maybeDoComms(n.Cases, err, do)
 	err = maybeDoList(n.Compiled, err, do)
 	return err
 }
 func (n *SelectStmt) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
-	editCases(n.Cases, edit)
+	editComms(n.Cases, edit)
 	editList(n.Compiled, edit)
 }
 
