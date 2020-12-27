@@ -76,48 +76,27 @@ func (v *bottomUpVisitor) visit(n *Func) uint32 {
 	min := v.visitgen
 	v.stack = append(v.stack, n)
 
+	do := func(defn Node) {
+		if defn != nil {
+			if m := v.visit(defn.(*Func)); m < min {
+				min = m
+			}
+		}
+	}
+
 	Visit(n, func(n Node) {
 		switch n.Op() {
 		case ONAME:
-			n := n.(*Name)
-			if n.Class_ == PFUNC {
-				if n != nil && n.Name().Defn != nil {
-					if m := v.visit(n.Name().Defn.(*Func)); m < min {
-						min = m
-					}
-				}
+			if n := n.(*Name); n.Class_ == PFUNC {
+				do(n.Defn)
 			}
-		case OMETHEXPR:
-			n := n.(*MethodExpr)
-			fn := MethodExprName(n)
-			if fn != nil && fn.Defn != nil {
-				if m := v.visit(fn.Defn.(*Func)); m < min {
-					min = m
-				}
-			}
-		case ODOTMETH:
-			n := n.(*SelectorExpr)
-			fn := MethodExprName(n)
-			if fn != nil && fn.Op() == ONAME && fn.Class_ == PFUNC && fn.Defn != nil {
-				if m := v.visit(fn.Defn.(*Func)); m < min {
-					min = m
-				}
-			}
-		case OCALLPART:
-			n := n.(*CallPartExpr)
-			fn := AsNode(n.Method.Nname)
-			if fn != nil && fn.Op() == ONAME {
-				if fn := fn.(*Name); fn.Class_ == PFUNC && fn.Name().Defn != nil {
-					if m := v.visit(fn.Name().Defn.(*Func)); m < min {
-						min = m
-					}
-				}
+		case ODOTMETH, OCALLPART, OMETHEXPR:
+			if fn := MethodExprName(n); fn != nil {
+				do(fn.Defn)
 			}
 		case OCLOSURE:
 			n := n.(*ClosureExpr)
-			if m := v.visit(n.Func); m < min {
-				min = m
-			}
+			do(n.Func)
 		}
 	})
 
