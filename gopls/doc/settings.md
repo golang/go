@@ -145,8 +145,10 @@ Default: `false`.
 
 #### **codelenses** *map[string]bool*
 
-codelenses overrides the enabled/disabled state of code lenses. See the "Code Lenses"
-section of settings.md for the list of supported lenses.
+codelenses overrides the enabled/disabled state of code lenses. See the
+"Code Lenses" section of the
+[Settings page](https://github.com/golang/tools/blob/master/gopls/doc/settings.md)
+for the list of supported lenses.
 
 Example Usage:
 
@@ -213,7 +215,8 @@ Default: `"Fuzzy"`.
 
 analyses specify analyses that the user would like to enable or disable.
 A map of the names of analysis passes that should be enabled/disabled.
-A full list of analyzers that gopls uses can be found [here](analyzers.md)
+A full list of analyzers that gopls uses can be found
+[here](https://github.com/golang/tools/blob/master/gopls/doc/analyzers.md).
 
 Example Usage:
 
@@ -376,7 +379,9 @@ Default: `false`.
 
 ## Code Lenses
 
-These are the code lenses that `gopls` currently supports. They can be enabled and disabled using the `codeLenses` setting, documented above. The names and features are subject to change.
+These are the code lenses that `gopls` currently supports. They can be enabled
+and disabled using the `codelenses` setting, documented above. Their names and
+features are subject to change.
 
 <!-- BEGIN Lenses: DO NOT MANUALLY EDIT THIS SECTION -->
 ### **Run go generate**

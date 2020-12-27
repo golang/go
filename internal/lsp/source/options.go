@@ -249,8 +249,10 @@ type UIOptions struct {
 	NavigationOptions
 	DiagnosticOptions
 
-	// Codelenses overrides the enabled/disabled state of code lenses. See the "Code Lenses"
-	// section of settings.md for the list of supported lenses.
+	// Codelenses overrides the enabled/disabled state of code lenses. See the
+	// "Code Lenses" section of the
+	// [Settings page](https://github.com/golang/tools/blob/master/gopls/doc/settings.md)
+	// for the list of supported lenses.
 	//
 	// Example Usage:
 	//
@@ -320,7 +322,8 @@ type FormattingOptions struct {
 type DiagnosticOptions struct {
 	// Analyses specify analyses that the user would like to enable or disable.
 	// A map of the names of analysis passes that should be enabled/disabled.
-	// A full list of analyzers that gopls uses can be found [here](analyzers.md)
+	// A full list of analyzers that gopls uses can be found
+	// [here](https://github.com/golang/tools/blob/master/gopls/doc/analyzers.md).
 	//
 	// Example Usage:
 	//
@@ -1163,10 +1166,22 @@ type OptionJSON struct {
 	Name       string
 	Type       string
 	Doc        string
+	EnumKeys   EnumKeys
 	EnumValues []EnumValue
 	Default    string
 	Status     string
 	Hierarchy  string
+}
+
+type EnumKeys struct {
+	ValueType string
+	Keys      []EnumKey
+}
+
+type EnumKey struct {
+	Name    string
+	Doc     string
+	Default string
 }
 
 type EnumValue struct {
