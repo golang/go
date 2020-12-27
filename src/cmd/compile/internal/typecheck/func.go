@@ -285,15 +285,13 @@ func makepartialcall(dot *ir.SelectorExpr) *ir.Func {
 
 	// Declare and initialize variable holding receiver.
 	cr := ir.NewClosureRead(rcvrtype, types.Rnd(int64(types.PtrSize), int64(rcvrtype.Align)))
-	ptr := NewName(Lookup(".this"))
-	Declare(ptr, ir.PAUTO)
-	ptr.SetUsed(true)
+	var ptr *ir.Name
 	var body []ir.Node
 	if rcvrtype.IsPtr() || rcvrtype.IsInterface() {
-		ptr.SetType(rcvrtype)
+		ptr = Temp(rcvrtype)
 		body = append(body, ir.NewAssignStmt(base.Pos, ptr, cr))
 	} else {
-		ptr.SetType(types.NewPtr(rcvrtype))
+		ptr = Temp(types.NewPtr(rcvrtype))
 		body = append(body, ir.NewAssignStmt(base.Pos, ptr, NodAddr(cr)))
 	}
 
