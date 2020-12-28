@@ -373,7 +373,7 @@ func DeclaredBy(x, stmt Node) bool {
 // called declaration contexts.
 type Class uint8
 
-//go:generate stringer -type=Class
+//go:generate stringer -type=Class name.go
 const (
 	Pxxx      Class = iota // no class; used during ssa conversion to indicate pseudo-variables
 	PEXTERN                // global variables
