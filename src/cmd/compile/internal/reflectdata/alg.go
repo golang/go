@@ -289,11 +289,11 @@ func hashfor(t *types.Type) ir.Node {
 
 	n := typecheck.NewName(sym)
 	ir.MarkFunc(n)
-	n.SetType(typecheck.NewFuncType(nil, []*ir.Field{
-		ir.NewField(base.Pos, nil, nil, types.NewPtr(t)),
-		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
-	}, []*ir.Field{
-		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
+	n.SetType(types.NewSignature(types.NoPkg, nil, []*types.Field{
+		types.NewField(base.Pos, nil, types.NewPtr(t)),
+		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+	}, []*types.Field{
+		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
 	}))
 	return n
 }
@@ -777,12 +777,12 @@ func hashmem(t *types.Type) ir.Node {
 
 	n := typecheck.NewName(sym)
 	ir.MarkFunc(n)
-	n.SetType(typecheck.NewFuncType(nil, []*ir.Field{
-		ir.NewField(base.Pos, nil, nil, types.NewPtr(t)),
-		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
-		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
-	}, []*ir.Field{
-		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
+	n.SetType(types.NewSignature(types.NoPkg, nil, []*types.Field{
+		types.NewField(base.Pos, nil, types.NewPtr(t)),
+		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+	}, []*types.Field{
+		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
 	}))
 	return n
 }

@@ -95,8 +95,7 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
 	nn := typecheck.Temp(types.Types[types.TINT])
 	l = append(l, ir.NewAssignStmt(base.Pos, nn, ir.NewUnaryExpr(base.Pos, ir.OLEN, ns))) // n = len(s)
 
-	slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, ns) // ...s[:n+argc]
-	slice.SetSliceBounds(nil, ir.NewBinaryExpr(base.Pos, ir.OADD, nn, na), nil)
+	slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, ns, nil, ir.NewBinaryExpr(base.Pos, ir.OADD, nn, na), nil) // ...s[:n+argc]
 	slice.SetBounded(true)
 	l = append(l, ir.NewAssignStmt(base.Pos, ns, slice)) // s = s[:n+argc]
 
@@ -407,9 +406,8 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 
 		t = types.NewArray(t.Elem(), i) // [r]T
 		var_ := typecheck.Temp(t)
-		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, nil)) // zero temp
-		r := ir.NewSliceExpr(base.Pos, ir.OSLICE, var_)             // arr[:l]
-		r.SetSliceBounds(nil, l, nil)
+		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, nil))  // zero temp
+		r := ir.NewSliceExpr(base.Pos, ir.OSLICE, var_, nil, l, nil) // arr[:l]
 		// The conv is necessary in case n.Type is named.
 		return walkExpr(typecheck.Expr(typecheck.Conv(r, n.Type())), init)
 	}
@@ -438,7 +436,8 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	fn := typecheck.LookupRuntime(fnname)
 	m.Ptr = mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.TypePtr(t.Elem()), typecheck.Conv(len, argtype), typecheck.Conv(cap, argtype))
 	m.Ptr.MarkNonNil()
-	m.LenCap = []ir.Node{typecheck.Conv(len, types.Types[types.TINT]), typecheck.Conv(cap, types.Types[types.TINT])}
+	m.Len = typecheck.Conv(len, types.Types[types.TINT])
+	m.Cap = typecheck.Conv(cap, types.Types[types.TINT])
 	return walkExpr(typecheck.Expr(m), init)
 }
 
@@ -471,7 +470,8 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		sh := ir.NewSliceHeaderExpr(base.Pos, nil, nil, nil, nil)
 		sh.Ptr = mkcall1(fn, types.Types[types.TUNSAFEPTR], init, size, typecheck.NodNil(), ir.NewBool(false))
 		sh.Ptr.MarkNonNil()
-		sh.LenCap = []ir.Node{length, length}
+		sh.Len = length
+		sh.Cap = length
 		sh.SetType(t)
 
 		s := typecheck.Temp(t)
@@ -493,7 +493,8 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	s := ir.NewSliceHeaderExpr(base.Pos, nil, nil, nil, nil)
 	s.Ptr = mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.TypePtr(t.Elem()), length, copylen, typecheck.Conv(copyptr, types.Types[types.TUNSAFEPTR]))
 	s.Ptr.MarkNonNil()
-	s.LenCap = []ir.Node{length, length}
+	s.Len = length
+	s.Cap = length
 	s.SetType(t)
 	return walkExpr(typecheck.Expr(s), init)
 }

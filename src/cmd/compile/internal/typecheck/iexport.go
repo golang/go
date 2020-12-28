@@ -594,23 +594,15 @@ func (w *exportWriter) selector(s *types.Sym) {
 		base.Fatalf("missing currPkg")
 	}
 
-	// Method selectors are rewritten into method symbols (of the
-	// form T.M) during typechecking, but we want to write out
-	// just the bare method name.
-	name := s.Name
-	if i := strings.LastIndex(name, "."); i >= 0 {
-		name = name[i+1:]
-	} else {
-		pkg := w.currPkg
-		if types.IsExported(name) {
-			pkg = types.LocalPkg
-		}
-		if s.Pkg != pkg {
-			base.Fatalf("package mismatch in selector: %v in package %q, but want %q", s, s.Pkg.Path, pkg.Path)
-		}
+	pkg := w.currPkg
+	if types.IsExported(s.Name) {
+		pkg = types.LocalPkg
+	}
+	if s.Pkg != pkg {
+		base.Fatalf("package mismatch in selector: %v in package %q, but want %q", s, s.Pkg.Path, pkg.Path)
 	}
 
-	w.string(name)
+	w.string(s.Name)
 }
 
 func (w *exportWriter) typ(t *types.Type) {
@@ -858,8 +850,6 @@ func intSize(typ *types.Type) (signed bool, maxBytes uint) {
 // according to the maximum number of bytes needed to encode a value
 // of type typ. As a special case, 8-bit types are always encoded as a
 // single byte.
-//
-// TODO(mdempsky): Is this level of complexity really worthwhile?
 func (w *exportWriter) mpint(x constant.Value, typ *types.Type) {
 	signed, maxBytes := intSize(typ)
 
@@ -1145,7 +1135,7 @@ func (w *exportWriter) stmt(n ir.Node) {
 		n := n.(*ir.RangeStmt)
 		w.op(ir.ORANGE)
 		w.pos(n.Pos())
-		w.stmtList(n.Vars)
+		w.exprsOrNil(n.Key, n.Value)
 		w.expr(n.X)
 		w.stmtList(n.Body)
 
@@ -1154,8 +1144,7 @@ func (w *exportWriter) stmt(n ir.Node) {
 		w.op(n.Op())
 		w.pos(n.Pos())
 		w.stmtList(n.Init())
-		w.exprsOrNil(nil, nil) // TODO(rsc): Delete (and fix importer).
-		w.caseList(n)
+		w.commList(n.Cases)
 
 	case ir.OSWITCH:
 		n := n.(*ir.SwitchStmt)
@@ -1163,7 +1152,7 @@ func (w *exportWriter) stmt(n ir.Node) {
 		w.pos(n.Pos())
 		w.stmtList(n.Init())
 		w.exprsOrNil(n.Tag, nil)
-		w.caseList(n)
+		w.caseList(n.Cases, isNamedTypeSwitch(n.Tag))
 
 	// case OCASE:
 	//	handled by caseList
@@ -1187,35 +1176,28 @@ func (w *exportWriter) stmt(n ir.Node) {
 	}
 }
 
-func isNamedTypeSwitch(n ir.Node) bool {
-	if n.Op() != ir.OSWITCH {
-		return false
-	}
-	sw := n.(*ir.SwitchStmt)
-	if sw.Tag == nil || sw.Tag.Op() != ir.OTYPESW {
-		return false
-	}
-	guard := sw.Tag.(*ir.TypeSwitchGuard)
-	return guard.Tag != nil
+func isNamedTypeSwitch(x ir.Node) bool {
+	guard, ok := x.(*ir.TypeSwitchGuard)
+	return ok && guard.Tag != nil
 }
 
-func (w *exportWriter) caseList(sw ir.Node) {
-	namedTypeSwitch := isNamedTypeSwitch(sw)
-
-	var cases []ir.Node
-	if sw.Op() == ir.OSWITCH {
-		cases = sw.(*ir.SwitchStmt).Cases
-	} else {
-		cases = sw.(*ir.SelectStmt).Cases
-	}
+func (w *exportWriter) caseList(cases []*ir.CaseClause, namedTypeSwitch bool) {
 	w.uint64(uint64(len(cases)))
 	for _, cas := range cases {
-		cas := cas.(*ir.CaseStmt)
 		w.pos(cas.Pos())
 		w.stmtList(cas.List)
 		if namedTypeSwitch {
-			w.localName(cas.Vars[0].(*ir.Name))
+			w.localName(cas.Var.(*ir.Name))
 		}
+		w.stmtList(cas.Body)
+	}
+}
+
+func (w *exportWriter) commList(cases []*ir.CommClause) {
+	w.uint64(uint64(len(cases)))
+	for _, cas := range cases {
+		w.pos(cas.Pos())
+		w.node(cas.Comm)
 		w.stmtList(cas.Body)
 	}
 }
@@ -1313,7 +1295,7 @@ func (w *exportWriter) expr(n ir.Node) {
 			s = n.Tag.Sym()
 		}
 		w.localIdent(s, 0) // declared pseudo-variable, if any
-		w.exprsOrNil(n.X, nil)
+		w.expr(n.X)
 
 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
 	// 	should have been resolved by typechecking - handled by default case
@@ -1348,7 +1330,8 @@ func (w *exportWriter) expr(n ir.Node) {
 		n := n.(*ir.KeyExpr)
 		w.op(ir.OKEY)
 		w.pos(n.Pos())
-		w.exprsOrNil(n.Key, n.Value)
+		w.expr(n.Key)
+		w.expr(n.Value)
 
 	// case OSTRUCTKEY:
 	//	unreachable - handled in case OSTRUCTLIT by elemList
@@ -1387,17 +1370,15 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.op(ir.OSLICE)
 		w.pos(n.Pos())
 		w.expr(n.X)
-		low, high, _ := n.SliceBounds()
-		w.exprsOrNil(low, high)
+		w.exprsOrNil(n.Low, n.High)
 
 	case ir.OSLICE3, ir.OSLICE3ARR:
 		n := n.(*ir.SliceExpr)
 		w.op(ir.OSLICE3)
 		w.pos(n.Pos())
 		w.expr(n.X)
-		low, high, max := n.SliceBounds()
-		w.exprsOrNil(low, high)
-		w.expr(max)
+		w.exprsOrNil(n.Low, n.High)
+		w.expr(n.Max)
 
 	case ir.OCOPY, ir.OCOMPLEX:
 		// treated like other builtin calls (see e.g., OREAL)
@@ -1412,8 +1393,8 @@ func (w *exportWriter) expr(n ir.Node) {
 		n := n.(*ir.ConvExpr)
 		w.op(ir.OCONV)
 		w.pos(n.Pos())
-		w.expr(n.X)
 		w.typ(n.Type())
+		w.expr(n.X)
 
 	case ir.OREAL, ir.OIMAG, ir.OCAP, ir.OCLOSE, ir.OLEN, ir.ONEW, ir.OPANIC:
 		n := n.(*ir.UnaryExpr)
@@ -1544,6 +1525,7 @@ func (w *exportWriter) fieldList(list ir.Nodes) {
 	w.uint64(uint64(len(list)))
 	for _, n := range list {
 		n := n.(*ir.StructKeyExpr)
+		w.pos(n.Pos())
 		w.selector(n.Field)
 		w.expr(n.Value)
 	}

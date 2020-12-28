@@ -43,7 +43,18 @@ func initMetrics() {
 	}
 	sizeClassBuckets = make([]float64, _NumSizeClasses)
 	for i := range sizeClassBuckets {
-		sizeClassBuckets[i] = float64(class_to_size[i])
+		// Size classes have an inclusive upper-bound
+		// and exclusive lower bound (e.g. 48-byte size class is
+		// (32, 48]) whereas we want and inclusive lower-bound
+		// and exclusive upper-bound (e.g. 48-byte size class is
+		// [33, 49). We can achieve this by shifting all bucket
+		// boundaries up by 1.
+		//
+		// Also, a float64 can precisely represent integers with
+		// value up to 2^53 and size classes are relatively small
+		// (nowhere near 2^48 even) so this will give us exact
+		// boundaries.
+		sizeClassBuckets[i] = float64(class_to_size[i] + 1)
 	}
 	timeHistBuckets = timeHistogramMetricsBuckets()
 	metrics = map[string]metricData{
@@ -105,9 +116,9 @@ func initMetrics() {
 		"/gc/pauses:seconds": {
 			compute: func(_ *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(timeHistBuckets)
-				hist.counts[len(hist.counts)-1] = atomic.Load64(&memstats.gcPauseDist.overflow)
+				hist.counts[0] = atomic.Load64(&memstats.gcPauseDist.underflow)
 				for i := range hist.buckets {
-					hist.counts[i] = atomic.Load64(&memstats.gcPauseDist.counts[i])
+					hist.counts[i+1] = atomic.Load64(&memstats.gcPauseDist.counts[i])
 				}
 			},
 		},

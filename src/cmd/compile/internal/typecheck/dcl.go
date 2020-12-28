@@ -281,72 +281,6 @@ func CheckFuncStack() {
 	}
 }
 
-// turn a parsed function declaration into a type
-func NewFuncType(nrecv *ir.Field, nparams, nresults []*ir.Field) *types.Type {
-	funarg := func(n *ir.Field) *types.Field {
-		lno := base.Pos
-		base.Pos = n.Pos
-
-		if n.Ntype != nil {
-			n.Type = typecheckNtype(n.Ntype).Type()
-			n.Ntype = nil
-		}
-
-		f := types.NewField(n.Pos, n.Sym, n.Type)
-		f.SetIsDDD(n.IsDDD)
-		if n.Decl != nil {
-			n.Decl.SetType(f.Type)
-			f.Nname = n.Decl
-		}
-
-		base.Pos = lno
-		return f
-	}
-	funargs := func(nn []*ir.Field) []*types.Field {
-		res := make([]*types.Field, len(nn))
-		for i, n := range nn {
-			res[i] = funarg(n)
-		}
-		return res
-	}
-
-	var recv *types.Field
-	if nrecv != nil {
-		recv = funarg(nrecv)
-	}
-
-	t := types.NewSignature(types.LocalPkg, recv, funargs(nparams), funargs(nresults))
-	checkdupfields("argument", t.Recvs().FieldSlice(), t.Params().FieldSlice(), t.Results().FieldSlice())
-	return t
-}
-
-// convert a parsed id/type list into
-// a type for struct/interface/arglist
-func NewStructType(l []*ir.Field) *types.Type {
-	lno := base.Pos
-
-	fields := make([]*types.Field, len(l))
-	for i, n := range l {
-		base.Pos = n.Pos
-
-		if n.Ntype != nil {
-			n.Type = typecheckNtype(n.Ntype).Type()
-			n.Ntype = nil
-		}
-		f := types.NewField(n.Pos, n.Sym, n.Type)
-		if n.Embedded {
-			checkembeddedtype(n.Type)
-			f.Embedded = 1
-		}
-		f.Note = n.Note
-		fields[i] = f
-	}
-	checkdupfields("field", fields)
-
-	base.Pos = lno
-	return types.NewStruct(types.LocalPkg, fields)
-}
-
 // Add a method, declared as a function.
 // - msym is the method symbol
 // - t is function type (with receiver)
@@ -513,7 +447,6 @@ func funcarg(n *ir.Field, ctxt ir.Class) {
 	name := ir.NewNameAt(n.Pos, n.Sym)
 	n.Decl = name
 	name.Ntype = n.Ntype
-	name.SetIsDDD(n.IsDDD)
 	Declare(name, ctxt)
 
 	vargen++
@@ -527,7 +460,6 @@ func funcarg2(f *types.Field, ctxt ir.Class) {
 	n := ir.NewNameAt(f.Pos, f.Sym)
 	f.Nname = n
 	n.SetType(f.Type)
-	n.SetIsDDD(f.IsDDD())
 	Declare(n, ctxt)
 }
 
@@ -604,27 +536,6 @@ func initname(s string) bool {
 	return s == "init"
 }
 
-func tointerface(nmethods []*ir.Field) *types.Type {
-	if len(nmethods) == 0 {
-		return types.Types[types.TINTER]
-	}
-
-	lno := base.Pos
-
-	methods := make([]*types.Field, len(nmethods))
-	for i, n := range nmethods {
-		base.Pos = n.Pos
-		if n.Ntype != nil {
-			n.Type = typecheckNtype(n.Ntype).Type()
-			n.Ntype = nil
-		}
-		methods[i] = types.NewField(n.Pos, n.Sym, n.Type)
-	}
-
-	base.Pos = lno
-	return types.NewInterface(types.LocalPkg, methods)
-}
-
 var vargen int
 
 func Temp(t *types.Type) *ir.Name {
@@ -642,6 +553,9 @@ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	}
 	if t == nil {
 		base.Fatalf("tempAt called with nil type")
+	}
+	if t.Kind() == types.TFUNC && t.Recv() != nil {
+		base.Fatalf("misuse of method type: %v", t)
 	}
 
 	s := &types.Sym{
@@ -676,30 +590,26 @@ func autotmpname(n int) string {
 
 // f is method type, with receiver.
 // return function type, receiver as first argument (or not).
-func NewMethodType(f *types.Type, receiver *types.Type) *types.Type {
-	inLen := f.Params().Fields().Len()
-	if receiver != nil {
-		inLen++
-	}
-	in := make([]*ir.Field, 0, inLen)
-
-	if receiver != nil {
-		d := ir.NewField(base.Pos, nil, nil, receiver)
-		in = append(in, d)
+func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
+	nrecvs := 0
+	if recv != nil {
+		nrecvs++
 	}
 
-	for _, t := range f.Params().Fields().Slice() {
-		d := ir.NewField(base.Pos, nil, nil, t.Type)
-		d.IsDDD = t.IsDDD()
-		in = append(in, d)
+	params := make([]*types.Field, nrecvs+sig.Params().Fields().Len())
+	if recv != nil {
+		params[0] = types.NewField(base.Pos, nil, recv)
+	}
+	for i, param := range sig.Params().Fields().Slice() {
+		d := types.NewField(base.Pos, nil, param.Type)
+		d.SetIsDDD(param.IsDDD())
+		params[nrecvs+i] = d
 	}
 
-	outLen := f.Results().Fields().Len()
-	out := make([]*ir.Field, 0, outLen)
-	for _, t := range f.Results().Fields().Slice() {
-		d := ir.NewField(base.Pos, nil, nil, t.Type)
-		out = append(out, d)
+	results := make([]*types.Field, sig.Results().Fields().Len())
+	for i, t := range sig.Results().Fields().Slice() {
+		results[i] = types.NewField(base.Pos, nil, t.Type)
 	}
 
-	return NewFuncType(nil, in, out)
+	return types.NewSignature(types.LocalPkg, nil, params, results)
 }

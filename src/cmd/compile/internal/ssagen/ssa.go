@@ -214,10 +214,7 @@ func InitConfig() {
 func getParam(n *ir.CallExpr, i int) *types.Field {
 	t := n.X.Type()
 	if n.Op() == ir.OCALLMETH {
-		if i == 0 {
-			return t.Recv()
-		}
-		return t.Params().Field(i - 1)
+		base.Fatalf("OCALLMETH missed by walkCall")
 	}
 	return t.Params().Field(i)
 }
@@ -1166,7 +1163,7 @@ func (s *state) stmt(n ir.Node) {
 		}
 		fallthrough
 
-	case ir.OCALLMETH, ir.OCALLINTER:
+	case ir.OCALLINTER:
 		n := n.(*ir.CallExpr)
 		s.callResult(n, callNormal)
 		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class_ == ir.PFUNC {
@@ -1367,7 +1364,7 @@ func (s *state) stmt(n ir.Node) {
 			// We're assigning a slicing operation back to its source.
 			// Don't write back fields we aren't changing. See issue #14855.
 			rhs := rhs.(*ir.SliceExpr)
-			i, j, k := rhs.SliceBounds()
+			i, j, k := rhs.Low, rhs.High, rhs.Max
 			if i != nil && (i.Op() == ir.OLITERAL && i.Val().Kind() == constant.Int && ir.Int64Val(i) == 0) {
 				// [0:...] is the same as [:...]
 				i = nil
@@ -2111,10 +2108,6 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		n := n.(*ir.UnaryExpr)
 		aux := n.X.Sym().Linksym()
 		return s.entryNewValue1A(ssa.OpAddr, n.Type(), aux, s.sb)
-	case ir.OMETHEXPR:
-		n := n.(*ir.MethodExpr)
-		sym := staticdata.FuncSym(n.FuncName().Sym()).Linksym()
-		return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type()), sym, s.sb)
 	case ir.ONAME:
 		n := n.(*ir.Name)
 		if n.Class_ == ir.PFUNC {
@@ -2736,7 +2729,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		// SSA, then load just the selected field. This
 		// prevents false memory dependencies in race/msan
 		// instrumentation.
-		if ir.IsAssignable(n) && !s.canSSA(n) {
+		if ir.IsAddressable(n) && !s.canSSA(n) {
 			p := s.addr(n)
 			return s.load(n.Type(), p)
 		}
@@ -2746,7 +2739,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 	case ir.ODOTPTR:
 		n := n.(*ir.SelectorExpr)
 		p := s.exprPtr(n.X, n.Bounded(), n.Pos())
-		p = s.newValue1I(ssa.OpOffPtr, types.NewPtr(n.Type()), n.Offset, p)
+		p = s.newValue1I(ssa.OpOffPtr, types.NewPtr(n.Type()), n.Offset(), p)
 		return s.load(n.Type(), p)
 
 	case ir.OINDEX:
@@ -2844,23 +2837,22 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 	case ir.OSLICEHEADER:
 		n := n.(*ir.SliceHeaderExpr)
 		p := s.expr(n.Ptr)
-		l := s.expr(n.LenCap[0])
-		c := s.expr(n.LenCap[1])
+		l := s.expr(n.Len)
+		c := s.expr(n.Cap)
 		return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
 
 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR:
 		n := n.(*ir.SliceExpr)
 		v := s.expr(n.X)
 		var i, j, k *ssa.Value
-		low, high, max := n.SliceBounds()
-		if low != nil {
-			i = s.expr(low)
+		if n.Low != nil {
+			i = s.expr(n.Low)
 		}
-		if high != nil {
-			j = s.expr(high)
+		if n.High != nil {
+			j = s.expr(n.High)
 		}
-		if max != nil {
-			k = s.expr(max)
+		if n.Max != nil {
+			k = s.expr(n.Max)
 		}
 		p, l, c := s.slice(v, i, j, k, n.Bounded())
 		return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
@@ -2869,12 +2861,11 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		n := n.(*ir.SliceExpr)
 		v := s.expr(n.X)
 		var i, j *ssa.Value
-		low, high, _ := n.SliceBounds()
-		if low != nil {
-			i = s.expr(low)
+		if n.Low != nil {
+			i = s.expr(n.Low)
 		}
-		if high != nil {
-			j = s.expr(high)
+		if n.High != nil {
+			j = s.expr(n.High)
 		}
 		p, l, _ := s.slice(v, i, j, nil, n.Bounded())
 		return s.newValue2(ssa.OpStringMake, n.Type(), p, l)
@@ -4398,16 +4389,7 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
 			opendefer.closure = closure
 		}
 	} else if n.Op() == ir.OCALLMETH {
-		if fn.Op() != ir.ODOTMETH {
-			base.Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
-		}
-		fn := fn.(*ir.SelectorExpr)
-		closureVal := s.getMethodClosure(fn)
-		// We must always store the function value in a stack slot for the
-		// runtime panic code to use. But in the defer exit code, we will
-		// call the method directly.
-		closure := s.openDeferSave(nil, fn.Type(), closureVal)
-		opendefer.closureNode = closure.Aux.(*ir.Name)
+		base.Fatalf("OCALLMETH missed by walkCall")
 	} else {
 		if fn.Op() != ir.ODOTINTER {
 			base.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op())
@@ -4681,18 +4663,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			s.maybeNilCheckClosure(closure, k)
 		}
 	case ir.OCALLMETH:
-		if fn.Op() != ir.ODOTMETH {
-			s.Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
-		}
-		fn := fn.(*ir.SelectorExpr)
-		testLateExpansion = k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f)
-		if k == callNormal {
-			sym = fn.Sel
-			break
-		}
-		closure = s.getMethodClosure(fn)
-		// Note: receiver is already present in n.Rlist, so we don't
-		// want to set it here.
+		base.Fatalf("OCALLMETH missed by walkCall")
 	case ir.OCALLINTER:
 		if fn.Op() != ir.ODOTINTER {
 			s.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op())
@@ -4757,9 +4728,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		}
 		// Set receiver (for method calls).
 		if n.Op() == ir.OCALLMETH {
-			f := ft.Recv()
-			s.storeArgWithBase(args[0], f.Type, addr, off+f.Offset)
-			args = args[1:]
+			base.Fatalf("OCALLMETH missed by walkCall")
 		}
 		// Set other args.
 		for _, f := range ft.Params().Fields().Slice() {
@@ -4827,11 +4796,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		t := n.X.Type()
 		args := n.Rargs
 		if n.Op() == ir.OCALLMETH {
-			f := t.Recv()
-			ACArg, arg := s.putArg(args[0], f.Type, argStart+f.Offset, testLateExpansion)
-			ACArgs = append(ACArgs, ACArg)
-			callArgs = append(callArgs, arg)
-			args = args[1:]
+			base.Fatalf("OCALLMETH missed by walkCall")
 		}
 		for i, n := range args {
 			f := t.Params().Field(i)
@@ -4949,29 +4914,13 @@ func (s *state) maybeNilCheckClosure(closure *ssa.Value, k callKind) {
 	}
 }
 
-// getMethodClosure returns a value representing the closure for a method call
-func (s *state) getMethodClosure(fn *ir.SelectorExpr) *ssa.Value {
-	// Make a name n2 for the function.
-	// fn.Sym might be sync.(*Mutex).Unlock.
-	// Make a PFUNC node out of that, then evaluate it.
-	// We get back an SSA value representing &sync.(*Mutex).Unlock·f.
-	// We can then pass that to defer or go.
-	n2 := ir.NewNameAt(fn.Pos(), fn.Sel)
-	n2.Curfn = s.curfn
-	n2.Class_ = ir.PFUNC
-	// n2.Sym already existed, so it's already marked as a function.
-	n2.SetPos(fn.Pos())
-	n2.SetType(types.Types[types.TUINT8]) // fake type for a static closure. Could use runtime.funcval if we had it.
-	return s.expr(n2)
-}
-
 // getClosureAndRcvr returns values for the appropriate closure and receiver of an
 // interface call
 func (s *state) getClosureAndRcvr(fn *ir.SelectorExpr) (*ssa.Value, *ssa.Value) {
 	i := s.expr(fn.X)
 	itab := s.newValue1(ssa.OpITab, types.Types[types.TUINTPTR], i)
 	s.nilCheck(itab)
-	itabidx := fn.Offset + 2*int64(types.PtrSize) + 8 // offset of fun field in runtime.itab
+	itabidx := fn.Offset() + 2*int64(types.PtrSize) + 8 // offset of fun field in runtime.itab
 	closure := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.UintptrPtr, itabidx, itab)
 	rcvr := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, i)
 	return closure, rcvr
@@ -5075,11 +5024,11 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 	case ir.ODOT:
 		n := n.(*ir.SelectorExpr)
 		p := s.addr(n.X)
-		return s.newValue1I(ssa.OpOffPtr, t, n.Offset, p)
+		return s.newValue1I(ssa.OpOffPtr, t, n.Offset(), p)
 	case ir.ODOTPTR:
 		n := n.(*ir.SelectorExpr)
 		p := s.exprPtr(n.X, n.Bounded(), n.Pos())
-		return s.newValue1I(ssa.OpOffPtr, t, n.Offset, p)
+		return s.newValue1I(ssa.OpOffPtr, t, n.Offset(), p)
 	case ir.OCLOSUREREAD:
 		n := n.(*ir.ClosureReadExpr)
 		return s.newValue1I(ssa.OpOffPtr, t, n.Offset,
@@ -5091,7 +5040,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 		}
 		addr := s.addr(n.X)
 		return s.newValue1(ssa.OpCopy, t, addr) // ensure that addr has the right type
-	case ir.OCALLFUNC, ir.OCALLINTER, ir.OCALLMETH:
+	case ir.OCALLFUNC, ir.OCALLINTER:
 		n := n.(*ir.CallExpr)
 		return s.callAddr(n, callNormal)
 	case ir.ODOTTYPE:
@@ -6328,7 +6277,7 @@ type State struct {
 // Prog appends a new Prog.
 func (s *State) Prog(as obj.As) *obj.Prog {
 	p := s.pp.Prog(as)
-	if ssa.LosesStmtMark(as) {
+	if objw.LosesStmtMark(as) {
 		return p
 	}
 	// Float a statement start to the beginning of any same-line run.
@@ -7116,21 +7065,17 @@ func (s *State) UseArgs(n int64) {
 // fieldIdx finds the index of the field referred to by the ODOT node n.
 func fieldIdx(n *ir.SelectorExpr) int {
 	t := n.X.Type()
-	f := n.Sel
 	if !t.IsStruct() {
 		panic("ODOT's LHS is not a struct")
 	}
 
-	var i int
-	for _, t1 := range t.Fields().Slice() {
-		if t1.Sym != f {
-			i++
-			continue
+	for i, f := range t.Fields().Slice() {
+		if f.Sym == n.Sel {
+			if f.Offset != n.Offset() {
+				panic("field offset doesn't match")
+			}
+			return i
 		}
-		if t1.Offset != n.Offset {
-			panic("field offset doesn't match")
-		}
-		return i
 	}
 	panic(fmt.Sprintf("can't find field in expr %v\n", n))
 

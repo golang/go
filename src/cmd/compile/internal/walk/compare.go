@@ -155,7 +155,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	// Chose not to inline. Call equality function directly.
 	if !inline {
 		// eq algs take pointers; cmpl and cmpr must be addressable
-		if !ir.IsAssignable(cmpl) || !ir.IsAssignable(cmpr) {
+		if !ir.IsAddressable(cmpl) || !ir.IsAddressable(cmpr) {
 			base.Fatalf("arguments of comparison must be lvalues - %v %v", cmpl, cmpr)
 		}
 
@@ -428,11 +428,11 @@ func eqFor(t *types.Type) (n ir.Node, needsize bool) {
 		sym := reflectdata.TypeSymPrefix(".eq", t)
 		n := typecheck.NewName(sym)
 		ir.MarkFunc(n)
-		n.SetType(typecheck.NewFuncType(nil, []*ir.Field{
-			ir.NewField(base.Pos, nil, nil, types.NewPtr(t)),
-			ir.NewField(base.Pos, nil, nil, types.NewPtr(t)),
-		}, []*ir.Field{
-			ir.NewField(base.Pos, nil, nil, types.Types[types.TBOOL]),
+		n.SetType(types.NewSignature(types.NoPkg, nil, []*types.Field{
+			types.NewField(base.Pos, nil, types.NewPtr(t)),
+			types.NewField(base.Pos, nil, types.NewPtr(t)),
+		}, []*types.Field{
+			types.NewField(base.Pos, nil, types.Types[types.TBOOL]),
 		}))
 		return n, false
 	}

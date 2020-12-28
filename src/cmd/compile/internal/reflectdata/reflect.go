@@ -16,8 +16,8 @@ import (
 	"cmd/compile/internal/escape"
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/typebits"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/gcprog"
@@ -835,6 +835,9 @@ func TypeSym(t *types.Type) *types.Sym {
 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() {
 		base.Fatalf("typenamesym %v", t)
 	}
+	if t.Kind() == types.TFUNC && t.Recv() != nil {
+		base.Fatalf("misuse of method type: %v", t)
+	}
 	s := types.TypeSym(t)
 	signatmu.Lock()
 	NeedRuntimeType(t)
@@ -1419,7 +1422,11 @@ func WriteBasicTypes() {
 		// The latter is the type of an auto-generated wrapper.
 		WriteType(types.NewPtr(types.ErrorType))
 
-		WriteType(typecheck.NewFuncType(nil, []*ir.Field{ir.NewField(base.Pos, nil, nil, types.ErrorType)}, []*ir.Field{ir.NewField(base.Pos, nil, nil, types.Types[types.TSTRING])}))
+		WriteType(types.NewSignature(types.NoPkg, nil, []*types.Field{
+			types.NewField(base.Pos, nil, types.ErrorType),
+		}, []*types.Field{
+			types.NewField(base.Pos, nil, types.Types[types.TSTRING]),
+		}))
 
 		// add paths for runtime and main, which 6l imports implicitly.
 		dimportpath(ir.Pkgs.Runtime)
@@ -1545,7 +1552,7 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
 	}
 
 	vec := bitvec.New(8 * int32(len(ptrmask)))
-	liveness.SetTypeBits(t, 0, vec)
+	typebits.Set(t, 0, vec)
 
 	nptr := types.PtrDataSize(t) / int64(types.PtrSize)
 	for i := int64(0); i < nptr; i++ {
@@ -1856,7 +1863,7 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 	r.Sym = tsym
 	// dot.Xoffset is the method index * Widthptr (the offset of code pointer
 	// in itab).
-	midx := dot.Offset / int64(types.PtrSize)
+	midx := dot.Offset() / int64(types.PtrSize)
 	r.Add = InterfaceMethodOffset(ityp, midx)
 	r.Type = objabi.R_USEIFACEMETHOD
 }

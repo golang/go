@@ -425,7 +425,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 	}
 
 	// make slice out of heap (6)
-	a = ir.NewAssignStmt(base.Pos, var_, ir.NewSliceExpr(base.Pos, ir.OSLICE, vauto))
+	a = ir.NewAssignStmt(base.Pos, var_, ir.NewSliceExpr(base.Pos, ir.OSLICE, vauto, nil, nil, nil))
 
 	a = typecheck.Stmt(a)
 	a = orderStmtInPlace(a, map[string][]*ir.Name{})
@@ -629,6 +629,7 @@ func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
 		// not a special composite literal assignment
 		return false
 	}
+	x := n.X.(*ir.Name)
 	if !types.Identical(n.X.Type(), n.Y.Type()) {
 		// not a special composite literal assignment
 		return false
@@ -640,7 +641,7 @@ func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
 		return false
 
 	case ir.OSTRUCTLIT, ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
-		if refersToCommonName(n.X, n.Y) {
+		if ir.Any(n.Y, func(y ir.Node) bool { return ir.Uses(y, x) }) {
 			// not a special composite literal assignment
 			return false
 		}

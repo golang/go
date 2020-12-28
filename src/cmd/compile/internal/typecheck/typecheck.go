@@ -251,13 +251,7 @@ func Resolve(n ir.Node) (res ir.Node) {
 			}
 		}
 
-		if inimport {
-			base.Fatalf("recursive inimport")
-		}
-		inimport = true
-		n = expandDecl(n)
-		inimport = false
-		return n
+		return expandDecl(n)
 	}
 
 	r := ir.AsNode(n.Sym().Def)
@@ -1232,7 +1226,7 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 		if f1.Offset == types.BADWIDTH {
 			base.Fatalf("lookdot badwidth %v %p", f1, f1)
 		}
-		n.Offset = f1.Offset
+		n.Selection = f1
 		n.SetType(f1.Type)
 		if t.IsInterface() {
 			if n.X.Type().IsPtr() {
@@ -1243,7 +1237,6 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 
 			n.SetOp(ir.ODOTINTER)
 		}
-		n.Selection = f1
 		return f1
 	}
 
@@ -1298,11 +1291,9 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 			return nil
 		}
 
-		n.Sel = ir.MethodSym(n.X.Type(), f2.Sym)
-		n.Offset = f2.Offset
+		n.Selection = f2
 		n.SetType(f2.Type)
 		n.SetOp(ir.ODOTMETH)
-		n.Selection = f2
 
 		return f2
 	}
@@ -1638,7 +1629,7 @@ func nonexported(sym *types.Sym) bool {
 }
 
 func checklvalue(n ir.Node, verb string) {
-	if !ir.IsAssignable(n) {
+	if !ir.IsAddressable(n) {
 		base.Errorf("cannot %s %v", verb, n)
 	}
 }
@@ -1656,7 +1647,7 @@ func checkassign(stmt ir.Node, n ir.Node) {
 		}
 	}
 
-	if ir.IsAssignable(n) {
+	if ir.IsAddressable(n) {
 		return
 	}
 	if n.Op() == ir.OINDEXMAP {
@@ -1690,6 +1681,11 @@ func checkassignlist(stmt ir.Node, l ir.Nodes) {
 }
 
 func checkassignto(src *types.Type, dst ir.Node) {
+	// TODO(mdempsky): Handle all untyped types correctly.
+	if src == types.UntypedBool && dst.Type().IsBoolean() {
+		return
+	}
+
 	if op, why := assignop(src, dst.Type()); op == ir.OXXX {
 		base.Errorf("cannot assign %v to %L in multiple assignment%s", src, dst, why)
 		return
@@ -2101,7 +2097,6 @@ func isTermNode(n ir.Node) bool {
 		}
 		def := false
 		for _, cas := range n.Cases {
-			cas := cas.(*ir.CaseStmt)
 			if !isTermNodes(cas.Body) {
 				return false
 			}
@@ -2117,7 +2112,6 @@ func isTermNode(n ir.Node) bool {
 			return false
 		}
 		for _, cas := range n.Cases {
-			cas := cas.(*ir.CaseStmt)
 			if !isTermNodes(cas.Body) {
 				return false
 			}
@@ -2216,9 +2210,6 @@ func deadcodeslice(nn *ir.Nodes) {
 		case ir.OBLOCK:
 			n := n.(*ir.BlockStmt)
 			deadcodeslice(&n.List)
-		case ir.OCASE:
-			n := n.(*ir.CaseStmt)
-			deadcodeslice(&n.Body)
 		case ir.OFOR:
 			n := n.(*ir.ForStmt)
 			deadcodeslice(&n.Body)
@@ -2231,10 +2222,14 @@ func deadcodeslice(nn *ir.Nodes) {
 			deadcodeslice(&n.Body)
 		case ir.OSELECT:
 			n := n.(*ir.SelectStmt)
-			deadcodeslice(&n.Cases)
+			for _, cas := range n.Cases {
+				deadcodeslice(&cas.Body)
+			}
 		case ir.OSWITCH:
 			n := n.(*ir.SwitchStmt)
-			deadcodeslice(&n.Cases)
+			for _, cas := range n.Cases {
+				deadcodeslice(&cas.Body)
+			}
 		}
 
 		if cut {

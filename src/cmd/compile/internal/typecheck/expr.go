@@ -571,7 +571,6 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 	}
 
 	n.X = typecheck(n.X, ctxExpr|ctxType)
-
 	n.X = DefaultLit(n.X, nil)
 
 	t := n.X.Type()
@@ -580,8 +579,6 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 		n.SetType(nil)
 		return n
 	}
-
-	s := n.Sel
 
 	if n.X.Op() == ir.OTYPE {
 		return typecheckMethodExpr(n)
@@ -629,7 +626,10 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 	}
 
 	if (n.Op() == ir.ODOTINTER || n.Op() == ir.ODOTMETH) && top&ctxCallee == 0 {
-		return tcCallPart(n, s)
+		// Create top-level function.
+		fn := makepartialcall(n)
+
+		return ir.NewCallPartExpr(n.Pos(), n.X, n.Selection, fn)
 	}
 	return n
 }
@@ -831,24 +831,18 @@ func tcSPtr(n *ir.UnaryExpr) ir.Node {
 
 // tcSlice typechecks an OSLICE or OSLICE3 node.
 func tcSlice(n *ir.SliceExpr) ir.Node {
-	n.X = Expr(n.X)
-	low, high, max := n.SliceBounds()
+	n.X = DefaultLit(Expr(n.X), nil)
+	n.Low = indexlit(Expr(n.Low))
+	n.High = indexlit(Expr(n.High))
+	n.Max = indexlit(Expr(n.Max))
 	hasmax := n.Op().IsSlice3()
-	low = Expr(low)
-	high = Expr(high)
-	max = Expr(max)
-	n.X = DefaultLit(n.X, nil)
-	low = indexlit(low)
-	high = indexlit(high)
-	max = indexlit(max)
-	n.SetSliceBounds(low, high, max)
 	l := n.X
 	if l.Type() == nil {
 		n.SetType(nil)
 		return n
 	}
 	if l.Type().IsArray() {
-		if !ir.IsAssignable(n.X) {
+		if !ir.IsAddressable(n.X) {
 			base.Errorf("invalid operation %v (slice of unaddressable value)", n)
 			n.SetType(nil)
 			return n
@@ -886,19 +880,19 @@ func tcSlice(n *ir.SliceExpr) ir.Node {
 		return n
 	}
 
-	if low != nil && !checksliceindex(l, low, tp) {
+	if n.Low != nil && !checksliceindex(l, n.Low, tp) {
 		n.SetType(nil)
 		return n
 	}
-	if high != nil && !checksliceindex(l, high, tp) {
+	if n.High != nil && !checksliceindex(l, n.High, tp) {
 		n.SetType(nil)
 		return n
 	}
-	if max != nil && !checksliceindex(l, max, tp) {
+	if n.Max != nil && !checksliceindex(l, n.Max, tp) {
 		n.SetType(nil)
 		return n
 	}
-	if !checksliceconst(low, high) || !checksliceconst(low, max) || !checksliceconst(high, max) {
+	if !checksliceconst(n.Low, n.High) || !checksliceconst(n.Low, n.Max) || !checksliceconst(n.High, n.Max) {
 		n.SetType(nil)
 		return n
 	}
@@ -924,30 +918,22 @@ func tcSliceHeader(n *ir.SliceHeaderExpr) ir.Node {
 		base.Fatalf("need unsafe.Pointer for OSLICEHEADER")
 	}
 
-	if x := len(n.LenCap); x != 2 {
-		base.Fatalf("expected 2 params (len, cap) for OSLICEHEADER, got %d", x)
-	}
-
 	n.Ptr = Expr(n.Ptr)
-	l := Expr(n.LenCap[0])
-	c := Expr(n.LenCap[1])
-	l = DefaultLit(l, types.Types[types.TINT])
-	c = DefaultLit(c, types.Types[types.TINT])
+	n.Len = DefaultLit(Expr(n.Len), types.Types[types.TINT])
+	n.Cap = DefaultLit(Expr(n.Cap), types.Types[types.TINT])
 
-	if ir.IsConst(l, constant.Int) && ir.Int64Val(l) < 0 {
+	if ir.IsConst(n.Len, constant.Int) && ir.Int64Val(n.Len) < 0 {
 		base.Fatalf("len for OSLICEHEADER must be non-negative")
 	}
 
-	if ir.IsConst(c, constant.Int) && ir.Int64Val(c) < 0 {
+	if ir.IsConst(n.Cap, constant.Int) && ir.Int64Val(n.Cap) < 0 {
 		base.Fatalf("cap for OSLICEHEADER must be non-negative")
 	}
 
-	if ir.IsConst(l, constant.Int) && ir.IsConst(c, constant.Int) && constant.Compare(l.Val(), token.GTR, c.Val()) {
+	if ir.IsConst(n.Len, constant.Int) && ir.IsConst(n.Cap, constant.Int) && constant.Compare(n.Len.Val(), token.GTR, n.Cap.Val()) {
 		base.Fatalf("len larger than cap for OSLICEHEADER")
 	}
 
-	n.LenCap[0] = l
-	n.LenCap[1] = c
 	return n
 }
 

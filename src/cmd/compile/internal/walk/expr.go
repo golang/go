@@ -26,15 +26,6 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 		return n
 	}
 
-	// Eagerly checkwidth all expressions for the back end.
-	if n.Type() != nil && !n.Type().WidthCalculated() {
-		switch n.Type().Kind() {
-		case types.TBLANK, types.TNIL, types.TIDEAL:
-		default:
-			types.CheckSize(n.Type())
-		}
-	}
-
 	if init == n.PtrInit() {
 		// not okay to use n->ninit when walking n,
 		// because we might replace n with some other node
@@ -70,23 +61,14 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 
 	n = walkExpr1(n, init)
 
-	// Expressions that are constant at run time but not
-	// considered const by the language spec are not turned into
-	// constants until walk. For example, if n is y%1 == 0, the
-	// walk of y%1 may have replaced it by 0.
-	// Check whether n with its updated args is itself now a constant.
-	t := n.Type()
-	n = typecheck.EvalConst(n)
-	if n.Type() != t {
-		base.Fatalf("evconst changed Type: %v had type %v, now %v", n, t, n.Type())
+	// Eagerly compute sizes of all expressions for the back end.
+	if typ := n.Type(); typ != nil && typ.Kind() != types.TBLANK && !typ.IsFuncArgStruct() {
+		types.CheckSize(typ)
 	}
-	if n.Op() == ir.OLITERAL {
-		n = typecheck.Expr(n)
+	if ir.IsConst(n, constant.String) {
 		// Emit string symbol now to avoid emitting
 		// any concurrently during the backend.
-		if v := n.Val(); v.Kind() == constant.String {
-			_ = staticdata.StringSym(n.Pos(), constant.StringVal(v))
-		}
+		_ = staticdata.StringSym(n.Pos(), constant.StringVal(n.Val()))
 	}
 
 	updateHasCall(n)
@@ -106,7 +88,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		base.Fatalf("walkexpr: switch 1 unknown op %+v", n.Op())
 		panic("unreachable")
 
-	case ir.ONONAME, ir.OGETG, ir.ONEWOBJ, ir.OMETHEXPR:
+	case ir.ONONAME, ir.OGETG, ir.ONEWOBJ:
 		return n
 
 	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL, ir.ONAMEOFFSET:
@@ -115,6 +97,11 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		// If these return early, make sure to still call
 		// stringsym for constant strings.
 		return n
+
+	case ir.OMETHEXPR:
+		// TODO(mdempsky): Do this right after type checking.
+		n := n.(*ir.MethodExpr)
+		return n.FuncName()
 
 	case ir.ONOT, ir.ONEG, ir.OPLUS, ir.OBITNOT, ir.OREAL, ir.OIMAG, ir.OSPTR, ir.OITAB, ir.OIDATA:
 		n := n.(*ir.UnaryExpr)
@@ -429,7 +416,7 @@ func safeExpr(n ir.Node, init *ir.Nodes) ir.Node {
 	}
 
 	// make a copy; must not be used as an lvalue
-	if ir.IsAssignable(n) {
+	if ir.IsAddressable(n) {
 		base.Fatalf("missing lvalue case in safeexpr: %v", n)
 	}
 	return cheapExpr(n, init)
@@ -535,21 +522,27 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 		return // already walked
 	}
 
-	params := n.X.Type().Params()
+	// If this is a method call t.M(...),
+	// rewrite into a function call T.M(t, ...).
+	// TODO(mdempsky): Do this right after type checking.
+	if n.Op() == ir.OCALLMETH {
+		withRecv := make([]ir.Node, len(n.Args)+1)
+		dot := n.X.(*ir.SelectorExpr)
+		withRecv[0] = dot.X
+		copy(withRecv[1:], n.Args)
+		n.Args = withRecv
+
+		dot = ir.NewSelectorExpr(dot.Pos(), ir.OXDOT, ir.TypeNode(dot.X.Type()), dot.Selection.Sym)
+
+		n.SetOp(ir.OCALLFUNC)
+		n.X = typecheck.Expr(dot)
+	}
+
 	args := n.Args
+	params := n.X.Type().Params()
 
 	n.X = walkExpr(n.X, init)
 	walkExprList(args, init)
-
-	// If this is a method call, add the receiver at the beginning of the args.
-	if n.Op() == ir.OCALLMETH {
-		withRecv := make([]ir.Node, len(args)+1)
-		dot := n.X.(*ir.SelectorExpr)
-		withRecv[0] = dot.X
-		dot.X = nil
-		copy(withRecv[1:], args)
-		args = withRecv
-	}
 
 	// For any argument whose evaluation might require a function call,
 	// store that argument into a temporary variable,
@@ -559,16 +552,7 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 	for i, arg := range args {
 		updateHasCall(arg)
 		// Determine param type.
-		var t *types.Type
-		if n.Op() == ir.OCALLMETH {
-			if i == 0 {
-				t = n.X.Type().Recv().Type
-			} else {
-				t = params.Field(i - 1).Type
-			}
-		} else {
-			t = params.Field(i).Type
-		}
+		t := params.Field(i).Type
 		if base.Flag.Cfg.Instrumenting || fncall(arg, t) {
 			// make assignment of fncall to tempAt
 			tmp := typecheck.Temp(t)
@@ -786,21 +770,19 @@ func walkSlice(n *ir.SliceExpr, init *ir.Nodes) ir.Node {
 		n.X = walkExpr(n.X, init)
 	}
 
-	low, high, max := n.SliceBounds()
-	low = walkExpr(low, init)
-	if low != nil && ir.IsZero(low) {
+	n.Low = walkExpr(n.Low, init)
+	if n.Low != nil && ir.IsZero(n.Low) {
 		// Reduce x[0:j] to x[:j] and x[0:j:k] to x[:j:k].
-		low = nil
+		n.Low = nil
 	}
-	high = walkExpr(high, init)
-	max = walkExpr(max, init)
-	n.SetSliceBounds(low, high, max)
+	n.High = walkExpr(n.High, init)
+	n.Max = walkExpr(n.Max, init)
 	if checkSlice {
-		n.X = walkCheckPtrAlignment(n.X.(*ir.ConvExpr), init, max)
+		n.X = walkCheckPtrAlignment(n.X.(*ir.ConvExpr), init, n.Max)
 	}
 
 	if n.Op().IsSlice3() {
-		if max != nil && max.Op() == ir.OCAP && ir.SameSafeExpr(n.X, max.(*ir.UnaryExpr).X) {
+		if n.Max != nil && n.Max.Op() == ir.OCAP && ir.SameSafeExpr(n.X, n.Max.(*ir.UnaryExpr).X) {
 			// Reduce x[i:j:cap(x)] to x[i:j].
 			if n.Op() == ir.OSLICE3 {
 				n.SetOp(ir.OSLICE)
@@ -817,20 +799,18 @@ func walkSlice(n *ir.SliceExpr, init *ir.Nodes) ir.Node {
 // walkSliceHeader walks an OSLICEHEADER node.
 func walkSliceHeader(n *ir.SliceHeaderExpr, init *ir.Nodes) ir.Node {
 	n.Ptr = walkExpr(n.Ptr, init)
-	n.LenCap[0] = walkExpr(n.LenCap[0], init)
-	n.LenCap[1] = walkExpr(n.LenCap[1], init)
+	n.Len = walkExpr(n.Len, init)
+	n.Cap = walkExpr(n.Cap, init)
 	return n
 }
 
 // TODO(josharian): combine this with its caller and simplify
 func reduceSlice(n *ir.SliceExpr) ir.Node {
-	low, high, max := n.SliceBounds()
-	if high != nil && high.Op() == ir.OLEN && ir.SameSafeExpr(n.X, high.(*ir.UnaryExpr).X) {
+	if n.High != nil && n.High.Op() == ir.OLEN && ir.SameSafeExpr(n.X, n.High.(*ir.UnaryExpr).X) {
 		// Reduce x[i:len(x)] to x[i:].
-		high = nil
+		n.High = nil
 	}
-	n.SetSliceBounds(low, high, max)
-	if (n.Op() == ir.OSLICE || n.Op() == ir.OSLICESTR) && low == nil && high == nil {
+	if (n.Op() == ir.OSLICE || n.Op() == ir.OSLICESTR) && n.Low == nil && n.High == nil {
 		// Reduce x[:] to x.
 		if base.Debug.Slice > 0 {
 			base.Warn("slice: omit slice operation")
@@ -969,22 +949,13 @@ func usefield(n *ir.SelectorExpr) {
 	case ir.ODOT, ir.ODOTPTR:
 		break
 	}
-	if n.Sel == nil {
-		// No field name.  This DOTPTR was built by the compiler for access
-		// to runtime data structures.  Ignore.
-		return
-	}
 
-	t := n.X.Type()
-	if t.IsPtr() {
-		t = t.Elem()
-	}
 	field := n.Selection
 	if field == nil {
 		base.Fatalf("usefield %v %v without paramfld", n.X.Type(), n.Sel)
 	}
-	if field.Sym != n.Sel || field.Offset != n.Offset {
-		base.Fatalf("field inconsistency: %v,%v != %v,%v", field.Sym, field.Offset, n.Sel, n.Offset)
+	if field.Sym != n.Sel {
+		base.Fatalf("field inconsistency: %v != %v", field.Sym, n.Sel)
 	}
 	if !strings.Contains(field.Note, "go:\"track\"") {
 		return

@@ -56,20 +56,11 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 	//	hb: hidden bool
 	//	a, v1, v2: not hidden aggregate, val 1, 2
 
-	t := nrange.Type()
-
 	a := nrange.X
+	t := typecheck.RangeExprType(a.Type())
 	lno := ir.SetPos(a)
 
-	var v1, v2 ir.Node
-	l := len(nrange.Vars)
-	if l > 0 {
-		v1 = nrange.Vars[0]
-	}
-
-	if l > 1 {
-		v2 = nrange.Vars[1]
-	}
+	v1, v2 := nrange.Key, nrange.Value
 
 	if ir.IsBlank(v2) {
 		v2 = nil
@@ -121,7 +112,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		}
 
 		// for v1, v2 := range ha { body }
-		if cheapComputableIndex(nrange.Type().Elem().Width) {
+		if cheapComputableIndex(t.Elem().Width) {
 			// v1, v2 = hv1, ha[hv1]
 			tmp := ir.NewIndexExpr(base.Pos, ha, hv1)
 			tmp.SetBounded(true)
@@ -150,7 +141,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		ifGuard.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv1, hn)
 		nfor.SetOp(ir.OFORUNTIL)
 
-		hp := typecheck.Temp(types.NewPtr(nrange.Type().Elem()))
+		hp := typecheck.Temp(types.NewPtr(t.Elem()))
 		tmp := ir.NewIndexExpr(base.Pos, ha, ir.NewInt(0))
 		tmp.SetBounded(true)
 		init = append(init, ir.NewAssignStmt(base.Pos, hp, typecheck.NodAddr(tmp)))
@@ -343,15 +334,12 @@ func isMapClear(n *ir.RangeStmt) bool {
 		return false
 	}
 
-	if n.Op() != ir.ORANGE || n.Type().Kind() != types.TMAP || len(n.Vars) != 1 {
+	t := n.X.Type()
+	if n.Op() != ir.ORANGE || t.Kind() != types.TMAP || n.Key == nil || n.Value != nil {
 		return false
 	}
 
-	k := n.Vars[0]
-	if k == nil || ir.IsBlank(k) {
-		return false
-	}
-
+	k := n.Key
 	// Require k to be a new variable name.
 	if !ir.DeclaredBy(k, n) {
 		return false
@@ -372,7 +360,7 @@ func isMapClear(n *ir.RangeStmt) bool {
 	}
 
 	// Keys where equality is not reflexive can not be deleted from maps.
-	if !types.IsReflexive(m.Type().Key()) {
+	if !types.IsReflexive(t.Key()) {
 		return false
 	}
 
@@ -428,7 +416,7 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 		return nil
 	}
 
-	elemsize := loop.Type().Elem().Width
+	elemsize := typecheck.RangeExprType(loop.X.Type()).Elem().Width
 	if elemsize <= 0 || !ir.IsZero(stmt.Y) {
 		return nil
 	}

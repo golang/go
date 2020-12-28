@@ -347,21 +347,19 @@ func (e *escape) stmt(n ir.Node) {
 		e.loopDepth--
 
 	case ir.ORANGE:
-		// for List = range Right { Nbody }
+		// for Key, Value = range X { Body }
 		n := n.(*ir.RangeStmt)
 		e.loopDepth++
-		ks := e.addrs(n.Vars)
+		e.addr(n.Key)
+		k := e.addr(n.Value)
 		e.block(n.Body)
 		e.loopDepth--
 
-		// Right is evaluated outside the loop.
-		k := e.discardHole()
-		if len(ks) >= 2 {
-			if n.X.Type().IsArray() {
-				k = ks[1].note(n, "range")
-			} else {
-				k = ks[1].deref(n, "range-deref")
-			}
+		// X is evaluated outside the loop.
+		if n.X.Type().IsArray() {
+			k = k.note(n, "range")
+		} else {
+			k = k.deref(n, "range-deref")
 		}
 		e.expr(e.later(k), n.X)
 
@@ -371,9 +369,8 @@ func (e *escape) stmt(n ir.Node) {
 
 		var ks []hole
 		for _, cas := range n.Cases { // cases
-			cas := cas.(*ir.CaseStmt)
 			if typesw && n.Tag.(*ir.TypeSwitchGuard).Tag != nil {
-				cv := cas.Vars[0]
+				cv := cas.Var
 				k := e.dcl(cv) // type switch variables have no ODCL.
 				if cv.Type().HasPointers() {
 					ks = append(ks, k.dotType(cv.Type(), cas, "switch case"))
@@ -393,7 +390,6 @@ func (e *escape) stmt(n ir.Node) {
 	case ir.OSELECT:
 		n := n.(*ir.SelectStmt)
 		for _, cas := range n.Cases {
-			cas := cas.(*ir.CaseStmt)
 			e.stmt(cas.Comm)
 			e.block(cas.Body)
 		}
@@ -559,10 +555,9 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR:
 		n := n.(*ir.SliceExpr)
 		e.expr(k.note(n, "slice"), n.X)
-		low, high, max := n.SliceBounds()
-		e.discard(low)
-		e.discard(high)
-		e.discard(max)
+		e.discard(n.Low)
+		e.discard(n.High)
+		e.discard(n.Max)
 
 	case ir.OCONV, ir.OCONVNOP:
 		n := n.(*ir.ConvExpr)

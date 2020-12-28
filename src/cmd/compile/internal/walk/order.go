@@ -235,7 +235,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 // because we emit explicit VARKILL instructions marking the end of those
 // temporaries' lifetimes.
 func isaddrokay(n ir.Node) bool {
-	return ir.IsAssignable(n) && (n.Op() != ir.ONAME || n.(*ir.Name).Class_ == ir.PEXTERN || ir.IsAutoTmp(n))
+	return ir.IsAddressable(n) && (n.Op() != ir.ONAME || n.(*ir.Name).Class_ == ir.PEXTERN || ir.IsAutoTmp(n))
 }
 
 // addrTemp ensures that n is okay to pass by address to runtime routines.
@@ -843,12 +843,13 @@ func (o *orderState) stmt(n ir.Node) {
 		n.X = o.expr(n.X, nil)
 
 		orderBody := true
-		switch n.Type().Kind() {
+		xt := typecheck.RangeExprType(n.X.Type())
+		switch xt.Kind() {
 		default:
 			base.Fatalf("order.stmt range %v", n.Type())
 
 		case types.TARRAY, types.TSLICE:
-			if len(n.Vars) < 2 || ir.IsBlank(n.Vars[1]) {
+			if n.Value == nil || ir.IsBlank(n.Value) {
 				// for i := range x will only use x once, to compute len(x).
 				// No need to copy it.
 				break
@@ -885,9 +886,10 @@ func (o *orderState) stmt(n ir.Node) {
 
 			// n.Prealloc is the temp for the iterator.
 			// hiter contains pointers and needs to be zeroed.
-			n.Prealloc = o.newTemp(reflectdata.MapIterType(n.Type()), true)
+			n.Prealloc = o.newTemp(reflectdata.MapIterType(xt), true)
 		}
-		o.exprListInPlace(n.Vars)
+		n.Key = o.exprInPlace(n.Key)
+		n.Value = o.exprInPlace(n.Value)
 		if orderBody {
 			orderBlock(&n.Body, o.free)
 		}
@@ -912,7 +914,6 @@ func (o *orderState) stmt(n ir.Node) {
 		n := n.(*ir.SelectStmt)
 		t := o.markTemp()
 		for _, ncas := range n.Cases {
-			ncas := ncas.(*ir.CaseStmt)
 			r := ncas.Comm
 			ir.SetPos(ncas)
 
@@ -994,7 +995,6 @@ func (o *orderState) stmt(n ir.Node) {
 		// Also insert any ninit queued during the previous loop.
 		// (The temporary cleaning must follow that ninit work.)
 		for _, cas := range n.Cases {
-			cas := cas.(*ir.CaseStmt)
 			orderBlock(&cas.Body, o.free)
 			cas.Body.Prepend(o.cleanTempNoPop(t)...)
 
@@ -1034,13 +1034,12 @@ func (o *orderState) stmt(n ir.Node) {
 		n := n.(*ir.SwitchStmt)
 		if base.Debug.Libfuzzer != 0 && !hasDefaultCase(n) {
 			// Add empty "default:" case for instrumentation.
-			n.Cases.Append(ir.NewCaseStmt(base.Pos, nil, nil))
+			n.Cases = append(n.Cases, ir.NewCaseStmt(base.Pos, nil, nil))
 		}
 
 		t := o.markTemp()
 		n.Tag = o.expr(n.Tag, nil)
 		for _, ncas := range n.Cases {
-			ncas := ncas.(*ir.CaseStmt)
 			o.exprListInPlace(ncas.List)
 			orderBlock(&ncas.Body, o.free)
 		}
@@ -1054,7 +1053,6 @@ func (o *orderState) stmt(n ir.Node) {
 
 func hasDefaultCase(n *ir.SwitchStmt) bool {
 	for _, ncas := range n.Cases {
-		ncas := ncas.(*ir.CaseStmt)
 		if len(ncas.List) == 0 {
 			return true
 		}
@@ -1296,14 +1294,9 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICESTR, ir.OSLICE3, ir.OSLICE3ARR:
 		n := n.(*ir.SliceExpr)
 		n.X = o.expr(n.X, nil)
-		low, high, max := n.SliceBounds()
-		low = o.expr(low, nil)
-		low = o.cheapExpr(low)
-		high = o.expr(high, nil)
-		high = o.cheapExpr(high)
-		max = o.expr(max, nil)
-		max = o.cheapExpr(max)
-		n.SetSliceBounds(low, high, max)
+		n.Low = o.cheapExpr(o.expr(n.Low, nil))
+		n.High = o.cheapExpr(o.expr(n.High, nil))
+		n.Max = o.cheapExpr(o.expr(n.Max, nil))
 		if lhs == nil || lhs.Op() != ir.ONAME && !ir.SameSafeExpr(lhs, n.X) {
 			return o.copyExpr(n)
 		}

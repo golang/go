@@ -444,12 +444,15 @@ func stmtFmt(n Node, s fmt.State) {
 			break
 		}
 
-		if len(n.Vars) == 0 {
-			fmt.Fprintf(s, "for range %v { %v }", n.X, n.Body)
-			break
+		fmt.Fprint(s, "for")
+		if n.Key != nil {
+			fmt.Fprintf(s, " %v", n.Key)
+			if n.Value != nil {
+				fmt.Fprintf(s, ", %v", n.Value)
+			}
+			fmt.Fprint(s, " =")
 		}
-
-		fmt.Fprintf(s, "for %.v = range %v { %v }", n.Vars, n.X, n.Body)
+		fmt.Fprintf(s, " range %v { %v }", n.X, n.Body)
 
 	case OSELECT:
 		n := n.(*SelectStmt)
@@ -475,7 +478,7 @@ func stmtFmt(n Node, s fmt.State) {
 		fmt.Fprintf(s, " { %v }", n.Cases)
 
 	case OCASE:
-		n := n.(*CaseStmt)
+		n := n.(*CaseClause)
 		if len(n.List) != 0 {
 			fmt.Fprintf(s, "case %.v", n.List)
 		} else {
@@ -753,7 +756,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 			fmt.Fprint(s, ".<nil>")
 			return
 		}
-		fmt.Fprintf(s, ".%s", types.SymMethodName(n.Method.Sym))
+		fmt.Fprintf(s, ".%s", n.Method.Sym.Name)
 
 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 		n := n.(*SelectorExpr)
@@ -762,7 +765,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 			fmt.Fprint(s, ".<nil>")
 			return
 		}
-		fmt.Fprintf(s, ".%s", types.SymMethodName(n.Sel))
+		fmt.Fprintf(s, ".%s", n.Sel.Name)
 
 	case ODOTTYPE, ODOTTYPE2:
 		n := n.(*TypeAssertExpr)
@@ -782,28 +785,24 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		n := n.(*SliceExpr)
 		exprFmt(n.X, s, nprec)
 		fmt.Fprint(s, "[")
-		low, high, max := n.SliceBounds()
-		if low != nil {
-			fmt.Fprint(s, low)
+		if n.Low != nil {
+			fmt.Fprint(s, n.Low)
 		}
 		fmt.Fprint(s, ":")
-		if high != nil {
-			fmt.Fprint(s, high)
+		if n.High != nil {
+			fmt.Fprint(s, n.High)
 		}
 		if n.Op().IsSlice3() {
 			fmt.Fprint(s, ":")
-			if max != nil {
-				fmt.Fprint(s, max)
+			if n.Max != nil {
+				fmt.Fprint(s, n.Max)
 			}
 		}
 		fmt.Fprint(s, "]")
 
 	case OSLICEHEADER:
 		n := n.(*SliceHeaderExpr)
-		if len(n.LenCap) != 2 {
-			base.Fatalf("bad OSLICEHEADER list length %d", len(n.LenCap))
-		}
-		fmt.Fprintf(s, "sliceheader{%v,%v,%v}", n.Ptr, n.LenCap[0], n.LenCap[1])
+		fmt.Fprintf(s, "sliceheader{%v,%v,%v}", n.Ptr, n.Len, n.Cap)
 
 	case OCOMPLEX, OCOPY:
 		n := n.(*BinaryExpr)

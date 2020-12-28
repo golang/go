@@ -10,7 +10,7 @@ import "cmd/compile/internal/base"
 // hashing a Type.
 type AlgKind int
 
-//go:generate stringer -type AlgKind -trimprefix A
+//go:generate stringer -type AlgKind -trimprefix A alg.go
 
 const (
 	// These values are known by runtime.

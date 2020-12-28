@@ -21,6 +21,7 @@ import (
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/search"
+	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 
 	"golang.org/x/mod/module"
@@ -1005,13 +1006,8 @@ func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
 	sort.Slice(versions, func(i, j int) bool {
 		return semver.Compare(versions[i], versions[j]) < 0
 	})
-	uniq := versions[:1]
-	for _, v := range versions {
-		if v != uniq[len(uniq)-1] {
-			uniq = append(uniq, v)
-		}
-	}
-	return uniq, nil
+	str.Uniq(&versions)
+	return versions, nil
 }
 
 func (rr *replacementRepo) Stat(rev string) (*modfetch.RevInfo, error) {

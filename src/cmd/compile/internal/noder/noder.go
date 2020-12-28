@@ -510,11 +510,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
 	names := p.declNames(ir.ONAME, decl.NameList)
 	typ := p.typeExprOrNil(decl.Type)
-
-	var exprs []ir.Node
-	if decl.Values != nil {
-		exprs = p.exprList(decl.Values)
-	}
+	exprs := p.exprList(decl.Values)
 
 	if pragma, ok := decl.Pragma.(*pragmas); ok {
 		if len(pragma.Embeds) > 0 {
@@ -753,10 +749,14 @@ func (p *noder) param(param *syntax.Field, dddOk, final bool) *ir.Field {
 }
 
 func (p *noder) exprList(expr syntax.Expr) []ir.Node {
-	if list, ok := expr.(*syntax.ListExpr); ok {
-		return p.exprs(list.ElemList)
+	switch expr := expr.(type) {
+	case nil:
+		return nil
+	case *syntax.ListExpr:
+		return p.exprs(expr.ElemList)
+	default:
+		return []ir.Node{p.expr(expr)}
 	}
-	return []ir.Node{p.expr(expr)}
 }
 
 func (p *noder) exprs(exprs []syntax.Expr) []ir.Node {
@@ -775,17 +775,14 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 	case *syntax.Name:
 		return p.mkname(expr)
 	case *syntax.BasicLit:
-		n := ir.NewLiteral(p.basicLit(expr))
+		n := ir.NewBasicLit(p.pos(expr), p.basicLit(expr))
 		if expr.Kind == syntax.RuneLit {
 			n.SetType(types.UntypedRune)
 		}
 		n.SetDiag(expr.Bad) // avoid follow-on errors if there was a syntax error
 		return n
 	case *syntax.CompositeLit:
-		n := ir.NewCompLitExpr(p.pos(expr), ir.OCOMPLIT, nil, nil)
-		if expr.Type != nil {
-			n.Ntype = ir.Node(p.expr(expr.Type)).(ir.Ntype)
-		}
+		n := ir.NewCompLitExpr(p.pos(expr), ir.OCOMPLIT, p.typeExpr(expr.Type), nil)
 		l := p.exprs(expr.ElemList)
 		for i, e := range l {
 			l[i] = p.wrapname(expr.ElemList[i], e)
@@ -818,17 +815,16 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		if expr.Full {
 			op = ir.OSLICE3
 		}
-		n := ir.NewSliceExpr(p.pos(expr), op, p.expr(expr.X))
+		x := p.expr(expr.X)
 		var index [3]ir.Node
-		for i, x := range &expr.Index {
-			if x != nil {
-				index[i] = p.expr(x)
+		for i, n := range &expr.Index {
+			if n != nil {
+				index[i] = p.expr(n)
 			}
 		}
-		n.SetSliceBounds(index[0], index[1], index[2])
-		return n
+		return ir.NewSliceExpr(p.pos(expr), op, x, index[0], index[1], index[2])
 	case *syntax.AssertExpr:
-		return ir.NewTypeAssertExpr(p.pos(expr), p.expr(expr.X), p.typeExpr(expr.Type).(ir.Ntype))
+		return ir.NewTypeAssertExpr(p.pos(expr), p.expr(expr.X), p.typeExpr(expr.Type))
 	case *syntax.Operation:
 		if expr.Op == syntax.Add && expr.Y != nil {
 			return p.sum(expr)
@@ -852,8 +848,7 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		}
 		return ir.NewBinaryExpr(pos, op, x, y)
 	case *syntax.CallExpr:
-		n := ir.NewCallExpr(p.pos(expr), ir.OCALL, p.expr(expr.Fun), nil)
-		n.Args.Set(p.exprs(expr.ArgList))
+		n := ir.NewCallExpr(p.pos(expr), ir.OCALL, p.expr(expr.Fun), p.exprs(expr.ArgList))
 		n.IsDDD = expr.HasDots
 		return n
 
@@ -1120,7 +1115,7 @@ func (p *noder) stmt(stmt syntax.Stmt) ir.Node {
 func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 	p.setlineno(stmt)
 	switch stmt := stmt.(type) {
-	case *syntax.EmptyStmt:
+	case nil, *syntax.EmptyStmt:
 		return nil
 	case *syntax.LabeledStmt:
 		return p.labeledStmt(stmt, fallOK)
@@ -1193,12 +1188,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 		}
 		return ir.NewGoDeferStmt(p.pos(stmt), op, p.expr(stmt.Call))
 	case *syntax.ReturnStmt:
-		var results []ir.Node
-		if stmt.Results != nil {
-			results = p.exprList(stmt.Results)
-		}
-		n := ir.NewReturnStmt(p.pos(stmt), nil)
-		n.Results.Set(results)
+		n := ir.NewReturnStmt(p.pos(stmt), p.exprList(stmt.Results))
 		if len(n.Results) == 0 && ir.CurFunc != nil {
 			for _, ln := range ir.CurFunc.Dcl {
 				if ln.Class_ == ir.PPARAM {
@@ -1292,14 +1282,11 @@ func (p *noder) blockStmt(stmt *syntax.BlockStmt) []ir.Node {
 
 func (p *noder) ifStmt(stmt *syntax.IfStmt) ir.Node {
 	p.openScope(stmt.Pos())
-	n := ir.NewIfStmt(p.pos(stmt), nil, nil, nil)
-	if stmt.Init != nil {
-		*n.PtrInit() = []ir.Node{p.stmt(stmt.Init)}
+	init := p.stmt(stmt.Init)
+	n := ir.NewIfStmt(p.pos(stmt), p.expr(stmt.Cond), p.blockStmt(stmt.Then), nil)
+	if init != nil {
+		*n.PtrInit() = []ir.Node{init}
 	}
-	if stmt.Cond != nil {
-		n.Cond = p.expr(stmt.Cond)
-	}
-	n.Body.Set(p.blockStmt(stmt.Then))
 	if stmt.Else != nil {
 		e := p.stmt(stmt.Else)
 		if e.Op() == ir.OBLOCK {
@@ -1320,53 +1307,46 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) ir.Node {
 			panic("unexpected RangeClause")
 		}
 
-		n := ir.NewRangeStmt(p.pos(r), nil, p.expr(r.X), nil)
+		n := ir.NewRangeStmt(p.pos(r), nil, nil, p.expr(r.X), nil)
 		if r.Lhs != nil {
 			n.Def = r.Def
-			n.Vars.Set(p.assignList(r.Lhs, n, n.Def))
+			lhs := p.assignList(r.Lhs, n, n.Def)
+			n.Key = lhs[0]
+			if len(lhs) > 1 {
+				n.Value = lhs[1]
+			}
 		}
 		n.Body.Set(p.blockStmt(stmt.Body))
 		p.closeAnotherScope()
 		return n
 	}
 
-	n := ir.NewForStmt(p.pos(stmt), nil, nil, nil, nil)
-	if stmt.Init != nil {
-		*n.PtrInit() = []ir.Node{p.stmt(stmt.Init)}
-	}
-	if stmt.Cond != nil {
-		n.Cond = p.expr(stmt.Cond)
-	}
-	if stmt.Post != nil {
-		n.Post = p.stmt(stmt.Post)
-	}
-	n.Body.Set(p.blockStmt(stmt.Body))
+	n := ir.NewForStmt(p.pos(stmt), p.stmt(stmt.Init), p.expr(stmt.Cond), p.stmt(stmt.Post), p.blockStmt(stmt.Body))
 	p.closeAnotherScope()
 	return n
 }
 
 func (p *noder) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
 	p.openScope(stmt.Pos())
-	n := ir.NewSwitchStmt(p.pos(stmt), nil, nil)
-	if stmt.Init != nil {
-		*n.PtrInit() = []ir.Node{p.stmt(stmt.Init)}
-	}
-	if stmt.Tag != nil {
-		n.Tag = p.expr(stmt.Tag)
+
+	init := p.stmt(stmt.Init)
+	n := ir.NewSwitchStmt(p.pos(stmt), p.expr(stmt.Tag), nil)
+	if init != nil {
+		*n.PtrInit() = []ir.Node{init}
 	}
 
 	var tswitch *ir.TypeSwitchGuard
 	if l := n.Tag; l != nil && l.Op() == ir.OTYPESW {
 		tswitch = l.(*ir.TypeSwitchGuard)
 	}
-	n.Cases.Set(p.caseClauses(stmt.Body, tswitch, stmt.Rbrace))
+	n.Cases = p.caseClauses(stmt.Body, tswitch, stmt.Rbrace)
 
 	p.closeScope(stmt.Rbrace)
 	return n
 }
 
-func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitchGuard, rbrace syntax.Pos) []ir.Node {
-	nodes := make([]ir.Node, 0, len(clauses))
+func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitchGuard, rbrace syntax.Pos) []*ir.CaseClause {
+	nodes := make([]*ir.CaseClause, 0, len(clauses))
 	for i, clause := range clauses {
 		p.setlineno(clause)
 		if i > 0 {
@@ -1374,14 +1354,11 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitch
 		}
 		p.openScope(clause.Pos())
 
-		n := ir.NewCaseStmt(p.pos(clause), nil, nil)
-		if clause.Cases != nil {
-			n.List.Set(p.exprList(clause.Cases))
-		}
+		n := ir.NewCaseStmt(p.pos(clause), p.exprList(clause.Cases), nil)
 		if tswitch != nil && tswitch.Tag != nil {
 			nn := typecheck.NewName(tswitch.Tag.Sym())
 			typecheck.Declare(nn, typecheck.DeclContext)
-			n.Vars = []ir.Node{nn}
+			n.Var = nn
 			// keep track of the instances for reporting unused
 			nn.Defn = tswitch
 		}
@@ -1416,13 +1393,11 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitch
 }
 
 func (p *noder) selectStmt(stmt *syntax.SelectStmt) ir.Node {
-	n := ir.NewSelectStmt(p.pos(stmt), nil)
-	n.Cases.Set(p.commClauses(stmt.Body, stmt.Rbrace))
-	return n
+	return ir.NewSelectStmt(p.pos(stmt), p.commClauses(stmt.Body, stmt.Rbrace))
 }
 
-func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []ir.Node {
-	nodes := make([]ir.Node, 0, len(clauses))
+func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*ir.CommClause {
+	nodes := make([]*ir.CommClause, len(clauses))
 	for i, clause := range clauses {
 		p.setlineno(clause)
 		if i > 0 {
@@ -1430,12 +1405,7 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []i
 		}
 		p.openScope(clause.Pos())
 
-		n := ir.NewCaseStmt(p.pos(clause), nil, nil)
-		if clause.Comm != nil {
-			n.List = []ir.Node{p.stmt(clause.Comm)}
-		}
-		n.Body.Set(p.stmts(clause.Body))
-		nodes = append(nodes, n)
+		nodes[i] = ir.NewCommStmt(p.pos(clause), p.stmt(clause.Comm), p.stmts(clause.Body))
 	}
 	if len(clauses) > 0 {
 		p.closeScope(rbrace)
@@ -2001,7 +1971,6 @@ func oldname(s *types.Sym) ir.Node {
 			c = typecheck.NewName(s)
 			c.Class_ = ir.PAUTOHEAP
 			c.SetIsClosureVar(true)
-			c.SetIsDDD(n.IsDDD())
 			c.Defn = n
 
 			// Link into list of active closure variables.
