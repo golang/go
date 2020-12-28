@@ -446,15 +446,18 @@ replace a.com => $SANDBOX_WORKDIR/moda/a
 
 		// To verify which modules are loaded, we'll jump to the definition of
 		// b.Hello.
-		checkHelloLocation := func(want string) {
+		checkHelloLocation := func(want string) error {
 			location, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
 			if !strings.HasSuffix(location, want) {
-				t.Errorf("expected %s, got %v", want, location)
+				return fmt.Errorf("expected %s, got %v", want, location)
 			}
+			return nil
 		}
 
 		// Initially this should be in the module cache, as b.com is not replaced.
-		checkHelloLocation("b.com@v1.2.3/b/b.go")
+		if err := checkHelloLocation("b.com@v1.2.3/b/b.go"); err != nil {
+			t.Fatal(err)
+		}
 
 		// Now, modify the gopls.mod file on disk to activate the b.com module in
 		// the workspace.
@@ -483,7 +486,9 @@ replace b.com => %s/modb
 		env.ApplyQuickFixes("modb/go.mod", d.Diagnostics)
 		env.Await(env.DiagnosticAtRegexp("modb/b/b.go", "x"))
 		// Jumping to definition should now go to b.com in the workspace.
-		checkHelloLocation("modb/b/b.go")
+		if err := checkHelloLocation("modb/b/b.go"); err != nil {
+			t.Fatal(err)
+		}
 
 		// Now, let's modify the gopls.mod *overlay* (not on disk), and verify that
 		// this change is only picked up once it is saved.
@@ -504,10 +509,14 @@ replace a.com => %s/moda/a
 			EmptyDiagnostics("modb/go.mod"),
 		))
 		// ...but does not yet cause a workspace reload, so we should still jump to modb.
-		checkHelloLocation("modb/b/b.go")
+		if err := checkHelloLocation("modb/b/b.go"); err != nil {
+			t.Fatal(err)
+		}
 		// Saving should reload the workspace.
 		env.SaveBufferWithoutActions("gopls.mod")
-		checkHelloLocation("b.com@v1.2.3/b/b.go")
+		if err := checkHelloLocation("b.com@v1.2.3/b/b.go"); err != nil {
+			t.Fatal(err)
+		}
 	})
 }
 
