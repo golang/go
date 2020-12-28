@@ -1313,7 +1313,7 @@ func mexit(osStack bool) {
 		throw("locked m0 woke up")
 	}
 
-	sigblock()
+	sigblock(true)
 	unminit()
 
 	// Free the gsignal stack.
@@ -1515,6 +1515,7 @@ func syscall_runtime_doAllThreadsSyscall(fn func(bool) bool) {
 	if netpollinited() {
 		netpollBreak()
 	}
+	sigRecvPrepareForFixup()
 	_g_ := getg()
 	if raceenabled {
 		// For m's running without racectx, we loan out the
@@ -1754,7 +1755,7 @@ func needm() {
 	// starting a new m to run Go code via newosproc.
 	var sigmask sigset
 	sigsave(&sigmask)
-	sigblock()
+	sigblock(false)
 
 	// Lock extra list, take head, unlock popped list.
 	// nilokay=false is safe here because of the invariant above,
@@ -1903,7 +1904,7 @@ func dropm() {
 	// Setg(nil) clears g, which is the signal handler's cue not to run Go handlers.
 	// It's important not to try to handle a signal between those two steps.
 	sigmask := mp.sigmask
-	sigblock()
+	sigblock(false)
 	unminit()
 
 	mnext := lockextra(true)
@@ -3776,7 +3777,7 @@ func beforefork() {
 	// group. See issue #18600.
 	gp.m.locks++
 	sigsave(&gp.m.sigmask)
-	sigblock()
+	sigblock(false)
 
 	// This function is called before fork in syscall package.
 	// Code between fork and exec must not allocate memory nor even try to grow stack.

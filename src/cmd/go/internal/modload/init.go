@@ -15,6 +15,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,6 +28,7 @@ import (
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/search"
+	"cmd/go/internal/str"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -845,13 +847,15 @@ func AllowWriteGoMod() {
 // MinReqs returns a Reqs with minimal additional dependencies of Target,
 // as will be written to go.mod.
 func MinReqs() mvs.Reqs {
-	var retain []string
+	retain := append([]string{}, additionalExplicitRequirements...)
 	for _, m := range buildList[1:] {
 		_, explicit := index.require[m]
 		if explicit || loaded.direct[m.Path] {
 			retain = append(retain, m.Path)
 		}
 	}
+	sort.Strings(retain)
+	str.Uniq(&retain)
 	min, err := mvs.Req(Target, retain, &mvsReqs{buildList: buildList})
 	if err != nil {
 		base.Fatalf("go: %v", err)

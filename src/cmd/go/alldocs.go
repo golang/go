@@ -1192,6 +1192,7 @@
 // 		Require []Require
 // 		Exclude []Module
 // 		Replace []Replace
+// 		Retract []Retract
 // 	}
 //
 // 	type Require struct {
