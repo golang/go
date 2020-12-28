@@ -173,22 +173,92 @@ func NewBranchStmt(pos src.XPos, op Op, label *types.Sym) *BranchStmt {
 
 func (n *BranchStmt) Sym() *types.Sym { return n.Label }
 
-// A CaseStmt is a case statement in a switch or select: case List: Body.
-type CaseStmt struct {
+// A CaseClause is a case statement in a switch or select: case List: Body.
+type CaseClause struct {
 	miniStmt
-	Vars Nodes // declared variable for this case in type switch
+	Var  Node  // declared variable for this case in type switch
 	List Nodes // list of expressions for switch, early select
-	Comm Node  // communication case (Exprs[0]) after select is type-checked
 	Body Nodes
 }
 
-func NewCaseStmt(pos src.XPos, list, body []Node) *CaseStmt {
-	n := &CaseStmt{}
+func NewCaseStmt(pos src.XPos, list, body []Node) *CaseClause {
+	n := &CaseClause{List: list, Body: body}
 	n.pos = pos
 	n.op = OCASE
-	n.List.Set(list)
-	n.Body.Set(body)
 	return n
+}
+
+// TODO(mdempsky): Generate these with mknode.go.
+func copyCases(list []*CaseClause) []*CaseClause {
+	if list == nil {
+		return nil
+	}
+	c := make([]*CaseClause, len(list))
+	copy(c, list)
+	return c
+}
+func maybeDoCases(list []*CaseClause, err error, do func(Node) error) error {
+	if err != nil {
+		return err
+	}
+	for _, x := range list {
+		if x != nil {
+			if err := do(x); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+func editCases(list []*CaseClause, edit func(Node) Node) {
+	for i, x := range list {
+		if x != nil {
+			list[i] = edit(x).(*CaseClause)
+		}
+	}
+}
+
+type CommClause struct {
+	miniStmt
+	Comm Node // communication case
+	Body Nodes
+}
+
+func NewCommStmt(pos src.XPos, comm Node, body []Node) *CommClause {
+	n := &CommClause{Comm: comm, Body: body}
+	n.pos = pos
+	n.op = OCASE
+	return n
+}
+
+// TODO(mdempsky): Generate these with mknode.go.
+func copyComms(list []*CommClause) []*CommClause {
+	if list == nil {
+		return nil
+	}
+	c := make([]*CommClause, len(list))
+	copy(c, list)
+	return c
+}
+func maybeDoComms(list []*CommClause, err error, do func(Node) error) error {
+	if err != nil {
+		return err
+	}
+	for _, x := range list {
+		if x != nil {
+			if err := do(x); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+func editComms(list []*CommClause, edit func(Node) Node) {
+	for i, x := range list {
+		if x != nil {
+			list[i] = edit(x).(*CommClause)
+		}
+	}
 }
 
 // A ForStmt is a non-range for loop: for Init; Cond; Post { Body }
@@ -203,11 +273,13 @@ type ForStmt struct {
 	HasBreak bool
 }
 
-func NewForStmt(pos src.XPos, init []Node, cond, post Node, body []Node) *ForStmt {
+func NewForStmt(pos src.XPos, init Node, cond, post Node, body []Node) *ForStmt {
 	n := &ForStmt{Cond: cond, Post: post}
 	n.pos = pos
 	n.op = OFOR
-	n.init.Set(init)
+	if init != nil {
+		n.init = []Node{init}
+	}
 	n.Body.Set(body)
 	return n
 }
@@ -290,31 +362,26 @@ func NewLabelStmt(pos src.XPos, label *types.Sym) *LabelStmt {
 
 func (n *LabelStmt) Sym() *types.Sym { return n.Label }
 
-// A RangeStmt is a range loop: for Vars = range X { Stmts }
-// Op can be OFOR or OFORUNTIL (!Cond).
+// A RangeStmt is a range loop: for Key, Value = range X { Body }
 type RangeStmt struct {
 	miniStmt
 	Label    *types.Sym
-	Vars     Nodes // TODO(rsc): Replace with Key, Value Node
 	Def      bool
 	X        Node
+	Key      Node
+	Value    Node
 	Body     Nodes
 	HasBreak bool
-	typ      *types.Type // TODO(rsc): Remove - use X.Type() instead
 	Prealloc *Name
 }
 
-func NewRangeStmt(pos src.XPos, vars []Node, x Node, body []Node) *RangeStmt {
-	n := &RangeStmt{X: x}
+func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node) *RangeStmt {
+	n := &RangeStmt{X: x, Key: key, Value: value}
 	n.pos = pos
 	n.op = ORANGE
-	n.Vars.Set(vars)
 	n.Body.Set(body)
 	return n
 }
-
-func (n *RangeStmt) Type() *types.Type     { return n.typ }
-func (n *RangeStmt) SetType(x *types.Type) { n.typ = x }
 
 // A ReturnStmt is a return statement.
 type ReturnStmt struct {
@@ -339,18 +406,17 @@ func (n *ReturnStmt) SetOrig(x Node) { n.orig = x }
 type SelectStmt struct {
 	miniStmt
 	Label    *types.Sym
-	Cases    Nodes
+	Cases    []*CommClause
 	HasBreak bool
 
 	// TODO(rsc): Instead of recording here, replace with a block?
 	Compiled Nodes // compiled form, after walkswitch
 }
 
-func NewSelectStmt(pos src.XPos, cases []Node) *SelectStmt {
-	n := &SelectStmt{}
+func NewSelectStmt(pos src.XPos, cases []*CommClause) *SelectStmt {
+	n := &SelectStmt{Cases: cases}
 	n.pos = pos
 	n.op = OSELECT
-	n.Cases.Set(cases)
 	return n
 }
 
@@ -372,7 +438,7 @@ func NewSendStmt(pos src.XPos, ch, value Node) *SendStmt {
 type SwitchStmt struct {
 	miniStmt
 	Tag      Node
-	Cases    Nodes // list of *CaseStmt
+	Cases    []*CaseClause
 	Label    *types.Sym
 	HasBreak bool
 
@@ -380,11 +446,10 @@ type SwitchStmt struct {
 	Compiled Nodes // compiled form, after walkswitch
 }
 
-func NewSwitchStmt(pos src.XPos, tag Node, cases []Node) *SwitchStmt {
-	n := &SwitchStmt{Tag: tag}
+func NewSwitchStmt(pos src.XPos, tag Node, cases []*CaseClause) *SwitchStmt {
+	n := &SwitchStmt{Tag: tag, Cases: cases}
 	n.pos = pos
 	n.op = OSWITCH
-	n.Cases.Set(cases)
 	return n
 }
 

@@ -115,14 +115,6 @@ func (n *StructType) SetOTYPE(t *types.Type) {
 	n.Fields = nil
 }
 
-func deepCopyFields(pos src.XPos, fields []*Field) []*Field {
-	var out []*Field
-	for _, f := range fields {
-		out = append(out, f.deepCopy(pos))
-	}
-	return out
-}
-
 // An InterfaceType represents a struct { ... } type syntax.
 type InterfaceType struct {
 	miniType
@@ -248,26 +240,6 @@ func editFields(list []*Field, edit func(Node) Node) {
 	for _, f := range list {
 		editField(f, edit)
 	}
-}
-
-func (f *Field) deepCopy(pos src.XPos) *Field {
-	if f == nil {
-		return nil
-	}
-	fpos := pos
-	if !pos.IsKnown() {
-		fpos = f.Pos
-	}
-	decl := f.Decl
-	if decl != nil {
-		decl = DeepCopy(pos, decl).(*Name)
-	}
-	ntype := f.Ntype
-	if ntype != nil {
-		ntype = DeepCopy(pos, ntype).(Ntype)
-	}
-	// No keyed literal here: if a new struct field is added, we want this to stop compiling.
-	return &Field{fpos, f.Sym, ntype, f.Type, f.Embedded, f.IsDDD, f.Note, decl}
 }
 
 // A SliceType represents a []Elem type syntax.

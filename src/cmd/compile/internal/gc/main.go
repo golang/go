@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/devirtualize"
 	"cmd/compile/internal/dwarfgen"
 	"cmd/compile/internal/escape"
 	"cmd/compile/internal/inline"
@@ -243,7 +244,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// Devirtualize.
 	for _, n := range typecheck.Target.Decls {
 		if n.Op() == ir.ODCLFUNC {
-			inline.Devirtualize(n.(*ir.Func))
+			devirtualize.Func(n.(*ir.Func))
 		}
 	}
 	ir.CurFunc = nil

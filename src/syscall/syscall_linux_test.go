@@ -597,6 +597,14 @@ func compareStatus(filter, expect string) error {
 	return nil
 }
 
+// killAThread locks the goroutine to an OS thread and exits; this
+// causes an OS thread to terminate.
+func killAThread(c <-chan struct{}) {
+	runtime.LockOSThread()
+	<-c
+	return
+}
+
 // TestSetuidEtc performs tests on all of the wrapped system calls
 // that mirror to the 9 glibc syscalls with POSIX semantics. The test
 // here is considered authoritative and should compile and run
@@ -647,6 +655,11 @@ func TestSetuidEtc(t *testing.T) {
 	}
 
 	for i, v := range vs {
+		// Generate some thread churn as we execute the tests.
+		c := make(chan struct{})
+		go killAThread(c)
+		close(c)
+
 		if err := v.fn(); err != nil {
 			t.Errorf("[%d] %q failed: %v", i, v.call, err)
 			continue

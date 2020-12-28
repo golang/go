@@ -33,9 +33,9 @@ type VarObject interface {
 	RecordFrameOffset(int64) // save frame offset
 }
 
-//go:generate stringer -type EType -trimprefix T
+//go:generate stringer -type Kind -trimprefix T type.go
 
-// EType describes a kind of type.
+// Kind describes a kind of type.
 type Kind uint8
 
 const (

@@ -154,6 +154,12 @@ func TestReadMetricsConsistency(t *testing.T) {
 	if totalVirtual.got != totalVirtual.want {
 		t.Errorf(`"/memory/classes/total:bytes" does not match sum of /memory/classes/**: got %d, want %d`, totalVirtual.got, totalVirtual.want)
 	}
+	if objects.alloc.Counts[0] > 0 {
+		t.Error("found counts for objects of non-positive size in allocs-by-size")
+	}
+	if objects.free.Counts[0] > 0 {
+		t.Error("found counts for objects of non-positive size in frees-by-size")
+	}
 	if len(objects.alloc.Buckets) != len(objects.free.Buckets) {
 		t.Error("allocs-by-size and frees-by-size buckets don't match in length")
 	} else if len(objects.alloc.Counts) != len(objects.free.Counts) {

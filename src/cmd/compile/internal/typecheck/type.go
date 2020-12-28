@@ -73,13 +73,42 @@ func tcChanType(n *ir.ChanType) ir.Node {
 
 // tcFuncType typechecks an OTFUNC node.
 func tcFuncType(n *ir.FuncType) ir.Node {
-	n.SetOTYPE(NewFuncType(n.Recv, n.Params, n.Results))
+	misc := func(f *types.Field, nf *ir.Field) {
+		f.SetIsDDD(nf.IsDDD)
+		if nf.Decl != nil {
+			nf.Decl.SetType(f.Type)
+			f.Nname = nf.Decl
+		}
+	}
+
+	lno := base.Pos
+
+	var recv *types.Field
+	if n.Recv != nil {
+		recv = tcField(n.Recv, misc)
+	}
+
+	t := types.NewSignature(types.LocalPkg, recv, tcFields(n.Params, misc), tcFields(n.Results, misc))
+	checkdupfields("argument", t.Recvs().FieldSlice(), t.Params().FieldSlice(), t.Results().FieldSlice())
+
+	base.Pos = lno
+
+	n.SetOTYPE(t)
 	return n
 }
 
 // tcInterfaceType typechecks an OTINTER node.
 func tcInterfaceType(n *ir.InterfaceType) ir.Node {
-	n.SetOTYPE(tointerface(n.Methods))
+	if len(n.Methods) == 0 {
+		n.SetOTYPE(types.Types[types.TINTER])
+		return n
+	}
+	
+	lno := base.Pos
+	methods := tcFields(n.Methods, nil)
+	base.Pos = lno
+
+	n.SetOTYPE(types.NewInterface(types.LocalPkg, methods))
 	return n
 }
 
@@ -117,6 +146,43 @@ func tcSliceType(n *ir.SliceType) ir.Node {
 
 // tcStructType typechecks an OTSTRUCT node.
 func tcStructType(n *ir.StructType) ir.Node {
-	n.SetOTYPE(NewStructType(n.Fields))
+	lno := base.Pos
+
+	fields := tcFields(n.Fields, func(f *types.Field, nf *ir.Field) {
+		if nf.Embedded {
+			checkembeddedtype(f.Type)
+			f.Embedded = 1
+		}
+		f.Note = nf.Note
+	})
+	checkdupfields("field", fields)
+
+	base.Pos = lno
+	n.SetOTYPE(types.NewStruct(types.LocalPkg, fields))
 	return n
+}
+
+// tcField typechecks a generic Field.
+// misc can be provided to handle specialized typechecking.
+func tcField(n *ir.Field, misc func(*types.Field, *ir.Field)) *types.Field {
+	base.Pos = n.Pos
+	if n.Ntype != nil {
+		n.Type = typecheckNtype(n.Ntype).Type()
+		n.Ntype = nil
+	}
+	f := types.NewField(n.Pos, n.Sym, n.Type)
+	if misc != nil {
+		misc(f, n)
+	}
+	return f
+}
+
+// tcFields typechecks a slice of generic Fields.
+// misc can be provided to handle specialized typechecking.
+func tcFields(l []*ir.Field, misc func(*types.Field, *ir.Field)) []*types.Field {
+	fields := make([]*types.Field, len(l))
+	for i, n := range l {
+		fields[i] = tcField(n, misc)
+	}
+	return fields
 }

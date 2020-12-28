@@ -206,50 +206,22 @@ func (f *Func) SetWBPos(pos src.XPos) {
 }
 
 // funcname returns the name (without the package) of the function n.
-func FuncName(n Node) string {
-	var f *Func
-	switch n := n.(type) {
-	case *Func:
-		f = n
-	case *Name:
-		f = n.Func
-	case *CallPartExpr:
-		f = n.Func
-	case *ClosureExpr:
-		f = n.Func
-	}
+func FuncName(f *Func) string {
 	if f == nil || f.Nname == nil {
 		return "<nil>"
 	}
-	return f.Nname.Sym().Name
+	return f.Sym().Name
 }
 
 // pkgFuncName returns the name of the function referenced by n, with package prepended.
 // This differs from the compiler's internal convention where local functions lack a package
 // because the ultimate consumer of this is a human looking at an IDE; package is only empty
 // if the compilation package is actually the empty string.
-func PkgFuncName(n Node) string {
-	var s *types.Sym
-	if n == nil {
+func PkgFuncName(f *Func) string {
+	if f == nil || f.Nname == nil {
 		return "<nil>"
 	}
-	if n.Op() == ONAME {
-		s = n.Sym()
-	} else {
-		var f *Func
-		switch n := n.(type) {
-		case *CallPartExpr:
-			f = n.Func
-		case *ClosureExpr:
-			f = n.Func
-		case *Func:
-			f = n
-		}
-		if f == nil || f.Nname == nil {
-			return "<nil>"
-		}
-		s = f.Nname.Sym()
-	}
+	s := f.Sym()
 	pkg := s.Pkg
 
 	p := base.Ctxt.Pkgpath

@@ -73,17 +73,17 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
 	// The information appears in the binary in the form of type descriptors;
 	// the struct is unnamed so that closures in multiple packages with the
 	// same struct type can share the descriptor.
-	fields := []*ir.Field{
-		ir.NewField(base.Pos, Lookup(".F"), nil, types.Types[types.TUINTPTR]),
+	fields := []*types.Field{
+		types.NewField(base.Pos, Lookup(".F"), types.Types[types.TUINTPTR]),
 	}
 	for _, v := range clo.Func.ClosureVars {
 		typ := v.Type()
 		if !v.Byval() {
 			typ = types.NewPtr(typ)
 		}
-		fields = append(fields, ir.NewField(base.Pos, v.Sym(), nil, typ))
+		fields = append(fields, types.NewField(base.Pos, v.Sym(), typ))
 	}
-	typ := NewStructType(fields)
+	typ := types.NewStruct(types.NoPkg, fields)
 	typ.SetNoalg(true)
 	return typ
 }
@@ -92,9 +92,9 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
 // needed in the closure for n (n must be a OCALLPART node).
 // The address of a variable of the returned type can be cast to a func.
 func PartialCallType(n *ir.CallPartExpr) *types.Type {
-	t := NewStructType([]*ir.Field{
-		ir.NewField(base.Pos, Lookup("F"), nil, types.Types[types.TUINTPTR]),
-		ir.NewField(base.Pos, Lookup("R"), nil, n.X.Type()),
+	t := types.NewStruct(types.NoPkg, []*types.Field{
+		types.NewField(base.Pos, Lookup("F"), types.Types[types.TUINTPTR]),
+		types.NewField(base.Pos, Lookup("R"), n.X.Type()),
 	})
 	t.SetNoalg(true)
 	return t
@@ -249,7 +249,9 @@ var globClosgen int32
 
 // makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
 // for partial calls.
-func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.Func {
+func makepartialcall(dot *ir.SelectorExpr) *ir.Func {
+	t0 := dot.Type()
+	meth := dot.Sel
 	rcvrtype := dot.X.Type()
 	sym := ir.MethodSymSuffix(rcvrtype, meth, "-fm")
 
@@ -263,11 +265,10 @@ func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.
 	ir.CurFunc = nil
 
 	// Set line number equal to the line number where the method is declared.
-	var m *types.Field
-	if lookdot0(meth, rcvrtype, &m, false) == 1 && m.Pos.IsKnown() {
-		base.Pos = m.Pos
+	if pos := dot.Selection.Pos; pos.IsKnown() {
+		base.Pos = pos
 	}
-	// Note: !m.Pos.IsKnown() happens for method expressions where
+	// Note: !dot.Selection.Pos.IsKnown() happens for method expressions where
 	// the method is implicitly declared. The Error method of the
 	// built-in error type is one such method.  We leave the line
 	// number at the use of the method expression in this
@@ -280,18 +281,17 @@ func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.
 	fn := DeclFunc(sym, tfn)
 	fn.SetDupok(true)
 	fn.SetNeedctxt(true)
+	fn.SetWrapper(true)
 
 	// Declare and initialize variable holding receiver.
 	cr := ir.NewClosureRead(rcvrtype, types.Rnd(int64(types.PtrSize), int64(rcvrtype.Align)))
-	ptr := NewName(Lookup(".this"))
-	Declare(ptr, ir.PAUTO)
-	ptr.SetUsed(true)
+	var ptr *ir.Name
 	var body []ir.Node
 	if rcvrtype.IsPtr() || rcvrtype.IsInterface() {
-		ptr.SetType(rcvrtype)
+		ptr = Temp(rcvrtype)
 		body = append(body, ir.NewAssignStmt(base.Pos, ptr, cr))
 	} else {
-		ptr.SetType(types.NewPtr(rcvrtype))
+		ptr = Temp(types.NewPtr(rcvrtype))
 		body = append(body, ir.NewAssignStmt(base.Pos, ptr, NodAddr(cr)))
 	}
 
@@ -380,23 +380,6 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 	}
 
 	Target.Decls = append(Target.Decls, fn)
-}
-
-func tcCallPart(n ir.Node, sym *types.Sym) *ir.CallPartExpr {
-	switch n.Op() {
-	case ir.ODOTINTER, ir.ODOTMETH:
-		break
-
-	default:
-		base.Fatalf("invalid typecheckpartialcall")
-	}
-	dot := n.(*ir.SelectorExpr)
-
-	// Create top-level function.
-	fn := makepartialcall(dot, dot.Type(), sym)
-	fn.SetWrapper(true)
-
-	return ir.NewCallPartExpr(dot.Pos(), dot.X, dot.Selection, fn)
 }
 
 // type check function definition
@@ -542,9 +525,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 	default:
 		n.SetOp(ir.OCALLFUNC)
 		if t.Kind() != types.TFUNC {
-			// TODO(mdempsky): Remove "o.Sym() != nil" once we stop
-			// using ir.Name for numeric literals.
-			if o := ir.Orig(l); o.Name() != nil && o.Sym() != nil && types.BuiltinPkg.Lookup(o.Sym().Name).Def != nil {
+			if o := ir.Orig(l); o.Name() != nil && types.BuiltinPkg.Lookup(o.Sym().Name).Def != nil {
 				// be more specific when the non-function
 				// name matches a predeclared function
 				base.Errorf("cannot call non-function %L, declared at %s",

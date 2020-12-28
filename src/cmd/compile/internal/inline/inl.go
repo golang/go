@@ -324,19 +324,17 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		if t == nil {
 			base.Fatalf("no function type for [%p] %+v\n", n.X, n.X)
 		}
-		if types.IsRuntimePkg(n.X.Sym().Pkg) {
-			fn := n.X.Sym().Name
-			if fn == "heapBits.nextArena" {
-				// Special case: explicitly allow
-				// mid-stack inlining of
-				// runtime.heapBits.next even though
-				// it calls slow-path
-				// runtime.heapBits.nextArena.
-				break
-			}
+		fn := ir.MethodExprName(n.X).Func
+		if types.IsRuntimePkg(fn.Sym().Pkg) && fn.Sym().Name == "heapBits.nextArena" {
+			// Special case: explicitly allow
+			// mid-stack inlining of
+			// runtime.heapBits.next even though
+			// it calls slow-path
+			// runtime.heapBits.nextArena.
+			break
 		}
-		if inlfn := ir.MethodExprName(n.X).Func; inlfn.Inl != nil {
-			v.budget -= inlfn.Inl.Cost
+		if fn.Inl != nil {
+			v.budget -= fn.Inl.Cost
 			break
 		}
 		// Call cost for non-leaf inlining.
@@ -531,7 +529,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 		// Prevent inlining some reflect.Value methods when using checkptr,
 		// even when package reflect was compiled without it (#35073).
 		n := n.(*ir.CallExpr)
-		if s := n.X.Sym(); base.Debug.Checkptr != 0 && types.IsReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
+		if s := ir.MethodExprName(n.X).Sym(); base.Debug.Checkptr != 0 && types.IsReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
 			return n
 		}
 	}
@@ -1201,73 +1199,6 @@ func pruneUnusedAutos(ll []*ir.Name, vis *hairyVisitor) []*ir.Name {
 		s = append(s, n)
 	}
 	return s
-}
-
-// Devirtualize replaces interface method calls within fn with direct
-// concrete-type method calls where applicable.
-func Devirtualize(fn *ir.Func) {
-	ir.CurFunc = fn
-	ir.VisitList(fn.Body, func(n ir.Node) {
-		if n.Op() == ir.OCALLINTER {
-			devirtualizeCall(n.(*ir.CallExpr))
-		}
-	})
-}
-
-func devirtualizeCall(call *ir.CallExpr) {
-	sel := call.X.(*ir.SelectorExpr)
-	r := ir.StaticValue(sel.X)
-	if r.Op() != ir.OCONVIFACE {
-		return
-	}
-	recv := r.(*ir.ConvExpr)
-
-	typ := recv.X.Type()
-	if typ.IsInterface() {
-		return
-	}
-
-	dt := ir.NewTypeAssertExpr(sel.Pos(), sel.X, nil)
-	dt.SetType(typ)
-	x := typecheck.Callee(ir.NewSelectorExpr(sel.Pos(), ir.OXDOT, dt, sel.Sel))
-	switch x.Op() {
-	case ir.ODOTMETH:
-		x := x.(*ir.SelectorExpr)
-		if base.Flag.LowerM != 0 {
-			base.WarnfAt(call.Pos(), "devirtualizing %v to %v", sel, typ)
-		}
-		call.SetOp(ir.OCALLMETH)
-		call.X = x
-	case ir.ODOTINTER:
-		// Promoted method from embedded interface-typed field (#42279).
-		x := x.(*ir.SelectorExpr)
-		if base.Flag.LowerM != 0 {
-			base.WarnfAt(call.Pos(), "partially devirtualizing %v to %v", sel, typ)
-		}
-		call.SetOp(ir.OCALLINTER)
-		call.X = x
-	default:
-		// TODO(mdempsky): Turn back into Fatalf after more testing.
-		if base.Flag.LowerM != 0 {
-			base.WarnfAt(call.Pos(), "failed to devirtualize %v (%v)", x, x.Op())
-		}
-		return
-	}
-
-	// Duplicated logic from typecheck for function call return
-	// value types.
-	//
-	// Receiver parameter size may have changed; need to update
-	// call.Type to get correct stack offsets for result
-	// parameters.
-	types.CheckSize(x.Type())
-	switch ft := x.Type(); ft.NumResults() {
-	case 0:
-	case 1:
-		call.SetType(ft.Results().Field(0).Type)
-	default:
-		call.SetType(ft.Results())
-	}
 }
 
 // numNonClosures returns the number of functions in list which are not closures.

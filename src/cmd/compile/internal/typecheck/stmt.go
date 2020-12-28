@@ -11,27 +11,29 @@ import (
 	"cmd/internal/src"
 )
 
+func RangeExprType(t *types.Type) *types.Type {
+	if t.IsPtr() && t.Elem().IsArray() {
+		return t.Elem()
+	}
+	return t
+}
+
 func typecheckrangeExpr(n *ir.RangeStmt) {
 	n.X = Expr(n.X)
-
-	t := n.X.Type()
-	if t == nil {
+	if n.X.Type() == nil {
 		return
 	}
+
+	t := RangeExprType(n.X.Type())
 	// delicate little dance.  see typecheckas2
-	ls := n.Vars
-	for i1, n1 := range ls {
-		if !ir.DeclaredBy(n1, n) {
-			ls[i1] = AssignExpr(ls[i1])
-		}
+	if n.Key != nil && !ir.DeclaredBy(n.Key, n) {
+		n.Key = AssignExpr(n.Key)
+	}
+	if n.Value != nil && !ir.DeclaredBy(n.Value, n) {
+		n.Value = AssignExpr(n.Value)
 	}
 
-	if t.IsPtr() && t.Elem().IsArray() {
-		t = t.Elem()
-	}
-	n.SetType(t)
-
-	var t1, t2 *types.Type
+	var tk, tv *types.Type
 	toomany := false
 	switch t.Kind() {
 	default:
@@ -39,12 +41,12 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
 		return
 
 	case types.TARRAY, types.TSLICE:
-		t1 = types.Types[types.TINT]
-		t2 = t.Elem()
+		tk = types.Types[types.TINT]
+		tv = t.Elem()
 
 	case types.TMAP:
-		t1 = t.Key()
-		t2 = t.Elem()
+		tk = t.Key()
+		tv = t.Elem()
 
 	case types.TCHAN:
 		if !t.ChanDir().CanRecv() {
@@ -52,61 +54,35 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
 			return
 		}
 
-		t1 = t.Elem()
-		t2 = nil
-		if len(n.Vars) == 2 {
+		tk = t.Elem()
+		tv = nil
+		if n.Value != nil {
 			toomany = true
 		}
 
 	case types.TSTRING:
-		t1 = types.Types[types.TINT]
-		t2 = types.RuneType
+		tk = types.Types[types.TINT]
+		tv = types.RuneType
 	}
 
-	if len(n.Vars) > 2 || toomany {
+	if toomany {
 		base.ErrorfAt(n.Pos(), "too many variables in range")
 	}
 
-	var v1, v2 ir.Node
-	if len(n.Vars) != 0 {
-		v1 = n.Vars[0]
-	}
-	if len(n.Vars) > 1 {
-		v2 = n.Vars[1]
-	}
-
-	// this is not only an optimization but also a requirement in the spec.
-	// "if the second iteration variable is the blank identifier, the range
-	// clause is equivalent to the same clause with only the first variable
-	// present."
-	if ir.IsBlank(v2) {
-		if v1 != nil {
-			n.Vars = []ir.Node{v1}
-		}
-		v2 = nil
-	}
-
-	if v1 != nil {
-		if ir.DeclaredBy(v1, n) {
-			v1.SetType(t1)
-		} else if v1.Type() != nil {
-			if op, why := assignop(t1, v1.Type()); op == ir.OXXX {
-				base.ErrorfAt(n.Pos(), "cannot assign type %v to %L in range%s", t1, v1, why)
+	do := func(nn ir.Node, t *types.Type) {
+		if nn != nil {
+			if ir.DeclaredBy(nn, n) {
+				nn.SetType(t)
+			} else if nn.Type() != nil {
+				if op, why := assignop(t, nn.Type()); op == ir.OXXX {
+					base.ErrorfAt(n.Pos(), "cannot assign type %v to %L in range%s", t, nn, why)
+				}
 			}
+			checkassign(n, nn)
 		}
-		checkassign(n, v1)
 	}
-
-	if v2 != nil {
-		if ir.DeclaredBy(v2, n) {
-			v2.SetType(t2)
-		} else if v2.Type() != nil {
-			if op, why := assignop(t2, v2.Type()); op == ir.OXXX {
-				base.ErrorfAt(n.Pos(), "cannot assign type %v to %L in range%s", t2, v2, why)
-			}
-		}
-		checkassign(n, v2)
-	}
+	do(n.Key, tk)
+	do(n.Value, tv)
 }
 
 // type check assignment.
@@ -117,47 +93,16 @@ func tcAssign(n *ir.AssignStmt) {
 		defer tracePrint("typecheckas", n)(nil)
 	}
 
-	// delicate little dance.
-	// the definition of n may refer to this assignment
-	// as its definition, in which case it will call typecheckas.
-	// in that case, do not call typecheck back, or it will cycle.
-	// if the variable has a type (ntype) then typechecking
-	// will not look at defn, so it is okay (and desirable,
-	// so that the conversion below happens).
-	n.X = Resolve(n.X)
-
-	if !ir.DeclaredBy(n.X, n) || n.X.Name().Ntype != nil {
+	if n.Y == nil {
 		n.X = AssignExpr(n.X)
+		return
 	}
 
-	// Use ctxMultiOK so we can emit an "N variables but M values" error
-	// to be consistent with typecheckas2 (#26616).
-	n.Y = typecheck(n.Y, ctxExpr|ctxMultiOK)
-	checkassign(n, n.X)
-	if n.Y != nil && n.Y.Type() != nil {
-		if n.Y.Type().IsFuncArgStruct() {
-			base.Errorf("assignment mismatch: 1 variable but %v returns %d values", n.Y.(*ir.CallExpr).X, n.Y.Type().NumFields())
-			// Multi-value RHS isn't actually valid for OAS; nil out
-			// to indicate failed typechecking.
-			n.Y.SetType(nil)
-		} else if n.X.Type() != nil {
-			n.Y = AssignConv(n.Y, n.X.Type(), "assignment")
-		}
-	}
+	lhs, rhs := []ir.Node{n.X}, []ir.Node{n.Y}
+	assign(n, lhs, rhs)
+	n.X, n.Y = lhs[0], rhs[0]
 
-	if ir.DeclaredBy(n.X, n) && n.X.Name().Ntype == nil {
-		n.Y = DefaultLit(n.Y, nil)
-		n.X.SetType(n.Y.Type())
-	}
-
-	// second half of dance.
-	// now that right is done, typecheck the left
-	// just to get it over with.  see dance above.
-	n.SetTypecheck(1)
-
-	if n.X.Typecheck() == 0 {
-		n.X = AssignExpr(n.X)
-	}
+	// TODO(mdempsky): This seems out of place.
 	if !ir.IsBlank(n.X) {
 		types.CheckSize(n.X.Type()) // ensure width is calculated for backend
 	}
@@ -168,130 +113,116 @@ func tcAssignList(n *ir.AssignListStmt) {
 		defer tracePrint("typecheckas2", n)(nil)
 	}
 
-	ls := n.Lhs
-	for i1, n1 := range ls {
-		// delicate little dance.
-		n1 = Resolve(n1)
-		ls[i1] = n1
+	assign(n, n.Lhs, n.Rhs)
+}
 
-		if !ir.DeclaredBy(n1, n) || n1.Name().Ntype != nil {
-			ls[i1] = AssignExpr(ls[i1])
+func assign(stmt ir.Node, lhs, rhs []ir.Node) {
+	// delicate little dance.
+	// the definition of lhs may refer to this assignment
+	// as its definition, in which case it will call typecheckas.
+	// in that case, do not call typecheck back, or it will cycle.
+	// if the variable has a type (ntype) then typechecking
+	// will not look at defn, so it is okay (and desirable,
+	// so that the conversion below happens).
+
+	checkLHS := func(i int, typ *types.Type) {
+		lhs[i] = Resolve(lhs[i])
+		if n := lhs[i]; typ != nil && ir.DeclaredBy(n, stmt) && n.Name().Ntype == nil {
+			if typ.Kind() != types.TNIL {
+				n.SetType(defaultType(typ))
+			} else {
+				base.Errorf("use of untyped nil")
+			}
+		}
+		if lhs[i].Typecheck() == 0 {
+			lhs[i] = AssignExpr(lhs[i])
+		}
+		checkassign(stmt, lhs[i])
+	}
+
+	assignType := func(i int, typ *types.Type) {
+		checkLHS(i, typ)
+		if typ != nil {
+			checkassignto(typ, lhs[i])
 		}
 	}
 
-	cl := len(n.Lhs)
-	cr := len(n.Rhs)
-	if cl > 1 && cr == 1 {
-		n.Rhs[0] = typecheck(n.Rhs[0], ctxExpr|ctxMultiOK)
+	cr := len(rhs)
+	if len(rhs) == 1 {
+		rhs[0] = typecheck(rhs[0], ctxExpr|ctxMultiOK)
+		if rtyp := rhs[0].Type(); rtyp != nil && rtyp.IsFuncArgStruct() {
+			cr = rtyp.NumFields()
+		}
 	} else {
-		Exprs(n.Rhs)
-	}
-	checkassignlist(n, n.Lhs)
-
-	var l ir.Node
-	var r ir.Node
-	if cl == cr {
-		// easy
-		ls := n.Lhs
-		rs := n.Rhs
-		for il, nl := range ls {
-			nr := rs[il]
-			if nl.Type() != nil && nr.Type() != nil {
-				rs[il] = AssignConv(nr, nl.Type(), "assignment")
-			}
-			if ir.DeclaredBy(nl, n) && nl.Name().Ntype == nil {
-				rs[il] = DefaultLit(rs[il], nil)
-				nl.SetType(rs[il].Type())
-			}
-		}
-
-		goto out
-	}
-
-	l = n.Lhs[0]
-	r = n.Rhs[0]
-
-	// x,y,z = f()
-	if cr == 1 {
-		if r.Type() == nil {
-			goto out
-		}
-		switch r.Op() {
-		case ir.OCALLMETH, ir.OCALLINTER, ir.OCALLFUNC:
-			if !r.Type().IsFuncArgStruct() {
-				break
-			}
-			cr = r.Type().NumFields()
-			if cr != cl {
-				goto mismatch
-			}
-			r.(*ir.CallExpr).Use = ir.CallUseList
-			n.SetOp(ir.OAS2FUNC)
-			for i, l := range n.Lhs {
-				f := r.Type().Field(i)
-				if f.Type != nil && l.Type() != nil {
-					checkassignto(f.Type, l)
-				}
-				if ir.DeclaredBy(l, n) && l.Name().Ntype == nil {
-					l.SetType(f.Type)
-				}
-			}
-			goto out
-		}
+		Exprs(rhs)
 	}
 
 	// x, ok = y
-	if cl == 2 && cr == 1 {
-		if r.Type() == nil {
-			goto out
-		}
+assignOK:
+	for len(lhs) == 2 && cr == 1 {
+		stmt := stmt.(*ir.AssignListStmt)
+		r := rhs[0]
+
 		switch r.Op() {
-		case ir.OINDEXMAP, ir.ORECV, ir.ODOTTYPE:
-			switch r.Op() {
-			case ir.OINDEXMAP:
-				n.SetOp(ir.OAS2MAPR)
-			case ir.ORECV:
-				n.SetOp(ir.OAS2RECV)
-			case ir.ODOTTYPE:
-				r := r.(*ir.TypeAssertExpr)
-				n.SetOp(ir.OAS2DOTTYPE)
-				r.SetOp(ir.ODOTTYPE2)
-			}
-			if l.Type() != nil {
-				checkassignto(r.Type(), l)
-			}
-			if ir.DeclaredBy(l, n) {
-				l.SetType(r.Type())
-			}
-			l := n.Lhs[1]
-			if l.Type() != nil && !l.Type().IsBoolean() {
-				checkassignto(types.Types[types.TBOOL], l)
-			}
-			if ir.DeclaredBy(l, n) && l.Name().Ntype == nil {
-				l.SetType(types.Types[types.TBOOL])
-			}
-			goto out
+		case ir.OINDEXMAP:
+			stmt.SetOp(ir.OAS2MAPR)
+		case ir.ORECV:
+			stmt.SetOp(ir.OAS2RECV)
+		case ir.ODOTTYPE:
+			r := r.(*ir.TypeAssertExpr)
+			stmt.SetOp(ir.OAS2DOTTYPE)
+			r.SetOp(ir.ODOTTYPE2)
+		default:
+			break assignOK
 		}
+
+		assignType(0, r.Type())
+		assignType(1, types.UntypedBool)
+		return
 	}
 
-mismatch:
-	switch r.Op() {
-	default:
-		base.Errorf("assignment mismatch: %d variables but %d values", cl, cr)
-	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
-		r := r.(*ir.CallExpr)
-		base.Errorf("assignment mismatch: %d variables but %v returns %d values", cl, r.X, cr)
+	if len(lhs) != cr {
+		if r, ok := rhs[0].(*ir.CallExpr); ok && len(rhs) == 1 {
+			if r.Type() != nil {
+				base.ErrorfAt(stmt.Pos(), "assignment mismatch: %d variable%s but %v returns %d value%s", len(lhs), plural(len(lhs)), r.X, cr, plural(cr))
+			}
+		} else {
+			base.ErrorfAt(stmt.Pos(), "assignment mismatch: %d variable%s but %v value%s", len(lhs), plural(len(lhs)), len(rhs), plural(len(rhs)))
+		}
+
+		for i := range lhs {
+			checkLHS(i, nil)
+		}
+		return
 	}
 
-	// second half of dance
-out:
-	n.SetTypecheck(1)
-	ls = n.Lhs
-	for i1, n1 := range ls {
-		if n1.Typecheck() == 0 {
-			ls[i1] = AssignExpr(ls[i1])
+	// x,y,z = f()
+	if cr > len(rhs) {
+		stmt := stmt.(*ir.AssignListStmt)
+		stmt.SetOp(ir.OAS2FUNC)
+		r := rhs[0].(*ir.CallExpr)
+		r.Use = ir.CallUseList
+		rtyp := r.Type()
+
+		for i := range lhs {
+			assignType(i, rtyp.Field(i).Type)
+		}
+		return
+	}
+
+	for i, r := range rhs {
+		checkLHS(i, r.Type())
+		if lhs[i].Type() != nil {
+			rhs[i] = AssignConv(r, lhs[i].Type(), "assignment")
 		}
 	}
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }
 
 // tcFor typechecks an OFOR node.
@@ -399,11 +330,11 @@ func tcRange(n *ir.RangeStmt) {
 
 	// second half of dance, the first half being typecheckrangeExpr
 	n.SetTypecheck(1)
-	ls := n.Vars
-	for i1, n1 := range ls {
-		if n1.Typecheck() == 0 {
-			ls[i1] = AssignExpr(ls[i1])
-		}
+	if n.Key != nil && n.Key.Typecheck() == 0 {
+		n.Key = AssignExpr(n.Key)
+	}
+	if n.Value != nil && n.Value.Typecheck() == 0 {
+		n.Value = AssignExpr(n.Value)
 	}
 
 	decldepth++
@@ -429,31 +360,23 @@ func tcReturn(n *ir.ReturnStmt) ir.Node {
 
 // select
 func tcSelect(sel *ir.SelectStmt) {
-	var def ir.Node
+	var def *ir.CommClause
 	lno := ir.SetPos(sel)
 	Stmts(sel.Init())
 	for _, ncase := range sel.Cases {
-		ncase := ncase.(*ir.CaseStmt)
-
-		if len(ncase.List) == 0 {
+		if ncase.Comm == nil {
 			// default
 			if def != nil {
 				base.ErrorfAt(ncase.Pos(), "multiple defaults in select (first at %v)", ir.Line(def))
 			} else {
 				def = ncase
 			}
-		} else if len(ncase.List) > 1 {
-			base.ErrorfAt(ncase.Pos(), "select cases cannot be lists")
 		} else {
-			ncase.List[0] = Stmt(ncase.List[0])
-			n := ncase.List[0]
+			n := Stmt(ncase.Comm)
 			ncase.Comm = n
-			ncase.List.Set(nil)
-			oselrecv2 := func(dst, recv ir.Node, colas bool) {
-				n := ir.NewAssignListStmt(n.Pos(), ir.OSELRECV2, nil, nil)
-				n.Lhs = []ir.Node{dst, ir.BlankNode}
-				n.Rhs = []ir.Node{recv}
-				n.Def = colas
+			oselrecv2 := func(dst, recv ir.Node, def bool) {
+				n := ir.NewAssignListStmt(n.Pos(), ir.OSELRECV2, []ir.Node{dst, ir.BlankNode}, []ir.Node{recv})
+				n.Def = def
 				n.SetTypecheck(1)
 				ncase.Comm = n
 			}
@@ -577,7 +500,6 @@ func tcSwitchExpr(n *ir.SwitchStmt) {
 	var defCase ir.Node
 	var cs constSet
 	for _, ncase := range n.Cases {
-		ncase := ncase.(*ir.CaseStmt)
 		ls := ncase.List
 		if len(ls) == 0 { // default:
 			if defCase != nil {
@@ -646,7 +568,6 @@ func tcSwitchType(n *ir.SwitchStmt) {
 	var defCase, nilCase ir.Node
 	var ts typeSet
 	for _, ncase := range n.Cases {
-		ncase := ncase.(*ir.CaseStmt)
 		ls := ncase.List
 		if len(ls) == 0 { // default:
 			if defCase != nil {
@@ -694,7 +615,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
 			ts.add(ncase.Pos(), n1.Type())
 		}
 
-		if len(ncase.Vars) != 0 {
+		if ncase.Var != nil {
 			// Assign the clause variable's type.
 			vt := t
 			if len(ls) == 1 {
@@ -707,7 +628,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
 				}
 			}
 
-			nvar := ncase.Vars[0]
+			nvar := ncase.Var
 			nvar.SetType(vt)
 			if vt != nil {
 				nvar = AssignExpr(nvar)
@@ -716,7 +637,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
 				nvar.SetTypecheck(1)
 				nvar.SetWalkdef(1)
 			}
-			ncase.Vars[0] = nvar
+			ncase.Var = nvar
 		}
 
 		Stmts(ncase.Body)

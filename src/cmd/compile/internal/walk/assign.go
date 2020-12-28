@@ -297,54 +297,6 @@ func fncall(l ir.Node, rt *types.Type) bool {
 	return true
 }
 
-func ascompatee(op ir.Op, nl, nr []ir.Node, init *ir.Nodes) []ir.Node {
-	// check assign expression list to
-	// an expression list. called in
-	//	expr-list = expr-list
-
-	// ensure order of evaluation for function calls
-	for i := range nl {
-		nl[i] = safeExpr(nl[i], init)
-	}
-	for i1 := range nr {
-		nr[i1] = safeExpr(nr[i1], init)
-	}
-
-	var nn []*ir.AssignStmt
-	i := 0
-	for ; i < len(nl); i++ {
-		if i >= len(nr) {
-			break
-		}
-		// Do not generate 'x = x' during return. See issue 4014.
-		if op == ir.ORETURN && ir.SameSafeExpr(nl[i], nr[i]) {
-			continue
-		}
-		nn = append(nn, ascompatee1(nl[i], nr[i], init))
-	}
-
-	// cannot happen: caller checked that lists had same length
-	if i < len(nl) || i < len(nr) {
-		var nln, nrn ir.Nodes
-		nln.Set(nl)
-		nrn.Set(nr)
-		base.Fatalf("error in shape across %+v %v %+v / %d %d [%s]", nln, op, nrn, len(nl), len(nr), ir.FuncName(ir.CurFunc))
-	}
-	return reorder3(nn)
-}
-
-func ascompatee1(l ir.Node, r ir.Node, init *ir.Nodes) *ir.AssignStmt {
-	// convas will turn map assigns into function calls,
-	// making it impossible for reorder3 to work.
-	n := ir.NewAssignStmt(base.Pos, l, r)
-
-	if l.Op() == ir.OINDEXMAP {
-		return n
-	}
-
-	return convas(n, init)
-}
-
 // check assign type list to
 // an expression list. called in
 //	expr-list = func()
@@ -387,39 +339,79 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
 	return append(nn, mm...)
 }
 
-// reorder3
-// from ascompatee
-//	a,b = c,d
-// simultaneous assignment. there cannot
-// be later use of an earlier lvalue.
-//
-// function calls have been removed.
-func reorder3(all []*ir.AssignStmt) []ir.Node {
+// check assign expression list to
+// an expression list. called in
+//	expr-list = expr-list
+func ascompatee(op ir.Op, nl, nr []ir.Node, init *ir.Nodes) []ir.Node {
+	// cannot happen: should have been rejected during type checking
+	if len(nl) != len(nr) {
+		base.Fatalf("assignment operands mismatch: %+v / %+v", ir.Nodes(nl), ir.Nodes(nr))
+	}
+
+	// ensure order of evaluation for function calls
+	for i := range nl {
+		nl[i] = safeExpr(nl[i], init)
+	}
+	for i := range nr {
+		nr[i] = safeExpr(nr[i], init)
+	}
+
+	var assigned ir.NameSet
+	var memWrite bool
+
+	// affected reports whether expression n could be affected by
+	// the assignments applied so far.
+	affected := func(n ir.Node) bool {
+		return ir.Any(n, func(n ir.Node) bool {
+			if n.Op() == ir.ONAME && assigned.Has(n.(*ir.Name)) {
+				return true
+			}
+			if memWrite && readsMemory(n) {
+				return true
+			}
+			return false
+		})
+	}
+
 	// If a needed expression may be affected by an
 	// earlier assignment, make an early copy of that
 	// expression and use the copy instead.
 	var early []ir.Node
+	save := func(np *ir.Node) {
+		if n := *np; affected(n) {
+			tmp := ir.Node(typecheck.Temp(n.Type()))
+			as := typecheck.Stmt(ir.NewAssignStmt(base.Pos, tmp, n))
+			early = append(early, as)
+			*np = tmp
+		}
+	}
 
-	var mapinit ir.Nodes
-	for i, n := range all {
-		l := n.X
+	var late []ir.Node
+	for i, l := range nl {
+		r := nr[i]
+
+		// Do not generate 'x = x' during return. See issue 4014.
+		if op == ir.ORETURN && ir.SameSafeExpr(l, r) {
+			continue
+		}
+
+		as := ir.NewAssignStmt(base.Pos, l, r)
 
 		// Save subexpressions needed on left side.
 		// Drill through non-dereferences.
 		for {
-			switch ll := l; ll.Op() {
-			case ir.ODOT:
-				ll := ll.(*ir.SelectorExpr)
-				l = ll.X
-				continue
-			case ir.OPAREN:
-				ll := ll.(*ir.ParenExpr)
-				l = ll.X
-				continue
-			case ir.OINDEX:
-				ll := ll.(*ir.IndexExpr)
+			switch ll := l.(type) {
+			case *ir.IndexExpr:
 				if ll.X.Type().IsArray() {
-					ll.Index = reorder3save(ll.Index, all, i, &early)
+					save(&ll.Index)
+					l = ll.X
+					continue
+				}
+			case *ir.ParenExpr:
+				l = ll.X
+				continue
+			case *ir.SelectorExpr:
+				if ll.Op() == ir.ODOT {
 					l = ll.X
 					continue
 				}
@@ -427,228 +419,80 @@ func reorder3(all []*ir.AssignStmt) []ir.Node {
 			break
 		}
 
+		var name *ir.Name
 		switch l.Op() {
 		default:
-			base.Fatalf("reorder3 unexpected lvalue %v", l.Op())
-
+			base.Fatalf("unexpected lvalue %v", l.Op())
 		case ir.ONAME:
-			break
-
+			name = l.(*ir.Name)
 		case ir.OINDEX, ir.OINDEXMAP:
 			l := l.(*ir.IndexExpr)
-			l.X = reorder3save(l.X, all, i, &early)
-			l.Index = reorder3save(l.Index, all, i, &early)
-			if l.Op() == ir.OINDEXMAP {
-				all[i] = convas(all[i], &mapinit)
-			}
-
+			save(&l.X)
+			save(&l.Index)
 		case ir.ODEREF:
 			l := l.(*ir.StarExpr)
-			l.X = reorder3save(l.X, all, i, &early)
+			save(&l.X)
 		case ir.ODOTPTR:
 			l := l.(*ir.SelectorExpr)
-			l.X = reorder3save(l.X, all, i, &early)
+			save(&l.X)
 		}
 
 		// Save expression on right side.
-		all[i].Y = reorder3save(all[i].Y, all, i, &early)
+		save(&as.Y)
+
+		late = append(late, convas(as, init))
+
+		if name == nil || name.Addrtaken() || name.Class_ == ir.PEXTERN || name.Class_ == ir.PAUTOHEAP {
+			memWrite = true
+			continue
+		}
+		if ir.IsBlank(name) {
+			// We can ignore assignments to blank.
+			continue
+		}
+		assigned.Add(name)
 	}
 
-	early = append(mapinit, early...)
-	for _, as := range all {
-		early = append(early, as)
-	}
-	return early
+	return append(early, late...)
 }
 
-// if the evaluation of *np would be affected by the
-// assignments in all up to but not including the ith assignment,
-// copy into a temporary during *early and
-// replace *np with that temp.
-// The result of reorder3save MUST be assigned back to n, e.g.
-// 	n.Left = reorder3save(n.Left, all, i, early)
-func reorder3save(n ir.Node, all []*ir.AssignStmt, i int, early *[]ir.Node) ir.Node {
-	if !aliased(n, all[:i]) {
-		return n
-	}
+// readsMemory reports whether the evaluation n directly reads from
+// memory that might be written to indirectly.
+func readsMemory(n ir.Node) bool {
+	switch n.Op() {
+	case ir.ONAME:
+		n := n.(*ir.Name)
+		return n.Class_ == ir.PEXTERN || n.Class_ == ir.PAUTOHEAP || n.Addrtaken()
 
-	q := ir.Node(typecheck.Temp(n.Type()))
-	as := typecheck.Stmt(ir.NewAssignStmt(base.Pos, q, n))
-	*early = append(*early, as)
-	return q
-}
-
-// Is it possible that the computation of r might be
-// affected by assignments in all?
-func aliased(r ir.Node, all []*ir.AssignStmt) bool {
-	if r == nil {
+	case ir.OADD,
+		ir.OAND,
+		ir.OANDAND,
+		ir.OANDNOT,
+		ir.OBITNOT,
+		ir.OCONV,
+		ir.OCONVIFACE,
+		ir.OCONVNOP,
+		ir.ODIV,
+		ir.ODOT,
+		ir.ODOTTYPE,
+		ir.OLITERAL,
+		ir.OLSH,
+		ir.OMOD,
+		ir.OMUL,
+		ir.ONEG,
+		ir.ONIL,
+		ir.OOR,
+		ir.OOROR,
+		ir.OPAREN,
+		ir.OPLUS,
+		ir.ORSH,
+		ir.OSUB,
+		ir.OXOR:
 		return false
 	}
 
-	// Treat all fields of a struct as referring to the whole struct.
-	// We could do better but we would have to keep track of the fields.
-	for r.Op() == ir.ODOT {
-		r = r.(*ir.SelectorExpr).X
-	}
-
-	// Look for obvious aliasing: a variable being assigned
-	// during the all list and appearing in n.
-	// Also record whether there are any writes to addressable
-	// memory (either main memory or variables whose addresses
-	// have been taken).
-	memwrite := false
-	for _, as := range all {
-		// We can ignore assignments to blank.
-		if ir.IsBlank(as.X) {
-			continue
-		}
-
-		lv := ir.OuterValue(as.X)
-		if lv.Op() != ir.ONAME {
-			memwrite = true
-			continue
-		}
-		l := lv.(*ir.Name)
-
-		switch l.Class_ {
-		default:
-			base.Fatalf("unexpected class: %v, %v", l, l.Class_)
-
-		case ir.PAUTOHEAP, ir.PEXTERN:
-			memwrite = true
-			continue
-
-		case ir.PAUTO, ir.PPARAM, ir.PPARAMOUT:
-			if l.Name().Addrtaken() {
-				memwrite = true
-				continue
-			}
-
-			if refersToName(l, r) {
-				// Direct hit: l appears in r.
-				return true
-			}
-		}
-	}
-
-	// The variables being written do not appear in r.
-	// However, r might refer to computed addresses
-	// that are being written.
-
-	// If no computed addresses are affected by the writes, no aliasing.
-	if !memwrite {
-		return false
-	}
-
-	// If r does not refer to any variables whose addresses have been taken,
-	// then the only possible writes to r would be directly to the variables,
-	// and we checked those above, so no aliasing problems.
-	if !anyAddrTaken(r) {
-		return false
-	}
-
-	// Otherwise, both the writes and r refer to computed memory addresses.
-	// Assume that they might conflict.
+	// Be conservative.
 	return true
-}
-
-// anyAddrTaken reports whether the evaluation n,
-// which appears on the left side of an assignment,
-// may refer to variables whose addresses have been taken.
-func anyAddrTaken(n ir.Node) bool {
-	return ir.Any(n, func(n ir.Node) bool {
-		switch n.Op() {
-		case ir.ONAME:
-			n := n.(*ir.Name)
-			return n.Class_ == ir.PEXTERN || n.Class_ == ir.PAUTOHEAP || n.Name().Addrtaken()
-
-		case ir.ODOT: // but not ODOTPTR - should have been handled in aliased.
-			base.Fatalf("anyAddrTaken unexpected ODOT")
-
-		case ir.OADD,
-			ir.OAND,
-			ir.OANDAND,
-			ir.OANDNOT,
-			ir.OBITNOT,
-			ir.OCONV,
-			ir.OCONVIFACE,
-			ir.OCONVNOP,
-			ir.ODIV,
-			ir.ODOTTYPE,
-			ir.OLITERAL,
-			ir.OLSH,
-			ir.OMOD,
-			ir.OMUL,
-			ir.ONEG,
-			ir.ONIL,
-			ir.OOR,
-			ir.OOROR,
-			ir.OPAREN,
-			ir.OPLUS,
-			ir.ORSH,
-			ir.OSUB,
-			ir.OXOR:
-			return false
-		}
-		// Be conservative.
-		return true
-	})
-}
-
-// refersToName reports whether r refers to name.
-func refersToName(name *ir.Name, r ir.Node) bool {
-	return ir.Any(r, func(r ir.Node) bool {
-		return r.Op() == ir.ONAME && r == name
-	})
-}
-
-// refersToCommonName reports whether any name
-// appears in common between l and r.
-// This is called from sinit.go.
-func refersToCommonName(l ir.Node, r ir.Node) bool {
-	if l == nil || r == nil {
-		return false
-	}
-
-	// This could be written elegantly as a Find nested inside a Find:
-	//
-	//	found := ir.Find(l, func(l ir.Node) interface{} {
-	//		if l.Op() == ir.ONAME {
-	//			return ir.Find(r, func(r ir.Node) interface{} {
-	//				if r.Op() == ir.ONAME && l.Name() == r.Name() {
-	//					return r
-	//				}
-	//				return nil
-	//			})
-	//		}
-	//		return nil
-	//	})
-	//	return found != nil
-	//
-	// But that would allocate a new closure for the inner Find
-	// for each name found on the left side.
-	// It may not matter at all, but the below way of writing it
-	// only allocates two closures, not O(|L|) closures.
-
-	var doL, doR func(ir.Node) error
-	var targetL *ir.Name
-	doR = func(r ir.Node) error {
-		if r.Op() == ir.ONAME && r.Name() == targetL {
-			return stop
-		}
-		return ir.DoChildren(r, doR)
-	}
-	doL = func(l ir.Node) error {
-		if l.Op() == ir.ONAME {
-			l := l.(*ir.Name)
-			targetL = l.Name()
-			if doR(r) == stop {
-				return stop
-			}
-		}
-		return ir.DoChildren(l, doL)
-	}
-	return doL(l) == stop
 }
 
 // expand append(l1, l2...) to
@@ -700,17 +544,15 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	nodes.Append(nif)
 
 	// s = s[:n]
-	nt := ir.NewSliceExpr(base.Pos, ir.OSLICE, s)
-	nt.SetSliceBounds(nil, nn, nil)
+	nt := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, nil, nn, nil)
 	nt.SetBounded(true)
 	nodes.Append(ir.NewAssignStmt(base.Pos, s, nt))
 
 	var ncopy ir.Node
 	if elemtype.HasPointers() {
 		// copy(s[len(l1):], l2)
-		slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s)
+		slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, ir.NewUnaryExpr(base.Pos, ir.OLEN, l1), nil, nil)
 		slice.SetType(s.Type())
-		slice.SetSliceBounds(ir.NewUnaryExpr(base.Pos, ir.OLEN, l1), nil, nil)
 
 		ir.CurFunc.SetWBPos(n.Pos())
 
@@ -724,9 +566,8 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		// rely on runtime to instrument:
 		//  copy(s[len(l1):], l2)
 		// l2 can be a slice or string.
-		slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s)
+		slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, ir.NewUnaryExpr(base.Pos, ir.OLEN, l1), nil, nil)
 		slice.SetType(s.Type())
-		slice.SetSliceBounds(ir.NewUnaryExpr(base.Pos, ir.OLEN, l1), nil, nil)
 
 		ptr1, len1 := backingArrayPtrLen(cheapExpr(slice, &nodes))
 		ptr2, len2 := backingArrayPtrLen(l2)
@@ -870,8 +711,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	nodes = append(nodes, nif)
 
 	// s = s[:n]
-	nt := ir.NewSliceExpr(base.Pos, ir.OSLICE, s)
-	nt.SetSliceBounds(nil, nn, nil)
+	nt := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, nil, nn, nil)
 	nt.SetBounded(true)
 	nodes = append(nodes, ir.NewAssignStmt(base.Pos, s, nt))
 

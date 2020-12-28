@@ -539,12 +539,30 @@ func calcHasCall(n ir.Node) bool {
 
 // itabType loads the _type field from a runtime.itab struct.
 func itabType(itab ir.Node) ir.Node {
-	typ := ir.NewSelectorExpr(base.Pos, ir.ODOTPTR, itab, nil)
-	typ.SetType(types.NewPtr(types.Types[types.TUINT8]))
-	typ.SetTypecheck(1)
-	typ.Offset = int64(types.PtrSize) // offset of _type in runtime.itab
-	typ.SetBounded(true)              // guaranteed not to fault
-	return typ
+	if itabTypeField == nil {
+		// runtime.itab's _type field
+		itabTypeField = runtimeField("_type", int64(types.PtrSize), types.NewPtr(types.Types[types.TUINT8]))
+	}
+	return boundedDotPtr(base.Pos, itab, itabTypeField)
+}
+
+var itabTypeField *types.Field
+
+// boundedDotPtr returns a selector expression representing ptr.field
+// and omits nil-pointer checks for ptr.
+func boundedDotPtr(pos src.XPos, ptr ir.Node, field *types.Field) *ir.SelectorExpr {
+	sel := ir.NewSelectorExpr(pos, ir.ODOTPTR, ptr, field.Sym)
+	sel.Selection = field
+	sel.SetType(field.Type)
+	sel.SetTypecheck(1)
+	sel.SetBounded(true) // guaranteed not to fault
+	return sel
+}
+
+func runtimeField(name string, offset int64, typ *types.Type) *types.Field {
+	f := types.NewField(src.NoXPos, ir.Pkgs.Runtime.Lookup(name), typ)
+	f.Offset = offset
+	return f
 }
 
 // ifaceData loads the data field from an interface.

@@ -107,8 +107,8 @@ func TestDateParsing(t *testing.T) {
 			time.Date(1997, 11, 20, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
 		},
 		{
-			"Thu, 20 Nov 1997 09:55:06 MDT (MDT)",
-			time.Date(1997, 11, 20, 9, 55, 6, 0, time.FixedZone("MDT", 0)),
+			"Thu, 20 Nov 1997 09:55:06 GMT (GMT)",
+			time.Date(1997, 11, 20, 9, 55, 6, 0, time.UTC),
 		},
 		{
 			"Fri, 21 Nov 1997 09:55:06 +1300 (TOT)",
@@ -278,8 +278,8 @@ func TestDateParsingCFWS(t *testing.T) {
 			true,
 		},
 		{
-			"Fri, 21 Nov 1997 09:55:06 MDT (MDT)",
-			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("MDT", 0)),
+			"Fri, 21 Nov 1997 09:55:06 GMT (GMT)",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.UTC),
 			true,
 		},
 	}

@@ -21,7 +21,7 @@ func walkSelect(sel *ir.SelectStmt) {
 	sel.PtrInit().Set(nil)
 
 	init = append(init, walkSelectCases(sel.Cases)...)
-	sel.Cases = ir.Nodes{}
+	sel.Cases = nil
 
 	sel.Compiled.Set(init)
 	walkStmtList(sel.Compiled)
@@ -29,7 +29,7 @@ func walkSelect(sel *ir.SelectStmt) {
 	base.Pos = lno
 }
 
-func walkSelectCases(cases ir.Nodes) []ir.Node {
+func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 	ncas := len(cases)
 	sellineno := base.Pos
 
@@ -40,7 +40,7 @@ func walkSelectCases(cases ir.Nodes) []ir.Node {
 
 	// optimization: one-case select: single op.
 	if ncas == 1 {
-		cas := cases[0].(*ir.CaseStmt)
+		cas := cases[0]
 		ir.SetPos(cas)
 		l := cas.Init()
 		if cas.Comm != nil { // not default:
@@ -73,9 +73,8 @@ func walkSelectCases(cases ir.Nodes) []ir.Node {
 
 	// convert case value arguments to addresses.
 	// this rewrite is used by both the general code and the next optimization.
-	var dflt *ir.CaseStmt
+	var dflt *ir.CommClause
 	for _, cas := range cases {
-		cas := cas.(*ir.CaseStmt)
 		ir.SetPos(cas)
 		n := cas.Comm
 		if n == nil {
@@ -99,9 +98,9 @@ func walkSelectCases(cases ir.Nodes) []ir.Node {
 
 	// optimization: two-case select but one is default: single non-blocking op.
 	if ncas == 2 && dflt != nil {
-		cas := cases[0].(*ir.CaseStmt)
+		cas := cases[0]
 		if cas == dflt {
-			cas = cases[1].(*ir.CaseStmt)
+			cas = cases[1]
 		}
 
 		n := cas.Comm
@@ -147,7 +146,7 @@ func walkSelectCases(cases ir.Nodes) []ir.Node {
 	if dflt != nil {
 		ncas--
 	}
-	casorder := make([]*ir.CaseStmt, ncas)
+	casorder := make([]*ir.CommClause, ncas)
 	nsends, nrecvs := 0, 0
 
 	var init []ir.Node
@@ -170,7 +169,6 @@ func walkSelectCases(cases ir.Nodes) []ir.Node {
 
 	// register cases
 	for _, cas := range cases {
-		cas := cas.(*ir.CaseStmt)
 		ir.SetPos(cas)
 
 		init = append(init, cas.Init()...)
@@ -244,7 +242,7 @@ func walkSelectCases(cases ir.Nodes) []ir.Node {
 	}
 
 	// dispatch cases
-	dispatch := func(cond ir.Node, cas *ir.CaseStmt) {
+	dispatch := func(cond ir.Node, cas *ir.CommClause) {
 		cond = typecheck.Expr(cond)
 		cond = typecheck.DefaultLit(cond, nil)
 
@@ -287,9 +285,9 @@ var scase *types.Type
 // Keep in sync with src/runtime/select.go.
 func scasetype() *types.Type {
 	if scase == nil {
-		scase = typecheck.NewStructType([]*ir.Field{
-			ir.NewField(base.Pos, typecheck.Lookup("c"), nil, types.Types[types.TUNSAFEPTR]),
-			ir.NewField(base.Pos, typecheck.Lookup("elem"), nil, types.Types[types.TUNSAFEPTR]),
+		scase = types.NewStruct(types.NoPkg, []*types.Field{
+			types.NewField(base.Pos, typecheck.Lookup("c"), types.Types[types.TUNSAFEPTR]),
+			types.NewField(base.Pos, typecheck.Lookup("elem"), types.Types[types.TUNSAFEPTR]),
 		})
 		scase.SetNoalg(true)
 	}

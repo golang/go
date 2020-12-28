@@ -178,7 +178,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		// with a non-interface, especially in a switch on interface value
 		// with non-interface cases, is not visible to order.stmt, so we
 		// have to fall back on allocating a temp here.
-		if !ir.IsAssignable(v) {
+		if !ir.IsAddressable(v) {
 			v = copyExpr(v, v.Type(), init)
 		}
 		v = typecheck.NodAddr(v)
@@ -260,7 +260,7 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		}
 
 		// Slice the [n]byte to a []byte.
-		slice := ir.NewSliceExpr(n.Pos(), ir.OSLICEARR, p)
+		slice := ir.NewSliceExpr(n.Pos(), ir.OSLICEARR, p, nil, nil, nil)
 		slice.SetType(n.Type())
 		slice.SetTypecheck(1)
 		return walkExpr(slice, init)
