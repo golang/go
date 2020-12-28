@@ -1042,15 +1042,26 @@ func msigrestore(sigmask sigset) {
 	sigprocmask(_SIG_SETMASK, &sigmask, nil)
 }
 
-// sigblock blocks all signals in the current thread's signal mask.
+// sigsetAllExiting is used by sigblock(true) when a thread is
+// exiting. sigset_all is defined in OS specific code, and per GOOS
+// behavior may override this default for sigsetAllExiting: see
+// osinit().
+var sigsetAllExiting = sigset_all
+
+// sigblock blocks signals in the current thread's signal mask.
 // This is used to block signals while setting up and tearing down g
-// when a non-Go thread calls a Go function.
-// The OS-specific code is expected to define sigset_all.
+// when a non-Go thread calls a Go function. When a thread is exiting
+// we use the sigsetAllExiting value, otherwise the OS specific
+// definition of sigset_all is used.
 // This is nosplit and nowritebarrierrec because it is called by needm
 // which may be called on a non-Go thread with no g available.
 //go:nosplit
 //go:nowritebarrierrec
-func sigblock() {
+func sigblock(exiting bool) {
+	if exiting {
+		sigprocmask(_SIG_SETMASK, &sigsetAllExiting, nil)
+		return
+	}
 	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
 }
 
