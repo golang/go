@@ -1,6 +1,6 @@
 # Atom
 
-Install the [`ide-gopls`] package.
+Use the [`ide-gopls`] package.
 You will also need to install the [`atom-ide-ui`] package.
 
 [`ide-gopls`]: https://github.com/MordFustang21/ide-gopls

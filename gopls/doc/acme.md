@@ -1,7 +1,7 @@
 # Acme
 
-Use the experimental [`acme-lsp`], simply follow the [install steps]
+Use the experimental [`acme-lsp`] plugin.
+Get started by following the[installation guide].
 
 [`acme-lsp`]: https://github.com/fhs/acme-lsp
-[install steps]: https://github.com/fhs/acme-lsp#gopls
-
+[installation guide]: https://github.com/fhs/acme-lsp#gopls

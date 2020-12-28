@@ -9,15 +9,35 @@ it is likely that we might already be working on a fix for your issue.
 
 ## Finding issues
 
-All `gopls` issues are labeled as such (see the [`gopls` label][issue-gopls]). Issues that are suitable for contributors are additionally tagged with the [`help-wanted` label][issue-wanted].
+All `gopls` issues are labeled as such (see the [`gopls` label][issue-gopls]).
+Issues that are suitable for contributors are additionally tagged with the
+[`help-wanted` label][issue-wanted].
 
-Before you begin working on an issue, please leave a comment that you are claiming it.
+Before you begin working on an issue, please leave a comment that you are
+claiming it.
 
 ## Getting started
 
-<!--- TODO: getting started
-Provide information to get contributors up and running here
---->
+Most of the `gopls` logic is actually in the `golang.org/x/tools/internal/lsp`
+directory, so you are most likely to develop in the golang.org/x/tools module.
+
+## Build
+
+To build a version of `gopls` with your changes applied:
+
+```bash
+cd /path/to/tools/gopls
+go install
+```
+
+To confirm that you are testing with the correct `gopls` version, check that
+your `gopls` version looks like this:
+
+```bash
+$ gopls version
+golang.org/x/tools/gopls master
+    golang.org/x/tools/gopls@(devel)
+```
 
 ## Getting help
 
@@ -30,20 +50,23 @@ about contributing in general.
 
 To run tests for just `gopls/`, run,
 
-```
+```bash
 cd /path/to/tools/gopls
 go test ./...
 ```
 
-But, much of the gopls work involves `internal/lsp` too, so you might want to
+But, much of the gopls work involves `internal/lsp` too, so you will want to
 run both:
 
-```
+```bash
 cd /path/to/tools
 cd gopls && go test ./...
 cd ..
 go test ./internal/lsp/...
 ```
+
+There is additional information about the `internal/lsp` tests in the
+[internal/lsp/tests `README`](https://github.com/golang/tools/blob/master/internal/lsp/tests/README.md).
 
 ### Regtests
 
@@ -78,10 +101,11 @@ by the TryBots.
 
 ## Debugging
 
-<!--- TODO: debugging
-actual debugging steps
-viewing telemetry
---->
+The easiest way to debug your change is to run can run a single `gopls` test
+with a debugger.
+
+<!--TODO(rstambler): Add more details about the debug server and viewing
+telemetry.-->
 
 [issue-gopls]: https://github.com/golang/go/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3Agopls "gopls issues"
 [issue-wanted]: https://github.com/golang/go/issues?utf8=✓&q=is%3Aissue+is%3Aopen+label%3Agopls+label%3A"help+wanted" "help wanted"

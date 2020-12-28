@@ -40,8 +40,9 @@ flag `-remote=auto` to the gopls process started by your editor. This will
 cause this process to auto-start the gopls daemon if needed, connect to it, and
 forward the LSP. For example, here is a reasonable gopls invocation, that sets
 some additional flags for easier [debugging](#debugging):
-```
-$ gopls -remote=auto -logfile=auto -debug=:0 -remote.debug=:0 -rpc.trace
+
+```bash
+gopls -remote=auto -logfile=auto -debug=:0 -remote.debug=:0 -rpc.trace
 ```
 
 Note that the shared gopls process will automatically shut down after one
@@ -55,23 +56,28 @@ forwarders manage it, you must start a gopls daemon process with the
 started by your editor.
 
 For example, to host the daemon on the TCP port `37374`, do:
-```
-$ gopls -listen=:37374 -logfile=auto -debug=:0
+
+```bash
+gopls -listen=:37374 -logfile=auto -debug=:0
 ```
 
 And then from the editor, run
-```
-$ gopls -remote=:37374 -logfile=auto -debug=:0 -rpc.trace
+
+```bash
+gopls -remote=:37374 -logfile=auto -debug=:0 -rpc.trace
 ```
 
 If you are on a POSIX system, you can also use unix domain sockets by prefixing
 the flag values with `unix;`. For example:
+
+```bash
+gopls -listen="unix;/tmp/gopls-daemon-socket" -logfile=auto -debug=:0
 ```
-$ gopls -listen="unix;/tmp/gopls-daemon-socket" -logfile=auto -debug=:0
-```
+
 And connect via:
-```
-$ gopls -remote="unix;/tmp/gopls-daemon-socket" -logfile=auto -debug=:0 -rpc.trace
+
+```bash
+gopls -remote="unix;/tmp/gopls-daemon-socket" -logfile=auto -debug=:0 -rpc.trace
 ```
 
 (Note that these flag values MUST be enclosed in quotes, because ';' is a

@@ -28,12 +28,10 @@ instructions: see [Eglot 1-2-3](https://github.com/joaotavora/eglot#1-2-3) or
 Both Eglot and LSP Mode can integrate with popular packages in the Emacs
 ecosystem:
 
-*   The built-in [`xref`] package provides cross-references.
-
-*   The built-in [Flymake] package provides an on-the-fly diagnostic overlay.
-
-*   [Company] mode displays code completion candidates (with a richer UI than
-    the built-in [`completion-at-point`]).
+* The built-in [`xref`] package provides cross-references.
+* The built-in [Flymake] package provides an on-the-fly diagnostic overlay.
+* [Company] mode displays code completion candidates (with a richer UI than
+  the built-in [`completion-at-point`]).
 
 Eglot provides documentation using the built-in [ElDoc] minor mode, while LSP
 Mode by default provides documentation using its own [`lsp-ui`] mode.
@@ -151,18 +149,18 @@ meantime, see those issues for discussion and possible workarounds.
 
 Common errors:
 
--   When prompted by Emacs for your project folder, if you are using modules you
-    must select the module's root folder (i.e. the directory with the "go.mod").
-    If you are using GOPATH, select your $GOPATH as your folder.
--   Emacs must have your environment set properly (PATH, GOPATH, etc). You can
-    run `M-x getenv <RET> PATH <RET>` to see if your PATH is set in Emacs. If
-    not, you can try starting Emacs from your terminal, using [this
-    package][exec-path-from-shell], or moving your shell config from `.bashrc`
-    into `.profile` and logging out and back in.
--   Make sure only one LSP client mode is installed. (For example, if using
-    `lsp-mode`, ensure that you are not _also_ enabling `eglot`.)
--   Look for errors in the `*lsp-log*` buffer or run `M-x eglot-events-buffer`.
--   Ask for help in the `#emacs` channel on the [Gophers slack].
+* When prompted by Emacs for your project folder, if you are using modules you
+  must select the module's root folder (i.e. the directory with the "go.mod").
+  If you are using GOPATH, select your $GOPATH as your folder.
+* Emacs must have your environment set properly (PATH, GOPATH, etc). You can
+  run `M-x getenv <RET> PATH <RET>` to see if your PATH is set in Emacs. If
+  not, you can try starting Emacs from your terminal, using [this
+  package][exec-path-from-shell], or moving your shell config from `.bashrc`
+  into `.profile` and logging out and back in.
+* Make sure only one LSP client mode is installed. (For example, if using
+  `lsp-mode`, ensure that you are not _also_ enabling `eglot`.)
+* Look for errors in the `*lsp-log*` buffer or run `M-x eglot-events-buffer`.
+* Ask for help in the `#emacs` channel on the [Gophers slack].
 
 [LSP Mode]: https://emacs-lsp.github.io/lsp-mode/
 [Eglot]: https://github.com/joaotavora/eglot/blob/master/README.md

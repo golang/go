@@ -1,4 +1,4 @@
-# gopls design documentation
+# `gopls` design documentation
 
 ## Goals
 
@@ -6,7 +6,6 @@
 * `gopls` will be a **full implementation of LSP**, as described in the [LSP specification], to standardize as many of its features as possible.
 * `gopls` will be **clean and extensible** so that it can encompass additional features in the future, allowing Go tooling to become best in class once more.
 * `gopls` will **support alternate build systems and file layouts**, allowing Go development to be simpler and more powerful in any environment.
-
 
 ## Context
 
@@ -170,7 +169,6 @@ All of these things make it hard for users to report a bug usefully, or create a
 
 There needs to be easy ways for users to report what information they can, and ways to attempt to reproduce problems without their entire state. This is also needed to produce regression tests.
 
-
 ## Basic design decisions
 
 There are some fundamental architecture decisions that affect much of the rest of the design of the tool, making fundamental trade offs that impact the user experience.
@@ -208,6 +206,8 @@ In the future it is expected to run in separated client server mode, so writing 
 
 ## Features
 
+<!--TODO(rstambler): Generate a file that lists all of the supported features.-->
+
 There is a set of features that gopls needs to expose to be a comprehensive IDE solution.
 The following is the minimum set of features, along with their existing solutions and how they should map to the LSP.
 
@@ -238,7 +238,6 @@ Requires       | AST and type information for the file and all dependencies
 LSP            | [`textDocument/signatureHelp`]
 Previous       | [gogetdoc]
 |              | As a function call is being typed into code, it is helpful to know the parameters of that call to enable the developer to call it correctly.
-
 
 ### Navigation
 
@@ -278,7 +277,6 @@ LSP        | [`textDocument/references`]
 Previous   | [guru]
 |          | This requires knowledge of every package that could possible depend on any packages the current file is part of. In the past this has been implemented either by global knowledge, which does not scale, or by specifying a "scope" which confused users to the point where they just did not use the tools. gopls is probably going to need a more powerful solution in the long term, but to start with automatically limiting the scope may produce acceptable results. This would probably be the module if known, or some sensible parent directory otherwise.
 
-
 ---
 Folding  | Report logical hierarchies of blocks
 -------- | ---
@@ -314,7 +312,6 @@ LSP      | [`textDocument/formatting`]
 Previous | [gofmt], [goimports], [goreturns]
 |        | It will use the standard format package. <br/> Current limitations are that it does not work on malformed code. It may need some very careful changes to the formatter to allow for formatting an invalid AST or changes to force the AST to a valid mode. These changes would improve range and file mode as well, but are basically vital to onTypeFormatting
 
-
 ---
 Imports  | Rewrite the imports block automatically to match the symbols used.
 -------- | ---
@@ -322,7 +319,6 @@ Requires | AST of the current file and full symbol knowledge for all candidate p
 LSP      | [`textDocument/codeAction`]
 Previous | [goimports], [goreturns]
 |        | This needs knowledge of packages that are not yet in use, and the ability to find those packages by name. <br/> It also needs exported symbol information for all the packages it discovers. <br/> It should be implemented using the standard imports package, but there may need to be exposed a more fine grained API than just a file rewrite for some of the interactions.
-
 
 ---
 Autocompletion | Makes suggestions to complete the entity currently being typed.
@@ -350,7 +346,6 @@ LSP             | [`textDocument/codeAction`]
 Previous        | N/A
 |               | This is a brand new feature powered by the new go/analysis engine, and it should allow a huge amount of automated refactoring.
 
-
 [LSP specification]: https://microsoft.github.io/language-server-protocol/specifications/specification-3-14/
 [talk]: TODO
 [slides]: https://github.com/gophercon/2019-talks/blob/master/RebeccaStambler-GoPleaseStopBreakingMyEditor/slides.pdf "Go, please stop breaking my editor!"
@@ -374,7 +369,6 @@ Previous        | N/A
 [go/types]: https://golang.org/pkg/go/types/
 [go/ast]: https://golang.org/pkg/go/ast/
 [go/token]: https://golang.org/pkg/go/token/
-
 
 [`completionItem/resolve`]:https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#completionItem_resolve
 [`textDocument/codeAction`]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#textDocument_codeAction

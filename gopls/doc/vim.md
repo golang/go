@@ -18,7 +18,7 @@
 
 Use [vim-go] ver 1.20+, with the following configuration:
 
-```
+```vim
 let g:go_def_mode='gopls'
 let g:go_info_mode='gopls'
 ```
@@ -27,7 +27,7 @@ let g:go_info_mode='gopls'
 
 Use [LanguageClient-neovim], with the following configuration:
 
-```
+```vim
 " Launch gopls when Go files are in use
 let g:LanguageClient_serverCommands = {
        \ 'go': ['gopls']
@@ -42,8 +42,8 @@ Use [ale]:
 
 ```vim
 let g:ale_linters = {
-	\ 'go': ['gopls'],
-	\}
+  \ 'go': ['gopls'],
+  \}
 ```
 
 see [this issue][ale-issue-2179]
