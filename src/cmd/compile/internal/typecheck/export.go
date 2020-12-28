@@ -59,7 +59,6 @@ func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Cl
 	n := ir.NewDeclNameAt(pos, op, s)
 	n.Class_ = ctxt // TODO(mdempsky): Move this into NewDeclNameAt too?
 	s.SetPkgDef(n)
-	s.Importdef = ipkg
 	return n
 }
 

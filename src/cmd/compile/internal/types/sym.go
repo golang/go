@@ -27,8 +27,7 @@ import (
 // NOTE: In practice, things can be messier than the description above
 // for various reasons (historical, convenience).
 type Sym struct {
-	Importdef *Pkg   // where imported definition was found
-	Linkname  string // link name
+	Linkname string // link name
 
 	Pkg  *Pkg
 	Name string // object name
