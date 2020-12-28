@@ -92,7 +92,7 @@ func MayBeShared(n Node) bool {
 	return false
 }
 
-//go:generate stringer -type=Op -trimprefix=O
+//go:generate stringer -type=Op -trimprefix=O node.go
 
 type Op uint8
 
