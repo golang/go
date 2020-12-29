@@ -649,7 +649,7 @@ func tcDotType(n *ir.TypeAssertExpr) ir.Node {
 	}
 
 	if n.Ntype != nil {
-		n.Ntype = typecheck(n.Ntype, ctxType)
+		n.Ntype = typecheckNtype(n.Ntype)
 		n.SetType(n.Ntype.Type())
 		n.Ntype = nil
 		if n.Type() == nil {
