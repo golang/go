@@ -314,7 +314,7 @@ func (n *Name) MarkReadonly() {
 	// Mark the linksym as readonly immediately
 	// so that the SSA backend can use this information.
 	// It will be overridden later during dumpglobls.
-	n.Sym().Linksym().Type = objabi.SRODATA
+	n.Linksym().Type = objabi.SRODATA
 }
 
 // Val returns the constant.Value for the node.

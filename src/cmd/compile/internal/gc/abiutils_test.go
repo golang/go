@@ -40,10 +40,10 @@ func TestMain(m *testing.M) {
 	types.PtrSize = ssagen.Arch.LinkArch.PtrSize
 	types.RegSize = ssagen.Arch.LinkArch.RegSize
 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
-		return reflectdata.TypeSym(t).Linksym()
+		return reflectdata.TypeLinksym(t)
 	}
 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
-		return reflectdata.TypeSym(t).Linksym()
+		return reflectdata.TypeLinksym(t)
 	}
 	typecheck.Init()
 	os.Exit(m.Run())

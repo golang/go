@@ -1583,7 +1583,7 @@ func dgcprog(t *types.Type) (*obj.LSym, int64) {
 	if t.Width == types.BADWIDTH {
 		base.Fatalf("dgcprog: %v badwidth", t)
 	}
-	lsym := TypeSymPrefix(".gcprog", t).Linksym()
+	lsym := TypeLinksymPrefix(".gcprog", t)
 	var p gcProg
 	p.init(lsym)
 	p.emit(t, 0)
@@ -1857,7 +1857,7 @@ var ZeroSize int64
 // MarkTypeUsedInInterface marks that type t is converted to an interface.
 // This information is used in the linker in dead method elimination.
 func MarkTypeUsedInInterface(t *types.Type, from *obj.LSym) {
-	tsym := TypeSym(t).Linksym()
+	tsym := TypeLinksym(t)
 	// Emit a marker relocation. The linker will know the type is converted
 	// to an interface if "from" is reachable.
 	r := obj.Addrel(from)
@@ -1870,7 +1870,7 @@ func MarkTypeUsedInInterface(t *types.Type, from *obj.LSym) {
 func MarkUsedIfaceMethod(n *ir.CallExpr) {
 	dot := n.X.(*ir.SelectorExpr)
 	ityp := dot.X.Type()
-	tsym := TypeSym(ityp).Linksym()
+	tsym := TypeLinksym(ityp)
 	r := obj.Addrel(ir.CurFunc.LSym)
 	r.Sym = tsym
 	// dot.Xoffset is the method index * Widthptr (the offset of code pointer

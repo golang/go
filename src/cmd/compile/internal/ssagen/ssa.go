@@ -2112,7 +2112,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		n := n.(*ir.Name)
 		if n.Class_ == ir.PFUNC {
 			// "value" of a function is the address of the function's closure
-			sym := staticdata.FuncSym(n.Sym()).Linksym()
+			sym := staticdata.FuncLinksym(n)
 			return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type()), sym, s.sb)
 		}
 		if s.canSSA(n) {
@@ -4959,7 +4959,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 		switch n.Class_ {
 		case ir.PEXTERN:
 			// global variable
-			v := s.entryNewValue1A(ssa.OpAddr, t, n.Sym().Linksym(), s.sb)
+			v := s.entryNewValue1A(ssa.OpAddr, t, n.Linksym(), s.sb)
 			// TODO: Make OpAddr use AuxInt as well as Aux.
 			if offset != 0 {
 				v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, offset, v)
@@ -6831,7 +6831,7 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 			break
 		}
 		a.Name = obj.NAME_AUTO
-		a.Sym = n.Sym().Linksym()
+		a.Sym = n.Linksym()
 		a.Offset += n.FrameOffset()
 	default:
 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
@@ -6963,7 +6963,7 @@ func CheckLoweredGetClosurePtr(v *ssa.Value) {
 func AddrAuto(a *obj.Addr, v *ssa.Value) {
 	n, off := ssa.AutoVar(v)
 	a.Type = obj.TYPE_MEM
-	a.Sym = n.Sym().Linksym()
+	a.Sym = n.Linksym()
 	a.Reg = int16(Arch.REGSP)
 	a.Offset = n.FrameOffset() + off
 	if n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT {
@@ -6979,7 +6979,7 @@ func (s *State) AddrScratch(a *obj.Addr) {
 	}
 	a.Type = obj.TYPE_MEM
 	a.Name = obj.NAME_AUTO
-	a.Sym = s.ScratchFpMem.Sym().Linksym()
+	a.Sym = s.ScratchFpMem.Linksym()
 	a.Reg = int16(Arch.REGSP)
 	a.Offset = s.ScratchFpMem.Offset_
 }

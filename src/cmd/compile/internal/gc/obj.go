@@ -261,8 +261,8 @@ func addGCLocals() {
 }
 
 func ggloblnod(nam *ir.Name) {
-	s := nam.Sym().Linksym()
-	s.Gotype = reflectdata.TypeSym(nam.Type()).Linksym()
+	s := nam.Linksym()
+	s.Gotype = reflectdata.TypeLinksym(nam.Type())
 	flags := 0
 	if nam.Name().Readonly() {
 		flags = obj.RODATA

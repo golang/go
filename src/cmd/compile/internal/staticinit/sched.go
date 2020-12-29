@@ -313,7 +313,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 			return val.Op() == ir.ONIL
 		}
 
-		reflectdata.MarkTypeUsedInInterface(val.Type(), l.Sym().Linksym())
+		reflectdata.MarkTypeUsedInInterface(val.Type(), l.Linksym())
 
 		var itab *ir.AddrExpr
 		if typ.IsEmptyInterface() {
@@ -445,7 +445,7 @@ func StaticName(t *types.Type) *ir.Name {
 	statuniqgen++
 	typecheck.Declare(n, ir.PEXTERN)
 	n.SetType(t)
-	n.Sym().Linksym().Set(obj.AttrLocal, true)
+	n.Linksym().Set(obj.AttrLocal, true)
 	return n
 }
 
