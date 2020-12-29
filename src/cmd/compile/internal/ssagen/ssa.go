@@ -5978,8 +5978,8 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n ir.Node, x *ssa.Value, ft, tt *
 // commaok indicates whether to panic or return a bool.
 // If commaok is false, resok will be nil.
 func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Value) {
-	iface := s.expr(n.X)      // input interface
-	target := s.expr(n.Ntype) // target type
+	iface := s.expr(n.X)        // input interface
+	target := s.expr(n.DstType) // target type
 	byteptr := s.f.Config.Types.BytePtr
 
 	if n.Type().IsInterface() {
@@ -6086,7 +6086,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 		targetITab = target
 	} else {
 		// Looking for pointer to itab for target type and source interface.
-		targetITab = s.expr(n.Itab[0])
+		targetITab = s.expr(n.Itab)
 	}
 
 	var tmp ir.Node     // temporary for use with large types
@@ -6113,7 +6113,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 	if !commaok {
 		// on failure, panic by calling panicdottype
 		s.startBlock(bFail)
-		taddr := s.expr(n.Ntype.(*ir.AddrExpr).Alloc)
+		taddr := s.expr(n.SrcType)
 		if n.X.Type().IsEmptyInterface() {
 			s.rtcall(ir.Syms.PanicdottypeE, false, nil, itab, target, taddr)
 		} else {

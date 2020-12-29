@@ -639,12 +639,13 @@ func walkDot(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 	n.X = walkExpr(n.X, init)
 	// Set up interface type addresses for back end.
-	n.Ntype = reflectdata.TypePtr(n.Type())
+
+	n.DstType = reflectdata.TypePtr(n.Type())
 	if n.Op() == ir.ODOTTYPE {
-		n.Ntype.(*ir.AddrExpr).Alloc = reflectdata.TypePtr(n.X.Type())
+		n.SrcType = reflectdata.TypePtr(n.X.Type())
 	}
 	if !n.Type().IsInterface() && !n.X.Type().IsEmptyInterface() {
-		n.Itab = []ir.Node{reflectdata.ITabAddr(n.Type(), n.X.Type())}
+		n.Itab = reflectdata.ITabAddr(n.Type(), n.X.Type())
 	}
 	return n
 }

@@ -32,13 +32,11 @@ func (n *AddrExpr) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.X, err, do)
-	err = maybeDo(n.Alloc, err, do)
 	return err
 }
 func (n *AddrExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 	n.X = maybeEdit(n.X, edit)
-	n.Alloc = maybeEdit(n.Alloc, edit)
 }
 
 func (n *ArrayType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
@@ -954,7 +952,6 @@ func (n *TypeAssertExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *TypeAssertExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
-	c.Itab = c.Itab.Copy()
 	return &c
 }
 func (n *TypeAssertExpr) doChildren(do func(Node) error) error {
@@ -962,14 +959,12 @@ func (n *TypeAssertExpr) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.X, err, do)
 	err = maybeDo(n.Ntype, err, do)
-	err = maybeDoList(n.Itab, err, do)
 	return err
 }
 func (n *TypeAssertExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 	n.X = maybeEdit(n.X, edit)
-	n.Ntype = maybeEdit(n.Ntype, edit)
-	editList(n.Itab, edit)
+	n.Ntype = toNtype(maybeEdit(n.Ntype, edit))
 }
 
 func (n *TypeSwitchGuard) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }

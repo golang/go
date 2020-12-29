@@ -109,7 +109,7 @@ func NewAddStringExpr(pos src.XPos, list []Node) *AddStringExpr {
 type AddrExpr struct {
 	miniExpr
 	X     Node
-	Alloc Node // preallocated storage if any
+	Alloc *Name // preallocated storage if any
 }
 
 func NewAddrExpr(pos src.XPos, x Node) *AddrExpr {
@@ -660,8 +660,13 @@ func (n *StarExpr) SetOTYPE(t *types.Type) {
 type TypeAssertExpr struct {
 	miniExpr
 	X     Node
-	Ntype Node  // TODO: Should be Ntype, but reused as address of type structure
-	Itab  Nodes // Itab[0] is itab
+	Ntype Ntype
+
+	// Runtime type information provided by walkDotType.
+	// Caution: These aren't always populated; see walkDotType.
+	SrcType *AddrExpr // *runtime._type for X's type
+	DstType *AddrExpr // *runtime._type for Type
+	Itab    *AddrExpr // *runtime.itab for Type implementing X's type
 }
 
 func NewTypeAssertExpr(pos src.XPos, x Node, typ Ntype) *TypeAssertExpr {
