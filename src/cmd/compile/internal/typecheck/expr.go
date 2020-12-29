@@ -626,10 +626,8 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 	}
 
 	if (n.Op() == ir.ODOTINTER || n.Op() == ir.ODOTMETH) && top&ctxCallee == 0 {
-		// Create top-level function.
-		fn := makepartialcall(n)
-
-		return ir.NewCallPartExpr(n.Pos(), n.X, n.Selection, fn)
+		n.SetOp(ir.OCALLPART)
+		n.SetType(MethodValueWrapper(n).Type())
 	}
 	return n
 }

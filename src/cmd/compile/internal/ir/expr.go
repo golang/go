@@ -225,26 +225,6 @@ func (n *CallExpr) SetOp(op Op) {
 	}
 }
 
-// A CallPartExpr is a method expression X.Method (uncalled).
-type CallPartExpr struct {
-	miniExpr
-	Func     *Func
-	X        Node
-	Method   *types.Field
-	Prealloc *Name
-}
-
-func NewCallPartExpr(pos src.XPos, x Node, method *types.Field, fn *Func) *CallPartExpr {
-	n := &CallPartExpr{Func: fn, X: x, Method: method}
-	n.op = OCALLPART
-	n.pos = pos
-	n.typ = fn.Type()
-	n.Func = fn
-	return n
-}
-
-func (n *CallPartExpr) Sym() *types.Sym { return n.Method.Sym }
-
 // A ClosureExpr is a function literal expression.
 type ClosureExpr struct {
 	miniExpr
@@ -476,24 +456,6 @@ func (n *MakeExpr) SetOp(op Op) {
 	}
 }
 
-// A MethodExpr is a method expression T.M (where T is a type).
-type MethodExpr struct {
-	miniExpr
-	T         *types.Type
-	Method    *types.Field
-	FuncName_ *Name
-}
-
-func NewMethodExpr(pos src.XPos, t *types.Type, method *types.Field) *MethodExpr {
-	n := &MethodExpr{T: t, Method: method}
-	n.pos = pos
-	n.op = OMETHEXPR
-	return n
-}
-
-func (n *MethodExpr) FuncName() *Name { return n.FuncName_ }
-func (n *MethodExpr) Sym() *types.Sym { panic("MethodExpr.Sym") }
-
 // A NilExpr represents the predefined untyped constant nil.
 // (It may be copied and assigned a type, though.)
 type NilExpr struct {
@@ -567,12 +529,13 @@ func NewNameOffsetExpr(pos src.XPos, name *Name, offset int64, typ *types.Type) 
 	return n
 }
 
-// A SelectorExpr is a selector expression X.Sym.
+// A SelectorExpr is a selector expression X.Sel.
 type SelectorExpr struct {
 	miniExpr
 	X         Node
 	Sel       *types.Sym
 	Selection *types.Field
+	Prealloc  *Name // preallocated storage for OCALLPART, if any
 }
 
 func NewSelectorExpr(pos src.XPos, op Op, x Node, sel *types.Sym) *SelectorExpr {
@@ -586,7 +549,7 @@ func (n *SelectorExpr) SetOp(op Op) {
 	switch op {
 	default:
 		panic(n.no("SetOp " + op.String()))
-	case ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT:
+	case OXDOT, ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OCALLPART, OMETHEXPR:
 		n.op = op
 	}
 }
@@ -595,6 +558,16 @@ func (n *SelectorExpr) Sym() *types.Sym    { return n.Sel }
 func (n *SelectorExpr) Implicit() bool     { return n.flags&miniExprImplicit != 0 }
 func (n *SelectorExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
 func (n *SelectorExpr) Offset() int64      { return n.Selection.Offset }
+
+func (n *SelectorExpr) FuncName() *Name {
+	if n.Op() != OMETHEXPR {
+		panic(n.no("FuncName"))
+	}
+	fn := NewNameAt(n.Selection.Pos, MethodSym(n.X.Type(), n.Sel))
+	fn.Class_ = PFUNC
+	fn.SetType(n.Type())
+	return fn
+}
 
 // Before type-checking, bytes.Buffer is a SelectorExpr.
 // After type-checking it becomes a Name.
@@ -1089,13 +1062,8 @@ func MethodExprName(n Node) *Name {
 // MethodFunc is like MethodName, but returns the types.Field instead.
 func MethodExprFunc(n Node) *types.Field {
 	switch n.Op() {
-	case ODOTMETH:
+	case ODOTMETH, OMETHEXPR, OCALLPART:
 		return n.(*SelectorExpr).Selection
-	case OMETHEXPR:
-		return n.(*MethodExpr).Method
-	case OCALLPART:
-		n := n.(*CallPartExpr)
-		return n.Method
 	}
 	base.Fatalf("unexpected node: %v (%v)", n, n.Op())
 	panic("unreachable")

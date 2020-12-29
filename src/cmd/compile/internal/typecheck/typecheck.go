@@ -1176,19 +1176,16 @@ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
 		return n
 	}
 
-	me := ir.NewMethodExpr(n.Pos(), n.X.Type(), m)
-	me.SetType(NewMethodType(m.Type, n.X.Type()))
-	f := NewName(ir.MethodSym(t, m.Sym))
-	f.Class_ = ir.PFUNC
-	f.SetType(me.Type())
-	me.FuncName_ = f
+	n.SetOp(ir.OMETHEXPR)
+	n.Selection = m
+	n.SetType(NewMethodType(m.Type, n.X.Type()))
 
 	// Issue 25065. Make sure that we emit the symbol for a local method.
 	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym() == nil || t.Sym().Pkg == types.LocalPkg) {
-		NeedFuncSym(me.FuncName_.Sym())
+		NeedFuncSym(n.FuncName().Sym())
 	}
 
-	return me
+	return n
 }
 
 func derefall(t *types.Type) *types.Type {
@@ -1422,7 +1419,7 @@ notenough:
 			// Method expressions have the form T.M, and the compiler has
 			// rewritten those to ONAME nodes but left T in Left.
 			if call.Op() == ir.OMETHEXPR {
-				call := call.(*ir.MethodExpr)
+				call := call.(*ir.SelectorExpr)
 				base.Errorf("not enough arguments in call to method expression %v%s", call, details)
 			} else {
 				base.Errorf("not enough arguments in call to %v%s", call, details)

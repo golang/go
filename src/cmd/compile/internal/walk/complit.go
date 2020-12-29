@@ -539,7 +539,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, n))
 
 	case ir.OMETHEXPR:
-		n := n.(*ir.MethodExpr)
+		n := n.(*ir.SelectorExpr)
 		anylit(n.FuncName(), var_, init)
 
 	case ir.OPTRLIT:
@@ -666,7 +666,7 @@ func genAsStatic(as *ir.AssignStmt) {
 		staticdata.InitConst(name, offset, r, int(r.Type().Width))
 		return
 	case ir.OMETHEXPR:
-		r := r.(*ir.MethodExpr)
+		r := r.(*ir.SelectorExpr)
 		staticdata.InitFunc(name, offset, r.FuncName())
 		return
 	case ir.ONAME:

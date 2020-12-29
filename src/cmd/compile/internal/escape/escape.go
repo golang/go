@@ -612,10 +612,10 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		// Flow the receiver argument to both the closure and
 		// to the receiver parameter.
 
-		n := n.(*ir.CallPartExpr)
+		n := n.(*ir.SelectorExpr)
 		closureK := e.spill(k, n)
 
-		m := n.Method
+		m := n.Selection
 
 		// We don't know how the method value will be called
 		// later, so conservatively assume the result
@@ -1542,7 +1542,7 @@ func (e *escape) finish(fns []*ir.Func) {
 					n := n.(*ir.ClosureExpr)
 					n.SetTransient(true)
 				case ir.OCALLPART:
-					n := n.(*ir.CallPartExpr)
+					n := n.(*ir.SelectorExpr)
 					n.SetTransient(true)
 				case ir.OSLICELIT:
 					n := n.(*ir.CompLitExpr)
@@ -1863,7 +1863,7 @@ func HeapAllocReason(n ir.Node) string {
 	if n.Op() == ir.OCLOSURE && typecheck.ClosureType(n.(*ir.ClosureExpr)).Size() >= ir.MaxImplicitStackVarSize {
 		return "too large for stack"
 	}
-	if n.Op() == ir.OCALLPART && typecheck.PartialCallType(n.(*ir.CallPartExpr)).Size() >= ir.MaxImplicitStackVarSize {
+	if n.Op() == ir.OCALLPART && typecheck.PartialCallType(n.(*ir.SelectorExpr)).Size() >= ir.MaxImplicitStackVarSize {
 		return "too large for stack"
 	}
 
