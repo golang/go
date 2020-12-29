@@ -1011,12 +1011,12 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.ODCLCONST:
 		n := n.(*ir.Decl)
-		n.X = Expr(n.X)
+		n.X = Expr(n.X).(*ir.Name)
 		return n
 
 	case ir.ODCLTYPE:
 		n := n.(*ir.Decl)
-		n.X = typecheck(n.X, ctxType)
+		n.X = typecheck(n.X, ctxType).(*ir.Name)
 		types.CheckSize(n.X.Type())
 		return n
 	}

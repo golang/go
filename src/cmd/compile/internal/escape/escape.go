@@ -316,7 +316,7 @@ func (e *escape) stmt(n ir.Node) {
 		// Record loop depth at declaration.
 		n := n.(*ir.Decl)
 		if !ir.IsBlank(n.X) {
-			e.dcl(n.X.(*ir.Name))
+			e.dcl(n.X)
 		}
 
 	case ir.OLABEL:

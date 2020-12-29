@@ -13,10 +13,10 @@ import (
 // A Decl is a declaration of a const, type, or var. (A declared func is a Func.)
 type Decl struct {
 	miniNode
-	X Node // the thing being declared
+	X *Name // the thing being declared
 }
 
-func NewDecl(pos src.XPos, op Op, x Node) *Decl {
+func NewDecl(pos src.XPos, op Op, x *Name) *Decl {
 	n := &Decl{X: x}
 	n.pos = pos
 	switch op {

@@ -1242,7 +1242,7 @@ func (s *state) stmt(n ir.Node) {
 
 	case ir.ODCL:
 		n := n.(*ir.Decl)
-		if n.X.(*ir.Name).Class_ == ir.PAUTOHEAP {
+		if n.X.Class_ == ir.PAUTOHEAP {
 			s.Fatalf("DCL %v", n)
 		}
 
