@@ -4,7 +4,7 @@ package ir
 
 import "fmt"
 
-func (n *AddStringExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *AddStringExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *AddStringExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -28,7 +28,7 @@ func (n *AddStringExpr) editChildren(edit func(Node) Node) {
 	}
 }
 
-func (n *AddrExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *AddrExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *AddrExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -51,7 +51,7 @@ func (n *AddrExpr) editChildren(edit func(Node) Node) {
 	}
 }
 
-func (n *ArrayType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ArrayType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ArrayType) copy() Node {
 	c := *n
 	return &c
@@ -67,7 +67,7 @@ func (n *ArrayType) editChildren(edit func(Node) Node) {
 	n.Elem = toNtype(maybeEdit(n.Elem, edit))
 }
 
-func (n *AssignListStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *AssignListStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *AssignListStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -88,7 +88,7 @@ func (n *AssignListStmt) editChildren(edit func(Node) Node) {
 	editList(n.Rhs, edit)
 }
 
-func (n *AssignOpStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *AssignOpStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *AssignOpStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -107,7 +107,7 @@ func (n *AssignOpStmt) editChildren(edit func(Node) Node) {
 	n.Y = maybeEdit(n.Y, edit)
 }
 
-func (n *AssignStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *AssignStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *AssignStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -126,7 +126,7 @@ func (n *AssignStmt) editChildren(edit func(Node) Node) {
 	n.Y = maybeEdit(n.Y, edit)
 }
 
-func (n *BasicLit) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *BasicLit) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *BasicLit) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -141,7 +141,7 @@ func (n *BasicLit) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 }
 
-func (n *BinaryExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *BinaryExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *BinaryExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -160,7 +160,7 @@ func (n *BinaryExpr) editChildren(edit func(Node) Node) {
 	n.Y = maybeEdit(n.Y, edit)
 }
 
-func (n *BlockStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *BlockStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *BlockStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -178,7 +178,7 @@ func (n *BlockStmt) editChildren(edit func(Node) Node) {
 	editList(n.List, edit)
 }
 
-func (n *BranchStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *BranchStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *BranchStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -193,7 +193,7 @@ func (n *BranchStmt) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 }
 
-func (n *CallExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *CallExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *CallExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -219,7 +219,7 @@ func (n *CallExpr) editChildren(edit func(Node) Node) {
 	editList(n.Body, edit)
 }
 
-func (n *CaseClause) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *CaseClause) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *CaseClause) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -246,7 +246,7 @@ func (n *CaseClause) editChildren(edit func(Node) Node) {
 	editList(n.Body, edit)
 }
 
-func (n *ChanType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ChanType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ChanType) copy() Node {
 	c := *n
 	return &c
@@ -260,7 +260,7 @@ func (n *ChanType) editChildren(edit func(Node) Node) {
 	n.Elem = toNtype(maybeEdit(n.Elem, edit))
 }
 
-func (n *ClosureExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ClosureExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ClosureExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -281,7 +281,7 @@ func (n *ClosureExpr) editChildren(edit func(Node) Node) {
 	}
 }
 
-func (n *ClosureReadExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ClosureReadExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ClosureReadExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -296,7 +296,7 @@ func (n *ClosureReadExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 }
 
-func (n *CommClause) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *CommClause) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *CommClause) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -316,7 +316,7 @@ func (n *CommClause) editChildren(edit func(Node) Node) {
 	editList(n.Body, edit)
 }
 
-func (n *CompLitExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *CompLitExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *CompLitExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -342,7 +342,7 @@ func (n *CompLitExpr) editChildren(edit func(Node) Node) {
 	}
 }
 
-func (n *ConstExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ConstExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ConstExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -357,7 +357,7 @@ func (n *ConstExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 }
 
-func (n *ConvExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ConvExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ConvExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -374,7 +374,7 @@ func (n *ConvExpr) editChildren(edit func(Node) Node) {
 	n.X = maybeEdit(n.X, edit)
 }
 
-func (n *Decl) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *Decl) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *Decl) copy() Node {
 	c := *n
 	return &c
@@ -388,7 +388,7 @@ func (n *Decl) editChildren(edit func(Node) Node) {
 	n.X = maybeEdit(n.X, edit)
 }
 
-func (n *ForStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ForStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ForStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -413,7 +413,7 @@ func (n *ForStmt) editChildren(edit func(Node) Node) {
 	editList(n.Body, edit)
 }
 
-func (n *Func) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *Func) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *Func) copy() Node {
 	c := *n
 	c.Body = c.Body.Copy()
@@ -428,7 +428,7 @@ func (n *Func) editChildren(edit func(Node) Node) {
 	editList(n.Body, edit)
 }
 
-func (n *FuncType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *FuncType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *FuncType) copy() Node {
 	c := *n
 	if c.Recv != nil {
@@ -451,7 +451,7 @@ func (n *FuncType) editChildren(edit func(Node) Node) {
 	editFields(n.Results, edit)
 }
 
-func (n *GoDeferStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *GoDeferStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *GoDeferStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -468,7 +468,7 @@ func (n *GoDeferStmt) editChildren(edit func(Node) Node) {
 	n.Call = maybeEdit(n.Call, edit)
 }
 
-func (n *Ident) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *Ident) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *Ident) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -483,7 +483,7 @@ func (n *Ident) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 }
 
-func (n *IfStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *IfStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *IfStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -506,7 +506,7 @@ func (n *IfStmt) editChildren(edit func(Node) Node) {
 	editList(n.Else, edit)
 }
 
-func (n *IndexExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *IndexExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *IndexExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -525,7 +525,7 @@ func (n *IndexExpr) editChildren(edit func(Node) Node) {
 	n.Index = maybeEdit(n.Index, edit)
 }
 
-func (n *InlineMarkStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *InlineMarkStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *InlineMarkStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -540,7 +540,7 @@ func (n *InlineMarkStmt) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 }
 
-func (n *InlinedCallExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *InlinedCallExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *InlinedCallExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -561,7 +561,7 @@ func (n *InlinedCallExpr) editChildren(edit func(Node) Node) {
 	editList(n.ReturnVars, edit)
 }
 
-func (n *InterfaceType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *InterfaceType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *InterfaceType) copy() Node {
 	c := *n
 	c.Methods = copyFields(c.Methods)
@@ -576,7 +576,7 @@ func (n *InterfaceType) editChildren(edit func(Node) Node) {
 	editFields(n.Methods, edit)
 }
 
-func (n *KeyExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *KeyExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *KeyExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -595,7 +595,7 @@ func (n *KeyExpr) editChildren(edit func(Node) Node) {
 	n.Value = maybeEdit(n.Value, edit)
 }
 
-func (n *LabelStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *LabelStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *LabelStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -610,7 +610,7 @@ func (n *LabelStmt) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 }
 
-func (n *LogicalExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *LogicalExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *LogicalExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -629,7 +629,7 @@ func (n *LogicalExpr) editChildren(edit func(Node) Node) {
 	n.Y = maybeEdit(n.Y, edit)
 }
 
-func (n *MakeExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *MakeExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *MakeExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -648,7 +648,7 @@ func (n *MakeExpr) editChildren(edit func(Node) Node) {
 	n.Cap = maybeEdit(n.Cap, edit)
 }
 
-func (n *MapType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *MapType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *MapType) copy() Node {
 	c := *n
 	return &c
@@ -664,7 +664,7 @@ func (n *MapType) editChildren(edit func(Node) Node) {
 	n.Elem = toNtype(maybeEdit(n.Elem, edit))
 }
 
-func (n *Name) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *Name) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *Name) copy() Node                    { panic("Name.copy") }
 func (n *Name) doChildren(do func(Node) error) error {
 	var err error
@@ -673,7 +673,7 @@ func (n *Name) doChildren(do func(Node) error) error {
 func (n *Name) editChildren(edit func(Node) Node) {
 }
 
-func (n *NameOffsetExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *NameOffsetExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *NameOffsetExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -694,7 +694,7 @@ func (n *NameOffsetExpr) editChildren(edit func(Node) Node) {
 	}
 }
 
-func (n *NilExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *NilExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *NilExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -709,7 +709,7 @@ func (n *NilExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 }
 
-func (n *ParenExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ParenExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ParenExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -726,7 +726,7 @@ func (n *ParenExpr) editChildren(edit func(Node) Node) {
 	n.X = maybeEdit(n.X, edit)
 }
 
-func (n *PkgName) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *PkgName) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *PkgName) copy() Node {
 	c := *n
 	return &c
@@ -738,7 +738,7 @@ func (n *PkgName) doChildren(do func(Node) error) error {
 func (n *PkgName) editChildren(edit func(Node) Node) {
 }
 
-func (n *RangeStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *RangeStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *RangeStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -768,7 +768,7 @@ func (n *RangeStmt) editChildren(edit func(Node) Node) {
 	}
 }
 
-func (n *ResultExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ResultExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ResultExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -783,7 +783,7 @@ func (n *ResultExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 }
 
-func (n *ReturnStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ReturnStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ReturnStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -801,7 +801,7 @@ func (n *ReturnStmt) editChildren(edit func(Node) Node) {
 	editList(n.Results, edit)
 }
 
-func (n *SelectStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *SelectStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *SelectStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -822,7 +822,7 @@ func (n *SelectStmt) editChildren(edit func(Node) Node) {
 	editList(n.Compiled, edit)
 }
 
-func (n *SelectorExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *SelectorExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *SelectorExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -845,7 +845,7 @@ func (n *SelectorExpr) editChildren(edit func(Node) Node) {
 	}
 }
 
-func (n *SendStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *SendStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *SendStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -864,7 +864,7 @@ func (n *SendStmt) editChildren(edit func(Node) Node) {
 	n.Value = maybeEdit(n.Value, edit)
 }
 
-func (n *SliceExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *SliceExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *SliceExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -887,7 +887,7 @@ func (n *SliceExpr) editChildren(edit func(Node) Node) {
 	n.Max = maybeEdit(n.Max, edit)
 }
 
-func (n *SliceHeaderExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *SliceHeaderExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *SliceHeaderExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -908,7 +908,7 @@ func (n *SliceHeaderExpr) editChildren(edit func(Node) Node) {
 	n.Cap = maybeEdit(n.Cap, edit)
 }
 
-func (n *SliceType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *SliceType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *SliceType) copy() Node {
 	c := *n
 	return &c
@@ -922,7 +922,7 @@ func (n *SliceType) editChildren(edit func(Node) Node) {
 	n.Elem = toNtype(maybeEdit(n.Elem, edit))
 }
 
-func (n *StarExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *StarExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *StarExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -939,7 +939,7 @@ func (n *StarExpr) editChildren(edit func(Node) Node) {
 	n.X = maybeEdit(n.X, edit)
 }
 
-func (n *StructKeyExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *StructKeyExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *StructKeyExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -956,7 +956,7 @@ func (n *StructKeyExpr) editChildren(edit func(Node) Node) {
 	n.Value = maybeEdit(n.Value, edit)
 }
 
-func (n *StructType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *StructType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *StructType) copy() Node {
 	c := *n
 	c.Fields = copyFields(c.Fields)
@@ -971,7 +971,7 @@ func (n *StructType) editChildren(edit func(Node) Node) {
 	editFields(n.Fields, edit)
 }
 
-func (n *SwitchStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *SwitchStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *SwitchStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -994,7 +994,7 @@ func (n *SwitchStmt) editChildren(edit func(Node) Node) {
 	editList(n.Compiled, edit)
 }
 
-func (n *TypeAssertExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *TypeAssertExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *TypeAssertExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -1013,7 +1013,7 @@ func (n *TypeAssertExpr) editChildren(edit func(Node) Node) {
 	n.Ntype = toNtype(maybeEdit(n.Ntype, edit))
 }
 
-func (n *TypeSwitchGuard) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *TypeSwitchGuard) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *TypeSwitchGuard) copy() Node {
 	c := *n
 	return &c
@@ -1033,7 +1033,7 @@ func (n *TypeSwitchGuard) editChildren(edit func(Node) Node) {
 	n.X = maybeEdit(n.X, edit)
 }
 
-func (n *UnaryExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *UnaryExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *UnaryExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
@@ -1050,7 +1050,7 @@ func (n *UnaryExpr) editChildren(edit func(Node) Node) {
 	n.X = maybeEdit(n.X, edit)
 }
 
-func (n *typeNode) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *typeNode) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *typeNode) copy() Node {
 	c := *n
 	return &c

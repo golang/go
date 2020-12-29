@@ -128,7 +128,7 @@ func (o Op) Format(s fmt.State, verb rune) {
 //	%L	Go syntax followed by " (type T)" if type is known.
 //	%+v	Debug syntax, as in Dump.
 //
-func FmtNode(n Node, s fmt.State, verb rune) {
+func fmtNode(n Node, s fmt.State, verb rune) {
 	// %+v prints Dump.
 	// Otherwise we print Go syntax.
 	if s.Flag('+') && verb == 'v' {

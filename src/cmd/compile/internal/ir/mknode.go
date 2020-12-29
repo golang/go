@@ -68,7 +68,7 @@ func main() {
 		}
 
 		fmt.Fprintf(&buf, "\n")
-		fmt.Fprintf(&buf, "func (n *%s) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }\n", name)
+		fmt.Fprintf(&buf, "func (n *%s) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }\n", name)
 
 		switch name {
 		case "Name":
