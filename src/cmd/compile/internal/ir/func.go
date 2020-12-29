@@ -67,7 +67,7 @@ type Func struct {
 	Dcl []*Name
 
 	ClosureEnter Nodes   // list of ONAME nodes (or OADDR-of-ONAME nodes, for output parameters) of captured variables
-	ClosureType  Node    // closure representation type
+	ClosureType  Ntype   // closure representation type
 	ClosureVars  []*Name // closure params; each has closurevar set
 
 	// Parents records the parent scope of each scope within a
