@@ -112,7 +112,6 @@ func (n *AssignStmt) SetOp(op Op) {
 // An AssignOpStmt is an AsOp= assignment statement: X AsOp= Y.
 type AssignOpStmt struct {
 	miniStmt
-	typ    *types.Type
 	X      Node
 	AsOp   Op // OADD etc
 	Y      Node
@@ -125,9 +124,6 @@ func NewAssignOpStmt(pos src.XPos, asOp Op, x, y Node) *AssignOpStmt {
 	n.op = OASOP
 	return n
 }
-
-func (n *AssignOpStmt) Type() *types.Type     { return n.typ }
-func (n *AssignOpStmt) SetType(x *types.Type) { n.typ = x }
 
 // A BlockStmt is a block: { List }.
 type BlockStmt struct {
