@@ -1187,7 +1187,7 @@ func (w *exportWriter) caseList(cases []*ir.CaseClause, namedTypeSwitch bool) {
 		w.pos(cas.Pos())
 		w.stmtList(cas.List)
 		if namedTypeSwitch {
-			w.localName(cas.Var.(*ir.Name))
+			w.localName(cas.Var)
 		}
 		w.stmtList(cas.Body)
 	}
