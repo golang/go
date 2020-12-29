@@ -409,7 +409,6 @@ func tcFunc(n *ir.Func) {
 	if t == nil {
 		return
 	}
-	n.SetType(t)
 	rcvr := t.Recv()
 	if rcvr != nil && n.Shortname != nil {
 		m := addmethod(n, n.Shortname, t, true, n.Pragma&ir.Nointerface != 0)

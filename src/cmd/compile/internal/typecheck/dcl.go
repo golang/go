@@ -23,7 +23,8 @@ func DeclFunc(sym *types.Sym, tfn ir.Ntype) *ir.Func {
 	}
 
 	fn := ir.NewFunc(base.Pos)
-	fn.Nname = ir.NewFuncNameAt(base.Pos, sym, fn)
+	fn.Nname = ir.NewNameAt(base.Pos, sym)
+	fn.Nname.Func = fn
 	fn.Nname.Defn = fn
 	fn.Nname.Ntype = tfn
 	ir.MarkFunc(fn.Nname)

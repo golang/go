@@ -524,7 +524,8 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 		name = ir.BlankNode.Sym() // filled in by typecheckfunc
 	}
 
-	f.Nname = ir.NewFuncNameAt(p.pos(fun.Name), name, f)
+	f.Nname = ir.NewNameAt(p.pos(fun.Name), name)
+	f.Nname.Func = f
 	f.Nname.Defn = f
 	f.Nname.Ntype = t
 
@@ -1742,7 +1743,9 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
 
 	fn := ir.NewFunc(p.pos(expr))
 	fn.SetIsHiddenClosure(ir.CurFunc != nil)
-	fn.Nname = ir.NewFuncNameAt(p.pos(expr), ir.BlankNode.Sym(), fn) // filled in by typecheckclosure
+
+	fn.Nname = ir.NewNameAt(p.pos(expr), ir.BlankNode.Sym()) // filled in by typecheckclosure
+	fn.Nname.Func = fn
 	fn.Nname.Ntype = xtype
 	fn.Nname.Defn = fn
 
