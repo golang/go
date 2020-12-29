@@ -672,28 +672,98 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.ODEREF:
 		n := n.(*ir.StarExpr)
 		return tcStar(n, top)
-	// arithmetic exprs
-	case ir.OASOP,
-		ir.OADD,
-		ir.OAND,
-		ir.OANDAND,
-		ir.OANDNOT,
-		ir.ODIV,
-		ir.OEQ,
-		ir.OGE,
-		ir.OGT,
-		ir.OLE,
-		ir.OLT,
-		ir.OLSH,
-		ir.ORSH,
-		ir.OMOD,
-		ir.OMUL,
-		ir.ONE,
-		ir.OOR,
-		ir.OOROR,
-		ir.OSUB,
-		ir.OXOR:
-		return tcArith(n)
+
+	// x op= y
+	case ir.OASOP:
+		n := n.(*ir.AssignOpStmt)
+		n.X, n.Y = Expr(n.X), Expr(n.Y)
+		checkassign(n, n.X)
+		if n.IncDec && !okforarith[n.X.Type().Kind()] {
+			base.Errorf("invalid operation: %v (non-numeric type %v)", n, n.X.Type())
+			return n
+		}
+		switch n.AsOp {
+		case ir.OLSH, ir.ORSH:
+			n.X, n.Y, _ = tcShift(n, n.X, n.Y)
+		case ir.OADD, ir.OAND, ir.OANDNOT, ir.ODIV, ir.OMOD, ir.OMUL, ir.OOR, ir.OSUB, ir.OXOR:
+			n.X, n.Y, _ = tcArith(n, n.AsOp, n.X, n.Y)
+		default:
+			base.Fatalf("invalid assign op: %v", n.AsOp)
+		}
+		return n
+
+	// logical operators
+	case ir.OANDAND, ir.OOROR:
+		n := n.(*ir.LogicalExpr)
+		n.X, n.Y = Expr(n.X), Expr(n.Y)
+		// For "x == x && len(s)", it's better to report that "len(s)" (type int)
+		// can't be used with "&&" than to report that "x == x" (type untyped bool)
+		// can't be converted to int (see issue #41500).
+		if !n.X.Type().IsBoolean() {
+			base.Errorf("invalid operation: %v (operator %v not defined on %s)", n, n.Op(), typekind(n.X.Type()))
+			n.SetType(nil)
+			return n
+		}
+		if !n.Y.Type().IsBoolean() {
+			base.Errorf("invalid operation: %v (operator %v not defined on %s)", n, n.Op(), typekind(n.Y.Type()))
+			n.SetType(nil)
+			return n
+		}
+		l, r, t := tcArith(n, n.Op(), n.X, n.Y)
+		n.X, n.Y = l, r
+		n.SetType(t)
+		return n
+
+	// shift operators
+	case ir.OLSH, ir.ORSH:
+		n := n.(*ir.BinaryExpr)
+		n.X, n.Y = Expr(n.X), Expr(n.Y)
+		l, r, t := tcShift(n, n.X, n.Y)
+		n.X, n.Y = l, r
+		n.SetType(t)
+		return n
+
+	// comparison operators
+	case ir.OEQ, ir.OGE, ir.OGT, ir.OLE, ir.OLT, ir.ONE:
+		n := n.(*ir.BinaryExpr)
+		n.X, n.Y = Expr(n.X), Expr(n.Y)
+		l, r, t := tcArith(n, n.Op(), n.X, n.Y)
+		if t != nil {
+			n.X, n.Y = l, r
+			n.SetType(types.UntypedBool)
+			if con := EvalConst(n); con.Op() == ir.OLITERAL {
+				return con
+			}
+			n.X, n.Y = defaultlit2(l, r, true)
+		}
+		return n
+
+	// binary operators
+	case ir.OADD, ir.OAND, ir.OANDNOT, ir.ODIV, ir.OMOD, ir.OMUL, ir.OOR, ir.OSUB, ir.OXOR:
+		n := n.(*ir.BinaryExpr)
+		n.X, n.Y = Expr(n.X), Expr(n.Y)
+		l, r, t := tcArith(n, n.Op(), n.X, n.Y)
+		if t != nil && t.Kind() == types.TSTRING && n.Op() == ir.OADD {
+			// create or update OADDSTR node with list of strings in x + y + z + (w + v) + ...
+			var add *ir.AddStringExpr
+			if l.Op() == ir.OADDSTR {
+				add = l.(*ir.AddStringExpr)
+				add.SetPos(n.Pos())
+			} else {
+				add = ir.NewAddStringExpr(n.Pos(), []ir.Node{l})
+			}
+			if r.Op() == ir.OADDSTR {
+				r := r.(*ir.AddStringExpr)
+				add.List.Append(r.List.Take()...)
+			} else {
+				add.List.Append(r)
+			}
+			add.SetType(t)
+			return add
+		}
+		n.X, n.Y = l, r
+		n.SetType(t)
+		return n
 
 	case ir.OBITNOT, ir.ONEG, ir.ONOT, ir.OPLUS:
 		n := n.(*ir.UnaryExpr)
