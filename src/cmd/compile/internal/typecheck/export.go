@@ -31,12 +31,8 @@ func importconst(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type, val
 // ipkg is the package being imported
 func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) *ir.Name {
 	n := importobj(ipkg, pos, s, ir.ONAME, ir.PFUNC, t)
-
-	fn := ir.NewFunc(pos)
-	fn.SetType(t)
-	n.SetFunc(fn)
-	fn.Nname = n
-
+	n.Func = ir.NewFunc(pos)
+	n.Func.Nname = n
 	return n
 }
 

@@ -49,7 +49,6 @@ import (
 // pointer from the Func back to the OCALLPART.
 type Func struct {
 	miniNode
-	typ  *types.Type
 	Body Nodes
 	Iota int64
 
@@ -116,9 +115,7 @@ func NewFunc(pos src.XPos) *Func {
 
 func (f *Func) isStmt() {}
 
-func (f *Func) Type() *types.Type     { return f.typ }
-func (f *Func) SetType(x *types.Type) { f.typ = x }
-
+func (f *Func) Type() *types.Type  { return f.Nname.Type() }
 func (f *Func) Sym() *types.Sym    { return f.Nname.Sym() }
 func (f *Func) Linksym() *obj.LSym { return f.Nname.Linksym() }
 
@@ -234,17 +231,6 @@ var CurFunc *Func
 
 func FuncSymName(s *types.Sym) string {
 	return s.Name + "·f"
-}
-
-// NewFuncNameAt generates a new name node for a function or method.
-func NewFuncNameAt(pos src.XPos, s *types.Sym, fn *Func) *Name {
-	if fn.Nname != nil {
-		base.Fatalf("newFuncName - already have name")
-	}
-	n := NewNameAt(pos, s)
-	n.SetFunc(fn)
-	fn.Nname = n
-	return n
 }
 
 // MarkFunc marks a node as a function.

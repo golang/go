@@ -67,7 +67,7 @@ func Closure(fn *ir.Func) {
 		}
 
 		types.CalcSize(f.Type())
-		fn.SetType(f.Type()) // update type of ODCLFUNC
+		fn.Nname.SetType(f.Type()) // update type of ODCLFUNC
 	} else {
 		// The closure is not called, so it is going to stay as closure.
 		var body []ir.Node

@@ -331,12 +331,13 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 			recv := r.param()
 			mtyp := r.signature(recv)
 
-			fn := ir.NewFunc(mpos)
-			fn.SetType(mtyp)
-			m := ir.NewFuncNameAt(mpos, ir.MethodSym(recv.Type, msym), fn)
-			m.SetType(mtyp)
-			m.Class_ = ir.PFUNC
 			// methodSym already marked m.Sym as a function.
+			m := ir.NewNameAt(mpos, ir.MethodSym(recv.Type, msym))
+			m.Class_ = ir.PFUNC
+			m.SetType(mtyp)
+
+			m.Func = ir.NewFunc(mpos)
+			m.Func.Nname = m
 
 			f := types.NewField(mpos, msym, mtyp)
 			f.Nname = m
