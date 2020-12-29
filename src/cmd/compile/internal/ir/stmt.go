@@ -322,8 +322,8 @@ func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node) *RangeStmt {
 // A ReturnStmt is a return statement.
 type ReturnStmt struct {
 	miniStmt
-	orig    Node  // for typecheckargs rewrite
-	Results Nodes // return list
+	origNode       // for typecheckargs rewrite
+	Results  Nodes // return list
 }
 
 func NewReturnStmt(pos src.XPos, results []Node) *ReturnStmt {
@@ -334,9 +334,6 @@ func NewReturnStmt(pos src.XPos, results []Node) *ReturnStmt {
 	n.Results.Set(results)
 	return n
 }
-
-func (n *ReturnStmt) Orig() Node     { return n.orig }
-func (n *ReturnStmt) SetOrig(x Node) { n.orig = x }
 
 // A SelectStmt is a block: { Cases }.
 type SelectStmt struct {

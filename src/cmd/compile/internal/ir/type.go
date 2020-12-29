@@ -185,45 +185,32 @@ func (f *Field) String() string {
 	return typ
 }
 
-func (f *Field) copy() *Field {
+// TODO(mdempsky): Make Field a Node again so these can be generated?
+// Fields are Nodes in go/ast and cmd/compile/internal/syntax.
+
+func copyField(f *Field) *Field {
+	if f == nil {
+		return nil
+	}
 	c := *f
 	return &c
 }
-
-func copyFields(list []*Field) []*Field {
-	out := make([]*Field, len(list))
-	copy(out, list)
-	for i, f := range out {
-		out[i] = f.copy()
+func doField(f *Field, do func(Node) error) error {
+	if f == nil {
+		return nil
 	}
-	return out
-}
-
-func maybeDoField(f *Field, err error, do func(Node) error) error {
-	if f != nil {
-		if err == nil && f.Decl != nil {
-			err = do(f.Decl)
-		}
-		if err == nil && f.Ntype != nil {
-			err = do(f.Ntype)
-		}
-	}
-	return err
-}
-
-func maybeDoFields(list []*Field, err error, do func(Node) error) error {
-	if err != nil {
-		return err
-	}
-	for _, f := range list {
-		err = maybeDoField(f, err, do)
-		if err != nil {
+	if f.Decl != nil {
+		if err := do(f.Decl); err != nil {
 			return err
 		}
 	}
-	return err
+	if f.Ntype != nil {
+		if err := do(f.Ntype); err != nil {
+			return err
+		}
+	}
+	return nil
 }
-
 func editField(f *Field, edit func(Node) Node) {
 	if f == nil {
 		return
@@ -232,10 +219,25 @@ func editField(f *Field, edit func(Node) Node) {
 		f.Decl = edit(f.Decl).(*Name)
 	}
 	if f.Ntype != nil {
-		f.Ntype = toNtype(edit(f.Ntype))
+		f.Ntype = edit(f.Ntype).(Ntype)
 	}
 }
 
+func copyFields(list []*Field) []*Field {
+	out := make([]*Field, len(list))
+	for i, f := range list {
+		out[i] = copyField(f)
+	}
+	return out
+}
+func doFields(list []*Field, do func(Node) error) error {
+	for _, x := range list {
+		if err := doField(x, do); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func editFields(list []*Field, edit func(Node) Node) {
 	for _, f := range list {
 		editField(f, edit)

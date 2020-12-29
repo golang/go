@@ -14,27 +14,6 @@ import (
 	"go/token"
 )
 
-func maybeDo(x Node, err error, do func(Node) error) error {
-	if x != nil && err == nil {
-		err = do(x)
-	}
-	return err
-}
-
-func maybeDoList(x Nodes, err error, do func(Node) error) error {
-	if err == nil {
-		err = DoList(x, do)
-	}
-	return err
-}
-
-func maybeEdit(x Node, edit func(Node) Node) Node {
-	if x == nil {
-		return x
-	}
-	return edit(x)
-}
-
 // An Expr is a Node that can appear as an expression.
 type Expr interface {
 	Node
@@ -76,16 +55,6 @@ func (n *miniExpr) SetBounded(b bool)     { n.flags.set(miniExprBounded, b) }
 func (n *miniExpr) Init() Nodes           { return n.init }
 func (n *miniExpr) PtrInit() *Nodes       { return &n.init }
 func (n *miniExpr) SetInit(x Nodes)       { n.init = x }
-
-func toNtype(x Node) Ntype {
-	if x == nil {
-		return nil
-	}
-	if _, ok := x.(Ntype); !ok {
-		Dump("not Ntype", x)
-	}
-	return x.(Ntype)
-}
 
 // An AddStringExpr is a string concatenation Expr[0] + Exprs[1] + ... + Expr[len(Expr)-1].
 type AddStringExpr struct {
@@ -189,7 +158,7 @@ const (
 // A CallExpr is a function call X(Args).
 type CallExpr struct {
 	miniExpr
-	orig     Node
+	origNode
 	X        Node
 	Args     Nodes
 	Rargs    Nodes // TODO(rsc): Delete.
@@ -210,9 +179,6 @@ func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
 
 func (*CallExpr) isStmt() {}
 
-func (n *CallExpr) Orig() Node     { return n.orig }
-func (n *CallExpr) SetOrig(x Node) { n.orig = x }
-
 func (n *CallExpr) SetOp(op Op) {
 	switch op {
 	default:
@@ -226,7 +192,7 @@ func (n *CallExpr) SetOp(op Op) {
 // A ClosureExpr is a function literal expression.
 type ClosureExpr struct {
 	miniExpr
-	Func     *Func
+	Func     *Func `mknode:"-"`
 	Prealloc *Name
 }
 
@@ -254,7 +220,7 @@ func NewClosureRead(typ *types.Type, offset int64) *ClosureReadExpr {
 // Before type-checking, the type is Ntype.
 type CompLitExpr struct {
 	miniExpr
-	orig     Node
+	origNode
 	Ntype    Ntype
 	List     Nodes // initialized values
 	Prealloc *Name
@@ -270,8 +236,6 @@ func NewCompLitExpr(pos src.XPos, op Op, typ Ntype, list []Node) *CompLitExpr {
 	return n
 }
 
-func (n *CompLitExpr) Orig() Node         { return n.orig }
-func (n *CompLitExpr) SetOrig(x Node)     { n.orig = x }
 func (n *CompLitExpr) Implicit() bool     { return n.flags&miniExprImplicit != 0 }
 func (n *CompLitExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
 
@@ -286,14 +250,15 @@ func (n *CompLitExpr) SetOp(op Op) {
 
 type ConstExpr struct {
 	miniExpr
-	val  constant.Value
-	orig Node
+	origNode
+	val constant.Value
 }
 
 func NewConstExpr(val constant.Value, orig Node) Node {
-	n := &ConstExpr{orig: orig, val: val}
+	n := &ConstExpr{val: val}
 	n.op = OLITERAL
 	n.pos = orig.Pos()
+	n.orig = orig
 	n.SetType(orig.Type())
 	n.SetTypecheck(orig.Typecheck())
 	n.SetDiag(orig.Diag())
@@ -301,8 +266,6 @@ func NewConstExpr(val constant.Value, orig Node) Node {
 }
 
 func (n *ConstExpr) Sym() *types.Sym     { return n.orig.Sym() }
-func (n *ConstExpr) Orig() Node          { return n.orig }
-func (n *ConstExpr) SetOrig(orig Node)   { panic(n.no("SetOrig")) }
 func (n *ConstExpr) Val() constant.Value { return n.val }
 
 // A ConvExpr is a conversion Type(X).
@@ -664,9 +627,9 @@ type TypeAssertExpr struct {
 
 	// Runtime type information provided by walkDotType.
 	// Caution: These aren't always populated; see walkDotType.
-	SrcType *AddrExpr // *runtime._type for X's type
-	DstType *AddrExpr // *runtime._type for Type
-	Itab    *AddrExpr // *runtime.itab for Type implementing X's type
+	SrcType *AddrExpr `mknode:"-"` // *runtime._type for X's type
+	DstType *AddrExpr `mknode:"-"` // *runtime._type for Type
+	Itab    *AddrExpr `mknode:"-"` // *runtime.itab for Type implementing X's type
 }
 
 func NewTypeAssertExpr(pos src.XPos, x Node, typ Ntype) *TypeAssertExpr {

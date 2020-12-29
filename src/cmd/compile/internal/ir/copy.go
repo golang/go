@@ -25,6 +25,14 @@ type OrigNode interface {
 	SetOrig(Node)
 }
 
+// origNode may be embedded into a Node to make it implement OrigNode.
+type origNode struct {
+	orig Node `mknode:"-"`
+}
+
+func (n *origNode) Orig() Node     { return n.orig }
+func (n *origNode) SetOrig(o Node) { n.orig = o }
+
 // Orig returns the “original” node for n.
 // If n implements OrigNode, Orig returns n.Orig().
 // Otherwise Orig returns n itself.

@@ -106,14 +106,7 @@ func DoChildren(n Node, do func(Node) error) error {
 // Note that DoList only calls do on the nodes in the list, not their children.
 // If x's children should be processed, do(x) must call DoChildren(x, do) itself.
 func DoList(list Nodes, do func(Node) error) error {
-	for _, x := range list {
-		if x != nil {
-			if err := do(x); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return doNodes(list, do)
 }
 
 // Visit visits each non-nil node x in the IR tree rooted at n
@@ -209,17 +202,4 @@ func EditChildren(n Node, edit func(Node) Node) {
 		return
 	}
 	n.editChildren(edit)
-}
-
-// editList calls edit on each non-nil node x in the list,
-// saving the result of edit back into the list.
-//
-// Note that editList only calls edit on the nodes in the list, not their children.
-// If x's children should be processed, edit(x) must call EditChildren(x, edit) itself.
-func editList(list Nodes, edit func(Node) Node) {
-	for i, x := range list {
-		if x != nil {
-			list[i] = edit(x)
-		}
-	}
 }
