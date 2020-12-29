@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package adler32 implements the Adler-32 checksum.
+// adler32 包实现了 Adler-32 校验和算法。
 //
-// It is defined in RFC 1950:
-//	Adler-32 is composed of two sums accumulated per byte: s1 is
-//	the sum of all bytes, s2 is the sum of all s1 values. Both sums
-//	are done modulo 65521. s1 is initialized to 1, s2 to zero.  The
-//	Adler-32 checksum is stored as s2*65536 + s1 in most-
-//	significant-byte first (network) order.
+// 参见 RFC 1950：
+//	Adler-32 由每个字节累计的两个和组成：s1 是所有字节的总和，s2 是所有s1的总和。
+//	两个累计值都取 65521 的余数。 s1 初始值为 1，s2 初始值为 0.
+//	Adler-32 校验和以最高有效字节在前（网络）的顺序保存为 s2*65536 + s1
 package adler32
 
 import (
@@ -26,7 +24,7 @@ const (
 	nmax = 5552
 )
 
-// The size of an Adler-32 checksum in bytes.
+// Adler-32 校验和的字节数
 const Size = 4
 
 // digest represents the partial evaluation of a checksum.
@@ -35,11 +33,8 @@ type digest uint32
 
 func (d *digest) Reset() { *d = 1 }
 
-// New returns a new hash.Hash32 computing the Adler-32 checksum. Its
-// Sum method will lay the value out in big-endian byte order. The
-// returned Hash32 also implements encoding.BinaryMarshaler and
-// encoding.BinaryUnmarshaler to marshal and unmarshal the internal
-// state of the hash.
+// New 返回一个新的 hash.Hash32 计算 Adler-32 校验和。它的 Sum 方法将按照 big-endian 字节顺序排列值。
+// 返回的 Hash32 还实现了 encoding.BinaryUnmarshaler 和 encoding.BinaryUnmarshaler 来封装和取消封装 hash 的内部状态。
 func New() hash.Hash32 {
 	d := new(digest)
 	d.Reset()
@@ -130,5 +125,5 @@ func (d *digest) Sum(in []byte) []byte {
 	return append(in, byte(s>>24), byte(s>>16), byte(s>>8), byte(s))
 }
 
-// Checksum returns the Adler-32 checksum of data.
+// Checksum 返回数据的 Adler-32 校验和。
 func Checksum(data []byte) uint32 { return uint32(update(1, data)) }

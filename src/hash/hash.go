@@ -2,56 +2,48 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package hash provides interfaces for hash functions.
+// hash 包提供了 hash 函数的接口。
 package hash
 
 import "io"
 
-// Hash is the common interface implemented by all hash functions.
+// Hash 是一个被所有 hash 函数实现的公共接口。
 //
-// Hash implementations in the standard library (e.g. hash/crc32 and
-// crypto/sha256) implement the encoding.BinaryMarshaler and
-// encoding.BinaryUnmarshaler interfaces. Marshaling a hash implementation
-// allows its internal state to be saved and used for additional processing
-// later, without having to re-write the data previously written to the hash.
-// The hash state may contain portions of the input in its original form,
-// which users are expected to handle for any possible security implications.
+// 标准库的 Hash实现（比如 hash\crc32、crypto\sha256） 实现了 encoding.BinaryMarshaler 和
+// encoding.BinaryUnmarshaler 接口。 封装 hash实现 可以将其内部的状态保存下来，并在以后用于其他处理，
+// 而不必重新写入先前写入 hash 的数据。
+// hash 状态可能包含其原始形式的输入部分，用户应该对任何可能出现的安全隐含做处理。
 //
-// Compatibility: Any future changes to hash or crypto packages will endeavor
-// to maintain compatibility with state encoded using previous versions.
-// That is, any released versions of the packages should be able to
-// decode data written with any previously released version,
-// subject to issues such as security fixes.
-// See the Go compatibility document for background: https://golang.org/doc/go1compat
+// 兼容性：将来对 hash 或者 crpto 包的任何更改都将努力保持和使用之前版本的编码的状态的兼容性。
+// 也就是说，软件包的任何发行版都能够解码已之前的任何发行版写入的输入，但要考虑到诸如安全修补之类的问题。
+// 有关背景信息，请参阅 Go兼容性 文档：https://golang.org/doc/go1compat。
 type Hash interface {
-	// Write (via the embedded io.Writer interface) adds more data to the running hash.
-	// It never returns an error.
+	// 通过嵌入匿名的 io.Writer 接口向 hash 中添加更多的数据。
+	// 永远不会返回错误
 	io.Writer
 
-	// Sum appends the current hash to b and returns the resulting slice.
-	// It does not change the underlying hash state.
+	// Sum 将当前 hash 附加到 b 并返回结果切片。
+	// 它不会改变底层的 hash 状态。
 	Sum(b []byte) []byte
 
-	// Reset resets the Hash to its initial state.
+	// Rest 将 hash 重置为初始状态
 	Reset()
 
-	// Size returns the number of bytes Sum will return.
+	// Size 返回 Sum 切片的数量
 	Size() int
 
-	// BlockSize returns the hash's underlying block size.
-	// The Write method must be able to accept any amount
-	// of data, but it may operate more efficiently if all writes
-	// are a multiple of the block size.
+	// BlockSize 返回 hash 底层块大小。
+	// Write 方法可以接收任意大小的数据， 但是提供的数据是块大小的倍数是效率更高。
 	BlockSize() int
 }
 
-// Hash32 is the common interface implemented by all 32-bit hash functions.
+// Hash32 是一个被所有 32 位 hash 函数实现的公共接口。
 type Hash32 interface {
 	Hash
 	Sum32() uint32
 }
 
-// Hash64 is the common interface implemented by all 64-bit hash functions.
+// Hash64 是一个被所有 64 位 hash 函数实现的公共接口。
 type Hash64 interface {
 	Hash
 	Sum64() uint64

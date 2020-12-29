@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package crc64 implements the 64-bit cyclic redundancy check, or CRC-64,
-// checksum. See https://en.wikipedia.org/wiki/Cyclic_redundancy_check for
-// information.
+// crc64 包实现了64 位循环冗余校验或者 CRC-64 校验和算法。 参见：https://en.wikipedia.org/wiki/Cyclic_redundancy_check。
 package crc64
 
 import (
@@ -13,19 +11,19 @@ import (
 	"sync"
 )
 
-// The size of a CRC-64 checksum in bytes.
+// CRC-64 校验和的字节长度
 const Size = 8
 
-// Predefined polynomials.
+// 预定义的多项式
 const (
-	// The ISO polynomial, defined in ISO 3309 and used in HDLC.
+	// ISO 多项式，在 ISO 3309 中定义并在 HDLC 中使用。
 	ISO = 0xD800000000000000
 
-	// The ECMA polynomial, defined in ECMA 182.
+	// ECMA 多项式，在 ECMA 182 中定义。
 	ECMA = 0xC96C5795D7870F42
 )
 
-// Table is a 256-word table representing the polynomial for efficient processing.
+// Table 是一个长度为 256 的 uint64 切片，代表一个高效运作的多项式。
 type Table [256]uint64
 
 var (
@@ -43,8 +41,7 @@ func buildSlicing8Tables() {
 	slicing8TableECMA = makeSlicingBy8Table(makeTable(ECMA))
 }
 
-// MakeTable returns a Table constructed from the specified polynomial.
-// The contents of this Table must not be modified.
+// MakeTable 返回根据指定多项式构造的 table。 该表的内容不得修改
 func MakeTable(poly uint64) *Table {
 	buildSlicing8TablesOnce()
 	switch poly {
@@ -92,11 +89,9 @@ type digest struct {
 	tab *Table
 }
 
-// New creates a new hash.Hash64 computing the CRC-64 checksum using the
-// polynomial represented by the Table. Its Sum method will lay the
-// value out in big-endian byte order. The returned Hash64 also
-// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
-// marshal and unmarshal the internal state of the hash.
+// New 创建一个 使用 table 表示的多项式计算 CRC-64 校验和的 hash.Hash64。
+// 它的 Sum 方法将按照 big-endian 字节顺序排列值。返回的 Hash64 也实现了
+// encoding.BinaryMarshaler 和 encoding.BinaryUnmarshaler 来封装和取消封装hash的内部状态。
 func New(tab *Table) hash.Hash64 { return &digest{0, tab} }
 
 func (d *digest) Size() int { return Size }
@@ -190,7 +185,7 @@ func update(crc uint64, tab *Table, p []byte) uint64 {
 	return ^crc
 }
 
-// Update returns the result of adding the bytes in p to the crc.
+// Update 返回将切片 p 中的字节 添加到 crc 的结果。
 func Update(crc uint64, tab *Table, p []byte) uint64 {
 	return update(crc, tab, p)
 }
@@ -207,8 +202,7 @@ func (d *digest) Sum(in []byte) []byte {
 	return append(in, byte(s>>56), byte(s>>48), byte(s>>40), byte(s>>32), byte(s>>24), byte(s>>16), byte(s>>8), byte(s))
 }
 
-// Checksum returns the CRC-64 checksum of data
-// using the polynomial represented by the Table.
+// 返回数据 data 使用 table 代表的多项式计算出 CRC-64 校验和。
 func Checksum(data []byte, tab *Table) uint64 { return update(0, tab, data) }
 
 // tableSum returns the ISO checksum of table t.
