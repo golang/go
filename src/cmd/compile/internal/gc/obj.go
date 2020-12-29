@@ -148,8 +148,8 @@ func dumpdata() {
 	dumpglobls(typecheck.Target.Externs[numExterns:])
 
 	if reflectdata.ZeroSize > 0 {
-		zero := ir.Pkgs.Map.Lookup("zero")
-		objw.Global(zero.Linksym(), int32(reflectdata.ZeroSize), obj.DUPOK|obj.RODATA)
+		zero := ir.Pkgs.Map.Lookup("zero").Linksym()
+		objw.Global(zero, int32(reflectdata.ZeroSize), obj.DUPOK|obj.RODATA)
 	}
 
 	addGCLocals()

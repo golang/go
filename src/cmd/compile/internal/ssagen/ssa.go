@@ -4578,7 +4578,7 @@ func (s *state) openDeferExit() {
 				call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, aux, codeptr, v, s.mem())
 			}
 		} else {
-			aux := ssa.StaticAuxCall(fn.Sym().Linksym(), ACArgs, ACResults)
+			aux := ssa.StaticAuxCall(fn.(*ir.Name).Linksym(), ACArgs, ACResults)
 			if testLateExpansion {
 				callArgs = append(callArgs, s.mem())
 				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)

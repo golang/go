@@ -209,7 +209,7 @@ func slicedata(pos src.XPos, s string) *ir.Name {
 	symnode := typecheck.NewName(sym)
 	sym.Def = symnode
 
-	lsym := sym.Linksym()
+	lsym := symnode.Linksym()
 	off := dstringdata(lsym, 0, s, pos, "slice")
 	objw.Global(lsym, int32(off), obj.NOPTR|obj.LOCAL)
 
