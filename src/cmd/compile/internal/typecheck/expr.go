@@ -230,7 +230,7 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 
 	// Need to handle [...]T arrays specially.
 	if array, ok := n.Ntype.(*ir.ArrayType); ok && array.Elem != nil && array.Len == nil {
-		array.Elem = typecheck(array.Elem, ctxType)
+		array.Elem = typecheckNtype(array.Elem)
 		elemType := array.Elem.Type()
 		if elemType == nil {
 			n.SetType(nil)
@@ -243,7 +243,7 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 		return n
 	}
 
-	n.Ntype = ir.Node(typecheck(n.Ntype, ctxType)).(ir.Ntype)
+	n.Ntype = typecheckNtype(n.Ntype)
 	t := n.Ntype.Type()
 	if t == nil {
 		n.SetType(nil)

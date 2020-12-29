@@ -342,7 +342,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 		fn.Iota = x
 	}
 
-	fn.ClosureType = typecheck(fn.ClosureType, ctxType)
+	fn.ClosureType = typecheckNtype(fn.ClosureType)
 	clo.SetType(fn.ClosureType.Type())
 	fn.SetClosureCalled(top&ctxCallee != 0)
 

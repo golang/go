@@ -52,7 +52,7 @@ func (n *ArrayType) doChildren(do func(Node) error) error {
 }
 func (n *ArrayType) editChildren(edit func(Node) Node) {
 	n.Len = maybeEdit(n.Len, edit)
-	n.Elem = maybeEdit(n.Elem, edit)
+	n.Elem = toNtype(maybeEdit(n.Elem, edit))
 }
 
 func (n *AssignListStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
@@ -241,7 +241,7 @@ func (n *ChanType) doChildren(do func(Node) error) error {
 	return err
 }
 func (n *ChanType) editChildren(edit func(Node) Node) {
-	n.Elem = maybeEdit(n.Elem, edit)
+	n.Elem = toNtype(maybeEdit(n.Elem, edit))
 }
 
 func (n *ClosureExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
@@ -632,8 +632,8 @@ func (n *MapType) doChildren(do func(Node) error) error {
 	return err
 }
 func (n *MapType) editChildren(edit func(Node) Node) {
-	n.Key = maybeEdit(n.Key, edit)
-	n.Elem = maybeEdit(n.Elem, edit)
+	n.Key = toNtype(maybeEdit(n.Key, edit))
+	n.Elem = toNtype(maybeEdit(n.Elem, edit))
 }
 
 func (n *Name) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
@@ -873,7 +873,7 @@ func (n *SliceType) doChildren(do func(Node) error) error {
 	return err
 }
 func (n *SliceType) editChildren(edit func(Node) Node) {
-	n.Elem = maybeEdit(n.Elem, edit)
+	n.Elem = toNtype(maybeEdit(n.Elem, edit))
 }
 
 func (n *StarExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
