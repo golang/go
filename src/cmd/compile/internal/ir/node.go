@@ -50,8 +50,6 @@ type Node interface {
 	SetEsc(x uint16)
 	Walkdef() uint8
 	SetWalkdef(x uint8)
-	Opt() interface{}
-	SetOpt(x interface{})
 	Diag() bool
 	SetDiag(x bool)
 	Typecheck() uint8

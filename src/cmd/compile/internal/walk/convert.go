@@ -438,18 +438,14 @@ func walkCheckPtrAlignment(n *ir.ConvExpr, init *ir.Nodes, count ir.Node) ir.Nod
 }
 
 func walkCheckPtrArithmetic(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
-	// Calling cheapexpr(n, init) below leads to a recursive call
-	// to walkexpr, which leads us back here again. Use n.Opt to
+	// Calling cheapexpr(n, init) below leads to a recursive call to
+	// walkexpr, which leads us back here again. Use n.Checkptr to
 	// prevent infinite loops.
-	if opt := n.Opt(); opt == &walkCheckPtrArithmeticMarker {
+	if n.CheckPtr() {
 		return n
-	} else if opt != nil {
-		// We use n.Opt() here because today it's not used for OCONVNOP. If that changes,
-		// there's no guarantee that temporarily replacing it is safe, so just hard fail here.
-		base.Fatalf("unexpected Opt: %v", opt)
 	}
-	n.SetOpt(&walkCheckPtrArithmeticMarker)
-	defer n.SetOpt(nil)
+	n.SetCheckPtr(true)
+	defer n.SetCheckPtr(false)
 
 	// TODO(mdempsky): Make stricter. We only need to exempt
 	// reflect.Value.Pointer and reflect.Value.UnsafeAddr.

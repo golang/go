@@ -42,6 +42,7 @@ type Name struct {
 	Func      *Func
 	Offset_   int64
 	val       constant.Value
+	Opt       interface{} // for use by escape analysis
 	orig      Node
 	Embed     *[]Embed // list of embedded files, for ONAME var
 
@@ -321,8 +322,7 @@ func (n *Name) Val() constant.Value {
 	return n.val
 }
 
-// SetVal sets the constant.Value for the node,
-// which must not have been used with SetOpt.
+// SetVal sets the constant.Value for the node.
 func (n *Name) SetVal(v constant.Value) {
 	if n.op != OLITERAL {
 		panic(n.no("SetVal"))
