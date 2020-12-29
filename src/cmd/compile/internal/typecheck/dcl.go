@@ -17,63 +17,6 @@ import (
 
 var DeclContext ir.Class // PEXTERN/PAUTO
 
-func AssignDefn(left []ir.Node, defn ir.Node) {
-	for _, n := range left {
-		if n.Sym() != nil {
-			n.Sym().SetUniq(true)
-		}
-	}
-
-	var nnew, nerr int
-	for i, n := range left {
-		if ir.IsBlank(n) {
-			continue
-		}
-		if !assignableName(n) {
-			base.ErrorfAt(defn.Pos(), "non-name %v on left side of :=", n)
-			nerr++
-			continue
-		}
-
-		if !n.Sym().Uniq() {
-			base.ErrorfAt(defn.Pos(), "%v repeated on left side of :=", n.Sym())
-			n.SetDiag(true)
-			nerr++
-			continue
-		}
-
-		n.Sym().SetUniq(false)
-		if n.Sym().Block == types.Block {
-			continue
-		}
-
-		nnew++
-		n := NewName(n.Sym())
-		Declare(n, DeclContext)
-		n.Defn = defn
-		defn.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, n))
-		left[i] = n
-	}
-
-	if nnew == 0 && nerr == 0 {
-		base.ErrorfAt(defn.Pos(), "no new variables on left side of :=")
-	}
-}
-
-// := declarations
-func assignableName(n ir.Node) bool {
-	switch n.Op() {
-	case ir.ONAME,
-		ir.ONONAME,
-		ir.OPACK,
-		ir.OTYPE,
-		ir.OLITERAL:
-		return n.Sym() != nil
-	}
-
-	return false
-}
-
 func DeclFunc(sym *types.Sym, tfn ir.Ntype) *ir.Func {
 	if tfn.Op() != ir.OTFUNC {
 		base.Fatalf("expected OTFUNC node, got %v", tfn)
