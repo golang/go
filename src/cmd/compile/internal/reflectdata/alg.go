@@ -42,8 +42,8 @@ func eqCanPanic(t *types.Type) bool {
 	}
 }
 
-// AlgType is like algtype1, except it returns the fixed-width AMEMxx variants
-// instead of the general AMEM kind when possible.
+// AlgType returns the fixed-width AMEMxx variants instead of the general
+// AMEM kind when possible.
 func AlgType(t *types.Type) types.AlgKind {
 	a, _ := types.AlgType(t)
 	if a == types.AMEM {

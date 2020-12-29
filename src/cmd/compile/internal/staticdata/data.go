@@ -276,7 +276,7 @@ func FuncLinksym(n *ir.Name) *obj.LSym {
 // the s·f stubs in s's package.
 func NeedFuncSym(s *types.Sym) {
 	if !base.Ctxt.Flag_dynlink {
-		base.Fatalf("makefuncsym dynlink")
+		base.Fatalf("NeedFuncSym: dynlink")
 	}
 	if s.IsBlank() {
 		return
