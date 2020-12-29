@@ -246,7 +246,7 @@ const (
 // marks variables that escape the local frame.
 // rewrites n.Op to be more specific in some cases.
 
-var typecheckdefstack []ir.Node
+var typecheckdefstack []*ir.Name
 
 // Resolve ONONAME to definition, if any.
 func Resolve(n ir.Node) (res ir.Node) {
@@ -584,24 +584,9 @@ func indexlit(n ir.Node) ir.Node {
 // typecheck1 should ONLY be called from typecheck.
 func typecheck1(n ir.Node, top int) ir.Node {
 	switch n.Op() {
-	case ir.OLITERAL, ir.ONAME, ir.ONONAME, ir.OTYPE:
-		if n.Sym() == nil {
-			return n
-		}
-
-		if n.Op() == ir.ONAME {
-			n := n.(*ir.Name)
-			if n.BuiltinOp != 0 && top&ctxCallee == 0 {
-				base.Errorf("use of builtin %v not in function call", n.Sym())
-				n.SetType(nil)
-				return n
-			}
-		}
-
-		typecheckdef(n)
-		if n.Op() == ir.ONONAME {
-			n.SetType(nil)
-			return n
+	case ir.OLITERAL, ir.ONAME, ir.OTYPE:
+		if n.Sym() != nil {
+			typecheckdef(n)
 		}
 	}
 
@@ -611,22 +596,37 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		base.Fatalf("typecheck %v", n.Op())
 		panic("unreachable")
 
-	// names
 	case ir.OLITERAL:
-		if n.Type() == nil && n.Val().Kind() == constant.String {
-			base.Fatalf("string literal missing type")
+		if n.Sym() == nil && n.Type() == nil {
+			base.Fatalf("literal missing type: %v", n)
 		}
 		return n
 
-	case ir.ONIL, ir.ONONAME:
+	case ir.ONIL:
+		return n
+
+	// names
+	case ir.ONONAME:
+		if !n.Diag() {
+			// Note: adderrorname looks for this string and
+			// adds context about the outer expression
+			base.ErrorfAt(n.Pos(), "undefined: %v", n.Sym())
+			n.SetDiag(true)
+		}
+		n.SetType(nil)
 		return n
 
 	case ir.ONAME:
 		n := n.(*ir.Name)
-		if n.Name().Decldepth == 0 {
-			n.Name().Decldepth = decldepth
+		if n.Decldepth == 0 {
+			n.Decldepth = decldepth
 		}
 		if n.BuiltinOp != 0 {
+			if top&ctxCallee == 0 {
+				base.Errorf("use of builtin %v not in function call", n.Sym())
+				n.SetType(nil)
+				return n
+			}
 			return n
 		}
 		if top&ctxAssign == 0 {
@@ -652,9 +652,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	// types (ODEREF is with exprs)
 	case ir.OTYPE:
-		if n.Type() == nil {
-			return n
-		}
 		return n
 
 	case ir.OTSLICE:
@@ -1852,26 +1849,22 @@ func typecheckdef(n ir.Node) {
 		defer tracePrint("typecheckdef", n)(nil)
 	}
 
-	lno := ir.SetPos(n)
-
-	if n.Op() == ir.ONONAME {
-		if !n.Diag() {
-			n.SetDiag(true)
-
-			// Note: adderrorname looks for this string and
-			// adds context about the outer expression
-			base.ErrorfAt(base.Pos, "undefined: %v", n.Sym())
-		}
-		base.Pos = lno
-		return
-	}
-
 	if n.Walkdef() == 1 {
-		base.Pos = lno
 		return
 	}
 
-	typecheckdefstack = append(typecheckdefstack, n)
+	if n.Type() != nil { // builtin
+		// Mark as Walkdef so that if n.SetType(nil) is called later, we
+		// won't try walking again.
+		if got := n.Walkdef(); got != 0 {
+			base.Fatalf("unexpected walkdef: %v", got)
+		}
+		n.SetWalkdef(1)
+		return
+	}
+
+	lno := ir.SetPos(n)
+	typecheckdefstack = append(typecheckdefstack, n.(*ir.Name))
 	if n.Walkdef() == 2 {
 		base.FlushErrors()
 		fmt.Printf("typecheckdef loop:")
@@ -1884,10 +1877,6 @@ func typecheckdef(n ir.Node) {
 	}
 
 	n.SetWalkdef(2)
-
-	if n.Type() != nil || n.Sym() == nil { // builtin or no name
-		goto ret
-	}
 
 	switch n.Op() {
 	default:
@@ -2367,7 +2356,7 @@ func deadcodeexpr(n ir.Node) ir.Node {
 func getIotaValue() int64 {
 	if i := len(typecheckdefstack); i > 0 {
 		if x := typecheckdefstack[i-1]; x.Op() == ir.OLITERAL {
-			return x.(*ir.Name).Iota()
+			return x.Iota()
 		}
 	}
 
