@@ -8,7 +8,7 @@ set to the clang wrapper that invokes clang for iOS. For example, this command r
 	GOOS=ios GOARCH=amd64 CGO_ENABLED=1 CC_FOR_TARGET=$(pwd)/../misc/ios/clangwrap.sh ./all.bash
 
 If CC_FOR_TARGET is not set when the toolchain is built (make.bash or all.bash), CC
-can be set at commond line. For example,
+can be set on the command line. For example,
 
 	GOOS=ios GOARCH=amd64 CGO_ENABLED=1 CC=$(go env GOROOT)/misc/ios/clangwrap.sh go build
 
