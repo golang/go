@@ -35,6 +35,7 @@ func main() {
 	}
 
 	nodeType := lookup("Node")
+	ptrNameType := types.NewPointer(lookup("Name"))
 	ntypeType := lookup("Ntype")
 	nodesType := lookup("Nodes")
 	slicePtrCaseClauseType := types.NewSlice(types.NewPointer(lookup("CaseClause")))
@@ -94,7 +95,7 @@ func main() {
 		fmt.Fprintf(&buf, "func (n *%s) doChildren(do func(Node) error) error { var err error\n", name)
 		forNodeFields(typName, typ, func(name string, is func(types.Type) bool) {
 			switch {
-			case is(ptrIdentType):
+			case is(ptrIdentType), is(ptrNameType):
 				fmt.Fprintf(&buf, "if n.%s != nil { err = maybeDo(n.%s, err, do) }\n", name, name)
 			case is(nodeType), is(ntypeType):
 				fmt.Fprintf(&buf, "err = maybeDo(n.%s, err, do)\n", name)
@@ -117,6 +118,8 @@ func main() {
 			switch {
 			case is(ptrIdentType):
 				fmt.Fprintf(&buf, "if n.%s != nil { n.%s = edit(n.%s).(*Ident) }\n", name, name, name)
+			case is(ptrNameType):
+				fmt.Fprintf(&buf, "if n.%s != nil { n.%s = edit(n.%s).(*Name) }\n", name, name, name)
 			case is(nodeType):
 				fmt.Fprintf(&buf, "n.%s = maybeEdit(n.%s, edit)\n", name, name)
 			case is(ntypeType):
