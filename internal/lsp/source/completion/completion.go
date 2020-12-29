@@ -733,6 +733,10 @@ func (c *completer) emptySwitchStmt() bool {
 // (i.e. "golang.org/x/"). The user is meant to accept completion suggestions
 // until they reach a complete import path.
 func (c *completer) populateImportCompletions(ctx context.Context, searchImport *ast.ImportSpec) error {
+	if !strings.HasPrefix(searchImport.Path.Value, `"`) {
+		return nil
+	}
+
 	// deepSearch is not valuable for import completions.
 	c.deepState.enabled = false
 
