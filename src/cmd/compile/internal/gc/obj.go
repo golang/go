@@ -260,7 +260,7 @@ func addGCLocals() {
 	}
 }
 
-func ggloblnod(nam ir.Node) {
+func ggloblnod(nam *ir.Name) {
 	s := nam.Sym().Linksym()
 	s.Gotype = reflectdata.TypeSym(nam.Type()).Linksym()
 	flags := 0

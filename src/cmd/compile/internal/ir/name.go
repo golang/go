@@ -7,6 +7,7 @@ package ir
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 
@@ -237,6 +238,8 @@ func (n *Name) FrameOffset() int64     { return n.Offset_ }
 func (n *Name) SetFrameOffset(x int64) { n.Offset_ = x }
 func (n *Name) Iota() int64            { return n.Offset_ }
 func (n *Name) SetIota(x int64)        { n.Offset_ = x }
+
+func (n *Name) Linksym() *obj.LSym { return n.sym.Linksym() }
 
 func (*Name) CanBeNtype()    {}
 func (*Name) CanBeAnSSASym() {}

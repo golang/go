@@ -2106,7 +2106,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		return s.newValue3(ssa.OpSliceMake, n.Type(), ptr, len, len)
 	case ir.OCFUNC:
 		n := n.(*ir.UnaryExpr)
-		aux := n.X.Sym().Linksym()
+		aux := n.X.(*ir.Name).Linksym()
 		return s.entryNewValue1A(ssa.OpAddr, n.Type(), aux, s.sb)
 	case ir.ONAME:
 		n := n.(*ir.Name)
@@ -6826,7 +6826,7 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 	case *ir.Name:
 		if n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT {
 			a.Name = obj.NAME_PARAM
-			a.Sym = ir.Orig(n).Sym().Linksym()
+			a.Sym = ir.Orig(n).(*ir.Name).Linksym()
 			a.Offset += n.FrameOffset()
 			break
 		}

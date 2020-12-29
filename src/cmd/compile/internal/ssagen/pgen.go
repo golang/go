@@ -225,7 +225,7 @@ func StackOffset(slot ssa.LocalSlot) int32 {
 
 // fieldtrack adds R_USEFIELD relocations to fnsym to record any
 // struct fields that it used.
-func fieldtrack(fnsym *obj.LSym, tracked map[*types.Sym]struct{}) {
+func fieldtrack(fnsym *obj.LSym, tracked map[*obj.LSym]struct{}) {
 	if fnsym == nil {
 		return
 	}
@@ -233,23 +233,17 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*types.Sym]struct{}) {
 		return
 	}
 
-	trackSyms := make([]*types.Sym, 0, len(tracked))
+	trackSyms := make([]*obj.LSym, 0, len(tracked))
 	for sym := range tracked {
 		trackSyms = append(trackSyms, sym)
 	}
-	sort.Sort(symByName(trackSyms))
+	sort.Slice(trackSyms, func(i, j int) bool { return trackSyms[i].Name < trackSyms[j].Name })
 	for _, sym := range trackSyms {
 		r := obj.Addrel(fnsym)
-		r.Sym = sym.Linksym()
+		r.Sym = sym
 		r.Type = objabi.R_USEFIELD
 	}
 }
-
-type symByName []*types.Sym
-
-func (a symByName) Len() int           { return len(a) }
-func (a symByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
-func (a symByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 // largeStack is info about a function whose stack frame is too large (rare).
 type largeStack struct {
