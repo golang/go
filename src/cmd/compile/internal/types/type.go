@@ -6,7 +6,6 @@ package types
 
 import (
 	"cmd/compile/internal/base"
-	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 	"sync"
@@ -1530,10 +1529,6 @@ func (t *Type) HasPointers() bool {
 	}
 
 	return true
-}
-
-func (t *Type) Symbol() *obj.LSym {
-	return TypeLinkSym(t)
 }
 
 // Tie returns 'T' if t is a concrete type,
