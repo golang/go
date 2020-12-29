@@ -52,13 +52,13 @@ var (
 	signatslice []*types.Type
 
 	itabs []itabEntry
-	ptabs []ptabEntry
+	ptabs []*ir.Name
 )
 
 type typeSig struct {
 	name  *types.Sym
-	isym  *types.Sym
-	tsym  *types.Sym
+	isym  *obj.LSym
+	tsym  *obj.LSym
 	type_ *types.Type
 	mtype *types.Type
 }
@@ -327,19 +327,17 @@ func methods(t *types.Type) []*typeSig {
 	// generating code if necessary.
 	var ms []*typeSig
 	for _, f := range mt.AllMethods().Slice() {
+		if f.Sym == nil {
+			base.Fatalf("method with no sym on %v", mt)
+		}
 		if !f.IsMethod() {
-			base.Fatalf("non-method on %v method %v %v\n", mt, f.Sym, f)
+			base.Fatalf("non-method on %v method %v %v", mt, f.Sym, f)
 		}
 		if f.Type.Recv() == nil {
-			base.Fatalf("receiver with no type on %v method %v %v\n", mt, f.Sym, f)
+			base.Fatalf("receiver with no type on %v method %v %v", mt, f.Sym, f)
 		}
 		if f.Nointerface() {
 			continue
-		}
-
-		method := f.Sym
-		if method == nil {
-			break
 		}
 
 		// get receiver type for this particular method.
@@ -351,29 +349,13 @@ func methods(t *types.Type) []*typeSig {
 		}
 
 		sig := &typeSig{
-			name:  method,
-			isym:  ir.MethodSym(it, method),
-			tsym:  ir.MethodSym(t, method),
+			name:  f.Sym,
+			isym:  methodWrapper(it, f),
+			tsym:  methodWrapper(t, f),
 			type_: typecheck.NewMethodType(f.Type, t),
 			mtype: typecheck.NewMethodType(f.Type, nil),
 		}
 		ms = append(ms, sig)
-
-		this := f.Type.Recv().Type
-
-		if !sig.isym.Siggen() {
-			sig.isym.SetSiggen(true)
-			if !types.Identical(this, it) {
-				genwrapper(it, f, sig.isym)
-			}
-		}
-
-		if !sig.tsym.Siggen() {
-			sig.tsym.SetSiggen(true)
-			if !types.Identical(this, t) {
-				genwrapper(t, f, sig.tsym)
-			}
-		}
 	}
 
 	return ms
@@ -407,11 +389,7 @@ func imethods(t *types.Type) []*typeSig {
 		// IfaceType.Method is not in the reflect data.
 		// Generate the method body, so that compiled
 		// code can refer to it.
-		isym := ir.MethodSym(t, f.Sym)
-		if !isym.Siggen() {
-			isym.SetSiggen(true)
-			genwrapper(t, f, isym)
-		}
+		methodWrapper(t, f)
 	}
 
 	return methods
@@ -636,8 +614,8 @@ func dextratypeData(lsym *obj.LSym, ot int, t *types.Type) int {
 
 		ot = objw.SymPtrOff(lsym, ot, nsym)
 		ot = dmethodptrOff(lsym, ot, WriteType(a.mtype))
-		ot = dmethodptrOff(lsym, ot, a.isym.Linksym())
-		ot = dmethodptrOff(lsym, ot, a.tsym.Linksym())
+		ot = dmethodptrOff(lsym, ot, a.isym)
+		ot = dmethodptrOff(lsym, ot, a.tsym)
 	}
 	return ot
 }
@@ -884,7 +862,7 @@ func ITabAddr(t, itype *types.Type) *ir.AddrExpr {
 		n.Class_ = ir.PEXTERN
 		n.SetTypecheck(1)
 		s.Def = n
-		itabs = append(itabs, itabEntry{t: t, itype: itype, lsym: s.Linksym()})
+		itabs = append(itabs, itabEntry{t: t, itype: itype, lsym: n.Linksym()})
 	}
 
 	n := typecheck.NodAddr(ir.AsNode(s.Def))
@@ -1281,7 +1259,7 @@ func genfun(t, it *types.Type) []*obj.LSym {
 	// so we can find the intersect in a single pass
 	for _, m := range methods {
 		if m.name == sigs[0].name {
-			out = append(out, m.isym.Linksym())
+			out = append(out, m.isym)
 			sigs = sigs[1:]
 			if len(sigs) == 0 {
 				break
@@ -1390,8 +1368,12 @@ func WriteTabs() {
 			//	name nameOff
 			//	typ  typeOff // pointer to symbol
 			// }
-			nsym := dname(p.s.Name, "", nil, true)
-			tsym := WriteType(p.t)
+			nsym := dname(p.Sym().Name, "", nil, true)
+			t := p.Type()
+			if p.Class_ != ir.PFUNC {
+				t = types.NewPtr(t)
+			}
+			tsym := WriteType(t)
 			ot = objw.SymPtrOff(s, ot, nsym)
 			ot = objw.SymPtrOff(s, ot, tsym)
 			// Plugin exports symbols as interfaces. Mark their types
@@ -1403,7 +1385,7 @@ func WriteTabs() {
 		ot = 0
 		s = base.Ctxt.Lookup("go.plugin.exports")
 		for _, p := range ptabs {
-			ot = objw.SymPtr(s, ot, p.s.Linksym(), 0)
+			ot = objw.SymPtr(s, ot, p.Linksym(), 0)
 		}
 		objw.Global(s, int32(ot), int16(obj.RODATA))
 	}
@@ -1722,13 +1704,7 @@ func CollectPTabs() {
 		if s.Pkg.Name != "main" {
 			continue
 		}
-		if n.Type().Kind() == types.TFUNC && n.Class_ == ir.PFUNC {
-			// function
-			ptabs = append(ptabs, ptabEntry{s: s, t: s.Def.Type()})
-		} else {
-			// variable
-			ptabs = append(ptabs, ptabEntry{s: s, t: types.NewPtr(s.Def.Type())})
-		}
+		ptabs = append(ptabs, n)
 	}
 }
 
@@ -1752,22 +1728,28 @@ func CollectPTabs() {
 //
 //	rcvr - U
 //	method - M func (t T)(), a TFIELD type struct
-//	newnam - the eventual mangled name of this function
-func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
-	if false && base.Flag.LowerR != 0 {
-		fmt.Printf("genwrapper rcvrtype=%v method=%v newnam=%v\n", rcvr, method, newnam)
+func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
+	newnam := ir.MethodSym(rcvr, method.Sym)
+	lsym := newnam.Linksym()
+	if newnam.Siggen() {
+		return lsym
+	}
+	newnam.SetSiggen(true)
+
+	if types.Identical(rcvr, method.Type.Recv().Type) {
+		return lsym
 	}
 
 	// Only generate (*T).M wrappers for T.M in T's own package.
 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type &&
 		rcvr.Elem().Sym() != nil && rcvr.Elem().Sym().Pkg != types.LocalPkg {
-		return
+		return lsym
 	}
 
 	// Only generate I.M wrappers for I in I's own package
 	// but keep doing it for error.Error (was issue #29304).
 	if rcvr.IsInterface() && rcvr.Sym() != nil && rcvr.Sym().Pkg != types.LocalPkg && rcvr != types.ErrorType {
-		return
+		return lsym
 	}
 
 	base.Pos = base.AutogeneratedPos
@@ -1827,10 +1809,6 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		}
 	}
 
-	if false && base.Flag.LowerR != 0 {
-		ir.DumpList("genwrapper body", fn.Body)
-	}
-
 	typecheck.FinishFuncBody()
 	if base.Debug.DclStack != 0 {
 		types.CheckDclstack()
@@ -1850,6 +1828,8 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 
 	ir.CurFunc = nil
 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
+
+	return lsym
 }
 
 var ZeroSize int64

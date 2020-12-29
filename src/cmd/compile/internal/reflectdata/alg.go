@@ -255,7 +255,7 @@ func genhash(t *types.Type) *obj.LSym {
 
 	// Build closure. It doesn't close over any variables, so
 	// it contains just the function pointer.
-	objw.SymPtr(closure, 0, sym.Linksym(), 0)
+	objw.SymPtr(closure, 0, fn.Linksym(), 0)
 	objw.Global(closure, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
 
 	return closure
@@ -634,7 +634,7 @@ func geneq(t *types.Type) *obj.LSym {
 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
 
 	// Generate a closure which points at the function we just generated.
-	objw.SymPtr(closure, 0, sym.Linksym(), 0)
+	objw.SymPtr(closure, 0, fn.Linksym(), 0)
 	objw.Global(closure, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
 	return closure
 }

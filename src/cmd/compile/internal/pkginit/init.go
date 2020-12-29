@@ -56,7 +56,7 @@ func Task() *ir.Name {
 		typecheck.Stmts(nf)
 		ir.CurFunc = nil
 		typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
-		fns = append(fns, initializers.Linksym())
+		fns = append(fns, fn.Linksym())
 	}
 	if typecheck.InitTodoFunc.Dcl != nil {
 		// We only generate temps using initTodo if there
@@ -87,7 +87,7 @@ func Task() *ir.Name {
 	task.SetType(types.Types[types.TUINT8]) // fake type
 	task.Class_ = ir.PEXTERN
 	sym.Def = task
-	lsym := sym.Linksym()
+	lsym := task.Linksym()
 	ot := 0
 	ot = objw.Uintptr(lsym, ot, 0) // state: not initialized yet
 	ot = objw.Uintptr(lsym, ot, uint64(len(deps)))
