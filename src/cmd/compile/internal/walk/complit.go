@@ -59,7 +59,7 @@ func (c initContext) String() string {
 func readonlystaticname(t *types.Type) *ir.Name {
 	n := staticinit.StaticName(t)
 	n.MarkReadonly()
-	n.Sym().Linksym().Set(obj.AttrContentAddressable, true)
+	n.Linksym().Set(obj.AttrContentAddressable, true)
 	return n
 }
 

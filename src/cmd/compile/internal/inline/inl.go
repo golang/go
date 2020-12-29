@@ -932,7 +932,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		parent = b.InliningIndex()
 	}
 
-	sym := fn.Sym().Linksym()
+	sym := fn.Linksym()
 	newIndex := base.Ctxt.InlTree.Add(parent, n.Pos(), sym)
 
 	// Add an inline mark just before the inlined body.

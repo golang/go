@@ -34,7 +34,7 @@ func Task() *ir.Name {
 		if n.Op() != ir.ONAME || n.(*ir.Name).Class_ != ir.PEXTERN {
 			base.Fatalf("bad inittask: %v", n)
 		}
-		deps = append(deps, n.(*ir.Name).Sym().Linksym())
+		deps = append(deps, n.(*ir.Name).Linksym())
 	}
 
 	// Make a function that contains all the initialization statements.
@@ -74,7 +74,7 @@ func Task() *ir.Name {
 				continue
 			}
 		}
-		fns = append(fns, fn.Nname.Sym().Linksym())
+		fns = append(fns, fn.Nname.Linksym())
 	}
 
 	if len(deps) == 0 && len(fns) == 0 && types.LocalPkg.Name != "main" && types.LocalPkg.Name != "runtime" {

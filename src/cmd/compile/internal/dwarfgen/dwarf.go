@@ -26,7 +26,7 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
 	fn := curfn.(*ir.Func)
 
 	if fn.Nname != nil {
-		expect := fn.Sym().Linksym()
+		expect := fn.Linksym()
 		if fnsym.ABI() == obj.ABI0 {
 			expect = fn.Sym().LinksymABI0()
 		}
@@ -90,7 +90,7 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
 				continue
 			}
 			apdecls = append(apdecls, n)
-			fnsym.Func().RecordAutoType(reflectdata.TypeSym(n.Type()).Linksym())
+			fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
 		}
 	}
 
@@ -240,7 +240,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 			ChildIndex:    -1,
 		})
 		// Record go type of to insure that it gets emitted by the linker.
-		fnsym.Func().RecordAutoType(reflectdata.TypeSym(n.Type()).Linksym())
+		fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
 	}
 
 	return decls, vars
@@ -309,7 +309,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 	}
 
 	typename := dwarf.InfoPrefix + types.TypeSymName(n.Type())
-	delete(fnsym.Func().Autot, reflectdata.TypeSym(n.Type()).Linksym())
+	delete(fnsym.Func().Autot, reflectdata.TypeLinksym(n.Type()))
 	inlIndex := 0
 	if base.Flag.GenDwarfInl > 1 {
 		if n.Name().InlFormal() || n.Name().InlLocal() {
@@ -376,7 +376,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 		return nil
 	}
 
-	gotype := reflectdata.TypeSym(n.Type()).Linksym()
+	gotype := reflectdata.TypeLinksym(n.Type())
 	delete(fnsym.Func().Autot, gotype)
 	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
 	inlIndex := 0

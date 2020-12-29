@@ -174,5 +174,5 @@ func isInlinableButNotInlined(fn *ir.Func) bool {
 	if fn.Sym() == nil {
 		return true
 	}
-	return !fn.Sym().Linksym().WasInlined()
+	return !fn.Linksym().WasInlined()
 }
