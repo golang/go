@@ -48,8 +48,7 @@ type Expr interface {
 type miniExpr struct {
 	miniNode
 	typ   *types.Type
-	init  Nodes       // TODO(rsc): Don't require every Node to have an init
-	opt   interface{} // TODO(rsc): Don't require every Node to have an opt?
+	init  Nodes // TODO(rsc): Don't require every Node to have an init
 	flags bitset8
 }
 
@@ -59,14 +58,13 @@ const (
 	miniExprTransient
 	miniExprBounded
 	miniExprImplicit // for use by implementations; not supported by every Expr
+	miniExprCheckPtr
 )
 
 func (*miniExpr) isExpr() {}
 
 func (n *miniExpr) Type() *types.Type     { return n.typ }
 func (n *miniExpr) SetType(x *types.Type) { n.typ = x }
-func (n *miniExpr) Opt() interface{}      { return n.opt }
-func (n *miniExpr) SetOpt(x interface{})  { n.opt = x }
 func (n *miniExpr) HasCall() bool         { return n.flags&miniExprHasCall != 0 }
 func (n *miniExpr) SetHasCall(b bool)     { n.flags.set(miniExprHasCall, b) }
 func (n *miniExpr) NonNil() bool          { return n.flags&miniExprNonNil != 0 }
@@ -324,6 +322,8 @@ func NewConvExpr(pos src.XPos, op Op, typ *types.Type, x Node) *ConvExpr {
 
 func (n *ConvExpr) Implicit() bool     { return n.flags&miniExprImplicit != 0 }
 func (n *ConvExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
+func (n *ConvExpr) CheckPtr() bool     { return n.flags&miniExprCheckPtr != 0 }
+func (n *ConvExpr) SetCheckPtr(b bool) { n.flags.set(miniExprCheckPtr, b) }
 
 func (n *ConvExpr) SetOp(op Op) {
 	switch op {

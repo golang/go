@@ -102,5 +102,3 @@ func (n *miniNode) HasCall() bool           { return false }
 func (n *miniNode) SetHasCall(bool)         { panic(n.no("SetHasCall")) }
 func (n *miniNode) NonNil() bool            { return false }
 func (n *miniNode) MarkNonNil()             { panic(n.no("MarkNonNil")) }
-func (n *miniNode) Opt() interface{}        { return nil }
-func (n *miniNode) SetOpt(interface{})      { panic(n.no("SetOpt")) }

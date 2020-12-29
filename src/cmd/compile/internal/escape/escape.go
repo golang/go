@@ -165,12 +165,16 @@ func Fmt(n ir.Node) string {
 		text = fmt.Sprintf("esc(%d)", n.Esc())
 	}
 
-	if e, ok := n.Opt().(*location); ok && e.loopDepth != 0 {
-		if text != "" {
-			text += " "
+	if n.Op() == ir.ONAME {
+		n := n.(*ir.Name)
+		if e, ok := n.Opt.(*location); ok && e.loopDepth != 0 {
+			if text != "" {
+				text += " "
+			}
+			text += fmt.Sprintf("ld(%d)", e.loopDepth)
 		}
-		text += fmt.Sprintf("ld(%d)", e.loopDepth)
 	}
+
 	return text
 }
 
@@ -312,7 +316,7 @@ func (e *escape) stmt(n ir.Node) {
 		// Record loop depth at declaration.
 		n := n.(*ir.Decl)
 		if !ir.IsBlank(n.X) {
-			e.dcl(n.X)
+			e.dcl(n.X.(*ir.Name))
 		}
 
 	case ir.OLABEL:
@@ -370,7 +374,7 @@ func (e *escape) stmt(n ir.Node) {
 		var ks []hole
 		for _, cas := range n.Cases { // cases
 			if typesw && n.Tag.(*ir.TypeSwitchGuard).Tag != nil {
-				cv := cas.Var
+				cv := cas.Var.(*ir.Name)
 				k := e.dcl(cv) // type switch variables have no ODCL.
 				if cv.Type().HasPointers() {
 					ks = append(ks, k.dotType(cv.Type(), cas, "switch case"))
@@ -1097,7 +1101,7 @@ func (e *escape) teeHole(ks ...hole) hole {
 	return loc.asHole()
 }
 
-func (e *escape) dcl(n ir.Node) hole {
+func (e *escape) dcl(n *ir.Name) hole {
 	loc := e.oldLoc(n)
 	loc.loopDepth = e.loopDepth
 	return loc.asHole()
@@ -1151,15 +1155,17 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
 	}
 	e.allLocs = append(e.allLocs, loc)
 	if n != nil {
-		if n.Op() == ir.ONAME && n.Name().Curfn != e.curfn {
+		if n.Op() == ir.ONAME {
 			n := n.(*ir.Name)
-			base.Fatalf("curfn mismatch: %v != %v", n.Name().Curfn, e.curfn)
-		}
+			if n.Curfn != e.curfn {
+				base.Fatalf("curfn mismatch: %v != %v", n.Name().Curfn, e.curfn)
+			}
 
-		if n.Opt() != nil {
-			base.Fatalf("%v already has a location", n)
+			if n.Opt != nil {
+				base.Fatalf("%v already has a location", n)
+			}
+			n.Opt = loc
 		}
-		n.SetOpt(loc)
 
 		if why := HeapAllocReason(n); why != "" {
 			e.flow(e.heapHole().addr(n, why), loc)
@@ -1168,9 +1174,9 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
 	return loc
 }
 
-func (e *escape) oldLoc(n ir.Node) *location {
-	n = canonicalNode(n)
-	return n.Opt().(*location)
+func (e *escape) oldLoc(n *ir.Name) *location {
+	n = canonicalNode(n).(*ir.Name)
+	return n.Opt.(*location)
 }
 
 func (l *location) asHole() hole {
@@ -1516,7 +1522,10 @@ func (e *escape) finish(fns []*ir.Func) {
 		if n == nil {
 			continue
 		}
-		n.SetOpt(nil)
+		if n.Op() == ir.ONAME {
+			n := n.(*ir.Name)
+			n.Opt = nil
+		}
 
 		// Update n.Esc based on escape analysis results.
 
@@ -2122,7 +2131,7 @@ func (e *escape) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 		return esc.Encode()
 	}
 
-	n := ir.AsNode(f.Nname)
+	n := f.Nname.(*ir.Name)
 	loc := e.oldLoc(n)
 	esc := loc.paramEsc
 	esc.Optimize()

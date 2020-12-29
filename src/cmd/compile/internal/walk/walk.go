@@ -377,8 +377,6 @@ func walkAppendArgs(n *ir.CallExpr, init *ir.Nodes) {
 
 var wrapCall_prgen int
 
-var walkCheckPtrArithmeticMarker byte
-
 // appendWalkStmt typechecks and walks stmt and then appends it to init.
 func appendWalkStmt(init *ir.Nodes, stmt ir.Node) {
 	op := stmt.Op()
