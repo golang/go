@@ -184,36 +184,6 @@ func NewCaseStmt(pos src.XPos, list, body []Node) *CaseClause {
 	return n
 }
 
-// TODO(mdempsky): Generate these with mknode.go.
-func copyCases(list []*CaseClause) []*CaseClause {
-	if list == nil {
-		return nil
-	}
-	c := make([]*CaseClause, len(list))
-	copy(c, list)
-	return c
-}
-func maybeDoCases(list []*CaseClause, err error, do func(Node) error) error {
-	if err != nil {
-		return err
-	}
-	for _, x := range list {
-		if x != nil {
-			if err := do(x); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-func editCases(list []*CaseClause, edit func(Node) Node) {
-	for i, x := range list {
-		if x != nil {
-			list[i] = edit(x).(*CaseClause)
-		}
-	}
-}
-
 type CommClause struct {
 	miniStmt
 	Comm Node // communication case
@@ -225,36 +195,6 @@ func NewCommStmt(pos src.XPos, comm Node, body []Node) *CommClause {
 	n.pos = pos
 	n.op = OCASE
 	return n
-}
-
-// TODO(mdempsky): Generate these with mknode.go.
-func copyComms(list []*CommClause) []*CommClause {
-	if list == nil {
-		return nil
-	}
-	c := make([]*CommClause, len(list))
-	copy(c, list)
-	return c
-}
-func maybeDoComms(list []*CommClause, err error, do func(Node) error) error {
-	if err != nil {
-		return err
-	}
-	for _, x := range list {
-		if x != nil {
-			if err := do(x); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-func editComms(list []*CommClause, edit func(Node) Node) {
-	for i, x := range list {
-		if x != nil {
-			list[i] = edit(x).(*CommClause)
-		}
-	}
 }
 
 // A ForStmt is a non-range for loop: for Init; Cond; Post { Body }

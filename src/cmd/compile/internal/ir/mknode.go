@@ -136,6 +136,10 @@ func main() {
 		fmt.Fprintf(&buf, "}\n")
 	}
 
+	for _, name := range []string{"CaseClause", "CommClause"} {
+		sliceHelper(&buf, name)
+	}
+
 	out, err := format.Source(buf.Bytes())
 	if err != nil {
 		// write out mangled source so we can see the bug.
@@ -146,6 +150,40 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func sliceHelper(buf *bytes.Buffer, name string) {
+	tmpl := fmt.Sprintf(`
+func copy%[1]ss(list []*%[2]s) []*%[2]s {
+	if list == nil {
+		return nil
+	}
+	c := make([]*%[2]s, len(list))
+	copy(c, list)
+	return c
+}
+func maybeDo%[1]ss(list []*%[2]s, err error, do func(Node) error) error {
+	if err != nil {
+		return err
+	}
+	for _, x := range list {
+		if x != nil {
+			if err := do(x); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+func edit%[1]ss(list []*%[2]s, edit func(Node) Node) {
+	for i, x := range list {
+		if x != nil {
+			list[i] = edit(x).(*%[2]s)
+		}
+	}
+}
+`, strings.TrimSuffix(name, "Clause"), name)
+	fmt.Fprintln(buf, tmpl)
 }
 
 func forNodeFields(typName string, typ *types.Struct, f func(name string, is func(types.Type) bool)) {
