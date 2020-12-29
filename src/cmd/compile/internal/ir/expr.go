@@ -106,8 +106,8 @@ func NewAddStringExpr(pos src.XPos, list []Node) *AddStringExpr {
 // It may end up being a normal address-of or an allocation of a composite literal.
 type AddrExpr struct {
 	miniExpr
-	X     Node
-	Alloc *Name // preallocated storage if any
+	X        Node
+	Prealloc *Name // preallocated storage if any
 }
 
 func NewAddrExpr(pos src.XPos, x Node) *AddrExpr {

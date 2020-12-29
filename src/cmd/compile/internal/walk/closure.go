@@ -144,7 +144,7 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 		if !types.Identical(typ, x.Type()) {
 			panic("closure type does not match order's assigned type")
 		}
-		addr.Alloc = x
+		addr.Prealloc = x
 		clo.Prealloc = nil
 	}
 
@@ -189,7 +189,7 @@ func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 		if !types.Identical(typ, x.Type()) {
 			panic("partial call type does not match order's assigned type")
 		}
-		addr.Alloc = x
+		addr.Prealloc = x
 		n.Prealloc = nil
 	}
 
