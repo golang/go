@@ -1015,3 +1015,61 @@ func (n *typeNode) doChildren(do func(Node) error) error {
 }
 func (n *typeNode) editChildren(edit func(Node) Node) {
 }
+
+func copyCases(list []*CaseClause) []*CaseClause {
+	if list == nil {
+		return nil
+	}
+	c := make([]*CaseClause, len(list))
+	copy(c, list)
+	return c
+}
+func maybeDoCases(list []*CaseClause, err error, do func(Node) error) error {
+	if err != nil {
+		return err
+	}
+	for _, x := range list {
+		if x != nil {
+			if err := do(x); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+func editCases(list []*CaseClause, edit func(Node) Node) {
+	for i, x := range list {
+		if x != nil {
+			list[i] = edit(x).(*CaseClause)
+		}
+	}
+}
+
+func copyComms(list []*CommClause) []*CommClause {
+	if list == nil {
+		return nil
+	}
+	c := make([]*CommClause, len(list))
+	copy(c, list)
+	return c
+}
+func maybeDoComms(list []*CommClause, err error, do func(Node) error) error {
+	if err != nil {
+		return err
+	}
+	for _, x := range list {
+		if x != nil {
+			if err := do(x); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+func editComms(list []*CommClause, edit func(Node) Node) {
+	for i, x := range list {
+		if x != nil {
+			list[i] = edit(x).(*CommClause)
+		}
+	}
+}
