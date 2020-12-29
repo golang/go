@@ -218,10 +218,10 @@ const (
 	OPAREN       // (Left)
 	OSEND        // Left <- Right
 	OSLICE       // Left[List[0] : List[1]] (Left is untypechecked or slice)
-	OSLICEARR    // Left[List[0] : List[1]] (Left is array)
+	OSLICEARR    // Left[List[0] : List[1]] (Left is pointer to array)
 	OSLICESTR    // Left[List[0] : List[1]] (Left is string)
 	OSLICE3      // Left[List[0] : List[1] : List[2]] (Left is untypedchecked or slice)
-	OSLICE3ARR   // Left[List[0] : List[1] : List[2]] (Left is array)
+	OSLICE3ARR   // Left[List[0] : List[1] : List[2]] (Left is pointer to array)
 	OSLICEHEADER // sliceheader{Left, List[0], List[1]} (Left is unsafe.Pointer, List[0] is length, List[1] is capacity)
 	ORECOVER     // recover()
 	ORECV        // <-Left
