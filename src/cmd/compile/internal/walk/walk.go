@@ -167,7 +167,7 @@ func paramstoheap(params *types.Type) []ir.Node {
 		}
 
 		if stackcopy := v.Name().Stackcopy; stackcopy != nil {
-			nn = append(nn, walkStmt(ir.NewDecl(base.Pos, ir.ODCL, v)))
+			nn = append(nn, walkStmt(ir.NewDecl(base.Pos, ir.ODCL, v.(*ir.Name))))
 			if stackcopy.Class_ == ir.PPARAM {
 				nn = append(nn, walkStmt(typecheck.Stmt(ir.NewAssignStmt(base.Pos, v, stackcopy))))
 			}

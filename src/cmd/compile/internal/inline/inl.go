@@ -649,7 +649,7 @@ func inlParam(t *types.Field, as ir.Node, inlvars map[*ir.Name]ir.Node) ir.Node 
 	if inlvar == nil {
 		base.Fatalf("missing inlvar for %v", n)
 	}
-	as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, inlvar))
+	as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, inlvar.(*ir.Name)))
 	inlvar.Name().Defn = as
 	return inlvar
 }
@@ -771,14 +771,14 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 
 			if v.Byval() {
 				iv := typecheck.Expr(inlvar(v))
-				ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, iv))
+				ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, iv.(*ir.Name)))
 				ninit.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, iv, o)))
 				inlvars[v] = iv
 			} else {
 				addr := typecheck.NewName(typecheck.Lookup("&" + v.Sym().Name))
 				addr.SetType(types.NewPtr(v.Type()))
 				ia := typecheck.Expr(inlvar(addr))
-				ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, ia))
+				ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, ia.(*ir.Name)))
 				ninit.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, ia, typecheck.NodAddr(o))))
 				inlvars[addr] = ia
 
@@ -917,7 +917,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	if !delayretvars {
 		// Zero the return parameters.
 		for _, n := range retvars {
-			ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, n))
+			ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, n.(*ir.Name)))
 			ras := ir.NewAssignStmt(base.Pos, n, nil)
 			ninit.Append(typecheck.Stmt(ras))
 		}
@@ -1139,7 +1139,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 
 			if subst.delayretvars {
 				for _, n := range as.Lhs {
-					as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, n))
+					as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, n.(*ir.Name)))
 					n.Name().Defn = as
 				}
 			}

@@ -381,11 +381,15 @@ func (n *Decl) copy() Node {
 }
 func (n *Decl) doChildren(do func(Node) error) error {
 	var err error
-	err = maybeDo(n.X, err, do)
+	if n.X != nil {
+		err = maybeDo(n.X, err, do)
+	}
 	return err
 }
 func (n *Decl) editChildren(edit func(Node) Node) {
-	n.X = maybeEdit(n.X, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(*Name)
+	}
 }
 
 func (n *ForStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }

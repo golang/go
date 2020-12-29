@@ -1067,7 +1067,7 @@ func (w *exportWriter) stmt(n ir.Node) {
 		n := n.(*ir.Decl)
 		w.op(ir.ODCL)
 		w.pos(n.X.Pos())
-		w.localName(n.X.(*ir.Name))
+		w.localName(n.X)
 		w.typ(n.X.Type())
 
 	case ir.OAS:
