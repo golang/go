@@ -230,14 +230,18 @@ func (n *CaseClause) copy() Node {
 func (n *CaseClause) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Var, err, do)
+	if n.Var != nil {
+		err = maybeDo(n.Var, err, do)
+	}
 	err = maybeDoList(n.List, err, do)
 	err = maybeDoList(n.Body, err, do)
 	return err
 }
 func (n *CaseClause) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
-	n.Var = maybeEdit(n.Var, edit)
+	if n.Var != nil {
+		n.Var = edit(n.Var).(*Name)
+	}
 	editList(n.List, edit)
 	editList(n.Body, edit)
 }

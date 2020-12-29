@@ -440,7 +440,7 @@ type typeClause struct {
 	body ir.Nodes
 }
 
-func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar, jmp ir.Node) {
+func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar *ir.Name, jmp ir.Node) {
 	var body ir.Nodes
 	if caseVar != nil {
 		l := []ir.Node{
@@ -450,7 +450,7 @@ func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar, jmp ir.Node) {
 		typecheck.Stmts(l)
 		body.Append(l...)
 	} else {
-		caseVar = ir.BlankNode
+		caseVar = ir.BlankNode.(*ir.Name)
 	}
 
 	// cv, ok = iface.(type)

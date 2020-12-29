@@ -631,7 +631,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
 			nvar := ncase.Var
 			nvar.SetType(vt)
 			if vt != nil {
-				nvar = AssignExpr(nvar)
+				nvar = AssignExpr(nvar).(*ir.Name)
 			} else {
 				// Clause variable is broken; prevent typechecking.
 				nvar.SetTypecheck(1)
