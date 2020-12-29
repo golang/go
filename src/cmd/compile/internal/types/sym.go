@@ -74,6 +74,10 @@ func (sym *Sym) LinksymName() string {
 	return sym.Pkg.Prefix + "." + sym.Name
 }
 
+// Deprecated: This method should not be used directly. Instead, use a
+// higher-level abstraction that directly returns the linker symbol
+// for a named object. For example, reflectdata.TypeLinksym(t) instead
+// of reflectdata.TypeSym(t).Linksym().
 func (sym *Sym) Linksym() *obj.LSym {
 	if sym == nil {
 		return nil

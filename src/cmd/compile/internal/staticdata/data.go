@@ -258,6 +258,13 @@ func FuncSym(s *types.Sym) *types.Sym {
 	return sf
 }
 
+func FuncLinksym(n *ir.Name) *obj.LSym {
+	if n.Op() != ir.ONAME || n.Class_ != ir.PFUNC {
+		base.Fatalf("expected func name: %v", n)
+	}
+	return FuncSym(n.Sym()).Linksym()
+}
+
 // NeedFuncSym ensures that s·f is exported.
 // It is only used with -dynlink.
 // When not compiling for dynamic linking,

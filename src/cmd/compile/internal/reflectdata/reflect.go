@@ -812,8 +812,8 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 
 // TrackSym returns the symbol for tracking use of field/method f, assumed
 // to be a member of struct/interface type t.
-func TrackSym(t *types.Type, f *types.Field) *types.Sym {
-	return ir.Pkgs.Track.Lookup(t.ShortString() + "." + f.Sym.Name)
+func TrackSym(t *types.Type, f *types.Field) *obj.LSym {
+	return ir.Pkgs.Track.Lookup(t.ShortString() + "." + f.Sym.Name).Linksym()
 }
 
 func TypeSymPrefix(prefix string, t *types.Type) *types.Sym {
@@ -843,6 +843,18 @@ func TypeSym(t *types.Type) *types.Sym {
 	NeedRuntimeType(t)
 	signatmu.Unlock()
 	return s
+}
+
+func TypeLinksymPrefix(prefix string, t *types.Type) *obj.LSym {
+	return TypeSymPrefix(prefix, t).Linksym()
+}
+
+func TypeLinksymLookup(name string) *obj.LSym {
+	return types.TypeSymLookup(name).Linksym()
+}
+
+func TypeLinksym(t *types.Type) *obj.LSym {
+	return TypeSym(t).Linksym()
 }
 
 func TypePtr(t *types.Type) *ir.AddrExpr {

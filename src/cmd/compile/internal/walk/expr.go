@@ -975,7 +975,7 @@ func usefield(n *ir.SelectorExpr) {
 
 	sym := reflectdata.TrackSym(outer, field)
 	if ir.CurFunc.FieldTrack == nil {
-		ir.CurFunc.FieldTrack = make(map[*types.Sym]struct{})
+		ir.CurFunc.FieldTrack = make(map[*obj.LSym]struct{})
 	}
 	ir.CurFunc.FieldTrack[sym] = struct{}{}
 }

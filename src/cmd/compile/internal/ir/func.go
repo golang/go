@@ -78,7 +78,7 @@ type Func struct {
 	// Marks records scope boundary changes.
 	Marks []Mark
 
-	FieldTrack map[*types.Sym]struct{}
+	FieldTrack map[*obj.LSym]struct{}
 	DebugInfo  interface{}
 	LSym       *obj.LSym
 
@@ -119,12 +119,8 @@ func (f *Func) isStmt() {}
 func (f *Func) Type() *types.Type     { return f.typ }
 func (f *Func) SetType(x *types.Type) { f.typ = x }
 
-func (f *Func) Sym() *types.Sym {
-	if f.Nname != nil {
-		return f.Nname.Sym()
-	}
-	return nil
-}
+func (f *Func) Sym() *types.Sym    { return f.Nname.Sym() }
+func (f *Func) Linksym() *obj.LSym { return f.Nname.Linksym() }
 
 // An Inline holds fields used for function bodies that can be inlined.
 type Inline struct {
