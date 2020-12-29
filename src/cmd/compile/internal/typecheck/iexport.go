@@ -936,7 +936,7 @@ func (w *exportWriter) mpfloat(v constant.Value, typ *types.Type) {
 	if acc != big.Exact {
 		base.Fatalf("mantissa scaling failed for %f (%s)", f, acc)
 	}
-	w.mpint(makeInt(manti), typ)
+	w.mpint(constant.Make(manti), typ)
 	if manti.Sign() != 0 {
 		w.int64(exp)
 	}

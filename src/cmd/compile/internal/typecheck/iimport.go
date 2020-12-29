@@ -372,7 +372,7 @@ func (p *importReader) value(typ *types.Type) constant.Value {
 	case constant.Int:
 		var i big.Int
 		p.mpint(&i, typ)
-		return makeInt(&i)
+		return constant.Make(&i)
 	case constant.Float:
 		return p.float(typ)
 	case constant.Complex:
