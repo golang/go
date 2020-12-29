@@ -630,10 +630,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	case OPACK, ONONAME:
 		fmt.Fprint(s, n.Sym())
 
-	case OMETHEXPR:
-		n := n.(*MethodExpr)
-		fmt.Fprint(s, n.FuncName().Sym())
-
 	case ONAMEOFFSET:
 		n := n.(*NameOffsetExpr)
 		fmt.Fprintf(s, "(%v)(%v@%d)", n.Type(), n.Name_, n.Offset_)
@@ -749,16 +745,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		n := n.(*StructKeyExpr)
 		fmt.Fprintf(s, "%v:%v", n.Field, n.Value)
 
-	case OCALLPART:
-		n := n.(*CallPartExpr)
-		exprFmt(n.X, s, nprec)
-		if n.Method.Sym == nil {
-			fmt.Fprint(s, ".<nil>")
-			return
-		}
-		fmt.Fprintf(s, ".%s", n.Method.Sym.Name)
-
-	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
+	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH, OCALLPART, OMETHEXPR:
 		n := n.(*SelectorExpr)
 		exprFmt(n.X, s, nprec)
 		if n.Sel == nil {
@@ -1158,12 +1145,6 @@ func dumpNode(w io.Writer, n Node, depth int) {
 			fmt.Fprintf(w, "%+v-ntype", n.Op())
 			dumpNode(w, n.Name().Ntype, depth+1)
 		}
-		return
-
-	case OMETHEXPR:
-		n := n.(*MethodExpr)
-		fmt.Fprintf(w, "%+v-%+v", n.Op(), n.FuncName().Sym())
-		dumpNodeHeader(w, n)
 		return
 
 	case OASOP:

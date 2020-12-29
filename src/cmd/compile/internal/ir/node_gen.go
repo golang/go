@@ -209,23 +209,6 @@ func (n *CallExpr) editChildren(edit func(Node) Node) {
 	editList(n.Body, edit)
 }
 
-func (n *CallPartExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *CallPartExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *CallPartExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	return err
-}
-func (n *CallPartExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-}
-
 func (n *CaseClause) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *CaseClause) copy() Node {
 	c := *n
@@ -653,21 +636,6 @@ func (n *MapType) doChildren(do func(Node) error) error {
 func (n *MapType) editChildren(edit func(Node) Node) {
 	n.Key = maybeEdit(n.Key, edit)
 	n.Elem = maybeEdit(n.Elem, edit)
-}
-
-func (n *MethodExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *MethodExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *MethodExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
-}
-func (n *MethodExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
 }
 
 func (n *Name) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }

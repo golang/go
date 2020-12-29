@@ -100,7 +100,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 
 	case ir.OMETHEXPR:
 		// TODO(mdempsky): Do this right after type checking.
-		n := n.(*ir.MethodExpr)
+		n := n.(*ir.SelectorExpr)
 		return n.FuncName()
 
 	case ir.ONOT, ir.ONEG, ir.OPLUS, ir.OBITNOT, ir.OREAL, ir.OIMAG, ir.OSPTR, ir.OITAB, ir.OIDATA:
@@ -306,7 +306,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		return walkClosure(n.(*ir.ClosureExpr), init)
 
 	case ir.OCALLPART:
-		return walkCallPart(n.(*ir.CallPartExpr), init)
+		return walkCallPart(n.(*ir.SelectorExpr), init)
 	}
 
 	// No return! Each case must return (or panic),

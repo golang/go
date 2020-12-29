@@ -419,6 +419,9 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 
 	case ir.OCALLPART, ir.OSLICELIT:
 		v.budget-- // Hack for toolstash -cmp.
+
+	case ir.OMETHEXPR:
+		v.budget++ // Hack for toolstash -cmp.
 	}
 
 	v.budget--
@@ -613,12 +616,12 @@ func inlCallee(fn ir.Node) *ir.Func {
 	fn = ir.StaticValue(fn)
 	switch fn.Op() {
 	case ir.OMETHEXPR:
-		fn := fn.(*ir.MethodExpr)
+		fn := fn.(*ir.SelectorExpr)
 		n := ir.MethodExprName(fn)
-		// Check that receiver type matches fn.Left.
+		// Check that receiver type matches fn.X.
 		// TODO(mdempsky): Handle implicit dereference
 		// of pointer receiver argument?
-		if n == nil || !types.Identical(n.Type().Recv().Type, fn.T) {
+		if n == nil || !types.Identical(n.Type().Recv().Type, fn.X.Type()) {
 			return nil
 		}
 		return n.Func
@@ -1098,7 +1101,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		return n
 
 	case ir.OMETHEXPR:
-		n := n.(*ir.MethodExpr)
+		n := n.(*ir.SelectorExpr)
 		return n
 
 	case ir.OLITERAL, ir.ONIL, ir.OTYPE:

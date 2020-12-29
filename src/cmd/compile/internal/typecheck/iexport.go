@@ -1252,17 +1252,6 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.pos(n.Pos())
 		w.value(n.Type(), n.Val())
 
-	case ir.OMETHEXPR:
-		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
-		// but for export, this should be rendered as (*pkg.T).meth.
-		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
-		n := n.(*ir.MethodExpr)
-		w.op(ir.OXDOT)
-		w.pos(n.Pos())
-		w.op(ir.OTYPE)
-		w.typ(n.T) // n.Left.Op == OTYPE
-		w.selector(n.Method.Sym)
-
 	case ir.ONAME:
 		// Package scope name.
 		n := n.(*ir.Name)
@@ -1336,15 +1325,7 @@ func (w *exportWriter) expr(n ir.Node) {
 	// case OSTRUCTKEY:
 	//	unreachable - handled in case OSTRUCTLIT by elemList
 
-	case ir.OCALLPART:
-		// An OCALLPART is an OXDOT before type checking.
-		n := n.(*ir.CallPartExpr)
-		w.op(ir.OXDOT)
-		w.pos(n.Pos())
-		w.expr(n.X)
-		w.selector(n.Method.Sym)
-
-	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH:
+	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
 		n := n.(*ir.SelectorExpr)
 		w.op(ir.OXDOT)
 		w.pos(n.Pos())

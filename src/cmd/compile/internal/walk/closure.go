@@ -151,7 +151,7 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 	return walkExpr(cfn, init)
 }
 
-func walkCallPart(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
+func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 	// Create closure in the form of a composite literal.
 	// For x.M with receiver (x) type T, the generated code looks like:
 	//
@@ -176,7 +176,7 @@ func walkCallPart(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
 
 	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ).(ir.Ntype), nil)
 	clos.SetEsc(n.Esc())
-	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, n.Func.Nname), n.X}
+	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, typecheck.MethodValueWrapper(n).Nname), n.X}
 
 	addr := typecheck.NodAddr(clos)
 	addr.SetEsc(n.Esc())

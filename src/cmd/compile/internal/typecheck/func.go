@@ -91,7 +91,7 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
 // PartialCallType returns the struct type used to hold all the information
 // needed in the closure for n (n must be a OCALLPART node).
 // The address of a variable of the returned type can be cast to a func.
-func PartialCallType(n *ir.CallPartExpr) *types.Type {
+func PartialCallType(n *ir.SelectorExpr) *types.Type {
 	t := types.NewStruct(types.NoPkg, []*types.Field{
 		types.NewField(base.Pos, Lookup("F"), types.Types[types.TUINTPTR]),
 		types.NewField(base.Pos, Lookup("R"), n.X.Type()),
@@ -247,9 +247,17 @@ func closurename(outerfunc *ir.Func) *types.Sym {
 // globClosgen is like Func.Closgen, but for the global scope.
 var globClosgen int32
 
-// makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
-// for partial calls.
-func makepartialcall(dot *ir.SelectorExpr) *ir.Func {
+// MethodValueWrapper returns the DCLFUNC node representing the
+// wrapper function (*-fm) needed for the given method value. If the
+// wrapper function hasn't already been created yet, it's created and
+// added to Target.Decls.
+//
+// TODO(mdempsky): Move into walk. This isn't part of type checking.
+func MethodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
+	if dot.Op() != ir.OCALLPART {
+		base.Fatalf("MethodValueWrapper: unexpected %v (%v)", dot, dot.Op())
+	}
+
 	t0 := dot.Type()
 	meth := dot.Sel
 	rcvrtype := dot.X.Type()

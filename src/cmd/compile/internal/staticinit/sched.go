@@ -104,7 +104,7 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 
 	switch r.Op() {
 	case ir.OMETHEXPR:
-		r = r.(*ir.MethodExpr).FuncName()
+		r = r.(*ir.SelectorExpr).FuncName()
 		fallthrough
 	case ir.ONAME:
 		r := r.(*ir.Name)
@@ -165,7 +165,7 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 			}
 			x := e.Expr
 			if x.Op() == ir.OMETHEXPR {
-				x = x.(*ir.MethodExpr).FuncName()
+				x = x.(*ir.SelectorExpr).FuncName()
 			}
 			if x.Op() == ir.ONAME && s.staticcopy(l, loff+e.Xoffset, x.(*ir.Name), typ) {
 				continue
@@ -195,7 +195,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		return s.staticcopy(l, loff, r, typ)
 
 	case ir.OMETHEXPR:
-		r := r.(*ir.MethodExpr)
+		r := r.(*ir.SelectorExpr)
 		return s.staticcopy(l, loff, r.FuncName(), typ)
 
 	case ir.ONIL:
@@ -461,7 +461,7 @@ func StaticLoc(n ir.Node) (name *ir.Name, offset int64, ok bool) {
 		return n, 0, true
 
 	case ir.OMETHEXPR:
-		n := n.(*ir.MethodExpr)
+		n := n.(*ir.SelectorExpr)
 		return StaticLoc(n.FuncName())
 
 	case ir.ODOT:
