@@ -143,6 +143,10 @@ type Name struct {
 
 func (n *Name) isExpr() {}
 
+func (n *Name) copy() Node                           { panic(n.no("copy")) }
+func (n *Name) doChildren(do func(Node) error) error { return nil }
+func (n *Name) editChildren(edit func(Node) Node)    {}
+
 // CloneName makes a cloned copy of the name.
 // It's not ir.Copy(n) because in general that operation is a mistake on names,
 // which uniquely identify variables.
