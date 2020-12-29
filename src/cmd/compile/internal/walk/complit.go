@@ -549,10 +549,10 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		}
 
 		var r ir.Node
-		if n.Alloc != nil {
+		if n.Prealloc != nil {
 			// n.Right is stack temporary used as backing store.
-			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, n.Alloc, nil)) // zero backing store, just in case (#18410)
-			r = typecheck.NodAddr(n.Alloc)
+			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, n.Prealloc, nil)) // zero backing store, just in case (#18410)
+			r = typecheck.NodAddr(n.Prealloc)
 		} else {
 			r = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(n.X.Type()))
 			r.SetEsc(n.Esc())

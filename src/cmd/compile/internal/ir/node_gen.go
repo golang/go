@@ -38,16 +38,16 @@ func (n *AddrExpr) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.X, err, do)
-	if n.Alloc != nil {
-		err = maybeDo(n.Alloc, err, do)
+	if n.Prealloc != nil {
+		err = maybeDo(n.Prealloc, err, do)
 	}
 	return err
 }
 func (n *AddrExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 	n.X = maybeEdit(n.X, edit)
-	if n.Alloc != nil {
-		n.Alloc = edit(n.Alloc).(*Name)
+	if n.Prealloc != nil {
+		n.Prealloc = edit(n.Prealloc).(*Name)
 	}
 }
 
