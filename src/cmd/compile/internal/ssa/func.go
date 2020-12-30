@@ -60,6 +60,8 @@ type Func struct {
 
 	// RegArgs is a slice of register-memory pairs that must be spilled and unspilled in the uncommon path of function entry.
 	RegArgs []ArgPair
+	// AuxCall describing parameters and results for this function.
+	OwnAux *AuxCall
 
 	// WBLoads is a list of Blocks that branch on the write
 	// barrier flag. Safe-points are disabled from the OpLoad that
@@ -774,7 +776,7 @@ func DebugNameMatch(evname, name string) bool {
 }
 
 func (f *Func) spSb() (sp, sb *Value) {
-	initpos := f.Entry.Pos
+	initpos := src.NoXPos // These are originally created with no position in ssa.go; if they are optimized out then recreated, should be the same.
 	for _, v := range f.Entry.Values {
 		if v.Op == OpSB {
 			sb = v
@@ -783,7 +785,7 @@ func (f *Func) spSb() (sp, sb *Value) {
 			sp = v
 		}
 		if sb != nil && sp != nil {
-			break
+			return
 		}
 	}
 	if sb == nil {

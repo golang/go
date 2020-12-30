@@ -459,7 +459,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 			args = append(args, ssa.Param{Type: n.Type(), Offset: int32(n.FrameOffset())})
 		case ir.PPARAMOUT:
 			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type()), n, s.sp, s.startmem)
-			results = append(results, ssa.Param{Type: n.Type(), Offset: int32(n.FrameOffset())})
+			results = append(results, ssa.Param{Type: n.Type(), Offset: int32(n.FrameOffset()), Name: n})
 		case ir.PAUTO:
 			// processed at each use, to prevent Addr coming
 			// before the decl.
@@ -467,6 +467,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 			s.Fatalf("local variable with class %v unimplemented", n.Class)
 		}
 	}
+	s.f.OwnAux = ssa.OwnAuxCall(args, results)
 
 	// Populate SSAable arguments.
 	for _, n := range fn.Dcl {
@@ -531,6 +532,8 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 			s.updateUnsetPredPos(b)
 		}
 	}
+
+	s.f.HTMLWriter.WritePhase("before insert phis", "before insert phis")
 
 	s.insertPhis()
 
@@ -1799,6 +1802,7 @@ const shareDeferExits = false
 // It returns a BlockRet block that ends the control flow. Its control value
 // will be set to the final memory state.
 func (s *state) exit() *ssa.Block {
+	lateResultLowering := s.f.DebugTest && ssa.LateCallExpansionEnabledWithin(s.f)
 	if s.hasdefer {
 		if s.hasOpenDefers {
 			if shareDeferExits && s.lastDeferExit != nil && len(s.openDefers) == s.lastDeferCount {
@@ -1815,28 +1819,61 @@ func (s *state) exit() *ssa.Block {
 		}
 	}
 
-	// Store SSAable and heap-escaped PPARAMOUT variables back to stack locations.
-	for _, f := range s.curfn.Type().Results().FieldSlice() {
-		n := f.Nname.(*ir.Name)
-		if s.canSSA(n) {
-			val := s.variable(n, n.Type())
-			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
-			s.store(n.Type(), s.decladdrs[n], val)
-		} else if !n.OnStack() {
-			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
-			s.move(n.Type(), s.decladdrs[n], s.expr(n.Heapaddr))
-		}
-		// TODO: if val is ever spilled, we'd like to use the
-		// PPARAMOUT slot for spilling it. That won't happen
-		// currently.
-	}
-
-	// Run exit code. Today, this is just raceexit, in -race mode.
-	s.stmtList(s.curfn.Exit)
-
+	var b *ssa.Block
+	var m *ssa.Value
 	// Do actual return.
-	m := s.mem()
-	b := s.endBlock()
+	// These currently turn into self-copies (in many cases).
+	if lateResultLowering {
+		resultFields := s.curfn.Type().Results().FieldSlice()
+		results := make([]*ssa.Value, len(resultFields)+1, len(resultFields)+1)
+		m = s.newValue0(ssa.OpMakeResult, s.f.OwnAux.LateExpansionResultType())
+		// Store SSAable and heap-escaped PPARAMOUT variables back to stack locations.
+		for i, f := range resultFields {
+			n := f.Nname.(*ir.Name)
+			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
+			if s.canSSA(n) { // result is in some SSA variable
+				results[i] = s.variable(n, n.Type())
+			} else if !n.OnStack() { // result is actually heap allocated
+				ha := s.expr(n.Heapaddr)
+				s.instrumentFields(n.Type(), ha, instrumentRead)
+				results[i] = s.newValue2(ssa.OpDereference, n.Type(), ha, s.mem())
+			} else { // result is not SSA-able; not escaped, so not on heap, but too large for SSA.
+				// Before register ABI this ought to be a self-move, home=dest,
+				// With register ABI, it's still a self-move if parameter is on stack (i.e., too big or overflowed)
+				results[i] = s.newValue2(ssa.OpDereference, n.Type(), s.addr(n), s.mem())
+			}
+		}
+
+		// Run exit code. Today, this is just racefuncexit, in -race mode.
+		// TODO this seems risky here with a register-ABI, but not clear it is right to do it earlier either.
+		// Spills in register allocation might just fix it.
+		s.stmtList(s.curfn.Exit)
+
+		results[len(results)-1] = s.mem()
+		m.AddArgs(results...)
+	} else {
+		// Store SSAable and heap-escaped PPARAMOUT variables back to stack locations.
+		for _, f := range s.curfn.Type().Results().FieldSlice() {
+			n := f.Nname.(*ir.Name)
+			if s.canSSA(n) {
+				val := s.variable(n, n.Type())
+				s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
+				s.store(n.Type(), s.decladdrs[n], val)
+			} else if !n.OnStack() {
+				s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
+				s.move(n.Type(), s.decladdrs[n], s.expr(n.Heapaddr))
+			} // else, on stack but too large to SSA, the result is already in its destination by construction, so no store needed.
+
+			// TODO: if (SSA) val is ever spilled, we'd like to use the PPARAMOUT slot for spilling it. That won't happen currently.
+		}
+
+		// Run exit code. Today, this is just racefuncexit, in -race mode.
+		s.stmtList(s.curfn.Exit)
+
+		// Do actual return.
+		m = s.mem()
+	}
+	b = s.endBlock()
 	b.Kind = ssa.BlockRet
 	b.SetControl(m)
 	if s.hasdefer && s.hasOpenDefers {
@@ -5253,7 +5290,7 @@ func (s *state) canSSAName(name *ir.Name) bool {
 	// TODO: try to make more variables SSAable?
 }
 
-// canSSA reports whether variables of type t are SSA-able.
+// TypeOK reports whether variables of type t are SSA-able.
 func TypeOK(t *types.Type) bool {
 	types.CalcSize(t)
 	if t.Width > int64(4*types.PtrSize) {
