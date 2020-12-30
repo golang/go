@@ -367,6 +367,15 @@ func store_le64_idx(b []byte, idx int) {
 	binary.LittleEndian.PutUint64(b[idx:], sink64)
 }
 
+func store_le64_load(b []byte, x *[8]byte) {
+	_ = b[8]
+	// amd64:-`MOV[BWL]`
+	// arm64:-`MOV[BWH]`
+	// ppc64le:-`MOV[BWH]`
+	// s390x:-`MOVB`,-`MOV[WH]BR`
+	binary.LittleEndian.PutUint64(b, binary.LittleEndian.Uint64(x[:]))
+}
+
 func store_le32(b []byte) {
 	// amd64:`MOVL\s`
 	// arm64:`MOVW`,-`MOV[BH]`
