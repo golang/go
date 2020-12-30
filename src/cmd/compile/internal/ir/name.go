@@ -44,8 +44,7 @@ type Name struct {
 	Offset_   int64
 	val       constant.Value
 	Opt       interface{} // for use by escape analysis
-	orig      Node
-	Embed     *[]Embed // list of embedded files, for ONAME var
+	Embed     *[]Embed    // list of embedded files, for ONAME var
 
 	PkgName *PkgName // real package for import . names
 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
@@ -219,7 +218,6 @@ func newNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
 	n := new(Name)
 	n.op = op
 	n.pos = pos
-	n.orig = n
 	n.sym = sym
 	return n
 }
