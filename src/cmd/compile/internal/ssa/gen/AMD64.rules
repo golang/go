@@ -1969,6 +1969,16 @@
   && clobber(x)
   => (MOVQstore [i] {s} p0 w0 mem)
 
+(MOVBstore [7] p1 (SHRQconst [56] w)
+  x1:(MOVWstore [5] p1 (SHRQconst [40] w)
+  x2:(MOVLstore [1] p1 (SHRQconst [8] w)
+  x3:(MOVBstore p1 w mem))))
+  && x1.Uses == 1
+  && x2.Uses == 1
+  && x3.Uses == 1
+  && clobber(x1, x2, x3)
+  => (MOVQstore p1 w mem)
+
 (MOVBstore [i] {s} p
   x1:(MOVBload [j] {s2} p2 mem)
     mem2:(MOVBstore [i-1] {s} p
