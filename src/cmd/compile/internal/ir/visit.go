@@ -4,23 +4,18 @@
 
 // IR visitors for walking the IR tree.
 //
-// The lowest level helpers are DoChildren and EditChildren,
-// which nodes help implement (TODO(rsc): eventually) and
-// provide control over whether and when recursion happens
-// during the walk of the IR.
+// The lowest level helpers are DoChildren and EditChildren, which
+// nodes help implement and provide control over whether and when
+// recursion happens during the walk of the IR.
 //
 // Although these are both useful directly, two simpler patterns
-// are fairly common and also provided: Inspect and Scan.
+// are fairly common and also provided: Visit and Any.
 
 package ir
 
-import (
-	"errors"
-)
-
 // DoChildren calls do(x) on each of n's non-nil child nodes x.
-// If any call returns a non-nil error, DoChildren stops and returns that error.
-// Otherwise, DoChildren returns nil.
+// If any call returns true, DoChildren stops and returns true.
+// Otherwise, DoChildren returns false.
 //
 // Note that DoChildren(n, do) only calls do(x) for n's immediate children.
 // If x's children should be processed, then do(x) must call DoChildren(x, do).
@@ -28,32 +23,32 @@ import (
 // DoChildren allows constructing general traversals of the IR graph
 // that can stop early if needed. The most general usage is:
 //
-//	var do func(ir.Node) error
-//	do = func(x ir.Node) error {
+//	var do func(ir.Node) bool
+//	do = func(x ir.Node) bool {
 //		... processing BEFORE visting children ...
 //		if ... should visit children ... {
 //			ir.DoChildren(x, do)
 //			... processing AFTER visting children ...
 //		}
 //		if ... should stop parent DoChildren call from visiting siblings ... {
-//			return non-nil error
+//			return true
 //		}
-//		return nil
+//		return false
 //	}
 //	do(root)
 //
-// Since DoChildren does not generate any errors itself, if the do function
-// never wants to stop the traversal, it can assume that DoChildren itself
-// will always return nil, simplifying to:
+// Since DoChildren does not return true itself, if the do function
+// never wants to stop the traversal, it can assume that DoChildren
+// itself will always return false, simplifying to:
 //
-//	var do func(ir.Node) error
-//	do = func(x ir.Node) error {
+//	var do func(ir.Node) bool
+//	do = func(x ir.Node) bool {
 //		... processing BEFORE visting children ...
 //		if ... should visit children ... {
 //			ir.DoChildren(x, do)
 //		}
 //		... processing AFTER visting children ...
-//		return nil
+//		return false
 //	}
 //	do(root)
 //
@@ -61,14 +56,15 @@ import (
 // only processing before visiting children and never stopping:
 //
 //	func Visit(n ir.Node, visit func(ir.Node)) {
-//		var do func(ir.Node) error
-//		do = func(x ir.Node) error {
+//		if n == nil {
+//			return
+//		}
+//		var do func(ir.Node) bool
+//		do = func(x ir.Node) bool {
 //			visit(x)
 //			return ir.DoChildren(x, do)
 //		}
-//		if n != nil {
-//			visit(n)
-//		}
+//		do(n)
 //	}
 //
 // The Any function illustrates a different simplification of the pattern,
@@ -76,50 +72,40 @@ import (
 // a node x for which cond(x) returns true, at which point the entire
 // traversal stops and returns true.
 //
-//	func Any(n ir.Node, find cond(ir.Node)) bool {
-//		stop := errors.New("stop")
-//		var do func(ir.Node) error
-//		do = func(x ir.Node) error {
-//			if cond(x) {
-//				return stop
-//			}
-//			return ir.DoChildren(x, do)
+//	func Any(n ir.Node, cond(ir.Node) bool) bool {
+//		if n == nil {
+//			return false
 //		}
-//		return do(n) == stop
+//		var do func(ir.Node) bool
+//		do = func(x ir.Node) bool {
+//			return cond(x) || ir.DoChildren(x, do)
+//		}
+//		return do(n)
 //	}
 //
 // Visit and Any are presented above as examples of how to use
 // DoChildren effectively, but of course, usage that fits within the
 // simplifications captured by Visit or Any will be best served
 // by directly calling the ones provided by this package.
-func DoChildren(n Node, do func(Node) error) error {
+func DoChildren(n Node, do func(Node) bool) bool {
 	if n == nil {
-		return nil
+		return false
 	}
 	return n.doChildren(do)
-}
-
-// DoList calls f on each non-nil node x in the list, in list order.
-// If any call returns a non-nil error, DoList stops and returns that error.
-// Otherwise DoList returns nil.
-//
-// Note that DoList only calls do on the nodes in the list, not their children.
-// If x's children should be processed, do(x) must call DoChildren(x, do) itself.
-func DoList(list Nodes, do func(Node) error) error {
-	return doNodes(list, do)
 }
 
 // Visit visits each non-nil node x in the IR tree rooted at n
 // in a depth-first preorder traversal, calling visit on each node visited.
 func Visit(n Node, visit func(Node)) {
-	var do func(Node) error
-	do = func(x Node) error {
+	if n == nil {
+		return
+	}
+	var do func(Node) bool
+	do = func(x Node) bool {
 		visit(x)
 		return DoChildren(x, do)
 	}
-	if n != nil {
-		do(n)
-	}
+	do(n)
 }
 
 // VisitList calls Visit(x, visit) for each node x in the list.
@@ -128,8 +114,6 @@ func VisitList(list Nodes, visit func(Node)) {
 		Visit(x, visit)
 	}
 }
-
-var stop = errors.New("stop")
 
 // Any looks for a non-nil node x in the IR tree rooted at n
 // for which cond(x) returns true.
@@ -141,14 +125,11 @@ func Any(n Node, cond func(Node) bool) bool {
 	if n == nil {
 		return false
 	}
-	var do func(Node) error
-	do = func(x Node) error {
-		if cond(x) {
-			return stop
-		}
-		return DoChildren(x, do)
+	var do func(Node) bool
+	do = func(x Node) bool {
+		return cond(x) || DoChildren(x, do)
 	}
-	return do(n) == stop
+	return do(n)
 }
 
 // AnyList calls Any(x, cond) for each node x in the list, in order.
