@@ -521,6 +521,18 @@ func shiftIsBounded(v *Value) bool {
 	return v.AuxInt != 0
 }
 
+// canonLessThan returns whether x is "ordered" less than y, for purposes of normalizing
+// generated code as much as possible.
+func canonLessThan(x, y *Value) bool {
+	if x.Op != y.Op {
+		return x.Op < y.Op
+	}
+	if !x.Pos.SameFileAndLine(y.Pos) {
+		return x.Pos.Before(y.Pos)
+	}
+	return x.ID < y.ID
+}
+
 // truncate64Fto32F converts a float64 value to a float32 preserving the bit pattern
 // of the mantissa. It will panic if the truncation results in lost information.
 func truncate64Fto32F(f float64) float32 {
