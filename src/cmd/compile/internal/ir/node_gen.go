@@ -251,7 +251,7 @@ func (n *CallExpr) copy() Node {
 	c.init = copyNodes(c.init)
 	c.Args = copyNodes(c.Args)
 	c.Rargs = copyNodes(c.Rargs)
-	c.Body = copyNodes(c.Body)
+	c.KeepAlive = copyNames(c.KeepAlive)
 	return &c
 }
 func (n *CallExpr) doChildren(do func(Node) bool) bool {
@@ -267,7 +267,7 @@ func (n *CallExpr) doChildren(do func(Node) bool) bool {
 	if doNodes(n.Rargs, do) {
 		return true
 	}
-	if doNodes(n.Body, do) {
+	if doNames(n.KeepAlive, do) {
 		return true
 	}
 	return false
@@ -279,7 +279,7 @@ func (n *CallExpr) editChildren(edit func(Node) Node) {
 	}
 	editNodes(n.Args, edit)
 	editNodes(n.Rargs, edit)
-	editNodes(n.Body, edit)
+	editNames(n.KeepAlive, edit)
 }
 
 func (n *CaseClause) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
@@ -1377,6 +1377,30 @@ func editCommClauses(list []*CommClause, edit func(Node) Node) {
 	for i, x := range list {
 		if x != nil {
 			list[i] = edit(x).(*CommClause)
+		}
+	}
+}
+
+func copyNames(list []*Name) []*Name {
+	if list == nil {
+		return nil
+	}
+	c := make([]*Name, len(list))
+	copy(c, list)
+	return c
+}
+func doNames(list []*Name, do func(Node) bool) bool {
+	for _, x := range list {
+		if x != nil && do(x) {
+			return true
+		}
+	}
+	return false
+}
+func editNames(list []*Name, edit func(Node) Node) {
+	for i, x := range list {
+		if x != nil {
+			list[i] = edit(x).(*Name)
 		}
 	}
 }

@@ -228,7 +228,7 @@ func walkGoDefer(n *ir.GoDeferStmt) ir.Node {
 
 	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
 		call := call.(*ir.CallExpr)
-		if len(call.Body) > 0 {
+		if len(call.KeepAlive) > 0 {
 			n.Call = wrapCall(call, &init)
 		} else {
 			n.Call = walkExpr(call, &init)

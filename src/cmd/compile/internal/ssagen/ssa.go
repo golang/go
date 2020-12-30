@@ -4867,7 +4867,9 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		s.vars[memVar] = call
 	}
 	// Insert OVARLIVE nodes
-	s.stmtList(n.Body)
+	for _, name := range n.KeepAlive {
+		s.stmt(ir.NewUnaryExpr(n.Pos(), ir.OVARLIVE, name))
+	}
 
 	// Finish block for defers
 	if k == callDefer || k == callDeferStack {

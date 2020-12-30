@@ -159,13 +159,13 @@ const (
 type CallExpr struct {
 	miniExpr
 	origNode
-	X        Node
-	Args     Nodes
-	Rargs    Nodes // TODO(rsc): Delete.
-	Body     Nodes // TODO(rsc): Delete.
-	IsDDD    bool
-	Use      CallUse
-	NoInline bool
+	X         Node
+	Args      Nodes
+	Rargs     Nodes   // TODO(rsc): Delete.
+	KeepAlive []*Name // vars to be kept alive until call returns
+	IsDDD     bool
+	Use       CallUse
+	NoInline  bool
 }
 
 func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
