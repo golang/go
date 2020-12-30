@@ -28,7 +28,7 @@ type Node interface {
 	// For making copies. For Copy and SepCopy.
 	copy() Node
 
-	doChildren(func(Node) error) error
+	doChildren(func(Node) bool) bool
 	editChildren(func(Node) Node)
 
 	// Abstract graph structure, for generic traversals.

@@ -70,10 +70,10 @@ func main() {
 			"return &c }\n")
 
 		forNodeFields(typ,
-			"func (n *%[1]s) doChildren(do func(Node) error) error {\n",
-			"if n.%[1]s != nil { if err := do(n.%[1]s); err != nil { return err } }",
-			"if err := do%[2]s(n.%[1]s, do); err != nil { return err }",
-			"return nil }\n")
+			"func (n *%[1]s) doChildren(do func(Node) bool) bool {\n",
+			"if n.%[1]s != nil && do(n.%[1]s) { return true }",
+			"if do%[2]s(n.%[1]s, do) { return true }",
+			"return false }\n")
 
 		forNodeFields(typ,
 			"func (n *%[1]s) editChildren(edit func(Node) Node) {\n",
@@ -121,15 +121,13 @@ func copy%[1]s(list []%[2]s) []%[2]s {
 	copy(c, list)
 	return c
 }
-func do%[1]s(list []%[2]s, do func(Node) error) error {
+func do%[1]s(list []%[2]s, do func(Node) bool) bool {
 	for _, x := range list {
-		if x != nil {
-			if err := do(x); err != nil {
-				return err
-			}
+		if x != nil && do(x) {
+			return true
 		}
 	}
-	return nil
+	return false
 }
 func edit%[1]s(list []%[2]s, edit func(Node) Node) {
 	for i, x := range list {

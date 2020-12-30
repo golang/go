@@ -265,7 +265,7 @@ var errBudget = errors.New("too expensive")
 func (v *hairyVisitor) tooHairy(fn *ir.Func) bool {
 	v.do = v.doNode // cache closure
 
-	err := ir.DoChildren(fn, v.do)
+	err := errChildren(fn, v.do)
 	if err != nil {
 		v.reason = err.Error()
 		return true
@@ -393,13 +393,13 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		if ir.IsConst(n.Cond, constant.Bool) {
 			// This if and the condition cost nothing.
 			// TODO(rsc): It seems strange that we visit the dead branch.
-			if err := ir.DoList(n.Init(), v.do); err != nil {
+			if err := errList(n.Init(), v.do); err != nil {
 				return err
 			}
-			if err := ir.DoList(n.Body, v.do); err != nil {
+			if err := errList(n.Body, v.do); err != nil {
 				return err
 			}
-			if err := ir.DoList(n.Else, v.do); err != nil {
+			if err := errList(n.Else, v.do); err != nil {
 				return err
 			}
 			return nil
@@ -431,7 +431,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		return errBudget
 	}
 
-	return ir.DoChildren(n, v.do)
+	return errChildren(n, v.do)
 }
 
 func isBigFunc(fn *ir.Func) bool {
@@ -1213,4 +1213,23 @@ func numNonClosures(list []*ir.Func) int {
 		}
 	}
 	return count
+}
+
+// TODO(mdempsky): Update inl.go to use ir.DoChildren directly.
+func errChildren(n ir.Node, do func(ir.Node) error) (err error) {
+	ir.DoChildren(n, func(x ir.Node) bool {
+		err = do(x)
+		return err != nil
+	})
+	return
+}
+func errList(list []ir.Node, do func(ir.Node) error) error {
+	for _, x := range list {
+		if x != nil {
+			if err := do(x); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

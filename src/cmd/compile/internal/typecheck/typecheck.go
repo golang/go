@@ -2053,8 +2053,8 @@ func markBreak(fn *ir.Func) {
 	var labels map[*types.Sym]ir.Node
 	var implicit ir.Node
 
-	var mark func(ir.Node) error
-	mark = func(n ir.Node) error {
+	var mark func(ir.Node) bool
+	mark = func(n ir.Node) bool {
 		switch n.Op() {
 		default:
 			ir.DoChildren(n, mark)
@@ -2094,7 +2094,7 @@ func markBreak(fn *ir.Func) {
 			}
 			implicit = old
 		}
-		return nil
+		return false
 	}
 
 	mark(fn)

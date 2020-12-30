@@ -195,21 +195,17 @@ func copyField(f *Field) *Field {
 	c := *f
 	return &c
 }
-func doField(f *Field, do func(Node) error) error {
+func doField(f *Field, do func(Node) bool) bool {
 	if f == nil {
-		return nil
+		return false
 	}
-	if f.Decl != nil {
-		if err := do(f.Decl); err != nil {
-			return err
-		}
+	if f.Decl != nil && do(f.Decl) {
+		return true
 	}
-	if f.Ntype != nil {
-		if err := do(f.Ntype); err != nil {
-			return err
-		}
+	if f.Ntype != nil && do(f.Ntype) {
+		return true
 	}
-	return nil
+	return false
 }
 func editField(f *Field, edit func(Node) Node) {
 	if f == nil {
@@ -230,13 +226,13 @@ func copyFields(list []*Field) []*Field {
 	}
 	return out
 }
-func doFields(list []*Field, do func(Node) error) error {
+func doFields(list []*Field, do func(Node) bool) bool {
 	for _, x := range list {
-		if err := doField(x, do); err != nil {
-			return err
+		if doField(x, do) {
+			return true
 		}
 	}
-	return nil
+	return false
 }
 func editFields(list []*Field, edit func(Node) Node) {
 	for _, f := range list {
