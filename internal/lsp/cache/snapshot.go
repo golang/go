@@ -25,6 +25,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
+	"golang.org/x/tools/internal/lsp/debug/log"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
@@ -1231,12 +1232,37 @@ func generationName(v *View, snapshotID uint64) string {
 	return fmt.Sprintf("v%v/%v", v.id, snapshotID)
 }
 
+// checkSnapshotLocked verifies that some invariants are preserved on the
+// snapshot.
+func checkSnapshotLocked(ctx context.Context, s *snapshot) {
+	// Check that every go file for a workspace package is identified as
+	// belonging to that workspace package.
+	for wsID := range s.workspacePackages {
+		if m, ok := s.metadata[wsID]; ok {
+			for _, uri := range m.goFiles {
+				found := false
+				for _, id := range s.ids[uri] {
+					if id == wsID {
+						found = true
+						break
+					}
+				}
+				if !found {
+					log.Error.Logf(ctx, "workspace package %v not associated with %v", wsID, uri)
+				}
+			}
+		}
+	}
+}
+
 func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) (*snapshot, bool) {
 	var vendorChanged bool
 	newWorkspace, workspaceChanged, workspaceReload := s.workspace.invalidate(ctx, changes)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	checkSnapshotLocked(ctx, s)
 
 	newGen := s.view.session.cache.store.Generation(generationName(s.view, s.id+1))
 	bgCtx, cancel := context.WithCancel(bgCtx)
