@@ -475,7 +475,7 @@
 (CMPB (MOVLconst [c]) x) => (InvertFlags (CMPBconst x [int8(c)]))
 
 // Canonicalize the order of arguments to comparisons - helps with CSE.
-(CMP(L|W|B) x y) && x.ID > y.ID => (InvertFlags (CMP(L|W|B) y x))
+(CMP(L|W|B) x y) && canonLessThan(x,y) => (InvertFlags (CMP(L|W|B) y x))
 
 // strength reduction
 // Assumes that the following costs from https://gmplib.org/~tege/x86-timing.pdf:
