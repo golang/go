@@ -443,6 +443,7 @@ replace a.com => $SANDBOX_WORKDIR/moda/a
 		// loaded. Validate this by jumping to a definition in b.com and ensuring
 		// that we go to the module cache.
 		env.OpenFile("moda/a/a.go")
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
 
 		// To verify which modules are loaded, we'll jump to the definition of
 		// b.Hello.
@@ -476,6 +477,7 @@ replace b.com => %s/modb
 		// Check that go.mod diagnostics picked up the newly active mod file.
 		// The local version of modb has an extra dependency we need to download.
 		env.OpenFile("modb/go.mod")
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 2))
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
 			OnceMet(
@@ -493,6 +495,7 @@ replace b.com => %s/modb
 		// Now, let's modify the gopls.mod *overlay* (not on disk), and verify that
 		// this change is only picked up once it is saved.
 		env.OpenFile("gopls.mod")
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 3))
 		env.SetBufferContent("gopls.mod", fmt.Sprintf(`module gopls-workspace
 
 require (
