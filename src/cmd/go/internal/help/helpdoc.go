@@ -535,6 +535,16 @@ General-purpose environment variables:
 	GOTMPDIR
 		The directory where the go command will write
 		temporary source files, packages, and binaries.
+	GO111MODULE
+		which can be set to one of three string values: off, on (the default), or auto.
+		If GO111MODULE=on, then the go command requires the use of modules,
+		never consulting GOPATH. We refer to this as the command being module-aware
+		or running in "module-aware mode".
+		If GO111MODULE=off, then the go command never uses module support.
+		Instead it looks in vendor directories and GOPATH
+		to find dependencies; we now refer to this as "GOPATH mode."
+		If GO111MODULE=auto or is unset, then the go command enables or disables
+		module support based on the current directory.
 
 Environment variables for use with cgo:
 
