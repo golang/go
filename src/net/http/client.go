@@ -500,7 +500,13 @@ func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirect
 		redirectMethod = reqMethod
 		shouldRedirect = true
 		includeBody = false
-
+		if resp.Header.Get("Location") == "" {
+			shouldRedirect = false
+			break
+		}
+		if ireq.GetBody == nil && ireq.outgoingLength() != 0 {
+			shouldRedirect = false
+		}
 		// RFC 2616 allowed automatic redirection only with GET and
 		// HEAD requests. RFC 7231 lifts this restriction, but we still
 		// restrict other methods to GET to maintain compatibility.
