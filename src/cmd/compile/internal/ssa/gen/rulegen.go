@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build gen
 // +build gen
 
 // This program generates Go code that applies rewrite rules to a Value.
@@ -194,7 +195,9 @@ func genRulesSuffix(arch arch, suff string) {
 		swc.add(stmtf("return rewriteValue%s%s_%s(v)", arch.name, suff, op))
 		sw.add(swc)
 	}
-	fn.add(sw)
+	if len(sw.List) > 0 { // skip if empty
+		fn.add(sw)
+	}
 	fn.add(stmtf("return false"))
 	genFile.add(fn)
 
@@ -264,7 +267,9 @@ func genRulesSuffix(arch arch, suff string) {
 		}
 		sw.add(swc)
 	}
-	fn.add(sw)
+	if len(sw.List) > 0 { // skip if empty
+		fn.add(sw)
+	}
 	fn.add(stmtf("return false"))
 	genFile.add(fn)
 
