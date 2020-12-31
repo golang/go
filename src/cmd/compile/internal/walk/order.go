@@ -102,7 +102,7 @@ func (o *orderState) newTemp(t *types.Type, clear bool) *ir.Name {
 
 // copyExpr behaves like newTemp but also emits
 // code to initialize the temporary to the value n.
-func (o *orderState) copyExpr(n ir.Node) ir.Node {
+func (o *orderState) copyExpr(n ir.Node) *ir.Name {
 	return o.copyExpr1(n, false)
 }
 
@@ -518,7 +518,7 @@ func (o *orderState) call(nn ir.Node) {
 				x := o.copyExpr(arg.X)
 				arg.X = x
 				x.Name().SetAddrtaken(true) // ensure SSA keeps the x variable
-				n.KeepAlive = append(n.KeepAlive, x.(*ir.Name))
+				n.KeepAlive = append(n.KeepAlive, x)
 			}
 		}
 	}
