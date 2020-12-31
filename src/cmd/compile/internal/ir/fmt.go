@@ -216,6 +216,7 @@ var OpPrec = []int{
 	OTINTER:        8,
 	OTMAP:          8,
 	OTSTRUCT:       8,
+	OTYPE:          8,
 	OINDEXMAP:      8,
 	OINDEX:         8,
 	OSLICE:         8,
@@ -232,6 +233,7 @@ var OpPrec = []int{
 	ODOT:           8,
 	OXDOT:          8,
 	OCALLPART:      8,
+	OMETHEXPR:      8,
 	OPLUS:          7,
 	ONOT:           7,
 	OBITNOT:        7,
@@ -551,8 +553,8 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	}
 
 	nprec := OpPrec[n.Op()]
-	if n.Op() == OTYPE && n.Sym() != nil {
-		nprec = 8
+	if n.Op() == OTYPE && n.Type().IsPtr() {
+		nprec = OpPrec[ODEREF]
 	}
 
 	if prec > nprec {
