@@ -847,7 +847,5 @@ func rewriteValueAMD64splitload_OpAMD64CMPWloadidx2(v *Value) bool {
 	}
 }
 func rewriteBlockAMD64splitload(b *Block) bool {
-	switch b.Kind {
-	}
 	return false
 }
