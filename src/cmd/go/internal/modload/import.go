@@ -31,10 +31,6 @@ type ImportMissingError struct {
 	Module   module.Version
 	QueryErr error
 
-	// inAll indicates whether Path is in the "all" package pattern,
-	// and thus would be added by 'go mod tidy'.
-	inAll bool
-
 	// isStd indicates whether we would expect to find the package in the standard
 	// library. This is normally true for all dotless import paths, but replace
 	// directives can cause us to treat the replaced paths as also being in
@@ -67,16 +63,14 @@ func (e *ImportMissingError) Error() string {
 			if !modfetch.IsZeroPseudoVersion(e.replaced.Version) {
 				suggestArg = e.replaced.String()
 			}
-			return fmt.Sprintf("module %s provides package %s and is replaced but not required; try 'go get -d %s' to add it", e.replaced.Path, e.Path, suggestArg)
+			return fmt.Sprintf("module %s provides package %s and is replaced but not required; to add it:\n\tgo get %s", e.replaced.Path, e.Path, suggestArg)
 		}
 
 		suggestion := ""
 		if !HasModRoot() {
 			suggestion = ": working directory is not part of a module"
-		} else if e.inAll {
-			suggestion = "; try 'go mod tidy' to add it"
 		} else {
-			suggestion = fmt.Sprintf("; try 'go get -d %s' to add it", e.Path)
+			suggestion = fmt.Sprintf("; to add it:\n\tgo get %s", e.Path)
 		}
 		return fmt.Sprintf("no required module provides package %s%s", e.Path, suggestion)
 	}
@@ -151,7 +145,7 @@ func (e *ImportMissingSumError) Error() string {
 		message = fmt.Sprintf("missing go.sum entry for module providing package %s", e.importPath)
 	}
 	if e.inAll {
-		return message + "; try 'go mod tidy' to add it"
+		return message + "; to add it:\n\tgo mod tidy"
 	}
 	return message
 }
