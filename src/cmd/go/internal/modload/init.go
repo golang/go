@@ -458,7 +458,7 @@ func CreateModFile(ctx context.Context, modPath string) {
 		}
 	}
 	if !empty {
-		fmt.Fprintf(os.Stderr, "go: run 'go mod tidy' to add module requirements and sums\n")
+		fmt.Fprintf(os.Stderr, "go: to add module requirements and sums:\n\tgo mod tidy\n")
 	}
 }
 
@@ -907,7 +907,7 @@ func WriteGoMod() {
 		} else if cfg.BuildModReason != "" {
 			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly\n\t(%s)", cfg.BuildModReason)
 		} else {
-			base.Fatalf("go: updates to go.mod needed; try 'go mod tidy' first")
+			base.Fatalf("go: updates to go.mod needed; to update it:\n\tgo mod tidy")
 		}
 	}
 

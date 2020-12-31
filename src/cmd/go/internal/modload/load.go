@@ -281,9 +281,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 	for _, pkg := range loaded.pkgs {
 		if pkg.err != nil {
 			if pkg.flags.has(pkgInAll) {
-				if imErr := (*ImportMissingError)(nil); errors.As(pkg.err, &imErr) {
-					imErr.inAll = true
-				} else if sumErr := (*ImportMissingSumError)(nil); errors.As(pkg.err, &sumErr) {
+				if sumErr := (*ImportMissingSumError)(nil); errors.As(pkg.err, &sumErr) {
 					sumErr.inAll = true
 				}
 			}
