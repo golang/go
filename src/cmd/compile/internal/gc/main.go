@@ -213,6 +213,14 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		typecheck.Export(initTask)
 	}
 
+	// Eliminate some obviously dead code.
+	// Must happen after typechecking.
+	for _, n := range typecheck.Target.Decls {
+		if n.Op() == ir.ODCLFUNC {
+			deadcode.Func(n.(*ir.Func))
+		}
+	}
+
 	// Compute Addrtaken for names.
 	// We need to wait until typechecking is done so that when we see &x[i]
 	// we know that x has its address taken if x is an array, but not if x is a slice.
@@ -223,14 +231,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		typecheck.DirtyAddrtaken = false
 	}
 	typecheck.IncrementalAddrtaken = true
-
-	// Eliminate some obviously dead code.
-	// Must happen after typechecking.
-	for _, n := range typecheck.Target.Decls {
-		if n.Op() == ir.ODCLFUNC {
-			deadcode.Func(n.(*ir.Func))
-		}
-	}
 
 	// Decide how to capture closed variables.
 	// This needs to run before escape analysis,
