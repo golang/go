@@ -1835,7 +1835,7 @@ func oldname(s *types.Sym) ir.Node {
 		// the := it looks like a reference to the outer x so we'll
 		// make x a closure variable unnecessarily.
 		n := n.(*ir.Name)
-		c := n.Name().Innermost
+		c := n.Innermost
 		if c == nil || c.Curfn != ir.CurFunc {
 			// Do not have a closure var for the active closure yet; make one.
 			c = typecheck.NewName(s)
@@ -1845,8 +1845,8 @@ func oldname(s *types.Sym) ir.Node {
 
 			// Link into list of active closure variables.
 			// Popped from list in func funcLit.
-			c.Outer = n.Name().Innermost
-			n.Name().Innermost = c
+			c.Outer = n.Innermost
+			n.Innermost = c
 
 			ir.CurFunc.ClosureVars = append(ir.CurFunc.ClosureVars, c)
 		}

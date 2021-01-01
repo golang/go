@@ -127,7 +127,7 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
 }
 
 func declPos(decl *ir.Name) src.XPos {
-	if decl.Name().Defn != nil && (decl.Name().Captured() || decl.Name().Byval()) {
+	if decl.Defn != nil && (decl.Captured() || decl.Byval()) {
 		// It's not clear which position is correct for captured variables here:
 		// * decl.Pos is the wrong position for captured variables, in the inner
 		//   function, but it is the right position in the outer function.
@@ -142,7 +142,7 @@ func declPos(decl *ir.Name) src.XPos {
 		//   case statement.
 		// This code is probably wrong for type switch variables that are also
 		// captured.
-		return decl.Name().Defn.Pos()
+		return decl.Defn.Pos()
 	}
 	return decl.Pos()
 }
@@ -211,7 +211,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 			// misleading location for the param (we want pointer-to-heap
 			// and not stack).
 			// TODO(thanm): generate a better location expression
-			stackcopy := n.Name().Stackcopy
+			stackcopy := n.Stackcopy
 			if stackcopy != nil && (stackcopy.Class_ == ir.PPARAM || stackcopy.Class_ == ir.PPARAMOUT) {
 				abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
 				isReturnValue = (stackcopy.Class_ == ir.PPARAMOUT)
@@ -219,9 +219,9 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		}
 		inlIndex := 0
 		if base.Flag.GenDwarfInl > 1 {
-			if n.Name().InlFormal() || n.Name().InlLocal() {
+			if n.InlFormal() || n.InlLocal() {
 				inlIndex = posInlIndex(n.Pos()) + 1
-				if n.Name().InlFormal() {
+				if n.InlFormal() {
 					abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
 				}
 			}
@@ -312,9 +312,9 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 	delete(fnsym.Func().Autot, reflectdata.TypeLinksym(n.Type()))
 	inlIndex := 0
 	if base.Flag.GenDwarfInl > 1 {
-		if n.Name().InlFormal() || n.Name().InlLocal() {
+		if n.InlFormal() || n.InlLocal() {
 			inlIndex = posInlIndex(n.Pos()) + 1
-			if n.Name().InlFormal() {
+			if n.InlFormal() {
 				abbrev = dwarf.DW_ABRV_PARAM
 			}
 		}
@@ -323,7 +323,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 	return &dwarf.Var{
 		Name:          n.Sym().Name,
 		IsReturnValue: n.Class_ == ir.PPARAMOUT,
-		IsInlFormal:   n.Name().InlFormal(),
+		IsInlFormal:   n.InlFormal(),
 		Abbrev:        abbrev,
 		StackOffset:   int32(offs),
 		Type:          base.Ctxt.Lookup(typename),
@@ -381,9 +381,9 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
 	inlIndex := 0
 	if base.Flag.GenDwarfInl > 1 {
-		if n.Name().InlFormal() || n.Name().InlLocal() {
+		if n.InlFormal() || n.InlLocal() {
 			inlIndex = posInlIndex(n.Pos()) + 1
-			if n.Name().InlFormal() {
+			if n.InlFormal() {
 				abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
 			}
 		}
@@ -392,7 +392,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 	dvar := &dwarf.Var{
 		Name:          n.Sym().Name,
 		IsReturnValue: n.Class_ == ir.PPARAMOUT,
-		IsInlFormal:   n.Name().InlFormal(),
+		IsInlFormal:   n.InlFormal(),
 		Abbrev:        abbrev,
 		Type:          base.Ctxt.Lookup(typename),
 		// The stack offset is used as a sorting key, so for decomposed

@@ -406,7 +406,7 @@ func (o *orderState) edge() {
 	// Create a new uint8 counter to be allocated in section
 	// __libfuzzer_extra_counters.
 	counter := staticinit.StaticName(types.Types[types.TUINT8])
-	counter.Name().SetLibfuzzerExtraCounter(true)
+	counter.SetLibfuzzerExtraCounter(true)
 
 	// counter += 1
 	incr := ir.NewAssignOpStmt(base.Pos, ir.OADD, counter, ir.NewInt(1))
@@ -517,7 +517,7 @@ func (o *orderState) call(nn ir.Node) {
 			if arg.X.Type().IsUnsafePtr() {
 				x := o.copyExpr(arg.X)
 				arg.X = x
-				x.Name().SetAddrtaken(true) // ensure SSA keeps the x variable
+				x.SetAddrtaken(true) // ensure SSA keeps the x variable
 				n.KeepAlive = append(n.KeepAlive, x)
 			}
 		}

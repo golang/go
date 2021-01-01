@@ -771,11 +771,11 @@ func staticValue1(nn Node) Node {
 		return nil
 	}
 	n := nn.(*Name)
-	if n.Class_ != PAUTO || n.Name().Addrtaken() {
+	if n.Class_ != PAUTO || n.Addrtaken() {
 		return nil
 	}
 
-	defn := n.Name().Defn
+	defn := n.Defn
 	if defn == nil {
 		return nil
 	}

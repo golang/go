@@ -54,7 +54,7 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 
 	if n.Op() == ir.ONAME && n.(*ir.Name).Class_ == ir.PAUTOHEAP {
 		n := n.(*ir.Name)
-		nn := ir.NewStarExpr(base.Pos, n.Name().Heapaddr)
+		nn := ir.NewStarExpr(base.Pos, n.Heapaddr)
 		nn.X.MarkNonNil()
 		return walkExpr(typecheck.Expr(nn), init)
 	}

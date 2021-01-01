@@ -131,10 +131,10 @@ func CaptureVars(fn *ir.Func) {
 		outermost := v.Defn.(*ir.Name)
 
 		// out parameters will be assigned to implicitly upon return.
-		if outermost.Class_ != ir.PPARAMOUT && !outermost.Name().Addrtaken() && !outermost.Name().Assigned() && v.Type().Width <= 128 {
+		if outermost.Class_ != ir.PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type().Width <= 128 {
 			v.SetByval(true)
 		} else {
-			outermost.Name().SetAddrtaken(true)
+			outermost.SetAddrtaken(true)
 			outer = NodAddr(outer)
 		}
 
@@ -147,7 +147,7 @@ func CaptureVars(fn *ir.Func) {
 			if v.Byval() {
 				how = "value"
 			}
-			base.WarnfAt(v.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym(), outermost.Name().Addrtaken(), outermost.Name().Assigned(), int32(v.Type().Width))
+			base.WarnfAt(v.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym(), outermost.Addrtaken(), outermost.Assigned(), int32(v.Type().Width))
 		}
 
 		outer = Expr(outer)

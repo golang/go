@@ -312,7 +312,7 @@ func (n *Name) MarkReadonly() {
 	if n.Op() != ONAME {
 		base.Fatalf("Node.MarkReadonly %v", n.Op())
 	}
-	n.Name().setReadonly(true)
+	n.setReadonly(true)
 	// Mark the linksym as readonly immediately
 	// so that the SSA backend can use this information.
 	// It will be overridden later during dumpglobls.
@@ -433,7 +433,7 @@ func IsParamHeapCopy(n Node) bool {
 		return false
 	}
 	name := n.(*Name)
-	return name.Class_ == PAUTOHEAP && name.Name().Stackcopy != nil
+	return name.Class_ == PAUTOHEAP && name.Stackcopy != nil
 }
 
 var RegFP *Name
