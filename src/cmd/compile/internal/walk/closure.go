@@ -131,7 +131,7 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 
 	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ).(ir.Ntype), nil)
 	clos.SetEsc(clo.Esc())
-	clos.List.Set(append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, fn.Nname)}, fn.ClosureEnter...))
+	clos.List.Set(append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, fn.Nname)}, closureArgs(clo)...))
 
 	addr := typecheck.NodAddr(clos)
 	addr.SetEsc(clo.Esc())
@@ -149,6 +149,26 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 	}
 
 	return walkExpr(cfn, init)
+}
+
+// closureArgs returns a slice of expressions that an be used to
+// initialize the given closure's free variables. These correspond
+// one-to-one with the variables in clo.Func.ClosureVars, and will be
+// either an ONAME node (if the variable is captured by value) or an
+// OADDR-of-ONAME node (if not).
+func closureArgs(clo *ir.ClosureExpr) []ir.Node {
+	fn := clo.Func
+
+	args := make([]ir.Node, len(fn.ClosureVars))
+	for i, v := range fn.ClosureVars {
+		var outer ir.Node
+		outer = v.Outer
+		if !v.Byval() {
+			outer = typecheck.NodAddrAt(fn.Pos(), outer)
+		}
+		args[i] = typecheck.Expr(outer)
+	}
+	return args
 }
 
 func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {

@@ -122,20 +122,17 @@ func CaptureVars(fn *ir.Func) {
 		}
 		out = append(out, v)
 
-		// type check the & of closed variables outside the closure,
+		// type check closed variables outside the closure,
 		// so that the outer frame also grabs them and knows they escape.
-		types.CalcSize(v.Type())
+		Expr(v.Outer)
 
-		var outer ir.Node
-		outer = v.Outer
 		outermost := v.Defn.(*ir.Name)
 
 		// out parameters will be assigned to implicitly upon return.
-		if outermost.Class_ != ir.PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type().Width <= 128 {
+		if outermost.Class_ != ir.PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type().Size() <= 128 {
 			v.SetByval(true)
 		} else {
 			outermost.SetAddrtaken(true)
-			outer = NodAddr(outer)
 		}
 
 		if base.Flag.LowerM > 1 {
@@ -147,11 +144,8 @@ func CaptureVars(fn *ir.Func) {
 			if v.Byval() {
 				how = "value"
 			}
-			base.WarnfAt(v.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym(), outermost.Addrtaken(), outermost.Assigned(), int32(v.Type().Width))
+			base.WarnfAt(v.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym(), outermost.Addrtaken(), outermost.Assigned(), v.Type().Size())
 		}
-
-		outer = Expr(outer)
-		fn.ClosureEnter.Append(outer)
 	}
 
 	fn.ClosureVars = out
