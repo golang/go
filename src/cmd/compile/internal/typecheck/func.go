@@ -21,7 +21,7 @@ func MakeDotArgs(typ *types.Type, args []ir.Node) ir.Node {
 		n = NodNil()
 		n.SetType(typ)
 	} else {
-		lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ).(ir.Ntype), nil)
+		lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
 		lit.List.Append(args...)
 		lit.SetImplicit(true)
 		n = lit
