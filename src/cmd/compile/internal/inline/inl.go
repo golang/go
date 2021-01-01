@@ -753,42 +753,6 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	// record formals/locals for later post-processing
 	var inlfvars []ir.Node
 
-	// Handle captured variables when inlining closures.
-	if c := fn.OClosure; c != nil {
-		for _, v := range fn.ClosureVars {
-			if v.Op() == ir.OXXX {
-				continue
-			}
-
-			o := v.Outer
-			// make sure the outer param matches the inlining location
-			// NB: if we enabled inlining of functions containing OCLOSURE or refined
-			// the reassigned check via some sort of copy propagation this would most
-			// likely need to be changed to a loop to walk up to the correct Param
-			if o == nil || o.Curfn != ir.CurFunc {
-				base.Fatalf("%v: unresolvable capture %v %v\n", ir.Line(n), fn, v)
-			}
-
-			if v.Byval() {
-				iv := typecheck.Expr(inlvar(v))
-				ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, iv.(*ir.Name)))
-				ninit.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, iv, o)))
-				inlvars[v] = iv
-			} else {
-				addr := typecheck.NewName(typecheck.Lookup("&" + v.Sym().Name))
-				addr.SetType(types.NewPtr(v.Type()))
-				ia := typecheck.Expr(inlvar(addr))
-				ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, ia.(*ir.Name)))
-				ninit.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, ia, typecheck.NodAddr(o))))
-				inlvars[addr] = ia
-
-				// When capturing by reference, all occurrence of the captured var
-				// must be substituted with dereference of the temporary address
-				inlvars[v] = typecheck.Expr(ir.NewStarExpr(base.Pos, ia))
-			}
-		}
-	}
-
 	for _, ln := range fn.Inl.Dcl {
 		if ln.Op() != ir.ONAME {
 			continue
@@ -1088,6 +1052,25 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 	switch n.Op() {
 	case ir.ONAME:
 		n := n.(*ir.Name)
+
+		// Handle captured variables when inlining closures.
+		if n.IsClosureVar() {
+			o := n.Outer
+
+			// make sure the outer param matches the inlining location
+			// NB: if we enabled inlining of functions containing OCLOSURE or refined
+			// the reassigned check via some sort of copy propagation this would most
+			// likely need to be changed to a loop to walk up to the correct Param
+			if o == nil || o.Curfn != ir.CurFunc {
+				base.Fatalf("%v: unresolvable capture %v\n", ir.Line(n), n)
+			}
+
+			if base.Flag.LowerM > 2 {
+				fmt.Printf("substituting captured name %+v  ->  %+v\n", n, o)
+			}
+			return o
+		}
+
 		if inlvar := subst.inlvars[n]; inlvar != nil { // These will be set during inlnode
 			if base.Flag.LowerM > 2 {
 				fmt.Printf("substituting name %+v  ->  %+v\n", n, inlvar)
