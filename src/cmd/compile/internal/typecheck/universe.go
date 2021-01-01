@@ -90,8 +90,8 @@ var unsafeFuncs = [...]struct {
 	{"Sizeof", ir.OSIZEOF},
 }
 
-// initUniverse initializes the universe block.
-func initUniverse() {
+// InitUniverse initializes the universe block.
+func InitUniverse() {
 	if types.PtrSize == 0 {
 		base.Fatalf("typeinit before betypeinit")
 	}

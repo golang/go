@@ -31,13 +31,6 @@ var (
 	NeedRuntimeType = func(*types.Type) {}
 )
 
-func Init() {
-	initUniverse()
-	DeclContext = ir.PEXTERN
-	base.Timer.Start("fe", "loadsys")
-	InitRuntime()
-}
-
 func AssignExpr(n ir.Node) ir.Node { return typecheck(n, ctxExpr|ctxAssign) }
 func Expr(n ir.Node) ir.Node       { return typecheck(n, ctxExpr) }
 func Stmt(n ir.Node) ir.Node       { return typecheck(n, ctxStmt) }

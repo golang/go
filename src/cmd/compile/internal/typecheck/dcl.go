@@ -15,7 +15,7 @@ import (
 	"cmd/internal/src"
 )
 
-var DeclContext ir.Class // PEXTERN/PAUTO
+var DeclContext ir.Class = ir.PEXTERN // PEXTERN/PAUTO
 
 func DeclFunc(sym *types.Sym, tfn ir.Ntype) *ir.Func {
 	if tfn.Op() != ir.OTFUNC {

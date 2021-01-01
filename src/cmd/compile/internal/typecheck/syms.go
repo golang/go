@@ -65,10 +65,8 @@ func Lookup(name string) *types.Sym {
 // so that the compiler can generate calls to them,
 // but does not make them visible to user code.
 func InitRuntime() {
+	base.Timer.Start("fe", "loadsys")
 	types.Block = 1
-
-	inimport = true
-	TypecheckAllowed = true
 
 	typs := runtimeTypes()
 	for _, d := range &runtimeDecls {
@@ -83,9 +81,6 @@ func InitRuntime() {
 			base.Fatalf("unhandled declaration tag %v", d.tag)
 		}
 	}
-
-	TypecheckAllowed = false
-	inimport = false
 }
 
 // LookupRuntimeFunc looks up Go function name in package runtime. This function

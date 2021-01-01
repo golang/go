@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
 	base.Ctxt.Bso = bufio.NewWriter(os.Stdout)
 	types.PtrSize = ssagen.Arch.LinkArch.PtrSize
 	types.RegSize = ssagen.Arch.LinkArch.RegSize
-	typecheck.Init()
+	typecheck.InitUniverse()
 	os.Exit(m.Run())
 }
 
