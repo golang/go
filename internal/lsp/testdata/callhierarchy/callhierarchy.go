@@ -26,7 +26,7 @@ var x = func() { //@mark(hierarchyLiteral, "func"),mark(hierarchyLiteralOut, "x"
 }
 
 // D is exported to test incoming/outgoing calls across packages
-func D() { //@mark(hierarchyD, "D"),incomingcalls(hierarchyD, hierarchyA, hierarchyB, hierarchyC, hierarchyLiteral, incomingA),outgoingcalls(hierarchyD, hierarchyE, hierarchyF, hierarchyG, hierarchyLiteralOut, outgoingB, hierarchyFoo)
+func D() { //@mark(hierarchyD, "D"),incomingcalls(hierarchyD, hierarchyA, hierarchyB, hierarchyC, hierarchyLiteral, incomingA),outgoingcalls(hierarchyD, hierarchyE, hierarchyF, hierarchyG, hierarchyLiteralOut, outgoingB, hierarchyFoo, hierarchyH, hierarchyI, hierarchyJ, hierarchyK)
 	e()
 	x()
 	F()
@@ -34,6 +34,14 @@ func D() { //@mark(hierarchyD, "D"),incomingcalls(hierarchyD, hierarchyA, hierar
 	outgoing.B()
 	foo := func() {} //@mark(hierarchyFoo, "foo"),incomingcalls(hierarchyFoo, hierarchyD),outgoingcalls(hierarchyFoo)
 	foo()
+
+	var i Interface = impl{}
+	i.H()
+	i.I()
+
+	s := Struct{}
+	s.J()
+	s.K()
 }
 
 func e() {} //@mark(hierarchyE, "e")
@@ -42,3 +50,18 @@ func e() {} //@mark(hierarchyE, "e")
 func F() {} //@mark(hierarchyF, "F")
 
 func g() {} //@mark(hierarchyG, "g")
+
+type Interface interface {
+	H() //@mark(hierarchyH, "H")
+	I() //@mark(hierarchyI, "I")
+}
+
+type impl struct{}
+
+func (i impl) H() {}
+func (i impl) I() {}
+
+type Struct struct {
+	J func() //@mark(hierarchyJ, "J")
+	K func() //@mark(hierarchyK, "K")
+}

@@ -247,8 +247,14 @@ func collectCallExpressions(fset *token.FileSet, mapper *protocol.ColumnMapper, 
 // toProtocolOutgoingCalls returns an array of protocol.CallHierarchyOutgoingCall for ast call expressions.
 // Calls to the same function are assigned to the same declaration.
 func toProtocolOutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, callRanges []protocol.Range) ([]protocol.CallHierarchyOutgoingCall, error) {
-	// multiple calls could be made to the same function
-	var outgoingCalls = map[ast.Node]*protocol.CallHierarchyOutgoingCall{}
+	// Multiple calls could be made to the same function, defined by "same declaration
+	// AST node & same idenfitier name" to provide a unique identifier key even when
+	// the func is declared in a struct or interface.
+	type key struct {
+		decl ast.Node
+		name string
+	}
+	outgoingCalls := map[key]*protocol.CallHierarchyOutgoingCall{}
 	for _, callRange := range callRanges {
 		identifier, err := Identifier(ctx, snapshot, fh, callRange.Start)
 		if err != nil {
@@ -263,7 +269,7 @@ func toProtocolOutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHand
 			continue
 		}
 
-		if outgoingCall, ok := outgoingCalls[identifier.Declaration.node]; ok {
+		if outgoingCall, ok := outgoingCalls[key{identifier.Declaration.node, identifier.Name}]; ok {
 			outgoingCall.FromRanges = append(outgoingCall.FromRanges, callRange)
 			continue
 		}
@@ -277,7 +283,7 @@ func toProtocolOutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHand
 			return nil, err
 		}
 
-		outgoingCalls[identifier.Declaration.node] = &protocol.CallHierarchyOutgoingCall{
+		outgoingCalls[key{identifier.Declaration.node, identifier.Name}] = &protocol.CallHierarchyOutgoingCall{
 			To: protocol.CallHierarchyItem{
 				Name:           identifier.Name,
 				Kind:           protocol.Function,
