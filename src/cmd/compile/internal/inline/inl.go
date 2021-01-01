@@ -639,17 +639,19 @@ func inlCallee(fn ir.Node) *ir.Func {
 	return nil
 }
 
-func inlParam(t *types.Field, as ir.Node, inlvars map[*ir.Name]ir.Node) ir.Node {
-	n := ir.AsNode(t.Nname)
-	if n == nil || ir.IsBlank(n) {
+func inlParam(t *types.Field, as ir.Node, inlvars map[*ir.Name]*ir.Name) ir.Node {
+	if t.Nname == nil {
 		return ir.BlankNode
 	}
-
-	inlvar := inlvars[n.(*ir.Name)]
+	n := t.Nname.(*ir.Name)
+	if ir.IsBlank(n) {
+		return ir.BlankNode
+	}
+	inlvar := inlvars[n]
 	if inlvar == nil {
 		base.Fatalf("missing inlvar for %v", n)
 	}
-	as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, inlvar.(*ir.Name)))
+	as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, inlvar))
 	inlvar.Name().Defn = as
 	return inlvar
 }
@@ -748,10 +750,10 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	}
 
 	// Make temp names to use instead of the originals.
-	inlvars := make(map[*ir.Name]ir.Node)
+	inlvars := make(map[*ir.Name]*ir.Name)
 
 	// record formals/locals for later post-processing
-	var inlfvars []ir.Node
+	var inlfvars []*ir.Name
 
 	for _, ln := range fn.Inl.Dcl {
 		if ln.Op() != ir.ONAME {
@@ -767,7 +769,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 			// nothing should have moved to the heap yet.
 			base.Fatalf("impossible: %v", ln)
 		}
-		inlf := typecheck.Expr(inlvar(ln))
+		inlf := typecheck.Expr(inlvar(ln)).(*ir.Name)
 		inlvars[ln] = inlf
 		if base.Flag.GenDwarfInl > 0 {
 			if ln.Class_ == ir.PPARAM {
@@ -795,11 +797,11 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	// temporaries for return values.
 	var retvars []ir.Node
 	for i, t := range fn.Type().Results().Fields().Slice() {
-		var m ir.Node
-		if n := ir.AsNode(t.Nname); n != nil && !ir.IsBlank(n) && !strings.HasPrefix(n.Sym().Name, "~r") {
-			n := n.(*ir.Name)
+		var m *ir.Name
+		if nn := t.Nname; nn != nil && !ir.IsBlank(nn.(*ir.Name)) && !strings.HasPrefix(nn.Sym().Name, "~r") {
+			n := nn.(*ir.Name)
 			m = inlvar(n)
-			m = typecheck.Expr(m)
+			m = typecheck.Expr(m).(*ir.Name)
 			inlvars[n] = m
 			delayretvars = false // found a named result parameter
 		} else {
@@ -966,7 +968,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 // Every time we expand a function we generate a new set of tmpnames,
 // PAUTO's in the calling functions, and link them off of the
 // PPARAM's, PAUTOS and PPARAMOUTs of the called function.
-func inlvar(var_ ir.Node) ir.Node {
+func inlvar(var_ *ir.Name) *ir.Name {
 	if base.Flag.LowerM > 3 {
 		fmt.Printf("inlvar %+v\n", var_)
 	}
@@ -976,14 +978,14 @@ func inlvar(var_ ir.Node) ir.Node {
 	n.Class_ = ir.PAUTO
 	n.SetUsed(true)
 	n.Curfn = ir.CurFunc // the calling function, not the called one
-	n.SetAddrtaken(var_.Name().Addrtaken())
+	n.SetAddrtaken(var_.Addrtaken())
 
 	ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
 	return n
 }
 
 // Synthesize a variable to store the inlined function's results in.
-func retvar(t *types.Field, i int) ir.Node {
+func retvar(t *types.Field, i int) *ir.Name {
 	n := typecheck.NewName(typecheck.LookupNum("~R", i))
 	n.SetType(t.Type)
 	n.Class_ = ir.PAUTO
@@ -1018,7 +1020,7 @@ type inlsubst struct {
 	// "return" statement.
 	delayretvars bool
 
-	inlvars map[*ir.Name]ir.Node
+	inlvars map[*ir.Name]*ir.Name
 
 	// bases maps from original PosBase to PosBase with an extra
 	// inlined call frame.
