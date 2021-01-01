@@ -65,9 +65,22 @@ type Func struct {
 	// include closurevars until transformclosure runs.
 	Dcl []*Name
 
-	ClosureEnter Nodes   // list of ONAME nodes (or OADDR-of-ONAME nodes, for output parameters) of captured variables
-	ClosureType  Ntype   // closure representation type
-	ClosureVars  []*Name // closure params; each has closurevar set
+	ClosureType Ntype // closure representation type
+
+	// ClosureVars lists the free variables that are used within a
+	// function literal, but formally declared in an enclosing
+	// function. The variables in this slice are the closure function's
+	// own copy of the variables, which are used within its function
+	// body. They will also each have IsClosureVar set, and will have
+	// Byval set if they're captured by value.
+	ClosureVars []*Name
+
+	// ClosureEnter holds the expressions that the enclosing function
+	// will use to initialize the closure's free variables. These
+	// correspond one-to-one with the variables in ClosureVars, and will
+	// be either an ONAME node (if the variable is captured by value) or
+	// an OADDR-of-ONAME node (if not).
+	ClosureEnter Nodes
 
 	// Parents records the parent scope of each scope within a
 	// function. The root scope (0) has no parent, so the i'th
