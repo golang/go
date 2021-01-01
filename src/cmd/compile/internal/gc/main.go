@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/deadcode"
 	"cmd/compile/internal/devirtualize"
 	"cmd/compile/internal/dwarfgen"
 	"cmd/compile/internal/escape"
@@ -210,12 +211,51 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	dwarfgen.RecordPackageName()
 
 	// Typecheck.
-	typecheck.Package()
+	noder.Package()
 
 	// With all user code typechecked, it's now safe to verify unused dot imports.
 	noder.CheckDotImports()
 	base.ExitIfErrors()
+	// Phase 6: Compute Addrtaken for names.
+	// We need to wait until typechecking is done so that when we see &x[i]
+	// we know that x has its address taken if x is an array, but not if x is a slice.
+	// We compute Addrtaken in bulk here.
+	// After this phase, we maintain Addrtaken incrementally.
+	if typecheck.DirtyAddrtaken {
+		typecheck.ComputeAddrtaken(typecheck.Target.Decls)
+		typecheck.DirtyAddrtaken = false
+	}
+	typecheck.IncrementalAddrtaken = true
 
+	// Phase 7: Eliminate some obviously dead code.
+	// Must happen after typechecking.
+	for _, n := range typecheck.Target.Decls {
+		if n.Op() == ir.ODCLFUNC {
+			deadcode.Func(n.(*ir.Func))
+		}
+	}
+
+	// Phase 8: Decide how to capture closed variables.
+	// This needs to run before escape analysis,
+	// because variables captured by value do not escape.
+	base.Timer.Start("fe", "capturevars")
+	for _, n := range typecheck.Target.Decls {
+		if n.Op() == ir.ODCLFUNC {
+			n := n.(*ir.Func)
+			if n.OClosure != nil {
+				ir.CurFunc = n
+				typecheck.CaptureVars(n)
+			}
+		}
+	}
+	typecheck.CaptureVarsComplete = true
+	ir.CurFunc = nil
+
+	if base.Debug.TypecheckInl != 0 {
+		// Typecheck imported function bodies if Debug.l > 1,
+		// otherwise lazily when used or re-exported.
+		typecheck.AllImportedBodies()
+	}
 	// Build init task.
 	if initTask := pkginit.Task(); initTask != nil {
 		typecheck.Export(initTask)

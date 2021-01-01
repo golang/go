@@ -33,60 +33,6 @@ func DeclFunc(sym *types.Sym, tfn ir.Ntype) *ir.Func {
 	return fn
 }
 
-// declare variables from grammar
-// new_name_list (type | [type] = expr_list)
-func DeclVars(vl []*ir.Name, t ir.Ntype, el []ir.Node) []ir.Node {
-	var init []ir.Node
-	doexpr := len(el) > 0
-
-	if len(el) == 1 && len(vl) > 1 {
-		e := el[0]
-		as2 := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
-		as2.Rhs = []ir.Node{e}
-		for _, v := range vl {
-			as2.Lhs.Append(v)
-			Declare(v, DeclContext)
-			v.Ntype = t
-			v.Defn = as2
-			if ir.CurFunc != nil {
-				init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
-			}
-		}
-
-		return append(init, as2)
-	}
-
-	for i, v := range vl {
-		var e ir.Node
-		if doexpr {
-			if i >= len(el) {
-				base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
-				break
-			}
-			e = el[i]
-		}
-
-		Declare(v, DeclContext)
-		v.Ntype = t
-
-		if e != nil || ir.CurFunc != nil || ir.IsBlank(v) {
-			if ir.CurFunc != nil {
-				init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
-			}
-			as := ir.NewAssignStmt(base.Pos, v, e)
-			init = append(init, as)
-			if e != nil {
-				v.Defn = as
-			}
-		}
-	}
-
-	if len(el) > len(vl) {
-		base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
-	}
-	return init
-}
-
 // Declare records that Node n declares symbol n.Sym in the specified
 // declaration context.
 func Declare(n *ir.Name, ctxt ir.Class) {

@@ -72,7 +72,7 @@ func NodAddrAt(pos src.XPos, n ir.Node) *ir.AddrExpr {
 }
 
 func markAddrOf(n ir.Node) ir.Node {
-	if incrementalAddrtaken {
+	if IncrementalAddrtaken {
 		// We can only do incremental addrtaken computation when it is ok
 		// to typecheck the argument of the OADDR. That's only safe after the
 		// main typecheck has completed.
@@ -86,22 +86,22 @@ func markAddrOf(n ir.Node) ir.Node {
 	} else {
 		// Remember that we built an OADDR without computing the Addrtaken bit for
 		// its argument. We'll do that later in bulk using computeAddrtaken.
-		dirtyAddrtaken = true
+		DirtyAddrtaken = true
 	}
 	return n
 }
 
-// If incrementalAddrtaken is false, we do not compute Addrtaken for an OADDR Node
+// If IncrementalAddrtaken is false, we do not compute Addrtaken for an OADDR Node
 // when it is built. The Addrtaken bits are set in bulk by computeAddrtaken.
-// If incrementalAddrtaken is true, then when an OADDR Node is built the Addrtaken
+// If IncrementalAddrtaken is true, then when an OADDR Node is built the Addrtaken
 // field of its argument is updated immediately.
-var incrementalAddrtaken = false
+var IncrementalAddrtaken = false
 
-// If dirtyAddrtaken is true, then there are OADDR whose corresponding arguments
+// If DirtyAddrtaken is true, then there are OADDR whose corresponding arguments
 // have not yet been marked as Addrtaken.
-var dirtyAddrtaken = false
+var DirtyAddrtaken = false
 
-func computeAddrtaken(top []ir.Node) {
+func ComputeAddrtaken(top []ir.Node) {
 	for _, n := range top {
 		ir.Visit(n, func(n ir.Node) {
 			if n.Op() == ir.OADDR {

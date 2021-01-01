@@ -61,10 +61,10 @@ func Lookup(name string) *types.Sym {
 	return types.LocalPkg.Lookup(name)
 }
 
-// loadsys loads the definitions for the low-level runtime functions,
+// InitRuntime loads the definitions for the low-level runtime functions,
 // so that the compiler can generate calls to them,
 // but does not make them visible to user code.
-func loadsys() {
+func InitRuntime() {
 	types.Block = 1
 
 	inimport = true

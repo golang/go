@@ -85,6 +85,69 @@ func ParseFiles(filenames []string) uint {
 	return lines
 }
 
+func Package() {
+	typecheck.DeclareUniverse()
+
+	typecheck.TypecheckAllowed = true
+
+	// Process top-level declarations in phases.
+
+	// Phase 1: const, type, and names and types of funcs.
+	//   This will gather all the information about types
+	//   and methods but doesn't depend on any of it.
+	//
+	//   We also defer type alias declarations until phase 2
+	//   to avoid cycles like #18640.
+	//   TODO(gri) Remove this again once we have a fix for #25838.
+
+	// Don't use range--typecheck can add closures to Target.Decls.
+	base.Timer.Start("fe", "typecheck", "top1")
+	for i := 0; i < len(typecheck.Target.Decls); i++ {
+		n := typecheck.Target.Decls[i]
+		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.(*ir.Decl).X.Alias()) {
+			typecheck.Target.Decls[i] = typecheck.Stmt(n)
+		}
+	}
+
+	// Phase 2: Variable assignments.
+	//   To check interface assignments, depends on phase 1.
+
+	// Don't use range--typecheck can add closures to Target.Decls.
+	base.Timer.Start("fe", "typecheck", "top2")
+	for i := 0; i < len(typecheck.Target.Decls); i++ {
+		n := typecheck.Target.Decls[i]
+		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).X.Alias() {
+			typecheck.Target.Decls[i] = typecheck.Stmt(n)
+		}
+	}
+
+	// Phase 3: Type check function bodies.
+	// Don't use range--typecheck can add closures to Target.Decls.
+	base.Timer.Start("fe", "typecheck", "func")
+	var fcount int64
+	for i := 0; i < len(typecheck.Target.Decls); i++ {
+		n := typecheck.Target.Decls[i]
+		if n.Op() == ir.ODCLFUNC {
+			typecheck.FuncBody(n.(*ir.Func))
+			fcount++
+		}
+	}
+
+	// Phase 4: Check external declarations.
+	// TODO(mdempsky): This should be handled when type checking their
+	// corresponding ODCL nodes.
+	base.Timer.Start("fe", "typecheck", "externdcls")
+	for i, n := range typecheck.Target.Externs {
+		if n.Op() == ir.ONAME {
+			typecheck.Target.Externs[i] = typecheck.Expr(typecheck.Target.Externs[i])
+		}
+	}
+
+	// Phase 5: With all user code type-checked, it's now safe to verify map keys.
+	typecheck.CheckMapKeys()
+
+}
+
 // makeSrcPosBase translates from a *syntax.PosBase to a *src.PosBase.
 func (p *noder) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
 	// fast path: most likely PosBase hasn't changed
@@ -398,7 +461,61 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
 	}
 
 	p.setlineno(decl)
-	return typecheck.DeclVars(names, typ, exprs)
+	return DeclVars(names, typ, exprs)
+}
+
+// declare variables from grammar
+// new_name_list (type | [type] = expr_list)
+func DeclVars(vl []*ir.Name, t ir.Ntype, el []ir.Node) []ir.Node {
+	var init []ir.Node
+	doexpr := len(el) > 0
+
+	if len(el) == 1 && len(vl) > 1 {
+		e := el[0]
+		as2 := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
+		as2.Rhs = []ir.Node{e}
+		for _, v := range vl {
+			as2.Lhs.Append(v)
+			typecheck.Declare(v, typecheck.DeclContext)
+			v.Ntype = t
+			v.Defn = as2
+			if ir.CurFunc != nil {
+				init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
+			}
+		}
+
+		return append(init, as2)
+	}
+
+	for i, v := range vl {
+		var e ir.Node
+		if doexpr {
+			if i >= len(el) {
+				base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
+				break
+			}
+			e = el[i]
+		}
+
+		typecheck.Declare(v, typecheck.DeclContext)
+		v.Ntype = t
+
+		if e != nil || ir.CurFunc != nil || ir.IsBlank(v) {
+			if ir.CurFunc != nil {
+				init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
+			}
+			as := ir.NewAssignStmt(base.Pos, v, e)
+			init = append(init, as)
+			if e != nil {
+				v.Defn = as
+			}
+		}
+	}
+
+	if len(el) > len(vl) {
+		base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
+	}
+	return init
 }
 
 // constState tracks state between constant specifiers within a
