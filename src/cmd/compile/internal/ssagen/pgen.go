@@ -86,7 +86,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 
 	for _, l := range f.RegAlloc {
 		if ls, ok := l.(ssa.LocalSlot); ok {
-			ls.N.Name().SetUsed(true)
+			ls.N.SetUsed(true)
 		}
 	}
 
@@ -98,10 +98,10 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 				case ir.PPARAM, ir.PPARAMOUT:
 					// Don't modify nodfp; it is a global.
 					if n != ir.RegFP {
-						n.Name().SetUsed(true)
+						n.SetUsed(true)
 					}
 				case ir.PAUTO:
-					n.Name().SetUsed(true)
+					n.SetUsed(true)
 				}
 			}
 			if !scratchUsed {

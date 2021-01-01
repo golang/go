@@ -6223,7 +6223,7 @@ func (s *state) addNamedValue(n *ir.Name, v *ssa.Value) {
 		// from being assigned too early. See #14591 and #14762. TODO: allow this.
 		return
 	}
-	loc := ssa.LocalSlot{N: n.Name(), Type: n.Type(), Off: 0}
+	loc := ssa.LocalSlot{N: n, Type: n.Type(), Off: 0}
 	values, ok := s.f.NamedValues[loc]
 	if !ok {
 		s.f.Names = append(s.f.Names, loc)
@@ -7198,7 +7198,7 @@ func (e *ssafn) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
 func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
 	node := parent.N
 
-	if node.Class_ != ir.PAUTO || node.Name().Addrtaken() {
+	if node.Class_ != ir.PAUTO || node.Addrtaken() {
 		// addressed things and non-autos retain their parents (i.e., cannot truly be split)
 		return ssa.LocalSlot{N: node, Type: t, Off: parent.Off + offset}
 	}

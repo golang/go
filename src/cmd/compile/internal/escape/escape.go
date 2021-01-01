@@ -1158,7 +1158,7 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
 		if n.Op() == ir.ONAME {
 			n := n.(*ir.Name)
 			if n.Curfn != e.curfn {
-				base.Fatalf("curfn mismatch: %v != %v", n.Name().Curfn, e.curfn)
+				base.Fatalf("curfn mismatch: %v != %v", n.Curfn, e.curfn)
 			}
 
 			if n.Opt != nil {

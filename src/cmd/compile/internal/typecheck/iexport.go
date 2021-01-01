@@ -1521,8 +1521,8 @@ func (w *exportWriter) localName(n *ir.Name) {
 	// PPARAM/PPARAMOUT, because we only want to include vargen in
 	// non-param names.
 	var v int32
-	if n.Class_ == ir.PAUTO || (n.Class_ == ir.PAUTOHEAP && n.Name().Stackcopy == nil) {
-		v = n.Name().Vargen
+	if n.Class_ == ir.PAUTO || (n.Class_ == ir.PAUTOHEAP && n.Stackcopy == nil) {
+		v = n.Vargen
 	}
 
 	w.localIdent(n.Sym(), v)

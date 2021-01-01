@@ -197,7 +197,7 @@ func (o *InitOrder) findInitLoopAndExit(n *ir.Name, path *[]*ir.Name) {
 
 	// There might be multiple loops involving n; by sorting
 	// references, we deterministically pick the one reported.
-	refers := collectDeps(n.Name().Defn, false).Sorted(func(ni, nj *ir.Name) bool {
+	refers := collectDeps(n.Defn, false).Sorted(func(ni, nj *ir.Name) bool {
 		return ni.Pos().Before(nj.Pos())
 	})
 

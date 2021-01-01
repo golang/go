@@ -57,7 +57,7 @@ func Package() {
 	base.Timer.Start("fe", "typecheck", "top1")
 	for i := 0; i < len(Target.Decls); i++ {
 		n := Target.Decls[i]
-		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.(*ir.Decl).X.Name().Alias()) {
+		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.(*ir.Decl).X.Alias()) {
 			Target.Decls[i] = Stmt(n)
 		}
 	}
@@ -69,7 +69,7 @@ func Package() {
 	base.Timer.Start("fe", "typecheck", "top2")
 	for i := 0; i < len(Target.Decls); i++ {
 		n := Target.Decls[i]
-		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).X.Name().Alias() {
+		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).X.Alias() {
 			Target.Decls[i] = Stmt(n)
 		}
 	}
@@ -636,7 +636,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 				n.SetType(nil)
 				return n
 			}
-			n.Name().SetUsed(true)
+			n.SetUsed(true)
 		}
 		return n
 
@@ -1729,9 +1729,9 @@ func checkassign(stmt ir.Node, n ir.Node) {
 		r := ir.OuterValue(n)
 		if r.Op() == ir.ONAME {
 			r := r.(*ir.Name)
-			r.Name().SetAssigned(true)
-			if r.Name().IsClosureVar() {
-				r.Name().Defn.Name().SetAssigned(true)
+			r.SetAssigned(true)
+			if r.IsClosureVar() {
+				r.Defn.Name().SetAssigned(true)
 			}
 		}
 	}
@@ -1938,9 +1938,9 @@ func typecheckdef(n ir.Node) {
 
 	case ir.ONAME:
 		n := n.(*ir.Name)
-		if n.Name().Ntype != nil {
-			n.Name().Ntype = typecheckNtype(n.Name().Ntype)
-			n.SetType(n.Name().Ntype.Type())
+		if n.Ntype != nil {
+			n.Ntype = typecheckNtype(n.Ntype)
+			n.SetType(n.Ntype.Type())
 			if n.Type() == nil {
 				n.SetDiag(true)
 				goto ret
@@ -1950,7 +1950,7 @@ func typecheckdef(n ir.Node) {
 		if n.Type() != nil {
 			break
 		}
-		if n.Name().Defn == nil {
+		if n.Defn == nil {
 			if n.BuiltinOp != 0 { // like OPRINTN
 				break
 			}
@@ -1965,13 +1965,13 @@ func typecheckdef(n ir.Node) {
 			base.Fatalf("var without type, init: %v", n.Sym())
 		}
 
-		if n.Name().Defn.Op() == ir.ONAME {
-			n.Name().Defn = Expr(n.Name().Defn)
-			n.SetType(n.Name().Defn.Type())
+		if n.Defn.Op() == ir.ONAME {
+			n.Defn = Expr(n.Defn)
+			n.SetType(n.Defn.Type())
 			break
 		}
 
-		n.Name().Defn = Stmt(n.Name().Defn) // fills in n.Type
+		n.Defn = Stmt(n.Defn) // fills in n.Type
 
 	case ir.OTYPE:
 		n := n.(*ir.Name)

@@ -181,7 +181,7 @@ func walkDecl(n *ir.Decl) ir.Node {
 		if base.Flag.CompilingRuntime {
 			base.Errorf("%v escapes to heap, not allowed in runtime", v)
 		}
-		nn := ir.NewAssignStmt(base.Pos, v.Name().Heapaddr, callnew(v.Type()))
+		nn := ir.NewAssignStmt(base.Pos, v.Heapaddr, callnew(v.Type()))
 		nn.Def = true
 		return walkStmt(typecheck.Stmt(nn))
 	}
