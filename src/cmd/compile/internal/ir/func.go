@@ -75,13 +75,6 @@ type Func struct {
 	// Byval set if they're captured by value.
 	ClosureVars []*Name
 
-	// ClosureEnter holds the expressions that the enclosing function
-	// will use to initialize the closure's free variables. These
-	// correspond one-to-one with the variables in ClosureVars, and will
-	// be either an ONAME node (if the variable is captured by value) or
-	// an OADDR-of-ONAME node (if not).
-	ClosureEnter Nodes
-
 	// Parents records the parent scope of each scope within a
 	// function. The root scope (0) has no parent, so the i'th
 	// scope's parent is stored at Parents[i-1].

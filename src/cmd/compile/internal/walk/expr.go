@@ -498,8 +498,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 
 		// Prepend captured variables to argument list.
 		clo := n.X.(*ir.ClosureExpr)
-		n.Args.Prepend(clo.Func.ClosureEnter...)
-		clo.Func.ClosureEnter.Set(nil)
+		n.Args.Prepend(closureArgs(clo)...)
 
 		// Replace OCLOSURE with ONAME/PFUNC.
 		n.X = clo.Func.Nname
