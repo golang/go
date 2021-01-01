@@ -169,13 +169,13 @@ func ImportedBody(fn *ir.Func) {
 	// computeAddrtaken call below (after we typecheck the body).
 	// TODO: export/import types and addrtaken marks along with inlined bodies,
 	// so this will be unnecessary.
-	incrementalAddrtaken = false
+	IncrementalAddrtaken = false
 	defer func() {
-		if dirtyAddrtaken {
-			computeAddrtaken(fn.Inl.Body) // compute addrtaken marks once types are available
-			dirtyAddrtaken = false
+		if DirtyAddrtaken {
+			ComputeAddrtaken(fn.Inl.Body) // compute addrtaken marks once types are available
+			DirtyAddrtaken = false
 		}
-		incrementalAddrtaken = true
+		IncrementalAddrtaken = true
 	}()
 
 	ImportBody(fn)

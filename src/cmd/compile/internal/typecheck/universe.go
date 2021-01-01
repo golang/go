@@ -336,8 +336,8 @@ func makeErrorInterface() *types.Type {
 	return types.NewInterface(types.NoPkg, []*types.Field{method})
 }
 
-// declareUniverse makes the universe block visible within the current package.
-func declareUniverse() {
+// DeclareUniverse makes the universe block visible within the current package.
+func DeclareUniverse() {
 	// Operationally, this is similar to a dot import of builtinpkg, except
 	// that we silently skip symbols that are already declared in the
 	// package block rather than emitting a redeclared symbol error.
