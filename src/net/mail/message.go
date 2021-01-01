@@ -103,7 +103,7 @@ func ParseDate(date string) (time.Time, error) {
 	if strings.Index(date, "\r") != -1 {
 		return time.Time{}, errors.New("mail: header has a CR without LF")
 	}
-	// UT is Obsolete Time Standard and not accepted by time.Parse (under 3 digits)
+	// UT is Obsolete Time Standard and not accepted by time.Parse (under 3 characters)
 	// UT is converted to UTC with equivalant offset
 	if  !strings.Contains(date, "UTC") && strings.Contains(date, "UT") {
 		date = strings.Replace(date, "UT", "UTC", 1)
