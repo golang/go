@@ -866,7 +866,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 			vas.Y = typecheck.NodNil()
 			vas.Y.SetType(param.Type)
 		} else {
-			lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(param.Type).(ir.Ntype), nil)
+			lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(param.Type), nil)
 			lit.List.Set(varargs)
 			vas.Y = lit
 		}

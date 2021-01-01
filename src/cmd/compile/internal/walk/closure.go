@@ -129,7 +129,7 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 
 	typ := typecheck.ClosureType(clo)
 
-	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ).(ir.Ntype), nil)
+	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
 	clos.SetEsc(clo.Esc())
 	clos.List.Set(append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, fn.Nname)}, closureArgs(clo)...))
 
@@ -194,7 +194,7 @@ func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 
 	typ := typecheck.PartialCallType(n)
 
-	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ).(ir.Ntype), nil)
+	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
 	clos.SetEsc(n.Esc())
 	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, typecheck.MethodValueWrapper(n).Nname), n.X}
 
