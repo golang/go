@@ -474,24 +474,15 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
 		p.checkUnused(pragma)
 	}
 
-	p.setlineno(decl)
-	return DeclVars(names, typ, exprs)
-}
-
-// declare variables from grammar
-// new_name_list (type | [type] = expr_list)
-func DeclVars(vl []*ir.Name, t ir.Ntype, el []ir.Node) []ir.Node {
 	var init []ir.Node
-	doexpr := len(el) > 0
+	p.setlineno(decl)
 
-	if len(el) == 1 && len(vl) > 1 {
-		e := el[0]
-		as2 := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
-		as2.Rhs = []ir.Node{e}
-		for _, v := range vl {
+	if len(names) > 1 && len(exprs) == 1 {
+		as2 := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, exprs)
+		for _, v := range names {
 			as2.Lhs.Append(v)
 			typecheck.Declare(v, typecheck.DeclContext)
-			v.Ntype = t
+			v.Ntype = typ
 			v.Defn = as2
 			if ir.CurFunc != nil {
 				init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
@@ -501,34 +492,29 @@ func DeclVars(vl []*ir.Name, t ir.Ntype, el []ir.Node) []ir.Node {
 		return append(init, as2)
 	}
 
-	for i, v := range vl {
+	for i, v := range names {
 		var e ir.Node
-		if doexpr {
-			if i >= len(el) {
-				base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
-				break
-			}
-			e = el[i]
+		if i < len(exprs) {
+			e = exprs[i]
 		}
 
 		typecheck.Declare(v, typecheck.DeclContext)
-		v.Ntype = t
+		v.Ntype = typ
 
-		if e != nil || ir.CurFunc != nil || ir.IsBlank(v) {
-			if ir.CurFunc != nil {
-				init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
-			}
-			as := ir.NewAssignStmt(base.Pos, v, e)
-			init = append(init, as)
-			if e != nil {
-				v.Defn = as
-			}
+		if ir.CurFunc != nil {
+			init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
+		}
+		as := ir.NewAssignStmt(base.Pos, v, e)
+		init = append(init, as)
+		if e != nil || ir.CurFunc == nil {
+			v.Defn = as
 		}
 	}
 
-	if len(el) > len(vl) {
-		base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
+	if len(exprs) != 0 && len(names) != len(exprs) {
+		base.Errorf("assignment mismatch: %d variables but %d values", len(names), len(exprs))
 	}
+
 	return init
 }
 

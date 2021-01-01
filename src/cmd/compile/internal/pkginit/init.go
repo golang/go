@@ -6,6 +6,7 @@ package pkginit
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/deadcode"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/typecheck"
@@ -68,6 +69,9 @@ func Task() *ir.Name {
 
 	// Record user init functions.
 	for _, fn := range typecheck.Target.Inits {
+		// Must happen after initOrder; see #43444.
+		deadcode.Func(fn)
+
 		// Skip init functions with empty bodies.
 		if len(fn.Body) == 1 {
 			if stmt := fn.Body[0]; stmt.Op() == ir.OBLOCK && len(stmt.(*ir.BlockStmt).List) == 0 {
