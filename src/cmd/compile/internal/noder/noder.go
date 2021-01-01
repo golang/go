@@ -25,6 +25,20 @@ import (
 	"cmd/internal/src"
 )
 
+func LoadPackage(filenames []string) {
+	base.Timer.Start("fe", "parse")
+	lines := ParseFiles(filenames)
+	base.Timer.Stop()
+	base.Timer.AddEvent(int64(lines), "lines")
+
+	// Typecheck.
+	Package()
+
+	// With all user code typechecked, it's now safe to verify unused dot imports.
+	CheckDotImports()
+	base.ExitIfErrors()
+}
+
 // ParseFiles concurrently parses files into *syntax.File structures.
 // Each declaration in every *syntax.File is converted to a syntax tree
 // and its root represented by *Node is appended to Target.Decls.
