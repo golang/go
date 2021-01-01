@@ -265,12 +265,12 @@ func TestDateParsingCFWS(t *testing.T) {
 		{
 			"Tue, 26 May 2020 14:04:40 UT",
 			time.Date(2020, 05, 26, 14, 04, 40, 0, time.UTC),
-			false,
+			true,
 		},
 		{
 			"Thu, 21 May 2020 14:04:40 UT",
 			time.Date(2020, 05, 21, 14, 04, 40, 0, time.UTC),
-			false,
+			true,
 		},
 		{
 			"Thu, 21 May 2020 14:04:40 UTC",
