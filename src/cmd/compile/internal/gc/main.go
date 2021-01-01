@@ -208,6 +208,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	dwarfgen.RecordPackageName()
 	ssagen.CgoSymABIs()
 
+	// Build init task.
+	if initTask := pkginit.Task(); initTask != nil {
+		typecheck.Export(initTask)
+	}
+
 	// Compute Addrtaken for names.
 	// We need to wait until typechecking is done so that when we see &x[i]
 	// we know that x has its address taken if x is an array, but not if x is a slice.
@@ -247,11 +252,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		// Typecheck imported function bodies if Debug.l > 1,
 		// otherwise lazily when used or re-exported.
 		typecheck.AllImportedBodies()
-	}
-
-	// Build init task.
-	if initTask := pkginit.Task(); initTask != nil {
-		typecheck.Export(initTask)
 	}
 
 	// Inlining

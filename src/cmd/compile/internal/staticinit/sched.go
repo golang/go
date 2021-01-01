@@ -86,17 +86,22 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 	if rn.Class_ != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
 		return false
 	}
-	if rn.Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value
-		return false
-	}
 	if rn.Defn.Op() != ir.OAS {
 		return false
 	}
 	if rn.Type().IsString() { // perhaps overwritten by cmd/link -X (#34675)
 		return false
 	}
+	if rn.Embed != nil {
+		return false
+	}
 	orig := rn
 	r := rn.Defn.(*ir.AssignStmt).Y
+	if r == nil {
+		// No explicit initialization value. Probably zeroed but perhaps
+		// supplied externally and of unknown value.
+		return false
+	}
 
 	for r.Op() == ir.OCONVNOP && !types.Identical(r.Type(), typ) {
 		r = r.(*ir.ConvExpr).X
@@ -185,6 +190,11 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 }
 
 func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Type) bool {
+	if r == nil {
+		// No explicit initialization value. Either zero or supplied
+		// externally.
+		return true
+	}
 	for r.Op() == ir.OCONVNOP {
 		r = r.(*ir.ConvExpr).X
 	}
