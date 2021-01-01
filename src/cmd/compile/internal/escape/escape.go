@@ -85,20 +85,29 @@ import (
 // u[2], etc. However, we do record the implicit dereference involved
 // in indexing a slice.
 
-type escape struct {
+// A batch holds escape analysis state that's shared across an entire
+// batch of functions being analyzed at once.
+type batch struct {
 	allLocs []*location
-	labels  map[*types.Sym]labelState // known labels
 
-	curfn *ir.Func
+	heapLoc  location
+	blankLoc location
+}
+
+// An escape holds state specific to a single function being analyzed
+// within a batch.
+type escape struct {
+	*batch
+
+	curfn *ir.Func // function being analyzed
+
+	labels map[*types.Sym]labelState // known labels
 
 	// loopDepth counts the current loop nesting depth within
 	// curfn. It increments within each "for" loop and at each
 	// label with a corresponding backwards "goto" (i.e.,
 	// unstructured loop).
 	loopDepth int
-
-	heapLoc  location
-	blankLoc location
 }
 
 // An location represents an abstract location that stores a Go
@@ -167,11 +176,11 @@ func Fmt(n ir.Node) string {
 
 	if n.Op() == ir.ONAME {
 		n := n.(*ir.Name)
-		if e, ok := n.Opt.(*location); ok && e.loopDepth != 0 {
+		if loc, ok := n.Opt.(*location); ok && loc.loopDepth != 0 {
 			if text != "" {
 				text += " "
 			}
-			text += fmt.Sprintf("ld(%d)", e.loopDepth)
+			text += fmt.Sprintf("ld(%d)", loc.loopDepth)
 		}
 	}
 
@@ -187,23 +196,31 @@ func Batch(fns []*ir.Func, recursive bool) {
 		}
 	}
 
-	var e escape
-	e.heapLoc.escapes = true
+	var b batch
+	b.heapLoc.escapes = true
 
 	// Construct data-flow graph from syntax trees.
 	for _, fn := range fns {
-		e.initFunc(fn)
+		b.with(fn).initFunc()
 	}
 	for _, fn := range fns {
-		e.walkFunc(fn)
+		b.with(fn).walkFunc()
 	}
-	e.curfn = nil
 
-	e.walkAll()
-	e.finish(fns)
+	b.walkAll()
+	b.finish(fns)
 }
 
-func (e *escape) initFunc(fn *ir.Func) {
+func (b *batch) with(fn *ir.Func) *escape {
+	return &escape{
+		batch:     b,
+		curfn:     fn,
+		loopDepth: 1,
+	}
+}
+
+func (e *escape) initFunc() {
+	fn := e.curfn
 	if fn.Esc() != escFuncUnknown {
 		base.Fatalf("unexpected node: %v", fn)
 	}
@@ -211,9 +228,6 @@ func (e *escape) initFunc(fn *ir.Func) {
 	if base.Flag.LowerM > 3 {
 		ir.Dump("escAnalyze", fn)
 	}
-
-	e.curfn = fn
-	e.loopDepth = 1
 
 	// Allocate locations for local variables.
 	for _, dcl := range fn.Dcl {
@@ -223,7 +237,8 @@ func (e *escape) initFunc(fn *ir.Func) {
 	}
 }
 
-func (e *escape) walkFunc(fn *ir.Func) {
+func (e *escape) walkFunc() {
+	fn := e.curfn
 	fn.SetEsc(escFuncStarted)
 
 	// Identify labels that mark the head of an unstructured loop.
@@ -246,8 +261,6 @@ func (e *escape) walkFunc(fn *ir.Func) {
 		}
 	})
 
-	e.curfn = fn
-	e.loopDepth = 1
 	e.block(fn.Body)
 
 	if len(e.labels) != 0 {
@@ -680,9 +693,9 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 
 	case ir.OCLOSURE:
 		n := n.(*ir.ClosureExpr)
-		k = e.spill(k, n)
 
 		// Link addresses of captured variables to closure.
+		k = e.spill(k, n)
 		for _, v := range n.Func.ClosureVars {
 			k := k
 			if !v.Byval() {
@@ -1174,7 +1187,7 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
 	return loc
 }
 
-func (e *escape) oldLoc(n *ir.Name) *location {
+func (b *batch) oldLoc(n *ir.Name) *location {
 	n = canonicalNode(n).(*ir.Name)
 	return n.Opt.(*location)
 }
@@ -1216,7 +1229,7 @@ func (e *escape) discardHole() hole { return e.blankLoc.asHole() }
 
 // walkAll computes the minimal dereferences between all pairs of
 // locations.
-func (e *escape) walkAll() {
+func (b *batch) walkAll() {
 	// We use a work queue to keep track of locations that we need
 	// to visit, and repeatedly walk until we reach a fixed point.
 	//
@@ -1226,7 +1239,7 @@ func (e *escape) walkAll() {
 	// happen at most once. So we take Θ(len(e.allLocs)) walks.
 
 	// LIFO queue, has enough room for e.allLocs and e.heapLoc.
-	todo := make([]*location, 0, len(e.allLocs)+1)
+	todo := make([]*location, 0, len(b.allLocs)+1)
 	enqueue := func(loc *location) {
 		if !loc.queued {
 			todo = append(todo, loc)
@@ -1234,10 +1247,10 @@ func (e *escape) walkAll() {
 		}
 	}
 
-	for _, loc := range e.allLocs {
+	for _, loc := range b.allLocs {
 		enqueue(loc)
 	}
-	enqueue(&e.heapLoc)
+	enqueue(&b.heapLoc)
 
 	var walkgen uint32
 	for len(todo) > 0 {
@@ -1246,13 +1259,13 @@ func (e *escape) walkAll() {
 		root.queued = false
 
 		walkgen++
-		e.walkOne(root, walkgen, enqueue)
+		b.walkOne(root, walkgen, enqueue)
 	}
 }
 
 // walkOne computes the minimal number of dereferences from root to
 // all other locations.
-func (e *escape) walkOne(root *location, walkgen uint32, enqueue func(*location)) {
+func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location)) {
 	// The data flow graph has negative edges (from addressing
 	// operations), so we use the Bellman-Ford algorithm. However,
 	// we don't have to worry about infinite negative cycles since
@@ -1287,7 +1300,7 @@ func (e *escape) walkOne(root *location, walkgen uint32, enqueue func(*location)
 			}
 		}
 
-		if e.outlives(root, l) {
+		if b.outlives(root, l) {
 			// l's value flows to root. If l is a function
 			// parameter and root is the heap or a
 			// corresponding result parameter, then record
@@ -1296,12 +1309,13 @@ func (e *escape) walkOne(root *location, walkgen uint32, enqueue func(*location)
 			if l.isName(ir.PPARAM) {
 				if (logopt.Enabled() || base.Flag.LowerM >= 2) && !l.escapes {
 					if base.Flag.LowerM >= 2 {
-						fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", base.FmtPos(l.n.Pos()), l.n, e.explainLoc(root), derefs)
+						fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", base.FmtPos(l.n.Pos()), l.n, b.explainLoc(root), derefs)
 					}
-					explanation := e.explainPath(root, l)
+					explanation := b.explainPath(root, l)
 					if logopt.Enabled() {
-						logopt.LogOpt(l.n.Pos(), "leak", "escape", ir.FuncName(e.curfn),
-							fmt.Sprintf("parameter %v leaks to %s with derefs=%d", l.n, e.explainLoc(root), derefs), explanation)
+						var e_curfn *ir.Func // TODO(mdempsky): Fix.
+						logopt.LogOpt(l.n.Pos(), "leak", "escape", ir.FuncName(e_curfn),
+							fmt.Sprintf("parameter %v leaks to %s with derefs=%d", l.n, b.explainLoc(root), derefs), explanation)
 					}
 				}
 				l.leakTo(root, derefs)
@@ -1315,9 +1329,10 @@ func (e *escape) walkOne(root *location, walkgen uint32, enqueue func(*location)
 					if base.Flag.LowerM >= 2 {
 						fmt.Printf("%s: %v escapes to heap:\n", base.FmtPos(l.n.Pos()), l.n)
 					}
-					explanation := e.explainPath(root, l)
+					explanation := b.explainPath(root, l)
 					if logopt.Enabled() {
-						logopt.LogOpt(l.n.Pos(), "escape", "escape", ir.FuncName(e.curfn), fmt.Sprintf("%v escapes to heap", l.n), explanation)
+						var e_curfn *ir.Func // TODO(mdempsky): Fix.
+						logopt.LogOpt(l.n.Pos(), "escape", "escape", ir.FuncName(e_curfn), fmt.Sprintf("%v escapes to heap", l.n), explanation)
 					}
 				}
 				l.escapes = true
@@ -1343,7 +1358,7 @@ func (e *escape) walkOne(root *location, walkgen uint32, enqueue func(*location)
 }
 
 // explainPath prints an explanation of how src flows to the walk root.
-func (e *escape) explainPath(root, src *location) []*logopt.LoggedOpt {
+func (b *batch) explainPath(root, src *location) []*logopt.LoggedOpt {
 	visited := make(map[*location]bool)
 	pos := base.FmtPos(src.n.Pos())
 	var explanation []*logopt.LoggedOpt
@@ -1362,7 +1377,7 @@ func (e *escape) explainPath(root, src *location) []*logopt.LoggedOpt {
 			base.Fatalf("path inconsistency: %v != %v", edge.src, src)
 		}
 
-		explanation = e.explainFlow(pos, dst, src, edge.derefs, edge.notes, explanation)
+		explanation = b.explainFlow(pos, dst, src, edge.derefs, edge.notes, explanation)
 
 		if dst == root {
 			break
@@ -1373,14 +1388,14 @@ func (e *escape) explainPath(root, src *location) []*logopt.LoggedOpt {
 	return explanation
 }
 
-func (e *escape) explainFlow(pos string, dst, srcloc *location, derefs int, notes *note, explanation []*logopt.LoggedOpt) []*logopt.LoggedOpt {
+func (b *batch) explainFlow(pos string, dst, srcloc *location, derefs int, notes *note, explanation []*logopt.LoggedOpt) []*logopt.LoggedOpt {
 	ops := "&"
 	if derefs >= 0 {
 		ops = strings.Repeat("*", derefs)
 	}
 	print := base.Flag.LowerM >= 2
 
-	flow := fmt.Sprintf("   flow: %s = %s%v:", e.explainLoc(dst), ops, e.explainLoc(srcloc))
+	flow := fmt.Sprintf("   flow: %s = %s%v:", b.explainLoc(dst), ops, b.explainLoc(srcloc))
 	if print {
 		fmt.Printf("%s:%s\n", pos, flow)
 	}
@@ -1391,7 +1406,8 @@ func (e *escape) explainFlow(pos string, dst, srcloc *location, derefs int, note
 		} else if srcloc != nil && srcloc.n != nil {
 			epos = srcloc.n.Pos()
 		}
-		explanation = append(explanation, logopt.NewLoggedOpt(epos, "escflow", "escape", ir.FuncName(e.curfn), flow))
+		var e_curfn *ir.Func // TODO(mdempsky): Fix.
+		explanation = append(explanation, logopt.NewLoggedOpt(epos, "escflow", "escape", ir.FuncName(e_curfn), flow))
 	}
 
 	for note := notes; note != nil; note = note.next {
@@ -1399,15 +1415,16 @@ func (e *escape) explainFlow(pos string, dst, srcloc *location, derefs int, note
 			fmt.Printf("%s:     from %v (%v) at %s\n", pos, note.where, note.why, base.FmtPos(note.where.Pos()))
 		}
 		if logopt.Enabled() {
-			explanation = append(explanation, logopt.NewLoggedOpt(note.where.Pos(), "escflow", "escape", ir.FuncName(e.curfn),
+			var e_curfn *ir.Func // TODO(mdempsky): Fix.
+			explanation = append(explanation, logopt.NewLoggedOpt(note.where.Pos(), "escflow", "escape", ir.FuncName(e_curfn),
 				fmt.Sprintf("     from %v (%v)", note.where, note.why)))
 		}
 	}
 	return explanation
 }
 
-func (e *escape) explainLoc(l *location) string {
-	if l == &e.heapLoc {
+func (b *batch) explainLoc(l *location) string {
+	if l == &b.heapLoc {
 		return "{heap}"
 	}
 	if l.n == nil {
@@ -1422,7 +1439,7 @@ func (e *escape) explainLoc(l *location) string {
 
 // outlives reports whether values stored in l may survive beyond
 // other's lifetime if stack allocated.
-func (e *escape) outlives(l, other *location) bool {
+func (b *batch) outlives(l, other *location) bool {
 	// The heap outlives everything.
 	if l.escapes {
 		return true
@@ -1503,7 +1520,7 @@ func (l *location) leakTo(sink *location, derefs int) {
 	l.paramEsc.AddHeap(derefs)
 }
 
-func (e *escape) finish(fns []*ir.Func) {
+func (b *batch) finish(fns []*ir.Func) {
 	// Record parameter tags for package export data.
 	for _, fn := range fns {
 		fn.SetEsc(escFuncTagged)
@@ -1512,12 +1529,12 @@ func (e *escape) finish(fns []*ir.Func) {
 		for _, fs := range &types.RecvsParams {
 			for _, f := range fs(fn.Type()).Fields().Slice() {
 				narg++
-				f.Note = e.paramTag(fn, narg, f)
+				f.Note = b.paramTag(fn, narg, f)
 			}
 		}
 	}
 
-	for _, loc := range e.allLocs {
+	for _, loc := range b.allLocs {
 		n := loc.n
 		if n == nil {
 			continue
@@ -1535,7 +1552,8 @@ func (e *escape) finish(fns []*ir.Func) {
 					base.WarnfAt(n.Pos(), "%v escapes to heap", n)
 				}
 				if logopt.Enabled() {
-					logopt.LogOpt(n.Pos(), "escape", "escape", ir.FuncName(e.curfn))
+					var e_curfn *ir.Func // TODO(mdempsky): Fix.
+					logopt.LogOpt(n.Pos(), "escape", "escape", ir.FuncName(e_curfn))
 				}
 			}
 			n.SetEsc(ir.EscHeap)
@@ -2061,7 +2079,7 @@ const UnsafeUintptrNote = "unsafe-uintptr"
 // marked go:uintptrescapes.
 const UintptrEscapesNote = "uintptr-escapes"
 
-func (e *escape) paramTag(fn *ir.Func, narg int, f *types.Field) string {
+func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 	name := func() string {
 		if f.Sym != nil {
 			return f.Sym.Name
@@ -2132,7 +2150,7 @@ func (e *escape) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 	}
 
 	n := f.Nname.(*ir.Name)
-	loc := e.oldLoc(n)
+	loc := b.oldLoc(n)
 	esc := loc.paramEsc
 	esc.Optimize()
 
