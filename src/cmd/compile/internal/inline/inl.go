@@ -384,6 +384,22 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 	case ir.OAPPEND:
 		v.budget -= inlineExtraAppendCost
 
+	case ir.ODEREF:
+		// *(*X)(unsafe.Pointer(&x)) is low-cost
+		n := n.(*ir.StarExpr)
+
+		ptr := n.X
+		for ptr.Op() == ir.OCONVNOP {
+			ptr = ptr.(*ir.ConvExpr).X
+		}
+		if ptr.Op() == ir.OADDR {
+			v.budget += 1 // undo half of default cost of ir.ODEREF+ir.OADDR
+		}
+
+	case ir.OCONVNOP:
+		// This doesn't produce code, but the children might.
+		v.budget++ // undo default cost
+
 	case ir.ODCLCONST, ir.OFALL:
 		// These nodes don't produce code; omit from inlining budget.
 		return false

@@ -10,6 +10,7 @@
 package foo
 
 import (
+	"math"
 	"runtime"
 	"unsafe"
 )
@@ -261,4 +262,26 @@ func gd2() int { // ERROR "can inline gd2"
 
 func gd3() func() { // ERROR "can inline gd3"
 	return ii
+}
+
+// Issue #42788 - ensure ODEREF OCONVNOP* OADDR is low cost.
+func EncodeQuad(d []uint32, x [6]float32) { // ERROR "can inline EncodeQuad" "d does not escape"
+	_ = d[:6]
+	d[0] = math.Float32bits(x[0]) // ERROR "inlining call to math.Float32bits"
+	d[1] = math.Float32bits(x[1]) // ERROR "inlining call to math.Float32bits"
+	d[2] = math.Float32bits(x[2]) // ERROR "inlining call to math.Float32bits"
+	d[3] = math.Float32bits(x[3]) // ERROR "inlining call to math.Float32bits"
+	d[4] = math.Float32bits(x[4]) // ERROR "inlining call to math.Float32bits"
+	d[5] = math.Float32bits(x[5]) // ERROR "inlining call to math.Float32bits"
+}
+
+// Ensure OCONVNOP is zero cost.
+func Conv(v uint64) uint64 { // ERROR "can inline Conv"
+	return conv2(conv2(conv2(v))) // ERROR "inlining call to (conv1|conv2)"
+}
+func conv2(v uint64) uint64 { // ERROR "can inline conv2"
+	return conv1(conv1(conv1(conv1(v)))) // ERROR "inlining call to conv1"
+}
+func conv1(v uint64) uint64 { // ERROR "can inline conv1"
+	return uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(v)))))))))))
 }
