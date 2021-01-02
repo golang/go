@@ -201,10 +201,12 @@ func Batch(fns []*ir.Func, recursive bool) {
 
 	// Construct data-flow graph from syntax trees.
 	for _, fn := range fns {
-		b.with(fn).initFunc()
+		b.initFunc(fn)
 	}
 	for _, fn := range fns {
-		b.with(fn).walkFunc()
+		if !fn.IsHiddenClosure() {
+			b.walkFunc(fn)
+		}
 	}
 
 	b.walkAll()
@@ -219,8 +221,8 @@ func (b *batch) with(fn *ir.Func) *escape {
 	}
 }
 
-func (e *escape) initFunc() {
-	fn := e.curfn
+func (b *batch) initFunc(fn *ir.Func) {
+	e := b.with(fn)
 	if fn.Esc() != escFuncUnknown {
 		base.Fatalf("unexpected node: %v", fn)
 	}
@@ -237,8 +239,8 @@ func (e *escape) initFunc() {
 	}
 }
 
-func (e *escape) walkFunc() {
-	fn := e.curfn
+func (b *batch) walkFunc(fn *ir.Func) {
+	e := b.with(fn)
 	fn.SetEsc(escFuncStarted)
 
 	// Identify labels that mark the head of an unstructured loop.
@@ -366,42 +368,44 @@ func (e *escape) stmt(n ir.Node) {
 	case ir.ORANGE:
 		// for Key, Value = range X { Body }
 		n := n.(*ir.RangeStmt)
+
+		// X is evaluated outside the loop.
+		tmp := e.newLoc(nil, false)
+		e.expr(tmp.asHole(), n.X)
+
 		e.loopDepth++
-		e.addr(n.Key)
-		k := e.addr(n.Value)
+		ks := e.addrs([]ir.Node{n.Key, n.Value})
+		if n.X.Type().IsArray() {
+			e.flow(ks[1].note(n, "range"), tmp)
+		} else {
+			e.flow(ks[1].deref(n, "range-deref"), tmp)
+		}
+
 		e.block(n.Body)
 		e.loopDepth--
 
-		// X is evaluated outside the loop.
-		if n.X.Type().IsArray() {
-			k = k.note(n, "range")
-		} else {
-			k = k.deref(n, "range-deref")
-		}
-		e.expr(e.later(k), n.X)
-
 	case ir.OSWITCH:
 		n := n.(*ir.SwitchStmt)
-		typesw := n.Tag != nil && n.Tag.Op() == ir.OTYPESW
 
-		var ks []hole
-		for _, cas := range n.Cases { // cases
-			if typesw && n.Tag.(*ir.TypeSwitchGuard).Tag != nil {
-				cv := cas.Var
-				k := e.dcl(cv) // type switch variables have no ODCL.
-				if cv.Type().HasPointers() {
-					ks = append(ks, k.dotType(cv.Type(), cas, "switch case"))
+		if guard, ok := n.Tag.(*ir.TypeSwitchGuard); ok {
+			var ks []hole
+			if guard.Tag != nil {
+				for _, cas := range n.Cases {
+					cv := cas.Var
+					k := e.dcl(cv) // type switch variables have no ODCL.
+					if cv.Type().HasPointers() {
+						ks = append(ks, k.dotType(cv.Type(), cas, "switch case"))
+					}
 				}
 			}
-
-			e.discards(cas.List)
-			e.block(cas.Body)
-		}
-
-		if typesw {
 			e.expr(e.teeHole(ks...), n.Tag.(*ir.TypeSwitchGuard).X)
 		} else {
 			e.discard(n.Tag)
+		}
+
+		for _, cas := range n.Cases {
+			e.discards(cas.List)
+			e.block(cas.Body)
 		}
 
 	case ir.OSELECT:
@@ -410,10 +414,6 @@ func (e *escape) stmt(n ir.Node) {
 			e.stmt(cas.Comm)
 			e.block(cas.Body)
 		}
-	case ir.OSELRECV2:
-		n := n.(*ir.AssignListStmt)
-		e.assign(n.Lhs[0], n.Rhs[0], "selrecv", n)
-		e.assign(n.Lhs[1], nil, "selrecv", n)
 	case ir.ORECV:
 		// TODO(mdempsky): Consider e.discard(n.Left).
 		n := n.(*ir.UnaryExpr)
@@ -425,28 +425,24 @@ func (e *escape) stmt(n ir.Node) {
 
 	case ir.OAS:
 		n := n.(*ir.AssignStmt)
-		e.assign(n.X, n.Y, "assign", n)
+		e.assignList([]ir.Node{n.X}, []ir.Node{n.Y}, "assign", n)
 	case ir.OASOP:
 		n := n.(*ir.AssignOpStmt)
-		e.assign(n.X, n.Y, "assign", n)
+		// TODO(mdempsky): Worry about OLSH/ORSH?
+		e.assignList([]ir.Node{n.X}, []ir.Node{n.Y}, "assign", n)
 	case ir.OAS2:
 		n := n.(*ir.AssignListStmt)
-		for i, nl := range n.Lhs {
-			e.assign(nl, n.Rhs[i], "assign-pair", n)
-		}
+		e.assignList(n.Lhs, n.Rhs, "assign-pair", n)
 
 	case ir.OAS2DOTTYPE: // v, ok = x.(type)
 		n := n.(*ir.AssignListStmt)
-		e.assign(n.Lhs[0], n.Rhs[0], "assign-pair-dot-type", n)
-		e.assign(n.Lhs[1], nil, "assign-pair-dot-type", n)
+		e.assignList(n.Lhs, n.Rhs, "assign-pair-dot-type", n)
 	case ir.OAS2MAPR: // v, ok = m[k]
 		n := n.(*ir.AssignListStmt)
-		e.assign(n.Lhs[0], n.Rhs[0], "assign-pair-mapr", n)
-		e.assign(n.Lhs[1], nil, "assign-pair-mapr", n)
-	case ir.OAS2RECV: // v, ok = <-ch
+		e.assignList(n.Lhs, n.Rhs, "assign-pair-mapr", n)
+	case ir.OAS2RECV, ir.OSELRECV2: // v, ok = <-ch
 		n := n.(*ir.AssignListStmt)
-		e.assign(n.Lhs[0], n.Rhs[0], "assign-pair-receive", n)
-		e.assign(n.Lhs[1], nil, "assign-pair-receive", n)
+		e.assignList(n.Lhs, n.Rhs, "assign-pair-receive", n)
 
 	case ir.OAS2FUNC:
 		n := n.(*ir.AssignListStmt)
@@ -455,9 +451,11 @@ func (e *escape) stmt(n ir.Node) {
 	case ir.ORETURN:
 		n := n.(*ir.ReturnStmt)
 		results := e.curfn.Type().Results().FieldSlice()
-		for i, v := range n.Results {
-			e.assign(ir.AsNode(results[i].Nname), v, "return", n)
+		dsts := make([]ir.Node, len(results))
+		for i, res := range results {
+			dsts[i] = res.Nname.(*ir.Name)
 		}
+		e.assignList(dsts, n.Results, "return", n)
 	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER, ir.OCLOSE, ir.OCOPY, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
 		e.call(nil, n, nil)
 	case ir.OGO, ir.ODEFER:
@@ -694,6 +692,10 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 	case ir.OCLOSURE:
 		n := n.(*ir.ClosureExpr)
 
+		if fn := n.Func; fn.IsHiddenClosure() {
+			e.walkFunc(fn)
+		}
+
 		// Link addresses of captured variables to closure.
 		k = e.spill(k, n)
 		for _, v := range n.Func.ClosureVars {
@@ -795,7 +797,7 @@ func (e *escape) addr(n ir.Node) hole {
 		k = e.oldLoc(n).asHole()
 	case ir.ONAMEOFFSET:
 		n := n.(*ir.NameOffsetExpr)
-		e.addr(n.Name_)
+		k = e.addr(n.Name_)
 	case ir.ODOT:
 		n := n.(*ir.SelectorExpr)
 		k = e.addr(n.X)
@@ -815,10 +817,6 @@ func (e *escape) addr(n ir.Node) hole {
 		e.assignHeap(n.Index, "key of map put", n)
 	}
 
-	if !n.Type().HasPointers() {
-		k = e.discardHole()
-	}
-
 	return k
 }
 
@@ -828,6 +826,16 @@ func (e *escape) addrs(l ir.Nodes) []hole {
 		ks = append(ks, e.addr(n))
 	}
 	return ks
+}
+
+func (e *escape) assignList(dsts, srcs []ir.Node, why string, where ir.Node) {
+	for i, dst := range dsts {
+		var src ir.Node
+		if i < len(srcs) {
+			src = srcs[i]
+		}
+		e.assign(dst, src, why, where)
+	}
 }
 
 // assign evaluates the assignment dst = src.
