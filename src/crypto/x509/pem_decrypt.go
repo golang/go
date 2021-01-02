@@ -17,7 +17,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"io"
-	"log"
 	"strings"
 )
 
@@ -194,7 +193,6 @@ func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
 	// To check that the password is a valid, we will verify the DER length,
 	// from ASN.1 standard, matches the data length
 	//  https://www.itu.int/ITU-T/studygroups/com17/languages/X.691-0207.pdf
-	log.Println("checking length")
 	if data[1] < 0x80 {
 		// byte 1 is less than 128 implies a definite length
 		if data[1] != byte(dlen-last-2) {
