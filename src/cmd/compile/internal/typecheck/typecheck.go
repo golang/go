@@ -474,11 +474,8 @@ func indexlit(n ir.Node) ir.Node {
 
 // typecheck1 should ONLY be called from typecheck.
 func typecheck1(n ir.Node, top int) ir.Node {
-	switch n.Op() {
-	case ir.OLITERAL, ir.ONAME, ir.OTYPE:
-		if n.Sym() != nil {
-			typecheckdef(n)
-		}
+	if n, ok := n.(*ir.Name); ok {
+		typecheckdef(n)
 	}
 
 	switch n.Op() {
@@ -1735,7 +1732,7 @@ func typecheckdeftype(n *ir.Name) {
 	types.ResumeCheckSize()
 }
 
-func typecheckdef(n ir.Node) {
+func typecheckdef(n *ir.Name) {
 	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheckdef", n)(nil)
 	}
@@ -1755,7 +1752,7 @@ func typecheckdef(n ir.Node) {
 	}
 
 	lno := ir.SetPos(n)
-	typecheckdefstack = append(typecheckdefstack, n.(*ir.Name))
+	typecheckdefstack = append(typecheckdefstack, n)
 	if n.Walkdef() == 2 {
 		base.FlushErrors()
 		fmt.Printf("typecheckdef loop:")
@@ -1774,18 +1771,18 @@ func typecheckdef(n ir.Node) {
 		base.Fatalf("typecheckdef %v", n.Op())
 
 	case ir.OLITERAL:
-		if n.Name().Ntype != nil {
-			n.Name().Ntype = typecheckNtype(n.Name().Ntype)
-			n.SetType(n.Name().Ntype.Type())
-			n.Name().Ntype = nil
+		if n.Ntype != nil {
+			n.Ntype = typecheckNtype(n.Ntype)
+			n.SetType(n.Ntype.Type())
+			n.Ntype = nil
 			if n.Type() == nil {
 				n.SetDiag(true)
 				goto ret
 			}
 		}
 
-		e := n.Name().Defn
-		n.Name().Defn = nil
+		e := n.Defn
+		n.Defn = nil
 		if e == nil {
 			ir.Dump("typecheckdef nil defn", n)
 			base.ErrorfAt(n.Pos(), "xxx")
@@ -1828,7 +1825,6 @@ func typecheckdef(n ir.Node) {
 		}
 
 	case ir.ONAME:
-		n := n.(*ir.Name)
 		if n.Ntype != nil {
 			n.Ntype = typecheckNtype(n.Ntype)
 			n.SetType(n.Ntype.Type())
@@ -1865,7 +1861,6 @@ func typecheckdef(n ir.Node) {
 		n.Defn = Stmt(n.Defn) // fills in n.Type
 
 	case ir.OTYPE:
-		n := n.(*ir.Name)
 		if n.Alias() {
 			// Type alias declaration: Simply use the rhs type - no need
 			// to create a new type.
