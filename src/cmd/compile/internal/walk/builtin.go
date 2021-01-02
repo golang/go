@@ -206,7 +206,7 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
 
 // walkDelete walks an ODELETE node.
 func walkDelete(init *ir.Nodes, n *ir.CallExpr) ir.Node {
-	init.Append(n.PtrInit().Take()...)
+	init.Append(ir.TakeInit(n)...)
 	map_ := n.Args[0]
 	key := n.Args[1]
 	map_ = walkExpr(map_, init)

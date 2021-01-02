@@ -639,7 +639,7 @@ func inlCallee(fn ir.Node) *ir.Func {
 	return nil
 }
 
-func inlParam(t *types.Field, as ir.Node, inlvars map[*ir.Name]*ir.Name) ir.Node {
+func inlParam(t *types.Field, as ir.InitNode, inlvars map[*ir.Name]*ir.Name) ir.Node {
 	if t.Nname == nil {
 		return ir.BlankNode
 	}
@@ -741,7 +741,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		callee := n.X
 		for callee.Op() == ir.OCONVNOP {
 			conv := callee.(*ir.ConvExpr)
-			ninit.Append(conv.PtrInit().Take()...)
+			ninit.Append(ir.TakeInit(conv)...)
 			callee = conv.X
 		}
 		if callee.Op() != ir.ONAME && callee.Op() != ir.OCLOSURE && callee.Op() != ir.OMETHEXPR {

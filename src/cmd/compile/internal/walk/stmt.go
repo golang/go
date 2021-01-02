@@ -55,8 +55,7 @@ func walkStmt(n ir.Node) ir.Node {
 		if n.Typecheck() == 0 {
 			base.Fatalf("missing typecheck: %+v", n)
 		}
-		init := n.Init()
-		n.PtrInit().Set(nil)
+		init := ir.TakeInit(n)
 		n = walkExpr(n, &init)
 		if n.Op() == ir.ONAME {
 			// copy rewrote to a statement list and a temp for the length.
@@ -67,7 +66,7 @@ func walkStmt(n ir.Node) ir.Node {
 		if len(init) > 0 {
 			switch n.Op() {
 			case ir.OAS, ir.OAS2, ir.OBLOCK:
-				n.PtrInit().Prepend(init...)
+				n.(ir.InitNode).PtrInit().Prepend(init...)
 
 			default:
 				init.Append(n)
@@ -191,9 +190,8 @@ func walkDecl(n *ir.Decl) ir.Node {
 // walkFor walks an OFOR or OFORUNTIL node.
 func walkFor(n *ir.ForStmt) ir.Node {
 	if n.Cond != nil {
-		walkStmtList(n.Cond.Init())
-		init := n.Cond.Init()
-		n.Cond.PtrInit().Set(nil)
+		init := ir.TakeInit(n.Cond)
+		walkStmtList(init)
 		n.Cond = walkExpr(n.Cond, &init)
 		n.Cond = ir.InitExpr(init, n.Cond)
 	}
@@ -257,7 +255,7 @@ func walkIf(n *ir.IfStmt) ir.Node {
 func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	if len(n.Init()) != 0 {
 		walkStmtList(n.Init())
-		init.Append(n.PtrInit().Take()...)
+		init.Append(ir.TakeInit(n)...)
 	}
 
 	isBuiltinCall := n.Op() != ir.OCALLFUNC && n.Op() != ir.OCALLMETH && n.Op() != ir.OCALLINTER

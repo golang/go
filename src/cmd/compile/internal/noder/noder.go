@@ -1200,7 +1200,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 	panic("unhandled Stmt")
 }
 
-func (p *noder) assignList(expr syntax.Expr, defn ir.Node, colas bool) []ir.Node {
+func (p *noder) assignList(expr syntax.Expr, defn ir.InitNode, colas bool) []ir.Node {
 	if !colas {
 		return p.exprList(expr)
 	}

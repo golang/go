@@ -466,8 +466,7 @@ func (o *orderState) init(n ir.Node) {
 		}
 		return
 	}
-	o.stmtList(n.Init())
-	n.PtrInit().Set(nil)
+	o.stmtList(ir.TakeInit(n))
 }
 
 // call orders the call expression n.
@@ -938,8 +937,7 @@ func (o *orderState) stmt(n ir.Node) {
 				if !ir.IsAutoTmp(recv.X) {
 					recv.X = o.copyExpr(recv.X)
 				}
-				init := *r.PtrInit()
-				r.PtrInit().Set(nil)
+				init := ir.TakeInit(r)
 
 				colas := r.Def
 				do := func(i int, t *types.Type) {
@@ -1000,8 +998,7 @@ func (o *orderState) stmt(n ir.Node) {
 
 			// TODO(mdempsky): Is this actually necessary?
 			// walkselect appears to walk Ninit.
-			cas.Body.Prepend(cas.Init()...)
-			cas.PtrInit().Set(nil)
+			cas.Body.Prepend(ir.TakeInit(cas)...)
 		}
 
 		o.out = append(o.out, n)
