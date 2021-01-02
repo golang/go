@@ -115,8 +115,9 @@ func (s *Server) workDoneProgressCancel(ctx context.Context, params *protocol.Wo
 }
 
 func (s *Server) nonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error) {
-	paramMap := params.(map[string]interface{})
-	if method == "gopls/diagnoseFiles" {
+	switch method {
+	case "gopls/diagnoseFiles":
+		paramMap := params.(map[string]interface{})
 		for _, file := range paramMap["files"].([]interface{}) {
 			snapshot, fh, ok, release, err := s.beginFileRequest(ctx, protocol.DocumentURI(file.(string)), source.UnknownKind)
 			defer release()
