@@ -17,6 +17,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"io"
+	"log"
 	"strings"
 )
 
@@ -111,7 +112,7 @@ var IncorrectPasswordError = errors.New("x509: decryption password incorrect")
 
 // IncorrectDERError is returned when a decryption error is detected comparing
 // DER declared length and the actual data size.
-var IncorrectDERError = errors.New("x509: decryption error while checking DER encoding")
+var IncorrectDERError = errors.New("x509: decryption error found while checking DER encoding")
 
 // DecryptPEMBlock takes a PEM block encrypted according to RFC 1423 and the
 // password used to encrypt it and returns a slice of decrypted DER encoded
@@ -190,6 +191,7 @@ func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
 	// To check that the password is a valid, we will verify the DER length,
 	// from ASN.1 standard, matches the data length
 	//  https://www.itu.int/ITU-T/studygroups/com17/languages/X.691-0207.pdf
+	log.Println("checking length")
 	if data[1] < 0x80 {
 		// byte 1 is less than 128 implies a definite length
 		if data[1] != byte(dlen-last-2) {
