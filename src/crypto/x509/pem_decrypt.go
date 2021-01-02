@@ -118,10 +118,13 @@ var IncorrectDERError = errors.New("x509: decryption error found while checking 
 // password used to encrypt it and returns a slice of decrypted DER encoded
 // bytes. It inspects the DEK-Info header to determine the algorithm used for
 // decryption. If no DEK-Info header is present, an error is returned. If an
-// incorrect password is detected an IncorrectPasswordError is returned. Because
-// of deficiencies in the format, it's not always possible to detect an
-// incorrect password. In these cases no error will be returned but the
-// decrypted DER bytes will be random noise.
+// incorrect password is detected an IncorrectPasswordError is returned, but
+// an incorrect password may also return a IncorrectDERError. The later of
+// these can be used as a failure case when the password does not match or the
+// DER encoded block is incorrect. Because of deficiencies in the format, it's
+// not possible to capture the failed password, so the DER check can be used as
+// a sanity check for an incorrect password. In very rare cases no error will be
+// returned but the decrypted DER bytes will be random noise.
 //
 // Deprecated: Legacy PEM encryption as specified in RFC 1423 is insecure by
 // design. Since it does not authenticate the ciphertext, it is vulnerable to
@@ -195,13 +198,13 @@ func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
 	if data[1] < 0x80 {
 		// byte 1 is less than 128 implies a definite length
 		if data[1] != byte(dlen-last-2) {
-			return nil, IncorrectDERError
+			return data[:dlen-last], IncorrectDERError
 		}
 	} else {
 		// byte 1 greater than 128 imples a variable length declaration
 		len_size := int(data[1] & 0x7f)
 		if len_size+2 > dlen-last || len_size > 8 { // odd sizes
-			return nil, IncorrectDERError
+			return data[:dlen-last], IncorrectDERError
 		}
 		// build the actual length by shifting (big endian)
 		der_length := 0
@@ -210,7 +213,7 @@ func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
 		}
 		// compare the DER length with the actual length
 		if der_length != dlen-last-len_size-2 {
-			return nil, IncorrectDERError
+			return data[:dlen-last], IncorrectDERError
 		}
 	}
 	return data[:dlen-last], nil
