@@ -195,7 +195,7 @@ func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
 	//  https://www.itu.int/ITU-T/studygroups/com17/languages/X.691-0207.pdf
 	if data[1] < 0x80 {
 		// byte 1 is less than 128 implies a definite length
-		if data[1] != byte(dlen-last-2) {
+		if int(data[1]) != dlen-last-2 {
 			return data[:dlen-last], IncorrectDERError
 		}
 	} else {
