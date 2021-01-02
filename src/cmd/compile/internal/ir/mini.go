@@ -54,20 +54,13 @@ func (n *miniNode) Esc() uint16       { return n.esc }
 func (n *miniNode) SetEsc(x uint16)   { n.esc = x }
 
 const (
-	miniWalkdefShift   = 0
+	miniWalkdefShift   = 0 // TODO(mdempsky): Move to Name.flags.
 	miniTypecheckShift = 2
 	miniDiag           = 1 << 4
 	miniHasCall        = 1 << 5 // for miniStmt
 )
 
-func (n *miniNode) Walkdef() uint8   { return n.bits.get2(miniWalkdefShift) }
 func (n *miniNode) Typecheck() uint8 { return n.bits.get2(miniTypecheckShift) }
-func (n *miniNode) SetWalkdef(x uint8) {
-	if x > 3 {
-		panic(fmt.Sprintf("cannot SetWalkdef %d", x))
-	}
-	n.bits.set2(miniWalkdefShift, x)
-}
 func (n *miniNode) SetTypecheck(x uint8) {
 	if x > 3 {
 		panic(fmt.Sprintf("cannot SetTypecheck %d", x))

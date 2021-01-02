@@ -46,8 +46,6 @@ type Node interface {
 	// Storage for analysis passes.
 	Esc() uint16
 	SetEsc(x uint16)
-	Walkdef() uint8
-	SetWalkdef(x uint8)
 	Diag() bool
 	SetDiag(x bool)
 	Typecheck() uint8
