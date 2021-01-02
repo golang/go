@@ -80,13 +80,7 @@ func (n *miniNode) SetDiag(x bool) { n.bits.set(miniDiag, x) }
 
 // Empty, immutable graph structure.
 
-func (n *miniNode) Init() Nodes     { return Nodes{} }
-func (n *miniNode) PtrInit() *Nodes { return &immutableEmptyNodes }
-func (n *miniNode) SetInit(x Nodes) {
-	if x != nil {
-		panic(n.no("SetInit"))
-	}
-}
+func (n *miniNode) Init() Nodes { return Nodes{} }
 
 // Additional functionality unavailable.
 

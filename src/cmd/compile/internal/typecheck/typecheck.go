@@ -914,7 +914,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	// Each must execute its own return n.
 }
 
-func typecheckargs(n ir.Node) {
+func typecheckargs(n ir.InitNode) {
 	var list []ir.Node
 	switch n := n.(type) {
 	default:

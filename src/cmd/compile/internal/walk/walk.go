@@ -81,8 +81,7 @@ func walkRecv(n *ir.UnaryExpr) ir.Node {
 	if n.Typecheck() == 0 {
 		base.Fatalf("missing typecheck: %+v", n)
 	}
-	init := n.Init()
-	n.PtrInit().Set(nil)
+	init := ir.TakeInit(n)
 
 	n.X = walkExpr(n.X, &init)
 	call := walkExpr(mkcall1(chanfn("chanrecv1", 2, n.X.Type()), nil, &init, n.X, typecheck.NodNil()), &init)

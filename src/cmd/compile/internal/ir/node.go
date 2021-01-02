@@ -34,8 +34,6 @@ type Node interface {
 	// Abstract graph structure, for generic traversals.
 	Op() Op
 	Init() Nodes
-	PtrInit() *Nodes
-	SetInit(x Nodes)
 
 	// Fields specific to certain Ops only.
 	Type() *types.Type
@@ -88,6 +86,20 @@ func MayBeShared(n Node) bool {
 		return true
 	}
 	return false
+}
+
+type InitNode interface {
+	Node
+	PtrInit() *Nodes
+	SetInit(x Nodes)
+}
+
+func TakeInit(n Node) Nodes {
+	init := n.Init()
+	if len(init) != 0 {
+		n.(InitNode).SetInit(nil)
+	}
+	return init
 }
 
 //go:generate stringer -type=Op -trimprefix=O node.go
@@ -311,35 +323,15 @@ const (
 // a slice to save space.
 type Nodes []Node
 
-// immutableEmptyNodes is an immutable, empty Nodes list.
-// The methods that would modify it panic instead.
-var immutableEmptyNodes = Nodes{}
-
-func (n *Nodes) mutate() {
-	if n == &immutableEmptyNodes {
-		panic("immutable Nodes.Set")
-	}
-}
-
 // Set sets n to a slice.
 // This takes ownership of the slice.
-func (n *Nodes) Set(s []Node) {
-	if n == &immutableEmptyNodes {
-		if len(s) == 0 {
-			// Allow immutableEmptyNodes.Set(nil) (a no-op).
-			return
-		}
-		n.mutate()
-	}
-	*n = s
-}
+func (n *Nodes) Set(s []Node) { *n = s }
 
 // Append appends entries to Nodes.
 func (n *Nodes) Append(a ...Node) {
 	if len(a) == 0 {
 		return
 	}
-	n.mutate()
 	*n = append(*n, a...)
 }
 
@@ -349,7 +341,6 @@ func (n *Nodes) Prepend(a ...Node) {
 	if len(a) == 0 {
 		return
 	}
-	n.mutate()
 	*n = append(a, *n...)
 }
 
@@ -544,15 +535,16 @@ func SetPos(n Node) src.XPos {
 
 // The result of InitExpr MUST be assigned back to n, e.g.
 // 	n.Left = InitExpr(init, n.Left)
-func InitExpr(init []Node, n Node) Node {
+func InitExpr(init []Node, expr Node) Node {
 	if len(init) == 0 {
-		return n
+		return expr
 	}
-	if MayBeShared(n) {
+
+	n, ok := expr.(InitNode)
+	if !ok || MayBeShared(n) {
 		// Introduce OCONVNOP to hold init list.
-		old := n
-		n = NewConvExpr(base.Pos, OCONVNOP, nil, old)
-		n.SetType(old.Type())
+		n = NewConvExpr(base.Pos, OCONVNOP, nil, expr)
+		n.SetType(expr.Type())
 		n.SetTypecheck(1)
 	}
 

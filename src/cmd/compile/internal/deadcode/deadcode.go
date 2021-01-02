@@ -84,7 +84,9 @@ func stmts(nn *ir.Nodes) {
 			}
 		}
 
-		stmts(n.PtrInit())
+		if len(n.Init()) != 0 {
+			stmts(n.(ir.InitNode).PtrInit())
+		}
 		switch n.Op() {
 		case ir.OBLOCK:
 			n := n.(*ir.BlockStmt)

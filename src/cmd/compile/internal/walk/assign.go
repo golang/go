@@ -17,7 +17,7 @@ import (
 
 // walkAssign walks an OAS (AssignExpr) or OASOP (AssignOpExpr) node.
 func walkAssign(init *ir.Nodes, n ir.Node) ir.Node {
-	init.Append(n.PtrInit().Take()...)
+	init.Append(ir.TakeInit(n)...)
 
 	var left, right ir.Node
 	switch n.Op() {
@@ -124,7 +124,7 @@ func walkAssignDotType(n *ir.AssignListStmt, init *ir.Nodes) ir.Node {
 
 // walkAssignFunc walks an OAS2FUNC node.
 func walkAssignFunc(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
-	init.Append(n.PtrInit().Take()...)
+	init.Append(ir.TakeInit(n)...)
 
 	r := n.Rhs[0]
 	walkExprListSafe(n.Lhs, init)
@@ -142,7 +142,7 @@ func walkAssignFunc(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 
 // walkAssignList walks an OAS2 node.
 func walkAssignList(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
-	init.Append(n.PtrInit().Take()...)
+	init.Append(ir.TakeInit(n)...)
 	walkExprListSafe(n.Lhs, init)
 	walkExprListSafe(n.Rhs, init)
 	return ir.NewBlockStmt(src.NoXPos, ascompatee(ir.OAS, n.Lhs, n.Rhs, init))
@@ -150,7 +150,7 @@ func walkAssignList(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 
 // walkAssignMapRead walks an OAS2MAPR node.
 func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
-	init.Append(n.PtrInit().Take()...)
+	init.Append(ir.TakeInit(n)...)
 
 	r := n.Rhs[0].(*ir.IndexExpr)
 	walkExprListSafe(n.Lhs, init)
@@ -213,7 +213,7 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 
 // walkAssignRecv walks an OAS2RECV node.
 func walkAssignRecv(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
-	init.Append(n.PtrInit().Take()...)
+	init.Append(ir.TakeInit(n)...)
 
 	r := n.Rhs[0].(*ir.UnaryExpr) // recv
 	walkExprListSafe(n.Lhs, init)

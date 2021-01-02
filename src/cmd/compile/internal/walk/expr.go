@@ -26,7 +26,7 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 		return n
 	}
 
-	if init == n.PtrInit() {
+	if n, ok := n.(ir.InitNode); ok && init == n.PtrInit() {
 		// not okay to use n->ninit when walking n,
 		// because we might replace n with some other node
 		// and would lose the init list.
@@ -35,7 +35,7 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 
 	if len(n.Init()) != 0 {
 		walkStmtList(n.Init())
-		init.Append(n.PtrInit().Take()...)
+		init.Append(ir.TakeInit(n)...)
 	}
 
 	lno := ir.SetPos(n)
@@ -359,7 +359,7 @@ func safeExpr(n ir.Node, init *ir.Nodes) ir.Node {
 
 	if len(n.Init()) != 0 {
 		walkStmtList(n.Init())
-		init.Append(n.PtrInit().Take()...)
+		init.Append(ir.TakeInit(n)...)
 	}
 
 	switch n.Op() {
