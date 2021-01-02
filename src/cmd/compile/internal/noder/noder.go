@@ -245,7 +245,7 @@ func (p *noder) funcBody(fn *ir.Func, block *syntax.BlockStmt) {
 		if body == nil {
 			body = []ir.Node{ir.NewBlockStmt(base.Pos, nil)}
 		}
-		fn.Body.Set(body)
+		fn.Body = body
 
 		base.Pos = p.makeXPos(block.Rbrace)
 		fn.Endlineno = base.Pos
@@ -772,7 +772,7 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		for i, e := range l {
 			l[i] = p.wrapname(expr.ElemList[i], e)
 		}
-		n.List.Set(l)
+		n.List = l
 		base.Pos = p.makeXPos(expr.Rbrace)
 		return n
 	case *syntax.KeyValueExpr:
@@ -1128,8 +1128,8 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 		if list, ok := stmt.Lhs.(*syntax.ListExpr); ok && len(list.ElemList) != 1 || len(rhs) != 1 {
 			n := ir.NewAssignListStmt(p.pos(stmt), ir.OAS2, nil, nil)
 			n.Def = stmt.Op == syntax.Def
-			n.Lhs.Set(p.assignList(stmt.Lhs, n, n.Def))
-			n.Rhs.Set(rhs)
+			n.Lhs = p.assignList(stmt.Lhs, n, n.Def)
+			n.Rhs = rhs
 			return n
 		}
 
@@ -1276,7 +1276,7 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) ir.Node {
 		e := p.stmt(stmt.Else)
 		if e.Op() == ir.OBLOCK {
 			e := e.(*ir.BlockStmt)
-			n.Else.Set(e.List)
+			n.Else = e.List
 		} else {
 			n.Else = []ir.Node{e}
 		}
@@ -1301,7 +1301,7 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) ir.Node {
 				n.Value = lhs[1]
 			}
 		}
-		n.Body.Set(p.blockStmt(stmt.Body))
+		n.Body = p.blockStmt(stmt.Body)
 		p.closeAnotherScope()
 		return n
 	}
@@ -1359,7 +1359,7 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitch
 			body = body[:len(body)-1]
 		}
 
-		n.Body.Set(p.stmtsFall(body, true))
+		n.Body = p.stmtsFall(body, true)
 		if l := len(n.Body); l > 0 && n.Body[l-1].Op() == ir.OFALL {
 			if tswitch != nil {
 				base.Errorf("cannot fallthrough in type switch")

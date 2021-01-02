@@ -779,7 +779,7 @@ func (r *importReader) caseList(switchExpr ir.Node) []*ir.CaseClause {
 	cases := make([]*ir.CaseClause, r.uint64())
 	for i := range cases {
 		cas := ir.NewCaseStmt(r.pos(), nil, nil)
-		cas.List.Set(r.stmtList())
+		cas.List = r.stmtList()
 		if namedTypeSwitch {
 			// Note: per-case variables will have distinct, dotted
 			// names after import. That's okay: swt.go only needs
@@ -789,7 +789,7 @@ func (r *importReader) caseList(switchExpr ir.Node) []*ir.CaseClause {
 			cas.Var = caseVar
 			caseVar.Defn = switchExpr
 		}
-		cas.Body.Set(r.stmtList())
+		cas.Body = r.stmtList()
 		cases[i] = cas
 	}
 	return cases
@@ -932,7 +932,7 @@ func (r *importReader) node() ir.Node {
 
 	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
 		n := builtinCall(r.pos(), op)
-		n.Args.Set(r.exprList())
+		n.Args = r.exprList()
 		if op == ir.OAPPEND {
 			n.IsDDD = r.bool()
 		}
@@ -945,7 +945,7 @@ func (r *importReader) node() ir.Node {
 		pos := r.pos()
 		init := r.stmtList()
 		n := ir.NewCallExpr(pos, ir.OCALL, r.expr(), r.exprList())
-		n.PtrInit().Set(init)
+		*n.PtrInit() = init
 		n.IsDDD = r.bool()
 		return n
 
@@ -1033,14 +1033,14 @@ func (r *importReader) node() ir.Node {
 	case ir.OIF:
 		pos, init := r.pos(), r.stmtList()
 		n := ir.NewIfStmt(pos, r.expr(), r.stmtList(), r.stmtList())
-		n.PtrInit().Set(init)
+		*n.PtrInit() = init
 		return n
 
 	case ir.OFOR:
 		pos, init := r.pos(), r.stmtList()
 		cond, post := r.exprsOrNil()
 		n := ir.NewForStmt(pos, nil, cond, post, r.stmtList())
-		n.PtrInit().Set(init)
+		*n.PtrInit() = init
 		return n
 
 	case ir.ORANGE:
@@ -1052,7 +1052,7 @@ func (r *importReader) node() ir.Node {
 		pos := r.pos()
 		init := r.stmtList()
 		n := ir.NewSelectStmt(pos, r.commList())
-		n.PtrInit().Set(init)
+		*n.PtrInit() = init
 		return n
 
 	case ir.OSWITCH:
@@ -1060,7 +1060,7 @@ func (r *importReader) node() ir.Node {
 		init := r.stmtList()
 		x, _ := r.exprsOrNil()
 		n := ir.NewSwitchStmt(pos, x, r.caseList(x))
-		n.PtrInit().Set(init)
+		*n.PtrInit() = init
 		return n
 
 	// case OCASE:

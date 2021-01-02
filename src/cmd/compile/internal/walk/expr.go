@@ -477,7 +477,7 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
 
 	cat := typecheck.LookupRuntime(fn)
 	r := ir.NewCallExpr(base.Pos, ir.OCALL, cat, nil)
-	r.Args.Set(args)
+	r.Args = args
 	r1 := typecheck.Expr(r)
 	r1 = walkExpr(r1, init)
 	r1.SetType(n.Type())
@@ -562,8 +562,8 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 		}
 	}
 
-	n.Args.Set(tempAssigns)
-	n.Rargs.Set(args)
+	n.Args = tempAssigns
+	n.Rargs = args
 }
 
 // walkDivMod walks an ODIV or OMOD node.

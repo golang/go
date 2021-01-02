@@ -64,7 +64,7 @@ func FuncBody(n *ir.Func) {
 	CheckUnused(n)
 	CheckReturn(n)
 	if base.Errors() > errorsBefore {
-		n.Body.Set(nil) // type errors; do not compile
+		n.Body = nil // type errors; do not compile
 	}
 }
 
@@ -971,9 +971,9 @@ func typecheckargs(n ir.InitNode) {
 
 	switch n := n.(type) {
 	case *ir.CallExpr:
-		n.Args.Set(list)
+		n.Args = list
 	case *ir.ReturnStmt:
-		n.Results.Set(list)
+		n.Results = list
 	}
 
 	n.PtrInit().Append(Stmt(as))
@@ -1687,7 +1687,7 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
 	}
 
 	nn := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(n.Type()), nil)
-	nn.List.Set(l)
+	nn.List = l
 	return Expr(nn)
 }
 

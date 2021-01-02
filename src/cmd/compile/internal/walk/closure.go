@@ -107,7 +107,7 @@ func Closure(fn *ir.Func) {
 
 		if len(body) > 0 {
 			typecheck.Stmts(body)
-			fn.Enter.Set(body)
+			fn.Enter = body
 			fn.SetNeedctxt(true)
 		}
 	}
@@ -131,7 +131,7 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 
 	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
 	clos.SetEsc(clo.Esc())
-	clos.List.Set(append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, fn.Nname)}, closureArgs(clo)...))
+	clos.List = append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, fn.Nname)}, closureArgs(clo)...)
 
 	addr := typecheck.NodAddr(clos)
 	addr.SetEsc(clo.Esc())

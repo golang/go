@@ -323,10 +323,6 @@ const (
 // a slice to save space.
 type Nodes []Node
 
-// Set sets n to a slice.
-// This takes ownership of the slice.
-func (n *Nodes) Set(s []Node) { *n = s }
-
 // Append appends entries to Nodes.
 func (n *Nodes) Append(a ...Node) {
 	if len(a) == 0 {

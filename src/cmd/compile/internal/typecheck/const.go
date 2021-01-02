@@ -509,7 +509,7 @@ func EvalConst(n ir.Node) ir.Node {
 				}
 
 				nl := ir.Copy(n).(*ir.AddStringExpr)
-				nl.List.Set(s[i:i2])
+				nl.List = s[i:i2]
 				newList = append(newList, OrigConst(nl, constant.MakeString(strings.Join(strs, ""))))
 				i = i2 - 1
 			} else {
@@ -518,7 +518,7 @@ func EvalConst(n ir.Node) ir.Node {
 		}
 
 		nn := ir.Copy(n).(*ir.AddStringExpr)
-		nn.List.Set(newList)
+		nn.List = newList
 		return nn
 
 	case ir.OCAP, ir.OLEN:

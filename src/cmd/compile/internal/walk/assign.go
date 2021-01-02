@@ -264,7 +264,7 @@ func walkReturn(n *ir.ReturnStmt) ir.Node {
 		// move function calls out, to make ascompatee's job easier.
 		walkExprListSafe(n.Results, n.PtrInit())
 
-		n.Results.Set(ascompatee(n.Op(), rl, n.Results, n.PtrInit()))
+		n.Results = ascompatee(n.Op(), rl, n.Results, n.PtrInit())
 		return n
 	}
 	walkExprList(n.Results, n.PtrInit())
@@ -281,7 +281,7 @@ func walkReturn(n *ir.ReturnStmt) ir.Node {
 		a := ir.NewAssignStmt(base.Pos, nname, rhs[i])
 		res[i] = convas(a, n.PtrInit())
 	}
-	n.Results.Set(res)
+	n.Results = res
 	return n
 }
 

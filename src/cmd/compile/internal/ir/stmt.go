@@ -70,8 +70,8 @@ func NewAssignListStmt(pos src.XPos, op Op, lhs, rhs []Node) *AssignListStmt {
 	n := &AssignListStmt{}
 	n.pos = pos
 	n.SetOp(op)
-	n.Lhs.Set(lhs)
-	n.Rhs.Set(rhs)
+	n.Lhs = lhs
+	n.Rhs = rhs
 	return n
 }
 
@@ -141,7 +141,7 @@ func NewBlockStmt(pos src.XPos, list []Node) *BlockStmt {
 		}
 	}
 	n.op = OBLOCK
-	n.List.Set(list)
+	n.List = list
 	return n
 }
 
@@ -216,7 +216,7 @@ func NewForStmt(pos src.XPos, init Node, cond, post Node, body []Node) *ForStmt 
 	if init != nil {
 		n.init = []Node{init}
 	}
-	n.Body.Set(body)
+	n.Body = body
 	return n
 }
 
@@ -262,8 +262,8 @@ func NewIfStmt(pos src.XPos, cond Node, body, els []Node) *IfStmt {
 	n := &IfStmt{Cond: cond}
 	n.pos = pos
 	n.op = OIF
-	n.Body.Set(body)
-	n.Else.Set(els)
+	n.Body = body
+	n.Else = els
 	return n
 }
 
@@ -315,7 +315,7 @@ func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node) *RangeStmt {
 	n := &RangeStmt{X: x, Key: key, Value: value}
 	n.pos = pos
 	n.op = ORANGE
-	n.Body.Set(body)
+	n.Body = body
 	return n
 }
 
@@ -331,7 +331,7 @@ func NewReturnStmt(pos src.XPos, results []Node) *ReturnStmt {
 	n.pos = pos
 	n.op = ORETURN
 	n.orig = n
-	n.Results.Set(results)
+	n.Results = results
 	return n
 }
 

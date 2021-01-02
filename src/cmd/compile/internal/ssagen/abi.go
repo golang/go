@@ -303,7 +303,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 		tail = ir.NewBranchStmt(base.Pos, ir.ORETJMP, f.Nname.Sym())
 	} else {
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
-		call.Args.Set(ir.ParamNames(tfn.Type()))
+		call.Args = ir.ParamNames(tfn.Type())
 		call.IsDDD = tfn.Type().IsVariadic()
 		tail = call
 		if tfn.Type().NumResults() > 0 {

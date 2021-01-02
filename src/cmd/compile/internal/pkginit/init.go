@@ -49,7 +49,7 @@ func Task() *ir.Name {
 		fn.Dcl = append(fn.Dcl, typecheck.InitTodoFunc.Dcl...)
 		typecheck.InitTodoFunc.Dcl = nil
 
-		fn.Body.Set(nf)
+		fn.Body = nf
 		typecheck.FinishFuncBody()
 
 		typecheck.Func(fn)

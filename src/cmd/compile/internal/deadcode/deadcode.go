@@ -38,7 +38,7 @@ func Func(fn *ir.Func) {
 		}
 	}
 
-	fn.Body.Set([]ir.Node{ir.NewBlockStmt(base.Pos, nil)})
+	fn.Body = []ir.Node{ir.NewBlockStmt(base.Pos, nil)}
 }
 
 func stmts(nn *ir.Nodes) {
@@ -114,7 +114,7 @@ func stmts(nn *ir.Nodes) {
 		}
 
 		if cut {
-			nn.Set((*nn)[:i+1])
+			*nn = (*nn)[:i+1]
 			break
 		}
 	}
