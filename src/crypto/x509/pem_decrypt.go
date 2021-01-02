@@ -109,6 +109,10 @@ func IsEncryptedPEMBlock(b *pem.Block) bool {
 // IncorrectPasswordError is returned when an incorrect password is detected.
 var IncorrectPasswordError = errors.New("x509: decryption password incorrect")
 
+// IncorrectDERError is returned when a decryption error is detected comparing
+// DER declared length and the actual data size.
+var IncorrectDERError = errors.New("x509: decryption error while checking DER encoding")
+
 // DecryptPEMBlock takes a PEM block encrypted according to RFC 1423 and the
 // password used to encrypt it and returns a slice of decrypted DER encoded
 // bytes. It inspects the DEK-Info header to determine the algorithm used for
@@ -181,6 +185,30 @@ func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
 	for _, val := range data[dlen-last:] {
 		if int(val) != last {
 			return nil, IncorrectPasswordError
+		}
+	}
+	// To check that the password is a valid, we will verify the DER length,
+	// from ASN.1 standard, matches the data length
+	//  https://www.itu.int/ITU-T/studygroups/com17/languages/X.691-0207.pdf
+	if data[1] < 0x80 {
+		// byte 1 is less than 128 implies a definite length
+		if data[1] != byte(dlen-last-2) {
+			return nil, IncorrectDERError
+		}
+	} else {
+		// byte 1 greater than 128 imples a variable length declaration
+		len_size := int(data[1] & 0x7f)
+		if len_size+2 > dlen-last || len_size > 8 { // odd sizes
+			return nil, IncorrectDERError
+		}
+		// build the actual length by shifting (big endian)
+		der_length := 0
+		for i := 0; i < len_size; i++ {
+			der_length = (der_length << 8) + int(data[i+2])
+		}
+		// compare the DER length with the actual length
+		if der_length != dlen-last-len_size-2 {
+			return nil, IncorrectDERError
 		}
 	}
 	return data[:dlen-last], nil
