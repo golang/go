@@ -544,7 +544,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 	if as := n; as.Op() == ir.OAS2FUNC {
 		as := as.(*ir.AssignListStmt)
 		if as.Rhs[0].Op() == ir.OINLCALL {
-			as.Rhs.Set(inlconv2list(as.Rhs[0].(*ir.InlinedCallExpr)))
+			as.Rhs = inlconv2list(as.Rhs[0].(*ir.InlinedCallExpr))
 			as.SetOp(ir.OAS2)
 			as.SetTypecheck(0)
 			n = typecheck.Stmt(as)
@@ -867,7 +867,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 			vas.Y.SetType(param.Type)
 		} else {
 			lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(param.Type), nil)
-			lit.List.Set(varargs)
+			lit.List = varargs
 			vas.Y = lit
 		}
 	}
@@ -944,9 +944,9 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	//dumplist("ninit post", ninit);
 
 	call := ir.NewInlinedCallExpr(base.Pos, nil, nil)
-	call.PtrInit().Set(ninit)
-	call.Body.Set(body)
-	call.ReturnVars.Set(retvars)
+	*call.PtrInit() = ninit
+	call.Body = body
+	call.ReturnVars = retvars
 	call.SetType(n.Type())
 	call.SetTypecheck(1)
 
@@ -1120,7 +1120,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 			for _, n := range subst.retvars {
 				as.Lhs.Append(n)
 			}
-			as.Rhs.Set(subst.list(n.Results))
+			as.Rhs = subst.list(n.Results)
 
 			if subst.delayretvars {
 				for _, n := range as.Lhs {
@@ -1139,7 +1139,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		n := n.(*ir.BranchStmt)
 		m := ir.Copy(n).(*ir.BranchStmt)
 		m.SetPos(subst.updatedPos(m.Pos()))
-		m.PtrInit().Set(nil)
+		*m.PtrInit() = nil
 		p := fmt.Sprintf("%s·%d", n.Label.Name, inlgen)
 		m.Label = typecheck.Lookup(p)
 		return m
@@ -1148,7 +1148,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		n := n.(*ir.LabelStmt)
 		m := ir.Copy(n).(*ir.LabelStmt)
 		m.SetPos(subst.updatedPos(m.Pos()))
-		m.PtrInit().Set(nil)
+		*m.PtrInit() = nil
 		p := fmt.Sprintf("%s·%d", n.Label.Name, inlgen)
 		m.Label = typecheck.Lookup(p)
 		return m

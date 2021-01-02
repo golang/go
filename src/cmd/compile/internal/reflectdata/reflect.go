@@ -1798,7 +1798,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 	} else {
 		fn.SetWrapper(true) // ignore frame for panic+recover matching
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
-		call.Args.Set(ir.ParamNames(tfn.Type()))
+		call.Args = ir.ParamNames(tfn.Type())
 		call.IsDDD = tfn.Type().IsVariadic()
 		if method.Type.NumResults() > 0 {
 			ret := ir.NewReturnStmt(base.Pos, nil)

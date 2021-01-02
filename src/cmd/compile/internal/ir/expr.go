@@ -67,7 +67,7 @@ func NewAddStringExpr(pos src.XPos, list []Node) *AddStringExpr {
 	n := &AddStringExpr{}
 	n.pos = pos
 	n.op = OADDSTR
-	n.List.Set(list)
+	n.List = list
 	return n
 }
 
@@ -173,7 +173,7 @@ func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
 	n.pos = pos
 	n.orig = n
 	n.SetOp(op)
-	n.Args.Set(args)
+	n.Args = args
 	return n
 }
 
@@ -231,7 +231,7 @@ func NewCompLitExpr(pos src.XPos, op Op, typ Ntype, list []Node) *CompLitExpr {
 	n := &CompLitExpr{Ntype: typ}
 	n.pos = pos
 	n.SetOp(op)
-	n.List.Set(list)
+	n.List = list
 	n.orig = n
 	return n
 }
@@ -364,8 +364,8 @@ func NewInlinedCallExpr(pos src.XPos, body, retvars []Node) *InlinedCallExpr {
 	n := &InlinedCallExpr{}
 	n.pos = pos
 	n.op = OINLCALL
-	n.Body.Set(body)
-	n.ReturnVars.Set(retvars)
+	n.Body = body
+	n.ReturnVars = retvars
 	return n
 }
 

@@ -61,7 +61,7 @@ func walkStmt(n ir.Node) ir.Node {
 			// copy rewrote to a statement list and a temp for the length.
 			// Throw away the temp to avoid plain values as statements.
 			n = ir.NewBlockStmt(n.Pos(), init)
-			init.Set(nil)
+			init = nil
 		}
 		if len(init) > 0 {
 			switch n.Op() {
@@ -265,7 +265,7 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		last := len(n.Args) - 1
 		if va := n.Args[last]; va.Op() == ir.OSLICELIT {
 			va := va.(*ir.CompLitExpr)
-			n.Args.Set(append(n.Args[:last], va.List...))
+			n.Args = append(n.Args[:last], va.List...)
 			n.IsDDD = false
 		}
 	}

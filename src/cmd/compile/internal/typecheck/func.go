@@ -52,7 +52,7 @@ func FixVariadicCall(call *ir.CallExpr) {
 		extra[i] = nil // allow GC
 	}
 
-	call.Args.Set(append(args[:vi], slice))
+	call.Args = append(args[:vi], slice)
 	call.IsDDD = true
 }
 
@@ -313,7 +313,7 @@ func MethodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
 	}
 
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil)
-	call.Args.Set(ir.ParamNames(tfn.Type()))
+	call.Args = ir.ParamNames(tfn.Type())
 	call.IsDDD = tfn.Type().IsVariadic()
 	if t0.NumResults() != 0 {
 		ret := ir.NewReturnStmt(base.Pos, nil)
@@ -323,7 +323,7 @@ func MethodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
 		body = append(body, call)
 	}
 
-	fn.Body.Set(body)
+	fn.Body = body
 	FinishFuncBody()
 
 	Func(fn)
@@ -798,7 +798,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
 		return n
 	}
 
-	n.Args.Set(nil)
+	n.Args = nil
 	l := args[0]
 	l = typecheck(l, ctxType)
 	t := l.Type()

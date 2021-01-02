@@ -423,7 +423,7 @@ func orderBlock(n *ir.Nodes, free map[string][]*ir.Name) {
 	order.edge()
 	order.stmtList(*n)
 	order.cleanTemp(mark)
-	n.Set(order.out)
+	*n = order.out
 }
 
 // exprInPlace orders the side effects in *np and
@@ -1233,9 +1233,9 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		// If left-hand side doesn't cause a short-circuit, issue right-hand side.
 		nif := ir.NewIfStmt(base.Pos, r, nil, nil)
 		if n.Op() == ir.OANDAND {
-			nif.Body.Set(gen)
+			nif.Body = gen
 		} else {
-			nif.Else.Set(gen)
+			nif.Else = gen
 		}
 		o.out = append(o.out, nif)
 		return r
@@ -1401,7 +1401,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 
 			statics = append(statics, r)
 		}
-		n.List.Set(statics)
+		n.List = statics
 
 		if len(dynamics) == 0 {
 			return n
@@ -1448,8 +1448,8 @@ func (o *orderState) as2(n *ir.AssignListStmt) {
 	o.out = append(o.out, n)
 
 	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
-	as.Lhs.Set(left)
-	as.Rhs.Set(tmplist)
+	as.Lhs = left
+	as.Rhs = tmplist
 	o.stmt(typecheck.Stmt(as))
 }
 
