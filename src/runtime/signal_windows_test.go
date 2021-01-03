@@ -143,7 +143,7 @@ func TestCtrlHandler(t *testing.T) {
 		t.Fatalf("ReadFrom failed: %v", err)
 	}
 	expected := syscall.SIGTERM.String()
-	if n != len(expected) && string(data[:len(expected)]) != expected {
+	if string(data[:n]) != expected {
 		t.Fatalf("Expected '%s' got: %s", expected, data[:n])
 	}
 
