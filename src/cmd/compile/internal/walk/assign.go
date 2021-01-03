@@ -325,22 +325,6 @@ func ascompatee(op ir.Op, nl, nr []ir.Node, init *ir.Nodes) []ir.Node {
 		base.Fatalf("assignment operands mismatch: %+v / %+v", ir.Nodes(nl), ir.Nodes(nr))
 	}
 
-	// TODO(mdempsky): Simplify this code. Not only is it redundant to
-	// call safeExpr on the operands twice, but ensuring order of
-	// evaluation for function calls was already handled by order.go.
-
-	// move function calls out, to make ascompatee's job easier.
-	walkExprListSafe(nl, init)
-	walkExprListSafe(nr, init)
-
-	// ensure order of evaluation for function calls
-	for i := range nl {
-		nl[i] = safeExpr(nl[i], init)
-	}
-	for i := range nr {
-		nr[i] = safeExpr(nr[i], init)
-	}
-
 	var assigned ir.NameSet
 	var memWrite bool
 
@@ -361,26 +345,21 @@ func ascompatee(op ir.Op, nl, nr []ir.Node, init *ir.Nodes) []ir.Node {
 	// If a needed expression may be affected by an
 	// earlier assignment, make an early copy of that
 	// expression and use the copy instead.
-	var early []ir.Node
+	var early ir.Nodes
 	save := func(np *ir.Node) {
 		if n := *np; affected(n) {
-			tmp := ir.Node(typecheck.Temp(n.Type()))
-			as := typecheck.Stmt(ir.NewAssignStmt(base.Pos, tmp, n))
-			early = append(early, as)
-			*np = tmp
+			*np = copyExpr(n, n.Type(), &early)
 		}
 	}
 
-	var late []ir.Node
-	for i, l := range nl {
-		r := nr[i]
+	var late ir.Nodes
+	for i, lorig := range nl {
+		l, r := lorig, nr[i]
 
 		// Do not generate 'x = x' during return. See issue 4014.
 		if op == ir.ORETURN && ir.SameSafeExpr(l, r) {
 			continue
 		}
-
-		as := ir.NewAssignStmt(base.Pos, l, r)
 
 		// Save subexpressions needed on left side.
 		// Drill through non-dereferences.
@@ -423,9 +402,9 @@ func ascompatee(op ir.Op, nl, nr []ir.Node, init *ir.Nodes) []ir.Node {
 		}
 
 		// Save expression on right side.
-		save(&as.Y)
+		save(&r)
 
-		late = append(late, convas(as, init))
+		appendWalkStmt(&late, convas(ir.NewAssignStmt(base.Pos, lorig, r), &late))
 
 		if name == nil || name.Addrtaken() || name.Class_ == ir.PEXTERN || name.Class_ == ir.PAUTOHEAP {
 			memWrite = true
@@ -438,7 +417,8 @@ func ascompatee(op ir.Op, nl, nr []ir.Node, init *ir.Nodes) []ir.Node {
 		assigned.Add(name)
 	}
 
-	return append(early, late...)
+	early.Append(late.Take()...)
+	return early
 }
 
 // readsMemory reports whether the evaluation n directly reads from
