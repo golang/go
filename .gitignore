@@ -1,4 +1,5 @@
 .DS_Store
+.idea
 *.[56789ao]
 *.a[56789o]
 *.so

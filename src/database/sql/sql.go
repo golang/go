@@ -1479,6 +1479,14 @@ func (db *DB) Prepare(query string) (*Stmt, error) {
 	return db.PrepareContext(context.Background(), query)
 }
 
+// ALlows users to debug query strings that are generated via injected / interpolated args
+func (db *DB) GetQueryWithoutExec(args ...interface{}) (string) {
+	 // do some shit here to print the query string after it's interpolated so us devs can debug that string
+	 // without actually executing it against the db
+	 // the fact that this is a missing feature is really hard to understand
+	 return ""
+}
+
 func (db *DB) prepare(ctx context.Context, query string, strategy connReuseStrategy) (*Stmt, error) {
 	// TODO: check if db.driver supports an optional
 	// driver.Preparer interface and call that instead, if so,
