@@ -215,5 +215,5 @@ autocmd FileType go setlocal omnifunc=v:lua.vim.lsp.omnifunc
 [govim-install]: https://github.com/myitcv/govim/blob/master/README.md#govim---go-development-plugin-for-vim8
 [nvim-docs]: https://neovim.io/doc/user/lsp.html
 [nvim-install]: https://github.com/neovim/neovim/wiki/Installing-Neovim
-[nvim-lspconfig]: https://github.com/neovim/nvim-lspconfig#gopls
+[nvim-lspconfig]: https://github.com/neovim/nvim-lspconfig/blob/master/CONFIG.md#gopls
 [nvim-lspconfig-imports]: https://github.com/neovim/nvim-lspconfig/issues/115
