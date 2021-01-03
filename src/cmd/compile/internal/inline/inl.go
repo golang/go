@@ -1096,15 +1096,6 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		if n.Sym() != nil {
 			return n
 		}
-		if n, ok := n.(*ir.Name); ok && n.Op() == ir.OLITERAL {
-			// This happens for unnamed OLITERAL.
-			// which should really not be a *Name, but for now it is.
-			// ir.Copy(n) is not allowed generally and would panic below,
-			// but it's OK in this situation.
-			n = n.CloneName()
-			n.SetPos(subst.updatedPos(n.Pos()))
-			return n
-		}
 
 	case ir.ORETURN:
 		// Since we don't handle bodies with closures,
