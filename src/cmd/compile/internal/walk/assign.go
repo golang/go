@@ -143,7 +143,7 @@ func walkAssignFunc(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 // walkAssignList walks an OAS2 node.
 func walkAssignList(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 	init.Append(ir.TakeInit(n)...)
-	return ir.NewBlockStmt(src.NoXPos, ascompatee(ir.OAS, n.Lhs, n.Rhs, init))
+	return ir.NewBlockStmt(src.NoXPos, ascompatee(ir.OAS, n.Lhs, n.Rhs))
 }
 
 // walkAssignMapRead walks an OAS2MAPR node.
@@ -244,20 +244,7 @@ func walkReturn(n *ir.ReturnStmt) ir.Node {
 		dsts[i] = typecheck.AssignExpr(v.Nname.(*ir.Name))
 	}
 
-	if (ir.HasNamedResults(fn) && len(n.Results) > 1) || paramoutheap(fn) {
-		// General case: For anything tricky, let ascompatee handle
-		// ordering the assignments correctly.
-		n.Results = ascompatee(n.Op(), dsts, n.Results, n.PtrInit())
-		return n
-	}
-
-	// Common case: Assignment order doesn't matter. Simply assign to
-	// each result parameter in order.
-	var res ir.Nodes
-	for i, v := range n.Results {
-		appendWalkStmt(&res, convas(ir.NewAssignStmt(base.Pos, dsts[i], v), &res))
-	}
-	n.Results = res
+	n.Results = ascompatee(n.Op(), dsts, n.Results)
 	return n
 }
 
@@ -318,7 +305,7 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
 // check assign expression list to
 // an expression list. called in
 //	expr-list = expr-list
-func ascompatee(op ir.Op, nl, nr []ir.Node, init *ir.Nodes) []ir.Node {
+func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
 	// cannot happen: should have been rejected during type checking
 	if len(nl) != len(nr) {
 		base.Fatalf("assignment operands mismatch: %+v / %+v", ir.Nodes(nl), ir.Nodes(nr))
@@ -411,6 +398,11 @@ func ascompatee(op ir.Op, nl, nr []ir.Node, init *ir.Nodes) []ir.Node {
 		}
 		if ir.IsBlank(name) {
 			// We can ignore assignments to blank.
+			continue
+		}
+		if op == ir.ORETURN && types.OrigSym(name.Sym()) == nil {
+			// We can also ignore assignments to anonymous result
+			// parameters. These can't appear in expressions anyway.
 			continue
 		}
 		assigned.Add(name)
