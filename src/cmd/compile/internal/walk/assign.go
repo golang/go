@@ -253,10 +253,9 @@ func walkReturn(n *ir.ReturnStmt) ir.Node {
 
 	// Common case: Assignment order doesn't matter. Simply assign to
 	// each result parameter in order.
-	walkExprList(n.Results, n.PtrInit())
-	res := make([]ir.Node, len(results))
+	var res ir.Nodes
 	for i, v := range n.Results {
-		res[i] = convas(ir.NewAssignStmt(base.Pos, dsts[i], v), n.PtrInit())
+		appendWalkStmt(&res, convas(ir.NewAssignStmt(base.Pos, dsts[i], v), &res))
 	}
 	n.Results = res
 	return n
