@@ -5,6 +5,7 @@ package runtime_test
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"internal/testenv"
 	"io/ioutil"
@@ -114,8 +115,11 @@ func TestCtrlHandler(t *testing.T) {
 	defer conn.Close()
 	conn.SetDeadline(time.Now().Add(5 * time.Second))
 
+	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+	defer cancel()
+
 	// run test program
-	cmd = exec.Command("cmd.exe", "/c", "start", exe, conn.LocalAddr().String())
+	cmd = exec.CommandContext(ctx, "cmd.exe", "/c", "start", exe, conn.LocalAddr().String())
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
