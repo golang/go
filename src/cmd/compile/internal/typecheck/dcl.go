@@ -486,6 +486,9 @@ func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
 		nrecvs++
 	}
 
+	// TODO(mdempsky): Move this function to types.
+	// TODO(mdempsky): Preserve positions, names, and package from sig+recv.
+
 	params := make([]*types.Field, nrecvs+sig.Params().Fields().Len())
 	if recv != nil {
 		params[0] = types.NewField(base.Pos, nil, recv)

@@ -574,6 +574,11 @@ func (w *exportWriter) pos(pos src.XPos) {
 }
 
 func (w *exportWriter) pkg(pkg *types.Pkg) {
+	// TODO(mdempsky): Add flag to types.Pkg to mark pseudo-packages.
+	if pkg == ir.Pkgs.Go {
+		base.Fatalf("export of pseudo-package: %q", pkg.Path)
+	}
+
 	// Ensure any referenced packages are declared in the main index.
 	w.p.allPkgs[pkg] = true
 
@@ -1529,6 +1534,10 @@ func (w *exportWriter) localName(n *ir.Name) {
 }
 
 func (w *exportWriter) localIdent(s *types.Sym, v int32) {
+	if w.currPkg == nil {
+		base.Fatalf("missing currPkg")
+	}
+
 	// Anonymous parameters.
 	if s == nil {
 		w.string("")
@@ -1553,8 +1562,8 @@ func (w *exportWriter) localIdent(s *types.Sym, v int32) {
 		name = fmt.Sprintf("%s·%d", name, v)
 	}
 
-	if !types.IsExported(name) && s.Pkg != w.currPkg {
-		base.Fatalf("weird package in name: %v => %v, not %q", s, name, w.currPkg.Path)
+	if s.Pkg != w.currPkg {
+		base.Fatalf("weird package in name: %v => %v from %q, not %q", s, name, s.Pkg.Path, w.currPkg.Path)
 	}
 
 	w.string(name)

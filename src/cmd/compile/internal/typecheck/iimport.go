@@ -327,7 +327,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		ms := make([]*types.Field, r.uint64())
 		for i := range ms {
 			mpos := r.pos()
-			msym := r.ident()
+			msym := r.selector()
 			recv := r.param()
 			mtyp := r.signature(recv)
 
@@ -434,17 +434,20 @@ func (p *importReader) float(typ *types.Type) constant.Value {
 	return constant.Make(&f)
 }
 
-func (r *importReader) ident() *types.Sym {
+func (r *importReader) ident(selector bool) *types.Sym {
 	name := r.string()
 	if name == "" {
 		return nil
 	}
 	pkg := r.currPkg
-	if types.IsExported(name) {
+	if selector && types.IsExported(name) {
 		pkg = types.LocalPkg
 	}
 	return pkg.Lookup(name)
 }
+
+func (r *importReader) localIdent() *types.Sym { return r.ident(false) }
+func (r *importReader) selector() *types.Sym   { return r.ident(true) }
 
 func (r *importReader) qualifiedIdent() *ir.Ident {
 	name := r.string()
@@ -534,7 +537,7 @@ func (r *importReader) typ1() *types.Type {
 		fs := make([]*types.Field, r.uint64())
 		for i := range fs {
 			pos := r.pos()
-			sym := r.ident()
+			sym := r.selector()
 			typ := r.typ()
 			emb := r.bool()
 			note := r.string()
@@ -563,7 +566,7 @@ func (r *importReader) typ1() *types.Type {
 		methods := make([]*types.Field, r.uint64())
 		for i := range methods {
 			pos := r.pos()
-			sym := r.ident()
+			sym := r.selector()
 			typ := r.signature(fakeRecvField())
 
 			methods[i] = types.NewField(pos, sym, typ)
@@ -599,7 +602,7 @@ func (r *importReader) paramList() []*types.Field {
 }
 
 func (r *importReader) param() *types.Field {
-	return types.NewField(r.pos(), r.ident(), r.typ())
+	return types.NewField(r.pos(), r.localIdent(), r.typ())
 }
 
 func (r *importReader) bool() bool {
@@ -784,7 +787,7 @@ func (r *importReader) caseList(switchExpr ir.Node) []*ir.CaseClause {
 			// Note: per-case variables will have distinct, dotted
 			// names after import. That's okay: swt.go only needs
 			// Sym for diagnostics anyway.
-			caseVar := ir.NewNameAt(cas.Pos(), r.ident())
+			caseVar := ir.NewNameAt(cas.Pos(), r.localIdent())
 			Declare(caseVar, DeclContext)
 			cas.Var = caseVar
 			caseVar.Defn = switchExpr
@@ -851,7 +854,7 @@ func (r *importReader) node() ir.Node {
 		return r.qualifiedIdent()
 
 	case ir.ONAME:
-		return r.ident().Def.(*ir.Name)
+		return r.localIdent().Def.(*ir.Name)
 
 	// case OPACK, ONONAME:
 	// 	unreachable - should have been resolved by typechecking
@@ -862,7 +865,7 @@ func (r *importReader) node() ir.Node {
 	case ir.OTYPESW:
 		pos := r.pos()
 		var tag *ir.Ident
-		if s := r.ident(); s != nil {
+		if s := r.localIdent(); s != nil {
 			tag = ir.NewIdent(pos, s)
 		}
 		return ir.NewTypeSwitchGuard(pos, tag, r.expr())
@@ -899,7 +902,7 @@ func (r *importReader) node() ir.Node {
 
 	case ir.OXDOT:
 		// see parser.new_dotname
-		return ir.NewSelectorExpr(r.pos(), ir.OXDOT, r.expr(), r.ident())
+		return ir.NewSelectorExpr(r.pos(), ir.OXDOT, r.expr(), r.selector())
 
 	// case ODOTTYPE, ODOTTYPE2:
 	// 	unreachable - mapped to case ODOTTYPE below by exporter
@@ -989,7 +992,7 @@ func (r *importReader) node() ir.Node {
 	// statements
 	case ir.ODCL:
 		pos := r.pos()
-		lhs := ir.NewDeclNameAt(pos, ir.ONAME, r.ident())
+		lhs := ir.NewDeclNameAt(pos, ir.ONAME, r.localIdent())
 		lhs.SetType(r.typ())
 
 		Declare(lhs, ir.PAUTO)
@@ -1100,7 +1103,7 @@ func (r *importReader) op() ir.Op {
 func (r *importReader) fieldList() []ir.Node {
 	list := make([]ir.Node, r.uint64())
 	for i := range list {
-		list[i] = ir.NewStructKeyExpr(r.pos(), r.ident(), r.expr())
+		list[i] = ir.NewStructKeyExpr(r.pos(), r.selector(), r.expr())
 	}
 	return list
 }

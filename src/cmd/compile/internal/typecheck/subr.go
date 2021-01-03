@@ -43,6 +43,9 @@ func NewFuncParams(tl *types.Type, mustname bool) []*ir.Field {
 			// invent a name so that we can refer to it in the trampoline
 			s = LookupNum(".anon", gen)
 			gen++
+		} else if s != nil && s.Pkg != types.LocalPkg {
+			// TODO(mdempsky): Preserve original position, name, and package.
+			s = Lookup(s.Name)
 		}
 		a := ir.NewField(base.Pos, s, nil, t.Type)
 		a.Pos = t.Pos
