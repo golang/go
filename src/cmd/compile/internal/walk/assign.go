@@ -143,8 +143,6 @@ func walkAssignFunc(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 // walkAssignList walks an OAS2 node.
 func walkAssignList(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 	init.Append(ir.TakeInit(n)...)
-	walkExprListSafe(n.Lhs, init)
-	walkExprListSafe(n.Rhs, init)
 	return ir.NewBlockStmt(src.NoXPos, ascompatee(ir.OAS, n.Lhs, n.Rhs, init))
 }
 
@@ -232,54 +230,33 @@ func walkAssignRecv(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 
 // walkReturn walks an ORETURN node.
 func walkReturn(n *ir.ReturnStmt) ir.Node {
-	ir.CurFunc.NumReturns++
+	fn := ir.CurFunc
+
+	fn.NumReturns++
 	if len(n.Results) == 0 {
 		return n
 	}
-	if (ir.HasNamedResults(ir.CurFunc) && len(n.Results) > 1) || paramoutheap(ir.CurFunc) {
-		// assign to the function out parameters,
-		// so that ascompatee can fix up conflicts
-		var rl []ir.Node
 
-		for _, ln := range ir.CurFunc.Dcl {
-			cl := ln.Class_
-			if cl == ir.PAUTO || cl == ir.PAUTOHEAP {
-				break
-			}
-			if cl == ir.PPARAMOUT {
-				var ln ir.Node = ln
-				if ir.IsParamStackCopy(ln) {
-					ln = walkExpr(typecheck.Expr(ir.NewStarExpr(base.Pos, ln.Name().Heapaddr)), nil)
-				}
-				rl = append(rl, ln)
-			}
-		}
+	results := fn.Type().Results().FieldSlice()
+	dsts := make([]ir.Node, len(results))
+	for i, v := range results {
+		// TODO(mdempsky): typecheck should have already checked the result variables.
+		dsts[i] = typecheck.AssignExpr(v.Nname.(*ir.Name))
+	}
 
-		if got, want := len(n.Results), len(rl); got != want {
-			// order should have rewritten multi-value function calls
-			// with explicit OAS2FUNC nodes.
-			base.Fatalf("expected %v return arguments, have %v", want, got)
-		}
-
-		// move function calls out, to make ascompatee's job easier.
-		walkExprListSafe(n.Results, n.PtrInit())
-
-		n.Results = ascompatee(n.Op(), rl, n.Results, n.PtrInit())
+	if (ir.HasNamedResults(fn) && len(n.Results) > 1) || paramoutheap(fn) {
+		// General case: For anything tricky, let ascompatee handle
+		// ordering the assignments correctly.
+		n.Results = ascompatee(n.Op(), dsts, n.Results, n.PtrInit())
 		return n
 	}
-	walkExprList(n.Results, n.PtrInit())
 
-	// For each return parameter (lhs), assign the corresponding result (rhs).
-	lhs := ir.CurFunc.Type().Results()
-	rhs := n.Results
-	res := make([]ir.Node, lhs.NumFields())
-	for i, nl := range lhs.FieldSlice() {
-		nname := ir.AsNode(nl.Nname)
-		if ir.IsParamHeapCopy(nname) {
-			nname = nname.Name().Stackcopy
-		}
-		a := ir.NewAssignStmt(base.Pos, nname, rhs[i])
-		res[i] = convas(a, n.PtrInit())
+	// Common case: Assignment order doesn't matter. Simply assign to
+	// each result parameter in order.
+	walkExprList(n.Results, n.PtrInit())
+	res := make([]ir.Node, len(results))
+	for i, v := range n.Results {
+		res[i] = convas(ir.NewAssignStmt(base.Pos, dsts[i], v), n.PtrInit())
 	}
 	n.Results = res
 	return n
@@ -347,6 +324,14 @@ func ascompatee(op ir.Op, nl, nr []ir.Node, init *ir.Nodes) []ir.Node {
 	if len(nl) != len(nr) {
 		base.Fatalf("assignment operands mismatch: %+v / %+v", ir.Nodes(nl), ir.Nodes(nr))
 	}
+
+	// TODO(mdempsky): Simplify this code. Not only is it redundant to
+	// call safeExpr on the operands twice, but ensuring order of
+	// evaluation for function calls was already handled by order.go.
+
+	// move function calls out, to make ascompatee's job easier.
+	walkExprListSafe(nl, init)
+	walkExprListSafe(nr, init)
 
 	// ensure order of evaluation for function calls
 	for i := range nl {
