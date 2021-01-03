@@ -537,21 +537,7 @@ func (o *orderState) call(nn ir.Node) {
 	}
 }
 
-// mapAssign appends n to o.out, introducing temporaries
-// to make sure that all map assignments have the form m[k] = x.
-// (Note: expr has already been called on n, so we know k is addressable.)
-//
-// If n is the multiple assignment form ..., m[k], ... = ..., x, ..., the rewrite is
-//	t1 = m
-//	t2 = k
-//	...., t3, ... = ..., x, ...
-//	t1[t2] = t3
-//
-// The temporaries t1, t2 are needed in case the ... being assigned
-// contain m or k. They are usually unnecessary, but in the unnecessary
-// cases they are also typically registerizable, so not much harm done.
-// And this only applies to the multiple-assignment form.
-// We could do a more precise analysis if needed, like in walk.go.
+// mapAssign appends n to o.out.
 func (o *orderState) mapAssign(n ir.Node) {
 	switch n.Op() {
 	default:
@@ -572,28 +558,7 @@ func (o *orderState) mapAssign(n ir.Node) {
 
 	case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2MAPR, ir.OAS2FUNC:
 		n := n.(*ir.AssignListStmt)
-		var post []ir.Node
-		for i, m := range n.Lhs {
-			switch {
-			case m.Op() == ir.OINDEXMAP:
-				m := m.(*ir.IndexExpr)
-				if !ir.IsAutoTmp(m.X) {
-					m.X = o.copyExpr(m.X)
-				}
-				if !ir.IsAutoTmp(m.Index) {
-					m.Index = o.copyExpr(m.Index)
-				}
-				fallthrough
-			case base.Flag.Cfg.Instrumenting && n.Op() == ir.OAS2FUNC && !ir.IsBlank(m):
-				t := o.newTemp(m.Type(), false)
-				n.Lhs[i] = t
-				a := ir.NewAssignStmt(base.Pos, m, t)
-				post = append(post, typecheck.Stmt(a))
-			}
-		}
-
 		o.out = append(o.out, n)
-		o.out = append(o.out, post...)
 	}
 }
 
