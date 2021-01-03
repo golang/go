@@ -257,6 +257,8 @@ func symfield(s *types.Sym, typ *types.Type) *Node {
 
 // oldname returns the Node that declares symbol s in the current scope.
 // If no such Node currently exists, an ONONAME Node is returned instead.
+// Automatically creates a new closure variable if the referenced symbol was
+// declared in a different (containing) function.
 func oldname(s *types.Sym) *Node {
 	n := asNode(s.Def)
 	if n == nil {
@@ -283,7 +285,7 @@ func oldname(s *types.Sym) *Node {
 			c.Name.Defn = n
 
 			// Link into list of active closure variables.
-			// Popped from list in func closurebody.
+			// Popped from list in func funcLit.
 			c.Name.Param.Outer = n.Name.Param.Innermost
 			n.Name.Param.Innermost = c
 

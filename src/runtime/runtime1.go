@@ -300,7 +300,6 @@ type dbgVar struct {
 // existing int var for that value, which may
 // already have an initial value.
 var debug struct {
-	allocfreetrace     int32
 	cgocheck           int32
 	clobberfree        int32
 	efence             int32
@@ -311,13 +310,20 @@ var debug struct {
 	gctrace            int32
 	invalidptr         int32
 	madvdontneed       int32 // for Linux; issue 28466
-	sbrk               int32
 	scavenge           int32
 	scavtrace          int32
 	scheddetail        int32
 	schedtrace         int32
 	tracebackancestors int32
 	asyncpreemptoff    int32
+
+	// debug.malloc is used as a combined debug check
+	// in the malloc function and should be set
+	// if any of the below debug options is != 0.
+	malloc         bool
+	allocfreetrace int32
+	inittrace      int32
+	sbrk           int32
 }
 
 var dbgvars = []dbgVar{
@@ -339,12 +345,24 @@ var dbgvars = []dbgVar{
 	{"schedtrace", &debug.schedtrace},
 	{"tracebackancestors", &debug.tracebackancestors},
 	{"asyncpreemptoff", &debug.asyncpreemptoff},
+	{"inittrace", &debug.inittrace},
 }
 
 func parsedebugvars() {
 	// defaults
 	debug.cgocheck = 1
 	debug.invalidptr = 1
+	if GOOS == "linux" {
+		// On Linux, MADV_FREE is faster than MADV_DONTNEED,
+		// but doesn't affect many of the statistics that
+		// MADV_DONTNEED does until the memory is actually
+		// reclaimed. This generally leads to poor user
+		// experience, like confusing stats in top and other
+		// monitoring tools; and bad integration with
+		// management systems that respond to memory usage.
+		// Hence, default to MADV_DONTNEED.
+		debug.madvdontneed = 1
+	}
 
 	for p := gogetenv("GODEBUG"); p != ""; {
 		field := ""
@@ -377,6 +395,8 @@ func parsedebugvars() {
 			}
 		}
 	}
+
+	debug.malloc = (debug.allocfreetrace | debug.inittrace | debug.sbrk) != 0
 
 	setTraceback(gogetenv("GOTRACEBACK"))
 	traceback_env = traceback_cache

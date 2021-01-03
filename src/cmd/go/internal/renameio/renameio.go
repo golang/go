@@ -8,6 +8,7 @@ package renameio
 import (
 	"bytes"
 	"io"
+	"io/fs"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -24,18 +25,18 @@ func Pattern(filename string) string {
 	return filepath.Join(filepath.Dir(filename), filepath.Base(filename)+patternSuffix)
 }
 
-// WriteFile is like ioutil.WriteFile, but first writes data to an arbitrary
+// WriteFile is like os.WriteFile, but first writes data to an arbitrary
 // file in the same directory as filename, then renames it atomically to the
 // final name.
 //
 // That ensures that the final location, if it exists, is always a complete file.
-func WriteFile(filename string, data []byte, perm os.FileMode) (err error) {
+func WriteFile(filename string, data []byte, perm fs.FileMode) (err error) {
 	return WriteToFile(filename, bytes.NewReader(data), perm)
 }
 
 // WriteToFile is a variant of WriteFile that accepts the data as an io.Reader
 // instead of a slice.
-func WriteToFile(filename string, data io.Reader, perm os.FileMode) (err error) {
+func WriteToFile(filename string, data io.Reader, perm fs.FileMode) (err error) {
 	f, err := tempFile(filepath.Dir(filename), filepath.Base(filename), perm)
 	if err != nil {
 		return err
@@ -66,7 +67,7 @@ func WriteToFile(filename string, data io.Reader, perm os.FileMode) (err error) 
 	return robustio.Rename(f.Name(), filename)
 }
 
-// ReadFile is like ioutil.ReadFile, but on Windows retries spurious errors that
+// ReadFile is like os.ReadFile, but on Windows retries spurious errors that
 // may occur if the file is concurrently replaced.
 //
 // Errors are classified heuristically and retries are bounded, so even this
@@ -80,7 +81,7 @@ func ReadFile(filename string) ([]byte, error) {
 }
 
 // tempFile creates a new temporary file with given permission bits.
-func tempFile(dir, prefix string, perm os.FileMode) (f *os.File, err error) {
+func tempFile(dir, prefix string, perm fs.FileMode) (f *os.File, err error) {
 	for i := 0; i < 10000; i++ {
 		name := filepath.Join(dir, prefix+strconv.Itoa(rand.Intn(1000000000))+patternSuffix)
 		f, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, perm)

@@ -1275,9 +1275,8 @@ func dtypesym(t *types.Type) *obj.LSym {
 		}
 		ot = dgopkgpath(lsym, ot, tpkg)
 
-		xcount := sort.Search(n, func(i int) bool { return !types.IsExported(m[i].name.Name) })
 		ot = dsymptr(lsym, ot, lsym, ot+3*Widthptr+uncommonSize(t))
-		ot = duintptr(lsym, ot, uint64(xcount))
+		ot = duintptr(lsym, ot, uint64(n))
 		ot = duintptr(lsym, ot, uint64(n))
 		dataAdd := imethodSize() * n
 		ot = dextratype(lsym, ot, t, dataAdd)
@@ -1592,8 +1591,12 @@ func dumptabs() {
 			//	typ  typeOff // pointer to symbol
 			// }
 			nsym := dname(p.s.Name, "", nil, true)
+			tsym := dtypesym(p.t)
 			ot = dsymptrOff(s, ot, nsym)
-			ot = dsymptrOff(s, ot, dtypesym(p.t))
+			ot = dsymptrOff(s, ot, tsym)
+			// Plugin exports symbols as interfaces. Mark their types
+			// as UsedInIface.
+			tsym.Set(obj.AttrUsedInIface, true)
 		}
 		ggloblsym(s, int32(ot), int16(obj.RODATA))
 

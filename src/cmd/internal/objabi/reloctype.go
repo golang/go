@@ -156,6 +156,9 @@ const (
 	// R_ARM64_LDST8 sets a LD/ST immediate value to bits [11:0] of a local address.
 	R_ARM64_LDST8
 
+	// R_ARM64_LDST16 sets a LD/ST immediate value to bits [11:1] of a local address.
+	R_ARM64_LDST16
+
 	// R_ARM64_LDST32 sets a LD/ST immediate value to bits [11:2] of a local address.
 	R_ARM64_LDST32
 
@@ -222,6 +225,14 @@ const (
 	// R_RISCV_PCREL_STYPE resolves a 32-bit PC-relative address using an
 	// AUIPC + S-type instruction pair.
 	R_RISCV_PCREL_STYPE
+
+	// R_RISCV_TLS_IE_ITYPE resolves a 32-bit TLS initial-exec TOC offset
+	// address using an AUIPC + I-type instruction pair.
+	R_RISCV_TLS_IE_ITYPE
+
+	// R_RISCV_TLS_IE_STYPE resolves a 32-bit TLS initial-exec TOC offset
+	// address using an AUIPC + S-type instruction pair.
+	R_RISCV_TLS_IE_STYPE
 
 	// R_PCRELDBL relocates s390x 2-byte aligned PC-relative addresses.
 	// TODO(mundaym): remove once variants can be serialized - see issue 14218.

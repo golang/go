@@ -38,6 +38,7 @@ func sigdelset(mask *sigset, i int) {
 	(*mask)[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
 }
 
+//go:nosplit
 func sigfillset(mask *uint64) {
 	*mask = ^uint64(0)
 }

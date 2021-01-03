@@ -174,6 +174,7 @@ var optab = []Optab{
 	{ASRAD, C_SCON, C_NONE, C_NONE, C_REG, 56, 4, 0},
 	{ARLWMI, C_SCON, C_REG, C_LCON, C_REG, 62, 4, 0},
 	{ARLWMI, C_REG, C_REG, C_LCON, C_REG, 63, 4, 0},
+	{ACLRLSLWI, C_SCON, C_REG, C_LCON, C_REG, 62, 4, 0},
 	{ARLDMI, C_SCON, C_REG, C_LCON, C_REG, 30, 4, 0},
 	{ARLDC, C_SCON, C_REG, C_LCON, C_REG, 29, 4, 0},
 	{ARLDCL, C_SCON, C_REG, C_LCON, C_REG, 29, 4, 0},
@@ -333,6 +334,7 @@ var optab = []Optab{
 	{ABC, C_SCON, C_REG, C_NONE, C_SBRA, 16, 4, 0},
 	{ABC, C_SCON, C_REG, C_NONE, C_LBRA, 17, 4, 0},
 	{ABR, C_NONE, C_NONE, C_NONE, C_LR, 18, 4, 0},
+	{ABR, C_NONE, C_NONE, C_SCON, C_LR, 18, 4, 0},
 	{ABR, C_NONE, C_NONE, C_NONE, C_CTR, 18, 4, 0},
 	{ABR, C_REG, C_NONE, C_NONE, C_CTR, 18, 4, 0},
 	{ABR, C_NONE, C_NONE, C_NONE, C_ZOREG, 15, 8, 0},
@@ -663,8 +665,8 @@ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
 		// the function alignment is not changed which might
 		// result in 16 byte alignment but that is still fine.
 		// TODO: alignment on AIX
-		if ctxt.Headtype != objabi.Haix && cursym.Func.Align < 32 {
-			cursym.Func.Align = 32
+		if ctxt.Headtype != objabi.Haix && cursym.Func().Align < 32 {
+			cursym.Func().Align = 32
 		}
 	default:
 		ctxt.Diag("Unexpected alignment: %d for PCALIGN directive\n", a)
@@ -673,7 +675,7 @@ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
 }
 
 func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
-	p := cursym.Func.Text
+	p := cursym.Func().Text
 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
 		return
 	}
@@ -722,7 +724,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	for bflag != 0 {
 		bflag = 0
 		pc = 0
-		for p = c.cursym.Func.Text.Link; p != nil; p = p.Link {
+		for p = c.cursym.Func().Text.Link; p != nil; p = p.Link {
 			p.Pc = pc
 			o = c.oplook(p)
 
@@ -784,7 +786,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	bp := c.cursym.P
 	var i int32
 	var out [6]uint32
-	for p := c.cursym.Func.Text.Link; p != nil; p = p.Link {
+	for p := c.cursym.Func().Text.Link; p != nil; p = p.Link {
 		c.pc = p.Pc
 		o = c.oplook(p)
 		if int(o.size) > 4*len(out) {
@@ -1911,7 +1913,6 @@ func buildop(ctxt *obj.Link) {
 			opset(ARLWMICC, r0)
 			opset(ARLWNM, r0)
 			opset(ARLWNMCC, r0)
-			opset(ACLRLSLWI, r0)
 
 		case ARLDMI:
 			opset(ARLDMICC, r0)
@@ -2010,6 +2011,7 @@ func buildop(ctxt *obj.Link) {
 			AADDEX,
 			ACMPEQB,
 			AECIWX,
+			ACLRLSLWI,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AUNDEF,
@@ -2159,7 +2161,7 @@ func AOP_DQ(op uint32, d uint32, a uint32, b uint32) uint32 {
 
 /* Z23-form, 3-register operands + CY field */
 func AOP_Z23I(op uint32, d uint32, a uint32, b uint32, c uint32) uint32 {
-	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11 | (c&3)<<7
+	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11 | (c&3)<<9
 }
 
 /* X-form, 3-register operands + EH field */
@@ -2843,6 +2845,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 18: /* br/bl (lr/ctr); bc/bcl bo,bi,(lr/ctr) */
 		var v int32
+		var bh uint32 = 0
 		if p.As == ABC || p.As == ABCL {
 			v = c.regoff(&p.From) & 31
 		} else {
@@ -2862,6 +2865,15 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		default:
 			c.ctxt.Diag("bad optab entry (18): %d\n%v", p.To.Class, p)
 			v = 0
+		}
+
+		// Insert optional branch hint for bclr[l]/bcctr[l]
+		if p.From3Type() != obj.TYPE_NONE {
+			bh = uint32(p.GetFrom3().Offset)
+			if bh == 2 || bh > 3 {
+				log.Fatalf("BH must be 0,1,3 for %v", p)
+			}
+			o1 |= bh << 11
 		}
 
 		if p.As == ABL || p.As == ABCL {
@@ -3413,25 +3425,10 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 	case 63: /* rlwmi b,s,$mask,a */
-		v := c.regoff(&p.From)
-		switch p.As {
-		case ACLRLSLWI:
-			n := c.regoff(p.GetFrom3())
-			if n > v || v >= 32 {
-				// Message will match operands from the ISA even though in the
-				// code it uses 'v'
-				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, n, p)
-			}
-			// This is an extended mnemonic described in the ISA C.8.2
-			// clrlslwi ra,rs,b,n -> rlwinm ra,rs,n,b-n,31-n
-			// It generates the rlwinm directly here.
-			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(n), uint32(v-n), uint32(31-n))
-		default:
-			var mask [2]uint8
-			c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
-			o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(v))
-			o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
-		}
+		var mask [2]uint8
+		c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
+		o1 = AOP_RRR(c.oprrr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(p.From.Reg))
+		o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
 
 	case 64: /* mtfsf fr[, $m] {,fpcsr} */
 		var v int32

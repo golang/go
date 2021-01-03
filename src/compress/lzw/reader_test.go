@@ -8,8 +8,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -206,7 +206,7 @@ func TestNoLongerSavingPriorExpansions(t *testing.T) {
 	in = append(in, 0x80, 0xff, 0x0f, 0x08)
 
 	r := NewReader(bytes.NewReader(in), LSB, 8)
-	nDecoded, err := io.Copy(ioutil.Discard, r)
+	nDecoded, err := io.Copy(io.Discard, r)
 	if err != nil {
 		t.Fatalf("Copy: %v", err)
 	}
@@ -218,7 +218,7 @@ func TestNoLongerSavingPriorExpansions(t *testing.T) {
 }
 
 func BenchmarkDecoder(b *testing.B) {
-	buf, err := ioutil.ReadFile("../testdata/e.txt")
+	buf, err := os.ReadFile("../testdata/e.txt")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -246,7 +246,7 @@ func BenchmarkDecoder(b *testing.B) {
 			runtime.GC()
 			b.StartTimer()
 			for i := 0; i < b.N; i++ {
-				io.Copy(ioutil.Discard, NewReader(bytes.NewReader(buf1), LSB, 8))
+				io.Copy(io.Discard, NewReader(bytes.NewReader(buf1), LSB, 8))
 			}
 		})
 	}

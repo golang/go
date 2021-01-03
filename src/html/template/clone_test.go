@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 	"sync"
 	"testing"
@@ -171,7 +171,7 @@ func TestCloneThenParse(t *testing.T) {
 		t.Error("adding a template to a clone added it to the original")
 	}
 	// double check that the embedded template isn't available in the original
-	err := t0.ExecuteTemplate(ioutil.Discard, "a", nil)
+	err := t0.ExecuteTemplate(io.Discard, "a", nil)
 	if err == nil {
 		t.Error("expected 'no such template' error")
 	}
@@ -185,13 +185,13 @@ func TestFuncMapWorksAfterClone(t *testing.T) {
 
 	// get the expected error output (no clone)
 	uncloned := Must(New("").Funcs(funcs).Parse("{{customFunc}}"))
-	wantErr := uncloned.Execute(ioutil.Discard, nil)
+	wantErr := uncloned.Execute(io.Discard, nil)
 
 	// toClone must be the same as uncloned. It has to be recreated from scratch,
 	// since cloning cannot occur after execution.
 	toClone := Must(New("").Funcs(funcs).Parse("{{customFunc}}"))
 	cloned := Must(toClone.Clone())
-	gotErr := cloned.Execute(ioutil.Discard, nil)
+	gotErr := cloned.Execute(io.Discard, nil)
 
 	if wantErr.Error() != gotErr.Error() {
 		t.Errorf("clone error message mismatch want %q got %q", wantErr, gotErr)
@@ -213,7 +213,7 @@ func TestTemplateCloneExecuteRace(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < 100; i++ {
-				if err := tmpl.Execute(ioutil.Discard, "data"); err != nil {
+				if err := tmpl.Execute(io.Discard, "data"); err != nil {
 					panic(err)
 				}
 			}
@@ -237,7 +237,7 @@ func TestCloneGrowth(t *testing.T) {
 	tmpl = Must(tmpl.Clone())
 	Must(tmpl.Parse(`{{define "B"}}Text{{end}}`))
 	for i := 0; i < 10; i++ {
-		tmpl.Execute(ioutil.Discard, nil)
+		tmpl.Execute(io.Discard, nil)
 	}
 	if len(tmpl.DefinedTemplates()) > 200 {
 		t.Fatalf("too many templates: %v", len(tmpl.DefinedTemplates()))
@@ -257,7 +257,7 @@ func TestCloneRedefinedName(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		t2 := Must(t1.Clone())
 		t2 = Must(t2.New(fmt.Sprintf("%d", i)).Parse(page))
-		err := t2.Execute(ioutil.Discard, nil)
+		err := t2.Execute(io.Discard, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

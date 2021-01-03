@@ -41,12 +41,12 @@ const (
 	lockRankCpuprof
 	lockRankSweep
 
+	lockRankPollDesc
 	lockRankSched
 	lockRankDeadlock
 	lockRankPanic
 	lockRankAllg
 	lockRankAllp
-	lockRankPollDesc
 
 	lockRankTimers // Multiple timers locked simultaneously in destroy()
 	lockRankItab
@@ -120,12 +120,12 @@ var lockNames = []string{
 	lockRankCpuprof:      "cpuprof",
 	lockRankSweep:        "sweep",
 
+	lockRankPollDesc: "pollDesc",
 	lockRankSched:    "sched",
 	lockRankDeadlock: "deadlock",
 	lockRankPanic:    "panic",
 	lockRankAllg:     "allg",
 	lockRankAllp:     "allp",
-	lockRankPollDesc: "pollDesc",
 
 	lockRankTimers:      "timers",
 	lockRankItab:        "itab",
@@ -182,14 +182,14 @@ func (rank lockRank) String() string {
 	return lockNames[rank]
 }
 
-// lockPartialOrder is a partial order among the various lock types, listing the immediate
-// ordering that has actually been observed in the runtime. Each entry (which
-// corresponds to a particular lock rank) specifies the list of locks that can be
-// already be held immediately "above" it.
+// lockPartialOrder is a partial order among the various lock types, listing the
+// immediate ordering that has actually been observed in the runtime. Each entry
+// (which corresponds to a particular lock rank) specifies the list of locks
+// that can already be held immediately "above" it.
 //
-// So, for example, the lockRankSched entry shows that all the locks preceding it in
-// rank can actually be held. The fin lock shows that only the sched, timers, or
-// hchan lock can be held immediately above it when it is acquired.
+// So, for example, the lockRankSched entry shows that all the locks preceding
+// it in rank can actually be held. The allp lock shows that only the sysmon or
+// sched lock can be held immediately above it when it is acquired.
 var lockPartialOrder [][]lockRank = [][]lockRank{
 	lockRankDummy:         {},
 	lockRankSysmon:        {},
@@ -199,12 +199,12 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
 	lockRankAssistQueue:   {},
 	lockRankCpuprof:       {},
 	lockRankSweep:         {},
-	lockRankSched:         {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep},
+	lockRankPollDesc:      {},
+	lockRankSched:         {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankPollDesc},
 	lockRankDeadlock:      {lockRankDeadlock},
 	lockRankPanic:         {lockRankDeadlock},
 	lockRankAllg:          {lockRankSysmon, lockRankSched, lockRankPanic},
 	lockRankAllp:          {lockRankSysmon, lockRankSched},
-	lockRankPollDesc:      {},
 	lockRankTimers:        {lockRankSysmon, lockRankScavenge, lockRankSched, lockRankAllp, lockRankPollDesc, lockRankTimers},
 	lockRankItab:          {},
 	lockRankReflectOffs:   {lockRankItab},
@@ -213,7 +213,7 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
 	lockRankNotifyList:    {},
 	lockRankTraceBuf:      {lockRankSysmon, lockRankScavenge},
 	lockRankTraceStrings:  {lockRankTraceBuf},
-	lockRankMspanSpecial:  {lockRankSysmon, lockRankScavenge, lockRankAssistQueue, lockRankCpuprof, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankHchan, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings},
+	lockRankMspanSpecial:  {lockRankSysmon, lockRankScavenge, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankHchan, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings},
 	lockRankProf:          {lockRankSysmon, lockRankScavenge, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan},
 	lockRankGcBitsArenas:  {lockRankSysmon, lockRankScavenge, lockRankAssistQueue, lockRankCpuprof, lockRankSched, lockRankAllg, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan},
 	lockRankRoot:          {},
@@ -222,16 +222,16 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
 	lockRankNetpollInit:   {lockRankTimers},
 
 	lockRankRwmutexW: {},
-	lockRankRwmutexR: {lockRankRwmutexW},
+	lockRankRwmutexR: {lockRankSysmon, lockRankRwmutexW},
 
-	lockRankSpanSetSpine: {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan},
+	lockRankSpanSetSpine: {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankPollDesc, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan},
 	lockRankGscan:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankHchan, lockRankFin, lockRankTraceBuf, lockRankTraceStrings, lockRankRoot, lockRankNotifyList, lockRankProf, lockRankGcBitsArenas, lockRankTrace, lockRankTraceStackTab, lockRankNetpollInit, lockRankSpanSetSpine},
 	lockRankStackpool:    {lockRankSysmon, lockRankScavenge, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankPollDesc, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankHchan, lockRankFin, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankProf, lockRankGcBitsArenas, lockRankRoot, lockRankTrace, lockRankTraceStackTab, lockRankNetpollInit, lockRankRwmutexR, lockRankSpanSetSpine, lockRankGscan},
 	lockRankStackLarge:   {lockRankSysmon, lockRankAssistQueue, lockRankSched, lockRankItab, lockRankHchan, lockRankProf, lockRankGcBitsArenas, lockRankRoot, lockRankSpanSetSpine, lockRankGscan},
 	lockRankDefer:        {},
 	lockRankSudog:        {lockRankNotifyList, lockRankHchan},
 	lockRankWbufSpans:    {lockRankSysmon, lockRankScavenge, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankSched, lockRankAllg, lockRankPollDesc, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankHchan, lockRankFin, lockRankNotifyList, lockRankTraceStrings, lockRankMspanSpecial, lockRankProf, lockRankRoot, lockRankGscan, lockRankDefer, lockRankSudog},
-	lockRankMheap:        {lockRankSysmon, lockRankScavenge, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankAllg, lockRankAllp, lockRankPollDesc, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan, lockRankMspanSpecial, lockRankProf, lockRankGcBitsArenas, lockRankRoot, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankDefer, lockRankSudog, lockRankWbufSpans, lockRankSpanSetSpine},
+	lockRankMheap:        {lockRankSysmon, lockRankScavenge, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankAllg, lockRankAllp, lockRankFin, lockRankPollDesc, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan, lockRankMspanSpecial, lockRankProf, lockRankGcBitsArenas, lockRankRoot, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankDefer, lockRankSudog, lockRankWbufSpans, lockRankSpanSetSpine},
 	lockRankMheapSpecial: {lockRankSysmon, lockRankScavenge, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan},
 	lockRankGlobalAlloc:  {lockRankProf, lockRankSpanSetSpine, lockRankMheap, lockRankMheapSpecial},
 

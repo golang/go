@@ -70,7 +70,7 @@ func TestMemoryProfiler(t *testing.T) {
 		runtime.MemProfileRate = oldRate
 	}()
 
-	// Allocate a meg to ensure that mcache.next_sample is updated to 1.
+	// Allocate a meg to ensure that mcache.nextSample is updated to 1.
 	for i := 0; i < 1024; i++ {
 		memSink = make([]byte, 1024)
 	}

@@ -12,7 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -54,7 +54,7 @@ func Open(dir string) (*Cache, error) {
 		return nil, err
 	}
 	if !info.IsDir() {
-		return nil, &os.PathError{Op: "open", Path: dir, Err: fmt.Errorf("not a directory")}
+		return nil, &fs.PathError{Op: "open", Path: dir, Err: fmt.Errorf("not a directory")}
 	}
 	for i := 0; i < 256; i++ {
 		name := filepath.Join(dir, fmt.Sprintf("%02x", i))
@@ -238,7 +238,7 @@ func (c *Cache) GetBytes(id ActionID) ([]byte, Entry, error) {
 	if err != nil {
 		return nil, entry, err
 	}
-	data, _ := ioutil.ReadFile(c.OutputFile(entry.OutputID))
+	data, _ := os.ReadFile(c.OutputFile(entry.OutputID))
 	if sha256.Sum256(data) != entry.OutputID {
 		return nil, entry, &entryNotFoundError{Err: errors.New("bad checksum")}
 	}
@@ -377,7 +377,7 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify
 		// Truncate the file only *after* writing it.
 		// (This should be a no-op, but truncate just in case of previous corruption.)
 		//
-		// This differs from ioutil.WriteFile, which truncates to 0 *before* writing
+		// This differs from os.WriteFile, which truncates to 0 *before* writing
 		// via os.O_TRUNC. Truncating only after writing ensures that a second write
 		// of the same content to the same file is idempotent, and does not — even
 		// temporarily! — undo the effect of the first write.

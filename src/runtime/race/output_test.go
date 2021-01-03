@@ -8,7 +8,6 @@ package race_test
 
 import (
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,7 +18,7 @@ import (
 )
 
 func TestOutput(t *testing.T) {
-	pkgdir, err := ioutil.TempDir("", "go-build-race-output")
+	pkgdir, err := os.MkdirTemp("", "go-build-race-output")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +33,7 @@ func TestOutput(t *testing.T) {
 			t.Logf("test %v runs only on %v, skipping: ", test.name, test.goos)
 			continue
 		}
-		dir, err := ioutil.TempDir("", "go-build")
+		dir, err := os.MkdirTemp("", "go-build")
 		if err != nil {
 			t.Fatalf("failed to create temp directory: %v", err)
 		}
@@ -285,32 +284,31 @@ static inline void startThread(cb* c) {
 */
 import "C"
 
-import "time"
-
+var done chan bool
 var racy int
 
 //export goCallback
 func goCallback() {
 	racy++
+	done <- true
 }
 
 func main() {
+	done = make(chan bool)
 	var c C.cb
 	C.startThread(&c)
-	time.Sleep(time.Second)
 	racy++
+	<- done
 }
 `, `==================
 WARNING: DATA RACE
-Read at 0x[0-9,a-f]+ by main goroutine:
-  main\.main\(\)
-      .*/main\.go:34 \+0x[0-9,a-f]+
+Read at 0x[0-9,a-f]+ by .*:
+  main\..*
+      .*/main\.go:[0-9]+ \+0x[0-9,a-f]+(?s).*
 
-Previous write at 0x[0-9,a-f]+ by goroutine [0-9]:
-  main\.goCallback\(\)
-      .*/main\.go:27 \+0x[0-9,a-f]+
-  main._cgoexpwrap_[0-9a-z]+_goCallback\(\)
-      .*_cgo_gotypes\.go:[0-9]+ \+0x[0-9,a-f]+
+Previous write at 0x[0-9,a-f]+ by .*:
+  main\..*
+      .*/main\.go:[0-9]+ \+0x[0-9,a-f]+(?s).*
 
 Goroutine [0-9] \(running\) created at:
   runtime\.newextram\(\)
@@ -338,4 +336,77 @@ func TestPass(t *testing.T) {
 --- FAIL: TestFail \(0...s\)
 .*testing.go:.*: race detected during execution of test
 FAIL`},
+	{"mutex", "run", "", "atexit_sleep_ms=0", `
+package main
+import (
+	"sync"
+	"fmt"
+)
+func main() {
+	c := make(chan bool, 1)
+	threads := 1
+	iterations := 20000
+	data := 0
+	var wg sync.WaitGroup
+	for i := 0; i < threads; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < iterations; i++ {
+				c <- true
+				data += 1
+				<- c
+			}
+		}()
+	}
+	for i := 0; i < iterations; i++ {
+		c <- true
+		data += 1
+		<- c
+	}
+	wg.Wait()
+	if (data == iterations*(threads+1)) { fmt.Println("pass") }
+}`, `pass`},
+	// Test for https://github.com/golang/go/issues/37355
+	{"chanmm", "run", "", "atexit_sleep_ms=0", `
+package main
+import (
+	"sync"
+	"time"
+)
+func main() {
+	c := make(chan bool, 1)
+	var data uint64
+	var wg sync.WaitGroup
+	wg.Add(2)
+	c <- true
+	go func() {
+		defer wg.Done()
+		c <- true
+	}()
+	go func() {
+		defer wg.Done()
+		time.Sleep(time.Second)
+		<-c
+		data = 2
+	}()
+	data = 1
+	<-c
+	wg.Wait()
+	_ = data
+}
+`, `==================
+WARNING: DATA RACE
+Write at 0x[0-9,a-f]+ by goroutine [0-9]:
+  main\.main\.func2\(\)
+      .*/main\.go:21 \+0x[0-9,a-f]+
+
+Previous write at 0x[0-9,a-f]+ by main goroutine:
+  main\.main\(\)
+      .*/main\.go:23 \+0x[0-9,a-f]+
+
+Goroutine [0-9] \(running\) created at:
+  main\.main\(\)
+      .*/main.go:[0-9]+ \+0x[0-9,a-f]+
+==================`},
 }

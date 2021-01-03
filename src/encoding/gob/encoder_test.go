@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"reflect"
 	"strings"
 	"testing"
@@ -938,7 +938,7 @@ func encodeAndRecover(value interface{}) (encodeErr, panicErr error) {
 		}
 	}()
 
-	encodeErr = NewEncoder(ioutil.Discard).Encode(value)
+	encodeErr = NewEncoder(io.Discard).Encode(value)
 	return
 }
 

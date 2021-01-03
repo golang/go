@@ -32,6 +32,7 @@ package ppc64
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 )
 
@@ -402,13 +403,13 @@ func (c *ctxt9) rewriteToUseGot(p *obj.Prog) {
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// TODO(minux): add morestack short-cuts with small fixed frame-size.
-	if cursym.Func.Text == nil || cursym.Func.Text.Link == nil {
+	if cursym.Func().Text == nil || cursym.Func().Text.Link == nil {
 		return
 	}
 
 	c := ctxt9{ctxt: ctxt, cursym: cursym, newprog: newprog}
 
-	p := c.cursym.Func.Text
+	p := c.cursym.Func().Text
 	textstksiz := p.To.Offset
 	if textstksiz == -8 {
 		// Compatibility hack.
@@ -424,8 +425,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
-	c.cursym.Func.Args = p.To.Val.(int32)
-	c.cursym.Func.Locals = int32(textstksiz)
+	c.cursym.Func().Args = p.To.Val.(int32)
+	c.cursym.Func().Locals = int32(textstksiz)
 
 	/*
 	 * find leaf subroutines
@@ -435,7 +436,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	var q *obj.Prog
 	var q1 *obj.Prog
-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
+	for p := c.cursym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		/* too hard, just leave alone */
 		case obj.ATEXT:
@@ -541,7 +542,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			ABCL,
 			obj.ADUFFZERO,
 			obj.ADUFFCOPY:
-			c.cursym.Func.Text.Mark &^= LEAF
+			c.cursym.Func().Text.Mark &^= LEAF
 			fallthrough
 
 		case ABC,
@@ -598,7 +599,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	autosize := int32(0)
 	var p1 *obj.Prog
 	var p2 *obj.Prog
-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
+	for p := c.cursym.Func().Text; p != nil; p = p.Link {
 		o := p.As
 		switch o {
 		case obj.ATEXT:
@@ -664,7 +665,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				rel.Type = objabi.R_ADDRPOWER_PCREL
 			}
 
-			if !c.cursym.Func.Text.From.Sym.NoSplit() {
+			if !c.cursym.Func().Text.From.Sym.NoSplit() {
 				q = c.stacksplit(q, autosize) // emit split check
 			}
 
@@ -672,6 +673,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			// save the link register and update the stack, since that code is
 			// called directly from C/C++ and can't clobber REGTMP (R31).
 			if autosize != 0 && c.cursym.Name != "runtime.racecallbackthunk" {
+				var prologueEnd *obj.Prog
 				// Save the link register and update the SP.  MOVDU is used unless
 				// the frame size is too large.  The link register must be saved
 				// even for non-empty leaf functions so that traceback works.
@@ -684,6 +686,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.From.Reg = REG_LR
 					q.To.Type = obj.TYPE_REG
 					q.To.Reg = REGTMP
+
+					prologueEnd = q
 
 					q = obj.Appendp(q, c.newprog)
 					q.As = AMOVDU
@@ -720,6 +724,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.To.Offset = int64(-autosize)
 					q.To.Reg = REGSP
 
+					prologueEnd = q
+
 					q = obj.Appendp(q, c.newprog)
 					q.As = AADD
 					q.Pos = p.Pos
@@ -730,16 +736,16 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.Spadj = +autosize
 
 					q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
-
 				}
-			} else if c.cursym.Func.Text.Mark&LEAF == 0 {
+				prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)
+			} else if c.cursym.Func().Text.Mark&LEAF == 0 {
 				// A very few functions that do not return to their caller
 				// (e.g. gogo) are not identified as leaves but still have
 				// no frame.
-				c.cursym.Func.Text.Mark |= LEAF
+				c.cursym.Func().Text.Mark |= LEAF
 			}
 
-			if c.cursym.Func.Text.Mark&LEAF != 0 {
+			if c.cursym.Func().Text.Mark&LEAF != 0 {
 				c.cursym.Set(obj.AttrLeaf, true)
 				break
 			}
@@ -755,7 +761,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.To.Offset = 24
 			}
 
-			if c.cursym.Func.Text.From.Sym.Wrapper() {
+			if c.cursym.Func().Text.From.Sym.Wrapper() {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 				//
 				//	MOVD g_panic(g), R3
@@ -853,7 +859,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 			retTarget := p.To.Sym
 
-			if c.cursym.Func.Text.Mark&LEAF != 0 {
+			if c.cursym.Func().Text.Mark&LEAF != 0 {
 				if autosize == 0 || c.cursym.Name == "runtime.racecallbackthunk" {
 					p.As = ABR
 					p.From = obj.Addr{}
@@ -1161,7 +1167,7 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	var morestacksym *obj.LSym
 	if c.cursym.CFunc() {
 		morestacksym = c.ctxt.Lookup("runtime.morestackc")
-	} else if !c.cursym.Func.Text.From.Sym.NeedCtxt() {
+	} else if !c.cursym.Func().Text.From.Sym.NeedCtxt() {
 		morestacksym = c.ctxt.Lookup("runtime.morestack_noctxt")
 	} else {
 		morestacksym = c.ctxt.Lookup("runtime.morestack")

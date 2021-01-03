@@ -7,11 +7,13 @@ package modload
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/search"
 
@@ -53,7 +55,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 
 	walkPkgs := func(root, importPathRoot string, prune pruning) {
 		root = filepath.Clean(root)
-		err := filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
+		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
 			if err != nil {
 				m.AddError(err)
 				return nil
@@ -84,8 +86,8 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 			}
 
 			if !fi.IsDir() {
-				if fi.Mode()&os.ModeSymlink != 0 && want {
-					if target, err := os.Stat(path); err == nil && target.IsDir() {
+				if fi.Mode()&fs.ModeSymlink != 0 && want {
+					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
 					}
 				}
@@ -154,7 +156,8 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 			isLocal = true
 		} else {
 			var err error
-			root, isLocal, err = fetch(ctx, mod)
+			const needSum = true
+			root, isLocal, err = fetch(ctx, mod, needSum)
 			if err != nil {
 				m.AddError(err)
 				continue
@@ -170,4 +173,47 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 	}
 
 	return
+}
+
+// MatchInModule identifies the packages matching the given pattern within the
+// given module version, which does not need to be in the build list or module
+// requirement graph.
+//
+// If m is the zero module.Version, MatchInModule matches the pattern
+// against the standard library (std and cmd) in GOROOT/src.
+func MatchInModule(ctx context.Context, pattern string, m module.Version, tags map[string]bool) *search.Match {
+	match := search.NewMatch(pattern)
+	if m == (module.Version{}) {
+		matchPackages(ctx, match, tags, includeStd, nil)
+	}
+
+	LoadModFile(ctx)
+
+	if !match.IsLiteral() {
+		matchPackages(ctx, match, tags, omitStd, []module.Version{m})
+		return match
+	}
+
+	const needSum = true
+	root, isLocal, err := fetch(ctx, m, needSum)
+	if err != nil {
+		match.Errs = []error{err}
+		return match
+	}
+
+	dir, haveGoFiles, err := dirInModule(pattern, m.Path, root, isLocal)
+	if err != nil {
+		match.Errs = []error{err}
+		return match
+	}
+	if haveGoFiles {
+		if _, _, err := scanDir(dir, tags); err != imports.ErrNoGo {
+			// ErrNoGo indicates that the directory is not actually a Go package,
+			// perhaps due to the tags in use. Any other non-nil error indicates a
+			// problem with one or more of the Go source files, but such an error does
+			// not stop the package from existing, so it has no impact on matching.
+			match.Pkgs = []string{pattern}
+		}
+	}
+	return match
 }

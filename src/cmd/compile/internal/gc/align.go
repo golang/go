@@ -86,7 +86,7 @@ func expandiface(t *types.Type) {
 	sort.Sort(methcmp(methods))
 
 	if int64(len(methods)) >= thearch.MAXWIDTH/int64(Widthptr) {
-		yyerror("interface too large")
+		yyerrorl(typePos(t), "interface too large")
 	}
 	for i, m := range methods {
 		m.Offset = int64(i) * int64(Widthptr)
@@ -150,7 +150,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 			maxwidth = 1<<31 - 1
 		}
 		if o >= maxwidth {
-			yyerror("type %L too large", errtype)
+			yyerrorl(typePos(errtype), "type %L too large", errtype)
 			o = 8 // small but nonzero
 		}
 	}
@@ -199,7 +199,7 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 		}
 
 		*path = append(*path, t)
-		if findTypeLoop(asNode(t.Nod).Name.Param.Ntype.Type, path) {
+		if p := asNode(t.Nod).Name.Param; p != nil && findTypeLoop(p.Ntype.Type, path) {
 			return true
 		}
 		*path = (*path)[:len(*path)-1]
@@ -381,7 +381,7 @@ func dowidth(t *types.Type) {
 		t1 := t.ChanArgs()
 		dowidth(t1) // just in case
 		if t1.Elem().Width >= 1<<16 {
-			yyerror("channel element type too large (>64kB)")
+			yyerrorl(typePos(t1), "channel element type too large (>64kB)")
 		}
 		w = 1 // anything will do
 
@@ -414,7 +414,7 @@ func dowidth(t *types.Type) {
 		if t.Elem().Width != 0 {
 			cap := (uint64(thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
 			if uint64(t.NumElem()) > cap {
-				yyerror("type %L larger than address space", t)
+				yyerrorl(typePos(t), "type %L larger than address space", t)
 			}
 		}
 		w = t.NumElem() * t.Elem().Width
@@ -456,7 +456,7 @@ func dowidth(t *types.Type) {
 	}
 
 	if Widthptr == 4 && w != int64(int32(w)) {
-		yyerror("type %v too large", t)
+		yyerrorl(typePos(t), "type %v too large", t)
 	}
 
 	t.Width = w

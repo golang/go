@@ -22,6 +22,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"internal/testenv"
+	"io"
 	"math/big"
 	"net"
 	"net/url"
@@ -1959,7 +1960,7 @@ func TestSystemCertPool(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(a, b) {
+	if !certPoolEqual(a, b) {
 		t.Fatal("two calls to SystemCertPool had different results")
 	}
 	if ok := b.AppendCertsFromPEM([]byte(`
@@ -2818,5 +2819,189 @@ func TestIA5SANEnforcement(t *testing.T) {
 		} else if err.Error() != tc.expectedError {
 			t.Errorf("unexpected error: got %q, want %q", err.Error(), tc.expectedError)
 		}
+	}
+}
+
+func BenchmarkCreateCertificate(b *testing.B) {
+	template := &Certificate{
+		SerialNumber: big.NewInt(10),
+		DNSNames:     []string{"example.com"},
+	}
+	tests := []struct {
+		name string
+		gen  func() crypto.Signer
+	}{
+		{
+			name: "RSA 2048",
+			gen: func() crypto.Signer {
+				k, err := rsa.GenerateKey(rand.Reader, 2048)
+				if err != nil {
+					b.Fatalf("failed to generate test key: %s", err)
+				}
+				return k
+			},
+		},
+		{
+			name: "ECDSA P256",
+			gen: func() crypto.Signer {
+				k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+				if err != nil {
+					b.Fatalf("failed to generate test key: %s", err)
+				}
+				return k
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		k := tc.gen()
+		b.ResetTimer()
+		b.Run(tc.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_, err := CreateCertificate(rand.Reader, template, template, k.Public(), k)
+				if err != nil {
+					b.Fatalf("failed to create certificate: %s", err)
+				}
+			}
+		})
+	}
+}
+
+type brokenSigner struct {
+	pub crypto.PublicKey
+}
+
+func (bs *brokenSigner) Public() crypto.PublicKey {
+	return bs.pub
+}
+
+func (bs *brokenSigner) Sign(_ io.Reader, _ []byte, _ crypto.SignerOpts) ([]byte, error) {
+	return []byte{1, 2, 3}, nil
+}
+
+func TestCreateCertificateBrokenSigner(t *testing.T) {
+	template := &Certificate{
+		SerialNumber: big.NewInt(10),
+		DNSNames:     []string{"example.com"},
+	}
+	k, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatalf("failed to generate test key: %s", err)
+	}
+	expectedErr := "x509: signature over certificate returned by signer is invalid: crypto/rsa: verification error"
+	_, err = CreateCertificate(rand.Reader, template, template, k.Public(), &brokenSigner{k.Public()})
+	if err == nil {
+		t.Fatal("expected CreateCertificate to fail with a broken signer")
+	} else if err.Error() != expectedErr {
+		t.Fatalf("CreateCertificate returned an unexpected error: got %q, want %q", err, expectedErr)
+	}
+}
+
+func TestCreateCertificateMD5(t *testing.T) {
+	template := &Certificate{
+		SerialNumber:       big.NewInt(10),
+		DNSNames:           []string{"example.com"},
+		SignatureAlgorithm: MD5WithRSA,
+	}
+	k, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatalf("failed to generate test key: %s", err)
+	}
+	_, err = CreateCertificate(rand.Reader, template, template, k.Public(), &brokenSigner{k.Public()})
+	if err != nil {
+		t.Fatalf("CreateCertificate failed when SignatureAlgorithm = MD5WithRSA: %s", err)
+	}
+}
+
+func (s *CertPool) mustCert(t *testing.T, n int) *Certificate {
+	c, err := s.lazyCerts[n].getCert()
+	if err != nil {
+		t.Fatalf("failed to load cert %d: %v", n, err)
+	}
+	return c
+}
+
+func allCerts(t *testing.T, p *CertPool) []*Certificate {
+	all := make([]*Certificate, p.len())
+	for i := range all {
+		all[i] = p.mustCert(t, i)
+	}
+	return all
+}
+
+// certPoolEqual reports whether a and b are equal, except for the
+// function pointers.
+func certPoolEqual(a, b *CertPool) bool {
+	if (a != nil) != (b != nil) {
+		return false
+	}
+	if a == nil {
+		return true
+	}
+	if !reflect.DeepEqual(a.byName, b.byName) ||
+		len(a.lazyCerts) != len(b.lazyCerts) {
+		return false
+	}
+	for i := range a.lazyCerts {
+		la, lb := a.lazyCerts[i], b.lazyCerts[i]
+		if !bytes.Equal(la.rawSubject, lb.rawSubject) {
+			return false
+		}
+		ca, err := la.getCert()
+		if err != nil {
+			panic(err)
+		}
+		cb, err := la.getCert()
+		if err != nil {
+			panic(err)
+		}
+		if !ca.Equal(cb) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func TestCertificateRequestRoundtripFields(t *testing.T) {
+	in := &CertificateRequest{
+		KeyUsage:              KeyUsageCertSign,
+		ExtKeyUsage:           []ExtKeyUsage{ExtKeyUsageAny},
+		UnknownExtKeyUsage:    []asn1.ObjectIdentifier{{1, 2, 3}},
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		MaxPathLen:            0,
+		MaxPathLenZero:        true,
+		SubjectKeyId:          []byte{1, 2, 3},
+		PolicyIdentifiers:     []asn1.ObjectIdentifier{{1, 2, 3}},
+	}
+	out := marshalAndParseCSR(t, in)
+
+	if in.KeyUsage != out.KeyUsage {
+		t.Fatalf("Unexpected KeyUsage: got %v, want %v", out.KeyUsage, in.KeyUsage)
+	}
+	if !reflect.DeepEqual(in.ExtKeyUsage, out.ExtKeyUsage) {
+		t.Fatalf("Unexpected ExtKeyUsage: got %v, want %v", out.ExtKeyUsage, in.ExtKeyUsage)
+	}
+	if !reflect.DeepEqual(in.UnknownExtKeyUsage, out.UnknownExtKeyUsage) {
+		t.Fatalf("Unexpected UnknownExtKeyUsage: got %v, want %v", out.UnknownExtKeyUsage, in.UnknownExtKeyUsage)
+	}
+	if in.BasicConstraintsValid != out.BasicConstraintsValid {
+		t.Fatalf("Unexpected BasicConstraintsValid: got %v, want %v", out.BasicConstraintsValid, in.BasicConstraintsValid)
+	}
+	if in.IsCA != out.IsCA {
+		t.Fatalf("Unexpected IsCA: got %v, want %v", out.IsCA, in.IsCA)
+	}
+	if in.MaxPathLen != out.MaxPathLen {
+		t.Fatalf("Unexpected MaxPathLen: got %v, want %v", out.MaxPathLen, in.MaxPathLen)
+	}
+	if in.MaxPathLenZero != out.MaxPathLenZero {
+		t.Fatalf("Unexpected MaxPathLenZero: got %v, want %v", out.MaxPathLenZero, in.MaxPathLenZero)
+	}
+	if !reflect.DeepEqual(in.SubjectKeyId, out.SubjectKeyId) {
+		t.Fatalf("Unexpected SubjectKeyId: got %v, want %v", out.SubjectKeyId, in.SubjectKeyId)
+	}
+	if !reflect.DeepEqual(in.PolicyIdentifiers, out.PolicyIdentifiers) {
+		t.Fatalf("Unexpected PolicyIdentifiers: got %v, want %v", out.PolicyIdentifiers, in.PolicyIdentifiers)
 	}
 }

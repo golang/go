@@ -1,6 +1,5 @@
-# Plugins are only supported on linux,cgo and darwin,cgo.
-[!linux] [!darwin] skip
-[!cgo] skip
+# Plugins are not supported on all platforms.
+[!buildmode:plugin] skip
 
 go build -n testdep
 ! go build -buildmode=plugin testdep

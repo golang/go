@@ -27,9 +27,9 @@ import (
 	"fmt"
 	"go/format"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"path"
 	"sort"
 	"strings"
@@ -81,7 +81,7 @@ func main() {
 			continue
 		}
 
-		der, err := ioutil.ReadAll(tr)
+		der, err := io.ReadAll(tr)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -124,7 +124,11 @@ func main() {
 		if strings.ToLower(certName(certs[i])) != strings.ToLower(certName(certs[j])) {
 			return strings.ToLower(certName(certs[i])) < strings.ToLower(certName(certs[j]))
 		}
-		return certs[i].NotBefore.Before(certs[j].NotBefore)
+		if !certs[i].NotBefore.Equal(certs[j].NotBefore) {
+			return certs[i].NotBefore.Before(certs[j].NotBefore)
+		}
+		fi, fj := sha256.Sum256(certs[i].Raw), sha256.Sum256(certs[j].Raw)
+		return bytes.Compare(fi[:], fj[:]) < 0
 	})
 
 	out := new(bytes.Buffer)
@@ -151,7 +155,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := ioutil.WriteFile(*output, source, 0644); err != nil {
+	if err := os.WriteFile(*output, source, 0644); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -167,9 +171,6 @@ package x509
 func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	return nil, nil
 }
-
-// loadSystemRootsWithCgo is not available on iOS.
-var loadSystemRootsWithCgo func() (*CertPool, error)
 
 func loadSystemRoots() (*CertPool, error) {
 	p := NewCertPool()

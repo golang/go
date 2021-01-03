@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -437,7 +438,7 @@ func (ctxt *context) match(name string) bool {
 		}
 	}
 
-	if name == ctxt.GOOS || name == ctxt.GOARCH {
+	if name == ctxt.GOOS || name == ctxt.GOARCH || name == "gc" {
 		return true
 	}
 
@@ -1793,7 +1794,7 @@ func overlayDir(dstRoot, srcRoot string) error {
 		return err
 	}
 
-	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
+	return filepath.WalkDir(srcRoot, func(srcPath string, d fs.DirEntry, err error) error {
 		if err != nil || srcPath == srcRoot {
 			return err
 		}
@@ -1804,14 +1805,16 @@ func overlayDir(dstRoot, srcRoot string) error {
 		}
 		dstPath := filepath.Join(dstRoot, suffix)
 
-		perm := info.Mode() & os.ModePerm
-		if info.Mode()&os.ModeSymlink != 0 {
+		var info fs.FileInfo
+		if d.Type()&os.ModeSymlink != 0 {
 			info, err = os.Stat(srcPath)
-			if err != nil {
-				return err
-			}
-			perm = info.Mode() & os.ModePerm
+		} else {
+			info, err = d.Info()
 		}
+		if err != nil {
+			return err
+		}
+		perm := info.Mode() & os.ModePerm
 
 		// Always copy directories (don't symlink them).
 		// If we add a file in the overlay, we don't want to add it in the original.

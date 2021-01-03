@@ -420,3 +420,21 @@ func (sb *SymbolBuilder) MakeWritable() {
 		sb.l.SetAttrReadOnly(sb.symIdx, false)
 	}
 }
+
+func (sb *SymbolBuilder) AddUleb(v uint64) {
+	if v < 128 { // common case: 1 byte
+		sb.AddUint8(uint8(v))
+		return
+	}
+	for {
+		c := uint8(v & 0x7f)
+		v >>= 7
+		if v != 0 {
+			c |= 0x80
+		}
+		sb.AddUint8(c)
+		if c&0x80 == 0 {
+			break
+		}
+	}
+}

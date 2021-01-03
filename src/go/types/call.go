@@ -29,15 +29,19 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 		x.mode = invalid
 		switch n := len(e.Args); n {
 		case 0:
-			check.errorf(e.Rparen, "missing argument in conversion to %s", T)
+			check.errorf(inNode(e, e.Rparen), _WrongArgCount, "missing argument in conversion to %s", T)
 		case 1:
 			check.expr(x, e.Args[0])
 			if x.mode != invalid {
+				if e.Ellipsis.IsValid() {
+					check.errorf(e.Args[0], _BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
+					break
+				}
 				check.conversion(x, T)
 			}
 		default:
 			check.use(e.Args...)
-			check.errorf(e.Args[n-1].Pos(), "too many arguments in conversion to %s", T)
+			check.errorf(e.Args[n-1], _WrongArgCount, "too many arguments in conversion to %s", T)
 		}
 		x.expr = e
 		return conversion
@@ -60,7 +64,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 
 		sig, _ := x.typ.Underlying().(*Signature)
 		if sig == nil {
-			check.invalidOp(x.pos(), "cannot call non-function %s", x)
+			check.invalidOp(x, _InvalidCall, "cannot call non-function %s", x)
 			x.mode = invalid
 			x.expr = e
 			return statement
@@ -231,13 +235,13 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 	if call.Ellipsis.IsValid() {
 		// last argument is of the form x...
 		if !sig.variadic {
-			check.errorf(call.Ellipsis, "cannot use ... in call to non-variadic %s", call.Fun)
+			check.errorf(atPos(call.Ellipsis), _NonVariadicDotDotDot, "cannot use ... in call to non-variadic %s", call.Fun)
 			check.useGetter(arg, n)
 			return
 		}
 		if len(call.Args) == 1 && n > 1 {
 			// f()... is not permitted if f() is multi-valued
-			check.errorf(call.Ellipsis, "cannot use ... with %d-valued %s", n, call.Args[0])
+			check.errorf(atPos(call.Ellipsis), _InvalidDotDotDotOperand, "cannot use ... with %d-valued %s", n, call.Args[0])
 			check.useGetter(arg, n)
 			return
 		}
@@ -263,7 +267,7 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 		n++
 	}
 	if n < sig.params.Len() {
-		check.errorf(call.Rparen, "too few arguments in call to %s", call.Fun)
+		check.errorf(inNode(call, call.Rparen), _WrongArgCount, "too few arguments in call to %s", call.Fun)
 		// ok to continue
 	}
 }
@@ -291,18 +295,18 @@ func (check *Checker) argument(sig *Signature, i int, x *operand, ellipsis token
 			}
 		}
 	default:
-		check.errorf(x.pos(), "too many arguments")
+		check.errorf(x, _WrongArgCount, "too many arguments")
 		return
 	}
 
 	if ellipsis.IsValid() {
-		// argument is of the form x... and x is single-valued
 		if i != n-1 {
-			check.errorf(ellipsis, "can only use ... with matching parameter")
+			check.errorf(atPos(ellipsis), _MisplacedDotDotDot, "can only use ... with matching parameter")
 			return
 		}
+		// argument is of the form x... and x is single-valued
 		if _, ok := x.typ.Underlying().(*Slice); !ok && x.typ != Typ[UntypedNil] { // see issue #18268
-			check.errorf(x.pos(), "cannot use %s as parameter of type %s", x, typ)
+			check.errorf(x, _InvalidDotDotDotOperand, "cannot use %s as parameter of type %s", x, typ)
 			return
 		}
 	} else if sig.variadic && i >= n-1 {
@@ -365,7 +369,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 					}
 				}
 				if exp == nil {
-					check.errorf(e.Sel.Pos(), "%s not declared by package C", sel)
+					check.errorf(e.Sel, _UndeclaredImportedName, "%s not declared by package C", sel)
 					goto Error
 				}
 				check.objDecl(exp, nil)
@@ -373,12 +377,12 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 				exp = pkg.scope.Lookup(sel)
 				if exp == nil {
 					if !pkg.fake {
-						check.errorf(e.Sel.Pos(), "%s not declared by package %s", sel, pkg.name)
+						check.errorf(e.Sel, _UndeclaredImportedName, "%s not declared by package %s", sel, pkg.name)
 					}
 					goto Error
 				}
 				if !exp.Exported() {
-					check.errorf(e.Sel.Pos(), "%s not exported by package %s", sel, pkg.name)
+					check.errorf(e.Sel, _UnexportedName, "%s not exported by package %s", sel, pkg.name)
 					// ok to continue
 				}
 			}
@@ -431,9 +435,9 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		switch {
 		case index != nil:
 			// TODO(gri) should provide actual type where the conflict happens
-			check.errorf(e.Sel.Pos(), "ambiguous selector %s.%s", x.expr, sel)
+			check.errorf(e.Sel, _AmbiguousSelector, "ambiguous selector %s.%s", x.expr, sel)
 		case indirect:
-			check.errorf(e.Sel.Pos(), "cannot call pointer method %s on %s", sel, x.typ)
+			check.errorf(e.Sel, _InvalidMethodExpr, "cannot call pointer method %s on %s", sel, x.typ)
 		default:
 			// Check if capitalization of sel matters and provide better error
 			// message in that case.
@@ -445,11 +449,11 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 					changeCase = string(unicode.ToUpper(r)) + sel[1:]
 				}
 				if obj, _, _ = check.lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
-					check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no field or method %s, but does have %s)", x.expr, sel, x.typ, sel, changeCase)
+					check.errorf(e.Sel, _MissingFieldOrMethod, "%s.%s undefined (type %s has no field or method %s, but does have %s)", x.expr, sel, x.typ, sel, changeCase)
 					break
 				}
 			}
-			check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no field or method %s)", x.expr, sel, x.typ, sel)
+			check.errorf(e.Sel, _MissingFieldOrMethod, "%s.%s undefined (type %s has no field or method %s)", x.expr, sel, x.typ, sel)
 		}
 		goto Error
 	}
@@ -464,7 +468,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		m, _ := obj.(*Func)
 		if m == nil {
 			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
-			check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
+			check.errorf(e.Sel, _MissingFieldOrMethod, "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
 			goto Error
 		}
 

@@ -12,7 +12,6 @@ import (
 	"go/token"
 	"go/types"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -147,7 +146,7 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 
 	case "$$B\n":
 		var data []byte
-		data, err = ioutil.ReadAll(buf)
+		data, err = io.ReadAll(buf)
 		if err != nil {
 			break
 		}

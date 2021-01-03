@@ -54,7 +54,6 @@ func Test(t *testing.T) {}
 package main
 
 import (
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -62,13 +61,13 @@ import (
 
 func main() {
 	log.SetFlags(0)
-	b, err := ioutil.ReadFile(os.Args[1])
+	b, err := os.ReadFile(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
 	}
 	s := strings.ReplaceAll(string(b), "p.go:4:2:", "p.go:4:")
 	s = strings.ReplaceAll(s, "p1.go:6:2:", "p1.go:6:")
-	ioutil.WriteFile(os.Args[1], []byte(s), 0644)
+	os.WriteFile(os.Args[1], []byte(s), 0644)
 	if err != nil {
 		log.Fatal(err)
 	}

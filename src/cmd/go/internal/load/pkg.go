@@ -14,8 +14,9 @@ import (
 	"go/build"
 	"go/scanner"
 	"go/token"
-	"io/ioutil"
+	"io/fs"
 	"os"
+	"path"
 	pathpkg "path"
 	"path/filepath"
 	"runtime"
@@ -27,12 +28,14 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
+	"cmd/internal/sys"
 )
 
 var IgnoreImports bool // control whether we ignore imports in packages
@@ -58,6 +61,7 @@ type PackagePublic struct {
 	ConflictDir   string                `json:",omitempty"` // Dir is hidden by this other directory
 	ForTest       string                `json:",omitempty"` // package is only for use in named test
 	Export        string                `json:",omitempty"` // file containing export data (set by go list -export)
+	BuildID       string                `json:",omitempty"` // build ID of the compiled package (set by go list -export)
 	Module        *modinfo.ModulePublic `json:",omitempty"` // info about package's module, if any
 	Match         []string              `json:",omitempty"` // command-line patterns matching this package
 	Goroot        bool                  `json:",omitempty"` // is this package found in the Go root?
@@ -75,19 +79,24 @@ type PackagePublic struct {
 	// Source files
 	// If you add to this list you MUST add to p.AllFiles (below) too.
 	// Otherwise file name security lists will not apply to any new additions.
-	GoFiles         []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-	CgoFiles        []string `json:",omitempty"` // .go source files that import "C"
-	CompiledGoFiles []string `json:",omitempty"` // .go output from running cgo on CgoFiles
-	IgnoredGoFiles  []string `json:",omitempty"` // .go source files ignored due to build constraints
-	CFiles          []string `json:",omitempty"` // .c source files
-	CXXFiles        []string `json:",omitempty"` // .cc, .cpp and .cxx source files
-	MFiles          []string `json:",omitempty"` // .m source files
-	HFiles          []string `json:",omitempty"` // .h, .hh, .hpp and .hxx source files
-	FFiles          []string `json:",omitempty"` // .f, .F, .for and .f90 Fortran source files
-	SFiles          []string `json:",omitempty"` // .s source files
-	SwigFiles       []string `json:",omitempty"` // .swig files
-	SwigCXXFiles    []string `json:",omitempty"` // .swigcxx files
-	SysoFiles       []string `json:",omitempty"` // .syso system object files added to package
+	GoFiles           []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+	CgoFiles          []string `json:",omitempty"` // .go source files that import "C"
+	CompiledGoFiles   []string `json:",omitempty"` // .go output from running cgo on CgoFiles
+	IgnoredGoFiles    []string `json:",omitempty"` // .go source files ignored due to build constraints
+	IgnoredOtherFiles []string `json:",omitempty"` // non-.go source files ignored due to build constraints
+	CFiles            []string `json:",omitempty"` // .c source files
+	CXXFiles          []string `json:",omitempty"` // .cc, .cpp and .cxx source files
+	MFiles            []string `json:",omitempty"` // .m source files
+	HFiles            []string `json:",omitempty"` // .h, .hh, .hpp and .hxx source files
+	FFiles            []string `json:",omitempty"` // .f, .F, .for and .f90 Fortran source files
+	SFiles            []string `json:",omitempty"` // .s source files
+	SwigFiles         []string `json:",omitempty"` // .swig files
+	SwigCXXFiles      []string `json:",omitempty"` // .swigcxx files
+	SysoFiles         []string `json:",omitempty"` // .syso system object files added to package
+
+	// Embedded files
+	EmbedPatterns []string `json:",omitempty"` // //go:embed patterns
+	EmbedFiles    []string `json:",omitempty"` // files and directories matched by EmbedPatterns
 
 	// Cgo directives
 	CgoCFLAGS    []string `json:",omitempty"` // cgo: flags for C compiler
@@ -110,10 +119,14 @@ type PackagePublic struct {
 	// Test information
 	// If you add to this list you MUST add to p.AllFiles (below) too.
 	// Otherwise file name security lists will not apply to any new additions.
-	TestGoFiles  []string `json:",omitempty"` // _test.go files in package
-	TestImports  []string `json:",omitempty"` // imports from TestGoFiles
-	XTestGoFiles []string `json:",omitempty"` // _test.go files outside package
-	XTestImports []string `json:",omitempty"` // imports from XTestGoFiles
+	TestGoFiles        []string `json:",omitempty"` // _test.go files in package
+	TestImports        []string `json:",omitempty"` // imports from TestGoFiles
+	TestEmbedPatterns  []string `json:",omitempty"` // //go:embed patterns
+	TestEmbedFiles     []string `json:",omitempty"` // //files matched by EmbedPatterns
+	XTestGoFiles       []string `json:",omitempty"` // _test.go files outside package
+	XTestImports       []string `json:",omitempty"` // imports from XTestGoFiles
+	XTestEmbedPatterns []string `json:",omitempty"` // //go:embed patterns
+	XTestEmbedFiles    []string `json:",omitempty"` // //files matched by EmbedPatterns
 }
 
 // AllFiles returns the names of all the files considered for the package.
@@ -122,11 +135,12 @@ type PackagePublic struct {
 // The go/build package filtered others out (like foo_wrongGOARCH.s)
 // and that's OK.
 func (p *Package) AllFiles() []string {
-	return str.StringList(
+	files := str.StringList(
 		p.GoFiles,
 		p.CgoFiles,
 		// no p.CompiledGoFiles, because they are from GoFiles or generated by us
 		p.IgnoredGoFiles,
+		p.IgnoredOtherFiles,
 		p.CFiles,
 		p.CXXFiles,
 		p.MFiles,
@@ -139,6 +153,27 @@ func (p *Package) AllFiles() []string {
 		p.TestGoFiles,
 		p.XTestGoFiles,
 	)
+
+	// EmbedFiles may overlap with the other files.
+	// Dedup, but delay building the map as long as possible.
+	// Only files in the current directory (no slash in name)
+	// need to be checked against the files variable above.
+	var have map[string]bool
+	for _, file := range p.EmbedFiles {
+		if !strings.Contains(file, "/") {
+			if have == nil {
+				have = make(map[string]bool)
+				for _, file := range files {
+					have[file] = true
+				}
+			}
+			if have[file] {
+				continue
+			}
+		}
+		files = append(files, file)
+	}
+	return files
 }
 
 // Desc returns the package "description", for use in b.showOutput.
@@ -168,6 +203,7 @@ type PackageInternal struct {
 	GobinSubdir       bool                 // install target would be subdir of GOBIN
 	BuildInfo         string               // add this info to package main
 	TestmainGo        *[]byte              // content for _testmain.go
+	Embed             map[string][]string  // //go:embed comment mapping
 
 	Asmflags   []string // -asmflags for this package
 	Gcflags    []string // -gcflags for this package
@@ -185,7 +221,7 @@ type NoGoError struct {
 }
 
 func (e *NoGoError) Error() string {
-	if len(e.Package.constraintIgnoredGoFiles()) > 0 {
+	if len(e.Package.IgnoredGoFiles) > 0 {
 		// Go files exist, but they were ignored due to build constraints.
 		return "build constraints exclude all Go files in " + e.Package.Dir
 	}
@@ -248,8 +284,8 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 	// package's source files themselves (scanner errors).
 	//
 	// TODO(matloob): Perhaps make each of those the errors in the first group
-	// (including modload.ImportMissingError, and the corresponding
-	// "cannot find package %q in any of" GOPATH-mode error
+	// (including modload.ImportMissingError, ImportMissingSumError, and the
+	// corresponding "cannot find package %q in any of" GOPATH-mode error
 	// produced in build.(*Context).Import; modload.AmbiguousImportError,
 	// and modload.PackageNotInModuleError; and the malformed module path errors
 	// produced in golang.org/x/mod/module.CheckMod) implement an interface
@@ -330,6 +366,7 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.GoFiles = pp.GoFiles
 	p.CgoFiles = pp.CgoFiles
 	p.IgnoredGoFiles = pp.IgnoredGoFiles
+	p.IgnoredOtherFiles = pp.IgnoredOtherFiles
 	p.CFiles = pp.CFiles
 	p.CXXFiles = pp.CXXFiles
 	p.MFiles = pp.MFiles
@@ -359,6 +396,9 @@ func (p *Package) copyBuild(pp *build.Package) {
 		p.TestImports = nil
 		p.XTestImports = nil
 	}
+	p.EmbedPatterns = pp.EmbedPatterns
+	p.TestEmbedPatterns = pp.TestEmbedPatterns
+	p.XTestEmbedPatterns = pp.XTestEmbedPatterns
 }
 
 // A PackageError describes an error loading information about a package.
@@ -423,6 +463,7 @@ type ImportPathError interface {
 var (
 	_ ImportPathError = (*importError)(nil)
 	_ ImportPathError = (*modload.ImportMissingError)(nil)
+	_ ImportPathError = (*modload.ImportMissingSumError)(nil)
 )
 
 type importError struct {
@@ -952,6 +993,12 @@ func (pre *preload) preloadImports(imports []string, parent *build.Package) {
 // loadPackageData have completed. The preloader will not make any new calls
 // to loadPackageData.
 func (pre *preload) flush() {
+	// flush is usually deferred.
+	// Don't hang program waiting for workers on panic.
+	if v := recover(); v != nil {
+		panic(v)
+	}
+
 	close(pre.cancel)
 	for i := 0; i < preloadWorkerCount; i++ {
 		pre.sema <- struct{}{}
@@ -971,7 +1018,7 @@ var isDirCache par.Cache
 
 func isDir(path string) bool {
 	return isDirCache.Do(path, func() interface{} {
-		fi, err := os.Stat(path)
+		fi, err := fsys.Stat(path)
 		return err == nil && fi.IsDir()
 	}).(bool)
 }
@@ -1099,7 +1146,7 @@ var (
 // goModPath returns the module path in the go.mod in dir, if any.
 func goModPath(dir string) (path string) {
 	return goModPathCache.Do(dir, func() interface{} {
-		data, err := ioutil.ReadFile(filepath.Join(dir, "go.mod"))
+		data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 		if err != nil {
 			return ""
 		}
@@ -1248,9 +1295,9 @@ HaveGoMod:
 // Otherwise it is not possible to vendor just a/b/c and still import the
 // non-vendored a/b. See golang.org/issue/13832.
 func hasGoFiles(dir string) bool {
-	fis, _ := ioutil.ReadDir(dir)
-	for _, fi := range fis {
-		if !fi.IsDir() && strings.HasSuffix(fi.Name(), ".go") {
+	files, _ := os.ReadDir(dir)
+	for _, f := range files {
+		if !f.IsDir() && strings.HasSuffix(f.Name(), ".go") {
 			return true
 		}
 	}
@@ -1616,6 +1663,11 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 		p.setLoadPackageDataError(err, path, stk, importPos)
 	}
 
+	p.EmbedFiles, p.Internal.Embed, err = p.resolveEmbed(p.EmbedPatterns)
+	if err != nil {
+		setError(err)
+	}
+
 	useBindir := p.Name == "main"
 	if !p.Standard {
 		switch cfg.BuildBuildmode {
@@ -1675,7 +1727,7 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 			// not work for any package that lacks a Target — such as a non-main
 			// package in module mode. We should probably fix that.
 			shlibnamefile := p.Target[:len(p.Target)-2] + ".shlibname"
-			shlib, err := ioutil.ReadFile(shlibnamefile)
+			shlib, err := os.ReadFile(shlibnamefile)
 			if err != nil && !os.IsNotExist(err) {
 				base.Fatalf("reading shlibname: %v", err)
 			}
@@ -1857,6 +1909,162 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 	}
 }
 
+// ResolveEmbed resolves //go:embed patterns and returns only the file list.
+// For use by go list to compute p.TestEmbedFiles and p.XTestEmbedFiles.
+func (p *Package) ResolveEmbed(patterns []string) []string {
+	files, _, _ := p.resolveEmbed(patterns)
+	return files
+}
+
+// resolveEmbed resolves //go:embed patterns to precise file lists.
+// It sets files to the list of unique files matched (for go list),
+// and it sets pmap to the more precise mapping from
+// patterns to files.
+// TODO(rsc): All these messages need position information for better error reports.
+func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[string][]string, err error) {
+	pmap = make(map[string][]string)
+	have := make(map[string]int)
+	dirOK := make(map[string]bool)
+	pid := 0 // pattern ID, to allow reuse of have map
+	for _, pattern := range patterns {
+		pid++
+
+		// Check pattern is valid for //go:embed.
+		if _, err := path.Match(pattern, ""); err != nil || !validEmbedPattern(pattern) {
+			return nil, nil, fmt.Errorf("pattern %s: invalid pattern syntax", pattern)
+		}
+
+		// Glob to find matches.
+		match, err := fsys.Glob(p.Dir + string(filepath.Separator) + filepath.FromSlash(pattern))
+		if err != nil {
+			return nil, nil, fmt.Errorf("pattern %s: %v", pattern, err)
+		}
+
+		// Filter list of matches down to the ones that will still exist when
+		// the directory is packaged up as a module. (If p.Dir is in the module cache,
+		// only those files exist already, but if p.Dir is in the current module,
+		// then there may be other things lying around, like symbolic links or .git directories.)
+		var list []string
+		for _, file := range match {
+			rel := filepath.ToSlash(file[len(p.Dir)+1:]) // file, relative to p.Dir
+
+			what := "file"
+			info, err := fsys.Lstat(file)
+			if err != nil {
+				return nil, nil, err
+			}
+			if info.IsDir() {
+				what = "directory"
+			}
+
+			// Check that directories along path do not begin a new module
+			// (do not contain a go.mod).
+			for dir := file; len(dir) > len(p.Dir)+1 && !dirOK[dir]; dir = filepath.Dir(dir) {
+				if _, err := fsys.Stat(filepath.Join(dir, "go.mod")); err == nil {
+					return nil, nil, fmt.Errorf("pattern %s: cannot embed %s %s: in different module", pattern, what, rel)
+				}
+				if dir != file {
+					if info, err := fsys.Lstat(dir); err == nil && !info.IsDir() {
+						return nil, nil, fmt.Errorf("pattern %s: cannot embed %s %s: in non-directory %s", pattern, what, rel, dir[len(p.Dir)+1:])
+					}
+				}
+				dirOK[dir] = true
+				if elem := filepath.Base(dir); isBadEmbedName(elem) {
+					if dir == file {
+						return nil, nil, fmt.Errorf("pattern %s: cannot embed %s %s: invalid name %s", pattern, what, rel, elem)
+					} else {
+						return nil, nil, fmt.Errorf("pattern %s: cannot embed %s %s: in invalid directory %s", pattern, what, rel, elem)
+					}
+				}
+			}
+
+			switch {
+			default:
+				return nil, nil, fmt.Errorf("pattern %s: cannot embed irregular file %s", pattern, rel)
+
+			case info.Mode().IsRegular():
+				if have[rel] != pid {
+					have[rel] = pid
+					list = append(list, rel)
+				}
+
+			case info.IsDir():
+				// Gather all files in the named directory, stopping at module boundaries
+				// and ignoring files that wouldn't be packaged into a module.
+				count := 0
+				err := fsys.Walk(file, func(path string, info os.FileInfo, err error) error {
+					if err != nil {
+						return err
+					}
+					rel := filepath.ToSlash(path[len(p.Dir)+1:])
+					name := info.Name()
+					if path != file && (isBadEmbedName(name) || name[0] == '.' || name[0] == '_') {
+						// Ignore bad names, assuming they won't go into modules.
+						// Also avoid hidden files that user may not know about.
+						// See golang.org/issue/42328.
+						if info.IsDir() {
+							return fs.SkipDir
+						}
+						return nil
+					}
+					if info.IsDir() {
+						if _, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil {
+							return filepath.SkipDir
+						}
+						return nil
+					}
+					if !info.Mode().IsRegular() {
+						return nil
+					}
+					count++
+					if have[rel] != pid {
+						have[rel] = pid
+						list = append(list, rel)
+					}
+					return nil
+				})
+				if err != nil {
+					return nil, nil, err
+				}
+				if count == 0 {
+					return nil, nil, fmt.Errorf("pattern %s: cannot embed directory %s: contains no embeddable files", pattern, rel)
+				}
+			}
+		}
+
+		if len(list) == 0 {
+			return nil, nil, fmt.Errorf("pattern %s: no matching files found", pattern)
+		}
+		sort.Strings(list)
+		pmap[pattern] = list
+	}
+
+	for file := range have {
+		files = append(files, file)
+	}
+	sort.Strings(files)
+	return files, pmap, nil
+}
+
+func validEmbedPattern(pattern string) bool {
+	return pattern != "." && fs.ValidPath(pattern)
+}
+
+// isBadEmbedName reports whether name is the base name of a file that
+// can't or won't be included in modules and therefore shouldn't be treated
+// as existing for embedding.
+func isBadEmbedName(name string) bool {
+	switch name {
+	// Empty string should be impossible but make it bad.
+	case "":
+		return true
+	// Version control directories won't be present in module.
+	case ".bzr", ".hg", ".git", ".svn":
+		return true
+	}
+	return false
+}
+
 // collectDeps populates p.Deps and p.DepsErrors by iterating over
 // p.Internal.Imports.
 //
@@ -1944,37 +2152,40 @@ func LinkerDeps(p *Package) []string {
 // externalLinkingForced reports whether external linking is being
 // forced even for programs that do not use cgo.
 func externalLinkingForced(p *Package) bool {
+	if !cfg.BuildContext.CgoEnabled {
+		return false
+	}
+
 	// Some targets must use external linking even inside GOROOT.
 	switch cfg.BuildContext.GOOS {
 	case "android":
 		if cfg.BuildContext.GOARCH != "arm64" {
 			return true
 		}
-	case "darwin", "ios":
-		if cfg.BuildContext.GOARCH == "arm64" {
-			return true
-		}
+	case "ios":
+		return true
 	}
 
-	if !cfg.BuildContext.CgoEnabled {
-		return false
-	}
 	// Currently build modes c-shared, pie (on systems that do not
 	// support PIE with internal linking mode (currently all
 	// systems: issue #18968)), plugin, and -linkshared force
 	// external linking mode, as of course does
 	// -ldflags=-linkmode=external. External linking mode forces
 	// an import of runtime/cgo.
-	pieCgo := cfg.BuildBuildmode == "pie"
+	// If there are multiple -linkmode options, the last one wins.
+	pieCgo := cfg.BuildBuildmode == "pie" && !sys.InternalLinkPIESupported(cfg.BuildContext.GOOS, cfg.BuildContext.GOARCH)
 	linkmodeExternal := false
 	if p != nil {
 		ldflags := BuildLdflags.For(p)
-		for i, a := range ldflags {
-			if a == "-linkmode=external" {
+		for i := len(ldflags) - 1; i >= 0; i-- {
+			a := ldflags[i]
+			if a == "-linkmode=external" ||
+				a == "-linkmode" && i+1 < len(ldflags) && ldflags[i+1] == "external" {
 				linkmodeExternal = true
-			}
-			if a == "-linkmode" && i+1 < len(ldflags) && ldflags[i+1] == "external" {
-				linkmodeExternal = true
+				break
+			} else if a == "-linkmode=internal" ||
+				a == "-linkmode" && i+1 < len(ldflags) && ldflags[i+1] == "internal" {
+				break
 			}
 		}
 	}
@@ -2009,22 +2220,7 @@ func (p *Package) InternalXGoFiles() []string {
 // using absolute paths. "Possibly relevant" means that files are not excluded
 // due to build tags, but files with names beginning with . or _ are still excluded.
 func (p *Package) InternalAllGoFiles() []string {
-	return p.mkAbs(str.StringList(p.constraintIgnoredGoFiles(), p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles))
-}
-
-// constraintIgnoredGoFiles returns the list of Go files ignored for reasons
-// other than having a name beginning with '.' or '_'.
-func (p *Package) constraintIgnoredGoFiles() []string {
-	if len(p.IgnoredGoFiles) == 0 {
-		return nil
-	}
-	files := make([]string, 0, len(p.IgnoredGoFiles))
-	for _, f := range p.IgnoredGoFiles {
-		if f != "" && f[0] != '.' && f[0] != '_' {
-			files = append(files, f)
-		}
-	}
-	return files
+	return p.mkAbs(str.StringList(p.IgnoredGoFiles, p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles))
 }
 
 // usesSwig reports whether the package needs to run SWIG.
@@ -2118,30 +2314,14 @@ func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack,
 // argument where needed.
 var ModResolveTests bool
 
-// Packages returns the packages named by the
-// command line arguments 'args'. If a named package
-// cannot be loaded at all (for example, if the directory does not exist),
-// then packages prints an error and does not include that
-// package in the results. However, if errors occur trying
-// to load dependencies of a named package, the named
-// package is still returned, with p.Incomplete = true
-// and details in p.DepsErrors.
-func Packages(ctx context.Context, args []string) []*Package {
-	var pkgs []*Package
-	for _, pkg := range PackagesAndErrors(ctx, args) {
-		if pkg.Error != nil {
-			base.Errorf("%v", pkg.Error)
-			continue
-		}
-		pkgs = append(pkgs, pkg)
-	}
-	return pkgs
-}
-
-// PackagesAndErrors is like 'packages' but returns a
-// *Package for every argument, even the ones that
-// cannot be loaded at all.
-// The packages that fail to load will have p.Error != nil.
+// PackagesAndErrors returns the packages named by the command line arguments
+// 'patterns'. If a named package cannot be loaded, PackagesAndErrors returns
+// a *Package with the Error field describing the failure. If errors are found
+// loading imported packages, the DepsErrors field is set. The Incomplete field
+// may be set as well.
+//
+// To obtain a flat list of packages, use PackageList.
+// To report errors loading packages, use ReportPackageErrors.
 func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
 	ctx, span := trace.StartSpan(ctx, "load.PackagesAndErrors")
 	defer span.Done()
@@ -2153,7 +2333,7 @@ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
 		if strings.HasSuffix(p, ".go") {
 			// We need to test whether the path is an actual Go file and not a
 			// package path or pattern ending in '.go' (see golang.org/issue/34653).
-			if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
+			if fi, err := fsys.Stat(p); err == nil && !fi.IsDir() {
 				return []*Package{GoFilesPackage(ctx, patterns)}
 			}
 		}
@@ -2231,20 +2411,9 @@ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
 	return pkgs
 }
 
-func setToolFlags(pkgs ...*Package) {
-	for _, p := range PackageList(pkgs) {
-		p.Internal.Asmflags = BuildAsmflags.For(p)
-		p.Internal.Gcflags = BuildGcflags.For(p)
-		p.Internal.Ldflags = BuildLdflags.For(p)
-		p.Internal.Gccgoflags = BuildGccgoflags.For(p)
-	}
-}
-
-// PackagesForBuild is like Packages but exits
-// if any of the packages or their dependencies have errors
-// (cannot be built).
-func PackagesForBuild(ctx context.Context, args []string) []*Package {
-	pkgs := PackagesAndErrors(ctx, args)
+// CheckPackageErrors prints errors encountered loading pkgs and their
+// dependencies, then exits with a non-zero status if any errors were found.
+func CheckPackageErrors(pkgs []*Package) {
 	printed := map[*PackageError]bool{}
 	for _, pkg := range pkgs {
 		if pkg.Error != nil {
@@ -2279,8 +2448,15 @@ func PackagesForBuild(ctx context.Context, args []string) []*Package {
 		seen[pkg.ImportPath] = true
 	}
 	base.ExitIfErrors()
+}
 
-	return pkgs
+func setToolFlags(pkgs ...*Package) {
+	for _, p := range PackageList(pkgs) {
+		p.Internal.Asmflags = BuildAsmflags.For(p)
+		p.Internal.Gcflags = BuildGcflags.For(p)
+		p.Internal.Ldflags = BuildLdflags.For(p)
+		p.Internal.Gccgoflags = BuildGccgoflags.For(p)
+	}
 }
 
 // GoFilesPackage creates a package for building a collection of Go files
@@ -2310,10 +2486,10 @@ func GoFilesPackage(ctx context.Context, gofiles []string) *Package {
 	// to make it look like this is a standard package or
 	// command directory. So that local imports resolve
 	// consistently, the files must all be in the same directory.
-	var dirent []os.FileInfo
+	var dirent []fs.FileInfo
 	var dir string
 	for _, file := range gofiles {
-		fi, err := os.Stat(file)
+		fi, err := fsys.Stat(file)
 		if err != nil {
 			base.Fatalf("%s", err)
 		}
@@ -2331,7 +2507,7 @@ func GoFilesPackage(ctx context.Context, gofiles []string) *Package {
 		}
 		dirent = append(dirent, fi)
 	}
-	ctxt.ReadDir = func(string) ([]os.FileInfo, error) { return dirent, nil }
+	ctxt.ReadDir = func(string) ([]fs.FileInfo, error) { return dirent, nil }
 
 	if cfg.ModulesEnabled {
 		modload.ImportFromFiles(ctx, gofiles)

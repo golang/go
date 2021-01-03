@@ -13,7 +13,7 @@ import (
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
 //go:nosplit
-func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
 	p := sysReserve(nil, n)
 	sysMap(p, n, sysStat)
 	return p
@@ -31,8 +31,8 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
 //go:nosplit
-func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
-	mSysStatDec(sysStat, n)
+func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+	sysStat.add(-int64(n))
 }
 
 func sysFault(v unsafe.Pointer, n uintptr) {
@@ -80,6 +80,6 @@ func growMemory(pages int32) int32
 // This allows the front-end to replace the old DataView object with a new one.
 func resetMemoryDataView()
 
-func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
-	mSysStatInc(sysStat, n)
+func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+	sysStat.add(int64(n))
 }

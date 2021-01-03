@@ -8,6 +8,7 @@ import (
 	"flag"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/str"
 )
 
@@ -66,4 +67,5 @@ func AddModFlag(flags *flag.FlagSet) {
 func AddModCommonFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&cfg.ModCacheRW, "modcacherw", false, "")
 	flags.StringVar(&cfg.ModFile, "modfile", "", "")
+	flags.StringVar(&fsys.OverlayFile, "overlay", "", "")
 }

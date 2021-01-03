@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/race"
+	"internal/sysinfo"
 	"io"
 	"math"
 	"os"
@@ -262,6 +263,9 @@ func (b *B) run() {
 		if b.importPath != "" {
 			fmt.Fprintf(b.w, "pkg: %s\n", b.importPath)
 		}
+		if cpu := sysinfo.CPU.Name(); cpu != "" {
+			fmt.Fprintf(b.w, "cpu: %s\n", cpu)
+		}
 	})
 	if b.context != nil {
 		// Running go test --test.bench
@@ -447,23 +451,27 @@ func (r BenchmarkResult) String() string {
 
 func prettyPrint(w io.Writer, x float64, unit string) {
 	// Print all numbers with 10 places before the decimal point
-	// and small numbers with three sig figs.
+	// and small numbers with four sig figs. Field widths are
+	// chosen to fit the whole part in 10 places while aligning
+	// the decimal point of all fractional formats.
 	var format string
 	switch y := math.Abs(x); {
-	case y == 0 || y >= 99.95:
+	case y == 0 || y >= 999.95:
 		format = "%10.0f %s"
-	case y >= 9.995:
+	case y >= 99.995:
 		format = "%12.1f %s"
-	case y >= 0.9995:
+	case y >= 9.9995:
 		format = "%13.2f %s"
-	case y >= 0.09995:
+	case y >= 0.99995:
 		format = "%14.3f %s"
-	case y >= 0.009995:
+	case y >= 0.099995:
 		format = "%15.4f %s"
-	case y >= 0.0009995:
+	case y >= 0.0099995:
 		format = "%16.5f %s"
-	default:
+	case y >= 0.00099995:
 		format = "%17.6f %s"
+	default:
+		format = "%18.7f %s"
 	}
 	fmt.Fprintf(w, format, x, unit)
 }
@@ -647,6 +655,9 @@ func (b *B) Run(name string, f func(b *B)) bool {
 			fmt.Printf("goarch: %s\n", runtime.GOARCH)
 			if b.importPath != "" {
 				fmt.Printf("pkg: %s\n", b.importPath)
+			}
+			if cpu := sysinfo.CPU.Name(); cpu != "" {
+				fmt.Printf("cpu: %s\n", cpu)
 			}
 		})
 

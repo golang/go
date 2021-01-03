@@ -6,6 +6,7 @@ package ld
 
 import (
 	"bytes"
+	"cmd/internal/codesign"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
@@ -17,6 +18,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"unsafe"
 )
 
 type MachoHdr struct {
@@ -118,6 +120,8 @@ const (
 	MH_EXECUTE = 0x2
 
 	MH_NOUNDEFS = 0x1
+	MH_DYLDLINK = 0x4
+	MH_PIE      = 0x200000
 )
 
 const (
@@ -192,6 +196,58 @@ const (
 	PLATFORM_WATCHOS  MachoPlatform = 4
 	PLATFORM_BRIDGEOS MachoPlatform = 5
 )
+
+// rebase table opcode
+const (
+	REBASE_TYPE_POINTER         = 1
+	REBASE_TYPE_TEXT_ABSOLUTE32 = 2
+	REBASE_TYPE_TEXT_PCREL32    = 3
+
+	REBASE_OPCODE_MASK                               = 0xF0
+	REBASE_IMMEDIATE_MASK                            = 0x0F
+	REBASE_OPCODE_DONE                               = 0x00
+	REBASE_OPCODE_SET_TYPE_IMM                       = 0x10
+	REBASE_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB        = 0x20
+	REBASE_OPCODE_ADD_ADDR_ULEB                      = 0x30
+	REBASE_OPCODE_ADD_ADDR_IMM_SCALED                = 0x40
+	REBASE_OPCODE_DO_REBASE_IMM_TIMES                = 0x50
+	REBASE_OPCODE_DO_REBASE_ULEB_TIMES               = 0x60
+	REBASE_OPCODE_DO_REBASE_ADD_ADDR_ULEB            = 0x70
+	REBASE_OPCODE_DO_REBASE_ULEB_TIMES_SKIPPING_ULEB = 0x80
+)
+
+// bind table opcode
+const (
+	BIND_TYPE_POINTER         = 1
+	BIND_TYPE_TEXT_ABSOLUTE32 = 2
+	BIND_TYPE_TEXT_PCREL32    = 3
+
+	BIND_SPECIAL_DYLIB_SELF            = 0
+	BIND_SPECIAL_DYLIB_MAIN_EXECUTABLE = -1
+	BIND_SPECIAL_DYLIB_FLAT_LOOKUP     = -2
+	BIND_SPECIAL_DYLIB_WEAK_LOOKUP     = -3
+
+	BIND_OPCODE_MASK                                         = 0xF0
+	BIND_IMMEDIATE_MASK                                      = 0x0F
+	BIND_OPCODE_DONE                                         = 0x00
+	BIND_OPCODE_SET_DYLIB_ORDINAL_IMM                        = 0x10
+	BIND_OPCODE_SET_DYLIB_ORDINAL_ULEB                       = 0x20
+	BIND_OPCODE_SET_DYLIB_SPECIAL_IMM                        = 0x30
+	BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM                = 0x40
+	BIND_OPCODE_SET_TYPE_IMM                                 = 0x50
+	BIND_OPCODE_SET_ADDEND_SLEB                              = 0x60
+	BIND_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB                  = 0x70
+	BIND_OPCODE_ADD_ADDR_ULEB                                = 0x80
+	BIND_OPCODE_DO_BIND                                      = 0x90
+	BIND_OPCODE_DO_BIND_ADD_ADDR_ULEB                        = 0xA0
+	BIND_OPCODE_DO_BIND_ADD_ADDR_IMM_SCALED                  = 0xB0
+	BIND_OPCODE_DO_BIND_ULEB_TIMES_SKIPPING_ULEB             = 0xC0
+	BIND_OPCODE_THREADED                                     = 0xD0
+	BIND_SUBOPCODE_THREADED_SET_BIND_ORDINAL_TABLE_SIZE_ULEB = 0x00
+	BIND_SUBOPCODE_THREADED_APPLY                            = 0x01
+)
+
+const machoHeaderSize64 = 8 * 4 // size of 64-bit Mach-O header
 
 // Mach-O file writing
 // https://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
@@ -279,7 +335,7 @@ var dylib []string
 
 var linkoff int64
 
-func machowrite(arch *sys.Arch, out *OutBuf, linkmode LinkMode) int {
+func machowrite(ctxt *Link, arch *sys.Arch, out *OutBuf, linkmode LinkMode) int {
 	o1 := out.Offset()
 
 	loadsize := 4 * 4 * ndebug
@@ -308,11 +364,14 @@ func machowrite(arch *sys.Arch, out *OutBuf, linkmode LinkMode) int {
 	}
 	out.Write32(uint32(len(load)) + uint32(nseg) + uint32(ndebug))
 	out.Write32(uint32(loadsize))
+	flags := uint32(0)
 	if nkind[SymKindUndef] == 0 {
-		out.Write32(MH_NOUNDEFS) /* flags - no undefines */
-	} else {
-		out.Write32(0) /* flags */
+		flags |= MH_NOUNDEFS
 	}
+	if ctxt.IsPIE() && linkmode == LinkInternal {
+		flags |= MH_PIE | MH_DYLDLINK
+	}
+	out.Write32(flags) /* flags */
 	if arch.PtrSize == 8 {
 		out.Write32(0) /* reserved */
 	}
@@ -475,6 +534,18 @@ func (ctxt *Link) domacho() {
 		sb.SetReachable(true)
 		sb.AddUint8(0)
 	}
+
+	// Do not export C symbols dynamically in plugins, as runtime C symbols like crosscall2
+	// are in pclntab and end up pointing at the host binary, breaking unwinding.
+	// See Issue #18190.
+	if ctxt.BuildMode == BuildModePlugin {
+		for _, name := range []string{"_cgo_topofstack", "__cgo_topofstack", "_cgo_panic", "crosscall2"} {
+			s := ctxt.loader.Lookup(name, 0)
+			if s != 0 {
+				ctxt.loader.SetAttrCgoExportDynamic(s, false)
+			}
+		}
+	}
 }
 
 func machoadddynlib(lib string, linkmode LinkMode) {
@@ -575,6 +646,8 @@ func asmbMacho(ctxt *Link) {
 		machoEmitReloc(ctxt)
 	}
 	ctxt.Out.SeekSet(0)
+
+	ldr := ctxt.loader
 
 	/* apple MACH */
 	va := *FlagTextAddr - int64(HEADR)
@@ -684,40 +757,56 @@ func asmbMacho(ctxt *Link) {
 			ml.data[2+32+1] = uint32(Entryvalue(ctxt) >> 32)
 
 		case sys.ARM64:
-			ml := newMachoLoad(ctxt.Arch, LC_UNIXTHREAD, 68+2)
-			ml.data[0] = 6                           /* thread type */
-			ml.data[1] = 68                          /* word count */
-			ml.data[2+64] = uint32(Entryvalue(ctxt)) /* start pc */
-			ml.data[2+64+1] = uint32(Entryvalue(ctxt) >> 32)
+			ml := newMachoLoad(ctxt.Arch, LC_MAIN, 4)
+			ml.data[0] = uint32(uint64(Entryvalue(ctxt)) - (Segtext.Vaddr - uint64(HEADR)))
+			ml.data[1] = uint32((uint64(Entryvalue(ctxt)) - (Segtext.Vaddr - uint64(HEADR))) >> 32)
 		}
 	}
 
+	var codesigOff int64
 	if !*FlagD {
-		ldr := ctxt.loader
-
-		// must match domacholink below
-		s1 := ldr.SymSize(ldr.Lookup(".machosymtab", 0))
-		s2 := ldr.SymSize(ctxt.ArchSyms.LinkEditPLT)
-		s3 := ldr.SymSize(ctxt.ArchSyms.LinkEditGOT)
-		s4 := ldr.SymSize(ldr.Lookup(".machosymstr", 0))
+		// must match doMachoLink below
+		s1 := ldr.SymSize(ldr.Lookup(".machorebase", 0))
+		s2 := ldr.SymSize(ldr.Lookup(".machobind", 0))
+		s3 := ldr.SymSize(ldr.Lookup(".machosymtab", 0))
+		s4 := ldr.SymSize(ctxt.ArchSyms.LinkEditPLT)
+		s5 := ldr.SymSize(ctxt.ArchSyms.LinkEditGOT)
+		s6 := ldr.SymSize(ldr.Lookup(".machosymstr", 0))
+		s7 := ldr.SymSize(ldr.Lookup(".machocodesig", 0))
 
 		if ctxt.LinkMode != LinkExternal {
 			ms := newMachoSeg("__LINKEDIT", 0)
 			ms.vaddr = uint64(Rnd(int64(Segdata.Vaddr+Segdata.Length), int64(*FlagRound)))
-			ms.vsize = uint64(s1) + uint64(s2) + uint64(s3) + uint64(s4)
+			ms.vsize = uint64(s1 + s2 + s3 + s4 + s5 + s6 + s7)
 			ms.fileoffset = uint64(linkoff)
 			ms.filesize = ms.vsize
-			ms.prot1 = 7
-			ms.prot2 = 3
+			ms.prot1 = 1
+			ms.prot2 = 1
+
+			codesigOff = linkoff + s1 + s2 + s3 + s4 + s5 + s6
+		}
+
+		if ctxt.LinkMode != LinkExternal && ctxt.IsPIE() {
+			ml := newMachoLoad(ctxt.Arch, LC_DYLD_INFO_ONLY, 10)
+			ml.data[0] = uint32(linkoff)      // rebase off
+			ml.data[1] = uint32(s1)           // rebase size
+			ml.data[2] = uint32(linkoff + s1) // bind off
+			ml.data[3] = uint32(s2)           // bind size
+			ml.data[4] = 0                    // weak bind off
+			ml.data[5] = 0                    // weak bind size
+			ml.data[6] = 0                    // lazy bind off
+			ml.data[7] = 0                    // lazy bind size
+			ml.data[8] = 0                    // export
+			ml.data[9] = 0                    // export size
 		}
 
 		ml := newMachoLoad(ctxt.Arch, LC_SYMTAB, 4)
-		ml.data[0] = uint32(linkoff)                /* symoff */
-		ml.data[1] = uint32(nsortsym)               /* nsyms */
-		ml.data[2] = uint32(linkoff + s1 + s2 + s3) /* stroff */
-		ml.data[3] = uint32(s4)                     /* strsize */
+		ml.data[0] = uint32(linkoff + s1 + s2)                /* symoff */
+		ml.data[1] = uint32(nsortsym)                         /* nsyms */
+		ml.data[2] = uint32(linkoff + s1 + s2 + s3 + s4 + s5) /* stroff */
+		ml.data[3] = uint32(s6)                               /* strsize */
 
-		machodysymtab(ctxt)
+		machodysymtab(ctxt, linkoff+s1+s2)
 
 		if ctxt.LinkMode != LinkExternal {
 			ml := newMachoLoad(ctxt.Arch, LC_LOAD_DYLINKER, 6)
@@ -733,11 +822,30 @@ func asmbMacho(ctxt *Link) {
 				stringtouint32(ml.data[4:], lib)
 			}
 		}
+
+		if ctxt.IsInternal() && ctxt.NeedCodeSign() {
+			ml := newMachoLoad(ctxt.Arch, LC_CODE_SIGNATURE, 2)
+			ml.data[0] = uint32(codesigOff)
+			ml.data[1] = uint32(s7)
+		}
 	}
 
-	a := machowrite(ctxt.Arch, ctxt.Out, ctxt.LinkMode)
+	a := machowrite(ctxt, ctxt.Arch, ctxt.Out, ctxt.LinkMode)
 	if int32(a) > HEADR {
 		Exitf("HEADR too small: %d > %d", a, HEADR)
+	}
+
+	// Now we have written everything. Compute the code signature (which
+	// is a hash of the file content, so it must be done at last.)
+	if ctxt.IsInternal() && ctxt.NeedCodeSign() {
+		cs := ldr.Lookup(".machocodesig", 0)
+		data := ctxt.Out.Data()
+		if int64(len(data)) != codesigOff {
+			panic("wrong size")
+		}
+		codesign.Sign(ldr.Data(cs), bytes.NewReader(data), "a.out", codesigOff, int64(Segtext.Fileoff), int64(Segtext.Filelen), ctxt.IsExe() || ctxt.IsPIE())
+		ctxt.Out.SeekSet(codesigOff)
+		ctxt.Out.Write(ldr.Data(cs))
 	}
 }
 
@@ -820,12 +928,10 @@ func collectmachosyms(ctxt *Link) {
 					switch objabi.GOARCH {
 					case "amd64":
 						ldr.SetSymExtname(s, n+"$INODE64")
-					case "386":
-						ldr.SetSymExtname(s, n+"$INODE64$UNIX2003")
 					}
 				case "readdir_r", "getfsstat":
 					switch objabi.GOARCH {
-					case "amd64", "386":
+					case "amd64":
 						ldr.SetSymExtname(s, n+"$INODE64")
 					}
 				}
@@ -861,6 +967,15 @@ func machosymorder(ctxt *Link) {
 	for i, s := range sortsym {
 		ldr.SetSymDynid(s, int32(i))
 	}
+}
+
+// AddMachoSym adds s to Mach-O symbol table, used in GenSymLate.
+// Currently only used on ARM64 when external linking.
+func AddMachoSym(ldr *loader.Loader, s loader.Sym) {
+	ldr.SetSymDynid(s, int32(nsortsym))
+	sortsym = append(sortsym, s)
+	nsortsym++
+	nkind[symkind(ldr, s)]++
 }
 
 // machoShouldExport reports whether a symbol needs to be exported.
@@ -899,19 +1014,12 @@ func machosymtab(ctxt *Link) {
 		symtab.AddUint32(ctxt.Arch, uint32(symstr.Size()))
 
 		export := machoShouldExport(ctxt, ldr, s)
-		isGoSymbol := strings.Contains(ldr.SymExtname(s), ".")
 
-		// In normal buildmodes, only add _ to C symbols, as
-		// Go symbols have dot in the name.
-		//
-		// Do not export C symbols in plugins, as runtime C
-		// symbols like crosscall2 are in pclntab and end up
-		// pointing at the host binary, breaking unwinding.
-		// See Issue #18190.
-		cexport := !isGoSymbol && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(ldr.SymName(s)))
-		if cexport || export || isGoSymbol {
-			symstr.AddUint8('_')
-		}
+		// Prefix symbol names with "_" to match the system toolchain.
+		// (We used to only prefix C symbols, which is all required for the build.
+		// But some tools don't recognize Go symbols as symbols, so we prefix them
+		// as well.)
+		symstr.AddUint8('_')
 
 		// replace "·" as ".", because DTrace cannot handle it.
 		symstr.Addstring(strings.Replace(ldr.SymExtname(s), "·", ".", -1))
@@ -922,10 +1030,13 @@ func machosymtab(ctxt *Link) {
 			symtab.AddUint16(ctxt.Arch, 0)                    // desc
 			symtab.AddUintXX(ctxt.Arch, 0, ctxt.Arch.PtrSize) // no value
 		} else {
-			if ldr.AttrCgoExport(s) || export {
-				symtab.AddUint8(0x0f)
+			if export || ldr.AttrCgoExportDynamic(s) {
+				symtab.AddUint8(0x0f) // N_SECT | N_EXT
+			} else if ldr.AttrCgoExportStatic(s) {
+				// Only export statically, not dynamically. (N_PEXT is like hidden visibility)
+				symtab.AddUint8(0x1f) // N_SECT | N_EXT | N_PEXT
 			} else {
-				symtab.AddUint8(0x0e)
+				symtab.AddUint8(0x0e) // N_SECT
 			}
 			o := s
 			if outer := ldr.OuterSym(o); outer != 0 {
@@ -943,7 +1054,7 @@ func machosymtab(ctxt *Link) {
 	}
 }
 
-func machodysymtab(ctxt *Link) {
+func machodysymtab(ctxt *Link, base int64) {
 	ml := newMachoLoad(ctxt.Arch, LC_DYSYMTAB, 18)
 
 	n := 0
@@ -971,7 +1082,7 @@ func machodysymtab(ctxt *Link) {
 	s1 := ldr.SymSize(ldr.Lookup(".machosymtab", 0))
 	s2 := ldr.SymSize(ctxt.ArchSyms.LinkEditPLT)
 	s3 := ldr.SymSize(ctxt.ArchSyms.LinkEditGOT)
-	ml.data[12] = uint32(linkoff + s1)  /* indirectsymoff */
+	ml.data[12] = uint32(base + s1)     /* indirectsymoff */
 	ml.data[13] = uint32((s2 + s3) / 4) /* nindirectsyms */
 
 	ml.data[14] = 0 /* extreloff */
@@ -982,14 +1093,19 @@ func machodysymtab(ctxt *Link) {
 
 func doMachoLink(ctxt *Link) int64 {
 	machosymtab(ctxt)
+	machoDyldInfo(ctxt)
 
 	ldr := ctxt.loader
 
 	// write data that will be linkedit section
-	s1 := ldr.Lookup(".machosymtab", 0)
-	s2 := ctxt.ArchSyms.LinkEditPLT
-	s3 := ctxt.ArchSyms.LinkEditGOT
-	s4 := ldr.Lookup(".machosymstr", 0)
+	s1 := ldr.Lookup(".machorebase", 0)
+	s2 := ldr.Lookup(".machobind", 0)
+	s3 := ldr.Lookup(".machosymtab", 0)
+	s4 := ctxt.ArchSyms.LinkEditPLT
+	s5 := ctxt.ArchSyms.LinkEditGOT
+	s6 := ldr.Lookup(".machosymstr", 0)
+
+	size := ldr.SymSize(s1) + ldr.SymSize(s2) + ldr.SymSize(s3) + ldr.SymSize(s4) + ldr.SymSize(s5) + ldr.SymSize(s6)
 
 	// Force the linkedit section to end on a 16-byte
 	// boundary. This allows pure (non-cgo) Go binaries
@@ -1008,12 +1124,13 @@ func doMachoLink(ctxt *Link) int64 {
 	// boundary, codesign_allocate will not need to apply
 	// any alignment padding itself, working around the
 	// issue.
-	s4b := ldr.MakeSymbolUpdater(s4)
-	for s4b.Size()%16 != 0 {
-		s4b.AddUint8(0)
+	if size%16 != 0 {
+		n := 16 - size%16
+		s6b := ldr.MakeSymbolUpdater(s6)
+		s6b.Grow(s6b.Size() + n)
+		s6b.SetSize(s6b.Size() + n)
+		size += n
 	}
-
-	size := int(ldr.SymSize(s1) + ldr.SymSize(s2) + ldr.SymSize(s3) + ldr.SymSize(s4))
 
 	if size > 0 {
 		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound)) + Rnd(int64(Segrelrodata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))
@@ -1023,9 +1140,15 @@ func doMachoLink(ctxt *Link) int64 {
 		ctxt.Out.Write(ldr.Data(s2))
 		ctxt.Out.Write(ldr.Data(s3))
 		ctxt.Out.Write(ldr.Data(s4))
+		ctxt.Out.Write(ldr.Data(s5))
+		ctxt.Out.Write(ldr.Data(s6))
+
+		// Add code signature if necessary. This must be the last.
+		s7 := machoCodeSigSym(ctxt, linkoff+size)
+		size += ldr.SymSize(s7)
 	}
 
-	return Rnd(int64(size), int64(*FlagRound))
+	return Rnd(size, int64(*FlagRound))
 }
 
 func machorelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym) {
@@ -1165,4 +1288,241 @@ func peekMachoPlatform(m *macho.File) (*MachoPlatformLoad, error) {
 		}, nil
 	}
 	return nil, nil
+}
+
+// A rebase entry tells the dynamic linker the data at sym+off needs to be
+// relocated when the in-memory image moves. (This is somewhat like, say,
+// ELF R_X86_64_RELATIVE).
+// For now, the only kind of entry we support is that the data is an absolute
+// address. That seems all we need.
+// In the binary it uses a compact stateful bytecode encoding. So we record
+// entries as we go and build the table at the end.
+type machoRebaseRecord struct {
+	sym loader.Sym
+	off int64
+}
+
+var machorebase []machoRebaseRecord
+
+func MachoAddRebase(s loader.Sym, off int64) {
+	machorebase = append(machorebase, machoRebaseRecord{s, off})
+}
+
+// A bind entry tells the dynamic linker the data at GOT+off should be bound
+// to the address of the target symbol, which is a dynamic import.
+// For now, the only kind of entry we support is that the data is an absolute
+// address, and the source symbol is always the GOT. That seems all we need.
+// In the binary it uses a compact stateful bytecode encoding. So we record
+// entries as we go and build the table at the end.
+type machoBindRecord struct {
+	off  int64
+	targ loader.Sym
+}
+
+var machobind []machoBindRecord
+
+func MachoAddBind(off int64, targ loader.Sym) {
+	machobind = append(machobind, machoBindRecord{off, targ})
+}
+
+// Generate data for the dynamic linker, used in LC_DYLD_INFO_ONLY load command.
+// See mach-o/loader.h, struct dyld_info_command, for the encoding.
+// e.g. https://opensource.apple.com/source/xnu/xnu-6153.81.5/EXTERNAL_HEADERS/mach-o/loader.h
+func machoDyldInfo(ctxt *Link) {
+	ldr := ctxt.loader
+	rebase := ldr.CreateSymForUpdate(".machorebase", 0)
+	bind := ldr.CreateSymForUpdate(".machobind", 0)
+
+	if !(ctxt.IsPIE() && ctxt.IsInternal()) {
+		return
+	}
+
+	segId := func(seg *sym.Segment) uint8 {
+		switch seg {
+		case &Segtext:
+			return 1
+		case &Segrelrodata:
+			return 2
+		case &Segdata:
+			if Segrelrodata.Length > 0 {
+				return 3
+			}
+			return 2
+		}
+		panic("unknown segment")
+	}
+
+	dylibId := func(s loader.Sym) int {
+		slib := ldr.SymDynimplib(s)
+		for i, lib := range dylib {
+			if lib == slib {
+				return i + 1
+			}
+		}
+		return BIND_SPECIAL_DYLIB_FLAT_LOOKUP // don't know where it is from
+	}
+
+	// Rebase table.
+	// TODO: use more compact encoding. The encoding is stateful, and
+	// we can use delta encoding.
+	rebase.AddUint8(REBASE_OPCODE_SET_TYPE_IMM | REBASE_TYPE_POINTER)
+	for _, r := range machorebase {
+		seg := ldr.SymSect(r.sym).Seg
+		off := uint64(ldr.SymValue(r.sym)+r.off) - seg.Vaddr
+		rebase.AddUint8(REBASE_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB | segId(seg))
+		rebase.AddUleb(off)
+
+		rebase.AddUint8(REBASE_OPCODE_DO_REBASE_IMM_TIMES | 1)
+	}
+	rebase.AddUint8(REBASE_OPCODE_DONE)
+	sz := Rnd(rebase.Size(), 8)
+	rebase.Grow(sz)
+	rebase.SetSize(sz)
+
+	// Bind table.
+	// TODO: compact encoding, as above.
+	// TODO: lazy binding?
+	got := ctxt.GOT
+	seg := ldr.SymSect(got).Seg
+	gotAddr := ldr.SymValue(got)
+	bind.AddUint8(BIND_OPCODE_SET_TYPE_IMM | BIND_TYPE_POINTER)
+	for _, r := range machobind {
+		off := uint64(gotAddr+r.off) - seg.Vaddr
+		bind.AddUint8(BIND_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB | segId(seg))
+		bind.AddUleb(off)
+
+		d := dylibId(r.targ)
+		if d > 0 && d < 128 {
+			bind.AddUint8(BIND_OPCODE_SET_DYLIB_ORDINAL_IMM | uint8(d)&0xf)
+		} else if d >= 128 {
+			bind.AddUint8(BIND_OPCODE_SET_DYLIB_ORDINAL_ULEB)
+			bind.AddUleb(uint64(d))
+		} else { // d <= 0
+			bind.AddUint8(BIND_OPCODE_SET_DYLIB_SPECIAL_IMM | uint8(d)&0xf)
+		}
+
+		bind.AddUint8(BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM)
+		// target symbol name as a C string, with _ prefix
+		bind.AddUint8('_')
+		bind.Addstring(ldr.SymExtname(r.targ))
+
+		bind.AddUint8(BIND_OPCODE_DO_BIND)
+	}
+	bind.AddUint8(BIND_OPCODE_DONE)
+	sz = Rnd(bind.Size(), 16) // make it 16-byte aligned, see the comment in doMachoLink
+	bind.Grow(sz)
+	bind.SetSize(sz)
+
+	// TODO: export table.
+	// The symbols names are encoded as a trie. I'm really too lazy to do that
+	// for now.
+	// Without it, the symbols are not dynamically exported, so they cannot be
+	// e.g. dlsym'd. But internal linking is not the default in that case, so
+	// it is fine.
+}
+
+// machoCodeSigSym creates and returns a symbol for code signature.
+// The symbol context is left as zeros, which will be generated at the end
+// (as it depends on the rest of the file).
+func machoCodeSigSym(ctxt *Link, codeSize int64) loader.Sym {
+	ldr := ctxt.loader
+	cs := ldr.CreateSymForUpdate(".machocodesig", 0)
+	if !ctxt.NeedCodeSign() || ctxt.IsExternal() {
+		return cs.Sym()
+	}
+	sz := codesign.Size(codeSize, "a.out")
+	cs.Grow(sz)
+	cs.SetSize(sz)
+	return cs.Sym()
+}
+
+// machoCodeSign code-signs Mach-O file fname with an ad-hoc signature.
+// This is used for updating an external linker generated binary.
+func machoCodeSign(ctxt *Link, fname string) error {
+	f, err := os.OpenFile(fname, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	mf, err := macho.NewFile(f)
+	if err != nil {
+		return err
+	}
+	if mf.Magic != macho.Magic64 {
+		Exitf("not 64-bit Mach-O file: %s", fname)
+	}
+
+	// Find existing LC_CODE_SIGNATURE and __LINKEDIT segment
+	var sigOff, sigSz, csCmdOff, linkeditOff int64
+	var linkeditSeg, textSeg *macho.Segment
+	loadOff := int64(machoHeaderSize64)
+	get32 := mf.ByteOrder.Uint32
+	for _, l := range mf.Loads {
+		data := l.Raw()
+		cmd, sz := get32(data), get32(data[4:])
+		if cmd == LC_CODE_SIGNATURE {
+			sigOff = int64(get32(data[8:]))
+			sigSz = int64(get32(data[12:]))
+			csCmdOff = loadOff
+		}
+		if seg, ok := l.(*macho.Segment); ok {
+			switch seg.Name {
+			case "__LINKEDIT":
+				linkeditSeg = seg
+				linkeditOff = loadOff
+			case "__TEXT":
+				textSeg = seg
+			}
+		}
+		loadOff += int64(sz)
+	}
+
+	if sigOff == 0 {
+		// The C linker doesn't generate a signed binary, for some reason.
+		// Skip.
+		return nil
+	}
+
+	fi, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	if sigOff+sigSz != fi.Size() {
+		// We don't expect anything after the signature (this will invalidate
+		// the signature anyway.)
+		return fmt.Errorf("unexpected content after code signature")
+	}
+
+	sz := codesign.Size(sigOff, "a.out")
+	if sz != sigSz {
+		// Update the load command,
+		var tmp [8]byte
+		mf.ByteOrder.PutUint32(tmp[:4], uint32(sz))
+		_, err = f.WriteAt(tmp[:4], csCmdOff+12)
+		if err != nil {
+			return err
+		}
+
+		// Uodate the __LINKEDIT segment.
+		segSz := sigOff + sz - int64(linkeditSeg.Offset)
+		mf.ByteOrder.PutUint64(tmp[:8], uint64(segSz))
+		_, err = f.WriteAt(tmp[:8], int64(linkeditOff)+int64(unsafe.Offsetof(macho.Segment64{}.Memsz)))
+		if err != nil {
+			return err
+		}
+		_, err = f.WriteAt(tmp[:8], int64(linkeditOff)+int64(unsafe.Offsetof(macho.Segment64{}.Filesz)))
+		if err != nil {
+			return err
+		}
+	}
+
+	cs := make([]byte, sz)
+	codesign.Sign(cs, f, "a.out", sigOff, int64(textSeg.Offset), int64(textSeg.Filesz), ctxt.IsExe() || ctxt.IsPIE())
+	_, err = f.WriteAt(cs, sigOff)
+	if err != nil {
+		return err
+	}
+	err = f.Truncate(sigOff + sz)
+	return err
 }

@@ -10,7 +10,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -88,8 +87,8 @@ func startServer(n, la string, done chan<- string) (addr string, sock io.Closer,
 	} else {
 		// unix and unixgram: choose an address if none given
 		if la == "" {
-			// use ioutil.TempFile to get a name that is unique
-			f, err := ioutil.TempFile("", "syslogtest")
+			// use os.CreateTemp to get a name that is unique
+			f, err := os.CreateTemp("", "syslogtest")
 			if err != nil {
 				log.Fatal("TempFile: ", err)
 			}
@@ -154,7 +153,7 @@ func TestWithSimulated(t *testing.T) {
 		if err != nil {
 			t.Fatalf("log failed: %v", err)
 		}
-		check(t, msg, <-done)
+		check(t, msg, <-done, tr)
 		s.Close()
 	}
 }
@@ -180,7 +179,7 @@ func TestFlap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("log failed: %v", err)
 	}
-	check(t, msg, <-done)
+	check(t, msg, <-done, net)
 
 	// restart the server
 	_, sock2, srvWG2 := startServer(net, addr, done)
@@ -193,7 +192,7 @@ func TestFlap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("log failed: %v", err)
 	}
-	check(t, msg, <-done)
+	check(t, msg, <-done, net)
 
 	s.Close()
 }
@@ -253,16 +252,31 @@ func TestDial(t *testing.T) {
 	l.Close()
 }
 
-func check(t *testing.T, in, out string) {
-	tmpl := fmt.Sprintf("<%d>%%s %%s syslog_test[%%d]: %s\n", LOG_USER+LOG_INFO, in)
-	if hostname, err := os.Hostname(); err != nil {
+func check(t *testing.T, in, out, transport string) {
+	hostname, err := os.Hostname()
+	if err != nil {
 		t.Error("Error retrieving hostname")
-	} else {
-		var parsedHostname, timestamp string
+		return
+	}
+
+	if transport == "unixgram" || transport == "unix" {
+		var month, date, ts string
 		var pid int
-		if n, err := fmt.Sscanf(out, tmpl, &timestamp, &parsedHostname, &pid); n != 3 || err != nil || hostname != parsedHostname {
+		tmpl := fmt.Sprintf("<%d>%%s %%s %%s syslog_test[%%d]: %s\n", LOG_USER+LOG_INFO, in)
+		n, err := fmt.Sscanf(out, tmpl, &month, &date, &ts, &pid)
+		if n != 4 || err != nil {
 			t.Errorf("Got %q, does not match template %q (%d %s)", out, tmpl, n, err)
 		}
+		return
+	}
+
+	// Non-UNIX domain transports.
+	var parsedHostname, timestamp string
+	var pid int
+	tmpl := fmt.Sprintf("<%d>%%s %%s syslog_test[%%d]: %s\n", LOG_USER+LOG_INFO, in)
+	n, err := fmt.Sscanf(out, tmpl, &timestamp, &parsedHostname, &pid)
+	if n != 3 || err != nil || hostname != parsedHostname {
+		t.Errorf("Got %q, does not match template %q (%d %s)", out, tmpl, n, err)
 	}
 }
 

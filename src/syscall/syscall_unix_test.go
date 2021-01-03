@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -79,7 +78,7 @@ func TestFcntlFlock(t *testing.T) {
 	}
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "" {
 		// parent
-		tempDir, err := ioutil.TempDir("", "TestFcntlFlock")
+		tempDir, err := os.MkdirTemp("", "TestFcntlFlock")
 		if err != nil {
 			t.Fatalf("Failed to create temp dir: %v", err)
 		}
@@ -157,7 +156,7 @@ func TestPassFD(t *testing.T) {
 
 	}
 
-	tempDir, err := ioutil.TempDir("", "TestPassFD")
+	tempDir, err := os.MkdirTemp("", "TestPassFD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +224,7 @@ func TestPassFD(t *testing.T) {
 	f := os.NewFile(uintptr(gotFds[0]), "fd-from-child")
 	defer f.Close()
 
-	got, err := ioutil.ReadAll(f)
+	got, err := io.ReadAll(f)
 	want := "Hello from child process!\n"
 	if string(got) != want {
 		t.Errorf("child process ReadAll: %q, %v; want %q", got, err, want)
@@ -257,7 +256,7 @@ func passFDChild() {
 	// We make it in tempDir, which our parent will clean up.
 	flag.Parse()
 	tempDir := flag.Arg(0)
-	f, err := ioutil.TempFile(tempDir, "")
+	f, err := os.CreateTemp(tempDir, "")
 	if err != nil {
 		fmt.Printf("TempFile: %v", err)
 		return

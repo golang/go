@@ -13,7 +13,7 @@ var t struct {
 	_ int
 }
 
-func (x int) _() { // ERROR "cannot define new methods on non-local type"
+func (x int) _() { // ERROR "methods on non-local type"
 	println(x)
 }
 

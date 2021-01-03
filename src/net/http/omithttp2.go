@@ -45,7 +45,7 @@ type http2clientConnPool struct {
 	conns map[string][]struct{}
 }
 
-func http2configureTransport(*Transport) (*http2Transport, error) { panic(noHTTP2) }
+func http2configureTransports(*Transport) (*http2Transport, error) { panic(noHTTP2) }
 
 func http2isNoCachedConnError(err error) bool {
 	_, ok := err.(interface{ IsHTTP2NoCachedConnError() })

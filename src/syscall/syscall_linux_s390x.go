@@ -6,6 +6,12 @@ package syscall
 
 import "unsafe"
 
+// archHonorsR2 captures the fact that r2 is honored by the
+// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
+// syscall(trap, ...).  Not all architectures define r2 in their
+// ABI. See "man syscall".
+const archHonorsR2 = true
+
 const _SYS_setgroups = SYS_SETGROUPS
 
 //sys	Dup2(oldfd int, newfd int) (err error)
@@ -33,11 +39,7 @@ const _SYS_setgroups = SYS_SETGROUPS
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
 //sys	Setfsgid(gid int) (err error)
 //sys	Setfsuid(uid int) (err error)
-//sysnb	Setregid(rgid int, egid int) (err error)
-//sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
-//sysnb	Setresuid(ruid int, euid int, suid int) (err error)
 //sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
-//sysnb	Setreuid(ruid int, euid int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
 //sys	Stat(path string, stat *Stat_t) (err error)
 //sys	Statfs(path string, buf *Statfs_t) (err error)
@@ -45,7 +47,6 @@ const _SYS_setgroups = SYS_SETGROUPS
 //sys	Truncate(path string, length int64) (err error)
 //sys	Ustat(dev int, ubuf *Ustat_t) (err error)
 //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error)
-//sysnb	setgroups(n int, list *_Gid_t) (err error)
 
 //sys	futimesat(dirfd int, path string, times *[2]Timeval) (err error)
 //sysnb	Gettimeofday(tv *Timeval) (err error)

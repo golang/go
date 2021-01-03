@@ -9,8 +9,10 @@
 #include "tls_arm64.h"
 
 TEXT runtime·load_g(SB),NOSPLIT,$0
+#ifndef TLS_darwin
 	MOVB	runtime·iscgo(SB), R0
 	CBZ	R0, nocgo
+#endif
 
 	MRS_TPIDR_R0
 #ifdef TLS_darwin
@@ -18,15 +20,16 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 	AND	$0xfffffffffffffff8, R0
 #endif
 	MOVD	runtime·tls_g(SB), R27
-	ADD	R27, R0
-	MOVD	0(R0), g
+	MOVD	(R0)(R27), g
 
 nocgo:
 	RET
 
 TEXT runtime·save_g(SB),NOSPLIT,$0
+#ifndef TLS_darwin
 	MOVB	runtime·iscgo(SB), R0
 	CBZ	R0, nocgo
+#endif
 
 	MRS_TPIDR_R0
 #ifdef TLS_darwin
@@ -34,8 +37,7 @@ TEXT runtime·save_g(SB),NOSPLIT,$0
 	AND	$0xfffffffffffffff8, R0
 #endif
 	MOVD	runtime·tls_g(SB), R27
-	ADD	R27, R0
-	MOVD	g, 0(R0)
+	MOVD	g, (R0)(R27)
 
 nocgo:
 	RET

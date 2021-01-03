@@ -419,8 +419,17 @@ func (n *Node) format(s fmt.State, verb rune, mode fmtMode) {
 func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 	c := flag & FmtShort
 
+	// Useful to see which nodes in a Node Dump/dumplist are actually identical
+	if Debug_dumpptrs != 0 {
+		fmt.Fprintf(s, " p(%p)", n)
+	}
 	if c == 0 && n.Name != nil && n.Name.Vargen != 0 {
 		fmt.Fprintf(s, " g(%d)", n.Name.Vargen)
+	}
+
+	if Debug_dumpptrs != 0 && c == 0 && n.Name != nil && n.Name.Defn != nil {
+		// Useful to see where Defn is set and what node it points to
+		fmt.Fprintf(s, " defn(%p)", n.Name.Defn)
 	}
 
 	if n.Pos.IsKnown() {
@@ -491,6 +500,15 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		}
 		if n.Name.Assigned() {
 			fmt.Fprint(s, " assigned")
+		}
+		if n.Name.IsClosureVar() {
+			fmt.Fprint(s, " closurevar")
+		}
+		if n.Name.Captured() {
+			fmt.Fprint(s, " captured")
+		}
+		if n.Name.IsOutputParamHeapAddr() {
+			fmt.Fprint(s, " outputparamheapaddr")
 		}
 	}
 	if n.Bounded() {
@@ -792,6 +810,13 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 		return
 	}
 
+	if mode == FDbg {
+		b.WriteString(t.Etype.String())
+		b.WriteByte('-')
+		tconv2(b, t, flag, FErr, visited)
+		return
+	}
+
 	// At this point, we might call tconv2 recursively. Add the current type to the visited list so we don't
 	// try to print it recursively.
 	// We record the offset in the result buffer where the type's text starts. This offset serves as a reference
@@ -805,12 +830,6 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 	visited[t] = b.Len()
 	defer delete(visited, t)
 
-	if mode == FDbg {
-		b.WriteString(t.Etype.String())
-		b.WriteByte('-')
-		tconv2(b, t, flag, FErr, visited)
-		return
-	}
 	switch t.Etype {
 	case TPTR:
 		b.WriteByte('*')
@@ -1333,7 +1352,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 			n.Orig.exprfmt(s, prec, mode)
 			return
 		}
-		if n.Type != nil && n.Type.Etype != TIDEAL && n.Type.Etype != TNIL && n.Type != types.UntypedBool && n.Type != types.UntypedString {
+		if n.Type != nil && !n.Type.IsUntyped() {
 			// Need parens when type begins with what might
 			// be misinterpreted as a unary operator: * or <-.
 			if n.Type.IsPtr() || (n.Type.IsChan() && n.Type.ChanDir() == types.Crecv) {
@@ -1709,6 +1728,9 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
 		}
 	}
 
+	if n.Op == OCLOSURE && n.Func.Closure != nil && n.Func.Closure.Func.Nname.Sym != nil {
+		mode.Fprintf(s, " fnName %v", n.Func.Closure.Func.Nname.Sym)
+	}
 	if n.Sym != nil && n.Op != ONAME {
 		mode.Fprintf(s, " %v", n.Sym)
 	}
@@ -1723,6 +1745,16 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
 		}
 		if n.Right != nil {
 			mode.Fprintf(s, "%v", n.Right)
+		}
+		if n.Func != nil && n.Func.Closure != nil && n.Func.Closure.Nbody.Len() != 0 {
+			indent(s)
+			// The function associated with a closure
+			mode.Fprintf(s, "%v-clofunc%v", n.Op, n.Func.Closure)
+		}
+		if n.Func != nil && n.Func.Dcl != nil && len(n.Func.Dcl) != 0 {
+			indent(s)
+			// The dcls for a func or closure
+			mode.Fprintf(s, "%v-dcl%v", n.Op, asNodes(n.Func.Dcl))
 		}
 		if n.List.Len() != 0 {
 			indent(s)

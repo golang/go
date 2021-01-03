@@ -19,4 +19,5 @@ func main() {
 	x = make(chan int) // ERROR "cannot use make\(chan int\)|incompatible"
 	x = make(chan int, 0) // ERROR "cannot use make\(chan int, 0\)|incompatible"
 	x = make(chan int, zero) // ERROR "cannot use make\(chan int, zero\)|incompatible"
+	_ = x
 }

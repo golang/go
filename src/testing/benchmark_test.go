@@ -22,13 +22,14 @@ var prettyPrintTests = []struct {
 	{0, "         0 x"},
 	{1234.1, "      1234 x"},
 	{-1234.1, "     -1234 x"},
-	{99.950001, "       100 x"},
-	{99.949999, "        99.9 x"},
-	{9.9950001, "        10.0 x"},
-	{9.9949999, "         9.99 x"},
-	{-9.9949999, "        -9.99 x"},
-	{0.0099950001, "         0.0100 x"},
-	{0.0099949999, "         0.00999 x"},
+	{999.950001, "      1000 x"},
+	{999.949999, "       999.9 x"},
+	{99.9950001, "       100.0 x"},
+	{99.9949999, "        99.99 x"},
+	{-99.9949999, "       -99.99 x"},
+	{0.000999950001, "         0.001000 x"},
+	{0.000999949999, "         0.0009999 x"}, // smallest case
+	{0.0000999949999, "         0.0001000 x"},
 }
 
 func TestPrettyPrint(t *testing.T) {
@@ -50,13 +51,13 @@ func TestResultString(t *testing.T) {
 	if r.NsPerOp() != 2 {
 		t.Errorf("NsPerOp: expected 2, actual %v", r.NsPerOp())
 	}
-	if want, got := "     100\t         2.40 ns/op", r.String(); want != got {
+	if want, got := "     100\t         2.400 ns/op", r.String(); want != got {
 		t.Errorf("String: expected %q, actual %q", want, got)
 	}
 
 	// Test sub-1 ns/op (issue #31005)
 	r.T = 40 * time.Nanosecond
-	if want, got := "     100\t         0.400 ns/op", r.String(); want != got {
+	if want, got := "     100\t         0.4000 ns/op", r.String(); want != got {
 		t.Errorf("String: expected %q, actual %q", want, got)
 	}
 
@@ -130,7 +131,7 @@ func TestReportMetric(t *testing.T) {
 	}
 	// Test stringing.
 	res.N = 1 // Make the output stable
-	want := "       1\t     12345 ns/op\t         0.200 frobs/op"
+	want := "       1\t     12345 ns/op\t         0.2000 frobs/op"
 	if want != res.String() {
 		t.Errorf("expected %q, actual %q", want, res.String())
 	}

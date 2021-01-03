@@ -11,9 +11,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"text/template"
 )
@@ -1302,7 +1303,7 @@ func TestUnterminatedStringError(t *testing.T) {
 		t.Fatal("expected error")
 	}
 	str := err.Error()
-	if !strings.Contains(str, "X:3: unexpected unterminated raw quoted string") {
+	if !strings.Contains(str, "X:3: unterminated raw quoted string") {
 		t.Fatalf("unexpected error: %s", str)
 	}
 }
@@ -1335,7 +1336,7 @@ func TestExecuteGivesExecError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = tmpl.Execute(ioutil.Discard, 0)
+	err = tmpl.Execute(io.Discard, 0)
 	if err == nil {
 		t.Fatal("expected error; got none")
 	}
@@ -1481,7 +1482,7 @@ func TestEvalFieldErrors(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			tmpl := Must(New("tmpl").Parse(tc.src))
-			err := tmpl.Execute(ioutil.Discard, tc.value)
+			err := tmpl.Execute(io.Discard, tc.value)
 			got := "<nil>"
 			if err != nil {
 				got = err.Error()
@@ -1498,7 +1499,7 @@ func TestMaxExecDepth(t *testing.T) {
 		t.Skip("skipping in -short mode")
 	}
 	tmpl := Must(New("tmpl").Parse(`{{template "tmpl" .}}`))
-	err := tmpl.Execute(ioutil.Discard, nil)
+	err := tmpl.Execute(io.Discard, nil)
 	got := "<nil>"
 	if err != nil {
 		got = err.Error()
@@ -1704,5 +1705,74 @@ func TestIssue31810(t *testing.T) {
 	}
 	if b.String() != "result" {
 		t.Errorf("%s got %q, expected %q", textCall, b.String(), "result")
+	}
+}
+
+// Issue 39807. There was a race applying escapeTemplate.
+
+const raceText = `
+{{- define "jstempl" -}}
+var v = "v";
+{{- end -}}
+<script type="application/javascript">
+{{ template "jstempl" $ }}
+</script>
+`
+
+func TestEscapeRace(t *testing.T) {
+	tmpl := New("")
+	_, err := tmpl.New("templ.html").Parse(raceText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const count = 20
+	for i := 0; i < count; i++ {
+		_, err := tmpl.New(fmt.Sprintf("x%d.html", i)).Parse(`{{ template "templ.html" .}}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < count; j++ {
+				sub := tmpl.Lookup(fmt.Sprintf("x%d.html", j))
+				if err := sub.Execute(io.Discard, nil); err != nil {
+					t.Error(err)
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func TestRecursiveExecute(t *testing.T) {
+	tmpl := New("")
+
+	recur := func() (HTML, error) {
+		var sb strings.Builder
+		if err := tmpl.ExecuteTemplate(&sb, "subroutine", nil); err != nil {
+			t.Fatal(err)
+		}
+		return HTML(sb.String()), nil
+	}
+
+	m := FuncMap{
+		"recur": recur,
+	}
+
+	top, err := tmpl.New("x.html").Funcs(m).Parse(`{{recur}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tmpl.New("subroutine").Parse(`<a href="/x?p={{"'a<b'"}}">`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := top.Execute(io.Discard, nil); err != nil {
+		t.Fatal(err)
 	}
 }

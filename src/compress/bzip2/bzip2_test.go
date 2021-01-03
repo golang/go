@@ -9,7 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -22,7 +22,7 @@ func mustDecodeHex(s string) []byte {
 }
 
 func mustLoadFile(f string) []byte {
-	b, err := ioutil.ReadFile(f)
+	b, err := os.ReadFile(f)
 	if err != nil {
 		panic(err)
 	}
@@ -133,7 +133,7 @@ func TestReader(t *testing.T) {
 
 	for i, v := range vectors {
 		rd := NewReader(bytes.NewReader(v.input))
-		buf, err := ioutil.ReadAll(rd)
+		buf, err := io.ReadAll(rd)
 
 		if fail := bool(err != nil); fail != v.fail {
 			if fail {
@@ -220,7 +220,7 @@ var (
 
 func benchmarkDecode(b *testing.B, compressed []byte) {
 	// Determine the uncompressed size of testfile.
-	uncompressedSize, err := io.Copy(ioutil.Discard, NewReader(bytes.NewReader(compressed)))
+	uncompressedSize, err := io.Copy(io.Discard, NewReader(bytes.NewReader(compressed)))
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -231,7 +231,7 @@ func benchmarkDecode(b *testing.B, compressed []byte) {
 
 	for i := 0; i < b.N; i++ {
 		r := bytes.NewReader(compressed)
-		io.Copy(ioutil.Discard, NewReader(r))
+		io.Copy(io.Discard, NewReader(r))
 	}
 }
 

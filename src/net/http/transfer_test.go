@@ -10,7 +10,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -81,11 +80,11 @@ func TestDetectInMemoryReaders(t *testing.T) {
 		{bytes.NewBuffer(nil), true},
 		{strings.NewReader(""), true},
 
-		{ioutil.NopCloser(pr), false},
+		{io.NopCloser(pr), false},
 
-		{ioutil.NopCloser(bytes.NewReader(nil)), true},
-		{ioutil.NopCloser(bytes.NewBuffer(nil)), true},
-		{ioutil.NopCloser(strings.NewReader("")), true},
+		{io.NopCloser(bytes.NewReader(nil)), true},
+		{io.NopCloser(bytes.NewBuffer(nil)), true},
+		{io.NopCloser(strings.NewReader("")), true},
 	}
 	for i, tt := range tests {
 		got := isKnownInMemoryReader(tt.r)
@@ -104,12 +103,12 @@ var _ io.ReaderFrom = (*mockTransferWriter)(nil)
 
 func (w *mockTransferWriter) ReadFrom(r io.Reader) (int64, error) {
 	w.CalledReader = r
-	return io.Copy(ioutil.Discard, r)
+	return io.Copy(io.Discard, r)
 }
 
 func (w *mockTransferWriter) Write(p []byte) (int, error) {
 	w.WriteCalled = true
-	return ioutil.Discard.Write(p)
+	return io.Discard.Write(p)
 }
 
 func TestTransferWriterWriteBodyReaderTypes(t *testing.T) {
@@ -118,7 +117,7 @@ func TestTransferWriterWriteBodyReaderTypes(t *testing.T) {
 
 	nBytes := int64(1 << 10)
 	newFileFunc := func() (r io.Reader, done func(), err error) {
-		f, err := ioutil.TempFile("", "net-http-newfilefunc")
+		f, err := os.CreateTemp("", "net-http-newfilefunc")
 		if err != nil {
 			return nil, nil, err
 		}
@@ -166,7 +165,7 @@ func TestTransferWriterWriteBodyReaderTypes(t *testing.T) {
 			method: "PUT",
 			bodyFunc: func() (io.Reader, func(), error) {
 				r, cleanup, err := newFileFunc()
-				return ioutil.NopCloser(r), cleanup, err
+				return io.NopCloser(r), cleanup, err
 			},
 			contentLength:  nBytes,
 			limitedReader:  true,
@@ -206,7 +205,7 @@ func TestTransferWriterWriteBodyReaderTypes(t *testing.T) {
 			method: "PUT",
 			bodyFunc: func() (io.Reader, func(), error) {
 				r, cleanup, err := newBufferFunc()
-				return ioutil.NopCloser(r), cleanup, err
+				return io.NopCloser(r), cleanup, err
 			},
 			contentLength:  nBytes,
 			limitedReader:  true,

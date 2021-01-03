@@ -46,6 +46,7 @@ type context struct {
 	scope         *Scope                 // top-most scope for lookups
 	pos           token.Pos              // if valid, identifiers are looked up as if at position pos (used by Eval)
 	iota          constant.Value         // value of iota in a constant declaration; nil otherwise
+	errpos        positioner             // if set, identifier position of a constant with inherited initializer
 	sig           *Signature             // function signature if inside a function; nil otherwise
 	isPanic       map[*ast.CallExpr]bool // set of panic call expressions (used for termination check)
 	hasLabel      bool                   // set if a function makes use of labels (only ~1% of functions); unused outside functions
@@ -85,8 +86,8 @@ type Checker struct {
 	// information collected during type-checking of a set of package files
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
-	files            []*ast.File                       // package files
-	unusedDotImports map[*Scope]map[*Package]token.Pos // positions of unused dot-imported packages for each file scope
+	files            []*ast.File                             // package files
+	unusedDotImports map[*Scope]map[*Package]*ast.ImportSpec // unused dot-imported packages
 
 	firstErr error                 // first error encountered
 	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank (non-interface) methods
@@ -105,18 +106,18 @@ type Checker struct {
 
 // addUnusedImport adds the position of a dot-imported package
 // pkg to the map of dot imports for the given file scope.
-func (check *Checker) addUnusedDotImport(scope *Scope, pkg *Package, pos token.Pos) {
+func (check *Checker) addUnusedDotImport(scope *Scope, pkg *Package, spec *ast.ImportSpec) {
 	mm := check.unusedDotImports
 	if mm == nil {
-		mm = make(map[*Scope]map[*Package]token.Pos)
+		mm = make(map[*Scope]map[*Package]*ast.ImportSpec)
 		check.unusedDotImports = mm
 	}
 	m := mm[scope]
 	if m == nil {
-		m = make(map[*Package]token.Pos)
+		m = make(map[*Package]*ast.ImportSpec)
 		mm[scope] = m
 	}
-	m[pkg] = pos
+	m[pkg] = spec
 }
 
 // addDeclDep adds the dependency edge (check.decl -> to) if check.decl exists
@@ -217,7 +218,7 @@ func (check *Checker) initFiles(files []*ast.File) {
 			if name != "_" {
 				pkg.name = name
 			} else {
-				check.errorf(file.Name.Pos(), "invalid package name _")
+				check.errorf(file.Name, _BlankPkgName, "invalid package name _")
 			}
 			fallthrough
 
@@ -225,7 +226,7 @@ func (check *Checker) initFiles(files []*ast.File) {
 			check.files = append(check.files, file)
 
 		default:
-			check.errorf(file.Package, "package %s; expected %s", name, pkg.name)
+			check.errorf(atPos(file.Package), _MismatchedPkgName, "package %s; expected %s", name, pkg.name)
 			// ignore this file
 		}
 	}

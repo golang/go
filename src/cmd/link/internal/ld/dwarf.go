@@ -23,6 +23,7 @@ import (
 	"cmd/link/internal/sym"
 	"fmt"
 	"log"
+	"path"
 	"runtime"
 	"sort"
 	"strings"
@@ -1173,13 +1174,81 @@ func expandFile(fname string) string {
 	return expandGoroot(fname)
 }
 
-// writelines collects up and chai,ns together the symbols needed to
+// writeDirFileTables emits the portion of the DWARF line table
+// prologue containing the include directories and file names,
+// described in section 6.2.4 of the DWARF 4 standard. It walks the
+// filepaths for the unit to discover any common directories, which
+// are emitted to the directory table first, then the file table is
+// emitted after that.
+func (d *dwctxt) writeDirFileTables(unit *sym.CompilationUnit, lsu *loader.SymbolBuilder) {
+	type fileDir struct {
+		base string
+		dir  int
+	}
+	dirNums := make(map[string]int)
+	dirs := []string{""}
+	files := []fileDir{}
+
+	// Preprocess files to collect directories. This assumes that the
+	// file table is already de-duped.
+	for i, name := range unit.FileTable {
+		name := expandFile(name)
+		if len(name) == 0 {
+			// Can't have empty filenames, and having a unique
+			// filename is quite useful for debugging.
+			name = fmt.Sprintf("<missing>_%d", i)
+		}
+		// Note the use of "path" here and not "filepath". The compiler
+		// hard-codes to use "/" in DWARF paths (even for Windows), so we
+		// want to maintain that here.
+		file := path.Base(name)
+		dir := path.Dir(name)
+		dirIdx, ok := dirNums[dir]
+		if !ok && dir != "." {
+			dirIdx = len(dirNums) + 1
+			dirNums[dir] = dirIdx
+			dirs = append(dirs, dir)
+		}
+		files = append(files, fileDir{base: file, dir: dirIdx})
+
+		// We can't use something that may be dead-code
+		// eliminated from a binary here. proc.go contains
+		// main and the scheduler, so it's not going anywhere.
+		if i := strings.Index(name, "runtime/proc.go"); i >= 0 {
+			d.dwmu.Lock()
+			if gdbscript == "" {
+				k := strings.Index(name, "runtime/proc.go")
+				gdbscript = name[:k] + "runtime/runtime-gdb.py"
+			}
+			d.dwmu.Unlock()
+		}
+	}
+
+	// Emit directory section. This is a series of nul terminated
+	// strings, followed by a single zero byte.
+	lsDwsym := dwSym(lsu.Sym())
+	for k := 1; k < len(dirs); k++ {
+		d.AddString(lsDwsym, dirs[k])
+	}
+	lsu.AddUint8(0) // terminator
+
+	// Emit file section.
+	for k := 0; k < len(files); k++ {
+		d.AddString(lsDwsym, files[k].base)
+		dwarf.Uleb128put(d, lsDwsym, int64(files[k].dir))
+		lsu.AddUint8(0) // mtime
+		lsu.AddUint8(0) // length
+	}
+	lsu.AddUint8(0) // terminator
+}
+
+// writelines collects up and chains together the symbols needed to
 // form the DWARF line table for the specified compilation unit,
 // returning a list of symbols. The returned list will include an
-// initial symbol containing the line table header and prolog (with
+// initial symbol containing the line table header and prologue (with
 // file table), then a series of compiler-emitted line table symbols
 // (one per live function), and finally an epilog symbol containing an
-// end-of-sequence operator. The prolog and epilog symbols are passed
+// end-of-sequence operator. The prologue and epilog symbols are passed
 // in (having been created earlier); here we add content to them.
 func (d *dwctxt) writelines(unit *sym.CompilationUnit, lineProlog loader.Sym) []loader.Sym {
 	is_stmt := uint8(1) // initially = recommended default_is_stmt = 1, tracks is_stmt toggles.
@@ -1220,39 +1289,11 @@ func (d *dwctxt) writelines(unit *sym.CompilationUnit, lineProlog loader.Sym) []
 	lsu.AddUint8(0)                // standard_opcode_lengths[8]
 	lsu.AddUint8(1)                // standard_opcode_lengths[9]
 	lsu.AddUint8(0)                // standard_opcode_lengths[10]
-	lsu.AddUint8(0)                // include_directories  (empty)
 
-	// Copy over the file table.
-	fileNums := make(map[string]int)
-	for i, name := range unit.FileTable {
-		name := expandFile(name)
-		if len(name) == 0 {
-			// Can't have empty filenames, and having a unique
-			// filename is quite useful for debugging.
-			name = fmt.Sprintf("<missing>_%d", i)
-		}
-		fileNums[name] = i + 1
-		d.AddString(lsDwsym, name)
-		lsu.AddUint8(0)
-		lsu.AddUint8(0)
-		lsu.AddUint8(0)
+	// Call helper to emit dir and file sections.
+	d.writeDirFileTables(unit, lsu)
 
-		// We can't use something that may be dead-code
-		// eliminated from a binary here. proc.go contains
-		// main and the scheduler, so it's not going anywhere.
-		if i := strings.Index(name, "runtime/proc.go"); i >= 0 {
-			d.dwmu.Lock()
-			if gdbscript == "" {
-				k := strings.Index(name, "runtime/proc.go")
-				gdbscript = name[:k] + "runtime/runtime-gdb.py"
-			}
-			d.dwmu.Unlock()
-		}
-	}
-
-	// 4 zeros: the string termination + 3 fields.
-	lsu.AddUint8(0)
-	// terminate file_names.
+	// capture length at end of file names.
 	headerend = lsu.Size()
 	unitlen := lsu.Size() - unitstart
 

@@ -35,20 +35,21 @@ func funcpctab(ctxt *Link, func_ *LSym, desc string, valfunc func(*Link, *LSym, 
 
 	val := int32(-1)
 	oldval := val
-	if func_.Func.Text == nil {
+	fn := func_.Func()
+	if fn.Text == nil {
 		// Return the emtpy symbol we've built so far.
 		return sym
 	}
 
-	pc := func_.Func.Text.Pc
+	pc := fn.Text.Pc
 
 	if dbg {
-		ctxt.Logf("%6x %6d %v\n", uint64(pc), val, func_.Func.Text)
+		ctxt.Logf("%6x %6d %v\n", uint64(pc), val, fn.Text)
 	}
 
 	buf := make([]byte, binary.MaxVarintLen32)
 	started := false
-	for p := func_.Func.Text; p != nil; p = p.Link {
+	for p := fn.Text; p != nil; p = p.Link {
 		// Update val. If it's not changing, keep going.
 		val = valfunc(ctxt, func_, val, p, 0, arg)
 
@@ -107,7 +108,7 @@ func funcpctab(ctxt *Link, func_ *LSym, desc string, valfunc func(*Link, *LSym, 
 
 	if started {
 		if dbg {
-			ctxt.Logf("%6x done\n", uint64(func_.Func.Text.Pc+func_.Size))
+			ctxt.Logf("%6x done\n", uint64(fn.Text.Pc+func_.Size))
 		}
 		v := (func_.Size - pc) / int64(ctxt.Arch.MinLC)
 		if v < 0 {
@@ -257,12 +258,12 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
 }
 
 func linkpcln(ctxt *Link, cursym *LSym) {
-	pcln := &cursym.Func.Pcln
+	pcln := &cursym.Func().Pcln
 	pcln.UsedFiles = make(map[goobj.CUFileIndex]struct{})
 
 	npcdata := 0
 	nfuncdata := 0
-	for p := cursym.Func.Text; p != nil; p = p.Link {
+	for p := cursym.Func().Text; p != nil; p = p.Link {
 		// Find the highest ID of any used PCDATA table. This ignores PCDATA table
 		// that consist entirely of "-1", since that's the assumed default value.
 		//   From.Offset is table ID
@@ -288,11 +289,12 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 
 	// Check that all the Progs used as inline markers are still reachable.
 	// See issue #40473.
-	inlMarkProgs := make(map[*Prog]struct{}, len(cursym.Func.InlMarks))
-	for _, inlMark := range cursym.Func.InlMarks {
+	fn := cursym.Func()
+	inlMarkProgs := make(map[*Prog]struct{}, len(fn.InlMarks))
+	for _, inlMark := range fn.InlMarks {
 		inlMarkProgs[inlMark.p] = struct{}{}
 	}
-	for p := cursym.Func.Text; p != nil; p = p.Link {
+	for p := fn.Text; p != nil; p = p.Link {
 		if _, ok := inlMarkProgs[p]; ok {
 			delete(inlMarkProgs, p)
 		}
@@ -303,7 +305,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 
 	pcinlineState := new(pcinlineState)
 	pcln.Pcinline = funcpctab(ctxt, cursym, "pctoinline", pcinlineState.pctoinline, nil)
-	for _, inlMark := range cursym.Func.InlMarks {
+	for _, inlMark := range fn.InlMarks {
 		pcinlineState.setParentPC(ctxt, int(inlMark.id), int32(inlMark.p.Pc))
 	}
 	pcln.InlTree = pcinlineState.localTree
@@ -316,7 +318,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 	// tabulate which pc and func data we have.
 	havepc := make([]uint32, (npcdata+31)/32)
 	havefunc := make([]uint32, (nfuncdata+31)/32)
-	for p := cursym.Func.Text; p != nil; p = p.Link {
+	for p := fn.Text; p != nil; p = p.Link {
 		if p.As == AFUNCDATA {
 			if (havefunc[p.From.Offset/32]>>uint64(p.From.Offset%32))&1 != 0 {
 				ctxt.Diag("multiple definitions for FUNCDATA $%d", p.From.Offset)
@@ -344,7 +346,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 
 	// funcdata
 	if nfuncdata > 0 {
-		for p := cursym.Func.Text; p != nil; p = p.Link {
+		for p := fn.Text; p != nil; p = p.Link {
 			if p.As != AFUNCDATA {
 				continue
 			}

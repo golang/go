@@ -13,11 +13,10 @@ import (
 	"os"
 )
 
-// If fallocate is not supported on this platform, return this error.
-// Note this is the same error returned by filesystems that don't support
-// fallocate, and that is intentional. The error is ignored where needed, and
-// OutBuf writes to heap memory.
-const fallocateNotSupportedErr = "operation not supported"
+// If fallocate is not supported on this platform, return this error. The error
+// is ignored where needed, and OutBuf writes to heap memory.
+var errNoFallocate = errors.New("operation not supported")
+
 const outbufMode = 0775
 
 // OutBuf is a buffered file writer.
@@ -114,6 +113,7 @@ func (out *OutBuf) Close() error {
 	}
 	if out.isMmapped() {
 		out.copyHeap()
+		out.purgeSignatureCache()
 		out.munmap()
 	}
 	if out.f == nil {
@@ -134,6 +134,15 @@ func (out *OutBuf) Close() error {
 // isMmapped returns true if the OutBuf is mmaped.
 func (out *OutBuf) isMmapped() bool {
 	return len(out.buf) != 0
+}
+
+// Data returns the whole written OutBuf as a byte slice.
+func (out *OutBuf) Data() []byte {
+	if out.isMmapped() {
+		out.copyHeap()
+		return out.buf
+	}
+	return out.heap
 }
 
 // copyHeap copies the heap to the mmapped section of memory, returning true if
@@ -184,7 +193,9 @@ func (out *OutBuf) writeLoc(lenToWrite int64) (int64, []byte) {
 		// See if our heap would grow to be too large, and if so, copy it to the end
 		// of the mmapped area.
 		if heapLen > maxOutBufHeapLen && out.copyHeap() {
-			heapPos, heapLen, lenNeeded = 0, 0, lenToWrite
+			heapPos -= heapLen
+			lenNeeded = heapPos + lenToWrite
+			heapLen = 0
 		}
 		out.heap = append(out.heap, make([]byte, lenNeeded-heapLen)...)
 	}

@@ -22,8 +22,8 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
+	"os"
 	"strings"
 	"time"
 )
@@ -259,11 +259,11 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 // form a certificate chain. On successful return, Certificate.Leaf will
 // be nil because the parsed form of the certificate is not retained.
 func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
-	certPEMBlock, err := ioutil.ReadFile(certFile)
+	certPEMBlock, err := os.ReadFile(certFile)
 	if err != nil {
 		return Certificate{}, err
 	}
-	keyPEMBlock, err := ioutil.ReadFile(keyFile)
+	keyPEMBlock, err := os.ReadFile(keyFile)
 	if err != nil {
 		return Certificate{}, err
 	}

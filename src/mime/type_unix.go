@@ -20,6 +20,7 @@ var typeFiles = []string{
 	"/etc/mime.types",
 	"/etc/apache2/mime.types",
 	"/etc/apache/mime.types",
+	"/etc/httpd/conf/mime.types",
 }
 
 func loadMimeFile(filename string) {
