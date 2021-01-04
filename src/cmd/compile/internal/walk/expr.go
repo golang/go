@@ -52,7 +52,7 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 		base.Fatalf("expression has untyped type: %+v", n)
 	}
 
-	if n.Op() == ir.ONAME && n.(*ir.Name).Class_ == ir.PAUTOHEAP {
+	if n.Op() == ir.ONAME && n.(*ir.Name).Class == ir.PAUTOHEAP {
 		n := n.(*ir.Name)
 		nn := ir.NewStarExpr(base.Pos, n.Heapaddr)
 		nn.X.MarkNonNil()

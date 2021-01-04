@@ -39,7 +39,7 @@ func instrument(fn *ir.Func) {
 			// race in the future.
 
 			nodpc := ir.NewNameAt(src.NoXPos, typecheck.Lookup(".fp"))
-			nodpc.Class_ = ir.PPARAM
+			nodpc.Class = ir.PPARAM
 			nodpc.SetUsed(true)
 			nodpc.SetType(types.Types[types.TUINTPTR])
 			nodpc.SetFrameOffset(int64(-types.PtrSize))

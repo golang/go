@@ -68,7 +68,7 @@ func isSimpleName(nn ir.Node) bool {
 		return false
 	}
 	n := nn.(*ir.Name)
-	return n.Class_ != ir.PAUTOHEAP && n.Class_ != ir.PEXTERN
+	return n.Class != ir.PAUTOHEAP && n.Class != ir.PEXTERN
 }
 
 func litas(l ir.Node, r ir.Node, init *ir.Nodes) {
@@ -294,7 +294,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 		// copy static to slice
 		var_ = typecheck.AssignExpr(var_)
 		name, offset, ok := staticinit.StaticLoc(var_)
-		if !ok || name.Class_ != ir.PEXTERN {
+		if !ok || name.Class != ir.PEXTERN {
 			base.Fatalf("slicelit: %v", var_)
 		}
 		staticdata.InitSlice(name, offset, vstat, t.NumElem())
@@ -657,7 +657,7 @@ func genAsStatic(as *ir.AssignStmt) {
 	}
 
 	name, offset, ok := staticinit.StaticLoc(as.X)
-	if !ok || (name.Class_ != ir.PEXTERN && as.X != ir.BlankNode) {
+	if !ok || (name.Class != ir.PEXTERN && as.X != ir.BlankNode) {
 		base.Fatalf("genAsStatic: lhs %v", as.X)
 	}
 
@@ -674,7 +674,7 @@ func genAsStatic(as *ir.AssignStmt) {
 		if r.Offset_ != 0 {
 			base.Fatalf("genAsStatic %+v", as)
 		}
-		if r.Class_ == ir.PFUNC {
+		if r.Class == ir.PFUNC {
 			staticdata.InitFunc(name, offset, r)
 			return
 		}

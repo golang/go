@@ -199,8 +199,8 @@ func Inline_Flood(n *ir.Name, exportsym func(*ir.Name)) {
 	if n == nil {
 		return
 	}
-	if n.Op() != ir.ONAME || n.Class_ != ir.PFUNC {
-		base.Fatalf("inlFlood: unexpected %v, %v, %v", n, n.Op(), n.Class_)
+	if n.Op() != ir.ONAME || n.Class != ir.PFUNC {
+		base.Fatalf("inlFlood: unexpected %v, %v, %v", n, n.Op(), n.Class)
 	}
 	fn := n.Func
 	if fn == nil {
@@ -227,7 +227,7 @@ func Inline_Flood(n *ir.Name, exportsym func(*ir.Name)) {
 
 		case ir.ONAME:
 			n := n.(*ir.Name)
-			switch n.Class_ {
+			switch n.Class {
 			case ir.PFUNC:
 				Inline_Flood(n, exportsym)
 				exportsym(n)
@@ -292,7 +292,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		// runtime.throw is a "cheap call" like panic in normal code.
 		if n.X.Op() == ir.ONAME {
 			name := n.X.(*ir.Name)
-			if name.Class_ == ir.PFUNC && types.IsRuntimePkg(name.Sym().Pkg) {
+			if name.Class == ir.PFUNC && types.IsRuntimePkg(name.Sym().Pkg) {
 				fn := name.Sym().Name
 				if fn == "getcallerpc" || fn == "getcallersp" {
 					return errors.New("call to " + fn)
@@ -407,7 +407,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 
 	case ir.ONAME:
 		n := n.(*ir.Name)
-		if n.Class_ == ir.PAUTO {
+		if n.Class == ir.PAUTO {
 			v.usedLocals[n] = true
 		}
 
@@ -627,7 +627,7 @@ func inlCallee(fn ir.Node) *ir.Func {
 		return n.Func
 	case ir.ONAME:
 		fn := fn.(*ir.Name)
-		if fn.Class_ == ir.PFUNC {
+		if fn.Class == ir.PFUNC {
 			return fn.Func
 		}
 	case ir.OCLOSURE:
@@ -759,7 +759,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		if ln.Op() != ir.ONAME {
 			continue
 		}
-		if ln.Class_ == ir.PPARAMOUT { // return values handled below.
+		if ln.Class == ir.PPARAMOUT { // return values handled below.
 			continue
 		}
 		if ir.IsParamStackCopy(ln) { // ignore the on-stack copy of a parameter that moved to the heap
@@ -772,7 +772,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		inlf := typecheck.Expr(inlvar(ln)).(*ir.Name)
 		inlvars[ln] = inlf
 		if base.Flag.GenDwarfInl > 0 {
-			if ln.Class_ == ir.PPARAM {
+			if ln.Class == ir.PPARAM {
 				inlf.Name().SetInlFormal(true)
 			} else {
 				inlf.Name().SetInlLocal(true)
@@ -975,7 +975,7 @@ func inlvar(var_ *ir.Name) *ir.Name {
 
 	n := typecheck.NewName(var_.Sym())
 	n.SetType(var_.Type())
-	n.Class_ = ir.PAUTO
+	n.Class = ir.PAUTO
 	n.SetUsed(true)
 	n.Curfn = ir.CurFunc // the calling function, not the called one
 	n.SetAddrtaken(var_.Addrtaken())
@@ -988,7 +988,7 @@ func inlvar(var_ *ir.Name) *ir.Name {
 func retvar(t *types.Field, i int) *ir.Name {
 	n := typecheck.NewName(typecheck.LookupNum("~R", i))
 	n.SetType(t.Type)
-	n.Class_ = ir.PAUTO
+	n.Class = ir.PAUTO
 	n.SetUsed(true)
 	n.Curfn = ir.CurFunc // the calling function, not the called one
 	ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
@@ -1000,7 +1000,7 @@ func retvar(t *types.Field, i int) *ir.Name {
 func argvar(t *types.Type, i int) ir.Node {
 	n := typecheck.NewName(typecheck.LookupNum("~arg", i))
 	n.SetType(t.Elem())
-	n.Class_ = ir.PAUTO
+	n.Class = ir.PAUTO
 	n.SetUsed(true)
 	n.Curfn = ir.CurFunc // the calling function, not the called one
 	ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
@@ -1170,7 +1170,7 @@ func (subst *inlsubst) updatedPos(xpos src.XPos) src.XPos {
 func pruneUnusedAutos(ll []*ir.Name, vis *hairyVisitor) []*ir.Name {
 	s := make([]*ir.Name, 0, len(ll))
 	for _, n := range ll {
-		if n.Class_ == ir.PAUTO {
+		if n.Class == ir.PAUTO {
 			if _, found := vis.usedLocals[n]; !found {
 				continue
 			}

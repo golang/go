@@ -245,11 +245,11 @@ func FuncSymName(s *types.Sym) string {
 
 // MarkFunc marks a node as a function.
 func MarkFunc(n *Name) {
-	if n.Op() != ONAME || n.Class_ != Pxxx {
+	if n.Op() != ONAME || n.Class != Pxxx {
 		base.Fatalf("expected ONAME/Pxxx node, got %v", n)
 	}
 
-	n.Class_ = PFUNC
+	n.Class = PFUNC
 	n.Sym().SetFunc(true)
 }
 

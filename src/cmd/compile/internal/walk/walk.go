@@ -61,7 +61,7 @@ func Walk(fn *ir.Func) {
 
 func paramoutheap(fn *ir.Func) bool {
 	for _, ln := range fn.Dcl {
-		switch ln.Class_ {
+		switch ln.Class {
 		case ir.PPARAMOUT:
 			if ir.IsParamStackCopy(ln) || ln.Addrtaken() {
 				return true
@@ -137,7 +137,7 @@ func paramstoheap(params *types.Type) []ir.Node {
 
 		if stackcopy := v.Name().Stackcopy; stackcopy != nil {
 			nn = append(nn, walkStmt(ir.NewDecl(base.Pos, ir.ODCL, v.(*ir.Name))))
-			if stackcopy.Class_ == ir.PPARAM {
+			if stackcopy.Class == ir.PPARAM {
 				nn = append(nn, walkStmt(typecheck.Stmt(ir.NewAssignStmt(base.Pos, v, stackcopy))))
 			}
 		}
@@ -185,7 +185,7 @@ func returnsfromheap(params *types.Type) []ir.Node {
 		if v == nil {
 			continue
 		}
-		if stackcopy := v.Name().Stackcopy; stackcopy != nil && stackcopy.Class_ == ir.PPARAMOUT {
+		if stackcopy := v.Name().Stackcopy; stackcopy != nil && stackcopy.Class == ir.PPARAMOUT {
 			nn = append(nn, walkStmt(typecheck.Stmt(ir.NewAssignStmt(base.Pos, stackcopy, v))))
 		}
 	}

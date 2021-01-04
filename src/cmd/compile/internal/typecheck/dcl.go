@@ -91,7 +91,7 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 	s.Lastlineno = base.Pos
 	s.Def = n
 	n.Vargen = int32(gen)
-	n.Class_ = ctxt
+	n.Class = ctxt
 	if ctxt == ir.PFUNC {
 		n.Sym().SetFunc(true)
 	}
@@ -455,7 +455,7 @@ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	n := ir.NewNameAt(pos, s)
 	s.Def = n
 	n.SetType(t)
-	n.Class_ = ir.PAUTO
+	n.Class = ir.PAUTO
 	n.SetEsc(ir.EscNever)
 	n.Curfn = curfn
 	n.SetUsed(true)

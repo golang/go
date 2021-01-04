@@ -1176,10 +1176,10 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 		n := ir.NewReturnStmt(p.pos(stmt), p.exprList(stmt.Results))
 		if len(n.Results) == 0 && ir.CurFunc != nil {
 			for _, ln := range ir.CurFunc.Dcl {
-				if ln.Class_ == ir.PPARAM {
+				if ln.Class == ir.PPARAM {
 					continue
 				}
-				if ln.Class_ != ir.PPARAMOUT {
+				if ln.Class != ir.PPARAMOUT {
 					break
 				}
 				if ln.Sym().Def != ln {
@@ -1956,7 +1956,7 @@ func oldname(s *types.Sym) ir.Node {
 		if c == nil || c.Curfn != ir.CurFunc {
 			// Do not have a closure var for the active closure yet; make one.
 			c = typecheck.NewName(s)
-			c.Class_ = ir.PAUTOHEAP
+			c.Class = ir.PAUTOHEAP
 			c.SetIsClosureVar(true)
 			c.Defn = n
 

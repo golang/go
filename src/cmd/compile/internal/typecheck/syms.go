@@ -30,7 +30,7 @@ func SubstArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
 		types.CalcSize(t)
 	}
 	n := ir.NewNameAt(old.Pos(), old.Sym())
-	n.Class_ = old.Class()
+	n.Class = old.Class
 	n.SetType(types.SubstAny(old.Type(), &types_))
 	if len(types_) > 0 {
 		base.Fatalf("substArgTypes: too many argument types")

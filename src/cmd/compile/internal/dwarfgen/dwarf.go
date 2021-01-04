@@ -76,7 +76,7 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
 			if n.Op() != ir.ONAME { // might be OTYPE or OLITERAL
 				continue
 			}
-			switch n.Class_ {
+			switch n.Class {
 			case ir.PAUTO:
 				if !n.Used() {
 					// Text == nil -> generating abstract function
@@ -171,7 +171,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		if c == '.' || n.Type().IsUntyped() {
 			continue
 		}
-		if n.Class_ == ir.PPARAM && !ssagen.TypeOK(n.Type()) {
+		if n.Class == ir.PPARAM && !ssagen.TypeOK(n.Type()) {
 			// SSA-able args get location lists, and may move in and
 			// out of registers, so those are handled elsewhere.
 			// Autos and named output params seem to get handled
@@ -186,10 +186,10 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		typename := dwarf.InfoPrefix + types.TypeSymName(n.Type())
 		decls = append(decls, n)
 		abbrev := dwarf.DW_ABRV_AUTO_LOCLIST
-		isReturnValue := (n.Class_ == ir.PPARAMOUT)
-		if n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT {
+		isReturnValue := (n.Class == ir.PPARAMOUT)
+		if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
 			abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
-		} else if n.Class_ == ir.PAUTOHEAP {
+		} else if n.Class == ir.PAUTOHEAP {
 			// If dcl in question has been promoted to heap, do a bit
 			// of extra work to recover original class (auto or param);
 			// see issue 30908. This insures that we get the proper
@@ -198,9 +198,9 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 			// and not stack).
 			// TODO(thanm): generate a better location expression
 			stackcopy := n.Stackcopy
-			if stackcopy != nil && (stackcopy.Class_ == ir.PPARAM || stackcopy.Class_ == ir.PPARAMOUT) {
+			if stackcopy != nil && (stackcopy.Class == ir.PPARAM || stackcopy.Class == ir.PPARAMOUT) {
 				abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
-				isReturnValue = (stackcopy.Class_ == ir.PPARAMOUT)
+				isReturnValue = (stackcopy.Class == ir.PPARAMOUT)
 			}
 		}
 		inlIndex := 0
@@ -275,7 +275,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 	var abbrev int
 	var offs int64
 
-	switch n.Class_ {
+	switch n.Class {
 	case ir.PAUTO:
 		offs = n.FrameOffset()
 		abbrev = dwarf.DW_ABRV_AUTO
@@ -291,7 +291,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 		abbrev = dwarf.DW_ABRV_PARAM
 		offs = n.FrameOffset() + base.Ctxt.FixedFrameSize()
 	default:
-		base.Fatalf("createSimpleVar unexpected class %v for node %v", n.Class_, n)
+		base.Fatalf("createSimpleVar unexpected class %v for node %v", n.Class, n)
 	}
 
 	typename := dwarf.InfoPrefix + types.TypeSymName(n.Type())
@@ -308,7 +308,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 	declpos := base.Ctxt.InnermostPos(declPos(n))
 	return &dwarf.Var{
 		Name:          n.Sym().Name,
-		IsReturnValue: n.Class_ == ir.PPARAMOUT,
+		IsReturnValue: n.Class == ir.PPARAMOUT,
 		IsInlFormal:   n.InlFormal(),
 		Abbrev:        abbrev,
 		StackOffset:   int32(offs),
@@ -353,7 +353,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 	n := debug.Vars[varID]
 
 	var abbrev int
-	switch n.Class_ {
+	switch n.Class {
 	case ir.PAUTO:
 		abbrev = dwarf.DW_ABRV_AUTO_LOCLIST
 	case ir.PPARAM, ir.PPARAMOUT:
@@ -377,7 +377,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 	declpos := base.Ctxt.InnermostPos(n.Pos())
 	dvar := &dwarf.Var{
 		Name:          n.Sym().Name,
-		IsReturnValue: n.Class_ == ir.PPARAMOUT,
+		IsReturnValue: n.Class == ir.PPARAMOUT,
 		IsInlFormal:   n.InlFormal(),
 		Abbrev:        abbrev,
 		Type:          base.Ctxt.Lookup(typename),
