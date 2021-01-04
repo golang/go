@@ -69,6 +69,7 @@ var (
 	flagDumpDep       = flag.Bool("dumpdep", false, "dump symbol dependency graph")
 	flagRace          = flag.Bool("race", false, "enable race detector")
 	flagMsan          = flag.Bool("msan", false, "enable MSan interface")
+	flagAsan          = flag.Bool("asan", false, "enable ASan interface")
 	flagAslr          = flag.Bool("aslr", true, "enable ASLR for buildmode=c-shared on windows")
 
 	flagFieldTrack = flag.String("k", "", "set field tracking `symbol`")

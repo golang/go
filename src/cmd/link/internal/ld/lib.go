@@ -385,6 +385,9 @@ func libinit(ctxt *Link) {
 	} else if *flagMsan {
 		suffixsep = "_"
 		suffix = "msan"
+	} else if *flagAsan {
+		suffixsep = "_"
+		suffix = "asan"
 	}
 
 	Lflag(ctxt, filepath.Join(buildcfg.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", buildcfg.GOOS, buildcfg.GOARCH, suffixsep, suffix)))
@@ -528,6 +531,9 @@ func (ctxt *Link) loadlib() {
 	}
 	if *flagMsan {
 		loadinternal(ctxt, "runtime/msan")
+	}
+	if *flagAsan {
+		loadinternal(ctxt, "runtime/asan")
 	}
 	loadinternal(ctxt, "runtime")
 	for ; i < len(ctxt.Library); i++ {
@@ -1015,6 +1021,7 @@ var internalpkg = []string{
 	"runtime/cgo",
 	"runtime/race",
 	"runtime/msan",
+	"runtime/asan",
 }
 
 func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string), headType objabi.HeadType, f *bio.Reader, pkg string, length int64, pn string, file string) *Hostobj {
