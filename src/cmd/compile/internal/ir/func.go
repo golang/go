@@ -201,7 +201,7 @@ const (
 	funcNilCheckDisabled         // disable nil checks when compiling this function
 	funcInlinabilityChecked      // inliner has already determined whether the function is inlinable
 	funcExportInline             // include inline body in export data
-	funcInstrumentBody           // add race/msan instrumentation during SSA construction
+	funcInstrumentBody           // add race/msan/asan instrumentation during SSA construction
 	funcOpenCodedDeferDisallowed // can't do open-coded defers
 	funcClosureCalled            // closure is only immediately called; used by escape analysis
 )

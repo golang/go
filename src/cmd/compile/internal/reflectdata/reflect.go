@@ -1413,6 +1413,9 @@ func WriteBasicTypes() {
 		if base.Flag.MSan {
 			dimportpath(types.NewPkg("runtime/msan", ""))
 		}
+		if base.Flag.ASan {
+			dimportpath(types.NewPkg("runtime/asan", ""))
+		}
 
 		dimportpath(types.NewPkg("main", ""))
 	}

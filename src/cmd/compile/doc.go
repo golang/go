@@ -44,6 +44,8 @@ Flags:
 		Print compiler version and exit.
 	-asmhdr file
 		Write assembly header to file.
+	-asan
+		Insert calls to C/C++ address sanitizer.
 	-buildid id
 		Record id as the build id in the export metadata.
 	-blockprofile file
