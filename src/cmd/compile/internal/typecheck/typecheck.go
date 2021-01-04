@@ -2099,7 +2099,7 @@ func CheckUnused(fn *ir.Func) {
 
 	// Propagate the used flag for typeswitch variables up to the NONAME in its definition.
 	for _, ln := range fn.Dcl {
-		if ln.Op() == ir.ONAME && ln.Class_ == ir.PAUTO && ln.Used() {
+		if ln.Op() == ir.ONAME && ln.Class == ir.PAUTO && ln.Used() {
 			if guard, ok := ln.Defn.(*ir.TypeSwitchGuard); ok {
 				guard.Used = true
 			}
@@ -2107,7 +2107,7 @@ func CheckUnused(fn *ir.Func) {
 	}
 
 	for _, ln := range fn.Dcl {
-		if ln.Op() != ir.ONAME || ln.Class_ != ir.PAUTO || ln.Used() {
+		if ln.Op() != ir.ONAME || ln.Class != ir.PAUTO || ln.Used() {
 			continue
 		}
 		if defn, ok := ln.Defn.(*ir.TypeSwitchGuard); ok {

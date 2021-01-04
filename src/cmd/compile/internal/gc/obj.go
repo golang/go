@@ -188,7 +188,7 @@ func dumpGlobal(n *ir.Name) {
 	if n.Type() == nil {
 		base.Fatalf("external %v nil type\n", n)
 	}
-	if n.Class_ == ir.PFUNC {
+	if n.Class == ir.PFUNC {
 		return
 	}
 	if n.Sym().Pkg != types.LocalPkg {

@@ -840,7 +840,7 @@ func TypePtr(t *types.Type) *ir.AddrExpr {
 	if s.Def == nil {
 		n := ir.NewNameAt(src.NoXPos, s)
 		n.SetType(types.Types[types.TUINT8])
-		n.Class_ = ir.PEXTERN
+		n.Class = ir.PEXTERN
 		n.SetTypecheck(1)
 		s.Def = n
 	}
@@ -859,7 +859,7 @@ func ITabAddr(t, itype *types.Type) *ir.AddrExpr {
 	if s.Def == nil {
 		n := typecheck.NewName(s)
 		n.SetType(types.Types[types.TUINT8])
-		n.Class_ = ir.PEXTERN
+		n.Class = ir.PEXTERN
 		n.SetTypecheck(1)
 		s.Def = n
 		itabs = append(itabs, itabEntry{t: t, itype: itype, lsym: n.Linksym()})
@@ -1370,7 +1370,7 @@ func WriteTabs() {
 			// }
 			nsym := dname(p.Sym().Name, "", nil, true)
 			t := p.Type()
-			if p.Class_ != ir.PFUNC {
+			if p.Class != ir.PFUNC {
 				t = types.NewPtr(t)
 			}
 			tsym := WriteType(t)
@@ -1674,7 +1674,7 @@ func ZeroAddr(size int64) ir.Node {
 	if s.Def == nil {
 		x := typecheck.NewName(s)
 		x.SetType(types.Types[types.TUINT8])
-		x.Class_ = ir.PEXTERN
+		x.Class = ir.PEXTERN
 		x.SetTypecheck(1)
 		s.Def = x
 	}

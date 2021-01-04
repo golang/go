@@ -32,7 +32,7 @@ func Task() *ir.Name {
 		if n.Op() == ir.ONONAME {
 			continue
 		}
-		if n.Op() != ir.ONAME || n.(*ir.Name).Class_ != ir.PEXTERN {
+		if n.Op() != ir.ONAME || n.(*ir.Name).Class != ir.PEXTERN {
 			base.Fatalf("bad inittask: %v", n)
 		}
 		deps = append(deps, n.(*ir.Name).Linksym())
@@ -89,7 +89,7 @@ func Task() *ir.Name {
 	sym := typecheck.Lookup(".inittask")
 	task := typecheck.NewName(sym)
 	task.SetType(types.Types[types.TUINT8]) // fake type
-	task.Class_ = ir.PEXTERN
+	task.Class = ir.PEXTERN
 	sym.Def = task
 	lsym := task.Linksym()
 	ot := 0

@@ -52,7 +52,7 @@ func Closure(fn *ir.Func) {
 				v = addr
 			}
 
-			v.Class_ = ir.PPARAM
+			v.Class = ir.PPARAM
 			decls = append(decls, v)
 
 			fld := types.NewField(src.NoXPos, v.Sym(), v.Type())
@@ -84,7 +84,7 @@ func Closure(fn *ir.Func) {
 
 			if v.Byval() && v.Type().Width <= int64(2*types.PtrSize) {
 				// If it is a small variable captured by value, downgrade it to PAUTO.
-				v.Class_ = ir.PAUTO
+				v.Class = ir.PAUTO
 				fn.Dcl = append(fn.Dcl, v)
 				body = append(body, ir.NewAssignStmt(base.Pos, v, cr))
 			} else {
@@ -92,7 +92,7 @@ func Closure(fn *ir.Func) {
 				// and initialize in entry prologue.
 				addr := typecheck.NewName(typecheck.Lookup("&" + v.Sym().Name))
 				addr.SetType(types.NewPtr(v.Type()))
-				addr.Class_ = ir.PAUTO
+				addr.Class = ir.PAUTO
 				addr.SetUsed(true)
 				addr.Curfn = fn
 				fn.Dcl = append(fn.Dcl, addr)

@@ -50,8 +50,8 @@ func InitFunc(n *ir.Name, noff int64, f *ir.Name) {
 	if n.Sym() == nil {
 		base.Fatalf("pfuncsym nil n sym")
 	}
-	if f.Class_ != ir.PFUNC {
-		base.Fatalf("pfuncsym class not PFUNC %d", f.Class_)
+	if f.Class != ir.PFUNC {
+		base.Fatalf("pfuncsym class not PFUNC %d", f.Class)
 	}
 	s := n.Linksym()
 	s.WriteAddr(base.Ctxt, noff, types.PtrSize, FuncLinksym(f), 0)
@@ -259,7 +259,7 @@ func FuncSym(s *types.Sym) *types.Sym {
 }
 
 func FuncLinksym(n *ir.Name) *obj.LSym {
-	if n.Op() != ir.ONAME || n.Class_ != ir.PFUNC {
+	if n.Op() != ir.ONAME || n.Class != ir.PFUNC {
 		base.Fatalf("expected func name: %v", n)
 	}
 	return FuncSym(n.Sym()).Linksym()

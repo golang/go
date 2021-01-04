@@ -176,7 +176,7 @@ func walkStmtList(s []ir.Node) {
 // walkDecl walks an ODCL node.
 func walkDecl(n *ir.Decl) ir.Node {
 	v := n.X
-	if v.Class_ == ir.PAUTOHEAP {
+	if v.Class == ir.PAUTOHEAP {
 		if base.Flag.CompilingRuntime {
 			base.Errorf("%v escapes to heap, not allowed in runtime", v)
 		}

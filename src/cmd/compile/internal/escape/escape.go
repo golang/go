@@ -519,7 +519,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 
 	case ir.ONAME:
 		n := n.(*ir.Name)
-		if n.Class_ == ir.PFUNC || n.Class_ == ir.PEXTERN {
+		if n.Class == ir.PFUNC || n.Class == ir.PEXTERN {
 			return
 		}
 		e.flow(k, e.oldLoc(n))
@@ -791,7 +791,7 @@ func (e *escape) addr(n ir.Node) hole {
 		base.Fatalf("unexpected addr: %v", n)
 	case ir.ONAME:
 		n := n.(*ir.Name)
-		if n.Class_ == ir.PEXTERN {
+		if n.Class == ir.PEXTERN {
 			break
 		}
 		k = e.oldLoc(n).asHole()
@@ -899,7 +899,7 @@ func (e *escape) call(ks []hole, call, where ir.Node) {
 		switch call.Op() {
 		case ir.OCALLFUNC:
 			switch v := ir.StaticValue(call.X); {
-			case v.Op() == ir.ONAME && v.(*ir.Name).Class_ == ir.PFUNC:
+			case v.Op() == ir.ONAME && v.(*ir.Name).Class == ir.PFUNC:
 				fn = v.(*ir.Name)
 			case v.Op() == ir.OCLOSURE:
 				fn = v.(*ir.ClosureExpr).Func.Nname
@@ -1589,7 +1589,7 @@ func (b *batch) finish(fns []*ir.Func) {
 }
 
 func (l *location) isName(c ir.Class) bool {
-	return l.n != nil && l.n.Op() == ir.ONAME && l.n.(*ir.Name).Class_ == c
+	return l.n != nil && l.n.Op() == ir.ONAME && l.n.(*ir.Name).Class == c
 }
 
 const numEscResults = 7
@@ -1882,7 +1882,7 @@ func HeapAllocReason(n ir.Node) string {
 	// Parameters are always passed via the stack.
 	if n.Op() == ir.ONAME {
 		n := n.(*ir.Name)
-		if n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT {
+		if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
 			return ""
 		}
 	}
@@ -1939,7 +1939,7 @@ func addrescapes(n ir.Node) {
 
 		// if this is a tmpname (PAUTO), it was tagged by tmpname as not escaping.
 		// on PPARAM it means something different.
-		if n.Class_ == ir.PAUTO && n.Esc() == ir.EscNever {
+		if n.Class == ir.PAUTO && n.Esc() == ir.EscNever {
 			break
 		}
 
@@ -1949,7 +1949,7 @@ func addrescapes(n ir.Node) {
 			break
 		}
 
-		if n.Class_ != ir.PPARAM && n.Class_ != ir.PPARAMOUT && n.Class_ != ir.PAUTO {
+		if n.Class != ir.PPARAM && n.Class != ir.PPARAMOUT && n.Class != ir.PAUTO {
 			break
 		}
 
@@ -2003,7 +2003,7 @@ func moveToHeap(n *ir.Name) {
 	if base.Flag.CompilingRuntime {
 		base.Errorf("%v escapes to heap, not allowed in runtime", n)
 	}
-	if n.Class_ == ir.PAUTOHEAP {
+	if n.Class == ir.PAUTOHEAP {
 		ir.Dump("n", n)
 		base.Fatalf("double move to heap")
 	}
@@ -2022,7 +2022,7 @@ func moveToHeap(n *ir.Name) {
 	// Parameters have a local stack copy used at function start/end
 	// in addition to the copy in the heap that may live longer than
 	// the function.
-	if n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT {
+	if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
 		if n.FrameOffset() == types.BADWIDTH {
 			base.Fatalf("addrescapes before param assignment")
 		}
@@ -2034,9 +2034,9 @@ func moveToHeap(n *ir.Name) {
 		stackcopy := typecheck.NewName(n.Sym())
 		stackcopy.SetType(n.Type())
 		stackcopy.SetFrameOffset(n.FrameOffset())
-		stackcopy.Class_ = n.Class_
+		stackcopy.Class = n.Class
 		stackcopy.Heapaddr = heapaddr
-		if n.Class_ == ir.PPARAMOUT {
+		if n.Class == ir.PPARAMOUT {
 			// Make sure the pointer to the heap copy is kept live throughout the function.
 			// The function could panic at any point, and then a defer could recover.
 			// Thus, we need the pointer to the heap copy always available so the
@@ -2058,7 +2058,7 @@ func moveToHeap(n *ir.Name) {
 			}
 			// Parameters are before locals, so can stop early.
 			// This limits the search even in functions with many local variables.
-			if d.Class_ == ir.PAUTO {
+			if d.Class == ir.PAUTO {
 				break
 			}
 		}
@@ -2069,7 +2069,7 @@ func moveToHeap(n *ir.Name) {
 	}
 
 	// Modify n in place so that uses of n now mean indirection of the heapaddr.
-	n.Class_ = ir.PAUTOHEAP
+	n.Class = ir.PAUTOHEAP
 	n.SetFrameOffset(0)
 	n.Heapaddr = heapaddr
 	n.SetEsc(ir.EscHeap)

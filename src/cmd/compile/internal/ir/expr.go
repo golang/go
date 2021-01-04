@@ -527,7 +527,7 @@ func (n *SelectorExpr) FuncName() *Name {
 		panic(n.no("FuncName"))
 	}
 	fn := NewNameAt(n.Selection.Pos, MethodSym(n.X.Type(), n.Sel))
-	fn.Class_ = PFUNC
+	fn.Class = PFUNC
 	fn.SetType(n.Type())
 	return fn
 }
@@ -736,7 +736,7 @@ func IsAddressable(n Node) bool {
 
 	case ONAME:
 		n := n.(*Name)
-		if n.Class_ == PFUNC {
+		if n.Class == PFUNC {
 			return false
 		}
 		return true
@@ -771,7 +771,7 @@ func staticValue1(nn Node) Node {
 		return nil
 	}
 	n := nn.(*Name)
-	if n.Class_ != PAUTO || n.Addrtaken() {
+	if n.Class != PAUTO || n.Addrtaken() {
 		return nil
 	}
 

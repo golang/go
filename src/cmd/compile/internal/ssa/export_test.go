@@ -70,7 +70,7 @@ func (TestFrontend) StringData(s string) *obj.LSym {
 }
 func (TestFrontend) Auto(pos src.XPos, t *types.Type) *ir.Name {
 	n := ir.NewNameAt(pos, &types.Sym{Name: "aFakeAuto"})
-	n.SetClass(ir.PAUTO)
+	n.Class = ir.PAUTO
 	return n
 }
 func (d TestFrontend) SplitString(s LocalSlot) (LocalSlot, LocalSlot) {

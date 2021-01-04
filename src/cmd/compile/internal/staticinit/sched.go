@@ -78,12 +78,12 @@ func (s *Schedule) tryStaticInit(nn ir.Node) bool {
 // like staticassign but we are copying an already
 // initialized value r.
 func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Type) bool {
-	if rn.Class_ == ir.PFUNC {
+	if rn.Class == ir.PFUNC {
 		// TODO if roff != 0 { panic }
 		staticdata.InitFunc(l, loff, rn)
 		return true
 	}
-	if rn.Class_ != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
+	if rn.Class != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
 		return false
 	}
 	if rn.Defn.Op() != ir.OAS {
@@ -246,7 +246,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 
 	case ir.OSTR2BYTES:
 		r := r.(*ir.ConvExpr)
-		if l.Class_ == ir.PEXTERN && r.X.Op() == ir.OLITERAL {
+		if l.Class == ir.PEXTERN && r.X.Op() == ir.OLITERAL {
 			sval := ir.StringVal(r.X)
 			staticdata.InitSliceBytes(l, loff, sval)
 			return true

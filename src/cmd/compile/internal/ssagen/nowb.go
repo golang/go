@@ -76,7 +76,7 @@ func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
 		return
 	}
 	fn := n.X.(*ir.Name)
-	if fn.Class_ != ir.PFUNC || fn.Defn == nil {
+	if fn.Class != ir.PFUNC || fn.Defn == nil {
 		return
 	}
 	if !types.IsRuntimePkg(fn.Sym().Pkg) || fn.Sym().Name != "systemstack" {

@@ -46,7 +46,7 @@ func TestCmpstackvar(t *testing.T) {
 		n := typecheck.NewName(s)
 		n.SetType(t)
 		n.SetFrameOffset(xoffset)
-		n.Class_ = cl
+		n.Class = cl
 		return n
 	}
 	testdata := []struct {
@@ -161,7 +161,7 @@ func TestStackvarSort(t *testing.T) {
 		n := typecheck.NewName(s)
 		n.SetType(t)
 		n.SetFrameOffset(xoffset)
-		n.Class_ = cl
+		n.Class = cl
 		return n
 	}
 	inp := []*ir.Name{

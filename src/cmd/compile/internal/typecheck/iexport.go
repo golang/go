@@ -430,7 +430,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
 
 	switch n.Op() {
 	case ir.ONAME:
-		switch n.Class_ {
+		switch n.Class {
 		case ir.PEXTERN:
 			// Variable.
 			w.tag('V')
@@ -450,7 +450,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			w.funcExt(n)
 
 		default:
-			base.Fatalf("unexpected class: %v, %v", n, n.Class_)
+			base.Fatalf("unexpected class: %v, %v", n, n.Class)
 		}
 
 	case ir.OLITERAL:
@@ -1260,7 +1260,7 @@ func (w *exportWriter) expr(n ir.Node) {
 	case ir.ONAME:
 		// Package scope name.
 		n := n.(*ir.Name)
-		if (n.Class_ == ir.PEXTERN || n.Class_ == ir.PFUNC) && !ir.IsBlank(n) {
+		if (n.Class == ir.PEXTERN || n.Class == ir.PFUNC) && !ir.IsBlank(n) {
 			w.op(ir.ONONAME)
 			w.qualifiedIdent(n)
 			break
@@ -1526,7 +1526,7 @@ func (w *exportWriter) localName(n *ir.Name) {
 	// PPARAM/PPARAMOUT, because we only want to include vargen in
 	// non-param names.
 	var v int32
-	if n.Class_ == ir.PAUTO || (n.Class_ == ir.PAUTOHEAP && n.Stackcopy == nil) {
+	if n.Class == ir.PAUTO || (n.Class == ir.PAUTOHEAP && n.Stackcopy == nil) {
 		v = n.Vargen
 	}
 

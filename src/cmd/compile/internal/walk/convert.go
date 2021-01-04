@@ -68,12 +68,12 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 
 	if ir.Names.Staticuint64s == nil {
 		ir.Names.Staticuint64s = typecheck.NewName(ir.Pkgs.Runtime.Lookup("staticuint64s"))
-		ir.Names.Staticuint64s.Class_ = ir.PEXTERN
+		ir.Names.Staticuint64s.Class = ir.PEXTERN
 		// The actual type is [256]uint64, but we use [256*8]uint8 so we can address
 		// individual bytes.
 		ir.Names.Staticuint64s.SetType(types.NewArray(types.Types[types.TUINT8], 256*8))
 		ir.Names.Zerobase = typecheck.NewName(ir.Pkgs.Runtime.Lookup("zerobase"))
-		ir.Names.Zerobase.Class_ = ir.PEXTERN
+		ir.Names.Zerobase.Class = ir.PEXTERN
 		ir.Names.Zerobase.SetType(types.Types[types.TUINTPTR])
 	}
 
@@ -98,7 +98,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		xe := ir.NewIndexExpr(base.Pos, ir.Names.Staticuint64s, index)
 		xe.SetBounded(true)
 		value = xe
-	case n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class_ == ir.PEXTERN && n.X.(*ir.Name).Readonly():
+	case n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class == ir.PEXTERN && n.X.(*ir.Name).Readonly():
 		// n.Left is a readonly global; use it directly.
 		value = n.X
 	case !fromType.IsInterface() && n.Esc() == ir.EscNone && fromType.Width <= 1024:

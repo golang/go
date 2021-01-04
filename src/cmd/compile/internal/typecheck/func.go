@@ -129,7 +129,7 @@ func CaptureVars(fn *ir.Func) {
 		outermost := v.Defn.(*ir.Name)
 
 		// out parameters will be assigned to implicitly upon return.
-		if outermost.Class_ != ir.PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type().Size() <= 128 {
+		if outermost.Class != ir.PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type().Size() <= 128 {
 			v.SetByval(true)
 		} else {
 			outermost.SetAddrtaken(true)
@@ -408,7 +408,7 @@ func tcFunc(n *ir.Func) {
 	}
 
 	for _, ln := range n.Dcl {
-		if ln.Op() == ir.ONAME && (ln.Class_ == ir.PPARAM || ln.Class_ == ir.PPARAMOUT) {
+		if ln.Op() == ir.ONAME && (ln.Class == ir.PPARAM || ln.Class == ir.PPARAMOUT) {
 			ln.Decldepth = 1
 		}
 	}

@@ -392,7 +392,7 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
 
 		appendWalkStmt(&late, convas(ir.NewAssignStmt(base.Pos, lorig, r), &late))
 
-		if name == nil || name.Addrtaken() || name.Class_ == ir.PEXTERN || name.Class_ == ir.PAUTOHEAP {
+		if name == nil || name.Addrtaken() || name.Class == ir.PEXTERN || name.Class == ir.PAUTOHEAP {
 			memWrite = true
 			continue
 		}
@@ -418,7 +418,7 @@ func readsMemory(n ir.Node) bool {
 	switch n.Op() {
 	case ir.ONAME:
 		n := n.(*ir.Name)
-		return n.Class_ == ir.PEXTERN || n.Class_ == ir.PAUTOHEAP || n.Addrtaken()
+		return n.Class == ir.PEXTERN || n.Class == ir.PAUTOHEAP || n.Addrtaken()
 
 	case ir.OADD,
 		ir.OAND,

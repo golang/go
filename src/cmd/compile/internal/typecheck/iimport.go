@@ -333,7 +333,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 
 			// methodSym already marked m.Sym as a function.
 			m := ir.NewNameAt(mpos, ir.MethodSym(recv.Type, msym))
-			m.Class_ = ir.PFUNC
+			m.Class = ir.PFUNC
 			m.SetType(mtyp)
 
 			m.Func = ir.NewFunc(mpos)

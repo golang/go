@@ -357,6 +357,6 @@ func DeclareUniverse() {
 
 	ir.RegFP = NewName(Lookup(".fp"))
 	ir.RegFP.SetType(types.Types[types.TINT32])
-	ir.RegFP.Class_ = ir.PPARAM
+	ir.RegFP.Class = ir.PPARAM
 	ir.RegFP.SetUsed(true)
 }

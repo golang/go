@@ -37,7 +37,7 @@ func (*Ident) CanBeNtype() {}
 type Name struct {
 	miniExpr
 	BuiltinOp Op         // uint8
-	Class_    Class      // uint8
+	Class     Class      // uint8
 	pragma    PragmaFlag // int16
 	flags     bitset16
 	sym       *types.Sym
@@ -222,8 +222,6 @@ func (n *Name) Sym() *types.Sym     { return n.sym }
 func (n *Name) SetSym(x *types.Sym) { n.sym = x }
 func (n *Name) SubOp() Op           { return n.BuiltinOp }
 func (n *Name) SetSubOp(x Op)       { n.BuiltinOp = x }
-func (n *Name) Class() Class        { return n.Class_ }
-func (n *Name) SetClass(x Class)    { n.Class_ = x }
 func (n *Name) SetFunc(x *Func)     { n.Func = x }
 func (n *Name) Offset() int64       { panic("Name.Offset") }
 func (n *Name) SetOffset(x int64) {
@@ -425,7 +423,7 @@ func IsParamStackCopy(n Node) bool {
 		return false
 	}
 	name := n.(*Name)
-	return (name.Class_ == PPARAM || name.Class_ == PPARAMOUT) && name.Heapaddr != nil
+	return (name.Class == PPARAM || name.Class == PPARAMOUT) && name.Heapaddr != nil
 }
 
 // IsParamHeapCopy reports whether this is the on-heap copy of
@@ -435,7 +433,7 @@ func IsParamHeapCopy(n Node) bool {
 		return false
 	}
 	name := n.(*Name)
-	return name.Class_ == PAUTOHEAP && name.Stackcopy != nil
+	return name.Class == PAUTOHEAP && name.Stackcopy != nil
 }
 
 var RegFP *Name

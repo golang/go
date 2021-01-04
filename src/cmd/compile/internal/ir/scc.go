@@ -87,7 +87,7 @@ func (v *bottomUpVisitor) visit(n *Func) uint32 {
 	Visit(n, func(n Node) {
 		switch n.Op() {
 		case ONAME:
-			if n := n.(*Name); n.Class_ == PFUNC {
+			if n := n.(*Name); n.Class == PFUNC {
 				do(n.Defn)
 			}
 		case ODOTMETH, OCALLPART, OMETHEXPR:

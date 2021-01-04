@@ -34,11 +34,11 @@ import (
 // the top of the stack and increasing in size.
 // Non-autos sort on offset.
 func cmpstackvarlt(a, b *ir.Name) bool {
-	if (a.Class_ == ir.PAUTO) != (b.Class_ == ir.PAUTO) {
-		return b.Class_ == ir.PAUTO
+	if (a.Class == ir.PAUTO) != (b.Class == ir.PAUTO) {
+		return b.Class == ir.PAUTO
 	}
 
-	if a.Class_ != ir.PAUTO {
+	if a.Class != ir.PAUTO {
 		return a.FrameOffset() < b.FrameOffset()
 	}
 
@@ -79,7 +79,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 
 	// Mark the PAUTO's unused.
 	for _, ln := range fn.Dcl {
-		if ln.Class_ == ir.PAUTO {
+		if ln.Class == ir.PAUTO {
 			ln.SetUsed(false)
 		}
 	}
@@ -94,7 +94,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if n, ok := v.Aux.(*ir.Name); ok {
-				switch n.Class_ {
+				switch n.Class {
 				case ir.PPARAM, ir.PPARAMOUT:
 					// Don't modify nodfp; it is a global.
 					if n != ir.RegFP {
@@ -120,7 +120,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	// Reassign stack offsets of the locals that are used.
 	lastHasPtr := false
 	for i, n := range fn.Dcl {
-		if n.Op() != ir.ONAME || n.Class_ != ir.PAUTO {
+		if n.Op() != ir.ONAME || n.Class != ir.PAUTO {
 			continue
 		}
 		if !n.Used() {
@@ -207,7 +207,7 @@ func init() {
 func StackOffset(slot ssa.LocalSlot) int32 {
 	n := slot.N
 	var off int64
-	switch n.Class_ {
+	switch n.Class {
 	case ir.PAUTO:
 		off = n.FrameOffset()
 		if base.Ctxt.FixedFrameSize() == 0 {
