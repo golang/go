@@ -246,29 +246,26 @@ func MethodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
 	fn.SetWrapper(true)
 
 	// Declare and initialize variable holding receiver.
-	cr := ir.NewClosureRead(rcvrtype, types.Rnd(int64(types.PtrSize), int64(rcvrtype.Align)))
-	var ptr *ir.Name
-	var body []ir.Node
-	if rcvrtype.IsPtr() || rcvrtype.IsInterface() {
-		ptr = Temp(rcvrtype)
-		body = append(body, ir.NewAssignStmt(base.Pos, ptr, cr))
-	} else {
-		ptr = Temp(types.NewPtr(rcvrtype))
-		body = append(body, ir.NewAssignStmt(base.Pos, ptr, NodAddr(cr)))
-	}
+	ptr := ir.NewNameAt(base.Pos, Lookup(".this"))
+	ptr.Class = ir.PAUTOHEAP
+	ptr.SetType(rcvrtype)
+	ptr.Curfn = fn
+	ptr.SetIsClosureVar(true)
+	ptr.SetByval(true)
+	fn.ClosureVars = append(fn.ClosureVars, ptr)
 
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil)
 	call.Args = ir.ParamNames(tfn.Type())
 	call.IsDDD = tfn.Type().IsVariadic()
+
+	var body ir.Node = call
 	if t0.NumResults() != 0 {
 		ret := ir.NewReturnStmt(base.Pos, nil)
 		ret.Results = []ir.Node{call}
-		body = append(body, ret)
-	} else {
-		body = append(body, call)
+		body = ret
 	}
 
-	fn.Body = body
+	fn.Body = []ir.Node{body}
 	FinishFuncBody()
 
 	Func(fn)

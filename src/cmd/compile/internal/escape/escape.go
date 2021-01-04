@@ -583,6 +583,9 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		if n.Class == ir.PFUNC || n.Class == ir.PEXTERN {
 			return
 		}
+		if n.IsClosureVar() && n.Defn == nil {
+			return // ".this" from method value wrapper
+		}
 		e.flow(k, e.oldLoc(n))
 
 	case ir.ONAMEOFFSET:
