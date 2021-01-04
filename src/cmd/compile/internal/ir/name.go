@@ -147,12 +147,6 @@ func (n *Name) copy() Node                         { panic(n.no("copy")) }
 func (n *Name) doChildren(do func(Node) bool) bool { return false }
 func (n *Name) editChildren(edit func(Node) Node)  {}
 
-// CloneName makes a cloned copy of the name.
-// It's not ir.Copy(n) because in general that operation is a mistake on names,
-// which uniquely identify variables.
-// Callers must use n.CloneName to make clear they intend to create a separate name.
-func (n *Name) CloneName() *Name { c := *n; return &c }
-
 // TypeDefn returns the type definition for a named OTYPE.
 // That is, given "type T Defn", it returns Defn.
 // It is used by package types.
