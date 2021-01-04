@@ -193,6 +193,10 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		return true, "msan"
 	}
 
+	if *flagAsan {
+		return true, "asan"
+	}
+
 	// Internally linking cgo is incomplete on some architectures.
 	// https://golang.org/issue/14449
 	if iscgo && ctxt.Arch.InFamily(sys.MIPS64, sys.MIPS, sys.RISCV64) {
