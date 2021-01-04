@@ -1100,3 +1100,24 @@ func Index(s, substr string) int {
 	}
 	return -1
 }
+
+// Un-quotes a quoted string
+// Returns a string with backslashes stripped off. (\' becomes ' and so on.)
+// Double backslashes (\\) are made into a single backslash (\).
+func StripSlashes(str string) string {
+	var buf Builder
+	buf.Grow(len(str))
+	l, skip := len(str), false
+	for i, char := range str {
+		if skip {
+			skip = false
+		} else if char == '\\' {
+			if i+1 < l && str[i+1] == '\\' {
+				skip = true
+			}
+			continue
+		}
+		buf.WriteRune(char)
+	}
+	return buf.String()
+}

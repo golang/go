@@ -1582,6 +1582,36 @@ func TestCount(t *testing.T) {
 	}
 }
 
+var SlashesTests = []struct {
+	s, t string
+	out  bool
+}{
+	{
+		s:   `Is your name O\'reilly?`,
+		t:   "Is your name O'reilly?",
+		out: true,
+	},
+	{
+		s:   `"f\\'oo" and "b\\'ar"`,
+		t:   `"f\oo" and "b\ar"`,
+		out: true,
+	},
+	{
+		s:   `\\\\1`,
+		t:   `\\1`,
+		out: true,
+	},
+}
+
+func TestStripSlashes(t *testing.T) {
+	for _, item := range SlashesTests {
+		outFlag := !StripSlashes(item.s, item.t)
+		if outFlag {
+			t.Errorf("StripSlashes(%#q, %#q) = %v, want %v", item.t, item.s, item.out, outFlag)
+		}
+	}
+}
+
 func makeBenchInputHard() string {
 	tokens := [...]string{
 		"<a>", "<p>", "<b>", "<strong>",
