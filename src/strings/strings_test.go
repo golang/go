@@ -1593,7 +1593,7 @@ var SlashesTests = []struct {
 	},
 	{
 		s:   `"f\\'oo" and "b\\'ar"`,
-		t:   `"f\oo" and "b\ar"`,
+		t:   `"f\'oo" and "b\'ar"`,
 		out: true,
 	},
 	{
@@ -1605,9 +1605,9 @@ var SlashesTests = []struct {
 
 func TestStripSlashes(t *testing.T) {
 	for _, item := range SlashesTests {
-		outFlag := !StripSlashes(item.s, item.t)
-		if outFlag {
-			t.Errorf("StripSlashes(%#q, %#q) = %v, want %v", item.t, item.s, item.out, outFlag)
+		stripStr := StripSlashes(item.s)
+		if stripStr != item.t {
+			t.Errorf("StripSlashes(%#q) = %v, want %v", item.s, stripStr, item.t)
 		}
 	}
 }
