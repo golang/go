@@ -356,6 +356,13 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	if fn.Pragma&ir.Nosplit != 0 {
 		s.f.NoSplit = true
 	}
+	if fn.Pragma&ir.RegisterParams != 0 { // TODO remove after register abi is working
+		if strings.Contains(name, ".") {
+			base.ErrorfAt(fn.Pos(), "Calls to //go:registerparams method %s won't work, remove the pragma from the declaration.", name)
+		}
+		s.f.Warnl(fn.Pos(), "Declared function %s has register params", name)
+	}
+
 	s.panics = map[funcLine]*ssa.Block{}
 	s.softFloat = s.config.SoftFloat
 
@@ -4685,6 +4692,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 	}
 
 	testLateExpansion := false
+	inRegisters := false
 
 	switch n.Op() {
 	case ir.OCALLFUNC:
@@ -4692,6 +4700,13 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		if k == callNormal && fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC {
 			fn := fn.(*ir.Name)
 			sym = fn.Sym()
+			// TODO remove after register abi is working
+			inRegistersImported := fn.Pragma()&ir.RegisterParams != 0
+			inRegistersSamePackage := fn.Func != nil && fn.Func.Pragma&ir.RegisterParams != 0
+			inRegisters = inRegistersImported || inRegistersSamePackage
+			if inRegisters {
+				s.f.Warnl(n.Pos(), "Called function %s has register params", sym.Linksym().Name)
+			}
 			break
 		}
 		closure = s.expr(fn)

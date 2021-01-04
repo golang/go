@@ -976,6 +976,9 @@ func (w *exportWriter) funcExt(n *ir.Name) {
 	w.linkname(n.Sym())
 	w.symIdx(n.Sym())
 
+	// TODO remove after register abi is working.
+	w.uint64(uint64(n.Func.Pragma))
+
 	// Escape analysis.
 	for _, fs := range &types.RecvsParams {
 		for _, f := range fs(n.Type()).FieldSlice() {
