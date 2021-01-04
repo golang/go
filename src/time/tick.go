@@ -45,8 +45,8 @@ func NewTicker(d Duration) *Ticker {
 // of the ticks is specified by the duration argument. The ticker
 // will adjust the time interval or drop ticks to make up for slow
 // receivers.  The duration d must be greater than zero; if not,
-// NewTicker will panic. The offset is the nanoseconds since the
-// process has started. Stop the ticker to release associated
+// NewTicker will panic. The offset duration is the time to wait from 
+// the process start. Stop the ticker to release associated
 // resources.
 func NewTickerRuntimeOffset(d Duration, offset Duration) *Ticker {
 	if d <= 0 {
