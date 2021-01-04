@@ -15,102 +15,63 @@ import (
 // Closure is called in a separate phase after escape analysis.
 // It transform closure bodies to properly reference captured variables.
 func Closure(fn *ir.Func) {
+	if len(fn.ClosureVars) == 0 {
+		return
+	}
+
+	if !fn.ClosureCalled() {
+		// The closure is not directly called, so it is going to stay as closure.
+		fn.SetNeedctxt(true)
+		return
+	}
+
 	lno := base.Pos
 	base.Pos = fn.Pos()
 
-	if fn.ClosureCalled() {
-		// If the closure is directly called, we transform it to a plain function call
-		// with variables passed as args. This avoids allocation of a closure object.
-		// Here we do only a part of the transformation. Walk of OCALLFUNC(OCLOSURE)
-		// will complete the transformation later.
-		// For illustration, the following closure:
-		//	func(a int) {
-		//		println(byval)
-		//		byref++
-		//	}(42)
-		// becomes:
-		//	func(byval int, &byref *int, a int) {
-		//		println(byval)
-		//		(*&byref)++
-		//	}(byval, &byref, 42)
+	// If the closure is directly called, we transform it to a plain function call
+	// with variables passed as args. This avoids allocation of a closure object.
+	// Here we do only a part of the transformation. Walk of OCALLFUNC(OCLOSURE)
+	// will complete the transformation later.
+	// For illustration, the following closure:
+	//	func(a int) {
+	//		println(byval)
+	//		byref++
+	//	}(42)
+	// becomes:
+	//	func(byval int, &byref *int, a int) {
+	//		println(byval)
+	//		(*&byref)++
+	//	}(byval, &byref, 42)
 
-		// f is ONAME of the actual function.
-		f := fn.Nname
+	// f is ONAME of the actual function.
+	f := fn.Nname
 
-		// We are going to insert captured variables before input args.
-		var params []*types.Field
-		var decls []*ir.Name
-		for _, v := range fn.ClosureVars {
-			if !v.Byval() {
-				// If v of type T is captured by reference,
-				// we introduce function param &v *T
-				// and v remains PAUTOHEAP with &v heapaddr
-				// (accesses will implicitly deref &v).
-				addr := typecheck.NewName(typecheck.Lookup("&" + v.Sym().Name))
-				addr.SetType(types.NewPtr(v.Type()))
-				v.Heapaddr = addr
-				v = addr
-			}
-
-			v.Class = ir.PPARAM
-			decls = append(decls, v)
-
-			fld := types.NewField(src.NoXPos, v.Sym(), v.Type())
-			fld.Nname = v
-			params = append(params, fld)
+	// We are going to insert captured variables before input args.
+	var params []*types.Field
+	var decls []*ir.Name
+	for _, v := range fn.ClosureVars {
+		if !v.Byval() {
+			// If v of type T is captured by reference,
+			// we introduce function param &v *T
+			// and v remains PAUTOHEAP with &v heapaddr
+			// (accesses will implicitly deref &v).
+			addr := typecheck.NewName(typecheck.Lookup("&" + v.Sym().Name))
+			addr.SetType(types.NewPtr(v.Type()))
+			v.Heapaddr = addr
+			v = addr
 		}
 
-		if len(params) > 0 {
-			// Prepend params and decls.
-			f.Type().Params().SetFields(append(params, f.Type().Params().FieldSlice()...))
-			fn.Dcl = append(decls, fn.Dcl...)
-		}
+		v.Class = ir.PPARAM
+		decls = append(decls, v)
 
-		types.CalcSize(f.Type())
-		fn.Nname.SetType(f.Type()) // update type of ODCLFUNC
-	} else {
-		// The closure is not called, so it is going to stay as closure.
-		var body []ir.Node
-		offset := int64(types.PtrSize)
-		for _, v := range fn.ClosureVars {
-			// cv refers to the field inside of closure OSTRUCTLIT.
-			typ := v.Type()
-			if !v.Byval() {
-				typ = types.NewPtr(typ)
-			}
-			offset = types.Rnd(offset, int64(typ.Align))
-			cr := ir.NewClosureRead(typ, offset)
-			offset += typ.Width
-
-			if v.Byval() && v.Type().Width <= int64(2*types.PtrSize) {
-				// If it is a small variable captured by value, downgrade it to PAUTO.
-				v.Class = ir.PAUTO
-				fn.Dcl = append(fn.Dcl, v)
-				body = append(body, ir.NewAssignStmt(base.Pos, v, cr))
-			} else {
-				// Declare variable holding addresses taken from closure
-				// and initialize in entry prologue.
-				addr := typecheck.NewName(typecheck.Lookup("&" + v.Sym().Name))
-				addr.SetType(types.NewPtr(v.Type()))
-				addr.Class = ir.PAUTO
-				addr.SetUsed(true)
-				addr.Curfn = fn
-				fn.Dcl = append(fn.Dcl, addr)
-				v.Heapaddr = addr
-				var src ir.Node = cr
-				if v.Byval() {
-					src = typecheck.NodAddr(cr)
-				}
-				body = append(body, ir.NewAssignStmt(base.Pos, addr, src))
-			}
-		}
-
-		if len(body) > 0 {
-			typecheck.Stmts(body)
-			fn.Enter = body
-			fn.SetNeedctxt(true)
-		}
+		fld := types.NewField(src.NoXPos, v.Sym(), v.Type())
+		fld.Nname = v
+		params = append(params, fld)
 	}
+
+	// Prepend params and decls.
+	f.Type().Params().SetFields(append(params, f.Type().Params().FieldSlice()...))
+	fn.Dcl = append(decls, fn.Dcl...)
 
 	base.Pos = lno
 }

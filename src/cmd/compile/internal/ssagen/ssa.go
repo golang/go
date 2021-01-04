@@ -470,6 +470,47 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 		}
 	}
 
+	// Populate closure variables.
+	if !fn.ClosureCalled() {
+		clo := s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr)
+		offset := int64(types.PtrSize) // PtrSize to skip past function entry PC field
+		for _, n := range fn.ClosureVars {
+			typ := n.Type()
+			if !n.Byval() {
+				typ = types.NewPtr(typ)
+			}
+
+			offset = types.Rnd(offset, typ.Alignment())
+			r := s.newValue1I(ssa.OpOffPtr, types.NewPtr(typ), offset, clo)
+			offset += typ.Size()
+
+			if n.Byval() && TypeOK(n.Type()) {
+				// If it is a small variable captured by value, downgrade it to PAUTO.
+				r = s.load(n.Type(), r)
+
+				n.Class = ir.PAUTO
+			} else {
+				if !n.Byval() {
+					r = s.load(typ, r)
+				}
+
+				// Declare variable holding address taken from closure.
+				addr := ir.NewNameAt(fn.Pos(), &types.Sym{Name: "&" + n.Sym().Name, Pkg: types.LocalPkg})
+				addr.SetType(types.NewPtr(n.Type()))
+				addr.Class = ir.PAUTO
+				addr.SetUsed(true)
+				addr.Curfn = fn
+				types.CalcSize(addr.Type())
+
+				n.Heapaddr = addr
+				n = addr
+			}
+
+			fn.Dcl = append(fn.Dcl, n)
+			s.assign(n, r, false, 0)
+		}
+	}
+
 	// Convert the AST-based IR to the SSA-based IR
 	s.stmtList(fn.Enter)
 	s.stmtList(fn.Body)
