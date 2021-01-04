@@ -489,7 +489,7 @@ func (t *test) run() {
 	// Execution recipe stops at first blank line.
 	pos := strings.Index(t.src, "\n\n")
 	if pos == -1 {
-		t.err = errors.New("double newline not found")
+		t.err = fmt.Errorf("double newline ending execution recipe not found in %s", t.goFileName())
 		return
 	}
 	action := t.src[:pos]
@@ -860,9 +860,7 @@ func (t *test) run() {
 					t.err = err
 					return
 				}
-				if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
-					t.err = fmt.Errorf("incorrect output\n%s", out)
-				}
+				t.checkExpectedOutput(out)
 			}
 		}
 
@@ -902,9 +900,7 @@ func (t *test) run() {
 			t.err = err
 			return
 		}
-		if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
-			t.err = fmt.Errorf("incorrect output\n%s", out)
-		}
+		t.checkExpectedOutput(out)
 
 	case "build":
 		// Build Go file.
@@ -989,9 +985,7 @@ func (t *test) run() {
 				t.err = err
 				break
 			}
-			if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
-				t.err = fmt.Errorf("incorrect output\n%s", out)
-			}
+			t.checkExpectedOutput(out)
 		}
 
 	case "buildrun":
@@ -1017,9 +1011,7 @@ func (t *test) run() {
 			return
 		}
 
-		if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
-			t.err = fmt.Errorf("incorrect output\n%s", out)
-		}
+		t.checkExpectedOutput(out)
 
 	case "run":
 		// Run Go file if no special go command flags are provided;
@@ -1062,9 +1054,7 @@ func (t *test) run() {
 			t.err = err
 			return
 		}
-		if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
-			t.err = fmt.Errorf("incorrect output\n%s", out)
-		}
+		t.checkExpectedOutput(out)
 
 	case "runoutput":
 		// Run Go file and write its output into temporary Go file.
@@ -1099,9 +1089,7 @@ func (t *test) run() {
 			t.err = err
 			return
 		}
-		if string(out) != t.expectedOutput() {
-			t.err = fmt.Errorf("incorrect output\n%s", out)
-		}
+		t.checkExpectedOutput(out)
 
 	case "errorcheckoutput":
 		// Run Go file and write its output into temporary Go file.
@@ -1175,12 +1163,24 @@ func (t *test) makeTempDir() {
 	}
 }
 
-func (t *test) expectedOutput() string {
+// checkExpectedOutput compares the output from compiling and/or running with the contents
+// of the corresponding reference output file, if any (replace ".go" with ".out").
+// If they don't match, fail with an informative message.
+func (t *test) checkExpectedOutput(gotBytes []byte) {
+	got := string(gotBytes)
 	filename := filepath.Join(t.dir, t.gofile)
 	filename = filename[:len(filename)-len(".go")]
 	filename += ".out"
-	b, _ := ioutil.ReadFile(filename)
-	return string(b)
+	b, err := ioutil.ReadFile(filename)
+	// File is allowed to be missing (err != nil) in which case output should be empty.
+	got = strings.Replace(got, "\r\n", "\n", -1)
+	if got != string(b) {
+		if err == nil {
+			t.err = fmt.Errorf("output does not match expected in %s. Instead saw\n%s", filename, got)
+		} else {
+			t.err = fmt.Errorf("output should be empty when (optional) expected-output file %s is not present. Instead saw\n%s", filename, got)
+		}
+	}
 }
 
 func splitOutput(out string, wantAuto bool) []string {
