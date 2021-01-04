@@ -1078,8 +1078,8 @@ func Now() Time {
 
 var start_sec, start_nsec, start_mono = now()
 
-// Get the process start time.
-func Started() Time {
+// Get the runtime start time.
+func RuntimeStarted() Time {
 	if start_mono != 0 {
 		start_nsec -= int32(start_mono - startNano)
 		if start_nsec < 0 {
