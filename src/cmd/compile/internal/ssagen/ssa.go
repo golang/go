@@ -3222,8 +3222,8 @@ func (s *state) assign(left ir.Node, right *ssa.Value, deref bool, skip skipMask
 
 	// If this assignment clobbers an entire local variable, then emit
 	// OpVarDef so liveness analysis knows the variable is redefined.
-	if base := clobberBase(left); base.Op() == ir.ONAME && base.(*ir.Name).Class != ir.PEXTERN && skip == 0 {
-		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base.(*ir.Name), s.mem(), !ir.IsAutoTmp(base))
+	if base, ok := clobberBase(left).(*ir.Name); ok && base.Op() == ir.ONAME && base.Class != ir.PEXTERN && base.Class != ir.PAUTOHEAP && skip == 0 {
+		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base, s.mem(), !ir.IsAutoTmp(base))
 	}
 
 	// Left is not ssa-able. Compute its address.
@@ -4986,6 +4986,8 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 			// ensure that we reuse symbols for out parameters so
 			// that cse works on their addresses
 			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), true)
+		case ir.PAUTOHEAP:
+			return s.expr(n.Heapaddr)
 		default:
 			s.Fatalf("variable address class %v not implemented", n.Class)
 			return nil
@@ -5096,11 +5098,8 @@ func (s *state) canSSAName(name *ir.Name) bool {
 	if ir.IsParamHeapCopy(name) {
 		return false
 	}
-	if name.Class == ir.PAUTOHEAP {
-		s.Fatalf("canSSA of PAUTOHEAP %v", name)
-	}
 	switch name.Class {
-	case ir.PEXTERN:
+	case ir.PEXTERN, ir.PAUTOHEAP:
 		return false
 	case ir.PPARAMOUT:
 		if s.hasdefer {
