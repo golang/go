@@ -264,7 +264,7 @@ const (
 	nameNeedzero              // if it contains pointers, needs to be zeroed on function entry
 	nameAutoTemp              // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
 	nameUsed                  // for variable declared and not used error
-	nameIsClosureVar          // PAUTOHEAP closure pseudo-variable; original at n.Name.Defn
+	nameIsClosureVar          // PAUTOHEAP closure pseudo-variable; original (if any) at n.Defn
 	nameIsOutputParamHeapAddr // pointer to a result parameter's heap copy
 	nameAddrtaken             // address taken, even if not moved to heap
 	nameInlFormal             // PAUTO created by inliner, derived from callee formal
@@ -332,7 +332,7 @@ func (n *Name) SetVal(v constant.Value) {
 // it appears in the function that immediately contains the
 // declaration. Otherwise, Canonical simply returns n itself.
 func (n *Name) Canonical() *Name {
-	if n.IsClosureVar() {
+	if n.IsClosureVar() && n.Defn != nil {
 		n = n.Defn.(*Name)
 	}
 	return n
