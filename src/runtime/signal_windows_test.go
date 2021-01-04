@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -86,21 +85,10 @@ func sendCtrlBreak(pid int) error {
 // TestCtrlHandler tests that Go can gracefully handle closing the console window.
 // See https://golang.org/issues/41884.
 func TestCtrlHandler(t *testing.T) {
-	if *flagQuick {
-		t.Skip("-quick")
-	}
 	testenv.MustHaveGoBuild(t)
-	testenv.MustHaveExecPath(t, "gcc")
-	testprog.Lock()
-	defer testprog.Unlock()
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatalf("failed to create temp directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
 
 	// build go program
-	exe := filepath.Join(dir, "test.exe")
+	exe := filepath.Join(t.TempDir(), "test.exe")
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "testdata/testwinsignal/main.go")
 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
@@ -142,9 +130,8 @@ func TestCtrlHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFrom failed: %v", err)
 	}
-	expected := syscall.SIGTERM.String()
-	if string(data[:n]) != expected {
-		t.Fatalf("Expected '%s' got: %s", expected, data[:n])
+	if expected, got := syscall.SIGTERM.String(), string(data[:n]); expected != got {
+		t.Fatalf("Expected '%s' got: %s", expected, got)
 	}
 
 	if err := cmd.Wait(); err != nil {
