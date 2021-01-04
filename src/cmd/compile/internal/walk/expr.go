@@ -52,18 +52,14 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 		base.Fatalf("expression has untyped type: %+v", n)
 	}
 
-	if n.Op() == ir.ONAME && n.(*ir.Name).Class == ir.PAUTOHEAP {
-		n := n.(*ir.Name)
-		nn := ir.NewStarExpr(base.Pos, n.Heapaddr)
-		nn.X.MarkNonNil()
-		return walkExpr(typecheck.Expr(nn), init)
-	}
-
 	n = walkExpr1(n, init)
 
 	// Eagerly compute sizes of all expressions for the back end.
 	if typ := n.Type(); typ != nil && typ.Kind() != types.TBLANK && !typ.IsFuncArgStruct() {
 		types.CheckSize(typ)
+	}
+	if n, ok := n.(*ir.Name); ok && n.Heapaddr != nil {
+		types.CheckSize(n.Heapaddr.Type())
 	}
 	if ir.IsConst(n, constant.String) {
 		// Emit string symbol now to avoid emitting
