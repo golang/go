@@ -121,7 +121,7 @@ func (t *fsTester) openDir(dir string) fs.ReadDirFile {
 	d, ok := f.(fs.ReadDirFile)
 	if !ok {
 		f.Close()
-		t.errorf("%s: Open returned File type %T, not a io.ReadDirFile", dir, f)
+		t.errorf("%s: Open returned File type %T, not a fs.ReadDirFile", dir, f)
 		return nil
 	}
 	return d
