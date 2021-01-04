@@ -119,7 +119,7 @@ func TestCtrlHandler(t *testing.T) {
 	defer cancel()
 
 	// run test program
-	cmd = exec.CommandContext(ctx, "cmd.exe", "/c", "start", exe, conn.LocalAddr().String())
+	cmd = exec.CommandContext(ctx, "cmd.exe", "/c", "start", "", "/wait", exe, conn.LocalAddr().String())
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
