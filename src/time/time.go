@@ -189,7 +189,10 @@ func (t *Time) addSec(d int64) {
 		t.stripMono()
 	}
 
-	// TODO: Check for overflow.
+	// Check for overflow.
+	if (1<<63)-1-t.ext < d {
+		panic("time: overflow in call to Time.addSec")
+	}
 	t.ext += d
 }
 
@@ -1071,6 +1074,25 @@ func Now() Time {
 		return Time{uint64(nsec), sec + minWall, Local}
 	}
 	return Time{hasMonotonic | uint64(sec)<<nsecShift | uint64(nsec), mono, Local}
+}
+
+var start_sec, start_nsec, start_mono = now()
+
+// Get the process start time.
+func Started() Time {
+	if start_mono != 0 {
+		start_nsec -= int32(start_mono - startNano)
+		if start_nsec < 0 {
+			start_sec--
+			start_nsec += 1e9
+		}
+		start_sec += unixToInternal - minWall
+		start_mono = 0
+	}
+	if uint64(start_sec)>>33 != 0 {
+		return Time{uint64(start_nsec), start_sec + minWall, Local}
+	}
+	return Time{hasMonotonic | uint64(start_sec)<<nsecShift | uint64(start_nsec), 0, Local}
 }
 
 func unixTime(sec int64, nsec int32) Time {

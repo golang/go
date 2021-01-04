@@ -205,6 +205,26 @@ func ExampleNewTicker() {
 	}
 }
 
+func ExampleNewTickerRuntimeOffset() {
+	// Wait three seconds from the start of the runtime before ticking
+	ticker := time.NewTickerRuntimeOffset(time.Second, 3*time.Second)
+	defer ticker.Stop()
+	done := make(chan bool)
+	go func() {
+		time.Sleep(10 * time.Second)
+		done <- true
+	}()
+	for {
+		select {
+		case <-done:
+			fmt.Println("Done!")
+			return
+		case t := <-ticker.C:
+			fmt.Println("Current time: ", t)
+		}
+	}
+}
+
 func ExampleTime_Format() {
 	// Parse a time value from a string in the standard Unix format.
 	t, err := time.Parse(time.UnixDate, "Wed Feb 25 11:06:39 PST 2015")
