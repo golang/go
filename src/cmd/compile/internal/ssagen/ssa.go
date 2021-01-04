@@ -108,6 +108,8 @@ func InitConfig() {
 	ir.Syms.Msanread = typecheck.LookupRuntimeFunc("msanread")
 	ir.Syms.Msanwrite = typecheck.LookupRuntimeFunc("msanwrite")
 	ir.Syms.Msanmove = typecheck.LookupRuntimeFunc("msanmove")
+	ir.Syms.Asanread = typecheck.LookupRuntimeFunc("asanread")
+	ir.Syms.Asanwrite = typecheck.LookupRuntimeFunc("asanwrite")
 	ir.Syms.Newobject = typecheck.LookupRuntimeFunc("newobject")
 	ir.Syms.Newproc = typecheck.LookupRuntimeFunc("newproc")
 	ir.Syms.Panicdivide = typecheck.LookupRuntimeFunc("panicdivide")
@@ -1245,10 +1247,10 @@ func (s *state) instrument(t *types.Type, addr *ssa.Value, kind instrumentKind) 
 }
 
 // instrumentFields instruments a read/write operation on addr.
-// If it is instrumenting for MSAN and t is a struct type, it instruments
+// If it is instrumenting for MSAN or ASAN and t is a struct type, it instruments
 // operation for each field, instead of for the whole struct.
 func (s *state) instrumentFields(t *types.Type, addr *ssa.Value, kind instrumentKind) {
-	if !base.Flag.MSan || !t.IsStruct() {
+	if !(base.Flag.MSan || base.Flag.ASan) || !t.IsStruct() {
 		s.instrument(t, addr, kind)
 		return
 	}
@@ -1327,6 +1329,16 @@ func (s *state) instrument2(t *types.Type, addr, addr2 *ssa.Value, kind instrume
 		default:
 			panic("unreachable")
 		}
+	} else if base.Flag.ASan {
+		switch kind {
+		case instrumentRead:
+			fn = ir.Syms.Asanread
+		case instrumentWrite:
+			fn = ir.Syms.Asanwrite
+		default:
+			panic("unreachable")
+		}
+		needWidth = true
 	} else {
 		panic("unreachable")
 	}
@@ -3002,7 +3014,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		}
 		// If n is addressable and can't be represented in
 		// SSA, then load just the selected field. This
-		// prevents false memory dependencies in race/msan
+		// prevents false memory dependencies in race/msan/asan
 		// instrumentation.
 		if ir.IsAddressable(n) && !s.canSSA(n) {
 			p := s.addr(n)
