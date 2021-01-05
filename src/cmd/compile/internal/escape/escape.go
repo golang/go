@@ -116,12 +116,6 @@ type escape struct {
 	// label with a corresponding backwards "goto" (i.e.,
 	// unstructured loop).
 	loopDepth int
-
-	// loopSlop tracks how far off typecheck's "decldepth" variable
-	// would be from loopDepth at the same point during type checking.
-	// It's only needed to match CaptureVars's pessimism until it can be
-	// removed entirely.
-	loopSlop int
 }
 
 // An location represents an abstract location that stores a Go
@@ -131,7 +125,6 @@ type location struct {
 	curfn     *ir.Func // enclosing function
 	edges     []edge   // incoming edges
 	loopDepth int      // loopDepth at declaration
-	loopSlop  int      // loopSlop at declaration
 
 	// derefs and walkgen are used during walkOne to track the
 	// minimal dereferences from the walk root.
@@ -233,13 +226,9 @@ func Batch(fns []*ir.Func, recursive bool) {
 	// can decide whether closures should capture their free variables
 	// by value or reference.
 	for _, closure := range b.closures {
-		b.flowClosure(closure.k, closure.clo, false)
+		b.flowClosure(closure.k, closure.clo)
 	}
 	b.closures = nil
-
-	for _, orphan := range findOrphans(fns) {
-		b.flowClosure(b.blankLoc.asHole(), orphan, true)
-	}
 
 	for _, loc := range b.allLocs {
 		if why := HeapAllocReason(loc.n); why != "" {
@@ -249,46 +238,6 @@ func Batch(fns []*ir.Func, recursive bool) {
 
 	b.walkAll()
 	b.finish(fns)
-}
-
-// findOrphans finds orphaned closure expressions that were originally
-// contained within a function in fns, but were lost due to earlier
-// optimizations.
-// TODO(mdempsky): Remove after CaptureVars is gone.
-func findOrphans(fns []*ir.Func) []*ir.ClosureExpr {
-	have := make(map[*ir.Func]bool)
-	for _, fn := range fns {
-		have[fn] = true
-	}
-
-	parent := func(fn *ir.Func) *ir.Func {
-		if len(fn.ClosureVars) == 0 {
-			return nil
-		}
-		cv := fn.ClosureVars[0]
-		if cv.Defn == nil {
-			return nil // method value wrapper
-		}
-		return cv.Outer.Curfn
-	}
-
-	outermost := func(fn *ir.Func) *ir.Func {
-		for {
-			outer := parent(fn)
-			if outer == nil {
-				return fn
-			}
-			fn = outer
-		}
-	}
-
-	var orphans []*ir.ClosureExpr
-	for _, fn := range typecheck.Target.Decls {
-		if fn, ok := fn.(*ir.Func); ok && have[outermost(fn)] && !have[fn] {
-			orphans = append(orphans, fn.OClosure)
-		}
-	}
-	return orphans
 }
 
 func (b *batch) with(fn *ir.Func) *escape {
@@ -348,15 +297,11 @@ func (b *batch) walkFunc(fn *ir.Func) {
 	}
 }
 
-func (b *batch) flowClosure(k hole, clo *ir.ClosureExpr, orphan bool) {
+func (b *batch) flowClosure(k hole, clo *ir.ClosureExpr) {
 	for _, cv := range clo.Func.ClosureVars {
 		n := cv.Canonical()
-		if n.Opt == nil && orphan {
-			continue // n.Curfn must have been an orphan too
-		}
-
 		loc := b.oldLoc(cv)
-		if !loc.captured && !orphan {
+		if !loc.captured {
 			base.FatalfAt(cv.Pos(), "closure variable never captured: %v", cv)
 		}
 
@@ -453,9 +398,6 @@ func (e *escape) stmt(n ir.Node) {
 		case nonlooping:
 			if base.Flag.LowerM > 2 {
 				fmt.Printf("%v:%v non-looping label\n", base.FmtPos(base.Pos), n)
-			}
-			if s := n.Label.Name; !strings.HasPrefix(s, ".") && !strings.Contains(s, "·") {
-				e.loopSlop++
 			}
 		case looping:
 			if base.Flag.LowerM > 2 {
@@ -597,7 +539,6 @@ func (e *escape) stmts(l ir.Nodes) {
 func (e *escape) block(l ir.Nodes) {
 	old := e.loopDepth
 	e.stmts(l)
-	e.loopSlop += e.loopDepth - old
 	e.loopDepth = old
 }
 
@@ -821,7 +762,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 
 					// Ignore reassignments to the variable in straightline code
 					// preceding the first capture by a closure.
-					if loc.loopDepth+loc.loopSlop == e.loopDepth+e.loopSlop {
+					if loc.loopDepth == e.loopDepth {
 						loc.reassigned = false
 					}
 				}
@@ -1286,7 +1227,6 @@ func (e *escape) dcl(n *ir.Name) hole {
 	}
 	loc := e.oldLoc(n)
 	loc.loopDepth = e.loopDepth
-	loc.loopSlop = e.loopSlop
 	return loc.asHole()
 }
 
@@ -1323,7 +1263,6 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
 		n:         n,
 		curfn:     e.curfn,
 		loopDepth: e.loopDepth,
-		loopSlop:  e.loopSlop,
 		transient: transient,
 	}
 	e.allLocs = append(e.allLocs, loc)
