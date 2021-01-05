@@ -48,9 +48,11 @@ func NewTicker(d Duration) *Ticker {
 // NewTicker will panic, and start is the time for the first tick
 // to fire.
 //
-// Note: Since this method uses time.Sub to derive the first tick,
-// if the system is put to sleep or crosses a leap second this time
-// may be off by a second or more.
+// Note: Since this method uses a duration to derive the time until
+// first tick, should the system get put to sleep or crosses a leap
+// second this time may be off by a second or more.  Also, of less
+// importance, the timer cannot be set greater than 2540400h10m10s
+// in the future. (Approximately 290 years)
 //
 // Stop the ticker to release associated resources.
 func NewTickerStartingAt(d Duration, start Time) *Ticker {
