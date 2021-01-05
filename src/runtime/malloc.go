@@ -908,6 +908,14 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	if size == 0 {
 		return unsafe.Pointer(&zerobase)
 	}
+	userSize := size
+	if asanenabled {
+		// Refer to ASAN runtime library, the malloc() function allocates extra memory,
+		// the redzone, around the user requested memory region. And the redzones are marked
+		// as unaddressable. We perform the same operations in Go to detect the overflows or
+		// underflows.
+		size += computeRZlog(size)
+	}
 
 	if debug.malloc {
 		if debug.sbrk != 0 {
@@ -971,7 +979,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	mp.mallocing = 1
 
 	shouldhelpgc := false
-	dataSize := size
+	dataSize := userSize
 	c := getMCache(mp)
 	if c == nil {
 		throw("mallocgc called without a P or outside bootstrapping")
@@ -1136,6 +1144,17 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	if msanenabled {
 		msanmalloc(x, size)
+	}
+
+	if asanenabled {
+		// We should only read/write the memory with the size asked by the user.
+		// The rest of the allocated memory should be poisoned, so that we can report
+		// errors when accessing poisoned memory.
+		// The allocated memory is larger than required userSize, it will also include
+		// redzone and some other padding bytes.
+		rzBeg := unsafe.Add(x, userSize)
+		asanpoison(rzBeg, size-userSize)
+		asanunpoison(x, userSize)
 	}
 
 	if rate := MemProfileRate; rate > 0 {
@@ -1513,4 +1532,27 @@ type notInHeap struct{}
 
 func (p *notInHeap) add(bytes uintptr) *notInHeap {
 	return (*notInHeap)(unsafe.Pointer(uintptr(unsafe.Pointer(p)) + bytes))
+}
+
+// computeRZlog computes the size of the redzone.
+// Refer to the implementation of the compiler-rt.
+func computeRZlog(userSize uintptr) uintptr {
+	switch {
+	case userSize <= (64 - 16):
+		return 16 << 0
+	case userSize <= (128 - 32):
+		return 16 << 1
+	case userSize <= (512 - 64):
+		return 16 << 2
+	case userSize <= (4096 - 128):
+		return 16 << 3
+	case userSize <= (1<<14)-256:
+		return 16 << 4
+	case userSize <= (1<<15)-512:
+		return 16 << 5
+	case userSize <= (1<<16)-1024:
+		return 16 << 6
+	default:
+		return 16 << 7
+	}
 }
