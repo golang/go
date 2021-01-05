@@ -22,7 +22,6 @@ func main() {
 	testMakeInAppend(n)
 
 	var t *byte
-	n = 0 + n // TODO(mdempsky): Remove once CaptureVars is gone.
 	if unsafe.Sizeof(t) == 8 {
 		// Test mem > maxAlloc
 		var n2 int64 = 1 << 59
