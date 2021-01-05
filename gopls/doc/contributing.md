@@ -1,6 +1,11 @@
 # Documentation for contributors
 
-Contributions are welcome, but since development is so active, we request that you file an issue and claim it before starting to work on something. Otherwise, it is likely that we might already be working on a fix for your issue.
+This documentation augments the general documentation for contributing to the
+x/tools repository, described at the [repository root](../CONTRIBUTING.md).
+
+Contributions are welcome, but since development is so active, we request that
+you file an issue and claim it before starting to work on something. Otherwise,
+it is likely that we might already be working on a fix for your issue.
 
 ## Finding issues
 
@@ -13,6 +18,13 @@ Before you begin working on an issue, please leave a comment that you are claimi
 <!--- TODO: getting started
 Provide information to get contributors up and running here
 --->
+
+## Getting help
+
+The best way to contact the gopls team directly is via the
+[#gopls-dev](https://app.slack.com/client/T029RQSE6/CRWSN9NCD) channel on the
+gophers slack. Please feel free to ask any questions about your contribution or
+about contributing in general.
 
 ## Testing
 
@@ -32,6 +44,37 @@ cd gopls && go test ./...
 cd ..
 go test ./internal/lsp/...
 ```
+
+### Regtests
+
+gopls has a suite of regression tests defined in the `./gopls/internal/regtest`
+directory. Each of these tests writes files to a temporary directory, starts a
+separate gopls session, and scripts interactions using an editor-like API. As a
+result of this overhead they can be quite slow, particularly on systems where
+file operations are costly.
+
+Due to the asynchronous nature of the LSP, regtests assertions are written
+as 'expectations' that the editor state must achieve _eventually_. This can
+make debugging the regtests difficult. To aid with debugging, the regtests
+output their LSP logs on any failure. If your CL gets a test failure while
+running the regtests, please do take a look at the description of the error and
+the LSP logs, but don't hesitate to [reach out](#getting-help) to the gopls
+team if you need help.
+
+### CI
+
+When you mail your CL and you or a fellow contributor assigns the
+`Run-TryBot=1` label in Gerrit, the
+[TryBots](https://golang.org/doc/contribute.html#trybots) will run tests in
+both the `golang.org/x/tools` and `golang.org/x/tools/gopls` modules, as
+described above.
+
+Furthermore, an additional "gopls-CI" pass will be run by _Kokoro_, which is a
+Jenkins-like Google infrastructure for running Dockerized tests. This allows us
+to run gopls tests in various environments that would be difficult to add to
+the TryBots. Notably, Kokoro runs tests on
+[older Go versions](user.md#supported-go-versions) that are no longer supported
+by the TryBots.
 
 ## Debugging
 
