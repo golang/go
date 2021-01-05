@@ -47,10 +47,9 @@ func sharedMemSize(valueSize int) int {
 	return int(unsafe.Sizeof(sharedMemHeader{})) + valueSize
 }
 
-// sharedMemTempFile creates a new temporary file large enough to hold a value
-// of the given size, then maps it into memory. The file will be removed when
-// the Close method is called.
-func sharedMemTempFile(valueSize int) (m *sharedMem, err error) {
+// sharedMemTempFile creates a new temporary file of the given size, then maps
+// it into memory. The file will be removed when the Close method is called.
+func sharedMemTempFile(size int) (m *sharedMem, err error) {
 	// Create a temporary file.
 	f, err := ioutil.TempFile("", "fuzz-*")
 	if err != nil {
@@ -64,7 +63,7 @@ func sharedMemTempFile(valueSize int) (m *sharedMem, err error) {
 	}()
 
 	// Resize it to the correct size.
-	totalSize := sharedMemSize(valueSize)
+	totalSize := sharedMemSize(size)
 	if err := f.Truncate(int64(totalSize)); err != nil {
 		return nil, err
 	}

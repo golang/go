@@ -318,7 +318,7 @@ func RunFuzzWorker(ctx context.Context, fn func([]byte) error) error {
 	if err != nil {
 		return err
 	}
-	srv := &workerServer{workerComm: comm, fuzzFn: fn}
+	srv := &workerServer{workerComm: comm, fuzzFn: fn, m: newMutator()}
 	return srv.serve(ctx)
 }
 
@@ -366,6 +366,7 @@ type workerComm struct {
 // memory after a worker process terminates unexpectedly.
 type workerServer struct {
 	workerComm
+	m *mutator
 
 	// fuzzFn runs the worker's fuzz function on the given input and returns
 	// an error if it finds a crasher (the process may also exit or crash).
@@ -441,7 +442,11 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
 			// real heuristic once we have one.
 			return fuzzResponse{Interesting: true}
 		default:
-			mutate(ws.mem.valueRef())
+			b := ws.mem.valueRef()
+			ws.m.mutate(&b)
+			// TODO(jayconrod): consider making ws.m.header() contain the whole
+			// slice header, so the length can be updated when the slice changes
+			ws.mem.header().length = len(b)
 			if err := ws.fuzzFn(ws.mem.valueRef()); err != nil {
 				return fuzzResponse{Err: err.Error()}
 			}
