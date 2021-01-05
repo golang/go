@@ -47,20 +47,13 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed [][]byte, corpusD
 		parallel = runtime.GOMAXPROCS(0)
 	}
 
+	sharedMemSize := 100 << 20 // 100 MB
 	corpus, err := readCorpusAndCache(seed, corpusDir, cacheDir)
 	if err != nil {
 		return err
 	}
-	var maxEntryLen int
 	if len(corpus.entries) == 0 {
 		corpus.entries = []corpusEntry{{b: []byte{}}}
-		maxEntryLen = 0
-	} else {
-		for _, e := range corpus.entries {
-			if len(e.b) > maxEntryLen {
-				maxEntryLen = len(e.b)
-			}
-		}
 	}
 
 	// TODO(jayconrod): do we want to support fuzzing different binaries?
@@ -78,7 +71,7 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed [][]byte, corpusD
 	}
 
 	newWorker := func() (*worker, error) {
-		mem, err := sharedMemTempFile(maxEntryLen)
+		mem, err := sharedMemTempFile(sharedMemSize)
 		if err != nil {
 			return nil, err
 		}
