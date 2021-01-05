@@ -162,7 +162,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.CallExpr)
 		return mkcall("gorecover", n.Type(), init, typecheck.NodAddr(ir.RegFP))
 
-	case ir.OCLOSUREREAD, ir.OCFUNC:
+	case ir.OCFUNC:
 		return n
 
 	case ir.OCALLINTER, ir.OCALLFUNC, ir.OCALLMETH:
