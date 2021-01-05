@@ -1146,19 +1146,6 @@ func (e *escape) later(k hole) hole {
 	return loc.asHole()
 }
 
-// canonicalNode returns the canonical *Node that n logically
-// represents.
-func canonicalNode(n ir.Node) ir.Node {
-	if n != nil && n.Op() == ir.ONAME && n.Name().IsClosureVar() {
-		n = n.Name().Defn
-		if n.Name().IsClosureVar() {
-			base.Fatalf("still closure var")
-		}
-	}
-
-	return n
-}
-
 func (e *escape) newLoc(n ir.Node, transient bool) *location {
 	if e.curfn == nil {
 		base.Fatalf("e.curfn isn't set")
@@ -1167,7 +1154,9 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
 		base.ErrorfAt(n.Pos(), "%v is incomplete (or unallocatable); stack allocation disallowed", n.Type())
 	}
 
-	n = canonicalNode(n)
+	if n != nil && n.Op() == ir.ONAME {
+		n = n.(*ir.Name).Canonical()
+	}
 	loc := &location{
 		n:         n,
 		curfn:     e.curfn,
@@ -1196,8 +1185,7 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
 }
 
 func (b *batch) oldLoc(n *ir.Name) *location {
-	n = canonicalNode(n).(*ir.Name)
-	return n.Opt.(*location)
+	return n.Canonical().Opt.(*location)
 }
 
 func (l *location) asHole() hole {

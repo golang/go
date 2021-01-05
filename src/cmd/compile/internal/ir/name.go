@@ -279,7 +279,6 @@ const (
 
 func (n *Name) Captured() bool              { return n.flags&nameCaptured != 0 }
 func (n *Name) Readonly() bool              { return n.flags&nameReadonly != 0 }
-func (n *Name) Byval() bool                 { return n.flags&nameByval != 0 }
 func (n *Name) Needzero() bool              { return n.flags&nameNeedzero != 0 }
 func (n *Name) AutoTemp() bool              { return n.flags&nameAutoTemp != 0 }
 func (n *Name) Used() bool                  { return n.flags&nameUsed != 0 }
@@ -294,7 +293,6 @@ func (n *Name) LibfuzzerExtraCounter() bool { return n.flags&nameLibfuzzerExtraC
 
 func (n *Name) SetCaptured(b bool)              { n.flags.set(nameCaptured, b) }
 func (n *Name) setReadonly(b bool)              { n.flags.set(nameReadonly, b) }
-func (n *Name) SetByval(b bool)                 { n.flags.set(nameByval, b) }
 func (n *Name) SetNeedzero(b bool)              { n.flags.set(nameNeedzero, b) }
 func (n *Name) SetAutoTemp(b bool)              { n.flags.set(nameAutoTemp, b) }
 func (n *Name) SetUsed(b bool)                  { n.flags.set(nameUsed, b) }
@@ -334,6 +332,33 @@ func (n *Name) SetVal(v constant.Value) {
 	}
 	AssertValidTypeForConst(n.Type(), v)
 	n.val = v
+}
+
+// Canonical returns the logical declaration that n represents. If n
+// is a closure variable, then Canonical returns the original Name as
+// it appears in the function that immediately contains the
+// declaration. Otherwise, Canonical simply returns n itself.
+func (n *Name) Canonical() *Name {
+	if n.IsClosureVar() {
+		n = n.Defn.(*Name)
+		if n.IsClosureVar() {
+			base.Fatalf("recursive closure variable: %v", n)
+		}
+	}
+	return n
+}
+
+func (n *Name) SetByval(b bool) {
+	if n.Canonical() != n {
+		base.Fatalf("SetByval called on non-canonical variable: %v", n)
+	}
+	n.flags.set(nameByval, b)
+}
+
+func (n *Name) Byval() bool {
+	// We require byval to be set on the canonical variable, but we
+	// allow it to be accessed from any instance.
+	return n.Canonical().flags&nameByval != 0
 }
 
 // SameSource reports whether two nodes refer to the same source

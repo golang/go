@@ -829,14 +829,9 @@ func reassigned(name *Name) bool {
 	// reassignment detection for use by inlining and devirtualization.
 
 	// isName reports whether n is a reference to name.
-	isName := func(n Node) bool {
-		if n, ok := n.(*Name); ok && n.Op() == ONAME {
-			if n.IsClosureVar() && n.Defn != nil {
-				n = n.Defn.(*Name)
-			}
-			return n == name
-		}
-		return false
+	isName := func(x Node) bool {
+		n, ok := x.(*Name)
+		return ok && n.Canonical() == name
 	}
 
 	var do func(n Node) bool
