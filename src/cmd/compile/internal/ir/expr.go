@@ -771,7 +771,7 @@ func staticValue1(nn Node) Node {
 		return nil
 	}
 	n := nn.(*Name)
-	if n.Class != PAUTO || n.Addrtaken() {
+	if n.Class != PAUTO {
 		return nil
 	}
 
@@ -823,23 +823,51 @@ func reassigned(name *Name) bool {
 	if name.Curfn == nil {
 		return true
 	}
-	return Any(name.Curfn, func(n Node) bool {
+
+	// TODO(mdempsky): This is inefficient and becoming increasingly
+	// unwieldy. Figure out a way to generalize escape analysis's
+	// reassignment detection for use by inlining and devirtualization.
+
+	// isName reports whether n is a reference to name.
+	isName := func(n Node) bool {
+		if n, ok := n.(*Name); ok && n.Op() == ONAME {
+			if n.IsClosureVar() && n.Defn != nil {
+				n = n.Defn.(*Name)
+			}
+			return n == name
+		}
+		return false
+	}
+
+	var do func(n Node) bool
+	do = func(n Node) bool {
 		switch n.Op() {
 		case OAS:
 			n := n.(*AssignStmt)
-			if n.X == name && n != name.Defn {
+			if isName(n.X) && n != name.Defn {
 				return true
 			}
 		case OAS2, OAS2FUNC, OAS2MAPR, OAS2DOTTYPE, OAS2RECV, OSELRECV2:
 			n := n.(*AssignListStmt)
 			for _, p := range n.Lhs {
-				if p == name && n != name.Defn {
+				if isName(p) && n != name.Defn {
 					return true
 				}
 			}
+		case OADDR:
+			n := n.(*AddrExpr)
+			if isName(OuterValue(n.X)) {
+				return true
+			}
+		case OCLOSURE:
+			n := n.(*ClosureExpr)
+			if Any(n.Func, do) {
+				return true
+			}
 		}
 		return false
-	})
+	}
+	return Any(name.Curfn, do)
 }
 
 // IsIntrinsicCall reports whether the compiler back end will treat the call as an intrinsic operation.
