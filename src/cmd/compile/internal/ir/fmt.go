@@ -1237,9 +1237,24 @@ func dumpNode(w io.Writer, n Node, depth int) {
 				fmt.Fprintf(w, "%+v-%s", n.Op(), name)
 			}
 			dumpNodes(w, val, depth+1)
+		default:
+			if vf.Kind() == reflect.Slice && vf.Type().Elem().Implements(nodeType) {
+				if vf.Len() == 0 {
+					continue
+				}
+				if name != "" {
+					indent(w, depth)
+					fmt.Fprintf(w, "%+v-%s", n.Op(), name)
+				}
+				for i, n := 0, vf.Len(); i < n; i++ {
+					dumpNode(w, vf.Index(i).Interface().(Node), depth+1)
+				}
+			}
 		}
 	}
 }
+
+var nodeType = reflect.TypeOf((*Node)(nil)).Elem()
 
 func dumpNodes(w io.Writer, list Nodes, depth int) {
 	if len(list) == 0 {
