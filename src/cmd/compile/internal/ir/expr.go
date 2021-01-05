@@ -203,19 +203,6 @@ func NewClosureExpr(pos src.XPos, fn *Func) *ClosureExpr {
 	return n
 }
 
-// A ClosureRead denotes reading a variable stored within a closure struct.
-type ClosureReadExpr struct {
-	miniExpr
-	Offset int64
-}
-
-func NewClosureRead(typ *types.Type, offset int64) *ClosureReadExpr {
-	n := &ClosureReadExpr{Offset: offset}
-	n.typ = typ
-	n.op = OCLOSUREREAD
-	return n
-}
-
 // A CompLitExpr is a composite literal Type{Vals}.
 // Before type-checking, the type is Ntype.
 type CompLitExpr struct {
@@ -727,7 +714,7 @@ func IsAddressable(n Node) bool {
 			return false
 		}
 		fallthrough
-	case ODEREF, ODOTPTR, OCLOSUREREAD:
+	case ODEREF, ODOTPTR:
 		return true
 
 	case ODOT:
@@ -889,7 +876,7 @@ func SameSafeExpr(l Node, r Node) bool {
 	}
 
 	switch l.Op() {
-	case ONAME, OCLOSUREREAD:
+	case ONAME:
 		return l == r
 
 	case ODOT, ODOTPTR:

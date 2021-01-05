@@ -2168,9 +2168,6 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		}
 		addr := s.addr(n)
 		return s.load(n.Type(), addr)
-	case ir.OCLOSUREREAD:
-		addr := s.addr(n)
-		return s.load(n.Type(), addr)
 	case ir.ONIL:
 		n := n.(*ir.NilExpr)
 		t := n.Type()
@@ -5074,10 +5071,6 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 		n := n.(*ir.SelectorExpr)
 		p := s.exprPtr(n.X, n.Bounded(), n.Pos())
 		return s.newValue1I(ssa.OpOffPtr, t, n.Offset(), p)
-	case ir.OCLOSUREREAD:
-		n := n.(*ir.ClosureReadExpr)
-		return s.newValue1I(ssa.OpOffPtr, t, n.Offset,
-			s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr))
 	case ir.OCONVNOP:
 		n := n.(*ir.ConvExpr)
 		if n.Type() == n.X.Type() {

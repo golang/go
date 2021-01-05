@@ -789,9 +789,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.UnaryExpr)
 		return tcSPtr(n)
 
-	case ir.OCLOSUREREAD:
-		return n
-
 	case ir.OCFUNC:
 		n := n.(*ir.UnaryExpr)
 		n.X = Expr(n.X)

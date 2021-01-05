@@ -575,7 +575,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 	default:
 		base.Fatalf("unexpected expr: %v", n)
 
-	case ir.OLITERAL, ir.ONIL, ir.OGETG, ir.OCLOSUREREAD, ir.OTYPE, ir.OMETHEXPR:
+	case ir.OLITERAL, ir.ONIL, ir.OGETG, ir.OTYPE, ir.OMETHEXPR:
 		// nop
 
 	case ir.ONAME:
@@ -1926,7 +1926,7 @@ func mayAffectMemory(n ir.Node) bool {
 	// an ir.Any looking for any op that's not the ones in the case statement.
 	// But that produces changes in the compiled output detected by buildall.
 	switch n.Op() {
-	case ir.ONAME, ir.OCLOSUREREAD, ir.OLITERAL, ir.ONIL:
+	case ir.ONAME, ir.OLITERAL, ir.ONIL:
 		return false
 
 	case ir.OADD, ir.OSUB, ir.OOR, ir.OXOR, ir.OMUL, ir.OLSH, ir.ORSH, ir.OAND, ir.OANDNOT, ir.ODIV, ir.OMOD:
