@@ -41,6 +41,7 @@ func main() {
 	n := -1
 	shouldPanic("makechan: size out of range", func() { _ = make(T, n) })
 	shouldPanic("makechan: size out of range", func() { _ = make(T, int64(n)) })
+	n = 0 + n // TODO(mdempsky): Remove once CaptureVars is gone.
 	if ptrSize == 8 {
 		// Test mem > maxAlloc
 		var n2 int64 = 1 << 59

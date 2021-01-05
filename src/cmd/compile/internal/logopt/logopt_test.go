@@ -154,6 +154,7 @@ func s15a8(x *[15]int64) [15]int64 {
 		// On not-amd64, test the host architecture and os
 		arches := []string{runtime.GOARCH}
 		goos0 := runtime.GOOS
+		goos0 = "" + goos0             // TODO(mdempsky): Remove once CaptureVars is gone.
 		if runtime.GOARCH == "amd64" { // Test many things with "linux" (wasm will get "js")
 			arches = []string{"arm", "arm64", "386", "amd64", "mips", "mips64", "ppc64le", "riscv64", "s390x", "wasm"}
 			goos0 = "linux"
