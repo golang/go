@@ -1583,31 +1583,27 @@ func TestCount(t *testing.T) {
 }
 
 var SlashesTests = []struct {
-	s, t string
-	out  bool
+	in, out string
 }{
 	{
-		s:   `Is your name O\'reilly?`,
-		t:   "Is your name O'reilly?",
-		out: true,
+		in:  `Is your name O\'reilly?`,
+		out: "Is your name O'reilly?",
 	},
 	{
-		s:   `"f\\'oo" and "b\\'ar"`,
-		t:   `"f\'oo" and "b\'ar"`,
-		out: true,
+		in:  `"f\\'oo" and "b\\'ar"`,
+		out: `"f\'oo" and "b\'ar"`,
 	},
 	{
-		s:   `\\\\1`,
-		t:   `\\1`,
-		out: true,
+		in:  `\\\\1`,
+		out: `\\1`,
 	},
 }
 
 func TestStripSlashes(t *testing.T) {
 	for _, item := range SlashesTests {
-		stripStr := StripSlashes(item.s)
-		if stripStr != item.t {
-			t.Errorf("StripSlashes(%#q) = %v, want %v", item.s, stripStr, item.t)
+		stripStr := StripSlashes(item.in)
+		if stripStr != item.out {
+			t.Errorf("StripSlashes(%#q) = %v, want %v", item.in, stripStr, item.out)
 		}
 	}
 }
