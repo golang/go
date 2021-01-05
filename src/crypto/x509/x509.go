@@ -2479,7 +2479,7 @@ type tbsCertificateRequest struct {
 	Version       int
 	Subject       asn1.RawValue
 	PublicKey     publicKeyInfo
-	RawAttributes []asn1.RawValue `asn1:"tag:0"`
+	RawAttributes []asn1.RawValue `asn1:"optional,tag:0"`
 }
 
 type certificateRequest struct {
