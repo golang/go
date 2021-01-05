@@ -1,15 +1,6 @@
 pkg archive/zip, method (*ReadCloser) Open(string) (fs.File, error)
 pkg archive/zip, method (*Reader) Open(string) (fs.File, error)
 pkg crypto/x509, method (SystemRootsError) Unwrap() error
-pkg crypto/x509, type CertificateRequest struct, BasicConstraintsValid bool
-pkg crypto/x509, type CertificateRequest struct, ExtKeyUsage []ExtKeyUsage
-pkg crypto/x509, type CertificateRequest struct, IsCA bool
-pkg crypto/x509, type CertificateRequest struct, KeyUsage KeyUsage
-pkg crypto/x509, type CertificateRequest struct, MaxPathLen int
-pkg crypto/x509, type CertificateRequest struct, MaxPathLenZero bool
-pkg crypto/x509, type CertificateRequest struct, PolicyIdentifiers []asn1.ObjectIdentifier
-pkg crypto/x509, type CertificateRequest struct, SubjectKeyId []uint8
-pkg crypto/x509, type CertificateRequest struct, UnknownExtKeyUsage []asn1.ObjectIdentifier
 pkg debug/elf, const DT_ADDRRNGHI = 1879047935
 pkg debug/elf, const DT_ADDRRNGHI DynTag
 pkg debug/elf, const DT_ADDRRNGLO = 1879047680
