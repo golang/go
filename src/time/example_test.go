@@ -205,24 +205,33 @@ func ExampleNewTicker() {
 	}
 }
 
-func ExampleNewTickerRuntimeOffset() {
-	// Wait three seconds from the start of the runtime before ticking
-	ticker := time.NewTickerRuntimeOffset(time.Second, 3*time.Second)
-	defer ticker.Stop()
-	done := make(chan bool)
-	go func() {
-		time.Sleep(10 * time.Second)
-		done <- true
-	}()
-	for {
-		select {
-		case <-done:
-			fmt.Println("Done!")
-			return
-		case t := <-ticker.C:
-			fmt.Println("Current time: ", t)
-		}
-	}
+func ExampleNewTickerStartingAt() {
+        // A new ticker that marks every second and have the first tick fire now.
+        ticker := time.NewTickerStartingAt(time.Second, time.Now())
+        defer ticker.Stop()
+
+        // Another ticker that gives a count down starting at 5 seconds
+        countdown_ticker := time.NewTickerStartingAt(time.Second, time.Now().Add(5*time.Second))
+        defer countdown_ticker.Stop()
+
+        // Set our countdown to start at 5
+        countdown := 5
+
+        // Print a nice message after we reach the end
+        defer fmt.Println("-- done")
+
+        for {
+                select {
+                case <-countdown_ticker.C:
+                        if countdown == 0 {
+                                return
+                        }
+                        fmt.Println("Counting down...", countdown)
+                        countdown--
+                case t := <-ticker.C:
+                        fmt.Println("Current time: ", t)
+                }
+        }
 }
 
 func ExampleTime_Format() {
