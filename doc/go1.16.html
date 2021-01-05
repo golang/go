@@ -590,14 +590,6 @@ func TestFoo(t *testing.T) {
       a malformed certificate.
     </p>
 
-    <p><!-- CL 233163 -->
-      A number of additional fields have been added to the
-      <a href="/pkg/crypto/x509/#CertificateRequest"><code>CertificateRequest</code></a> type.
-      These fields are now parsed in <a href="/pkg/crypto/x509/#ParseCertificateRequest">
-      <code>ParseCertificateRequest</code></a> and marshalled in
-      <a href="/pkg/crypto/x509/#CreateCertificateRequest"><code>CreateCertificateRequest</code></a>.
-    </p>
-
     <p><!-- CL 257939 -->
       DSA signature verification is no longer supported. Note that DSA signature
       generation was never supported.
