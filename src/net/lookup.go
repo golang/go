@@ -208,6 +208,7 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
 // It returns a slice of that host's IP addresses of the type specified by
 // network.
 // network must be one of "ip", "ip4" or "ip6".
+// The result contains at least one address when error is nil.
 func (r *Resolver) LookupIP(ctx context.Context, network, host string) ([]IP, error) {
 	afnet, _, err := parseNetwork(ctx, network, false)
 	if err != nil {
