@@ -361,9 +361,17 @@ func (b *batch) flowClosure(k hole, clo *ir.ClosureExpr, orphan bool) {
 		}
 
 		// Capture by value for variables <= 128 bytes that are never reassigned.
-		byval := !loc.addrtaken && !loc.reassigned && n.Type().Size() <= 128
-		if byval != n.Byval() {
-			base.FatalfAt(cv.Pos(), "byval mismatch: %v: %v != %v", cv, byval, n.Byval())
+		n.SetByval(!loc.addrtaken && !loc.reassigned && n.Type().Size() <= 128)
+		if !n.Byval() {
+			n.SetAddrtaken(true)
+		}
+
+		if base.Flag.LowerM > 1 {
+			how := "ref"
+			if n.Byval() {
+				how = "value"
+			}
+			base.WarnfAt(n.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", n.Curfn, how, n, loc.addrtaken, loc.reassigned, n.Type().Size())
 		}
 
 		// Flow captured variables to closure.
