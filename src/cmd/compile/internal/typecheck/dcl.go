@@ -15,64 +15,7 @@ import (
 	"cmd/internal/src"
 )
 
-var DeclContext ir.Class // PEXTERN/PAUTO
-
-func AssignDefn(left []ir.Node, defn ir.Node) {
-	for _, n := range left {
-		if n.Sym() != nil {
-			n.Sym().SetUniq(true)
-		}
-	}
-
-	var nnew, nerr int
-	for i, n := range left {
-		if ir.IsBlank(n) {
-			continue
-		}
-		if !assignableName(n) {
-			base.ErrorfAt(defn.Pos(), "non-name %v on left side of :=", n)
-			nerr++
-			continue
-		}
-
-		if !n.Sym().Uniq() {
-			base.ErrorfAt(defn.Pos(), "%v repeated on left side of :=", n.Sym())
-			n.SetDiag(true)
-			nerr++
-			continue
-		}
-
-		n.Sym().SetUniq(false)
-		if n.Sym().Block == types.Block {
-			continue
-		}
-
-		nnew++
-		n := NewName(n.Sym())
-		Declare(n, DeclContext)
-		n.Defn = defn
-		defn.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, n))
-		left[i] = n
-	}
-
-	if nnew == 0 && nerr == 0 {
-		base.ErrorfAt(defn.Pos(), "no new variables on left side of :=")
-	}
-}
-
-// := declarations
-func assignableName(n ir.Node) bool {
-	switch n.Op() {
-	case ir.ONAME,
-		ir.ONONAME,
-		ir.OPACK,
-		ir.OTYPE,
-		ir.OLITERAL:
-		return n.Sym() != nil
-	}
-
-	return false
-}
+var DeclContext ir.Class = ir.PEXTERN // PEXTERN/PAUTO
 
 func DeclFunc(sym *types.Sym, tfn ir.Ntype) *ir.Func {
 	if tfn.Op() != ir.OTFUNC {
@@ -80,67 +23,14 @@ func DeclFunc(sym *types.Sym, tfn ir.Ntype) *ir.Func {
 	}
 
 	fn := ir.NewFunc(base.Pos)
-	fn.Nname = ir.NewFuncNameAt(base.Pos, sym, fn)
+	fn.Nname = ir.NewNameAt(base.Pos, sym)
+	fn.Nname.Func = fn
 	fn.Nname.Defn = fn
 	fn.Nname.Ntype = tfn
 	ir.MarkFunc(fn.Nname)
 	StartFuncBody(fn)
 	fn.Nname.Ntype = typecheckNtype(fn.Nname.Ntype)
 	return fn
-}
-
-// declare variables from grammar
-// new_name_list (type | [type] = expr_list)
-func DeclVars(vl []*ir.Name, t ir.Ntype, el []ir.Node) []ir.Node {
-	var init []ir.Node
-	doexpr := len(el) > 0
-
-	if len(el) == 1 && len(vl) > 1 {
-		e := el[0]
-		as2 := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
-		as2.Rhs = []ir.Node{e}
-		for _, v := range vl {
-			as2.Lhs.Append(v)
-			Declare(v, DeclContext)
-			v.Ntype = t
-			v.Defn = as2
-			if ir.CurFunc != nil {
-				init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
-			}
-		}
-
-		return append(init, as2)
-	}
-
-	for i, v := range vl {
-		var e ir.Node
-		if doexpr {
-			if i >= len(el) {
-				base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
-				break
-			}
-			e = el[i]
-		}
-
-		Declare(v, DeclContext)
-		v.Ntype = t
-
-		if e != nil || ir.CurFunc != nil || ir.IsBlank(v) {
-			if ir.CurFunc != nil {
-				init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
-			}
-			as := ir.NewAssignStmt(base.Pos, v, e)
-			init = append(init, as)
-			if e != nil {
-				v.Defn = as
-			}
-		}
-	}
-
-	if len(el) > len(vl) {
-		base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
-	}
-	return init
 }
 
 // Declare records that Node n declares symbol n.Sym in the specified
@@ -201,7 +91,7 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 	s.Lastlineno = base.Pos
 	s.Def = n
 	n.Vargen = int32(gen)
-	n.Class_ = ctxt
+	n.Class = ctxt
 	if ctxt == ir.PFUNC {
 		n.Sym().SetFunc(true)
 	}
@@ -565,7 +455,7 @@ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	n := ir.NewNameAt(pos, s)
 	s.Def = n
 	n.SetType(t)
-	n.Class_ = ir.PAUTO
+	n.Class = ir.PAUTO
 	n.SetEsc(ir.EscNever)
 	n.Curfn = curfn
 	n.SetUsed(true)
@@ -595,6 +485,9 @@ func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
 	if recv != nil {
 		nrecvs++
 	}
+
+	// TODO(mdempsky): Move this function to types.
+	// TODO(mdempsky): Preserve positions, names, and package from sig+recv.
 
 	params := make([]*types.Field, nrecvs+sig.Params().Fields().Len())
 	if recv != nil {

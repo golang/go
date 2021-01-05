@@ -7,7 +7,6 @@ package gc
 import (
 	"bufio"
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -39,13 +38,7 @@ func TestMain(m *testing.M) {
 	base.Ctxt.Bso = bufio.NewWriter(os.Stdout)
 	types.PtrSize = ssagen.Arch.LinkArch.PtrSize
 	types.RegSize = ssagen.Arch.LinkArch.RegSize
-	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
-		return reflectdata.TypeSym(t).Linksym()
-	}
-	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
-		return reflectdata.TypeSym(t).Linksym()
-	}
-	typecheck.Init()
+	typecheck.InitUniverse()
 	os.Exit(m.Run())
 }
 

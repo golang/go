@@ -104,7 +104,7 @@ func genhash(t *types.Type) *obj.LSym {
 		// For other sizes of plain memory, we build a closure
 		// that calls memhash_varlen. The size of the memory is
 		// encoded in the first slot of the closure.
-		closure := types.TypeSymLookup(fmt.Sprintf(".hashfunc%d", t.Width)).Linksym()
+		closure := TypeLinksymLookup(fmt.Sprintf(".hashfunc%d", t.Width))
 		if len(closure.P) > 0 { // already generated
 			return closure
 		}
@@ -120,7 +120,7 @@ func genhash(t *types.Type) *obj.LSym {
 		break
 	}
 
-	closure := TypeSymPrefix(".hashfunc", t).Linksym()
+	closure := TypeLinksymPrefix(".hashfunc", t)
 	if len(closure.P) > 0 { // already generated
 		return closure
 	}
@@ -255,7 +255,7 @@ func genhash(t *types.Type) *obj.LSym {
 
 	// Build closure. It doesn't close over any variables, so
 	// it contains just the function pointer.
-	objw.SymPtr(closure, 0, sym.Linksym(), 0)
+	objw.SymPtr(closure, 0, fn.Linksym(), 0)
 	objw.Global(closure, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
 
 	return closure
@@ -347,7 +347,7 @@ func geneq(t *types.Type) *obj.LSym {
 	case types.AMEM:
 		// make equality closure. The size of the type
 		// is encoded in the closure.
-		closure := types.TypeSymLookup(fmt.Sprintf(".eqfunc%d", t.Width)).Linksym()
+		closure := TypeLinksymLookup(fmt.Sprintf(".eqfunc%d", t.Width))
 		if len(closure.P) != 0 {
 			return closure
 		}
@@ -363,7 +363,7 @@ func geneq(t *types.Type) *obj.LSym {
 		break
 	}
 
-	closure := TypeSymPrefix(".eqfunc", t).Linksym()
+	closure := TypeLinksymPrefix(".eqfunc", t)
 	if len(closure.P) > 0 { // already generated
 		return closure
 	}
@@ -634,7 +634,7 @@ func geneq(t *types.Type) *obj.LSym {
 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
 
 	// Generate a closure which points at the function we just generated.
-	objw.SymPtr(closure, 0, sym.Linksym(), 0)
+	objw.SymPtr(closure, 0, fn.Linksym(), 0)
 	objw.Global(closure, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
 	return closure
 }

@@ -210,7 +210,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		a.SetTypecheck(1)
 		a.Lhs = []ir.Node{hv1, hb}
 		a.Rhs = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.ORECV, ha)}
-		*nfor.Cond.PtrInit() = []ir.Node{a}
+		nfor.Cond = ir.InitExpr([]ir.Node{a}, nfor.Cond)
 		if v1 == nil {
 			body = nil
 		} else {
@@ -429,7 +429,7 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 	// 	i = len(a) - 1
 	// }
 	n := ir.NewIfStmt(base.Pos, nil, nil, nil)
-	n.Body.Set(nil)
+	n.Body = nil
 	n.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(0))
 
 	// hp = &a[0]

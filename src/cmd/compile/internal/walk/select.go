@@ -17,13 +17,12 @@ func walkSelect(sel *ir.SelectStmt) {
 		base.Fatalf("double walkselect")
 	}
 
-	init := sel.Init()
-	sel.PtrInit().Set(nil)
+	init := ir.TakeInit(sel)
 
 	init = append(init, walkSelectCases(sel.Cases)...)
 	sel.Cases = nil
 
-	sel.Compiled.Set(init)
+	sel.Compiled = init
 	walkStmtList(sel.Compiled)
 
 	base.Pos = lno
@@ -45,8 +44,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 		l := cas.Init()
 		if cas.Comm != nil { // not default:
 			n := cas.Comm
-			l = append(l, n.Init()...)
-			n.PtrInit().Set(nil)
+			l = append(l, ir.TakeInit(n)...)
 			switch n.Op() {
 			default:
 				base.Fatalf("select %v", n.Op())
@@ -106,7 +104,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 		n := cas.Comm
 		ir.SetPos(n)
 		r := ir.NewIfStmt(base.Pos, nil, nil, nil)
-		r.PtrInit().Set(cas.Init())
+		*r.PtrInit() = cas.Init()
 		var call ir.Node
 		switch n.Op() {
 		default:
@@ -138,8 +136,8 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 		}
 
 		r.Cond = typecheck.Expr(call)
-		r.Body.Set(cas.Body)
-		r.Else.Set(append(dflt.Init(), dflt.Body...))
+		r.Body = cas.Body
+		r.Else = append(dflt.Init(), dflt.Body...)
 		return []ir.Node{r, ir.NewBranchStmt(base.Pos, ir.OBREAK, nil)}
 	}
 
@@ -171,8 +169,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 	for _, cas := range cases {
 		ir.SetPos(cas)
 
-		init = append(init, cas.Init()...)
-		cas.PtrInit().Set(nil)
+		init = append(init, ir.TakeInit(cas)...)
 
 		n := cas.Comm
 		if n == nil { // default:

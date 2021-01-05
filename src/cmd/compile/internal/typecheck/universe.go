@@ -90,8 +90,8 @@ var unsafeFuncs = [...]struct {
 	{"Sizeof", ir.OSIZEOF},
 }
 
-// initUniverse initializes the universe block.
-func initUniverse() {
+// InitUniverse initializes the universe block.
+func InitUniverse() {
 	if types.PtrSize == 0 {
 		base.Fatalf("typeinit before betypeinit")
 	}
@@ -336,8 +336,8 @@ func makeErrorInterface() *types.Type {
 	return types.NewInterface(types.NoPkg, []*types.Field{method})
 }
 
-// declareUniverse makes the universe block visible within the current package.
-func declareUniverse() {
+// DeclareUniverse makes the universe block visible within the current package.
+func DeclareUniverse() {
 	// Operationally, this is similar to a dot import of builtinpkg, except
 	// that we silently skip symbols that are already declared in the
 	// package block rather than emitting a redeclared symbol error.
@@ -357,6 +357,6 @@ func declareUniverse() {
 
 	ir.RegFP = NewName(Lookup(".fp"))
 	ir.RegFP.SetType(types.Types[types.TINT32])
-	ir.RegFP.Class_ = ir.PPARAM
+	ir.RegFP.Class = ir.PPARAM
 	ir.RegFP.SetUsed(true)
 }

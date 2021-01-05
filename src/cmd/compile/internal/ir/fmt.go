@@ -128,7 +128,7 @@ func (o Op) Format(s fmt.State, verb rune) {
 //	%L	Go syntax followed by " (type T)" if type is known.
 //	%+v	Debug syntax, as in Dump.
 //
-func FmtNode(n Node, s fmt.State, verb rune) {
+func fmtNode(n Node, s fmt.State, verb rune) {
 	// %+v prints Dump.
 	// Otherwise we print Go syntax.
 	if s.Flag('+') && verb == 'v' {
@@ -216,6 +216,7 @@ var OpPrec = []int{
 	OTINTER:        8,
 	OTMAP:          8,
 	OTSTRUCT:       8,
+	OTYPE:          8,
 	OINDEXMAP:      8,
 	OINDEX:         8,
 	OSLICE:         8,
@@ -232,6 +233,7 @@ var OpPrec = []int{
 	ODOT:           8,
 	OXDOT:          8,
 	OCALLPART:      8,
+	OMETHEXPR:      8,
 	OPLUS:          7,
 	ONOT:           7,
 	OBITNOT:        7,
@@ -551,8 +553,8 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	}
 
 	nprec := OpPrec[n.Op()]
-	if n.Op() == OTYPE && n.Sym() != nil {
-		nprec = 8
+	if n.Op() == OTYPE && n.Type().IsPtr() {
+		nprec = OpPrec[ODEREF]
 	}
 
 	if prec > nprec {
@@ -629,10 +631,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		fallthrough
 	case OPACK, ONONAME:
 		fmt.Fprint(s, n.Sym())
-
-	case OMETHEXPR:
-		n := n.(*MethodExpr)
-		fmt.Fprint(s, n.FuncName().Sym())
 
 	case ONAMEOFFSET:
 		n := n.(*NameOffsetExpr)
@@ -749,16 +747,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		n := n.(*StructKeyExpr)
 		fmt.Fprintf(s, "%v:%v", n.Field, n.Value)
 
-	case OCALLPART:
-		n := n.(*CallPartExpr)
-		exprFmt(n.X, s, nprec)
-		if n.Method.Sym == nil {
-			fmt.Fprint(s, ".<nil>")
-			return
-		}
-		fmt.Fprintf(s, ".%s", n.Method.Sym.Name)
-
-	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
+	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH, OCALLPART, OMETHEXPR:
 		n := n.(*SelectorExpr)
 		exprFmt(n.X, s, nprec)
 		if n.Sel == nil {
@@ -991,7 +980,7 @@ func (l Nodes) Format(s fmt.State, verb rune) {
 
 // Dump prints the message s followed by a debug dump of n.
 func Dump(s string, n Node) {
-	fmt.Printf("%s [%p]%+v", s, n, n)
+	fmt.Printf("%s [%p]%+v\n", s, n, n)
 }
 
 // DumpList prints the message s followed by a debug dump of each node in the list.
@@ -1160,12 +1149,6 @@ func dumpNode(w io.Writer, n Node, depth int) {
 		}
 		return
 
-	case OMETHEXPR:
-		n := n.(*MethodExpr)
-		fmt.Fprintf(w, "%+v-%+v", n.Op(), n.FuncName().Sym())
-		dumpNodeHeader(w, n)
-		return
-
 	case OASOP:
 		n := n.(*AssignOpStmt)
 		fmt.Fprintf(w, "%+v-%+v", n.Op(), n.AsOp)
@@ -1254,9 +1237,24 @@ func dumpNode(w io.Writer, n Node, depth int) {
 				fmt.Fprintf(w, "%+v-%s", n.Op(), name)
 			}
 			dumpNodes(w, val, depth+1)
+		default:
+			if vf.Kind() == reflect.Slice && vf.Type().Elem().Implements(nodeType) {
+				if vf.Len() == 0 {
+					continue
+				}
+				if name != "" {
+					indent(w, depth)
+					fmt.Fprintf(w, "%+v-%s", n.Op(), name)
+				}
+				for i, n := 0, vf.Len(); i < n; i++ {
+					dumpNode(w, vf.Index(i).Interface().(Node), depth+1)
+				}
+			}
 		}
 	}
 }
+
+var nodeType = reflect.TypeOf((*Node)(nil)).Elem()
 
 func dumpNodes(w io.Writer, list Nodes, depth int) {
 	if len(list) == 0 {

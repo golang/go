@@ -46,7 +46,7 @@ func (n *miniType) Type() *types.Type { return n.typ }
 // setOTYPE also records t.Nod = self if t.Nod is not already set.
 // (Some types are shared by multiple OTYPE nodes, so only
 // the first such node is used as t.Nod.)
-func (n *miniType) setOTYPE(t *types.Type, self Node) {
+func (n *miniType) setOTYPE(t *types.Type, self Ntype) {
 	if n.typ != nil {
 		panic(n.op.String() + " SetType: type already set")
 	}
@@ -61,11 +61,11 @@ func (n *miniType) Implicit() bool  { return false } // for Format OTYPE
 // A ChanType represents a chan Elem syntax with the direction Dir.
 type ChanType struct {
 	miniType
-	Elem Node
+	Elem Ntype
 	Dir  types.ChanDir
 }
 
-func NewChanType(pos src.XPos, elem Node, dir types.ChanDir) *ChanType {
+func NewChanType(pos src.XPos, elem Ntype, dir types.ChanDir) *ChanType {
 	n := &ChanType{Elem: elem, Dir: dir}
 	n.op = OTCHAN
 	n.pos = pos
@@ -80,11 +80,11 @@ func (n *ChanType) SetOTYPE(t *types.Type) {
 // A MapType represents a map[Key]Value type syntax.
 type MapType struct {
 	miniType
-	Key  Node
-	Elem Node
+	Key  Ntype
+	Elem Ntype
 }
 
-func NewMapType(pos src.XPos, key, elem Node) *MapType {
+func NewMapType(pos src.XPos, key, elem Ntype) *MapType {
 	n := &MapType{Key: key, Elem: elem}
 	n.op = OTMAP
 	n.pos = pos
@@ -185,45 +185,28 @@ func (f *Field) String() string {
 	return typ
 }
 
-func (f *Field) copy() *Field {
+// TODO(mdempsky): Make Field a Node again so these can be generated?
+// Fields are Nodes in go/ast and cmd/compile/internal/syntax.
+
+func copyField(f *Field) *Field {
+	if f == nil {
+		return nil
+	}
 	c := *f
 	return &c
 }
-
-func copyFields(list []*Field) []*Field {
-	out := make([]*Field, len(list))
-	copy(out, list)
-	for i, f := range out {
-		out[i] = f.copy()
+func doField(f *Field, do func(Node) bool) bool {
+	if f == nil {
+		return false
 	}
-	return out
+	if f.Decl != nil && do(f.Decl) {
+		return true
+	}
+	if f.Ntype != nil && do(f.Ntype) {
+		return true
+	}
+	return false
 }
-
-func maybeDoField(f *Field, err error, do func(Node) error) error {
-	if f != nil {
-		if err == nil && f.Decl != nil {
-			err = do(f.Decl)
-		}
-		if err == nil && f.Ntype != nil {
-			err = do(f.Ntype)
-		}
-	}
-	return err
-}
-
-func maybeDoFields(list []*Field, err error, do func(Node) error) error {
-	if err != nil {
-		return err
-	}
-	for _, f := range list {
-		err = maybeDoField(f, err, do)
-		if err != nil {
-			return err
-		}
-	}
-	return err
-}
-
 func editField(f *Field, edit func(Node) Node) {
 	if f == nil {
 		return
@@ -232,10 +215,25 @@ func editField(f *Field, edit func(Node) Node) {
 		f.Decl = edit(f.Decl).(*Name)
 	}
 	if f.Ntype != nil {
-		f.Ntype = toNtype(edit(f.Ntype))
+		f.Ntype = edit(f.Ntype).(Ntype)
 	}
 }
 
+func copyFields(list []*Field) []*Field {
+	out := make([]*Field, len(list))
+	for i, f := range list {
+		out[i] = copyField(f)
+	}
+	return out
+}
+func doFields(list []*Field, do func(Node) bool) bool {
+	for _, x := range list {
+		if doField(x, do) {
+			return true
+		}
+	}
+	return false
+}
 func editFields(list []*Field, edit func(Node) Node) {
 	for _, f := range list {
 		editField(f, edit)
@@ -246,11 +244,11 @@ func editFields(list []*Field, edit func(Node) Node) {
 // If DDD is true, it's the ...Elem at the end of a function list.
 type SliceType struct {
 	miniType
-	Elem Node
+	Elem Ntype
 	DDD  bool
 }
 
-func NewSliceType(pos src.XPos, elem Node) *SliceType {
+func NewSliceType(pos src.XPos, elem Ntype) *SliceType {
 	n := &SliceType{Elem: elem}
 	n.op = OTSLICE
 	n.pos = pos
@@ -267,11 +265,11 @@ func (n *SliceType) SetOTYPE(t *types.Type) {
 type ArrayType struct {
 	miniType
 	Len  Node
-	Elem Node
+	Elem Ntype
 }
 
-func NewArrayType(pos src.XPos, size Node, elem Node) *ArrayType {
-	n := &ArrayType{Len: size, Elem: elem}
+func NewArrayType(pos src.XPos, len Node, elem Ntype) *ArrayType {
+	n := &ArrayType{Len: len, Elem: elem}
 	n.op = OTARRAY
 	n.pos = pos
 	return n

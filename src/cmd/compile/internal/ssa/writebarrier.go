@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -270,11 +271,11 @@ func writebarrier(f *Func) {
 			case OpMoveWB:
 				fn = typedmemmove
 				val = w.Args[1]
-				typ = w.Aux.(*types.Type).Symbol()
+				typ = reflectdata.TypeLinksym(w.Aux.(*types.Type))
 				nWBops--
 			case OpZeroWB:
 				fn = typedmemclr
-				typ = w.Aux.(*types.Type).Symbol()
+				typ = reflectdata.TypeLinksym(w.Aux.(*types.Type))
 				nWBops--
 			case OpVarDef, OpVarLive, OpVarKill:
 			}

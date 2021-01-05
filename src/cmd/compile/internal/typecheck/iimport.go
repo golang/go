@@ -327,16 +327,17 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		ms := make([]*types.Field, r.uint64())
 		for i := range ms {
 			mpos := r.pos()
-			msym := r.ident()
+			msym := r.selector()
 			recv := r.param()
 			mtyp := r.signature(recv)
 
-			fn := ir.NewFunc(mpos)
-			fn.SetType(mtyp)
-			m := ir.NewFuncNameAt(mpos, ir.MethodSym(recv.Type, msym), fn)
-			m.SetType(mtyp)
-			m.Class_ = ir.PFUNC
 			// methodSym already marked m.Sym as a function.
+			m := ir.NewNameAt(mpos, ir.MethodSym(recv.Type, msym))
+			m.Class = ir.PFUNC
+			m.SetType(mtyp)
+
+			m.Func = ir.NewFunc(mpos)
+			m.Func.Nname = m
 
 			f := types.NewField(mpos, msym, mtyp)
 			f.Nname = m
@@ -372,7 +373,7 @@ func (p *importReader) value(typ *types.Type) constant.Value {
 	case constant.Int:
 		var i big.Int
 		p.mpint(&i, typ)
-		return makeInt(&i)
+		return constant.Make(&i)
 	case constant.Float:
 		return p.float(typ)
 	case constant.Complex:
@@ -433,17 +434,20 @@ func (p *importReader) float(typ *types.Type) constant.Value {
 	return constant.Make(&f)
 }
 
-func (r *importReader) ident() *types.Sym {
+func (r *importReader) ident(selector bool) *types.Sym {
 	name := r.string()
 	if name == "" {
 		return nil
 	}
 	pkg := r.currPkg
-	if types.IsExported(name) {
+	if selector && types.IsExported(name) {
 		pkg = types.LocalPkg
 	}
 	return pkg.Lookup(name)
 }
+
+func (r *importReader) localIdent() *types.Sym { return r.ident(false) }
+func (r *importReader) selector() *types.Sym   { return r.ident(true) }
 
 func (r *importReader) qualifiedIdent() *ir.Ident {
 	name := r.string()
@@ -533,7 +537,7 @@ func (r *importReader) typ1() *types.Type {
 		fs := make([]*types.Field, r.uint64())
 		for i := range fs {
 			pos := r.pos()
-			sym := r.ident()
+			sym := r.selector()
 			typ := r.typ()
 			emb := r.bool()
 			note := r.string()
@@ -562,7 +566,7 @@ func (r *importReader) typ1() *types.Type {
 		methods := make([]*types.Field, r.uint64())
 		for i := range methods {
 			pos := r.pos()
-			sym := r.ident()
+			sym := r.selector()
 			typ := r.signature(fakeRecvField())
 
 			methods[i] = types.NewField(pos, sym, typ)
@@ -598,7 +602,7 @@ func (r *importReader) paramList() []*types.Field {
 }
 
 func (r *importReader) param() *types.Field {
-	return types.NewField(r.pos(), r.ident(), r.typ())
+	return types.NewField(r.pos(), r.localIdent(), r.typ())
 }
 
 func (r *importReader) bool() bool {
@@ -778,17 +782,17 @@ func (r *importReader) caseList(switchExpr ir.Node) []*ir.CaseClause {
 	cases := make([]*ir.CaseClause, r.uint64())
 	for i := range cases {
 		cas := ir.NewCaseStmt(r.pos(), nil, nil)
-		cas.List.Set(r.stmtList())
+		cas.List = r.stmtList()
 		if namedTypeSwitch {
 			// Note: per-case variables will have distinct, dotted
 			// names after import. That's okay: swt.go only needs
 			// Sym for diagnostics anyway.
-			caseVar := ir.NewNameAt(cas.Pos(), r.ident())
+			caseVar := ir.NewNameAt(cas.Pos(), r.localIdent())
 			Declare(caseVar, DeclContext)
 			cas.Var = caseVar
 			caseVar.Defn = switchExpr
 		}
-		cas.Body.Set(r.stmtList())
+		cas.Body = r.stmtList()
 		cases[i] = cas
 	}
 	return cases
@@ -850,7 +854,7 @@ func (r *importReader) node() ir.Node {
 		return r.qualifiedIdent()
 
 	case ir.ONAME:
-		return r.ident().Def.(*ir.Name)
+		return r.localIdent().Def.(*ir.Name)
 
 	// case OPACK, ONONAME:
 	// 	unreachable - should have been resolved by typechecking
@@ -861,7 +865,7 @@ func (r *importReader) node() ir.Node {
 	case ir.OTYPESW:
 		pos := r.pos()
 		var tag *ir.Ident
-		if s := r.ident(); s != nil {
+		if s := r.localIdent(); s != nil {
 			tag = ir.NewIdent(pos, s)
 		}
 		return ir.NewTypeSwitchGuard(pos, tag, r.expr())
@@ -898,7 +902,7 @@ func (r *importReader) node() ir.Node {
 
 	case ir.OXDOT:
 		// see parser.new_dotname
-		return ir.NewSelectorExpr(r.pos(), ir.OXDOT, r.expr(), r.ident())
+		return ir.NewSelectorExpr(r.pos(), ir.OXDOT, r.expr(), r.selector())
 
 	// case ODOTTYPE, ODOTTYPE2:
 	// 	unreachable - mapped to case ODOTTYPE below by exporter
@@ -931,7 +935,7 @@ func (r *importReader) node() ir.Node {
 
 	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
 		n := builtinCall(r.pos(), op)
-		n.Args.Set(r.exprList())
+		n.Args = r.exprList()
 		if op == ir.OAPPEND {
 			n.IsDDD = r.bool()
 		}
@@ -944,7 +948,7 @@ func (r *importReader) node() ir.Node {
 		pos := r.pos()
 		init := r.stmtList()
 		n := ir.NewCallExpr(pos, ir.OCALL, r.expr(), r.exprList())
-		n.PtrInit().Set(init)
+		*n.PtrInit() = init
 		n.IsDDD = r.bool()
 		return n
 
@@ -988,7 +992,7 @@ func (r *importReader) node() ir.Node {
 	// statements
 	case ir.ODCL:
 		pos := r.pos()
-		lhs := ir.NewDeclNameAt(pos, ir.ONAME, r.ident())
+		lhs := ir.NewDeclNameAt(pos, ir.ONAME, r.localIdent())
 		lhs.SetType(r.typ())
 
 		Declare(lhs, ir.PAUTO)
@@ -1032,14 +1036,14 @@ func (r *importReader) node() ir.Node {
 	case ir.OIF:
 		pos, init := r.pos(), r.stmtList()
 		n := ir.NewIfStmt(pos, r.expr(), r.stmtList(), r.stmtList())
-		n.PtrInit().Set(init)
+		*n.PtrInit() = init
 		return n
 
 	case ir.OFOR:
 		pos, init := r.pos(), r.stmtList()
 		cond, post := r.exprsOrNil()
 		n := ir.NewForStmt(pos, nil, cond, post, r.stmtList())
-		n.PtrInit().Set(init)
+		*n.PtrInit() = init
 		return n
 
 	case ir.ORANGE:
@@ -1051,7 +1055,7 @@ func (r *importReader) node() ir.Node {
 		pos := r.pos()
 		init := r.stmtList()
 		n := ir.NewSelectStmt(pos, r.commList())
-		n.PtrInit().Set(init)
+		*n.PtrInit() = init
 		return n
 
 	case ir.OSWITCH:
@@ -1059,7 +1063,7 @@ func (r *importReader) node() ir.Node {
 		init := r.stmtList()
 		x, _ := r.exprsOrNil()
 		n := ir.NewSwitchStmt(pos, x, r.caseList(x))
-		n.PtrInit().Set(init)
+		*n.PtrInit() = init
 		return n
 
 	// case OCASE:
@@ -1099,7 +1103,7 @@ func (r *importReader) op() ir.Op {
 func (r *importReader) fieldList() []ir.Node {
 	list := make([]ir.Node, r.uint64())
 	for i := range list {
-		list[i] = ir.NewStructKeyExpr(r.pos(), r.ident(), r.expr())
+		list[i] = ir.NewStructKeyExpr(r.pos(), r.selector(), r.expr())
 	}
 	return list
 }

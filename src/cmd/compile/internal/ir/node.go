@@ -28,14 +28,12 @@ type Node interface {
 	// For making copies. For Copy and SepCopy.
 	copy() Node
 
-	doChildren(func(Node) error) error
+	doChildren(func(Node) bool) bool
 	editChildren(func(Node) Node)
 
 	// Abstract graph structure, for generic traversals.
 	Op() Op
 	Init() Nodes
-	PtrInit() *Nodes
-	SetInit(x Nodes)
 
 	// Fields specific to certain Ops only.
 	Type() *types.Type
@@ -48,10 +46,6 @@ type Node interface {
 	// Storage for analysis passes.
 	Esc() uint16
 	SetEsc(x uint16)
-	Walkdef() uint8
-	SetWalkdef(x uint8)
-	Opt() interface{}
-	SetOpt(x interface{})
 	Diag() bool
 	SetDiag(x bool)
 	Typecheck() uint8
@@ -92,7 +86,21 @@ func MayBeShared(n Node) bool {
 	return false
 }
 
-//go:generate stringer -type=Op -trimprefix=O
+type InitNode interface {
+	Node
+	PtrInit() *Nodes
+	SetInit(x Nodes)
+}
+
+func TakeInit(n Node) Nodes {
+	init := n.Init()
+	if len(init) != 0 {
+		n.(InitNode).SetInit(nil)
+	}
+	return init
+}
+
+//go:generate stringer -type=Op -trimprefix=O node.go
 
 type Op uint8
 
@@ -220,10 +228,10 @@ const (
 	OPAREN       // (Left)
 	OSEND        // Left <- Right
 	OSLICE       // Left[List[0] : List[1]] (Left is untypechecked or slice)
-	OSLICEARR    // Left[List[0] : List[1]] (Left is array)
+	OSLICEARR    // Left[List[0] : List[1]] (Left is pointer to array)
 	OSLICESTR    // Left[List[0] : List[1]] (Left is string)
 	OSLICE3      // Left[List[0] : List[1] : List[2]] (Left is untypedchecked or slice)
-	OSLICE3ARR   // Left[List[0] : List[1] : List[2]] (Left is array)
+	OSLICE3ARR   // Left[List[0] : List[1] : List[2]] (Left is pointer to array)
 	OSLICEHEADER // sliceheader{Left, List[0], List[1]} (Left is unsafe.Pointer, List[0] is length, List[1] is capacity)
 	ORECOVER     // recover()
 	ORECV        // <-Left
@@ -313,35 +321,11 @@ const (
 // a slice to save space.
 type Nodes []Node
 
-// immutableEmptyNodes is an immutable, empty Nodes list.
-// The methods that would modify it panic instead.
-var immutableEmptyNodes = Nodes{}
-
-func (n *Nodes) mutate() {
-	if n == &immutableEmptyNodes {
-		panic("immutable Nodes.Set")
-	}
-}
-
-// Set sets n to a slice.
-// This takes ownership of the slice.
-func (n *Nodes) Set(s []Node) {
-	if n == &immutableEmptyNodes {
-		if len(s) == 0 {
-			// Allow immutableEmptyNodes.Set(nil) (a no-op).
-			return
-		}
-		n.mutate()
-	}
-	*n = s
-}
-
 // Append appends entries to Nodes.
 func (n *Nodes) Append(a ...Node) {
 	if len(a) == 0 {
 		return
 	}
-	n.mutate()
 	*n = append(*n, a...)
 }
 
@@ -351,7 +335,6 @@ func (n *Nodes) Prepend(a ...Node) {
 	if len(a) == 0 {
 		return
 	}
-	n.mutate()
 	*n = append(a, *n...)
 }
 
@@ -546,15 +529,16 @@ func SetPos(n Node) src.XPos {
 
 // The result of InitExpr MUST be assigned back to n, e.g.
 // 	n.Left = InitExpr(init, n.Left)
-func InitExpr(init []Node, n Node) Node {
+func InitExpr(init []Node, expr Node) Node {
 	if len(init) == 0 {
-		return n
+		return expr
 	}
-	if MayBeShared(n) {
+
+	n, ok := expr.(InitNode)
+	if !ok || MayBeShared(n) {
 		// Introduce OCONVNOP to hold init list.
-		old := n
-		n = NewConvExpr(base.Pos, OCONVNOP, nil, old)
-		n.SetType(old.Type())
+		n = NewConvExpr(base.Pos, OCONVNOP, nil, expr)
+		n.SetType(expr.Type())
 		n.SetTypecheck(1)
 	}
 
@@ -584,7 +568,10 @@ func OuterValue(n Node) Node {
 			continue
 		case OINDEX:
 			nn := nn.(*IndexExpr)
-			if nn.X.Type() != nil && nn.X.Type().IsArray() {
+			if nn.X.Type() == nil {
+				base.Fatalf("OuterValue needs type for %v", nn.X)
+			}
+			if nn.X.Type().IsArray() {
 				n = nn.X
 				continue
 			}

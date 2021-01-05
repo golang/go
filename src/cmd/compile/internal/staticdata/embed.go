@@ -145,7 +145,7 @@ func WriteEmbed(v *ir.Name) {
 		if err != nil {
 			base.ErrorfAt(v.Pos(), "embed %s: %v", file, err)
 		}
-		sym := v.Sym().Linksym()
+		sym := v.Linksym()
 		off := 0
 		off = objw.SymPtr(sym, off, fsym, 0)       // data string
 		off = objw.Uintptr(sym, off, uint64(size)) // len
@@ -187,7 +187,7 @@ func WriteEmbed(v *ir.Name) {
 			}
 		}
 		objw.Global(slicedata, int32(off), obj.RODATA|obj.LOCAL)
-		sym := v.Sym().Linksym()
+		sym := v.Linksym()
 		objw.SymPtr(sym, 0, slicedata, 0)
 	}
 }

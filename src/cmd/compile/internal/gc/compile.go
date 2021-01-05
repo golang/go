@@ -83,7 +83,7 @@ func compile(fn *ir.Func) {
 	// because symbols must be allocated before the parallel
 	// phase of the compiler.
 	for _, n := range fn.Dcl {
-		switch n.Class_ {
+		switch n.Class {
 		case ir.PPARAM, ir.PPARAMOUT, ir.PAUTO:
 			if liveness.ShouldTrack(n) && n.Addrtaken() {
 				reflectdata.WriteType(n.Type())
@@ -174,5 +174,5 @@ func isInlinableButNotInlined(fn *ir.Func) bool {
 	if fn.Sym() == nil {
 		return true
 	}
-	return !fn.Sym().Linksym().WasInlined()
+	return !fn.Linksym().WasInlined()
 }

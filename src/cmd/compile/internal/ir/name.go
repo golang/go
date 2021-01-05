@@ -7,8 +7,10 @@ package ir
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
+	"fmt"
 
 	"go/constant"
 )
@@ -34,16 +36,16 @@ func (*Ident) CanBeNtype() {}
 // Name holds Node fields used only by named nodes (ONAME, OTYPE, some OLITERAL).
 type Name struct {
 	miniExpr
-	BuiltinOp Op    // uint8
-	Class_    Class // uint8
-	flags     bitset16
+	BuiltinOp Op         // uint8
+	Class     Class      // uint8
 	pragma    PragmaFlag // int16
+	flags     bitset16
 	sym       *types.Sym
 	Func      *Func
 	Offset_   int64
 	val       constant.Value
-	orig      Node
-	Embed     *[]Embed // list of embedded files, for ONAME var
+	Opt       interface{} // for use by escape analysis
+	Embed     *[]Embed    // list of embedded files, for ONAME var
 
 	PkgName *PkgName // real package for import . names
 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
@@ -141,11 +143,9 @@ type Name struct {
 
 func (n *Name) isExpr() {}
 
-// CloneName makes a cloned copy of the name.
-// It's not ir.Copy(n) because in general that operation is a mistake on names,
-// which uniquely identify variables.
-// Callers must use n.CloneName to make clear they intend to create a separate name.
-func (n *Name) CloneName() *Name { c := *n; return &c }
+func (n *Name) copy() Node                         { panic(n.no("copy")) }
+func (n *Name) doChildren(do func(Node) bool) bool { return false }
+func (n *Name) editChildren(edit func(Node) Node)  {}
 
 // TypeDefn returns the type definition for a named OTYPE.
 // That is, given "type T Defn", it returns Defn.
@@ -213,7 +213,6 @@ func newNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
 	n := new(Name)
 	n.op = op
 	n.pos = pos
-	n.orig = n
 	n.sym = sym
 	return n
 }
@@ -223,8 +222,6 @@ func (n *Name) Sym() *types.Sym     { return n.sym }
 func (n *Name) SetSym(x *types.Sym) { n.sym = x }
 func (n *Name) SubOp() Op           { return n.BuiltinOp }
 func (n *Name) SetSubOp(x Op)       { n.BuiltinOp = x }
-func (n *Name) Class() Class        { return n.Class_ }
-func (n *Name) SetClass(x Class)    { n.Class_ = x }
 func (n *Name) SetFunc(x *Func)     { n.Func = x }
 func (n *Name) Offset() int64       { panic("Name.Offset") }
 func (n *Name) SetOffset(x int64) {
@@ -236,6 +233,15 @@ func (n *Name) FrameOffset() int64     { return n.Offset_ }
 func (n *Name) SetFrameOffset(x int64) { n.Offset_ = x }
 func (n *Name) Iota() int64            { return n.Offset_ }
 func (n *Name) SetIota(x int64)        { n.Offset_ = x }
+func (n *Name) Walkdef() uint8         { return n.bits.get2(miniWalkdefShift) }
+func (n *Name) SetWalkdef(x uint8) {
+	if x > 3 {
+		panic(fmt.Sprintf("cannot SetWalkdef %d", x))
+	}
+	n.bits.set2(miniWalkdefShift, x)
+}
+
+func (n *Name) Linksym() *obj.LSym { return n.sym.Linksym() }
 
 func (*Name) CanBeNtype()    {}
 func (*Name) CanBeAnSSASym() {}
@@ -273,7 +279,6 @@ const (
 
 func (n *Name) Captured() bool              { return n.flags&nameCaptured != 0 }
 func (n *Name) Readonly() bool              { return n.flags&nameReadonly != 0 }
-func (n *Name) Byval() bool                 { return n.flags&nameByval != 0 }
 func (n *Name) Needzero() bool              { return n.flags&nameNeedzero != 0 }
 func (n *Name) AutoTemp() bool              { return n.flags&nameAutoTemp != 0 }
 func (n *Name) Used() bool                  { return n.flags&nameUsed != 0 }
@@ -288,7 +293,6 @@ func (n *Name) LibfuzzerExtraCounter() bool { return n.flags&nameLibfuzzerExtraC
 
 func (n *Name) SetCaptured(b bool)              { n.flags.set(nameCaptured, b) }
 func (n *Name) setReadonly(b bool)              { n.flags.set(nameReadonly, b) }
-func (n *Name) SetByval(b bool)                 { n.flags.set(nameByval, b) }
 func (n *Name) SetNeedzero(b bool)              { n.flags.set(nameNeedzero, b) }
 func (n *Name) SetAutoTemp(b bool)              { n.flags.set(nameAutoTemp, b) }
 func (n *Name) SetUsed(b bool)                  { n.flags.set(nameUsed, b) }
@@ -306,11 +310,11 @@ func (n *Name) MarkReadonly() {
 	if n.Op() != ONAME {
 		base.Fatalf("Node.MarkReadonly %v", n.Op())
 	}
-	n.Name().setReadonly(true)
+	n.setReadonly(true)
 	// Mark the linksym as readonly immediately
 	// so that the SSA backend can use this information.
 	// It will be overridden later during dumpglobls.
-	n.Sym().Linksym().Type = objabi.SRODATA
+	n.Linksym().Type = objabi.SRODATA
 }
 
 // Val returns the constant.Value for the node.
@@ -321,14 +325,40 @@ func (n *Name) Val() constant.Value {
 	return n.val
 }
 
-// SetVal sets the constant.Value for the node,
-// which must not have been used with SetOpt.
+// SetVal sets the constant.Value for the node.
 func (n *Name) SetVal(v constant.Value) {
 	if n.op != OLITERAL {
 		panic(n.no("SetVal"))
 	}
 	AssertValidTypeForConst(n.Type(), v)
 	n.val = v
+}
+
+// Canonical returns the logical declaration that n represents. If n
+// is a closure variable, then Canonical returns the original Name as
+// it appears in the function that immediately contains the
+// declaration. Otherwise, Canonical simply returns n itself.
+func (n *Name) Canonical() *Name {
+	if n.IsClosureVar() {
+		n = n.Defn.(*Name)
+		if n.IsClosureVar() {
+			base.Fatalf("recursive closure variable: %v", n)
+		}
+	}
+	return n
+}
+
+func (n *Name) SetByval(b bool) {
+	if n.Canonical() != n {
+		base.Fatalf("SetByval called on non-canonical variable: %v", n)
+	}
+	n.flags.set(nameByval, b)
+}
+
+func (n *Name) Byval() bool {
+	// We require byval to be set on the canonical variable, but we
+	// allow it to be accessed from any instance.
+	return n.Canonical().flags&nameByval != 0
 }
 
 // SameSource reports whether two nodes refer to the same source
@@ -373,7 +403,7 @@ func DeclaredBy(x, stmt Node) bool {
 // called declaration contexts.
 type Class uint8
 
-//go:generate stringer -type=Class
+//go:generate stringer -type=Class name.go
 const (
 	Pxxx      Class = iota // no class; used during ssa conversion to indicate pseudo-variables
 	PEXTERN                // global variables
@@ -418,7 +448,7 @@ func IsParamStackCopy(n Node) bool {
 		return false
 	}
 	name := n.(*Name)
-	return (name.Class_ == PPARAM || name.Class_ == PPARAMOUT) && name.Heapaddr != nil
+	return (name.Class == PPARAM || name.Class == PPARAMOUT) && name.Heapaddr != nil
 }
 
 // IsParamHeapCopy reports whether this is the on-heap copy of
@@ -428,7 +458,7 @@ func IsParamHeapCopy(n Node) bool {
 		return false
 	}
 	name := n.(*Name)
-	return name.Class_ == PAUTOHEAP && name.Name().Stackcopy != nil
+	return name.Class == PAUTOHEAP && name.Stackcopy != nil
 }
 
 var RegFP *Name

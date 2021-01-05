@@ -201,10 +201,15 @@ func (s *exprSwitch) flush() {
 
 	// Merge consecutive integer cases.
 	if s.exprname.Type().IsInteger() {
+		consecutive := func(last, next constant.Value) bool {
+			delta := constant.BinaryOp(next, token.SUB, last)
+			return constant.Compare(delta, token.EQL, constant.MakeInt64(1))
+		}
+
 		merged := cc[:1]
 		for _, c := range cc[1:] {
 			last := &merged[len(merged)-1]
-			if last.jmp == c.jmp && ir.Int64Val(last.hi)+1 == ir.Int64Val(c.lo) {
+			if last.jmp == c.jmp && consecutive(last.hi.Val(), c.lo.Val()) {
 				last.hi = c.lo
 			} else {
 				merged = append(merged, c)
@@ -440,7 +445,7 @@ type typeClause struct {
 	body ir.Nodes
 }
 
-func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar, jmp ir.Node) {
+func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar *ir.Name, jmp ir.Node) {
 	var body ir.Nodes
 	if caseVar != nil {
 		l := []ir.Node{
@@ -450,7 +455,7 @@ func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar, jmp ir.Node) {
 		typecheck.Stmts(l)
 		body.Append(l...)
 	} else {
-		caseVar = ir.BlankNode
+		caseVar = ir.BlankNode.(*ir.Name)
 	}
 
 	// cv, ok = iface.(type)

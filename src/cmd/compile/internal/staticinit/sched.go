@@ -78,15 +78,12 @@ func (s *Schedule) tryStaticInit(nn ir.Node) bool {
 // like staticassign but we are copying an already
 // initialized value r.
 func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Type) bool {
-	if rn.Class_ == ir.PFUNC {
+	if rn.Class == ir.PFUNC {
 		// TODO if roff != 0 { panic }
 		staticdata.InitFunc(l, loff, rn)
 		return true
 	}
-	if rn.Class_ != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
-		return false
-	}
-	if rn.Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value
+	if rn.Class != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
 		return false
 	}
 	if rn.Defn.Op() != ir.OAS {
@@ -95,8 +92,16 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 	if rn.Type().IsString() { // perhaps overwritten by cmd/link -X (#34675)
 		return false
 	}
+	if rn.Embed != nil {
+		return false
+	}
 	orig := rn
 	r := rn.Defn.(*ir.AssignStmt).Y
+	if r == nil {
+		// No explicit initialization value. Probably zeroed but perhaps
+		// supplied externally and of unknown value.
+		return false
+	}
 
 	for r.Op() == ir.OCONVNOP && !types.Identical(r.Type(), typ) {
 		r = r.(*ir.ConvExpr).X
@@ -104,7 +109,7 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 
 	switch r.Op() {
 	case ir.OMETHEXPR:
-		r = r.(*ir.MethodExpr).FuncName()
+		r = r.(*ir.SelectorExpr).FuncName()
 		fallthrough
 	case ir.ONAME:
 		r := r.(*ir.Name)
@@ -165,7 +170,7 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 			}
 			x := e.Expr
 			if x.Op() == ir.OMETHEXPR {
-				x = x.(*ir.MethodExpr).FuncName()
+				x = x.(*ir.SelectorExpr).FuncName()
 			}
 			if x.Op() == ir.ONAME && s.staticcopy(l, loff+e.Xoffset, x.(*ir.Name), typ) {
 				continue
@@ -185,6 +190,11 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 }
 
 func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Type) bool {
+	if r == nil {
+		// No explicit initialization value. Either zero or supplied
+		// externally.
+		return true
+	}
 	for r.Op() == ir.OCONVNOP {
 		r = r.(*ir.ConvExpr).X
 	}
@@ -195,7 +205,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		return s.staticcopy(l, loff, r, typ)
 
 	case ir.OMETHEXPR:
-		r := r.(*ir.MethodExpr)
+		r := r.(*ir.SelectorExpr)
 		return s.staticcopy(l, loff, r.FuncName(), typ)
 
 	case ir.ONIL:
@@ -236,7 +246,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 
 	case ir.OSTR2BYTES:
 		r := r.(*ir.ConvExpr)
-		if l.Class_ == ir.PEXTERN && r.X.Op() == ir.OLITERAL {
+		if l.Class == ir.PEXTERN && r.X.Op() == ir.OLITERAL {
 			sval := ir.StringVal(r.X)
 			staticdata.InitSliceBytes(l, loff, sval)
 			return true
@@ -313,7 +323,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 			return val.Op() == ir.ONIL
 		}
 
-		reflectdata.MarkTypeUsedInInterface(val.Type(), l.Sym().Linksym())
+		reflectdata.MarkTypeUsedInInterface(val.Type(), l.Linksym())
 
 		var itab *ir.AddrExpr
 		if typ.IsEmptyInterface() {
@@ -445,7 +455,7 @@ func StaticName(t *types.Type) *ir.Name {
 	statuniqgen++
 	typecheck.Declare(n, ir.PEXTERN)
 	n.SetType(t)
-	n.Sym().Linksym().Set(obj.AttrLocal, true)
+	n.Linksym().Set(obj.AttrLocal, true)
 	return n
 }
 
@@ -461,7 +471,7 @@ func StaticLoc(n ir.Node) (name *ir.Name, offset int64, ok bool) {
 		return n, 0, true
 
 	case ir.OMETHEXPR:
-		n := n.(*ir.MethodExpr)
+		n := n.(*ir.SelectorExpr)
 		return StaticLoc(n.FuncName())
 
 	case ir.ODOT:

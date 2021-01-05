@@ -199,8 +199,8 @@ func Inline_Flood(n *ir.Name, exportsym func(*ir.Name)) {
 	if n == nil {
 		return
 	}
-	if n.Op() != ir.ONAME || n.Class_ != ir.PFUNC {
-		base.Fatalf("inlFlood: unexpected %v, %v, %v", n, n.Op(), n.Class_)
+	if n.Op() != ir.ONAME || n.Class != ir.PFUNC {
+		base.Fatalf("inlFlood: unexpected %v, %v, %v", n, n.Op(), n.Class)
 	}
 	fn := n.Func
 	if fn == nil {
@@ -227,7 +227,7 @@ func Inline_Flood(n *ir.Name, exportsym func(*ir.Name)) {
 
 		case ir.ONAME:
 			n := n.(*ir.Name)
-			switch n.Class_ {
+			switch n.Class {
 			case ir.PFUNC:
 				Inline_Flood(n, exportsym)
 				exportsym(n)
@@ -265,7 +265,7 @@ var errBudget = errors.New("too expensive")
 func (v *hairyVisitor) tooHairy(fn *ir.Func) bool {
 	v.do = v.doNode // cache closure
 
-	err := ir.DoChildren(fn, v.do)
+	err := errChildren(fn, v.do)
 	if err != nil {
 		v.reason = err.Error()
 		return true
@@ -292,7 +292,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		// runtime.throw is a "cheap call" like panic in normal code.
 		if n.X.Op() == ir.ONAME {
 			name := n.X.(*ir.Name)
-			if name.Class_ == ir.PFUNC && types.IsRuntimePkg(name.Sym().Pkg) {
+			if name.Class == ir.PFUNC && types.IsRuntimePkg(name.Sym().Pkg) {
 				fn := name.Sym().Name
 				if fn == "getcallerpc" || fn == "getcallersp" {
 					return errors.New("call to " + fn)
@@ -393,13 +393,13 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		if ir.IsConst(n.Cond, constant.Bool) {
 			// This if and the condition cost nothing.
 			// TODO(rsc): It seems strange that we visit the dead branch.
-			if err := ir.DoList(n.Init(), v.do); err != nil {
+			if err := errList(n.Init(), v.do); err != nil {
 				return err
 			}
-			if err := ir.DoList(n.Body, v.do); err != nil {
+			if err := errList(n.Body, v.do); err != nil {
 				return err
 			}
-			if err := ir.DoList(n.Else, v.do); err != nil {
+			if err := errList(n.Else, v.do); err != nil {
 				return err
 			}
 			return nil
@@ -407,7 +407,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 
 	case ir.ONAME:
 		n := n.(*ir.Name)
-		if n.Class_ == ir.PAUTO {
+		if n.Class == ir.PAUTO {
 			v.usedLocals[n] = true
 		}
 
@@ -419,6 +419,9 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 
 	case ir.OCALLPART, ir.OSLICELIT:
 		v.budget-- // Hack for toolstash -cmp.
+
+	case ir.OMETHEXPR:
+		v.budget++ // Hack for toolstash -cmp.
 	}
 
 	v.budget--
@@ -428,7 +431,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		return errBudget
 	}
 
-	return ir.DoChildren(n, v.do)
+	return errChildren(n, v.do)
 }
 
 func isBigFunc(fn *ir.Func) bool {
@@ -541,7 +544,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 	if as := n; as.Op() == ir.OAS2FUNC {
 		as := as.(*ir.AssignListStmt)
 		if as.Rhs[0].Op() == ir.OINLCALL {
-			as.Rhs.Set(inlconv2list(as.Rhs[0].(*ir.InlinedCallExpr)))
+			as.Rhs = inlconv2list(as.Rhs[0].(*ir.InlinedCallExpr))
 			as.SetOp(ir.OAS2)
 			as.SetTypecheck(0)
 			n = typecheck.Stmt(as)
@@ -613,18 +616,18 @@ func inlCallee(fn ir.Node) *ir.Func {
 	fn = ir.StaticValue(fn)
 	switch fn.Op() {
 	case ir.OMETHEXPR:
-		fn := fn.(*ir.MethodExpr)
+		fn := fn.(*ir.SelectorExpr)
 		n := ir.MethodExprName(fn)
-		// Check that receiver type matches fn.Left.
+		// Check that receiver type matches fn.X.
 		// TODO(mdempsky): Handle implicit dereference
 		// of pointer receiver argument?
-		if n == nil || !types.Identical(n.Type().Recv().Type, fn.T) {
+		if n == nil || !types.Identical(n.Type().Recv().Type, fn.X.Type()) {
 			return nil
 		}
 		return n.Func
 	case ir.ONAME:
 		fn := fn.(*ir.Name)
-		if fn.Class_ == ir.PFUNC {
+		if fn.Class == ir.PFUNC {
 			return fn.Func
 		}
 	case ir.OCLOSURE:
@@ -636,13 +639,15 @@ func inlCallee(fn ir.Node) *ir.Func {
 	return nil
 }
 
-func inlParam(t *types.Field, as ir.Node, inlvars map[*ir.Name]ir.Node) ir.Node {
-	n := ir.AsNode(t.Nname)
-	if n == nil || ir.IsBlank(n) {
+func inlParam(t *types.Field, as ir.InitNode, inlvars map[*ir.Name]*ir.Name) ir.Node {
+	if t.Nname == nil {
 		return ir.BlankNode
 	}
-
-	inlvar := inlvars[n.(*ir.Name)]
+	n := t.Nname.(*ir.Name)
+	if ir.IsBlank(n) {
+		return ir.BlankNode
+	}
+	inlvar := inlvars[n]
 	if inlvar == nil {
 		base.Fatalf("missing inlvar for %v", n)
 	}
@@ -736,7 +741,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		callee := n.X
 		for callee.Op() == ir.OCONVNOP {
 			conv := callee.(*ir.ConvExpr)
-			ninit.Append(conv.PtrInit().Take()...)
+			ninit.Append(ir.TakeInit(conv)...)
 			callee = conv.X
 		}
 		if callee.Op() != ir.ONAME && callee.Op() != ir.OCLOSURE && callee.Op() != ir.OMETHEXPR {
@@ -745,52 +750,16 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	}
 
 	// Make temp names to use instead of the originals.
-	inlvars := make(map[*ir.Name]ir.Node)
+	inlvars := make(map[*ir.Name]*ir.Name)
 
 	// record formals/locals for later post-processing
-	var inlfvars []ir.Node
-
-	// Handle captured variables when inlining closures.
-	if c := fn.OClosure; c != nil {
-		for _, v := range fn.ClosureVars {
-			if v.Op() == ir.OXXX {
-				continue
-			}
-
-			o := v.Outer
-			// make sure the outer param matches the inlining location
-			// NB: if we enabled inlining of functions containing OCLOSURE or refined
-			// the reassigned check via some sort of copy propagation this would most
-			// likely need to be changed to a loop to walk up to the correct Param
-			if o == nil || o.Curfn != ir.CurFunc {
-				base.Fatalf("%v: unresolvable capture %v %v\n", ir.Line(n), fn, v)
-			}
-
-			if v.Byval() {
-				iv := typecheck.Expr(inlvar(v))
-				ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, iv))
-				ninit.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, iv, o)))
-				inlvars[v] = iv
-			} else {
-				addr := typecheck.NewName(typecheck.Lookup("&" + v.Sym().Name))
-				addr.SetType(types.NewPtr(v.Type()))
-				ia := typecheck.Expr(inlvar(addr))
-				ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, ia))
-				ninit.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, ia, typecheck.NodAddr(o))))
-				inlvars[addr] = ia
-
-				// When capturing by reference, all occurrence of the captured var
-				// must be substituted with dereference of the temporary address
-				inlvars[v] = typecheck.Expr(ir.NewStarExpr(base.Pos, ia))
-			}
-		}
-	}
+	var inlfvars []*ir.Name
 
 	for _, ln := range fn.Inl.Dcl {
 		if ln.Op() != ir.ONAME {
 			continue
 		}
-		if ln.Class_ == ir.PPARAMOUT { // return values handled below.
+		if ln.Class == ir.PPARAMOUT { // return values handled below.
 			continue
 		}
 		if ir.IsParamStackCopy(ln) { // ignore the on-stack copy of a parameter that moved to the heap
@@ -800,10 +769,10 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 			// nothing should have moved to the heap yet.
 			base.Fatalf("impossible: %v", ln)
 		}
-		inlf := typecheck.Expr(inlvar(ln))
+		inlf := typecheck.Expr(inlvar(ln)).(*ir.Name)
 		inlvars[ln] = inlf
 		if base.Flag.GenDwarfInl > 0 {
-			if ln.Class_ == ir.PPARAM {
+			if ln.Class == ir.PPARAM {
 				inlf.Name().SetInlFormal(true)
 			} else {
 				inlf.Name().SetInlLocal(true)
@@ -828,11 +797,11 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	// temporaries for return values.
 	var retvars []ir.Node
 	for i, t := range fn.Type().Results().Fields().Slice() {
-		var m ir.Node
-		if n := ir.AsNode(t.Nname); n != nil && !ir.IsBlank(n) && !strings.HasPrefix(n.Sym().Name, "~r") {
-			n := n.(*ir.Name)
+		var m *ir.Name
+		if nn := t.Nname; nn != nil && !ir.IsBlank(nn.(*ir.Name)) && !strings.HasPrefix(nn.Sym().Name, "~r") {
+			n := nn.(*ir.Name)
 			m = inlvar(n)
-			m = typecheck.Expr(m)
+			m = typecheck.Expr(m).(*ir.Name)
 			inlvars[n] = m
 			delayretvars = false // found a named result parameter
 		} else {
@@ -897,8 +866,8 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 			vas.Y = typecheck.NodNil()
 			vas.Y.SetType(param.Type)
 		} else {
-			lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(param.Type).(ir.Ntype), nil)
-			lit.List.Set(varargs)
+			lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(param.Type), nil)
+			lit.List = varargs
 			vas.Y = lit
 		}
 	}
@@ -914,7 +883,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	if !delayretvars {
 		// Zero the return parameters.
 		for _, n := range retvars {
-			ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, n))
+			ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, n.(*ir.Name)))
 			ras := ir.NewAssignStmt(base.Pos, n, nil)
 			ninit.Append(typecheck.Stmt(ras))
 		}
@@ -929,7 +898,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		parent = b.InliningIndex()
 	}
 
-	sym := fn.Sym().Linksym()
+	sym := fn.Linksym()
 	newIndex := base.Ctxt.InlTree.Add(parent, n.Pos(), sym)
 
 	// Add an inline mark just before the inlined body.
@@ -975,9 +944,9 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	//dumplist("ninit post", ninit);
 
 	call := ir.NewInlinedCallExpr(base.Pos, nil, nil)
-	call.PtrInit().Set(ninit)
-	call.Body.Set(body)
-	call.ReturnVars.Set(retvars)
+	*call.PtrInit() = ninit
+	call.Body = body
+	call.ReturnVars = retvars
 	call.SetType(n.Type())
 	call.SetTypecheck(1)
 
@@ -999,27 +968,27 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 // Every time we expand a function we generate a new set of tmpnames,
 // PAUTO's in the calling functions, and link them off of the
 // PPARAM's, PAUTOS and PPARAMOUTs of the called function.
-func inlvar(var_ ir.Node) ir.Node {
+func inlvar(var_ *ir.Name) *ir.Name {
 	if base.Flag.LowerM > 3 {
 		fmt.Printf("inlvar %+v\n", var_)
 	}
 
 	n := typecheck.NewName(var_.Sym())
 	n.SetType(var_.Type())
-	n.Class_ = ir.PAUTO
+	n.Class = ir.PAUTO
 	n.SetUsed(true)
 	n.Curfn = ir.CurFunc // the calling function, not the called one
-	n.SetAddrtaken(var_.Name().Addrtaken())
+	n.SetAddrtaken(var_.Addrtaken())
 
 	ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
 	return n
 }
 
 // Synthesize a variable to store the inlined function's results in.
-func retvar(t *types.Field, i int) ir.Node {
+func retvar(t *types.Field, i int) *ir.Name {
 	n := typecheck.NewName(typecheck.LookupNum("~R", i))
 	n.SetType(t.Type)
-	n.Class_ = ir.PAUTO
+	n.Class = ir.PAUTO
 	n.SetUsed(true)
 	n.Curfn = ir.CurFunc // the calling function, not the called one
 	ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
@@ -1031,7 +1000,7 @@ func retvar(t *types.Field, i int) ir.Node {
 func argvar(t *types.Type, i int) ir.Node {
 	n := typecheck.NewName(typecheck.LookupNum("~arg", i))
 	n.SetType(t.Elem())
-	n.Class_ = ir.PAUTO
+	n.Class = ir.PAUTO
 	n.SetUsed(true)
 	n.Curfn = ir.CurFunc // the calling function, not the called one
 	ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
@@ -1051,7 +1020,7 @@ type inlsubst struct {
 	// "return" statement.
 	delayretvars bool
 
-	inlvars map[*ir.Name]ir.Node
+	inlvars map[*ir.Name]*ir.Name
 
 	// bases maps from original PosBase to PosBase with an extra
 	// inlined call frame.
@@ -1085,6 +1054,25 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 	switch n.Op() {
 	case ir.ONAME:
 		n := n.(*ir.Name)
+
+		// Handle captured variables when inlining closures.
+		if n.IsClosureVar() {
+			o := n.Outer
+
+			// make sure the outer param matches the inlining location
+			// NB: if we enabled inlining of functions containing OCLOSURE or refined
+			// the reassigned check via some sort of copy propagation this would most
+			// likely need to be changed to a loop to walk up to the correct Param
+			if o == nil || o.Curfn != ir.CurFunc {
+				base.Fatalf("%v: unresolvable capture %v\n", ir.Line(n), n)
+			}
+
+			if base.Flag.LowerM > 2 {
+				fmt.Printf("substituting captured name %+v  ->  %+v\n", n, o)
+			}
+			return o
+		}
+
 		if inlvar := subst.inlvars[n]; inlvar != nil { // These will be set during inlnode
 			if base.Flag.LowerM > 2 {
 				fmt.Printf("substituting name %+v  ->  %+v\n", n, inlvar)
@@ -1098,7 +1086,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		return n
 
 	case ir.OMETHEXPR:
-		n := n.(*ir.MethodExpr)
+		n := n.(*ir.SelectorExpr)
 		return n
 
 	case ir.OLITERAL, ir.ONIL, ir.OTYPE:
@@ -1106,15 +1094,6 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		// using it in the inline copy. Otherwise, make a copy
 		// so we can update the line number.
 		if n.Sym() != nil {
-			return n
-		}
-		if n, ok := n.(*ir.Name); ok && n.Op() == ir.OLITERAL {
-			// This happens for unnamed OLITERAL.
-			// which should really not be a *Name, but for now it is.
-			// ir.Copy(n) is not allowed generally and would panic below,
-			// but it's OK in this situation.
-			n = n.CloneName()
-			n.SetPos(subst.updatedPos(n.Pos()))
 			return n
 		}
 
@@ -1132,11 +1111,11 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 			for _, n := range subst.retvars {
 				as.Lhs.Append(n)
 			}
-			as.Rhs.Set(subst.list(n.Results))
+			as.Rhs = subst.list(n.Results)
 
 			if subst.delayretvars {
 				for _, n := range as.Lhs {
-					as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, n))
+					as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, n.(*ir.Name)))
 					n.Name().Defn = as
 				}
 			}
@@ -1151,7 +1130,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		n := n.(*ir.BranchStmt)
 		m := ir.Copy(n).(*ir.BranchStmt)
 		m.SetPos(subst.updatedPos(m.Pos()))
-		m.PtrInit().Set(nil)
+		*m.PtrInit() = nil
 		p := fmt.Sprintf("%s·%d", n.Label.Name, inlgen)
 		m.Label = typecheck.Lookup(p)
 		return m
@@ -1160,7 +1139,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		n := n.(*ir.LabelStmt)
 		m := ir.Copy(n).(*ir.LabelStmt)
 		m.SetPos(subst.updatedPos(m.Pos()))
-		m.PtrInit().Set(nil)
+		*m.PtrInit() = nil
 		p := fmt.Sprintf("%s·%d", n.Label.Name, inlgen)
 		m.Label = typecheck.Lookup(p)
 		return m
@@ -1191,7 +1170,7 @@ func (subst *inlsubst) updatedPos(xpos src.XPos) src.XPos {
 func pruneUnusedAutos(ll []*ir.Name, vis *hairyVisitor) []*ir.Name {
 	s := make([]*ir.Name, 0, len(ll))
 	for _, n := range ll {
-		if n.Class_ == ir.PAUTO {
+		if n.Class == ir.PAUTO {
 			if _, found := vis.usedLocals[n]; !found {
 				continue
 			}
@@ -1210,4 +1189,23 @@ func numNonClosures(list []*ir.Func) int {
 		}
 	}
 	return count
+}
+
+// TODO(mdempsky): Update inl.go to use ir.DoChildren directly.
+func errChildren(n ir.Node, do func(ir.Node) error) (err error) {
+	ir.DoChildren(n, func(x ir.Node) bool {
+		err = do(x)
+		return err != nil
+	})
+	return
+}
+func errList(list []ir.Node, do func(ir.Node) error) error {
+	for _, x := range list {
+		if x != nil {
+			if err := do(x); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

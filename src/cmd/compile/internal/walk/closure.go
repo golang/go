@@ -52,7 +52,7 @@ func Closure(fn *ir.Func) {
 				v = addr
 			}
 
-			v.Class_ = ir.PPARAM
+			v.Class = ir.PPARAM
 			decls = append(decls, v)
 
 			fld := types.NewField(src.NoXPos, v.Sym(), v.Type())
@@ -67,7 +67,7 @@ func Closure(fn *ir.Func) {
 		}
 
 		types.CalcSize(f.Type())
-		fn.SetType(f.Type()) // update type of ODCLFUNC
+		fn.Nname.SetType(f.Type()) // update type of ODCLFUNC
 	} else {
 		// The closure is not called, so it is going to stay as closure.
 		var body []ir.Node
@@ -84,7 +84,7 @@ func Closure(fn *ir.Func) {
 
 			if v.Byval() && v.Type().Width <= int64(2*types.PtrSize) {
 				// If it is a small variable captured by value, downgrade it to PAUTO.
-				v.Class_ = ir.PAUTO
+				v.Class = ir.PAUTO
 				fn.Dcl = append(fn.Dcl, v)
 				body = append(body, ir.NewAssignStmt(base.Pos, v, cr))
 			} else {
@@ -92,7 +92,7 @@ func Closure(fn *ir.Func) {
 				// and initialize in entry prologue.
 				addr := typecheck.NewName(typecheck.Lookup("&" + v.Sym().Name))
 				addr.SetType(types.NewPtr(v.Type()))
-				addr.Class_ = ir.PAUTO
+				addr.Class = ir.PAUTO
 				addr.SetUsed(true)
 				addr.Curfn = fn
 				fn.Dcl = append(fn.Dcl, addr)
@@ -107,7 +107,7 @@ func Closure(fn *ir.Func) {
 
 		if len(body) > 0 {
 			typecheck.Stmts(body)
-			fn.Enter.Set(body)
+			fn.Enter = body
 			fn.SetNeedctxt(true)
 		}
 	}
@@ -129,9 +129,9 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 
 	typ := typecheck.ClosureType(clo)
 
-	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ).(ir.Ntype), nil)
+	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
 	clos.SetEsc(clo.Esc())
-	clos.List.Set(append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, fn.Nname)}, fn.ClosureEnter...))
+	clos.List = append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, fn.Nname)}, closureArgs(clo)...)
 
 	addr := typecheck.NodAddr(clos)
 	addr.SetEsc(clo.Esc())
@@ -144,14 +144,34 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 		if !types.Identical(typ, x.Type()) {
 			panic("closure type does not match order's assigned type")
 		}
-		addr.Alloc = x
+		addr.Prealloc = x
 		clo.Prealloc = nil
 	}
 
 	return walkExpr(cfn, init)
 }
 
-func walkCallPart(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
+// closureArgs returns a slice of expressions that an be used to
+// initialize the given closure's free variables. These correspond
+// one-to-one with the variables in clo.Func.ClosureVars, and will be
+// either an ONAME node (if the variable is captured by value) or an
+// OADDR-of-ONAME node (if not).
+func closureArgs(clo *ir.ClosureExpr) []ir.Node {
+	fn := clo.Func
+
+	args := make([]ir.Node, len(fn.ClosureVars))
+	for i, v := range fn.ClosureVars {
+		var outer ir.Node
+		outer = v.Outer
+		if !v.Byval() {
+			outer = typecheck.NodAddrAt(fn.Pos(), outer)
+		}
+		args[i] = typecheck.Expr(outer)
+	}
+	return args
+}
+
+func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 	// Create closure in the form of a composite literal.
 	// For x.M with receiver (x) type T, the generated code looks like:
 	//
@@ -174,9 +194,9 @@ func walkCallPart(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
 
 	typ := typecheck.PartialCallType(n)
 
-	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ).(ir.Ntype), nil)
+	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
 	clos.SetEsc(n.Esc())
-	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, n.Func.Nname), n.X}
+	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, typecheck.MethodValueWrapper(n).Nname), n.X}
 
 	addr := typecheck.NodAddr(clos)
 	addr.SetEsc(n.Esc())
@@ -189,7 +209,7 @@ func walkCallPart(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
 		if !types.Identical(typ, x.Type()) {
 			panic("partial call type does not match order's assigned type")
 		}
-		addr.Alloc = x
+		addr.Prealloc = x
 		n.Prealloc = nil
 	}
 

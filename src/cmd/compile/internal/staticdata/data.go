@@ -37,8 +37,8 @@ func InitAddr(n *ir.Name, noff int64, a *ir.Name, aoff int64) {
 	if a.Op() != ir.ONAME {
 		base.Fatalf("addrsym a op %v", a.Op())
 	}
-	s := n.Sym().Linksym()
-	s.WriteAddr(base.Ctxt, noff, types.PtrSize, a.Sym().Linksym(), aoff)
+	s := n.Linksym()
+	s.WriteAddr(base.Ctxt, noff, types.PtrSize, a.Linksym(), aoff)
 }
 
 // InitFunc writes the static address of f to n. f must be a global function.
@@ -50,21 +50,21 @@ func InitFunc(n *ir.Name, noff int64, f *ir.Name) {
 	if n.Sym() == nil {
 		base.Fatalf("pfuncsym nil n sym")
 	}
-	if f.Class_ != ir.PFUNC {
-		base.Fatalf("pfuncsym class not PFUNC %d", f.Class_)
+	if f.Class != ir.PFUNC {
+		base.Fatalf("pfuncsym class not PFUNC %d", f.Class)
 	}
-	s := n.Sym().Linksym()
-	s.WriteAddr(base.Ctxt, noff, types.PtrSize, FuncSym(f.Sym()).Linksym(), 0)
+	s := n.Linksym()
+	s.WriteAddr(base.Ctxt, noff, types.PtrSize, FuncLinksym(f), 0)
 }
 
 // InitSlice writes a static slice symbol {&arr, lencap, lencap} to n+noff.
 // InitSlice does not modify n.
 func InitSlice(n *ir.Name, noff int64, arr *ir.Name, lencap int64) {
-	s := n.Sym().Linksym()
+	s := n.Linksym()
 	if arr.Op() != ir.ONAME {
 		base.Fatalf("slicesym non-name arr %v", arr)
 	}
-	s.WriteAddr(base.Ctxt, noff, types.PtrSize, arr.Sym().Linksym(), 0)
+	s.WriteAddr(base.Ctxt, noff, types.PtrSize, arr.Linksym(), 0)
 	s.WriteInt(base.Ctxt, noff+types.SliceLenOffset, types.PtrSize, lencap)
 	s.WriteInt(base.Ctxt, noff+types.SliceCapOffset, types.PtrSize, lencap)
 }
@@ -141,7 +141,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 		if readonly {
 			sym = StringSym(pos, string(data))
 		} else {
-			sym = slicedata(pos, string(data)).Sym().Linksym()
+			sym = slicedata(pos, string(data)).Linksym()
 		}
 		if len(hash) > 0 {
 			sum := sha256.Sum256(data)
@@ -189,7 +189,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 	} else {
 		// Emit a zero-length data symbol
 		// and then fix up length and content to use file.
-		symdata = slicedata(pos, "").Sym().Linksym()
+		symdata = slicedata(pos, "").Linksym()
 		symdata.Size = size
 		symdata.Type = objabi.SNOPTRDATA
 		info := symdata.NewFileInfo()
@@ -209,7 +209,7 @@ func slicedata(pos src.XPos, s string) *ir.Name {
 	symnode := typecheck.NewName(sym)
 	sym.Def = symnode
 
-	lsym := sym.Linksym()
+	lsym := symnode.Linksym()
 	off := dstringdata(lsym, 0, s, pos, "slice")
 	objw.Global(lsym, int32(off), obj.NOPTR|obj.LOCAL)
 
@@ -256,6 +256,13 @@ func FuncSym(s *types.Sym) *types.Sym {
 	}
 	funcsymsmu.Unlock()
 	return sf
+}
+
+func FuncLinksym(n *ir.Name) *obj.LSym {
+	if n.Op() != ir.ONAME || n.Class != ir.PFUNC {
+		base.Fatalf("expected func name: %v", n)
+	}
+	return FuncSym(n.Sym()).Linksym()
 }
 
 // NeedFuncSym ensures that s·f is exported.
@@ -311,7 +318,7 @@ func InitConst(n *ir.Name, noff int64, c ir.Node, wid int) {
 	if c.Op() != ir.OLITERAL {
 		base.Fatalf("litsym c op %v", c.Op())
 	}
-	s := n.Sym().Linksym()
+	s := n.Linksym()
 	switch u := c.Val(); u.Kind() {
 	case constant.Bool:
 		i := int64(obj.Bool2int(constant.BoolVal(u)))

@@ -430,7 +430,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
 
 	switch n.Op() {
 	case ir.ONAME:
-		switch n.Class_ {
+		switch n.Class {
 		case ir.PEXTERN:
 			// Variable.
 			w.tag('V')
@@ -450,7 +450,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			w.funcExt(n)
 
 		default:
-			base.Fatalf("unexpected class: %v, %v", n, n.Class_)
+			base.Fatalf("unexpected class: %v, %v", n, n.Class)
 		}
 
 	case ir.OLITERAL:
@@ -574,6 +574,11 @@ func (w *exportWriter) pos(pos src.XPos) {
 }
 
 func (w *exportWriter) pkg(pkg *types.Pkg) {
+	// TODO(mdempsky): Add flag to types.Pkg to mark pseudo-packages.
+	if pkg == ir.Pkgs.Go {
+		base.Fatalf("export of pseudo-package: %q", pkg.Path)
+	}
+
 	// Ensure any referenced packages are declared in the main index.
 	w.p.allPkgs[pkg] = true
 
@@ -936,7 +941,7 @@ func (w *exportWriter) mpfloat(v constant.Value, typ *types.Type) {
 	if acc != big.Exact {
 		base.Fatalf("mantissa scaling failed for %f (%s)", f, acc)
 	}
-	w.mpint(makeInt(manti), typ)
+	w.mpint(constant.Make(manti), typ)
 	if manti.Sign() != 0 {
 		w.int64(exp)
 	}
@@ -1067,7 +1072,7 @@ func (w *exportWriter) stmt(n ir.Node) {
 		n := n.(*ir.Decl)
 		w.op(ir.ODCL)
 		w.pos(n.X.Pos())
-		w.localName(n.X.(*ir.Name))
+		w.localName(n.X)
 		w.typ(n.X.Type())
 
 	case ir.OAS:
@@ -1187,7 +1192,7 @@ func (w *exportWriter) caseList(cases []*ir.CaseClause, namedTypeSwitch bool) {
 		w.pos(cas.Pos())
 		w.stmtList(cas.List)
 		if namedTypeSwitch {
-			w.localName(cas.Var.(*ir.Name))
+			w.localName(cas.Var)
 		}
 		w.stmtList(cas.Body)
 	}
@@ -1252,21 +1257,10 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.pos(n.Pos())
 		w.value(n.Type(), n.Val())
 
-	case ir.OMETHEXPR:
-		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
-		// but for export, this should be rendered as (*pkg.T).meth.
-		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
-		n := n.(*ir.MethodExpr)
-		w.op(ir.OXDOT)
-		w.pos(n.Pos())
-		w.op(ir.OTYPE)
-		w.typ(n.T) // n.Left.Op == OTYPE
-		w.selector(n.Method.Sym)
-
 	case ir.ONAME:
 		// Package scope name.
 		n := n.(*ir.Name)
-		if (n.Class_ == ir.PEXTERN || n.Class_ == ir.PFUNC) && !ir.IsBlank(n) {
+		if (n.Class == ir.PEXTERN || n.Class == ir.PFUNC) && !ir.IsBlank(n) {
 			w.op(ir.ONONAME)
 			w.qualifiedIdent(n)
 			break
@@ -1336,15 +1330,7 @@ func (w *exportWriter) expr(n ir.Node) {
 	// case OSTRUCTKEY:
 	//	unreachable - handled in case OSTRUCTLIT by elemList
 
-	case ir.OCALLPART:
-		// An OCALLPART is an OXDOT before type checking.
-		n := n.(*ir.CallPartExpr)
-		w.op(ir.OXDOT)
-		w.pos(n.Pos())
-		w.expr(n.X)
-		w.selector(n.Method.Sym)
-
-	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH:
+	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
 		n := n.(*ir.SelectorExpr)
 		w.op(ir.OXDOT)
 		w.pos(n.Pos())
@@ -1540,14 +1526,18 @@ func (w *exportWriter) localName(n *ir.Name) {
 	// PPARAM/PPARAMOUT, because we only want to include vargen in
 	// non-param names.
 	var v int32
-	if n.Class_ == ir.PAUTO || (n.Class_ == ir.PAUTOHEAP && n.Name().Stackcopy == nil) {
-		v = n.Name().Vargen
+	if n.Class == ir.PAUTO || (n.Class == ir.PAUTOHEAP && n.Stackcopy == nil) {
+		v = n.Vargen
 	}
 
 	w.localIdent(n.Sym(), v)
 }
 
 func (w *exportWriter) localIdent(s *types.Sym, v int32) {
+	if w.currPkg == nil {
+		base.Fatalf("missing currPkg")
+	}
+
 	// Anonymous parameters.
 	if s == nil {
 		w.string("")
@@ -1572,8 +1562,8 @@ func (w *exportWriter) localIdent(s *types.Sym, v int32) {
 		name = fmt.Sprintf("%s·%d", name, v)
 	}
 
-	if !types.IsExported(name) && s.Pkg != w.currPkg {
-		base.Fatalf("weird package in name: %v => %v, not %q", s, name, w.currPkg.Path)
+	if s.Pkg != w.currPkg {
+		base.Fatalf("weird package in name: %v => %v from %q, not %q", s, name, s.Pkg.Path, w.currPkg.Path)
 	}
 
 	w.string(name)

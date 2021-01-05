@@ -13,10 +13,10 @@ import (
 // A Decl is a declaration of a const, type, or var. (A declared func is a Func.)
 type Decl struct {
 	miniNode
-	X Node // the thing being declared
+	X *Name // the thing being declared
 }
 
-func NewDecl(pos src.XPos, op Op, x Node) *Decl {
+func NewDecl(pos src.XPos, op Op, x *Name) *Decl {
 	n := &Decl{X: x}
 	n.pos = pos
 	switch op {
@@ -70,8 +70,8 @@ func NewAssignListStmt(pos src.XPos, op Op, lhs, rhs []Node) *AssignListStmt {
 	n := &AssignListStmt{}
 	n.pos = pos
 	n.SetOp(op)
-	n.Lhs.Set(lhs)
-	n.Rhs.Set(rhs)
+	n.Lhs = lhs
+	n.Rhs = rhs
 	return n
 }
 
@@ -112,7 +112,6 @@ func (n *AssignStmt) SetOp(op Op) {
 // An AssignOpStmt is an AsOp= assignment statement: X AsOp= Y.
 type AssignOpStmt struct {
 	miniStmt
-	typ    *types.Type
 	X      Node
 	AsOp   Op // OADD etc
 	Y      Node
@@ -125,9 +124,6 @@ func NewAssignOpStmt(pos src.XPos, asOp Op, x, y Node) *AssignOpStmt {
 	n.op = OASOP
 	return n
 }
-
-func (n *AssignOpStmt) Type() *types.Type     { return n.typ }
-func (n *AssignOpStmt) SetType(x *types.Type) { n.typ = x }
 
 // A BlockStmt is a block: { List }.
 type BlockStmt struct {
@@ -145,7 +141,7 @@ func NewBlockStmt(pos src.XPos, list []Node) *BlockStmt {
 		}
 	}
 	n.op = OBLOCK
-	n.List.Set(list)
+	n.List = list
 	return n
 }
 
@@ -176,7 +172,7 @@ func (n *BranchStmt) Sym() *types.Sym { return n.Label }
 // A CaseClause is a case statement in a switch or select: case List: Body.
 type CaseClause struct {
 	miniStmt
-	Var  Node  // declared variable for this case in type switch
+	Var  *Name // declared variable for this case in type switch
 	List Nodes // list of expressions for switch, early select
 	Body Nodes
 }
@@ -186,36 +182,6 @@ func NewCaseStmt(pos src.XPos, list, body []Node) *CaseClause {
 	n.pos = pos
 	n.op = OCASE
 	return n
-}
-
-// TODO(mdempsky): Generate these with mknode.go.
-func copyCases(list []*CaseClause) []*CaseClause {
-	if list == nil {
-		return nil
-	}
-	c := make([]*CaseClause, len(list))
-	copy(c, list)
-	return c
-}
-func maybeDoCases(list []*CaseClause, err error, do func(Node) error) error {
-	if err != nil {
-		return err
-	}
-	for _, x := range list {
-		if x != nil {
-			if err := do(x); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-func editCases(list []*CaseClause, edit func(Node) Node) {
-	for i, x := range list {
-		if x != nil {
-			list[i] = edit(x).(*CaseClause)
-		}
-	}
 }
 
 type CommClause struct {
@@ -229,36 +195,6 @@ func NewCommStmt(pos src.XPos, comm Node, body []Node) *CommClause {
 	n.pos = pos
 	n.op = OCASE
 	return n
-}
-
-// TODO(mdempsky): Generate these with mknode.go.
-func copyComms(list []*CommClause) []*CommClause {
-	if list == nil {
-		return nil
-	}
-	c := make([]*CommClause, len(list))
-	copy(c, list)
-	return c
-}
-func maybeDoComms(list []*CommClause, err error, do func(Node) error) error {
-	if err != nil {
-		return err
-	}
-	for _, x := range list {
-		if x != nil {
-			if err := do(x); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-func editComms(list []*CommClause, edit func(Node) Node) {
-	for i, x := range list {
-		if x != nil {
-			list[i] = edit(x).(*CommClause)
-		}
-	}
 }
 
 // A ForStmt is a non-range for loop: for Init; Cond; Post { Body }
@@ -280,7 +216,7 @@ func NewForStmt(pos src.XPos, init Node, cond, post Node, body []Node) *ForStmt 
 	if init != nil {
 		n.init = []Node{init}
 	}
-	n.Body.Set(body)
+	n.Body = body
 	return n
 }
 
@@ -326,8 +262,8 @@ func NewIfStmt(pos src.XPos, cond Node, body, els []Node) *IfStmt {
 	n := &IfStmt{Cond: cond}
 	n.pos = pos
 	n.op = OIF
-	n.Body.Set(body)
-	n.Else.Set(els)
+	n.Body = body
+	n.Else = els
 	return n
 }
 
@@ -379,15 +315,15 @@ func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node) *RangeStmt {
 	n := &RangeStmt{X: x, Key: key, Value: value}
 	n.pos = pos
 	n.op = ORANGE
-	n.Body.Set(body)
+	n.Body = body
 	return n
 }
 
 // A ReturnStmt is a return statement.
 type ReturnStmt struct {
 	miniStmt
-	orig    Node  // for typecheckargs rewrite
-	Results Nodes // return list
+	origNode       // for typecheckargs rewrite
+	Results  Nodes // return list
 }
 
 func NewReturnStmt(pos src.XPos, results []Node) *ReturnStmt {
@@ -395,12 +331,9 @@ func NewReturnStmt(pos src.XPos, results []Node) *ReturnStmt {
 	n.pos = pos
 	n.op = ORETURN
 	n.orig = n
-	n.Results.Set(results)
+	n.Results = results
 	return n
 }
-
-func (n *ReturnStmt) Orig() Node     { return n.orig }
-func (n *ReturnStmt) SetOrig(x Node) { n.orig = x }
 
 // A SelectStmt is a block: { Cases }.
 type SelectStmt struct {

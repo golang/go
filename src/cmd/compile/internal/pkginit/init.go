@@ -6,6 +6,7 @@ package pkginit
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/deadcode"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/typecheck"
@@ -31,10 +32,10 @@ func Task() *ir.Name {
 		if n.Op() == ir.ONONAME {
 			continue
 		}
-		if n.Op() != ir.ONAME || n.(*ir.Name).Class_ != ir.PEXTERN {
+		if n.Op() != ir.ONAME || n.(*ir.Name).Class != ir.PEXTERN {
 			base.Fatalf("bad inittask: %v", n)
 		}
-		deps = append(deps, n.(*ir.Name).Sym().Linksym())
+		deps = append(deps, n.(*ir.Name).Linksym())
 	}
 
 	// Make a function that contains all the initialization statements.
@@ -48,7 +49,7 @@ func Task() *ir.Name {
 		fn.Dcl = append(fn.Dcl, typecheck.InitTodoFunc.Dcl...)
 		typecheck.InitTodoFunc.Dcl = nil
 
-		fn.Body.Set(nf)
+		fn.Body = nf
 		typecheck.FinishFuncBody()
 
 		typecheck.Func(fn)
@@ -56,7 +57,7 @@ func Task() *ir.Name {
 		typecheck.Stmts(nf)
 		ir.CurFunc = nil
 		typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
-		fns = append(fns, initializers.Linksym())
+		fns = append(fns, fn.Linksym())
 	}
 	if typecheck.InitTodoFunc.Dcl != nil {
 		// We only generate temps using initTodo if there
@@ -68,13 +69,16 @@ func Task() *ir.Name {
 
 	// Record user init functions.
 	for _, fn := range typecheck.Target.Inits {
+		// Must happen after initOrder; see #43444.
+		deadcode.Func(fn)
+
 		// Skip init functions with empty bodies.
 		if len(fn.Body) == 1 {
 			if stmt := fn.Body[0]; stmt.Op() == ir.OBLOCK && len(stmt.(*ir.BlockStmt).List) == 0 {
 				continue
 			}
 		}
-		fns = append(fns, fn.Nname.Sym().Linksym())
+		fns = append(fns, fn.Nname.Linksym())
 	}
 
 	if len(deps) == 0 && len(fns) == 0 && types.LocalPkg.Name != "main" && types.LocalPkg.Name != "runtime" {
@@ -85,9 +89,9 @@ func Task() *ir.Name {
 	sym := typecheck.Lookup(".inittask")
 	task := typecheck.NewName(sym)
 	task.SetType(types.Types[types.TUINT8]) // fake type
-	task.Class_ = ir.PEXTERN
+	task.Class = ir.PEXTERN
 	sym.Def = task
-	lsym := sym.Linksym()
+	lsym := task.Linksym()
 	ot := 0
 	ot = objw.Uintptr(lsym, ot, 0) // state: not initialized yet
 	ot = objw.Uintptr(lsym, ot, uint64(len(deps)))

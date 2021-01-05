@@ -26,7 +26,7 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 		return n
 	}
 
-	if init == n.PtrInit() {
+	if n, ok := n.(ir.InitNode); ok && init == n.PtrInit() {
 		// not okay to use n->ninit when walking n,
 		// because we might replace n with some other node
 		// and would lose the init list.
@@ -35,7 +35,7 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 
 	if len(n.Init()) != 0 {
 		walkStmtList(n.Init())
-		init.Append(n.PtrInit().Take()...)
+		init.Append(ir.TakeInit(n)...)
 	}
 
 	lno := ir.SetPos(n)
@@ -52,9 +52,9 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 		base.Fatalf("expression has untyped type: %+v", n)
 	}
 
-	if n.Op() == ir.ONAME && n.(*ir.Name).Class_ == ir.PAUTOHEAP {
+	if n.Op() == ir.ONAME && n.(*ir.Name).Class == ir.PAUTOHEAP {
 		n := n.(*ir.Name)
-		nn := ir.NewStarExpr(base.Pos, n.Name().Heapaddr)
+		nn := ir.NewStarExpr(base.Pos, n.Heapaddr)
 		nn.X.MarkNonNil()
 		return walkExpr(typecheck.Expr(nn), init)
 	}
@@ -100,7 +100,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 
 	case ir.OMETHEXPR:
 		// TODO(mdempsky): Do this right after type checking.
-		n := n.(*ir.MethodExpr)
+		n := n.(*ir.SelectorExpr)
 		return n.FuncName()
 
 	case ir.ONOT, ir.ONEG, ir.OPLUS, ir.OBITNOT, ir.OREAL, ir.OIMAG, ir.OSPTR, ir.OITAB, ir.OIDATA:
@@ -306,7 +306,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		return walkClosure(n.(*ir.ClosureExpr), init)
 
 	case ir.OCALLPART:
-		return walkCallPart(n.(*ir.CallPartExpr), init)
+		return walkCallPart(n.(*ir.SelectorExpr), init)
 	}
 
 	// No return! Each case must return (or panic),
@@ -359,7 +359,7 @@ func safeExpr(n ir.Node, init *ir.Nodes) ir.Node {
 
 	if len(n.Init()) != 0 {
 		walkStmtList(n.Init())
-		init.Append(n.PtrInit().Take()...)
+		init.Append(ir.TakeInit(n)...)
 	}
 
 	switch n.Op() {
@@ -477,7 +477,7 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
 
 	cat := typecheck.LookupRuntime(fn)
 	r := ir.NewCallExpr(base.Pos, ir.OCALL, cat, nil)
-	r.Args.Set(args)
+	r.Args = args
 	r1 := typecheck.Expr(r)
 	r1 = walkExpr(r1, init)
 	r1.SetType(n.Type())
@@ -498,8 +498,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 
 		// Prepend captured variables to argument list.
 		clo := n.X.(*ir.ClosureExpr)
-		n.Args.Prepend(clo.Func.ClosureEnter...)
-		clo.Func.ClosureEnter.Set(nil)
+		n.Args.Prepend(closureArgs(clo)...)
 
 		// Replace OCLOSURE with ONAME/PFUNC.
 		n.X = clo.Func.Nname
@@ -563,8 +562,8 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 		}
 	}
 
-	n.Args.Set(tempAssigns)
-	n.Rargs.Set(args)
+	n.Args = tempAssigns
+	n.Rargs = args
 }
 
 // walkDivMod walks an ODIV or OMOD node.
@@ -639,12 +638,13 @@ func walkDot(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 	n.X = walkExpr(n.X, init)
 	// Set up interface type addresses for back end.
-	n.Ntype = reflectdata.TypePtr(n.Type())
+
+	n.DstType = reflectdata.TypePtr(n.Type())
 	if n.Op() == ir.ODOTTYPE {
-		n.Ntype.(*ir.AddrExpr).Alloc = reflectdata.TypePtr(n.X.Type())
+		n.SrcType = reflectdata.TypePtr(n.X.Type())
 	}
 	if !n.Type().IsInterface() && !n.X.Type().IsEmptyInterface() {
-		n.Itab = []ir.Node{reflectdata.ITabAddr(n.Type(), n.X.Type())}
+		n.Itab = reflectdata.ITabAddr(n.Type(), n.X.Type())
 	}
 	return n
 }
@@ -974,7 +974,7 @@ func usefield(n *ir.SelectorExpr) {
 
 	sym := reflectdata.TrackSym(outer, field)
 	if ir.CurFunc.FieldTrack == nil {
-		ir.CurFunc.FieldTrack = make(map[*types.Sym]struct{})
+		ir.CurFunc.FieldTrack = make(map[*obj.LSym]struct{})
 	}
 	ir.CurFunc.FieldTrack[sym] = struct{}{}
 }
