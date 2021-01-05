@@ -35,14 +35,6 @@ func tcAddr(n *ir.AddrExpr) ir.Node {
 			if ir.Orig(r) != r {
 				base.Fatalf("found non-orig name node %v", r) // TODO(mdempsky): What does this mean?
 			}
-			r.Name().SetAddrtaken(true)
-			if r.Name().IsClosureVar() && !CaptureVarsComplete {
-				// Mark the original variable as Addrtaken so that capturevars
-				// knows not to pass it by value.
-				// But if the capturevars phase is complete, don't touch it,
-				// in case l.Name's containing function has not yet been compiled.
-				r.Name().Defn.Name().SetAddrtaken(true)
-			}
 		}
 		n.X = DefaultLit(n.X, nil)
 		if n.X.Type() == nil {
@@ -55,102 +47,49 @@ func tcAddr(n *ir.AddrExpr) ir.Node {
 	return n
 }
 
-// tcArith typechecks a binary arithmetic expression.
-func tcArith(n ir.Node) ir.Node {
-	var l, r ir.Node
-	var setLR func()
-	switch n := n.(type) {
-	case *ir.AssignOpStmt:
-		l, r = n.X, n.Y
-		setLR = func() { n.X = l; n.Y = r }
-	case *ir.BinaryExpr:
-		l, r = n.X, n.Y
-		setLR = func() { n.X = l; n.Y = r }
-	case *ir.LogicalExpr:
-		l, r = n.X, n.Y
-		setLR = func() { n.X = l; n.Y = r }
-	}
-	l = Expr(l)
-	r = Expr(r)
-	setLR()
-	if l.Type() == nil || r.Type() == nil {
-		n.SetType(nil)
-		return n
-	}
-	op := n.Op()
-	if n.Op() == ir.OASOP {
-		n := n.(*ir.AssignOpStmt)
-		checkassign(n, l)
-		if n.IncDec && !okforarith[l.Type().Kind()] {
-			base.Errorf("invalid operation: %v (non-numeric type %v)", n, l.Type())
-			n.SetType(nil)
-			return n
-		}
-		// TODO(marvin): Fix Node.EType type union.
-		op = n.AsOp
-	}
-	if op == ir.OLSH || op == ir.ORSH {
-		r = DefaultLit(r, types.Types[types.TUINT])
-		setLR()
-		t := r.Type()
-		if !t.IsInteger() {
-			base.Errorf("invalid operation: %v (shift count type %v, must be integer)", n, r.Type())
-			n.SetType(nil)
-			return n
-		}
-		if t.IsSigned() && !types.AllowsGoVersion(curpkg(), 1, 13) {
-			base.ErrorfVers("go1.13", "invalid operation: %v (signed shift count type %v)", n, r.Type())
-			n.SetType(nil)
-			return n
-		}
-		t = l.Type()
-		if t != nil && t.Kind() != types.TIDEAL && !t.IsInteger() {
-			base.Errorf("invalid operation: %v (shift of type %v)", n, t)
-			n.SetType(nil)
-			return n
-		}
-
-		// no defaultlit for left
-		// the outer context gives the type
-		n.SetType(l.Type())
-		if (l.Type() == types.UntypedFloat || l.Type() == types.UntypedComplex) && r.Op() == ir.OLITERAL {
-			n.SetType(types.UntypedInt)
-		}
-		return n
+func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
+	if l.Type() == nil || l.Type() == nil {
+		return l, r, nil
 	}
 
-	// For "x == x && len(s)", it's better to report that "len(s)" (type int)
-	// can't be used with "&&" than to report that "x == x" (type untyped bool)
-	// can't be converted to int (see issue #41500).
-	if n.Op() == ir.OANDAND || n.Op() == ir.OOROR {
-		n := n.(*ir.LogicalExpr)
-		if !n.X.Type().IsBoolean() {
-			base.Errorf("invalid operation: %v (operator %v not defined on %s)", n, n.Op(), typekind(n.X.Type()))
-			n.SetType(nil)
-			return n
-		}
-		if !n.Y.Type().IsBoolean() {
-			base.Errorf("invalid operation: %v (operator %v not defined on %s)", n, n.Op(), typekind(n.Y.Type()))
-			n.SetType(nil)
-			return n
-		}
+	r = DefaultLit(r, types.Types[types.TUINT])
+	t := r.Type()
+	if !t.IsInteger() {
+		base.Errorf("invalid operation: %v (shift count type %v, must be integer)", n, r.Type())
+		return l, r, nil
+	}
+	if t.IsSigned() && !types.AllowsGoVersion(curpkg(), 1, 13) {
+		base.ErrorfVers("go1.13", "invalid operation: %v (signed shift count type %v)", n, r.Type())
+		return l, r, nil
+	}
+	t = l.Type()
+	if t != nil && t.Kind() != types.TIDEAL && !t.IsInteger() {
+		base.Errorf("invalid operation: %v (shift of type %v)", n, t)
+		return l, r, nil
 	}
 
-	// ideal mixed with non-ideal
+	// no defaultlit for left
+	// the outer context gives the type
+	t = l.Type()
+	if (l.Type() == types.UntypedFloat || l.Type() == types.UntypedComplex) && r.Op() == ir.OLITERAL {
+		t = types.UntypedInt
+	}
+	return l, r, t
+}
+
+// tcArith typechecks operands of a binary arithmetic expression.
+// The result of tcArith MUST be assigned back to original operands,
+// t is the type of the expression, and should be set by the caller. e.g:
+//     n.X, n.Y, t = tcArith(n, op, n.X, n.Y)
+//     n.SetType(t)
+func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
 	l, r = defaultlit2(l, r, false)
-	setLR()
-
 	if l.Type() == nil || r.Type() == nil {
-		n.SetType(nil)
-		return n
+		return l, r, nil
 	}
 	t := l.Type()
 	if t.Kind() == types.TIDEAL {
 		t = r.Type()
-	}
-	et := t.Kind()
-	if et == types.TIDEAL {
-		et = types.TINT
 	}
 	aop := ir.OXXX
 	if iscmp[n.Op()] && t.Kind() != types.TIDEAL && !types.Identical(l.Type(), r.Type()) {
@@ -167,15 +106,13 @@ func tcArith(n ir.Node) ir.Node {
 			if aop != ir.OXXX {
 				if r.Type().IsInterface() && !l.Type().IsInterface() && !types.IsComparable(l.Type()) {
 					base.Errorf("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(l.Type()))
-					n.SetType(nil)
-					return n
+					return l, r, nil
 				}
 
 				types.CalcSize(l.Type())
 				if r.Type().IsInterface() == l.Type().IsInterface() || l.Type().Width >= 1<<16 {
 					l = ir.NewConvExpr(base.Pos, aop, r.Type(), l)
 					l.SetTypecheck(1)
-					setLR()
 				}
 
 				t = r.Type()
@@ -188,34 +125,28 @@ func tcArith(n ir.Node) ir.Node {
 			if aop != ir.OXXX {
 				if l.Type().IsInterface() && !r.Type().IsInterface() && !types.IsComparable(r.Type()) {
 					base.Errorf("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(r.Type()))
-					n.SetType(nil)
-					return n
+					return l, r, nil
 				}
 
 				types.CalcSize(r.Type())
 				if r.Type().IsInterface() == l.Type().IsInterface() || r.Type().Width >= 1<<16 {
 					r = ir.NewConvExpr(base.Pos, aop, l.Type(), r)
 					r.SetTypecheck(1)
-					setLR()
 				}
 
 				t = l.Type()
 			}
 		}
-
-		et = t.Kind()
 	}
 
 	if t.Kind() != types.TIDEAL && !types.Identical(l.Type(), r.Type()) {
 		l, r = defaultlit2(l, r, true)
 		if l.Type() == nil || r.Type() == nil {
-			n.SetType(nil)
-			return n
+			return l, r, nil
 		}
 		if l.Type().IsInterface() == r.Type().IsInterface() || aop == 0 {
 			base.Errorf("invalid operation: %v (mismatched types %v and %v)", n, l.Type(), r.Type())
-			n.SetType(nil)
-			return n
+			return l, r, nil
 		}
 	}
 
@@ -224,85 +155,46 @@ func tcArith(n ir.Node) ir.Node {
 	}
 	if dt := defaultType(t); !okfor[op][dt.Kind()] {
 		base.Errorf("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(t))
-		n.SetType(nil)
-		return n
+		return l, r, nil
 	}
 
 	// okfor allows any array == array, map == map, func == func.
 	// restrict to slice/map/func == nil and nil == slice/map/func.
 	if l.Type().IsArray() && !types.IsComparable(l.Type()) {
 		base.Errorf("invalid operation: %v (%v cannot be compared)", n, l.Type())
-		n.SetType(nil)
-		return n
+		return l, r, nil
 	}
 
 	if l.Type().IsSlice() && !ir.IsNil(l) && !ir.IsNil(r) {
 		base.Errorf("invalid operation: %v (slice can only be compared to nil)", n)
-		n.SetType(nil)
-		return n
+		return l, r, nil
 	}
 
 	if l.Type().IsMap() && !ir.IsNil(l) && !ir.IsNil(r) {
 		base.Errorf("invalid operation: %v (map can only be compared to nil)", n)
-		n.SetType(nil)
-		return n
+		return l, r, nil
 	}
 
 	if l.Type().Kind() == types.TFUNC && !ir.IsNil(l) && !ir.IsNil(r) {
 		base.Errorf("invalid operation: %v (func can only be compared to nil)", n)
-		n.SetType(nil)
-		return n
+		return l, r, nil
 	}
 
 	if l.Type().IsStruct() {
 		if f := types.IncomparableField(l.Type()); f != nil {
 			base.Errorf("invalid operation: %v (struct containing %v cannot be compared)", n, f.Type)
-			n.SetType(nil)
-			return n
+			return l, r, nil
 		}
-	}
-
-	if iscmp[n.Op()] {
-		t = types.UntypedBool
-		n.SetType(t)
-		if con := EvalConst(n); con.Op() == ir.OLITERAL {
-			return con
-		}
-		l, r = defaultlit2(l, r, true)
-		setLR()
-		return n
-	}
-
-	if et == types.TSTRING && n.Op() == ir.OADD {
-		// create or update OADDSTR node with list of strings in x + y + z + (w + v) + ...
-		n := n.(*ir.BinaryExpr)
-		var add *ir.AddStringExpr
-		if l.Op() == ir.OADDSTR {
-			add = l.(*ir.AddStringExpr)
-			add.SetPos(n.Pos())
-		} else {
-			add = ir.NewAddStringExpr(n.Pos(), []ir.Node{l})
-		}
-		if r.Op() == ir.OADDSTR {
-			r := r.(*ir.AddStringExpr)
-			add.List.Append(r.List.Take()...)
-		} else {
-			add.List.Append(r)
-		}
-		add.SetType(t)
-		return add
 	}
 
 	if (op == ir.ODIV || op == ir.OMOD) && ir.IsConst(r, constant.Int) {
 		if constant.Sign(r.Val()) == 0 {
 			base.Errorf("division by zero")
-			n.SetType(nil)
-			return n
+			return l, r, nil
 		}
 	}
 
-	n.SetType(t)
-	return n
+	return l, r, t
 }
 
 // The result of tcCompLit MUST be assigned back to n, e.g.
@@ -330,7 +222,7 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 
 	// Need to handle [...]T arrays specially.
 	if array, ok := n.Ntype.(*ir.ArrayType); ok && array.Elem != nil && array.Len == nil {
-		array.Elem = typecheck(array.Elem, ctxType)
+		array.Elem = typecheckNtype(array.Elem)
 		elemType := array.Elem.Type()
 		if elemType == nil {
 			n.SetType(nil)
@@ -343,7 +235,7 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 		return n
 	}
 
-	n.Ntype = ir.Node(typecheck(n.Ntype, ctxType)).(ir.Ntype)
+	n.Ntype = typecheckNtype(n.Ntype)
 	t := n.Ntype.Type()
 	if t == nil {
 		n.SetType(nil)
@@ -626,10 +518,8 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 	}
 
 	if (n.Op() == ir.ODOTINTER || n.Op() == ir.ODOTMETH) && top&ctxCallee == 0 {
-		// Create top-level function.
-		fn := makepartialcall(n)
-
-		return ir.NewCallPartExpr(n.Pos(), n.X, n.Selection, fn)
+		n.SetOp(ir.OCALLPART)
+		n.SetType(MethodValueWrapper(n).Type())
 	}
 	return n
 }
@@ -651,7 +541,7 @@ func tcDotType(n *ir.TypeAssertExpr) ir.Node {
 	}
 
 	if n.Ntype != nil {
-		n.Ntype = typecheck(n.Ntype, ctxType)
+		n.Ntype = typecheckNtype(n.Ntype)
 		n.SetType(n.Ntype.Type())
 		n.Ntype = nil
 		if n.Type() == nil {

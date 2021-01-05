@@ -21,7 +21,7 @@ func MakeDotArgs(typ *types.Type, args []ir.Node) ir.Node {
 		n = NodNil()
 		n.SetType(typ)
 	} else {
-		lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ).(ir.Ntype), nil)
+		lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
 		lit.List.Append(args...)
 		lit.SetImplicit(true)
 		n = lit
@@ -52,7 +52,7 @@ func FixVariadicCall(call *ir.CallExpr) {
 		extra[i] = nil // allow GC
 	}
 
-	call.Args.Set(append(args[:vi], slice))
+	call.Args = append(args[:vi], slice)
 	call.IsDDD = true
 }
 
@@ -91,7 +91,7 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
 // PartialCallType returns the struct type used to hold all the information
 // needed in the closure for n (n must be a OCALLPART node).
 // The address of a variable of the returned type can be cast to a func.
-func PartialCallType(n *ir.CallPartExpr) *types.Type {
+func PartialCallType(n *ir.SelectorExpr) *types.Type {
 	t := types.NewStruct(types.NoPkg, []*types.Field{
 		types.NewField(base.Pos, Lookup("F"), types.Types[types.TUINTPTR]),
 		types.NewField(base.Pos, Lookup("R"), n.X.Type()),
@@ -106,62 +106,45 @@ func PartialCallType(n *ir.CallPartExpr) *types.Type {
 // We use value capturing for values <= 128 bytes that are never reassigned
 // after capturing (effectively constant).
 func CaptureVars(fn *ir.Func) {
-	lno := base.Pos
-	base.Pos = fn.Pos()
-	cvars := fn.ClosureVars
-	out := cvars[:0]
-	for _, v := range cvars {
-		if v.Type() == nil {
-			// If v.Type is nil, it means v looked like it
-			// was going to be used in the closure, but
-			// isn't. This happens in struct literals like
-			// s{f: x} where we can't distinguish whether
-			// f is a field identifier or expression until
-			// resolving s.
-			continue
-		}
-		out = append(out, v)
-
-		// type check the & of closed variables outside the closure,
-		// so that the outer frame also grabs them and knows they escape.
-		types.CalcSize(v.Type())
-
-		var outer ir.Node
-		outer = v.Outer
+	for _, v := range fn.ClosureVars {
 		outermost := v.Defn.(*ir.Name)
 
 		// out parameters will be assigned to implicitly upon return.
-		if outermost.Class_ != ir.PPARAMOUT && !outermost.Name().Addrtaken() && !outermost.Name().Assigned() && v.Type().Width <= 128 {
-			v.SetByval(true)
+		if outermost.Class != ir.PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && outermost.Type().Size() <= 128 {
+			outermost.SetByval(true)
 		} else {
-			outermost.Name().SetAddrtaken(true)
-			outer = NodAddr(outer)
+			outermost.SetAddrtaken(true)
 		}
 
 		if base.Flag.LowerM > 1 {
-			var name *types.Sym
-			if v.Curfn != nil && v.Curfn.Nname != nil {
-				name = v.Curfn.Sym()
-			}
 			how := "ref"
 			if v.Byval() {
 				how = "value"
 			}
-			base.WarnfAt(v.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym(), outermost.Name().Addrtaken(), outermost.Name().Assigned(), int32(v.Type().Width))
+			base.WarnfAt(v.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", v.Curfn, how, v, outermost.Addrtaken(), outermost.Assigned(), v.Type().Size())
 		}
-
-		outer = Expr(outer)
-		fn.ClosureEnter.Append(outer)
 	}
-
-	fn.ClosureVars = out
-	base.Pos = lno
 }
 
 // Lazy typechecking of imported bodies. For local functions, caninl will set ->typecheck
 // because they're a copy of an already checked body.
 func ImportedBody(fn *ir.Func) {
 	lno := ir.SetPos(fn.Nname)
+
+	// When we load an inlined body, we need to allow OADDR
+	// operations on untyped expressions. We will fix the
+	// addrtaken flags on all the arguments of the OADDR with the
+	// computeAddrtaken call below (after we typecheck the body).
+	// TODO: export/import types and addrtaken marks along with inlined bodies,
+	// so this will be unnecessary.
+	IncrementalAddrtaken = false
+	defer func() {
+		if DirtyAddrtaken {
+			ComputeAddrtaken(fn.Inl.Body) // compute addrtaken marks once types are available
+			DirtyAddrtaken = false
+		}
+		IncrementalAddrtaken = true
+	}()
 
 	ImportBody(fn)
 
@@ -247,9 +230,17 @@ func closurename(outerfunc *ir.Func) *types.Sym {
 // globClosgen is like Func.Closgen, but for the global scope.
 var globClosgen int32
 
-// makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
-// for partial calls.
-func makepartialcall(dot *ir.SelectorExpr) *ir.Func {
+// MethodValueWrapper returns the DCLFUNC node representing the
+// wrapper function (*-fm) needed for the given method value. If the
+// wrapper function hasn't already been created yet, it's created and
+// added to Target.Decls.
+//
+// TODO(mdempsky): Move into walk. This isn't part of type checking.
+func MethodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
+	if dot.Op() != ir.OCALLPART {
+		base.Fatalf("MethodValueWrapper: unexpected %v (%v)", dot, dot.Op())
+	}
+
 	t0 := dot.Type()
 	meth := dot.Sel
 	rcvrtype := dot.X.Type()
@@ -296,7 +287,7 @@ func makepartialcall(dot *ir.SelectorExpr) *ir.Func {
 	}
 
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil)
-	call.Args.Set(ir.ParamNames(tfn.Type()))
+	call.Args = ir.ParamNames(tfn.Type())
 	call.IsDDD = tfn.Type().IsVariadic()
 	if t0.NumResults() != 0 {
 		ret := ir.NewReturnStmt(base.Pos, nil)
@@ -306,7 +297,7 @@ func makepartialcall(dot *ir.SelectorExpr) *ir.Func {
 		body = append(body, call)
 	}
 
-	fn.Body.Set(body)
+	fn.Body = body
 	FinishFuncBody()
 
 	Func(fn)
@@ -334,7 +325,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 		fn.Iota = x
 	}
 
-	fn.ClosureType = typecheck(fn.ClosureType, ctxType)
+	fn.ClosureType = typecheckNtype(fn.ClosureType)
 	clo.SetType(fn.ClosureType.Type())
 	fn.SetClosureCalled(top&ctxCallee != 0)
 
@@ -379,6 +370,25 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 		ir.CurFunc = oldfn
 	}
 
+	out := 0
+	for _, v := range fn.ClosureVars {
+		if v.Type() == nil {
+			// If v.Type is nil, it means v looked like it was going to be
+			// used in the closure, but isn't. This happens in struct
+			// literals like s{f: x} where we can't distinguish whether f is
+			// a field identifier or expression until resolving s.
+			continue
+		}
+
+		// type check closed variables outside the closure, so that the
+		// outer frame also captures them.
+		Expr(v.Outer)
+
+		fn.ClosureVars[out] = v
+		out++
+	}
+	fn.ClosureVars = fn.ClosureVars[:out]
+
 	Target.Decls = append(Target.Decls, fn)
 }
 
@@ -391,7 +401,7 @@ func tcFunc(n *ir.Func) {
 	}
 
 	for _, ln := range n.Dcl {
-		if ln.Op() == ir.ONAME && (ln.Class_ == ir.PPARAM || ln.Class_ == ir.PPARAMOUT) {
+		if ln.Op() == ir.ONAME && (ln.Class == ir.PPARAM || ln.Class == ir.PPARAMOUT) {
 			ln.Decldepth = 1
 		}
 	}
@@ -401,7 +411,6 @@ func tcFunc(n *ir.Func) {
 	if t == nil {
 		return
 	}
-	n.SetType(t)
 	rcvr := t.Recv()
 	if rcvr != nil && n.Shortname != nil {
 		m := addmethod(n, n.Shortname, t, true, n.Pragma&ir.Nointerface != 0)
@@ -782,7 +791,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
 		return n
 	}
 
-	n.Args.Set(nil)
+	n.Args = nil
 	l := args[0]
 	l = typecheck(l, ctxType)
 	t := l.Type()

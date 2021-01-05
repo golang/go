@@ -181,7 +181,7 @@ type progeffectscache struct {
 // nor do we care about empty structs (handled by the pointer check),
 // nor do we care about the fake PAUTOHEAP variables.
 func ShouldTrack(n *ir.Name) bool {
-	return (n.Class_ == ir.PAUTO || n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT) && n.Type().HasPointers()
+	return (n.Class == ir.PAUTO || n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT) && n.Type().HasPointers()
 }
 
 // getvariables returns the list of on-stack variables that we need to track
@@ -208,7 +208,7 @@ func (lv *liveness) initcache() {
 	lv.cache.initialized = true
 
 	for i, node := range lv.vars {
-		switch node.Class_ {
+		switch node.Class {
 		case ir.PPARAM:
 			// A return instruction with a p.to is a tail return, which brings
 			// the stack pointer back up (if it ever went down) and then jumps
@@ -255,7 +255,7 @@ func (lv *liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 	// variable" ICEs (issue 19632).
 	switch v.Op {
 	case ssa.OpVarDef, ssa.OpVarKill, ssa.OpVarLive, ssa.OpKeepAlive:
-		if !n.Name().Used() {
+		if !n.Used() {
 			return -1, 0
 		}
 	}
@@ -386,7 +386,7 @@ func (lv *liveness) pointerMap(liveout bitvec.BitVec, vars []*ir.Name, args, loc
 			break
 		}
 		node := vars[i]
-		switch node.Class_ {
+		switch node.Class {
 		case ir.PAUTO:
 			typebits.Set(node.Type(), node.FrameOffset()+lv.stkptrsize, locals)
 
@@ -687,12 +687,12 @@ func (lv *liveness) epilogue() {
 	// don't need to keep the stack copy live?
 	if lv.fn.HasDefer() {
 		for i, n := range lv.vars {
-			if n.Class_ == ir.PPARAMOUT {
-				if n.Name().IsOutputParamHeapAddr() {
+			if n.Class == ir.PPARAMOUT {
+				if n.IsOutputParamHeapAddr() {
 					// Just to be paranoid.  Heap addresses are PAUTOs.
 					base.Fatalf("variable %v both output param and heap output param", n)
 				}
-				if n.Name().Heapaddr != nil {
+				if n.Heapaddr != nil {
 					// If this variable moved to the heap, then
 					// its stack copy is not live.
 					continue
@@ -700,21 +700,21 @@ func (lv *liveness) epilogue() {
 				// Note: zeroing is handled by zeroResults in walk.go.
 				livedefer.Set(int32(i))
 			}
-			if n.Name().IsOutputParamHeapAddr() {
+			if n.IsOutputParamHeapAddr() {
 				// This variable will be overwritten early in the function
 				// prologue (from the result of a mallocgc) but we need to
 				// zero it in case that malloc causes a stack scan.
-				n.Name().SetNeedzero(true)
+				n.SetNeedzero(true)
 				livedefer.Set(int32(i))
 			}
-			if n.Name().OpenDeferSlot() {
+			if n.OpenDeferSlot() {
 				// Open-coded defer args slots must be live
 				// everywhere in a function, since a panic can
 				// occur (almost) anywhere. Because it is live
 				// everywhere, it must be zeroed on entry.
 				livedefer.Set(int32(i))
 				// It was already marked as Needzero when created.
-				if !n.Name().Needzero() {
+				if !n.Needzero() {
 					base.Fatalf("all pointer-containing defer arg slots should have Needzero set")
 				}
 			}
@@ -785,7 +785,7 @@ func (lv *liveness) epilogue() {
 				if !liveout.Get(int32(i)) {
 					continue
 				}
-				if n.Class_ == ir.PPARAM {
+				if n.Class == ir.PPARAM {
 					continue // ok
 				}
 				base.Fatalf("bad live variable at entry of %v: %L", lv.fn.Nname, n)
@@ -818,7 +818,7 @@ func (lv *liveness) epilogue() {
 	// the only things that can possibly be live are the
 	// input parameters.
 	for j, n := range lv.vars {
-		if n.Class_ != ir.PPARAM && lv.stackMaps[0].Get(int32(j)) {
+		if n.Class != ir.PPARAM && lv.stackMaps[0].Get(int32(j)) {
 			lv.f.Fatalf("%v %L recorded as live on entry", lv.fn.Nname, n)
 		}
 	}
@@ -1063,7 +1063,7 @@ func (lv *liveness) emit() (argsSym, liveSym *obj.LSym) {
 	// (Nodes without pointers aren't in lv.vars; see livenessShouldTrack.)
 	var maxArgNode *ir.Name
 	for _, n := range lv.vars {
-		switch n.Class_ {
+		switch n.Class {
 		case ir.PPARAM, ir.PPARAMOUT:
 			if maxArgNode == nil || n.FrameOffset() > maxArgNode.FrameOffset() {
 				maxArgNode = n

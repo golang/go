@@ -17,7 +17,7 @@ import (
 
 // walkAssign walks an OAS (AssignExpr) or OASOP (AssignOpExpr) node.
 func walkAssign(init *ir.Nodes, n ir.Node) ir.Node {
-	init.Append(n.PtrInit().Take()...)
+	init.Append(ir.TakeInit(n)...)
 
 	var left, right ir.Node
 	switch n.Op() {
@@ -124,7 +124,7 @@ func walkAssignDotType(n *ir.AssignListStmt, init *ir.Nodes) ir.Node {
 
 // walkAssignFunc walks an OAS2FUNC node.
 func walkAssignFunc(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
-	init.Append(n.PtrInit().Take()...)
+	init.Append(ir.TakeInit(n)...)
 
 	r := n.Rhs[0]
 	walkExprListSafe(n.Lhs, init)
@@ -142,15 +142,13 @@ func walkAssignFunc(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 
 // walkAssignList walks an OAS2 node.
 func walkAssignList(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
-	init.Append(n.PtrInit().Take()...)
-	walkExprListSafe(n.Lhs, init)
-	walkExprListSafe(n.Rhs, init)
-	return ir.NewBlockStmt(src.NoXPos, ascompatee(ir.OAS, n.Lhs, n.Rhs, init))
+	init.Append(ir.TakeInit(n)...)
+	return ir.NewBlockStmt(src.NoXPos, ascompatee(ir.OAS, n.Lhs, n.Rhs))
 }
 
 // walkAssignMapRead walks an OAS2MAPR node.
 func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
-	init.Append(n.PtrInit().Take()...)
+	init.Append(ir.TakeInit(n)...)
 
 	r := n.Rhs[0].(*ir.IndexExpr)
 	walkExprListSafe(n.Lhs, init)
@@ -213,7 +211,7 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 
 // walkAssignRecv walks an OAS2RECV node.
 func walkAssignRecv(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
-	init.Append(n.PtrInit().Take()...)
+	init.Append(ir.TakeInit(n)...)
 
 	r := n.Rhs[0].(*ir.UnaryExpr) // recv
 	walkExprListSafe(n.Lhs, init)
@@ -232,56 +230,21 @@ func walkAssignRecv(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 
 // walkReturn walks an ORETURN node.
 func walkReturn(n *ir.ReturnStmt) ir.Node {
-	ir.CurFunc.NumReturns++
+	fn := ir.CurFunc
+
+	fn.NumReturns++
 	if len(n.Results) == 0 {
 		return n
 	}
-	if (ir.HasNamedResults(ir.CurFunc) && len(n.Results) > 1) || paramoutheap(ir.CurFunc) {
-		// assign to the function out parameters,
-		// so that ascompatee can fix up conflicts
-		var rl []ir.Node
 
-		for _, ln := range ir.CurFunc.Dcl {
-			cl := ln.Class_
-			if cl == ir.PAUTO || cl == ir.PAUTOHEAP {
-				break
-			}
-			if cl == ir.PPARAMOUT {
-				var ln ir.Node = ln
-				if ir.IsParamStackCopy(ln) {
-					ln = walkExpr(typecheck.Expr(ir.NewStarExpr(base.Pos, ln.Name().Heapaddr)), nil)
-				}
-				rl = append(rl, ln)
-			}
-		}
-
-		if got, want := len(n.Results), len(rl); got != want {
-			// order should have rewritten multi-value function calls
-			// with explicit OAS2FUNC nodes.
-			base.Fatalf("expected %v return arguments, have %v", want, got)
-		}
-
-		// move function calls out, to make ascompatee's job easier.
-		walkExprListSafe(n.Results, n.PtrInit())
-
-		n.Results.Set(ascompatee(n.Op(), rl, n.Results, n.PtrInit()))
-		return n
+	results := fn.Type().Results().FieldSlice()
+	dsts := make([]ir.Node, len(results))
+	for i, v := range results {
+		// TODO(mdempsky): typecheck should have already checked the result variables.
+		dsts[i] = typecheck.AssignExpr(v.Nname.(*ir.Name))
 	}
-	walkExprList(n.Results, n.PtrInit())
 
-	// For each return parameter (lhs), assign the corresponding result (rhs).
-	lhs := ir.CurFunc.Type().Results()
-	rhs := n.Results
-	res := make([]ir.Node, lhs.NumFields())
-	for i, nl := range lhs.FieldSlice() {
-		nname := ir.AsNode(nl.Nname)
-		if ir.IsParamHeapCopy(nname) {
-			nname = nname.Name().Stackcopy
-		}
-		a := ir.NewAssignStmt(base.Pos, nname, rhs[i])
-		res[i] = convas(a, n.PtrInit())
-	}
-	n.Results.Set(res)
+	n.Results = ascompatee(n.Op(), dsts, n.Results)
 	return n
 }
 
@@ -342,18 +305,10 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
 // check assign expression list to
 // an expression list. called in
 //	expr-list = expr-list
-func ascompatee(op ir.Op, nl, nr []ir.Node, init *ir.Nodes) []ir.Node {
+func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
 	// cannot happen: should have been rejected during type checking
 	if len(nl) != len(nr) {
 		base.Fatalf("assignment operands mismatch: %+v / %+v", ir.Nodes(nl), ir.Nodes(nr))
-	}
-
-	// ensure order of evaluation for function calls
-	for i := range nl {
-		nl[i] = safeExpr(nl[i], init)
-	}
-	for i := range nr {
-		nr[i] = safeExpr(nr[i], init)
 	}
 
 	var assigned ir.NameSet
@@ -376,26 +331,21 @@ func ascompatee(op ir.Op, nl, nr []ir.Node, init *ir.Nodes) []ir.Node {
 	// If a needed expression may be affected by an
 	// earlier assignment, make an early copy of that
 	// expression and use the copy instead.
-	var early []ir.Node
+	var early ir.Nodes
 	save := func(np *ir.Node) {
 		if n := *np; affected(n) {
-			tmp := ir.Node(typecheck.Temp(n.Type()))
-			as := typecheck.Stmt(ir.NewAssignStmt(base.Pos, tmp, n))
-			early = append(early, as)
-			*np = tmp
+			*np = copyExpr(n, n.Type(), &early)
 		}
 	}
 
-	var late []ir.Node
-	for i, l := range nl {
-		r := nr[i]
+	var late ir.Nodes
+	for i, lorig := range nl {
+		l, r := lorig, nr[i]
 
 		// Do not generate 'x = x' during return. See issue 4014.
 		if op == ir.ORETURN && ir.SameSafeExpr(l, r) {
 			continue
 		}
-
-		as := ir.NewAssignStmt(base.Pos, l, r)
 
 		// Save subexpressions needed on left side.
 		// Drill through non-dereferences.
@@ -438,11 +388,11 @@ func ascompatee(op ir.Op, nl, nr []ir.Node, init *ir.Nodes) []ir.Node {
 		}
 
 		// Save expression on right side.
-		save(&as.Y)
+		save(&r)
 
-		late = append(late, convas(as, init))
+		appendWalkStmt(&late, convas(ir.NewAssignStmt(base.Pos, lorig, r), &late))
 
-		if name == nil || name.Addrtaken() || name.Class_ == ir.PEXTERN || name.Class_ == ir.PAUTOHEAP {
+		if name == nil || name.Addrtaken() || name.Class == ir.PEXTERN || name.Class == ir.PAUTOHEAP {
 			memWrite = true
 			continue
 		}
@@ -450,10 +400,16 @@ func ascompatee(op ir.Op, nl, nr []ir.Node, init *ir.Nodes) []ir.Node {
 			// We can ignore assignments to blank.
 			continue
 		}
+		if op == ir.ORETURN && types.OrigSym(name.Sym()) == nil {
+			// We can also ignore assignments to anonymous result
+			// parameters. These can't appear in expressions anyway.
+			continue
+		}
 		assigned.Add(name)
 	}
 
-	return append(early, late...)
+	early.Append(late.Take()...)
+	return early
 }
 
 // readsMemory reports whether the evaluation n directly reads from
@@ -462,7 +418,7 @@ func readsMemory(n ir.Node) bool {
 	switch n.Op() {
 	case ir.ONAME:
 		n := n.(*ir.Name)
-		return n.Class_ == ir.PEXTERN || n.Class_ == ir.PAUTOHEAP || n.Addrtaken()
+		return n.Class == ir.PEXTERN || n.Class == ir.PAUTOHEAP || n.Addrtaken()
 
 	case ir.OADD,
 		ir.OAND,

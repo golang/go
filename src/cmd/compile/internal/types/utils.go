@@ -4,18 +4,7 @@
 
 package types
 
-import (
-	"cmd/internal/obj"
-)
-
 const BADWIDTH = -1000000000
-
-// The following variables must be initialized early by the frontend.
-// They are here to break import cycles.
-// TODO(gri) eliminate these dependencies.
-var (
-	TypeLinkSym func(*Type) *obj.LSym
-)
 
 type bitset8 uint8
 

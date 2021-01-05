@@ -148,7 +148,7 @@ func elimDeadAutosGeneric(f *Func) {
 		case OpAddr, OpLocalAddr:
 			// Propagate the address if it points to an auto.
 			n, ok := v.Aux.(*ir.Name)
-			if !ok || n.Class() != ir.PAUTO {
+			if !ok || n.Class != ir.PAUTO {
 				return
 			}
 			if addr[v] == nil {
@@ -159,7 +159,7 @@ func elimDeadAutosGeneric(f *Func) {
 		case OpVarDef, OpVarKill:
 			// v should be eliminated if we eliminate the auto.
 			n, ok := v.Aux.(*ir.Name)
-			if !ok || n.Class() != ir.PAUTO {
+			if !ok || n.Class != ir.PAUTO {
 				return
 			}
 			if elim[v] == nil {
@@ -175,7 +175,7 @@ func elimDeadAutosGeneric(f *Func) {
 			// may not be used by the inline code, but will be used by
 			// panic processing).
 			n, ok := v.Aux.(*ir.Name)
-			if !ok || n.Class() != ir.PAUTO {
+			if !ok || n.Class != ir.PAUTO {
 				return
 			}
 			if !used[n] {
@@ -307,7 +307,7 @@ func elimUnreadAutos(f *Func) {
 			if !ok {
 				continue
 			}
-			if n.Class() != ir.PAUTO {
+			if n.Class != ir.PAUTO {
 				continue
 			}
 

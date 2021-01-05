@@ -28,6 +28,26 @@ import (
 	"cmd/internal/src"
 )
 
+func LoadPackage(filenames []string) {
+	base.Timer.Start("fe", "parse")
+	lines := ParseFiles(filenames)
+	base.Timer.Stop()
+	base.Timer.AddEvent(int64(lines), "lines")
+
+	if base.Flag.G != 0 && base.Flag.G < 3 {
+		// can only parse generic code for now
+		base.ExitIfErrors()
+		return
+	}
+
+	// Typecheck.
+	Package()
+
+	// With all user code typechecked, it's now safe to verify unused dot imports.
+	CheckDotImports()
+	base.ExitIfErrors()
+}
+
 // ParseFiles concurrently parses files into *syntax.File structures.
 // Each declaration in every *syntax.File is converted to a syntax tree
 // and its root represented by *Node is appended to Target.Decls.
@@ -170,6 +190,69 @@ func ParseFiles(filenames []string) (lines uint) {
 	return
 }
 
+func Package() {
+	typecheck.DeclareUniverse()
+
+	typecheck.TypecheckAllowed = true
+
+	// Process top-level declarations in phases.
+
+	// Phase 1: const, type, and names and types of funcs.
+	//   This will gather all the information about types
+	//   and methods but doesn't depend on any of it.
+	//
+	//   We also defer type alias declarations until phase 2
+	//   to avoid cycles like #18640.
+	//   TODO(gri) Remove this again once we have a fix for #25838.
+
+	// Don't use range--typecheck can add closures to Target.Decls.
+	base.Timer.Start("fe", "typecheck", "top1")
+	for i := 0; i < len(typecheck.Target.Decls); i++ {
+		n := typecheck.Target.Decls[i]
+		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.(*ir.Decl).X.Alias()) {
+			typecheck.Target.Decls[i] = typecheck.Stmt(n)
+		}
+	}
+
+	// Phase 2: Variable assignments.
+	//   To check interface assignments, depends on phase 1.
+
+	// Don't use range--typecheck can add closures to Target.Decls.
+	base.Timer.Start("fe", "typecheck", "top2")
+	for i := 0; i < len(typecheck.Target.Decls); i++ {
+		n := typecheck.Target.Decls[i]
+		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).X.Alias() {
+			typecheck.Target.Decls[i] = typecheck.Stmt(n)
+		}
+	}
+
+	// Phase 3: Type check function bodies.
+	// Don't use range--typecheck can add closures to Target.Decls.
+	base.Timer.Start("fe", "typecheck", "func")
+	var fcount int64
+	for i := 0; i < len(typecheck.Target.Decls); i++ {
+		n := typecheck.Target.Decls[i]
+		if n.Op() == ir.ODCLFUNC {
+			typecheck.FuncBody(n.(*ir.Func))
+			fcount++
+		}
+	}
+
+	// Phase 4: Check external declarations.
+	// TODO(mdempsky): This should be handled when type checking their
+	// corresponding ODCL nodes.
+	base.Timer.Start("fe", "typecheck", "externdcls")
+	for i, n := range typecheck.Target.Externs {
+		if n.Op() == ir.ONAME {
+			typecheck.Target.Externs[i] = typecheck.Expr(typecheck.Target.Externs[i])
+		}
+	}
+
+	// Phase 5: With all user code type-checked, it's now safe to verify map keys.
+	typecheck.CheckMapKeys()
+
+}
+
 // Temporary import helper to get type2-based type-checking going.
 type gcimports struct {
 	packages map[string]*types2.Package
@@ -301,7 +384,7 @@ func (p *noder) funcBody(fn *ir.Func, block *syntax.BlockStmt) {
 		if body == nil {
 			body = []ir.Node{ir.NewBlockStmt(base.Pos, nil)}
 		}
-		fn.Body.Set(body)
+		fn.Body = body
 
 		base.Pos = p.makeXPos(block.Rbrace)
 		fn.Endlineno = base.Pos
@@ -530,8 +613,48 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
 		p.checkUnused(pragma)
 	}
 
+	var init []ir.Node
 	p.setlineno(decl)
-	return typecheck.DeclVars(names, typ, exprs)
+
+	if len(names) > 1 && len(exprs) == 1 {
+		as2 := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, exprs)
+		for _, v := range names {
+			as2.Lhs.Append(v)
+			typecheck.Declare(v, typecheck.DeclContext)
+			v.Ntype = typ
+			v.Defn = as2
+			if ir.CurFunc != nil {
+				init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
+			}
+		}
+
+		return append(init, as2)
+	}
+
+	for i, v := range names {
+		var e ir.Node
+		if i < len(exprs) {
+			e = exprs[i]
+		}
+
+		typecheck.Declare(v, typecheck.DeclContext)
+		v.Ntype = typ
+
+		if ir.CurFunc != nil {
+			init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
+		}
+		as := ir.NewAssignStmt(base.Pos, v, e)
+		init = append(init, as)
+		if e != nil || ir.CurFunc == nil {
+			v.Defn = as
+		}
+	}
+
+	if len(exprs) != 0 && len(names) != len(exprs) {
+		base.Errorf("assignment mismatch: %d variables but %d values", len(names), len(exprs))
+	}
+
+	return init
 }
 
 // constState tracks state between constant specifiers within a
@@ -657,7 +780,8 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 		name = ir.BlankNode.Sym() // filled in by typecheckfunc
 	}
 
-	f.Nname = ir.NewFuncNameAt(p.pos(fun.Name), name, f)
+	f.Nname = ir.NewNameAt(p.pos(fun.Name), name)
+	f.Nname.Func = f
 	f.Nname.Defn = f
 	f.Nname.Ntype = t
 
@@ -787,7 +911,7 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		for i, e := range l {
 			l[i] = p.wrapname(expr.ElemList[i], e)
 		}
-		n.List.Set(l)
+		n.List = l
 		base.Pos = p.makeXPos(expr.Rbrace)
 		return n
 	case *syntax.KeyValueExpr:
@@ -1143,8 +1267,8 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 		if list, ok := stmt.Lhs.(*syntax.ListExpr); ok && len(list.ElemList) != 1 || len(rhs) != 1 {
 			n := ir.NewAssignListStmt(p.pos(stmt), ir.OAS2, nil, nil)
 			n.Def = stmt.Op == syntax.Def
-			n.Lhs.Set(p.assignList(stmt.Lhs, n, n.Def))
-			n.Rhs.Set(rhs)
+			n.Lhs = p.assignList(stmt.Lhs, n, n.Def)
+			n.Rhs = rhs
 			return n
 		}
 
@@ -1191,10 +1315,10 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 		n := ir.NewReturnStmt(p.pos(stmt), p.exprList(stmt.Results))
 		if len(n.Results) == 0 && ir.CurFunc != nil {
 			for _, ln := range ir.CurFunc.Dcl {
-				if ln.Class_ == ir.PPARAM {
+				if ln.Class == ir.PPARAM {
 					continue
 				}
-				if ln.Class_ != ir.PPARAMOUT {
+				if ln.Class != ir.PPARAMOUT {
 					break
 				}
 				if ln.Sym().Def != ln {
@@ -1215,7 +1339,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 	panic("unhandled Stmt")
 }
 
-func (p *noder) assignList(expr syntax.Expr, defn ir.Node, colas bool) []ir.Node {
+func (p *noder) assignList(expr syntax.Expr, defn ir.InitNode, colas bool) []ir.Node {
 	if !colas {
 		return p.exprList(expr)
 	}
@@ -1291,7 +1415,7 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) ir.Node {
 		e := p.stmt(stmt.Else)
 		if e.Op() == ir.OBLOCK {
 			e := e.(*ir.BlockStmt)
-			n.Else.Set(e.List)
+			n.Else = e.List
 		} else {
 			n.Else = []ir.Node{e}
 		}
@@ -1316,7 +1440,7 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) ir.Node {
 				n.Value = lhs[1]
 			}
 		}
-		n.Body.Set(p.blockStmt(stmt.Body))
+		n.Body = p.blockStmt(stmt.Body)
 		p.closeAnotherScope()
 		return n
 	}
@@ -1374,7 +1498,7 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitch
 			body = body[:len(body)-1]
 		}
 
-		n.Body.Set(p.stmtsFall(body, true))
+		n.Body = p.stmtsFall(body, true)
 		if l := len(n.Body); l > 0 && n.Body[l-1].Op() == ir.OFALL {
 			if tswitch != nil {
 				base.Errorf("cannot fallthrough in type switch")
@@ -1875,7 +1999,9 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
 
 	fn := ir.NewFunc(p.pos(expr))
 	fn.SetIsHiddenClosure(ir.CurFunc != nil)
-	fn.Nname = ir.NewFuncNameAt(p.pos(expr), ir.BlankNode.Sym(), fn) // filled in by typecheckclosure
+
+	fn.Nname = ir.NewNameAt(p.pos(expr), ir.BlankNode.Sym()) // filled in by typecheckclosure
+	fn.Nname.Func = fn
 	fn.Nname.Ntype = xtype
 	fn.Nname.Defn = fn
 
@@ -1965,18 +2091,18 @@ func oldname(s *types.Sym) ir.Node {
 		// the := it looks like a reference to the outer x so we'll
 		// make x a closure variable unnecessarily.
 		n := n.(*ir.Name)
-		c := n.Name().Innermost
+		c := n.Innermost
 		if c == nil || c.Curfn != ir.CurFunc {
 			// Do not have a closure var for the active closure yet; make one.
 			c = typecheck.NewName(s)
-			c.Class_ = ir.PAUTOHEAP
+			c.Class = ir.PAUTOHEAP
 			c.SetIsClosureVar(true)
 			c.Defn = n
 
 			// Link into list of active closure variables.
 			// Popped from list in func funcLit.
-			c.Outer = n.Name().Innermost
-			n.Name().Innermost = c
+			c.Outer = n.Innermost
+			n.Innermost = c
 
 			ir.CurFunc.ClosureVars = append(ir.CurFunc.ClosureVars, c)
 		}

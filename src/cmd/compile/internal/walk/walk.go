@@ -37,36 +37,6 @@ func Walk(fn *ir.Func) {
 
 	lno := base.Pos
 
-	// Final typecheck for any unused variables.
-	for i, ln := range fn.Dcl {
-		if ln.Op() == ir.ONAME && (ln.Class_ == ir.PAUTO || ln.Class_ == ir.PAUTOHEAP) {
-			ln = typecheck.AssignExpr(ln).(*ir.Name)
-			fn.Dcl[i] = ln
-		}
-	}
-
-	// Propagate the used flag for typeswitch variables up to the NONAME in its definition.
-	for _, ln := range fn.Dcl {
-		if ln.Op() == ir.ONAME && (ln.Class_ == ir.PAUTO || ln.Class_ == ir.PAUTOHEAP) && ln.Defn != nil && ln.Defn.Op() == ir.OTYPESW && ln.Used() {
-			ln.Defn.(*ir.TypeSwitchGuard).Used = true
-		}
-	}
-
-	for _, ln := range fn.Dcl {
-		if ln.Op() != ir.ONAME || (ln.Class_ != ir.PAUTO && ln.Class_ != ir.PAUTOHEAP) || ln.Sym().Name[0] == '&' || ln.Used() {
-			continue
-		}
-		if defn, ok := ln.Defn.(*ir.TypeSwitchGuard); ok {
-			if defn.Used {
-				continue
-			}
-			base.ErrorfAt(defn.Tag.Pos(), "%v declared but not used", ln.Sym())
-			defn.Used = true // suppress repeats
-		} else {
-			base.ErrorfAt(ln.Pos(), "%v declared but not used", ln.Sym())
-		}
-	}
-
 	base.Pos = lno
 	if base.Errors() > errorsBefore {
 		return
@@ -91,7 +61,7 @@ func Walk(fn *ir.Func) {
 
 func paramoutheap(fn *ir.Func) bool {
 	for _, ln := range fn.Dcl {
-		switch ln.Class_ {
+		switch ln.Class {
 		case ir.PPARAMOUT:
 			if ir.IsParamStackCopy(ln) || ln.Addrtaken() {
 				return true
@@ -111,8 +81,7 @@ func walkRecv(n *ir.UnaryExpr) ir.Node {
 	if n.Typecheck() == 0 {
 		base.Fatalf("missing typecheck: %+v", n)
 	}
-	init := n.Init()
-	n.PtrInit().Set(nil)
+	init := ir.TakeInit(n)
 
 	n.X = walkExpr(n.X, &init)
 	call := walkExpr(mkcall1(chanfn("chanrecv1", 2, n.X.Type()), nil, &init, n.X, typecheck.NodNil()), &init)
@@ -167,8 +136,8 @@ func paramstoheap(params *types.Type) []ir.Node {
 		}
 
 		if stackcopy := v.Name().Stackcopy; stackcopy != nil {
-			nn = append(nn, walkStmt(ir.NewDecl(base.Pos, ir.ODCL, v)))
-			if stackcopy.Class_ == ir.PPARAM {
+			nn = append(nn, walkStmt(ir.NewDecl(base.Pos, ir.ODCL, v.(*ir.Name))))
+			if stackcopy.Class == ir.PPARAM {
 				nn = append(nn, walkStmt(typecheck.Stmt(ir.NewAssignStmt(base.Pos, v, stackcopy))))
 			}
 		}
@@ -216,7 +185,7 @@ func returnsfromheap(params *types.Type) []ir.Node {
 		if v == nil {
 			continue
 		}
-		if stackcopy := v.Name().Stackcopy; stackcopy != nil && stackcopy.Class_ == ir.PPARAMOUT {
+		if stackcopy := v.Name().Stackcopy; stackcopy != nil && stackcopy.Class == ir.PPARAMOUT {
 			nn = append(nn, walkStmt(typecheck.Stmt(ir.NewAssignStmt(base.Pos, stackcopy, v))))
 		}
 	}
@@ -376,8 +345,6 @@ func walkAppendArgs(n *ir.CallExpr, init *ir.Nodes) {
 // for function contains unsafe-uintptr arguments.
 
 var wrapCall_prgen int
-
-var walkCheckPtrArithmeticMarker byte
 
 // appendWalkStmt typechecks and walks stmt and then appends it to init.
 func appendWalkStmt(init *ir.Nodes, stmt ir.Node) {

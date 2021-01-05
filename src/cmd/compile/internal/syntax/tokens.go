@@ -6,7 +6,7 @@ package syntax
 
 type token uint
 
-//go:generate stringer -type token -linecomment
+//go:generate stringer -type token -linecomment tokens.go
 
 const (
 	_    token = iota
@@ -105,7 +105,7 @@ const (
 
 type Operator uint
 
-//go:generate stringer -type Operator -linecomment
+//go:generate stringer -type Operator -linecomment tokens.go
 
 const (
 	_ Operator = iota

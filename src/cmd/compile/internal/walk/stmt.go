@@ -55,19 +55,18 @@ func walkStmt(n ir.Node) ir.Node {
 		if n.Typecheck() == 0 {
 			base.Fatalf("missing typecheck: %+v", n)
 		}
-		init := n.Init()
-		n.PtrInit().Set(nil)
+		init := ir.TakeInit(n)
 		n = walkExpr(n, &init)
 		if n.Op() == ir.ONAME {
 			// copy rewrote to a statement list and a temp for the length.
 			// Throw away the temp to avoid plain values as statements.
 			n = ir.NewBlockStmt(n.Pos(), init)
-			init.Set(nil)
+			init = nil
 		}
 		if len(init) > 0 {
 			switch n.Op() {
 			case ir.OAS, ir.OAS2, ir.OBLOCK:
-				n.PtrInit().Prepend(init...)
+				n.(ir.InitNode).PtrInit().Prepend(init...)
 
 			default:
 				init.Append(n)
@@ -176,12 +175,12 @@ func walkStmtList(s []ir.Node) {
 
 // walkDecl walks an ODCL node.
 func walkDecl(n *ir.Decl) ir.Node {
-	v := n.X.(*ir.Name)
-	if v.Class_ == ir.PAUTOHEAP {
+	v := n.X
+	if v.Class == ir.PAUTOHEAP {
 		if base.Flag.CompilingRuntime {
 			base.Errorf("%v escapes to heap, not allowed in runtime", v)
 		}
-		nn := ir.NewAssignStmt(base.Pos, v.Name().Heapaddr, callnew(v.Type()))
+		nn := ir.NewAssignStmt(base.Pos, v.Heapaddr, callnew(v.Type()))
 		nn.Def = true
 		return walkStmt(typecheck.Stmt(nn))
 	}
@@ -191,9 +190,8 @@ func walkDecl(n *ir.Decl) ir.Node {
 // walkFor walks an OFOR or OFORUNTIL node.
 func walkFor(n *ir.ForStmt) ir.Node {
 	if n.Cond != nil {
-		walkStmtList(n.Cond.Init())
-		init := n.Cond.Init()
-		n.Cond.PtrInit().Set(nil)
+		init := ir.TakeInit(n.Cond)
+		walkStmtList(init)
 		n.Cond = walkExpr(n.Cond, &init)
 		n.Cond = ir.InitExpr(init, n.Cond)
 	}
@@ -228,7 +226,7 @@ func walkGoDefer(n *ir.GoDeferStmt) ir.Node {
 
 	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
 		call := call.(*ir.CallExpr)
-		if len(call.Body) > 0 {
+		if len(call.KeepAlive) > 0 {
 			n.Call = wrapCall(call, &init)
 		} else {
 			n.Call = walkExpr(call, &init)
@@ -257,7 +255,7 @@ func walkIf(n *ir.IfStmt) ir.Node {
 func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	if len(n.Init()) != 0 {
 		walkStmtList(n.Init())
-		init.Append(n.PtrInit().Take()...)
+		init.Append(ir.TakeInit(n)...)
 	}
 
 	isBuiltinCall := n.Op() != ir.OCALLFUNC && n.Op() != ir.OCALLMETH && n.Op() != ir.OCALLINTER
@@ -267,7 +265,7 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		last := len(n.Args) - 1
 		if va := n.Args[last]; va.Op() == ir.OSLICELIT {
 			va := va.(*ir.CompLitExpr)
-			n.Args.Set(append(n.Args[:last], va.List...))
+			n.Args = append(n.Args[:last], va.List...)
 			n.IsDDD = false
 		}
 	}

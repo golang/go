@@ -436,7 +436,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	var args []ssa.Param
 	var results []ssa.Param
 	for _, n := range fn.Dcl {
-		switch n.Class_ {
+		switch n.Class {
 		case ir.PPARAM:
 			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type()), n, s.sp, s.startmem)
 			args = append(args, ssa.Param{Type: n.Type(), Offset: int32(n.FrameOffset())})
@@ -457,13 +457,13 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 		case ir.PFUNC:
 			// local function - already handled by frontend
 		default:
-			s.Fatalf("local variable with class %v unimplemented", n.Class_)
+			s.Fatalf("local variable with class %v unimplemented", n.Class)
 		}
 	}
 
 	// Populate SSAable arguments.
 	for _, n := range fn.Dcl {
-		if n.Class_ == ir.PPARAM && s.canSSA(n) {
+		if n.Class == ir.PPARAM && s.canSSA(n) {
 			v := s.newValue0A(ssa.OpArg, n.Type(), n)
 			s.vars[n] = v
 			s.addNamedValue(n, v) // This helps with debugging information, not needed for compilation itself.
@@ -1166,7 +1166,7 @@ func (s *state) stmt(n ir.Node) {
 	case ir.OCALLINTER:
 		n := n.(*ir.CallExpr)
 		s.callResult(n, callNormal)
-		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class_ == ir.PFUNC {
+		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class == ir.PFUNC {
 			if fn := n.X.Sym().Name; base.Flag.CompilingRuntime && fn == "throw" ||
 				n.X.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap") {
 				m := s.mem()
@@ -1242,7 +1242,7 @@ func (s *state) stmt(n ir.Node) {
 
 	case ir.ODCL:
 		n := n.(*ir.Decl)
-		if n.X.(*ir.Name).Class_ == ir.PAUTOHEAP {
+		if n.X.Class == ir.PAUTOHEAP {
 			s.Fatalf("DCL %v", n)
 		}
 
@@ -1634,7 +1634,7 @@ func (s *state) stmt(n ir.Node) {
 		if !v.Addrtaken() {
 			s.Fatalf("VARLIVE variable %v must have Addrtaken set", v)
 		}
-		switch v.Class_ {
+		switch v.Class {
 		case ir.PAUTO, ir.PPARAM, ir.PPARAMOUT:
 		default:
 			s.Fatalf("VARLIVE variable %v must be Auto or Arg", v)
@@ -2106,13 +2106,13 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		return s.newValue3(ssa.OpSliceMake, n.Type(), ptr, len, len)
 	case ir.OCFUNC:
 		n := n.(*ir.UnaryExpr)
-		aux := n.X.Sym().Linksym()
+		aux := n.X.(*ir.Name).Linksym()
 		return s.entryNewValue1A(ssa.OpAddr, n.Type(), aux, s.sb)
 	case ir.ONAME:
 		n := n.(*ir.Name)
-		if n.Class_ == ir.PFUNC {
+		if n.Class == ir.PFUNC {
 			// "value" of a function is the address of the function's closure
-			sym := staticdata.FuncSym(n.Sym()).Linksym()
+			sym := staticdata.FuncLinksym(n)
 			return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type()), sym, s.sb)
 		}
 		if s.canSSA(n) {
@@ -3003,7 +3003,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	if inplace {
 		if sn.Op() == ir.ONAME {
 			sn := sn.(*ir.Name)
-			if sn.Class_ != ir.PEXTERN {
+			if sn.Class != ir.PEXTERN {
 				// Tell liveness we're about to build a new slice
 				s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, sn, s.mem())
 			}
@@ -3222,7 +3222,7 @@ func (s *state) assign(left ir.Node, right *ssa.Value, deref bool, skip skipMask
 
 	// If this assignment clobbers an entire local variable, then emit
 	// OpVarDef so liveness analysis knows the variable is redefined.
-	if base := clobberBase(left); base.Op() == ir.ONAME && base.(*ir.Name).Class_ != ir.PEXTERN && skip == 0 {
+	if base := clobberBase(left); base.Op() == ir.ONAME && base.(*ir.Name).Class != ir.PEXTERN && skip == 0 {
 		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base.(*ir.Name), s.mem(), !ir.IsAutoTmp(base))
 	}
 
@@ -4385,7 +4385,7 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
 		closureVal := s.expr(fn)
 		closure := s.openDeferSave(nil, fn.Type(), closureVal)
 		opendefer.closureNode = closure.Aux.(*ir.Name)
-		if !(fn.Op() == ir.ONAME && fn.(*ir.Name).Class_ == ir.PFUNC) {
+		if !(fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC) {
 			opendefer.closure = closure
 		}
 	} else if n.Op() == ir.OCALLMETH {
@@ -4578,7 +4578,7 @@ func (s *state) openDeferExit() {
 				call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, aux, codeptr, v, s.mem())
 			}
 		} else {
-			aux := ssa.StaticAuxCall(fn.Sym().Linksym(), ACArgs, ACResults)
+			aux := ssa.StaticAuxCall(fn.(*ir.Name).Linksym(), ACArgs, ACResults)
 			if testLateExpansion {
 				callArgs = append(callArgs, s.mem())
 				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
@@ -4651,7 +4651,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 	switch n.Op() {
 	case ir.OCALLFUNC:
 		testLateExpansion = k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f)
-		if k == callNormal && fn.Op() == ir.ONAME && fn.(*ir.Name).Class_ == ir.PFUNC {
+		if k == callNormal && fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC {
 			fn := fn.(*ir.Name)
 			sym = fn.Sym()
 			break
@@ -4867,7 +4867,9 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		s.vars[memVar] = call
 	}
 	// Insert OVARLIVE nodes
-	s.stmtList(n.Body)
+	for _, name := range n.KeepAlive {
+		s.stmt(ir.NewUnaryExpr(n.Pos(), ir.OVARLIVE, name))
+	}
 
 	// Finish block for defers
 	if k == callDefer || k == callDeferStack {
@@ -4956,10 +4958,10 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 		fallthrough
 	case ir.ONAME:
 		n := n.(*ir.Name)
-		switch n.Class_ {
+		switch n.Class {
 		case ir.PEXTERN:
 			// global variable
-			v := s.entryNewValue1A(ssa.OpAddr, t, n.Sym().Linksym(), s.sb)
+			v := s.entryNewValue1A(ssa.OpAddr, t, n.Linksym(), s.sb)
 			// TODO: Make OpAddr use AuxInt as well as Aux.
 			if offset != 0 {
 				v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, offset, v)
@@ -4985,7 +4987,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 			// that cse works on their addresses
 			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), true)
 		default:
-			s.Fatalf("variable address class %v not implemented", n.Class_)
+			s.Fatalf("variable address class %v not implemented", n.Class)
 			return nil
 		}
 	case ir.ORESULT:
@@ -5094,10 +5096,10 @@ func (s *state) canSSAName(name *ir.Name) bool {
 	if ir.IsParamHeapCopy(name) {
 		return false
 	}
-	if name.Class_ == ir.PAUTOHEAP {
+	if name.Class == ir.PAUTOHEAP {
 		s.Fatalf("canSSA of PAUTOHEAP %v", name)
 	}
-	switch name.Class_ {
+	switch name.Class {
 	case ir.PEXTERN:
 		return false
 	case ir.PPARAMOUT:
@@ -5115,7 +5117,7 @@ func (s *state) canSSAName(name *ir.Name) bool {
 			return false
 		}
 	}
-	if name.Class_ == ir.PPARAM && name.Sym() != nil && name.Sym().Name == ".this" {
+	if name.Class == ir.PPARAM && name.Sym() != nil && name.Sym().Name == ".this" {
 		// wrappers generated by genwrapper need to update
 		// the .this pointer in place.
 		// TODO: treat as a PPARAMOUT?
@@ -5978,8 +5980,8 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n ir.Node, x *ssa.Value, ft, tt *
 // commaok indicates whether to panic or return a bool.
 // If commaok is false, resok will be nil.
 func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Value) {
-	iface := s.expr(n.X)      // input interface
-	target := s.expr(n.Ntype) // target type
+	iface := s.expr(n.X)        // input interface
+	target := s.expr(n.DstType) // target type
 	byteptr := s.f.Config.Types.BytePtr
 
 	if n.Type().IsInterface() {
@@ -6086,7 +6088,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 		targetITab = target
 	} else {
 		// Looking for pointer to itab for target type and source interface.
-		targetITab = s.expr(n.Itab[0])
+		targetITab = s.expr(n.Itab)
 	}
 
 	var tmp ir.Node     // temporary for use with large types
@@ -6113,7 +6115,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 	if !commaok {
 		// on failure, panic by calling panicdottype
 		s.startBlock(bFail)
-		taddr := s.expr(n.Ntype.(*ir.AddrExpr).Alloc)
+		taddr := s.expr(n.SrcType)
 		if n.X.Type().IsEmptyInterface() {
 			s.rtcall(ir.Syms.PanicdottypeE, false, nil, itab, target, taddr)
 		} else {
@@ -6208,7 +6210,7 @@ func (s *state) mem() *ssa.Value {
 }
 
 func (s *state) addNamedValue(n *ir.Name, v *ssa.Value) {
-	if n.Class_ == ir.Pxxx {
+	if n.Class == ir.Pxxx {
 		// Don't track our marker nodes (memVar etc.).
 		return
 	}
@@ -6216,12 +6218,12 @@ func (s *state) addNamedValue(n *ir.Name, v *ssa.Value) {
 		// Don't track temporary variables.
 		return
 	}
-	if n.Class_ == ir.PPARAMOUT {
+	if n.Class == ir.PPARAMOUT {
 		// Don't track named output values.  This prevents return values
 		// from being assigned too early. See #14591 and #14762. TODO: allow this.
 		return
 	}
-	loc := ssa.LocalSlot{N: n.Name(), Type: n.Type(), Off: 0}
+	loc := ssa.LocalSlot{N: n, Type: n.Type(), Off: 0}
 	values, ok := s.f.NamedValues[loc]
 	if !ok {
 		s.f.Names = append(s.f.Names, loc)
@@ -6739,8 +6741,8 @@ func defframe(s *State, e *ssafn) {
 		if !n.Needzero() {
 			continue
 		}
-		if n.Class_ != ir.PAUTO {
-			e.Fatalf(n.Pos(), "needzero class %d", n.Class_)
+		if n.Class != ir.PAUTO {
+			e.Fatalf(n.Pos(), "needzero class %d", n.Class)
 		}
 		if n.Type().Size()%int64(types.PtrSize) != 0 || n.FrameOffset()%int64(types.PtrSize) != 0 || n.Type().Size() == 0 {
 			e.Fatalf(n.Pos(), "var %L has size %d offset %d", n, n.Type().Size(), n.Offset_)
@@ -6824,14 +6826,14 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 		a.Name = obj.NAME_EXTERN
 		a.Sym = n
 	case *ir.Name:
-		if n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT {
+		if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
 			a.Name = obj.NAME_PARAM
-			a.Sym = ir.Orig(n).Sym().Linksym()
+			a.Sym = ir.Orig(n).(*ir.Name).Linksym()
 			a.Offset += n.FrameOffset()
 			break
 		}
 		a.Name = obj.NAME_AUTO
-		a.Sym = n.Sym().Linksym()
+		a.Sym = n.Linksym()
 		a.Offset += n.FrameOffset()
 	default:
 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
@@ -6963,10 +6965,10 @@ func CheckLoweredGetClosurePtr(v *ssa.Value) {
 func AddrAuto(a *obj.Addr, v *ssa.Value) {
 	n, off := ssa.AutoVar(v)
 	a.Type = obj.TYPE_MEM
-	a.Sym = n.Sym().Linksym()
+	a.Sym = n.Linksym()
 	a.Reg = int16(Arch.REGSP)
 	a.Offset = n.FrameOffset() + off
-	if n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT {
+	if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
 		a.Name = obj.NAME_PARAM
 	} else {
 		a.Name = obj.NAME_AUTO
@@ -6979,7 +6981,7 @@ func (s *State) AddrScratch(a *obj.Addr) {
 	}
 	a.Type = obj.TYPE_MEM
 	a.Name = obj.NAME_AUTO
-	a.Sym = s.ScratchFpMem.Sym().Linksym()
+	a.Sym = s.ScratchFpMem.Linksym()
 	a.Reg = int16(Arch.REGSP)
 	a.Offset = s.ScratchFpMem.Offset_
 }
@@ -7196,7 +7198,7 @@ func (e *ssafn) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
 func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
 	node := parent.N
 
-	if node.Class_ != ir.PAUTO || node.Name().Addrtaken() {
+	if node.Class != ir.PAUTO || node.Addrtaken() {
 		// addressed things and non-autos retain their parents (i.e., cannot truly be split)
 		return ssa.LocalSlot{N: node, Type: t, Off: parent.Off + offset}
 	}
@@ -7206,7 +7208,7 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t 
 	s.Def = n
 	ir.AsNode(s.Def).Name().SetUsed(true)
 	n.SetType(t)
-	n.Class_ = ir.PAUTO
+	n.Class = ir.PAUTO
 	n.SetEsc(ir.EscNever)
 	n.Curfn = e.curfn
 	e.curfn.Dcl = append(e.curfn.Dcl, n)

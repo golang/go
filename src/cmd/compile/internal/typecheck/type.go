@@ -14,7 +14,7 @@ import (
 
 // tcArrayType typechecks an OTARRAY node.
 func tcArrayType(n *ir.ArrayType) ir.Node {
-	n.Elem = typecheck(n.Elem, ctxType)
+	n.Elem = typecheckNtype(n.Elem)
 	if n.Elem.Type() == nil {
 		return n
 	}
@@ -59,7 +59,7 @@ func tcArrayType(n *ir.ArrayType) ir.Node {
 
 // tcChanType typechecks an OTCHAN node.
 func tcChanType(n *ir.ChanType) ir.Node {
-	n.Elem = typecheck(n.Elem, ctxType)
+	n.Elem = typecheckNtype(n.Elem)
 	l := n.Elem
 	if l.Type() == nil {
 		return n
@@ -103,7 +103,7 @@ func tcInterfaceType(n *ir.InterfaceType) ir.Node {
 		n.SetOTYPE(types.Types[types.TINTER])
 		return n
 	}
-	
+
 	lno := base.Pos
 	methods := tcFields(n.Methods, nil)
 	base.Pos = lno
@@ -114,8 +114,8 @@ func tcInterfaceType(n *ir.InterfaceType) ir.Node {
 
 // tcMapType typechecks an OTMAP node.
 func tcMapType(n *ir.MapType) ir.Node {
-	n.Key = typecheck(n.Key, ctxType)
-	n.Elem = typecheck(n.Elem, ctxType)
+	n.Key = typecheckNtype(n.Key)
+	n.Elem = typecheckNtype(n.Elem)
 	l := n.Key
 	r := n.Elem
 	if l.Type() == nil || r.Type() == nil {
@@ -134,7 +134,7 @@ func tcMapType(n *ir.MapType) ir.Node {
 
 // tcSliceType typechecks an OTSLICE node.
 func tcSliceType(n *ir.SliceType) ir.Node {
-	n.Elem = typecheck(n.Elem, ctxType)
+	n.Elem = typecheckNtype(n.Elem)
 	if n.Elem.Type() == nil {
 		return n
 	}

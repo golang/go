@@ -8,13 +8,14 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssagen"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"cmd/internal/sys"
 )
 
 func instrument(fn *ir.Func) {
-	if fn.Pragma&ir.Norace != 0 || (fn.Sym().Linksym() != nil && fn.Sym().Linksym().ABIWrapper()) {
+	if fn.Pragma&ir.Norace != 0 || (fn.Linksym() != nil && fn.Linksym().ABIWrapper()) {
 		return
 	}
 
@@ -36,7 +37,10 @@ func instrument(fn *ir.Func) {
 			// This only works for amd64. This will not
 			// work on arm or others that might support
 			// race in the future.
-			nodpc := ir.RegFP.CloneName()
+
+			nodpc := ir.NewNameAt(src.NoXPos, typecheck.Lookup(".fp"))
+			nodpc.Class = ir.PPARAM
+			nodpc.SetUsed(true)
 			nodpc.SetType(types.Types[types.TUINTPTR])
 			nodpc.SetFrameOffset(int64(-types.PtrSize))
 			fn.Dcl = append(fn.Dcl, nodpc)

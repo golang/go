@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate go run mkbuiltin.go
-
 package ssagen
 
 import (
@@ -168,7 +166,7 @@ func selectLSym(f *ir.Func, hasBody bool) {
 			f.LSym = nam.Sym().LinksymABI0()
 			needABIWrapper, wrapperABI = true, obj.ABIInternal
 		} else {
-			f.LSym = nam.Sym().Linksym()
+			f.LSym = nam.Linksym()
 			// No ABI override. Check that the symbol is
 			// using the expected ABI.
 			want := obj.ABIInternal
@@ -305,7 +303,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 		tail = ir.NewBranchStmt(base.Pos, ir.ORETJMP, f.Nname.Sym())
 	} else {
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
-		call.Args.Set(ir.ParamNames(tfn.Type()))
+		call.Args = ir.ParamNames(tfn.Type())
 		call.IsDDD = tfn.Type().IsVariadic()
 		tail = call
 		if tfn.Type().NumResults() > 0 {

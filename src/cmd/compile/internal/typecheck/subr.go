@@ -43,6 +43,9 @@ func NewFuncParams(tl *types.Type, mustname bool) []*ir.Field {
 			// invent a name so that we can refer to it in the trampoline
 			s = LookupNum(".anon", gen)
 			gen++
+		} else if s != nil && s.Pkg != types.LocalPkg {
+			// TODO(mdempsky): Preserve original position, name, and package.
+			s = Lookup(s.Name)
 		}
 		a := ir.NewField(base.Pos, s, nil, t.Type)
 		a.Pos = t.Pos
@@ -67,7 +70,55 @@ func NodAddr(n ir.Node) *ir.AddrExpr {
 
 // nodAddrPos returns a node representing &n at position pos.
 func NodAddrAt(pos src.XPos, n ir.Node) *ir.AddrExpr {
+	n = markAddrOf(n)
 	return ir.NewAddrExpr(pos, n)
+}
+
+func markAddrOf(n ir.Node) ir.Node {
+	if IncrementalAddrtaken {
+		// We can only do incremental addrtaken computation when it is ok
+		// to typecheck the argument of the OADDR. That's only safe after the
+		// main typecheck has completed.
+		// The argument to OADDR needs to be typechecked because &x[i] takes
+		// the address of x if x is an array, but not if x is a slice.
+		// Note: outervalue doesn't work correctly until n is typechecked.
+		n = typecheck(n, ctxExpr)
+		if x := ir.OuterValue(n); x.Op() == ir.ONAME {
+			x.Name().SetAddrtaken(true)
+		}
+	} else {
+		// Remember that we built an OADDR without computing the Addrtaken bit for
+		// its argument. We'll do that later in bulk using computeAddrtaken.
+		DirtyAddrtaken = true
+	}
+	return n
+}
+
+// If IncrementalAddrtaken is false, we do not compute Addrtaken for an OADDR Node
+// when it is built. The Addrtaken bits are set in bulk by computeAddrtaken.
+// If IncrementalAddrtaken is true, then when an OADDR Node is built the Addrtaken
+// field of its argument is updated immediately.
+var IncrementalAddrtaken = false
+
+// If DirtyAddrtaken is true, then there are OADDR whose corresponding arguments
+// have not yet been marked as Addrtaken.
+var DirtyAddrtaken = false
+
+func ComputeAddrtaken(top []ir.Node) {
+	for _, n := range top {
+		ir.Visit(n, func(n ir.Node) {
+			if n.Op() == ir.OADDR {
+				if x := ir.OuterValue(n.(*ir.AddrExpr).X); x.Op() == ir.ONAME {
+					x.Name().SetAddrtaken(true)
+					if x.Name().IsClosureVar() {
+						// Mark the original variable as Addrtaken so that capturevars
+						// knows not to pass it by value.
+						x.Name().Defn.Name().SetAddrtaken(true)
+					}
+				}
+			}
+		})
+	}
 }
 
 func NodNil() ir.Node {

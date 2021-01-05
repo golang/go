@@ -26,12 +26,12 @@ func LookupRuntime(name string) *ir.Name {
 // The result of SubstArgTypes MUST be assigned back to old, e.g.
 // 	n.Left = SubstArgTypes(n.Left, t1, t2)
 func SubstArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
-	n := old.CloneName()
-
 	for _, t := range types_ {
 		types.CalcSize(t)
 	}
-	n.SetType(types.SubstAny(n.Type(), &types_))
+	n := ir.NewNameAt(old.Pos(), old.Sym())
+	n.Class = old.Class
+	n.SetType(types.SubstAny(old.Type(), &types_))
 	if len(types_) > 0 {
 		base.Fatalf("substArgTypes: too many argument types")
 	}
@@ -61,14 +61,12 @@ func Lookup(name string) *types.Sym {
 	return types.LocalPkg.Lookup(name)
 }
 
-// loadsys loads the definitions for the low-level runtime functions,
+// InitRuntime loads the definitions for the low-level runtime functions,
 // so that the compiler can generate calls to them,
 // but does not make them visible to user code.
-func loadsys() {
+func InitRuntime() {
+	base.Timer.Start("fe", "loadsys")
 	types.Block = 1
-
-	inimport = true
-	TypecheckAllowed = true
 
 	typs := runtimeTypes()
 	for _, d := range &runtimeDecls {
@@ -83,9 +81,6 @@ func loadsys() {
 			base.Fatalf("unhandled declaration tag %v", d.tag)
 		}
 	}
-
-	TypecheckAllowed = false
-	inimport = false
 }
 
 // LookupRuntimeFunc looks up Go function name in package runtime. This function

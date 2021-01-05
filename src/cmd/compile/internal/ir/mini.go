@@ -54,20 +54,13 @@ func (n *miniNode) Esc() uint16       { return n.esc }
 func (n *miniNode) SetEsc(x uint16)   { n.esc = x }
 
 const (
-	miniWalkdefShift   = 0
+	miniWalkdefShift   = 0 // TODO(mdempsky): Move to Name.flags.
 	miniTypecheckShift = 2
 	miniDiag           = 1 << 4
 	miniHasCall        = 1 << 5 // for miniStmt
 )
 
-func (n *miniNode) Walkdef() uint8   { return n.bits.get2(miniWalkdefShift) }
 func (n *miniNode) Typecheck() uint8 { return n.bits.get2(miniTypecheckShift) }
-func (n *miniNode) SetWalkdef(x uint8) {
-	if x > 3 {
-		panic(fmt.Sprintf("cannot SetWalkdef %d", x))
-	}
-	n.bits.set2(miniWalkdefShift, x)
-}
 func (n *miniNode) SetTypecheck(x uint8) {
 	if x > 3 {
 		panic(fmt.Sprintf("cannot SetTypecheck %d", x))
@@ -80,13 +73,7 @@ func (n *miniNode) SetDiag(x bool) { n.bits.set(miniDiag, x) }
 
 // Empty, immutable graph structure.
 
-func (n *miniNode) Init() Nodes     { return Nodes{} }
-func (n *miniNode) PtrInit() *Nodes { return &immutableEmptyNodes }
-func (n *miniNode) SetInit(x Nodes) {
-	if x != nil {
-		panic(n.no("SetInit"))
-	}
-}
+func (n *miniNode) Init() Nodes { return Nodes{} }
 
 // Additional functionality unavailable.
 
@@ -102,5 +89,3 @@ func (n *miniNode) HasCall() bool           { return false }
 func (n *miniNode) SetHasCall(bool)         { panic(n.no("SetHasCall")) }
 func (n *miniNode) NonNil() bool            { return false }
 func (n *miniNode) MarkNonNil()             { panic(n.no("MarkNonNil")) }
-func (n *miniNode) Opt() interface{}        { return nil }
-func (n *miniNode) SetOpt(interface{})      { panic(n.no("SetOpt")) }

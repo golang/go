@@ -34,11 +34,11 @@ import (
 // the top of the stack and increasing in size.
 // Non-autos sort on offset.
 func cmpstackvarlt(a, b *ir.Name) bool {
-	if (a.Class_ == ir.PAUTO) != (b.Class_ == ir.PAUTO) {
-		return b.Class_ == ir.PAUTO
+	if (a.Class == ir.PAUTO) != (b.Class == ir.PAUTO) {
+		return b.Class == ir.PAUTO
 	}
 
-	if a.Class_ != ir.PAUTO {
+	if a.Class != ir.PAUTO {
 		return a.FrameOffset() < b.FrameOffset()
 	}
 
@@ -79,14 +79,14 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 
 	// Mark the PAUTO's unused.
 	for _, ln := range fn.Dcl {
-		if ln.Class_ == ir.PAUTO {
+		if ln.Class == ir.PAUTO {
 			ln.SetUsed(false)
 		}
 	}
 
 	for _, l := range f.RegAlloc {
 		if ls, ok := l.(ssa.LocalSlot); ok {
-			ls.N.Name().SetUsed(true)
+			ls.N.SetUsed(true)
 		}
 	}
 
@@ -94,14 +94,14 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if n, ok := v.Aux.(*ir.Name); ok {
-				switch n.Class_ {
+				switch n.Class {
 				case ir.PPARAM, ir.PPARAMOUT:
 					// Don't modify nodfp; it is a global.
 					if n != ir.RegFP {
-						n.Name().SetUsed(true)
+						n.SetUsed(true)
 					}
 				case ir.PAUTO:
-					n.Name().SetUsed(true)
+					n.SetUsed(true)
 				}
 			}
 			if !scratchUsed {
@@ -120,7 +120,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	// Reassign stack offsets of the locals that are used.
 	lastHasPtr := false
 	for i, n := range fn.Dcl {
-		if n.Op() != ir.ONAME || n.Class_ != ir.PAUTO {
+		if n.Op() != ir.ONAME || n.Class != ir.PAUTO {
 			continue
 		}
 		if !n.Used() {
@@ -207,7 +207,7 @@ func init() {
 func StackOffset(slot ssa.LocalSlot) int32 {
 	n := slot.N
 	var off int64
-	switch n.Class_ {
+	switch n.Class {
 	case ir.PAUTO:
 		off = n.FrameOffset()
 		if base.Ctxt.FixedFrameSize() == 0 {
@@ -225,7 +225,7 @@ func StackOffset(slot ssa.LocalSlot) int32 {
 
 // fieldtrack adds R_USEFIELD relocations to fnsym to record any
 // struct fields that it used.
-func fieldtrack(fnsym *obj.LSym, tracked map[*types.Sym]struct{}) {
+func fieldtrack(fnsym *obj.LSym, tracked map[*obj.LSym]struct{}) {
 	if fnsym == nil {
 		return
 	}
@@ -233,23 +233,17 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*types.Sym]struct{}) {
 		return
 	}
 
-	trackSyms := make([]*types.Sym, 0, len(tracked))
+	trackSyms := make([]*obj.LSym, 0, len(tracked))
 	for sym := range tracked {
 		trackSyms = append(trackSyms, sym)
 	}
-	sort.Sort(symByName(trackSyms))
+	sort.Slice(trackSyms, func(i, j int) bool { return trackSyms[i].Name < trackSyms[j].Name })
 	for _, sym := range trackSyms {
 		r := obj.Addrel(fnsym)
-		r.Sym = sym.Linksym()
+		r.Sym = sym
 		r.Type = objabi.R_USEFIELD
 	}
 }
-
-type symByName []*types.Sym
-
-func (a symByName) Len() int           { return len(a) }
-func (a symByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
-func (a symByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 // largeStack is info about a function whose stack frame is too large (rare).
 type largeStack struct {

@@ -21,7 +21,7 @@ import (
 func mkParamResultField(t *types.Type, s *types.Sym, which ir.Class) *types.Field {
 	field := types.NewField(src.NoXPos, s, t)
 	n := typecheck.NewName(s)
-	n.Class_ = which
+	n.Class = which
 	field.Nname = n
 	n.SetType(t)
 	return field

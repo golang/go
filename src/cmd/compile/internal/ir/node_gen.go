@@ -4,437 +4,545 @@ package ir
 
 import "fmt"
 
-func (n *AddStringExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *AddStringExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *AddStringExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
-	c.List = c.List.Copy()
+	c.init = copyNodes(c.init)
+	c.List = copyNodes(c.List)
 	return &c
 }
-func (n *AddStringExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.List, err, do)
-	return err
+func (n *AddStringExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if doNodes(n.List, do) {
+		return true
+	}
+	if n.Prealloc != nil && do(n.Prealloc) {
+		return true
+	}
+	return false
 }
 func (n *AddStringExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	editList(n.List, edit)
+	editNodes(n.init, edit)
+	editNodes(n.List, edit)
+	if n.Prealloc != nil {
+		n.Prealloc = edit(n.Prealloc).(*Name)
+	}
 }
 
-func (n *AddrExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *AddrExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *AddrExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *AddrExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDo(n.Alloc, err, do)
-	return err
+func (n *AddrExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	if n.Prealloc != nil && do(n.Prealloc) {
+		return true
+	}
+	return false
 }
 func (n *AddrExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	n.Alloc = maybeEdit(n.Alloc, edit)
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
+	if n.Prealloc != nil {
+		n.Prealloc = edit(n.Prealloc).(*Name)
+	}
 }
 
-func (n *ArrayType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ArrayType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ArrayType) copy() Node {
 	c := *n
 	return &c
 }
-func (n *ArrayType) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDo(n.Len, err, do)
-	err = maybeDo(n.Elem, err, do)
-	return err
+func (n *ArrayType) doChildren(do func(Node) bool) bool {
+	if n.Len != nil && do(n.Len) {
+		return true
+	}
+	if n.Elem != nil && do(n.Elem) {
+		return true
+	}
+	return false
 }
 func (n *ArrayType) editChildren(edit func(Node) Node) {
-	n.Len = maybeEdit(n.Len, edit)
-	n.Elem = maybeEdit(n.Elem, edit)
+	if n.Len != nil {
+		n.Len = edit(n.Len).(Node)
+	}
+	if n.Elem != nil {
+		n.Elem = edit(n.Elem).(Ntype)
+	}
 }
 
-func (n *AssignListStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *AssignListStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *AssignListStmt) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
-	c.Lhs = c.Lhs.Copy()
-	c.Rhs = c.Rhs.Copy()
+	c.init = copyNodes(c.init)
+	c.Lhs = copyNodes(c.Lhs)
+	c.Rhs = copyNodes(c.Rhs)
 	return &c
 }
-func (n *AssignListStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.Lhs, err, do)
-	err = maybeDoList(n.Rhs, err, do)
-	return err
+func (n *AssignListStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if doNodes(n.Lhs, do) {
+		return true
+	}
+	if doNodes(n.Rhs, do) {
+		return true
+	}
+	return false
 }
 func (n *AssignListStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	editList(n.Lhs, edit)
-	editList(n.Rhs, edit)
+	editNodes(n.init, edit)
+	editNodes(n.Lhs, edit)
+	editNodes(n.Rhs, edit)
 }
 
-func (n *AssignOpStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *AssignOpStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *AssignOpStmt) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *AssignOpStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDo(n.Y, err, do)
-	return err
+func (n *AssignOpStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	if n.Y != nil && do(n.Y) {
+		return true
+	}
+	return false
 }
 func (n *AssignOpStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	n.Y = maybeEdit(n.Y, edit)
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
+	if n.Y != nil {
+		n.Y = edit(n.Y).(Node)
+	}
 }
 
-func (n *AssignStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *AssignStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *AssignStmt) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *AssignStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDo(n.Y, err, do)
-	return err
+func (n *AssignStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	if n.Y != nil && do(n.Y) {
+		return true
+	}
+	return false
 }
 func (n *AssignStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	n.Y = maybeEdit(n.Y, edit)
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
+	if n.Y != nil {
+		n.Y = edit(n.Y).(Node)
+	}
 }
 
-func (n *BasicLit) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *BasicLit) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *BasicLit) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *BasicLit) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
+func (n *BasicLit) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	return false
 }
 func (n *BasicLit) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
+	editNodes(n.init, edit)
 }
 
-func (n *BinaryExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *BinaryExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *BinaryExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *BinaryExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDo(n.Y, err, do)
-	return err
+func (n *BinaryExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	if n.Y != nil && do(n.Y) {
+		return true
+	}
+	return false
 }
 func (n *BinaryExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	n.Y = maybeEdit(n.Y, edit)
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
+	if n.Y != nil {
+		n.Y = edit(n.Y).(Node)
+	}
 }
 
-func (n *BlockStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *BlockStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *BlockStmt) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
-	c.List = c.List.Copy()
+	c.init = copyNodes(c.init)
+	c.List = copyNodes(c.List)
 	return &c
 }
-func (n *BlockStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.List, err, do)
-	return err
+func (n *BlockStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if doNodes(n.List, do) {
+		return true
+	}
+	return false
 }
 func (n *BlockStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	editList(n.List, edit)
+	editNodes(n.init, edit)
+	editNodes(n.List, edit)
 }
 
-func (n *BranchStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *BranchStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *BranchStmt) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *BranchStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
+func (n *BranchStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	return false
 }
 func (n *BranchStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
+	editNodes(n.init, edit)
 }
 
-func (n *CallExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *CallExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *CallExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
-	c.Args = c.Args.Copy()
-	c.Rargs = c.Rargs.Copy()
-	c.Body = c.Body.Copy()
+	c.init = copyNodes(c.init)
+	c.Args = copyNodes(c.Args)
+	c.Rargs = copyNodes(c.Rargs)
+	c.KeepAlive = copyNames(c.KeepAlive)
 	return &c
 }
-func (n *CallExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDoList(n.Args, err, do)
-	err = maybeDoList(n.Rargs, err, do)
-	err = maybeDoList(n.Body, err, do)
-	return err
+func (n *CallExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	if doNodes(n.Args, do) {
+		return true
+	}
+	if doNodes(n.Rargs, do) {
+		return true
+	}
+	if doNames(n.KeepAlive, do) {
+		return true
+	}
+	return false
 }
 func (n *CallExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	editList(n.Args, edit)
-	editList(n.Rargs, edit)
-	editList(n.Body, edit)
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
+	editNodes(n.Args, edit)
+	editNodes(n.Rargs, edit)
+	editNames(n.KeepAlive, edit)
 }
 
-func (n *CallPartExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *CallPartExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *CallPartExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	return err
-}
-func (n *CallPartExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-}
-
-func (n *CaseClause) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *CaseClause) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *CaseClause) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
-	c.List = c.List.Copy()
-	c.Body = c.Body.Copy()
+	c.init = copyNodes(c.init)
+	c.List = copyNodes(c.List)
+	c.Body = copyNodes(c.Body)
 	return &c
 }
-func (n *CaseClause) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Var, err, do)
-	err = maybeDoList(n.List, err, do)
-	err = maybeDoList(n.Body, err, do)
-	return err
+func (n *CaseClause) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Var != nil && do(n.Var) {
+		return true
+	}
+	if doNodes(n.List, do) {
+		return true
+	}
+	if doNodes(n.Body, do) {
+		return true
+	}
+	return false
 }
 func (n *CaseClause) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Var = maybeEdit(n.Var, edit)
-	editList(n.List, edit)
-	editList(n.Body, edit)
+	editNodes(n.init, edit)
+	if n.Var != nil {
+		n.Var = edit(n.Var).(*Name)
+	}
+	editNodes(n.List, edit)
+	editNodes(n.Body, edit)
 }
 
-func (n *ChanType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ChanType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ChanType) copy() Node {
 	c := *n
 	return &c
 }
-func (n *ChanType) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDo(n.Elem, err, do)
-	return err
+func (n *ChanType) doChildren(do func(Node) bool) bool {
+	if n.Elem != nil && do(n.Elem) {
+		return true
+	}
+	return false
 }
 func (n *ChanType) editChildren(edit func(Node) Node) {
-	n.Elem = maybeEdit(n.Elem, edit)
+	if n.Elem != nil {
+		n.Elem = edit(n.Elem).(Ntype)
+	}
 }
 
-func (n *ClosureExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ClosureExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ClosureExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *ClosureExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
+func (n *ClosureExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Prealloc != nil && do(n.Prealloc) {
+		return true
+	}
+	return false
 }
 func (n *ClosureExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
+	editNodes(n.init, edit)
+	if n.Prealloc != nil {
+		n.Prealloc = edit(n.Prealloc).(*Name)
+	}
 }
 
-func (n *ClosureReadExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ClosureReadExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ClosureReadExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *ClosureReadExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
+func (n *ClosureReadExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	return false
 }
 func (n *ClosureReadExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
+	editNodes(n.init, edit)
 }
 
-func (n *CommClause) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *CommClause) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *CommClause) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
-	c.Body = c.Body.Copy()
+	c.init = copyNodes(c.init)
+	c.Body = copyNodes(c.Body)
 	return &c
 }
-func (n *CommClause) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Comm, err, do)
-	err = maybeDoList(n.Body, err, do)
-	return err
+func (n *CommClause) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Comm != nil && do(n.Comm) {
+		return true
+	}
+	if doNodes(n.Body, do) {
+		return true
+	}
+	return false
 }
 func (n *CommClause) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Comm = maybeEdit(n.Comm, edit)
-	editList(n.Body, edit)
+	editNodes(n.init, edit)
+	if n.Comm != nil {
+		n.Comm = edit(n.Comm).(Node)
+	}
+	editNodes(n.Body, edit)
 }
 
-func (n *CompLitExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *CompLitExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *CompLitExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
-	c.List = c.List.Copy()
+	c.init = copyNodes(c.init)
+	c.List = copyNodes(c.List)
 	return &c
 }
-func (n *CompLitExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Ntype, err, do)
-	err = maybeDoList(n.List, err, do)
-	return err
+func (n *CompLitExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Ntype != nil && do(n.Ntype) {
+		return true
+	}
+	if doNodes(n.List, do) {
+		return true
+	}
+	if n.Prealloc != nil && do(n.Prealloc) {
+		return true
+	}
+	return false
 }
 func (n *CompLitExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Ntype = toNtype(maybeEdit(n.Ntype, edit))
-	editList(n.List, edit)
+	editNodes(n.init, edit)
+	if n.Ntype != nil {
+		n.Ntype = edit(n.Ntype).(Ntype)
+	}
+	editNodes(n.List, edit)
+	if n.Prealloc != nil {
+		n.Prealloc = edit(n.Prealloc).(*Name)
+	}
 }
 
-func (n *ConstExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ConstExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ConstExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *ConstExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
+func (n *ConstExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	return false
 }
 func (n *ConstExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
+	editNodes(n.init, edit)
 }
 
-func (n *ConvExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ConvExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ConvExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *ConvExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	return err
+func (n *ConvExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	return false
 }
 func (n *ConvExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
 }
 
-func (n *Decl) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *Decl) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *Decl) copy() Node {
 	c := *n
 	return &c
 }
-func (n *Decl) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDo(n.X, err, do)
-	return err
+func (n *Decl) doChildren(do func(Node) bool) bool {
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	return false
 }
 func (n *Decl) editChildren(edit func(Node) Node) {
-	n.X = maybeEdit(n.X, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(*Name)
+	}
 }
 
-func (n *ForStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ForStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ForStmt) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
-	c.Late = c.Late.Copy()
-	c.Body = c.Body.Copy()
+	c.init = copyNodes(c.init)
+	c.Late = copyNodes(c.Late)
+	c.Body = copyNodes(c.Body)
 	return &c
 }
-func (n *ForStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Cond, err, do)
-	err = maybeDoList(n.Late, err, do)
-	err = maybeDo(n.Post, err, do)
-	err = maybeDoList(n.Body, err, do)
-	return err
+func (n *ForStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Cond != nil && do(n.Cond) {
+		return true
+	}
+	if doNodes(n.Late, do) {
+		return true
+	}
+	if n.Post != nil && do(n.Post) {
+		return true
+	}
+	if doNodes(n.Body, do) {
+		return true
+	}
+	return false
 }
 func (n *ForStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Cond = maybeEdit(n.Cond, edit)
-	editList(n.Late, edit)
-	n.Post = maybeEdit(n.Post, edit)
-	editList(n.Body, edit)
+	editNodes(n.init, edit)
+	if n.Cond != nil {
+		n.Cond = edit(n.Cond).(Node)
+	}
+	editNodes(n.Late, edit)
+	if n.Post != nil {
+		n.Post = edit(n.Post).(Node)
+	}
+	editNodes(n.Body, edit)
 }
 
-func (n *Func) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *Func) copy() Node {
-	c := *n
-	c.Body = c.Body.Copy()
-	return &c
-}
-func (n *Func) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.Body, err, do)
-	return err
-}
-func (n *Func) editChildren(edit func(Node) Node) {
-	editList(n.Body, edit)
-}
+func (n *Func) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 
-func (n *FuncType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *FuncType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *FuncType) copy() Node {
 	c := *n
-	if c.Recv != nil {
-		c.Recv = c.Recv.copy()
-	}
+	c.Recv = copyField(c.Recv)
 	c.Params = copyFields(c.Params)
 	c.Results = copyFields(c.Results)
 	return &c
 }
-func (n *FuncType) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoField(n.Recv, err, do)
-	err = maybeDoFields(n.Params, err, do)
-	err = maybeDoFields(n.Results, err, do)
-	return err
+func (n *FuncType) doChildren(do func(Node) bool) bool {
+	if doField(n.Recv, do) {
+		return true
+	}
+	if doFields(n.Params, do) {
+		return true
+	}
+	if doFields(n.Results, do) {
+		return true
+	}
+	return false
 }
 func (n *FuncType) editChildren(edit func(Node) Node) {
 	editField(n.Recv, edit)
@@ -442,613 +550,881 @@ func (n *FuncType) editChildren(edit func(Node) Node) {
 	editFields(n.Results, edit)
 }
 
-func (n *GoDeferStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *GoDeferStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *GoDeferStmt) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *GoDeferStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Call, err, do)
-	return err
+func (n *GoDeferStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Call != nil && do(n.Call) {
+		return true
+	}
+	return false
 }
 func (n *GoDeferStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Call = maybeEdit(n.Call, edit)
+	editNodes(n.init, edit)
+	if n.Call != nil {
+		n.Call = edit(n.Call).(Node)
+	}
 }
 
-func (n *Ident) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *Ident) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *Ident) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *Ident) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
+func (n *Ident) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	return false
 }
 func (n *Ident) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
+	editNodes(n.init, edit)
 }
 
-func (n *IfStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *IfStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *IfStmt) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
-	c.Body = c.Body.Copy()
-	c.Else = c.Else.Copy()
+	c.init = copyNodes(c.init)
+	c.Body = copyNodes(c.Body)
+	c.Else = copyNodes(c.Else)
 	return &c
 }
-func (n *IfStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Cond, err, do)
-	err = maybeDoList(n.Body, err, do)
-	err = maybeDoList(n.Else, err, do)
-	return err
+func (n *IfStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Cond != nil && do(n.Cond) {
+		return true
+	}
+	if doNodes(n.Body, do) {
+		return true
+	}
+	if doNodes(n.Else, do) {
+		return true
+	}
+	return false
 }
 func (n *IfStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Cond = maybeEdit(n.Cond, edit)
-	editList(n.Body, edit)
-	editList(n.Else, edit)
+	editNodes(n.init, edit)
+	if n.Cond != nil {
+		n.Cond = edit(n.Cond).(Node)
+	}
+	editNodes(n.Body, edit)
+	editNodes(n.Else, edit)
 }
 
-func (n *IndexExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *IndexExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *IndexExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *IndexExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDo(n.Index, err, do)
-	return err
+func (n *IndexExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	if n.Index != nil && do(n.Index) {
+		return true
+	}
+	return false
 }
 func (n *IndexExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	n.Index = maybeEdit(n.Index, edit)
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
+	if n.Index != nil {
+		n.Index = edit(n.Index).(Node)
+	}
 }
 
-func (n *InlineMarkStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *InlineMarkStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *InlineMarkStmt) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *InlineMarkStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
+func (n *InlineMarkStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	return false
 }
 func (n *InlineMarkStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
+	editNodes(n.init, edit)
 }
 
-func (n *InlinedCallExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *InlinedCallExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *InlinedCallExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
-	c.Body = c.Body.Copy()
-	c.ReturnVars = c.ReturnVars.Copy()
+	c.init = copyNodes(c.init)
+	c.Body = copyNodes(c.Body)
+	c.ReturnVars = copyNodes(c.ReturnVars)
 	return &c
 }
-func (n *InlinedCallExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.Body, err, do)
-	err = maybeDoList(n.ReturnVars, err, do)
-	return err
+func (n *InlinedCallExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if doNodes(n.Body, do) {
+		return true
+	}
+	if doNodes(n.ReturnVars, do) {
+		return true
+	}
+	return false
 }
 func (n *InlinedCallExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	editList(n.Body, edit)
-	editList(n.ReturnVars, edit)
+	editNodes(n.init, edit)
+	editNodes(n.Body, edit)
+	editNodes(n.ReturnVars, edit)
 }
 
-func (n *InterfaceType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *InterfaceType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *InterfaceType) copy() Node {
 	c := *n
 	c.Methods = copyFields(c.Methods)
 	return &c
 }
-func (n *InterfaceType) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoFields(n.Methods, err, do)
-	return err
+func (n *InterfaceType) doChildren(do func(Node) bool) bool {
+	if doFields(n.Methods, do) {
+		return true
+	}
+	return false
 }
 func (n *InterfaceType) editChildren(edit func(Node) Node) {
 	editFields(n.Methods, edit)
 }
 
-func (n *KeyExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *KeyExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *KeyExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *KeyExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Key, err, do)
-	err = maybeDo(n.Value, err, do)
-	return err
+func (n *KeyExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Key != nil && do(n.Key) {
+		return true
+	}
+	if n.Value != nil && do(n.Value) {
+		return true
+	}
+	return false
 }
 func (n *KeyExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Key = maybeEdit(n.Key, edit)
-	n.Value = maybeEdit(n.Value, edit)
+	editNodes(n.init, edit)
+	if n.Key != nil {
+		n.Key = edit(n.Key).(Node)
+	}
+	if n.Value != nil {
+		n.Value = edit(n.Value).(Node)
+	}
 }
 
-func (n *LabelStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *LabelStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *LabelStmt) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *LabelStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
+func (n *LabelStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	return false
 }
 func (n *LabelStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
+	editNodes(n.init, edit)
 }
 
-func (n *LogicalExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *LogicalExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *LogicalExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *LogicalExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDo(n.Y, err, do)
-	return err
+func (n *LogicalExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	if n.Y != nil && do(n.Y) {
+		return true
+	}
+	return false
 }
 func (n *LogicalExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	n.Y = maybeEdit(n.Y, edit)
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
+	if n.Y != nil {
+		n.Y = edit(n.Y).(Node)
+	}
 }
 
-func (n *MakeExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *MakeExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *MakeExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *MakeExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Len, err, do)
-	err = maybeDo(n.Cap, err, do)
-	return err
+func (n *MakeExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Len != nil && do(n.Len) {
+		return true
+	}
+	if n.Cap != nil && do(n.Cap) {
+		return true
+	}
+	return false
 }
 func (n *MakeExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Len = maybeEdit(n.Len, edit)
-	n.Cap = maybeEdit(n.Cap, edit)
+	editNodes(n.init, edit)
+	if n.Len != nil {
+		n.Len = edit(n.Len).(Node)
+	}
+	if n.Cap != nil {
+		n.Cap = edit(n.Cap).(Node)
+	}
 }
 
-func (n *MapType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *MapType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *MapType) copy() Node {
 	c := *n
 	return &c
 }
-func (n *MapType) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDo(n.Key, err, do)
-	err = maybeDo(n.Elem, err, do)
-	return err
+func (n *MapType) doChildren(do func(Node) bool) bool {
+	if n.Key != nil && do(n.Key) {
+		return true
+	}
+	if n.Elem != nil && do(n.Elem) {
+		return true
+	}
+	return false
 }
 func (n *MapType) editChildren(edit func(Node) Node) {
-	n.Key = maybeEdit(n.Key, edit)
-	n.Elem = maybeEdit(n.Elem, edit)
+	if n.Key != nil {
+		n.Key = edit(n.Key).(Ntype)
+	}
+	if n.Elem != nil {
+		n.Elem = edit(n.Elem).(Ntype)
+	}
 }
 
-func (n *MethodExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *MethodExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *MethodExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
-}
-func (n *MethodExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-}
+func (n *Name) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 
-func (n *Name) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *Name) copy() Node                    { panic("Name.copy") }
-func (n *Name) doChildren(do func(Node) error) error {
-	var err error
-	return err
-}
-func (n *Name) editChildren(edit func(Node) Node) {
-}
-
-func (n *NameOffsetExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *NameOffsetExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *NameOffsetExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *NameOffsetExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
+func (n *NameOffsetExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Name_ != nil && do(n.Name_) {
+		return true
+	}
+	return false
 }
 func (n *NameOffsetExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
+	editNodes(n.init, edit)
+	if n.Name_ != nil {
+		n.Name_ = edit(n.Name_).(*Name)
+	}
 }
 
-func (n *NilExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *NilExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *NilExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *NilExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
+func (n *NilExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	return false
 }
 func (n *NilExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
+	editNodes(n.init, edit)
 }
 
-func (n *ParenExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ParenExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ParenExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *ParenExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	return err
+func (n *ParenExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	return false
 }
 func (n *ParenExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
 }
 
-func (n *PkgName) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *PkgName) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *PkgName) copy() Node {
 	c := *n
 	return &c
 }
-func (n *PkgName) doChildren(do func(Node) error) error {
-	var err error
-	return err
+func (n *PkgName) doChildren(do func(Node) bool) bool {
+	return false
 }
 func (n *PkgName) editChildren(edit func(Node) Node) {
 }
 
-func (n *RangeStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *RangeStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *RangeStmt) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
-	c.Body = c.Body.Copy()
+	c.init = copyNodes(c.init)
+	c.Body = copyNodes(c.Body)
 	return &c
 }
-func (n *RangeStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDo(n.Key, err, do)
-	err = maybeDo(n.Value, err, do)
-	err = maybeDoList(n.Body, err, do)
-	return err
+func (n *RangeStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	if n.Key != nil && do(n.Key) {
+		return true
+	}
+	if n.Value != nil && do(n.Value) {
+		return true
+	}
+	if doNodes(n.Body, do) {
+		return true
+	}
+	if n.Prealloc != nil && do(n.Prealloc) {
+		return true
+	}
+	return false
 }
 func (n *RangeStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	n.Key = maybeEdit(n.Key, edit)
-	n.Value = maybeEdit(n.Value, edit)
-	editList(n.Body, edit)
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
+	if n.Key != nil {
+		n.Key = edit(n.Key).(Node)
+	}
+	if n.Value != nil {
+		n.Value = edit(n.Value).(Node)
+	}
+	editNodes(n.Body, edit)
+	if n.Prealloc != nil {
+		n.Prealloc = edit(n.Prealloc).(*Name)
+	}
 }
 
-func (n *ResultExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ResultExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ResultExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *ResultExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
+func (n *ResultExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	return false
 }
 func (n *ResultExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
+	editNodes(n.init, edit)
 }
 
-func (n *ReturnStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ReturnStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ReturnStmt) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
-	c.Results = c.Results.Copy()
+	c.init = copyNodes(c.init)
+	c.Results = copyNodes(c.Results)
 	return &c
 }
-func (n *ReturnStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.Results, err, do)
-	return err
+func (n *ReturnStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if doNodes(n.Results, do) {
+		return true
+	}
+	return false
 }
 func (n *ReturnStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	editList(n.Results, edit)
+	editNodes(n.init, edit)
+	editNodes(n.Results, edit)
 }
 
-func (n *SelectStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *SelectStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *SelectStmt) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
-	c.Cases = copyComms(c.Cases)
-	c.Compiled = c.Compiled.Copy()
+	c.init = copyNodes(c.init)
+	c.Cases = copyCommClauses(c.Cases)
+	c.Compiled = copyNodes(c.Compiled)
 	return &c
 }
-func (n *SelectStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDoComms(n.Cases, err, do)
-	err = maybeDoList(n.Compiled, err, do)
-	return err
+func (n *SelectStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if doCommClauses(n.Cases, do) {
+		return true
+	}
+	if doNodes(n.Compiled, do) {
+		return true
+	}
+	return false
 }
 func (n *SelectStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	editComms(n.Cases, edit)
-	editList(n.Compiled, edit)
+	editNodes(n.init, edit)
+	editCommClauses(n.Cases, edit)
+	editNodes(n.Compiled, edit)
 }
 
-func (n *SelectorExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *SelectorExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *SelectorExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *SelectorExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	return err
+func (n *SelectorExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	if n.Prealloc != nil && do(n.Prealloc) {
+		return true
+	}
+	return false
 }
 func (n *SelectorExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
+	if n.Prealloc != nil {
+		n.Prealloc = edit(n.Prealloc).(*Name)
+	}
 }
 
-func (n *SendStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *SendStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *SendStmt) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *SendStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Chan, err, do)
-	err = maybeDo(n.Value, err, do)
-	return err
+func (n *SendStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Chan != nil && do(n.Chan) {
+		return true
+	}
+	if n.Value != nil && do(n.Value) {
+		return true
+	}
+	return false
 }
 func (n *SendStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Chan = maybeEdit(n.Chan, edit)
-	n.Value = maybeEdit(n.Value, edit)
+	editNodes(n.init, edit)
+	if n.Chan != nil {
+		n.Chan = edit(n.Chan).(Node)
+	}
+	if n.Value != nil {
+		n.Value = edit(n.Value).(Node)
+	}
 }
 
-func (n *SliceExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *SliceExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *SliceExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *SliceExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDo(n.Low, err, do)
-	err = maybeDo(n.High, err, do)
-	err = maybeDo(n.Max, err, do)
-	return err
+func (n *SliceExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	if n.Low != nil && do(n.Low) {
+		return true
+	}
+	if n.High != nil && do(n.High) {
+		return true
+	}
+	if n.Max != nil && do(n.Max) {
+		return true
+	}
+	return false
 }
 func (n *SliceExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	n.Low = maybeEdit(n.Low, edit)
-	n.High = maybeEdit(n.High, edit)
-	n.Max = maybeEdit(n.Max, edit)
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
+	if n.Low != nil {
+		n.Low = edit(n.Low).(Node)
+	}
+	if n.High != nil {
+		n.High = edit(n.High).(Node)
+	}
+	if n.Max != nil {
+		n.Max = edit(n.Max).(Node)
+	}
 }
 
-func (n *SliceHeaderExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *SliceHeaderExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *SliceHeaderExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *SliceHeaderExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Ptr, err, do)
-	err = maybeDo(n.Len, err, do)
-	err = maybeDo(n.Cap, err, do)
-	return err
+func (n *SliceHeaderExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Ptr != nil && do(n.Ptr) {
+		return true
+	}
+	if n.Len != nil && do(n.Len) {
+		return true
+	}
+	if n.Cap != nil && do(n.Cap) {
+		return true
+	}
+	return false
 }
 func (n *SliceHeaderExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Ptr = maybeEdit(n.Ptr, edit)
-	n.Len = maybeEdit(n.Len, edit)
-	n.Cap = maybeEdit(n.Cap, edit)
+	editNodes(n.init, edit)
+	if n.Ptr != nil {
+		n.Ptr = edit(n.Ptr).(Node)
+	}
+	if n.Len != nil {
+		n.Len = edit(n.Len).(Node)
+	}
+	if n.Cap != nil {
+		n.Cap = edit(n.Cap).(Node)
+	}
 }
 
-func (n *SliceType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *SliceType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *SliceType) copy() Node {
 	c := *n
 	return &c
 }
-func (n *SliceType) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDo(n.Elem, err, do)
-	return err
+func (n *SliceType) doChildren(do func(Node) bool) bool {
+	if n.Elem != nil && do(n.Elem) {
+		return true
+	}
+	return false
 }
 func (n *SliceType) editChildren(edit func(Node) Node) {
-	n.Elem = maybeEdit(n.Elem, edit)
+	if n.Elem != nil {
+		n.Elem = edit(n.Elem).(Ntype)
+	}
 }
 
-func (n *StarExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *StarExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *StarExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *StarExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	return err
+func (n *StarExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	return false
 }
 func (n *StarExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
 }
 
-func (n *StructKeyExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *StructKeyExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *StructKeyExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *StructKeyExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Value, err, do)
-	return err
+func (n *StructKeyExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Value != nil && do(n.Value) {
+		return true
+	}
+	return false
 }
 func (n *StructKeyExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Value = maybeEdit(n.Value, edit)
+	editNodes(n.init, edit)
+	if n.Value != nil {
+		n.Value = edit(n.Value).(Node)
+	}
 }
 
-func (n *StructType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *StructType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *StructType) copy() Node {
 	c := *n
 	c.Fields = copyFields(c.Fields)
 	return &c
 }
-func (n *StructType) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoFields(n.Fields, err, do)
-	return err
+func (n *StructType) doChildren(do func(Node) bool) bool {
+	if doFields(n.Fields, do) {
+		return true
+	}
+	return false
 }
 func (n *StructType) editChildren(edit func(Node) Node) {
 	editFields(n.Fields, edit)
 }
 
-func (n *SwitchStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *SwitchStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *SwitchStmt) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
-	c.Cases = copyCases(c.Cases)
-	c.Compiled = c.Compiled.Copy()
+	c.init = copyNodes(c.init)
+	c.Cases = copyCaseClauses(c.Cases)
+	c.Compiled = copyNodes(c.Compiled)
 	return &c
 }
-func (n *SwitchStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Tag, err, do)
-	err = maybeDoCases(n.Cases, err, do)
-	err = maybeDoList(n.Compiled, err, do)
-	return err
+func (n *SwitchStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Tag != nil && do(n.Tag) {
+		return true
+	}
+	if doCaseClauses(n.Cases, do) {
+		return true
+	}
+	if doNodes(n.Compiled, do) {
+		return true
+	}
+	return false
 }
 func (n *SwitchStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Tag = maybeEdit(n.Tag, edit)
-	editCases(n.Cases, edit)
-	editList(n.Compiled, edit)
+	editNodes(n.init, edit)
+	if n.Tag != nil {
+		n.Tag = edit(n.Tag).(Node)
+	}
+	editCaseClauses(n.Cases, edit)
+	editNodes(n.Compiled, edit)
 }
 
-func (n *TypeAssertExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *TypeAssertExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *TypeAssertExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
-	c.Itab = c.Itab.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *TypeAssertExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDo(n.Ntype, err, do)
-	err = maybeDoList(n.Itab, err, do)
-	return err
+func (n *TypeAssertExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	if n.Ntype != nil && do(n.Ntype) {
+		return true
+	}
+	return false
 }
 func (n *TypeAssertExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	n.Ntype = maybeEdit(n.Ntype, edit)
-	editList(n.Itab, edit)
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
+	if n.Ntype != nil {
+		n.Ntype = edit(n.Ntype).(Ntype)
+	}
 }
 
-func (n *TypeSwitchGuard) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *TypeSwitchGuard) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *TypeSwitchGuard) copy() Node {
 	c := *n
 	return &c
 }
-func (n *TypeSwitchGuard) doChildren(do func(Node) error) error {
-	var err error
-	if n.Tag != nil {
-		err = maybeDo(n.Tag, err, do)
+func (n *TypeSwitchGuard) doChildren(do func(Node) bool) bool {
+	if n.Tag != nil && do(n.Tag) {
+		return true
 	}
-	err = maybeDo(n.X, err, do)
-	return err
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	return false
 }
 func (n *TypeSwitchGuard) editChildren(edit func(Node) Node) {
 	if n.Tag != nil {
 		n.Tag = edit(n.Tag).(*Ident)
 	}
-	n.X = maybeEdit(n.X, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
 }
 
-func (n *UnaryExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *UnaryExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *UnaryExpr) copy() Node {
 	c := *n
-	c.init = c.init.Copy()
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *UnaryExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	return err
+func (n *UnaryExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	return false
 }
 func (n *UnaryExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
 }
 
-func (n *typeNode) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *typeNode) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *typeNode) copy() Node {
 	c := *n
 	return &c
 }
-func (n *typeNode) doChildren(do func(Node) error) error {
-	var err error
-	return err
+func (n *typeNode) doChildren(do func(Node) bool) bool {
+	return false
 }
 func (n *typeNode) editChildren(edit func(Node) Node) {
+}
+
+func copyCaseClauses(list []*CaseClause) []*CaseClause {
+	if list == nil {
+		return nil
+	}
+	c := make([]*CaseClause, len(list))
+	copy(c, list)
+	return c
+}
+func doCaseClauses(list []*CaseClause, do func(Node) bool) bool {
+	for _, x := range list {
+		if x != nil && do(x) {
+			return true
+		}
+	}
+	return false
+}
+func editCaseClauses(list []*CaseClause, edit func(Node) Node) {
+	for i, x := range list {
+		if x != nil {
+			list[i] = edit(x).(*CaseClause)
+		}
+	}
+}
+
+func copyCommClauses(list []*CommClause) []*CommClause {
+	if list == nil {
+		return nil
+	}
+	c := make([]*CommClause, len(list))
+	copy(c, list)
+	return c
+}
+func doCommClauses(list []*CommClause, do func(Node) bool) bool {
+	for _, x := range list {
+		if x != nil && do(x) {
+			return true
+		}
+	}
+	return false
+}
+func editCommClauses(list []*CommClause, edit func(Node) Node) {
+	for i, x := range list {
+		if x != nil {
+			list[i] = edit(x).(*CommClause)
+		}
+	}
+}
+
+func copyNames(list []*Name) []*Name {
+	if list == nil {
+		return nil
+	}
+	c := make([]*Name, len(list))
+	copy(c, list)
+	return c
+}
+func doNames(list []*Name, do func(Node) bool) bool {
+	for _, x := range list {
+		if x != nil && do(x) {
+			return true
+		}
+	}
+	return false
+}
+func editNames(list []*Name, edit func(Node) Node) {
+	for i, x := range list {
+		if x != nil {
+			list[i] = edit(x).(*Name)
+		}
+	}
+}
+
+func copyNodes(list []Node) []Node {
+	if list == nil {
+		return nil
+	}
+	c := make([]Node, len(list))
+	copy(c, list)
+	return c
+}
+func doNodes(list []Node, do func(Node) bool) bool {
+	for _, x := range list {
+		if x != nil && do(x) {
+			return true
+		}
+	}
+	return false
+}
+func editNodes(list []Node, edit func(Node) Node) {
+	for i, x := range list {
+		if x != nil {
+			list[i] = edit(x).(Node)
+		}
+	}
 }

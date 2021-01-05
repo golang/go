@@ -148,8 +148,8 @@ func dumpdata() {
 	dumpglobls(typecheck.Target.Externs[numExterns:])
 
 	if reflectdata.ZeroSize > 0 {
-		zero := ir.Pkgs.Map.Lookup("zero")
-		objw.Global(zero.Linksym(), int32(reflectdata.ZeroSize), obj.DUPOK|obj.RODATA)
+		zero := ir.Pkgs.Map.Lookup("zero").Linksym()
+		objw.Global(zero, int32(reflectdata.ZeroSize), obj.DUPOK|obj.RODATA)
 	}
 
 	addGCLocals()
@@ -188,7 +188,7 @@ func dumpGlobal(n *ir.Name) {
 	if n.Type() == nil {
 		base.Fatalf("external %v nil type\n", n)
 	}
-	if n.Class_ == ir.PFUNC {
+	if n.Class == ir.PFUNC {
 		return
 	}
 	if n.Sym().Pkg != types.LocalPkg {
@@ -260,18 +260,18 @@ func addGCLocals() {
 	}
 }
 
-func ggloblnod(nam ir.Node) {
-	s := nam.Sym().Linksym()
-	s.Gotype = reflectdata.TypeSym(nam.Type()).Linksym()
+func ggloblnod(nam *ir.Name) {
+	s := nam.Linksym()
+	s.Gotype = reflectdata.TypeLinksym(nam.Type())
 	flags := 0
-	if nam.Name().Readonly() {
+	if nam.Readonly() {
 		flags = obj.RODATA
 	}
 	if nam.Type() != nil && !nam.Type().HasPointers() {
 		flags |= obj.NOPTR
 	}
 	base.Ctxt.Globl(s, nam.Type().Width, flags)
-	if nam.Name().LibfuzzerExtraCounter() {
+	if nam.LibfuzzerExtraCounter() {
 		s.Type = objabi.SLIBFUZZER_EXTRA_COUNTER
 	}
 	if nam.Sym().Linkname != "" {

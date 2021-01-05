@@ -206,7 +206,7 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
 
 // walkDelete walks an ODELETE node.
 func walkDelete(init *ir.Nodes, n *ir.CallExpr) ir.Node {
-	init.Append(n.PtrInit().Take()...)
+	init.Append(ir.TakeInit(n)...)
 	map_ := n.Args[0]
 	key := n.Args[1]
 	map_ = walkExpr(map_, init)
@@ -531,7 +531,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 			t = append(t, n)
 		}
 		t = append(t, ir.NewString("\n"))
-		nn.Args.Set(t)
+		nn.Args = t
 	}
 
 	// Collapse runs of constant strings.
@@ -551,7 +551,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 			i++
 		}
 	}
-	nn.Args.Set(t)
+	nn.Args = t
 
 	calls := []ir.Node{mkcall("printlock", nil, init)}
 	for i, n := range nn.Args {
@@ -653,7 +653,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 	walkExprList(calls, init)
 
 	r := ir.NewBlockStmt(base.Pos, nil)
-	r.List.Set(calls)
+	r.List = calls
 	return walkStmt(typecheck.Stmt(r))
 }
 

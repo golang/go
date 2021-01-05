@@ -59,7 +59,7 @@ func (c initContext) String() string {
 func readonlystaticname(t *types.Type) *ir.Name {
 	n := staticinit.StaticName(t)
 	n.MarkReadonly()
-	n.Sym().Linksym().Set(obj.AttrContentAddressable, true)
+	n.Linksym().Set(obj.AttrContentAddressable, true)
 	return n
 }
 
@@ -68,7 +68,7 @@ func isSimpleName(nn ir.Node) bool {
 		return false
 	}
 	n := nn.(*ir.Name)
-	return n.Class_ != ir.PAUTOHEAP && n.Class_ != ir.PEXTERN
+	return n.Class != ir.PAUTOHEAP && n.Class != ir.PEXTERN
 }
 
 func litas(l ir.Node, r ir.Node, init *ir.Nodes) {
@@ -294,7 +294,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 		// copy static to slice
 		var_ = typecheck.AssignExpr(var_)
 		name, offset, ok := staticinit.StaticLoc(var_)
-		if !ok || name.Class_ != ir.PEXTERN {
+		if !ok || name.Class != ir.PEXTERN {
 			base.Fatalf("slicelit: %v", var_)
 		}
 		staticdata.InitSlice(name, offset, vstat, t.NumElem())
@@ -539,7 +539,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, n))
 
 	case ir.OMETHEXPR:
-		n := n.(*ir.MethodExpr)
+		n := n.(*ir.SelectorExpr)
 		anylit(n.FuncName(), var_, init)
 
 	case ir.OPTRLIT:
@@ -549,10 +549,10 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		}
 
 		var r ir.Node
-		if n.Alloc != nil {
+		if n.Prealloc != nil {
 			// n.Right is stack temporary used as backing store.
-			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, n.Alloc, nil)) // zero backing store, just in case (#18410)
-			r = typecheck.NodAddr(n.Alloc)
+			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, n.Prealloc, nil)) // zero backing store, just in case (#18410)
+			r = typecheck.NodAddr(n.Prealloc)
 		} else {
 			r = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(n.X.Type()))
 			r.SetEsc(n.Esc())
@@ -657,7 +657,7 @@ func genAsStatic(as *ir.AssignStmt) {
 	}
 
 	name, offset, ok := staticinit.StaticLoc(as.X)
-	if !ok || (name.Class_ != ir.PEXTERN && as.X != ir.BlankNode) {
+	if !ok || (name.Class != ir.PEXTERN && as.X != ir.BlankNode) {
 		base.Fatalf("genAsStatic: lhs %v", as.X)
 	}
 
@@ -666,7 +666,7 @@ func genAsStatic(as *ir.AssignStmt) {
 		staticdata.InitConst(name, offset, r, int(r.Type().Width))
 		return
 	case ir.OMETHEXPR:
-		r := r.(*ir.MethodExpr)
+		r := r.(*ir.SelectorExpr)
 		staticdata.InitFunc(name, offset, r.FuncName())
 		return
 	case ir.ONAME:
@@ -674,7 +674,7 @@ func genAsStatic(as *ir.AssignStmt) {
 		if r.Offset_ != 0 {
 			base.Fatalf("genAsStatic %+v", as)
 		}
-		if r.Class_ == ir.PFUNC {
+		if r.Class == ir.PFUNC {
 			staticdata.InitFunc(name, offset, r)
 			return
 		}

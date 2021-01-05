@@ -49,7 +49,6 @@ import (
 // pointer from the Func back to the OCALLPART.
 type Func struct {
 	miniNode
-	typ  *types.Type
 	Body Nodes
 	Iota int64
 
@@ -66,9 +65,15 @@ type Func struct {
 	// include closurevars until transformclosure runs.
 	Dcl []*Name
 
-	ClosureEnter Nodes   // list of ONAME nodes (or OADDR-of-ONAME nodes, for output parameters) of captured variables
-	ClosureType  Node    // closure representation type
-	ClosureVars  []*Name // closure params; each has closurevar set
+	ClosureType Ntype // closure representation type
+
+	// ClosureVars lists the free variables that are used within a
+	// function literal, but formally declared in an enclosing
+	// function. The variables in this slice are the closure function's
+	// own copy of the variables, which are used within its function
+	// body. They will also each have IsClosureVar set, and will have
+	// Byval set if they're captured by value.
+	ClosureVars []*Name
 
 	// Parents records the parent scope of each scope within a
 	// function. The root scope (0) has no parent, so the i'th
@@ -78,7 +83,7 @@ type Func struct {
 	// Marks records scope boundary changes.
 	Marks []Mark
 
-	FieldTrack map[*types.Sym]struct{}
+	FieldTrack map[*obj.LSym]struct{}
 	DebugInfo  interface{}
 	LSym       *obj.LSym
 
@@ -116,15 +121,13 @@ func NewFunc(pos src.XPos) *Func {
 
 func (f *Func) isStmt() {}
 
-func (f *Func) Type() *types.Type     { return f.typ }
-func (f *Func) SetType(x *types.Type) { f.typ = x }
+func (n *Func) copy() Node                         { panic(n.no("copy")) }
+func (n *Func) doChildren(do func(Node) bool) bool { return doNodes(n.Body, do) }
+func (n *Func) editChildren(edit func(Node) Node)  { editNodes(n.Body, edit) }
 
-func (f *Func) Sym() *types.Sym {
-	if f.Nname != nil {
-		return f.Nname.Sym()
-	}
-	return nil
-}
+func (f *Func) Type() *types.Type  { return f.Nname.Type() }
+func (f *Func) Sym() *types.Sym    { return f.Nname.Sym() }
+func (f *Func) Linksym() *obj.LSym { return f.Nname.Linksym() }
 
 // An Inline holds fields used for function bodies that can be inlined.
 type Inline struct {
@@ -240,24 +243,13 @@ func FuncSymName(s *types.Sym) string {
 	return s.Name + "·f"
 }
 
-// NewFuncNameAt generates a new name node for a function or method.
-func NewFuncNameAt(pos src.XPos, s *types.Sym, fn *Func) *Name {
-	if fn.Nname != nil {
-		base.Fatalf("newFuncName - already have name")
-	}
-	n := NewNameAt(pos, s)
-	n.SetFunc(fn)
-	fn.Nname = n
-	return n
-}
-
 // MarkFunc marks a node as a function.
 func MarkFunc(n *Name) {
-	if n.Op() != ONAME || n.Class_ != Pxxx {
+	if n.Op() != ONAME || n.Class != Pxxx {
 		base.Fatalf("expected ONAME/Pxxx node, got %v", n)
 	}
 
-	n.Class_ = PFUNC
+	n.Class = PFUNC
 	n.Sym().SetFunc(true)
 }
 

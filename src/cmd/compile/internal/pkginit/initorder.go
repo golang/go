@@ -140,7 +140,7 @@ func (o *InitOrder) processAssign(n ir.Node) {
 		defn := dep.Defn
 		// Skip dependencies on functions (PFUNC) and
 		// variables already initialized (InitDone).
-		if dep.Class_ != ir.PEXTERN || o.order[defn] == orderDone {
+		if dep.Class != ir.PEXTERN || o.order[defn] == orderDone {
 			continue
 		}
 		o.order[n]++
@@ -197,14 +197,14 @@ func (o *InitOrder) findInitLoopAndExit(n *ir.Name, path *[]*ir.Name) {
 
 	// There might be multiple loops involving n; by sorting
 	// references, we deterministically pick the one reported.
-	refers := collectDeps(n.Name().Defn, false).Sorted(func(ni, nj *ir.Name) bool {
+	refers := collectDeps(n.Defn, false).Sorted(func(ni, nj *ir.Name) bool {
 		return ni.Pos().Before(nj.Pos())
 	})
 
 	*path = append(*path, n)
 	for _, ref := range refers {
 		// Short-circuit variables that were initialized.
-		if ref.Class_ == ir.PEXTERN && o.order[ref.Defn] == orderDone {
+		if ref.Class == ir.PEXTERN && o.order[ref.Defn] == orderDone {
 			continue
 		}
 
@@ -221,7 +221,7 @@ func reportInitLoopAndExit(l []*ir.Name) {
 	// the start.
 	i := -1
 	for j, n := range l {
-		if n.Class_ == ir.PEXTERN && (i == -1 || n.Pos().Before(l[i].Pos())) {
+		if n.Class == ir.PEXTERN && (i == -1 || n.Pos().Before(l[i].Pos())) {
 			i = j
 		}
 	}
@@ -291,7 +291,7 @@ func (d *initDeps) visit(n ir.Node) {
 	switch n.Op() {
 	case ir.ONAME:
 		n := n.(*ir.Name)
-		switch n.Class_ {
+		switch n.Class {
 		case ir.PEXTERN, ir.PFUNC:
 			d.foundDep(n)
 		}
@@ -324,7 +324,7 @@ func (d *initDeps) foundDep(n *ir.Name) {
 		return
 	}
 	d.seen.Add(n)
-	if d.transitive && n.Class_ == ir.PFUNC {
+	if d.transitive && n.Class == ir.PFUNC {
 		d.inspectList(n.Defn.(*ir.Func).Body)
 	}
 }

@@ -509,7 +509,7 @@ func EvalConst(n ir.Node) ir.Node {
 				}
 
 				nl := ir.Copy(n).(*ir.AddStringExpr)
-				nl.List.Set(s[i:i2])
+				nl.List = s[i:i2]
 				newList = append(newList, OrigConst(nl, constant.MakeString(strings.Join(strs, ""))))
 				i = i2 - 1
 			} else {
@@ -518,7 +518,7 @@ func EvalConst(n ir.Node) ir.Node {
 		}
 
 		nn := ir.Copy(n).(*ir.AddStringExpr)
-		nn.List.Set(newList)
+		nn.List = newList
 		return nn
 
 	case ir.OCAP, ir.OLEN:
@@ -564,20 +564,11 @@ func EvalConst(n ir.Node) ir.Node {
 	return n
 }
 
-func makeInt(i *big.Int) constant.Value {
-	if i.IsInt64() {
-		return constant.Make(i.Int64()) // workaround #42640 (Int64Val(Make(big.NewInt(10))) returns (10, false), not (10, true))
-	}
-	return constant.Make(i)
-}
-
 func makeFloat64(f float64) constant.Value {
 	if math.IsInf(f, 0) {
 		base.Fatalf("infinity is not a valid constant")
 	}
-	v := constant.MakeFloat64(f)
-	v = constant.ToFloat(v) // workaround #42641 (MakeFloat64(0).Kind() returns Int, not Float)
-	return v
+	return constant.MakeFloat64(f)
 }
 
 func makeComplex(real, imag constant.Value) constant.Value {

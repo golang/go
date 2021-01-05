@@ -102,7 +102,7 @@ func (o *orderState) newTemp(t *types.Type, clear bool) *ir.Name {
 
 // copyExpr behaves like newTemp but also emits
 // code to initialize the temporary to the value n.
-func (o *orderState) copyExpr(n ir.Node) ir.Node {
+func (o *orderState) copyExpr(n ir.Node) *ir.Name {
 	return o.copyExpr1(n, false)
 }
 
@@ -235,7 +235,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 // because we emit explicit VARKILL instructions marking the end of those
 // temporaries' lifetimes.
 func isaddrokay(n ir.Node) bool {
-	return ir.IsAddressable(n) && (n.Op() != ir.ONAME || n.(*ir.Name).Class_ == ir.PEXTERN || ir.IsAutoTmp(n))
+	return ir.IsAddressable(n) && (n.Op() != ir.ONAME || n.(*ir.Name).Class == ir.PEXTERN || ir.IsAutoTmp(n))
 }
 
 // addrTemp ensures that n is okay to pass by address to runtime routines.
@@ -406,7 +406,7 @@ func (o *orderState) edge() {
 	// Create a new uint8 counter to be allocated in section
 	// __libfuzzer_extra_counters.
 	counter := staticinit.StaticName(types.Types[types.TUINT8])
-	counter.Name().SetLibfuzzerExtraCounter(true)
+	counter.SetLibfuzzerExtraCounter(true)
 
 	// counter += 1
 	incr := ir.NewAssignOpStmt(base.Pos, ir.OADD, counter, ir.NewInt(1))
@@ -423,7 +423,7 @@ func orderBlock(n *ir.Nodes, free map[string][]*ir.Name) {
 	order.edge()
 	order.stmtList(*n)
 	order.cleanTemp(mark)
-	n.Set(order.out)
+	*n = order.out
 }
 
 // exprInPlace orders the side effects in *np and
@@ -466,8 +466,7 @@ func (o *orderState) init(n ir.Node) {
 		}
 		return
 	}
-	o.stmtList(n.Init())
-	n.PtrInit().Set(nil)
+	o.stmtList(ir.TakeInit(n))
 }
 
 // call orders the call expression n.
@@ -517,8 +516,8 @@ func (o *orderState) call(nn ir.Node) {
 			if arg.X.Type().IsUnsafePtr() {
 				x := o.copyExpr(arg.X)
 				arg.X = x
-				x.Name().SetAddrtaken(true) // ensure SSA keeps the x variable
-				n.Body.Append(typecheck.Stmt(ir.NewUnaryExpr(base.Pos, ir.OVARLIVE, x)))
+				x.SetAddrtaken(true) // ensure SSA keeps the x variable
+				n.KeepAlive = append(n.KeepAlive, x)
 			}
 		}
 	}
@@ -538,21 +537,7 @@ func (o *orderState) call(nn ir.Node) {
 	}
 }
 
-// mapAssign appends n to o.out, introducing temporaries
-// to make sure that all map assignments have the form m[k] = x.
-// (Note: expr has already been called on n, so we know k is addressable.)
-//
-// If n is the multiple assignment form ..., m[k], ... = ..., x, ..., the rewrite is
-//	t1 = m
-//	t2 = k
-//	...., t3, ... = ..., x, ...
-//	t1[t2] = t3
-//
-// The temporaries t1, t2 are needed in case the ... being assigned
-// contain m or k. They are usually unnecessary, but in the unnecessary
-// cases they are also typically registerizable, so not much harm done.
-// And this only applies to the multiple-assignment form.
-// We could do a more precise analysis if needed, like in walk.go.
+// mapAssign appends n to o.out.
 func (o *orderState) mapAssign(n ir.Node) {
 	switch n.Op() {
 	default:
@@ -573,28 +558,7 @@ func (o *orderState) mapAssign(n ir.Node) {
 
 	case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2MAPR, ir.OAS2FUNC:
 		n := n.(*ir.AssignListStmt)
-		var post []ir.Node
-		for i, m := range n.Lhs {
-			switch {
-			case m.Op() == ir.OINDEXMAP:
-				m := m.(*ir.IndexExpr)
-				if !ir.IsAutoTmp(m.X) {
-					m.X = o.copyExpr(m.X)
-				}
-				if !ir.IsAutoTmp(m.Index) {
-					m.Index = o.copyExpr(m.Index)
-				}
-				fallthrough
-			case base.Flag.Cfg.Instrumenting && n.Op() == ir.OAS2FUNC && !ir.IsBlank(m):
-				t := o.newTemp(m.Type(), false)
-				n.Lhs[i] = t
-				a := ir.NewAssignStmt(base.Pos, m, t)
-				post = append(post, typecheck.Stmt(a))
-			}
-		}
-
 		o.out = append(o.out, n)
-		o.out = append(o.out, post...)
 	}
 }
 
@@ -938,8 +902,7 @@ func (o *orderState) stmt(n ir.Node) {
 				if !ir.IsAutoTmp(recv.X) {
 					recv.X = o.copyExpr(recv.X)
 				}
-				init := *r.PtrInit()
-				r.PtrInit().Set(nil)
+				init := ir.TakeInit(r)
 
 				colas := r.Def
 				do := func(i int, t *types.Type) {
@@ -955,7 +918,7 @@ func (o *orderState) stmt(n ir.Node) {
 						if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].(*ir.Decl).X == n {
 							init = init[1:]
 						}
-						dcl := typecheck.Stmt(ir.NewDecl(base.Pos, ir.ODCL, n))
+						dcl := typecheck.Stmt(ir.NewDecl(base.Pos, ir.ODCL, n.(*ir.Name)))
 						ncas.PtrInit().Append(dcl)
 					}
 					tmp := o.newTemp(t, t.HasPointers())
@@ -1000,8 +963,7 @@ func (o *orderState) stmt(n ir.Node) {
 
 			// TODO(mdempsky): Is this actually necessary?
 			// walkselect appears to walk Ninit.
-			cas.Body.Prepend(cas.Init()...)
-			cas.PtrInit().Set(nil)
+			cas.Body.Prepend(ir.TakeInit(cas)...)
 		}
 
 		o.out = append(o.out, n)
@@ -1236,9 +1198,9 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		// If left-hand side doesn't cause a short-circuit, issue right-hand side.
 		nif := ir.NewIfStmt(base.Pos, r, nil, nil)
 		if n.Op() == ir.OANDAND {
-			nif.Body.Set(gen)
+			nif.Body = gen
 		} else {
-			nif.Else.Set(gen)
+			nif.Else = gen
 		}
 		o.out = append(o.out, nif)
 		return r
@@ -1310,7 +1272,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		return n
 
 	case ir.OCALLPART:
-		n := n.(*ir.CallPartExpr)
+		n := n.(*ir.SelectorExpr)
 		n.X = o.expr(n.X, nil)
 		if n.Transient() {
 			t := typecheck.PartialCallType(n)
@@ -1404,7 +1366,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 
 			statics = append(statics, r)
 		}
-		n.List.Set(statics)
+		n.List = statics
 
 		if len(dynamics) == 0 {
 			return n
@@ -1451,8 +1413,8 @@ func (o *orderState) as2(n *ir.AssignListStmt) {
 	o.out = append(o.out, n)
 
 	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
-	as.Lhs.Set(left)
-	as.Rhs.Set(tmplist)
+	as.Lhs = left
+	as.Rhs = tmplist
 	o.stmt(typecheck.Stmt(as))
 }
 
