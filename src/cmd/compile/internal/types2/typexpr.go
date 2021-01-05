@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -230,13 +229,13 @@ func isubst(x syntax.Expr, smap map[*syntax.Name]*syntax.Name) syntax.Expr {
 	case *syntax.ListExpr:
 		var elems []syntax.Expr
 		for i, elem := range n.ElemList {
-			Elem := isubst(elem, smap)
-			if Elem != elem {
+			new := isubst(elem, smap)
+			if new != elem {
 				if elems == nil {
 					elems = make([]syntax.Expr, len(n.ElemList))
 					copy(elems, n.ElemList)
 				}
-				elems[i] = Elem
+				elems[i] = new
 			}
 		}
 		if elems != nil {
@@ -315,6 +314,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 				for i, t := range sig.rparams {
 					list[i] = t.typ
 				}
+				smap := makeSubstMap(recvTParams, list)
 				for i, tname := range sig.rparams {
 					bound := recvTParams[i].typ.(*TypeParam).bound
 					// bound is (possibly) parameterized in the context of the
@@ -323,7 +323,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 					// TODO(gri) should we assume now that bounds always exist?
 					//           (no bound == empty interface)
 					if bound != nil {
-						bound = check.subst(tname.pos, bound, makeSubstMap(recvTParams, list))
+						bound = check.subst(tname.pos, bound, smap)
 						tname.typ.(*TypeParam).bound = bound
 					}
 				}
@@ -646,9 +646,9 @@ func (check *Checker) instantiatedType(x syntax.Expr, targs []syntax.Expr, def *
 		unreachable() // should have been caught by genericType
 	}
 
-	// create a new type Instance rather than instantiate the type
+	// create a new type instance rather than instantiate the type
 	// TODO(gri) should do argument number check here rather than
-	// when instantiating the type?
+	//           when instantiating the type?
 	typ := new(instance)
 	def.setUnderlying(typ)
 
@@ -1118,8 +1118,9 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 			add(f.Name, false, f.Name.Pos())
 		} else {
 			// embedded field
-			// spec: "An embedded type must be specified as a (possibly parenthesized) type name T or
-			// as a pointer to a non-interface type name *T, and T itself may not be a pointer type."
+			// spec: "An embedded type must be specified as a type name T or as a
+			// pointer to a non-interface type name *T, and T itself may not be a
+			// pointer type."
 			pos := startPos(f.Type)
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
@@ -1129,6 +1130,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 				continue
 			}
 			add(name, true, pos)
+
 			// Because we have a name, typ must be of the form T or *T, where T is the name
 			// of a (named or alias) type, and t (= deref(typ)) must be the type of T.
 			// We must delay this check to the end because we don't want to instantiate
@@ -1204,20 +1206,18 @@ func (check *Checker) collectTypeConstraints(pos syntax.Pos, types []syntax.Expr
 		list = append(list, typ)
 	}
 
-	// Ensure that each type is only present once in the type list.
-	// Types may be interfaces, which may not be complete yet. It's
-	// ok to do this check at the end because it's not a requirement
-	// for correctness of the code.
+	// Ensure that each type is only present once in the type list.  Types may be
+	// interfaces, which may not be complete yet. It's ok to do this check at the
+	// end because it's not a requirement for correctness of the code.
+	// Note: This is a quadratic algorithm, but type lists tend to be short.
 	check.atEnd(func() {
-		uniques := make([]Type, 0, len(list)) // assume all types are unique
 		for i, t := range list {
 			if t := t.Interface(); t != nil {
 				check.completeInterface(types[i].Pos(), t)
 			}
-			if includes(uniques, t) {
+			if includes(list[:i], t) {
 				check.softErrorf(types[i], "duplicate type %s in type list", t)
 			}
-			uniques = append(uniques, t)
 		}
 	})
 
