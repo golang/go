@@ -181,7 +181,9 @@ var optab = []Optab{
 	{as: ASRAD, a1: C_SCON, a2: C_REG, a6: C_REG, type_: 56, size: 4},
 	{as: ASRAD, a1: C_SCON, a6: C_REG, type_: 56, size: 4},
 	{as: ARLWMI, a1: C_SCON, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 62, size: 4},
+	{as: ARLWMI, a1: C_SCON, a2: C_REG, a3: C_SCON, a4: C_SCON, a6: C_REG, type_: 102, size: 4},
 	{as: ARLWMI, a1: C_REG, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 63, size: 4},
+	{as: ARLWMI, a1: C_REG, a2: C_REG, a3: C_SCON, a4: C_SCON, a6: C_REG, type_: 103, size: 4},
 	{as: ACLRLSLWI, a1: C_SCON, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 62, size: 4},
 	{as: ARLDMI, a1: C_SCON, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 30, size: 4},
 	{as: ARLDC, a1: C_SCON, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 29, size: 4},
@@ -3861,6 +3863,17 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 	case 101:
 		o1 = AOP_XX2(c.oprrr(p.As), uint32(p.To.Reg), uint32(0), uint32(p.From.Reg))
+
+	case 102: /* RLWMI $sh,rs,$mb,$me,rt (M-form opcode)*/
+		mb := uint32(c.regoff(&p.RestArgs[0].Addr))
+		me := uint32(c.regoff(&p.RestArgs[1].Addr))
+		sh := uint32(c.regoff(&p.From))
+		o1 = OP_RLW(c.opirr(p.As), uint32(p.To.Reg), uint32(p.Reg), sh, mb, me)
+
+	case 103: /* RLWMI rb,rs,$mb,$me,rt (M-form opcode)*/
+		mb := uint32(c.regoff(&p.RestArgs[0].Addr))
+		me := uint32(c.regoff(&p.RestArgs[1].Addr))
+		o1 = OP_RLW(c.oprrr(p.As), uint32(p.To.Reg), uint32(p.Reg), uint32(p.From.Reg), mb, me)
 	}
 
 	out[0] = o1

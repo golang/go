@@ -653,21 +653,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 		// Auxint holds encoded rotate + mask
 	case ssa.OpPPC64RLWINM, ssa.OpPPC64RLWMI:
-		rot, _, _, mask := ssa.DecodePPC64RotateMask(v.AuxInt)
+		rot, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
 		p.Reg = v.Args[0].Reg()
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(rot)}
-		p.SetFrom3Const(int64(mask))
+		p.SetRestArgs([]obj.Addr{{Type: obj.TYPE_CONST, Offset: mb}, {Type: obj.TYPE_CONST, Offset: me}})
 
 		// Auxint holds mask
 	case ssa.OpPPC64RLWNM:
-		_, _, _, mask := ssa.DecodePPC64RotateMask(v.AuxInt)
+		_, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
 		p.Reg = v.Args[0].Reg()
 		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[1].Reg()}
-		p.SetFrom3Const(int64(mask))
+		p.SetRestArgs([]obj.Addr{{Type: obj.TYPE_CONST, Offset: mb}, {Type: obj.TYPE_CONST, Offset: me}})
 
 	case ssa.OpPPC64MADDLD:
 		r := v.Reg()
