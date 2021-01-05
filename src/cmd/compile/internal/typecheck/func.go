@@ -106,26 +106,7 @@ func PartialCallType(n *ir.SelectorExpr) *types.Type {
 // We use value capturing for values <= 128 bytes that are never reassigned
 // after capturing (effectively constant).
 func CaptureVars(fn *ir.Func) {
-	lno := base.Pos
-	base.Pos = fn.Pos()
-	cvars := fn.ClosureVars
-	out := cvars[:0]
-	for _, v := range cvars {
-		if v.Type() == nil {
-			// If v.Type is nil, it means v looked like it
-			// was going to be used in the closure, but
-			// isn't. This happens in struct literals like
-			// s{f: x} where we can't distinguish whether
-			// f is a field identifier or expression until
-			// resolving s.
-			continue
-		}
-		out = append(out, v)
-
-		// type check closed variables outside the closure,
-		// so that the outer frame also grabs them and knows they escape.
-		Expr(v.Outer)
-
+	for _, v := range fn.ClosureVars {
 		outermost := v.Defn.(*ir.Name)
 
 		// out parameters will be assigned to implicitly upon return.
@@ -136,20 +117,13 @@ func CaptureVars(fn *ir.Func) {
 		}
 
 		if base.Flag.LowerM > 1 {
-			var name *types.Sym
-			if v.Curfn != nil && v.Curfn.Nname != nil {
-				name = v.Curfn.Sym()
-			}
 			how := "ref"
 			if v.Byval() {
 				how = "value"
 			}
-			base.WarnfAt(v.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym(), outermost.Addrtaken(), outermost.Assigned(), v.Type().Size())
+			base.WarnfAt(v.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", v.Curfn, how, v, outermost.Addrtaken(), outermost.Assigned(), v.Type().Size())
 		}
 	}
-
-	fn.ClosureVars = out
-	base.Pos = lno
 }
 
 // Lazy typechecking of imported bodies. For local functions, caninl will set ->typecheck
@@ -395,6 +369,25 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 		decldepth = olddd
 		ir.CurFunc = oldfn
 	}
+
+	out := 0
+	for _, v := range fn.ClosureVars {
+		if v.Type() == nil {
+			// If v.Type is nil, it means v looked like it was going to be
+			// used in the closure, but isn't. This happens in struct
+			// literals like s{f: x} where we can't distinguish whether f is
+			// a field identifier or expression until resolving s.
+			continue
+		}
+
+		// type check closed variables outside the closure, so that the
+		// outer frame also captures them.
+		Expr(v.Outer)
+
+		fn.ClosureVars[out] = v
+		out++
+	}
+	fn.ClosureVars = fn.ClosureVars[:out]
 
 	Target.Decls = append(Target.Decls, fn)
 }
