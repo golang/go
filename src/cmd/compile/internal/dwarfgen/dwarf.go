@@ -127,10 +127,7 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
 }
 
 func declPos(decl *ir.Name) src.XPos {
-	if decl.IsClosureVar() {
-		decl = decl.Defn.(*ir.Name)
-	}
-	return decl.Pos()
+	return decl.Canonical().Pos()
 }
 
 // createDwarfVars process fn, returning a list of DWARF variables and the
