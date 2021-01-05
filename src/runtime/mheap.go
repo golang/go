@@ -1419,6 +1419,12 @@ func (h *mheap) freeSpan(s *mspan) {
 			bytes := s.npages << _PageShift
 			msanfree(base, bytes)
 		}
+		if asanenabled {
+			// Tell asan that this entire span is no longer in use.
+			base := unsafe.Pointer(s.base())
+			bytes := s.npages << _PageShift
+			asanpoison(base, bytes)
+		}
 		h.freeSpanLocked(s, spanAllocHeap)
 		unlock(&h.lock)
 	})
