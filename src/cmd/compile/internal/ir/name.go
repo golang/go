@@ -341,9 +341,6 @@ func (n *Name) SetVal(v constant.Value) {
 func (n *Name) Canonical() *Name {
 	if n.IsClosureVar() {
 		n = n.Defn.(*Name)
-		if n.IsClosureVar() {
-			base.Fatalf("recursive closure variable: %v", n)
-		}
 	}
 	return n
 }
