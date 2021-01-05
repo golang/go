@@ -1612,6 +1612,14 @@ func checklvalue(n ir.Node, verb string) {
 }
 
 func checkassign(stmt ir.Node, n ir.Node) {
+	// have already complained about n being invalid
+	if n.Type() == nil {
+		if base.Errors() == 0 {
+			base.Fatalf("expected an error about %v", n)
+		}
+		return
+	}
+
 	// Variables declared in ORANGE are assigned on every iteration.
 	if !ir.DeclaredBy(n, stmt) || stmt.Op() == ir.ORANGE {
 		r := ir.OuterValue(n)
@@ -1630,11 +1638,6 @@ func checkassign(stmt ir.Node, n ir.Node) {
 	if n.Op() == ir.OINDEXMAP {
 		n := n.(*ir.IndexExpr)
 		n.Assigned = true
-		return
-	}
-
-	// have already complained about n being invalid
-	if n.Type() == nil {
 		return
 	}
 

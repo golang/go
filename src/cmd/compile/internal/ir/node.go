@@ -568,7 +568,10 @@ func OuterValue(n Node) Node {
 			continue
 		case OINDEX:
 			nn := nn.(*IndexExpr)
-			if nn.X.Type() != nil && nn.X.Type().IsArray() {
+			if nn.X.Type() == nil {
+				base.Fatalf("OuterValue needs type for %v", nn.X)
+			}
+			if nn.X.Type().IsArray() {
 				n = nn.X
 				continue
 			}
