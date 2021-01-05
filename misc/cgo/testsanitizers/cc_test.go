@@ -267,6 +267,9 @@ func configure(sanitizer string) *config {
 			c.ldFlags = append(c.ldFlags, "-fPIC", "-static-libtsan")
 		}
 
+	case "address":
+		c.goFlags = append(c.goFlags, "-asan")
+
 	default:
 		panic(fmt.Sprintf("unrecognized sanitizer: %q", sanitizer))
 	}
@@ -443,6 +446,17 @@ func hangProneCmd(name string, arg ...string) *exec.Cmd {
 // mSanSupported is a copy of the function cmd/internal/sys.MSanSupported,
 // because the internal pacakage can't be used here.
 func mSanSupported(goos, goarch string) bool {
+	switch goos {
+	case "linux":
+		return goarch == "amd64" || goarch == "arm64"
+	default:
+		return false
+	}
+}
+
+// aSanSupported is a copy of the function cmd/internal/sys.ASanSupported,
+// because the internal pacakage can't be used here.
+func aSanSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
 		return goarch == "amd64" || goarch == "arm64"
