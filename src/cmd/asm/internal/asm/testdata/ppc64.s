@@ -280,11 +280,17 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	ROTLW R3, R4, R5                // 5c85183e
 	EXTSWSLI $3, R4, R5             // 7c851ef4
 	RLWMI $7, R3, $65535, R6        // 50663c3e
+	RLWMI $7, R3, $16, $31, R6      // 50663c3e
 	RLWMICC $7, R3, $65535, R6      // 50663c3f
+	RLWMICC $7, R3, $16, $31, R6    // 50663c3f
 	RLWNM $3, R4, $7, R6            // 54861f7e
+	RLWNM $3, R4, $29, $31, R6      // 54861f7e
 	RLWNM R3, R4, $7, R6            // 5c861f7e
+	RLWNM R3, R4, $29, $31, R6      // 5c861f7e
 	RLWNMCC $3, R4, $7, R6          // 54861f7f
+	RLWNMCC $3, R4, $29, $31, R6    // 54861f7f
 	RLWNMCC R3, R4, $7, R6          // 5c861f7f
+	RLWNMCC R3, R4, $29, $31, R6    // 5c861f7f
 	RLDMI $0, R4, $7, R6            // 7886076c
 	RLDMICC $0, R4, $7, R6          // 7886076d
 	RLDIMI $0, R4, $7, R6           // 788601cc

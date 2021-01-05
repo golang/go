@@ -799,19 +799,11 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 		p.errorf("can't handle %s instruction with 4 operands", op)
 		return
 	case 5:
-		if p.arch.Family == sys.PPC64 && arch.IsPPC64RLD(op) {
-			// Always reg, reg, con, con, reg.  (con, con is a 'mask').
+		if p.arch.Family == sys.PPC64 {
 			prog.From = a[0]
+			// Second arg is always a register type on ppc64.
 			prog.Reg = p.getRegister(prog, op, &a[1])
-			mask1 := p.getConstant(prog, op, &a[2])
-			mask2 := p.getConstant(prog, op, &a[3])
-			var mask uint32
-			if mask1 < mask2 {
-				mask = (^uint32(0) >> uint(mask1)) & (^uint32(0) << uint(31-mask2))
-			} else {
-				mask = (^uint32(0) >> uint(mask2+1)) & (^uint32(0) << uint(31-(mask1-1)))
-			}
-			prog.SetFrom3Const(int64(mask))
+			prog.SetRestArgs([]obj.Addr{a[2], a[3]})
 			prog.To = a[4]
 			break
 		}
