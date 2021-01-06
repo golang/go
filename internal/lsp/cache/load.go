@@ -220,23 +220,24 @@ and you can learn more here: https://github.com/golang/go/issues/36899.`
 		for uri := range s.workspace.getActiveModFiles() {
 			rootModURI = uri
 		}
-		nestedModules := map[span.URI][]source.VersionedFileHandle{}
+		nestedModules := map[string][]source.VersionedFileHandle{}
 		for _, fh := range openFiles {
 			modURI := moduleForURI(s.workspace.knownModFiles, fh.URI())
 			if modURI != rootModURI {
-				nestedModules[modURI] = append(nestedModules[modURI], fh)
+				modDir := filepath.Dir(modURI.Filename())
+				nestedModules[modDir] = append(nestedModules[modDir], fh)
 			}
 		}
 		// Add a diagnostic to each file in a nested module to mark it as
 		// "orphaned". Don't show a general diagnostic in the progress bar,
 		// because the user may still want to edit a file in a nested module.
 		var srcErrs []*source.Error
-		for modURI, uris := range nestedModules {
+		for modDir, uris := range nestedModules {
 			msg := fmt.Sprintf(`This file is in %s, which is a nested module in the %s module.
 gopls currently requires one module per workspace folder.
 Please open %s as a separate workspace folder.
 You can learn more here: https://github.com/golang/go/issues/36899.
-`, modURI.Filename(), rootModURI.Filename(), modURI.Filename())
+`, modDir, filepath.Dir(rootModURI.Filename()), modDir)
 			srcErrs = append(srcErrs, s.applyCriticalErrorToFiles(ctx, msg, uris)...)
 		}
 		if len(srcErrs) != 0 {
