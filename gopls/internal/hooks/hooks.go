@@ -17,6 +17,7 @@ import (
 )
 
 func Options(options *source.Options) {
+	options.LicensesText = licensesText
 	if options.GoDiff {
 		options.ComputeEdits = ComputeEdits
 	}

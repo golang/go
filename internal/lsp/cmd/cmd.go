@@ -171,6 +171,7 @@ func (app *Application) mainCommands() []tool.Application {
 		&version{app: app},
 		&bug{},
 		&apiJSON{},
+		&licenses{app: app},
 	}
 }
 

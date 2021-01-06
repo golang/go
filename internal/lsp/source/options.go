@@ -410,6 +410,7 @@ func (u *UserOptions) SetEnvSlice(env []string) {
 // Hooks contains configuration that is provided to the Gopls command by the
 // main package.
 type Hooks struct {
+	LicensesText         string
 	GoDiff               bool
 	ComputeEdits         diff.ComputeEdits
 	URLRegexp            *regexp.Regexp

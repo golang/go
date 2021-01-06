@@ -86,19 +86,98 @@ func (b *bug) Run(ctx context.Context, args ...string) error {
 
 type apiJSON struct{}
 
-func (sj *apiJSON) Name() string      { return "api-json" }
-func (sj *apiJSON) Usage() string     { return "" }
-func (sj *apiJSON) ShortHelp() string { return "print json describing gopls API" }
-func (sj *apiJSON) DetailedHelp(f *flag.FlagSet) {
+func (j *apiJSON) Name() string      { return "api-json" }
+func (j *apiJSON) Usage() string     { return "" }
+func (j *apiJSON) ShortHelp() string { return "print json describing gopls API" }
+func (j *apiJSON) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), ``)
 	f.PrintDefaults()
 }
 
-func (sj *apiJSON) Run(ctx context.Context, args ...string) error {
+func (j *apiJSON) Run(ctx context.Context, args ...string) error {
 	js, err := json.MarshalIndent(source.GeneratedAPIJSON, "", "\t")
 	if err != nil {
 		return err
 	}
 	fmt.Fprint(os.Stdout, string(js))
+	return nil
+}
+
+type licenses struct {
+	app *Application
+}
+
+func (l *licenses) Name() string      { return "licenses" }
+func (l *licenses) Usage() string     { return "" }
+func (l *licenses) ShortHelp() string { return "print licenses of included software" }
+func (l *licenses) DetailedHelp(f *flag.FlagSet) {
+	fmt.Fprint(f.Output(), ``)
+	f.PrintDefaults()
+}
+
+const licensePreamble = `
+gopls is made available under the following BSD-style license:
+
+Copyright (c) 2009 The Go Authors. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+   * Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+   * Redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the following disclaimer
+in the documentation and/or other materials provided with the
+distribution.
+   * Neither the name of Google Inc. nor the names of its
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+gopls implements the LSP specification, which is made available under the following license:
+
+Copyright (c) Microsoft Corporation
+
+All rights reserved.
+
+MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation
+files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy,
+modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
+OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+gopls also includes software made available under these licenses:
+`
+
+func (l *licenses) Run(ctx context.Context, args ...string) error {
+	opts := source.DefaultOptions()
+	l.app.options(opts)
+	txt := licensePreamble
+	if opts.LicensesText == "" {
+		txt += "(development gopls, license information not available)"
+	} else {
+		txt += opts.LicensesText
+	}
+	fmt.Fprintf(os.Stdout, txt)
 	return nil
 }
