@@ -86,6 +86,7 @@ func sendCtrlBreak(pid int) error {
 // See https://golang.org/issues/41884.
 func TestCtrlHandler(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	t.Parallel()
 
 	// build go program
 	exe := filepath.Join(t.TempDir(), "test.exe")
@@ -106,26 +107,28 @@ func TestCtrlHandler(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
 
-	// run test program
-	cmd = exec.CommandContext(ctx, "cmd.exe", "/c", "start", "", "/wait", exe, conn.LocalAddr().String())
+	// run test program, in a new command window
+	cmd = exec.CommandContext(ctx, "cmd.exe", "/c", "start", "Test Command Window", "/wait", exe, conn.LocalAddr().String())
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
 
-	// read pid
+	// read pid of the test program
+	// cmd.Process.Pid is the pid of cmd.exe, not test.exe
+	// also ensures the test program is ready to receive signals
 	var data [512]byte
 	n, _, err := conn.ReadFrom(data[:])
 	if err != nil {
 		t.Fatalf("ReadFrom failed: %v", err)
 	}
 
-	// gracefully kill pid
+	// gracefully kill pid, this closes the command window
 	err = exec.Command("taskkill.exe", "/pid", string(data[:n])).Run()
 	if err != nil {
 		t.Fatalf("failed to kill: %v", err)
 	}
 
-	// check received signal
+	// check child received, handled SIGTERM
 	n, _, err = conn.ReadFrom(data[:])
 	if err != nil {
 		t.Fatalf("ReadFrom failed: %v", err)
@@ -134,6 +137,7 @@ func TestCtrlHandler(t *testing.T) {
 		t.Fatalf("Expected '%s' got: %s", expected, got)
 	}
 
+	// check child exited gracefully (exit code 0, didn't timeout)
 	if err := cmd.Wait(); err != nil {
 		t.Fatalf("Program exited with error: %v", err)
 	}
