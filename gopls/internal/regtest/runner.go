@@ -308,6 +308,7 @@ var longBuilders = map[string]string{
 	"netbsd-arm-bsiegert":     "",
 	"solaris-amd64-oraclerel": "",
 	"windows-arm-zx2c4":       "",
+	"android-amd64-emu":       "golang.org/issue/43554",
 }
 
 func checkBuilder(t *testing.T) {
