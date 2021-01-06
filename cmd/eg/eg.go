@@ -1,3 +1,7 @@
+// Copyright 2014 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // The eg command performs example-based refactoring.
 // For documentation, run the command, or see Help in
 // golang.org/x/tools/refactor/eg.

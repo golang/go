@@ -1,3 +1,7 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // TODO: test swap corresponding types (e.g. u1 <-> u2 and u2 <-> u1)
 // TODO: test exported alias refers to something in another package -- does correspondence work then?
 // TODO: CODE COVERAGE
