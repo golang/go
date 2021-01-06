@@ -43,7 +43,8 @@ func canUseKDSA(c elliptic.Curve) (functionCode uint64, blockSize int, ok bool) 
 
 func hashToBytes(dst, hash []byte, c elliptic.Curve) {
 	l := len(dst)
-	if n := c.Params().N.BitLen(); n == l*8 {
+	orderBits := c.Params().N.BitLen()
+	if orderBits == l*8 {
 		// allocation free path for curves with a length that is a whole number of bytes
 		if len(hash) >= l {
 			// truncate hash
@@ -58,8 +59,15 @@ func hashToBytes(dst, hash []byte, c elliptic.Curve) {
 		copy(dst[p:], hash)
 		return
 	}
-	// TODO(mundaym): avoid hashToInt call here
-	hashToInt(hash, c).FillBytes(dst)
+	orderBytes := (orderBits + 7) / 8
+	excess := len(dst) - orderBytes
+	if excess < 0 {
+		panic("crypto/ecdsa: dst too small to fit value")
+	}
+	for i := 0; i < excess; i++ {
+		dst[i] = 0
+	}
+	copy(dst[excess:], hash[:orderBytes])
 }
 
 func sign(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, hash []byte) (r, s *big.Int, err error) {
