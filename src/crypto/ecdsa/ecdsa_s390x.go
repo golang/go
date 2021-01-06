@@ -69,26 +69,26 @@ func hashToBytes(dst, hash []byte, c elliptic.Curve) {
 		panic("crypto/ecdsa: dst too small to fit value")
 	}
 
-	// figure out the excess bits between the hash size and order of the curve
-	pad := lenDst - orderBytes
-
 	// pad with zeros
+	pad := lenDst - orderBits/8
 	for i := 0; i <= pad; i++ {
 		dst[i] = 0
 	}
 
+	// figure out the excess bits between the hash size and order of the curve
+	excess := lenDst - orderBytes
+
 	// determine the shifts needed
-	shiftBits := ((orderBits - 1) % 8) + 1
-	truncateBits := (8 - shiftBits) % 8
+	truncateBits := ((orderBits - 1) % 8) + 1
+	shiftBits := (8 - truncateBits) % 8
 
 	// loop over the bytes fill in the dst values
 	carry := byte(0)
-	for i := orderBytes - 1; i >= 0; i-- {
-		dst[pad+i] = (hash[i] << shiftBits)
-		dst[pad+i] |= carry
-		carry = hash[i] >> truncateBits
+	for i := 0; i < orderBytes; i++ {
+		dst[excess+i] = (hash[i] >> shiftBits)
+		dst[excess+i] |= carry
+		carry = hash[i] << truncateBits
 	}
-	dst[pad-1] |= carry
 }
 
 func sign(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, hash []byte) (r, s *big.Int, err error) {
