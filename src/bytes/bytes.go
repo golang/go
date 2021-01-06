@@ -543,6 +543,39 @@ func HasSuffix(s, suffix []byte) bool {
 	return len(s) >= len(suffix) && Equal(s[len(s)-len(suffix):], suffix)
 }
 
+// Left shift an arbitrary amount
+func Lsh(dst []byte, shiftBits int) {
+	lenDst := len(dst)
+	if shiftBits == 0 || lenDst == 0 {
+		return
+	} else if shiftBits < 0 {
+		panic("bytes error: negative shift amount")
+	}
+
+	// determine the pad bytes
+	pad := shiftBits / 8
+
+	if shiftBits < lenDst*8 {
+
+		// preset shift registers
+		shift := shiftBits % 8
+		trunc := 8 - shift
+
+		// do the shift
+		for i := 0; i < lenDst-pad-1; i++ {
+			dst[i] = (dst[i+pad] << shift) | (dst[i+pad+1] >> trunc)
+		}
+		dst[lenDst-pad-1] = dst[lenDst-1] << shift
+	} else {
+		pad = lenDst
+	}
+
+	// pad out the rest
+	for i := lenDst - pad; i < lenDst; i++ {
+		dst[i] = 0
+	}
+}
+
 // Map returns a copy of the byte slice s with all its characters modified
 // according to the mapping function. If mapping returns a negative value, the character is
 // dropped from the byte slice with no replacement. The characters in s and the
@@ -605,6 +638,39 @@ func Repeat(b []byte, count int) []byte {
 		bp *= 2
 	}
 	return nb
+}
+
+// Right shift an arbitrary amount
+func Rsh(dst []byte, shiftBits int) {
+	lenDst := len(dst)
+	if shiftBits == 0 || lenDst == 0 {
+		return
+	} else if shiftBits < 0 {
+		panic("bytes error: negative shift amount")
+	}
+
+	// determine the pad bytes
+	pad := shiftBits / 8
+
+	if shiftBits < lenDst*8 {
+
+		// preset shift registers
+		shift := shiftBits % 8
+		trunc := 8 - shift
+
+		// do the shift
+		for i := lenDst - 1; i > pad; i-- {
+			dst[i] = (dst[i-pad] >> shift) | (dst[i-pad-1] << trunc)
+		}
+		dst[pad] = dst[0] >> shift
+	} else {
+		pad = lenDst
+	}
+
+	// pad out the rest
+	for i := 0; i < pad; i++ {
+		dst[i] = 0
+	}
 }
 
 // ToUpper returns a copy of the byte slice s with all Unicode letters mapped to
