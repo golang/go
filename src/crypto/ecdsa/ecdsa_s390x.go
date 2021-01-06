@@ -42,32 +42,51 @@ func canUseKDSA(c elliptic.Curve) (functionCode uint64, blockSize int, ok bool) 
 }
 
 func hashToBytes(dst, hash []byte, c elliptic.Curve) {
-	l := len(dst)
+	lenDst := len(dst)
 	orderBits := c.Params().N.BitLen()
-	if orderBits == l*8 {
+	fmt.Println("order bits", orderBits)
+	if orderBits == lenDst*8 {
 		// allocation free path for curves with a length that is a whole number of bytes
-		if len(hash) >= l {
+		if len(hash) >= lenDst {
 			// truncate hash
-			copy(dst, hash[:l])
+			copy(dst, hash[:lenDst])
 			return
 		}
 		// pad hash with leading zeros
-		p := l - len(hash)
+		p := lenDst - len(hash)
 		for i := 0; i < p; i++ {
 			dst[i] = 0
 		}
 		copy(dst[p:], hash)
 		return
 	}
+
+	// determine the order of the curve in bytes
 	orderBytes := (orderBits + 7) / 8
-	excess := len(dst) - orderBytes
-	if excess < 0 {
+
+	// fail out early if there are not enough bytes
+	if lenDst < orderBytes {
 		panic("crypto/ecdsa: dst too small to fit value")
 	}
-	for i := 0; i < excess; i++ {
+
+	// figure out the excess bits between the hash size and order of the curve
+	pad := lenDst - (orderBits / 8)
+
+	// pad with zeros
+	for i := 0; i < pad; i++ {
 		dst[i] = 0
 	}
-	copy(dst[excess:], hash[:orderBytes])
+
+	// determine the shifts needed
+	truncateBits := ((orderBits - 1) % 8) + 1
+	shiftBits := (8 - truncateBits) % 8
+
+	// loop over the bytes fill in the dst values
+	carry := byte(0)
+	for i := orderBytes - 1; i >= 0; i-- {
+		dst[pad+i] = (hash[i] << shiftBits) | carry
+		carry = hash[i] >> truncateBits
+	}
 }
 
 func sign(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, hash []byte) (r, s *big.Int, err error) {
