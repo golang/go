@@ -70,23 +70,25 @@ func hashToBytes(dst, hash []byte, c elliptic.Curve) {
 	}
 
 	// figure out the excess bits between the hash size and order of the curve
-	pad := lenDst - (orderBits / 8)
+	pad := lenDst - orderBytes
 
 	// pad with zeros
-	for i := 0; i < pad; i++ {
+	for i := 0; i <= pad; i++ {
 		dst[i] = 0
 	}
 
 	// determine the shifts needed
-	truncateBits := ((orderBits - 1) % 8) + 1
-	shiftBits := (8 - truncateBits) % 8
+	shiftBits := ((orderBits - 1) % 8) + 1
+	truncateBits := (8 - shiftBits) % 8
 
 	// loop over the bytes fill in the dst values
 	carry := byte(0)
 	for i := orderBytes - 1; i >= 0; i-- {
-		dst[pad+i] = (hash[i] << shiftBits) | carry
+		dst[pad+i] = (hash[i] << shiftBits)
+		dst[pad+i] |= carry
 		carry = hash[i] >> truncateBits
 	}
+	dst[pad-1] |= carry
 }
 
 func sign(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, hash []byte) (r, s *big.Int, err error) {
