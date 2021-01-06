@@ -78,7 +78,9 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 		// unnecessary work and potentially mess up the go.mod file.
 		if s.cleanupProcessEnv != nil {
 			if resolver, err := s.processEnv.GetResolver(); err == nil {
-				resolver.(*imports.ModuleResolver).ClearForNewMod()
+				if modResolver, ok := resolver.(*imports.ModuleResolver); ok {
+					modResolver.ClearForNewMod()
+				}
 			}
 			s.cleanupProcessEnv()
 		}
