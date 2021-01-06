@@ -26,7 +26,9 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	case constant_, variable, mapindex, value, commaok, commaerr:
 		// ok
 	default:
-		unreachable()
+		// we may get here because of other problems (issue #39634, crash 12)
+		check.errorf(x, 0, "cannot assign %s to %s in %s", x, T, context)
+		return
 	}
 
 	if isUntyped(x.typ) {
@@ -65,6 +67,11 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		}
 	}
 	// x.typ is typed
+
+	// A generic (non-instantiated) function value cannot be assigned to a variable.
+	if sig := asSignature(x.typ); sig != nil && len(sig.tparams) > 0 {
+		check.errorf(x, 0, "cannot use generic function %s without instantiation in %s", x, context)
+	}
 
 	// spec: "If a left-hand side is the blank identifier, any typed or
 	// non-constant value except for the predeclared identifier nil may
@@ -148,6 +155,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
 
 func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 	if x.mode == invalid || x.typ == Typ[Invalid] {
+		check.useLHS(lhs)
 		return nil
 	}
 
@@ -221,25 +229,27 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 
 // If returnPos is valid, initVars is called to type-check the assignment of
 // return expressions, and returnPos is the position of the return statement.
-func (check *Checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) {
-	l := len(lhs)
-	get, r, commaOk := unpack(func(x *operand, i int) { check.multiExpr(x, rhs[i]) }, len(rhs), l == 2 && !returnPos.IsValid())
-	if get == nil || l != r {
-		// invalidate lhs and use rhs
+func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnPos token.Pos) {
+	rhs, commaOk := check.exprList(origRHS, len(lhs) == 2 && !returnPos.IsValid())
+
+	if len(lhs) != len(rhs) {
+		// invalidate lhs
 		for _, obj := range lhs {
 			if obj.typ == nil {
 				obj.typ = Typ[Invalid]
 			}
 		}
-		if get == nil {
-			return // error reported by unpack
+		// don't report an error if we already reported one
+		for _, x := range rhs {
+			if x.mode == invalid {
+				return
+			}
 		}
-		check.useGetter(get, r)
 		if returnPos.IsValid() {
-			check.errorf(atPos(returnPos), _WrongResultCount, "wrong number of return values (want %d, got %d)", l, r)
+			check.errorf(atPos(returnPos), _WrongResultCount, "wrong number of return values (want %d, got %d)", len(lhs), len(rhs))
 			return
 		}
-		check.errorf(rhs[0], _WrongAssignCount, "cannot initialize %d variables with %d values", l, r)
+		check.errorf(rhs[0], _WrongAssignCount, "cannot initialize %d variables with %d values", len(lhs), len(rhs))
 		return
 	}
 
@@ -248,50 +258,46 @@ func (check *Checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) 
 		context = "return statement"
 	}
 
-	var x operand
 	if commaOk {
 		var a [2]Type
 		for i := range a {
-			get(&x, i)
-			a[i] = check.initVar(lhs[i], &x, context)
+			a[i] = check.initVar(lhs[i], rhs[i], context)
 		}
-		check.recordCommaOkTypes(rhs[0], a)
+		check.recordCommaOkTypes(origRHS[0], a)
 		return
 	}
 
 	for i, lhs := range lhs {
-		get(&x, i)
-		check.initVar(lhs, &x, context)
+		check.initVar(lhs, rhs[i], context)
 	}
 }
 
-func (check *Checker) assignVars(lhs, rhs []ast.Expr) {
-	l := len(lhs)
-	get, r, commaOk := unpack(func(x *operand, i int) { check.multiExpr(x, rhs[i]) }, len(rhs), l == 2)
-	if get == nil {
+func (check *Checker) assignVars(lhs, origRHS []ast.Expr) {
+	rhs, commaOk := check.exprList(origRHS, len(lhs) == 2)
+
+	if len(lhs) != len(rhs) {
 		check.useLHS(lhs...)
-		return // error reported by unpack
-	}
-	if l != r {
-		check.useGetter(get, r)
-		check.errorf(rhs[0], _WrongAssignCount, "cannot assign %d values to %d variables", r, l)
+		// don't report an error if we already reported one
+		for _, x := range rhs {
+			if x.mode == invalid {
+				return
+			}
+		}
+		check.errorf(rhs[0], _WrongAssignCount, "cannot assign %d values to %d variables", len(rhs), len(lhs))
 		return
 	}
 
-	var x operand
 	if commaOk {
 		var a [2]Type
 		for i := range a {
-			get(&x, i)
-			a[i] = check.assignVar(lhs[i], &x)
+			a[i] = check.assignVar(lhs[i], rhs[i])
 		}
-		check.recordCommaOkTypes(rhs[0], a)
+		check.recordCommaOkTypes(origRHS[0], a)
 		return
 	}
 
 	for i, lhs := range lhs {
-		get(&x, i)
-		check.assignVar(lhs, &x)
+		check.assignVar(lhs, rhs[i])
 	}
 }
 
