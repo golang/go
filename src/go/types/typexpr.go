@@ -1144,17 +1144,7 @@ func (check *Checker) collectTypeConstraints(pos token.Pos, types []ast.Expr) []
 			check.invalidAST(atPos(pos), "missing type constraint")
 			continue
 		}
-		typ := check.varType(texpr)
-		// A type constraint may be a predeclared type or a composite type composed
-		// of only predeclared types.
-		// TODO(gri) If we enable this again it also must run at the end.
-		const restricted = false
-		var why string
-		if restricted && !check.typeConstraint(typ, &why) {
-			check.errorf(texpr, 0, "invalid type constraint %s (%s)", typ, why)
-			continue
-		}
-		list = append(list, typ)
+		list = append(list, check.varType(texpr))
 	}
 
 	// Ensure that each type is only present once in the type list.  Types may be
@@ -1183,60 +1173,4 @@ func includes(list []Type, typ Type) bool {
 		}
 	}
 	return false
-}
-
-// typeConstraint checks that typ may be used in a type list.
-// For now this just checks for the absence of defined (*Named) types.
-func (check *Checker) typeConstraint(typ Type, why *string) bool {
-	switch t := typ.(type) {
-	case *Basic:
-		// ok
-	case *Array:
-		return check.typeConstraint(t.elem, why)
-	case *Slice:
-		return check.typeConstraint(t.elem, why)
-	case *Struct:
-		for _, f := range t.fields {
-			if !check.typeConstraint(f.typ, why) {
-				return false
-			}
-		}
-	case *Pointer:
-		return check.typeConstraint(t.base, why)
-	case *Tuple:
-		if t == nil {
-			return true
-		}
-		for _, v := range t.vars {
-			if !check.typeConstraint(v.typ, why) {
-				return false
-			}
-		}
-	case *Signature:
-		if len(t.tparams) != 0 {
-			panic("type parameter in function type")
-		}
-		return (t.recv == nil || check.typeConstraint(t.recv.typ, why)) &&
-			check.typeConstraint(t.params, why) &&
-			check.typeConstraint(t.results, why)
-	case *Interface:
-		t.assertCompleteness()
-		for _, m := range t.allMethods {
-			if !check.typeConstraint(m.typ, why) {
-				return false
-			}
-		}
-	case *Map:
-		return check.typeConstraint(t.key, why) && check.typeConstraint(t.elem, why)
-	case *Chan:
-		return check.typeConstraint(t.elem, why)
-	case *Named:
-		*why = check.sprintf("contains defined type %s", t)
-		return false
-	case *TypeParam:
-		// ok, e.g.: func f (type T interface { type T }) ()
-	default:
-		unreachable()
-	}
-	return true
 }
