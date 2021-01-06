@@ -275,6 +275,8 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
 	if mask&OmitModFlag == 0 {
 		base.AddModFlag(&cmd.Flag)
+		// Add the modversion flag only for build command, has no effect in fmt.
+		cmd.Flag.StringVar(&cfg.ModVersion, "modversion", "", "")
 	}
 	if mask&OmitModCommonFlags == 0 {
 		base.AddModCommonFlags(&cmd.Flag)
