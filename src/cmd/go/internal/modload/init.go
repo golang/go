@@ -202,6 +202,8 @@ func Init() {
 	}
 
 	// We're in module mode. Set any global variables that need to be set.
+	cfg.ModulesEnabled = true
+	setDefaultBuildMod()
 	list := filepath.SplitList(cfg.BuildContext.GOPATH)
 	if len(list) == 0 || list[0] == "" {
 		base.Fatalf("missing $GOPATH")
@@ -210,8 +212,6 @@ func Init() {
 	if _, err := fsys.Stat(filepath.Join(gopath, "go.mod")); err == nil {
 		base.Fatalf("$GOPATH/go.mod exists but should not")
 	}
-
-	cfg.ModulesEnabled = true
 
 	if modRoot == "" {
 		// We're in module mode, but not inside a module.
@@ -348,8 +348,8 @@ func die() {
 // ensuring requirements are consistent. WriteGoMod should be called later to
 // write changes out to disk or report errors in readonly mode.
 //
-// As a side-effect, LoadModFile sets a default for cfg.BuildMod if it does not
-// already have an explicit value.
+// As a side-effect, LoadModFile may change cfg.BuildMod to "vendor" if
+// -mod wasn't set explicitly and automatic vendoring should be enabled.
 func LoadModFile(ctx context.Context) {
 	if len(buildList) > 0 {
 		return
@@ -387,7 +387,7 @@ func LoadModFile(ctx context.Context) {
 		base.Fatalf("go: %v", err)
 	}
 
-	setDefaultBuildMod()
+	setDefaultBuildMod() // possibly enable automatic vendoring
 	modFileToBuildList()
 	if cfg.BuildMod == "vendor" {
 		readVendorList()
@@ -586,8 +586,8 @@ func modFileToBuildList() {
 	buildList = list
 }
 
-// setDefaultBuildMod sets a default value for cfg.BuildMod
-// if it is currently empty.
+// setDefaultBuildMod sets a default value for cfg.BuildMod if the -mod flag
+// wasn't provided. setDefaultBuildMod may be called multiple times.
 func setDefaultBuildMod() {
 	if cfg.BuildModExplicit {
 		// Don't override an explicit '-mod=' argument.
@@ -608,7 +608,7 @@ func setDefaultBuildMod() {
 
 	if fi, err := fsys.Stat(filepath.Join(modRoot, "vendor")); err == nil && fi.IsDir() {
 		modGo := "unspecified"
-		if index.goVersionV != "" {
+		if index != nil && index.goVersionV != "" {
 			if semver.Compare(index.goVersionV, "v1.14") >= 0 {
 				// The Go version is at least 1.14, and a vendor directory exists.
 				// Set -mod=vendor by default.

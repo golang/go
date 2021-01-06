@@ -1083,13 +1083,20 @@ func (ld *loader) load(pkg *loadPkg) {
 		}
 	}
 
-	imports, testImports, err := scanDir(pkg.dir, ld.Tags)
-	if err != nil {
-		pkg.err = err
-		return
-	}
-
 	pkg.inStd = (search.IsStandardImportPath(pkg.path) && search.InDir(pkg.dir, cfg.GOROOTsrc) != "")
+
+	var imports, testImports []string
+
+	if cfg.BuildContext.Compiler == "gccgo" && pkg.inStd {
+		// We can't scan standard packages for gccgo.
+	} else {
+		var err error
+		imports, testImports, err = scanDir(pkg.dir, ld.Tags)
+		if err != nil {
+			pkg.err = err
+			return
+		}
+	}
 
 	pkg.imports = make([]*loadPkg, 0, len(imports))
 	var importFlags loadPkgFlags
