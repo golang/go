@@ -320,14 +320,15 @@ func cexecPipe(p []int) error {
 		return e
 	}
 
-	fd, e := Open("#d/"+itoa(p[1]), O_CLOEXEC)
+	fd, e := Open("#d/"+itoa(p[1]), O_RDWR|O_CLOEXEC)
 	if e != nil {
 		Close(p[0])
 		Close(p[1])
 		return e
 	}
 
-	Close(fd)
+	Close(p[1])
+	p[1] = fd
 	return nil
 }
 
