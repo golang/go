@@ -5,18 +5,16 @@ package runtime_test
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"fmt"
 	"internal/testenv"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
-	"time"
 )
 
 func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
@@ -96,50 +94,60 @@ func TestCtrlHandler(t *testing.T) {
 		t.Fatalf("failed to build go exe: %v\n%s", err, out)
 	}
 
-	// udp socket for synchronization
-	conn, err := net.ListenPacket("udp", "[::1]:0")
+	// run test program
+	cmd = exec.Command(exe)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	outPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		t.Fatalf("ListenPacket failed: %v", err)
+		t.Fatalf("Failed to create stdout pipe: %v", err)
 	}
-	defer conn.Close()
-	conn.SetDeadline(time.Now().Add(5 * time.Second))
+	outReader := bufio.NewReader(outPipe)
 
-	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
-	defer cancel()
-
-	// run test program, in a new command window
-	cmd = exec.CommandContext(ctx, "cmd.exe", "/c", "start", "Test Command Window", "/wait", exe, conn.LocalAddr().String())
+	// in a new command window
+	const CREATE_NEW_CONSOLE = 0x00000010
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: CREATE_NEW_CONSOLE,
+	}
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
 
-	// read pid of the test program
-	// cmd.Process.Pid is the pid of cmd.exe, not test.exe
-	// also ensures the test program is ready to receive signals
-	var data [512]byte
-	n, _, err := conn.ReadFrom(data[:])
-	if err != nil {
-		t.Fatalf("ReadFrom failed: %v", err)
-	}
+	errCh := make(chan error, 1)
+	go func() {
+		// wait for child to be ready to receive signals
+		if line, err := outReader.ReadString('\n'); err != nil {
+			errCh <- fmt.Errorf("could not read stdout: %w", err)
+			return
+		} else if strings.TrimSpace(line) != "ready" {
+			errCh <- fmt.Errorf("unexpected message: %v", line)
+			return
+		}
 
-	// gracefully kill pid, this closes the command window
-	err = exec.Command("taskkill.exe", "/pid", string(data[:n])).Run()
-	if err != nil {
-		t.Fatalf("failed to kill: %v", err)
-	}
+		// gracefully kill pid, this closes the command window
+		if err := exec.Command("taskkill.exe", "/pid", strconv.Itoa(cmd.Process.Pid)).Run(); err != nil {
+			errCh <- fmt.Errorf("failed to kill: %w", err)
+			return
+		}
 
-	// check child received, handled SIGTERM
-	n, _, err = conn.ReadFrom(data[:])
-	if err != nil {
-		t.Fatalf("ReadFrom failed: %v", err)
-	}
-	if expected, got := syscall.SIGTERM.String(), string(data[:n]); expected != got {
-		t.Fatalf("Expected '%s' got: %s", expected, got)
-	}
+		// check child received, handled SIGTERM
+		if line, err := outReader.ReadString('\n'); err != nil {
+			errCh <- fmt.Errorf("could not read stdout: %w", err)
+			return
+		} else if expected, got := syscall.SIGTERM.String(), strings.TrimSpace(line); expected != got {
+			errCh <- fmt.Errorf("Expected '%s' got: %s", expected, got)
+			return
+		}
 
-	// check child exited gracefully (exit code 0, didn't timeout)
+		errCh <- nil
+	}()
+
+	if err := <-errCh; err != nil {
+		t.Fatal(err)
+	}
+	// check child exited gracefully, did not timeout
 	if err := cmd.Wait(); err != nil {
-		t.Fatalf("Program exited with error: %v", err)
+		t.Fatalf("Program exited with error: %v\n%s", err, &stderr)
 	}
 }
 
