@@ -353,6 +353,8 @@ Script:
 				ok = canCgo
 			case "msan":
 				ok = canMSan
+			case "asan":
+				ok = canASan
 			case "race":
 				ok = canRace
 			case "net":

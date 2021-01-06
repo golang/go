@@ -79,7 +79,7 @@ should only run when the condition is satisfied. The available conditions are:
  - Compiler names, like [gccgo], [gc].
  - Test environment details:
    - [short] for testing.Short()
-   - [cgo], [msan], [race] for whether cgo, msan, and the race detector can be used
+   - [cgo], [msan], [asan], [race] for whether cgo, msan, asan, and the race detector can be used
    - [net] for whether the external network can be used
    - [link] for testenv.HasLink()
    - [root] for os.Geteuid() == 0

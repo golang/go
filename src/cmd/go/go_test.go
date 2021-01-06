@@ -46,6 +46,7 @@ var (
 	canRace = false // whether we can run the race detector
 	canCgo  = false // whether we can use cgo
 	canMSan = false // whether we can run the memory sanitizer
+	canASan = false // whether we can run the address sanitizer
 )
 
 var exeSuffix string = func() string {
@@ -197,6 +198,7 @@ func TestMain(m *testing.M) {
 		testGOCACHE = strings.TrimSpace(string(out))
 
 		canMSan = canCgo && sys.MSanSupported(runtime.GOOS, runtime.GOARCH)
+		canASan = canCgo && sys.ASanSupported(runtime.GOOS, runtime.GOARCH)
 		canRace = canCgo && sys.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH)
 		// The race detector doesn't work on Alpine Linux:
 		// golang.org/issue/14481

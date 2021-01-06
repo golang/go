@@ -121,6 +121,9 @@
 // 		Supported only on linux/amd64, linux/arm64
 // 		and only with Clang/LLVM as the host C compiler.
 // 		On linux/arm64, pie build mode will be used.
+// 	-asan
+// 		enable interoperation with address sanitizer.
+// 		Supported only on linux/arm64, linux/amd64.
 // 	-v
 // 		print the names of packages as they are compiled.
 // 	-work
@@ -155,8 +158,8 @@
 // 		in order to keep output separate from default builds.
 // 		If using the -race flag, the install suffix is automatically set to race
 // 		or, if set explicitly, has _race appended to it. Likewise for the -msan
-// 		flag. Using a -buildmode option that requires non-default compile flags
-// 		has a similar effect.
+// 		and -asan flags. Using a -buildmode option that requires non-default compile
+// 		flags has a similar effect.
 // 	-ldflags '[pattern=]arg list'
 // 		arguments to pass on each go tool link invocation.
 // 	-linkshared
