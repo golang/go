@@ -497,9 +497,10 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 }
 
 func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
-	if len(n.Rargs) != 0 {
+	if n.Walked() {
 		return // already walked
 	}
+	n.SetWalked(true)
 
 	// If this is a method call t.M(...),
 	// rewrite into a function call T.M(t, ...).

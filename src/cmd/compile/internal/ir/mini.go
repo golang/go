@@ -58,6 +58,7 @@ const (
 	miniTypecheckShift = 2
 	miniDiag           = 1 << 4
 	miniHasCall        = 1 << 5 // for miniStmt
+	miniWalked         = 1 << 6 // to prevent/catch re-walking
 )
 
 func (n *miniNode) Typecheck() uint8 { return n.bits.get2(miniTypecheckShift) }
@@ -70,6 +71,9 @@ func (n *miniNode) SetTypecheck(x uint8) {
 
 func (n *miniNode) Diag() bool     { return n.bits&miniDiag != 0 }
 func (n *miniNode) SetDiag(x bool) { n.bits.set(miniDiag, x) }
+
+func (n *miniNode) Walked() bool     { return n.bits&miniWalked != 0 }
+func (n *miniNode) SetWalked(x bool) { n.bits.set(miniWalked, x) }
 
 // Empty, immutable graph structure.
 
