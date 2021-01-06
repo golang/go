@@ -145,7 +145,7 @@ type Request struct {
 	// then
 	//
 	//	Header = map[string][]string{
-	//		"Accept-Encoding": {"gzip, deflate"},
+	//		"Accept-Encoding": {"gzip", "deflate"},
 	//		"Accept-Language": {"en-us"},
 	//		"Foo": {"Bar", "two"},
 	//	}
