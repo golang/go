@@ -318,8 +318,6 @@ const (
 )
 
 // Index into the abbrevs table below.
-// Keep in sync with ispubname() and ispubtype() in ld/dwarf.go.
-// ispubtype considers >= NULLTYPE public
 const (
 	DW_ABRV_NULL = iota
 	DW_ABRV_COMPUNIT
@@ -1257,7 +1255,7 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
 // its corresponding 'abstract' DIE (containing location-independent
 // attributes such as name, type, etc). Inlined subroutine DIEs can
 // have other inlined subroutine DIEs as children.
-func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error {
+func putInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error {
 	ic := s.InlCalls.Calls[callIdx]
 	callee := ic.AbsFunSym
 
@@ -1268,7 +1266,7 @@ func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error 
 	Uleb128put(ctxt, s.Info, int64(abbrev))
 
 	if logDwarf {
-		ctxt.Logf("PutInlinedFunc(caller=%v,callee=%v,abbrev=%d)\n", callersym, callee, abbrev)
+		ctxt.Logf("putInlinedFunc(caller=%v,callee=%v,abbrev=%d)\n", callersym, callee, abbrev)
 	}
 
 	// Abstract origin.
@@ -1304,7 +1302,7 @@ func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error 
 	// Children of this inline.
 	for _, sib := range inlChildren(callIdx, &s.InlCalls) {
 		absfn := s.InlCalls.Calls[sib].AbsFunSym
-		err := PutInlinedFunc(ctxt, s, absfn, sib)
+		err := putInlinedFunc(ctxt, s, absfn, sib)
 		if err != nil {
 			return err
 		}
@@ -1346,7 +1344,7 @@ func PutConcreteFunc(ctxt Context, s *FnState) error {
 	// Inlined subroutines.
 	for _, sib := range inlChildren(-1, &s.InlCalls) {
 		absfn := s.InlCalls.Calls[sib].AbsFunSym
-		err := PutInlinedFunc(ctxt, s, absfn, sib)
+		err := putInlinedFunc(ctxt, s, absfn, sib)
 		if err != nil {
 			return err
 		}
@@ -1394,7 +1392,7 @@ func PutDefaultFunc(ctxt Context, s *FnState) error {
 	// Inlined subroutines.
 	for _, sib := range inlChildren(-1, &s.InlCalls) {
 		absfn := s.InlCalls.Calls[sib].AbsFunSym
-		err := PutInlinedFunc(ctxt, s, absfn, sib)
+		err := putInlinedFunc(ctxt, s, absfn, sib)
 		if err != nil {
 			return err
 		}
@@ -1599,14 +1597,6 @@ func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int,
 
 	// Var has no children => no terminator
 }
-
-// VarsByOffset attaches the methods of sort.Interface to []*Var,
-// sorting in increasing StackOffset.
-type VarsByOffset []*Var
-
-func (s VarsByOffset) Len() int           { return len(s) }
-func (s VarsByOffset) Less(i, j int) bool { return s[i].StackOffset < s[j].StackOffset }
-func (s VarsByOffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // byChildIndex implements sort.Interface for []*dwarf.Var by child index.
 type byChildIndex []*Var
