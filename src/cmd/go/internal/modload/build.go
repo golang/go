@@ -275,7 +275,7 @@ func PackageBuildInfo(path string, deps []string) string {
 	writeEntry := func(token string, m module.Version) {
 		mv := m.Version
 		if mv == "" {
-			mv = "(devel)"
+			mv = cfg.ModVersion
 		}
 		fmt.Fprintf(&buf, "%s\t%s\t%s", token, m.Path, mv)
 		if r := Replacement(m); r.Path == "" {

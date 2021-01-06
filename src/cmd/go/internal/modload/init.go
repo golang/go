@@ -389,6 +389,7 @@ func LoadModFile(ctx context.Context) {
 
 	setDefaultBuildMod() // possibly enable automatic vendoring
 	modFileToBuildList()
+	setDefaultModVersion()
 	if cfg.BuildMod == "vendor" {
 		readVendorList()
 		checkVendorConsistency()
@@ -626,6 +627,15 @@ func setDefaultBuildMod() {
 	}
 
 	cfg.BuildMod = "readonly"
+}
+
+// setDefaultModVersion sets a default value for cfg.ModVersion if the -modversion flag
+// wasn't provided. setDefaultModVersion may be called multiple times.
+func setDefaultModVersion() {
+	if cfg.ModVersion == "" {
+		// we could attempt to infer mod version from VCS or common CI environments like BUILD_TAG
+		cfg.ModVersion = "(devel)"
+	}
 }
 
 // convertLegacyConfig imports module requirements from a legacy vendoring

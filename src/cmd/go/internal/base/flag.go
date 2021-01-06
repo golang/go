@@ -67,5 +67,6 @@ func AddModFlag(flags *flag.FlagSet) {
 func AddModCommonFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&cfg.ModCacheRW, "modcacherw", false, "")
 	flags.StringVar(&cfg.ModFile, "modfile", "", "")
+	flags.StringVar(&cfg.ModVersion, "modversion", "", "")
 	flags.StringVar(&fsys.OverlayFile, "overlay", "", "")
 }

@@ -50,6 +50,7 @@ var (
 
 	ModCacheRW bool   // -modcacherw flag
 	ModFile    string // -modfile flag
+	ModVersion string // -modversion flag
 
 	Insecure bool // -insecure flag
 

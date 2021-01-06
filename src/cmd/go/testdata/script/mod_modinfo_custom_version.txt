@@ -1,0 +1,31 @@
+# Test to ensure runtime/debug.ReadBuildInfo parses
+# the correct version for the main module
+# when set from -modversion.
+env GO111MODULE=on
+
+cd x
+
+# Build the binary with a custom version and ensure that
+# the main module version is being set accordingly.
+# (golang.org/issue/29228)
+go build -modversion=custom_version
+exec ./x$GOEXE
+stderr 'mod\s+x\s+custom_version'
+
+-- x/go.mod --
+module x
+
+-- x/main.go --
+package main
+
+import (
+	"runtime/debug"
+)
+
+func main() {
+    m, ok := debug.ReadBuildInfo()
+	if !ok {
+		panic("failed debug.ReadBuildInfo")
+	}
+	println("mod", m.Main.Path, m.Main.Version)
+}
