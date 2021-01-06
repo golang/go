@@ -155,9 +155,9 @@ func TestEvalPos(t *testing.T) {
 		import "io"
 		type R = io.Reader
 		func _() {
-			/* interface{R}.Read => , func(interface{io.Reader}, p []byte) (n int, err error) */
+			/* interface{R}.Read => , func(_ interface{io.Reader}, p []byte) (n int, err error) */
 			_ = func() {
-				/* interface{io.Writer}.Write => , func(interface{io.Writer}, p []byte) (n int, err error) */
+				/* interface{io.Writer}.Write => , func(_ interface{io.Writer}, p []byte) (n int, err error) */
 				type io interface {} // must not shadow io in line above
 			}
 			type R interface {} // must not shadow R in first line of this function body

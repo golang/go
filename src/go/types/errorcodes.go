@@ -753,51 +753,11 @@ const (
 	_NonVariadicDotDotDot
 
 	// _MisplacedDotDotDot occurs when a "..." is used somewhere other than the
-	// final argument to a function call.
+	// final argument in a function declaration.
 	//
 	// Example:
-	//  func printArgs(args ...int) {
-	//  	for _, a := range args {
-	//  		println(a)
-	//  	}
-	//  }
-	//
-	//  func f() {
-	//  	a := []int{1,2,3}
-	//  	printArgs(0, a...)
-	//  }
+	// 	func f(...int, int)
 	_MisplacedDotDotDot
-
-	// _InvalidDotDotDotOperand occurs when a "..." operator is applied to a
-	// single-valued operand.
-	//
-	// Example:
-	//  func printArgs(args ...int) {
-	//  	for _, a := range args {
-	//  		println(a)
-	//  	}
-	//  }
-	//
-	//  func f() {
-	//  	a := 1
-	//  	printArgs(a...)
-	//  }
-	//
-	// Example:
-	//  func args() (int, int) {
-	//  	return 1, 2
-	//  }
-	//
-	//  func printArgs(args ...int) {
-	//  	for _, a := range args {
-	//  		println(a)
-	//  	}
-	//  }
-	//
-	//  func g() {
-	//  	printArgs(args()...)
-	//  }
-	_InvalidDotDotDotOperand
 
 	// _InvalidDotDotDot occurs when a "..." is used in a non-variadic built-in
 	// function.
