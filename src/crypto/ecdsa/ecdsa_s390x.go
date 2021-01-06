@@ -75,7 +75,7 @@ func hashToBytes(dst, hash []byte, c elliptic.Curve) {
 		dst[i] = 0
 	}
 
-	// figure out the excess bits between the hash size and order of the curve
+	// figure out the excess bytes between the hash size and order of the curve
 	excess := lenDst - orderBytes
 
 	// determine the shifts needed
