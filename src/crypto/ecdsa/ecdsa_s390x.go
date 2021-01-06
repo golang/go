@@ -69,14 +69,11 @@ func hashToBytes(dst, hash []byte, c elliptic.Curve) {
 		panic("crypto/ecdsa: dst too small to fit value")
 	}
 
-	// pad with zeros
-	pad := lenDst - orderBits/8
-	for i := 0; i <= pad; i++ {
-		dst[i] = 0
-	}
-
 	// figure out the excess bytes between the hash size and order of the curve
 	excess := lenDst - orderBytes
+	for i := 0; i < excess; i++ {
+		dst[i] = 0
+	}
 
 	// determine the shifts needed
 	truncateBits := ((orderBits - 1) % 8) + 1
