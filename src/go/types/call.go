@@ -100,55 +100,6 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 	}
 }
 
-// use type-checks each argument.
-// Useful to make sure expressions are evaluated
-// (and variables are "used") in the presence of other errors.
-// The arguments may be nil.
-func (check *Checker) use(arg ...ast.Expr) {
-	var x operand
-	for _, e := range arg {
-		// The nil check below is necessary since certain AST fields
-		// may legally be nil (e.g., the ast.SliceExpr.High field).
-		if e != nil {
-			check.rawExpr(&x, e, nil)
-		}
-	}
-}
-
-// useLHS is like use, but doesn't "use" top-level identifiers.
-// It should be called instead of use if the arguments are
-// expressions on the lhs of an assignment.
-// The arguments must not be nil.
-func (check *Checker) useLHS(arg ...ast.Expr) {
-	var x operand
-	for _, e := range arg {
-		// If the lhs is an identifier denoting a variable v, this assignment
-		// is not a 'use' of v. Remember current value of v.used and restore
-		// after evaluating the lhs via check.rawExpr.
-		var v *Var
-		var v_used bool
-		if ident, _ := unparen(e).(*ast.Ident); ident != nil {
-			// never type-check the blank name on the lhs
-			if ident.Name == "_" {
-				continue
-			}
-			if _, obj := check.scope.LookupParent(ident.Name, token.NoPos); obj != nil {
-				// It's ok to mark non-local variables, but ignore variables
-				// from other packages to avoid potential race conditions with
-				// dot-imported variables.
-				if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
-					v = w
-					v_used = v.used
-				}
-			}
-		}
-		check.rawExpr(&x, e, nil)
-		if v != nil {
-			v.used = v_used // restore v.used
-		}
-	}
-}
-
 // useGetter is like use, but takes a getter instead of a list of expressions.
 // It should be called instead of use if a getter is present to avoid repeated
 // evaluation of the first argument (since the getter was likely obtained via
@@ -566,6 +517,55 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 Error:
 	x.mode = invalid
 	x.expr = e
+}
+
+// use type-checks each argument.
+// Useful to make sure expressions are evaluated
+// (and variables are "used") in the presence of other errors.
+// The arguments may be nil.
+func (check *Checker) use(arg ...ast.Expr) {
+	var x operand
+	for _, e := range arg {
+		// The nil check below is necessary since certain AST fields
+		// may legally be nil (e.g., the ast.SliceExpr.High field).
+		if e != nil {
+			check.rawExpr(&x, e, nil)
+		}
+	}
+}
+
+// useLHS is like use, but doesn't "use" top-level identifiers.
+// It should be called instead of use if the arguments are
+// expressions on the lhs of an assignment.
+// The arguments must not be nil.
+func (check *Checker) useLHS(arg ...ast.Expr) {
+	var x operand
+	for _, e := range arg {
+		// If the lhs is an identifier denoting a variable v, this assignment
+		// is not a 'use' of v. Remember current value of v.used and restore
+		// after evaluating the lhs via check.rawExpr.
+		var v *Var
+		var v_used bool
+		if ident, _ := unparen(e).(*ast.Ident); ident != nil {
+			// never type-check the blank name on the lhs
+			if ident.Name == "_" {
+				continue
+			}
+			if _, obj := check.scope.LookupParent(ident.Name, token.NoPos); obj != nil {
+				// It's ok to mark non-local variables, but ignore variables
+				// from other packages to avoid potential race conditions with
+				// dot-imported variables.
+				if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
+					v = w
+					v_used = v.used
+				}
+			}
+		}
+		check.rawExpr(&x, e, nil)
+		if v != nil {
+			v.used = v_used // restore v.used
+		}
+	}
 }
 
 // instantiatedOperand reports an error of x is an uninstantiated (generic) type and sets x.typ to Typ[Invalid].
