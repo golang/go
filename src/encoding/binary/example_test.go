@@ -185,3 +185,15 @@ func ExampleVarint() {
 	// 63
 	// 64
 }
+
+func ExampleShift() {
+	// Decode << to a byte array
+	data := []byte("<<")
+	fmt.Printf("%08b\n", data) // [00111100 00111100]
+
+	// Shift 3 bits to the left (use -3 for right)
+	Shift(data, 3)
+
+	// The output is now shifted positive 3 bits
+	fmt.Printf("%08b\n", data) // [11100001 11100000]
+}
