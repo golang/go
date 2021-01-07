@@ -22,7 +22,7 @@ type GlobFS interface {
 // Glob returns the names of all files matching pattern or nil
 // if there is no matching file. The syntax of patterns is the same
 // as in path.Match. The pattern may describe hierarchical names such as
-// /usr/*/bin/ed (assuming the Separator is '/').
+// usr/*/bin/ed.
 //
 // Glob ignores file system errors such as I/O errors reading directories.
 // The only possible returned error is path.ErrBadPattern, reporting that
