@@ -151,7 +151,7 @@ func TestValuesInfo(t *testing.T) {
 		// look for expression
 		var expr syntax.Expr
 		for e := range info.Types {
-			if ExprString(e) == test.expr {
+			if syntax.ShortString(e) == test.expr {
 				expr = e
 				break
 			}
@@ -306,7 +306,7 @@ func TestTypesInfo(t *testing.T) {
 		// look for expression type
 		var typ Type
 		for e, tv := range info.Types {
-			if ExprString(e) == test.expr {
+			if syntax.ShortString(e) == test.expr {
 				typ = tv.Type
 				break
 			}
@@ -454,7 +454,7 @@ func TestInferredInfo(t *testing.T) {
 			default:
 				panic(fmt.Sprintf("unexpected call expression type %T", call))
 			}
-			if ExprString(fun) == test.fun {
+			if syntax.ShortString(fun) == test.fun {
 				targs = inf.Targs
 				sig = inf.Sig
 				break
@@ -733,8 +733,8 @@ func TestPredicatesInfo(t *testing.T) {
 		// look for expression predicates
 		got := "<missing>"
 		for e, tv := range info.Types {
-			//println(name, ExprString(e))
-			if ExprString(e) == test.expr {
+			//println(name, syntax.ShortString(e))
+			if syntax.ShortString(e) == test.expr {
 				got = predString(tv)
 				break
 			}

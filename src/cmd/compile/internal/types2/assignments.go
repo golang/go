@@ -197,7 +197,7 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
 			var op operand
 			check.expr(&op, sel.X)
 			if op.mode == mapindex {
-				check.errorf(&z, "cannot assign to struct field %s in map", ExprString(z.expr))
+				check.errorf(&z, "cannot assign to struct field %s in map", syntax.ShortString(z.expr))
 				return nil
 			}
 		}

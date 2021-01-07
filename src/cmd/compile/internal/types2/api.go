@@ -379,7 +379,7 @@ func (init *Initializer) String() string {
 		buf.WriteString(lhs.Name())
 	}
 	buf.WriteString(" = ")
-	WriteExpr(&buf, init.Rhs)
+	syntax.Fprint(&buf, init.Rhs, syntax.ShortForm)
 	return buf.String()
 }
 
