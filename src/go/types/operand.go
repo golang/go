@@ -158,7 +158,16 @@ func operandString(x *operand, qf Qualifier) string {
 	// <typ>
 	if hasType {
 		if x.typ != Typ[Invalid] {
-			buf.WriteString(" of type ")
+			var intro string
+			switch {
+			case isGeneric(x.typ):
+				intro = " of generic type "
+			case asTypeParam(x.typ) != nil:
+				intro = " of type parameter type "
+			default:
+				intro = " of type "
+			}
+			buf.WriteString(intro)
 			WriteType(&buf, x.typ, qf)
 		} else {
 			buf.WriteString(" with invalid type")
@@ -228,20 +237,30 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 		return true, 0
 	}
 
-	Vu := V.Underlying()
-	Tu := T.Underlying()
+	Vu := optype(V)
+	Tu := optype(T)
 
 	// x is an untyped value representable by a value of type T.
 	if isUntyped(Vu) {
-		if t, ok := Tu.(*Basic); ok && x.mode == constant_ {
-			return representableConst(x.val, check, t, nil), _IncompatibleAssign
+		// TODO(rFindley) synchronize this block of code with types2
+		switch t := Tu.(type) {
+		case *Basic:
+			if x.mode == constant_ {
+				return representableConst(x.val, check, t, nil), _IncompatibleAssign
+			}
+		case *Sum:
+			return t.is(func(t Type) bool {
+				// TODO(gri) this could probably be more efficient
+				ok, _ := x.assignableTo(check, t, reason)
+				return ok
+			}), _IncompatibleAssign
 		}
 		return check.implicitType(x, Tu) != nil, _IncompatibleAssign
 	}
 	// Vu is typed
 
-	// x's type V and T have identical underlying types and at least one of V or
-	// T is not a named type.
+	// x's type V and T have identical underlying types
+	// and at least one of V or T is not a named type
 	if check.identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
 		return true, 0
 	}
