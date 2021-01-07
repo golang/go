@@ -221,30 +221,46 @@ func TestUnimportedCompletion(t *testing.T) {
 -- go.mod --
 module mod.com
 
-go 1.12
+go 1.14
+
+require example.com v1.2.3
+-- go.sum --
+example.com v1.2.3 h1:ihBTGWGjTU3V4ZJ9OmHITkU9WQ4lGdQkMjgyLFk0FaY=
+example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
 -- main.go --
 package main
 
 func main() {
 	_ = blah
 }
+-- main2.go --
+package main
+
+import "example.com/blah"
+
+func _() {
+	_ = blah.Hello
+}
 `
 	withOptions(
 		ProxyFiles(proxy),
 	).run(t, mod, func(t *testing.T, env *Env) {
-		// Explicitly download example.com so it's added to the module cache
-		// and offered as an unimported completion.
-		env.RunGoCommand("get", "example.com@v1.2.3")
+		// Make sure the dependency is in the module cache and accessible for
+		// unimported completions, and then remove it before proceeding.
+		env.RemoveWorkspaceFile("main2.go")
 		env.RunGoCommand("mod", "tidy")
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 2))
 
 		// Trigger unimported completions for the example.com/blah package.
 		env.OpenFile("main.go")
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
 		pos := env.RegexpSearch("main.go", "ah")
 		completions := env.Completion("main.go", pos)
 		if len(completions.Items) == 0 {
 			t.Fatalf("no completion items")
 		}
 		env.AcceptCompletion("main.go", pos, completions.Items[0])
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1))
 
 		// Trigger completions once again for the blah.<> selector.
 		env.RegexpReplace("main.go", "_ = blah", "_ = blah.")
