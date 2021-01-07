@@ -840,6 +840,10 @@
 //         TestGoFiles     []string   // _test.go files in package
 //         XTestGoFiles    []string   // _test.go files outside package
 //
+//         // Embedded files
+//         EmbedPatterns []string // //go:embed patterns
+//         EmbedFiles    []string // files and directories matched by EmbedPatterns
+//
 //         // Cgo directives
 //         CgoCFLAGS    []string // cgo: flags for C compiler
 //         CgoCPPFLAGS  []string // cgo: flags for C preprocessor
