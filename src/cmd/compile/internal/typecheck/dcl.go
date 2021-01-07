@@ -266,7 +266,7 @@ func autoexport(n *ir.Name, ctxt ir.Class) {
 		return
 	}
 
-	if types.IsExported(n.Sym().Name) || initname(n.Sym().Name) {
+	if types.IsExported(n.Sym().Name) || n.Sym().Name == "init" {
 		Export(n)
 	}
 	if base.Flag.AsmHdr != "" && !n.Sym().Asm() {
@@ -420,10 +420,6 @@ func funcargs2(t *types.Type) {
 	for _, f := range t.Results().Fields().Slice() {
 		funcarg2(f, ir.PPARAMOUT)
 	}
-}
-
-func initname(s string) bool {
-	return s == "init"
 }
 
 var vargen int
