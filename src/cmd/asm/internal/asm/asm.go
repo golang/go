@@ -811,10 +811,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			} else {
 				mask = (^uint32(0) >> uint(mask2+1)) & (^uint32(0) << uint(31-(mask1-1)))
 			}
-			prog.SetFrom3(obj.Addr{
-				Type:   obj.TYPE_CONST,
-				Offset: int64(mask),
-			})
+			prog.SetFrom3Const(int64(mask))
 			prog.To = a[4]
 			break
 		}
