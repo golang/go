@@ -360,6 +360,20 @@ func (p *Prog) SetFrom3(a Addr) {
 	p.RestArgs = []AddrPos{{a, Source}}
 }
 
+// SetFrom3Reg calls p.SetFrom3 with a register Addr containing reg.
+//
+// Deprecated: for the same reasons as Prog.GetFrom3.
+func (p *Prog) SetFrom3Reg(reg int16) {
+	p.SetFrom3(Addr{Type: TYPE_REG, Reg: reg})
+}
+
+// SetFrom3Const calls p.SetFrom3 with a const Addr containing x.
+//
+// Deprecated: for the same reasons as Prog.GetFrom3.
+func (p *Prog) SetFrom3Const(off int64) {
+	p.SetFrom3(Addr{Type: TYPE_CONST, Offset: off})
+}
+
 // SetTo2 assigns []Args{{a, 1}} to p.RestArgs when the second destination
 // operand does not fit into prog.RegTo2.
 func (p *Prog) SetTo2(a Addr) {
