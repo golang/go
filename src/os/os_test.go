@@ -2687,7 +2687,7 @@ func TestOpenFileKeepsPermissions(t *testing.T) {
 }
 
 func TestDirFS(t *testing.T) {
-	if err := fstest.TestFS(DirFS("./signal"), "signal.go", "internal/pty/pty.go"); err != nil {
+	if err := fstest.TestFS(DirFS("./testdata/dirfs"), "a", "b", "dir/x"); err != nil {
 		t.Fatal(err)
 	}
 }
