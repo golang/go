@@ -886,7 +886,7 @@ func rangeloops1() {
 		ee = e
 		_ = ee
 	}
-	for _ = range sc /* ERROR "cannot range over send-only channel" */ {}
+	for _ = range sc /* ERROR "cannot range over" */ {}
 	for _ = range rc {}
 
 	// constant strings
