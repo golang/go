@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"cmd/compile/internal/syntax"
-	. "cmd/compile/internal/types2"
 )
 
+// TODO(gri) move these tests into syntax package
 var testExprs = []testEntry{
 	// basic type literals
 	dup("x"),
@@ -24,8 +24,9 @@ var testExprs = []testEntry{
 	dup("`bar`"),
 
 	// func and composite literals
-	{"func(){}", "func() {}"},
-	{"func(x int) complex128 {}", "func(x int) complex128 {}"},
+	dup("func() {}"),
+	dup("[]int{}"),
+	{"func(x int) complex128 { return 0 }", "func(x int) complex128 {…}"},
 	{"[]int{1, 2, 3}", "[]int{…}"},
 
 	// non-type expressions
@@ -90,7 +91,7 @@ func TestExprString(t *testing.T) {
 			continue
 		}
 		x := f.DeclList[0].(*syntax.VarDecl).Values
-		if got := ExprString(x); got != test.str {
+		if got := syntax.ShortString(x); got != test.str {
 			t.Errorf("%s: got %s, want %s", test.src, got, test.str)
 		}
 	}
