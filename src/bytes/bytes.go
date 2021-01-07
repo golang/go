@@ -562,8 +562,12 @@ func Lsh(dst []byte, shiftBits int) {
 		trunc := 8 - shift
 
 		// do the shift
+		cur := byte(0)
+		next := byte(dst[pad])
 		for i := 0; i < lenDst-pad-1; i++ {
-			dst[i] = (dst[i+pad] << shift) | (dst[i+pad+1] >> trunc)
+			cur = next
+			next = dst[i+pad+1]
+			dst[i] = (cur << shift) | (next >> trunc)
 		}
 		dst[lenDst-pad-1] = dst[lenDst-1] << shift
 	} else {
@@ -659,8 +663,12 @@ func Rsh(dst []byte, shiftBits int) {
 		trunc := 8 - shift
 
 		// do the shift
+		cur := byte(0)
+		next := byte(dst[lenDst-1-pad])
 		for i := lenDst - 1; i > pad; i-- {
-			dst[i] = (dst[i-pad] >> shift) | (dst[i-pad-1] << trunc)
+			cur = next
+			next = dst[i-pad-1]
+			dst[i] = (cur >> shift) | (next << trunc)
 		}
 		dst[pad] = dst[0] >> shift
 	} else {
