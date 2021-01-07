@@ -25,13 +25,17 @@ cp go.sum.a-only go.sum
 ! go list example.com/ambiguous/a/b
 stderr '^missing go.sum entry needed to verify package example.com/ambiguous/a/b is provided by exactly one module$'
 ! go list -deps .
-stderr '^use.go:3:8: missing go.sum entry needed to verify package example.com/ambiguous/a/b is provided by exactly one module; to add it:\n\tgo mod tidy$'
+stderr '^use.go:3:8: missing go.sum entry needed to verify package example.com/ambiguous/a/b is provided by exactly one module; to add it:\n\tgo mod download example.com/ambiguous/a/b$'
 
 cp go.sum.b-only go.sum
 ! go list example.com/ambiguous/a/b
 stderr '^missing go.sum entry for module providing package example.com/ambiguous/a/b$'
 ! go list -deps .
-stderr '^use.go:3:8: missing go.sum entry for module providing package example.com/ambiguous/a/b; to add it:\n\tgo mod tidy$'
+stderr '^use.go:3:8: missing go.sum entry for module providing package example.com/ambiguous/a/b; to add it:\n\tgo mod download example.com/ambiguous/a$'
+
+cp go.sum.buildlist-only go.sum
+! go list -deps .
+stderr '^use.go:3:8: missing go.sum entry for module providing package example.com/ambiguous/a/b; to add it:\n\tgo mod download example.com/ambiguous/a example.com/ambiguous/a/b$'
 
 -- go.mod --
 module m

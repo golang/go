@@ -47,7 +47,7 @@ stderr '^missing go.sum entry for module providing package rsc.io/quote$'
 # a package that imports it without that error.
 go list -e -deps -f '{{.ImportPath}}{{with .Error}} {{.Err}}{{end}}' .
 stdout '^m$'
-stdout '^rsc.io/quote missing go.sum entry for module providing package rsc.io/quote; to add it:\n\tgo mod tidy$'
+stdout '^rsc.io/quote missing go.sum entry for module providing package rsc.io/quote; to add it:\n\tgo mod download rsc.io/quote$'
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
 
 # go.sum should not have been written.
