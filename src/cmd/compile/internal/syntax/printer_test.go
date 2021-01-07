@@ -25,8 +25,35 @@ func TestPrint(t *testing.T) {
 	}
 
 	if ast != nil {
-		Fprint(testOut(), ast, true)
+		Fprint(testOut(), ast, LineForm)
 		fmt.Println()
+	}
+}
+
+type shortBuffer struct {
+	buf []byte
+}
+
+func (w *shortBuffer) Write(data []byte) (n int, err error) {
+	w.buf = append(w.buf, data...)
+	n = len(data)
+	if len(w.buf) > 10 {
+		err = io.ErrShortBuffer
+	}
+	return
+}
+
+func TestPrintError(t *testing.T) {
+	const src = "package p; var x int"
+	ast, err := Parse(nil, strings.NewReader(src), nil, nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf shortBuffer
+	_, err = Fprint(&buf, ast, 0)
+	if err == nil || err != io.ErrShortBuffer {
+		t.Errorf("got err = %s, want %s", err, io.ErrShortBuffer)
 	}
 }
 
