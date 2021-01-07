@@ -169,7 +169,7 @@ func walkDirs(t *testing.T, dir string, action func(string)) {
 
 func verifyPrint(t *testing.T, filename string, ast1 *File) {
 	var buf1 bytes.Buffer
-	_, err := Fprint(&buf1, ast1, true)
+	_, err := Fprint(&buf1, ast1, LineForm)
 	if err != nil {
 		panic(err)
 	}
@@ -181,7 +181,7 @@ func verifyPrint(t *testing.T, filename string, ast1 *File) {
 	}
 
 	var buf2 bytes.Buffer
-	_, err = Fprint(&buf2, ast2, true)
+	_, err = Fprint(&buf2, ast2, LineForm)
 	if err != nil {
 		panic(err)
 	}
