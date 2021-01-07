@@ -23,6 +23,11 @@ type Description struct {
 	// Examples of units might be "seconds", "bytes", "bytes/second", "cpu-seconds",
 	// "byte*cpu-seconds", and "bytes/second/second".
 	//
+	// For histograms, multiple units may apply. For instance, the units of the buckets and
+	// the count. By convention, for histograms, the units of the count are always "samples"
+	// with the type of sample evident by the metric's name, while the unit in the name
+	// specifies the buckets' unit.
+	//
 	// A complete name might look like "/memory/heap/free:bytes".
 	Name string
 
@@ -69,12 +74,12 @@ var allDesc = []Description{
 		Cumulative:  true,
 	},
 	{
-		Name:        "/gc/heap/allocs-by-size:objects",
+		Name:        "/gc/heap/allocs-by-size:bytes",
 		Description: "Distribution of all objects allocated by approximate size.",
 		Kind:        KindFloat64Histogram,
 	},
 	{
-		Name:        "/gc/heap/frees-by-size:objects",
+		Name:        "/gc/heap/frees-by-size:bytes",
 		Description: "Distribution of all objects freed by approximate size.",
 		Kind:        KindFloat64Histogram,
 	},

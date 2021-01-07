@@ -86,7 +86,7 @@ func initMetrics() {
 				out.scalar = in.sysStats.gcCyclesDone
 			},
 		},
-		"/gc/heap/allocs-by-size:objects": {
+		"/gc/heap/allocs-by-size:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(sizeClassBuckets)
@@ -98,7 +98,7 @@ func initMetrics() {
 				}
 			},
 		},
-		"/gc/heap/frees-by-size:objects": {
+		"/gc/heap/frees-by-size:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(sizeClassBuckets)

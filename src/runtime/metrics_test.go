@@ -70,7 +70,7 @@ func TestReadMetrics(t *testing.T) {
 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.BuckHashSys)
 		case "/memory/classes/total:bytes":
 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.Sys)
-		case "/gc/heap/allocs-by-size:objects":
+		case "/gc/heap/allocs-by-size:bytes":
 			hist := samples[i].Value.Float64Histogram()
 			// Skip size class 0 in BySize, because it's always empty and not represented
 			// in the histogram.
@@ -84,7 +84,7 @@ func TestReadMetrics(t *testing.T) {
 					t.Errorf("histogram counts do not much BySize for class %d: got %d, want %d", i, c, m)
 				}
 			}
-		case "/gc/heap/frees-by-size:objects":
+		case "/gc/heap/frees-by-size:bytes":
 			hist := samples[i].Value.Float64Histogram()
 			// Skip size class 0 in BySize, because it's always empty and not represented
 			// in the histogram.
@@ -161,9 +161,9 @@ func TestReadMetricsConsistency(t *testing.T) {
 			totalVirtual.got = samples[i].Value.Uint64()
 		case "/gc/heap/objects:objects":
 			objects.total = samples[i].Value.Uint64()
-		case "/gc/heap/allocs-by-size:objects":
+		case "/gc/heap/allocs-by-size:bytes":
 			objects.alloc = samples[i].Value.Float64Histogram()
-		case "/gc/heap/frees-by-size:objects":
+		case "/gc/heap/frees-by-size:bytes":
 			objects.free = samples[i].Value.Float64Histogram()
 		case "/gc/cycles:gc-cycles":
 			gc.numGC = samples[i].Value.Uint64()
