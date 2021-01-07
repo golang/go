@@ -1080,7 +1080,7 @@ var start_sec int64
 var start_nsec int32
 
 func init() {
-	// collect the start time for RuntimeStarted()
+	// Collect the start time for RuntimeStarted().
 	var start_mono int64
 	start_sec, start_nsec, start_mono = now()
 	start_nsec -= int32(start_mono - startNano)
