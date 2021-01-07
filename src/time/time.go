@@ -1076,19 +1076,23 @@ func Now() Time {
 	return Time{hasMonotonic | uint64(sec)<<nsecShift | uint64(nsec), mono, Local}
 }
 
-var start_sec, start_nsec, start_mono = now()
+var start_sec int64
+var start_nsec int32
 
-// Get the runtime start time.
-func RuntimeStarted() Time {
-	if start_mono != 0 {
-		start_nsec -= int32(start_mono - startNano)
-		if start_nsec < 0 {
-			start_sec--
-			start_nsec += 1e9
-		}
-		start_sec += unixToInternal - minWall
-		start_mono = 0
+func init() {
+	// collect the start time for RuntimeStarted()
+	var start_mono int64
+	start_sec, start_nsec, start_mono = now()
+	start_nsec -= int32(start_mono - startNano)
+	if start_nsec < 0 {
+		start_sec--
+		start_nsec += 1e9
 	}
+	start_sec += unixToInternal - minWall
+}
+
+// RuntimeStarted returns process start time.
+func RuntimeStarted() Time {
 	if uint64(start_sec)>>33 != 0 {
 		return Time{uint64(start_nsec), start_sec + minWall, Local}
 	}
