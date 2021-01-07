@@ -1038,18 +1038,6 @@ const (
 	//  }
 	_InvalidPostDecl
 
-	// _InvalidChanRange occurs when a send-only channel used in a range
-	// expression.
-	//
-	// Example:
-	//  func sum(c chan<- int) {
-	//  	s := 0
-	//  	for i := range c {
-	//  		s += i
-	//  	}
-	//  }
-	_InvalidChanRange
-
 	// _InvalidIterVar occurs when two iteration variables are used while ranging
 	// over a channel.
 	//
