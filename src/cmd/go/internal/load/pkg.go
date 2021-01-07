@@ -769,11 +769,7 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
 	}
 
 	if strings.Contains(path, "@") {
-		if cfg.ModulesEnabled {
-			return nil, false, errors.New("can only use path@version syntax with 'go get'")
-		} else {
-			return nil, false, errors.New("cannot use path@version syntax in GOPATH mode")
-		}
+		return nil, false, errors.New("can only use path@version syntax with 'go get' and 'go install' in module-aware mode")
 	}
 
 	// Determine canonical package path and directory.

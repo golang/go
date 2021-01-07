@@ -134,6 +134,7 @@ func (e *AmbiguousImportError) Error() string {
 // for its .zip file.
 type ImportMissingSumError struct {
 	importPath   string
+	modPaths     []string
 	found, inAll bool
 }
 
@@ -145,7 +146,7 @@ func (e *ImportMissingSumError) Error() string {
 		message = fmt.Sprintf("missing go.sum entry for module providing package %s", e.importPath)
 	}
 	if e.inAll {
-		return message + "; to add it:\n\tgo mod tidy"
+		return message + fmt.Sprintf("; to add it:\n\tgo mod download %s", strings.Join(e.modPaths, " "))
 	}
 	return message
 }
@@ -238,7 +239,7 @@ func importFromBuildList(ctx context.Context, path string, buildList []module.Ve
 	// Check each module on the build list.
 	var dirs []string
 	var mods []module.Version
-	haveSumErr := false
+	var sumErrModPaths []string
 	for _, m := range buildList {
 		if !maybeInModule(path, m.Path) {
 			// Avoid possibly downloading irrelevant modules.
@@ -251,8 +252,9 @@ func importFromBuildList(ctx context.Context, path string, buildList []module.Ve
 				// We are missing a sum needed to fetch a module in the build list.
 				// We can't verify that the package is unique, and we may not find
 				// the package at all. Keep checking other modules to decide which
-				// error to report.
-				haveSumErr = true
+				// error to report. Multiple sums may be missing if we need to look in
+				// multiple nested modules to resolve the import; we'll report them all.
+				sumErrModPaths = append(sumErrModPaths, m.Path)
 				continue
 			}
 			// Report fetch error.
@@ -273,8 +275,8 @@ func importFromBuildList(ctx context.Context, path string, buildList []module.Ve
 	if len(mods) > 1 {
 		return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: dirs, Modules: mods}
 	}
-	if haveSumErr {
-		return module.Version{}, "", &ImportMissingSumError{importPath: path, found: len(mods) > 0}
+	if len(sumErrModPaths) > 0 {
+		return module.Version{}, "", &ImportMissingSumError{importPath: path, modPaths: sumErrModPaths, found: len(mods) > 0}
 	}
 	if len(mods) == 1 {
 		return mods[0], dirs[0], nil

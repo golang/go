@@ -380,7 +380,7 @@ func LoadModFile(ctx context.Context) {
 
 	if f.Module == nil {
 		// No module declaration. Must add module path.
-		base.Fatalf("go: no module declaration in go.mod.\n\tRun 'go mod edit -module=example.com/mod' to specify the module path.")
+		base.Fatalf("go: no module declaration in go.mod. To specify the module path:\n\tgo mod edit -module=example.com/mod")
 	}
 
 	if err := checkModulePathLax(f.Module.Mod.Path); err != nil {
