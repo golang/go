@@ -100,32 +100,6 @@ func PartialCallType(n *ir.SelectorExpr) *types.Type {
 	return t
 }
 
-// CaptureVars is called in a separate phase after all typechecking is done.
-// It decides whether each variable captured by a closure should be captured
-// by value or by reference.
-// We use value capturing for values <= 128 bytes that are never reassigned
-// after capturing (effectively constant).
-func CaptureVars(fn *ir.Func) {
-	for _, v := range fn.ClosureVars {
-		outermost := v.Defn.(*ir.Name)
-
-		// out parameters will be assigned to implicitly upon return.
-		if outermost.Class != ir.PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && outermost.Type().Size() <= 128 {
-			outermost.SetByval(true)
-		} else {
-			outermost.SetAddrtaken(true)
-		}
-
-		if base.Flag.LowerM > 1 {
-			how := "ref"
-			if v.Byval() {
-				how = "value"
-			}
-			base.WarnfAt(v.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", v.Curfn, how, v, outermost.Addrtaken(), outermost.Assigned(), v.Type().Size())
-		}
-	}
-}
-
 // Lazy typechecking of imported bodies. For local functions, caninl will set ->typecheck
 // because they're a copy of an already checked body.
 func ImportedBody(fn *ir.Func) {
@@ -197,9 +171,6 @@ func fnpkg(fn *ir.Name) *types.Pkg {
 	// non-method
 	return fn.Sym().Pkg
 }
-
-// CaptureVarsComplete is set to true when the capturevars phase is done.
-var CaptureVarsComplete bool
 
 // closurename generates a new unique name for a closure within
 // outerfunc.
@@ -336,22 +307,6 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 		return
 	}
 
-	for _, ln := range fn.ClosureVars {
-		n := ln.Defn
-		if !n.Name().Captured() {
-			n.Name().SetCaptured(true)
-			if n.Name().Decldepth == 0 {
-				base.Fatalf("typecheckclosure: var %v does not have decldepth assigned", n)
-			}
-
-			// Ignore assignments to the variable in straightline code
-			// preceding the first capturing by a closure.
-			if n.Name().Decldepth == decldepth {
-				n.Name().SetAssigned(false)
-			}
-		}
-	}
-
 	fn.Nname.SetSym(closurename(ir.CurFunc))
 	ir.MarkFunc(fn.Nname)
 	Func(fn)
@@ -363,10 +318,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 	if ir.CurFunc != nil && clo.Type() != nil {
 		oldfn := ir.CurFunc
 		ir.CurFunc = fn
-		olddd := decldepth
-		decldepth = 1
 		Stmts(fn.Body)
-		decldepth = olddd
 		ir.CurFunc = oldfn
 	}
 
@@ -398,12 +350,6 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 func tcFunc(n *ir.Func) {
 	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheckfunc", n)(nil)
-	}
-
-	for _, ln := range n.Dcl {
-		if ln.Op() == ir.ONAME && (ln.Class == ir.PPARAM || ln.Class == ir.PPARAMOUT) {
-			ln.Decldepth = 1
-		}
 	}
 
 	n.Nname = AssignExpr(n.Nname).(*ir.Name)

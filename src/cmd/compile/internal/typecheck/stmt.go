@@ -228,7 +228,6 @@ func plural(n int) string {
 // tcFor typechecks an OFOR node.
 func tcFor(n *ir.ForStmt) ir.Node {
 	Stmts(n.Init())
-	decldepth++
 	n.Cond = Expr(n.Cond)
 	n.Cond = DefaultLit(n.Cond, nil)
 	if n.Cond != nil {
@@ -242,7 +241,6 @@ func tcFor(n *ir.ForStmt) ir.Node {
 		Stmts(n.Late)
 	}
 	Stmts(n.Body)
-	decldepth--
 	return n
 }
 
@@ -337,9 +335,7 @@ func tcRange(n *ir.RangeStmt) {
 		n.Value = AssignExpr(n.Value)
 	}
 
-	decldepth++
 	Stmts(n.Body)
-	decldepth--
 }
 
 // tcReturn typechecks an ORETURN node.

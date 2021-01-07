@@ -21,8 +21,6 @@ var InitTodoFunc = ir.NewFunc(base.Pos)
 
 var inimport bool // set during import
 
-var decldepth int32
-
 var TypecheckAllowed bool
 
 var (
@@ -58,7 +56,6 @@ func Callee(n ir.Node) ir.Node {
 
 func FuncBody(n *ir.Func) {
 	ir.CurFunc = n
-	decldepth = 1
 	errorsBefore := base.Errors()
 	Stmts(n.Body)
 	CheckUnused(n)
@@ -506,9 +503,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.ONAME:
 		n := n.(*ir.Name)
-		if n.Decldepth == 0 {
-			n.Decldepth = decldepth
-		}
 		if n.BuiltinOp != 0 {
 			if top&ctxCallee == 0 {
 				base.Errorf("use of builtin %v not in function call", n.Sym())
@@ -839,7 +833,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		return n
 
 	case ir.OLABEL:
-		decldepth++
 		if n.Sym().IsBlank() {
 			// Empty identifier is valid but useless.
 			// Eliminate now to simplify life later.
@@ -1618,18 +1611,6 @@ func checkassign(stmt ir.Node, n ir.Node) {
 			base.Fatalf("expected an error about %v", n)
 		}
 		return
-	}
-
-	// Variables declared in ORANGE are assigned on every iteration.
-	if !ir.DeclaredBy(n, stmt) || stmt.Op() == ir.ORANGE {
-		r := ir.OuterValue(n)
-		if r.Op() == ir.ONAME {
-			r := r.(*ir.Name)
-			r.SetAssigned(true)
-			if r.IsClosureVar() {
-				r.Defn.Name().SetAssigned(true)
-			}
-		}
 	}
 
 	if ir.IsAddressable(n) {

@@ -88,10 +88,18 @@ import (
 // A batch holds escape analysis state that's shared across an entire
 // batch of functions being analyzed at once.
 type batch struct {
-	allLocs []*location
+	allLocs  []*location
+	closures []closure
 
 	heapLoc  location
 	blankLoc location
+}
+
+// A closure holds a closure expression and its spill hole (i.e.,
+// where the hole representing storing into its closure record).
+type closure struct {
+	k   hole
+	clo *ir.ClosureExpr
 }
 
 // An escape holds state specific to a single function being analyzed
@@ -145,6 +153,10 @@ type location struct {
 
 	// paramEsc records the represented parameter's leak set.
 	paramEsc leaks
+
+	captured   bool // has a closure captured this variable?
+	reassigned bool // has this variable been reassigned?
+	addrtaken  bool // has this variable's address been taken?
 }
 
 // An edge represents an assignment edge between two Go variables.
@@ -209,6 +221,21 @@ func Batch(fns []*ir.Func, recursive bool) {
 		}
 	}
 
+	// We've walked the function bodies, so we've seen everywhere a
+	// variable might be reassigned or have it's address taken. Now we
+	// can decide whether closures should capture their free variables
+	// by value or reference.
+	for _, closure := range b.closures {
+		b.flowClosure(closure.k, closure.clo)
+	}
+	b.closures = nil
+
+	for _, loc := range b.allLocs {
+		if why := HeapAllocReason(loc.n); why != "" {
+			b.flow(b.heapHole().addr(loc.n, why), loc)
+		}
+	}
+
 	b.walkAll()
 	b.finish(fns)
 }
@@ -270,6 +297,37 @@ func (b *batch) walkFunc(fn *ir.Func) {
 	}
 }
 
+func (b *batch) flowClosure(k hole, clo *ir.ClosureExpr) {
+	for _, cv := range clo.Func.ClosureVars {
+		n := cv.Canonical()
+		loc := b.oldLoc(cv)
+		if !loc.captured {
+			base.FatalfAt(cv.Pos(), "closure variable never captured: %v", cv)
+		}
+
+		// Capture by value for variables <= 128 bytes that are never reassigned.
+		n.SetByval(!loc.addrtaken && !loc.reassigned && n.Type().Size() <= 128)
+		if !n.Byval() {
+			n.SetAddrtaken(true)
+		}
+
+		if base.Flag.LowerM > 1 {
+			how := "ref"
+			if n.Byval() {
+				how = "value"
+			}
+			base.WarnfAt(n.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", n.Curfn, how, n, loc.addrtaken, loc.reassigned, n.Type().Size())
+		}
+
+		// Flow captured variables to closure.
+		k := k
+		if !cv.Byval() {
+			k = k.addr(cv, "reference")
+		}
+		b.flow(k.note(cv, "captured by a closure"), loc)
+	}
+}
+
 // Below we implement the methods for walking the AST and recording
 // data flow edges. Note that because a sub-expression might have
 // side-effects, it's important to always visit the entire AST.
@@ -308,7 +366,7 @@ func (e *escape) stmt(n ir.Node) {
 	}()
 
 	if base.Flag.LowerM > 2 {
-		fmt.Printf("%v:[%d] %v stmt: %v\n", base.FmtPos(base.Pos), e.loopDepth, funcSym(e.curfn), n)
+		fmt.Printf("%v:[%d] %v stmt: %v\n", base.FmtPos(base.Pos), e.loopDepth, e.curfn, n)
 	}
 
 	e.stmts(n.Init())
@@ -380,6 +438,7 @@ func (e *escape) stmt(n ir.Node) {
 		} else {
 			e.flow(ks[1].deref(n, "range-deref"), tmp)
 		}
+		e.reassigned(ks, n)
 
 		e.block(n.Body)
 		e.loopDepth--
@@ -447,7 +506,9 @@ func (e *escape) stmt(n ir.Node) {
 	case ir.OAS2FUNC:
 		n := n.(*ir.AssignListStmt)
 		e.stmts(n.Rhs[0].Init())
-		e.call(e.addrs(n.Lhs), n.Rhs[0], nil)
+		ks := e.addrs(n.Lhs)
+		e.call(ks, n.Rhs[0], nil)
+		e.reassigned(ks, n)
 	case ir.ORETURN:
 		n := n.(*ir.ReturnStmt)
 		results := e.curfn.Type().Results().FieldSlice()
@@ -507,7 +568,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 	if uintptrEscapesHack && n.Op() == ir.OCONVNOP && n.(*ir.ConvExpr).X.Type().IsUnsafePtr() {
 		// nop
 	} else if k.derefs >= 0 && !n.Type().HasPointers() {
-		k = e.discardHole()
+		k.dst = &e.blankLoc
 	}
 
 	switch n.Op() {
@@ -691,20 +752,23 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 
 	case ir.OCLOSURE:
 		n := n.(*ir.ClosureExpr)
+		k = e.spill(k, n)
+		e.closures = append(e.closures, closure{k, n})
 
 		if fn := n.Func; fn.IsHiddenClosure() {
-			e.walkFunc(fn)
-		}
+			for _, cv := range fn.ClosureVars {
+				if loc := e.oldLoc(cv); !loc.captured {
+					loc.captured = true
 
-		// Link addresses of captured variables to closure.
-		k = e.spill(k, n)
-		for _, v := range n.Func.ClosureVars {
-			k := k
-			if !v.Byval() {
-				k = k.addr(v, "reference")
+					// Ignore reassignments to the variable in straightline code
+					// preceding the first capture by a closure.
+					if loc.loopDepth == e.loopDepth {
+						loc.reassigned = false
+					}
+				}
 			}
 
-			e.expr(k.note(n, "captured by a closure"), v.Defn)
+			e.walkFunc(fn)
 		}
 
 	case ir.ORUNES2STR, ir.OBYTES2STR, ir.OSTR2RUNES, ir.OSTR2BYTES, ir.ORUNESTR:
@@ -727,6 +791,9 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 func (e *escape) unsafeValue(k hole, n ir.Node) {
 	if n.Type().Kind() != types.TUINTPTR {
 		base.Fatalf("unexpected type %v for %v", n.Type(), n)
+	}
+	if k.addrtaken {
+		base.Fatalf("unexpected addrtaken")
 	}
 
 	e.stmts(n.Init())
@@ -828,33 +895,59 @@ func (e *escape) addrs(l ir.Nodes) []hole {
 	return ks
 }
 
+// reassigned marks the locations associated with the given holes as
+// reassigned, unless the location represents a variable declared and
+// assigned exactly once by where.
+func (e *escape) reassigned(ks []hole, where ir.Node) {
+	if as, ok := where.(*ir.AssignStmt); ok && as.Op() == ir.OAS && as.Y == nil {
+		if dst, ok := as.X.(*ir.Name); ok && dst.Op() == ir.ONAME && dst.Defn == nil {
+			// Zero-value assignment for variable declared without an
+			// explicit initial value. Assume this is its initialization
+			// statement.
+			return
+		}
+	}
+
+	for _, k := range ks {
+		loc := k.dst
+		// Variables declared by range statements are assigned on every iteration.
+		if n, ok := loc.n.(*ir.Name); ok && n.Defn == where && where.Op() != ir.ORANGE {
+			continue
+		}
+		loc.reassigned = true
+	}
+}
+
+// assignList evaluates the assignment dsts... = srcs....
 func (e *escape) assignList(dsts, srcs []ir.Node, why string, where ir.Node) {
-	for i, dst := range dsts {
+	ks := e.addrs(dsts)
+	for i, k := range ks {
 		var src ir.Node
 		if i < len(srcs) {
 			src = srcs[i]
 		}
-		e.assign(dst, src, why, where)
-	}
-}
 
-// assign evaluates the assignment dst = src.
-func (e *escape) assign(dst, src ir.Node, why string, where ir.Node) {
-	// Filter out some no-op assignments for escape analysis.
-	ignore := dst != nil && src != nil && isSelfAssign(dst, src)
-	if ignore && base.Flag.LowerM != 0 {
-		base.WarnfAt(where.Pos(), "%v ignoring self-assignment in %v", funcSym(e.curfn), where)
-	}
+		if dst := dsts[i]; dst != nil {
+			// Detect implicit conversion of uintptr to unsafe.Pointer when
+			// storing into reflect.{Slice,String}Header.
+			if dst.Op() == ir.ODOTPTR && ir.IsReflectHeaderDataField(dst) {
+				e.unsafeValue(e.heapHole().note(where, why), src)
+				continue
+			}
 
-	k := e.addr(dst)
-	if dst != nil && dst.Op() == ir.ODOTPTR && ir.IsReflectHeaderDataField(dst) {
-		e.unsafeValue(e.heapHole().note(where, why), src)
-	} else {
-		if ignore {
-			k = e.discardHole()
+			// Filter out some no-op assignments for escape analysis.
+			if src != nil && isSelfAssign(dst, src) {
+				if base.Flag.LowerM != 0 {
+					base.WarnfAt(where.Pos(), "%v ignoring self-assignment in %v", e.curfn, where)
+				}
+				k = e.discardHole()
+			}
 		}
+
 		e.expr(k.note(where, why), src)
 	}
+
+	e.reassigned(ks, where)
 }
 
 func (e *escape) assignHeap(src ir.Node, why string, where ir.Node) {
@@ -1034,7 +1127,7 @@ func (e *escape) tagHole(ks []hole, fn *ir.Name, param *types.Field) hole {
 func (e *escape) inMutualBatch(fn *ir.Name) bool {
 	if fn.Defn != nil && fn.Defn.Esc() < escFuncTagged {
 		if fn.Defn.Esc() == escFuncUnknown {
-			base.Fatalf("graph inconsistency")
+			base.Fatalf("graph inconsistency: %v", fn)
 		}
 		return true
 	}
@@ -1048,6 +1141,11 @@ type hole struct {
 	dst    *location
 	derefs int // >= -1
 	notes  *note
+
+	// addrtaken indicates whether this context is taking the address of
+	// the expression, independent of whether the address will actually
+	// be stored into a variable.
+	addrtaken bool
 
 	// uintptrEscapesHack indicates this context is evaluating an
 	// argument for a //go:uintptrescapes function.
@@ -1079,6 +1177,7 @@ func (k hole) shift(delta int) hole {
 	if k.derefs < -1 {
 		base.Fatalf("derefs underflow: %v", k.derefs)
 	}
+	k.addrtaken = delta < 0
 	return k
 }
 
@@ -1123,6 +1222,9 @@ func (e *escape) teeHole(ks ...hole) hole {
 }
 
 func (e *escape) dcl(n *ir.Name) hole {
+	if n.Curfn != e.curfn || n.IsClosureVar() {
+		base.Fatalf("bad declaration of %v", n)
+	}
 	loc := e.oldLoc(n)
 	loc.loopDepth = e.loopDepth
 	return loc.asHole()
@@ -1176,10 +1278,6 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
 			}
 			n.Opt = loc
 		}
-
-		if why := HeapAllocReason(n); why != "" {
-			e.flow(e.heapHole().addr(n, why), loc)
-		}
 	}
 	return loc
 }
@@ -1192,9 +1290,13 @@ func (l *location) asHole() hole {
 	return hole{dst: l}
 }
 
-func (e *escape) flow(k hole, src *location) {
+func (b *batch) flow(k hole, src *location) {
+	if k.addrtaken {
+		src.addrtaken = true
+	}
+
 	dst := k.dst
-	if dst == &e.blankLoc {
+	if dst == &b.blankLoc {
 		return
 	}
 	if dst == src && k.derefs >= 0 { // dst = dst, dst = *dst, ...
@@ -1206,9 +1308,10 @@ func (e *escape) flow(k hole, src *location) {
 			if base.Flag.LowerM >= 2 {
 				fmt.Printf("%s: %v escapes to heap:\n", pos, src.n)
 			}
-			explanation := e.explainFlow(pos, dst, src, k.derefs, k.notes, []*logopt.LoggedOpt{})
+			explanation := b.explainFlow(pos, dst, src, k.derefs, k.notes, []*logopt.LoggedOpt{})
 			if logopt.Enabled() {
-				logopt.LogOpt(src.n.Pos(), "escapes", "escape", ir.FuncName(e.curfn), fmt.Sprintf("%v escapes to heap", src.n), explanation)
+				var e_curfn *ir.Func // TODO(mdempsky): Fix.
+				logopt.LogOpt(src.n.Pos(), "escapes", "escape", ir.FuncName(e_curfn), fmt.Sprintf("%v escapes to heap", src.n), explanation)
 			}
 
 		}
@@ -1220,8 +1323,8 @@ func (e *escape) flow(k hole, src *location) {
 	dst.edges = append(dst.edges, edge{src: src, derefs: k.derefs, notes: k.notes})
 }
 
-func (e *escape) heapHole() hole    { return e.heapLoc.asHole() }
-func (e *escape) discardHole() hole { return e.blankLoc.asHole() }
+func (b *batch) heapHole() hole    { return b.heapLoc.asHole() }
+func (b *batch) discardHole() hole { return b.blankLoc.asHole() }
 
 // walkAll computes the minimal dereferences between all pairs of
 // locations.
@@ -1686,14 +1789,6 @@ const (
 	escFuncTagged
 )
 
-// funcSym returns fn.Nname.Sym if no nils are encountered along the way.
-func funcSym(fn *ir.Func) *types.Sym {
-	if fn == nil || fn.Nname == nil {
-		return nil
-	}
-	return fn.Sym()
-}
-
 // Mark labels that have no backjumps to them as not increasing e.loopdepth.
 type labelState int
 
@@ -1863,7 +1958,7 @@ func mayAffectMemory(n ir.Node) bool {
 // HeapAllocReason returns the reason the given Node must be heap
 // allocated, or the empty string if it doesn't.
 func HeapAllocReason(n ir.Node) string {
-	if n.Type() == nil {
+	if n == nil || n.Type() == nil {
 		return ""
 	}
 

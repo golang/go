@@ -232,22 +232,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	}
 	typecheck.IncrementalAddrtaken = true
 
-	// Decide how to capture closed variables.
-	// This needs to run before escape analysis,
-	// because variables captured by value do not escape.
-	base.Timer.Start("fe", "capturevars")
-	for _, n := range typecheck.Target.Decls {
-		if n.Op() == ir.ODCLFUNC {
-			n := n.(*ir.Func)
-			if n.OClosure != nil {
-				ir.CurFunc = n
-				typecheck.CaptureVars(n)
-			}
-		}
-	}
-	typecheck.CaptureVarsComplete = true
-	ir.CurFunc = nil
-
 	if base.Debug.TypecheckInl != 0 {
 		// Typecheck imported function bodies if Debug.l > 1,
 		// otherwise lazily when used or re-exported.
