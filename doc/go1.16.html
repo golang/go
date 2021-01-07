@@ -164,6 +164,12 @@ Do not send CLs removing the interior tags from such phrases.
   non-reproducible builds.
 </p>
 
+<p><!-- golang.org/issue/43052 -->
+  The <code>go</code> command now disallows non-ASCII import paths in module
+  mode. Non-ASCII module paths have already been disallowed so this change
+  affects module subdirectory paths that contain non-ASCII characters.
+</p>
+
 <h4 id="embed">Embedding Files</h4>
 
 <p>
