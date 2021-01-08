@@ -178,7 +178,7 @@ func TestShortString(t *testing.T) {
 			continue
 		}
 		x := ast.DeclList[0].(*VarDecl).Values
-		if got := ShortString(x); got != test[1] {
+		if got := String(x); got != test[1] {
 			t.Errorf("%s: got %s, want %s", test[0], got, test[1])
 		}
 	}

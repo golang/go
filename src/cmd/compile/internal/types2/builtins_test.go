@@ -176,7 +176,7 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
 		// the recorded type for the built-in must match the wanted signature
 		typ := types[fun].Type
 		if typ == nil {
-			t.Errorf("%s: no type recorded for %s", src0, syntax.ShortString(fun))
+			t.Errorf("%s: no type recorded for %s", src0, syntax.String(fun))
 			return
 		}
 		if got := typ.String(); got != want {
