@@ -737,9 +737,10 @@ func (s *ss) floatToken() string {
 	return string(s.buf)
 }
 
-// complexTokens returns the real and imaginary parts of the complex number starting here.
-// The number might be parenthesized and has the format (N+Ni) where N is a floating-point
-// number and there are no spaces within.
+// complexTokens returns the real and imaginary parts of the complex number
+// starting here.  The number must either be parenthesized and has the format
+// (N+Ni) where N is a floating-point number and there are no spaces within,
+// or has the format of N or Ni.  For example "(1+2i)", "3", or "4i".
 func (s *ss) complexTokens() (real, imag string) {
 	parens := s.accept("(")
 	if !parens {
