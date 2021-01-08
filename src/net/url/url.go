@@ -1015,6 +1015,8 @@ func resolvePath(base, ref string) string {
 	)
 	first := true
 	remaining := full
+	// We want to return a leading '/', so write it now.
+	dst.WriteByte('/')
 	for i >= 0 {
 		i = strings.IndexByte(remaining, '/')
 		if i < 0 {
@@ -1029,10 +1031,12 @@ func resolvePath(base, ref string) string {
 		}
 
 		if elem == ".." {
-			str := dst.String()
+			// Ignore the leading '/' we already wrote.
+			str := dst.String()[1:]
 			index := strings.LastIndexByte(str, '/')
 
 			dst.Reset()
+			dst.WriteByte('/')
 			if index == -1 {
 				first = true
 			} else {
@@ -1051,7 +1055,12 @@ func resolvePath(base, ref string) string {
 		dst.WriteByte('/')
 	}
 
-	return "/" + strings.TrimPrefix(dst.String(), "/")
+	// We wrote an initial '/', but we don't want two.
+	r := dst.String()
+	if len(r) > 1 && r[1] == '/' {
+		r = r[1:]
+	}
+	return r
 }
 
 // IsAbs reports whether the URL is absolute.
