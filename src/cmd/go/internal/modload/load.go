@@ -280,9 +280,11 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 	checkMultiplePaths()
 	for _, pkg := range loaded.pkgs {
 		if pkg.err != nil {
-			if pkg.flags.has(pkgInAll) {
-				if sumErr := (*ImportMissingSumError)(nil); errors.As(pkg.err, &sumErr) {
-					sumErr.inAll = true
+			if sumErr := (*ImportMissingSumError)(nil); errors.As(pkg.err, &sumErr) {
+				if importer := pkg.stack; importer != nil {
+					sumErr.importer = importer.path
+					sumErr.importerVersion = importer.mod.Version
+					sumErr.importerIsTest = importer.testOf != nil
 				}
 			}
 
