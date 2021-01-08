@@ -1,18 +1,12 @@
-// UNREVIEWED
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // This file implements syntax tree walking.
-// TODO(gri) A more general API should probably be in
-//           the syntax package.
 
-package types2
+package syntax
 
-import (
-	"cmd/compile/internal/syntax"
-	"fmt"
-)
+import "fmt"
 
 // Walk traverses a syntax in pre-order: It starts by calling f(root);
 // root must not be nil. If f returns false (== "continue"), Walk calls
@@ -23,17 +17,17 @@ import (
 // field lists such as type T in "a, b, c T"). Such shared nodes are
 // walked multiple times.
 // TODO(gri) Revisit this design. It may make sense to walk those nodes
-//           only once. A place where this matters is TestResolveIdents.
-func Walk(root syntax.Node, f func(syntax.Node) bool) {
+//           only once. A place where this matters is types2.TestResolveIdents.
+func Walk(root Node, f func(Node) bool) {
 	w := walker{f}
 	w.node(root)
 }
 
 type walker struct {
-	f func(syntax.Node) bool
+	f func(Node) bool
 }
 
-func (w *walker) node(n syntax.Node) {
+func (w *walker) node(n Node) {
 	if n == nil {
 		panic("invalid syntax tree: nil node")
 	}
@@ -44,18 +38,18 @@ func (w *walker) node(n syntax.Node) {
 
 	switch n := n.(type) {
 	// packages
-	case *syntax.File:
+	case *File:
 		w.node(n.PkgName)
 		w.declList(n.DeclList)
 
 	// declarations
-	case *syntax.ImportDecl:
+	case *ImportDecl:
 		if n.LocalPkgName != nil {
 			w.node(n.LocalPkgName)
 		}
 		w.node(n.Path)
 
-	case *syntax.ConstDecl:
+	case *ConstDecl:
 		w.nameList(n.NameList)
 		if n.Type != nil {
 			w.node(n.Type)
@@ -64,12 +58,12 @@ func (w *walker) node(n syntax.Node) {
 			w.node(n.Values)
 		}
 
-	case *syntax.TypeDecl:
+	case *TypeDecl:
 		w.node(n.Name)
 		w.fieldList(n.TParamList)
 		w.node(n.Type)
 
-	case *syntax.VarDecl:
+	case *VarDecl:
 		w.nameList(n.NameList)
 		if n.Type != nil {
 			w.node(n.Type)
@@ -78,7 +72,7 @@ func (w *walker) node(n syntax.Node) {
 			w.node(n.Values)
 		}
 
-	case *syntax.FuncDecl:
+	case *FuncDecl:
 		if n.Recv != nil {
 			w.node(n.Recv)
 		}
@@ -90,36 +84,36 @@ func (w *walker) node(n syntax.Node) {
 		}
 
 	// expressions
-	case *syntax.BadExpr: // nothing to do
-	case *syntax.Name:
-	case *syntax.BasicLit: // nothing to do
+	case *BadExpr: // nothing to do
+	case *Name: // nothing to do
+	case *BasicLit: // nothing to do
 
-	case *syntax.CompositeLit:
+	case *CompositeLit:
 		if n.Type != nil {
 			w.node(n.Type)
 		}
 		w.exprList(n.ElemList)
 
-	case *syntax.KeyValueExpr:
+	case *KeyValueExpr:
 		w.node(n.Key)
 		w.node(n.Value)
 
-	case *syntax.FuncLit:
+	case *FuncLit:
 		w.node(n.Type)
 		w.node(n.Body)
 
-	case *syntax.ParenExpr:
+	case *ParenExpr:
 		w.node(n.X)
 
-	case *syntax.SelectorExpr:
+	case *SelectorExpr:
 		w.node(n.X)
 		w.node(n.Sel)
 
-	case *syntax.IndexExpr:
+	case *IndexExpr:
 		w.node(n.X)
 		w.node(n.Index)
 
-	case *syntax.SliceExpr:
+	case *SliceExpr:
 		w.node(n.X)
 		for _, x := range n.Index {
 			if x != nil {
@@ -127,43 +121,43 @@ func (w *walker) node(n syntax.Node) {
 			}
 		}
 
-	case *syntax.AssertExpr:
+	case *AssertExpr:
 		w.node(n.X)
 		w.node(n.Type)
 
-	case *syntax.TypeSwitchGuard:
+	case *TypeSwitchGuard:
 		if n.Lhs != nil {
 			w.node(n.Lhs)
 		}
 		w.node(n.X)
 
-	case *syntax.Operation:
+	case *Operation:
 		w.node(n.X)
 		if n.Y != nil {
 			w.node(n.Y)
 		}
 
-	case *syntax.CallExpr:
+	case *CallExpr:
 		w.node(n.Fun)
 		w.exprList(n.ArgList)
 
-	case *syntax.ListExpr:
+	case *ListExpr:
 		w.exprList(n.ElemList)
 
 	// types
-	case *syntax.ArrayType:
+	case *ArrayType:
 		if n.Len != nil {
 			w.node(n.Len)
 		}
 		w.node(n.Elem)
 
-	case *syntax.SliceType:
+	case *SliceType:
 		w.node(n.Elem)
 
-	case *syntax.DotsType:
+	case *DotsType:
 		w.node(n.Elem)
 
-	case *syntax.StructType:
+	case *StructType:
 		w.fieldList(n.FieldList)
 		for _, t := range n.TagList {
 			if t != nil {
@@ -171,65 +165,65 @@ func (w *walker) node(n syntax.Node) {
 			}
 		}
 
-	case *syntax.Field:
+	case *Field:
 		if n.Name != nil {
 			w.node(n.Name)
 		}
 		w.node(n.Type)
 
-	case *syntax.InterfaceType:
+	case *InterfaceType:
 		w.fieldList(n.MethodList)
 
-	case *syntax.FuncType:
+	case *FuncType:
 		w.fieldList(n.ParamList)
 		w.fieldList(n.ResultList)
 
-	case *syntax.MapType:
+	case *MapType:
 		w.node(n.Key)
 		w.node(n.Value)
 
-	case *syntax.ChanType:
+	case *ChanType:
 		w.node(n.Elem)
 
 	// statements
-	case *syntax.EmptyStmt: // nothing to do
+	case *EmptyStmt: // nothing to do
 
-	case *syntax.LabeledStmt:
+	case *LabeledStmt:
 		w.node(n.Label)
 		w.node(n.Stmt)
 
-	case *syntax.BlockStmt:
+	case *BlockStmt:
 		w.stmtList(n.List)
 
-	case *syntax.ExprStmt:
+	case *ExprStmt:
 		w.node(n.X)
 
-	case *syntax.SendStmt:
+	case *SendStmt:
 		w.node(n.Chan)
 		w.node(n.Value)
 
-	case *syntax.DeclStmt:
+	case *DeclStmt:
 		w.declList(n.DeclList)
 
-	case *syntax.AssignStmt:
+	case *AssignStmt:
 		w.node(n.Lhs)
 		w.node(n.Rhs)
 
-	case *syntax.BranchStmt:
+	case *BranchStmt:
 		if n.Label != nil {
 			w.node(n.Label)
 		}
 		// Target points to nodes elsewhere in the syntax tree
 
-	case *syntax.CallStmt:
+	case *CallStmt:
 		w.node(n.Call)
 
-	case *syntax.ReturnStmt:
+	case *ReturnStmt:
 		if n.Results != nil {
 			w.node(n.Results)
 		}
 
-	case *syntax.IfStmt:
+	case *IfStmt:
 		if n.Init != nil {
 			w.node(n.Init)
 		}
@@ -239,7 +233,7 @@ func (w *walker) node(n syntax.Node) {
 			w.node(n.Else)
 		}
 
-	case *syntax.ForStmt:
+	case *ForStmt:
 		if n.Init != nil {
 			w.node(n.Init)
 		}
@@ -251,7 +245,7 @@ func (w *walker) node(n syntax.Node) {
 		}
 		w.node(n.Body)
 
-	case *syntax.SwitchStmt:
+	case *SwitchStmt:
 		if n.Init != nil {
 			w.node(n.Init)
 		}
@@ -262,25 +256,25 @@ func (w *walker) node(n syntax.Node) {
 			w.node(s)
 		}
 
-	case *syntax.SelectStmt:
+	case *SelectStmt:
 		for _, s := range n.Body {
 			w.node(s)
 		}
 
 	// helper nodes
-	case *syntax.RangeClause:
+	case *RangeClause:
 		if n.Lhs != nil {
 			w.node(n.Lhs)
 		}
 		w.node(n.X)
 
-	case *syntax.CaseClause:
+	case *CaseClause:
 		if n.Cases != nil {
 			w.node(n.Cases)
 		}
 		w.stmtList(n.Body)
 
-	case *syntax.CommClause:
+	case *CommClause:
 		if n.Comm != nil {
 			w.node(n.Comm)
 		}
@@ -291,31 +285,31 @@ func (w *walker) node(n syntax.Node) {
 	}
 }
 
-func (w *walker) declList(list []syntax.Decl) {
+func (w *walker) declList(list []Decl) {
 	for _, n := range list {
 		w.node(n)
 	}
 }
 
-func (w *walker) exprList(list []syntax.Expr) {
+func (w *walker) exprList(list []Expr) {
 	for _, n := range list {
 		w.node(n)
 	}
 }
 
-func (w *walker) stmtList(list []syntax.Stmt) {
+func (w *walker) stmtList(list []Stmt) {
 	for _, n := range list {
 		w.node(n)
 	}
 }
 
-func (w *walker) nameList(list []*syntax.Name) {
+func (w *walker) nameList(list []*Name) {
 	for _, n := range list {
 		w.node(n)
 	}
 }
 
-func (w *walker) fieldList(list []*syntax.Field) {
+func (w *walker) fieldList(list []*Field) {
 	for _, n := range list {
 		w.node(n)
 	}
