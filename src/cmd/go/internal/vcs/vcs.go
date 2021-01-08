@@ -729,7 +729,7 @@ func checkGOVCS(vcs *Cmd, root string) error {
 		if private {
 			what = "private"
 		}
-		return fmt.Errorf("GOVCS disallows using %s for %s %s", vcs.Cmd, what, root)
+		return fmt.Errorf("GOVCS disallows using %s for %s %s; see 'go help vcs'", vcs.Cmd, what, root)
 	}
 
 	return nil
