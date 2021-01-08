@@ -53,7 +53,7 @@ func (check *Checker) sprintf(format string, args ...interface{}) string {
 		case syntax.Pos:
 			arg = a.String()
 		case syntax.Expr:
-			arg = syntax.ShortString(a)
+			arg = syntax.String(a)
 		case Object:
 			arg = ObjectString(a, check.qualifier)
 		case Type:

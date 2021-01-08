@@ -44,19 +44,16 @@ func Fprint(w io.Writer, x Node, form Form) (n int, err error) {
 	return
 }
 
-func asString(n Node, form Form) string {
+// String is a convenience functions that prints n in ShortForm
+// and returns the printed string.
+func String(n Node) string {
 	var buf bytes.Buffer
-	_, err := Fprint(&buf, n, form)
+	_, err := Fprint(&buf, n, ShortForm)
 	if err != nil {
 		fmt.Fprintf(&buf, "<<< ERROR: %s", err)
 	}
 	return buf.String()
 }
-
-// String and ShortString are convenience functions that print n in
-// LineForm or ShortForm respectively, and return the printed string.
-func String(n Node) string      { return asString(n, LineForm) }
-func ShortString(n Node) string { return asString(n, ShortForm) }
 
 type ctrlSymbol int
 
