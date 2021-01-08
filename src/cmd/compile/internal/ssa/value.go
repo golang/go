@@ -411,6 +411,23 @@ func (v *Value) isGenericIntConst() bool {
 	return v != nil && (v.Op == OpConst64 || v.Op == OpConst32 || v.Op == OpConst16 || v.Op == OpConst8)
 }
 
+// ResultReg returns the result register assigned to v, in cmd/internal/obj/$ARCH numbering.
+// It is similar to Reg and Reg0, except that it is usable interchangeably for all Value Ops.
+// If you know v.Op, using Reg or Reg0 (as appropriate) will be more efficient.
+func (v *Value) ResultReg() int16 {
+	reg := v.Block.Func.RegAlloc[v.ID]
+	if reg == nil {
+		v.Fatalf("nil reg for value: %s\n%s\n", v.LongString(), v.Block.Func)
+	}
+	if pair, ok := reg.(LocPair); ok {
+		reg = pair[0]
+	}
+	if reg == nil {
+		v.Fatalf("nil reg0 for value: %s\n%s\n", v.LongString(), v.Block.Func)
+	}
+	return reg.(*Register).objNum
+}
+
 // Reg returns the register assigned to v, in cmd/internal/obj/$ARCH numbering.
 func (v *Value) Reg() int16 {
 	reg := v.Block.Func.RegAlloc[v.ID]
