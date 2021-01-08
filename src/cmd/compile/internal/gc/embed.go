@@ -133,13 +133,8 @@ func varEmbed(p *noder, names []*Node, typ *Node, exprs []*Node, embeds []Pragma
 
 	v := names[0]
 	if dclcontext != PEXTERN {
-		numLocalEmbed++
-		v = newnamel(v.Pos, lookupN("embed.", numLocalEmbed))
-		v.Sym.Def = asTypesNode(v)
-		v.Name.Param.Ntype = typ
-		v.SetClass(PEXTERN)
-		externdcl = append(externdcl, v)
-		exprs = []*Node{v}
+		p.yyerrorpos(pos, "go:embed cannot apply to var inside func")
+		return exprs
 	}
 
 	v.Name.Param.SetEmbedFiles(list)

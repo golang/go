@@ -73,24 +73,11 @@ func TestGlobal(t *testing.T) {
 	testString(t, string(glass), "glass", "I can eat glass and it doesn't hurt me.\n")
 }
 
-func TestLocal(t *testing.T) {
-	//go:embed testdata/k*.txt
-	var local embed.FS
-	testFiles(t, local, "testdata/ken.txt", "If a program is too slow, it must have a loop.\n")
-
-	//go:embed testdata/k*.txt
-	var s string
-	testString(t, s, "local variable s", "If a program is too slow, it must have a loop.\n")
-
-	//go:embed testdata/h*.txt
-	var b []byte
-	testString(t, string(b), "local variable b", "hello, world\n")
-}
+//go:embed testdata
+var testDirAll embed.FS
 
 func TestDir(t *testing.T) {
-	//go:embed testdata
-	var all embed.FS
-
+	all := testDirAll
 	testFiles(t, all, "testdata/hello.txt", "hello, world\n")
 	testFiles(t, all, "testdata/i/i18n.txt", "internationalization\n")
 	testFiles(t, all, "testdata/i/j/k/k8s.txt", "kubernetes\n")
@@ -102,12 +89,15 @@ func TestDir(t *testing.T) {
 	testDir(t, all, "testdata/i/j/k", "k8s.txt")
 }
 
-func TestHidden(t *testing.T) {
-	//go:embed testdata
-	var dir embed.FS
+//go:embed testdata
+var testHiddenDir embed.FS
 
-	//go:embed testdata/*
-	var star embed.FS
+//go:embed testdata/*
+var testHiddenStar embed.FS
+
+func TestHidden(t *testing.T) {
+	dir := testHiddenDir
+	star := testHiddenStar
 
 	t.Logf("//go:embed testdata")
 
