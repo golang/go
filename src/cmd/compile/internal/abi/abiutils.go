@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package abi
 
 import (
 	"cmd/compile/internal/types"
@@ -28,7 +28,35 @@ type ABIParamResultInfo struct {
 	intSpillSlots     int
 	floatSpillSlots   int
 	offsetToSpillArea int64
-	config            ABIConfig // to enable String() method
+	config            *ABIConfig // to enable String() method
+}
+
+func (a *ABIParamResultInfo) InParams() []ABIParamAssignment {
+	return a.inparams
+}
+
+func (a *ABIParamResultInfo) OutParams() []ABIParamAssignment {
+	return a.outparams
+}
+
+func (a *ABIParamResultInfo) InParam(i int) ABIParamAssignment {
+	return a.inparams[i]
+}
+
+func (a *ABIParamResultInfo) OutParam(i int) ABIParamAssignment {
+	return a.outparams[i]
+}
+
+func (a *ABIParamResultInfo) IntSpillCount() int {
+	return a.intSpillSlots
+}
+
+func (a *ABIParamResultInfo) FloatSpillCount() int {
+	return a.floatSpillSlots
+}
+
+func (a *ABIParamResultInfo) SpillAreaOffset() int64 {
+	return a.offsetToSpillArea
 }
 
 // RegIndex stores the index into the set of machine registers used by
@@ -66,11 +94,17 @@ type ABIConfig struct {
 	regAmounts RegAmounts
 }
 
+// NewABIConfig returns a new ABI configuration for an architecture with
+// iRegsCount integer/pointer registers and fRegsCount floating point registers.
+func NewABIConfig(iRegsCount, fRegsCount int) *ABIConfig {
+	return &ABIConfig{RegAmounts{iRegsCount, fRegsCount}}
+}
+
 // ABIAnalyze takes a function type 't' and an ABI rules description
 // 'config' and analyzes the function to determine how its parameters
 // and results will be passed (in registers or on the stack), returning
 // an ABIParamResultInfo object that holds the results of the analysis.
-func ABIAnalyze(t *types.Type, config ABIConfig) ABIParamResultInfo {
+func ABIAnalyze(t *types.Type, config *ABIConfig) ABIParamResultInfo {
 	setup()
 	s := assignState{
 		rTotal: config.regAmounts,
@@ -124,7 +158,7 @@ func (c *RegAmounts) regString(r RegIndex) string {
 
 // toString method renders an ABIParamAssignment in human-readable
 // form, suitable for debugging or unit testing.
-func (ri *ABIParamAssignment) toString(config ABIConfig) string {
+func (ri *ABIParamAssignment) toString(config *ABIConfig) string {
 	regs := "R{"
 	for _, r := range ri.Registers {
 		regs += " " + config.regAmounts.regString(r)
