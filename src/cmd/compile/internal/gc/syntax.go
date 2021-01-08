@@ -499,7 +499,12 @@ type paramType struct {
 	alias bool
 }
 
-type embedFileList []string
+type irEmbed struct {
+	Pos      src.XPos
+	Patterns []string
+}
+
+type embedList []irEmbed
 
 // Pragma returns the PragmaFlag for p, which must be for an OTYPE.
 func (p *Param) Pragma() PragmaFlag {
@@ -547,28 +552,28 @@ func (p *Param) SetAlias(alias bool) {
 	(*p.Extra).(*paramType).alias = alias
 }
 
-// EmbedFiles returns the list of embedded files for p,
+// EmbedList returns the list of embedded files for p,
 // which must be for an ONAME var.
-func (p *Param) EmbedFiles() []string {
+func (p *Param) EmbedList() []irEmbed {
 	if p.Extra == nil {
 		return nil
 	}
-	return *(*p.Extra).(*embedFileList)
+	return *(*p.Extra).(*embedList)
 }
 
-// SetEmbedFiles sets the list of embedded files for p,
+// SetEmbedList sets the list of embedded files for p,
 // which must be for an ONAME var.
-func (p *Param) SetEmbedFiles(list []string) {
+func (p *Param) SetEmbedList(list []irEmbed) {
 	if p.Extra == nil {
 		if len(list) == 0 {
 			return
 		}
-		f := embedFileList(list)
+		f := embedList(list)
 		p.Extra = new(interface{})
 		*p.Extra = &f
 		return
 	}
-	*(*p.Extra).(*embedFileList) = list
+	*(*p.Extra).(*embedList) = list
 }
 
 // Functions
