@@ -741,8 +741,15 @@ func (s *ss) floatToken() string {
 // The number might be parenthesized and has the format (N+Ni) where N is a floating-point
 // number and there are no spaces within.
 func (s *ss) complexTokens() (real, imag string) {
-	// TODO: accept N and Ni independently?
 	parens := s.accept("(")
+	if !parens {
+		val := s.floatToken()
+		if s.accept("i") {
+			return "0", val
+		} else {
+			return val, "0"
+		}
+	}
 	real = s.floatToken()
 	s.buf = s.buf[:0]
 	// Must now have a sign.
