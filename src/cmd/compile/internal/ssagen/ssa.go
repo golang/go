@@ -6509,6 +6509,10 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			x := s.pp.Next
 			s.DebugFriendlySetPosFrom(v)
 
+			if v.Op.ResultInArg0() && v.ResultReg() != v.Args[0].Reg() {
+				v.Fatalf("input[0] and output not in same register %s", v.LongString())
+			}
+
 			switch v.Op {
 			case ssa.OpInitMem:
 				// memory arg needs no code
