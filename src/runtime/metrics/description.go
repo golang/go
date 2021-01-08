@@ -73,11 +73,13 @@ var allDesc = []Description{
 		Name:        "/gc/heap/allocs-by-size:bytes",
 		Description: "Distribution of all objects allocated by approximate size.",
 		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
 	},
 	{
 		Name:        "/gc/heap/frees-by-size:bytes",
 		Description: "Distribution of all objects freed by approximate size.",
 		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
 	},
 	{
 		Name:        "/gc/heap/goal:bytes",
@@ -93,6 +95,7 @@ var allDesc = []Description{
 		Name:        "/gc/pauses:seconds",
 		Description: "Distribution individual GC-related stop-the-world pause latencies.",
 		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
 	},
 	{
 		Name: "/memory/classes/heap/free:bytes",
