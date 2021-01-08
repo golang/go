@@ -744,7 +744,8 @@ func (s *ss) complexTokens() (real, imag string) {
 	parens := s.accept("(")
 	if !parens {
 		val := s.floatToken()
-		if s.accept("i") {
+		if s.peek("i") {
+			s.getRune()
 			return "0", val
 		} else {
 			return val, "0"
