@@ -2,22 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package bytes/operations implements byte operations which work
-// over sequences.
-//
-// This package favors simplicity over efficiency. Clients that require
-// high-performance serialization, especially for large data structures,
-// should look at more advanced solutions such as the encoding/gob
-// package or protocol buffers.
-package bytes
+// Package bytes operations implements byte operations which work
+// over sequences.  This package favors efficiency.
 
-import (
-//	"errors"
-//	"io"
-//	"math"
-//	"reflect"
-//	"sync"
-)
+package bytes
 
 // ShiftLeft function does bit shifts along a slice.  When shiftBits is positive, the bits
 // shift to the left, and when shiftBits is negative, the bits shift to the right.  As
