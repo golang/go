@@ -288,3 +288,16 @@ func checkMergedShifts32(a [256]uint32, b [256]uint64, u uint32, v uint32) {
 	//ppc64: -"SLD", "RLWNM\t[$]10, R[0-9]+, [$]22, [$]28, R[0-9]+"
 	b[2] = b[v>>25]
 }
+
+// 128 bit shifts
+
+func check128bitShifts(x, y uint64, bits uint) (uint64, uint64) {
+	s := bits & 63
+	ŝ := (64 - bits) & 63
+	// check that the shift operation has two commas (three operands)
+	// amd64:"SHRQ.*,.*,"
+	shr := x>>s | y<<ŝ
+	// amd64:"SHLQ.*,.*,"
+	shl := x<<s | y>>ŝ
+	return shr, shl
+}
