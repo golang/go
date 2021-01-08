@@ -144,7 +144,7 @@ func TestResolveIdents(t *testing.T) {
 
 	// check that qualified identifiers are resolved
 	for _, f := range files {
-		Walk(f, func(n syntax.Node) bool {
+		syntax.Walk(f, func(n syntax.Node) bool {
 			if s, ok := n.(*syntax.SelectorExpr); ok {
 				if x, ok := s.X.(*syntax.Name); ok {
 					obj := uses[x]
@@ -172,13 +172,13 @@ func TestResolveIdents(t *testing.T) {
 
 	// Check that each identifier in the source is found in uses or defs or both.
 	// We need the foundUses/Defs maps (rather then just deleting the found objects
-	// from the uses and defs maps) because Walk traverses shared nodes multiple
+	// from the uses and defs maps) because syntax.Walk traverses shared nodes multiple
 	// times (e.g. types in field lists such as "a, b, c int").
 	foundUses := make(map[*syntax.Name]bool)
 	foundDefs := make(map[*syntax.Name]bool)
 	var both []string
 	for _, f := range files {
-		Walk(f, func(n syntax.Node) bool {
+		syntax.Walk(f, func(n syntax.Node) bool {
 			if x, ok := n.(*syntax.Name); ok {
 				var objects int
 				if _, found := uses[x]; found {
