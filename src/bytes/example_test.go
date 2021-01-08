@@ -487,3 +487,15 @@ func ExampleReader_Len() {
 	// 3
 	// 16
 }
+
+func ExampleShiftLeft() {
+	// Decode << to a byte array
+	data := []byte("PS")
+	fmt.Printf("%08b\n", data) // [01010000 01010011]
+
+	// ShiftLeft 3 bits to the left (use -3 for right)
+	bytes.ShiftLeft(data, 3)
+
+	// The output is now shifted positive 3 bits
+	fmt.Printf("%08b\n", data) // [10000010 10011000]
+}
