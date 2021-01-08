@@ -395,7 +395,6 @@ pkg runtime/metrics, type Description struct, Cumulative bool
 pkg runtime/metrics, type Description struct, Description string
 pkg runtime/metrics, type Description struct, Kind ValueKind
 pkg runtime/metrics, type Description struct, Name string
-pkg runtime/metrics, type Description struct, StopTheWorld bool
 pkg runtime/metrics, type Float64Histogram struct
 pkg runtime/metrics, type Float64Histogram struct, Buckets []float64
 pkg runtime/metrics, type Float64Histogram struct, Counts []uint64
