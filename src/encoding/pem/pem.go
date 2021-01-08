@@ -234,6 +234,7 @@ func (l *lineBreaker) Write(b []byte) (n int, err error) {
 	}
 
 	if l.pad {
+		// Make sure to add a pad if we need to.
 		_, err = l.out.Write(sp)
 		if err != nil {
 			return
@@ -263,6 +264,7 @@ func (l *lineBreaker) Write(b []byte) (n int, err error) {
 func (l *lineBreaker) Close() (err error) {
 	if l.used > 0 {
 		if l.pad {
+			// Make sure to add a pad if we need to.
 			_, err = l.out.Write(sp)
 			if err != nil {
 				return
@@ -296,6 +298,7 @@ func writeHeader(out io.Writer, k, v string) (err error) {
 		for {
 			i := bytes.IndexByte([]byte(v), ',')
 			if i >= 0 && used+i < pemLineLength {
+				// If we can fit it on the rest of the line.
 				_, err = out.Write([]byte(v[:i+1]))
 				if err != nil {
 					return
@@ -310,9 +313,11 @@ func writeHeader(out io.Writer, k, v string) (err error) {
 						return
 					}
 				}
+				// Create a new lineBreaker writer.
 				breaker := &lineBreaker{pad: true}
 				breaker.out = out
 				if i == -1 {
+					// Block out the rest and call it done.
 					_, err = breaker.Write([]byte(v))
 					if err != nil {
 						return
@@ -320,6 +325,7 @@ func writeHeader(out io.Writer, k, v string) (err error) {
 					breaker.Close()
 					return
 				}
+				// Write up to and include the comma.
 				_, err = breaker.Write([]byte(v[:i+1]))
 				if err != nil {
 					return
