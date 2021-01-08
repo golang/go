@@ -38,6 +38,8 @@ modules and packages to standard error.
 
 The -e flag causes vendor to attempt to proceed despite errors
 encountered while loading packages.
+
+See https://golang.org/ref/mod#go-mod-vendor for more about 'go mod vendor'.
 	`,
 	Run: runVendor,
 }
