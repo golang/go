@@ -46,10 +46,6 @@ type Description struct {
 	//
 	// This flag thus indicates whether or not it's useful to compute a rate from this value.
 	Cumulative bool
-
-	// StopTheWorld is whether or not the metric requires a stop-the-world
-	// event in order to collect it.
-	StopTheWorld bool
 }
 
 // The English language descriptions below must be kept in sync with the
