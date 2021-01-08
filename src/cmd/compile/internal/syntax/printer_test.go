@@ -96,3 +96,90 @@ func testOut() io.Writer {
 	}
 	return ioutil.Discard
 }
+
+func dup(s string) [2]string { return [2]string{s, s} }
+
+var exprTests = [][2]string{
+	// basic type literals
+	dup("x"),
+	dup("true"),
+	dup("42"),
+	dup("3.1415"),
+	dup("2.71828i"),
+	dup(`'a'`),
+	dup(`"foo"`),
+	dup("`bar`"),
+
+	// func and composite literals
+	dup("func() {}"),
+	dup("[]int{}"),
+	{"func(x int) complex128 { return 0 }", "func(x int) complex128 {…}"},
+	{"[]int{1, 2, 3}", "[]int{…}"},
+
+	// non-type expressions
+	dup("(x)"),
+	dup("x.f"),
+	dup("a[i]"),
+
+	dup("s[:]"),
+	dup("s[i:]"),
+	dup("s[:j]"),
+	dup("s[i:j]"),
+	dup("s[:j:k]"),
+	dup("s[i:j:k]"),
+
+	dup("x.(T)"),
+
+	dup("x.([10]int)"),
+	dup("x.([...]int)"),
+
+	dup("x.(struct{})"),
+	dup("x.(struct{x int; y, z float32; E})"),
+
+	dup("x.(func())"),
+	dup("x.(func(x int))"),
+	dup("x.(func() int)"),
+	dup("x.(func(x, y int, z float32) (r int))"),
+	dup("x.(func(a, b, c int))"),
+	dup("x.(func(x ...T))"),
+
+	dup("x.(interface{})"),
+	dup("x.(interface{m(); n(x int); E})"),
+	dup("x.(interface{m(); n(x int) T; E; F})"),
+
+	dup("x.(map[K]V)"),
+
+	dup("x.(chan E)"),
+	dup("x.(<-chan E)"),
+	dup("x.(chan<- chan int)"),
+	dup("x.(chan<- <-chan int)"),
+	dup("x.(<-chan chan int)"),
+	dup("x.(chan (<-chan int))"),
+
+	dup("f()"),
+	dup("f(x)"),
+	dup("int(x)"),
+	dup("f(x, x + y)"),
+	dup("f(s...)"),
+	dup("f(a, s...)"),
+
+	dup("*x"),
+	dup("&x"),
+	dup("x + y"),
+	dup("x + y << (2 * s)"),
+}
+
+func TestShortString(t *testing.T) {
+	for _, test := range exprTests {
+		src := "package p; var _ = " + test[0]
+		ast, err := Parse(nil, strings.NewReader(src), nil, nil, 0)
+		if err != nil {
+			t.Errorf("%s: %s", test[0], err)
+			continue
+		}
+		x := ast.DeclList[0].(*VarDecl).Values
+		if got := ShortString(x); got != test[1] {
+			t.Errorf("%s: got %s, want %s", test[0], got, test[1])
+		}
+	}
+}
