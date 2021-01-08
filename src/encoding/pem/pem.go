@@ -106,6 +106,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		Type:    string(typeLine),
 	}
 
+	var prev_key string
 	for {
 		// This loop terminates because getLine's second result is
 		// always smaller than its argument.
@@ -114,17 +115,23 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		}
 		line, next := getLine(rest)
 
-		i := bytes.IndexByte(line, ':')
-		if i == -1 {
-			break
-		}
+		if len(line) > 2 && (line[0] == 0x20 || line[0] == 0x9) && prev_key != "" {
+			// Joins values that spread across lines.
+			p.Headers[prev_key] = p.Headers[prev_key] + string(bytes.TrimSpace(line))
+			rest = next
+		} else {
+			i := bytes.IndexByte(line, ':')
+			if i == -1 {
+				break
+			}
 
-		// TODO(agl): need to cope with values that spread across lines.
-		key, val := line[:i], line[i+1:]
-		key = bytes.TrimSpace(key)
-		val = bytes.TrimSpace(val)
-		p.Headers[string(key)] = string(val)
-		rest = next
+			key, val := line[:i], line[i+1:]
+			key = bytes.TrimSpace(key)
+			val = bytes.TrimSpace(val)
+			p.Headers[string(key)] = string(val)
+			prev_key = string(key)
+			rest = next
+		}
 	}
 
 	var endIndex, endTrailerIndex int
@@ -212,15 +219,25 @@ type lineBreaker struct {
 	line [pemLineLength]byte
 	used int
 	out  io.Writer
+	pad  bool
 }
 
 var nl = []byte{'\n'}
+var sp = []byte{' '}
 
 func (l *lineBreaker) Write(b []byte) (n int, err error) {
+	// Write headers and PEM block.  RFC1421
 	if l.used+len(b) < pemLineLength {
 		copy(l.line[l.used:], b)
 		l.used += len(b)
 		return len(b), nil
+	}
+
+	if l.pad {
+		_, err = l.out.Write(sp)
+		if err != nil {
+			return
+		}
 	}
 
 	n, err = l.out.Write(l.line[0:l.used])
@@ -245,19 +262,75 @@ func (l *lineBreaker) Write(b []byte) (n int, err error) {
 
 func (l *lineBreaker) Close() (err error) {
 	if l.used > 0 {
+		if l.pad {
+			_, err = l.out.Write(sp)
+			if err != nil {
+				return
+			}
+		}
+
 		_, err = l.out.Write(l.line[0:l.used])
 		if err != nil {
 			return
 		}
 		_, err = l.out.Write(nl)
 	}
-
 	return
 }
 
-func writeHeader(out io.Writer, k, v string) error {
-	_, err := out.Write([]byte(k + ": " + v + "\n"))
-	return err
+func writeHeader(out io.Writer, k, v string) (err error) {
+	// This follows the output specified by RFC1421
+
+	if len(k)+len(v)+2 < pemLineLength {
+		// Write header with key and value on one line.
+		_, err = out.Write([]byte(k + ": " + v + "\n"))
+
+	} else {
+		// Write values that spread across lines.
+		_, err = out.Write([]byte(k + ": "))
+		if err != nil {
+			return
+		}
+		used := len(k) + 2
+
+		for {
+			i := bytes.IndexByte([]byte(v), ',')
+			if i >= 0 && used+i < pemLineLength {
+				_, err = out.Write([]byte(v[:i+1]))
+				if err != nil {
+					return
+				}
+				v = v[i+1:]
+				used += i + 1
+			} else {
+				if used > 0 {
+					// Break to a new line if we have too much.
+					_, err = out.Write(nl)
+					if err != nil {
+						return
+					}
+				}
+				breaker := &lineBreaker{pad: true}
+				breaker.out = out
+				if i == -1 {
+					_, err = breaker.Write([]byte(v))
+					if err != nil {
+						return
+					}
+					breaker.Close()
+					return
+				}
+				_, err = breaker.Write([]byte(v[:i+1]))
+				if err != nil {
+					return
+				}
+				breaker.Close()
+				v = v[i+1:]
+				used = 0
+			}
+		}
+	}
+	return
 }
 
 // Encode writes the PEM encoding of b to out.
