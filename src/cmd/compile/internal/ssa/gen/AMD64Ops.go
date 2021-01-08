@@ -122,6 +122,7 @@ func init() {
 		gp21sp         = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly}
 		gp21sb         = regInfo{inputs: []regMask{gpspsbg, gpsp}, outputs: gponly}
 		gp21shift      = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}}
+		gp31shift      = regInfo{inputs: []regMask{gp, gp, cx}, outputs: []regMask{gp}}
 		gp11div        = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax, dx}}
 		gp21hmul       = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx}, clobbers: ax}
 		gp21flags      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, 0}}
@@ -407,6 +408,9 @@ func init() {
 		{name: "SARLconst", argLength: 1, reg: gp11, asm: "SARL", aux: "Int8", resultInArg0: true, clobberFlags: true}, // signed int32(arg0) >> auxint, shift amount 0-31
 		{name: "SARWconst", argLength: 1, reg: gp11, asm: "SARW", aux: "Int8", resultInArg0: true, clobberFlags: true}, // signed int16(arg0) >> auxint, shift amount 0-15
 		{name: "SARBconst", argLength: 1, reg: gp11, asm: "SARB", aux: "Int8", resultInArg0: true, clobberFlags: true}, // signed int8(arg0) >> auxint, shift amount 0-7
+
+		{name: "SHRDQ", argLength: 3, reg: gp31shift, asm: "SHRQ", resultInArg0: true, clobberFlags: true}, // unsigned arg0 >> arg2, shifting in bits from arg1 (==(arg1<<64+arg0)>>arg2, keeping low 64 bits), shift amount is mod 64
+		{name: "SHLDQ", argLength: 3, reg: gp31shift, asm: "SHLQ", resultInArg0: true, clobberFlags: true}, // unsigned arg0 << arg2, shifting in bits from arg1 (==(arg0<<64+arg1)<<arg2, keeping high 64 bits), shift amount is mod 64
 
 		{name: "ROLQ", argLength: 2, reg: gp21shift, asm: "ROLQ", resultInArg0: true, clobberFlags: true},              // arg0 rotate left arg1 bits.
 		{name: "ROLL", argLength: 2, reg: gp21shift, asm: "ROLL", resultInArg0: true, clobberFlags: true},              // arg0 rotate left arg1 bits.

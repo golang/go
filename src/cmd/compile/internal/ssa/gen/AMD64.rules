@@ -902,6 +902,9 @@
 ((SHRB|SARB)const           x [0]) => x
 ((ROLQ|ROLL|ROLW|ROLB)const x [0]) => x
 
+// Multi-register shifts
+(ORQ (SH(R|L)Q lo bits) (SH(L|R)Q hi (NEGQ bits))) => (SH(R|L)DQ lo hi bits)
+
 // Note: the word and byte shifts keep the low 5 bits (not the low 4 or 3 bits)
 // because the x86 instructions are defined to use all 5 bits of the shift even
 // for the small shifts. I don't think we'll ever generate a weird shift (e.g.
