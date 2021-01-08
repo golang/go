@@ -67,10 +67,6 @@ func varEmbed(p *noder, names []*Node, typ *Node, exprs []*Node, embeds []Pragma
 		p.yyerrorpos(pos, "invalid go:embed: missing import \"embed\"")
 		return
 	}
-	if embedCfg.Patterns == nil {
-		p.yyerrorpos(pos, "invalid go:embed: build system did not supply embed configuration")
-		return
-	}
 	if len(names) > 1 {
 		p.yyerrorpos(pos, "go:embed cannot apply to multiple vars")
 		return
@@ -186,6 +182,18 @@ func dumpembeds() {
 // initEmbed emits the init data for a //go:embed variable,
 // which is either a string, a []byte, or an embed.FS.
 func initEmbed(v *Node) {
+	commentPos := v.Name.Param.EmbedList()[0].Pos
+	if !langSupported(1, 16, localpkg) {
+		lno := lineno
+		lineno = commentPos
+		yyerrorv("go1.16", "go:embed")
+		lineno = lno
+		return
+	}
+	if embedCfg.Patterns == nil {
+		yyerrorl(commentPos, "invalid go:embed: build system did not supply embed configuration")
+		return
+	}
 	kind := embedKind(v.Type)
 	if kind == embedUnknown {
 		yyerrorl(v.Pos, "go:embed cannot apply to var of type %v", v.Type)
