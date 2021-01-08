@@ -976,9 +976,12 @@ func WriteGoMod() {
 // It also contains entries for go.mod files needed for MVS (the version
 // of these entries ends with "/go.mod").
 //
-// If addDirect is true, the set also includes sums for modules directly
-// required by go.mod, as represented by the index, with replacements applied.
-func keepSums(addDirect bool) map[module.Version]bool {
+// If keepBuildListZips is true, the set also includes sums for zip files for
+// all modules in the build list with replacements applied. 'go get' and
+// 'go mod download' may add sums to this set when adding a requirement on a
+// module without a root package or when downloading a direct or indirect
+// dependency.
+func keepSums(keepBuildListZips bool) map[module.Version]bool {
 	// Re-derive the build list using the current list of direct requirements.
 	// Keep the sum for the go.mod of each visited module version (or its
 	// replacement).
@@ -1007,19 +1010,20 @@ func keepSums(addDirect bool) map[module.Version]bool {
 		panic(fmt.Sprintf("unexpected error reloading build list: %v", err))
 	}
 
+	actualMods := make(map[string]module.Version)
+	for _, m := range buildList[1:] {
+		if r := Replacement(m); r.Path != "" {
+			actualMods[m.Path] = r
+		} else {
+			actualMods[m.Path] = m
+		}
+	}
+
 	// Add entries for modules in the build list with paths that are prefixes of
 	// paths of loaded packages. We need to retain sums for modules needed to
 	// report ambiguous import errors. We use our re-derived build list,
 	// since the global build list may have been tidied.
 	if loaded != nil {
-		actualMods := make(map[string]module.Version)
-		for _, m := range buildList[1:] {
-			if r := Replacement(m); r.Path != "" {
-				actualMods[m.Path] = r
-			} else {
-				actualMods[m.Path] = m
-			}
-		}
 		for _, pkg := range loaded.pkgs {
 			if pkg.testOf != nil || pkg.inStd || module.CheckImportPath(pkg.path) != nil {
 				continue
@@ -1032,17 +1036,13 @@ func keepSums(addDirect bool) map[module.Version]bool {
 		}
 	}
 
-	// Add entries for modules directly required by go.mod.
-	if addDirect {
-		for m := range index.require {
-			var kept module.Version
-			if r := Replacement(m); r.Path != "" {
-				kept = r
-			} else {
-				kept = m
-			}
-			keep[kept] = true
-			keep[module.Version{Path: kept.Path, Version: kept.Version + "/go.mod"}] = true
+	// Add entries for the zip of each module in the build list.
+	// We might not need all of these (tidy does not add them), but they may be
+	// added by a specific 'go get' or 'go mod download' command to resolve
+	// missing import sum errors.
+	if keepBuildListZips {
+		for _, m := range actualMods {
+			keep[m] = true
 		}
 	}
 
@@ -1062,9 +1062,8 @@ func (r *keepSumReqs) Required(m module.Version) ([]module.Version, error) {
 }
 
 func TrimGoSum() {
-	// Don't retain sums for direct requirements in go.mod. When TrimGoSum is
-	// called, go.mod has not been updated, and it may contain requirements on
-	// modules deleted from the build list.
-	addDirect := false
-	modfetch.TrimGoSum(keepSums(addDirect))
+	// Don't retain sums for the zip file of every module in the build list.
+	// We may not need them all to build the main module's packages.
+	keepBuildListZips := false
+	modfetch.TrimGoSum(keepSums(keepBuildListZips))
 }
