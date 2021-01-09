@@ -799,10 +799,10 @@ func TestScopesInfo(t *testing.T) {
 			"file:", "func:",
 		}},
 		{`package p15; func _(c chan int) { select{ case <-c: } }`, []string{
-			"file:", "func:c", "select:",
+			"file:", "func:c", "comm:",
 		}},
 		{`package p16; func _(c chan int) { select{ case i := <-c: x := i; _ = x} }`, []string{
-			"file:", "func:c", "select:i x",
+			"file:", "func:c", "comm:i x",
 		}},
 		{`package p17; func _() { for{} }`, []string{
 			"file:", "func:", "for:", "block:",

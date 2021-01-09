@@ -286,6 +286,10 @@ func endPos(n syntax.Node) syntax.Pos {
 			return n.Pos()
 		case *syntax.AssignStmt:
 			m = n.Rhs
+			if m == syntax.ImplicitOne {
+				p := endPos(n.Lhs)
+				return syntax.MakePos(p.Base(), p.Line(), p.Col()+2)
+			}
 		case *syntax.BranchStmt:
 			if n.Label != nil {
 				m = n.Label
