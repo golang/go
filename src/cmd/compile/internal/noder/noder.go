@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -20,7 +19,6 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/dwarfgen"
-	"cmd/compile/internal/importer"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/typecheck"
@@ -126,13 +124,6 @@ func ParseFiles(filenames []string) (lines uint) {
 			},
 			Importer: &gcimports{
 				packages: make(map[string]*types2.Package),
-				lookup: func(path string) (io.ReadCloser, error) {
-					file, ok := findpkg(path)
-					if !ok {
-						return nil, fmt.Errorf("can't find import: %q", path)
-					}
-					return os.Open(file)
-				},
 			},
 			Sizes: &gcSizes{},
 		}
@@ -253,23 +244,6 @@ func Package() {
 	// Phase 5: With all user code type-checked, it's now safe to verify map keys.
 	typecheck.CheckMapKeys()
 
-}
-
-// Temporary import helper to get type2-based type-checking going.
-type gcimports struct {
-	packages map[string]*types2.Package
-	lookup   func(path string) (io.ReadCloser, error)
-}
-
-func (m *gcimports) Import(path string) (*types2.Package, error) {
-	return m.ImportFrom(path, "" /* no vendoring */, 0)
-}
-
-func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*types2.Package, error) {
-	if mode != 0 {
-		panic("mode must be 0")
-	}
-	return importer.Import(m.packages, path, srcDir, m.lookup)
 }
 
 func (p *noder) errorAt(pos syntax.Pos, format string, args ...interface{}) {
@@ -483,7 +457,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 		p.checkUnused(pragma)
 	}
 
-	ipkg := importfile(p.basicLit(imp.Path))
+	ipkg := importfile(imp)
 	if ipkg == nil {
 		if base.Errors() == 0 {
 			base.Fatalf("phase error in import")
@@ -497,11 +471,6 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 	if ipkg.Path == "embed" {
 		p.importedEmbed = true
 	}
-
-	if !ipkg.Direct {
-		typecheck.Target.Imports = append(typecheck.Target.Imports, ipkg)
-	}
-	ipkg.Direct = true
 
 	var my *types.Sym
 	if imp.LocalPkgName != nil {

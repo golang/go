@@ -5,26 +5,54 @@
 package noder
 
 import (
+	"errors"
 	"fmt"
-	"go/constant"
+	"io"
 	"os"
-	"path"
+	pathpkg "path"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/importer"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/compile/internal/types2"
 	"cmd/internal/archive"
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
+
+// Temporary import helper to get type2-based type-checking going.
+type gcimports struct {
+	packages map[string]*types2.Package
+}
+
+func (m *gcimports) Import(path string) (*types2.Package, error) {
+	return m.ImportFrom(path, "" /* no vendoring */, 0)
+}
+
+func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*types2.Package, error) {
+	if mode != 0 {
+		panic("mode must be 0")
+	}
+
+	path, err := resolveImportPath(path)
+	if err != nil {
+		return nil, err
+	}
+
+	lookup := func(path string) (io.ReadCloser, error) { return openPackage(path) }
+	return importer.Import(m.packages, path, srcDir, lookup)
+}
 
 func isDriveLetter(b byte) bool {
 	return 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z'
@@ -38,160 +66,152 @@ func islocalname(name string) bool {
 		strings.HasPrefix(name, "../") || name == ".."
 }
 
-func findpkg(name string) (file string, ok bool) {
-	if islocalname(name) {
+func openPackage(path string) (*os.File, error) {
+	if islocalname(path) {
 		if base.Flag.NoLocalImports {
-			return "", false
+			return nil, errors.New("local imports disallowed")
 		}
 
 		if base.Flag.Cfg.PackageFile != nil {
-			file, ok = base.Flag.Cfg.PackageFile[name]
-			return file, ok
+			return os.Open(base.Flag.Cfg.PackageFile[path])
 		}
 
-		// try .a before .6.  important for building libraries:
-		// if there is an array.6 in the array.a library,
-		// want to find all of array.a, not just array.6.
-		file = fmt.Sprintf("%s.a", name)
-		if _, err := os.Stat(file); err == nil {
-			return file, true
+		// try .a before .o.  important for building libraries:
+		// if there is an array.o in the array.a library,
+		// want to find all of array.a, not just array.o.
+		if file, err := os.Open(fmt.Sprintf("%s.a", path)); err == nil {
+			return file, nil
 		}
-		file = fmt.Sprintf("%s.o", name)
-		if _, err := os.Stat(file); err == nil {
-			return file, true
+		if file, err := os.Open(fmt.Sprintf("%s.o", path)); err == nil {
+			return file, nil
 		}
-		return "", false
+		return nil, errors.New("file not found")
 	}
 
 	// local imports should be canonicalized already.
 	// don't want to see "encoding/../encoding/base64"
 	// as different from "encoding/base64".
-	if q := path.Clean(name); q != name {
-		base.Errorf("non-canonical import path %q (should be %q)", name, q)
-		return "", false
+	if q := pathpkg.Clean(path); q != path {
+		return nil, fmt.Errorf("non-canonical import path %q (should be %q)", path, q)
 	}
 
 	if base.Flag.Cfg.PackageFile != nil {
-		file, ok = base.Flag.Cfg.PackageFile[name]
-		return file, ok
+		return os.Open(base.Flag.Cfg.PackageFile[path])
 	}
 
 	for _, dir := range base.Flag.Cfg.ImportDirs {
-		file = fmt.Sprintf("%s/%s.a", dir, name)
-		if _, err := os.Stat(file); err == nil {
-			return file, true
+		if file, err := os.Open(fmt.Sprintf("%s/%s.a", dir, path)); err == nil {
+			return file, nil
 		}
-		file = fmt.Sprintf("%s/%s.o", dir, name)
-		if _, err := os.Stat(file); err == nil {
-			return file, true
+		if file, err := os.Open(fmt.Sprintf("%s/%s.o", dir, path)); err == nil {
+			return file, nil
 		}
 	}
 
 	if objabi.GOROOT != "" {
 		suffix := ""
-		suffixsep := ""
 		if base.Flag.InstallSuffix != "" {
-			suffixsep = "_"
-			suffix = base.Flag.InstallSuffix
+			suffix = "_" + base.Flag.InstallSuffix
 		} else if base.Flag.Race {
-			suffixsep = "_"
-			suffix = "race"
+			suffix = "_race"
 		} else if base.Flag.MSan {
-			suffixsep = "_"
-			suffix = "msan"
+			suffix = "_msan"
 		}
 
-		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", objabi.GOROOT, objabi.GOOS, objabi.GOARCH, suffixsep, suffix, name)
-		if _, err := os.Stat(file); err == nil {
-			return file, true
+		if file, err := os.Open(fmt.Sprintf("%s/pkg/%s_%s%s/%s.a", objabi.GOROOT, objabi.GOOS, objabi.GOARCH, suffix, path)); err == nil {
+			return file, nil
 		}
-		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.o", objabi.GOROOT, objabi.GOOS, objabi.GOARCH, suffixsep, suffix, name)
-		if _, err := os.Stat(file); err == nil {
-			return file, true
+		if file, err := os.Open(fmt.Sprintf("%s/pkg/%s_%s%s/%s.o", objabi.GOROOT, objabi.GOOS, objabi.GOARCH, suffix, path)); err == nil {
+			return file, nil
 		}
 	}
-
-	return "", false
+	return nil, errors.New("file not found")
 }
 
 // myheight tracks the local package's height based on packages
 // imported so far.
 var myheight int
 
-func importfile(f constant.Value) *types.Pkg {
-	if f.Kind() != constant.String {
-		base.Errorf("import path must be a string")
-		return nil
-	}
-
-	path_ := constant.StringVal(f)
-	if len(path_) == 0 {
-		base.Errorf("import path is empty")
-		return nil
-	}
-
-	if isbadimport(path_, false) {
-		return nil
-	}
-
+// resolveImportPath resolves an import path as it appears in a Go
+// source file to the package's full path.
+func resolveImportPath(path string) (string, error) {
 	// The package name main is no longer reserved,
 	// but we reserve the import path "main" to identify
 	// the main package, just as we reserve the import
 	// path "math" to identify the standard math package.
-	if path_ == "main" {
-		base.Errorf("cannot import \"main\"")
-		base.ErrorExit()
+	if path == "main" {
+		return "", errors.New("cannot import \"main\"")
 	}
 
-	if base.Ctxt.Pkgpath != "" && path_ == base.Ctxt.Pkgpath {
-		base.Errorf("import %q while compiling that package (import cycle)", path_)
-		base.ErrorExit()
+	if base.Ctxt.Pkgpath != "" && path == base.Ctxt.Pkgpath {
+		return "", fmt.Errorf("import %q while compiling that package (import cycle)", path)
 	}
 
-	if mapped, ok := base.Flag.Cfg.ImportMap[path_]; ok {
-		path_ = mapped
+	if mapped, ok := base.Flag.Cfg.ImportMap[path]; ok {
+		path = mapped
 	}
 
-	if path_ == "unsafe" {
-		return ir.Pkgs.Unsafe
-	}
-
-	if islocalname(path_) {
-		if path_[0] == '/' {
-			base.Errorf("import path cannot be absolute path")
-			return nil
+	if islocalname(path) {
+		if path[0] == '/' {
+			return "", errors.New("import path cannot be absolute path")
 		}
 
-		prefix := base.Ctxt.Pathname
-		if base.Flag.D != "" {
-			prefix = base.Flag.D
+		prefix := base.Flag.D
+		if prefix == "" {
+			// Questionable, but when -D isn't specified, historically we
+			// resolve local import paths relative to the directory the
+			// compiler's current directory, not the respective source
+			// file's directory.
+			prefix = base.Ctxt.Pathname
 		}
-		path_ = path.Join(prefix, path_)
+		path = pathpkg.Join(prefix, path)
 
-		if isbadimport(path_, true) {
-			return nil
+		if err := checkImportPath(path, true); err != nil {
+			return "", err
 		}
 	}
 
-	file, found := findpkg(path_)
-	if !found {
-		base.Errorf("can't find import: %q", path_)
-		base.ErrorExit()
-	}
+	return path, nil
+}
 
-	importpkg := types.NewPkg(path_, "")
-	if importpkg.Imported {
-		return importpkg
-	}
-
-	importpkg.Imported = true
-
-	imp, err := bio.Open(file)
+// TODO(mdempsky): Return an error instead.
+func importfile(decl *syntax.ImportDecl) *types.Pkg {
+	path, err := strconv.Unquote(decl.Path.Value)
 	if err != nil {
-		base.Errorf("can't open import: %q: %v", path_, err)
+		base.Errorf("import path must be a string")
+		return nil
+	}
+
+	if err := checkImportPath(path, false); err != nil {
+		base.Errorf("%s", err.Error())
+		return nil
+	}
+
+	path, err = resolveImportPath(path)
+	if err != nil {
+		base.Errorf("%s", err)
+		return nil
+	}
+
+	importpkg := types.NewPkg(path, "")
+	if importpkg.Direct {
+		return importpkg // already fully loaded
+	}
+	importpkg.Direct = true
+	typecheck.Target.Imports = append(typecheck.Target.Imports, importpkg)
+
+	if path == "unsafe" {
+		return importpkg // initialized with universe
+	}
+
+	f, err := openPackage(path)
+	if err != nil {
+		base.Errorf("could not import %q: %v", path, err)
 		base.ErrorExit()
 	}
+	imp := bio.NewReader(f)
 	defer imp.Close()
+	file := f.Name()
 
 	// check object header
 	p, err := imp.ReadString('\n')
@@ -261,12 +281,12 @@ func importfile(f constant.Value) *types.Pkg {
 	var fingerprint goobj.FingerprintType
 	switch c {
 	case '\n':
-		base.Errorf("cannot import %s: old export format no longer supported (recompile library)", path_)
+		base.Errorf("cannot import %s: old export format no longer supported (recompile library)", path)
 		return nil
 
 	case 'B':
 		if base.Debug.Export != 0 {
-			fmt.Printf("importing %s (%s)\n", path_, file)
+			fmt.Printf("importing %s (%s)\n", path, file)
 		}
 		imp.ReadByte() // skip \n after $$B
 
@@ -285,17 +305,17 @@ func importfile(f constant.Value) *types.Pkg {
 		fingerprint = typecheck.ReadImports(importpkg, imp)
 
 	default:
-		base.Errorf("no import in %q", path_)
+		base.Errorf("no import in %q", path)
 		base.ErrorExit()
 	}
 
 	// assume files move (get installed) so don't record the full path
 	if base.Flag.Cfg.PackageFile != nil {
 		// If using a packageFile map, assume path_ can be recorded directly.
-		base.Ctxt.AddImport(path_, fingerprint)
+		base.Ctxt.AddImport(path, fingerprint)
 	} else {
 		// For file "/Users/foo/go/pkg/darwin_amd64/math.a" record "math.a".
-		base.Ctxt.AddImport(file[len(file)-len(path_)-len(".a"):], fingerprint)
+		base.Ctxt.AddImport(file[len(file)-len(path)-len(".a"):], fingerprint)
 	}
 
 	if importpkg.Height >= myheight {
@@ -315,47 +335,37 @@ var reservedimports = []string{
 	"type",
 }
 
-func isbadimport(path string, allowSpace bool) bool {
+func checkImportPath(path string, allowSpace bool) error {
+	if path == "" {
+		return errors.New("import path is empty")
+	}
+
 	if strings.Contains(path, "\x00") {
-		base.Errorf("import path contains NUL")
-		return true
+		return errors.New("import path contains NUL")
 	}
 
 	for _, ri := range reservedimports {
 		if path == ri {
-			base.Errorf("import path %q is reserved and cannot be used", path)
-			return true
+			return fmt.Errorf("import path %q is reserved and cannot be used", path)
 		}
 	}
 
 	for _, r := range path {
-		if r == utf8.RuneError {
-			base.Errorf("import path contains invalid UTF-8 sequence: %q", path)
-			return true
-		}
-
-		if r < 0x20 || r == 0x7f {
-			base.Errorf("import path contains control character: %q", path)
-			return true
-		}
-
-		if r == '\\' {
-			base.Errorf("import path contains backslash; use slash: %q", path)
-			return true
-		}
-
-		if !allowSpace && unicode.IsSpace(r) {
-			base.Errorf("import path contains space character: %q", path)
-			return true
-		}
-
-		if strings.ContainsRune("!\"#$%&'()*,:;<=>?[]^`{|}", r) {
-			base.Errorf("import path contains invalid character '%c': %q", r, path)
-			return true
+		switch {
+		case r == utf8.RuneError:
+			return fmt.Errorf("import path contains invalid UTF-8 sequence: %q", path)
+		case r < 0x20 || r == 0x7f:
+			return fmt.Errorf("import path contains control character: %q", path)
+		case r == '\\':
+			return fmt.Errorf("import path contains backslash; use slash: %q", path)
+		case !allowSpace && unicode.IsSpace(r):
+			return fmt.Errorf("import path contains space character: %q", path)
+		case strings.ContainsRune("!\"#$%&'()*,:;<=>?[]^`{|}", r):
+			return fmt.Errorf("import path contains invalid character '%c': %q", r, path)
 		}
 	}
 
-	return false
+	return nil
 }
 
 func pkgnotused(lineno src.XPos, path string, name string) {
