@@ -1110,6 +1110,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 			typ = check.varType(f.Type)
 			prev = f.Type
 		}
+		tag = ""
 		if i < len(e.TagList) {
 			tag = check.tag(e.TagList[i])
 		}

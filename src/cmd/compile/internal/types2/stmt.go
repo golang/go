@@ -156,7 +156,11 @@ func (check *Checker) multipleSelectDefaults(list []*syntax.CommClause) {
 }
 
 func (check *Checker) openScope(node syntax.Node, comment string) {
-	scope := NewScope(check.scope, node.Pos(), endPos(node), comment)
+	check.openScopeUntil(node, endPos(node), comment)
+}
+
+func (check *Checker) openScopeUntil(node syntax.Node, end syntax.Pos, comment string) {
+	scope := NewScope(check.scope, node.Pos(), end, comment)
 	check.recordScope(node, scope)
 	check.scope = scope
 }
@@ -522,7 +526,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 		check.multipleSelectDefaults(s.Body)
 
-		for _, clause := range s.Body {
+		for i, clause := range s.Body {
 			if clause == nil {
 				continue // error reported before
 			}
@@ -552,8 +556,11 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 				check.error(clause.Comm, "select case must be send or receive (possibly with assignment)")
 				continue
 			}
-
-			check.openScope(s, "case")
+			end := s.Rbrace
+			if i+1 < len(s.Body) {
+				end = s.Body[i+1].Pos()
+			}
+			check.openScopeUntil(clause, end, "case")
 			if clause.Comm != nil {
 				check.stmt(inner, clause.Comm)
 			}
@@ -631,14 +638,16 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 			check.invalidASTf(clause, "incorrect expression switch case")
 			continue
 		}
-		check.caseValues(&x, unpackExpr(clause.Cases), seen)
-		check.openScope(clause, "case")
+		end := s.Rbrace
 		inner := inner
 		if i+1 < len(s.Body) {
+			end = s.Body[i+1].Pos()
 			inner |= fallthroughOk
 		} else {
 			inner |= finalSwitchCase
 		}
+		check.caseValues(&x, unpackExpr(clause.Cases), seen)
+		check.openScopeUntil(clause, end, "case")
 		check.stmtList(inner, clause.Body)
 		check.closeScope()
 	}
@@ -681,15 +690,19 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 
 	var lhsVars []*Var                // list of implicitly declared lhs variables
 	seen := make(map[Type]syntax.Pos) // map of seen types to positions
-	for _, clause := range s.Body {
+	for i, clause := range s.Body {
 		if clause == nil {
 			check.invalidASTf(s, "incorrect type switch case")
 			continue
 		}
+		end := s.Rbrace
+		if i+1 < len(s.Body) {
+			end = s.Body[i+1].Pos()
+		}
 		// Check each type in this type switch case.
 		cases := unpackExpr(clause.Cases)
 		T := check.caseTypes(&x, xtyp, cases, seen, false)
-		check.openScope(clause, "case")
+		check.openScopeUntil(clause, end, "case")
 		// If lhs exists, declare a corresponding variable in the case-local scope.
 		if lhs != nil {
 			// spec: "The TypeSwitchGuard may include a short variable declaration.
@@ -701,6 +714,8 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 				T = x.typ
 			}
 			obj := NewVar(lhs.Pos(), check.pkg, lhs.Value, T)
+			// TODO(mdempsky): Just use clause.Colon? Why did I even suggest
+			// "at the end of the TypeSwitchCase" in #16794 instead?
 			scopePos := clause.Pos() // for default clause (len(List) == 0)
 			if n := len(cases); n > 0 {
 				scopePos = endPos(cases[n-1])
