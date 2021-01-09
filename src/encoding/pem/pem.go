@@ -115,7 +115,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		}
 		line, next := getLine(rest)
 
-		if len(line) > 2 && (line[0] == 0x20 || line[0] == 0x9) && prev_key != "" {
+		if len(line) > 1 && (line[0] == 0x20 || line[0] == 0x9) && prev_key != "" {
 			// Joins values that spread across lines.
 			p.Headers[prev_key] = p.Headers[prev_key] + string(bytes.TrimSpace(line))
 			rest = next
@@ -293,46 +293,71 @@ func writeHeader(out io.Writer, k, v string) (err error) {
 		if err != nil {
 			return
 		}
-		used := len(k) + 2
 
-		for {
+		used := len(k) + 2
+		var blob string
+
+		for len(v) > 0 {
 			i := bytes.IndexByte([]byte(v), ',')
-			if i >= 0 && used+i < pemLineLength {
-				// If we can fit it on the rest of the line.
-				_, err = out.Write([]byte(v[:i+1]))
+			if i == -1 {
+				i = len(v)
+				blob = v
+				v = v[:0]
+			} else {
+				i++
+				blob = v[:i]
+				v = v[i:]
+			}
+			if used == 0 {
+				_, err = out.Write(sp)
 				if err != nil {
 					return
 				}
-				v = v[i+1:]
-				used += i + 1
-			} else {
-				if used > 0 {
-					// Break to a new line if we have too much.
-					_, err = out.Write(nl)
-					if err != nil {
-						return
-					}
+				used++
+			}
+
+			if used+i <= pemLineLength {
+				// If we can fit it on the rest of the line write the blob.
+				_, err = out.Write([]byte(blob))
+				if err != nil {
+					return
+				}
+				used += i
+			} else if i > pemLineLength {
+				// PEM / long blocks, should have their own section with the same length
+				// as the usual PEM, start on a new line, and have a pad space in front.
+				// The reason behind this is that they can be converted back into
+				// a standard PEM just by removing the padding and any trailing ','.
+				_, err = out.Write(nl)
+				if err != nil {
+					return
 				}
 				// Create a new lineBreaker writer.
 				breaker := &lineBreaker{pad: true}
 				breaker.out = out
-				if i == -1 {
-					// Block out the rest and call it done.
-					_, err = breaker.Write([]byte(v))
-					if err != nil {
-						return
-					}
-					breaker.Close()
-					return
-				}
-				// Write up to and include the comma.
-				_, err = breaker.Write([]byte(v[:i+1]))
+
+				// Block out the rest and call it done.
+				_, err = breaker.Write([]byte(blob))
 				if err != nil {
 					return
 				}
-				breaker.Close()
-				v = v[i+1:]
+				err = breaker.Close()
+				if err != nil {
+					return
+				}
 				used = 0
+			} else {
+				_, err = out.Write([]byte("\n " + blob))
+				if err != nil {
+					return
+				}
+				used = i
+			}
+		}
+		if used > 0 {
+			_, err = out.Write(nl)
+			if err != nil {
+				return
 			}
 		}
 	}
