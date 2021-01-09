@@ -1954,7 +1954,6 @@ var excluded = map[string]bool{
 	"fixedbugs/bug388.go":    true, // types2 not run due to syntax errors
 	"fixedbugs/bug412.go":    true, // types2 produces a follow-on error
 
-	"fixedbugs/issue11362.go":  true, // types2 import path handling
 	"fixedbugs/issue11590.go":  true, // types2 doesn't report a follow-on error (pref: types2)
 	"fixedbugs/issue11610.go":  true, // types2 not run after syntax errors
 	"fixedbugs/issue11614.go":  true, // types2 reports an extra error
