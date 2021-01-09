@@ -12,7 +12,7 @@ import (
 // Declaration stack & operations
 
 var blockgen int32 = 1 // max block number
-var Block int32        // current block number
+var Block int32 = 1    // current block number
 
 // A dsym stores a symbol's shadowed declaration so that it can be
 // restored once the block scope ends.

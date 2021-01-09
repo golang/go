@@ -27,7 +27,8 @@ func (m *posMap) end(p ender) src.XPos { return m.makeXPos(p.End()) }
 
 func (m *posMap) makeXPos(pos syntax.Pos) src.XPos {
 	if !pos.IsKnown() {
-		base.Fatalf("unknown position")
+		// TODO(mdempsky): Investigate restoring base.Fatalf.
+		return src.NoXPos
 	}
 
 	posBase := m.makeSrcPosBase(pos.Base())
@@ -70,6 +71,9 @@ func (m *posMap) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
 }
 
 func (m *posMap) join(other *posMap) {
+	if m.bases == nil {
+		m.bases = make(map[*syntax.PosBase]*src.PosBase)
+	}
 	for k, v := range other.bases {
 		if m.bases[k] != nil {
 			base.Fatalf("duplicate posmap bases")
