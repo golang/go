@@ -133,6 +133,7 @@ func ParseFiles(filenames []string) (lines uint) {
 					return os.Open(file)
 				},
 			},
+			Sizes: &gcSizes{},
 		}
 		info := types2.Info{
 			Types:      make(map[syntax.Expr]types2.TypeAndValue),
