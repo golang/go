@@ -247,7 +247,7 @@ func iexport(out *bufio.Writer) {
 	// (Phase 0 of bexport.go.)
 	{
 		// TODO(mdempsky): Separate from bexport logic.
-		p := &exporter{marked: make(map[*types.Type]bool)}
+		p := &exporter{marked: make(map[*types.Type]bool, len(exportlist))}
 		for _, n := range exportlist {
 			sym := n.Sym
 			p.markType(asNode(sym.Def).Type)
