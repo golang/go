@@ -42,7 +42,7 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 		return nil, err
 	}
 
-	refs, err := references(ctx, s, qualifiedObjs, includeDeclaration, true)
+	refs, err := references(ctx, s, qualifiedObjs, includeDeclaration, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -62,10 +62,10 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 }
 
 // references is a helper function to avoid recomputing qualifiedObjsAtProtocolPos.
-func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, includeDeclaration, includeInterfaceRefs bool) ([]*ReferenceInfo, error) {
+func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, includeDeclaration, includeInterfaceRefs, includeEmbeddedRefs bool) ([]*ReferenceInfo, error) {
 	var (
 		references []*ReferenceInfo
-		seen       = make(map[token.Position]bool)
+		seen       = make(map[token.Pos]bool)
 	)
 
 	filename := snapshot.FileSet().Position(qos[0].obj.Pos()).Filename
@@ -105,13 +105,25 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 		for _, pkg := range searchPkgs {
 			for ident, obj := range pkg.GetTypesInfo().Uses {
 				if obj != qo.obj {
+					// If ident is not a use of qo.obj, skip it, with one exception: uses
+					// of an embedded field can be considered references of the embedded
+					// type name.
+					if !includeEmbeddedRefs {
+						continue
+					}
+					v, ok := obj.(*types.Var)
+					if !ok || !v.Embedded() {
+						continue
+					}
+					named, ok := v.Type().(*types.Named)
+					if !ok || named.Obj() != qo.obj {
+						continue
+					}
+				}
+				if seen[ident.Pos()] {
 					continue
 				}
-				pos := snapshot.FileSet().Position(ident.Pos())
-				if seen[pos] {
-					continue
-				}
-				seen[pos] = true
+				seen[ident.Pos()] = true
 				rng, err := posToMappedRange(snapshot, pkg, ident.Pos(), ident.End())
 				if err != nil {
 					return nil, err
@@ -150,7 +162,7 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 	return references, nil
 }
 
-// interfaceReferences returns the references to the interfaces implemeneted by
+// interfaceReferences returns the references to the interfaces implemented by
 // the type or method at the given position.
 func interfaceReferences(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position) ([]*ReferenceInfo, error) {
 	implementations, err := implementations(ctx, s, f, pp)
@@ -163,7 +175,7 @@ func interfaceReferences(ctx context.Context, s Snapshot, f FileHandle, pp proto
 
 	var refs []*ReferenceInfo
 	for _, impl := range implementations {
-		implRefs, err := references(ctx, s, []qualifiedObject{impl}, false, false)
+		implRefs, err := references(ctx, s, []qualifiedObject{impl}, false, false, false)
 		if err != nil {
 			return nil, err
 		}

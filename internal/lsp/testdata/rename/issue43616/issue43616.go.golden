@@ -1,0 +1,9 @@
+-- bar-rename --
+package issue43616
+
+type bar int //@rename("foo","bar")
+
+var x struct{ bar }
+
+var _ = x.bar
+

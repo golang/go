@@ -91,7 +91,7 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 	if pkg == nil || pkg.IsIllTyped() {
 		return nil, errors.Errorf("package for %s is ill typed", f.URI())
 	}
-	refs, err := references(ctx, s, qos, true, false)
+	refs, err := references(ctx, s, qos, true, false, true)
 	if err != nil {
 		return nil, err
 	}
