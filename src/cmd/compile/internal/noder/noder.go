@@ -5,6 +5,7 @@
 package noder
 
 import (
+	"errors"
 	"fmt"
 	"go/constant"
 	"go/token"
@@ -556,19 +557,8 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
 	exprs := p.exprList(decl.Values)
 
 	if pragma, ok := decl.Pragma.(*pragmas); ok {
-		if len(pragma.Embeds) > 0 {
-			if !p.importedEmbed {
-				// This check can't be done when building the list pragma.Embeds
-				// because that list is created before the noder starts walking over the file,
-				// so at that point it hasn't seen the imports.
-				// We're left to check now, just before applying the //go:embed lines.
-				for _, e := range pragma.Embeds {
-					p.errorAt(e.Pos, "//go:embed only allowed in Go files that import \"embed\"")
-				}
-			} else {
-				exprs = varEmbed(p, names, typ, exprs, pragma.Embeds)
-			}
-			pragma.Embeds = nil
+		if err := varEmbed(p.makeXPos, names[0], decl, pragma); err != nil {
+			p.errorAt(decl.Pos(), "%s", err.Error())
 		}
 		p.checkUnused(pragma)
 	}
@@ -2069,53 +2059,36 @@ func oldname(s *types.Sym) ir.Node {
 	return n
 }
 
-func varEmbed(p *noder, names []*ir.Name, typ ir.Ntype, exprs []ir.Node, embeds []pragmaEmbed) (newExprs []ir.Node) {
-	haveEmbed := false
-	for _, decl := range p.file.DeclList {
-		imp, ok := decl.(*syntax.ImportDecl)
-		if !ok {
-			// imports always come first
-			break
-		}
-		path, _ := strconv.Unquote(imp.Path.Value)
-		if path == "embed" {
-			haveEmbed = true
-			break
-		}
+func varEmbed(makeXPos func(syntax.Pos) src.XPos, name *ir.Name, decl *syntax.VarDecl, pragma *pragmas) error {
+	if pragma.Embeds == nil {
+		return nil
 	}
 
-	pos := embeds[0].Pos
-	if !haveEmbed {
-		p.errorAt(pos, "invalid go:embed: missing import \"embed\"")
-		return exprs
-	}
+	pragmaEmbeds := pragma.Embeds
+	pragma.Embeds = nil
+
 	if base.Flag.Cfg.Embed.Patterns == nil {
-		p.errorAt(pos, "invalid go:embed: build system did not supply embed configuration")
-		return exprs
+		return errors.New("invalid go:embed: build system did not supply embed configuration")
 	}
-	if len(names) > 1 {
-		p.errorAt(pos, "go:embed cannot apply to multiple vars")
-		return exprs
+	if len(decl.NameList) > 1 {
+		return errors.New("go:embed cannot apply to multiple vars")
 	}
-	if len(exprs) > 0 {
-		p.errorAt(pos, "go:embed cannot apply to var with initializer")
-		return exprs
+	if decl.Values != nil {
+		return errors.New("go:embed cannot apply to var with initializer")
 	}
-	if typ == nil {
-		// Should not happen, since len(exprs) == 0 now.
-		p.errorAt(pos, "go:embed cannot apply to var without type")
-		return exprs
+	if decl.Type == nil {
+		// Should not happen, since Values == nil now.
+		return errors.New("go:embed cannot apply to var without type")
 	}
 	if typecheck.DeclContext != ir.PEXTERN {
-		p.errorAt(pos, "go:embed cannot apply to var inside func")
-		return exprs
+		return errors.New("go:embed cannot apply to var inside func")
 	}
 
-	v := names[0]
-	typecheck.Target.Embeds = append(typecheck.Target.Embeds, v)
-	v.Embed = new([]ir.Embed)
-	for _, e := range embeds {
-		*v.Embed = append(*v.Embed, ir.Embed{Pos: p.makeXPos(e.Pos), Patterns: e.Patterns})
+	var embeds []ir.Embed
+	for _, e := range pragmaEmbeds {
+		embeds = append(embeds, ir.Embed{Pos: makeXPos(e.Pos), Patterns: e.Patterns})
 	}
-	return exprs
+	typecheck.Target.Embeds = append(typecheck.Target.Embeds, name)
+	name.Embed = &embeds
+	return nil
 }
