@@ -222,6 +222,7 @@ func likelyadjust(f *Func) {
 				if opcodeTable[v.Op].call {
 					local[b.ID] = blCALL
 					certain[b.ID] = max8(blCALL, certain[b.Succs[0].b.ID])
+					break
 				}
 			}
 		}
