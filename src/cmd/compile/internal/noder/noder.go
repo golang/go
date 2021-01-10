@@ -59,7 +59,6 @@ func ParseFiles(filenames []string) (lines uint) {
 
 	for _, filename := range filenames {
 		p := &noder{
-			basemap:     make(map[*syntax.PosBase]*src.PosBase),
 			err:         make(chan syntax.Error),
 			trackScopes: base.Flag.Dwarf,
 		}
@@ -271,42 +270,6 @@ func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*ty
 	return importer.Import(m.packages, path, srcDir, m.lookup)
 }
 
-// makeSrcPosBase translates from a *syntax.PosBase to a *src.PosBase.
-func (p *noder) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
-	// fast path: most likely PosBase hasn't changed
-	if p.basecache.last == b0 {
-		return p.basecache.base
-	}
-
-	b1, ok := p.basemap[b0]
-	if !ok {
-		fn := b0.Filename()
-		if b0.IsFileBase() {
-			b1 = src.NewFileBase(fn, absFilename(fn))
-		} else {
-			// line directive base
-			p0 := b0.Pos()
-			p0b := p0.Base()
-			if p0b == b0 {
-				panic("infinite recursion in makeSrcPosBase")
-			}
-			p1 := src.MakePos(p.makeSrcPosBase(p0b), p0.Line(), p0.Col())
-			b1 = src.NewLinePragmaBase(p1, fn, fileh(fn), b0.Line(), b0.Col())
-		}
-		p.basemap[b0] = b1
-	}
-
-	// update cache
-	p.basecache.last = b0
-	p.basecache.base = b1
-
-	return b1
-}
-
-func (p *noder) makeXPos(pos syntax.Pos) (_ src.XPos) {
-	return base.Ctxt.PosTable.XPos(src.MakePos(p.makeSrcPosBase(pos.Base()), pos.Line(), pos.Col()))
-}
-
 func (p *noder) errorAt(pos syntax.Pos, format string, args ...interface{}) {
 	base.ErrorfAt(p.makeXPos(pos), format, args...)
 }
@@ -322,11 +285,7 @@ func absFilename(name string) string {
 
 // noder transforms package syntax's AST into a Node tree.
 type noder struct {
-	basemap   map[*syntax.PosBase]*src.PosBase
-	basecache struct {
-		last *syntax.PosBase
-		base *src.PosBase
-	}
+	posMap
 
 	file           *syntax.File
 	linknames      []linkname
@@ -900,7 +859,11 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 	case *syntax.Name:
 		return p.mkname(expr)
 	case *syntax.BasicLit:
-		n := ir.NewBasicLit(p.pos(expr), p.basicLit(expr))
+		pos := base.Pos
+		if expr != syntax.ImplicitOne { // ImplicitOne doesn't have a unique position
+			pos = p.pos(expr)
+		}
+		n := ir.NewBasicLit(pos, p.basicLit(expr))
 		if expr.Kind == syntax.RuneLit {
 			n.SetType(types.UntypedRune)
 		}
@@ -1720,17 +1683,8 @@ func (p *noder) wrapname(n syntax.Node, x ir.Node) ir.Node {
 	return x
 }
 
-func (p *noder) pos(n syntax.Node) src.XPos {
-	// TODO(gri): orig.Pos() should always be known - fix package syntax
-	xpos := base.Pos
-	if pos := n.Pos(); pos.IsKnown() {
-		xpos = p.makeXPos(pos)
-	}
-	return xpos
-}
-
 func (p *noder) setlineno(n syntax.Node) {
-	if n != nil {
+	if n != nil && n != syntax.ImplicitOne {
 		base.Pos = p.pos(n)
 	}
 }
