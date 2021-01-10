@@ -19,6 +19,7 @@ import (
 	"unicode/utf8"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/dwarfgen"
 	"cmd/compile/internal/importer"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
@@ -292,22 +293,17 @@ type noder struct {
 	linknames      []linkname
 	pragcgobuf     [][]string
 	err            chan syntax.Error
-	scope          ir.ScopeID
 	importedUnsafe bool
 	importedEmbed  bool
+	trackScopes    bool
 
-	// scopeVars is a stack tracking the number of variables declared in the
-	// current function at the moment each open scope was opened.
-	trackScopes bool
-	scopeVars   []int
+	funcState *funcState
 
 	// typeInfo provides access to the type information computed by the new
 	// typechecker. It is only present if -G is set, and all noders point to
 	// the same types.Info. For now this is a local field, if need be we can
 	// make it global.
 	typeInfo *types2.Info
-
-	lastCloseScopePos syntax.Pos
 }
 
 // For now we provide these basic accessors to get to type and object
@@ -335,9 +331,20 @@ func (p *noder) sel(x *syntax.SelectorExpr) *types2.Selection {
 	return p.typeInfo.Selections[x]
 }
 
+// funcState tracks all per-function state to make handling nested
+// functions easier.
+type funcState struct {
+	// scopeVars is a stack tracking the number of variables declared in
+	// the current function at the moment each open scope was opened.
+	scopeVars []int
+	marker    dwarfgen.ScopeMarker
+
+	lastCloseScopePos syntax.Pos
+}
+
 func (p *noder) funcBody(fn *ir.Func, block *syntax.BlockStmt) {
-	oldScope := p.scope
-	p.scope = 0
+	outerFuncState := p.funcState
+	p.funcState = new(funcState)
 	typecheck.StartFuncBody(fn)
 
 	if block != nil {
@@ -352,62 +359,34 @@ func (p *noder) funcBody(fn *ir.Func, block *syntax.BlockStmt) {
 	}
 
 	typecheck.FinishFuncBody()
-	p.scope = oldScope
+	p.funcState.marker.WriteTo(fn)
+	p.funcState = outerFuncState
 }
 
 func (p *noder) openScope(pos syntax.Pos) {
+	fs := p.funcState
 	types.Markdcl()
 
 	if p.trackScopes {
-		ir.CurFunc.Parents = append(ir.CurFunc.Parents, p.scope)
-		p.scopeVars = append(p.scopeVars, len(ir.CurFunc.Dcl))
-		p.scope = ir.ScopeID(len(ir.CurFunc.Parents))
-
-		p.markScope(pos)
+		fs.scopeVars = append(fs.scopeVars, len(ir.CurFunc.Dcl))
+		fs.marker.Push(p.makeXPos(pos))
 	}
 }
 
 func (p *noder) closeScope(pos syntax.Pos) {
-	p.lastCloseScopePos = pos
+	fs := p.funcState
+	fs.lastCloseScopePos = pos
 	types.Popdcl()
 
 	if p.trackScopes {
-		scopeVars := p.scopeVars[len(p.scopeVars)-1]
-		p.scopeVars = p.scopeVars[:len(p.scopeVars)-1]
+		scopeVars := fs.scopeVars[len(fs.scopeVars)-1]
+		fs.scopeVars = fs.scopeVars[:len(fs.scopeVars)-1]
 		if scopeVars == len(ir.CurFunc.Dcl) {
 			// no variables were declared in this scope, so we can retract it.
-
-			if int(p.scope) != len(ir.CurFunc.Parents) {
-				base.Fatalf("scope tracking inconsistency, no variables declared but scopes were not retracted")
-			}
-
-			p.scope = ir.CurFunc.Parents[p.scope-1]
-			ir.CurFunc.Parents = ir.CurFunc.Parents[:len(ir.CurFunc.Parents)-1]
-
-			nmarks := len(ir.CurFunc.Marks)
-			ir.CurFunc.Marks[nmarks-1].Scope = p.scope
-			prevScope := ir.ScopeID(0)
-			if nmarks >= 2 {
-				prevScope = ir.CurFunc.Marks[nmarks-2].Scope
-			}
-			if ir.CurFunc.Marks[nmarks-1].Scope == prevScope {
-				ir.CurFunc.Marks = ir.CurFunc.Marks[:nmarks-1]
-			}
-			return
+			fs.marker.Unpush()
+		} else {
+			fs.marker.Pop(p.makeXPos(pos))
 		}
-
-		p.scope = ir.CurFunc.Parents[p.scope-1]
-
-		p.markScope(pos)
-	}
-}
-
-func (p *noder) markScope(pos syntax.Pos) {
-	xpos := p.makeXPos(pos)
-	if i := len(ir.CurFunc.Marks); i > 0 && ir.CurFunc.Marks[i-1].Pos == xpos {
-		ir.CurFunc.Marks[i-1].Scope = p.scope
-	} else {
-		ir.CurFunc.Marks = append(ir.CurFunc.Marks, ir.Mark{Pos: xpos, Scope: p.scope})
 	}
 }
 
@@ -416,7 +395,7 @@ func (p *noder) markScope(pos syntax.Pos) {
 // "if" statements, as their implicit blocks always end at the same
 // position as an explicit block.
 func (p *noder) closeAnotherScope() {
-	p.closeScope(p.lastCloseScopePos)
+	p.closeScope(p.funcState.lastCloseScopePos)
 }
 
 // linkname records a //go:linkname directive.
