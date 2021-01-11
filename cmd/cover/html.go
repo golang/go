@@ -8,12 +8,12 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	exec "golang.org/x/sys/execabs"
 	"html/template"
 	"io"
 	"io/ioutil"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 

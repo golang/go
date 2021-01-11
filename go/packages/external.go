@@ -12,8 +12,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	exec "golang.org/x/sys/execabs"
 	"os"
-	"os/exec"
 	"strings"
 )
 

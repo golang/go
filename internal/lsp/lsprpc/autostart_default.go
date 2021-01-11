@@ -5,7 +5,7 @@
 package lsprpc
 
 import (
-	"os/exec"
+	exec "golang.org/x/sys/execabs"
 
 	errors "golang.org/x/xerrors"
 )

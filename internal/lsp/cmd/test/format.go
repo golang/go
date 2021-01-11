@@ -6,9 +6,9 @@ package cmdtest
 
 import (
 	"bytes"
+	exec "golang.org/x/sys/execabs"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 	"testing"

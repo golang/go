@@ -6,8 +6,8 @@
 package browser
 
 import (
+	exec "golang.org/x/sys/execabs"
 	"os"
-	"os/exec"
 	"runtime"
 	"time"
 )

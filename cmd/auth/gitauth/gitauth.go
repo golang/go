@@ -16,11 +16,11 @@ package main
 import (
 	"bytes"
 	"fmt"
+	exec "golang.org/x/sys/execabs"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )

@@ -9,7 +9,7 @@ package main
 import (
 	"bytes"
 	"context"
-	"os/exec"
+	exec "golang.org/x/sys/execabs"
 	"runtime"
 	"strings"
 )

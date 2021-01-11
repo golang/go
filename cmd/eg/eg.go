@@ -14,8 +14,8 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
+	exec "golang.org/x/sys/execabs"
 	"os"
-	"os/exec"
 	"strings"
 
 	"golang.org/x/tools/go/buildutil"

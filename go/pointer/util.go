@@ -8,9 +8,9 @@ import (
 	"bytes"
 	"fmt"
 	"go/types"
+	exec "golang.org/x/sys/execabs"
 	"log"
 	"os"
-	"os/exec"
 	"runtime"
 	"time"
 
