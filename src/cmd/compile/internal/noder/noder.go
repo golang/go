@@ -1872,45 +1872,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
 
 	p.funcBody(fn, expr.Body)
 
-	// closure-specific variables are hanging off the
-	// ordinary ones in the symbol table; see oldname.
-	// unhook them.
-	// make the list of pointers for the closure call.
-	for _, v := range fn.ClosureVars {
-		// Unlink from v1; see comment in syntax.go type Param for these fields.
-		v1 := v.Defn
-		v1.Name().Innermost = v.Outer
-
-		// If the closure usage of v is not dense,
-		// we need to make it dense; now that we're out
-		// of the function in which v appeared,
-		// look up v.Sym in the enclosing function
-		// and keep it around for use in the compiled code.
-		//
-		// That is, suppose we just finished parsing the innermost
-		// closure f4 in this code:
-		//
-		//	func f() {
-		//		v := 1
-		//		func() { // f2
-		//			use(v)
-		//			func() { // f3
-		//				func() { // f4
-		//					use(v)
-		//				}()
-		//			}()
-		//		}()
-		//	}
-		//
-		// At this point v.Outer is f2's v; there is no f3's v.
-		// To construct the closure f4 from within f3,
-		// we need to use f3's v and in this case we need to create f3's v.
-		// We are now in the context of f3, so calling oldname(v.Sym)
-		// obtains f3's v, creating it if necessary (as it is in the example).
-		//
-		// capturevars will decide whether to use v directly or &v.
-		v.Outer = oldname(v.Sym()).(*ir.Name)
-	}
+	ir.FinishCaptureNames(base.Pos, ir.CurFunc, fn)
 
 	return clo
 }
@@ -1944,32 +1906,12 @@ func oldname(s *types.Sym) ir.Node {
 		return ir.NewIdent(base.Pos, s)
 	}
 
-	if ir.CurFunc != nil && n.Op() == ir.ONAME && n.Name().Curfn != nil && n.Name().Curfn != ir.CurFunc {
-		// Inner func is referring to var in outer func.
-		//
+	if n, ok := n.(*ir.Name); ok {
 		// TODO(rsc): If there is an outer variable x and we
 		// are parsing x := 5 inside the closure, until we get to
 		// the := it looks like a reference to the outer x so we'll
 		// make x a closure variable unnecessarily.
-		n := n.(*ir.Name)
-		c := n.Innermost
-		if c == nil || c.Curfn != ir.CurFunc {
-			// Do not have a closure var for the active closure yet; make one.
-			c = typecheck.NewName(s)
-			c.Class = ir.PAUTOHEAP
-			c.SetIsClosureVar(true)
-			c.Defn = n
-
-			// Link into list of active closure variables.
-			// Popped from list in func funcLit.
-			c.Outer = n.Innermost
-			n.Innermost = c
-
-			ir.CurFunc.ClosureVars = append(ir.CurFunc.ClosureVars, c)
-		}
-
-		// return ref to closure var, not original
-		return c
+		return ir.CaptureName(base.Pos, ir.CurFunc, n)
 	}
 
 	return n
