@@ -146,8 +146,11 @@ func Tempdir(txt string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := writeTxtar(txt, RelativeTo(dir)); err != nil {
-		return "", err
+	files := unpackTxt(txt)
+	for name, data := range files {
+		if err := WriteFileData(name, data, RelativeTo(dir)); err != nil {
+			return "", errors.Errorf("writing to tempdir: %w", err)
+		}
 	}
 	return dir, nil
 }

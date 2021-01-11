@@ -104,7 +104,7 @@ func TestWorkdir_ListFiles(t *testing.T) {
 	defer cleanup()
 
 	checkFiles := func(dir string, want []string) {
-		files, err := wd.ListFiles(dir)
+		files, err := wd.listFiles(dir)
 		if err != nil {
 			t.Fatal(err)
 		}

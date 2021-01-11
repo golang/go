@@ -7,12 +7,13 @@ package fake
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
@@ -82,7 +83,7 @@ type Workdir struct {
 	watchers  []func(context.Context, []FileEvent)
 
 	fileMu sync.Mutex
-	files  map[string]time.Time
+	files  map[string]string
 }
 
 // NewWorkdir writes the txtar-encoded file data in txt to dir, and returns a
@@ -91,11 +92,18 @@ func NewWorkdir(dir string) *Workdir {
 	return &Workdir{RelativeTo: RelativeTo(dir)}
 }
 
+func hashFile(data []byte) string {
+	return fmt.Sprintf("%x", sha256.Sum256(data))
+}
+
 func (w *Workdir) writeInitialFiles(txt string) error {
-	writeTxtar(txt, w.RelativeTo)
-	// Poll to capture the current file state.
-	if _, err := w.pollFiles(); err != nil {
-		return errors.Errorf("polling files: %w", err)
+	files := unpackTxt(txt)
+	w.files = map[string]string{}
+	for name, data := range files {
+		w.files[name] = hashFile(data)
+		if err := WriteFileData(name, data, w.RelativeTo); err != nil {
+			return errors.Errorf("writing to workdir: %w", err)
+		}
 	}
 	return nil
 }
@@ -256,10 +264,10 @@ func (w *Workdir) writeFile(ctx context.Context, path, content string) (FileEven
 	}, nil
 }
 
-// ListFiles lists files in the given directory, returning a map of relative
+// listFiles lists files in the given directory, returning a map of relative
 // path to modification time.
-func (w *Workdir) ListFiles(dir string) (map[string]time.Time, error) {
-	files := make(map[string]time.Time)
+func (w *Workdir) listFiles(dir string) (map[string]string, error) {
+	files := make(map[string]string)
 	absDir := w.AbsPath(dir)
 	if err := filepath.Walk(absDir, func(fp string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -269,7 +277,11 @@ func (w *Workdir) ListFiles(dir string) (map[string]time.Time, error) {
 			return nil
 		}
 		path := w.RelPath(fp)
-		files[path] = info.ModTime()
+		data, err := ioutil.ReadFile(fp)
+		if err != nil {
+			return err
+		}
+		files[path] = hashFile(data)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -294,20 +306,20 @@ func (w *Workdir) pollFiles() ([]FileEvent, error) {
 	w.fileMu.Lock()
 	defer w.fileMu.Unlock()
 
-	files, err := w.ListFiles(".")
+	files, err := w.listFiles(".")
 	if err != nil {
 		return nil, err
 	}
 	var evts []FileEvent
 	// Check which files have been added or modified.
-	for path, mtime := range files {
-		oldmtime, ok := w.files[path]
+	for path, hash := range files {
+		oldhash, ok := w.files[path]
 		delete(w.files, path)
 		var typ protocol.FileChangeType
 		switch {
 		case !ok:
 			typ = protocol.Created
-		case oldmtime != mtime:
+		case oldhash != hash:
 			typ = protocol.Changed
 		default:
 			continue
