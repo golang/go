@@ -57,6 +57,12 @@ type fileHandle struct {
 	bytes   []byte
 	hash    string
 	err     error
+
+	// size is the file length as reported by Stat, for the purpose of
+	// invalidation. Probably we could just use len(bytes), but this is done
+	// defensively in case the definition of file size in the file system
+	// differs.
+	size int64
 }
 
 func (h *fileHandle) Saved() bool {
@@ -79,11 +85,23 @@ func (c *Cache) getFile(ctx context.Context, uri span.URI) (*fileHandle, error) 
 	c.fileMu.Lock()
 	fh, ok := c.fileContent[uri]
 	c.fileMu.Unlock()
-	if ok && fh.modTime.Equal(fi.ModTime()) {
+
+	// Check mtime and file size to infer whether the file has changed. This is
+	// an imperfect heuristic. Notably on some real systems (such as WSL) the
+	// filesystem clock resolution can be large -- 1/64s was observed. Therefore
+	// it's quite possible for multiple file modifications to occur within a
+	// single logical 'tick'. This can leave the cache in an incorrect state, but
+	// unfortunately we can't afford to pay the price of reading the actual file
+	// content here. Or to be more precise, reading would be a risky change and
+	// we don't know if we can afford it.
+	//
+	// We check file size in an attempt to reduce the probability of false cache
+	// hits.
+	if ok && fh.modTime.Equal(fi.ModTime()) && fh.size == fi.Size() {
 		return fh, nil
 	}
 
-	fh, err := readFile(ctx, uri, fi.ModTime())
+	fh, err := readFile(ctx, uri, fi)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +114,7 @@ func (c *Cache) getFile(ctx context.Context, uri span.URI) (*fileHandle, error) 
 // ioLimit limits the number of parallel file reads per process.
 var ioLimit = make(chan struct{}, 128)
 
-func readFile(ctx context.Context, uri span.URI, modTime time.Time) (*fileHandle, error) {
+func readFile(ctx context.Context, uri span.URI, fi os.FileInfo) (*fileHandle, error) {
 	select {
 	case ioLimit <- struct{}{}:
 	case <-ctx.Done():
@@ -111,12 +129,14 @@ func readFile(ctx context.Context, uri span.URI, modTime time.Time) (*fileHandle
 	data, err := ioutil.ReadFile(uri.Filename())
 	if err != nil {
 		return &fileHandle{
-			modTime: modTime,
+			modTime: fi.ModTime(),
+			size:    fi.Size(),
 			err:     err,
 		}, nil
 	}
 	return &fileHandle{
-		modTime: modTime,
+		modTime: fi.ModTime(),
+		size:    fi.Size(),
 		uri:     uri,
 		bytes:   data,
 		hash:    hashContents(data),

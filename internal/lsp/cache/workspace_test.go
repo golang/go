@@ -81,7 +81,7 @@ func (s *osFileSource) GetFile(ctx context.Context, uri span.URI) (source.FileHa
 			uri: uri,
 		}, nil
 	}
-	fh, err := readFile(ctx, uri, fi.ModTime())
+	fh, err := readFile(ctx, uri, fi)
 	if err != nil {
 		return nil, err
 	}
