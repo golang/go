@@ -286,3 +286,40 @@ func _() {
 		)
 	})
 }
+
+// Test that completions still work with an undownloaded module, golang/go#43333.
+func TestUndownloadedModule(t *testing.T) {
+	// mod.com depends on example.com, but only in a file that's hidden by a
+	// build tag, so the IWL won't download example.com. That will cause errors
+	// in the go list -m call performed by the imports package.
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.14
+
+require example.com v1.2.3
+-- go.sum --
+example.com v1.2.3 h1:ihBTGWGjTU3V4ZJ9OmHITkU9WQ4lGdQkMjgyLFk0FaY=
+example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
+-- useblah.go --
+// +build hidden
+
+package pkg
+import "example.com/blah"
+var _ = blah.Name
+-- mainmod/mainmod.go --
+package mainmod
+
+const Name = "mainmod"
+`
+	withOptions(ProxyFiles(proxy)).run(t, files, func(t *testing.T, env *Env) {
+		env.CreateBuffer("import.go", "package pkg\nvar _ = mainmod.Name\n")
+		env.SaveBuffer("import.go")
+		content := env.ReadWorkspaceFile("import.go")
+		if !strings.Contains(content, `import "mod.com/mainmod`) {
+			t.Errorf("expected import of mod.com/mainmod in %q", content)
+		}
+	})
+
+}
