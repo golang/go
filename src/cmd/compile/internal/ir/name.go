@@ -351,6 +351,82 @@ func (n *Name) Byval() bool {
 	return n.Canonical().flags&nameByval != 0
 }
 
+// CaptureName returns a Name suitable for referring to n from within function
+// fn or from the package block if fn is nil. If n is a free variable declared
+// within a function that encloses fn, then CaptureName returns a closure
+// variable that refers to n and adds it to fn.ClosureVars. Otherwise, it simply
+// returns n.
+func CaptureName(pos src.XPos, fn *Func, n *Name) *Name {
+	if n.IsClosureVar() {
+		base.FatalfAt(pos, "misuse of CaptureName on closure variable: %v", n)
+	}
+	if n.Op() != ONAME || n.Curfn == nil || n.Curfn == fn {
+		return n // okay to use directly
+	}
+	if fn == nil {
+		base.FatalfAt(pos, "package-block reference to %v, declared in %v", n, n.Curfn)
+	}
+
+	c := n.Innermost
+	if c != nil && c.Curfn == fn {
+		return c
+	}
+
+	// Do not have a closure var for the active closure yet; make one.
+	c = NewNameAt(pos, n.Sym())
+	c.Curfn = fn
+	c.Class = PAUTOHEAP
+	c.SetIsClosureVar(true)
+	c.Defn = n
+
+	// Link into list of active closure variables.
+	// Popped from list in FinishCaptureNames.
+	c.Outer = n.Innermost
+	n.Innermost = c
+	fn.ClosureVars = append(fn.ClosureVars, c)
+
+	return c
+}
+
+// FinishCaptureNames handles any work leftover from calling CaptureName
+// earlier. outerfn should be the function that immediately encloses fn.
+func FinishCaptureNames(pos src.XPos, outerfn, fn *Func) {
+	// closure-specific variables are hanging off the
+	// ordinary ones; see CaptureName above.
+	// unhook them.
+	// make the list of pointers for the closure call.
+	for _, cv := range fn.ClosureVars {
+		// Unlink from n; see comment in syntax.go type Param for these fields.
+		n := cv.Defn.(*Name)
+		n.Innermost = cv.Outer
+
+		// If the closure usage of n is not dense, we need to make it
+		// dense by recapturing n within the enclosing function.
+		//
+		// That is, suppose we just finished parsing the innermost
+		// closure f4 in this code:
+		//
+		//	func f() {
+		//		n := 1
+		//		func() { // f2
+		//			use(n)
+		//			func() { // f3
+		//				func() { // f4
+		//					use(n)
+		//				}()
+		//			}()
+		//		}()
+		//	}
+		//
+		// At this point cv.Outer is f2's n; there is no n for f3. To
+		// construct the closure f4 from within f3, we need to use f3's
+		// n and in this case we need to create f3's n with CaptureName.
+		//
+		// We'll decide later in walk whether to use v directly or &v.
+		cv.Outer = CaptureName(pos, outerfn, n)
+	}
+}
+
 // SameSource reports whether two nodes refer to the same source
 // element.
 //
