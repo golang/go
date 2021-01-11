@@ -61,8 +61,14 @@ type Func struct {
 	// memory for escaping parameters.
 	Enter Nodes
 	Exit  Nodes
+
 	// ONAME nodes for all params/locals for this func/closure, does NOT
 	// include closurevars until transformclosure runs.
+	// Names must be listed PPARAMs, PPARAMOUTs, then PAUTOs,
+	// with PPARAMs and PPARAMOUTs in order corresponding to the function signature.
+	// However, as anonymous or blank PPARAMs are not actually declared,
+	// they are omitted from Dcl.
+	// Anonymous and blank PPARAMOUTs are declared as ~rNN and ~bNN Names, respectively.
 	Dcl []*Name
 
 	ClosureType Ntype // closure representation type

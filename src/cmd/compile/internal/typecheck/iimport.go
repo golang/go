@@ -262,6 +262,9 @@ type importReader struct {
 	prevBase   *src.PosBase
 	prevLine   int64
 	prevColumn int64
+
+	// curfn is the current function we're importing into.
+	curfn *ir.Func
 }
 
 func (p *iimporter) newReader(off uint64, pkg *types.Pkg) *importReader {
@@ -715,19 +718,7 @@ func (r *importReader) doInline(fn *ir.Func) {
 		base.Fatalf("%v already has inline body", fn)
 	}
 
-	StartFuncBody(fn)
-	body := r.stmtList()
-	FinishFuncBody()
-	if body == nil {
-		//
-		// Make sure empty body is not interpreted as
-		// no inlineable body (see also parser.fnbody)
-		// (not doing so can cause significant performance
-		// degradation due to unnecessary calls to empty
-		// functions).
-		body = []ir.Node{}
-	}
-	fn.Inl.Body = body
+	r.funcBody(fn)
 
 	importlist = append(importlist, fn)
 
@@ -754,6 +745,68 @@ func (r *importReader) doInline(fn *ir.Func) {
 // Refined nodes (e.g., ODOTPTR as a refinement of OXDOT) are exported as their
 // unrefined nodes (since this is what the importer uses). The respective case
 // entries are unreachable in the importer.
+
+func (r *importReader) funcBody(fn *ir.Func) {
+	outerfn := r.curfn
+	r.curfn = fn
+
+	// Import local declarations.
+	dcls := make([]*ir.Name, r.int64())
+	for i := range dcls {
+		n := ir.NewDeclNameAt(r.pos(), ir.ONAME, r.localIdent())
+		n.Class = ir.PAUTO // overwritten below for parameters/results
+		n.Curfn = fn
+		n.SetType(r.typ())
+		dcls[i] = n
+	}
+	fn.Inl.Dcl = dcls
+
+	// Fixup parameter classes and associate with their
+	// signature's type fields.
+	i := 0
+	fix := func(f *types.Field, class ir.Class) {
+		if class == ir.PPARAM && (f.Sym == nil || f.Sym.Name == "_") {
+			return
+		}
+		n := dcls[i]
+		n.Class = class
+		f.Nname = n
+		i++
+	}
+
+	typ := fn.Type()
+	if recv := typ.Recv(); recv != nil {
+		fix(recv, ir.PPARAM)
+	}
+	for _, f := range typ.Params().FieldSlice() {
+		fix(f, ir.PPARAM)
+	}
+	for _, f := range typ.Results().FieldSlice() {
+		fix(f, ir.PPARAMOUT)
+	}
+
+	// Import function body.
+	body := r.stmtList()
+	if body == nil {
+		// Make sure empty body is not interpreted as
+		// no inlineable body (see also parser.fnbody)
+		// (not doing so can cause significant performance
+		// degradation due to unnecessary calls to empty
+		// functions).
+		body = []ir.Node{}
+	}
+	fn.Inl.Body = body
+
+	r.curfn = outerfn
+}
+
+func (r *importReader) localName() *ir.Name {
+	i := r.int64()
+	if i < 0 {
+		return ir.BlankNode.(*ir.Name)
+	}
+	return r.curfn.Inl.Dcl[i]
+}
 
 func (r *importReader) stmtList() []ir.Node {
 	var list []ir.Node
@@ -784,13 +837,8 @@ func (r *importReader) caseList(switchExpr ir.Node) []*ir.CaseClause {
 		cas := ir.NewCaseStmt(r.pos(), nil, nil)
 		cas.List = r.stmtList()
 		if namedTypeSwitch {
-			// Note: per-case variables will have distinct, dotted
-			// names after import. That's okay: swt.go only needs
-			// Sym for diagnostics anyway.
-			caseVar := ir.NewNameAt(cas.Pos(), r.localIdent())
-			Declare(caseVar, DeclContext)
-			cas.Var = caseVar
-			caseVar.Defn = switchExpr
+			cas.Var = r.localName()
+			cas.Var.Defn = switchExpr
 		}
 		cas.Body = r.stmtList()
 		cases[i] = cas
@@ -854,7 +902,7 @@ func (r *importReader) node() ir.Node {
 		return r.qualifiedIdent()
 
 	case ir.ONAME:
-		return r.localIdent().Def.(*ir.Name)
+		return r.localName()
 
 	// case OPACK, ONONAME:
 	// 	unreachable - should have been resolved by typechecking
@@ -991,16 +1039,11 @@ func (r *importReader) node() ir.Node {
 	// --------------------------------------------------------------------
 	// statements
 	case ir.ODCL:
-		pos := r.pos()
-		lhs := ir.NewDeclNameAt(pos, ir.ONAME, r.localIdent())
-		lhs.SetType(r.typ())
-
-		Declare(lhs, ir.PAUTO)
-
 		var stmts ir.Nodes
-		stmts.Append(ir.NewDecl(base.Pos, ir.ODCL, lhs))
-		stmts.Append(ir.NewAssignStmt(base.Pos, lhs, nil))
-		return ir.NewBlockStmt(pos, stmts)
+		n := r.localName()
+		stmts.Append(ir.NewDecl(n.Pos(), ir.ODCL, n))
+		stmts.Append(ir.NewAssignStmt(n.Pos(), n, nil))
+		return ir.NewBlockStmt(n.Pos(), stmts)
 
 	// case OAS, OASWB:
 	// 	unreachable - mapped to OAS case below by exporter

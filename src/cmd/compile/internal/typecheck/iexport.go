@@ -422,6 +422,10 @@ type exportWriter struct {
 	prevFile   string
 	prevLine   int64
 	prevColumn int64
+
+	// dclIndex maps function-scoped declarations to their index
+	// within their respective Func's Dcl list.
+	dclIndex map[*ir.Name]int
 }
 
 func (p *iexporter) doDecl(n *ir.Name) {
@@ -529,7 +533,8 @@ func (p *iexporter) doInline(f *ir.Name) {
 	w := p.newWriter()
 	w.setPkg(fnpkg(f), false)
 
-	w.stmtList(ir.Nodes(f.Func.Inl.Body))
+	w.dclIndex = make(map[*ir.Name]int, len(f.Func.Inl.Dcl))
+	w.funcBody(f.Func)
 
 	w.finish("inl", p.inlineIndex, f.Sym())
 }
@@ -756,7 +761,7 @@ func (w *exportWriter) paramList(fs []*types.Field) {
 
 func (w *exportWriter) param(f *types.Field) {
 	w.pos(f.Pos)
-	w.localIdent(types.OrigSym(f.Sym), 0)
+	w.localIdent(types.OrigSym(f.Sym))
 	w.typ(f.Type)
 }
 
@@ -1030,7 +1035,19 @@ func (w *exportWriter) typeExt(t *types.Type) {
 
 // Inline bodies.
 
-func (w *exportWriter) stmtList(list ir.Nodes) {
+func (w *exportWriter) funcBody(fn *ir.Func) {
+	w.int64(int64(len(fn.Inl.Dcl)))
+	for i, n := range fn.Inl.Dcl {
+		w.pos(n.Pos())
+		w.localIdent(n.Sym())
+		w.typ(n.Type())
+		w.dclIndex[n] = i
+	}
+
+	w.stmtList(fn.Inl.Body)
+}
+
+func (w *exportWriter) stmtList(list []ir.Node) {
 	for _, n := range list {
 		w.node(n)
 	}
@@ -1070,10 +1087,11 @@ func (w *exportWriter) stmt(n ir.Node) {
 
 	case ir.ODCL:
 		n := n.(*ir.Decl)
+		if ir.IsBlank(n.X) {
+			return // blank declarations not useful to importers
+		}
 		w.op(ir.ODCL)
-		w.pos(n.X.Pos())
 		w.localName(n.X)
-		w.typ(n.X.Type())
 
 	case ir.OAS:
 		// Don't export "v = <N>" initializing statements, hope they're always
@@ -1288,7 +1306,7 @@ func (w *exportWriter) expr(n ir.Node) {
 			}
 			s = n.Tag.Sym()
 		}
-		w.localIdent(s, 0) // declared pseudo-variable, if any
+		w.localIdent(s) // declared pseudo-variable, if any
 		w.expr(n.X)
 
 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
@@ -1518,22 +1536,19 @@ func (w *exportWriter) fieldList(list ir.Nodes) {
 }
 
 func (w *exportWriter) localName(n *ir.Name) {
-	// Escape analysis happens after inline bodies are saved, but
-	// we're using the same ONAME nodes, so we might still see
-	// PAUTOHEAP here.
-	//
-	// Check for Stackcopy to identify PAUTOHEAP that came from
-	// PPARAM/PPARAMOUT, because we only want to include vargen in
-	// non-param names.
-	var v int32
-	if n.Class == ir.PAUTO || (n.Class == ir.PAUTOHEAP && n.Stackcopy == nil) {
-		v = n.Vargen
+	if ir.IsBlank(n) {
+		w.int64(-1)
+		return
 	}
 
-	w.localIdent(n.Sym(), v)
+	i, ok := w.dclIndex[n]
+	if !ok {
+		base.FatalfAt(n.Pos(), "missing from dclIndex: %+v", n)
+	}
+	w.int64(int64(i))
 }
 
-func (w *exportWriter) localIdent(s *types.Sym, v int32) {
+func (w *exportWriter) localIdent(s *types.Sym) {
 	if w.currPkg == nil {
 		base.Fatalf("missing currPkg")
 	}
@@ -1553,13 +1568,6 @@ func (w *exportWriter) localIdent(s *types.Sym, v int32) {
 	// TODO(mdempsky): Fix autotmp hack.
 	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, ".autotmp_") {
 		base.Fatalf("unexpected dot in identifier: %v", name)
-	}
-
-	if v > 0 {
-		if strings.Contains(name, "·") {
-			base.Fatalf("exporter: unexpected · in symbol name")
-		}
-		name = fmt.Sprintf("%s·%d", name, v)
 	}
 
 	if s.Pkg != w.currPkg {

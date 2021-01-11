@@ -1687,7 +1687,7 @@ func typecheckdeftype(n *ir.Name) {
 	}
 
 	t := types.NewNamed(n)
-	t.Vargen = n.Vargen
+	t.Vargen = n.Typegen
 	if n.Pragma()&ir.NotInHeap != 0 {
 		t.SetNotInHeap(true)
 	}
