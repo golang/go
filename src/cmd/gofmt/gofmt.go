@@ -61,6 +61,7 @@ func usage() {
 }
 
 func initParserMode() {
+	// Keep this in sync with go/format/format.go.
 	parserMode = parser.ParseComments | parser.UnifiedParamLists
 	if *allErrors {
 		parserMode |= parser.AllErrors

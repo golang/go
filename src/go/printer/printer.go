@@ -1350,8 +1350,12 @@ type CommentedNode struct {
 // or assignment-compatible to ast.Expr, ast.Decl, ast.Spec, or ast.Stmt.
 //
 func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{}) error {
-	if file, _ := node.(*ast.File); file != nil && file.UseBrackets {
-		cfg.Mode |= UseBrackets
+	// Ensure that our formatting of type parameters is consistent with the file.
+	if file, _ := node.(*ast.File); file != nil && file.UseBrackets && cfg.Mode&UseBrackets == 0 {
+		// Copy to avoid data races.
+		cfg2 := *cfg
+		cfg2.Mode |= UseBrackets
+		cfg = &cfg2
 	}
 	return cfg.fprint(output, fset, node, make(map[ast.Node]int))
 }
