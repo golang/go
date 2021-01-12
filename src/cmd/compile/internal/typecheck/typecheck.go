@@ -1681,13 +1681,22 @@ func CheckMapKeys() {
 	mapqueue = nil
 }
 
+// typegen tracks the number of function-scoped defined types that
+// have been declared. It's used to generate unique linker symbols for
+// their runtime type descriptors.
+var typegen int32
+
 func typecheckdeftype(n *ir.Name) {
 	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheckdeftype", n)(nil)
 	}
 
 	t := types.NewNamed(n)
-	t.Vargen = n.Typegen
+	if n.Curfn != nil {
+		typegen++
+		t.Vargen = typegen
+	}
+
 	if n.Pragma()&ir.NotInHeap != 0 {
 		t.SetNotInHeap(true)
 	}
