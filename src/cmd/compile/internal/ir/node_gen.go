@@ -353,22 +353,6 @@ func (n *ClosureExpr) editChildren(edit func(Node) Node) {
 	}
 }
 
-func (n *ClosureReadExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
-func (n *ClosureReadExpr) copy() Node {
-	c := *n
-	c.init = copyNodes(c.init)
-	return &c
-}
-func (n *ClosureReadExpr) doChildren(do func(Node) bool) bool {
-	if doNodes(n.init, do) {
-		return true
-	}
-	return false
-}
-func (n *ClosureReadExpr) editChildren(edit func(Node) Node) {
-	editNodes(n.init, edit)
-}
-
 func (n *CommClause) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *CommClause) copy() Node {
 	c := *n

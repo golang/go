@@ -470,6 +470,47 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 		}
 	}
 
+	// Populate closure variables.
+	if !fn.ClosureCalled() {
+		clo := s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr)
+		offset := int64(types.PtrSize) // PtrSize to skip past function entry PC field
+		for _, n := range fn.ClosureVars {
+			typ := n.Type()
+			if !n.Byval() {
+				typ = types.NewPtr(typ)
+			}
+
+			offset = types.Rnd(offset, typ.Alignment())
+			r := s.newValue1I(ssa.OpOffPtr, types.NewPtr(typ), offset, clo)
+			offset += typ.Size()
+
+			if n.Byval() && TypeOK(n.Type()) {
+				// If it is a small variable captured by value, downgrade it to PAUTO.
+				r = s.load(n.Type(), r)
+
+				n.Class = ir.PAUTO
+			} else {
+				if !n.Byval() {
+					r = s.load(typ, r)
+				}
+
+				// Declare variable holding address taken from closure.
+				addr := ir.NewNameAt(fn.Pos(), &types.Sym{Name: "&" + n.Sym().Name, Pkg: types.LocalPkg})
+				addr.SetType(types.NewPtr(n.Type()))
+				addr.Class = ir.PAUTO
+				addr.SetUsed(true)
+				addr.Curfn = fn
+				types.CalcSize(addr.Type())
+
+				n.Heapaddr = addr
+				n = addr
+			}
+
+			fn.Dcl = append(fn.Dcl, n)
+			s.assign(n, r, false, 0)
+		}
+	}
+
 	// Convert the AST-based IR to the SSA-based IR
 	s.stmtList(fn.Enter)
 	s.stmtList(fn.Body)
@@ -2127,9 +2168,6 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		}
 		addr := s.addr(n)
 		return s.load(n.Type(), addr)
-	case ir.OCLOSUREREAD:
-		addr := s.addr(n)
-		return s.load(n.Type(), addr)
 	case ir.ONIL:
 		n := n.(*ir.NilExpr)
 		t := n.Type()
@@ -3222,8 +3260,8 @@ func (s *state) assign(left ir.Node, right *ssa.Value, deref bool, skip skipMask
 
 	// If this assignment clobbers an entire local variable, then emit
 	// OpVarDef so liveness analysis knows the variable is redefined.
-	if base := clobberBase(left); base.Op() == ir.ONAME && base.(*ir.Name).Class != ir.PEXTERN && skip == 0 {
-		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base.(*ir.Name), s.mem(), !ir.IsAutoTmp(base))
+	if base, ok := clobberBase(left).(*ir.Name); ok && base.Op() == ir.ONAME && base.Class != ir.PEXTERN && base.Class != ir.PAUTOHEAP && skip == 0 {
+		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base, s.mem(), !ir.IsAutoTmp(base))
 	}
 
 	// Left is not ssa-able. Compute its address.
@@ -4986,6 +5024,8 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 			// ensure that we reuse symbols for out parameters so
 			// that cse works on their addresses
 			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), true)
+		case ir.PAUTOHEAP:
+			return s.expr(n.Heapaddr)
 		default:
 			s.Fatalf("variable address class %v not implemented", n.Class)
 			return nil
@@ -5031,10 +5071,6 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 		n := n.(*ir.SelectorExpr)
 		p := s.exprPtr(n.X, n.Bounded(), n.Pos())
 		return s.newValue1I(ssa.OpOffPtr, t, n.Offset(), p)
-	case ir.OCLOSUREREAD:
-		n := n.(*ir.ClosureReadExpr)
-		return s.newValue1I(ssa.OpOffPtr, t, n.Offset,
-			s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr))
 	case ir.OCONVNOP:
 		n := n.(*ir.ConvExpr)
 		if n.Type() == n.X.Type() {
@@ -5096,11 +5132,8 @@ func (s *state) canSSAName(name *ir.Name) bool {
 	if ir.IsParamHeapCopy(name) {
 		return false
 	}
-	if name.Class == ir.PAUTOHEAP {
-		s.Fatalf("canSSA of PAUTOHEAP %v", name)
-	}
 	switch name.Class {
-	case ir.PEXTERN:
+	case ir.PEXTERN, ir.PAUTOHEAP:
 		return false
 	case ir.PPARAMOUT:
 		if s.hasdefer {

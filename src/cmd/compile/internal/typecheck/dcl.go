@@ -7,7 +7,6 @@ package typecheck
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -47,7 +46,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 		base.ErrorfAt(n.Pos(), "cannot declare name %v", s)
 	}
 
-	gen := 0
 	if ctxt == ir.PEXTERN {
 		if s.Name == "init" {
 			base.ErrorfAt(n.Pos(), "cannot declare init - must be func")
@@ -63,13 +61,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 		}
 		if ir.CurFunc != nil && ctxt != ir.PFUNC && n.Op() == ir.ONAME {
 			ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
-		}
-		if n.Op() == ir.OTYPE {
-			declare_typegen++
-			gen = declare_typegen
-		} else if n.Op() == ir.ONAME && ctxt == ir.PAUTO && !strings.Contains(s.Name, "·") {
-			vargen++
-			gen = vargen
 		}
 		types.Pushdcl(s)
 		n.Curfn = ir.CurFunc
@@ -90,7 +81,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 	s.Block = types.Block
 	s.Lastlineno = base.Pos
 	s.Def = n
-	n.Vargen = int32(gen)
 	n.Class = ctxt
 	if ctxt == ir.PFUNC {
 		n.Sym().SetFunc(true)
@@ -314,10 +304,6 @@ func checkembeddedtype(t *types.Type) {
 	}
 }
 
-// declare individual names - var, typ, const
-
-var declare_typegen int
-
 func fakeRecvField() *types.Field {
 	return types.NewField(src.NoXPos, nil, types.FakeRecvType())
 }
@@ -338,9 +324,6 @@ func funcarg(n *ir.Field, ctxt ir.Class) {
 	n.Decl = name
 	name.Ntype = n.Ntype
 	Declare(name, ctxt)
-
-	vargen++
-	n.Decl.Vargen = int32(vargen)
 }
 
 func funcarg2(f *types.Field, ctxt ir.Class) {
@@ -358,15 +341,6 @@ func funcargs(nt *ir.FuncType) {
 		base.Fatalf("funcargs %v", nt.Op())
 	}
 
-	// re-start the variable generation number
-	// we want to use small numbers for the return variables,
-	// so let them have the chunk starting at 1.
-	//
-	// TODO(mdempsky): This is ugly, and only necessary because
-	// esc.go uses Vargen to figure out result parameters' index
-	// within the result tuple.
-	vargen = len(nt.Results)
-
 	// declare the receiver and in arguments.
 	if nt.Recv != nil {
 		funcarg(nt.Recv, ir.PPARAM)
@@ -374,9 +348,6 @@ func funcargs(nt *ir.FuncType) {
 	for _, n := range nt.Params {
 		funcarg(n, ir.PPARAM)
 	}
-
-	oldvargen := vargen
-	vargen = 0
 
 	// declare the out arguments.
 	gen := len(nt.Params)
@@ -399,8 +370,6 @@ func funcargs(nt *ir.FuncType) {
 
 		funcarg(n, ir.PPARAMOUT)
 	}
-
-	vargen = oldvargen
 }
 
 // Same as funcargs, except run over an already constructed TFUNC.
@@ -421,8 +390,6 @@ func funcargs2(t *types.Type) {
 		funcarg2(f, ir.PPARAMOUT)
 	}
 }
-
-var vargen int
 
 func Temp(t *types.Type) *ir.Name {
 	return TempAt(base.Pos, ir.CurFunc, t)

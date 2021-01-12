@@ -12,126 +12,108 @@ import (
 	"cmd/internal/src"
 )
 
-// Closure is called in a separate phase after escape analysis.
-// It transform closure bodies to properly reference captured variables.
-func Closure(fn *ir.Func) {
-	lno := base.Pos
-	base.Pos = fn.Pos()
+// directClosureCall rewrites a direct call of a function literal into
+// a normal function call with closure variables passed as arguments.
+// This avoids allocation of a closure object.
+//
+// For illustration, the following call:
+//
+//	func(a int) {
+//		println(byval)
+//		byref++
+//	}(42)
+//
+// becomes:
+//
+//	func(byval int, &byref *int, a int) {
+//		println(byval)
+//		(*&byref)++
+//	}(byval, &byref, 42)
+func directClosureCall(n *ir.CallExpr) {
+	clo := n.X.(*ir.ClosureExpr)
+	clofn := clo.Func
 
-	if fn.ClosureCalled() {
-		// If the closure is directly called, we transform it to a plain function call
-		// with variables passed as args. This avoids allocation of a closure object.
-		// Here we do only a part of the transformation. Walk of OCALLFUNC(OCLOSURE)
-		// will complete the transformation later.
-		// For illustration, the following closure:
-		//	func(a int) {
-		//		println(byval)
-		//		byref++
-		//	}(42)
-		// becomes:
-		//	func(byval int, &byref *int, a int) {
-		//		println(byval)
-		//		(*&byref)++
-		//	}(byval, &byref, 42)
-
-		// f is ONAME of the actual function.
-		f := fn.Nname
-
-		// We are going to insert captured variables before input args.
-		var params []*types.Field
-		var decls []*ir.Name
-		for _, v := range fn.ClosureVars {
-			if !v.Byval() {
-				// If v of type T is captured by reference,
-				// we introduce function param &v *T
-				// and v remains PAUTOHEAP with &v heapaddr
-				// (accesses will implicitly deref &v).
-				addr := typecheck.NewName(typecheck.Lookup("&" + v.Sym().Name))
-				addr.SetType(types.NewPtr(v.Type()))
-				v.Heapaddr = addr
-				v = addr
-			}
-
-			v.Class = ir.PPARAM
-			decls = append(decls, v)
-
-			fld := types.NewField(src.NoXPos, v.Sym(), v.Type())
-			fld.Nname = v
-			params = append(params, fld)
-		}
-
-		if len(params) > 0 {
-			// Prepend params and decls.
-			f.Type().Params().SetFields(append(params, f.Type().Params().FieldSlice()...))
-			fn.Dcl = append(decls, fn.Dcl...)
-		}
-
-		types.CalcSize(f.Type())
-		fn.Nname.SetType(f.Type()) // update type of ODCLFUNC
-	} else {
-		// The closure is not called, so it is going to stay as closure.
-		var body []ir.Node
-		offset := int64(types.PtrSize)
-		for _, v := range fn.ClosureVars {
-			// cv refers to the field inside of closure OSTRUCTLIT.
-			typ := v.Type()
-			if !v.Byval() {
-				typ = types.NewPtr(typ)
-			}
-			offset = types.Rnd(offset, int64(typ.Align))
-			cr := ir.NewClosureRead(typ, offset)
-			offset += typ.Width
-
-			if v.Byval() && v.Type().Width <= int64(2*types.PtrSize) {
-				// If it is a small variable captured by value, downgrade it to PAUTO.
-				v.Class = ir.PAUTO
-				fn.Dcl = append(fn.Dcl, v)
-				body = append(body, ir.NewAssignStmt(base.Pos, v, cr))
-			} else {
-				// Declare variable holding addresses taken from closure
-				// and initialize in entry prologue.
-				addr := typecheck.NewName(typecheck.Lookup("&" + v.Sym().Name))
-				addr.SetType(types.NewPtr(v.Type()))
-				addr.Class = ir.PAUTO
-				addr.SetUsed(true)
-				addr.Curfn = fn
-				fn.Dcl = append(fn.Dcl, addr)
-				v.Heapaddr = addr
-				var src ir.Node = cr
-				if v.Byval() {
-					src = typecheck.NodAddr(cr)
-				}
-				body = append(body, ir.NewAssignStmt(base.Pos, addr, src))
-			}
-		}
-
-		if len(body) > 0 {
-			typecheck.Stmts(body)
-			fn.Enter = body
-			fn.SetNeedctxt(true)
-		}
+	if ir.IsTrivialClosure(clo) {
+		return // leave for walkClosure to handle
 	}
 
-	base.Pos = lno
+	// We are going to insert captured variables before input args.
+	var params []*types.Field
+	var decls []*ir.Name
+	for _, v := range clofn.ClosureVars {
+		if !v.Byval() {
+			// If v of type T is captured by reference,
+			// we introduce function param &v *T
+			// and v remains PAUTOHEAP with &v heapaddr
+			// (accesses will implicitly deref &v).
+
+			addr := ir.NewNameAt(clofn.Pos(), typecheck.Lookup("&"+v.Sym().Name))
+			addr.Curfn = clofn
+			addr.SetType(types.NewPtr(v.Type()))
+			v.Heapaddr = addr
+			v = addr
+		}
+
+		v.Class = ir.PPARAM
+		decls = append(decls, v)
+
+		fld := types.NewField(src.NoXPos, v.Sym(), v.Type())
+		fld.Nname = v
+		params = append(params, fld)
+	}
+
+	// f is ONAME of the actual function.
+	f := clofn.Nname
+	typ := f.Type()
+
+	// Create new function type with parameters prepended, and
+	// then update type and declarations.
+	typ = types.NewSignature(typ.Pkg(), nil, append(params, typ.Params().FieldSlice()...), typ.Results().FieldSlice())
+	f.SetType(typ)
+	clofn.Dcl = append(decls, clofn.Dcl...)
+
+	// Rewrite call.
+	n.X = f
+	n.Args.Prepend(closureArgs(clo)...)
+
+	// Update the call expression's type. We need to do this
+	// because typecheck gave it the result type of the OCLOSURE
+	// node, but we only rewrote the ONAME node's type. Logically,
+	// they're the same, but the stack offsets probably changed.
+	if typ.NumResults() == 1 {
+		n.SetType(typ.Results().Field(0).Type)
+	} else {
+		n.SetType(typ.Results())
+	}
+
+	// Add to Closures for enqueueFunc. It's no longer a proper
+	// closure, but we may have already skipped over it in the
+	// functions list as a non-trivial closure, so this just
+	// ensures it's compiled.
+	ir.CurFunc.Closures = append(ir.CurFunc.Closures, clofn)
 }
 
 func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
-	fn := clo.Func
+	clofn := clo.Func
 
 	// If no closure vars, don't bother wrapping.
 	if ir.IsTrivialClosure(clo) {
 		if base.Debug.Closure > 0 {
 			base.WarnfAt(clo.Pos(), "closure converted to global")
 		}
-		return fn.Nname
+		return clofn.Nname
 	}
+
+	// The closure is not trivial or directly called, so it's going to stay a closure.
 	ir.ClosureDebugRuntimeCheck(clo)
+	clofn.SetNeedctxt(true)
+	ir.CurFunc.Closures = append(ir.CurFunc.Closures, clofn)
 
 	typ := typecheck.ClosureType(clo)
 
 	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
 	clos.SetEsc(clo.Esc())
-	clos.List = append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, fn.Nname)}, closureArgs(clo)...)
+	clos.List = append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, clofn.Nname)}, closureArgs(clo)...)
 
 	addr := typecheck.NodAddr(clos)
 	addr.SetEsc(clo.Esc())

@@ -481,7 +481,7 @@ func calcHasCall(n ir.Node) bool {
 		n := n.(*ir.SelectorExpr)
 		return n.X.HasCall()
 
-	case ir.OGETG, ir.OCLOSUREREAD, ir.OMETHEXPR:
+	case ir.OGETG, ir.OMETHEXPR:
 		return false
 
 	// TODO(rsc): These look wrong in various ways but are what calcHasCall has always done.
