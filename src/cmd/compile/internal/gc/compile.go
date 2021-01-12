@@ -37,6 +37,10 @@ func enqueueFunc(fn *ir.Func) {
 		return
 	}
 
+	if clo := fn.OClosure; clo != nil && !ir.IsTrivialClosure(clo) {
+		return // we'll get this as part of its enclosing function
+	}
+
 	if len(fn.Body) == 0 {
 		// Initialize ABI wrappers if necessary.
 		ssagen.InitLSym(fn, false)
@@ -45,11 +49,22 @@ func enqueueFunc(fn *ir.Func) {
 	}
 
 	errorsBefore := base.Errors()
-	prepareFunc(fn)
+
+	todo := []*ir.Func{fn}
+	for len(todo) > 0 {
+		next := todo[len(todo)-1]
+		todo = todo[:len(todo)-1]
+
+		prepareFunc(next)
+		todo = append(todo, next.Closures...)
+	}
+
 	if base.Errors() > errorsBefore {
 		return
 	}
 
+	// Enqueue just fn itself. compileFunctions will handle
+	// scheduling compilation of its closures after it's done.
 	compilequeue = append(compilequeue, fn)
 }
 
@@ -97,7 +112,6 @@ func compileFunctions() {
 		return
 	}
 
-	types.CalcSizeDisabled = true // not safe to calculate sizes concurrently
 	if race.Enabled {
 		// Randomize compilation order to try to shake out races.
 		tmp := make([]*ir.Func, len(compilequeue))
@@ -114,22 +128,37 @@ func compileFunctions() {
 			return len(compilequeue[i].Body) > len(compilequeue[j].Body)
 		})
 	}
-	var wg sync.WaitGroup
-	base.Ctxt.InParallel = true
-	c := make(chan *ir.Func, base.Flag.LowerC)
+
+	// We queue up a goroutine per function that needs to be
+	// compiled, but require them to grab an available worker ID
+	// before doing any substantial work to limit parallelism.
+	workerIDs := make(chan int, base.Flag.LowerC)
 	for i := 0; i < base.Flag.LowerC; i++ {
+		workerIDs <- i
+	}
+
+	var wg sync.WaitGroup
+	var asyncCompile func(*ir.Func)
+	asyncCompile = func(fn *ir.Func) {
 		wg.Add(1)
-		go func(worker int) {
-			for fn := range c {
-				ssagen.Compile(fn, worker)
+		go func() {
+			worker := <-workerIDs
+			ssagen.Compile(fn, worker)
+			workerIDs <- worker
+
+			// Done compiling fn. Schedule it's closures for compilation.
+			for _, closure := range fn.Closures {
+				asyncCompile(closure)
 			}
 			wg.Done()
-		}(i)
+		}()
 	}
+
+	types.CalcSizeDisabled = true // not safe to calculate sizes concurrently
+	base.Ctxt.InParallel = true
 	for _, fn := range compilequeue {
-		c <- fn
+		asyncCompile(fn)
 	}
-	close(c)
 	compilequeue = nil
 	wg.Wait()
 	base.Ctxt.InParallel = false
