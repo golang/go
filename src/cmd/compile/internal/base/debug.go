@@ -32,7 +32,6 @@ type DebugFlags struct {
 	Append        int    `help:"print information about append compilation"`
 	Checkptr      int    `help:"instrument unsafe pointer conversions"`
 	Closure       int    `help:"print information about closure compilation"`
-	CompileLater  int    `help:"compile functions as late as possible"`
 	DclStack      int    `help:"run internal dclstack check"`
 	Defer         int    `help:"print information about defer compilation"`
 	DisableNil    int    `help:"disable nil checks"`
