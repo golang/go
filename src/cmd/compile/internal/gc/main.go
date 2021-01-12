@@ -300,9 +300,8 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("be", "compilefuncs")
 	fcount := int64(0)
 	for i := 0; i < len(typecheck.Target.Decls); i++ {
-		n := typecheck.Target.Decls[i]
-		if n.Op() == ir.ODCLFUNC {
-			funccompile(n.(*ir.Func))
+		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
+			enqueueFunc(fn)
 			fcount++
 		}
 	}

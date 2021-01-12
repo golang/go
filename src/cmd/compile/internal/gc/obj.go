@@ -131,9 +131,8 @@ func dumpdata() {
 	// It was not until issue 24761 that we found any code that required a loop at all.
 	for {
 		for i := numDecls; i < len(typecheck.Target.Decls); i++ {
-			n := typecheck.Target.Decls[i]
-			if n.Op() == ir.ODCLFUNC {
-				funccompile(n.(*ir.Func))
+			if n, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
+				enqueueFunc(n)
 			}
 		}
 		numDecls = len(typecheck.Target.Decls)
