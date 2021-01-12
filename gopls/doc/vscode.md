@@ -19,22 +19,15 @@ Use the [VSCode-Go] plugin, with the following configuration:
     },
 },
 "gopls": {
-     // Add parameter placeholders when completing a function.
-    "usePlaceholders": true,
+    // Add parameter placeholders when completing a function.
+    "ui.completion.usePlaceholders": true,
 
     // If true, enable additional analyses with staticcheck.
     // Warning: This will significantly increase memory usage.
-    "staticcheck": false,
-}
-```
-
-VSCode will complain about the `"gopls"` settings, but they will still work. Once we have a consistent set of settings, we will make the changes in the VSCode plugin necessary to remove the errors.
-
-If you encounter problems with import organization, please try setting a higher code action timeout (any value greater than 750ms), for example:
-
-```json5
-"[go]": {
-  "editor.codeActionsOnSaveTimeout": 3000
+    "ui.diagnostic.staticcheck": false,
+    
+    // For more customization, see
+    // see https://github.com/golang/vscode-go/blob/master/docs/settings.md
 }
 ```
 
@@ -44,7 +37,7 @@ To enable more detailed debug information, add the following to your VSCode sett
 "go.languageServerFlags": [
     "-rpc.trace", // for more detailed debug logging
     "serve",
-    "--debug=localhost:6060", // to investigate memory usage, see profiles
+    "--debug=localhost:6060", // Optional: to investigate memory usage, see profiles
 ],
 ```
 
@@ -52,15 +45,9 @@ See the section on [command line](command-line.md) arguments for more informatio
 
 You can disable features through the `"go.languageServerExperimentalFeatures"` section of the config. An example of a feature you may want to disable is `"documentLink"`, which opens [`pkg.go.dev`](https://pkg.go.dev) links when you click on import statements in your file.
 
-### Build tags
+### Build tags and flags
 
-build tags will not be picked from `go.buildTags` configuration section, instead they should be specified as part of the`GOFLAGS` environment variable:
-
-```json5
-"go.toolsEnvVars": {
-    "GOFLAGS": "-tags=<yourtag>"
-}
-```
+build tags and flags will be automatically picked up from `"go.buildTags"` and `"go.buildFlags"` settings. In rare cases if you don't want the default behavior, you can still override the settings from the `gopls` section, using `"gopls": { "build.buildFlags": [] }`.
 
 
 [VSCode-Go]: https://github.com/golang/vscode-go

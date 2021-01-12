@@ -12,8 +12,8 @@ like this:
 
 ```json5
   "gopls": {
-    "usePlaceholders": true,
-    "completeUnimported": true
+    "ui.completion.usePlaceholders": true,
+     ...
   },
 ```
 
