@@ -126,6 +126,11 @@ type location struct {
 	edges     []edge   // incoming edges
 	loopDepth int      // loopDepth at declaration
 
+	// resultIndex records the tuple index (starting at 1) for
+	// PPARAMOUT variables within their function's result type.
+	// For non-PPARAMOUT variables it's 0.
+	resultIndex int
+
 	// derefs and walkgen are used during walkOne to track the
 	// minimal dereferences from the walk root.
 	derefs  int // >= -1
@@ -259,10 +264,15 @@ func (b *batch) initFunc(fn *ir.Func) {
 	}
 
 	// Allocate locations for local variables.
-	for _, dcl := range fn.Dcl {
-		if dcl.Op() == ir.ONAME {
-			e.newLoc(dcl, false)
+	for _, n := range fn.Dcl {
+		if n.Op() == ir.ONAME {
+			e.newLoc(n, false)
 		}
+	}
+
+	// Initialize resultIndex for result parameters.
+	for i, f := range fn.Type().Results().FieldSlice() {
+		e.oldLoc(f.Nname.(*ir.Name)).resultIndex = 1 + i
 	}
 }
 
@@ -575,13 +585,16 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 	default:
 		base.Fatalf("unexpected expr: %v", n)
 
-	case ir.OLITERAL, ir.ONIL, ir.OGETG, ir.OCLOSUREREAD, ir.OTYPE, ir.OMETHEXPR:
+	case ir.OLITERAL, ir.ONIL, ir.OGETG, ir.OTYPE, ir.OMETHEXPR:
 		// nop
 
 	case ir.ONAME:
 		n := n.(*ir.Name)
 		if n.Class == ir.PFUNC || n.Class == ir.PEXTERN {
 			return
+		}
+		if n.IsClosureVar() && n.Defn == nil {
+			return // ".this" from method value wrapper
 		}
 		e.flow(k, e.oldLoc(n))
 
@@ -1606,8 +1619,7 @@ func (l *location) leakTo(sink *location, derefs int) {
 	// If sink is a result parameter and we can fit return bits
 	// into the escape analysis tag, then record a return leak.
 	if sink.isName(ir.PPARAMOUT) && sink.curfn == l.curfn {
-		// TODO(mdempsky): Eliminate dependency on Vargen here.
-		ri := int(sink.n.Name().Vargen) - 1
+		ri := sink.resultIndex - 1
 		if ri < numEscResults {
 			// Leak to result parameter.
 			l.paramEsc.AddResult(ri, derefs)
@@ -1923,7 +1935,7 @@ func mayAffectMemory(n ir.Node) bool {
 	// an ir.Any looking for any op that's not the ones in the case statement.
 	// But that produces changes in the compiled output detected by buildall.
 	switch n.Op() {
-	case ir.ONAME, ir.OCLOSUREREAD, ir.OLITERAL, ir.ONIL:
+	case ir.ONAME, ir.OLITERAL, ir.ONIL:
 		return false
 
 	case ir.OADD, ir.OSUB, ir.OOR, ir.OXOR, ir.OMUL, ir.OLSH, ir.ORSH, ir.OAND, ir.OANDNOT, ir.ODIV, ir.OMOD:

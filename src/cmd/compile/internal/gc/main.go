@@ -20,10 +20,8 @@ import (
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
-	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
-	"cmd/compile/internal/walk"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -194,7 +192,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	typecheck.Target = new(ir.Package)
 
-	typecheck.NeedFuncSym = staticdata.NeedFuncSym
 	typecheck.NeedITab = func(t, iface *types.Type) { reflectdata.ITabAddr(t, iface) }
 	typecheck.NeedRuntimeType = reflectdata.NeedRuntimeType // TODO(rsc): typenamesym for lock?
 
@@ -271,20 +268,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		ssagen.EnableNoWriteBarrierRecCheck()
 	}
 
-	// Transform closure bodies to properly reference captured variables.
-	// This needs to happen before walk, because closures must be transformed
-	// before walk reaches a call of a closure.
-	base.Timer.Start("fe", "xclosures")
-	for _, n := range typecheck.Target.Decls {
-		if n.Op() == ir.ODCLFUNC {
-			n := n.(*ir.Func)
-			if n.OClosure != nil {
-				ir.CurFunc = n
-				walk.Closure(n)
-			}
-		}
-	}
-
 	// Prepare for SSA compilation.
 	// This must be before peekitabs, because peekitabs
 	// can trigger function compilation.
@@ -302,9 +285,8 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("be", "compilefuncs")
 	fcount := int64(0)
 	for i := 0; i < len(typecheck.Target.Decls); i++ {
-		n := typecheck.Target.Decls[i]
-		if n.Op() == ir.ODCLFUNC {
-			funccompile(n.(*ir.Func))
+		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
+			enqueueFunc(fn)
 			fcount++
 		}
 	}

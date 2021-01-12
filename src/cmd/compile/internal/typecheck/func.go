@@ -246,29 +246,26 @@ func MethodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
 	fn.SetWrapper(true)
 
 	// Declare and initialize variable holding receiver.
-	cr := ir.NewClosureRead(rcvrtype, types.Rnd(int64(types.PtrSize), int64(rcvrtype.Align)))
-	var ptr *ir.Name
-	var body []ir.Node
-	if rcvrtype.IsPtr() || rcvrtype.IsInterface() {
-		ptr = Temp(rcvrtype)
-		body = append(body, ir.NewAssignStmt(base.Pos, ptr, cr))
-	} else {
-		ptr = Temp(types.NewPtr(rcvrtype))
-		body = append(body, ir.NewAssignStmt(base.Pos, ptr, NodAddr(cr)))
-	}
+	ptr := ir.NewNameAt(base.Pos, Lookup(".this"))
+	ptr.Class = ir.PAUTOHEAP
+	ptr.SetType(rcvrtype)
+	ptr.Curfn = fn
+	ptr.SetIsClosureVar(true)
+	ptr.SetByval(true)
+	fn.ClosureVars = append(fn.ClosureVars, ptr)
 
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil)
 	call.Args = ir.ParamNames(tfn.Type())
 	call.IsDDD = tfn.Type().IsVariadic()
+
+	var body ir.Node = call
 	if t0.NumResults() != 0 {
 		ret := ir.NewReturnStmt(base.Pos, nil)
 		ret.Results = []ir.Node{call}
-		body = append(body, ret)
-	} else {
-		body = append(body, call)
+		body = ret
 	}
 
-	fn.Body = body
+	fn.Body = []ir.Node{body}
 	FinishFuncBody()
 
 	Func(fn)
@@ -296,20 +293,20 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 		fn.Iota = x
 	}
 
-	fn.ClosureType = typecheckNtype(fn.ClosureType)
-	clo.SetType(fn.ClosureType.Type())
 	fn.SetClosureCalled(top&ctxCallee != 0)
 
 	// Do not typecheck fn twice, otherwise, we will end up pushing
 	// fn to Target.Decls multiple times, causing initLSym called twice.
 	// See #30709
 	if fn.Typecheck() == 1 {
+		clo.SetType(fn.Type())
 		return
 	}
 
 	fn.Nname.SetSym(closurename(ir.CurFunc))
 	ir.MarkFunc(fn.Nname)
 	Func(fn)
+	clo.SetType(fn.Type())
 
 	// Type check the body now, but only if we're inside a function.
 	// At top level (in a variable initialization: curfn==nil) we're not
@@ -366,10 +363,6 @@ func tcFunc(n *ir.Func) {
 
 		n.Nname.SetSym(ir.MethodSym(rcvr.Type, n.Shortname))
 		Declare(n.Nname, ir.PFUNC)
-	}
-
-	if base.Ctxt.Flag_dynlink && !inimport && n.Nname != nil {
-		NeedFuncSym(n.Sym())
 	}
 }
 

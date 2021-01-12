@@ -52,18 +52,14 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 		base.Fatalf("expression has untyped type: %+v", n)
 	}
 
-	if n.Op() == ir.ONAME && n.(*ir.Name).Class == ir.PAUTOHEAP {
-		n := n.(*ir.Name)
-		nn := ir.NewStarExpr(base.Pos, n.Heapaddr)
-		nn.X.MarkNonNil()
-		return walkExpr(typecheck.Expr(nn), init)
-	}
-
 	n = walkExpr1(n, init)
 
 	// Eagerly compute sizes of all expressions for the back end.
 	if typ := n.Type(); typ != nil && typ.Kind() != types.TBLANK && !typ.IsFuncArgStruct() {
 		types.CheckSize(typ)
+	}
+	if n, ok := n.(*ir.Name); ok && n.Heapaddr != nil {
+		types.CheckSize(n.Heapaddr.Type())
 	}
 	if ir.IsConst(n, constant.String) {
 		// Emit string symbol now to avoid emitting
@@ -166,7 +162,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.CallExpr)
 		return mkcall("gorecover", n.Type(), init, typecheck.NodAddr(ir.RegFP))
 
-	case ir.OCLOSUREREAD, ir.OCFUNC:
+	case ir.OCFUNC:
 		return n
 
 	case ir.OCALLINTER, ir.OCALLFUNC, ir.OCALLMETH:
@@ -493,23 +489,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	}
 
 	if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.OCLOSURE {
-		// Transform direct call of a closure to call of a normal function.
-		// transformclosure already did all preparation work.
-
-		// Prepend captured variables to argument list.
-		clo := n.X.(*ir.ClosureExpr)
-		n.Args.Prepend(closureArgs(clo)...)
-
-		// Replace OCLOSURE with ONAME/PFUNC.
-		n.X = clo.Func.Nname
-
-		// Update type of OCALLFUNC node.
-		// Output arguments had not changed, but their offsets could.
-		if n.X.Type().NumResults() == 1 {
-			n.SetType(n.X.Type().Results().Field(0).Type)
-		} else {
-			n.SetType(n.X.Type().Results())
-		}
+		directClosureCall(n)
 	}
 
 	walkCall1(n, init)

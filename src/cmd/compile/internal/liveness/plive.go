@@ -1223,6 +1223,7 @@ func WriteFuncMap(fn *ir.Func) {
 	if ir.FuncName(fn) == "_" || fn.Sym().Linkname != "" {
 		return
 	}
+	types.CalcSize(fn.Type())
 	lsym := base.Ctxt.Lookup(fn.LSym.Name + ".args_stackmap")
 	nptr := int(fn.Type().ArgWidth() / int64(types.PtrSize))
 	bv := bitvec.New(int32(nptr) * 2)

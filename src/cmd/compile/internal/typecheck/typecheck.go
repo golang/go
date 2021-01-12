@@ -24,7 +24,6 @@ var inimport bool // set during import
 var TypecheckAllowed bool
 
 var (
-	NeedFuncSym     = func(*types.Sym) {}
 	NeedITab        = func(t, itype *types.Type) {}
 	NeedRuntimeType = func(*types.Type) {}
 )
@@ -789,9 +788,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.UnaryExpr)
 		return tcSPtr(n)
 
-	case ir.OCLOSUREREAD:
-		return n
-
 	case ir.OCFUNC:
 		n := n.(*ir.UnaryExpr)
 		n.X = Expr(n.X)
@@ -1143,12 +1139,6 @@ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
 	n.SetOp(ir.OMETHEXPR)
 	n.Selection = m
 	n.SetType(NewMethodType(m.Type, n.X.Type()))
-
-	// Issue 25065. Make sure that we emit the symbol for a local method.
-	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym() == nil || t.Sym().Pkg == types.LocalPkg) {
-		NeedFuncSym(n.FuncName().Sym())
-	}
-
 	return n
 }
 
@@ -1684,13 +1674,22 @@ func CheckMapKeys() {
 	mapqueue = nil
 }
 
+// typegen tracks the number of function-scoped defined types that
+// have been declared. It's used to generate unique linker symbols for
+// their runtime type descriptors.
+var typegen int32
+
 func typecheckdeftype(n *ir.Name) {
 	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheckdeftype", n)(nil)
 	}
 
 	t := types.NewNamed(n)
-	t.Vargen = n.Vargen
+	if n.Curfn != nil {
+		typegen++
+		t.Vargen = typegen
+	}
+
 	if n.Pragma()&ir.NotInHeap != 0 {
 		t.SetNotInHeap(true)
 	}

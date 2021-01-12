@@ -132,7 +132,7 @@ func AlgType(t *Type) (AlgKind, *Type) {
 		return ret, nil
 	}
 
-	base.Fatalf("algtype1: unexpected type %v", t)
+	base.Fatalf("algtype: unexpected type %v", t)
 	return 0, nil
 }
 
