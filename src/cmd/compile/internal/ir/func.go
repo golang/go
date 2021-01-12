@@ -71,8 +71,6 @@ type Func struct {
 	// Anonymous and blank PPARAMOUTs are declared as ~rNN and ~bNN Names, respectively.
 	Dcl []*Name
 
-	ClosureType Ntype // closure representation type
-
 	// ClosureVars lists the free variables that are used within a
 	// function literal, but formally declared in an enclosing
 	// function. The variables in this slice are the closure function's

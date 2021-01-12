@@ -293,20 +293,20 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 		fn.Iota = x
 	}
 
-	fn.ClosureType = typecheckNtype(fn.ClosureType)
-	clo.SetType(fn.ClosureType.Type())
 	fn.SetClosureCalled(top&ctxCallee != 0)
 
 	// Do not typecheck fn twice, otherwise, we will end up pushing
 	// fn to Target.Decls multiple times, causing initLSym called twice.
 	// See #30709
 	if fn.Typecheck() == 1 {
+		clo.SetType(fn.Type())
 		return
 	}
 
 	fn.Nname.SetSym(closurename(ir.CurFunc))
 	ir.MarkFunc(fn.Nname)
 	Func(fn)
+	clo.SetType(fn.Type())
 
 	// Type check the body now, but only if we're inside a function.
 	// At top level (in a variable initialization: curfn==nil) we're not
