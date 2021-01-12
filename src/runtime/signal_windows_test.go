@@ -105,46 +105,37 @@ func TestCtrlHandler(t *testing.T) {
 	outReader := bufio.NewReader(outPipe)
 
 	// in a new command window
-	const CREATE_NEW_CONSOLE = 0x00000010
+	const _CREATE_NEW_CONSOLE = 0x00000010
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		CreationFlags: CREATE_NEW_CONSOLE,
+		CreationFlags: _CREATE_NEW_CONSOLE,
 	}
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
-
-	errCh := make(chan error, 1)
-	go func() {
-		// wait for child to be ready to receive signals
-		if line, err := outReader.ReadString('\n'); err != nil {
-			errCh <- fmt.Errorf("could not read stdout: %w", err)
-			return
-		} else if strings.TrimSpace(line) != "ready" {
-			errCh <- fmt.Errorf("unexpected message: %v", line)
-			return
-		}
-
-		// gracefully kill pid, this closes the command window
-		if err := exec.Command("taskkill.exe", "/pid", strconv.Itoa(cmd.Process.Pid)).Run(); err != nil {
-			errCh <- fmt.Errorf("failed to kill: %w", err)
-			return
-		}
-
-		// check child received, handled SIGTERM
-		if line, err := outReader.ReadString('\n'); err != nil {
-			errCh <- fmt.Errorf("could not read stdout: %w", err)
-			return
-		} else if expected, got := syscall.SIGTERM.String(), strings.TrimSpace(line); expected != got {
-			errCh <- fmt.Errorf("Expected '%s' got: %s", expected, got)
-			return
-		}
-
-		errCh <- nil
+	defer func() {
+		cmd.Process.Kill()
+		cmd.Wait()
 	}()
 
-	if err := <-errCh; err != nil {
-		t.Fatal(err)
+	// wait for child to be ready to receive signals
+	if line, err := outReader.ReadString('\n'); err != nil {
+		t.Fatalf("could not read stdout: %v", err)
+	} else if strings.TrimSpace(line) != "ready" {
+		t.Fatalf("unexpected message: %s", line)
 	}
+
+	// gracefully kill pid, this closes the command window
+	if err := exec.Command("taskkill.exe", "/pid", strconv.Itoa(cmd.Process.Pid)).Run(); err != nil {
+		t.Fatalf("failed to kill: %v", err)
+	}
+
+	// check child received, handled SIGTERM
+	if line, err := outReader.ReadString('\n'); err != nil {
+		t.Fatalf("could not read stdout: %v", err)
+	} else if expected, got := syscall.SIGTERM.String(), strings.TrimSpace(line); expected != got {
+		t.Fatalf("Expected '%s' got: %s", expected, got)
+	}
+
 	// check child exited gracefully, did not timeout
 	if err := cmd.Wait(); err != nil {
 		t.Fatalf("Program exited with error: %v\n%s", err, &stderr)
