@@ -81,6 +81,10 @@ type Func struct {
 	// Byval set if they're captured by value.
 	ClosureVars []*Name
 
+	// Enclosed functions that need to be compiled.
+	// Populated during walk.
+	Closures []*Func
+
 	// Parents records the parent scope of each scope within a
 	// function. The root scope (0) has no parent, so the i'th
 	// scope's parent is stored at Parents[i-1].

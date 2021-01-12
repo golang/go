@@ -86,6 +86,8 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 		}
 		return fn.Nname
 	}
+
+	ir.CurFunc.Closures = append(ir.CurFunc.Closures, fn)
 	ir.ClosureDebugRuntimeCheck(clo)
 
 	typ := typecheck.ClosureType(clo)
