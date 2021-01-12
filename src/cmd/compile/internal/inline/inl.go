@@ -762,13 +762,6 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		if ln.Class == ir.PPARAMOUT { // return values handled below.
 			continue
 		}
-		if ir.IsParamStackCopy(ln) { // ignore the on-stack copy of a parameter that moved to the heap
-			// TODO(mdempsky): Remove once I'm confident
-			// this never actually happens. We currently
-			// perform inlining before escape analysis, so
-			// nothing should have moved to the heap yet.
-			base.Fatalf("impossible: %v", ln)
-		}
 		inlf := typecheck.Expr(inlvar(ln)).(*ir.Name)
 		inlvars[ln] = inlf
 		if base.Flag.GenDwarfInl > 0 {

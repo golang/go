@@ -90,15 +90,12 @@ func prepareFunc(fn *ir.Func) {
 	// because symbols must be allocated before the parallel
 	// phase of the compiler.
 	for _, n := range fn.Dcl {
-		switch n.Class {
-		case ir.PPARAM, ir.PPARAMOUT, ir.PAUTO:
-			if liveness.ShouldTrack(n) && n.Addrtaken() {
-				reflectdata.WriteType(n.Type())
-				// Also make sure we allocate a linker symbol
-				// for the stack object data, for the same reason.
-				if fn.LSym.Func().StackObjects == nil {
-					fn.LSym.Func().StackObjects = base.Ctxt.Lookup(fn.LSym.Name + ".stkobj")
-				}
+		if liveness.ShouldTrack(n) && n.Addrtaken() {
+			reflectdata.WriteType(n.Type())
+			// Also make sure we allocate a linker symbol
+			// for the stack object data, for the same reason.
+			if fn.LSym.Func().StackObjects == nil {
+				fn.LSym.Func().StackObjects = base.Ctxt.Lookup(fn.LSym.Name + ".stkobj")
 			}
 		}
 	}

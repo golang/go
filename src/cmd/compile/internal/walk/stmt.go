@@ -86,6 +86,7 @@ func walkStmt(n ir.Node) ir.Node {
 		ir.OFALL,
 		ir.OGOTO,
 		ir.OLABEL,
+		ir.ODCL,
 		ir.ODCLCONST,
 		ir.ODCLTYPE,
 		ir.OCHECKNIL,
@@ -93,10 +94,6 @@ func walkStmt(n ir.Node) ir.Node {
 		ir.OVARKILL,
 		ir.OVARLIVE:
 		return n
-
-	case ir.ODCL:
-		n := n.(*ir.Decl)
-		return walkDecl(n)
 
 	case ir.OBLOCK:
 		n := n.(*ir.BlockStmt)
@@ -171,20 +168,6 @@ func walkStmtList(s []ir.Node) {
 	for i := range s {
 		s[i] = walkStmt(s[i])
 	}
-}
-
-// walkDecl walks an ODCL node.
-func walkDecl(n *ir.Decl) ir.Node {
-	v := n.X
-	if v.Class == ir.PAUTOHEAP {
-		if base.Flag.CompilingRuntime {
-			base.Errorf("%v escapes to heap, not allowed in runtime", v)
-		}
-		nn := ir.NewAssignStmt(base.Pos, v.Heapaddr, callnew(v.Type()))
-		nn.Def = true
-		return walkStmt(typecheck.Stmt(nn))
-	}
-	return n
 }
 
 // walkFor walks an OFOR or OFORUNTIL node.

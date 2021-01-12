@@ -1658,7 +1658,14 @@ func (b *batch) finish(fns []*ir.Func) {
 		// Update n.Esc based on escape analysis results.
 
 		if loc.escapes {
-			if n.Op() != ir.ONAME {
+			if n.Op() == ir.ONAME {
+				if base.Flag.CompilingRuntime {
+					base.ErrorfAt(n.Pos(), "%v escapes to heap, not allowed in runtime", n)
+				}
+				if base.Flag.LowerM != 0 {
+					base.WarnfAt(n.Pos(), "moved to heap: %v", n)
+				}
+			} else {
 				if base.Flag.LowerM != 0 {
 					base.WarnfAt(n.Pos(), "%v escapes to heap", n)
 				}
@@ -1668,7 +1675,6 @@ func (b *batch) finish(fns []*ir.Func) {
 				}
 			}
 			n.SetEsc(ir.EscHeap)
-			addrescapes(n)
 		} else {
 			if base.Flag.LowerM != 0 && n.Op() != ir.ONAME {
 				base.WarnfAt(n.Pos(), "%v does not escape", n)
@@ -2012,165 +2018,6 @@ func HeapAllocReason(n ir.Node) string {
 	}
 
 	return ""
-}
-
-// addrescapes tags node n as having had its address taken
-// by "increasing" the "value" of n.Esc to EscHeap.
-// Storage is allocated as necessary to allow the address
-// to be taken.
-func addrescapes(n ir.Node) {
-	switch n.Op() {
-	default:
-		// Unexpected Op, probably due to a previous type error. Ignore.
-
-	case ir.ODEREF, ir.ODOTPTR:
-		// Nothing to do.
-
-	case ir.ONAME:
-		n := n.(*ir.Name)
-		if n == ir.RegFP {
-			break
-		}
-
-		// if this is a tmpname (PAUTO), it was tagged by tmpname as not escaping.
-		// on PPARAM it means something different.
-		if n.Class == ir.PAUTO && n.Esc() == ir.EscNever {
-			break
-		}
-
-		// If a closure reference escapes, mark the outer variable as escaping.
-		if n.IsClosureVar() {
-			addrescapes(n.Defn)
-			break
-		}
-
-		if n.Class != ir.PPARAM && n.Class != ir.PPARAMOUT && n.Class != ir.PAUTO {
-			break
-		}
-
-		// This is a plain parameter or local variable that needs to move to the heap,
-		// but possibly for the function outside the one we're compiling.
-		// That is, if we have:
-		//
-		//	func f(x int) {
-		//		func() {
-		//			global = &x
-		//		}
-		//	}
-		//
-		// then we're analyzing the inner closure but we need to move x to the
-		// heap in f, not in the inner closure. Flip over to f before calling moveToHeap.
-		oldfn := ir.CurFunc
-		ir.CurFunc = n.Curfn
-		ln := base.Pos
-		base.Pos = ir.CurFunc.Pos()
-		moveToHeap(n)
-		ir.CurFunc = oldfn
-		base.Pos = ln
-
-	// ODOTPTR has already been introduced,
-	// so these are the non-pointer ODOT and OINDEX.
-	// In &x[0], if x is a slice, then x does not
-	// escape--the pointer inside x does, but that
-	// is always a heap pointer anyway.
-	case ir.ODOT:
-		n := n.(*ir.SelectorExpr)
-		addrescapes(n.X)
-	case ir.OINDEX:
-		n := n.(*ir.IndexExpr)
-		if !n.X.Type().IsSlice() {
-			addrescapes(n.X)
-		}
-	case ir.OPAREN:
-		n := n.(*ir.ParenExpr)
-		addrescapes(n.X)
-	case ir.OCONVNOP:
-		n := n.(*ir.ConvExpr)
-		addrescapes(n.X)
-	}
-}
-
-// moveToHeap records the parameter or local variable n as moved to the heap.
-func moveToHeap(n *ir.Name) {
-	if base.Flag.LowerR != 0 {
-		ir.Dump("MOVE", n)
-	}
-	if base.Flag.CompilingRuntime {
-		base.Errorf("%v escapes to heap, not allowed in runtime", n)
-	}
-	if n.Class == ir.PAUTOHEAP {
-		ir.Dump("n", n)
-		base.Fatalf("double move to heap")
-	}
-
-	// Allocate a local stack variable to hold the pointer to the heap copy.
-	// temp will add it to the function declaration list automatically.
-	heapaddr := typecheck.Temp(types.NewPtr(n.Type()))
-	heapaddr.SetSym(typecheck.Lookup("&" + n.Sym().Name))
-	heapaddr.SetPos(n.Pos())
-
-	// Unset AutoTemp to persist the &foo variable name through SSA to
-	// liveness analysis.
-	// TODO(mdempsky/drchase): Cleaner solution?
-	heapaddr.SetAutoTemp(false)
-
-	// Parameters have a local stack copy used at function start/end
-	// in addition to the copy in the heap that may live longer than
-	// the function.
-	if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
-		if n.FrameOffset() == types.BADWIDTH {
-			base.Fatalf("addrescapes before param assignment")
-		}
-
-		// We rewrite n below to be a heap variable (indirection of heapaddr).
-		// Preserve a copy so we can still write code referring to the original,
-		// and substitute that copy into the function declaration list
-		// so that analyses of the local (on-stack) variables use it.
-		stackcopy := typecheck.NewName(n.Sym())
-		stackcopy.SetType(n.Type())
-		stackcopy.SetFrameOffset(n.FrameOffset())
-		stackcopy.Class = n.Class
-		stackcopy.Heapaddr = heapaddr
-		if n.Class == ir.PPARAMOUT {
-			// Make sure the pointer to the heap copy is kept live throughout the function.
-			// The function could panic at any point, and then a defer could recover.
-			// Thus, we need the pointer to the heap copy always available so the
-			// post-deferreturn code can copy the return value back to the stack.
-			// See issue 16095.
-			heapaddr.SetIsOutputParamHeapAddr(true)
-		}
-		n.Stackcopy = stackcopy
-
-		// Substitute the stackcopy into the function variable list so that
-		// liveness and other analyses use the underlying stack slot
-		// and not the now-pseudo-variable n.
-		found := false
-		for i, d := range ir.CurFunc.Dcl {
-			if d == n {
-				ir.CurFunc.Dcl[i] = stackcopy
-				found = true
-				break
-			}
-			// Parameters are before locals, so can stop early.
-			// This limits the search even in functions with many local variables.
-			if d.Class == ir.PAUTO {
-				break
-			}
-		}
-		if !found {
-			base.Fatalf("cannot find %v in local variable list", n)
-		}
-		ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
-	}
-
-	// Modify n in place so that uses of n now mean indirection of the heapaddr.
-	n.Class = ir.PAUTOHEAP
-	n.SetFrameOffset(0)
-	n.Heapaddr = heapaddr
-	n.SetEsc(ir.EscHeap)
-	if base.Flag.LowerM != 0 {
-		base.WarnfAt(n.Pos(), "moved to heap: %v", n)
-	}
 }
 
 // This special tag is applied to uintptr variables

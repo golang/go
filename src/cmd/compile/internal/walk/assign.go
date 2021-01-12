@@ -392,11 +392,7 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
 
 		appendWalkStmt(&late, convas(ir.NewAssignStmt(base.Pos, lorig, r), &late))
 
-		if name == nil || name.Addrtaken() || name.Class == ir.PEXTERN || name.Class == ir.PAUTOHEAP {
-			memWrite = true
-			continue
-		}
-		if ir.IsBlank(name) {
+		if name != nil && ir.IsBlank(name) {
 			// We can ignore assignments to blank.
 			continue
 		}
@@ -405,7 +401,12 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
 			// parameters. These can't appear in expressions anyway.
 			continue
 		}
-		assigned.Add(name)
+
+		if name != nil && name.OnStack() && !name.Addrtaken() {
+			assigned.Add(name)
+		} else {
+			memWrite = true
+		}
 	}
 
 	early.Append(late.Take()...)
@@ -418,7 +419,10 @@ func readsMemory(n ir.Node) bool {
 	switch n.Op() {
 	case ir.ONAME:
 		n := n.(*ir.Name)
-		return n.Class == ir.PEXTERN || n.Class == ir.PAUTOHEAP || n.Addrtaken()
+		if n.Class == ir.PFUNC {
+			return false
+		}
+		return n.Addrtaken() || !n.OnStack()
 
 	case ir.OADD,
 		ir.OAND,
