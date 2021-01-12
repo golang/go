@@ -24,7 +24,6 @@ var inimport bool // set during import
 var TypecheckAllowed bool
 
 var (
-	NeedFuncSym     = func(*types.Sym) {}
 	NeedITab        = func(t, itype *types.Type) {}
 	NeedRuntimeType = func(*types.Type) {}
 )
@@ -1140,12 +1139,6 @@ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
 	n.SetOp(ir.OMETHEXPR)
 	n.Selection = m
 	n.SetType(NewMethodType(m.Type, n.X.Type()))
-
-	// Issue 25065. Make sure that we emit the symbol for a local method.
-	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym() == nil || t.Sym().Pkg == types.LocalPkg) {
-		NeedFuncSym(n.FuncName().Sym())
-	}
-
 	return n
 }
 
