@@ -62,10 +62,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 		if ir.CurFunc != nil && ctxt != ir.PFUNC && n.Op() == ir.ONAME {
 			ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
 		}
-		if n.Op() == ir.OTYPE {
-			declare_typegen++
-			n.Typegen = int32(declare_typegen)
-		}
 		types.Pushdcl(s)
 		n.Curfn = ir.CurFunc
 	}
@@ -307,10 +303,6 @@ func checkembeddedtype(t *types.Type) {
 		t.ForwardType().Embedlineno = base.Pos
 	}
 }
-
-// declare individual names - var, typ, const
-
-var declare_typegen int
 
 func fakeRecvField() *types.Field {
 	return types.NewField(src.NoXPos, nil, types.FakeRecvType())
