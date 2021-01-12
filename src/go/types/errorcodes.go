@@ -1311,4 +1311,8 @@ const (
 	//  	return i
 	//  }
 	_InvalidGo
+
+	// _Todo is a placeholder for error codes that have not been decided.
+	// TODO(rFindley) remove this error code after deciding on errors for generics code.
+	_Todo
 )

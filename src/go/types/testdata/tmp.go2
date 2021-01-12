@@ -1,0 +1,17 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file is meant as "dumping ground" for debugging code.
+
+package p
+
+// fun test case
+type C[P interface{m()}] P
+
+func (r C[P]) m() { r.m() }
+
+func f[T interface{m(); n()}](x T) {
+	y := C[T](x)
+	y.m()
+}

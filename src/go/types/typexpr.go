@@ -143,11 +143,11 @@ func (check *Checker) ordinaryType(pos positioner, typ Type) {
 		if t := asInterface(typ); t != nil {
 			check.completeInterface(pos.Pos(), t) // TODO(gri) is this the correct position?
 			if t.allTypes != nil {
-				check.softErrorf(pos, 0, "interface contains type constraints (%s)", t.allTypes)
+				check.softErrorf(pos, _Todo, "interface contains type constraints (%s)", t.allTypes)
 				return
 			}
 			if t.IsComparable() {
-				check.softErrorf(pos, 0, "interface is (or embeds) comparable")
+				check.softErrorf(pos, _Todo, "interface is (or embeds) comparable")
 			}
 		}
 	})
@@ -171,7 +171,7 @@ func (check *Checker) definedType(e ast.Expr, def *Named) Type {
 	typ := check.typInternal(e, def)
 	assert(isTyped(typ))
 	if isGeneric(typ) {
-		check.errorf(e, 0, "cannot use generic type %s without instantiation", typ)
+		check.errorf(e, _Todo, "cannot use generic type %s without instantiation", typ)
 		typ = Typ[Invalid]
 	}
 	check.recordTypeAndValue(e, typexpr, typ, nil)
@@ -184,7 +184,7 @@ func (check *Checker) genericType(e ast.Expr, reportErr bool) Type {
 	assert(isTyped(typ))
 	if typ != Typ[Invalid] && !isGeneric(typ) {
 		if reportErr {
-			check.errorf(e, 0, "%s is not a generic type", typ)
+			check.errorf(e, _Todo, "%s is not a generic type", typ)
 		}
 		typ = Typ[Invalid]
 	}
@@ -315,7 +315,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		// (A separate check is needed when type-checking interface method signatures because
 		// they don't have a receiver specification.)
 		if recvPar != nil {
-			check.errorf(ftyp.TParams, 0, "methods cannot have type parameters")
+			check.errorf(ftyp.TParams, _Todo, "methods cannot have type parameters")
 		}
 	}
 
@@ -776,7 +776,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 				// the author intended to include all types.
 				types = append(types, f.Type)
 				if tlist != nil && tlist != name {
-					check.errorf(name, 0, "cannot have multiple type lists in an interface")
+					check.errorf(name, _Todo, "cannot have multiple type lists in an interface")
 				}
 				tlist = name
 				continue
@@ -795,7 +795,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			// (This extra check is needed here because interface method signatures don't have
 			// a receiver specification.)
 			if sig.tparams != nil {
-				check.errorf(f.Type.(*ast.FuncType).TParams, 0, "methods cannot have type parameters")
+				check.errorf(f.Type.(*ast.FuncType).TParams, _Todo, "methods cannot have type parameters")
 			}
 
 			// use named receiver type if available (for better error messages)
@@ -1072,7 +1072,9 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 			pos := f.Type.Pos()
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
-				check.invalidAST(f.Type, "embedded field type %s has no name", f.Type)
+				// TODO(rFindley): using invalidAST here causes test failures (all
+				//                 errors should have codes). Clean this up.
+				check.errorf(f.Type, _Todo, "invalid AST: embedded field type %s has no name", f.Type)
 				name = ast.NewIdent("_")
 				name.NamePos = pos
 				addInvalid(name, pos)
@@ -1157,7 +1159,7 @@ func (check *Checker) collectTypeConstraints(pos token.Pos, types []ast.Expr) []
 				check.completeInterface(types[i].Pos(), t)
 			}
 			if includes(list[:i], t) {
-				check.softErrorf(types[i], 0, "duplicate type %s in type list", t)
+				check.softErrorf(types[i], _Todo, "duplicate type %s in type list", t)
 			}
 		}
 	})

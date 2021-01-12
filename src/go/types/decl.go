@@ -740,7 +740,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 				setBoundAt(index+i, bound)
 			}
 		} else if bound != Typ[Invalid] {
-			check.errorf(f.Type, 0, "%s is not an interface", bound)
+			check.errorf(f.Type, _Todo, "%s is not an interface", bound)
 		}
 
 	next:

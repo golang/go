@@ -109,7 +109,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 	// the number of supplied types must match the number of type parameters
 	if len(targs) != len(tparams) {
 		// TODO(gri) provide better error message
-		check.errorf(atPos(pos), 0, "got %d arguments but %d type parameters", len(targs), len(tparams))
+		check.errorf(atPos(pos), _Todo, "got %d arguments but %d type parameters", len(targs), len(tparams))
 		return Typ[Invalid]
 	}
 
@@ -163,7 +163,8 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 				} else if wrong != nil {
 					// TODO(gri) This can still report uninstantiated types which makes the error message
 					//           more difficult to read then necessary.
-					check.softErrorf(atPos(pos), 0,
+					// TODO(rFindley) should this use parentheses rather than ':' for qualification?
+					check.softErrorf(atPos(pos), _Todo,
 						"%s does not satisfy %s: wrong method signature\n\tgot  %s\n\twant %s",
 						targ, tpar.bound, wrong, m,
 					)
@@ -184,7 +185,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		if targ := asTypeParam(targ); targ != nil {
 			targBound := targ.Bound()
 			if targBound.allTypes == nil {
-				check.softErrorf(atPos(pos), 0, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
+				check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
 				break
 			}
 			for _, t := range unpackType(targBound.allTypes) {
@@ -199,7 +200,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 
 		// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
 		if !iface.isSatisfiedBy(targ) {
-			check.softErrorf(atPos(pos), 0, "%s does not satisfy %s (%s or %s not found in %s)", targ, tpar.bound, targ, under(targ), iface.allTypes)
+			check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s or %s not found in %s)", targ, tpar.bound, targ, under(targ), iface.allTypes)
 			break
 		}
 	}

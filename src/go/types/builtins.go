@@ -589,7 +589,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Alignof:
 		// unsafe.Alignof(x T) uintptr
 		if asTypeParam(x.typ) != nil {
-			check.invalidOp(call, 0, "unsafe.Alignof undefined for %s", x)
+			check.invalidOp(call, _Todo, "unsafe.Alignof undefined for %s", x)
 			return
 		}
 		check.assignment(x, nil, "argument to unsafe.Alignof")
@@ -650,7 +650,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Sizeof:
 		// unsafe.Sizeof(x T) uintptr
 		if asTypeParam(x.typ) != nil {
-			check.invalidOp(call, 0, "unsafe.Sizeof undefined for %s", x)
+			check.invalidOp(call, _Todo, "unsafe.Sizeof undefined for %s", x)
 			return
 		}
 		check.assignment(x, nil, "argument to unsafe.Sizeof")

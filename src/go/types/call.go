@@ -62,7 +62,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKi
 				if t := asInterface(T); t != nil {
 					check.completeInterface(token.NoPos, t)
 					if t.IsConstraint() {
-						check.errorf(call, 0, "cannot use interface %s in conversion (contains type list or is comparable)", T)
+						check.errorf(call, _Todo, "cannot use interface %s in conversion (contains type list or is comparable)", T)
 						break
 					}
 				}
@@ -117,7 +117,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKi
 
 			// check number of type arguments
 			if n > len(sig.tparams) {
-				check.errorf(args[n-1], 0, "got %d type arguments but want %d", n, len(sig.tparams))
+				check.errorf(args[n-1], _Todo, "got %d type arguments but want %d", n, len(sig.tparams))
 				x.mode = invalid
 				x.expr = orig
 				return expression
@@ -423,7 +423,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 				assert(targs[failed] == nil)
 				tpar := sig.tparams[failed]
 				ppos := check.fset.Position(tpar.pos).String()
-				check.errorf(inNode(call, call.Rparen), 0, "cannot infer %s (%s) (%s)", tpar.name, ppos, targs)
+				check.errorf(inNode(call, call.Rparen), _Todo, "cannot infer %s (%s) (%s)", tpar.name, ppos, targs)
 				return
 			}
 		}
@@ -821,7 +821,7 @@ func (check *Checker) useLHS(arg ...ast.Expr) {
 // instantiatedOperand reports an error of x is an uninstantiated (generic) type and sets x.typ to Typ[Invalid].
 func (check *Checker) instantiatedOperand(x *operand) {
 	if x.mode == typexpr && isGeneric(x.typ) {
-		check.errorf(x, 0, "cannot use generic type %s without instantiation", x.typ)
+		check.errorf(x, _Todo, "cannot use generic type %s without instantiation", x.typ)
 		x.typ = Typ[Invalid]
 	}
 }

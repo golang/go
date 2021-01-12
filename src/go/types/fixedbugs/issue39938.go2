@@ -1,0 +1,50 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Check "infinite expansion" cycle errors across instantiated types.
+
+package p
+
+type E0[P any] P
+type E1[P any] *P
+type E2[P any] struct{ P }
+type E3[P any] struct{ *P }
+
+type T0 /* ERROR illegal cycle */ struct {
+        _ E0[T0]
+}
+
+type T0_ /* ERROR illegal cycle */ struct {
+        E0[T0_]
+}
+
+type T1 struct {
+        _ E1[T1]
+}
+
+type T2 /* ERROR illegal cycle */ struct {
+        _ E2[T2]
+}
+
+type T3 struct {
+        _ E3[T3]
+}
+
+// some more complex cases
+
+type T4 /* ERROR illegal cycle */ struct {
+	_ E0[E2[T4]]
+}
+
+type T5 struct {
+	_ E0[E2[E0[E1[E2[[10]T5]]]]]
+}
+
+type T6 /* ERROR illegal cycle */ struct {
+	_ E0[[10]E2[E0[E2[E2[T6]]]]]
+}
+
+type T7 struct {
+	_ E0[[]E2[E0[E2[E2[T6]]]]]
+}
