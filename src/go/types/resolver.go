@@ -400,9 +400,12 @@ func (check *Checker) collectObjects() {
 					}
 				} else {
 					// method
-					if d.decl.Type.TParams != nil {
-						check.invalidAST(d.decl.Type.TParams, "method must have no type parameters")
-					}
+
+					// TODO(rFindley) earlier versions of this code checked that methods
+					//                have no type parameters, but this is checked later
+					//                when type checking the function type. Confirm that
+					//                we don't need to check tparams here.
+
 					ptr, recv, _ := check.unpackRecv(d.decl.Recv.List[0].Type, false)
 					// (Methods with invalid receiver cannot be associated to a type, and
 					// methods with blank _ names are never found; no need to collect any
@@ -496,7 +499,7 @@ L: // unpack receiver type
 				case nil:
 					check.invalidAST(ptyp, "parameterized receiver contains nil parameters")
 				default:
-					check.errorf(arg, 0, "receiver type parameter %s must be an identifier", arg)
+					check.errorf(arg, _Todo, "receiver type parameter %s must be an identifier", arg)
 				}
 				if par == nil {
 					par = &ast.Ident{NamePos: arg.Pos(), Name: "_"}

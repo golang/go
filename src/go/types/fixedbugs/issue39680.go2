@@ -1,0 +1,27 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import "fmt"
+
+// Minimal test case.
+func _[T interface{type T}](x T) T{
+	return x
+}
+
+// Test case from issue.
+type constr[T any] interface {
+	type T
+}
+
+func Print[T constr[T]](s []T) {
+	for _, v := range s {
+		fmt.Print(v)
+	}
+}
+
+func f() {
+	Print([]string{"Hello, ", "playground\n"})
+}

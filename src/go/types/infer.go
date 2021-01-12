@@ -39,7 +39,7 @@ func (check *Checker) infer(tparams []*TypeName, params *Tuple, args []*operand)
 				}
 			}
 			if allFailed {
-				check.errorf(arg, 0, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeNamesString(tparams))
+				check.errorf(arg, _Todo, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeNamesString(tparams))
 				return
 			}
 		}
@@ -47,7 +47,7 @@ func (check *Checker) infer(tparams []*TypeName, params *Tuple, args []*operand)
 		// TODO(rFindley): pass a positioner here, rather than arg.Pos().
 		inferred := check.subst(arg.Pos(), tpar, smap)
 		if inferred != tpar {
-			check.errorf(arg, 0, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
+			check.errorf(arg, _Todo, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
 		} else {
 			check.errorf(arg, 0, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
 		}
