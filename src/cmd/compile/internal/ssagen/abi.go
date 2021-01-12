@@ -14,6 +14,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/escape"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -137,6 +138,8 @@ func ReadSymABIs(file, myimportpath string) {
 // For body-less functions, we only create the LSym; for functions
 // with bodies call a helper to setup up / populate the LSym.
 func InitLSym(f *ir.Func, hasBody bool) {
+	staticdata.NeedFuncSym(f.Sym())
+
 	// FIXME: for new-style ABI wrappers, we set up the lsym at the
 	// point the wrapper is created.
 	if f.LSym != nil && base.Flag.ABIWrap {
@@ -152,7 +155,7 @@ func InitLSym(f *ir.Func, hasBody bool) {
 // makes calls to helpers to create ABI wrappers if needed.
 func selectLSym(f *ir.Func, hasBody bool) {
 	if f.LSym != nil {
-		base.Fatalf("Func.initLSym called twice")
+		base.FatalfAt(f.Pos(), "Func.initLSym called twice on %v", f)
 	}
 
 	if nam := f.Nname; !ir.IsBlank(nam) {

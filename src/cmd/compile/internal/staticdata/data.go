@@ -265,7 +265,7 @@ func FuncLinksym(n *ir.Name) *obj.LSym {
 	return FuncSym(n.Sym()).Linksym()
 }
 
-// NeedFuncSym ensures that s·f is exported.
+// NeedFuncSym ensures that s·f is exported, if needed.
 // It is only used with -dynlink.
 // When not compiling for dynamic linking,
 // the funcsyms are created as needed by
@@ -275,8 +275,13 @@ func FuncLinksym(n *ir.Name) *obj.LSym {
 // So instead, when dynamic linking, we only create
 // the s·f stubs in s's package.
 func NeedFuncSym(s *types.Sym) {
+	if base.Ctxt.InParallel {
+		// The append below probably just needs to lock
+		// funcsymsmu, like in FuncSym.
+		base.Fatalf("NeedFuncSym must be called in serial")
+	}
 	if !base.Ctxt.Flag_dynlink {
-		base.Fatalf("NeedFuncSym: dynlink")
+		return
 	}
 	if s.IsBlank() {
 		return
@@ -287,9 +292,7 @@ func NeedFuncSym(s *types.Sym) {
 		// get funcsyms.
 		return
 	}
-	if _, existed := s.Pkg.LookupOK(ir.FuncSymName(s)); !existed {
-		funcsyms = append(funcsyms, s)
-	}
+	funcsyms = append(funcsyms, s)
 }
 
 func WriteFuncSyms() {

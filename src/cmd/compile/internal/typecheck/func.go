@@ -364,10 +364,6 @@ func tcFunc(n *ir.Func) {
 		n.Nname.SetSym(ir.MethodSym(rcvr.Type, n.Shortname))
 		Declare(n.Nname, ir.PFUNC)
 	}
-
-	if base.Ctxt.Flag_dynlink && !inimport && n.Nname != nil {
-		NeedFuncSym(n.Sym())
-	}
 }
 
 // tcCall typechecks an OCALL node.

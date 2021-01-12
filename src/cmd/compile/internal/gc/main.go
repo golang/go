@@ -20,7 +20,6 @@ import (
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
-	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/compile/internal/walk"
@@ -194,7 +193,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	typecheck.Target = new(ir.Package)
 
-	typecheck.NeedFuncSym = staticdata.NeedFuncSym
 	typecheck.NeedITab = func(t, iface *types.Type) { reflectdata.ITabAddr(t, iface) }
 	typecheck.NeedRuntimeType = reflectdata.NeedRuntimeType // TODO(rsc): typenamesym for lock?
 
