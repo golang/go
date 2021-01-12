@@ -828,6 +828,7 @@ func hello() {}
 		Modes(Singleton),
 	).run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
 		env.RegexpReplace("go.mod", "module", "modul")
 		// Confirm that we still have metadata with only on-disk edits.
 		env.OpenFile("main.go")
