@@ -22,7 +22,6 @@ import (
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
-	"cmd/compile/internal/walk"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -267,20 +266,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// inserted.
 	if base.Flag.CompilingRuntime {
 		ssagen.EnableNoWriteBarrierRecCheck()
-	}
-
-	// Transform closure bodies to properly reference captured variables.
-	// This needs to happen before walk, because closures must be transformed
-	// before walk reaches a call of a closure.
-	base.Timer.Start("fe", "xclosures")
-	for _, n := range typecheck.Target.Decls {
-		if n.Op() == ir.ODCLFUNC {
-			n := n.(*ir.Func)
-			if n.OClosure != nil {
-				ir.CurFunc = n
-				walk.Closure(n)
-			}
-		}
 	}
 
 	// Prepare for SSA compilation.

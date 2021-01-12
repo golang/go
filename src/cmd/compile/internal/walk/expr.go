@@ -488,27 +488,8 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		reflectdata.MarkUsedIfaceMethod(n)
 	}
 
-	if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.OCLOSURE && !ir.IsTrivialClosure(n.X.(*ir.ClosureExpr)) {
-		// Transform direct call of a closure to call of a normal function.
-		// transformclosure already did all preparation work.
-		// We leave trivial closures for walkClosure to handle.
-
-		clo := n.X.(*ir.ClosureExpr)
-		ir.CurFunc.Closures = append(ir.CurFunc.Closures, clo.Func)
-
-		// Prepend captured variables to argument list.
-		n.Args.Prepend(closureArgs(clo)...)
-
-		// Replace OCLOSURE with ONAME/PFUNC.
-		n.X = clo.Func.Nname
-
-		// Update type of OCALLFUNC node.
-		// Output arguments had not changed, but their offsets could.
-		if n.X.Type().NumResults() == 1 {
-			n.SetType(n.X.Type().Results().Field(0).Type)
-		} else {
-			n.SetType(n.X.Type().Results())
-		}
+	if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.OCLOSURE {
+		directClosureCall(n)
 	}
 
 	walkCall1(n, init)
