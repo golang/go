@@ -93,43 +93,45 @@ func prepareFunc(fn *ir.Func) {
 // It fans out nBackendWorkers to do the work
 // and waits for them to complete.
 func compileFunctions() {
-	if len(compilequeue) != 0 {
-		types.CalcSizeDisabled = true // not safe to calculate sizes concurrently
-		if race.Enabled {
-			// Randomize compilation order to try to shake out races.
-			tmp := make([]*ir.Func, len(compilequeue))
-			perm := rand.Perm(len(compilequeue))
-			for i, v := range perm {
-				tmp[v] = compilequeue[i]
-			}
-			copy(compilequeue, tmp)
-		} else {
-			// Compile the longest functions first,
-			// since they're most likely to be the slowest.
-			// This helps avoid stragglers.
-			sort.Slice(compilequeue, func(i, j int) bool {
-				return len(compilequeue[i].Body) > len(compilequeue[j].Body)
-			})
-		}
-		var wg sync.WaitGroup
-		base.Ctxt.InParallel = true
-		c := make(chan *ir.Func, base.Flag.LowerC)
-		for i := 0; i < base.Flag.LowerC; i++ {
-			wg.Add(1)
-			go func(worker int) {
-				for fn := range c {
-					ssagen.Compile(fn, worker)
-				}
-				wg.Done()
-			}(i)
-		}
-		for _, fn := range compilequeue {
-			c <- fn
-		}
-		close(c)
-		compilequeue = nil
-		wg.Wait()
-		base.Ctxt.InParallel = false
-		types.CalcSizeDisabled = false
+	if len(compilequeue) == 0 {
+		return
 	}
+
+	types.CalcSizeDisabled = true // not safe to calculate sizes concurrently
+	if race.Enabled {
+		// Randomize compilation order to try to shake out races.
+		tmp := make([]*ir.Func, len(compilequeue))
+		perm := rand.Perm(len(compilequeue))
+		for i, v := range perm {
+			tmp[v] = compilequeue[i]
+		}
+		copy(compilequeue, tmp)
+	} else {
+		// Compile the longest functions first,
+		// since they're most likely to be the slowest.
+		// This helps avoid stragglers.
+		sort.Slice(compilequeue, func(i, j int) bool {
+			return len(compilequeue[i].Body) > len(compilequeue[j].Body)
+		})
+	}
+	var wg sync.WaitGroup
+	base.Ctxt.InParallel = true
+	c := make(chan *ir.Func, base.Flag.LowerC)
+	for i := 0; i < base.Flag.LowerC; i++ {
+		wg.Add(1)
+		go func(worker int) {
+			for fn := range c {
+				ssagen.Compile(fn, worker)
+			}
+			wg.Done()
+		}(i)
+	}
+	for _, fn := range compilequeue {
+		c <- fn
+	}
+	close(c)
+	compilequeue = nil
+	wg.Wait()
+	base.Ctxt.InParallel = false
+	types.CalcSizeDisabled = false
 }
