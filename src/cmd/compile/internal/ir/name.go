@@ -58,9 +58,6 @@ type Name struct {
 	Ntype    Ntype
 	Heapaddr *Name // temp holding heap address of param
 
-	// ONAME PAUTOHEAP
-	Stackcopy *Name // the PPARAM/PPARAMOUT on-stack slot (moved func params only)
-
 	// ONAME closure linkage
 	// Consider:
 	//
@@ -150,12 +147,7 @@ func (n *Name) TypeDefn() *types.Type {
 // RecordFrameOffset records the frame offset for the name.
 // It is used by package types when laying out function arguments.
 func (n *Name) RecordFrameOffset(offset int64) {
-	if n.Stackcopy != nil {
-		n.Stackcopy.SetFrameOffset(offset)
-		n.SetFrameOffset(0)
-	} else {
-		n.SetFrameOffset(offset)
-	}
+	n.SetFrameOffset(offset)
 }
 
 // NewNameAt returns a new ONAME Node associated with symbol s at position pos.
@@ -291,6 +283,22 @@ func (n *Name) SetInlFormal(b bool)             { n.flags.set(nameInlFormal, b) 
 func (n *Name) SetInlLocal(b bool)              { n.flags.set(nameInlLocal, b) }
 func (n *Name) SetOpenDeferSlot(b bool)         { n.flags.set(nameOpenDeferSlot, b) }
 func (n *Name) SetLibfuzzerExtraCounter(b bool) { n.flags.set(nameLibfuzzerExtraCounter, b) }
+
+// OnStack reports whether variable n may reside on the stack.
+func (n *Name) OnStack() bool {
+	if n.Op() != ONAME || n.Class == PFUNC {
+		base.Fatalf("%v is not a variable", n)
+	}
+	switch n.Class {
+	case PPARAM, PPARAMOUT, PAUTO:
+		return n.Esc() != EscHeap
+	case PEXTERN, PAUTOHEAP:
+		return false
+	default:
+		base.FatalfAt(n.Pos(), "%v has unknown class %v", n, n.Class)
+		panic("unreachable")
+	}
+}
 
 // MarkReadonly indicates that n is an ONAME with readonly contents.
 func (n *Name) MarkReadonly() {
@@ -499,26 +507,6 @@ func NewPkgName(pos src.XPos, sym *types.Sym, pkg *types.Pkg) *PkgName {
 	p.op = OPACK
 	p.pos = pos
 	return p
-}
-
-// IsParamStackCopy reports whether this is the on-stack copy of a
-// function parameter that moved to the heap.
-func IsParamStackCopy(n Node) bool {
-	if n.Op() != ONAME {
-		return false
-	}
-	name := n.(*Name)
-	return (name.Class == PPARAM || name.Class == PPARAMOUT) && name.Heapaddr != nil
-}
-
-// IsParamHeapCopy reports whether this is the on-heap copy of
-// a function parameter that moved to the heap.
-func IsParamHeapCopy(n Node) bool {
-	if n.Op() != ONAME {
-		return false
-	}
-	name := n.(*Name)
-	return name.Class == PAUTOHEAP && name.Stackcopy != nil
 }
 
 var RegFP *Name

@@ -7,7 +7,6 @@ package walk
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -47,33 +46,9 @@ func Walk(fn *ir.Func) {
 		ir.DumpList(s, ir.CurFunc.Body)
 	}
 
-	zeroResults()
-	heapmoves()
-	if base.Flag.W != 0 && len(ir.CurFunc.Enter) > 0 {
-		s := fmt.Sprintf("enter %v", ir.CurFunc.Sym())
-		ir.DumpList(s, ir.CurFunc.Enter)
-	}
-
 	if base.Flag.Cfg.Instrumenting {
 		instrument(fn)
 	}
-}
-
-func paramoutheap(fn *ir.Func) bool {
-	for _, ln := range fn.Dcl {
-		switch ln.Class {
-		case ir.PPARAMOUT:
-			if ir.IsParamStackCopy(ln) || ln.Addrtaken() {
-				return true
-			}
-
-		case ir.PAUTO:
-			// stop early - parameters are over
-			return false
-		}
-	}
-
-	return false
 }
 
 // walkRecv walks an ORECV node.
@@ -121,92 +96,6 @@ func convas(n *ir.AssignStmt, init *ir.Nodes) *ir.AssignStmt {
 }
 
 var stop = errors.New("stop")
-
-// paramstoheap returns code to allocate memory for heap-escaped parameters
-// and to copy non-result parameters' values from the stack.
-func paramstoheap(params *types.Type) []ir.Node {
-	var nn []ir.Node
-	for _, t := range params.Fields().Slice() {
-		v := ir.AsNode(t.Nname)
-		if v != nil && v.Sym() != nil && strings.HasPrefix(v.Sym().Name, "~r") { // unnamed result
-			v = nil
-		}
-		if v == nil {
-			continue
-		}
-
-		if stackcopy := v.Name().Stackcopy; stackcopy != nil {
-			nn = append(nn, walkStmt(ir.NewDecl(base.Pos, ir.ODCL, v.(*ir.Name))))
-			if stackcopy.Class == ir.PPARAM {
-				nn = append(nn, walkStmt(typecheck.Stmt(ir.NewAssignStmt(base.Pos, v, stackcopy))))
-			}
-		}
-	}
-
-	return nn
-}
-
-// zeroResults zeros the return values at the start of the function.
-// We need to do this very early in the function.  Defer might stop a
-// panic and show the return values as they exist at the time of
-// panic.  For precise stacks, the garbage collector assumes results
-// are always live, so we need to zero them before any allocations,
-// even allocations to move params/results to the heap.
-// The generated code is added to Curfn's Enter list.
-func zeroResults() {
-	for _, f := range ir.CurFunc.Type().Results().Fields().Slice() {
-		v := ir.AsNode(f.Nname)
-		if v != nil && v.Name().Heapaddr != nil {
-			// The local which points to the return value is the
-			// thing that needs zeroing. This is already handled
-			// by a Needzero annotation in plive.go:livenessepilogue.
-			continue
-		}
-		if ir.IsParamHeapCopy(v) {
-			// TODO(josharian/khr): Investigate whether we can switch to "continue" here,
-			// and document more in either case.
-			// In the review of CL 114797, Keith wrote (roughly):
-			// I don't think the zeroing below matters.
-			// The stack return value will never be marked as live anywhere in the function.
-			// It is not written to until deferreturn returns.
-			v = v.Name().Stackcopy
-		}
-		// Zero the stack location containing f.
-		ir.CurFunc.Enter.Append(ir.NewAssignStmt(ir.CurFunc.Pos(), v, nil))
-	}
-}
-
-// returnsfromheap returns code to copy values for heap-escaped parameters
-// back to the stack.
-func returnsfromheap(params *types.Type) []ir.Node {
-	var nn []ir.Node
-	for _, t := range params.Fields().Slice() {
-		v := ir.AsNode(t.Nname)
-		if v == nil {
-			continue
-		}
-		if stackcopy := v.Name().Stackcopy; stackcopy != nil && stackcopy.Class == ir.PPARAMOUT {
-			nn = append(nn, walkStmt(typecheck.Stmt(ir.NewAssignStmt(base.Pos, stackcopy, v))))
-		}
-	}
-
-	return nn
-}
-
-// heapmoves generates code to handle migrating heap-escaped parameters
-// between the stack and the heap. The generated code is added to Curfn's
-// Enter and Exit lists.
-func heapmoves() {
-	lno := base.Pos
-	base.Pos = ir.CurFunc.Pos()
-	nn := paramstoheap(ir.CurFunc.Type().Recvs())
-	nn = append(nn, paramstoheap(ir.CurFunc.Type().Params())...)
-	nn = append(nn, paramstoheap(ir.CurFunc.Type().Results())...)
-	ir.CurFunc.Enter.Append(nn...)
-	base.Pos = ir.CurFunc.Endlineno
-	ir.CurFunc.Exit.Append(returnsfromheap(ir.CurFunc.Type().Results())...)
-	base.Pos = lno
-}
 
 func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallExpr {
 	if fn.Type() == nil || fn.Type().Kind() != types.TFUNC {

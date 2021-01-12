@@ -181,7 +181,7 @@ type progeffectscache struct {
 // nor do we care about empty structs (handled by the pointer check),
 // nor do we care about the fake PAUTOHEAP variables.
 func ShouldTrack(n *ir.Name) bool {
-	return (n.Class == ir.PAUTO || n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT) && n.Type().HasPointers()
+	return (n.Class == ir.PAUTO && n.Esc() != ir.EscHeap || n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT) && n.Type().HasPointers()
 }
 
 // getvariables returns the list of on-stack variables that we need to track
@@ -788,7 +788,7 @@ func (lv *liveness) epilogue() {
 				if n.Class == ir.PPARAM {
 					continue // ok
 				}
-				base.Fatalf("bad live variable at entry of %v: %L", lv.fn.Nname, n)
+				base.FatalfAt(n.Pos(), "bad live variable at entry of %v: %L", lv.fn.Nname, n)
 			}
 
 			// Record live variables.

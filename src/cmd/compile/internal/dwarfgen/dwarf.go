@@ -186,19 +186,11 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		isReturnValue := (n.Class == ir.PPARAMOUT)
 		if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
 			abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
-		} else if n.Class == ir.PAUTOHEAP {
-			// If dcl in question has been promoted to heap, do a bit
-			// of extra work to recover original class (auto or param);
-			// see issue 30908. This insures that we get the proper
-			// signature in the abstract function DIE, but leaves a
-			// misleading location for the param (we want pointer-to-heap
-			// and not stack).
+		}
+		if n.Esc() == ir.EscHeap {
+			// The variable in question has been promoted to the heap.
+			// Its address is in n.Heapaddr.
 			// TODO(thanm): generate a better location expression
-			stackcopy := n.Stackcopy
-			if stackcopy != nil && (stackcopy.Class == ir.PPARAM || stackcopy.Class == ir.PPARAMOUT) {
-				abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
-				isReturnValue = (stackcopy.Class == ir.PPARAMOUT)
-			}
 		}
 		inlIndex := 0
 		if base.Flag.GenDwarfInl > 1 {

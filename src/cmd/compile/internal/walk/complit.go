@@ -64,11 +64,11 @@ func readonlystaticname(t *types.Type) *ir.Name {
 }
 
 func isSimpleName(nn ir.Node) bool {
-	if nn.Op() != ir.ONAME {
+	if nn.Op() != ir.ONAME || ir.IsBlank(nn) {
 		return false
 	}
 	n := nn.(*ir.Name)
-	return n.Class != ir.PAUTOHEAP && n.Class != ir.PEXTERN
+	return n.OnStack()
 }
 
 func litas(l ir.Node, r ir.Node, init *ir.Nodes) {
