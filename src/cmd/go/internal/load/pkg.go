@@ -304,7 +304,7 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 	}
 
 	if path != stk.Top() {
-		p = setErrorPos(p, importPos)
+		p.Error.setPos(importPos)
 	}
 }
 
@@ -445,6 +445,15 @@ func (p *PackageError) MarshalJSON() ([]byte, error) {
 		Err         string
 	}{p.ImportStack, p.Pos, p.Err.Error()}
 	return json.Marshal(perr)
+}
+
+func (p *PackageError) setPos(posList []token.Position) {
+	if len(posList) == 0 {
+		return
+	}
+	pos := posList[0]
+	pos.Filename = base.ShortPath(pos.Filename)
+	p.Pos = pos.String()
 }
 
 // ImportPathError is a type of error that prevents a package from being loaded
@@ -695,17 +704,19 @@ func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *
 				Err:         ImportErrorf(path, "non-canonical import path %q: should be %q", path, pathpkg.Clean(path)),
 			}
 			p.Incomplete = true
-			setErrorPos(p, importPos)
+			p.Error.setPos(importPos)
 		}
 	}
 
 	// Checked on every import because the rules depend on the code doing the importing.
 	if perr := disallowInternal(srcDir, parent, parentPath, p, stk); perr != p {
-		return setErrorPos(perr, importPos)
+		perr.Error.setPos(importPos)
+		return perr
 	}
 	if mode&ResolveImport != 0 {
 		if perr := disallowVendor(srcDir, path, parentPath, p, stk); perr != p {
-			return setErrorPos(perr, importPos)
+			perr.Error.setPos(importPos)
+			return perr
 		}
 	}
 
@@ -715,7 +726,8 @@ func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *
 			ImportStack: stk.Copy(),
 			Err:         ImportErrorf(path, "import %q is a program, not an importable package", path),
 		}
-		return setErrorPos(&perr, importPos)
+		perr.Error.setPos(importPos)
+		return &perr
 	}
 
 	if p.Internal.Local && parent != nil && !parent.Internal.Local {
@@ -730,18 +742,10 @@ func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *
 			ImportStack: stk.Copy(),
 			Err:         err,
 		}
-		return setErrorPos(&perr, importPos)
+		perr.Error.setPos(importPos)
+		return &perr
 	}
 
-	return p
-}
-
-func setErrorPos(p *Package, importPos []token.Position) *Package {
-	if len(importPos) > 0 {
-		pos := importPos[0]
-		pos.Filename = base.ShortPath(pos.Filename)
-		p.Error.Pos = pos.String()
-	}
 	return p
 }
 
@@ -1649,7 +1653,7 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 			// must be either in an explicit command-line argument,
 			// or on the importer side (indicated by a non-empty importPos).
 			if path != stk.Top() && len(importPos) > 0 {
-				p = setErrorPos(p, importPos)
+				p.Error.setPos(importPos)
 			}
 		}
 	}
