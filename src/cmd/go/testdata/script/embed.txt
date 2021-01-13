@@ -20,7 +20,7 @@ cp x.go2 x.go
 go build -x
 cp x.txt .git
 ! go build -x
-stderr 'pattern [*]t: cannot embed file [.]git'
+stderr '^x.go:5:12: pattern [*]t: cannot embed file [.]git: invalid name [.]git$'
 rm .git
 
 # build rejects symlinks
@@ -32,18 +32,23 @@ rm .git
 # build rejects empty directories
 mkdir t
 ! go build -x
-stderr 'pattern [*]t: cannot embed directory t: contains no embeddable files'
+stderr '^x.go:5:12: pattern [*]t: cannot embed directory t: contains no embeddable files$'
 
 # build ignores symlinks and invalid names in directories
 cp x.txt t/.git
 ! go build -x
-stderr 'pattern [*]t: cannot embed directory t: contains no embeddable files'
+stderr '^x.go:5:12: pattern [*]t: cannot embed directory t: contains no embeddable files$'
 [symlink] symlink t/x.link -> ../x.txt
 [symlink] ! go build -x
-[symlink] stderr 'pattern [*]t: cannot embed directory t: contains no embeddable files'
+[symlink] stderr '^x.go:5:12: pattern [*]t: cannot embed directory t: contains no embeddable files$'
 
 cp x.txt t/x.txt
 go build -x
+
+# build reports errors with positions in imported packages
+rm t/x.txt
+! go build m/use
+stderr '^x.go:5:12: pattern [*]t: cannot embed directory t: contains no embeddable files$'
 
 -- x.go --
 package p
@@ -67,6 +72,10 @@ hello
 -- x.txt2 --
 not hello
 
+-- use/use.go --
+package use
+
+import _ "m"
 -- go.mod --
 module m
 

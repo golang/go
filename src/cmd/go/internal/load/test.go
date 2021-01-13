@@ -130,6 +130,8 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
 			ImportStack: stk.Copy(),
 			Err:         err,
 		}
+		embedErr := err.(*EmbedError)
+		ptestErr.setPos(p.Internal.Build.TestEmbedPatternPos[embedErr.Pattern])
 	}
 	stk.Pop()
 
@@ -151,6 +153,8 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
 			ImportStack: stk.Copy(),
 			Err:         err,
 		}
+		embedErr := err.(*EmbedError)
+		pxtestErr.setPos(p.Internal.Build.XTestEmbedPatternPos[embedErr.Pattern])
 	}
 	stk.Pop()
 

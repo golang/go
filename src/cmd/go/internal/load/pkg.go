@@ -412,6 +412,9 @@ type PackageError struct {
 }
 
 func (p *PackageError) Error() string {
+	// TODO(#43696): decide when to print the stack or the position based on
+	// the error type and whether the package is in the main module.
+	// Document the rationale.
 	if p.Pos != "" && (len(p.ImportStack) == 0 || !p.alwaysPrintStack) {
 		// Omit import stack. The full path to the file where the error
 		// is the most important thing.
@@ -1663,11 +1666,6 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 		p.setLoadPackageDataError(err, path, stk, importPos)
 	}
 
-	p.EmbedFiles, p.Internal.Embed, err = p.resolveEmbed(p.EmbedPatterns)
-	if err != nil {
-		setError(err)
-	}
-
 	useBindir := p.Name == "main"
 	if !p.Standard {
 		switch cfg.BuildBuildmode {
@@ -1803,8 +1801,18 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 		return
 	}
 
+	// Errors after this point are caused by this package, not the importing
+	// package. Pushing the path here prevents us from reporting the error
+	// with the position of the import declaration.
 	stk.Push(path)
 	defer stk.Pop()
+
+	p.EmbedFiles, p.Internal.Embed, err = p.resolveEmbed(p.EmbedPatterns)
+	if err != nil {
+		setError(err)
+		embedErr := err.(*EmbedError)
+		p.Error.setPos(p.Internal.Build.EmbedPatternPos[embedErr.Pattern])
+	}
 
 	// Check for case-insensitive collision of input files.
 	// To avoid problems on case-insensitive files, we reject any package
@@ -1909,6 +1917,20 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 	}
 }
 
+// An EmbedError indicates a problem with a go:embed directive.
+type EmbedError struct {
+	Pattern string
+	Err     error
+}
+
+func (e *EmbedError) Error() string {
+	return fmt.Sprintf("pattern %s: %v", e.Pattern, e.Err)
+}
+
+func (e *EmbedError) Unwrap() error {
+	return e.Err
+}
+
 // ResolveEmbed resolves //go:embed patterns and returns only the file list.
 // For use by go list to compute p.TestEmbedFiles and p.XTestEmbedFiles.
 func (p *Package) ResolveEmbed(patterns []string) []string {
@@ -1920,24 +1942,33 @@ func (p *Package) ResolveEmbed(patterns []string) []string {
 // It sets files to the list of unique files matched (for go list),
 // and it sets pmap to the more precise mapping from
 // patterns to files.
-// TODO(rsc): All these messages need position information for better error reports.
 func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[string][]string, err error) {
+	var pattern string
+	defer func() {
+		if err != nil {
+			err = &EmbedError{
+				Pattern: pattern,
+				Err:     err,
+			}
+		}
+	}()
+
 	pmap = make(map[string][]string)
 	have := make(map[string]int)
 	dirOK := make(map[string]bool)
 	pid := 0 // pattern ID, to allow reuse of have map
-	for _, pattern := range patterns {
+	for _, pattern = range patterns {
 		pid++
 
 		// Check pattern is valid for //go:embed.
 		if _, err := path.Match(pattern, ""); err != nil || !validEmbedPattern(pattern) {
-			return nil, nil, fmt.Errorf("pattern %s: invalid pattern syntax", pattern)
+			return nil, nil, fmt.Errorf("invalid pattern syntax")
 		}
 
 		// Glob to find matches.
 		match, err := fsys.Glob(p.Dir + string(filepath.Separator) + filepath.FromSlash(pattern))
 		if err != nil {
-			return nil, nil, fmt.Errorf("pattern %s: %v", pattern, err)
+			return nil, nil, err
 		}
 
 		// Filter list of matches down to the ones that will still exist when
@@ -1961,26 +1992,26 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
 			// (do not contain a go.mod).
 			for dir := file; len(dir) > len(p.Dir)+1 && !dirOK[dir]; dir = filepath.Dir(dir) {
 				if _, err := fsys.Stat(filepath.Join(dir, "go.mod")); err == nil {
-					return nil, nil, fmt.Errorf("pattern %s: cannot embed %s %s: in different module", pattern, what, rel)
+					return nil, nil, fmt.Errorf("cannot embed %s %s: in different module", what, rel)
 				}
 				if dir != file {
 					if info, err := fsys.Lstat(dir); err == nil && !info.IsDir() {
-						return nil, nil, fmt.Errorf("pattern %s: cannot embed %s %s: in non-directory %s", pattern, what, rel, dir[len(p.Dir)+1:])
+						return nil, nil, fmt.Errorf("cannot embed %s %s: in non-directory %s", what, rel, dir[len(p.Dir)+1:])
 					}
 				}
 				dirOK[dir] = true
 				if elem := filepath.Base(dir); isBadEmbedName(elem) {
 					if dir == file {
-						return nil, nil, fmt.Errorf("pattern %s: cannot embed %s %s: invalid name %s", pattern, what, rel, elem)
+						return nil, nil, fmt.Errorf("cannot embed %s %s: invalid name %s", what, rel, elem)
 					} else {
-						return nil, nil, fmt.Errorf("pattern %s: cannot embed %s %s: in invalid directory %s", pattern, what, rel, elem)
+						return nil, nil, fmt.Errorf("cannot embed %s %s: in invalid directory %s", what, rel, elem)
 					}
 				}
 			}
 
 			switch {
 			default:
-				return nil, nil, fmt.Errorf("pattern %s: cannot embed irregular file %s", pattern, rel)
+				return nil, nil, fmt.Errorf("cannot embed irregular file %s", rel)
 
 			case info.Mode().IsRegular():
 				if have[rel] != pid {
@@ -2027,13 +2058,13 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
 					return nil, nil, err
 				}
 				if count == 0 {
-					return nil, nil, fmt.Errorf("pattern %s: cannot embed directory %s: contains no embeddable files", pattern, rel)
+					return nil, nil, fmt.Errorf("cannot embed directory %s: contains no embeddable files", rel)
 				}
 			}
 		}
 
 		if len(list) == 0 {
-			return nil, nil, fmt.Errorf("pattern %s: no matching files found", pattern)
+			return nil, nil, fmt.Errorf("no matching files found")
 		}
 		sort.Strings(list)
 		pmap[pattern] = list
