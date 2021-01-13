@@ -135,7 +135,7 @@ func (w *worker) runFuzzing() error {
 					w.coordinator.crasherC <- crasher
 				} else {
 					// Inform the coordinator that fuzzing found something
-					// interesting (ie. a crash or new coverage).
+					// interesting (i.e. new coverage).
 					if resp.Interesting {
 						w.coordinator.interestingC <- corpusEntry{b: value}
 					}
