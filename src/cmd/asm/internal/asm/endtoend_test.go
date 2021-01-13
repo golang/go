@@ -270,7 +270,7 @@ var (
 	errQuotesRE = regexp.MustCompile(`"([^"]*)"`)
 )
 
-func testErrors(t *testing.T, goarch, file string) {
+func testErrors(t *testing.T, goarch, file string, flags ...string) {
 	input := filepath.Join("testdata", file+".s")
 	architecture, ctxt := setArch(goarch)
 	lexer := lex.NewLexer(input)
@@ -291,6 +291,14 @@ func testErrors(t *testing.T, goarch, file string) {
 			s += "\n"
 		}
 		errBuf.WriteString(s)
+	}
+	for _, flag := range flags {
+		switch flag {
+		case "dynlink":
+			ctxt.Flag_dynlink = true
+		default:
+			t.Errorf("unknown flag %s", flag)
+		}
 	}
 	pList.Firstpc, ok = parser.Parse()
 	obj.Flushplist(ctxt, pList, nil, "")
@@ -428,6 +436,10 @@ func TestAMD64Encoder(t *testing.T) {
 
 func TestAMD64Errors(t *testing.T) {
 	testErrors(t, "amd64", "amd64error")
+}
+
+func TestAMD64DynLinkErrors(t *testing.T) {
+	testErrors(t, "amd64", "amd64dynlinkerror", "dynlink")
 }
 
 func TestMIPSEndToEnd(t *testing.T) {
