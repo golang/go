@@ -226,9 +226,12 @@ pkg embed, type FS struct
 pkg flag, func Func(string, string, func(string) error)
 pkg flag, method (*FlagSet) Func(string, string, func(string) error)
 pkg go/build, type Package struct, EmbedPatterns []string
+pkg go/build, type Package struct, EmbedPatternPos map[string][]token.Position
 pkg go/build, type Package struct, IgnoredOtherFiles []string
 pkg go/build, type Package struct, TestEmbedPatterns []string
+pkg go/build, type Package struct, TestEmbedPatternPos map[string][]token.Position
 pkg go/build, type Package struct, XTestEmbedPatterns []string
+pkg go/build, type Package struct, XTestEmbedPatternPos map[string][]token.Position
 pkg html/template, func ParseFS(fs.FS, ...string) (*Template, error)
 pkg html/template, method (*Template) ParseFS(fs.FS, ...string) (*Template, error)
 pkg io, func NopCloser(Reader) ReadCloser
