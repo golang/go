@@ -37,6 +37,7 @@ import (
 	"cmd/internal/sys"
 	"log"
 	"math"
+	"path"
 	"strings"
 )
 
@@ -562,6 +563,11 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	}
 	obj.Nopout(p)
 }
+
+// Prog.mark
+const (
+	markBit = 1 << 0 // used in errorCheck to avoid duplicate work
+)
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	if cursym.Func().Text == nil || cursym.Func().Text.Link == nil {
@@ -1196,6 +1202,114 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	return end
 }
 
+func isR15(r int16) bool {
+	return r == REG_R15 || r == REG_R15B
+}
+func addrMentionsR15(a *obj.Addr) bool {
+	if a == nil {
+		return false
+	}
+	return isR15(a.Reg) || isR15(a.Index)
+}
+func progMentionsR15(p *obj.Prog) bool {
+	return addrMentionsR15(&p.From) || addrMentionsR15(&p.To) || isR15(p.Reg) || addrMentionsR15(p.GetFrom3())
+}
+
+// progOverwritesR15 reports whether p writes to R15 and does not depend on
+// the previous value of R15.
+func progOverwritesR15(p *obj.Prog) bool {
+	if !(p.To.Type == obj.TYPE_REG && isR15(p.To.Reg)) {
+		// Not writing to R15.
+		return false
+	}
+	if (p.As == AXORL || p.As == AXORQ) && p.From.Type == obj.TYPE_REG && isR15(p.From.Reg) {
+		// These look like uses of R15, but aren't, so we must detect these
+		// before the use check below.
+		return true
+	}
+	if addrMentionsR15(&p.From) || isR15(p.Reg) || addrMentionsR15(p.GetFrom3()) {
+		// use before overwrite
+		return false
+	}
+	if p.As == AMOVL || p.As == AMOVQ || p.As == APOPQ {
+		return true
+		// TODO: MOVB might be ok if we only ever use R15B.
+	}
+	return false
+}
+
+func addrUsesGlobal(a *obj.Addr) bool {
+	if a == nil {
+		return false
+	}
+	return a.Name == obj.NAME_EXTERN && !a.Sym.Local()
+}
+func progUsesGlobal(p *obj.Prog) bool {
+	if p.As == obj.ACALL || p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ARET || p.As == obj.AJMP {
+		// These opcodes don't use a GOT to access their argument (see rewriteToUseGot),
+		// or R15 would be dead at them anyway.
+		return false
+	}
+	if p.As == ALEAQ {
+		// The GOT entry is placed directly in the destination register; R15 is not used.
+		return false
+	}
+	return addrUsesGlobal(&p.From) || addrUsesGlobal(&p.To) || addrUsesGlobal(p.GetFrom3())
+}
+
+func errorCheck(ctxt *obj.Link, s *obj.LSym) {
+	// When dynamic linking, R15 is used to access globals. Reject code that
+	// uses R15 after a global variable access.
+	if !ctxt.Flag_dynlink {
+		return
+	}
+
+	// Flood fill all the instructions where R15's value is junk.
+	// If there are any uses of R15 in that set, report an error.
+	var work []*obj.Prog
+	var mentionsR15 bool
+	for p := s.Func().Text; p != nil; p = p.Link {
+		if progUsesGlobal(p) {
+			work = append(work, p)
+			p.Mark |= markBit
+		}
+		if progMentionsR15(p) {
+			mentionsR15 = true
+		}
+	}
+	if mentionsR15 {
+		for len(work) > 0 {
+			p := work[len(work)-1]
+			work = work[:len(work)-1]
+			if q := p.To.Target(); q != nil && q.Mark&markBit == 0 {
+				q.Mark |= markBit
+				work = append(work, q)
+			}
+			if p.As == obj.AJMP || p.As == obj.ARET {
+				continue // no fallthrough
+			}
+			if progMentionsR15(p) {
+				if progOverwritesR15(p) {
+					// R15 is overwritten by this instruction. Its value is not junk any more.
+					continue
+				}
+				pos := ctxt.PosTable.Pos(p.Pos)
+				ctxt.Diag("%s:%s: when dynamic linking, R15 is clobbered by a global variable access and is used here: %v", path.Base(pos.Filename()), pos.LineNumber(), p)
+				break // only report one error
+			}
+			if q := p.Link; q != nil && q.Mark&markBit == 0 {
+				q.Mark |= markBit
+				work = append(work, q)
+			}
+		}
+	}
+
+	// Clean up.
+	for p := s.Func().Text; p != nil; p = p.Link {
+		p.Mark &^= markBit
+	}
+}
+
 var unaryDst = map[obj.As]bool{
 	ABSWAPL:     true,
 	ABSWAPQ:     true,
@@ -1284,6 +1398,7 @@ var unaryDst = map[obj.As]bool{
 var Linkamd64 = obj.LinkArch{
 	Arch:           sys.ArchAMD64,
 	Init:           instinit,
+	ErrorCheck:     errorCheck,
 	Preprocess:     preprocess,
 	Assemble:       span6,
 	Progedit:       progedit,

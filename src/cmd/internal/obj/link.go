@@ -949,6 +949,7 @@ func (ctxt *Link) FixedFrameSize() int64 {
 type LinkArch struct {
 	*sys.Arch
 	Init           func(*Link)
+	ErrorCheck     func(*Link, *LSym)
 	Preprocess     func(*Link, *LSym, ProgAlloc)
 	Assemble       func(*Link, *LSym, ProgAlloc)
 	Progedit       func(*Link, *Prog, ProgAlloc)
