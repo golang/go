@@ -4042,18 +4042,23 @@ func InitTables() {
 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr32, ssa.OpAtomicOr32Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
 		sys.ARM64)
 
+	// Aliases for atomic load operations
+	alias("runtime/internal/atomic", "Loadint32", "runtime/internal/atomic", "Load", all...)
 	alias("runtime/internal/atomic", "Loadint64", "runtime/internal/atomic", "Load64", all...)
-	alias("runtime/internal/atomic", "Xaddint64", "runtime/internal/atomic", "Xadd64", all...)
-	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load", p4...)
-	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load64", p8...)
 	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load", p4...)
 	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load64", p8...)
+	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load", p4...)
+	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load64", p8...)
 	alias("runtime/internal/atomic", "LoadAcq", "runtime/internal/atomic", "Load", lwatomics...)
 	alias("runtime/internal/atomic", "LoadAcq64", "runtime/internal/atomic", "Load64", lwatomics...)
 	alias("runtime/internal/atomic", "LoadAcquintptr", "runtime/internal/atomic", "LoadAcq", p4...)
 	alias("sync", "runtime_LoadAcquintptr", "runtime/internal/atomic", "LoadAcq", p4...) // linknamed
 	alias("runtime/internal/atomic", "LoadAcquintptr", "runtime/internal/atomic", "LoadAcq64", p8...)
 	alias("sync", "runtime_LoadAcquintptr", "runtime/internal/atomic", "LoadAcq64", p8...) // linknamed
+
+	// Aliases for atomic store operations
+	alias("runtime/internal/atomic", "Storeint32", "runtime/internal/atomic", "Store", all...)
+	alias("runtime/internal/atomic", "Storeint64", "runtime/internal/atomic", "Store64", all...)
 	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store", p4...)
 	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store64", p8...)
 	alias("runtime/internal/atomic", "StoreRel", "runtime/internal/atomic", "Store", lwatomics...)
@@ -4062,10 +4067,22 @@ func InitTables() {
 	alias("sync", "runtime_StoreReluintptr", "runtime/internal/atomic", "StoreRel", p4...) // linknamed
 	alias("runtime/internal/atomic", "StoreReluintptr", "runtime/internal/atomic", "StoreRel64", p8...)
 	alias("sync", "runtime_StoreReluintptr", "runtime/internal/atomic", "StoreRel64", p8...) // linknamed
+
+	// Aliases for atomic swap operations
+	alias("runtime/internal/atomic", "Xchgint32", "runtime/internal/atomic", "Xchg", all...)
+	alias("runtime/internal/atomic", "Xchgint64", "runtime/internal/atomic", "Xchg64", all...)
 	alias("runtime/internal/atomic", "Xchguintptr", "runtime/internal/atomic", "Xchg", p4...)
 	alias("runtime/internal/atomic", "Xchguintptr", "runtime/internal/atomic", "Xchg64", p8...)
+
+	// Aliases for atomic add operations
+	alias("runtime/internal/atomic", "Xaddint32", "runtime/internal/atomic", "Xadd", all...)
+	alias("runtime/internal/atomic", "Xaddint64", "runtime/internal/atomic", "Xadd64", all...)
 	alias("runtime/internal/atomic", "Xadduintptr", "runtime/internal/atomic", "Xadd", p4...)
 	alias("runtime/internal/atomic", "Xadduintptr", "runtime/internal/atomic", "Xadd64", p8...)
+
+	// Aliases for atomic CAS operations
+	alias("runtime/internal/atomic", "Casint32", "runtime/internal/atomic", "Cas", all...)
+	alias("runtime/internal/atomic", "Casint64", "runtime/internal/atomic", "Cas64", all...)
 	alias("runtime/internal/atomic", "Casuintptr", "runtime/internal/atomic", "Cas", p4...)
 	alias("runtime/internal/atomic", "Casuintptr", "runtime/internal/atomic", "Cas64", p8...)
 	alias("runtime/internal/atomic", "Casp1", "runtime/internal/atomic", "Cas", p4...)

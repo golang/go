@@ -76,6 +76,14 @@ cas64_fail:
 	MOVB	$0, ret+24(FP)
 	RET
 
+// func Casint32(ptr *int32, old, new int32) bool
+TEXT ·Casint32(SB), NOSPLIT, $0-17
+	BR	·Cas(SB)
+
+// func Casint64(ptr *int64, old, new int64) bool
+TEXT ·Casint64(SB), NOSPLIT, $0-25
+	BR	·Cas64(SB)
+
 // func Casuintptr(ptr *uintptr, old, new uintptr) bool
 TEXT ·Casuintptr(SB), NOSPLIT, $0-25
 	BR	·Cas64(SB)
@@ -92,9 +100,21 @@ TEXT ·Loaduintptr(SB), NOSPLIT, $0-16
 TEXT ·Loaduint(SB), NOSPLIT, $0-16
 	BR	·Load64(SB)
 
+// func Storeint32(ptr *int32, new int32)
+TEXT ·Storeint32(SB), NOSPLIT, $0-12
+	BR	·Store(SB)
+
+// func Storeint64(ptr *int64, new int64)
+TEXT ·Storeint64(SB), NOSPLIT, $0-16
+	BR	·Store64(SB)
+
 // func Storeuintptr(ptr *uintptr, new uintptr)
 TEXT ·Storeuintptr(SB), NOSPLIT, $0-16
 	BR	·Store64(SB)
+
+// func Loadint32(ptr *int32) int32
+TEXT ·Loadint32(SB), NOSPLIT, $0-12
+	BR	·Load(SB)
 
 // func Loadint64(ptr *int64) int64
 TEXT ·Loadint64(SB), NOSPLIT, $0-16
@@ -103,6 +123,10 @@ TEXT ·Loadint64(SB), NOSPLIT, $0-16
 // func Xadduintptr(ptr *uintptr, delta uintptr) uintptr
 TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
 	BR	·Xadd64(SB)
+
+// func Xaddint32(ptr *int32, delta int32) int32
+TEXT ·Xaddint32(SB), NOSPLIT, $0-20
+	BR	·Xadd(SB)
 
 // func Xaddint64(ptr *int64, delta int64) int64
 TEXT ·Xaddint64(SB), NOSPLIT, $0-24
@@ -167,6 +191,14 @@ repeat:
 	BNE	repeat
 	MOVD	R6, ret+16(FP)
 	RET
+
+// func Xchgint32(ptr *int32, new int32) int32
+TEXT ·Xchgint32(SB), NOSPLIT, $0-20
+	BR	·Xchg(SB)
+
+// func Xchgint64(ptr *int64, new int64) int64
+TEXT ·Xchgint64(SB), NOSPLIT, $0-24
+	BR	·Xchg64(SB)
 
 // func Xchguintptr(ptr *uintptr, new uintptr) uintptr
 TEXT ·Xchguintptr(SB), NOSPLIT, $0-24

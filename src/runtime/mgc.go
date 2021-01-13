@@ -759,8 +759,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 				return false
 			}
 
-			// TODO: having atomic.Casint64 would be more pleasant.
-			if atomic.Cas64((*uint64)(unsafe.Pointer(ptr)), uint64(v), uint64(v-1)) {
+			if atomic.Casint64(ptr, v, v-1) {
 				return true
 			}
 		}
