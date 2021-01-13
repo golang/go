@@ -344,6 +344,17 @@ func TestAddressParsingError(t *testing.T) {
 			t.Errorf(`mail.ParseAddress(%q) #%d want %q, got %v`, tc.text, i, tc.wantErrText, err)
 		}
 	}
+
+	t.Run("CustomWordDecoder", func(t *testing.T) {
+		p := &AddressParser{WordDecoder: &mime.WordDecoder{}}
+		for i, tc := range mustErrTestCases {
+			_, err := p.Parse(tc.text)
+			if err == nil || !strings.Contains(err.Error(), tc.wantErrText) {
+				t.Errorf(`p.Parse(%q) #%d want %q, got %v`, tc.text, i, tc.wantErrText, err)
+			}
+		}
+	})
+
 }
 
 func TestAddressParsing(t *testing.T) {
