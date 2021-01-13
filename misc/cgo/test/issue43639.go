@@ -2,33 +2,39 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package cgotest
 
 import (
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 )
 
-func TestUnusedParameter(t *testing.T) {
+func test43639(t *testing.T) {
+	dir, err := ioutil.TempDir("", filepath.Base(t.Name()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
 
-	filename := "tmp.go"
+	filename := filepath.Join(dir, "tmp.go")
 	file, err := os.Create(filename)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(filename)
 	defer file.Close()
 
 	code := `
 		package p
 
-		// #cgo CFLAGS: -Werror=unused-parameter
+		// #cgo CFLAGS: -W -Wall -Werror
 		import "C"
 	`
 	file.WriteString(code)
 
-	cmd := exec.Command("../../../bin/go", "build", filename)
+	cmd := exec.Command("go", "build", filename)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatal(err)
@@ -36,5 +42,4 @@ func TestUnusedParameter(t *testing.T) {
 	if len(out) != 0 {
 		t.Fatalf("unexpected output: %s", string(out))
 	}
-
 }
