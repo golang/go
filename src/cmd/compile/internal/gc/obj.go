@@ -111,7 +111,6 @@ func dumpdata() {
 	numDecls := len(typecheck.Target.Decls)
 
 	dumpglobls(typecheck.Target.Externs)
-	staticdata.WriteFuncSyms()
 	reflectdata.CollectPTabs()
 	numExports := len(typecheck.Target.Exports)
 	addsignats(typecheck.Target.Externs)
@@ -151,6 +150,7 @@ func dumpdata() {
 		objw.Global(zero, int32(reflectdata.ZeroSize), obj.DUPOK|obj.RODATA)
 	}
 
+	staticdata.WriteFuncSyms()
 	addGCLocals()
 
 	if numExports != len(typecheck.Target.Exports) {
