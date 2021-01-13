@@ -185,6 +185,27 @@ func ShowMessageRequest(title string) SimpleExpectation {
 	}
 }
 
+// DoneWithOpen expects all didOpen notifications currently sent by the editor
+// to be completely processed.
+func (e *Env) DoneWithOpen() Expectation {
+	opens := e.Editor.Stats().DidOpen
+	return CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), opens)
+}
+
+// DoneWithChange expects all didChange notifications currently sent by the
+// editor to be completely processed.
+func (e *Env) DoneWithChange() Expectation {
+	changes := e.Editor.Stats().DidChange
+	return CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), changes)
+}
+
+// DoneWithChangeWatchedFiles expects all didChangeWatchedFiles notifications
+// currently sent by the editor to be completely processed.
+func (e *Env) DoneWithChangeWatchedFiles() Expectation {
+	changes := e.Editor.Stats().DidChangeWatchedFiles
+	return CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), changes)
+}
+
 // CompletedWork expects a work item to have been completed >= atLeast times.
 //
 // Since the Progress API doesn't include any hidden metadata, we must use the

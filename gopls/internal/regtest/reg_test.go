@@ -98,8 +98,8 @@ func TestMain(m *testing.M) {
 		// Regtest cleanup is broken in go1.12 and earlier, and sometimes flakes on
 		// Windows due to file locking, but this is OK for our CI.
 		//
-		// Fail on non-windows go1.13+.
-		if testenv.Go1Point() >= 13 && runtime.GOOS != "windows" {
+		// Fail on go1.13+, except for windows and android which have shutdown problems.
+		if testenv.Go1Point() >= 13 && runtime.GOOS != "windows" && runtime.GOOS != "android" {
 			os.Exit(1)
 		}
 	}

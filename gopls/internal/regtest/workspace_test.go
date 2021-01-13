@@ -449,7 +449,7 @@ replace a.com => $SANDBOX_WORKDIR/moda/a
 		// loaded. Validate this by jumping to a definition in b.com and ensuring
 		// that we go to the module cache.
 		env.OpenFile("moda/a/a.go")
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
+		env.Await(env.DoneWithOpen())
 
 		// To verify which modules are loaded, we'll jump to the definition of
 		// b.Hello.
@@ -479,11 +479,12 @@ require (
 replace a.com => %s/moda/a
 replace b.com => %s/modb
 `, workdir, workdir))
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1))
+		env.Await(env.DoneWithChangeWatchedFiles())
 		// Check that go.mod diagnostics picked up the newly active mod file.
 		// The local version of modb has an extra dependency we need to download.
 		env.OpenFile("modb/go.mod")
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 2))
+		env.Await(env.DoneWithOpen())
+
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
 			OnceMet(
@@ -501,7 +502,7 @@ replace b.com => %s/modb
 		// Now, let's modify the gopls.mod *overlay* (not on disk), and verify that
 		// this change is only picked up once it is saved.
 		env.OpenFile("gopls.mod")
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 3))
+		env.Await(env.DoneWithOpen())
 		env.SetBufferContent("gopls.mod", fmt.Sprintf(`module gopls-workspace
 
 require (
@@ -514,7 +515,7 @@ replace a.com => %s/moda/a
 		// Editing the gopls.mod removes modb from the workspace modules, and so
 		// should clear outstanding diagnostics...
 		env.Await(OnceMet(
-			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 2),
+			env.DoneWithChange(),
 			EmptyDiagnostics("modb/go.mod"),
 		))
 		// ...but does not yet cause a workspace reload, so we should still jump to modb.

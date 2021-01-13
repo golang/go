@@ -41,6 +41,14 @@ type Editor struct {
 	buffers map[string]buffer
 	// Capabilities / Options
 	serverCapabilities protocol.ServerCapabilities
+	// Call metrics for the purpose of expectations. This is done in an ad-hoc
+	// manner for now. Perhaps in the future we should do something more
+	// systematic.
+	calls CallCounts
+}
+
+type CallCounts struct {
+	DidOpen, DidChange, DidChangeWatchedFiles int
 }
 
 type buffer struct {
@@ -129,6 +137,12 @@ func (e *Editor) Connect(ctx context.Context, conn jsonrpc2.Conn, hooks ClientHo
 	}
 	e.sandbox.Workdir.AddWatcher(e.onFileChanges)
 	return e, nil
+}
+
+func (e *Editor) Stats() CallCounts {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.calls
 }
 
 // Shutdown issues the 'shutdown' LSP notification.
@@ -282,6 +296,7 @@ func (e *Editor) onFileChanges(ctx context.Context, evts []FileEvent) {
 		return
 	}
 	e.mu.Lock()
+	defer e.mu.Unlock()
 	var lspevts []protocol.FileEvent
 	for _, evt := range evts {
 		// Always send an on-disk change, even for events that seem useless
@@ -302,10 +317,10 @@ func (e *Editor) onFileChanges(ctx context.Context, evts []FileEvent) {
 			_ = e.setBufferContentLocked(ctx, evt.Path, false, strings.Split(content, "\n"), nil)
 		}
 	}
-	e.mu.Unlock()
 	e.Server.DidChangeWatchedFiles(ctx, &protocol.DidChangeWatchedFilesParams{
 		Changes: lspevts,
 	})
+	e.calls.DidChangeWatchedFiles++
 }
 
 // OpenFile creates a buffer for the given workdir-relative file.
@@ -346,9 +361,9 @@ func (e *Editor) createBuffer(ctx context.Context, path string, dirty bool, cont
 		dirty:   dirty,
 	}
 	e.mu.Lock()
+	defer e.mu.Unlock()
 	e.buffers[path] = buf
 	item := textDocumentItem(e.sandbox.Workdir, buf)
-	e.mu.Unlock()
 
 	if e.Server != nil {
 		if err := e.Server.DidOpen(ctx, &protocol.DidOpenTextDocumentParams{
@@ -356,6 +371,7 @@ func (e *Editor) createBuffer(ctx context.Context, path string, dirty bool, cont
 		}); err != nil {
 			return errors.Errorf("DidOpen: %w", err)
 		}
+		e.calls.DidOpen++
 	}
 	return nil
 }
@@ -570,6 +586,14 @@ func (e *Editor) SetBufferContent(ctx context.Context, path, content string) err
 	return e.setBufferContentLocked(ctx, path, true, lines, nil)
 }
 
+// HasBuffer reports whether the file name is open in the editor.
+func (e *Editor) HasBuffer(name string) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	_, ok := e.buffers[name]
+	return ok
+}
+
 // BufferText returns the content of the buffer with the given name.
 func (e *Editor) BufferText(name string) string {
 	e.mu.Lock()
@@ -629,6 +653,7 @@ func (e *Editor) setBufferContentLocked(ctx context.Context, path string, dirty 
 		if err := e.Server.DidChange(ctx, params); err != nil {
 			return errors.Errorf("DidChange: %w", err)
 		}
+		e.calls.DidChange++
 	}
 	return nil
 }
@@ -652,8 +677,10 @@ func (e *Editor) GoToDefinition(ctx context.Context, path string, pos Pos) (stri
 	}
 	newPath := e.sandbox.Workdir.URIToPath(resp[0].URI)
 	newPos := fromProtocolPosition(resp[0].Range.Start)
-	if err := e.OpenFile(ctx, newPath); err != nil {
-		return "", Pos{}, errors.Errorf("OpenFile: %w", err)
+	if !e.HasBuffer(newPath) {
+		if err := e.OpenFile(ctx, newPath); err != nil {
+			return "", Pos{}, errors.Errorf("OpenFile: %w", err)
+		}
 	}
 	return newPath, newPos, nil
 }
