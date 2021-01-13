@@ -21,6 +21,12 @@ TEXT ·Cas(SB), NOSPLIT, $0-13
 	SETEQ	ret+12(FP)
 	RET
 
+TEXT ·Casint32(SB), NOSPLIT, $0-13
+	JMP	·Cas(SB)
+
+TEXT ·Casint64(SB), NOSPLIT, $0-21
+	JMP	·Cas64(SB)
+
 TEXT ·Casuintptr(SB), NOSPLIT, $0-13
 	JMP	·Cas(SB)
 
@@ -33,14 +39,26 @@ TEXT ·Loaduintptr(SB), NOSPLIT, $0-8
 TEXT ·Loaduint(SB), NOSPLIT, $0-8
 	JMP	·Load(SB)
 
+TEXT ·Storeint32(SB), NOSPLIT, $0-8
+	JMP	·Store(SB)
+
+TEXT ·Storeint64(SB), NOSPLIT, $0-12
+	JMP	·Store64(SB)
+
 TEXT ·Storeuintptr(SB), NOSPLIT, $0-8
 	JMP	·Store(SB)
 
 TEXT ·Xadduintptr(SB), NOSPLIT, $0-12
 	JMP	·Xadd(SB)
 
+TEXT ·Loadint32(SB), NOSPLIT, $0-8
+	JMP	·Load(SB)
+
 TEXT ·Loadint64(SB), NOSPLIT, $0-12
 	JMP	·Load64(SB)
+
+TEXT ·Xaddint32(SB), NOSPLIT, $0-12
+	JMP	·Xadd(SB)
 
 TEXT ·Xaddint64(SB), NOSPLIT, $0-20
 	JMP	·Xadd64(SB)
@@ -142,6 +160,12 @@ TEXT ·Xchg(SB), NOSPLIT, $0-12
 	MOVL	AX, ret+8(FP)
 	RET
 
+TEXT ·Xchgint32(SB), NOSPLIT, $0-12
+	JMP	·Xchg(SB)
+
+TEXT ·Xchgint64(SB), NOSPLIT, $0-20
+	JMP	·Xchg64(SB)
+
 TEXT ·Xchguintptr(SB), NOSPLIT, $0-12
 	JMP	·Xchg(SB)
 
@@ -189,8 +213,8 @@ TEXT ·Store(SB), NOSPLIT, $0-8
 TEXT ·StoreRel(SB), NOSPLIT, $0-8
 	JMP	·Store(SB)
 
-TEXT runtime∕internal∕atomic·StoreReluintptr(SB), NOSPLIT, $0-8
-	JMP	runtime∕internal∕atomic·Store(SB)
+TEXT ·StoreReluintptr(SB), NOSPLIT, $0-8
+	JMP	·Store(SB)
 
 // uint64 atomicload64(uint64 volatile* addr);
 TEXT ·Load64(SB), NOSPLIT, $0-12

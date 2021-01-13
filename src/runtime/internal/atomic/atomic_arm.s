@@ -60,6 +60,12 @@ TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-8
 TEXT ·LoadAcquintptr(SB),NOSPLIT|NOFRAME,$0-8
 	B 	·Load(SB)
 
+TEXT ·Casint32(SB),NOSPLIT,$0-13
+	B	·Cas(SB)
+
+TEXT ·Casint64(SB),NOSPLIT,$-4-21
+	B	·Cas64(SB)
+
 TEXT ·Casuintptr(SB),NOSPLIT,$0-13
 	B	·Cas(SB)
 
@@ -69,11 +75,23 @@ TEXT ·Casp1(SB),NOSPLIT,$0-13
 TEXT ·CasRel(SB),NOSPLIT,$0-13
 	B	·Cas(SB)
 
+TEXT ·Loadint32(SB),NOSPLIT,$0-8
+	B	·Load(SB)
+
+TEXT ·Loadint64(SB),NOSPLIT,$-4-12
+	B	·Load64(SB)
+
 TEXT ·Loaduintptr(SB),NOSPLIT,$0-8
 	B	·Load(SB)
 
 TEXT ·Loaduint(SB),NOSPLIT,$0-8
 	B	·Load(SB)
+
+TEXT ·Storeint32(SB),NOSPLIT,$0-8
+	B	·Store(SB)
+
+TEXT ·Storeint64(SB),NOSPLIT,$0-12
+	B	·Store64(SB)
 
 TEXT ·Storeuintptr(SB),NOSPLIT,$0-8
 	B	·Store(SB)
@@ -87,21 +105,26 @@ TEXT ·StoreRel(SB),NOSPLIT,$0-8
 TEXT ·StoreReluintptr(SB),NOSPLIT,$0-8
 	B	·Store(SB)
 
+TEXT ·Xaddint32(SB),NOSPLIT,$0-12
+	B	·Xadd(SB)
+
+TEXT ·Xaddint64(SB),NOSPLIT,$-4-20
+	B	·Xadd64(SB)
+
 TEXT ·Xadduintptr(SB),NOSPLIT,$0-12
 	B	·Xadd(SB)
 
-TEXT ·Loadint64(SB),NOSPLIT,$0-12
-	B	·Load64(SB)
+TEXT ·Xchgint32(SB),NOSPLIT,$0-12
+	B	·Xchg(SB)
 
-TEXT ·Xaddint64(SB),NOSPLIT,$0-20
-	B	·Xadd64(SB)
+TEXT ·Xchgint64(SB),NOSPLIT,$-4-20
+	B	·Xchg64(SB)
 
 // 64-bit atomics
 // The native ARM implementations use LDREXD/STREXD, which are
 // available on ARMv6k or later. We use them only on ARMv7.
 // On older ARM, we use Go implementations which simulate 64-bit
 // atomics with locks.
-
 TEXT armCas64<>(SB),NOSPLIT,$0-21
 	// addr is already in R1
 	MOVW	old_lo+4(FP), R2
