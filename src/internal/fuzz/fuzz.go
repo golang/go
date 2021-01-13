@@ -119,6 +119,7 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed [][]byte, corpusD
 					// Return the first error found, replacing ctx.Err() if a more
 					// interesting error is found.
 					err = werr
+					break
 				}
 			}
 		}

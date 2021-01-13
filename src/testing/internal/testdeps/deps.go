@@ -136,8 +136,7 @@ func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed [][]
 	// Fuzzing may be interrupted with a timeout or if the user presses ^C.
 	// In either case, we'll stop worker processes gracefully and save
 	// crashers and interesting values.
-	ctx := context.Background()
-	cancel := func() {}
+	ctx, cancel := context.WithCancel(context.Background())
 	if timeout > 0 {
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 	}
