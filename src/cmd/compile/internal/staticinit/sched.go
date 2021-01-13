@@ -15,6 +15,7 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/src"
 )
 
 type Entry struct {
@@ -199,6 +200,20 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		r = r.(*ir.ConvExpr).X
 	}
 
+	assign := func(pos src.XPos, a *ir.Name, aoff int64, v ir.Node) {
+		if s.StaticAssign(a, aoff, v, v.Type()) {
+			return
+		}
+		var lhs ir.Node
+		if ir.IsBlank(a) {
+			// Don't use NameOffsetExpr with blank (#43677).
+			lhs = ir.BlankNode
+		} else {
+			lhs = ir.NewNameOffsetExpr(pos, a, aoff, v.Type())
+		}
+		s.append(ir.NewAssignStmt(pos, lhs, v))
+	}
+
 	switch r.Op() {
 	case ir.ONAME:
 		r := r.(*ir.Name)
@@ -237,9 +252,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 			staticdata.InitAddr(l, loff, a, 0)
 
 			// Init underlying literal.
-			if !s.StaticAssign(a, 0, r.X, a.Type()) {
-				s.append(ir.NewAssignStmt(base.Pos, a, r.X))
-			}
+			assign(base.Pos, a, 0, r.X)
 			return true
 		}
 		//dump("not static ptrlit", r);
@@ -278,10 +291,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 				continue
 			}
 			ir.SetPos(e.Expr)
-			if !s.StaticAssign(l, loff+e.Xoffset, e.Expr, e.Expr.Type()) {
-				a := ir.NewNameOffsetExpr(base.Pos, l, loff+e.Xoffset, e.Expr.Type())
-				s.append(ir.NewAssignStmt(base.Pos, a, e.Expr))
-			}
+			assign(base.Pos, l, loff+e.Xoffset, e.Expr)
 		}
 
 		return true
@@ -345,17 +355,12 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 			}
 			// Copy val directly into n.
 			ir.SetPos(val)
-			if !s.StaticAssign(l, loff+int64(types.PtrSize), val, val.Type()) {
-				a := ir.NewNameOffsetExpr(base.Pos, l, loff+int64(types.PtrSize), val.Type())
-				s.append(ir.NewAssignStmt(base.Pos, a, val))
-			}
+			assign(base.Pos, l, loff+int64(types.PtrSize), val)
 		} else {
 			// Construct temp to hold val, write pointer to temp into n.
 			a := StaticName(val.Type())
 			s.Temps[val] = a
-			if !s.StaticAssign(a, 0, val, val.Type()) {
-				s.append(ir.NewAssignStmt(base.Pos, a, val))
-			}
+			assign(base.Pos, a, 0, val)
 			staticdata.InitAddr(l, loff+int64(types.PtrSize), a, 0)
 		}
 
