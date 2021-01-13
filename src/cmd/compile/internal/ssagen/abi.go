@@ -138,13 +138,12 @@ func ReadSymABIs(file, myimportpath string) {
 // For body-less functions, we only create the LSym; for functions
 // with bodies call a helper to setup up / populate the LSym.
 func InitLSym(f *ir.Func, hasBody bool) {
-	staticdata.NeedFuncSym(f.Sym())
-
 	// FIXME: for new-style ABI wrappers, we set up the lsym at the
 	// point the wrapper is created.
 	if f.LSym != nil && base.Flag.ABIWrap {
 		return
 	}
+	staticdata.NeedFuncSym(f.Sym())
 	selectLSym(f, hasBody)
 	if hasBody {
 		setupTextLSym(f, 0)
