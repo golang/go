@@ -145,7 +145,7 @@ func (n *BinaryExpr) SetOp(op Op) {
 }
 
 // A CallUse records how the result of the call is used:
-type CallUse int
+type CallUse byte
 
 const (
 	_ CallUse = iota
