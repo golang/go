@@ -444,10 +444,8 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
 		default:
 			b := ws.mem.valueRef()
 			ws.m.mutate(&b)
-			// TODO(jayconrod): consider making ws.m.header() contain the whole
-			// slice header, so the length can be updated when the slice changes
-			ws.mem.header().length = len(b)
-			if err := ws.fuzzFn(ws.mem.valueRef()); err != nil {
+			ws.mem.setValueLen(len(b))
+			if err := ws.fuzzFn(b); err != nil {
 				return fuzzResponse{Err: err.Error()}
 			}
 			// TODO(jayconrod,katiehockman): return early if we find an
