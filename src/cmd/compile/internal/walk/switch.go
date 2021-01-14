@@ -19,9 +19,10 @@ import (
 // walkSwitch walks a switch statement.
 func walkSwitch(sw *ir.SwitchStmt) {
 	// Guard against double walk, see #25776.
-	if len(sw.Cases) == 0 && len(sw.Compiled) > 0 {
+	if sw.Walked() {
 		return // Was fatal, but eliminating every possible source of double-walking is hard
 	}
+	sw.SetWalked(true)
 
 	if sw.Tag != nil && sw.Tag.Op() == ir.OTYPESW {
 		walkSwitchType(sw)
