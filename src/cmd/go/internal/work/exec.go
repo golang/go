@@ -2435,7 +2435,7 @@ func (b *Builder) fcExe() []string {
 func (b *Builder) compilerExe(envValue string, def string) []string {
 	compiler := strings.Fields(envValue)
 	if len(compiler) == 0 {
-		compiler = []string{def}
+		compiler = strings.Fields(def)
 	}
 	return compiler
 }
@@ -2581,7 +2581,14 @@ func (b *Builder) gccArchArgs() []string {
 	case "386":
 		return []string{"-m32"}
 	case "amd64":
+		if cfg.Goos == "darwin" {
+			return []string{"-arch", "x86_64", "-m64"}
+		}
 		return []string{"-m64"}
+	case "arm64":
+		if cfg.Goos == "darwin" {
+			return []string{"-arch", "arm64"}
+		}
 	case "arm":
 		return []string{"-marm"} // not thumb
 	case "s390x":
