@@ -3,7 +3,7 @@
 ## Installing `gopls`
 
 To use `gopls` with Emacs, you must first
-[install the `gopls` binary](user.md#installation) and ensure that the directory
+[install the `gopls` binary](../README.md#installation) and ensure that the directory
 containing the resulting binary (either `$(go env GOBIN)` or `$(go env
 GOPATH)/bin`) is in your `PATH`.
 

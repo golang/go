@@ -150,10 +150,10 @@ will use the same shared daemon.
 
 **Q: Why am I not saving as much memory as I expected when using a shared gopls?**
 
-A: As described in [implementation.md](implementation.md), gopls has a concept
-of view/session/cache. Each session and view map onto exactly one editor
-session (because they contain things like edited but unsaved buffers). The
-cache contains things that are independent of any editor session, and can
+A: As described in [implementation.md](design/implementation.md), gopls has a
+concept of view/session/cache. Each session and view map onto exactly one
+editor session (because they contain things like edited but unsaved buffers).
+The cache contains things that are independent of any editor session, and can
 therefore be shared.
 
 When, for example, three editor session are sharing a single gopls process,

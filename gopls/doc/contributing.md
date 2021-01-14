@@ -1,7 +1,7 @@
 # Documentation for contributors
 
 This documentation augments the general documentation for contributing to the
-x/tools repository, described at the [repository root](../CONTRIBUTING.md).
+x/tools repository, described at the [repository root](../../CONTRIBUTING.md).
 
 Contributions are welcome, but since development is so active, we request that
 you file an issue and claim it before starting to work on something. Otherwise,
@@ -96,7 +96,7 @@ Furthermore, an additional "gopls-CI" pass will be run by _Kokoro_, which is a
 Jenkins-like Google infrastructure for running Dockerized tests. This allows us
 to run gopls tests in various environments that would be difficult to add to
 the TryBots. Notably, Kokoro runs tests on
-[older Go versions](user.md#supported-go-versions) that are no longer supported
+[older Go versions](../README.md#supported-go-versions) that are no longer supported
 by the TryBots.
 
 ## Debugging

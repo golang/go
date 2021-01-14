@@ -28,7 +28,7 @@ below.
 
 In VS Code, you can create a workspace folder by setting up a
 [multi-root workspace](https://code.visualstudio.com/docs/editor/multi-root-workspaces).
-View the [documentation for your editor plugin](user.md#editor) to learn how to
+View the [documentation for your editor plugin](../README.md#editor) to learn how to
 configure a workspace folder in your editor.
 
 #### Workspace module (experimental)

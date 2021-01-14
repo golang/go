@@ -10,7 +10,7 @@ VS Code users should follow [their troubleshooting guide](https://github.com/gol
 
 1. Verify that your project is in good shape by working with it outside of your editor. Running a command like `go build ./...` in the workspace directory will compile everything. For modules, `go mod tidy` is another good check, though it may modify your `go.mod`.
 1. Check that your editor isn't showing any diagnostics that indicate a problem with your workspace. They may appear as diagnostics on a Go file's package declaration, diagnostics in a go.mod file, or as a status or progress message. Problems in the workspace configuration can cause many different symptoms. See the [workspace setup instructions](workspace.md) for help.
-1. Make sure `gopls` is up to date by following the [installation instructions](user.md#installing), then [restarting gopls](#restart-gopls).
+1. Make sure `gopls` is up to date by following the [installation instructions](../README.md#installation), then [restarting gopls](#restart-gopls).
 1. Optionally, [ask for help](#ask-for-help) on Gophers Slack.
 1. Finally, [report the issue](#file-an-issue) to the `gopls` developers.
 
@@ -41,7 +41,7 @@ You may have to change your editor's configuration to pass a `-logfile` flag to 
 
 To increase the level of detail in your logs, start `gopls` with the `-rpc.trace` flag. To start a debug server that will allow you to see profiles and memory usage, start `gopls` with `serve --debug=localhost:6060`. You will then be able to view debug information by navigating to `localhost:6060`.
 
-If you are unsure of how to pass a flag to `gopls` through your editor, please see the [documentation for your editor](user.md#editors).
+If you are unsure of how to pass a flag to `gopls` through your editor, please see the [documentation for your editor](../README.md#editors).
 
 ## Debug memory usage
 
