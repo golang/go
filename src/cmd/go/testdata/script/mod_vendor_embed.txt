@@ -1,0 +1,179 @@
+go mod vendor
+cmp vendor/example.com/a/samedir_embed.txt a/samedir_embed.txt
+cmp vendor/example.com/a/subdir/embed.txt a/subdir/embed.txt
+cmp vendor/example.com/a/subdir/test/embed.txt a/subdir/test/embed.txt
+cmp vendor/example.com/a/subdir/test/xtest/embed.txt a/subdir/test/xtest/embed.txt
+
+cd broken_no_matching_files
+! go mod vendor
+stderr 'go mod vendor: pattern foo.txt: no matching files found'
+
+cd ../broken_bad_pattern
+! go mod vendor
+stderr 'go mod vendor: pattern ../foo.txt: invalid pattern syntax'
+
+# matchPotentialSourceFile prunes out tests and unbuilt code.
+# Make sure that they are vendored if they are embedded files.
+cd ../embed_unbuilt
+go mod vendor
+cmp vendor/example.com/dep/unbuilt.go dep/unbuilt.go
+cmp vendor/example.com/dep/dep_test.go dep/dep_test.go
+! exists vendor/example.com/dep/not_embedded_unbuilt.go
+! exists vendor/example.com/dep/not_embedded_dep_test.go
+-- go.mod --
+module example.com/foo
+go 1.16
+
+require (
+	example.com/a v0.1.0
+)
+
+replace (
+	example.com/a v0.1.0 => ./a
+)
+-- foo.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/a"
+)
+
+func main() {
+    fmt.Println(a.Str())
+}
+-- a/go.mod --
+module example.com/a
+-- a/a.go --
+package a
+
+import _ "embed"
+
+//go:embed samedir_embed.txt
+var sameDir string
+
+//go:embed subdir/embed.txt
+var subDir string
+
+func Str() string {
+	return sameDir + subDir
+}
+-- a/a_test.go --
+package a
+
+import _ "embed"
+
+//go:embed subdir/test/embed.txt
+var subderTest string
+-- a/a_x_test.go --
+package a_test
+
+import _ "embed"
+
+//go:embed subdir/test/xtest/embed.txt
+var subdirXtest string
+-- a/samedir_embed.txt --
+embedded file in same directory as package
+-- a/subdir/embed.txt --
+embedded file in subdirectory of package
+-- a/subdir/test/embed.txt --
+embedded file of test in subdirectory of package
+-- a/subdir/test/xtest/embed.txt --
+embedded file of xtest in subdirectory of package
+-- broken_no_matching_files/go.mod --
+module example.com/broken
+go 1.16
+
+require (
+	example.com/brokendep v0.1.0
+)
+
+replace (
+	example.com/brokendep v0.1.0 => ./brokendep
+)
+-- broken_no_matching_files/f.go --
+package broken
+
+import _ "example.com/brokendep"
+
+func F() {}
+-- broken_no_matching_files/brokendep/go.mod --
+module example.com/brokendep
+go 1.16
+-- broken_no_matching_files/brokendep/f.go --
+package brokendep
+
+import _ "embed"
+
+//go:embed foo.txt
+var foo string
+-- broken_bad_pattern/go.mod --
+module example.com/broken
+go 1.16
+
+require (
+	example.com/brokendep v0.1.0
+)
+
+replace (
+	example.com/brokendep v0.1.0 => ./brokendep
+)
+-- broken_bad_pattern/f.go --
+package broken
+
+import _ "example.com/brokendep"
+
+func F() {}
+-- broken_bad_pattern/brokendep/go.mod --
+module example.com/brokendep
+go 1.16
+-- broken_bad_pattern/brokendep/f.go --
+package brokendep
+
+import _ "embed"
+
+//go:embed ../foo.txt
+var foo string
+-- embed_unbuilt/go.mod --
+module example.com/foo
+go 1.16
+
+require (
+	example.com/dep v0.1.0
+)
+
+replace (
+	example.com/dep v0.1.0 => ./dep
+)
+-- embed_unbuilt/foo.go --
+package a
+
+import _ "example.com/dep"
+
+func F() {}
+-- embed_unbuilt/dep/go.mod --
+module example.com/dep
+go 1.16
+-- embed_unbuilt/dep/dep.go --
+package dep
+
+import _ "embed"
+
+//go:embed unbuilt.go
+var unbuilt string
+
+//go:embed dep_test.go
+var depTest string
+-- embed_unbuilt/dep/unbuilt.go --
+// +build ignore
+
+package dep
+-- embed_unbuilt/dep/not_embedded_unbuilt.go --
+// +build ignore
+
+package dep
+-- embed_unbuilt/dep/dep_test.go --
+package dep
+-- embed_unbuilt/dep/not_embedded_dep_test.go --
+package dep

@@ -581,8 +581,6 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		// Show vendor-expanded paths in listing
 		p.TestImports = p.Resolve(p.TestImports)
 		p.XTestImports = p.Resolve(p.XTestImports)
-		p.TestEmbedFiles = p.ResolveEmbed(p.TestEmbedPatterns)
-		p.XTestEmbedFiles = p.ResolveEmbed(p.XTestEmbedPatterns)
 		p.DepOnly = !cmdline[p]
 
 		if *listCompiled {
