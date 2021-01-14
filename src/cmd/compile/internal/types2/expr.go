@@ -1181,7 +1181,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		check.ident(x, e, nil, false)
 
 	case *syntax.DotsType:
-		// ellipses are handled explicitly where they are legal
+		// dots are handled explicitly where they are legal
 		// (array composite literals and parameter lists)
 		check.error(e, "invalid use of '...'")
 		goto Error
