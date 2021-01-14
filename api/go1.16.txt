@@ -430,10 +430,8 @@ pkg syscall (linux-arm-cgo), func AllThreadsSyscall(uintptr, uintptr, uintptr, u
 pkg syscall (linux-arm-cgo), func AllThreadsSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (linux-arm-cgo), func Setegid(int) error
 pkg syscall (linux-arm-cgo), func Seteuid(int) error
-pkg syscall (windows-386), func RtlGenRandom(*uint8, uint32) error
 pkg syscall (windows-386), method (*DLLError) Unwrap() error
 pkg syscall (windows-386), type SysProcAttr struct, NoInheritHandles bool
-pkg syscall (windows-amd64), func RtlGenRandom(*uint8, uint32) error
 pkg syscall (windows-amd64), method (*DLLError) Unwrap() error
 pkg syscall (windows-amd64), type SysProcAttr struct, NoInheritHandles bool
 pkg testing/fstest, func TestFS(fs.FS, ...string) error
