@@ -244,6 +244,9 @@ func (f FS) lookup(name string) *file {
 	if name == "." {
 		return dotFile
 	}
+	if f.files == nil {
+		return nil
+	}
 
 	// Binary search to find where name would be in the list,
 	// and then check if name is at that position.
@@ -261,6 +264,9 @@ func (f FS) lookup(name string) *file {
 
 // readDir returns the list of files corresponding to the directory dir.
 func (f FS) readDir(dir string) []file {
+	if f.files == nil {
+		return nil
+	}
 	// Binary search to find where dir starts and ends in the list
 	// and then return that slice of the list.
 	files := *f.files

@@ -112,3 +112,20 @@ func TestHidden(t *testing.T) {
 	testDir(t, star, "testdata/.hidden",
 		"fortune.txt", "more/") // but not .more or _more
 }
+
+func TestUninitialized(t *testing.T) {
+	var uninitialized embed.FS
+	testDir(t, uninitialized, ".")
+	f, err := uninitialized.Open(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fi.IsDir() {
+		t.Errorf("in uninitialized embed.FS, . is not a directory")
+	}
+}
