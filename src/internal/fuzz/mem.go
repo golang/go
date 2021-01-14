@@ -106,6 +106,20 @@ func (m *sharedMem) setValue(b []byte) {
 	copy(v[:cap(v)], b)
 }
 
+// setValueLen sets the length of the shared memory buffer returned by valueRef
+// to n, which may be at most the cap of that slice.
+//
+// Note that we can only store the length in the shared memory header. The full
+// slice header contains a pointer, which is likely only valid for one process,
+// since each process can map shared memory at a different virtual address.
+func (m *sharedMem) setValueLen(n int) {
+	v := m.valueRef()
+	if n > cap(v) {
+		panic(fmt.Sprintf("length %d larger than shared memory capacity %d", n, cap(v)))
+	}
+	m.header().length = n
+}
+
 // TODO(jayconrod): add method to resize the buffer. We'll need that when the
 // mutator can increase input length. Only the coordinator will be able to
 // do it, since we'll need to send a message to the worker telling it to
