@@ -124,7 +124,7 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
 		imports = append(imports, p1)
 	}
 	var err error
-	p.TestEmbedFiles, testEmbed, err = p.resolveEmbed(p.TestEmbedPatterns)
+	p.TestEmbedFiles, testEmbed, err = resolveEmbed(p.Dir, p.TestEmbedPatterns)
 	if err != nil && ptestErr == nil {
 		ptestErr = &PackageError{
 			ImportStack: stk.Copy(),
@@ -147,7 +147,7 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
 		}
 		p.XTestImports[i] = p1.ImportPath
 	}
-	p.XTestEmbedFiles, xtestEmbed, err = p.resolveEmbed(p.XTestEmbedPatterns)
+	p.XTestEmbedFiles, xtestEmbed, err = resolveEmbed(p.Dir, p.XTestEmbedPatterns)
 	if err != nil && pxtestErr == nil {
 		pxtestErr = &PackageError{
 			ImportStack: stk.Copy(),

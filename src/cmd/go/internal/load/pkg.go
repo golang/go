@@ -1807,7 +1807,7 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 	stk.Push(path)
 	defer stk.Pop()
 
-	p.EmbedFiles, p.Internal.Embed, err = p.resolveEmbed(p.EmbedPatterns)
+	p.EmbedFiles, p.Internal.Embed, err = resolveEmbed(p.Dir, p.EmbedPatterns)
 	if err != nil {
 		setError(err)
 		embedErr := err.(*EmbedError)
@@ -1932,17 +1932,20 @@ func (e *EmbedError) Unwrap() error {
 }
 
 // ResolveEmbed resolves //go:embed patterns and returns only the file list.
-// For use by go list to compute p.TestEmbedFiles and p.XTestEmbedFiles.
-func (p *Package) ResolveEmbed(patterns []string) []string {
-	files, _, _ := p.resolveEmbed(patterns)
-	return files
+// For use by go mod vendor to find embedded files it should copy into the
+// vendor directory.
+// TODO(#42504): Once go mod vendor uses load.PackagesAndErrors, just
+// call (*Package).ResolveEmbed
+func ResolveEmbed(dir string, patterns []string) ([]string, error) {
+	files, _, err := resolveEmbed(dir, patterns)
+	return files, err
 }
 
 // resolveEmbed resolves //go:embed patterns to precise file lists.
 // It sets files to the list of unique files matched (for go list),
 // and it sets pmap to the more precise mapping from
 // patterns to files.
-func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[string][]string, err error) {
+func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[string][]string, err error) {
 	var pattern string
 	defer func() {
 		if err != nil {
@@ -1953,6 +1956,7 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
 		}
 	}()
 
+	// TODO(rsc): All these messages need position information for better error reports.
 	pmap = make(map[string][]string)
 	have := make(map[string]int)
 	dirOK := make(map[string]bool)
@@ -1966,7 +1970,7 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
 		}
 
 		// Glob to find matches.
-		match, err := fsys.Glob(p.Dir + string(filepath.Separator) + filepath.FromSlash(pattern))
+		match, err := fsys.Glob(pkgdir + string(filepath.Separator) + filepath.FromSlash(pattern))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1977,7 +1981,7 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
 		// then there may be other things lying around, like symbolic links or .git directories.)
 		var list []string
 		for _, file := range match {
-			rel := filepath.ToSlash(file[len(p.Dir)+1:]) // file, relative to p.Dir
+			rel := filepath.ToSlash(file[len(pkgdir)+1:]) // file, relative to p.Dir
 
 			what := "file"
 			info, err := fsys.Lstat(file)
@@ -1990,13 +1994,13 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
 
 			// Check that directories along path do not begin a new module
 			// (do not contain a go.mod).
-			for dir := file; len(dir) > len(p.Dir)+1 && !dirOK[dir]; dir = filepath.Dir(dir) {
+			for dir := file; len(dir) > len(pkgdir)+1 && !dirOK[dir]; dir = filepath.Dir(dir) {
 				if _, err := fsys.Stat(filepath.Join(dir, "go.mod")); err == nil {
 					return nil, nil, fmt.Errorf("cannot embed %s %s: in different module", what, rel)
 				}
 				if dir != file {
 					if info, err := fsys.Lstat(dir); err == nil && !info.IsDir() {
-						return nil, nil, fmt.Errorf("cannot embed %s %s: in non-directory %s", what, rel, dir[len(p.Dir)+1:])
+						return nil, nil, fmt.Errorf("cannot embed %s %s: in non-directory %s", what, rel, dir[len(pkgdir)+1:])
 					}
 				}
 				dirOK[dir] = true
@@ -2027,7 +2031,7 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
 					if err != nil {
 						return err
 					}
-					rel := filepath.ToSlash(path[len(p.Dir)+1:])
+					rel := filepath.ToSlash(path[len(pkgdir)+1:])
 					name := info.Name()
 					if path != file && (isBadEmbedName(name) || name[0] == '.' || name[0] == '_') {
 						// Ignore bad names, assuming they won't go into modules.
