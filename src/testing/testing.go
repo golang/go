@@ -762,7 +762,7 @@ func (c *common) logDepth(s string, depth int) {
 				return
 			}
 		}
-		panic("Log in goroutine after " + c.name + " has completed")
+		panic("Log in goroutine after " + c.name + " has completed: " + s)
 	} else {
 		if c.chatty != nil {
 			if c.bench {
