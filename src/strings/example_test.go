@@ -269,9 +269,8 @@ func ExampleToTitle() {
 }
 
 func ExampleToTitleSpecial() {
-	fmt.Println(strings.ToTitleSpecial(unicode.TurkishCase, "dünyanın ilk borsa yapısı Aizonai kabul edilir"))
-	// Output:
-	// DÜNYANIN İLK BORSA YAPISI AİZONAİ KABUL EDİLİR
+	fmt.Println(strings.ToTitleSpecial(unicode.TurkishCase, "pijamalı hasta yağız şoföre çabucak güvendi"))
+	// Output: PİJAMALI HASTA YAĞIZ ŞOFÖRE ÇABUCAK GÜVENDİ
 }
 
 func ExampleMap() {
@@ -300,8 +299,8 @@ func ExampleToUpper() {
 }
 
 func ExampleToUpperSpecial() {
-	fmt.Println(strings.ToUpperSpecial(unicode.TurkishCase, "örnek iş"))
-	// Output: ÖRNEK İŞ
+	fmt.Println(strings.ToUpperSpecial(unicode.TurkishCase, "pijamalı hasta yağız şoföre çabucak güvendi"))
+	// Output: PİJAMALI HASTA YAĞIZ ŞOFÖRE ÇABUCAK GÜVENDİ
 }
 
 func ExampleToLower() {
@@ -310,8 +309,8 @@ func ExampleToLower() {
 }
 
 func ExampleToLowerSpecial() {
-	fmt.Println(strings.ToLowerSpecial(unicode.TurkishCase, "Önnek İş"))
-	// Output: önnek iş
+	fmt.Println(strings.ToLowerSpecial(unicode.TurkishCase, "PİJAMALI HASTA YAĞIZ ŞOFÖRE ÇABUCAK GÜVENDİ"))
+	// Output: pijamalı hasta yağız şoföre çabucak güvendi
 }
 
 func ExampleTrim() {
