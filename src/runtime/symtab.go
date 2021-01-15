@@ -281,6 +281,7 @@ const (
 	_FUNCDATA_StackObjects       = 2
 	_FUNCDATA_InlTree            = 3
 	_FUNCDATA_OpenCodedDeferInfo = 4
+	_FUNCDATA_ArgInfo            = 5
 
 	_ArgsSizeUnknown = -0x80000000
 )

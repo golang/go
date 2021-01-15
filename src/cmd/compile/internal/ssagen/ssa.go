@@ -6554,6 +6554,163 @@ func (s *State) DebugFriendlySetPosFrom(v *ssa.Value) {
 	}
 }
 
+// emit argument info (locations on stack) for traceback.
+func emitArgInfo(e *ssafn, pp *objw.Progs) {
+	ft := e.curfn.Type()
+	if ft.NumRecvs() == 0 && ft.NumParams() == 0 {
+		return
+	}
+
+	x := base.Ctxt.Lookup(fmt.Sprintf("%s.arginfo%d", e.curfn.LSym.Name, e.curfn.LSym.ABI()))
+	e.curfn.LSym.Func().ArgInfo = x
+
+	PtrSize := int64(types.PtrSize)
+
+	isAggregate := func(t *types.Type) bool {
+		return t.IsStruct() || t.IsArray() || t.IsComplex() || t.IsInterface() || t.IsString() || t.IsSlice()
+	}
+
+	// Populate the data.
+	// The data is a stream of bytes, which contains the offsets and sizes of the
+	// non-aggregate arguments or non-aggregate fields/elements of aggregate-typed
+	// arguments, along with special "operators". Specifically,
+	// - for each non-aggrgate arg/field/element, its offset from FP (1 byte) and
+	//   size (1 byte)
+	// - special operators:
+	//   - 0xff - end of sequence
+	//   - 0xfe - print { (at the start of an aggregate-typed argument)
+	//   - 0xfd - print } (at the end of an aggregate-typed argument)
+	//   - 0xfc - print ... (more args/fields/elements)
+	//   - 0xfb - print _ (offset too large)
+	// These constants need to be in sync with runtime.traceback.go:printArgs.
+	const (
+		_endSeq         = 0xff
+		_startAgg       = 0xfe
+		_endAgg         = 0xfd
+		_dotdotdot      = 0xfc
+		_offsetTooLarge = 0xfb
+		_special        = 0xf0 // above this are operators, below this are ordinary offsets
+	)
+
+	const (
+		limit    = 10 // print no more than 10 args/components
+		maxDepth = 5  // no more than 5 layers of nesting
+
+		// maxLen is a (conservative) upper bound of the byte stream length. For
+		// each arg/component, it has no more than 2 bytes of data (size, offset),
+		// and no more than one {, }, ... at each level (it cannot have both the
+		// data and ... unless it is the last one, just be conservative). Plus 1
+		// for _endSeq.
+		maxLen = (maxDepth*3+2)*limit + 1
+	)
+
+	wOff := 0
+	n := 0
+	writebyte := func(o uint8) { wOff = objw.Uint8(x, wOff, o) }
+
+	// Write one non-aggrgate arg/field/element if there is room.
+	// Returns whether to continue.
+	write1 := func(sz, offset int64) bool {
+		if n >= limit {
+			return false
+		}
+		if offset >= _special {
+			writebyte(_offsetTooLarge)
+		} else {
+			writebyte(uint8(offset))
+			writebyte(uint8(sz))
+		}
+		n++
+		return true
+	}
+
+	// Visit t recursively and write it out.
+	// Returns whether to continue visiting.
+	var visitType func(baseOffset int64, t *types.Type, depth int) bool
+	visitType = func(baseOffset int64, t *types.Type, depth int) bool {
+		if n >= limit {
+			return false
+		}
+		if !isAggregate(t) {
+			return write1(t.Size(), baseOffset)
+		}
+		writebyte(_startAgg)
+		depth++
+		if depth >= maxDepth {
+			writebyte(_dotdotdot)
+			writebyte(_endAgg)
+			n++
+			return true
+		}
+		var r bool
+		switch {
+		case t.IsInterface(), t.IsString():
+			r = write1(PtrSize, baseOffset) &&
+				write1(PtrSize, baseOffset+PtrSize)
+		case t.IsSlice():
+			r = write1(PtrSize, baseOffset) &&
+				write1(PtrSize, baseOffset+PtrSize) &&
+				write1(PtrSize, baseOffset+PtrSize*2)
+		case t.IsComplex():
+			r = write1(t.Size()/2, baseOffset) &&
+				write1(t.Size()/2, baseOffset+t.Size()/2)
+		case t.IsArray():
+			r = true
+			if t.NumElem() == 0 {
+				n++ // {} counts as a component
+				break
+			}
+			for i := int64(0); i < t.NumElem(); i++ {
+				if !visitType(baseOffset, t.Elem(), depth) {
+					r = false
+					break
+				}
+				baseOffset += t.Elem().Size()
+			}
+		case t.IsStruct():
+			r = true
+			if t.NumFields() == 0 {
+				n++ // {} counts as a component
+				break
+			}
+			for _, field := range t.Fields().Slice() {
+				if !visitType(baseOffset+field.Offset, field.Type, depth) {
+					r = false
+					break
+				}
+			}
+		}
+		if !r {
+			writebyte(_dotdotdot)
+		}
+		writebyte(_endAgg)
+		return r
+	}
+
+	c := true
+outer:
+	for _, fs := range &types.RecvsParams {
+		for _, a := range fs(ft).Fields().Slice() {
+			if !c {
+				writebyte(_dotdotdot)
+				break outer
+			}
+			c = visitType(a.Offset, a.Type, 0)
+		}
+	}
+	writebyte(_endSeq)
+	if wOff > maxLen {
+		base.Fatalf("ArgInfo too large")
+	}
+
+	// Emit a funcdata pointing at the arg info data.
+	p := pp.Prog(obj.AFUNCDATA)
+	p.From.SetConst(objabi.FUNCDATA_ArgInfo)
+	p.To.Type = obj.TYPE_MEM
+	p.To.Name = obj.NAME_EXTERN
+	p.To.Sym = x
+}
+
 // genssa appends entries to pp for each instruction in f.
 func genssa(f *ssa.Func, pp *objw.Progs) {
 	var s State
@@ -6562,6 +6719,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 	e := f.Frontend().(*ssafn)
 
 	s.livenessMap, s.partLiveArgs = liveness.Compute(e.curfn, f, e.stkptrsize, pp)
+	emitArgInfo(e, pp)
 
 	openDeferInfo := e.curfn.LSym.Func().OpenCodedDeferInfo
 	if openDeferInfo != nil {

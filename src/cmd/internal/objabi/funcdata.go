@@ -20,6 +20,7 @@ const (
 	FUNCDATA_StackObjects       = 2
 	FUNCDATA_InlTree            = 3
 	FUNCDATA_OpenCodedDeferInfo = 4
+	FUNCDATA_ArgInfo            = 5
 
 	// ArgsSizeUnknown is set in Func.argsize to mark all functions
 	// whose argument size is unknown (C vararg functions, and
