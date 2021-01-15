@@ -742,32 +742,48 @@ func (s *ss) floatToken() string {
 // (N+Ni) where N is a floating-point number and there are no spaces within,
 // or has the format of N or Ni.  For example "(1+2i)", "3", or "4i".
 func (s *ss) complexTokens() (real, imag string) {
+	have_imag := false
+	have_real := false
 	parens := s.accept("(")
-	if !parens {
-		val := s.floatToken()
+	// Read in the first value.
+	val := s.floatToken()
+
+	if s.peek("i") {
+		// First number is imag.
+		s.getRune()
+		imag = val
+		real = "0"
+		have_imag = true
+	} else {
+		// First number is real.
+		imag = "0"
+		real = val
+		have_real = true
+	}
+
+	// Test if we have a second number.
+	if s.peek("+-") {
+		// Read in the next value.
+		val = s.floatToken()
 		if s.peek("i") {
+			// The second number is imag.
 			s.getRune()
-			return "0", val
+			if have_imag {
+				s.error(complexError)
+			}
+			imag = val
 		} else {
-			return val, "0"
+			// The second number is real.
+			if have_real {
+				s.error(complexError)
+			}
+			real = val
 		}
-	}
-	real = s.floatToken()
-	s.buf = s.buf[:0]
-	// Must now have a sign.
-	if !s.accept("+-") {
-		s.error(complexError)
-	}
-	// Sign is now in buffer
-	imagSign := string(s.buf)
-	imag = s.floatToken()
-	if !s.accept("i") {
-		s.error(complexError)
 	}
 	if parens && !s.accept(")") {
 		s.error(complexError)
 	}
-	return real, imagSign + imag
+	return
 }
 
 func hasX(s string) bool {
