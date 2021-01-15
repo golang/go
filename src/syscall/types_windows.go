@@ -398,6 +398,14 @@ type win32finddata1 struct {
 	Reserved1         uint32
 	FileName          [MAX_PATH]uint16
 	AlternateFileName [14]uint16
+
+	// The Microsoft documentation for this struct¹ describes three additional
+	// fields: dwFileType, dwCreatorType, and wFinderFlags. However, those fields
+	// are empirically only present in the macOS port of the Win32 API,² and thus
+	// not needed for binaries built for Windows.
+	//
+	// ¹ https://docs.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-win32_find_dataw
+	// ² https://golang.org/issue/42637#issuecomment-760715755
 }
 
 func copyFindData(dst *Win32finddata, src *win32finddata1) {
