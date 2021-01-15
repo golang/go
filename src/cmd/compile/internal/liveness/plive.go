@@ -1060,7 +1060,7 @@ func (lv *liveness) printDebug() {
 func (lv *liveness) emit() (argsSym, liveSym *obj.LSym) {
 	// Size args bitmaps to be just large enough to hold the largest pointer.
 	// First, find the largest Xoffset node we care about.
-	// (Nodes without pointers aren't in lv.vars; see livenessShouldTrack.)
+	// (Nodes without pointers aren't in lv.vars; see ShouldTrack.)
 	var maxArgNode *ir.Name
 	for _, n := range lv.vars {
 		switch n.Class {

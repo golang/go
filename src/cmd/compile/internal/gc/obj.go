@@ -121,7 +121,7 @@ func dumpdata() {
 	reflectdata.WriteBasicTypes()
 	dumpembeds()
 
-	// Calls to dumpsignats can generate functions,
+	// Calls to WriteRuntimeTypes can generate functions,
 	// like method wrappers and hash and equality routines.
 	// Compile any generated functions, process any new resulting types, repeat.
 	// This can't loop forever, because there is no way to generate an infinite

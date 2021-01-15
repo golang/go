@@ -96,7 +96,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			if n, ok := v.Aux.(*ir.Name); ok {
 				switch n.Class {
 				case ir.PPARAM, ir.PPARAMOUT:
-					// Don't modify nodfp; it is a global.
+					// Don't modify RegFP; it is a global.
 					if n != ir.RegFP {
 						n.SetUsed(true)
 					}

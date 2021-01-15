@@ -82,7 +82,7 @@ func embedKindApprox(typ ir.Node) int {
 	// These are not guaranteed to match only string and []byte -
 	// maybe the local package has redefined one of those words.
 	// But it's the best we can do now during the noder.
-	// The stricter check happens later, in initEmbed calling embedKind.
+	// The stricter check happens later, in WriteEmbed calling embedKind.
 	if typ.Sym() != nil && typ.Sym().Name == "string" && typ.Sym().Pkg == types.LocalPkg {
 		return embedString
 	}

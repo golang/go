@@ -14,7 +14,7 @@ import (
 func walkSelect(sel *ir.SelectStmt) {
 	lno := ir.SetPos(sel)
 	if len(sel.Compiled) != 0 {
-		base.Fatalf("double walkselect")
+		base.Fatalf("double walkSelect")
 	}
 
 	init := ir.TakeInit(sel)
@@ -218,7 +218,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 		}
 	}
 	if nsends+nrecvs != ncas {
-		base.Fatalf("walkselectcases: miscount: %v + %v != %v", nsends, nrecvs, ncas)
+		base.Fatalf("walkSelectCases: miscount: %v + %v != %v", nsends, nrecvs, ncas)
 	}
 
 	// run the select

@@ -63,7 +63,7 @@ type Func struct {
 	Exit  Nodes
 
 	// ONAME nodes for all params/locals for this func/closure, does NOT
-	// include closurevars until transformclosure runs.
+	// include closurevars until transforming closures during walk.
 	// Names must be listed PPARAMs, PPARAMOUTs, then PAUTOs,
 	// with PPARAMs and PPARAMOUTs in order corresponding to the function signature.
 	// However, as anonymous or blank PPARAMs are not actually declared,

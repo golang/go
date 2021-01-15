@@ -208,7 +208,7 @@ func mapfast(t *types.Type) int {
 func walkAppendArgs(n *ir.CallExpr, init *ir.Nodes) {
 	walkExprListSafe(n.Args, init)
 
-	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
+	// walkExprListSafe will leave OINDEX (s[n]) alone if both s
 	// and n are name or literal, but those may index the slice we're
 	// modifying here. Fix explicitly.
 	ls := n.Args
@@ -240,8 +240,8 @@ func appendWalkStmt(init *ir.Nodes, stmt ir.Node) {
 	op := stmt.Op()
 	n := typecheck.Stmt(stmt)
 	if op == ir.OAS || op == ir.OAS2 {
-		// If the assignment has side effects, walkexpr will append them
-		// directly to init for us, while walkstmt will wrap it in an OBLOCK.
+		// If the assignment has side effects, walkExpr will append them
+		// directly to init for us, while walkStmt will wrap it in an OBLOCK.
 		// We need to append them directly.
 		// TODO(rsc): Clean this up.
 		n = walkExpr(n, init)
@@ -256,7 +256,7 @@ func appendWalkStmt(init *ir.Nodes, stmt ir.Node) {
 const maxOpenDefers = 8
 
 // backingArrayPtrLen extracts the pointer and length from a slice or string.
-// This constructs two nodes referring to n, so n must be a cheapexpr.
+// This constructs two nodes referring to n, so n must be a cheapExpr.
 func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
 	var init ir.Nodes
 	c := cheapExpr(n, &init)
@@ -423,7 +423,7 @@ func runtimeField(name string, offset int64, typ *types.Type) *types.Field {
 
 // ifaceData loads the data field from an interface.
 // The concrete type must be known to have type t.
-// It follows the pointer if !isdirectiface(t).
+// It follows the pointer if !IsDirectIface(t).
 func ifaceData(pos src.XPos, n ir.Node, t *types.Type) ir.Node {
 	if t.IsInterface() {
 		base.Fatalf("ifaceData interface: %v", t)

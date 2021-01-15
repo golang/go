@@ -37,7 +37,7 @@ var (
 	// and offset where that identifier's declaration can be read.
 	DeclImporter = map[*types.Sym]iimporterAndOffset{}
 
-	// inlineImporter is like declImporter, but for inline bodies
+	// inlineImporter is like DeclImporter, but for inline bodies
 	// for function and method symbols.
 	inlineImporter = map[*types.Sym]iimporterAndOffset{}
 )
@@ -334,7 +334,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 			recv := r.param()
 			mtyp := r.signature(recv)
 
-			// methodSym already marked m.Sym as a function.
+			// MethodSym already marked m.Sym as a function.
 			m := ir.NewNameAt(mpos, ir.MethodSym(recv.Type, msym))
 			m.Class = ir.PFUNC
 			m.SetType(mtyp)

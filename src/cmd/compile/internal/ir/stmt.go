@@ -343,7 +343,7 @@ type SelectStmt struct {
 	HasBreak bool
 
 	// TODO(rsc): Instead of recording here, replace with a block?
-	Compiled Nodes // compiled form, after walkswitch
+	Compiled Nodes // compiled form, after walkSwitch
 }
 
 func NewSelectStmt(pos src.XPos, cases []*CommClause) *SelectStmt {
@@ -376,7 +376,7 @@ type SwitchStmt struct {
 	HasBreak bool
 
 	// TODO(rsc): Instead of recording here, replace with a block?
-	Compiled Nodes // compiled form, after walkswitch
+	Compiled Nodes // compiled form, after walkSwitch
 }
 
 func NewSwitchStmt(pos src.XPos, tag Node, cases []*CaseClause) *SwitchStmt {

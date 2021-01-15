@@ -72,7 +72,7 @@ func enqueueFunc(fn *ir.Func) {
 func prepareFunc(fn *ir.Func) {
 	// Set up the function's LSym early to avoid data races with the assemblers.
 	// Do this before walk, as walk needs the LSym to set attributes/relocations
-	// (e.g. in markTypeUsedInInterface).
+	// (e.g. in MarkTypeUsedInInterface).
 	ssagen.InitLSym(fn, true)
 
 	// Calculate parameter offsets.

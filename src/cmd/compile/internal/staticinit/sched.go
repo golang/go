@@ -455,7 +455,7 @@ var statuniqgen int // name generator for static temps
 // StaticName returns a name backed by a (writable) static data symbol.
 // Use readonlystaticname for read-only node.
 func StaticName(t *types.Type) *ir.Name {
-	// Don't use lookupN; it interns the resulting string, but these are all unique.
+	// Don't use LookupNum; it interns the resulting string, but these are all unique.
 	n := typecheck.NewName(typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen)))
 	statuniqgen++
 	typecheck.Declare(n, ir.PEXTERN)

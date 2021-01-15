@@ -15,7 +15,7 @@ import (
 func LookupRuntime(name string) *ir.Name {
 	s := ir.Pkgs.Runtime.Lookup(name)
 	if s == nil || s.Def == nil {
-		base.Fatalf("syslook: can't find runtime.%s", name)
+		base.Fatalf("LookupRuntime: can't find runtime.%s", name)
 	}
 	return ir.AsNode(s.Def).(*ir.Name)
 }
@@ -33,7 +33,7 @@ func SubstArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
 	n.Class = old.Class
 	n.SetType(types.SubstAny(old.Type(), &types_))
 	if len(types_) > 0 {
-		base.Fatalf("substArgTypes: too many argument types")
+		base.Fatalf("SubstArgTypes: too many argument types")
 	}
 	return n
 }

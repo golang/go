@@ -48,10 +48,10 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
 
 	nsrc := n.Args[0]
 
-	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
+	// walkExprListSafe will leave OINDEX (s[n]) alone if both s
 	// and n are name or literal, but those may index the slice we're
 	// modifying here. Fix explicitly.
-	// Using cheapexpr also makes sure that the evaluation
+	// Using cheapExpr also makes sure that the evaluation
 	// of all arguments (and especially any panics) happen
 	// before we begin to modify the slice in a visible way.
 	ls := n.Args[1:]
@@ -388,7 +388,7 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		// n = arr[:l]
 		i := typecheck.IndexConst(r)
 		if i < 0 {
-			base.Fatalf("walkexpr: invalid index %v", r)
+			base.Fatalf("walkExpr: invalid index %v", r)
 		}
 
 		// cap is constrained to [0,2^31) or [0,2^63) depending on whether

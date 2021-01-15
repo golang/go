@@ -81,7 +81,7 @@ func markAddrOf(n ir.Node) ir.Node {
 		// main typecheck has completed.
 		// The argument to OADDR needs to be typechecked because &x[i] takes
 		// the address of x if x is an array, but not if x is a slice.
-		// Note: outervalue doesn't work correctly until n is typechecked.
+		// Note: OuterValue doesn't work correctly until n is typechecked.
 		n = typecheck(n, ctxExpr)
 		if x := ir.OuterValue(n); x.Op() == ir.ONAME {
 			x.Name().SetAddrtaken(true)
@@ -368,10 +368,10 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
 		var missing, have *types.Field
 		var ptr int
 		if implements(src, dst, &missing, &have, &ptr) {
-			// Call itabname so that (src, dst)
+			// Call NeedITab/ITabAddr so that (src, dst)
 			// gets added to itabs early, which allows
 			// us to de-virtualize calls through this
-			// type/interface pair later. See peekitabs in reflect.go
+			// type/interface pair later. See CompileITabs in reflect.go
 			if types.IsDirectIface(src) && !dst.IsEmptyInterface() {
 				NeedITab(src, dst)
 			}
@@ -441,7 +441,7 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
 		}
 	}
 
-	// 6. rule about untyped constants - already converted by defaultlit.
+	// 6. rule about untyped constants - already converted by DefaultLit.
 
 	// 7. Any typed value can be assigned to the blank identifier.
 	if dst.Kind() == types.TBLANK {
@@ -835,7 +835,7 @@ func lookdot0(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) 
 var slist []symlink
 
 // Code to help generate trampoline functions for methods on embedded
-// types. These are approx the same as the corresponding adddot
+// types. These are approx the same as the corresponding AddImplicitDots
 // routines except that they expect to be called with unique tasks and
 // they return the actual methods.
 

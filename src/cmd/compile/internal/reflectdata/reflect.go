@@ -32,7 +32,7 @@ type itabEntry struct {
 
 	// symbols of each method in
 	// the itab, sorted by byte offset;
-	// filled in by peekitabs
+	// filled in by CompileITabs
 	entries []*obj.LSym
 }
 
@@ -401,7 +401,7 @@ func dimportpath(p *types.Pkg) {
 	}
 
 	// If we are compiling the runtime package, there are two runtime packages around
-	// -- localpkg and Runtimepkg. We don't want to produce import path symbols for
+	// -- localpkg and Pkgs.Runtime. We don't want to produce import path symbols for
 	// both of them, so just produce one for localpkg.
 	if base.Ctxt.Pkgpath == "runtime" && p == ir.Pkgs.Runtime {
 		return
@@ -811,7 +811,7 @@ func TypeSymPrefix(prefix string, t *types.Type) *types.Sym {
 
 func TypeSym(t *types.Type) *types.Sym {
 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() {
-		base.Fatalf("typenamesym %v", t)
+		base.Fatalf("TypeSym %v", t)
 	}
 	if t.Kind() == types.TFUNC && t.Recv() != nil {
 		base.Fatalf("misuse of method type: %v", t)
@@ -853,7 +853,7 @@ func TypePtr(t *types.Type) *ir.AddrExpr {
 
 func ITabAddr(t, itype *types.Type) *ir.AddrExpr {
 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() || !itype.IsInterface() || itype.IsEmptyInterface() {
-		base.Fatalf("itabname(%v, %v)", t, itype)
+		base.Fatalf("ITabAddr(%v, %v)", t, itype)
 	}
 	s := ir.Pkgs.Itab.Lookup(t.ShortString() + "," + itype.ShortString())
 	if s.Def == nil {
@@ -936,7 +936,7 @@ func formalType(t *types.Type) *types.Type {
 func writeType(t *types.Type) *obj.LSym {
 	t = formalType(t)
 	if t.IsUntyped() {
-		base.Fatalf("dtypesym %v", t)
+		base.Fatalf("writeType %v", t)
 	}
 
 	s := types.TypeSym(t)
@@ -1275,7 +1275,7 @@ func genfun(t, it *types.Type) []*obj.LSym {
 }
 
 // ITabSym uses the information gathered in
-// peekitabs to de-virtualize interface methods.
+// CompileITabs to de-virtualize interface methods.
 // Since this is called by the SSA backend, it shouldn't
 // generate additional Nodes, Syms, etc.
 func ITabSym(it *obj.LSym, offset int64) *obj.LSym {
@@ -1312,7 +1312,7 @@ func NeedRuntimeType(t *types.Type) {
 }
 
 func WriteRuntimeTypes() {
-	// Process signatset. Use a loop, as dtypesym adds
+	// Process signatset. Use a loop, as writeType adds
 	// entries to signatset while it is being processed.
 	signats := make([]typeAndStr, len(signatslice))
 	for len(signatslice) > 0 {
@@ -1617,13 +1617,13 @@ func (p *gcProg) emit(t *types.Type, offset int64) {
 	}
 	switch t.Kind() {
 	default:
-		base.Fatalf("GCProg.emit: unexpected type %v", t)
+		base.Fatalf("gcProg.emit: unexpected type %v", t)
 
 	case types.TSTRING:
 		p.w.Ptr(offset / int64(types.PtrSize))
 
 	case types.TINTER:
-		// Note: the first word isn't a pointer. See comment in plive.go:onebitwalktype1.
+		// Note: the first word isn't a pointer. See comment in typebits.Set
 		p.w.Ptr(offset/int64(types.PtrSize) + 1)
 
 	case types.TSLICE:
@@ -1632,7 +1632,7 @@ func (p *gcProg) emit(t *types.Type, offset int64) {
 	case types.TARRAY:
 		if t.NumElem() == 0 {
 			// should have been handled by haspointers check above
-			base.Fatalf("GCProg.emit: empty array")
+			base.Fatalf("gcProg.emit: empty array")
 		}
 
 		// Flatten array-of-array-of-array to just a big array by multiplying counts.

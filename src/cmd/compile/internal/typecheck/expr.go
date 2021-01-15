@@ -68,7 +68,7 @@ func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
 		return l, r, nil
 	}
 
-	// no defaultlit for left
+	// no DefaultLit for left
 	// the outer context gives the type
 	t = l.Type()
 	if (l.Type() == types.UntypedFloat || l.Type() == types.UntypedComplex) && r.Op() == ir.OLITERAL {
@@ -201,7 +201,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 // 	n.Left = tcCompLit(n.Left)
 func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 	if base.EnableTrace && base.Flag.LowerT {
-		defer tracePrint("typecheckcomplit", n)(&res)
+		defer tracePrint("tcCompLit", n)(&res)
 	}
 
 	lno := base.Pos
@@ -838,7 +838,7 @@ func tcStar(n *ir.StarExpr, top int) ir.Node {
 	}
 	if l.Op() == ir.OTYPE {
 		n.SetOTYPE(types.NewPtr(l.Type()))
-		// Ensure l.Type gets dowidth'd for the backend. Issue 20174.
+		// Ensure l.Type gets CalcSize'd for the backend. Issue 20174.
 		types.CheckSize(l.Type())
 		return n
 	}

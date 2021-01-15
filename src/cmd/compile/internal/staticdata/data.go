@@ -29,13 +29,13 @@ import (
 // Neither n nor a is modified.
 func InitAddr(n *ir.Name, noff int64, a *ir.Name, aoff int64) {
 	if n.Op() != ir.ONAME {
-		base.Fatalf("addrsym n op %v", n.Op())
+		base.Fatalf("InitAddr n op %v", n.Op())
 	}
 	if n.Sym() == nil {
-		base.Fatalf("addrsym nil n sym")
+		base.Fatalf("InitAddr nil n sym")
 	}
 	if a.Op() != ir.ONAME {
-		base.Fatalf("addrsym a op %v", a.Op())
+		base.Fatalf("InitAddr a op %v", a.Op())
 	}
 	s := n.Linksym()
 	s.WriteAddr(base.Ctxt, noff, types.PtrSize, a.Linksym(), aoff)
@@ -45,13 +45,13 @@ func InitAddr(n *ir.Name, noff int64, a *ir.Name, aoff int64) {
 // Neither n nor f is modified.
 func InitFunc(n *ir.Name, noff int64, f *ir.Name) {
 	if n.Op() != ir.ONAME {
-		base.Fatalf("pfuncsym n op %v", n.Op())
+		base.Fatalf("InitFunc n op %v", n.Op())
 	}
 	if n.Sym() == nil {
-		base.Fatalf("pfuncsym nil n sym")
+		base.Fatalf("InitFunc nil n sym")
 	}
 	if f.Class != ir.PFUNC {
-		base.Fatalf("pfuncsym class not PFUNC %d", f.Class)
+		base.Fatalf("InitFunc class not PFUNC %d", f.Class)
 	}
 	s := n.Linksym()
 	s.WriteAddr(base.Ctxt, noff, types.PtrSize, FuncLinksym(f), 0)
@@ -62,7 +62,7 @@ func InitFunc(n *ir.Name, noff int64, f *ir.Name) {
 func InitSlice(n *ir.Name, noff int64, arr *ir.Name, lencap int64) {
 	s := n.Linksym()
 	if arr.Op() != ir.ONAME {
-		base.Fatalf("slicesym non-name arr %v", arr)
+		base.Fatalf("InitSlice non-name arr %v", arr)
 	}
 	s.WriteAddr(base.Ctxt, noff, types.PtrSize, arr.Linksym(), 0)
 	s.WriteInt(base.Ctxt, noff+types.SliceLenOffset, types.PtrSize, lencap)
@@ -71,7 +71,7 @@ func InitSlice(n *ir.Name, noff int64, arr *ir.Name, lencap int64) {
 
 func InitSliceBytes(nam *ir.Name, off int64, s string) {
 	if nam.Op() != ir.ONAME {
-		base.Fatalf("slicebytes %v", nam)
+		base.Fatalf("InitSliceBytes %v", nam)
 	}
 	InitSlice(nam, off, slicedata(nam.Pos(), s), int64(len(s)))
 }
@@ -243,14 +243,14 @@ func FuncSym(s *types.Sym) *types.Sym {
 	// except for the types package, which is protected separately.
 	// Reusing funcsymsmu to also cover this package lookup
 	// avoids a general, broader, expensive package lookup mutex.
-	// Note makefuncsym also does package look-up of func sym names,
+	// Note NeedFuncSym also does package look-up of func sym names,
 	// but that it is only called serially, from the front end.
 	funcsymsmu.Lock()
 	sf, existed := s.Pkg.LookupOK(ir.FuncSymName(s))
 	// Don't export s·f when compiling for dynamic linking.
 	// When dynamically linking, the necessary function
-	// symbols will be created explicitly with makefuncsym.
-	// See the makefuncsym comment for details.
+	// symbols will be created explicitly with NeedFuncSym.
+	// See the NeedFuncSym comment for details.
 	if !base.Ctxt.Flag_dynlink && !existed {
 		funcsyms = append(funcsyms, s)
 	}
@@ -310,16 +310,16 @@ func WriteFuncSyms() {
 // Neither n nor c is modified.
 func InitConst(n *ir.Name, noff int64, c ir.Node, wid int) {
 	if n.Op() != ir.ONAME {
-		base.Fatalf("litsym n op %v", n.Op())
+		base.Fatalf("InitConst n op %v", n.Op())
 	}
 	if n.Sym() == nil {
-		base.Fatalf("litsym nil n sym")
+		base.Fatalf("InitConst nil n sym")
 	}
 	if c.Op() == ir.ONIL {
 		return
 	}
 	if c.Op() != ir.OLITERAL {
-		base.Fatalf("litsym c op %v", c.Op())
+		base.Fatalf("InitConst c op %v", c.Op())
 	}
 	s := n.Linksym()
 	switch u := c.Val(); u.Kind() {
@@ -358,6 +358,6 @@ func InitConst(n *ir.Name, noff int64, c ir.Node, wid int) {
 		s.WriteInt(base.Ctxt, noff+int64(types.PtrSize), types.PtrSize, int64(len(i)))
 
 	default:
-		base.Fatalf("litsym unhandled OLITERAL %v", c)
+		base.Fatalf("InitConst unhandled OLITERAL %v", c)
 	}
 }
