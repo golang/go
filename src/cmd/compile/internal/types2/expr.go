@@ -667,6 +667,7 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
 				if !hasNil(target) {
 					goto Error
 				}
+				target = Typ[UntypedNil]
 			default:
 				goto Error
 			}
