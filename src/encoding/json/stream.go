@@ -379,6 +379,7 @@ func (dec *Decoder) Token() (Token, error) {
 				return dec.tokenError(c)
 			}
 			dec.scanp++
+			dec.scan.bytes++
 			dec.tokenStack = append(dec.tokenStack, dec.tokenState)
 			dec.tokenState = tokenArrayStart
 			return Delim('['), nil
@@ -388,6 +389,7 @@ func (dec *Decoder) Token() (Token, error) {
 				return dec.tokenError(c)
 			}
 			dec.scanp++
+			dec.scan.bytes++
 			dec.tokenState = dec.tokenStack[len(dec.tokenStack)-1]
 			dec.tokenStack = dec.tokenStack[:len(dec.tokenStack)-1]
 			dec.tokenValueEnd()
@@ -398,6 +400,7 @@ func (dec *Decoder) Token() (Token, error) {
 				return dec.tokenError(c)
 			}
 			dec.scanp++
+			dec.scan.bytes++
 			dec.tokenStack = append(dec.tokenStack, dec.tokenState)
 			dec.tokenState = tokenObjectStart
 			return Delim('{'), nil
@@ -407,6 +410,7 @@ func (dec *Decoder) Token() (Token, error) {
 				return dec.tokenError(c)
 			}
 			dec.scanp++
+			dec.scan.bytes++
 			dec.tokenState = dec.tokenStack[len(dec.tokenStack)-1]
 			dec.tokenStack = dec.tokenStack[:len(dec.tokenStack)-1]
 			dec.tokenValueEnd()
@@ -417,17 +421,20 @@ func (dec *Decoder) Token() (Token, error) {
 				return dec.tokenError(c)
 			}
 			dec.scanp++
+			dec.scan.bytes++
 			dec.tokenState = tokenObjectValue
 			continue
 
 		case ',':
 			if dec.tokenState == tokenArrayComma {
 				dec.scanp++
+				dec.scan.bytes++
 				dec.tokenState = tokenArrayValue
 				continue
 			}
 			if dec.tokenState == tokenObjectComma {
 				dec.scanp++
+				dec.scan.bytes++
 				dec.tokenState = tokenObjectKey
 				continue
 			}
@@ -493,6 +500,7 @@ func (dec *Decoder) peek() (byte, error) {
 		for i := dec.scanp; i < len(dec.buf); i++ {
 			c := dec.buf[i]
 			if isSpace(c) {
+				dec.scan.bytes++
 				continue
 			}
 			dec.scanp = i

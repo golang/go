@@ -397,10 +397,14 @@ var tokenStreamCases = []tokenStreamCase{
 	}},
 	{json: `{ "\a" }`, expTokens: []interface{}{
 		Delim('{'),
-		&SyntaxError{"invalid character 'a' in string escape code", 3},
+		&SyntaxError{"invalid character 'a' in string escape code", 5},
 	}},
 	{json: ` \a`, expTokens: []interface{}{
-		&SyntaxError{"invalid character '\\\\' looking for beginning of value", 1},
+		&SyntaxError{"invalid character '\\\\' looking for beginning of value", 2},
+	}},
+	{json: `[$t]`, expTokens: []interface{}{
+		Delim('['),
+		&SyntaxError{"invalid character '$' looking for beginning of value", 2},
 	}},
 }
 
