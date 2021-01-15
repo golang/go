@@ -4636,6 +4636,14 @@ func TestArrayOfDirectIface(t *testing.T) {
 	}
 }
 
+// Ensure passing in negative lengths panics.
+// See https://golang.org/issue/43603
+func TestArrayOfPanicOnNegativeLength(t *testing.T) {
+	shouldPanic("reflect: negative length passed to ArrayOf", func() {
+		ArrayOf(-1, TypeOf(byte(0)))
+	})
+}
+
 func TestSliceOf(t *testing.T) {
 	// check construction and use of type not in binary
 	type T int
