@@ -1407,6 +1407,10 @@ found:
 		}
 	}
 
+	// Destroy all allocated resources. After this is called, we may no
+	// longer take any locks.
+	mdestroy(m)
+
 	if osStack {
 		// Return from mstart and let the system thread
 		// library free the g0 stack and terminate the thread.
