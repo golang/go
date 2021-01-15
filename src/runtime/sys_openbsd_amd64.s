@@ -168,28 +168,32 @@ TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
-TEXT runtime·osyield(SB),NOSPLIT,$0
-	MOVL	$298, AX		// sys_sched_yield
-	SYSCALL
+TEXT runtime·thrsleep_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVL	8(DI), SI		// arg 2 - clock_id
+	MOVQ	16(DI), DX		// arg 3 - abstime
+	MOVQ	24(DI), CX		// arg 3 - lock
+	MOVQ	32(DI), R8		// arg 4 - abort
+	MOVQ	0(DI), DI		// arg 1 - id
+	CALL	libc_thrsleep(SB)
+	POPQ	BP
 	RET
 
-TEXT runtime·thrsleep(SB),NOSPLIT,$0
-	MOVQ	ident+0(FP), DI		// arg 1 - ident
-	MOVL	clock_id+8(FP), SI		// arg 2 - clock_id
-	MOVQ	tsp+16(FP), DX		// arg 3 - tp
-	MOVQ	lock+24(FP), R10		// arg 4 - lock
-	MOVQ	abort+32(FP), R8		// arg 5 - abort
-	MOVL	$94, AX			// sys___thrsleep
-	SYSCALL
-	MOVL	AX, ret+40(FP)
+TEXT runtime·thrwakeup_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVL	8(DI), SI		// arg 2 - count
+	MOVQ	0(DI), DI		// arg 1 - id
+	CALL	libc_thrwakeup(SB)
+	POPQ	BP
 	RET
 
-TEXT runtime·thrwakeup(SB),NOSPLIT,$0
-	MOVQ	ident+0(FP), DI		// arg 1 - ident
-	MOVL	n+8(FP), SI		// arg 2 - n
-	MOVL	$301, AX		// sys___thrwakeup
-	SYSCALL
-	MOVL	AX, ret+16(FP)
+TEXT runtime·sched_yield_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	CALL	libc_sched_yield(SB)
+	POPQ	BP
 	RET
 
 // Exit the entire program (like C exit)
