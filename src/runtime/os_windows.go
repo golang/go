@@ -893,7 +893,10 @@ func sigblock(exiting bool) {
 // Called on the new thread, cannot allocate memory.
 func minit() {
 	var thandle uintptr
-	stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS)
+	if stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS) == 0 {
+		print("runtime.minit: duplicatehandle failed; errno=", getlasterror(), "\n")
+		throw("runtime.minit: duplicatehandle failed")
+	}
 
 	// Configure usleep timer, if possible.
 	var timer uintptr
@@ -1134,8 +1137,12 @@ func profileloop1(param uintptr) uint32 {
 			}
 			// Acquire our own handle to the thread.
 			var thread uintptr
-			stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS)
+			if stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS) == 0 {
+				print("runtime.profileloop1: duplicatehandle failed; errno=", getlasterror(), "\n")
+				throw("runtime.profileloop1: duplicatehandle failed")
+			}
 			unlock(&mp.threadLock)
+
 			// mp may exit between the DuplicateHandle
 			// above and the SuspendThread. The handle
 			// will remain valid, but SuspendThread may
@@ -1214,7 +1221,10 @@ func preemptM(mp *m) {
 		return
 	}
 	var thread uintptr
-	stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS)
+	if stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS) == 0 {
+		print("runtime.preemptM: duplicatehandle failed; errno=", getlasterror(), "\n")
+		throw("runtime.preemptM: duplicatehandle failed")
+	}
 	unlock(&mp.threadLock)
 
 	// Prepare thread context buffer. This must be aligned to 16 bytes.
