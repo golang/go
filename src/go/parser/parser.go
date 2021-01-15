@@ -1494,6 +1494,7 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
 	var args []ast.Expr
 	var index [N]ast.Expr
 	var colons [N - 1]token.Pos
+	var firstComma token.Pos
 	if p.tok != token.COLON {
 		// We can't know if we have an index expression or a type instantiation;
 		// so even if we see a (named) type we are not going to be in type context.
@@ -1512,6 +1513,7 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
 			}
 		}
 	case token.COMMA:
+		firstComma = p.pos
 		// instance expression
 		args = append(args, index[0])
 		for p.tok == token.COMMA {
@@ -1547,6 +1549,11 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
 	if len(args) == 0 {
 		// index expression
 		return &ast.IndexExpr{X: x, Lbrack: lbrack, Index: index[0], Rbrack: rbrack}
+	}
+
+	if p.mode&ParseTypeParams == 0 {
+		p.error(firstComma, "expected ']' or ':', found ','")
+		return &ast.BadExpr{From: args[0].Pos(), To: args[len(args)-1].End()}
 	}
 
 	// instance expression
