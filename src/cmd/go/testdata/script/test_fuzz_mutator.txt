@@ -14,7 +14,7 @@ go run check_logs.go fuzz fuzz.worker
 ! go test -v -fuzz=Fuzz -parallel=1 -fuzztime=30s mutator_test.go
 ! stdout ok
 stdout FAIL
-stdout 'mutator found enough edge cases'
+stdout 'mutator found enough unique mutations'
 
 -- go.mod --
 module m
@@ -162,7 +162,6 @@ func checkWorkerLog(r io.Reader) error {
 package fuzz_test
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -175,22 +174,9 @@ func Fuzz(f *testing.F) {
 	crashes := make(map[string]bool)
 	// No seed corpus initiated
 	f.Fuzz(func(t *testing.T, b []byte) {
-		if len(crashes) >= 150 {
-			panic("mutator found enough edge cases")
-		}
-
-		if len(b) < 5 {
-			return // continue
-		}
-
-		for i := 0; i < 256; i++ {
-			s := string(byte(i))
-			if strings.HasPrefix(string(b), s) {
-				crashes["pre-" + s] = true
-			}
-			if strings.HasSuffix(string(b), s) {
-				crashes["suffix-" + s] = true
-			}
+		crashes[string(b)] = true
+		if len(crashes) >= 1000 {
+			panic("mutator found enough unique mutations")
 		}
 	})
 }
