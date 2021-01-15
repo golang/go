@@ -42,22 +42,30 @@ type PrepareItem struct {
 	Text  string
 }
 
-func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Position) (*PrepareItem, error) {
+// PrepareRename searches for a valid renaming at position pp.
+//
+// The returned usererr is intended to be displayed to the user to explain why
+// the prepare fails. Probably we could eliminate the redundancy in returning
+// two errors, but for now this is done defensively.
+func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Position) (_ *PrepareItem, usererr, err error) {
 	ctx, done := event.Start(ctx, "source.PrepareRename")
 	defer done()
 
 	qos, err := qualifiedObjsAtProtocolPos(ctx, snapshot, f, pp)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	node, obj, pkg := qos[0].node, qos[0].obj, qos[0].sourcePkg
+	if err := checkRenamable(obj); err != nil {
+		return nil, err, err
+	}
 	mr, err := posToMappedRange(snapshot, pkg, node.Pos(), node.End())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	rng, err := mr.Range()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if _, isImport := node.(*ast.ImportSpec); isImport {
 		// We're not really renaming the import path.
@@ -66,10 +74,22 @@ func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp prot
 	return &PrepareItem{
 		Range: rng,
 		Text:  obj.Name(),
-	}, nil
+	}, nil, nil
 }
 
-// Rename returns a map of TextEdits for each file modified when renaming a given identifier within a package.
+// checkRenamable verifies if an obj may be renamed.
+func checkRenamable(obj types.Object) error {
+	if v, ok := obj.(*types.Var); ok && v.Embedded() {
+		return errors.New("can't rename embedded fields: rename the type directly or name the field")
+	}
+	if obj.Name() == "_" {
+		return errors.New("can't rename \"_\"")
+	}
+	return nil
+}
+
+// Rename returns a map of TextEdits for each file modified when renaming a
+// given identifier within a package.
 func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position, newName string) (map[span.URI][]protocol.TextEdit, error) {
 	ctx, done := event.Start(ctx, "source.Rename")
 	defer done()
@@ -79,9 +99,11 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 		return nil, err
 	}
 
-	obj := qos[0].obj
-	pkg := qos[0].pkg
+	obj, pkg := qos[0].obj, qos[0].pkg
 
+	if err := checkRenamable(obj); err != nil {
+		return nil, err
+	}
 	if obj.Name() == newName {
 		return nil, errors.Errorf("old and new names are the same: %s", newName)
 	}

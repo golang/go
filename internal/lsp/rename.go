@@ -43,9 +43,11 @@ func (s *Server) prepareRename(ctx context.Context, params *protocol.PrepareRena
 	}
 	// Do not return errors here, as it adds clutter.
 	// Returning a nil result means there is not a valid rename.
-	item, err := source.PrepareRename(ctx, snapshot, fh, params.Position)
+	item, usererr, err := source.PrepareRename(ctx, snapshot, fh, params.Position)
 	if err != nil {
-		return nil, nil // ignore errors
+		// Return usererr here rather than err, to avoid cluttering the UI with
+		// internal error details.
+		return nil, usererr
 	}
 	// TODO(suzmue): return ident.Name as the placeholder text.
 	return &item.Range, nil

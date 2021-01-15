@@ -1,9 +1,13 @@
 -- bar-rename --
 package issue43616
 
-type bar int //@rename("foo","bar")
+type bar int //@rename("foo","bar"),prepare("oo","foo","foo")
 
-var x struct{ bar }
+var x struct{ bar } //@rename("foo","baz")
 
-var _ = x.bar
+var _ = x.bar //@rename("foo","quux")
 
+-- baz-rename --
+can't rename embedded fields: rename the type directly or name the field
+-- quux-rename --
+can't rename embedded fields: rename the type directly or name the field

@@ -820,7 +820,7 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 	if err != nil {
 		t.Fatal(err)
 	}
-	item, err := source.PrepareRename(r.ctx, r.snapshot, fh, srcRng.Start)
+	item, _, err := source.PrepareRename(r.ctx, r.snapshot, fh, srcRng.Start)
 	if err != nil {
 		if want.Text != "" { // expected an ident.
 			t.Errorf("prepare rename failed for %v: got error: %v", src, err)
