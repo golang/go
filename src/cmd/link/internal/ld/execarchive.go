@@ -7,8 +7,8 @@
 package ld
 
 import (
+	exec "internal/execabs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"syscall"
 )

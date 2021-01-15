@@ -207,6 +207,8 @@ var pkgDeps = map[string][]string{
 	"internal/lazyregexp":      {"L2", "OS", "regexp"},
 	"internal/lazytemplate":    {"L2", "OS", "text/template"},
 
+	"internal/execabs": {"L2", "OS", "fmt", "context", "reflect"},
+
 	// L4 is defined as L3+fmt+log+time, because in general once
 	// you're using L3 packages, use of fmt, log, or time is not a big deal.
 	"L4": {
@@ -240,7 +242,7 @@ var pkgDeps = map[string][]string{
 	"go/constant":               {"L4", "go/token", "math/big"},
 	"go/importer":               {"L4", "go/build", "go/internal/gccgoimporter", "go/internal/gcimporter", "go/internal/srcimporter", "go/token", "go/types"},
 	"go/internal/gcimporter":    {"L4", "OS", "go/build", "go/constant", "go/token", "go/types", "text/scanner"},
-	"go/internal/gccgoimporter": {"L4", "OS", "debug/elf", "go/constant", "go/token", "go/types", "internal/xcoff", "text/scanner"},
+	"go/internal/gccgoimporter": {"L4", "OS", "debug/elf", "go/constant", "go/token", "go/types", "internal/xcoff", "text/scanner", "internal/execabs"},
 	"go/internal/srcimporter":   {"L4", "OS", "fmt", "go/ast", "go/build", "go/parser", "go/token", "go/types", "path/filepath"},
 	"go/types":                  {"L4", "GOPARSER", "container/heap", "go/constant"},
 
@@ -272,7 +274,7 @@ var pkgDeps = map[string][]string{
 	"encoding/pem":                   {"L4"},
 	"encoding/xml":                   {"L4", "encoding"},
 	"flag":                           {"L4", "OS"},
-	"go/build":                       {"L4", "OS", "GOPARSER", "internal/goroot", "internal/goversion"},
+	"go/build":                       {"L4", "OS", "GOPARSER", "internal/goroot", "internal/goversion", "internal/execabs"},
 	"html":                           {"L4"},
 	"image/draw":                     {"L4", "image/internal/imageutil"},
 	"image/gif":                      {"L4", "compress/lzw", "image/color/palette", "image/draw"},
@@ -280,7 +282,7 @@ var pkgDeps = map[string][]string{
 	"image/jpeg":                     {"L4", "image/internal/imageutil"},
 	"image/png":                      {"L4", "compress/zlib"},
 	"index/suffixarray":              {"L4", "regexp"},
-	"internal/goroot":                {"L4", "OS"},
+	"internal/goroot":                {"L4", "OS", "internal/execabs"},
 	"internal/singleflight":          {"sync"},
 	"internal/trace":                 {"L4", "OS", "container/heap"},
 	"internal/xcoff":                 {"L4", "OS", "debug/dwarf"},
