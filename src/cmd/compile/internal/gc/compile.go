@@ -13,7 +13,6 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/liveness"
-	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -84,21 +83,6 @@ func prepareFunc(fn *ir.Func) {
 	walk.Walk(fn)
 	ir.CurFunc = nil // enforce no further uses of CurFunc
 	typecheck.DeclContext = ir.PEXTERN
-
-	// Make sure type syms are declared for all types that might
-	// be types of stack objects. We need to do this here
-	// because symbols must be allocated before the parallel
-	// phase of the compiler.
-	for _, n := range fn.Dcl {
-		if liveness.ShouldTrack(n) && n.Addrtaken() {
-			reflectdata.WriteType(n.Type())
-			// Also make sure we allocate a linker symbol
-			// for the stack object data, for the same reason.
-			if fn.LSym.Func().StackObjects == nil {
-				fn.LSym.Func().StackObjects = base.Ctxt.Lookup(fn.LSym.Name + ".stkobj")
-			}
-		}
-	}
 }
 
 // compileFunctions compiles all functions in compilequeue.
