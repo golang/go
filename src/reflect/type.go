@@ -2835,22 +2835,26 @@ func typeptrdata(t *rtype) uintptr {
 // See cmd/compile/internal/gc/reflect.go for derivation of constant.
 const maxPtrmaskBytes = 2048
 
-// ArrayOf returns the array type with the given count and element type.
+// ArrayOf returns the array type with the given length and element type.
 // For example, if t represents int, ArrayOf(5, t) represents [5]int.
 //
 // If the resulting type would be larger than the available address space,
 // ArrayOf panics.
-func ArrayOf(count int, elem Type) Type {
+func ArrayOf(length int, elem Type) Type {
+	if length < 0 {
+		panic("reflect: negative length passed to ArrayOf")
+	}
+
 	typ := elem.(*rtype)
 
 	// Look in cache.
-	ckey := cacheKey{Array, typ, nil, uintptr(count)}
+	ckey := cacheKey{Array, typ, nil, uintptr(length)}
 	if array, ok := lookupCache.Load(ckey); ok {
 		return array.(Type)
 	}
 
 	// Look in known types.
-	s := "[" + strconv.Itoa(count) + "]" + typ.String()
+	s := "[" + strconv.Itoa(length) + "]" + typ.String()
 	for _, tt := range typesByString(s) {
 		array := (*arrayType)(unsafe.Pointer(tt))
 		if array.elem == typ {
@@ -2866,7 +2870,7 @@ func ArrayOf(count int, elem Type) Type {
 	array.tflag = typ.tflag & tflagRegularMemory
 	array.str = resolveReflectName(newName(s, "", false))
 	array.hash = fnv1(typ.hash, '[')
-	for n := uint32(count); n > 0; n >>= 8 {
+	for n := uint32(length); n > 0; n >>= 8 {
 		array.hash = fnv1(array.hash, byte(n))
 	}
 	array.hash = fnv1(array.hash, ']')
@@ -2874,17 +2878,17 @@ func ArrayOf(count int, elem Type) Type {
 	array.ptrToThis = 0
 	if typ.size > 0 {
 		max := ^uintptr(0) / typ.size
-		if uintptr(count) > max {
+		if uintptr(length) > max {
 			panic("reflect.ArrayOf: array size would exceed virtual address space")
 		}
 	}
-	array.size = typ.size * uintptr(count)
-	if count > 0 && typ.ptrdata != 0 {
-		array.ptrdata = typ.size*uintptr(count-1) + typ.ptrdata
+	array.size = typ.size * uintptr(length)
+	if length > 0 && typ.ptrdata != 0 {
+		array.ptrdata = typ.size*uintptr(length-1) + typ.ptrdata
 	}
 	array.align = typ.align
 	array.fieldAlign = typ.fieldAlign
-	array.len = uintptr(count)
+	array.len = uintptr(length)
 	array.slice = SliceOf(elem).(*rtype)
 
 	switch {
@@ -2893,7 +2897,7 @@ func ArrayOf(count int, elem Type) Type {
 		array.gcdata = nil
 		array.ptrdata = 0
 
-	case count == 1:
+	case length == 1:
 		// In memory, 1-element array looks just like the element.
 		array.kind |= typ.kind & kindGCProg
 		array.gcdata = typ.gcdata
@@ -2902,7 +2906,7 @@ func ArrayOf(count int, elem Type) Type {
 	case typ.kind&kindGCProg == 0 && array.size <= maxPtrmaskBytes*8*ptrSize:
 		// Element is small with pointer mask; array is still small.
 		// Create direct pointer mask by turning each 1 bit in elem
-		// into count 1 bits in larger mask.
+		// into length 1 bits in larger mask.
 		mask := make([]byte, (array.ptrdata/ptrSize+7)/8)
 		emitGCMask(mask, 0, typ, array.len)
 		array.gcdata = &mask[0]
@@ -2923,14 +2927,14 @@ func ArrayOf(count int, elem Type) Type {
 				prog = appendVarint(prog, elemWords-elemPtrs-1)
 			}
 		}
-		// Repeat count-1 times.
+		// Repeat length-1 times.
 		if elemWords < 0x80 {
 			prog = append(prog, byte(elemWords|0x80))
 		} else {
 			prog = append(prog, 0x80)
 			prog = appendVarint(prog, elemWords)
 		}
-		prog = appendVarint(prog, uintptr(count)-1)
+		prog = appendVarint(prog, uintptr(length)-1)
 		prog = append(prog, 0)
 		*(*uint32)(unsafe.Pointer(&prog[0])) = uint32(len(prog) - 4)
 		array.kind |= kindGCProg
@@ -2944,9 +2948,9 @@ func ArrayOf(count int, elem Type) Type {
 	array.equal = nil
 	if eequal := etyp.equal; eequal != nil {
 		array.equal = func(p, q unsafe.Pointer) bool {
-			for i := 0; i < count; i++ {
-				pi := arrayAt(p, i, esize, "i < count")
-				qi := arrayAt(q, i, esize, "i < count")
+			for i := 0; i < length; i++ {
+				pi := arrayAt(p, i, esize, "i < length")
+				qi := arrayAt(q, i, esize, "i < length")
 				if !eequal(pi, qi) {
 					return false
 				}
@@ -2957,7 +2961,7 @@ func ArrayOf(count int, elem Type) Type {
 	}
 
 	switch {
-	case count == 1 && !ifaceIndir(typ):
+	case length == 1 && !ifaceIndir(typ):
 		// array of 1 direct iface type can be direct
 		array.kind |= kindDirectIface
 	default:
