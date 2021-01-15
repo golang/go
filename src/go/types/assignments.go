@@ -7,7 +7,6 @@
 package types
 
 import (
-	"errors"
 	"go/ast"
 	"go/token"
 )
@@ -46,27 +45,30 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 			}
 			target = Default(x.typ)
 		}
-		if err := check.canConvertUntyped(x, target); err != nil {
+		newType, val, code := check.implicitTypeAndValue(x, target)
+		if code != 0 {
 			msg := check.sprintf("cannot use %s as %s value in %s", x, target, context)
-			code := _IncompatibleAssign
-			var ierr Error
-			if errors.As(err, &ierr) {
-				// Preserve these inner errors, as they are informative.
-				switch ierr.go116code {
-				case _TruncatedFloat:
-					msg += " (truncated)"
-					code = ierr.go116code
-				case _NumericOverflow:
-					msg += " (overflows)"
-					code = ierr.go116code
-				}
+			switch code {
+			case _TruncatedFloat:
+				msg += " (truncated)"
+			case _NumericOverflow:
+				msg += " (overflows)"
+			default:
+				code = _IncompatibleAssign
 			}
 			check.error(x, code, msg)
 			x.mode = invalid
 			return
 		}
+		if val != nil {
+			x.val = val
+			check.updateExprVal(x.expr, val)
+		}
+		if newType != x.typ {
+			x.typ = newType
+			check.updateExprType(x.expr, newType, false)
+		}
 	}
-	// x.typ is typed
 
 	// A generic (non-instantiated) function value cannot be assigned to a variable.
 	if sig := asSignature(x.typ); sig != nil && len(sig.tparams) > 0 {
