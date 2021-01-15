@@ -131,3 +131,8 @@ func getWorkerComm() (comm workerComm, err error) {
 
 	return workerComm{fuzzIn: fuzzIn, fuzzOut: fuzzOut, mem: mem}, nil
 }
+
+func isInterruptError(err error) bool {
+	// TODO(jayconrod): implement
+	return false
+}

@@ -73,3 +73,14 @@ func getWorkerComm() (comm workerComm, err error) {
 	}
 	return workerComm{fuzzIn: fuzzIn, fuzzOut: fuzzOut, mem: mem}, nil
 }
+
+// isInterruptError returns whether an error was returned by a process that
+// was terminated by an interrupt signal (SIGINT).
+func isInterruptError(err error) bool {
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok || exitErr.ExitCode() >= 0 {
+		return false
+	}
+	status := exitErr.Sys().(syscall.WaitStatus)
+	return status.Signal() == syscall.SIGINT
+}

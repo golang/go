@@ -80,19 +80,32 @@ func (w *worker) runFuzzing() error {
 		select {
 		case <-w.coordinator.doneC:
 			// All workers were told to stop.
-			return w.stop()
+			err := w.stop()
+			if isInterruptError(err) {
+				// Worker interrupted by SIGINT. This can happen if the worker receives
+				// SIGINT before installing the signal handler. That's likely if
+				// TestMain or the fuzz target setup takes a long time.
+				return nil
+			}
+			return err
 
 		case <-w.termC:
-			// Worker process terminated unexpectedly, so inform the coordinator
-			// that a crash occurred.
+			// Worker process terminated unexpectedly.
+			if isInterruptError(w.waitErr) {
+				// Worker interrupted by SIGINT. See comment in doneC case.
+				w.stop()
+				return nil
+			}
+
+			// Unexpected termination. Inform the coordinator about the crash.
+			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
 			value := w.mem.valueCopy()
+			message := fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
 			crasher := crasherEntry{
 				corpusEntry: corpusEntry{b: value},
-				errMsg:      "fuzzing process crashed unexpectedly",
+				errMsg:      message,
 			}
 			w.coordinator.crasherC <- crasher
-
-			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
 			err := w.stop()
 			if err == nil {
 				err = fmt.Errorf("worker exited unexpectedly")
