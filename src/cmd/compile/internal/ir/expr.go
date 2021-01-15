@@ -615,11 +615,9 @@ type TypeAssertExpr struct {
 	X     Node
 	Ntype Ntype
 
-	// Runtime type information provided by walkDotType.
-	// Caution: These aren't always populated; see walkDotType.
-	SrcType *AddrExpr `mknode:"-"` // *runtime._type for X's type
-	DstType *AddrExpr `mknode:"-"` // *runtime._type for Type
-	Itab    *AddrExpr `mknode:"-"` // *runtime.itab for Type implementing X's type
+	// Runtime type information provided by walkDotType for
+	// assertions from non-empty interface to concrete type.
+	Itab *AddrExpr `mknode:"-"` // *runtime.itab for Type implementing X's type
 }
 
 func NewTypeAssertExpr(pos src.XPos, x Node, typ Ntype) *TypeAssertExpr {
