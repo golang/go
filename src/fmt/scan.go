@@ -738,9 +738,9 @@ func (s *ss) floatToken() string {
 }
 
 // complexTokens returns the real and imaginary parts of the complex number
-// starting here.  The number must either be parenthesized and has the format
+// starting here.  The number may or may not parenthesized with the format:
 // (N+Ni) where N is a floating-point number and there are no spaces within,
-// or has the format of N or Ni.  For example "(1+2i)", "3", or "4i".
+// (N) or (Ni) where N is a single number.
 func (s *ss) complexTokens() (real, imag string) {
 	have_imag := false
 	have_real := false
