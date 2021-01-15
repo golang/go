@@ -286,18 +286,17 @@ func (n *Name) SetLibfuzzerExtraCounter(b bool) { n.flags.set(nameLibfuzzerExtra
 
 // OnStack reports whether variable n may reside on the stack.
 func (n *Name) OnStack() bool {
-	if n.Op() != ONAME || n.Class == PFUNC {
-		base.Fatalf("%v is not a variable", n)
+	if n.Op() == ONAME {
+		switch n.Class {
+		case PPARAM, PPARAMOUT, PAUTO:
+			return n.Esc() != EscHeap
+		case PEXTERN, PAUTOHEAP:
+			return false
+		}
 	}
-	switch n.Class {
-	case PPARAM, PPARAMOUT, PAUTO:
-		return n.Esc() != EscHeap
-	case PEXTERN, PAUTOHEAP:
-		return false
-	default:
-		base.FatalfAt(n.Pos(), "%v has unknown class %v", n, n.Class)
-		panic("unreachable")
-	}
+	// Note: fmt.go:dumpNodeHeader calls all "func() bool"-typed
+	// methods, but it can only recover from panics, not Fatalf.
+	panic(fmt.Sprintf("%v: not a variable: %v", base.FmtPos(n.Pos()), n))
 }
 
 // MarkReadonly indicates that n is an ONAME with readonly contents.
