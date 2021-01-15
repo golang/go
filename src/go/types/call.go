@@ -116,9 +116,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKi
 			// If the first argument is a type, assume we have explicit type arguments.
 
 			// check number of type arguments
-			// TODO(rFindley)
-			// if !check.conf.InferFromConstraints && n != len(sig.tparams) || n > len(sig.tparams) {
-			if n != len(sig.tparams) || n > len(sig.tparams) {
+			if n > len(sig.tparams) {
 				check.errorf(args[n-1], 0, "got %d type arguments but want %d", n, len(sig.tparams))
 				x.mode = invalid
 				x.expr = orig
@@ -127,7 +125,8 @@ func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKi
 
 			// collect types
 			targs := make([]Type, n)
-			// TODO(rFindley) positioner?
+			// TODO(rFindley) use a positioner here? instantiate would need to be
+			//                updated accordingly.
 			poslist := make([]token.Pos, n)
 			for i, a := range args {
 				if a.mode != typexpr {
@@ -192,7 +191,11 @@ func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKi
 			return expression
 		}
 
-		// If we reach here, orig must have been a regular call, not an index expression.
+		// If we reach here, orig must have been a regular call, not an index
+		// expression.
+		// TODO(rFindley) with a manually constructed AST it is possible to reach
+		//                this assertion. We should return an invalidAST error here
+		//                rather than panicking.
 		assert(!call.Brackets)
 
 		sig = check.arguments(call, sig, args)
@@ -411,15 +414,10 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 		if failed >= 0 {
 			// Some type arguments couldn't be inferred. Use
 			// bounds type inference to try to make progress.
-			// TODO(rFindley)
-			/*
-				if check.conf.InferFromConstraints {
-					targs, failed = check.inferB(sig.tparams, targs)
-					if targs == nil {
-						return // error already reported
-					}
-				}
-			*/
+			targs, failed = check.inferB(sig.tparams, targs)
+			if targs == nil {
+				return // error already reported
+			}
 			if failed >= 0 {
 				// at least one type argument couldn't be inferred
 				assert(targs[failed] == nil)
