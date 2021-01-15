@@ -146,7 +146,7 @@ func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed [][]
 		<-interruptC
 		cancel()
 	}()
-	defer close(interruptC)
+	defer func() { interruptC <- os.Interrupt }()
 
 	err := fuzz.CoordinateFuzzing(ctx, parallel, seed, corpusDir, cacheDir)
 	if err == ctx.Err() {
@@ -169,7 +169,7 @@ func (TestDeps) RunFuzzWorker(fn func([]byte) error) error {
 		<-interruptC
 		cancel()
 	}()
-	defer close(interruptC)
+	defer func() { interruptC <- os.Interrupt }()
 
 	err := fuzz.RunFuzzWorker(ctx, fn)
 	if err == ctx.Err() {

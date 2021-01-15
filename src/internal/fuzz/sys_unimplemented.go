@@ -29,3 +29,7 @@ func setWorkerComm(cmd *exec.Cmd, comm workerComm) {
 func getWorkerComm() (comm workerComm, err error) {
 	panic("not implemented")
 }
+
+func isInterruptError(err error) bool {
+	panic("not implemented")
+}
