@@ -325,21 +325,30 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 				return m, f
 			}
 
-			if !check.identical(f.Type(), m.Type()) {
+			ftyp := f.typ.(*Signature)
+			mtyp := m.typ.(*Signature)
+			if len(ftyp.tparams) != len(mtyp.tparams) {
 				return m, f
 			}
 
-			// TODO(rFindley) delete this note once the spec has stabilized to
-			//                exclude method type parameters.
-			// NOTE: if enabling method type parameters, we need to unify f.Type()
-			// and m.Type() here to verify that their type parameters align (assuming
-			// this behaves correctly with respect to type bounds).
+			// If the methods have type parameters we don't care whether they
+			// are the same or not, as long as they match up. Use unification
+			// to see if they can be made to match.
+			// TODO(gri) is this always correct? what about type bounds?
+			// (Alternative is to rename/subst type parameters and compare.)
+			u := newUnifier(check, true)
+			u.x.init(ftyp.tparams)
+			if !u.unify(ftyp, mtyp) {
+				return m, f
+			}
 		}
 
 		return
 	}
 
 	// A concrete type implements T if it implements all methods of T.
+	Vd, _ := deref(V)
+	Vn := asNamed(Vd)
 	for _, m := range T.allMethods {
 		// TODO(gri) should this be calling lookupFieldOrMethod instead (and why not)?
 		obj, _, _ := check.rawLookupFieldOrMethod(V, false, m.pkg, m.name)
@@ -368,16 +377,43 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			check.objDecl(f, nil)
 		}
 
-		if !check.identical(f.Type(), m.Type()) {
+		// both methods must have the same number of type parameters
+		ftyp := f.typ.(*Signature)
+		mtyp := m.typ.(*Signature)
+		if len(ftyp.tparams) != len(mtyp.tparams) {
 			return m, f
 		}
 
-		// TODO(rFindley) delete this note once the spec has stabilized to exclude
-		//                method type parameters.
-		// NOTE: if enabling method type parameters, one needs to subst any
-		// receiver type parameters for V here, and unify f.Type() with m.Type() to
-		// verify that their type parameters align (assuming this behaves correctly
-		// with respect to type bounds).
+		// If V is a (instantiated) generic type, its methods are still
+		// parameterized using the original (declaration) receiver type
+		// parameters (subst simply copies the existing method list, it
+		// does not instantiate the methods).
+		// In order to compare the signatures, substitute the receiver
+		// type parameters of ftyp with V's instantiation type arguments.
+		// This lazily instantiates the signature of method f.
+		if Vn != nil && len(Vn.tparams) > 0 {
+			// Be careful: The number of type arguments may not match
+			// the number of receiver parameters. If so, an error was
+			// reported earlier but the length discrepancy is still
+			// here. Exit early in this case to prevent an assertion
+			// failure in makeSubstMap.
+			// TODO(gri) Can we avoid this check by fixing the lengths?
+			if len(ftyp.rparams) != len(Vn.targs) {
+				return
+			}
+			ftyp = check.subst(token.NoPos, ftyp, makeSubstMap(ftyp.rparams, Vn.targs)).(*Signature)
+		}
+
+		// If the methods have type parameters we don't care whether they
+		// are the same or not, as long as they match up. Use unification
+		// to see if they can be made to match.
+		// TODO(gri) is this always correct? what about type bounds?
+		// (Alternative is to rename/subst type parameters and compare.)
+		u := newUnifier(check, true)
+		u.x.init(ftyp.tparams)
+		if !u.unify(ftyp, mtyp) {
+			return m, f
+		}
 	}
 
 	return
