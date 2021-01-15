@@ -73,12 +73,8 @@ func isUntyped(typ Type) bool {
 	return !isTyped(typ)
 }
 
-func isOrdered(typ Type) bool { return is(typ, IsOrdered) }
-
-func isConstType(typ Type) bool {
-	t := typ.Basic()
-	return t != nil && t.info&IsConstType != 0
-}
+func isOrdered(typ Type) bool   { return is(typ, IsOrdered) }
+func isConstType(typ Type) bool { return is(typ, IsConstType) }
 
 // IsInterface reports whether typ is an interface type.
 func IsInterface(typ Type) bool {

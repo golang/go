@@ -47,12 +47,12 @@ var (
 	testFiles   = flag.String("files", "", "space-separated list of test files")
 )
 
-func parseFiles(t *testing.T, filenames []string) ([]*syntax.File, []error) {
+func parseFiles(t *testing.T, filenames []string, mode syntax.Mode) ([]*syntax.File, []error) {
 	var files []*syntax.File
 	var errlist []error
 	errh := func(err error) { errlist = append(errlist, err) }
 	for _, filename := range filenames {
-		file, err := syntax.ParseFile(filename, errh, nil, syntax.AllowGenerics)
+		file, err := syntax.ParseFile(filename, errh, nil, mode)
 		if file == nil {
 			t.Fatalf("%s: %s", filename, err)
 		}
@@ -84,8 +84,16 @@ func delta(x, y uint) uint {
 }
 
 func checkFiles(t *testing.T, sources []string, colDelta uint, trace bool) {
+	if len(sources) == 0 {
+		t.Fatal("no source files")
+	}
+
+	var mode syntax.Mode
+	if strings.HasSuffix(sources[0], ".go2") {
+		mode |= syntax.AllowGenerics
+	}
 	// parse files and collect parser errors
-	files, errlist := parseFiles(t, sources)
+	files, errlist := parseFiles(t, sources, mode)
 
 	pkgName := "<no package>"
 	if len(files) > 0 {

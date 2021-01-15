@@ -145,10 +145,6 @@ func indexes() {
 	ms = "foo" /* ERROR "cannot use .* in assignment" */ [1:2]
 	ms = "foo" /* ERROR "cannot use .* in assignment" */ [i:j]
 	_, _ = ss, ms
-
-	// With type parameters, index expressions may have multiple indices.
-	_ = a[i, j /* ERROR "more than one index" */ ]
-	_ = a[i, j /* ERROR "more than one index" */ , j]
 }
 
 type T struct {
