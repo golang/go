@@ -67,8 +67,6 @@ func (c *semtok) DetailedHelp(f *flag.FlagSet) {
 Example: show the semantic tokens for this file:
 
   $ gopls semtok internal/lsp/cmd/semtok.go
-
-	gopls semtok flags are:
 `)
 	f.PrintDefaults()
 }

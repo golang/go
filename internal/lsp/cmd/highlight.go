@@ -30,8 +30,6 @@ Example:
   $ # 1-indexed location (:line:column or :#offset) of the target identifier
   $ gopls highlight helper/helper.go:8:6
   $ gopls highlight helper/helper.go:#53
-
-  gopls highlight flags are:
 `)
 	f.PrintDefaults()
 }

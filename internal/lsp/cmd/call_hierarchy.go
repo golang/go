@@ -30,8 +30,6 @@ Example:
   $ # 1-indexed location (:line:column or :#offset) of the target identifier
   $ gopls call_hierarchy helper/helper.go:8:6
   $ gopls call_hierarchy helper/helper.go:#53
-
-  gopls call_hierarchy flags are:
 `)
 	f.PrintDefaults()
 }

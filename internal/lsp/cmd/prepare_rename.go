@@ -30,8 +30,6 @@ Example:
 	$ # 1-indexed location (:line:column or :#offset) of the target identifier
 	$ gopls prepare_rename helper/helper.go:8:6
 	$ gopls prepare_rename helper/helper.go:#53
-
-	gopls prepare_rename flags are:
 `)
 	f.PrintDefaults()
 }

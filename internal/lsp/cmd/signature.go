@@ -29,8 +29,6 @@ Example:
   $ # 1-indexed location (:line:column or :#offset) of the target identifier
   $ gopls signature helper/helper.go:8:6
   $ gopls signature helper/helper.go:#53
-
-  gopls signature flags are:
 `)
 	f.PrintDefaults()
 }
