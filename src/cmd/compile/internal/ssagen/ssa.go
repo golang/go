@@ -490,8 +490,15 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 			ptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(typ), offset, clo)
 			offset += typ.Size()
 
-			if n.Byval() && TypeOK(n.Type()) {
-				// If it is a small variable captured by value, downgrade it to PAUTO.
+			// If n is a small variable captured by value, promote
+			// it to PAUTO so it can be converted to SSA.
+			//
+			// Note: While we never capture a variable by value if
+			// the user took its address, we may have generated
+			// runtime calls that did (#43701). Since we don't
+			// convert Addrtaken variables to SSA anyway, no point
+			// in promoting them either.
+			if n.Byval() && !n.Addrtaken() && TypeOK(n.Type()) {
 				n.Class = ir.PAUTO
 				fn.Dcl = append(fn.Dcl, n)
 				s.assign(n, s.load(n.Type(), ptr), false, 0)
