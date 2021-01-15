@@ -358,7 +358,7 @@ func calcHasCall(n ir.Node) bool {
 	case ir.OBITNOT, ir.ONOT, ir.OPLUS, ir.ORECV,
 		ir.OALIGNOF, ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.ONEW,
 		ir.OOFFSETOF, ir.OPANIC, ir.OREAL, ir.OSIZEOF,
-		ir.OCHECKNIL, ir.OCFUNC, ir.OIDATA, ir.OITAB, ir.ONEWOBJ, ir.OSPTR, ir.OVARDEF, ir.OVARKILL, ir.OVARLIVE:
+		ir.OCHECKNIL, ir.OCFUNC, ir.OIDATA, ir.OITAB, ir.OSPTR, ir.OVARDEF, ir.OVARKILL, ir.OVARLIVE:
 		n := n.(*ir.UnaryExpr)
 		return n.X.HasCall()
 	case ir.ODOT, ir.ODOTMETH, ir.ODOTINTER:

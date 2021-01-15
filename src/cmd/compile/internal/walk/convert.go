@@ -248,7 +248,11 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		if n.Esc() == ir.EscNone && len(sc) <= int(ir.MaxImplicitStackVarSize) {
 			a = typecheck.NodAddr(typecheck.Temp(t))
 		} else {
-			a = callnew(t)
+			types.CalcSize(t)
+			a = ir.NewUnaryExpr(base.Pos, ir.ONEW, nil)
+			a.SetType(types.NewPtr(t))
+			a.SetTypecheck(1)
+			a.MarkNonNil()
 		}
 		p := typecheck.Temp(t.PtrTo()) // *[n]byte
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, p, a)))

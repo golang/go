@@ -3034,7 +3034,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		}
 		return s.zeroVal(n.Type())
 
-	case ir.ONEWOBJ:
+	case ir.ONEW:
 		n := n.(*ir.UnaryExpr)
 		return s.newObject(n.Type().Elem())
 

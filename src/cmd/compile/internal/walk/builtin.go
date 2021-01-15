@@ -501,18 +501,21 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 
 // walkNew walks an ONEW node.
 func walkNew(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
-	if n.Type().Elem().NotInHeap() {
+	t := n.Type().Elem()
+	if t.NotInHeap() {
 		base.Errorf("%v can't be allocated in Go; it is incomplete (or unallocatable)", n.Type().Elem())
 	}
 	if n.Esc() == ir.EscNone {
-		if n.Type().Elem().Width >= ir.MaxImplicitStackVarSize {
+		if t.Size() >= ir.MaxImplicitStackVarSize {
 			base.Fatalf("large ONEW with EscNone: %v", n)
 		}
-		r := typecheck.Temp(n.Type().Elem())
+		r := typecheck.Temp(t)
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, r, nil))) // zero temp
 		return typecheck.Expr(typecheck.NodAddr(r))
 	}
-	return callnew(n.Type().Elem())
+	types.CalcSize(t)
+	n.MarkNonNil()
+	return n
 }
 
 // generate code for print
@@ -676,15 +679,6 @@ func badtype(op ir.Op, tl, tr *types.Type) {
 	}
 
 	base.Errorf("illegal types for operand: %v%s", op, s)
-}
-
-func callnew(t *types.Type) ir.Node {
-	types.CalcSize(t)
-	n := ir.NewUnaryExpr(base.Pos, ir.ONEWOBJ, reflectdata.TypePtr(t))
-	n.SetType(types.NewPtr(t))
-	n.SetTypecheck(1)
-	n.MarkNonNil()
-	return n
 }
 
 func writebarrierfn(name string, l *types.Type, r *types.Type) ir.Node {
