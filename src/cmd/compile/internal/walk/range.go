@@ -71,7 +71,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 	}
 
 	if v1 == nil && v2 != nil {
-		base.Fatalf("walkrange: v2 != nil while v1 == nil")
+		base.Fatalf("walkRange: v2 != nil while v1 == nil")
 	}
 
 	var ifGuard *ir.IfStmt
@@ -80,7 +80,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 	var init []ir.Node
 	switch t.Kind() {
 	default:
-		base.Fatalf("walkrange")
+		base.Fatalf("walkRange")
 
 	case types.TARRAY, types.TSLICE:
 		if nn := arrayClear(nrange, v1, v2, a); nn != nil {
@@ -168,7 +168,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 
 		hit := nrange.Prealloc
 		th := hit.Type()
-		keysym := th.Field(0).Sym  // depends on layout of iterator struct.  See reflect.go:hiter
+		keysym := th.Field(0).Sym  // depends on layout of iterator struct.  See reflect.go:MapIterType
 		elemsym := th.Field(1).Sym // ditto
 
 		fn := typecheck.LookupRuntime("mapiterinit")
@@ -388,7 +388,7 @@ func mapClear(m ir.Node) ir.Node {
 //
 // in which the evaluation of a is side-effect-free.
 //
-// Parameters are as in walkrange: "for v1, v2 = range a".
+// Parameters are as in walkRange: "for v1, v2 = range a".
 func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 	if base.Flag.N != 0 || base.Flag.Cfg.Instrumenting {
 		return nil

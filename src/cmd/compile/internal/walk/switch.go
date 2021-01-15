@@ -49,8 +49,8 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 	// Given "switch string(byteslice)",
 	// with all cases being side-effect free,
 	// use a zero-cost alias of the byte slice.
-	// Do this before calling walkexpr on cond,
-	// because walkexpr will lower the string
+	// Do this before calling walkExpr on cond,
+	// because walkExpr will lower the string
 	// conversion into a runtime call.
 	// See issue 24937 for more discussion.
 	if cond.Op() == ir.OBYTES2STR && allCaseExprsAreSideEffectFree(sw) {

@@ -25,7 +25,7 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
 	}
 
 	t := RangeExprType(n.X.Type())
-	// delicate little dance.  see typecheckas2
+	// delicate little dance.  see tcAssignList
 	if n.Key != nil && !ir.DeclaredBy(n.Key, n) {
 		n.Key = AssignExpr(n.Key)
 	}
@@ -90,7 +90,7 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
 // fill in the var's type.
 func tcAssign(n *ir.AssignStmt) {
 	if base.EnableTrace && base.Flag.LowerT {
-		defer tracePrint("typecheckas", n)(nil)
+		defer tracePrint("tcAssign", n)(nil)
 	}
 
 	if n.Y == nil {
@@ -110,7 +110,7 @@ func tcAssign(n *ir.AssignStmt) {
 
 func tcAssignList(n *ir.AssignListStmt) {
 	if base.EnableTrace && base.Flag.LowerT {
-		defer tracePrint("typecheckas2", n)(nil)
+		defer tracePrint("tcAssignList", n)(nil)
 	}
 
 	assign(n, n.Lhs, n.Rhs)
@@ -119,7 +119,7 @@ func tcAssignList(n *ir.AssignListStmt) {
 func assign(stmt ir.Node, lhs, rhs []ir.Node) {
 	// delicate little dance.
 	// the definition of lhs may refer to this assignment
-	// as its definition, in which case it will call typecheckas.
+	// as its definition, in which case it will call tcAssign.
 	// in that case, do not call typecheck back, or it will cycle.
 	// if the variable has a type (ntype) then typechecking
 	// will not look at defn, so it is okay (and desirable,

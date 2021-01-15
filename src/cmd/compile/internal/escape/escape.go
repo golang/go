@@ -856,7 +856,7 @@ func (e *escape) discards(l ir.Nodes) {
 	}
 }
 
-// addr evaluates an addressable expression n and returns an EscHole
+// addr evaluates an addressable expression n and returns a hole
 // that represents storing into the represented location.
 func (e *escape) addr(n ir.Node) hole {
 	if n == nil || ir.IsBlank(n) {
@@ -1785,7 +1785,7 @@ func (l leaks) Encode() string {
 	return s
 }
 
-// parseLeaks parses a binary string representing an EscLeaks.
+// parseLeaks parses a binary string representing a leaks
 func parseLeaks(s string) leaks {
 	var l leaks
 	if !strings.HasPrefix(s, "esc:") {

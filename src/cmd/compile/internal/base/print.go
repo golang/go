@@ -121,7 +121,7 @@ func ErrorfAt(pos src.XPos, format string, args ...interface{}) {
 		lasterror.syntax = pos
 	} else {
 		// only one of multiple equal non-syntax errors per line
-		// (flusherrors shows only one of them, so we filter them
+		// (FlushErrors shows only one of them, so we filter them
 		// here as best as we can (they may not appear in order)
 		// so that we don't count them here and exit early, and
 		// then have nothing to show for.)

@@ -174,7 +174,7 @@ func ParseFlags() {
 	if (*Flag.Shared || *Flag.Dynlink || *Flag.LinkShared) && !Ctxt.Arch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.I386, sys.PPC64, sys.RISCV64, sys.S390X) {
 		log.Fatalf("%s/%s does not support -shared", objabi.GOOS, objabi.GOARCH)
 	}
-	parseSpectre(Flag.Spectre) // left as string for recordFlags
+	parseSpectre(Flag.Spectre) // left as string for RecordFlags
 
 	Ctxt.Flag_shared = Ctxt.Flag_dynlink || Ctxt.Flag_shared
 	Ctxt.Flag_optimize = Flag.N == 0

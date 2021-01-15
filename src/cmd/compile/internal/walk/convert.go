@@ -442,8 +442,8 @@ func walkCheckPtrAlignment(n *ir.ConvExpr, init *ir.Nodes, count ir.Node) ir.Nod
 }
 
 func walkCheckPtrArithmetic(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
-	// Calling cheapexpr(n, init) below leads to a recursive call to
-	// walkexpr, which leads us back here again. Use n.Checkptr to
+	// Calling cheapExpr(n, init) below leads to a recursive call to
+	// walkExpr, which leads us back here again. Use n.Checkptr to
 	// prevent infinite loops.
 	if n.CheckPtr() {
 		return n

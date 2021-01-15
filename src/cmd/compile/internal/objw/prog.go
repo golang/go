@@ -205,7 +205,7 @@ func (pp *Progs) Append(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, 
 
 func (pp *Progs) SetText(fn *ir.Func) {
 	if pp.Text != nil {
-		base.Fatalf("Progs.settext called twice")
+		base.Fatalf("Progs.SetText called twice")
 	}
 	ptxt := pp.Prog(obj.ATEXT)
 	pp.Text = ptxt

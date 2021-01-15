@@ -849,7 +849,7 @@ func (o *orderState) stmt(n ir.Node) {
 			n.X = o.copyExpr(r)
 
 			// n.Prealloc is the temp for the iterator.
-			// hiter contains pointers and needs to be zeroed.
+			// MapIterType contains pointers and needs to be zeroed.
 			n.Prealloc = o.newTemp(reflectdata.MapIterType(xt), true)
 		}
 		n.Key = o.exprInPlace(n.Key)
@@ -962,7 +962,7 @@ func (o *orderState) stmt(n ir.Node) {
 			cas.Body.Prepend(o.cleanTempNoPop(t)...)
 
 			// TODO(mdempsky): Is this actually necessary?
-			// walkselect appears to walk Ninit.
+			// walkSelect appears to walk Ninit.
 			cas.Body.Prepend(ir.TakeInit(cas)...)
 		}
 
@@ -986,7 +986,7 @@ func (o *orderState) stmt(n ir.Node) {
 		o.cleanTemp(t)
 
 	// TODO(rsc): Clean temporaries more aggressively.
-	// Note that because walkswitch will rewrite some of the
+	// Note that because walkSwitch will rewrite some of the
 	// switch into a binary search, this is not as easy as it looks.
 	// (If we ran that code here we could invoke order.stmt on
 	// the if-else chain instead.)

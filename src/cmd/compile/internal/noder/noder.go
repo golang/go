@@ -86,7 +86,7 @@ func ParseFiles(filenames []string) uint {
 		if base.SyntaxErrors() != 0 {
 			base.ErrorExit()
 		}
-		// Always run testdclstack here, even when debug_dclstack is not set, as a sanity measure.
+		// Always run CheckDclstack here, even when debug_dclstack is not set, as a sanity measure.
 		types.CheckDclstack()
 	}
 
@@ -638,7 +638,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 		}
 	} else {
 		f.Shortname = name
-		name = ir.BlankNode.Sym() // filled in by typecheckfunc
+		name = ir.BlankNode.Sym() // filled in by tcFunc
 	}
 
 	f.Nname = ir.NewNameAt(p.pos(fun.Name), name)
@@ -1084,7 +1084,7 @@ func (p *noder) stmtsFall(stmts []syntax.Stmt, fallOK bool) []ir.Node {
 		if s == nil {
 		} else if s.Op() == ir.OBLOCK && len(s.(*ir.BlockStmt).List) > 0 {
 			// Inline non-empty block.
-			// Empty blocks must be preserved for checkreturn.
+			// Empty blocks must be preserved for CheckReturn.
 			nodes = append(nodes, s.(*ir.BlockStmt).List...)
 		} else {
 			nodes = append(nodes, s)
@@ -1860,7 +1860,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
 	fn := ir.NewFunc(p.pos(expr))
 	fn.SetIsHiddenClosure(ir.CurFunc != nil)
 
-	fn.Nname = ir.NewNameAt(p.pos(expr), ir.BlankNode.Sym()) // filled in by typecheckclosure
+	fn.Nname = ir.NewNameAt(p.pos(expr), ir.BlankNode.Sym()) // filled in by tcClosure
 	fn.Nname.Func = fn
 	fn.Nname.Ntype = xtype
 	fn.Nname.Defn = fn

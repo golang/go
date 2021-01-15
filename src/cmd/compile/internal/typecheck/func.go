@@ -100,7 +100,7 @@ func PartialCallType(n *ir.SelectorExpr) *types.Type {
 	return t
 }
 
-// Lazy typechecking of imported bodies. For local functions, caninl will set ->typecheck
+// Lazy typechecking of imported bodies. For local functions, CanInline will set ->typecheck
 // because they're a copy of an already checked body.
 func ImportedBody(fn *ir.Func) {
 	lno := ir.SetPos(fn.Nname)
@@ -122,14 +122,14 @@ func ImportedBody(fn *ir.Func) {
 
 	ImportBody(fn)
 
-	// typecheckinl is only for imported functions;
+	// Stmts(fn.Inl.Body) below is only for imported functions;
 	// their bodies may refer to unsafe as long as the package
 	// was marked safe during import (which was checked then).
-	// the ->inl of a local function has been typechecked before caninl copied it.
+	// the ->inl of a local function has been typechecked before CanInline copied it.
 	pkg := fnpkg(fn.Nname)
 
 	if pkg == types.LocalPkg || pkg == nil {
-		return // typecheckinl on local function
+		return // ImportedBody on local function
 	}
 
 	if base.Flag.LowerM > 2 || base.Debug.Export != 0 {
@@ -141,10 +141,10 @@ func ImportedBody(fn *ir.Func) {
 	Stmts(fn.Inl.Body)
 	ir.CurFunc = savefn
 
-	// During expandInline (which imports fn.Func.Inl.Body),
-	// declarations are added to fn.Func.Dcl by funcHdr(). Move them
+	// During ImportBody (which imports fn.Func.Inl.Body),
+	// declarations are added to fn.Func.Dcl by funcBody(). Move them
 	// to fn.Func.Inl.Dcl for consistency with how local functions
-	// behave. (Append because typecheckinl may be called multiple
+	// behave. (Append because ImportedBody may be called multiple
 	// times.)
 	fn.Inl.Dcl = append(fn.Inl.Dcl, fn.Dcl...)
 	fn.Dcl = nil
@@ -296,7 +296,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 	fn.SetClosureCalled(top&ctxCallee != 0)
 
 	// Do not typecheck fn twice, otherwise, we will end up pushing
-	// fn to Target.Decls multiple times, causing initLSym called twice.
+	// fn to Target.Decls multiple times, causing InitLSym called twice.
 	// See #30709
 	if fn.Typecheck() == 1 {
 		clo.SetType(fn.Type())
@@ -343,10 +343,10 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 
 // type check function definition
 // To be called by typecheck, not directly.
-// (Call typecheckFunc instead.)
+// (Call typecheck.Func instead.)
 func tcFunc(n *ir.Func) {
 	if base.EnableTrace && base.Flag.LowerT {
-		defer tracePrint("typecheckfunc", n)(nil)
+		defer tracePrint("tcFunc", n)(nil)
 	}
 
 	n.Nname = AssignExpr(n.Nname).(*ir.Name)

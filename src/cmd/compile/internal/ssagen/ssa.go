@@ -1508,10 +1508,10 @@ func (s *state) stmt(n ir.Node) {
 			// Currently doesn't really work because (*p)[:len(*p)] appears here as:
 			//    tmp = len(*p)
 			//    (*p)[:tmp]
-			//if j != nil && (j.Op == OLEN && samesafeexpr(j.Left, n.Left)) {
+			//if j != nil && (j.Op == OLEN && SameSafeExpr(j.Left, n.Left)) {
 			//      j = nil
 			//}
-			//if k != nil && (k.Op == OCAP && samesafeexpr(k.Left, n.Left)) {
+			//if k != nil && (k.Op == OCAP && SameSafeExpr(k.Left, n.Left)) {
 			//      k = nil
 			//}
 			if i == nil {
@@ -6462,7 +6462,7 @@ func (s *State) DebugFriendlySetPosFrom(v *ssa.Value) {
 			// in the generated code.
 			if p.IsStmt() != src.PosIsStmt {
 				p = p.WithNotStmt()
-				// Calls use the pos attached to v, but copy the statement mark from SSAGenState
+				// Calls use the pos attached to v, but copy the statement mark from State
 			}
 			s.SetPos(p)
 		} else {
@@ -7260,7 +7260,7 @@ func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot
 	if n.Type().IsEmptyInterface() {
 		f = ".type"
 	}
-	c := e.SplitSlot(&name, f, 0, u) // see comment in plive.go:onebitwalktype1.
+	c := e.SplitSlot(&name, f, 0, u) // see comment in typebits.Set
 	d := e.SplitSlot(&name, ".data", u.Size(), t)
 	return c, d
 }

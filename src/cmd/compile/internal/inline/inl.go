@@ -4,7 +4,7 @@
 //
 // The inlining facility makes 2 passes: first caninl determines which
 // functions are suitable for inlining, and for those that are it
-// saves a copy of the body. Then inlcalls walks each function body to
+// saves a copy of the body. Then InlineCalls walks each function body to
 // expand calls to inlinable functions.
 //
 // The Debug.l flag controls the aggressiveness. Note that main() swaps level 0 and 1,
@@ -79,7 +79,7 @@ func InlinePackage() {
 // fn and ->nbody will already have been typechecked.
 func CanInline(fn *ir.Func) {
 	if fn.Nname == nil {
-		base.Fatalf("caninl no nname %+v", fn)
+		base.Fatalf("CanInline no nname %+v", fn)
 	}
 
 	var reason string // reason, if any, that the function was not inlined
@@ -144,7 +144,7 @@ func CanInline(fn *ir.Func) {
 	}
 
 	if fn.Typecheck() == 0 {
-		base.Fatalf("caninl on non-typechecked function %v", fn)
+		base.Fatalf("CanInline on non-typechecked function %v", fn)
 	}
 
 	n := fn.Nname
@@ -200,11 +200,11 @@ func Inline_Flood(n *ir.Name, exportsym func(*ir.Name)) {
 		return
 	}
 	if n.Op() != ir.ONAME || n.Class != ir.PFUNC {
-		base.Fatalf("inlFlood: unexpected %v, %v, %v", n, n.Op(), n.Class)
+		base.Fatalf("Inline_Flood: unexpected %v, %v, %v", n, n.Op(), n.Class)
 	}
 	fn := n.Func
 	if fn == nil {
-		base.Fatalf("inlFlood: missing Func on %v", n)
+		base.Fatalf("Inline_Flood: missing Func on %v", n)
 	}
 	if fn.Inl == nil {
 		return

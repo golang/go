@@ -15,7 +15,7 @@ import (
 // on future calls with the same type t.
 func Set(t *types.Type, off int64, bv bitvec.BitVec) {
 	if t.Align > 0 && off&int64(t.Align-1) != 0 {
-		base.Fatalf("onebitwalktype1: invalid initial alignment: type %v has alignment %d, but offset is %v", t, t.Align, off)
+		base.Fatalf("typebits.Set: invalid initial alignment: type %v has alignment %d, but offset is %v", t, t.Align, off)
 	}
 	if !t.HasPointers() {
 		// Note: this case ensures that pointers to go:notinheap types
@@ -26,14 +26,14 @@ func Set(t *types.Type, off int64, bv bitvec.BitVec) {
 	switch t.Kind() {
 	case types.TPTR, types.TUNSAFEPTR, types.TFUNC, types.TCHAN, types.TMAP:
 		if off&int64(types.PtrSize-1) != 0 {
-			base.Fatalf("onebitwalktype1: invalid alignment, %v", t)
+			base.Fatalf("typebits.Set: invalid alignment, %v", t)
 		}
 		bv.Set(int32(off / int64(types.PtrSize))) // pointer
 
 	case types.TSTRING:
 		// struct { byte *str; intgo len; }
 		if off&int64(types.PtrSize-1) != 0 {
-			base.Fatalf("onebitwalktype1: invalid alignment, %v", t)
+			base.Fatalf("typebits.Set: invalid alignment, %v", t)
 		}
 		bv.Set(int32(off / int64(types.PtrSize))) //pointer in first slot
 
@@ -42,7 +42,7 @@ func Set(t *types.Type, off int64, bv bitvec.BitVec) {
 		// or, when isnilinter(t)==true:
 		// struct { Type *type; void *data; }
 		if off&int64(types.PtrSize-1) != 0 {
-			base.Fatalf("onebitwalktype1: invalid alignment, %v", t)
+			base.Fatalf("typebits.Set: invalid alignment, %v", t)
 		}
 		// The first word of an interface is a pointer, but we don't
 		// treat it as such.
@@ -61,7 +61,7 @@ func Set(t *types.Type, off int64, bv bitvec.BitVec) {
 	case types.TSLICE:
 		// struct { byte *array; uintgo len; uintgo cap; }
 		if off&int64(types.PtrSize-1) != 0 {
-			base.Fatalf("onebitwalktype1: invalid TARRAY alignment, %v", t)
+			base.Fatalf("typebits.Set: invalid TARRAY alignment, %v", t)
 		}
 		bv.Set(int32(off / int64(types.PtrSize))) // pointer in first slot (BitsPointer)
 
@@ -82,6 +82,6 @@ func Set(t *types.Type, off int64, bv bitvec.BitVec) {
 		}
 
 	default:
-		base.Fatalf("onebitwalktype1: unexpected type, %v", t)
+		base.Fatalf("typebits.Set: unexpected type, %v", t)
 	}
 }

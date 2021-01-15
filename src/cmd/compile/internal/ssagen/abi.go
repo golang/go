@@ -154,7 +154,7 @@ func InitLSym(f *ir.Func, hasBody bool) {
 // makes calls to helpers to create ABI wrappers if needed.
 func selectLSym(f *ir.Func, hasBody bool) {
 	if f.LSym != nil {
-		base.FatalfAt(f.Pos(), "Func.initLSym called twice on %v", f)
+		base.FatalfAt(f.Pos(), "InitLSym called twice on %v", f)
 	}
 
 	if nam := f.Nname; !ir.IsBlank(nam) {

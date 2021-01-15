@@ -60,10 +60,10 @@ func Task() *ir.Name {
 		fns = append(fns, fn.Linksym())
 	}
 	if typecheck.InitTodoFunc.Dcl != nil {
-		// We only generate temps using initTodo if there
+		// We only generate temps using InitTodoFunc if there
 		// are package-scope initialization statements, so
 		// something's weird if we get here.
-		base.Fatalf("initTodo still has declarations")
+		base.Fatalf("InitTodoFunc still has declarations")
 	}
 	typecheck.InitTodoFunc = nil
 

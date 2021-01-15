@@ -127,7 +127,7 @@ func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
 	emptyResString := emptyRes.String()
 
 	// Walk the results and make sure the offsets assigned match
-	// up with those assiged by dowidth. This checks to make sure that
+	// up with those assiged by CalcSize. This checks to make sure that
 	// when we have no available registers the ABI assignment degenerates
 	// back to the original ABI0.
 
