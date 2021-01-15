@@ -65,6 +65,16 @@ func ContainsIn(str string, strlist ...string) bool {
 	}
 	return false
 }
+// Similary to ContainsIn, exactly equalto
+func EqualsIn(str string, strlist ...string) bool {
+	for _, info := range strlist {
+		if strings.EqualFold(str, info) {
+			return true
+		}
+	}
+	return false
+}
+
 
 
 // Contains reports whether substr is within s.
