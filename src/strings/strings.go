@@ -56,6 +56,16 @@ func Count(s, substr string) int {
 		s = s[i+len(substr):]
 	}
 }
+// Contains with optianal list of strings  ex. strings.ContainsIn("abcdef", "aa","bb","cc","d") => true
+func ContainsIn(str string, strlist ...string) bool {
+	for _, info := range strlist {
+		if strings.Contains(str, info) {
+			return true
+		}
+	}
+	return false
+}
+
 
 // Contains reports whether substr is within s.
 func Contains(s, substr string) bool {
