@@ -562,7 +562,7 @@ func dextratype(lsym *obj.LSym, ot int, t *types.Type, dataAdd int) int {
 	}
 
 	for _, a := range m {
-		WriteType(a.type_)
+		writeType(a.type_)
 	}
 
 	ot = dgopkgpathOff(lsym, ot, typePkg(t))
@@ -613,7 +613,7 @@ func dextratypeData(lsym *obj.LSym, ot int, t *types.Type) int {
 		nsym := dname(a.name.Name, "", pkg, exported)
 
 		ot = objw.SymPtrOff(lsym, ot, nsym)
-		ot = dmethodptrOff(lsym, ot, WriteType(a.mtype))
+		ot = dmethodptrOff(lsym, ot, writeType(a.mtype))
 		ot = dmethodptrOff(lsym, ot, a.isym)
 		ot = dmethodptrOff(lsym, ot, a.tsym)
 	}
@@ -690,7 +690,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 		if t.Sym() != nil || methods(tptr) != nil {
 			sptrWeak = false
 		}
-		sptr = WriteType(tptr)
+		sptr = writeType(tptr)
 	}
 
 	gcsym, useGCProg, ptrdata := dgcsym(t)
@@ -933,7 +933,7 @@ func formalType(t *types.Type) *types.Type {
 	return t
 }
 
-func WriteType(t *types.Type) *obj.LSym {
+func writeType(t *types.Type) *obj.LSym {
 	t = formalType(t)
 	if t.IsUntyped() {
 		base.Fatalf("dtypesym %v", t)
@@ -983,9 +983,9 @@ func WriteType(t *types.Type) *obj.LSym {
 
 	case types.TARRAY:
 		// ../../../../runtime/type.go:/arrayType
-		s1 := WriteType(t.Elem())
+		s1 := writeType(t.Elem())
 		t2 := types.NewSlice(t.Elem())
-		s2 := WriteType(t2)
+		s2 := writeType(t2)
 		ot = dcommontype(lsym, t)
 		ot = objw.SymPtr(lsym, ot, s1, 0)
 		ot = objw.SymPtr(lsym, ot, s2, 0)
@@ -994,14 +994,14 @@ func WriteType(t *types.Type) *obj.LSym {
 
 	case types.TSLICE:
 		// ../../../../runtime/type.go:/sliceType
-		s1 := WriteType(t.Elem())
+		s1 := writeType(t.Elem())
 		ot = dcommontype(lsym, t)
 		ot = objw.SymPtr(lsym, ot, s1, 0)
 		ot = dextratype(lsym, ot, t, 0)
 
 	case types.TCHAN:
 		// ../../../../runtime/type.go:/chanType
-		s1 := WriteType(t.Elem())
+		s1 := writeType(t.Elem())
 		ot = dcommontype(lsym, t)
 		ot = objw.SymPtr(lsym, ot, s1, 0)
 		ot = objw.Uintptr(lsym, ot, uint64(t.ChanDir()))
@@ -1009,15 +1009,15 @@ func WriteType(t *types.Type) *obj.LSym {
 
 	case types.TFUNC:
 		for _, t1 := range t.Recvs().Fields().Slice() {
-			WriteType(t1.Type)
+			writeType(t1.Type)
 		}
 		isddd := false
 		for _, t1 := range t.Params().Fields().Slice() {
 			isddd = t1.IsDDD()
-			WriteType(t1.Type)
+			writeType(t1.Type)
 		}
 		for _, t1 := range t.Results().Fields().Slice() {
-			WriteType(t1.Type)
+			writeType(t1.Type)
 		}
 
 		ot = dcommontype(lsym, t)
@@ -1037,20 +1037,20 @@ func WriteType(t *types.Type) *obj.LSym {
 
 		// Array of rtype pointers follows funcType.
 		for _, t1 := range t.Recvs().Fields().Slice() {
-			ot = objw.SymPtr(lsym, ot, WriteType(t1.Type), 0)
+			ot = objw.SymPtr(lsym, ot, writeType(t1.Type), 0)
 		}
 		for _, t1 := range t.Params().Fields().Slice() {
-			ot = objw.SymPtr(lsym, ot, WriteType(t1.Type), 0)
+			ot = objw.SymPtr(lsym, ot, writeType(t1.Type), 0)
 		}
 		for _, t1 := range t.Results().Fields().Slice() {
-			ot = objw.SymPtr(lsym, ot, WriteType(t1.Type), 0)
+			ot = objw.SymPtr(lsym, ot, writeType(t1.Type), 0)
 		}
 
 	case types.TINTER:
 		m := imethods(t)
 		n := len(m)
 		for _, a := range m {
-			WriteType(a.type_)
+			writeType(a.type_)
 		}
 
 		// ../../../../runtime/type.go:/interfaceType
@@ -1078,14 +1078,14 @@ func WriteType(t *types.Type) *obj.LSym {
 			nsym := dname(a.name.Name, "", pkg, exported)
 
 			ot = objw.SymPtrOff(lsym, ot, nsym)
-			ot = objw.SymPtrOff(lsym, ot, WriteType(a.type_))
+			ot = objw.SymPtrOff(lsym, ot, writeType(a.type_))
 		}
 
 	// ../../../../runtime/type.go:/mapType
 	case types.TMAP:
-		s1 := WriteType(t.Key())
-		s2 := WriteType(t.Elem())
-		s3 := WriteType(MapBucketType(t))
+		s1 := writeType(t.Key())
+		s2 := writeType(t.Elem())
+		s3 := writeType(MapBucketType(t))
 		hasher := genhash(t.Key())
 
 		ot = dcommontype(lsym, t)
@@ -1132,7 +1132,7 @@ func WriteType(t *types.Type) *obj.LSym {
 		}
 
 		// ../../../../runtime/type.go:/ptrType
-		s1 := WriteType(t.Elem())
+		s1 := writeType(t.Elem())
 
 		ot = dcommontype(lsym, t)
 		ot = objw.SymPtr(lsym, ot, s1, 0)
@@ -1143,7 +1143,7 @@ func WriteType(t *types.Type) *obj.LSym {
 	case types.TSTRUCT:
 		fields := t.Fields().Slice()
 		for _, t1 := range fields {
-			WriteType(t1.Type)
+			writeType(t1.Type)
 		}
 
 		// All non-exported struct field names within a struct
@@ -1171,7 +1171,7 @@ func WriteType(t *types.Type) *obj.LSym {
 		for _, f := range fields {
 			// ../../../../runtime/type.go:/structField
 			ot = dnameField(lsym, ot, spkg, f)
-			ot = objw.SymPtr(lsym, ot, WriteType(f.Type), 0)
+			ot = objw.SymPtr(lsym, ot, writeType(f.Type), 0)
 			offsetAnon := uint64(f.Offset) << 1
 			if offsetAnon>>1 != uint64(f.Offset) {
 				base.Fatalf("%v: bad field offset for %s", t, f.Sym.Name)
@@ -1326,9 +1326,9 @@ func WriteRuntimeTypes() {
 		sort.Sort(typesByString(signats))
 		for _, ts := range signats {
 			t := ts.t
-			WriteType(t)
+			writeType(t)
 			if t.Sym() != nil {
-				WriteType(types.NewPtr(t))
+				writeType(types.NewPtr(t))
 			}
 		}
 	}
@@ -1345,8 +1345,8 @@ func WriteTabs() {
 		//   _      [4]byte
 		//   fun    [1]uintptr // variable sized
 		// }
-		o := objw.SymPtr(i.lsym, 0, WriteType(i.itype), 0)
-		o = objw.SymPtr(i.lsym, o, WriteType(i.t), 0)
+		o := objw.SymPtr(i.lsym, 0, writeType(i.itype), 0)
+		o = objw.SymPtr(i.lsym, o, writeType(i.t), 0)
 		o = objw.Uint32(i.lsym, o, types.TypeHash(i.t)) // copy of type hash
 		o += 4                                          // skip unused field
 		for _, fn := range genfun(i.t, i.itype) {
@@ -1373,7 +1373,7 @@ func WriteTabs() {
 			if p.Class != ir.PFUNC {
 				t = types.NewPtr(t)
 			}
-			tsym := WriteType(t)
+			tsym := writeType(t)
 			ot = objw.SymPtrOff(s, ot, nsym)
 			ot = objw.SymPtrOff(s, ot, tsym)
 			// Plugin exports symbols as interfaces. Mark their types
@@ -1407,16 +1407,16 @@ func WriteBasicTypes() {
 	// but using runtime means fewer copies in object files.
 	if base.Ctxt.Pkgpath == "runtime" {
 		for i := types.Kind(1); i <= types.TBOOL; i++ {
-			WriteType(types.NewPtr(types.Types[i]))
+			writeType(types.NewPtr(types.Types[i]))
 		}
-		WriteType(types.NewPtr(types.Types[types.TSTRING]))
-		WriteType(types.NewPtr(types.Types[types.TUNSAFEPTR]))
+		writeType(types.NewPtr(types.Types[types.TSTRING]))
+		writeType(types.NewPtr(types.Types[types.TUNSAFEPTR]))
 
 		// emit type structs for error and func(error) string.
 		// The latter is the type of an auto-generated wrapper.
-		WriteType(types.NewPtr(types.ErrorType))
+		writeType(types.NewPtr(types.ErrorType))
 
-		WriteType(types.NewSignature(types.NoPkg, nil, []*types.Field{
+		writeType(types.NewSignature(types.NoPkg, nil, []*types.Field{
 			types.NewField(base.Pos, nil, types.ErrorType),
 		}, []*types.Field{
 			types.NewField(base.Pos, nil, types.Types[types.TSTRING]),
