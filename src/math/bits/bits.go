@@ -586,3 +586,75 @@ func Rem64(hi, lo, y uint64) uint64 {
 	_, rem := Div64(hi%y, lo, y)
 	return rem
 }
+
+// ShiftLeft function does bit shifts along a slice.  When shiftBits is positive, the bits
+// shift to the left, and when shiftBits is negative, the bits shift to the right.  As
+// this operates directly on the slice, memory is conserved.  For I/O conservation, each
+// element is read once and written once.
+func ShiftLeft(dst []byte, shiftBits int) {
+	lenDst := len(dst)
+	if shiftBits == 0 || lenDst == 0 {
+		return
+	}
+
+	if shiftBits < 0 {
+		shiftBits = -shiftBits
+		// Right shift a number of bits
+
+		// determine the pad bytes
+		pad := shiftBits / 8
+
+		if shiftBits < lenDst*8 {
+
+			// preset shift registers
+			shift := shiftBits % 8
+			trunc := 8 - shift
+
+			// do the shift
+			cur := byte(0)
+			next := byte(dst[lenDst-1-pad])
+			for i := lenDst - 1; i > pad; i-- {
+				cur = next // encourage compilers to optimize
+				next = dst[i-pad-1]
+				dst[i] = (cur >> shift) | (next << trunc)
+			}
+			dst[pad] = dst[0] >> shift
+		} else {
+			pad = lenDst
+		}
+
+		// pad out the rest
+		for i := 0; i < pad; i++ {
+			dst[i] = 0
+		}
+	} else {
+		// Left shift a number of bits
+
+		// determine the pad bytes
+		pad := shiftBits / 8
+
+		if shiftBits < lenDst*8 {
+
+			// preset shift registers
+			shift := shiftBits % 8
+			trunc := 8 - shift
+
+			// do the shift
+			cur := byte(0)
+			next := byte(dst[pad])
+			for i := 0; i < lenDst-pad-1; i++ {
+				cur = next // encourage compilers to optimize
+				next = dst[i+pad+1]
+				dst[i] = (cur << shift) | (next >> trunc)
+			}
+			dst[lenDst-pad-1] = dst[lenDst-1] << shift
+		} else {
+			pad = lenDst
+		}
+
+		// pad out the rest
+		for i := lenDst - pad; i < lenDst; i++ {
+			dst[i] = 0
+		}
+	}
+}
