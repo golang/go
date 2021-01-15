@@ -242,20 +242,15 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 
 	// x is an untyped value representable by a value of type T.
 	if isUntyped(Vu) {
-		// TODO(rFindley) synchronize this block of code with types2
-		switch t := Tu.(type) {
-		case *Basic:
-			if x.mode == constant_ {
-				return representableConst(x.val, check, t, nil), _IncompatibleAssign
-			}
-		case *Sum:
+		if t, ok := Tu.(*Sum); ok {
 			return t.is(func(t Type) bool {
 				// TODO(gri) this could probably be more efficient
 				ok, _ := x.assignableTo(check, t, reason)
 				return ok
 			}), _IncompatibleAssign
 		}
-		return check.implicitType(x, Tu) != nil, _IncompatibleAssign
+		newType, _, _ := check.implicitTypeAndValue(x, Tu)
+		return newType != nil, _IncompatibleAssign
 	}
 	// Vu is typed
 
