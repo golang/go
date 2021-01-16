@@ -585,7 +585,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 	default:
 		base.Fatalf("unexpected expr: %v", n)
 
-	case ir.OLITERAL, ir.ONIL, ir.OGETG, ir.OTYPE, ir.OMETHEXPR:
+	case ir.OLITERAL, ir.ONIL, ir.OGETG, ir.OTYPE, ir.OMETHEXPR, ir.ONAMEOFFSET:
 		// nop
 
 	case ir.ONAME:
@@ -597,10 +597,6 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 			return // ".this" from method value wrapper
 		}
 		e.flow(k, e.oldLoc(n))
-
-	case ir.ONAMEOFFSET:
-		n := n.(*ir.NameOffsetExpr)
-		e.expr(k, n.Name_)
 
 	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT:
 		n := n.(*ir.UnaryExpr)
@@ -876,8 +872,7 @@ func (e *escape) addr(n ir.Node) hole {
 		}
 		k = e.oldLoc(n).asHole()
 	case ir.ONAMEOFFSET:
-		n := n.(*ir.NameOffsetExpr)
-		k = e.addr(n.Name_)
+		break
 	case ir.ODOT:
 		n := n.(*ir.SelectorExpr)
 		k = e.addr(n.X)
