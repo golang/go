@@ -84,7 +84,8 @@ func (priv PrivateKey) Seed() []byte {
 // Ed25519 performs two passes over messages to be signed and therefore cannot
 // handle pre-hashed messages. Thus opts.HashFunc() must return zero to
 // indicate the message hasn't been hashed. This can be achieved by passing
-// crypto.Hash(0) as the value for opts.
+// crypto.Hash(0) as the value for opts. The rand parameter is ignored and can
+// be nil.
 func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
 	if opts.HashFunc() != crypto.Hash(0) {
 		return nil, errors.New("ed25519: cannot sign hashed message")
