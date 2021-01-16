@@ -20,7 +20,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	switch x.mode {
 	case invalid:
 		return // error reported before
-	case constant_, variable, mapindex, value, commaok, commaerr:
+	case constant_, variable, mapindex, value, nilvalue, commaok, commaerr:
 		// ok
 	default:
 		// we may get here because of other problems (issue #39634, crash 12)
@@ -35,12 +35,13 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		// bool, rune, int, float64, complex128 or string respectively, depending
 		// on whether the value is a boolean, rune, integer, floating-point, complex,
 		// or string constant."
-		if T == nil || IsInterface(T) {
-			if T == nil && x.typ == Typ[UntypedNil] {
+		if x.isNil() {
+			if T == nil {
 				check.errorf(x, "use of untyped nil in %s", context)
 				x.mode = invalid
 				return
 			}
+		} else if T == nil || IsInterface(T) {
 			target = Default(x.typ)
 		}
 		check.convertUntyped(x, target)
@@ -192,6 +193,9 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
 		return nil
 	case variable, mapindex:
 		// ok
+	case nilvalue:
+		check.errorf(&z, "cannot assign to nil") // default would print "untyped nil"
+		return nil
 	default:
 		if sel, ok := z.expr.(*syntax.SelectorExpr); ok {
 			var op operand

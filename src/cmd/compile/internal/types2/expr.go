@@ -606,18 +606,15 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 		}
 
 		for _, t := range unpack(types) {
-			check.convertUntypedInternal(x, t)
+			x := *x // make a copy; convertUntypedInternal modifies x
+			check.convertUntypedInternal(&x, t)
 			if x.mode == invalid {
 				goto Error
 			}
 		}
 
-		// keep nil untyped (was bug #39755)
-		if x.isNil() {
-			target = Typ[UntypedNil]
-		}
 		x.typ = target
-		check.updateExprType(x.expr, target, true) // UntypedNils are final
+		check.updateExprType(x.expr, target, true)
 		return
 	}
 
@@ -634,6 +631,14 @@ Error:
 func (check *Checker) convertUntypedInternal(x *operand, target Type) {
 	assert(isTyped(target))
 
+	if x.isNil() {
+		assert(isUntyped(x.typ))
+		if hasNil(target) {
+			goto OK
+		}
+		goto Error
+	}
+
 	// typed target
 	switch t := optype(target.Under()).(type) {
 	case *Basic:
@@ -648,7 +653,7 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
 			// Non-constant untyped values may appear as the
 			// result of comparisons (untyped bool), intermediate
 			// (delayed-checked) rhs operands of shifts, and as
-			// the value nil.
+			// the value nil. Nil was handled upfront.
 			switch x.typ.(*Basic).kind {
 			case UntypedBool:
 				if !isBoolean(target) {
@@ -662,12 +667,6 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
 				// Non-constant untyped string values are not
 				// permitted by the spec and should not occur.
 				unreachable()
-			case UntypedNil:
-				// Unsafe.Pointer is a basic type that includes nil.
-				if !hasNil(target) {
-					goto Error
-				}
-				target = Typ[UntypedNil]
 			default:
 				goto Error
 			}
@@ -678,34 +677,21 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
 			return x.mode != invalid
 		})
 	case *Interface:
-		// Update operand types to the default type rather then
-		// the target (interface) type: values must have concrete
-		// dynamic types. If the value is nil, keep it untyped
-		// (this is important for tools such as go vet which need
-		// the dynamic type for argument checking of say, print
-		// functions)
-		if x.isNil() {
-			target = Typ[UntypedNil]
-		} else {
-			// cannot assign untyped values to non-empty interfaces
-			check.completeInterface(nopos, t)
-			if !t.Empty() {
-				goto Error
-			}
-			target = Default(x.typ)
+		// Update operand types to the default type rather then the target
+		// (interface) type: values must have concrete dynamic types.
+		// Untyped nil was handled upfront.
+		check.completeInterface(nopos, t)
+		if !t.Empty() {
+			goto Error // cannot assign untyped values to non-empty interfaces
 		}
-	case *Pointer, *Signature, *Slice, *Map, *Chan:
-		if !x.isNil() {
-			goto Error
-		}
-		// keep nil untyped - see comment for interfaces, above
-		target = Typ[UntypedNil]
+		target = Default(x.typ)
 	default:
 		goto Error
 	}
 
+OK:
 	x.typ = target
-	check.updateExprType(x.expr, target, true) // UntypedNils are final
+	check.updateExprType(x.expr, target, true)
 	return
 
 Error:

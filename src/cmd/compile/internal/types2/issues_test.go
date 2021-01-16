@@ -76,7 +76,7 @@ var (
 			}
 		case *syntax.Name:
 			if x.Value == "nil" {
-				want = Typ[UntypedNil]
+				want = NewInterfaceType(nil, nil) // interface{}
 			}
 		}
 		if want != nil && !Identical(tv.Type, want) {

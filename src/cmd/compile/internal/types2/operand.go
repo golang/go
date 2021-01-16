@@ -27,6 +27,7 @@ const (
 	variable                     // operand is an addressable variable
 	mapindex                     // operand is a map index expression (acts like a variable on lhs, commaok on rhs of an assignment)
 	value                        // operand is a computed value
+	nilvalue                     // operand is the nil value
 	commaok                      // like value, but operand may be used in a comma,ok expression
 	commaerr                     // like commaok, but second value is error, not boolean
 	cgofunc                      // operand is a cgo function
@@ -41,6 +42,7 @@ var operandModeString = [...]string{
 	variable:  "variable",
 	mapindex:  "map index expression",
 	value:     "value",
+	nilvalue:  "nil",
 	commaok:   "comma, ok expression",
 	commaerr:  "comma, error expression",
 	cgofunc:   "cgo function",
@@ -96,6 +98,9 @@ func (x *operand) Pos() syntax.Pos {
 // value      <expr> (<untyped kind> <mode>                    )
 // value      <expr> (               <mode>       of type <typ>)
 //
+// nilvalue   untyped nil
+// nilvalue   nil    (                            of type <typ>)
+//
 // commaok    <expr> (<untyped kind> <mode>                    )
 // commaok    <expr> (               <mode>       of type <typ>)
 //
@@ -106,6 +111,18 @@ func (x *operand) Pos() syntax.Pos {
 // cgofunc    <expr> (               <mode>       of type <typ>)
 //
 func operandString(x *operand, qf Qualifier) string {
+	// special-case nil
+	if x.mode == nilvalue {
+		switch x.typ {
+		case nil, Typ[Invalid]:
+			return "nil (with invalid type)"
+		case Typ[UntypedNil]:
+			return "untyped nil"
+		default:
+			return fmt.Sprintf("nil (of type %s)", TypeString(x.typ, qf))
+		}
+	}
+
 	var buf bytes.Buffer
 
 	var expr string
@@ -222,10 +239,8 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
 	x.val = val
 }
 
-// isNil reports whether x is the nil value.
-func (x *operand) isNil() bool {
-	return x.mode == value && x.typ == Typ[UntypedNil]
-}
+// isNil reports whether x is a typed or the untyped nil value.
+func (x *operand) isNil() bool { return x.mode == nilvalue }
 
 // TODO(gri) The functions operand.assignableTo, checker.convertUntyped,
 //           checker.representable, and checker.assignment are
