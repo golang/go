@@ -825,16 +825,10 @@ func (n *NameOffsetExpr) doChildren(do func(Node) bool) bool {
 	if doNodes(n.init, do) {
 		return true
 	}
-	if n.Name_ != nil && do(n.Name_) {
-		return true
-	}
 	return false
 }
 func (n *NameOffsetExpr) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
-	if n.Name_ != nil {
-		n.Name_ = edit(n.Name_).(*Name)
-	}
 }
 
 func (n *NilExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }

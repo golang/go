@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 	"go/constant"
@@ -461,22 +462,26 @@ func NewResultExpr(pos src.XPos, typ *types.Type, offset int64) *ResultExpr {
 	return n
 }
 
-// A NameOffsetExpr refers to an offset within a variable.
+// A NameOffsetExpr refers to an offset within a global variable.
 // It is like a SelectorExpr but without the field name.
 type NameOffsetExpr struct {
 	miniExpr
-	Name_   *Name
+	Linksym *obj.LSym
 	Offset_ int64
+}
+
+func NewLinksymOffsetExpr(pos src.XPos, lsym *obj.LSym, offset int64, typ *types.Type) *NameOffsetExpr {
+	n := &NameOffsetExpr{Linksym: lsym, Offset_: offset}
+	n.typ = typ
+	n.op = ONAMEOFFSET
+	return n
 }
 
 func NewNameOffsetExpr(pos src.XPos, name *Name, offset int64, typ *types.Type) *NameOffsetExpr {
 	if name == nil || IsBlank(name) || !(name.Op() == ONAME && name.Class == PEXTERN) {
 		base.FatalfAt(pos, "cannot take offset of nil, blank name or non-global variable: %v", name)
 	}
-	n := &NameOffsetExpr{Name_: name, Offset_: offset}
-	n.typ = typ
-	n.op = ONAMEOFFSET
-	return n
+	return NewLinksymOffsetExpr(pos, name.Linksym(), offset, typ)
 }
 
 // A SelectorExpr is a selector expression X.Sel.
