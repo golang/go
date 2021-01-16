@@ -96,7 +96,7 @@ type PackagePublic struct {
 
 	// Embedded files
 	EmbedPatterns []string `json:",omitempty"` // //go:embed patterns
-	EmbedFiles    []string `json:",omitempty"` // files and directories matched by EmbedPatterns
+	EmbedFiles    []string `json:",omitempty"` // files matched by EmbedPatterns
 
 	// Cgo directives
 	CgoCFLAGS    []string `json:",omitempty"` // cgo: flags for C compiler
@@ -122,11 +122,11 @@ type PackagePublic struct {
 	TestGoFiles        []string `json:",omitempty"` // _test.go files in package
 	TestImports        []string `json:",omitempty"` // imports from TestGoFiles
 	TestEmbedPatterns  []string `json:",omitempty"` // //go:embed patterns
-	TestEmbedFiles     []string `json:",omitempty"` // //files matched by EmbedPatterns
+	TestEmbedFiles     []string `json:",omitempty"` // files matched by TestEmbedPatterns
 	XTestGoFiles       []string `json:",omitempty"` // _test.go files outside package
 	XTestImports       []string `json:",omitempty"` // imports from XTestGoFiles
 	XTestEmbedPatterns []string `json:",omitempty"` // //go:embed patterns
-	XTestEmbedFiles    []string `json:",omitempty"` // //files matched by EmbedPatterns
+	XTestEmbedFiles    []string `json:",omitempty"` // files matched by XTestEmbedPatterns
 }
 
 // AllFiles returns the names of all the files considered for the package.
