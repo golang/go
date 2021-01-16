@@ -36,6 +36,7 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/trace"
 	"cmd/internal/str"
+	"cmd/internal/sys"
 )
 
 // actionList returns the list of actions in the dag rooted at root
@@ -3307,12 +3308,6 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
 	return cleanup
 }
 
-// Windows has a limit of 32 KB arguments. To be conservative and not worry
-// about whether that includes spaces or not, just use 30 KB. Darwin's limit is
-// less clear. The OS claims 256KB, but we've seen failures with arglen as
-// small as 50KB.
-const ArgLengthForResponseFile = (30 << 10)
-
 func useResponseFile(path string, argLen int) bool {
 	// Unless the program uses objabi.Flagparse, which understands
 	// response files, don't use response files.
@@ -3324,7 +3319,7 @@ func useResponseFile(path string, argLen int) bool {
 		return false
 	}
 
-	if argLen > ArgLengthForResponseFile {
+	if argLen > sys.ExecArgLengthLimit {
 		return true
 	}
 
