@@ -46,6 +46,8 @@ stderr '^x.go:5:12: pattern [*]t: cannot embed directory t: contains no embeddab
 cp x.txt t/.git
 ! go build -x
 stderr '^x.go:5:12: pattern [*]t: cannot embed directory t: contains no embeddable files$'
+go list -e -f '{{.Incomplete}}'
+stdout 'true'
 [symlink] symlink t/x.link -> ../x.txt
 [symlink] ! go build -x
 [symlink] stderr '^x.go:5:12: pattern [*]t: cannot embed directory t: contains no embeddable files$'
