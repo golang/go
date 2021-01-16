@@ -268,7 +268,7 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
 		base.Fatalf("ascompatet: assignment count mismatch: %d = %d", len(nl), nr.NumFields())
 	}
 
-	var nn, mm ir.Nodes
+	var nn ir.Nodes
 	for i, l := range nl {
 		if ir.IsBlank(l) {
 			continue
@@ -278,11 +278,7 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
 		// Any assignment to an lvalue that might cause a function call must be
 		// deferred until all the returned values have been read.
 		if fncall(l, r.Type) {
-			tmp := ir.Node(typecheck.Temp(r.Type))
-			tmp = typecheck.Expr(tmp)
-			a := convas(ir.NewAssignStmt(base.Pos, l, tmp), &mm)
-			mm.Append(a)
-			l = tmp
+			base.FatalfAt(l.Pos(), "assigning %v to %+v", r.Type, l)
 		}
 
 		res := ir.NewResultExpr(base.Pos, nil, types.BADWIDTH)
@@ -299,7 +295,7 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
 
 		nn.Append(a)
 	}
-	return append(nn, mm...)
+	return nn
 }
 
 // check assign expression list to
