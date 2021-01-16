@@ -470,8 +470,8 @@ type NameOffsetExpr struct {
 }
 
 func NewNameOffsetExpr(pos src.XPos, name *Name, offset int64, typ *types.Type) *NameOffsetExpr {
-	if name == nil || IsBlank(name) {
-		base.FatalfAt(pos, "cannot take offset of nil or blank name: %v", name)
+	if name == nil || IsBlank(name) || !(name.Op() == ONAME && name.Class == PEXTERN) {
+		base.FatalfAt(pos, "cannot take offset of nil, blank name or non-global variable: %v", name)
 	}
 	n := &NameOffsetExpr{Name_: name, Offset_: offset}
 	n.typ = typ
