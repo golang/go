@@ -47,6 +47,15 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section, or delete if not needed
 </p>
 
+<h3 id="gofmt"><code>gofmt</code></h3>
+
+<p><!-- https://golang.org/issue/43566 -->
+  <code>gofmt</code> now reads and formats input files concurrently, with a
+  memory limit proportional to <code>GOMAXPROCS</code>. On a machine with
+  multiple CPUs, gofmt should now be significantly faster.
+</p>
+
+
 <h2 id="runtime">Runtime</h2>
 
 <p>

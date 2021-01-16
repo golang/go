@@ -58,7 +58,11 @@ func runTest(t *testing.T, in, out string) {
 	// process flags
 	*simplifyAST = false
 	*rewriteRule = ""
-	stdin := false
+	info, err := os.Lstat(in)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	for _, flag := range strings.Split(gofmtFlags(in, 20), " ") {
 		elts := strings.SplitN(flag, "=", 2)
 		name := elts[0]
@@ -75,7 +79,7 @@ func runTest(t *testing.T, in, out string) {
 			*simplifyAST = true
 		case "-stdin":
 			// fake flag - pretend input is from stdin
-			stdin = true
+			info = nil
 		default:
 			t.Errorf("unrecognized flag name: %s", name)
 		}
@@ -84,11 +88,17 @@ func runTest(t *testing.T, in, out string) {
 	initParserMode()
 	initRewrite()
 
-	var buf bytes.Buffer
-	err := processFile(in, nil, &buf, stdin)
-	if err != nil {
-		t.Error(err)
-		return
+	const maxWeight = 2 << 20
+	var buf, errBuf bytes.Buffer
+	s := newSequencer(maxWeight, &buf, &errBuf)
+	s.Add(fileWeight(in, info), func(r *reporter) error {
+		return processFile(in, info, nil, r)
+	})
+	if errBuf.Len() > 0 {
+		t.Logf("%q", errBuf.Bytes())
+	}
+	if s.GetExitCode() != 0 {
+		t.Fail()
 	}
 
 	expected, err := os.ReadFile(out)
