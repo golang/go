@@ -1809,6 +1809,7 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 
 	p.EmbedFiles, p.Internal.Embed, err = resolveEmbed(p.Dir, p.EmbedPatterns)
 	if err != nil {
+		p.Incomplete = true
 		setError(err)
 		embedErr := err.(*EmbedError)
 		p.Error.setPos(p.Internal.Build.EmbedPatternPos[embedErr.Pattern])
