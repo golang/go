@@ -111,7 +111,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 		x.mode = builtin
 
 	case *Nil:
-		x.mode = value
+		x.mode = nilvalue
 
 	default:
 		unreachable()
@@ -631,11 +631,8 @@ func (check *Checker) typOrNil(e syntax.Expr) Type {
 	case typexpr:
 		check.instantiatedOperand(&x)
 		return x.typ
-	case value:
-		if x.isNil() {
-			return nil
-		}
-		fallthrough
+	case nilvalue:
+		return nil
 	default:
 		check.errorf(&x, "%s is not a type", &x)
 	}

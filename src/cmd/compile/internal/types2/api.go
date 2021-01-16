@@ -325,16 +325,17 @@ func (tv TypeAndValue) IsBuiltin() bool {
 // nil Value.
 func (tv TypeAndValue) IsValue() bool {
 	switch tv.mode {
-	case constant_, variable, mapindex, value, commaok, commaerr:
+	case constant_, variable, mapindex, value, nilvalue, commaok, commaerr:
 		return true
 	}
 	return false
 }
 
 // IsNil reports whether the corresponding expression denotes the
-// predeclared value nil.
+// predeclared value nil. Depending on context, it may have been
+// given a type different from UntypedNil.
 func (tv TypeAndValue) IsNil() bool {
-	return tv.mode == value && tv.Type == Typ[UntypedNil]
+	return tv.mode == nilvalue
 }
 
 // Addressable reports whether the corresponding expression
