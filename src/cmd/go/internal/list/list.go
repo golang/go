@@ -90,8 +90,12 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
         XTestGoFiles    []string   // _test.go files outside package
 
         // Embedded files
-        EmbedPatterns []string // //go:embed patterns
-        EmbedFiles    []string // files and directories matched by EmbedPatterns
+        EmbedPatterns      []string // //go:embed patterns
+        EmbedFiles         []string // files matched by EmbedPatterns
+        TestEmbedPatterns  []string // //go:embed patterns in TestGoFiles
+        TestEmbedFiles     []string // files matched by TestEmbedPatterns
+        XTestEmbedPatterns []string // //go:embed patterns in XTestGoFiles
+        XTestEmbedFiles    []string // files matched by XTestEmbedPatterns
 
         // Cgo directives
         CgoCFLAGS    []string // cgo: flags for C compiler
