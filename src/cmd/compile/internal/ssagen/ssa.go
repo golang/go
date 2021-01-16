@@ -2257,15 +2257,10 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		if s.canSSA(n) {
 			return s.variable(n, n.Type())
 		}
-		addr := s.addr(n)
-		return s.load(n.Type(), addr)
+		return s.load(n.Type(), s.addr(n))
 	case ir.ONAMEOFFSET:
 		n := n.(*ir.NameOffsetExpr)
-		if s.canSSAName(n.Name_) && TypeOK(n.Type()) {
-			return s.variable(n, n.Type())
-		}
-		addr := s.addr(n)
-		return s.load(n.Type(), addr)
+		return s.load(n.Type(), s.addr(n))
 	case ir.ONIL:
 		n := n.(*ir.NilExpr)
 		t := n.Type()
@@ -5088,13 +5083,18 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 	}
 
 	t := types.NewPtr(n.Type())
-	var offset int64
+	linksymOffset := func(lsym *obj.LSym, offset int64) *ssa.Value {
+		v := s.entryNewValue1A(ssa.OpAddr, t, lsym, s.sb)
+		// TODO: Make OpAddr use AuxInt as well as Aux.
+		if offset != 0 {
+			v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, offset, v)
+		}
+		return v
+	}
 	switch n.Op() {
 	case ir.ONAMEOFFSET:
 		no := n.(*ir.NameOffsetExpr)
-		offset = no.Offset_
-		n = no.Name_
-		fallthrough
+		return linksymOffset(no.Linksym, no.Offset_)
 	case ir.ONAME:
 		n := n.(*ir.Name)
 		if n.Heapaddr != nil {
@@ -5103,12 +5103,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 		switch n.Class {
 		case ir.PEXTERN:
 			// global variable
-			v := s.entryNewValue1A(ssa.OpAddr, t, n.Linksym(), s.sb)
-			// TODO: Make OpAddr use AuxInt as well as Aux.
-			if offset != 0 {
-				v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, offset, v)
-			}
-			return v
+			return linksymOffset(n.Linksym(), 0)
 		case ir.PPARAM:
 			// parameter slot
 			v := s.decladdrs[n]
