@@ -734,6 +734,22 @@ func (n *LabelStmt) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
 }
 
+func (n *LinksymOffsetExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+func (n *LinksymOffsetExpr) copy() Node {
+	c := *n
+	c.init = copyNodes(c.init)
+	return &c
+}
+func (n *LinksymOffsetExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	return false
+}
+func (n *LinksymOffsetExpr) editChildren(edit func(Node) Node) {
+	editNodes(n.init, edit)
+}
+
 func (n *LogicalExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *LogicalExpr) copy() Node {
 	c := *n
@@ -814,22 +830,6 @@ func (n *MapType) editChildren(edit func(Node) Node) {
 }
 
 func (n *Name) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
-
-func (n *NameOffsetExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
-func (n *NameOffsetExpr) copy() Node {
-	c := *n
-	c.init = copyNodes(c.init)
-	return &c
-}
-func (n *NameOffsetExpr) doChildren(do func(Node) bool) bool {
-	if doNodes(n.init, do) {
-		return true
-	}
-	return false
-}
-func (n *NameOffsetExpr) editChildren(edit func(Node) Node) {
-	editNodes(n.init, edit)
-}
 
 func (n *NilExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *NilExpr) copy() Node {

@@ -632,8 +632,8 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	case OPACK, ONONAME:
 		fmt.Fprint(s, n.Sym())
 
-	case ONAMEOFFSET:
-		n := n.(*NameOffsetExpr)
+	case OLINKSYMOFFSET:
+		n := n.(*LinksymOffsetExpr)
 		fmt.Fprintf(s, "(%v)(%s@%d)", n.Type(), n.Linksym.Name, n.Offset_)
 
 	case OTYPE:

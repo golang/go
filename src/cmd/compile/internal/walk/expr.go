@@ -85,7 +85,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 	case ir.ONONAME, ir.OGETG:
 		return n
 
-	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL, ir.ONAMEOFFSET:
+	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL, ir.OLINKSYMOFFSET:
 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
 		// Perhaps refactor to use Node.mayBeShared for these instead.
 		// If these return early, make sure to still call
@@ -357,7 +357,7 @@ func safeExpr(n ir.Node, init *ir.Nodes) ir.Node {
 	}
 
 	switch n.Op() {
-	case ir.ONAME, ir.OLITERAL, ir.ONIL, ir.ONAMEOFFSET:
+	case ir.ONAME, ir.OLITERAL, ir.ONIL, ir.OLINKSYMOFFSET:
 		return n
 
 	case ir.OLEN, ir.OCAP:

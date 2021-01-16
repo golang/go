@@ -2258,8 +2258,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 			return s.variable(n, n.Type())
 		}
 		return s.load(n.Type(), s.addr(n))
-	case ir.ONAMEOFFSET:
-		n := n.(*ir.NameOffsetExpr)
+	case ir.OLINKSYMOFFSET:
+		n := n.(*ir.LinksymOffsetExpr)
 		return s.load(n.Type(), s.addr(n))
 	case ir.ONIL:
 		n := n.(*ir.NilExpr)
@@ -5092,8 +5092,8 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 		return v
 	}
 	switch n.Op() {
-	case ir.ONAMEOFFSET:
-		no := n.(*ir.NameOffsetExpr)
+	case ir.OLINKSYMOFFSET:
+		no := n.(*ir.LinksymOffsetExpr)
 		return linksymOffset(no.Linksym, no.Offset_)
 	case ir.ONAME:
 		n := n.(*ir.Name)

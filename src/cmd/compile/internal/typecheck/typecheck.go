@@ -521,7 +521,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		}
 		return n
 
-	case ir.ONAMEOFFSET:
+	case ir.OLINKSYMOFFSET:
 		// type already set
 		return n
 
