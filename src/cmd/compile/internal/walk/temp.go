@@ -12,19 +12,12 @@ import (
 )
 
 // initStackTemp appends statements to init to initialize the given
-// temporary variable, and then returns the expression &tmp. If vardef
-// is true, then the variable is initialized with OVARDEF, and the
-// caller must ensure the variable is later assigned before use;
-// otherwise, it's zero initialized.
-//
-// TODO(mdempsky): Change callers to provide tmp's initial value,
-// rather than just vardef, to make this safer/easier to use.
-func initStackTemp(init *ir.Nodes, tmp *ir.Name, vardef bool) *ir.AddrExpr {
-	if vardef {
-		init.Append(ir.NewUnaryExpr(base.Pos, ir.OVARDEF, tmp))
-	} else {
-		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, tmp, nil))
+// temporary variable to val, and then returns the expression &tmp.
+func initStackTemp(init *ir.Nodes, tmp *ir.Name, val ir.Node) *ir.AddrExpr {
+	if val != nil && !types.Identical(tmp.Type(), val.Type()) {
+		base.Fatalf("bad initial value for %L: %L", tmp, val)
 	}
+	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, tmp, val))
 	return typecheck.Expr(typecheck.NodAddr(tmp)).(*ir.AddrExpr)
 }
 
@@ -32,7 +25,7 @@ func initStackTemp(init *ir.Nodes, tmp *ir.Name, vardef bool) *ir.AddrExpr {
 // allocated temporary variable of the given type. Statements to
 // zero-initialize tmp are appended to init.
 func stackTempAddr(init *ir.Nodes, typ *types.Type) *ir.AddrExpr {
-	return initStackTemp(init, typecheck.Temp(typ), false)
+	return initStackTemp(init, typecheck.Temp(typ), nil)
 }
 
 // stackBufAddr returns thte expression &tmp, where tmp is a newly
