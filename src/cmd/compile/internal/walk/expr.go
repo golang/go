@@ -67,8 +67,6 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 		_ = staticdata.StringSym(n.Pos(), constant.StringVal(n.Val()))
 	}
 
-	updateHasCall(n)
-
 	if base.Flag.LowerW != 0 && n != nil {
 		ir.Dump("after walk expr", n)
 	}
@@ -527,15 +525,17 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 	// For any argument whose evaluation might require a function call,
 	// store that argument into a temporary variable,
 	// to prevent that calls from clobbering arguments already on the stack.
-	// When instrumenting, all arguments might require function calls.
 	var tempAssigns []ir.Node
 	for i, arg := range args {
-		updateHasCall(arg)
-		// Determine param type.
-		t := params.Field(i).Type
-		if base.Flag.Cfg.Instrumenting || fncall(arg, t) {
-			// make assignment of fncall to Temp
-			tmp := typecheck.Temp(t)
+		// Validate argument and parameter types match.
+		param := params.Field(i)
+		if !types.Identical(arg.Type(), param.Type) {
+			base.FatalfAt(n.Pos(), "assigning %L to parameter %v (type %v)", arg, param.Sym, param.Type)
+		}
+
+		if mayCall(arg) {
+			// assignment of arg to Temp
+			tmp := typecheck.Temp(param.Type)
 			a := convas(ir.NewAssignStmt(base.Pos, tmp, arg), init)
 			tempAssigns = append(tempAssigns, a)
 			// replace arg with temp

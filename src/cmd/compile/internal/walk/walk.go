@@ -67,8 +67,6 @@ func convas(n *ir.AssignStmt, init *ir.Nodes) *ir.AssignStmt {
 	if n.Op() != ir.OAS {
 		base.Fatalf("convas: not OAS %v", n.Op())
 	}
-	defer updateHasCall(n)
-
 	n.SetTypecheck(1)
 
 	if n.X == nil || n.Y == nil {
@@ -274,123 +272,64 @@ func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
 	return ptr, length
 }
 
-// updateHasCall checks whether expression n contains any function
-// calls and sets the n.HasCall flag if so.
-func updateHasCall(n ir.Node) {
-	if n == nil {
-		return
-	}
-	n.SetHasCall(calcHasCall(n))
-}
-
-func calcHasCall(n ir.Node) bool {
-	if len(n.Init()) != 0 {
-		// TODO(mdempsky): This seems overly conservative.
+// mayCall reports whether evaluating expression n may require
+// function calls, which could clobber function call arguments/results
+// currently on the stack.
+func mayCall(n ir.Node) bool {
+	// When instrumenting, any expression might require function calls.
+	if base.Flag.Cfg.Instrumenting {
 		return true
 	}
 
-	switch n.Op() {
-	default:
-		base.Fatalf("calcHasCall %+v", n)
-		panic("unreachable")
-
-	case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.OTYPE, ir.ONAMEOFFSET:
-		if n.HasCall() {
-			base.Fatalf("OLITERAL/ONAME/OTYPE should never have calls: %+v", n)
-		}
-		return false
-	case ir.OCALL, ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
-		return true
-	case ir.OANDAND, ir.OOROR:
-		// hard with instrumented code
-		n := n.(*ir.LogicalExpr)
-		if base.Flag.Cfg.Instrumenting {
-			return true
-		}
-		return n.X.HasCall() || n.Y.HasCall()
-	case ir.OINDEX, ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR,
-		ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODIV, ir.OMOD:
-		// These ops might panic, make sure they are done
-		// before we start marshaling args for a call. See issue 16760.
-		return true
-
-	// When using soft-float, these ops might be rewritten to function calls
-	// so we ensure they are evaluated first.
-	case ir.OADD, ir.OSUB, ir.OMUL:
-		n := n.(*ir.BinaryExpr)
-		if ssagen.Arch.SoftFloat && (types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) {
-			return true
-		}
-		return n.X.HasCall() || n.Y.HasCall()
-	case ir.ONEG:
-		n := n.(*ir.UnaryExpr)
-		if ssagen.Arch.SoftFloat && (types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) {
-			return true
-		}
-		return n.X.HasCall()
-	case ir.OLT, ir.OEQ, ir.ONE, ir.OLE, ir.OGE, ir.OGT:
-		n := n.(*ir.BinaryExpr)
-		if ssagen.Arch.SoftFloat && (types.IsFloat[n.X.Type().Kind()] || types.IsComplex[n.X.Type().Kind()]) {
-			return true
-		}
-		return n.X.HasCall() || n.Y.HasCall()
-	case ir.OCONV:
-		n := n.(*ir.ConvExpr)
-		if ssagen.Arch.SoftFloat && ((types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) || (types.IsFloat[n.X.Type().Kind()] || types.IsComplex[n.X.Type().Kind()])) {
-			return true
-		}
-		return n.X.HasCall()
-
-	case ir.OAND, ir.OANDNOT, ir.OLSH, ir.OOR, ir.ORSH, ir.OXOR, ir.OCOPY, ir.OCOMPLEX, ir.OEFACE:
-		n := n.(*ir.BinaryExpr)
-		return n.X.HasCall() || n.Y.HasCall()
-
-	case ir.OAS:
-		n := n.(*ir.AssignStmt)
-		return n.X.HasCall() || n.Y != nil && n.Y.HasCall()
-
-	case ir.OADDR:
-		n := n.(*ir.AddrExpr)
-		return n.X.HasCall()
-	case ir.OPAREN:
-		n := n.(*ir.ParenExpr)
-		return n.X.HasCall()
-	case ir.OBITNOT, ir.ONOT, ir.OPLUS, ir.ORECV,
-		ir.OALIGNOF, ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.ONEW,
-		ir.OOFFSETOF, ir.OPANIC, ir.OREAL, ir.OSIZEOF,
-		ir.OCHECKNIL, ir.OCFUNC, ir.OIDATA, ir.OITAB, ir.OSPTR, ir.OVARDEF, ir.OVARKILL, ir.OVARLIVE:
-		n := n.(*ir.UnaryExpr)
-		return n.X.HasCall()
-	case ir.ODOT, ir.ODOTMETH, ir.ODOTINTER:
-		n := n.(*ir.SelectorExpr)
-		return n.X.HasCall()
-
-	case ir.OGETG, ir.OMETHEXPR:
-		return false
-
-	// TODO(rsc): These look wrong in various ways but are what calcHasCall has always done.
-	case ir.OADDSTR:
-		// TODO(rsc): This used to check left and right, which are not part of OADDSTR.
-		return false
-	case ir.OBLOCK:
-		// TODO(rsc): Surely the block's statements matter.
-		return false
-	case ir.OCONVIFACE, ir.OCONVNOP, ir.OBYTES2STR, ir.OBYTES2STRTMP, ir.ORUNES2STR, ir.OSTR2BYTES, ir.OSTR2BYTESTMP, ir.OSTR2RUNES, ir.ORUNESTR:
-		// TODO(rsc): Some conversions are themselves calls, no?
-		n := n.(*ir.ConvExpr)
-		return n.X.HasCall()
-	case ir.ODOTTYPE2:
-		// TODO(rsc): Shouldn't this be up with ODOTTYPE above?
-		n := n.(*ir.TypeAssertExpr)
-		return n.X.HasCall()
-	case ir.OSLICEHEADER:
-		// TODO(rsc): What about len and cap?
-		n := n.(*ir.SliceHeaderExpr)
-		return n.Ptr.HasCall()
-	case ir.OAS2DOTTYPE, ir.OAS2FUNC:
-		// TODO(rsc): Surely we need to check List and Rlist.
-		return false
+	isSoftFloat := func(typ *types.Type) bool {
+		return types.IsFloat[typ.Kind()] || types.IsComplex[typ.Kind()]
 	}
+
+	return ir.Any(n, func(n ir.Node) bool {
+		// walk should have already moved any Init blocks off of
+		// expressions.
+		if len(n.Init()) != 0 {
+			base.FatalfAt(n.Pos(), "mayCall %+v", n)
+		}
+
+		switch n.Op() {
+		default:
+			base.FatalfAt(n.Pos(), "mayCall %+v", n)
+
+		case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
+			return true
+
+		case ir.OINDEX, ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR,
+			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODIV, ir.OMOD:
+			// These ops might panic, make sure they are done
+			// before we start marshaling args for a call. See issue 16760.
+			return true
+
+		// When using soft-float, these ops might be rewritten to function calls
+		// so we ensure they are evaluated first.
+		case ir.OADD, ir.OSUB, ir.OMUL, ir.ONEG:
+			return ssagen.Arch.SoftFloat && isSoftFloat(n.Type())
+		case ir.OLT, ir.OEQ, ir.ONE, ir.OLE, ir.OGE, ir.OGT:
+			n := n.(*ir.BinaryExpr)
+			return ssagen.Arch.SoftFloat && isSoftFloat(n.X.Type())
+		case ir.OCONV:
+			n := n.(*ir.ConvExpr)
+			return ssagen.Arch.SoftFloat && (isSoftFloat(n.Type()) || isSoftFloat(n.X.Type()))
+
+		case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.ONAMEOFFSET, ir.OMETHEXPR,
+			ir.OAND, ir.OANDNOT, ir.OLSH, ir.OOR, ir.ORSH, ir.OXOR, ir.OCOMPLEX, ir.OEFACE,
+			ir.OANDAND, ir.OOROR,
+			ir.OADDR, ir.OBITNOT, ir.ONOT, ir.OPLUS,
+			ir.OCAP, ir.OIMAG, ir.OLEN, ir.OREAL,
+			ir.OCONVNOP, ir.ODOT,
+			ir.OCFUNC, ir.OIDATA, ir.OITAB, ir.OSPTR,
+			ir.OBYTES2STRTMP, ir.OGETG, ir.OSLICEHEADER:
+			// ok: operations that don't require function calls.
+			// Expand as needed.
+		}
+
+		return false
+	})
 }
 
 // itabType loads the _type field from a runtime.itab struct.
