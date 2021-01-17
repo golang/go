@@ -50,11 +50,9 @@ type miniStmt struct {
 
 func (*miniStmt) isStmt() {}
 
-func (n *miniStmt) Init() Nodes       { return n.init }
-func (n *miniStmt) SetInit(x Nodes)   { n.init = x }
-func (n *miniStmt) PtrInit() *Nodes   { return &n.init }
-func (n *miniStmt) HasCall() bool     { return n.bits&miniHasCall != 0 }
-func (n *miniStmt) SetHasCall(b bool) { n.bits.set(miniHasCall, b) }
+func (n *miniStmt) Init() Nodes     { return n.init }
+func (n *miniStmt) SetInit(x Nodes) { n.init = x }
+func (n *miniStmt) PtrInit() *Nodes { return &n.init }
 
 // An AssignListStmt is an assignment statement with
 // more than one item on at least one side: Lhs = Rhs.

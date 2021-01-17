@@ -32,8 +32,7 @@ type miniExpr struct {
 }
 
 const (
-	miniExprHasCall = 1 << iota
-	miniExprNonNil
+	miniExprNonNil = 1 << iota
 	miniExprTransient
 	miniExprBounded
 	miniExprImplicit // for use by implementations; not supported by every Expr
@@ -44,8 +43,6 @@ func (*miniExpr) isExpr() {}
 
 func (n *miniExpr) Type() *types.Type     { return n.typ }
 func (n *miniExpr) SetType(x *types.Type) { n.typ = x }
-func (n *miniExpr) HasCall() bool         { return n.flags&miniExprHasCall != 0 }
-func (n *miniExpr) SetHasCall(b bool)     { n.flags.set(miniExprHasCall, b) }
 func (n *miniExpr) NonNil() bool          { return n.flags&miniExprNonNil != 0 }
 func (n *miniExpr) MarkNonNil()           { n.flags |= miniExprNonNil }
 func (n *miniExpr) Transient() bool       { return n.flags&miniExprTransient != 0 }

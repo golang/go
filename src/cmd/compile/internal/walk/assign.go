@@ -248,18 +248,6 @@ func walkReturn(n *ir.ReturnStmt) ir.Node {
 	return n
 }
 
-// fncall reports whether assigning an rvalue of type rt to an lvalue l might involve a function call.
-func fncall(l ir.Node, rt *types.Type) bool {
-	if l.HasCall() || l.Op() == ir.OINDEXMAP {
-		return true
-	}
-	if types.Identical(l.Type(), rt) {
-		return false
-	}
-	// There might be a conversion required, which might involve a runtime call.
-	return true
-}
-
 // check assign type list to
 // an expression list. called in
 //	expr-list = func()
@@ -275,9 +263,9 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
 		}
 		r := nr.Field(i)
 
-		// Any assignment to an lvalue that might cause a function call must be
-		// deferred until all the returned values have been read.
-		if fncall(l, r.Type) {
+		// Order should have created autotemps of the appropriate type for
+		// us to store results into.
+		if tmp, ok := l.(*ir.Name); !ok || !tmp.AutoTemp() || !types.Identical(tmp.Type(), r.Type) {
 			base.FatalfAt(l.Pos(), "assigning %v to %+v", r.Type, l)
 		}
 
@@ -286,14 +274,7 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
 		res.SetType(r.Type)
 		res.SetTypecheck(1)
 
-		a := convas(ir.NewAssignStmt(base.Pos, l, res), &nn)
-		updateHasCall(a)
-		if a.HasCall() {
-			ir.Dump("ascompatet ucount", a)
-			base.Fatalf("ascompatet: too many function calls evaluating parameters")
-		}
-
-		nn.Append(a)
+		nn.Append(ir.NewAssignStmt(base.Pos, l, res))
 	}
 	return nn
 }

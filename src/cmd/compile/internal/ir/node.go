@@ -52,8 +52,6 @@ type Node interface {
 	SetTypecheck(x uint8)
 	NonNil() bool
 	MarkNonNil()
-	HasCall() bool
-	SetHasCall(x bool)
 }
 
 // Line returns n's position as a string. If n has been inlined,
@@ -544,7 +542,6 @@ func InitExpr(init []Node, expr Node) Node {
 	}
 
 	n.PtrInit().Prepend(init...)
-	n.SetHasCall(true)
 	return n
 }
 
