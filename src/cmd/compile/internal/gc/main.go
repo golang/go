@@ -96,9 +96,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	ir.Pkgs.Itab = types.NewPkg("go.itab", "go.itab")
 	ir.Pkgs.Itab.Prefix = "go.itab" // not go%2eitab
 
-	ir.Pkgs.Itablink = types.NewPkg("go.itablink", "go.itablink")
-	ir.Pkgs.Itablink.Prefix = "go.itablink" // not go%2eitablink
-
 	ir.Pkgs.Track = types.NewPkg("go.track", "go.track")
 	ir.Pkgs.Track.Prefix = "go.track" // not go%2etrack
 
@@ -160,12 +157,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	ssagen.Arch.LinkArch.Init(base.Ctxt)
 	startProfile()
-	if base.Flag.Race {
-		ir.Pkgs.Race = types.NewPkg("runtime/race", "")
-	}
-	if base.Flag.MSan {
-		ir.Pkgs.Msan = types.NewPkg("runtime/msan", "")
-	}
 	if base.Flag.Race || base.Flag.MSan {
 		base.Flag.Cfg.Instrumenting = true
 	}
