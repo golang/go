@@ -161,11 +161,11 @@ func selectLSym(f *ir.Func, hasBody bool) {
 
 		var wrapperABI obj.ABI
 		needABIWrapper := false
-		defABI, hasDefABI := symabiDefs[nam.Sym().LinksymName()]
+		defABI, hasDefABI := symabiDefs[nam.Linksym().Name]
 		if hasDefABI && defABI == obj.ABI0 {
 			// Symbol is defined as ABI0. Create an
 			// Internal -> ABI0 wrapper.
-			f.LSym = nam.Sym().LinksymABI0()
+			f.LSym = nam.LinksymABI(obj.ABI0)
 			needABIWrapper, wrapperABI = true, obj.ABIInternal
 		} else {
 			f.LSym = nam.Linksym()

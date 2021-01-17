@@ -226,7 +226,8 @@ func (n *Name) SetWalkdef(x uint8) {
 	n.bits.set2(miniWalkdefShift, x)
 }
 
-func (n *Name) Linksym() *obj.LSym { return n.sym.Linksym() }
+func (n *Name) Linksym() *obj.LSym               { return n.sym.Linksym() }
+func (n *Name) LinksymABI(abi obj.ABI) *obj.LSym { return n.sym.LinksymABI(abi) }
 
 func (*Name) CanBeNtype()    {}
 func (*Name) CanBeAnSSASym() {}
