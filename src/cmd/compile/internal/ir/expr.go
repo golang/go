@@ -477,6 +477,13 @@ func NewLinksymOffsetExpr(pos src.XPos, lsym *obj.LSym, offset int64, typ *types
 	return n
 }
 
+// NewLinksymExpr is NewLinksymOffsetExpr, but with offset fixed at 0.
+func NewLinksymExpr(pos src.XPos, lsym *obj.LSym, typ *types.Type) *LinksymOffsetExpr {
+	return NewLinksymOffsetExpr(pos, lsym, 0, typ)
+}
+
+// NewNameOffsetExpr is NewLinksymOffsetExpr, but taking a *Name
+// representing a global variable instead of an *obj.LSym directly.
 func NewNameOffsetExpr(pos src.XPos, name *Name, offset int64, typ *types.Type) *LinksymOffsetExpr {
 	if name == nil || IsBlank(name) || !(name.Op() == ONAME && name.Class == PEXTERN) {
 		base.FatalfAt(pos, "cannot take offset of nil, blank name or non-global variable: %v", name)
