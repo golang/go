@@ -25,46 +25,29 @@ import (
 	"cmd/internal/src"
 )
 
-// InitAddr writes the static address of a to n. a must be an ONAME.
-// Neither n nor a is modified.
-func InitAddr(n *ir.Name, noff int64, a *ir.Name, aoff int64) {
+// InitAddrOffset writes the static name symbol lsym to n, it does not modify n.
+// It's the caller responsibility to make sure lsym is from ONAME/PEXTERN node.
+func InitAddrOffset(n *ir.Name, noff int64, lsym *obj.LSym, off int64) {
 	if n.Op() != ir.ONAME {
 		base.Fatalf("InitAddr n op %v", n.Op())
 	}
 	if n.Sym() == nil {
 		base.Fatalf("InitAddr nil n sym")
 	}
-	if a.Op() != ir.ONAME {
-		base.Fatalf("InitAddr a op %v", a.Op())
-	}
 	s := n.Linksym()
-	s.WriteAddr(base.Ctxt, noff, types.PtrSize, a.Linksym(), aoff)
+	s.WriteAddr(base.Ctxt, noff, types.PtrSize, lsym, off)
 }
 
-// InitFunc writes the static address of f to n. f must be a global function.
-// Neither n nor f is modified.
-func InitFunc(n *ir.Name, noff int64, f *ir.Name) {
-	if n.Op() != ir.ONAME {
-		base.Fatalf("InitFunc n op %v", n.Op())
-	}
-	if n.Sym() == nil {
-		base.Fatalf("InitFunc nil n sym")
-	}
-	if f.Class != ir.PFUNC {
-		base.Fatalf("InitFunc class not PFUNC %d", f.Class)
-	}
-	s := n.Linksym()
-	s.WriteAddr(base.Ctxt, noff, types.PtrSize, FuncLinksym(f), 0)
+// InitAddr is InitAddrOffset, with offset fixed to 0.
+func InitAddr(n *ir.Name, noff int64, lsym *obj.LSym) {
+	InitAddrOffset(n, noff, lsym, 0)
 }
 
-// InitSlice writes a static slice symbol {&arr, lencap, lencap} to n+noff.
-// InitSlice does not modify n.
-func InitSlice(n *ir.Name, noff int64, arr *ir.Name, lencap int64) {
+// InitSlice writes a static slice symbol {lsym, lencap, lencap} to n+noff, it does not modify n.
+// It's the caller responsibility to make sure lsym is from ONAME node.
+func InitSlice(n *ir.Name, noff int64, lsym *obj.LSym, lencap int64) {
 	s := n.Linksym()
-	if arr.Op() != ir.ONAME {
-		base.Fatalf("InitSlice non-name arr %v", arr)
-	}
-	s.WriteAddr(base.Ctxt, noff, types.PtrSize, arr.Linksym(), 0)
+	s.WriteAddr(base.Ctxt, noff, types.PtrSize, lsym, 0)
 	s.WriteInt(base.Ctxt, noff+types.SliceLenOffset, types.PtrSize, lencap)
 	s.WriteInt(base.Ctxt, noff+types.SliceCapOffset, types.PtrSize, lencap)
 }
@@ -73,7 +56,7 @@ func InitSliceBytes(nam *ir.Name, off int64, s string) {
 	if nam.Op() != ir.ONAME {
 		base.Fatalf("InitSliceBytes %v", nam)
 	}
-	InitSlice(nam, off, slicedata(nam.Pos(), s), int64(len(s)))
+	InitSlice(nam, off, slicedata(nam.Pos(), s).Linksym(), int64(len(s)))
 }
 
 const (
@@ -263,6 +246,13 @@ func FuncLinksym(n *ir.Name) *obj.LSym {
 		base.Fatalf("expected func name: %v", n)
 	}
 	return FuncSym(n.Sym()).Linksym()
+}
+
+func GlobalLinksym(n *ir.Name) *obj.LSym {
+	if n.Op() != ir.ONAME || n.Class != ir.PEXTERN {
+		base.Fatalf("expected global variable: %v", n)
+	}
+	return n.Linksym()
 }
 
 // NeedFuncSym ensures that s·f is exported, if needed.
