@@ -136,8 +136,8 @@ func walkStmt(n ir.Node) ir.Node {
 		n := n.(*ir.ReturnStmt)
 		return walkReturn(n)
 
-	case ir.ORETJMP:
-		n := n.(*ir.BranchStmt)
+	case ir.OTAILCALL:
+		n := n.(*ir.TailCallStmt)
 		return n
 
 	case ir.OINLMARK:

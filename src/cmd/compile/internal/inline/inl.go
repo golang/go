@@ -359,7 +359,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		ir.OGO,
 		ir.ODEFER,
 		ir.ODCLTYPE, // can't print yet
-		ir.ORETJMP:
+		ir.OTAILCALL:
 		return errors.New("unhandled op " + n.Op().String())
 
 	case ir.OAPPEND:

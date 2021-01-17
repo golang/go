@@ -692,7 +692,7 @@ func (o *orderState) stmt(n ir.Node) {
 		ir.OFALL,
 		ir.OGOTO,
 		ir.OLABEL,
-		ir.ORETJMP:
+		ir.OTAILCALL:
 		o.out = append(o.out, n)
 
 	// Special: handle call arguments.

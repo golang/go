@@ -378,9 +378,9 @@ func stmtFmt(n Node, s fmt.State) {
 		n := n.(*ReturnStmt)
 		fmt.Fprintf(s, "return %.v", n.Results)
 
-	case ORETJMP:
-		n := n.(*BranchStmt)
-		fmt.Fprintf(s, "retjmp %v", n.Label)
+	case OTAILCALL:
+		n := n.(*TailCallStmt)
+		fmt.Fprintf(s, "tailcall %v", n.Target)
 
 	case OINLMARK:
 		n := n.(*InlineMarkStmt)

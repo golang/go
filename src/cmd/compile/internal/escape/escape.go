@@ -534,8 +534,8 @@ func (e *escape) stmt(n ir.Node) {
 		e.stmts(n.Call.Init())
 		e.call(nil, n.Call, n)
 
-	case ir.ORETJMP:
-		// TODO(mdempsky): What do? esc.go just ignores it.
+	case ir.OTAILCALL:
+		// TODO(mdempsky): Treat like a normal call? esc.go used to just ignore it.
 	}
 }
 

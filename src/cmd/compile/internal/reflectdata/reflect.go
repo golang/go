@@ -1794,7 +1794,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 		}
 		as := ir.NewAssignStmt(base.Pos, nthis, typecheck.ConvNop(left, rcvr))
 		fn.Body.Append(as)
-		fn.Body.Append(ir.NewBranchStmt(base.Pos, ir.ORETJMP, ir.MethodSym(methodrcvr, method.Sym)))
+		fn.Body.Append(ir.NewTailCallStmt(base.Pos, method.Nname.(*ir.Name)))
 	} else {
 		fn.SetWrapper(true) // ignore frame for panic+recover matching
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)

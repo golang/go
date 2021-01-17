@@ -306,8 +306,8 @@ const (
 	OLINKSYMOFFSET // offset within a name
 
 	// arch-specific opcodes
-	ORETJMP // return to other function
-	OGETG   // runtime.getg() (read g pointer)
+	OTAILCALL // tail call to another function
+	OGETG     // runtime.getg() (read g pointer)
 
 	OEND
 )
