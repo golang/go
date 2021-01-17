@@ -441,8 +441,7 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
 		// Don't allocate the buffer if the result won't fit.
 		if sz < tmpstringbufsize {
 			// Create temporary buffer for result string on stack.
-			t := types.NewArray(types.Types[types.TUINT8], tmpstringbufsize)
-			buf = typecheck.NodAddr(typecheck.Temp(t))
+			buf = stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
 		}
 	}
 
