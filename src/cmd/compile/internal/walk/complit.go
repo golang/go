@@ -297,7 +297,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 		if !ok || name.Class != ir.PEXTERN {
 			base.Fatalf("slicelit: %v", var_)
 		}
-		staticdata.InitSlice(name, offset, vstat, t.NumElem())
+		staticdata.InitSlice(name, offset, vstat.Linksym(), t.NumElem())
 		return
 	}
 
@@ -647,7 +647,7 @@ func genAsStatic(as *ir.AssignStmt) {
 		return
 	case ir.OMETHEXPR:
 		r := r.(*ir.SelectorExpr)
-		staticdata.InitFunc(name, offset, r.FuncName())
+		staticdata.InitAddr(name, offset, staticdata.FuncLinksym(r.FuncName()))
 		return
 	case ir.ONAME:
 		r := r.(*ir.Name)
@@ -655,7 +655,7 @@ func genAsStatic(as *ir.AssignStmt) {
 			base.Fatalf("genAsStatic %+v", as)
 		}
 		if r.Class == ir.PFUNC {
-			staticdata.InitFunc(name, offset, r)
+			staticdata.InitAddr(name, offset, staticdata.FuncLinksym(r))
 			return
 		}
 	}

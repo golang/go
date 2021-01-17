@@ -81,7 +81,7 @@ func (s *Schedule) tryStaticInit(nn ir.Node) bool {
 func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Type) bool {
 	if rn.Class == ir.PFUNC {
 		// TODO if roff != 0 { panic }
-		staticdata.InitFunc(l, loff, rn)
+		staticdata.InitAddr(l, loff, staticdata.FuncLinksym(rn))
 		return true
 	}
 	if rn.Class != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
@@ -138,9 +138,8 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 
 	case ir.OADDR:
 		r := r.(*ir.AddrExpr)
-		if a := r.X; a.Op() == ir.ONAME {
-			a := a.(*ir.Name)
-			staticdata.InitAddr(l, loff, a, 0)
+		if a, ok := r.X.(*ir.Name); ok && a.Op() == ir.ONAME {
+			staticdata.InitAddr(l, loff, staticdata.GlobalLinksym(a))
 			return true
 		}
 
@@ -149,14 +148,14 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 		switch r.X.Op() {
 		case ir.OARRAYLIT, ir.OSLICELIT, ir.OSTRUCTLIT, ir.OMAPLIT:
 			// copy pointer
-			staticdata.InitAddr(l, loff, s.Temps[r], 0)
+			staticdata.InitAddr(l, loff, staticdata.GlobalLinksym(s.Temps[r]))
 			return true
 		}
 
 	case ir.OSLICELIT:
 		r := r.(*ir.CompLitExpr)
 		// copy slice
-		staticdata.InitSlice(l, loff, s.Temps[r], r.Len)
+		staticdata.InitSlice(l, loff, staticdata.GlobalLinksym(s.Temps[r]), r.Len)
 		return true
 
 	case ir.OARRAYLIT, ir.OSTRUCTLIT:
@@ -235,8 +234,8 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 
 	case ir.OADDR:
 		r := r.(*ir.AddrExpr)
-		if name, offset, ok := StaticLoc(r.X); ok {
-			staticdata.InitAddr(l, loff, name, offset)
+		if name, offset, ok := StaticLoc(r.X); ok && name.Class == ir.PEXTERN {
+			staticdata.InitAddrOffset(l, loff, name.Linksym(), offset)
 			return true
 		}
 		fallthrough
@@ -249,7 +248,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 			a := StaticName(r.X.Type())
 
 			s.Temps[r] = a
-			staticdata.InitAddr(l, loff, a, 0)
+			staticdata.InitAddr(l, loff, a.Linksym())
 
 			// Init underlying literal.
 			assign(base.Pos, a, 0, r.X)
@@ -273,7 +272,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		ta.SetNoalg(true)
 		a := StaticName(ta)
 		s.Temps[r] = a
-		staticdata.InitSlice(l, loff, a, r.Len)
+		staticdata.InitSlice(l, loff, a.Linksym(), r.Len)
 		// Fall through to init underlying array.
 		l = a
 		loff = 0
@@ -308,7 +307,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 			// Closures with no captured variables are globals,
 			// so the assignment can be done at link time.
 			// TODO if roff != 0 { panic }
-			staticdata.InitFunc(l, loff, r.Func.Nname)
+			staticdata.InitAddr(l, loff, staticdata.FuncLinksym(r.Func.Nname))
 			return true
 		}
 		ir.ClosureDebugRuntimeCheck(r)
@@ -345,7 +344,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		// Create a copy of l to modify while we emit data.
 
 		// Emit itab, advance offset.
-		staticdata.InitAddr(l, loff, itab.X.(*ir.Name), 0)
+		staticdata.InitAddr(l, loff, itab.X.(*ir.Name).Linksym())
 
 		// Emit data.
 		if types.IsDirectIface(val.Type()) {
@@ -361,7 +360,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 			a := StaticName(val.Type())
 			s.Temps[val] = a
 			assign(base.Pos, a, 0, val)
-			staticdata.InitAddr(l, loff+int64(types.PtrSize), a, 0)
+			staticdata.InitAddr(l, loff+int64(types.PtrSize), a.Linksym())
 		}
 
 		return true
