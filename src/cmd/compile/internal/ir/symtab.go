@@ -65,13 +65,10 @@ var Syms struct {
 
 // Pkgs holds known packages.
 var Pkgs struct {
-	Go       *types.Pkg
-	Itab     *types.Pkg
-	Itablink *types.Pkg
-	Map      *types.Pkg
-	Msan     *types.Pkg
-	Race     *types.Pkg
-	Runtime  *types.Pkg
-	Track    *types.Pkg
-	Unsafe   *types.Pkg
+	Go      *types.Pkg
+	Itab    *types.Pkg
+	Map     *types.Pkg
+	Runtime *types.Pkg
+	Track   *types.Pkg
+	Unsafe  *types.Pkg
 }
