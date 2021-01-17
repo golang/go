@@ -1580,11 +1580,11 @@ func (s *state) stmt(n ir.Node) {
 		b := s.exit()
 		b.Pos = s.lastPos.WithIsStmt()
 
-	case ir.ORETJMP:
-		n := n.(*ir.BranchStmt)
+	case ir.OTAILCALL:
+		n := n.(*ir.TailCallStmt)
 		b := s.exit()
 		b.Kind = ssa.BlockRetJmp // override BlockRet
-		b.Aux = callTargetLSym(n.Label, s.curfn.LSym)
+		b.Aux = callTargetLSym(n.Target.Sym(), s.curfn.LSym)
 
 	case ir.OCONTINUE, ir.OBREAK:
 		n := n.(*ir.BranchStmt)

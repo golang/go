@@ -857,8 +857,8 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.ReturnStmt)
 		return tcReturn(n)
 
-	case ir.ORETJMP:
-		n := n.(*ir.BranchStmt)
+	case ir.OTAILCALL:
+		n := n.(*ir.TailCallStmt)
 		return n
 
 	case ir.OSELECT:
@@ -2023,7 +2023,7 @@ func isTermNode(n ir.Node) bool {
 		n := n.(*ir.BlockStmt)
 		return isTermNodes(n.List)
 
-	case ir.OGOTO, ir.ORETURN, ir.ORETJMP, ir.OPANIC, ir.OFALL:
+	case ir.OGOTO, ir.ORETURN, ir.OTAILCALL, ir.OPANIC, ir.OFALL:
 		return true
 
 	case ir.OFOR, ir.OFORUNTIL:

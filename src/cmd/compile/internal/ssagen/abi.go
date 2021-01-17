@@ -303,7 +303,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	var tail ir.Node
 	if tfn.Type().NumResults() == 0 && tfn.Type().NumParams() == 0 && tfn.Type().NumRecvs() == 0 && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
 
-		tail = ir.NewBranchStmt(base.Pos, ir.ORETJMP, f.Nname.Sym())
+		tail = ir.NewTailCallStmt(base.Pos, f.Nname)
 	} else {
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
 		call.Args = ir.ParamNames(tfn.Type())

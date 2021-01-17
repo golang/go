@@ -1227,6 +1227,28 @@ func (n *SwitchStmt) editChildren(edit func(Node) Node) {
 	editNodes(n.Compiled, edit)
 }
 
+func (n *TailCallStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+func (n *TailCallStmt) copy() Node {
+	c := *n
+	c.init = copyNodes(c.init)
+	return &c
+}
+func (n *TailCallStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Target != nil && do(n.Target) {
+		return true
+	}
+	return false
+}
+func (n *TailCallStmt) editChildren(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.Target != nil {
+		n.Target = edit(n.Target).(*Name)
+	}
+}
+
 func (n *TypeAssertExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *TypeAssertExpr) copy() Node {
 	c := *n
