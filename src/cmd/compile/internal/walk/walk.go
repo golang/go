@@ -305,6 +305,14 @@ func mayCall(n ir.Node) bool {
 			// before we start marshaling args for a call. See issue 16760.
 			return true
 
+		case ir.OANDAND, ir.OOROR:
+			n := n.(*ir.LogicalExpr)
+			// The RHS expression may have init statements that
+			// should only execute conditionally, and so cannot be
+			// pulled out to the top-level init list. We could try
+			// to be more precise here.
+			return len(n.Y.Init()) != 0
+
 		// When using soft-float, these ops might be rewritten to function calls
 		// so we ensure they are evaluated first.
 		case ir.OADD, ir.OSUB, ir.OMUL, ir.ONEG:
@@ -318,7 +326,6 @@ func mayCall(n ir.Node) bool {
 
 		case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.OLINKSYMOFFSET, ir.OMETHEXPR,
 			ir.OAND, ir.OANDNOT, ir.OLSH, ir.OOR, ir.ORSH, ir.OXOR, ir.OCOMPLEX, ir.OEFACE,
-			ir.OANDAND, ir.OOROR,
 			ir.OADDR, ir.OBITNOT, ir.ONOT, ir.OPLUS,
 			ir.OCAP, ir.OIMAG, ir.OLEN, ir.OREAL,
 			ir.OCONVNOP, ir.ODOT,
