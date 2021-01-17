@@ -361,7 +361,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 		if strings.Contains(name, ".") {
 			base.ErrorfAt(fn.Pos(), "Calls to //go:registerparams method %s won't work, remove the pragma from the declaration.", name)
 		}
-		s.f.Warnl(fn.Pos(), "Declared function %s has register params", name)
+		s.f.Warnl(fn.Pos(), "declared function %v has register params", fn)
 	}
 
 	s.panics = map[funcLine]*ssa.Block{}
@@ -1585,7 +1585,7 @@ func (s *state) stmt(n ir.Node) {
 		n := n.(*ir.TailCallStmt)
 		b := s.exit()
 		b.Kind = ssa.BlockRetJmp // override BlockRet
-		b.Aux = callTargetLSym(n.Target.Sym(), s.curfn.LSym)
+		b.Aux = callTargetLSym(n.Target, s.curfn.LSym)
 
 	case ir.OCONTINUE, ir.OBREAK:
 		n := n.(*ir.BranchStmt)
@@ -4756,7 +4756,7 @@ func (s *state) callAddr(n *ir.CallExpr, k callKind) *ssa.Value {
 // Returns the address of the return value (or nil if none).
 func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Value {
 	s.prevCall = nil
-	var sym *types.Sym     // target symbol (if static)
+	var callee *ir.Name    // target function (if static)
 	var closure *ssa.Value // ptr to closure to run (if dynamic)
 	var codeptr *ssa.Value // ptr to target code (if dynamic)
 	var rcvr *ssa.Value    // receiver to set
@@ -4781,13 +4781,13 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		testLateExpansion = k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f)
 		if k == callNormal && fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC {
 			fn := fn.(*ir.Name)
-			sym = fn.Sym()
+			callee = fn
 			// TODO remove after register abi is working
 			inRegistersImported := fn.Pragma()&ir.RegisterParams != 0
 			inRegistersSamePackage := fn.Func != nil && fn.Func.Pragma&ir.RegisterParams != 0
 			inRegisters = inRegistersImported || inRegistersSamePackage
 			if inRegisters {
-				s.f.Warnl(n.Pos(), "Called function %s has register params", sym.Linksym().Name)
+				s.f.Warnl(n.Pos(), "called function %v has register params", callee)
 			}
 			break
 		}
@@ -4982,13 +4982,13 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			} else {
 				call = s.newValue2A(ssa.OpInterCall, types.TypeMem, ssa.InterfaceAuxCall(ACArgs, ACResults), codeptr, s.mem())
 			}
-		case sym != nil:
+		case callee != nil:
 			if testLateExpansion {
-				aux := ssa.StaticAuxCall(callTargetLSym(sym, s.curfn.LSym), ACArgs, ACResults)
+				aux := ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), ACArgs, ACResults)
 				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 				call.AddArgs(callArgs...)
 			} else {
-				call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(callTargetLSym(sym, s.curfn.LSym), ACArgs, ACResults), s.mem())
+				call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), ACArgs, ACResults), s.mem())
 			}
 		default:
 			s.Fatalf("bad call type %v %v", n.Op(), n)
@@ -7386,31 +7386,26 @@ func clobberBase(n ir.Node) ir.Node {
 //
 // 3. in all other cases, want the regular ABIInternal linksym
 //
-func callTargetLSym(callee *types.Sym, callerLSym *obj.LSym) *obj.LSym {
+func callTargetLSym(callee *ir.Name, callerLSym *obj.LSym) *obj.LSym {
 	lsym := callee.Linksym()
 	if !base.Flag.ABIWrap {
 		return lsym
 	}
-	if ir.AsNode(callee.Def) == nil {
+	fn := callee.Func
+	if fn == nil {
 		return lsym
 	}
-	defn := ir.AsNode(callee.Def).Name().Defn
-	if defn == nil {
-		return lsym
-	}
-	ndclfunc := defn.(*ir.Func)
 
 	// check for case 1 above
 	if callerLSym.ABIWrapper() {
-		if nlsym := ndclfunc.LSym; nlsym != nil {
+		if nlsym := fn.LSym; nlsym != nil {
 			lsym = nlsym
 		}
 	} else {
 		// check for case 2 above
-		nam := ndclfunc.Nname
-		defABI, hasDefABI := symabiDefs[nam.Sym().LinksymName()]
+		defABI, hasDefABI := symabiDefs[callee.Sym().LinksymName()]
 		if hasDefABI && defABI == obj.ABI0 {
-			lsym = nam.Sym().LinksymABI0()
+			lsym = callee.Sym().LinksymABI0()
 		}
 	}
 	return lsym
