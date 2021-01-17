@@ -344,21 +344,18 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 		if !types.Identical(t, x.Type()) {
 			panic("dotdotdot base type does not match order's assigned type")
 		}
-		a = initStackTemp(init, x, vstat != nil)
+		a = initStackTemp(init, x, vstat)
 	} else if n.Esc() == ir.EscNone {
-		if vstat == nil {
-			// TODO(mdempsky): Remove this useless temporary.
-			// It's only needed to keep toolstash happy.
-			typecheck.Temp(t)
-		}
-		a = initStackTemp(init, typecheck.Temp(t), vstat != nil)
+		a = initStackTemp(init, typecheck.Temp(t), vstat)
 	} else {
 		a = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(t))
 	}
 	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, vauto, a))
 
-	if vstat != nil {
-		// copy static to heap (4)
+	if vstat != nil && n.Prealloc == nil && n.Esc() != ir.EscNone {
+		// If we allocated on the heap with ONEW, copy the static to the
+		// heap (4). We skip this for stack temporaries, because
+		// initStackTemp already handled the copy.
 		a = ir.NewStarExpr(base.Pos, vauto)
 		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, a, vstat))
 	}
@@ -535,7 +532,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		var r ir.Node
 		if n.Prealloc != nil {
 			// n.Prealloc is stack temporary used as backing store.
-			r = initStackTemp(init, n.Prealloc, false)
+			r = initStackTemp(init, n.Prealloc, nil)
 		} else {
 			r = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(n.X.Type()))
 			r.SetEsc(n.Esc())
