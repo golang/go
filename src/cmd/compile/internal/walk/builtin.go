@@ -277,10 +277,8 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		// Allocate hmap on stack.
 
 		// var hv hmap
-		hv := typecheck.Temp(hmapType)
-		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, hv, nil)))
 		// h = &hv
-		h = typecheck.NodAddr(hv)
+		h = stackTempAddr(init, hmapType)
 
 		// Allocate one bucket pointed to by hmap.buckets on stack if hint
 		// is not larger than BUCKETSIZE. In case hint is larger than
@@ -303,11 +301,8 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 			nif.Likely = true
 
 			// var bv bmap
-			bv := typecheck.Temp(reflectdata.MapBucketType(t))
-			nif.Body.Append(ir.NewAssignStmt(base.Pos, bv, nil))
-
 			// b = &bv
-			b := typecheck.NodAddr(bv)
+			b := stackTempAddr(&nif.Body, reflectdata.MapBucketType(t))
 
 			// h.buckets = b
 			bsym := hmapType.Field(5).Sym // hmap.buckets see reflect.go:hmap
@@ -509,9 +504,7 @@ func walkNew(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 		if t.Size() >= ir.MaxImplicitStackVarSize {
 			base.Fatalf("large ONEW with EscNone: %v", n)
 		}
-		r := typecheck.Temp(t)
-		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, r, nil))) // zero temp
-		return typecheck.Expr(typecheck.NodAddr(r))
+		return stackTempAddr(init, t)
 	}
 	types.CalcSize(t)
 	n.MarkNonNil()

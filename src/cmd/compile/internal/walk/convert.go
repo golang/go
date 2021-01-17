@@ -198,8 +198,7 @@ func walkBytesRunesToString(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	a := typecheck.NodNil()
 	if n.Esc() == ir.EscNone {
 		// Create temporary buffer for string on stack.
-		t := types.NewArray(types.Types[types.TUINT8], tmpstringbufsize)
-		a = typecheck.NodAddr(typecheck.Temp(t))
+		a = stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
 	}
 	if n.Op() == ir.ORUNES2STR {
 		// slicerunetostring(*[32]byte, []rune) string
@@ -229,8 +228,7 @@ func walkBytesToStringTemp(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 func walkRuneToString(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	a := typecheck.NodNil()
 	if n.Esc() == ir.EscNone {
-		t := types.NewArray(types.Types[types.TUINT8], 4)
-		a = typecheck.NodAddr(typecheck.Temp(t))
+		a = stackBufAddr(4, types.Types[types.TUINT8])
 	}
 	// intstring(*[4]byte, rune)
 	return mkcall("intstring", n.Type(), init, a, typecheck.Conv(n.X, types.Types[types.TINT64]))
@@ -246,7 +244,7 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		t := types.NewArray(types.Types[types.TUINT8], int64(len(sc)))
 		var a ir.Node
 		if n.Esc() == ir.EscNone && len(sc) <= int(ir.MaxImplicitStackVarSize) {
-			a = typecheck.NodAddr(typecheck.Temp(t))
+			a = stackBufAddr(t.NumElem(), t.Elem())
 		} else {
 			types.CalcSize(t)
 			a = ir.NewUnaryExpr(base.Pos, ir.ONEW, nil)
@@ -273,8 +271,7 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	a := typecheck.NodNil()
 	if n.Esc() == ir.EscNone {
 		// Create temporary buffer for slice on stack.
-		t := types.NewArray(types.Types[types.TUINT8], tmpstringbufsize)
-		a = typecheck.NodAddr(typecheck.Temp(t))
+		a = stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
 	}
 	// stringtoslicebyte(*32[byte], string) []byte
 	return mkcall("stringtoslicebyte", n.Type(), init, a, typecheck.Conv(s, types.Types[types.TSTRING]))
@@ -298,8 +295,7 @@ func walkStringToRunes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	a := typecheck.NodNil()
 	if n.Esc() == ir.EscNone {
 		// Create temporary buffer for slice on stack.
-		t := types.NewArray(types.Types[types.TINT32], tmpstringbufsize)
-		a = typecheck.NodAddr(typecheck.Temp(t))
+		a = stackBufAddr(tmpstringbufsize, types.Types[types.TINT32])
 	}
 	// stringtoslicerune(*[32]rune, string) []rune
 	return mkcall("stringtoslicerune", n.Type(), init, a, typecheck.Conv(n.X, types.Types[types.TSTRING]))
