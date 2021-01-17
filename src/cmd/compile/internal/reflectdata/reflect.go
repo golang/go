@@ -791,7 +791,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 // TrackSym returns the symbol for tracking use of field/method f, assumed
 // to be a member of struct/interface type t.
 func TrackSym(t *types.Type, f *types.Field) *obj.LSym {
-	return ir.Pkgs.Track.Lookup(t.ShortString() + "." + f.Sym.Name).Linksym()
+	return base.PkgLinksym("go.track", t.ShortString() + "." + f.Sym.Name, obj.ABI0)
 }
 
 func TypeSymPrefix(prefix string, t *types.Type) *types.Sym {
@@ -1654,18 +1654,9 @@ func ZeroAddr(size int64) ir.Node {
 	if ZeroSize < size {
 		ZeroSize = size
 	}
-	s := ir.Pkgs.Map.Lookup("zero")
-	if s.Def == nil {
-		x := typecheck.NewName(s)
-		x.SetType(types.Types[types.TUINT8])
-		x.Class = ir.PEXTERN
-		x.SetTypecheck(1)
-		s.Def = x
-	}
-	z := typecheck.NodAddr(ir.AsNode(s.Def))
-	z.SetType(types.NewPtr(types.Types[types.TUINT8]))
-	z.SetTypecheck(1)
-	return z
+	lsym := base.PkgLinksym("go.map", "zero", obj.ABI0)
+	x := ir.NewLinksymExpr(base.Pos, lsym, types.Types[types.TUINT8])
+	return typecheck.Expr(typecheck.NodAddr(x))
 }
 
 func CollectPTabs() {

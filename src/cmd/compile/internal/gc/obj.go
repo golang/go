@@ -146,7 +146,7 @@ func dumpdata() {
 	dumpglobls(typecheck.Target.Externs[numExterns:])
 
 	if reflectdata.ZeroSize > 0 {
-		zero := ir.Pkgs.Map.Lookup("zero").Linksym()
+		zero := base.PkgLinksym("go.map", "zero", obj.ABI0)
 		objw.Global(zero, int32(reflectdata.ZeroSize), obj.DUPOK|obj.RODATA)
 	}
 

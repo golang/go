@@ -67,8 +67,6 @@ var Syms struct {
 var Pkgs struct {
 	Go      *types.Pkg
 	Itab    *types.Pkg
-	Map     *types.Pkg
 	Runtime *types.Pkg
-	Track   *types.Pkg
 	Unsafe  *types.Pkg
 }

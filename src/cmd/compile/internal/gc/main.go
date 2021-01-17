@@ -96,13 +96,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	ir.Pkgs.Itab = types.NewPkg("go.itab", "go.itab")
 	ir.Pkgs.Itab.Prefix = "go.itab" // not go%2eitab
 
-	ir.Pkgs.Track = types.NewPkg("go.track", "go.track")
-	ir.Pkgs.Track.Prefix = "go.track" // not go%2etrack
-
-	// pseudo-package used for map zero values
-	ir.Pkgs.Map = types.NewPkg("go.map", "go.map")
-	ir.Pkgs.Map.Prefix = "go.map"
-
 	// pseudo-package used for methods with anonymous receivers
 	ir.Pkgs.Go = types.NewPkg("go", "")
 
