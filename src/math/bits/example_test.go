@@ -210,13 +210,39 @@ func ExampleLen64() {
 }
 
 func ExampleShiftLeft() {
-	// Decode << to a byte array
 	data := []byte("PS")
-	fmt.Printf("%08b\n", data) // [01010000 01010011]
+	dst := []byte{0, 0, 0, 0}
+	fmt.Printf("data: %08b  dst: %08b\n", data, dst)
+	// data: [01010000 01010011]  dst: [00000000 00000000 00000000 00000000]
 
-	// ShiftLeft 3 bits to the left (use -3 for right)
-	bytes.ShiftLeft(data, 3)
+	// ShiftLeft 3 bits to the left and put the result into dst.
+	bits.ShiftLeft(dst[1:3], data, 3)
+	fmt.Printf("data: %08b  dst: %08b\n", data, dst)
+	// data: [01010000 01010011]  dst: [00000000 10000010 10011000 00000000]
 
-	// The output is now shifted positive 3 bits
-	fmt.Printf("%08b\n", data) // [10000010 10011000]
+	// ShiftLeft 3 bits to the left and put the result back into data.
+	bits.ShiftLeft(data, data, 3)
+	fmt.Printf("data: %08b\n", data)
+	// data: [10000010 10011000]
+
+	// The output is now shifted 3 bits
+}
+
+func ExampleShiftRight() {
+	data := []byte("PS")
+	dst := []byte{0, 0, 0, 0}
+	fmt.Printf("data: %08b  dst: %08b\n", data, dst)
+	// data: [01010000 01010011]  dst: [00000000 00000000 00000000 00000000]
+
+	// ShiftRight 3 bits to the right and put the result into dst.
+	bits.ShiftRight(dst[1:3], data, 3)
+	fmt.Printf("data: %08b  dst: %08b\n", data, dst)
+	// data: [01010000 01010011]  dst: [00000000 00001010 00001010 00000000]
+
+	// ShiftRight 3 bits to the right and put the result back into data.
+	bits.ShiftRight(data, data, 3)
+	fmt.Printf("data: %08b\n", data)
+	// data: [00001010 00001010]
+
+	// The output is now shifted 3 bits
 }
