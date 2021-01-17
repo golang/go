@@ -7403,9 +7403,9 @@ func callTargetLSym(callee *ir.Name, callerLSym *obj.LSym) *obj.LSym {
 		}
 	} else {
 		// check for case 2 above
-		defABI, hasDefABI := symabiDefs[callee.Sym().LinksymName()]
+		defABI, hasDefABI := symabiDefs[lsym.Name]
 		if hasDefABI && defABI == obj.ABI0 {
-			lsym = callee.Sym().LinksymABI0()
+			lsym = callee.LinksymABI(obj.ABI0)
 		}
 	}
 	return lsym

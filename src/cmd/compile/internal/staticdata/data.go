@@ -287,7 +287,7 @@ func NeedFuncSym(s *types.Sym) {
 
 func WriteFuncSyms() {
 	sort.Slice(funcsyms, func(i, j int) bool {
-		return funcsyms[i].LinksymName() < funcsyms[j].LinksymName()
+		return funcsyms[i].Linksym().Name < funcsyms[j].Linksym().Name
 	})
 	for _, s := range funcsyms {
 		sf := s.Pkg.Lookup(ir.FuncSymName(s)).Linksym()

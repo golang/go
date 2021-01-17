@@ -28,7 +28,7 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
 	if fn.Nname != nil {
 		expect := fn.Linksym()
 		if fnsym.ABI() == obj.ABI0 {
-			expect = fn.Sym().LinksymABI0()
+			expect = fn.LinksymABI(obj.ABI0)
 		}
 		if fnsym != expect {
 			base.Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
