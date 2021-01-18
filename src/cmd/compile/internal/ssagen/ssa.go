@@ -6467,55 +6467,6 @@ func (s *State) DebugFriendlySetPosFrom(v *ssa.Value) {
 	}
 }
 
-// byXoffset implements sort.Interface for []*ir.Name using Xoffset as the ordering.
-type byXoffset []*ir.Name
-
-func (s byXoffset) Len() int           { return len(s) }
-func (s byXoffset) Less(i, j int) bool { return s[i].FrameOffset() < s[j].FrameOffset() }
-func (s byXoffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-
-func emitStackObjects(e *ssafn, pp *objw.Progs) {
-	var vars []*ir.Name
-	for _, n := range e.curfn.Dcl {
-		if liveness.ShouldTrack(n) && n.Addrtaken() && n.Esc() != ir.EscHeap {
-			vars = append(vars, n)
-		}
-	}
-	if len(vars) == 0 {
-		return
-	}
-
-	// Sort variables from lowest to highest address.
-	sort.Sort(byXoffset(vars))
-
-	// Populate the stack object data.
-	// Format must match runtime/stack.go:stackObjectRecord.
-	x := base.Ctxt.Lookup(e.curfn.LSym.Name + ".stkobj")
-	e.curfn.LSym.Func().StackObjects = x
-	off := 0
-	off = objw.Uintptr(x, off, uint64(len(vars)))
-	for _, v := range vars {
-		// Note: arguments and return values have non-negative Xoffset,
-		// in which case the offset is relative to argp.
-		// Locals have a negative Xoffset, in which case the offset is relative to varp.
-		off = objw.Uintptr(x, off, uint64(v.FrameOffset()))
-		off = objw.SymPtr(x, off, reflectdata.TypeLinksym(v.Type()), 0)
-	}
-
-	// Emit a funcdata pointing at the stack object data.
-	p := pp.Prog(obj.AFUNCDATA)
-	p.From.SetConst(objabi.FUNCDATA_StackObjects)
-	p.To.Type = obj.TYPE_MEM
-	p.To.Name = obj.NAME_EXTERN
-	p.To.Sym = x
-
-	if base.Flag.Live != 0 {
-		for _, v := range vars {
-			base.WarnfAt(v.Pos(), "stack object %v %s", v, v.Type().String())
-		}
-	}
-}
-
 // genssa appends entries to pp for each instruction in f.
 func genssa(f *ssa.Func, pp *objw.Progs) {
 	var s State
@@ -6523,7 +6474,6 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 	e := f.Frontend().(*ssafn)
 
 	s.livenessMap = liveness.Compute(e.curfn, f, e.stkptrsize, pp)
-	emitStackObjects(e, pp)
 
 	openDeferInfo := e.curfn.LSym.Func().OpenCodedDeferInfo
 	if openDeferInfo != nil {
