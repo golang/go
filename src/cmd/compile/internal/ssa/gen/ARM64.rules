@@ -1359,8 +1359,18 @@
 (XOR x (MVN y)) => (EON x y)
 (OR  x (MVN y)) => (ORN x y)
 (MVN (XOR x y)) => (EON x y)
+
+(CSEL [cc] (MOVDconst [-1]) (MOVDconst [0]) flag) => (CSETM [cc] flag)
+(CSEL [cc] (MOVDconst [0]) (MOVDconst [-1]) flag) => (CSETM [arm64Negate(cc)] flag)
 (CSEL [cc] x (MOVDconst [0]) flag) => (CSEL0 [cc] x flag)
 (CSEL [cc] (MOVDconst [0]) y flag) => (CSEL0 [arm64Negate(cc)] y flag)
+(CSEL [cc] x (ADDconst [1] a) flag) => (CSINC [cc] x a flag)
+(CSEL [cc] (ADDconst [1] a) x flag) => (CSINC [arm64Negate(cc)] x a flag)
+(CSEL [cc] x (MVN a) flag) => (CSINV [cc] x a flag)
+(CSEL [cc] (MVN a) x flag) => (CSINV [arm64Negate(cc)] x a flag)
+(CSEL [cc] x (NEG a) flag) => (CSNEG [cc] x a flag)
+(CSEL [cc] (NEG a) x flag) => (CSNEG [arm64Negate(cc)] x a flag)
+
 (SUB x (SUB y z)) => (SUB (ADD <v.Type> x z) y)
 (SUB (SUB x y) z) => (SUB x (ADD <y.Type> y z))
 
@@ -1515,9 +1525,13 @@
 (LEnoov (InvertFlags cmp) yes no) => (GEnoov cmp yes no)
 (GTnoov (InvertFlags cmp) yes no) => (LTnoov cmp yes no)
 
-// absorb InvertFlags into CSEL(0)
+// absorb InvertFlags into conditional instructions
 (CSEL [cc] x y (InvertFlags cmp)) => (CSEL [arm64Invert(cc)] x y cmp)
 (CSEL0 [cc] x (InvertFlags cmp)) => (CSEL0 [arm64Invert(cc)] x cmp)
+(CSETM [cc] (InvertFlags cmp)) => (CSETM [arm64Invert(cc)] cmp)
+(CSINC [cc] x y (InvertFlags cmp)) => (CSINC [arm64Invert(cc)] x y cmp)
+(CSINV [cc] x y (InvertFlags cmp)) => (CSINV [arm64Invert(cc)] x y cmp)
+(CSNEG [cc] x y (InvertFlags cmp)) => (CSNEG [arm64Invert(cc)] x y cmp)
 
 // absorb flag constants into boolean values
 (Equal (FlagConstant [fc])) => (MOVDconst [b2i(fc.eq())])

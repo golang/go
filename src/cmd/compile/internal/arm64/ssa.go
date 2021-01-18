@@ -956,6 +956,20 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.SetFrom3Reg(r1)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpARM64CSINC, ssa.OpARM64CSINV, ssa.OpARM64CSNEG:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
+		p.From.Reg = condBits[ssa.Op(v.AuxInt)]
+		p.Reg = v.Args[0].Reg()
+		p.SetFrom3Reg(v.Args[1].Reg())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssa.OpARM64CSETM:
+		p := s.Prog(arm64.ACSETM)
+		p.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
+		p.From.Reg = condBits[ssa.Op(v.AuxInt)]
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	case ssa.OpARM64DUFFZERO:
 		// runtime.duffzero expects start address in R20
 		p := s.Prog(obj.ADUFFZERO)
