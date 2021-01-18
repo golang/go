@@ -896,7 +896,7 @@ func tcNew(n *ir.UnaryExpr) ir.Node {
 // tcPanic typechecks an OPANIC node.
 func tcPanic(n *ir.UnaryExpr) ir.Node {
 	n.X = Expr(n.X)
-	n.X = DefaultLit(n.X, types.Types[types.TINTER])
+	n.X = AssignConv(n.X, types.Types[types.TINTER], "argument to panic")
 	if n.X.Type() == nil {
 		n.SetType(nil)
 		return n

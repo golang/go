@@ -768,14 +768,12 @@ func (o *orderState) stmt(n ir.Node) {
 		orderBlock(&n.Else, o.free)
 		o.out = append(o.out, n)
 
-	// Special: argument will be converted to interface using convT2E
-	// so make sure it is an addressable temporary.
 	case ir.OPANIC:
 		n := n.(*ir.UnaryExpr)
 		t := o.markTemp()
 		n.X = o.expr(n.X, nil)
-		if !n.X.Type().IsInterface() {
-			n.X = o.addrTemp(n.X)
+		if !n.X.Type().IsEmptyInterface() {
+			base.FatalfAt(n.Pos(), "bad argument to panic: %L", n.X)
 		}
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
