@@ -285,5 +285,5 @@ func main() {
 
 //go:noinline
 func ppanic(s string) { // ERROR "leaking param: s"
-	panic(s)
+	panic(s) // ERROR "s escapes to heap"
 }

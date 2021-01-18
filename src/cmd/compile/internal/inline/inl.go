@@ -346,6 +346,13 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		v.budget -= v.extraCallCost
 
 	case ir.OPANIC:
+		n := n.(*ir.UnaryExpr)
+		if n.X.Op() == ir.OCONVIFACE && n.X.(*ir.ConvExpr).Implicit() {
+			// Hack to keep reflect.flag.mustBe inlinable for TestIntendedInlining.
+			// Before CL 284412, these conversions were introduced later in the
+			// compiler, so they didn't count against inlining budget.
+			v.budget++
+		}
 		v.budget -= inlineExtraPanicCost
 
 	case ir.ORECOVER:
