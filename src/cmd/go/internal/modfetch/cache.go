@@ -28,10 +28,8 @@ import (
 )
 
 func cacheDir(path string) (string, error) {
-	if cfg.GOMODCACHE == "" {
-		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
-		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
-		return "", fmt.Errorf("internal error: cfg.GOMODCACHE not set")
+	if err := checkCacheDir(); err != nil {
+		return "", err
 	}
 	enc, err := module.EscapePath(path)
 	if err != nil {
@@ -64,10 +62,8 @@ func CachePath(m module.Version, suffix string) (string, error) {
 // along with the directory if the directory does not exist or if the directory
 // is not completely populated.
 func DownloadDir(m module.Version) (string, error) {
-	if cfg.GOMODCACHE == "" {
-		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
-		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
-		return "", fmt.Errorf("internal error: cfg.GOMODCACHE not set")
+	if err := checkCacheDir(); err != nil {
+		return "", err
 	}
 	enc, err := module.EscapePath(m.Path)
 	if err != nil {
@@ -134,10 +130,8 @@ func lockVersion(mod module.Version) (unlock func(), err error) {
 // user's working directory.
 // If err is nil, the caller MUST eventually call the unlock function.
 func SideLock() (unlock func(), err error) {
-	if cfg.GOMODCACHE == "" {
-		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
-		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
-		base.Fatalf("go: internal error: cfg.GOMODCACHE not set")
+	if err := checkCacheDir(); err != nil {
+		base.Fatalf("go: %v", err)
 	}
 
 	path := filepath.Join(cfg.GOMODCACHE, "cache", "lock")
@@ -632,4 +626,17 @@ func rewriteVersionList(dir string) {
 	if err := renameio.WriteFile(listFile, buf.Bytes(), 0666); err != nil {
 		base.Fatalf("go: failed to write version list: %v", err)
 	}
+}
+
+func checkCacheDir() error {
+	if cfg.GOMODCACHE == "" {
+		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
+		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
+		return fmt.Errorf("internal error: cfg.GOMODCACHE not set")
+	}
+
+	if !filepath.IsAbs(cfg.GOMODCACHE) {
+		return fmt.Errorf("GOMODCACHE entry is relative; must be absolute path: %q.\n", cfg.GOMODCACHE)
+	}
+	return nil
 }
