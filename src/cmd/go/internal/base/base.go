@@ -12,9 +12,9 @@ import (
 	"flag"
 	"fmt"
 	"go/scanner"
+	exec "internal/execabs"
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 

@@ -9,9 +9,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	exec "internal/execabs"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 

@@ -7,9 +7,9 @@
 package diff
 
 import (
+	exec "internal/execabs"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"runtime"
 )
 
