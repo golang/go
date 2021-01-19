@@ -35,3 +35,8 @@ type NoNameBad struct {
 	x byte
 	z byte
 }
+
+type WithComments struct {
+	b [0]byte
+	a uint32
+}

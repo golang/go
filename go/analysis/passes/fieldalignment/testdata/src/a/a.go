@@ -35,3 +35,12 @@ type NoNameBad struct { // want "struct of size 20 could be 16"
 	y int32
 	z byte
 }
+
+type WithComments struct { // want "struct of size 8 could be 4"
+	// doc style comment
+	a uint32  // field a comment
+	b [0]byte // field b comment
+	// other doc style comment
+
+	// and a last comment
+}
