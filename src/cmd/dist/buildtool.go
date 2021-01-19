@@ -302,8 +302,10 @@ func bootstrapFixImports(srcFile string) string {
 			continue
 		}
 		if strings.HasPrefix(line, `import "`) || strings.HasPrefix(line, `import . "`) ||
-			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"")) {
+			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"") || strings.HasPrefix(line, "\texec \"")) {
 			line = strings.Replace(line, `"cmd/`, `"bootstrap/cmd/`, -1)
+			// During bootstrap, must use plain os/exec.
+			line = strings.Replace(line, `exec "internal/execabs"`, `"os/exec"`, -1)
 			for _, dir := range bootstrapDirs {
 				if strings.HasPrefix(dir, "cmd/") {
 					continue

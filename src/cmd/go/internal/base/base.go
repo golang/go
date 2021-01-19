@@ -9,9 +9,9 @@ package base
 import (
 	"flag"
 	"fmt"
+	exec "internal/execabs"
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 

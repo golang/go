@@ -82,9 +82,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	exec "internal/execabs"
 	"io"
 	"os"
-	"os/exec"
 
 	"cmd/internal/test2json"
 )
