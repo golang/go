@@ -338,6 +338,8 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("Asmb")
 	asmb(ctxt)
 
+	exitIfErrors()
+
 	// Generate additional symbols for the native symbol table just prior
 	// to code generation.
 	bench.Start("GenSymsLate")
