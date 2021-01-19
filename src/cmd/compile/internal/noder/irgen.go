@@ -5,6 +5,7 @@
 package noder
 
 import (
+	"fmt"
 	"os"
 
 	"cmd/compile/internal/base"
@@ -162,6 +163,14 @@ Outer:
 	for _, declList := range declLists {
 		g.target.Decls = append(g.target.Decls, g.decls(declList)...)
 	}
+
+	if base.Flag.W > 1 {
+		for _, n := range g.target.Decls {
+			s := fmt.Sprintf("\nafter noder2 %v", n)
+			ir.Dump(s, n)
+		}
+	}
+
 	typecheck.DeclareUniverse()
 
 	for _, p := range noders {
