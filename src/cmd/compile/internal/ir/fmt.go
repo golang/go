@@ -589,20 +589,20 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		}
 
 		if n.Type() == types.UntypedRune {
-			switch x, ok := constant.Int64Val(n.Val()); {
+			switch x, ok := constant.Uint64Val(n.Val()); {
 			case !ok:
 				fallthrough
 			default:
 				fmt.Fprintf(s, "('\\x00' + %v)", n.Val())
 
-			case ' ' <= x && x < utf8.RuneSelf && x != '\\' && x != '\'':
-				fmt.Fprintf(s, "'%c'", int(x))
+			case x < utf8.RuneSelf:
+				fmt.Fprintf(s, "%q", x)
 
-			case 0 <= x && x < 1<<16:
-				fmt.Fprintf(s, "'\\u%04x'", uint(int(x)))
+			case x < 1<<16:
+				fmt.Fprintf(s, "'\\u%04x'", x)
 
-			case 0 <= x && x <= utf8.MaxRune:
-				fmt.Fprintf(s, "'\\U%08x'", uint64(x))
+			case x <= utf8.MaxRune:
+				fmt.Fprintf(s, "'\\U%08x'", x)
 			}
 		} else {
 			fmt.Fprint(s, types.FmtConst(n.Val(), s.Flag('#')))
