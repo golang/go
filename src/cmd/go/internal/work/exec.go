@@ -2042,6 +2042,9 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...interfa
 
 	var buf bytes.Buffer
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+	if cmd.Path != "" {
+		cmd.Args[0] = cmd.Path
+	}
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
 	cleanup := passLongArgsInResponseFiles(cmd)
