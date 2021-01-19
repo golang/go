@@ -737,14 +737,14 @@ FieldLoop:
 
 		// Find the nested struct field by following f.index.
 		fv := v
-		for _, i := range f.index {
+		for _, iv := range f.index {
 			if fv.Kind() == reflect.Ptr {
 				if fv.IsNil() {
 					continue FieldLoop
 				}
 				fv = fv.Elem()
 			}
-			fv = fv.Field(i)
+			fv = fv.Field(iv)
 		}
 
 		if f.omitEmpty && isEmptyValue(fv) {
