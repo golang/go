@@ -9,22 +9,34 @@
 
 package boring
 
-// #include "goboringcrypto.h"
-import "C"
 import (
+	"crypto/internal/boring/boringcrypto"
 	"crypto/internal/boring/sig"
-	"math/big"
 )
+
+type externalCrypto interface {
+	Init()
+
+	aes
+	ecdsa
+	hmac
+	rsa
+	sha
+}
+
+var external externalCrypto
 
 const available = true
 
 func init() {
-	C._goboringcrypto_BORINGSSL_bcm_power_on_self_test()
-	if C._goboringcrypto_FIPS_mode() != 1 {
-		panic("boringcrypto: not in FIPS mode")
-	}
+	external = boringcrypto.NewBoringCrypto()
+	external.Init()
 	sig.BoringCrypto()
 }
+
+type fail string
+
+func (e fail) Error() string { return "boringcrypto: " + string(e) + " failed" }
 
 // Unreachable marks code that should be unreachable
 // when BoringCrypto is in use. It panics.
@@ -48,36 +60,4 @@ func UnreachableExceptTests() {
 		println("boringcrypto: unexpected code execution in", name)
 		panic("boringcrypto: invalid code execution")
 	}
-}
-
-type fail string
-
-func (e fail) Error() string { return "boringcrypto: " + string(e) + " failed" }
-
-func bigToBN(x *big.Int) *C.GO_BIGNUM {
-	raw := x.Bytes()
-	return C._goboringcrypto_BN_bin2bn(base(raw), C.size_t(len(raw)), nil)
-}
-
-func bnToBig(bn *C.GO_BIGNUM) *big.Int {
-	raw := make([]byte, C._goboringcrypto_BN_num_bytes(bn))
-	n := C._goboringcrypto_BN_bn2bin(bn, base(raw))
-	return new(big.Int).SetBytes(raw[:n])
-}
-
-func bigToBn(bnp **C.GO_BIGNUM, b *big.Int) bool {
-	if *bnp != nil {
-		C._goboringcrypto_BN_free(*bnp)
-		*bnp = nil
-	}
-	if b == nil {
-		return true
-	}
-	raw := b.Bytes()
-	bn := C._goboringcrypto_BN_bin2bn(base(raw), C.size_t(len(raw)), nil)
-	if bn == nil {
-		return false
-	}
-	*bnp = bn
-	return true
 }
