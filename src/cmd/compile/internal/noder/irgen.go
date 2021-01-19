@@ -79,6 +79,7 @@ func check2(noders []*noder) {
 		info:   &info,
 		posMap: m,
 		objs:   make(map[types2.Object]*ir.Name),
+		typs:   make(map[types2.Type]*types.Type),
 	}
 	g.generate(noders)
 
@@ -94,6 +95,7 @@ type irgen struct {
 
 	posMap
 	objs   map[types2.Object]*ir.Name
+	typs   map[types2.Type]*types.Type
 	marker dwarfgen.ScopeMarker
 }
 
