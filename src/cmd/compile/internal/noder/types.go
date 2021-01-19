@@ -26,6 +26,20 @@ func (g *irgen) pkg(pkg *types2.Package) *types.Pkg {
 }
 
 func (g *irgen) typ(typ types2.Type) *types.Type {
+	// Caching type mappings isn't strictly needed, because typ0 preserves
+	// type identity; but caching minimizes memory blow-up from mapping the
+	// same composite type multiple times, and also plays better with the
+	// current state of cmd/compile (e.g., haphazard calculation of type
+	// sizes).
+	res, ok := g.typs[typ]
+	if !ok {
+		res = g.typ0(typ)
+		g.typs[typ] = res
+	}
+	return res
+}
+
+func (g *irgen) typ0(typ types2.Type) *types.Type {
 	switch typ := typ.(type) {
 	case *types2.Basic:
 		return g.basic(typ)
