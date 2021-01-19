@@ -894,6 +894,9 @@ func tokenFileContainsPos(f *token.File, pos token.Pos) bool {
 }
 
 func objectKind(obj types.Object) string {
+	if obj == nil {
+		return "nil object"
+	}
 	switch obj := obj.(type) {
 	case *types.PkgName:
 		return "imported package name"
@@ -937,6 +940,9 @@ func isLocal(obj types.Object) bool {
 }
 
 func isPackageLevel(obj types.Object) bool {
+	if obj == nil {
+		return false
+	}
 	return obj.Pkg().Scope().Lookup(obj.Name()) == obj
 }
 
