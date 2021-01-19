@@ -11,6 +11,7 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/compile/internal/types2"
+	"cmd/internal/src"
 )
 
 func (g *irgen) expr(expr syntax.Expr) ir.Node {
@@ -106,9 +107,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 			}
 		}
 
-		// TODO(mdempsky/danscales): Use g.info.Selections[expr]
-		// to resolve field/method selection. See CL 280633.
-		return typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, g.expr(expr.X), g.name(expr.Sel)))
+		return g.selectorExpr(pos, typ, expr)
 	case *syntax.SliceExpr:
 		return Slice(pos, g.expr(expr.X), g.expr(expr.Index[0]), g.expr(expr.Index[1]), g.expr(expr.Index[2]))
 
@@ -127,6 +126,93 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 		g.unhandled("expression", expr)
 		panic("unreachable")
 	}
+}
+
+// selectorExpr resolves the choice of ODOT, ODOTPTR, OCALLPART (eventually
+// ODOTMETH & ODOTINTER), and OMETHEXPR and deals with embedded fields here rather
+// than in typecheck.go.
+func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.SelectorExpr) ir.Node {
+	x := g.expr(expr.X)
+	selinfo := g.info.Selections[expr]
+	nindex := len(selinfo.Index())
+
+	// Iterate through the selections from types2. If nindex > 1, then we will
+	// create extra nodes to deal with embedded fields.
+	for i := 0; i < nindex; i++ {
+		var f *types.Field
+		var n *ir.SelectorExpr
+
+		op := ir.ODOT
+		index := selinfo.Index()[i]
+		xt := x.Type()
+		origxt := xt
+		if xt.IsPtr() && !xt.Elem().IsInterface() {
+			// Get to the base type, but remember that we skipped the ptr
+			xt = xt.Elem()
+			op = ir.ODOTPTR
+		}
+		types.CalcSize(xt)
+		// Everything up to the last selection is an embedded field
+		// access, and the last selection is determined by selinfo.Kind().
+		if i < nindex-1 || selinfo.Kind() == types2.FieldVal {
+			f = xt.Field(index)
+			sym := f.Sym
+			n = ir.NewSelectorExpr(pos, op, x, sym)
+			if i < nindex-1 {
+				n.SetImplicit(true)
+				typed(f.Type, n)
+			}
+		} else if selinfo.Kind() == types2.MethodExpr {
+			var ms *types.Fields
+			if xt.IsInterface() {
+				// TODO(danscales,mdempsky): interface method sets
+				// are not sorted the same between types and
+				// types2. In particular, this will likely fail if
+				// an interface contains unexported methods from
+				// two different packages (due to cross-package
+				// interface embedding).
+				ms = xt.Fields()
+			} else {
+				mt := types.ReceiverBaseType(xt)
+				ms = mt.Methods()
+			}
+			f = ms.Slice()[index]
+			n = ir.NewSelectorExpr(pos, ir.OMETHEXPR, x, f.Sym)
+		} else { // types.MethodVal
+			if xt.IsInterface() {
+				f = xt.Field(index)
+			} else {
+				f = xt.Methods().Slice()[index]
+				rcvr := f.Type.Recv().Type
+				if rcvr.IsPtr() && types.Identical(rcvr.Elem(), origxt) {
+					addr := typecheck.NodAddrAt(pos, x)
+					addr.SetImplicit(true)
+					typed(xt.PtrTo(), addr)
+					x = addr
+				} else if op == ir.ODOTPTR && !rcvr.IsPtr() {
+					star := ir.NewStarExpr(pos, x)
+					star.SetImplicit(true)
+					typed(xt, star)
+					x = star
+				}
+			}
+			// We will change OCALLPART to ODOTMETH or ODOTINTER in
+			// Call() if n is actually called.
+			n = ir.NewSelectorExpr(pos, ir.OCALLPART, x, f.Sym)
+		}
+		n.Selection = f
+		x = n
+	}
+
+	// We don't set type on x for the last index (i == nindex - 1), since that
+	// is the actual selection (ignoring embedded fields) and may be an
+	// OMETHEXPR or OCALLPART operation. In those cases, the type to set on the
+	// node will be different from the type derived from the field/method
+	// selection. Instead for the last index, we always set the type (at the
+	// end of the function) from g.typ(typ).
+	typed(g.typ(typ), x)
+	types.CalcSize(x.Type())
+	return x
 }
 
 func (g *irgen) exprList(expr syntax.Expr) []ir.Node {

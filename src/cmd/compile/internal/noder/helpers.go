@@ -79,9 +79,7 @@ func Call(pos src.XPos, fun ir.Node, args []ir.Node, dots bool) ir.Node {
 		}
 	}
 
-	// We probably already typechecked fun, and typecheck probably
-	// got it wrong because it didn't know the expression was
-	// going to be called immediately. Correct its mistakes.
+	// Add information, now that we know that fun is actually being called.
 	switch fun := fun.(type) {
 	case *ir.ClosureExpr:
 		fun.Func.SetClosureCalled(true)
@@ -92,6 +90,8 @@ func Call(pos src.XPos, fun ir.Node, args []ir.Node, dots bool) ir.Node {
 				op = ir.ODOTINTER
 			}
 			fun.SetOp(op)
+			// Set the type to include the receiver, since that's what
+			// later parts of the compiler expect
 			fun.SetType(fun.Selection.Type)
 		}
 	}
