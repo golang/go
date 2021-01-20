@@ -13,9 +13,10 @@ import (
 
 func walkSelect(sel *ir.SelectStmt) {
 	lno := ir.SetPos(sel)
-	if len(sel.Compiled) != 0 {
+	if sel.Walked() {
 		base.Fatalf("double walkSelect")
 	}
+	sel.SetWalked(true)
 
 	init := ir.TakeInit(sel)
 
