@@ -170,9 +170,8 @@ func ValueOf(x interface{}) Value {
 	case bool:
 		if x {
 			return valueTrue
-		} else {
-			return valueFalse
 		}
+		return valueFalse
 	case int:
 		return floatValue(float64(x))
 	case int8:
