@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	exec "golang.org/x/sys/execabs"
 	"io"
 	"io/ioutil"
 	"net"
@@ -19,6 +18,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	exec "golang.org/x/sys/execabs"
 
 	"golang.org/x/tools/gopls/internal/hooks"
 	"golang.org/x/tools/internal/jsonrpc2"
@@ -308,7 +309,6 @@ var longBuilders = map[string]string{
 	"netbsd-arm-bsiegert":     "",
 	"solaris-amd64-oraclerel": "",
 	"windows-arm-zx2c4":       "",
-	"android-amd64-emu":       "golang.org/issue/43554",
 }
 
 func checkBuilder(t *testing.T) {
