@@ -24,7 +24,7 @@ var (
 	universeIota  *Const
 	universeByte  *Basic // uint8 alias, but has name "byte"
 	universeRune  *Basic // int32 alias, but has name "rune"
-	universeAny   *Named
+	universeAny   *Interface
 	universeError *Named
 )
 
@@ -34,7 +34,7 @@ var (
 // The *Basic type for Typ[Byte] will have the name "uint8".
 // Use Universe.Lookup("byte").Type() to obtain the specific
 // alias basic type named "byte" (and analogous for "rune").
-var Typ = []*Basic{
+var Typ = [...]*Basic{
 	Invalid: {Invalid, 0, "invalid type", aType{}},
 
 	Bool:          {Bool, IsBoolean, "bool", aType{}},
@@ -82,10 +82,7 @@ func defPredeclaredTypes() {
 	// (Predeclared and entered into universe scope so we do all the
 	// usual checks; but removed again from scope later since it's
 	// only visible as constraint in a type parameter list.)
-	{
-		typ := &Named{underlying: &emptyInterface}
-		def(NewTypeName(nopos, nil, "any", typ))
-	}
+	def(NewTypeName(nopos, nil, "any", &emptyInterface))
 
 	// Error has a nil package in its qualified name since it is in no package
 	{
@@ -241,7 +238,7 @@ func init() {
 	universeIota = Universe.Lookup("iota").(*Const)
 	universeByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)
 	universeRune = Universe.Lookup("rune").(*TypeName).typ.(*Basic)
-	universeAny = Universe.Lookup("any").(*TypeName).typ.(*Named)
+	universeAny = Universe.Lookup("any").(*TypeName).typ.(*Interface)
 	universeError = Universe.Lookup("error").(*TypeName).typ.(*Named)
 
 	// "any" is only visible as constraint in a type parameter list
