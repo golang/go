@@ -85,10 +85,13 @@ func (m *sharedMem) Close() error {
 // setWorkerComm configures communciation channels on the cmd that will
 // run a worker process.
 func setWorkerComm(cmd *exec.Cmd, comm workerComm) {
+	mem := <-comm.memMu
+	memFD := mem.f.Fd()
+	comm.memMu <- mem
 	syscall.SetHandleInformation(syscall.Handle(comm.fuzzIn.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
 	syscall.SetHandleInformation(syscall.Handle(comm.fuzzOut.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
-	syscall.SetHandleInformation(syscall.Handle(comm.mem.f.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
-	cmd.Env = append(cmd.Env, fmt.Sprintf("GO_TEST_FUZZ_WORKER_HANDLES=%x,%x,%x", comm.fuzzIn.Fd(), comm.fuzzOut.Fd(), comm.mem.f.Fd()))
+	syscall.SetHandleInformation(syscall.Handle(memFD), syscall.HANDLE_FLAG_INHERIT, 1)
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GO_TEST_FUZZ_WORKER_HANDLES=%x,%x,%x", comm.fuzzIn.Fd(), comm.fuzzOut.Fd(), memFD))
 }
 
 // getWorkerComm returns communication channels in the worker process.
@@ -128,8 +131,10 @@ func getWorkerComm() (comm workerComm, err error) {
 	if err != nil {
 		return workerComm{}, err
 	}
+	memMu := make(chan *sharedMem, 1)
+	memMu <- mem
 
-	return workerComm{fuzzIn: fuzzIn, fuzzOut: fuzzOut, mem: mem}, nil
+	return workerComm{fuzzIn: fuzzIn, fuzzOut: fuzzOut, memMu: memMu}, nil
 }
 
 func isInterruptError(err error) bool {
