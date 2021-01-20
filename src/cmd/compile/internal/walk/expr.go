@@ -535,15 +535,15 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 		if mayCall(arg) {
 			// assignment of arg to Temp
 			tmp := typecheck.Temp(param.Type)
-			a := convas(ir.NewAssignStmt(base.Pos, tmp, arg), init)
+			a := convas(typecheck.Stmt(ir.NewAssignStmt(base.Pos, tmp, arg)).(*ir.AssignStmt), init)
 			tempAssigns = append(tempAssigns, a)
 			// replace arg with temp
 			args[i] = tmp
 		}
 	}
 
-	n.Args = tempAssigns
-	n.Rargs = args
+	init.Append(tempAssigns...)
+	n.Args = args
 }
 
 // walkDivMod walks an ODIV or OMOD node.
