@@ -48,6 +48,7 @@ func nextRandom() string {
 // will not choose the same file. The caller can use f.Name()
 // to find the pathname of the file. It is the caller's responsibility
 // to remove the file when no longer needed.
+// Deprecated: As of Go 1.16, this functionality is implemeted by os.CreateTemp.
 func TempFile(dir, pattern string) (f *os.File, err error) {
 	if dir == "" {
 		dir = os.TempDir()
@@ -101,6 +102,7 @@ func prefixAndSuffix(pattern string) (prefix, suffix string, err error) {
 // Multiple programs calling TempDir simultaneously
 // will not choose the same directory. It is the caller's responsibility
 // to remove the directory when no longer needed.
+// Deprecated: As of Go 1.16, this functionality is implemeted by os.MkdirTemp.
 func TempDir(dir, pattern string) (name string, err error) {
 	if dir == "" {
 		dir = os.TempDir()
