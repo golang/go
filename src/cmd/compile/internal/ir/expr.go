@@ -159,7 +159,6 @@ type CallExpr struct {
 	origNode
 	X         Node
 	Args      Nodes
-	Rargs     Nodes   // TODO(rsc): Delete.
 	KeepAlive []*Name // vars to be kept alive until call returns
 	IsDDD     bool
 	Use       CallUse

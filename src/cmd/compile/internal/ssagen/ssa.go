@@ -4492,30 +4492,8 @@ func (s *state) intrinsicCall(n *ir.CallExpr) *ssa.Value {
 
 // intrinsicArgs extracts args from n, evaluates them to SSA values, and returns them.
 func (s *state) intrinsicArgs(n *ir.CallExpr) []*ssa.Value {
-	// Construct map of temps; see comments in s.call about the structure of n.
-	temps := map[ir.Node]*ssa.Value{}
-	for _, a := range n.Args {
-		if a.Op() != ir.OAS {
-			s.Fatalf("non-assignment as a temp function argument %v", a.Op())
-		}
-		a := a.(*ir.AssignStmt)
-		l, r := a.X, a.Y
-		if l.Op() != ir.ONAME {
-			s.Fatalf("non-ONAME temp function argument %v", a.Op())
-		}
-		// Evaluate and store to "temporary".
-		// Walk ensures these temporaries are dead outside of n.
-		temps[l] = s.expr(r)
-	}
-	args := make([]*ssa.Value, len(n.Rargs))
-	for i, n := range n.Rargs {
-		// Store a value to an argument slot.
-		if x, ok := temps[n]; ok {
-			// This is a previously computed temporary.
-			args[i] = x
-			continue
-		}
-		// This is an explicit value; evaluate it.
+	args := make([]*ssa.Value, len(n.Args))
+	for i, n := range n.Args {
 		args[i] = s.expr(n)
 	}
 	return args
@@ -4528,13 +4506,6 @@ func (s *state) intrinsicArgs(n *ir.CallExpr) []*ssa.Value {
 // (as well as the deferBits variable), and this will enable us to run the proper
 // defer calls during panics.
 func (s *state) openDeferRecord(n *ir.CallExpr) {
-	// Do any needed expression evaluation for the args (including the
-	// receiver, if any). This may be evaluating something like 'autotmp_3 =
-	// once.mutex'. Such a statement will create a mapping in s.vars[] from
-	// the autotmp name to the evaluated SSA arg value, but won't do any
-	// stores to the stack.
-	s.stmtList(n.Args)
-
 	var args []*ssa.Value
 	var argNodes []*ir.Name
 
@@ -4567,7 +4538,7 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
 		opendefer.closureNode = opendefer.closure.Aux.(*ir.Name)
 		opendefer.rcvrNode = opendefer.rcvr.Aux.(*ir.Name)
 	}
-	for _, argn := range n.Rargs {
+	for _, argn := range n.Args {
 		var v *ssa.Value
 		if TypeOK(argn.Type()) {
 			v = s.openDeferSave(nil, argn.Type(), s.expr(argn))
@@ -4853,11 +4824,6 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 	types.CalcSize(fn.Type())
 	stksize := fn.Type().ArgWidth() // includes receiver, args, and results
 
-	// Run all assignments of temps.
-	// The temps are introduced to avoid overwriting argument
-	// slots when arguments themselves require function calls.
-	s.stmtList(n.Args)
-
 	var call *ssa.Value
 	if k == callDeferStack {
 		testLateExpansion = ssa.LateCallExpansionEnabledWithin(s.f)
@@ -4891,7 +4857,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		// Then, store all the arguments of the defer call.
 		ft := fn.Type()
 		off := t.FieldOff(12)
-		args := n.Rargs
+		args := n.Args
 
 		// Set receiver (for interface calls). Always a pointer.
 		if rcvr != nil {
@@ -4966,7 +4932,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 
 		// Write args.
 		t := n.X.Type()
-		args := n.Rargs
+		args := n.Args
 		if n.Op() == ir.OCALLMETH {
 			base.Fatalf("OCALLMETH missed by walkCall")
 		}
