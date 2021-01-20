@@ -35,7 +35,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 
 	// optimization: zero-case select
 	if ncas == 0 {
-		return []ir.Node{mkcall("block", nil, nil)}
+		return []ir.Node{mkcallstmt("block")}
 	}
 
 	// optimization: one-case select: single op.
@@ -214,7 +214,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 		// TODO(mdempsky): There should be a cleaner way to
 		// handle this.
 		if base.Flag.Race {
-			r := mkcall("selectsetpc", nil, nil, typecheck.NodAddr(ir.NewIndexExpr(base.Pos, pcs, ir.NewInt(int64(i)))))
+			r := mkcallstmt("selectsetpc", typecheck.NodAddr(ir.NewIndexExpr(base.Pos, pcs, ir.NewInt(int64(i)))))
 			init = append(init, r)
 		}
 	}
@@ -229,7 +229,9 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 	r := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
 	r.Lhs = []ir.Node{chosen, recvOK}
 	fn := typecheck.LookupRuntime("selectgo")
-	r.Rhs = []ir.Node{mkcall1(fn, fn.Type().Results(), nil, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), pc0, ir.NewInt(int64(nsends)), ir.NewInt(int64(nrecvs)), ir.NewBool(dflt == nil))}
+	var fnInit ir.Nodes
+	r.Rhs = []ir.Node{mkcall1(fn, fn.Type().Results(), &fnInit, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), pc0, ir.NewInt(int64(nsends)), ir.NewInt(int64(nrecvs)), ir.NewBool(dflt == nil))}
+	init = append(init, fnInit...)
 	init = append(init, typecheck.Stmt(r))
 
 	// selv and order are no longer alive after selectgo.
