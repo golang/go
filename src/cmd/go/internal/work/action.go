@@ -56,6 +56,9 @@ type Builder struct {
 	id           sync.Mutex
 	toolIDCache  map[string]string // tool name -> tool ID
 	buildIDCache map[string]string // file name -> build ID
+
+	cgoEnvOnce  sync.Once
+	cgoEnvCache []string
 }
 
 // NOTE: Much of Action would not need to be exported if not for test.

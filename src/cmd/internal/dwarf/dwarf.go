@@ -12,7 +12,7 @@ import (
 	"cmd/internal/objabi"
 	"errors"
 	"fmt"
-	"os/exec"
+	exec "internal/execabs"
 	"sort"
 	"strconv"
 	"strings"
