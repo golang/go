@@ -54,7 +54,7 @@ type State struct {
 	// be string, though the spec allows for numeric tokens as well.  When work
 	// completes, it is deleted from this map.
 	outstandingWork map[protocol.ProgressToken]*workProgress
-	completedWork   map[string]int
+	completedWork   map[string]uint64
 }
 
 type workProgress struct {
@@ -119,7 +119,7 @@ func NewEnv(ctx context.Context, t *testing.T, sandbox *fake.Sandbox, ts servert
 		state: State{
 			diagnostics:     make(map[string]*protocol.PublishDiagnosticsParams),
 			outstandingWork: make(map[protocol.ProgressToken]*workProgress),
-			completedWork:   make(map[string]int),
+			completedWork:   make(map[string]uint64),
 		},
 		waiters: make(map[int]*condition),
 	}

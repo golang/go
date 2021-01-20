@@ -7,7 +7,6 @@ package regtest
 import (
 	"testing"
 
-	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/testenv"
@@ -61,7 +60,7 @@ func _() {
 			// so once we see the request, we can assume that `go mod vendor`
 			// will be executed.
 			OnceMet(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1),
+				env.DoneWithOpen(),
 				env.DiagnosticAtRegexp("go.mod", "module mod.com"),
 			),
 		)

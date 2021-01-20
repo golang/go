@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/testenv"
@@ -92,9 +91,9 @@ func main() {
 
 			env.RemoveWorkspaceFile("a/main.go")
 			env.Await(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1),
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidSave), 1),
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 2),
+				env.DoneWithOpen(),
+				env.DoneWithSave(),
+				env.DoneWithChangeWatchedFiles(),
 			)
 
 			env.WriteWorkspaceFile("main.go", mainContent)
@@ -828,7 +827,7 @@ func hello() {}
 		Modes(Singleton),
 	).run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
+		env.Await(env.DoneWithOpen())
 		env.RegexpReplace("go.mod", "module", "modul")
 		// Confirm that we still have metadata with only on-disk edits.
 		env.OpenFile("main.go")

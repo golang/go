@@ -12,7 +12,6 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/testenv"
@@ -165,7 +164,7 @@ replace random.org => %s
 `, env.ReadWorkspaceFile("pkg/go.mod"), dir)
 		env.WriteWorkspaceFile("pkg/go.mod", goModWithReplace)
 		env.Await(
-			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+			env.DoneWithChangeWatchedFiles(),
 			UnregistrationMatching("didChangeWatchedFiles"),
 			RegistrationMatching("didChangeWatchedFiles"),
 		)
@@ -277,7 +276,7 @@ func Hello() int {
 		env.RemoveWorkspaceFile("modb/b/b.go")
 		env.RemoveWorkspaceFile("modb/go.mod")
 		env.Await(
-			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 2),
+			env.DoneWithChangeWatchedFiles(),
 		)
 		if testenv.Go1Point() < 14 {
 			// On 1.14 and above, the go mod tidy diagnostics accidentally
@@ -340,7 +339,7 @@ func Hello() int {
 		})
 		env.Await(
 			OnceMet(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+				env.DoneWithChangeWatchedFiles(),
 				env.DiagnosticAtRegexp("modb/b/b.go", "x"),
 			),
 		)
@@ -388,7 +387,7 @@ func Hello() int {
 		env.OpenFile("modb/go.mod")
 		env.Await(
 			OnceMet(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1),
+				env.DoneWithOpen(),
 				DiagnosticAt("modb/go.mod", 0, 0),
 			),
 		)
@@ -659,7 +658,7 @@ func main() {
 
 				replace a.com => %s/moda/a
 				`, workdir))
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1))
+		env.Await(env.DoneWithChangeWatchedFiles())
 		gotb, err = ioutil.ReadFile(modPath)
 		if err != nil {
 			t.Fatalf("reading expected workspace modfile: %v", err)

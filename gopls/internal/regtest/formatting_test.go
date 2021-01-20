@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/tests"
 )
 
@@ -228,7 +227,7 @@ type Tree struct {
 			run(t, "-- main.go --", func(t *testing.T, env *Env) {
 				crlf := strings.ReplaceAll(tt.want, "\n", "\r\n")
 				env.CreateBuffer("main.go", crlf)
-				env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
+				env.Await(env.DoneWithOpen())
 				env.OrganizeImports("main.go")
 				got := env.Editor.BufferText("main.go")
 				got = strings.ReplaceAll(got, "\r\n", "\n") // convert everything to LF for simplicity

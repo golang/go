@@ -10,8 +10,6 @@ package regtest
 
 import (
 	"testing"
-
-	"golang.org/x/tools/internal/lsp"
 )
 
 func TestGenerateProgress(t *testing.T) {
@@ -47,7 +45,7 @@ func GetAnswer() int {
 		env.RunGenerate("./lib")
 		env.Await(
 			OnceMet(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+				env.DoneWithChangeWatchedFiles(),
 				EmptyDiagnostics("lib/lib.go")),
 		)
 	})

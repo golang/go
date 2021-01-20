@@ -211,7 +211,7 @@ func (w *Workdir) sendEvents(ctx context.Context, evts []FileEvent) {
 	copy(watchers, w.watchers)
 	w.watcherMu.Unlock()
 	for _, w := range watchers {
-		go w(ctx, evts)
+		w(ctx, evts)
 	}
 }
 

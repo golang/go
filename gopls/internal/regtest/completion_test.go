@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/testenv"
@@ -128,7 +127,7 @@ pac
 				if tc.content != nil {
 					env.WriteWorkspaceFile(tc.filename, *tc.content)
 					env.Await(
-						CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+						env.DoneWithChangeWatchedFiles(),
 					)
 				}
 				env.OpenFile(tc.filename)
@@ -249,24 +248,22 @@ func _() {
 		// unimported completions, and then remove it before proceeding.
 		env.RemoveWorkspaceFile("main2.go")
 		env.RunGoCommand("mod", "tidy")
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 2))
+		env.Await(env.DoneWithChangeWatchedFiles())
 
 		// Trigger unimported completions for the example.com/blah package.
 		env.OpenFile("main.go")
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
+		env.Await(env.DoneWithOpen())
 		pos := env.RegexpSearch("main.go", "ah")
 		completions := env.Completion("main.go", pos)
 		if len(completions.Items) == 0 {
 			t.Fatalf("no completion items")
 		}
 		env.AcceptCompletion("main.go", pos, completions.Items[0])
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1))
+		env.Await(env.DoneWithChange())
 
 		// Trigger completions once again for the blah.<> selector.
 		env.RegexpReplace("main.go", "_ = blah", "_ = blah.")
-		env.Await(
-			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 2),
-		)
+		env.Await(env.DoneWithChange())
 		pos = env.RegexpSearch("main.go", "\n}")
 		completions = env.Completion("main.go", pos)
 		if len(completions.Items) != 1 {

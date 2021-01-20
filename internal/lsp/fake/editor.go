@@ -41,14 +41,17 @@ type Editor struct {
 	buffers map[string]buffer
 	// Capabilities / Options
 	serverCapabilities protocol.ServerCapabilities
+
 	// Call metrics for the purpose of expectations. This is done in an ad-hoc
 	// manner for now. Perhaps in the future we should do something more
-	// systematic.
-	calls CallCounts
+	// systematic. Guarded with a separate mutex as calls may need to be accessed
+	// asynchronously via callbacks into the Editor.
+	callsMu sync.Mutex
+	calls   CallCounts
 }
 
 type CallCounts struct {
-	DidOpen, DidChange, DidChangeWatchedFiles int
+	DidOpen, DidChange, DidSave, DidChangeWatchedFiles, DidClose uint64
 }
 
 type buffer struct {
@@ -140,8 +143,8 @@ func (e *Editor) Connect(ctx context.Context, conn jsonrpc2.Conn, hooks ClientHo
 }
 
 func (e *Editor) Stats() CallCounts {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.callsMu.Lock()
+	defer e.callsMu.Unlock()
 	return e.calls
 }
 
@@ -291,36 +294,48 @@ func (e *Editor) initialize(ctx context.Context, workspaceFolders []string) erro
 	return nil
 }
 
+// onFileChanges is registered to be called by the Workdir on any writes that
+// go through the Workdir API. It is called synchronously by the Workdir.
 func (e *Editor) onFileChanges(ctx context.Context, evts []FileEvent) {
 	if e.Server == nil {
 		return
 	}
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	var lspevts []protocol.FileEvent
-	for _, evt := range evts {
-		// Always send an on-disk change, even for events that seem useless
-		// because they're shadowed by an open buffer.
-		lspevts = append(lspevts, evt.ProtocolEvent)
 
-		if buf, ok := e.buffers[evt.Path]; ok {
-			// Following VS Code, don't honor deletions or changes to dirty buffers.
-			if buf.dirty || evt.ProtocolEvent.Type == protocol.Deleted {
-				continue
-			}
-
-			content, err := e.sandbox.Workdir.ReadFile(evt.Path)
-			if err != nil {
-				continue // A race with some other operation.
-			}
-			// During shutdown, this call will fail. Ignore the error.
-			_ = e.setBufferContentLocked(ctx, evt.Path, false, strings.Split(content, "\n"), nil)
-		}
-	}
-	e.Server.DidChangeWatchedFiles(ctx, &protocol.DidChangeWatchedFilesParams{
-		Changes: lspevts,
-	})
+	// e may be locked when onFileChanges is called, but it is important that we
+	// synchronously increment this counter so that we can subsequently assert on
+	// the number of expected DidChangeWatchedFiles calls.
+	e.callsMu.Lock()
 	e.calls.DidChangeWatchedFiles++
+	e.callsMu.Unlock()
+
+	// Since e may be locked, we must run this mutation asynchronously.
+	go func() {
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		var lspevts []protocol.FileEvent
+		for _, evt := range evts {
+			// Always send an on-disk change, even for events that seem useless
+			// because they're shadowed by an open buffer.
+			lspevts = append(lspevts, evt.ProtocolEvent)
+
+			if buf, ok := e.buffers[evt.Path]; ok {
+				// Following VS Code, don't honor deletions or changes to dirty buffers.
+				if buf.dirty || evt.ProtocolEvent.Type == protocol.Deleted {
+					continue
+				}
+
+				content, err := e.sandbox.Workdir.ReadFile(evt.Path)
+				if err != nil {
+					continue // A race with some other operation.
+				}
+				// During shutdown, this call will fail. Ignore the error.
+				_ = e.setBufferContentLocked(ctx, evt.Path, false, strings.Split(content, "\n"), nil)
+			}
+		}
+		e.Server.DidChangeWatchedFiles(ctx, &protocol.DidChangeWatchedFilesParams{
+			Changes: lspevts,
+		})
+	}()
 }
 
 // OpenFile creates a buffer for the given workdir-relative file.
@@ -371,7 +386,9 @@ func (e *Editor) createBuffer(ctx context.Context, path string, dirty bool, cont
 		}); err != nil {
 			return errors.Errorf("DidOpen: %w", err)
 		}
+		e.callsMu.Lock()
 		e.calls.DidOpen++
+		e.callsMu.Unlock()
 	}
 	return nil
 }
@@ -393,6 +410,9 @@ func (e *Editor) CloseBuffer(ctx context.Context, path string) error {
 		}); err != nil {
 			return errors.Errorf("DidClose: %w", err)
 		}
+		e.callsMu.Lock()
+		e.calls.DidClose++
+		e.callsMu.Unlock()
 	}
 	return nil
 }
@@ -458,6 +478,9 @@ func (e *Editor) SaveBufferWithoutActions(ctx context.Context, path string) erro
 		if err := e.Server.DidSave(ctx, params); err != nil {
 			return errors.Errorf("DidSave: %w", err)
 		}
+		e.callsMu.Lock()
+		e.calls.DidSave++
+		e.callsMu.Unlock()
 	}
 	return nil
 }
@@ -653,7 +676,9 @@ func (e *Editor) setBufferContentLocked(ctx context.Context, path string, dirty 
 		if err := e.Server.DidChange(ctx, params); err != nil {
 			return errors.Errorf("DidChange: %w", err)
 		}
+		e.callsMu.Lock()
 		e.calls.DidChange++
+		e.callsMu.Unlock()
 	}
 	return nil
 }

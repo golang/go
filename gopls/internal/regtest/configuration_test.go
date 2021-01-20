@@ -7,7 +7,6 @@ package regtest
 import (
 	"testing"
 
-	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
 )
 
@@ -28,7 +27,7 @@ const ThisVariable = 7
 	run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
 		env.Await(
-			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1),
+			env.DoneWithOpen(),
 			NoDiagnostics("a/a.go"),
 		)
 		cfg := &fake.EditorConfig{}

@@ -41,7 +41,9 @@ func newWorkdir(t *testing.T) (*Workdir, <-chan []FileEvent, func()) {
 
 	fileEvents := make(chan []FileEvent)
 	watch := func(_ context.Context, events []FileEvent) {
-		fileEvents <- events
+		go func() {
+			fileEvents <- events
+		}()
 	}
 	wd.AddWatcher(watch)
 	return wd, fileEvents, cleanup

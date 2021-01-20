@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -137,7 +136,7 @@ func main() {
 				}); err != nil {
 					t.Fatal(err)
 				}
-				env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1))
+				env.Await(env.DoneWithChangeWatchedFiles())
 				got := env.Editor.BufferText("go.mod")
 				const wantGoMod = `module mod.com
 
@@ -199,7 +198,7 @@ func main() {
 	runner.Run(t, shouldRemoveDep, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		env.ExecuteCodeLensCommand("go.mod", source.CommandTidy)
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1))
+		env.Await(env.DoneWithChangeWatchedFiles())
 		got := env.Editor.BufferText("go.mod")
 		const wantGoMod = `module mod.com
 

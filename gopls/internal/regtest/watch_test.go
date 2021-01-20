@@ -7,7 +7,6 @@ package regtest
 import (
 	"testing"
 
-	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/testenv"
@@ -48,11 +47,11 @@ func _() {
 			// Insert a trivial edit so that we don't automatically update the buffer
 			// (see CL 267577).
 			env.EditBuffer("a/a.go", fake.NewEdit(0, 0, 0, 0, " "))
-			env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
+			env.Await(env.DoneWithOpen())
 			env.WriteWorkspaceFile("a/a.go", `package a; func _() {};`)
 			env.Await(
 				OnceMet(
-					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+					env.DoneWithChangeWatchedFiles(),
 					env.DiagnosticAtRegexp("a/a.go", "x"),
 				))
 		})
@@ -83,7 +82,7 @@ func _() {
 `
 	runner.Run(t, pkg, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
+		env.Await(env.DoneWithOpen())
 		env.WriteWorkspaceFile("b/b.go", `package b; func B() {};`)
 		env.Await(
 			env.DiagnosticAtRegexp("a/a.go", "b.B"),
@@ -160,7 +159,7 @@ func _() {
 `
 	runner.Run(t, pkg, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
+		env.Await(env.DoneWithOpen())
 		env.RemoveWorkspaceFile("b/b.go")
 		env.Await(
 			env.DiagnosticAtRegexp("a/a.go", "\"mod.com/b\""),
@@ -318,7 +317,7 @@ func _() {
 			env.WriteWorkspaceFile("b/b.go", newMethod)
 			env.Await(
 				OnceMet(
-					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+					env.DoneWithChangeWatchedFiles(),
 					DiagnosticAt("a/a.go", 12, 12),
 				),
 			)
@@ -334,7 +333,7 @@ func _() {
 			env.WriteWorkspaceFile("a/a.go", implementation)
 			env.Await(
 				OnceMet(
-					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+					env.DoneWithChangeWatchedFiles(),
 					NoDiagnostics("a/a.go"),
 				),
 			)
@@ -353,7 +352,7 @@ func _() {
 			})
 			env.Await(
 				OnceMet(
-					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+					env.DoneWithChangeWatchedFiles(),
 					NoDiagnostics("a/a.go"),
 				),
 				NoDiagnostics("b/b.go"),
@@ -387,7 +386,7 @@ package a
 			env.OpenFile("a/a_unneeded.go")
 			env.Await(
 				OnceMet(
-					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 2),
+					env.DoneWithOpen(),
 					LogMatching(protocol.Info, "a_unneeded.go", 1),
 				),
 			)
@@ -402,7 +401,7 @@ package a
 			env.SaveBuffer("a/a.go")
 			env.Await(
 				OnceMet(
-					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidSave), 1),
+					env.DoneWithSave(),
 					// There should only be one log message containing
 					// a_unneeded.go, from the initial workspace load, which we
 					// check for earlier. If there are more, there's a bug.
@@ -421,7 +420,7 @@ package a
 			env.OpenFile("a/a_unneeded.go")
 			env.Await(
 				OnceMet(
-					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 2),
+					env.DoneWithOpen(),
 					LogMatching(protocol.Info, "a_unneeded.go", 1),
 				),
 			)
@@ -436,7 +435,7 @@ package a
 			env.SaveBuffer("a/a.go")
 			env.Await(
 				OnceMet(
-					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidSave), 1),
+					env.DoneWithSave(),
 					// There should only be one log message containing
 					// a_unneeded.go, from the initial workspace load, which we
 					// check for earlier. If there are more, there's a bug.
@@ -510,7 +509,7 @@ var Hello int
 		})
 		env.Await(
 			OnceMet(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+				env.DoneWithChangeWatchedFiles(),
 				NoDiagnostics("main.go"),
 			),
 		)
@@ -585,7 +584,7 @@ func main() {
 `,
 		})
 		env.Await(
-			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+			env.DoneWithChangeWatchedFiles(),
 			NoDiagnostics("main.go"),
 		)
 	})
@@ -620,7 +619,7 @@ func main() {
 		}
 		env.Await(
 			OnceMet(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+				env.DoneWithChangeWatchedFiles(),
 				env.DiagnosticAtRegexp("foo/main.go", `"blah"`),
 			),
 		)
@@ -660,7 +659,7 @@ func main() {
 		env.RemoveWorkspaceFile("foo/go.mod")
 		env.Await(
 			OnceMet(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+				env.DoneWithChangeWatchedFiles(),
 				env.DiagnosticAtRegexp("foo/main.go", `"mod.com/blah"`),
 			),
 		)
@@ -711,11 +710,11 @@ func TestAll(t *testing.T) {
 		})
 		env.Await(
 			OnceMet(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+				env.DoneWithChangeWatchedFiles(),
 				NoDiagnostics("a/a.go"),
 			),
 			OnceMet(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+				env.DoneWithChangeWatchedFiles(),
 				NoDiagnostics("a/a_test.go"),
 			),
 		)
@@ -743,11 +742,11 @@ func TestSomething(t *testing.T) {}
 		})
 		env.Await(
 			OnceMet(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 2),
+				env.DoneWithChangeWatchedFiles(),
 				NoDiagnostics("a/a_test.go"),
 			),
 			OnceMet(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 2),
+				env.DoneWithChangeWatchedFiles(),
 				NoDiagnostics("a/a2_test.go"),
 			),
 		)
