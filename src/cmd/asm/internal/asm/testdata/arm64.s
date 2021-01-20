@@ -64,6 +64,16 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	CMN	R1.SXTX<<2, R10                 // 5fe921ab
 	CMPW	R2.UXTH<<3, R11                 // 7f2d226b
 	CMNW	R1.SXTB, R9                     // 3f81212b
+	ADD	R1<<1, RSP, R3                  // e367218b
+	ADDW	R1<<2, R3, RSP                  // 7f48210b
+	SUB	R1<<3, RSP                      // ff6f21cb
+	SUBS	R1<<4, RSP, R3                  // e37321eb
+	ADDS	R1<<1, RSP, R4                  // e46721ab
+	CMP	R1<<2, RSP                      // ff6b21eb
+	CMN	R1<<3, RSP                      // ff6f21ab
+	ADDS	R1<<1, ZR, R4                   // e40701ab
+	ADD	R3<<50, ZR, ZR                  // ffcb038b
+	CMP	R4<<24, ZR                      // ff6304eb
 	CMPW	$0x60060, R2                    // CMPW	$393312, R2                       // 1b0c8052db00a0725f001b6b
 	CMPW	$40960, R0                      // 1f284071
 	CMPW	$27745, R2                      // 3b8c8d525f001b6b

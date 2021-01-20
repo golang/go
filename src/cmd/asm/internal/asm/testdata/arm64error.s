@@ -368,4 +368,7 @@ TEXT errors(SB),$0
 	CASPD	(R2, R3), (R2), (R9, R10)                        // ERROR "destination register pair must start from even register"
 	CASPD	(R2, R4), (R2), (R8, R9)                         // ERROR "source register pair must be contiguous"
 	CASPD	(R2, R3), (R2), (R8, R10)                        // ERROR "destination register pair must be contiguous"
+	ADD	R1>>2, RSP, R3                                   // ERROR "illegal combination"
+	ADDS	R2<<3, R3, RSP                                   // ERROR "unexpected SP reference"
+	CMP	R1<<5, RSP                                       // ERROR "the left shift amount out of range 0 to 4"
 	RET
