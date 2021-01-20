@@ -75,13 +75,15 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed [][]byte, corpusD
 		if err != nil {
 			return nil, err
 		}
+		memMu := make(chan *sharedMem, 1)
+		memMu <- mem
 		return &worker{
 			dir:         dir,
 			binPath:     binPath,
 			args:        args,
 			env:         env,
 			coordinator: c,
-			mem:         mem,
+			memMu:       memMu,
 		}, nil
 	}
 

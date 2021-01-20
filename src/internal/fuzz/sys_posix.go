@@ -50,7 +50,10 @@ func (m *sharedMem) Close() error {
 // setWorkerComm configures communciation channels on the cmd that will
 // run a worker process.
 func setWorkerComm(cmd *exec.Cmd, comm workerComm) {
-	cmd.ExtraFiles = []*os.File{comm.fuzzIn, comm.fuzzOut, comm.mem.f}
+	mem := <-comm.memMu
+	memFile := mem.f
+	comm.memMu <- mem
+	cmd.ExtraFiles = []*os.File{comm.fuzzIn, comm.fuzzOut, memFile}
 }
 
 // getWorkerComm returns communication channels in the worker process.
@@ -71,7 +74,9 @@ func getWorkerComm() (comm workerComm, err error) {
 	if err != nil {
 		return workerComm{}, err
 	}
-	return workerComm{fuzzIn: fuzzIn, fuzzOut: fuzzOut, mem: mem}, nil
+	memMu := make(chan *sharedMem, 1)
+	memMu <- mem
+	return workerComm{fuzzIn: fuzzIn, fuzzOut: fuzzOut, memMu: memMu}, nil
 }
 
 // isInterruptError returns whether an error was returned by a process that
