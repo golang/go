@@ -27,15 +27,6 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
 		return ir.BlankNode
 	}
 
-	// TODO(mdempsky): Is there a better way to recognize and handle qualified identifiers?
-	if expr, ok := expr.(*syntax.SelectorExpr); ok {
-		if name, ok := expr.X.(*syntax.Name); ok {
-			if _, ok := g.info.Uses[name].(*types2.PkgName); ok {
-				return g.use(expr.Sel)
-			}
-		}
-	}
-
 	tv, ok := g.info.Types[expr]
 	if !ok {
 		base.FatalfAt(g.pos(expr), "missing type for %v (%T)", expr, expr)
@@ -89,6 +80,13 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 	case *syntax.ParenExpr:
 		return g.expr(expr.X) // skip parens; unneeded after parse+typecheck
 	case *syntax.SelectorExpr:
+		// Qualified identifier.
+		if name, ok := expr.X.(*syntax.Name); ok {
+			if _, ok := g.info.Uses[name].(*types2.PkgName); ok {
+				return g.use(expr.Sel)
+			}
+		}
+
 		// TODO(mdempsky/danscales): Use g.info.Selections[expr]
 		// to resolve field/method selection. See CL 280633.
 		return ir.NewSelectorExpr(pos, ir.OXDOT, g.expr(expr.X), g.name(expr.Sel))
