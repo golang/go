@@ -96,6 +96,9 @@ func convas(n *ir.AssignStmt, init *ir.Nodes) *ir.AssignStmt {
 var stop = errors.New("stop")
 
 func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallExpr {
+	if init == nil {
+		base.Fatalf("mkcall with nil init: %v", fn)
+	}
 	if fn.Type() == nil || fn.Type().Kind() != types.TFUNC {
 		base.Fatalf("mkcall %v %v", fn, fn.Type())
 	}
@@ -115,8 +118,22 @@ func mkcall(name string, t *types.Type, init *ir.Nodes, args ...ir.Node) *ir.Cal
 	return vmkcall(typecheck.LookupRuntime(name), t, init, args)
 }
 
+func mkcallstmt(name string, args ...ir.Node) ir.Node {
+	return mkcallstmt1(typecheck.LookupRuntime(name), args...)
+}
+
 func mkcall1(fn ir.Node, t *types.Type, init *ir.Nodes, args ...ir.Node) *ir.CallExpr {
 	return vmkcall(fn, t, init, args)
+}
+
+func mkcallstmt1(fn ir.Node, args ...ir.Node) ir.Node {
+	var init ir.Nodes
+	n := vmkcall(fn, nil, &init, args)
+	if len(init) == 0 {
+		return n
+	}
+	init.Append(n)
+	return ir.NewBlockStmt(n.Pos(), init)
 }
 
 func chanfn(name string, n int, t *types.Type) ir.Node {
