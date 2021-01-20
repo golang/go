@@ -7,6 +7,7 @@ package execabs
 import (
 	"context"
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -30,6 +31,8 @@ func TestFixCmd(t *testing.T) {
 }
 
 func TestCommand(t *testing.T) {
+	testenv.MustHaveExec(t)
+
 	for _, cmd := range []func(string) *Cmd{
 		func(s string) *Cmd { return Command(s) },
 		func(s string) *Cmd { return CommandContext(context.Background(), s) },
@@ -71,6 +74,8 @@ func TestCommand(t *testing.T) {
 }
 
 func TestLookPath(t *testing.T) {
+	testenv.MustHaveExec(t)
+
 	tmpDir, err := ioutil.TempDir("", "execabs-test")
 	if err != nil {
 		t.Fatalf("ioutil.TempDir failed: %s", err)
