@@ -100,6 +100,9 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 		return
 	}
 
+	// Prevent size calculations until we set the underlying type.
+	types.DeferCheckSize()
+
 	name, obj := g.def(decl.Name)
 	ntyp, otyp := name.Type(), obj.Type()
 	if ir.CurFunc != nil {
@@ -135,6 +138,7 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 	// [mdempsky: Subtleties like these are why I always vehemently
 	// object to new type pragmas.]
 	ntyp.SetUnderlying(g.typeExpr(decl.Type))
+	types.ResumeCheckSize()
 
 	if otyp, ok := otyp.(*types2.Named); ok && otyp.NumMethods() != 0 {
 		methods := make([]*types.Field, otyp.NumMethods())

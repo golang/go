@@ -35,6 +35,13 @@ func (g *irgen) typ(typ types2.Type) *types.Type {
 	if !ok {
 		res = g.typ0(typ)
 		g.typs[typ] = res
+
+		// Ensure we calculate the size for all concrete types seen by
+		// the frontend. This is another heavy hammer for something that
+		// should really be the backend's responsibility instead.
+		if !res.IsUntyped() {
+			types.CheckSize(res)
+		}
 	}
 	return res
 }

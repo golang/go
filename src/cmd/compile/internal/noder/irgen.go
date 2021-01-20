@@ -103,6 +103,10 @@ func (g *irgen) generate(noders []*noder) {
 	types.LocalPkg.Name = g.self.Name()
 	typecheck.TypecheckAllowed = true
 
+	// Prevent size calculations until we set the underlying type
+	// for all package-block defined types.
+	types.DeferCheckSize()
+
 	// At this point, types2 has already handled name resolution and
 	// type checking. We just need to map from its object and type
 	// representations to those currently used by the rest of the
@@ -152,6 +156,7 @@ Outer:
 			}
 		}
 	}
+	types.ResumeCheckSize()
 
 	// 3. Process all remaining declarations.
 	for _, declList := range declLists {
