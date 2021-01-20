@@ -43,15 +43,36 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
 		base.FatalfAt(g.pos(expr), "unrecognized type-checker result")
 	}
 
-	// Constant expression.
-	if tv.Value != nil {
-		return Const(g.pos(expr), g.typ(tv.Type), tv.Value)
+	// The gc backend expects all expressions to have a concrete type, and
+	// types2 mostly satisfies this expectation already. But there are a few
+	// cases where the Go spec doesn't require converting to concrete type,
+	// and so types2 leaves them untyped. So we need to fix those up here.
+	typ := tv.Type
+	if basic, ok := typ.(*types2.Basic); ok && basic.Info()&types2.IsUntyped != 0 {
+		switch basic.Kind() {
+		case types2.UntypedNil:
+			// ok; can appear in type switch case clauses
+			// TODO(mdempsky): Handle as part of type switches instead?
+		case types2.UntypedBool:
+			typ = types2.Typ[types2.Bool] // expression in "if" or "for" condition
+		case types2.UntypedString:
+			typ = types2.Typ[types2.String] // argument to "append" or "copy" calls
+		default:
+			base.FatalfAt(g.pos(expr), "unexpected untyped type: %v", basic)
+		}
 	}
 
-	// TODO(mdempsky): Remove dependency on typecheck.Expr.
-	n := typecheck.Expr(g.expr0(tv.Type, expr))
-	if !g.match(n.Type(), tv.Type, tv.HasOk()) {
-		base.FatalfAt(g.pos(expr), "expected %L to have type %v", n, tv.Type)
+	// Constant expression.
+	if tv.Value != nil {
+		return Const(g.pos(expr), g.typ(typ), tv.Value)
+	}
+
+	n := g.expr0(typ, expr)
+	if n.Typecheck() != 1 {
+		base.FatalfAt(g.pos(expr), "missed typecheck: %+v", n)
+	}
+	if !g.match(n.Type(), typ, tv.HasOk()) {
+		base.FatalfAt(g.pos(expr), "expected %L to have type %v", n, typ)
 	}
 	return n
 }
@@ -64,7 +85,8 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 		if _, isNil := g.info.Uses[expr].(*types2.Nil); isNil {
 			return Nil(pos, g.typ(typ))
 		}
-		return g.use(expr)
+		// TODO(mdempsky): Remove dependency on typecheck.Expr.
+		return typecheck.Expr(g.use(expr))
 
 	case *syntax.CompositeLit:
 		return g.compLit(typ, expr)
@@ -83,13 +105,14 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 		// Qualified identifier.
 		if name, ok := expr.X.(*syntax.Name); ok {
 			if _, ok := g.info.Uses[name].(*types2.PkgName); ok {
-				return g.use(expr.Sel)
+				// TODO(mdempsky): Remove dependency on typecheck.Expr.
+				return typecheck.Expr(g.use(expr.Sel))
 			}
 		}
 
 		// TODO(mdempsky/danscales): Use g.info.Selections[expr]
 		// to resolve field/method selection. See CL 280633.
-		return ir.NewSelectorExpr(pos, ir.OXDOT, g.expr(expr.X), g.name(expr.Sel))
+		return typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, g.expr(expr.X), g.name(expr.Sel)))
 	case *syntax.SliceExpr:
 		return Slice(pos, g.expr(expr.X), g.expr(expr.Index[0]), g.expr(expr.Index[1]), g.expr(expr.Index[2]))
 
@@ -131,16 +154,9 @@ func (g *irgen) exprs(exprs []syntax.Expr) []ir.Node {
 
 func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
 	if ptr, ok := typ.Underlying().(*types2.Pointer); ok {
-		if _, isNamed := typ.(*types2.Named); isNamed {
-			// TODO(mdempsky): Questionable, but this is
-			// currently allowed by cmd/compile, go/types,
-			// and gccgo:
-			//
-			//	type T *struct{}
-			//	var _ = []T{{}}
-			base.FatalfAt(g.pos(lit), "defined-pointer composite literal")
-		}
-		return ir.NewAddrExpr(g.pos(lit), g.compLit(ptr.Elem(), lit))
+		n := ir.NewAddrExpr(g.pos(lit), g.compLit(ptr.Elem(), lit))
+		n.SetOp(ir.OPTRLIT)
+		return typed(g.typ(typ), n)
 	}
 
 	_, isStruct := typ.Underlying().(*types2.Struct)
@@ -159,7 +175,8 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
 		}
 	}
 
-	return ir.NewCompLitExpr(g.pos(lit), ir.OCOMPLIT, ir.TypeNode(g.typ(typ)), exprs)
+	// TODO(mdempsky): Remove dependency on typecheck.Expr.
+	return typecheck.Expr(ir.NewCompLitExpr(g.pos(lit), ir.OCOMPLIT, ir.TypeNode(g.typ(typ)), exprs))
 }
 
 func (g *irgen) funcLit(typ types2.Type, expr *syntax.FuncLit) ir.Node {

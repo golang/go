@@ -21,32 +21,41 @@ import (
 // results, rather than leaving the caller responsible for using
 // typecheck.Expr or typecheck.Stmt.
 
-// Values
-
-func Const(pos src.XPos, typ *types.Type, val constant.Value) ir.Node {
-	n := ir.NewBasicLit(pos, val)
+// typed returns n after setting its type to typ.
+func typed(typ *types.Type, n ir.Node) ir.Node {
 	n.SetType(typ)
+	n.SetTypecheck(1)
 	return n
 }
 
+// Values
+
+func Const(pos src.XPos, typ *types.Type, val constant.Value) ir.Node {
+	return typed(typ, ir.NewBasicLit(pos, val))
+}
+
 func Nil(pos src.XPos, typ *types.Type) ir.Node {
-	n := ir.NewNilExpr(pos)
-	n.SetType(typ)
-	return n
+	return typed(typ, ir.NewNilExpr(pos))
 }
 
 // Expressions
 
 func Assert(pos src.XPos, x ir.Node, typ *types.Type) ir.Node {
-	return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, ir.TypeNode(typ)))
+	return typed(typ, ir.NewTypeAssertExpr(pos, x, nil))
 }
 
 func Binary(pos src.XPos, op ir.Op, x, y ir.Node) ir.Node {
 	switch op {
 	case ir.OANDAND, ir.OOROR:
-		return ir.NewLogicalExpr(pos, op, x, y)
+		return typed(x.Type(), ir.NewLogicalExpr(pos, op, x, y))
+	case ir.OADD:
+		if x.Type().IsString() {
+			// TODO(mdempsky): Construct OADDSTR directly.
+			return typecheck.Expr(ir.NewBinaryExpr(pos, op, x, y))
+		}
+		fallthrough
 	default:
-		return ir.NewBinaryExpr(pos, op, x, y)
+		return typed(x.Type(), ir.NewBinaryExpr(pos, op, x, y))
 	}
 }
 
@@ -92,13 +101,17 @@ func Call(pos src.XPos, fun ir.Node, args []ir.Node, dots bool) ir.Node {
 }
 
 func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) ir.Node {
-	n := typecheck.Expr(ir.NewBinaryExpr(pos, op, x, y))
-	n.SetType(typ)
-	return n
+	n := ir.NewBinaryExpr(pos, op, x, y)
+	if !types.Identical(x.Type(), y.Type()) {
+		// TODO(mdempsky): Handle subtleties of constructing mixed-typed comparisons.
+		n = typecheck.Expr(n).(*ir.BinaryExpr)
+	}
+	return typed(typ, n)
 }
 
 func Index(pos src.XPos, x, index ir.Node) ir.Node {
-	return ir.NewIndexExpr(pos, x, index)
+	// TODO(mdempsky): Avoid typecheck.Expr.
+	return typecheck.Expr(ir.NewIndexExpr(pos, x, index))
 }
 
 func Slice(pos src.XPos, x, low, high, max ir.Node) ir.Node {
@@ -106,17 +119,22 @@ func Slice(pos src.XPos, x, low, high, max ir.Node) ir.Node {
 	if max != nil {
 		op = ir.OSLICE3
 	}
-	return ir.NewSliceExpr(pos, op, x, low, high, max)
+	// TODO(mdempsky): Avoid typecheck.Expr.
+	return typecheck.Expr(ir.NewSliceExpr(pos, op, x, low, high, max))
 }
 
 func Unary(pos src.XPos, op ir.Op, x ir.Node) ir.Node {
+	typ := x.Type()
 	switch op {
 	case ir.OADDR:
-		return typecheck.NodAddrAt(pos, x)
+		// TODO(mdempsky): Avoid typecheck.Expr. Probably just need to set OPTRLIT as needed.
+		return typed(types.NewPtr(typ), typecheck.Expr(typecheck.NodAddrAt(pos, x)))
 	case ir.ODEREF:
-		return ir.NewStarExpr(pos, x)
+		return typed(typ.Elem(), ir.NewStarExpr(pos, x))
+	case ir.ORECV:
+		return typed(typ.Elem(), ir.NewUnaryExpr(pos, op, x))
 	default:
-		return ir.NewUnaryExpr(pos, op, x)
+		return typed(typ, ir.NewUnaryExpr(pos, op, x))
 	}
 }
 
