@@ -521,10 +521,6 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 	n.X = walkExpr(n.X, init)
 	walkExprList(args, init)
 
-	// For any argument whose evaluation might require a function call,
-	// store that argument into a temporary variable,
-	// to prevent that calls from clobbering arguments already on the stack.
-	var tempAssigns []ir.Node
 	for i, arg := range args {
 		// Validate argument and parameter types match.
 		param := params.Field(i)
@@ -532,17 +528,18 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 			base.FatalfAt(n.Pos(), "assigning %L to parameter %v (type %v)", arg, param.Sym, param.Type)
 		}
 
+		// For any argument whose evaluation might require a function call,
+		// store that argument into a temporary variable,
+		// to prevent that calls from clobbering arguments already on the stack.
 		if mayCall(arg) {
 			// assignment of arg to Temp
 			tmp := typecheck.Temp(param.Type)
-			a := convas(typecheck.Stmt(ir.NewAssignStmt(base.Pos, tmp, arg)).(*ir.AssignStmt), init)
-			tempAssigns = append(tempAssigns, a)
+			init.Append(convas(typecheck.Stmt(ir.NewAssignStmt(base.Pos, tmp, arg)).(*ir.AssignStmt), init))
 			// replace arg with temp
 			args[i] = tmp
 		}
 	}
 
-	init.Append(tempAssigns...)
 	n.Args = args
 }
 
