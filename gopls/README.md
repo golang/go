@@ -2,9 +2,8 @@
 
 [![PkgGoDev](https://pkg.go.dev/badge/golang.org/x/tools/gopls)](https://pkg.go.dev/golang.org/x/tools/gopls)
 
-[`gopls`] (pronounced "Go please") is the official Go [language server]
-developed by the Go team. It provides IDE features to any [LSP]-compatible
-editor.
+`gopls` (pronounced "Go please") is the official Go [language server] developed
+by the Go team. It provides IDE features to any [LSP]-compatible editor.
 
 <!--TODO(rstambler): Add gifs here.-->
 
@@ -16,9 +15,8 @@ editor](#editors) below.
 ## Editors
 
 To get started with `gopls`, install an LSP plugin in your editor of choice.
-Below is a list of editors with known integrations for `gopls`.
 
-* [VSCode](https://github.com/golang/vscode-go)
+* [VSCode](https://github.com/golang/vscode-go/blob/master/README.md)
 * [Vim / Neovim](doc/vim.md)
 * [Emacs](doc/emacs.md)
 * [Atom](https://github.com/MordFustang21/ide-gopls)
@@ -71,6 +69,13 @@ meaning that it officially supports the last 2 major Go releases. Though we
 try not to break older versions, we do not prioritize issues only affecting
 legacy Go releases (3 or 4 releases ago).
 
+### Setting up your workspace
+
+`gopls` supports both Go module and GOPATH modes, but if you are working with
+multiple modules or uncommon project layouts, you will need to specifically
+configure your workspace. See the [Workspace document](doc/workspace.md) for
+information on supported workspace layouts.
+
 ## Configuration
 
 You can configure `gopls` to change your editor experience or view additional
@@ -83,6 +88,13 @@ full list of `gopls` settings can be found in the [Settings documentation](doc/s
 `gopls` inherits your editor's environment, so be aware of any environment
 variables you configure. Some editors, such as VS Code, allow users to
 selectively override the values of some environment variables.
+
+### Build systems
+
+`gopls` currently only supports the `go` command, so if you are using a
+different build system, `gopls` will not work well. Bazel support is currently
+blocked on
+[bazelbuild/rules_go#512](https://github.com/bazelbuild/rules_go/issues/512).
 
 ### Working on the Go source distribution
 
