@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/abi"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -71,15 +72,18 @@ type auxType int8
 
 type Param struct {
 	Type   *types.Type
-	Offset int32    // Offset of Param if not in a register.
+	Offset int32 // Offset of Param if not in a register, spill offset if it is in a register input, types.BADWIDTH if it is a register output.
+	Reg    []abi.RegIndex
 	Name   *ir.Name // For OwnAux, need to prepend stores with Vardefs
 }
 
 type AuxCall struct {
+	// TODO(register args) this information is largely redundant with ../abi information, needs cleanup once new ABI is in place.
 	Fn      *obj.LSym
 	args    []Param // Includes receiver for method calls.  Does NOT include hidden closure pointer.
 	results []Param
-	reg     *regInfo // regInfo for this call // TODO for now nil means ignore
+	reg     *regInfo                // regInfo for this call // TODO for now nil means ignore
+	abiInfo *abi.ABIParamResultInfo // TODO remove fields above redundant with this information.
 }
 
 // ResultForOffset returns the index of the result at a particular offset among the results
@@ -186,9 +190,9 @@ func (a *AuxCall) String() string {
 }
 
 // StaticAuxCall returns an AuxCall for a static call.
-func StaticAuxCall(sym *obj.LSym, args []Param, results []Param) *AuxCall {
+func StaticAuxCall(sym *obj.LSym, args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
 	// TODO Create regInfo for AuxCall
-	return &AuxCall{Fn: sym, args: args, results: results}
+	return &AuxCall{Fn: sym, args: args, results: results, abiInfo: paramResultInfo}
 }
 
 // InterfaceAuxCall returns an AuxCall for an interface call.
@@ -206,9 +210,10 @@ func ClosureAuxCall(args []Param, results []Param) *AuxCall {
 func (*AuxCall) CanBeAnSSAAux() {}
 
 // OwnAuxCall returns a function's own AuxCall
-func OwnAuxCall(fn *obj.LSym, args []Param, results []Param) *AuxCall {
+
+func OwnAuxCall(fn *obj.LSym, args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
 	// TODO if this remains identical to ClosureAuxCall above after new ABI is done, should deduplicate.
-	return &AuxCall{Fn: fn, args: args, results: results}
+	return &AuxCall{Fn: fn, args: args, results: results, abiInfo: paramResultInfo}
 }
 
 const (

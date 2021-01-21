@@ -765,7 +765,7 @@ func devirt(v *Value, aux Aux, sym Sym, offset int64) *AuxCall {
 		return nil
 	}
 	va := aux.(*AuxCall)
-	return StaticAuxCall(lsym, va.args, va.results)
+	return StaticAuxCall(lsym, va.args, va.results, va.abiInfo)
 }
 
 // de-virtualize an InterLECall
