@@ -136,7 +136,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 	// Collect a raw list of DWARF vars.
 	var vars []*dwarf.Var
 	var decls []*ir.Name
-	var selected map[*ir.Name]bool
+	var selected ir.NameSet
 	if base.Ctxt.Flag_locationlists && base.Ctxt.Flag_optimize && fn.DebugInfo != nil && complexOK {
 		decls, vars, selected = createComplexVars(fnsym, fn)
 	} else {
@@ -161,7 +161,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 	// For non-SSA-able arguments, however, the correct information
 	// is known -- they have a single home on the stack.
 	for _, n := range dcl {
-		if _, found := selected[n]; found {
+		if selected.Has(n) {
 			continue
 		}
 		c := n.Sym().Name[0]
@@ -244,10 +244,10 @@ func preInliningDcls(fnsym *obj.LSym) []*ir.Name {
 
 // createSimpleVars creates a DWARF entry for every variable declared in the
 // function, claiming that they are permanently on the stack.
-func createSimpleVars(fnsym *obj.LSym, apDecls []*ir.Name) ([]*ir.Name, []*dwarf.Var, map[*ir.Name]bool) {
+func createSimpleVars(fnsym *obj.LSym, apDecls []*ir.Name) ([]*ir.Name, []*dwarf.Var, ir.NameSet) {
 	var vars []*dwarf.Var
 	var decls []*ir.Name
-	selected := make(map[*ir.Name]bool)
+	var selected ir.NameSet
 	for _, n := range apDecls {
 		if ir.IsAutoTmp(n) {
 			continue
@@ -255,7 +255,7 @@ func createSimpleVars(fnsym *obj.LSym, apDecls []*ir.Name) ([]*ir.Name, []*dwarf
 
 		decls = append(decls, n)
 		vars = append(vars, createSimpleVar(fnsym, n))
-		selected[n] = true
+		selected.Add(n)
 	}
 	return decls, vars, selected
 }
@@ -312,19 +312,19 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 
 // createComplexVars creates recomposed DWARF vars with location lists,
 // suitable for describing optimized code.
-func createComplexVars(fnsym *obj.LSym, fn *ir.Func) ([]*ir.Name, []*dwarf.Var, map[*ir.Name]bool) {
+func createComplexVars(fnsym *obj.LSym, fn *ir.Func) ([]*ir.Name, []*dwarf.Var, ir.NameSet) {
 	debugInfo := fn.DebugInfo.(*ssa.FuncDebug)
 
 	// Produce a DWARF variable entry for each user variable.
 	var decls []*ir.Name
 	var vars []*dwarf.Var
-	ssaVars := make(map[*ir.Name]bool)
+	var ssaVars ir.NameSet
 
 	for varID, dvar := range debugInfo.Vars {
 		n := dvar
-		ssaVars[n] = true
+		ssaVars.Add(n)
 		for _, slot := range debugInfo.VarSlots[varID] {
-			ssaVars[debugInfo.Slots[slot].N] = true
+			ssaVars.Add(debugInfo.Slots[slot].N)
 		}
 
 		if dvar := createComplexVar(fnsym, fn, ssa.VarID(varID)); dvar != nil {
