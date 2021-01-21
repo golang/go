@@ -53,7 +53,7 @@ func (g *irgen) stmt0(stmt syntax.Stmt) ir.Node {
 	case *syntax.AssignStmt:
 		if stmt.Op != 0 && stmt.Op != syntax.Def {
 			op := g.op(stmt.Op, binOps[:])
-			if stmt.Rhs == syntax.ImplicitOne {
+			if stmt.Rhs == nil {
 				return IncDec(g.pos(stmt), op, g.expr(stmt.Lhs))
 			}
 			return ir.NewAssignOpStmt(g.pos(stmt), op, g.expr(stmt.Lhs), g.expr(stmt.Rhs))

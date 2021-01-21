@@ -19,10 +19,6 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
 		return nil
 	}
 
-	if expr == syntax.ImplicitOne {
-		base.Fatalf("expr of ImplicitOne")
-	}
-
 	if expr, ok := expr.(*syntax.Name); ok && expr.Value == "_" {
 		return ir.BlankNode
 	}

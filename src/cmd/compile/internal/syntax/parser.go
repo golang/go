@@ -1874,10 +1874,6 @@ func (p *parser) badExpr() *BadExpr {
 // ----------------------------------------------------------------------------
 // Statements
 
-// We represent x++, x-- as assignments x += ImplicitOne, x -= ImplicitOne.
-// ImplicitOne should not be used elsewhere.
-var ImplicitOne = &BasicLit{Value: "1"}
-
 // SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | ShortVarDecl .
 func (p *parser) simpleStmt(lhs Expr, keyword token) SimpleStmt {
 	if trace {
@@ -1910,7 +1906,7 @@ func (p *parser) simpleStmt(lhs Expr, keyword token) SimpleStmt {
 			// lhs++ or lhs--
 			op := p.op
 			p.next()
-			return p.newAssignStmt(pos, op, lhs, ImplicitOne)
+			return p.newAssignStmt(pos, op, lhs, nil)
 
 		case _Arrow:
 			// lhs <- rhs

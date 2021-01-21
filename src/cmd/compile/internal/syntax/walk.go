@@ -207,7 +207,9 @@ func (w *walker) node(n Node) {
 
 	case *AssignStmt:
 		w.node(n.Lhs)
-		w.node(n.Rhs)
+		if n.Rhs != nil {
+			w.node(n.Rhs)
+		}
 
 	case *BranchStmt:
 		if n.Label != nil {

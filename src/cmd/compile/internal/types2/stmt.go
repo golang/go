@@ -367,46 +367,44 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 	case *syntax.AssignStmt:
 		lhs := unpackExpr(s.Lhs)
-		rhs := unpackExpr(s.Rhs)
-		if s.Op == 0 || s.Op == syntax.Def {
-			// regular assignment or short variable declaration
-			if len(lhs) == 0 {
-				check.invalidASTf(s, "missing lhs in assignment")
+		if s.Rhs == nil {
+			// x++ or x--
+			if len(lhs) != 1 {
+				check.invalidASTf(s, "%s%s requires one operand", s.Op, s.Op)
 				return
 			}
-			if s.Op == syntax.Def {
-				check.shortVarDecl(s.Pos(), lhs, rhs)
-			} else {
-				// regular assignment
-				check.assignVars(lhs, rhs)
-			}
-		} else {
-			// assignment operations
-			if len(lhs) != 1 || len(rhs) != 1 {
-				check.errorf(s, "assignment operation %s requires single-valued expressions", s.Op)
-				return
-			}
-
-			// provide better error messages for x++ and x--
-			if rhs[0] == syntax.ImplicitOne {
-				var x operand
-				check.expr(&x, lhs[0])
-				if x.mode == invalid {
-					return
-				}
-				if !isNumeric(x.typ) {
-					check.invalidOpf(lhs[0], "%s%s%s (non-numeric type %s)", lhs[0], s.Op, s.Op, x.typ)
-					return
-				}
-			}
-
 			var x operand
-			check.binary(&x, nil, lhs[0], rhs[0], s.Op, rhs[0].Pos()) // TODO(gri) should have TokPos here (like in go/types)
+			check.expr(&x, lhs[0])
 			if x.mode == invalid {
 				return
 			}
+			if !isNumeric(x.typ) {
+				check.invalidOpf(lhs[0], "%s%s%s (non-numeric type %s)", lhs[0], s.Op, s.Op, x.typ)
+				return
+			}
 			check.assignVar(lhs[0], &x)
+			return
 		}
+
+		rhs := unpackExpr(s.Rhs)
+		switch s.Op {
+		case 0:
+			check.assignVars(lhs, rhs)
+			return
+		case syntax.Def:
+			check.shortVarDecl(s.Pos(), lhs, rhs)
+			return
+		}
+
+		// assignment operations
+		if len(lhs) != 1 || len(rhs) != 1 {
+			check.errorf(s, "assignment operation %s requires single-valued expressions", s.Op)
+			return
+		}
+
+		var x operand
+		check.binary(&x, nil, lhs[0], rhs[0], s.Op, s.Pos())
+		check.assignVar(lhs[0], &x)
 
 	// case *syntax.GoStmt:
 	// 	check.suspendedCall("go", s.Call)

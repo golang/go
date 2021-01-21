@@ -889,6 +889,7 @@ var binaryOpPredicates = opPredicates{
 }
 
 // The binary expression e may be nil. It's passed in for better error messages only.
+// TODO(gri) revisit use of e and opPos
 func (check *Checker) binary(x *operand, e *syntax.Operation, lhs, rhs syntax.Expr, op syntax.Operator, opPos syntax.Pos) {
 	var y operand
 
