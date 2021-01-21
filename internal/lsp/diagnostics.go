@@ -50,6 +50,23 @@ type fileReports struct {
 	reports       map[diagnosticSource]diagnosticReport
 }
 
+func (d diagnosticSource) String() string {
+	switch d {
+	case modSource:
+		return "FromSource"
+	case gcDetailsSource:
+		return "FromGCDetails"
+	case analysisSource:
+		return "FromAnalysis"
+	case typeCheckSource:
+		return "FromTypeChecking"
+	case orphanedSource:
+		return "FromOrphans"
+	default:
+		return fmt.Sprintf("From?%d?", d)
+	}
+}
+
 // hashDiagnostics computes a hash to identify diags.
 func hashDiagnostics(diags ...*source.Diagnostic) string {
 	source.SortDiagnostics(diags)
@@ -545,4 +562,35 @@ func (s *Server) shouldIgnoreError(ctx context.Context, snapshot source.Snapshot
 		return errors.New("done")
 	})
 	return !hasGo
+}
+
+// Diagnostics formattedfor the debug server
+// (all the relevant fields of Server are private)
+// (The alternative is to export them)
+func (s *Server) Diagnostics() map[string][]string {
+	ans := make(map[string][]string)
+	s.diagnosticsMu.Lock()
+	defer s.diagnosticsMu.Unlock()
+	for k, v := range s.diagnostics {
+		fn := k.Filename()
+		for typ, d := range v.reports {
+			if len(d.diags) == 0 {
+				continue
+			}
+			for _, dx := range d.diags {
+				ans[fn] = append(ans[fn], auxStr(dx, d, typ))
+			}
+		}
+	}
+	return ans
+}
+
+func auxStr(v *source.Diagnostic, d diagnosticReport, typ diagnosticSource) string {
+	// Tags? RelatedInformation?
+	msg := fmt.Sprintf("(%s)%q(source:%q,code:%q,severity:%s,snapshot:%d,type:%s)",
+		v.Range, v.Message, v.Source, v.Code, v.Severity, d.snapshotID, typ)
+	for _, r := range v.Related {
+		msg += fmt.Sprintf(" [%s:%s,%q]", r.URI.Filename(), r.Range, r.Message)
+	}
+	return msg
 }

@@ -181,6 +181,7 @@ type Client struct {
 	Logfile      string
 	GoplsPath    string
 	ServerID     string
+	Service      protocol.Server
 }
 
 // A Server is an outgoing connection to a remote LSP server.
@@ -312,6 +313,16 @@ func (i *Instance) getInfo(r *http.Request) interface{} {
 	buf := &bytes.Buffer{}
 	i.PrintServerInfo(r.Context(), buf)
 	return template.HTML(buf.String())
+}
+
+func (i *Instance) AddService(s protocol.Server, session *cache.Session) {
+	for _, c := range i.State.clients {
+		if c.Session == session {
+			c.Service = s
+			return
+		}
+	}
+	stdlog.Printf("unable to find a Client to add the protocol.Server to")
 }
 
 func getMemory(r *http.Request) interface{} {
@@ -785,6 +796,29 @@ Using session: <b>{{template "sessionlink" .Session.ID}}</b><br>
 {{if .DebugAddress}}Debug this client at: <a href="http://{{localAddress .DebugAddress}}">{{localAddress .DebugAddress}}</a><br>{{end}}
 Logfile: {{.Logfile}}<br>
 Gopls Path: {{.GoplsPath}}<br>
+<h2>Diagnostics</h2>
+{{/*Service: []protocol.Server; each server has map[uri]fileReports;
+	each fileReport: map[diagnosticSoure]diagnosticReport
+	diagnosticSource is one of 5 source
+	diagnosticReport: snapshotID and map[hash]*source.Diagnostic
+	sourceDiagnostic: struct {
+		Range    protocol.Range
+		Message  string
+		Source   string
+		Code     string
+		CodeHref string
+		Severity protocol.DiagnosticSeverity
+		Tags     []protocol.DiagnosticTag
+
+		Related []RelatedInformation
+	}
+	RelatedInformation: struct {
+		URI     span.URI
+		Range   protocol.Range
+		Message string
+	}
+	*/}}
+<ul>{{range $k, $v := .Service.Diagnostics}}<li>{{$k}}:<ol>{{range $v}}<li>{{.}}</li>{{end}}</ol></li>{{end}}</ul>
 {{end}}
 `))
 
