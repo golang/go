@@ -677,11 +677,7 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 	case *syntax.Name:
 		return p.mkname(expr)
 	case *syntax.BasicLit:
-		pos := base.Pos
-		if expr != syntax.ImplicitOne { // ImplicitOne doesn't have a unique position
-			pos = p.pos(expr)
-		}
-		n := ir.NewBasicLit(pos, p.basicLit(expr))
+		n := ir.NewBasicLit(p.pos(expr), p.basicLit(expr))
 		if expr.Kind == syntax.RuneLit {
 			n.SetType(types.UntypedRune)
 		}
@@ -1039,9 +1035,15 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 	case *syntax.DeclStmt:
 		return ir.NewBlockStmt(src.NoXPos, p.decls(stmt.DeclList))
 	case *syntax.AssignStmt:
+		if stmt.Rhs == nil {
+			pos := p.pos(stmt)
+			n := ir.NewAssignOpStmt(pos, p.binOp(stmt.Op), p.expr(stmt.Lhs), ir.NewBasicLit(pos, one))
+			n.IncDec = true
+			return n
+		}
+
 		if stmt.Op != 0 && stmt.Op != syntax.Def {
 			n := ir.NewAssignOpStmt(p.pos(stmt), p.binOp(stmt.Op), p.expr(stmt.Lhs), p.expr(stmt.Rhs))
-			n.IncDec = stmt.Rhs == syntax.ImplicitOne
 			return n
 		}
 
@@ -1502,7 +1504,7 @@ func (p *noder) wrapname(n syntax.Node, x ir.Node) ir.Node {
 }
 
 func (p *noder) setlineno(n syntax.Node) {
-	if n != nil && n != syntax.ImplicitOne {
+	if n != nil {
 		base.Pos = p.pos(n)
 	}
 }
