@@ -116,6 +116,13 @@ func NewABIConfig(iRegsCount, fRegsCount int) *ABIConfig {
 	return &ABIConfig{regAmounts: RegAmounts{iRegsCount, fRegsCount}, regsForTypeCache: make(map[*types.Type]int)}
 }
 
+// Copy returns a copy of an ABIConfig for use in a function's compilation so that access to the cache does not need to be protected with a mutex.
+func (a *ABIConfig) Copy() *ABIConfig {
+	b := *a
+	b.regsForTypeCache = make(map[*types.Type]int)
+	return &b
+}
+
 // NumParamRegs returns the number of parameter registers used for a given type,
 // without regard for the number available.
 func (a *ABIConfig) NumParamRegs(t *types.Type) int {
@@ -157,12 +164,12 @@ func (a *ABIConfig) NumParamRegs(t *types.Type) int {
 // 'config' and analyzes the function to determine how its parameters
 // and results will be passed (in registers or on the stack), returning
 // an ABIParamResultInfo object that holds the results of the analysis.
-func (config *ABIConfig) ABIAnalyze(t *types.Type) ABIParamResultInfo {
+func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
 	setup()
 	s := assignState{
 		rTotal: config.regAmounts,
 	}
-	result := ABIParamResultInfo{config: config}
+	result := &ABIParamResultInfo{config: config}
 
 	// Receiver
 	ft := t.FuncType()
