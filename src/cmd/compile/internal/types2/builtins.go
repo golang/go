@@ -368,8 +368,8 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 
-		if !x.assignableTo(check, m.key, nil) {
-			check.invalidArgf(x, "%s is not assignable to %s", x, m.key)
+		check.assignment(x, m.key, "argument to delete")
+		if x.mode == invalid {
 			return
 		}
 
