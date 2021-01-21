@@ -78,9 +78,9 @@ func tokenize(src string) []string {
 
 func verifyParamResultOffset(t *testing.T, f *types.Field, r abi.ABIParamAssignment, which string, idx int) int {
 	n := ir.AsNode(f.Nname).(*ir.Name)
-	if n.FrameOffset() != int64(r.Offset) {
+	if n.FrameOffset() != int64(r.Offset()) {
 		t.Errorf("%s %d: got offset %d wanted %d t=%v",
-			which, idx, r.Offset, n.Offset_, f.Type)
+			which, idx, r.Offset(), n.Offset_, f.Type)
 		return 1
 	}
 	return 0
@@ -106,12 +106,20 @@ func difftokens(atoks []string, etoks []string) string {
 	return ""
 }
 
+func nrtest(t *testing.T, ft *types.Type, expected int) {
+	types.CalcSize(ft)
+	got := configAMD64.NumParamRegs(ft)
+	if got != expected {
+		t.Errorf("]\nexpected num regs = %d, got %d, type %v", expected, got, ft)
+	}
+}
+
 func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
 
 	types.CalcSize(ft)
 
 	// Analyze with full set of registers.
-	regRes := abi.ABIAnalyze(ft, configAMD64)
+	regRes := configAMD64.ABIAnalyze(ft)
 	regResString := strings.TrimSpace(regRes.String())
 
 	// Check results.
@@ -122,8 +130,8 @@ func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
 	}
 
 	// Analyze again with empty register set.
-	empty := &abi.ABIConfig{}
-	emptyRes := abi.ABIAnalyze(ft, empty)
+	empty := abi.NewABIConfig(0, 0)
+	emptyRes := empty.ABIAnalyze(ft)
 	emptyResString := emptyRes.String()
 
 	// Walk the results and make sure the offsets assigned match
