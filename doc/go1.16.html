@@ -892,11 +892,11 @@ func TestFoo(t *testing.T) {
     </p>
 
     <p><!-- CL 261917 -->
-      <a href="/pkg/syscall/?GOOS=windows#SysProcAttr"><code>SysProcAttr</code></a> on Windows has a new NoInheritHandles field that disables inheriting handles when creating a new process.
+      <a href="/pkg/syscall/?GOOS=windows#SysProcAttr"><code>SysProcAttr</code></a> on Windows has a new <code>NoInheritHandles</code> field that disables inheriting handles when creating a new process.
     </p>
 
     <p><!-- CL 269761, golang.org/issue/42584 -->
-      <a href="/pkg/syscall/?GOOS=windows#DLLError"><code>DLLError</code></a> on Windows now has an Unwrap function for unwrapping its underlying error.
+      <a href="/pkg/syscall/?GOOS=windows#DLLError"><code>DLLError</code></a> on Windows now has an <code>Unwrap</code> method for unwrapping its underlying error.
     </p>
 
     <p><!-- CL 210639 -->
