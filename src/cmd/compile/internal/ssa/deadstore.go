@@ -139,7 +139,7 @@ func dse(f *Func) {
 func elimDeadAutosGeneric(f *Func) {
 	addr := make(map[*Value]*ir.Name) // values that the address of the auto reaches
 	elim := make(map[*Value]*ir.Name) // values that could be eliminated if the auto is
-	used := make(map[*ir.Name]bool)   // used autos that must be kept
+	var used ir.NameSet               // used autos that must be kept
 
 	// visit the value and report whether any of the maps are updated
 	visit := func(v *Value) (changed bool) {
@@ -178,8 +178,8 @@ func elimDeadAutosGeneric(f *Func) {
 			if !ok || n.Class != ir.PAUTO {
 				return
 			}
-			if !used[n] {
-				used[n] = true
+			if !used.Has(n) {
+				used.Add(n)
 				changed = true
 			}
 			return
@@ -212,8 +212,8 @@ func elimDeadAutosGeneric(f *Func) {
 		if v.Type.IsMemory() || v.Type.IsFlags() || v.Op == OpPhi || v.MemoryArg() != nil {
 			for _, a := range args {
 				if n, ok := addr[a]; ok {
-					if !used[n] {
-						used[n] = true
+					if !used.Has(n) {
+						used.Add(n)
 						changed = true
 					}
 				}
@@ -224,7 +224,7 @@ func elimDeadAutosGeneric(f *Func) {
 		// Propagate any auto addresses through v.
 		var node *ir.Name
 		for _, a := range args {
-			if n, ok := addr[a]; ok && !used[n] {
+			if n, ok := addr[a]; ok && !used.Has(n) {
 				if node == nil {
 					node = n
 				} else if node != n {
@@ -233,7 +233,7 @@ func elimDeadAutosGeneric(f *Func) {
 					// multiple pointers (e.g. NeqPtr, Phi etc.).
 					// This is rare, so just propagate the first
 					// value to keep things simple.
-					used[n] = true
+					used.Add(n)
 					changed = true
 				}
 			}
@@ -249,7 +249,7 @@ func elimDeadAutosGeneric(f *Func) {
 		}
 		if addr[v] != node {
 			// This doesn't happen in practice, but catch it just in case.
-			used[node] = true
+			used.Add(node)
 			changed = true
 		}
 		return
@@ -269,8 +269,8 @@ func elimDeadAutosGeneric(f *Func) {
 			}
 			// keep the auto if its address reaches a control value
 			for _, c := range b.ControlValues() {
-				if n, ok := addr[c]; ok && !used[n] {
-					used[n] = true
+				if n, ok := addr[c]; ok && !used.Has(n) {
+					used.Add(n)
 					changed = true
 				}
 			}
@@ -282,7 +282,7 @@ func elimDeadAutosGeneric(f *Func) {
 
 	// Eliminate stores to unread autos.
 	for v, n := range elim {
-		if used[n] {
+		if used.Has(n) {
 			continue
 		}
 		// replace with OpCopy
