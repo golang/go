@@ -73,7 +73,7 @@ func InlinePackage() {
 	})
 }
 
-// Caninl determines whether fn is inlineable.
+// CanInline determines whether fn is inlineable.
 // If so, CanInline saves fn->nbody in fn->inl and substitutes it with a copy.
 // fn and ->nbody will already have been typechecked.
 func CanInline(fn *ir.Func) {
@@ -169,7 +169,6 @@ func CanInline(fn *ir.Func) {
 	visitor := hairyVisitor{
 		budget:        inlineMaxBudget,
 		extraCallCost: cc,
-		usedLocals:    make(map[*ir.Name]bool),
 	}
 	if visitor.tooHairy(fn) {
 		reason = visitor.reason
@@ -254,7 +253,7 @@ type hairyVisitor struct {
 	budget        int32
 	reason        string
 	extraCallCost int32
-	usedLocals    map[*ir.Name]bool
+	usedLocals    ir.NameSet
 	do            func(ir.Node) bool
 }
 
@@ -410,7 +409,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 	case ir.ONAME:
 		n := n.(*ir.Name)
 		if n.Class == ir.PAUTO {
-			v.usedLocals[n] = true
+			v.usedLocals.Add(n)
 		}
 
 	case ir.OBLOCK:
@@ -1383,7 +1382,7 @@ func pruneUnusedAutos(ll []*ir.Name, vis *hairyVisitor) []*ir.Name {
 	s := make([]*ir.Name, 0, len(ll))
 	for _, n := range ll {
 		if n.Class == ir.PAUTO {
-			if _, found := vis.usedLocals[n]; !found {
+			if !vis.usedLocals.Has(n) {
 				continue
 			}
 		}
