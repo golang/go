@@ -693,6 +693,37 @@ func TestFoo(t *testing.T) {
   </dd>
 </dl><!-- flag -->
 
+<dl id="go/build"><dt><a href="/pkg/go/build/">go/build</a></dt>
+  <dd>
+    <p><!-- CL 243941, CL 283636 -->
+      The <a href="/pkg/go/build/#Package"><code>Package</code></a>
+      struct has new fields that report information
+      about <code>//go:embed</code> directives in the package:
+      <a href="/pkg/go/build/#Package.EmbedPatterns"><code>EmbedPatterns</code></a>,
+      <a href="/pkg/go/build/#Package.EmbedPatternPos"><code>EmbedPatternPos</code></a>,
+      <a href="/pkg/go/build/#Package.TestEmbedPatterns"><code>TestEmbedPatterns</code></a>,
+      <a href="/pkg/go/build/#Package.TestEmbedPatternPos"><code>TestEmbedPatternPos</code></a>,
+      <a href="/pkg/go/build/#Package.XTestEmbedPatterns"><code>XTestEmbedPatterns</code></a>,
+      <a href="/pkg/go/build/#Package.XTestEmbedPatternPos"><code>XTestEmbedPatternPos</code></a>.
+    </p>
+
+    <p><!-- CL 240551 -->
+      The <a href="/pkg/go/build/#Package"><code>Package</code></a> field
+      <a href="/pkg/go/build/#Package.IgnoredGoFiles"><code>IgnoredGoFiles</code></a>
+      will no longer include files that start with "_" or ".",
+      as those files are always ignored.
+      <code>IgnoredGoFiles</code> is for files ignored because of
+      build constraints.
+    </p>
+
+    <p><!-- CL 240551 -->
+      The new <a href="/pkg/go/build/#Package"><code>Package</code></a>
+      field <a href="/pkg/go/build/#Package.IgnoredOtherFiles"><code>IgnoredOtherFiles</code></a>
+      has a list of non-Go files ignored because of build constraints.
+    </p>
+  </dd>
+</dl><!-- go/build -->
+
 <dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
   <dd>
     <p><!-- CL 243938 -->
