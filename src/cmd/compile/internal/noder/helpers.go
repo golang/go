@@ -5,11 +5,13 @@
 package noder
 
 import (
+	"go/constant"
+
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
-	"go/constant"
 )
 
 // Helpers for constructing typed IR nodes.
@@ -20,6 +22,17 @@ import (
 // TODO(mdempsky): Update to consistently return already typechecked
 // results, rather than leaving the caller responsible for using
 // typecheck.Expr or typecheck.Stmt.
+
+type ImplicitNode interface {
+	ir.Node
+	SetImplicit(x bool)
+}
+
+// Implicit returns n after marking it as Implicit.
+func Implicit(n ImplicitNode) ImplicitNode {
+	n.SetImplicit(true)
+	return n
+}
 
 // typed returns n after setting its type to typ.
 func typed(typ *types.Type, n ir.Node) ir.Node {
@@ -39,6 +52,13 @@ func Nil(pos src.XPos, typ *types.Type) ir.Node {
 }
 
 // Expressions
+
+func Addr(pos src.XPos, x ir.Node) *ir.AddrExpr {
+	// TODO(mdempsky): Avoid typecheck.Expr. Probably just need to set OPTRLIT when appropriate.
+	n := typecheck.Expr(typecheck.NodAddrAt(pos, x)).(*ir.AddrExpr)
+	typed(types.NewPtr(x.Type()), n)
+	return n
+}
 
 func Assert(pos src.XPos, x ir.Node, typ *types.Type) ir.Node {
 	return typed(typ, ir.NewTypeAssertExpr(pos, x, nil))
@@ -109,6 +129,58 @@ func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) ir.Node {
 	return typed(typ, n)
 }
 
+func Deref(pos src.XPos, x ir.Node) *ir.StarExpr {
+	n := ir.NewStarExpr(pos, x)
+	typed(x.Type().Elem(), n)
+	return n
+}
+
+func DotField(pos src.XPos, x ir.Node, index int) *ir.SelectorExpr {
+	op, typ := ir.ODOT, x.Type()
+	if typ.IsPtr() {
+		op, typ = ir.ODOTPTR, typ.Elem()
+	}
+	if !typ.IsStruct() {
+		base.FatalfAt(pos, "DotField of non-struct: %L", x)
+	}
+
+	// TODO(mdempsky): This is the backend's responsibility.
+	types.CalcSize(typ)
+
+	field := typ.Field(index)
+	return dot(pos, field.Type, op, x, field)
+}
+
+func DotMethod(pos src.XPos, x ir.Node, index int) *ir.SelectorExpr {
+	method := method(x.Type(), index)
+
+	// Method expression.
+	// TODO(mdempsky): Handle with a separate helper?
+	if x.Op() == ir.OTYPE {
+		typ := typecheck.NewMethodType(method.Type, x.Type())
+		return dot(pos, typ, ir.OMETHEXPR, x, method)
+	}
+
+	// Method value.
+	typ := typecheck.NewMethodType(method.Type, nil)
+	return dot(pos, typ, ir.OCALLPART, x, method)
+}
+
+func dot(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node, selection *types.Field) *ir.SelectorExpr {
+	n := ir.NewSelectorExpr(pos, op, x, selection.Sym)
+	n.Selection = selection
+	typed(typ, n)
+	return n
+}
+
+// TODO(mdempsky): Move to package types.
+func method(typ *types.Type, index int) *types.Field {
+	if typ.IsInterface() {
+		return typ.Field(index)
+	}
+	return types.ReceiverBaseType(typ).Methods().Index(index)
+}
+
 func Index(pos src.XPos, x, index ir.Node) ir.Node {
 	// TODO(mdempsky): Avoid typecheck.Expr.
 	return typecheck.Expr(ir.NewIndexExpr(pos, x, index))
@@ -124,18 +196,18 @@ func Slice(pos src.XPos, x, low, high, max ir.Node) ir.Node {
 }
 
 func Unary(pos src.XPos, op ir.Op, x ir.Node) ir.Node {
-	typ := x.Type()
 	switch op {
 	case ir.OADDR:
-		// TODO(mdempsky): Avoid typecheck.Expr. Probably just need to set OPTRLIT as needed.
-		return typed(types.NewPtr(typ), typecheck.Expr(typecheck.NodAddrAt(pos, x)))
+		return Addr(pos, x)
 	case ir.ODEREF:
-		return typed(typ.Elem(), ir.NewStarExpr(pos, x))
-	case ir.ORECV:
-		return typed(typ.Elem(), ir.NewUnaryExpr(pos, op, x))
-	default:
-		return typed(typ, ir.NewUnaryExpr(pos, op, x))
+		return Deref(pos, x)
 	}
+
+	typ := x.Type()
+	if op == ir.ORECV {
+		typ = typ.Elem()
+	}
+	return typed(typ, ir.NewUnaryExpr(pos, op, x))
 }
 
 // Statements
