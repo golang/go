@@ -934,6 +934,16 @@ func TestFoo(t *testing.T) {
       and related calls are now implemented.
       Previously, they returned an <code>syscall.EOPNOTSUPP</code> error.
     </p>
+
+    <p><!-- CL 210639 -->
+      On Linux, the new functions
+      <a href="/pkg/syscall/#AllThreadsSyscall"><code>AllThreadsSyscall</code></a>
+      and <a href="/pkg/syscall/#AllThreadsSyscall6"><code>AllThreadsSyscall6</code></a>
+      may be used to make a system call on all Go threads in the process.
+      These functions may only be used by programs that do not use cgo;
+      if a program uses cgo, they will always return
+      <a href="/pkg/syscall/#ENOTSUP"><code>syscall.ENOTSUP</code></a>.
+    </p>
   </dd>
 </dl><!-- syscall -->
 
