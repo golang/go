@@ -150,24 +150,6 @@ TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
-TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
-	PUSHQ	BP
-	MOVQ	SP, BP
-	MOVQ	DI, BX			// BX is caller-save
-	CALL	libc_pthread_self(SB)
-	MOVQ	AX, 0(BX)		// return value
-	POPQ	BP
-	RET
-
-TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
-	PUSHQ	BP
-	MOVQ	SP, BP
-	MOVQ	8(DI), SI		// arg 2 - sig
-	MOVQ	0(DI), DI		// arg 1 - thread
-	CALL	libc_pthread_kill(SB)
-	POPQ	BP
-	RET
-
 TEXT runtime·thrsleep_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP

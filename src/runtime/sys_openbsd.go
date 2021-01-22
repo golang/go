@@ -46,21 +46,6 @@ func pthread_create(attr *pthreadattr, start uintptr, arg unsafe.Pointer) int32 
 }
 func pthread_create_trampoline()
 
-//go:nosplit
-//go:cgo_unsafe_args
-func pthread_self() (t pthread) {
-	libcCall(unsafe.Pointer(funcPC(pthread_self_trampoline)), unsafe.Pointer(&t))
-	return
-}
-func pthread_self_trampoline()
-
-//go:nosplit
-//go:cgo_unsafe_args
-func pthread_kill(t pthread, sig uint32) {
-	libcCall(unsafe.Pointer(funcPC(pthread_kill_trampoline)), unsafe.Pointer(&t))
-}
-func pthread_kill_trampoline()
-
 // Tell the linker that the libc_* functions are to be found
 // in a system library, with the libc_ prefix missing.
 
@@ -70,8 +55,5 @@ func pthread_kill_trampoline()
 //go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "libpthread.so"
 //go:cgo_import_dynamic libc_pthread_create pthread_create "libpthread.so"
 //go:cgo_import_dynamic libc_pthread_sigmask pthread_sigmask "libpthread.so"
-//go:cgo_import_dynamic libc_pthread_self pthread_self "libpthread.so"
-//go:cgo_import_dynamic libc_pthread_kill pthread_kill "libpthread.so"
 
 //go:cgo_import_dynamic _ _ "libpthread.so"
-//go:cgo_import_dynamic _ _ "libc.so"
