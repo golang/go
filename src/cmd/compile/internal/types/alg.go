@@ -132,7 +132,7 @@ func AlgType(t *Type) (AlgKind, *Type) {
 		return ret, nil
 	}
 
-	base.Fatalf("algtype: unexpected type %v", t)
+	base.Fatalf("AlgType: unexpected type %v", t)
 	return 0, nil
 }
 
@@ -163,7 +163,7 @@ func IncomparableField(t *Type) *Field {
 // by padding.
 func IsPaddedField(t *Type, i int) bool {
 	if !t.IsStruct() {
-		base.Fatalf("ispaddedfield called non-struct %v", t)
+		base.Fatalf("IsPaddedField called non-struct %v", t)
 	}
 	end := t.Width
 	if i+1 < t.NumFields() {

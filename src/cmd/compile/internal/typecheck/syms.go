@@ -15,7 +15,7 @@ import (
 func LookupRuntime(name string) *ir.Name {
 	s := ir.Pkgs.Runtime.Lookup(name)
 	if s == nil || s.Def == nil {
-		base.Fatalf("syslook: can't find runtime.%s", name)
+		base.Fatalf("LookupRuntime: can't find runtime.%s", name)
 	}
 	return ir.AsNode(s.Def).(*ir.Name)
 }
@@ -33,7 +33,7 @@ func SubstArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
 	n.Class = old.Class
 	n.SetType(types.SubstAny(old.Type(), &types_))
 	if len(types_) > 0 {
-		base.Fatalf("substArgTypes: too many argument types")
+		base.Fatalf("SubstArgTypes: too many argument types")
 	}
 	return n
 }
@@ -86,14 +86,17 @@ func InitRuntime() {
 // LookupRuntimeFunc looks up Go function name in package runtime. This function
 // must follow the internal calling convention.
 func LookupRuntimeFunc(name string) *obj.LSym {
-	s := ir.Pkgs.Runtime.Lookup(name)
-	s.SetFunc(true)
-	return s.Linksym()
+	return LookupRuntimeABI(name, obj.ABIInternal)
 }
 
 // LookupRuntimeVar looks up a variable (or assembly function) name in package
 // runtime. If this is a function, it may have a special calling
 // convention.
 func LookupRuntimeVar(name string) *obj.LSym {
-	return ir.Pkgs.Runtime.Lookup(name).Linksym()
+	return LookupRuntimeABI(name, obj.ABI0)
+}
+
+// LookupRuntimeABI looks up a name in package runtime using the given ABI.
+func LookupRuntimeABI(name string, abi obj.ABI) *obj.LSym {
+	return base.PkgLinksym("runtime", name, abi)
 }

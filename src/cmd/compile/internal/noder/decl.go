@@ -48,6 +48,9 @@ func (g *irgen) importDecl(p *noder, decl *syntax.ImportDecl) {
 	if ipkg == ir.Pkgs.Unsafe {
 		p.importedUnsafe = true
 	}
+	if ipkg.Path == "embed" {
+		p.importedEmbed = true
+	}
 }
 
 func (g *irgen) constDecl(out *ir.Nodes, decl *syntax.ConstDecl) {
@@ -164,9 +167,8 @@ func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
 
 	if decl.Pragma != nil {
 		pragma := decl.Pragma.(*pragmas)
-		if err := varEmbed(g.makeXPos, names[0], decl, pragma); err != nil {
-			base.ErrorfAt(g.pos(decl), "%s", err.Error())
-		}
+		// TODO(mdempsky): Plumb noder.importedEmbed through to here.
+		varEmbed(g.makeXPos, names[0], decl, pragma, true)
 		g.reportUnused(pragma)
 	}
 

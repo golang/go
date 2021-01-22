@@ -11,13 +11,13 @@ import (
 	"go/ast"
 	"go/doc"
 	"go/token"
+	exec "internal/execabs"
 	"internal/goroot"
 	"internal/goversion"
 	"io"
 	"io/fs"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	pathpkg "path"
 	"path/filepath"
 	"runtime"
@@ -449,9 +449,12 @@ type Package struct {
 	//	//go:embed a* b.c
 	// then the list will contain those two strings as separate entries.
 	// (See package embed for more details about //go:embed.)
-	EmbedPatterns      []string // patterns from GoFiles, CgoFiles
-	TestEmbedPatterns  []string // patterns from TestGoFiles
-	XTestEmbedPatterns []string // patterns from XTestGoFiles
+	EmbedPatterns        []string                    // patterns from GoFiles, CgoFiles
+	EmbedPatternPos      map[string][]token.Position // line information for EmbedPatterns
+	TestEmbedPatterns    []string                    // patterns from TestGoFiles
+	TestEmbedPatternPos  map[string][]token.Position // line information for TestEmbedPatterns
+	XTestEmbedPatterns   []string                    // patterns from XTestGoFiles
+	XTestEmbedPatternPos map[string][]token.Position // line information for XTestEmbedPatternPos
 }
 
 // IsCommand reports whether the package is considered a
@@ -794,10 +797,12 @@ Found:
 	var badGoError error
 	var Sfiles []string // files with ".S"(capital S)/.sx(capital s equivalent for case insensitive filesystems)
 	var firstFile, firstCommentFile string
-	var embeds, testEmbeds, xTestEmbeds []string
-	imported := make(map[string][]token.Position)
-	testImported := make(map[string][]token.Position)
-	xTestImported := make(map[string][]token.Position)
+	embedPos := make(map[string][]token.Position)
+	testEmbedPos := make(map[string][]token.Position)
+	xTestEmbedPos := make(map[string][]token.Position)
+	importPos := make(map[string][]token.Position)
+	testImportPos := make(map[string][]token.Position)
+	xTestImportPos := make(map[string][]token.Position)
 	allTags := make(map[string]bool)
 	fset := token.NewFileSet()
 	for _, d := range dirs {
@@ -920,31 +925,31 @@ Found:
 			}
 		}
 
-		var fileList, embedList *[]string
-		var importMap map[string][]token.Position
+		var fileList *[]string
+		var importMap, embedMap map[string][]token.Position
 		switch {
 		case isCgo:
 			allTags["cgo"] = true
 			if ctxt.CgoEnabled {
 				fileList = &p.CgoFiles
-				importMap = imported
-				embedList = &embeds
+				importMap = importPos
+				embedMap = embedPos
 			} else {
-				// Ignore imports from cgo files if cgo is disabled.
+				// Ignore imports and embeds from cgo files if cgo is disabled.
 				fileList = &p.IgnoredGoFiles
 			}
 		case isXTest:
 			fileList = &p.XTestGoFiles
-			importMap = xTestImported
-			embedList = &xTestEmbeds
+			importMap = xTestImportPos
+			embedMap = xTestEmbedPos
 		case isTest:
 			fileList = &p.TestGoFiles
-			importMap = testImported
-			embedList = &testEmbeds
+			importMap = testImportPos
+			embedMap = testEmbedPos
 		default:
 			fileList = &p.GoFiles
-			importMap = imported
-			embedList = &embeds
+			importMap = importPos
+			embedMap = embedPos
 		}
 		*fileList = append(*fileList, name)
 		if importMap != nil {
@@ -952,8 +957,10 @@ Found:
 				importMap[imp.path] = append(importMap[imp.path], fset.Position(imp.pos))
 			}
 		}
-		if embedList != nil {
-			*embedList = append(*embedList, info.embeds...)
+		if embedMap != nil {
+			for _, emb := range info.embeds {
+				embedMap[emb.pattern] = append(embedMap[emb.pattern], emb.pos)
+			}
 		}
 	}
 
@@ -962,13 +969,13 @@ Found:
 	}
 	sort.Strings(p.AllTags)
 
-	p.EmbedPatterns = uniq(embeds)
-	p.TestEmbedPatterns = uniq(testEmbeds)
-	p.XTestEmbedPatterns = uniq(xTestEmbeds)
+	p.EmbedPatterns, p.EmbedPatternPos = cleanDecls(embedPos)
+	p.TestEmbedPatterns, p.TestEmbedPatternPos = cleanDecls(testEmbedPos)
+	p.XTestEmbedPatterns, p.XTestEmbedPatternPos = cleanDecls(xTestEmbedPos)
 
-	p.Imports, p.ImportPos = cleanImports(imported)
-	p.TestImports, p.TestImportPos = cleanImports(testImported)
-	p.XTestImports, p.XTestImportPos = cleanImports(xTestImported)
+	p.Imports, p.ImportPos = cleanDecls(importPos)
+	p.TestImports, p.TestImportPos = cleanDecls(testImportPos)
+	p.XTestImports, p.XTestImportPos = cleanDecls(xTestImportPos)
 
 	// add the .S/.sx files only if we are using cgo
 	// (which means gcc will compile them).
@@ -1340,7 +1347,7 @@ type fileInfo struct {
 	parsed   *ast.File
 	parseErr error
 	imports  []fileImport
-	embeds   []string
+	embeds   []fileEmbed
 	embedErr error
 }
 
@@ -1348,6 +1355,11 @@ type fileImport struct {
 	path string
 	pos  token.Pos
 	doc  *ast.CommentGroup
+}
+
+type fileEmbed struct {
+	pattern string
+	pos     token.Position
 }
 
 // matchFile determines whether the file with the given name in the given directory
@@ -1424,7 +1436,7 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 	return info, nil
 }
 
-func cleanImports(m map[string][]token.Position) ([]string, map[string][]token.Position) {
+func cleanDecls(m map[string][]token.Position) ([]string, map[string][]token.Position) {
 	all := make([]string, 0, len(m))
 	for path := range m {
 		all = append(all, path)

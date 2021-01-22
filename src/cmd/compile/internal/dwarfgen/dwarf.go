@@ -28,7 +28,7 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
 	if fn.Nname != nil {
 		expect := fn.Linksym()
 		if fnsym.ABI() == obj.ABI0 {
-			expect = fn.Sym().LinksymABI0()
+			expect = fn.LinksymABI(obj.ABI0)
 		}
 		if fnsym != expect {
 			base.Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
@@ -136,7 +136,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 	// Collect a raw list of DWARF vars.
 	var vars []*dwarf.Var
 	var decls []*ir.Name
-	var selected map[*ir.Name]bool
+	var selected ir.NameSet
 	if base.Ctxt.Flag_locationlists && base.Ctxt.Flag_optimize && fn.DebugInfo != nil && complexOK {
 		decls, vars, selected = createComplexVars(fnsym, fn)
 	} else {
@@ -161,7 +161,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 	// For non-SSA-able arguments, however, the correct information
 	// is known -- they have a single home on the stack.
 	for _, n := range dcl {
-		if _, found := selected[n]; found {
+		if selected.Has(n) {
 			continue
 		}
 		c := n.Sym().Name[0]
@@ -186,19 +186,11 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		isReturnValue := (n.Class == ir.PPARAMOUT)
 		if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
 			abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
-		} else if n.Class == ir.PAUTOHEAP {
-			// If dcl in question has been promoted to heap, do a bit
-			// of extra work to recover original class (auto or param);
-			// see issue 30908. This insures that we get the proper
-			// signature in the abstract function DIE, but leaves a
-			// misleading location for the param (we want pointer-to-heap
-			// and not stack).
+		}
+		if n.Esc() == ir.EscHeap {
+			// The variable in question has been promoted to the heap.
+			// Its address is in n.Heapaddr.
 			// TODO(thanm): generate a better location expression
-			stackcopy := n.Stackcopy
-			if stackcopy != nil && (stackcopy.Class == ir.PPARAM || stackcopy.Class == ir.PPARAMOUT) {
-				abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
-				isReturnValue = (stackcopy.Class == ir.PPARAMOUT)
-			}
 		}
 		inlIndex := 0
 		if base.Flag.GenDwarfInl > 1 {
@@ -252,10 +244,10 @@ func preInliningDcls(fnsym *obj.LSym) []*ir.Name {
 
 // createSimpleVars creates a DWARF entry for every variable declared in the
 // function, claiming that they are permanently on the stack.
-func createSimpleVars(fnsym *obj.LSym, apDecls []*ir.Name) ([]*ir.Name, []*dwarf.Var, map[*ir.Name]bool) {
+func createSimpleVars(fnsym *obj.LSym, apDecls []*ir.Name) ([]*ir.Name, []*dwarf.Var, ir.NameSet) {
 	var vars []*dwarf.Var
 	var decls []*ir.Name
-	selected := make(map[*ir.Name]bool)
+	var selected ir.NameSet
 	for _, n := range apDecls {
 		if ir.IsAutoTmp(n) {
 			continue
@@ -263,7 +255,7 @@ func createSimpleVars(fnsym *obj.LSym, apDecls []*ir.Name) ([]*ir.Name, []*dwarf
 
 		decls = append(decls, n)
 		vars = append(vars, createSimpleVar(fnsym, n))
-		selected[n] = true
+		selected.Add(n)
 	}
 	return decls, vars, selected
 }
@@ -320,19 +312,19 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 
 // createComplexVars creates recomposed DWARF vars with location lists,
 // suitable for describing optimized code.
-func createComplexVars(fnsym *obj.LSym, fn *ir.Func) ([]*ir.Name, []*dwarf.Var, map[*ir.Name]bool) {
+func createComplexVars(fnsym *obj.LSym, fn *ir.Func) ([]*ir.Name, []*dwarf.Var, ir.NameSet) {
 	debugInfo := fn.DebugInfo.(*ssa.FuncDebug)
 
 	// Produce a DWARF variable entry for each user variable.
 	var decls []*ir.Name
 	var vars []*dwarf.Var
-	ssaVars := make(map[*ir.Name]bool)
+	var ssaVars ir.NameSet
 
 	for varID, dvar := range debugInfo.Vars {
 		n := dvar
-		ssaVars[n] = true
+		ssaVars.Add(n)
 		for _, slot := range debugInfo.VarSlots[varID] {
-			ssaVars[debugInfo.Slots[slot].N] = true
+			ssaVars.Add(debugInfo.Slots[slot].N)
 		}
 
 		if dvar := createComplexVar(fnsym, fn, ssa.VarID(varID)); dvar != nil {

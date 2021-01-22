@@ -52,8 +52,6 @@ type Node interface {
 	SetTypecheck(x uint8)
 	NonNil() bool
 	MarkNonNil()
-	HasCall() bool
-	SetHasCall(x bool)
 }
 
 // Line returns n's position as a string. If n has been inlined,
@@ -216,7 +214,6 @@ const (
 	OAND         // Left & Right
 	OANDNOT      // Left &^ Right
 	ONEW         // new(Left); corresponds to calls to new in source code
-	ONEWOBJ      // runtime.newobject(n.Type); introduced by walk; Left is type descriptor
 	ONOT         // !Left
 	OBITNOT      // ^Left
 	OPLUS        // +Left
@@ -294,23 +291,27 @@ const (
 	OTSLICE // []int
 
 	// misc
-	OINLCALL    // intermediary representation of an inlined call.
-	OEFACE      // itable and data words of an empty-interface value.
-	OITAB       // itable word of an interface value.
-	OIDATA      // data word of an interface value in Left
-	OSPTR       // base pointer of a slice or string.
-	OCFUNC      // reference to c function pointer (not go func value)
-	OCHECKNIL   // emit code to ensure pointer/interface not nil
-	OVARDEF     // variable is about to be fully initialized
-	OVARKILL    // variable is dead
-	OVARLIVE    // variable is alive
-	ORESULT     // result of a function call; Xoffset is stack offset
-	OINLMARK    // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
-	ONAMEOFFSET // offset within a name
+	// intermediate representation of an inlined call.  Uses Init (assignments
+	// for the captured variables, parameters, retvars, & INLMARK op),
+	// Body (body of the inlined function), and ReturnVars (list of
+	// return values)
+	OINLCALL       // intermediary representation of an inlined call.
+	OEFACE         // itable and data words of an empty-interface value.
+	OITAB          // itable word of an interface value.
+	OIDATA         // data word of an interface value in Left
+	OSPTR          // base pointer of a slice or string.
+	OCFUNC         // reference to c function pointer (not go func value)
+	OCHECKNIL      // emit code to ensure pointer/interface not nil
+	OVARDEF        // variable is about to be fully initialized
+	OVARKILL       // variable is dead
+	OVARLIVE       // variable is alive
+	ORESULT        // result of a function call; Xoffset is stack offset
+	OINLMARK       // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
+	OLINKSYMOFFSET // offset within a name
 
 	// arch-specific opcodes
-	ORETJMP // return to other function
-	OGETG   // runtime.getg() (read g pointer)
+	OTAILCALL // tail call to another function
+	OGETG     // runtime.getg() (read g pointer)
 
 	OEND
 )
@@ -452,6 +453,9 @@ const (
 
 	// Go command pragmas
 	GoBuildPragma
+
+	RegisterParams // TODO remove after register abi is working
+
 )
 
 func AsNode(n types.Object) Node {
@@ -542,7 +546,6 @@ func InitExpr(init []Node, expr Node) Node {
 	}
 
 	n.PtrInit().Prepend(init...)
-	n.SetHasCall(true)
 	return n
 }
 

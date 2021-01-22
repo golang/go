@@ -28,7 +28,7 @@ func isASCII(s string) bool {
 }
 
 // toASCII converts the input to an ASCII C-style string.
-// This a best effort conversion, so invalid characters are dropped.
+// This is a best effort conversion, so invalid characters are dropped.
 func toASCII(s string) string {
 	if isASCII(s) {
 		return s

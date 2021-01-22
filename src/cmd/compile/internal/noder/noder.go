@@ -5,7 +5,6 @@
 package noder
 
 import (
-	"errors"
 	"fmt"
 	"go/constant"
 	"go/token"
@@ -136,7 +135,15 @@ func LoadPackage(filenames []string) {
 	for i := 0; i < len(typecheck.Target.Decls); i++ {
 		n := typecheck.Target.Decls[i]
 		if n.Op() == ir.ODCLFUNC {
+			if base.Flag.W > 1 {
+				s := fmt.Sprintf("\nbefore typecheck %v", n)
+				ir.Dump(s, n)
+			}
 			typecheck.FuncBody(n.(*ir.Func))
+			if base.Flag.W > 1 {
+				s := fmt.Sprintf("\nafter typecheck %v", n)
+				ir.Dump(s, n)
+			}
 			fcount++
 		}
 	}
@@ -385,9 +392,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
 	exprs := p.exprList(decl.Values)
 
 	if pragma, ok := decl.Pragma.(*pragmas); ok {
-		if err := varEmbed(p.makeXPos, names[0], decl, pragma); err != nil {
-			p.errorAt(decl.Pos(), "%s", err.Error())
-		}
+		varEmbed(p.makeXPos, names[0], decl, pragma, p.importedEmbed)
 		p.checkUnused(pragma)
 	}
 
@@ -555,7 +560,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 		}
 	} else {
 		f.Shortname = name
-		name = ir.BlankNode.Sym() // filled in by typecheckfunc
+		name = ir.BlankNode.Sym() // filled in by tcFunc
 	}
 
 	f.Nname = ir.NewNameAt(p.pos(fun.Name), name)
@@ -1001,7 +1006,7 @@ func (p *noder) stmtsFall(stmts []syntax.Stmt, fallOK bool) []ir.Node {
 		if s == nil {
 		} else if s.Op() == ir.OBLOCK && len(s.(*ir.BlockStmt).List) > 0 {
 			// Inline non-empty block.
-			// Empty blocks must be preserved for checkreturn.
+			// Empty blocks must be preserved for CheckReturn.
 			nodes = append(nodes, s.(*ir.BlockStmt).List...)
 		} else {
 			nodes = append(nodes, s)
@@ -1774,7 +1779,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
 	fn := ir.NewFunc(p.pos(expr))
 	fn.SetIsHiddenClosure(ir.CurFunc != nil)
 
-	fn.Nname = ir.NewNameAt(p.pos(expr), ir.BlankNode.Sym()) // filled in by typecheckclosure
+	fn.Nname = ir.NewNameAt(p.pos(expr), ir.BlankNode.Sym()) // filled in by tcClosure
 	fn.Nname.Func = fn
 	fn.Nname.Ntype = xtype
 	fn.Nname.Defn = fn
@@ -1829,29 +1834,35 @@ func oldname(s *types.Sym) ir.Node {
 	return n
 }
 
-func varEmbed(makeXPos func(syntax.Pos) src.XPos, name *ir.Name, decl *syntax.VarDecl, pragma *pragmas) error {
+func varEmbed(makeXPos func(syntax.Pos) src.XPos, name *ir.Name, decl *syntax.VarDecl, pragma *pragmas, haveEmbed bool) {
 	if pragma.Embeds == nil {
-		return nil
+		return
 	}
 
 	pragmaEmbeds := pragma.Embeds
 	pragma.Embeds = nil
+	pos := makeXPos(pragmaEmbeds[0].Pos)
 
-	if base.Flag.Cfg.Embed.Patterns == nil {
-		return errors.New("invalid go:embed: build system did not supply embed configuration")
+	if !haveEmbed {
+		base.ErrorfAt(pos, "go:embed only allowed in Go files that import \"embed\"")
+		return
 	}
 	if len(decl.NameList) > 1 {
-		return errors.New("go:embed cannot apply to multiple vars")
+		base.ErrorfAt(pos, "go:embed cannot apply to multiple vars")
+		return
 	}
 	if decl.Values != nil {
-		return errors.New("go:embed cannot apply to var with initializer")
+		base.ErrorfAt(pos, "go:embed cannot apply to var with initializer")
+		return
 	}
 	if decl.Type == nil {
 		// Should not happen, since Values == nil now.
-		return errors.New("go:embed cannot apply to var without type")
+		base.ErrorfAt(pos, "go:embed cannot apply to var without type")
+		return
 	}
 	if typecheck.DeclContext != ir.PEXTERN {
-		return errors.New("go:embed cannot apply to var inside func")
+		base.ErrorfAt(pos, "go:embed cannot apply to var inside func")
+		return
 	}
 
 	var embeds []ir.Embed
@@ -1860,5 +1871,4 @@ func varEmbed(makeXPos func(syntax.Pos) src.XPos, name *ir.Name, decl *syntax.Va
 	}
 	typecheck.Target.Embeds = append(typecheck.Target.Embeds, name)
 	name.Embed = &embeds
-	return nil
 }

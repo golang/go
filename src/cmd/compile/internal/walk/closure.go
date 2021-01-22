@@ -159,7 +159,7 @@ func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 	//
 	//	clos = &struct{F uintptr; R T}{T.M·f, x}
 	//
-	// Like walkclosure above.
+	// Like walkClosure above.
 
 	if n.X.Type().IsInterface() {
 		// Trigger panic for method on nil interface now.

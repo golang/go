@@ -26,10 +26,9 @@ func instrument(fn *ir.Func) {
 	if base.Flag.Race {
 		lno := base.Pos
 		base.Pos = src.NoXPos
-
 		if ssagen.Arch.LinkArch.Arch.Family != sys.AMD64 {
-			fn.Enter.Prepend(mkcall("racefuncenterfp", nil, nil))
-			fn.Exit.Append(mkcall("racefuncexit", nil, nil))
+			fn.Enter.Prepend(mkcallstmt("racefuncenterfp"))
+			fn.Exit.Append(mkcallstmt("racefuncexit"))
 		} else {
 
 			// nodpc is the PC of the caller as extracted by
@@ -44,8 +43,8 @@ func instrument(fn *ir.Func) {
 			nodpc.SetType(types.Types[types.TUINTPTR])
 			nodpc.SetFrameOffset(int64(-types.PtrSize))
 			fn.Dcl = append(fn.Dcl, nodpc)
-			fn.Enter.Prepend(mkcall("racefuncenter", nil, nil, nodpc))
-			fn.Exit.Append(mkcall("racefuncexit", nil, nil))
+			fn.Enter.Prepend(mkcallstmt("racefuncenter", nodpc))
+			fn.Exit.Append(mkcallstmt("racefuncexit"))
 		}
 		base.Pos = lno
 	}

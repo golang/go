@@ -13,13 +13,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	exec "internal/execabs"
 	"internal/lazyregexp"
 	"io"
 	"io/fs"
 	"log"
 	"math/rand"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -1164,10 +1164,8 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 		return err
 	}
 
-	env := b.cCompilerEnv()
-	if cfg.BuildToolchainName == "gccgo" {
-		env = append(env, "GCCGO="+BuildToolchain.compiler())
-	}
+	// TODO(rsc): Why do we pass $GCCGO to go vet?
+	env := b.cgoEnv()
 
 	p := a.Package
 	tool := VetTool
@@ -2044,6 +2042,9 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...interfa
 
 	var buf bytes.Buffer
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+	if cmd.Path != "" {
+		cmd.Args[0] = cmd.Path
+	}
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
 	cleanup := passLongArgsInResponseFiles(cmd)
@@ -2108,6 +2109,24 @@ func joinUnambiguously(a []string) string {
 // messages that confuse tools like cgo.
 func (b *Builder) cCompilerEnv() []string {
 	return []string{"TERM=dumb"}
+}
+
+// cgoEnv returns environment variables to set when running cgo.
+// Some of these pass through to cgo running the C compiler,
+// so it includes cCompilerEnv.
+func (b *Builder) cgoEnv() []string {
+	b.cgoEnvOnce.Do(func() {
+		cc, err := exec.LookPath(b.ccExe()[0])
+		if err != nil || filepath.Base(cc) == cc { // reject relative path
+			cc = "/missing-cc"
+		}
+		gccgo := GccgoBin
+		if filepath.Base(gccgo) == gccgo { // reject relative path
+			gccgo = "/missing-gccgo"
+		}
+		b.cgoEnvCache = append(b.cCompilerEnv(), "CC="+cc, "GCCGO="+gccgo)
+	})
+	return b.cgoEnvCache
 }
 
 // mkdir makes the named directory.
@@ -2435,7 +2454,7 @@ func (b *Builder) fcExe() []string {
 func (b *Builder) compilerExe(envValue string, def string) []string {
 	compiler := strings.Fields(envValue)
 	if len(compiler) == 0 {
-		compiler = []string{def}
+		compiler = strings.Fields(def)
 	}
 	return compiler
 }
@@ -2581,7 +2600,14 @@ func (b *Builder) gccArchArgs() []string {
 	case "386":
 		return []string{"-m32"}
 	case "amd64":
+		if cfg.Goos == "darwin" {
+			return []string{"-arch", "x86_64", "-m64"}
+		}
 		return []string{"-m64"}
+	case "arm64":
+		if cfg.Goos == "darwin" {
+			return []string{"-arch", "arm64"}
+		}
 	case "arm":
 		return []string{"-marm"} // not thumb
 	case "s390x":
@@ -2703,13 +2729,13 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	// along to the host linker. At this point in the code, cgoLDFLAGS
 	// consists of the original $CGO_LDFLAGS (unchecked) and all the
 	// flags put together from source code (checked).
-	cgoenv := b.cCompilerEnv()
+	cgoenv := b.cgoEnv()
 	if len(cgoLDFLAGS) > 0 {
 		flags := make([]string, len(cgoLDFLAGS))
 		for i, f := range cgoLDFLAGS {
 			flags[i] = strconv.Quote(f)
 		}
-		cgoenv = []string{"CGO_LDFLAGS=" + strings.Join(flags, " ")}
+		cgoenv = append(cgoenv, "CGO_LDFLAGS="+strings.Join(flags, " "))
 	}
 
 	if cfg.BuildToolchainName == "gccgo" {
@@ -2940,7 +2966,7 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = []string{"-dynlinker"} // record path to dynamic linker
 	}
-	return b.run(a, base.Cwd, p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
+	return b.run(a, base.Cwd, p.ImportPath, b.cgoEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
 }
 
 // Run SWIG on all SWIG input files.

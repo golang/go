@@ -19,9 +19,10 @@ import (
 // walkSwitch walks a switch statement.
 func walkSwitch(sw *ir.SwitchStmt) {
 	// Guard against double walk, see #25776.
-	if len(sw.Cases) == 0 && len(sw.Compiled) > 0 {
+	if sw.Walked() {
 		return // Was fatal, but eliminating every possible source of double-walking is hard
 	}
+	sw.SetWalked(true)
 
 	if sw.Tag != nil && sw.Tag.Op() == ir.OTYPESW {
 		walkSwitchType(sw)
@@ -48,8 +49,8 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 	// Given "switch string(byteslice)",
 	// with all cases being side-effect free,
 	// use a zero-cost alias of the byte slice.
-	// Do this before calling walkexpr on cond,
-	// because walkexpr will lower the string
+	// Do this before calling walkExpr on cond,
+	// because walkExpr will lower the string
 	// conversion into a runtime call.
 	// See issue 24937 for more discussion.
 	if cond.Op() == ir.OBYTES2STR && allCaseExprsAreSideEffectFree(sw) {

@@ -1041,7 +1041,7 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 }
 
 // machoLabelName returns the name of the "label" symbol used for a
-// relocation targetting s+off. The label symbols is used on darwin
+// relocation targeting s+off. The label symbols is used on darwin
 // when external linking, so that the addend fits in a Mach-O relocation.
 func machoLabelName(ldr *loader.Loader, s loader.Sym, off int64) string {
 	return fmt.Sprintf("%s.%d", ldr.SymExtname(s), off/machoRelocLimit)

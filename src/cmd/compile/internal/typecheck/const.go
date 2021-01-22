@@ -623,7 +623,7 @@ func OrigInt(n ir.Node, v int64) ir.Node {
 	return OrigConst(n, constant.MakeInt64(v))
 }
 
-// defaultlit on both nodes simultaneously;
+// DefaultLit on both nodes simultaneously;
 // if they're both ideal going in they better
 // get the same type going out.
 // force means must assign concrete (non-ideal) type.

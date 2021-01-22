@@ -58,10 +58,15 @@ var importTests = []struct {
 func TestQueryImport(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExecPath(t, "git")
-	defer func(old bool) {
-		allowMissingModuleImports = old
-	}(allowMissingModuleImports)
-	AllowMissingModuleImports()
+
+	oldAllowMissingModuleImports := allowMissingModuleImports
+	oldRootMode := RootMode
+	defer func() {
+		allowMissingModuleImports = oldAllowMissingModuleImports
+		RootMode = oldRootMode
+	}()
+	allowMissingModuleImports = true
+	RootMode = NoRoot
 
 	ctx := context.Background()
 

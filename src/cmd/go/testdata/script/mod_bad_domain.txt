@@ -19,7 +19,7 @@ stderr 'malformed module path "x/y.z": missing dot in first path element'
 ! go build ./useappengine
 stderr '^useappengine[/\\]x.go:2:8: cannot find package$'
 ! go build ./usenonexistent
-stderr '^usenonexistent[/\\]x.go:2:8: no required module provides package nonexistent.rsc.io; try ''go mod tidy'' to add it$'
+stderr '^usenonexistent[/\\]x.go:2:8: no required module provides package nonexistent.rsc.io; to add it:\n\tgo get nonexistent.rsc.io$'
 
 
 # 'get -d' should be similarly definitive
