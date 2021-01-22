@@ -3,12 +3,13 @@
 // license that can be found in the LICENSE file.
 
 // +build linux,amd64
+// +build openssl
 // +build !android
 // +build !cmd_go_bootstrap
 // +build !msan
 
 package boring
 
-import "crypto/internal/boring/boringcrypto"
+import "crypto/internal/boring/openssl"
 
-const RandReader = boringcrypto.RandReader(0)
+const RandReader = openssl.RandReader(0)

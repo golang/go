@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux,amd64
-// +build !openssl
+// +build linux
+// +build openssl
 // +build !android
+// +build !no_openssl
 // +build !cmd_go_bootstrap
 // +build !msan
 
-package boringcrypto
+package openssl
 
-// #include "goboringcrypto.h"
+// #include "goopenssl.h"
 import "C"
 import "unsafe"
 

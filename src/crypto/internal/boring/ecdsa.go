@@ -11,23 +11,22 @@ package boring
 
 import "C"
 import (
-	"crypto/internal/boring/boringcrypto"
 	"math/big"
 	"runtime"
 )
 
 type ecdsa interface {
-	NewPublicKeyECDSA(curve string, X, Y *big.Int) (*boringcrypto.GoECKey, error)
-	NewPrivateKeyECDSA(curve string, X, Y *big.Int, D *big.Int) (*boringcrypto.GoECKey, error)
-	SignECDSA(priv *boringcrypto.GoECKey, hash []byte) (r, s *big.Int, err error)
-	SignMarshalECDSA(priv *boringcrypto.GoECKey, hash []byte) ([]byte, error)
-	VerifyECDSA(pub *boringcrypto.GoECKey, hash []byte, r, s *big.Int) bool
+	NewPublicKeyECDSA(curve string, X, Y *big.Int) (*GoECKey, error)
+	NewPrivateKeyECDSA(curve string, X, Y *big.Int, D *big.Int) (*GoECKey, error)
+	SignECDSA(priv *GoECKey, hash []byte) (r, s *big.Int, err error)
+	SignMarshalECDSA(priv *GoECKey, hash []byte) ([]byte, error)
+	VerifyECDSA(pub *GoECKey, hash []byte, r, s *big.Int) bool
 	GenerateKeyECDSA(curve string) (X, Y, D *big.Int, err error)
-	ECKeyFree(*boringcrypto.GoECKey)
+	ECKeyFree(*GoECKey)
 }
 
 type PrivateKeyECDSA struct {
-	key *boringcrypto.GoECKey
+	key *GoECKey
 }
 
 func (k *PrivateKeyECDSA) finalize() {
@@ -35,7 +34,7 @@ func (k *PrivateKeyECDSA) finalize() {
 }
 
 type PublicKeyECDSA struct {
-	key *boringcrypto.GoECKey
+	key *GoECKey
 }
 
 func (k *PublicKeyECDSA) finalize() {

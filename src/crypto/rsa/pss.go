@@ -9,13 +9,12 @@ package rsa
 import (
 	"bytes"
 	"crypto"
+	"crypto/internal/boring"
 	"errors"
 	"hash"
 	"io"
 	"math/big"
 )
-
-import "crypto/internal/boring"
 
 // Per RFC 8017, Section 9.1
 //

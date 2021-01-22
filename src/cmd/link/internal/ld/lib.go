@@ -1013,6 +1013,7 @@ var hostobj []Hostobj
 var internalpkg = []string{
 	"crypto/internal/boring",
 	"crypto/internal/boring/boringcrypto",
+	"crypto/internal/boring/openssl",
 	"crypto/x509",
 	"net",
 	"os/user",

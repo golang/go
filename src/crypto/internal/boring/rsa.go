@@ -12,7 +12,6 @@ package boring
 import "C"
 import (
 	"crypto"
-	"crypto/internal/boring/boringcrypto"
 	"hash"
 	"math/big"
 	"runtime"
@@ -20,19 +19,19 @@ import (
 
 type rsa interface {
 	GenerateKeyRSA(bits int) (N, E, D, P, Q, Dp, Dq, Qinv *big.Int, err error)
-	NewPublicKeyRSA(N, E *big.Int) (*boringcrypto.GoRSA, error)
-	NewPrivateKeyRSA(N, E, D, P, Q, Dp, Dq, Qinv *big.Int) (*boringcrypto.GoRSA, error)
-	DecryptRSAOAEP(h hash.Hash, priv *boringcrypto.GoRSA, ciphertext, label []byte) ([]byte, error)
-	EncryptRSAOAEP(h hash.Hash, pub *boringcrypto.GoRSA, msg, label []byte) ([]byte, error)
-	DecryptRSAPKCS1(priv *boringcrypto.GoRSA, ciphertext []byte) ([]byte, error)
-	EncryptRSAPKCS1(pub *boringcrypto.GoRSA, msg []byte) ([]byte, error)
-	DecryptRSANoPadding(priv *boringcrypto.GoRSA, ciphertext []byte) ([]byte, error)
-	EncryptRSANoPadding(pub *boringcrypto.GoRSA, msg []byte) ([]byte, error)
-	SignRSAPSS(priv *boringcrypto.GoRSA, hashed []byte, h crypto.Hash, saltLen int) ([]byte, error)
-	VerifyRSAPSS(pub *boringcrypto.GoRSA, h crypto.Hash, hashed, sig []byte, saltLen int) error
-	SignRSAPKCS1v15(priv *boringcrypto.GoRSA, h crypto.Hash, hashed []byte) ([]byte, error)
-	VerifyRSAPKCS1v15(pub *boringcrypto.GoRSA, h crypto.Hash, hashed, sig []byte) error
-	RSAFree(key *boringcrypto.GoRSA)
+	NewPublicKeyRSA(N, E *big.Int) (*GoRSA, error)
+	NewPrivateKeyRSA(N, E, D, P, Q, Dp, Dq, Qinv *big.Int) (*GoRSA, error)
+	DecryptRSAOAEP(h hash.Hash, priv *GoRSA, ciphertext, label []byte) ([]byte, error)
+	EncryptRSAOAEP(h hash.Hash, pub *GoRSA, msg, label []byte) ([]byte, error)
+	DecryptRSAPKCS1(priv *GoRSA, ciphertext []byte) ([]byte, error)
+	EncryptRSAPKCS1(pub *GoRSA, msg []byte) ([]byte, error)
+	DecryptRSANoPadding(priv *GoRSA, ciphertext []byte) ([]byte, error)
+	EncryptRSANoPadding(pub *GoRSA, msg []byte) ([]byte, error)
+	SignRSAPSS(priv *GoRSA, hashed []byte, h crypto.Hash, saltLen int) ([]byte, error)
+	VerifyRSAPSS(pub *GoRSA, h crypto.Hash, hashed, sig []byte, saltLen int) error
+	SignRSAPKCS1v15(priv *GoRSA, h crypto.Hash, hashed []byte) ([]byte, error)
+	VerifyRSAPKCS1v15(pub *GoRSA, h crypto.Hash, hashed, sig []byte) error
+	RSAFree(key *GoRSA)
 }
 
 func GenerateKeyRSA(bits int) (N, E, D, P, Q, Dp, Dq, Qinv *big.Int, err error) {
@@ -41,7 +40,7 @@ func GenerateKeyRSA(bits int) (N, E, D, P, Q, Dp, Dq, Qinv *big.Int, err error) 
 
 type PublicKeyRSA struct {
 	// _key MUST NOT be accessed directly. Instead, use the withKey method.
-	_key *boringcrypto.GoRSA
+	_key *GoRSA
 }
 
 func NewPublicKeyRSA(N, E *big.Int) (*PublicKeyRSA, error) {
@@ -58,7 +57,7 @@ func (k *PublicKeyRSA) finalize() {
 	external.RSAFree(k._key)
 }
 
-func (k *PublicKeyRSA) withKey(f func(*boringcrypto.GoRSA)) {
+func (k *PublicKeyRSA) withKey(f func(*GoRSA)) {
 	// Because of the finalizer, any time _key is passed to cgo, that call must
 	// be followed by a call to runtime.KeepAlive, to make sure k is not
 	// collected (and finalized) before the cgo call returns.
@@ -68,14 +67,14 @@ func (k *PublicKeyRSA) withKey(f func(*boringcrypto.GoRSA)) {
 
 type PrivateKeyRSA struct {
 	// _key MUST NOT be accessed directly. Instead, use the withKey method.
-	_key *boringcrypto.GoRSA
+	_key *GoRSA
 }
 
 func (k *PrivateKeyRSA) finalize() {
 	external.RSAFree(k._key)
 }
 
-func (k *PrivateKeyRSA) withKey(f func(*boringcrypto.GoRSA)) {
+func (k *PrivateKeyRSA) withKey(f func(*GoRSA)) {
 	// Because of the finalizer, any time _key is passed to cgo, that call must
 	// be followed by a call to runtime.KeepAlive, to make sure k is not
 	// collected (and finalized) before the cgo call returns.
@@ -94,42 +93,42 @@ func NewPrivateKeyRSA(N, E, D, P, Q, Dp, Dq, Qinv *big.Int) (*PrivateKeyRSA, err
 }
 
 func DecryptRSAOAEP(h hash.Hash, priv *PrivateKeyRSA, ciphertext, label []byte) (out []byte, err error) {
-	priv.withKey(func(key *boringcrypto.GoRSA) {
+	priv.withKey(func(key *GoRSA) {
 		out, err = external.DecryptRSAOAEP(h, key, ciphertext, label)
 	})
 	return out, err
 }
 
 func EncryptRSAOAEP(h hash.Hash, pub *PublicKeyRSA, msg, label []byte) (out []byte, err error) {
-	pub.withKey(func(key *boringcrypto.GoRSA) {
+	pub.withKey(func(key *GoRSA) {
 		out, err = external.EncryptRSAOAEP(h, key, msg, label)
 	})
 	return out, err
 }
 
 func DecryptRSAPKCS1(priv *PrivateKeyRSA, ciphertext []byte) (out []byte, err error) {
-	priv.withKey(func(key *boringcrypto.GoRSA) {
+	priv.withKey(func(key *GoRSA) {
 		out, err = external.DecryptRSAPKCS1(key, ciphertext)
 	})
 	return out, err
 }
 
 func EncryptRSAPKCS1(pub *PublicKeyRSA, msg []byte) (out []byte, err error) {
-	pub.withKey(func(key *boringcrypto.GoRSA) {
+	pub.withKey(func(key *GoRSA) {
 		out, err = external.EncryptRSAPKCS1(key, msg)
 	})
 	return out, err
 }
 
 func DecryptRSANoPadding(priv *PrivateKeyRSA, ciphertext []byte) (out []byte, err error) {
-	priv.withKey(func(key *boringcrypto.GoRSA) {
+	priv.withKey(func(key *GoRSA) {
 		out, err = external.DecryptRSANoPadding(key, ciphertext)
 	})
 	return out, err
 }
 
 func EncryptRSANoPadding(pub *PublicKeyRSA, msg []byte) (out []byte, err error) {
-	pub.withKey(func(key *boringcrypto.GoRSA) {
+	pub.withKey(func(key *GoRSA) {
 		out, err = external.EncryptRSANoPadding(key, msg)
 	})
 	return out, err
@@ -139,7 +138,7 @@ func SignRSAPSS(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte, saltLen int) 
 	if saltLen == 0 {
 		saltLen = -1
 	}
-	priv.withKey(func(key *boringcrypto.GoRSA) {
+	priv.withKey(func(key *GoRSA) {
 		out, err = external.SignRSAPSS(key, hashed, h, saltLen)
 	})
 	return out, err
@@ -149,21 +148,21 @@ func VerifyRSAPSS(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte, saltLen 
 	if saltLen == 0 {
 		saltLen = -2 // auto-recover
 	}
-	pub.withKey(func(key *boringcrypto.GoRSA) {
+	pub.withKey(func(key *GoRSA) {
 		err = external.VerifyRSAPSS(key, h, hashed, sig, saltLen)
 	})
 	return err
 }
 
 func SignRSAPKCS1v15(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte) (out []byte, err error) {
-	priv.withKey(func(key *boringcrypto.GoRSA) {
+	priv.withKey(func(key *GoRSA) {
 		out, err = external.SignRSAPKCS1v15(key, h, hashed)
 	})
 	return out, err
 }
 
 func VerifyRSAPKCS1v15(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte) (err error) {
-	pub.withKey(func(key *boringcrypto.GoRSA) {
+	pub.withKey(func(key *GoRSA) {
 		err = external.VerifyRSAPKCS1v15(key, h, hashed, sig)
 	})
 	return err

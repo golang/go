@@ -10,7 +10,6 @@
 package boring
 
 import (
-	"crypto/internal/boring/boringcrypto"
 	"crypto/internal/boring/sig"
 )
 
@@ -24,19 +23,14 @@ type externalCrypto interface {
 	sha
 }
 
-var external externalCrypto
+var external externalCrypto = newExternalCrypto()
 
 const available = true
 
 func init() {
-	external = boringcrypto.NewBoringCrypto()
 	external.Init()
 	sig.BoringCrypto()
 }
-
-type fail string
-
-func (e fail) Error() string { return "boringcrypto: " + string(e) + " failed" }
 
 // Unreachable marks code that should be unreachable
 // when BoringCrypto is in use. It panics.

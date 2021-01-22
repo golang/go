@@ -38,6 +38,7 @@ func cmdtest() {
 	flag.StringVar(&t.runRxStr, "run", os.Getenv("GOTESTONLY"),
 		"run only those tests matching the regular expression; empty means to run all. "+
 			"Special exception: if the string begins with '!', the match is inverted.")
+	flag.BoolVar(&t.withOpenSSL, "openssl", false, "run tests using OpenSSL instead of BoringCrypto")
 	xflagparse(-1) // any number of args
 	if noRebuild {
 		t.rebuild = false
@@ -63,6 +64,8 @@ type tester struct {
 	cgoEnabled bool
 	partial    bool
 	haveTime   bool // the 'time' binary is available
+
+	withOpenSSL bool // run tests against OpenSSL crypto (dev.boringcrypto only)
 
 	tests        []distTest
 	timeoutScale int
@@ -278,6 +281,9 @@ func (t *tester) goTest() []string {
 func (t *tester) tags() string {
 	if t.iOS() {
 		return "-tags=lldb"
+	}
+	if t.withOpenSSL {
+		return "-tags=openssl"
 	}
 	return "-tags="
 }
