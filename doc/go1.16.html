@@ -872,6 +872,21 @@ func TestFoo(t *testing.T) {
 
 <dl id="path/filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
   <dd>
+    <p><!-- CL 267887 -->
+      The new function
+      <a href="/pkg/path/filepath/WalkDir"><code>WalkDir</code></a>
+      is similar to
+      <a href="/pkg/path/filepath/Walk"><code>Walk</code></a>,
+      but is typically more efficient.
+      The function passed to <code>WalkDir</code> receives a
+      <a href="/pkg/io/fs/#DirEntry"><code>fs.DirEntry</code></a>
+      instead of a
+      <a href="/pkg/io/fs/#FileInfo"><code>fs.FileInfo</code></a>.
+      (To clarify for those who recall the <code>Walk</code> function
+      as taking an <a href="/pkg/os/#FileInfo"><code>os.FileInfo</code></a>,
+      <code>os.FileInfo</code> is now an alias for <code>fs.FileInfo</code>.)
+    </p>
+
     <p><!-- CL 264397, golang.org/issues/28614 -->
       The <a href="/pkg/path/filepath#Match"><code>Match</code></a> and
       <a href="/pkg/path/filepath#Glob"><code>Glob</code></a> functions now
