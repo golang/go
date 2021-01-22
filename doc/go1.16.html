@@ -499,6 +499,44 @@ func TestFoo(t *testing.T) {
   implementations.
 </p>
 
+<h3 id="ioutil">Deprecation of io/ioutil</h3>
+
+<p>
+  The <a href="/pkg/io/ioutil/"><code>io/ioutil</code></a> package has
+  turned out to be a poorly defined and hard to understand collection
+  of things. All functionality provided by the package has been moved
+  to other packages. The <code>io/ioutil</code> package remains and
+  will continue to work as before, but we encourage new code to use
+  the new definitions in the <a href="/pkg/io/"><code>io</code></a> and
+  <a href="/pkg/os/"><code>os</code></a> packages.
+
+  Here is a list of the new locations of the names exported
+  by <code>io/ioutil</code>:
+  <ul>
+    <li><a href="/pkg/io/ioutil/#Discard"><code>Discard</code></a>
+      => <a href="/pkg/io/#Discard"><code>io.Discard</code></a></li>
+    <li><a href="/pkg/io/ioutil/#NopCloser"><code>NopCloser</code></a>
+      => <a href="/pkg/io/#NopCloser"><code>io.NopCloser</code></a></li>
+    <li><a href="/pkg/io/ioutil/#ReadAll"><code>ReadAll</code></a>
+      => <a href="/pkg/io/#ReadAll"><code>io.ReadAll</code></a></li>
+    <li><a href="/pkg/io/ioutil/#ReadDir"><code>ReadDir</code></a>
+      => <a href="/pkg/os/#ReadDir"><code>os.ReadDir</code></a>
+      (note: returns a slice of
+      <a href="/pkg/os/#DirEntry"><code>os.DirEntry</code></a>
+      rather than a slice of
+      <a href="/pkg/fs/#FileInfo"><code>fs.FileInfo</code></a>)
+    </li>
+    <li><a href="/pkg/io/ioutil/#ReadFile"><code>ReadFile</code></a>
+      => <a href="/pkg/os/#ReadFile"><code>os.ReadFile</code></a></li>
+    <li><a href="/pkg/io/ioutil/#TempDir"><code>TempDir</code></a>
+      => <a href="/pkg/os/#MkdirTemp"><code>os.MkdirTemp</code></a></li>
+    <li><a href="/pkg/io/ioutil/#TempFile"><code>TempFile</code></a>
+      => <a href="/pkg/os/#CreateTemp"><code>os.CreateTemp</code></a></li>
+    <li><a href="/pkg/io/ioutil/#WriteFile"><code>WriteFile</code></a>
+      => <a href="/pkg/os/#WriteFile"><code>os.WriteFile</code></a></li>
+  </ul>
+</p>
+
 <!-- okay-after-beta1
   TODO: decide if any additional changes are worth factoring out from
   "Minor changes to the library" and highlighting in "Core library"
@@ -742,6 +780,15 @@ func TestFoo(t *testing.T) {
       The package now defines a
       <a href="/pkg/io/#ReadSeekCloser"><code>ReadSeekCloser</code></a> interface.
     </p>
+
+    <p><!-- CL 263141 -->
+      The package now defines
+      <a href="/pkg/io/#Discard"><code>Discard</code></a>,
+      <a href="/pkg/io/#NopCloser"><code>NopCloser</code></a>, and
+      <a href="/pkg/io/#ReadAll"><code>ReadAll</code></a>,
+      to be used instead of the same names in the
+      <a href="/pkg/io/ioutil/"><code>io/ioutil</code></a> package.
+    </p>
   </dd>
 </dl><!-- io -->
 
@@ -895,6 +942,16 @@ func TestFoo(t *testing.T) {
       returns <a href="/pkg/os/#ErrProcessDone"><code>ErrProcessDone</code></a>
       instead of the unexported <code>errFinished</code> when the process has
       already finished.
+    </p>
+
+    <p><!-- CL 263141 -->
+      The package now defines
+      <a href="/pkg/os/#CreateTemp"><code>CreateTemp</code></a>,
+      <a href="/pkg/os/#MkdirTemp"><code>MkdirTemp</code></a>,
+      <a href="/pkg/os/#ReadFile"><code>ReadFile</code></a>, and
+      <a href="/pkg/os/#WriteFile"><code>WriteFile</code></a>,
+      to be used instead of functions defined in the
+      <a href="/pkg/io/ioutil/"><code>io/ioutil</code></a> package.
     </p>
   </dd>
 </dl><!-- os -->
