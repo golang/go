@@ -320,6 +320,7 @@ func TestBuildForTvOS(t *testing.T) {
 	}
 
 	link := exec.Command(CC[0], CC[1:]...)
+	link.Args = append(link.Args, "-o", filepath.Join(tmpDir, "a.out")) // Avoid writing to package directory.
 	link.Args = append(link.Args, ar, filepath.Join("testdata", "testBuildFortvOS", "main.m"))
 	if out, err := link.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", link.Args, err, out)

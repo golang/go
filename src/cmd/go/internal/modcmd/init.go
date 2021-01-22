@@ -27,6 +27,8 @@ Gopkg.lock), and the current directory (if in GOPATH).
 
 If a configuration file for a vendoring tool is present, init will attempt to
 import module requirements from it.
+
+See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
 `,
 	Run: runInit,
 }

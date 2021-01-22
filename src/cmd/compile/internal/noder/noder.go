@@ -475,7 +475,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
 					p.errorAt(e.Pos, "//go:embed only allowed in Go files that import \"embed\"")
 				}
 			} else {
-				exprs = varEmbed(p, names, typ, exprs, pragma.Embeds)
+				varEmbed(p, names, typ, exprs, pragma.Embeds)
 			}
 			pragma.Embeds = nil
 		}
@@ -1923,7 +1923,7 @@ func oldname(s *types.Sym) ir.Node {
 	return n
 }
 
-func varEmbed(p *noder, names []*ir.Name, typ ir.Ntype, exprs []ir.Node, embeds []pragmaEmbed) (newExprs []ir.Node) {
+func varEmbed(p *noder, names []*ir.Name, typ ir.Ntype, exprs []ir.Node, embeds []pragmaEmbed) {
 	haveEmbed := false
 	for _, decl := range p.file.DeclList {
 		imp, ok := decl.(*syntax.ImportDecl)
@@ -1941,28 +1941,24 @@ func varEmbed(p *noder, names []*ir.Name, typ ir.Ntype, exprs []ir.Node, embeds 
 	pos := embeds[0].Pos
 	if !haveEmbed {
 		p.errorAt(pos, "invalid go:embed: missing import \"embed\"")
-		return exprs
-	}
-	if base.Flag.Cfg.Embed.Patterns == nil {
-		p.errorAt(pos, "invalid go:embed: build system did not supply embed configuration")
-		return exprs
+		return
 	}
 	if len(names) > 1 {
 		p.errorAt(pos, "go:embed cannot apply to multiple vars")
-		return exprs
+		return
 	}
 	if len(exprs) > 0 {
 		p.errorAt(pos, "go:embed cannot apply to var with initializer")
-		return exprs
+		return
 	}
 	if typ == nil {
 		// Should not happen, since len(exprs) == 0 now.
 		p.errorAt(pos, "go:embed cannot apply to var without type")
-		return exprs
+		return
 	}
 	if typecheck.DeclContext != ir.PEXTERN {
 		p.errorAt(pos, "go:embed cannot apply to var inside func")
-		return exprs
+		return
 	}
 
 	v := names[0]
@@ -1971,5 +1967,4 @@ func varEmbed(p *noder, names []*ir.Name, typ ir.Ntype, exprs []ir.Node, embeds 
 	for _, e := range embeds {
 		*v.Embed = append(*v.Embed, ir.Embed{Pos: p.makeXPos(e.Pos), Patterns: e.Patterns})
 	}
-	return exprs
 }

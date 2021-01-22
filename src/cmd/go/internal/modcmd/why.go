@@ -48,6 +48,8 @@ For example:
 	# golang.org/x/text/encoding
 	(main module does not need package golang.org/x/text/encoding)
 	$
+
+See https://golang.org/ref/mod#go-mod-why for more about 'go mod why'.
 	`,
 }
 

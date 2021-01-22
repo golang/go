@@ -490,8 +490,29 @@ func lockedOSThread() bool {
 }
 
 var (
-	allgs    []*g
+	// allgs contains all Gs ever created (including dead Gs), and thus
+	// never shrinks.
+	//
+	// Access via the slice is protected by allglock or stop-the-world.
+	// Readers that cannot take the lock may (carefully!) use the atomic
+	// variables below.
 	allglock mutex
+	allgs    []*g
+
+	// allglen and allgptr are atomic variables that contain len(allg) and
+	// &allg[0] respectively. Proper ordering depends on totally-ordered
+	// loads and stores. Writes are protected by allglock.
+	//
+	// allgptr is updated before allglen. Readers should read allglen
+	// before allgptr to ensure that allglen is always <= len(allgptr). New
+	// Gs appended during the race can be missed. For a consistent view of
+	// all Gs, allglock must be held.
+	//
+	// allgptr copies should always be stored as a concrete type or
+	// unsafe.Pointer, not uintptr, to ensure that GC can still reach it
+	// even if it points to a stale array.
+	allglen uintptr
+	allgptr **g
 )
 
 func allgadd(gp *g) {
@@ -501,8 +522,23 @@ func allgadd(gp *g) {
 
 	lock(&allglock)
 	allgs = append(allgs, gp)
-	allglen = uintptr(len(allgs))
+	if &allgs[0] != allgptr {
+		atomicstorep(unsafe.Pointer(&allgptr), unsafe.Pointer(&allgs[0]))
+	}
+	atomic.Storeuintptr(&allglen, uintptr(len(allgs)))
 	unlock(&allglock)
+}
+
+// atomicAllG returns &allgs[0] and len(allgs) for use with atomicAllGIndex.
+func atomicAllG() (**g, uintptr) {
+	length := atomic.Loaduintptr(&allglen)
+	ptr := (**g)(atomic.Loadp(unsafe.Pointer(&allgptr)))
+	return ptr, length
+}
+
+// atomicAllGIndex returns ptr[i] with the allgptr returned from atomicAllG.
+func atomicAllGIndex(ptr **g, i uintptr) *g {
+	return *(**g)(add(unsafe.Pointer(ptr), i*sys.PtrSize))
 }
 
 const (
@@ -1170,6 +1206,33 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 	return startTime
 }
 
+// usesLibcall indicates whether this runtime performs system calls
+// via libcall.
+func usesLibcall() bool {
+	switch GOOS {
+	case "aix", "darwin", "illumos", "ios", "solaris", "windows":
+		return true
+	case "openbsd":
+		return GOARCH == "amd64"
+	}
+	return false
+}
+
+// mStackIsSystemAllocated indicates whether this runtime starts on a
+// system-allocated stack.
+func mStackIsSystemAllocated() bool {
+	switch GOOS {
+	case "aix", "darwin", "plan9", "illumos", "ios", "solaris", "windows":
+		return true
+	case "openbsd":
+		switch GOARCH {
+		case "amd64", "arm64":
+			return true
+		}
+	}
+	return false
+}
+
 // mstart is the entry-point for new Ms.
 //
 // This must not split the stack because we may not even have stack
@@ -1204,8 +1267,7 @@ func mstart() {
 	mstart1()
 
 	// Exit this thread.
-	switch GOOS {
-	case "windows", "solaris", "illumos", "plan9", "darwin", "ios", "aix":
+	if mStackIsSystemAllocated() {
 		// Windows, Solaris, illumos, Darwin, AIX and Plan 9 always system-allocate
 		// the stack, but put it in _g_.stack before mstart,
 		// so the logic above hasn't set osStack yet.
@@ -1370,6 +1432,10 @@ found:
 			atomic.Xadd(&pendingPreemptSignals, -1)
 		}
 	}
+
+	// Destroy all allocated resources. After this is called, we may no
+	// longer take any locks.
+	mdestroy(m)
 
 	if osStack {
 		// Return from mstart and let the system thread
@@ -1684,7 +1750,7 @@ func allocm(_p_ *p, fn func(), id int64) *m {
 
 	// In case of cgo or Solaris or illumos or Darwin, pthread_create will make us a stack.
 	// Windows and Plan 9 will layout sched stack on OS stack.
-	if iscgo || GOOS == "solaris" || GOOS == "illumos" || GOOS == "windows" || GOOS == "plan9" || GOOS == "darwin" || GOOS == "ios" {
+	if iscgo || mStackIsSystemAllocated() {
 		mp.g0 = malg(-1)
 	} else {
 		mp.g0 = malg(8192 * sys.StackGuardMultiplier)
@@ -4266,7 +4332,7 @@ func badunlockosthread() {
 }
 
 func gcount() int32 {
-	n := int32(allglen) - sched.gFree.n - int32(atomic.Load(&sched.ngsys))
+	n := int32(atomic.Loaduintptr(&allglen)) - sched.gFree.n - int32(atomic.Load(&sched.ngsys))
 	for _, _p_ := range allp {
 		n -= _p_.gFree.n
 	}
@@ -4432,7 +4498,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		// Normal traceback is impossible or has failed.
 		// See if it falls into several common cases.
 		n = 0
-		if (GOOS == "windows" || GOOS == "solaris" || GOOS == "illumos" || GOOS == "darwin" || GOOS == "ios" || GOOS == "aix") && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
+		if usesLibcall() && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
 			// Libcall, i.e. runtime syscall on windows.
 			// Collect Go stack that leads to the call.
 			n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg.ptr(), 0, &stk[0], len(stk), nil, nil, 0)
@@ -4970,7 +5036,6 @@ func checkdead() {
 		case _Grunnable,
 			_Grunning,
 			_Gsyscall:
-			unlock(&allglock)
 			print("runtime: checkdead: find g ", gp.goid, " in status ", s, "\n")
 			throw("checkdead: runnable g")
 		}

@@ -467,6 +467,8 @@ func goGcflagsIsEmpty() bool {
 	return "" == os.Getenv("GO_GCFLAGS")
 }
 
+var errTimeout = errors.New("command exceeded time limit")
+
 // run runs a test.
 func (t *test) run() {
 	start := time.Now()
@@ -642,16 +644,18 @@ func (t *test) run() {
 				case err = <-done:
 					// ok
 				case <-tick.C:
+					cmd.Process.Signal(os.Interrupt)
+					time.Sleep(1 * time.Second)
 					cmd.Process.Kill()
-					err = <-done
-					// err = errors.New("Test timeout")
+					<-done
+					err = errTimeout
 				}
 				tick.Stop()
 			}
 		} else {
 			err = cmd.Run()
 		}
-		if err != nil {
+		if err != nil && err != errTimeout {
 			err = fmt.Errorf("%s\n%s", err, buf.Bytes())
 		}
 		return buf.Bytes(), err
@@ -729,6 +733,10 @@ func (t *test) run() {
 		if wantError {
 			if err == nil {
 				t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
+				return
+			}
+			if err == errTimeout {
+				t.err = fmt.Errorf("compilation timed out")
 				return
 			}
 		} else {

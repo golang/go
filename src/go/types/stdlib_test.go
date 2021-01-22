@@ -155,6 +155,8 @@ func TestStdTest(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
 		"directive.go",   // tests compiler rejection of bad directive placement - ignore
+		"embedfunc.go",   // tests //go:embed
+		"embedvers.go",   // tests //go:embed
 		"linkname2.go",   // go/types doesn't check validity of //go:xxx directives
 	)
 }
