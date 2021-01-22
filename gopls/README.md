@@ -42,34 +42,10 @@ GO111MODULE=on go get golang.org/x/tools/gopls@latest
 **NOTE**: Do not use the `-u` flag, as it will update your dependencies to
 incompatible versions.
 
-To get a specific version of `gopls` (for example, to test a prerelease
-version), run:
+Learn more in the [advanced installation
+instructions](doc/advanced.md#installing-unreleased-versions).
 
-```sh
-GO111MODULE=on go get golang.org/x/tools/gopls@vX.Y.Z
-```
-
-Where `vX.Y.Z` is the desired version.
-
-### Unstable versions
-
-To update `gopls` to the latest **unstable** version, use:
-
-```sh
-GO111MODULE=on go get golang.org/x/tools/gopls@master golang.org/x/tools@master
-```
-
-In general, you should use `@latest` instead, to prevent frequent breakages.
-
-### Supported Go versions
-
-`gopls` follows the
-[Go Release Policy](https://golang.org/doc/devel/release.html#policy),
-meaning that it officially supports the last 2 major Go releases. Though we
-try not to break older versions, we do not prioritize issues only affecting
-legacy Go releases (3 or 4 releases ago).
-
-### Setting up your workspace
+## Setting up your workspace
 
 `gopls` supports both Go module and GOPATH modes, but if you are working with
 multiple modules or uncommon project layouts, you will need to specifically
@@ -89,34 +65,29 @@ full list of `gopls` settings can be found in the [Settings documentation](doc/s
 variables you configure. Some editors, such as VS Code, allow users to
 selectively override the values of some environment variables.
 
-### Build systems
+## Troubleshooting
+
+If you are having issues with `gopls`, please follow the steps described in the
+[troubleshooting guide](doc/troubleshooting.md).
+
+## Supported Go versions and build systems
+
+`gopls` follows the
+[Go Release Policy](https://golang.org/doc/devel/release.html#policy),
+meaning that it officially supports the last 2 major Go releases. Though we
+try not to break older versions, we do not prioritize issues only affecting
+legacy Go releases.
 
 `gopls` currently only supports the `go` command, so if you are using a
 different build system, `gopls` will not work well. Bazel support is currently
 blocked on
 [bazelbuild/rules_go#512](https://github.com/bazelbuild/rules_go/issues/512).
 
-### Working on the Go source distribution
-
-If you are working on the [Go project] itself, the `go` command that `gopls`
-invokes will have to correspond to the version of the source you are working
-on. That is, if you have downloaded the code to `$HOME/go`, your `go` command
-should be the `$HOME/go/bin/go` executable that you built with `make.bash` or
-equivalent.
-
-You can achieve this by adding the right version of `go` to your `PATH`
-(`export PATH=$HOME/go/bin:$PATH` on Unix systems) or by configuring your
-editor.
-
-## Troubleshooting
-
-If you are having issues with `gopls`, please follow the steps described in the
-[troubleshooting guide](doc/troubleshooting.md).
-
 ## Additional information
 
 * [Features](doc/features.md)
 * [Command-line interface](doc/command-line.md)
+* [Advanced topics](doc/advanced.md)
 * [Contributing to `gopls`](doc/contributing.md)
 * [Integrating `gopls` with an editor](doc/design/integrating.md)
 * [Design requirements and decisions](doc/design/design.md)
@@ -125,5 +96,4 @@ If you are having issues with `gopls`, please follow the steps described in the
 
 [language server]: https://langserver.org
 [LSP]: https://microsoft.github.io/language-server-protocol/
-[Go project]: https://go.googlesource.com/go
 [Gophers Slack]: https://gophers.slack.com/
