@@ -893,22 +893,23 @@ func sigblock(exiting bool) {
 // Called on the new thread, cannot allocate memory.
 func minit() {
 	var thandle uintptr
-	stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS)
-
-	// Configure usleep timer, if possible.
-	var timer uintptr
-	if haveHighResTimer {
-		timer = createHighResTimer()
-		if timer == 0 {
-			print("runtime: CreateWaitableTimerEx failed; errno=", getlasterror(), "\n")
-			throw("CreateWaitableTimerEx when creating timer failed")
-		}
+	if stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS) == 0 {
+		print("runtime.minit: duplicatehandle failed; errno=", getlasterror(), "\n")
+		throw("runtime.minit: duplicatehandle failed")
 	}
 
 	mp := getg().m
 	lock(&mp.threadLock)
 	mp.thread = thandle
-	mp.highResTimer = timer
+
+	// Configure usleep timer, if possible.
+	if mp.highResTimer == 0 && haveHighResTimer {
+		mp.highResTimer = createHighResTimer()
+		if mp.highResTimer == 0 {
+			print("runtime: CreateWaitableTimerEx failed; errno=", getlasterror(), "\n")
+			throw("CreateWaitableTimerEx when creating timer failed")
+		}
+	}
 	unlock(&mp.threadLock)
 
 	// Query the true stack base from the OS. Currently we're
@@ -944,13 +945,29 @@ func minit() {
 func unminit() {
 	mp := getg().m
 	lock(&mp.threadLock)
-	stdcall1(_CloseHandle, mp.thread)
-	mp.thread = 0
+	if mp.thread != 0 {
+		stdcall1(_CloseHandle, mp.thread)
+		mp.thread = 0
+	}
+	unlock(&mp.threadLock)
+}
+
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+//go:nosplit
+func mdestroy(mp *m) {
 	if mp.highResTimer != 0 {
 		stdcall1(_CloseHandle, mp.highResTimer)
 		mp.highResTimer = 0
 	}
-	unlock(&mp.threadLock)
+	if mp.waitsema != 0 {
+		stdcall1(_CloseHandle, mp.waitsema)
+		mp.waitsema = 0
+	}
+	if mp.resumesema != 0 {
+		stdcall1(_CloseHandle, mp.resumesema)
+		mp.resumesema = 0
+	}
 }
 
 // Calling stdcall on os stack.
@@ -1134,8 +1151,12 @@ func profileloop1(param uintptr) uint32 {
 			}
 			// Acquire our own handle to the thread.
 			var thread uintptr
-			stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS)
+			if stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS) == 0 {
+				print("runtime.profileloop1: duplicatehandle failed; errno=", getlasterror(), "\n")
+				throw("runtime.profileloop1: duplicatehandle failed")
+			}
 			unlock(&mp.threadLock)
+
 			// mp may exit between the DuplicateHandle
 			// above and the SuspendThread. The handle
 			// will remain valid, but SuspendThread may
@@ -1214,7 +1235,10 @@ func preemptM(mp *m) {
 		return
 	}
 	var thread uintptr
-	stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS)
+	if stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS) == 0 {
+		print("runtime.preemptM: duplicatehandle failed; errno=", getlasterror(), "\n")
+		throw("runtime.preemptM: duplicatehandle failed")
+	}
 	unlock(&mp.threadLock)
 
 	// Prepare thread context buffer. This must be aligned to 16 bytes.

@@ -1549,7 +1549,14 @@ func (p *Package) gccBaseCmd() []string {
 func (p *Package) gccMachine() []string {
 	switch goarch {
 	case "amd64":
+		if goos == "darwin" {
+			return []string{"-arch", "x86_64", "-m64"}
+		}
 		return []string{"-m64"}
+	case "arm64":
+		if goos == "darwin" {
+			return []string{"-arch", "arm64"}
+		}
 	case "386":
 		return []string{"-m32"}
 	case "arm":

@@ -122,9 +122,7 @@ Note that this only describes the go.mod file itself, not other modules
 referred to indirectly. For the full set of modules available to a build,
 use 'go list -m -json all'.
 
-For example, a tool can obtain the go.mod as a data structure by
-parsing the output of 'go mod edit -json' and can then make changes
-by invoking 'go mod edit' with -require, -exclude, and so on.
+See https://golang.org/ref/mod#go-mod-edit for more about 'go mod edit'.
 	`,
 }
 

@@ -21,6 +21,12 @@ cmpenv go.mod $WORK/go.mod.edit1
 go mod edit -droprequire=x.1 -dropexclude=x.1@v1.2.1 -dropreplace=x.1@v1.3.0 -require=x.3@v1.99.0 -dropretract=v1.0.0 -dropretract=[v1.1.0,v1.2.0]
 cmpenv go.mod $WORK/go.mod.edit2
 
+# -exclude and -retract reject invalid versions.
+! go mod edit -exclude=example.com/m@bad
+stderr '^go mod: -exclude=example.com/m@bad: version "bad" invalid: must be of the form v1.2.3$'
+! go mod edit -retract=bad
+stderr '^go mod: -retract=bad: version "bad" invalid: must be of the form v1.2.3$'
+
 # go mod edit -json
 go mod edit -json
 cmpenv stdout $WORK/go.mod.json

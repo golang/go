@@ -13,7 +13,7 @@ cmp go.mod go.mod.empty
 # -mod=readonly should be set by default.
 env GOFLAGS=
 ! go list all
-stderr '^x.go:2:8: no required module provides package rsc\.io/quote; try ''go mod tidy'' to add it$'
+stderr '^x.go:2:8: no required module provides package rsc\.io/quote; to add it:\n\tgo get rsc\.io/quote$'
 cmp go.mod go.mod.empty
 
 env GOFLAGS=-mod=readonly
@@ -51,7 +51,7 @@ cmp go.mod go.mod.inconsistent
 # We get a different message when -mod=readonly is used by default.
 env GOFLAGS=
 ! go list
-stderr '^go: updates to go.mod needed; try ''go mod tidy'' first$'
+stderr '^go: updates to go.mod needed; to update it:\n\tgo mod tidy'
 
 # However, it should not reject files missing a 'go' directive,
 # since that was not always required.
@@ -75,15 +75,15 @@ cmp go.mod go.mod.indirect
 
 cp go.mod.untidy go.mod
 ! go list all
-stderr '^x.go:2:8: no required module provides package rsc.io/quote; try ''go mod tidy'' to add it$'
+stderr '^x.go:2:8: no required module provides package rsc.io/quote; to add it:\n\tgo get rsc.io/quote$'
 
 ! go list -deps .
-stderr '^x.go:2:8: no required module provides package rsc.io/quote; try ''go mod tidy'' to add it$'
+stderr '^x.go:2:8: no required module provides package rsc.io/quote; to add it:\n\tgo get rsc.io/quote$'
 
 # However, if we didn't see an import from the main module, we should suggest
 # 'go get -d' instead, because we don't know whether 'go mod tidy' would add it.
 ! go list rsc.io/quote
-stderr '^no required module provides package rsc.io/quote; try ''go get -d rsc.io/quote'' to add it$'
+stderr '^no required module provides package rsc.io/quote; to add it:\n\tgo get rsc.io/quote$'
 
 
 -- go.mod --
