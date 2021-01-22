@@ -59,19 +59,17 @@ func (g *irgen) stmt0(stmt syntax.Stmt) ir.Node {
 			return ir.NewAssignOpStmt(g.pos(stmt), op, g.expr(stmt.Lhs), g.expr(stmt.Rhs))
 		}
 
+		names, lhs := g.assignList(stmt.Lhs, stmt.Op == syntax.Def)
 		rhs := g.exprList(stmt.Rhs)
-		if list, ok := stmt.Lhs.(*syntax.ListExpr); ok && len(list.ElemList) != 1 || len(rhs) != 1 {
-			n := ir.NewAssignListStmt(g.pos(stmt), ir.OAS2, nil, nil)
-			n.Def = stmt.Op == syntax.Def
-			n.Lhs = g.assignList(stmt.Lhs, n, n.Def)
-			n.Rhs = rhs
+
+		if len(lhs) == 1 && len(rhs) == 1 {
+			n := ir.NewAssignStmt(g.pos(stmt), lhs[0], rhs[0])
+			n.Def = initDefn(n, names)
 			return n
 		}
 
-		n := ir.NewAssignStmt(g.pos(stmt), nil, nil)
-		n.Def = stmt.Op == syntax.Def
-		n.X = g.assignList(stmt.Lhs, n, n.Def)[0]
-		n.Y = rhs[0]
+		n := ir.NewAssignListStmt(g.pos(stmt), ir.OAS2, lhs, rhs)
+		n.Def = initDefn(n, names)
 		return n
 
 	case *syntax.BranchStmt:
@@ -119,9 +117,9 @@ func (g *irgen) op(op syntax.Operator, ops []ir.Op) ir.Op {
 	return ops[op]
 }
 
-func (g *irgen) assignList(expr syntax.Expr, defn ir.InitNode, colas bool) []ir.Node {
-	if !colas {
-		return g.exprList(expr)
+func (g *irgen) assignList(expr syntax.Expr, def bool) ([]*ir.Name, []ir.Node) {
+	if !def {
+		return nil, g.exprList(expr)
 	}
 
 	var exprs []syntax.Expr
@@ -131,6 +129,7 @@ func (g *irgen) assignList(expr syntax.Expr, defn ir.InitNode, colas bool) []ir.
 		exprs = []syntax.Expr{expr}
 	}
 
+	var names []*ir.Name
 	res := make([]ir.Node, len(exprs))
 	for i, expr := range exprs {
 		expr := expr.(*syntax.Name)
@@ -145,11 +144,28 @@ func (g *irgen) assignList(expr syntax.Expr, defn ir.InitNode, colas bool) []ir.
 		}
 
 		name, _ := g.def(expr)
-		name.Defn = defn
-		defn.PtrInit().Append(ir.NewDecl(name.Pos(), ir.ODCL, name))
+		names = append(names, name)
 		res[i] = name
 	}
-	return res
+
+	return names, res
+}
+
+// initDefn marks the given names as declared by defn and populates
+// its Init field with ODCL nodes. It then reports whether any names
+// were so declared, which can be used to initialize defn.Def.
+func initDefn(defn ir.InitNode, names []*ir.Name) bool {
+	if len(names) == 0 {
+		return false
+	}
+
+	init := make([]ir.Node, len(names))
+	for i, name := range names {
+		name.Defn = defn
+		init[i] = ir.NewDecl(name.Pos(), ir.ODCL, name)
+	}
+	defn.SetInit(init)
+	return true
 }
 
 func (g *irgen) blockStmt(stmt *syntax.BlockStmt) []ir.Node {
@@ -171,18 +187,25 @@ func (g *irgen) ifStmt(stmt *syntax.IfStmt) ir.Node {
 	return g.init(init, n)
 }
 
+// unpackTwo returns the first two nodes in list. If list has fewer
+// than 2 nodes, then the missing nodes are replaced with nils.
+func unpackTwo(list []ir.Node) (fst, snd ir.Node) {
+	switch len(list) {
+	case 0:
+		return nil, nil
+	case 1:
+		return list[0], nil
+	default:
+		return list[0], list[1]
+	}
+}
+
 func (g *irgen) forStmt(stmt *syntax.ForStmt) ir.Node {
 	if r, ok := stmt.Init.(*syntax.RangeClause); ok {
-		n := ir.NewRangeStmt(g.pos(r), nil, nil, g.expr(r.X), nil)
-		if r.Lhs != nil {
-			n.Def = r.Def
-			lhs := g.assignList(r.Lhs, n, n.Def)
-			n.Key = lhs[0]
-			if len(lhs) > 1 {
-				n.Value = lhs[1]
-			}
-		}
-		n.Body = g.blockStmt(stmt.Body)
+		names, lhs := g.assignList(r.Lhs, r.Def)
+		key, value := unpackTwo(lhs)
+		n := ir.NewRangeStmt(g.pos(r), key, value, g.expr(r.X), g.blockStmt(stmt.Body))
+		n.Def = initDefn(n, names)
 		return n
 	}
 
