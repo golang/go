@@ -119,10 +119,9 @@ type Config struct {
 	//          Do not use casually!
 	FakeImportC bool
 
-	// If IgnoreBranches is set, errors related to incorrectly placed
-	// labels, gotos, break, continue, and fallthrough statements are
-	// ignored.
-	IgnoreBranches bool
+	// If IgnoreLabels is set, correct label use is not checked.
+	// TODO(gri) Consolidate label checking and remove this flag.
+	IgnoreLabels bool
 
 	// If CompilerErrorMessages is set, errors are reported using
 	// cmd/compile error strings to match $GOROOT/test errors.

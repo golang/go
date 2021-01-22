@@ -35,7 +35,7 @@ func check2(noders []*noder) {
 	// typechecking
 	conf := types2.Config{
 		InferFromConstraints:  true,
-		IgnoreBranches:        true, // parser already checked via syntax.CheckBranches mode
+		IgnoreLabels:          true, // parser already checked via syntax.CheckBranches mode
 		CompilerErrorMessages: true, // use error strings matching existing compiler errors
 		Error: func(err error) {
 			terr := err.(types2.Error)
