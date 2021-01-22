@@ -1165,7 +1165,10 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 	}
 
 	// TODO(rsc): Why do we pass $GCCGO to go vet?
-	env := b.cgoEnv()
+	env := b.cCompilerEnv()
+	if cfg.BuildToolchainName == "gccgo" {
+		env = append(env, "GCCGO="+BuildToolchain.compiler())
+	}
 
 	p := a.Package
 	tool := VetTool
@@ -2111,24 +2114,6 @@ func (b *Builder) cCompilerEnv() []string {
 	return []string{"TERM=dumb"}
 }
 
-// cgoEnv returns environment variables to set when running cgo.
-// Some of these pass through to cgo running the C compiler,
-// so it includes cCompilerEnv.
-func (b *Builder) cgoEnv() []string {
-	b.cgoEnvOnce.Do(func() {
-		cc, err := exec.LookPath(b.ccExe()[0])
-		if err != nil || filepath.Base(cc) == cc { // reject relative path
-			cc = "/missing-cc"
-		}
-		gccgo := GccgoBin
-		if filepath.Base(gccgo) == gccgo { // reject relative path
-			gccgo = "/missing-gccgo"
-		}
-		b.cgoEnvCache = append(b.cCompilerEnv(), "CC="+cc, "GCCGO="+gccgo)
-	})
-	return b.cgoEnvCache
-}
-
 // mkdir makes the named directory.
 func (b *Builder) Mkdir(dir string) error {
 	// Make Mkdir(a.Objdir) a no-op instead of an error when a.Objdir == "".
@@ -2729,7 +2714,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	// along to the host linker. At this point in the code, cgoLDFLAGS
 	// consists of the original $CGO_LDFLAGS (unchecked) and all the
 	// flags put together from source code (checked).
-	cgoenv := b.cgoEnv()
+	cgoenv := b.cCompilerEnv()
 	if len(cgoLDFLAGS) > 0 {
 		flags := make([]string, len(cgoLDFLAGS))
 		for i, f := range cgoLDFLAGS {
@@ -2966,7 +2951,7 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = []string{"-dynlinker"} // record path to dynamic linker
 	}
-	return b.run(a, base.Cwd, p.ImportPath, b.cgoEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
+	return b.run(a, base.Cwd, p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
 }
 
 // Run SWIG on all SWIG input files.
