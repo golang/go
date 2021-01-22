@@ -1397,6 +1397,10 @@ func signingParamsForPublicKey(pub any, requestedSigAlgo SignatureAlgorithm) (ha
 				err = errors.New("x509: cannot sign with hash function requested")
 				return
 			}
+			if hashFunc == crypto.MD5 {
+				err = errors.New("x509: signing with MD5 is not supported")
+				return
+			}
 			if requestedSigAlgo.isRSAPSS() {
 				sigAlgo.Parameters = hashToPSSParameters[hashFunc]
 			}
@@ -1591,15 +1595,8 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 	}
 
 	// Check the signature to ensure the crypto.Signer behaved correctly.
-	sigAlg := getSignatureAlgorithmFromAI(signatureAlgorithm)
-	switch sigAlg {
-	case MD5WithRSA:
-		// We skip the check if the signature algorithm is only supported for
-		// signing, not verification.
-	default:
-		if err := checkSignature(sigAlg, c.Raw, signature, key.Public(), true); err != nil {
-			return nil, fmt.Errorf("x509: signature over certificate returned by signer is invalid: %w", err)
-		}
+	if err := checkSignature(getSignatureAlgorithmFromAI(signatureAlgorithm), c.Raw, signature, key.Public(), true); err != nil {
+		return nil, fmt.Errorf("x509: signature over certificate returned by signer is invalid: %w", err)
 	}
 
 	return signedCert, nil
