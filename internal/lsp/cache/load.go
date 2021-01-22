@@ -203,8 +203,8 @@ func (s *snapshot) workspaceLayoutError(ctx context.Context) *source.CriticalErr
 	if !s.ValidBuildConfiguration() {
 		msg := `gopls requires a module at the root of your workspace.
 You can work with multiple modules by opening each one as a workspace folder.
-Improvements to this workflow will be coming soon (https://github.com/golang/go/issues/32394),
-and you can learn more here: https://github.com/golang/go/issues/36899.`
+Improvements to this workflow will be coming soon, and you can learn more here:
+https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`
 		return &source.CriticalError{
 			MainError: errors.Errorf(msg),
 			ErrorList: s.applyCriticalErrorToFiles(ctx, msg, openFiles),
@@ -236,13 +236,15 @@ and you can learn more here: https://github.com/golang/go/issues/36899.`
 			msg := fmt.Sprintf(`This file is in %s, which is a nested module in the %s module.
 gopls currently requires one module per workspace folder.
 Please open %s as a separate workspace folder.
-You can learn more here: https://github.com/golang/go/issues/36899.
+You can learn more here: https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.
 `, modDir, filepath.Dir(rootModURI.Filename()), modDir)
 			srcErrs = append(srcErrs, s.applyCriticalErrorToFiles(ctx, msg, uris)...)
 		}
 		if len(srcErrs) != 0 {
 			return &source.CriticalError{
-				MainError: errors.Errorf(`You are working in a nested module. Please open it as a separate workspace folder.`),
+				MainError: errors.Errorf(`You are working in a nested module.
+Please open it as a separate workspace folder. Learn more:
+https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`),
 				ErrorList: srcErrs,
 			}
 		}

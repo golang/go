@@ -19,10 +19,10 @@ contain that single module. Otherwise, you are working with multiple modules.
 
 ### Multiple modules
 
-As of Jan 2020, if you are working with multiple modules, you will need to
-create a "workspace folder" for each module. This means that each module has
-its own scope, and features will not work across modules. We are currently
-working on addressing this limitation--see details about
+As of Jan 2021, if you are working with multiple modules or nested modules, you
+will need to create a "workspace folder" for each module. This means that each
+module has its own scope, and features will not work across modules. We are
+currently working on addressing this limitation--see details about
 [experimental workspace module mode](#experimental-workspace-module-mode)
 below.
 
