@@ -807,6 +807,19 @@ func TestFoo(t *testing.T) {
       <code>HTTPS_PROXY</code> is unset.
     </p>
 
+    <p><!-- 259917 -->
+      The <a href="/pkg/net/http/#Transport"><code>Transport</code></a>
+      type has a new field
+      <a href="/pkg/net/http/#Transport.GetProxyConnectHeader"><code>GetProxyConnectHeader</code></a>
+      which may be set to a function that returns headers to send to a
+      proxy during a <code>CONNECT</code> request.
+      In effect <code>GetProxyConnectHeader</code> is a dynamic
+      version of the existing field
+      <a href="/pkg/net/http/#Transport.ProxyConnectHeader"><code>ProxyConnectHeader</code></a>;
+      if <code>GetProxyConnectHeader</code> is not <code>nil</code>,
+      then <code>ProxyConnectHeader</code> is ignored.
+    </p>
+
     <p><!-- CL 243939 -->
       The new <a href="/pkg/net/http/#FS"><code>http.FS</code></a>
       function converts an <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a>
