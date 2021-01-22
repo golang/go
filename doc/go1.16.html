@@ -1071,6 +1071,25 @@ func TestFoo(t *testing.T) {
   </dd>
 </dl><!-- syscall -->
 
+<dl id="testing/iotest"><dt><a href="/pkg/testing/iotest/">testing/iotest</a></dt>
+  <dd>
+    <p><!-- CL 199501 -->
+      The new
+      <a href="/pkg/testing/iotest/#ErrReader"><code>ErrReader</code></a>
+      function returns an
+      <a href="/pkg/io/#Reader"><code>io.Reader</code></a> that always
+      returns an error.
+    </p>
+
+    <p><!-- CL 243909 -->
+      The new
+      <a href="/pkg/testing/iotest/#TestReader"><code>TestReader</code></a>
+      function tests that an <a href="/pkg/io/#Reader"><code>io.Reader</code></a>
+      behaves correctly.
+    </p>
+  </dd>
+</dl><!-- testing/iotest -->
+
 <dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
   <dd>
     <p><!-- CL 254257, golang.org/issue/29770 -->
