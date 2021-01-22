@@ -1937,13 +1937,11 @@ var excluded = map[string]bool{
 	"initializerr.go": true, // types2 reports extra errors
 	"linkname2.go":    true, // error reported by noder (not running for types2 errorcheck test)
 	"shift1.go":       true, // issue #42989
-	"switch4.go":      true, // error reported by noder (not running for types2 errorcheck test)
 	"typecheck.go":    true, // invalid function is not causing errors when called
 
 	"fixedbugs/bug176.go":    true, // types2 reports all errors (pref: types2)
 	"fixedbugs/bug193.go":    true, // types2 bug: shift error not reported (fixed in go/types)
 	"fixedbugs/bug195.go":    true, // types2 reports slightly different (but correct) bugs
-	"fixedbugs/bug213.go":    true, // error reported by noder (not running for types2 errorcheck test)
 	"fixedbugs/bug228.go":    true, // types2 not run after syntax errors
 	"fixedbugs/bug231.go":    true, // types2 bug? (same error reported twice)
 	"fixedbugs/bug255.go":    true, // types2 reports extra errors
@@ -1986,7 +1984,6 @@ var excluded = map[string]bool{
 	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
 	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
 	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
-	"fixedbugs/issue6500.go":   true, // error reported by noder (not running for types2 errorcheck test)
 	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
 	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise

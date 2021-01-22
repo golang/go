@@ -41,8 +41,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 
 	check.stmtList(0, body.List)
 
-	if check.hasLabel {
-		assert(!check.conf.IgnoreBranches)
+	if check.hasLabel && !check.conf.IgnoreLabels {
 		check.labels(body)
 	}
 
@@ -321,7 +320,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		check.declStmt(s.DeclList)
 
 	case *syntax.LabeledStmt:
-		check.hasLabel = !check.conf.IgnoreBranches
+		check.hasLabel = true
 		check.stmt(ctxt, s.Stmt)
 
 	case *syntax.ExprStmt:
@@ -446,22 +445,26 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		}
 
 	case *syntax.BranchStmt:
-		if check.conf.IgnoreBranches {
-			break
-		}
-
 		if s.Label != nil {
 			check.hasLabel = true
-			return // checked in 2nd pass (check.labels)
+			break // checked in 2nd pass (check.labels)
 		}
 		switch s.Tok {
 		case syntax.Break:
 			if ctxt&breakOk == 0 {
-				check.error(s, "break not in for, switch, or select statement")
+				if check.conf.CompilerErrorMessages {
+					check.error(s, "break is not in a loop, switch, or select statement")
+				} else {
+					check.error(s, "break not in for, switch, or select statement")
+				}
 			}
 		case syntax.Continue:
 			if ctxt&continueOk == 0 {
-				check.error(s, "continue not in for statement")
+				if check.conf.CompilerErrorMessages {
+					check.error(s, "continue is not in a loop")
+				} else {
+					check.error(s, "continue not in for statement")
+				}
 			}
 		case syntax.Fallthrough:
 			if ctxt&fallthroughOk == 0 {
