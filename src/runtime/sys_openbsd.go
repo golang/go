@@ -57,3 +57,4 @@ func pthread_create_trampoline()
 //go:cgo_import_dynamic libc_pthread_sigmask pthread_sigmask "libpthread.so"
 
 //go:cgo_import_dynamic _ _ "libpthread.so"
+//go:cgo_import_dynamic _ _ "libc.so"
