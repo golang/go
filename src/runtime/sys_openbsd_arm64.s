@@ -188,18 +188,6 @@ TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
 	ADD	$16, RSP
 	RET
 
-TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
-	MOVD	R0, R19			// pointer to args
-	CALL	libc_pthread_self(SB)
-	MOVD	R0, 0(R19)		// return value
-	RET
-
-TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
-	MOVW	8(R0), R1		// arg 2 - sig
-	MOVD	0(R0), R0		// arg 1 - thread
-	CALL	libc_pthread_kill(SB)
-	RET
-
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 	MOVW	code+0(FP), R0		// arg 1 - status
