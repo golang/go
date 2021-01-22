@@ -944,6 +944,23 @@ func TestFoo(t *testing.T) {
       already finished.
     </p>
 
+    <p><!-- CL 261540 -->
+      The package defines a new type
+      <a href="/pkg/os/#DirEntry"><code>DirEntry</code></a>
+      as an alias for <a href="/pkg/io/fs/#DirEntry"><code>fs.DirEntry</code></a>.
+      The new <a href="/pkg/os/#ReadDir"><code>ReadDir</code></a>
+      function and the new
+      <a href="/pkg/os/#File.ReadDir"><code>File.ReadDir</code></a>
+      method can be used to read the contents of a directory into a
+      slice of <a href="/pkg/os/#DirEntry"><code>DirEntry</code></a>.
+      The <a href="/pkg/os/#File.Readdir"><code>File.Readdir</code></a>
+      method (note the lower case <code>d</code> in <code>dir</code>)
+      still exists, returning a slice of
+      <a href="/pkg/os/#FileInfo"><code>FileInfo</code></a>, but for
+      most programs it will be more efficient to switch to
+      <a href="/pkg/os/#File.ReadDir"><code>File.ReadDir</code></a>.
+    </p>
+
     <p><!-- CL 263141 -->
       The package now defines
       <a href="/pkg/os/#CreateTemp"><code>CreateTemp</code></a>,
@@ -952,6 +969,18 @@ func TestFoo(t *testing.T) {
       <a href="/pkg/os/#WriteFile"><code>WriteFile</code></a>,
       to be used instead of functions defined in the
       <a href="/pkg/io/ioutil/"><code>io/ioutil</code></a> package.
+    </p>
+
+    <p><!-- CL 243906 -->
+      The types <a href="/pkg/os/#FileInfo"><code>FileInfo</code></a>,
+      <a href="/pkg/os/#FileMode"><code>FileMode</code></a>, and
+      <a href="/pkg/os/#PathError"><code>PathError</code></a>
+      are now aliases for types of the same name in the
+      <a href="/pkg/io/fs/"><code>io/fs</code></a> package.
+      Function signatures in the <a href="/pkg/os/"><code>os</code></a>
+      package have been updated to refer to the names in the
+      <a href="/pkg/io/fs/"><code>io/fs</code></a> package.
+      This should not affect any existing code.
     </p>
   </dd>
 </dl><!-- os -->
