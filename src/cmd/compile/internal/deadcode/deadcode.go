@@ -75,7 +75,7 @@ func stmts(nn *ir.Nodes) {
 				// might be the target of a goto. See issue 28616.
 				if body := body; len(body) != 0 {
 					switch body[(len(body) - 1)].Op() {
-					case ir.ORETURN, ir.ORETJMP, ir.OPANIC:
+					case ir.ORETURN, ir.OTAILCALL, ir.OPANIC:
 						if i > lastLabel {
 							cut = true
 						}

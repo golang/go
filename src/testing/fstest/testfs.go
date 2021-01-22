@@ -24,6 +24,7 @@ import (
 // It also checks that the file system contains at least the expected files.
 // As a special case, if no expected files are listed, fsys must be empty.
 // Otherwise, fsys must only contain at least the listed files: it can also contain others.
+// The contents of fsys must not change concurrently with TestFS.
 //
 // If TestFS finds any misbehaviors, it returns an error reporting all of them.
 // The error text spans multiple lines, one per detected misbehavior.
@@ -121,7 +122,7 @@ func (t *fsTester) openDir(dir string) fs.ReadDirFile {
 	d, ok := f.(fs.ReadDirFile)
 	if !ok {
 		f.Close()
-		t.errorf("%s: Open returned File type %T, not a io.ReadDirFile", dir, f)
+		t.errorf("%s: Open returned File type %T, not a fs.ReadDirFile", dir, f)
 		return nil
 	}
 	return d

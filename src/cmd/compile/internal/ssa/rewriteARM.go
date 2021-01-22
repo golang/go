@@ -3728,12 +3728,12 @@ func rewriteValueARM_OpARMCMP(v *Value) bool {
 		return true
 	}
 	// match: (CMP x y)
-	// cond: x.ID > y.ID
+	// cond: canonLessThan(x,y)
 	// result: (InvertFlags (CMP y x))
 	for {
 		x := v_0
 		y := v_1
-		if !(x.ID > y.ID) {
+		if !(canonLessThan(x, y)) {
 			break
 		}
 		v.reset(OpARMInvertFlags)

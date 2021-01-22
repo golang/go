@@ -202,7 +202,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 func downloadPaths(patterns []string) []string {
 	for _, arg := range patterns {
 		if strings.Contains(arg, "@") {
-			base.Fatalf("go: cannot use path@version syntax in GOPATH mode")
+			base.Fatalf("go: can only use path@version syntax with 'go get' and 'go install' in module-aware mode")
 			continue
 		}
 

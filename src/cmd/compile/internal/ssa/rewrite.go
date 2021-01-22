@@ -521,6 +521,18 @@ func shiftIsBounded(v *Value) bool {
 	return v.AuxInt != 0
 }
 
+// canonLessThan returns whether x is "ordered" less than y, for purposes of normalizing
+// generated code as much as possible.
+func canonLessThan(x, y *Value) bool {
+	if x.Op != y.Op {
+		return x.Op < y.Op
+	}
+	if !x.Pos.SameFileAndLine(y.Pos) {
+		return x.Pos.Before(y.Pos)
+	}
+	return x.ID < y.ID
+}
+
 // truncate64Fto32F converts a float64 value to a float32 preserving the bit pattern
 // of the mantissa. It will panic if the truncation results in lost information.
 func truncate64Fto32F(f float64) float32 {
@@ -984,9 +996,10 @@ func flagArg(v *Value) *Value {
 }
 
 // arm64Negate finds the complement to an ARM64 condition code,
-// for example Equal -> NotEqual or LessThan -> GreaterEqual
+// for example !Equal -> NotEqual or !LessThan -> GreaterEqual
 //
-// TODO: add floating-point conditions
+// For floating point, it's more subtle because NaN is unordered. We do
+// !LessThanF -> NotLessThanF, the latter takes care of NaNs.
 func arm64Negate(op Op) Op {
 	switch op {
 	case OpARM64LessThan:
@@ -1010,13 +1023,21 @@ func arm64Negate(op Op) Op {
 	case OpARM64NotEqual:
 		return OpARM64Equal
 	case OpARM64LessThanF:
-		return OpARM64GreaterEqualF
-	case OpARM64GreaterThanF:
-		return OpARM64LessEqualF
+		return OpARM64NotLessThanF
+	case OpARM64NotLessThanF:
+		return OpARM64LessThanF
 	case OpARM64LessEqualF:
+		return OpARM64NotLessEqualF
+	case OpARM64NotLessEqualF:
+		return OpARM64LessEqualF
+	case OpARM64GreaterThanF:
+		return OpARM64NotGreaterThanF
+	case OpARM64NotGreaterThanF:
 		return OpARM64GreaterThanF
 	case OpARM64GreaterEqualF:
-		return OpARM64LessThanF
+		return OpARM64NotGreaterEqualF
+	case OpARM64NotGreaterEqualF:
+		return OpARM64GreaterEqualF
 	default:
 		panic("unreachable")
 	}
@@ -1027,8 +1048,6 @@ func arm64Negate(op Op) Op {
 // that the same result would be produced if the arguments
 // to the flag-generating instruction were reversed, e.g.
 // (InvertFlags (CMP x y)) -> (CMP y x)
-//
-// TODO: add floating-point conditions
 func arm64Invert(op Op) Op {
 	switch op {
 	case OpARM64LessThan:
@@ -1057,6 +1076,14 @@ func arm64Invert(op Op) Op {
 		return OpARM64GreaterEqualF
 	case OpARM64GreaterEqualF:
 		return OpARM64LessEqualF
+	case OpARM64NotLessThanF:
+		return OpARM64NotGreaterThanF
+	case OpARM64NotGreaterThanF:
+		return OpARM64NotLessThanF
+	case OpARM64NotLessEqualF:
+		return OpARM64NotGreaterEqualF
+	case OpARM64NotGreaterEqualF:
+		return OpARM64NotLessEqualF
 	default:
 		panic("unreachable")
 	}

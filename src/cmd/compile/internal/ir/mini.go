@@ -57,7 +57,7 @@ const (
 	miniWalkdefShift   = 0 // TODO(mdempsky): Move to Name.flags.
 	miniTypecheckShift = 2
 	miniDiag           = 1 << 4
-	miniHasCall        = 1 << 5 // for miniStmt
+	miniWalked         = 1 << 5 // to prevent/catch re-walking
 )
 
 func (n *miniNode) Typecheck() uint8 { return n.bits.get2(miniTypecheckShift) }
@@ -70,6 +70,9 @@ func (n *miniNode) SetTypecheck(x uint8) {
 
 func (n *miniNode) Diag() bool     { return n.bits&miniDiag != 0 }
 func (n *miniNode) SetDiag(x bool) { n.bits.set(miniDiag, x) }
+
+func (n *miniNode) Walked() bool     { return n.bits&miniWalked != 0 }
+func (n *miniNode) SetWalked(x bool) { n.bits.set(miniWalked, x) }
 
 // Empty, immutable graph structure.
 
@@ -85,7 +88,5 @@ func (n *miniNode) Name() *Name             { return nil }
 func (n *miniNode) Sym() *types.Sym         { return nil }
 func (n *miniNode) Val() constant.Value     { panic(n.no("Val")) }
 func (n *miniNode) SetVal(v constant.Value) { panic(n.no("SetVal")) }
-func (n *miniNode) HasCall() bool           { return false }
-func (n *miniNode) SetHasCall(bool)         { panic(n.no("SetHasCall")) }
 func (n *miniNode) NonNil() bool            { return false }
 func (n *miniNode) MarkNonNil()             { panic(n.no("MarkNonNil")) }

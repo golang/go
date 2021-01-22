@@ -33,7 +33,7 @@ const (
 	// This function uses its incoming context register.
 	NEEDCTXT = 64
 
-	// When passed to ggloblsym, causes Local to be set to true on the LSym it creates.
+	// When passed to objw.Global, causes Local to be set to true on the LSym it creates.
 	LOCAL = 128
 
 	// Allocate a word of thread local storage and store the offset from the

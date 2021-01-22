@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 	"go/constant"
@@ -32,8 +33,7 @@ type miniExpr struct {
 }
 
 const (
-	miniExprHasCall = 1 << iota
-	miniExprNonNil
+	miniExprNonNil = 1 << iota
 	miniExprTransient
 	miniExprBounded
 	miniExprImplicit // for use by implementations; not supported by every Expr
@@ -44,8 +44,6 @@ func (*miniExpr) isExpr() {}
 
 func (n *miniExpr) Type() *types.Type     { return n.typ }
 func (n *miniExpr) SetType(x *types.Type) { n.typ = x }
-func (n *miniExpr) HasCall() bool         { return n.flags&miniExprHasCall != 0 }
-func (n *miniExpr) SetHasCall(b bool)     { n.flags.set(miniExprHasCall, b) }
 func (n *miniExpr) NonNil() bool          { return n.flags&miniExprNonNil != 0 }
 func (n *miniExpr) MarkNonNil()           { n.flags |= miniExprNonNil }
 func (n *miniExpr) Transient() bool       { return n.flags&miniExprTransient != 0 }
@@ -145,7 +143,7 @@ func (n *BinaryExpr) SetOp(op Op) {
 }
 
 // A CallUse records how the result of the call is used:
-type CallUse int
+type CallUse byte
 
 const (
 	_ CallUse = iota
@@ -161,7 +159,6 @@ type CallExpr struct {
 	origNode
 	X         Node
 	Args      Nodes
-	Rargs     Nodes   // TODO(rsc): Delete.
 	KeepAlive []*Name // vars to be kept alive until call returns
 	IsDDD     bool
 	Use       CallUse
@@ -464,19 +461,33 @@ func NewResultExpr(pos src.XPos, typ *types.Type, offset int64) *ResultExpr {
 	return n
 }
 
-// A NameOffsetExpr refers to an offset within a variable.
+// A LinksymOffsetExpr refers to an offset within a global variable.
 // It is like a SelectorExpr but without the field name.
-type NameOffsetExpr struct {
+type LinksymOffsetExpr struct {
 	miniExpr
-	Name_   *Name
+	Linksym *obj.LSym
 	Offset_ int64
 }
 
-func NewNameOffsetExpr(pos src.XPos, name *Name, offset int64, typ *types.Type) *NameOffsetExpr {
-	n := &NameOffsetExpr{Name_: name, Offset_: offset}
+func NewLinksymOffsetExpr(pos src.XPos, lsym *obj.LSym, offset int64, typ *types.Type) *LinksymOffsetExpr {
+	n := &LinksymOffsetExpr{Linksym: lsym, Offset_: offset}
 	n.typ = typ
-	n.op = ONAMEOFFSET
+	n.op = OLINKSYMOFFSET
 	return n
+}
+
+// NewLinksymExpr is NewLinksymOffsetExpr, but with offset fixed at 0.
+func NewLinksymExpr(pos src.XPos, lsym *obj.LSym, typ *types.Type) *LinksymOffsetExpr {
+	return NewLinksymOffsetExpr(pos, lsym, 0, typ)
+}
+
+// NewNameOffsetExpr is NewLinksymOffsetExpr, but taking a *Name
+// representing a global variable instead of an *obj.LSym directly.
+func NewNameOffsetExpr(pos src.XPos, name *Name, offset int64, typ *types.Type) *LinksymOffsetExpr {
+	if name == nil || IsBlank(name) || !(name.Op() == ONAME && name.Class == PEXTERN) {
+		base.FatalfAt(pos, "cannot take offset of nil, blank name or non-global variable: %v", name)
+	}
+	return NewLinksymOffsetExpr(pos, name.Linksym(), offset, typ)
 }
 
 // A SelectorExpr is a selector expression X.Sel.
@@ -612,11 +623,9 @@ type TypeAssertExpr struct {
 	X     Node
 	Ntype Ntype
 
-	// Runtime type information provided by walkDotType.
-	// Caution: These aren't always populated; see walkDotType.
-	SrcType *AddrExpr `mknode:"-"` // *runtime._type for X's type
-	DstType *AddrExpr `mknode:"-"` // *runtime._type for Type
-	Itab    *AddrExpr `mknode:"-"` // *runtime.itab for Type implementing X's type
+	// Runtime type information provided by walkDotType for
+	// assertions from non-empty interface to concrete type.
+	Itab *AddrExpr `mknode:"-"` // *runtime.itab for Type implementing X's type
 }
 
 func NewTypeAssertExpr(pos src.XPos, x Node, typ Ntype) *TypeAssertExpr {
@@ -656,7 +665,7 @@ func (n *UnaryExpr) SetOp(op Op) {
 	case OBITNOT, ONEG, ONOT, OPLUS, ORECV,
 		OALIGNOF, OCAP, OCLOSE, OIMAG, OLEN, ONEW,
 		OOFFSETOF, OPANIC, OREAL, OSIZEOF,
-		OCHECKNIL, OCFUNC, OIDATA, OITAB, ONEWOBJ, OSPTR, OVARDEF, OVARKILL, OVARLIVE:
+		OCHECKNIL, OCFUNC, OIDATA, OITAB, OSPTR, OVARDEF, OVARKILL, OVARLIVE:
 		n.op = op
 	}
 }
@@ -728,7 +737,7 @@ func IsAddressable(n Node) bool {
 		}
 		return true
 
-	case ONAMEOFFSET:
+	case OLINKSYMOFFSET:
 		return true
 	}
 

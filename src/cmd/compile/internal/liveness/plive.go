@@ -17,12 +17,14 @@ package liveness
 import (
 	"crypto/md5"
 	"fmt"
+	"sort"
 	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/bitvec"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/typebits"
 	"cmd/compile/internal/types"
@@ -174,14 +176,14 @@ type progeffectscache struct {
 	initialized bool
 }
 
-// ShouldTrack reports whether the liveness analysis
+// shouldTrack reports whether the liveness analysis
 // should track the variable n.
 // We don't care about variables that have no pointers,
 // nor do we care about non-local variables,
 // nor do we care about empty structs (handled by the pointer check),
 // nor do we care about the fake PAUTOHEAP variables.
-func ShouldTrack(n *ir.Name) bool {
-	return (n.Class == ir.PAUTO || n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT) && n.Type().HasPointers()
+func shouldTrack(n *ir.Name) bool {
+	return (n.Class == ir.PAUTO && n.Esc() != ir.EscHeap || n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT) && n.Type().HasPointers()
 }
 
 // getvariables returns the list of on-stack variables that we need to track
@@ -189,7 +191,7 @@ func ShouldTrack(n *ir.Name) bool {
 func getvariables(fn *ir.Func) ([]*ir.Name, map[*ir.Name]int32) {
 	var vars []*ir.Name
 	for _, n := range fn.Dcl {
-		if ShouldTrack(n) {
+		if shouldTrack(n) {
 			vars = append(vars, n)
 		}
 	}
@@ -788,7 +790,7 @@ func (lv *liveness) epilogue() {
 				if n.Class == ir.PPARAM {
 					continue // ok
 				}
-				base.Fatalf("bad live variable at entry of %v: %L", lv.fn.Nname, n)
+				base.FatalfAt(n.Pos(), "bad live variable at entry of %v: %L", lv.fn.Nname, n)
 			}
 
 			// Record live variables.
@@ -1060,7 +1062,7 @@ func (lv *liveness) printDebug() {
 func (lv *liveness) emit() (argsSym, liveSym *obj.LSym) {
 	// Size args bitmaps to be just large enough to hold the largest pointer.
 	// First, find the largest Xoffset node we care about.
-	// (Nodes without pointers aren't in lv.vars; see livenessShouldTrack.)
+	// (Nodes without pointers aren't in lv.vars; see ShouldTrack.)
 	var maxArgNode *ir.Name
 	for _, n := range lv.vars {
 		switch n.Class {
@@ -1179,7 +1181,52 @@ func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs) Map 
 	p.To.Name = obj.NAME_EXTERN
 	p.To.Sym = fninfo.GCLocals
 
+	if x := lv.emitStackObjects(); x != nil {
+		p := pp.Prog(obj.AFUNCDATA)
+		p.From.SetConst(objabi.FUNCDATA_StackObjects)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = x
+	}
+
 	return lv.livenessMap
+}
+
+func (lv *liveness) emitStackObjects() *obj.LSym {
+	var vars []*ir.Name
+	for _, n := range lv.fn.Dcl {
+		if shouldTrack(n) && n.Addrtaken() && n.Esc() != ir.EscHeap {
+			vars = append(vars, n)
+		}
+	}
+	if len(vars) == 0 {
+		return nil
+	}
+
+	// Sort variables from lowest to highest address.
+	sort.Slice(vars, func(i, j int) bool { return vars[i].FrameOffset() < vars[j].FrameOffset() })
+
+	// Populate the stack object data.
+	// Format must match runtime/stack.go:stackObjectRecord.
+	x := base.Ctxt.Lookup(lv.fn.LSym.Name + ".stkobj")
+	lv.fn.LSym.Func().StackObjects = x
+	off := 0
+	off = objw.Uintptr(x, off, uint64(len(vars)))
+	for _, v := range vars {
+		// Note: arguments and return values have non-negative Xoffset,
+		// in which case the offset is relative to argp.
+		// Locals have a negative Xoffset, in which case the offset is relative to varp.
+		off = objw.Uintptr(x, off, uint64(v.FrameOffset()))
+		off = objw.SymPtr(x, off, reflectdata.TypeLinksym(v.Type()), 0)
+	}
+
+	if base.Flag.Live != 0 {
+		for _, v := range vars {
+			base.WarnfAt(v.Pos(), "stack object %v %v", v, v.Type())
+		}
+	}
+
+	return x
 }
 
 // isfat reports whether a variable of type t needs multiple assignments to initialize.

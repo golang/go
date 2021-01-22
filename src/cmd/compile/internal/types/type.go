@@ -107,7 +107,7 @@ const (
 // Types stores pointers to predeclared named types.
 //
 // It also stores pointers to several special types:
-//   - Types[TANY] is the placeholder "any" type recognized by substArgTypes.
+//   - Types[TANY] is the placeholder "any" type recognized by SubstArgTypes.
 //   - Types[TBLANK] represents the blank variable's type.
 //   - Types[TNIL] represents the predeclared "nil" value's type.
 //   - Types[TUNSAFEPTR] is package unsafe's Pointer type.
@@ -643,7 +643,7 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 
 	case TANY:
 		if len(*types) == 0 {
-			base.Fatalf("substArgTypes: not enough argument types")
+			base.Fatalf("SubstArgTypes: not enough argument types")
 		}
 		t = (*types)[0]
 		*types = (*types)[1:]

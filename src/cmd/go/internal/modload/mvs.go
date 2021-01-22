@@ -111,19 +111,3 @@ func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
 	}
 	return module.Version{Path: m.Path, Version: "none"}, nil
 }
-
-// next returns the next version of m.Path after m.Version.
-// It is only used by the exclusion processing in the Required method,
-// not called directly by MVS.
-func (*mvsReqs) next(m module.Version) (module.Version, error) {
-	// TODO(golang.org/issue/38714): thread tracing context through MVS.
-	list, err := versions(context.TODO(), m.Path, CheckAllowed)
-	if err != nil {
-		return module.Version{}, err
-	}
-	i := sort.Search(len(list), func(i int) bool { return semver.Compare(list[i], m.Version) > 0 })
-	if i < len(list) {
-		return module.Version{Path: m.Path, Version: list[i]}, nil
-	}
-	return module.Version{Path: m.Path, Version: "none"}, nil
-}

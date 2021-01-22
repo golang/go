@@ -12,10 +12,10 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
+	exec "internal/execabs"
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -52,15 +52,6 @@ that can be run locally. It must either be in the shell path
 (gofmt), a fully qualified path (/usr/you/bin/mytool), or a
 command alias, described below.
 
-To convey to humans and machine tools that code is generated,
-generated source should have a line that matches the following
-regular expression (in Go syntax):
-
-	^// Code generated .* DO NOT EDIT\.$
-
-The line may appear anywhere in the file, but is typically
-placed near the beginning so it is easy to find.
-
 Note that go generate does not parse the file, so lines that look
 like directives in comments or multiline strings will be treated
 as directives.
@@ -71,6 +62,15 @@ arguments when it is run.
 
 Quoted strings use Go syntax and are evaluated before execution; a
 quoted string appears as a single argument to the generator.
+
+To convey to humans and machine tools that code is generated,
+generated source should have a line that matches the following
+regular expression (in Go syntax):
+
+	^// Code generated .* DO NOT EDIT\.$
+
+This line must appear before the first non-comment, non-blank
+text in the file.
 
 Go generate sets several variables when it runs the generator:
 

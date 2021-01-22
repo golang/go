@@ -56,84 +56,48 @@ var CmdGet = &base.Command{
 	UsageLine: "go get [-d] [-t] [-u] [-v] [-insecure] [build flags] [packages]",
 	Short:     "add dependencies to current module and install them",
 	Long: `
-Get resolves and adds dependencies to the current development module
-and then builds and installs them.
+Get resolves its command-line arguments to packages at specific module versions,
+updates go.mod to require those versions, downloads source code into the
+module cache, then builds and installs the named packages.
 
-The first step is to resolve which dependencies to add.
+To add a dependency for a package or upgrade it to its latest version:
 
-For each named package or package pattern, get must decide which version of
-the corresponding module to use. By default, get looks up the latest tagged
-release version, such as v0.4.5 or v1.2.3. If there are no tagged release
-versions, get looks up the latest tagged pre-release version, such as
-v0.0.1-pre1. If there are no tagged versions at all, get looks up the latest
-known commit. If the module is not already required at a later version
-(for example, a pre-release newer than the latest release), get will use
-the version it looked up. Otherwise, get will use the currently
-required version.
+	go get example.com/pkg
 
-This default version selection can be overridden by adding an @version
-suffix to the package argument, as in 'go get golang.org/x/text@v0.3.0'.
-The version may be a prefix: @v1 denotes the latest available version starting
-with v1. See 'go help modules' under the heading 'Module queries' for the
-full query syntax.
+To upgrade or downgrade a package to a specific version:
 
-For modules stored in source control repositories, the version suffix can
-also be a commit hash, branch identifier, or other syntax known to the
-source control system, as in 'go get golang.org/x/text@master'. Note that
-branches with names that overlap with other module query syntax cannot be
-selected explicitly. For example, the suffix @v2 means the latest version
-starting with v2, not the branch named v2.
+	go get example.com/pkg@v1.2.3
 
-If a module under consideration is already a dependency of the current
-development module, then get will update the required version.
-Specifying a version earlier than the current required version is valid and
-downgrades the dependency. The version suffix @none indicates that the
-dependency should be removed entirely, downgrading or removing modules
-depending on it as needed.
+To remove a dependency on a module and downgrade modules that require it:
 
-The version suffix @latest explicitly requests the latest minor release of
-the module named by the given path. The suffix @upgrade is like @latest but
-will not downgrade a module if it is already required at a revision or
-pre-release version newer than the latest released version. The suffix
-@patch requests the latest patch release: the latest released version
-with the same major and minor version numbers as the currently required
-version. Like @upgrade, @patch will not downgrade a module already required
-at a newer version. If the path is not already required, @upgrade is
-equivalent to @latest, and @patch is disallowed.
+	go get example.com/mod@none
 
-Although get defaults to using the latest version of the module containing
-a named package, it does not use the latest version of that module's
-dependencies. Instead it prefers to use the specific dependency versions
-requested by that module. For example, if the latest A requires module
-B v1.2.3, while B v1.2.4 and v1.3.1 are also available, then 'go get A'
-will use the latest A but then use B v1.2.3, as requested by A. (If there
-are competing requirements for a particular module, then 'go get' resolves
-those requirements by taking the maximum requested version.)
+See https://golang.org/ref/mod#go-get for details.
+
+The 'go install' command may be used to build and install packages. When a
+version is specified, 'go install' runs in module-aware mode and ignores
+the go.mod file in the current directory. For example:
+
+	go install example.com/pkg@v1.2.3
+	go install example.com/pkg@latest
+
+See 'go help install' or https://golang.org/ref/mod#go-install for details.
+
+In addition to build flags (listed in 'go help build') 'go get' accepts the
+following flags.
 
 The -t flag instructs get to consider modules needed to build tests of
 packages specified on the command line.
 
 The -u flag instructs get to update modules providing dependencies
 of packages named on the command line to use newer minor or patch
-releases when available. Continuing the previous example, 'go get -u A'
-will use the latest A with B v1.3.1 (not B v1.2.3). If B requires module C,
-but C does not provide any packages needed to build packages in A
-(not including tests), then C will not be updated.
+releases when available.
 
 The -u=patch flag (not -u patch) also instructs get to update dependencies,
 but changes the default to select patch releases.
-Continuing the previous example,
-'go get -u=patch A@latest' will use the latest A with B v1.2.4 (not B v1.2.3),
-while 'go get -u=patch A' will use a patch release of A instead.
 
 When the -t and -u flags are used together, get will update
 test dependencies as well.
-
-In general, adding a new dependency may require upgrading
-existing dependencies to keep a working build, and 'go get' does
-this automatically. Similarly, downgrading one dependency may
-require downgrading other dependencies, and 'go get' does
-this automatically as well.
 
 The -insecure flag permits fetching from repositories and resolving
 custom domains using insecure schemes such as HTTP, and also bypassess
@@ -143,12 +107,8 @@ To permit the use of insecure schemes, use the GOINSECURE environment
 variable instead. To bypass module sum validation, use GOPRIVATE or
 GONOSUMDB. See 'go help environment' for details.
 
-The second step is to download (if needed), build, and install
-the named packages.
-
-The -d flag instructs get to skip this step, downloading source code
-needed to build the named packages and their dependencies, but not
-building or installing.
+The -d flag instructs get not to build or install packages. get will only
+update go.mod and download source code needed to build packages.
 
 Building and installing packages with get is deprecated. In a future release,
 the -d flag will be enabled by default, and 'go get' will be only be used to
@@ -157,31 +117,14 @@ dependencies from the current module, use 'go install'. To install a package
 ignoring the current module, use 'go install' with an @version suffix like
 "@latest" after each argument.
 
-If an argument names a module but not a package (because there is no
-Go source code in the module's root directory), then the install step
-is skipped for that argument, instead of causing a build failure.
-For example 'go get golang.org/x/perf' succeeds even though there
-is no code corresponding to that import path.
-
-Note that package patterns are allowed and are expanded after resolving
-the module versions. For example, 'go get golang.org/x/perf/cmd/...'
-adds the latest golang.org/x/perf and then installs the commands in that
-latest version.
-
-With no package arguments, 'go get' applies to Go package in the
-current directory, if any. In particular, 'go get -u' and
-'go get -u=patch' update all the dependencies of that package.
-With no package arguments and also without -u, 'go get' is not much more
-than 'go install', and 'go get -d' not much more than 'go list'.
-
-For more about modules, see 'go help modules'.
+For more about modules, see https://golang.org/ref/mod.
 
 For more about specifying packages, see 'go help packages'.
 
 This text describes the behavior of get using modules to manage source
 code and dependencies. If instead the go command is running in GOPATH
 mode, the details of get's flags and effects change, as does 'go help get'.
-See 'go help modules' and 'go help gopath-get'.
+See 'go help gopath-get'.
 
 See also: go build, go install, go clean, go mod.
 	`,
@@ -1558,7 +1501,7 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns 
 		}
 	}
 	if retractPath != "" {
-		fmt.Fprintf(os.Stderr, "go: run 'go get %s@latest' to switch to the latest unretracted version\n", retractPath)
+		fmt.Fprintf(os.Stderr, "go: to switch to the latest unretracted version, run:\n\tgo get %s@latest", retractPath)
 	}
 }
 

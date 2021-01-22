@@ -13,7 +13,6 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/liveness"
-	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -73,7 +72,7 @@ func enqueueFunc(fn *ir.Func) {
 func prepareFunc(fn *ir.Func) {
 	// Set up the function's LSym early to avoid data races with the assemblers.
 	// Do this before walk, as walk needs the LSym to set attributes/relocations
-	// (e.g. in markTypeUsedInInterface).
+	// (e.g. in MarkTypeUsedInInterface).
 	ssagen.InitLSym(fn, true)
 
 	// Calculate parameter offsets.
@@ -84,24 +83,6 @@ func prepareFunc(fn *ir.Func) {
 	walk.Walk(fn)
 	ir.CurFunc = nil // enforce no further uses of CurFunc
 	typecheck.DeclContext = ir.PEXTERN
-
-	// Make sure type syms are declared for all types that might
-	// be types of stack objects. We need to do this here
-	// because symbols must be allocated before the parallel
-	// phase of the compiler.
-	for _, n := range fn.Dcl {
-		switch n.Class {
-		case ir.PPARAM, ir.PPARAMOUT, ir.PAUTO:
-			if liveness.ShouldTrack(n) && n.Addrtaken() {
-				reflectdata.WriteType(n.Type())
-				// Also make sure we allocate a linker symbol
-				// for the stack object data, for the same reason.
-				if fn.LSym.Func().StackObjects == nil {
-					fn.LSym.Func().StackObjects = base.Ctxt.Lookup(fn.LSym.Name + ".stkobj")
-				}
-			}
-		}
-	}
 }
 
 // compileFunctions compiles all functions in compilequeue.

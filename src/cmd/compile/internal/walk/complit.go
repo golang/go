@@ -64,11 +64,11 @@ func readonlystaticname(t *types.Type) *ir.Name {
 }
 
 func isSimpleName(nn ir.Node) bool {
-	if nn.Op() != ir.ONAME {
+	if nn.Op() != ir.ONAME || ir.IsBlank(nn) {
 		return false
 	}
 	n := nn.(*ir.Name)
-	return n.Class != ir.PAUTOHEAP && n.Class != ir.PEXTERN
+	return n.OnStack()
 }
 
 func litas(l ir.Node, r ir.Node, init *ir.Nodes) {
@@ -297,7 +297,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 		if !ok || name.Class != ir.PEXTERN {
 			base.Fatalf("slicelit: %v", var_)
 		}
-		staticdata.InitSlice(name, offset, vstat, t.NumElem())
+		staticdata.InitSlice(name, offset, vstat.Linksym(), t.NumElem())
 		return
 	}
 
@@ -344,37 +344,18 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 		if !types.Identical(t, x.Type()) {
 			panic("dotdotdot base type does not match order's assigned type")
 		}
-
-		if vstat == nil {
-			a = ir.NewAssignStmt(base.Pos, x, nil)
-			a = typecheck.Stmt(a)
-			init.Append(a) // zero new temp
-		} else {
-			// Declare that we're about to initialize all of x.
-			// (Which happens at the *vauto = vstat below.)
-			init.Append(ir.NewUnaryExpr(base.Pos, ir.OVARDEF, x))
-		}
-
-		a = typecheck.NodAddr(x)
+		a = initStackTemp(init, x, vstat)
 	} else if n.Esc() == ir.EscNone {
-		a = typecheck.Temp(t)
-		if vstat == nil {
-			a = ir.NewAssignStmt(base.Pos, typecheck.Temp(t), nil)
-			a = typecheck.Stmt(a)
-			init.Append(a) // zero new temp
-			a = a.(*ir.AssignStmt).X
-		} else {
-			init.Append(ir.NewUnaryExpr(base.Pos, ir.OVARDEF, a))
-		}
-
-		a = typecheck.NodAddr(a)
+		a = initStackTemp(init, typecheck.Temp(t), vstat)
 	} else {
 		a = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(t))
 	}
 	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, vauto, a))
 
-	if vstat != nil {
-		// copy static to heap (4)
+	if vstat != nil && n.Prealloc == nil && n.Esc() != ir.EscNone {
+		// If we allocated on the heap with ONEW, copy the static to the
+		// heap (4). We skip this for stack temporaries, because
+		// initStackTemp already handled the copy.
 		a = ir.NewStarExpr(base.Pos, vauto)
 		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, a, vstat))
 	}
@@ -550,9 +531,8 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 
 		var r ir.Node
 		if n.Prealloc != nil {
-			// n.Right is stack temporary used as backing store.
-			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, n.Prealloc, nil)) // zero backing store, just in case (#18410)
-			r = typecheck.NodAddr(n.Prealloc)
+			// n.Prealloc is stack temporary used as backing store.
+			r = initStackTemp(init, n.Prealloc, nil)
 		} else {
 			r = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(n.X.Type()))
 			r.SetEsc(n.Esc())
@@ -667,7 +647,7 @@ func genAsStatic(as *ir.AssignStmt) {
 		return
 	case ir.OMETHEXPR:
 		r := r.(*ir.SelectorExpr)
-		staticdata.InitFunc(name, offset, r.FuncName())
+		staticdata.InitAddr(name, offset, staticdata.FuncLinksym(r.FuncName()))
 		return
 	case ir.ONAME:
 		r := r.(*ir.Name)
@@ -675,7 +655,7 @@ func genAsStatic(as *ir.AssignStmt) {
 			base.Fatalf("genAsStatic %+v", as)
 		}
 		if r.Class == ir.PFUNC {
-			staticdata.InitFunc(name, offset, r)
+			staticdata.InitAddr(name, offset, staticdata.FuncLinksym(r))
 			return
 		}
 	}

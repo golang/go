@@ -6,7 +6,7 @@ require (
 	github.com/google/pprof v0.0.0-20201203190320-1bf35d6f28c2
 	golang.org/x/arch v0.0.0-20201008161808-52c3e6f60cff
 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
-	golang.org/x/mod v0.4.0
+	golang.org/x/mod v0.4.1
 	golang.org/x/sys v0.0.0-20201204225414-ed752295db88 // indirect
-	golang.org/x/tools v0.0.0-20201211025543-abf6a1d87e11
+	golang.org/x/tools v0.0.0-20210107193943-4ed967dd8eff
 )

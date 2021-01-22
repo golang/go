@@ -9,12 +9,6 @@ import (
 	"cmd/internal/obj"
 )
 
-// Names holds known names.
-var Names struct {
-	Staticuint64s *Name
-	Zerobase      *Name
-}
-
 // Syms holds known symbols.
 var Syms struct {
 	AssertE2I       *obj.LSym
@@ -46,6 +40,7 @@ var Syms struct {
 	Racewriterange  *obj.LSym
 	// Wasm
 	SigPanic        *obj.LSym
+	Staticuint64s   *obj.LSym
 	Typedmemclr     *obj.LSym
 	Typedmemmove    *obj.LSym
 	Udiv            *obj.LSym
@@ -70,13 +65,8 @@ var Syms struct {
 
 // Pkgs holds known packages.
 var Pkgs struct {
-	Go       *types.Pkg
-	Itab     *types.Pkg
-	Itablink *types.Pkg
-	Map      *types.Pkg
-	Msan     *types.Pkg
-	Race     *types.Pkg
-	Runtime  *types.Pkg
-	Track    *types.Pkg
-	Unsafe   *types.Pkg
+	Go      *types.Pkg
+	Itab    *types.Pkg
+	Runtime *types.Pkg
+	Unsafe  *types.Pkg
 }

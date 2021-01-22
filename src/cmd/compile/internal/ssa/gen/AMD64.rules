@@ -916,7 +916,7 @@
 (CMPB (MOVLconst [c]) x) => (InvertFlags (CMPBconst x [int8(c)]))
 
 // Canonicalize the order of arguments to comparisons - helps with CSE.
-(CMP(Q|L|W|B) x y) && x.ID > y.ID => (InvertFlags (CMP(Q|L|W|B) y x))
+(CMP(Q|L|W|B) x y) && canonLessThan(x,y) => (InvertFlags (CMP(Q|L|W|B) y x))
 
 // Using MOVZX instead of AND is cheaper.
 (AND(Q|L)const [  0xFF] x) => (MOVBQZX x)

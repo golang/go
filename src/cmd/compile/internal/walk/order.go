@@ -555,10 +555,6 @@ func (o *orderState) mapAssign(n ir.Node) {
 			n.Y = o.safeMapRHS(n.Y)
 		}
 		o.out = append(o.out, n)
-
-	case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2MAPR, ir.OAS2FUNC:
-		n := n.(*ir.AssignListStmt)
-		o.out = append(o.out, n)
 	}
 }
 
@@ -637,7 +633,7 @@ func (o *orderState) stmt(n ir.Node) {
 		t := o.markTemp()
 		o.exprList(n.Lhs)
 		o.exprList(n.Rhs)
-		o.mapAssign(n)
+		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
 	// Special: avoid copy of func call n.Right
@@ -647,7 +643,7 @@ func (o *orderState) stmt(n ir.Node) {
 		o.exprList(n.Lhs)
 		o.init(n.Rhs[0])
 		o.call(n.Rhs[0])
-		o.as2(n)
+		o.as2func(n)
 		o.cleanTemp(t)
 
 	// Special: use temporary variables to hold result,
@@ -679,7 +675,7 @@ func (o *orderState) stmt(n ir.Node) {
 			base.Fatalf("order.stmt: %v", r.Op())
 		}
 
-		o.okAs2(n)
+		o.as2ok(n)
 		o.cleanTemp(t)
 
 	// Special: does not save n onto out.
@@ -696,7 +692,7 @@ func (o *orderState) stmt(n ir.Node) {
 		ir.OFALL,
 		ir.OGOTO,
 		ir.OLABEL,
-		ir.ORETJMP:
+		ir.OTAILCALL:
 		o.out = append(o.out, n)
 
 	// Special: handle call arguments.
@@ -772,14 +768,12 @@ func (o *orderState) stmt(n ir.Node) {
 		orderBlock(&n.Else, o.free)
 		o.out = append(o.out, n)
 
-	// Special: argument will be converted to interface using convT2E
-	// so make sure it is an addressable temporary.
 	case ir.OPANIC:
 		n := n.(*ir.UnaryExpr)
 		t := o.markTemp()
 		n.X = o.expr(n.X, nil)
-		if !n.X.Type().IsInterface() {
-			n.X = o.addrTemp(n.X)
+		if !n.X.Type().IsEmptyInterface() {
+			base.FatalfAt(n.Pos(), "bad argument to panic: %L", n.X)
 		}
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
@@ -849,7 +843,7 @@ func (o *orderState) stmt(n ir.Node) {
 			n.X = o.copyExpr(r)
 
 			// n.Prealloc is the temp for the iterator.
-			// hiter contains pointers and needs to be zeroed.
+			// MapIterType contains pointers and needs to be zeroed.
 			n.Prealloc = o.newTemp(reflectdata.MapIterType(xt), true)
 		}
 		n.Key = o.exprInPlace(n.Key)
@@ -962,7 +956,7 @@ func (o *orderState) stmt(n ir.Node) {
 			cas.Body.Prepend(o.cleanTempNoPop(t)...)
 
 			// TODO(mdempsky): Is this actually necessary?
-			// walkselect appears to walk Ninit.
+			// walkSelect appears to walk Ninit.
 			cas.Body.Prepend(ir.TakeInit(cas)...)
 		}
 
@@ -986,7 +980,7 @@ func (o *orderState) stmt(n ir.Node) {
 		o.cleanTemp(t)
 
 	// TODO(rsc): Clean temporaries more aggressively.
-	// Note that because walkswitch will rewrite some of the
+	// Note that because walkSwitch will rewrite some of the
 	// switch into a binary search, this is not as easy as it looks.
 	// (If we ran that code here we could invoke order.stmt on
 	// the if-else chain instead.)
@@ -1390,57 +1384,54 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 	// No return - type-assertions above. Each case must return for itself.
 }
 
-// as2 orders OAS2XXXX nodes. It creates temporaries to ensure left-to-right assignment.
-// The caller should order the right-hand side of the assignment before calling order.as2.
+// as2func orders OAS2FUNC nodes. It creates temporaries to ensure left-to-right assignment.
+// The caller should order the right-hand side of the assignment before calling order.as2func.
 // It rewrites,
-// 	a, b, a = ...
+//	a, b, a = ...
 // as
 //	tmp1, tmp2, tmp3 = ...
-// 	a, b, a = tmp1, tmp2, tmp3
+//	a, b, a = tmp1, tmp2, tmp3
 // This is necessary to ensure left to right assignment order.
-func (o *orderState) as2(n *ir.AssignListStmt) {
-	tmplist := []ir.Node{}
-	left := []ir.Node{}
-	for ni, l := range n.Lhs {
-		if !ir.IsBlank(l) {
-			tmp := o.newTemp(l.Type(), l.Type().HasPointers())
-			n.Lhs[ni] = tmp
-			tmplist = append(tmplist, tmp)
-			left = append(left, l)
+func (o *orderState) as2func(n *ir.AssignListStmt) {
+	results := n.Rhs[0].Type()
+	as := ir.NewAssignListStmt(n.Pos(), ir.OAS2, nil, nil)
+	for i, nl := range n.Lhs {
+		if !ir.IsBlank(nl) {
+			typ := results.Field(i).Type
+			tmp := o.newTemp(typ, typ.HasPointers())
+			n.Lhs[i] = tmp
+			as.Lhs = append(as.Lhs, nl)
+			as.Rhs = append(as.Rhs, tmp)
 		}
 	}
 
 	o.out = append(o.out, n)
-
-	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
-	as.Lhs = left
-	as.Rhs = tmplist
 	o.stmt(typecheck.Stmt(as))
 }
 
-// okAs2 orders OAS2XXX with ok.
-// Just like as2, this also adds temporaries to ensure left-to-right assignment.
-func (o *orderState) okAs2(n *ir.AssignListStmt) {
-	var tmp1, tmp2 ir.Node
-	if !ir.IsBlank(n.Lhs[0]) {
-		typ := n.Rhs[0].Type()
-		tmp1 = o.newTemp(typ, typ.HasPointers())
+// as2ok orders OAS2XXX with ok.
+// Just like as2func, this also adds temporaries to ensure left-to-right assignment.
+func (o *orderState) as2ok(n *ir.AssignListStmt) {
+	as := ir.NewAssignListStmt(n.Pos(), ir.OAS2, nil, nil)
+
+	do := func(i int, typ *types.Type) {
+		if nl := n.Lhs[i]; !ir.IsBlank(nl) {
+			var tmp ir.Node = o.newTemp(typ, typ.HasPointers())
+			n.Lhs[i] = tmp
+			as.Lhs = append(as.Lhs, nl)
+			if i == 1 {
+				// The "ok" result is an untyped boolean according to the Go
+				// spec. We need to explicitly convert it to the LHS type in
+				// case the latter is a defined boolean type (#8475).
+				tmp = typecheck.Conv(tmp, nl.Type())
+			}
+			as.Rhs = append(as.Rhs, tmp)
+		}
 	}
 
-	if !ir.IsBlank(n.Lhs[1]) {
-		tmp2 = o.newTemp(types.Types[types.TBOOL], false)
-	}
+	do(0, n.Rhs[0].Type())
+	do(1, types.Types[types.TBOOL])
 
 	o.out = append(o.out, n)
-
-	if tmp1 != nil {
-		r := ir.NewAssignStmt(base.Pos, n.Lhs[0], tmp1)
-		o.mapAssign(typecheck.Stmt(r))
-		n.Lhs[0] = tmp1
-	}
-	if tmp2 != nil {
-		r := ir.NewAssignStmt(base.Pos, n.Lhs[1], typecheck.Conv(tmp2, n.Lhs[1].Type()))
-		o.mapAssign(typecheck.Stmt(r))
-		n.Lhs[1] = tmp2
-	}
+	o.stmt(typecheck.Stmt(as))
 }

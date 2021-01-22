@@ -50,11 +50,9 @@ type miniStmt struct {
 
 func (*miniStmt) isStmt() {}
 
-func (n *miniStmt) Init() Nodes       { return n.init }
-func (n *miniStmt) SetInit(x Nodes)   { n.init = x }
-func (n *miniStmt) PtrInit() *Nodes   { return &n.init }
-func (n *miniStmt) HasCall() bool     { return n.bits&miniHasCall != 0 }
-func (n *miniStmt) SetHasCall(b bool) { n.bits.set(miniHasCall, b) }
+func (n *miniStmt) Init() Nodes     { return n.init }
+func (n *miniStmt) SetInit(x Nodes) { n.init = x }
+func (n *miniStmt) PtrInit() *Nodes { return &n.init }
 
 // An AssignListStmt is an assignment statement with
 // more than one item on at least one side: Lhs = Rhs.
@@ -146,9 +144,6 @@ func NewBlockStmt(pos src.XPos, list []Node) *BlockStmt {
 }
 
 // A BranchStmt is a break, continue, fallthrough, or goto statement.
-//
-// For back-end code generation, Op may also be RETJMP (return+jump),
-// in which case the label names another function entirely.
 type BranchStmt struct {
 	miniStmt
 	Label *types.Sym // label if present
@@ -156,7 +151,7 @@ type BranchStmt struct {
 
 func NewBranchStmt(pos src.XPos, op Op, label *types.Sym) *BranchStmt {
 	switch op {
-	case OBREAK, OCONTINUE, OFALL, OGOTO, ORETJMP:
+	case OBREAK, OCONTINUE, OFALL, OGOTO:
 		// ok
 	default:
 		panic("NewBranch " + op.String())
@@ -343,7 +338,7 @@ type SelectStmt struct {
 	HasBreak bool
 
 	// TODO(rsc): Instead of recording here, replace with a block?
-	Compiled Nodes // compiled form, after walkswitch
+	Compiled Nodes // compiled form, after walkSwitch
 }
 
 func NewSelectStmt(pos src.XPos, cases []*CommClause) *SelectStmt {
@@ -376,13 +371,30 @@ type SwitchStmt struct {
 	HasBreak bool
 
 	// TODO(rsc): Instead of recording here, replace with a block?
-	Compiled Nodes // compiled form, after walkswitch
+	Compiled Nodes // compiled form, after walkSwitch
 }
 
 func NewSwitchStmt(pos src.XPos, tag Node, cases []*CaseClause) *SwitchStmt {
 	n := &SwitchStmt{Tag: tag, Cases: cases}
 	n.pos = pos
 	n.op = OSWITCH
+	return n
+}
+
+// A TailCallStmt is a tail call statement, which is used for back-end
+// code generation to jump directly to another function entirely.
+type TailCallStmt struct {
+	miniStmt
+	Target *Name
+}
+
+func NewTailCallStmt(pos src.XPos, target *Name) *TailCallStmt {
+	if target.Op() != ONAME || target.Class != PFUNC {
+		base.FatalfAt(pos, "tail call to non-func %v", target)
+	}
+	n := &TailCallStmt{Target: target}
+	n.pos = pos
+	n.op = OTAILCALL
 	return n
 }
 

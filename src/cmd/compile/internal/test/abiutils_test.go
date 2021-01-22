@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package test
 
 import (
 	"bufio"
+	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
@@ -20,12 +21,7 @@ import (
 // AMD64 registers available:
 // - integer: RAX, RBX, RCX, RDI, RSI, R8, R9, r10, R11
 // - floating point: X0 - X14
-var configAMD64 = ABIConfig{
-	regAmounts: RegAmounts{
-		intRegs:   9,
-		floatRegs: 15,
-	},
-}
+var configAMD64 = abi.NewABIConfig(9,15)
 
 func TestMain(m *testing.M) {
 	ssagen.Arch.LinkArch = &x86.Linkamd64
