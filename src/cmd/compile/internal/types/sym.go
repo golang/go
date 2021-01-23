@@ -64,53 +64,30 @@ func (sym *Sym) IsBlank() bool {
 	return sym != nil && sym.Name == "_"
 }
 
-func (sym *Sym) LinksymName() string {
-	if sym.IsBlank() {
-		return "_"
-	}
-	if sym.Linkname != "" {
-		return sym.Linkname
-	}
-	return sym.Pkg.Prefix + "." + sym.Name
-}
-
 // Deprecated: This method should not be used directly. Instead, use a
 // higher-level abstraction that directly returns the linker symbol
 // for a named object. For example, reflectdata.TypeLinksym(t) instead
 // of reflectdata.TypeSym(t).Linksym().
 func (sym *Sym) Linksym() *obj.LSym {
-	if sym == nil {
-		return nil
-	}
-	initPkg := func(r *obj.LSym) {
-		if sym.Linkname != "" {
-			r.Pkg = "_"
-		} else {
-			r.Pkg = sym.Pkg.Prefix
-		}
-	}
+	abi := obj.ABI0
 	if sym.Func() {
-		// This is a function symbol. Mark it as "internal ABI".
-		return base.Ctxt.LookupABIInit(sym.LinksymName(), obj.ABIInternal, initPkg)
+		abi = obj.ABIInternal
 	}
-	return base.Ctxt.LookupInit(sym.LinksymName(), initPkg)
+	return sym.LinksymABI(abi)
 }
 
-// LinksymABI0 looks up or creates an ABI0 linker symbol for "sym",
-// in cases where we want to specifically select the ABI0 version of
-// a symbol (typically used only for ABI wrappers).
-func (sym *Sym) LinksymABI0() *obj.LSym {
+// Deprecated: This method should not be used directly. Instead, use a
+// higher-level abstraction that directly returns the linker symbol
+// for a named object. For example, (*ir.Name).LinksymABI(abi) instead
+// of (*ir.Name).Sym().LinksymABI(abi).
+func (sym *Sym) LinksymABI(abi obj.ABI) *obj.LSym {
 	if sym == nil {
-		return nil
+		base.Fatalf("nil symbol")
 	}
-	initPkg := func(r *obj.LSym) {
-		if sym.Linkname != "" {
-			r.Pkg = "_"
-		} else {
-			r.Pkg = sym.Pkg.Prefix
-		}
+	if sym.Linkname != "" {
+		return base.Linkname(sym.Linkname, abi)
 	}
-	return base.Ctxt.LookupABIInit(sym.LinksymName(), obj.ABI0, initPkg)
+	return base.PkgLinksym(sym.Pkg.Prefix, sym.Name, abi)
 }
 
 // Less reports whether symbol a is ordered before symbol b.

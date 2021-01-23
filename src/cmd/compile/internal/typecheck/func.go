@@ -100,7 +100,7 @@ func PartialCallType(n *ir.SelectorExpr) *types.Type {
 	return t
 }
 
-// Lazy typechecking of imported bodies. For local functions, caninl will set ->typecheck
+// Lazy typechecking of imported bodies. For local functions, CanInline will set ->typecheck
 // because they're a copy of an already checked body.
 func ImportedBody(fn *ir.Func) {
 	lno := ir.SetPos(fn.Nname)
@@ -122,14 +122,14 @@ func ImportedBody(fn *ir.Func) {
 
 	ImportBody(fn)
 
-	// typecheckinl is only for imported functions;
+	// Stmts(fn.Inl.Body) below is only for imported functions;
 	// their bodies may refer to unsafe as long as the package
 	// was marked safe during import (which was checked then).
-	// the ->inl of a local function has been typechecked before caninl copied it.
+	// the ->inl of a local function has been typechecked before CanInline copied it.
 	pkg := fnpkg(fn.Nname)
 
 	if pkg == types.LocalPkg || pkg == nil {
-		return // typecheckinl on local function
+		return // ImportedBody on local function
 	}
 
 	if base.Flag.LowerM > 2 || base.Debug.Export != 0 {
@@ -141,11 +141,11 @@ func ImportedBody(fn *ir.Func) {
 	Stmts(fn.Inl.Body)
 	ir.CurFunc = savefn
 
-	// During expandInline (which imports fn.Func.Inl.Body),
-	// declarations are added to fn.Func.Dcl by funcHdr(). Move them
+	// During ImportBody (which imports fn.Func.Inl.Body),
+	// declarations are added to fn.Func.Dcl by funcBody(). Move them
 	// to fn.Func.Inl.Dcl for consistency with how local functions
-	// behave. (Append because typecheckinl may be called multiple
-	// times.)
+	// behave. (Append because ImportedBody may be called multiple
+	// times on same fn.)
 	fn.Inl.Dcl = append(fn.Inl.Dcl, fn.Dcl...)
 	fn.Dcl = nil
 
@@ -296,15 +296,22 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 	fn.SetClosureCalled(top&ctxCallee != 0)
 
 	// Do not typecheck fn twice, otherwise, we will end up pushing
-	// fn to Target.Decls multiple times, causing initLSym called twice.
+	// fn to Target.Decls multiple times, causing InitLSym called twice.
 	// See #30709
 	if fn.Typecheck() == 1 {
 		clo.SetType(fn.Type())
 		return
 	}
 
-	fn.Nname.SetSym(ClosureName(ir.CurFunc))
-	ir.MarkFunc(fn.Nname)
+	// Don't give a name and add to xtop if we are typechecking an inlined
+	// body in ImportedBody(), since we only want to create the named function
+	// when the closure is actually inlined (and then we force a typecheck
+	// explicitly in (*inlsubst).node()).
+	inTypeCheckInl := ir.CurFunc != nil && ir.CurFunc.Body == nil
+	if !inTypeCheckInl {
+		fn.Nname.SetSym(ClosureName(ir.CurFunc))
+		ir.MarkFunc(fn.Nname)
+	}
 	Func(fn)
 	clo.SetType(fn.Type())
 
@@ -338,15 +345,22 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 	}
 	fn.ClosureVars = fn.ClosureVars[:out]
 
-	Target.Decls = append(Target.Decls, fn)
+	if base.Flag.W > 1 {
+		s := fmt.Sprintf("New closure func: %s", ir.FuncName(fn))
+		ir.Dump(s, fn)
+	}
+	if !inTypeCheckInl {
+		// Add function to xtop once only when we give it a name
+		Target.Decls = append(Target.Decls, fn)
+	}
 }
 
 // type check function definition
 // To be called by typecheck, not directly.
-// (Call typecheckFunc instead.)
+// (Call typecheck.Func instead.)
 func tcFunc(n *ir.Func) {
 	if base.EnableTrace && base.Flag.LowerT {
-		defer tracePrint("typecheckfunc", n)(nil)
+		defer tracePrint("tcFunc", n)(nil)
 	}
 
 	n.Nname = AssignExpr(n.Nname).(*ir.Name)
@@ -896,7 +910,7 @@ func tcNew(n *ir.UnaryExpr) ir.Node {
 // tcPanic typechecks an OPANIC node.
 func tcPanic(n *ir.UnaryExpr) ir.Node {
 	n.X = Expr(n.X)
-	n.X = DefaultLit(n.X, types.Types[types.TINTER])
+	n.X = AssignConv(n.X, types.Types[types.TINTER], "argument to panic")
 	if n.X.Type() == nil {
 		n.SetType(nil)
 		return n

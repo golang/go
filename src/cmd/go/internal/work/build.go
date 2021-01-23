@@ -9,9 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
+	exec "internal/execabs"
 	"internal/goroot"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -113,7 +113,10 @@ and test commands:
 		created with -buildmode=shared.
 	-mod mode
 		module download mode to use: readonly, vendor, or mod.
-		See 'go help modules' for more.
+		By default, if a vendor directory is present and the go version in go.mod
+		is 1.14 or higher, the go command acts as if -mod=vendor were set.
+		Otherwise, the go command acts as if -mod=readonly were set.
+		See https://golang.org/ref/mod#build-commands for details.
 	-modcacherw
 		leave newly-created directories in the module cache read-write
 		instead of making them read-only.

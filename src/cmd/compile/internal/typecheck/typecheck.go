@@ -456,7 +456,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 }
 
 // indexlit implements typechecking of untyped values as
-// array/slice indexes. It is almost equivalent to defaultlit
+// array/slice indexes. It is almost equivalent to DefaultLit
 // but also accepts untyped numeric values representable as
 // value of type int (see also checkmake for comparison).
 // The result of indexlit MUST be assigned back to n, e.g.
@@ -521,7 +521,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		}
 		return n
 
-	case ir.ONAMEOFFSET:
+	case ir.OLINKSYMOFFSET:
 		// type already set
 		return n
 
@@ -857,8 +857,8 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.ReturnStmt)
 		return tcReturn(n)
 
-	case ir.ORETJMP:
-		n := n.(*ir.BranchStmt)
+	case ir.OTAILCALL:
+		n := n.(*ir.TailCallStmt)
 		return n
 
 	case ir.OSELECT:
@@ -938,7 +938,7 @@ func typecheckargs(n ir.InitNode) {
 	// If we're outside of function context, then this call will
 	// be executed during the generated init function. However,
 	// init.go hasn't yet created it. Instead, associate the
-	// temporary variables with initTodo for now, and init.go
+	// temporary variables with  InitTodoFunc for now, and init.go
 	// will reassociate them later when it's appropriate.
 	static := ir.CurFunc == nil
 	if static {
@@ -1890,7 +1890,7 @@ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
 		return false
 	}
 
-	// Do range checks for constants before defaultlit
+	// Do range checks for constants before DefaultLit
 	// to avoid redundant "constant NNN overflows int" errors.
 	if n.Op() == ir.OLITERAL {
 		v := toint(n.Val())
@@ -1904,7 +1904,7 @@ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
 		}
 	}
 
-	// defaultlit is necessary for non-constants too: n might be 1.1<<k.
+	// DefaultLit is necessary for non-constants too: n might be 1.1<<k.
 	// TODO(gri) The length argument requirements for (array/slice) make
 	// are the same as for index expressions. Factor the code better;
 	// for instance, indexlit might be called here and incorporate some
@@ -2023,7 +2023,7 @@ func isTermNode(n ir.Node) bool {
 		n := n.(*ir.BlockStmt)
 		return isTermNodes(n.List)
 
-	case ir.OGOTO, ir.ORETURN, ir.ORETJMP, ir.OPANIC, ir.OFALL:
+	case ir.OGOTO, ir.ORETURN, ir.OTAILCALL, ir.OPANIC, ir.OFALL:
 		return true
 
 	case ir.OFOR, ir.OFORUNTIL:

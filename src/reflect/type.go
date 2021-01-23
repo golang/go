@@ -1104,16 +1104,12 @@ type StructField struct {
 
 // A StructTag is the tag string in a struct field.
 //
-// By convention, tag strings are a mapping of keys to values.
-// The format is key:"value". Each key is a non-empty string consisting
-// of non-control characters other than space (U+0020 ' '),
-// quote (U+0022 '"'), and colon (U+003A ':'). Each value is quoted
-// using U+0022 '"' characters and Go string literal syntax.
-// Multiple key-value mappings are separated by zero or more spaces, as in
-//   key1:"value1" key2:"value2"
-// Multiple keys may map to a single shared value by separating the keys
-// with spaces, as in
-//   key1 key2:"value"
+// By convention, tag strings are a concatenation of
+// optionally space-separated key:"value" pairs.
+// Each key is a non-empty string consisting of non-control
+// characters other than space (U+0020 ' '), quote (U+0022 '"'),
+// and colon (U+003A ':').  Each value is quoted using U+0022 '"'
+// characters and Go string literal syntax.
 type StructTag string
 
 // Get returns the value associated with key in the tag string.
@@ -1136,9 +1132,6 @@ func (tag StructTag) Lookup(key string) (value string, ok bool) {
 	// When modifying this code, also update the validateStructTag code
 	// in cmd/vet/structtag.go.
 
-	// keyFound indicates that such key on the left side has already been found.
-	var keyFound bool
-
 	for tag != "" {
 		// Skip leading space.
 		i := 0
@@ -1158,29 +1151,11 @@ func (tag StructTag) Lookup(key string) (value string, ok bool) {
 		for i < len(tag) && tag[i] > ' ' && tag[i] != ':' && tag[i] != '"' && tag[i] != 0x7f {
 			i++
 		}
-		if i == 0 || i+1 >= len(tag) || tag[i] < ' ' || tag[i] == 0x7f {
+		if i == 0 || i+1 >= len(tag) || tag[i] != ':' || tag[i+1] != '"' {
 			break
 		}
 		name := string(tag[:i])
-		tag = tag[i:]
-
-		// If we found a space char here - assume that we have a tag with
-		// multiple keys.
-		if tag[0] == ' ' {
-			if name == key {
-				keyFound = true
-			}
-			continue
-		}
-
-		// Spaces were filtered above so we assume that here we have
-		// only valid tag value started with `:"`.
-		if tag[0] != ':' || tag[1] != '"' {
-			break
-		}
-
-		// Remove the colon leaving tag at the start of the quoted string.
-		tag = tag[1:]
+		tag = tag[i+1:]
 
 		// Scan quoted string to find value.
 		i = 1
@@ -1196,7 +1171,7 @@ func (tag StructTag) Lookup(key string) (value string, ok bool) {
 		qvalue := string(tag[:i+1])
 		tag = tag[i+1:]
 
-		if key == name || keyFound {
+		if key == name {
 			value, err := strconv.Unquote(qvalue)
 			if err != nil {
 				break
@@ -1890,7 +1865,7 @@ func MapOf(key, elem Type) Type {
 
 	// Make a map type.
 	// Note: flag values must match those used in the TMAP case
-	// in ../cmd/compile/internal/gc/reflect.go:dtypesym.
+	// in ../cmd/compile/internal/gc/reflect.go:writeType.
 	var imap interface{} = (map[unsafe.Pointer]unsafe.Pointer)(nil)
 	mt := **(**mapType)(unsafe.Pointer(&imap))
 	mt.str = resolveReflectName(newName(s, "", false))

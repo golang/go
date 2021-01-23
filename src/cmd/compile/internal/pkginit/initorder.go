@@ -113,7 +113,7 @@ func initOrder(l []ir.Node) []ir.Node {
 				// first.
 				base.ExitIfErrors()
 
-				o.findInitLoopAndExit(firstLHS(n), new([]*ir.Name))
+				o.findInitLoopAndExit(firstLHS(n), new([]*ir.Name), new(ir.NameSet))
 				base.Fatalf("initialization unfinished, but failed to identify loop")
 			}
 		}
@@ -184,10 +184,7 @@ func (o *InitOrder) flushReady(initialize func(ir.Node)) {
 // path points to a slice used for tracking the sequence of
 // variables/functions visited. Using a pointer to a slice allows the
 // slice capacity to grow and limit reallocations.
-func (o *InitOrder) findInitLoopAndExit(n *ir.Name, path *[]*ir.Name) {
-	// We implement a simple DFS loop-finding algorithm. This
-	// could be faster, but initialization cycles are rare.
-
+func (o *InitOrder) findInitLoopAndExit(n *ir.Name, path *[]*ir.Name, ok *ir.NameSet) {
 	for i, x := range *path {
 		if x == n {
 			reportInitLoopAndExit((*path)[i:])
@@ -204,12 +201,19 @@ func (o *InitOrder) findInitLoopAndExit(n *ir.Name, path *[]*ir.Name) {
 	*path = append(*path, n)
 	for _, ref := range refers {
 		// Short-circuit variables that were initialized.
-		if ref.Class == ir.PEXTERN && o.order[ref.Defn] == orderDone {
+		if ref.Class == ir.PEXTERN && o.order[ref.Defn] == orderDone || ok.Has(ref) {
 			continue
 		}
 
-		o.findInitLoopAndExit(ref, path)
+		o.findInitLoopAndExit(ref, path, ok)
 	}
+
+	// n is not involved in a cycle.
+	// Record that fact to avoid checking it again when reached another way,
+	// or else this traversal will take exponential time traversing all paths
+	// through the part of the package's call graph implicated in the cycle.
+	ok.Add(n)
+
 	*path = (*path)[:len(*path)-1]
 }
 

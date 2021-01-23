@@ -44,7 +44,7 @@ func OrigSym(s *Sym) *Sym {
 	}
 
 	if strings.HasPrefix(s.Name, ".anon") {
-		// originally an unnamed or _ name (see subr.go: structargs)
+		// originally an unnamed or _ name (see subr.go: NewFuncParams)
 		return nil
 	}
 

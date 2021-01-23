@@ -71,7 +71,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 	}
 
 	if v1 == nil && v2 != nil {
-		base.Fatalf("walkrange: v2 != nil while v1 == nil")
+		base.Fatalf("walkRange: v2 != nil while v1 == nil")
 	}
 
 	var ifGuard *ir.IfStmt
@@ -80,7 +80,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 	var init []ir.Node
 	switch t.Kind() {
 	default:
-		base.Fatalf("walkrange")
+		base.Fatalf("walkRange")
 
 	case types.TARRAY, types.TSLICE:
 		if nn := arrayClear(nrange, v1, v2, a); nn != nil {
@@ -168,18 +168,18 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 
 		hit := nrange.Prealloc
 		th := hit.Type()
-		keysym := th.Field(0).Sym  // depends on layout of iterator struct.  See reflect.go:hiter
+		keysym := th.Field(0).Sym  // depends on layout of iterator struct.  See reflect.go:MapIterType
 		elemsym := th.Field(1).Sym // ditto
 
 		fn := typecheck.LookupRuntime("mapiterinit")
 
 		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), th)
-		init = append(init, mkcall1(fn, nil, nil, reflectdata.TypePtr(t), ha, typecheck.NodAddr(hit)))
+		init = append(init, mkcallstmt1(fn, reflectdata.TypePtr(t), ha, typecheck.NodAddr(hit)))
 		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym), typecheck.NodNil())
 
 		fn = typecheck.LookupRuntime("mapiternext")
 		fn = typecheck.SubstArgTypes(fn, th)
-		nfor.Post = mkcall1(fn, nil, nil, typecheck.NodAddr(hit))
+		nfor.Post = mkcallstmt1(fn, typecheck.NodAddr(hit))
 
 		key := ir.NewStarExpr(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym))
 		if v1 == nil {
@@ -269,12 +269,14 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 
 		// } else {
 		eif := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
-		nif.Else = []ir.Node{eif}
 
 		// hv2, hv1 = decoderune(ha, hv1)
 		eif.Lhs = []ir.Node{hv2, hv1}
 		fn := typecheck.LookupRuntime("decoderune")
-		eif.Rhs = []ir.Node{mkcall1(fn, fn.Type().Results(), nil, ha, hv1)}
+		var fnInit ir.Nodes
+		eif.Rhs = []ir.Node{mkcall1(fn, fn.Type().Results(), &fnInit, ha, hv1)}
+		fnInit.Append(eif)
+		nif.Else = fnInit
 
 		body = append(body, nif)
 
@@ -374,7 +376,7 @@ func mapClear(m ir.Node) ir.Node {
 	// instantiate mapclear(typ *type, hmap map[any]any)
 	fn := typecheck.LookupRuntime("mapclear")
 	fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
-	n := mkcall1(fn, nil, nil, reflectdata.TypePtr(t), m)
+	n := mkcallstmt1(fn, reflectdata.TypePtr(t), m)
 	return walkStmt(typecheck.Stmt(n))
 }
 
@@ -388,7 +390,7 @@ func mapClear(m ir.Node) ir.Node {
 //
 // in which the evaluation of a is side-effect-free.
 //
-// Parameters are as in walkrange: "for v1, v2 = range a".
+// Parameters are as in walkRange: "for v1, v2 = range a".
 func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 	if base.Flag.N != 0 || base.Flag.Cfg.Instrumenting {
 		return nil
@@ -449,10 +451,10 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 	if a.Type().Elem().HasPointers() {
 		// memclrHasPointers(hp, hn)
 		ir.CurFunc.SetWBPos(stmt.Pos())
-		fn = mkcall("memclrHasPointers", nil, nil, hp, hn)
+		fn = mkcallstmt("memclrHasPointers", hp, hn)
 	} else {
 		// memclrNoHeapPointers(hp, hn)
-		fn = mkcall("memclrNoHeapPointers", nil, nil, hp, hn)
+		fn = mkcallstmt("memclrNoHeapPointers", hp, hn)
 	}
 
 	n.Body.Append(fn)

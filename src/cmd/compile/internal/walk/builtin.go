@@ -48,10 +48,10 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
 
 	nsrc := n.Args[0]
 
-	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
+	// walkExprListSafe will leave OINDEX (s[n]) alone if both s
 	// and n are name or literal, but those may index the slice we're
 	// modifying here. Fix explicitly.
-	// Using cheapexpr also makes sure that the evaluation
+	// Using cheapExpr also makes sure that the evaluation
 	// of all arguments (and especially any panics) happen
 	// before we begin to modify the slice in a visible way.
 	ls := n.Args[1:]
@@ -277,10 +277,8 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		// Allocate hmap on stack.
 
 		// var hv hmap
-		hv := typecheck.Temp(hmapType)
-		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, hv, nil)))
 		// h = &hv
-		h = typecheck.NodAddr(hv)
+		h = stackTempAddr(init, hmapType)
 
 		// Allocate one bucket pointed to by hmap.buckets on stack if hint
 		// is not larger than BUCKETSIZE. In case hint is larger than
@@ -303,11 +301,8 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 			nif.Likely = true
 
 			// var bv bmap
-			bv := typecheck.Temp(reflectdata.MapBucketType(t))
-			nif.Body.Append(ir.NewAssignStmt(base.Pos, bv, nil))
-
 			// b = &bv
-			b := typecheck.NodAddr(bv)
+			b := stackTempAddr(&nif.Body, reflectdata.MapBucketType(t))
 
 			// h.buckets = b
 			bsym := hmapType.Field(5).Sym // hmap.buckets see reflect.go:hmap
@@ -388,7 +383,7 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		// n = arr[:l]
 		i := typecheck.IndexConst(r)
 		if i < 0 {
-			base.Fatalf("walkexpr: invalid index %v", r)
+			base.Fatalf("walkExpr: invalid index %v", r)
 		}
 
 		// cap is constrained to [0,2^31) or [0,2^63) depending on whether
@@ -501,18 +496,19 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 
 // walkNew walks an ONEW node.
 func walkNew(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
-	if n.Type().Elem().NotInHeap() {
+	t := n.Type().Elem()
+	if t.NotInHeap() {
 		base.Errorf("%v can't be allocated in Go; it is incomplete (or unallocatable)", n.Type().Elem())
 	}
 	if n.Esc() == ir.EscNone {
-		if n.Type().Elem().Width >= ir.MaxImplicitStackVarSize {
+		if t.Size() >= ir.MaxImplicitStackVarSize {
 			base.Fatalf("large ONEW with EscNone: %v", n)
 		}
-		r := typecheck.Temp(n.Type().Elem())
-		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, r, nil))) // zero temp
-		return typecheck.Expr(typecheck.NodAddr(r))
+		return stackTempAddr(init, t)
 	}
-	return callnew(n.Type().Elem())
+	types.CalcSize(t)
+	n.MarkNonNil()
+	return n
 }
 
 // generate code for print
@@ -676,15 +672,6 @@ func badtype(op ir.Op, tl, tr *types.Type) {
 	}
 
 	base.Errorf("illegal types for operand: %v%s", op, s)
-}
-
-func callnew(t *types.Type) ir.Node {
-	types.CalcSize(t)
-	n := ir.NewUnaryExpr(base.Pos, ir.ONEWOBJ, reflectdata.TypePtr(t))
-	n.SetType(types.NewPtr(t))
-	n.SetTypecheck(1)
-	n.MarkNonNil()
-	return n
 }
 
 func writebarrierfn(name string, l *types.Type, r *types.Type) ir.Node {

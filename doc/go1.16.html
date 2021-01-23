@@ -55,7 +55,9 @@ Do not send CLs removing the interior tags from such phrases.
   Go 1.16 adds an <code>ios/amd64</code> port, which targets the iOS
   simulator running on AMD64-based macOS. Previously this was
   unofficially supported through <code>darwin/amd64</code> with
-  the <code>ios</code> build tag set.
+  the <code>ios</code> build tag set. See also
+  <a href="/misc/ios/README"><code>misc/ios/README</code></a> for
+  details about how to build programs for iOS and iOS simulator.
 </p>
 
 <p><!-- golang.org/issue/23011 -->
@@ -160,6 +162,12 @@ Do not send CLs removing the interior tags from such phrases.
   the <code>go</code> command used the next version higher than an excluded
   version, but that version could change over time, resulting in
   non-reproducible builds.
+</p>
+
+<p><!-- golang.org/issue/43052 -->
+  The <code>go</code> command now disallows non-ASCII import paths in module
+  mode. Non-ASCII module paths have already been disallowed so this change
+  affects module subdirectory paths that contain non-ASCII characters.
 </p>
 
 <h4 id="embed">Embedding Files</h4>
@@ -504,6 +512,16 @@ func TestFoo(t *testing.T) {
   in mind.
 </p>
 
+<dl id="archive/zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
+  <dd>
+    <p><!-- CL 243937 -->
+      The new <a href="/pkg/archive/zip/#Reader.Open"><code>Reader.Open</code></a>
+      method implements the <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a>
+      interface.
+    </p>
+  </dd>
+</dl>
+
 <dl id="crypto/dsa"><dt><a href="/pkg/crypto/dsa/">crypto/dsa</a></dt>
   <dd>
     <p><!-- CL 257939 -->
@@ -588,14 +606,6 @@ func TestFoo(t *testing.T) {
       a malformed certificate.
     </p>
 
-    <p><!-- CL 233163 -->
-      A number of additional fields have been added to the
-      <a href="/pkg/crypto/x509/#CertificateRequest"><code>CertificateRequest</code></a> type.
-      These fields are now parsed in <a href="/pkg/crypto/x509/#ParseCertificateRequest">
-      <code>ParseCertificateRequest</code></a> and marshalled in
-      <a href="/pkg/crypto/x509/#CreateCertificateRequest"><code>CreateCertificateRequest</code></a>.
-    </p>
-
     <p><!-- CL 257939 -->
       DSA signature verification is no longer supported. Note that DSA signature
       generation was never supported.
@@ -615,6 +625,16 @@ func TestFoo(t *testing.T) {
     </p>
   </dd>
 </dl><!-- crypto/x509 -->
+
+<dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
+  <dd>
+    <p><!-- CL 255138 -->
+      More <a href="/pkg/debug/elf/#DT_NULL"><code>DT</code></a>
+      and <a href="/pkg/debug/elf/#PT_NULL"><code>PT</code></a>
+      constants have been added.
+    </p>
+  </dd>
+</dl><!-- debug/elf -->
 
 <dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1">encoding/asn1</a></dt>
   <dd>
@@ -664,6 +684,18 @@ func TestFoo(t *testing.T) {
     </p>
   </dd>
 </dl><!-- flag -->
+
+<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- CL 243938 -->
+      The new <a href="/pkg/html/template/#ParseFS"><code>template.ParseFS</code></a>
+      function and <a href="/pkg/html/template/#Template.ParseFS"><code>template.Template.ParseFS</code></a>
+      method are like <a href="/pkg/html/template/#ParseGlob"><code>template.ParseGlob</code></a>
+      and <a href="/pkg/html/template/#Template.ParseGlob"><code>template.Template.ParseGlob</code></a>,
+      but read the templates from an <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a>.
+    </p>
+  </dd>
+</dl><!-- html/template -->
 
 <dl id="io"><dt><a href="/pkg/io/">io</a></dt>
   <dd>
@@ -774,6 +806,25 @@ func TestFoo(t *testing.T) {
       environment variable for <code>https://</code> URLs when
       <code>HTTPS_PROXY</code> is unset.
     </p>
+
+    <p><!-- 259917 -->
+      The <a href="/pkg/net/http/#Transport"><code>Transport</code></a>
+      type has a new field
+      <a href="/pkg/net/http/#Transport.GetProxyConnectHeader"><code>GetProxyConnectHeader</code></a>
+      which may be set to a function that returns headers to send to a
+      proxy during a <code>CONNECT</code> request.
+      In effect <code>GetProxyConnectHeader</code> is a dynamic
+      version of the existing field
+      <a href="/pkg/net/http/#Transport.ProxyConnectHeader"><code>ProxyConnectHeader</code></a>;
+      if <code>GetProxyConnectHeader</code> is not <code>nil</code>,
+      then <code>ProxyConnectHeader</code> is ignored.
+    </p>
+
+    <p><!-- CL 243939 -->
+      The new <a href="/pkg/net/http/#FS"><code>http.FS</code></a>
+      function converts an <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a>
+      to an <a href="/pkg/net/http/#Handler"><code>http.Handler</code></a>.
+    </p>
   </dd>
 </dl><!-- net/http -->
 
@@ -834,6 +885,21 @@ func TestFoo(t *testing.T) {
 
 <dl id="path/filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
   <dd>
+    <p><!-- CL 267887 -->
+      The new function
+      <a href="/pkg/path/filepath/WalkDir"><code>WalkDir</code></a>
+      is similar to
+      <a href="/pkg/path/filepath/Walk"><code>Walk</code></a>,
+      but is typically more efficient.
+      The function passed to <code>WalkDir</code> receives a
+      <a href="/pkg/io/fs/#DirEntry"><code>fs.DirEntry</code></a>
+      instead of a
+      <a href="/pkg/io/fs/#FileInfo"><code>fs.FileInfo</code></a>.
+      (To clarify for those who recall the <code>Walk</code> function
+      as taking an <a href="/pkg/os/#FileInfo"><code>os.FileInfo</code></a>,
+      <code>os.FileInfo</code> is now an alias for <code>fs.FileInfo</code>.)
+    </p>
+
     <p><!-- CL 264397, golang.org/issues/28614 -->
       The <a href="/pkg/path/filepath#Match"><code>Match</code></a> and
       <a href="/pkg/path/filepath#Glob"><code>Glob</code></a> functions now
@@ -844,17 +910,6 @@ func TestFoo(t *testing.T) {
     </p>
   </dd>
 </dl><!-- path/filepath -->
-
-<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
-  <dd>
-    <p><!-- CL 248341, golang.org/issues/40281 -->
-      <a href="/pkg/reflect/#StructTag"><code>StructTag</code></a>
-      now allows multiple space-separated keys in key:value pairs,
-      as in <code>`json xml:"field1"`</code> (equivalent to
-      <code>`json:"field1" xml:"field1"`</code>).
-    </p>
-  </dd>
-</dl><!-- reflect -->
 
 <dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
   <dd>
@@ -893,11 +948,11 @@ func TestFoo(t *testing.T) {
     </p>
 
     <p><!-- CL 261917 -->
-      <a href="/pkg/syscall/?GOOS=windows#SysProcAttr"><code>SysProcAttr</code></a> on Windows has a new NoInheritHandles field that disables inheriting handles when creating a new process.
+      <a href="/pkg/syscall/?GOOS=windows#SysProcAttr"><code>SysProcAttr</code></a> on Windows has a new <code>NoInheritHandles</code> field that disables inheriting handles when creating a new process.
     </p>
 
     <p><!-- CL 269761, golang.org/issue/42584 -->
-      <a href="/pkg/syscall/?GOOS=windows#DLLError"><code>DLLError</code></a> on Windows now has an Unwrap function for unwrapping its underlying error.
+      <a href="/pkg/syscall/?GOOS=windows#DLLError"><code>DLLError</code></a> on Windows now has an <code>Unwrap</code> method for unwrapping its underlying error.
     </p>
 
     <p><!-- CL 210639 -->
@@ -907,6 +962,16 @@ func TestFoo(t *testing.T) {
       and related calls are now implemented.
       Previously, they returned an <code>syscall.EOPNOTSUPP</code> error.
     </p>
+
+    <p><!-- CL 210639 -->
+      On Linux, the new functions
+      <a href="/pkg/syscall/#AllThreadsSyscall"><code>AllThreadsSyscall</code></a>
+      and <a href="/pkg/syscall/#AllThreadsSyscall6"><code>AllThreadsSyscall6</code></a>
+      may be used to make a system call on all Go threads in the process.
+      These functions may only be used by programs that do not use cgo;
+      if a program uses cgo, they will always return
+      <a href="/pkg/syscall/#ENOTSUP"><code>syscall.ENOTSUP</code></a>.
+    </p>
   </dd>
 </dl><!-- syscall -->
 
@@ -915,6 +980,14 @@ func TestFoo(t *testing.T) {
     <p><!-- CL 254257, golang.org/issue/29770 -->
       Newlines characters are now allowed inside action delimiters,
       permitting actions to span multiple lines.
+    </p>
+
+    <p><!-- CL 243938 -->
+      The new <a href="/pkg/text/template/#ParseFS"><code>template.ParseFS</code></a>
+      function and <a href="/pkg/text/template/#Template.ParseFS"><code>template.Template.ParseFS</code></a>
+      method are like <a href="/pkg/text/template/#ParseGlob"><code>template.ParseGlob</code></a>
+      and <a href="/pkg/text/template/#Template.ParseGlob"><code>template.Template.ParseGlob</code></a>,
+      but read the templates from an <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a>.
     </p>
   </dd>
 </dl><!-- text/template -->

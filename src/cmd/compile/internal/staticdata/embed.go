@@ -23,13 +23,7 @@ const (
 	embedFiles
 )
 
-func embedFileList(v *ir.Name) []string {
-	kind := embedKind(v.Type())
-	if kind == embedUnknown {
-		base.ErrorfAt(v.Pos(), "go:embed cannot apply to var of type %v", v.Type())
-		return nil
-	}
-
+func embedFileList(v *ir.Name, kind int) []string {
 	// Build list of files to store.
 	have := make(map[string]bool)
 	var list []string
@@ -71,38 +65,15 @@ func embedFileList(v *ir.Name) []string {
 	return list
 }
 
-// embedKindApprox determines the kind of embedding variable, approximately.
-// The match is approximate because we haven't done scope resolution yet and
-// can't tell whether "string" and "byte" really mean "string" and "byte".
-// The result must be confirmed later, after type checking, using embedKind.
-func embedKindApprox(typ ir.Node) int {
-	if typ.Sym() != nil && typ.Sym().Name == "FS" && (typ.Sym().Pkg.Path == "embed" || (typ.Sym().Pkg == types.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
-		return embedFiles
-	}
-	// These are not guaranteed to match only string and []byte -
-	// maybe the local package has redefined one of those words.
-	// But it's the best we can do now during the noder.
-	// The stricter check happens later, in initEmbed calling embedKind.
-	if typ.Sym() != nil && typ.Sym().Name == "string" && typ.Sym().Pkg == types.LocalPkg {
-		return embedString
-	}
-	if typ, ok := typ.(*ir.SliceType); ok {
-		if sym := typ.Elem.Sym(); sym != nil && sym.Name == "byte" && sym.Pkg == types.LocalPkg {
-			return embedBytes
-		}
-	}
-	return embedUnknown
-}
-
 // embedKind determines the kind of embedding variable.
 func embedKind(typ *types.Type) int {
 	if typ.Sym() != nil && typ.Sym().Name == "FS" && (typ.Sym().Pkg.Path == "embed" || (typ.Sym().Pkg == types.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
 		return embedFiles
 	}
-	if typ == types.Types[types.TSTRING] {
+	if typ.Kind() == types.TSTRING {
 		return embedString
 	}
-	if typ.Sym() == nil && typ.IsSlice() && typ.Elem() == types.ByteType {
+	if typ.Sym() == nil && typ.IsSlice() && typ.Elem().Kind() == types.TUINT8 {
 		return embedBytes
 	}
 	return embedUnknown
@@ -134,11 +105,28 @@ func embedFileLess(x, y string) bool {
 // WriteEmbed emits the init data for a //go:embed variable,
 // which is either a string, a []byte, or an embed.FS.
 func WriteEmbed(v *ir.Name) {
-	files := embedFileList(v)
-	switch kind := embedKind(v.Type()); kind {
-	case embedUnknown:
-		base.ErrorfAt(v.Pos(), "go:embed cannot apply to var of type %v", v.Type())
+	// TODO(mdempsky): User errors should be reported by the frontend.
 
+	commentPos := (*v.Embed)[0].Pos
+	if !types.AllowsGoVersion(types.LocalPkg, 1, 16) {
+		prevPos := base.Pos
+		base.Pos = commentPos
+		base.ErrorfVers("go1.16", "go:embed")
+		base.Pos = prevPos
+		return
+	}
+	if base.Flag.Cfg.Embed.Patterns == nil {
+		base.ErrorfAt(commentPos, "invalid go:embed: build system did not supply embed configuration")
+		return
+	}
+	kind := embedKind(v.Type())
+	if kind == embedUnknown {
+		base.ErrorfAt(v.Pos(), "go:embed cannot apply to var of type %v", v.Type())
+		return
+	}
+
+	files := embedFileList(v, kind)
+	switch kind {
 	case embedString, embedBytes:
 		file := files[0]
 		fsym, size, err := fileStringSym(v.Pos(), base.Flag.Cfg.Embed.Files[file], kind == embedString, nil)

@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package test
 
 // This file contains utility routines and harness infrastructure used
 // by the ABI tests in "abiutils_test.go".
 
 import (
+	"cmd/compile/internal/abi"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -75,7 +76,7 @@ func tokenize(src string) []string {
 	return res
 }
 
-func verifyParamResultOffset(t *testing.T, f *types.Field, r ABIParamAssignment, which string, idx int) int {
+func verifyParamResultOffset(t *testing.T, f *types.Field, r abi.ABIParamAssignment, which string, idx int) int {
 	n := ir.AsNode(f.Nname).(*ir.Name)
 	if n.FrameOffset() != int64(r.Offset) {
 		t.Errorf("%s %d: got offset %d wanted %d t=%v",
@@ -110,7 +111,7 @@ func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
 	types.CalcSize(ft)
 
 	// Analyze with full set of registers.
-	regRes := ABIAnalyze(ft, configAMD64)
+	regRes := abi.ABIAnalyze(ft, configAMD64)
 	regResString := strings.TrimSpace(regRes.String())
 
 	// Check results.
@@ -121,12 +122,12 @@ func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
 	}
 
 	// Analyze again with empty register set.
-	empty := ABIConfig{}
-	emptyRes := ABIAnalyze(ft, empty)
+	empty := &abi.ABIConfig{}
+	emptyRes := abi.ABIAnalyze(ft, empty)
 	emptyResString := emptyRes.String()
 
 	// Walk the results and make sure the offsets assigned match
-	// up with those assiged by dowidth. This checks to make sure that
+	// up with those assiged by CalcSize. This checks to make sure that
 	// when we have no available registers the ABI assignment degenerates
 	// back to the original ABI0.
 
@@ -135,18 +136,18 @@ func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
 	rfsl := ft.Recvs().Fields().Slice()
 	poff := 0
 	if len(rfsl) != 0 {
-		failed |= verifyParamResultOffset(t, rfsl[0], emptyRes.inparams[0], "receiver", 0)
+		failed |= verifyParamResultOffset(t, rfsl[0], emptyRes.InParams()[0], "receiver", 0)
 		poff = 1
 	}
 	// params
 	pfsl := ft.Params().Fields().Slice()
 	for k, f := range pfsl {
-		verifyParamResultOffset(t, f, emptyRes.inparams[k+poff], "param", k)
+		verifyParamResultOffset(t, f, emptyRes.InParams()[k+poff], "param", k)
 	}
 	// results
 	ofsl := ft.Results().Fields().Slice()
 	for k, f := range ofsl {
-		failed |= verifyParamResultOffset(t, f, emptyRes.outparams[k], "result", k)
+		failed |= verifyParamResultOffset(t, f, emptyRes.OutParams()[k], "result", k)
 	}
 
 	if failed != 0 {

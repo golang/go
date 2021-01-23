@@ -1776,3 +1776,23 @@ func TestRecursiveExecute(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// Issue 43295.
+func TestTemplateFuncsAfterClone(t *testing.T) {
+	s := `{{ f . }}`
+	want := "test"
+	orig := New("orig").Funcs(map[string]interface{}{
+		"f": func(in string) string {
+			return in
+		},
+	}).New("child")
+
+	overviewTmpl := Must(Must(orig.Clone()).Parse(s))
+	var out strings.Builder
+	if err := overviewTmpl.Execute(&out, want); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != want {
+		t.Fatalf("got %q; want %q", got, want)
+	}
+}

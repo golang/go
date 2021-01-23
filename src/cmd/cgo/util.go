@@ -8,9 +8,9 @@ import (
 	"bytes"
 	"fmt"
 	"go/token"
+	exec "internal/execabs"
 	"io/ioutil"
 	"os"
-	"os/exec"
 )
 
 // run runs the command argv, feeding in stdin on standard input.
@@ -63,7 +63,7 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 	p.Env = append(os.Environ(), "TERM=dumb")
 	err := p.Run()
 	if _, ok := err.(*exec.ExitError); err != nil && !ok {
-		fatalf("%s", err)
+		fatalf("exec %s: %s", argv[0], err)
 	}
 	ok = p.ProcessState.Success()
 	stdout, stderr = bout.Bytes(), berr.Bytes()
@@ -88,7 +88,7 @@ func fatalf(msg string, args ...interface{}) {
 	// If we've already printed other errors, they might have
 	// caused the fatal condition. Assume they're enough.
 	if nerrors == 0 {
-		fmt.Fprintf(os.Stderr, msg+"\n", args...)
+		fmt.Fprintf(os.Stderr, "cgo: "+msg+"\n", args...)
 	}
 	os.Exit(2)
 }

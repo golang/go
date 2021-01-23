@@ -49,11 +49,11 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
+	exec "internal/execabs"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -1273,6 +1273,7 @@ func (ctxt *Link) hostlink() {
 		}
 	case objabi.Hopenbsd:
 		argv = append(argv, "-Wl,-nopie")
+		argv = append(argv, "-pthread")
 	case objabi.Hwindows:
 		if windowsgui {
 			argv = append(argv, "-mwindows")
@@ -1749,12 +1750,19 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
 	switch arch.Family {
 	case sys.I386:
 		return []string{"-m32"}
-	case sys.AMD64, sys.S390X:
+	case sys.AMD64:
+		if objabi.GOOS == "darwin" {
+			return []string{"-arch", "x86_64", "-m64"}
+		}
+		return []string{"-m64"}
+	case sys.S390X:
 		return []string{"-m64"}
 	case sys.ARM:
 		return []string{"-marm"}
 	case sys.ARM64:
-		// nothing needed
+		if objabi.GOOS == "darwin" {
+			return []string{"-arch", "arm64"}
+		}
 	case sys.MIPS64:
 		return []string{"-mabi=64"}
 	case sys.MIPS:

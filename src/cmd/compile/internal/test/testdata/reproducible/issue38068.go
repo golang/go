@@ -53,7 +53,7 @@ func G(x *A, n int) {
 		return
 	}
 	// Address-taken local of type A, which will insure that the
-	// compiler's dtypesym() routine will create a method wrapper.
+	// compiler's writeType() routine will create a method wrapper.
 	var a, b A
 	a.next = x
 	a.prev = &b

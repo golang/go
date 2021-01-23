@@ -248,18 +248,6 @@ func walkReturn(n *ir.ReturnStmt) ir.Node {
 	return n
 }
 
-// fncall reports whether assigning an rvalue of type rt to an lvalue l might involve a function call.
-func fncall(l ir.Node, rt *types.Type) bool {
-	if l.HasCall() || l.Op() == ir.OINDEXMAP {
-		return true
-	}
-	if types.Identical(l.Type(), rt) {
-		return false
-	}
-	// There might be a conversion required, which might involve a runtime call.
-	return true
-}
-
 // check assign type list to
 // an expression list. called in
 //	expr-list = func()
@@ -268,21 +256,17 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
 		base.Fatalf("ascompatet: assignment count mismatch: %d = %d", len(nl), nr.NumFields())
 	}
 
-	var nn, mm ir.Nodes
+	var nn ir.Nodes
 	for i, l := range nl {
 		if ir.IsBlank(l) {
 			continue
 		}
 		r := nr.Field(i)
 
-		// Any assignment to an lvalue that might cause a function call must be
-		// deferred until all the returned values have been read.
-		if fncall(l, r.Type) {
-			tmp := ir.Node(typecheck.Temp(r.Type))
-			tmp = typecheck.Expr(tmp)
-			a := convas(ir.NewAssignStmt(base.Pos, l, tmp), &mm)
-			mm.Append(a)
-			l = tmp
+		// Order should have created autotemps of the appropriate type for
+		// us to store results into.
+		if tmp, ok := l.(*ir.Name); !ok || !tmp.AutoTemp() || !types.Identical(tmp.Type(), r.Type) {
+			base.FatalfAt(l.Pos(), "assigning %v to %+v", r.Type, l)
 		}
 
 		res := ir.NewResultExpr(base.Pos, nil, types.BADWIDTH)
@@ -290,16 +274,9 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
 		res.SetType(r.Type)
 		res.SetTypecheck(1)
 
-		a := convas(ir.NewAssignStmt(base.Pos, l, res), &nn)
-		updateHasCall(a)
-		if a.HasCall() {
-			ir.Dump("ascompatet ucount", a)
-			base.Fatalf("ascompatet: too many function calls evaluating parameters")
-		}
-
-		nn.Append(a)
+		nn.Append(ir.NewAssignStmt(base.Pos, l, res))
 	}
-	return append(nn, mm...)
+	return nn
 }
 
 // check assign expression list to
@@ -392,11 +369,7 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
 
 		appendWalkStmt(&late, convas(ir.NewAssignStmt(base.Pos, lorig, r), &late))
 
-		if name == nil || name.Addrtaken() || name.Class == ir.PEXTERN || name.Class == ir.PAUTOHEAP {
-			memWrite = true
-			continue
-		}
-		if ir.IsBlank(name) {
+		if name != nil && ir.IsBlank(name) {
 			// We can ignore assignments to blank.
 			continue
 		}
@@ -405,7 +378,12 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
 			// parameters. These can't appear in expressions anyway.
 			continue
 		}
-		assigned.Add(name)
+
+		if name != nil && name.OnStack() && !name.Addrtaken() {
+			assigned.Add(name)
+		} else {
+			memWrite = true
+		}
 	}
 
 	early.Append(late.Take()...)
@@ -418,7 +396,10 @@ func readsMemory(n ir.Node) bool {
 	switch n.Op() {
 	case ir.ONAME:
 		n := n.(*ir.Name)
-		return n.Class == ir.PEXTERN || n.Class == ir.PAUTOHEAP || n.Addrtaken()
+		if n.Class == ir.PFUNC {
+			return false
+		}
+		return n.Addrtaken() || !n.OnStack()
 
 	case ir.OADD,
 		ir.OAND,
