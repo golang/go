@@ -623,6 +623,14 @@ func TestFoo(t *testing.T) {
       method allows accessing the <a href="/pkg/crypto/x509/#SystemRootsError.Err"><code>Err</code></a>
       field through the <a href="/pkg/errors"><code>errors</code></a> package functions.
     </p>
+
+    <p><!-- CL 230025 -->
+      On Unix systems, the <code>crypto/x509</code> package is now more
+      efficient in how it stores its copy of the system cert pool.
+      Programs that use only a small number of roots will use around a
+      half megabyte less memory.
+    </p>
+
   </dd>
 </dl><!-- crypto/x509 -->
 
