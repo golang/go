@@ -8,7 +8,6 @@ package types2
 import (
 	"cmd/compile/internal/syntax"
 	"fmt"
-	"sort"
 )
 
 // A Type represents a type of Go.
@@ -481,8 +480,8 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 	}
 
 	// sort for API stability
-	sort.Sort(byUniqueMethodName(methods))
-	sort.Stable(byUniqueTypeName(embeddeds))
+	sortMethods(methods)
+	sortTypes(embeddeds)
 
 	typ.methods = methods
 	typ.embeddeds = embeddeds
@@ -685,7 +684,7 @@ func (t *Interface) Complete() *Interface {
 	}
 
 	if methods != nil {
-		sort.Sort(byUniqueMethodName(methods))
+		sortMethods(methods)
 		t.allMethods = methods
 	}
 	t.allTypes = allTypes

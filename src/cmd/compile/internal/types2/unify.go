@@ -6,8 +6,6 @@
 
 package types2
 
-import "sort"
-
 // The unifier maintains two separate sets of type parameters x and y
 // which are used to resolve type parameters in the x and y arguments
 // provided to the unify call. For unidirectional unification, only
@@ -386,8 +384,8 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 					p = p.prev
 				}
 				if debug {
-					assert(sort.IsSorted(byUniqueMethodName(a)))
-					assert(sort.IsSorted(byUniqueMethodName(b)))
+					assertSortedMethods(a)
+					assertSortedMethods(b)
 				}
 				for i, f := range a {
 					g := b[i]
