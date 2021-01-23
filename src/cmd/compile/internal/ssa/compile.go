@@ -431,7 +431,6 @@ var passes = [...]pass{
 	{name: "early copyelim", fn: copyelim},
 	{name: "early deadcode", fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
 	{name: "short circuit", fn: shortcircuit},
-	{name: "decompose args", fn: decomposeArgs, required: !go116lateCallExpansion, disabled: go116lateCallExpansion}, // handled by late call lowering
 	{name: "decompose user", fn: decomposeUser, required: true},
 	{name: "pre-opt deadcode", fn: deadcode},
 	{name: "opt", fn: opt, required: true},               // NB: some generic rules know the name of the opt pass. TODO: split required rules and optimizing rules
