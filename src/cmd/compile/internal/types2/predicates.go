@@ -6,10 +6,6 @@
 
 package types2
 
-import (
-	"sort"
-)
-
 // isNamed reports whether typ has a name.
 // isNamed may be called with types that are not fully set up.
 func isNamed(typ Type) bool {
@@ -329,8 +325,8 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 					p = p.prev
 				}
 				if debug {
-					assert(sort.IsSorted(byUniqueMethodName(a)))
-					assert(sort.IsSorted(byUniqueMethodName(b)))
+					assertSortedMethods(a)
+					assertSortedMethods(b)
 				}
 				for i, f := range a {
 					g := b[i]

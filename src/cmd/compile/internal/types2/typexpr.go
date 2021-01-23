@@ -876,8 +876,8 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 	}
 
 	// sort for API stability
-	sort.Sort(byUniqueMethodName(ityp.methods))
-	sort.Stable(byUniqueTypeName(ityp.embeddeds))
+	sortMethods(ityp.methods)
+	sortTypes(ityp.embeddeds)
 
 	check.later(func() { check.completeInterface(iface.Pos(), ityp) })
 }
@@ -985,7 +985,7 @@ func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
 	}
 
 	if methods != nil {
-		sort.Sort(byUniqueMethodName(methods))
+		sortMethods(methods)
 		ityp.allMethods = methods
 	}
 	ityp.allTypes = allTypes
@@ -1029,6 +1029,10 @@ func intersect(x, y Type) (r Type) {
 	return NewSum(rtypes)
 }
 
+func sortTypes(list []Type) {
+	sort.Stable(byUniqueTypeName(list))
+}
+
 // byUniqueTypeName named type lists can be sorted by their unique type names.
 type byUniqueTypeName []Type
 
@@ -1041,6 +1045,19 @@ func sortName(t Type) string {
 		return named.obj.Id()
 	}
 	return ""
+}
+
+func sortMethods(list []*Func) {
+	sort.Sort(byUniqueMethodName(list))
+}
+
+func assertSortedMethods(list []*Func) {
+	if !debug {
+		panic("internal error: assertSortedMethods called outside debug mode")
+	}
+	if !sort.IsSorted(byUniqueMethodName(list)) {
+		panic("internal error: methods not sorted")
+	}
 }
 
 // byUniqueMethodName method lists can be sorted by their unique method names.
