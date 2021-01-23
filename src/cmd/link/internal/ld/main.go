@@ -183,6 +183,14 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	interpreter = *flagInterpreter
 
+	if *flagBuildid == "" && ctxt.Target.IsOpenbsd() {
+		// TODO(jsing): Remove once direct syscalls are no longer in use.
+		// OpenBSD 6.7 onwards will not permit direct syscalls from a
+		// dynamically linked binary unless it identifies the binary
+		// contains a .note.go.buildid ELF note. See issue #36435.
+		*flagBuildid = "go-openbsd"
+	}
+
 	// enable benchmarking
 	var bench *benchmark.Metrics
 	if len(*benchmarkFlag) != 0 {
@@ -329,6 +337,8 @@ func Main(arch *sys.Arch, theArch Arch) {
 	// will be applied directly there.
 	bench.Start("Asmb")
 	asmb(ctxt)
+
+	exitIfErrors()
 
 	// Generate additional symbols for the native symbol table just prior
 	// to code generation.

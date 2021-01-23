@@ -25,7 +25,7 @@ import (
 	"io/fs"
 	"log"
 	"os"
-	"os/exec"
+	exec "internal/execabs"
 	"path/filepath"
 	"strings"
 

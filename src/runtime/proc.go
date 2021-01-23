@@ -1206,6 +1206,33 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 	return startTime
 }
 
+// usesLibcall indicates whether this runtime performs system calls
+// via libcall.
+func usesLibcall() bool {
+	switch GOOS {
+	case "aix", "darwin", "illumos", "ios", "solaris", "windows":
+		return true
+	case "openbsd":
+		return GOARCH == "amd64"
+	}
+	return false
+}
+
+// mStackIsSystemAllocated indicates whether this runtime starts on a
+// system-allocated stack.
+func mStackIsSystemAllocated() bool {
+	switch GOOS {
+	case "aix", "darwin", "plan9", "illumos", "ios", "solaris", "windows":
+		return true
+	case "openbsd":
+		switch GOARCH {
+		case "amd64", "arm64":
+			return true
+		}
+	}
+	return false
+}
+
 // mstart is the entry-point for new Ms.
 //
 // This must not split the stack because we may not even have stack
@@ -1224,6 +1251,11 @@ func mstart() {
 		// Initialize stack bounds from system stack.
 		// Cgo may have left stack size in stack.hi.
 		// minit may update the stack bounds.
+		//
+		// Note: these bounds may not be very accurate.
+		// We set hi to &size, but there are things above
+		// it. The 1024 is supposed to compensate this,
+		// but is somewhat arbitrary.
 		size := _g_.stack.hi
 		if size == 0 {
 			size = 8192 * sys.StackGuardMultiplier
@@ -1240,8 +1272,7 @@ func mstart() {
 	mstart1()
 
 	// Exit this thread.
-	switch GOOS {
-	case "windows", "solaris", "illumos", "plan9", "darwin", "ios", "aix":
+	if mStackIsSystemAllocated() {
 		// Windows, Solaris, illumos, Darwin, AIX and Plan 9 always system-allocate
 		// the stack, but put it in _g_.stack before mstart,
 		// so the logic above hasn't set osStack yet.
@@ -1406,6 +1437,10 @@ found:
 			atomic.Xadd(&pendingPreemptSignals, -1)
 		}
 	}
+
+	// Destroy all allocated resources. After this is called, we may no
+	// longer take any locks.
+	mdestroy(m)
 
 	if osStack {
 		// Return from mstart and let the system thread
@@ -1720,7 +1755,7 @@ func allocm(_p_ *p, fn func(), id int64) *m {
 
 	// In case of cgo or Solaris or illumos or Darwin, pthread_create will make us a stack.
 	// Windows and Plan 9 will layout sched stack on OS stack.
-	if iscgo || GOOS == "solaris" || GOOS == "illumos" || GOOS == "windows" || GOOS == "plan9" || GOOS == "darwin" || GOOS == "ios" {
+	if iscgo || mStackIsSystemAllocated() {
 		mp.g0 = malg(-1)
 	} else {
 		mp.g0 = malg(8192 * sys.StackGuardMultiplier)
@@ -4468,7 +4503,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		// Normal traceback is impossible or has failed.
 		// See if it falls into several common cases.
 		n = 0
-		if (GOOS == "windows" || GOOS == "solaris" || GOOS == "illumos" || GOOS == "darwin" || GOOS == "ios" || GOOS == "aix") && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
+		if usesLibcall() && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
 			// Libcall, i.e. runtime syscall on windows.
 			// Collect Go stack that leads to the call.
 			n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg.ptr(), 0, &stk[0], len(stk), nil, nil, 0)

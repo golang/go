@@ -27,9 +27,7 @@ type Template struct {
 	// template's in sync.
 	text *template.Template
 	// The underlying template's parse tree, updated to be HTML-safe.
-	Tree *parse.Tree
-	// The original functions, before wrapping.
-	funcMap    FuncMap
+	Tree       *parse.Tree
 	*nameSpace // common to all associated templates
 }
 
@@ -42,6 +40,8 @@ type nameSpace struct {
 	set     map[string]*Template
 	escaped bool
 	esc     escaper
+	// The original functions, before wrapping.
+	funcMap FuncMap
 }
 
 // Templates returns a slice of the templates associated with t, including t
@@ -260,7 +260,6 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error
 		nil,
 		text,
 		text.Tree,
-		nil,
 		t.nameSpace,
 	}
 	t.set[name] = ret
@@ -287,14 +286,19 @@ func (t *Template) Clone() (*Template, error) {
 	}
 	ns := &nameSpace{set: make(map[string]*Template)}
 	ns.esc = makeEscaper(ns)
+	if t.nameSpace.funcMap != nil {
+		ns.funcMap = make(FuncMap, len(t.nameSpace.funcMap))
+		for name, fn := range t.nameSpace.funcMap {
+			ns.funcMap[name] = fn
+		}
+	}
+	wrapFuncs(ns, textClone, ns.funcMap)
 	ret := &Template{
 		nil,
 		textClone,
 		textClone.Tree,
-		t.funcMap,
 		ns,
 	}
-	ret.wrapFuncs()
 	ret.set[ret.Name()] = ret
 	for _, x := range textClone.Templates() {
 		name := x.Name()
@@ -307,10 +311,8 @@ func (t *Template) Clone() (*Template, error) {
 			nil,
 			x,
 			x.Tree,
-			src.funcMap,
 			ret.nameSpace,
 		}
-		tc.wrapFuncs()
 		ret.set[name] = tc
 	}
 	// Return the template associated with the name of this template.
@@ -324,7 +326,6 @@ func New(name string) *Template {
 	tmpl := &Template{
 		nil,
 		template.New(name),
-		nil,
 		nil,
 		ns,
 	}
@@ -350,7 +351,6 @@ func (t *Template) new(name string) *Template {
 	tmpl := &Template{
 		nil,
 		t.text.New(name),
-		nil,
 		nil,
 		t.nameSpace,
 	}
@@ -382,23 +382,31 @@ type FuncMap map[string]interface{}
 // type. However, it is legal to overwrite elements of the map. The return
 // value is the template, so calls can be chained.
 func (t *Template) Funcs(funcMap FuncMap) *Template {
-	t.funcMap = funcMap
-	t.wrapFuncs()
+	t.nameSpace.mu.Lock()
+	if t.nameSpace.funcMap == nil {
+		t.nameSpace.funcMap = make(FuncMap, len(funcMap))
+	}
+	for name, fn := range funcMap {
+		t.nameSpace.funcMap[name] = fn
+	}
+	t.nameSpace.mu.Unlock()
+
+	wrapFuncs(t.nameSpace, t.text, funcMap)
 	return t
 }
 
 // wrapFuncs records the functions with text/template. We wrap them to
 // unlock the nameSpace. See TestRecursiveExecute for a test case.
-func (t *Template) wrapFuncs() {
-	if len(t.funcMap) == 0 {
+func wrapFuncs(ns *nameSpace, textTemplate *template.Template, funcMap FuncMap) {
+	if len(funcMap) == 0 {
 		return
 	}
-	tfuncs := make(template.FuncMap, len(t.funcMap))
-	for name, fn := range t.funcMap {
+	tfuncs := make(template.FuncMap, len(funcMap))
+	for name, fn := range funcMap {
 		fnv := reflect.ValueOf(fn)
 		wrapper := func(args []reflect.Value) []reflect.Value {
-			t.nameSpace.mu.RUnlock()
-			defer t.nameSpace.mu.RLock()
+			ns.mu.RUnlock()
+			defer ns.mu.RLock()
 			if fnv.Type().IsVariadic() {
 				return fnv.CallSlice(args)
 			} else {
@@ -408,7 +416,7 @@ func (t *Template) wrapFuncs() {
 		wrapped := reflect.MakeFunc(fnv.Type(), wrapper)
 		tfuncs[name] = wrapped.Interface()
 	}
-	t.text.Funcs(tfuncs)
+	textTemplate.Funcs(tfuncs)
 }
 
 // Delims sets the action delimiters to the specified strings, to be used in

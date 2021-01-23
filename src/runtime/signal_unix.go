@@ -475,6 +475,14 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
 		return false
 	}
 
+	var st stackt
+	sigaltstack(nil, &st)
+	stsp := uintptr(unsafe.Pointer(st.ss_sp))
+	if st.ss_flags&_SS_DISABLE == 0 && sp >= stsp && sp < stsp+st.ss_size {
+		setGsignalStack(&st, gsigStack)
+		return true
+	}
+
 	if sp >= mp.g0.stack.lo && sp < mp.g0.stack.hi {
 		// The signal was delivered on the g0 stack.
 		// This can happen when linked with C code
@@ -483,29 +491,25 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
 		// the signal handler directly when C code,
 		// including C code called via cgo, calls a
 		// TSAN-intercepted function such as malloc.
+		//
+		// We check this condition last as g0.stack.lo
+		// may be not very accurate (see mstart).
 		st := stackt{ss_size: mp.g0.stack.hi - mp.g0.stack.lo}
 		setSignalstackSP(&st, mp.g0.stack.lo)
 		setGsignalStack(&st, gsigStack)
 		return true
 	}
 
-	var st stackt
-	sigaltstack(nil, &st)
+	// sp is not within gsignal stack, g0 stack, or sigaltstack. Bad.
+	setg(nil)
+	needm()
 	if st.ss_flags&_SS_DISABLE != 0 {
-		setg(nil)
-		needm()
 		noSignalStack(sig)
-		dropm()
-	}
-	stsp := uintptr(unsafe.Pointer(st.ss_sp))
-	if sp < stsp || sp >= stsp+st.ss_size {
-		setg(nil)
-		needm()
+	} else {
 		sigNotOnStack(sig)
-		dropm()
 	}
-	setGsignalStack(&st, gsigStack)
-	return true
+	dropm()
+	return false
 }
 
 // crashing is the number of m's we have waited for when implementing
