@@ -330,6 +330,36 @@ func (obj *Func) FullName() string {
 // Scope returns the scope of the function's body block.
 func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
 
+// Less reports whether function a is ordered before function b.
+//
+// Functions are ordered exported before non-exported, then by name,
+// and finally (for non-exported functions) by package path.
+//
+// TODO(gri) The compiler also sorts by package height before package
+//           path for non-exported names.
+func (a *Func) less(b *Func) bool {
+	if a == b {
+		return false
+	}
+
+	// Exported functions before non-exported.
+	ea := isExported(a.name)
+	eb := isExported(b.name)
+	if ea != eb {
+		return ea
+	}
+
+	// Order by name and then (for non-exported names) by package.
+	if a.name != b.name {
+		return a.name < b.name
+	}
+	if !ea {
+		return a.pkg.path < b.pkg.path
+	}
+
+	return false
+}
+
 func (*Func) isDependency() {} // a function may be a dependency of an initialization expression
 
 // A Label represents a declared label.
