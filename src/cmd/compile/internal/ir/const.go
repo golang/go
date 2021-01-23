@@ -77,7 +77,7 @@ func ConstOverflow(v constant.Value, t *types.Type) bool {
 		ft := types.FloatForComplex(t)
 		return ConstOverflow(constant.Real(v), ft) || ConstOverflow(constant.Imag(v), ft)
 	}
-	base.Fatalf("doesoverflow: %v, %v", v, t)
+	base.Fatalf("ConstOverflow: %v, %v", v, t)
 	panic("unreachable")
 }
 

@@ -111,7 +111,6 @@ func dumpdata() {
 	numDecls := len(typecheck.Target.Decls)
 
 	dumpglobls(typecheck.Target.Externs)
-	staticdata.WriteFuncSyms()
 	reflectdata.CollectPTabs()
 	numExports := len(typecheck.Target.Exports)
 	addsignats(typecheck.Target.Externs)
@@ -122,7 +121,7 @@ func dumpdata() {
 	reflectdata.WriteBasicTypes()
 	dumpembeds()
 
-	// Calls to dumpsignats can generate functions,
+	// Calls to WriteRuntimeTypes can generate functions,
 	// like method wrappers and hash and equality routines.
 	// Compile any generated functions, process any new resulting types, repeat.
 	// This can't loop forever, because there is no way to generate an infinite
@@ -147,10 +146,11 @@ func dumpdata() {
 	dumpglobls(typecheck.Target.Externs[numExterns:])
 
 	if reflectdata.ZeroSize > 0 {
-		zero := ir.Pkgs.Map.Lookup("zero").Linksym()
+		zero := base.PkgLinksym("go.map", "zero", obj.ABI0)
 		objw.Global(zero, int32(reflectdata.ZeroSize), obj.DUPOK|obj.RODATA)
 	}
 
+	staticdata.WriteFuncSyms()
 	addGCLocals()
 
 	if numExports != len(typecheck.Target.Exports) {

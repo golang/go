@@ -133,7 +133,7 @@ import (
 // See the package documentation for more details about initializing an FS.
 type FS struct {
 	// The compiler knows the layout of this struct.
-	// See cmd/compile/internal/gc's initEmbed.
+	// See cmd/compile/internal/staticdata's WriteEmbed.
 	//
 	// The files list is sorted by name but not by simple string comparison.
 	// Instead, each file's name takes the form "dir/elem" or "dir/elem/".
@@ -203,7 +203,7 @@ var (
 // It implements fs.FileInfo and fs.DirEntry.
 type file struct {
 	// The compiler knows the layout of this struct.
-	// See cmd/compile/internal/gc's initEmbed.
+	// See cmd/compile/internal/staticdata's WriteEmbed.
 	name string
 	data string
 	hash [16]byte // truncated SHA256 hash
@@ -244,6 +244,9 @@ func (f FS) lookup(name string) *file {
 	if name == "." {
 		return dotFile
 	}
+	if f.files == nil {
+		return nil
+	}
 
 	// Binary search to find where name would be in the list,
 	// and then check if name is at that position.
@@ -261,6 +264,9 @@ func (f FS) lookup(name string) *file {
 
 // readDir returns the list of files corresponding to the directory dir.
 func (f FS) readDir(dir string) []file {
+	if f.files == nil {
+		return nil
+	}
 	// Binary search to find where dir starts and ends in the list
 	// and then return that slice of the list.
 	files := *f.files

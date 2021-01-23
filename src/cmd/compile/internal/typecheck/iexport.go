@@ -423,9 +423,13 @@ type exportWriter struct {
 	prevLine   int64
 	prevColumn int64
 
-	// dclIndex maps function-scoped declarations to their index
-	// within their respective Func's Dcl list.
-	dclIndex map[*ir.Name]int
+	// dclIndex maps function-scoped declarations to an int used to refer to
+	// them later in the function. For local variables/params, the int is
+	// non-negative and in order of the appearance in the Func's Dcl list. For
+	// closure variables, the index is negative starting at -2.
+	dclIndex           map[*ir.Name]int
+	maxDclIndex        int
+	maxClosureVarIndex int
 }
 
 func (p *iexporter) doDecl(n *ir.Name) {
@@ -976,6 +980,9 @@ func (w *exportWriter) funcExt(n *ir.Name) {
 	w.linkname(n.Sym())
 	w.symIdx(n.Sym())
 
+	// TODO remove after register abi is working.
+	w.uint64(uint64(n.Func.Pragma))
+
 	// Escape analysis.
 	for _, fs := range &types.RecvsParams {
 		for _, f := range fs(n.Type()).FieldSlice() {
@@ -1035,14 +1042,19 @@ func (w *exportWriter) typeExt(t *types.Type) {
 
 // Inline bodies.
 
-func (w *exportWriter) funcBody(fn *ir.Func) {
-	w.int64(int64(len(fn.Inl.Dcl)))
-	for i, n := range fn.Inl.Dcl {
+func (w *exportWriter) writeNames(dcl []*ir.Name) {
+	w.int64(int64(len(dcl)))
+	for i, n := range dcl {
 		w.pos(n.Pos())
 		w.localIdent(n.Sym())
 		w.typ(n.Type())
-		w.dclIndex[n] = i
+		w.dclIndex[n] = w.maxDclIndex + i
 	}
+	w.maxDclIndex += len(dcl)
+}
+
+func (w *exportWriter) funcBody(fn *ir.Func) {
+	w.writeNames(fn.Inl.Dcl)
 
 	w.stmtList(fn.Inl.Body)
 }
@@ -1312,8 +1324,30 @@ func (w *exportWriter) expr(n ir.Node) {
 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
 	// 	should have been resolved by typechecking - handled by default case
 
-	// case OCLOSURE:
-	//	unimplemented - handled by default case
+	case ir.OCLOSURE:
+		n := n.(*ir.ClosureExpr)
+		w.op(ir.OCLOSURE)
+		w.pos(n.Pos())
+		w.signature(n.Type())
+
+		// Write out id for the Outer of each conditional variable. The
+		// conditional variable itself for this closure will be re-created
+		// during import.
+		w.int64(int64(len(n.Func.ClosureVars)))
+		for i, cv := range n.Func.ClosureVars {
+			w.pos(cv.Pos())
+			w.localName(cv.Outer)
+			// Closure variable (which will be re-created during
+			// import) is given via a negative id, starting at -2,
+			// which is used to refer to it later in the function
+			// during export. -1 represents blanks.
+			w.dclIndex[cv] = -(i + 2) - w.maxClosureVarIndex
+		}
+		w.maxClosureVarIndex += len(n.Func.ClosureVars)
+
+		// like w.funcBody(n.Func), but not for .Inl
+		w.writeNames(n.Func.Dcl)
+		w.stmtList(n.Func.Body)
 
 	// case OCOMPLIT:
 	// 	should have been resolved by typechecking - handled by default case

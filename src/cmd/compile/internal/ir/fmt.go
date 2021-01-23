@@ -378,9 +378,9 @@ func stmtFmt(n Node, s fmt.State) {
 		n := n.(*ReturnStmt)
 		fmt.Fprintf(s, "return %.v", n.Results)
 
-	case ORETJMP:
-		n := n.(*BranchStmt)
-		fmt.Fprintf(s, "retjmp %v", n.Label)
+	case OTAILCALL:
+		n := n.(*TailCallStmt)
+		fmt.Fprintf(s, "tailcall %v", n.Target)
 
 	case OINLMARK:
 		n := n.(*InlineMarkStmt)
@@ -589,20 +589,20 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		}
 
 		if n.Type() == types.UntypedRune {
-			switch x, ok := constant.Int64Val(n.Val()); {
+			switch x, ok := constant.Uint64Val(n.Val()); {
 			case !ok:
 				fallthrough
 			default:
 				fmt.Fprintf(s, "('\\x00' + %v)", n.Val())
 
-			case ' ' <= x && x < utf8.RuneSelf && x != '\\' && x != '\'':
-				fmt.Fprintf(s, "'%c'", int(x))
+			case x < utf8.RuneSelf:
+				fmt.Fprintf(s, "%q", x)
 
-			case 0 <= x && x < 1<<16:
-				fmt.Fprintf(s, "'\\u%04x'", uint(int(x)))
+			case x < 1<<16:
+				fmt.Fprintf(s, "'\\u%04x'", x)
 
-			case 0 <= x && x <= utf8.MaxRune:
-				fmt.Fprintf(s, "'\\U%08x'", uint64(x))
+			case x <= utf8.MaxRune:
+				fmt.Fprintf(s, "'\\U%08x'", x)
 			}
 		} else {
 			fmt.Fprint(s, types.FmtConst(n.Val(), s.Flag('#')))
@@ -632,9 +632,9 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	case OPACK, ONONAME:
 		fmt.Fprint(s, n.Sym())
 
-	case ONAMEOFFSET:
-		n := n.(*NameOffsetExpr)
-		fmt.Fprintf(s, "(%v)(%v@%d)", n.Type(), n.Name_, n.Offset_)
+	case OLINKSYMOFFSET:
+		n := n.(*LinksymOffsetExpr)
+		fmt.Fprintf(s, "(%v)(%s@%d)", n.Type(), n.Linksym.Name, n.Offset_)
 
 	case OTYPE:
 		if n.Type() == nil && n.Sym() != nil {
@@ -1020,6 +1020,15 @@ func dumpNodeHeader(w io.Writer, n Node) {
 		fmt.Fprintf(w, " defn(%p)", n.Name().Defn)
 	}
 
+	if base.Debug.DumpPtrs != 0 && n.Name() != nil && n.Name().Curfn != nil {
+		// Useful to see where Defn is set and what node it points to
+		fmt.Fprintf(w, " curfn(%p)", n.Name().Curfn)
+	}
+	if base.Debug.DumpPtrs != 0 && n.Name() != nil && n.Name().Outer != nil {
+		// Useful to see where Defn is set and what node it points to
+		fmt.Fprintf(w, " outer(%p)", n.Name().Outer)
+	}
+
 	if EscFmt != nil {
 		if esc := EscFmt(n); esc != "" {
 			fmt.Fprintf(w, " %s", esc)
@@ -1119,6 +1128,11 @@ func dumpNode(w io.Writer, n Node, depth int) {
 		return
 	}
 
+	if n == nil {
+		fmt.Fprint(w, "NilIrNode")
+		return
+	}
+
 	if len(n.Init()) != 0 {
 		fmt.Fprintf(w, "%+v-init", n.Op())
 		dumpNodes(w, n.Init(), depth+1)
@@ -1181,6 +1195,18 @@ func dumpNode(w io.Writer, n Node, depth int) {
 			for _, dcl := range n.Dcl {
 				dumpNode(w, dcl, depth+1)
 			}
+		}
+		if len(fn.ClosureVars) > 0 {
+			indent(w, depth)
+			fmt.Fprintf(w, "%+v-ClosureVars", n.Op())
+			for _, cv := range fn.ClosureVars {
+				dumpNode(w, cv, depth+1)
+			}
+		}
+		if len(fn.Enter) > 0 {
+			indent(w, depth)
+			fmt.Fprintf(w, "%+v-Enter", n.Op())
+			dumpNodes(w, fn.Enter, depth+1)
 		}
 		if len(fn.Body) > 0 {
 			indent(w, depth)

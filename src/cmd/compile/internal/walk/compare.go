@@ -418,7 +418,7 @@ func eqFor(t *types.Type) (n ir.Node, needsize bool) {
 	// Should only arrive here with large memory or
 	// a struct/array containing a non-memory field/element.
 	// Small memory is handled inline, and single non-memory
-	// is handled by walkcompare.
+	// is handled by walkCompare.
 	switch a, _ := types.AlgType(t); a {
 	case types.AMEM:
 		n := typecheck.LookupRuntime("memequal")
@@ -436,7 +436,7 @@ func eqFor(t *types.Type) (n ir.Node, needsize bool) {
 		}))
 		return n, false
 	}
-	base.Fatalf("eqfor %v", t)
+	base.Fatalf("eqFor %v", t)
 	return nil, false
 }
 

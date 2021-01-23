@@ -428,7 +428,7 @@ func clearImports() {
 		if types.IsDotAlias(s) {
 			// throw away top-level name left over
 			// from previous import . "x"
-			// We'll report errors after type checking in checkDotImports.
+			// We'll report errors after type checking in CheckDotImports.
 			s.Def = nil
 			continue
 		}

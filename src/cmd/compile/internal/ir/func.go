@@ -63,7 +63,7 @@ type Func struct {
 	Exit  Nodes
 
 	// ONAME nodes for all params/locals for this func/closure, does NOT
-	// include closurevars until transformclosure runs.
+	// include closurevars until transforming closures during walk.
 	// Names must be listed PPARAMs, PPARAMOUTs, then PAUTOs,
 	// with PPARAMs and PPARAMOUTs in order corresponding to the function signature.
 	// However, as anonymous or blank PPARAMs are not actually declared,
@@ -133,9 +133,10 @@ func (n *Func) copy() Node                         { panic(n.no("copy")) }
 func (n *Func) doChildren(do func(Node) bool) bool { return doNodes(n.Body, do) }
 func (n *Func) editChildren(edit func(Node) Node)  { editNodes(n.Body, edit) }
 
-func (f *Func) Type() *types.Type  { return f.Nname.Type() }
-func (f *Func) Sym() *types.Sym    { return f.Nname.Sym() }
-func (f *Func) Linksym() *obj.LSym { return f.Nname.Linksym() }
+func (f *Func) Type() *types.Type                { return f.Nname.Type() }
+func (f *Func) Sym() *types.Sym                  { return f.Nname.Sym() }
+func (f *Func) Linksym() *obj.LSym               { return f.Nname.Linksym() }
+func (f *Func) LinksymABI(abi obj.ABI) *obj.LSym { return f.Nname.LinksymABI(abi) }
 
 // An Inline holds fields used for function bodies that can be inlined.
 type Inline struct {

@@ -689,7 +689,7 @@ func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
 // eqtab must be evaluated before eqdata, and shortcircuiting is required.
 func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 	if !types.Identical(s.Type(), t.Type()) {
-		base.Fatalf("eqinterface %v %v", s.Type(), t.Type())
+		base.Fatalf("EqInterface %v %v", s.Type(), t.Type())
 	}
 	// func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
 	// func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)

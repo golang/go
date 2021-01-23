@@ -58,7 +58,7 @@ func typePos(t *Type) src.XPos {
 var MaxWidth int64
 
 // CalcSizeDisabled indicates whether it is safe
-// to calculate Types' widths and alignments. See dowidth.
+// to calculate Types' widths and alignments. See CalcSize.
 var CalcSizeDisabled bool
 
 // machine size and rounding alignment is dictated around
@@ -135,7 +135,7 @@ func expandiface(t *Type) {
 		m.Offset = int64(i) * int64(PtrSize)
 	}
 
-	// Access fields directly to avoid recursively calling dowidth
+	// Access fields directly to avoid recursively calling CalcSize
 	// within Type.Fields().
 	t.Extra.(*Interface).Fields.Set(methods)
 }
@@ -164,7 +164,7 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 		f.Offset = o
 		if f.Nname != nil {
 			// addrescapes has similar code to update these offsets.
-			// Usually addrescapes runs after widstruct,
+			// Usually addrescapes runs after calcStructOffset,
 			// in which case we could drop this,
 			// but function closure functions are the exception.
 			// NOTE(rsc): This comment may be stale.
@@ -306,17 +306,16 @@ func reportTypeLoop(t *Type) {
 }
 
 // CalcSize calculates and stores the size and alignment for t.
-// If sizeCalculationDisabled is set, and the size/alignment
+// If CalcSizeDisabled is set, and the size/alignment
 // have not already been calculated, it calls Fatal.
 // This is used to prevent data races in the back end.
 func CalcSize(t *Type) {
-	// Calling dowidth when typecheck tracing enabled is not safe.
+	// Calling CalcSize when typecheck tracing enabled is not safe.
 	// See issue #33658.
 	if base.EnableTrace && SkipSizeForTracing {
 		return
 	}
 	if PtrSize == 0 {
-
 		// Assume this is a test.
 		return
 	}
@@ -351,7 +350,7 @@ func CalcSize(t *Type) {
 		return
 	}
 
-	// defer checkwidth calls until after we're done
+	// defer CheckSize calls until after we're done
 	DeferCheckSize()
 
 	lno := base.Pos
@@ -367,7 +366,7 @@ func CalcSize(t *Type) {
 	case TFUNC, TCHAN, TMAP, TSTRING:
 		break
 
-	// simtype == 0 during bootstrap
+	// SimType == 0 during bootstrap
 	default:
 		if SimType[t.Kind()] != 0 {
 			et = SimType[t.Kind()]
@@ -377,7 +376,7 @@ func CalcSize(t *Type) {
 	var w int64
 	switch et {
 	default:
-		base.Fatalf("dowidth: unknown type: %v", t)
+		base.Fatalf("CalcSize: unknown type: %v", t)
 
 	// compiler-specific stuff
 	case TINT8, TUINT8, TBOOL:
@@ -443,11 +442,11 @@ func CalcSize(t *Type) {
 
 	case TANY:
 		// not a real type; should be replaced before use.
-		base.Fatalf("dowidth any")
+		base.Fatalf("CalcSize any")
 
 	case TSTRING:
 		if StringSize == 0 {
-			base.Fatalf("early dowidth string")
+			base.Fatalf("early CalcSize string")
 		}
 		w = StringSize
 		t.Align = uint8(PtrSize)
@@ -477,7 +476,7 @@ func CalcSize(t *Type) {
 
 	case TSTRUCT:
 		if t.IsFuncArgStruct() {
-			base.Fatalf("dowidth fn struct %v", t)
+			base.Fatalf("CalcSize fn struct %v", t)
 		}
 		w = calcStructOffset(t, t, 0, 1)
 
@@ -526,7 +525,7 @@ func CalcStructSize(s *Type) {
 	s.Width = calcStructOffset(s, s, 0, 1) // sets align
 }
 
-// when a type's width should be known, we call checkwidth
+// when a type's width should be known, we call CheckSize
 // to compute it.  during a declaration like
 //
 //	type T *struct { next T }
@@ -535,11 +534,11 @@ func CalcStructSize(s *Type) {
 // until after T has been initialized to be a pointer to that struct.
 // similarly, during import processing structs may be used
 // before their definition.  in those situations, calling
-// defercheckwidth() stops width calculations until
-// resumecheckwidth() is called, at which point all the
-// checkwidths that were deferred are executed.
-// dowidth should only be called when the type's size
-// is needed immediately.  checkwidth makes sure the
+// DeferCheckSize() stops width calculations until
+// ResumeCheckSize() is called, at which point all the
+// CalcSizes that were deferred are executed.
+// CalcSize should only be called when the type's size
+// is needed immediately.  CheckSize makes sure the
 // size is evaluated eventually.
 
 var deferredTypeStack []*Type
@@ -552,7 +551,7 @@ func CheckSize(t *Type) {
 	// function arg structs should not be checked
 	// outside of the enclosing function.
 	if t.IsFuncArgStruct() {
-		base.Fatalf("checkwidth %v", t)
+		base.Fatalf("CheckSize %v", t)
 	}
 
 	if defercalc == 0 {
@@ -606,7 +605,7 @@ func PtrDataSize(t *Type) int64 {
 	case TINTER:
 		// struct { Itab *tab;	void *data; } or
 		// struct { Type *type; void *data; }
-		// Note: see comment in plive.go:onebitwalktype1.
+		// Note: see comment in typebits.Set
 		return 2 * int64(PtrSize)
 
 	case TSLICE:
@@ -628,7 +627,7 @@ func PtrDataSize(t *Type) int64 {
 		return lastPtrField.Offset + PtrDataSize(lastPtrField.Type)
 
 	default:
-		base.Fatalf("typeptrdata: unexpected type, %v", t)
+		base.Fatalf("PtrDataSize: unexpected type, %v", t)
 		return 0
 	}
 }

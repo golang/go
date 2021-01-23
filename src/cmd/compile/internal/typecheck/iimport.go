@@ -37,7 +37,7 @@ var (
 	// and offset where that identifier's declaration can be read.
 	DeclImporter = map[*types.Sym]iimporterAndOffset{}
 
-	// inlineImporter is like declImporter, but for inline bodies
+	// inlineImporter is like DeclImporter, but for inline bodies
 	// for function and method symbols.
 	inlineImporter = map[*types.Sym]iimporterAndOffset{}
 )
@@ -265,6 +265,9 @@ type importReader struct {
 
 	// curfn is the current function we're importing into.
 	curfn *ir.Func
+	// Slice of all dcls for function, including any interior closures
+	allDcls        []*ir.Name
+	allClosureVars []*ir.Name
 }
 
 func (p *iimporter) newReader(off uint64, pkg *types.Pkg) *importReader {
@@ -334,7 +337,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 			recv := r.param()
 			mtyp := r.signature(recv)
 
-			// methodSym already marked m.Sym as a function.
+			// MethodSym already marked m.Sym as a function.
 			m := ir.NewNameAt(mpos, ir.MethodSym(recv.Type, msym))
 			m.Class = ir.PFUNC
 			m.SetType(mtyp)
@@ -647,6 +650,9 @@ func (r *importReader) funcExt(n *ir.Name) {
 	r.linkname(n.Sym())
 	r.symIdx(n.Sym())
 
+	// TODO remove after register abi is working
+	n.SetPragma(ir.PragmaFlag(r.uint64()))
+
 	// Escape analysis.
 	for _, fs := range &types.RecvsParams {
 		for _, f := range fs(n.Type()).FieldSlice() {
@@ -718,6 +724,7 @@ func (r *importReader) doInline(fn *ir.Func) {
 		base.Fatalf("%v already has inline body", fn)
 	}
 
+	//fmt.Printf("Importing %v\n", n)
 	r.funcBody(fn)
 
 	importlist = append(importlist, fn)
@@ -751,6 +758,24 @@ func (r *importReader) funcBody(fn *ir.Func) {
 	r.curfn = fn
 
 	// Import local declarations.
+	fn.Inl.Dcl = r.readFuncDcls(fn)
+
+	// Import function body.
+	body := r.stmtList()
+	if body == nil {
+		// Make sure empty body is not interpreted as
+		// no inlineable body (see also parser.fnbody)
+		// (not doing so can cause significant performance
+		// degradation due to unnecessary calls to empty
+		// functions).
+		body = []ir.Node{}
+	}
+	fn.Inl.Body = body
+
+	r.curfn = outerfn
+}
+
+func (r *importReader) readNames(fn *ir.Func) []*ir.Name {
 	dcls := make([]*ir.Name, r.int64())
 	for i := range dcls {
 		n := ir.NewDeclNameAt(r.pos(), ir.ONAME, r.localIdent())
@@ -759,7 +784,12 @@ func (r *importReader) funcBody(fn *ir.Func) {
 		n.SetType(r.typ())
 		dcls[i] = n
 	}
-	fn.Inl.Dcl = dcls
+	r.allDcls = append(r.allDcls, dcls...)
+	return dcls
+}
+
+func (r *importReader) readFuncDcls(fn *ir.Func) []*ir.Name {
+	dcls := r.readNames(fn)
 
 	// Fixup parameter classes and associate with their
 	// signature's type fields.
@@ -784,28 +814,18 @@ func (r *importReader) funcBody(fn *ir.Func) {
 	for _, f := range typ.Results().FieldSlice() {
 		fix(f, ir.PPARAMOUT)
 	}
-
-	// Import function body.
-	body := r.stmtList()
-	if body == nil {
-		// Make sure empty body is not interpreted as
-		// no inlineable body (see also parser.fnbody)
-		// (not doing so can cause significant performance
-		// degradation due to unnecessary calls to empty
-		// functions).
-		body = []ir.Node{}
-	}
-	fn.Inl.Body = body
-
-	r.curfn = outerfn
+	return dcls
 }
 
 func (r *importReader) localName() *ir.Name {
 	i := r.int64()
-	if i < 0 {
+	if i == -1 {
 		return ir.BlankNode.(*ir.Name)
 	}
-	return r.curfn.Inl.Dcl[i]
+	if i < 0 {
+		return r.allClosureVars[-i-2]
+	}
+	return r.allDcls[i]
 }
 
 func (r *importReader) stmtList() []ir.Node {
@@ -921,8 +941,38 @@ func (r *importReader) node() ir.Node {
 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
 	//      unreachable - should have been resolved by typechecking
 
-	// case OCLOSURE:
-	//	unimplemented
+	case ir.OCLOSURE:
+		//println("Importing CLOSURE")
+		pos := r.pos()
+		typ := r.signature(nil)
+
+		// All the remaining code below is similar to (*noder).funcLit(), but
+		// with Dcls and ClosureVars lists already set up
+		fn := ir.NewFunc(pos)
+		fn.SetIsHiddenClosure(true)
+		fn.Nname = ir.NewNameAt(pos, ir.BlankNode.Sym())
+		fn.Nname.Func = fn
+		fn.Nname.Ntype = ir.TypeNode(typ)
+		fn.Nname.Defn = fn
+		fn.Nname.SetType(typ)
+
+		cvars := make([]*ir.Name, r.int64())
+		for i := range cvars {
+			cvars[i] = ir.CaptureName(r.pos(), fn, r.localName().Canonical())
+		}
+		fn.ClosureVars = cvars
+		r.allClosureVars = append(r.allClosureVars, cvars...)
+
+		fn.Dcl = r.readFuncDcls(fn)
+		body := r.stmtList()
+		ir.FinishCaptureNames(pos, r.curfn, fn)
+
+		clo := ir.NewClosureExpr(pos, fn)
+		fn.OClosure = clo
+
+		fn.Body = body
+
+		return clo
 
 	// case OPTRLIT:
 	//	unreachable - mapped to case OADDR below by exporter

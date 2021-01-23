@@ -45,7 +45,7 @@ type nowritebarrierrecCall struct {
 }
 
 // newNowritebarrierrecChecker creates a nowritebarrierrecChecker. It
-// must be called before transformclosure and walk.
+// must be called before walk
 func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
 	c := &nowritebarrierrecChecker{
 		extraCalls: make(map[*ir.Func][]nowritebarrierrecCall),
@@ -54,7 +54,7 @@ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
 	// Find all systemstack calls and record their targets. In
 	// general, flow analysis can't see into systemstack, but it's
 	// important to handle it for this check, so we model it
-	// directly. This has to happen before transformclosure since
+	// directly. This has to happen before transforming closures in walk since
 	// it's a lot harder to work out the argument after.
 	for _, n := range typecheck.Target.Decls {
 		if n.Op() != ir.ODCLFUNC {

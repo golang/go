@@ -138,13 +138,12 @@ func ReadSymABIs(file, myimportpath string) {
 // For body-less functions, we only create the LSym; for functions
 // with bodies call a helper to setup up / populate the LSym.
 func InitLSym(f *ir.Func, hasBody bool) {
-	staticdata.NeedFuncSym(f.Sym())
-
 	// FIXME: for new-style ABI wrappers, we set up the lsym at the
 	// point the wrapper is created.
 	if f.LSym != nil && base.Flag.ABIWrap {
 		return
 	}
+	staticdata.NeedFuncSym(f.Sym())
 	selectLSym(f, hasBody)
 	if hasBody {
 		setupTextLSym(f, 0)
@@ -155,18 +154,18 @@ func InitLSym(f *ir.Func, hasBody bool) {
 // makes calls to helpers to create ABI wrappers if needed.
 func selectLSym(f *ir.Func, hasBody bool) {
 	if f.LSym != nil {
-		base.FatalfAt(f.Pos(), "Func.initLSym called twice on %v", f)
+		base.FatalfAt(f.Pos(), "InitLSym called twice on %v", f)
 	}
 
 	if nam := f.Nname; !ir.IsBlank(nam) {
 
 		var wrapperABI obj.ABI
 		needABIWrapper := false
-		defABI, hasDefABI := symabiDefs[nam.Sym().LinksymName()]
+		defABI, hasDefABI := symabiDefs[nam.Linksym().Name]
 		if hasDefABI && defABI == obj.ABI0 {
 			// Symbol is defined as ABI0. Create an
 			// Internal -> ABI0 wrapper.
-			f.LSym = nam.Sym().LinksymABI0()
+			f.LSym = nam.LinksymABI(obj.ABI0)
 			needABIWrapper, wrapperABI = true, obj.ABIInternal
 		} else {
 			f.LSym = nam.Linksym()
@@ -302,8 +301,9 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	// extra work in typecheck/walk/ssa, might want to add a new node
 	// OTAILCALL or something to this effect.
 	var tail ir.Node
-	if tfn.Type().NumResults() == 0 && tfn.Type().NumParams() == 0 && tfn.Type().NumRecvs() == 0 {
-		tail = ir.NewBranchStmt(base.Pos, ir.ORETJMP, f.Nname.Sym())
+	if tfn.Type().NumResults() == 0 && tfn.Type().NumParams() == 0 && tfn.Type().NumRecvs() == 0 && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
+
+		tail = ir.NewTailCallStmt(base.Pos, f.Nname)
 	} else {
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
 		call.Args = ir.ParamNames(tfn.Type())

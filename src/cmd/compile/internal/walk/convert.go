@@ -66,17 +66,6 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		return l
 	}
 
-	if ir.Names.Staticuint64s == nil {
-		ir.Names.Staticuint64s = typecheck.NewName(ir.Pkgs.Runtime.Lookup("staticuint64s"))
-		ir.Names.Staticuint64s.Class = ir.PEXTERN
-		// The actual type is [256]uint64, but we use [256*8]uint8 so we can address
-		// individual bytes.
-		ir.Names.Staticuint64s.SetType(types.NewArray(types.Types[types.TUINT8], 256*8))
-		ir.Names.Zerobase = typecheck.NewName(ir.Pkgs.Runtime.Lookup("zerobase"))
-		ir.Names.Zerobase.Class = ir.PEXTERN
-		ir.Names.Zerobase.SetType(types.Types[types.TUINTPTR])
-	}
-
 	// Optimize convT2{E,I} for many cases in which T is not pointer-shaped,
 	// by using an existing addressable value identical to n.Left
 	// or creating one on the stack.
@@ -85,7 +74,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	case fromType.Size() == 0:
 		// n.Left is zero-sized. Use zerobase.
 		cheapExpr(n.X, init) // Evaluate n.Left for side-effects. See issue 19246.
-		value = ir.Names.Zerobase
+		value = ir.NewLinksymExpr(base.Pos, ir.Syms.Zerobase, types.Types[types.TUINTPTR])
 	case fromType.IsBoolean() || (fromType.Size() == 1 && fromType.IsInteger()):
 		// n.Left is a bool/byte. Use staticuint64s[n.Left * 8] on little-endian
 		// and staticuint64s[n.Left * 8 + 7] on big-endian.
@@ -95,7 +84,10 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		if ssagen.Arch.LinkArch.ByteOrder == binary.BigEndian {
 			index = ir.NewBinaryExpr(base.Pos, ir.OADD, index, ir.NewInt(7))
 		}
-		xe := ir.NewIndexExpr(base.Pos, ir.Names.Staticuint64s, index)
+		// The actual type is [256]uint64, but we use [256*8]uint8 so we can address
+		// individual bytes.
+		staticuint64s := ir.NewLinksymExpr(base.Pos, ir.Syms.Staticuint64s, types.NewArray(types.Types[types.TUINT8], 256*8))
+		xe := ir.NewIndexExpr(base.Pos, staticuint64s, index)
 		xe.SetBounded(true)
 		value = xe
 	case n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class == ir.PEXTERN && n.X.(*ir.Name).Readonly():
@@ -198,8 +190,7 @@ func walkBytesRunesToString(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	a := typecheck.NodNil()
 	if n.Esc() == ir.EscNone {
 		// Create temporary buffer for string on stack.
-		t := types.NewArray(types.Types[types.TUINT8], tmpstringbufsize)
-		a = typecheck.NodAddr(typecheck.Temp(t))
+		a = stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
 	}
 	if n.Op() == ir.ORUNES2STR {
 		// slicerunetostring(*[32]byte, []rune) string
@@ -229,8 +220,7 @@ func walkBytesToStringTemp(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 func walkRuneToString(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	a := typecheck.NodNil()
 	if n.Esc() == ir.EscNone {
-		t := types.NewArray(types.Types[types.TUINT8], 4)
-		a = typecheck.NodAddr(typecheck.Temp(t))
+		a = stackBufAddr(4, types.Types[types.TUINT8])
 	}
 	// intstring(*[4]byte, rune)
 	return mkcall("intstring", n.Type(), init, a, typecheck.Conv(n.X, types.Types[types.TINT64]))
@@ -246,9 +236,13 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		t := types.NewArray(types.Types[types.TUINT8], int64(len(sc)))
 		var a ir.Node
 		if n.Esc() == ir.EscNone && len(sc) <= int(ir.MaxImplicitStackVarSize) {
-			a = typecheck.NodAddr(typecheck.Temp(t))
+			a = stackBufAddr(t.NumElem(), t.Elem())
 		} else {
-			a = callnew(t)
+			types.CalcSize(t)
+			a = ir.NewUnaryExpr(base.Pos, ir.ONEW, nil)
+			a.SetType(types.NewPtr(t))
+			a.SetTypecheck(1)
+			a.MarkNonNil()
 		}
 		p := typecheck.Temp(t.PtrTo()) // *[n]byte
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, p, a)))
@@ -269,8 +263,7 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	a := typecheck.NodNil()
 	if n.Esc() == ir.EscNone {
 		// Create temporary buffer for slice on stack.
-		t := types.NewArray(types.Types[types.TUINT8], tmpstringbufsize)
-		a = typecheck.NodAddr(typecheck.Temp(t))
+		a = stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
 	}
 	// stringtoslicebyte(*32[byte], string) []byte
 	return mkcall("stringtoslicebyte", n.Type(), init, a, typecheck.Conv(s, types.Types[types.TSTRING]))
@@ -294,8 +287,7 @@ func walkStringToRunes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	a := typecheck.NodNil()
 	if n.Esc() == ir.EscNone {
 		// Create temporary buffer for slice on stack.
-		t := types.NewArray(types.Types[types.TINT32], tmpstringbufsize)
-		a = typecheck.NodAddr(typecheck.Temp(t))
+		a = stackBufAddr(tmpstringbufsize, types.Types[types.TINT32])
 	}
 	// stringtoslicerune(*[32]rune, string) []rune
 	return mkcall("stringtoslicerune", n.Type(), init, a, typecheck.Conv(n.X, types.Types[types.TSTRING]))
@@ -438,8 +430,8 @@ func walkCheckPtrAlignment(n *ir.ConvExpr, init *ir.Nodes, count ir.Node) ir.Nod
 }
 
 func walkCheckPtrArithmetic(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
-	// Calling cheapexpr(n, init) below leads to a recursive call to
-	// walkexpr, which leads us back here again. Use n.Checkptr to
+	// Calling cheapExpr(n, init) below leads to a recursive call to
+	// walkExpr, which leads us back here again. Use n.Checkptr to
 	// prevent infinite loops.
 	if n.CheckPtr() {
 		return n

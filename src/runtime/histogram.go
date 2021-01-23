@@ -7,6 +7,7 @@ package runtime
 import (
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
+	"unsafe"
 )
 
 const (
@@ -69,7 +70,13 @@ const (
 // for concurrent use. It is also safe to read all the values
 // atomically.
 type timeHistogram struct {
-	counts    [timeHistNumSuperBuckets * timeHistNumSubBuckets]uint64
+	counts [timeHistNumSuperBuckets * timeHistNumSubBuckets]uint64
+
+	// underflow counts all the times we got a negative duration
+	// sample. Because of how time works on some platforms, it's
+	// possible to measure negative durations. We could ignore them,
+	// but we record them anyway because it's better to have some
+	// signal that it's happening than just missing samples.
 	underflow uint64
 }
 
@@ -107,14 +114,30 @@ func (h *timeHistogram) record(duration int64) {
 	atomic.Xadd64(&h.counts[superBucket*timeHistNumSubBuckets+subBucket], 1)
 }
 
+const (
+	fInf    = 0x7FF0000000000000
+	fNegInf = 0xFFF0000000000000
+)
+
+func float64Inf() float64 {
+	inf := uint64(fInf)
+	return *(*float64)(unsafe.Pointer(&inf))
+}
+
+func float64NegInf() float64 {
+	inf := uint64(fNegInf)
+	return *(*float64)(unsafe.Pointer(&inf))
+}
+
 // timeHistogramMetricsBuckets generates a slice of boundaries for
 // the timeHistogram. These boundaries are represented in seconds,
 // not nanoseconds like the timeHistogram represents durations.
 func timeHistogramMetricsBuckets() []float64 {
-	b := make([]float64, timeHistTotalBuckets-1)
+	b := make([]float64, timeHistTotalBuckets+1)
+	b[0] = float64NegInf()
 	for i := 0; i < timeHistNumSuperBuckets; i++ {
 		superBucketMin := uint64(0)
-		// The (inclusive) minimum for the first bucket is 0.
+		// The (inclusive) minimum for the first non-negative bucket is 0.
 		if i > 0 {
 			// The minimum for the second bucket will be
 			// 1 << timeHistSubBucketBits, indicating that all
@@ -141,8 +164,9 @@ func timeHistogramMetricsBuckets() []float64 {
 
 			// Convert the subBucketMin which is in nanoseconds to a float64 seconds value.
 			// These values will all be exactly representable by a float64.
-			b[i*timeHistNumSubBuckets+j] = float64(subBucketMin) / 1e9
+			b[i*timeHistNumSubBuckets+j+1] = float64(subBucketMin) / 1e9
 		}
 	}
+	b[len(b)-1] = float64Inf()
 	return b
 }

@@ -6,11 +6,7 @@ package base
 
 import (
 	"os"
-
-	"cmd/internal/obj"
 )
-
-var Ctxt *obj.Link
 
 var atExitFuncs []func()
 

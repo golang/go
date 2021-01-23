@@ -507,7 +507,7 @@
 (TEQ x (MOVWconst [c])) => (TEQconst [c] x)
 
 // Canonicalize the order of arguments to comparisons - helps with CSE.
-(CMP x y) && x.ID > y.ID => (InvertFlags (CMP y x))
+(CMP x y) && canonLessThan(x,y) => (InvertFlags (CMP y x))
 
 // don't extend after proper load
 // MOVWreg instruction is not emitted if src and dst registers are same, but it ensures the type.

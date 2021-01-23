@@ -6,8 +6,8 @@ package work
 
 import (
 	"fmt"
+	exec "internal/execabs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -92,6 +92,12 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg,
 			}
 			args = append(args, "-I", root)
 		}
+	}
+	if embedcfg != nil && b.gccSupportsFlag(args[:1], "-fgo-embedcfg=/dev/null") {
+		if err := b.writeFile(objdir+"embedcfg", embedcfg); err != nil {
+			return "", nil, err
+		}
+		args = append(args, "-fgo-embedcfg="+objdir+"embedcfg")
 	}
 
 	if b.gccSupportsFlag(args[:1], "-ffile-prefix-map=a=b") {

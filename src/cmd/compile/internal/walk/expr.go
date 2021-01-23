@@ -30,7 +30,7 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 		// not okay to use n->ninit when walking n,
 		// because we might replace n with some other node
 		// and would lose the init list.
-		base.Fatalf("walkexpr init == &n->ninit")
+		base.Fatalf("walkExpr init == &n->ninit")
 	}
 
 	if len(n.Init()) != 0 {
@@ -67,8 +67,6 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 		_ = staticdata.StringSym(n.Pos(), constant.StringVal(n.Val()))
 	}
 
-	updateHasCall(n)
-
 	if base.Flag.LowerW != 0 && n != nil {
 		ir.Dump("after walk expr", n)
 	}
@@ -81,17 +79,17 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 	switch n.Op() {
 	default:
 		ir.Dump("walk", n)
-		base.Fatalf("walkexpr: switch 1 unknown op %+v", n.Op())
+		base.Fatalf("walkExpr: switch 1 unknown op %+v", n.Op())
 		panic("unreachable")
 
-	case ir.ONONAME, ir.OGETG, ir.ONEWOBJ:
+	case ir.ONONAME, ir.OGETG:
 		return n
 
-	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL, ir.ONAMEOFFSET:
+	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL, ir.OLINKSYMOFFSET:
 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
 		// Perhaps refactor to use Node.mayBeShared for these instead.
 		// If these return early, make sure to still call
-		// stringsym for constant strings.
+		// StringSym for constant strings.
 		return n
 
 	case ir.OMETHEXPR:
@@ -221,7 +219,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		return walkIndexMap(n, init)
 
 	case ir.ORECV:
-		base.Fatalf("walkexpr ORECV") // should see inside OAS only
+		base.Fatalf("walkExpr ORECV") // should see inside OAS only
 		panic("unreachable")
 
 	case ir.OSLICEHEADER:
@@ -359,7 +357,7 @@ func safeExpr(n ir.Node, init *ir.Nodes) ir.Node {
 	}
 
 	switch n.Op() {
-	case ir.ONAME, ir.OLITERAL, ir.ONIL, ir.ONAMEOFFSET:
+	case ir.ONAME, ir.OLITERAL, ir.ONIL, ir.OLINKSYMOFFSET:
 		return n
 
 	case ir.OLEN, ir.OCAP:
@@ -413,7 +411,7 @@ func safeExpr(n ir.Node, init *ir.Nodes) ir.Node {
 
 	// make a copy; must not be used as an lvalue
 	if ir.IsAddressable(n) {
-		base.Fatalf("missing lvalue case in safeexpr: %v", n)
+		base.Fatalf("missing lvalue case in safeExpr: %v", n)
 	}
 	return cheapExpr(n, init)
 }
@@ -428,7 +426,7 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
 	c := len(n.List)
 
 	if c < 2 {
-		base.Fatalf("addstr count %d too small", c)
+		base.Fatalf("walkAddString count %d too small", c)
 	}
 
 	buf := typecheck.NodNil()
@@ -443,8 +441,7 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
 		// Don't allocate the buffer if the result won't fit.
 		if sz < tmpstringbufsize {
 			// Create temporary buffer for result string on stack.
-			t := types.NewArray(types.Types[types.TUINT8], tmpstringbufsize)
-			buf = typecheck.NodAddr(typecheck.Temp(t))
+			buf = stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
 		}
 	}
 
@@ -497,9 +494,10 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 }
 
 func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
-	if len(n.Rargs) != 0 {
+	if n.Walked() {
 		return // already walked
 	}
+	n.SetWalked(true)
 
 	// If this is a method call t.M(...),
 	// rewrite into a function call T.M(t, ...).
@@ -523,27 +521,26 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 	n.X = walkExpr(n.X, init)
 	walkExprList(args, init)
 
-	// For any argument whose evaluation might require a function call,
-	// store that argument into a temporary variable,
-	// to prevent that calls from clobbering arguments already on the stack.
-	// When instrumenting, all arguments might require function calls.
-	var tempAssigns []ir.Node
 	for i, arg := range args {
-		updateHasCall(arg)
-		// Determine param type.
-		t := params.Field(i).Type
-		if base.Flag.Cfg.Instrumenting || fncall(arg, t) {
-			// make assignment of fncall to tempAt
-			tmp := typecheck.Temp(t)
-			a := convas(ir.NewAssignStmt(base.Pos, tmp, arg), init)
-			tempAssigns = append(tempAssigns, a)
+		// Validate argument and parameter types match.
+		param := params.Field(i)
+		if !types.Identical(arg.Type(), param.Type) {
+			base.FatalfAt(n.Pos(), "assigning %L to parameter %v (type %v)", arg, param.Sym, param.Type)
+		}
+
+		// For any argument whose evaluation might require a function call,
+		// store that argument into a temporary variable,
+		// to prevent that calls from clobbering arguments already on the stack.
+		if mayCall(arg) {
+			// assignment of arg to Temp
+			tmp := typecheck.Temp(param.Type)
+			init.Append(convas(typecheck.Stmt(ir.NewAssignStmt(base.Pos, tmp, arg)).(*ir.AssignStmt), init))
 			// replace arg with temp
 			args[i] = tmp
 		}
 	}
 
-	n.Args = tempAssigns
-	n.Rargs = args
+	n.Args = args
 }
 
 // walkDivMod walks an ODIV or OMOD node.
@@ -618,11 +615,6 @@ func walkDot(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 	n.X = walkExpr(n.X, init)
 	// Set up interface type addresses for back end.
-
-	n.DstType = reflectdata.TypePtr(n.Type())
-	if n.Op() == ir.ODOTTYPE {
-		n.SrcType = reflectdata.TypePtr(n.X.Type())
-	}
 	if !n.Type().IsInterface() && !n.X.Type().IsEmptyInterface() {
 		n.Itab = reflectdata.ITabAddr(n.Type(), n.X.Type())
 	}
