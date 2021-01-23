@@ -685,51 +685,6 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 			// addressability, should we report the type &(x.typ) instead?
 			check.recordSelection(e, MethodVal, x.typ, obj, index, indirect)
 
-			// TODO(gri) The verification pass below is disabled for now because
-			//           method sets don't match method lookup in some cases.
-			//           For instance, if we made a copy above when creating a
-			//           custom method for a parameterized received type, the
-			//           method set method doesn't match (no copy there). There
-			///          may be other situations.
-			disabled := true
-			if !disabled && debug {
-				// Verify that LookupFieldOrMethod and MethodSet.Lookup agree.
-				// TODO(gri) This only works because we call LookupFieldOrMethod
-				// _before_ calling NewMethodSet: LookupFieldOrMethod completes
-				// any incomplete interfaces so they are available to NewMethodSet
-				// (which assumes that interfaces have been completed already).
-				typ := x.typ
-				if x.mode == variable {
-					// If typ is not an (unnamed) pointer or an interface,
-					// use *typ instead, because the method set of *typ
-					// includes the methods of typ.
-					// Variables are addressable, so we can always take their
-					// address.
-					if _, ok := typ.(*Pointer); !ok && !IsInterface(typ) {
-						typ = &Pointer{base: typ}
-					}
-				}
-				// If we created a synthetic pointer type above, we will throw
-				// away the method set computed here after use.
-				// TODO(gri) Method set computation should probably always compute
-				// both, the value and the pointer receiver method set and represent
-				// them in a single structure.
-				// TODO(gri) Consider also using a method set cache for the lifetime
-				// of checker once we rely on MethodSet lookup instead of individual
-				// lookup.
-				mset := NewMethodSet(typ)
-				if m := mset.Lookup(check.pkg, sel); m == nil || m.obj != obj {
-					check.dump("%v: (%s).%v -> %s", posFor(e), typ, obj.name, m)
-					check.dump("%s\n", mset)
-					// Caution: MethodSets are supposed to be used externally
-					// only (after all interface types were completed). It's
-					// now possible that we get here incorrectly. Not urgent
-					// to fix since we only run this code in debug mode.
-					// TODO(gri) fix this eventually.
-					panic("method sets and lookup don't agree")
-				}
-			}
-
 			x.mode = value
 
 			// remove receiver
