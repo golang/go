@@ -1803,7 +1803,7 @@ const shareDeferExits = false
 // It returns a BlockRet block that ends the control flow. Its control value
 // will be set to the final memory state.
 func (s *state) exit() *ssa.Block {
-	lateResultLowering := s.f.DebugTest && ssa.LateCallExpansionEnabledWithin(s.f)
+	lateResultLowering := s.f.DebugTest
 	if s.hasdefer {
 		if s.hasOpenDefers {
 			if shareDeferExits && s.lastDeferExit != nil && len(s.openDefers) == s.lastDeferCount {
@@ -4628,7 +4628,6 @@ func (s *state) openDeferExit() {
 	s.lastDeferExit = deferExit
 	s.lastDeferCount = len(s.openDefers)
 	zeroval := s.constInt8(types.Types[types.TUINT8], 0)
-	testLateExpansion := ssa.LateCallExpansionEnabledWithin(s.f)
 	// Test for and run defers in reverse order
 	for i := len(s.openDefers) - 1; i >= 0; i-- {
 		r := s.openDefers[i]
@@ -4670,35 +4669,19 @@ func (s *state) openDeferExit() {
 		if r.rcvr != nil {
 			// rcvr in case of OCALLINTER
 			v := s.load(r.rcvr.Type.Elem(), r.rcvr)
-			addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
 			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(argStart)})
-			if testLateExpansion {
-				callArgs = append(callArgs, v)
-			} else {
-				s.store(types.Types[types.TUINTPTR], addr, v)
-			}
+			callArgs = append(callArgs, v)
 		}
 		for j, argAddrVal := range r.argVals {
 			f := getParam(r.n, j)
-			pt := types.NewPtr(f.Type)
 			ACArgs = append(ACArgs, ssa.Param{Type: f.Type, Offset: int32(argStart + f.Offset)})
-			if testLateExpansion {
-				var a *ssa.Value
-				if !TypeOK(f.Type) {
-					a = s.newValue2(ssa.OpDereference, f.Type, argAddrVal, s.mem())
-				} else {
-					a = s.load(f.Type, argAddrVal)
-				}
-				callArgs = append(callArgs, a)
+			var a *ssa.Value
+			if !TypeOK(f.Type) {
+				a = s.newValue2(ssa.OpDereference, f.Type, argAddrVal, s.mem())
 			} else {
-				addr := s.constOffPtrSP(pt, argStart+f.Offset)
-				if !TypeOK(f.Type) {
-					s.move(f.Type, addr, argAddrVal)
-				} else {
-					argVal := s.load(f.Type, argAddrVal)
-					s.storeType(f.Type, addr, argVal, 0, false)
-				}
+				a = s.load(f.Type, argAddrVal)
 			}
+			callArgs = append(callArgs, a)
 		}
 		var call *ssa.Value
 		if r.closure != nil {
@@ -4706,30 +4689,17 @@ func (s *state) openDeferExit() {
 			s.maybeNilCheckClosure(v, callDefer)
 			codeptr := s.rawLoad(types.Types[types.TUINTPTR], v)
 			aux := ssa.ClosureAuxCall(ACArgs, ACResults)
-			if testLateExpansion {
-				callArgs = append(callArgs, s.mem())
-				call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, v)
-				call.AddArgs(callArgs...)
-			} else {
-				call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, aux, codeptr, v, s.mem())
-			}
+			callArgs = append(callArgs, s.mem())
+			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, v)
+			call.AddArgs(callArgs...)
 		} else {
 			aux := ssa.StaticAuxCall(fn.(*ir.Name).Linksym(), ACArgs, ACResults)
-			if testLateExpansion {
-				callArgs = append(callArgs, s.mem())
-				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
-				call.AddArgs(callArgs...)
-			} else {
-				// Do a static call if the original call was a static function or method
-				call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, aux, s.mem())
-			}
+			callArgs = append(callArgs, s.mem())
+			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+			call.AddArgs(callArgs...)
 		}
 		call.AuxInt = stksize
-		if testLateExpansion {
-			s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
-		} else {
-			s.vars[memVar] = call
-		}
+		s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
 		// Make sure that the stack slots with pointers are kept live
 		// through the call (which is a pre-emption point). Also, we will
 		// use the first call of the last defer exit to compute liveness
@@ -4782,12 +4752,10 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		}
 	}
 
-	testLateExpansion := false
 	inRegisters := false
 
 	switch n.Op() {
 	case ir.OCALLFUNC:
-		testLateExpansion = k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f)
 		if k == callNormal && fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC {
 			fn := fn.(*ir.Name)
 			callee = fn
@@ -4813,7 +4781,6 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			s.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op())
 		}
 		fn := fn.(*ir.SelectorExpr)
-		testLateExpansion = k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f)
 		var iclosure *ssa.Value
 		iclosure, rcvr = s.getClosureAndRcvr(fn)
 		if k == callNormal {
@@ -4827,7 +4794,6 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 
 	var call *ssa.Value
 	if k == callDeferStack {
-		testLateExpansion = ssa.LateCallExpansionEnabledWithin(s.f)
 		// Make a defer struct d on the stack.
 		t := deferstruct(stksize)
 		d := typecheck.TempAt(n.Pos(), s.curfn, t)
@@ -4878,15 +4844,9 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		// Call runtime.deferprocStack with pointer to _defer record.
 		ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(base.Ctxt.FixedFrameSize())})
 		aux := ssa.StaticAuxCall(ir.Syms.DeferprocStack, ACArgs, ACResults)
-		if testLateExpansion {
-			callArgs = append(callArgs, addr, s.mem())
-			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
-			call.AddArgs(callArgs...)
-		} else {
-			arg0 := s.constOffPtrSP(types.Types[types.TUINTPTR], base.Ctxt.FixedFrameSize())
-			s.store(types.Types[types.TUINTPTR], arg0, addr)
-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, aux, s.mem())
-		}
+		callArgs = append(callArgs, addr, s.mem())
+		call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+		call.AddArgs(callArgs...)
 		if stksize < int64(types.PtrSize) {
 			// We need room for both the call to deferprocStack and the call to
 			// the deferred function.
@@ -4903,32 +4863,17 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			// Write argsize and closure (args to newproc/deferproc).
 			argsize := s.constInt32(types.Types[types.TUINT32], int32(stksize))
 			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINT32], Offset: int32(argStart)})
-			if testLateExpansion {
-				callArgs = append(callArgs, argsize)
-			} else {
-				addr := s.constOffPtrSP(s.f.Config.Types.UInt32Ptr, argStart)
-				s.store(types.Types[types.TUINT32], addr, argsize)
-			}
+			callArgs = append(callArgs, argsize)
 			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(argStart) + int32(types.PtrSize)})
-			if testLateExpansion {
-				callArgs = append(callArgs, closure)
-			} else {
-				addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart+int64(types.PtrSize))
-				s.store(types.Types[types.TUINTPTR], addr, closure)
-			}
+			callArgs = append(callArgs, closure)
 			stksize += 2 * int64(types.PtrSize)
 			argStart += 2 * int64(types.PtrSize)
 		}
 
 		// Set receiver (for interface calls).
 		if rcvr != nil {
-			addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
 			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(argStart)})
-			if testLateExpansion {
-				callArgs = append(callArgs, rcvr)
-			} else {
-				s.store(types.Types[types.TUINTPTR], addr, rcvr)
-			}
+			callArgs = append(callArgs, rcvr)
 		}
 
 		// Write args.
@@ -4939,7 +4884,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		}
 		for i, n := range args {
 			f := t.Params().Field(i)
-			ACArg, arg := s.putArg(n, f.Type, argStart+f.Offset, testLateExpansion)
+			ACArg, arg := s.putArg(n, f.Type, argStart+f.Offset)
 			ACArgs = append(ACArgs, ACArg)
 			callArgs = append(callArgs, arg)
 		}
@@ -4950,20 +4895,12 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		switch {
 		case k == callDefer:
 			aux := ssa.StaticAuxCall(ir.Syms.Deferproc, ACArgs, ACResults)
-			if testLateExpansion {
-				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
-				call.AddArgs(callArgs...)
-			} else {
-				call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, aux, s.mem())
-			}
+			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+			call.AddArgs(callArgs...)
 		case k == callGo:
 			aux := ssa.StaticAuxCall(ir.Syms.Newproc, ACArgs, ACResults)
-			if testLateExpansion {
-				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
-				call.AddArgs(callArgs...)
-			} else {
-				call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, aux, s.mem())
-			}
+			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+			call.AddArgs(callArgs...)
 		case closure != nil:
 			// rawLoad because loading the code pointer from a
 			// closure is always safe, but IsSanitizerSafeAddr
@@ -4971,40 +4908,24 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			// critical that we not clobber any arguments already
 			// stored onto the stack.
 			codeptr = s.rawLoad(types.Types[types.TUINTPTR], closure)
-			if testLateExpansion {
-				aux := ssa.ClosureAuxCall(ACArgs, ACResults)
-				call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, closure)
-				call.AddArgs(callArgs...)
-			} else {
-				call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, ssa.ClosureAuxCall(ACArgs, ACResults), codeptr, closure, s.mem())
-			}
+			aux := ssa.ClosureAuxCall(ACArgs, ACResults)
+			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, closure)
+			call.AddArgs(callArgs...)
 		case codeptr != nil:
-			if testLateExpansion {
-				aux := ssa.InterfaceAuxCall(ACArgs, ACResults)
-				call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
-				call.AddArgs(callArgs...)
-			} else {
-				call = s.newValue2A(ssa.OpInterCall, types.TypeMem, ssa.InterfaceAuxCall(ACArgs, ACResults), codeptr, s.mem())
-			}
+			aux := ssa.InterfaceAuxCall(ACArgs, ACResults)
+			call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
+			call.AddArgs(callArgs...)
 		case callee != nil:
-			if testLateExpansion {
-				aux := ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), ACArgs, ACResults)
-				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
-				call.AddArgs(callArgs...)
-			} else {
-				call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), ACArgs, ACResults), s.mem())
-			}
+			aux := ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), ACArgs, ACResults)
+			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+			call.AddArgs(callArgs...)
 		default:
 			s.Fatalf("bad call type %v %v", n.Op(), n)
 		}
 		call.AuxInt = stksize // Call operations carry the argsize of the callee along with them
 	}
-	if testLateExpansion {
-		s.prevCall = call
-		s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
-	} else {
-		s.vars[memVar] = call
-	}
+	s.prevCall = call
+	s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
 	// Insert OVARLIVE nodes
 	for _, name := range n.KeepAlive {
 		s.stmt(ir.NewUnaryExpr(n.Pos(), ir.OVARLIVE, name))
@@ -5033,16 +4954,10 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 	fp := res.Field(0)
 	if returnResultAddr {
 		pt := types.NewPtr(fp.Type)
-		if testLateExpansion {
-			return s.newValue1I(ssa.OpSelectNAddr, pt, 0, call)
-		}
-		return s.constOffPtrSP(pt, fp.Offset+base.Ctxt.FixedFrameSize())
+		return s.newValue1I(ssa.OpSelectNAddr, pt, 0, call)
 	}
 
-	if testLateExpansion {
-		return s.newValue1I(ssa.OpSelectN, fp.Type, 0, call)
-	}
-	return s.load(n.Type(), s.constOffPtrSP(types.NewPtr(fp.Type), fp.Offset+base.Ctxt.FixedFrameSize()))
+	return s.newValue1I(ssa.OpSelectN, fp.Type, 0, call)
 }
 
 // maybeNilCheckClosure checks if a nil check of a closure is needed in some
@@ -5458,7 +5373,6 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	s.prevCall = nil
 	// Write args to the stack
 	off := base.Ctxt.FixedFrameSize()
-	testLateExpansion := ssa.LateCallExpansionEnabledWithin(s.f)
 	var ACArgs []ssa.Param
 	var ACResults []ssa.Param
 	var callArgs []*ssa.Value
@@ -5468,12 +5382,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 		off = types.Rnd(off, t.Alignment())
 		size := t.Size()
 		ACArgs = append(ACArgs, ssa.Param{Type: t, Offset: int32(off)})
-		if testLateExpansion {
-			callArgs = append(callArgs, arg)
-		} else {
-			ptr := s.constOffPtrSP(t.PtrTo(), off)
-			s.store(t, ptr, arg)
-		}
+		callArgs = append(callArgs, arg)
 		off += size
 	}
 	off = types.Rnd(off, int64(types.RegSize))
@@ -5489,15 +5398,10 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	// Issue call
 	var call *ssa.Value
 	aux := ssa.StaticAuxCall(fn, ACArgs, ACResults)
-	if testLateExpansion {
 		callArgs = append(callArgs, s.mem())
 		call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 		call.AddArgs(callArgs...)
 		s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
-	} else {
-		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, aux, s.mem())
-		s.vars[memVar] = call
-	}
 
 	if !returns {
 		// Finish block
@@ -5513,24 +5417,15 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 
 	// Load results
 	res := make([]*ssa.Value, len(results))
-	if testLateExpansion {
-		for i, t := range results {
-			off = types.Rnd(off, t.Alignment())
-			if TypeOK(t) {
-				res[i] = s.newValue1I(ssa.OpSelectN, t, int64(i), call)
-			} else {
-				addr := s.newValue1I(ssa.OpSelectNAddr, types.NewPtr(t), int64(i), call)
-				res[i] = s.rawLoad(t, addr)
-			}
-			off += t.Size()
+	for i, t := range results {
+		off = types.Rnd(off, t.Alignment())
+		if TypeOK(t) {
+			res[i] = s.newValue1I(ssa.OpSelectN, t, int64(i), call)
+		} else {
+			addr := s.newValue1I(ssa.OpSelectNAddr, types.NewPtr(t), int64(i), call)
+			res[i] = s.rawLoad(t, addr)
 		}
-	} else {
-		for i, t := range results {
-			off = types.Rnd(off, t.Alignment())
-			ptr := s.constOffPtrSP(types.NewPtr(t), off)
-			res[i] = s.load(t, ptr)
-			off += t.Size()
-		}
+		off += t.Size()
 	}
 	off = types.Rnd(off, int64(types.PtrSize))
 
@@ -5653,16 +5548,12 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 // putArg evaluates n for the purpose of passing it as an argument to a function and returns the corresponding Param for the call.
 // If forLateExpandedCall is true, it returns the argument value to pass to the call operation.
 // If forLateExpandedCall is false, then the value is stored at the specified stack offset, and the returned value is nil.
-func (s *state) putArg(n ir.Node, t *types.Type, off int64, forLateExpandedCall bool) (ssa.Param, *ssa.Value) {
+func (s *state) putArg(n ir.Node, t *types.Type, off int64) (ssa.Param, *ssa.Value) {
 	var a *ssa.Value
-	if forLateExpandedCall {
-		if !TypeOK(t) {
-			a = s.newValue2(ssa.OpDereference, t, s.addr(n), s.mem())
-		} else {
-			a = s.expr(n)
-		}
+	if !TypeOK(t) {
+		a = s.newValue2(ssa.OpDereference, t, s.addr(n), s.mem())
 	} else {
-		s.storeArgWithBase(n, t, s.sp, off)
+		a = s.expr(n)
 	}
 	return ssa.Param{Type: t, Offset: int32(off)}, a
 }

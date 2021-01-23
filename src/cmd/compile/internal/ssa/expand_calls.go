@@ -42,9 +42,6 @@ func expandCalls(f *Func) {
 
 	// With the current ABI, the outputs need to be converted to loads, which will all use the call's
 	// memory output as their input.
-	if !LateCallExpansionEnabledWithin(f) {
-		return
-	}
 	debug := f.pass.debug > 0
 
 	if debug {
