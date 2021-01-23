@@ -766,9 +766,10 @@ func (t *test) run() {
 		// eliminate the flag list.
 
 		// Excluded files.
-		if excluded[t.goFileName()] {
+		filename := strings.Replace(t.goFileName(), "\\", "/", -1) // goFileName() uses \ on Windows
+		if excluded[filename] {
 			if *verbose {
-				fmt.Printf("excl\t%s\n", t.goFileName())
+				fmt.Printf("excl\t%s\n", filename)
 			}
 			return // cannot handle file yet
 		}
@@ -791,7 +792,7 @@ func (t *test) run() {
 			} {
 				if strings.Contains(flag, pattern) {
 					if *verbose {
-						fmt.Printf("excl\t%s\t%s\n", t.goFileName(), flags)
+						fmt.Printf("excl\t%s\t%s\n", filename, flags)
 					}
 					return // cannot handle flag
 				}
