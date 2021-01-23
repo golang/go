@@ -299,7 +299,7 @@ func elimUnreadAutos(f *Func) {
 	// Loop over all ops that affect autos taking note of which
 	// autos we need and also stores that we might be able to
 	// eliminate.
-	seen := make(map[*ir.Name]bool)
+	var seen ir.NameSet
 	var stores []*Value
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
@@ -317,7 +317,7 @@ func elimUnreadAutos(f *Func) {
 				// If we haven't seen the auto yet
 				// then this might be a store we can
 				// eliminate.
-				if !seen[n] {
+				if !seen.Has(n) {
 					stores = append(stores, v)
 				}
 			default:
@@ -327,7 +327,7 @@ func elimUnreadAutos(f *Func) {
 				// because dead loads haven't been
 				// eliminated yet.
 				if v.Uses > 0 {
-					seen[n] = true
+					seen.Add(n)
 				}
 			}
 		}
@@ -336,7 +336,7 @@ func elimUnreadAutos(f *Func) {
 	// Eliminate stores to unread autos.
 	for _, store := range stores {
 		n, _ := store.Aux.(*ir.Name)
-		if seen[n] {
+		if seen.Has(n) {
 			continue
 		}
 
