@@ -786,13 +786,6 @@ func (t *test) run() {
 				"append",
 				"slice",
 				"typeassert",
-				"ssa/check_bce/debug",
-				"ssa/intrinsics/debug",
-				"ssa/opt/debug",
-				"ssa/prove/debug",
-				"ssa/likelyadjust/debug",
-				"ssa/insert_resched_checks/off",
-				"ssa/phiopt/debug",
 				"defer",
 				"nil",
 			} {
@@ -806,7 +799,7 @@ func (t *test) run() {
 		}
 
 		// Run errorcheck again with -G option (new typechecker).
-		cmdline = []string{goTool(), "tool", "compile", "-G", "-C", "-e", "-o", "a.o"}
+		cmdline = []string{goTool(), "tool", "compile", "-G=3", "-C", "-e", "-o", "a.o"}
 		// No need to add -dynlink even if linkshared if we're just checking for errors...
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, long)
@@ -1938,8 +1931,6 @@ var excluded = map[string]bool{
 	"const2.go":       true, // types2 not run after syntax errors
 	"ddd1.go":         true, // issue #42987
 	"directive.go":    true, // misplaced compiler directive checks
-	"embedfunc.go":    true, // error reported by irgen (only runs with -G=3)
-	"embedvers.go":    true, // error reported by backend (only runs with -G=3)
 	"float_lit3.go":   true, // types2 reports extra errors
 	"import1.go":      true, // types2 reports extra errors
 	"import5.go":      true, // issue #42988
@@ -1967,7 +1958,6 @@ var excluded = map[string]bool{
 	"fixedbugs/issue11614.go":  true, // types2 reports an extra error
 	"fixedbugs/issue13415.go":  true, // declared but not used conflict
 	"fixedbugs/issue14520.go":  true, // missing import path error by types2
-	"fixedbugs/issue14540.go":  true, // error reported by noder (not running for types2 errorcheck test)
 	"fixedbugs/issue16428.go":  true, // types2 reports two instead of one error
 	"fixedbugs/issue17038.go":  true, // types2 doesn't report a follow-on error (pref: types2)
 	"fixedbugs/issue17645.go":  true, // multiple errors on same line
