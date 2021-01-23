@@ -2,6 +2,8 @@
 
 This document describes Go’s internal application binary interface
 (ABI), known as ABIInternal.
+Go's ABI defines the layout of data in memory and the conventions for
+calling between Go functions.
 This ABI is *unstable* and will change between Go versions.
 If you’re writing assembly code, please instead refer to Go’s
 [assembly documentation](/doc/asm.html), which describes Go’s stable
@@ -20,7 +22,89 @@ specifics.
 architectures instead of the platform ABI, see the [register-based Go
 calling convention proposal](https://golang.org/design/40724-register-calling).
 
-## Argument and result passing
+## Memory layout
+
+Go's built-in types have the following sizes and alignments.
+Many, though not all, of these sizes are guaranteed by the [language
+specification](/doc/go_spec.html#Size_and_alignment_guarantees).
+Those that aren't guaranteed may change in future versions of Go (for
+example, we've considered changing the alignment of int64 on 32-bit).
+
+| Type | 64-bit |       | 32-bit |       |
+| ---  | ---    | ---   | ---    | ---   |
+|      | Size   | Align | Size   | Align |
+| bool, uint8, int8  | 1  | 1 | 1  | 1 |
+| uint16, int16      | 2  | 2 | 2  | 2 |
+| uint32, int32      | 4  | 4 | 4  | 4 |
+| uint64, int64      | 8  | 8 | 8  | 4 |
+| int, uint          | 8  | 8 | 4  | 4 |
+| float32            | 4  | 4 | 4  | 4 |
+| float64            | 8  | 8 | 8  | 4 |
+| complex64          | 8  | 4 | 8  | 4 |
+| complex128         | 16 | 8 | 16 | 4 |
+| uintptr, *T, unsafe.Pointer | 8 | 8 | 4 | 4 |
+
+The types `byte` and `rune` are aliases for `uint8` and `int32`,
+respectively, and hence have the same size and alignment as these
+types.
+
+The layout of `map`, `chan`, and `func` types is equivalent to *T.
+
+To describe the layout of the remaining composite types, we first
+define the layout of a *sequence* S of N fields with types
+t<sub>1</sub>, t<sub>2</sub>, ..., t<sub>N</sub>.
+We define the byte offset at which each field begins relative to a
+base address of 0, as well as the size and alignment of the sequence
+as follows:
+
+```
+offset(S, i) = 0  if i = 1
+             = align(offset(S, i-1) + sizeof(t_(i-1)), alignof(t_i))
+alignof(S)   = 1  if N = 0
+             = max(alignof(t_i) | 1 <= i <= N)
+sizeof(S)    = 0  if N = 0
+             = align(offset(S, N) + sizeof(t_N), alignof(S))
+```
+
+Where sizeof(T) and alignof(T) are the size and alignment of type T,
+respectively, and align(x, y) rounds x up to a multiple of y.
+
+The `interface{}` type is a sequence of 1. a pointer to the runtime type
+description for the interface's dynamic type and 2. an `unsafe.Pointer`
+data field.
+Any other interface type (besides the empty interface) is a sequence
+of 1. a pointer to the runtime "itab" that gives the method pointers and
+the type of the data field and 2. an `unsafe.Pointer` data field.
+An interface can be "direct" or "indirect" depending on the dynamic
+type: a direct interface stores the value directly in the data field,
+and an indirect interface stores a pointer to the value in the data
+field.
+An interface can only be direct if the value consists of a single
+pointer word.
+
+An array type `[N]T` is a sequence of N fields of type T.
+
+The slice type `[]T` is a sequence of a `*[cap]T` pointer to the slice
+backing store, an `int` giving the `len` of the slice, and an `int`
+giving the `cap` of the slice.
+
+The `string` type is a sequence of a `*[len]byte` pointer to the
+string backing store, and an `int` giving the `len` of the string.
+
+A struct type `struct { f1 t1; ...; fM tM }` is laid out as the
+sequence t1, ..., tM, tP, where tP is either:
+
+- Type `byte` if sizeof(tM) = 0 and any of sizeof(t*i*) ≠ 0.
+- Empty (size 0 and align 1) otherwise.
+
+The padding byte prevents creating a past-the-end pointer by taking
+the address of the final, empty fN field.
+
+Note that user-written assembly code should generally not depend on Go
+type layout and should instead use the constants defined in
+[`go_asm.h`](/doc/asm.html#data-offsets).
+
+## Function call argument and result passing
 
 Function calls pass arguments and results using a combination of the
 stack and machine registers.
@@ -45,42 +129,48 @@ reserves spill space on the stack for all register-based arguments
 (but does not populate this space).
 
 The receiver, arguments, and results of function or method F are
-assigned to registers using the following algorithm:
+assigned to registers or the stack using the following algorithm:
 
-1. Start with the full integer and floating-point register sequences
-   and an empty stack frame.
+1. Let NI and NFP be the length of integer and floating-point register
+   sequences defined by the architecture.
+   Let I and FP be 0; these are the indexes of the next integer and
+   floating-pointer register.
+   Let S, the type sequence defining the stack frame, be empty.
 1. If F is a method, assign F’s receiver.
 1. For each argument A of F, assign A.
-1. Align the stack frame offset to the architecture’s pointer size.
-1. Reset to the full integer and floating-point register sequences
-   (but do not reset the stack frame).
+1. Add a pointer-alignment field to S. This has size 0 and the same
+   alignment as `uintptr`.
+1. Reset I and FP to 0.
 1. For each result R of F, assign R.
-1. Align the stack frame offset to the architecture’s pointer size.
+1. Add a pointer-alignment field to S.
 1. For each register-assigned receiver and argument of F, let T be its
-   type and stack-assign an empty value of type T.
-   This is the argument's (or receiver's) spill space.
-1. Align the stack frame offset to the architecture’s pointer size.
+   type and add T to the stack sequence S.
+   This is the argument's (or receiver's) spill space and will be
+   uninitialized at the call.
+1. Add a pointer-alignment field to S.
 
-Assigning a receiver, argument, or result V works as follows:
+Assigning a receiver, argument, or result V of underlying type T works
+as follows:
 
-1. Register-assign V.
-1. If step 1 failed, undo all register and stack assignments it
-   performed and stack-assign V.
+1. Remember I and FP.
+1. Try to register-assign V.
+1. If step 2 failed, reset I and FP to the values from step 1, add T
+   to the stack sequence S, and assign V to this field in S.
 
 Register-assignment of a value V of underlying type T works as follows:
 
 1. If T is a boolean or integral type that fits in an integer
-   register, assign V to the next available integer register.
+   register, assign V to register I and increment I.
 1. If T is an integral type that fits in two integer registers, assign
-   the least significant and most significant halves of V to the next
-   two available integer registers, respectively.
+   the least significant and most significant halves of V to registers
+   I and I+1, respectively, and increment I by 2
 1. If T is a floating-point type and can be represented without loss
-   of precision in a floating-point register, assign V to the next
-   available floating-point register.
+   of precision in a floating-point register, assign V to register FP
+   and increment FP.
 1. If T is a complex type, recursively register-assign its real and
    imaginary parts.
 1. If T is a pointer type, map type, channel type, or function type,
-   assign V to the next available integer register.
+   assign V to register I and increment I.
 1. If T is a string type, interface type, or slice type, recursively
    register-assign V’s components (2 for strings and interfaces, 3 for
    slices).
@@ -89,22 +179,17 @@ Register-assignment of a value V of underlying type T works as follows:
 1. If T is an array type of length 1, recursively register-assign its
    one element.
 1. If T is an array type of length > 1, fail.
-1. If there is no available integer or floating-point register
-   available above, fail.
-1. If any recursive assignment above fails, this register-assign fails.
+1. If I > NI or FP > NFP, fail.
+1. If any recursive assignment above fails, fail.
 
-Stack-assignment of a value V of underlying type T works as follows:
-
-1. Align the current stack frame offset to T’s alignment.
-1. Append V to the stack frame.
-
-(Note that any non-zero-sized struct type that ends in a zero-sized
-field is implicitly padded with 1 byte to prevent past-the-end
-pointers.
-This applies to all structs, not just those passed as arguments.)
-
-The following diagram shows what the resulting argument frame looks
-like on the stack:
+The above algorithm produces an assignment of each receiver, argument,
+and result to registers or to a field in the stack sequence.
+The final stack sequence looks like: stack-assigned receiver,
+stack-assigned arguments, pointer-alignment, stack-assigned results,
+pointer-alignment, spill space for each register-assigned argument,
+pointer-alignment.
+The following diagram shows what this stack frame looks like on the
+stack, using the typical convention where address 0 is at the bottom:
 
     +------------------------------+
     |             . . .            |
@@ -121,18 +206,14 @@ like on the stack:
     | stack-assigned receiver      |
     +------------------------------+ ↓ lower addresses
 
-(Note that, while stack diagrams conventionally have address 0 at the
-bottom, if this were expressed as a Go struct the fields would appear
-in the opposite order, starting with the stack-assigned receiver.)
-
 To perform a call, the caller reserves space starting at the lowest
 address in its stack frame for the call stack frame, stores arguments
-in the registers and argument stack slots determined by the above
+in the registers and argument stack fields determined by the above
 algorithm, and performs the call.
-At the time of a call, spill slots, result stack slots, and result
-registers are assumed to be uninitialized.
+At the time of a call, spill space, result stack fields, and result
+registers are left uninitialized.
 Upon return, the callee must have stored results to all result
-registers and result stack slots determined by the above algorithm.
+registers and result stack fields determined by the above algorithm.
 
 There are no callee-save registers, so a call may overwrite any
 register that doesn’t have a fixed meaning, including argument
@@ -140,28 +221,35 @@ registers.
 
 ### Example
 
-The function `func f(a1 uint8, a2 [2]uintptr, a3 uint8) (r1 struct { x
-uintptr; y [2]uintptr }, r2 string)` has the following argument frame
-layout on a 64-bit host with hypothetical integer registers R0–R9:
+Consider the function `func f(a1 uint8, a2 [2]uintptr, a3 uint8) (r1
+struct { x uintptr; y [2]uintptr }, r2 string)` on a 64-bit
+architecture with hypothetical integer registers R0–R9.
 
-    +-------------------+ 48
-    | alignment padding | 42
-    | a3 argument spill | 41
-    | a1 argument spill | 40
-    | r1 result         | 16
-    | a2 argument       | 0
-    +-------------------+
-    On entry: R0=a1, R1=a3
-    On exit:  R0=r2.base, R1=r2.len
+On entry, `a1` is assigned to `R0`, `a3` is assigned to `R1` and the
+stack frame is laid out in the following sequence:
+
+    a2      [2]uintptr
+    r1.x    uintptr
+    r1.y    [2]uintptr
+    a1Spill uint8
+    a2Spill uint8
+    _       [6]uint8  // alignment padding
+
+In the stack frame, only the `a2` field is initialized on entry; the
+rest of the frame is left uninitialized.
+
+On exit, `r2.base` is assigned to `R0`, `r2.len` is assigned to `R1`,
+and `r1.x` and `r1.y` are initialized in the stack frame.
 
 There are several things to note in this example.
-First, a2 and r1 are stack-assigned because they contain arrays.
+First, `a2` and `r1` are stack-assigned because they contain arrays.
 The other arguments and results are register-assigned.
-Result r2 is decomposed into its components, which are individually
+Result `r2` is decomposed into its components, which are individually
 register-assigned.
-On the stack, the stack-assigned arguments appear below the
-stack-assigned results, which appear below the argument spill area.
-Only arguments, not results, are assigned a spill area.
+On the stack, the stack-assigned arguments appear at lower addresses
+than the stack-assigned results, which appear at lower addresses than
+the argument spill area.
+Only arguments, not results, are assigned a spill area on the stack.
 
 ### Rationale
 
@@ -196,9 +284,9 @@ kubelet (and even these very little).
 
 We make exceptions for 0 and 1-element arrays because these don’t
 require computed offsets, and 1-element arrays are already decomposed
-in the compiler’s SSA.
+in the compiler’s SSA representation.
 
-The stack assignment algorithm above is equivalent to Go’s stack-based
+The ABI assignment algorithm above is equivalent to Go’s stack-based
 ABI0 calling convention if there are zero architecture registers.
 This is intended to ease the transition to the register-based internal
 ABI and make it easy for the compiler to generate either calling
@@ -217,12 +305,13 @@ These slots also act as the home location if these arguments need to
 be spilled for any other reason, which simplifies traceback printing.
 
 There are several options for how to lay out the argument spill space.
-We chose to lay out each argument in its type's usual memory layout
-but to separate the spill space from the regular argument space.
+We chose to lay out each argument according to its type's usual memory
+layout but to separate the spill space from the regular argument
+space.
 Using the usual memory layout simplifies the compiler because it
 already understands this layout.
 Also, if a function takes the address of a register-assigned argument,
-the compiler must spill that argument to memory in its usual in-memory
+the compiler must spill that argument to memory in its usual memory
 layout and it's more convenient to use the argument spill space for
 this purpose.
 
