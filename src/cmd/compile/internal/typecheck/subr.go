@@ -127,10 +127,9 @@ func NodNil() ir.Node {
 	return n
 }
 
-// in T.field
-// find missing fields that
-// will give shortest unique addressing.
-// modify the tree with missing type names.
+// AddImplicitDots finds missing fields in obj.field that
+// will give the shortest unique addressing and
+// modifies the tree with missing field names.
 func AddImplicitDots(n *ir.SelectorExpr) *ir.SelectorExpr {
 	n.X = typecheck(n.X, ctxType|ctxExpr)
 	if n.X.Diag() {
