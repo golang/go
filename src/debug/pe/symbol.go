@@ -5,6 +5,7 @@
 package pe
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -33,8 +34,14 @@ func readCOFFSymbols(fh *FileHeader, r io.ReadSeeker) ([]COFFSymbol, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fail to seek to symbol table: %v", err)
 	}
+
+	buf := bytes.Buffer{}
+	_, err = io.CopyN(&buf, r, COFFSymbolSize*int64(fh.NumberOfSymbols))
+	if err != nil {
+		return nil, fmt.Errorf("fail to read symbol table: NumberOfSymbols too large")
+	}
 	syms := make([]COFFSymbol, fh.NumberOfSymbols)
-	err = binary.Read(r, binary.LittleEndian, syms)
+	err = binary.Read(&buf, binary.LittleEndian, syms)
 	if err != nil {
 		return nil, fmt.Errorf("fail to read symbol table: %v", err)
 	}
