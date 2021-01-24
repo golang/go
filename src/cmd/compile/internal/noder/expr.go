@@ -140,6 +140,7 @@ func (g *irgen) selectorExpr(pos src.XPos, expr *syntax.SelectorExpr) ir.Node {
 	embeds, last := index[:len(index)-1], index[len(index)-1]
 
 	x := g.expr(expr.X)
+	origx := x
 	for _, ix := range embeds {
 		x = Implicit(DotField(pos, x, ix))
 	}
@@ -155,27 +156,37 @@ func (g *irgen) selectorExpr(pos src.XPos, expr *syntax.SelectorExpr) ir.Node {
 	// unexported methods from two different packages (due to cross-package
 	// interface embedding).
 
+	var n ir.Node
 	method := selinfo.Obj().(*types2.Func)
 
-	// Add implicit addr/deref for method values, if needed.
-	if kind == types2.MethodVal && !x.Type().IsInterface() {
-		recvTyp := method.Type().(*types2.Signature).Recv().Type()
-		_, wantPtr := recvTyp.(*types2.Pointer)
-		havePtr := x.Type().IsPtr()
+	if kind == types2.MethodExpr {
+		// OMETHEXPR is unusual in using directly the node and type of the
+		// original OTYPE node (origx) before passing through embedded
+		// fields, even though the method is selected from the type
+		// (x.Type()) reached after following the embedded fields. We will
+		// actually drop any ODOT nodes we created due to the embedded
+		// fields.
+		n = MethodExpr(pos, origx, x.Type(), last)
+	} else {
+		// Add implicit addr/deref for method values, if needed.
+		if !x.Type().IsInterface() {
+			recvTyp := method.Type().(*types2.Signature).Recv().Type()
+			_, wantPtr := recvTyp.(*types2.Pointer)
+			havePtr := x.Type().IsPtr()
 
-		if havePtr != wantPtr {
-			if havePtr {
-				x = Implicit(Deref(pos, x))
-			} else {
-				x = Implicit(Addr(pos, x))
+			if havePtr != wantPtr {
+				if havePtr {
+					x = Implicit(Deref(pos, x))
+				} else {
+					x = Implicit(Addr(pos, x))
+				}
+			}
+			if !g.match(x.Type(), recvTyp, false) {
+				base.FatalfAt(pos, "expected %L to have type %v", x, recvTyp)
 			}
 		}
-		if !g.match(x.Type(), recvTyp, false) {
-			base.FatalfAt(pos, "expected %L to have type %v", x, recvTyp)
-		}
+		n = DotMethod(pos, x, last)
 	}
-
-	n := DotMethod(pos, x, last)
 	if have, want := n.Sym(), g.selector(method); have != want {
 		base.FatalfAt(pos, "bad Sym: have %v, want %v", have, want)
 	}
