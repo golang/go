@@ -120,6 +120,7 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 		digs.d = buf[:]
 		ok = f.ShortestDecimal(&digs, &lower, &upper)
 		if !ok {
+			// Grisu3 algorithm failed and switch to slower complete algorithm
 			return bigFtoa(dst, prec, fmt, neg, mant, exp, flt)
 		}
 		// Precision for shortest representation mode.
