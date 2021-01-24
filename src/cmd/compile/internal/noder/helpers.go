@@ -154,16 +154,30 @@ func DotField(pos src.XPos, x ir.Node, index int) *ir.SelectorExpr {
 func DotMethod(pos src.XPos, x ir.Node, index int) *ir.SelectorExpr {
 	method := method(x.Type(), index)
 
-	// Method expression.
-	// TODO(mdempsky): Handle with a separate helper?
-	if x.Op() == ir.OTYPE {
-		typ := typecheck.NewMethodType(method.Type, x.Type())
-		return dot(pos, typ, ir.OMETHEXPR, x, method)
-	}
-
 	// Method value.
 	typ := typecheck.NewMethodType(method.Type, nil)
 	return dot(pos, typ, ir.OCALLPART, x, method)
+}
+
+// MethodExpr returns a OMETHEXPR node with the indicated index into the methods
+// of typ. The receiver type is set from recv, which is different from typ if the
+// method was accessed via embedded fields. Similarly, the X value of the
+// ir.SelectorExpr is recv, the original OTYPE node before passing through the
+// embedded fields.
+func MethodExpr(pos src.XPos, recv ir.Node, embed *types.Type, index int) *ir.SelectorExpr {
+	method := method(embed, index)
+	typ := typecheck.NewMethodType(method.Type, recv.Type())
+	// The method expression T.m requires a wrapper when T
+	// is different from m's declared receiver type. We
+	// normally generate these wrappers while writing out
+	// runtime type descriptors, which is always done for
+	// types declared at package scope. However, we need
+	// to make sure to generate wrappers for anonymous
+	// receiver types too.
+	if recv.Sym() == nil {
+		typecheck.NeedRuntimeType(recv.Type())
+	}
+	return dot(pos, typ, ir.OMETHEXPR, recv, method)
 }
 
 func dot(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node, selection *types.Field) *ir.SelectorExpr {
