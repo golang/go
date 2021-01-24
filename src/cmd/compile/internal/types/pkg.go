@@ -31,8 +31,7 @@ type Pkg struct {
 	// height of their imported packages.
 	Height int
 
-	Imported bool // export data of this package was parsed
-	Direct   bool // imported directly
+	Direct bool // imported directly
 }
 
 // NewPkg returns a new Pkg for the given package path and name.

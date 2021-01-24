@@ -17,6 +17,7 @@ import (
 	"unicode/utf8"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/dwarfgen"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/typecheck"
@@ -27,40 +28,26 @@ import (
 
 func LoadPackage(filenames []string) {
 	base.Timer.Start("fe", "parse")
-	lines := ParseFiles(filenames)
-	base.Timer.Stop()
-	base.Timer.AddEvent(int64(lines), "lines")
 
-	// Typecheck.
-	Package()
+	mode := syntax.CheckBranches
 
-	// With all user code typechecked, it's now safe to verify unused dot imports.
-	CheckDotImports()
-	base.ExitIfErrors()
-}
-
-// ParseFiles concurrently parses files into *syntax.File structures.
-// Each declaration in every *syntax.File is converted to a syntax tree
-// and its root represented by *Node is appended to Target.Decls.
-// Returns the total count of parsed lines.
-func ParseFiles(filenames []string) uint {
-	noders := make([]*noder, 0, len(filenames))
 	// Limit the number of simultaneously open files.
 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
 
-	for _, filename := range filenames {
-		p := &noder{
-			basemap:     make(map[*syntax.PosBase]*src.PosBase),
+	noders := make([]*noder, len(filenames))
+	for i, filename := range filenames {
+		p := noder{
 			err:         make(chan syntax.Error),
 			trackScopes: base.Flag.Dwarf,
 		}
-		noders = append(noders, p)
+		noders[i] = &p
 
-		go func(filename string) {
+		filename := filename
+		go func() {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			defer close(p.err)
-			base := syntax.NewFileBase(filename)
+			fbase := syntax.NewFileBase(filename)
 
 			f, err := os.Open(filename)
 			if err != nil {
@@ -69,8 +56,8 @@ func ParseFiles(filenames []string) uint {
 			}
 			defer f.Close()
 
-			p.file, _ = syntax.Parse(base, f, p.error, p.pragma, syntax.CheckBranches) // errors are tracked via p.error
-		}(filename)
+			p.file, _ = syntax.Parse(fbase, f, p.error, p.pragma, mode) // errors are tracked via p.error
+		}()
 	}
 
 	var lines uint
@@ -78,30 +65,27 @@ func ParseFiles(filenames []string) uint {
 		for e := range p.err {
 			p.errorAt(e.Pos, "%s", e.Msg)
 		}
-
-		p.node()
 		lines += p.file.Lines
-		p.file = nil // release memory
-
-		if base.SyntaxErrors() != 0 {
-			base.ErrorExit()
-		}
-		// Always run CheckDclstack here, even when debug_dclstack is not set, as a sanity measure.
-		types.CheckDclstack()
 	}
+	base.Timer.AddEvent(int64(lines), "lines")
+
+	for _, p := range noders {
+		p.node()
+		p.file = nil // release memory
+	}
+
+	if base.SyntaxErrors() != 0 {
+		base.ErrorExit()
+	}
+	types.CheckDclstack()
 
 	for _, p := range noders {
 		p.processPragmas()
 	}
 
+	// Typecheck.
 	types.LocalPkg.Height = myheight
-
-	return lines
-}
-
-func Package() {
 	typecheck.DeclareUniverse()
-
 	typecheck.TypecheckAllowed = true
 
 	// Process top-level declarations in phases.
@@ -166,44 +150,10 @@ func Package() {
 	}
 
 	// Phase 5: With all user code type-checked, it's now safe to verify map keys.
+	// With all user code typechecked, it's now safe to verify unused dot imports.
 	typecheck.CheckMapKeys()
-
-}
-
-// makeSrcPosBase translates from a *syntax.PosBase to a *src.PosBase.
-func (p *noder) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
-	// fast path: most likely PosBase hasn't changed
-	if p.basecache.last == b0 {
-		return p.basecache.base
-	}
-
-	b1, ok := p.basemap[b0]
-	if !ok {
-		fn := b0.Filename()
-		if b0.IsFileBase() {
-			b1 = src.NewFileBase(fn, absFilename(fn))
-		} else {
-			// line directive base
-			p0 := b0.Pos()
-			p0b := p0.Base()
-			if p0b == b0 {
-				panic("infinite recursion in makeSrcPosBase")
-			}
-			p1 := src.MakePos(p.makeSrcPosBase(p0b), p0.Line(), p0.Col())
-			b1 = src.NewLinePragmaBase(p1, fn, fileh(fn), b0.Line(), b0.Col())
-		}
-		p.basemap[b0] = b1
-	}
-
-	// update cache
-	p.basecache.last = b0
-	p.basecache.base = b1
-
-	return b1
-}
-
-func (p *noder) makeXPos(pos syntax.Pos) (_ src.XPos) {
-	return base.Ctxt.PosTable.XPos(src.MakePos(p.makeSrcPosBase(pos.Base()), pos.Line(), pos.Col()))
+	CheckDotImports()
+	base.ExitIfErrors()
 }
 
 func (p *noder) errorAt(pos syntax.Pos, format string, args ...interface{}) {
@@ -221,31 +171,33 @@ func absFilename(name string) string {
 
 // noder transforms package syntax's AST into a Node tree.
 type noder struct {
-	basemap   map[*syntax.PosBase]*src.PosBase
-	basecache struct {
-		last *syntax.PosBase
-		base *src.PosBase
-	}
+	posMap
 
 	file           *syntax.File
 	linknames      []linkname
 	pragcgobuf     [][]string
 	err            chan syntax.Error
-	scope          ir.ScopeID
 	importedUnsafe bool
 	importedEmbed  bool
+	trackScopes    bool
 
-	// scopeVars is a stack tracking the number of variables declared in the
-	// current function at the moment each open scope was opened.
-	trackScopes bool
-	scopeVars   []int
+	funcState *funcState
+}
+
+// funcState tracks all per-function state to make handling nested
+// functions easier.
+type funcState struct {
+	// scopeVars is a stack tracking the number of variables declared in
+	// the current function at the moment each open scope was opened.
+	scopeVars []int
+	marker    dwarfgen.ScopeMarker
 
 	lastCloseScopePos syntax.Pos
 }
 
 func (p *noder) funcBody(fn *ir.Func, block *syntax.BlockStmt) {
-	oldScope := p.scope
-	p.scope = 0
+	outerFuncState := p.funcState
+	p.funcState = new(funcState)
 	typecheck.StartFuncBody(fn)
 
 	if block != nil {
@@ -260,62 +212,34 @@ func (p *noder) funcBody(fn *ir.Func, block *syntax.BlockStmt) {
 	}
 
 	typecheck.FinishFuncBody()
-	p.scope = oldScope
+	p.funcState.marker.WriteTo(fn)
+	p.funcState = outerFuncState
 }
 
 func (p *noder) openScope(pos syntax.Pos) {
+	fs := p.funcState
 	types.Markdcl()
 
 	if p.trackScopes {
-		ir.CurFunc.Parents = append(ir.CurFunc.Parents, p.scope)
-		p.scopeVars = append(p.scopeVars, len(ir.CurFunc.Dcl))
-		p.scope = ir.ScopeID(len(ir.CurFunc.Parents))
-
-		p.markScope(pos)
+		fs.scopeVars = append(fs.scopeVars, len(ir.CurFunc.Dcl))
+		fs.marker.Push(p.makeXPos(pos))
 	}
 }
 
 func (p *noder) closeScope(pos syntax.Pos) {
-	p.lastCloseScopePos = pos
+	fs := p.funcState
+	fs.lastCloseScopePos = pos
 	types.Popdcl()
 
 	if p.trackScopes {
-		scopeVars := p.scopeVars[len(p.scopeVars)-1]
-		p.scopeVars = p.scopeVars[:len(p.scopeVars)-1]
+		scopeVars := fs.scopeVars[len(fs.scopeVars)-1]
+		fs.scopeVars = fs.scopeVars[:len(fs.scopeVars)-1]
 		if scopeVars == len(ir.CurFunc.Dcl) {
 			// no variables were declared in this scope, so we can retract it.
-
-			if int(p.scope) != len(ir.CurFunc.Parents) {
-				base.Fatalf("scope tracking inconsistency, no variables declared but scopes were not retracted")
-			}
-
-			p.scope = ir.CurFunc.Parents[p.scope-1]
-			ir.CurFunc.Parents = ir.CurFunc.Parents[:len(ir.CurFunc.Parents)-1]
-
-			nmarks := len(ir.CurFunc.Marks)
-			ir.CurFunc.Marks[nmarks-1].Scope = p.scope
-			prevScope := ir.ScopeID(0)
-			if nmarks >= 2 {
-				prevScope = ir.CurFunc.Marks[nmarks-2].Scope
-			}
-			if ir.CurFunc.Marks[nmarks-1].Scope == prevScope {
-				ir.CurFunc.Marks = ir.CurFunc.Marks[:nmarks-1]
-			}
-			return
+			fs.marker.Unpush()
+		} else {
+			fs.marker.Pop(p.makeXPos(pos))
 		}
-
-		p.scope = ir.CurFunc.Parents[p.scope-1]
-
-		p.markScope(pos)
-	}
-}
-
-func (p *noder) markScope(pos syntax.Pos) {
-	xpos := p.makeXPos(pos)
-	if i := len(ir.CurFunc.Marks); i > 0 && ir.CurFunc.Marks[i-1].Pos == xpos {
-		ir.CurFunc.Marks[i-1].Scope = p.scope
-	} else {
-		ir.CurFunc.Marks = append(ir.CurFunc.Marks, ir.Mark{Pos: xpos, Scope: p.scope})
 	}
 }
 
@@ -324,7 +248,7 @@ func (p *noder) markScope(pos syntax.Pos) {
 // "if" statements, as their implicit blocks always end at the same
 // position as an explicit block.
 func (p *noder) closeAnotherScope() {
-	p.closeScope(p.lastCloseScopePos)
+	p.closeScope(p.funcState.lastCloseScopePos)
 }
 
 // linkname records a //go:linkname directive.
@@ -335,7 +259,6 @@ type linkname struct {
 }
 
 func (p *noder) node() {
-	types.Block = 1
 	p.importedUnsafe = false
 	p.importedEmbed = false
 
@@ -404,7 +327,7 @@ func (p *noder) decls(decls []syntax.Decl) (l []ir.Node) {
 }
 
 func (p *noder) importDecl(imp *syntax.ImportDecl) {
-	if imp.Path.Bad {
+	if imp.Path == nil || imp.Path.Bad {
 		return // avoid follow-on errors if there was a syntax error
 	}
 
@@ -412,7 +335,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 		p.checkUnused(pragma)
 	}
 
-	ipkg := importfile(p.basicLit(imp.Path))
+	ipkg := importfile(imp)
 	if ipkg == nil {
 		if base.Errors() == 0 {
 			base.Fatalf("phase error in import")
@@ -426,11 +349,6 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 	if ipkg.Path == "embed" {
 		p.importedEmbed = true
 	}
-
-	if !ipkg.Direct {
-		typecheck.Target.Imports = append(typecheck.Target.Imports, ipkg)
-	}
-	ipkg.Direct = true
 
 	var my *types.Sym
 	if imp.LocalPkgName != nil {
@@ -465,20 +383,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
 	exprs := p.exprList(decl.Values)
 
 	if pragma, ok := decl.Pragma.(*pragmas); ok {
-		if len(pragma.Embeds) > 0 {
-			if !p.importedEmbed {
-				// This check can't be done when building the list pragma.Embeds
-				// because that list is created before the noder starts walking over the file,
-				// so at that point it hasn't seen the imports.
-				// We're left to check now, just before applying the //go:embed lines.
-				for _, e := range pragma.Embeds {
-					p.errorAt(e.Pos, "//go:embed only allowed in Go files that import \"embed\"")
-				}
-			} else {
-				varEmbed(p, names, typ, exprs, pragma.Embeds)
-			}
-			pragma.Embeds = nil
-		}
+		varEmbed(p.makeXPos, names[0], decl, pragma, p.importedEmbed)
 		p.checkUnused(pragma)
 	}
 
@@ -1126,9 +1031,16 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 	case *syntax.DeclStmt:
 		return ir.NewBlockStmt(src.NoXPos, p.decls(stmt.DeclList))
 	case *syntax.AssignStmt:
+		if stmt.Rhs == syntax.ImplicitOne {
+			one := constant.MakeInt64(1)
+			pos := p.pos(stmt)
+			n := ir.NewAssignOpStmt(pos, p.binOp(stmt.Op), p.expr(stmt.Lhs), ir.NewBasicLit(pos, one))
+			n.IncDec = true
+			return n
+		}
+
 		if stmt.Op != 0 && stmt.Op != syntax.Def {
 			n := ir.NewAssignOpStmt(p.pos(stmt), p.binOp(stmt.Op), p.expr(stmt.Lhs), p.expr(stmt.Rhs))
-			n.IncDec = stmt.Rhs == syntax.ImplicitOne
 			return n
 		}
 
@@ -1588,15 +1500,6 @@ func (p *noder) wrapname(n syntax.Node, x ir.Node) ir.Node {
 	return x
 }
 
-func (p *noder) pos(n syntax.Node) src.XPos {
-	// TODO(gri): orig.Pos() should always be known - fix package syntax
-	xpos := base.Pos
-	if pos := n.Pos(); pos.IsKnown() {
-		xpos = p.makeXPos(pos)
-	}
-	return xpos
-}
-
 func (p *noder) setlineno(n syntax.Node) {
 	if n != nil {
 		base.Pos = p.pos(n)
@@ -1923,48 +1826,41 @@ func oldname(s *types.Sym) ir.Node {
 	return n
 }
 
-func varEmbed(p *noder, names []*ir.Name, typ ir.Ntype, exprs []ir.Node, embeds []pragmaEmbed) {
-	haveEmbed := false
-	for _, decl := range p.file.DeclList {
-		imp, ok := decl.(*syntax.ImportDecl)
-		if !ok {
-			// imports always come first
-			break
-		}
-		path, _ := strconv.Unquote(imp.Path.Value)
-		if path == "embed" {
-			haveEmbed = true
-			break
-		}
+func varEmbed(makeXPos func(syntax.Pos) src.XPos, name *ir.Name, decl *syntax.VarDecl, pragma *pragmas, haveEmbed bool) {
+	if pragma.Embeds == nil {
+		return
 	}
 
-	pos := embeds[0].Pos
+	pragmaEmbeds := pragma.Embeds
+	pragma.Embeds = nil
+	pos := makeXPos(pragmaEmbeds[0].Pos)
+
 	if !haveEmbed {
-		p.errorAt(pos, "invalid go:embed: missing import \"embed\"")
+		base.ErrorfAt(pos, "go:embed only allowed in Go files that import \"embed\"")
 		return
 	}
-	if len(names) > 1 {
-		p.errorAt(pos, "go:embed cannot apply to multiple vars")
+	if len(decl.NameList) > 1 {
+		base.ErrorfAt(pos, "go:embed cannot apply to multiple vars")
 		return
 	}
-	if len(exprs) > 0 {
-		p.errorAt(pos, "go:embed cannot apply to var with initializer")
+	if decl.Values != nil {
+		base.ErrorfAt(pos, "go:embed cannot apply to var with initializer")
 		return
 	}
-	if typ == nil {
-		// Should not happen, since len(exprs) == 0 now.
-		p.errorAt(pos, "go:embed cannot apply to var without type")
+	if decl.Type == nil {
+		// Should not happen, since Values == nil now.
+		base.ErrorfAt(pos, "go:embed cannot apply to var without type")
 		return
 	}
 	if typecheck.DeclContext != ir.PEXTERN {
-		p.errorAt(pos, "go:embed cannot apply to var inside func")
+		base.ErrorfAt(pos, "go:embed cannot apply to var inside func")
 		return
 	}
 
-	v := names[0]
-	typecheck.Target.Embeds = append(typecheck.Target.Embeds, v)
-	v.Embed = new([]ir.Embed)
-	for _, e := range embeds {
-		*v.Embed = append(*v.Embed, ir.Embed{Pos: p.makeXPos(e.Pos), Patterns: e.Patterns})
+	var embeds []ir.Embed
+	for _, e := range pragmaEmbeds {
+		embeds = append(embeds, ir.Embed{Pos: makeXPos(e.Pos), Patterns: e.Patterns})
 	}
+	typecheck.Target.Embeds = append(typecheck.Target.Embeds, name)
+	name.Embed = &embeds
 }

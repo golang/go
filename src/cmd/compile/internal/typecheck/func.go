@@ -174,7 +174,7 @@ func fnpkg(fn *ir.Name) *types.Pkg {
 
 // closurename generates a new unique name for a closure within
 // outerfunc.
-func closurename(outerfunc *ir.Func) *types.Sym {
+func ClosureName(outerfunc *ir.Func) *types.Sym {
 	outer := "glob."
 	prefix := "func"
 	gen := &globClosgen
@@ -309,7 +309,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 	// explicitly in (*inlsubst).node()).
 	inTypeCheckInl := ir.CurFunc != nil && ir.CurFunc.Body == nil
 	if !inTypeCheckInl {
-		fn.Nname.SetSym(closurename(ir.CurFunc))
+		fn.Nname.SetSym(ClosureName(ir.CurFunc))
 		ir.MarkFunc(fn.Nname)
 	}
 	Func(fn)
