@@ -187,7 +187,7 @@ func (wd *workDone) report(message string, percentage float64) {
 			// yet use this feature, the value is kept constant here.
 			Cancellable: wd.cancel != nil,
 			Message:     message,
-			Percentage:  percentage,
+			Percentage:  uint32(percentage),
 		},
 	})
 	if err != nil {

@@ -43,7 +43,7 @@ func (s *Server) semanticTokensRefresh(ctx context.Context) error {
 
 func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocumentIdentifier, rng *protocol.Range) (*protocol.SemanticTokens, error) {
 	ans := protocol.SemanticTokens{
-		Data: []float64{},
+		Data: []uint32{},
 	}
 	snapshot, _, ok, release, err := s.beginFileRequest(ctx, td.URI, source.Go)
 	defer release()
@@ -157,15 +157,15 @@ func (e *encoded) token(start token.Pos, leng int, typ tokenType, mods []string)
 	e.add(lspRange.Start.Line, lspRange.Start.Character, length, typ, mods)
 }
 
-func (e *encoded) add(line, start float64, len float64, tok tokenType, mod []string) {
+func (e *encoded) add(line, start uint32, len uint32, tok tokenType, mod []string) {
 	x := semItem{line, start, len, tok, mod}
 	e.items = append(e.items, x)
 }
 
 // semItem represents a token found walking the parse tree
 type semItem struct {
-	line, start float64
-	len         float64
+	line, start uint32
+	len         uint32
 	typeStr     tokenType
 	mods        []string
 }
@@ -485,7 +485,7 @@ func (e *encoded) init() error {
 	return nil
 }
 
-func (e *encoded) Data() ([]float64, error) {
+func (e *encoded) Data() ([]uint32, error) {
 	// binary operators, at least, will be out of order
 	sort.Slice(e.items, func(i, j int) bool {
 		if e.items[i].line != e.items[j].line {
@@ -496,7 +496,7 @@ func (e *encoded) Data() ([]float64, error) {
 	typeMap, modMap := e.maps()
 	// each semantic token needs five values
 	// (see Integer Encoding for Tokens in the LSP spec)
-	x := make([]float64, 5*len(e.items))
+	x := make([]uint32, 5*len(e.items))
 	for i := 0; i < len(e.items); i++ {
 		j := 5 * i
 		if i == 0 {
@@ -509,12 +509,12 @@ func (e *encoded) Data() ([]float64, error) {
 			x[j+1] = e.items[i].start - e.items[i-1].start
 		}
 		x[j+2] = e.items[i].len
-		x[j+3] = float64(typeMap[e.items[i].typeStr])
+		x[j+3] = uint32(typeMap[e.items[i].typeStr])
 		mask := 0
 		for _, s := range e.items[i].mods {
 			mask |= modMap[s]
 		}
-		x[j+4] = float64(mask)
+		x[j+4] = uint32(mask)
 	}
 	return x, nil
 }

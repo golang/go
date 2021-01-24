@@ -344,7 +344,7 @@ type FileModification struct {
 
 	// Version will be -1 and Text will be nil when they are not supplied,
 	// specifically on textDocument/didClose and for on-disk changes.
-	Version float64
+	Version int32
 	Text    []byte
 
 	// LanguageID is only sent from the language client on textDocument/didOpen.
@@ -431,7 +431,7 @@ const (
 
 type VersionedFileHandle interface {
 	FileHandle
-	Version() float64
+	Version() int32
 	Session() string
 
 	// LSPIdentity returns the version identity of a file.
@@ -446,7 +446,7 @@ type VersionedFileIdentity struct {
 
 	// Version is the version of the file, as specified by the client. It should
 	// only be set in combination with SessionID.
-	Version float64
+	Version int32
 }
 
 // FileHandle represents a handle to a specific version of a single file.

@@ -162,7 +162,7 @@ func markLine(m mark, lines [][]byte) {
 	lines[m.line-1] = l
 }
 
-func decorate(file string, result []float64) error {
+func decorate(file string, result []uint32) error {
 	buf, err := ioutil.ReadFile(file)
 	if err != nil {
 		return err
@@ -180,14 +180,14 @@ func decorate(file string, result []float64) error {
 	return nil
 }
 
-func newMarks(d []float64) []mark {
+func newMarks(d []uint32) []mark {
 	ans := []mark{}
 	// the following two loops could be merged, at the cost
 	// of making the logic slightly more complicated to understand
 	// first, convert from deltas to absolute, in LSP coordinates
-	lspLine := make([]float64, len(d)/5)
-	lspChar := make([]float64, len(d)/5)
-	line, char := 0.0, 0.0
+	lspLine := make([]uint32, len(d)/5)
+	lspChar := make([]uint32, len(d)/5)
+	var line, char uint32
 	for i := 0; 5*i < len(d); i++ {
 		lspLine[i] = line + d[5*i+0]
 		if d[5*i+0] > 0 {

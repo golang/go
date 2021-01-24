@@ -20,6 +20,10 @@ func (s *Server) CodeLens(ctx context.Context, params *protocol.CodeLensParams) 
 	return s.codeLens(ctx, params)
 }
 
+func (s *Server) CodeLensRefresh(context.Context) error {
+	return notImplemented("CodeLensRefresh")
+}
+
 func (s *Server) ColorPresentation(context.Context, *protocol.ColorPresentationParams) ([]protocol.ColorPresentation, error) {
 	return nil, notImplemented("ColorPresentation")
 }
@@ -56,8 +60,20 @@ func (s *Server) DidClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	return s.didClose(ctx, params)
 }
 
+func (s *Server) DidCreateFiles(context.Context, *protocol.CreateFilesParams) error {
+	return notImplemented("DidCreateFiles")
+}
+
+func (s *Server) DidDeleteFiles(context.Context, *protocol.DeleteFilesParams) error {
+	return notImplemented("DidDeleteFiles")
+}
+
 func (s *Server) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
 	return s.didOpen(ctx, params)
+}
+
+func (s *Server) DidRenameFiles(context.Context, *protocol.RenameFilesParams) error {
+	return notImplemented("DidRenameFiles")
 }
 
 func (s *Server) DidSave(ctx context.Context, params *protocol.DidSaveTextDocumentParams) error {
@@ -114,6 +130,10 @@ func (s *Server) Initialize(ctx context.Context, params *protocol.ParamInitializ
 
 func (s *Server) Initialized(ctx context.Context, params *protocol.InitializedParams) error {
 	return s.initialized(ctx, params)
+}
+
+func (s *Server) LinkedEditingRange(context.Context, *protocol.LinkedEditingRangeParams) (*protocol.LinkedEditingRanges, error) {
+	return nil, notImplemented("LinkedEditingRange")
 }
 
 func (s *Server) LogTrace(context.Context, *protocol.LogTraceParams) error {
@@ -196,6 +216,10 @@ func (s *Server) SetTrace(context.Context, *protocol.SetTraceParams) error {
 	return notImplemented("SetTrace")
 }
 
+func (s *Server) ShowDocument(context.Context, *protocol.ShowDocumentParams) (*protocol.ShowDocumentResult, error) {
+	return nil, notImplemented("ShowDocument")
+}
+
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.shutdown(ctx)
 }
@@ -210,6 +234,18 @@ func (s *Server) Symbol(ctx context.Context, params *protocol.WorkspaceSymbolPar
 
 func (s *Server) TypeDefinition(ctx context.Context, params *protocol.TypeDefinitionParams) (protocol.Definition, error) {
 	return s.typeDefinition(ctx, params)
+}
+
+func (s *Server) WillCreateFiles(context.Context, *protocol.CreateFilesParams) (*protocol.WorkspaceEdit, error) {
+	return nil, notImplemented("WillCreateFiles")
+}
+
+func (s *Server) WillDeleteFiles(context.Context, *protocol.DeleteFilesParams) (*protocol.WorkspaceEdit, error) {
+	return nil, notImplemented("WillDeleteFiles")
+}
+
+func (s *Server) WillRenameFiles(context.Context, *protocol.RenameFilesParams) (*protocol.WorkspaceEdit, error) {
+	return nil, notImplemented("WillRenameFiles")
 }
 
 func (s *Server) WillSave(context.Context, *protocol.WillSaveTextDocumentParams) error {

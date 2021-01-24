@@ -178,9 +178,8 @@ func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocume
 		return nil
 	}
 	c := source.FileModification{
-		URI:     uri,
-		Action:  source.Save,
-		Version: params.TextDocument.Version,
+		URI:    uri,
+		Action: source.Save,
 	}
 	if params.Text != nil {
 		c.Text = []byte(*params.Text)

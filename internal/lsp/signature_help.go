@@ -26,6 +26,6 @@ func (s *Server) signatureHelp(ctx context.Context, params *protocol.SignatureHe
 	}
 	return &protocol.SignatureHelp{
 		Signatures:      []protocol.SignatureInformation{*info},
-		ActiveParameter: float64(activeParameter),
+		ActiveParameter: uint32(activeParameter),
 	}, nil
 }

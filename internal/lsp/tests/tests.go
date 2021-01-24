@@ -1258,7 +1258,7 @@ func (data *Data) collectSignatures(spn span.Span, signature string, activeParam
 				Label: signature,
 			},
 		},
-		ActiveParameter: float64(activeParam),
+		ActiveParameter: uint32(activeParam),
 	}
 	// Hardcode special case to test the lack of a signature.
 	if signature == "" && activeParam == 0 {

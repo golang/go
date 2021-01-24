@@ -142,8 +142,8 @@ func (r *runner) callCompletion(t *testing.T, src span.Span, options func(*sourc
 				URI: protocol.URIFromSpanURI(src.URI()),
 			},
 			Position: protocol.Position{
-				Line:      float64(src.Start().Line() - 1),
-				Character: float64(src.Start().Column() - 1),
+				Line:      uint32(src.Start().Line() - 1),
+				Character: uint32(src.Start().Column() - 1),
 			},
 		},
 	})

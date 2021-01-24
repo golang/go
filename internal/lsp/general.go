@@ -90,40 +90,42 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
-			CallHierarchyProvider: true,
-			CodeActionProvider:    codeActionProvider,
-			CompletionProvider: protocol.CompletionOptions{
-				TriggerCharacters: []string{"."},
-			},
-			DefinitionProvider:         true,
-			TypeDefinitionProvider:     true,
-			ImplementationProvider:     true,
-			DocumentFormattingProvider: true,
-			DocumentSymbolProvider:     true,
-			WorkspaceSymbolProvider:    true,
-			ExecuteCommandProvider: protocol.ExecuteCommandOptions{
-				Commands: options.SupportedCommands,
-			},
-			FoldingRangeProvider:      true,
-			HoverProvider:             true,
-			DocumentHighlightProvider: true,
-			DocumentLinkProvider:      protocol.DocumentLinkOptions{},
-			ReferencesProvider:        true,
-			RenameProvider:            renameOpts,
-			SignatureHelpProvider: protocol.SignatureHelpOptions{
-				TriggerCharacters: []string{"(", ","},
-			},
-			TextDocumentSync: &protocol.TextDocumentSyncOptions{
-				Change:    protocol.Incremental,
-				OpenClose: true,
-				Save: protocol.SaveOptions{
-					IncludeText: false,
+			InnerServerCapabilities: protocol.InnerServerCapabilities{
+				CallHierarchyProvider: true,
+				CodeActionProvider:    codeActionProvider,
+				CompletionProvider: protocol.CompletionOptions{
+					TriggerCharacters: []string{"."},
 				},
-			},
-			Workspace: protocol.WorkspaceGn{
-				WorkspaceFolders: protocol.WorkspaceFoldersGn{
-					Supported:           true,
-					ChangeNotifications: "workspace/didChangeWorkspaceFolders",
+				DefinitionProvider:         true,
+				TypeDefinitionProvider:     true,
+				ImplementationProvider:     true,
+				DocumentFormattingProvider: true,
+				DocumentSymbolProvider:     true,
+				WorkspaceSymbolProvider:    true,
+				ExecuteCommandProvider: protocol.ExecuteCommandOptions{
+					Commands: options.SupportedCommands,
+				},
+				FoldingRangeProvider:      true,
+				HoverProvider:             true,
+				DocumentHighlightProvider: true,
+				DocumentLinkProvider:      protocol.DocumentLinkOptions{},
+				ReferencesProvider:        true,
+				RenameProvider:            renameOpts,
+				SignatureHelpProvider: protocol.SignatureHelpOptions{
+					TriggerCharacters: []string{"(", ","},
+				},
+				TextDocumentSync: &protocol.TextDocumentSyncOptions{
+					Change:    protocol.Incremental,
+					OpenClose: true,
+					Save: protocol.SaveOptions{
+						IncludeText: false,
+					},
+				},
+				Workspace: protocol.WorkspaceGn{
+					WorkspaceFolders: protocol.WorkspaceFoldersGn{
+						Supported:           true,
+						ChangeNotifications: "workspace/didChangeWorkspaceFolders",
+					},
 				},
 			},
 		},
@@ -341,7 +343,7 @@ func (s *Server) registerWatchedDirectoriesLocked(ctx context.Context, patterns 
 	for pattern := range patterns {
 		watchers = append(watchers, protocol.FileSystemWatcher{
 			GlobPattern: pattern,
-			Kind:        float64(protocol.WatchChange + protocol.WatchDelete + protocol.WatchCreate),
+			Kind:        uint32(protocol.WatchChange + protocol.WatchDelete + protocol.WatchCreate),
 		})
 	}
 

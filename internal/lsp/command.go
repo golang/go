@@ -283,7 +283,7 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		response, err := s.client.ApplyEdit(ctx, &protocol.ApplyWorkspaceEditParams{
 			Edit: protocol.WorkspaceEdit{
 				DocumentChanges: []protocol.TextDocumentEdit{{
-					TextDocument: protocol.VersionedTextDocumentIdentifier{
+					TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
 						Version: fh.Version(),
 						TextDocumentIdentifier: protocol.TextDocumentIdentifier{
 							URI: protocol.URIFromSpanURI(fh.URI()),

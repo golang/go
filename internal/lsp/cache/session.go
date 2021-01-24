@@ -44,7 +44,7 @@ type overlay struct {
 	uri     span.URI
 	text    []byte
 	hash    string
-	version float64
+	version int32
 	kind    source.FileKind
 
 	// saved is true if a file matches the state on disk,
@@ -80,7 +80,7 @@ func (o *overlay) URI() span.URI {
 	return o.uri
 }
 
-func (o *overlay) Version() float64 {
+func (o *overlay) Version() int32 {
 	return o.version
 }
 
@@ -113,7 +113,7 @@ func (c *closedFile) Session() string {
 	return ""
 }
 
-func (c *closedFile) Version() float64 {
+func (c *closedFile) Version() int32 {
 	return 0
 }
 
@@ -622,7 +622,7 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 		}
 		// On-disk changes don't come with versions.
 		version := c.Version
-		if c.OnDisk {
+		if c.OnDisk || c.Action == source.Save {
 			version = o.version
 		}
 		hash := hashContents(text)
@@ -632,7 +632,7 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 			// Do nothing. sameContentOnDisk should be false.
 		case source.Save:
 			// Make sure the version and content (if present) is the same.
-			if o.version != version {
+			if false && o.version != version { // Client no longer sends the version
 				return nil, errors.Errorf("updateOverlays: saving %s at version %v, currently at %v", c.URI, c.Version, o.version)
 			}
 			if c.Text != nil && o.hash != hash {

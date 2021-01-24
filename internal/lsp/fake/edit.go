@@ -27,8 +27,8 @@ type Range struct {
 
 func (p Pos) ToProtocolPosition() protocol.Position {
 	return protocol.Position{
-		Line:      float64(p.Line),
-		Character: float64(p.Column),
+		Line:      uint32(p.Line),
+		Character: uint32(p.Column),
 	}
 }
 

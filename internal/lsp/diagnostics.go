@@ -477,7 +477,7 @@ func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot so
 			r.snapshotID = snapshot.ID()
 			continue
 		}
-		version := float64(0)
+		var version int32
 		if fh := snapshot.FindFile(uri); fh != nil { // file may have been deleted
 			version = fh.Version()
 		}

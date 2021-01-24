@@ -50,7 +50,7 @@ var templates = map[string]tdata{
 // construct a source.Overlay for fileTmpl
 type fakeOverlay struct{}
 
-func (fakeOverlay) Version() float64 {
+func (fakeOverlay) Version() int32 {
 	return 0
 }
 func (fakeOverlay) Session() string {

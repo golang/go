@@ -985,7 +985,7 @@ require random.com v1.2.3
 `
 			var diagnostics []protocol.Diagnostic
 			for _, d := range d.Diagnostics {
-				if d.Range.Start.Line != float64(pos.Line) {
+				if d.Range.Start.Line != uint32(pos.Line) {
 					continue
 				}
 				diagnostics = append(diagnostics, d)
@@ -1038,7 +1038,7 @@ func main() {
 		)
 		var diagnostic protocol.Diagnostic
 		for _, d := range params.Diagnostics {
-			if d.Range.Start.Line == float64(pos.Line) {
+			if d.Range.Start.Line == uint32(pos.Line) {
 				diagnostic = d
 				break
 			}

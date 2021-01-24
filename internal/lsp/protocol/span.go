@@ -64,8 +64,8 @@ func (m *ColumnMapper) Position(p span.Point) (Position, error) {
 		return Position{}, err
 	}
 	return Position{
-		Line:      float64(p.Line() - 1),
-		Character: float64(chr - 1),
+		Line:      uint32(p.Line() - 1),
+		Character: uint32(chr - 1),
 	}, nil
 }
 

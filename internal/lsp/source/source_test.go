@@ -302,8 +302,8 @@ func (r *runner) callCompletion(t *testing.T, src span.Span, options func(*sourc
 	defer r.view.SetOptions(r.ctx, original)
 
 	list, surrounding, err := completion.Completion(r.ctx, r.snapshot, fh, protocol.Position{
-		Line:      float64(src.Start().Line() - 1),
-		Character: float64(src.Start().Column() - 1),
+		Line:      uint32(src.Start().Line() - 1),
+		Character: uint32(src.Start().Column() - 1),
 	}, protocol.CompletionContext{})
 	if err != nil && !errors.As(err, &completion.ErrIsDefinition{}) {
 		t.Fatalf("failed for %v: %v", src, err)
@@ -918,7 +918,7 @@ func (r *runner) SignatureHelp(t *testing.T, spn span.Span, want *protocol.Signa
 	}
 	got := &protocol.SignatureHelp{
 		Signatures:      []protocol.SignatureInformation{*gotSignature},
-		ActiveParameter: float64(gotActiveParameter),
+		ActiveParameter: uint32(gotActiveParameter),
 	}
 	diff, err := tests.DiffSignatures(spn, want, got)
 	if err != nil {

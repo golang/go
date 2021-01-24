@@ -266,7 +266,7 @@ func (e *Editor) initialize(ctx context.Context, workspaceFolders []string) erro
 	// TODO: set client capabilities
 	params.InitializationOptions = e.configuration()
 	if e.Config.SendPID {
-		params.ProcessID = float64(os.Getpid())
+		params.ProcessID = int32(os.Getpid())
 	}
 
 	// This is a bit of a hack, since the fake editor doesn't actually support
@@ -357,7 +357,7 @@ func textDocumentItem(wd *Workdir, buf buffer) protocol.TextDocumentItem {
 	return protocol.TextDocumentItem{
 		URI:        uri,
 		LanguageID: languageID,
-		Version:    float64(buf.version),
+		Version:    int32(buf.version),
 		Text:       buf.text(),
 	}
 }
@@ -467,10 +467,7 @@ func (e *Editor) SaveBufferWithoutActions(ctx context.Context, path string) erro
 
 	if e.Server != nil {
 		params := &protocol.DidSaveTextDocumentParams{
-			TextDocument: protocol.VersionedTextDocumentIdentifier{
-				Version:                float64(buf.version),
-				TextDocumentIdentifier: docID,
-			},
+			TextDocument: docID,
 		}
 		if includeText {
 			params.Text = &content
@@ -667,7 +664,7 @@ func (e *Editor) setBufferContentLocked(ctx context.Context, path string, dirty 
 	}
 	params := &protocol.DidChangeTextDocumentParams{
 		TextDocument: protocol.VersionedTextDocumentIdentifier{
-			Version:                float64(buf.version),
+			Version:                int32(buf.version),
 			TextDocumentIdentifier: e.textDocumentIdentifier(buf.path),
 		},
 		ContentChanges: evts,
@@ -790,7 +787,7 @@ func (e *Editor) codeAction(ctx context.Context, path string, rng *protocol.Rang
 		}
 		for _, change := range action.Edit.DocumentChanges {
 			path := e.sandbox.Workdir.URIToPath(change.TextDocument.URI)
-			if float64(e.buffers[path].version) != change.TextDocument.Version {
+			if int32(e.buffers[path].version) != change.TextDocument.Version {
 				// Skip edits for old versions.
 				continue
 			}

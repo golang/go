@@ -246,7 +246,7 @@ func (c *Command) SuggestedFix(ctx context.Context, snapshot Snapshot, fh Versio
 			return nil, err
 		}
 		edits = append(edits, protocol.TextDocumentEdit{
-			TextDocument: protocol.VersionedTextDocumentIdentifier{
+			TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
 				Version: fh.Version(),
 				TextDocumentIdentifier: protocol.TextDocumentIdentifier{
 					URI: protocol.URIFromSpanURI(fh.URI()),

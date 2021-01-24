@@ -442,7 +442,7 @@ func (e DiagnosticExpectation) Check(s State) Verdict {
 	found := false
 	for _, d := range diags.Diagnostics {
 		if e.pos != nil {
-			if d.Range.Start.Line != float64(e.pos.Line) || d.Range.Start.Character != float64(e.pos.Column) {
+			if d.Range.Start.Line != uint32(e.pos.Line) || d.Range.Start.Character != uint32(e.pos.Column) {
 				continue
 			}
 		}
@@ -519,7 +519,7 @@ func (e *Env) AnyDiagnosticAtCurrentVersion(name string) Expectation {
 	version := e.Editor.BufferVersion(name)
 	check := func(s State) Verdict {
 		diags, ok := s.diagnostics[name]
-		if ok && diags.Version == float64(version) {
+		if ok && diags.Version == int32(version) {
 			return Met
 		}
 		return Unmet

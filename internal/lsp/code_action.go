@@ -493,7 +493,7 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, pkg source.P
 func documentChanges(fh source.VersionedFileHandle, edits []protocol.TextEdit) []protocol.TextDocumentEdit {
 	return []protocol.TextDocumentEdit{
 		{
-			TextDocument: protocol.VersionedTextDocumentIdentifier{
+			TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
 				Version: fh.Version(),
 				TextDocumentIdentifier: protocol.TextDocumentIdentifier{
 					URI: protocol.URIFromSpanURI(fh.URI()),
@@ -549,7 +549,7 @@ func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.V
 					continue
 				}
 				action.Edit.DocumentChanges = append(action.Edit.DocumentChanges, protocol.TextDocumentEdit{
-					TextDocument: protocol.VersionedTextDocumentIdentifier{
+					TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
 						Version: modFH.Version(),
 						TextDocumentIdentifier: protocol.TextDocumentIdentifier{
 							URI: protocol.URIFromSpanURI(modFH.URI()),

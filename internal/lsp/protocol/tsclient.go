@@ -1,9 +1,13 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package protocol
 
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: 901fd40345060d159f07d234bbc967966a929a34
-// last fetched Mon Oct 26 2020 09:10:42 GMT-0400 (Eastern Daylight Time)
+// commit: dae62de921d25964e8732411ca09e532dde992f5
+// last fetched Sat Jan 23 2021 16:14:55 GMT-0500 (Eastern Standard Time)
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
 

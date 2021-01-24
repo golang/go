@@ -106,11 +106,8 @@ func TestCapabilities(t *testing.T) {
 	}
 
 	if err := c.Server.DidSave(ctx, &protocol.DidSaveTextDocumentParams{
-		TextDocument: protocol.VersionedTextDocumentIdentifier{
-			Version: 2,
-			TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-				URI: uri,
-			},
+		TextDocument: protocol.TextDocumentIdentifier{
+			URI: uri,
 		},
 		// LSP specifies that a file can be saved with optional text, so this field must be nil.
 		Text: nil,

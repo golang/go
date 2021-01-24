@@ -1,9 +1,13 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package protocol
 
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: 901fd40345060d159f07d234bbc967966a929a34
-// last fetched Mon Oct 26 2020 09:10:42 GMT-0400 (Eastern Daylight Time)
+// commit: dae62de921d25964e8732411ca09e532dde992f5
+// last fetched Sat Jan 23 2021 16:14:55 GMT-0500 (Eastern Standard Time)
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
 
@@ -18,6 +22,9 @@ import (
 type Server interface {
 	DidChangeWorkspaceFolders(context.Context, *DidChangeWorkspaceFoldersParams) error
 	WorkDoneProgressCancel(context.Context, *WorkDoneProgressCancelParams) error
+	DidCreateFiles(context.Context, *CreateFilesParams) error
+	DidRenameFiles(context.Context, *RenameFilesParams) error
+	DidDeleteFiles(context.Context, *DeleteFilesParams) error
 	Initialized(context.Context, *InitializedParams) error
 	Exit(context.Context) error
 	DidChangeConfiguration(context.Context, *DidChangeConfigurationParams) error
@@ -43,6 +50,12 @@ type Server interface {
 	SemanticTokensFullDelta(context.Context, *SemanticTokensDeltaParams) (interface{} /* SemanticTokens | SemanticTokensDelta | nil*/, error)
 	SemanticTokensRange(context.Context, *SemanticTokensRangeParams) (*SemanticTokens /*SemanticTokens | null*/, error)
 	SemanticTokensRefresh(context.Context) error
+	ShowDocument(context.Context, *ShowDocumentParams) (*ShowDocumentResult, error)
+	LinkedEditingRange(context.Context, *LinkedEditingRangeParams) (*LinkedEditingRanges /*LinkedEditingRanges | null*/, error)
+	WillCreateFiles(context.Context, *CreateFilesParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error)
+	WillRenameFiles(context.Context, *RenameFilesParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error)
+	WillDeleteFiles(context.Context, *DeleteFilesParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error)
+	Moniker(context.Context, *MonikerParams) ([]Moniker /*Moniker[] | null*/, error)
 	Initialize(context.Context, *ParamInitialize) (*InitializeResult, error)
 	Shutdown(context.Context) error
 	WillSaveWaitUntil(context.Context, *WillSaveTextDocumentParams) ([]TextEdit /*TextEdit[] | null*/, error)
@@ -59,6 +72,7 @@ type Server interface {
 	Symbol(context.Context, *WorkspaceSymbolParams) ([]SymbolInformation /*SymbolInformation[] | null*/, error)
 	CodeLens(context.Context, *CodeLensParams) ([]CodeLens /*CodeLens[] | null*/, error)
 	ResolveCodeLens(context.Context, *CodeLens) (*CodeLens, error)
+	CodeLensRefresh(context.Context) error
 	DocumentLink(context.Context, *DocumentLinkParams) ([]DocumentLink /*DocumentLink[] | null*/, error)
 	ResolveDocumentLink(context.Context, *DocumentLink) (*DocumentLink, error)
 	Formatting(context.Context, *DocumentFormattingParams) ([]TextEdit /*TextEdit[] | null*/, error)
@@ -67,7 +81,6 @@ type Server interface {
 	Rename(context.Context, *RenameParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error)
 	PrepareRename(context.Context, *PrepareRenameParams) (*Range /*Range | { range: Range, placeholder: string } | { defaultBehavior: boolean } | null*/, error)
 	ExecuteCommand(context.Context, *ExecuteCommandParams) (interface{} /*any | null*/, error)
-	Moniker(context.Context, *MonikerParams) ([]Moniker /*Moniker[] | null*/, error)
 	NonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error)
 }
 
@@ -86,6 +99,27 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 			return true, sendParseError(ctx, reply, err)
 		}
 		err := server.WorkDoneProgressCancel(ctx, &params)
+		return true, reply(ctx, nil, err)
+	case "workspace/didCreateFiles": // notif
+		var params CreateFilesParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		err := server.DidCreateFiles(ctx, &params)
+		return true, reply(ctx, nil, err)
+	case "workspace/didRenameFiles": // notif
+		var params RenameFilesParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		err := server.DidRenameFiles(ctx, &params)
+		return true, reply(ctx, nil, err)
+	case "workspace/didDeleteFiles": // notif
+		var params DeleteFilesParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		err := server.DidDeleteFiles(ctx, &params)
 		return true, reply(ctx, nil, err)
 	case "initialized": // notif
 		var params InitializedParams
@@ -257,6 +291,48 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 		}
 		err := server.SemanticTokensRefresh(ctx)
 		return true, reply(ctx, nil, err)
+	case "window/showDocument": // req
+		var params ShowDocumentParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := server.ShowDocument(ctx, &params)
+		return true, reply(ctx, resp, err)
+	case "textDocument/linkedEditingRange": // req
+		var params LinkedEditingRangeParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := server.LinkedEditingRange(ctx, &params)
+		return true, reply(ctx, resp, err)
+	case "workspace/willCreateFiles": // req
+		var params CreateFilesParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := server.WillCreateFiles(ctx, &params)
+		return true, reply(ctx, resp, err)
+	case "workspace/willRenameFiles": // req
+		var params RenameFilesParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := server.WillRenameFiles(ctx, &params)
+		return true, reply(ctx, resp, err)
+	case "workspace/willDeleteFiles": // req
+		var params DeleteFilesParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := server.WillDeleteFiles(ctx, &params)
+		return true, reply(ctx, resp, err)
+	case "textDocument/moniker": // req
+		var params MonikerParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := server.Moniker(ctx, &params)
+		return true, reply(ctx, resp, err)
 	case "initialize": // req
 		var params ParamInitialize
 		if err := json.Unmarshal(r.Params(), &params); err != nil {
@@ -368,6 +444,12 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 		}
 		resp, err := server.ResolveCodeLens(ctx, &params)
 		return true, reply(ctx, resp, err)
+	case "workspace/codeLens/refresh": // req
+		if len(r.Params()) > 0 {
+			return true, reply(ctx, nil, errors.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
+		}
+		err := server.CodeLensRefresh(ctx)
+		return true, reply(ctx, nil, err)
 	case "textDocument/documentLink": // req
 		var params DocumentLinkParams
 		if err := json.Unmarshal(r.Params(), &params); err != nil {
@@ -424,13 +506,6 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 		}
 		resp, err := server.ExecuteCommand(ctx, &params)
 		return true, reply(ctx, resp, err)
-	case "textDocument/moniker": // req
-		var params MonikerParams
-		if err := json.Unmarshal(r.Params(), &params); err != nil {
-			return true, sendParseError(ctx, reply, err)
-		}
-		resp, err := server.Moniker(ctx, &params)
-		return true, reply(ctx, resp, err)
 
 	default:
 		return false, nil
@@ -443,6 +518,18 @@ func (s *serverDispatcher) DidChangeWorkspaceFolders(ctx context.Context, params
 
 func (s *serverDispatcher) WorkDoneProgressCancel(ctx context.Context, params *WorkDoneProgressCancelParams) error {
 	return s.Conn.Notify(ctx, "window/workDoneProgress/cancel", params)
+}
+
+func (s *serverDispatcher) DidCreateFiles(ctx context.Context, params *CreateFilesParams) error {
+	return s.Conn.Notify(ctx, "workspace/didCreateFiles", params)
+}
+
+func (s *serverDispatcher) DidRenameFiles(ctx context.Context, params *RenameFilesParams) error {
+	return s.Conn.Notify(ctx, "workspace/didRenameFiles", params)
+}
+
+func (s *serverDispatcher) DidDeleteFiles(ctx context.Context, params *DeleteFilesParams) error {
+	return s.Conn.Notify(ctx, "workspace/didDeleteFiles", params)
 }
 
 func (s *serverDispatcher) Initialized(ctx context.Context, params *InitializedParams) error {
@@ -596,6 +683,54 @@ func (s *serverDispatcher) SemanticTokensRefresh(ctx context.Context) error {
 	return Call(ctx, s.Conn, "workspace/semanticTokens/refresh", nil, nil)
 }
 
+func (s *serverDispatcher) ShowDocument(ctx context.Context, params *ShowDocumentParams) (*ShowDocumentResult, error) {
+	var result *ShowDocumentResult
+	if err := Call(ctx, s.Conn, "window/showDocument", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *serverDispatcher) LinkedEditingRange(ctx context.Context, params *LinkedEditingRangeParams) (*LinkedEditingRanges /*LinkedEditingRanges | null*/, error) {
+	var result *LinkedEditingRanges /*LinkedEditingRanges | null*/
+	if err := Call(ctx, s.Conn, "textDocument/linkedEditingRange", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *serverDispatcher) WillCreateFiles(ctx context.Context, params *CreateFilesParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error) {
+	var result *WorkspaceEdit /*WorkspaceEdit | null*/
+	if err := Call(ctx, s.Conn, "workspace/willCreateFiles", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *serverDispatcher) WillRenameFiles(ctx context.Context, params *RenameFilesParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error) {
+	var result *WorkspaceEdit /*WorkspaceEdit | null*/
+	if err := Call(ctx, s.Conn, "workspace/willRenameFiles", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *serverDispatcher) WillDeleteFiles(ctx context.Context, params *DeleteFilesParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error) {
+	var result *WorkspaceEdit /*WorkspaceEdit | null*/
+	if err := Call(ctx, s.Conn, "workspace/willDeleteFiles", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *serverDispatcher) Moniker(ctx context.Context, params *MonikerParams) ([]Moniker /*Moniker[] | null*/, error) {
+	var result []Moniker /*Moniker[] | null*/
+	if err := Call(ctx, s.Conn, "textDocument/moniker", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 func (s *serverDispatcher) Initialize(ctx context.Context, params *ParamInitialize) (*InitializeResult, error) {
 	var result *InitializeResult
 	if err := Call(ctx, s.Conn, "initialize", params, &result); err != nil {
@@ -720,6 +855,10 @@ func (s *serverDispatcher) ResolveCodeLens(ctx context.Context, params *CodeLens
 	return result, nil
 }
 
+func (s *serverDispatcher) CodeLensRefresh(ctx context.Context) error {
+	return Call(ctx, s.Conn, "workspace/codeLens/refresh", nil, nil)
+}
+
 func (s *serverDispatcher) DocumentLink(ctx context.Context, params *DocumentLinkParams) ([]DocumentLink /*DocumentLink[] | null*/, error) {
 	var result []DocumentLink /*DocumentLink[] | null*/
 	if err := Call(ctx, s.Conn, "textDocument/documentLink", params, &result); err != nil {
@@ -779,14 +918,6 @@ func (s *serverDispatcher) PrepareRename(ctx context.Context, params *PrepareRen
 func (s *serverDispatcher) ExecuteCommand(ctx context.Context, params *ExecuteCommandParams) (interface{} /*any | null*/, error) {
 	var result interface{} /*any | null*/
 	if err := Call(ctx, s.Conn, "workspace/executeCommand", params, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func (s *serverDispatcher) Moniker(ctx context.Context, params *MonikerParams) ([]Moniker /*Moniker[] | null*/, error) {
-	var result []Moniker /*Moniker[] | null*/
-	if err := Call(ctx, s.Conn, "textDocument/moniker", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
