@@ -116,19 +116,6 @@ function findRPCs(node: ts.Node) {
   reqnot.set(rpc, newNode)
 }
 
-// handle missing typeArguments
-function lookUp(n: ts.NewExpression): ts.NodeArray<ts.TypeNode> {
-  // parent should be VariableDeclaration. its children should be
-  // Identifier('type') ???
-  // TypeReference: [Identifier('RequestType1), ]
-  // NewExpression (us)
-  const p = n.parent;
-  if (!ts.isVariableDeclaration(p)) throw new Error(`not variable decl`);
-  const tr = p.type;
-  if (!ts.isTypeReferenceNode(tr)) throw new Error(`not TypeReference`);
-  return tr.typeArguments;
-}
-
 function setReceives() {
   // mark them all as server, then adjust the client ones.
   // it would be nice to have some independent check on this
@@ -215,15 +202,14 @@ function genTypes(node: ts.Node) {
         // probably safe to ignore these
         // [key: string]: boolean | number | string | undefined;
         // and InitializeResult: [custom: string]: any;]
-        return
       } else
-        throw new Error(`217 unexpected ${strKind(t)}`)
+        throw new Error(`206 unexpected ${strKind(t)}`);
     };
     v.members.forEach(f);
     if (mems.length == 0 && !v.heritageClauses &&
       v.name.getText() != 'InitializedParams') {
-      return  // really? (Don't seem to need any of these)
-    };
+      return  // Don't seem to need any of these [Logger, PipTransport, ...]
+    }
     // Found one we want
     let x = newData(v, goName(v.name.getText()));
     x.properties = ts.createNodeArray<ts.TypeElement>(mems);
@@ -270,7 +256,7 @@ function genTypes(node: ts.Node) {
       };
       if (ts.isTypeAliasDeclaration(x) || ts.isModuleDeclaration(x)) {
         return
-      };
+      }
       if (!ts.isVariableStatement(x))
         throw new Error(
           `expected VariableStatment ${loc(x)} ${strKind(x)} ${x.getText()}`);
@@ -298,7 +284,6 @@ function genTypes(node: ts.Node) {
   } else if (ts.isClassDeclaration(node)) {
     const v: ts.ClassDeclaration = node;
     var d: ts.PropertyDeclaration[] = [];
-    // look harder at the PropertyDeclarations.
     const wanted = function (c: ts.ClassElement): string {
       if (ts.isConstructorDeclaration(c)) {
         return ''
@@ -318,10 +303,10 @@ function genTypes(node: ts.Node) {
       };
       throw new Error(`Class decl ${strKind(c)} `)
     };
-    v.members.forEach((c, i) => wanted(c));
+    v.members.forEach((c) => wanted(c));
     if (d.length == 0) {
       return
-    };  // don't need it, maybe
+    }  // don't need it
     let c = newData(v, v.name.getText());
     c.members = ts.createNodeArray<ts.PropertyDeclaration>(d);
     if (v.typeParameters) {
@@ -337,7 +322,7 @@ function genTypes(node: ts.Node) {
       throw new Error(`Class dup ${loc(c.me)} and ${loc(data.get(c.name).me)}`);
     data.set(c.name, c);
   } else {
-    throw new Error(`338 unexpected ${strKind(node)} ${loc(node)} `)
+    throw new Error(`325 unexpected ${strKind(node)} ${loc(node)} `)
   }
 }
 
@@ -348,15 +333,16 @@ function dataMerge(a: Data, b: Data): Data {
   if (at == bt) {
     return a;
   }
-  const ax = `(${a.statements.length},${a.properties.length})`
-  const bx = `(${b.statements.length},${b.properties.length})`
   switch (a.name) {
     case 'InitializeError':
     case 'MessageType':
     case 'CompletionItemTag':
     case 'SymbolTag':
     case 'CodeActionKind':
-      // want the Module
+    case 'Integer':
+    case 'Uinteger':
+    case 'Decimal':
+      // want the Module, if anything
       return a.statements.length > 0 ? a : b;
     case 'CancellationToken':
     case 'CancellationStrategy':
@@ -364,11 +350,12 @@ function dataMerge(a: Data, b: Data): Data {
       return a.properties.length > 0 ? a : b;
     case 'TextDocumentContentChangeEvent':  // almost the same
     case 'TokenFormat':
+    case 'PrepareSupportDefaultBehavior':
       return a;
   }
   console.log(
-    `367 ${strKind(a.me)} ${strKind(b.me)} ${a.name} ${loc(a.me)} ${loc(b.me)}`)
-  throw new Error(`Fix dataMerge for ${a.name}`)
+    `357 ${strKind(a.me)} ${strKind(b.me)} ${a.name} ${loc(a.me)} ${loc(b.me)}`)
+  throw new Error(`Fix dataMerge for ${a.name}`);
 }
 
 // is a node an ancestor of a NewExpression
@@ -427,12 +414,11 @@ function underlying(n: ts.Node, f: (n: ts.Node) => void) {
     ts.isLiteralTypeNode(n) || ts.isVariableStatement(n) ||
     ts.isTupleTypeNode(n)) {
     // we only see these in moreTypes, but they are handled elsewhere
-    return;
   } else if (ts.isEnumMember(n)) {
     if (ts.isStringLiteral(n.initializer)) return;
-    throw new Error(`EnumMember ${strKind(n.initializer)} ${n.name.getText()}`)
+    throw new Error(`419 EnumMember ${strKind(n.initializer)} ${n.name.getText()}`)
   } else {
-    throw new Error(`saw ${strKind(n)} in underlying. ${n.getText()} at ${loc(n)}`)
+    throw new Error(`421 saw ${strKind(n)} in underlying. ${n.getText()} at ${loc(n)}`)
   }
 }
 
@@ -503,12 +489,28 @@ function toGo(d: Data, nm: string) {
     goInterface(d, nm);
   } else
     throw new Error(
-      `more cases in toGo ${nm} ${d.as.length} ${d.generics.length} `)
+      `492 more cases in toGo ${nm} ${d.as.length} ${d.generics.length} `)
 }
 
-// these fields need a *
+// these fields need a *. (making every optional struct indirect led to very
+// complex literals in gopls.)
+// As of Jan 2021 (3.16.0) consider (sent by server)
+// LocationLink.originSelectionRange // unused by gopls
+// Diagnostics.codeDescription
+// CreateFile.createFileOptions and .annotationID // unused by gopls
+// same for RenameFile and DeleteFile
+// InitializeResult.serverInfo // gopls always sets
+// InnerServerCapabilites.completionProvider, .signatureHelpProvider, .documentLinkProvider,
+//   .executeCommandProvider, .Workspace  // always set
+// InnerserverCapabilities.codeLensProvier, .DocumentOnTypeFormattingProvider // unused(?)
+// FileOperationPattern.options // unused
+// CompletionItem.command
+// Hover.Range (?)
+// CodeAction.disabled, .command
+// CodeLens.command
 var starred: [string, string][] = [
   ['TextDocumentContentChangeEvent', 'range'], ['CodeAction', 'command'],
+  ['CodeAction', 'disabled'],
   ['DidSaveTextDocumentParams', 'text'], ['CompletionItem', 'command'],
   ['Diagnostic', 'codeDescription']
 ];
@@ -524,13 +526,13 @@ function goInterface(d: Data, nm: string) {
     ans = ans.concat(getComments(n));
     const json = u.JSON(n);
     // SelectionRange is a recursive type
-    let gt = goType(n.type, n.name.getText(), nm);
-    if (gt == d.name) gt = '*' + gt;  // avoid recursive types
+    let gt = goType(n.type, n.name.getText());
+    if (gt == d.name) gt = '*' + gt; // avoid recursive types (SelectionRange)
     // there are several cases where a * is needed
     starred.forEach(([a, b]) => {
       if (d.name == a && n.name.getText() == b) {
         gt = '*' + gt;
-      };
+      }
     })
     ans = ans.concat(`${goName(n.name.getText())} ${gt}`, json, '\n');
   };
@@ -543,7 +545,7 @@ function goInterface(d: Data, nm: string) {
     ans = ans.concat(goName(n.expression.getText()), '\n')
   };
   d.as.forEach((n: ts.HeritageClause) => n.types.forEach(f))
-  ans = ans.concat(`}\n`);
+  ans = ans.concat('}\n')
   typesOut.push(getComments(d.me))
   typesOut.push(ans)
 }
@@ -552,7 +554,7 @@ function goInterface(d: Data, nm: string) {
 // Generates type definitions, and named constants
 function goModule(d: Data, nm: string) {
   if (d.generics.length > 0 || d.as.length > 0) {
-    throw new Error(`goModule: unexpected for ${nm}
+    throw new Error(`557 goModule: unexpected for ${nm}
   `)
   }
   // all the statements should be export const <id>: value
@@ -562,14 +564,14 @@ function goModule(d: Data, nm: string) {
   let isNumeric = false;
   const f = function (n: ts.Statement, i: number) {
     if (!ts.isVariableStatement(n)) {
-      throw new Error(` ${nm} ${i} expected VariableStatement,
+      throw new Error(`567 ${nm} ${i} expected VariableStatement,
       got ${strKind(n)}`);
     }
     const c = getComments(n)
     const v = n.declarationList.declarations[0];  // only one
 
     if (!v.initializer)
-      throw new Error(`no initializer ${nm} ${i} ${v.name.getText()}`);
+      throw new Error(`574 no initializer ${nm} ${i} ${v.name.getText()}`)
     isNumeric = strKind(v.initializer) == 'NumericLiteral';
     if (c != '') constsOut.push(c);  // no point if there are no comments
     // There are duplicates.
@@ -581,7 +583,7 @@ function goModule(d: Data, nm: string) {
   d.statements.forEach(f)
   typesOut.push(getComments(d.me))
   // Or should they be type aliases?
-  typesOut.push(`type ${nm} ${isNumeric ? 'float64' : 'string'}`)
+  typesOut.push(`type ${nm} ${isNumeric ? 'float64' : 'string'}`) // PJW: superfluous Integer and Uinteger
 }
 
 // generate Go code for an enum. Both types and named constants
@@ -609,19 +611,29 @@ function goTypeAlias(d: Data, nm: string) {
     if (nm != 'ServerCapabilities')
       throw new Error(`${nm} has extra fields(${d.as.length},${d.generics.length}) ${d.me.getText()}`);
   }
-  typesOut.push(getComments(d.me))
+  typesOut.push(getComments(d.me));
   // d.alias doesn't seem to have comments
-  let aliasStr = goName(nm) == 'DocumentURI' ? ' ' : ' = '
+  let aliasStr = goName(nm) == 'DocumentURI' ? ' ' : ' = ';
+  if (nm == 'PrepareSupportDefaultBehavior') {
+    // code-insiders is sending a bool, not a number. PJW: check this after Jan/2021
+    // (and gopls never looks at it anyway)
+    typesOut.push(`type ${goName(nm)}${aliasStr}interface{}\n`);
+    return;
+  }
   typesOut.push(`type ${goName(nm)}${aliasStr}${goType(d.alias, nm)}\n`)
 }
 
 // return a go type and maybe an assocated javascript tag
-function goType(n: ts.TypeNode, nm: string, parent?: string): string {
+function goType(n: ts.TypeNode, nm: string): string {
   if (n.getText() == 'T') return 'interface{}';  // should check it's generic
   if (ts.isTypeReferenceNode(n)) {
-    return goName(n.typeName.getText());  // avoid <T>
+    switch (n.getText()) {
+      case 'integer': return 'int32';
+      case 'uinteger': return 'uint32';
+      default: return goName(n.typeName.getText());  // avoid <T>
+    }
   } else if (ts.isUnionTypeNode(n)) {
-    return goUnionType(n, nm, parent);
+    return goUnionType(n, nm);
   } else if (ts.isIntersectionTypeNode(n)) {
     return goIntersectionType(n, nm);
   } else if (strKind(n) == 'StringKeyword') {
@@ -662,7 +674,7 @@ function goType(n: ts.TypeNode, nm: string, parent?: string): string {
 // The choice is uniform interface{}, or some heuristically assigned choice,
 // or some better sytematic idea I haven't thought of. Using interface{}
 // is, in practice, impossibly complex in the existing code.
-function goUnionType(n: ts.UnionTypeNode, nm: string, parent?: string): string {
+function goUnionType(n: ts.UnionTypeNode, nm: string): string {
   let help = `/*${n.getText()}*/`  // show the original as a comment
   // There are some bad cases with newlines:
   // range?: boolean | {\n	};
@@ -674,7 +686,7 @@ function goUnionType(n: ts.UnionTypeNode, nm: string, parent?: string): string {
   }
   // handle all the special cases
   switch (n.types.length) {
-    case 2:
+    case 2: {
       const a = strKind(n.types[0])
       const b = strKind(n.types[1])
       if (a == 'NumberKeyword' && b == 'StringKeyword') {  // ID
@@ -686,7 +698,6 @@ function goUnionType(n: ts.UnionTypeNode, nm: string, parent?: string): string {
           return `[]CodeAction ${help}`
         }
         let v = goType(n.types[0], 'a')
-        if (v.startsWith(`[]interface`)) v = v.slice(2, v.length)
         return `${v} ${help}`
       }
       if (a == 'BooleanKeyword') {  // usually want bool
@@ -698,29 +709,30 @@ function goUnionType(n: ts.UnionTypeNode, nm: string, parent?: string): string {
       }
       if (b == 'ArrayType') return `${goType(n.types[1], 'c')} ${help}`;
       if (help.includes('InsertReplaceEdit') && n.types[0].getText() == 'TextEdit') {
-        return `*TextEdit ${help}`
+        return `*TextEdit ${help}`;
       }
-      if (a == 'TypeReference' && a == b) return `interface{} ${help}`;
+      if (a == 'TypeReference') {
+        if (nm == 'edits') return `${goType(n.types[0], '715')} ${help}`;
+        if (a == b) return `interface{} ${help}`;
+        if (nm == 'code') return `interface{} ${help}`;
+      }
       if (a == 'StringKeyword') return `string ${help}`;
       if (a == 'TypeLiteral' && nm == 'TextDocumentContentChangeEvent') {
         return `${goType(n.types[0], nm)}`
       }
-      throw new Error(`691 ${a} ${b} ${n.getText()} ${loc(n)}`);
-    case 3:
+      throw new Error(`709 ${a} ${b} ${n.getText()} ${loc(n)}`);
+    }
+    case 3: {
       const aa = strKind(n.types[0])
       const bb = strKind(n.types[1])
       const cc = strKind(n.types[2])
-      if (nm == 'textDocument/prepareRename') {
-        // want Range, not interface{}
-        return `${goType(n.types[0], nm)} ${help}`
-      }
       if (nm == 'DocumentFilter') {
         // not really a union. the first is enough, up to a missing
         // omitempty but avoid repetitious comments
         return `${goType(n.types[0], 'g')}`
       }
       if (nm == 'textDocument/documentSymbol') {
-        return `[]interface{} ${help}`
+        return `[]interface{} ${help}`;
       }
       if (aa == 'TypeReference' && bb == 'ArrayType' && cc == 'NullKeyword') {
         return `${goType(n.types[0], 'd')} ${help}`
@@ -735,11 +747,12 @@ function goUnionType(n: ts.UnionTypeNode, nm: string, parent?: string): string {
       }
       if (aa == 'LiteralType' && bb == aa && cc == aa) return `string ${help}`;
       break;
+    }
     case 4:
       if (nm == 'documentChanges') return `TextDocumentEdit ${help} `;
       if (nm == 'textDocument/prepareRename') return `Range ${help} `;
     default:
-      throw new Error(`goUnionType len=${n.types.length} nm=${nm}`)
+      throw new Error(`goUnionType len=${n.types.length} nm=${nm}`);
   }
 
   // Result will be interface{} with a comment
@@ -762,6 +775,7 @@ function goUnionType(n: ts.UnionTypeNode, nm: string, parent?: string): string {
   if (!isLiteral) {
     return res + '*/';
   }
+  // I don't think we get here
   // trace?: 'off' | 'messages' | 'verbose' should get string
   return `${literal} /* ${n.getText()} */`
 }
@@ -772,14 +786,14 @@ function goUnionType(n: ts.UnionTypeNode, nm: string, parent?: string): string {
 // but much simpler just to check explicitly.
 function goIntersectionType(n: ts.IntersectionTypeNode, nm: string): string {
   if (nm == 'ClientCapabilities') return expandIntersection(n);
-  if (nm == 'ServerCapabilities') return expandIntersection(n);
+  //if (nm == 'ServerCapabilities') return expandIntersection(n); // save for later consideration
   let inner = '';
   n.types.forEach(
-    (t: ts.TypeNode) => { inner = inner.concat(goType(t, nm), '\n') });
+    (t: ts.TypeNode) => { inner = inner.concat(goType(t, nm), '\n'); })
   return `struct{ \n${inner}} `
 }
 
-// for each of the itersected types, extract its components (each will
+// for each of the intersected types, extract its components (each will
 // have a Data with properties) extract the properties, and keep track
 // of them by name. The names that occur once can be output. The names
 // that occur more than once need to be combined.
@@ -819,10 +833,6 @@ function expandIntersection(n: ts.IntersectionTypeNode): string {
         ans = ans.concat(getComments(b));
         ans = ans.concat(
           goName(b.name.getText()), ' ', goType(b.type, 'a'), u.JSON(b), '\n')
-      } else if (a.type.kind == ts.SyntaxKind.ObjectKeyword) {
-        ans = ans.concat(getComments(a))
-        ans = ans.concat(
-          goName(a.name.getText()), ' ', 'interface{}', u.JSON(a), '\n')
       } else {
         throw bad(a.type, `E ${a.getText()} in ${goName(k)} at ${loc(a)}`)
       }
@@ -835,7 +845,7 @@ function expandIntersection(n: ts.IntersectionTypeNode): string {
 
 function goTypeLiteral(n: ts.TypeLiteralNode, nm: string): string {
   let ans: string[] = [];  // in case we generate a new extra type
-  let res = 'struct{\n'    // the actual answer usually
+  let res = 'struct{\n';   // the actual answer usually
   const g = function (nx: ts.TypeElement) {
     // add the json, as in goInterface(). Strange inside union types.
     if (ts.isPropertySignature(nx)) {
@@ -853,13 +863,18 @@ function goTypeLiteral(n: ts.TypeLiteralNode, nm: string): string {
       if (nx.getText() == '[uri: string]: TextEdit[];') {
         res = 'map[string][]TextEdit';
         ans.push(`map[string][]TextEdit`);  // this is never used
+        return;
+      }
+      if (nx.getText() == '[id: string /* ChangeAnnotationIdentifier */]: ChangeAnnotation;') {
+        res = 'map[string]ChangeAnnotationIdentifier';
+        ans.push(res);
         return
       }
-      throw new Error(` handle ${nx.getText()}`)
+      throw new Error(`873 handle ${nx.getText()} ${loc(nx)}`);
     } else
       throw new Error(`TypeLiteral had ${strKind(nx)}`)
   };
-  n.members.forEach(g)
+  n.members.forEach(g);
   // for some the generated type is wanted, for others it's not needed
   if (!nm.startsWith('workspace')) {
     if (res.startsWith('struct')) return res + '}';  // map[] is special
@@ -876,7 +891,7 @@ function outputTypes() {
   v.sort();
   v.forEach((x) => toGo(seenTypes.get(x), x))
   u.prgo(u.computeHeader(true))
-  u.prgo(`import "encoding/json"\n\n`);
+  u.prgo('import "encoding/json"\n\n');
   typesOut.forEach((s) => {
     u.prgo(s);
     // it's more convenient not to have to think about trailing newlines
@@ -1097,11 +1112,11 @@ function output(side: side) {
         `);
   const a = side.name[0].toUpperCase() + side.name.substring(1)
   f(`type ${a} interface {`);
-  side.methods.forEach((v) => { f(v) });
+  side.methods.forEach((v) => { f(v) })
   f('}\n');
   f(`func ${side.name}Dispatch(ctx context.Context, ${side.name} ${a}, reply jsonrpc2.Replier, r jsonrpc2.Request) (bool, error) {
           switch r.Method() {`);
-  side.cases.forEach((v) => { f(v) });
+  side.cases.forEach((v) => { f(v) })
   f(`
         default:
           return false, nil

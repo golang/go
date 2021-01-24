@@ -5,7 +5,8 @@
 Make sure `node` and `tsc` are installed and in your PATH. There are detailed instructions below.
 Get the typescript code for the jsonrpc protocol with
 
-`git clone git@github.com:microsoft vscode-languageserver-node.git`
+`git clone git@github.com:microsoft vscode-languageserver-node.git` or
+`git clone https://github.com/microsoft/vscode-languageserver-node.git`
 
 `util.ts`` expects it to be in your HOME directory
 

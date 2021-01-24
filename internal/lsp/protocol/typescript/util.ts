@@ -14,7 +14,7 @@ export const fnames = [
   `${dir}/${srcDir}/protocol/src/browser/main.ts`, `${dir}${srcDir}/types/src/main.ts`,
   `${dir}${srcDir}/jsonrpc/src/node/main.ts`
 ];
-export const gitHash = '901fd40345060d159f07d234bbc967966a929a34'
+export const gitHash = 'dae62de921d25964e8732411ca09e532dde992f5'
 let outFname = 'tsprotocol.go';
 let fda: number, fdb: number, fde: number;  // file descriptors
 
@@ -65,6 +65,11 @@ export function computeHeader(pkgDoc: boolean): string {
       lastDate = st.mtime
     }
   }
+  const cp = `// Copyright 2019 The Go Authors. All rights reserved.
+  // Use of this source code is governed by a BSD-style
+  // license that can be found in the LICENSE file.
+
+  `
   const a =
     `// Package protocol contains data types and code for LSP jsonrpcs\n` +
     `// generated automatically from vscode-languageserver-node\n` +
@@ -73,10 +78,10 @@ export function computeHeader(pkgDoc: boolean): string {
   const b = 'package protocol\n'
   const c = `\n// Code generated (see typescript/README.md) DO NOT EDIT.\n\n`
   if (pkgDoc) {
-    return a + b + c
+    return cp + a + b + c
   }
   else {
-    return b + a + c
+    return cp + b + a + c
   }
 };
 
@@ -105,11 +110,12 @@ export function JSON(n: ts.PropertySignature): string {
 export function constName(nm: string, type: string): string {
   let pref = new Map<string, string>([
     ['DiagnosticSeverity', 'Severity'], ['WatchKind', 'Watch'],
-    ['SignatureHelpTriggerKind', 'Sig'], ['CompletionItemTag', 'Compl']
+    ['SignatureHelpTriggerKind', 'Sig'], ['CompletionItemTag', 'Compl'],
+    ['Integer', 'INT_'], ['Uinteger', 'UINT_']
   ])  // typeName->prefix
   let suff = new Map<string, string>([
     ['CompletionItemKind', 'Completion'], ['InsertTextFormat', 'TextFormat'],
-    ['SymbolTag', 'Symbol']
+    ['SymbolTag', 'Symbol'], ['FileOperationPatternKind', 'Op'],
   ])
   let ans = nm;
   if (pref.get(type)) ans = pref.get(type) + ans;
