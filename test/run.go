@@ -777,18 +777,7 @@ func (t *test) run() {
 		// Excluded flags.
 		for _, flag := range flags {
 			for _, pattern := range []string{
-				"-+",
-				"-0",
-				"-e=0",
 				"-m",
-				"-live",
-				"-std",
-				"wb",
-				"append",
-				"slice",
-				"typeassert",
-				"defer",
-				"nil",
 			} {
 				if strings.Contains(flag, pattern) {
 					if *verbose {
@@ -1938,8 +1927,10 @@ var excluded = map[string]bool{
 	"import6.go":      true, // issue #43109
 	"initializerr.go": true, // types2 reports extra errors
 	"linkname2.go":    true, // error reported by noder (not running for types2 errorcheck test)
+	"notinheap.go":    true, // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
 	"shift1.go":       true, // issue #42989
 	"typecheck.go":    true, // invalid function is not causing errors when called
+	"writebarrier.go": true, // correct diagnostics, but different lines (probably irgen's fault)
 
 	"fixedbugs/bug176.go":    true, // types2 reports all errors (pref: types2)
 	"fixedbugs/bug193.go":    true, // types2 bug: shift error not reported (fixed in go/types)
@@ -1962,10 +1953,13 @@ var excluded = map[string]bool{
 	"fixedbugs/issue16428.go":  true, // types2 reports two instead of one error
 	"fixedbugs/issue17038.go":  true, // types2 doesn't report a follow-on error (pref: types2)
 	"fixedbugs/issue17645.go":  true, // multiple errors on same line
+	"fixedbugs/issue18331.go":  true, // missing error about misuse of //go:noescape (irgen needs code from noder)
 	"fixedbugs/issue18393.go":  true, // types2 not run after syntax errors
 	"fixedbugs/issue19012.go":  true, // multiple errors on same line
+	"fixedbugs/issue20298.go":  true, // types2 non-deterministically reports unused imports
 	"fixedbugs/issue20233.go":  true, // types2 reports two instead of one error (pref: compiler)
 	"fixedbugs/issue20245.go":  true, // types2 reports two instead of one error (pref: compiler)
+	"fixedbugs/issue20250.go":  true, // correct diagnostics, but different lines (probably irgen's fault)
 	"fixedbugs/issue20529.go":  true, // types2 doesn't produce "stack frame too large" error
 	"fixedbugs/issue20780.go":  true, // types2 doesn't produce "stack frame too large" error
 	"fixedbugs/issue21979.go":  true, // types2 doesn't report a follow-on error (pref: types2)
