@@ -79,7 +79,10 @@ func (g *irgen) obj(obj types2.Object) *ir.Name {
 			}
 			typ = g.typ(sig)
 		} else {
-			sym = ir.MethodSym(g.typ(recv.Type()), g.selector(obj))
+			sym = g.selector(obj)
+			if !sym.IsBlank() {
+				sym = ir.MethodSym(g.typ(recv.Type()), sym)
+			}
 			typ = g.signature(g.param(recv), sig)
 		}
 		name = g.objCommon(pos, ir.ONAME, sym, ir.PFUNC, typ)
