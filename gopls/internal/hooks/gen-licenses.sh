@@ -6,12 +6,9 @@
 
 set -o pipefail
 
+output=$1
 tempfile=$(mktemp)
 cd $(dirname $0)
-
-modhash=$(sha256sum ../../go.sum | awk '{print $1}')
-# Make sure we have the code for all the modules we depend on.
-go mod download
 
 cat > $tempfile <<END
 // Copyright 2020 The Go Authors. All rights reserved.
@@ -37,9 +34,5 @@ for mod in $mods; do
   echo >> $tempfile
 done
 
-cat >> $tempfile << END
-\`
-
-const licensesGeneratedFrom = "$modhash"
-END
-mv $tempfile licenses.go
+echo "\`" >> $tempfile
+mv $tempfile $output
