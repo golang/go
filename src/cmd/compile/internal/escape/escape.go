@@ -781,6 +781,16 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 				}
 			}
 
+			for _, n := range fn.Dcl {
+				// Add locations for local variables of the
+				// closure, if needed, in case we're not including
+				// the closure func in the batch for escape
+				// analysis (happens for escape analysis called
+				// from reflectdata.methodWrapper)
+				if n.Op() == ir.ONAME && n.Opt == nil {
+					e.with(fn).newLoc(n, false)
+				}
+			}
 			e.walkFunc(fn)
 		}
 
