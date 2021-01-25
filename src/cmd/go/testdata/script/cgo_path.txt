@@ -1,5 +1,12 @@
 [!cgo] skip
 
+# Set CC explicitly to something that requires a PATH lookup.
+# Normally, the default is gcc or clang, but if CC was set during make.bash,
+# that becomes the default.
+[exec:clang] env CC=clang
+[exec:gcc] env CC=gcc
+[!exec:clang] [!exec:gcc] skip 'Unknown C compiler'
+
 env GOCACHE=$WORK/gocache  # Looking for compile flags, so need a clean cache.
 [!windows] env PATH=.:$PATH
 [!windows] chmod 0755 p/gcc p/clang
