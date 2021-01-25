@@ -52,7 +52,7 @@ type namedAST struct {
 	ast  *ast.File
 }
 
-// rewriteFiles rewrites a set of .go2 files in dir.
+// RewriteFiles rewrites a set of .go2 files in dir.
 func RewriteFiles(importer *Importer, dir string, go2files []string) ([]*types.Package, error) {
 	return rewriteFilesInPath(importer, "", dir, go2files)
 }
@@ -223,9 +223,6 @@ func parseFiles(importer *Importer, dir string, go2files []string, fset *token.F
 	pkgs := make(map[string]*ast.Package)
 	for _, go2f := range go2files {
 		mode := parser.UnifiedParamLists // overrides UseBrackets
-		if importer.UseBrackets {
-			mode = parser.UseBrackets
-		}
 
 		filename := filepath.Join(dir, go2f)
 		pf, err := parser.ParseFile(fset, filename, nil, mode)
@@ -243,9 +240,6 @@ func parseFiles(importer *Importer, dir string, go2files []string, fset *token.F
 			pkgs[name] = pkg
 		}
 		pkg.Files[filename] = pf
-		if pf.UseBrackets {
-			importer.UseBrackets = true
-		}
 	}
 
 	rpkgs := make([]*ast.Package, 0, len(pkgs))

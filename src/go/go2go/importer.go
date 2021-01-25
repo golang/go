@@ -58,10 +58,6 @@ type Importer struct {
 	// since it doesn't deal with import information,
 	// but Importer is a useful common location to store the data.
 	instantiations map[*types.Package]*instantiations
-
-	// Record whether files seen so far use square brackets rather
-	// than parentheses for generics.
-	UseBrackets bool
 }
 
 var _ types.ImporterFrom = &Importer{}
