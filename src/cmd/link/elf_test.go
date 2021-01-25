@@ -226,6 +226,8 @@ func main() {
 
 func TestPIESize(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
 	if !sys.BuildModeSupported(runtime.Compiler, "pie", runtime.GOOS, runtime.GOARCH) {
 		t.Skip("-buildmode=pie not supported")
 	}
