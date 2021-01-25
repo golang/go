@@ -871,9 +871,9 @@ func ToInt(x Value) Value {
 func ToFloat(x Value) Value {
 	switch x := x.(type) {
 	case int64Val:
-		return i64tof(x)
+		return i64tor(x)
 	case intVal:
-		return itof(x)
+		return itor(x)
 	case ratVal, floatVal:
 		return x
 	case complexVal:
