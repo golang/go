@@ -361,10 +361,16 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 			return true
 		}
 
-		// TODO(danscales) - fix some bugs when budget is lowered below 30
+		// TODO(danscales) - fix some bugs when budget is lowered below 15
 		// Maybe make budget proportional to number of closure variables, e.g.:
 		//v.budget -= int32(len(n.(*ir.ClosureExpr).Func.ClosureVars) * 3)
-		v.budget -= 30
+		v.budget -= 15
+		// Scan body of closure (which DoChildren doesn't automatically
+		// do) to check for disallowed ops in the body and include the
+		// body in the budget.
+		if doList(n.(*ir.ClosureExpr).Func.Body, v.do) {
+			return true
+		}
 
 	case ir.ORANGE,
 		ir.OSELECT,
