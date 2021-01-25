@@ -109,10 +109,6 @@ type Snapshot interface {
 	// the given go.mod file.
 	ModWhy(ctx context.Context, fh FileHandle) (map[string]string, error)
 
-	// ModUpgrade returns the possible updates for the module specified by the
-	// given go.mod file.
-	ModUpgrade(ctx context.Context, fh FileHandle) (map[string]string, error)
-
 	// ModTidy returns the results of `go mod tidy` for the module specified by
 	// the given go.mod file.
 	ModTidy(ctx context.Context, pm *ParsedModule) (*TidiedModule, error)

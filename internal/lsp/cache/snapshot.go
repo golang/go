@@ -103,9 +103,8 @@ type snapshot struct {
 	// Preserve go.mod-related handles to avoid garbage-collecting the results
 	// of various calls to the go command. The handles need not refer to only
 	// the view's go.mod file.
-	modTidyHandles    map[span.URI]*modTidyHandle
-	modUpgradeHandles map[span.URI]*modUpgradeHandle
-	modWhyHandles     map[span.URI]*modWhyHandle
+	modTidyHandles map[span.URI]*modTidyHandle
+	modWhyHandles  map[span.URI]*modWhyHandle
 
 	workspace          *workspace
 	workspaceDirHandle *memoize.Handle
@@ -572,12 +571,6 @@ func (s *snapshot) getModWhyHandle(uri span.URI) *modWhyHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.modWhyHandles[uri]
-}
-
-func (s *snapshot) getModUpgradeHandle(uri span.URI) *modUpgradeHandle {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.modUpgradeHandles[uri]
 }
 
 func (s *snapshot) getModTidyHandle(uri span.URI) *modTidyHandle {
@@ -1296,7 +1289,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		unloadableFiles:   make(map[span.URI]struct{}),
 		parseModHandles:   make(map[span.URI]*parseModHandle),
 		modTidyHandles:    make(map[span.URI]*modTidyHandle),
-		modUpgradeHandles: make(map[span.URI]*modUpgradeHandle),
 		modWhyHandles:     make(map[span.URI]*modWhyHandle),
 		workspace:         newWorkspace,
 	}
@@ -1340,12 +1332,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 			continue
 		}
 		result.modTidyHandles[k] = v
-	}
-	for k, v := range s.modUpgradeHandles {
-		if _, ok := changes[k]; ok {
-			continue
-		}
-		result.modUpgradeHandles[k] = v
 	}
 	for k, v := range s.modWhyHandles {
 		if _, ok := changes[k]; ok {
@@ -1399,9 +1385,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 			// withoutURI is relevant.
 			for k := range s.modTidyHandles {
 				delete(result.modTidyHandles, k)
-			}
-			for k := range s.modUpgradeHandles {
-				delete(result.modUpgradeHandles, k)
 			}
 			for k := range s.modWhyHandles {
 				delete(result.modWhyHandles, k)
@@ -1529,9 +1512,6 @@ copyIDs:
 
 	// Inherit all of the go.mod-related handles.
 	for _, v := range result.modTidyHandles {
-		newGen.Inherit(v.handle)
-	}
-	for _, v := range result.modUpgradeHandles {
 		newGen.Inherit(v.handle)
 	}
 	for _, v := range result.modWhyHandles {

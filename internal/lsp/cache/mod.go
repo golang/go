@@ -6,10 +6,7 @@ package cache
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -218,123 +215,6 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 	s.mu.Unlock()
 
 	return mwh.why(ctx, s)
-}
-
-type modUpgradeHandle struct {
-	handle *memoize.Handle
-}
-
-type modUpgradeData struct {
-	// upgrades maps modules to their latest versions.
-	upgrades map[string]string
-
-	err error
-}
-
-func (muh *modUpgradeHandle) upgrades(ctx context.Context, snapshot *snapshot) (map[string]string, error) {
-	v, err := muh.handle.Get(ctx, snapshot.generation, snapshot)
-	if v == nil {
-		return nil, err
-	}
-	data := v.(*modUpgradeData)
-	return data.upgrades, data.err
-}
-
-// moduleUpgrade describes a module that can be upgraded to a particular
-// version.
-type moduleUpgrade struct {
-	Path   string
-	Update struct {
-		Version string
-	}
-}
-
-func (s *snapshot) ModUpgrade(ctx context.Context, fh source.FileHandle) (map[string]string, error) {
-	if fh.Kind() != source.Mod {
-		return nil, fmt.Errorf("%s is not a go.mod file", fh.URI())
-	}
-	if handle := s.getModUpgradeHandle(fh.URI()); handle != nil {
-		return handle.upgrades(ctx, s)
-	}
-	key := modKey{
-		sessionID: s.view.session.id,
-		env:       hashEnv(s),
-		mod:       fh.FileIdentity(),
-		view:      s.view.rootURI.Filename(),
-		verb:      upgrade,
-	}
-	h := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
-		ctx, done := event.Start(ctx, "cache.ModUpgradeHandle", tag.URI.Of(fh.URI()))
-		defer done()
-
-		snapshot := arg.(*snapshot)
-
-		pm, err := snapshot.ParseMod(ctx, fh)
-		if err != nil {
-			return &modUpgradeData{err: err}
-		}
-
-		// No requires to upgrade.
-		if len(pm.File.Require) == 0 {
-			return &modUpgradeData{}
-		}
-		// Run "go list -mod readonly -u -m all" to be able to see which deps can be
-		// upgraded without modifying mod file.
-		inv := &gocommand.Invocation{
-			Verb:       "list",
-			Args:       []string{"-u", "-m", "-json", "all"},
-			WorkingDir: filepath.Dir(fh.URI().Filename()),
-		}
-		if s.workspaceMode()&tempModfile == 0 || containsVendor(fh.URI()) {
-			// Use -mod=readonly if the module contains a vendor directory
-			// (see golang/go#38711).
-			inv.ModFlag = "readonly"
-		}
-		stdout, err := snapshot.RunGoCommandDirect(ctx, source.Normal|source.AllowNetwork, inv)
-		if err != nil {
-			return &modUpgradeData{err: err}
-		}
-		var upgradeList []moduleUpgrade
-		dec := json.NewDecoder(stdout)
-		for {
-			var m moduleUpgrade
-			if err := dec.Decode(&m); err == io.EOF {
-				break
-			} else if err != nil {
-				return &modUpgradeData{err: err}
-			}
-			upgradeList = append(upgradeList, m)
-		}
-		if len(upgradeList) <= 1 {
-			return &modUpgradeData{}
-		}
-		upgrades := make(map[string]string)
-		for _, upgrade := range upgradeList[1:] {
-			if upgrade.Update.Version == "" {
-				continue
-			}
-			upgrades[upgrade.Path] = upgrade.Update.Version
-		}
-		return &modUpgradeData{
-			upgrades: upgrades,
-		}
-	}, nil)
-	muh := &modUpgradeHandle{handle: h}
-	s.mu.Lock()
-	s.modUpgradeHandles[fh.URI()] = muh
-	s.mu.Unlock()
-
-	return muh.upgrades(ctx, s)
-}
-
-// containsVendor reports whether the module has a vendor folder.
-func containsVendor(modURI span.URI) bool {
-	dir := filepath.Dir(modURI.Filename())
-	f, err := os.Stat(filepath.Join(dir, "vendor"))
-	if err != nil {
-		return false
-	}
-	return f.IsDir()
 }
 
 var moduleAtVersionRe = regexp.MustCompile(`^(?P<module>.*)@(?P<version>.*)$`)
