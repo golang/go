@@ -1455,14 +1455,6 @@ func (p *noder) basicLit(lit *syntax.BasicLit) constant.Value {
 		p.errorAt(lit.Pos(), "malformed constant: %s", lit.Value)
 	}
 
-	// go/constant uses big.Rat by default, which is more precise, but
-	// causes toolstash -cmp and some tests to fail. For now, convert
-	// to big.Float to match cmd/compile's historical precision.
-	// TODO(mdempsky): Remove.
-	if v.Kind() == constant.Float {
-		v = constant.Make(ir.BigFloat(v))
-	}
-
 	return v
 }
 

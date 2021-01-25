@@ -462,12 +462,16 @@ func (p *iexporter) doDecl(n *ir.Name) {
 		}
 
 	case ir.OLITERAL:
+		// TODO(mdempsky): Extend check to all declarations.
+		if n.Typecheck() == 0 {
+			base.FatalfAt(n.Pos(), "missed typecheck: %v", n)
+		}
+
 		// Constant.
-		// TODO(mdempsky): Do we still need this typecheck? If so, why?
-		n = Expr(n).(*ir.Name)
 		w.tag('C')
 		w.pos(n.Pos())
 		w.value(n.Type(), n.Val())
+		w.constExt(n)
 
 	case ir.OTYPE:
 		if types.IsDotAlias(n.Sym()) {
@@ -956,6 +960,17 @@ func (w *exportWriter) mpfloat(v constant.Value, typ *types.Type) {
 	}
 }
 
+func (w *exportWriter) mprat(v constant.Value) {
+	r, ok := constant.Val(v).(*big.Rat)
+	if !w.bool(ok) {
+		return
+	}
+	// TODO(mdempsky): Come up with a more efficient binary
+	// encoding before bumping iexportVersion to expose to
+	// gcimporter.
+	w.string(r.String())
+}
+
 func (w *exportWriter) bool(b bool) bool {
 	var x uint64
 	if b {
@@ -971,7 +986,37 @@ func (w *exportWriter) string(s string) { w.uint64(w.p.stringOff(s)) }
 
 // Compiler-specific extensions.
 
-func (w *exportWriter) varExt(n ir.Node) {
+func (w *exportWriter) constExt(n *ir.Name) {
+	// Internally, we now represent untyped float and complex
+	// constants with infinite-precision rational numbers using
+	// go/constant, but the "public" export data format known to
+	// gcimporter only supports 512-bit floating point constants.
+	// In case rationals turn out to be a bad idea and we want to
+	// switch back to fixed-precision constants, for now we
+	// continue writing out the 512-bit truncation in the public
+	// data section, and write the exact, rational constant in the
+	// compiler's extension data. Also, we only need to worry
+	// about exporting rationals for declared constants, because
+	// constants that appear in an expression will already have
+	// been coerced to a concrete, fixed-precision type.
+	//
+	// Eventually, assuming we stick with using rationals, we
+	// should bump iexportVersion to support rationals, and do the
+	// whole gcimporter update song-and-dance.
+	//
+	// TODO(mdempsky): Prepare vocals for that.
+
+	switch n.Type() {
+	case types.UntypedFloat:
+		w.mprat(n.Val())
+	case types.UntypedComplex:
+		v := n.Val()
+		w.mprat(constant.Real(v))
+		w.mprat(constant.Imag(v))
+	}
+}
+
+func (w *exportWriter) varExt(n *ir.Name) {
 	w.linkname(n.Sym())
 	w.symIdx(n.Sym())
 }
