@@ -60,6 +60,9 @@ type View struct {
 
 	importsState *importsState
 
+	// moduleUpgrades tracks known upgrades for module paths.
+	moduleUpgrades map[string]string
+
 	// keep track of files by uri and by basename, a single file may be mapped
 	// to multiple uris, and the same basename may map to multiple files
 	filesByURI  map[span.URI]*fileBase
@@ -861,6 +864,26 @@ func (s *Session) getGoEnv(ctx context.Context, folder string, goversion int, go
 
 func (v *View) IsGoPrivatePath(target string) bool {
 	return globsMatchPath(v.goprivate, target)
+}
+
+func (v *View) ModuleUpgrades() map[string]string {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	upgrades := map[string]string{}
+	for mod, ver := range v.moduleUpgrades {
+		upgrades[mod] = ver
+	}
+	return upgrades
+}
+
+func (v *View) RegisterModuleUpgrades(upgrades map[string]string) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	for mod, ver := range upgrades {
+		v.moduleUpgrades[mod] = ver
+	}
 }
 
 // Copied from

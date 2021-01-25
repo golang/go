@@ -53,6 +53,12 @@ Identifier: `gopls.go_get_package`
 go_get_package runs `go get` to fetch a package.
 
 
+### **Check for upgrades**
+Identifier: `gopls.check_upgrades`
+
+check_upgrades checks for module upgrades.
+
+
 ### **Add dependency**
 Identifier: `gopls.add_dependency`
 

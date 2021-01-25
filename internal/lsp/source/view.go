@@ -227,6 +227,12 @@ type View interface {
 	// IsGoPrivatePath reports whether target is a private import path, as identified
 	// by the GOPRIVATE environment variable.
 	IsGoPrivatePath(path string) bool
+
+	// ModuleUpgrades returns known module upgrades.
+	ModuleUpgrades() map[string]string
+
+	// RegisterModuleUpgrades registers that upgrades exist for the given modules.
+	RegisterModuleUpgrades(upgrades map[string]string)
 }
 
 // A FileSource maps uris to FileHandles. This abstraction exists both for
@@ -592,6 +598,7 @@ const (
 	TypeError
 	ModTidyError
 	Analysis
+	UpgradeNotification
 )
 
 func (e *Error) Error() string {

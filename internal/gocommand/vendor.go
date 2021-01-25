@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"golang.org/x/mod/semver"
 )
@@ -19,11 +20,15 @@ import (
 // ModuleJSON holds information about a module.
 type ModuleJSON struct {
 	Path      string      // module path
+	Version   string      // module version
+	Versions  []string    // available module versions (with -versions)
 	Replace   *ModuleJSON // replaced by this module
+	Time      *time.Time  // time version was created
+	Update    *ModuleJSON // available update, if any (with -u)
 	Main      bool        // is this the main module?
 	Indirect  bool        // is this module only an indirect dependency of main module?
 	Dir       string      // directory holding files for this module, if any
-	GoMod     string      // path to go.mod file for this module, if any
+	GoMod     string      // path to go.mod file used when loading this module, if any
 	GoVersion string      // go version used in module
 }
 

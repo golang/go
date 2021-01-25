@@ -713,6 +713,11 @@ var GeneratedAPIJSON = &APIJSON{
 			Doc:     "go_get_package runs `go get` to fetch a package.\n",
 		},
 		{
+			Command: "gopls.check_upgrades",
+			Title:   "Check for upgrades",
+			Doc:     "check_upgrades checks for module upgrades.\n",
+		},
+		{
 			Command: "gopls.add_dependency",
 			Title:   "Add dependency",
 			Doc:     "add_dependency adds a dependency.\n",

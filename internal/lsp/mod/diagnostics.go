@@ -8,6 +8,7 @@ package mod
 
 import (
 	"context"
+	"fmt"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/debug/tag"
@@ -36,9 +37,12 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.Vers
 				Range:   e.Range,
 				Source:  e.Category,
 			}
-			if e.Category == "syntax" || e.Kind == source.ListError {
+			switch {
+			case e.Category == "syntax", e.Kind == source.ListError:
 				d.Severity = protocol.SeverityError
-			} else {
+			case e.Kind == source.UpgradeNotification:
+				d.Severity = protocol.SeverityInformation
+			default:
 				d.Severity = protocol.SeverityWarning
 			}
 			fh, err := snapshot.GetVersionedFile(ctx, e.URI)
@@ -59,13 +63,49 @@ func ErrorsForMod(ctx context.Context, snapshot source.Snapshot, fh source.FileH
 		}
 		return pm.ParseErrors, nil
 	}
+
+	var errors []*source.Error
+
+	// Add upgrade quick fixes for individual modules if we know about them.
+	upgrades := snapshot.View().ModuleUpgrades()
+	for _, req := range pm.File.Require {
+		ver, ok := upgrades[req.Mod.Path]
+		if !ok || req.Mod.Version == ver {
+			continue
+		}
+		rng, err := lineToRange(pm.Mapper, fh.URI(), req.Syntax.Start, req.Syntax.End)
+		if err != nil {
+			return nil, err
+		}
+		// Upgrade to the exact version we offer the user, not the most recent.
+		args, err := source.MarshalArgs(fh.URI(), false, []string{req.Mod.Path + "@" + ver})
+		if err != nil {
+			return nil, err
+		}
+		errors = append(errors, &source.Error{
+			URI:     fh.URI(),
+			Range:   rng,
+			Kind:    source.UpgradeNotification,
+			Message: fmt.Sprintf("%v can be upgraded", req.Mod.Path),
+			SuggestedFixes: []source.SuggestedFix{{
+				Title: fmt.Sprintf("Upgrade to %v", ver),
+				Command: &protocol.Command{
+					Title:     fmt.Sprintf("Upgrade to %v", ver),
+					Command:   source.CommandUpgradeDependency.ID(),
+					Arguments: args,
+				},
+			}},
+		})
+	}
+
 	tidied, err := snapshot.ModTidy(ctx, pm)
 
 	if source.IsNonFatalGoModError(err) {
-		return nil, nil
+		return errors, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	return tidied.Errors, nil
+	errors = append(errors, tidied.Errors...)
+	return errors, nil
 }

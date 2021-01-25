@@ -116,6 +116,14 @@ func main() {
 	_ = hi.Goodbye
 }
 `
+
+	const wantGoMod = `module mod.com
+
+go 1.12
+
+require golang.org/x/hello v1.3.3
+`
+
 	for _, commandTitle := range []string{
 		"Upgrade transitive dependencies",
 		"Upgrade direct dependencies",
@@ -143,19 +151,26 @@ func main() {
 					t.Fatal(err)
 				}
 				env.Await(env.DoneWithChangeWatchedFiles())
-				got := env.Editor.BufferText("go.mod")
-				const wantGoMod = `module mod.com
-
-go 1.12
-
-require golang.org/x/hello v1.3.3
-`
-				if got != wantGoMod {
+				if got := env.Editor.BufferText("go.mod"); got != wantGoMod {
 					t.Fatalf("go.mod upgrade failed:\n%s", tests.Diff(t, wantGoMod, got))
 				}
 			})
 		})
 	}
+	t.Run("Upgrade individual dependency", func(t *testing.T) {
+		WithOptions(ProxyFiles(proxyWithLatest)).Run(t, shouldUpdateDep, func(t *testing.T, env *Env) {
+			env.OpenFile("go.mod")
+			env.ExecuteCodeLensCommand("go.mod", source.CommandCheckUpgrades)
+			d := &protocol.PublishDiagnosticsParams{}
+			env.Await(OnceMet(env.DiagnosticAtRegexpWithMessage("go.mod", `require`, "can be upgraded"),
+				ReadDiagnostics("go.mod", d)))
+			env.ApplyQuickFixes("go.mod", d.Diagnostics)
+			env.Await(env.DoneWithChangeWatchedFiles())
+			if got := env.Editor.BufferText("go.mod"); got != wantGoMod {
+				t.Fatalf("go.mod upgrade failed:\n%s", tests.Diff(t, wantGoMod, got))
+			}
+		})
+	})
 }
 
 func TestUnusedDependenciesCodelens(t *testing.T) {

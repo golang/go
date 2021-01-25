@@ -65,6 +65,7 @@ var Commands = []*Command{
 	CommandUpdateGoSum,
 	CommandUndeclaredName,
 	CommandGoGetPackage,
+	CommandCheckUpgrades,
 	CommandAddDependency,
 	CommandUpgradeDependency,
 	CommandRemoveDependency,
@@ -111,6 +112,12 @@ var (
 	CommandUpdateGoSum = &Command{
 		Name:  "update_go_sum",
 		Title: "Update go.sum",
+	}
+
+	// CommandCheckUpgrades checks for module upgrades.
+	CommandCheckUpgrades = &Command{
+		Name:  "check_upgrades",
+		Title: "Check for upgrades",
 	}
 
 	// CommandAddDependency adds a dependency.

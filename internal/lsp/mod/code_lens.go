@@ -42,6 +42,10 @@ func upgradeLenses(ctx context.Context, snapshot source.Snapshot, fh source.File
 	for _, req := range pm.File.Require {
 		requires = append(requires, req.Mod.Path)
 	}
+	checkUpgradeArgs, err := source.MarshalArgs(fh.URI(), requires)
+	if err != nil {
+		return nil, err
+	}
 	upgradeDirectArgs, err := source.MarshalArgs(fh.URI(), false, requires)
 	if err != nil {
 		return nil, err
@@ -51,7 +55,16 @@ func upgradeLenses(ctx context.Context, snapshot source.Snapshot, fh source.File
 	if err != nil {
 		return nil, err
 	}
+
 	return []protocol.CodeLens{
+		{
+			Range: rng,
+			Command: protocol.Command{
+				Title:     "Check for upgrades",
+				Command:   source.CommandCheckUpgrades.ID(),
+				Arguments: checkUpgradeArgs,
+			},
+		},
 		{
 			Range: rng,
 			Command: protocol.Command{
@@ -69,7 +82,6 @@ func upgradeLenses(ctx context.Context, snapshot source.Snapshot, fh source.File
 			},
 		},
 	}, nil
-
 }
 
 func tidyLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.CodeLens, error) {
