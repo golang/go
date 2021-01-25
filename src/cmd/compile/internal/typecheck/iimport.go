@@ -303,7 +303,9 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		typ := r.typ()
 		val := r.value(typ)
 
-		return importconst(r.p.ipkg, pos, sym, typ, val)
+		n := importconst(r.p.ipkg, pos, sym, typ, val)
+		r.constExt(n)
+		return n
 
 	case 'F':
 		typ := r.signature(nil)
@@ -438,6 +440,15 @@ func (p *importReader) float(typ *types.Type) constant.Value {
 		f.SetMantExp(&f, int(p.int64()))
 	}
 	return constant.Make(&f)
+}
+
+func (p *importReader) mprat(orig constant.Value) constant.Value {
+	if !p.bool() {
+		return orig
+	}
+	var rat big.Rat
+	rat.SetString(p.string())
+	return constant.Make(&rat)
 }
 
 func (r *importReader) ident(selector bool) *types.Sym {
@@ -641,7 +652,19 @@ func (r *importReader) byte() byte {
 
 // Compiler-specific extensions.
 
-func (r *importReader) varExt(n ir.Node) {
+func (r *importReader) constExt(n *ir.Name) {
+	switch n.Type() {
+	case types.UntypedFloat:
+		n.SetVal(r.mprat(n.Val()))
+	case types.UntypedComplex:
+		v := n.Val()
+		re := r.mprat(constant.Real(v))
+		im := r.mprat(constant.Imag(v))
+		n.SetVal(makeComplex(re, im))
+	}
+}
+
+func (r *importReader) varExt(n *ir.Name) {
 	r.linkname(n.Sym())
 	r.symIdx(n.Sym())
 }
