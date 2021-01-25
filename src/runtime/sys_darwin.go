@@ -27,7 +27,7 @@ func syscall()
 //go:nosplit
 //go:cgo_unsafe_args
 func syscall_syscallX(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
-	entersyscallblock()
+	entersyscall()
 	libcCall(unsafe.Pointer(funcPC(syscallX)), unsafe.Pointer(&fn))
 	exitsyscall()
 	return
