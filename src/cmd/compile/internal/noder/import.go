@@ -176,6 +176,11 @@ func resolveImportPath(path string) (string, error) {
 
 // TODO(mdempsky): Return an error instead.
 func importfile(decl *syntax.ImportDecl) *types.Pkg {
+	if decl.Path.Kind != syntax.StringLit {
+		base.Errorf("import path must be a string")
+		return nil
+	}
+
 	path, err := strconv.Unquote(decl.Path.Value)
 	if err != nil {
 		base.Errorf("import path must be a string")
