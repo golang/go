@@ -2689,6 +2689,9 @@ func TestOpenFileKeepsPermissions(t *testing.T) {
 }
 
 func TestDirFS(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("workaround for dev.regabi/dev.typeparams until #42637 is fixed")
+	}
 	if err := fstest.TestFS(DirFS("./testdata/dirfs"), "a", "b", "dir/x"); err != nil {
 		t.Fatal(err)
 	}
