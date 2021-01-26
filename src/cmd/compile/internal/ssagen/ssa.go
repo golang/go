@@ -434,6 +434,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 		// bitmask showing which of the open-coded defers in this function
 		// have been activated.
 		deferBitsTemp := typecheck.TempAt(src.NoXPos, s.curfn, types.Types[types.TUINT8])
+		deferBitsTemp.SetAddrtaken(true)
 		s.deferBitsTemp = deferBitsTemp
 		// For this value, AuxInt is initialized to zero by default
 		startDeferBits := s.entryNewValue0(ssa.OpConst8, types.Types[types.TUINT8])
@@ -5084,6 +5085,10 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 	if n.Op() != ir.ONAME {
 		s.pushLine(n.Pos())
 		defer s.popLine()
+	}
+
+	if s.canSSA(n) {
+		s.Fatalf("addr of canSSA expression: %+v", n)
 	}
 
 	t := types.NewPtr(n.Type())
