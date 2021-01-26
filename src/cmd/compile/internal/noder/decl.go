@@ -5,6 +5,8 @@
 package noder
 
 import (
+	"go/constant"
+
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
@@ -58,7 +60,22 @@ func (g *irgen) constDecl(out *ir.Nodes, decl *syntax.ConstDecl) {
 
 	for _, name := range decl.NameList {
 		name, obj := g.def(name)
-		name.SetVal(obj.(*types2.Const).Val())
+
+		// For untyped numeric constants, make sure the value
+		// representation matches what the rest of the
+		// compiler (really just iexport) expects.
+		// TODO(mdempsky): Revisit after #43891 is resolved.
+		val := obj.(*types2.Const).Val()
+		switch name.Type() {
+		case types.UntypedInt, types.UntypedRune:
+			val = constant.ToInt(val)
+		case types.UntypedFloat:
+			val = constant.ToFloat(val)
+		case types.UntypedComplex:
+			val = constant.ToComplex(val)
+		}
+		name.SetVal(val)
+
 		out.Append(ir.NewDecl(g.pos(decl), ir.ODCLCONST, name))
 	}
 }
