@@ -188,6 +188,25 @@ TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
 	ADD	$16, RSP
 	RET
 
+TEXT runtime·thrsleep_trampoline(SB),NOSPLIT,$0
+	MOVW	8(R0), R1		// arg 2 - clock_id
+	MOVD	16(R0), R2		// arg 3 - abstime
+	MOVD	24(R0), R3		// arg 4 - lock
+	MOVD	32(R0), R4		// arg 5 - abort
+	MOVD	0(R0), R0		// arg 1 - id
+	CALL	libc_thrsleep(SB)
+	RET
+
+TEXT runtime·thrwakeup_trampoline(SB),NOSPLIT,$0
+	MOVW	8(R0), R1		// arg 2 - count
+	MOVD	0(R0), R0		// arg 1 - id
+	CALL	libc_thrwakeup(SB)
+	RET
+
+TEXT runtime·sched_yield_trampoline(SB),NOSPLIT,$0
+	CALL	libc_sched_yield(SB)
+	RET
+
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 	MOVW	code+0(FP), R0		// arg 1 - status
@@ -420,30 +439,6 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	BCC	3(PC)
 	MOVD	$0, R8			// crash on syscall failure
 	MOVD	R8, (R8)
-	RET
-
-TEXT runtime·osyield(SB),NOSPLIT,$0
-	MOVD	$298, R8		// sys_sched_yield
-	INVOKE_SYSCALL
-	RET
-
-TEXT runtime·thrsleep(SB),NOSPLIT,$0
-	MOVD	ident+0(FP), R0		// arg 1 - ident
-	MOVW	clock_id+8(FP), R1	// arg 2 - clock_id
-	MOVD	tsp+16(FP), R2		// arg 3 - tsp
-	MOVD	lock+24(FP), R3		// arg 4 - lock
-	MOVD	abort+32(FP), R4	// arg 5 - abort
-	MOVD	$94, R8			// sys___thrsleep
-	INVOKE_SYSCALL
-	MOVW	R0, ret+40(FP)
-	RET
-
-TEXT runtime·thrwakeup(SB),NOSPLIT,$0
-	MOVD	ident+0(FP), R0		// arg 1 - ident
-	MOVW	n+8(FP), R1		// arg 2 - n
-	MOVD	$301, R8		// sys___thrwakeup
-	INVOKE_SYSCALL
-	MOVW	R0, ret+16(FP)
 	RET
 
 TEXT runtime·sysctl(SB),NOSPLIT,$0
