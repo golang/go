@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/types"
-	exec "golang.org/x/sys/execabs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -23,6 +22,7 @@ import (
 	"sync"
 	"unicode"
 
+	exec "golang.org/x/sys/execabs"
 	"golang.org/x/tools/go/internal/packagesdriver"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/xerrors"
@@ -865,7 +865,7 @@ func (state *golistState) invokeGo(verb string, args ...string) (*bytes.Buffer, 
 	if gocmdRunner == nil {
 		gocmdRunner = &gocommand.Runner{}
 	}
-	stdout, stderr, _, err := gocmdRunner.RunRaw(cfg.Context, inv)
+	stdout, stderr, friendlyErr, err := gocmdRunner.RunRaw(cfg.Context, inv)
 	if err != nil {
 		// Check for 'go' executable not being found.
 		if ee, ok := err.(*exec.Error); ok && ee.Err == exec.ErrNotFound {
@@ -886,7 +886,7 @@ func (state *golistState) invokeGo(verb string, args ...string) (*bytes.Buffer, 
 
 		// Related to #24854
 		if len(stderr.String()) > 0 && strings.Contains(stderr.String(), "unexpected directory layout") {
-			return nil, fmt.Errorf("%s", stderr.String())
+			return nil, friendlyErr
 		}
 
 		// Is there an error running the C compiler in cgo? This will be reported in the "Error" field
@@ -999,7 +999,7 @@ func (state *golistState) invokeGo(verb string, args ...string) (*bytes.Buffer, 
 		// TODO(matloob): Remove these once we can depend on go list to exit with a zero status with -e even when
 		// packages don't exist or a build fails.
 		if !usesExportData(cfg) && !containsGoFile(args) {
-			return nil, fmt.Errorf("go %v: %s: %s", args, exitErr, stderr)
+			return nil, friendlyErr
 		}
 	}
 	return stdout, nil
