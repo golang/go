@@ -4689,15 +4689,13 @@ func (s *state) openDeferExit() {
 			s.maybeNilCheckClosure(v, callDefer)
 			codeptr := s.rawLoad(types.Types[types.TUINTPTR], v)
 			aux := ssa.ClosureAuxCall(ACArgs, ACResults)
-			callArgs = append(callArgs, s.mem())
 			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, v)
-			call.AddArgs(callArgs...)
 		} else {
 			aux := ssa.StaticAuxCall(fn.(*ir.Name).Linksym(), ACArgs, ACResults)
-			callArgs = append(callArgs, s.mem())
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
-			call.AddArgs(callArgs...)
 		}
+		callArgs = append(callArgs, s.mem())
+		call.AddArgs(callArgs...)
 		call.AuxInt = stksize
 		s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
 		// Make sure that the stack slots with pointers are kept live
@@ -4896,11 +4894,9 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		case k == callDefer:
 			aux := ssa.StaticAuxCall(ir.Syms.Deferproc, ACArgs, ACResults)
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
-			call.AddArgs(callArgs...)
 		case k == callGo:
 			aux := ssa.StaticAuxCall(ir.Syms.Newproc, ACArgs, ACResults)
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
-			call.AddArgs(callArgs...)
 		case closure != nil:
 			// rawLoad because loading the code pointer from a
 			// closure is always safe, but IsSanitizerSafeAddr
@@ -4910,18 +4906,16 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			codeptr = s.rawLoad(types.Types[types.TUINTPTR], closure)
 			aux := ssa.ClosureAuxCall(ACArgs, ACResults)
 			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, closure)
-			call.AddArgs(callArgs...)
 		case codeptr != nil:
 			aux := ssa.InterfaceAuxCall(ACArgs, ACResults)
 			call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
-			call.AddArgs(callArgs...)
 		case callee != nil:
 			aux := ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), ACArgs, ACResults)
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
-			call.AddArgs(callArgs...)
 		default:
 			s.Fatalf("bad call type %v %v", n.Op(), n)
 		}
+		call.AddArgs(callArgs...)
 		call.AuxInt = stksize // Call operations carry the argsize of the callee along with them
 	}
 	s.prevCall = call
@@ -5398,10 +5392,10 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	// Issue call
 	var call *ssa.Value
 	aux := ssa.StaticAuxCall(fn, ACArgs, ACResults)
-		callArgs = append(callArgs, s.mem())
-		call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
-		call.AddArgs(callArgs...)
-		s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
+	callArgs = append(callArgs, s.mem())
+	call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+	call.AddArgs(callArgs...)
+	s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
 
 	if !returns {
 		// Finish block
@@ -5545,9 +5539,7 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 	}
 }
 
-// putArg evaluates n for the purpose of passing it as an argument to a function and returns the corresponding Param for the call.
-// If forLateExpandedCall is true, it returns the argument value to pass to the call operation.
-// If forLateExpandedCall is false, then the value is stored at the specified stack offset, and the returned value is nil.
+// putArg evaluates n for the purpose of passing it as an argument to a function and returns the corresponding Param and value for the call.
 func (s *state) putArg(n ir.Node, t *types.Type, off int64) (ssa.Param, *ssa.Value) {
 	var a *ssa.Value
 	if !TypeOK(t) {
