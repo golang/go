@@ -35,18 +35,14 @@ func CreateTemp(dir, pattern string) (*File, error) {
 	}
 	prefix = joinPath(dir, prefix)
 
-	try := 0
-	for {
+	for try := 0; try < 10000; try++ {
 		name := prefix + nextRandom() + suffix
 		f, err := OpenFile(name, O_RDWR|O_CREATE|O_EXCL, 0600)
-		if IsExist(err) {
-			if try++; try < 10000 {
-				continue
-			}
-			return nil, &PathError{Op: "createtemp", Path: dir + string(PathSeparator) + prefix + "*" + suffix, Err: ErrExist}
+		if !IsExist(err) {
+			return f, err
 		}
-		return f, err
 	}
+	return nil, &PathError{Op: "createtemp", Path: dir + string(PathSeparator) + prefix + "*" + suffix, Err: ErrExist}
 }
 
 var errPatternHasSeparator = errors.New("pattern contains path separator")
