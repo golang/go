@@ -9,13 +9,7 @@
 //
 //	go2go [options] <command> [arguments]
 //
-// The only option is -brackets, which requires square brackets rather
-// than parentheses for generic code. This is temporarily useful when
-// translating code that uses square brackets to pass type arguments
-// to generic function and types while not defining any generic
-// functions or types itself.
-//
-// The commands are:
+// Commands:
 //
 //      build      translate and then run "go build packages"
 //      run        translate and then run a list of files
