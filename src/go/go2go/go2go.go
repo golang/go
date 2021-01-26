@@ -83,9 +83,8 @@ func rewriteFilesInPath(importer *Importer, importPath, dir string, go2files []s
 
 		var merr multiErr
 		conf := types.Config{
-			InferFromConstraints: true,
-			Importer:             importer,
-			Error:                merr.add,
+			Importer: importer,
+			Error:    merr.add,
 		}
 		path := importPath
 		if path == "" {
@@ -126,15 +125,14 @@ func rewriteFilesInPath(importer *Importer, importPath, dir string, go2files []s
 // for error messages.
 func RewriteBuffer(importer *Importer, filename string, file []byte) ([]byte, error) {
 	fset := token.NewFileSet()
-	pf, err := parser.ParseFile(fset, filename, file, parser.UnifiedParamLists)
+	pf, err := parser.ParseFile(fset, filename, file, parser.ParseTypeParams)
 	if err != nil {
 		return nil, err
 	}
 	var merr multiErr
 	conf := types.Config{
-		InferFromConstraints: true,
-		Importer:             importer,
-		Error:                merr.add,
+		Importer: importer,
+		Error:    merr.add,
 	}
 	tpkg, err := conf.Check(pf.Name.Name, fset, []*ast.File{pf}, importer.info)
 	if err != nil {
@@ -222,7 +220,7 @@ func checkGoFile(dir, f string) error {
 func parseFiles(importer *Importer, dir string, go2files []string, fset *token.FileSet) ([]*ast.Package, error) {
 	pkgs := make(map[string]*ast.Package)
 	for _, go2f := range go2files {
-		mode := parser.UnifiedParamLists // overrides UseBrackets
+		mode := parser.ParseTypeParams
 
 		filename := filepath.Join(dir, go2f)
 		pf, err := parser.ParseFile(fset, filename, nil, mode)

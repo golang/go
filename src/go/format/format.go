@@ -27,12 +27,18 @@ import (
 // Keep these in sync with cmd/gofmt/gofmt.go.
 const (
 	tabWidth    = 8
-	printerMode = printer.UseSpaces | printer.TabIndent | printer.StdFormat | printer.UseBrackets
+	printerMode = printer.UseSpaces | printer.TabIndent | printerNormalizeNumbers
+
+	// printerNormalizeNumbers means to canonicalize number literal prefixes
+	// and exponents while printing. See https://golang.org/doc/go1.13#gofmt.
+	//
+	// This value is defined in go/printer specifically for go/format and cmd/gofmt.
+	printerNormalizeNumbers = 1 << 30
 )
 
 var config = printer.Config{Mode: printerMode, Tabwidth: tabWidth}
 
-const parserMode = parser.ParseComments | parser.UnifiedParamLists
+const parserMode = parser.ParseComments | parser.ParseTypeParams
 
 // Node formats node in canonical gofmt style and writes the result to dst.
 //

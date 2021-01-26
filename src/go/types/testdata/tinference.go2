@@ -8,6 +8,9 @@ import "strconv"
 
 type any interface{}
 
+// TODO(rFindley) the below partially applied function types should probably
+//                not be permitted (spec question).
+
 func f0[A any, B interface{type C}, C interface{type D}, D interface{type A}](A, B, C, D)
 func _() {
 	f := f0[string]

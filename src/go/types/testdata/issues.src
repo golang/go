@@ -325,8 +325,8 @@ func issue28281c(a, b, c ... /* ERROR can only use ... with final parameter */ i
 func issue28281d(... /* ERROR can only use ... with final parameter */ int, int)
 func issue28281e(a, b, c  ... /* ERROR can only use ... with final parameter */ int, d int)
 func issue28281f(... /* ERROR can only use ... with final parameter */ int, ... /* ERROR can only use ... with final parameter */ int, int)
-func (... /* ERROR can only use ... with final parameter in list */ TT) f()
-func issue28281g() (... /* ERROR can only use ... with final parameter in list */ TT)
+func (... /* ERROR can only use ... with final parameter */ TT) f()
+func issue28281g() (... /* ERROR can only use ... with final parameter */ TT)
 
 // Issue #26234: Make various field/method lookup errors easier to read by matching cmd/compile's output
 func issue26234a(f *syn.File) {
@@ -354,10 +354,10 @@ func issue26234c() {
 
 func issue35895() {
 	// T is defined in this package, don't qualify its name with the package name.
-	var _ T = 0 // ERROR cannot convert 0 \(untyped int constant\) to T
+	var _ T = 0 // ERROR cannot use 0 \(untyped int constant\) as T
 
 	// There is only one package with name syntax imported, only use the (global) package name in error messages.
-	var _ *syn.File = 0 // ERROR cannot convert 0 \(untyped int constant\) to \*syntax.File
+	var _ *syn.File = 0 // ERROR cannot use 0 \(untyped int constant\) as \*syntax.File
 
 	// Because both t1 and t2 have the same global package name (template),
 	// qualify packages with full path name in this case.

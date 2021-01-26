@@ -33,7 +33,7 @@ var _ = reverse /* ERROR cannot use generic function reverse */
 var _ = reverse[int, float32 /* ERROR got 2 type arguments */ ] ([]int{1, 2, 3})
 var _ = reverse[int]([ /* ERROR cannot use */ ]float32{1, 2, 3})
 var f = reverse[chan int]
-var _ = f(0 /* ERROR cannot convert 0 .* to \[\]chan int */ )
+var _ = f(0 /* ERROR cannot use 0 .* as \[\]chan int */ )
 
 func swap[A, B any](a A, b B) (B, A) { return b, a }
 
@@ -73,7 +73,7 @@ func new[T any]() *T {
 var _ = new /* ERROR cannot use generic function new */
 var _ *int = new[int]()
 
-func _[T any](map[T /* ERROR invalid map key type T \(missing comparable constraint\) */]int) // w/o constraint we don't know if T is comparable
+func _[T any](map[T /* ERROR incomparable map key type T \(missing comparable constraint\) */]int) // w/o constraint we don't know if T is comparable
 
 func f1[T1 any](struct{T1}) int
 var _ = f1(int)(struct{T1}{})
@@ -229,9 +229,8 @@ func init[/* ERROR func init must have no type parameters */ P any]() {}
 type T struct {}
 
 func (T) m1() {}
-// The type checker accepts method type parameters if configured accordingly.
-func (T) m2[_ any]() {}
-func (T) m3[P any]() {}
+func (T) m2[ /* ERROR methods cannot have type parameters */ _ any]() {}
+func (T) m3[ /* ERROR methods cannot have type parameters */ P any]() {}
 
 // type inference across parameterized types
 
@@ -293,20 +292,20 @@ func _[T any] (x T) {
 
 type R0 struct{}
 
-func (R0) _[T any](x T)
-func (R0 /* ERROR invalid receiver */ ) _[R0 any]() // scope of type parameters starts at "func"
+func (R0) _[ /* ERROR methods cannot have type parameters */ T any](x T)
+func (R0 /* ERROR invalid receiver */ ) _[ /* ERROR methods cannot have type parameters */ R0 any]() // scope of type parameters starts at "func"
 
 type R1[A, B any] struct{}
 
 func (_ R1[A, B]) m0(A, B)
-func (_ R1[A, B]) m1[T any](A, B, T) T
+func (_ R1[A, B]) m1[ /* ERROR methods cannot have type parameters */ T any](A, B, T) T
 func (_ R1 /* ERROR not a generic type */ [R1, _]) _()
-func (_ R1[A, B]) _[A /* ERROR redeclared */ any](B)
+func (_ R1[A, B]) _[ /* ERROR methods cannot have type parameters */ A /* ERROR redeclared */ any](B)
 
 func _() {
         var r R1[int, string]
         r.m1[rune](42, "foo", 'a')
-        r.m1[rune](42, "foo", 1.2 /* ERROR truncated to rune */)
+        r.m1[rune](42, "foo", 1.2 /* ERROR cannot use .* as rune .* \(truncated\) */)
         r.m1(42, "foo", 1.2) // using type inference
         var _ float64 = r.m1(42, "foo", 1.2)
 }

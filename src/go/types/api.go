@@ -41,22 +41,23 @@ import (
 type Error struct {
 	Fset *token.FileSet // file set for interpretation of Pos
 	Pos  token.Pos      // error position
-	Msg  string         // default error message, user-friendly
-	Full string         // full error message, for debugging (may contain internal details)
+	Msg  string         // error message
 	Soft bool           // if set, error is "soft"
+
+	// go116code is a future API, unexported as the set of error codes is large
+	// and likely to change significantly during experimentation. Tools wishing
+	// to preview this feature may read go116code using reflection (see
+	// errorcodes_test.go), but beware that there is no guarantee of future
+	// compatibility.
+	go116code  errorCode
+	go116start token.Pos
+	go116end   token.Pos
 }
 
 // Error returns an error string formatted as follows:
 // filename:line:column: message
 func (err Error) Error() string {
 	return fmt.Sprintf("%s: %s", err.Fset.Position(err.Pos), err.Msg)
-}
-
-// FullError returns an error string like Error, buy it may contain
-// type-checker internal details such as subscript indices for type
-// parameters and more. Useful for debugging.
-func (err Error) FullError() string {
-	return fmt.Sprintf("%s: %s", err.Fset.Position(err.Pos), err.Full)
 }
 
 // An Importer resolves import paths to Packages.
@@ -104,13 +105,6 @@ type Config struct {
 	// type-checked.
 	IgnoreFuncBodies bool
 
-	// If AcceptMethodTypeParams is set, methods may have type parameters.
-	AcceptMethodTypeParams bool
-
-	// If InferFromConstraints is set, constraint type inference is used
-	// if some function type arguments are missing.
-	InferFromConstraints bool
-
 	// If FakeImportC is set, `import "C"` (for packages requiring Cgo)
 	// declares an empty "C" package and errors are omitted for qualified
 	// identifiers referring to package C (which won't find an object).
@@ -128,9 +122,6 @@ type Config struct {
 	//
 	// It is an error to set both FakeImportC and go115UsesCgo.
 	go115UsesCgo bool
-
-	// If Trace is set, a debug trace is printed to stdout.
-	Trace bool
 
 	// If Error != nil, it is called with each error found
 	// during type checking; err has dynamic type Error.
@@ -394,14 +385,15 @@ func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, i
 
 // AssertableTo reports whether a value of type V can be asserted to have type T.
 func AssertableTo(V *Interface, T Type) bool {
-	m, _ := (*Checker)(nil).assertableTo(V, T, false)
+	m, _ := (*Checker)(nil).assertableTo(V, T)
 	return m == nil
 }
 
 // AssignableTo reports whether a value of type V is assignable to a variable of type T.
 func AssignableTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
-	return x.assignableTo(nil, T, nil) // check not needed for non-constant x
+	ok, _ := x.assignableTo(nil, T, nil) // check not needed for non-constant x
+	return ok
 }
 
 // ConvertibleTo reports whether a value of type V is convertible to a value of type T.

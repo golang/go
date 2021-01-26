@@ -319,15 +319,12 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 	}
 }
 
-func (p *printer) parameters(isTypeParam bool, fields *ast.FieldList) {
+func (p *printer) parameters(fields *ast.FieldList, isTypeParam bool) {
 	openTok, closeTok := token.LPAREN, token.RPAREN
-	if isTypeParam && p.Mode&UseBrackets != 0 {
+	if isTypeParam {
 		openTok, closeTok = token.LBRACK, token.RBRACK
 	}
 	p.print(fields.Opening, openTok)
-	if isTypeParam && p.Mode&UseBrackets == 0 {
-		p.print(token.TYPE)
-	}
 	if len(fields.List) > 0 {
 		prevLine := p.lineFor(fields.Opening)
 		ws := indent
@@ -352,7 +349,7 @@ func (p *printer) parameters(isTypeParam bool, fields *ast.FieldList) {
 			if needsLinebreak && p.linebreak(parLineBeg, 0, ws, true) > 0 {
 				// break line if the opening "(" or previous parameter ended on a different line
 				ws = ignore
-			} else if isTypeParam && len(par.Names) > 0 && p.Mode&UseBrackets == 0 || i > 0 {
+			} else if i > 0 {
 				p.print(blank)
 			}
 			// parameter names
@@ -364,25 +361,10 @@ func (p *printer) parameters(isTypeParam bool, fields *ast.FieldList) {
 				// by a linebreak call after a type, or in the next multi-line identList
 				// will do the right thing.
 				p.identList(par.Names, ws == indent)
-				if par.Type != nil {
-					p.print(blank)
-				}
+				p.print(blank)
 			}
 			// parameter type
-			if par.Type != nil {
-				typ := stripParensAlways(par.Type)
-				// If we don't have a parameter name and the parameter type is an
-				// instantiated type using parentheses, then we need to parenthesize
-				// the type otherwise it is interpreted as a parameter name followed
-				// by a parenthesized type name.
-				if call, _ := typ.(*ast.CallExpr); call != nil && !call.Brackets && len(par.Names) == 0 {
-					p.print(token.LPAREN)
-					p.expr(typ)
-					p.print(token.RPAREN)
-				} else {
-					p.expr(typ)
-				}
-			}
+			p.expr(stripParensAlways(par.Type))
 			prevLine = parLineEnd
 		}
 		// if the closing ")" is on a separate line from the last parameter,
@@ -401,10 +383,10 @@ func (p *printer) parameters(isTypeParam bool, fields *ast.FieldList) {
 
 func (p *printer) signature(sig *ast.FuncType) {
 	if sig.TParams != nil {
-		p.parameters(true, sig.TParams)
+		p.parameters(sig.TParams, true)
 	}
 	if sig.Params != nil {
-		p.parameters(false, sig.Params)
+		p.parameters(sig.Params, false)
 	} else {
 		p.print(token.LPAREN, token.RPAREN)
 	}
@@ -418,7 +400,7 @@ func (p *printer) signature(sig *ast.FuncType) {
 			p.expr(stripParensAlways(res.List[0].Type))
 			return
 		}
-		p.parameters(false, res)
+		p.parameters(res, false)
 	}
 }
 
@@ -848,8 +830,8 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		}
 
 	case *ast.BasicLit:
-		if p.Config.Mode&StdFormat != 0 {
-			x = normalizeNumbers(x)
+		if p.Config.Mode&normalizeNumbers != 0 {
+			x = normalizedNumber(x)
 		}
 		p.print(x)
 
@@ -1038,11 +1020,15 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 	}
 }
 
-// normalizeNumbers rewrites base prefixes and exponents to
-// use lower-case letters, and removes leading 0's from
-// integer imaginary literals. It leaves hexadecimal digits
-// alone.
-func normalizeNumbers(lit *ast.BasicLit) *ast.BasicLit {
+// normalizedNumber rewrites base prefixes and exponents
+// of numbers to use lower-case letters (0X123 to 0x123 and 1.2E3 to 1.2e3),
+// and removes leading 0's from integer imaginary literals (0765i to 765i).
+// It leaves hexadecimal digits alone.
+//
+// normalizedNumber doesn't modify the ast.BasicLit value lit points to.
+// If lit is not a number or a number in canonical format already,
+// lit is returned as is. Otherwise a new ast.BasicLit is created.
+func normalizedNumber(lit *ast.BasicLit) *ast.BasicLit {
 	if lit.Kind != token.INT && lit.Kind != token.FLOAT && lit.Kind != token.IMAG {
 		return lit // not a number - nothing to do
 	}
@@ -1646,7 +1632,7 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
 		p.setComment(s.Doc)
 		p.expr(s.Name)
 		if s.TParams != nil {
-			p.parameters(true, s.TParams)
+			p.parameters(s.TParams, true)
 		}
 		if n == 1 {
 			p.print(blank)
@@ -1836,7 +1822,7 @@ func (p *printer) funcDecl(d *ast.FuncDecl) {
 	// FUNC is emitted).
 	startCol := p.out.Column - len("func ")
 	if d.Recv != nil {
-		p.parameters(false, d.Recv) // method: print receiver
+		p.parameters(d.Recv, false) // method: print receiver
 		p.print(blank)
 	}
 	p.expr(d.Name)

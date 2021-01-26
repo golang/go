@@ -48,9 +48,9 @@ The flags are:
 
 Flags controlling additional output:
 	-ast
-		print AST (forces -seq)
+		print AST
 	-trace
-		print parse trace (forces -seq)
+		print parse trace
 	-comments
 		parse comments (ignored unless -ast or -trace is provided)
 	-panic
@@ -104,8 +104,8 @@ var (
 	compiler   = flag.String("c", "source", "compiler used for installed packages (gc, gccgo, or source)")
 
 	// additional output control
-	printAST      = flag.Bool("ast", false, "print AST (forces -seq)")
-	printTrace    = flag.Bool("trace", false, "print parse trace (forces -seq)")
+	printAST      = flag.Bool("ast", false, "print AST")
+	printTrace    = flag.Bool("trace", false, "print parse trace")
 	parseComments = flag.Bool("comments", false, "parse comments (ignored unless -ast or -trace is provided)")
 	panicOnError  = flag.Bool("panic", false, "panic on first error")
 )
@@ -118,7 +118,6 @@ var (
 )
 
 func initParserMode() {
-	parserMode = parser.UnifiedParamLists
 	if *allErrors {
 		parserMode |= parser.AllErrors
 	}
@@ -291,8 +290,7 @@ func checkPkgFiles(files []*ast.File) {
 
 	// if checkPkgFiles is called multiple times, set up conf only once
 	conf := types.Config{
-		InferFromConstraints: true,
-		FakeImportC:          true,
+		FakeImportC: true,
 		Error: func(err error) {
 			if !*allErrors && errorCount >= 10 {
 				panic(bailout{})

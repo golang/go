@@ -17,6 +17,7 @@ import (
 	"go/token"
 	"math"
 	"math/big"
+	"math/bits"
 	"strconv"
 	"strings"
 	"sync"
@@ -65,6 +66,22 @@ type Value interface {
 // Maximum supported mantissa precision.
 // The spec requires at least 256 bits; typical implementations use 512 bits.
 const prec = 512
+
+// TODO(gri) Consider storing "error" information in an unknownVal so clients
+//           can provide better error messages. For instance, if a number is
+//           too large (incl. infinity), that could be recorded in unknownVal.
+//           See also #20583 and #42695 for use cases.
+
+// Representation of values:
+//
+// Values of Int and Float Kind have two different representations each: int64Val
+// and intVal, and ratVal and floatVal. When possible, the "smaller", respectively
+// more precise (for Floats) representation is chosen. However, once a Float value
+// is represented as a floatVal, any subsequent results remain floatVals (unless
+// explicitly converted); i.e., no attempt is made to convert a floatVal back into
+// a ratVal. The reasoning is that all representations but floatVal are mathematically
+// exact, but once that precision is lost (by moving to floatVal), moving back to
+// a different representation implies a precision that's not actually there.
 
 type (
 	unknownVal struct{}
@@ -257,14 +274,8 @@ func i64tor(x int64Val) ratVal   { return ratVal{newRat().SetInt64(int64(x))} }
 func i64tof(x int64Val) floatVal { return floatVal{newFloat().SetInt64(int64(x))} }
 func itor(x intVal) ratVal       { return ratVal{newRat().SetInt(x.val)} }
 func itof(x intVal) floatVal     { return floatVal{newFloat().SetInt(x.val)} }
-
-func rtof(x ratVal) floatVal {
-	a := newFloat().SetInt(x.val.Num())
-	b := newFloat().SetInt(x.val.Denom())
-	return floatVal{a.Quo(a, b)}
-}
-
-func vtoc(x Value) complexVal { return complexVal{x, int64Val(0)} }
+func rtof(x ratVal) floatVal     { return floatVal{newFloat().SetRat(x.val)} }
+func vtoc(x Value) complexVal    { return complexVal{x, int64Val(0)} }
 
 func makeInt(x *big.Int) Value {
 	if x.IsInt64() {
@@ -273,21 +284,15 @@ func makeInt(x *big.Int) Value {
 	return intVal{x}
 }
 
-// Permit fractions with component sizes up to maxExp
-// before switching to using floating-point numbers.
-const maxExp = 4 << 10
-
 func makeRat(x *big.Rat) Value {
 	a := x.Num()
 	b := x.Denom()
-	if a.BitLen() < maxExp && b.BitLen() < maxExp {
+	if smallInt(a) && smallInt(b) {
 		// ok to remain fraction
 		return ratVal{x}
 	}
 	// components too large => switch to float
-	fa := newFloat().SetInt(a)
-	fb := newFloat().SetInt(b)
-	return floatVal{fa.Quo(fa, fb)}
+	return floatVal{newFloat().SetRat(x)}
 }
 
 var floatVal0 = floatVal{newFloat()}
@@ -297,16 +302,25 @@ func makeFloat(x *big.Float) Value {
 	if x.Sign() == 0 {
 		return floatVal0
 	}
+	if x.IsInf() {
+		return unknownVal{}
+	}
+	// No attempt is made to "go back" to ratVal, even if possible,
+	// to avoid providing the illusion of a mathematically exact
+	// representation.
 	return floatVal{x}
 }
 
 func makeComplex(re, im Value) Value {
+	if re.Kind() == Unknown || im.Kind() == Unknown {
+		return unknownVal{}
+	}
 	return complexVal{re, im}
 }
 
 func makeFloatFromLiteral(lit string) Value {
 	if f, ok := newFloat().SetString(lit); ok {
-		if smallRat(f) {
+		if smallFloat(f) {
 			// ok to use rationals
 			if f.Sign() == 0 {
 				// Issue 20228: If the float underflowed to zero, parse just "0".
@@ -325,14 +339,34 @@ func makeFloatFromLiteral(lit string) Value {
 	return nil
 }
 
-// smallRat reports whether x would lead to "reasonably"-sized fraction
+// Permit fractions with component sizes up to maxExp
+// before switching to using floating-point numbers.
+const maxExp = 4 << 10
+
+// smallInt reports whether x would lead to "reasonably"-sized fraction
 // if converted to a *big.Rat.
-func smallRat(x *big.Float) bool {
-	if !x.IsInf() {
-		e := x.MantExp(nil)
-		return -maxExp < e && e < maxExp
+func smallInt(x *big.Int) bool {
+	return x.BitLen() < maxExp
+}
+
+// smallFloat64 reports whether x would lead to "reasonably"-sized fraction
+// if converted to a *big.Rat.
+func smallFloat64(x float64) bool {
+	if math.IsInf(x, 0) {
+		return false
 	}
-	return false
+	_, e := math.Frexp(x)
+	return -maxExp < e && e < maxExp
+}
+
+// smallFloat reports whether x would lead to "reasonably"-sized fraction
+// if converted to a *big.Rat.
+func smallFloat(x *big.Float) bool {
+	if x.IsInf() {
+		return false
+	}
+	e := x.MantExp(nil)
+	return -maxExp < e && e < maxExp
 }
 
 // ----------------------------------------------------------------------------
@@ -359,16 +393,16 @@ func MakeUint64(x uint64) Value {
 }
 
 // MakeFloat64 returns the Float value for x.
+// If x is -0.0, the result is 0.0.
 // If x is not finite, the result is an Unknown.
 func MakeFloat64(x float64) Value {
 	if math.IsInf(x, 0) || math.IsNaN(x) {
 		return unknownVal{}
 	}
-	// convert -0 to 0
-	if x == 0 {
-		return int64Val(0)
+	if smallFloat64(x) {
+		return ratVal{newRat().SetFloat64(x + 0)} // convert -0 to 0
 	}
-	return ratVal{newRat().SetFloat64(x)}
+	return floatVal{newFloat().SetFloat64(x + 0)}
 }
 
 // MakeFromLiteral returns the corresponding integer, floating-point,
@@ -583,11 +617,11 @@ func Make(x interface{}) Value {
 	case int64:
 		return int64Val(x)
 	case *big.Int:
-		return intVal{x}
+		return makeInt(x)
 	case *big.Rat:
-		return ratVal{x}
+		return makeRat(x)
 	case *big.Float:
-		return floatVal{x}
+		return makeFloat(x)
 	default:
 		return unknownVal{}
 	}
@@ -599,7 +633,11 @@ func Make(x interface{}) Value {
 func BitLen(x Value) int {
 	switch x := x.(type) {
 	case int64Val:
-		return i64toi(x).val.BitLen()
+		u := uint64(x)
+		if x < 0 {
+			u = uint64(-x)
+		}
+		return 64 - bits.LeadingZeros64(u)
 	case intVal:
 		return x.val.BitLen()
 	case unknownVal:
@@ -720,7 +758,7 @@ func Num(x Value) Value {
 	case ratVal:
 		return makeInt(x.val.Num())
 	case floatVal:
-		if smallRat(x.val) {
+		if smallFloat(x.val) {
 			r, _ := x.val.Rat(nil)
 			return makeInt(r.Num())
 		}
@@ -742,7 +780,7 @@ func Denom(x Value) Value {
 	case ratVal:
 		return makeInt(x.val.Denom())
 	case floatVal:
-		if smallRat(x.val) {
+		if smallFloat(x.val) {
 			r, _ := x.val.Rat(nil)
 			return makeInt(r.Denom())
 		}
@@ -815,7 +853,7 @@ func ToInt(x Value) Value {
 		// avoid creation of huge integers
 		// (Existing tests require permitting exponents of at least 1024;
 		// allow any value that would also be permissible as a fraction.)
-		if smallRat(x.val) {
+		if smallFloat(x.val) {
 			i := newInt()
 			if _, acc := x.val.Int(i); acc == big.Exact {
 				return makeInt(i)
@@ -858,14 +896,16 @@ func ToInt(x Value) Value {
 func ToFloat(x Value) Value {
 	switch x := x.(type) {
 	case int64Val:
-		return i64tof(x)
+		return i64tor(x) // x is always a small int
 	case intVal:
+		if smallInt(x.val) {
+			return itor(x)
+		}
 		return itof(x)
 	case ratVal, floatVal:
 		return x
 	case complexVal:
-		if im := ToInt(x.im); im.Kind() == Int && Sign(im) == 0 {
-			// imaginary component is 0
+		if Sign(x.im) == 0 {
 			return ToFloat(x.re)
 		}
 	}
@@ -876,13 +916,7 @@ func ToFloat(x Value) Value {
 // Otherwise it returns an Unknown.
 func ToComplex(x Value) Value {
 	switch x := x.(type) {
-	case int64Val:
-		return vtoc(i64tof(x))
-	case intVal:
-		return vtoc(itof(x))
-	case ratVal:
-		return vtoc(x)
-	case floatVal:
+	case int64Val, intVal, ratVal, floatVal:
 		return vtoc(x)
 	case complexVal:
 		return x
@@ -1001,59 +1035,45 @@ func ord(x Value) int {
 // or invalid (say, nil) both results are that value.
 //
 func match(x, y Value) (_, _ Value) {
-	if ord(x) > ord(y) {
-		y, x = match(y, x)
-		return x, y
+	switch ox, oy := ord(x), ord(y); {
+	case ox < oy:
+		x, y = match0(x, y)
+	case ox > oy:
+		y, x = match0(y, x)
 	}
-	// ord(x) <= ord(y)
+	return x, y
+}
 
-	switch x := x.(type) {
-	case boolVal, *stringVal, complexVal:
-		return x, y
+// match0 must only be called by match.
+// Invariant: ord(x) < ord(y)
+func match0(x, y Value) (_, _ Value) {
+	// Prefer to return the original x and y arguments when possible,
+	// to avoid unnecessary heap allocations.
 
-	case int64Val:
-		switch y := y.(type) {
-		case int64Val:
-			return x, y
-		case intVal:
-			return i64toi(x), y
-		case ratVal:
-			return i64tor(x), y
-		case floatVal:
-			return i64tof(x), y
-		case complexVal:
-			return vtoc(x), y
-		}
-
+	switch y.(type) {
 	case intVal:
-		switch y := y.(type) {
-		case intVal:
-			return x, y
-		case ratVal:
-			return itor(x), y
-		case floatVal:
-			return itof(x), y
-		case complexVal:
-			return vtoc(x), y
+		switch x1 := x.(type) {
+		case int64Val:
+			return i64toi(x1), y
 		}
-
 	case ratVal:
-		switch y := y.(type) {
-		case ratVal:
-			return x, y
-		case floatVal:
-			return rtof(x), y
-		case complexVal:
-			return vtoc(x), y
+		switch x1 := x.(type) {
+		case int64Val:
+			return i64tor(x1), y
+		case intVal:
+			return itor(x1), y
 		}
-
 	case floatVal:
-		switch y := y.(type) {
-		case floatVal:
-			return x, y
-		case complexVal:
-			return vtoc(x), y
+		switch x1 := x.(type) {
+		case int64Val:
+			return i64tof(x1), y
+		case intVal:
+			return itof(x1), y
+		case ratVal:
+			return rtof(x1), y
 		}
+	case complexVal:
+		return vtoc(x), y
 	}
 
 	// force unknown and invalid values into "x position" in callers of match

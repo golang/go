@@ -58,8 +58,11 @@ func (pos Position) String() string {
 // larger, representation.
 //
 // The Pos value for a given file is a number in the range [base, base+size],
-// where base and size are specified when adding the file to the file set via
-// AddFile.
+// where base and size are specified when a file is added to the file set.
+// The difference between a Pos value and the corresponding file base
+// corresponds to the byte offset of that position (represented by the Pos value)
+// from the beginning of the file. Thus, the file base offset is the Pos value
+// representing the first byte in the file.
 //
 // To create the Pos value for a specific source offset (measured in bytes),
 // first add the respective file to the current file set using FileSet.AddFile
@@ -147,12 +150,12 @@ func (f *File) AddLine(offset int) {
 //
 func (f *File) MergeLine(line int) {
 	if line < 1 {
-		panic("illegal line number (line numbering starts at 1)")
+		panic(fmt.Sprintf("invalid line number %d (should be >= 1)", line))
 	}
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 	if line >= len(f.lines) {
-		panic("illegal line number")
+		panic(fmt.Sprintf("invalid line number %d (should be < %d)", line, len(f.lines)))
 	}
 	// To merge the line numbered <line> with the line numbered <line+1>,
 	// we need to remove the entry in lines corresponding to the line
@@ -214,12 +217,12 @@ func (f *File) SetLinesForContent(content []byte) {
 // LineStart panics if the 1-based line number is invalid.
 func (f *File) LineStart(line int) Pos {
 	if line < 1 {
-		panic("illegal line number (line numbering starts at 1)")
+		panic(fmt.Sprintf("invalid line number %d (should be >= 1)", line))
 	}
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 	if line > len(f.lines) {
-		panic("illegal line number")
+		panic(fmt.Sprintf("invalid line number %d (should be < %d)", line, len(f.lines)))
 	}
 	return Pos(f.base + f.lines[line-1])
 }
@@ -264,7 +267,7 @@ func (f *File) AddLineColumnInfo(offset int, filename string, line, column int) 
 //
 func (f *File) Pos(offset int) Pos {
 	if offset > f.size {
-		panic("illegal file offset")
+		panic(fmt.Sprintf("invalid file offset %d (should be <= %d)", offset, f.size))
 	}
 	return Pos(f.base + offset)
 }
@@ -275,7 +278,7 @@ func (f *File) Pos(offset int) Pos {
 //
 func (f *File) Offset(p Pos) int {
 	if int(p) < f.base || int(p) > f.base+f.size {
-		panic("illegal Pos value")
+		panic(fmt.Sprintf("invalid Pos value %d (should be in [%d, %d[)", p, f.base, f.base+f.size))
 	}
 	return int(p) - f.base
 }
@@ -343,7 +346,7 @@ func (f *File) position(p Pos, adjusted bool) (pos Position) {
 func (f *File) PositionFor(p Pos, adjusted bool) (pos Position) {
 	if p != NoPos {
 		if int(p) < f.base || int(p) > f.base+f.size {
-			panic("illegal Pos value")
+			panic(fmt.Sprintf("invalid Pos value %d (should be in [%d, %d[)", p, f.base, f.base+f.size))
 		}
 		pos = f.position(p, adjusted)
 	}
@@ -363,6 +366,22 @@ func (f *File) Position(p Pos) (pos Position) {
 // A FileSet represents a set of source files.
 // Methods of file sets are synchronized; multiple goroutines
 // may invoke them concurrently.
+//
+// The byte offsets for each file in a file set are mapped into
+// distinct (integer) intervals, one interval [base, base+size]
+// per file. Base represents the first byte in the file, and size
+// is the corresponding file size. A Pos value is a value in such
+// an interval. By determining the interval a Pos value belongs
+// to, the file, its file base, and thus the byte offset (position)
+// the Pos value is representing can be computed.
+//
+// When adding a new file, a file base must be provided. That can
+// be any integer value that is past the end of any interval of any
+// file already in the file set. For convenience, FileSet.Base provides
+// such a value, which is simply the end of the Pos interval of the most
+// recently added file, plus one. Unless there is a need to extend an
+// interval later, using the FileSet.Base should be used as argument
+// for FileSet.AddFile.
 //
 type FileSet struct {
 	mutex sync.RWMutex // protects the file set
@@ -411,8 +430,11 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
 	if base < 0 {
 		base = s.base
 	}
-	if base < s.base || size < 0 {
-		panic("illegal base or size")
+	if base < s.base {
+		panic(fmt.Sprintf("invalid base %d (should be >= %d)", base, s.base))
+	}
+	if size < 0 {
+		panic(fmt.Sprintf("invalid size %d (should be >= 0)", size))
 	}
 	// base >= s.base && size >= 0
 	f := &File{set: s, name: filename, base: base, size: size, lines: []int{0}}

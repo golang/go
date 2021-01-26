@@ -21,7 +21,8 @@ func isNamed(typ Type) bool {
 	return false
 }
 
-// isGeneric reports whether a type is a generic, uninstantiated type (generic signatures are not included).
+// isGeneric reports whether a type is a generic, uninstantiated type (generic
+// signatures are not included).
 func isGeneric(typ Type) bool {
 	// A parameterized type is only instantiated if it doesn't have an instantiation already.
 	named, _ := typ.(*Named)
@@ -73,12 +74,8 @@ func isUntyped(typ Type) bool {
 	return !isTyped(typ)
 }
 
-func isOrdered(typ Type) bool { return is(typ, IsOrdered) }
-
-func isConstType(typ Type) bool {
-	t := asBasic(typ)
-	return t != nil && t.info&IsConstType != 0
-}
+func isOrdered(typ Type) bool   { return is(typ, IsOrdered) }
+func isConstType(typ Type) bool { return is(typ, IsConstType) }
 
 // IsInterface reports whether typ is an interface type.
 func IsInterface(typ Type) bool {
@@ -87,7 +84,19 @@ func IsInterface(typ Type) bool {
 
 // Comparable reports whether values of type T are comparable.
 func Comparable(T Type) bool {
-	// If T is a type parameter not constraint by any type
+	return comparable(T, nil)
+}
+
+func comparable(T Type, seen map[Type]bool) bool {
+	if seen[T] {
+		return true
+	}
+	if seen == nil {
+		seen = make(map[Type]bool)
+	}
+	seen[T] = true
+
+	// If T is a type parameter not constrained by any type
 	// list (i.e., it's underlying type is the top type),
 	// T is comparable if it has the == method. Otherwise,
 	// the underlying type "wins". For instance
@@ -108,15 +117,18 @@ func Comparable(T Type) bool {
 		return true
 	case *Struct:
 		for _, f := range t.fields {
-			if !Comparable(f.typ) {
+			if !comparable(f.typ, seen) {
 				return false
 			}
 		}
 		return true
 	case *Array:
-		return Comparable(t.elem)
+		return comparable(t.elem, seen)
 	case *Sum:
-		return t.is(Comparable)
+		pred := func(t Type) bool {
+			return comparable(t, seen)
+		}
+		return t.is(pred)
 	case *TypeParam:
 		return t.Bound().IsComparable()
 	}

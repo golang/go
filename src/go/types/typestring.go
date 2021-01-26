@@ -313,33 +313,17 @@ func writeTypeList(buf *bytes.Buffer, list []Type, qf Qualifier, visited []Type)
 }
 
 func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited []Type) {
-	// bound returns the type bound for tname. The result is never nil.
-	bound := func(tname *TypeName) Type {
-		// be careful to avoid crashes in case of inconsistencies
-		if t, _ := tname.typ.(*TypeParam); t != nil && t.bound != nil {
-			return t.bound
-		}
-		return &emptyInterface
-	}
-
-	// If a single type bound is not the empty interface, we have to write them all.
-	var writeBounds bool
-	for _, p := range list {
-		// bound(p) should be an interface but be careful (it may be invalid)
-		b := asInterface(bound(p))
-		if b != nil && !b.Empty() {
-			writeBounds = true
-			break
-		}
-	}
-	writeBounds = true // always write the bounds for new type parameter list syntax
-
+	// TODO(rFindley) compare this with the corresponding implementation in types2
 	buf.WriteString("[")
 	var prev Type
 	for i, p := range list {
-		b := bound(p)
+		// TODO(rFindley) support 'any' sugar here.
+		var b Type = &emptyInterface
+		if t, _ := p.typ.(*TypeParam); t != nil && t.bound != nil {
+			b = t.bound
+		}
 		if i > 0 {
-			if writeBounds && b != prev {
+			if b != prev {
 				// type bound changed - write previous one before advancing
 				buf.WriteByte(' ')
 				writeType(buf, prev, qf, visited)
@@ -349,15 +333,12 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited 
 		prev = b
 
 		if t, _ := p.typ.(*TypeParam); t != nil {
-			if t.ptr {
-				buf.WriteByte('*')
-			}
 			writeType(buf, t, qf, visited)
 		} else {
 			buf.WriteString(p.name)
 		}
 	}
-	if writeBounds && prev != nil {
+	if prev != nil {
 		buf.WriteByte(' ')
 		writeType(buf, prev, qf, visited)
 	}

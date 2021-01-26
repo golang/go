@@ -14,6 +14,9 @@ import (
 	"go/token"
 )
 
+// TODO(rFindley) decide error codes for the errors in this file, and check
+//                if error spans can be improved
+
 type substMap struct {
 	// The targs field is currently needed for *Named type substitution.
 	// TODO(gri) rewrite that code, get rid of this field, and make this
@@ -28,7 +31,7 @@ func makeSubstMap(tpars []*TypeName, targs []Type) *substMap {
 	assert(len(tpars) == len(targs))
 	proj := make(map[*TypeParam]Type, len(tpars))
 	for i, tpar := range tpars {
-		// We must expand type arguments otherwise *Instance
+		// We must expand type arguments otherwise *instance
 		// types end up as components in composite types.
 		// TODO(gri) explain why this causes problems, if it does
 		targ := expand(targs[i]) // possibly nil
@@ -54,7 +57,7 @@ func (m *substMap) lookup(tpar *TypeParam) Type {
 }
 
 func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist []token.Pos) (res Type) {
-	if check.conf.Trace {
+	if trace {
 		check.trace(pos, "-- instantiating %s with %s", typ, typeListString(targs))
 		check.indent++
 		defer func() {
@@ -70,7 +73,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		}()
 	}
 
-	assert(poslist == nil || len(poslist) <= len(targs))
+	assert(len(poslist) <= len(targs))
 
 	// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
 	var tparams []*TypeName
@@ -80,9 +83,10 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 	case *Signature:
 		tparams = t.tparams
 		defer func() {
-			// If we had an unexpected failure somewhere don't
-			// panic below when asserting res.(*Signature).
-			if res == nil {
+			// If we had an unexpected failure somewhere don't panic below when
+			// asserting res.(*Signature). Check for *Signature in case Typ[Invalid]
+			// is returned.
+			if _, ok := res.(*Signature); !ok {
 				return
 			}
 			// If the signature doesn't use its type parameters, subst
@@ -100,13 +104,12 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 	default:
 		check.dump("%v: cannot instantiate %v", pos, typ)
 		unreachable() // only defined types and (defined) functions can be generic
-
 	}
 
 	// the number of supplied types must match the number of type parameters
 	if len(targs) != len(tparams) {
 		// TODO(gri) provide better error message
-		check.errorf(pos, "got %d arguments but %d type parameters", len(targs), len(tparams))
+		check.errorf(atPos(pos), _Todo, "got %d arguments but %d type parameters", len(targs), len(tparams))
 		return Typ[Invalid]
 	}
 
@@ -142,42 +145,31 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		// - check only if we have methods
 		check.completeInterface(token.NoPos, iface)
 		if len(iface.allMethods) > 0 {
-			// If the type argument is a type parameter itself, its pointer designation
-			// must match the pointer designation of the callee's type parameter.
 			// If the type argument is a pointer to a type parameter, the type argument's
 			// method set is empty.
 			// TODO(gri) is this what we want? (spec question)
-			if tparg := asTypeParam(targ); tparg != nil {
-				if tparg.ptr != tpar.ptr {
-					check.errorf(pos, "pointer designation mismatch")
-					break
-				}
-			} else if base, isPtr := deref(targ); isPtr && asTypeParam(base) != nil {
-				check.errorf(pos, "%s has no methods", targ)
+			if base, isPtr := deref(targ); isPtr && asTypeParam(base) != nil {
+				check.errorf(atPos(pos), 0, "%s has no methods", targ)
 				break
 			}
-			// If a type parameter is marked as a pointer type, the type bound applies
-			// to a pointer of the type argument.
-			actual := targ
-			if tpar.ptr {
-				actual = NewPointer(targ)
-			}
-			if m, wrong := check.missingMethod(actual, iface, true); m != nil {
+			if m, wrong := check.missingMethod(targ, iface, true); m != nil {
 				// TODO(gri) needs to print updated name to avoid major confusion in error message!
 				//           (print warning for now)
+				// Old warning:
 				// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)
 				if m.name == "==" {
 					// We don't want to report "missing method ==".
-					check.softErrorf(pos, "%s does not satisfy comparable", targ)
+					check.softErrorf(atPos(pos), 0, "%s does not satisfy comparable", targ)
 				} else if wrong != nil {
 					// TODO(gri) This can still report uninstantiated types which makes the error message
 					//           more difficult to read then necessary.
-					check.softErrorf(pos,
+					// TODO(rFindley) should this use parentheses rather than ':' for qualification?
+					check.softErrorf(atPos(pos), _Todo,
 						"%s does not satisfy %s: wrong method signature\n\tgot  %s\n\twant %s",
 						targ, tpar.bound, wrong, m,
 					)
 				} else {
-					check.softErrorf(pos, "%s does not satisfy %s (missing method %s)", targ, tpar.bound, m.name)
+					check.softErrorf(atPos(pos), 0, "%s does not satisfy %s (missing method %s)", targ, tpar.bound, m.name)
 				}
 				break
 			}
@@ -187,20 +179,19 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		if iface.allTypes == nil {
 			continue // nothing to do
 		}
-		// iface.allTypes != nil
 
 		// If targ is itself a type parameter, each of its possible types, but at least one, must be in the
 		// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
 		if targ := asTypeParam(targ); targ != nil {
 			targBound := targ.Bound()
 			if targBound.allTypes == nil {
-				check.softErrorf(pos, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
+				check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
 				break
 			}
-			for _, t := range unpack(targBound.allTypes) {
+			for _, t := range unpackType(targBound.allTypes) {
 				if !iface.isSatisfiedBy(t) {
 					// TODO(gri) match this error message with the one below (or vice versa)
-					check.softErrorf(pos, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, t, iface.allTypes)
+					check.softErrorf(atPos(pos), 0, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, t, iface.allTypes)
 					break
 				}
 			}
@@ -209,7 +200,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 
 		// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
 		if !iface.isSatisfiedBy(targ) {
-			check.softErrorf(pos, "%s does not satisfy %s (%s or %s not found in %s)", targ, tpar.bound, targ, under(targ), iface.allTypes)
+			check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s or %s not found in %s)", targ, tpar.bound, targ, under(targ), iface.allTypes)
 			break
 		}
 	}
@@ -290,7 +281,9 @@ func (subst *subster) typ(typ Type) Type {
 		results := subst.tuple(t.results)
 		if recv != t.recv || params != t.params || results != t.results {
 			return &Signature{
-				rparams:  t.rparams,
+				rparams: t.rparams,
+				// TODO(rFindley) why can't we nil out tparams here, rather than in
+				//                instantiate above?
 				tparams:  t.tparams,
 				scope:    t.scope,
 				recv:     recv,
@@ -342,7 +335,7 @@ func (subst *subster) typ(typ Type) Type {
 			subst.check.indent--
 		}()
 		dump := func(format string, args ...interface{}) {
-			if subst.check.conf.Trace {
+			if trace {
 				subst.check.trace(subst.pos, format, args...)
 			}
 		}
@@ -352,10 +345,9 @@ func (subst *subster) typ(typ Type) Type {
 			return t // type is not parameterized
 		}
 
-		var new_targs []Type
+		var newTargs []Type
 
 		if len(t.targs) > 0 {
-
 			// already instantiated
 			dump(">>> %s already instantiated", t)
 			assert(len(t.targs) == len(t.tparams))
@@ -364,32 +356,30 @@ func (subst *subster) typ(typ Type) Type {
 			// that has a type argument for it.
 			for i, targ := range t.targs {
 				dump(">>> %d targ = %s", i, targ)
-				new_targ := subst.typ(targ)
-				if new_targ != targ {
-					dump(">>> substituted %d targ %s => %s", i, targ, new_targ)
-					if new_targs == nil {
-						new_targs = make([]Type, len(t.tparams))
-						copy(new_targs, t.targs)
+				newTarg := subst.typ(targ)
+				if newTarg != targ {
+					dump(">>> substituted %d targ %s => %s", i, targ, newTarg)
+					if newTargs == nil {
+						newTargs = make([]Type, len(t.tparams))
+						copy(newTargs, t.targs)
 					}
-					new_targs[i] = new_targ
+					newTargs[i] = newTarg
 				}
 			}
 
-			if new_targs == nil {
+			if newTargs == nil {
 				dump(">>> nothing to substitute in %s", t)
 				return t // nothing to substitute
 			}
-
 		} else {
-
 			// not yet instantiated
 			dump(">>> first instantiation of %s", t)
-			new_targs = subst.smap.targs
-
+			// TODO(rFindley) can we instead subst the tparam types here?
+			newTargs = subst.smap.targs
 		}
 
 		// before creating a new named type, check if we have this one already
-		h := instantiatedHash(t, new_targs)
+		h := instantiatedHash(t, newTargs)
 		dump(">>> new type hash: %s", h)
 		if named, found := subst.check.typMap[h]; found {
 			dump(">>> found %s", named)
@@ -401,12 +391,12 @@ func (subst *subster) typ(typ Type) Type {
 		tname := NewTypeName(subst.pos, t.obj.pkg, t.obj.name, nil)
 		named := subst.check.NewNamed(tname, t.underlying, t.methods) // method signatures are updated lazily
 		named.tparams = t.tparams                                     // new type is still parameterized
-		named.targs = new_targs
+		named.targs = newTargs
 		subst.check.typMap[h] = named
 		subst.cache[t] = named
 
 		// do the substitution
-		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, new_targs)
+		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, newTargs)
 		named.underlying = subst.typOrNil(t.underlying)
 		named.orig = named.underlying // for cycle detection (Checker.validType)
 
@@ -431,9 +421,9 @@ func (subst *subster) typ(typ Type) Type {
 func instantiatedHash(typ *Named, targs []Type) string {
 	var buf bytes.Buffer
 	writeTypeName(&buf, typ.obj, nil)
-	buf.WriteByte('(')
+	buf.WriteByte('[')
 	writeTypeList(&buf, targs, nil, nil)
-	buf.WriteByte(')')
+	buf.WriteByte(']')
 
 	// With respect to the represented type, whether a
 	// type is fully expanded or stored as instance

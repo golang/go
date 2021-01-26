@@ -40,7 +40,13 @@ var (
 // Keep these in sync with go/format/format.go.
 const (
 	tabWidth    = 8
-	printerMode = printer.UseSpaces | printer.TabIndent | printer.StdFormat | printer.UseBrackets
+	printerMode = printer.UseSpaces | printer.TabIndent | printerNormalizeNumbers
+
+	// printerNormalizeNumbers means to canonicalize number literal prefixes
+	// and exponents while printing. See https://golang.org/doc/go1.13#gofmt.
+	//
+	// This value is defined in go/printer specifically for go/format and cmd/gofmt.
+	printerNormalizeNumbers = 1 << 30
 )
 
 var (
@@ -62,7 +68,7 @@ func usage() {
 
 func initParserMode() {
 	// Keep this in sync with go/format/format.go.
-	parserMode = parser.ParseComments | parser.UnifiedParamLists
+	parserMode = parser.ParseComments | parser.ParseTypeParams
 	if *allErrors {
 		parserMode |= parser.AllErrors
 	}

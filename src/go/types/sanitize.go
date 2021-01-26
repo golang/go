@@ -4,6 +4,8 @@
 
 package types
 
+// sanitizeInfo walks the types contained in info to ensure that all instances
+// are expanded.
 func sanitizeInfo(info *Info) {
 	var s sanitizer = make(map[Type]Type)
 

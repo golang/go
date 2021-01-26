@@ -33,7 +33,7 @@ type checkMode uint
 const (
 	export checkMode = 1 << iota
 	rawFormat
-	stdFormat
+	normNumber
 	idempotent
 )
 
@@ -42,7 +42,7 @@ const (
 // if any.
 func format(src []byte, mode checkMode) ([]byte, error) {
 	// parse src
-	f, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	f, err := parser.ParseFile(fset, "", src, parser.ParseComments|parser.ParseTypeParams)
 	if err != nil {
 		return nil, fmt.Errorf("parse: %s\n%s", err, src)
 	}
@@ -58,8 +58,8 @@ func format(src []byte, mode checkMode) ([]byte, error) {
 	if mode&rawFormat != 0 {
 		cfg.Mode |= RawFormat
 	}
-	if mode&stdFormat != 0 {
-		cfg.Mode |= StdFormat
+	if mode&normNumber != 0 {
+		cfg.Mode |= normalizeNumbers
 	}
 
 	// print AST
@@ -70,7 +70,7 @@ func format(src []byte, mode checkMode) ([]byte, error) {
 
 	// make sure formatted output is syntactically correct
 	res := buf.Bytes()
-	if _, err := parser.ParseFile(fset, "", res, 0); err != nil {
+	if _, err := parser.ParseFile(fset, "", res, parser.ParseTypeParams); err != nil {
 		return nil, fmt.Errorf("re-parse: %s\n%s", err, buf.Bytes())
 	}
 
@@ -205,9 +205,8 @@ var data = []entry{
 	{"slow.input", "slow.golden", idempotent},
 	{"complit.input", "complit.x", export},
 	{"go2numbers.input", "go2numbers.golden", idempotent},
-	{"go2numbers.input", "go2numbers.stdfmt", stdFormat | idempotent},
+	{"go2numbers.input", "go2numbers.norm", normNumber | idempotent},
 	{"generics.input", "generics.golden", idempotent},
-	{"genericsB.input", "genericsB.golden", idempotent},
 }
 
 func TestFiles(t *testing.T) {

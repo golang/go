@@ -57,6 +57,11 @@ type Decl interface {
 // Comments
 
 // A Comment node represents a single //-style or /*-style comment.
+//
+// The Text field contains the comment text without carriage returns (\r) that
+// may have been present in the source. Because a comment's end position is
+// computed using len(Text), the position reported by End() does not match the
+// true source end position for comments containing carriage returns.
 type Comment struct {
 	Slash token.Pos // position of "/" starting the comment
 	Text  string    // comment text (excluding '\n' for //-style comments)
@@ -367,7 +372,9 @@ type (
 		Args     []Expr    // function arguments; or nil
 		Ellipsis token.Pos // position of "..." (token.NoPos if there is no "...")
 		Rparen   token.Pos // position of ")"
-		Brackets bool      // if set, "[" and "]" are used instead of "(" and ")"
+		// TODO(rFindley) use a new ListExpr type rather than overloading CallExpr
+		//                via Brackets, as is done in the syntax package
+		Brackets bool // if set, "[" and "]" are used instead of "(" and ")"
 	}
 
 	// A StarExpr node represents an expression of the form "*" Expression.
@@ -982,6 +989,8 @@ type (
 		Name *Ident        // function/method name
 		Type *FuncType     // function signature: type and value parameters, results, and position of "func" keyword
 		Body *BlockStmt    // function body; or nil for external (non-Go) function
+		// TODO(rFindley) consider storing TParams here, rather than FuncType, as
+		//                they are only valid for declared functions
 	}
 )
 
@@ -1039,15 +1048,14 @@ func (*FuncDecl) declNode() {}
 // are "free-floating" (see also issues #18593, #20744).
 //
 type File struct {
-	Doc         *CommentGroup   // associated documentation; or nil
-	Package     token.Pos       // position of "package" keyword
-	Name        *Ident          // package name
-	Decls       []Decl          // top-level declarations; or nil
-	Scope       *Scope          // package scope (this file only)
-	Imports     []*ImportSpec   // imports in this file
-	Unresolved  []*Ident        // unresolved identifiers in this file
-	Comments    []*CommentGroup // list of all comments in the source file
-	UseBrackets bool            // indicates that type parameters use []'s
+	Doc        *CommentGroup   // associated documentation; or nil
+	Package    token.Pos       // position of "package" keyword
+	Name       *Ident          // package name
+	Decls      []Decl          // top-level declarations; or nil
+	Scope      *Scope          // package scope (this file only)
+	Imports    []*ImportSpec   // imports in this file
+	Unresolved []*Ident        // unresolved identifiers in this file
+	Comments   []*CommentGroup // list of all comments in the source file
 }
 
 func (f *File) Pos() token.Pos { return f.Package }

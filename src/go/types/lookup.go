@@ -196,6 +196,8 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 				}
 
 			case *TypeParam:
+				// only consider explicit methods in the type parameter bound, not
+				// methods that may be common to all types in the type list.
 				if i, m := lookupMethod(t.Bound().allMethods, pkg, name); m != nil {
 					assert(m.typ != nil)
 					index = concat(e.index, i)
@@ -205,12 +207,6 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 					tpar = t
 					obj = m
 					indirect = e.indirect
-				}
-				if obj == nil {
-					// At this point we're not (yet) looking into methods
-					// that any underlyng type of the types in the type list
-					// migth have.
-					// TODO(gri) Do we want to specify the language that way?
 				}
 			}
 		}
@@ -223,7 +219,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 			//        is shorthand for (&x).m()".
 			if f, _ := obj.(*Func); f != nil {
 				// determine if method has a pointer receiver
-				hasPtrRecv := tpar == nil && ptrRecv(f) || tpar != nil && tpar.ptr
+				hasPtrRecv := tpar == nil && ptrRecv(f)
 				if hasPtrRecv && !indirect && !addressable {
 					return nil, nil, true // pointer/addressable receiver required
 				}
@@ -329,7 +325,6 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 				return m, f
 			}
 
-			// both methods must have the same number of type parameters
 			ftyp := f.typ.(*Signature)
 			mtyp := m.typ.(*Signature)
 			if len(ftyp.tparams) != len(mtyp.tparams) {
@@ -429,13 +424,13 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 // method required by V and whether it is missing or just has the wrong type.
 // The receiver may be nil if assertableTo is invoked through an exported API call
 // (such as AssertableTo), i.e., when all methods have been type-checked.
-// If strict (or the global constant forceStrict) is set, assertions that
-// are known to fail are not permitted.
-func (check *Checker) assertableTo(V *Interface, T Type, strict bool) (method, wrongType *Func) {
+// If the global constant forceStrict is set, assertions that are known to fail
+// are not permitted.
+func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Func) {
 	// no static check is required if T is an interface
 	// spec: "If T is an interface type, x.(T) asserts that the
 	//        dynamic type of x implements the interface T."
-	if asInterface(T) != nil && !(strict || forceStrict) {
+	if asInterface(T) != nil && !forceStrict {
 		return
 	}
 	return check.missingMethod(T, V, false)

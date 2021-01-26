@@ -55,8 +55,7 @@ const (
 	Trace                                          // print a trace of parsed productions
 	DeclarationErrors                              // report declaration errors
 	SpuriousErrors                                 // same as AllErrors, for backward-compatibility
-	UseBrackets                                    // use square brackets with type parameters
-	UnifiedParamLists                              // use same syntax for type and ordinary parameter lists (implies UseBrackets)
+	ParseTypeParams                                // Placeholder. Will control the parsing of type parameters.
 	AllErrors         = SpuriousErrors             // report all errors (not just the first 10 on different lines)
 )
 
@@ -142,22 +141,28 @@ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, m
 
 	pkgs = make(map[string]*ast.Package)
 	for _, d := range list {
-		if strings.HasSuffix(d.Name(), ".go") && (filter == nil || filter(d)) {
-			filename := filepath.Join(path, d.Name())
-			if src, err := ParseFile(fset, filename, nil, mode); err == nil {
-				name := src.Name.Name
-				pkg, found := pkgs[name]
-				if !found {
-					pkg = &ast.Package{
-						Name:  name,
-						Files: make(map[string]*ast.File),
-					}
-					pkgs[name] = pkg
-				}
-				pkg.Files[filename] = src
-			} else if first == nil {
-				first = err
+		if d.IsDir() || !strings.HasSuffix(d.Name(), ".go") {
+			continue
+		}
+		if filter != nil {
+			if !filter(d) {
+				continue
 			}
+		}
+		filename := filepath.Join(path, d.Name())
+		if src, err := ParseFile(fset, filename, nil, mode); err == nil {
+			name := src.Name.Name
+			pkg, found := pkgs[name]
+			if !found {
+				pkg = &ast.Package{
+					Name:  name,
+					Files: make(map[string]*ast.File),
+				}
+				pkgs[name] = pkg
+			}
+			pkg.Files[filename] = src
+		} else if first == nil {
+			first = err
 		}
 	}
 

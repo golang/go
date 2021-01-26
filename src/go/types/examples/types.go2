@@ -150,24 +150,12 @@ func _() {
 // (7/14/2020: See comment above. We probably will revert this generalized ability
 // if we go with [] for type parameters.)
 type _ struct {
-	(int8)
-	(*int16)
-	*(int32)
-	(*(int64))
-	(((*(int))))
-	(*(List[int]))
+	int8
+	*int16
+	*List[int]
 
 	int8 /* ERROR int8 redeclared */
-	int /* ERROR int redeclared */
 	* /* ERROR List redeclared */ List[int]
-
-	( /* ERROR invalid embedded field type */ [10]int)
-	( /* ERROR invalid embedded field type */ []int)
-	( /* ERROR invalid embedded field type */ struct{})
-	( /* ERROR invalid embedded field type */ map[int]string)
-	( /* ERROR invalid embedded field type */ chan<- int)
-	( /* ERROR invalid embedded field type */ interface{})
-	( /* ERROR invalid embedded field type */ func())
 }
 
 // It's possible to declare local types whose underlying types

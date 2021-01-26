@@ -1272,12 +1272,26 @@ func (p *trimmer) Write(data []byte) (n int, err error) {
 type Mode uint
 
 const (
-	RawFormat   Mode = 1 << iota // do not use a tabwriter; if set, UseSpaces is ignored
-	TabIndent                    // use tabs for indentation independent of UseSpaces
-	UseSpaces                    // use spaces instead of tabs for alignment
-	SourcePos                    // emit //line directives to preserve original source positions
-	StdFormat                    // apply standard formatting changes (exact byte output may change between versions of Go)
-	UseBrackets                  // use square brackets instead of parentheses for type parameters (implies unified parameter syntax)
+	RawFormat Mode = 1 << iota // do not use a tabwriter; if set, UseSpaces is ignored
+	TabIndent                  // use tabs for indentation independent of UseSpaces
+	UseSpaces                  // use spaces instead of tabs for alignment
+	SourcePos                  // emit //line directives to preserve original source positions
+)
+
+// The mode below is not included in printer's public API because
+// editing code text is deemed out of scope. Because this mode is
+// unexported, it's also possible to modify or remove it based on
+// the evolving needs of go/format and cmd/gofmt without breaking
+// users. See discussion in CL 240683.
+const (
+	// normalizeNumbers means to canonicalize number
+	// literal prefixes and exponents while printing.
+	//
+	// This value is known in and used by go/format and cmd/gofmt.
+	// It is currently more convenient and performant for those
+	// packages to apply number normalization during printing,
+	// rather than by modifying the AST in advance.
+	normalizeNumbers Mode = 1 << 30
 )
 
 // A Config node controls the output of Fprint.
@@ -1350,13 +1364,6 @@ type CommentedNode struct {
 // or assignment-compatible to ast.Expr, ast.Decl, ast.Spec, or ast.Stmt.
 //
 func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{}) error {
-	// Ensure that our formatting of type parameters is consistent with the file.
-	if file, _ := node.(*ast.File); file != nil && file.UseBrackets && cfg.Mode&UseBrackets == 0 {
-		// Copy to avoid data races.
-		cfg2 := *cfg
-		cfg2.Mode |= UseBrackets
-		cfg = &cfg2
-	}
 	return cfg.fprint(output, fset, node, make(map[ast.Node]int))
 }
 

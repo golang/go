@@ -207,8 +207,8 @@ type Signature struct {
 	// and store it in the Func Object) because when type-checking a function
 	// literal we call the general type checker which returns a general Type.
 	// We then unpack the *Signature and use the scope for the literal body.
-	rparams  []*TypeName // reveiver type parameters from left to right; or nil
-	tparams  []*TypeName // type parameters from left to right; or nil
+	rparams  []*TypeName // receiver type parameters from left to right, or nil
+	tparams  []*TypeName // type parameters from left to right, or nil
 	scope    *Scope      // function scope, present for package-local signatures
 	recv     *Var        // nil if not a method
 	params   *Tuple      // (incoming) parameters from left to right; or nil
@@ -317,7 +317,7 @@ type Interface struct {
 
 // unpack unpacks a type into a list of types.
 // TODO(gri) Try to eliminate the need for this function.
-func unpack(typ Type) []Type {
+func unpackType(typ Type) []Type {
 	if typ == nil {
 		return nil
 	}
@@ -332,7 +332,7 @@ func (t *Interface) is(pred func(Type) bool) bool {
 	if t.allTypes == nil {
 		return false // we must have at least one type! (was bug)
 	}
-	for _, t := range unpack(t.allTypes) {
+	for _, t := range unpackType(t.allTypes) {
 		if !pred(t) {
 			return false
 		}
@@ -443,10 +443,7 @@ func (t *Interface) Empty() bool {
 		return len(t.allMethods) == 0 && t.allTypes == nil
 	}
 	return !t.iterate(func(t *Interface) bool {
-		if len(t.methods) > 0 || t.types != nil {
-			return true
-		}
-		return false
+		return len(t.methods) > 0 || t.types != nil
 	}, nil)
 }
 
@@ -458,10 +455,7 @@ func (t *Interface) HasTypeList() bool {
 	}
 
 	return t.iterate(func(t *Interface) bool {
-		if t.types != nil {
-			return true
-		}
-		return false
+		return t.types != nil
 	}, nil)
 }
 
@@ -534,7 +528,7 @@ func (t *Interface) isSatisfiedBy(typ Type) bool {
 	if t.allTypes == nil {
 		return true
 	}
-	types := unpack(t.allTypes)
+	types := unpackType(t.allTypes)
 	return includes(types, typ) || includes(types, under(typ))
 }
 
@@ -726,16 +720,15 @@ func (t *Named) AddMethod(m *Func) {
 type TypeParam struct {
 	check *Checker  // for lazy type bound completion
 	id    uint64    // unique id
-	ptr   bool      // pointer designation
 	obj   *TypeName // corresponding type name
 	index int       // parameter index
 	bound Type      // *Named or *Interface; underlying type is always *Interface
 }
 
 // NewTypeParam returns a new TypeParam.
-func (check *Checker) NewTypeParam(ptr bool, obj *TypeName, index int, bound Type) *TypeParam {
+func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
 	assert(bound != nil)
-	typ := &TypeParam{check: check, id: check.nextId, ptr: ptr, obj: obj, index: index, bound: bound}
+	typ := &TypeParam{check: check, id: check.nextId, obj: obj, index: index, bound: bound}
 	check.nextId++
 	if obj.typ == nil {
 		obj.typ = typ
@@ -750,6 +743,7 @@ func (t *TypeParam) Bound() *Interface {
 	if n, _ := t.bound.(*Named); n != nil {
 		pos = n.obj.pos
 	}
+	// TODO(rFindley) switch this to an unexported method on Checker.
 	t.check.completeInterface(pos, iface)
 	return iface
 }
@@ -765,7 +759,7 @@ func optype(typ Type) Type {
 	if t := asTypeParam(typ); t != nil {
 		// If the optype is typ, return the top type as we have
 		// no information. It also prevents infinite recursion
-		// via the TypeParam converter methods. This can happen
+		// via the asTypeParam converter function. This can happen
 		// for a type parameter list of the form:
 		// (type T interface { type T }).
 		// See also issue #39680.

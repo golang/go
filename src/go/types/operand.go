@@ -59,10 +59,10 @@ type operand struct {
 	id   builtinId
 }
 
-// pos returns the position of the expression corresponding to x.
+// Pos returns the position of the expression corresponding to x.
 // If x is invalid the position is token.NoPos.
 //
-func (x *operand) pos() token.Pos {
+func (x *operand) Pos() token.Pos {
 	// x.expr may not be set if x is invalid
 	if x.expr == nil {
 		return token.NoPos
@@ -204,9 +204,15 @@ func (x *operand) setConst(tok token.Token, lit string) {
 		unreachable()
 	}
 
+	val := constant.MakeFromLiteral(lit, tok, 0)
+	if val.Kind() == constant.Unknown {
+		x.mode = invalid
+		x.typ = Typ[Invalid]
+		return
+	}
 	x.mode = constant_
 	x.typ = Typ[kind]
-	x.val = constant.MakeFromLiteral(lit, tok, 0)
+	x.val = val
 }
 
 // isNil reports whether x is the nil value.
@@ -214,65 +220,44 @@ func (x *operand) isNil() bool {
 	return x.mode == value && x.typ == Typ[UntypedNil]
 }
 
-// TODO(gri) The functions operand.assignableTo, checker.convertUntyped,
-//           checker.representable, and checker.assignment are
-//           overlapping in functionality. Need to simplify and clean up.
-
-// assignableTo reports whether x is assignable to a variable of type T.
-// If the result is false and a non-nil reason is provided, it may be set
-// to a more detailed explanation of the failure (result != "").
-// The check parameter may be nil if assignableTo is invoked through
-// an exported API call, i.e., when all methods have been type-checked.
-func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
+// assignableTo reports whether x is assignable to a variable of type T. If the
+// result is false and a non-nil reason is provided, it may be set to a more
+// detailed explanation of the failure (result != ""). The check parameter may
+// be nil if assignableTo is invoked through an exported API call, i.e., when
+// all methods have been type-checked.
+func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, errorCode) {
 	if x.mode == invalid || T == Typ[Invalid] {
-		return true // avoid spurious errors
+		return true, 0 // avoid spurious errors
 	}
 
 	V := x.typ
 
 	// x's type is identical to T
 	if check.identical(V, T) {
-		return true
+		return true, 0
 	}
 
 	Vu := optype(V)
 	Tu := optype(T)
 
-	// x is an untyped value representable by a value of type T
-	// TODO(gri) This is borrowing from checker.convertUntyped and
-	//           checker.representable. Need to clean up.
+	// x is an untyped value representable by a value of type T.
 	if isUntyped(Vu) {
-		switch t := Tu.(type) {
-		case *Basic:
-			if x.isNil() && t.kind == UnsafePointer {
-				return true
-			}
-			if x.mode == constant_ {
-				return representableConst(x.val, check, t, nil)
-			}
-			// The result of a comparison is an untyped boolean,
-			// but may not be a constant.
-			if Vb, _ := Vu.(*Basic); Vb != nil {
-				return Vb.kind == UntypedBool && isBoolean(Tu)
-			}
-		case *Sum:
+		if t, ok := Tu.(*Sum); ok {
 			return t.is(func(t Type) bool {
 				// TODO(gri) this could probably be more efficient
-				return x.assignableTo(check, t, reason)
-			})
-		case *Interface:
-			check.completeInterface(token.NoPos, t)
-			return x.isNil() || t.Empty()
-		case *Pointer, *Signature, *Slice, *Map, *Chan:
-			return x.isNil()
+				ok, _ := x.assignableTo(check, t, reason)
+				return ok
+			}), _IncompatibleAssign
 		}
+		newType, _, _ := check.implicitTypeAndValue(x, Tu)
+		return newType != nil, _IncompatibleAssign
 	}
 	// Vu is typed
 
 	// x's type V and T have identical underlying types
 	// and at least one of V or T is not a named type
 	if check.identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
-		return true
+		return true, 0
 	}
 
 	// T is an interface type and x implements T
@@ -290,9 +275,9 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 					*reason = "missing method " + m.Name()
 				}
 			}
-			return false
+			return false, _InvalidIfaceAssign
 		}
-		return true
+		return true, 0
 	}
 
 	// x is a bidirectional channel value, T is a channel
@@ -300,9 +285,13 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 	// and at least one of V or T is not a named type
 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
 		if Tc, ok := Tu.(*Chan); ok && check.identical(Vc.elem, Tc.elem) {
-			return !isNamed(V) || !isNamed(T)
+			if !isNamed(V) || !isNamed(T) {
+				return true, 0
+			} else {
+				return false, _InvalidChanAssign
+			}
 		}
 	}
 
-	return false
+	return false, _IncompatibleAssign
 }

@@ -65,9 +65,9 @@ type tparamsList struct {
 	unifier *unifier
 	tparams []*TypeName
 	// For each tparams element, there is a corresponding type slot index in indices.
-	// index  < 0: unifier.types[-index] == nil
+	// index  < 0: unifier.types[-index-1] == nil
 	// index == 0: no type slot allocated yet
-	// index  > 0: unifier.types[index] == typ
+	// index  > 0: unifier.types[index-1] == typ
 	// Joined tparams elements share the same type slot and thus have the same index.
 	// By using a negative index for nil types we don't need to check unifier.types
 	// to see if we have a type or not.
@@ -120,13 +120,9 @@ func (u *unifier) join(i, j int) bool {
 	case ti > 0:
 		// Only the type parameter for x has an inferred type. Use x slot for y.
 		u.y.setIndex(j, ti)
-	// This case is handled like the default case.
-	// case tj > 0:
-	// 	// Only the type parameter for y has an inferred type. Use y slot for x.
-	// 	u.x.setIndex(i, tj)
 	default:
-		// Neither type parameter has an inferred type. Use y slot for x
-		// (or x slot for y, it doesn't matter).
+		// Either the type parameter for y has an inferred type, or neither type
+		// parameter has an inferred type. In either case, use y slot for x.
 		u.x.setIndex(i, tj)
 	}
 	return true
