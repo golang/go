@@ -125,13 +125,13 @@ darwin_amd64)
 	mkerrors="$mkerrors -m64"
 	mksyscall="./mksyscall.pl -darwin"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
-	mkasm="go run mkasm_darwin.go"
+	mkasm="go run mkasm.go"
 	;;
 darwin_arm64)
 	mkerrors="$mkerrors -m64"
 	mksyscall="./mksyscall.pl -darwin"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
-	mkasm="go run mkasm_darwin.go"
+	mkasm="go run mkasm.go"
 	;;
 dragonfly_amd64)
 	mkerrors="$mkerrors -m64"
@@ -299,7 +299,7 @@ openbsd_amd64)
 	zsysctl="zsysctl_openbsd.go"
 	mksysnum="curl -s 'http://cvsweb.openbsd.org/cgi-bin/cvsweb/~checkout~/src/sys/kern/syscalls.master' | ./mksysnum_openbsd.pl"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
-	mkasm="go run mkasm_openbsd.go"
+	mkasm="go run mkasm.go"
 	;;
 openbsd_arm)
 	GOOSARCH_in="syscall_openbsd1.go syscall_openbsd_$GOARCH.go"
@@ -372,5 +372,5 @@ esac
 		# Therefore, "go run" tries to recompile syscall package but ztypes is empty and it fails.
 		echo "$mktypes types_$GOOS.go |go run mkpost.go >ztypes_$GOOSARCH.go.NEW && mv ztypes_$GOOSARCH.go.NEW ztypes_$GOOSARCH.go";
 	fi
-	if [ -n "$mkasm" ]; then echo "$mkasm $GOARCH"; fi
+	if [ -n "$mkasm" ]; then echo "$mkasm $GOOS $GOARCH"; fi
 ) | $run
