@@ -1985,6 +1985,5 @@ var excluded = map[string]bool{
 	"fixedbugs/issue7525c.go":  true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525d.go":  true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525e.go":  true, // types2 reports init cycle error on different line - ok otherwise
-	"fixedbugs/issue7742.go":   true, // types2 type-checking doesn't terminate
 	"fixedbugs/issue7746.go":   true, // types2 type-checking doesn't terminate
 }
