@@ -1251,6 +1251,11 @@ func mstart() {
 		// Initialize stack bounds from system stack.
 		// Cgo may have left stack size in stack.hi.
 		// minit may update the stack bounds.
+		//
+		// Note: these bounds may not be very accurate.
+		// We set hi to &size, but there are things above
+		// it. The 1024 is supposed to compensate this,
+		// but is somewhat arbitrary.
 		size := _g_.stack.hi
 		if size == 0 {
 			size = 8192 * sys.StackGuardMultiplier

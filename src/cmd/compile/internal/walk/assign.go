@@ -289,11 +289,14 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
 	}
 
 	var assigned ir.NameSet
-	var memWrite bool
+	var memWrite, deferResultWrite bool
 
 	// affected reports whether expression n could be affected by
 	// the assignments applied so far.
 	affected := func(n ir.Node) bool {
+		if deferResultWrite {
+			return true
+		}
 		return ir.Any(n, func(n ir.Node) bool {
 			if n.Op() == ir.ONAME && assigned.Has(n.(*ir.Name)) {
 				return true
@@ -369,21 +372,40 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
 
 		appendWalkStmt(&late, convas(ir.NewAssignStmt(base.Pos, lorig, r), &late))
 
-		if name != nil && ir.IsBlank(name) {
-			// We can ignore assignments to blank.
-			continue
-		}
-		if op == ir.ORETURN && types.OrigSym(name.Sym()) == nil {
-			// We can also ignore assignments to anonymous result
-			// parameters. These can't appear in expressions anyway.
+		// Check for reasons why we may need to compute later expressions
+		// before this assignment happens.
+
+		if name == nil {
+			// Not a direct assignment to a declared variable.
+			// Conservatively assume any memory access might alias.
+			memWrite = true
 			continue
 		}
 
-		if name != nil && name.OnStack() && !name.Addrtaken() {
-			assigned.Add(name)
-		} else {
-			memWrite = true
+		if name.Class == ir.PPARAMOUT && ir.CurFunc.HasDefer() {
+			// Assignments to a result parameter in a function with defers
+			// becomes visible early if evaluation of any later expression
+			// panics (#43835).
+			deferResultWrite = true
+			continue
 		}
+
+		if sym := types.OrigSym(name.Sym()); sym == nil || sym.IsBlank() {
+			// We can ignore assignments to blank or anonymous result parameters.
+			// These can't appear in expressions anyway.
+			continue
+		}
+
+		if name.Addrtaken() || !name.OnStack() {
+			// Global variable, heap escaped, or just addrtaken.
+			// Conservatively assume any memory access might alias.
+			memWrite = true
+			continue
+		}
+
+		// Local, non-addrtaken variable.
+		// Assignments can only alias with direct uses of this variable.
+		assigned.Add(name)
 	}
 
 	early.Append(late.Take()...)
