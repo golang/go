@@ -461,10 +461,10 @@ func TestFoo(t *testing.T) {
 
 <p>
   The new <a href="/pkg/io/fs/"><code>io/fs</code></a> package
-  defines an abstraction for read-only trees of files,
-  the <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a> interface,
-  and the standard library packages have
-  been adapted to make use of the interface as appropriate.
+  defines the <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a> interface,
+  an abstraction for read-only trees of files.
+  The standard library packages have been adapted to make use
+  of the interface as appropriate.
 </p>
 
 <p>
@@ -497,6 +497,44 @@ func TestFoo(t *testing.T) {
   <a href="/pkg/testing/fstest/#MapFS"><code>MapFS</code></a>,
   which can be useful for testing code that accepts <code>fs.FS</code>
   implementations.
+</p>
+
+<h3 id="ioutil">Deprecation of io/ioutil</h3>
+
+<p>
+  The <a href="/pkg/io/ioutil/"><code>io/ioutil</code></a> package has
+  turned out to be a poorly defined and hard to understand collection
+  of things. All functionality provided by the package has been moved
+  to other packages. The <code>io/ioutil</code> package remains and
+  will continue to work as before, but we encourage new code to use
+  the new definitions in the <a href="/pkg/io/"><code>io</code></a> and
+  <a href="/pkg/os/"><code>os</code></a> packages.
+
+  Here is a list of the new locations of the names exported
+  by <code>io/ioutil</code>:
+  <ul>
+    <li><a href="/pkg/io/ioutil/#Discard"><code>Discard</code></a>
+      => <a href="/pkg/io/#Discard"><code>io.Discard</code></a></li>
+    <li><a href="/pkg/io/ioutil/#NopCloser"><code>NopCloser</code></a>
+      => <a href="/pkg/io/#NopCloser"><code>io.NopCloser</code></a></li>
+    <li><a href="/pkg/io/ioutil/#ReadAll"><code>ReadAll</code></a>
+      => <a href="/pkg/io/#ReadAll"><code>io.ReadAll</code></a></li>
+    <li><a href="/pkg/io/ioutil/#ReadDir"><code>ReadDir</code></a>
+      => <a href="/pkg/os/#ReadDir"><code>os.ReadDir</code></a>
+      (note: returns a slice of
+      <a href="/pkg/os/#DirEntry"><code>os.DirEntry</code></a>
+      rather than a slice of
+      <a href="/pkg/fs/#FileInfo"><code>fs.FileInfo</code></a>)
+    </li>
+    <li><a href="/pkg/io/ioutil/#ReadFile"><code>ReadFile</code></a>
+      => <a href="/pkg/os/#ReadFile"><code>os.ReadFile</code></a></li>
+    <li><a href="/pkg/io/ioutil/#TempDir"><code>TempDir</code></a>
+      => <a href="/pkg/os/#MkdirTemp"><code>os.MkdirTemp</code></a></li>
+    <li><a href="/pkg/io/ioutil/#TempFile"><code>TempFile</code></a>
+      => <a href="/pkg/os/#CreateTemp"><code>os.CreateTemp</code></a></li>
+    <li><a href="/pkg/io/ioutil/#WriteFile"><code>WriteFile</code></a>
+      => <a href="/pkg/os/#WriteFile"><code>os.WriteFile</code></a></li>
+  </ul>
 </p>
 
 <!-- okay-after-beta1
@@ -623,6 +661,14 @@ func TestFoo(t *testing.T) {
       method allows accessing the <a href="/pkg/crypto/x509/#SystemRootsError.Err"><code>Err</code></a>
       field through the <a href="/pkg/errors"><code>errors</code></a> package functions.
     </p>
+
+    <p><!-- CL 230025 -->
+      On Unix systems, the <code>crypto/x509</code> package is now more
+      efficient in how it stores its copy of the system cert pool.
+      Programs that use only a small number of roots will use around a
+      half megabyte less memory.
+    </p>
+
   </dd>
 </dl><!-- crypto/x509 -->
 
@@ -685,6 +731,37 @@ func TestFoo(t *testing.T) {
   </dd>
 </dl><!-- flag -->
 
+<dl id="go/build"><dt><a href="/pkg/go/build/">go/build</a></dt>
+  <dd>
+    <p><!-- CL 243941, CL 283636 -->
+      The <a href="/pkg/go/build/#Package"><code>Package</code></a>
+      struct has new fields that report information
+      about <code>//go:embed</code> directives in the package:
+      <a href="/pkg/go/build/#Package.EmbedPatterns"><code>EmbedPatterns</code></a>,
+      <a href="/pkg/go/build/#Package.EmbedPatternPos"><code>EmbedPatternPos</code></a>,
+      <a href="/pkg/go/build/#Package.TestEmbedPatterns"><code>TestEmbedPatterns</code></a>,
+      <a href="/pkg/go/build/#Package.TestEmbedPatternPos"><code>TestEmbedPatternPos</code></a>,
+      <a href="/pkg/go/build/#Package.XTestEmbedPatterns"><code>XTestEmbedPatterns</code></a>,
+      <a href="/pkg/go/build/#Package.XTestEmbedPatternPos"><code>XTestEmbedPatternPos</code></a>.
+    </p>
+
+    <p><!-- CL 240551 -->
+      The <a href="/pkg/go/build/#Package"><code>Package</code></a> field
+      <a href="/pkg/go/build/#Package.IgnoredGoFiles"><code>IgnoredGoFiles</code></a>
+      will no longer include files that start with "_" or ".",
+      as those files are always ignored.
+      <code>IgnoredGoFiles</code> is for files ignored because of
+      build constraints.
+    </p>
+
+    <p><!-- CL 240551 -->
+      The new <a href="/pkg/go/build/#Package"><code>Package</code></a>
+      field <a href="/pkg/go/build/#Package.IgnoredOtherFiles"><code>IgnoredOtherFiles</code></a>
+      has a list of non-Go files ignored because of build constraints.
+    </p>
+  </dd>
+</dl><!-- go/build -->
+
 <dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
   <dd>
     <p><!-- CL 243938 -->
@@ -702,6 +779,15 @@ func TestFoo(t *testing.T) {
     <p><!-- CL 261577 -->
       The package now defines a
       <a href="/pkg/io/#ReadSeekCloser"><code>ReadSeekCloser</code></a> interface.
+    </p>
+
+    <p><!-- CL 263141 -->
+      The package now defines
+      <a href="/pkg/io/#Discard"><code>Discard</code></a>,
+      <a href="/pkg/io/#NopCloser"><code>NopCloser</code></a>, and
+      <a href="/pkg/io/#ReadAll"><code>ReadAll</code></a>,
+      to be used instead of the same names in the
+      <a href="/pkg/io/ioutil/"><code>io/ioutil</code></a> package.
     </p>
   </dd>
 </dl><!-- io -->
@@ -857,6 +943,52 @@ func TestFoo(t *testing.T) {
       instead of the unexported <code>errFinished</code> when the process has
       already finished.
     </p>
+
+    <p><!-- CL 261540 -->
+      The package defines a new type
+      <a href="/pkg/os/#DirEntry"><code>DirEntry</code></a>
+      as an alias for <a href="/pkg/io/fs/#DirEntry"><code>fs.DirEntry</code></a>.
+      The new <a href="/pkg/os/#ReadDir"><code>ReadDir</code></a>
+      function and the new
+      <a href="/pkg/os/#File.ReadDir"><code>File.ReadDir</code></a>
+      method can be used to read the contents of a directory into a
+      slice of <a href="/pkg/os/#DirEntry"><code>DirEntry</code></a>.
+      The <a href="/pkg/os/#File.Readdir"><code>File.Readdir</code></a>
+      method (note the lower case <code>d</code> in <code>dir</code>)
+      still exists, returning a slice of
+      <a href="/pkg/os/#FileInfo"><code>FileInfo</code></a>, but for
+      most programs it will be more efficient to switch to
+      <a href="/pkg/os/#File.ReadDir"><code>File.ReadDir</code></a>.
+    </p>
+
+    <p><!-- CL 263141 -->
+      The package now defines
+      <a href="/pkg/os/#CreateTemp"><code>CreateTemp</code></a>,
+      <a href="/pkg/os/#MkdirTemp"><code>MkdirTemp</code></a>,
+      <a href="/pkg/os/#ReadFile"><code>ReadFile</code></a>, and
+      <a href="/pkg/os/#WriteFile"><code>WriteFile</code></a>,
+      to be used instead of functions defined in the
+      <a href="/pkg/io/ioutil/"><code>io/ioutil</code></a> package.
+    </p>
+
+    <p><!-- CL 243906 -->
+      The types <a href="/pkg/os/#FileInfo"><code>FileInfo</code></a>,
+      <a href="/pkg/os/#FileMode"><code>FileMode</code></a>, and
+      <a href="/pkg/os/#PathError"><code>PathError</code></a>
+      are now aliases for types of the same name in the
+      <a href="/pkg/io/fs/"><code>io/fs</code></a> package.
+      Function signatures in the <a href="/pkg/os/"><code>os</code></a>
+      package have been updated to refer to the names in the
+      <a href="/pkg/io/fs/"><code>io/fs</code></a> package.
+      This should not affect any existing code.
+    </p>
+
+    <p><!-- CL 243911 -->
+      The new <a href="/pkg/os/#DirFS"><code>DirFS</code></a> function
+      provides an implementation of
+      <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a> backed by a tree
+      of operating system files.
+    </p>
   </dd>
 </dl><!-- os -->
 
@@ -887,9 +1019,9 @@ func TestFoo(t *testing.T) {
   <dd>
     <p><!-- CL 267887 -->
       The new function
-      <a href="/pkg/path/filepath/WalkDir"><code>WalkDir</code></a>
+      <a href="/pkg/path/filepath/#WalkDir"><code>WalkDir</code></a>
       is similar to
-      <a href="/pkg/path/filepath/Walk"><code>Walk</code></a>,
+      <a href="/pkg/path/filepath/#Walk"><code>Walk</code></a>,
       but is typically more efficient.
       The function passed to <code>WalkDir</code> receives a
       <a href="/pkg/io/fs/#DirEntry"><code>fs.DirEntry</code></a>
@@ -974,6 +1106,25 @@ func TestFoo(t *testing.T) {
     </p>
   </dd>
 </dl><!-- syscall -->
+
+<dl id="testing/iotest"><dt><a href="/pkg/testing/iotest/">testing/iotest</a></dt>
+  <dd>
+    <p><!-- CL 199501 -->
+      The new
+      <a href="/pkg/testing/iotest/#ErrReader"><code>ErrReader</code></a>
+      function returns an
+      <a href="/pkg/io/#Reader"><code>io.Reader</code></a> that always
+      returns an error.
+    </p>
+
+    <p><!-- CL 243909 -->
+      The new
+      <a href="/pkg/testing/iotest/#TestReader"><code>TestReader</code></a>
+      function tests that an <a href="/pkg/io/#Reader"><code>io.Reader</code></a>
+      behaves correctly.
+    </p>
+  </dd>
+</dl><!-- testing/iotest -->
 
 <dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
   <dd>
