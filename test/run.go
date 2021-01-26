@@ -1956,7 +1956,6 @@ var excluded = map[string]bool{
 	"fixedbugs/issue18331.go":  true, // missing error about misuse of //go:noescape (irgen needs code from noder)
 	"fixedbugs/issue18393.go":  true, // types2 not run after syntax errors
 	"fixedbugs/issue19012.go":  true, // multiple errors on same line
-	"fixedbugs/issue20298.go":  true, // types2 non-deterministically reports unused imports
 	"fixedbugs/issue20233.go":  true, // types2 reports two instead of one error (pref: compiler)
 	"fixedbugs/issue20245.go":  true, // types2 reports two instead of one error (pref: compiler)
 	"fixedbugs/issue20250.go":  true, // correct diagnostics, but different lines (probably irgen's fault)
