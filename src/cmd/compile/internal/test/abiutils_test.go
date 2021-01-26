@@ -55,7 +55,14 @@ func TestABIUtilsBasic1(t *testing.T) {
 }
 
 func TestABIUtilsBasic2(t *testing.T) {
-	// func(x int32, y float64) (int32, float64, float64)
+	// func(p1 int8, p2 int16, p3 int32, p4 int64,
+	//      p5 float32, p6 float32, p7 float64, p8 float64,
+	//      p9 int8, p10 int16, p11 int32, p12 int64,
+	//      p13 float32, p14 float32, p15 float64, p16 float64,
+	//      p17 complex128, p18 complex128, p19 complex12, p20 complex128,
+	//      p21 complex64, p22 int8, p23 in16, p24 int32, p25 int64,
+	//      p26 int8, p27 in16, p28 int32, p29 int64)
+	//        (r1 int32, r2 float64, r3 float64) {
 	i8 := types.Types[types.TINT8]
 	i16 := types.Types[types.TINT16]
 	i32 := types.Types[types.TINT32]
@@ -114,6 +121,8 @@ func TestABIUtilsBasic2(t *testing.T) {
 }
 
 func TestABIUtilsArrays(t *testing.T) {
+	// func(p1 [1]int32, p2 [0]int32, p3 [1][1]int32, p4 [2]int32)
+	//         (r1 [2]int32, r2 [1]int32, r3 [0]int32, r4 [1][1]int32) {
 	i32 := types.Types[types.TINT32]
 	ae := types.NewArray(i32, 0)
 	a1 := types.NewArray(i32, 1)
@@ -138,6 +147,9 @@ func TestABIUtilsArrays(t *testing.T) {
 }
 
 func TestABIUtilsStruct1(t *testing.T) {
+	// type s struct { f1 int8; f2 int8; f3 struct {}; f4 int8; f5 int16) }
+	// func(p1 int6, p2 s, p3 int64)
+	//   (r1 s, r2 int8, r3 int32) {
 	i8 := types.Types[types.TINT8]
 	i16 := types.Types[types.TINT16]
 	i32 := types.Types[types.TINT32]
@@ -160,6 +172,10 @@ func TestABIUtilsStruct1(t *testing.T) {
 }
 
 func TestABIUtilsStruct2(t *testing.T) {
+	// type s struct { f1 int64; f2 struct { } }
+	// type fs struct { f1 float64; f2 s; f3 struct { } }
+	// func(p1 s, p2 s, p3 fs)
+	//    (r1 fs, r2 fs)
 	f64 := types.Types[types.TFLOAT64]
 	i64 := types.Types[types.TINT64]
 	s := mkstruct([]*types.Type{i64, mkstruct([]*types.Type{})})
@@ -179,7 +195,53 @@ func TestABIUtilsStruct2(t *testing.T) {
 	abitest(t, ft, exp)
 }
 
+// TestABIUtilsEmptyFieldAtEndOfStruct is testing to make sure
+// the abi code is doing the right thing for struct types that have
+// a trailing zero-sized field (where the we need to add padding).
+func TestABIUtilsEmptyFieldAtEndOfStruct(t *testing.T) {
+	// type s struct { f1 [2]int64; f2 struct { } }
+	// type s2 struct { f1 [3]int16; f2 struct { } }
+	// type fs struct { f1 float64; f s; f3 struct { } }
+	// func(p1 s, p2 s, p3 fs)  (r1 fs, r2 fs)
+	f64 := types.Types[types.TFLOAT64]
+	i64 := types.Types[types.TINT64]
+	i16 := types.Types[types.TINT16]
+	tb := types.Types[types.TBOOL]
+	ab2 := types.NewArray(tb, 2)
+	a2 := types.NewArray(i64, 2)
+	a3 := types.NewArray(i16, 3)
+	s := mkstruct([]*types.Type{a2, mkstruct([]*types.Type{})})
+	s2 := mkstruct([]*types.Type{a3, mkstruct([]*types.Type{})})
+	fs := mkstruct([]*types.Type{f64, s, mkstruct([]*types.Type{})})
+	ft := mkFuncType(nil, []*types.Type{s, ab2, s2, fs, fs},
+		[]*types.Type{fs, ab2, fs})
+
+	exp := makeExpectedDump(`
+        IN 0: R{ } offset: 0 typ: struct { [2]int64; struct {} }
+        IN 1: R{ } offset: 24 typ: [2]bool
+        IN 2: R{ } offset: 26 typ: struct { [3]int16; struct {} }
+        IN 3: R{ } offset: 40 typ: struct { float64; struct { [2]int64; struct {} }; struct {} }
+        IN 4: R{ } offset: 80 typ: struct { float64; struct { [2]int64; struct {} }; struct {} }
+        OUT 0: R{ } offset: 120 typ: struct { float64; struct { [2]int64; struct {} }; struct {} }
+        OUT 1: R{ } offset: 160 typ: [2]bool
+        OUT 2: R{ } offset: 168 typ: struct { float64; struct { [2]int64; struct {} }; struct {} }
+        offsetToSpillArea: 208 spillAreaSize: 0
+`)
+
+	abitest(t, ft, exp)
+
+	// Check to make sure that NumParamRegs yields 2 and not 3
+	// for struct "s" (e.g. that it handles the padding properly).
+	nps := configAMD64.NumParamRegs(s)
+	if nps != 2 {
+		t.Errorf("NumParams(%v) returned %d expected %d\n",
+			s, nps, 2)
+	}
+}
+
 func TestABIUtilsSliceString(t *testing.T) {
+	// func(p1 []int32, p2 int8, p3 []int32, p4 int8, p5 string,
+	//      p6 int64, p6 []intr32) (r1 string, r2 int64, r3 string, r4 []int32)
 	i32 := types.Types[types.TINT32]
 	sli32 := types.NewSlice(i32)
 	str := types.New(types.TSTRING)
@@ -208,10 +270,12 @@ func TestABIUtilsSliceString(t *testing.T) {
 }
 
 func TestABIUtilsMethod(t *testing.T) {
+	// type s1 struct { f1 int16; f2 int16; f3 int16 }
+	// func(p1 *s1, p2 [7]*s1, p3 float64, p4 int16, p5 int16, p6 int16)
+	//   (r1 [7]*s1, r2 float64, r3 int64)
 	i16 := types.Types[types.TINT16]
 	i64 := types.Types[types.TINT64]
 	f64 := types.Types[types.TFLOAT64]
-
 	s1 := mkstruct([]*types.Type{i16, i16, i16})
 	ps1 := types.NewPtr(s1)
 	a7 := types.NewArray(ps1, 7)
@@ -236,18 +300,20 @@ func TestABIUtilsMethod(t *testing.T) {
 }
 
 func TestABIUtilsInterfaces(t *testing.T) {
+	// type s1 { f1 int16; f2 int16; f3 bool)
+	// type nei interface { ...() string }
+	// func(p1 s1, p2 interface{}, p3 interface{}, p4 nei,
+	//      p5 *interface{}, p6 nei, p7 int64)
+	//    (r1 interface{}, r2 nei, r3 bool)
 	ei := types.Types[types.TINTER] // interface{}
 	pei := types.NewPtr(ei)         // *interface{}
 	fldt := mkFuncType(types.FakeRecvType(), []*types.Type{},
 		[]*types.Type{types.UntypedString})
 	field := types.NewField(src.NoXPos, nil, fldt)
-	// interface{ ...() string }
 	nei := types.NewInterface(types.LocalPkg, []*types.Field{field})
-
 	i16 := types.Types[types.TINT16]
 	tb := types.Types[types.TBOOL]
 	s1 := mkstruct([]*types.Type{i16, i16, tb})
-
 	ft := mkFuncType(nil, []*types.Type{s1, ei, ei, nei, pei, nei, i16},
 		[]*types.Type{ei, nei, pei})
 
