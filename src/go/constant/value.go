@@ -1035,62 +1035,45 @@ func ord(x Value) int {
 // or invalid (say, nil) both results are that value.
 //
 func match(x, y Value) (_, _ Value) {
-	if ord(x) > ord(y) {
-		y, x = match(y, x)
-		return x, y
+	switch ox, oy := ord(x), ord(y); {
+	case ox < oy:
+		x, y = match0(x, y)
+	case ox > oy:
+		y, x = match0(y, x)
 	}
-	// ord(x) <= ord(y)
+	return x, y
+}
 
+// match0 must only be called by match.
+// Invariant: ord(x) < ord(y)
+func match0(x, y Value) (_, _ Value) {
 	// Prefer to return the original x and y arguments when possible,
 	// to avoid unnecessary heap allocations.
 
-	switch x1 := x.(type) {
-	case boolVal, *stringVal, complexVal:
-		return x, y
-
-	case int64Val:
-		switch y.(type) {
-		case int64Val:
-			return x, y
-		case intVal:
-			return i64toi(x1), y
-		case ratVal:
-			return i64tor(x1), y
-		case floatVal:
-			return i64tof(x1), y
-		case complexVal:
-			return vtoc(x1), y
-		}
-
+	switch y.(type) {
 	case intVal:
-		switch y.(type) {
-		case intVal:
-			return x, y
-		case ratVal:
-			return itor(x1), y
-		case floatVal:
-			return itof(x1), y
-		case complexVal:
-			return vtoc(x1), y
+		switch x1 := x.(type) {
+		case int64Val:
+			return i64toi(x1), y
 		}
-
 	case ratVal:
-		switch y.(type) {
-		case ratVal:
-			return x, y
-		case floatVal:
-			return rtof(x1), y
-		case complexVal:
-			return vtoc(x1), y
+		switch x1 := x.(type) {
+		case int64Val:
+			return i64tor(x1), y
+		case intVal:
+			return itor(x1), y
 		}
-
 	case floatVal:
-		switch y.(type) {
-		case floatVal:
-			return x, y
-		case complexVal:
-			return vtoc(x1), y
+		switch x1 := x.(type) {
+		case int64Val:
+			return i64tof(x1), y
+		case intVal:
+			return itof(x1), y
+		case ratVal:
+			return rtof(x1), y
 		}
+	case complexVal:
+		return vtoc(x), y
 	}
 
 	// force unknown and invalid values into "x position" in callers of match
