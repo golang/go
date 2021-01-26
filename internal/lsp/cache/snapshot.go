@@ -21,6 +21,7 @@ import (
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
@@ -323,12 +324,8 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 	case source.LoadWorkspace, source.Normal:
 		if vendorEnabled {
 			inv.ModFlag = "vendor"
-		} else if s.workspaceMode()&usesWorkspaceModule == 0 && !allowModfileModificationOption {
+		} else if !allowModfileModificationOption {
 			inv.ModFlag = "readonly"
-		} else {
-			// Temporarily allow updates for multi-module workspace mode:
-			// it doesn't create a go.sum at all. golang/go#42509.
-			inv.ModFlag = mutableModFlag
 		}
 	case source.UpdateUserModFile, source.WriteTemporaryModFile:
 		inv.ModFlag = mutableModFlag
@@ -1721,6 +1718,9 @@ func BuildGoplsMod(ctx context.Context, root span.URI, s source.Snapshot) (*modf
 func buildWorkspaceModFile(ctx context.Context, modFiles map[span.URI]struct{}, fs source.FileSource) (*modfile.File, error) {
 	file := &modfile.File{}
 	file.AddModuleStmt("gopls-workspace")
+	// Track the highest Go version, to be set on the workspace module.
+	// Fall back to 1.12 -- old versions insist on having some version.
+	goVersion := "1.12"
 
 	paths := make(map[string]span.URI)
 	for modURI := range modFiles {
@@ -1739,7 +1739,13 @@ func buildWorkspaceModFile(ctx context.Context, modFiles map[span.URI]struct{}, 
 		if file == nil || parsed.Module == nil {
 			return nil, fmt.Errorf("no module declaration for %s", modURI)
 		}
+		if parsed.Go != nil && semver.Compare(goVersion, parsed.Go.Version) < 0 {
+			goVersion = parsed.Go.Version
+		}
 		path := parsed.Module.Mod.Path
+		if _, ok := paths[path]; ok {
+			return nil, fmt.Errorf("found module %q twice in the workspace", path)
+		}
 		paths[path] = modURI
 		// If the module's path includes a major version, we expect it to have
 		// a matching major version.
@@ -1752,6 +1758,9 @@ func buildWorkspaceModFile(ctx context.Context, modFiles map[span.URI]struct{}, 
 		if err := file.AddReplace(path, "", dirURI(modURI).Filename(), ""); err != nil {
 			return nil, err
 		}
+	}
+	if goVersion != "" {
+		file.AddGoStmt(goVersion)
 	}
 	// Go back through all of the modules to handle any of their replace
 	// statements.
@@ -1792,6 +1801,7 @@ func buildWorkspaceModFile(ctx context.Context, modFiles map[span.URI]struct{}, 
 			}
 		}
 	}
+	file.SortBlocks()
 	return file, nil
 }
 

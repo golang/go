@@ -701,19 +701,22 @@ func TestMultiModuleModDiagnostics(t *testing.T) {
 
 	const mod = `
 -- a/go.mod --
-module mod.com
+module moda.com
 
 go 1.14
 
 require (
 	example.com v1.2.3
 )
+-- a/go.sum --
+example.com v1.2.3 h1:Yryq11hF02fEf2JlOS2eph+ICE2/ceevGV3C9dl5V/c=
+example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
 -- a/main.go --
 package main
 
 func main() {}
 -- b/go.mod --
-module mod.com
+module modb.com
 
 go 1.14
 -- b/main.go --
@@ -730,8 +733,8 @@ func main() {
 		Modes(Experimental),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.Await(
-			env.DiagnosticAtRegexp("a/go.mod", "example.com v1.2.3"),
-			env.DiagnosticAtRegexp("b/go.mod", "module mod.com"),
+			env.DiagnosticAtRegexpWithMessage("a/go.mod", "example.com v1.2.3", "is not used"),
+			env.DiagnosticAtRegexpWithMessage("b/go.mod", "module modb.com", "not in your go.mod file"),
 		)
 	})
 }

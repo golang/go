@@ -617,12 +617,22 @@ var (
 // sure not to show this version to end users in error messages, to avoid
 // confusion.
 // The major version is not included, as that depends on the module path.
-const workspaceModuleVersion = ".0.0-goplsworkspace"
+//
+// If workspace module A is dependent on workspace module B, we need our
+// nonexistant version to be greater than the version A mentions.
+// Otherwise, the go command will try to update to that version. Use a very
+// high minor version to make that more likely.
+const workspaceModuleVersion = ".9999999.0-goplsworkspace"
 
 func IsWorkspaceModuleVersion(version string) bool {
 	return strings.HasSuffix(version, workspaceModuleVersion)
 }
 
 func WorkspaceModuleVersion(majorVersion string) string {
+	// Use the highest compatible major version to avoid unwanted upgrades.
+	// See the comment on workspaceModuleVersion.
+	if majorVersion == "v0" {
+		majorVersion = "v1"
+	}
 	return majorVersion + workspaceModuleVersion
 }

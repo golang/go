@@ -204,7 +204,9 @@ func TestAutomaticWorkspaceModule_Interdependent(t *testing.T) {
 module a.com
 
 require b.com v1.2.3
-
+-- moda/a/go.sum --
+b.com v1.2.3 h1:tXrlXP0rnjRpKNmkbLYoWBdq0ikb3C3bKK9//moAWBI=
+b.com v1.2.3/go.mod h1:D+J7pfFBZK5vdIdZEFquR586vKKIkqG7Qjw9AxG5BQ8=
 -- moda/a/a.go --
 package a
 
@@ -246,7 +248,9 @@ func TestDeleteModule_Interdependent(t *testing.T) {
 module a.com
 
 require b.com v1.2.3
-
+-- moda/a/go.sum --
+b.com v1.2.3 h1:tXrlXP0rnjRpKNmkbLYoWBdq0ikb3C3bKK9//moAWBI=
+b.com v1.2.3/go.mod h1:D+J7pfFBZK5vdIdZEFquR586vKKIkqG7Qjw9AxG5BQ8=
 -- moda/a/a.go --
 package a
 
@@ -311,7 +315,9 @@ func TestCreateModule_Interdependent(t *testing.T) {
 module a.com
 
 require b.com v1.2.3
-
+-- moda/a/go.sum --
+b.com v1.2.3 h1:tXrlXP0rnjRpKNmkbLYoWBdq0ikb3C3bKK9//moAWBI=
+b.com v1.2.3/go.mod h1:D+J7pfFBZK5vdIdZEFquR586vKKIkqG7Qjw9AxG5BQ8=
 -- moda/a/a.go --
 package a
 
@@ -414,7 +420,9 @@ func TestUseGoplsMod(t *testing.T) {
 module a.com
 
 require b.com v1.2.3
-
+-- moda/a/go.sum --
+b.com v1.2.3 h1:tXrlXP0rnjRpKNmkbLYoWBdq0ikb3C3bKK9//moAWBI=
+b.com v1.2.3/go.mod h1:D+J7pfFBZK5vdIdZEFquR586vKKIkqG7Qjw9AxG5BQ8=
 -- moda/a/a.go --
 package a
 
@@ -430,6 +438,9 @@ func main() {
 module b.com
 
 require example.com v1.2.3
+-- modb/go.sum --
+example.com v1.2.3 h1:Yryq11hF02fEf2JlOS2eph+ICE2/ceevGV3C9dl5V/c=
+example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
 -- modb/b/b.go --
 package b
 
@@ -477,8 +488,8 @@ replace a.com => $SANDBOX_WORKDIR/moda/a
 		env.WriteWorkspaceFile("gopls.mod", fmt.Sprintf(`module gopls-workspace
 
 require (
-	a.com v0.0.0-goplsworkspace
-	b.com v0.0.0-goplsworkspace
+	a.com v1.9999999.0-goplsworkspace
+	b.com v1.9999999.0-goplsworkspace
 )
 
 replace a.com => %s/moda/a
@@ -493,7 +504,7 @@ replace b.com => %s/modb
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
 			OnceMet(
-				env.DiagnosticAtRegexp("modb/go.mod", `require example.com v1.2.3`),
+				env.DiagnosticAtRegexpWithMessage("modb/go.mod", `require example.com v1.2.3`, "has not been downloaded"),
 				ReadDiagnostics("modb/go.mod", &d),
 			),
 		)
@@ -648,7 +659,7 @@ func main() {
 			t.Fatalf("reading expected workspace modfile: %v", err)
 		}
 		got := string(gotb)
-		for _, want := range []string{"a.com v0.0.0-goplsworkspace", "b.com v0.0.0-goplsworkspace"} {
+		for _, want := range []string{"a.com v1.9999999.0-goplsworkspace", "b.com v1.9999999.0-goplsworkspace"} {
 			if !strings.Contains(got, want) {
 				// want before got here, since the go.mod is multi-line
 				t.Fatalf("workspace go.mod missing %q. got:\n%s", want, got)
@@ -659,7 +670,7 @@ func main() {
 				module gopls-workspace
 
 				require (
-					a.com v0.0.0-goplsworkspace
+					a.com v1.9999999.0-goplsworkspace
 				)
 
 				replace a.com => %s/moda/a
@@ -670,7 +681,7 @@ func main() {
 			t.Fatalf("reading expected workspace modfile: %v", err)
 		}
 		got = string(gotb)
-		want := "b.com v0.0.0-goplsworkspace"
+		want := "b.com v1.9999999.0-goplsworkspace"
 		if strings.Contains(got, want) {
 			t.Fatalf("workspace go.mod contains unexpected %q. got:\n%s", want, got)
 		}
