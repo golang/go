@@ -288,18 +288,15 @@ func Hello() int {
 		env.Await(
 			env.DoneWithChangeWatchedFiles(),
 		)
-		if testenv.Go1Point() < 14 {
-			// On 1.14 and above, the go mod tidy diagnostics accidentally
-			// download for us. This is the behavior we actually want.
-			d := protocol.PublishDiagnosticsParams{}
-			env.Await(
-				OnceMet(
-					env.DiagnosticAtRegexpWithMessage("moda/a/go.mod", "require b.com v1.2.3", "b.com@v1.2.3"),
-					ReadDiagnostics("moda/a/go.mod", &d),
-				),
-			)
-			env.ApplyQuickFixes("moda/a/go.mod", d.Diagnostics)
-		}
+
+		d := protocol.PublishDiagnosticsParams{}
+		env.Await(
+			OnceMet(
+				env.DiagnosticAtRegexpWithMessage("moda/a/go.mod", "require b.com v1.2.3", "b.com@v1.2.3 has not been downloaded"),
+				ReadDiagnostics("moda/a/go.mod", &d),
+			),
+		)
+		env.ApplyQuickFixes("moda/a/go.mod", d.Diagnostics)
 		got, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
 		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(got, want) {
 			t.Errorf("expected %s, got %v", want, got)

@@ -339,6 +339,9 @@ type Package struct {
 	// forTest is the package under test, if any.
 	forTest string
 
+	// depsErrors is the DepsErrors field from the go list response, if any.
+	depsErrors []*packagesinternal.PackageError
+
 	// module is the module information for the package if it exists.
 	Module *Module
 }
@@ -365,6 +368,9 @@ type ModuleError struct {
 func init() {
 	packagesinternal.GetForTest = func(p interface{}) string {
 		return p.(*Package).forTest
+	}
+	packagesinternal.GetDepsErrors = func(p interface{}) []*packagesinternal.PackageError {
+		return p.(*Package).depsErrors
 	}
 	packagesinternal.GetGoCmdRunner = func(config interface{}) *gocommand.Runner {
 		return config.(*Config).gocmdRunner

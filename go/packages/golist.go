@@ -25,6 +25,7 @@ import (
 	exec "golang.org/x/sys/execabs"
 	"golang.org/x/tools/go/internal/packagesdriver"
 	"golang.org/x/tools/internal/gocommand"
+	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/xerrors"
 )
 
@@ -413,7 +414,8 @@ type jsonPackage struct {
 	ForTest           string // q in a "p [q.test]" package, else ""
 	DepOnly           bool
 
-	Error *jsonPackageError
+	Error      *packagesinternal.PackageError
+	DepsErrors []*packagesinternal.PackageError
 }
 
 type jsonPackageError struct {
@@ -565,6 +567,7 @@ func (state *golistState) createDriverResponse(words ...string) (*driverResponse
 			OtherFiles:      absJoin(p.Dir, otherFiles(p)...),
 			IgnoredFiles:    absJoin(p.Dir, p.IgnoredGoFiles, p.IgnoredOtherFiles),
 			forTest:         p.ForTest,
+			depsErrors:      p.DepsErrors,
 			Module:          p.Module,
 		}
 

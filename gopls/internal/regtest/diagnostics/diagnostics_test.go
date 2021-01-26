@@ -736,7 +736,7 @@ func main() {
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
 			OnceMet(
-				env.DiagnosticAtRegexpWithMessage("main.go", `"github.com/ardanlabs/conf"`, "your go.mod file"),
+				env.DiagnosticAtRegexpWithMessage("main.go", `"github.com/ardanlabs/conf"`, "no required module"),
 				ReadDiagnostics("main.go", &d),
 			),
 		)

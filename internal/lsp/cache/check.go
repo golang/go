@@ -12,17 +12,20 @@ import (
 	"go/types"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 
 	"golang.org/x/mod/module"
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
+	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/typesinternal"
 	errors "golang.org/x/xerrors"
@@ -451,9 +454,169 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 				pkg.typeErrors = append(pkg.typeErrors, err.primary)
 			}
 		}
+
+		depsErrors, err := snapshot.depsErrors(ctx, pkg)
+		if err != nil {
+			return nil, err
+		}
+		pkg.diagnostics = append(pkg.diagnostics, depsErrors...)
+		if err := addGoGetFixes(ctx, snapshot, pkg); err != nil {
+			return nil, err
+		}
 	}
 
 	return pkg, nil
+}
+
+var importErrorRe = regexp.MustCompile(`could not import ([^\s]+)`)
+var missingModuleErrorRe = regexp.MustCompile(`cannot find module providing package ([^\s:]+)`)
+
+func addGoGetFixes(ctx context.Context, snapshot source.Snapshot, pkg *pkg) error {
+	if len(pkg.compiledGoFiles) == 0 || snapshot.GoModForFile(pkg.compiledGoFiles[0].URI) == "" {
+		// Go get only supports module mode for now.
+		return nil
+	}
+	for _, diag := range pkg.diagnostics {
+		matches := importErrorRe.FindStringSubmatch(diag.Message)
+		if len(matches) == 0 {
+			matches = missingModuleErrorRe.FindStringSubmatch(diag.Message)
+		}
+		if len(matches) == 0 {
+			continue
+		}
+		direct := !strings.Contains(diag.Message, "error while importing")
+		args, err := source.MarshalArgs(pkg.compiledGoFiles[0].URI, direct, matches[1])
+		if err != nil {
+			return err
+		}
+		diag.SuggestedFixes = append(diag.SuggestedFixes, source.SuggestedFix{
+			Title: fmt.Sprintf("go get package %v", matches[1]),
+			Command: &protocol.Command{
+				Title:     fmt.Sprintf("go get package %v", matches[1]),
+				Command:   source.CommandGoGetPackage.ID(),
+				Arguments: args,
+			},
+		})
+	}
+	return nil
+}
+
+func (s *snapshot) depsErrors(ctx context.Context, pkg *pkg) ([]*source.Diagnostic, error) {
+	// Select packages that can't be found, and were imported in non-workspace packages.
+	// Workspace packages already show their own errors.
+	var relevantErrors []*packagesinternal.PackageError
+	for _, depsError := range pkg.m.depsErrors {
+		// Up to Go 1.15, the missing package was included in the stack, which
+		// was presumably a bug. We want the next one up.
+		directImporterIdx := len(depsError.ImportStack) - 1
+		if s.view.goversion < 15 {
+			directImporterIdx = len(depsError.ImportStack) - 2
+		}
+		if directImporterIdx < 0 {
+			continue
+		}
+
+		directImporter := depsError.ImportStack[directImporterIdx]
+		if _, ok := s.isWorkspacePackage(packageID(directImporter)); ok {
+			continue
+		}
+		relevantErrors = append(relevantErrors, depsError)
+	}
+	event.Log(ctx, fmt.Sprintf("errors before (%#v) and after filtering (%#v)", pkg.m.depsErrors, relevantErrors))
+
+	// Don't build the import index for nothing.
+	if len(relevantErrors) == 0 {
+		return nil, nil
+	}
+
+	// Build an index of all imports in the package.
+	type fileImport struct {
+		cgf *source.ParsedGoFile
+		imp *ast.ImportSpec
+	}
+	allImports := map[string][]fileImport{}
+	for _, cgf := range pkg.compiledGoFiles {
+		for _, group := range astutil.Imports(s.FileSet(), cgf.File) {
+			for _, imp := range group {
+				if imp.Path == nil {
+					continue
+				}
+				path := strings.Trim(imp.Path.Value, `"`)
+				allImports[path] = append(allImports[path], fileImport{cgf, imp})
+			}
+		}
+	}
+
+	// Apply a diagnostic to any import involved in the error, stopping after
+	// we reach the workspace.
+	var errors []*source.Diagnostic
+	for _, depErr := range relevantErrors {
+		for i := len(depErr.ImportStack) - 1; i >= 0; i-- {
+			item := depErr.ImportStack[i]
+			for _, imp := range allImports[item] {
+				rng, err := source.NewMappedRange(s.FileSet(), imp.cgf.Mapper, imp.imp.Pos(), imp.imp.End()).Range()
+				if err != nil {
+					return nil, err
+				}
+				errors = append(errors, &source.Diagnostic{
+					URI:      imp.cgf.URI,
+					Range:    rng,
+					Severity: protocol.SeverityError,
+					Source:   source.TypeError,
+					Message:  fmt.Sprintf("error while importing %v: %v", item, depErr.Err),
+				})
+			}
+			if _, ok := s.isWorkspacePackage(packageID(item)); ok {
+				break
+			}
+		}
+	}
+
+	if len(pkg.compiledGoFiles) == 0 {
+		return errors, nil
+	}
+	mod := s.GoModForFile(pkg.compiledGoFiles[0].URI)
+	if mod == "" {
+		return errors, nil
+	}
+	fh, err := s.GetFile(ctx, mod)
+	if err != nil {
+		return nil, err
+	}
+	pm, err := s.ParseMod(ctx, fh)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add a diagnostic to the module that contained the lowest-level import of
+	// the missing package.
+	for _, depErr := range relevantErrors {
+		for i := len(depErr.ImportStack) - 1; i >= 0; i-- {
+			item := depErr.ImportStack[i]
+			m := s.getMetadata(packageID(item))
+			if m == nil || m.module == nil {
+				continue
+			}
+			modVer := module.Version{Path: m.module.Path, Version: m.module.Version}
+			reference := findModuleReference(pm.File, modVer)
+			if reference == nil {
+				continue
+			}
+			rng, err := rangeFromPositions(pm.Mapper, reference.Start, reference.End)
+			if err != nil {
+				return nil, err
+			}
+			errors = append(errors, &source.Diagnostic{
+				URI:      pm.URI,
+				Range:    rng,
+				Severity: protocol.SeverityError,
+				Source:   source.TypeError,
+				Message:  fmt.Sprintf("error while importing %v: %v", item, depErr.Err),
+			})
+			break
+		}
+	}
+	return errors, nil
 }
 
 // missingPkgError returns an error message for a missing package that varies

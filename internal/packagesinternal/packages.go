@@ -10,6 +10,13 @@ import (
 )
 
 var GetForTest = func(p interface{}) string { return "" }
+var GetDepsErrors = func(p interface{}) []*PackageError { return nil }
+
+type PackageError struct {
+	ImportStack []string // shortest path from package named on command line to this one
+	Pos         string   // position of error (if present, file:line:col)
+	Err         string   // the error itself
+}
 
 var GetGoCmdRunner = func(config interface{}) *gocommand.Runner { return nil }
 

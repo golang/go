@@ -250,7 +250,6 @@ func (s *snapshot) matchErrorToModule(ctx context.Context, fh source.FileHandle,
 	var reference *modfile.Line
 	matches := moduleVersionInErrorRe.FindAllStringSubmatch(goCmdError, -1)
 
-outer:
 	for i := len(matches) - 1; i >= 0; i-- {
 		ver := module.Version{Path: matches[i][1], Version: matches[i][2]}
 		// Any module versions that come from the workspace module should not
@@ -264,24 +263,9 @@ outer:
 		if innermost == nil {
 			innermost = &ver
 		}
-
-		for _, req := range pm.File.Require {
-			if req.Mod == ver {
-				reference = req.Syntax
-				break outer
-			}
-		}
-		for _, ex := range pm.File.Exclude {
-			if ex.Mod == ver {
-				reference = ex.Syntax
-				break outer
-			}
-		}
-		for _, rep := range pm.File.Replace {
-			if rep.New == ver || rep.Old == ver {
-				reference = rep.Syntax
-				break outer
-			}
+		reference = findModuleReference(pm.File, ver)
+		if reference != nil {
+			break
 		}
 	}
 
@@ -336,6 +320,25 @@ outer:
 		Source:   diagSource,
 		Message:  goCmdError,
 	}
+}
+
+func findModuleReference(mf *modfile.File, ver module.Version) *modfile.Line {
+	for _, req := range mf.Require {
+		if req.Mod == ver {
+			return req.Syntax
+		}
+	}
+	for _, ex := range mf.Exclude {
+		if ex.Mod == ver {
+			return ex.Syntax
+		}
+	}
+	for _, rep := range mf.Replace {
+		if rep.New == ver || rep.Old == ver {
+			return rep.Syntax
+		}
+	}
+	return nil
 }
 
 // errorPositionRe matches errors messages of the form <filename>:<line>:<col>,

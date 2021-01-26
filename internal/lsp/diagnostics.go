@@ -133,7 +133,7 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 		if snapshot.FindFile(uri) == nil {
 			continue
 		}
-		pkgs, err := snapshot.PackagesForFile(ctx, uri, source.TypecheckWorkspace)
+		pkgs, err := snapshot.PackagesForFile(ctx, uri, source.TypecheckFull)
 		if err != nil {
 			// TODO (findleyr): we should probably do something with the error here,
 			// but as of now this can fail repeatedly if load fails, so can be too

@@ -458,7 +458,7 @@ package blah
 
 import "example.com/blah"
 
-var _ = blah.Name
+var V1Name = blah.Name
 const Name = "Blah"
 `
 	const files = `
@@ -471,7 +471,7 @@ require example.com/blah/v2 v2.0.0
 -- a/go.sum --
 example.com/blah v1.0.0 h1:kGPlWJbMsn1P31H9xp/q2mYI32cxLnCvauHN0AVaHnc=
 example.com/blah v1.0.0/go.mod h1:PZUQaGFeVjyDmAE8ywmLbmDn3fj4Ws8epg4oLuDzW3M=
-example.com/blah/v2 v2.0.0 h1:w5baE9JuuU11s3de3yWx2sU05AhNkgLYdZ4qukv+V0k=
+example.com/blah/v2 v2.0.0 h1:DNPsFPkKtTdxclRheaMCiYAoYizp6PuBzO0OmLOO0pY=
 example.com/blah/v2 v2.0.0/go.mod h1:UZiKbTwobERo/hrqFLvIQlJwQZQGxWMVY4xere8mj7w=
 -- a/main.go --
 package main
@@ -486,14 +486,13 @@ var _ = blah.Name
 	}.Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		env.OpenFile("a/go.mod")
-		var d protocol.PublishDiagnosticsParams
 		env.Await(
-			OnceMet(
-				DiagnosticAt("a/go.mod", 0, 0),
-				ReadDiagnostics("a/go.mod", &d),
-			),
+			// We would like for the error to appear in the v2 module, but
+			// as of writing non-workspace packages are not diagnosed.
+			env.DiagnosticAtRegexpWithMessage("a/main.go", `"example.com/blah/v2"`, "cannot find module providing"),
+			env.DiagnosticAtRegexpWithMessage("a/go.mod", `require example.com/blah/v2`, "cannot find module providing"),
 		)
-		env.ApplyQuickFixes("a/main.go", d.Diagnostics)
+		env.ApplyQuickFixes("a/go.mod", env.DiagnosticsFor("a/go.mod").Diagnostics)
 		const want = `module mod.com
 
 go 1.12
@@ -503,7 +502,7 @@ require (
 	example.com/blah/v2 v2.0.0
 )
 `
-		env.Await(EmptyDiagnostics("a/go.mod"))
+		env.Await(EmptyDiagnostics("a/main.go"))
 		if got := env.Editor.BufferText("a/go.mod"); got != want {
 			t.Fatalf("suggested fixes failed:\n%s", tests.Diff(t, want, got))
 		}
@@ -718,6 +717,8 @@ func main() {}
 -- b/go.mod --
 module modb.com
 
+require example.com v1.2.3
+
 go 1.14
 -- b/main.go --
 package main
@@ -734,7 +735,6 @@ func main() {
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.Await(
 			env.DiagnosticAtRegexpWithMessage("a/go.mod", "example.com v1.2.3", "is not used"),
-			env.DiagnosticAtRegexpWithMessage("b/go.mod", "module modb.com", "not in your go.mod file"),
 		)
 	})
 }
@@ -815,7 +815,6 @@ func main() {
 }
 `
 	WithOptions(
-		Modes(Singleton), // workspace modules don't use -mod=readonly (golang/go#43346)
 		ProxyFiles(workspaceProxy),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		d := &protocol.PublishDiagnosticsParams{}

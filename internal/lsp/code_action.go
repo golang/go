@@ -7,7 +7,6 @@ package lsp
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -105,15 +104,6 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 				}
 			}
 
-			// Fix unresolved imports with "go get". This is separate from the
-			// goimports fixes because goimports will not remove an import
-			// that appears to be used, even if currently unresolved.
-			actions, err := goGetFixes(ctx, snapshot, fh.URI(), diagnostics)
-			if err != nil {
-				return nil, err
-			}
-			codeActions = append(codeActions, actions...)
-
 			// Send all of the import edits as one code action if the file is
 			// being organized.
 			if wanted[protocol.SourceOrganizeImports] && len(importEdits) > 0 {
@@ -134,6 +124,11 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			return nil, err
 		}
 		if (wanted[protocol.QuickFix] || wanted[protocol.SourceFixAll]) && len(diagnostics) > 0 {
+			pkgQuickFixes, err := quickFixesForDiagnostics(ctx, snapshot, diagnostics, pkg.GetDiagnostics())
+			if err != nil {
+				return nil, err
+			}
+			codeActions = append(codeActions, pkgQuickFixes...)
 			analysisQuickFixes, highConfidenceEdits, err := analysisFixes(ctx, snapshot, pkg, diagnostics)
 			if err != nil {
 				return nil, err
@@ -360,38 +355,6 @@ func diagnosticToAnalyzer(snapshot source.Snapshot, src, msg string) (analyzer *
 	return nil
 }
 
-var importErrorRe = regexp.MustCompile(`could not import ([^\s]+)`)
-
-func goGetFixes(ctx context.Context, snapshot source.Snapshot, uri span.URI, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
-	if snapshot.GoModForFile(uri) == "" {
-		// Go get only supports module mode for now.
-		return nil, nil
-	}
-
-	var actions []protocol.CodeAction
-	for _, diag := range diagnostics {
-		matches := importErrorRe.FindStringSubmatch(diag.Message)
-		if len(matches) == 0 {
-			return nil, nil
-		}
-		args, err := source.MarshalArgs(uri, matches[1])
-		if err != nil {
-			return nil, err
-		}
-		actions = append(actions, protocol.CodeAction{
-			Title:       fmt.Sprintf("go get package %v", matches[1]),
-			Diagnostics: []protocol.Diagnostic{diag},
-			Kind:        protocol.QuickFix,
-			Command: &protocol.Command{
-				Title:     source.CommandGoGetPackage.Title,
-				Command:   source.CommandGoGetPackage.ID(),
-				Arguments: args,
-			},
-		})
-	}
-	return actions, nil
-}
-
 func convenienceFixes(ctx context.Context, snapshot source.Snapshot, pkg source.Package, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
 	var analyzers []*analysis.Analyzer
 	for _, a := range snapshot.View().Options().ConvenienceAnalyzers {
@@ -504,7 +467,7 @@ func documentChanges(fh source.VersionedFileHandle, edits []protocol.TextEdit) [
 	}
 }
 
-func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.VersionedFileHandle, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
+func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.VersionedFileHandle, pdiags []protocol.Diagnostic) ([]protocol.CodeAction, error) {
 	var modFH source.VersionedFileHandle
 	switch fh.Kind() {
 	case source.Mod:
@@ -520,14 +483,18 @@ func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.V
 			return nil, err
 		}
 	}
-	errors, err := mod.DiagnosticsForMod(ctx, snapshot, modFH)
+	diags, err := mod.DiagnosticsForMod(ctx, snapshot, modFH)
 	if err != nil {
 		return nil, err
 	}
+	return quickFixesForDiagnostics(ctx, snapshot, pdiags, diags)
+}
+
+func quickFixesForDiagnostics(ctx context.Context, snapshot source.Snapshot, pdiags []protocol.Diagnostic, sdiags []*source.Diagnostic) ([]protocol.CodeAction, error) {
 	var quickFixes []protocol.CodeAction
-	for _, e := range errors {
+	for _, e := range sdiags {
 		var diag *protocol.Diagnostic
-		for _, d := range diagnostics {
+		for _, d := range pdiags {
 			if sameDiagnostic(d, e) {
 				diag = &d
 				break
@@ -544,15 +511,17 @@ func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.V
 				Edit:        protocol.WorkspaceEdit{},
 				Command:     fix.Command,
 			}
+
 			for uri, edits := range fix.Edits {
-				if uri != modFH.URI() {
-					continue
+				fh, err := snapshot.GetVersionedFile(ctx, uri)
+				if err != nil {
+					return nil, err
 				}
 				action.Edit.DocumentChanges = append(action.Edit.DocumentChanges, protocol.TextDocumentEdit{
 					TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
-						Version: modFH.Version(),
+						Version: fh.Version(),
 						TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-							URI: protocol.URIFromSpanURI(modFH.URI()),
+							URI: protocol.URIFromSpanURI(uri),
 						},
 					},
 					Edits: edits,
@@ -563,7 +532,6 @@ func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.V
 	}
 	return quickFixes, nil
 }
-
 func sameDiagnostic(pd protocol.Diagnostic, sd *source.Diagnostic) bool {
 	return pd.Message == sd.Message && protocol.CompareRange(pd.Range, sd.Range) == 0 && pd.Source == string(sd.Source)
 }

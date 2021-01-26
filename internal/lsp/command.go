@@ -302,7 +302,8 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 	case source.CommandGoGetPackage:
 		var uri protocol.DocumentURI
 		var pkg string
-		if err := source.UnmarshalArgs(args, &uri, &pkg); err != nil {
+		var addRequire bool
+		if err := source.UnmarshalArgs(args, &uri, &addRequire, &pkg); err != nil {
 			return err
 		}
 		snapshot, _, ok, release, err := s.beginFileRequest(ctx, uri, source.UnknownKind)
@@ -310,7 +311,7 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		if !ok {
 			return err
 		}
-		return s.runGoGetPackage(ctx, snapshot, uri.SpanURI(), pkg)
+		return s.runGoGetPackage(ctx, snapshot, uri.SpanURI(), addRequire, pkg)
 
 	case source.CommandToggleDetails:
 		var fileURI protocol.DocumentURI
@@ -496,7 +497,7 @@ func (s *Server) runGoGenerate(ctx context.Context, snapshot source.Snapshot, di
 	return nil
 }
 
-func (s *Server) runGoGetPackage(ctx context.Context, snapshot source.Snapshot, uri span.URI, pkg string) error {
+func (s *Server) runGoGetPackage(ctx context.Context, snapshot source.Snapshot, uri span.URI, addRequire bool, pkg string) error {
 	stdout, err := snapshot.RunGoCommandDirect(ctx, source.WriteTemporaryModFile|source.AllowNetwork, &gocommand.Invocation{
 		Verb:       "list",
 		Args:       []string{"-f", "{{.Module.Path}}@{{.Module.Version}}", pkg},
@@ -506,7 +507,7 @@ func (s *Server) runGoGetPackage(ctx context.Context, snapshot source.Snapshot, 
 		return err
 	}
 	ver := strings.TrimSpace(stdout.String())
-	return s.runGoGetModule(ctx, snapshot, uri, true, []string{ver})
+	return s.runGoGetModule(ctx, snapshot, uri, addRequire, []string{ver})
 }
 
 func (s *Server) runGoGetModule(ctx context.Context, snapshot source.Snapshot, uri span.URI, addRequire bool, args []string) error {
