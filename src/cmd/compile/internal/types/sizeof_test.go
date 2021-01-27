@@ -24,7 +24,7 @@ func TestSizeof(t *testing.T) {
 		{Type{}, 56, 96},
 		{Map{}, 20, 40},
 		{Forward{}, 20, 32},
-		{Func{}, 24, 40},
+		{Func{}, 28, 48},
 		{Struct{}, 16, 32},
 		{Interface{}, 8, 16},
 		{Chan{}, 8, 16},

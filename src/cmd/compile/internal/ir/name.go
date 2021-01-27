@@ -473,13 +473,14 @@ type Class uint8
 
 //go:generate stringer -type=Class name.go
 const (
-	Pxxx      Class = iota // no class; used during ssa conversion to indicate pseudo-variables
-	PEXTERN                // global variables
-	PAUTO                  // local variables
-	PAUTOHEAP              // local variables or parameters moved to heap
-	PPARAM                 // input arguments
-	PPARAMOUT              // output results
-	PFUNC                  // global functions
+	Pxxx       Class = iota // no class; used during ssa conversion to indicate pseudo-variables
+	PEXTERN                 // global variables
+	PAUTO                   // local variables
+	PAUTOHEAP               // local variables or parameters moved to heap
+	PPARAM                  // input arguments
+	PPARAMOUT               // output results
+	PTYPEPARAM              // type params
+	PFUNC                   // global functions
 
 	// Careful: Class is stored in three bits in Node.flags.
 	_ = uint((1 << 3) - iota) // static assert for iota <= (1 << 3)

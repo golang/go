@@ -72,6 +72,7 @@ const (
 	TANY
 	TSTRING
 	TUNSAFEPTR
+	TTYPEPARAM
 
 	// pseudo-types for literals
 	TIDEAL // untyped numeric constants
@@ -150,6 +151,7 @@ type Type struct {
 	// TARRAY: *Array
 	// TSLICE: Slice
 	// TSSA: string
+	// TTYPEPARAM:  *Interface (though we may not need to store/use the Interface info)
 	Extra interface{}
 
 	// Width is the width of this Type in bytes.
@@ -283,6 +285,7 @@ type Func struct {
 	Receiver *Type // function receiver
 	Results  *Type // function results
 	Params   *Type // function params
+	Tparams  *Type // type params of receiver (if method) or function
 
 	pkg *Pkg
 
@@ -318,6 +321,7 @@ const (
 	FunargRcvr           // receiver
 	FunargParams         // input parameters
 	FunargResults        // output results
+	FunargTparams        // type params
 )
 
 // StructType returns t's extra struct-specific fields.
@@ -1645,8 +1649,8 @@ func NewInterface(pkg *Pkg, methods []*Field) *Type {
 }
 
 // NewSignature returns a new function type for the given receiver,
-// parameters, and results, any of which may be nil.
-func NewSignature(pkg *Pkg, recv *Field, params, results []*Field) *Type {
+// parametes, results, and type parameters, any of which may be nil.
+func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Type {
 	var recvs []*Field
 	if recv != nil {
 		recvs = []*Field{recv}
@@ -1665,6 +1669,7 @@ func NewSignature(pkg *Pkg, recv *Field, params, results []*Field) *Type {
 	}
 
 	ft.Receiver = funargs(recvs, FunargRcvr)
+	ft.Tparams = funargs(tparams, FunargTparams)
 	ft.Params = funargs(params, FunargParams)
 	ft.Results = funargs(results, FunargResults)
 	ft.pkg = pkg

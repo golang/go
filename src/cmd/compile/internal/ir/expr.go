@@ -153,11 +153,12 @@ const (
 	CallUseStmt // results not used - call is a statement
 )
 
-// A CallExpr is a function call X(Args).
+// A CallExpr is a function call X[Targs](Args).
 type CallExpr struct {
 	miniExpr
 	origNode
 	X         Node
+	Targs     Nodes
 	Args      Nodes
 	KeepAlive []*Name // vars to be kept alive until call returns
 	IsDDD     bool
@@ -165,11 +166,12 @@ type CallExpr struct {
 	NoInline  bool
 }
 
-func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
+func NewCallExpr(pos src.XPos, op Op, fun Node, targs, args []Node) *CallExpr {
 	n := &CallExpr{X: fun}
 	n.pos = pos
 	n.orig = n
 	n.SetOp(op)
+	n.Targs = targs
 	n.Args = args
 	return n
 }

@@ -169,7 +169,7 @@ func (i *typeInterner) mktype(t ast.Expr) string {
 		}
 		return fmt.Sprintf("types.NewChan(%s, %s)", i.subtype(t.Value), dir)
 	case *ast.FuncType:
-		return fmt.Sprintf("types.NewSignature(types.NoPkg, nil, %s, %s)", i.fields(t.Params, false), i.fields(t.Results, false))
+		return fmt.Sprintf("types.NewSignature(types.NoPkg, nil, nil, %s, %s)", i.fields(t.Params, false), i.fields(t.Results, false))
 	case *ast.InterfaceType:
 		if len(t.Methods.List) != 0 {
 			log.Fatal("non-empty interfaces unsupported")

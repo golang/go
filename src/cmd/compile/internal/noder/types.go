@@ -121,7 +121,7 @@ func (g *irgen) signature(recv *types.Field, sig *types2.Signature) *types.Type 
 		params[len(params)-1].SetIsDDD(true)
 	}
 
-	return types.NewSignature(g.tpkg(sig), recv, params, results)
+	return types.NewSignature(g.tpkg(sig), recv, nil, params, results)
 }
 
 func (g *irgen) param(v *types2.Var) *types.Field {

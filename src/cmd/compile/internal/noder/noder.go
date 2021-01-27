@@ -755,7 +755,7 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		}
 		return ir.NewBinaryExpr(pos, op, x, y)
 	case *syntax.CallExpr:
-		n := ir.NewCallExpr(p.pos(expr), ir.OCALL, p.expr(expr.Fun), p.exprs(expr.ArgList))
+		n := ir.NewCallExpr(p.pos(expr), ir.OCALL, p.expr(expr.Fun), nil, p.exprs(expr.ArgList))
 		n.IsDDD = expr.HasDots
 		return n
 

@@ -607,7 +607,7 @@ func (r *importReader) signature(recv *types.Field) *types.Type {
 	if n := len(params); n > 0 {
 		params[n-1].SetIsDDD(r.bool())
 	}
-	return types.NewSignature(r.currPkg, recv, params, results)
+	return types.NewSignature(r.currPkg, recv, nil, params, results)
 }
 
 func (r *importReader) paramList() []*types.Field {
@@ -1068,7 +1068,7 @@ func (r *importReader) node() ir.Node {
 	case ir.OCALL:
 		pos := r.pos()
 		init := r.stmtList()
-		n := ir.NewCallExpr(pos, ir.OCALL, r.expr(), r.exprList())
+		n := ir.NewCallExpr(pos, ir.OCALL, r.expr(), nil, r.exprList())
 		*n.PtrInit() = init
 		n.IsDDD = r.bool()
 		return n
@@ -1236,5 +1236,5 @@ func (r *importReader) exprsOrNil() (a, b ir.Node) {
 }
 
 func builtinCall(pos src.XPos, op ir.Op) *ir.CallExpr {
-	return ir.NewCallExpr(pos, ir.OCALL, ir.NewIdent(base.Pos, types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
+	return ir.NewCallExpr(pos, ir.OCALL, ir.NewIdent(base.Pos, types.BuiltinPkg.Lookup(ir.OpNames[op])), nil, nil)
 }

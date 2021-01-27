@@ -145,7 +145,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		types.CalcSize(fromType)
 		fn = typecheck.SubstArgTypes(fn, fromType)
 		types.CalcSize(fn.Type())
-		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
+		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, nil)
 		call.Args = []ir.Node{n.X}
 		e := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeword(), safeExpr(walkExpr(typecheck.Expr(call), init), init))
 		e.SetType(toType)
@@ -180,7 +180,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	fn := typecheck.LookupRuntime(fnname)
 	fn = typecheck.SubstArgTypes(fn, fromType, toType)
 	types.CalcSize(fn.Type())
-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
+	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, nil)
 	call.Args = []ir.Node{tab, v}
 	return walkExpr(typecheck.Expr(call), init)
 }

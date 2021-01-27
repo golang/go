@@ -278,7 +278,7 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		}
 		args[i] = ir.NewConvExpr(base.Pos, origArg.Op(), origArg.Type(), args[i])
 	}
-	call := ir.NewCallExpr(base.Pos, n.Op(), n.X, args)
+	call := ir.NewCallExpr(base.Pos, n.Op(), n.X, nil, args)
 	if !isBuiltinCall {
 		call.SetOp(ir.OCALL)
 		call.IsDDD = n.IsDDD
@@ -291,6 +291,6 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	typecheck.Stmts(fn.Body)
 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
 
-	call = ir.NewCallExpr(base.Pos, ir.OCALL, fn.Nname, n.Args)
+	call = ir.NewCallExpr(base.Pos, ir.OCALL, fn.Nname, nil, n.Args)
 	return walkExpr(typecheck.Stmt(call), init)
 }
