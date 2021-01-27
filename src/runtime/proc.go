@@ -1900,7 +1900,7 @@ func oneNewExtraM() {
 	gp := malg(4096)
 	gp.sched.pc = funcPC(goexit) + sys.PCQuantum
 	gp.sched.sp = gp.stack.hi
-	gp.sched.sp -= 4 * sys.RegSize // extra space in case of reads slightly beyond frame
+	gp.sched.sp -= 4 * sys.PtrSize // extra space in case of reads slightly beyond frame
 	gp.sched.lr = 0
 	gp.sched.g = guintptr(unsafe.Pointer(gp))
 	gp.syscallpc = gp.sched.pc
@@ -4009,9 +4009,9 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
 
 	// We could allocate a larger initial stack if necessary.
 	// Not worth it: this is almost always an error.
-	// 4*sizeof(uintreg): extra space added below
-	// sizeof(uintreg): caller's LR (arm) or return address (x86, in gostartcall).
-	if siz >= _StackMin-4*sys.RegSize-sys.RegSize {
+	// 4*PtrSize: extra space added below
+	// PtrSize: caller's LR (arm) or return address (x86, in gostartcall).
+	if siz >= _StackMin-4*sys.PtrSize-sys.PtrSize {
 		throw("newproc: function arguments too large for new goroutine")
 	}
 
@@ -4030,8 +4030,8 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
 		throw("newproc1: new g is not Gdead")
 	}
 
-	totalSize := 4*sys.RegSize + uintptr(siz) + sys.MinFrameSize // extra space in case of reads slightly beyond frame
-	totalSize += -totalSize & (sys.SpAlign - 1)                  // align to spAlign
+	totalSize := 4*sys.PtrSize + uintptr(siz) + sys.MinFrameSize // extra space in case of reads slightly beyond frame
+	totalSize += -totalSize & (sys.StackAlign - 1)               // align to StackAlign
 	sp := newg.stack.hi - totalSize
 	spArg := sp
 	if usesLR {
