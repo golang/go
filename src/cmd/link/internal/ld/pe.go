@@ -42,11 +42,11 @@ type IMAGE_EXPORT_DIRECTORY struct {
 	AddressOfNameOrdinals uint32
 }
 
-const (
-	PEBASE = 0x00400000
-)
-
 var (
+	// PEBASE is the base address for the executable.
+	// It is small for 32-bit and large for 64-bit.
+	PEBASE int64
+
 	// SectionAlignment must be greater than or equal to FileAlignment.
 	// The default is the page size for the architecture.
 	PESECTALIGN int64 = 0x1000
@@ -316,8 +316,8 @@ func (sect *peSection) checkOffset(off int64) {
 // checkSegment verifies COFF section sect matches address
 // and file offset provided in segment seg.
 func (sect *peSection) checkSegment(seg *sym.Segment) {
-	if seg.Vaddr-PEBASE != uint64(sect.virtualAddress) {
-		Errorf(nil, "%s.VirtualAddress = %#x, want %#x", sect.name, uint64(int64(sect.virtualAddress)), uint64(int64(seg.Vaddr-PEBASE)))
+	if seg.Vaddr-uint64(PEBASE) != uint64(sect.virtualAddress) {
+		Errorf(nil, "%s.VirtualAddress = %#x, want %#x", sect.name, uint64(int64(sect.virtualAddress)), uint64(int64(seg.Vaddr-uint64(PEBASE))))
 		errorexit()
 	}
 	if seg.Fileoff != uint64(sect.pointerToRawData) {
@@ -852,8 +852,8 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	}
 	oh64.BaseOfCode = f.textSect.virtualAddress
 	oh.BaseOfCode = f.textSect.virtualAddress
-	oh64.ImageBase = PEBASE
-	oh.ImageBase = PEBASE
+	oh64.ImageBase = uint64(PEBASE)
+	oh.ImageBase = uint32(PEBASE)
 	oh64.SectionAlignment = uint32(PESECTALIGN)
 	oh.SectionAlignment = uint32(PESECTALIGN)
 	oh64.FileAlignment = uint32(PEFILEALIGN)
@@ -891,13 +891,7 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	oh.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_NX_COMPAT
 
 	// The DLL can be relocated at load time.
-	switch ctxt.Arch.Family {
-	case sys.AMD64, sys.I386:
-		if ctxt.BuildMode == BuildModePIE {
-			oh64.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
-			oh.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
-		}
-	case sys.ARM:
+	if needPEBaseReloc(ctxt) {
 		oh64.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
 		oh.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
 	}
@@ -975,18 +969,23 @@ var pefile peFile
 func Peinit(ctxt *Link) {
 	var l int
 
-	switch ctxt.Arch.Family {
-	// 64-bit architectures
-	case sys.AMD64:
+	if ctxt.Arch.PtrSize == 8 {
+		// 64-bit architectures
 		pe64 = 1
+		PEBASE = 1 << 32
+		if ctxt.Arch.Family == sys.AMD64 {
+			// TODO(rsc): For cgo we currently use 32-bit relocations
+			// that fail when PEBASE is too large.
+			// We need to fix this, but for now, use a smaller PEBASE.
+			PEBASE = 1 << 22
+		}
 		var oh64 pe.OptionalHeader64
 		l = binary.Size(&oh64)
-
-	// 32-bit architectures
-	default:
+	} else {
+		// 32-bit architectures
+		PEBASE = 1 << 22
 		var oh pe.OptionalHeader32
 		l = binary.Size(&oh)
-
 	}
 
 	if ctxt.LinkMode == LinkExternal {
@@ -1210,7 +1209,7 @@ func addimports(ctxt *Link, datsect *peSection) {
 	endoff := ctxt.Out.Offset()
 
 	// write FirstThunks (allocated in .data section)
-	ftbase := uint64(ldr.SymValue(dynamic)) - uint64(datsect.virtualAddress) - PEBASE
+	ftbase := uint64(ldr.SymValue(dynamic)) - uint64(datsect.virtualAddress) - uint64(PEBASE)
 
 	ctxt.Out.SeekSet(int64(uint64(datsect.pointerToRawData) + ftbase))
 	for d := dr; d != nil; d = d.next {
@@ -1463,17 +1462,18 @@ func addPEBaseRelocSym(ldr *loader.Loader, s loader.Sym, rt *peBaseRelocTable) {
 	}
 }
 
+func needPEBaseReloc(ctxt *Link) bool {
+	// Non-PIE x86 binaries don't need the base relocation table.
+	// Everyone else does.
+	if (ctxt.Arch.Family == sys.I386 || ctxt.Arch.Family == sys.AMD64) && ctxt.BuildMode != BuildModePIE {
+		return false
+	}
+	return true
+}
+
 func addPEBaseReloc(ctxt *Link) {
-	// Arm does not work without base relocation table.
-	// 386 and amd64 will only require the table for BuildModePIE.
-	switch ctxt.Arch.Family {
-	default:
+	if !needPEBaseReloc(ctxt) {
 		return
-	case sys.I386, sys.AMD64:
-		if ctxt.BuildMode != BuildModePIE {
-			return
-		}
-	case sys.ARM:
 	}
 
 	var rt peBaseRelocTable
@@ -1562,12 +1562,6 @@ func addpersrc(ctxt *Link) {
 }
 
 func asmbPe(ctxt *Link) {
-	switch ctxt.Arch.Family {
-	default:
-		Exitf("unknown PE architecture: %v", ctxt.Arch.Family)
-	case sys.AMD64, sys.I386, sys.ARM:
-	}
-
 	t := pefile.addSection(".text", int(Segtext.Length), int(Segtext.Length))
 	t.characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
 	if ctxt.LinkMode == LinkExternal {
