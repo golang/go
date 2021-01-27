@@ -53,7 +53,10 @@ func Dial(addr string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	host, _, _ := net.SplitHostPort(addr)
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil{
+		return nil, err
+	}
 	return NewClient(conn, host)
 }
 
