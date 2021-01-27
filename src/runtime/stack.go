@@ -651,7 +651,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 
 	// Adjust saved base pointer if there is one.
 	// TODO what about arm64 frame pointer adjustment?
-	if sys.ArchFamily == sys.AMD64 && frame.argp-frame.varp == 2*sys.RegSize {
+	if sys.ArchFamily == sys.AMD64 && frame.argp-frame.varp == 2*sys.PtrSize {
 		if stackDebug >= 3 {
 			print("      saved bp\n")
 		}
@@ -1245,7 +1245,7 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 	var minsize uintptr
 	switch sys.ArchFamily {
 	case sys.ARM64:
-		minsize = sys.SpAlign
+		minsize = sys.StackAlign
 	default:
 		minsize = sys.MinFrameSize
 	}

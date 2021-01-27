@@ -30,10 +30,6 @@ func wasmExit(code int32)
 // and then did an immediate gosave.
 func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
 	sp := buf.sp
-	if sys.RegSize > sys.PtrSize {
-		sp -= sys.PtrSize
-		*(*uintptr)(unsafe.Pointer(sp)) = 0
-	}
 	sp -= sys.PtrSize
 	*(*uintptr)(unsafe.Pointer(sp)) = buf.pc
 	buf.sp = sp
