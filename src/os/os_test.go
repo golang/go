@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
+	"io/fs"
 	"os"
 	. "os"
 	osexec "os/exec"
@@ -2689,6 +2690,32 @@ func TestOpenFileKeepsPermissions(t *testing.T) {
 }
 
 func TestDirFS(t *testing.T) {
+	// On Windows, we force the MFT to update by reading the actual metadata from GetFileInformationByHandle and then
+	// explicitly setting that. Otherwise it might get out of sync with FindFirstFile. See golang.org/issues/42637.
+	if runtime.GOOS == "windows" {
+		if err := filepath.WalkDir("./testdata/dirfs", func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				t.Fatal(err)
+			}
+			info, err := d.Info()
+			if err != nil {
+				t.Fatal(err)
+			}
+			stat, err := Stat(path) // This uses GetFileInformationByHandle internally.
+			if err != nil {
+				t.Fatal(err)
+			}
+			if stat.ModTime() == info.ModTime() {
+				return nil
+			}
+			if err := Chtimes(path, stat.ModTime(), stat.ModTime()); err != nil {
+				t.Log(err) // We only log, not die, in case the test directory is not writable.
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if err := fstest.TestFS(DirFS("./testdata/dirfs"), "a", "b", "dir/x"); err != nil {
 		t.Fatal(err)
 	}
