@@ -112,8 +112,8 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
 	// augmenting the stack frame would break
 	// the unwinding code.
 	gp.sig = info.exceptioncode
-	gp.sigcode0 = uintptr(info.exceptioninformation[0])
-	gp.sigcode1 = uintptr(info.exceptioninformation[1])
+	gp.sigcode0 = info.exceptioninformation[0]
+	gp.sigcode1 = info.exceptioninformation[1]
 	gp.sigpc = r.ip()
 
 	// Only push runtime·sigpanic if r.ip() != 0.
