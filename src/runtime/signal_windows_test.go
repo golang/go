@@ -108,6 +108,7 @@ func TestCtrlHandler(t *testing.T) {
 	const _CREATE_NEW_CONSOLE = 0x00000010
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		CreationFlags: _CREATE_NEW_CONSOLE,
+		HideWindow:    true,
 	}
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Start failed: %v", err)
