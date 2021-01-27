@@ -69,6 +69,7 @@ const (
 	IMAGE_SCN_ALIGN_32BYTES          = 0x600000
 )
 
+// See https://docs.microsoft.com/en-us/windows/win32/debug/pe-format.
 // TODO(crawshaw): add these constants to debug/pe.
 const (
 	// TODO: the Microsoft doco says IMAGE_SYM_DTYPE_ARRAY is 3 and IMAGE_SYM_DTYPE_FUNCTION is 2
@@ -94,6 +95,25 @@ const (
 	IMAGE_REL_ARM_BRANCH24 = 0x0003
 	IMAGE_REL_ARM_BRANCH11 = 0x0004
 	IMAGE_REL_ARM_SECREL   = 0x000F
+
+	IMAGE_REL_ARM64_ABSOLUTE       = 0x0000
+	IMAGE_REL_ARM64_ADDR32         = 0x0001
+	IMAGE_REL_ARM64_ADDR32NB       = 0x0002
+	IMAGE_REL_ARM64_BRANCH26       = 0x0003
+	IMAGE_REL_ARM64_PAGEBASE_REL21 = 0x0004
+	IMAGE_REL_ARM64_REL21          = 0x0005
+	IMAGE_REL_ARM64_PAGEOFFSET_12A = 0x0006
+	IMAGE_REL_ARM64_PAGEOFFSET_12L = 0x0007
+	IMAGE_REL_ARM64_SECREL         = 0x0008
+	IMAGE_REL_ARM64_SECREL_LOW12A  = 0x0009
+	IMAGE_REL_ARM64_SECREL_HIGH12A = 0x000A
+	IMAGE_REL_ARM64_SECREL_LOW12L  = 0x000B
+	IMAGE_REL_ARM64_TOKEN          = 0x000C
+	IMAGE_REL_ARM64_SECTION        = 0x000D
+	IMAGE_REL_ARM64_ADDR64         = 0x000E
+	IMAGE_REL_ARM64_BRANCH19       = 0x000F
+	IMAGE_REL_ARM64_BRANCH14       = 0x0010
+	IMAGE_REL_ARM64_REL32          = 0x0011
 
 	IMAGE_REL_BASED_HIGHLOW = 3
 	IMAGE_REL_BASED_DIR64   = 10
@@ -465,6 +485,8 @@ func (f *peFile) addInitArray(ctxt *Link) *peSection {
 		size = 8
 	case "arm":
 		size = 4
+	case "arm64":
+		size = 8
 	}
 	sect := f.addSection(".ctors", size, size)
 	sect.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
@@ -477,7 +499,7 @@ func (f *peFile) addInitArray(ctxt *Link) *peSection {
 	switch objabi.GOARCH {
 	case "386", "arm":
 		ctxt.Out.Write32(uint32(addr))
-	case "amd64":
+	case "amd64", "arm64":
 		ctxt.Out.Write64(addr)
 	}
 	return sect
@@ -594,6 +616,8 @@ dwarfLoop:
 			ctxt.Out.Write16(IMAGE_REL_AMD64_ADDR64)
 		case "arm":
 			ctxt.Out.Write16(IMAGE_REL_ARM_ADDR32)
+		case "arm64":
+			ctxt.Out.Write16(IMAGE_REL_ARM64_ADDR64)
 		}
 		return 1
 	})
@@ -788,6 +812,8 @@ func (f *peFile) writeFileHeader(ctxt *Link) {
 		fh.Machine = pe.IMAGE_FILE_MACHINE_I386
 	case sys.ARM:
 		fh.Machine = pe.IMAGE_FILE_MACHINE_ARMNT
+	case sys.ARM64:
+		fh.Machine = pe.IMAGE_FILE_MACHINE_ARM64
 	}
 
 	fh.NumberOfSections = uint16(len(f.sections))
