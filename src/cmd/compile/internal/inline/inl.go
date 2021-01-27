@@ -1228,7 +1228,7 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
 		newrecv = newrecvs[0]
 	}
 	newt := types.NewSignature(oldt.Pkg(), newrecv,
-		subst.fields(oldt.Params()), subst.fields(oldt.Results()))
+		nil, subst.fields(oldt.Params()), subst.fields(oldt.Results()))
 
 	newfn.Nname.SetType(newt)
 	newfn.Body = subst.list(oldfn.Body)

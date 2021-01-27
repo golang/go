@@ -470,5 +470,5 @@ func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
 		results[i] = types.NewField(base.Pos, nil, t.Type)
 	}
 
-	return types.NewSignature(types.LocalPkg, nil, params, results)
+	return types.NewSignature(types.LocalPkg, nil, nil, params, results)
 }

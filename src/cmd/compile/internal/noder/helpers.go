@@ -82,7 +82,7 @@ func Binary(pos src.XPos, op ir.Op, x, y ir.Node) ir.Node {
 func Call(pos src.XPos, fun ir.Node, args []ir.Node, dots bool) ir.Node {
 	// TODO(mdempsky): This should not be so difficult.
 
-	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
+	n := ir.NewCallExpr(pos, ir.OCALL, fun, nil, args)
 	n.IsDDD = dots
 
 	// Actually a type conversion.

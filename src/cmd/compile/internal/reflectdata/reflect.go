@@ -1399,7 +1399,7 @@ func WriteBasicTypes() {
 		// The latter is the type of an auto-generated wrapper.
 		writeType(types.NewPtr(types.ErrorType))
 
-		writeType(types.NewSignature(types.NoPkg, nil, []*types.Field{
+		writeType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
 			types.NewField(base.Pos, nil, types.ErrorType),
 		}, []*types.Field{
 			types.NewField(base.Pos, nil, types.Types[types.TSTRING]),
@@ -1747,7 +1747,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 		// generating wrapper from *T to T.
 		n := ir.NewIfStmt(base.Pos, nil, nil, nil)
 		n.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, nthis, typecheck.NodNil())
-		call := ir.NewCallExpr(base.Pos, ir.OCALL, typecheck.LookupRuntime("panicwrap"), nil)
+		call := ir.NewCallExpr(base.Pos, ir.OCALL, typecheck.LookupRuntime("panicwrap"), nil, nil)
 		n.Body = []ir.Node{call}
 		fn.Body.Append(n)
 	}
@@ -1772,7 +1772,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 		fn.Body.Append(ir.NewTailCallStmt(base.Pos, method.Nname.(*ir.Name)))
 	} else {
 		fn.SetWrapper(true) // ignore frame for panic+recover matching
-		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
+		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil, nil)
 		call.Args = ir.ParamNames(tfn.Type())
 		call.IsDDD = tfn.Type().IsVariadic()
 		if method.Type.NumResults() > 0 {

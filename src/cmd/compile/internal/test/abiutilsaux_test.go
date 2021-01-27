@@ -57,7 +57,7 @@ func mkFuncType(rcvr *types.Type, ins []*types.Type, outs []*types.Type) *types.
 	if rcvr != nil {
 		rf = mkParamResultField(rcvr, q, ir.PPARAM)
 	}
-	return types.NewSignature(types.LocalPkg, rf, inf, outf)
+	return types.NewSignature(types.LocalPkg, rf, nil, inf, outf)
 }
 
 type expectedDump struct {

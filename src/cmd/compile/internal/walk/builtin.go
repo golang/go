@@ -631,7 +631,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 			continue
 		}
 
-		r := ir.NewCallExpr(base.Pos, ir.OCALL, on, nil)
+		r := ir.NewCallExpr(base.Pos, ir.OCALL, on, nil, nil)
 		if params := on.Type().Params().FieldSlice(); len(params) > 0 {
 			t := params[0].Type
 			if !types.Identical(t, n.Type()) {
