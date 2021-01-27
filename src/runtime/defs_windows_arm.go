@@ -4,7 +4,13 @@
 
 package runtime
 
-const _CONTEXT_CONTROL = 0x10001
+// NOTE(rsc): _CONTEXT_CONTROL is actually 0x200001 and should include PC, SP, and LR.
+// However, empirically, LR doesn't come along on Windows 10
+// unless you also set _CONTEXT_INTEGER (0x200002).
+// Without LR, we skip over the next-to-bottom function in profiles
+// when the bottom function is frameless.
+// So we set both here, to make a working _CONTEXT_CONTROL.
+const _CONTEXT_CONTROL = 0x200003
 
 type neon128 struct {
 	low  uint64
