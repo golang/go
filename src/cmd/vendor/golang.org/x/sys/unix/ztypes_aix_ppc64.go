@@ -223,6 +223,7 @@ const (
 	SizeofSockaddrUnix     = 0x401
 	SizeofSockaddrDatalink = 0x80
 	SizeofLinger           = 0x8
+	SizeofIovec            = 0x10
 	SizeofIPMreq           = 0x8
 	SizeofIPv6Mreq         = 0x14
 	SizeofIPv6MTUInfo      = 0x20
