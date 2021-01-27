@@ -28,7 +28,7 @@ stdout 'main_test'
 
 # Test go generate provides the right "$PWD"
 go generate './generate/env_pwd.go'
-stdout $WORK'/gopath/src/generate'
+stdout $WORK'[/\\]gopath[/\\]src[/\\]generate'
 
 -- echo.go --
 package main
