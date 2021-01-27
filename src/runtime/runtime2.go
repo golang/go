@@ -1106,4 +1106,4 @@ var (
 )
 
 // Must agree with cmd/internal/objabi.Framepointer_enabled.
-const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin" || GOOS == "ios")
+const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64"
