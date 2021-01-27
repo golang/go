@@ -762,6 +762,25 @@ func TestFoo(t *testing.T) {
   </dd>
 </dl><!-- go/build -->
 
+<dl id="go/build/constraint"><dt><a href="/pkg/go/build/constraint/">go/build/constraint</a></dt>
+  <dd>
+    <p><!-- CL 240604 -->
+      The new
+      <a href="/pkg/go/build/constraint/"><code>go/build/constraint</code></a>
+      package parses build constraint lines, both the original
+      <code>// +build</code> syntax and the <code>//go:build</code>
+      syntax that will be introduced in Go 1.17.
+      This package exists so that tools built with Go 1.16 will be able
+      to process Go 1.17 source code.
+      See <a href="https://golang.org/design/draft-gobuild">https://golang.org/design/draft-gobuild</a>
+      for details about the build constraint syntaxes and the planned
+      transition to the <code>//go:build</code> syntax.
+      Note that <code>//go:build</code> lines are <b>not</b> supported
+      in Go 1.16 and should not be introduced into Go programs yet.
+    </p>
+  </dd>
+</dl><!-- go/build/constraint -->
+
 <dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
   <dd>
     <p><!-- CL 243938 -->
