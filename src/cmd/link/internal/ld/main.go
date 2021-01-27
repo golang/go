@@ -116,7 +116,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	}
 
 	final := gorootFinal()
-	addstrdata1(ctxt, "runtime/internal/sys.DefaultGoroot="+final)
+	addstrdata1(ctxt, "runtime.defaultGOROOT="+final)
 	addstrdata1(ctxt, "cmd/internal/objabi.defaultGOROOT="+final)
 
 	// TODO(matloob): define these above and then check flag values here

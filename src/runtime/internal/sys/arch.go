@@ -52,7 +52,3 @@ const MinFrameSize = _MinFrameSize
 // StackAlign is the required alignment of the SP register.
 // The stack must be at least word aligned, but some architectures require more.
 const StackAlign = _StackAlign
-
-// DefaultGoroot is set by the linker for use by package runtime.
-// It doesn't really belong in this file or this package.
-var DefaultGoroot string
