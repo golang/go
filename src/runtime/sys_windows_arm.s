@@ -250,16 +250,17 @@ TEXT runtime·profileloop(SB),NOSPLIT|NOFRAME,$0
 //   +----------------+
 // 12| argument (r0)  |
 //---+----------------+
-// 8 | param1         |
+// 8 | param1         | (also return value for called Go function)
 //   +----------------+
 // 4 | param0         |
 //   +----------------+
-// 0 | retval         |
+// 0 | slot for LR    |
 //   +----------------+
 //
 TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	MOVM.DB.W [R4-R11, R14], (R13)		// push {r4-r11, lr}
 	SUB	$(m__size + g__size + 20), R13	// space for locals
+	MOVW	R14, 0(R13)			// push LR again for anything unwinding the stack
 	MOVW	R0, 12(R13)
 	MOVW	R1, 16(R13)
 
@@ -298,7 +299,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	MOVW	$0, g
 	BL	runtime·save_g(SB)
 
-	MOVW	0(R13), R0			// load return value
+	MOVW	8(R13), R0			// load return value
 	ADD	$(m__size + g__size + 20), R13	// free locals
 	MOVM.IA.W (R13), [R4-R11, R15]		// pop {r4-r11, pc}
 
