@@ -43,13 +43,17 @@ func initExceptionHandler() {
 //
 //go:nosplit
 func isAbort(r *context) bool {
-	// In the case of an abort, the exception IP is one byte after
-	// the INT3 (this differs from UNIX OSes).
-	return isAbortPC(r.ip() - 1)
+	pc := r.ip()
+	if GOARCH == "386" || GOARCH == "amd64" {
+		// In the case of an abort, the exception IP is one byte after
+		// the INT3 (this differs from UNIX OSes).
+		pc--
+	}
+	return isAbortPC(pc)
 }
 
 // isgoexception reports whether this exception should be translated
-// into a Go panic.
+// into a Go panic or throw.
 //
 // It is nosplit to avoid growing the stack in case we're aborting
 // because of a stack overflow.
@@ -60,11 +64,6 @@ func isgoexception(info *exceptionrecord, r *context) bool {
 	// (not Windows library code).
 	// TODO(mwhudson): needs to loop to support shared libs
 	if r.ip() < firstmoduledata.text || firstmoduledata.etext < r.ip() {
-		return false
-	}
-
-	if isAbort(r) {
-		// Never turn abort into a panic.
 		return false
 	}
 
@@ -99,13 +98,15 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
 		return _EXCEPTION_CONTINUE_SEARCH
 	}
 
-	// After this point, it is safe to grow the stack.
-
-	if gp.throwsplit {
-		// We can't safely sigpanic because it may grow the
-		// stack. Let it fall through.
-		return _EXCEPTION_CONTINUE_SEARCH
+	if gp.throwsplit || isAbort(r) {
+		// We can't safely sigpanic because it may grow the stack.
+		// Or this is a call to abort.
+		// Don't go through any more of the Windows handler chain.
+		// Crash now.
+		winthrow(info, r, gp)
 	}
+
+	// After this point, it is safe to grow the stack.
 
 	// Make it look like a call to the signal func.
 	// Have to pass arguments out of band since
@@ -181,6 +182,12 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 		return _EXCEPTION_CONTINUE_SEARCH
 	}
 
+	winthrow(info, r, gp)
+	return 0 // not reached
+}
+
+//go:nosplit
+func winthrow(info *exceptionrecord, r *context, gp *g) {
 	_g_ := getg()
 
 	if panicking != 0 { // traceback already printed
@@ -206,11 +213,8 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 	}
 	print("\n")
 
-	// TODO(jordanrh1): This may be needed for 386/AMD64 as well.
-	if GOARCH == "arm" {
-		_g_.m.throwing = 1
-		_g_.m.caughtsig.set(gp)
-	}
+	_g_.m.throwing = 1
+	_g_.m.caughtsig.set(gp)
 
 	level, _, docrash := gotraceback()
 	if level > 0 {
@@ -224,7 +228,6 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 	}
 
 	exit(2)
-	return 0 // not reached
 }
 
 func sigpanic() {
