@@ -334,6 +334,7 @@ func (g *Generator) setEnv() {
 		"GOPACKAGE=" + g.pkg,
 		"DOLLAR=" + "$",
 	}
+	g.env = base.AppendPWD(g.env, g.dir)
 }
 
 // split breaks the line into words, evaluating quoted
@@ -448,7 +449,7 @@ func (g *Generator) exec(words []string) {
 	cmd.Stderr = os.Stderr
 	// Run the command in the package directory.
 	cmd.Dir = g.dir
-	cmd.Env = base.AppendPWD(str.StringList(cfg.OrigEnv, g.env), cmd.Dir)
+	cmd.Env = str.StringList(cfg.OrigEnv, g.env)
 	err := cmd.Run()
 	if err != nil {
 		g.errorf("running %q: %s", words[0], err)
