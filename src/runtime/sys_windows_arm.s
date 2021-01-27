@@ -419,7 +419,7 @@ TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
 #define time_hi1 4
 #define time_hi2 8
 
-TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
+TEXT runtime·nanotime1(SB),NOSPLIT|NOFRAME,$0-8
 	MOVW	$0, R0
 	MOVB	runtime·useQPCTime(SB), R0
 	CMP	$0, R0
@@ -443,9 +443,8 @@ loop:
 	RET
 useQPC:
 	B	runtime·nanotimeQPC(SB)		// tail call
-	RET
 
-TEXT time·now(SB),NOSPLIT,$0-20
+TEXT time·now(SB),NOSPLIT|NOFRAME,$0-20
 	MOVW    $0, R0
 	MOVB    runtime·useQPCTime(SB), R0
 	CMP	$0, R0
@@ -519,8 +518,7 @@ wall:
 	MOVW	R1,nsec+8(FP)
 	RET
 useQPC:
-	B	runtime·nanotimeQPC(SB)		// tail call
-	RET
+	B	runtime·nowQPC(SB)		// tail call
 
 // save_g saves the g register (R10) into thread local memory
 // so that we can call externally compiled
