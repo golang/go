@@ -271,8 +271,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 		if base.Ctxt.FixedFrameSize() == 0 {
 			offs -= int64(types.PtrSize)
 		}
-		if objabi.Framepointer_enabled || objabi.GOARCH == "arm64" {
-			// There is a word space for FP on ARM64 even if the frame pointer is disabled
+		if objabi.Framepointer_enabled {
 			offs -= int64(types.PtrSize)
 		}
 

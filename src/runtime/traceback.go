@@ -275,7 +275,22 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 
 		// For architectures with frame pointers, if there's
 		// a frame, then there's a saved frame pointer here.
-		if frame.varp > frame.sp && (GOARCH == "amd64" || GOARCH == "arm64") {
+		//
+		// NOTE: This code is not as general as it looks.
+		// On x86, the ABI is to save the frame pointer word at the
+		// top of the stack frame, so we have to back down over it.
+		// On arm64, the frame pointer should be at the bottom of
+		// the stack (with R29 (aka FP) = RSP), in which case we would
+		// not want to do the subtraction here. But we started out without
+		// any frame pointer, and when we wanted to add it, we didn't
+		// want to break all the assembly doing direct writes to 8(RSP)
+		// to set the first parameter to a called function.
+		// So we decided to write the FP link *below* the stack pointer
+		// (with R29 = RSP - 8 in Go functions).
+		// This is technically ABI-compatible but not standard.
+		// And it happens to end up mimicking the x86 layout.
+		// Other architectures may make different decisions.
+		if frame.varp > frame.sp && framepointer_enabled {
 			frame.varp -= sys.PtrSize
 		}
 
