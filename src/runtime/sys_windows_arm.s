@@ -350,9 +350,6 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R0, g_m(g)
 	BL	runtime·save_g(SB)
 
-	// do per-thread TLS initialization
-	BL	init_thread_tls<>(SB)
-
 	// Layout new m scheduler stack on os stack.
 	MOVW	R13, R0
 	MOVW	R0, g_stack+stack_hi(g)
@@ -581,39 +578,8 @@ TEXT runtime·_initcgo(SB),NOSPLIT|NOFRAME,$0
 	MOVW 	$runtime·tls_g(SB), R1
 	MOVW	R0, (R1)
 
-	BL	init_thread_tls<>(SB)
-
 	MOVW	R4, R13
 	MOVM.IA.W (R13), [R4, R15]	// pop {r4, pc}
-
-// void init_thread_tls()
-//
-// Does per-thread TLS initialization. Saves a pointer to the TLS slot
-// holding G, in the current m.
-//
-//     g->m->tls[0] = &_TEB->TlsSlots[tls_g]
-//
-// The purpose of this is to enable the profiling handler to get the
-// current g associated with the thread. We cannot use m->curg because curg
-// only holds the current user g. If the thread is executing system code or
-// external code, m->curg will be NULL. The thread's TLS slot always holds
-// the current g, so save a reference to this location so the profiling
-// handler can get the real g from the thread's m.
-//
-// Clobbers R0-R3
-TEXT init_thread_tls<>(SB),NOSPLIT|NOFRAME,$0
-	// compute &_TEB->TlsSlots[tls_g]
-	MRC	15, 0, R0, C13, C0, 2
-	ADD	$0xe10, R0
-	MOVW 	$runtime·tls_g(SB), R1
-	MOVW	(R1), R1
-	MOVW	R1<<2, R1
-	ADD	R1, R0
-
-	// save in g->m->tls[0]
-	MOVW	g_m(g), R1
-	MOVW	R0, m_tls(R1)
-	RET
 
 // Holds the TLS Slot, which was allocated by TlsAlloc()
 GLOBL runtime·tls_g+0(SB), NOPTR, $4

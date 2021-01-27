@@ -1132,21 +1132,21 @@ func profilem(mp *m, thread uintptr) {
 	c.contextflags = _CONTEXT_CONTROL
 	stdcall2(_GetThreadContext, thread, uintptr(unsafe.Pointer(c)))
 
-	gp := gFromTLS(mp)
+	gp := gFromSP(mp, c.sp())
 
 	sigprof(c.ip(), c.sp(), c.lr(), gp, mp)
 }
 
-func gFromTLS(mp *m) *g {
-	switch GOARCH {
-	case "arm":
-		tls := &mp.tls[0]
-		return **((***g)(unsafe.Pointer(tls)))
-	case "386", "amd64":
-		tls := &mp.tls[0]
-		return *((**g)(unsafe.Pointer(tls)))
+func gFromSP(mp *m, sp uintptr) *g {
+	if gp := mp.g0; gp != nil && gp.stack.lo < sp && sp < gp.stack.hi {
+		return gp
 	}
-	throw("unsupported architecture")
+	if gp := mp.gsignal; gp != nil && gp.stack.lo < sp && sp < gp.stack.hi {
+		return gp
+	}
+	if gp := mp.curg; gp != nil && gp.stack.lo < sp && sp < gp.stack.hi {
+		return gp
+	}
 	return nil
 }
 
@@ -1295,7 +1295,7 @@ func preemptM(mp *m) {
 	unlock(&suspendLock)
 
 	// Does it want a preemption and is it safe to preempt?
-	gp := gFromTLS(mp)
+	gp := gFromSP(mp, c.sp())
 	if wantAsyncPreempt(gp) {
 		if ok, newpc := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()); ok {
 			// Inject call to asyncPreempt
