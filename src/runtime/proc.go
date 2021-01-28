@@ -1234,7 +1234,10 @@ func mStackIsSystemAllocated() bool {
 }
 
 // mstart is the entry-point for new Ms.
-//
+// It is written in assembly, marked TOPFRAME, and calls mstart0.
+func mstart()
+
+// mstart0 is the Go entry-point for new Ms.
 // This must not split the stack because we may not even have stack
 // bounds set up yet.
 //
@@ -1243,7 +1246,7 @@ func mStackIsSystemAllocated() bool {
 //
 //go:nosplit
 //go:nowritebarrierrec
-func mstart() {
+func mstart0() {
 	_g_ := getg()
 
 	osStack := _g_.stack.lo == 0

@@ -7,7 +7,7 @@
 #include "funcdata.h"
 #include "textflag.h"
 
-TEXT runtime·rt0_go(SB), NOSPLIT|NOFRAME, $0
+TEXT runtime·rt0_go(SB), NOSPLIT|NOFRAME|TOPFRAME, $0
 	// save m->g0 = g0
 	MOVD $runtime·g0(SB), runtime·m0+m_g0(SB)
 	// save m0 to g0->m
@@ -23,6 +23,10 @@ TEXT runtime·rt0_go(SB), NOSPLIT|NOFRAME, $0
 	CALLNORESUME runtime·newproc(SB)
 	CALL runtime·mstart(SB) // WebAssembly stack will unwind when switching to another goroutine
 	UNDEF
+
+TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	runtime·mstart0(SB)
+	RET // not reached
 
 DATA  runtime·mainPC+0(SB)/8,$runtime·main(SB)
 GLOBL runtime·mainPC(SB),RODATA,$8
@@ -424,7 +428,7 @@ CALLFN(·call268435456, 268435456)
 CALLFN(·call536870912, 536870912)
 CALLFN(·call1073741824, 1073741824)
 
-TEXT runtime·goexit(SB), NOSPLIT, $0-0
+TEXT runtime·goexit(SB), NOSPLIT|TOPFRAME, $0-0
 	NOP // first PC of goexit is skipped
 	CALL runtime·goexit1(SB) // does not return
 	UNDEF

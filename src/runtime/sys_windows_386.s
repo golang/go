@@ -174,7 +174,7 @@ TEXT runtime·profileloop(SB),NOSPLIT,$0
 	ADDL	$12, SP
 	JMP	CX
 
-TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+TEXT runtime·externalthreadhandler(SB),NOSPLIT|TOPFRAME,$0
 	PUSHL	BP
 	MOVL	SP, BP
 	PUSHL	BX

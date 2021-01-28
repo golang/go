@@ -7,7 +7,7 @@
 #include "textflag.h"
 
 // func rt0_go()
-TEXT runtime·rt0_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// X2 = stack; A0 = argc; A1 = argv
 	ADD	$-24, X2
 	MOV	A0, 8(X2)	// argc
@@ -69,6 +69,10 @@ nocgo:
 
 	WORD $0 // crash if reached
 	RET
+
+TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	runtime·mstart0(SB)
+	RET // not reached
 
 // void setg_gcc(G*); set g called from gcc with g in A0
 TEXT setg_gcc<>(SB),NOSPLIT,$0-0

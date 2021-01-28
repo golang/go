@@ -84,7 +84,7 @@ GLOBL _rt0_amd64_lib_argc<>(SB),NOPTR, $8
 DATA _rt0_amd64_lib_argv<>(SB)/8, $0
 GLOBL _rt0_amd64_lib_argv<>(SB),NOPTR, $8
 
-TEXT runtime·rt0_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// copy arguments forward on an even stack
 	MOVQ	DI, AX		// argc
 	MOVQ	SI, BX		// argv
@@ -249,6 +249,10 @@ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 TEXT runtime·asminit(SB),NOSPLIT,$0-0
 	// No per-thread init.
 	RET
+
+TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	runtime·mstart0(SB)
+	RET // not reached
 
 /*
  *  go-routine
@@ -1440,7 +1444,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
 // so as to make it identifiable to traceback (this
 // function it used as a sentinel; traceback wants to
 // see the func PC, not a wrapper PC).
-TEXT runtime·goexit<ABIInternal>(SB),NOSPLIT,$0-0
+TEXT runtime·goexit<ABIInternal>(SB),NOSPLIT|TOPFRAME,$0-0
 	BYTE	$0x90	// NOP
 	CALL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
