@@ -833,10 +833,11 @@ type _func struct {
 	pcfile    uint32
 	pcln      uint32
 	npcdata   uint32
-	cuOffset  uint32  // runtime.cutab offset of this function's CU
-	funcID    funcID  // set for certain special runtime functions
-	_         [2]byte // pad
-	nfuncdata uint8   // must be last
+	cuOffset  uint32 // runtime.cutab offset of this function's CU
+	funcID    funcID // set for certain special runtime functions
+	flag      funcFlag
+	_         [1]byte // pad
+	nfuncdata uint8   // must be last, must end on a uint32-aligned boundary
 }
 
 // Pseudo-Func that is returned for PCs that occur in inlined code.
