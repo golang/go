@@ -4420,75 +4420,6 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// See golang.org/issue/17165.
 	getg().m.mallocing++
 
-	// Define that a "user g" is a user-created goroutine, and a "system g"
-	// is one that is m->g0 or m->gsignal.
-	//
-	// We might be interrupted for profiling halfway through a
-	// goroutine switch. The switch involves updating three (or four) values:
-	// g, PC, SP, and (on arm) LR. The PC must be the last to be updated,
-	// because once it gets updated the new g is running.
-	//
-	// When switching from a user g to a system g, LR is not considered live,
-	// so the update only affects g, SP, and PC. Since PC must be last, there
-	// the possible partial transitions in ordinary execution are (1) g alone is updated,
-	// (2) both g and SP are updated, and (3) SP alone is updated.
-	// If SP or g alone is updated, we can detect the partial transition by checking
-	// whether the SP is within g's stack bounds. (We could also require that SP
-	// be changed only after g, but the stack bounds check is needed by other
-	// cases, so there is no need to impose an additional requirement.)
-	//
-	// There is one exceptional transition to a system g, not in ordinary execution.
-	// When a signal arrives, the operating system starts the signal handler running
-	// with an updated PC and SP. The g is updated last, at the beginning of the
-	// handler. There are two reasons this is okay. First, until g is updated the
-	// g and SP do not match, so the stack bounds check detects the partial transition.
-	// Second, signal handlers currently run with signals disabled, so a profiling
-	// signal cannot arrive during the handler.
-	//
-	// When switching from a system g to a user g, there are three possibilities.
-	//
-	// First, it may be that the g switch has no PC update, because the SP
-	// either corresponds to a user g throughout (as in asmcgocall)
-	// or because it has been arranged to look like a user g frame
-	// (as in cgocallback). In this case, since the entire
-	// transition is a g+SP update, a partial transition updating just one of
-	// those will be detected by the stack bounds check.
-	//
-	// Second, when returning from a signal handler, the PC and SP updates
-	// are performed by the operating system in an atomic update, so the g
-	// update must be done before them. The stack bounds check detects
-	// the partial transition here, and (again) signal handlers run with signals
-	// disabled, so a profiling signal cannot arrive then anyway.
-	//
-	// Third, the common case: it may be that the switch updates g, SP, and PC
-	// separately. If the PC is within any of the functions that does this,
-	// we don't ask for a traceback. C.F. the function setsSP for more about this.
-	//
-	// There is another apparently viable approach, recorded here in case
-	// the "PC within setsSP function" check turns out not to be usable.
-	// It would be possible to delay the update of either g or SP until immediately
-	// before the PC update instruction. Then, because of the stack bounds check,
-	// the only problematic interrupt point is just before that PC update instruction,
-	// and the sigprof handler can detect that instruction and simulate stepping past
-	// it in order to reach a consistent state. On ARM, the update of g must be made
-	// in two places (in R10 and also in a TLS slot), so the delayed update would
-	// need to be the SP update. The sigprof handler must read the instruction at
-	// the current PC and if it was the known instruction (for example, JMP BX or
-	// MOV R2, PC), use that other register in place of the PC value.
-	// The biggest drawback to this solution is that it requires that we can tell
-	// whether it's safe to read from the memory pointed at by PC.
-	// In a correct program, we can test PC == nil and otherwise read,
-	// but if a profiling signal happens at the instant that a program executes
-	// a bad jump (before the program manages to handle the resulting fault)
-	// the profiling handler could fault trying to read nonexistent memory.
-	//
-	// To recap, there are no constraints on the assembly being used for the
-	// transition. We simply require that g and SP match and that the PC is not
-	// in gogo.
-	traceback := true
-	if gp == nil || sp < gp.stack.lo || gp.stack.hi < sp || setsSP(pc) || (mp != nil && mp.vdsoSP != 0) {
-		traceback = false
-	}
 	var stk [maxCPUProfStack]uintptr
 	n := 0
 	if mp.ncgo > 0 && mp.curg != nil && mp.curg.syscallpc != 0 && mp.curg.syscallsp != 0 {
@@ -4511,7 +4442,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		if n > 0 {
 			n += cgoOff
 		}
-	} else if traceback {
+	} else {
 		n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, _TraceTrap|_TraceJumpStack)
 	}
 
@@ -4588,30 +4519,6 @@ func sigprofNonGoPC(pc uintptr) {
 		}
 		cpuprof.addNonGo(stk)
 	}
-}
-
-// Reports whether a function will set the SP
-// to an absolute value. Important that
-// we don't traceback when these are at the bottom
-// of the stack since we can't be sure that we will
-// find the caller.
-//
-// If the function is not on the bottom of the stack
-// we assume that it will have set it up so that traceback will be consistent,
-// either by being a traceback terminating function
-// or putting one on the stack at the right offset.
-func setsSP(pc uintptr) bool {
-	f := findfunc(pc)
-	if !f.valid() {
-		// couldn't find the function for this PC,
-		// so assume the worst and stop traceback
-		return true
-	}
-	switch f.funcID {
-	case funcID_gogo, funcID_systemstack, funcID_mcall, funcID_morestack:
-		return true
-	}
-	return false
 }
 
 // setcpuprofilerate sets the CPU profiling rate to hz times per second.
