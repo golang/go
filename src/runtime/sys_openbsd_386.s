@@ -167,6 +167,48 @@ TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
 	POPL	BP
 	RET
 
+TEXT runtime·thrsleep_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$20, SP
+	MOVL	28(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	8(DX), CX
+	MOVL	AX, 0(SP)		// arg 1 - id
+	MOVL	BX, 4(SP)		// arg 2 - clock_id
+	MOVL	CX, 8(SP)		// arg 3 - abstime
+	MOVL	12(DX), AX
+	MOVL	16(DX), BX
+	MOVL	AX, 12(SP)		// arg 4 - lock
+	MOVL	BX, 16(SP)		// arg 5 - abort
+	CALL	libc_thrsleep(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·thrwakeup_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	AX, 0(SP)		// arg 1 - id
+	MOVL	BX, 4(SP)		// arg 2 - count
+	CALL	libc_thrwakeup(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·sched_yield_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	CALL	libc_sched_yield(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVL	$1, AX
@@ -401,23 +443,6 @@ TEXT set_tcb<>(SB),NOSPLIT,$8
 	INT	$0x80
 	JCC	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
-	RET
-
-TEXT runtime·osyield(SB),NOSPLIT,$-4
-	MOVL	$298, AX		// sys_sched_yield
-	INT	$0x80
-	RET
-
-TEXT runtime·thrsleep(SB),NOSPLIT,$-4
-	MOVL	$94, AX			// sys___thrsleep
-	INT	$0x80
-	MOVL	AX, ret+20(FP)
-	RET
-
-TEXT runtime·thrwakeup(SB),NOSPLIT,$-4
-	MOVL	$301, AX		// sys___thrwakeup
-	INT	$0x80
-	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·sysctl(SB),NOSPLIT,$28
