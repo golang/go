@@ -32,8 +32,7 @@ build A:       A B1 C2 D4 E2 F1
 upgrade* A:    A B1 C4 D5 E2 F1 G1
 upgrade A C4:  A B1 C4 D4 E2 F1 G1
 build A2:     A2 B1 C4 D4 E2 F1 G1
-# BUG: selected versions E2 and F1 are not preserved.
-downgrade A2 D2: A2 C4 D2
+downgrade A2 D2: A2 C4 D2 E2 F1 G1
 
 name: trim
 A: B1 C2
@@ -216,8 +215,7 @@ A: B2
 B1: C1
 B2: C2
 build A:        A B2 C2
-# BUG: build list from downgrade omits selected version C1.
-downgrade A C1: A B1
+downgrade A C1: A B1 C1
 
 name: down2
 A: B2 E2
@@ -231,9 +229,7 @@ E2: D2
 E1:
 F1:
 build A:        A B2 C2 D2 E2 F2
-# BUG: selected versions C1 and D1 are not preserved, and
-# requested version F1 is not selected.
-downgrade A F1: A B1 E1
+downgrade A F1: A B1 C1 D1 E1 F1
 
 # https://research.swtch.com/vgo-mvs#algorithm_4:
 # “[D]owngrades are constrained to only downgrade packages, not also upgrade
@@ -252,8 +248,7 @@ C2:
 D1:
 D2:
 build A:        A B2 C1 D2
-# BUG: requested version D1 is not selected.
-downgrade A D1: A
+downgrade A D1: A       D1
 
 # https://research.swtch.com/vgo-mvs#algorithm_4:
 # “Unlike upgrades, downgrades must work by removing requirements, not adding
@@ -270,10 +265,8 @@ B2: D2
 C1:
 D1:
 D2:
-build A:        A B2 D2
-# BUG: requested version D1 is not selected,
-# and selected version C1 is omitted from the returned build list.
-downgrade A D1: A B1
+build A:        A B2    D2
+downgrade A D1: A B1 C1 D1
 
 name: downcycle
 A: A B2
