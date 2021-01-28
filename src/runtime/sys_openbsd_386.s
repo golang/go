@@ -169,6 +169,21 @@ TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
 	POPL	BP
 	RET
 
+TEXT runtime·thrkill_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$12, SP
+	MOVL	20(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	AX, 0(SP)		// arg 1 - tid
+	MOVL	BX, 4(SP)		// arg 2 - signal
+	MOVL	$0, 8(SP)		// arg 3 - tcb
+	CALL	libc_thrkill(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
 TEXT runtime·thrsleep_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
@@ -203,6 +218,42 @@ TEXT runtime·thrwakeup_trampoline(SB),NOSPLIT,$0
 	POPL	BP
 	RET
 
+TEXT runtime·exit_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$4, SP
+	MOVL	12(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	AX, 0(SP)		// arg 1 - status
+	CALL	libc_exit(SB)
+	MOVL	$0xf1, 0xf1		// crash on failure
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·getthrid_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	CALL	libc_getthrid(SB)
+	NOP	SP			// tell vet SP changed - stop checking offsets
+	MOVL	8(SP), DX		// pointer to return value
+	MOVL	AX, 0(DX)
+	POPL	BP
+	RET
+
+TEXT runtime·raiseproc_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), DX
+	MOVL	0(DX), BX
+	CALL	libc_getpid(SB)
+	MOVL	AX, 0(SP)		// arg 1 - pid
+	MOVL	BX, 4(SP)		// arg 2 - signal
+	CALL	libc_kill(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
 TEXT runtime·sched_yield_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
@@ -211,308 +262,338 @@ TEXT runtime·sched_yield_trampoline(SB),NOSPLIT,$0
 	POPL	BP
 	RET
 
-// Exit the entire program (like C exit)
-TEXT runtime·exit(SB),NOSPLIT,$-4
-	MOVL	$1, AX
-	INT	$0x80
-	MOVL	$0xf1, 0xf1		// crash
-	RET
-
-// func exitThread(wait *uint32)
-TEXT runtime·exitThread(SB),NOSPLIT,$0-4
-	MOVL	$302, AX		// sys___threxit
-	INT	$0x80
-	MOVL	$0xf1, 0xf1		// crash
-	JMP	0(PC)
-
-TEXT runtime·open(SB),NOSPLIT,$-4
-	MOVL	$5, AX
-	INT	$0x80
-	JAE	2(PC)
-	MOVL	$-1, AX
-	MOVL	AX, ret+12(FP)
-	RET
-
-TEXT runtime·closefd(SB),NOSPLIT,$-4
-	MOVL	$6, AX
-	INT	$0x80
-	JAE	2(PC)
-	MOVL	$-1, AX
-	MOVL	AX, ret+4(FP)
-	RET
-
-TEXT runtime·read(SB),NOSPLIT,$-4
-	MOVL	$3, AX
-	INT	$0x80
-	JAE	2(PC)
-	NEGL	AX			// caller expects negative errno
-	MOVL	AX, ret+12(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT,$8-12
-	MOVL	$263, AX
-	LEAL	r+0(FP), BX
-	MOVL	BX, 4(SP)
-	INT	$0x80
-	MOVL	AX, errno+8(FP)
-	RET
-
-// func pipe2(flags int32) (r, w int32, errno int32)
-TEXT runtime·pipe2(SB),NOSPLIT,$12-16
-	MOVL	$101, AX
-	LEAL	r+4(FP), BX
-	MOVL	BX, 4(SP)
-	MOVL	flags+0(FP), BX
-	MOVL	BX, 8(SP)
-	INT	$0x80
-	MOVL	AX, errno+12(FP)
-	RET
-
-TEXT runtime·write1(SB),NOSPLIT,$-4
-	MOVL	$4, AX			// sys_write
-	INT	$0x80
-	JAE	2(PC)
-	NEGL	AX			// caller expects negative errno
-	MOVL	AX, ret+12(FP)
-	RET
-
-TEXT runtime·usleep(SB),NOSPLIT,$24
-	MOVL	$0, DX
-	MOVL	usec+0(FP), AX
-	MOVL	$1000000, CX
-	DIVL	CX
-	MOVL	AX, 12(SP)		// tv_sec - l32
-	MOVL	$0, 16(SP)		// tv_sec - h32
-	MOVL	$1000, AX
-	MULL	DX
-	MOVL	AX, 20(SP)		// tv_nsec
-
-	MOVL	$0, 0(SP)
-	LEAL	12(SP), AX
-	MOVL	AX, 4(SP)		// arg 1 - rqtp
-	MOVL	$0, 8(SP)		// arg 2 - rmtp
-	MOVL	$91, AX			// sys_nanosleep
-	INT	$0x80
-	RET
-
-TEXT runtime·getthrid(SB),NOSPLIT,$0-4
-	MOVL	$299, AX		// sys_getthrid
-	INT	$0x80
-	MOVL	AX, ret+0(FP)
-	RET
-
-TEXT runtime·thrkill(SB),NOSPLIT,$16-8
-	MOVL	$0, 0(SP)
-	MOVL	tid+0(FP), AX
-	MOVL	AX, 4(SP)		// arg 1 - tid
-	MOVL	sig+4(FP), AX
-	MOVL	AX, 8(SP)		// arg 2 - signum
-	MOVL	$0, 12(SP)		// arg 3 - tcb
-	MOVL	$119, AX		// sys_thrkill
-	INT	$0x80
-	RET
-
-TEXT runtime·raiseproc(SB),NOSPLIT,$12
-	MOVL	$20, AX			// sys_getpid
-	INT	$0x80
-	MOVL	$0, 0(SP)
-	MOVL	AX, 4(SP)		// arg 1 - pid
-	MOVL	sig+0(FP), AX
-	MOVL	AX, 8(SP)		// arg 2 - signum
-	MOVL	$122, AX		// sys_kill
-	INT	$0x80
-	RET
-
-TEXT runtime·mmap(SB),NOSPLIT,$36
-	LEAL	addr+0(FP), SI
-	LEAL	4(SP), DI
-	CLD
-	MOVSL				// arg 1 - addr
-	MOVSL				// arg 2 - len
-	MOVSL				// arg 3 - prot
-	MOVSL				// arg 4 - flags
-	MOVSL				// arg 5 - fd
+TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$32, SP
+	MOVL	40(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	8(DX), CX
+	MOVL	AX, 0(SP)		// arg 1 - addr
+	MOVL	BX, 4(SP)		// arg 2 - len
+	MOVL	CX, 8(SP)		// arg 3 - prot
+	MOVL	12(DX), AX
+	MOVL	16(DX), BX
+	MOVL	20(DX), CX
+	MOVL	AX, 12(SP)		// arg 4 - flags
+	MOVL	BX, 16(SP)		// arg 5 - fid
+	MOVL	$0, 20(SP)		// pad
+	MOVL	CX, 24(SP)		// arg 6 - offset (low 32 bits)
+	MOVL	$0, 28(SP)		// offset (high 32 bits)
+	CALL	libc_mmap(SB)
+	MOVL	$0, BX
+	CMPL	AX, $-1
+	JNE	ok
+	CALL	libc_errno(SB)
+	MOVL	(AX), BX
 	MOVL	$0, AX
-	STOSL				// arg 6 - pad
-	MOVSL				// arg 7 - offset
-	MOVL	$0, AX			// top 32 bits of file offset
-	STOSL
-	MOVL	$197, AX		// sys_mmap
-	INT	$0x80
-	JAE	ok
-	MOVL	$0, p+24(FP)
-	MOVL	AX, err+28(FP)
-	RET
 ok:
-	MOVL	AX, p+24(FP)
-	MOVL	$0, err+28(FP)
+	MOVL	40(SP), DX
+	MOVL	AX, 24(DX)
+	MOVL	BX, 28(DX)
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
-TEXT runtime·munmap(SB),NOSPLIT,$-4
-	MOVL	$73, AX			// sys_munmap
-	INT	$0x80
-	JAE	2(PC)
-	MOVL	$0xf1, 0xf1		// crash
+TEXT runtime·munmap_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	AX, 0(SP)		// arg 1 - addr
+	MOVL	BX, 4(SP)		// arg 2 - len
+	CALL	libc_munmap(SB)
+	CMPL	AX, $-1
+	JNE	2(PC)
+	MOVL	$0xf1, 0xf1		// crash on failure
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
-TEXT runtime·madvise(SB),NOSPLIT,$-4
-	MOVL	$75, AX			// sys_madvise
-	INT	$0x80
-	JAE	2(PC)
-	MOVL	$-1, AX
-	MOVL	AX, ret+12(FP)
+TEXT runtime·madvise_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$12, SP
+	MOVL	20(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	8(DX), CX
+	MOVL	AX, 0(SP)		// arg 1 - addr
+	MOVL	BX, 4(SP)		// arg 2 - len
+	MOVL	CX, 8(SP)		// arg 3 - advice
+	CALL	libc_madvise(SB)
+	// ignore failure - maybe pages are locked
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
-TEXT runtime·setitimer(SB),NOSPLIT,$-4
-	MOVL	$69, AX
-	INT	$0x80
+TEXT runtime·open_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$16, SP
+	MOVL	24(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	8(DX), CX
+	MOVL	AX, 0(SP)		// arg 1 - path
+	MOVL	BX, 4(SP)		// arg 2 - flags
+	MOVL	CX, 8(SP)		// arg 3 - mode
+	MOVL	$0, 12(SP)		// vararg
+	CALL	libc_open(SB)
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $32
-	LEAL	12(SP), BX
-	MOVL	$0, 4(SP)		// arg 1 - clock_id
-	MOVL	BX, 8(SP)		// arg 2 - tp
-	MOVL	$87, AX			// sys_clock_gettime
-	INT	$0x80
-
-	MOVL	12(SP), AX		// sec - l32
-	MOVL	AX, sec_lo+0(FP)
-	MOVL	16(SP), AX		// sec - h32
-	MOVL	AX, sec_hi+4(FP)
-
-	MOVL	20(SP), BX		// nsec
-	MOVL	BX, nsec+8(FP)
+TEXT runtime·close_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$4, SP
+	MOVL	12(SP), DX
+	MOVL	0(DX), AX
+	MOVL	AX, 0(SP)		// arg 1 - fd
+	CALL	libc_close(SB)
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
-// int64 nanotime1(void) so really
-// void nanotime1(int64 *nsec)
-TEXT runtime·nanotime1(SB),NOSPLIT,$32
-	LEAL	12(SP), BX
-	MOVL	CLOCK_MONOTONIC, 4(SP)	// arg 1 - clock_id
-	MOVL	BX, 8(SP)		// arg 2 - tp
-	MOVL	$87, AX			// sys_clock_gettime
-	INT	$0x80
-
-	MOVL    16(SP), CX		// sec - h32
-	IMULL   $1000000000, CX
-
-	MOVL    12(SP), AX		// sec - l32
-	MOVL    $1000000000, BX
-	MULL    BX			// result in dx:ax
-
-	MOVL	20(SP), BX		// nsec
-	ADDL	BX, AX
-	ADCL	CX, DX			// add high bits with carry
-
-	MOVL	AX, ret_lo+0(FP)
-	MOVL	DX, ret_hi+4(FP)
+TEXT runtime·read_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$12, SP
+	MOVL	20(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	8(DX), CX
+	MOVL	AX, 0(SP)		// arg 1 - fd
+	MOVL	BX, 4(SP)		// arg 2 - buf
+	MOVL	CX, 8(SP)		// arg 3 - count
+	CALL	libc_read(SB)
+	CMPL	AX, $-1
+	JNE	noerr
+	CALL	libc_errno(SB)
+	MOVL	(AX), AX
+	NEGL	AX			// caller expects negative errno
+noerr:
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
-TEXT runtime·sigaction(SB),NOSPLIT,$-4
-	MOVL	$46, AX			// sys_sigaction
-	INT	$0x80
-	JAE	2(PC)
-	MOVL	$0xf1, 0xf1		// crash
+TEXT runtime·write_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$12, SP
+	MOVL	20(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	8(DX), CX
+	MOVL	AX, 0(SP)		// arg 1 - fd
+	MOVL	BX, 4(SP)		// arg 2 - buf
+	MOVL	CX, 8(SP)		// arg 3 - count
+	CALL	libc_write(SB)
+	CMPL	AX, $-1
+	JNE	noerr
+	CALL	libc_errno(SB)
+	MOVL	(AX), AX
+	NEGL	AX			// caller expects negative errno
+noerr:
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
-TEXT runtime·obsdsigprocmask(SB),NOSPLIT,$-4
-	MOVL	$48, AX			// sys_sigprocmask
-	INT	$0x80
-	JAE	2(PC)
-	MOVL	$0xf1, 0xf1		// crash
-	MOVL	AX, ret+8(FP)
+TEXT runtime·pipe2_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	AX, 0(SP)		// arg 1 - fds
+	MOVL	BX, 4(SP)		// arg 2 - flags
+	CALL	libc_pipe2(SB)
+	CMPL	AX, $-1
+	JNE	noerr
+	CALL	libc_errno(SB)
+	MOVL	(AX), AX
+	NEGL	AX			// caller expects negative errno
+noerr:
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
-TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
-	MOVL	$288, AX		// sys_sigaltstack
-	MOVL	new+0(FP), BX
-	MOVL	old+4(FP), CX
-	INT	$0x80
-	CMPL	AX, $0xfffff001
-	JLS	2(PC)
-	INT	$3
+TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$12, SP
+	MOVL	20(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	8(DX), CX
+	MOVL	AX, 0(SP)		// arg 1 - which
+	MOVL	BX, 4(SP)		// arg 2 - new
+	MOVL	CX, 8(SP)		// arg 3 - old
+	CALL	libc_setitimer(SB)
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
-TEXT set_tcb<>(SB),NOSPLIT,$8
-	// adjust for ELF: wants to use -4(GS) for g
-	MOVL	tlsbase+0(FP), CX
-	ADDL	$4, CX
-	MOVL	$0, 0(SP)		// syscall gap
-	MOVL	CX, 4(SP)		// arg 1 - tcb
-	MOVL	$329, AX		// sys___set_tcb
-	INT	$0x80
-	JCC	2(PC)
-	MOVL	$0xf1, 0xf1		// crash
+TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$4, SP
+	MOVL	12(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	AX, 0(SP)
+	CALL	libc_usleep(SB)
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
-TEXT runtime·sysctl(SB),NOSPLIT,$28
-	LEAL	mib+0(FP), SI
-	LEAL	4(SP), DI
-	CLD
-	MOVSL				// arg 1 - name
-	MOVSL				// arg 2 - namelen
-	MOVSL				// arg 3 - oldp
-	MOVSL				// arg 4 - oldlenp
-	MOVSL				// arg 5 - newp
-	MOVSL				// arg 6 - newlen
-	MOVL	$202, AX		// sys___sysctl
-	INT	$0x80
-	JCC	4(PC)
-	NEGL	AX
-	MOVL	AX, ret+24(FP)
-	RET
-	MOVL	$0, AX
-	MOVL	AX, ret+24(FP)
-	RET
-
-// int32 runtime·kqueue(void);
-TEXT runtime·kqueue(SB),NOSPLIT,$0
-	MOVL	$269, AX
-	INT	$0x80
-	JAE	2(PC)
-	NEGL	AX
-	MOVL	AX, ret+0(FP)
+TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$24, SP
+	MOVL	32(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	8(DX), CX
+	MOVL	AX, 0(SP)		// arg 1 - name
+	MOVL	BX, 4(SP)		// arg 2 - namelen
+	MOVL	CX, 8(SP)		// arg 3 - old
+	MOVL	12(DX), AX
+	MOVL	16(DX), BX
+	MOVL	20(DX), CX
+	MOVL	AX, 12(SP)		// arg 4 - oldlenp
+	MOVL	BX, 16(SP)		// arg 5 - newp
+	MOVL	CX, 20(SP)		// arg 6 - newlen
+	CALL	libc_sysctl(SB)
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
-// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
-TEXT runtime·kevent(SB),NOSPLIT,$0
-	MOVL	$72, AX			// sys_kevent
-	INT	$0x80
-	JAE	2(PC)
-	NEGL	AX
-	MOVL	AX, ret+24(FP)
+TEXT runtime·kqueue_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	CALL	libc_kqueue(SB)
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
-// int32 runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),NOSPLIT,$32
-	MOVL	$92, AX			// sys_fcntl
-	// 0(SP) is where the caller PC would be; kernel skips it
-	MOVL	fd+0(FP), BX
-	MOVL	BX, 4(SP)	// fd
-	MOVL	$2, 8(SP)	// F_SETFD
-	MOVL	$1, 12(SP)	// FD_CLOEXEC
-	INT	$0x80
-	JAE	2(PC)
-	NEGL	AX
+TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$24, SP
+	MOVL	32(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	8(DX), CX
+	MOVL	AX, 0(SP)		// arg 1 - kq
+	MOVL	BX, 4(SP)		// arg 2 - keventt
+	MOVL	CX, 8(SP)		// arg 3 - nch
+	MOVL	12(DX), AX
+	MOVL	16(DX), BX
+	MOVL	20(DX), CX
+	MOVL	AX, 12(SP)		// arg 4 - ev
+	MOVL	BX, 16(SP)		// arg 5 - nev
+	MOVL	CX, 20(SP)		// arg 6 - ts
+	CALL	libc_kevent(SB)
+	CMPL	AX, $-1
+	JNE	noerr
+	CALL	libc_errno(SB)
+	MOVL	(AX), AX
+	NEGL	AX			// caller expects negative errno
+noerr:
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
-// func runtime·setNonblock(fd int32)
-TEXT runtime·setNonblock(SB),NOSPLIT,$16-4
-	MOVL	$92, AX // fcntl
-	MOVL	fd+0(FP), BX // fd
-	MOVL	BX, 4(SP)
-	MOVL	$3, 8(SP) // F_GETFL
-	MOVL	$0, 12(SP)
-	INT	$0x80
-	MOVL	fd+0(FP), BX // fd
-	MOVL	BX, 4(SP)
-	MOVL	$4, 8(SP) // F_SETFL
-	ORL	$4, AX // O_NONBLOCK
-	MOVL	AX, 12(SP)
-	MOVL	$92, AX // fcntl
-	INT	$0x80
+TEXT runtime·clock_gettime_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	AX, 0(SP)		// arg 1 - tp
+	MOVL	BX, 4(SP)		// arg 2 - clock_id
+	CALL	libc_clock_gettime(SB)
+	CMPL	AX, $-1
+	JNE	2(PC)
+	MOVL	$0xf1, 0xf1		// crash on failure
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
-GLOBL runtime·tlsoffset(SB),NOPTR,$4
+TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$16, SP
+	MOVL	24(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	8(DX), CX
+	MOVL	AX, 0(SP)		// arg 1 - fd
+	MOVL	BX, 4(SP)		// arg 2 - cmd
+	MOVL	CX, 8(SP)		// arg 3 - arg
+	MOVL	$0, 12(SP)		// vararg
+	CALL	libc_fcntl(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·sigaction_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$12, SP
+	MOVL	20(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	8(DX), CX
+	MOVL	AX, 0(SP)		// arg 1 - sig
+	MOVL	BX, 4(SP)		// arg 2 - new
+	MOVL	CX, 8(SP)		// arg 3 - old
+	CALL	libc_sigaction(SB)
+	CMPL	AX, $-1
+	JNE	2(PC)
+	MOVL	$0xf1, 0xf1		// crash on failure
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·sigprocmask_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$12, SP
+	MOVL	20(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	8(DX), CX
+	MOVL	AX, 0(SP)		// arg 1 - how
+	MOVL	BX, 4(SP)		// arg 2 - new
+	MOVL	CX, 8(SP)		// arg 3 - old
+	CALL	libc_pthread_sigmask(SB)
+	CMPL	AX, $-1
+	JNE	2(PC)
+	MOVL	$0xf1, 0xf1		// crash on failure
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·sigaltstack_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	AX, 0(SP)		// arg 1 - new
+	MOVL	BX, 4(SP)		// arg 2 - old
+	CALL	libc_sigaltstack(SB)
+	CMPL	AX, $-1
+	JNE	2(PC)
+	MOVL	$0xf1, 0xf1		// crash on failure
+	MOVL	BP, SP
+	POPL	BP
+	RET
