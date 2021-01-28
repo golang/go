@@ -12,14 +12,15 @@
 // See the comment on the declaration of makeFuncStub in makefunc.go
 // for more details.
 // No arg size here, runtime pulls arg map out of the func value.
-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
+TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$40
 	NO_LOCAL_POINTERS
 	MOVD	R11, FIXED_FRAME+0(R1)
 	MOVD	$argframe+0(FP), R3
 	MOVD	R3, FIXED_FRAME+8(R1)
-	MOVB	R0, FIXED_FRAME+24(R1)
-	ADD	$FIXED_FRAME+24, R1, R3
+	MOVB	R0, FIXED_FRAME+32(R1)
+	ADD	$FIXED_FRAME+32, R1, R3
 	MOVD	R3, FIXED_FRAME+16(R1)
+	MOVD	R0, FIXED_FRAME+24(R1)
 	BL	·callReflect(SB)
 	RET
 
@@ -27,13 +28,14 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
 // See the comment on the declaration of methodValueCall in makefunc.go
 // for more details.
 // No arg size here; runtime pulls arg map out of the func value.
-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
+TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$40
 	NO_LOCAL_POINTERS
 	MOVD	R11, FIXED_FRAME+0(R1)
 	MOVD	$argframe+0(FP), R3
 	MOVD	R3, FIXED_FRAME+8(R1)
-	MOVB	R0, FIXED_FRAME+24(R1)
-	ADD	$FIXED_FRAME+24, R1, R3
+	MOVB	R0, FIXED_FRAME+32(R1)
+	ADD	$FIXED_FRAME+32, R1, R3
 	MOVD	R3, FIXED_FRAME+16(R1)
+	MOVD	R0, FIXED_FRAME+24(R1)
 	BL	·callMethod(SB)
 	RET
