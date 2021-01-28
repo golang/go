@@ -15,24 +15,9 @@ import (
 // The most important fact about a given architecture is whether it uses a link register.
 // On systems with link registers, the prologue for a non-leaf function stores the
 // incoming value of LR at the bottom of the newly allocated stack frame.
-// On systems without link registers, the architecture pushes a return PC during
+// On systems without link registers (x86), the architecture pushes a return PC during
 // the call instruction, so the return PC ends up above the stack frame.
 // In this file, the return PC is always called LR, no matter how it was found.
-//
-// To date, the opposite of a link register architecture is an x86 architecture.
-// This code may need to change if some other kind of non-link-register
-// architecture comes along.
-//
-// The other important fact is the size of a pointer: on 32-bit systems the LR
-// takes up only 4 bytes on the stack, while on 64-bit systems it takes up 8 bytes.
-// Typically this is ptrSize.
-//
-// As an exception, amd64p32 had ptrSize == 4 but the CALL instruction still
-// stored an 8-byte return PC onto the stack. To accommodate this, we used regSize
-// as the size of the architecture-pushed return PC.
-//
-// usesLR is defined below in terms of minFrameSize, which is defined in
-// arch_$GOARCH.go. ptrSize and regSize are defined in stubs.go.
 
 const usesLR = sys.MinFrameSize > 0
 
@@ -180,6 +165,16 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			break
 		}
 
+		// Compute function info flags.
+		flag := f.flag
+		if f.funcID == funcID_cgocallback {
+			// cgocallback does write SP to switch from the g0 to the curg stack,
+			// but it carefully arranges that during the transition BOTH stacks
+			// have cgocallback frame valid for unwinding through.
+			// So we don't need to exclude it with the other SP-writing functions.
+			flag &^= funcFlag_SPWRITE
+		}
+
 		// Found an actual function.
 		// Derive frame pointer and link register.
 		if frame.fp == 0 {
@@ -196,6 +191,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					frame.pc = gp.m.curg.sched.pc
 					frame.fn = findfunc(frame.pc)
 					f = frame.fn
+					flag = f.flag
 					frame.sp = gp.m.curg.sched.sp
 					cgoCtxt = gp.m.curg.cgoCtxt
 				case funcID_systemstack:
@@ -203,6 +199,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					// stack transition.
 					frame.sp = gp.m.curg.sched.sp
 					cgoCtxt = gp.m.curg.cgoCtxt
+					flag &^= funcFlag_SPWRITE
 				}
 			}
 			frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc, &cache))
@@ -213,19 +210,26 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		}
 		var flr funcInfo
 		if topofstack(f, gp.m != nil && gp == gp.m.g0) {
+			// This function marks the top of the stack. Stop the traceback.
 			frame.lr = 0
 			flr = funcInfo{}
-		} else if usesLR && f.funcID == funcID_jmpdefer {
-			// jmpdefer modifies SP/LR/PC non-atomically.
-			// If a profiling interrupt arrives during jmpdefer,
-			// the stack unwind may see a mismatched register set
-			// and get confused. Stop if we see PC within jmpdefer
-			// to avoid that confusion.
-			// See golang.org/issue/8153.
+		} else if flag&funcFlag_SPWRITE != 0 {
+			// The function we are in does a write to SP that we don't know
+			// how to encode in the spdelta table. Examples include context
+			// switch routines like runtime.gogo but also any code that switches
+			// to the g0 stack to run host C code. Since we can't reliably unwind
+			// the SP (we might not even be on the stack we think we are),
+			// we stop the traceback here.
 			if callback != nil {
-				throw("traceback_arm: found jmpdefer when tracing with callback")
+				// Finding an SPWRITE should only happen for a profiling signal, which can
+				// arrive at any time. For a GC stack traversal (callback != nil),
+				// we shouldn't see this case, and we must be sure to walk the
+				// entire stack or the GC is invalid. So crash.
+				println("traceback: unexpected SPWRITE function", funcname(f))
+				throw("traceback")
 			}
 			frame.lr = 0
+			flr = funcInfo{}
 		} else {
 			var lrPtr uintptr
 			if usesLR {
