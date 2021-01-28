@@ -83,61 +83,6 @@ func (check *Checker) op(m opPredicates, x *operand, op syntax.Operator) bool {
 	return true
 }
 
-func op2token(op syntax.Operator) token.Token {
-	switch op {
-	case syntax.Def: // :
-		unreachable()
-	case syntax.Not: // !
-		return token.NOT
-	case syntax.Recv: // <-
-		unreachable()
-
-	case syntax.OrOr: // ||
-		return token.LOR
-	case syntax.AndAnd: // &&
-		return token.LAND
-
-	case syntax.Eql: // ==
-		return token.EQL
-	case syntax.Neq: // !=
-		return token.NEQ
-	case syntax.Lss: // <
-		return token.LSS
-	case syntax.Leq: // <=
-		return token.LEQ
-	case syntax.Gtr: // >
-		return token.GTR
-	case syntax.Geq: // >=
-		return token.GEQ
-
-	case syntax.Add: // +
-		return token.ADD
-	case syntax.Sub: // -
-		return token.SUB
-	case syntax.Or: // |
-		return token.OR
-	case syntax.Xor: // ^
-		return token.XOR
-
-	case syntax.Mul: // *
-		return token.MUL
-	case syntax.Div: // /
-		return token.QUO
-	case syntax.Rem: // %
-		return token.REM
-	case syntax.And: // &
-		return token.AND
-	case syntax.AndNot: // &^
-		return token.AND_NOT
-	case syntax.Shl: // <<
-		return token.SHL
-	case syntax.Shr: // >>
-		return token.SHR
-	}
-
-	return token.ILLEGAL
-}
-
 // The unary expression e may be nil. It's passed in for better error messages only.
 func (check *Checker) unary(x *operand, e *syntax.Operation, op syntax.Operator) {
 	switch op {
@@ -182,7 +127,7 @@ func (check *Checker) unary(x *operand, e *syntax.Operation, op syntax.Operator)
 		if isUnsigned(typ) {
 			prec = uint(check.conf.sizeof(typ) * 8)
 		}
-		x.val = constant.UnaryOp(op2token(op), x.val, prec)
+		x.val = constant.UnaryOp(op2tok[op], x.val, prec)
 		// Typed constants must be representable in
 		// their type after each constant operation.
 		if isTyped(typ) {
@@ -738,7 +683,7 @@ func (check *Checker) comparison(x, y *operand, op syntax.Operator) {
 	}
 
 	if x.mode == constant_ && y.mode == constant_ {
-		x.val = constant.MakeBool(constant.Compare(x.val, op2token(op), y.val))
+		x.val = constant.MakeBool(constant.Compare(x.val, op2tok[op], y.val))
 		// The operands are never materialized; no need to update
 		// their types.
 	} else {
@@ -819,7 +764,7 @@ func (check *Checker) shift(x, y *operand, e *syntax.Operation, op syntax.Operat
 				x.typ = Typ[UntypedInt]
 			}
 			// x is a constant so xval != nil and it must be of Int kind.
-			x.val = constant.Shift(xval, op2token(op), uint(s))
+			x.val = constant.Shift(xval, op2tok[op], uint(s))
 			// Typed constants must be representable in
 			// their type after each constant operation.
 			if isTyped(x.typ) {
@@ -965,7 +910,7 @@ func (check *Checker) binary(x *operand, e *syntax.Operation, lhs, rhs syntax.Ex
 		yval := y.val
 		typ := x.typ.Basic()
 		// force integer division of integer operands
-		tok := op2token(op)
+		tok := op2tok[op]
 		if op == syntax.Div && isInteger(typ) {
 			tok = token.QUO_ASSIGN
 		}
@@ -1950,4 +1895,34 @@ func (check *Checker) singleValue(x *operand) {
 			x.mode = invalid
 		}
 	}
+}
+
+// op2tok translates syntax.Operators into token.Tokens.
+var op2tok = [...]token.Token{
+	syntax.Def:  token.ILLEGAL,
+	syntax.Not:  token.NOT,
+	syntax.Recv: token.ILLEGAL,
+
+	syntax.OrOr:   token.LOR,
+	syntax.AndAnd: token.LAND,
+
+	syntax.Eql: token.EQL,
+	syntax.Neq: token.NEQ,
+	syntax.Lss: token.LSS,
+	syntax.Leq: token.LEQ,
+	syntax.Gtr: token.GTR,
+	syntax.Geq: token.GEQ,
+
+	syntax.Add: token.ADD,
+	syntax.Sub: token.SUB,
+	syntax.Or:  token.OR,
+	syntax.Xor: token.XOR,
+
+	syntax.Mul:    token.MUL,
+	syntax.Div:    token.QUO,
+	syntax.Rem:    token.REM,
+	syntax.And:    token.AND,
+	syntax.AndNot: token.AND_NOT,
+	syntax.Shl:    token.SHL,
+	syntax.Shr:    token.SHR,
 }

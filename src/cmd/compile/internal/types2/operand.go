@@ -206,29 +206,23 @@ func (x *operand) String() string {
 
 // setConst sets x to the untyped constant for literal lit.
 func (x *operand) setConst(k syntax.LitKind, lit string) {
-	var tok token.Token
 	var kind BasicKind
 	switch k {
 	case syntax.IntLit:
-		tok = token.INT
 		kind = UntypedInt
 	case syntax.FloatLit:
-		tok = token.FLOAT
 		kind = UntypedFloat
 	case syntax.ImagLit:
-		tok = token.IMAG
 		kind = UntypedComplex
 	case syntax.RuneLit:
-		tok = token.CHAR
 		kind = UntypedRune
 	case syntax.StringLit:
-		tok = token.STRING
 		kind = UntypedString
 	default:
 		unreachable()
 	}
 
-	val := constant.MakeFromLiteral(lit, tok, 0)
+	val := constant.MakeFromLiteral(lit, kind2tok[k], 0)
 	if val.Kind() == constant.Unknown {
 		x.mode = invalid
 		x.typ = Typ[Invalid]
@@ -333,4 +327,13 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 	}
 
 	return false
+}
+
+// kind2tok translates syntax.LitKinds into token.Tokens.
+var kind2tok = [...]token.Token{
+	syntax.IntLit:    token.INT,
+	syntax.FloatLit:  token.FLOAT,
+	syntax.ImagLit:   token.IMAG,
+	syntax.RuneLit:   token.CHAR,
+	syntax.StringLit: token.STRING,
 }
