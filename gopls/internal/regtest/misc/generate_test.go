@@ -6,10 +6,12 @@
 
 // +build !android
 
-package regtest
+package misc
 
 import (
 	"testing"
+
+	. "golang.org/x/tools/gopls/internal/regtest"
 )
 
 func TestGenerateProgress(t *testing.T) {
@@ -38,7 +40,7 @@ func GetAnswer() int {
 //go:generate go run generate.go
 `
 
-	runner.Run(t, generatedWorkspace, func(t *testing.T, env *Env) {
+	Run(t, generatedWorkspace, func(t *testing.T, env *Env) {
 		env.Await(
 			env.DiagnosticAtRegexp("lib/lib.go", "answer"),
 		)

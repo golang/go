@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package regtest
+package misc
 
 import (
 	"strings"
 	"testing"
+
+	. "golang.org/x/tools/gopls/internal/regtest"
 
 	"golang.org/x/tools/internal/lsp/tests"
 )
@@ -29,7 +31,7 @@ func main() {
 `
 
 func TestFormatting(t *testing.T) {
-	runner.Run(t, unformattedProgram, func(t *testing.T, env *Env) {
+	Run(t, unformattedProgram, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.FormatBuffer("main.go")
 		got := env.Editor.BufferText("main.go")
@@ -51,7 +53,7 @@ package main
 
 func f() {}
 `
-	runner.Run(t, onelineProgram, func(t *testing.T, env *Env) {
+	Run(t, onelineProgram, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
 		env.FormatBuffer("a.go")
 		got := env.Editor.BufferText("a.go")
@@ -75,7 +77,7 @@ import "fmt"
 
 func f() { fmt.Println() }
 `
-	runner.Run(t, onelineProgramA, func(t *testing.T, env *Env) {
+	Run(t, onelineProgramA, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
 		env.OrganizeImports("a.go")
 		got := env.Editor.BufferText("a.go")
@@ -96,7 +98,7 @@ package x
 
 func f() {}
 `
-	runner.Run(t, onelineProgramB, func(t *testing.T, env *Env) {
+	Run(t, onelineProgramB, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
 		env.OrganizeImports("a.go")
 		got := env.Editor.BufferText("a.go")
@@ -142,7 +144,7 @@ func main() {
 `
 
 func TestOrganizeImports(t *testing.T) {
-	runner.Run(t, disorganizedProgram, func(t *testing.T, env *Env) {
+	Run(t, disorganizedProgram, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.OrganizeImports("main.go")
 		got := env.Editor.BufferText("main.go")
@@ -154,7 +156,7 @@ func TestOrganizeImports(t *testing.T) {
 }
 
 func TestFormattingOnSave(t *testing.T) {
-	runner.Run(t, disorganizedProgram, func(t *testing.T, env *Env) {
+	Run(t, disorganizedProgram, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.SaveBuffer("main.go")
 		got := env.Editor.BufferText("main.go")
@@ -224,7 +226,7 @@ type Tree struct {
 		},
 	} {
 		t.Run(tt.issue, func(t *testing.T) {
-			run(t, "-- main.go --", func(t *testing.T, env *Env) {
+			Run(t, "-- main.go --", func(t *testing.T, env *Env) {
 				crlf := strings.ReplaceAll(tt.want, "\n", "\r\n")
 				env.CreateBuffer("main.go", crlf)
 				env.Await(env.DoneWithOpen())

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package regtest
+package bench
 
 import (
 	"flag"
@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	. "golang.org/x/tools/gopls/internal/regtest"
 
 	"golang.org/x/tools/internal/lsp/fake"
 )
@@ -45,7 +47,7 @@ func benchmarkCompletion(options completionBenchOptions, t *testing.T) {
 	// it first (and therefore need hooks).
 	opts = append(opts, SkipHooks(false))
 
-	withOptions(opts...).run(t, "", func(t *testing.T, env *Env) {
+	WithOptions(opts...).Run(t, "", func(t *testing.T, env *Env) {
 		env.OpenFile(options.file)
 
 		// Run edits required for this completion.

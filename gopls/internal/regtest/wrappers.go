@@ -361,7 +361,7 @@ func (e *Env) CodeAction(path string) []protocol.CodeAction {
 	return actions
 }
 
-func (e *Env) changeConfiguration(t *testing.T, config *fake.EditorConfig) {
+func (e *Env) ChangeConfiguration(t *testing.T, config *fake.EditorConfig) {
 	e.Editor.Config = *config
 	if err := e.Editor.Server.DidChangeConfiguration(e.Ctx, &protocol.DidChangeConfigurationParams{
 		// gopls currently ignores the Settings field

@@ -2,15 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package regtest
+package bench
 
 import (
 	"flag"
 	"fmt"
 	"testing"
 
+	. "golang.org/x/tools/gopls/internal/regtest"
+
 	"golang.org/x/tools/internal/lsp/protocol"
 )
+
+func TestMain(m *testing.M) {
+	Main(m)
+}
 
 func printBenchmarkResults(result testing.BenchmarkResult) {
 	fmt.Println("Benchmark Statistics:")
@@ -37,7 +43,7 @@ func TestBenchmarkIWL(t *testing.T) {
 
 	results := testing.Benchmark(func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			withOptions(opts...).run(t, "", func(t *testing.T, env *Env) {})
+			WithOptions(opts...).Run(t, "", func(t *testing.T, env *Env) {})
 		}
 	})
 
@@ -72,7 +78,7 @@ func TestBenchmarkSymbols(t *testing.T) {
 	}
 	opts = append(opts, conf)
 
-	withOptions(opts...).run(t, "", func(t *testing.T, env *Env) {
+	WithOptions(opts...).Run(t, "", func(t *testing.T, env *Env) {
 		// We can't Await in this test, since we have disabled hooks. Instead, run
 		// one symbol request to completion to ensure all necessary cache entries
 		// are populated.

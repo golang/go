@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package regtest
+package misc
 
 import (
 	"testing"
+
+	. "golang.org/x/tools/gopls/internal/regtest"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/tests"
@@ -27,7 +29,7 @@ func Foo() {
 	_ = types.Info{}
 }
 `
-	runner.Run(t, basic, func(t *testing.T, env *Env) {
+	Run(t, basic, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		if err := env.Editor.RefactorRewrite(env.Ctx, "main.go", &protocol.Range{
 			Start: protocol.Position{

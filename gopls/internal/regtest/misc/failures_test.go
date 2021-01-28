@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package regtest
+package misc
 
 import (
 	"log"
 	"testing"
+
+	. "golang.org/x/tools/gopls/internal/regtest"
 )
 
 // This test passes (TestHoverOnError in definition_test.go) without
@@ -28,7 +30,7 @@ func main() {
 	var err error
 	err.Error()
 }`
-	withOptions(SkipLogs()).run(t, mod, func(t *testing.T, env *Env) {
+	WithOptions(SkipLogs()).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		content, _ := env.Hover("main.go", env.RegexpSearch("main.go", "Error"))
 		// without the //line comment content would be non-nil
@@ -56,7 +58,7 @@ const a = 2
 `
 
 func TestFailingDiagnosticClearingOnEdit(t *testing.T) {
-	runner.Run(t, badPackageDup, func(t *testing.T, env *Env) {
+	Run(t, badPackageDup, func(t *testing.T, env *Env) {
 		log.SetFlags(log.Lshortfile)
 		env.OpenFile("b.go")
 		env.Await(env.AnyDiagnosticAtCurrentVersion("a.go"))

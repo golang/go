@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package regtest
+package bench
 
 import (
 	"context"
@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	. "golang.org/x/tools/gopls/internal/regtest"
 )
 
 // Pilosa is a repository that has historically caused significant memory
@@ -50,7 +52,7 @@ func TestPilosaStress(t *testing.T) {
 	}
 	opts := stressTestOptions(*pilosaPath)
 
-	withOptions(opts...).run(t, "", func(t *testing.T, env *Env) {
+	WithOptions(opts...).Run(t, "", func(t *testing.T, env *Env) {
 		files := []string{
 			"cmd.go",
 			"internal/private.pb.go",

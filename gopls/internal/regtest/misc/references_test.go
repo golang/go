@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package regtest
+package misc
 
 import (
 	"testing"
+
+	. "golang.org/x/tools/gopls/internal/regtest"
 )
 
 func TestStdlibReferences(t *testing.T) {
@@ -24,7 +26,7 @@ func main() {
 }
 `
 
-	run(t, files, func(t *testing.T, env *Env) {
+	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		file, pos := env.GoToDefinition("main.go", env.RegexpSearch("main.go", `fmt.(Print)`))
 		refs, err := env.Editor.References(env.Ctx, file, pos)

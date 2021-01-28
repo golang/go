@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package regtest
+package misc
 
 import (
 	"strings"
 	"testing"
+
+	. "golang.org/x/tools/gopls/internal/regtest"
 
 	"golang.org/x/tools/internal/testenv"
 )
@@ -42,7 +44,9 @@ package pkg
 
 const Hello = "Hello"
 `
-	runner.Run(t, program, func(t *testing.T, env *Env) {
+	WithOptions(
+		ProxyFiles(proxy),
+	).Run(t, program, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.OpenFile("go.mod")
 
@@ -87,5 +91,5 @@ const Hello = "Hello"
 		if len(links) != 0 {
 			t.Errorf("documentLink: got %d document links for go.mod, want 0\nlinks: %v", len(links), links)
 		}
-	}, ProxyFiles(proxy))
+	})
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package regtest
+package workspace
 
 import (
 	"fmt"
@@ -12,10 +12,16 @@ import (
 	"strings"
 	"testing"
 
+	. "golang.org/x/tools/gopls/internal/regtest"
+
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/testenv"
 )
+
+func TestMain(m *testing.M) {
+	Main(m)
+}
 
 const workspaceProxy = `
 -- example.com@v1.2.3/go.mod --
@@ -116,7 +122,7 @@ func TestReferences(t *testing.T) {
 			if tt.rootPath != "" {
 				opts = append(opts, WorkspaceFolders(tt.rootPath))
 			}
-			withOptions(opts...).run(t, workspaceModule, func(t *testing.T, env *Env) {
+			WithOptions(opts...).Run(t, workspaceModule, func(t *testing.T, env *Env) {
 				f := "pkg/inner/inner.go"
 				env.OpenFile(f)
 				locations := env.References(f, env.RegexpSearch(f, `SaySomething`))
@@ -134,10 +140,10 @@ func TestReferences(t *testing.T) {
 // VS Code, where clicking on a reference result triggers a
 // textDocument/didOpen without a corresponding textDocument/didClose.
 func TestClearAnalysisDiagnostics(t *testing.T) {
-	withOptions(
+	WithOptions(
 		ProxyFiles(workspaceProxy),
 		WorkspaceFolders("pkg/inner"),
-	).run(t, workspaceModule, func(t *testing.T, env *Env) {
+	).Run(t, workspaceModule, func(t *testing.T, env *Env) {
 		env.OpenFile("pkg/main.go")
 		env.Await(
 			env.DiagnosticAtRegexp("pkg/main2.go", "fmt.Print"),
@@ -152,10 +158,10 @@ func TestClearAnalysisDiagnostics(t *testing.T) {
 // This test checks that gopls updates the set of files it watches when a
 // replace target is added to the go.mod.
 func TestWatchReplaceTargets(t *testing.T) {
-	withOptions(
+	WithOptions(
 		ProxyFiles(workspaceProxy),
 		WorkspaceFolders("pkg"),
-	).run(t, workspaceModule, func(t *testing.T, env *Env) {
+	).Run(t, workspaceModule, func(t *testing.T, env *Env) {
 		// Add a replace directive and expect the files that gopls is watching
 		// to change.
 		dir := env.Sandbox.Workdir.URI("goodbye").SpanURI().Filename()
@@ -220,10 +226,10 @@ func Hello() int {
 	var x int
 }
 `
-	withOptions(
+	WithOptions(
 		ProxyFiles(workspaceModuleProxy),
 		Modes(Experimental),
-	).run(t, multiModule, func(t *testing.T, env *Env) {
+	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		env.Await(
 			env.DiagnosticAtRegexp("moda/a/a.go", "x"),
 			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
@@ -262,10 +268,10 @@ func Hello() int {
 	var x int
 }
 `
-	withOptions(
+	WithOptions(
 		ProxyFiles(workspaceModuleProxy),
 		Modes(Experimental),
-	).run(t, multiModule, func(t *testing.T, env *Env) {
+	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		env.OpenFile("moda/a/a.go")
 
 		original, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
@@ -318,10 +324,10 @@ func main() {
 	_ = b.Hello()
 }
 `
-	withOptions(
+	WithOptions(
 		Modes(Experimental),
 		ProxyFiles(workspaceModuleProxy),
-	).run(t, multiModule, func(t *testing.T, env *Env) {
+	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		env.OpenFile("moda/a/a.go")
 		original, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
 		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(original, want) {
@@ -380,10 +386,10 @@ func Hello() int {
 	var x int
 }
 `
-	withOptions(
+	WithOptions(
 		ProxyFiles(workspaceModuleProxy),
 		Modes(Experimental),
-	).run(t, multiModule, func(t *testing.T, env *Env) {
+	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		env.OpenFile("modb/go.mod")
 		env.Await(
 			OnceMet(
@@ -440,10 +446,10 @@ require (
 
 replace a.com => $SANDBOX_WORKDIR/moda/a
 `
-	withOptions(
+	WithOptions(
 		ProxyFiles(workspaceModuleProxy),
 		Modes(Experimental),
-	).run(t, multiModule, func(t *testing.T, env *Env) {
+	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		// Initially, the gopls.mod should cause only the a.com module to be
 		// loaded. Validate this by jumping to a definition in b.com and ensuring
 		// that we go to the module cache.
@@ -546,7 +552,7 @@ package foo
 import "fmt"
 var _ = fmt.Printf
 `
-	run(t, files, func(t *testing.T, env *Env) {
+	Run(t, files, func(t *testing.T, env *Env) {
 		env.CreateBuffer("/tmp/foo.go", "")
 		env.EditBuffer("/tmp/foo.go", fake.NewEdit(0, 0, 0, 0, code))
 		env.GoToDefinition("/tmp/foo.go", env.RegexpSearch("/tmp/foo.go", `Printf`))
@@ -597,9 +603,9 @@ func main() {
 	var x int
 }
 `
-	withOptions(
+	WithOptions(
 		Modes(Experimental),
-	).run(t, multiModule, func(t *testing.T, env *Env) {
+	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		env.Await(
 			env.DiagnosticAtRegexp("moda/a/a.go", "x"),
 			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
@@ -629,10 +635,10 @@ func main() {
 	fmt.Println("World")
 }
 `
-	withOptions(
+	WithOptions(
 		Modes(Experimental),
 		SendPID(),
-	).run(t, multiModule, func(t *testing.T, env *Env) {
+	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		pid := os.Getpid()
 		// Don't factor this out of Server.addFolders. vscode-go expects this
 		// directory.
@@ -686,7 +692,7 @@ const _ = Nonexistant
 	cfg := EditorConfig{
 		DirectoryFilters: []string{"-exclude"},
 	}
-	withOptions(cfg).run(t, files, func(t *testing.T, env *Env) {
+	WithOptions(cfg).Run(t, files, func(t *testing.T, env *Env) {
 		env.Await(NoDiagnostics("exclude/x.go"))
 	})
 }
@@ -714,7 +720,7 @@ const X = 1
 	cfg := EditorConfig{
 		DirectoryFilters: []string{"-exclude"},
 	}
-	withOptions(cfg).run(t, files, func(t *testing.T, env *Env) {
+	WithOptions(cfg).Run(t, files, func(t *testing.T, env *Env) {
 		env.Await(
 			NoDiagnostics("exclude/exclude.go"), // filtered out
 			NoDiagnostics("include/include.go"), // successfully builds
@@ -764,7 +770,7 @@ package exclude
 	cfg := EditorConfig{
 		DirectoryFilters: []string{"-exclude"},
 	}
-	withOptions(cfg, Modes(Experimental), ProxyFiles(proxy)).run(t, files, func(t *testing.T, env *Env) {
+	WithOptions(cfg, Modes(Experimental), ProxyFiles(proxy)).Run(t, files, func(t *testing.T, env *Env) {
 		env.Await(env.DiagnosticAtRegexp("include/include.go", `exclude.(X)`))
 	})
 }

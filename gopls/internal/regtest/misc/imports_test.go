@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package regtest
+package misc
 
 import (
 	"io/ioutil"
@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	. "golang.org/x/tools/gopls/internal/regtest"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/testenv"
@@ -42,7 +44,7 @@ func TestZ(t *testing.T) {
 
 	// it was returning
 	// "package main\nimport \"testing\"\npackage main..."
-	runner.Run(t, needs, func(t *testing.T, env *Env) {
+	Run(t, needs, func(t *testing.T, env *Env) {
 		env.CreateBuffer("a_test.go", ntest)
 		env.SaveBuffer("a_test.go")
 		got := env.Editor.BufferText("a_test.go")
@@ -69,7 +71,7 @@ func main() {
 
 	// The file remains unchanged, but if there are any CodeActions returned, they confuse vim.
 	// Therefore check for no CodeActions
-	runner.Run(t, "", func(t *testing.T, env *Env) {
+	Run(t, "", func(t *testing.T, env *Env) {
 		env.CreateBuffer("main.go", vim1)
 		env.OrganizeImports("main.go")
 		actions := env.CodeAction("main.go")
@@ -102,7 +104,7 @@ func main() {
 }
 `
 
-	runner.Run(t, "", func(t *testing.T, env *Env) {
+	Run(t, "", func(t *testing.T, env *Env) {
 		env.CreateBuffer("main.go", vim2)
 		env.OrganizeImports("main.go")
 		actions := env.CodeAction("main.go")
@@ -152,10 +154,10 @@ var _, _ = x.X, y.Y
 	}
 	defer os.RemoveAll(modcache)
 	editorConfig := EditorConfig{Env: map[string]string{"GOMODCACHE": modcache}}
-	withOptions(
+	WithOptions(
 		editorConfig,
 		ProxyFiles(proxy),
-	).run(t, files, func(t *testing.T, env *Env) {
+	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.Await(env.DiagnosticAtRegexp("main.go", `y.Y`))
 		env.SaveBuffer("main.go")
@@ -197,7 +199,7 @@ func TestA(t *testing.T) {
 	os.Stat("")
 }
 `
-	run(t, pkg, func(t *testing.T, env *Env) {
+	Run(t, pkg, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
 		var d protocol.PublishDiagnosticsParams
 		env.Await(

@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package regtest
+package misc
 
 import (
 	"testing"
+
+	. "golang.org/x/tools/gopls/internal/regtest"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -48,10 +50,10 @@ func _() {
 }
 `
 	// TODO(rstambler): Remove this when golang/go#41819 is resolved.
-	withOptions(
+	WithOptions(
 		Modes(Singleton),
 		ProxyFiles(basicProxy),
-	).run(t, pkgThatUsesVendoring, func(t *testing.T, env *Env) {
+	).Run(t, pkgThatUsesVendoring, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a1.go")
 		env.Await(
 			// The editor should pop up a message suggesting that the user

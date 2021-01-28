@@ -2,17 +2,46 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package regtest
+package modfile
 
 import (
 	"path/filepath"
 	"strings"
 	"testing"
 
+	. "golang.org/x/tools/gopls/internal/regtest"
+
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/testenv"
 )
+
+func TestMain(m *testing.M) {
+	Main(m)
+}
+
+const workspaceProxy = `
+-- example.com@v1.2.3/go.mod --
+module example.com
+
+go 1.12
+-- example.com@v1.2.3/blah/blah.go --
+package blah
+
+func SaySomething() {
+	fmt.Println("something")
+}
+-- random.org@v1.2.3/go.mod --
+module random.org
+
+go 1.12
+-- random.org@v1.2.3/bye/bye.go --
+package bye
+
+func Goodbye() {
+	println("Bye")
+}
+`
 
 const proxy = `
 -- example.com@v1.2.3/go.mod --
@@ -50,13 +79,13 @@ func main() {
 }
 `
 
-	runner := runMultiple{
-		{"default", withOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
-		{"nested", withOptions(ProxyFiles(proxy))},
+	runner := RunMultiple{
+		{"default", WithOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
+		{"nested", WithOptions(ProxyFiles(proxy))},
 	}
 
 	t.Run("basic", func(t *testing.T) {
-		runner.run(t, untidyModule, func(t *testing.T, env *Env) {
+		runner.Run(t, untidyModule, func(t *testing.T, env *Env) {
 			// Open the file and make sure that the initial workspace load does not
 			// modify the go.mod file.
 			goModContent := env.ReadWorkspaceFile("a/go.mod")
@@ -83,7 +112,7 @@ func main() {
 	t.Run("delete main.go", func(t *testing.T) {
 		t.Skip("This test will be flaky until golang/go#40269 is resolved.")
 
-		runner.run(t, untidyModule, func(t *testing.T, env *Env) {
+		runner.Run(t, untidyModule, func(t *testing.T, env *Env) {
 			goModContent := env.ReadWorkspaceFile("a/go.mod")
 			mainContent := env.ReadWorkspaceFile("a/main.go")
 			env.OpenFile("a/main.go")
@@ -130,10 +159,10 @@ go 1.12
 require example.com v1.2.3
 `
 
-	runMultiple{
-		{"default", withOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
-		{"nested", withOptions(ProxyFiles(proxy))},
-	}.run(t, mod, func(t *testing.T, env *Env) {
+	RunMultiple{
+		{"default", WithOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
+		{"nested", WithOptions(ProxyFiles(proxy))},
+	}.Run(t, mod, func(t *testing.T, env *Env) {
 		if strings.Contains(t.Name(), "workspace_module") {
 			t.Skip("workspace module mode doesn't set -mod=readonly")
 		}
@@ -183,10 +212,10 @@ go 1.12
 require random.org v1.2.3
 `
 
-	runMultiple{
-		{"default", withOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
-		{"nested", withOptions(ProxyFiles(proxy))},
-	}.run(t, mod, func(t *testing.T, env *Env) {
+	RunMultiple{
+		{"default", WithOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
+		{"nested", WithOptions(ProxyFiles(proxy))},
+	}.Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
@@ -236,10 +265,10 @@ go 1.12
 require example.com v1.2.3
 `
 
-	runMultiple{
-		{"default", withOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
-		{"nested", withOptions(ProxyFiles(proxy))},
-	}.run(t, mod, func(t *testing.T, env *Env) {
+	RunMultiple{
+		{"default", WithOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
+		{"nested", WithOptions(ProxyFiles(proxy))},
+	}.Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/go.mod")
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
@@ -281,10 +310,10 @@ func main() {}
 go 1.14
 `
 
-	runMultiple{
-		{"default", withOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
-		{"nested", withOptions(ProxyFiles(proxy))},
-	}.run(t, files, func(t *testing.T, env *Env) {
+	RunMultiple{
+		{"default", WithOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
+		{"nested", WithOptions(ProxyFiles(proxy))},
+	}.Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a/go.mod")
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
@@ -344,10 +373,10 @@ func _() {
     caire.RemoveTempImage()
 }`
 
-	runMultiple{
-		{"default", withOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
-		{"nested", withOptions(ProxyFiles(proxy))},
-	}.run(t, repro, func(t *testing.T, env *Env) {
+	RunMultiple{
+		{"default", WithOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
+		{"nested", WithOptions(ProxyFiles(proxy))},
+	}.Run(t, repro, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
@@ -394,10 +423,10 @@ package main
 func main() {
 	fmt.Println(blah.Name)
 `
-	runMultiple{
-		{"default", withOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
-		{"nested", withOptions(ProxyFiles(proxy))},
-	}.run(t, mod, func(t *testing.T, env *Env) {
+	RunMultiple{
+		{"default", WithOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
+		{"nested", WithOptions(ProxyFiles(proxy))},
+	}.Run(t, mod, func(t *testing.T, env *Env) {
 		env.Await(env.DiagnosticAtRegexp("a/go.mod", "require"))
 		env.RunGoCommandInDir("a", "mod", "tidy")
 		env.Await(
@@ -451,10 +480,10 @@ import "example.com/blah/v2"
 
 var _ = blah.Name
 `
-	runMultiple{
-		{"default", withOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
-		{"nested", withOptions(ProxyFiles(proxy))},
-	}.run(t, files, func(t *testing.T, env *Env) {
+	RunMultiple{
+		{"default", WithOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
+		{"nested", WithOptions(ProxyFiles(proxy))},
+	}.Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		env.OpenFile("a/go.mod")
 		var d protocol.PublishDiagnosticsParams
@@ -502,13 +531,13 @@ func main() {
 }
 `
 
-	runner := runMultiple{
-		{"default", withOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
-		{"nested", withOptions(ProxyFiles(proxy))},
+	runner := RunMultiple{
+		{"default", WithOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
+		{"nested", WithOptions(ProxyFiles(proxy))},
 	}
 	// Start from a bad state/bad IWL, and confirm that we recover.
 	t.Run("bad", func(t *testing.T) {
-		runner.run(t, unknown, func(t *testing.T, env *Env) {
+		runner.Run(t, unknown, func(t *testing.T, env *Env) {
 			env.OpenFile("a/go.mod")
 			env.Await(
 				env.DiagnosticAtRegexp("a/go.mod", "example.com v1.2.2"),
@@ -554,7 +583,7 @@ func main() {
 	// Start from a good state, transform to a bad state, and confirm that we
 	// still recover.
 	t.Run("good", func(t *testing.T) {
-		runner.run(t, known, func(t *testing.T, env *Env) {
+		runner.Run(t, known, func(t *testing.T, env *Env) {
 			env.OpenFile("a/go.mod")
 			env.Await(
 				env.DiagnosticAtRegexp("a/main.go", "x = "),
@@ -614,10 +643,10 @@ func main() {
 	println(blah.Name)
 }
 `
-	runMultiple{
-		{"default", withOptions(ProxyFiles(badProxy), WorkspaceFolders("a"))},
-		{"nested", withOptions(ProxyFiles(badProxy))},
-	}.run(t, module, func(t *testing.T, env *Env) {
+	RunMultiple{
+		{"default", WithOptions(ProxyFiles(badProxy), WorkspaceFolders("a"))},
+		{"nested", WithOptions(ProxyFiles(badProxy))},
+	}.Run(t, module, func(t *testing.T, env *Env) {
 		env.OpenFile("a/go.mod")
 		env.Await(
 			env.DiagnosticAtRegexp("a/go.mod", "require example.com v1.2.3"),
@@ -641,7 +670,7 @@ func main() {
 	println(blah.Name)
 }
 `
-	withOptions(
+	WithOptions(
 		EditorConfig{
 			Env: map[string]string{
 				"GOFLAGS": "-mod=readonly",
@@ -649,7 +678,7 @@ func main() {
 		},
 		ProxyFiles(proxy),
 		Modes(Singleton),
-	).run(t, mod, func(t *testing.T, env *Env) {
+	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		original := env.ReadWorkspaceFile("go.mod")
 		env.Await(
@@ -696,10 +725,10 @@ func main() {
 	blah.SaySomething()
 }
 `
-	withOptions(
+	WithOptions(
 		ProxyFiles(workspaceProxy),
 		Modes(Experimental),
-	).run(t, mod, func(t *testing.T, env *Env) {
+	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.Await(
 			env.DiagnosticAtRegexp("a/go.mod", "example.com v1.2.3"),
 			env.DiagnosticAtRegexp("b/go.mod", "module mod.com"),
@@ -726,12 +755,12 @@ func main() {
 	blah.SaySomething()
 }
 `
-	withOptions(
+	WithOptions(
 		ProxyFiles(workspaceProxy),
 		EditorConfig{
 			BuildFlags: []string{"-tags", "bob"},
 		},
-	).run(t, mod, func(t *testing.T, env *Env) {
+	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.Await(
 			env.DiagnosticAtRegexp("main.go", `"example.com/blah"`),
 		)
@@ -749,7 +778,7 @@ package main
 
 func main() {}
 `
-	run(t, mod, func(t *testing.T, env *Env) {
+	Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		env.RegexpReplace("go.mod", "module", "modul")
 		env.Await(
@@ -782,10 +811,10 @@ func main() {
 	println(blah.Name)
 }
 `
-	withOptions(
+	WithOptions(
 		Modes(Singleton), // workspace modules don't use -mod=readonly (golang/go#43346)
 		ProxyFiles(workspaceProxy),
-	).run(t, mod, func(t *testing.T, env *Env) {
+	).Run(t, mod, func(t *testing.T, env *Env) {
 		d := &protocol.PublishDiagnosticsParams{}
 		env.OpenFile("go.mod")
 		env.Await(
@@ -820,12 +849,12 @@ package main
 
 func hello() {}
 `
-	withOptions(
+	WithOptions(
 		// TODO(rFindley) this doesn't work in multi-module workspace mode, because
 		// it keeps around the last parsing modfile. Update this test to also
 		// exercise the workspace module.
 		Modes(Singleton),
-	).run(t, mod, func(t *testing.T, env *Env) {
+	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		env.Await(env.DoneWithOpen())
 		env.RegexpReplace("go.mod", "module", "modul")
@@ -891,9 +920,9 @@ package main
 
 func main() {}
 `
-		withOptions(
+		WithOptions(
 			ProxyFiles(proxy),
-		).run(t, mod, func(t *testing.T, env *Env) {
+		).Run(t, mod, func(t *testing.T, env *Env) {
 			d := &protocol.PublishDiagnosticsParams{}
 			env.Await(
 				OnceMet(
@@ -933,9 +962,9 @@ package main
 
 func main() {}
 `
-		withOptions(
+		WithOptions(
 			ProxyFiles(proxy),
-		).run(t, mod, func(t *testing.T, env *Env) {
+		).Run(t, mod, func(t *testing.T, env *Env) {
 			d := &protocol.PublishDiagnosticsParams{}
 			env.OpenFile("go.mod")
 			pos := env.RegexpSearch("go.mod", "require hasdep.com v1.2.3")
@@ -991,10 +1020,10 @@ func main() {
 	blah.Hello()
 }
 `
-	withOptions(
+	WithOptions(
 		ProxyFiles(workspaceProxy),
 		Modes(Singleton),
-	).run(t, mod, func(t *testing.T, env *Env) {
+	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		pos := env.RegexpSearch("go.mod", "example.com")
 		params := &protocol.PublishDiagnosticsParams{}

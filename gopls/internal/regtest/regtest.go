@@ -30,14 +30,14 @@ var (
 var runner *Runner
 
 type regtestRunner interface {
-	run(t *testing.T, files string, f TestFunc)
+	Run(t *testing.T, files string, f TestFunc)
 }
 
-func run(t *testing.T, files string, f TestFunc) {
+func Run(t *testing.T, files string, f TestFunc) {
 	runner.Run(t, files, f)
 }
 
-func withOptions(opts ...RunOption) configuredRunner {
+func WithOptions(opts ...RunOption) configuredRunner {
 	return configuredRunner{opts: opts}
 }
 
@@ -45,23 +45,35 @@ type configuredRunner struct {
 	opts []RunOption
 }
 
-func (r configuredRunner) run(t *testing.T, files string, f TestFunc) {
+func (r configuredRunner) Run(t *testing.T, files string, f TestFunc) {
 	runner.Run(t, files, f, r.opts...)
 }
 
-type runMultiple []struct {
-	name   string
-	runner regtestRunner
+type RunMultiple []struct {
+	Name   string
+	Runner regtestRunner
 }
 
-func (r runMultiple) run(t *testing.T, files string, f TestFunc) {
+func (r RunMultiple) Run(t *testing.T, files string, f TestFunc) {
 	for _, runner := range r {
-		t.Run(runner.name, func(t *testing.T) {
-			runner.runner.run(t, files, f)
+		t.Run(runner.Name, func(t *testing.T) {
+			runner.Runner.Run(t, files, f)
 		})
 	}
 }
-func TestMain(m *testing.M) {
+
+func DefaultModes() Mode {
+	if *runSubprocessTests {
+		return NormalModes | SeparateProcess
+	}
+	return NormalModes
+}
+
+// Main sets up and tears down the shared regtest state.
+//
+// TODO(rFindley): This is probably not necessary, and complicates things now
+//                 that we have multiple regtest suites. Consider removing.
+func Main(m *testing.M) {
 	flag.Parse()
 	if os.Getenv("_GOPLS_TEST_BINARY_RUN_AS_GOPLS") == "true" {
 		tool.Main(context.Background(), cmd.New("gopls", "", nil, nil), os.Args[1:])
@@ -69,7 +81,7 @@ func TestMain(m *testing.M) {
 	}
 
 	runner = &Runner{
-		DefaultModes:             NormalModes,
+		DefaultModes:             DefaultModes(),
 		Timeout:                  *regtestTimeout,
 		PrintGoroutinesOnFailure: *printGoroutinesOnFailure,
 		SkipCleanup:              *skipCleanup,
@@ -83,7 +95,6 @@ func TestMain(m *testing.M) {
 				panic(fmt.Sprintf("finding test binary path: %v", err))
 			}
 		}
-		runner.DefaultModes = NormalModes | SeparateProcess
 		runner.GoplsPath = goplsPath
 	}
 	dir, err := ioutil.TempDir("", "gopls-regtest-")
