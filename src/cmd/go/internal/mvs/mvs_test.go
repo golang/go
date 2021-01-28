@@ -28,9 +28,11 @@ D4: E2 F1
 D5: E2
 G1: C4
 A2: B1 C4 D4
-build A: A B1 C2 D4 E2 F1
-upgrade* A: A B1 C4 D5 E2 F1 G1
-upgrade A C4: A B1 C4 D4 E2 F1 G1
+build A:       A B1 C2 D4 E2 F1
+upgrade* A:    A B1 C4 D5 E2 F1 G1
+upgrade A C4:  A B1 C4 D4 E2 F1 G1
+build A2:     A2 B1 C4 D4 E2 F1 G1
+# BUG: selected versions E2 and F1 are not preserved.
 downgrade A2 D2: A2 C4 D2
 
 name: trim
@@ -68,7 +70,7 @@ B2: D1
 C: D2
 D1: E2
 D2: E1
-build A: A B1 C D2 E1
+build A:      A B1 C D2 E1
 upgrade A B2: A B2 C D2 E2
 
 name: cross1R
@@ -136,17 +138,17 @@ name: cross5
 A: D1
 D1: E2
 D2: E1
-build A: A D1 E2
-upgrade* A: A D2 E2
-upgrade A D2: A D2 E2
+build A:       A D1 E2
+upgrade* A:    A D2 E2
+upgrade A D2:  A D2 E2
 upgradereq A D2: D2 E2
 
 name: cross6
 A: D2
 D1: E2
 D2: E1
-build A: A D2 E1
-upgrade* A: A D2 E2
+build A:      A D2 E1
+upgrade* A:   A D2 E2
 upgrade A E2: A D2 E2
 
 name: cross7
@@ -175,7 +177,7 @@ B1: D1
 B2:
 C2:
 D2:
-build A: A B1 C1 D1
+build A:    A B1 C1 D1
 upgrade* A: A B2 C2 D2
 
 name: simplify
@@ -194,7 +196,7 @@ B4:
 B5.hidden:
 C2:
 C3:
-build A: A B1 C1
+build A:    A B1 C1
 upgrade* A: A B4 C3
 
 name: up2
@@ -206,14 +208,15 @@ B4:
 B5.hidden:
 C2:
 C3:
-build A: A B5.hidden C1
+build A:    A B5.hidden C1
 upgrade* A: A B5.hidden C3
 
 name: down1
 A: B2
 B1: C1
 B2: C2
-build A: A B2 C2
+build A:        A B2 C2
+# BUG: build list from downgrade omits selected version C1.
 downgrade A C1: A B1
 
 name: down2
@@ -227,12 +230,56 @@ D2: B2
 E2: D2
 E1:
 F1:
+build A:        A B2 C2 D2 E2 F2
+# BUG: selected versions C1 and D1 are not preserved, and
+# requested version F1 is not selected.
 downgrade A F1: A B1 E1
+
+# https://research.swtch.com/vgo-mvs#algorithm_4:
+# “[D]owngrades are constrained to only downgrade packages, not also upgrade
+# them; if an upgrade before downgrade is needed, the user must ask for it
+# explicitly.”
+#
+# Here, downgrading B2 to B1 upgrades C1 to C2, and C2 does not depend on D2.
+# However, C2 would be an upgrade — not a downgrade — so B1 must also be
+# rejected.
+name: downcross1
+A: B2 C1
+B1: C2
+B2: C1
+C1: D2
+C2:
+D1:
+D2:
+build A:        A B2 C1 D2
+# BUG: requested version D1 is not selected.
+downgrade A D1: A
+
+# https://research.swtch.com/vgo-mvs#algorithm_4:
+# “Unlike upgrades, downgrades must work by removing requirements, not adding
+# them.”
+#
+# However, downgrading a requirement may introduce a new requirement on a
+# previously-unrequired module. If each dependency's requirements are complete
+# (“tidy”), that can't change the behavior of any other package whose version is
+# not also being downgraded, so we should allow it.
+name: downcross2
+A: B2
+B1: C1
+B2: D2
+C1:
+D1:
+D2:
+build A:        A B2 D2
+# BUG: requested version D1 is not selected,
+# and selected version C1 is omitted from the returned build list.
+downgrade A D1: A B1
 
 name: downcycle
 A: A B2
 B2: A
 B1:
+build A:        A B2
 downgrade A B1: A B1
 
 # golang.org/issue/25542.
@@ -240,6 +287,7 @@ name: noprev1
 A: B4 C2
 B2.hidden:
 C2:
+build A:               A B4        C2
 downgrade A B2.hidden: A B2.hidden C2
 
 name: noprev2
@@ -247,6 +295,7 @@ A: B4 C2
 B2.hidden:
 B1:
 C2:
+build A:               A B4        C2
 downgrade A B2.hidden: A B2.hidden C2
 
 name: noprev3
@@ -254,6 +303,7 @@ A: B4 C2
 B3:
 B2.hidden:
 C2:
+build A:               A B4        C2
 downgrade A B2.hidden: A B2.hidden C2
 
 # Cycles involving the target.
@@ -264,9 +314,9 @@ A: B1
 B1: A1
 B2: A2
 B3: A3
-build A: A B1
+build A:      A B1
 upgrade A B2: A B2
-upgrade* A: A B3
+upgrade* A:   A B3
 
 # golang.org/issue/29773:
 # Requirements of older versions of the target
@@ -280,7 +330,7 @@ B2: A2
 C1: A2
 C2:
 D2:
-build A: A B1 C1 D1
+build A:    A B1 C1 D1
 upgrade* A: A B2 C2 D2
 
 # Cycles with multiple possible solutions.
@@ -293,23 +343,23 @@ B2: C2
 C1:
 C2: B2
 build M: M A1 B2 C2
-req M: A1 B2
-req M A: A1 B2
-req M C: A1 C2
+req M:     A1 B2
+req M A:   A1 B2
+req M C:   A1 C2
 
 # Requirement minimization.
 
 name: req1
 A: B1 C1 D1 E1 F1
 B1: C1 E1 F1
-req A: B1 D1
+req A:   B1    D1
 req A C: B1 C1 D1
 
 name: req2
 A: G1 H1
 G1: H1
 H1: G1
-req A: G1
+req A:   G1
 req A G: G1
 req A H: H1
 
@@ -326,7 +376,7 @@ M: Anone B1 D1 E1
 B1: Cnone D1
 E1: Fnone
 build M: M B1 D1 E1
-req M: B1 E1
+req M:     B1    E1
 
 name: reqdup
 M: A1 B1
