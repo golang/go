@@ -32,7 +32,6 @@ import (
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/typesinternal"
-	"golang.org/x/xerrors"
 	errors "golang.org/x/xerrors"
 )
 
@@ -718,6 +717,9 @@ func (s *snapshot) allKnownSubdirs(ctx context.Context) map[span.URI]struct{} {
 // the given directory. It does not respect symlinks.
 func (s *snapshot) knownFilesInDir(ctx context.Context, dir span.URI) []span.URI {
 	var files []span.URI
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	for uri := range s.files {
 		if source.InDir(dir.Filename(), uri.Filename()) {
 			files = append(files, uri)
@@ -1010,7 +1012,7 @@ func (s *snapshot) awaitLoaded(ctx context.Context) error {
 
 func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
 	loadErr := s.awaitLoadedAllErrors(ctx)
-	if xerrors.Is(loadErr, context.Canceled) {
+	if errors.Is(loadErr, context.Canceled) {
 		return nil
 	}
 
