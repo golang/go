@@ -285,11 +285,12 @@ netbsd_arm64)
 openbsd_386)
 	GOOSARCH_in="syscall_openbsd1.go syscall_openbsd_$GOARCH.go"
 	mkerrors="$mkerrors -m32"
-	mksyscall="./mksyscall.pl -l32 -openbsd"
+	mksyscall="./mksyscall.pl -l32 -openbsd -libc"
 	mksysctl="./mksysctl_openbsd.pl"
 	zsysctl="zsysctl_openbsd.go"
 	mksysnum="curl -s 'http://cvsweb.openbsd.org/cgi-bin/cvsweb/~checkout~/src/sys/kern/syscalls.master' | ./mksysnum_openbsd.pl"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+	mkasm="go run mkasm.go"
 	;;
 openbsd_amd64)
 	GOOSARCH_in="syscall_openbsd_libc.go syscall_openbsd_$GOARCH.go"
