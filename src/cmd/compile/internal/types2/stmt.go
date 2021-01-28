@@ -402,7 +402,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		}
 
 		var x operand
-		check.binary(&x, nil, lhs[0], rhs[0], s.Op, s.Pos())
+		check.binary(&x, nil, lhs[0], rhs[0], s.Op)
 		check.assignVar(lhs[0], &x)
 
 	// case *syntax.GoStmt:
