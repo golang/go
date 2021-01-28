@@ -293,10 +293,15 @@ func Req(target module.Version, base []string, reqs Reqs) ([]module.Version, err
 	}
 	// First walk the base modules that must be listed.
 	var min []module.Version
+	haveBase := map[string]bool{}
 	for _, path := range base {
+		if haveBase[path] {
+			continue
+		}
 		m := module.Version{Path: path, Version: max[path]}
 		min = append(min, m)
 		walk(m)
+		haveBase[path] = true
 	}
 	// Now the reverse postorder to bring in anything else.
 	for i := len(postorder) - 1; i >= 0; i-- {
