@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -132,16 +133,14 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
 	// overwrite the PC. (See issue #35773)
 	if r.ip() != 0 && r.ip() != funcPC(asyncPreempt) {
 		sp := unsafe.Pointer(r.sp())
-		sp = add(sp, ^(unsafe.Sizeof(uintptr(0)) - 1)) // sp--
+		delta := uintptr(sys.StackAlign)
+		sp = add(sp, -delta)
 		r.set_sp(uintptr(sp))
-		switch GOARCH {
-		default:
-			panic("unsupported architecture")
-		case "386", "amd64":
-			*((*uintptr)(sp)) = r.ip()
-		case "arm":
+		if usesLR {
 			*((*uintptr)(sp)) = r.lr()
 			r.set_lr(r.ip())
+		} else {
+			*((*uintptr)(sp)) = r.ip()
 		}
 	}
 	r.set_ip(funcPC(sigpanic))
