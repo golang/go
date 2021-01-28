@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	exec "golang.org/x/sys/execabs"
 	"io"
 	"io/ioutil"
 	"os"
@@ -23,6 +22,7 @@ import (
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
+	exec "golang.org/x/sys/execabs"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
@@ -581,7 +581,9 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 					ErrorList: modErrors,
 				}
 			} else {
-				s.initializedErr = err
+				s.initializedErr = &source.CriticalError{
+					MainError: err,
+				}
 			}
 		} else {
 			// Clear out the initialization error, in case it had been set

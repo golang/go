@@ -60,7 +60,7 @@ type snapshot struct {
 	// initializedErr holds the last error resulting from initialization. If
 	// initialization fails, we only retry when the the workspace modules change,
 	// to avoid too many go/packages calls.
-	initializedErr error
+	initializedErr *source.CriticalError
 
 	// mu guards all of the maps in the snapshot.
 	mu sync.Mutex
@@ -1012,7 +1012,7 @@ func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
 		wsPkgs, _ := s.WorkspacePackages(ctx)
 		if msg := shouldShowAdHocPackagesWarning(s, wsPkgs); msg != "" {
 			return &source.CriticalError{
-				MainError: fmt.Errorf(msg),
+				MainError: errors.New(msg),
 			}
 		}
 		// Even if workspace packages were returned, there still may be an error
@@ -1084,7 +1084,10 @@ func (s *snapshot) awaitLoadedAllErrors(ctx context.Context) error {
 	// TODO(rstambler): Should we be more careful about returning the
 	// initialization error? Is it possible for the initialization error to be
 	// corrected without a successful reinitialization?
-	return s.initializedErr
+	if s.initializedErr == nil {
+		return nil
+	}
+	return s.initializedErr.MainError
 }
 
 func (s *snapshot) AwaitInitialized(ctx context.Context) {

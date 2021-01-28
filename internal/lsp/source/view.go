@@ -556,15 +556,10 @@ type Package interface {
 }
 
 type CriticalError struct {
+	// MainError is the primary error. Must be non-nil.
 	MainError error
+	// ErrorList contains any supplemental (structured) errors.
 	ErrorList []*Error
-}
-
-func (err *CriticalError) Error() string {
-	if err.MainError == nil {
-		return ""
-	}
-	return err.MainError.Error()
 }
 
 // An Error corresponds to an LSP Diagnostic.
@@ -600,13 +595,6 @@ const (
 	Analysis
 	UpgradeNotification
 )
-
-func (e *Error) Error() string {
-	if e.URI == "" {
-		return e.Message
-	}
-	return fmt.Sprintf("%s:%s: %s", e.URI, e.Range, e.Message)
-}
 
 var (
 	PackagesLoadError = errors.New("packages.Load error")

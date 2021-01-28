@@ -350,13 +350,9 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Sn
 	// status bar.
 	var errMsg string
 	if err != nil {
-		event.Error(ctx, "errors loading workspace", err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
-
-		// Some error messages can also be displayed as diagnostics.
-		if criticalErr := (*source.CriticalError)(nil); errors.As(err, &criticalErr) {
-			s.storeErrorDiagnostics(ctx, snapshot, modSource, criticalErr.ErrorList)
-		}
-		errMsg = strings.Replace(err.Error(), "\n", " ", -1)
+		event.Error(ctx, "errors loading workspace", err.MainError, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
+		s.storeErrorDiagnostics(ctx, snapshot, modSource, err.ErrorList)
+		errMsg = strings.Replace(err.MainError.Error(), "\n", " ", -1)
 	}
 
 	if s.criticalErrorStatus == nil {
