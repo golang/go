@@ -8,5 +8,5 @@ const (
 	_ = 6e886451608i /* ERROR malformed constant */ /2
 	_ = 0 * 1e+1000000000 // ERROR malformed constant
 	x = 1e100000000
-	_ = x*x*x*x*x*x*x /* ERROR not representable */ // TODO(gri) this error should be at the last *
+	_ = x*x*x*x*x*x* /* ERROR not representable */ x
 )
