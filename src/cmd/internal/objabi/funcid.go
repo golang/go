@@ -6,13 +6,22 @@ package objabi
 
 import "strings"
 
+// A FuncFlag records bits about a function, passed to the runtime.
+type FuncFlag uint8
+
+// Note: This list must match the list in runtime/symtab.go.
+const (
+	FuncFlag_TOPFRAME = 1 << iota
+	FuncFlag_SPWRITE
+)
+
 // A FuncID identifies particular functions that need to be treated
 // specially by the runtime.
 // Note that in some situations involving plugins, there may be multiple
 // copies of a particular special runtime function.
-// Note: this list must match the list in runtime/symtab.go.
 type FuncID uint8
 
+// Note: this list must match the list in runtime/symtab.go.
 const (
 	FuncID_normal FuncID = iota // not a special function
 	FuncID_asmcgocall

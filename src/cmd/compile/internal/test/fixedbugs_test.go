@@ -75,7 +75,7 @@ func TestIssue16214(t *testing.T) {
 	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-S", "-o", filepath.Join(dir, "out.o"), src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("fail to run go tool compile: %v", err)
+		t.Fatalf("go tool compile: %v\n%s", err, out)
 	}
 
 	if strings.Contains(string(out), "unknown line number") {
