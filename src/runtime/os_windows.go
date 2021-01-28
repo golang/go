@@ -236,6 +236,8 @@ func windowsLoadSystemLib(name []byte) uintptr {
 	}
 }
 
+const haveCputicksAsm = GOARCH == "386" || GOARCH == "amd64"
+
 func loadOptionalSyscalls() {
 	var kernel32dll = []byte("kernel32.dll\000")
 	k32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&kernel32dll[0])))
@@ -262,7 +264,7 @@ func loadOptionalSyscalls() {
 	}
 	_NtWaitForSingleObject = windowsFindfunc(n32, []byte("NtWaitForSingleObject\000"))
 
-	if GOARCH == "arm" {
+	if !haveCputicksAsm {
 		_QueryPerformanceCounter = windowsFindfunc(k32, []byte("QueryPerformanceCounter\000"))
 		if _QueryPerformanceCounter == nil {
 			throw("could not find QPC syscalls")
@@ -452,8 +454,10 @@ func createHighResTimer() uintptr {
 		_SYNCHRONIZE|_TIMER_QUERY_STATE|_TIMER_MODIFY_STATE)
 }
 
+const highResTimerSupported = GOARCH == "386" || GOARCH == "amd64"
+
 func initHighResTimer() {
-	if GOARCH == "arm" {
+	if !highResTimerSupported {
 		// TODO: Not yet implemented.
 		return
 	}
@@ -1217,14 +1221,14 @@ func setThreadCPUProfiler(hz int32) {
 	atomic.Store((*uint32)(unsafe.Pointer(&getg().m.profilehz)), uint32(hz))
 }
 
-const preemptMSupported = GOARCH != "arm"
+const preemptMSupported = GOARCH == "386" || GOARCH == "amd64"
 
 // suspendLock protects simultaneous SuspendThread operations from
 // suspending each other.
 var suspendLock mutex
 
 func preemptM(mp *m) {
-	if GOARCH == "arm" {
+	if !preemptMSupported {
 		// TODO: Implement call injection
 		return
 	}
