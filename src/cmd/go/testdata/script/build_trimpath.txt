@@ -121,6 +121,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -130,7 +131,7 @@ import (
 
 func main() {
 	exe := os.Args[1]
-	data, err := os.ReadFile(exe)
+	data, err := ioutil.ReadFile(exe)
 	if err != nil {
 		log.Fatal(err)
 	}
