@@ -84,7 +84,7 @@ GLOBL _rt0_s390x_lib_argc<>(SB), NOPTR, $8
 DATA _rt0_s90x_lib_argv<>(SB)/8, $0
 GLOBL _rt0_s390x_lib_argv<>(SB), NOPTR, $8
 
-TEXT runtime·rt0_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// R2 = argc; R3 = argv; R11 = temp; R13 = g; R15 = stack pointer
 	// C TLS base pointer in AR0:AR1
 
@@ -169,6 +169,10 @@ TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
 
 TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
 	RET
+
+TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	runtime·mstart0(SB)
+	RET // not reached
 
 /*
  *  go-routine

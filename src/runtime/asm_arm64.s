@@ -8,7 +8,7 @@
 #include "funcdata.h"
 #include "textflag.h"
 
-TEXT runtime·rt0_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// SP = stack; R0 = argc; R1 = argv
 
 	SUB	$32, RSP
@@ -108,6 +108,10 @@ TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
 
 TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
 	RET
+
+TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	BL	runtime·mstart0(SB)
+	RET // not reached
 
 /*
  *  go-routine

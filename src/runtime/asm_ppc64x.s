@@ -16,7 +16,7 @@
 #define cgoCalleeStackSize 32
 #endif
 
-TEXT runtime·rt0_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// R1 = stack; R3 = argc; R4 = argv; R13 = C TLS base pointer
 
 	// initialize essential registers
@@ -123,6 +123,10 @@ TEXT runtime·reginit(SB),NOSPLIT|NOFRAME,$0-0
 	// set R0 to zero, it's expected by the toolchain
 	XOR R0, R0
 	RET
+
+TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	BL	runtime·mstart0(SB)
+	RET // not reached
 
 /*
  *  go-routine

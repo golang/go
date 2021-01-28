@@ -112,7 +112,7 @@ GLOBL _rt0_arm_lib_argv<>(SB),NOPTR,$4
 
 // using NOFRAME means do not save LR on stack.
 // argc is in R0, argv is in R1.
-TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	MOVW	$0xcafebabe, R12
 
 	// copy arguments forward on an even stack
@@ -201,6 +201,10 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
 	BIC	$(1<<24), R11
 	WORD	$0xeee1ba10	// vmsr fpscr, r11
 	RET
+
+TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	BL	runtime·mstart0(SB)
+	RET // not reached
 
 /*
  *  go-routine

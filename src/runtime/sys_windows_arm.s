@@ -257,7 +257,7 @@ TEXT runtime·profileloop(SB),NOSPLIT|NOFRAME,$0
 // 0 | retval         |
 //   +----------------+
 //
-TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	MOVM.DB.W [R4-R11, R14], (R13)		// push {r4-r11, lr}
 	SUB	$(m__size + g__size + 20), R13	// space for locals
 	MOVW	R0, 12(R13)

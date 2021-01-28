@@ -215,7 +215,7 @@ TEXT runtime·profileloop(SB),NOSPLIT|NOFRAME,$8
 	CALL	runtime·externalthreadhandler(SB)
 	RET
 
-TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
 	PUSHQ	BX

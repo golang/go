@@ -11,7 +11,7 @@
 
 #define	REGCTXT	R22
 
-TEXT runtime·rt0_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// R29 = stack; R4 = argc; R5 = argv
 
 	ADDU	$-12, R29
@@ -85,6 +85,10 @@ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 
 TEXT runtime·asminit(SB),NOSPLIT,$0-0
 	RET
+
+TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	JAL	runtime·mstart0(SB)
+	RET // not reached
 
 /*
  *  go-routine
