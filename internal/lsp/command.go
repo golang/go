@@ -252,8 +252,8 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 	case source.CommandRemoveDependency:
 		var uri protocol.DocumentURI
 		var modulePath string
-		var onlyError bool
-		if err := source.UnmarshalArgs(args, &uri, &onlyError, &modulePath); err != nil {
+		var onlyDiagnostic bool
+		if err := source.UnmarshalArgs(args, &uri, &onlyDiagnostic, &modulePath); err != nil {
 			return err
 		}
 		snapshot, fh, ok, release, err := s.beginFileRequest(ctx, uri, source.UnknownKind)
@@ -266,7 +266,7 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		// must make textual edits.
 		// TODO(rstambler): In Go 1.17+, we will be able to use the go command
 		// without checking if the module is tidy.
-		if onlyError {
+		if onlyDiagnostic {
 			if err := s.runGoGetModule(ctx, snapshot, uri.SpanURI(), false, []string{modulePath + "@none"}); err != nil {
 				return err
 			}

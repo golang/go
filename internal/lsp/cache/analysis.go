@@ -23,7 +23,7 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func (s *snapshot) Analyze(ctx context.Context, id string, analyzers ...*analysis.Analyzer) ([]*source.Error, error) {
+func (s *snapshot) Analyze(ctx context.Context, id string, analyzers ...*analysis.Analyzer) ([]*source.Diagnostic, error) {
 	var roots []*actionHandle
 
 	for _, a := range analyzers {
@@ -39,7 +39,7 @@ func (s *snapshot) Analyze(ctx context.Context, id string, analyzers ...*analysi
 		return nil, ctx.Err()
 	}
 
-	var results []*source.Error
+	var results []*source.Diagnostic
 	for _, ah := range roots {
 		diagnostics, _, err := ah.analyze(ctx, s)
 		if err != nil {
@@ -64,7 +64,7 @@ type actionHandle struct {
 }
 
 type actionData struct {
-	diagnostics  []*source.Error
+	diagnostics  []*source.Diagnostic
 	result       interface{}
 	objectFacts  map[objectFactKey]analysis.Fact
 	packageFacts map[packageFactKey]analysis.Fact
@@ -150,7 +150,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, a *analysis.A
 	return act, nil
 }
 
-func (act *actionHandle) analyze(ctx context.Context, snapshot *snapshot) ([]*source.Error, interface{}, error) {
+func (act *actionHandle) analyze(ctx context.Context, snapshot *snapshot) ([]*source.Diagnostic, interface{}, error) {
 	d, err := act.handle.Get(ctx, snapshot.generation, snapshot)
 	if err != nil {
 		return nil, nil, err
@@ -323,7 +323,7 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 	analysisinternal.SetTypeErrors(pass, pkg.typeErrors)
 
 	if pkg.IsIllTyped() {
-		data.err = errors.Errorf("analysis skipped due to errors in package: %v", pkg.GetErrors())
+		data.err = errors.Errorf("analysis skipped due to errors in package: %v", pkg.GetDiagnostics())
 		return data
 	}
 	data.result, data.err = pass.Analyzer.Run(pass)
@@ -347,7 +347,7 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 	}
 
 	for _, diag := range diagnostics {
-		srcErr, err := sourceError(ctx, snapshot, pkg, diag)
+		srcErr, err := sourceDiagnostic(ctx, snapshot, pkg, diag)
 		if err != nil {
 			event.Error(ctx, "unable to compute analysis error position", err, tag.Category.Of(diag.Category), tag.Package.Of(pkg.ID()))
 			continue

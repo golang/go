@@ -14,18 +14,6 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-type Diagnostic struct {
-	Range    protocol.Range
-	Message  string
-	Source   string
-	Code     string
-	CodeHref string
-	Severity protocol.DiagnosticSeverity
-	Tags     []protocol.DiagnosticTag
-
-	Related []RelatedInformation
-}
-
 type SuggestedFix struct {
 	Title   string
 	Edits   map[span.URI][]protocol.TextEdit
@@ -48,7 +36,7 @@ func GetTypeCheckDiagnostics(ctx context.Context, snapshot Snapshot, pkg Package
 	}
 
 	// Prepare any additional reports for the errors in this package.
-	for _, e := range pkg.GetErrors() {
+	for _, e := range pkg.GetDiagnostics() {
 		// We only need to handle lower-level errors.
 		if e.Kind != ListError {
 			continue
@@ -173,12 +161,12 @@ type diagnosticSet struct {
 }
 
 func typeCheckDiagnostics(ctx context.Context, snapshot Snapshot, pkg Package) TypeCheckDiagnostics {
-	ctx, done := event.Start(ctx, "source.diagnostics", tag.Package.Of(pkg.ID()))
+	ctx, done := event.Start(ctx, "source.typeCheckDiagnostics", tag.Package.Of(pkg.ID()))
 	_ = ctx // circumvent SA4006
 	defer done()
 
 	diagSets := make(map[span.URI]*diagnosticSet)
-	for _, e := range pkg.GetErrors() {
+	for _, e := range pkg.GetDiagnostics() {
 		diag := &Diagnostic{
 			Message:  e.Message,
 			Range:    e.Range,

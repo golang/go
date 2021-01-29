@@ -207,7 +207,7 @@ Improvements to this workflow will be coming soon, and you can learn more here:
 https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`
 		return &source.CriticalError{
 			MainError: errors.Errorf(msg),
-			ErrorList: s.applyCriticalErrorToFiles(ctx, msg, openFiles),
+			DiagList:  s.applyCriticalErrorToFiles(ctx, msg, openFiles),
 		}
 	}
 
@@ -231,29 +231,29 @@ https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`
 		// Add a diagnostic to each file in a nested module to mark it as
 		// "orphaned". Don't show a general diagnostic in the progress bar,
 		// because the user may still want to edit a file in a nested module.
-		var srcErrs []*source.Error
+		var srcDiags []*source.Diagnostic
 		for modDir, uris := range nestedModules {
 			msg := fmt.Sprintf(`This file is in %s, which is a nested module in the %s module.
 gopls currently requires one module per workspace folder.
 Please open %s as a separate workspace folder.
 You can learn more here: https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.
 `, modDir, filepath.Dir(rootModURI.Filename()), modDir)
-			srcErrs = append(srcErrs, s.applyCriticalErrorToFiles(ctx, msg, uris)...)
+			srcDiags = append(srcDiags, s.applyCriticalErrorToFiles(ctx, msg, uris)...)
 		}
-		if len(srcErrs) != 0 {
+		if len(srcDiags) != 0 {
 			return &source.CriticalError{
 				MainError: errors.Errorf(`You are working in a nested module.
 Please open it as a separate workspace folder. Learn more:
 https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`),
-				ErrorList: srcErrs,
+				DiagList: srcDiags,
 			}
 		}
 	}
 	return nil
 }
 
-func (s *snapshot) applyCriticalErrorToFiles(ctx context.Context, msg string, files []source.VersionedFileHandle) []*source.Error {
-	var srcErrs []*source.Error
+func (s *snapshot) applyCriticalErrorToFiles(ctx context.Context, msg string, files []source.VersionedFileHandle) []*source.Diagnostic {
+	var srcDiags []*source.Diagnostic
 	for _, fh := range files {
 		// Place the diagnostics on the package or module declarations.
 		var rng protocol.Range
@@ -272,14 +272,14 @@ func (s *snapshot) applyCriticalErrorToFiles(ctx context.Context, msg string, fi
 				}
 			}
 		}
-		srcErrs = append(srcErrs, &source.Error{
+		srcDiags = append(srcDiags, &source.Diagnostic{
 			URI:     fh.URI(),
 			Range:   rng,
 			Kind:    source.ListError,
 			Message: msg,
 		})
 	}
-	return srcErrs
+	return srcDiags
 }
 
 type workspaceDirKey string

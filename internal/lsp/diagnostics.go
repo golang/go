@@ -351,7 +351,7 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Sn
 	var errMsg string
 	if err != nil {
 		event.Error(ctx, "errors loading workspace", err.MainError, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
-		s.storeErrorDiagnostics(ctx, snapshot, modSource, err.ErrorList)
+		s.storeErrorDiagnostics(ctx, snapshot, modSource, err.DiagList)
 		errMsg = strings.Replace(err.MainError.Error(), "\n", " ", -1)
 	}
 
@@ -409,18 +409,18 @@ Otherwise, see the troubleshooting guidelines for help investigating (https://gi
 	}
 }
 
-func (s *Server) storeErrorDiagnostics(ctx context.Context, snapshot source.Snapshot, dsource diagnosticSource, errors []*source.Error) {
-	for _, e := range errors {
+func (s *Server) storeErrorDiagnostics(ctx context.Context, snapshot source.Snapshot, dsource diagnosticSource, diagnostics []*source.Diagnostic) {
+	for _, d := range diagnostics {
 		diagnostic := &source.Diagnostic{
-			Range:    e.Range,
-			Message:  e.Message,
-			Related:  e.Related,
+			Range:    d.Range,
+			Message:  d.Message,
+			Related:  d.Related,
 			Severity: protocol.SeverityError,
-			Source:   e.Category,
-			Code:     e.Code,
-			CodeHref: e.CodeHref,
+			Source:   d.Category,
+			Code:     d.Code,
+			CodeHref: d.CodeHref,
 		}
-		s.storeDiagnostics(snapshot, e.URI, dsource, []*source.Diagnostic{diagnostic})
+		s.storeDiagnostics(snapshot, d.URI, dsource, []*source.Diagnostic{diagnostic})
 	}
 }
 

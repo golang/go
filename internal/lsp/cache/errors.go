@@ -26,7 +26,7 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{}) (*source.Error, error) {
+func sourceDiagnostic(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{}) (*source.Diagnostic, error) {
 	fset := snapshot.view.session.cache.fset
 	var (
 		spn           span.Span
@@ -50,7 +50,7 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 
 			// We may not have been able to parse a valid span.
 			if _, err := spanToRange(snapshot, pkg, spn); err != nil {
-				return &source.Error{
+				return &source.Diagnostic{
 					URI:     spn.URI(),
 					Message: msg,
 					Kind:    kind,
@@ -145,7 +145,7 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 	if err != nil {
 		return nil, err
 	}
-	se := &source.Error{
+	sd := &source.Diagnostic{
 		URI:            spn.URI(),
 		Range:          rng,
 		Message:        msg,
@@ -155,10 +155,10 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 		Related:        related,
 	}
 	if code != 0 {
-		se.Code = code.String()
-		se.CodeHref = typesCodeHref(snapshot, code)
+		sd.Code = code.String()
+		sd.CodeHref = typesCodeHref(snapshot, code)
 	}
-	return se, nil
+	return sd, nil
 }
 
 func typesCodeHref(snapshot *snapshot, code typesinternal.ErrorCode) string {

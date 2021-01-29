@@ -67,10 +67,10 @@ func (s *snapshot) ParseMod(ctx context.Context, modFH source.FileHandle) (*sour
 		file, err := modfile.Parse(modFH.URI().Filename(), contents, nil)
 
 		// Attempt to convert the error to a standardized parse error.
-		var parseErrors []*source.Error
+		var parseErrors []*source.Diagnostic
 		if err != nil {
 			if parseErr := extractErrorWithPosition(ctx, err.Error(), s); parseErr != nil {
-				parseErrors = []*source.Error{parseErr}
+				parseErrors = []*source.Diagnostic{parseErr}
 			}
 		}
 		return &parseModData{
@@ -218,8 +218,8 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 
 // extractGoCommandError tries to parse errors that come from the go command
 // and shape them into go.mod diagnostics.
-func (s *snapshot) extractGoCommandErrors(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, goCmdError string) []*source.Error {
-	var srcErrs []*source.Error
+func (s *snapshot) extractGoCommandErrors(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, goCmdError string) []*source.Diagnostic {
+	var srcErrs []*source.Diagnostic
 	if srcErr := s.parseModError(ctx, fh, goCmdError); srcErr != nil {
 		srcErrs = append(srcErrs, srcErr)
 	}
@@ -245,7 +245,7 @@ var moduleVersionInErrorRe = regexp.MustCompile(`[:\s]([+-._~0-9A-Za-z]+)@([+-._
 // We search for module@version, starting from the end to find the most
 // relevant module, e.g. random.org@v1.2.3 above. Then we associate the error
 // with a directive that references any of the modules mentioned.
-func (s *snapshot) matchErrorToModule(ctx context.Context, fh source.FileHandle, goCmdError string) *source.Error {
+func (s *snapshot) matchErrorToModule(ctx context.Context, fh source.FileHandle, goCmdError string) *source.Diagnostic {
 	pm, err := s.ParseMod(ctx, fh)
 	if err != nil {
 		return nil
@@ -314,7 +314,7 @@ outer:
 		if disabledByGOPROXY {
 			msg = fmt.Sprintf("%v@%v has not been downloaded", innermost.Path, innermost.Version)
 		}
-		return &source.Error{
+		return &source.Diagnostic{
 			Message: msg,
 			Kind:    source.ListError,
 			Range:   rng,
@@ -329,7 +329,7 @@ outer:
 			}},
 		}
 	}
-	return &source.Error{
+	return &source.Diagnostic{
 		Message: goCmdError,
 		Range:   rng,
 		URI:     fh.URI(),
@@ -345,7 +345,7 @@ var errorPositionRe = regexp.MustCompile(`(?P<pos>.*:([\d]+)(:([\d]+))?): (?P<ms
 // information for the given unstructured error. If a file handle is provided,
 // the error position will be on that file. This is useful for parse errors,
 // where we already know the file with the error.
-func extractErrorWithPosition(ctx context.Context, goCmdError string, src source.FileSource) *source.Error {
+func extractErrorWithPosition(ctx context.Context, goCmdError string, src source.FileSource) *source.Diagnostic {
 	matches := errorPositionRe.FindStringSubmatch(strings.TrimSpace(goCmdError))
 	if len(matches) == 0 {
 		return nil
@@ -381,7 +381,7 @@ func extractErrorWithPosition(ctx context.Context, goCmdError string, src source
 	if fh != nil {
 		category = SyntaxError
 	}
-	return &source.Error{
+	return &source.Diagnostic{
 		Category: category,
 		Message:  msg,
 		Range:    rng,

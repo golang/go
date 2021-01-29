@@ -539,9 +539,9 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 
 		// If we have multiple modules, we need to load them by paths.
 		var scopes []interface{}
-		var modErrors []*source.Error
+		var modDiagnostics []*source.Diagnostic
 		addError := func(uri span.URI, err error) {
-			modErrors = append(modErrors, &source.Error{
+			modDiagnostics = append(modDiagnostics, &source.Diagnostic{
 				URI:      uri,
 				Category: "compiler",
 				Kind:     source.ListError,
@@ -575,10 +575,10 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 		}
 		if err != nil {
 			event.Error(ctx, "initial workspace load failed", err)
-			if modErrors != nil {
+			if modDiagnostics != nil {
 				s.initializedErr = &source.CriticalError{
-					MainError: errors.Errorf("errors loading modules: %v: %w", err, modErrors),
-					ErrorList: modErrors,
+					MainError: errors.Errorf("errors loading modules: %v: %w", err, modDiagnostics),
+					DiagList:  modDiagnostics,
 				}
 			} else {
 				s.initializedErr = &source.CriticalError{

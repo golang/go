@@ -1037,7 +1037,7 @@ func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
 		if err != nil {
 			continue
 		}
-		criticalErr.ErrorList = append(criticalErr.ErrorList, s.extractGoCommandErrors(ctx, s, fh, loadErr.Error())...)
+		criticalErr.DiagList = append(criticalErr.DiagList, s.extractGoCommandErrors(ctx, s, fh, loadErr.Error())...)
 	}
 	return criticalErr
 }

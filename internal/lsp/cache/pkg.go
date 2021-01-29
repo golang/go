@@ -20,7 +20,7 @@ type pkg struct {
 	mode            source.ParseMode
 	goFiles         []*source.ParsedGoFile
 	compiledGoFiles []*source.ParsedGoFile
-	errors          []*source.Error
+	diagnostics     []*source.Diagnostic
 	imports         map[packagePath]*pkg
 	version         *module.Version
 	typeErrors      []types.Error
@@ -84,8 +84,8 @@ func (p *pkg) GetSyntax() []*ast.File {
 	return syntax
 }
 
-func (p *pkg) GetErrors() []*source.Error {
-	return p.errors
+func (p *pkg) GetDiagnostics() []*source.Diagnostic {
+	return p.diagnostics
 }
 
 func (p *pkg) GetTypes() *types.Package {

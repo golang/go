@@ -27,7 +27,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.Vers
 			return nil, err
 		}
 		reports[fh.VersionedFileIdentity()] = []*source.Diagnostic{}
-		errors, err := ErrorsForMod(ctx, snapshot, fh)
+		errors, err := DiagnosticsForMod(ctx, snapshot, fh)
 		if err != nil {
 			return nil, err
 		}
@@ -55,7 +55,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.Vers
 	return reports, nil
 }
 
-func ErrorsForMod(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]*source.Error, error) {
+func DiagnosticsForMod(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]*source.Diagnostic, error) {
 	pm, err := snapshot.ParseMod(ctx, fh)
 	if err != nil {
 		if pm == nil || len(pm.ParseErrors) == 0 {
@@ -64,7 +64,7 @@ func ErrorsForMod(ctx context.Context, snapshot source.Snapshot, fh source.FileH
 		return pm.ParseErrors, nil
 	}
 
-	var errors []*source.Error
+	var diagnostics []*source.Diagnostic
 
 	// Add upgrade quick fixes for individual modules if we know about them.
 	upgrades := snapshot.View().ModuleUpgrades()
@@ -82,7 +82,7 @@ func ErrorsForMod(ctx context.Context, snapshot source.Snapshot, fh source.FileH
 		if err != nil {
 			return nil, err
 		}
-		errors = append(errors, &source.Error{
+		diagnostics = append(diagnostics, &source.Diagnostic{
 			URI:     fh.URI(),
 			Range:   rng,
 			Kind:    source.UpgradeNotification,
@@ -101,11 +101,11 @@ func ErrorsForMod(ctx context.Context, snapshot source.Snapshot, fh source.FileH
 	tidied, err := snapshot.ModTidy(ctx, pm)
 
 	if source.IsNonFatalGoModError(err) {
-		return errors, nil
+		return diagnostics, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	errors = append(errors, tidied.Errors...)
-	return errors, nil
+	diagnostics = append(diagnostics, tidied.Diagnostics...)
+	return diagnostics, nil
 }

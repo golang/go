@@ -84,7 +84,7 @@ type Snapshot interface {
 	PosToDecl(ctx context.Context, pgf *ParsedGoFile) (map[token.Pos]ast.Decl, error)
 
 	// Analyze runs the analyses for the given package at this snapshot.
-	Analyze(ctx context.Context, pkgID string, analyzers ...*analysis.Analyzer) ([]*Error, error)
+	Analyze(ctx context.Context, pkgID string, analyzers ...*analysis.Analyzer) ([]*Diagnostic, error)
 
 	// RunGoCommandPiped runs the given `go` command, writing its output
 	// to stdout and stderr. Verb, Args, and WorkingDir must be specified.
@@ -266,13 +266,13 @@ type ParsedModule struct {
 	URI         span.URI
 	File        *modfile.File
 	Mapper      *protocol.ColumnMapper
-	ParseErrors []*Error
+	ParseErrors []*Diagnostic
 }
 
 // A TidiedModule contains the results of running `go mod tidy` on a module.
 type TidiedModule struct {
 	// Diagnostics representing changes made by `go mod tidy`.
-	Errors []*Error
+	Diagnostics []*Diagnostic
 	// The bytes of the go.mod file after it was tidied.
 	TidiedContent []byte
 }
@@ -543,7 +543,7 @@ type Package interface {
 	CompiledGoFiles() []*ParsedGoFile
 	File(uri span.URI) (*ParsedGoFile, error)
 	GetSyntax() []*ast.File
-	GetErrors() []*Error
+	GetDiagnostics() []*Diagnostic
 	GetTypes() *types.Package
 	GetTypesInfo() *types.Info
 	GetTypesSizes() types.Sizes
@@ -558,23 +558,27 @@ type Package interface {
 type CriticalError struct {
 	// MainError is the primary error. Must be non-nil.
 	MainError error
-	// ErrorList contains any supplemental (structured) errors.
-	ErrorList []*Error
+	// DiagList contains any supplemental (structured) diagnostics.
+	DiagList []*Diagnostic
 }
 
-// An Error corresponds to an LSP Diagnostic.
+// An Diagnostic corresponds to an LSP Diagnostic.
 // https://microsoft.github.io/language-server-protocol/specification#diagnostic
-type Error struct {
+type Diagnostic struct {
 	URI      span.URI
 	Range    protocol.Range
-	Kind     ErrorKind
-	Message  string
-	Category string // only used by analysis errors so far
-
-	Related []RelatedInformation
-
+	Severity protocol.DiagnosticSeverity
 	Code     string
 	CodeHref string
+
+	Source   string
+	Kind     ErrorKind
+	Category string // only used by analysis errors so far
+
+	Message string
+
+	Tags    []protocol.DiagnosticTag
+	Related []RelatedInformation
 
 	// SuggestedFixes is used to generate quick fixes for a CodeAction request.
 	// It isn't part of the Diagnostic type.
