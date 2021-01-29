@@ -100,6 +100,12 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 
 		return types.NewInterface(g.tpkg(typ), append(embeddeds, methods...))
 
+	case *types2.TypeParam:
+		tp := types.NewTypeParam(g.tpkg(typ), g.typ(typ.Bound()))
+		// Save the name of the type parameter in the sym of the type.
+		tp.SetSym(g.sym(typ.Obj()))
+		return tp
+
 	default:
 		base.FatalfAt(src.NoXPos, "unhandled type: %v (%T)", typ, typ)
 		panic("unreachable")
@@ -107,6 +113,13 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 }
 
 func (g *irgen) signature(recv *types.Field, sig *types2.Signature) *types.Type {
+	tparams2 := sig.TParams()
+	tparams := make([]*types.Field, len(tparams2))
+	for i := range tparams {
+		tp := tparams2[i]
+		tparams[i] = types.NewField(g.pos(tp), g.sym(tp), g.typ(tp.Type()))
+	}
+
 	do := func(typ *types2.Tuple) []*types.Field {
 		fields := make([]*types.Field, typ.Len())
 		for i := range fields {
@@ -114,14 +127,13 @@ func (g *irgen) signature(recv *types.Field, sig *types2.Signature) *types.Type 
 		}
 		return fields
 	}
-
 	params := do(sig.Params())
 	results := do(sig.Results())
 	if sig.Variadic() {
 		params[len(params)-1].SetIsDDD(true)
 	}
 
-	return types.NewSignature(g.tpkg(sig), recv, nil, params, results)
+	return types.NewSignature(g.tpkg(sig), recv, tparams, params, results)
 }
 
 func (g *irgen) param(v *types2.Var) *types.Field {

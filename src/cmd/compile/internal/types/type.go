@@ -204,7 +204,8 @@ func (t *Type) SetRecur(b bool)      { t.flags.set(typeRecur, b) }
 func (t *Type) Kind() Kind { return t.kind }
 
 // Sym returns the name of type t.
-func (t *Type) Sym() *Sym { return t.sym }
+func (t *Type) Sym() *Sym       { return t.sym }
+func (t *Type) SetSym(sym *Sym) { t.sym = sym }
 
 // Underlying returns the underlying type of type t.
 func (t *Type) Underlying() *Type { return t.underlying }
@@ -285,7 +286,7 @@ type Func struct {
 	Receiver *Type // function receiver
 	Results  *Type // function results
 	Params   *Type // function params
-	Tparams  *Type // type params of receiver (if method) or function
+	TParams  *Type // type params of receiver (if method) or function
 
 	pkg *Pkg
 
@@ -512,6 +513,8 @@ func New(et Kind) *Type {
 		t.Extra = new(Tuple)
 	case TRESULTS:
 		t.Extra = new(Results)
+	case TTYPEPARAM:
+		t.Extra = new(Interface)
 	}
 	return t
 }
@@ -769,10 +772,12 @@ func (t *Type) wantEtype(et Kind) {
 }
 
 func (t *Type) Recvs() *Type   { return t.FuncType().Receiver }
+func (t *Type) TParams() *Type { return t.FuncType().TParams }
 func (t *Type) Params() *Type  { return t.FuncType().Params }
 func (t *Type) Results() *Type { return t.FuncType().Results }
 
 func (t *Type) NumRecvs() int   { return t.FuncType().Receiver.NumFields() }
+func (t *Type) NumTParams() int { return t.FuncType().TParams.NumFields() }
 func (t *Type) NumParams() int  { return t.FuncType().Params.NumFields() }
 func (t *Type) NumResults() int { return t.FuncType().Results.NumFields() }
 
@@ -1648,6 +1653,15 @@ func NewInterface(pkg *Pkg, methods []*Field) *Type {
 	return t
 }
 
+// NewTypeParam returns a new type param with the given constraint (which may
+// not really be needed except for the type checker).
+func NewTypeParam(pkg *Pkg, constraint *Type) *Type {
+	t := New(TTYPEPARAM)
+	t.methods = constraint.methods
+	t.Extra.(*Interface).pkg = pkg
+	return t
+}
+
 // NewSignature returns a new function type for the given receiver,
 // parametes, results, and type parameters, any of which may be nil.
 func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Type {
@@ -1669,7 +1683,7 @@ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Typ
 	}
 
 	ft.Receiver = funargs(recvs, FunargRcvr)
-	ft.Tparams = funargs(tparams, FunargTparams)
+	ft.TParams = funargs(tparams, FunargTparams)
 	ft.Params = funargs(params, FunargParams)
 	ft.Results = funargs(results, FunargResults)
 	ft.pkg = pkg
