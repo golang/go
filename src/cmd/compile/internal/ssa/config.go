@@ -194,6 +194,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.registers = registersAMD64[:]
 		c.gpRegMask = gpRegMaskAMD64
 		c.fpRegMask = fpRegMaskAMD64
+		c.specialRegMask = specialRegMaskAMD64
 		c.FPReg = framepointerRegAMD64
 		c.LinkReg = linkRegAMD64
 		c.hasGReg = false

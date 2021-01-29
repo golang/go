@@ -22,8 +22,8 @@ var isPlan9 = objabi.GOOS == "plan9"
 const (
 	dzBlocks    = 16 // number of MOV/ADD blocks
 	dzBlockLen  = 4  // number of clears per block
-	dzBlockSize = 19 // size of instructions in a single block
-	dzMovSize   = 4  // size of single MOV instruction w/ offset
+	dzBlockSize = 23 // size of instructions in a single block
+	dzMovSize   = 5  // size of single MOV instruction w/ offset
 	dzLeaqSize  = 4  // size of single LEAQ instruction
 	dzClearStep = 16 // number of bytes cleared by each MOV instruction
 

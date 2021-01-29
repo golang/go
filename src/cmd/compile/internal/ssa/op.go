@@ -202,9 +202,9 @@ func ClosureAuxCall(args []Param, results []Param) *AuxCall {
 func (*AuxCall) CanBeAnSSAAux() {}
 
 // OwnAuxCall returns a function's own AuxCall
-func OwnAuxCall(args []Param, results []Param) *AuxCall {
+func OwnAuxCall(fn *obj.LSym, args []Param, results []Param) *AuxCall {
 	// TODO if this remains identical to ClosureAuxCall above after new ABI is done, should deduplicate.
-	return &AuxCall{Fn: nil, args: args, results: results}
+	return &AuxCall{Fn: fn, args: args, results: results}
 }
 
 const (

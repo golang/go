@@ -468,7 +468,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 			s.Fatalf("local variable with class %v unimplemented", n.Class)
 		}
 	}
-	s.f.OwnAux = ssa.OwnAuxCall(args, results)
+	s.f.OwnAux = ssa.OwnAuxCall(fn.LSym, args, results)
 
 	// Populate SSAable arguments.
 	for _, n := range fn.Dcl {
@@ -6266,6 +6266,8 @@ type Branch struct {
 
 // State contains state needed during Prog generation.
 type State struct {
+	ABI obj.ABI
+
 	pp *objw.Progs
 
 	// Branches remembers all the branch instructions we've seen
@@ -6361,6 +6363,7 @@ func (s *State) DebugFriendlySetPosFrom(v *ssa.Value) {
 // genssa appends entries to pp for each instruction in f.
 func genssa(f *ssa.Func, pp *objw.Progs) {
 	var s State
+	s.ABI = f.OwnAux.Fn.ABI()
 
 	e := f.Frontend().(*ssafn)
 
