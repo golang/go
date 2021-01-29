@@ -56,6 +56,8 @@ func IsRuntimePackagePath(pkgpath string) bool {
 		rval = true
 	case "syscall":
 		rval = true
+	case "crypto/x509/internal/macos": // libc function wrappers need to be ABIInternal
+		rval = true
 	default:
 		rval = strings.HasPrefix(pkgpath, "runtime/internal")
 	}
