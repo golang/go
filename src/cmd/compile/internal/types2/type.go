@@ -837,6 +837,10 @@ type TypeParam struct {
 	aType
 }
 
+func (t *TypeParam) Obj() *TypeName {
+	return t.obj
+}
+
 // NewTypeParam returns a new TypeParam.
 func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
 	assert(bound != nil)
