@@ -209,7 +209,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			}
 		}
 		var flr funcInfo
-		if topofstack(f, gp.m != nil && gp == gp.m.g0) {
+		if flag&funcFlag_TOPFRAME != 0 {
 			// This function marks the top of the stack. Stop the traceback.
 			frame.lr = 0
 			flr = funcInfo{}
@@ -998,17 +998,6 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
 		}
 		return 0
 	})
-}
-
-// Does f mark the top of a goroutine stack?
-func topofstack(f funcInfo, g0 bool) bool {
-	return f.flag&funcFlag_TOPFRAME != 0 ||
-		// asmcgocall is TOS on the system stack because it
-		// switches to the system stack, but in this case we
-		// can come back to the regular stack and still want
-		// to be able to unwind through the call that appeared
-		// on the regular stack.
-		(g0 && f.funcID == funcID_asmcgocall)
 }
 
 // isSystemGoroutine reports whether the goroutine g must be omitted
