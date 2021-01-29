@@ -292,18 +292,40 @@ func (p Palette) Convert(c Color) Color {
 func (p Palette) Index(c Color) int {
 	// A batch version of this computation is in image/draw/draw.go.
 
+	//////////////////////////////
+	//cr, cg, cb, ca := c.RGBA()
+	//ret, bestSum := 0, uint32(1<<32-1)
+	//for i, v := range p {
+	//	vr, vg, vb, va := v.RGBA()
+	//	sum := sqDiff(cr, vr) + sqDiff(cg, vg) + sqDiff(cb, vb) + sqDiff(ca, va)
+	//	if sum < bestSum {
+	//		if sum == 0 {
+	//			return i
+	//		}
+	//		ret, bestSum = i, sum
+	//	}
+	//}
+	//////////////////////////////
+	var mod uint8 = 51
+	var splitNum = 255/mod + 1
 	cr, cg, cb, ca := c.RGBA()
-	ret, bestSum := 0, uint32(1<<32-1)
-	for i, v := range p {
-		vr, vg, vb, va := v.RGBA()
-		sum := sqDiff(cr, vr) + sqDiff(cg, vg) + sqDiff(cb, vb) + sqDiff(ca, va)
-		if sum < bestSum {
-			if sum == 0 {
-				return i
-			}
-			ret, bestSum = i, sum
-		}
+	cr8, cg8, cb8, ca8 := uint8(cr), uint8(cg), uint8(cb), uint8(ca)
+	ri, gi, bi, ai := cr8/mod, cg8/mod, cb8/mod, ca8/mod
+	rm, gm, bm, am := cr8%mod, cg8%mod, cb8%mod, ca8%mod
+	if rm > mod/2 {
+		ri += 1
 	}
+	if gm > mod/2 {
+		gi += 1
+	}
+	if bm > mod/2 {
+		bi += 1
+	}
+	if am > mod/2 {
+		ai += 1
+	}
+	//ret := int(ri * 36 + gi * 6 + bi)
+	ret := int(ri*splitNum*splitNum + gi*6 + bi)
 	return ret
 }
 
