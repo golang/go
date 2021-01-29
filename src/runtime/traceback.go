@@ -1003,7 +1003,6 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
 // Does f mark the top of a goroutine stack?
 func topofstack(f funcInfo, g0 bool) bool {
 	return f.flag&funcFlag_TOPFRAME != 0 ||
-		f.funcID == funcID_morestack ||
 		// asmcgocall is TOS on the system stack because it
 		// switches to the system stack, but in this case we
 		// can come back to the regular stack and still want
