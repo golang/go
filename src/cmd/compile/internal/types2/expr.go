@@ -96,9 +96,7 @@ func (check *Checker) overflow(x *operand) {
 	what := "" // operator description, if any
 	if op, _ := x.expr.(*syntax.Operation); op != nil {
 		pos = op.Pos()
-		if int(op.Op) < len(op2str) {
-			what = op2str[op.Op]
-		}
+		what = opName(op)
 	}
 
 	if x.val.Kind() == constant.Unknown {
@@ -117,15 +115,37 @@ func (check *Checker) overflow(x *operand) {
 	}
 
 	// Untyped integer values must not grow arbitrarily.
-	const limit = 4 * 512 // 512 is the constant precision - we need more because old tests had no limits
-	if x.val.Kind() == constant.Int && constant.BitLen(x.val) > limit {
+	const prec = 512 // 512 is the constant precision
+	if x.val.Kind() == constant.Int && constant.BitLen(x.val) > prec {
 		check.errorf(pos, "constant %s overflow", what)
 		x.val = constant.MakeUnknown()
 	}
 }
 
-// This is only used for operations that may cause overflow.
-var op2str = [...]string{
+// opName returns the name of an operation, or the empty string.
+// For now, only operations that might overflow are handled.
+// TODO(gri) Expand this to a general mechanism giving names to
+//           nodes?
+func opName(e *syntax.Operation) string {
+	op := int(e.Op)
+	if e.Y == nil {
+		if op < len(op2str1) {
+			return op2str1[op]
+		}
+	} else {
+		if op < len(op2str2) {
+			return op2str2[op]
+		}
+	}
+	return ""
+}
+
+// Entries must be "" or end with a space.
+var op2str1 = [...]string{
+	syntax.Xor: "bitwise complement",
+}
+
+var op2str2 = [...]string{
 	syntax.Add: "addition",
 	syntax.Sub: "subtraction",
 	syntax.Xor: "bitwise XOR",
@@ -800,8 +820,17 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 
 	if x.mode == constant_ {
 		if y.mode == constant_ {
+			// if either x or y has an unknown value, the result is unknown
+			if x.val.Kind() == constant.Unknown || y.val.Kind() == constant.Unknown {
+				x.val = constant.MakeUnknown()
+				// ensure the correct type - see comment below
+				if !isInteger(x.typ) {
+					x.typ = Typ[UntypedInt]
+				}
+				return
+			}
 			// rhs must be within reasonable bounds in constant shifts
-			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64
+			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see issue #44057)
 			s, ok := constant.Uint64Val(y.val)
 			if !ok || s > shiftBound {
 				check.invalidOpf(y, "invalid shift count %s", y)
