@@ -285,7 +285,7 @@ type CodeAction struct {
 	 *
 	 * @since 3.16.0
 	 */
-	Disabled struct {
+	Disabled *struct {
 		/**
 		 * Human readable description of why the code action is currently disabled.
 		 *
