@@ -325,7 +325,7 @@ func (p Palette) Index(c Color) int {
 		ai += 1
 	}
 	//ret := int(ri * 36 + gi * 6 + bi)
-	ret := int(ri*splitNum*splitNum + gi*6 + bi)
+	ret := int(ri*splitNum*splitNum + gi*splitNum + bi)
 	return ret
 }
 
