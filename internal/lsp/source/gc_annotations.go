@@ -141,10 +141,11 @@ func parseDetailsFile(filename string, options *Options) (span.URI, []*Diagnosti
 			})
 		}
 		diagnostic := &Diagnostic{
+			URI:      uri,
 			Range:    zeroIndexedRange(d.Range),
 			Message:  msg,
 			Severity: d.Severity,
-			Source:   d.Source,
+			Source:   OptimizationDetailsError, // d.Source is always "go compiler" as of 1.16, use our own
 			Tags:     d.Tags,
 			Related:  related,
 		}

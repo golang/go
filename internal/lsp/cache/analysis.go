@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/debug/tag"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
 	errors "golang.org/x/xerrors"
@@ -347,7 +348,7 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 	}
 
 	for _, diag := range diagnostics {
-		srcErr, err := sourceDiagnostic(ctx, snapshot, pkg, diag)
+		srcDiags, err := sourceDiagnostics(ctx, snapshot, pkg, protocol.SeverityWarning, diag)
 		if err != nil {
 			event.Error(ctx, "unable to compute analysis error position", err, tag.Category.Of(diag.Category), tag.Package.Of(pkg.ID()))
 			continue
@@ -356,7 +357,7 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 			data.err = ctx.Err()
 			return data
 		}
-		data.diagnostics = append(data.diagnostics, srcErr)
+		data.diagnostics = append(data.diagnostics, srcDiags...)
 	}
 	return data
 }

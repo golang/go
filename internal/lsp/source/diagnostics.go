@@ -34,22 +34,6 @@ func GetTypeCheckDiagnostics(ctx context.Context, snapshot Snapshot, pkg Package
 	if onlyIgnoredFiles {
 		return TypeCheckDiagnostics{}
 	}
-
-	// Prepare any additional reports for the errors in this package.
-	for _, e := range pkg.GetDiagnostics() {
-		// We only need to handle lower-level errors.
-		if e.Kind != ListError {
-			continue
-		}
-		// If no file is associated with the error, pick an open file from the package.
-		if e.URI.Filename() == "" {
-			for _, pgf := range pkg.CompiledGoFiles() {
-				if snapshot.IsOpen(pgf.URI) {
-					e.URI = pgf.URI
-				}
-			}
-		}
-	}
 	return typeCheckDiagnostics(ctx, snapshot, pkg)
 }
 
@@ -61,52 +45,58 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkg Package, typeCheckResul
 	}
 	// If we don't have any list or parse errors, run analyses.
 	analyzers := pickAnalyzers(snapshot, typeCheckResult.HasTypeErrors)
-	analysisErrors, err := snapshot.Analyze(ctx, pkg.ID(), analyzers...)
+	analysisDiagnostics, err := snapshot.Analyze(ctx, pkg.ID(), analyzers...)
 	if err != nil {
 		return nil, err
 	}
+	analysisDiagnostics = cloneDiagnostics(analysisDiagnostics)
 
 	reports := emptyDiagnostics(pkg)
 	// Report diagnostics and errors from root analyzers.
-	for _, e := range analysisErrors {
+	for _, diag := range analysisDiagnostics {
 		// If the diagnostic comes from a "convenience" analyzer, it is not
 		// meant to provide diagnostics, but rather only suggested fixes.
 		// Skip these types of errors in diagnostics; we will use their
 		// suggested fixes when providing code actions.
-		if isConvenienceAnalyzer(e.Category) {
+		if isConvenienceAnalyzer(string(diag.Source)) {
 			continue
 		}
 		// This is a bit of a hack, but clients > 3.15 will be able to grey out unnecessary code.
 		// If we are deleting code as part of all of our suggested fixes, assume that this is dead code.
 		// TODO(golang/go#34508): Return these codes from the diagnostics themselves.
 		var tags []protocol.DiagnosticTag
-		if onlyDeletions(e.SuggestedFixes) {
+		if onlyDeletions(diag.SuggestedFixes) {
 			tags = append(tags, protocol.Unnecessary)
 		}
 		// Type error analyzers only alter the tags for existing type errors.
-		if _, ok := snapshot.View().Options().TypeErrorAnalyzers[e.Category]; ok {
-			existingDiagnostics := typeCheckResult.Diagnostics[e.URI]
-			for _, d := range existingDiagnostics {
-				if r := protocol.CompareRange(e.Range, d.Range); r != 0 {
+		if _, ok := snapshot.View().Options().TypeErrorAnalyzers[string(diag.Source)]; ok {
+			existingDiagnostics := typeCheckResult.Diagnostics[diag.URI]
+			for _, existing := range existingDiagnostics {
+				if r := protocol.CompareRange(diag.Range, existing.Range); r != 0 {
 					continue
 				}
-				if e.Message != d.Message {
+				if diag.Message != existing.Message {
 					continue
 				}
-				d.Tags = append(d.Tags, tags...)
+				existing.Tags = append(existing.Tags, tags...)
 			}
 		} else {
-			reports[e.URI] = append(reports[e.URI], &Diagnostic{
-				Range:    e.Range,
-				Message:  e.Message,
-				Source:   e.Category,
-				Severity: protocol.SeverityWarning,
-				Tags:     tags,
-				Related:  e.Related,
-			})
+			diag.Tags = append(diag.Tags, tags...)
+			reports[diag.URI] = append(reports[diag.URI], diag)
 		}
 	}
 	return reports, nil
+}
+
+// cloneDiagnostics makes a shallow copy of diagnostics so that Analyze
+// can add tags to them without affecting the cached diagnostics.
+func cloneDiagnostics(diags []*Diagnostic) []*Diagnostic {
+	result := []*Diagnostic{}
+	for _, d := range diags {
+		clone := *d
+		result = append(result, &clone)
+	}
+	return result
 }
 
 func pickAnalyzers(snapshot Snapshot, hadTypeErrors bool) []*analysis.Analyzer {
@@ -166,28 +156,19 @@ func typeCheckDiagnostics(ctx context.Context, snapshot Snapshot, pkg Package) T
 	defer done()
 
 	diagSets := make(map[span.URI]*diagnosticSet)
-	for _, e := range pkg.GetDiagnostics() {
-		diag := &Diagnostic{
-			Message:  e.Message,
-			Range:    e.Range,
-			Severity: protocol.SeverityError,
-			Related:  e.Related,
-		}
-		set, ok := diagSets[e.URI]
+	for _, diag := range pkg.GetDiagnostics() {
+		set, ok := diagSets[diag.URI]
 		if !ok {
 			set = &diagnosticSet{}
-			diagSets[e.URI] = set
+			diagSets[diag.URI] = set
 		}
-		switch e.Kind {
+		switch diag.Source {
 		case ParseError:
 			set.parseErrors = append(set.parseErrors, diag)
-			diag.Source = "syntax"
 		case TypeError:
 			set.typeErrors = append(set.typeErrors, diag)
-			diag.Source = "compiler"
 		case ListError:
 			set.listErrors = append(set.listErrors, diag)
-			diag.Source = "go list"
 		}
 	}
 	typecheck := TypeCheckDiagnostics{
@@ -208,7 +189,7 @@ func typeCheckDiagnostics(ctx context.Context, snapshot Snapshot, pkg Package) T
 		case len(set.typeErrors) > 0:
 			typecheck.HasTypeErrors = true
 		}
-		typecheck.Diagnostics[uri] = diags
+		typecheck.Diagnostics[uri] = cloneDiagnostics(diags)
 	}
 	return typecheck
 }

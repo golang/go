@@ -20,6 +20,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/debug/tag"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
@@ -377,12 +378,12 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 		// Try to attach errors messages to the file as much as possible.
 		var found bool
 		for _, e := range rawErrors {
-			srcErr, err := sourceDiagnostic(ctx, snapshot, pkg, e)
+			srcDiags, err := sourceDiagnostics(ctx, snapshot, pkg, protocol.SeverityError, e)
 			if err != nil {
 				continue
 			}
 			found = true
-			pkg.diagnostics = append(pkg.diagnostics, srcErr)
+			pkg.diagnostics = append(pkg.diagnostics, srcDiags...)
 		}
 		if found {
 			return pkg, nil
@@ -439,12 +440,13 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 	if mode == source.ParseFull {
 		expandErrors(rawErrors)
 		for _, e := range rawErrors {
-			srcErr, err := sourceDiagnostic(ctx, snapshot, pkg, e)
+			srcDiags, err := sourceDiagnostics(ctx, snapshot, pkg, protocol.SeverityError, e)
 			if err != nil {
 				event.Error(ctx, "unable to compute error positions", err, tag.Package.Of(pkg.ID()))
 				continue
 			}
-			pkg.diagnostics = append(pkg.diagnostics, srcErr)
+			pkg.diagnostics = append(pkg.diagnostics, srcDiags...)
+
 			if err, ok := e.(extendedError); ok {
 				pkg.typeErrors = append(pkg.typeErrors, err.primary)
 			}

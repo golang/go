@@ -351,7 +351,9 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Sn
 	var errMsg string
 	if err != nil {
 		event.Error(ctx, "errors loading workspace", err.MainError, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
-		s.storeErrorDiagnostics(ctx, snapshot, modSource, err.DiagList)
+		for _, d := range err.DiagList {
+			s.storeDiagnostics(snapshot, d.URI, modSource, []*source.Diagnostic{d})
+		}
 		errMsg = strings.Replace(err.MainError.Error(), "\n", " ", -1)
 	}
 
@@ -399,28 +401,14 @@ func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snaps
 	// file and show a more specific error message. For now, put the diagnostic
 	// on the package declaration.
 	return &source.Diagnostic{
-		Range: rng,
+		URI:      fh.URI(),
+		Range:    rng,
+		Severity: protocol.SeverityWarning,
+		Source:   source.ListError,
 		Message: fmt.Sprintf(`No packages found for open file %s: %v.
 If this file contains build tags, try adding "-tags=<build tag>" to your gopls "buildFlag" configuration (see (https://github.com/golang/tools/blob/master/gopls/doc/settings.md#buildflags-string).
 Otherwise, see the troubleshooting guidelines for help investigating (https://github.com/golang/tools/blob/master/gopls/doc/troubleshooting.md).
 `, fh.URI().Filename(), err),
-		Severity: protocol.SeverityWarning,
-		Source:   "compiler",
-	}
-}
-
-func (s *Server) storeErrorDiagnostics(ctx context.Context, snapshot source.Snapshot, dsource diagnosticSource, diagnostics []*source.Diagnostic) {
-	for _, d := range diagnostics {
-		diagnostic := &source.Diagnostic{
-			Range:    d.Range,
-			Message:  d.Message,
-			Related:  d.Related,
-			Severity: protocol.SeverityError,
-			Source:   d.Category,
-			Code:     d.Code,
-			CodeHref: d.CodeHref,
-		}
-		s.storeDiagnostics(snapshot, d.URI, dsource, []*source.Diagnostic{diagnostic})
 	}
 }
 
@@ -523,7 +511,7 @@ func toProtocolDiagnostics(diagnostics []*source.Diagnostic) []protocol.Diagnost
 			Message:            strings.TrimSpace(diag.Message),
 			Range:              diag.Range,
 			Severity:           diag.Severity,
-			Source:             diag.Source,
+			Source:             string(diag.Source),
 			Tags:               diag.Tags,
 			RelatedInformation: related,
 		}

@@ -22,11 +22,6 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-const (
-	SyntaxError    = "syntax"
-	GoCommandError = "go command"
-)
-
 type parseModHandle struct {
 	handle *memoize.Handle
 }
@@ -315,10 +310,11 @@ outer:
 			msg = fmt.Sprintf("%v@%v has not been downloaded", innermost.Path, innermost.Version)
 		}
 		return &source.Diagnostic{
-			Message: msg,
-			Kind:    source.ListError,
-			Range:   rng,
-			URI:     fh.URI(),
+			URI:      fh.URI(),
+			Range:    rng,
+			Severity: protocol.SeverityError,
+			Message:  msg,
+			Source:   source.ListError,
 			SuggestedFixes: []source.SuggestedFix{{
 				Title: fmt.Sprintf("Download %v@%v", innermost.Path, innermost.Version),
 				Command: &protocol.Command{
@@ -329,11 +325,16 @@ outer:
 			}},
 		}
 	}
+	diagSource := source.ListError
+	if fh != nil {
+		diagSource = source.ParseError
+	}
 	return &source.Diagnostic{
-		Message: goCmdError,
-		Range:   rng,
-		URI:     fh.URI(),
-		Kind:    source.ListError,
+		URI:      fh.URI(),
+		Range:    rng,
+		Severity: protocol.SeverityError,
+		Source:   diagSource,
+		Message:  goCmdError,
 	}
 }
 
@@ -377,14 +378,15 @@ func extractErrorWithPosition(ctx context.Context, goCmdError string, src source
 	if err != nil {
 		return nil
 	}
-	category := GoCommandError
+	diagSource := source.ListError
 	if fh != nil {
-		category = SyntaxError
+		diagSource = source.ParseError
 	}
 	return &source.Diagnostic{
-		Category: category,
-		Message:  msg,
-		Range:    rng,
 		URI:      spn.URI(),
+		Range:    rng,
+		Severity: protocol.SeverityError,
+		Source:   diagSource,
+		Message:  msg,
 	}
 }

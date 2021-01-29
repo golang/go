@@ -27,6 +27,7 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
@@ -543,8 +544,8 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 		addError := func(uri span.URI, err error) {
 			modDiagnostics = append(modDiagnostics, &source.Diagnostic{
 				URI:      uri,
-				Category: "compiler",
-				Kind:     source.ListError,
+				Severity: protocol.SeverityError,
+				Source:   source.ListError,
 				Message:  err.Error(),
 			})
 		}

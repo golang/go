@@ -1178,19 +1178,10 @@ func (r *runner) collectDiagnostics(view source.View) {
 	// Always run diagnostics with analysis.
 	r.server.diagnose(r.ctx, snapshot, true)
 	for uri, reports := range r.server.diagnostics {
-		var diagnostics []*source.Diagnostic
 		for _, report := range reports.reports {
 			for _, d := range report.diags {
-				diagnostics = append(diagnostics, &source.Diagnostic{
-					Range:    d.Range,
-					Message:  d.Message,
-					Related:  d.Related,
-					Severity: d.Severity,
-					Source:   d.Source,
-					Tags:     d.Tags,
-				})
+				r.diagnostics[uri] = append(r.diagnostics[uri], d)
 			}
-			r.diagnostics[uri] = diagnostics
 		}
 	}
 }

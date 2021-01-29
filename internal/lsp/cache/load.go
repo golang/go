@@ -273,10 +273,11 @@ func (s *snapshot) applyCriticalErrorToFiles(ctx context.Context, msg string, fi
 			}
 		}
 		srcDiags = append(srcDiags, &source.Diagnostic{
-			URI:     fh.URI(),
-			Range:   rng,
-			Kind:    source.ListError,
-			Message: msg,
+			URI:      fh.URI(),
+			Range:    rng,
+			Severity: protocol.SeverityError,
+			Source:   source.ListError,
+			Message:  msg,
 		})
 	}
 	return srcDiags

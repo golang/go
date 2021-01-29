@@ -180,9 +180,10 @@ func (s *snapshot) parseModError(ctx context.Context, fh source.FileHandle, errT
 	switch {
 	case isInconsistentVendor:
 		return &source.Diagnostic{
-			URI:   fh.URI(),
-			Range: rng,
-			Kind:  source.ListError,
+			URI:      fh.URI(),
+			Range:    rng,
+			Severity: protocol.SeverityError,
+			Source:   source.ListError,
 			Message: `Inconsistent vendoring detected. Please re-run "go mod vendor".
 See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 			SuggestedFixes: []source.SuggestedFix{{
@@ -197,10 +198,11 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 
 	case isGoSumUpdates:
 		return &source.Diagnostic{
-			URI:     fh.URI(),
-			Range:   rng,
-			Kind:    source.ListError,
-			Message: `go.sum is out of sync with go.mod. Please update it or run "go mod tidy".`,
+			URI:      fh.URI(),
+			Range:    rng,
+			Severity: protocol.SeverityError,
+			Source:   source.ListError,
+			Message:  `go.sum is out of sync with go.mod. Please update it or run "go mod tidy".`,
 			SuggestedFixes: []source.SuggestedFix{
 				{
 					Title: source.CommandTidy.Title,
@@ -388,10 +390,11 @@ func unusedDiagnostic(m *protocol.ColumnMapper, req *modfile.Require, onlyDiagno
 		return nil, err
 	}
 	return &source.Diagnostic{
-		Category: source.GoModTidy,
-		Message:  fmt.Sprintf("%s is not used in this module", req.Mod.Path),
-		Range:    rng,
 		URI:      m.URI,
+		Range:    rng,
+		Severity: protocol.SeverityWarning,
+		Source:   source.ModTidyError,
+		Message:  fmt.Sprintf("%s is not used in this module", req.Mod.Path),
 		SuggestedFixes: []source.SuggestedFix{{
 			Title: fmt.Sprintf("Remove dependency: %s", req.Mod.Path),
 			Command: &protocol.Command{
@@ -431,10 +434,11 @@ func directnessDiagnostic(m *protocol.ColumnMapper, req *modfile.Require, comput
 		return nil, err
 	}
 	return &source.Diagnostic{
-		Message:  fmt.Sprintf("%s should be %s", req.Mod.Path, direction),
-		Range:    rng,
 		URI:      m.URI,
-		Category: source.GoModTidy,
+		Range:    rng,
+		Severity: protocol.SeverityWarning,
+		Source:   source.ModTidyError,
+		Message:  fmt.Sprintf("%s should be %s", req.Mod.Path, direction),
 		SuggestedFixes: []source.SuggestedFix{{
 			Title: fmt.Sprintf("Change %s to %s", req.Mod.Path, direction),
 			Edits: map[span.URI][]protocol.TextEdit{
@@ -462,9 +466,9 @@ func missingModuleDiagnostic(snapshot source.Snapshot, pm *source.ParsedModule, 
 	return &source.Diagnostic{
 		URI:      pm.Mapper.URI,
 		Range:    rng,
+		Severity: protocol.SeverityError,
+		Source:   source.ModTidyError,
 		Message:  fmt.Sprintf("%s is not in your go.mod file", req.Mod.Path),
-		Category: source.GoModTidy,
-		Kind:     source.ModTidyError,
 		SuggestedFixes: []source.SuggestedFix{{
 			Title: fmt.Sprintf("Add %s to your go.mod file", req.Mod.Path),
 			Command: &protocol.Command{
@@ -527,11 +531,11 @@ func missingModuleForImport(snapshot source.Snapshot, m *protocol.ColumnMapper, 
 		return nil, err
 	}
 	return &source.Diagnostic{
-		Category:       source.GoModTidy,
 		URI:            m.URI,
 		Range:          rng,
+		Severity:       protocol.SeverityError,
+		Source:         source.ModTidyError,
 		Message:        fmt.Sprintf("%s is not in your go.mod file", req.Mod.Path),
-		Kind:           source.ModTidyError,
 		SuggestedFixes: fixes,
 	}, nil
 }

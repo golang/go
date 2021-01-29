@@ -27,25 +27,12 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.Vers
 			return nil, err
 		}
 		reports[fh.VersionedFileIdentity()] = []*source.Diagnostic{}
-		errors, err := DiagnosticsForMod(ctx, snapshot, fh)
+		diagnostics, err := DiagnosticsForMod(ctx, snapshot, fh)
 		if err != nil {
 			return nil, err
 		}
-		for _, e := range errors {
-			d := &source.Diagnostic{
-				Message: e.Message,
-				Range:   e.Range,
-				Source:  e.Category,
-			}
-			switch {
-			case e.Category == "syntax", e.Kind == source.ListError:
-				d.Severity = protocol.SeverityError
-			case e.Kind == source.UpgradeNotification:
-				d.Severity = protocol.SeverityInformation
-			default:
-				d.Severity = protocol.SeverityWarning
-			}
-			fh, err := snapshot.GetVersionedFile(ctx, e.URI)
+		for _, d := range diagnostics {
+			fh, err := snapshot.GetVersionedFile(ctx, d.URI)
 			if err != nil {
 				return nil, err
 			}
@@ -83,10 +70,11 @@ func DiagnosticsForMod(ctx context.Context, snapshot source.Snapshot, fh source.
 			return nil, err
 		}
 		diagnostics = append(diagnostics, &source.Diagnostic{
-			URI:     fh.URI(),
-			Range:   rng,
-			Kind:    source.UpgradeNotification,
-			Message: fmt.Sprintf("%v can be upgraded", req.Mod.Path),
+			URI:      fh.URI(),
+			Range:    rng,
+			Severity: protocol.SeverityInformation,
+			Source:   source.UpgradeNotification,
+			Message:  fmt.Sprintf("%v can be upgraded", req.Mod.Path),
 			SuggestedFixes: []source.SuggestedFix{{
 				Title: fmt.Sprintf("Upgrade to %v", ver),
 				Command: &protocol.Command{

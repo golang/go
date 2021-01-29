@@ -316,7 +316,7 @@ func findDiagnostic(ctx context.Context, snapshot source.Snapshot, pkgID string,
 		if protocol.CompareRange(err.Range, diag.Range) != 0 {
 			continue
 		}
-		if err.Category != analyzer.Analyzer.Name {
+		if string(err.Source) != analyzer.Analyzer.Name {
 			continue
 		}
 		// The error matches.
@@ -431,9 +431,9 @@ func convenienceFixes(ctx context.Context, snapshot source.Snapshot, pkg source.
 func diagnosticToCommandCodeAction(ctx context.Context, snapshot source.Snapshot, sd *source.Diagnostic, pd *protocol.Diagnostic, kind protocol.CodeActionKind) (*protocol.CodeAction, error) {
 	// The fix depends on the category of the analyzer. The diagnostic may be
 	// nil, so use the error's category.
-	analyzer := diagnosticToAnalyzer(snapshot, sd.Category, sd.Message)
+	analyzer := diagnosticToAnalyzer(snapshot, string(sd.Source), sd.Message)
 	if analyzer == nil {
-		return nil, fmt.Errorf("no convenience analyzer for category %s", sd.Category)
+		return nil, fmt.Errorf("no convenience analyzer for source %s", sd.Source)
 	}
 	if analyzer.Command == nil {
 		return nil, fmt.Errorf("no command for convenience analyzer %s", analyzer.Analyzer.Name)
@@ -565,7 +565,7 @@ func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.V
 }
 
 func sameDiagnostic(pd protocol.Diagnostic, sd *source.Diagnostic) bool {
-	return pd.Message == sd.Message && protocol.CompareRange(pd.Range, sd.Range) == 0 && pd.Source == sd.Category
+	return pd.Message == sd.Message && protocol.CompareRange(pd.Range, sd.Range) == 0 && pd.Source == string(sd.Source)
 }
 
 func goTest(ctx context.Context, snapshot source.Snapshot, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
