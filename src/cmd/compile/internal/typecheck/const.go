@@ -449,7 +449,7 @@ func EvalConst(n ir.Node) ir.Node {
 		n := n.(*ir.BinaryExpr)
 		nl, nr := n.X, n.Y
 		if nl.Op() == ir.OLITERAL && nr.Op() == ir.OLITERAL {
-			// shiftBound from go/types; "so we can express smallestFloat64"
+			// shiftBound from go/types; "so we can express smallestFloat64" (see issue #44057)
 			const shiftBound = 1023 - 1 + 52
 			s, ok := constant.Uint64Val(nr.Val())
 			if !ok || s > shiftBound {
