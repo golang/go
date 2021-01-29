@@ -813,6 +813,20 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		ssagen.AddAux2(&p.To, v, sc.Off())
+	case ssa.OpAMD64MOVOstorezero:
+		if s.ABI != obj.ABIInternal {
+			v.Fatalf("MOVOstorezero can be only used in ABIInternal functions")
+		}
+		if !base.Flag.ABIWrap {
+			// zeroing X15 manually if wrappers are not used
+			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+		}
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = x86.REG_X15
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		ssagen.AddAux(&p.To, v)
 	case ssa.OpAMD64MOVQstoreconstidx1, ssa.OpAMD64MOVQstoreconstidx8, ssa.OpAMD64MOVLstoreconstidx1, ssa.OpAMD64MOVLstoreconstidx4, ssa.OpAMD64MOVWstoreconstidx1, ssa.OpAMD64MOVWstoreconstidx2, ssa.OpAMD64MOVBstoreconstidx1,
 		ssa.OpAMD64ADDLconstmodifyidx1, ssa.OpAMD64ADDLconstmodifyidx4, ssa.OpAMD64ADDLconstmodifyidx8, ssa.OpAMD64ADDQconstmodifyidx1, ssa.OpAMD64ADDQconstmodifyidx8,
 		ssa.OpAMD64ANDLconstmodifyidx1, ssa.OpAMD64ANDLconstmodifyidx4, ssa.OpAMD64ANDLconstmodifyidx8, ssa.OpAMD64ANDQconstmodifyidx1, ssa.OpAMD64ANDQconstmodifyidx8,
@@ -900,6 +914,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
 	case ssa.OpAMD64DUFFZERO:
+		if s.ABI != obj.ABIInternal {
+			v.Fatalf("MOVOconst can be only used in ABIInternal functions")
+		}
+		if !base.Flag.ABIWrap {
+			// zeroing X15 manually if wrappers are not used
+			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+		}
 		off := duffStart(v.AuxInt)
 		adj := duffAdj(v.AuxInt)
 		var p *obj.Prog
@@ -915,12 +936,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_ADDR
 		p.To.Sym = ir.Syms.Duffzero
 		p.To.Offset = off
-	case ssa.OpAMD64MOVOconst:
-		if v.AuxInt != 0 {
-			v.Fatalf("MOVOconst can only do constant=0")
-		}
-		r := v.Reg()
-		opregreg(s, x86.AXORPS, r, r)
 	case ssa.OpAMD64DUFFCOPY:
 		p := s.Prog(obj.ADUFFCOPY)
 		p.To.Type = obj.TYPE_ADDR
@@ -1000,7 +1015,17 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			q.To.Type = obj.TYPE_REG
 			q.To.Reg = r
 		}
-	case ssa.OpAMD64CALLstatic, ssa.OpAMD64CALLclosure, ssa.OpAMD64CALLinter:
+	case ssa.OpAMD64CALLstatic:
+		if s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
+			// zeroing X15 when entering ABIInternal from ABI0
+			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+		}
+		s.Call(v)
+		if s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
+			// zeroing X15 when entering ABIInternal from ABI0
+			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+		}
+	case ssa.OpAMD64CALLclosure, ssa.OpAMD64CALLinter:
 		s.Call(v)
 
 	case ssa.OpAMD64LoweredGetCallerPC:
@@ -1297,6 +1322,10 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
 	case ssa.BlockRetJmp:
+		if s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
+			// zeroing X15 when entering ABIInternal from ABI0
+			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+		}
 		p := s.Prog(obj.ARET)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
