@@ -142,6 +142,11 @@ TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 
 	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
 
+#ifdef GOOS_openbsd
+	// Save g to TLS so that it is available from signal trampoline.
+	BL	runtime·save_g(SB)
+#endif
+
 	BL	runtime·_initcgo(SB)	// will clobber R0-R3
 
 	// update stackguard after _cgo_init
@@ -633,9 +638,13 @@ TEXT	·cgocallback(SB),NOSPLIT,$12-12
 	NO_LOCAL_POINTERS
 
 	// Load m and g from thread-local storage.
+#ifdef GOOS_openbsd
+	BL	runtime·load_g(SB)
+#else
 	MOVB	runtime·iscgo(SB), R0
 	CMP	$0, R0
 	BL.NE	runtime·load_g(SB)
+#endif
 
 	// If g is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
@@ -745,6 +754,9 @@ TEXT setg<>(SB),NOSPLIT|NOFRAME,$0-0
 #ifdef GOOS_windows
 	B	runtime·save_g(SB)
 #else
+#ifdef GOOS_openbsd
+	B	runtime·save_g(SB)
+#else
 	MOVB	runtime·iscgo(SB), R0
 	CMP	$0, R0
 	B.EQ	2(PC)
@@ -752,6 +764,7 @@ TEXT setg<>(SB),NOSPLIT|NOFRAME,$0-0
 
 	MOVW	g, R0
 	RET
+#endif
 #endif
 
 TEXT runtime·emptyfunc(SB),0,$0-0
