@@ -62,6 +62,7 @@ func check2(noders []*noder) {
 		Selections: make(map[*syntax.SelectorExpr]*types2.Selection),
 		Implicits:  make(map[syntax.Node]types2.Object),
 		Scopes:     make(map[syntax.Node]*types2.Scope),
+		Inferred:   make(map[syntax.Expr]types2.Inferred),
 		// expand as needed
 	}
 	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, &info)
