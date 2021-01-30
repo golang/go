@@ -716,6 +716,12 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 				}
 			}
 
+			// A package which only has test files can't be imported
+			// as a dependency, nor can it be instrumented for coverage.
+			if len(p.GoFiles)+len(p.CgoFiles) == 0 {
+				continue
+			}
+
 			// Silently ignore attempts to run coverage on
 			// sync/atomic when using atomic coverage mode.
 			// Atomic coverage mode uses sync/atomic, so
