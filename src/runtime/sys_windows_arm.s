@@ -103,11 +103,6 @@ TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	MOVW	R0, ret+0(FP)
 	RET
 
-TEXT runtime·setlasterror(SB),NOSPLIT|NOFRAME,$0
-	MRC	15, 0, R1, C13, C0, 2
-	MOVW	R0, 0x34(R1)
-	RET
-
 // Called by Windows as a Vectored Exception Handler (VEH).
 // First argument is pointer to struct containing
 // exception record and context pointers.
