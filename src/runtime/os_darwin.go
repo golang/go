@@ -331,6 +331,11 @@ func mdestroy(mp *m) {
 }
 
 //go:nosplit
+func osyield_no_g() {
+	usleep_no_g(1)
+}
+
+//go:nosplit
 func osyield() {
 	usleep(1)
 }

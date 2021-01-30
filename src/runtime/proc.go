@@ -2012,7 +2012,7 @@ func lockextra(nilokay bool) *m {
 	for {
 		old := atomic.Loaduintptr(&extram)
 		if old == locked {
-			osyield()
+			osyield_no_g()
 			continue
 		}
 		if old == 0 && !nilokay {
@@ -2023,13 +2023,13 @@ func lockextra(nilokay bool) *m {
 				atomic.Xadd(&extraMWaiters, 1)
 				incr = true
 			}
-			usleep(1)
+			usleep_no_g(1)
 			continue
 		}
 		if atomic.Casuintptr(&extram, old, locked) {
 			return (*m)(unsafe.Pointer(old))
 		}
-		osyield()
+		osyield_no_g()
 		continue
 	}
 }

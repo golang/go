@@ -347,60 +347,11 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
 	MOVL	CX, 0x14(FS)
 	RET
 
-// onosstack calls fn on OS stack.
-// func onosstack(fn unsafe.Pointer, arg uint32)
-TEXT runtime·onosstack(SB),NOSPLIT,$0
-	MOVL	fn+0(FP), AX		// to hide from 8l
-	MOVL	arg+4(FP), BX
-
-	// Execute call on m->g0 stack, in case we are not actually
-	// calling a system call wrapper, like when running under WINE.
-	get_tls(CX)
-	CMPL	CX, $0
-	JNE	3(PC)
-	// Not a Go-managed thread. Do not switch stack.
-	CALL	AX
-	RET
-
-	MOVL	g(CX), BP
-	MOVL	g_m(BP), BP
-
-	// leave pc/sp for cpu profiler
-	MOVL	(SP), SI
-	MOVL	SI, m_libcallpc(BP)
-	MOVL	g(CX), SI
-	MOVL	SI, m_libcallg(BP)
-	// sp must be the last, because once async cpu profiler finds
-	// all three values to be non-zero, it will use them
-	LEAL	fn+0(FP), SI
-	MOVL	SI, m_libcallsp(BP)
-
-	MOVL	m_g0(BP), SI
-	CMPL	g(CX), SI
-	JNE	switch
-	// executing on m->g0 already
-	CALL	AX
-	JMP	ret
-
-switch:
-	// Switch to m->g0 stack and back.
-	MOVL	(g_sched+gobuf_sp)(SI), SI
-	MOVL	SP, -4(SI)
-	LEAL	-4(SI), SP
-	CALL	AX
-	MOVL	0(SP), SP
-
-ret:
-	get_tls(CX)
-	MOVL	g(CX), BP
-	MOVL	g_m(BP), BP
-	MOVL	$0, m_libcallsp(BP)
-	RET
-
-// Runs on OS stack. duration (in 100ns units) is in BX.
-TEXT runtime·usleep2(SB),NOSPLIT,$20
-	// Want negative 100ns units.
-	NEGL	BX
+// Runs on OS stack.
+// duration (in -100ns units) is in dt+0(FP).
+// g may be nil.
+TEXT runtime·usleep2(SB),NOSPLIT,$20-4
+	MOVL	dt+0(FP), BX
 	MOVL	$-1, hi-4(SP)
 	MOVL	BX, lo-8(SP)
 	LEAL	lo-8(SP), BX
@@ -413,17 +364,15 @@ TEXT runtime·usleep2(SB),NOSPLIT,$20
 	MOVL	BP, SP
 	RET
 
-// Runs on OS stack. duration (in 100ns units) is in BX.
-TEXT runtime·usleep2HighRes(SB),NOSPLIT,$36
-	get_tls(CX)
-	CMPL	CX, $0
-	JE	gisnotset
-
-	// Want negative 100ns units.
-	NEGL	BX
+// Runs on OS stack.
+// duration (in -100ns units) is in dt+0(FP).
+// g is valid.
+TEXT runtime·usleep2HighRes(SB),NOSPLIT,$36-4
+	MOVL	dt+0(FP), BX
 	MOVL	$-1, hi-4(SP)
 	MOVL	BX, lo-8(SP)
 
+	get_tls(CX)
 	MOVL	g(CX), CX
 	MOVL	g_m(CX), CX
 	MOVL	(m_mOS+mOS_highResTimer)(CX), CX
@@ -450,12 +399,6 @@ TEXT runtime·usleep2HighRes(SB),NOSPLIT,$36
 	CALL	AX
 	MOVL	BP, SP
 
-	RET
-
-gisnotset:
-	// TLS is not configured. Call usleep2 instead.
-	MOVL	$runtime·usleep2(SB), AX
-	CALL	AX
 	RET
 
 // Runs on OS stack.

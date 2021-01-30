@@ -413,6 +413,15 @@ TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
 	JAL	runtime·badctxt(SB)
 	RET
 
+// func asmcgocall_no_g(fn, arg unsafe.Pointer)
+// Call fn(arg) aligned appropriately for the gcc ABI.
+// Called on a system stack, and there may be no g yet (during needm).
+TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
+	MOVV	fn+0(FP), R25
+	MOVV	arg+8(FP), R4
+	JAL	(R25)
+	RET
+
 // func asmcgocall(fn, arg unsafe.Pointer) int32
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
