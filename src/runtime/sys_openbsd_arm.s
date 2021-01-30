@@ -10,7 +10,7 @@
 #include "go_tls.h"
 #include "textflag.h"
 
-#define CLOCK_REALTIME	$0
+#define	CLOCK_REALTIME	$0
 #define	CLOCK_MONOTONIC	$3
 
 // With OpenBSD 6.7 onwards, an armv7 syscall returns two instructions
@@ -24,6 +24,127 @@
 	SWI	$0;	\
 	NOOP;		\
 	NOOP
+
+// mstart_stub is the first function executed on a new thread started by pthread_create.
+// It just does some low-level setup and then calls mstart.
+// Note: called with the C calling convention.
+TEXT runtime·mstart_stub(SB),NOSPLIT,$0
+	// R0 points to the m.
+	// We are already on m's g0 stack.
+
+	// Save callee-save registers.
+	MOVM.DB.W [R4-R11], (R13)
+
+	MOVW	m_g0(R0), g
+	BL	runtime·save_g(SB)
+
+	BL	runtime·mstart(SB)
+
+	// Restore callee-save registers.
+	MOVM.IA.W (R13), [R4-R11]
+
+	// Go is all done with this OS thread.
+	// Tell pthread everything is ok (we never join with this thread, so
+	// the value here doesn't really matter).
+	MOVW	$0, R0
+	RET
+
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+	MOVW	sig+4(FP), R0
+	MOVW	info+8(FP), R1
+	MOVW	ctx+12(FP), R2
+	MOVW	fn+0(FP), R3
+	MOVW	R13, R9
+	SUB	$24, R13
+	BIC	$0x7, R13 // alignment for ELF ABI
+	BL	(R3)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·sigtramp(SB),NOSPLIT,$0
+	// Reserve space for callee-save registers and arguments.
+	MOVM.DB.W [R4-R11], (R13)
+	SUB	$16, R13
+
+	// If called from an external code context, g will not be set.
+	// Save R0, since runtime·load_g will clobber it.
+	MOVW	R0, 4(R13)		// signum
+	BL	runtime·load_g(SB)
+
+	MOVW	R1, 8(R13)
+	MOVW	R2, 12(R13)
+	BL	runtime·sigtrampgo(SB)
+
+	// Restore callee-save registers.
+	ADD	$16, R13
+	MOVM.IA.W (R13), [R4-R11]
+
+	RET
+
+TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+	B	runtime·armPublicationBarrier(SB)
+
+// TODO(jsing): OpenBSD only supports GOARM=7 machines... this
+// should not be needed, however the linker still allows GOARM=5
+// on this platform.
+TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
+	MOVM.WP	[R1, R2, R3, R12], (R13)
+	MOVW	$330, R12		// sys___get_tcb
+	INVOKE_SYSCALL
+	MOVM.IAW (R13), [R1, R2, R3, R12]
+	RET
+
+// These trampolines help convert from Go calling convention to C calling convention.
+// They should be called with asmcgocall - note that while asmcgocall does
+// stack alignment, creation of a frame undoes it again.
+// A pointer to the arguments is passed in R0.
+// A single int32 result is returned in R0.
+// (For more results, make an args/results structure.)
+TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	0(R0), R0		// arg 1 attr
+	BL	libc_pthread_attr_init(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·pthread_attr_destroy_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	0(R0), R0		// arg 1 attr
+	BL	libc_pthread_attr_destroy(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 size
+	MOVW	0(R0), R0		// arg 1 attr
+	BL	libc_pthread_attr_getstacksize(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 state
+	MOVW	0(R0), R0		// arg 1 attr
+	BL	libc_pthread_attr_setdetachstate(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	SUB	$16, R13
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	0(R0), R1		// arg 2 attr
+	MOVW	4(R0), R2		// arg 3 start
+	MOVW	8(R0), R3		// arg 4 arg
+	MOVW	R13, R0			// arg 1 &threadid (discarded)
+	BL	libc_pthread_create(SB)
+	MOVW	R9, R13
+	RET
 
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
@@ -247,80 +368,6 @@ TEXT runtime·obsdsigprocmask(SB),NOSPLIT,$0
 	MOVW	R0, ret+8(FP)
 	RET
 
-TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
-	MOVW	sig+4(FP), R0
-	MOVW	info+8(FP), R1
-	MOVW	ctx+12(FP), R2
-	MOVW	fn+0(FP), R11
-	MOVW	R13, R4
-	SUB	$24, R13
-	BIC	$0x7, R13 // alignment for ELF ABI
-	BL	(R11)
-	MOVW	R4, R13
-	RET
-
-TEXT runtime·sigtramp(SB),NOSPLIT,$0
-	// Reserve space for callee-save registers and arguments.
-	MOVM.DB.W [R4-R11], (R13)
-	SUB	$16, R13
-
-	// If called from an external code context, g will not be set.
-	// Save R0, since runtime·load_g will clobber it.
-	MOVW	R0, 4(R13)		// signum
-	MOVB	runtime·iscgo(SB), R0
-	CMP	$0, R0
-	BL.NE	runtime·load_g(SB)
-
-	MOVW	R1, 8(R13)
-	MOVW	R2, 12(R13)
-	BL	runtime·sigtrampgo(SB)
-
-	// Restore callee-save registers.
-	ADD	$16, R13
-	MOVM.IA.W (R13), [R4-R11]
-
-	RET
-
-// int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
-TEXT runtime·tfork(SB),NOSPLIT,$0
-
-	// Copy mp, gp and fn off parent stack for use by child.
-	MOVW	mm+8(FP), R4
-	MOVW	gg+12(FP), R5
-	MOVW	fn+16(FP), R6
-
-	MOVW	param+0(FP), R0		// arg 1 - param
-	MOVW	psize+4(FP), R1		// arg 2 - psize
-	MOVW	$8, R12			// sys___tfork
-	INVOKE_SYSCALL
-
-	// Return if syscall failed.
-	B.CC	4(PC)
-	RSB	$0, R0
-	MOVW	R0, ret+20(FP)
-	RET
-
-	// In parent, return.
-	CMP	$0, R0
-	BEQ	3(PC)
-	MOVW	R0, ret+20(FP)
-	RET
-
-	// Initialise m, g.
-	MOVW	R5, g
-	MOVW	R4, g_m(g)
-
-	// Paranoia; check that stack splitting code works.
-	BL	runtime·emptyfunc(SB)
-
-	// Call fn.
-	BL	(R6)
-
-	// fn should never return.
-	MOVW	$2, R8			// crash if reached
-	MOVW	R8, (R8)
-	RET
-
 TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	MOVW	new+0(FP), R0		// arg 1 - new sigaltstack
 	MOVW	old+4(FP), R1		// arg 2 - old sigaltstack
@@ -422,14 +469,4 @@ TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
 	MOVW	$4, R1	// F_SETFL
 	MOVW	$92, R12
 	INVOKE_SYSCALL
-	RET
-
-TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
-	B	runtime·armPublicationBarrier(SB)
-
-TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
-	MOVM.WP	[R1, R2, R3, R12], (R13)
-	MOVW	$330, R12		// sys___get_tcb
-	INVOKE_SYSCALL
-	MOVM.IAW (R13), [R1, R2, R3, R12]
 	RET
