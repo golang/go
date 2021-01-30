@@ -461,15 +461,12 @@ func initHighResTimer() {
 	h := createHighResTimer()
 	if h != 0 {
 		haveHighResTimer = true
-		usleep2Addr = unsafe.Pointer(funcPC(usleep2HighRes))
 		stdcall1(_CloseHandle, h)
 	}
 }
 
 func osinit() {
 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
-	usleep2Addr = unsafe.Pointer(funcPC(usleep2))
-	switchtothreadAddr = unsafe.Pointer(funcPC(switchtothread))
 
 	setBadSignalMsg()
 
@@ -1061,26 +1058,39 @@ func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 	return stdcall(fn)
 }
 
-// In sys_windows_386.s and sys_windows_amd64.s.
-func onosstack(fn unsafe.Pointer, arg uint32)
-
-// These are not callable functions. They should only be called via onosstack.
-func usleep2(usec uint32)
-func usleep2HighRes(usec uint32)
+// These must run on the system stack only.
+func usleep2(dt int32)
+func usleep2HighRes(dt int32)
 func switchtothread()
 
-var usleep2Addr unsafe.Pointer
-var switchtothreadAddr unsafe.Pointer
+//go:nosplit
+func osyield_no_g() {
+	switchtothread()
+}
 
 //go:nosplit
 func osyield() {
-	onosstack(switchtothreadAddr, 0)
+	systemstack(switchtothread)
+}
+
+//go:nosplit
+func usleep_no_g(us uint32) {
+	dt := -10 * int32(us) // relative sleep (negative), 100ns units
+	usleep2(dt)
 }
 
 //go:nosplit
 func usleep(us uint32) {
-	// Have 1us units; want 100ns units.
-	onosstack(usleep2Addr, 10*us)
+	systemstack(func() {
+		dt := -10 * int32(us) // relative sleep (negative), 100ns units
+		// If the high-res timer is available and its handle has been allocated for this m, use it.
+		// Otherwise fall back to the low-res one, which doesn't need a handle.
+		if haveHighResTimer && getg().m.highResTimer != 0 {
+			usleep2HighRes(dt)
+		} else {
+			usleep2(dt)
+		}
+	})
 }
 
 func ctrlhandler1(_type uint32) uint32 {

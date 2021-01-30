@@ -377,79 +377,11 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$0, R0
 	MOVM.IA.W (R13), [R4-R11, R15]		// pop {r4-r11, pc}
 
-// onosstack calls fn on OS stack.
-// adapted from asm_arm.s : systemstack
-// func onosstack(fn unsafe.Pointer, arg uint32)
-TEXT runtime·onosstack(SB),NOSPLIT,$0
-	MOVW	fn+0(FP), R5		// R5 = fn
-	MOVW	arg+4(FP), R6		// R6 = arg
-
-	// This function can be called when there is no g,
-	// for example, when we are handling a callback on a non-go thread.
-	// In this case we're already on the system stack.
-	CMP	$0, g
-	BEQ	noswitch
-
-	MOVW	g_m(g), R1		// R1 = m
-
-	MOVW	m_gsignal(R1), R2	// R2 = gsignal
-	CMP	g, R2
-	B.EQ	noswitch
-
-	MOVW	m_g0(R1), R2		// R2 = g0
-	CMP	g, R2
-	B.EQ	noswitch
-
-	MOVW	m_curg(R1), R3
-	CMP	g, R3
-	B.EQ	switch
-
-	// Bad: g is not gsignal, not g0, not curg. What is it?
-	// Hide call from linker nosplit analysis.
-	MOVW	$runtime·badsystemstack(SB), R0
-	BL	(R0)
-	B	runtime·abort(SB)
-
-switch:
-	// save our state in g->sched. Pretend to
-	// be systemstack_switch if the G stack is scanned.
-	MOVW	$runtime·systemstack_switch(SB), R3
-	ADD	$4, R3, R3 // get past push {lr}
-	MOVW	R3, (g_sched+gobuf_pc)(g)
-	MOVW	R13, (g_sched+gobuf_sp)(g)
-	MOVW	LR, (g_sched+gobuf_lr)(g)
-	MOVW	g, (g_sched+gobuf_g)(g)
-
-	// switch to g0
-	MOVW	R2, g
-	MOVW	(g_sched+gobuf_sp)(R2), R3
-	// make it look like mstart called systemstack on g0, to stop traceback
-	SUB	$4, R3, R3
-	MOVW	$runtime·mstart(SB), R4
-	MOVW	R4, 0(R3)
-	MOVW	R3, R13
-
-	// call target function
-	MOVW	R6, R0		// arg
-	BL	(R5)
-
-	// switch back to g
-	MOVW	g_m(g), R1
-	MOVW	m_curg(R1), g
-	MOVW	(g_sched+gobuf_sp)(g), R13
-	MOVW	$0, R3
-	MOVW	R3, (g_sched+gobuf_sp)(g)
-	RET
-
-noswitch:
-	// Using a tail call here cleans up tracebacks since we won't stop
-	// at an intermediate systemstack.
-	MOVW.P	4(R13), R14	// restore LR
-	MOVW	R6, R0		// arg
-	B	(R5)
-
-// Runs on OS stack. Duration (in 100ns units) is in R0.
-TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0
+// Runs on OS stack.
+// duration (in -100ns units) is in dt+0(FP).
+// g may be nil.
+TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0-4
+	MOVW	dt+0(FP), R0
 	MOVM.DB.W [R4, R14], (R13)	// push {r4, lr}
 	MOVW	R13, R4			// Save SP
 	SUB	$8, R13			// R13 = R13 - 8
@@ -465,9 +397,11 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R4, R13			// Restore SP
 	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
 
-// Runs on OS stack. Duration (in 100ns units) is in R0.
+// Runs on OS stack.
+// duration (in -100ns units) is in dt+0(FP).
+// g is valid.
 // TODO: neeeds to be implemented properly.
-TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$0-4
 	B	runtime·abort(SB)
 
 // Runs on OS stack.

@@ -621,6 +621,22 @@ TEXT gosave<>(SB),NOSPLIT,$0
 	POPL	AX
 	RET
 
+// func asmcgocall_no_g(fn, arg unsafe.Pointer)
+// Call fn(arg) aligned appropriately for the gcc ABI.
+// Called on a system stack, and there may be no g yet (during needm).
+TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-8
+	MOVL	fn+0(FP), AX
+	MOVL	arg+4(FP), BX
+	MOVL	SP, DX
+	SUBL	$32, SP
+	ANDL	$~15, SP	// alignment, perhaps unnecessary
+	MOVL	DX, 8(SP)	// save old SP
+	MOVL	BX, 0(SP)	// first argument in x86-32 ABI
+	CALL	AX
+	MOVL	8(SP), DX
+	MOVL	DX, SP
+	RET
+
 // func asmcgocall(fn, arg unsafe.Pointer) int32
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.

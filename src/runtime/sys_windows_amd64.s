@@ -388,61 +388,16 @@ TEXT runtime·settls(SB),NOSPLIT,$0
 	MOVQ	DI, 0x28(GS)
 	RET
 
-// func onosstack(fn unsafe.Pointer, arg uint32)
-TEXT runtime·onosstack(SB),NOSPLIT,$0
-	MOVQ	fn+0(FP), AX		// to hide from 6l
-	MOVL	arg+8(FP), BX
-
-	// Execute call on m->g0 stack, in case we are not actually
-	// calling a system call wrapper, like when running under WINE.
-	get_tls(R15)
-	CMPQ	R15, $0
-	JNE	3(PC)
-	// Not a Go-managed thread. Do not switch stack.
-	CALL	AX
-	RET
-
-	MOVQ	g(R15), R13
-	MOVQ	g_m(R13), R13
-
-	// leave pc/sp for cpu profiler
-	MOVQ	(SP), R12
-	MOVQ	R12, m_libcallpc(R13)
-	MOVQ	g(R15), R12
-	MOVQ	R12, m_libcallg(R13)
-	// sp must be the last, because once async cpu profiler finds
-	// all three values to be non-zero, it will use them
-	LEAQ	fn+0(FP), R12
-	MOVQ	R12, m_libcallsp(R13)
-
-	MOVQ	m_g0(R13), R14
-	CMPQ	g(R15), R14
-	JNE	switch
-	// executing on m->g0 already
-	CALL	AX
-	JMP	ret
-
-switch:
-	// Switch to m->g0 stack and back.
-	MOVQ	(g_sched+gobuf_sp)(R14), R14
-	MOVQ	SP, -8(R14)
-	LEAQ	-8(R14), SP
-	CALL	AX
-	MOVQ	0(SP), SP
-
-ret:
-	MOVQ	$0, m_libcallsp(R13)
-	RET
-
-// Runs on OS stack. duration (in 100ns units) is in BX.
+// Runs on OS stack.
+// duration (in -100ns units) is in dt+0(FP).
+// g may be nil.
 // The function leaves room for 4 syscall parameters
 // (as per windows amd64 calling convention).
-TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$48
+TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$48-4
+	MOVLQSX	dt+0(FP), BX
 	MOVQ	SP, AX
 	ANDQ	$~15, SP	// alignment as per Windows requirement
 	MOVQ	AX, 40(SP)
-	// Want negative 100ns units.
-	NEGQ	BX
 	LEAQ	32(SP), R8  // ptime
 	MOVQ	BX, (R8)
 	MOVQ	$-1, CX // handle
@@ -452,11 +407,11 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$48
 	MOVQ	40(SP), SP
 	RET
 
-// Runs on OS stack. duration (in 100ns units) is in BX.
-TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$72
+// Runs on OS stack. duration (in -100ns units) is in dt+0(FP).
+// g is valid.
+TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$72-4
+	MOVLQSX	dt+0(FP), BX
 	get_tls(CX)
-	CMPQ	CX, $0
-	JE	gisnotset
 
 	MOVQ	SP, AX
 	ANDQ	$~15, SP	// alignment as per Windows requirement
@@ -466,8 +421,6 @@ TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$72
 	MOVQ	g_m(CX), CX
 	MOVQ	(m_mOS+mOS_highResTimer)(CX), CX	// hTimer
 	MOVQ	CX, 48(SP)				// save hTimer for later
-	// Want negative 100ns units.
-	NEGQ	BX
 	LEAQ	56(SP), DX				// lpDueTime
 	MOVQ	BX, (DX)
 	MOVQ	$0, R8					// lPeriod
@@ -485,12 +438,6 @@ TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$72
 	CALL	AX
 
 	MOVQ	64(SP), SP
-	RET
-
-gisnotset:
-	// TLS is not configured. Call usleep2 instead.
-	MOVQ	$runtime·usleep2(SB), AX
-	CALL	AX
 	RET
 
 // Runs on OS stack.

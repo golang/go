@@ -873,6 +873,17 @@ TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
 	CALL	runtime·badctxt(SB)
 	RET
 
+// func asmcgocall_no_g(fn, arg unsafe.Pointer)
+// Call fn(arg) aligned appropriately for the gcc ABI.
+// Called on a system stack, and there may be no g yet (during needm).
+TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
+	MOVD	fn+0(FP), R1
+	MOVD	arg+8(FP), R0
+	SUB	$16, RSP	// skip over saved frame pointer below RSP
+	BL	(R1)
+	ADD	$16, RSP	// skip over saved frame pointer below RSP
+	RET
+
 // func asmcgocall(fn, arg unsafe.Pointer) int32
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
@@ -951,7 +962,7 @@ nosave:
 	BL	(R1)
 	// Restore stack pointer.
 	MOVD	8(RSP), R2
-	MOVD	R2, RSP	
+	MOVD	R2, RSP
 	MOVD	R0, ret+16(FP)
 	RET
 
