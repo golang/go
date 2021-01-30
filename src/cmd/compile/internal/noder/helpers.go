@@ -79,18 +79,18 @@ func Binary(pos src.XPos, op ir.Op, x, y ir.Node) ir.Node {
 	}
 }
 
-func Call(pos src.XPos, fun ir.Node, args []ir.Node, dots bool) ir.Node {
+func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool) ir.Node {
 	// TODO(mdempsky): This should not be so difficult.
-
-	n := ir.NewCallExpr(pos, ir.OCALL, fun, nil, args)
-	n.IsDDD = dots
-
-	// Actually a type conversion.
 	if fun.Op() == ir.OTYPE {
+		// Actually a type conversion, not a function call.
+		n := ir.NewCallExpr(pos, ir.OCALL, fun, nil, args)
 		return typecheck.Expr(n)
 	}
 
 	if fun, ok := fun.(*ir.Name); ok && fun.BuiltinOp != 0 {
+		// Call to a builtin function.
+		n := ir.NewCallExpr(pos, ir.OCALL, fun, nil, args)
+		n.IsDDD = dots
 		switch fun.BuiltinOp {
 		case ir.OCLOSE, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN:
 			return typecheck.Stmt(n)
@@ -116,7 +116,46 @@ func Call(pos src.XPos, fun ir.Node, args []ir.Node, dots bool) ir.Node {
 		}
 	}
 
-	typecheck.Call(n)
+	var targs []ir.Node
+	if indexExpr, ok := fun.(*ir.IndexExpr); ok {
+		if indexExpr.Index.Op() == ir.OTYPE {
+			// Called function is an instantiated generic function
+			// TODO this handles just one type argument for now
+			fun = indexExpr.X
+			targs = make([]ir.Node, 1, 1)
+			targs[0] = indexExpr.Index
+		}
+	}
+
+	n := ir.NewCallExpr(pos, ir.OCALL, fun, targs, args)
+	n.IsDDD = dots
+
+	if targs == nil {
+		// If no type params, still do normal typechecking, since we're
+		// still missing some things done by tcCall below (mainly
+		// typecheckargs and typecheckaste).
+		typecheck.Call(n)
+		return n
+	}
+
+	n.Use = ir.CallUseExpr
+	if fun.Type().NumResults() == 0 {
+		n.Use = ir.CallUseStmt
+	}
+
+	// Rewrite call node depending on use.
+	switch fun.Op() {
+	case ir.ODOTINTER:
+		n.SetOp(ir.OCALLINTER)
+
+	case ir.ODOTMETH:
+		n.SetOp(ir.OCALLMETH)
+
+	default:
+		n.SetOp(ir.OCALLFUNC)
+	}
+
+	typed(typ, n)
 	return n
 }
 
@@ -195,8 +234,13 @@ func method(typ *types.Type, index int) *types.Field {
 	return types.ReceiverBaseType(typ).Methods().Index(index)
 }
 
-func Index(pos src.XPos, x, index ir.Node) ir.Node {
-	// TODO(mdempsky): Avoid typecheck.Expr.
+func Index(pos src.XPos, typ *types.Type, x, index ir.Node) ir.Node {
+	if index.Op() == ir.OTYPE {
+		n := ir.NewIndexExpr(pos, x, index)
+		typed(typ, n)
+		return n
+	}
+	// TODO(mdempsky): Avoid typecheck.Expr (which will call tcIndex)
 	return typecheck.Expr(ir.NewIndexExpr(pos, x, index))
 }
 

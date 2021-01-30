@@ -39,7 +39,7 @@ func (g *irgen) typ(typ types2.Type) *types.Type {
 		// Ensure we calculate the size for all concrete types seen by
 		// the frontend. This is another heavy hammer for something that
 		// should really be the backend's responsibility instead.
-		if !res.IsUntyped() {
+		if res != nil && !res.IsUntyped() && !res.IsFuncArgStruct() {
 			types.CheckSize(res)
 		}
 	}
@@ -105,6 +105,22 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 		// Save the name of the type parameter in the sym of the type.
 		tp.SetSym(g.sym(typ.Obj()))
 		return tp
+
+	case *types2.Tuple:
+		// Tuples are used for the type of a function call (i.e. the
+		// return value of the function).
+		if typ == nil {
+			return (*types.Type)(nil)
+		}
+		fields := make([]*types.Field, typ.Len())
+		for i := range fields {
+			fields[i] = g.param(typ.At(i))
+		}
+		t := types.NewStruct(types.LocalPkg, fields)
+		types.CheckSize(t)
+		// Can only set after doing the types.CheckSize()
+		t.StructType().Funarg = types.FunargResults
+		return t
 
 	default:
 		base.FatalfAt(src.NoXPos, "unhandled type: %v (%T)", typ, typ)

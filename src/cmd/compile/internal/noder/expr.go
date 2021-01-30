@@ -93,9 +93,16 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 	case *syntax.AssertExpr:
 		return Assert(pos, g.expr(expr.X), g.typeExpr(expr.Type))
 	case *syntax.CallExpr:
-		return Call(pos, g.expr(expr.Fun), g.exprs(expr.ArgList), expr.HasDots)
+		def := g.info.Inferred[expr]
+		if len(def.Targs) > 0 {
+			panic("Inferred type arguments not handled yet")
+		}
+		return Call(pos, g.typ(typ), g.expr(expr.Fun), g.exprs(expr.ArgList), expr.HasDots)
 	case *syntax.IndexExpr:
-		return Index(pos, g.expr(expr.X), g.expr(expr.Index))
+		if _, ok := expr.Index.(*syntax.ListExpr); ok {
+			panic("more than one type argument")
+		}
+		return Index(pos, g.typ(typ), g.expr(expr.X), g.expr(expr.Index))
 	case *syntax.ParenExpr:
 		return g.expr(expr.X) // skip parens; unneeded after parse+typecheck
 	case *syntax.SelectorExpr:
