@@ -7,7 +7,6 @@ package jsonrpc2
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 )
 
 // this file contains the go forms of the wire specification
@@ -121,8 +120,6 @@ func (wireVersionTag) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
-
-const invalidID int64 = math.MaxInt64
 
 // NewIntID returns a new numerical request ID.
 func NewIntID(v int64) ID { return ID{number: v} }
