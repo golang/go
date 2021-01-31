@@ -190,6 +190,7 @@ const (
 	OGT            // Left > Right
 	ODEREF         // *Left
 	OINDEX         // Left[Right] (index of array or slice)
+	OLIST          // list of expressions
 	OINDEXMAP      // Left[Right] (index of map)
 	OKEY           // Left:Right (key:value in struct/array/map literal)
 	OSTRUCTKEY     // Sym:Left (key:value in struct literal, after type checking)
