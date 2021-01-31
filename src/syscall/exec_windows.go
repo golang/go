@@ -243,6 +243,7 @@ type SysProcAttr struct {
 	ThreadAttributes           *SecurityAttributes // if set, applies these security attributes as the descriptor for the main thread of the new process
 	NoInheritHandles           bool                // if set, each inheritable handle in the calling process is not inherited by the new process
 	AdditionalInheritedHandles []Handle            // a list of additional handles, already marked as inheritable, that will be inherited by the new process
+	ParentProcess              Handle              // if non-zero, the new process regards the process given by this handle as its parent process, and AdditionalInheritedHandles, if set, should exist in this parent process
 }
 
 var zeroProcAttr ProcAttr
@@ -312,18 +313,22 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	}
 
 	p, _ := GetCurrentProcess()
+	parentProcess := p
+	if sys.ParentProcess != 0 {
+		parentProcess = sys.ParentProcess
+	}
 	fd := make([]Handle, len(attr.Files))
 	for i := range attr.Files {
 		if attr.Files[i] > 0 {
-			err := DuplicateHandle(p, Handle(attr.Files[i]), p, &fd[i], 0, true, DUPLICATE_SAME_ACCESS)
+			err := DuplicateHandle(p, Handle(attr.Files[i]), parentProcess, &fd[i], 0, true, DUPLICATE_SAME_ACCESS)
 			if err != nil {
 				return 0, 0, err
 			}
-			defer CloseHandle(Handle(fd[i]))
+			defer DuplicateHandle(parentProcess, fd[i], 0, nil, 0, false, DUPLICATE_CLOSE_SOURCE)
 		}
 	}
 	si := new(_STARTUPINFOEXW)
-	si.ProcThreadAttributeList, err = newProcThreadAttributeList(1)
+	si.ProcThreadAttributeList, err = newProcThreadAttributeList(2)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -333,6 +338,12 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	if sys.HideWindow {
 		si.Flags |= STARTF_USESHOWWINDOW
 		si.ShowWindow = SW_HIDE
+	}
+	if sys.ParentProcess != 0 {
+		err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, uintptr(unsafe.Pointer(&sys.ParentProcess)), unsafe.Sizeof(sys.ParentProcess), 0, nil)
+		if err != nil {
+			return 0, 0, err
+		}
 	}
 	si.StdInput = fd[0]
 	si.StdOutput = fd[1]
