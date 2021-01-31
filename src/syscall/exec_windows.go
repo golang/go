@@ -310,12 +310,6 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 		}
 	}
 
-	// Acquire the fork lock so that no other threads
-	// create new fds that are not yet close-on-exec
-	// before we fork.
-	ForkLock.Lock()
-	defer ForkLock.Unlock()
-
 	p, _ := GetCurrentProcess()
 	fd := make([]Handle, len(attr.Files))
 	for i := range attr.Files {
@@ -327,7 +321,12 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 			defer CloseHandle(Handle(fd[i]))
 		}
 	}
-	si := new(StartupInfo)
+	si := new(_STARTUPINFOEXW)
+	si.ProcThreadAttributeList, err = newProcThreadAttributeList(1)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer deleteProcThreadAttributeList(si.ProcThreadAttributeList)
 	si.Cb = uint32(unsafe.Sizeof(*si))
 	si.Flags = STARTF_USESTDHANDLES
 	if sys.HideWindow {
@@ -338,13 +337,19 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	si.StdOutput = fd[1]
 	si.StdErr = fd[2]
 
+	// Do not accidentally inherit more than these handles.
+	err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_HANDLE_LIST, uintptr(unsafe.Pointer(&fd[0])), uintptr(len(fd))*unsafe.Sizeof(fd[0]), 0, nil)
+	if err != nil {
+		return 0, 0, err
+	}
+
 	pi := new(ProcessInformation)
 
-	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT
+	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT | _EXTENDED_STARTUPINFO_PRESENT
 	if sys.Token != 0 {
-		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, si, pi)
+		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
 	} else {
-		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, si, pi)
+		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
 	}
 	if err != nil {
 		return 0, 0, err
