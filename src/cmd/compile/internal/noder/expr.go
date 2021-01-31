@@ -99,10 +99,23 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 		}
 		return Call(pos, g.typ(typ), g.expr(expr.Fun), g.exprs(expr.ArgList), expr.HasDots)
 	case *syntax.IndexExpr:
+		var index ir.Node
+
+		// We are using IndexExpr in two ways, as an standard index
+		// operation (with expression) and as a function/type
+		// instantiation (with a type list). We will soon make this
+		// clearer by having separate function/type instantiation nodes.
 		if _, ok := expr.Index.(*syntax.ListExpr); ok {
-			panic("more than one type argument")
+			// List of types for a generic function call or type instantiation
+			index = ir.NewListExpr(pos, g.exprList(expr.Index))
+		} else {
+			index = g.expr(expr.Index)
+			if index.Op() == ir.OTYPE {
+				// Single type for a generic function call or type instantiation
+				index = ir.NewListExpr(pos, []ir.Node{index})
+			}
 		}
-		return Index(pos, g.typ(typ), g.expr(expr.X), g.expr(expr.Index))
+		return Index(pos, g.typ(typ), g.expr(expr.X), index)
 	case *syntax.ParenExpr:
 		return g.expr(expr.X) // skip parens; unneeded after parse+typecheck
 	case *syntax.SelectorExpr:

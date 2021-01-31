@@ -307,6 +307,20 @@ func (n *IndexExpr) SetOp(op Op) {
 	}
 }
 
+// A ListExpr is list of expressions
+type ListExpr struct {
+	miniExpr
+	List Nodes
+}
+
+func NewListExpr(pos src.XPos, list []Node) *ListExpr {
+	n := &ListExpr{}
+	n.pos = pos
+	n.op = OLIST
+	n.List = list
+	return n
+}
+
 // A KeyExpr is a Key: Value composite literal key.
 type KeyExpr struct {
 	miniExpr
