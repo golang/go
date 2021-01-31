@@ -915,6 +915,16 @@ func TestHelperProcess(*testing.T) {
 	case "sleep":
 		time.Sleep(3 * time.Second)
 		os.Exit(0)
+	case "pipehandle":
+		handle, _ := strconv.ParseUint(args[0], 16, 64)
+		pipe := os.NewFile(uintptr(handle), "")
+		_, err := fmt.Fprint(pipe, args[1])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "writing to pipe failed: %v\n", err)
+			os.Exit(1)
+		}
+		pipe.Close()
+		os.Exit(0)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %q\n", cmd)
 		os.Exit(2)
