@@ -271,11 +271,6 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 	ctx, done := event.Start(ctx, "cache.importer.typeCheck", tag.Package.Of(string(m.id)))
 	defer done()
 
-	var rawErrors []error
-	for _, err := range m.errors {
-		rawErrors = append(rawErrors, err)
-	}
-
 	fset := snapshot.view.session.cache.fset
 	pkg := &pkg{
 		m:               m,
@@ -332,6 +327,8 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 			pkg.compiledGoFiles[i] = pgf
 			files[i], parseErrors[i], actualErrors[i] = pgf.File, pgf.ParseErr, err
 
+			// If we have fixed parse errors in any of the files,
+			// we should hide type errors, as they may be completely nonsensical.
 			mu.Lock()
 			skipTypeErrors = skipTypeErrors || fixed
 			mu.Unlock()
@@ -357,13 +354,16 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 		}
 	}
 
+	var i int
 	for _, e := range parseErrors {
 		if e != nil {
-			rawErrors = append(rawErrors, e)
+			parseErrors[i] = e
+			i++
 		}
 	}
+	parseErrors = parseErrors[:i]
 
-	var i int
+	i = 0
 	for _, f := range files {
 		if f != nil {
 			files[i] = f
@@ -379,9 +379,9 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 		// race to Unsafe.completed.
 		return pkg, nil
 	} else if len(files) == 0 { // not the unsafe package, no parsed files
-		// Try to attach errors messages to the file as much as possible.
+		// Try to attach error messages to the file as much as possible.
 		var found bool
-		for _, e := range rawErrors {
+		for _, e := range m.errors {
 			srcDiags, err := sourceDiagnostics(ctx, snapshot, pkg, protocol.SeverityError, e)
 			if err != nil {
 				continue
@@ -392,19 +392,15 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 		if found {
 			return pkg, nil
 		}
-		return nil, errors.Errorf("no parsed files for package %s, expected: %v, list errors: %v", pkg.m.pkgPath, pkg.compiledGoFiles, rawErrors)
+		return nil, errors.Errorf("no parsed files for package %s, expected: %v, errors: %v", pkg.m.pkgPath, pkg.compiledGoFiles, m.errors)
 	} else {
 		pkg.types = types.NewPackage(string(m.pkgPath), string(m.name))
 	}
 
+	var typeErrors []types.Error
 	cfg := &types.Config{
 		Error: func(e error) {
-			// If we have fixed parse errors in any of the files,
-			// we should hide type errors, as they may be completely nonsensical.
-			if skipTypeErrors {
-				return
-			}
-			rawErrors = append(rawErrors, e)
+			typeErrors = append(typeErrors, e.(types.Error))
 		},
 		Importer: importerFunc(func(pkgPath string) (*types.Package, error) {
 			// If the context was cancelled, we should abort.
@@ -441,28 +437,56 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 	}
 
 	// We don't care about a package's errors unless we have parsed it in full.
-	if mode == source.ParseFull {
-		for _, e := range expandErrors(rawErrors) {
-			srcDiags, err := sourceDiagnostics(ctx, snapshot, pkg, protocol.SeverityError, e)
+	if mode != source.ParseFull {
+		return pkg, nil
+	}
+
+	if len(m.errors) != 0 {
+		pkg.hasListOrParseErrors = true
+		for _, e := range m.errors {
+			diags, err := sourceDiagnostics(ctx, snapshot, pkg, protocol.SeverityError, e)
 			if err != nil {
-				event.Error(ctx, "unable to compute error positions", err, tag.Package.Of(pkg.ID()))
+				event.Error(ctx, "unable to compute positions for list errors", err, tag.Package.Of(pkg.ID()))
 				continue
 			}
-			pkg.diagnostics = append(pkg.diagnostics, srcDiags...)
+			pkg.diagnostics = append(pkg.diagnostics, diags...)
+		}
+	}
 
-			if err, ok := e.(extendedError); ok {
-				pkg.typeErrors = append(pkg.typeErrors, err.primary)
+	if len(parseErrors) != 0 {
+		pkg.hasListOrParseErrors = true
+		for _, e := range parseErrors {
+			diags, err := sourceDiagnostics(ctx, snapshot, pkg, protocol.SeverityError, e)
+			if err != nil {
+				event.Error(ctx, "unable to compute positions for parse errors", err, tag.Package.Of(pkg.ID()))
+				continue
 			}
+			pkg.diagnostics = append(pkg.diagnostics, diags...)
 		}
+	}
 
-		depsErrors, err := snapshot.depsErrors(ctx, pkg)
+	if pkg.hasListOrParseErrors || skipTypeErrors {
+		return pkg, nil
+	}
+
+	for _, e := range expandErrors(typeErrors) {
+		pkg.hasTypeErrors = true
+		diags, err := sourceDiagnostics(ctx, snapshot, pkg, protocol.SeverityError, e)
 		if err != nil {
-			return nil, err
+			event.Error(ctx, "unable to compute positions for type errors", err, tag.Package.Of(pkg.ID()))
+			continue
 		}
-		pkg.diagnostics = append(pkg.diagnostics, depsErrors...)
-		if err := addGoGetFixes(ctx, snapshot, pkg); err != nil {
-			return nil, err
-		}
+		pkg.diagnostics = append(pkg.diagnostics, diags...)
+		pkg.typeErrors = append(pkg.typeErrors, e.primary)
+	}
+
+	depsErrors, err := snapshot.depsErrors(ctx, pkg)
+	if err != nil {
+		return nil, err
+	}
+	pkg.diagnostics = append(pkg.diagnostics, depsErrors...)
+	if err := addGoGetFixes(ctx, snapshot, pkg); err != nil {
+		return nil, err
 	}
 
 	return pkg, nil
@@ -652,21 +676,15 @@ func (e extendedError) Error() string {
 //
 // This code associates the secondary error with its primary error, which can
 // then be used as RelatedInformation when the error becomes a diagnostic.
-func expandErrors(errs []error) []error {
-	var result []error
+func expandErrors(errs []types.Error) []extendedError {
+	var result []extendedError
 	for i := 0; i < len(errs); {
-		e, ok := errs[i].(types.Error)
-		if !ok {
-			result = append(result, errs[i])
-			i++
-			continue
-		}
 		original := extendedError{
-			primary: e,
+			primary: errs[i],
 		}
 		for i++; i < len(errs); i++ {
-			spl, ok := errs[i].(types.Error)
-			if !ok || len(spl.Msg) == 0 || spl.Msg[0] != '\t' {
+			spl := errs[i]
+			if len(spl.Msg) == 0 || spl.Msg[0] != '\t' {
 				break
 			}
 			spl.Msg = spl.Msg[1:]

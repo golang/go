@@ -372,10 +372,19 @@ func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *pa
 		name:       packageName(pkg.Name),
 		forTest:    packagePath(packagesinternal.GetForTest(pkg)),
 		typesSizes: pkg.TypesSizes,
-		errors:     pkg.Errors,
 		config:     cfg,
 		module:     pkg.Module,
 		depsErrors: packagesinternal.GetDepsErrors(pkg),
+	}
+
+	for _, err := range pkg.Errors {
+		// Filter out parse errors from go list. We'll get them when we
+		// actually parse, and buggy overlay support may generate spurious
+		// errors. (See TestNewModule_Issue38207.)
+		if strings.Contains(err.Msg, "expected '") {
+			continue
+		}
+		m.errors = append(m.errors, err)
 	}
 
 	for _, filename := range pkg.CompiledGoFiles {

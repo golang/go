@@ -256,14 +256,17 @@ func Foo() {
 }
 `
 	Run(t, workspace, func(t *testing.T, env *Env) {
-		// Open the file. We should have a nonexistant symbol.
+		// Open the file. We have a nonexistant symbol that will break cgo processing.
 		env.OpenFile("cgo.go")
-		env.Await(env.DiagnosticAtRegexp("cgo.go", `C\.(fortytwo)`)) // could not determine kind of name for C.fortytwo
+		env.Await(env.DiagnosticAtRegexpWithMessage("cgo.go", ``, "go list failed to return CompiledGoFiles"))
 
 		// Fix the C function name. We haven't regenerated cgo, so nothing should be fixed.
 		env.RegexpReplace("cgo.go", `int fortythree`, "int fortytwo")
 		env.SaveBuffer("cgo.go")
-		env.Await(env.DiagnosticAtRegexp("cgo.go", `C\.(fortytwo)`))
+		env.Await(OnceMet(
+			env.DoneWithSave(),
+			env.DiagnosticAtRegexpWithMessage("cgo.go", ``, "go list failed to return CompiledGoFiles"),
+		))
 
 		// Regenerate cgo, fixing the diagnostic.
 		env.ExecuteCodeLensCommand("cgo.go", command.RegenerateCgo)

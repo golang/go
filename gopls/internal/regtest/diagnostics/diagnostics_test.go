@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"testing"
 
 	. "golang.org/x/tools/gopls/internal/regtest"
@@ -585,8 +584,9 @@ hi mom
 	}
 }
 
-// Tests golang/go#38602.
-func TestNonexistentFileDiagnostics_Issue38602(t *testing.T) {
+// Tests the repro case from golang/go#38602. Diagnostics are now handled properly,
+// which blocks type checking.
+func TestConflictingMainPackageErrors(t *testing.T) {
 	const collision = `
 -- x/x.go --
 package x
@@ -604,27 +604,19 @@ func main() {
 }
 `
 	WithOptions(InGOPATH()).Run(t, collision, func(t *testing.T, env *Env) {
-		env.OpenFile("x/main.go")
+		env.OpenFile("x/x.go")
 		env.Await(
-			env.DiagnosticAtRegexp("x/main.go", "fmt.Println"),
+			env.DiagnosticAtRegexpWithMessage("x/x.go", `^`, "found packages main (main.go) and x (x.go)"),
+			env.DiagnosticAtRegexpWithMessage("x/main.go", `^`, "found packages main (main.go) and x (x.go)"),
 		)
-		env.OrganizeImports("x/main.go")
-		// span.Parse misparses the error message when multiple packages are
-		// defined in the same directory, creating a garbage filename.
-		// Previously, we would send diagnostics for this nonexistent file.
-		// This test checks that we don't send diagnostics for this file.
-		dir, err := os.Getwd()
-		if err != nil {
-			t.Fatal(err)
-		}
-		badFile := fmt.Sprintf("%s/found packages main (main.go) and x (x.go) in %s/src/x", dir, env.Sandbox.GOPATH())
-		env.Await(
-			OnceMet(
+
+		// We don't recover cleanly from the errors without good overlay support.
+		if testenv.Go1Point() >= 16 {
+			env.RegexpReplace("x/x.go", `package x`, `package main`)
+			env.Await(OnceMet(
 				env.DoneWithChange(),
-				EmptyDiagnostics("x/main.go"),
-			),
-			NoDiagnostics(badFile),
-		)
+				env.DiagnosticAtRegexpWithMessage("x/main.go", `fmt`, "undeclared name")))
+		}
 	})
 }
 
@@ -717,15 +709,14 @@ go 1.12
 	WithOptions(
 		ProxyFiles(ardanLabsProxy),
 	).Run(t, emptyFile, func(t *testing.T, env *Env) {
-		env.OpenFile("main.go")
-		env.EditBuffer("main.go", fake.NewEdit(0, 0, 0, 0, `package main
+		env.CreateBuffer("main.go", `package main
 
 import "github.com/ardanlabs/conf"
 
 func main() {
 	_ = conf.ErrHelpWanted
 }
-`))
+`)
 		env.SaveBuffer("main.go")
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
@@ -1116,7 +1107,7 @@ func Foo() {
 }
 `
 	Run(t, basic, func(t *testing.T, env *Env) {
-		testenv.NeedsGo1Point(t, 15)
+		testenv.NeedsGo1Point(t, 16) // We can't recover cleanly from this case without good overlay support.
 
 		env.WriteWorkspaceFile("foo/foo_test.go", `package main
 
@@ -1219,7 +1210,7 @@ func main() {}
 	Run(t, pkgDefault, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.Await(
-			env.DiagnosticAtRegexp("main.go", "default"),
+			env.DiagnosticAtRegexpWithMessage("main.go", "default", "expected 'IDENT'"),
 		)
 	})
 }

@@ -262,12 +262,12 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 		}
 	}
 
-	typeCheckResults := source.GetTypeCheckDiagnostics(ctx, snapshot, pkg)
-	for uri, diags := range typeCheckResults.Diagnostics {
+	typeCheckDiagnostics := source.GetTypeCheckDiagnostics(ctx, snapshot, pkg)
+	for uri, diags := range typeCheckDiagnostics {
 		s.storeDiagnostics(snapshot, uri, typeCheckSource, diags)
 	}
-	if includeAnalysis && !typeCheckResults.HasParseOrListErrors {
-		reports, err := source.Analyze(ctx, snapshot, pkg, typeCheckResults)
+	if includeAnalysis && !pkg.HasListOrParseErrors() {
+		reports, err := source.Analyze(ctx, snapshot, pkg, typeCheckDiagnostics)
 		if err != nil {
 			event.Error(ctx, "warning: diagnose package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
 			return

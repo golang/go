@@ -557,6 +557,8 @@ type Package interface {
 	MissingDependencies() []string
 	Imports() []Package
 	Version() *module.Version
+	HasListOrParseErrors() bool
+	HasTypeErrors() bool
 }
 
 type CriticalError struct {

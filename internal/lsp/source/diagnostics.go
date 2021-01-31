@@ -8,8 +8,6 @@ import (
 	"context"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 )
@@ -26,25 +24,33 @@ type RelatedInformation struct {
 	Message string
 }
 
-func GetTypeCheckDiagnostics(ctx context.Context, snapshot Snapshot, pkg Package) TypeCheckDiagnostics {
+func GetTypeCheckDiagnostics(ctx context.Context, snapshot Snapshot, pkg Package) map[span.URI][]*Diagnostic {
 	onlyIgnoredFiles := true
 	for _, pgf := range pkg.CompiledGoFiles() {
 		onlyIgnoredFiles = onlyIgnoredFiles && snapshot.IgnoredFile(pgf.URI)
 	}
 	if onlyIgnoredFiles {
-		return TypeCheckDiagnostics{}
+		return nil
 	}
-	return typeCheckDiagnostics(ctx, snapshot, pkg)
+
+	diagSets := emptyDiagnostics(pkg)
+	for _, diag := range pkg.GetDiagnostics() {
+		diagSets[diag.URI] = append(diagSets[diag.URI], diag)
+	}
+	for uri, diags := range diagSets {
+		diagSets[uri] = cloneDiagnostics(diags)
+	}
+	return diagSets
 }
 
-func Analyze(ctx context.Context, snapshot Snapshot, pkg Package, typeCheckResult TypeCheckDiagnostics) (map[span.URI][]*Diagnostic, error) {
+func Analyze(ctx context.Context, snapshot Snapshot, pkg Package, typeCheckDiagnostics map[span.URI][]*Diagnostic) (map[span.URI][]*Diagnostic, error) {
 	// Exit early if the context has been canceled. This also protects us
 	// from a race on Options, see golang/go#36699.
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
 	// If we don't have any list or parse errors, run analyses.
-	analyzers := pickAnalyzers(snapshot, typeCheckResult.HasTypeErrors)
+	analyzers := pickAnalyzers(snapshot, pkg.HasTypeErrors())
 	analysisDiagnostics, err := snapshot.Analyze(ctx, pkg.ID(), analyzers...)
 	if err != nil {
 		return nil, err
@@ -70,7 +76,7 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkg Package, typeCheckResul
 		}
 		// Type error analyzers only alter the tags for existing type errors.
 		if _, ok := snapshot.View().Options().TypeErrorAnalyzers[string(diag.Source)]; ok {
-			existingDiagnostics := typeCheckResult.Diagnostics[diag.URI]
+			existingDiagnostics := typeCheckDiagnostics[diag.URI]
 			for _, existing := range existingDiagnostics {
 				if r := protocol.CompareRange(diag.Range, existing.Range); r != 0 {
 					continue
@@ -128,70 +134,16 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (Vers
 	if err != nil {
 		return VersionedFileIdentity{}, nil, err
 	}
-	typeCheckResults := GetTypeCheckDiagnostics(ctx, snapshot, pkg)
-	diagnostics := typeCheckResults.Diagnostics[fh.URI()]
-	if !typeCheckResults.HasParseOrListErrors {
-		reports, err := Analyze(ctx, snapshot, pkg, typeCheckResults)
+	typeCheckDiagnostics := GetTypeCheckDiagnostics(ctx, snapshot, pkg)
+	diagnostics := typeCheckDiagnostics[fh.URI()]
+	if !pkg.HasListOrParseErrors() {
+		reports, err := Analyze(ctx, snapshot, pkg, typeCheckDiagnostics)
 		if err != nil {
 			return VersionedFileIdentity{}, nil, err
 		}
 		diagnostics = append(diagnostics, reports[fh.URI()]...)
 	}
 	return fh.VersionedFileIdentity(), diagnostics, nil
-}
-
-type TypeCheckDiagnostics struct {
-	HasTypeErrors        bool
-	HasParseOrListErrors bool
-	Diagnostics          map[span.URI][]*Diagnostic
-}
-
-type diagnosticSet struct {
-	listErrors, parseErrors, typeErrors []*Diagnostic
-}
-
-func typeCheckDiagnostics(ctx context.Context, snapshot Snapshot, pkg Package) TypeCheckDiagnostics {
-	ctx, done := event.Start(ctx, "source.typeCheckDiagnostics", tag.Package.Of(pkg.ID()))
-	_ = ctx // circumvent SA4006
-	defer done()
-
-	diagSets := make(map[span.URI]*diagnosticSet)
-	for _, diag := range pkg.GetDiagnostics() {
-		set, ok := diagSets[diag.URI]
-		if !ok {
-			set = &diagnosticSet{}
-			diagSets[diag.URI] = set
-		}
-		switch diag.Source {
-		case ParseError:
-			set.parseErrors = append(set.parseErrors, diag)
-		case TypeError:
-			set.typeErrors = append(set.typeErrors, diag)
-		case ListError:
-			set.listErrors = append(set.listErrors, diag)
-		}
-	}
-	typecheck := TypeCheckDiagnostics{
-		Diagnostics: emptyDiagnostics(pkg),
-	}
-	for uri, set := range diagSets {
-		// Don't report type errors if there are parse errors or list errors.
-		diags := set.typeErrors
-		switch {
-		case len(set.parseErrors) > 0:
-			typecheck.HasParseOrListErrors = true
-			diags = set.parseErrors
-		case len(set.listErrors) > 0:
-			typecheck.HasParseOrListErrors = true
-			if len(pkg.MissingDependencies()) > 0 {
-				diags = set.listErrors
-			}
-		case len(set.typeErrors) > 0:
-			typecheck.HasTypeErrors = true
-		}
-		typecheck.Diagnostics[uri] = cloneDiagnostics(diags)
-	}
-	return typecheck
 }
 
 func emptyDiagnostics(pkg Package) map[span.URI][]*Diagnostic {

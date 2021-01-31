@@ -584,7 +584,7 @@ func (state *golistState) createDriverResponse(words ...string) (*driverResponse
 				// golang/go#38990: go list silently fails to do cgo processing
 				pkg.CompiledGoFiles = nil
 				pkg.Errors = append(pkg.Errors, Error{
-					Msg:  "go list failed to return CompiledGoFiles; https://golang.org/issue/38990?",
+					Msg:  "go list failed to return CompiledGoFiles. This may indicate failure to perform cgo processing; try building at the command line. See https://golang.org/issue/38990.",
 					Kind: ListError,
 				})
 			}
