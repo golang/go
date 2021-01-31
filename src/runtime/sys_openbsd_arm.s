@@ -104,7 +104,7 @@ TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
 	MOVW	R13, R9
 	BIC     $0x7, R13		// align for ELF ABI
 	MOVW	0(R0), R0		// arg 1 attr
-	BL	libc_pthread_attr_init(SB)
+	CALL	libc_pthread_attr_init(SB)
 	MOVW	R9, R13
 	RET
 
@@ -112,7 +112,7 @@ TEXT runtime·pthread_attr_destroy_trampoline(SB),NOSPLIT,$0
 	MOVW	R13, R9
 	BIC     $0x7, R13		// align for ELF ABI
 	MOVW	0(R0), R0		// arg 1 attr
-	BL	libc_pthread_attr_destroy(SB)
+	CALL	libc_pthread_attr_destroy(SB)
 	MOVW	R9, R13
 	RET
 
@@ -121,7 +121,7 @@ TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
 	BIC     $0x7, R13		// align for ELF ABI
 	MOVW	4(R0), R1		// arg 2 size
 	MOVW	0(R0), R0		// arg 1 attr
-	BL	libc_pthread_attr_getstacksize(SB)
+	CALL	libc_pthread_attr_getstacksize(SB)
 	MOVW	R9, R13
 	RET
 
@@ -130,7 +130,7 @@ TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
 	BIC     $0x7, R13		// align for ELF ABI
 	MOVW	4(R0), R1		// arg 2 state
 	MOVW	0(R0), R0		// arg 1 attr
-	BL	libc_pthread_attr_setdetachstate(SB)
+	CALL	libc_pthread_attr_setdetachstate(SB)
 	MOVW	R9, R13
 	RET
 
@@ -142,7 +142,37 @@ TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
 	MOVW	4(R0), R2		// arg 3 start
 	MOVW	8(R0), R3		// arg 4 arg
 	MOVW	R13, R0			// arg 1 &threadid (discarded)
-	BL	libc_pthread_create(SB)
+	CALL	libc_pthread_create(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·thrsleep_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	SUB	$16, R13
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 - clock_id
+	MOVW	8(R0), R2		// arg 3 - abstime
+	MOVW	12(R0), R3		// arg 4 - lock
+	MOVW	16(R0), R4		// arg 5 - abort (on stack)
+	MOVW	R4, 0(R13)
+	MOVW	0(R0), R0		// arg 1 - id
+	CALL	libc_thrsleep(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·thrwakeup_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 - count
+	MOVW	0(R0), R0		// arg 1 - id
+	CALL	libc_thrwakeup(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·sched_yield_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	CALL	libc_sched_yield(SB)
 	MOVW	R9, R13
 	RET
 
@@ -375,33 +405,6 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	INVOKE_SYSCALL
 	MOVW.CS	$0, R8			// crash on syscall failure
 	MOVW.CS	R8, (R8)
-	RET
-
-TEXT runtime·osyield(SB),NOSPLIT,$0
-	MOVW	$298, R12		// sys_sched_yield
-	INVOKE_SYSCALL
-	RET
-
-TEXT runtime·thrsleep(SB),NOSPLIT,$4
-	MOVW	ident+0(FP), R0		// arg 1 - ident
-	MOVW	clock_id+4(FP), R1	// arg 2 - clock_id
-	MOVW	tsp+8(FP), R2		// arg 3 - tsp
-	MOVW	lock+12(FP), R3		// arg 4 - lock
-	MOVW	abort+16(FP), R4	// arg 5 - abort (on stack)
-	MOVW	R4, 4(R13)
-	ADD	$4, R13
-	MOVW	$94, R12		// sys___thrsleep
-	INVOKE_SYSCALL
-	SUB	$4, R13
-	MOVW	R0, ret+20(FP)
-	RET
-
-TEXT runtime·thrwakeup(SB),NOSPLIT,$0
-	MOVW	ident+0(FP), R0		// arg 1 - ident
-	MOVW	n+4(FP), R1		// arg 2 - n
-	MOVW	$301, R12		// sys___thrwakeup
-	INVOKE_SYSCALL
-	MOVW	R0, ret+8(FP)
 	RET
 
 TEXT runtime·sysctl(SB),NOSPLIT,$8
