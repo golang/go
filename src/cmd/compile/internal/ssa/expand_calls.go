@@ -5,6 +5,8 @@
 package ssa
 
 import (
+	"cmd/compile/internal/abi"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -23,6 +25,8 @@ type offsetKey struct {
 	offset int64
 	pt     *types.Type
 }
+
+type Abi1RO uint8 // An offset within a parameter's slice of register indices, for abi1.
 
 func isBlockMultiValueExit(b *Block) bool {
 	return (b.Kind == BlockRet || b.Kind == BlockRetJmp) && len(b.Controls) > 0 && b.Controls[0].Op == OpMakeResult
@@ -51,8 +55,107 @@ func removeTrivialWrapperTypes(t *types.Type) *types.Type {
 	return t
 }
 
+// A registerCursor tracks which register is used for an Arg or regValues, or a piece of such.
+type registerCursor struct {
+	// TODO(register args) convert this to a generalized target cursor.
+	regsLen   int    // the number of registers available for this Arg/result (which is all in registers or not at all)
+	nextSlice Abi1RO // the next register/register-slice offset
+	config    *abi.ABIConfig
+	regValues *[]*Value // values assigned to registers accumulate here
+}
+
+// next effectively post-increments the register cursor; the receiver is advanced,
+// the old value is returned.
+func (c *registerCursor) next(t *types.Type) registerCursor {
+	rc := *c
+	if int(c.nextSlice) < c.regsLen {
+		w := c.config.NumParamRegs(t)
+		c.nextSlice += Abi1RO(w)
+	}
+	return rc
+}
+
+// plus returns a register cursor offset from the original, without modifying the original.
+func (c *registerCursor) plus(regWidth Abi1RO) registerCursor {
+	rc := *c
+	rc.nextSlice += regWidth
+	return rc
+}
+
+const (
+	// Register offsets for fields of built-in aggregate types; the ones not listed are zero.
+	RO_complex_imag = 1
+	RO_string_len   = 1
+	RO_slice_len    = 1
+	RO_slice_cap    = 2
+	RO_iface_data   = 1
+)
+
+func (x *expandState) regWidth(t *types.Type) Abi1RO {
+	return Abi1RO(x.abi1.NumParamRegs(t))
+}
+
+// regOffset returns the register offset of the i'th element of type t
+func (x *expandState) regOffset(t *types.Type, i int) Abi1RO {
+	// TODO maybe cache this in a map if profiling recommends.
+	if i == 0 {
+		return 0
+	}
+	if t.IsArray() {
+		return Abi1RO(i) * x.regWidth(t.Elem())
+	}
+	if t.IsStruct() {
+		k := Abi1RO(0)
+		for j := 0; j < i; j++ {
+			k += x.regWidth(t.FieldType(j))
+		}
+		return k
+	}
+	panic("Haven't implemented this case yet, do I need to?")
+}
+
+// at returns the register cursor for component i of t, where the first
+// component is numbered 0.
+func (c *registerCursor) at(t *types.Type, i int) registerCursor {
+	rc := *c
+	if i == 0 || c.regsLen == 0 {
+		return rc
+	}
+	if t.IsArray() {
+		w := c.config.NumParamRegs(t.Elem())
+		rc.nextSlice += Abi1RO(i * w)
+		return rc
+	}
+	if t.IsStruct() {
+		for j := 0; j < i; j++ {
+			rc.next(t.FieldType(j))
+		}
+		return rc
+	}
+	panic("Haven't implemented this case yet, do I need to?")
+}
+
+func (c *registerCursor) init(regs []abi.RegIndex, info *abi.ABIParamResultInfo, result *[]*Value) {
+	c.regsLen = len(regs)
+	c.nextSlice = 0
+	if len(regs) == 0 {
+		return
+	}
+	c.config = info.Config()
+	c.regValues = result
+}
+
+func (c *registerCursor) addArg(v *Value) {
+	*c.regValues = append(*c.regValues, v)
+}
+
+func (c *registerCursor) hasRegs() bool {
+	return c.regsLen > 0
+}
+
 type expandState struct {
 	f            *Func
+	abi1         *abi.ABIConfig
 	debug        bool
 	canSSAType   func(*types.Type) bool
 	regSize      int64
@@ -61,6 +164,8 @@ type expandState struct {
 	ptrSize      int64
 	hiOffset     int64
 	lowOffset    int64
+	hiRo         Abi1RO
+	loRo         Abi1RO
 	namedSelects map[*Value][]namedVal
 	sdom         SparseTree
 	common       map[selKey]*Value
@@ -123,6 +228,18 @@ func (x *expandState) splitSlots(ls []LocalSlot, sfx string, offset int64, ty *t
 	return locs
 }
 
+// prAssignForArg returns the ABIParamAssignment for v, assumed to be an OpArg.
+func (x *expandState) prAssignForArg(v *Value) abi.ABIParamAssignment {
+	name := v.Aux.(*ir.Name)
+	fPri := x.f.OwnAux.abiInfo
+	for _, a := range fPri.InParams() {
+		if a.Name == name {
+			return a
+		}
+	}
+	panic(fmt.Errorf("Did not match param %v in prInfo %+v", name, fPri.InParams()))
+}
+
 // Calls that need lowering have some number of inputs, including a memory input,
 // and produce a tuple of (value1, value2, ..., mem) where valueK may or may not be SSA-able.
 
@@ -140,7 +257,7 @@ func (x *expandState) splitSlots(ls []LocalSlot, sfx string, offset int64, ty *t
 // It emits the code necessary to implement the leaf select operation that leads to the root.
 //
 // TODO when registers really arrive, must also decompose anything split across two registers or registers and memory.
-func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64) []LocalSlot {
+func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, regOffset Abi1RO) []LocalSlot {
 	if x.debug {
 		fmt.Printf("rewriteSelect(%s, %s, %d)\n", leaf.LongString(), selector.LongString(), offset)
 	}
@@ -157,9 +274,13 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64) 
 	}
 	switch selector.Op {
 	case OpArg:
+		paramAssignment := x.prAssignForArg(selector)
+		_ = paramAssignment
+		// TODO(register args)
 		if !x.isAlreadyExpandedAggregateType(selector.Type) {
 			if leafType == selector.Type { // OpIData leads us here, sometimes.
 				leaf.copyOf(selector)
+
 			} else {
 				x.f.Fatalf("Unexpected OpArg type, selector=%s, leaf=%s\n", selector.LongString(), leaf.LongString())
 			}
@@ -228,6 +349,8 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64) 
 		}
 
 	case OpSelectN:
+		// TODO(register args) result case
+		// if applied to Op-mumble-call, the Aux tells us which result, regOffset specifies offset within result.  If a register, should rewrite to OpSelectN for new call.
 		// TODO these may be duplicated. Should memoize. Intermediate selectors will go dead, no worries there.
 		call := selector.Args[0]
 		aux := call.Aux.(*AuxCall)
@@ -264,9 +387,10 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64) 
 		w := selector.Args[0]
 		var ls []LocalSlot
 		if w.Type.Kind() != types.TSTRUCT { // IData artifact
-			ls = x.rewriteSelect(leaf, w, offset)
+			ls = x.rewriteSelect(leaf, w, offset, regOffset)
 		} else {
-			ls = x.rewriteSelect(leaf, w, offset+w.Type.FieldOff(int(selector.AuxInt)))
+			fldi := int(selector.AuxInt)
+			ls = x.rewriteSelect(leaf, w, offset+w.Type.FieldOff(fldi), regOffset+x.regOffset(w.Type, fldi))
 			if w.Op != OpIData {
 				for _, l := range ls {
 					locs = append(locs, x.f.fe.SplitStruct(l, int(selector.AuxInt)))
@@ -276,30 +400,31 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64) 
 
 	case OpArraySelect:
 		w := selector.Args[0]
-		x.rewriteSelect(leaf, w, offset+selector.Type.Size()*selector.AuxInt)
+		index := selector.AuxInt
+		x.rewriteSelect(leaf, w, offset+selector.Type.Size()*index, regOffset+x.regOffset(w.Type, int(index)))
 
 	case OpInt64Hi:
 		w := selector.Args[0]
-		ls := x.rewriteSelect(leaf, w, offset+x.hiOffset)
+		ls := x.rewriteSelect(leaf, w, offset+x.hiOffset, regOffset+x.hiRo)
 		locs = x.splitSlots(ls, ".hi", x.hiOffset, leafType)
 
 	case OpInt64Lo:
 		w := selector.Args[0]
-		ls := x.rewriteSelect(leaf, w, offset+x.lowOffset)
+		ls := x.rewriteSelect(leaf, w, offset+x.lowOffset, regOffset+x.loRo)
 		locs = x.splitSlots(ls, ".lo", x.lowOffset, leafType)
 
 	case OpStringPtr:
-		ls := x.rewriteSelect(leaf, selector.Args[0], offset)
+		ls := x.rewriteSelect(leaf, selector.Args[0], offset, regOffset)
 		locs = x.splitSlots(ls, ".ptr", 0, x.typs.BytePtr)
 
 	case OpSlicePtr:
 		w := selector.Args[0]
-		ls := x.rewriteSelect(leaf, w, offset)
+		ls := x.rewriteSelect(leaf, w, offset, regOffset)
 		locs = x.splitSlots(ls, ".ptr", 0, types.NewPtr(w.Type.Elem()))
 
 	case OpITab:
 		w := selector.Args[0]
-		ls := x.rewriteSelect(leaf, w, offset)
+		ls := x.rewriteSelect(leaf, w, offset, regOffset)
 		sfx := ".itab"
 		if w.Type.IsEmptyInterface() {
 			sfx = ".type"
@@ -307,27 +432,27 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64) 
 		locs = x.splitSlots(ls, sfx, 0, x.typs.Uintptr)
 
 	case OpComplexReal:
-		ls := x.rewriteSelect(leaf, selector.Args[0], offset)
+		ls := x.rewriteSelect(leaf, selector.Args[0], offset, regOffset)
 		locs = x.splitSlots(ls, ".real", 0, leafType)
 
 	case OpComplexImag:
-		ls := x.rewriteSelect(leaf, selector.Args[0], offset+leafType.Width) // result is FloatNN, width of result is offset of imaginary part.
+		ls := x.rewriteSelect(leaf, selector.Args[0], offset+leafType.Width, regOffset+RO_complex_imag) // result is FloatNN, width of result is offset of imaginary part.
 		locs = x.splitSlots(ls, ".imag", leafType.Width, leafType)
 
 	case OpStringLen, OpSliceLen:
-		ls := x.rewriteSelect(leaf, selector.Args[0], offset+x.ptrSize)
+		ls := x.rewriteSelect(leaf, selector.Args[0], offset+x.ptrSize, regOffset+RO_slice_len)
 		locs = x.splitSlots(ls, ".len", x.ptrSize, leafType)
 
 	case OpIData:
-		ls := x.rewriteSelect(leaf, selector.Args[0], offset+x.ptrSize)
+		ls := x.rewriteSelect(leaf, selector.Args[0], offset+x.ptrSize, regOffset+RO_iface_data)
 		locs = x.splitSlots(ls, ".data", x.ptrSize, leafType)
 
 	case OpSliceCap:
-		ls := x.rewriteSelect(leaf, selector.Args[0], offset+2*x.ptrSize)
+		ls := x.rewriteSelect(leaf, selector.Args[0], offset+2*x.ptrSize, regOffset+RO_slice_cap)
 		locs = x.splitSlots(ls, ".cap", 2*x.ptrSize, leafType)
 
 	case OpCopy: // If it's an intermediate result, recurse
-		locs = x.rewriteSelect(leaf, selector.Args[0], offset)
+		locs = x.rewriteSelect(leaf, selector.Args[0], offset, regOffset)
 		for _, s := range x.namedSelects[selector] {
 			// this copy may have had its own name, preserve that, too.
 			locs = append(locs, x.f.Names[s.locIndex])
@@ -361,23 +486,26 @@ func (x *expandState) rewriteDereference(b *Block, base, a, mem *Value, offset, 
 // decomposeArgOrLoad is a helper for storeArgOrLoad.
 // It decomposes a Load or an Arg into smaller parts, parameterized by the decomposeOne and decomposeTwo functions
 // passed to it, and returns the new mem. If the type does not match one of the expected aggregate types, it returns nil instead.
-func (x *expandState) decomposeArgOrLoad(pos src.XPos, b *Block, base, source, mem *Value, t *types.Type, offset int64,
-	decomposeOne func(x *expandState, pos src.XPos, b *Block, base, source, mem *Value, t1 *types.Type, offArg, offStore int64) *Value,
-	decomposeTwo func(x *expandState, pos src.XPos, b *Block, base, source, mem *Value, t1, t2 *types.Type, offArg, offStore int64) *Value) *Value {
+func (x *expandState) decomposeArgOrLoad(pos src.XPos, b *Block, base, source, mem *Value, t *types.Type, offset int64, loadRegOffset Abi1RO, storeRc registerCursor,
+	decomposeOne func(x *expandState, pos src.XPos, b *Block, base, source, mem *Value, t1 *types.Type, offArg, offStore int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value,
+	decomposeTwo func(x *expandState, pos src.XPos, b *Block, base, source, mem *Value, t1, t2 *types.Type, offArg, offStore int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value) *Value {
 	u := source.Type
 	switch u.Kind() {
 	case types.TARRAY:
 		elem := u.Elem()
+		elemRO := x.regWidth(elem)
 		for i := int64(0); i < u.NumElem(); i++ {
 			elemOff := i * elem.Size()
-			mem = decomposeOne(x, pos, b, base, source, mem, elem, source.AuxInt+elemOff, offset+elemOff)
+			mem = decomposeOne(x, pos, b, base, source, mem, elem, source.AuxInt+elemOff, offset+elemOff, loadRegOffset, storeRc.next(elem))
+			loadRegOffset += elemRO
 			pos = pos.WithNotStmt()
 		}
 		return mem
 	case types.TSTRUCT:
 		for i := 0; i < u.NumFields(); i++ {
 			fld := u.Field(i)
-			mem = decomposeOne(x, pos, b, base, source, mem, fld.Type, source.AuxInt+fld.Offset, offset+fld.Offset)
+			mem = decomposeOne(x, pos, b, base, source, mem, fld.Type, source.AuxInt+fld.Offset, offset+fld.Offset, loadRegOffset, storeRc.next(fld.Type))
+			loadRegOffset += x.regWidth(fld.Type)
 			pos = pos.WithNotStmt()
 		}
 		return mem
@@ -386,20 +514,20 @@ func (x *expandState) decomposeArgOrLoad(pos src.XPos, b *Block, base, source, m
 			break
 		}
 		tHi, tLo := x.intPairTypes(t.Kind())
-		mem = decomposeOne(x, pos, b, base, source, mem, tHi, source.AuxInt+x.hiOffset, offset+x.hiOffset)
+		mem = decomposeOne(x, pos, b, base, source, mem, tHi, source.AuxInt+x.hiOffset, offset+x.hiOffset, loadRegOffset+x.hiRo, storeRc.plus(x.hiRo))
 		pos = pos.WithNotStmt()
-		return decomposeOne(x, pos, b, base, source, mem, tLo, source.AuxInt+x.lowOffset, offset+x.lowOffset)
+		return decomposeOne(x, pos, b, base, source, mem, tLo, source.AuxInt+x.lowOffset, offset+x.lowOffset, loadRegOffset+x.loRo, storeRc.plus(x.loRo))
 	case types.TINTER:
-		return decomposeTwo(x, pos, b, base, source, mem, x.typs.Uintptr, x.typs.BytePtr, source.AuxInt, offset)
+		return decomposeTwo(x, pos, b, base, source, mem, x.typs.Uintptr, x.typs.BytePtr, source.AuxInt, offset, loadRegOffset, storeRc)
 	case types.TSTRING:
-		return decomposeTwo(x, pos, b, base, source, mem, x.typs.BytePtr, x.typs.Int, source.AuxInt, offset)
+		return decomposeTwo(x, pos, b, base, source, mem, x.typs.BytePtr, x.typs.Int, source.AuxInt, offset, loadRegOffset, storeRc)
 	case types.TCOMPLEX64:
-		return decomposeTwo(x, pos, b, base, source, mem, x.typs.Float32, x.typs.Float32, source.AuxInt, offset)
+		return decomposeTwo(x, pos, b, base, source, mem, x.typs.Float32, x.typs.Float32, source.AuxInt, offset, loadRegOffset, storeRc)
 	case types.TCOMPLEX128:
-		return decomposeTwo(x, pos, b, base, source, mem, x.typs.Float64, x.typs.Float64, source.AuxInt, offset)
+		return decomposeTwo(x, pos, b, base, source, mem, x.typs.Float64, x.typs.Float64, source.AuxInt, offset, loadRegOffset, storeRc)
 	case types.TSLICE:
-		mem = decomposeTwo(x, pos, b, base, source, mem, x.typs.BytePtr, x.typs.Int, source.AuxInt, offset)
-		return decomposeOne(x, pos, b, base, source, mem, x.typs.Int, source.AuxInt+2*x.ptrSize, offset+2*x.ptrSize)
+		mem = decomposeOne(x, pos, b, base, source, mem, x.typs.BytePtr, source.AuxInt, offset, loadRegOffset, storeRc.next(x.typs.BytePtr))
+		return decomposeTwo(x, pos, b, base, source, mem, x.typs.Int, x.typs.Int, source.AuxInt+x.ptrSize, offset+x.ptrSize, loadRegOffset+RO_slice_len, storeRc)
 	}
 	return nil
 }
@@ -407,79 +535,85 @@ func (x *expandState) decomposeArgOrLoad(pos src.XPos, b *Block, base, source, m
 // storeOneArg creates a decomposed (one step) arg that is then stored.
 // pos and b locate the store instruction, base is the base of the store target, source is the "base" of the value input,
 // mem is the input mem, t is the type in question, and offArg and offStore are the offsets from the respective bases.
-func storeOneArg(x *expandState, pos src.XPos, b *Block, base, source, mem *Value, t *types.Type, offArg, offStore int64) *Value {
+func storeOneArg(x *expandState, pos src.XPos, b *Block, base, source, mem *Value, t *types.Type, offArg, offStore int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
+	paramAssignment := x.prAssignForArg(source)
+	_ = paramAssignment
+	// TODO(register args)
 	w := x.common[selKey{source, offArg, t.Width, t}]
 	if w == nil {
 		w = source.Block.NewValue0IA(source.Pos, OpArg, t, offArg, source.Aux)
 		x.common[selKey{source, offArg, t.Width, t}] = w
 	}
-	return x.storeArgOrLoad(pos, b, base, w, mem, t, offStore)
+	return x.storeArgOrLoad(pos, b, base, w, mem, t, offStore, loadRegOffset, storeRc)
 }
 
 // storeOneLoad creates a decomposed (one step) load that is then stored.
-func storeOneLoad(x *expandState, pos src.XPos, b *Block, base, source, mem *Value, t *types.Type, offArg, offStore int64) *Value {
+func storeOneLoad(x *expandState, pos src.XPos, b *Block, base, source, mem *Value, t *types.Type, offArg, offStore int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
 	from := x.offsetFrom(source.Args[0], offArg, types.NewPtr(t))
 	w := source.Block.NewValue2(source.Pos, OpLoad, t, from, mem)
-	return x.storeArgOrLoad(pos, b, base, w, mem, t, offStore)
+	return x.storeArgOrLoad(pos, b, base, w, mem, t, offStore, loadRegOffset, storeRc)
 }
 
-func storeTwoArg(x *expandState, pos src.XPos, b *Block, base, source, mem *Value, t1, t2 *types.Type, offArg, offStore int64) *Value {
-	mem = storeOneArg(x, pos, b, base, source, mem, t1, offArg, offStore)
+func storeTwoArg(x *expandState, pos src.XPos, b *Block, base, source, mem *Value, t1, t2 *types.Type, offArg, offStore int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
+	mem = storeOneArg(x, pos, b, base, source, mem, t1, offArg, offStore, loadRegOffset, storeRc.next(t1))
 	pos = pos.WithNotStmt()
 	t1Size := t1.Size()
-	return storeOneArg(x, pos, b, base, source, mem, t2, offArg+t1Size, offStore+t1Size)
+	return storeOneArg(x, pos, b, base, source, mem, t2, offArg+t1Size, offStore+t1Size, loadRegOffset+1, storeRc)
 }
 
-func storeTwoLoad(x *expandState, pos src.XPos, b *Block, base, source, mem *Value, t1, t2 *types.Type, offArg, offStore int64) *Value {
-	mem = storeOneLoad(x, pos, b, base, source, mem, t1, offArg, offStore)
+// storeTwoLoad creates a pair of decomposed (one step) loads that are then stored.
+// the elements of the pair must not require any additional alignment.
+func storeTwoLoad(x *expandState, pos src.XPos, b *Block, base, source, mem *Value, t1, t2 *types.Type, offArg, offStore int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
+	mem = storeOneLoad(x, pos, b, base, source, mem, t1, offArg, offStore, loadRegOffset, storeRc.next(t1))
 	pos = pos.WithNotStmt()
 	t1Size := t1.Size()
-	return storeOneLoad(x, pos, b, base, source, mem, t2, offArg+t1Size, offStore+t1Size)
+	return storeOneLoad(x, pos, b, base, source, mem, t2, offArg+t1Size, offStore+t1Size, loadRegOffset+1, storeRc)
 }
 
-// storeArgOrLoad converts stores of SSA-able aggregate arguments (passed to a call) into a series of primitive-typed
+// storeArgOrLoad converts stores of SSA-able potentially aggregatable arguments (passed to a call) into a series of primitive-typed
 // stores of non-aggregate types.  It recursively walks up a chain of selectors until it reaches a Load or an Arg.
 // If it does not reach a Load or an Arg, nothing happens; this allows a little freedom in phase ordering.
-func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, base, source, mem *Value, t *types.Type, offset int64) *Value {
+func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, base, source, mem *Value, t *types.Type, offset int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
 	if x.debug {
 		fmt.Printf("\tstoreArgOrLoad(%s;  %s;  %s;  %s; %d)\n", base.LongString(), source.LongString(), mem.String(), t.String(), offset)
 	}
 
 	switch source.Op {
 	case OpCopy:
-		return x.storeArgOrLoad(pos, b, base, source.Args[0], mem, t, offset)
+		return x.storeArgOrLoad(pos, b, base, source.Args[0], mem, t, offset, loadRegOffset, storeRc)
 
 	case OpLoad:
-		ret := x.decomposeArgOrLoad(pos, b, base, source, mem, t, offset, storeOneLoad, storeTwoLoad)
+		ret := x.decomposeArgOrLoad(pos, b, base, source, mem, t, offset, loadRegOffset, storeRc, storeOneLoad, storeTwoLoad)
 		if ret != nil {
 			return ret
 		}
 
 	case OpArg:
-		ret := x.decomposeArgOrLoad(pos, b, base, source, mem, t, offset, storeOneArg, storeTwoArg)
+		ret := x.decomposeArgOrLoad(pos, b, base, source, mem, t, offset, loadRegOffset, storeRc, storeOneArg, storeTwoArg)
 		if ret != nil {
 			return ret
 		}
 
 	case OpArrayMake0, OpStructMake0:
+		// TODO(register args) is this correct for registers?
 		return mem
 
 	case OpStructMake1, OpStructMake2, OpStructMake3, OpStructMake4:
 		for i := 0; i < t.NumFields(); i++ {
 			fld := t.Field(i)
-			mem = x.storeArgOrLoad(pos, b, base, source.Args[i], mem, fld.Type, offset+fld.Offset)
+			mem = x.storeArgOrLoad(pos, b, base, source.Args[i], mem, fld.Type, offset+fld.Offset, 0, storeRc.next(fld.Type))
 			pos = pos.WithNotStmt()
 		}
 		return mem
 
 	case OpArrayMake1:
-		return x.storeArgOrLoad(pos, b, base, source.Args[0], mem, t.Elem(), offset)
+		return x.storeArgOrLoad(pos, b, base, source.Args[0], mem, t.Elem(), offset, 0, storeRc.at(t, 0))
 
 	case OpInt64Make:
 		tHi, tLo := x.intPairTypes(t.Kind())
-		mem = x.storeArgOrLoad(pos, b, base, source.Args[0], mem, tHi, offset+x.hiOffset)
+		mem = x.storeArgOrLoad(pos, b, base, source.Args[0], mem, tHi, offset+x.hiOffset, 0, storeRc.next(tHi))
 		pos = pos.WithNotStmt()
-		return x.storeArgOrLoad(pos, b, base, source.Args[1], mem, tLo, offset+x.lowOffset)
+		return x.storeArgOrLoad(pos, b, base, source.Args[1], mem, tLo, offset+x.lowOffset, 0, storeRc)
 
 	case OpComplexMake:
 		tPart := x.typs.Float32
@@ -487,25 +621,25 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, base, source, mem *
 		if wPart == 8 {
 			tPart = x.typs.Float64
 		}
-		mem = x.storeArgOrLoad(pos, b, base, source.Args[0], mem, tPart, offset)
+		mem = x.storeArgOrLoad(pos, b, base, source.Args[0], mem, tPart, offset, 0, storeRc.next(tPart))
 		pos = pos.WithNotStmt()
-		return x.storeArgOrLoad(pos, b, base, source.Args[1], mem, tPart, offset+wPart)
+		return x.storeArgOrLoad(pos, b, base, source.Args[1], mem, tPart, offset+wPart, 0, storeRc)
 
 	case OpIMake:
-		mem = x.storeArgOrLoad(pos, b, base, source.Args[0], mem, x.typs.Uintptr, offset)
+		mem = x.storeArgOrLoad(pos, b, base, source.Args[0], mem, x.typs.Uintptr, offset, 0, storeRc.next(x.typs.Uintptr))
 		pos = pos.WithNotStmt()
-		return x.storeArgOrLoad(pos, b, base, source.Args[1], mem, x.typs.BytePtr, offset+x.ptrSize)
+		return x.storeArgOrLoad(pos, b, base, source.Args[1], mem, x.typs.BytePtr, offset+x.ptrSize, 0, storeRc)
 
 	case OpStringMake:
-		mem = x.storeArgOrLoad(pos, b, base, source.Args[0], mem, x.typs.BytePtr, offset)
+		mem = x.storeArgOrLoad(pos, b, base, source.Args[0], mem, x.typs.BytePtr, offset, 0, storeRc.next(x.typs.BytePtr))
 		pos = pos.WithNotStmt()
-		return x.storeArgOrLoad(pos, b, base, source.Args[1], mem, x.typs.Int, offset+x.ptrSize)
+		return x.storeArgOrLoad(pos, b, base, source.Args[1], mem, x.typs.Int, offset+x.ptrSize, 0, storeRc)
 
 	case OpSliceMake:
-		mem = x.storeArgOrLoad(pos, b, base, source.Args[0], mem, x.typs.BytePtr, offset)
+		mem = x.storeArgOrLoad(pos, b, base, source.Args[0], mem, x.typs.BytePtr, offset, 0, storeRc.next(x.typs.BytePtr))
 		pos = pos.WithNotStmt()
-		mem = x.storeArgOrLoad(pos, b, base, source.Args[1], mem, x.typs.Int, offset+x.ptrSize)
-		return x.storeArgOrLoad(pos, b, base, source.Args[2], mem, x.typs.Int, offset+2*x.ptrSize)
+		mem = x.storeArgOrLoad(pos, b, base, source.Args[1], mem, x.typs.Int, offset+x.ptrSize, 0, storeRc.next(x.typs.Int))
+		return x.storeArgOrLoad(pos, b, base, source.Args[2], mem, x.typs.Int, offset+2*x.ptrSize, 0, storeRc)
 	}
 
 	// For nodes that cannot be taken apart -- OpSelectN, other structure selectors.
@@ -515,11 +649,13 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, base, source, mem *
 		if source.Type != t && t.NumElem() == 1 && elt.Width == t.Width && t.Width == x.regSize {
 			t = removeTrivialWrapperTypes(t)
 			// it could be a leaf type, but the "leaf" could be complex64 (for example)
-			return x.storeArgOrLoad(pos, b, base, source, mem, t, offset)
+			return x.storeArgOrLoad(pos, b, base, source, mem, t, offset, loadRegOffset, storeRc)
 		}
+		eltRO := x.regWidth(elt)
 		for i := int64(0); i < t.NumElem(); i++ {
 			sel := source.Block.NewValue1I(pos, OpArraySelect, elt, i, source)
-			mem = x.storeArgOrLoad(pos, b, base, sel, mem, elt, offset+i*elt.Width)
+			mem = x.storeArgOrLoad(pos, b, base, sel, mem, elt, offset+i*elt.Width, loadRegOffset, storeRc.at(t, 0))
+			loadRegOffset += eltRO
 			pos = pos.WithNotStmt()
 		}
 		return mem
@@ -546,13 +682,14 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, base, source, mem *
 			// of a *uint8, which does not succeed.
 			t = removeTrivialWrapperTypes(t)
 			// it could be a leaf type, but the "leaf" could be complex64 (for example)
-			return x.storeArgOrLoad(pos, b, base, source, mem, t, offset)
+			return x.storeArgOrLoad(pos, b, base, source, mem, t, offset, loadRegOffset, storeRc)
 		}
 
 		for i := 0; i < t.NumFields(); i++ {
 			fld := t.Field(i)
 			sel := source.Block.NewValue1I(pos, OpStructSelect, fld.Type, int64(i), source)
-			mem = x.storeArgOrLoad(pos, b, base, sel, mem, fld.Type, offset+fld.Offset)
+			mem = x.storeArgOrLoad(pos, b, base, sel, mem, fld.Type, offset+fld.Offset, loadRegOffset, storeRc.next(fld.Type))
+			loadRegOffset += x.regWidth(fld.Type)
 			pos = pos.WithNotStmt()
 		}
 		return mem
@@ -563,52 +700,58 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, base, source, mem *
 		}
 		tHi, tLo := x.intPairTypes(t.Kind())
 		sel := source.Block.NewValue1(pos, OpInt64Hi, tHi, source)
-		mem = x.storeArgOrLoad(pos, b, base, sel, mem, tHi, offset+x.hiOffset)
+		mem = x.storeArgOrLoad(pos, b, base, sel, mem, tHi, offset+x.hiOffset, loadRegOffset+x.hiRo, storeRc.plus(x.hiRo))
 		pos = pos.WithNotStmt()
 		sel = source.Block.NewValue1(pos, OpInt64Lo, tLo, source)
-		return x.storeArgOrLoad(pos, b, base, sel, mem, tLo, offset+x.lowOffset)
+		return x.storeArgOrLoad(pos, b, base, sel, mem, tLo, offset+x.lowOffset, loadRegOffset+x.loRo, storeRc.plus(x.hiRo))
 
 	case types.TINTER:
 		sel := source.Block.NewValue1(pos, OpITab, x.typs.BytePtr, source)
-		mem = x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.BytePtr, offset)
+		mem = x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.BytePtr, offset, loadRegOffset, storeRc.next(x.typs.BytePtr))
 		pos = pos.WithNotStmt()
 		sel = source.Block.NewValue1(pos, OpIData, x.typs.BytePtr, source)
-		return x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.BytePtr, offset+x.ptrSize)
+		return x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.BytePtr, offset+x.ptrSize, loadRegOffset+RO_iface_data, storeRc)
 
 	case types.TSTRING:
 		sel := source.Block.NewValue1(pos, OpStringPtr, x.typs.BytePtr, source)
-		mem = x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.BytePtr, offset)
+		mem = x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.BytePtr, offset, loadRegOffset, storeRc.next(x.typs.BytePtr))
 		pos = pos.WithNotStmt()
 		sel = source.Block.NewValue1(pos, OpStringLen, x.typs.Int, source)
-		return x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.Int, offset+x.ptrSize)
+		return x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.Int, offset+x.ptrSize, loadRegOffset+RO_string_len, storeRc)
 
 	case types.TSLICE:
 		et := types.NewPtr(t.Elem())
 		sel := source.Block.NewValue1(pos, OpSlicePtr, et, source)
-		mem = x.storeArgOrLoad(pos, b, base, sel, mem, et, offset)
+		mem = x.storeArgOrLoad(pos, b, base, sel, mem, et, offset, loadRegOffset, storeRc.next(et))
 		pos = pos.WithNotStmt()
 		sel = source.Block.NewValue1(pos, OpSliceLen, x.typs.Int, source)
-		mem = x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.Int, offset+x.ptrSize)
+		mem = x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.Int, offset+x.ptrSize, loadRegOffset+RO_slice_len, storeRc.next(x.typs.Int))
 		sel = source.Block.NewValue1(pos, OpSliceCap, x.typs.Int, source)
-		return x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.Int, offset+2*x.ptrSize)
+		return x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.Int, offset+2*x.ptrSize, loadRegOffset+RO_slice_cap, storeRc)
 
 	case types.TCOMPLEX64:
 		sel := source.Block.NewValue1(pos, OpComplexReal, x.typs.Float32, source)
-		mem = x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.Float32, offset)
+		mem = x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.Float32, offset, loadRegOffset, storeRc.next(x.typs.Float32))
 		pos = pos.WithNotStmt()
 		sel = source.Block.NewValue1(pos, OpComplexImag, x.typs.Float32, source)
-		return x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.Float32, offset+4)
+		return x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.Float32, offset+4, loadRegOffset+RO_complex_imag, storeRc)
 
 	case types.TCOMPLEX128:
 		sel := source.Block.NewValue1(pos, OpComplexReal, x.typs.Float64, source)
-		mem = x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.Float64, offset)
+		mem = x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.Float64, offset, loadRegOffset, storeRc.next(x.typs.Float64))
 		pos = pos.WithNotStmt()
 		sel = source.Block.NewValue1(pos, OpComplexImag, x.typs.Float64, source)
-		return x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.Float64, offset+8)
+		return x.storeArgOrLoad(pos, b, base, sel, mem, x.typs.Float64, offset+8, loadRegOffset+RO_complex_imag, storeRc)
 	}
 
-	dst := x.offsetFrom(base, offset, types.NewPtr(t))
-	s := b.NewValue3A(pos, OpStore, types.TypeMem, t, dst, source, mem)
+	s := mem
+	if storeRc.hasRegs() {
+		// TODO(register args)
+		storeRc.addArg(source)
+	} else {
+		dst := x.offsetFrom(base, offset, types.NewPtr(t))
+		s = b.NewValue3A(pos, OpStore, types.TypeMem, t, dst, source, mem)
+	}
 	if x.debug {
 		fmt.Printf("\t\tstoreArg returns %s\n", s.LongString())
 	}
@@ -624,6 +767,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) *Value {
 	pos := v.Pos.WithNotStmt()
 	m0 := v.MemoryArg()
 	mem := m0
+	allResults := []*Value{}
 	for i, a := range v.Args {
 		if i < firstArg {
 			continue
@@ -632,18 +776,31 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) *Value {
 			break
 		}
 		auxI := int64(i - firstArg)
+		aRegs := aux.RegsOfArg(auxI)
+		aOffset := aux.OffsetOfArg(auxI)
+		aType := aux.TypeOfArg(auxI)
 		if a.Op == OpDereference {
 			if a.MemoryArg() != m0 {
 				x.f.Fatalf("Op...LECall and OpDereference have mismatched mem, %s and %s", v.LongString(), a.LongString())
 			}
+			if len(aRegs) > 0 {
+				x.f.Fatalf("Not implemented yet, not-SSA-type %v passed in registers", aType)
+			}
 			// "Dereference" of addressed (probably not-SSA-eligible) value becomes Move
-			// TODO this will be more complicated with registers in the picture.
-			mem = x.rewriteDereference(v.Block, x.sp, a, mem, aux.OffsetOfArg(auxI), aux.SizeOfArg(auxI), aux.TypeOfArg(auxI), pos)
+			// TODO(register args) this will be more complicated with registers in the picture.
+			mem = x.rewriteDereference(v.Block, x.sp, a, mem, aOffset, aux.SizeOfArg(auxI), aType, pos)
 		} else {
 			if x.debug {
-				fmt.Printf("storeArg %s, %v, %d\n", a.LongString(), aux.TypeOfArg(auxI), aux.OffsetOfArg(auxI))
+				fmt.Printf("storeArg %s, %v, %d\n", a.LongString(), aType, aOffset)
 			}
-			mem = x.storeArgOrLoad(pos, v.Block, x.sp, a, mem, aux.TypeOfArg(auxI), aux.OffsetOfArg(auxI))
+			var rc registerCursor
+			var result *[]*Value
+			if len(aRegs) > 0 {
+				result = &allResults
+			}
+			rc.init(aRegs, aux.abiInfo, result)
+			mem = x.storeArgOrLoad(pos, v.Block, x.sp, a, mem, aType, aOffset, 0, rc)
+			// TODO append mem to Result, update type
 		}
 	}
 	v.resetArgs()
@@ -667,6 +824,7 @@ func expandCalls(f *Func) {
 	sp, _ := f.spSb()
 	x := &expandState{
 		f:            f,
+		abi1:         f.ABI1,
 		debug:        f.pass.debug > 0,
 		canSSAType:   f.fe.CanSSA,
 		regSize:      f.Config.RegSize,
@@ -681,9 +839,11 @@ func expandCalls(f *Func) {
 
 	// For 32-bit, need to deal with decomposition of 64-bit integers, which depends on endianness.
 	if f.Config.BigEndian {
-		x.lowOffset = 4
+		x.lowOffset, x.hiOffset = 4, 0
+		x.loRo, x.hiRo = 1, 0
 	} else {
-		x.hiOffset = 4
+		x.lowOffset, x.hiOffset = 0, 4
+		x.loRo, x.hiRo = 0, 1
 	}
 
 	if x.debug {
@@ -692,7 +852,7 @@ func expandCalls(f *Func) {
 
 	// TODO if too slow, whole program iteration can be replaced w/ slices of appropriate values, accumulated in first loop here.
 
-	// Step 0: rewrite the calls to convert incoming args to stores.
+	// Step 0: rewrite the calls to convert args to calls into stores/register movement.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			switch v.Op {
@@ -717,6 +877,7 @@ func expandCalls(f *Func) {
 			mem := m0
 			aux := f.OwnAux
 			pos := v.Pos.WithNotStmt()
+			allResults := []*Value{}
 			for j, a := range v.Args {
 				i := int64(j)
 				if a == m0 {
@@ -726,7 +887,11 @@ func expandCalls(f *Func) {
 				auxBase := b.NewValue2A(v.Pos, OpLocalAddr, types.NewPtr(auxType), aux.results[i].Name, x.sp, mem)
 				auxOffset := int64(0)
 				auxSize := aux.SizeOfResult(i)
+				aRegs := aux.RegsOfResult(int64(j))
 				if a.Op == OpDereference {
+					if len(aRegs) > 0 {
+						x.f.Fatalf("Not implemented yet, not-SSA-type %v returned in register", auxType)
+					}
 					// Avoid a self-move, and if one is detected try to remove the already-inserted VarDef for the assignment that won't happen.
 					if dAddr, dMem := a.Args[0], a.Args[1]; dAddr.Op == OpLocalAddr && dAddr.Args[0].Op == OpSP &&
 						dAddr.Args[1] == dMem && dAddr.Aux == aux.results[i].Name {
@@ -738,12 +903,20 @@ func expandCalls(f *Func) {
 					mem = x.rewriteDereference(v.Block, auxBase, a, mem, auxOffset, auxSize, auxType, pos)
 				} else {
 					if a.Op == OpLoad && a.Args[0].Op == OpLocalAddr {
-						addr := a.Args[0]
+						addr := a.Args[0] // This is a self-move. // TODO(register args) do what here for registers?
 						if addr.MemoryArg() == a.MemoryArg() && addr.Aux == aux.results[i].Name {
 							continue
 						}
 					}
-					mem = x.storeArgOrLoad(v.Pos, b, auxBase, a, mem, aux.TypeOfResult(i), auxOffset)
+					var rc registerCursor
+					var result *[]*Value
+					if len(aRegs) > 0 {
+						result = &allResults
+					}
+					rc.init(aRegs, aux.abiInfo, result)
+					// TODO(register args)
+					mem = x.storeArgOrLoad(v.Pos, b, auxBase, a, mem, aux.TypeOfResult(i), auxOffset, 0, rc)
+					// TODO append mem to Result, update type
 				}
 			}
 			b.SetControl(mem)
@@ -786,7 +959,7 @@ func expandCalls(f *Func) {
 						fmt.Printf("Splitting store %s\n", v.LongString())
 					}
 					dst, mem := v.Args[0], v.Args[2]
-					mem = x.storeArgOrLoad(v.Pos, b, dst, source, mem, t, 0)
+					mem = x.storeArgOrLoad(v.Pos, b, dst, source, mem, t, 0, 0, registerCursor{})
 					v.copyOf(mem)
 				}
 			}
@@ -973,7 +1146,7 @@ func expandCalls(f *Func) {
 		if v.Op == OpCopy {
 			continue
 		}
-		locs := x.rewriteSelect(v, v, 0)
+		locs := x.rewriteSelect(v, v, 0, 0)
 		// Install new names.
 		if v.Type.IsMemory() {
 			continue
