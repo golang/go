@@ -105,8 +105,20 @@ func (a *AuxCall) OffsetOfResult(which int64) int64 {
 }
 
 // OffsetOfArg returns the SP offset of argument which (indexed 0, 1, etc).
+// If the call is to a method, the receiver is the first argument (i.e., index 0)
 func (a *AuxCall) OffsetOfArg(which int64) int64 {
 	return int64(a.args[which].Offset)
+}
+
+// RegsOfResult returns the register(s) used for result which (indexed 0, 1, etc).
+func (a *AuxCall) RegsOfResult(which int64) []abi.RegIndex {
+	return a.results[which].Reg
+}
+
+// RegsOfArg returns the register(s) used for argument which (indexed 0, 1, etc).
+// If the call is to a method, the receiver is the first argument (i.e., index 0)
+func (a *AuxCall) RegsOfArg(which int64) []abi.RegIndex {
+	return a.args[which].Reg
 }
 
 // TypeOfResult returns the type of result which (indexed 0, 1, etc).
@@ -115,6 +127,7 @@ func (a *AuxCall) TypeOfResult(which int64) *types.Type {
 }
 
 // TypeOfArg returns the type of argument which (indexed 0, 1, etc).
+// If the call is to a method, the receiver is the first argument (i.e., index 0)
 func (a *AuxCall) TypeOfArg(which int64) *types.Type {
 	return a.args[which].Type
 }
@@ -125,6 +138,7 @@ func (a *AuxCall) SizeOfResult(which int64) int64 {
 }
 
 // SizeOfArg returns the size of argument which (indexed 0, 1, etc).
+// If the call is to a method, the receiver is the first argument (i.e., index 0)
 func (a *AuxCall) SizeOfArg(which int64) int64 {
 	return a.TypeOfArg(which).Width
 }
@@ -145,7 +159,7 @@ func (a *AuxCall) LateExpansionResultType() *types.Type {
 	return types.NewResults(tys)
 }
 
-// NArgs returns the number of arguments
+// NArgs returns the number of arguments (including receiver, if there is one).
 func (a *AuxCall) NArgs() int64 {
 	return int64(len(a.args))
 }
