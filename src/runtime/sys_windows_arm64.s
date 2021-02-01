@@ -5,107 +5,149 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
+#include "funcdata.h"
 
-#ifdef NOT_PORTED
+// Offsets into Thread Environment Block (pointer in R18)
+#define TEB_error 0x68
+#define TEB_TlsSlots 0x1480
 
-// Note: For system ABI, R0-R3 are args, R4-R11 are callee-save.
+// Note: R0-R7 are args, R8 is indirect return value address,
+// R9-R15 are caller-save, R19-R29 are callee-save.
+//
+// load_g and save_g (in tls_arm64.s) clobber R27 (REGTMP) and R0.
 
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
-	MOVM.DB.W [R4, R5, R14], (R13)	// push {r4, r5, lr}
-	MOVW	R0, R4			// put libcall * in r4
-	MOVW	R13, R5			// save stack pointer in r5
+	STP.W	(R29, R30), -32(RSP)	// allocate C ABI stack frame
+	STP	(R19, R20), 16(RSP) // save old R19, R20
+	MOVD	R0, R19	// save libcall pointer
+	MOVD	RSP, R20	// save stack pointer
 
 	// SetLastError(0)
-	MOVW	$0, R0
-	MRC	15, 0, R1, C13, C0, 2
-	MOVW	R0, 0x34(R1)
+	MOVD	$0,	TEB_error(R18_PLATFORM)
+	MOVD	libcall_args(R19), R12	// libcall->args
 
-	MOVW	8(R4), R12	// libcall->args
-
-	// Do we have more than 4 arguments?
-	MOVW	4(R4), R0	// libcall->n
-	SUB.S	$4, R0, R2
-	BLE	loadregs
+	// Do we have more than 8 arguments?
+	MOVD	libcall_n(R19), R0
+	CMP	$0,	R0; BEQ	_0args
+	CMP	$1,	R0; BEQ	_1args
+	CMP	$2,	R0; BEQ	_2args
+	CMP	$3,	R0; BEQ	_3args
+	CMP	$4,	R0; BEQ	_4args
+	CMP	$5,	R0; BEQ	_5args
+	CMP	$6,	R0; BEQ	_6args
+	CMP	$7,	R0; BEQ	_7args
+	CMP	$8,	R0; BEQ	_8args
 
 	// Reserve stack space for remaining args
-	SUB	R2<<2, R13
-	BIC	$0x7, R13	// alignment for ABI
+	SUB	$8, R0, R2
+	ADD	$1, R2, R3 // make even number of words for stack alignment
+	AND	$~1, R3
+	LSL	$3, R3
+	SUB	R3, RSP
 
-	// R0: count of arguments
-	// R1:
-	// R2: loop counter, from 0 to (n-4)
-	// R3: scratch
-	// R4: pointer to libcall struct
-	// R12: libcall->args
-	MOVW	$0, R2
+	// R4: size of stack arguments (n-8)*8
+	// R5: &args[8]
+	// R6: loop counter, from 0 to (n-8)*8
+	// R7: scratch
+	// R8: copy of RSP - (R2)(RSP) assembles as (R2)(ZR)
+	SUB	$8, R0, R4
+	LSL	$3, R4
+	ADD	$(8*8), R12, R5
+	MOVD	$0, R6
+	MOVD	RSP, R8
 stackargs:
-	ADD	$4, R2, R3		// r3 = args[4 + i]
-	MOVW	R3<<2(R12), R3
-	MOVW	R3, R2<<2(R13)		// stack[i] = r3
+	MOVD	(R6)(R5), R7
+	MOVD	R7, (R6)(R8)
+	ADD	$8, R6
+	CMP	R6, R4
+	BNE	stackargs
 
-	ADD	$1, R2			// i++
-	SUB	$4, R0, R3		// while (i < (n - 4))
-	CMP	R3, R2
-	BLT	stackargs
+_8args:
+	MOVD	(7*8)(R12), R7
+_7args:
+	MOVD	(6*8)(R12), R6
+_6args:
+	MOVD	(5*8)(R12), R5
+_5args:
+	MOVD	(4*8)(R12), R4
+_4args:
+	MOVD	(3*8)(R12), R3
+_3args:
+	MOVD	(2*8)(R12), R2
+_2args:
+	MOVD	(1*8)(R12), R1
+_1args:
+	MOVD	(0*8)(R12), R0
+_0args:
 
-loadregs:
-	CMP	$3, R0
-	MOVW.GT 12(R12), R3
-
-	CMP	$2, R0
-	MOVW.GT 8(R12), R2
-
-	CMP	$1, R0
-	MOVW.GT 4(R12), R1
-
-	CMP	$0, R0
-	MOVW.GT 0(R12), R0
-
-	BIC	$0x7, R13		// alignment for ABI
-	MOVW	0(R4), R12		// branch to libcall->fn
+	MOVD	libcall_fn(R19), R12	// branch to libcall->fn
 	BL	(R12)
 
-	MOVW	R5, R13			// free stack space
-	MOVW	R0, 12(R4)		// save return value to libcall->r1
-	MOVW	R1, 16(R4)
+	MOVD	R20, RSP			// free stack space
+	MOVD	R0, libcall_r1(R19)		// save return value to libcall->r1
+	// TODO(rsc) floating point like amd64 in libcall->r2?
 
 	// GetLastError
-	MRC	15, 0, R1, C13, C0, 2
-	MOVW	0x34(R1), R0
-	MOVW	R0, 20(R4)		// store in libcall->err
+	MOVD	TEB_error(R18_PLATFORM), R0
+	MOVD	R0, libcall_err(R19)
 
-	MOVM.IA.W (R13), [R4, R5, R15]
+	// Restore callee-saved registers.
+	LDP	16(RSP), (R19, R20)
+	LDP.P	32(RSP), (R29, R30)
+	RET
 
-TEXT runtime·badsignal2(SB),NOSPLIT|NOFRAME,$0
-	MOVM.DB.W [R4, R14], (R13)	// push {r4, lr}
-	MOVW	R13, R4			// save original stack pointer
-	SUB	$8, R13			// space for 2 variables
-	BIC	$0x7, R13		// alignment for ABI
+TEXT runtime·badsignal2(SB),NOSPLIT,$16-0
+	NO_LOCAL_POINTERS
 
 	// stderr
-	MOVW	runtime·_GetStdHandle(SB), R1
-	MOVW	$-12, R0
+	MOVD	runtime·_GetStdHandle(SB), R1
+	MOVD	$-12, R0
+	SUB	$16, RSP	// skip over saved frame pointer below RSP
 	BL	(R1)
+	ADD	$16, RSP
 
-	MOVW	$runtime·badsignalmsg(SB), R1	// lpBuffer
-	MOVW	$runtime·badsignallen(SB), R2	// lpNumberOfBytesToWrite
-	MOVW	(R2), R2
-	ADD	$0x4, R13, R3		// lpNumberOfBytesWritten
-	MOVW	$0, R12			// lpOverlapped
-	MOVW	R12, (R13)
-
-	MOVW	runtime·_WriteFile(SB), R12
+	// handle in R0 already
+	MOVD	$runtime·badsignalmsg(SB), R1	// lpBuffer
+	MOVD	$runtime·badsignallen(SB), R2	// lpNumberOfBytesToWrite
+	MOVD	(R2), R2
+	MOVD	R13, R3		// lpNumberOfBytesWritten
+	MOVD	$0, R4			// lpOverlapped
+	MOVD	runtime·_WriteFile(SB), R12
+	SUB	$16, RSP	// skip over saved frame pointer below RSP
 	BL	(R12)
+	ADD	$16, RSP
 
-	MOVW	R4, R13			// restore SP
-	MOVM.IA.W (R13), [R4, R15]	// pop {r4, pc}
-
-TEXT runtime·getlasterror(SB),NOSPLIT,$0
-	MRC	15, 0, R0, C13, C0, 2
-	MOVW	0x34(R0), R0
-	MOVW	R0, ret+0(FP)
 	RET
+
+TEXT runtime·getlasterror(SB),NOSPLIT|NOFRAME,$0
+	MOVD	TEB_error(R18_PLATFORM), R0
+	MOVD	R0, ret+0(FP)
+	RET
+
+#define SAVE_R19_TO_R28(offset) \
+	MOVD	R19, savedR19+((offset)+0*8)(SP); \
+	MOVD	R20, savedR20+((offset)+1*8)(SP); \
+	MOVD	R21, savedR21+((offset)+2*8)(SP); \
+	MOVD	R22, savedR22+((offset)+3*8)(SP); \
+	MOVD	R23, savedR23+((offset)+4*8)(SP); \
+	MOVD	R24, savedR24+((offset)+5*8)(SP); \
+	MOVD	R25, savedR25+((offset)+6*8)(SP); \
+	MOVD	R26, savedR26+((offset)+7*8)(SP); \
+	MOVD	R27, savedR27+((offset)+8*8)(SP); \
+	MOVD	g, savedR28+((offset)+9*8)(SP);
+
+#define RESTORE_R19_TO_R28(offset) \
+	MOVD	savedR19+((offset)+0*8)(SP), R19; \
+	MOVD	savedR20+((offset)+1*8)(SP), R20; \
+	MOVD	savedR21+((offset)+2*8)(SP), R21; \
+	MOVD	savedR22+((offset)+3*8)(SP), R22; \
+	MOVD	savedR23+((offset)+4*8)(SP), R23; \
+	MOVD	savedR24+((offset)+5*8)(SP), R24; \
+	MOVD	savedR25+((offset)+6*8)(SP), R25; \
+	MOVD	savedR26+((offset)+7*8)(SP), R26; \
+	MOVD	savedR27+((offset)+8*8)(SP), R27; \
+	MOVD	savedR28+((offset)+9*8)(SP), g; /* R28 */
 
 // Called by Windows as a Vectored Exception Handler (VEH).
 // First argument is pointer to struct containing
@@ -116,61 +158,83 @@ TEXT runtime·getlasterror(SB),NOSPLIT,$0
 //     PEXCEPTION_POINTERS ExceptionInfo,
 //     func *GoExceptionHandler);
 TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
-	MOVM.DB.W [R0, R4-R11, R14], (R13)	// push {r0, r4-r11, lr} (SP-=40)
-	SUB	$(8+20), R13		// reserve space for g, sp, and
-					// parameters/retval to go call
+	// Save R0, R1 (args) as well as LR, R27, R28 (callee-save).
+	MOVD	R0, R5
+	MOVD	R1, R6
+	MOVD	LR, R7
+	MOVD	R27, R16		// saved R27 (callee-save)
+	MOVD	g, R17 			// saved R28 (callee-save from Windows, not really g)
 
-	MOVW	R0, R6			// Save param0
-	MOVW	R1, R7			// Save param1
-
-	BL      runtime·load_g(SB)
+	BL      runtime·load_g(SB)	// smashes R0, R27, R28 (g)
 	CMP	$0, g			// is there a current g?
-	BL.EQ	runtime·badsignal2(SB)
+	BNE	2(PC)
+	BL	runtime·badsignal2(SB)
 
-	// save g and SP in case of stack switch
-	MOVW	R13, 24(R13)
-	MOVW	g, 20(R13)
+	// Do we need to switch to the g0 stack?
+	MOVD	g, R3			// R3 = oldg (for sigtramp_g0)
+	MOVD	g_m(g), R2		// R2 = m
+	MOVD	m_g0(R2), R2		// R2 = g0
+	CMP	g, R2			// if curg == g0
+	BNE	switch
 
-	// do we need to switch to the g0 stack?
-	MOVW	g, R5			// R5 = g
-	MOVW	g_m(R5), R2		// R2 = m
-	MOVW	m_g0(R2), R4		// R4 = g0
-	CMP	R5, R4			// if curg == g0
-	BEQ	g0
+	// No: on g0 stack already, tail call to sigtramp_g0.
+	// Restore all the callee-saves so sigtramp_g0 can return to our caller.
+	// We also pass R2 = g0, R3 = oldg, both set above.
+	MOVD	R5, R0
+	MOVD	R6, R1
+	MOVD	R7, LR
+	MOVD	R16, R27		// restore R27
+	MOVD	R17, g 			// restore R28
+	B	sigtramp_g0<>(SB)
 
-	// switch to g0 stack
-	MOVW	R4, g				// g = g0
-	MOVW	(g_sched+gobuf_sp)(g), R3	// R3 = g->gobuf.sp
-	BL      runtime·save_g(SB)
+switch:
+	// switch to g0 stack (but do not update g - that's sigtramp_g0's job)
+	MOVD	RSP, R8
+	MOVD	(g_sched+gobuf_sp)(R2), R4	// R4 = g->gobuf.sp
+	SUB	$(6*8), R4			// alloc space for saves - 2 words below SP for frame pointer, 3 for us to use, 1 for alignment
+	MOVD	R4, RSP				// switch to g0 stack
 
-	// make room for sighandler arguments
-	// and re-save old SP for restoring later.
-	// (note that the 24(R3) here must match the 24(R13) above.)
-	SUB	$40, R3
-	MOVW	R13, 24(R3)		// save old stack pointer
-	MOVW	R3, R13			// switch stack
+	MOVD	$0, (0*8)(RSP)	// fake saved LR
+	MOVD	R7, (1*8)(RSP)	// saved LR
+	MOVD	R8, (2*8)(RSP)	// saved SP
 
-g0:
-	MOVW	0(R6), R2	// R2 = ExceptionPointers->ExceptionRecord
-	MOVW	4(R6), R3	// R3 = ExceptionPointers->ContextRecord
+	MOVD	R5, R0		// original args
+	MOVD	R6, R1		// original args
+	MOVD	R16, R27
+	MOVD	R17, g 		// R28
+	BL	sigtramp_g0<>(SB)
 
-	MOVW	$0, R4
-	MOVW	R4, 0(R13)	// No saved link register.
-	MOVW	R2, 4(R13)	// Move arg0 (ExceptionRecord) into position
-	MOVW	R3, 8(R13)	// Move arg1 (ContextRecord) into position
-	MOVW	R5, 12(R13)	// Move arg2 (original g) into position
-	BL	(R7)		// Call the go routine
-	MOVW	16(R13), R4	// Fetch return value from stack
+	// switch back to original stack; g already updated
+	MOVD	(1*8)(RSP), R7	// saved LR
+	MOVD	(2*8)(RSP), R8	// saved SP
+	MOVD	R7, LR
+	MOVD	R8, RSP
+	RET
 
-	// switch back to original stack and g
-	MOVW	24(R13), R13
-	MOVW	20(R13), g
-	BL      runtime·save_g(SB)
+// sigtramp_g0 is running on the g0 stack, with R2 = g0, R3 = oldg.
+// But g itself is not set - that's R28, a callee-save register,
+// and it still holds the value from the Windows DLL caller.
+TEXT sigtramp_g0<>(SB),NOSPLIT,$128
+	NO_LOCAL_POINTERS
 
-done:
-	MOVW	R4, R0				// move retval into position
-	ADD	$(8 + 20), R13			// free locals
-	MOVM.IA.W (R13), [R3, R4-R11, R14]	// pop {r3, r4-r11, lr}
+	// Push C callee-save registers R19-R28. LR, FP already saved.
+	SAVE_R19_TO_R28(-10*8)
+
+	MOVD	0(R0), R5	// R5 = ExceptionPointers->ExceptionRecord
+	MOVD	8(R0), R6	// R6 = ExceptionPointers->ContextRecord
+	MOVD	R6, context-(11*8)(SP)
+
+	MOVD	R2, g 			// g0
+	BL      runtime·save_g(SB)	// smashes R0
+
+	MOVD	R5, (1*8)(RSP)	// arg0 (ExceptionRecord)
+	MOVD	R6, (2*8)(RSP)	// arg1 (ContextRecord)
+	MOVD	R3, (3*8)(RSP)	// arg2 (original g)
+	MOVD	R3, oldg-(12*8)(SP)
+	BL	(R1)
+	MOVD	oldg-(12*8)(SP), g
+	BL      runtime·save_g(SB)	// smashes R0
+	MOVW	(4*8)(RSP), R0	// return value (0 or -1)
 
 	// if return value is CONTINUE_SEARCH, do not set up control
 	// flow guard workaround
@@ -178,240 +242,232 @@ done:
 	BEQ	return
 
 	// Check if we need to set up the control flow guard workaround.
-	// On Windows/ARM, the stack pointer must lie within system
-	// stack limits when we resume from exception.
-	// Store the resume SP and PC on the g0 stack,
-	// and return to returntramp on the g0 stack. returntramp
-	// pops the saved PC and SP from the g0 stack, resuming execution
-	// at the desired location.
-	// If returntramp has already been set up by a previous exception
-	// handler, don't clobber the stored SP and PC on the stack.
-	MOVW	4(R3), R3			// PEXCEPTION_POINTERS->Context
-	MOVW	context_pc(R3), R2		// load PC from context record
-	MOVW	$returntramp<>(SB), R1
+	// On Windows, the stack pointer in the context must lie within
+	// system stack limits when we resume from exception.
+	// Store the resume SP and PC in alternate registers
+	// and return to sigresume on the g0 stack.
+	// sigresume makes no use of the stack at all,
+	// loading SP from R0 and jumping to R1.
+	// Note that smashing R0 and R1 is only safe because we know sigpanic
+	// will not actually return to the original frame, so the registers
+	// are effectively dead. But this does mean we can't use the
+	// same mechanism for async preemption.
+	MOVD	context-(11*8)(SP), R6
+	MOVD	context_pc(R6), R2		// load PC from context record
+	MOVD	$sigresume<>(SB), R1
+
 	CMP	R1, R2
-	B.EQ	return				// do not clobber saved SP/PC
+	BEQ	return				// do not clobber saved SP/PC
 
 	// Save resume SP and PC into R0, R1.
-	MOVW	context_spr(R3), R2
-	MOVW	R2, context_r0(R3)
-	MOVW	context_pc(R3), R2
-	MOVW	R2, context_r1(R3)
+	MOVD	context_xsp(R6), R2
+	MOVD	R2, (context_x+0*8)(R6)
+	MOVD	context_pc(R6), R2
+	MOVD	R2, (context_x+1*8)(R6)
 
-	// Set up context record to return to returntramp on g0 stack
-	MOVW	R12, context_spr(R3)
-	MOVW	$returntramp<>(SB), R2
-	MOVW	R2, context_pc(R3)
+	// Set up context record to return to sigresume on g0 stack
+	MOVD	RSP, R2
+	MOVD	R2, context_xsp(R6)
+	MOVD	$sigresume<>(SB), R2
+	MOVD	R2, context_pc(R6)
 
 return:
-	B	(R14)				// return
+	RESTORE_R19_TO_R28(-10*8)		// smashes g
+	RET
 
 // Trampoline to resume execution from exception handler.
 // This is part of the control flow guard workaround.
 // It switches stacks and jumps to the continuation address.
 // R0 and R1 are set above at the end of sigtramp<>
-// in the context that starts executing at returntramp<>.
-TEXT returntramp<>(SB),NOSPLIT|NOFRAME,$0
+// in the context that starts executing at sigresume<>.
+TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
 	// Important: do not smash LR,
 	// which is set to a live value when handling
 	// a signal by pushing a call to sigpanic onto the stack.
-	MOVW	R0, R13
+	MOVD	R0, RSP
 	B	(R1)
 
 TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
-	MOVW	$runtime·exceptionhandler(SB), R1
+	MOVD	$runtime·exceptionhandler(SB), R1
 	B	sigtramp<>(SB)
 
 TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0
-	MOVW	$runtime·firstcontinuehandler(SB), R1
+	MOVD	$runtime·firstcontinuehandler(SB), R1
 	B	sigtramp<>(SB)
 
 TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
-	MOVW	$runtime·lastcontinuehandler(SB), R1
+	MOVD	$runtime·lastcontinuehandler(SB), R1
 	B	sigtramp<>(SB)
 
 TEXT runtime·ctrlhandler(SB),NOSPLIT|NOFRAME,$0
-	MOVW	$runtime·ctrlhandler1(SB), R1
+	MOVD	$runtime·ctrlhandler1(SB), R1
 	B	runtime·externalthreadhandler(SB)
 
 TEXT runtime·profileloop(SB),NOSPLIT|NOFRAME,$0
-	MOVW	$runtime·profileloop1(SB), R1
+	MOVD	$runtime·profileloop1(SB), R1
 	B	runtime·externalthreadhandler(SB)
 
-// int32 externalthreadhandler(uint32 arg, int (*func)(uint32))
-// stack layout:
-//   +----------------+
-//   | callee-save    |
-//   | registers      |
-//   +----------------+
-//   | m              |
-//   +----------------+
-// 20| g              |
-//   +----------------+
-// 16| func ptr (r1)  |
-//   +----------------+
-// 12| argument (r0)  |
-//---+----------------+
-// 8 | param1         | (also return value for called Go function)
-//   +----------------+
-// 4 | param0         |
-//   +----------------+
-// 0 | slot for LR    |
-//   +----------------+
-//
-TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
-	MOVM.DB.W [R4-R11, R14], (R13)		// push {r4-r11, lr}
-	SUB	$(m__size + g__size + 20), R13	// space for locals
-	MOVW	R14, 0(R13)			// push LR again for anything unwinding the stack
-	MOVW	R0, 12(R13)
-	MOVW	R1, 16(R13)
+// externalthreadhander called with R0 = uint32 arg, R1 = Go function f.
+// Need to call f(arg), which returns a uint32, and return it in R0.
+TEXT runtime·externalthreadhandler(SB),NOSPLIT|TOPFRAME,$96-0
+	NO_LOCAL_POINTERS
 
-	// zero out m and g structures
-	ADD	$20, R13, R0			// compute pointer to g
-	MOVW	R0, 4(R13)
-	MOVW	$(m__size + g__size), R0
-	MOVW	R0, 8(R13)
+	// Push C callee-save registers R19-R28. LR, FP already saved.
+	SAVE_R19_TO_R28(-10*8)
+
+	// Allocate space for args, saved R0+R1, g, and m structures.
+	// Hide from nosplit check.
+	#define extra ((64+g__size+m__size+15)&~15)
+	SUB	$extra, RSP, R2	// hide from nosplit overflow check
+	MOVD	R2, RSP
+
+	// Save R0 and R1 (our args).
+	MOVD	R0, 32(RSP)
+	MOVD	R1, 40(RSP)
+
+	// Zero out m and g structures.
+	MOVD	$64(RSP), R0
+	MOVD	R0, 8(RSP)
+	MOVD	$(m__size + g__size), R0
+	MOVD	R0, 16(RSP)
+	MOVD	$0, 0(RSP)	// not-saved LR
 	BL	runtime·memclrNoHeapPointers(SB)
 
-	// initialize m and g structures
-	ADD	$20, R13, R2			// R2 = g
-	ADD	$(20 + g__size), R13, R3	// R3 = m
-	MOVW	R2, m_g0(R3)			// m->g0 = g
-	MOVW	R3, g_m(R2)			// g->m = m
-	MOVW	R2, m_curg(R3)			// m->curg = g
-
-	MOVW	R2, g
+	// Initialize m and g structures.
+	MOVD	$64(RSP), g
+	MOVD	$g__size(g), R3		// m
+	MOVD	R3, g_m(g)		// g->m = m
+	MOVD	g, m_g0(R3)		// m->g0 = g
+	MOVD	g, m_curg(R3)		// m->curg = g
+	MOVD	RSP, R0
+	MOVD	R0, g_stack+stack_hi(g)
+	SUB	$(32*1024), R0
+	MOVD	R0, (g_stack+stack_lo)(g)
+	MOVD	R0, g_stackguard0(g)
+	MOVD	R0, g_stackguard1(g)
 	BL	runtime·save_g(SB)
 
-	// set up stackguard stuff
-	MOVW	R13, R0
-	MOVW	R0, g_stack+stack_hi(g)
-	SUB	$(32*1024), R0
-	MOVW	R0, (g_stack+stack_lo)(g)
-	MOVW	R0, g_stackguard0(g)
-	MOVW	R0, g_stackguard1(g)
-
-	// move argument into position and call function
-	MOVW	12(R13), R0
-	MOVW	R0, 4(R13)
-	MOVW	16(R13), R1
+	// Call function.
+	MOVD	32(RSP), R0
+	MOVD	40(RSP), R1
+	MOVW	R0, 8(RSP)
 	BL	(R1)
 
-	// clear g
-	MOVW	$0, g
+	// Clear g.
+	MOVD	$0, g
 	BL	runtime·save_g(SB)
 
-	MOVW	8(R13), R0			// load return value
-	ADD	$(m__size + g__size + 20), R13	// free locals
-	MOVM.IA.W (R13), [R4-R11, R15]		// pop {r4-r11, pc}
+	// Load return value (save_g would have smashed)
+	MOVW	(2*8)(RSP), R0
+
+	ADD	$extra, RSP, R2
+	MOVD	R2, RSP
+	#undef extra
+
+	RESTORE_R19_TO_R28(-10*8)
+	RET
 
 GLOBL runtime·cbctxts(SB), NOPTR, $4
 
-TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
-	// On entry, the trampoline in zcallback_windows_arm.s left
+TEXT runtime·callbackasm1(SB),NOSPLIT,$208-0
+	NO_LOCAL_POINTERS
+
+	// On entry, the trampoline in zcallback_windows_arm64.s left
 	// the callback index in R12 (which is volatile in the C ABI).
 
-	// Push callback register arguments r0-r3. We do this first so
-	// they're contiguous with stack arguments.
-	MOVM.DB.W [R0-R3], (R13)
-	// Push C callee-save registers r4-r11 and lr.
-	MOVM.DB.W [R4-R11, R14], (R13)
-	SUB	$(16 + callbackArgs__size), R13	// space for locals
+	// Save callback register arguments R0-R7.
+	// We do this at the top of the frame so they're contiguous with stack arguments.
+	MOVD	R0, arg0-(8*8)(SP)
+	MOVD	R1, arg1-(7*8)(SP)
+	MOVD	R2, arg2-(6*8)(SP)
+	MOVD	R3, arg3-(5*8)(SP)
+	MOVD	R4, arg4-(4*8)(SP)
+	MOVD	R5, arg5-(3*8)(SP)
+	MOVD	R6, arg6-(2*8)(SP)
+	MOVD	R7, arg7-(1*8)(SP)
+
+	// Push C callee-save registers R19-R28.
+	// LR, FP already saved.
+	SAVE_R19_TO_R28(-18*8)
 
 	// Create a struct callbackArgs on our stack.
-	MOVW	R12, (16+callbackArgs_index)(R13)	// callback index
-	MOVW	$(16+callbackArgs__size+4*9)(R13), R0
-	MOVW	R0, (16+callbackArgs_args)(R13)		// address of args vector
-	MOVW	$0, R0
-	MOVW	R0, (16+callbackArgs_result)(R13)	// result
-
-	// Prepare for entry to Go.
-	BL	runtime·load_g(SB)
+	MOVD	$cbargs-(18*8+callbackArgs__size)(SP), R13
+	MOVD	R12, callbackArgs_index(R13)	// callback index
+	MOVD	$arg0-(8*8)(SP), R0
+	MOVD	R0, callbackArgs_args(R13)		// address of args vector
+	MOVD	$0, R0
+	MOVD	R0, callbackArgs_result(R13)	// result
 
 	// Call cgocallback, which will call callbackWrap(frame).
-	MOVW	$0, R0
-	MOVW	R0, 12(R13)	// context
-	MOVW	$16(R13), R1	// R1 = &callbackArgs{...}
-	MOVW	R1, 8(R13)	// frame (address of callbackArgs)
-	MOVW	$·callbackWrap(SB), R1
-	MOVW	R1, 4(R13)	// PC of function to call
+	MOVD	$·callbackWrap(SB), R0	// PC of function to call
+	MOVD	R13, R1	// frame (&callbackArgs{...})
+	MOVD	$0, R2	// context
+	MOVD	R0, (1*8)(RSP)
+	MOVD	R1, (2*8)(RSP)
+	MOVD	R2, (3*8)(RSP)
 	BL	runtime·cgocallback(SB)
 
 	// Get callback result.
-	MOVW	(16+callbackArgs_result)(R13), R0
+	MOVD	$cbargs-(18*8+callbackArgs__size)(SP), R13
+	MOVD	callbackArgs_result(R13), R0
 
-	ADD	$(16 + callbackArgs__size), R13	// free locals
-	MOVM.IA.W (R13), [R4-R11, R12]	// pop {r4-r11, lr=>r12}
-	ADD	$(4*4), R13	// skip r0-r3
-	B	(R12)	// return
+	RESTORE_R19_TO_R28(-18*8)
+
+	RET
 
 // uint32 tstart_stdcall(M *newm);
-TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
-	MOVM.DB.W [R4-R11, R14], (R13)		// push {r4-r11, lr}
+TEXT runtime·tstart_stdcall(SB),NOSPLIT,$96-0
+	SAVE_R19_TO_R28(-10*8)
 
-	MOVW	m_g0(R0), g
-	MOVW	R0, g_m(g)
+	MOVD	m_g0(R0), g
+	MOVD	R0, g_m(g)
 	BL	runtime·save_g(SB)
 
-	// Layout new m scheduler stack on os stack.
-	MOVW	R13, R0
-	MOVW	R0, g_stack+stack_hi(g)
+	// Set up stack guards for OS stack.
+	MOVD	RSP, R0
+	MOVD	R0, g_stack+stack_hi(g)
 	SUB	$(64*1024), R0
-	MOVW	R0, (g_stack+stack_lo)(g)
-	MOVW	R0, g_stackguard0(g)
-	MOVW	R0, g_stackguard1(g)
+	MOVD	R0, (g_stack+stack_lo)(g)
+	MOVD	R0, g_stackguard0(g)
+	MOVD	R0, g_stackguard1(g)
 
 	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
 	BL	runtime·mstart(SB)
 
+	RESTORE_R19_TO_R28(-10*8)
+
 	// Exit the thread.
-	MOVW	$0, R0
-	MOVM.IA.W (R13), [R4-R11, R15]		// pop {r4-r11, pc}
+	MOVD	$0, R0
+	RET
 
 // Runs on OS stack.
 // duration (in -100ns units) is in dt+0(FP).
 // g may be nil.
-TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0-4
+TEXT runtime·usleep2(SB),NOSPLIT,$32-4
 	MOVW	dt+0(FP), R0
-	MOVM.DB.W [R4, R14], (R13)	// push {r4, lr}
-	MOVW	R13, R4			// Save SP
-	SUB	$8, R13			// R13 = R13 - 8
-	BIC	$0x7, R13		// Align SP for ABI
-	RSB	$0, R0, R3		// R3 = -R0
-	MOVW	$0, R1			// R1 = FALSE (alertable)
-	MOVW	$-1, R0			// R0 = handle
-	MOVW	R13, R2			// R2 = pTime
-	MOVW	R3, 0(R2)		// time_lo
-	MOVW	R0, 4(R2)		// time_hi
-	MOVW	runtime·_NtWaitForSingleObject(SB), R3
+	MOVD	$16(RSP), R2		// R2 = pTime
+	MOVD	R0, 0(R2)		// *pTime = -dt
+	MOVD	$-1, R0			// R0 = handle
+	MOVD	$0, R1			// R1 = FALSE (alertable)
+	MOVD	runtime·_NtWaitForSingleObject(SB), R3
+	SUB	$16, RSP	// skip over saved frame pointer below RSP
 	BL	(R3)
-	MOVW	R4, R13			// Restore SP
-	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
+	ADD	$16, RSP
+	RET
 
 // Runs on OS stack.
 // duration (in -100ns units) is in dt+0(FP).
 // g is valid.
 // TODO: neeeds to be implemented properly.
-TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$0-4
+TEXT runtime·usleep2HighRes(SB),NOSPLIT,$0-4
 	B	runtime·abort(SB)
 
 // Runs on OS stack.
-TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
-	MOVM.DB.W [R4, R14], (R13)  	// push {R4, lr}
-	MOVW    R13, R4
-	BIC	$0x7, R13		// alignment for ABI
-	MOVW	runtime·_SwitchToThread(SB), R0
+TEXT runtime·switchtothread(SB),NOSPLIT,$16-0
+	MOVD	runtime·_SwitchToThread(SB), R0
+	SUB	$16, RSP	// skip over saved frame pointer below RSP
 	BL	(R0)
-	MOVW 	R4, R13			// restore stack pointer
-	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
-
-TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
-	B	runtime·armPublicationBarrier(SB)
-
-// never called (cgo not supported)
-TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
-	MOVW	$0xabcd, R0
-	MOVW	R0, (R0)
+	ADD	$16, RSP
 	RET
 
 // See http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
@@ -423,166 +479,101 @@ TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
 #define time_hi2 8
 
 TEXT runtime·nanotime1(SB),NOSPLIT|NOFRAME,$0-8
-	MOVW	$0, R0
 	MOVB	runtime·useQPCTime(SB), R0
 	CMP	$0, R0
 	BNE	useQPC
-	MOVW	$_INTERRUPT_TIME, R3
+	MOVD	$_INTERRUPT_TIME, R3
 loop:
-	MOVW	time_hi1(R3), R1
-	MOVW	time_lo(R3), R0
-	MOVW	time_hi2(R3), R2
+	MOVWU	time_hi1(R3), R1
+	MOVWU	time_lo(R3), R0
+	MOVWU	time_hi2(R3), R2
 	CMP	R1, R2
 	BNE	loop
 
 	// wintime = R1:R0, multiply by 100
-	MOVW	$100, R2
-	MULLU	R0, R2, (R4, R3)    // R4:R3 = R1:R0 * R2
-	MULA	R1, R2, R4, R4
-
-	// wintime*100 = R4:R3
-	MOVW	R3, ret_lo+0(FP)
-	MOVW	R4, ret_hi+4(FP)
+	ORR	R1<<32, R0
+	MOVD	$100, R1
+	MUL	R1, R0
+	MOVD	R0, ret+0(FP)
 	RET
 useQPC:
 	B	runtime·nanotimeQPC(SB)		// tail call
 
-TEXT time·now(SB),NOSPLIT|NOFRAME,$0-20
-	MOVW    $0, R0
+TEXT time·now(SB),NOSPLIT|NOFRAME,$0-24
 	MOVB    runtime·useQPCTime(SB), R0
 	CMP	$0, R0
 	BNE	useQPC
-	MOVW	$_INTERRUPT_TIME, R3
+	MOVD	$_INTERRUPT_TIME, R3
 loop:
-	MOVW	time_hi1(R3), R1
-	MOVW	time_lo(R3), R0
-	MOVW	time_hi2(R3), R2
+	MOVWU	time_hi1(R3), R1
+	MOVWU	time_lo(R3), R0
+	MOVWU	time_hi2(R3), R2
 	CMP	R1, R2
 	BNE	loop
 
 	// wintime = R1:R0, multiply by 100
-	MOVW	$100, R2
-	MULLU	R0, R2, (R4, R3)    // R4:R3 = R1:R0 * R2
-	MULA	R1, R2, R4, R4
+	ORR	R1<<32, R0
+	MOVD	$100, R1
+	MUL	R1, R0
+	MOVD	R0, mono+16(FP)
 
-	// wintime*100 = R4:R3
-	MOVW	R3, mono+12(FP)
-	MOVW	R4, mono+16(FP)
-
-	MOVW	$_SYSTEM_TIME, R3
+	MOVD	$_SYSTEM_TIME, R3
 wall:
-	MOVW	time_hi1(R3), R1
-	MOVW	time_lo(R3), R0
-	MOVW	time_hi2(R3), R2
+	MOVWU	time_hi1(R3), R1
+	MOVWU	time_lo(R3), R0
+	MOVWU	time_hi2(R3), R2
 	CMP	R1, R2
 	BNE	wall
 
-	// w = R1:R0 in 100ns untis
+	// w = R1:R0 in 100ns units
 	// convert to Unix epoch (but still 100ns units)
 	#define delta 116444736000000000
-	SUB.S   $(delta & 0xFFFFFFFF), R0
-	SBC     $(delta >> 32), R1
+	ORR	R1<<32, R0
+	SUB	$delta, R0
 
 	// Convert to nSec
-	MOVW    $100, R2
-	MULLU   R0, R2, (R4, R3)    // R4:R3 = R1:R0 * R2
-	MULA    R1, R2, R4, R4
-	// w = R2:R1 in nSec
-	MOVW    R3, R1	      // R4:R3 -> R2:R1
-	MOVW    R4, R2
+	MOVD	$100, R1
+	MUL	R1, R0
 
-	// multiply nanoseconds by reciprocal of 10**9 (scaled by 2**61)
-	// to get seconds (96 bit scaled result)
-	MOVW	$0x89705f41, R3		// 2**61 * 10**-9
-	MULLU	R1,R3,(R6,R5)		// R7:R6:R5 = R2:R1 * R3
-	MOVW	$0,R7
-	MULALU	R2,R3,(R7,R6)
-
-	// unscale by discarding low 32 bits, shifting the rest by 29
-	MOVW	R6>>29,R6		// R7:R6 = (R7:R6:R5 >> 61)
-	ORR	R7<<3,R6
-	MOVW	R7>>29,R7
-
-	// subtract (10**9 * sec) from nsec to get nanosecond remainder
-	MOVW	$1000000000, R5	// 10**9
-	MULLU	R6,R5,(R9,R8)   // R9:R8 = R7:R6 * R5
-	MULA	R7,R5,R9,R9
-	SUB.S	R8,R1		// R2:R1 -= R9:R8
-	SBC	R9,R2
-
-	// because reciprocal was a truncated repeating fraction, quotient
-	// may be slightly too small -- adjust to make remainder < 10**9
-	CMP	R5,R1	// if remainder > 10**9
-	SUB.HS	R5,R1   //    remainder -= 10**9
-	ADD.HS	$1,R6	//    sec += 1
-
-	MOVW	R6,sec_lo+0(FP)
-	MOVW	R7,sec_hi+4(FP)
-	MOVW	R1,nsec+8(FP)
+	// Code stolen from compiler output for:
+	//
+	//	var x uint64
+	//	func f() (sec uint64, nsec uint32) { return x / 1000000000, uint32(x % 100000000) }
+	//
+	LSR	$1, R0, R1
+	MOVD	$-8543223759426509416, R2
+	UMULH	R2, R1, R1
+	LSR	$28, R1, R1
+	MOVD	R1, sec+0(FP)
+	MOVD	$-6067343680855748867, R1
+	UMULH	R0, R1, R1
+	LSR	$26, R1, R1
+	MOVD	$100000000, R2
+	MSUB	R1, R0, R2, R0
+	MOVW	R0, nsec+8(FP)
 	RET
 useQPC:
 	B	runtime·nowQPC(SB)		// tail call
 
-// save_g saves the g register (R10) into thread local memory
-// so that we can call externally compiled
-// ARM code that will overwrite those registers.
-// NOTE: runtime.gogo assumes that R1 is preserved by this function.
-//       runtime.mcall assumes this function only clobbers R0 and R11.
-// Returns with g in R0.
-// Save the value in the _TEB->TlsSlots array.
-// Effectively implements TlsSetValue().
-// tls_g stores the TLS slot allocated TlsAlloc().
-TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0
-	MRC	15, 0, R0, C13, C0, 2
-	ADD	$0xe10, R0
-	MOVW 	$runtime·tls_g(SB), R11
-	MOVW	(R11), R11
-	MOVW	g, R11<<2(R0)
-	MOVW	g, R0	// preserve R0 across call to setg<>
-	RET
-
-// load_g loads the g register from thread-local memory,
-// for use after calling externally compiled
-// ARM code that overwrote those registers.
-// Get the value from the _TEB->TlsSlots array.
-// Effectively implements TlsGetValue().
-TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0
-	MRC	15, 0, R0, C13, C0, 2
-	ADD	$0xe10, R0
-	MOVW 	$runtime·tls_g(SB), g
-	MOVW	(g), g
-	MOVW	g<<2(R0), g
-	RET
-
 // This is called from rt0_go, which runs on the system stack
 // using the initial stack allocated by the OS.
 // It calls back into standard C using the BL below.
-// To do that, the stack pointer must be 8-byte-aligned.
-TEXT runtime·_initcgo(SB),NOSPLIT|NOFRAME,$0
-	MOVM.DB.W [R4, R14], (R13)	// push {r4, lr}
-
-	// Ensure stack is 8-byte aligned before calling C code
-	MOVW	R13, R4
-	BIC	$0x7, R13
-
+TEXT runtime·wintls(SB),NOSPLIT,$0
 	// Allocate a TLS slot to hold g across calls to external code
-	MOVW 	$runtime·_TlsAlloc(SB), R0
-	MOVW	(R0), R0
+	MOVD	runtime·_TlsAlloc(SB), R0
+	SUB	$16, RSP	// skip over saved frame pointer below RSP
 	BL	(R0)
+	ADD	$16, RSP
 
 	// Assert that slot is less than 64 so we can use _TEB->TlsSlots
 	CMP	$64, R0
-	MOVW	$runtime·abort(SB), R1
-	BL.GE	(R1)
+	BLT	ok
+	MOVD	$runtime·abort(SB), R1
+	BL	(R1)
+ok:
 
-	// Save Slot into tls_g
-	MOVW 	$runtime·tls_g(SB), R1
-	MOVW	R0, (R1)
-
-	MOVW	R4, R13
-	MOVM.IA.W (R13), [R4, R15]	// pop {r4, pc}
-
-// Holds the TLS Slot, which was allocated by TlsAlloc()
-GLOBL runtime·tls_g+0(SB), NOPTR, $4
-
-#endif
+	// Save offset from R18 into tls_g.
+	LSL	$3, R1
+	ADD	$TEB_TlsSlots, R1
+	MOVD	R1, runtime·tls_g(SB)
+	RET

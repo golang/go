@@ -148,6 +148,9 @@ func tstart_stdcall(newm *m)
 // Called by OS using stdcall ABI.
 func ctrlhandler()
 
+// Init-time helper
+func wintls()
+
 type mOS struct {
 	threadLock mutex   // protects "thread" and prevents closing
 	thread     uintptr // thread handle

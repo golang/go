@@ -7,6 +7,7 @@
 // See memclrNoHeapPointers Go doc for important implementation constraints.
 
 // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+// Also called from assembly in sys_windows_arm64.s without g (but using Go stack convention).
 TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16
 	MOVD	ptr+0(FP), R0
 	MOVD	n+8(FP), R1

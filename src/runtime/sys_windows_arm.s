@@ -176,17 +176,17 @@ done:
 	BEQ	return
 
 	// Check if we need to set up the control flow guard workaround.
-	// On Windows/ARM, the stack pointer must lie within system
-	// stack limits when we resume from exception.
+	// On Windows, the stack pointer in the context must lie within
+	// system stack limits when we resume from exception.
 	// Store the resume SP and PC on the g0 stack,
-	// and return to returntramp on the g0 stack. returntramp
+	// and return to sigresume on the g0 stack. sigresume
 	// pops the saved PC and SP from the g0 stack, resuming execution
 	// at the desired location.
-	// If returntramp has already been set up by a previous exception
+	// If sigresume has already been set up by a previous exception
 	// handler, don't clobber the stored SP and PC on the stack.
 	MOVW	4(R3), R3			// PEXCEPTION_POINTERS->Context
 	MOVW	context_pc(R3), R2		// load PC from context record
-	MOVW	$returntramp<>(SB), R1
+	MOVW	$sigresume<>(SB), R1
 	CMP	R1, R2
 	B.EQ	return				// do not clobber saved SP/PC
 
@@ -196,9 +196,9 @@ done:
 	MOVW	context_pc(R3), R2
 	MOVW	R2, context_r1(R3)
 
-	// Set up context record to return to returntramp on g0 stack
+	// Set up context record to return to sigresume on g0 stack
 	MOVW	R12, context_spr(R3)
-	MOVW	$returntramp<>(SB), R2
+	MOVW	$sigresume<>(SB), R2
 	MOVW	R2, context_pc(R3)
 
 return:
@@ -208,8 +208,8 @@ return:
 // This is part of the control flow guard workaround.
 // It switches stacks and jumps to the continuation address.
 // R0 and R1 are set above at the end of sigtramp<>
-// in the context that starts executing at returntramp<>.
-TEXT returntramp<>(SB),NOSPLIT|NOFRAME,$0
+// in the context that starts executing at sigresume<>.
+TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
 	// Important: do not smash LR,
 	// which is set to a live value when handling
 	// a signal by pushing a call to sigpanic onto the stack.
