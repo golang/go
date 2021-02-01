@@ -104,7 +104,7 @@ func (w *worker) runFuzzing() error {
 			w.memMu <- mem
 			message := fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
 			crasher := crasherEntry{
-				corpusEntry: corpusEntry{b: value},
+				CorpusEntry: CorpusEntry{Data: value},
 				errMsg:      message,
 			}
 			w.coordinator.crasherC <- crasher
@@ -119,7 +119,7 @@ func (w *worker) runFuzzing() error {
 			inputC = nil // block new inputs until we finish with this one.
 			go func() {
 				args := fuzzArgs{Duration: workerFuzzDuration}
-				value, resp, err := w.client.fuzz(input.b, args)
+				value, resp, err := w.client.fuzz(input.Data, args)
 				if err != nil {
 					// Error communicating with worker.
 					select {
@@ -144,7 +144,7 @@ func (w *worker) runFuzzing() error {
 				} else if resp.Err != "" {
 					// The worker found a crasher. Inform the coordinator.
 					crasher := crasherEntry{
-						corpusEntry: corpusEntry{b: value},
+						CorpusEntry: CorpusEntry{Data: value},
 						errMsg:      resp.Err,
 					}
 					w.coordinator.crasherC <- crasher
@@ -152,7 +152,7 @@ func (w *worker) runFuzzing() error {
 					// Inform the coordinator that fuzzing found something
 					// interesting (i.e. new coverage).
 					if resp.Interesting {
-						w.coordinator.interestingC <- corpusEntry{b: value}
+						w.coordinator.interestingC <- CorpusEntry{Data: value}
 					}
 
 					// Continue fuzzing.

@@ -132,7 +132,7 @@ func (TestDeps) SetPanicOnExit0(v bool) {
 	testlog.SetPanicOnExit0(v)
 }
 
-func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed [][]byte, corpusDir, cacheDir string) error {
+func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed []fuzz.CorpusEntry, corpusDir, cacheDir string) error {
 	// Fuzzing may be interrupted with a timeout or if the user presses ^C.
 	// In either case, we'll stop worker processes gracefully and save
 	// crashers and interesting values.
@@ -178,6 +178,6 @@ func (TestDeps) RunFuzzWorker(fn func([]byte) error) error {
 	return nil
 }
 
-func (TestDeps) ReadCorpus(dir string) ([][]byte, error) {
+func (TestDeps) ReadCorpus(dir string) ([]fuzz.CorpusEntry, error) {
 	return fuzz.ReadCorpus(dir)
 }

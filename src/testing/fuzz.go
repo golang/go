@@ -48,17 +48,12 @@ type F struct {
 	fuzzFunc func(f *F)    // fuzzFunc is the function which makes up the fuzz target
 }
 
-// corpus corpusEntry
-type corpusEntry struct {
-	b []byte
-}
-
-func bytesToCorpus(bytes [][]byte) []corpusEntry {
-	c := make([]corpusEntry, len(bytes))
-	for i, b := range bytes {
-		c[i].b = b
-	}
-	return c
+// corpusEntry is an alias to the same type as internal/fuzz.CorpusEntry.
+// We use a type alias because we don't want to export this type, and we can't
+// importing internal/fuzz from testing.
+type corpusEntry = struct {
+	Name string
+	Data []byte
 }
 
 // Add will add the arguments to the seed corpus for the fuzz target. This will
@@ -74,7 +69,7 @@ func (f *F) Add(args ...interface{}) {
 	}
 	switch v := args[0].(type) {
 	case []byte:
-		f.corpus = append(f.corpus, corpusEntry{v})
+		f.corpus = append(f.corpus, corpusEntry{Data: v})
 	// TODO: support other types
 	default:
 		panic("testing: Add only supports []byte currently")
@@ -100,7 +95,7 @@ func (f *F) Fuzz(ff interface{}) {
 	if err != nil {
 		f.Fatal(err)
 	}
-	f.corpus = append(f.corpus, bytesToCorpus(c)...)
+	f.corpus = append(f.corpus, c...)
 	// TODO(jayconrod,katiehockman): dedupe testdata corpus with entries from f.Add
 
 	var errStr string
@@ -132,13 +127,9 @@ func (f *F) Fuzz(ff interface{}) {
 		// Fuzzing is enabled, and this is the test process started by 'go test'.
 		// Act as the coordinator process, and coordinate workers to perform the
 		// actual fuzzing.
-		seed := make([][]byte, len(f.corpus))
-		for i, e := range f.corpus {
-			seed[i] = e.b
-		}
 		corpusTargetDir := filepath.Join(corpusDir, f.name)
 		cacheTargetDir := filepath.Join(*fuzzCacheDir, f.name)
-		err := f.context.coordinateFuzzing(*fuzzDuration, *parallel, seed, corpusTargetDir, cacheTargetDir)
+		err := f.context.coordinateFuzzing(*fuzzDuration, *parallel, f.corpus, corpusTargetDir, cacheTargetDir)
 		if err != nil {
 			f.Fail()
 			f.result = FuzzResult{Error: err}
@@ -188,7 +179,7 @@ func (f *F) Fuzz(ff interface{}) {
 				},
 				context: newTestContext(1, nil),
 			}
-			go run(t, c.b)
+			go run(t, c.Data)
 			<-t.signal
 			if t.Failed() {
 				f.Fail()
@@ -281,9 +272,9 @@ func (r FuzzResult) String() string {
 type fuzzContext struct {
 	runMatch          *matcher
 	fuzzMatch         *matcher
-	coordinateFuzzing func(time.Duration, int, [][]byte, string, string) error
+	coordinateFuzzing func(time.Duration, int, []corpusEntry, string, string) error
 	runFuzzWorker     func(func([]byte) error) error
-	readCorpus        func(string) ([][]byte, error)
+	readCorpus        func(string) ([]corpusEntry, error)
 }
 
 // runFuzzTargets runs the fuzz targets matching the pattern for -run. This will
