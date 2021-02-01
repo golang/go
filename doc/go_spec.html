@@ -3400,7 +3400,12 @@ A type assertion used in an <a href="#Assignments">assignment</a> or initializat
 v, ok = x.(T)
 v, ok := x.(T)
 var v, ok = x.(T)
-var v, ok T1 = x.(T)
+
+var v, ok interface{} = x.(T)
+
+type v T
+type ok T1
+v, ok = x.(T) // type T1 is derived from interface{} or bool
 </pre>
 
 <p>
