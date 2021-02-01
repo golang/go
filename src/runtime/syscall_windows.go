@@ -148,6 +148,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 		}
 
 		// cdecl, stdcall, fastcall, and arm pad arguments to word size.
+		// TODO(rsc): On arm and arm64 do we need to skip the caller's saved LR?
 		src += sys.PtrSize
 		// The Go ABI packs arguments.
 		dst += t.size

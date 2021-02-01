@@ -73,6 +73,10 @@ nocgo:
 
 	BL	runtime·check(SB)
 
+#ifdef GOOS_windows
+	BL	runtime·wintls(SB)
+#endif
+
 	MOVW	8(RSP), R0	// copy argc
 	MOVW	R0, -8(RSP)
 	MOVD	16(RSP), R0		// copy argv
@@ -1109,6 +1113,9 @@ TEXT setg_gcc<>(SB),NOSPLIT,$8
 	MOVD	R27, savedR27-8(SP)
 	BL	runtime·save_g(SB)
 	MOVD	savedR27-8(SP), R27
+	RET
+
+TEXT runtime·emptyfunc(SB),0,$0-0
 	RET
 
 TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
