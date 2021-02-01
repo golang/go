@@ -279,7 +279,7 @@ func findShlibSection(ctxt *Link, path string, addr uint64) *elf.Section {
 	for _, shlib := range ctxt.Shlibs {
 		if shlib.Path == path {
 			for _, sect := range shlib.File.Sections[1:] { // skip the NULL section
-				if sect.Addr <= addr && addr <= sect.Addr+sect.Size {
+				if sect.Addr <= addr && addr < sect.Addr+sect.Size {
 					return sect
 				}
 			}
