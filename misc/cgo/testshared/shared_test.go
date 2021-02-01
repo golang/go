@@ -1063,3 +1063,11 @@ func TestGCData(t *testing.T) {
 	goCmd(t, "build", "-linkshared", "./gcdata/main")
 	runWithEnv(t, "running gcdata/main", []string{"GODEBUG=clobberfree=1"}, "./main")
 }
+
+// Test that we don't decode type symbols from shared libraries (which has no data,
+// causing panic). See issue 44031.
+func TestIssue44031(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue44031/a")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue44031/b")
+	goCmd(t, "run", "-linkshared", "./issue44031/main")
+}
