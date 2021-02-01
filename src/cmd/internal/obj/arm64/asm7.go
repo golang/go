@@ -404,8 +404,8 @@ var optab = []Optab{
 	/* MOVs that become MOVK/MOVN/MOVZ/ADD/SUB/OR */
 	{AMOVW, C_MOVCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
 	{AMOVD, C_MOVCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
-	{AMOVW, C_BITCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
-	{AMOVD, C_BITCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
+	{AMOVW, C_BITCON, C_NONE, C_NONE, C_RSP, 32, 4, 0, 0, 0},
+	{AMOVD, C_BITCON, C_NONE, C_NONE, C_RSP, 32, 4, 0, 0, 0},
 	{AMOVW, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, NOTUSETMP, 0},
 	{AMOVD, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, NOTUSETMP, 0},
 	{AMOVD, C_MOVCON3, C_NONE, C_NONE, C_REG, 12, 12, 0, NOTUSETMP, 0},
@@ -2060,9 +2060,10 @@ func (c *ctxt7) oplook(p *obj.Prog) *Optab {
 		}
 		a1 = a0 + 1
 		p.From.Class = int8(a1)
-		// more specific classification of 32-bit integers
 		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE {
-			if p.As == AMOVW || isADDWop(p.As) {
+			if p.As == AMOVW || isADDWop(p.As) || isANDWop(p.As) {
+				// For 32-bit instruction with constant, we need to
+				// treat its offset value as 32 bits to classify it.
 				ra0 := c.con32class(&p.From)
 				// do not break C_ADDCON2 when S bit is set
 				if (p.As == AADDSW || p.As == ASUBSW) && ra0 == C_ADDCON2 {
@@ -2071,16 +2072,8 @@ func (c *ctxt7) oplook(p *obj.Prog) *Optab {
 				a1 = ra0 + 1
 				p.From.Class = int8(a1)
 			}
-			if isANDWop(p.As) && a0 != C_BITCON {
-				// For 32-bit logical instruction with constant,
-				// the BITCON test is special in that it looks at
-				// the 64-bit which has the high 32-bit as a copy
-				// of the low 32-bit. We have handled that and
-				// don't pass it to con32class.
-				a1 = c.con32class(&p.From) + 1
-				p.From.Class = int8(a1)
-			}
 			if ((p.As == AMOVD) || isANDop(p.As) || isADDop(p.As)) && (a0 == C_LCON || a0 == C_VCON) {
+				// more specific classification of 64-bit integers
 				a1 = c.con64class(&p.From) + 1
 				p.From.Class = int8(a1)
 			}

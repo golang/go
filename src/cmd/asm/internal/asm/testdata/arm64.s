@@ -364,6 +364,9 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVD	$1, ZR
 	MOVD	$1, R1
 	MOVK	$1, R1
+	MOVD	$0x1000100010001000, RSP      // MOVD	$1152939097061330944, RSP   // ff8304b2
+	MOVW	$0x10001000, RSP              // MOVW	$268439552, RSP             // ff830432
+	ADDW	$0x10001000, R1               // ADDW	$268439552, R1              // fb83043221001b0b
 
 // move a large constant to a Vd.
 	VMOVS	$0x80402010, V11                                      // VMOVS	$2151686160, V11
