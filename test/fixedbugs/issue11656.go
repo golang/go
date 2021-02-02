@@ -59,10 +59,10 @@ func f(n int) {
 	ill := make([]byte, 64)
 	switch runtime.GOARCH {
 	case "386", "amd64":
-		ill = append(ill, 0x89, 0x04, 0x25, 0x00, 0x00, 0x00, 0x00) // MOVL AX, 0
+		ill = append(ill[:0], 0x89, 0x04, 0x25, 0x00, 0x00, 0x00, 0x00) // MOVL AX, 0
 	case "arm":
-		binary.LittleEndian.PutUint32(ill, 0xe3a00000) // MOVW $0, R0
-		binary.LittleEndian.PutUint32(ill, 0xe5800000) // MOVW R0, (R0)
+		binary.LittleEndian.PutUint32(ill[0:4], 0xe3a00000) // MOVW $0, R0
+		binary.LittleEndian.PutUint32(ill[4:8], 0xe5800000) // MOVW R0, (R0)
 	case "arm64":
 		binary.LittleEndian.PutUint32(ill, 0xf90003ff) // MOVD ZR, (ZR)
 	case "ppc64":
@@ -74,7 +74,7 @@ func f(n int) {
 	case "mipsle", "mips64le":
 		binary.LittleEndian.PutUint32(ill, 0xfc000000) // MOVV R0, (R0)
 	case "s390x":
-		ill = append(ill, 0xa7, 0x09, 0x00, 0x00)             // MOVD $0, R0
+		ill = append(ill[:0], 0xa7, 0x09, 0x00, 0x00)         // MOVD $0, R0
 		ill = append(ill, 0xe3, 0x00, 0x00, 0x00, 0x00, 0x24) // MOVD R0, (R0)
 	case "riscv64":
 		binary.LittleEndian.PutUint32(ill, 0x00003023) // MOV X0, (X0)

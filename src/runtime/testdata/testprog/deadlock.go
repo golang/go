@@ -25,6 +25,7 @@ func init() {
 	register("RecursivePanic2", RecursivePanic2)
 	register("RecursivePanic3", RecursivePanic3)
 	register("RecursivePanic4", RecursivePanic4)
+	register("RecursivePanic5", RecursivePanic5)
 	register("GoexitExit", GoexitExit)
 	register("GoNil", GoNil)
 	register("MainGoroutineID", MainGoroutineID)
@@ -157,6 +158,44 @@ func RecursivePanic4() {
 		recover()
 		panic("second panic")
 	}()
+	panic("first panic")
+}
+
+// Test case where we have an open-coded defer higher up the stack (in two), and
+// in the current function (three) we recover in a defer while we still have
+// another defer to be processed.
+func RecursivePanic5() {
+	one()
+	panic("third panic")
+}
+
+//go:noinline
+func one() {
+	two()
+}
+
+//go:noinline
+func two() {
+	defer func() {
+	}()
+
+	three()
+}
+
+//go:noinline
+func three() {
+	defer func() {
+	}()
+
+	defer func() {
+		fmt.Println(recover())
+	}()
+
+	defer func() {
+		fmt.Println(recover())
+		panic("second panic")
+	}()
+
 	panic("first panic")
 }
 

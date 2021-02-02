@@ -165,13 +165,17 @@ func (d *deadcodePass) flood() {
 				// R_USEIFACEMETHOD is a marker relocation that marks an interface
 				// method as used.
 				rs := r.Sym()
-				if d.ldr.SymType(rs) != sym.SDYNIMPORT { // don't decode DYNIMPORT symbol (we'll mark all exported methods anyway)
-					m := d.decodeIfaceMethod(d.ldr, d.ctxt.Arch, rs, r.Add())
-					if d.ctxt.Debugvlog > 1 {
-						d.ctxt.Logf("reached iface method: %v\n", m)
-					}
-					d.ifaceMethod[m] = true
+				if d.ctxt.linkShared && (d.ldr.SymType(rs) == sym.SDYNIMPORT || d.ldr.SymType(rs) == sym.Sxxx) {
+					// Don't decode symbol from shared library (we'll mark all exported methods anyway).
+					// We check for both SDYNIMPORT and Sxxx because name-mangled symbols haven't
+					// been resolved at this point.
+					continue
 				}
+				m := d.decodeIfaceMethod(d.ldr, d.ctxt.Arch, rs, r.Add())
+				if d.ctxt.Debugvlog > 1 {
+					d.ctxt.Logf("reached iface method: %v\n", m)
+				}
+				d.ifaceMethod[m] = true
 				continue
 			}
 			rs := r.Sym()
