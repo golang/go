@@ -216,6 +216,13 @@ Do not send CLs removing the interior tags from such phrases.
   has no effect.
 </p>
 
+<p><!-- CL 289209 -->
+  When <a href="/pkg/crypto/tls#Config">Config.NextProtos</a> is set, servers now
+  enforce that there is an overlap between the configured protocols and the protocols
+  advertised by the client, if any. If there is no overlap the connection is closed
+  with the <code>no_application_protocol</code> alert, as required by RFC 7301.
+</p>
+
 <h3 id="runtime/cgo"><a href="/pkg/runtime/cgo">Cgo</a></h3>
 
 <p>

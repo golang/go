@@ -217,11 +217,14 @@ func (hs *serverHandshakeState) processClientHello() error {
 		c.serverName = hs.clientHello.serverName
 	}
 
-	if len(hs.clientHello.alpnProtocols) > 0 {
-		if selectedProto := mutualProtocol(hs.clientHello.alpnProtocols, c.config.NextProtos); selectedProto != "" {
-			hs.hello.alpnProtocol = selectedProto
-			c.clientProtocol = selectedProto
+	if len(c.config.NextProtos) > 0 && len(hs.clientHello.alpnProtocols) > 0 {
+		selectedProto := mutualProtocol(hs.clientHello.alpnProtocols, c.config.NextProtos)
+		if selectedProto == "" {
+			c.sendAlert(alertNoApplicationProtocol)
+			return fmt.Errorf("tls: client requested unsupported application protocols (%s)", hs.clientHello.alpnProtocols)
 		}
+		hs.hello.alpnProtocol = selectedProto
+		c.clientProtocol = selectedProto
 	}
 
 	hs.cert, err = c.config.getCertificate(clientHelloInfo(hs.ctx, c, hs.clientHello))
