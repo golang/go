@@ -93,11 +93,27 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 	case *syntax.AssertExpr:
 		return Assert(pos, g.expr(expr.X), g.typeExpr(expr.Type))
 	case *syntax.CallExpr:
-		def := g.info.Inferred[expr]
-		if len(def.Targs) > 0 {
-			panic("Inferred type arguments not handled yet")
+		fun := g.expr(expr.Fun)
+		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.Targs) > 0 {
+			targs := make([]ir.Node, len(inferred.Targs))
+			for i, targ := range inferred.Targs {
+				targs[i] = ir.TypeNode(g.typ(targ))
+			}
+			if fun.Op() == ir.OFUNCINST {
+				// Replace explicit type args with the full list that
+				// includes the additional inferred type args
+				fun.(*ir.InstExpr).Targs = targs
+			} else {
+				// Create a function instantiation here, given
+				// there are only inferred type args (e.g.
+				// min(5,6), where min is a generic function)
+				inst := ir.NewInstExpr(pos, ir.OFUNCINST, fun, targs)
+				typed(fun.Type(), inst)
+				fun = inst
+			}
+
 		}
-		return Call(pos, g.typ(typ), g.expr(expr.Fun), g.exprs(expr.ArgList), expr.HasDots)
+		return Call(pos, g.typ(typ), fun, g.exprs(expr.ArgList), expr.HasDots)
 	case *syntax.IndexExpr:
 		var targs []ir.Node
 		if _, ok := expr.Index.(*syntax.ListExpr); ok {
@@ -111,7 +127,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 			// This is generic function instantiation with a single type
 			targs = []ir.Node{index}
 		}
-		// This is a generic function instantiation
+		// This is a generic function instantiation (e.g. min[int])
 		x := g.expr(expr.X)
 		if x.Op() != ir.ONAME || x.Type().Kind() != types.TFUNC {
 			panic("Incorrect argument for generic func instantiation")
