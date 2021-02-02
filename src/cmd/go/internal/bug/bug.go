@@ -81,7 +81,7 @@ func printGoVersion(w io.Writer) {
 	fmt.Fprintf(w, "### What version of Go are you using (`go version`)?\n\n")
 	fmt.Fprintf(w, "<pre>\n")
 	fmt.Fprintf(w, "$ go version\n")
-	printCmdOut(w, "", "go", "version")
+	fmt.Fprintf(w, "go version %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
 	fmt.Fprintf(w, "</pre>\n")
 	fmt.Fprintf(w, "\n")
 }
@@ -90,7 +90,11 @@ func printEnvDetails(w io.Writer) {
 	fmt.Fprintf(w, "### What operating system and processor architecture are you using (`go env`)?\n\n")
 	fmt.Fprintf(w, "<details><summary><code>go env</code> Output</summary><br><pre>\n")
 	fmt.Fprintf(w, "$ go env\n")
-	printCmdOut(w, "", "go", "env")
+	goexe, err := os.Executable()
+	if err != nil {
+		goexe = filepath.Join(runtime.GOROOT(), "bin/go")
+	}
+	printCmdOut(w, "", goexe, "env")
 	printGoDetails(w)
 	printOSDetails(w)
 	printCDetails(w)
