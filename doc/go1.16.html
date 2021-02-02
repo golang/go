@@ -80,6 +80,16 @@ Do not send CLs removing the interior tags from such phrases.
   support cgo.
 </p>
 
+<p><!-- golang.org/issue/36435, many CLs -->
+  On the 64-bit x86 and 64-bit ARM architectures on OpenBSD (the
+  <code>openbsd/amd64</code> and <code>openbsd/arm64</code> ports), system
+  calls are now made through <code>libc</code>, instead of directly using
+  the <code>SYSCALL</code>/<code>SVC</code> instruction. This ensures
+  forward-compatibility with future versions of OpenBSD. In particular,
+  OpenBSD 6.9 onwards will require system calls to be made through
+  <code>libc</code> for non-static Go binaries.
+</p>
+
 <h3 id="386">386</h3>
 
 <p><!-- golang.org/issue/40255, golang.org/issue/41848, CL 258957, and CL 260017 -->
@@ -146,7 +156,7 @@ Do not send CLs removing the interior tags from such phrases.
   <code>retract</code> directives may now be used in a <code>go.mod</code> file
   to indicate that certain published versions of the module should not be used
   by other modules. A module author may retract a version after a severe problem
-  is discovered or if the version was published unintentionally.<br>
+  is discovered or if the version was published unintentionally.
 </p>
 
 <p><!-- golang.org/issue/26603 -->
@@ -275,7 +285,7 @@ Do not send CLs removing the interior tags from such phrases.
   When the <code>-export</code> flag is specified, the <code>BuildID</code>
   field is now set to the build ID of the compiled package. This is equivalent
   to running <code>go</code> <code>tool</code> <code>buildid</code> on
-  <code>go</code> <code>list</code> <code>-exported</code> <code>-f</code> <code>{{.Export}</code>,
+  <code>go</code> <code>list</code> <code>-exported</code> <code>-f</code> <code>{{.Export}}</code>,
   but without the extra step.
 </p>
 
@@ -762,6 +772,25 @@ func TestFoo(t *testing.T) {
   </dd>
 </dl><!-- go/build -->
 
+<dl id="go/build/constraint"><dt><a href="/pkg/go/build/constraint/">go/build/constraint</a></dt>
+  <dd>
+    <p><!-- CL 240604 -->
+      The new
+      <a href="/pkg/go/build/constraint/"><code>go/build/constraint</code></a>
+      package parses build constraint lines, both the original
+      <code>// +build</code> syntax and the <code>//go:build</code>
+      syntax that will be introduced in Go 1.17.
+      This package exists so that tools built with Go 1.16 will be able
+      to process Go 1.17 source code.
+      See <a href="https://golang.org/design/draft-gobuild">https://golang.org/design/draft-gobuild</a>
+      for details about the build constraint syntaxes and the planned
+      transition to the <code>//go:build</code> syntax.
+      Note that <code>//go:build</code> lines are <b>not</b> supported
+      in Go 1.16 and should not be introduced into Go programs yet.
+    </p>
+  </dd>
+</dl><!-- go/build/constraint -->
+
 <dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
   <dd>
     <p><!-- CL 243938 -->
@@ -880,7 +909,7 @@ func TestFoo(t *testing.T) {
     </p>
 
     <p><!-- CL 250039 -->
-      The <a href="/pkg/net/http/#Client">Client</a> now sends
+      The <a href="/pkg/net/http/#Client"><code>Client</code></a> now sends
       an explicit <code>Content-Length:</code> <code>0</code>
       header in <code>PATCH</code> requests with empty bodies,
       matching the existing behavior of <code>POST</code> and <code>PUT</code>.
@@ -927,7 +956,7 @@ func TestFoo(t *testing.T) {
 <dl id="net/smtp"><dt><a href="/pkg/net/smtp/">net/smtp</a></dt>
   <dd>
     <p><!-- CL 247257 -->
-      The <a href="/pkg/net/smtp/#Client">Client</a>'s
+      The <a href="/pkg/net/smtp/#Client"><code>Client</code></a>'s
       <a href="/pkg/net/smtp/#Client.Mail"><code>Mail</code></a>
       method now sends the <code>SMTPUTF8</code> directive to
       servers that support it, signaling that addresses are encoded in UTF-8.

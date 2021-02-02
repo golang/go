@@ -182,7 +182,6 @@ func setattrlistTimes(path string, times []Timespec) error {
 //sys	Rename(from string, to string) (err error)
 //sys	Revoke(path string) (err error)
 //sys	Rmdir(path string) (err error)
-//sys	Seek(fd int, offset int64, whence int) (newoffset int64, err error) = SYS_LSEEK
 //sys	Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (err error)
 //sysnb	Setegid(egid int) (err error)
 //sysnb	Seteuid(euid int) (err error)
@@ -207,8 +206,4 @@ func setattrlistTimes(path string, times []Timespec) error {
 //sys	write(fd int, p []byte) (n int, err error)
 //sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
 //sys	munmap(addr uintptr, length uintptr) (err error)
-//sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
-//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
-//sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD
-//sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL

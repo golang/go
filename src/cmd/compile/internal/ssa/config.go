@@ -179,14 +179,6 @@ type Frontend interface {
 	MyImportPath() string
 }
 
-const go116lateCallExpansion = true
-
-// LateCallExpansionEnabledWithin returns true if late call expansion should be tested
-// within compilation of a function/method.
-func LateCallExpansionEnabledWithin(f *Func) bool {
-	return go116lateCallExpansion
-}
-
 // NewConfig returns a new configuration object for the given architecture.
 func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config {
 	c := &Config{arch: arch, Types: types}
