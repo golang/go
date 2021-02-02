@@ -44,7 +44,7 @@ var regNamesAMD64 = []string{
 	"R11",
 	"R12",
 	"R13",
-	"R14",
+	"g", // a.k.a. R14
 	"R15",
 	"X0",
 	"X1",
@@ -96,12 +96,14 @@ func init() {
 		cx         = buildReg("CX")
 		dx         = buildReg("DX")
 		bx         = buildReg("BX")
-		gp         = buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
+		gp         = buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15")
+		g          = buildReg("g")
 		fp         = buildReg("X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14")
 		x15        = buildReg("X15")
 		gpsp       = gp | buildReg("SP")
 		gpspsb     = gpsp | buildReg("SB")
-		callerSave = gp | fp
+		gpspsbg    = gpspsb | g
+		callerSave = gp | fp | g // runtime.setg (and anything calling it) may clobber g
 	)
 	// Common slices of register masks
 	var (
@@ -114,10 +116,10 @@ func init() {
 		gp01           = regInfo{inputs: nil, outputs: gponly}
 		gp11           = regInfo{inputs: []regMask{gp}, outputs: gponly}
 		gp11sp         = regInfo{inputs: []regMask{gpsp}, outputs: gponly}
-		gp11sb         = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
+		gp11sb         = regInfo{inputs: []regMask{gpspsbg}, outputs: gponly}
 		gp21           = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
 		gp21sp         = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly}
-		gp21sb         = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
+		gp21sb         = regInfo{inputs: []regMask{gpspsbg, gpsp}, outputs: gponly}
 		gp21shift      = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}}
 		gp11div        = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax, dx}}
 		gp21hmul       = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx}, clobbers: ax}
@@ -126,9 +128,9 @@ func init() {
 
 		gp2flags     = regInfo{inputs: []regMask{gpsp, gpsp}}
 		gp1flags     = regInfo{inputs: []regMask{gpsp}}
-		gp0flagsLoad = regInfo{inputs: []regMask{gpspsb, 0}}
-		gp1flagsLoad = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
-		gp2flagsLoad = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
+		gp0flagsLoad = regInfo{inputs: []regMask{gpspsbg, 0}}
+		gp1flagsLoad = regInfo{inputs: []regMask{gpspsbg, gpsp, 0}}
+		gp2flagsLoad = regInfo{inputs: []regMask{gpspsbg, gpsp, gpsp, 0}}
 		flagsgp      = regInfo{inputs: nil, outputs: gponly}
 
 		gp11flags      = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp, 0}}
@@ -137,24 +139,24 @@ func init() {
 		readflags = regInfo{inputs: nil, outputs: gponly}
 		flagsgpax = regInfo{inputs: nil, clobbers: ax, outputs: []regMask{gp &^ ax}}
 
-		gpload      = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
-		gp21load    = regInfo{inputs: []regMask{gp, gpspsb, 0}, outputs: gponly}
-		gploadidx   = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
-		gp21loadidx = regInfo{inputs: []regMask{gp, gpspsb, gpsp, 0}, outputs: gponly}
+		gpload      = regInfo{inputs: []regMask{gpspsbg, 0}, outputs: gponly}
+		gp21load    = regInfo{inputs: []regMask{gp, gpspsbg, 0}, outputs: gponly}
+		gploadidx   = regInfo{inputs: []regMask{gpspsbg, gpsp, 0}, outputs: gponly}
+		gp21loadidx = regInfo{inputs: []regMask{gp, gpspsbg, gpsp, 0}, outputs: gponly}
 		gp21pax     = regInfo{inputs: []regMask{gp &^ ax, gp}, outputs: []regMask{gp &^ ax}, clobbers: ax}
 
-		gpstore         = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
-		gpstoreconst    = regInfo{inputs: []regMask{gpspsb, 0}}
-		gpstoreidx      = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
-		gpstoreconstidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
-		gpstorexchg     = regInfo{inputs: []regMask{gp, gpspsb, 0}, outputs: []regMask{gp}}
+		gpstore         = regInfo{inputs: []regMask{gpspsbg, gpsp, 0}}
+		gpstoreconst    = regInfo{inputs: []regMask{gpspsbg, 0}}
+		gpstoreidx      = regInfo{inputs: []regMask{gpspsbg, gpsp, gpsp, 0}}
+		gpstoreconstidx = regInfo{inputs: []regMask{gpspsbg, gpsp, 0}}
+		gpstorexchg     = regInfo{inputs: []regMask{gp, gpspsbg, 0}, outputs: []regMask{gp}}
 		cmpxchg         = regInfo{inputs: []regMask{gp, ax, gp, 0}, outputs: []regMask{gp, 0}, clobbers: ax}
 
 		fp01        = regInfo{inputs: nil, outputs: fponly}
 		fp21        = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
 		fp31        = regInfo{inputs: []regMask{fp, fp, fp}, outputs: fponly}
-		fp21load    = regInfo{inputs: []regMask{fp, gpspsb, 0}, outputs: fponly}
-		fp21loadidx = regInfo{inputs: []regMask{fp, gpspsb, gpspsb, 0}, outputs: fponly}
+		fp21load    = regInfo{inputs: []regMask{fp, gpspsbg, 0}, outputs: fponly}
+		fp21loadidx = regInfo{inputs: []regMask{fp, gpspsbg, gpspsb, 0}, outputs: fponly}
 		fpgp        = regInfo{inputs: fponly, outputs: gponly}
 		gpfp        = regInfo{inputs: gponly, outputs: fponly}
 		fp11        = regInfo{inputs: fponly, outputs: fponly}
@@ -830,7 +832,7 @@ func init() {
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
 		// It saves all GP registers if necessary, but may clobber others.
-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("DI"), buildReg("AX CX DX BX BP SI R8 R9")}, clobbers: callerSave &^ gp}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("DI"), buildReg("AX CX DX BX BP SI R8 R9")}, clobbers: callerSave &^ (gp | g)}, clobberFlags: true, aux: "Sym", symEffect: "None"},
 
 		{name: "LoweredHasCPUFeature", argLength: 0, reg: gp01, rematerializeable: true, typ: "UInt64", aux: "Sym", symEffect: "None"},
 

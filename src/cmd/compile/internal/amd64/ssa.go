@@ -166,6 +166,34 @@ func duff(size int64) (int64, int64) {
 	return off, adj
 }
 
+func getgFromTLS(s *ssagen.State, r int16) {
+	// See the comments in cmd/internal/obj/x86/obj6.go
+	// near CanUse1InsnTLS for a detailed explanation of these instructions.
+	if x86.CanUse1InsnTLS(base.Ctxt) {
+		// MOVQ (TLS), r
+		p := s.Prog(x86.AMOVQ)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = x86.REG_TLS
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+	} else {
+		// MOVQ TLS, r
+		// MOVQ (r)(TLS*1), r
+		p := s.Prog(x86.AMOVQ)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = x86.REG_TLS
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+		q := s.Prog(x86.AMOVQ)
+		q.From.Type = obj.TYPE_MEM
+		q.From.Reg = r
+		q.From.Index = x86.REG_TLS
+		q.From.Scale = 1
+		q.To.Type = obj.TYPE_REG
+		q.To.Reg = r
+	}
+}
+
 func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
 	case ssa.OpAMD64VFMADD231SD:
@@ -989,41 +1017,24 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// Closure pointer is DX.
 		ssagen.CheckLoweredGetClosurePtr(v)
 	case ssa.OpAMD64LoweredGetG:
-		r := v.Reg()
-		// See the comments in cmd/internal/obj/x86/obj6.go
-		// near CanUse1InsnTLS for a detailed explanation of these instructions.
-		if x86.CanUse1InsnTLS(base.Ctxt) {
-			// MOVQ (TLS), r
-			p := s.Prog(x86.AMOVQ)
-			p.From.Type = obj.TYPE_MEM
-			p.From.Reg = x86.REG_TLS
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		} else {
-			// MOVQ TLS, r
-			// MOVQ (r)(TLS*1), r
-			p := s.Prog(x86.AMOVQ)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x86.REG_TLS
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-			q := s.Prog(x86.AMOVQ)
-			q.From.Type = obj.TYPE_MEM
-			q.From.Reg = r
-			q.From.Index = x86.REG_TLS
-			q.From.Scale = 1
-			q.To.Type = obj.TYPE_REG
-			q.To.Reg = r
+		if base.Flag.ABIWrap {
+			v.Fatalf("LoweredGetG should not appear in new ABI")
 		}
+		r := v.Reg()
+		getgFromTLS(s, r)
 	case ssa.OpAMD64CALLstatic:
 		if s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
 			// zeroing X15 when entering ABIInternal from ABI0
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			// set G register from TLS
+			getgFromTLS(s, x86.REG_R14)
 		}
 		s.Call(v)
 		if s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
 			// zeroing X15 when entering ABIInternal from ABI0
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			// set G register from TLS
+			getgFromTLS(s, x86.REG_R14)
 		}
 	case ssa.OpAMD64CALLclosure, ssa.OpAMD64CALLinter:
 		s.Call(v)
@@ -1325,6 +1336,8 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 		if s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
 			// zeroing X15 when entering ABIInternal from ABI0
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			// set G register from TLS
+			getgFromTLS(s, x86.REG_R14)
 		}
 		p := s.Prog(obj.ARET)
 		p.To.Type = obj.TYPE_MEM

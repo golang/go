@@ -632,6 +632,7 @@ nog1:
 	get_tls(CX)
 	MOVQ	R13, g_m(R9)
 	MOVQ	R9, g(CX)
+	MOVQ	R9, R14 // set g register
 	CALL	runtime·stackcheck(SB)
 
 nog2:
