@@ -119,7 +119,7 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
 	n.IsDDD = dots
 
-	if n.X.Op() != ir.OFUNCINST {
+	if fun.Op() != ir.OFUNCINST {
 		// If no type params, still do normal typechecking, since we're
 		// still missing some things done by tcCall below (mainly
 		// typecheckargs and typecheckaste).
