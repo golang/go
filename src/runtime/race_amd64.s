@@ -412,6 +412,9 @@ call:
 	ANDQ	$~15, SP	// alignment for gcc ABI
 	CALL	AX
 	MOVQ	R12, SP
+	// Back to Go world, set special registers.
+	// The g register (R14) is preserved in C.
+	XORPS	X15, X15
 	RET
 
 // C->Go callback thunk that allows to call runtime·racesymbolize from C code.
