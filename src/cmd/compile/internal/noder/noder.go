@@ -1455,6 +1455,20 @@ func (p *noder) basicLit(lit *syntax.BasicLit) constant.Value {
 	switch lit.Kind {
 	case syntax.IntLit, syntax.FloatLit, syntax.ImagLit:
 		checkLangCompat(lit)
+		// The max. mantissa precision for untyped numeric values
+		// is 512 bits, or 4048 bits for each of the two integer
+		// parts of a fraction for floating-point numbers that are
+		// represented accurately in the go/constant package.
+		// Constant literals that are longer than this many bits
+		// are not meaningful; and excessively long constants may
+		// consume a lot of space and time for a useless conversion.
+		// Cap constant length with a generous upper limit that also
+		// allows for separators between all digits.
+		const limit = 10000
+		if len(lit.Value) > limit {
+			p.errorAt(lit.Pos(), "excessively long constant: %s... (%d chars)", lit.Value[:10], len(lit.Value))
+			return constant.MakeUnknown()
+		}
 	}
 
 	v := constant.MakeFromLiteral(lit.Value, tokenForLitKind[lit.Kind], 0)
