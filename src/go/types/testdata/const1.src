@@ -271,7 +271,10 @@ const (
 	_ = assert(float64(smallestFloat32) == smallestFloat32)
 	_ = assert(float64(smallestFloat32/2) == smallestFloat32/2)
 	_ = assert(float64(smallestFloat64) == smallestFloat64)
-	_ = assert(float64(smallestFloat64/2) == 0)
+
+	_ = assert(float64(smallestFloat64/2) == smallestFloat64)
+	_ = assert(float64(smallestFloat64/4) == 0)
+
 )
 
 const (
