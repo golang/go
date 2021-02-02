@@ -249,7 +249,6 @@ func (n *CallExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *CallExpr) copy() Node {
 	c := *n
 	c.init = copyNodes(c.init)
-	c.Targs = copyNodes(c.Targs)
 	c.Args = copyNodes(c.Args)
 	c.KeepAlive = copyNames(c.KeepAlive)
 	return &c
@@ -259,9 +258,6 @@ func (n *CallExpr) doChildren(do func(Node) bool) bool {
 		return true
 	}
 	if n.X != nil && do(n.X) {
-		return true
-	}
-	if doNodes(n.Targs, do) {
 		return true
 	}
 	if doNodes(n.Args, do) {
@@ -277,7 +273,6 @@ func (n *CallExpr) editChildren(edit func(Node) Node) {
 	if n.X != nil {
 		n.X = edit(n.X).(Node)
 	}
-	editNodes(n.Targs, edit)
 	editNodes(n.Args, edit)
 	editNames(n.KeepAlive, edit)
 }
@@ -674,6 +669,33 @@ func (n *InlinedCallExpr) editChildren(edit func(Node) Node) {
 	editNodes(n.ReturnVars, edit)
 }
 
+func (n *InstExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+func (n *InstExpr) copy() Node {
+	c := *n
+	c.init = copyNodes(c.init)
+	c.Targs = copyNodes(c.Targs)
+	return &c
+}
+func (n *InstExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	if doNodes(n.Targs, do) {
+		return true
+	}
+	return false
+}
+func (n *InstExpr) editChildren(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
+	editNodes(n.Targs, edit)
+}
+
 func (n *InterfaceType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *InterfaceType) copy() Node {
 	c := *n
@@ -748,27 +770,6 @@ func (n *LinksymOffsetExpr) doChildren(do func(Node) bool) bool {
 }
 func (n *LinksymOffsetExpr) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
-}
-
-func (n *ListExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
-func (n *ListExpr) copy() Node {
-	c := *n
-	c.init = copyNodes(c.init)
-	c.List = copyNodes(c.List)
-	return &c
-}
-func (n *ListExpr) doChildren(do func(Node) bool) bool {
-	if doNodes(n.init, do) {
-		return true
-	}
-	if doNodes(n.List, do) {
-		return true
-	}
-	return false
-}
-func (n *ListExpr) editChildren(edit func(Node) Node) {
-	editNodes(n.init, edit)
-	editNodes(n.List, edit)
 }
 
 func (n *LogicalExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }

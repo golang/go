@@ -254,7 +254,7 @@ func MethodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
 	ptr.SetByval(true)
 	fn.ClosureVars = append(fn.ClosureVars, ptr)
 
-	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil, nil)
+	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil)
 	call.Args = ir.ParamNames(tfn.Type())
 	call.IsDDD = tfn.Type().IsVariadic()
 

@@ -153,12 +153,11 @@ const (
 	CallUseStmt // results not used - call is a statement
 )
 
-// A CallExpr is a function call X[Targs](Args).
+// A CallExpr is a function call X(Args).
 type CallExpr struct {
 	miniExpr
 	origNode
 	X         Node
-	Targs     Nodes
 	Args      Nodes
 	KeepAlive []*Name // vars to be kept alive until call returns
 	IsDDD     bool
@@ -166,12 +165,11 @@ type CallExpr struct {
 	NoInline  bool
 }
 
-func NewCallExpr(pos src.XPos, op Op, fun Node, targs, args []Node) *CallExpr {
+func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
 	n := &CallExpr{X: fun}
 	n.pos = pos
 	n.orig = n
 	n.SetOp(op)
-	n.Targs = targs
 	n.Args = args
 	return n
 }
@@ -305,20 +303,6 @@ func (n *IndexExpr) SetOp(op Op) {
 	case OINDEX, OINDEXMAP:
 		n.op = op
 	}
-}
-
-// A ListExpr is list of expressions
-type ListExpr struct {
-	miniExpr
-	List Nodes
-}
-
-func NewListExpr(pos src.XPos, list []Node) *ListExpr {
-	n := &ListExpr{}
-	n.pos = pos
-	n.op = OLIST
-	n.List = list
-	return n
 }
 
 // A KeyExpr is a Key: Value composite literal key.
@@ -684,6 +668,20 @@ func (n *UnaryExpr) SetOp(op Op) {
 		OCHECKNIL, OCFUNC, OIDATA, OITAB, OSPTR, OVARDEF, OVARKILL, OVARLIVE:
 		n.op = op
 	}
+}
+
+// An InstExpr is a generic function or type instantiation.
+type InstExpr struct {
+	miniExpr
+	X     Node
+	Targs []Node
+}
+
+func NewInstExpr(pos src.XPos, op Op, x Node, targs []Node) *InstExpr {
+	n := &InstExpr{X: x, Targs: targs}
+	n.pos = pos
+	n.op = op
+	return n
 }
 
 func IsZero(n Node) bool {

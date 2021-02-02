@@ -160,7 +160,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		}
 
 		fn, needsize := eqFor(t)
-		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, nil)
+		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
 		call.Args.Append(typecheck.NodAddr(cmpl))
 		call.Args.Append(typecheck.NodAddr(cmpr))
 		if needsize {

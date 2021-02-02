@@ -176,7 +176,7 @@ func genhash(t *types.Type) *obj.LSym {
 		loop.PtrInit().Append(init)
 
 		// h = hashel(&p[i], h)
-		call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil, nil)
+		call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
 
 		nx := ir.NewIndexExpr(base.Pos, np, ni)
 		nx.SetBounded(true)
@@ -202,7 +202,7 @@ func genhash(t *types.Type) *obj.LSym {
 			// Hash non-memory fields with appropriate hash function.
 			if !isRegularMemory(f.Type) {
 				hashel := hashfor(f.Type)
-				call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil, nil)
+				call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
 				nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
 				na := typecheck.NodAddr(nx)
 				call.Args.Append(na)
@@ -217,7 +217,7 @@ func genhash(t *types.Type) *obj.LSym {
 
 			// h = hashel(&p.first, size, h)
 			hashel := hashmem(f.Type)
-			call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil, nil)
+			call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
 			nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
 			na := typecheck.NodAddr(nx)
 			call.Args.Append(na)
@@ -672,7 +672,7 @@ func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
 
 	fn := typecheck.LookupRuntime("memequal")
 	fn = typecheck.SubstArgTypes(fn, types.Types[types.TUINT8], types.Types[types.TUINT8])
-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, []ir.Node{sptr, tptr, ir.Copy(slen)})
+	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{sptr, tptr, ir.Copy(slen)})
 	typecheck.Call(call)
 
 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, slen, tlen)
@@ -709,7 +709,7 @@ func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 	sdata.SetTypecheck(1)
 	tdata.SetTypecheck(1)
 
-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, []ir.Node{stab, sdata, tdata})
+	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{stab, sdata, tdata})
 	typecheck.Call(call)
 
 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, stab, ttab)
@@ -725,7 +725,7 @@ func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
 	ny := typecheck.Expr(typecheck.NodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)))
 
 	fn, needsize := eqmemfunc(size, nx.Type().Elem())
-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, nil)
+	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
 	call.Args.Append(nx)
 	call.Args.Append(ny)
 	if needsize {
