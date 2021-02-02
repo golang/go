@@ -469,7 +469,7 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
 	}
 
 	cat := typecheck.LookupRuntime(fn)
-	r := ir.NewCallExpr(base.Pos, ir.OCALL, cat, nil, nil)
+	r := ir.NewCallExpr(base.Pos, ir.OCALL, cat, nil)
 	r.Args = args
 	r1 := typecheck.Expr(r)
 	r1 = walkExpr(r1, init)

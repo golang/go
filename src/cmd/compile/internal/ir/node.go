@@ -190,7 +190,6 @@ const (
 	OGT            // Left > Right
 	ODEREF         // *Left
 	OINDEX         // Left[Right] (index of array or slice)
-	OLIST          // list of expressions
 	OINDEXMAP      // Left[Right] (index of map)
 	OKEY           // Left:Right (key:value in struct/array/map literal)
 	OSTRUCTKEY     // Sym:Left (key:value in struct literal, after type checking)
@@ -279,6 +278,8 @@ const (
 	// OTYPESW:  Left := Right.(type) (appears as .Left of OSWITCH)
 	//   Left is nil if there is no type-switch variable
 	OTYPESW
+	OFUNCINST // instantiation of a generic function
+	OTYPEINST // instantiation of a generic type
 
 	// types
 	OTCHAN   // chan int

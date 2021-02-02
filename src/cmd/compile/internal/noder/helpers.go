@@ -83,13 +83,13 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 	// TODO(mdempsky): This should not be so difficult.
 	if fun.Op() == ir.OTYPE {
 		// Actually a type conversion, not a function call.
-		n := ir.NewCallExpr(pos, ir.OCALL, fun, nil, args)
+		n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
 		return typecheck.Expr(n)
 	}
 
 	if fun, ok := fun.(*ir.Name); ok && fun.BuiltinOp != 0 {
 		// Call to a builtin function.
-		n := ir.NewCallExpr(pos, ir.OCALL, fun, nil, args)
+		n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
 		n.IsDDD = dots
 		switch fun.BuiltinOp {
 		case ir.OCLOSE, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN:
@@ -116,20 +116,10 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 		}
 	}
 
-	var targs []ir.Node
-	if indexExpr, ok := fun.(*ir.IndexExpr); ok {
-		if indexExpr.Index.Op() == ir.OLIST {
-			// Called function is an instantiated generic function
-			fun = indexExpr.X
-			// Don't need to copy, since the node list was just created
-			targs = indexExpr.Index.(*ir.ListExpr).List
-		}
-	}
-
-	n := ir.NewCallExpr(pos, ir.OCALL, fun, targs, args)
+	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
 	n.IsDDD = dots
 
-	if targs == nil {
+	if n.X.Op() != ir.OFUNCINST {
 		// If no type params, still do normal typechecking, since we're
 		// still missing some things done by tcCall below (mainly
 		// typecheckargs and typecheckaste).
@@ -233,12 +223,7 @@ func method(typ *types.Type, index int) *types.Field {
 	return types.ReceiverBaseType(typ).Methods().Index(index)
 }
 
-func Index(pos src.XPos, typ *types.Type, x, index ir.Node) ir.Node {
-	if index.Op() == ir.OLIST {
-		n := ir.NewIndexExpr(pos, x, index)
-		typed(typ, n)
-		return n
-	}
+func Index(pos src.XPos, x, index ir.Node) ir.Node {
 	// TODO(mdempsky): Avoid typecheck.Expr (which will call tcIndex)
 	return typecheck.Expr(ir.NewIndexExpr(pos, x, index))
 }

@@ -99,23 +99,28 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 		}
 		return Call(pos, g.typ(typ), g.expr(expr.Fun), g.exprs(expr.ArgList), expr.HasDots)
 	case *syntax.IndexExpr:
-		var index ir.Node
-
-		// We are using IndexExpr in two ways, as an standard index
-		// operation (with expression) and as a function/type
-		// instantiation (with a type list). We will soon make this
-		// clearer by having separate function/type instantiation nodes.
+		var targs []ir.Node
 		if _, ok := expr.Index.(*syntax.ListExpr); ok {
-			// List of types for a generic function call or type instantiation
-			index = ir.NewListExpr(pos, g.exprList(expr.Index))
+			targs = g.exprList(expr.Index)
 		} else {
-			index = g.expr(expr.Index)
-			if index.Op() == ir.OTYPE {
-				// Single type for a generic function call or type instantiation
-				index = ir.NewListExpr(pos, []ir.Node{index})
+			index := g.expr(expr.Index)
+			if index.Op() != ir.OTYPE {
+				// This is just a normal index expression
+				return Index(pos, g.expr(expr.X), index)
 			}
+			// This is generic function instantiation with a single type
+			targs = []ir.Node{index}
 		}
-		return Index(pos, g.typ(typ), g.expr(expr.X), index)
+		// This is a generic function instantiation
+		x := g.expr(expr.X)
+		if x.Op() != ir.ONAME || x.Type().Kind() != types.TFUNC {
+			panic("Incorrect argument for generic func instantiation")
+		}
+		// This could also be an OTYPEINST once we can handle those examples.
+		n := ir.NewInstExpr(pos, ir.OFUNCINST, x, targs)
+		typed(g.typ(typ), n)
+		return n
+
 	case *syntax.ParenExpr:
 		return g.expr(expr.X) // skip parens; unneeded after parse+typecheck
 	case *syntax.SelectorExpr:
