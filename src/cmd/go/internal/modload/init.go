@@ -523,6 +523,13 @@ func CreateModFile(ctx context.Context, modPath string) {
 			}
 		}
 		base.Fatalf("go: %v", err)
+	} else if _, _, ok := module.SplitPathVersion(modPath); !ok {
+		if strings.HasPrefix(modPath, "gopkg.in/") {
+			invalidMajorVersionMsg := fmt.Errorf("module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN:\n\tgo mod init %s", suggestGopkgIn(modPath))
+			base.Fatalf(`go: invalid module path "%v": %v`, modPath, invalidMajorVersionMsg)
+		}
+		invalidMajorVersionMsg := fmt.Errorf("major version suffixes must be in the form of /vN and are only allowed for v2 or later:\n\tgo mod init %s", suggestModulePath(modPath))
+		base.Fatalf(`go: invalid module path "%v": %v`, modPath, invalidMajorVersionMsg)
 	}
 
 	fmt.Fprintf(os.Stderr, "go: creating new go.mod: module %s\n", modPath)
@@ -1196,4 +1203,57 @@ const (
 // file is stored in the go.sum file.
 func modkey(m module.Version) module.Version {
 	return module.Version{Path: m.Path, Version: m.Version + "/go.mod"}
+}
+
+func suggestModulePath(path string) string {
+	var m string
+
+	i := len(path)
+	for i > 0 && ('0' <= path[i-1] && path[i-1] <= '9' || path[i-1] == '.') {
+		i--
+	}
+	url := path[:i]
+	url = strings.TrimSuffix(url, "/v")
+	url = strings.TrimSuffix(url, "/")
+
+	f := func(c rune) bool {
+		return c > '9' || c < '0'
+	}
+	s := strings.FieldsFunc(path[i:], f)
+	if len(s) > 0 {
+		m = s[0]
+	}
+	m = strings.TrimLeft(m, "0")
+	if m == "" || m == "1" {
+		return url + "/v2"
+	}
+
+	return url + "/v" + m
+}
+
+func suggestGopkgIn(path string) string {
+	var m string
+	i := len(path)
+	for i > 0 && (('0' <= path[i-1] && path[i-1] <= '9') || (path[i-1] == '.')) {
+		i--
+	}
+	url := path[:i]
+	url = strings.TrimSuffix(url, ".v")
+	url = strings.TrimSuffix(url, "/v")
+	url = strings.TrimSuffix(url, "/")
+
+	f := func(c rune) bool {
+		return c > '9' || c < '0'
+	}
+	s := strings.FieldsFunc(path, f)
+	if len(s) > 0 {
+		m = s[0]
+	}
+
+	m = strings.TrimLeft(m, "0")
+
+	if m == "" {
+		return url + ".v1"
+	}
+	return url + ".v" + m
 }
