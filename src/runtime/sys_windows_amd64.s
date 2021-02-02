@@ -151,16 +151,10 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0-0
 	get_tls(BP)
 	MOVQ	BX, g(BP)
 	MOVQ	(g_sched+gobuf_sp)(BX), DI
-	// make it look like mstart called us on g0, to stop traceback
-	SUBQ	$8, DI
-	MOVQ	$runtime·mstart(SB), SI
-	MOVQ	SI, 0(DI)
-	// traceback will think that we've done PUSHFQ and SUBQ
-	// on this stack, so subtract them here to match.
-	// (we need room for sighandler arguments anyway).
+	// make room for sighandler arguments
 	// and re-save old SP for restoring later.
-	SUBQ	$(112+8), DI
-	// save g, save old stack pointer.
+	// (note that the 104(DI) here must match the 104(SP) above.)
+	SUBQ	$120, DI
 	MOVQ	SP, 104(DI)
 	MOVQ	DI, SP
 

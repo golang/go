@@ -6,6 +6,8 @@
 #include "go_tls.h"
 #include "textflag.h"
 
+// Note: For system ABI, R0-R3 are args, R4-R11 are callee-save.
+
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
 	MOVM.DB.W [R4, R5, R14], (R13)	// push {r4, r5, lr}
@@ -139,11 +141,10 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
 	MOVW	(g_sched+gobuf_sp)(g), R3	// R3 = g->gobuf.sp
 	BL      runtime·save_g(SB)
 
-	// traceback will think that we've done PUSH and SUB
-	// on this stack, so subtract them here to match.
-	// (we need room for sighandler arguments anyway).
+	// make room for sighandler arguments
 	// and re-save old SP for restoring later.
-	SUB	$(40+8+20), R3
+	// (note that the 24(R3) here must match the 24(R13) above.)
+	SUB	$40, R3
 	MOVW	R13, 24(R3)		// save old stack pointer
 	MOVW	R3, R13			// switch stack
 
@@ -151,21 +152,13 @@ g0:
 	MOVW	0(R6), R2	// R2 = ExceptionPointers->ExceptionRecord
 	MOVW	4(R6), R3	// R3 = ExceptionPointers->ContextRecord
 
-	// make it look like mstart called us on g0, to stop traceback
-	MOVW    $runtime·mstart(SB), R4
-
-	MOVW	R4, 0(R13)	// Save link register for traceback
+	MOVW	$0, R4
+	MOVW	R4, 0(R13)	// No saved link register.
 	MOVW	R2, 4(R13)	// Move arg0 (ExceptionRecord) into position
 	MOVW	R3, 8(R13)	// Move arg1 (ContextRecord) into position
 	MOVW	R5, 12(R13)	// Move arg2 (original g) into position
 	BL	(R7)		// Call the go routine
 	MOVW	16(R13), R4	// Fetch return value from stack
-
-	// Compute the value of the g0 stack pointer after deallocating
-	// this frame, then allocating 8 bytes. We may need to store
-	// the resume SP and PC on the g0 stack to work around
-	// control flow guard when we resume from the exception.
-	ADD	$(40+20), R13, R12
 
 	// switch back to original stack and g
 	MOVW	24(R13), R13
@@ -192,33 +185,36 @@ done:
 	// If returntramp has already been set up by a previous exception
 	// handler, don't clobber the stored SP and PC on the stack.
 	MOVW	4(R3), R3			// PEXCEPTION_POINTERS->Context
-	MOVW	0x40(R3), R2			// load PC from context record
+	MOVW	context_pc(R3), R2		// load PC from context record
 	MOVW	$returntramp<>(SB), R1
 	CMP	R1, R2
 	B.EQ	return				// do not clobber saved SP/PC
 
-	// Save resume SP and PC on g0 stack
-	MOVW	0x38(R3), R2			// load SP from context record
-	MOVW	R2, 0(R12)			// Store resume SP on g0 stack
-	MOVW	0x40(R3), R2			// load PC from context record
-	MOVW	R2, 4(R12)			// Store resume PC on g0 stack
+	// Save resume SP and PC into R0, R1.
+	MOVW	context_spr(R3), R2
+	MOVW	R2, context_r0(R3)
+	MOVW	context_pc(R3), R2
+	MOVW	R2, context_r1(R3)
 
 	// Set up context record to return to returntramp on g0 stack
-	MOVW	R12, 0x38(R3)			// save g0 stack pointer
-						// in context record
-	MOVW	$returntramp<>(SB), R2	// save resume address
-	MOVW	R2, 0x40(R3)			// in context record
+	MOVW	R12, context_spr(R3)
+	MOVW	$returntramp<>(SB), R2
+	MOVW	R2, context_pc(R3)
 
 return:
 	B	(R14)				// return
 
-//
 // Trampoline to resume execution from exception handler.
 // This is part of the control flow guard workaround.
 // It switches stacks and jumps to the continuation address.
-//
+// R0 and R1 are set above at the end of sigtramp<>
+// in the context that starts executing at returntramp<>.
 TEXT returntramp<>(SB),NOSPLIT|NOFRAME,$0
-	MOVM.IA	(R13), [R13, R15]		// ldm sp, [sp, pc]
+	// Important: do not smash LR,
+	// which is set to a live value when handling
+	// a signal by pushing a call to sigpanic onto the stack.
+	MOVW	R0, R13
+	B	(R1)
 
 TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$runtime·exceptionhandler(SB), R1

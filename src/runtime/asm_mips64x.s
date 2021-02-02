@@ -169,21 +169,12 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 switch:
 	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
-	MOVV	$runtime·systemstack_switch(SB), R4
-	ADDV	$8, R4	// get past prologue
-	MOVV	R4, (g_sched+gobuf_pc)(g)
-	MOVV	R29, (g_sched+gobuf_sp)(g)
-	MOVV	R0, (g_sched+gobuf_lr)(g)
-	MOVV	g, (g_sched+gobuf_g)(g)
+	JAL	gosave_systemstack_switch<>(SB)
 
 	// switch to g0
 	MOVV	R3, g
 	JAL	runtime·save_g(SB)
 	MOVV	(g_sched+gobuf_sp)(g), R1
-	// make it look like mstart called systemstack on g0, to stop traceback
-	ADDV	$-8, R1
-	MOVV	$runtime·mstart(SB), R2
-	MOVV	R2, 0(R1)
 	MOVV	R1, R29
 
 	// call target function
@@ -401,12 +392,19 @@ TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
 	MOVV	0(REGCTXT), R4
 	JMP	(R4)
 
-// Save state of caller into g->sched. Smashes R1.
-TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
-	MOVV	R31, (g_sched+gobuf_pc)(g)
+// Save state of caller into g->sched,
+// but using fake PC from systemstack_switch.
+// Must only be called from functions with no locals ($0)
+// or else unwinding from systemstack_switch is incorrect.
+// Smashes R1.
+TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+	MOVV	$runtime·systemstack_switch(SB), R1
+	ADDV	$8, R1	// get past prologue
+	MOVV	R1, (g_sched+gobuf_pc)(g)
 	MOVV	R29, (g_sched+gobuf_sp)(g)
 	MOVV	R0, (g_sched+gobuf_lr)(g)
 	MOVV	R0, (g_sched+gobuf_ret)(g)
+	MOVV	g, (g_sched+gobuf_g)(g)
 	// Assert ctxt is zero. See func save.
 	MOVV	(g_sched+gobuf_ctxt)(g), R1
 	BEQ	R1, 2(PC)
@@ -440,7 +438,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVV	m_g0(R5), R6
 	BEQ	R6, g, g0
 
-	JAL	gosave<>(SB)
+	JAL	gosave_systemstack_switch<>(SB)
 	MOVV	R6, g
 	JAL	runtime·save_g(SB)
 	MOVV	(g_sched+gobuf_sp)(g), R29

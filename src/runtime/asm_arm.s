@@ -305,24 +305,14 @@ TEXT runtime·systemstack(SB),NOSPLIT,$0-4
 switch:
 	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
-	MOVW	$runtime·systemstack_switch(SB), R3
-	ADD	$4, R3, R3 // get past push {lr}
-	MOVW	R3, (g_sched+gobuf_pc)(g)
-	MOVW	R13, (g_sched+gobuf_sp)(g)
-	MOVW	LR, (g_sched+gobuf_lr)(g)
-	MOVW	g, (g_sched+gobuf_g)(g)
+	BL	gosave_systemstack_switch<>(SB)
 
 	// switch to g0
 	MOVW	R0, R5
 	MOVW	R2, R0
 	BL	setg<>(SB)
 	MOVW	R5, R0
-	MOVW	(g_sched+gobuf_sp)(R2), R3
-	// make it look like mstart called systemstack on g0, to stop traceback
-	SUB	$4, R3, R3
-	MOVW	$runtime·mstart(SB), R4
-	MOVW	R4, 0(R3)
-	MOVW	R3, R13
+	MOVW	(g_sched+gobuf_sp)(R2), R13
 
 	// call target function
 	MOVW	R0, R7
@@ -537,19 +527,25 @@ TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
 	MOVW	0(R7), R1
 	B	(R1)
 
-// Save state of caller into g->sched. Smashes R11.
-TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
-	MOVW	LR, (g_sched+gobuf_pc)(g)
+// Save state of caller into g->sched,
+// but using fake PC from systemstack_switch.
+// Must only be called from functions with no locals ($0)
+// or else unwinding from systemstack_switch is incorrect.
+// Smashes R11.
+TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+	MOVW	$runtime·systemstack_switch(SB), R11
+	ADD	$4, R11 // get past push {lr}
+	MOVW	R11, (g_sched+gobuf_pc)(g)
 	MOVW	R13, (g_sched+gobuf_sp)(g)
+	MOVW	g, (g_sched+gobuf_g)(g)
 	MOVW	$0, R11
 	MOVW	R11, (g_sched+gobuf_lr)(g)
 	MOVW	R11, (g_sched+gobuf_ret)(g)
-	MOVW	R11, (g_sched+gobuf_ctxt)(g)
 	// Assert ctxt is zero. See func save.
 	MOVW	(g_sched+gobuf_ctxt)(g), R11
-	CMP	$0, R11
+	TST	R11, R11
 	B.EQ	2(PC)
-	CALL	runtime·badctxt(SB)
+	BL	runtime·badctxt(SB)
 	RET
 
 // func asmcgocall_no_g(fn, arg unsafe.Pointer)
@@ -590,7 +586,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 	MOVW	m_g0(R8), R3
 	CMP	R3, g
 	BEQ	nosave
-	BL	gosave<>(SB)
+	BL	gosave_systemstack_switch<>(SB)
 	MOVW	R0, R5
 	MOVW	R3, R0
 	BL	setg<>(SB)

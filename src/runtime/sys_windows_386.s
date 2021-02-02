@@ -94,7 +94,7 @@ TEXT sigtramp<>(SB),NOSPLIT,$0-0
 	JNE	2(PC)
 	CALL	runtime·badsignal2(SB)
 
-	// save g and SP in case of stack switch
+	// save g in case of stack switch
 	MOVL	DX, 32(SP)	// g
 	MOVL	SP, 36(SP)
 
@@ -108,13 +108,9 @@ TEXT sigtramp<>(SB),NOSPLIT,$0-0
 	get_tls(BP)
 	MOVL	BX, g(BP)
 	MOVL	(g_sched+gobuf_sp)(BX), DI
-	// make it look like mstart called us on g0, to stop traceback
-	SUBL	$4, DI
-	MOVL	$runtime·mstart(SB), 0(DI)
-	// traceback will think that we've done SUBL
-	// on this stack, so subtract them here to match.
-	// (we need room for sighandler arguments anyway).
+	// make room for sighandler arguments
 	// and re-save old SP for restoring later.
+	// (note that the 36(DI) here must match the 36(SP) above.)
 	SUBL	$40, DI
 	MOVL	SP, 36(DI)
 	MOVL	DI, SP
@@ -132,7 +128,7 @@ g0:
 	// switch back to original stack and g
 	// no-op if we never left.
 	MOVL	36(SP), SP
-	MOVL	32(SP), DX
+	MOVL	32(SP), DX	// note: different SP
 	get_tls(BP)
 	MOVL	DX, g(BP)
 
