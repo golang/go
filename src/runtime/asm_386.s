@@ -352,18 +352,12 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-4
 	// switch stacks
 	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
-	MOVL	$runtime·systemstack_switch(SB), (g_sched+gobuf_pc)(AX)
-	MOVL	SP, (g_sched+gobuf_sp)(AX)
-	MOVL	AX, (g_sched+gobuf_g)(AX)
+	CALL	gosave_systemstack_switch<>(SB)
 
 	// switch to g0
 	get_tls(CX)
 	MOVL	DX, g(CX)
 	MOVL	(g_sched+gobuf_sp)(DX), BX
-	// make it look like mstart called systemstack on g0, to stop traceback
-	SUBL	$4, BX
-	MOVL	$runtime·mstart(SB), DX
-	MOVL	DX, 0(BX)
 	MOVL	BX, SP
 
 	// call target function
@@ -601,15 +595,18 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
 	MOVL	0(DX), BX
 	JMP	BX	// but first run the deferred function
 
-// Save state of caller into g->sched.
-TEXT gosave<>(SB),NOSPLIT,$0
+// Save state of caller into g->sched,
+// but using fake PC from systemstack_switch.
+// Must only be called from functions with no locals ($0)
+// or else unwinding from systemstack_switch is incorrect.
+TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
 	PUSHL	AX
 	PUSHL	BX
 	get_tls(BX)
 	MOVL	g(BX), BX
 	LEAL	arg+0(FP), AX
 	MOVL	AX, (g_sched+gobuf_sp)(BX)
-	MOVL	-4(AX), AX
+	MOVL	$runtime·systemstack_switch(SB), AX
 	MOVL	AX, (g_sched+gobuf_pc)(BX)
 	MOVL	$0, (g_sched+gobuf_ret)(BX)
 	// Assert ctxt is zero. See func save.
@@ -661,7 +658,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 	JEQ	noswitch
 	CMPL	DI, m_gsignal(BP)
 	JEQ	noswitch
-	CALL	gosave<>(SB)
+	CALL	gosave_systemstack_switch<>(SB)
 	get_tls(CX)
 	MOVL	SI, g(CX)
 	MOVL	(g_sched+gobuf_sp)(SI), SP
