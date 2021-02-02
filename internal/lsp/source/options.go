@@ -672,7 +672,7 @@ func (o *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer) {
 // features offered by gopls. Any experimental features specified in maps
 // should be enabled in enableAllExperimentMaps.
 func (o *Options) enableAllExperiments() {
-	// There are currently no experimental features in development.
+	o.SemanticTokens = true
 }
 
 func (o *Options) enableAllExperimentMaps() {
