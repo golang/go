@@ -1000,37 +1000,42 @@ func gopanic(e interface{}) {
 			}
 			atomic.Xadd(&runningPanicDefers, -1)
 
-			if done {
-				// Remove any remaining non-started, open-coded
-				// defer entries after a recover, since the
-				// corresponding defers will be executed normally
-				// (inline). Any such entry will become stale once
-				// we run the corresponding defers inline and exit
-				// the associated stack frame.
-				d := gp._defer
-				var prev *_defer
-				for d != nil {
-					if d.openDefer {
-						if d.started {
-							// This defer is started but we
-							// are in the middle of a
-							// defer-panic-recover inside of
-							// it, so don't remove it or any
-							// further defer entries
-							break
-						}
-						if prev == nil {
-							gp._defer = d.link
-						} else {
-							prev.link = d.link
-						}
-						newd := d.link
-						freedefer(d)
-						d = newd
+			// Remove any remaining non-started, open-coded
+			// defer entries after a recover, since the
+			// corresponding defers will be executed normally
+			// (inline). Any such entry will become stale once
+			// we run the corresponding defers inline and exit
+			// the associated stack frame.
+			d := gp._defer
+			var prev *_defer
+			if !done {
+				// Skip our current frame, if not done. It is
+				// needed to complete any remaining defers in
+				// deferreturn()
+				prev = d
+				d = d.link
+			}
+			for d != nil {
+				if d.started {
+					// This defer is started but we
+					// are in the middle of a
+					// defer-panic-recover inside of
+					// it, so don't remove it or any
+					// further defer entries
+					break
+				}
+				if d.openDefer {
+					if prev == nil {
+						gp._defer = d.link
 					} else {
-						prev = d
-						d = d.link
+						prev.link = d.link
 					}
+					newd := d.link
+					freedefer(d)
+					d = newd
+				} else {
+					prev = d
+					d = d.link
 				}
 			}
 

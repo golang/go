@@ -42,20 +42,20 @@
 		(Store {hi.Type} dst hi mem))
 
 // These are not enabled during decomposeBuiltin if late call expansion, but they are always enabled for softFloat
-(Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin") =>
+(Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin") =>
   (Int64Make
     (Arg <typ.Int32> {n} [off+4])
     (Arg <typ.UInt32> {n} [off]))
-(Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin")  =>
+(Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")  =>
   (Int64Make
     (Arg <typ.UInt32> {n} [off+4])
     (Arg <typ.UInt32> {n} [off]))
 
-(Arg {n} [off]) && is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin") =>
+(Arg {n} [off]) && is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin") =>
   (Int64Make
     (Arg <typ.Int32> {n} [off])
     (Arg <typ.UInt32> {n} [off+4]))
-(Arg {n} [off]) && is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin") =>
+(Arg {n} [off]) && is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin") =>
   (Int64Make
     (Arg <typ.UInt32> {n} [off])
     (Arg <typ.UInt32> {n} [off+4]))

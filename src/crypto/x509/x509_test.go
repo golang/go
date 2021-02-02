@@ -2977,7 +2977,6 @@ func TestCertificateRequestRoundtripFields(t *testing.T) {
 		EmailAddresses: []string{"a@example.com", "b@example.com"},
 		IPAddresses:    []net.IP{net.IPv4(192, 0, 2, 0), net.IPv6loopback},
 		URIs:           []*url.URL{urlA, urlB},
-		KeyUsage:       KeyUsageCertSign,
 	}
 	out := marshalAndParseCSR(t, in)
 
@@ -2994,8 +2993,5 @@ func TestCertificateRequestRoundtripFields(t *testing.T) {
 	}
 	if !reflect.DeepEqual(in.URIs, out.URIs) {
 		t.Fatalf("Unexpected URIs: got %v, want %v", out.URIs, in.URIs)
-	}
-	if in.KeyUsage != out.KeyUsage {
-		t.Fatalf("Unexpected KeyUsage: got %v, want %v", out.KeyUsage, in.KeyUsage)
 	}
 }
