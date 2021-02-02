@@ -1,11 +1,11 @@
-// Copyright 2019 The Go Authors. All rights reserved.
+// Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 #include "textflag.h"
 
 //
-// System call support for ARM64, OpenBSD
+// System call support for AMD64, OpenBSD
 //
 
 // Provide these function names via assembly so they are provided as ABI0,

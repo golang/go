@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Oct 7, 2020",
+	"Subtitle": "Version of Feb 2, 2021",
 	"Path": "/ref/spec"
 }-->
 
@@ -3400,7 +3400,7 @@ A type assertion used in an <a href="#Assignments">assignment</a> or initializat
 v, ok = x.(T)
 v, ok := x.(T)
 var v, ok = x.(T)
-var v, ok T1 = x.(T)
+var v, ok interface{} = x.(T) // dynamic types of v and ok are T and bool
 </pre>
 
 <p>
