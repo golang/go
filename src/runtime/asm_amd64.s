@@ -262,6 +262,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $16-8
 	MOVQ	0(DX), CX		// make sure g != nil
 	get_tls(CX)
 	MOVQ	DX, g(CX)
+	MOVQ	DX, R14		// set the g register
 	MOVQ	gobuf_sp(BX), SP	// restore SP
 	MOVQ	gobuf_ret(BX), AX
 	MOVQ	gobuf_ctxt(BX), DX
@@ -298,6 +299,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	MOVQ	$runtime·badmcall(SB), AX
 	JMP	AX
 	MOVQ	SI, g(CX)	// g = m->g0
+	MOVQ	SI, R14	// set the g register
 	MOVQ	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->sched.sp
 	PUSHQ	AX
 	MOVQ	DI, DX
@@ -344,6 +346,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 
 	// switch to g0
 	MOVQ	DX, g(CX)
+	MOVQ	DX, R14 // set the g register
 	MOVQ	(g_sched+gobuf_sp)(DX), BX
 	// make it look like mstart called systemstack on g0, to stop traceback
 	SUBQ	$8, BX
@@ -824,6 +827,7 @@ settls:
 TEXT setg_gcc<>(SB),NOSPLIT,$0
 	get_tls(AX)
 	MOVQ	DI, g(AX)
+	MOVQ	DI, R14 // set the g register
 	RET
 
 TEXT runtime·abort(SB),NOSPLIT,$0-0
@@ -1368,24 +1372,24 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 // It clobbers FLAGS. It does not clobber any general-purpose registers,
 // but may clobber others (e.g., SSE registers).
 // Defined as ABIInternal since it does not use the stack-based Go ABI.
-TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$120
+TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
 	// Save the registers clobbered by the fast path. This is slightly
 	// faster than having the caller spill these.
-	MOVQ	R14, 104(SP)
-	MOVQ	R13, 112(SP)
+	MOVQ	R12, 96(SP)
+	MOVQ	R13, 104(SP)
 	// TODO: Consider passing g.m.p in as an argument so they can be shared
 	// across a sequence of write barriers.
 	get_tls(R13)
 	MOVQ	g(R13), R13
 	MOVQ	g_m(R13), R13
 	MOVQ	m_p(R13), R13
-	MOVQ	(p_wbBuf+wbBuf_next)(R13), R14
+	MOVQ	(p_wbBuf+wbBuf_next)(R13), R12
 	// Increment wbBuf.next position.
-	LEAQ	16(R14), R14
-	MOVQ	R14, (p_wbBuf+wbBuf_next)(R13)
-	CMPQ	R14, (p_wbBuf+wbBuf_end)(R13)
+	LEAQ	16(R12), R12
+	MOVQ	R12, (p_wbBuf+wbBuf_next)(R13)
+	CMPQ	R12, (p_wbBuf+wbBuf_end)(R13)
 	// Record the write.
-	MOVQ	AX, -16(R14)	// Record value
+	MOVQ	AX, -16(R12)	// Record value
 	// Note: This turns bad pointer writes into bad
 	// pointer reads, which could be confusing. We could avoid
 	// reading from obviously bad pointers, which would
@@ -1393,12 +1397,12 @@ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$120
 	// patch this up in the signal handler, or use XCHG to
 	// combine the read and the write.
 	MOVQ	(DI), R13
-	MOVQ	R13, -8(R14)	// Record *slot
+	MOVQ	R13, -8(R12)	// Record *slot
 	// Is the buffer full? (flags set in CMPQ above)
 	JEQ	flush
 ret:
-	MOVQ	104(SP), R14
-	MOVQ	112(SP), R13
+	MOVQ	96(SP), R12
+	MOVQ	104(SP), R13
 	// Do the write.
 	MOVQ	AX, (DI)
 	RET
@@ -1428,10 +1432,10 @@ flush:
 	MOVQ	R9, 64(SP)
 	MOVQ	R10, 72(SP)
 	MOVQ	R11, 80(SP)
-	MOVQ	R12, 88(SP)
+	// R12 already saved
 	// R13 already saved
-	// R14 already saved
-	MOVQ	R15, 96(SP)
+	// R14 is g
+	MOVQ	R15, 88(SP)
 
 	// This takes arguments DI and AX
 	CALL	runtime·wbBufFlush(SB)
@@ -1447,8 +1451,7 @@ flush:
 	MOVQ	64(SP), R9
 	MOVQ	72(SP), R10
 	MOVQ	80(SP), R11
-	MOVQ	88(SP), R12
-	MOVQ	96(SP), R15
+	MOVQ	88(SP), R15
 	JMP	ret
 
 // gcWriteBarrierCX is gcWriteBarrier, but with args in DI and CX.

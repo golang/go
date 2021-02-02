@@ -4,6 +4,7 @@
 package ssa
 
 import "math"
+import "cmd/compile/internal/base"
 import "cmd/compile/internal/types"
 
 func rewriteValueAMD64(v *Value) bool {
@@ -767,8 +768,7 @@ func rewriteValueAMD64(v *Value) bool {
 		v.Op = OpAMD64LoweredGetClosurePtr
 		return true
 	case OpGetG:
-		v.Op = OpAMD64LoweredGetG
-		return true
+		return rewriteValueAMD64_OpGetG(v)
 	case OpHasCPUFeature:
 		return rewriteValueAMD64_OpHasCPUFeature(v)
 	case OpHmul32:
@@ -30125,6 +30125,22 @@ func rewriteValueAMD64_OpFloor(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+}
+func rewriteValueAMD64_OpGetG(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (GetG mem)
+	// cond: !base.Flag.ABIWrap
+	// result: (LoweredGetG mem)
+	for {
+		mem := v_0
+		if !(!base.Flag.ABIWrap) {
+			break
+		}
+		v.reset(OpAMD64LoweredGetG)
+		v.AddArg(mem)
+		return true
+	}
+	return false
 }
 func rewriteValueAMD64_OpHasCPUFeature(v *Value) bool {
 	b := v.Block

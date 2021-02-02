@@ -452,12 +452,13 @@ rest:
 	PUSHQ	R15
 	// Set g = g0.
 	get_tls(R12)
-	MOVQ	g(R12), R13
-	MOVQ	g_m(R13), R14
-	MOVQ	m_g0(R14), R15
+	MOVQ	g(R12), R14
+	MOVQ	g_m(R14), R13
+	MOVQ	m_g0(R13), R15
 	CMPQ	R13, R15
 	JEQ	noswitch	// branch if already on g0
 	MOVQ	R15, g(R12)	// g = m->g0
+	MOVQ	R15, R14	// set g register
 	PUSHQ	RARG1	// func arg
 	PUSHQ	RARG0	// func arg
 	CALL	runtime·racecallback(SB)
