@@ -10,11 +10,15 @@ import (
 	. "golang.org/x/tools/gopls/internal/regtest"
 
 	"golang.org/x/tools/internal/lsp/fake"
+	"golang.org/x/tools/internal/testenv"
 )
 
 // Test that enabling and disabling produces the expected results of showing
 // and hiding staticcheck analysis results.
 func TestChangeConfiguration(t *testing.T) {
+	// Staticcheck only supports Go versions > 1.14.
+	testenv.NeedsGo1Point(t, 15)
+
 	const files = `
 -- go.mod --
 module mod.com
