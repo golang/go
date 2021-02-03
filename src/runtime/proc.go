@@ -1303,7 +1303,7 @@ func usesLibcall() bool {
 	case "aix", "darwin", "illumos", "ios", "solaris", "windows":
 		return true
 	case "openbsd":
-		return GOARCH == "386" || GOARCH == "amd64" || GOARCH == "arm64"
+		return GOARCH == "386" || GOARCH == "amd64" || GOARCH == "arm" || GOARCH == "arm64"
 	}
 	return false
 }
