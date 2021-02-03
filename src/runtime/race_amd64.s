@@ -184,7 +184,7 @@ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
 // Common code for racefuncenter/racefuncenterfp
 // R11 = caller's return address
 TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
-	MOVQ	DX, R15		// save function entry context (for closures)
+	MOVQ	DX, BX		// save function entry context (for closures)
 #ifndef GOEXPERIMENT_REGABI
 	get_tls(R12)
 	MOVQ	g(R12), R14
@@ -193,9 +193,9 @@ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 	MOVQ	R11, RARG1
 	// void __tsan_func_enter(ThreadState *thr, void *pc);
 	MOVQ	$__tsan_func_enter(SB), AX
-	// racecall<> preserves R15
+	// racecall<> preserves BX
 	CALL	racecall<>(SB)
-	MOVQ	R15, DX	// restore function entry context
+	MOVQ	BX, DX	// restore function entry context
 	RET
 
 // func runtime·racefuncexit()
@@ -376,7 +376,7 @@ racecallatomic_ignore:
 	// Addr is outside the good range.
 	// Call __tsan_go_ignore_sync_begin to ignore synchronization during the atomic op.
 	// An attempt to synchronize on the address would cause crash.
-	MOVQ	AX, R15	// remember the original function
+	MOVQ	AX, BX	// remember the original function
 	MOVQ	$__tsan_go_ignore_sync_begin(SB), AX
 #ifndef GOEXPERIMENT_REGABI
 	get_tls(R12)
@@ -384,7 +384,7 @@ racecallatomic_ignore:
 #endif
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	CALL	racecall<>(SB)
-	MOVQ	R15, AX	// restore the original function
+	MOVQ	BX, AX	// restore the original function
 	// Call the atomic function.
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	MOVQ	8(SP), RARG1	// caller pc
