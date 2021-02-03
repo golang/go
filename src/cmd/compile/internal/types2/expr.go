@@ -816,6 +816,10 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 		check.invalidOpf(y, "shift count %s must be integer", y)
 		x.mode = invalid
 		return
+	} else if !isUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
+		check.invalidOpf(y, "signed shift count %s requires go1.13 or later", y)
+		x.mode = invalid
+		return
 	}
 
 	if x.mode == constant_ {
@@ -1185,6 +1189,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		}
 		switch e.Kind {
 		case syntax.IntLit, syntax.FloatLit, syntax.ImagLit:
+			check.langCompat(e)
 			// The max. mantissa precision for untyped numeric values
 			// is 512 bits, or 4048 bits for each of the two integer
 			// parts of a fraction for floating-point numbers that are
