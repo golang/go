@@ -6,8 +6,8 @@
 // have been created by llvm-rc or msvc's rc.exe, which means there's the
 // @feat.00 symbol as well as split .rsrc$00 and .rsrc$01 section to deal with.
 //
-// rsrc.syso is created with:
-//    windres -i a.rc -o rsrc.syso -O coff
+// rsrc.syso is created using llvm with:
+//    {i686,x86_64,armv7,arm64}-w64-mingw32-windres -i a.rc -o rsrc_$GOARCH.syso -O coff
 // where this windres calls into llvm-rc and llvm-cvtres. The source file,
 // a.rc, simply contains a reference to its own bytes:
 //

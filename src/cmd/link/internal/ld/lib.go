@@ -1827,7 +1827,11 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 		return ldhostobj(ldmacho, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
-	if /* x86 */ c1 == 0x4c && c2 == 0x01 || /* x86_64 */ c1 == 0x64 && c2 == 0x86 || /* armv7 */ c1 == 0xc4 && c2 == 0x01 {
+	switch c1<<8 | c2 {
+	case 0x4c01, // 386
+		0x6486, // amd64
+		0xc401, // arm
+		0x64aa: // arm64
 		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			textp, rsrc, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
 			if err != nil {
