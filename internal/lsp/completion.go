@@ -37,7 +37,8 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	}
 	if candidates == nil {
 		return &protocol.CompletionList{
-			Items: []protocol.CompletionItem{},
+			IsIncomplete: true,
+			Items:        []protocol.CompletionItem{},
 		}, nil
 	}
 	// We might need to adjust the position to account for the prefix.

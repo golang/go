@@ -17,6 +17,8 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/debug/tag"
+	"golang.org/x/tools/internal/lsp/diff"
+	"golang.org/x/tools/internal/lsp/diff/myers"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
@@ -281,9 +283,26 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 		// Fix any badly parsed parts of the AST.
 		fixed = fixAST(ctx, file, tok, buf)
 
-		// Fix certain syntax errors that render the file unparseable.
-		newSrc := fixSrc(file, tok, buf)
-		if newSrc != nil {
+		for i := 0; i < 10; i++ {
+			// Fix certain syntax errors that render the file unparseable.
+			newSrc := fixSrc(file, tok, buf)
+			if newSrc == nil {
+				break
+			}
+
+			// If we thought there was something to fix 10 times in a row,
+			// it is likely we got stuck in a loop somehow. Log out a diff
+			// of the last changes we made to aid in debugging.
+			if i == 9 {
+				edits, err := myers.ComputeEdits(fh.URI(), string(buf), string(newSrc))
+				if err != nil {
+					event.Error(ctx, "error generating fixSrc diff", err, tag.File.Of(tok.Name()))
+				} else {
+					unified := diff.ToUnified("before", "after", string(buf), edits)
+					event.Log(ctx, fmt.Sprintf("fixSrc loop - last diff:\n%v", unified), tag.File.Of(tok.Name()))
+				}
+			}
+
 			newFile, _ := parser.ParseFile(fset, fh.URI().Filename(), newSrc, parserMode)
 			if newFile != nil {
 				// Maintain the original parseError so we don't try formatting the doctored file.
@@ -293,12 +312,14 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 
 				fixed = fixAST(ctx, file, tok, buf)
 			}
+
 		}
 
 		if mode == source.ParseExported {
 			trimAST(file)
 		}
 	}
+
 	// A missing file is always an error; use the parse error or make one up if there isn't one.
 	if file == nil {
 		if parseError == nil {

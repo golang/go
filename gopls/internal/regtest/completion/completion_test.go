@@ -342,5 +342,35 @@ const Name = "mainmod"
 			t.Errorf("expected import of mod.com/mainmod in %q", content)
 		}
 	})
+}
 
+// Test that we can doctor the source code enough so the file is
+// parseable and completion works as expected.
+func TestSourceFixup(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- foo.go --
+package foo
+
+func _() {
+	var s S
+	if s.
+}
+
+type S struct {
+	i int
+}
+`
+
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("foo.go")
+		completions := env.Completion("foo.go", env.RegexpSearch("foo.go", `if s\.()`))
+		diff := compareCompletionResults([]string{"i"}, completions.Items)
+		if diff != "" {
+			t.Fatal(diff)
+		}
+	})
 }
