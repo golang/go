@@ -1932,16 +1932,17 @@ var excluded = map[string]bool{
 	"typecheck.go":    true, // invalid function is not causing errors when called
 	"writebarrier.go": true, // correct diagnostics, but different lines (probably irgen's fault)
 
-	"fixedbugs/bug176.go": true, // types2 reports all errors (pref: types2)
-	"fixedbugs/bug193.go": true, // types2 bug: shift error not reported (fixed in go/types)
-	"fixedbugs/bug195.go": true, // types2 reports slightly different (but correct) bugs
-	"fixedbugs/bug228.go": true, // types2 not run after syntax errors
-	"fixedbugs/bug231.go": true, // types2 bug? (same error reported twice)
-	"fixedbugs/bug255.go": true, // types2 reports extra errors
-	"fixedbugs/bug351.go": true, // types2 reports extra errors
-	"fixedbugs/bug374.go": true, // types2 reports extra errors
-	"fixedbugs/bug388.go": true, // types2 not run due to syntax errors
-	"fixedbugs/bug412.go": true, // types2 produces a follow-on error
+	"fixedbugs/bug176.go":    true, // types2 reports all errors (pref: types2)
+	"fixedbugs/bug193.go":    true, // types2 bug: shift error not reported (fixed in go/types)
+	"fixedbugs/bug195.go":    true, // types2 reports slightly different (but correct) bugs
+	"fixedbugs/bug228.go":    true, // types2 not run after syntax errors
+	"fixedbugs/bug231.go":    true, // types2 bug? (same error reported twice)
+	"fixedbugs/bug255.go":    true, // types2 reports extra errors
+	"fixedbugs/bug351.go":    true, // types2 reports extra errors
+	"fixedbugs/bug374.go":    true, // types2 reports extra errors
+	"fixedbugs/bug385_32.go": true, // types2 doesn't produce missing error "type .* too large" (32-bit specific)
+	"fixedbugs/bug388.go":    true, // types2 not run due to syntax errors
+	"fixedbugs/bug412.go":    true, // types2 produces a follow-on error
 
 	"fixedbugs/issue11590.go":  true, // types2 doesn't report a follow-on error (pref: types2)
 	"fixedbugs/issue11610.go":  true, // types2 not run after syntax errors
