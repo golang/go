@@ -84,9 +84,7 @@ GLOBL _rt0_amd64_lib_argc<>(SB),NOPTR, $8
 DATA _rt0_amd64_lib_argv<>(SB)/8, $0
 GLOBL _rt0_amd64_lib_argv<>(SB),NOPTR, $8
 
-// Defined as ABIInternal since it does not use the stack-based Go ABI (and
-// in addition there are no calls to this entry point from Go code).
-TEXT runtime·rt0_go<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// copy arguments forward on an even stack
 	MOVQ	DI, AX		// argc
 	MOVQ	SI, BX		// argv
