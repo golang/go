@@ -13,6 +13,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -75,17 +77,21 @@ type versionParser struct {
 	res apiVersions // initialized lazily
 }
 
+// parseFile parses the named $GOROOT/api/goVERSION.txt file.
+//
+// For each row, it updates the corresponding entry in
+// vp.res to VERSION, overwriting any previous value.
+// As a special case, if goVERSION is "go1", it deletes
+// from the map instead.
 func (vp *versionParser) parseFile(name string) error {
-	base := filepath.Base(name)
-	ver := strings.TrimPrefix(strings.TrimSuffix(base, ".txt"), "go")
-	if ver == "1" {
-		return nil
-	}
 	f, err := os.Open(name)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
+
+	base := filepath.Base(name)
+	ver := strings.TrimPrefix(strings.TrimSuffix(base, ".txt"), "go")
 
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
@@ -108,15 +114,31 @@ func (vp *versionParser) parseFile(name string) error {
 		}
 		switch row.kind {
 		case "func":
+			if ver == "1" {
+				delete(pkgi.funcSince, row.name)
+				break
+			}
 			pkgi.funcSince[row.name] = ver
 		case "type":
+			if ver == "1" {
+				delete(pkgi.typeSince, row.name)
+				break
+			}
 			pkgi.typeSince[row.name] = ver
 		case "method":
+			if ver == "1" {
+				delete(pkgi.methodSince[row.recv], row.name)
+				break
+			}
 			if _, ok := pkgi.methodSince[row.recv]; !ok {
 				pkgi.methodSince[row.recv] = make(map[string]string)
 			}
 			pkgi.methodSince[row.recv][row.name] = ver
 		case "field":
+			if ver == "1" {
+				delete(pkgi.fieldSince[row.structName], row.name)
+				break
+			}
 			if _, ok := pkgi.fieldSince[row.structName]; !ok {
 				pkgi.fieldSince[row.structName] = make(map[string]string)
 			}
@@ -214,6 +236,25 @@ func parsePackageAPIInfo() (apiVersions, error) {
 		return nil, err
 	}
 
+	// Process files in go1.n, go1.n-1, ..., go1.2, go1.1, go1 order.
+	//
+	// It's rare, but the signature of an identifier may change
+	// (for example, a function that accepts a type replaced with
+	// an alias), and so an existing symbol may show up again in
+	// a later api/go1.N.txt file. Parsing in reverse version
+	// order means we end up with the earliest version of Go
+	// when the symbol was added. See golang.org/issue/44081.
+	//
+	ver := func(name string) int {
+		base := filepath.Base(name)
+		ver := strings.TrimPrefix(strings.TrimSuffix(base, ".txt"), "go1.")
+		if ver == "go1" {
+			return 0
+		}
+		v, _ := strconv.Atoi(ver)
+		return v
+	}
+	sort.Slice(files, func(i, j int) bool { return ver(files[i]) > ver(files[j]) })
 	vp := new(versionParser)
 	for _, f := range files {
 		if err := vp.parseFile(f); err != nil {

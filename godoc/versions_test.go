@@ -113,6 +113,13 @@ func TestAPIVersion(t *testing.T) {
 		{"type", "strings", "Builder", "", "1.10"},
 		{"method", "strings", "WriteString", "*Builder", "1.10"},
 
+		// Should get the earliest Go version when an identifier
+		// was initially added, rather than a later version when
+		// it may have been updated. See issue 44081.
+		{"func", "os", "Chmod", "", ""},              // Go 1 era function, updated in Go 1.16.
+		{"method", "os", "Readdir", "*File", ""},     // Go 1 era method, updated in Go 1.16.
+		{"method", "os", "ReadDir", "*File", "1.16"}, // New to Go 1.16.
+
 		// Things from package syscall should never appear
 		{"func", "syscall", "FchFlags", "", ""},
 		{"type", "syscall", "Inet4Pktinfo", "", ""},
