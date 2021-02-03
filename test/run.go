@@ -1932,18 +1932,16 @@ var excluded = map[string]bool{
 	"typecheck.go":    true, // invalid function is not causing errors when called
 	"writebarrier.go": true, // correct diagnostics, but different lines (probably irgen's fault)
 
-	"fixedbugs/bug176.go":    true, // types2 reports all errors (pref: types2)
-	"fixedbugs/bug193.go":    true, // types2 bug: shift error not reported (fixed in go/types)
-	"fixedbugs/bug195.go":    true, // types2 reports slightly different (but correct) bugs
-	"fixedbugs/bug228.go":    true, // types2 not run after syntax errors
-	"fixedbugs/bug231.go":    true, // types2 bug? (same error reported twice)
-	"fixedbugs/bug255.go":    true, // types2 reports extra errors
-	"fixedbugs/bug351.go":    true, // types2 reports extra errors
-	"fixedbugs/bug374.go":    true, // types2 reports extra errors
-	"fixedbugs/bug385_32.go": true, // types2 doesn't produce "stack frame too large" error (32-bit specific)
-	"fixedbugs/bug385_64.go": true, // types2 doesn't produce "stack frame too large" error
-	"fixedbugs/bug388.go":    true, // types2 not run due to syntax errors
-	"fixedbugs/bug412.go":    true, // types2 produces a follow-on error
+	"fixedbugs/bug176.go": true, // types2 reports all errors (pref: types2)
+	"fixedbugs/bug193.go": true, // types2 bug: shift error not reported (fixed in go/types)
+	"fixedbugs/bug195.go": true, // types2 reports slightly different (but correct) bugs
+	"fixedbugs/bug228.go": true, // types2 not run after syntax errors
+	"fixedbugs/bug231.go": true, // types2 bug? (same error reported twice)
+	"fixedbugs/bug255.go": true, // types2 reports extra errors
+	"fixedbugs/bug351.go": true, // types2 reports extra errors
+	"fixedbugs/bug374.go": true, // types2 reports extra errors
+	"fixedbugs/bug388.go": true, // types2 not run due to syntax errors
+	"fixedbugs/bug412.go": true, // types2 produces a follow-on error
 
 	"fixedbugs/issue11590.go":  true, // types2 doesn't report a follow-on error (pref: types2)
 	"fixedbugs/issue11610.go":  true, // types2 not run after syntax errors
@@ -1959,13 +1957,8 @@ var excluded = map[string]bool{
 	"fixedbugs/issue20233.go":  true, // types2 reports two instead of one error (pref: compiler)
 	"fixedbugs/issue20245.go":  true, // types2 reports two instead of one error (pref: compiler)
 	"fixedbugs/issue20250.go":  true, // correct diagnostics, but different lines (probably irgen's fault)
-	"fixedbugs/issue20529.go":  true, // types2 doesn't produce "stack frame too large" error
-	"fixedbugs/issue20780.go":  true, // types2 doesn't produce "stack frame too large" error
 	"fixedbugs/issue21979.go":  true, // types2 doesn't report a follow-on error (pref: types2)
-	"fixedbugs/issue22200.go":  true, // types2 doesn't produce "stack frame too large" error
-	"fixedbugs/issue22200b.go": true, // types2 doesn't produce "stack frame too large" error
 	"fixedbugs/issue23732.go":  true, // types2 reports different (but ok) line numbers
-	"fixedbugs/issue25507.go":  true, // types2 doesn't produce "stack frame too large" error
 	"fixedbugs/issue25958.go":  true, // types2 doesn't report a follow-on error (pref: types2)
 	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors
 	"fixedbugs/issue28268.go":  true, // types2 reports follow-on errors
