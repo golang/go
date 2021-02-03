@@ -49,4 +49,7 @@ func _() {
 	var convP myInt
 	&convP            //@item(convertP, "&convP", "myInt", "var")
 	var _ *int = conv //@snippet(" //", convertP, "(*int)(&convP)", "(*int)(&convP)")
+
+	var ff float64 //@item(convertFloat, "ff", "float64", "var")
+	f == convD     //@snippet(" =", convertFloat, "ff", "ff")
 }

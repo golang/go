@@ -2509,7 +2509,7 @@ func (ci *candidateInference) candTypeMatches(cand *candidate) bool {
 				continue
 			}
 
-			matches, untyped := ci.typeMatches(expType, candType)
+			matches := ci.typeMatches(expType, candType)
 			if !matches {
 				// If candType doesn't otherwise match, consider if we can
 				// convert candType directly to expType.
@@ -2531,7 +2531,7 @@ func (ci *candidateInference) candTypeMatches(cand *candidate) bool {
 			// Lower candidate score for untyped conversions. This avoids
 			// ranking untyped constants above candidates with an exact type
 			// match. Don't lower score of builtin constants, e.g. "true".
-			if untyped && !types.Identical(candType, expType) && cand.obj.Parent() != types.Universe {
+			if isUntyped(candType) && !types.Identical(candType, expType) && cand.obj.Parent() != types.Universe {
 				// Bigger penalty for deep completions into other packages to
 				// avoid random constants from other packages popping up all
 				// the time.
@@ -2598,21 +2598,34 @@ func considerTypeConversion(from, to types.Type, path []types.Object) bool {
 }
 
 // typeMatches reports whether an object of candType makes a good
-// completion candidate given the expected type expType. It also
-// returns a second bool which is true if both types are basic types
-// of the same kind, and at least one is untyped.
-func (ci *candidateInference) typeMatches(expType, candType types.Type) (bool, bool) {
+// completion candidate given the expected type expType.
+func (ci *candidateInference) typeMatches(expType, candType types.Type) bool {
 	// Handle untyped values specially since AssignableTo gives false negatives
 	// for them (see https://golang.org/issue/32146).
 	if candBasic, ok := candType.Underlying().(*types.Basic); ok {
-		if wantBasic, ok := expType.Underlying().(*types.Basic); ok {
-			// Make sure at least one of them is untyped.
-			if isUntyped(candType) || isUntyped(expType) {
-				// Check that their constant kind (bool|int|float|complex|string) matches.
+		if expBasic, ok := expType.Underlying().(*types.Basic); ok {
+			// Note that the candidate and/or the expected can be untyped.
+			// In "fo<> == 100" the expected type is untyped, and the
+			// candidate could also be an untyped constant.
+
+			// Sort by is_untyped and then by is_int to simplify below logic.
+			a, b := candBasic.Info(), expBasic.Info()
+			if a&types.IsUntyped == 0 || (b&types.IsInteger > 0 && b&types.IsUntyped > 0) {
+				a, b = b, a
+			}
+
+			// If at least one is untyped...
+			if a&types.IsUntyped > 0 {
+				switch {
+				// Untyped integers are compatible with floats.
+				case a&types.IsInteger > 0 && b&types.IsFloat > 0:
+					return true
+
+				// Check if their constant kind (bool|int|float|complex|string) matches.
 				// This doesn't take into account the constant value, so there will be some
 				// false positives due to integer sign and overflow.
-				if candBasic.Info()&types.IsConstType == wantBasic.Info()&types.IsConstType {
-					return true, true
+				case a&types.IsConstType == b&types.IsConstType:
+					return true
 				}
 			}
 		}
@@ -2620,7 +2633,7 @@ func (ci *candidateInference) typeMatches(expType, candType types.Type) (bool, b
 
 	// AssignableTo covers the case where the types are equal, but also handles
 	// cases like assigning a concrete type to an interface type.
-	return types.AssignableTo(candType, expType), false
+	return types.AssignableTo(candType, expType)
 }
 
 // kindMatches reports whether candType's kind matches our expected
@@ -2681,7 +2694,7 @@ func (ci *candidateInference) assigneesMatch(cand *candidate, sig *types.Signatu
 			continue
 		}
 
-		allMatch, _ = ci.typeMatches(assignee, sig.Results().At(i).Type())
+		allMatch = ci.typeMatches(assignee, sig.Results().At(i).Type())
 		if !allMatch {
 			break
 		}
