@@ -2444,6 +2444,11 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 		return false
 	}
 
+	// Bail out early if we are completing a field name in a composite literal.
+	if v, ok := cand.obj.(*types.Var); ok && v.IsField() && c.wantStructFieldCompletions() {
+		return true
+	}
+
 	if isTypeName(cand.obj) {
 		return c.matchingTypeName(cand)
 	} else if c.wantTypeName() {

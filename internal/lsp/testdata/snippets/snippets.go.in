@@ -51,3 +51,11 @@ func _() {
 
 	f.Baz()     //@snippet("B", snipMethodBazBaz, "BazBaz(${1:})", "BazBaz(${1:at AliasType})")
 }
+
+func _() {
+	type bar struct {
+		a int
+		b float64 //@item(snipBarB, "b", "float64", "field")
+	}
+	bar{b} //@snippet("}", snipBarB, "b: ${1:}", "b: ${1:float64}")
+}
