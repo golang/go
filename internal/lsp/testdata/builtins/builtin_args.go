@@ -43,6 +43,10 @@ func _() {
 	make()              //@rank(")", builtinMapType, int),rank(")", builtinChanType, int),rank(")", builtinSliceType, int),rank(")", builtinMapType, int)
 	make(aSliceType, a) //@rank(")", builtinInt, builtinSlice)
 
+	type myInt int
+	var mi myInt        //@item(builtinMyInt, "mi", "myInt", "var")
+	make(aSliceType, m) //@snippet(")", builtinMyInt, "mi", "mi")
+
 	var _ []int = make() //@rank(")", builtinSliceType, builtinMapType)
 
 	type myStruct struct{}  //@item(builtinStructType, "myStruct", "struct{...}", "struct")

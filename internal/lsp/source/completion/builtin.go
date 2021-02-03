@@ -127,7 +127,7 @@ func (c *completer) builtinArgType(obj types.Object, call *ast.CallExpr, parentI
 			inf.typeName.wantTypeName = true
 			inf.objType = parentInf.objType
 		} else {
-			inf.objType = types.Typ[types.Int]
+			inf.objType = types.Typ[types.UntypedInt]
 		}
 	}
 

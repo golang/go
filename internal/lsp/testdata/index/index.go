@@ -18,4 +18,8 @@ func _() {
 	type myMap map[string]int
 	var baz myMap
 	baz[a] //@complete("]", indexAA, indexAB)
+
+	type myInt int
+	var mi myInt //@item(indexMyInt, "mi", "myInt", "var")
+	foo[m]       //@snippet("]", indexMyInt, "mi", "mi")
 }

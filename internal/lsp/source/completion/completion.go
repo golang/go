@@ -1690,12 +1690,12 @@ func (c *completer) expectedCompositeLiteralType() types.Type {
 	switch t := clInfo.clType.(type) {
 	case *types.Slice:
 		if clInfo.inKey {
-			return types.Typ[types.Int]
+			return types.Typ[types.UntypedInt]
 		}
 		return t.Elem()
 	case *types.Array:
 		if clInfo.inKey {
-			return types.Typ[types.Int]
+			return types.Typ[types.UntypedInt]
 		}
 		return t.Elem()
 	case *types.Map:
@@ -2038,7 +2038,7 @@ Nodes:
 		case *ast.SliceExpr:
 			// Make sure position falls within the brackets (e.g. "foo[a:<>]").
 			if node.Lbrack < c.pos && c.pos <= node.Rbrack {
-				inf.objType = types.Typ[types.Int]
+				inf.objType = types.Typ[types.UntypedInt]
 			}
 			return inf
 		case *ast.IndexExpr:
@@ -2049,7 +2049,7 @@ Nodes:
 					case *types.Map:
 						inf.objType = t.Key()
 					case *types.Slice, *types.Array:
-						inf.objType = types.Typ[types.Int]
+						inf.objType = types.Typ[types.UntypedInt]
 					}
 				}
 			}
