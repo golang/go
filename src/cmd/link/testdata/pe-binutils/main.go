@@ -4,10 +4,9 @@
 
 // Test that a PE rsrc section is handled correctly (issue 39658).
 //
-// rsrc.syso is created with:
-//	windres -i a.rc -o rsrc.syso -O coff
-// on windows-amd64-2016 builder, where a.rc is a text file with
-// the following content:
+// rsrc.syso is created using binutils with:
+//	{x86_64,i686}-w64-mingw32-windres -i a.rc -o rsrc_$GOARCH.syso -O coff
+// where a.rc is a text file with the following content:
 //
 // resname RCDATA {
 //   "Hello Gophers!\0",
