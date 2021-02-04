@@ -28,6 +28,13 @@ func Dispatch(params *protocol.ExecuteCommandParams, s Interface) (interface{}, 
 		}
 		err := s.CheckUpgrades(a0)
 		return nil, err
+	case "gopls.gc_details":
+		var a0 URIArg
+		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
+			return nil, err
+		}
+		err := s.GCDetails(a0)
+		return nil, err
 	case "gopls.generate":
 		var a0 GenerateArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
@@ -70,19 +77,21 @@ func Dispatch(params *protocol.ExecuteCommandParams, s Interface) (interface{}, 
 		}
 		err := s.RunTests(a0)
 		return nil, err
+	case "gopls.test":
+		var a0 protocol.DocumentURI
+		var a1 []string
+		var a2 []string
+		if err := UnmarshalArgs(params.Arguments, &a0, &a1, &a2); err != nil {
+			return nil, err
+		}
+		err := s.Test(a0, a1, a2)
+		return nil, err
 	case "gopls.tidy":
 		var a0 URIArg
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
 		err := s.Tidy(a0)
-		return nil, err
-	case "gopls.toggle_details":
-		var a0 URIArg
-		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
-			return nil, err
-		}
-		err := s.ToggleDetails(a0)
 		return nil, err
 	case "gopls.update_go_sum":
 		var a0 URIArg
@@ -129,6 +138,18 @@ func NewCheckUpgradesCommand(title string, a0 CheckUpgradesArgs) (protocol.Comma
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.check_upgrades",
+		Arguments: args,
+	}, nil
+}
+
+func NewGCDetailsCommand(title string, a0 URIArg) (protocol.Command, error) {
+	args, err := MarshalArgs(a0)
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.gc_details",
 		Arguments: args,
 	}, nil
 }
@@ -205,6 +226,18 @@ func NewRunTestsCommand(title string, a0 RunTestsArgs) (protocol.Command, error)
 	}, nil
 }
 
+func NewTestCommand(title string, a0 protocol.DocumentURI, a1 []string, a2 []string) (protocol.Command, error) {
+	args, err := MarshalArgs(a0, a1, a2)
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.test",
+		Arguments: args,
+	}, nil
+}
+
 func NewTidyCommand(title string, a0 URIArg) (protocol.Command, error) {
 	args, err := MarshalArgs(a0)
 	if err != nil {
@@ -213,18 +246,6 @@ func NewTidyCommand(title string, a0 URIArg) (protocol.Command, error) {
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.tidy",
-		Arguments: args,
-	}, nil
-}
-
-func NewToggleDetailsCommand(title string, a0 URIArg) (protocol.Command, error) {
-	args, err := MarshalArgs(a0)
-	if err != nil {
-		return protocol.Command{}, err
-	}
-	return protocol.Command{
-		Title:     title,
-		Command:   "gopls.toggle_details",
 		Arguments: args,
 	}, nil
 }

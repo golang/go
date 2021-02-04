@@ -28,7 +28,12 @@ import "golang.org/x/tools/internal/lsp/protocol"
 //     is considered the command 'Title'.
 //     TODO(rFindley): reconsider this -- Title may be unnecessary.
 type Interface interface {
-	// RunTests: Run test(s)
+	// Test: Run test(s) (legacy)
+	//
+	// Deprecated: use gopls.run_tests.
+	Test(protocol.DocumentURI, []string, []string) error
+
+	// Test: Run test(s)
 	//
 	// Runs `go test` for a specific set of test or benchmark functions.
 	RunTests(RunTestsArgs) error
@@ -83,10 +88,10 @@ type Interface interface {
 	// Runs `go get` to fetch a package.
 	GoGetPackage(GoGetPackageArgs) error
 
-	// ToggleDetails: Toggle gc_details
+	// GCDetails: Toggle gc_details
 	//
 	// Toggle the calculation of gc annotations.
-	ToggleDetails(URIArg) error
+	GCDetails(URIArg) error
 
 	// GenerateGoplsMod: Generate gopls.mod
 	//
