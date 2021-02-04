@@ -326,6 +326,8 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 			inv.ModFlag = "vendor"
 		} else if !allowModfileModificationOption {
 			inv.ModFlag = "readonly"
+		} else {
+			inv.ModFlag = mutableModFlag
 		}
 	case source.UpdateUserModFile, source.WriteTemporaryModFile:
 		inv.ModFlag = mutableModFlag
