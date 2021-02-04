@@ -585,18 +585,20 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
 	MOVQ	0(DX), BX
 	JMP	BX	// but first run the deferred function
 
-// Save state of caller into g->sched. Smashes R8, R9.
+// Save state of caller into g->sched. Smashes R9.
 TEXT gosave<>(SB),NOSPLIT,$0
-	get_tls(R8)
-	MOVQ	g(R8), R8
+#ifndef GOEXPERIMENT_REGABI
+	get_tls(R14)
+	MOVQ	g(R14), R14
+#endif
 	MOVQ	0(SP), R9
-	MOVQ	R9, (g_sched+gobuf_pc)(R8)
+	MOVQ	R9, (g_sched+gobuf_pc)(R14)
 	LEAQ	8(SP), R9
-	MOVQ	R9, (g_sched+gobuf_sp)(R8)
-	MOVQ	$0, (g_sched+gobuf_ret)(R8)
-	MOVQ	BP, (g_sched+gobuf_bp)(R8)
+	MOVQ	R9, (g_sched+gobuf_sp)(R14)
+	MOVQ	$0, (g_sched+gobuf_ret)(R14)
+	MOVQ	BP, (g_sched+gobuf_bp)(R14)
 	// Assert ctxt is zero. See func save.
-	MOVQ	(g_sched+gobuf_ctxt)(R8), R9
+	MOVQ	(g_sched+gobuf_ctxt)(R14), R9
 	TESTQ	R9, R9
 	JZ	2(PC)
 	CALL	runtime·badctxt(SB)
@@ -1391,9 +1393,13 @@ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
 	MOVQ	R13, 104(SP)
 	// TODO: Consider passing g.m.p in as an argument so they can be shared
 	// across a sequence of write barriers.
+#ifdef GOEXPERIMENT_REGABI
+	MOVQ	g_m(R14), R13
+#else
 	get_tls(R13)
 	MOVQ	g(R13), R13
 	MOVQ	g_m(R13), R13
+#endif
 	MOVQ	m_p(R13), R13
 	MOVQ	(p_wbBuf+wbBuf_next)(R13), R12
 	// Increment wbBuf.next position.

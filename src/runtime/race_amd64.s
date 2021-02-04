@@ -146,8 +146,10 @@ TEXT	runtime·racewriterangepc1(SB), NOSPLIT, $0-24
 // If addr (RARG1) is out of range, do nothing.
 // Otherwise, setup goroutine context and invoke racecall. Other arguments already set.
 TEXT	racecalladdr<>(SB), NOSPLIT, $0-0
+#ifndef GOEXPERIMENT_REGABI
 	get_tls(R12)
 	MOVQ	g(R12), R14
+#endif
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
 	CMPQ	RARG1, runtime·racearenastart(SB)
@@ -183,8 +185,10 @@ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
 // R11 = caller's return address
 TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 	MOVQ	DX, R15		// save function entry context (for closures)
+#ifndef GOEXPERIMENT_REGABI
 	get_tls(R12)
 	MOVQ	g(R12), R14
+#endif
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	MOVQ	R11, RARG1
 	// void __tsan_func_enter(ThreadState *thr, void *pc);
@@ -197,8 +201,10 @@ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 // func runtime·racefuncexit()
 // Called from instrumented code.
 TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
+#ifndef GOEXPERIMENT_REGABI
 	get_tls(R12)
 	MOVQ	g(R12), R14
+#endif
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	// void __tsan_func_exit(ThreadState *thr);
 	MOVQ	$__tsan_func_exit(SB), AX
@@ -357,8 +363,10 @@ racecallatomic_data:
 	JAE	racecallatomic_ignore
 racecallatomic_ok:
 	// Addr is within the good range, call the atomic function.
+#ifndef GOEXPERIMENT_REGABI
 	get_tls(R12)
 	MOVQ	g(R12), R14
+#endif
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	MOVQ	8(SP), RARG1	// caller pc
 	MOVQ	(SP), RARG2	// pc
@@ -370,8 +378,10 @@ racecallatomic_ignore:
 	// An attempt to synchronize on the address would cause crash.
 	MOVQ	AX, R15	// remember the original function
 	MOVQ	$__tsan_go_ignore_sync_begin(SB), AX
+#ifndef GOEXPERIMENT_REGABI
 	get_tls(R12)
 	MOVQ	g(R12), R14
+#endif
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	CALL	racecall<>(SB)
 	MOVQ	R15, AX	// restore the original function
@@ -399,8 +409,10 @@ TEXT	runtime·racecall(SB), NOSPLIT, $0-0
 
 // Switches SP to g0 stack and calls (AX). Arguments already set.
 TEXT	racecall<>(SB), NOSPLIT, $0-0
+#ifndef GOEXPERIMENT_REGABI
 	get_tls(R12)
 	MOVQ	g(R12), R14
+#endif
 	MOVQ	g_m(R14), R13
 	// Switch to g0 stack.
 	MOVQ	SP, R12		// callee-saved, preserved across the CALL
