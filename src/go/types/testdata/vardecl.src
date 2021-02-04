@@ -158,6 +158,18 @@ func _() {
 	}
 }
 
+
+// Invalid variable declarations must not lead to "declared but not used errors".
+func _() {
+	var a x        // ERROR undeclared name: x
+	var b = x      // ERROR undeclared name: x
+	var c int = x  // ERROR undeclared name: x
+	var d, e, f x  /* ERROR x */ /* ERROR x */ /* ERROR x */
+	var g, h, i = x /* ERROR x */, x /* ERROR x */, x /* ERROR x */
+	var j, k, l float32 = x /* ERROR x */, x /* ERROR x */, x /* ERROR x */
+	// but no "declared but not used" errors
+}
+
 // Invalid (unused) expressions must not lead to spurious "declared but not used errors"
 func _() {
 	var a, b, c int
