@@ -26,7 +26,7 @@ const (
 	// The number of super-buckets (timeHistNumSuperBuckets), on the
 	// other hand, defines the range. To reserve room for sub-buckets,
 	// bit timeHistSubBucketBits is the first bit considered for
-	// super-buckets, so super-bucket indicies are adjusted accordingly.
+	// super-buckets, so super-bucket indices are adjusted accordingly.
 	//
 	// As an example, consider 45 super-buckets with 16 sub-buckets.
 	//
