@@ -12,7 +12,7 @@
 // also provided by this package, via code generation.
 package command
 
-//go:generate go run generate.go
+//go:generate go run -tags=generate generate.go
 
 import "golang.org/x/tools/internal/lsp/protocol"
 
