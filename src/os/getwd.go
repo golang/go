@@ -15,10 +15,6 @@ var getwdCache struct {
 	dir string
 }
 
-// useSyscallwd determines whether to use the return value of
-// syscall.Getwd based on its error.
-var useSyscallwd = func(error) bool { return true }
-
 // Getwd returns a rooted path name corresponding to the
 // current directory. If the current directory can be
 // reached via multiple paths (due to symbolic links),
@@ -45,10 +41,17 @@ func Getwd() (dir string, err error) {
 	// If the operating system provides a Getwd call, use it.
 	// Otherwise, we're trying to find our way back to ".".
 	if syscall.ImplementsGetwd {
-		s, e := syscall.Getwd()
-		if useSyscallwd(e) {
-			return s, NewSyscallError("getwd", e)
+		var (
+			s string
+			e error
+		)
+		for {
+			s, e = syscall.Getwd()
+			if e != syscall.EINTR {
+				break
+			}
 		}
+		return s, NewSyscallError("getwd", e)
 	}
 
 	// Apply same kludge but to cached dir instead of $PWD.
@@ -103,10 +106,10 @@ func Getwd() (dir string, err error) {
 
 	Found:
 		pd, err := fd.Stat()
+		fd.Close()
 		if err != nil {
 			return "", err
 		}
-		fd.Close()
 		if SameFile(pd, root) {
 			break
 		}

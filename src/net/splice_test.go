@@ -8,7 +8,6 @@ package net
 
 import (
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -202,7 +201,7 @@ func testSpliceIssue25985(t *testing.T, upNet, downNet string) {
 	}
 	defer fromProxy.Close()
 
-	_, err = ioutil.ReadAll(fromProxy)
+	_, err = io.ReadAll(fromProxy)
 	if err != nil {
 		t.Fatal(err)
 	}

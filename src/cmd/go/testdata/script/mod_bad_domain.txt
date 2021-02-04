@@ -2,9 +2,10 @@ env GO111MODULE=on
 
 # explicit get should report errors about bad names
 ! go get appengine
-stderr '^go get appengine: package appengine is not in GOROOT \(.*\)$'
+stderr '^go get: malformed module path "appengine": missing dot in first path element$'
 ! go get x/y.z
 stderr 'malformed module path "x/y.z": missing dot in first path element'
+
 
 # 'go list -m' should report errors about module names, never GOROOT.
 ! go list -m -versions appengine
@@ -12,12 +13,23 @@ stderr 'malformed module path "appengine": missing dot in first path element'
 ! go list -m -versions x/y.z
 stderr 'malformed module path "x/y.z": missing dot in first path element'
 
+
 # build should report all unsatisfied imports,
 # but should be more definitive about non-module import paths
 ! go build ./useappengine
-stderr 'cannot find package'
+stderr '^useappengine[/\\]x.go:2:8: cannot find package$'
 ! go build ./usenonexistent
-stderr 'cannot find module providing package nonexistent.rsc.io'
+stderr '^usenonexistent[/\\]x.go:2:8: no required module provides package nonexistent.rsc.io; to add it:\n\tgo get nonexistent.rsc.io$'
+
+
+# 'get -d' should be similarly definitive
+
+go get -d ./useappengine  # TODO(#41315): This should fail.
+ # stderr '^useappengine[/\\]x.go:2:8: cannot find package$'
+
+! go get -d  ./usenonexistent
+stderr '^x/usenonexistent imports\n\tnonexistent.rsc.io: cannot find module providing package nonexistent.rsc.io$'
+
 
 # go mod vendor and go mod tidy should ignore appengine imports.
 rm usenonexistent/x.go

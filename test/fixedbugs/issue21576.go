@@ -1,5 +1,6 @@
-// +build !nacl,!js
 // run
+
+// +build !nacl,!js,!gccgo
 
 // Copyright 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

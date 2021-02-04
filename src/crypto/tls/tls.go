@@ -22,8 +22,8 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
+	"os"
 	"strings"
 	"time"
 )
@@ -235,7 +235,7 @@ func (d *Dialer) netDialer() *net.Dialer {
 	return new(net.Dialer)
 }
 
-// Dial connects to the given network address and initiates a TLS
+// DialContext connects to the given network address and initiates a TLS
 // handshake, returning the resulting TLS connection.
 //
 // The provided Context must be non-nil. If the context expires before
@@ -259,11 +259,11 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 // form a certificate chain. On successful return, Certificate.Leaf will
 // be nil because the parsed form of the certificate is not retained.
 func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
-	certPEMBlock, err := ioutil.ReadFile(certFile)
+	certPEMBlock, err := os.ReadFile(certFile)
 	if err != nil {
 		return Certificate{}, err
 	}
-	keyPEMBlock, err := ioutil.ReadFile(keyFile)
+	keyPEMBlock, err := os.ReadFile(keyFile)
 	if err != nil {
 		return Certificate{}, err
 	}
@@ -365,7 +365,7 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
 }
 
 // Attempt to parse the given private key DER block. OpenSSL 0.9.8 generates
-// PKCS#1 private keys by default, while OpenSSL 1.0.0 generates PKCS#8 keys.
+// PKCS #1 private keys by default, while OpenSSL 1.0.0 generates PKCS #8 keys.
 // OpenSSL ecparam generates SEC1 EC private keys for ECDSA. We try all three.
 func parsePrivateKey(der []byte) (crypto.PrivateKey, error) {
 	if key, err := x509.ParsePKCS1PrivateKey(der); err == nil {

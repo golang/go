@@ -14,6 +14,7 @@ package io
 
 import (
 	"errors"
+	"sync"
 )
 
 // Seek whence values.
@@ -27,10 +28,15 @@ const (
 // but failed to return an explicit error.
 var ErrShortWrite = errors.New("short write")
 
+// errInvalidWrite means that a write returned an impossible count.
+var errInvalidWrite = errors.New("invalid write result")
+
 // ErrShortBuffer means that a read required a longer buffer than was provided.
 var ErrShortBuffer = errors.New("short buffer")
 
 // EOF is the error returned by Read when no more input is available.
+// (Read must return EOF itself, not an error wrapping EOF,
+// because callers will test for EOF using ==.)
 // Functions should return EOF only to signal a graceful end of input.
 // If the EOF occurs unexpectedly in a structured data stream,
 // the appropriate error is either ErrUnexpectedEOF or some other error
@@ -41,9 +47,9 @@ var EOF = errors.New("EOF")
 // middle of reading a fixed-size block or data structure.
 var ErrUnexpectedEOF = errors.New("unexpected EOF")
 
-// ErrNoProgress is returned by some clients of an io.Reader when
+// ErrNoProgress is returned by some clients of an Reader when
 // many calls to Read have failed to return any data or error,
-// usually the sign of a broken io.Reader implementation.
+// usually the sign of a broken Reader implementation.
 var ErrNoProgress = errors.New("multiple Read calls return no data or error")
 
 // Reader is the interface that wraps the basic Read method.
@@ -147,6 +153,14 @@ type ReadSeeker interface {
 	Seeker
 }
 
+// ReadSeekCloser is the interface that groups the basic Read, Seek and Close
+// methods.
+type ReadSeekCloser interface {
+	Reader
+	Seeker
+	Closer
+}
+
 // WriteSeeker is the interface that groups the basic Write and Seek methods.
 type WriteSeeker interface {
 	Writer
@@ -164,7 +178,7 @@ type ReadWriteSeeker interface {
 //
 // ReadFrom reads data from r until EOF or error.
 // The return value n is the number of bytes read.
-// Any error except io.EOF encountered during the read is also returned.
+// Any error except EOF encountered during the read is also returned.
 //
 // The Copy function uses ReaderFrom if available.
 type ReaderFrom interface {
@@ -377,7 +391,7 @@ func Copy(dst Writer, src Reader) (written int64, err error) {
 // buf will not be used to perform the copy.
 func CopyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 	if buf != nil && len(buf) == 0 {
-		panic("empty buffer in io.CopyBuffer")
+		panic("empty buffer in CopyBuffer")
 	}
 	return copyBuffer(dst, src, buf)
 }
@@ -409,9 +423,13 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 		nr, er := src.Read(buf)
 		if nr > 0 {
 			nw, ew := dst.Write(buf[0:nr])
-			if nw > 0 {
-				written += int64(nw)
+			if nw < 0 || nr < nw {
+				nw = 0
+				if ew == nil {
+					ew = errInvalidWrite
+				}
 			}
+			written += int64(nw)
 			if ew != nil {
 				err = ew
 				break
@@ -546,4 +564,79 @@ func (t *teeReader) Read(p []byte) (n int, err error) {
 		}
 	}
 	return
+}
+
+// Discard is an Writer on which all Write calls succeed
+// without doing anything.
+var Discard Writer = discard{}
+
+type discard struct{}
+
+// discard implements ReaderFrom as an optimization so Copy to
+// io.Discard can avoid doing unnecessary work.
+var _ ReaderFrom = discard{}
+
+func (discard) Write(p []byte) (int, error) {
+	return len(p), nil
+}
+
+func (discard) WriteString(s string) (int, error) {
+	return len(s), nil
+}
+
+var blackHolePool = sync.Pool{
+	New: func() interface{} {
+		b := make([]byte, 8192)
+		return &b
+	},
+}
+
+func (discard) ReadFrom(r Reader) (n int64, err error) {
+	bufp := blackHolePool.Get().(*[]byte)
+	readSize := 0
+	for {
+		readSize, err = r.Read(*bufp)
+		n += int64(readSize)
+		if err != nil {
+			blackHolePool.Put(bufp)
+			if err == EOF {
+				return n, nil
+			}
+			return
+		}
+	}
+}
+
+// NopCloser returns a ReadCloser with a no-op Close method wrapping
+// the provided Reader r.
+func NopCloser(r Reader) ReadCloser {
+	return nopCloser{r}
+}
+
+type nopCloser struct {
+	Reader
+}
+
+func (nopCloser) Close() error { return nil }
+
+// ReadAll reads from r until an error or EOF and returns the data it read.
+// A successful call returns err == nil, not err == EOF. Because ReadAll is
+// defined to read from src until EOF, it does not treat an EOF from Read
+// as an error to be reported.
+func ReadAll(r Reader) ([]byte, error) {
+	b := make([]byte, 0, 512)
+	for {
+		if len(b) == cap(b) {
+			// Add more capacity (let append pick how much).
+			b = append(b, 0)[:len(b)]
+		}
+		n, err := r.Read(b[len(b):cap(b)])
+		b = b[:len(b)+n]
+		if err != nil {
+			if err == EOF {
+				err = nil
+			}
+			return b, err
+		}
+	}
 }

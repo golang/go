@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 	"path/filepath"
@@ -43,7 +42,7 @@ func htmlOutput(profile, outfile string) error {
 		if err != nil {
 			return err
 		}
-		src, err := ioutil.ReadFile(file)
+		src, err := os.ReadFile(file)
 		if err != nil {
 			return fmt.Errorf("can't read %q: %v", fn, err)
 		}
@@ -62,7 +61,7 @@ func htmlOutput(profile, outfile string) error {
 	var out *os.File
 	if outfile == "" {
 		var dir string
-		dir, err = ioutil.TempDir("", "cover")
+		dir, err = os.MkdirTemp("", "cover")
 		if err != nil {
 			return err
 		}

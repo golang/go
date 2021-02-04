@@ -10,8 +10,8 @@ package p
 
 import "unsafe"
 
-type T [uintptr(unsafe.Pointer(nil))]int // ERROR "non-constant array bound"
+type T [uintptr(unsafe.Pointer(nil))]int // ERROR "non-constant array bound|array bound is not constant"
 
 func f() {
-	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0)
+	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "shift of type float64|non-integer type for left operand of shift"
 }

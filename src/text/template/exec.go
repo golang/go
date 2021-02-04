@@ -256,6 +256,7 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 		if len(node.Pipe.Decl) == 0 {
 			s.printValue(node, val)
 		}
+	case *parse.CommentNode:
 	case *parse.IfNode:
 		s.walkIfOrWith(parse.NodeIf, dot, node.Pipe, node.List, node.ElseList)
 	case *parse.ListNode:
@@ -370,6 +371,10 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		return
 	case reflect.Chan:
 		if val.IsNil() {
+			break
+		}
+		if val.Type().ChanDir() == reflect.SendDir {
+			s.errorf("range over send-only channel %v", val)
 			break
 		}
 		i := 0

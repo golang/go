@@ -423,6 +423,47 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 		Children: a.children,
 		Field:    make([]Field, len(a.field)),
 	}
+
+	// If we are currently parsing the compilation unit,
+	// we can't evaluate Addrx or Strx until we've seen the
+	// relevant base entry.
+	type delayed struct {
+		idx int
+		off uint64
+		fmt format
+	}
+	var delay []delayed
+
+	resolveStrx := func(strBase, off uint64) string {
+		off += strBase
+		if uint64(int(off)) != off {
+			b.error("DW_FORM_strx offset out of range")
+		}
+
+		b1 := makeBuf(b.dwarf, b.format, "str_offsets", 0, b.dwarf.strOffsets)
+		b1.skip(int(off))
+		is64, _ := b.format.dwarf64()
+		if is64 {
+			off = b1.uint64()
+		} else {
+			off = uint64(b1.uint32())
+		}
+		if b1.err != nil {
+			b.err = b1.err
+			return ""
+		}
+		if uint64(int(off)) != off {
+			b.error("DW_FORM_strx indirect offset out of range")
+		}
+		b1 = makeBuf(b.dwarf, b.format, "str", 0, b.dwarf.str)
+		b1.skip(int(off))
+		val := b1.string()
+		if b1.err != nil {
+			b.err = b1.err
+		}
+		return val
+	}
+
 	for i := range e.Field {
 		e.Field[i].Attr = a.field[i].attr
 		e.Field[i].Class = a.field[i].class
@@ -453,38 +494,31 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 			case formAddrx4:
 				off = uint64(b.uint32())
 			}
-			if len(b.dwarf.addr) == 0 {
+			if b.dwarf.addr == nil {
 				b.error("DW_FORM_addrx with no .debug_addr section")
 			}
 			if b.err != nil {
 				return nil
 			}
-			addrsize := b.format.addrsize()
-			if addrsize == 0 {
-				b.error("unknown address size for DW_FORM_addrx")
-			}
-			off *= uint64(addrsize)
 
 			// We have to adjust by the offset of the
 			// compilation unit. This won't work if the
 			// program uses Reader.Seek to skip over the
 			// unit. Not much we can do about that.
+			var addrBase int64
 			if cu != nil {
-				cuOff, ok := cu.Val(AttrAddrBase).(int64)
-				if ok {
-					off += uint64(cuOff)
+				addrBase, _ = cu.Val(AttrAddrBase).(int64)
+			} else if a.tag == TagCompileUnit {
+				delay = append(delay, delayed{i, off, formAddrx})
+				break
+			}
+
+			var err error
+			val, err = b.dwarf.debugAddr(b.format, uint64(addrBase), off)
+			if err != nil {
+				if b.err == nil {
+					b.err = err
 				}
-			}
-
-			if uint64(int(off)) != off {
-				b.error("DW_FORM_addrx offset out of range")
-			}
-
-			b1 := makeBuf(b.dwarf, b.format, "addr", 0, b.dwarf.addr)
-			b1.skip(int(off))
-			val = b1.addr()
-			if b1.err != nil {
-				b.err = b1.err
 				return nil
 			}
 
@@ -621,38 +655,16 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 			// compilation unit. This won't work if the
 			// program uses Reader.Seek to skip over the
 			// unit. Not much we can do about that.
+			var strBase int64
 			if cu != nil {
-				cuOff, ok := cu.Val(AttrStrOffsetsBase).(int64)
-				if ok {
-					off += uint64(cuOff)
-				}
+				strBase, _ = cu.Val(AttrStrOffsetsBase).(int64)
+			} else if a.tag == TagCompileUnit {
+				delay = append(delay, delayed{i, off, formStrx})
+				break
 			}
 
-			if uint64(int(off)) != off {
-				b.error("DW_FORM_strx offset out of range")
-			}
+			val = resolveStrx(uint64(strBase), off)
 
-			b1 := makeBuf(b.dwarf, b.format, "str_offsets", 0, b.dwarf.strOffsets)
-			b1.skip(int(off))
-			if is64 {
-				off = b1.uint64()
-			} else {
-				off = uint64(b1.uint32())
-			}
-			if b1.err != nil {
-				b.err = b1.err
-				return nil
-			}
-			if uint64(int(off)) != off {
-				b.error("DW_FORM_strx indirect offset out of range")
-			}
-			b1 = makeBuf(b.dwarf, b.format, "str", 0, b.dwarf.str)
-			b1.skip(int(off))
-			val = b1.string()
-			if b1.err != nil {
-				b.err = b1.err
-				return nil
-			}
 		case formStrpSup:
 			is64, known := b.format.dwarf64()
 			if !known {
@@ -699,11 +711,32 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 		case formRnglistx:
 			val = b.uint()
 		}
+
 		e.Field[i].Val = val
 	}
 	if b.err != nil {
 		return nil
 	}
+
+	for _, del := range delay {
+		switch del.fmt {
+		case formAddrx:
+			addrBase, _ := e.Val(AttrAddrBase).(int64)
+			val, err := b.dwarf.debugAddr(b.format, uint64(addrBase), del.off)
+			if err != nil {
+				b.err = err
+				return nil
+			}
+			e.Field[del.idx].Val = val
+		case formStrx:
+			strBase, _ := e.Val(AttrStrOffsetsBase).(int64)
+			e.Field[del.idx].Val = resolveStrx(uint64(strBase), del.off)
+			if b.err != nil {
+				return nil
+			}
+		}
+	}
+
 	return e
 }
 
@@ -717,6 +750,7 @@ type Reader struct {
 	d            *Data
 	err          error
 	unit         int
+	lastUnit     bool   // set if last entry returned by Next is TagCompileUnit/TagPartialUnit
 	lastChildren bool   // .Children of last entry returned by Next
 	lastSibling  Offset // .Val(AttrSibling) of last entry returned by Next
 	cu           *Entry // current compilation unit
@@ -774,11 +808,16 @@ func (r *Reader) Seek(off Offset) {
 // maybeNextUnit advances to the next unit if this one is finished.
 func (r *Reader) maybeNextUnit() {
 	for len(r.b.data) == 0 && r.unit+1 < len(r.d.unit) {
-		r.unit++
-		u := &r.d.unit[r.unit]
-		r.b = makeBuf(r.d, u, "info", u.off, u.data)
-		r.cu = nil
+		r.nextUnit()
 	}
+}
+
+// nextUnit advances to the next unit.
+func (r *Reader) nextUnit() {
+	r.unit++
+	u := &r.d.unit[r.unit]
+	r.b = makeBuf(r.d, u, "info", u.off, u.data)
+	r.cu = nil
 }
 
 // Next reads the next entry from the encoded entry stream.
@@ -799,12 +838,14 @@ func (r *Reader) Next() (*Entry, error) {
 		r.err = r.b.err
 		return nil, r.err
 	}
+	r.lastUnit = false
 	if e != nil {
 		r.lastChildren = e.Children
 		if r.lastChildren {
 			r.lastSibling, _ = e.Val(AttrSibling).(Offset)
 		}
 		if e.Tag == TagCompileUnit || e.Tag == TagPartialUnit {
+			r.lastUnit = true
 			r.cu = e
 		}
 	} else {
@@ -827,6 +868,11 @@ func (r *Reader) SkipChildren() {
 	// child subtrees.
 	if r.lastSibling >= r.b.off {
 		r.Seek(r.lastSibling)
+		return
+	}
+
+	if r.lastUnit && r.unit+1 < len(r.d.unit) {
+		r.nextUnit()
 		return
 	}
 
@@ -874,6 +920,7 @@ func (r *Reader) SeekPC(pc uint64) (*Entry, error) {
 		r.err = nil
 		r.lastChildren = false
 		r.unit = unit
+		r.cu = nil
 		u := &r.d.unit[unit]
 		r.b = makeBuf(r.d, u, "info", u.off, u.data)
 		e, err := r.Next()
@@ -922,53 +969,186 @@ func (d *Data) Ranges(e *Entry) ([][2]uint64, error) {
 		ret = append(ret, [2]uint64{low, high})
 	}
 
+	var u *unit
+	if uidx := d.offsetToUnit(e.Offset); uidx >= 0 && uidx < len(d.unit) {
+		u = &d.unit[uidx]
+	}
+
+	if u != nil && u.vers >= 5 && d.rngLists != nil {
+		// DWARF version 5 and later
+		field := e.AttrField(AttrRanges)
+		if field == nil {
+			return ret, nil
+		}
+		switch field.Class {
+		case ClassRangeListPtr:
+			ranges, rangesOK := field.Val.(int64)
+			if !rangesOK {
+				return ret, nil
+			}
+			cu, base, err := d.baseAddressForEntry(e)
+			if err != nil {
+				return nil, err
+			}
+			return d.dwarf5Ranges(u, cu, base, ranges, ret)
+
+		case ClassRngList:
+			// TODO: support DW_FORM_rnglistx
+			return ret, nil
+
+		default:
+			return ret, nil
+		}
+	}
+
+	// DWARF version 2 through 4
 	ranges, rangesOK := e.Val(AttrRanges).(int64)
 	if rangesOK && d.ranges != nil {
-		// The initial base address is the lowpc attribute
-		// of the enclosing compilation unit.
-		// Although DWARF specifies the lowpc attribute,
-		// comments in gdb/dwarf2read.c say that some versions
-		// of GCC use the entrypc attribute, so we check that too.
-		var cu *Entry
-		if e.Tag == TagCompileUnit {
-			cu = e
+		_, base, err := d.baseAddressForEntry(e)
+		if err != nil {
+			return nil, err
+		}
+		return d.dwarf2Ranges(u, base, ranges, ret)
+	}
+
+	return ret, nil
+}
+
+// baseAddressForEntry returns the initial base address to be used when
+// looking up the range list of entry e.
+// DWARF specifies that this should be the lowpc attribute of the enclosing
+// compilation unit, however comments in gdb/dwarf2read.c say that some
+// versions of GCC use the entrypc attribute, so we check that too.
+func (d *Data) baseAddressForEntry(e *Entry) (*Entry, uint64, error) {
+	var cu *Entry
+	if e.Tag == TagCompileUnit {
+		cu = e
+	} else {
+		i := d.offsetToUnit(e.Offset)
+		if i == -1 {
+			return nil, 0, errors.New("no unit for entry")
+		}
+		u := &d.unit[i]
+		b := makeBuf(d, u, "info", u.off, u.data)
+		cu = b.entry(nil, u.atable, u.base, u.vers)
+		if b.err != nil {
+			return nil, 0, b.err
+		}
+	}
+
+	if cuEntry, cuEntryOK := cu.Val(AttrEntrypc).(uint64); cuEntryOK {
+		return cu, cuEntry, nil
+	} else if cuLow, cuLowOK := cu.Val(AttrLowpc).(uint64); cuLowOK {
+		return cu, cuLow, nil
+	}
+
+	return cu, 0, nil
+}
+
+func (d *Data) dwarf2Ranges(u *unit, base uint64, ranges int64, ret [][2]uint64) ([][2]uint64, error) {
+	buf := makeBuf(d, u, "ranges", Offset(ranges), d.ranges[ranges:])
+	for len(buf.data) > 0 {
+		low := buf.addr()
+		high := buf.addr()
+
+		if low == 0 && high == 0 {
+			break
+		}
+
+		if low == ^uint64(0)>>uint((8-u.addrsize())*8) {
+			base = high
 		} else {
-			i := d.offsetToUnit(e.Offset)
-			if i == -1 {
-				return nil, errors.New("no unit for entry")
-			}
-			u := &d.unit[i]
-			b := makeBuf(d, u, "info", u.off, u.data)
-			cu = b.entry(nil, u.atable, u.base, u.vers)
-			if b.err != nil {
-				return nil, b.err
-			}
-		}
-
-		var base uint64
-		if cuEntry, cuEntryOK := cu.Val(AttrEntrypc).(uint64); cuEntryOK {
-			base = cuEntry
-		} else if cuLow, cuLowOK := cu.Val(AttrLowpc).(uint64); cuLowOK {
-			base = cuLow
-		}
-
-		u := &d.unit[d.offsetToUnit(e.Offset)]
-		buf := makeBuf(d, u, "ranges", Offset(ranges), d.ranges[ranges:])
-		for len(buf.data) > 0 {
-			low = buf.addr()
-			high = buf.addr()
-
-			if low == 0 && high == 0 {
-				break
-			}
-
-			if low == ^uint64(0)>>uint((8-u.addrsize())*8) {
-				base = high
-			} else {
-				ret = append(ret, [2]uint64{base + low, base + high})
-			}
+			ret = append(ret, [2]uint64{base + low, base + high})
 		}
 	}
 
 	return ret, nil
+}
+
+// dwarf5Ranges interpets a debug_rnglists sequence, see DWARFv5 section
+// 2.17.3 (page 53).
+func (d *Data) dwarf5Ranges(u *unit, cu *Entry, base uint64, ranges int64, ret [][2]uint64) ([][2]uint64, error) {
+	var addrBase int64
+	if cu != nil {
+		addrBase, _ = cu.Val(AttrAddrBase).(int64)
+	}
+
+	buf := makeBuf(d, u, "rnglists", 0, d.rngLists)
+	buf.skip(int(ranges))
+	for {
+		opcode := buf.uint8()
+		switch opcode {
+		case rleEndOfList:
+			if buf.err != nil {
+				return nil, buf.err
+			}
+			return ret, nil
+
+		case rleBaseAddressx:
+			baseIdx := buf.uint()
+			var err error
+			base, err = d.debugAddr(u, uint64(addrBase), baseIdx)
+			if err != nil {
+				return nil, err
+			}
+
+		case rleStartxEndx:
+			startIdx := buf.uint()
+			endIdx := buf.uint()
+
+			start, err := d.debugAddr(u, uint64(addrBase), startIdx)
+			if err != nil {
+				return nil, err
+			}
+			end, err := d.debugAddr(u, uint64(addrBase), endIdx)
+			if err != nil {
+				return nil, err
+			}
+			ret = append(ret, [2]uint64{start, end})
+
+		case rleStartxLength:
+			startIdx := buf.uint()
+			len := buf.uint()
+			start, err := d.debugAddr(u, uint64(addrBase), startIdx)
+			if err != nil {
+				return nil, err
+			}
+			ret = append(ret, [2]uint64{start, start + len})
+
+		case rleOffsetPair:
+			off1 := buf.uint()
+			off2 := buf.uint()
+			ret = append(ret, [2]uint64{base + off1, base + off2})
+
+		case rleBaseAddress:
+			base = buf.addr()
+
+		case rleStartEnd:
+			start := buf.addr()
+			end := buf.addr()
+			ret = append(ret, [2]uint64{start, end})
+
+		case rleStartLength:
+			start := buf.addr()
+			len := buf.uint()
+			ret = append(ret, [2]uint64{start, start + len})
+		}
+	}
+}
+
+// debugAddr returns the address at idx in debug_addr
+func (d *Data) debugAddr(format dataFormat, addrBase, idx uint64) (uint64, error) {
+	off := idx*uint64(format.addrsize()) + addrBase
+
+	if uint64(int(off)) != off {
+		return 0, errors.New("offset out of range")
+	}
+
+	b := makeBuf(d, format, "addr", 0, d.addr)
+	b.skip(int(off))
+	val := b.addr()
+	if b.err != nil {
+		return 0, b.err
+	}
+	return val, nil
 }

@@ -10,7 +10,6 @@
 package foo
 
 import (
-	"errors"
 	"runtime"
 	"unsafe"
 )
@@ -50,15 +49,24 @@ func j(x int) int { // ERROR "can inline j"
 	}
 }
 
-var somethingWrong error = errors.New("something went wrong")
+func _() int { // ERROR "can inline _"
+	tmp1 := h
+	tmp2 := tmp1
+	return tmp2(0) // ERROR "inlining call to h"
+}
+
+var somethingWrong error
 
 // local closures can be inlined
-func l(x, y int) (int, int, error) {
+func l(x, y int) (int, int, error) { // ERROR "can inline l"
 	e := func(err error) (int, int, error) { // ERROR "can inline l.func1" "func literal does not escape" "leaking param: err to result"
 		return 0, 0, err
 	}
 	if x == y {
 		e(somethingWrong) // ERROR "inlining call to l.func1"
+	} else {
+		f := e
+		f(nil) // ERROR "inlining call to l.func1"
 	}
 	return y, x, nil
 }
@@ -82,19 +90,19 @@ func n() int {
 // make sure assignment inside closure is detected
 func o() int {
 	foo := func() int { return 1 } // ERROR "can inline o.func1" "func literal does not escape"
-	func(x int) {                  // ERROR "func literal does not escape"
+	func(x int) {                  // ERROR "can inline o.func2"
 		if x > 10 {
-			foo = func() int { return 2 } // ERROR "can inline o.func2" "func literal escapes"
+			foo = func() int { return 2 } // ERROR "can inline o.func2"
 		}
-	}(11)
+	}(11) // ERROR "func literal does not escape" "inlining call to o.func2"
 	return foo()
 }
 
-func p() int {
+func p() int { // ERROR "can inline p"
 	return func() int { return 42 }() // ERROR "can inline p.func1" "inlining call to p.func1"
 }
 
-func q(x int) int {
+func q(x int) int { // ERROR "can inline q"
 	foo := func() int { return x * 2 } // ERROR "can inline q.func1" "func literal does not escape"
 	return foo()                       // ERROR "inlining call to q.func1"
 }
@@ -103,15 +111,15 @@ func r(z int) int {
 	foo := func(x int) int { // ERROR "can inline r.func1" "func literal does not escape"
 		return x + z
 	}
-	bar := func(x int) int { // ERROR "func literal does not escape"
-		return x + func(y int) int { // ERROR "can inline r.func2.1"
+	bar := func(x int) int { // ERROR "func literal does not escape" "can inline r.func2"
+		return x + func(y int) int { // ERROR "can inline r.func2.1" "can inline r.func3"
 			return 2*y + x*z
 		}(x) // ERROR "inlining call to r.func2.1"
 	}
-	return foo(42) + bar(42) // ERROR "inlining call to r.func1"
+	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "inlining call to r.func3"
 }
 
-func s0(x int) int {
+func s0(x int) int { // ERROR "can inline s0"
 	foo := func() { // ERROR "can inline s0.func1" "func literal does not escape"
 		x = x + 1
 	}
@@ -119,7 +127,7 @@ func s0(x int) int {
 	return x
 }
 
-func s1(x int) int {
+func s1(x int) int { // ERROR "can inline s1"
 	foo := func() int { // ERROR "can inline s1.func1" "func literal does not escape"
 		return x
 	}
@@ -144,8 +152,7 @@ func switchBreak(x, y int) int {
 	return n
 }
 
-// can't currently inline functions with a type switch
-func switchType(x interface{}) int { // ERROR "x does not escape"
+func switchType(x interface{}) int { // ERROR "can inline switchType" "x does not escape"
 	switch x.(type) {
 	case int:
 		return x.(int)
@@ -197,4 +204,61 @@ func gg(x int) { // ERROR "can inline gg"
 }
 func hh(x int) { // ERROR "can inline hh"
 	ff(x - 1) // ERROR "inlining call to ff"  // ERROR "inlining call to gg"
+}
+
+// Issue #14768 - make sure we can inline for loops.
+func for1(fn func() bool) { // ERROR "can inline for1" "fn does not escape"
+	for {
+		if fn() {
+			break
+		} else {
+			continue
+		}
+	}
+}
+
+// BAD: for2 should be inlineable too.
+func for2(fn func() bool) { // ERROR "fn does not escape"
+Loop:
+	for {
+		if fn() {
+			break Loop
+		} else {
+			continue Loop
+		}
+	}
+}
+
+// Issue #18493 - make sure we can do inlining of functions with a method value
+type T1 struct{}
+
+func (a T1) meth(val int) int { // ERROR "can inline T1.meth" "inlining call to T1.meth"
+	return val + 5
+}
+
+func getMeth(t1 T1) func(int) int { // ERROR "can inline getMeth"
+	return t1.meth // ERROR "t1.meth escapes to heap"
+}
+
+func ii() { // ERROR "can inline ii"
+	var t1 T1
+	f := getMeth(t1) // ERROR "inlining call to getMeth" "t1.meth does not escape"
+	_ = f(3)
+}
+
+// Issue #42194 - make sure that functions evaluated in
+// go and defer statements can be inlined.
+func gd1(int) {
+	defer gd1(gd2()) // ERROR "inlining call to gd2"
+	defer gd3()()    // ERROR "inlining call to gd3"
+	go gd1(gd2())    // ERROR "inlining call to gd2"
+	go gd3()()       // ERROR "inlining call to gd3"
+}
+
+func gd2() int { // ERROR "can inline gd2"
+	return 1
+}
+
+func gd3() func() { // ERROR "can inline gd3"
+	return ii
 }

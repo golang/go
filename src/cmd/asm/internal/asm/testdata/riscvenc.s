@@ -297,6 +297,13 @@ start:
 	MOVW	X5, (X6)				// 23205300
 	MOVW	X5, 4(X6)				// 23225300
 
+	MOVB	X5, X6					// 1393820313538343
+	MOVH	X5, X6					// 1393020313530343
+	MOVW	X5, X6					// 1b830200
+	MOVBU	X5, X6					// 13f3f20f
+	MOVHU	X5, X6					// 1393020313530303
+	MOVWU	X5, X6					// 1393020213530302
+
 	MOVF	4(X5), F0				// 07a04200
 	MOVF	F0, 4(X5)				// 27a20200
 	MOVF	F0, F1					// d3000020
@@ -318,7 +325,7 @@ start:
 	// These jumps can get printed as jumps to 2 because they go to the
 	// second instruction in the function (the first instruction is an
 	// invisible stack pointer adjustment).
-	JMP	start		// JMP	2		// 6ff01fc5
+	JMP	start		// JMP	2		// 6ff09fc2
 	JMP	(X5)					// 67800200
 	JMP	4(X5)					// 67804200
 
@@ -331,16 +338,16 @@ start:
 	JMP	asmtest(SB)				// 970f0000
 
 	// Branch pseudo-instructions
-	BEQZ	X5, start	// BEQZ	X5, 2		// e38a02c2
-	BGEZ	X5, start	// BGEZ	X5, 2		// e3d802c2
-	BGT	X5, X6, start	// BGT	X5, X6, 2	// e3c662c2
-	BGTU	X5, X6, start	// BGTU	X5, X6, 2	// e3e462c2
-	BGTZ	X5, start	// BGTZ	X5, 2		// e34250c2
-	BLE	X5, X6, start	// BLE	X5, X6, 2	// e3d062c2
-	BLEU	X5, X6, start	// BLEU	X5, X6, 2	// e3fe62c0
-	BLEZ	X5, start	// BLEZ	X5, 2		// e35c50c0
-	BLTZ	X5, start	// BLTZ	X5, 2		// e3ca02c0
-	BNEZ	X5, start	// BNEZ	X5, 2		// e39802c0
+	BEQZ	X5, start	// BEQZ	X5, 2		// e38602c0
+	BGEZ	X5, start	// BGEZ	X5, 2		// e3d402c0
+	BGT	X5, X6, start	// BGT	X5, X6, 2	// e34253c0
+	BGTU	X5, X6, start	// BGTU	X5, X6, 2	// e36053c0
+	BGTZ	X5, start	// BGTZ	X5, 2		// e34e50be
+	BLE	X5, X6, start	// BLE	X5, X6, 2	// e35c53be
+	BLEU	X5, X6, start	// BLEU	X5, X6, 2	// e37a53be
+	BLEZ	X5, start	// BLEZ	X5, 2		// e35850be
+	BLTZ	X5, start	// BLTZ	X5, 2		// e3c602be
+	BNEZ	X5, start	// BNEZ	X5, 2		// e39402be
 
 	// Set pseudo-instructions
 	SEQZ	X15, X15				// 93b71700

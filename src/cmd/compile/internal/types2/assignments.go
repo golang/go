@@ -1,3 +1,4 @@
+// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -19,7 +20,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	switch x.mode {
 	case invalid:
 		return // error reported before
-	case constant_, variable, mapindex, value, commaok, commaerr:
+	case constant_, variable, mapindex, value, nilvalue, commaok, commaerr:
 		// ok
 	default:
 		// we may get here because of other problems (issue #39634, crash 12)
@@ -34,12 +35,13 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		// bool, rune, int, float64, complex128 or string respectively, depending
 		// on whether the value is a boolean, rune, integer, floating-point, complex,
 		// or string constant."
-		if T == nil || IsInterface(T) {
-			if T == nil && x.typ == Typ[UntypedNil] {
+		if x.isNil() {
+			if T == nil {
 				check.errorf(x, "use of untyped nil in %s", context)
 				x.mode = invalid
 				return
 			}
+		} else if T == nil || IsInterface(T) {
 			target = Default(x.typ)
 		}
 		check.convertUntyped(x, target)
@@ -62,10 +64,14 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	}
 
 	if reason := ""; !x.assignableTo(check, T, &reason) {
-		if reason != "" {
-			check.errorf(x, "cannot use %s as %s value in %s: %s", x, T, context, reason)
+		if check.conf.CompilerErrorMessages {
+			check.errorf(x, "incompatible type: cannot use %s as %s value", x, T)
 		} else {
-			check.errorf(x, "cannot use %s as %s value in %s", x, T, context)
+			if reason != "" {
+				check.errorf(x, "cannot use %s as %s value in %s: %s", x, T, context, reason)
+			} else {
+				check.errorf(x, "cannot use %s as %s value in %s", x, T, context)
+			}
 		}
 		x.mode = invalid
 	}
@@ -107,6 +113,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
+		lhs.used = true // avoid follow-on "declared but not used" errors
 		return nil
 	}
 
@@ -186,12 +193,15 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
 		return nil
 	case variable, mapindex:
 		// ok
+	case nilvalue:
+		check.errorf(&z, "cannot assign to nil") // default would print "untyped nil"
+		return nil
 	default:
 		if sel, ok := z.expr.(*syntax.SelectorExpr); ok {
 			var op operand
 			check.expr(&op, sel.X)
 			if op.mode == mapindex {
-				check.errorf(&z, "cannot assign to struct field %s in map", ExprString(z.expr))
+				check.errorf(&z, "cannot assign to struct field %s in map", syntax.String(z.expr))
 				return nil
 			}
 		}

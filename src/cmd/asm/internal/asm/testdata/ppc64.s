@@ -2,1309 +2,719 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This input was created by taking the instruction productions in
-// the old assembler's (9a's) grammar and hand-writing complete
-// instructions for each rule, to guarantee we cover the same space.
+// This contains the majority of valid opcode combinations
+// available in cmd/internal/obj/ppc64/asm9.go with
+// their valid instruction encodings.
 
 #include "../../../../../runtime/textflag.h"
 
-TEXT foo(SB),DUPOK|NOSPLIT,$0
+TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+	// move constants
+	MOVD $1, R3                     // 38600001
+	MOVD $-1, R4                    // 3880ffff
+	MOVD $65535, R5                 // 6005ffff
+	MOVD $65536, R6                 // 64060001
+	MOVD $-32767, R5                // 38a08001
+	MOVD $-32768, R6                // 38c08000
+	MOVD $1234567, R5               // 6405001260a5d687
+	MOVW $1, R3                     // 38600001
+	MOVW $-1, R4                    // 3880ffff
+	MOVW $65535, R5                 // 6005ffff
+	MOVW $65536, R6                 // 64060001
+	MOVW $-32767, R5                // 38a08001
+	MOVW $-32768, R6                // 38c08000
+	MOVW $1234567, R5               // 6405001260a5d687
+	MOVD 8(R3), R4			// e8830008
+	MOVD (R3)(R4), R5               // 7ca4182a
+	MOVW 4(R3), R4                  // e8830006
+	MOVW (R3)(R4), R5               // 7ca41aaa
+	MOVWZ 4(R3), R4                 // 80830004
+	MOVWZ (R3)(R4), R5              // 7ca4182e
+	MOVH 4(R3), R4                  // a8830004
+	MOVH (R3)(R4), R5               // 7ca41aae
+	MOVHZ 2(R3), R4                 // a0830002
+	MOVHZ (R3)(R4), R5              // 7ca41a2e
+	MOVB 1(R3), R4                  // 888300017c840774
+	MOVB (R3)(R4), R5               // 7ca418ae7ca50774
+	MOVBZ 1(R3), R4                 // 88830001
+	MOVBZ (R3)(R4), R5              // 7ca418ae
+	MOVDBR (R3)(R4), R5             // 7ca41c28
+	MOVWBR (R3)(R4), R5             // 7ca41c2c
+	MOVHBR (R3)(R4), R5             // 7ca41e2c
+
+	MOVDU 8(R3), R4                 // e8830009
+	MOVDU (R3)(R4), R5              // 7ca4186a
+	MOVWU (R3)(R4), R5              // 7ca41aea
+	MOVWZU 4(R3), R4                // 84830004
+	MOVWZU (R3)(R4), R5             // 7ca4186e
+	MOVHU 2(R3), R4                 // ac830002
+	MOVHU (R3)(R4), R5              // 7ca41aee
+	MOVHZU 2(R3), R4                // a4830002
+	MOVHZU (R3)(R4), R5             // 7ca41a6e
+	MOVBU 1(R3), R4                 // 8c8300017c840774
+	MOVBU (R3)(R4), R5              // 7ca418ee7ca50774
+	MOVBZU 1(R3), R4                // 8c830001
+	MOVBZU (R3)(R4), R5             // 7ca418ee
+
+	MOVD R4, 8(R3)                  // f8830008
+	MOVD R5, (R3)(R4)               // 7ca4192a
+	MOVW R4, 4(R3)                  // 90830004
+	MOVW R5, (R3)(R4)               // 7ca4192e
+	MOVH R4, 2(R3)                  // b0830002
+	MOVH R5, (R3)(R4)               // 7ca41b2e
+	MOVB R4, 1(R3)                  // 98830001
+	MOVB R5, (R3)(R4)               // 7ca419ae
+	MOVDBR R5, (R3)(R4)             // 7ca41d28
+	MOVWBR R5, (R3)(R4)             // 7ca41d2c
+	MOVHBR R5, (R3)(R4)             // 7ca41f2c
+
+	MOVDU R4, 8(R3)                 // f8830009
+	MOVDU R5, (R3)(R4)              // 7ca4196a
+	MOVWU R4, 4(R3)                 // 94830004
+	MOVWU R5, (R3)(R4)              // 7ca4196e
+	MOVHU R4, 2(R3)                 // b4830002
+	MOVHU R5, (R3)(R4)              // 7ca41b6e
+	MOVBU R4, 1(R3)                 // 9c830001
+	MOVBU R5, (R3)(R4)              // 7ca419ee
+
+	ADD $1, R3                      // 38630001
+	ADD $1, R3, R4                  // 38830001
+	ADD $-1, R4                     // 3884ffff
+	ADD $-1, R4, R5                 // 38a4ffff
+	ADD $65535, R5                  // 601fffff7cbf2a14
+	ADD $65535, R5, R6              // 601fffff7cdf2a14
+	ADD $65536, R6                  // 3cc60001
+	ADD $65536, R6, R7              // 3ce60001
+	ADD $-32767, R5                 // 38a58001
+	ADD $-32767, R5, R4             // 38858001
+	ADD $-32768, R6                 // 38c68000
+	ADD $-32768, R6, R5             // 38a68000
+	ADD $1234567, R5                // 641f001263ffd6877cbf2a14
+	ADD $1234567, R5, R6            // 641f001263ffd6877cdf2a14
+	ADDEX R3, R5, $3, R6            // 7cc32f54
+	ADDIS $8, R3                    // 3c630008
+	ADDIS $1000, R3, R4             // 3c8303e8
+
+	ANDCC $1, R3                    // 70630001
+	ANDCC $1, R3, R4                // 70640001
+	ANDCC $-1, R4                   // 3be0ffff7fe42039
+	ANDCC $-1, R4, R5               // 3be0ffff7fe52039
+	ANDCC $65535, R5                // 70a5ffff
+	ANDCC $65535, R5, R6            // 70a6ffff
+	ANDCC $65536, R6                // 74c60001
+	ANDCC $65536, R6, R7            // 74c70001
+	ANDCC $-32767, R5               // 3be080017fe52839
+	ANDCC $-32767, R5, R4           // 3be080017fe42839
+	ANDCC $-32768, R6               // 3be080007fe63039
+	ANDCC $-32768, R5, R6           // 3be080007fe62839
+	ANDCC $1234567, R5              // 641f001263ffd6877fe52839
+	ANDCC $1234567, R5, R6          // 641f001263ffd6877fe62839
+	ANDISCC $1, R3                  // 74630001
+	ANDISCC $1000, R3, R4           // 746403e8
+
+	OR $1, R3                       // 60630001
+	OR $1, R3, R4                   // 60640001
+	OR $-1, R4                      // 3be0ffff7fe42378
+	OR $-1, R4, R5                  // 3be0ffff7fe52378
+	OR $65535, R5                   // 60a5ffff
+	OR $65535, R5, R6               // 60a6ffff
+	OR $65536, R6                   // 64c60001
+	OR $65536, R6, R7               // 64c70001
+	OR $-32767, R5                  // 3be080017fe52b78
+	OR $-32767, R5, R6              // 3be080017fe62b78
+	OR $-32768, R6                  // 3be080007fe63378
+	OR $-32768, R6, R7              // 3be080007fe73378
+	OR $1234567, R5                 // 641f001263ffd6877fe52b78
+	OR $1234567, R5, R3             // 641f001263ffd6877fe32b78
+	ORIS $255, R3, R4
+
+	XOR $1, R3                      // 68630001
+	XOR $1, R3, R4                  // 68640001
+	XOR $-1, R4                     // 3be0ffff7fe42278
+	XOR $-1, R4, R5                 // 3be0ffff7fe52278
+	XOR $65535, R5                  // 68a5ffff
+	XOR $65535, R5, R6              // 68a6ffff
+	XOR $65536, R6                  // 6cc60001
+	XOR $65536, R6, R7              // 6cc70001
+	XOR $-32767, R5                 // 3be080017fe52a78
+	XOR $-32767, R5, R6             // 3be080017fe62a78
+	XOR $-32768, R6                 // 3be080007fe63278
+	XOR $-32768, R6, R7             // 3be080007fe73278
+	XOR $1234567, R5                // 641f001263ffd6877fe52a78
+	XOR $1234567, R5, R3            // 641f001263ffd6877fe32a78
+	XORIS $15, R3, R4
+
+	// TODO: the order of CR operands don't match
+	CMP R3, R4                      // 7c232000
+	CMPU R3, R4                     // 7c232040
+	CMPW R3, R4                     // 7c032000
+	CMPWU R3, R4                    // 7c032040
+	CMPB R3,R4,R4                   // 7c6423f8
+	CMPEQB R3,R4,CR6                // 7f0321c0
+
+	// TODO: constants for ADDC?
+	ADD R3, R4                      // 7c841a14
+	ADD R3, R4, R5                  // 7ca41a14
+	ADDC R3, R4                     // 7c841814
+	ADDC R3, R4, R5                 // 7ca41814
+	ADDE R3, R4                     // 7c841914
+	ADDECC R3, R4                   // 7c841915
+	ADDEV R3, R4                    // 7c841d14
+	ADDEVCC R3, R4                  // 7c841d15
+	ADDV R3, R4                     // 7c841e14
+	ADDVCC R3, R4                   // 7c841e15
+	ADDCCC R3, R4, R5               // 7ca41815
+	ADDME R3, R4                    // 7c8301d4
+	ADDMECC R3, R4                  // 7c8301d5
+	ADDMEV R3, R4                   // 7c8305d4
+	ADDMEVCC R3, R4                 // 7c8305d5
+	ADDCV R3, R4                    // 7c841c14
+	ADDCVCC R3, R4                  // 7c841c15
+	ADDZE R3, R4                    // 7c830194
+	ADDZECC R3, R4                  // 7c830195
+	ADDZEV R3, R4                   // 7c830594
+	ADDZEVCC R3, R4                 // 7c830595
+	SUBME R3, R4                    // 7c8301d0
+	SUBMECC R3, R4                  // 7c8301d1
+	SUBMEV R3, R4                   // 7c8305d0
+	SUBZE R3, R4                    // 7c830190
+	SUBZECC R3, R4                  // 7c830191
+	SUBZEV R3, R4                   // 7c830590
+	SUBZEVCC R3, R4                 // 7c830591
+
+	AND R3, R4                      // 7c841838
+	AND R3, R4, R5                  // 7c851838
+	ANDN R3, R4, R5                 // 7c851878
+	ANDCC R3, R4, R5                // 7c851839
+	OR R3, R4                       // 7c841b78
+	OR R3, R4, R5                   // 7c851b78
+	ORN R3, R4, R5                  // 7c851b38
+	ORCC R3, R4, R5                 // 7c851b79
+	XOR R3, R4                      // 7c841a78
+	XOR R3, R4, R5                  // 7c851a78
+	XORCC R3, R4, R5                // 7c851a79
+	NAND R3, R4, R5                 // 7c851bb8
+	NANDCC R3, R4, R5               // 7c851bb9
+	EQV R3, R4, R5                  // 7c851a38
+	EQVCC R3, R4, R5                // 7c851a39
+	NOR R3, R4, R5                  // 7c8518f8
+	NORCC R3, R4, R5                // 7c8518f9
+
+	SUB R3, R4                      // 7c832050
+	SUB R3, R4, R5                  // 7ca32050
+	SUBC R3, R4                     // 7c832010
+	SUBC R3, R4, R5                 // 7ca32010
+
+	MULLW R3, R4                    // 7c8419d6
+	MULLW R3, R4, R5                // 7ca419d6
+	MULLW $10, R3                   // 1c63000a
+	MULLW $10000000, R3             // 641f009863ff96807c7f19d6
+
+	MULLWCC R3, R4, R5              // 7ca419d7
+	MULHW R3, R4, R5                // 7ca41896
+
+	MULHWU R3, R4, R5               // 7ca41816
+	MULLD R3, R4                    // 7c8419d2
+	MULLD R4, R4, R5                // 7ca421d2
+	MULLD $20, R4                   // 1c840014
+	MULLD $200000000, R4            // 641f0beb63ffc2007c9f21d2
+
+	MULLDCC R3, R4, R5              // 7ca419d3
+	MULHD R3, R4, R5                // 7ca41892
+	MULHDCC R3, R4, R5              // 7ca41893
+
+	MULLWV R3, R4                   // 7c841dd6
+	MULLWV R3, R4, R5               // 7ca41dd6
+	MULLWVCC R3, R4, R5             // 7ca41dd7
+	MULHWUCC R3, R4, R5             // 7ca41817
+	MULLDV R3, R4, R5               // 7ca41dd2
+	MULLDVCC R3, R4, R5             // 7ca41dd3
+
+	DIVD R3,R4                      // 7c841bd2
+	DIVD R3, R4, R5                 // 7ca41bd2
+	DIVDCC R3,R4, R5                // 7ca41bd3
+	DIVDU R3, R4, R5                // 7ca41b92
+	DIVDV R3, R4, R5                // 7ca41fd2
+	DIVDUCC R3, R4, R5              // 7ca41b93
+	DIVDVCC R3, R4, R5              // 7ca41fd3
+	DIVDUV R3, R4, R5               // 7ca41f92
+	DIVDUVCC R3, R4, R5             // 7ca41f93
+	DIVDE R3, R4, R5                // 7ca41b52
+	DIVDECC R3, R4, R5              // 7ca41b53
+	DIVDEU R3, R4, R5               // 7ca41b12
+	DIVDEUCC R3, R4, R5             // 7ca41b13
+
+	REM R3, R4, R5                  // 7fe41bd67fff19d67cbf2050
+	REMU R3, R4, R5                 // 7fe41b967fff19d67bff00287cbf2050
+	REMD R3, R4, R5                 // 7fe41bd27fff19d27cbf2050
+	REMDU R3, R4, R5                // 7fe41b927fff19d27cbf2050
+
+	MADDHD R3,R4,R5,R6              // 10c32170
+	MADDHDU R3,R4,R5,R6             // 10c32171
+
+	MODUD R3, R4, R5                // 7ca41a12
+	MODUW R3, R4, R5                // 7ca41a16
+	MODSD R3, R4, R5                // 7ca41e12
+	MODSW R3, R4, R5                // 7ca41e16
+
+	SLW $8, R3, R4                  // 5464402e
+	SLW R3, R4, R5                  // 7c851830
+	SLWCC R3, R4                    // 7c841831
+	SLD $16, R3, R4                 // 786483e4
+	SLD R3, R4, R5                  // 7c851836
+	SLDCC R3, R4                    // 7c841837
+
+	SRW $8, R3, R4                  // 5464c23e
+	SRW R3, R4, R5                  // 7c851c30
+	SRWCC R3, R4                    // 7c841c31
+	SRAW $8, R3, R4                 // 7c644670
+	SRAW R3, R4, R5                 // 7c851e30
+	SRAWCC R3, R4                   // 7c841e31
+	SRD $16, R3, R4                 // 78648402
+	SRD R3, R4, R5                  // 7c851c36
+	SRDCC R3, R4                    // 7c841c37
+	SRAD $16, R3, R4                // 7c648674
+	SRAD R3, R4, R5                 // 7c851e34
+	SRDCC R3, R4                    // 7c841c37
+	ROTLW $16, R3, R4               // 5464803e
+	ROTLW R3, R4, R5                // 5c85183e
+	EXTSWSLI $3, R4, R5             // 7c851ef4
+	RLWMI $7, R3, $65535, R6        // 50663c3e
+	RLWMICC $7, R3, $65535, R6      // 50663c3f
+	RLWNM $3, R4, $7, R6            // 54861f7e
+	RLWNM R3, R4, $7, R6            // 5c861f7e
+	RLWNMCC $3, R4, $7, R6          // 54861f7f
+	RLWNMCC R3, R4, $7, R6          // 5c861f7f
+	RLDMI $0, R4, $7, R6            // 7886076c
+	RLDMICC $0, R4, $7, R6          // 7886076d
+	RLDIMI $0, R4, $7, R6           // 788601cc
+	RLDIMICC $0, R4, $7, R6         // 788601cd
+	RLDC $0, R4, $15, R6            // 78860728
+	RLDCCC $0, R4, $15, R6          // 78860729
+	RLDCL $0, R4, $7, R6            // 78860770
+	RLDCLCC $0, R4, $15, R6         // 78860721
+	RLDCR $0, R4, $-16, R6          // 788606f2
+	RLDCRCC $0, R4, $-16, R6        // 788606f3
+	RLDICL $0, R4, $15, R6          // 788603c0
+	RLDICLCC $0, R4, $15, R6        // 788603c1
+	RLDICR $0, R4, $15, R6          // 788603c4
+	RLDICRCC $0, R4, $15, R6        // 788603c5
+	RLDIC $0, R4, $15, R6           // 788603c8
+	RLDICCC $0, R4, $15, R6         // 788603c9
+	CLRLSLWI $16, R5, $8, R4        // 54a4422e
+	CLRLSLDI $24, R4, $2, R3        // 78831588
+
+	BEQ 0(PC)                       // 41820000
+	BEQ CR1,0(PC)                   // 41860000
+	BGE 0(PC)                       // 40800000
+	BGE CR2,0(PC)                   // 40880000
+	BGT 4(PC)                       // 41810010
+	BGT CR3,4(PC)                   // 418d0010
+	BLE 0(PC)                       // 40810000
+	BLE CR4,0(PC)                   // 40910000
+	BLT 0(PC)                       // 41800000
+	BLT CR5,0(PC)                   // 41940000
+	BNE 0(PC)                       // 40820000
+	BLT CR6,0(PC)                   // 41980000
+	JMP 8(PC)                       // 48000010
 
-//inst:
-//
-// load ints and bytes
-//
-//	LMOVW rreg ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVW	R1, R2
-
-//	LMOVW addr ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVW	foo<>+4(SB), R2
-	MOVW	16(R1), R2
-
-//	LMOVW regaddr ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVW	(R1), R2
-	MOVW	(R1+R2), R3 // MOVW (R1)(R2*1), R3
-
-//	LMOVB rreg ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVW	R1, R2
-
-//	LMOVB addr ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVB	foo<>+3(SB), R2
-	MOVB	16(R1), R2
-
-//	LMOVB regaddr ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVB	(R1), R2
-	MOVB	(R1+R2), R3 // MOVB (R1)(R2*1), R3
-
-//
-// load floats
-//
-//	LFMOV addr ',' freg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	FMOVD	foo<>+4(SB), F2
-	FMOVD	16(R1), F2
-
-//	LFMOV regaddr ',' freg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	FMOVD	(R1), F2
-
-//	LFMOV fimm ',' freg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	FMOVD	$0.1, F2 // FMOVD $(0.10000000000000001), F2
-
-//	LFMOV freg ',' freg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	FMOVD	F1, F2
-
-//	LFMOV freg ',' addr
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	FMOVD	F2, foo<>+4(SB)
-	FMOVD	F2, 16(R1)
-
-//	LFMOV freg ',' regaddr
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	FMOVD	F2, (R1)
-
-//
-// store ints and bytes
-//
-//	LMOVW rreg ',' addr
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVW	R1, foo<>+3(SB)
-	MOVW	R1, 16(R2)
-
-//	LMOVW rreg ',' regaddr
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVW	R1, (R1)
-	MOVW	R1, (R2+R3) // MOVW R1, (R2)(R3*1)
-
-//	LMOVB rreg ',' addr
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVB	R1, foo<>+3(SB)
-	MOVB	R1, 16(R2)
-
-//	LMOVB rreg ',' regaddr
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVB	R1, (R1)
-	MOVB	R1, (R2+R3) // MOVB R1, (R2)(R3*1)
-//
-// store floats
-//
-//	LMOVW freg ',' addr
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	FMOVD	F1, foo<>+4(SB)
-	FMOVD	F1, 16(R2)
-
-//	LMOVW freg ',' regaddr
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	FMOVD	F1, (R1)
-
-//
-// floating point status
-//
-//	LMOVW fpscr ',' freg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVFL	FPSCR, F1
-
-//	LMOVW freg ','  fpscr
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVFL	F1, FPSCR
-
-//	LMOVW freg ',' imm ',' fpscr
-//	{
-//		outgcode(int($1), &$2, 0, &$4, &$6);
-//	}
-	MOVFL	F1, $4, FPSCR
-
-//	LMOVW fpscr ',' creg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVFL	FPSCR, CR0
-
-//	LMTFSB imm ',' con
-//	{
-//		outcode(int($1), &$2, int($4), &nullgen);
-//	}
-//TODO	9a doesn't work MTFSB0	$4, 4
-
-//
-// field moves (mtcrf)
-//
-//	LMOVW rreg ',' imm ',' lcr
-//	{
-//		outgcode(int($1), &$2, 0, &$4, &$6);
-//	}
-// TODO 9a doesn't work	MOVFL	R1,$4,CR
-
-//	LMOVW rreg ',' creg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-		MOVW	R1, CR1
-
-//	LMOVW rreg ',' lcr
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVW	R1, CR
-
-//
-// integer operations
-// logical instructions
-// shift instructions
-// unary instructions
-//
-//	LADDW rreg ',' sreg ',' rreg
-//	{
-//		outcode(int($1), &$2, int($4), &$6);
-//	}
-	ADD	R1, R2, R3
-
-//	LADDW imm ',' sreg ',' rreg
-//	{
-//		outcode(int($1), &$2, int($4), &$6);
-//	}
-	ADD	$1, R2, R3
-
-//	LADDW rreg ',' imm ',' rreg
-//	{
-//		outgcode(int($1), &$2, 0, &$4, &$6);
-//	}
-//TODO 9a trouble	ADD	R1, $2, R3 maybe swap rreg and imm
-
-//	LADDW rreg ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	ADD	R1, R2
-
-//	LADDW imm ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	ADD	$4, R1
-
-//	LLOGW rreg ',' sreg ',' rreg
-//	{
-//		outcode(int($1), &$2, int($4), &$6);
-//	}
-	ADDE	R1, R2, R3
-
-//	LLOGW rreg ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	ADDE	R1, R2
-
-//	LSHW rreg ',' sreg ',' rreg
-//	{
-//		outcode(int($1), &$2, int($4), &$6);
-//	}
-	SLW	R1, R2, R3
-
-//	LSHW rreg ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	SLW	R1, R2
-
-//	LSHW imm ',' sreg ',' rreg
-//	{
-//		outcode(int($1), &$2, int($4), &$6);
-//	}
-	SLW	$4, R1, R2
-
-//	LSHW imm ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	SLW	$4, R1
-
-//	LABS rreg ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	SLW	$4, R1
-
-//	LABS rreg
-//	{
-//		outcode(int($1), &$2, 0, &$2);
-//	}
-	SUBME	R1 // SUBME R1, R1
-
-//
-// multiply-accumulate
-//
-//	LMA rreg ',' sreg ',' rreg
-//	{
-//		outcode(int($1), &$2, int($4), &$6);
-//	}
-//TODO this instruction is undefined in lex.go	LMA R1, R2, R3 NOT SUPPORTED (called MAC)
-
-//
-// move immediate: macro for cau+or, addi, addis, and other combinations
-//
-//	LMOVW imm ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVW	$1, R1
-
-//	LMOVW ximm ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVW	$1, R1
-	MOVW	$foo(SB), R1
-
-// condition register operations
-//
-//	LCROP cbit ',' cbit
-//	{
-//		outcode(int($1), &$2, int($4.Reg), &$4);
-//	}
-//TODO 9a trouble	CREQV	1, 2 delete? liblink encodes like a divide (maybe wrong too)
-
-//	LCROP cbit ',' con ',' cbit
-//	{
-//		outcode(int($1), &$2, int($4), &$6);
-//	}
-//TODO 9a trouble	CREQV	1, 2, 3
-
-//
-// condition register moves
-// move from machine state register
-//
-//	LMOVW creg ',' creg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVFL	CR0, CR1
-
-//	LMOVW psr ',' creg // TODO: should psr should be fpscr
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-//TODO 9a trouble	MOVW	FPSCR, CR1
-
-//	LMOVW lcr ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVW	CR, R1
-
-//	LMOVW psr ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVW	SPR(0), R1
-	MOVW	SPR(7), R1
-
-//	LMOVW xlreg ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVW	LR, R1
-	MOVW	CTR, R1
-
-//	LMOVW rreg ',' xlreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVW	R1, LR
-	MOVW	R1, CTR
-
-//	LMOVW creg ',' psr // TODO doesn't exist
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-//TODO 9a trouble	MOVW	CR1, SPR(7)
-
-//	LMOVW rreg ',' psr
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVW	R1, SPR(7)
-
-//
-// branch, branch conditional
-// branch conditional register
-// branch conditional to count register
-//
-//	LBRA rel
-//	{
-//		outcode(int($1), &nullgen, 0, &$2);
-//	}
-	BEQ	CR1, 2(PC)
-label0:
-	BR	1(PC) // JMP 1(PC)
-	BEQ	CR1, 2(PC)
-	BR	label0+0 // JMP 62
-
-//	LBRA addr
-//	{
-//		outcode(int($1), &nullgen, 0, &$2);
-//	}
-	BEQ	CR1, 2(PC)
-	BR	LR // JMP LR
-	BEQ	CR1, 2(PC)
-//	BR	0(R1)	// TODO should work
-	BEQ	CR1, 2(PC)
-	BR	foo+0(SB) // JMP foo(SB)
-
-//	LBRA '(' xlreg ')'
-//	{
-//		outcode(int($1), &nullgen, 0, &$3);
-//	}
-	BEQ	CR1, 2(PC)
-	BR	(CTR) // JMP CTR
-
-//	LBRA ',' rel  // asm doesn't support the leading comma
-//	{
-//		outcode(int($1), &nullgen, 0, &$3);
-//	}
-//	LBRA ',' addr  // asm doesn't support the leading comma
-//	{
-//		outcode(int($1), &nullgen, 0, &$3);
-//	}
-//	LBRA ',' '(' xlreg ')'  // asm doesn't support the leading comma
-//	{
-//		outcode(int($1), &nullgen, 0, &$4);
-//	}
-//	LBRA creg ',' rel
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-label1:
-	BEQ	CR1, 1(PC)
-	BEQ	CR1, label1 // BEQ CR1, 72
-
-//	LBRA creg ',' addr // TODO DOES NOT WORK in 9a
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-
-//	LBRA creg ',' '(' xlreg ')' // TODO DOES NOT WORK in 9a
-//	{
-//		outcode(int($1), &$2, 0, &$5);
-//	}
-
-//	LBRA con ',' rel // TODO DOES NOT WORK in 9a
-//	{
-//		outcode(int($1), &nullgen, int($2), &$4);
-//	}
-
-//	LBRA con ',' addr // TODO DOES NOT WORK in 9a
-//	{
-//		outcode(int($1), &nullgen, int($2), &$4);
-//	}
-
-//	LBRA con ',' '(' xlreg ')'
-//	{
-//		outcode(int($1), &nullgen, int($2), &$5);
-//	}
-//	BC	4, (CTR)	// TODO - should work
-
-//	LBRA con ',' con ',' rel
-//	{
-//		var g obj.Addr
-//		g = nullgen;
-//		g.Type = obj.TYPE_CONST;
-//		g.Offset = $2;
-//		outcode(int($1), &g, int(REG_R0+$4), &$6);
-//	}
-//	BC	3, 4, label1 // TODO - should work
-
-//	LBRA con ',' con ',' addr // TODO mystery
-//	{
-//		var g obj.Addr
-//		g = nullgen;
-//		g.Type = obj.TYPE_CONST;
-//		g.Offset = $2;
-//		outcode(int($1), &g, int(REG_R0+$4), &$6);
-//	}
-//TODO 9a trouble	BC	3, 3, 4(R1)
-
-//	LBRA con ',' con ',' '(' xlreg ')'
-//	{
-//		var g obj.Addr
-//		g = nullgen;
-//		g.Type = obj.TYPE_CONST;
-//		g.Offset = $2;
-//		outcode(int($1), &g, int(REG_R0+$4), &$7);
-//	}
-	BC	3, 3, (LR) // BC $3, R3, LR
-
-//
-// conditional trap // TODO NOT DEFINED
-// TODO these instructions are not in lex.go
-//
-//	LTRAP rreg ',' sreg
-//	{
-//		outcode(int($1), &$2, int($4), &nullgen);
-//	}
-//	LTRAP imm ',' sreg
-//	{
-//		outcode(int($1), &$2, int($4), &nullgen);
-//	}
-//	LTRAP rreg comma
-//	{
-//		outcode(int($1), &$2, 0, &nullgen);
-//	}
-//	LTRAP comma
-//	{
-//		outcode(int($1), &nullgen, 0, &nullgen);
-//	}
-
-//
-// floating point operate
-//
-//	LFCONV freg ',' freg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	FABS	F1, F2
-
-//	LFADD freg ',' freg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	FADD	F1, F2
-
-//	LFADD freg ',' freg ',' freg
-//	{
-//		outcode(int($1), &$2, int($4.Reg), &$6);
-//	}
-	FADD	F1, F2, F3
-
-//	LFMA freg ',' freg ',' freg ',' freg
-//	{
-//		outgcode(int($1), &$2, int($4.Reg), &$6, &$8);
-//	}
-	FMADD	F1, F2, F3, F4
-
-//	LFCMP freg ',' freg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	FCMPU	F1, F2
-
-//	LFCMP freg ',' freg ',' creg
-//	{
-//		outcode(int($1), &$2, int($6.Reg), &$4);
-//	}
-//	FCMPU	F1, F2, CR0
-
-//	FTDIV FRA, FRB, BF produces
-//	ftdiv BF, FRA, FRB
-	FTDIV F1,F2,$7
-
-//	FTSQRT	FRB, BF produces
-//	ftsqrt	BF, FRB
-	FTSQRT	F2,$7
-
-//	FCFID
-//	FCFIDS
-
-	FCFID	F2,F3
-	FCFIDCC	F3,F3
-	FCFIDS	F2,F3
-	FCFIDSCC F2,F3
-
-//
-// CMP
-//
-//	LCMP rreg ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	CMP	R1, R2
-
-//	LCMP rreg ',' imm
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	CMP	R1, $4
-
-//	LCMP rreg ',' rreg ',' creg
-//	{
-//		outcode(int($1), &$2, int($6.Reg), &$4);
-//	}
-	CMP	R1, R2, CR0 // CMP R1, CR0, R2
-
-//	LCMP rreg ',' imm ',' creg
-//	{
-//		outcode(int($1), &$2, int($6.Reg), &$4);
-//	}
-	CMP	R1, $4, CR0 // CMP R1, CR0, $4
-
-//	CMPB  RS,RB,RA produces
-//	cmpb  RA,RS,RB
-	CMPB  R2,R2,R1
-
-//	CMPEQB	RA,RB,BF produces
-//	cmpeqb	BF,RA,RB
-	CMPEQB	R1, R2, CR0
-
-//
-// rotate extended mnemonics map onto other shift instructions
-//
-
-	ROTL	$12,R2,R3
-	ROTL	R2,R3,R4
-	ROTLW	$9,R2,R3
-	ROTLW	R2,R3,R4
-
-//
-// rotate and mask
-//
-//	LRLWM  imm ',' rreg ',' imm ',' rreg
-//	{
-//		outgcode(int($1), &$2, int($4.Reg), &$6, &$8);
-//	}
-	RLDC $4, R1, $16, R2
-
-//	LRLWM  imm ',' rreg ',' mask ',' rreg
-//	{
-//		outgcode(int($1), &$2, int($4.Reg), &$6, &$8);
-//	}
-	RLDC $26, R1, 4, 5, R2 // RLDC $26, R1, $201326592, R2
-
-//	LRLWM  rreg ',' rreg ',' imm ',' rreg
-//	{
-//		outgcode(int($1), &$2, int($4.Reg), &$6, &$8);
-//	}
-	RLDCL	R1, R2, $7, R3
-
-//	LRLWM  rreg ',' rreg ',' mask ',' rreg
-//	{
-//		outgcode(int($1), &$2, int($4.Reg), &$6, &$8);
-//	}
-	RLWMI	R1, R2, 4, 5, R3 // RLWMI	R1, R2, $201326592, R3
-
-
-// opcodes added with constant shift counts, not masks
-
-	RLDICR	$3, R2, $24, R4
-
-	RLDICL	$1, R2, $61, R6
-
-	RLDIMI  $7, R2, $52, R7
-
-// opcodes for right and left shifts, const and reg shift counts
-
-	SLD	$4, R3, R4
-	SLD	R2, R3, R4
-	SLW	$4, R3, R4
-	SLW	R2, R3, R4
-	SRD	$8, R3, R4
-	SRD	R2, R3, R4
-	SRW	$8, R3, R4
-	SRW	R2, R3, R4
-
-//
-// load/store multiple
-//
-//	LMOVMW addr ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-//	MOVMW	foo+0(SB), R2 // TODO TLS broke this!
-	MOVMW	4(R1), R2
-
-//	LMOVMW rreg ',' addr
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-//	MOVMW	R1, foo+0(SB) // TODO TLS broke this!
-	MOVMW	R1, 4(R2)
-
-//
-// various indexed load/store
-// indexed unary (eg, cache clear)
-//
-//	LXLD regaddr ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	LSW	(R1), R2
-	LSW	(R1+R2), R3 // LSW	(R1)(R2*1), R3
-
-//	LXLD regaddr ',' imm ',' rreg
-//	{
-//		outgcode(int($1), &$2, 0, &$4, &$6);
-//	}
-	LSW	(R1), $1, R2
-	LSW	(R1+R2), $1, R3 // LSW	(R1)(R2*1), $1, R3
-
-//	LXST rreg ',' regaddr
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	STSW	R1, (R2)
-	STSW	R1, (R2+R3) // STSW	R1, (R2)(R3*1)
-
-//	LXST rreg ',' imm ',' regaddr
-//	{
-//		outgcode(int($1), &$2, 0, &$4, &$6);
-//	}
-	STSW	R1, $1, (R2)
-	STSW	R1, $1, (R2+R3) // STSW	R1, $1, (R2)(R3*1)
-
-//	LXMV regaddr ',' rreg
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVHBR	(R1), R2
-	MOVHBR	(R1+R2), R3 // MOVHBR	(R1)(R2*1), R3
-
-//	LXMV rreg ',' regaddr
-//	{
-//		outcode(int($1), &$2, 0, &$4);
-//	}
-	MOVHBR	R1, (R2)
-	MOVHBR	R1, (R2+R3) // MOVHBR	R1, (R2)(R3*1)
-
-//	LXOP regaddr
-//	{
-//		outcode(int($1), &$2, 0, &nullgen);
-//	}
-	DCBF	(R1)
-	DCBF	(R1+R2) // DCBF	(R1)(R2*1)
-	DCBF	(R1), $1
-	DCBF	(R1)(R2*1), $1
-	DCBT	(R1), $1
-	DCBT	(R1)(R2*1), $1
-
-//	LDMX  (RB)(RA*1),RT produces
-//	ldmx  RT,RA,RB
-	LDMX  (R2)(R1*1), R3
-
-//	Population count, X-form
-//	<MNEMONIC> RS,RA produces
-//	<mnemonic> RA,RS
-	POPCNTD	R1,R2
-	POPCNTW	R1,R2
-	POPCNTB R1,R2
-
-//	Copysign
-	FCPSGN F1,F2,F3
-
-//	Random number generator, X-form
-//	DARN  L,RT produces
-//	darn  RT,L
-	DARN $1, R1
-
-//	Copy/Paste facility
-//	<MNEMONIC> RB,RA produces
-//	<mnemonic> RA,RB
-	COPY R2,R1
-	PASTECC R2,R1
-
-//	Modulo signed/unsigned double/word X-form
-//	<MNEMONIC> RA,RB,RT produces
-//	<mnemonic> RT,RA,RB
-	MODUD R3,R4,R5
-	MODUW R3,R4,R5
-	MODSD R3,R4,R5
-	MODSW R3,R4,R5
-
-//	VMX instructions
-
-//	Described as:
-//	<instruction type>, <instruction format>
-//	<go asm operand order> produces
-//	<Power ISA operand order>
-
-//	Vector load, VX-form
-//	<MNEMONIC> (RB)(RA*1),VRT produces
-//	<mnemonic> VRT,RA,RB
-	LVEBX	(R1)(R2*1), V0
-	LVEHX	(R3)(R4*1), V1
-	LVEWX	(R5)(R6*1), V2
-	LVX	(R7)(R8*1), V3
-	LVXL	(R9)(R10*1), V4
-	LVSL	(R11)(R12*1), V5
-	LVSR	(R14)(R15*1), V6
-
-//	Vector store, VX-form
-//	<MNEMONIC> VRT,(RB)(RA*1) produces
-//	<mnemonic> VRT,RA,RB
-	STVEBX	V31, (R1)(R2*1)
-	STVEHX	V30, (R2)(R3*1)
-	STVEWX	V29, (R4)(R5*1)
-	STVX	V28, (R6)(R7*1)
-	STVXL	V27, (R9)(R9*1)
-
-//	Vector AND, VX-form
-//	<MNEMONIC> VRA,VRB,VRT produces
-//	<mnemonic> VRT,VRA,VRB
-	VAND	V10, V9, V8
-	VANDC	V15, V14, V13
-	VNAND	V19, V18, V17
-
-//	Vector OR, VX-form
-//	<MNEMONIC> VRA,VRB,VRT produces
-//	<mnemonic> VRT,VRA,VRB
-	VOR	V26, V25, V24
-	VORC	V23, V22, V21
-	VNOR	V20, V19, V18
-	VXOR	V17, V16, V15
-	VEQV	V14, V13, V12
-
-//	Vector ADD, VX-form
-//	<MNEMONIC> VRA,VRB,VRT produces
-//	<mnemonic> VRT,VRA,VRB
-	VADDUBM	V3, V2, V1
-	VADDUHM	V3, V2, V1
-	VADDUWM	V3, V2, V1
-	VADDUDM	V3, V2, V1
-	VADDUQM	V3, V2, V1
-	VADDCUQ	V3, V2, V1
-	VADDCUW	V3, V2, V1
-	VADDUBS	V3, V2, V1
-	VADDUHS	V3, V2, V1
-	VADDUWS	V3, V2, V1
-	VADDSBS	V3, V2, V1
-	VADDSHS	V3, V2, V1
-	VADDSWS	V3, V2, V1
-
-//	Vector ADD extended, VA-form
-//	<MNEMONIC> VRA,VRB,VRC,VRT produces
-//	<mnemonic> VRT,VRA,VRB,VRC
-	VADDEUQM V4, V3, V2, V1
-	VADDECUQ V4, V3, V2, V1
-
-//	Vector multiply, VX-form
-//	<MNEMONIC>  VRA,VRB,VRT produces
-//	<mnemonic>  VRT,VRA,VRB
-	VMULESB V2, V3, V1
-	VMULOSB V2, V3, V1
-	VMULEUB V2, V3, V1
-	VMULOUB V2, V3, V1
-	VMULESH V2, V3, V1
-	VMULOSH V2, V3, V1
-	VMULEUH V2, V3, V1
-	VMULOUH V2, V3, V1
-	VMULESW V2, V3, V1
-	VMULOSW V2, V3, V1
-	VMULEUW V2, V3, V1
-	VMULOUW V2, V3, V1
-	VMULUWM V2, V3, V1
-
-//	Vector polynomial multiply-sum, VX-form
-//	<MNEMONIC>  VRA,VRB,VRT produces
-//	<mnemonic>  VRT,VRA,VRB
-	VPMSUMB	V2, V3, V1
-	VPMSUMH	V2, V3, V1
-	VPMSUMW	V2, V3, V1
-	VPMSUMD	V2, V3, V1
-
-//	Vector multiply-sum, VA-form
-//	<MNEMONIC> VRA, VRB, VRC, VRT produces
-//	<mnemonic> VRT, VRA, VRB, VRC
-	VMSUMUDM V4, V3, V2, V1
-
-//	Vector SUB, VX-form
-//	<MNEMONIC> VRA,VRB,VRT produces
-//	<mnemonic> VRT,VRA,VRB
-	VSUBUBM	V3, V2, V1
-	VSUBUHM	V3, V2, V1
-	VSUBUWM	V3, V2, V1
-	VSUBUDM	V3, V2, V1
-	VSUBUQM	V3, V2, V1
-	VSUBCUQ	V3, V2, V1
-	VSUBCUW	V3, V2, V1
-	VSUBUBS	V3, V2, V1
-	VSUBUHS	V3, V2, V1
-	VSUBUWS	V3, V2, V1
-	VSUBSBS	V3, V2, V1
-	VSUBSHS	V3, V2, V1
-	VSUBSWS	V3, V2, V1
-
-//	Vector SUB extended, VA-form
-//	<MNEMONIC> VRA,VRB,VRC,VRT produces
-//	<mnemonic> VRT,VRA,VRB,VRC
-	VSUBEUQM V4, V3, V2, V1
-	VSUBECUQ V4, V3, V2, V1
-
-//	Vector rotate, VX-form
-//	<MNEMONIC> VRA,VRB,VRT produces
-//	<mnemonic> VRT,VRA,VRB
-	VRLB	V2, V1, V0
-	VRLH	V2, V1, V0
-	VRLW	V2, V1, V0
-	VRLD	V2, V1, V0
-
-//	Vector shift, VX-form
-//	<MNEMONIC> VRA,VRB,VRT
-//	<mnemonic> VRT,VRA,VRB
-	VSLB	V2, V1, V0
-	VSLH	V2, V1, V0
-	VSLW	V2, V1, V0
-	VSL	V2, V1, V0
-	VSLO	V2, V1, V0
-	VSRB	V2, V1, V0
-	VSRH	V2, V1, V0
-	VSRW	V2, V1, V0
-	VSR	V2, V1, V0
-	VSRO	V2, V1, V0
-	VSLD	V2, V1, V0
-	VSRD	V2, V1, V0
-	VSRAB	V2, V1, V0
-	VSRAH	V2, V1, V0
-	VSRAW	V2, V1, V0
-	VSRAD	V2, V1, V0
-
-//	Vector shift by octect immediate, VA-form with SHB 4-bit field
-//	<MNEMONIC> SHB,VRA,VRB,VRT produces
-//	<mnemonic> VRT,VRA,VRB,SHB
-	VSLDOI	$4, V2, V1, V0
-
-//	Vector merge odd and even word
-//	<MNEMONIC> VRA,VRB,VRT produces
-//	<mnemonic> VRT,VRA,VRB
-
-	VMRGOW	V4,V5,V6
-	VMRGEW	V4,V5,V6
-
-//	Vector count, VX-form
-//	<MNEMONIC> VRB,VRT produces
-//	<mnemonic> VRT,VRB
-	VCLZB	V4, V5
-	VCLZH	V4, V5
-	VCLZW	V4, V5
-	VCLZD	V4, V5
-	VPOPCNTB V4, V5
-	VPOPCNTH V4, V5
-	VPOPCNTW V4, V5
-	VPOPCNTD V4, V5
-
-//	Vector compare, VC-form
-//	<MNEMONIC> VRA,VRB,VRT produces
-//	<mnemonic> VRT,VRA,VRB
-//	* Note: 'CC' suffix denotes Rc=1
-//	  i.e. vcmpequb. v3,v1,v2 equals VCMPEQUBCC V1,V2,V3
-	VCMPEQUB    V3, V2, V1
-	VCMPEQUBCC  V3, V2, V1
-	VCMPEQUH    V3, V2, V1
-	VCMPEQUHCC  V3, V2, V1
-	VCMPEQUW    V3, V2, V1
-	VCMPEQUWCC  V3, V2, V1
-	VCMPEQUD    V3, V2, V1
-	VCMPEQUDCC  V3, V2, V1
-	VCMPGTUB    V3, V2, V1
-	VCMPGTUBCC  V3, V2, V1
-	VCMPGTUH    V3, V2, V1
-	VCMPGTUHCC  V3, V2, V1
-	VCMPGTUW    V3, V2, V1
-	VCMPGTUWCC  V3, V2, V1
-	VCMPGTUD    V3, V2, V1
-	VCMPGTUDCC  V3, V2, V1
-	VCMPGTSB    V3, V2, V1
-	VCMPGTSBCC  V3, V2, V1
-	VCMPGTSH    V3, V2, V1
-	VCMPGTSHCC  V3, V2, V1
-	VCMPGTSW    V3, V2, V1
-	VCMPGTSWCC  V3, V2, V1
-	VCMPGTSD    V3, V2, V1
-	VCMPGTSDCC  V3, V2, V1
-	VCMPNEZB    V3, V2, V1
-	VCMPNEZBCC  V3, V2, V1
-	VCMPNEB     V3, V2, V1
-	VCMPNEBCC   V3, V2, V1
-	VCMPNEH     V3, V2, V1
-	VCMPNEHCC   V3, V2, V1
-	VCMPNEW     V3, V2, V1
-	VCMPNEWCC   V3, V2, V1
-
-//	Vector permute, VA-form
-//	<MNEMONIC> VRA,VRB,VRC,VRT produces
-//	<mnemonic> VRT,VRA,VRB,VRC
-	VPERM V3, V2, V1, V0
-	VPERMXOR V3, V2, V1, V0
-	VPERMR V3, V2, V1, V0
-
-//	Vector bit permute, VX-form
-//	<MNEMONIC> VRA,VRB,VRT produces
-//	<mnemonic> VRT,VRA,VRB
-	VBPERMQ	V3,V1,V2
-	VBPERMD	V3,V1,V2
-
-//	Vector select, VA-form
-//	<MNEMONIC> VRA,VRB,VRC,VRT produces
-//	<mnemonic> VRT,VRA,VRB,VRC
-	VSEL  V3, V2, V1, V0
-
-//	Vector splat, VX-form with 4-bit UIM field
-//	<MNEMONIC> UIM,VRB,VRT produces
-//	<mnemonic> VRT,VRB,UIM
-	VSPLTB	  $15, V1, V0
-	VSPLTH	  $7, V1, V0
-	VSPLTW	  $3, V1, V0
-
-//	Vector splat immediate signed, VX-form with 5-bit SIM field
-//	<MNEMONIC> SIM,VRT produces
-//	<mnemonic> VRT,SIM
-	VSPLTISB  $31, V4
-	VSPLTISH  $31, V4
-	VSPLTISW  $31, V4
-
-//	Vector AES cipher, VX-form
-//	<MNEMONIC> VRA,VRB,VRT produces
-//	<mnemonic> VRT,VRA,VRB
-	VCIPHER	      V3, V2, V1
-	VCIPHERLAST   V3, V2, V1
-	VNCIPHER      V3, V2, V1
-	VNCIPHERLAST  V3, V2, V1
-
-//	Vector AES subbytes, VX-form
-//	<MNEMONIC> VRA,VRT produces
-//	<mnemonic> VRT,VRA
-	VSBOX	      V2, V1
-
-//	Vector SHA, VX-form with ST bit field and 4-bit SIX field
-//	<MNEMONIC> SIX,VRA,ST,VRT produces
-//	<mnemonic> VRT,VRA,ST,SIX
-	VSHASIGMAW    $15, V1, $1, V0
-	VSHASIGMAD    $15, V1, $1, V0
-
-//	VSX instructions
-//	Described as:
-//	<instruction type>, <instruction format>
-//	<go asm operand order> produces
-//	<Power ISA operand order>
-
-//	VSX load, XX1-form
-//	<MNEMONIC> (RB)(RA*1),XT produces
-//	<mnemonic> XT,RA,RB
-	LXVD2X	    (R1)(R2*1), VS0
-	LXVW4X	    (R1)(R2*1), VS0
-	LXVH8X	    (R1)(R2*1), VS0
-	LXVB16X	    (R1)(R2*1), VS0
-	LXVDSX	    (R1)(R2*1), VS0
-	LXSDX	    (R1)(R2*1), VS0
-	LXSIWAX	    (R1)(R2*1), VS0
-	LXSIWZX	    (R1)(R2*1), VS0
-
-// VSX load with length X-form (also left-justified)
-	LXVL        R3,R4, VS0
-	LXVLL       R3,R4, VS0
-// VSX load, DQ-form
-// <MNEMONIC> DQ(RA), XS produces
-// <mnemonic> XS, DQ(RA)
-	LXV         32752(R1), VS0
-
-//	VSX store, XX1-form
-//	<MNEMONIC> XS,(RB)(RA*1) produces
-//	<mnemonic> XS,RA,RB
-	STXVD2X	    VS63, (R1)(R2*1)
-	STXVW4X	    VS63, (R1)(R2*1)
-	STXVH8X	    VS63, (R1)(R2*1)
-	STXVB16X	VS63, (R1)(R2*1)
-	STXSDX	    VS63, (R1)(R2*1)
-	STXSIWX	    VS63, (R1)(R2*1)
-
-// VSX store, DQ-form
-// <MNEMONIC> DQ(RA), XS produces
-// <mnemonic> XS, DQ(RA)
-	STXV        VS63, -32752(R1)
-
-// VSX store with length, X-form (also left-justified)
-	STXVL	    VS0, R3,R4
-	STXVLL      VS0, R3,R4
-
-//	VSX move from VSR, XX1-form
-//	<MNEMONIC> XS,RA produces
-//	<mnemonic> RA,XS
-//	Extended mnemonics accept VMX and FP registers as sources
-	MFVSRD	    VS0, R1
-	MFVSRWZ	    VS33, R1
-	MFVSRLD	    VS63, R1
-	MFVRD       V0, R1
-	MFFPRD      F0, R1
-
-//	VSX move to VSR, XX1-form
-//	<MNEMONIC> RA,XT produces
-//	<mnemonic> XT,RA
-//	Extended mnemonics accept VMX and FP registers as targets
-	MTVSRD	    R1, VS0
-	MTVSRWA	    R1, VS31
-	MTVSRWZ	    R1, VS63
-	MTVSRDD	    R1, R2, VS0
-	MTVSRWS	    R1, VS32
-	MTVRD       R1, V13
-	MTFPRD      R1, F24
-
-//	VSX AND, XX3-form
-//	<MNEMONIC> XA,XB,XT produces
-//	<mnemonic> XT,XA,XB
-	XXLAND	    VS0,VS1,VS32
-	XXLANDC	    VS0,VS1,VS32
-	XXLEQV	    VS0,VS1,VS32
-	XXLNAND	    VS0,VS1,VS32
-
-//	VSX OR, XX3-form
-//	<MNEMONIC> XA,XB,XT produces
-//	<mnemonic> XT,XA,XB
-	XXLORC	    VS0,VS1,VS32
-	XXLNOR	    VS0,VS1,VS32
-	XXLORQ	    VS0,VS1,VS32
-	XXLXOR	    VS0,VS1,VS32
-	XXLOR       VS0,VS1,VS32
-
-//	VSX select, XX4-form
-//	<MNEMONIC> XA,XB,XC,XT produces
-//	<mnemonic> XT,XA,XB,XC
-	XXSEL	    VS0,VS1,VS3,VS32
-
-//	VSX merge, XX3-form
-//	<MNEMONIC> XA,XB,XT produces
-//	<mnemonic> XT,XA,XB
-	XXMRGHW	    VS0,VS1,VS32
-	XXMRGLW	    VS0,VS1,VS32
-
-//	VSX splat, XX2-form
-//	<MNEMONIC> XB,UIM,XT produces
-//	<mnemonic> XT,XB,UIM
-	XXSPLTW	    VS0,$3,VS32
-	XXSPLTIB    $26,VS0
-
-//      VSX permute, XX3-form
-//      <MNEMONIC> XA,XB,XT produces
-//      <mnemonic> XT,XA,XB
-        XXPERM    VS0,VS1,VS32
-
-//	VSX permute, XX3-form
-//	<MNEMONIC> XA,XB,DM,XT produces
-//	<mnemonic> XT,XA,XB,DM
-	XXPERMDI    VS0,VS1,$3,VS32
-
-//	VSX shift, XX3-form
-//	<MNEMONIC> XA,XB,SHW,XT produces
-//	<mnemonic> XT,XA,XB,SHW
-	XXSLDWI	    VS0,VS1,$3,VS32
-
-//	VSX byte-reverse XX2-form
-//	<MNEMONIC> XB,XT produces
-//	<mnemonic> XT,XB
-	XXBRQ       VS0,VS1
-	XXBRD       VS0,VS1
-	XXBRW       VS0,VS1
-	XXBRH       VS0,VS1
-
-//	VSX scalar FP-FP conversion, XX2-form
-//	<MNEMONIC> XB,XT produces
-//	<mnemonic> XT,XB
-	XSCVDPSP    VS0,VS32
-	XSCVSPDP    VS0,VS32
-	XSCVDPSPN   VS0,VS32
-	XSCVSPDPN   VS0,VS32
-
-//	VSX vector FP-FP conversion, XX2-form
-//	<MNEMONIC> XB,XT produces
-//	<mnemonic> XT,XB
-	XVCVDPSP    VS0,VS32
-	XVCVSPDP    VS0,VS32
-
-//	VSX scalar FP-integer conversion, XX2-form
-//	<MNEMONIC> XB,XT produces
-//	<mnemonic> XT,XB
-	XSCVDPSXDS  VS0,VS32
-	XSCVDPSXWS  VS0,VS32
-	XSCVDPUXDS  VS0,VS32
-	XSCVDPUXWS  VS0,VS32
-
-//	VSX scalar integer-FP conversion, XX2-form
-//	<MNEMONIC> XB,XT produces
-//	<mnemonic> XT,XB
-	XSCVSXDDP   VS0,VS32
-	XSCVUXDDP   VS0,VS32
-	XSCVSXDSP   VS0,VS32
-	XSCVUXDSP   VS0,VS32
-
-//	VSX vector FP-integer conversion, XX2-form
-//	<MNEMONIC> XB,XT produces
-//	<mnemonic> XT,XB
-	XVCVDPSXDS  VS0,VS32
-	XVCVDPSXWS  VS0,VS32
-	XVCVDPUXDS  VS0,VS32
-	XVCVDPUXWS  VS0,VS32
-	XVCVSPSXDS  VS0,VS32
-	XVCVSPSXWS  VS0,VS32
-	XVCVSPUXDS  VS0,VS32
-	XVCVSPUXWS  VS0,VS32
-
-//	VSX scalar integer-FP conversion, XX2-form
-//	<MNEMONIC> XB,XT produces
-//	<mnemonic> XT,XB
-	XVCVSXDDP   VS0,VS32
-	XVCVSXWDP   VS0,VS32
-	XVCVUXDDP   VS0,VS32
-	XVCVUXWDP   VS0,VS32
-	XVCVSXDSP   VS0,VS32
-	XVCVSXWSP   VS0,VS32
-	XVCVUXDSP   VS0,VS32
-	XVCVUXWSP   VS0,VS32
-
-// Multiply-Add High Doubleword
-//      <MNEMONIC> RA,RB,RC,RT produces
-//      <mnemonic> RT,RA,RB,RC
-        MADDHD R1,R2,R3,R4
-        MADDHDU R1,R2,R3,R4
-
-// Add Extended using alternate carry bit
-//	ADDEX RA,RB,CY,RT produces
-//	addex RT, RA, RB, CY
-	ADDEX R1, R2, $0, R3
-
-// Immediate-shifted operations
-//	ADDIS SI, RA, RT produces
-//	addis RT, RA, SI
-	ADDIS $8, R3, R4
-	ADDIS $-1, R3, R4
-
-//	ANDISCC UI, RS, RA produces
-//	andis. RA, RS, UI
-	ANDISCC $7, R4, R5
-
-//	ORIS UI, RS, RA produces
-//	oris RA, RS, UI
-	ORIS $4, R2, R3
-
-//	XORIS UI, RS, RA produces
-//	xoris RA, RS, UI
-	XORIS $1, R1, R2
-
-//
-// NOP
-//
-//	LNOP comma // asm doesn't support the trailing comma.
-//	{
-//		outcode(int($1), &nullgen, 0, &nullgen);
-//	}
 	NOP
-
-//	LNOP rreg comma // asm doesn't support the trailing comma.
-//	{
-//		outcode(int($1), &$2, 0, &nullgen);
-//	}
 	NOP R2
+	NOP F2
+	NOP $4
 
-//	LNOP freg comma // asm doesn't support the trailing comma.
-//	{
-//		outcode(int($1), &$2, 0, &nullgen);
-//	}
-	NOP	F2
+	CRAND CR1, CR2, CR3             // 4c620a02
+	CRANDN CR1, CR2, CR3            // 4c620902
+	CREQV CR1, CR2, CR3             // 4c620a42
+	CRNAND CR1, CR2, CR3            // 4c6209c2
+	CRNOR CR1, CR2, CR3             // 4c620842
+	CROR CR1, CR2, CR3              // 4c620b82
+	CRORN CR1, CR2, CR3             // 4c620b42
+	CRXOR CR1, CR2, CR3             // 4c620982
 
-//	LNOP ',' rreg // asm doesn't support the leading comma.
-//	{
-//		outcode(int($1), &nullgen, 0, &$3);
-//	}
-	NOP	R2
+	ISEL $1, R3, R4, R5             // 7ca3205e
+	ISEL $0, R3, R4, R5             // 7ca3201e
+	ISEL $2, R3, R4, R5             // 7ca3209e
+	ISEL $3, R3, R4, R5             // 7ca320de
+	ISEL $4, R3, R4, R5             // 7ca3211e
+	POPCNTB R3, R4                  // 7c6400f4
+	POPCNTW R3, R4                  // 7c6402f4
+	POPCNTD R3, R4                  // 7c6403f4
 
-//	LNOP ',' freg // asm doesn't support the leading comma.
-//	{
-//		outcode(int($1), &nullgen, 0, &$3);
-//	}
-	NOP	F2
+	PASTECC R3, R4                  // 7c23270d
+	COPY R3, R4                     // 7c23260c
 
-//	LNOP imm // SYSCALL $num: load $num to R0 before syscall and restore R0 to 0 afterwards.
-//	{
-//		outcode(int($1), &$2, 0, &nullgen);
-//	}
-	NOP	$4
+	// load-and-reserve
+	LBAR (R4)(R3*1),$1,R5           // 7ca32069
+	LBAR (R4),$0,R5                 // 7ca02068
+	LBAR (R3),R5                    // 7ca01868
+	LHAR (R4)(R3*1),$1,R5           // 7ca320e9
+	LHAR (R4),$0,R5                 // 7ca020e8
+	LHAR (R3),R5                    // 7ca018e8
+	LWAR (R4)(R3*1),$1,R5           // 7ca32029
+	LWAR (R4),$0,R5                 // 7ca02028
+	LWAR (R3),R5                    // 7ca01828
+	LDAR (R4)(R3*1),$1,R5           // 7ca320a9
+	LDAR (R4),$0,R5                 // 7ca020a8
+	LDAR (R3),R5                    // 7ca018a8
 
-// RET
-//
-//	LRETRN	comma // asm doesn't support the trailing comma.
-//	{
-//		outcode(int($1), &nullgen, 0, &nullgen);
-//	}
-	BEQ	2(PC)
+	STBCCC R3, (R4)(R5)             // 7c65256d
+	STWCCC R3, (R4)(R5)             // 7c65212d
+	STDCCC R3, (R4)(R5)             // 7c6521ad
+	STHCCC R3, (R4)(R5)
+	STSW R3, (R4)(R5)
+
+	SYNC                            // 7c0004ac
+	ISYNC                           // 4c00012c
+	LWSYNC                          // 7c2004ac
+
+	DARN $1, R5                     // 7ca105e6
+
+	DCBF (R3)(R4)                   // 7c0418ac
+	DCBI (R3)(R4)                   // 7c041bac
+	DCBST (R3)(R4)                  // 7c04186c
+	DCBZ (R3)(R4)                   // 7c041fec
+	DCBT (R3)(R4)                   // 7c041a2c
+	ICBI (R3)(R4)                   // 7c041fac
+
+	// float constants
+	FMOVD $(0.0), F1                // f0210cd0
+	FMOVD $(-0.0), F1               // f0210cd0fc200850
+
+	FMOVD 8(R3), F1                 // c8230008
+	FMOVD (R3)(R4), F1              // 7c241cae
+	FMOVDU 8(R3), F1                // cc230008
+	FMOVDU (R3)(R4), F1             // 7c241cee
+	FMOVS 4(R3), F1                 // c0230004
+	FMOVS (R3)(R4), F1              // 7c241c2e
+	FMOVSU 4(R3), F1                // c4230004
+	FMOVSU (R3)(R4), F1             // 7c241c6e
+
+	FMOVD F1, 8(R3)                 // d8230008
+	FMOVD F1, (R3)(R4)              // 7c241dae
+	FMOVDU F1, 8(R3)                // dc230008
+	FMOVDU F1, (R3)(R4)             // 7c241dee
+	FMOVS F1, 4(R3)                 // d0230004
+	FMOVS F1, (R3)(R4)              // 7c241d2e
+	FMOVSU F1, 4(R3)                // d4230004
+	FMOVSU F1, (R3)(R4)             // 7c241d6e
+	FADD F1, F2                     // fc42082a
+	FADD F1, F2, F3                 // fc62082a
+	FADDCC F1, F2, F3               // fc62082b
+	FADDS F1, F2                    // ec42082a
+	FADDS F1, F2, F3                // ec62082a
+	FADDSCC F1, F2, F3              // ec62082b
+	FSUB F1, F2                     // fc420828
+	FSUB F1, F2, F3                 // fc620828
+	FSUBCC F1, F2, F3               // fc620829
+	FSUBS F1, F2                    // ec420828
+	FSUBS F1, F2, F3                // ec620828
+	FSUBCC F1, F2, F3               // fc620829
+	FMUL F1, F2                     // fc420072
+	FMUL F1, F2, F3                 // fc620072
+	FMULCC F1, F2, F3               // fc620073
+	FMULS F1, F2                    // ec420072
+	FMULS F1, F2, F3                // ec620072
+	FMULSCC F1, F2, F3              // ec620073
+	FDIV F1, F2                     // fc420824
+	FDIV F1, F2, F3                 // fc620824
+	FDIVCC F1, F2, F3               // fc620825
+	FDIVS F1, F2                    // ec420824
+	FDIVS F1, F2, F3                // ec620824
+	FDIVSCC F1, F2, F3              // ec620825
+	FMADD F1, F2, F3, F4            // fc8110fa
+	FMADDCC F1, F2, F3, F4          // fc8110fb
+	FMADDS F1, F2, F3, F4           // ec8110fa
+	FMADDSCC F1, F2, F3, F4         // ec8110fb
+	FMSUB F1, F2, F3, F4            // fc8110f8
+	FMSUBCC F1, F2, F3, F4          // fc8110f9
+	FMSUBS F1, F2, F3, F4           // ec8110f8
+	FMSUBSCC F1, F2, F3, F4         // ec8110f9
+	FNMADD F1, F2, F3, F4           // fc8110fe
+	FNMADDCC F1, F2, F3, F4         // fc8110ff
+	FNMADDS F1, F2, F3, F4          // ec8110fe
+	FNMADDSCC F1, F2, F3, F4        // ec8110ff
+	FNMSUB F1, F2, F3, F4           // fc8110fc
+	FNMSUBCC F1, F2, F3, F4         // fc8110fd
+	FNMSUBS F1, F2, F3, F4          // ec8110fc
+	FNMSUBSCC F1, F2, F3, F4        // ec8110fd
+	FSEL F1, F2, F3, F4             // fc8110ee
+	FSELCC F1, F2, F3, F4           // fc8110ef
+	FABS F1, F2                     // fc400a10
+	FABSCC F1, F2                   // fc400a11
+	FNEG F1, F2                     // fc400850
+	FABSCC F1, F2                   // fc400a11
+	FRSP F1, F2                     // fc400818
+	FRSPCC F1, F2                   // fc400819
+	FCTIW F1, F2                    // fc40081c
+	FCTIWCC F1, F2                  // fc40081d
+	FCTIWZ F1, F2                   // fc40081e
+	FCTIWZCC F1, F2                 // fc40081f
+	FCTID F1, F2                    // fc400e5c
+	FCTIDCC F1, F2                  // fc400e5d
+	FCTIDZ F1, F2                   // fc400e5e
+	FCTIDZCC F1, F2                 // fc400e5f
+	FCFID F1, F2                    // fc400e9c
+	FCFIDCC F1, F2                  // fc400e9d
+	FCFIDU F1, F2                   // fc400f9c
+	FCFIDUCC F1, F2                 // fc400f9d
+	FCFIDS F1, F2                   // ec400e9c
+	FCFIDSCC F1, F2                 // ec400e9d
+	FRES F1, F2                     // ec400830
+	FRESCC F1, F2                   // ec400831
+	FRIM F1, F2                     // fc400bd0
+	FRIMCC F1, F2                   // fc400bd1
+	FRIP F1, F2                     // fc400b90
+	FRIPCC F1, F2                   // fc400b91
+	FRIZ F1, F2                     // fc400b50
+	FRIZCC F1, F2                   // fc400b51
+	FRIN F1, F2                     // fc400b10
+	FRINCC F1, F2                   // fc400b11
+	FRSQRTE F1, F2                  // fc400834
+	FRSQRTECC F1, F2                // fc400835
+	FSQRT F1, F2                    // fc40082c
+	FSQRTCC F1, F2                  // fc40082d
+	FSQRTS F1, F2                   // ec40082c
+	FSQRTSCC F1, F2                 // ec40082d
+	FCPSGN F1, F2                   // fc420810
+	FCPSGNCC F1, F2                 // fc420811
+	FCMPO F1, F2                    // fc011040
+	FCMPU F1, F2                    // fc011000
+	LVX (R3)(R4), V1                // 7c2418ce
+	LVXL (R3)(R4), V1               // 7c241ace
+	LVSL (R3)(R4), V1               // 7c24180c
+	LVSR (R3)(R4), V1               // 7c24184c
+	LVEBX (R3)(R4), V1              // 7c24180e
+	LVEHX (R3)(R4), V1              // 7c24184e
+	LVEWX (R3)(R4), V1              // 7c24188e
+	STVX V1, (R3)(R4)               // 7c2419ce
+	STVXL V1, (R3)(R4)              // 7c241bce
+	STVEBX V1, (R3)(R4)             // 7c24190e
+	STVEHX V1, (R3)(R4)             // 7c24194e
+	STVEWX V1, (R3)(R4)             // 7c24198e
+
+	VAND V1, V2, V3                 // 10611404
+	VANDC V1, V2, V3                // 10611444
+	VNAND V1, V2, V3                // 10611584
+	VOR V1, V2, V3                  // 10611484
+	VORC V1, V2, V3                 // 10611544
+	VXOR V1, V2, V3                 // 106114c4
+	VNOR V1, V2, V3                 // 10611504
+	VEQV V1, V2, V3                 // 10611684
+	VADDUBM V1, V2, V3              // 10611000
+	VADDUHM V1, V2, V3              // 10611040
+	VADDUWM V1, V2, V3              // 10611080
+	VADDUDM V1, V2, V3              // 106110c0
+	VADDUQM V1, V2, V3              // 10611100
+	VADDCUQ V1, V2, V3              // 10611140
+	VADDCUW V1, V2, V3              // 10611180
+	VADDUBS V1, V2, V3              // 10611200
+	VADDUHS V1, V2, V3              // 10611240
+	VADDUWS V1, V2, V3              // 10611280
+	VSUBUBM V1, V2, V3              // 10611400
+	VSUBUHM V1, V2, V3              // 10611440
+	VSUBUWM V1, V2, V3              // 10611480
+	VSUBUDM V1, V2, V3              // 106114c0
+	VSUBUQM V1, V2, V3              // 10611500
+	VSUBCUQ V1, V2, V3              // 10611540
+	VSUBCUW V1, V2, V3              // 10611580
+	VSUBUBS V1, V2, V3              // 10611600
+	VSUBUHS V1, V2, V3              // 10611640
+	VSUBUWS V1, V2, V3              // 10611680
+	VSUBSBS V1, V2, V3              // 10611700
+	VSUBSHS V1, V2, V3              // 10611740
+	VSUBSWS V1, V2, V3              // 10611780
+	VSUBEUQM V1, V2, V3, V4         // 108110fe
+	VSUBECUQ V1, V2, V3, V4         // 108110ff
+	VMULESB V1, V2, V3              // 10611308
+	VMULOSB V1, V2, V3              // 10611108
+	VMULEUB V1, V2, V3              // 10611208
+	VMULOUB V1, V2, V3              // 10611008
+	VMULESH V1, V2, V3              // 10611348
+	VMULOSH V1, V2, V3              // 10611148
+	VMULEUH V1, V2, V3              // 10611248
+	VMULOUH V1, V2, V3              // 10611048
+	VMULESH V1, V2, V3              // 10611348
+	VMULOSW V1, V2, V3              // 10611188
+	VMULEUW V1, V2, V3              // 10611288
+	VMULOUW V1, V2, V3              // 10611088
+	VMULUWM V1, V2, V3              // 10611089
+	VPMSUMB V1, V2, V3              // 10611408
+	VPMSUMH V1, V2, V3              // 10611448
+	VPMSUMW V1, V2, V3              // 10611488
+	VPMSUMD V1, V2, V3              // 106114c8
+	VMSUMUDM V1, V2, V3, V4         // 108110e3
+	VRLB V1, V2, V3                 // 10611004
+	VRLH V1, V2, V3                 // 10611044
+	VRLW V1, V2, V3                 // 10611084
+	VRLD V1, V2, V3                 // 106110c4
+	VSLB V1, V2, V3                 // 10611104
+	VSLH V1, V2, V3                 // 10611144
+	VSLW V1, V2, V3                 // 10611184
+	VSL V1, V2, V3                  // 106111c4
+	VSLO V1, V2, V3                 // 1061140c
+	VSRB V1, V2, V3                 // 10611204
+	VSRH V1, V2, V3                 // 10611244
+	VSRW V1, V2, V3                 // 10611284
+	VSR V1, V2, V3                  // 106112c4
+	VSRO V1, V2, V3                 // 1061144c
+	VSLD V1, V2, V3                 // 106115c4
+	VSRAB V1, V2, V3                // 10611304
+	VSRAH V1, V2, V3                // 10611344
+	VSRAW V1, V2, V3                // 10611384
+	VSRAD V1, V2, V3                // 106113c4
+	VSLDOI $3, V1, V2, V3           // 106110ec
+	VCLZB V1, V2                    // 10400f02
+	VCLZH V1, V2                    // 10400f42
+	VCLZW V1, V2                    // 10400f82
+	VCLZD V1, V2                    // 10400fc2
+	VPOPCNTB V1, V2                 // 10400f03
+	VPOPCNTH V1, V2                 // 10400f43
+	VPOPCNTW V1, V2                 // 10400f83
+	VPOPCNTD V1, V2                 // 10400fc3
+	VCMPEQUB V1, V2, V3             // 10611006
+	VCMPEQUBCC V1, V2, V3           // 10611406
+	VCMPEQUH V1, V2, V3             // 10611046
+	VCMPEQUHCC V1, V2, V3           // 10611446
+	VCMPEQUW V1, V2, V3             // 10611086
+	VCMPEQUWCC V1, V2, V3           // 10611486
+	VCMPEQUD V1, V2, V3             // 106110c7
+	VCMPEQUDCC V1, V2, V3           // 106114c7
+	VCMPGTUB V1, V2, V3             // 10611206
+	VCMPGTUBCC V1, V2, V3           // 10611606
+	VCMPGTUH V1, V2, V3             // 10611246
+	VCMPGTUHCC V1, V2, V3           // 10611646
+	VCMPGTUW V1, V2, V3             // 10611286
+	VCMPGTUWCC V1, V2, V3           // 10611686
+	VCMPGTUD V1, V2, V3             // 106112c7
+	VCMPGTUDCC V1, V2, V3           // 106116c7
+	VCMPGTSB V1, V2, V3             // 10611306
+	VCMPGTSBCC V1, V2, V3           // 10611706
+	VCMPGTSH V1, V2, V3             // 10611346
+	VCMPGTSHCC V1, V2, V3           // 10611746
+	VCMPGTSW V1, V2, V3             // 10611386
+	VCMPGTSWCC V1, V2, V3           // 10611786
+	VCMPGTSD V1, V2, V3             // 106113c7
+	VCMPGTSDCC V1, V2, V3           // 106117c7
+	VCMPNEZB V1, V2, V3             // 10611107
+	VCMPNEZBCC V1, V2, V3           // 10611507
+	VCMPNEB V1, V2, V3              // 10611007
+	VCMPNEBCC V1, V2, V3            // 10611407
+	VCMPNEH V1, V2, V3              // 10611047
+	VCMPNEHCC V1, V2, V3            // 10611447
+	VCMPNEW V1, V2, V3              // 10611087
+	VCMPNEWCC V1, V2, V3            // 10611487
+	VPERM V1, V2, V3, V4            // 108110eb
+	VPERMR V1, V2, V3, V4           // 108110fb
+	VPERMXOR V1, V2, V3, V4         // 108110ed
+	VBPERMQ V1, V2, V3              // 1061154c
+	VBPERMD V1, V2, V3              // 106115cc
+	VSEL V1, V2, V3, V4             // 108110ea
+	VSPLTB $1, V1, V2               // 10410a0c
+	VSPLTH $1, V1, V2               // 10410a4c
+	VSPLTW $1, V1, V2               // 10410a8c
+	VSPLTISB $1, V1                 // 1021030c
+	VSPLTISW $1, V1                 // 1021038c
+	VSPLTISH $1, V1                 // 1021034c
+	VCIPHER V1, V2, V3              // 10611508
+	VCIPHERLAST V1, V2, V3          // 10611509
+	VNCIPHER V1, V2, V3             // 10611548
+	VNCIPHERLAST V1, V2, V3         // 10611549
+	VSBOX V1, V2                    // 104105c8
+	VSHASIGMAW $1, V1, $15, V2      // 10418e82
+	VSHASIGMAD $2, V1, $15, V2      // 104196c2
+
+	LXVD2X (R3)(R4), VS1            // 7c241e98
+	LXVDSX (R3)(R4), VS1            // 7c241a98
+	LXVH8X (R3)(R4), VS1            // 7c241e58
+	LXVB16X (R3)(R4), VS1           // 7c241ed8
+	LXVW4X (R3)(R4), VS1            // 7c241e18
+	LXV 16(R3), VS1                 // f4230011
+	LXVL R3, R4, VS1                // 7c23221a
+	LXVLL R3, R4, VS1               // 7c23225a
+	LXVX R3, R4, VS1                // 7c232218
+	LXSDX (R3)(R4), VS1             // 7c241c98
+	STXVD2X VS1, (R3)(R4)           // 7c241f98
+	STXV VS1,16(R3)                 // f4230015
+	STXVL VS1, R3, R4               // 7c23231a
+	STXVLL VS1, R3, R4              // 7c23235a
+	STXVX VS1, R3, R4               // 7c232318
+	STXVB16X VS1, (R4)(R5)          // 7c2527d8
+	STXVH8X VS1, (R4)(R5)           // 7c252758
+
+	STXSDX VS1, (R3)(R4)            // 7c241d98
+	LXSIWAX (R3)(R4), VS1           // 7c241898
+	STXSIWX VS1, (R3)(R4)           // 7c241918
+	MFVSRD VS1, R3                  // 7c230066
+	MTFPRD R3, F0                   // 7c030166
+	MFVRD V0, R3                    // 7c030067
+	MFVSRLD VS63,R4                 // 7fe40267
+	MFVSRWZ VS33,R4                 // 7c2400e7
+	MTVSRD R3, VS1                  // 7c230166
+	MTVRD R3, V13                   // 7da30167
+	MTVSRWA R4, VS31                // 7fe401a6
+	MTVSRWS R4, VS32                // 7c040327
+	MTVSRWZ R4, VS63                // 7fe401e7
+	XXBRD VS0, VS1                  // f037076c
+	XXBRW VS1, VS2                  // f04f0f6c
+	XXBRH VS2, VS3                  // f067176c
+	XXLAND VS1, VS2, VS3            // f0611410
+	XXLANDC VS1, VS2, VS3           // f0611450
+	XXLEQV VS0, VS1, VS2            // f0400dd0
+	XXLNAND VS0, VS1, VS2           // f0400d90
+	XXLNOR VS0, VS1, VS32           // f0000d11
+	XXLOR VS1, VS2, VS3             // f0611490
+	XXLORC VS1, VS2, VS3            // f0611550
+	XXLORQ VS1, VS2, VS3            // f0611490
+	XXLXOR VS1, VS2, VS3            // f06114d0
+	XXSEL VS1, VS2, VS3, VS4        // f08110f0
+	XXMRGHW VS1, VS2, VS3           // f0611090
+	XXMRGLW VS1, VS2, VS3           // f0611190
+	XXSPLTW VS1, $1, VS2            // f0410a90
+	XXPERM VS1, VS2, VS3            // f06110d0
+	XXSLDWI VS1, VS2, $1, VS3       // f0611110
+	XSCVDPSP VS1, VS2               // f0400c24
+	XVCVDPSP VS1, VS2               // f0400e24
+	XSCVSXDDP VS1, VS2              // f0400de0
+	XVCVDPSXDS VS1, VS2             // f0400f60
+	XVCVSXDDP VS1, VS2              // f0400fe0
+	XSCVDPSPN   VS1,VS32            // f0000c2d
+	XSCVDPSP    VS1,VS32            // f0000c25
+	XSCVDPSXDS  VS1,VS32            // f0000d61
+	XSCVDPSXWS  VS1,VS32            // f0000961
+	XSCVDPUXDS  VS1,VS32            // f0000d21
+	XSCVDPUXWS  VS1,VS32            // f0000921
+	XSCVSPDPN   VS1,VS32            // f0000d2d
+	XSCVSPDP    VS1,VS32            // f0000d25
+	XSCVSXDDP   VS1,VS32            // f0000de1
+	XSCVSXDSP   VS1,VS32            // f0000ce1
+	XSCVUXDDP   VS1,VS32            // f0000da1
+	XSCVUXDSP   VS1,VS32            // f0000ca1
+	XVCVDPSP    VS1,VS32            // f0000e25
+	XVCVDPSXDS  VS1,VS32            // f0000f61
+	XVCVDPSXWS  VS1,VS32            // f0000b61
+	XVCVDPUXDS  VS1,VS32            // f0000f21
+	XVCVDPUXWS  VS1,VS32            // f0000b21
+	XVCVSPDP    VS1,VS32            // f0000f25
+	XVCVSPSXDS  VS1,VS32            // f0000e61
+	XVCVSPSXWS  VS1,VS32            // f0000a61
+	XVCVSPUXDS  VS1,VS32            // f0000e21
+	XVCVSPUXWS  VS1,VS32            // f0000a21
+	XVCVSXDDP   VS1,VS32            // f0000fe1
+	XVCVSXDSP   VS1,VS32            // f0000ee1
+	XVCVSXWDP   VS1,VS32            // f0000be1
+	XVCVSXWSP   VS1,VS32            // f0000ae1
+	XVCVUXDDP   VS1,VS32            // f0000fa1
+	XVCVUXDSP   VS1,VS32            // f0000ea1
+	XVCVUXWDP   VS1,VS32            // f0000ba1
+	XVCVUXWSP   VS1,VS32            // f0000aa1
+
+	MOVD R3, LR                     // 7c6803a6
+	MOVD R3, CTR                    // 7c6903a6
+	MOVD R3, XER                    // 7c6103a6
+	MOVD LR, R3                     // 7c6802a6
+	MOVD CTR, R3                    // 7c6902a6
+	MOVD XER, R3                    // 7c6102a6
+	MOVFL CR3, CR1                  // 4c8c0000
+
 	RET
-
-// More BR/BL cases, and canonical names JMP, CALL.
-
-	BEQ	2(PC)
-	BR	foo(SB) // JMP foo(SB)
-	BL	foo(SB) //  CALL foo(SB)
-	BEQ	2(PC)
-	JMP	foo(SB)
-	CALL	foo(SB)
-	RET	foo(SB)
-
-// load-and-reserve
-//	L*AR (RB)(RA*1),EH,RT produces
-//	l*arx RT,RA,RB,EH
-//
-//	Extended forms also accepted. Assumes RA=0, EH=0:
-//	L*AR (RB),RT
-//	L*AR (RB),EH,RT
-	LBAR (R4)(R3*1), $1, R5
-	LBAR (R4), $0, R5
-	LBAR (R3), R5
-	LHAR (R4)(R3*1), $1, R5
-	LHAR (R4), $0, R5
-	LHAR (R3), R5
-	LWAR (R4)(R3*1), $1, R5
-	LWAR (R4), $0, R5
-	LWAR (R3), R5
-	LDAR (R4)(R3*1), $1, R5
-	LDAR (R4), $0, R5
-	LDAR (R3), R5
-
-// END
-//
-//	LEND	comma // asm doesn't support the trailing comma.
-//	{
-//		outcode(int($1), &nullgen, 0, &nullgen);
-//	}
-	END

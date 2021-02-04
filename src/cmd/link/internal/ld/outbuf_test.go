@@ -17,7 +17,7 @@ func TestMMap(t *testing.T) {
 	switch runtime.GOOS {
 	default:
 		t.Skip("unsupported OS")
-	case "darwin", "dragonfly", "freebsd", "linux", "openbsd", "windows":
+	case "aix", "darwin", "ios", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows":
 	}
 	dir, err := ioutil.TempDir("", "TestMMap")
 	if err != nil {

@@ -1,3 +1,4 @@
+// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -161,6 +162,9 @@ func TestStdTest(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
 		"directive.go",   // tests compiler rejection of bad directive placement - ignore
+		"embedfunc.go",   // tests //go:embed
+		"embedvers.go",   // tests //go:embed
+		"linkname2.go",   // types2 doesn't check validity of //go:xxx directives
 	)
 }
 
@@ -174,7 +178,6 @@ func TestStdFixed(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
 		"issue6889.go",   // gc-specific test
-		"issue7746.go",   // large constants - consumes too much memory
 		"issue11362.go",  // canonical import path check
 		"issue16369.go",  // go/types handles this correctly - not an issue
 		"issue18459.go",  // go/types doesn't check validity of //go:xxx directives
@@ -187,6 +190,8 @@ func TestStdFixed(t *testing.T) {
 		"issue20780.go",  // go/types does not have constraints on stack size
 		"issue31747.go",  // go/types does not have constraints on language level (-lang=go1.12) (see #31793)
 		"issue34329.go",  // go/types does not have constraints on language level (-lang=go1.13) (see #31793)
+		"issue42058a.go", // go/types does not have constraints on channel element size
+		"issue42058b.go", // go/types does not have constraints on channel element size
 		"bug251.go",      // issue #34333 which was exposed with fix for #34151
 	)
 }

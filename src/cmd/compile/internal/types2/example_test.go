@@ -1,3 +1,4 @@
+// UNREVIEWED
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -104,61 +105,6 @@ func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get
 	// .  .  }
 	// .  }
 	// }
-}
-
-// ExampleMethodSet prints the method sets of various types.
-func ExampleMethodSet() {
-	// Parse a single source file.
-	const input = `
-package temperature
-import "fmt"
-type Celsius float64
-func (c Celsius) String() string  { return fmt.Sprintf("%g°C", c) }
-func (c *Celsius) SetF(f float64) { *c = Celsius(f - 32 / 9 * 5) }
-
-type S struct { I; m int }
-type I interface { m() byte }
-`
-	f, err := parseSrc("celsius.go", input)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Type-check a package consisting of this file.
-	// Type information for the imported packages
-	// comes from $GOROOT/pkg/$GOOS_$GOOARCH/fmt.a.
-	conf := types2.Config{Importer: defaultImporter()}
-	pkg, err := conf.Check("temperature", []*syntax.File{f}, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Print the method sets of Celsius and *Celsius.
-	celsius := pkg.Scope().Lookup("Celsius").Type()
-	for _, t := range []types2.Type{celsius, types2.NewPointer(celsius)} {
-		fmt.Printf("Method set of %s:\n", t)
-		mset := types2.NewMethodSet(t)
-		for i := 0; i < mset.Len(); i++ {
-			fmt.Println(mset.At(i))
-		}
-		fmt.Println()
-	}
-
-	// Print the method set of S.
-	styp := pkg.Scope().Lookup("S").Type()
-	fmt.Printf("Method set of %s:\n", styp)
-	fmt.Println(types2.NewMethodSet(styp))
-
-	// Output:
-	// Method set of temperature.Celsius:
-	// method (temperature.Celsius) String() string
-	//
-	// Method set of *temperature.Celsius:
-	// method (*temperature.Celsius) SetF(f float64)
-	// method (*temperature.Celsius) String() string
-	//
-	// Method set of temperature.S:
-	// MethodSet {}
 }
 
 // ExampleInfo prints various facts recorded by the type checker in a

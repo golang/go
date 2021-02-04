@@ -266,7 +266,7 @@ listed in the GOPATH environment variable.
 (See 'go help gopath-get' and 'go help gopath'.)
 
 When using modules, downloaded packages are stored in the module cache.
-(See 'go help module-get' and 'go help goproxy'.)
+See https://golang.org/ref/mod#module-cache.
 
 When using modules, an additional variant of the go-import meta tag is
 recognized and is preferred over those listing version control systems.
@@ -276,7 +276,8 @@ That variant uses "mod" as the vcs in the content value, as in:
 
 This tag means to fetch modules with paths beginning with example.org
 from the module proxy available at the URL https://code.org/moduleproxy.
-See 'go help goproxy' for details about the proxy protocol.
+See https://golang.org/ref/mod#goproxy-protocol for details about the
+proxy protocol.
 
 Import path checking
 
@@ -483,6 +484,10 @@ See 'go help env' for details.
 
 General-purpose environment variables:
 
+	GO111MODULE
+		Controls whether the go command runs in module-aware mode or GOPATH mode.
+		May be "off", "on", or "auto".
+		See https://golang.org/ref/mod#mod-commands.
 	GCCGO
 		The gccgo command to run for 'go build -compiler=gccgo'.
 	GOARCH
@@ -493,6 +498,8 @@ General-purpose environment variables:
 	GOCACHE
 		The directory where the go command will store cached
 		information for reuse in future builds.
+	GOMODCACHE
+		The directory where the go command will store downloaded modules.
 	GODEBUG
 		Enable various debugging facilities. See 'go doc runtime'
 		for details.
@@ -519,20 +526,24 @@ General-purpose environment variables:
 	GOPATH
 		For more details see: 'go help gopath'.
 	GOPROXY
-		URL of Go module proxy. See 'go help modules'.
+		URL of Go module proxy. See https://golang.org/ref/mod#environment-variables
+		and https://golang.org/ref/mod#module-proxy for details.
 	GOPRIVATE, GONOPROXY, GONOSUMDB
 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
 		of module path prefixes that should always be fetched directly
 		or that should not be compared against the checksum database.
-		See 'go help module-private'.
+		See https://golang.org/ref/mod#private-modules.
 	GOROOT
 		The root of the go tree.
 	GOSUMDB
 		The name of checksum database to use and optionally its public key and
-		URL. See 'go help module-auth'.
+		URL. See https://golang.org/ref/mod#authenticating.
 	GOTMPDIR
 		The directory where the go command will write
 		temporary source files, packages, and binaries.
+	GOVCS
+	  Lists version control commands that may be used with matching servers.
+		See 'go help vcs'.
 
 Environment variables for use with cgo:
 
@@ -580,8 +591,8 @@ Architecture-specific environment variables:
 		For GOARCH=arm, the ARM architecture for which to compile.
 		Valid values are 5, 6, 7.
 	GO386
-		For GOARCH=386, the floating point instruction set.
-		Valid values are 387, sse2.
+		For GOARCH=386, how to implement floating point instructions.
+		Valid values are sse2 (default), softfloat.
 	GOMIPS
 		For GOARCH=mips{,le}, whether to use floating point instructions.
 		Valid values are hardfloat (default), softfloat.
@@ -630,6 +641,8 @@ Additional information available from 'go env' but not read from the environment
 		If module-aware mode is disabled, GOMOD will be the empty string.
 	GOTOOLDIR
 		The directory where the go tools (compile, cover, doc, etc...) are installed.
+	GOVERSION
+		The version of the installed Go tree, as reported by runtime.Version.
 	`,
 }
 
@@ -835,6 +848,9 @@ in addition to android tags and files.
 
 Using GOOS=illumos matches build tags and files as for GOOS=solaris
 in addition to illumos tags and files.
+
+Using GOOS=ios matches build tags and files as for GOOS=darwin
+in addition to ios tags and files.
 
 To keep a file from being considered for the build:
 

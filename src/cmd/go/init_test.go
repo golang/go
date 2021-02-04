@@ -7,6 +7,7 @@ package main_test
 import (
 	"internal/testenv"
 	"os/exec"
+	"sync/atomic"
 	"testing"
 )
 
@@ -15,20 +16,27 @@ import (
 // the benchmark if any changes were done.
 func BenchmarkExecGoEnv(b *testing.B) {
 	testenv.MustHaveExec(b)
-	b.StopTimer()
 	gotool, err := testenv.GoTool()
 	if err != nil {
 		b.Fatal(err)
 	}
-	for i := 0; i < b.N; i++ {
-		cmd := exec.Command(gotool, "env", "GOARCH")
 
-		b.StartTimer()
-		err := cmd.Run()
-		b.StopTimer()
+	// We collect extra metrics.
+	var n, userTime, systemTime int64
 
-		if err != nil {
-			b.Fatal(err)
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			cmd := exec.Command(gotool, "env", "GOARCH")
+
+			if err := cmd.Run(); err != nil {
+				b.Fatal(err)
+			}
+			atomic.AddInt64(&n, 1)
+			atomic.AddInt64(&userTime, int64(cmd.ProcessState.UserTime()))
+			atomic.AddInt64(&systemTime, int64(cmd.ProcessState.SystemTime()))
 		}
-	}
+	})
+	b.ReportMetric(float64(userTime)/float64(n), "user-ns/op")
+	b.ReportMetric(float64(systemTime)/float64(n), "sys-ns/op")
 }

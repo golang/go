@@ -434,7 +434,7 @@ type DB struct {
 	maxIdleTimeClosed int64 // Total number of connections closed due to idle time.
 	maxLifetimeClosed int64 // Total number of connections closed due to max connection lifetime limit.
 
-	stop func() // stop cancels the connection opener and the session resetter.
+	stop func() // stop cancels the connection opener.
 }
 
 // connReuseStrategy determines how (*DB).conn returns database connections.
@@ -869,6 +869,13 @@ func (db *DB) maxIdleConnsLocked() int {
 }
 
 func (db *DB) shortestIdleTimeLocked() time.Duration {
+	if db.maxIdleTime <= 0 {
+		return db.maxLifetime
+	}
+	if db.maxLifetime <= 0 {
+		return db.maxIdleTime
+	}
+
 	min := db.maxIdleTime
 	if min > db.maxLifetime {
 		min = db.maxLifetime
@@ -1134,7 +1141,7 @@ func (db *DB) connectionOpener(ctx context.Context) {
 
 // Open one new connection
 func (db *DB) openNewConnection(ctx context.Context) {
-	// maybeOpenNewConnctions has already executed db.numOpen++ before it sent
+	// maybeOpenNewConnections has already executed db.numOpen++ before it sent
 	// on db.openerCh. This function must execute db.numOpen-- if the
 	// connection fails or is closed before returning.
 	ci, err := db.connector.Connect(ctx)
@@ -2080,10 +2087,10 @@ func (tx *Tx) isDone() bool {
 // that has already been committed or rolled back.
 var ErrTxDone = errors.New("sql: transaction has already been committed or rolled back")
 
-// closeLocked returns the connection to the pool and
+// close returns the connection to the pool and
 // must only be called by Tx.rollback or Tx.Commit while
-// closemu is Locked and tx already canceled.
-func (tx *Tx) closeLocked(err error) {
+// tx is already canceled and won't be executed concurrently.
+func (tx *Tx) close(err error) {
 	tx.releaseConn(err)
 	tx.dc = nil
 	tx.txi = nil
@@ -2157,7 +2164,7 @@ func (tx *Tx) Commit() error {
 	// to ensure no other connection has an active query.
 	tx.cancel()
 	tx.closemu.Lock()
-	defer tx.closemu.Unlock()
+	tx.closemu.Unlock()
 
 	var err error
 	withLock(tx.dc, func() {
@@ -2166,7 +2173,7 @@ func (tx *Tx) Commit() error {
 	if err != driver.ErrBadConn {
 		tx.closePrepared()
 	}
-	tx.closeLocked(err)
+	tx.close(err)
 	return err
 }
 
@@ -2189,7 +2196,7 @@ func (tx *Tx) rollback(discardConn bool) error {
 	// to ensure no other connection has an active query.
 	tx.cancel()
 	tx.closemu.Lock()
-	defer tx.closemu.Unlock()
+	tx.closemu.Unlock()
 
 	var err error
 	withLock(tx.dc, func() {
@@ -2201,7 +2208,7 @@ func (tx *Tx) rollback(discardConn bool) error {
 	if discardConn {
 		err = driver.ErrBadConn
 	}
-	tx.closeLocked(err)
+	tx.close(err)
 	return err
 }
 
@@ -3110,6 +3117,9 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 // "select cursor(select * from my_table) from dual", into a
 // *Rows value that can itself be scanned from. The parent
 // select query will close any cursor *Rows if the parent *Rows is closed.
+//
+// If any of the first arguments implementing Scanner returns an error,
+// that error will be wrapped in the returned error
 func (rs *Rows) Scan(dest ...interface{}) error {
 	rs.closemu.RLock()
 
@@ -3133,7 +3143,7 @@ func (rs *Rows) Scan(dest ...interface{}) error {
 	for i, sv := range rs.lastcols {
 		err := convertAssignRows(dest[i], sv, rs)
 		if err != nil {
-			return fmt.Errorf(`sql: Scan error on column index %d, name %q: %v`, i, rs.rowsi.Columns()[i], err)
+			return fmt.Errorf(`sql: Scan error on column index %d, name %q: %w`, i, rs.rowsi.Columns()[i], err)
 		}
 	}
 	return nil

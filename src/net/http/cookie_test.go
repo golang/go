@@ -67,7 +67,7 @@ var writeSetCookiesTests = []struct {
 	},
 	{
 		&Cookie{Name: "cookie-12", Value: "samesite-default", SameSite: SameSiteDefaultMode},
-		"cookie-12=samesite-default; SameSite",
+		"cookie-12=samesite-default",
 	},
 	{
 		&Cookie{Name: "cookie-13", Value: "samesite-lax", SameSite: SameSiteLaxMode},
@@ -280,6 +280,15 @@ var readSetCookiesTests = []struct {
 			Value:    "foo",
 			SameSite: SameSiteDefaultMode,
 			Raw:      "samesitedefault=foo; SameSite",
+		}},
+	},
+	{
+		Header{"Set-Cookie": {"samesiteinvalidisdefault=foo; SameSite=invalid"}},
+		[]*Cookie{{
+			Name:     "samesiteinvalidisdefault",
+			Value:    "foo",
+			SameSite: SameSiteDefaultMode,
+			Raw:      "samesiteinvalidisdefault=foo; SameSite=invalid",
 		}},
 	},
 	{

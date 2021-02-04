@@ -7,6 +7,7 @@
 package os
 
 import (
+	"internal/testlog"
 	"runtime"
 	"syscall"
 )
@@ -60,6 +61,13 @@ func Getgroups() ([]int, error) {
 // For portability, the status code should be in the range [0, 125].
 func Exit(code int) {
 	if code == 0 {
+		if testlog.PanicOnExit0() {
+			// We were told to panic on calls to os.Exit(0).
+			// This is used to fail tests that make an early
+			// unexpected call to os.Exit(0).
+			panic("unexpected call to os.Exit(0) during test")
+		}
+
 		// Give race detector a chance to fail the program.
 		// Racy programs do not have the right to finish successfully.
 		runtime_beforeExit()

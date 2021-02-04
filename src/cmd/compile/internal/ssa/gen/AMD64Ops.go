@@ -149,14 +149,15 @@ func init() {
 		gpstorexchg     = regInfo{inputs: []regMask{gp, gpspsb, 0}, outputs: []regMask{gp}}
 		cmpxchg         = regInfo{inputs: []regMask{gp, ax, gp, 0}, outputs: []regMask{gp, 0}, clobbers: ax}
 
-		fp01     = regInfo{inputs: nil, outputs: fponly}
-		fp21     = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
-		fp31     = regInfo{inputs: []regMask{fp, fp, fp}, outputs: fponly}
-		fp21load = regInfo{inputs: []regMask{fp, gpspsb, 0}, outputs: fponly}
-		fpgp     = regInfo{inputs: fponly, outputs: gponly}
-		gpfp     = regInfo{inputs: gponly, outputs: fponly}
-		fp11     = regInfo{inputs: fponly, outputs: fponly}
-		fp2flags = regInfo{inputs: []regMask{fp, fp}}
+		fp01        = regInfo{inputs: nil, outputs: fponly}
+		fp21        = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
+		fp31        = regInfo{inputs: []regMask{fp, fp, fp}, outputs: fponly}
+		fp21load    = regInfo{inputs: []regMask{fp, gpspsb, 0}, outputs: fponly}
+		fp21loadidx = regInfo{inputs: []regMask{fp, gpspsb, gpspsb, 0}, outputs: fponly}
+		fpgp        = regInfo{inputs: fponly, outputs: gponly}
+		gpfp        = regInfo{inputs: gponly, outputs: fponly}
+		fp11        = regInfo{inputs: fponly, outputs: fponly}
+		fp2flags    = regInfo{inputs: []regMask{fp, fp}}
 
 		fpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: fponly}
 		fploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: fponly}
@@ -200,6 +201,23 @@ func init() {
 		{name: "MULSDload", argLength: 3, reg: fp21load, asm: "MULSD", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, symEffect: "Read"}, // fp64 arg0 * tmp, tmp loaded from arg1+auxint+aux, arg2 = mem
 		{name: "DIVSSload", argLength: 3, reg: fp21load, asm: "DIVSS", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, symEffect: "Read"}, // fp32 arg0 / tmp, tmp loaded from arg1+auxint+aux, arg2 = mem
 		{name: "DIVSDload", argLength: 3, reg: fp21load, asm: "DIVSD", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, symEffect: "Read"}, // fp64 arg0 / tmp, tmp loaded from arg1+auxint+aux, arg2 = mem
+
+		{name: "ADDSSloadidx1", argLength: 4, reg: fp21loadidx, asm: "ADDSS", scale: 1, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp32 arg0 + tmp, tmp loaded from arg1+arg2+auxint+aux, arg3 = mem
+		{name: "ADDSSloadidx4", argLength: 4, reg: fp21loadidx, asm: "ADDSS", scale: 4, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp32 arg0 + tmp, tmp loaded from arg1+4*arg2+auxint+aux, arg3 = mem
+		{name: "ADDSDloadidx1", argLength: 4, reg: fp21loadidx, asm: "ADDSD", scale: 1, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp64 arg0 + tmp, tmp loaded from arg1+arg2+auxint+aux, arg3 = mem
+		{name: "ADDSDloadidx8", argLength: 4, reg: fp21loadidx, asm: "ADDSD", scale: 8, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp64 arg0 + tmp, tmp loaded from arg1+8*arg2+auxint+aux, arg3 = mem
+		{name: "SUBSSloadidx1", argLength: 4, reg: fp21loadidx, asm: "SUBSS", scale: 1, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp32 arg0 - tmp, tmp loaded from arg1+arg2+auxint+aux, arg3 = mem
+		{name: "SUBSSloadidx4", argLength: 4, reg: fp21loadidx, asm: "SUBSS", scale: 4, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp32 arg0 - tmp, tmp loaded from arg1+4*arg2+auxint+aux, arg3 = mem
+		{name: "SUBSDloadidx1", argLength: 4, reg: fp21loadidx, asm: "SUBSD", scale: 1, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp64 arg0 - tmp, tmp loaded from arg1+arg2+auxint+aux, arg3 = mem
+		{name: "SUBSDloadidx8", argLength: 4, reg: fp21loadidx, asm: "SUBSD", scale: 8, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp64 arg0 - tmp, tmp loaded from arg1+8*arg2+auxint+aux, arg3 = mem
+		{name: "MULSSloadidx1", argLength: 4, reg: fp21loadidx, asm: "MULSS", scale: 1, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp32 arg0 * tmp, tmp loaded from arg1+arg2+auxint+aux, arg3 = mem
+		{name: "MULSSloadidx4", argLength: 4, reg: fp21loadidx, asm: "MULSS", scale: 4, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp32 arg0 * tmp, tmp loaded from arg1+4*arg2+auxint+aux, arg3 = mem
+		{name: "MULSDloadidx1", argLength: 4, reg: fp21loadidx, asm: "MULSD", scale: 1, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp64 arg0 * tmp, tmp loaded from arg1+arg2+auxint+aux, arg3 = mem
+		{name: "MULSDloadidx8", argLength: 4, reg: fp21loadidx, asm: "MULSD", scale: 8, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp64 arg0 * tmp, tmp loaded from arg1+8*arg2+auxint+aux, arg3 = mem
+		{name: "DIVSSloadidx1", argLength: 4, reg: fp21loadidx, asm: "DIVSS", scale: 1, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp32 arg0 / tmp, tmp loaded from arg1+arg2+auxint+aux, arg3 = mem
+		{name: "DIVSSloadidx4", argLength: 4, reg: fp21loadidx, asm: "DIVSS", scale: 4, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp32 arg0 / tmp, tmp loaded from arg1+4*arg2+auxint+aux, arg3 = mem
+		{name: "DIVSDloadidx1", argLength: 4, reg: fp21loadidx, asm: "DIVSD", scale: 1, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp64 arg0 / tmp, tmp loaded from arg1+arg2+auxint+aux, arg3 = mem
+		{name: "DIVSDloadidx8", argLength: 4, reg: fp21loadidx, asm: "DIVSD", scale: 8, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp64 arg0 / tmp, tmp loaded from arg1+8*arg2+auxint+aux, arg3 = mem
 
 		// binary ops
 		{name: "ADDQ", argLength: 2, reg: gp21sp, asm: "ADDQ", commutative: true, clobberFlags: true},                                                                   // arg0 + arg1
@@ -730,6 +748,7 @@ func init() {
 				clobbers: buildReg("DI"),
 			},
 			faultOnNilArg0: true,
+			unsafePoint:    true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
 		},
 		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Int128", aux: "Int128", rematerializeable: true},
 
@@ -748,9 +767,9 @@ func init() {
 			faultOnNilArg0: true,
 		},
 
-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                          // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                              // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		// arg0 = destination pointer
 		// arg1 = source pointer
@@ -768,6 +787,7 @@ func init() {
 			clobberFlags:   true,
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
+			unsafePoint:    true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
 		},
 
 		// arg0 = destination pointer
@@ -882,7 +902,9 @@ func init() {
 
 		// Atomic memory updates.
 		{name: "ANDBlock", argLength: 3, reg: gpstore, asm: "ANDB", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"}, // *(arg0+auxint+aux) &= arg1
+		{name: "ANDLlock", argLength: 3, reg: gpstore, asm: "ANDL", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"}, // *(arg0+auxint+aux) &= arg1
 		{name: "ORBlock", argLength: 3, reg: gpstore, asm: "ORB", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},   // *(arg0+auxint+aux) |= arg1
+		{name: "ORLlock", argLength: 3, reg: gpstore, asm: "ORL", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},   // *(arg0+auxint+aux) |= arg1
 	}
 
 	var AMD64blocks = []blockData{

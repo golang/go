@@ -272,6 +272,7 @@ func runtime_AfterExec()
 // avoids a build dependency for other platforms.
 var execveLibc func(path uintptr, argv uintptr, envp uintptr) Errno
 var execveDarwin func(path *byte, argv **byte, envp **byte) error
+var execveOpenBSD func(path *byte, argv **byte, envp **byte) error
 
 // Exec invokes the execve(2) system call.
 func Exec(argv0 string, argv []string, envv []string) (err error) {
@@ -296,9 +297,12 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 			uintptr(unsafe.Pointer(argv0p)),
 			uintptr(unsafe.Pointer(&argvp[0])),
 			uintptr(unsafe.Pointer(&envvp[0])))
-	} else if runtime.GOOS == "darwin" {
+	} else if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		// Similarly on Darwin.
 		err1 = execveDarwin(argv0p, &argvp[0], &envvp[0])
+	} else if runtime.GOOS == "openbsd" && runtime.GOARCH == "amd64" {
+		// Similarly on OpenBSD.
+		err1 = execveOpenBSD(argv0p, &argvp[0], &envvp[0])
 	} else {
 		_, _, err1 = RawSyscall(SYS_EXECVE,
 			uintptr(unsafe.Pointer(argv0p)),

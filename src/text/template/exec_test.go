@@ -9,7 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"reflect"
 	"strings"
 	"testing"
@@ -1295,7 +1295,7 @@ func TestUnterminatedStringError(t *testing.T) {
 		t.Fatal("expected error")
 	}
 	str := err.Error()
-	if !strings.Contains(str, "X:3: unexpected unterminated raw quoted string") {
+	if !strings.Contains(str, "X:3: unterminated raw quoted string") {
 		t.Fatalf("unexpected error: %s", str)
 	}
 }
@@ -1328,7 +1328,7 @@ func TestExecuteGivesExecError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = tmpl.Execute(ioutil.Discard, 0)
+	err = tmpl.Execute(io.Discard, 0)
 	if err == nil {
 		t.Fatal("expected error; got none")
 	}
@@ -1474,7 +1474,7 @@ func TestEvalFieldErrors(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			tmpl := Must(New("tmpl").Parse(tc.src))
-			err := tmpl.Execute(ioutil.Discard, tc.value)
+			err := tmpl.Execute(io.Discard, tc.value)
 			got := "<nil>"
 			if err != nil {
 				got = err.Error()
@@ -1491,7 +1491,7 @@ func TestMaxExecDepth(t *testing.T) {
 		t.Skip("skipping in -short mode")
 	}
 	tmpl := Must(New("tmpl").Parse(`{{template "tmpl" .}}`))
-	err := tmpl.Execute(ioutil.Discard, nil)
+	err := tmpl.Execute(io.Discard, nil)
 	got := "<nil>"
 	if err != nil {
 		got = err.Error()
@@ -1695,5 +1695,18 @@ func TestIssue31810(t *testing.T) {
 	}
 	if b.String() != "result" {
 		t.Errorf("%s got %q, expected %q", textCall, b.String(), "result")
+	}
+}
+
+// Issue 43065, range over send only channel
+func TestIssue43065(t *testing.T) {
+	var b bytes.Buffer
+	tmp := Must(New("").Parse(`{{range .}}{{end}}`))
+	ch := make(chan<- int)
+	err := tmp.Execute(&b, ch)
+	if err == nil {
+		t.Error("expected err got nil")
+	} else if !strings.Contains(err.Error(), "range over send-only channel") {
+		t.Errorf("%s", err)
 	}
 }

@@ -1,3 +1,4 @@
+// UNREVIEWED
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -26,6 +27,7 @@ const (
 	variable                     // operand is an addressable variable
 	mapindex                     // operand is a map index expression (acts like a variable on lhs, commaok on rhs of an assignment)
 	value                        // operand is a computed value
+	nilvalue                     // operand is the nil value
 	commaok                      // like value, but operand may be used in a comma,ok expression
 	commaerr                     // like commaok, but second value is error, not boolean
 	cgofunc                      // operand is a cgo function
@@ -40,6 +42,7 @@ var operandModeString = [...]string{
 	variable:  "variable",
 	mapindex:  "map index expression",
 	value:     "value",
+	nilvalue:  "nil",
 	commaok:   "comma, ok expression",
 	commaerr:  "comma, error expression",
 	cgofunc:   "cgo function",
@@ -95,6 +98,9 @@ func (x *operand) Pos() syntax.Pos {
 // value      <expr> (<untyped kind> <mode>                    )
 // value      <expr> (               <mode>       of type <typ>)
 //
+// nilvalue   untyped nil
+// nilvalue   nil    (                            of type <typ>)
+//
 // commaok    <expr> (<untyped kind> <mode>                    )
 // commaok    <expr> (               <mode>       of type <typ>)
 //
@@ -105,11 +111,23 @@ func (x *operand) Pos() syntax.Pos {
 // cgofunc    <expr> (               <mode>       of type <typ>)
 //
 func operandString(x *operand, qf Qualifier) string {
+	// special-case nil
+	if x.mode == nilvalue {
+		switch x.typ {
+		case nil, Typ[Invalid]:
+			return "nil (with invalid type)"
+		case Typ[UntypedNil]:
+			return "untyped nil"
+		default:
+			return fmt.Sprintf("nil (of type %s)", TypeString(x.typ, qf))
+		}
+	}
+
 	var buf bytes.Buffer
 
 	var expr string
 	if x.expr != nil {
-		expr = ExprString(x.expr)
+		expr = syntax.String(x.expr)
 	} else {
 		switch x.mode {
 		case builtin:
@@ -188,37 +206,35 @@ func (x *operand) String() string {
 
 // setConst sets x to the untyped constant for literal lit.
 func (x *operand) setConst(k syntax.LitKind, lit string) {
-	var tok token.Token
 	var kind BasicKind
 	switch k {
 	case syntax.IntLit:
-		tok = token.INT
 		kind = UntypedInt
 	case syntax.FloatLit:
-		tok = token.FLOAT
 		kind = UntypedFloat
 	case syntax.ImagLit:
-		tok = token.IMAG
 		kind = UntypedComplex
 	case syntax.RuneLit:
-		tok = token.CHAR
 		kind = UntypedRune
 	case syntax.StringLit:
-		tok = token.STRING
 		kind = UntypedString
 	default:
 		unreachable()
 	}
 
+	val := constant.MakeFromLiteral(lit, kind2tok[k], 0)
+	if val.Kind() == constant.Unknown {
+		x.mode = invalid
+		x.typ = Typ[Invalid]
+		return
+	}
 	x.mode = constant_
 	x.typ = Typ[kind]
-	x.val = constant.MakeFromLiteral(lit, tok, 0)
+	x.val = val
 }
 
-// isNil reports whether x is the nil value.
-func (x *operand) isNil() bool {
-	return x.mode == value && x.typ == Typ[UntypedNil]
-}
+// isNil reports whether x is a typed or the untyped nil value.
+func (x *operand) isNil() bool { return x.mode == nilvalue }
 
 // TODO(gri) The functions operand.assignableTo, checker.convertUntyped,
 //           checker.representable, and checker.assignment are
@@ -311,4 +327,13 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 	}
 
 	return false
+}
+
+// kind2tok translates syntax.LitKinds into token.Tokens.
+var kind2tok = [...]token.Token{
+	syntax.IntLit:    token.INT,
+	syntax.FloatLit:  token.FLOAT,
+	syntax.ImagLit:   token.IMAG,
+	syntax.RuneLit:   token.CHAR,
+	syntax.StringLit: token.STRING,
 }

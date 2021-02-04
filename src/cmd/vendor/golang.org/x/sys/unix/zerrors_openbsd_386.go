@@ -146,6 +146,13 @@ const (
 	BRKINT                            = 0x2
 	CFLUSH                            = 0xf
 	CLOCAL                            = 0x8000
+	CPUSTATES                         = 0x6
+	CP_IDLE                           = 0x5
+	CP_INTR                           = 0x4
+	CP_NICE                           = 0x1
+	CP_SPIN                           = 0x3
+	CP_SYS                            = 0x2
+	CP_USER                           = 0x0
 	CREAD                             = 0x800
 	CRTSCTS                           = 0x10000
 	CS5                               = 0x0

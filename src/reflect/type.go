@@ -50,13 +50,13 @@ type Type interface {
 	// It panics if i is not in the range [0, NumMethod()).
 	//
 	// For a non-interface type T or *T, the returned Method's Type and Func
-	// fields describe a function whose first argument is the receiver.
+	// fields describe a function whose first argument is the receiver,
+	// and only exported methods are accessible.
 	//
 	// For an interface type, the returned Method's Type field gives the
 	// method signature, without a receiver, and the Func field is nil.
 	//
-	// Only exported methods are accessible and they are sorted in
-	// lexicographic order.
+	// Methods are sorted in lexicographic order.
 	Method(int) Method
 
 	// MethodByName returns the method with that name in the type's
@@ -69,7 +69,9 @@ type Type interface {
 	// method signature, without a receiver, and the Func field is nil.
 	MethodByName(string) (Method, bool)
 
-	// NumMethod returns the number of exported methods in the type's method set.
+	// NumMethod returns the number of methods accessible using Method.
+	//
+	// Note that NumMethod counts unexported methods only for interface types.
 	NumMethod() int
 
 	// Name returns the type's name within its package for a defined type.
@@ -1789,7 +1791,6 @@ func ChanOf(dir ChanDir, t Type) Type {
 	}
 
 	// Look in known types.
-	// TODO: Precedence when constructing string.
 	var s string
 	switch dir {
 	default:
@@ -1799,7 +1800,16 @@ func ChanOf(dir ChanDir, t Type) Type {
 	case RecvDir:
 		s = "<-chan " + typ.String()
 	case BothDir:
-		s = "chan " + typ.String()
+		typeStr := typ.String()
+		if typeStr[0] == '<' {
+			// typ is recv chan, need parentheses as "<-" associates with leftmost
+			// chan possible, see:
+			// * https://golang.org/ref/spec#Channel_types
+			// * https://github.com/golang/go/issues/39897
+			s = "chan (" + typeStr + ")"
+		} else {
+			s = "chan " + typeStr
+		}
 	}
 	for _, tt := range typesByString(s) {
 		ch := (*chanType)(unsafe.Pointer(tt))
@@ -1855,7 +1865,7 @@ func MapOf(key, elem Type) Type {
 
 	// Make a map type.
 	// Note: flag values must match those used in the TMAP case
-	// in ../cmd/compile/internal/gc/reflect.go:dtypesym.
+	// in ../cmd/compile/internal/gc/reflect.go:writeType.
 	var imap interface{} = (map[unsafe.Pointer]unsafe.Pointer)(nil)
 	mt := **(**mapType)(unsafe.Pointer(&imap))
 	mt.str = resolveReflectName(newName(s, "", false))
@@ -3068,6 +3078,7 @@ func ifaceIndir(t *rtype) bool {
 	return t.kind&kindDirectIface == 0
 }
 
+// Note: this type must agree with runtime.bitvector.
 type bitVector struct {
 	n    uint32 // number of bits
 	data []byte

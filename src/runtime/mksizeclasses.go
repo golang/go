@@ -35,7 +35,6 @@ import (
 	"fmt"
 	"go/format"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 )
@@ -65,7 +64,7 @@ func main() {
 	if *stdout {
 		_, err = os.Stdout.Write(out)
 	} else {
-		err = ioutil.WriteFile("sizeclasses.go", out, 0666)
+		err = os.WriteFile("sizeclasses.go", out, 0666)
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -110,8 +109,8 @@ func makeClasses() []class {
 				align = 256
 			} else if size >= 128 {
 				align = size / 8
-			} else if size >= 16 {
-				align = 16 // required for x86 SSE instructions, if we want to use them
+			} else if size >= 32 {
+				align = 16 // heap bitmaps assume 16 byte alignment for allocations >= 32 bytes.
 			}
 		}
 		if !powerOfTwo(align) {
@@ -157,7 +156,7 @@ func makeClasses() []class {
 		}
 	}
 
-	if len(classes) != 67 {
+	if len(classes) != 68 {
 		panic("number of size classes has changed")
 	}
 

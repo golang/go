@@ -58,6 +58,15 @@ TEXT	runtime·msanfree(SB), NOSPLIT, $0-16
 	MOVQ	$__msan_free_go(SB), AX
 	JMP	msancall<>(SB)
 
+// func runtime·msanmove(dst, src unsafe.Pointer, sz uintptr)
+TEXT	runtime·msanmove(SB), NOSPLIT, $0-24
+	MOVQ	dst+0(FP), RARG0
+	MOVQ	src+8(FP), RARG1
+	MOVQ	size+16(FP), RARG2
+	// void __msan_memmove(void *dst, void *src, uintptr_t sz);
+	MOVQ	$__msan_memmove(SB), AX
+	JMP	msancall<>(SB)
+
 // Switches SP to g0 stack and calls (AX). Arguments already set.
 TEXT	msancall<>(SB), NOSPLIT, $0-0
 	get_tls(R12)

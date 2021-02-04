@@ -70,3 +70,34 @@ func TestTBHelperParallel(t *T) {
 		t.Errorf("got output line %q; want %q", got, want)
 	}
 }
+
+type noopWriter int
+
+func (nw *noopWriter) Write(b []byte) (int, error) { return len(b), nil }
+
+func BenchmarkTBHelper(b *B) {
+	w := noopWriter(0)
+	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
+	t1 := &T{
+		common: common{
+			signal: make(chan bool),
+			w:      &w,
+		},
+		context: ctx,
+	}
+	f1 := func() {
+		t1.Helper()
+	}
+	f2 := func() {
+		t1.Helper()
+	}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		if i&1 == 0 {
+			f1()
+		} else {
+			f2()
+		}
+	}
+}

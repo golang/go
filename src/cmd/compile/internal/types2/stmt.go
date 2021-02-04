@@ -1,3 +1,4 @@
+// UNREVIEWED
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -40,7 +41,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 
 	check.stmtList(0, body.List)
 
-	if check.hasLabel {
+	if check.hasLabel && !check.conf.IgnoreLabels {
 		check.labels(body)
 	}
 
@@ -154,7 +155,11 @@ func (check *Checker) multipleSelectDefaults(list []*syntax.CommClause) {
 }
 
 func (check *Checker) openScope(node syntax.Node, comment string) {
-	scope := NewScope(check.scope, node.Pos(), endPos(node), comment)
+	check.openScopeUntil(node, endPos(node), comment)
+}
+
+func (check *Checker) openScopeUntil(node syntax.Node, end syntax.Pos, comment string) {
+	scope := NewScope(check.scope, node.Pos(), end, comment)
 	check.recordScope(node, scope)
 	check.scope = scope
 }
@@ -361,46 +366,44 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 	case *syntax.AssignStmt:
 		lhs := unpackExpr(s.Lhs)
-		rhs := unpackExpr(s.Rhs)
-		if s.Op == 0 || s.Op == syntax.Def {
-			// regular assignment or short variable declaration
-			if len(lhs) == 0 {
-				check.invalidASTf(s, "missing lhs in assignment")
+		if s.Rhs == nil {
+			// x++ or x--
+			if len(lhs) != 1 {
+				check.invalidASTf(s, "%s%s requires one operand", s.Op, s.Op)
 				return
 			}
-			if s.Op == syntax.Def {
-				check.shortVarDecl(s.Pos(), lhs, rhs)
-			} else {
-				// regular assignment
-				check.assignVars(lhs, rhs)
-			}
-		} else {
-			// assignment operations
-			if len(lhs) != 1 || len(rhs) != 1 {
-				check.errorf(s, "assignment operation %s requires single-valued expressions", s.Op)
-				return
-			}
-
-			// provide better error messages for x++ and x--
-			if rhs[0] == syntax.ImplicitOne {
-				var x operand
-				check.expr(&x, lhs[0])
-				if x.mode == invalid {
-					return
-				}
-				if !isNumeric(x.typ) {
-					check.invalidOpf(lhs[0], "%s%s%s (non-numeric type %s)", lhs[0], s.Op, s.Op, x.typ)
-					return
-				}
-			}
-
 			var x operand
-			check.binary(&x, nil, lhs[0], rhs[0], s.Op)
+			check.expr(&x, lhs[0])
 			if x.mode == invalid {
 				return
 			}
+			if !isNumeric(x.typ) {
+				check.invalidOpf(lhs[0], "%s%s%s (non-numeric type %s)", lhs[0], s.Op, s.Op, x.typ)
+				return
+			}
 			check.assignVar(lhs[0], &x)
+			return
 		}
+
+		rhs := unpackExpr(s.Rhs)
+		switch s.Op {
+		case 0:
+			check.assignVars(lhs, rhs)
+			return
+		case syntax.Def:
+			check.shortVarDecl(s.Pos(), lhs, rhs)
+			return
+		}
+
+		// assignment operations
+		if len(lhs) != 1 || len(rhs) != 1 {
+			check.errorf(s, "assignment operation %s requires single-valued expressions", s.Op)
+			return
+		}
+
+		var x operand
+		check.binary(&x, nil, lhs[0], rhs[0], s.Op)
+		check.assignVar(lhs[0], &x)
 
 	// case *syntax.GoStmt:
 	// 	check.suspendedCall("go", s.Call)
@@ -444,16 +447,24 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 	case *syntax.BranchStmt:
 		if s.Label != nil {
 			check.hasLabel = true
-			return // checked in 2nd pass (check.labels)
+			break // checked in 2nd pass (check.labels)
 		}
 		switch s.Tok {
 		case syntax.Break:
 			if ctxt&breakOk == 0 {
-				check.error(s, "break not in for, switch, or select statement")
+				if check.conf.CompilerErrorMessages {
+					check.error(s, "break is not in a loop, switch, or select statement")
+				} else {
+					check.error(s, "break not in for, switch, or select statement")
+				}
 			}
 		case syntax.Continue:
 			if ctxt&continueOk == 0 {
-				check.error(s, "continue not in for statement")
+				if check.conf.CompilerErrorMessages {
+					check.error(s, "continue is not in a loop")
+				} else {
+					check.error(s, "continue not in for statement")
+				}
 			}
 		case syntax.Fallthrough:
 			if ctxt&fallthroughOk == 0 {
@@ -463,6 +474,9 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 				}
 				check.error(s, msg)
 			}
+		case syntax.Goto:
+			// goto's must have labels, should have been caught above
+			fallthrough
 		default:
 			check.invalidASTf(s, "branch statement: %s", s.Tok)
 		}
@@ -513,7 +527,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 		check.multipleSelectDefaults(s.Body)
 
-		for _, clause := range s.Body {
+		for i, clause := range s.Body {
 			if clause == nil {
 				continue // error reported before
 			}
@@ -543,8 +557,11 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 				check.error(clause.Comm, "select case must be send or receive (possibly with assignment)")
 				continue
 			}
-
-			check.openScope(s, "case")
+			end := s.Rbrace
+			if i+1 < len(s.Body) {
+				end = s.Body[i+1].Pos()
+			}
+			check.openScopeUntil(clause, end, "case")
 			if clause.Comm != nil {
 				check.stmt(inner, clause.Comm)
 			}
@@ -587,14 +604,6 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 	}
 }
 
-func newName(pos syntax.Pos, value string) *syntax.Name {
-	n := new(syntax.Name)
-	// TODO(gri) why does this not work?
-	//n.pos = pos
-	n.Value = value
-	return n
-}
-
 func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 	// init statement already handled
 
@@ -604,6 +613,10 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 		// By checking assignment of x to an invisible temporary
 		// (as a compiler would), we get all the relevant checks.
 		check.assignment(&x, nil, "switch expression")
+		if x.mode != invalid && !Comparable(x.typ) && !hasNil(x.typ) {
+			check.errorf(&x, "cannot switch on %s (%s is not comparable)", &x, x.typ)
+			x.mode = invalid
+		}
 	} else {
 		// spec: "A missing switch expression is
 		// equivalent to the boolean value true."
@@ -615,7 +628,7 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 		if len(s.Body) > 0 {
 			pos = s.Body[0].Pos()
 		}
-		x.expr = newName(pos, "true")
+		x.expr = syntax.NewName(pos, "true")
 	}
 
 	check.multipleSwitchDefaults(s.Body)
@@ -626,14 +639,16 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 			check.invalidASTf(clause, "incorrect expression switch case")
 			continue
 		}
-		check.caseValues(&x, unpackExpr(clause.Cases), seen)
-		check.openScope(clause, "case")
+		end := s.Rbrace
 		inner := inner
 		if i+1 < len(s.Body) {
+			end = s.Body[i+1].Pos()
 			inner |= fallthroughOk
 		} else {
 			inner |= finalSwitchCase
 		}
+		check.caseValues(&x, unpackExpr(clause.Cases), seen)
+		check.openScopeUntil(clause, end, "case")
 		check.stmtList(inner, clause.Body)
 		check.closeScope()
 	}
@@ -676,15 +691,19 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 
 	var lhsVars []*Var                // list of implicitly declared lhs variables
 	seen := make(map[Type]syntax.Pos) // map of seen types to positions
-	for _, clause := range s.Body {
+	for i, clause := range s.Body {
 		if clause == nil {
 			check.invalidASTf(s, "incorrect type switch case")
 			continue
 		}
+		end := s.Rbrace
+		if i+1 < len(s.Body) {
+			end = s.Body[i+1].Pos()
+		}
 		// Check each type in this type switch case.
 		cases := unpackExpr(clause.Cases)
 		T := check.caseTypes(&x, xtyp, cases, seen, false)
-		check.openScope(clause, "case")
+		check.openScopeUntil(clause, end, "case")
 		// If lhs exists, declare a corresponding variable in the case-local scope.
 		if lhs != nil {
 			// spec: "The TypeSwitchGuard may include a short variable declaration.
@@ -696,6 +715,8 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 				T = x.typ
 			}
 			obj := NewVar(lhs.Pos(), check.pkg, lhs.Value, T)
+			// TODO(mdempsky): Just use clause.Colon? Why did I even suggest
+			// "at the end of the TypeSwitchCase" in #16794 instead?
 			scopePos := clause.Pos() // for default clause (len(List) == 0)
 			if n := len(cases); n > 0 {
 				scopePos = endPos(cases[n-1])
@@ -877,7 +898,7 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 	case *Chan:
 		var msg string
 		if typ.dir == SendOnly {
-			msg = "send-only channel"
+			msg = "receive from send-only channel"
 		}
 		return typ.elem, Typ[Invalid], msg
 	case *Sum:

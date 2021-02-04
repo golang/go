@@ -1,0 +1,62 @@
+# When converting a commit to a pseudo-version, don't use a retracted version
+# as the base.
+# Verifies golang.org/issue/41700.
+
+[!net] skip
+[!exec:git] skip
+env GOPROXY=direct
+env GOSUMDB=off
+go mod init m
+
+# Control: check that v1.0.0 is the only version and is retracted.
+go list -m -versions vcs-test.golang.org/git/retract-pseudo.git
+stdout '^vcs-test.golang.org/git/retract-pseudo.git$'
+go list -m -versions -retracted vcs-test.golang.org/git/retract-pseudo.git
+stdout '^vcs-test.golang.org/git/retract-pseudo.git v1.0.0$'
+
+# 713affd19d7b is a commit after v1.0.0. Don't use v1.0.0 as the base.
+go list -m vcs-test.golang.org/git/retract-pseudo.git@713affd19d7b
+stdout '^vcs-test.golang.org/git/retract-pseudo.git v0.0.0-20201009173747-713affd19d7b$'
+
+# 64c061ed4371 is the commit v1.0.0 refers to. Don't convert to v1.0.0.
+go list -m vcs-test.golang.org/git/retract-pseudo.git@64c061ed4371
+stdout '^vcs-test.golang.org/git/retract-pseudo.git v0.0.0-20201009173747-64c061ed4371'
+
+# A retracted version is a valid base. Retraction should not validate existing
+# pseudo-versions, nor should it turn invalid pseudo-versions valid.
+go get -d vcs-test.golang.org/git/retract-pseudo.git@v1.0.1-0.20201009173747-713affd19d7b
+go list -m vcs-test.golang.org/git/retract-pseudo.git
+stdout '^vcs-test.golang.org/git/retract-pseudo.git v1.0.1-0.20201009173747-713affd19d7b$'
+
+! go get -d vcs-test.golang.org/git/retract-pseudo.git@v1.0.1-0.20201009173747-64c061ed4371
+stderr '^go get: vcs-test.golang.org/git/retract-pseudo.git@v1.0.1-0.20201009173747-64c061ed4371: invalid pseudo-version: tag \(v1.0.0\) found on revision 64c061ed4371 is already canonical, so should not be replaced with a pseudo-version derived from that tag$'
+
+-- retract-pseudo.sh --
+#!/bin/bash
+
+# This is not part of the test.
+# Run this to generate and update the repository on vcs-test.golang.org.
+
+set -euo pipefail
+
+rm -rf retract-pseudo
+mkdir retract-pseudo
+cd retract-pseudo
+git init
+
+# Create the module.
+# Retract v1.0.0 and tag v1.0.0 at the same commit.
+# The module has no unretracted release versions.
+go mod init vcs-test.golang.org/git/retract-pseudo.git
+go mod edit -retract v1.0.0
+echo 'package p' >p.go
+git add -A
+git commit -m 'create module retract-pseudo'
+git tag v1.0.0
+
+# Commit a trivial change so the default branch does not point to v1.0.0.
+git mv p.go q.go
+git commit -m 'trivial change'
+
+zip -r ../retract-pseudo.zip .
+gsutil cp ../retract-pseudo.zip gs://vcs-test/git/retract-pseudo.zip

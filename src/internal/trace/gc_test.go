@@ -6,8 +6,8 @@ package trace
 
 import (
 	"bytes"
-	"io/ioutil"
 	"math"
+	"os"
 	"testing"
 	"time"
 )
@@ -84,7 +84,7 @@ func TestMMUTrace(t *testing.T) {
 		t.Skip("skipping in -short mode")
 	}
 
-	data, err := ioutil.ReadFile("testdata/stress_1_10_good")
+	data, err := os.ReadFile("testdata/stress_1_10_good")
 	if err != nil {
 		t.Fatalf("failed to read input file: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestMMUTrace(t *testing.T) {
 }
 
 func BenchmarkMMU(b *testing.B) {
-	data, err := ioutil.ReadFile("testdata/stress_1_10_good")
+	data, err := os.ReadFile("testdata/stress_1_10_good")
 	if err != nil {
 		b.Fatalf("failed to read input file: %v", err)
 	}

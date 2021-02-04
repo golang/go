@@ -6,9 +6,9 @@ package modconv
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -36,7 +36,7 @@ func testMain(m *testing.M) int {
 		return 0
 	}
 
-	dir, err := ioutil.TempDir("", "modconv-test-")
+	dir, err := os.MkdirTemp("", "modconv-test-")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -146,6 +146,8 @@ func TestConvertLegacyConfig(t *testing.T) {
 		},
 	}
 
+	ctx := context.Background()
+
 	for _, tt := range tests {
 		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"_"+tt.vers, func(t *testing.T) {
 			f, err := modfile.Parse("golden", []byte(tt.gomod), nil)
@@ -157,14 +159,14 @@ func TestConvertLegacyConfig(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			dir, err := modfetch.Download(module.Version{Path: tt.path, Version: tt.vers})
+			dir, err := modfetch.Download(ctx, module.Version{Path: tt.path, Version: tt.vers})
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			for name := range Converters {
 				file := filepath.Join(dir, name)
-				data, err := ioutil.ReadFile(file)
+				data, err := os.ReadFile(file)
 				if err == nil {
 					f := new(modfile.File)
 					f.AddModuleStmt(tt.path)

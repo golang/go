@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 	"path"
@@ -773,7 +772,7 @@ func TestReadTruncation(t *testing.T) {
 		"testdata/pax-path-hdr.tar",
 		"testdata/sparse-formats.tar",
 	} {
-		buf, err := ioutil.ReadFile(p)
+		buf, err := os.ReadFile(p)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -865,7 +864,7 @@ func TestReadTruncation(t *testing.T) {
 				}
 				cnt++
 				if s2 == "manual" {
-					if _, err = tr.writeTo(ioutil.Discard); err != nil {
+					if _, err = tr.writeTo(io.Discard); err != nil {
 						break
 					}
 				}

@@ -8,6 +8,7 @@ package modcmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,7 +19,6 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -67,9 +67,14 @@ The -dropreplace=old[@v] flag drops a replacement of the given
 module path and version pair. If the @v is omitted, a replacement without
 a version on the left side is dropped.
 
+The -retract=version and -dropretract=version flags add and drop a
+retraction on the given version. The version may be a single version
+like "v1.2.3" or a closed interval like "[v1.1.0,v1.1.9]". Note that
+-retract=version is a no-op if that retraction already exists.
+
 The -require, -droprequire, -exclude, -dropexclude, -replace,
-and -dropreplace editing flags may be repeated, and the changes
-are applied in the order given.
+-dropreplace, -retract, and -dropretract editing flags may be repeated,
+and the changes are applied in the order given.
 
 The -go=version flag sets the expected Go language version.
 
@@ -90,6 +95,7 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
 		Require []Require
 		Exclude []Module
 		Replace []Replace
+		Retract []Retract
 	}
 
 	type Require struct {
@@ -103,13 +109,20 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
 		New Module
 	}
 
+	type Retract struct {
+		Low       string
+		High      string
+		Rationale string
+	}
+
+Retract entries representing a single version (not an interval) will have
+the "Low" and "High" fields set to the same value.
+
 Note that this only describes the go.mod file itself, not other modules
 referred to indirectly. For the full set of modules available to a build,
 use 'go list -m -json all'.
 
-For example, a tool can obtain the go.mod as a data structure by
-parsing the output of 'go mod edit -json' and can then make changes
-by invoking 'go mod edit' with -require, -exclude, and so on.
+See https://golang.org/ref/mod#go-mod-edit for more about 'go mod edit'.
 	`,
 }
 
@@ -136,12 +149,14 @@ func init() {
 	cmdEdit.Flag.Var(flagFunc(flagDropReplace), "dropreplace", "")
 	cmdEdit.Flag.Var(flagFunc(flagReplace), "replace", "")
 	cmdEdit.Flag.Var(flagFunc(flagDropExclude), "dropexclude", "")
+	cmdEdit.Flag.Var(flagFunc(flagRetract), "retract", "")
+	cmdEdit.Flag.Var(flagFunc(flagDropRetract), "dropretract", "")
 
-	work.AddModCommonFlags(cmdEdit)
+	base.AddModCommonFlags(&cmdEdit.Flag)
 	base.AddBuildFlagsNX(&cmdEdit.Flag)
 }
 
-func runEdit(cmd *base.Command, args []string) {
+func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 	anyFlags :=
 		*editModule != "" ||
 			*editGo != "" ||
@@ -251,12 +266,7 @@ func parsePathVersion(flag, arg string) (path, version string) {
 		base.Fatalf("go mod: -%s=%s: invalid path: %v", flag, arg, err)
 	}
 
-	// We don't call modfile.CheckPathVersion, because that insists
-	// on versions being in semver form, but here we want to allow
-	// versions like "master" or "1234abcdef", which the go command will resolve
-	// the next time it runs (or during -fix).
-	// Even so, we need to make sure the version is a valid token.
-	if modfile.MustQuote(version) {
+	if !allowedVersionArg(version) {
 		base.Fatalf("go mod: -%s=%s: invalid version %q", flag, arg, version)
 	}
 
@@ -288,10 +298,46 @@ func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version
 			return path, version, fmt.Errorf("invalid %s path: %v", adj, err)
 		}
 	}
-	if path != arg && modfile.MustQuote(version) {
+	if path != arg && !allowedVersionArg(version) {
 		return path, version, fmt.Errorf("invalid %s version: %q", adj, version)
 	}
 	return path, version, nil
+}
+
+// parseVersionInterval parses a single version like "v1.2.3" or a closed
+// interval like "[v1.2.3,v1.4.5]". Note that a single version has the same
+// representation as an interval with equal upper and lower bounds: both
+// Low and High are set.
+func parseVersionInterval(arg string) (modfile.VersionInterval, error) {
+	if !strings.HasPrefix(arg, "[") {
+		if !allowedVersionArg(arg) {
+			return modfile.VersionInterval{}, fmt.Errorf("invalid version: %q", arg)
+		}
+		return modfile.VersionInterval{Low: arg, High: arg}, nil
+	}
+	if !strings.HasSuffix(arg, "]") {
+		return modfile.VersionInterval{}, fmt.Errorf("invalid version interval: %q", arg)
+	}
+	s := arg[1 : len(arg)-1]
+	i := strings.Index(s, ",")
+	if i < 0 {
+		return modfile.VersionInterval{}, fmt.Errorf("invalid version interval: %q", arg)
+	}
+	low := strings.TrimSpace(s[:i])
+	high := strings.TrimSpace(s[i+1:])
+	if !allowedVersionArg(low) || !allowedVersionArg(high) {
+		return modfile.VersionInterval{}, fmt.Errorf("invalid version interval: %q", arg)
+	}
+	return modfile.VersionInterval{Low: low, High: high}, nil
+}
+
+// allowedVersionArg returns whether a token may be used as a version in go.mod.
+// We don't call modfile.CheckPathVersion, because that insists on versions
+// being in semver form, but here we want to allow versions like "master" or
+// "1234abcdef", which the go command will resolve the next time it runs (or
+// during -fix).  Even so, we need to make sure the version is a valid token.
+func allowedVersionArg(arg string) bool {
+	return !modfile.MustQuote(arg)
 }
 
 // flagRequire implements the -require flag.
@@ -376,6 +422,32 @@ func flagDropReplace(arg string) {
 	})
 }
 
+// flagRetract implements the -retract flag.
+func flagRetract(arg string) {
+	vi, err := parseVersionInterval(arg)
+	if err != nil {
+		base.Fatalf("go mod: -retract=%s: %v", arg, err)
+	}
+	edits = append(edits, func(f *modfile.File) {
+		if err := f.AddRetract(vi, ""); err != nil {
+			base.Fatalf("go mod: -retract=%s: %v", arg, err)
+		}
+	})
+}
+
+// flagDropRetract implements the -dropretract flag.
+func flagDropRetract(arg string) {
+	vi, err := parseVersionInterval(arg)
+	if err != nil {
+		base.Fatalf("go mod: -dropretract=%s: %v", arg, err)
+	}
+	edits = append(edits, func(f *modfile.File) {
+		if err := f.DropRetract(vi); err != nil {
+			base.Fatalf("go mod: -dropretract=%s: %v", arg, err)
+		}
+	})
+}
+
 // fileJSON is the -json output data structure.
 type fileJSON struct {
 	Module  module.Version
@@ -383,6 +455,7 @@ type fileJSON struct {
 	Require []requireJSON
 	Exclude []module.Version
 	Replace []replaceJSON
+	Retract []retractJSON
 }
 
 type requireJSON struct {
@@ -394,6 +467,12 @@ type requireJSON struct {
 type replaceJSON struct {
 	Old module.Version
 	New module.Version
+}
+
+type retractJSON struct {
+	Low       string `json:",omitempty"`
+	High      string `json:",omitempty"`
+	Rationale string `json:",omitempty"`
 }
 
 // editPrintJSON prints the -json output.
@@ -413,6 +492,9 @@ func editPrintJSON(modFile *modfile.File) {
 	}
 	for _, r := range modFile.Replace {
 		f.Replace = append(f.Replace, replaceJSON{r.Old, r.New})
+	}
+	for _, r := range modFile.Retract {
+		f.Retract = append(f.Retract, retractJSON{r.Low, r.High, r.Rationale})
 	}
 	data, err := json.MarshalIndent(&f, "", "\t")
 	if err != nil {

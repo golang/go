@@ -32,13 +32,13 @@
 package obj
 
 import (
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/objabi"
-	"crypto/md5"
 	"fmt"
 	"log"
 	"math"
 	"sort"
+	"strings"
 )
 
 func Linknew(arch *LinkArch) *Link {
@@ -54,7 +54,6 @@ func Linknew(arch *LinkArch) *Link {
 	}
 
 	ctxt.Flag_optimize = true
-	ctxt.Framepointer_enabled = objabi.Framepointer_enabled(objabi.GOOS, arch.Name)
 	return ctxt
 }
 
@@ -140,7 +139,11 @@ func (ctxt *Link) Float32Sym(f float32) *LSym {
 	name := fmt.Sprintf("$f32.%08x", i)
 	return ctxt.LookupInit(name, func(s *LSym) {
 		s.Size = 4
+		s.WriteFloat32(ctxt, 0, f)
+		s.Type = objabi.SRODATA
 		s.Set(AttrLocal, true)
+		s.Set(AttrContentAddressable, true)
+		ctxt.constSyms = append(ctxt.constSyms, s)
 	})
 }
 
@@ -149,7 +152,11 @@ func (ctxt *Link) Float64Sym(f float64) *LSym {
 	name := fmt.Sprintf("$f64.%016x", i)
 	return ctxt.LookupInit(name, func(s *LSym) {
 		s.Size = 8
+		s.WriteFloat64(ctxt, 0, f)
+		s.Type = objabi.SRODATA
 		s.Set(AttrLocal, true)
+		s.Set(AttrContentAddressable, true)
+		ctxt.constSyms = append(ctxt.constSyms, s)
 	})
 }
 
@@ -157,18 +164,18 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
 	name := fmt.Sprintf("$i64.%016x", uint64(i))
 	return ctxt.LookupInit(name, func(s *LSym) {
 		s.Size = 8
+		s.WriteInt(ctxt, 0, 8, i)
+		s.Type = objabi.SRODATA
 		s.Set(AttrLocal, true)
+		s.Set(AttrContentAddressable, true)
+		ctxt.constSyms = append(ctxt.constSyms, s)
 	})
 }
 
 // Assign index to symbols.
 // asm is set to true if this is called by the assembler (i.e. not the compiler),
 // in which case all the symbols are non-package (for now).
-func (ctxt *Link) NumberSyms(asm bool) {
-	if !ctxt.Flag_go115newobj {
-		return
-	}
-
+func (ctxt *Link) NumberSyms() {
 	if ctxt.Headtype == objabi.Haix {
 		// Data must be sorted to keep a constant order in TOC symbols.
 		// As they are created during Progedit, two symbols can be switched between
@@ -179,14 +186,46 @@ func (ctxt *Link) NumberSyms(asm bool) {
 		})
 	}
 
+	// Constant symbols are created late in the concurrent phase. Sort them
+	// to ensure a deterministic order.
+	sort.Slice(ctxt.constSyms, func(i, j int) bool {
+		return ctxt.constSyms[i].Name < ctxt.constSyms[j].Name
+	})
+	ctxt.Data = append(ctxt.Data, ctxt.constSyms...)
+	ctxt.constSyms = nil
+
 	ctxt.pkgIdx = make(map[string]int32)
 	ctxt.defs = []*LSym{}
+	ctxt.hashed64defs = []*LSym{}
+	ctxt.hasheddefs = []*LSym{}
 	ctxt.nonpkgdefs = []*LSym{}
 
-	var idx, nonpkgidx int32 = 0, 0
+	var idx, hashedidx, hashed64idx, nonpkgidx int32
 	ctxt.traverseSyms(traverseDefs, func(s *LSym) {
-		if isNonPkgSym(ctxt, asm, s) {
-			s.PkgIdx = goobj2.PkgIdxNone
+		// if Pkgpath is unknown, cannot hash symbols with relocations, as it
+		// may reference named symbols whose names are not fully expanded.
+		if s.ContentAddressable() && (ctxt.Pkgpath != "" || len(s.R) == 0) {
+			if s.Size <= 8 && len(s.R) == 0 && !strings.HasPrefix(s.Name, "type.") {
+				// We can use short hash only for symbols without relocations.
+				// Don't use short hash for type symbols, as they need special handling.
+				s.PkgIdx = goobj.PkgIdxHashed64
+				s.SymIdx = hashed64idx
+				if hashed64idx != int32(len(ctxt.hashed64defs)) {
+					panic("bad index")
+				}
+				ctxt.hashed64defs = append(ctxt.hashed64defs, s)
+				hashed64idx++
+			} else {
+				s.PkgIdx = goobj.PkgIdxHashed
+				s.SymIdx = hashedidx
+				if hashedidx != int32(len(ctxt.hasheddefs)) {
+					panic("bad index")
+				}
+				ctxt.hasheddefs = append(ctxt.hasheddefs, s)
+				hashedidx++
+			}
+		} else if isNonPkgSym(ctxt, s) {
+			s.PkgIdx = goobj.PkgIdxNone
 			s.SymIdx = nonpkgidx
 			if nonpkgidx != int32(len(ctxt.nonpkgdefs)) {
 				panic("bad index")
@@ -194,7 +233,7 @@ func (ctxt *Link) NumberSyms(asm bool) {
 			ctxt.nonpkgdefs = append(ctxt.nonpkgdefs, s)
 			nonpkgidx++
 		} else {
-			s.PkgIdx = goobj2.PkgIdxSelf
+			s.PkgIdx = goobj.PkgIdxSelf
 			s.SymIdx = idx
 			if idx != int32(len(ctxt.defs)) {
 				panic("bad index")
@@ -208,23 +247,27 @@ func (ctxt *Link) NumberSyms(asm bool) {
 	ipkg := int32(1) // 0 is invalid index
 	nonpkgdef := nonpkgidx
 	ctxt.traverseSyms(traverseRefs|traverseAux, func(rs *LSym) {
-		if rs.PkgIdx != goobj2.PkgIdxInvalid {
+		if rs.PkgIdx != goobj.PkgIdxInvalid {
 			return
 		}
 		if !ctxt.Flag_linkshared {
 			// Assign special index for builtin symbols.
 			// Don't do it when linking against shared libraries, as the runtime
 			// may be in a different library.
-			if i := goobj2.BuiltinIdx(rs.Name, int(rs.ABI())); i != -1 {
-				rs.PkgIdx = goobj2.PkgIdxBuiltin
+			if i := goobj.BuiltinIdx(rs.Name, int(rs.ABI())); i != -1 {
+				rs.PkgIdx = goobj.PkgIdxBuiltin
 				rs.SymIdx = int32(i)
 				rs.Set(AttrIndexed, true)
 				return
 			}
 		}
 		pkg := rs.Pkg
+		if rs.ContentAddressable() {
+			// for now, only support content-addressable symbols that are always locally defined.
+			panic("hashed refs unsupported for now")
+		}
 		if pkg == "" || pkg == "\"\"" || pkg == "_" || !rs.Indexed() {
-			rs.PkgIdx = goobj2.PkgIdxNone
+			rs.PkgIdx = goobj.PkgIdxNone
 			rs.SymIdx = nonpkgidx
 			rs.Set(AttrIndexed, true)
 			if nonpkgidx != nonpkgdef+int32(len(ctxt.nonpkgrefs)) {
@@ -242,21 +285,12 @@ func (ctxt *Link) NumberSyms(asm bool) {
 		ctxt.pkgIdx[pkg] = ipkg
 		ipkg++
 	})
-
-	// Compute a fingerprint of the indices, for exporting.
-	if !asm {
-		h := md5.New()
-		for _, s := range ctxt.defs {
-			h.Write([]byte(s.Name))
-		}
-		copy(ctxt.Fingerprint[:], h.Sum(nil)[:])
-	}
 }
 
 // Returns whether s is a non-package symbol, which needs to be referenced
 // by name instead of by index.
-func isNonPkgSym(ctxt *Link, asm bool, s *LSym) bool {
-	if asm && !s.Static() {
+func isNonPkgSym(ctxt *Link, s *LSym) bool {
+	if ctxt.IsAsm && !s.Static() {
 		// asm symbols are referenced by name only, except static symbols
 		// which are file-local and can be referenced by index.
 		return true
@@ -277,6 +311,11 @@ func isNonPkgSym(ctxt *Link, asm bool, s *LSym) bool {
 	}
 	return false
 }
+
+// StaticNamePref is the prefix the front end applies to static temporary
+// variables. When turned into LSyms, these can be tagged as static so
+// as to avoid inserting them into the linker's name lookup tables.
+const StaticNamePref = ".stmp_"
 
 type traverseFlag uint32
 
@@ -319,7 +358,8 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
 }
 
 func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent *LSym, aux *LSym)) {
-	pc := &fsym.Func.Pcln
+	fninfo := fsym.Func()
+	pc := &fninfo.Pcln
 	if flag&traverseAux == 0 {
 		// NB: should it become necessary to walk aux sym reloc references
 		// without walking the aux syms themselves, this can be changed.
@@ -330,8 +370,14 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent 
 			fn(fsym, d)
 		}
 	}
-	for _, f := range pc.File {
-		if filesym := ctxt.Lookup(f); filesym != nil {
+	files := ctxt.PosTable.FileTable()
+	usedFiles := make([]goobj.CUFileIndex, 0, len(pc.UsedFiles))
+	for f := range pc.UsedFiles {
+		usedFiles = append(usedFiles, f)
+	}
+	sort.Slice(usedFiles, func(i, j int) bool { return usedFiles[i] < usedFiles[j] })
+	for _, f := range usedFiles {
+		if filesym := ctxt.Lookup(files[f]); filesym != nil {
 			fn(fsym, filesym)
 		}
 	}
@@ -344,7 +390,8 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent 
 			fn(fsym, filesym)
 		}
 	}
-	dwsyms := []*LSym{fsym.Func.dwarfRangesSym, fsym.Func.dwarfLocSym, fsym.Func.dwarfDebugLinesSym, fsym.Func.dwarfInfoSym}
+
+	dwsyms := []*LSym{fninfo.dwarfRangesSym, fninfo.dwarfLocSym, fninfo.dwarfDebugLinesSym, fninfo.dwarfInfoSym}
 	for _, dws := range dwsyms {
 		if dws == nil || dws.Size == 0 {
 			continue

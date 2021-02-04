@@ -6,7 +6,7 @@ package os_test
 
 import (
 	"internal/testenv"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -14,7 +14,7 @@ import (
 )
 
 // testStatAndLstat verifies that all os.Stat, os.Lstat os.File.Stat and os.Readdir work.
-func testStatAndLstat(t *testing.T, path string, isLink bool, statCheck, lstatCheck func(*testing.T, string, os.FileInfo)) {
+func testStatAndLstat(t *testing.T, path string, isLink bool, statCheck, lstatCheck func(*testing.T, string, fs.FileInfo)) {
 	// test os.Stat
 	sfi, err := os.Stat(path)
 	if err != nil {
@@ -70,7 +70,7 @@ func testStatAndLstat(t *testing.T, path string, isLink bool, statCheck, lstatCh
 		}
 	}
 
-	// test os.FileInfo returned by os.Readdir
+	// test fs.FileInfo returned by os.Readdir
 	if len(path) > 0 && os.IsPathSeparator(path[len(path)-1]) {
 		// skip os.Readdir test of directories with slash at the end
 		return
@@ -88,7 +88,7 @@ func testStatAndLstat(t *testing.T, path string, isLink bool, statCheck, lstatCh
 		t.Error(err)
 		return
 	}
-	var lsfi2 os.FileInfo
+	var lsfi2 fs.FileInfo
 	base := filepath.Base(path)
 	for _, fi2 := range fis {
 		if fi2.Name() == base {
@@ -108,34 +108,34 @@ func testStatAndLstat(t *testing.T, path string, isLink bool, statCheck, lstatCh
 }
 
 // testIsDir verifies that fi refers to directory.
-func testIsDir(t *testing.T, path string, fi os.FileInfo) {
+func testIsDir(t *testing.T, path string, fi fs.FileInfo) {
 	t.Helper()
 	if !fi.IsDir() {
 		t.Errorf("%q should be a directory", path)
 	}
-	if fi.Mode()&os.ModeSymlink != 0 {
+	if fi.Mode()&fs.ModeSymlink != 0 {
 		t.Errorf("%q should not be a symlink", path)
 	}
 }
 
 // testIsSymlink verifies that fi refers to symlink.
-func testIsSymlink(t *testing.T, path string, fi os.FileInfo) {
+func testIsSymlink(t *testing.T, path string, fi fs.FileInfo) {
 	t.Helper()
 	if fi.IsDir() {
 		t.Errorf("%q should not be a directory", path)
 	}
-	if fi.Mode()&os.ModeSymlink == 0 {
+	if fi.Mode()&fs.ModeSymlink == 0 {
 		t.Errorf("%q should be a symlink", path)
 	}
 }
 
 // testIsFile verifies that fi refers to file.
-func testIsFile(t *testing.T, path string, fi os.FileInfo) {
+func testIsFile(t *testing.T, path string, fi fs.FileInfo) {
 	t.Helper()
 	if fi.IsDir() {
 		t.Errorf("%q should not be a directory", path)
 	}
-	if fi.Mode()&os.ModeSymlink != 0 {
+	if fi.Mode()&fs.ModeSymlink != 0 {
 		t.Errorf("%q should not be a symlink", path)
 	}
 }
@@ -185,7 +185,7 @@ func testSymlinkSameFile(t *testing.T, path, link string) {
 func TestDirAndSymlinkStats(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpdir, err := ioutil.TempDir("", "TestDirAndSymlinkStats")
+	tmpdir, err := os.MkdirTemp("", "TestDirAndSymlinkStats")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,14 +218,14 @@ func TestDirAndSymlinkStats(t *testing.T) {
 func TestFileAndSymlinkStats(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpdir, err := ioutil.TempDir("", "TestFileAndSymlinkStats")
+	tmpdir, err := os.MkdirTemp("", "TestFileAndSymlinkStats")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
 
 	file := filepath.Join(tmpdir, "file")
-	err = ioutil.WriteFile(file, []byte(""), 0644)
+	err = os.WriteFile(file, []byte(""), 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,7 +252,7 @@ func TestFileAndSymlinkStats(t *testing.T) {
 func TestSymlinkWithTrailingSlash(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpdir, err := ioutil.TempDir("", "TestSymlinkWithTrailingSlash")
+	tmpdir, err := os.MkdirTemp("", "TestSymlinkWithTrailingSlash")
 	if err != nil {
 		t.Fatal(err)
 	}

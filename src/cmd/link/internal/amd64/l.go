@@ -33,7 +33,7 @@ package amd64
 const (
 	maxAlign  = 32 // max data alignment
 	minAlign  = 1  // min data alignment
-	funcAlign = 16
+	funcAlign = 32
 )
 
 /* Used by ../internal/ld/dwarf.go */

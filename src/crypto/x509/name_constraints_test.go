@@ -14,7 +14,6 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"net/url"
@@ -1941,7 +1940,7 @@ func TestConstraintCases(t *testing.T) {
 		// Skip tests with CommonName set because OpenSSL will try to match it
 		// against name constraints, while we ignore it when it's not hostname-looking.
 		if !test.noOpenSSL && testNameConstraintsAgainstOpenSSL && test.leaf.cn == "" {
-			output, err := testChainAgainstOpenSSL(leafCert, intermediatePool, rootPool)
+			output, err := testChainAgainstOpenSSL(t, leafCert, intermediatePool, rootPool)
 			if err == nil && len(test.expectedError) > 0 {
 				t.Errorf("#%d: unexpectedly succeeded against OpenSSL", i)
 				if debugOpenSSLFailure {
@@ -1993,7 +1992,7 @@ func TestConstraintCases(t *testing.T) {
 				pem.Encode(&buf, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
 				return buf.String()
 			}
-			t.Errorf("#%d: root:\n%s", i, certAsPEM(rootPool.certs[0]))
+			t.Errorf("#%d: root:\n%s", i, certAsPEM(rootPool.mustCert(t, 0)))
 			t.Errorf("#%d: leaf:\n%s", i, certAsPEM(leafCert))
 		}
 
@@ -2005,7 +2004,7 @@ func TestConstraintCases(t *testing.T) {
 }
 
 func writePEMsToTempFile(certs []*Certificate) *os.File {
-	file, err := ioutil.TempFile("", "name_constraints_test")
+	file, err := os.CreateTemp("", "name_constraints_test")
 	if err != nil {
 		panic("cannot create tempfile")
 	}
@@ -2019,10 +2018,10 @@ func writePEMsToTempFile(certs []*Certificate) *os.File {
 	return file
 }
 
-func testChainAgainstOpenSSL(leaf *Certificate, intermediates, roots *CertPool) (string, error) {
+func testChainAgainstOpenSSL(t *testing.T, leaf *Certificate, intermediates, roots *CertPool) (string, error) {
 	args := []string{"verify", "-no_check_time"}
 
-	rootsFile := writePEMsToTempFile(roots.certs)
+	rootsFile := writePEMsToTempFile(allCerts(t, roots))
 	if debugOpenSSLFailure {
 		println("roots file:", rootsFile.Name())
 	} else {
@@ -2030,8 +2029,8 @@ func testChainAgainstOpenSSL(leaf *Certificate, intermediates, roots *CertPool) 
 	}
 	args = append(args, "-CAfile", rootsFile.Name())
 
-	if len(intermediates.certs) > 0 {
-		intermediatesFile := writePEMsToTempFile(intermediates.certs)
+	if intermediates.len() > 0 {
+		intermediatesFile := writePEMsToTempFile(allCerts(t, intermediates))
 		if debugOpenSSLFailure {
 			println("intermediates file:", intermediatesFile.Name())
 		} else {

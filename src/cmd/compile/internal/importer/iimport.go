@@ -1,3 +1,4 @@
+// UNREVIEWED
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -16,6 +17,7 @@ import (
 	"go/constant"
 	"go/token"
 	"io"
+	"math/big"
 	"sort"
 )
 
@@ -57,6 +59,8 @@ const (
 	interfaceType
 )
 
+const io_SeekCurrent = 1 // io.SeekCurrent (not defined in Go 1.4)
+
 // iImportData imports a package from the serialized package data
 // and returns the number of bytes consumed and a reference to the package.
 // If the export data version is not recognized or the format is otherwise
@@ -86,10 +90,10 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
 	sLen := int64(r.uint64())
 	dLen := int64(r.uint64())
 
-	whence, _ := r.Seek(0, io.SeekCurrent)
+	whence, _ := r.Seek(0, io_SeekCurrent)
 	stringData := data[whence : whence+sLen]
 	declData := data[whence+sLen : whence+sLen+dLen]
-	r.Seek(sLen+dLen, io.SeekCurrent)
+	r.Seek(sLen+dLen, io_SeekCurrent)
 
 	p := iimporter{
 		ipath:   path,
@@ -161,7 +165,7 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
 	// package was imported completely and without errors
 	localpkg.MarkComplete()
 
-	consumed, _ := r.Seek(0, io.SeekCurrent)
+	consumed, _ := r.Seek(0, io_SeekCurrent)
 	return int(consumed), localpkg, nil
 }
 
@@ -192,7 +196,10 @@ func (p *iimporter) doDecl(pkg *types2.Package, name string) {
 	}
 
 	r := &importReader{p: p, currPkg: pkg}
-	r.declReader.Reset(p.declData[off:])
+	// Reader.Reset is not available in Go 1.4.
+	// Use bytes.NewReader for now.
+	// r.declReader.Reset(p.declData[off:])
+	r.declReader = *bytes.NewReader(p.declData[off:])
 
 	r.obj(name)
 }
@@ -231,7 +238,10 @@ func (p *iimporter) typAt(off uint64, base *types2.Named) types2.Type {
 	}
 
 	r := &importReader{p: p}
-	r.declReader.Reset(p.declData[off-predeclReserved:])
+	// Reader.Reset is not available in Go 1.4.
+	// Use bytes.NewReader for now.
+	// r.declReader.Reset(p.declData[off-predeclReserved:])
+	r.declReader = *bytes.NewReader(p.declData[off-predeclReserved:])
 	t := r.doType(base)
 
 	if base == nil || !isInterface(t) {
@@ -315,7 +325,9 @@ func (r *importReader) value() (typ types2.Type, val constant.Value) {
 		val = constant.MakeString(r.string())
 
 	case types2.IsInteger:
-		val = r.mpint(b)
+		var x big.Int
+		r.mpint(&x, b)
+		val = constant.Make(&x)
 
 	case types2.IsFloat:
 		val = r.mpfloat(b)
@@ -360,8 +372,8 @@ func intSize(b *types2.Basic) (signed bool, maxBytes uint) {
 	return
 }
 
-func (r *importReader) mpint(b *types2.Basic) constant.Value {
-	signed, maxBytes := intSize(b)
+func (r *importReader) mpint(x *big.Int, typ *types2.Basic) {
+	signed, maxBytes := intSize(typ)
 
 	maxSmall := 256 - maxBytes
 	if signed {
@@ -380,7 +392,8 @@ func (r *importReader) mpint(b *types2.Basic) constant.Value {
 				v = ^v
 			}
 		}
-		return constant.MakeInt64(v)
+		x.SetInt64(v)
+		return
 	}
 
 	v := -n
@@ -390,39 +403,23 @@ func (r *importReader) mpint(b *types2.Basic) constant.Value {
 	if v < 1 || uint(v) > maxBytes {
 		errorf("weird decoding: %v, %v => %v", n, signed, v)
 	}
-
-	buf := make([]byte, v)
-	io.ReadFull(&r.declReader, buf)
-
-	// convert to little endian
-	// TODO(gri) go/constant should have a more direct conversion function
-	//           (e.g., once it supports a big.Float based implementation)
-	for i, j := 0, len(buf)-1; i < j; i, j = i+1, j-1 {
-		buf[i], buf[j] = buf[j], buf[i]
-	}
-
-	x := constant.MakeFromBytes(buf)
+	b := make([]byte, v)
+	io.ReadFull(&r.declReader, b)
+	x.SetBytes(b)
 	if signed && n&1 != 0 {
-		x = constant.UnaryOp(token.SUB, x, 0)
+		x.Neg(x)
 	}
-	return x
 }
 
-func (r *importReader) mpfloat(b *types2.Basic) constant.Value {
-	x := r.mpint(b)
-	if constant.Sign(x) == 0 {
-		return x
+func (r *importReader) mpfloat(typ *types2.Basic) constant.Value {
+	var mant big.Int
+	r.mpint(&mant, typ)
+	var f big.Float
+	f.SetInt(&mant)
+	if f.Sign() != 0 {
+		f.SetMantExp(&f, int(r.int64()))
 	}
-
-	exp := r.int64()
-	switch {
-	case exp > 0:
-		x = constant.Shift(x, token.SHL, uint(exp))
-	case exp < 0:
-		d := constant.Shift(constant.MakeInt64(1), token.SHL, uint(-exp))
-		x = constant.BinaryOp(x, token.QUO, d)
-	}
-	return x
+	return constant.Make(&f)
 }
 
 func (r *importReader) ident() string {

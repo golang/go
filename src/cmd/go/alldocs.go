@@ -49,10 +49,11 @@
 // 	modules         modules, module versions, and more
 // 	module-get      module-aware go get
 // 	module-auth     module authentication using go.sum
-// 	module-private  module configuration for non-public modules
 // 	packages        package lists and patterns
+// 	private         configuration for downloading non-public code
 // 	testflag        testing flags
 // 	testfunc        testing functions
+// 	vcs             controlling version control with GOVCS
 //
 // Use "go help <topic>" for more information about that topic.
 //
@@ -71,7 +72,7 @@
 //
 // Usage:
 //
-// 	go build [-o output] [-i] [build flags] [packages]
+// 	go build [-o output] [build flags] [packages]
 //
 // Build compiles the packages named by the import paths,
 // along with their dependencies, but it does not install the results.
@@ -93,10 +94,12 @@
 //
 // The -o flag forces build to write the resulting executable or object
 // to the named output file or directory, instead of the default behavior described
-// in the last two paragraphs. If the named output is a directory that exists,
-// then any resulting executables will be written to that directory.
+// in the last two paragraphs. If the named output is an existing directory or
+// ends with a slash or backslash, then any resulting executables
+// will be written to that directory.
 //
 // The -i flag installs the packages that are dependencies of the target.
+// The -i flag is deprecated. Compiled packages are cached automatically.
 //
 // The build flags are shared by the build, clean, get, install, list, run,
 // and test commands:
@@ -108,7 +111,7 @@
 // 	-p n
 // 		the number of programs, such as build commands or
 // 		test binaries, that can be run in parallel.
-// 		The default is the number of CPUs available.
+// 		The default is GOMAXPROCS, normally the number of CPUs available.
 // 	-race
 // 		enable data race detection.
 // 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
@@ -150,7 +153,10 @@
 // 		created with -buildmode=shared.
 // 	-mod mode
 // 		module download mode to use: readonly, vendor, or mod.
-// 		See 'go help modules' for more.
+// 		By default, if a vendor directory is present and the go version in go.mod
+// 		is 1.14 or higher, the go command acts as if -mod=vendor were set.
+// 		Otherwise, the go command acts as if -mod=readonly were set.
+// 		See https://golang.org/ref/mod#build-commands for details.
 // 	-modcacherw
 // 		leave newly-created directories in the module cache read-write
 // 		instead of making them read-only.
@@ -161,6 +167,17 @@
 // 		directory, but it is not accessed. When -modfile is specified, an
 // 		alternate go.sum file is also used: its path is derived from the
 // 		-modfile flag by trimming the ".mod" extension and appending ".sum".
+// 	-overlay file
+// 		read a JSON config file that provides an overlay for build operations.
+// 		The file is a JSON struct with a single field, named 'Replace', that
+// 		maps each disk file path (a string) to its backing file path, so that
+// 		a build will run as if the disk file path exists with the contents
+// 		given by the backing file paths, or as if the disk file path does not
+// 		exist if its backing file path is empty. Support for the -overlay flag
+// 		has some limitations:importantly, cgo files included from outside the
+// 		include path must be  in the same directory as the Go package they are
+// 		included from, and overlays will not appear when binaries and tests are
+// 		run through go run and go test respectively.
 // 	-pkgdir dir
 // 		install and load all packages from dir instead of the usual locations.
 // 		For example, when building with a non-standard configuration,
@@ -478,15 +495,6 @@
 // (gofmt), a fully qualified path (/usr/you/bin/mytool), or a
 // command alias, described below.
 //
-// To convey to humans and machine tools that code is generated,
-// generated source should have a line that matches the following
-// regular expression (in Go syntax):
-//
-// 	^// Code generated .* DO NOT EDIT\.$
-//
-// The line may appear anywhere in the file, but is typically
-// placed near the beginning so it is easy to find.
-//
 // Note that go generate does not parse the file, so lines that look
 // like directives in comments or multiline strings will be treated
 // as directives.
@@ -497,6 +505,15 @@
 //
 // Quoted strings use Go syntax and are evaluated before execution; a
 // quoted string appears as a single argument to the generator.
+//
+// To convey to humans and machine tools that code is generated,
+// generated source should have a line that matches the following
+// regular expression (in Go syntax):
+//
+// 	^// Code generated .* DO NOT EDIT\.$
+//
+// This line must appear before the first non-comment, non-blank
+// text in the file.
 //
 // Go generate sets several variables when it runs the generator:
 //
@@ -581,123 +598,75 @@
 //
 // 	go get [-d] [-t] [-u] [-v] [-insecure] [build flags] [packages]
 //
-// Get resolves and adds dependencies to the current development module
-// and then builds and installs them.
+// Get resolves its command-line arguments to packages at specific module versions,
+// updates go.mod to require those versions, downloads source code into the
+// module cache, then builds and installs the named packages.
 //
-// The first step is to resolve which dependencies to add.
+// To add a dependency for a package or upgrade it to its latest version:
 //
-// For each named package or package pattern, get must decide which version of
-// the corresponding module to use. By default, get looks up the latest tagged
-// release version, such as v0.4.5 or v1.2.3. If there are no tagged release
-// versions, get looks up the latest tagged pre-release version, such as
-// v0.0.1-pre1. If there are no tagged versions at all, get looks up the latest
-// known commit. If the module is not already required at a later version
-// (for example, a pre-release newer than the latest release), get will use
-// the version it looked up. Otherwise, get will use the currently
-// required version.
+// 	go get example.com/pkg
 //
-// This default version selection can be overridden by adding an @version
-// suffix to the package argument, as in 'go get golang.org/x/text@v0.3.0'.
-// The version may be a prefix: @v1 denotes the latest available version starting
-// with v1. See 'go help modules' under the heading 'Module queries' for the
-// full query syntax.
+// To upgrade or downgrade a package to a specific version:
 //
-// For modules stored in source control repositories, the version suffix can
-// also be a commit hash, branch identifier, or other syntax known to the
-// source control system, as in 'go get golang.org/x/text@master'. Note that
-// branches with names that overlap with other module query syntax cannot be
-// selected explicitly. For example, the suffix @v2 means the latest version
-// starting with v2, not the branch named v2.
+// 	go get example.com/pkg@v1.2.3
 //
-// If a module under consideration is already a dependency of the current
-// development module, then get will update the required version.
-// Specifying a version earlier than the current required version is valid and
-// downgrades the dependency. The version suffix @none indicates that the
-// dependency should be removed entirely, downgrading or removing modules
-// depending on it as needed.
+// To remove a dependency on a module and downgrade modules that require it:
 //
-// The version suffix @latest explicitly requests the latest minor release of the
-// module named by the given path. The suffix @upgrade is like @latest but
-// will not downgrade a module if it is already required at a revision or
-// pre-release version newer than the latest released version. The suffix
-// @patch requests the latest patch release: the latest released version
-// with the same major and minor version numbers as the currently required
-// version. Like @upgrade, @patch will not downgrade a module already required
-// at a newer version. If the path is not already required, @upgrade and @patch
-// are equivalent to @latest.
+// 	go get example.com/mod@none
 //
-// Although get defaults to using the latest version of the module containing
-// a named package, it does not use the latest version of that module's
-// dependencies. Instead it prefers to use the specific dependency versions
-// requested by that module. For example, if the latest A requires module
-// B v1.2.3, while B v1.2.4 and v1.3.1 are also available, then 'go get A'
-// will use the latest A but then use B v1.2.3, as requested by A. (If there
-// are competing requirements for a particular module, then 'go get' resolves
-// those requirements by taking the maximum requested version.)
+// See https://golang.org/ref/mod#go-get for details.
+//
+// The 'go install' command may be used to build and install packages. When a
+// version is specified, 'go install' runs in module-aware mode and ignores
+// the go.mod file in the current directory. For example:
+//
+// 	go install example.com/pkg@v1.2.3
+// 	go install example.com/pkg@latest
+//
+// See 'go help install' or https://golang.org/ref/mod#go-install for details.
+//
+// In addition to build flags (listed in 'go help build') 'go get' accepts the
+// following flags.
 //
 // The -t flag instructs get to consider modules needed to build tests of
 // packages specified on the command line.
 //
 // The -u flag instructs get to update modules providing dependencies
 // of packages named on the command line to use newer minor or patch
-// releases when available. Continuing the previous example, 'go get -u A'
-// will use the latest A with B v1.3.1 (not B v1.2.3). If B requires module C,
-// but C does not provide any packages needed to build packages in A
-// (not including tests), then C will not be updated.
+// releases when available.
 //
 // The -u=patch flag (not -u patch) also instructs get to update dependencies,
 // but changes the default to select patch releases.
-// Continuing the previous example,
-// 'go get -u=patch A@latest' will use the latest A with B v1.2.4 (not B v1.2.3),
-// while 'go get -u=patch A' will use a patch release of A instead.
 //
 // When the -t and -u flags are used together, get will update
 // test dependencies as well.
 //
-// In general, adding a new dependency may require upgrading
-// existing dependencies to keep a working build, and 'go get' does
-// this automatically. Similarly, downgrading one dependency may
-// require downgrading other dependencies, and 'go get' does
-// this automatically as well.
-//
 // The -insecure flag permits fetching from repositories and resolving
-// custom domains using insecure schemes such as HTTP. Use with caution. The
-// GOINSECURE environment variable is usually a better alternative, since it
-// provides control over which modules may be retrieved using an insecure scheme.
-// See 'go help environment' for details.
+// custom domains using insecure schemes such as HTTP, and also bypassess
+// module sum validation using the checksum database. Use with caution.
+// This flag is deprecated and will be removed in a future version of go.
+// To permit the use of insecure schemes, use the GOINSECURE environment
+// variable instead. To bypass module sum validation, use GOPRIVATE or
+// GONOSUMDB. See 'go help environment' for details.
 //
-// The second step is to download (if needed), build, and install
-// the named packages.
+// The -d flag instructs get not to build or install packages. get will only
+// update go.mod and download source code needed to build packages.
 //
-// If an argument names a module but not a package (because there is no
-// Go source code in the module's root directory), then the install step
-// is skipped for that argument, instead of causing a build failure.
-// For example 'go get golang.org/x/perf' succeeds even though there
-// is no code corresponding to that import path.
+// Building and installing packages with get is deprecated. In a future release,
+// the -d flag will be enabled by default, and 'go get' will be only be used to
+// adjust dependencies of the current module. To install a package using
+// dependencies from the current module, use 'go install'. To install a package
+// ignoring the current module, use 'go install' with an @version suffix like
+// "@latest" after each argument.
 //
-// Note that package patterns are allowed and are expanded after resolving
-// the module versions. For example, 'go get golang.org/x/perf/cmd/...'
-// adds the latest golang.org/x/perf and then installs the commands in that
-// latest version.
-//
-// The -d flag instructs get to download the source code needed to build
-// the named packages, including downloading necessary dependencies,
-// but not to build and install them.
-//
-// With no package arguments, 'go get' applies to Go package in the
-// current directory, if any. In particular, 'go get -u' and
-// 'go get -u=patch' update all the dependencies of that package.
-// With no package arguments and also without -u, 'go get' is not much more
-// than 'go install', and 'go get -d' not much more than 'go list'.
-//
-// For more about modules, see 'go help modules'.
+// For more about modules, see https://golang.org/ref/mod.
 //
 // For more about specifying packages, see 'go help packages'.
 //
 // This text describes the behavior of get using modules to manage source
 // code and dependencies. If instead the go command is running in GOPATH
 // mode, the details of get's flags and effects change, as does 'go help get'.
-// See 'go help modules' and 'go help gopath-get'.
+// See 'go help gopath-get'.
 //
 // See also: go build, go install, go clean, go mod.
 //
@@ -706,7 +675,7 @@
 //
 // Usage:
 //
-// 	go install [-i] [build flags] [packages]
+// 	go install [build flags] [packages]
 //
 // Install compiles and installs the packages named by the import paths.
 //
@@ -715,11 +684,39 @@
 // environment variable is not set. Executables in $GOROOT
 // are installed in $GOROOT/bin or $GOTOOLDIR instead of $GOBIN.
 //
+// If the arguments have version suffixes (like @latest or @v1.0.0), "go install"
+// builds packages in module-aware mode, ignoring the go.mod file in the current
+// directory or any parent directory, if there is one. This is useful for
+// installing executables without affecting the dependencies of the main module.
+// To eliminate ambiguity about which module versions are used in the build, the
+// arguments must satisfy the following constraints:
+//
+// - Arguments must be package paths or package patterns (with "..." wildcards).
+//   They must not be standard packages (like fmt), meta-patterns (std, cmd,
+//   all), or relative or absolute file paths.
+// - All arguments must have the same version suffix. Different queries are not
+//   allowed, even if they refer to the same version.
+// - All arguments must refer to packages in the same module at the same version.
+// - No module is considered the "main" module. If the module containing
+//   packages named on the command line has a go.mod file, it must not contain
+//   directives (replace and exclude) that would cause it to be interpreted
+//   differently than if it were the main module. The module must not require
+//   a higher version of itself.
+// - Package path arguments must refer to main packages. Pattern arguments
+//   will only match main packages.
+//
+// If the arguments don't have version suffixes, "go install" may run in
+// module-aware mode or GOPATH mode, depending on the GO111MODULE environment
+// variable and the presence of a go.mod file. See 'go help modules' for details.
+// If module-aware mode is enabled, "go install" runs in the context of the main
+// module.
+//
 // When module-aware mode is disabled, other packages are installed in the
 // directory $GOPATH/pkg/$GOOS_$GOARCH. When module-aware mode is enabled,
 // other packages are built and cached but not installed.
 //
 // The -i flag installs the dependencies of the named packages as well.
+// The -i flag is deprecated. Compiled packages are cached automatically.
 //
 // For more about the build flags, see 'go help build'.
 // For more about specifying packages, see 'go help packages'.
@@ -766,26 +763,36 @@
 //         BinaryOnly    bool     // binary-only package (no longer supported)
 //         ForTest       string   // package is only for use in named test
 //         Export        string   // file containing export data (when using -export)
+//         BuildID       string   // build ID of the compiled package (when using -export)
 //         Module        *Module  // info about package's containing module, if any (can be nil)
 //         Match         []string // command-line patterns matching this package
 //         DepOnly       bool     // package is only a dependency, not explicitly listed
 //
 //         // Source files
-//         GoFiles         []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-//         CgoFiles        []string // .go source files that import "C"
-//         CompiledGoFiles []string // .go files presented to compiler (when using -compiled)
-//         IgnoredGoFiles  []string // .go source files ignored due to build constraints
-//         CFiles          []string // .c source files
-//         CXXFiles        []string // .cc, .cxx and .cpp source files
-//         MFiles          []string // .m source files
-//         HFiles          []string // .h, .hh, .hpp and .hxx source files
-//         FFiles          []string // .f, .F, .for and .f90 Fortran source files
-//         SFiles          []string // .s source files
-//         SwigFiles       []string // .swig files
-//         SwigCXXFiles    []string // .swigcxx files
-//         SysoFiles       []string // .syso object files to add to archive
-//         TestGoFiles     []string // _test.go files in package
-//         XTestGoFiles    []string // _test.go files outside package
+//         GoFiles         []string   // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+//         CgoFiles        []string   // .go source files that import "C"
+//         CompiledGoFiles []string   // .go files presented to compiler (when using -compiled)
+//         IgnoredGoFiles  []string   // .go source files ignored due to build constraints
+//         IgnoredOtherFiles []string // non-.go source files ignored due to build constraints
+//         CFiles          []string   // .c source files
+//         CXXFiles        []string   // .cc, .cxx and .cpp source files
+//         MFiles          []string   // .m source files
+//         HFiles          []string   // .h, .hh, .hpp and .hxx source files
+//         FFiles          []string   // .f, .F, .for and .f90 Fortran source files
+//         SFiles          []string   // .s source files
+//         SwigFiles       []string   // .swig files
+//         SwigCXXFiles    []string   // .swigcxx files
+//         SysoFiles       []string   // .syso object files to add to archive
+//         TestGoFiles     []string   // _test.go files in package
+//         XTestGoFiles    []string   // _test.go files outside package
+//
+//         // Embedded files
+//         EmbedPatterns      []string // //go:embed patterns
+//         EmbedFiles         []string // files matched by EmbedPatterns
+//         TestEmbedPatterns  []string // //go:embed patterns in TestGoFiles
+//         TestEmbedFiles     []string // files matched by TestEmbedPatterns
+//         XTestEmbedPatterns []string // //go:embed patterns in XTestGoFiles
+//         XTestEmbedFiles    []string // files matched by XTestEmbedPatterns
 //
 //         // Cgo directives
 //         CgoCFLAGS    []string // cgo: flags for C compiler
@@ -916,6 +923,7 @@
 //         Dir       string       // directory holding files for this module, if any
 //         GoMod     string       // path to go.mod file used when loading this module, if any
 //         GoVersion string       // go version used in module
+//         Retracted string       // retraction information, if any (with -retracted or -u)
 //         Error     *ModuleError // error loading module
 //     }
 //
@@ -947,14 +955,16 @@
 // The -u flag adds information about available upgrades.
 // When the latest version of a given module is newer than
 // the current one, list -u sets the Module's Update field
-// to information about the newer module.
+// to information about the newer module. list -u will also set
+// the module's Retracted field if the current version is retracted.
 // The Module's String method indicates an available upgrade by
 // formatting the newer version in brackets after the current version.
+// If a version is retracted, the string "(retracted)" will follow it.
 // For example, 'go list -m -u all' might print:
 //
 //     my/main/module
 //     golang.org/x/text v0.3.0 [v0.4.0] => /tmp/text
-//     rsc.io/pdf v0.1.1 [v0.1.2]
+//     rsc.io/pdf v0.1.1 (retracted) [v0.1.2]
 //
 // (For tools, 'go list -m -u -json all' may be more convenient to parse.)
 //
@@ -963,6 +973,14 @@
 // to semantic versioning, earliest to latest. The flag also changes
 // the default output format to display the module path followed by the
 // space-separated version list.
+//
+// The -retracted flag causes list to report information about retracted
+// module versions. When -retracted is used with -f or -json, the Retracted
+// field will be set to a string explaining why the version was retracted.
+// The string is taken from comments on the retract directive in the
+// module's go.mod file. When -retracted is used with -versions, retracted
+// versions are listed together with unretracted versions. The -retracted
+// flag may be used with or without -m.
 //
 // The arguments to list -m are interpreted as a list of modules, not packages.
 // The main module is the module containing the current directory.
@@ -987,7 +1005,7 @@
 //
 // For more about specifying packages, see 'go help packages'.
 //
-// For more about modules, see 'go help modules'.
+// For more about modules, see https://golang.org/ref/mod.
 //
 //
 // Module maintenance
@@ -1052,7 +1070,9 @@
 //
 // The -x flag causes download to print the commands download executes.
 //
-// See 'go help modules' for more about module queries.
+// See https://golang.org/ref/mod#go-mod-download for more about 'go mod download'.
+//
+// See https://golang.org/ref/mod#version-queries for more about version queries.
 //
 //
 // Edit go.mod from tools or scripts
@@ -1100,9 +1120,14 @@
 // module path and version pair. If the @v is omitted, a replacement without
 // a version on the left side is dropped.
 //
+// The -retract=version and -dropretract=version flags add and drop a
+// retraction on the given version. The version may be a single version
+// like "v1.2.3" or a closed interval like "[v1.1.0,v1.1.9]". Note that
+// -retract=version is a no-op if that retraction already exists.
+//
 // The -require, -droprequire, -exclude, -dropexclude, -replace,
-// and -dropreplace editing flags may be repeated, and the changes
-// are applied in the order given.
+// -dropreplace, -retract, and -dropretract editing flags may be repeated,
+// and the changes are applied in the order given.
 //
 // The -go=version flag sets the expected Go language version.
 //
@@ -1123,6 +1148,7 @@
 // 		Require []Require
 // 		Exclude []Module
 // 		Replace []Replace
+// 		Retract []Retract
 // 	}
 //
 // 	type Require struct {
@@ -1136,13 +1162,20 @@
 // 		New Module
 // 	}
 //
+// 	type Retract struct {
+// 		Low       string
+// 		High      string
+// 		Rationale string
+// 	}
+//
+// Retract entries representing a single version (not an interval) will have
+// the "Low" and "High" fields set to the same value.
+//
 // Note that this only describes the go.mod file itself, not other modules
 // referred to indirectly. For the full set of modules available to a build,
 // use 'go list -m -json all'.
 //
-// For example, a tool can obtain the go.mod as a data structure by
-// parsing the output of 'go mod edit -json' and can then make changes
-// by invoking 'go mod edit' with -require, -exclude, and so on.
+// See https://golang.org/ref/mod#go-mod-edit for more about 'go mod edit'.
 //
 //
 // Print module requirement graph
@@ -1156,6 +1189,8 @@
 // and one of its requirements. Each module is identified as a string of the form
 // path@version, except for the main module, which has no @version suffix.
 //
+// See https://golang.org/ref/mod#go-mod-graph for more about 'go mod graph'.
+//
 //
 // Initialize new module in current directory
 //
@@ -1163,19 +1198,26 @@
 //
 // 	go mod init [module]
 //
-// Init initializes and writes a new go.mod to the current directory,
-// in effect creating a new module rooted at the current directory.
-// The file go.mod must not already exist.
-// If possible, init will guess the module path from import comments
-// (see 'go help importpath') or from version control configuration.
-// To override this guess, supply the module path as an argument.
+// Init initializes and writes a new go.mod file in the current directory, in
+// effect creating a new module rooted at the current directory. The go.mod file
+// must not already exist.
+//
+// Init accepts one optional argument, the module path for the new module. If the
+// module path argument is omitted, init will attempt to infer the module path
+// using import comments in .go files, vendoring tool configuration files (like
+// Gopkg.lock), and the current directory (if in GOPATH).
+//
+// If a configuration file for a vendoring tool is present, init will attempt to
+// import module requirements from it.
+//
+// See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
 //
 //
 // Add missing and remove unused modules
 //
 // Usage:
 //
-// 	go mod tidy [-v]
+// 	go mod tidy [-e] [-v]
 //
 // Tidy makes sure go.mod matches the source code in the module.
 // It adds any missing modules necessary to build the current module's
@@ -1186,12 +1228,17 @@
 // The -v flag causes tidy to print information about removed modules
 // to standard error.
 //
+// The -e flag causes tidy to attempt to proceed despite errors
+// encountered while loading packages.
+//
+// See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
+//
 //
 // Make vendored copy of dependencies
 //
 // Usage:
 //
-// 	go mod vendor [-v]
+// 	go mod vendor [-e] [-v]
 //
 // Vendor resets the main module's vendor directory to include all packages
 // needed to build and test all the main module's packages.
@@ -1199,6 +1246,11 @@
 //
 // The -v flag causes vendor to print the names of vendored
 // modules and packages to standard error.
+//
+// The -e flag causes vendor to attempt to proceed despite errors
+// encountered while loading packages.
+//
+// See https://golang.org/ref/mod#go-mod-vendor for more about 'go mod vendor'.
 //
 //
 // Verify dependencies have expected content
@@ -1213,6 +1265,8 @@
 // verify prints "all modules verified." Otherwise it reports which
 // modules have been changed and causes 'go mod' to exit with a
 // non-zero status.
+//
+// See https://golang.org/ref/mod#go-mod-verify for more about 'go mod verify'.
 //
 //
 // Explain why packages or modules are needed
@@ -1249,6 +1303,8 @@
 // 	# golang.org/x/text/encoding
 // 	(main module does not need package golang.org/x/text/encoding)
 // 	$
+//
+// See https://golang.org/ref/mod#go-mod-why for more about 'go mod why'.
 //
 //
 // Compile and run Go program
@@ -1388,6 +1444,7 @@
 // 	-i
 // 	    Install packages that are dependencies of the test.
 // 	    Do not run the test.
+// 	    The -i flag is deprecated. Compiled packages are cached automatically.
 //
 // 	-json
 // 	    Convert test output to JSON suitable for automated processing.
@@ -1546,6 +1603,9 @@
 // Using GOOS=illumos matches build tags and files as for GOOS=solaris
 // in addition to illumos tags and files.
 //
+// Using GOOS=ios matches build tags and files as for GOOS=darwin
+// in addition to ios tags and files.
+//
 // To keep a file from being considered for the build:
 //
 // 	// +build ignore
@@ -1690,6 +1750,10 @@
 //
 // General-purpose environment variables:
 //
+// 	GO111MODULE
+// 		Controls whether the go command runs in module-aware mode or GOPATH mode.
+// 		May be "off", "on", or "auto".
+// 		See https://golang.org/ref/mod#mod-commands.
 // 	GCCGO
 // 		The gccgo command to run for 'go build -compiler=gccgo'.
 // 	GOARCH
@@ -1700,6 +1764,8 @@
 // 	GOCACHE
 // 		The directory where the go command will store cached
 // 		information for reuse in future builds.
+// 	GOMODCACHE
+// 		The directory where the go command will store downloaded modules.
 // 	GODEBUG
 // 		Enable various debugging facilities. See 'go doc runtime'
 // 		for details.
@@ -1726,20 +1792,24 @@
 // 	GOPATH
 // 		For more details see: 'go help gopath'.
 // 	GOPROXY
-// 		URL of Go module proxy. See 'go help modules'.
+// 		URL of Go module proxy. See https://golang.org/ref/mod#environment-variables
+// 		and https://golang.org/ref/mod#module-proxy for details.
 // 	GOPRIVATE, GONOPROXY, GONOSUMDB
 // 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
 // 		of module path prefixes that should always be fetched directly
 // 		or that should not be compared against the checksum database.
-// 		See 'go help module-private'.
+// 		See https://golang.org/ref/mod#private-modules.
 // 	GOROOT
 // 		The root of the go tree.
 // 	GOSUMDB
 // 		The name of checksum database to use and optionally its public key and
-// 		URL. See 'go help module-auth'.
+// 		URL. See https://golang.org/ref/mod#authenticating.
 // 	GOTMPDIR
 // 		The directory where the go command will write
 // 		temporary source files, packages, and binaries.
+// 	GOVCS
+// 	  Lists version control commands that may be used with matching servers.
+// 		See 'go help vcs'.
 //
 // Environment variables for use with cgo:
 //
@@ -1787,8 +1857,8 @@
 // 		For GOARCH=arm, the ARM architecture for which to compile.
 // 		Valid values are 5, 6, 7.
 // 	GO386
-// 		For GOARCH=386, the floating point instruction set.
-// 		Valid values are 387, sse2.
+// 		For GOARCH=386, how to implement floating point instructions.
+// 		Valid values are sse2 (default), softfloat.
 // 	GOMIPS
 // 		For GOARCH=mips{,le}, whether to use floating point instructions.
 // 		Valid values are hardfloat (default), softfloat.
@@ -1837,6 +1907,8 @@
 // 		If module-aware mode is disabled, GOMOD will be the empty string.
 // 	GOTOOLDIR
 // 		The directory where the go tools (compile, cover, doc, etc...) are installed.
+// 	GOVERSION
+// 		The version of the installed Go tree, as reported by runtime.Version.
 //
 //
 // File types
@@ -1882,86 +1954,23 @@
 // directory and then successive parent directories to find the go.mod
 // marking the root of the main (current) module.
 //
-// The go.mod file itself is line-oriented, with // comments but
-// no /* */ comments. Each line holds a single directive, made up of a
-// verb followed by arguments. For example:
+// The go.mod file format is described in detail at
+// https://golang.org/ref/mod#go-mod-file.
 //
-// 	module my/thing
-// 	go 1.12
-// 	require other/thing v1.0.2
-// 	require new/thing/v2 v2.3.4
-// 	exclude old/thing v1.2.3
-// 	replace bad/thing v1.4.5 => good/thing v1.4.5
+// To create a new go.mod file, use 'go help init'. For details see
+// 'go help mod init' or https://golang.org/ref/mod#go-mod-init.
 //
-// The verbs are
-// 	module, to define the module path;
-// 	go, to set the expected language version;
-// 	require, to require a particular module at a given version or later;
-// 	exclude, to exclude a particular module version from use; and
-// 	replace, to replace a module version with a different module version.
-// Exclude and replace apply only in the main module's go.mod and are ignored
-// in dependencies.  See https://research.swtch.com/vgo-mvs for details.
+// To add missing module requirements or remove unneeded requirements,
+// use 'go mod tidy'. For details, see 'go help mod tidy' or
+// https://golang.org/ref/mod#go-mod-tidy.
 //
-// The leading verb can be factored out of adjacent lines to create a block,
-// like in Go imports:
+// To add, upgrade, downgrade, or remove a specific module requirement, use
+// 'go get'. For details, see 'go help module-get' or
+// https://golang.org/ref/mod#go-get.
 //
-// 	require (
-// 		new/thing v2.3.4
-// 		old/thing v1.2.3
-// 	)
-//
-// The go.mod file is designed both to be edited directly and to be
-// easily updated by tools. The 'go mod edit' command can be used to
-// parse and edit the go.mod file from programs and tools.
-// See 'go help mod edit'.
-//
-// The go command automatically updates go.mod each time it uses the
-// module graph, to make sure go.mod always accurately reflects reality
-// and is properly formatted. For example, consider this go.mod file:
-//
-//         module M
-//
-//         require (
-//                 A v1
-//                 B v1.0.0
-//                 C v1.0.0
-//                 D v1.2.3
-//                 E dev
-//         )
-//
-//         exclude D v1.2.3
-//
-// The update rewrites non-canonical version identifiers to semver form,
-// so A's v1 becomes v1.0.0 and E's dev becomes the pseudo-version for the
-// latest commit on the dev branch, perhaps v0.0.0-20180523231146-b3f5c0f6e5f1.
-//
-// The update modifies requirements to respect exclusions, so the
-// requirement on the excluded D v1.2.3 is updated to use the next
-// available version of D, perhaps D v1.2.4 or D v1.3.0.
-//
-// The update removes redundant or misleading requirements.
-// For example, if A v1.0.0 itself requires B v1.2.0 and C v1.0.0,
-// then go.mod's requirement of B v1.0.0 is misleading (superseded by
-// A's need for v1.2.0), and its requirement of C v1.0.0 is redundant
-// (implied by A's need for the same version), so both will be removed.
-// If module M contains packages that directly import packages from B or
-// C, then the requirements will be kept but updated to the actual
-// versions being used.
-//
-// Finally, the update reformats the go.mod in a canonical formatting, so
-// that future mechanical changes will result in minimal diffs.
-//
-// Because the module graph defines the meaning of import statements, any
-// commands that load packages also use and therefore update go.mod,
-// including go build, go get, go install, go list, go test, go mod graph,
-// go mod tidy, and go mod why.
-//
-// The expected language version, set by the go directive, determines
-// which language features are available when compiling the module.
-// Language features available in that version will be available for use.
-// Language features removed in earlier versions, or added in later versions,
-// will not be available. Note that the language version does not affect
-// build tags, which are determined by the Go release being used.
+// To make other changes or to parse go.mod as JSON for use by other tools,
+// use 'go mod edit'. See 'go help mod edit' or
+// https://golang.org/ref/mod#go-mod-edit.
 //
 //
 // GOPATH environment variable
@@ -2144,6 +2153,10 @@
 //
 // The -insecure flag permits fetching from repositories and resolving
 // custom domains using insecure schemes such as HTTP. Use with caution.
+// This flag is deprecated and will be removed in a future version of go.
+// The GOINSECURE environment variable should be used instead, since it
+// provides control over which packages may be retrieved using an insecure
+// scheme. See 'go help environment' for details.
 //
 // The -t flag instructs get to also download the packages required to build
 // the tests for the specified packages.
@@ -2192,65 +2205,8 @@
 // a site serving from a fixed file system (including a file:/// URL)
 // can be a module proxy.
 //
-// The GET requests sent to a Go module proxy are:
-//
-// GET $GOPROXY/<module>/@v/list returns a list of known versions of the given
-// module, one per line.
-//
-// GET $GOPROXY/<module>/@v/<version>.info returns JSON-formatted metadata
-// about that version of the given module.
-//
-// GET $GOPROXY/<module>/@v/<version>.mod returns the go.mod file
-// for that version of the given module.
-//
-// GET $GOPROXY/<module>/@v/<version>.zip returns the zip archive
-// for that version of the given module.
-//
-// GET $GOPROXY/<module>/@latest returns JSON-formatted metadata about the
-// latest known version of the given module in the same format as
-// <module>/@v/<version>.info. The latest version should be the version of
-// the module the go command may use if <module>/@v/list is empty or no
-// listed version is suitable. <module>/@latest is optional and may not
-// be implemented by a module proxy.
-//
-// When resolving the latest version of a module, the go command will request
-// <module>/@v/list, then, if no suitable versions are found, <module>/@latest.
-// The go command prefers, in order: the semantically highest release version,
-// the semantically highest pre-release version, and the chronologically
-// most recent pseudo-version. In Go 1.12 and earlier, the go command considered
-// pseudo-versions in <module>/@v/list to be pre-release versions, but this is
-// no longer true since Go 1.13.
-//
-// To avoid problems when serving from case-sensitive file systems,
-// the <module> and <version> elements are case-encoded, replacing every
-// uppercase letter with an exclamation mark followed by the corresponding
-// lower-case letter: github.com/Azure encodes as github.com/!azure.
-//
-// The JSON-formatted metadata about a given module corresponds to
-// this Go data structure, which may be expanded in the future:
-//
-//     type Info struct {
-//         Version string    // version string
-//         Time    time.Time // commit time
-//     }
-//
-// The zip archive for a specific version of a given module is a
-// standard zip file that contains the file tree corresponding
-// to the module's source code and related files. The archive uses
-// slash-separated paths, and every file path in the archive must
-// begin with <module>@<version>/, where the module and version are
-// substituted directly, not case-encoded. The root of the module
-// file tree corresponds to the <module>@<version>/ prefix in the
-// archive.
-//
-// Even when downloading directly from version control systems,
-// the go command synthesizes explicit info, mod, and zip files
-// and stores them in its local cache, $GOPATH/pkg/mod/cache/download,
-// the same as if it had downloaded them directly from a proxy.
-// The cache layout is the same as the proxy URL space, so
-// serving $GOPATH/pkg/mod/cache/download at (or copying it to)
-// https://example.com/proxy would let other users access those
-// cached module versions with GOPROXY=https://example.com/proxy.
+// For details on the GOPROXY protocol, see
+// https://golang.org/ref/mod#goproxy-protocol.
 //
 //
 // Import path syntax
@@ -2401,7 +2357,7 @@
 // (See 'go help gopath-get' and 'go help gopath'.)
 //
 // When using modules, downloaded packages are stored in the module cache.
-// (See 'go help module-get' and 'go help goproxy'.)
+// See https://golang.org/ref/mod#module-cache.
 //
 // When using modules, an additional variant of the go-import meta tag is
 // recognized and is preferred over those listing version control systems.
@@ -2411,7 +2367,8 @@
 //
 // This tag means to fetch modules with paths beginning with example.org
 // from the module proxy available at the URL https://code.org/moduleproxy.
-// See 'go help goproxy' for details about the proxy protocol.
+// See https://golang.org/ref/mod#goproxy-protocol for details about the
+// proxy protocol.
 //
 // Import path checking
 //
@@ -2442,537 +2399,28 @@
 //
 // Modules, module versions, and more
 //
-// A module is a collection of related Go packages.
-// Modules are the unit of source code interchange and versioning.
-// The go command has direct support for working with modules,
-// including recording and resolving dependencies on other modules.
-// Modules replace the old GOPATH-based approach to specifying
-// which source files are used in a given build.
+// Modules are how Go manages dependencies.
 //
-// Module support
+// A module is a collection of packages that are released, versioned, and
+// distributed together. Modules may be downloaded directly from version control
+// repositories or from module proxy servers.
 //
-// The go command includes support for Go modules. Module-aware mode is active
-// by default whenever a go.mod file is found in the current directory or in
-// any parent directory.
+// For a series of tutorials on modules, see
+// https://golang.org/doc/tutorial/create-module.
 //
-// The quickest way to take advantage of module support is to check out your
-// repository, create a go.mod file (described in the next section) there, and run
-// go commands from within that file tree.
-//
-// For more fine-grained control, the go command continues to respect
-// a temporary environment variable, GO111MODULE, which can be set to one
-// of three string values: off, on, or auto (the default).
-// If GO111MODULE=on, then the go command requires the use of modules,
-// never consulting GOPATH. We refer to this as the command
-// being module-aware or running in "module-aware mode".
-// If GO111MODULE=off, then the go command never uses
-// module support. Instead it looks in vendor directories and GOPATH
-// to find dependencies; we now refer to this as "GOPATH mode."
-// If GO111MODULE=auto or is unset, then the go command enables or disables
-// module support based on the current directory.
-// Module support is enabled only when the current directory contains a
-// go.mod file or is below a directory containing a go.mod file.
-//
-// In module-aware mode, GOPATH no longer defines the meaning of imports
-// during a build, but it still stores downloaded dependencies (in GOPATH/pkg/mod)
-// and installed commands (in GOPATH/bin, unless GOBIN is set).
-//
-// Defining a module
-//
-// A module is defined by a tree of Go source files with a go.mod file
-// in the tree's root directory. The directory containing the go.mod file
-// is called the module root. Typically the module root will also correspond
-// to a source code repository root (but in general it need not).
-// The module is the set of all Go packages in the module root and its
-// subdirectories, but excluding subtrees with their own go.mod files.
-//
-// The "module path" is the import path prefix corresponding to the module root.
-// The go.mod file defines the module path and lists the specific versions
-// of other modules that should be used when resolving imports during a build,
-// by giving their module paths and versions.
-//
-// For example, this go.mod declares that the directory containing it is the root
-// of the module with path example.com/m, and it also declares that the module
-// depends on specific versions of golang.org/x/text and gopkg.in/yaml.v2:
-//
-// 	module example.com/m
-//
-// 	require (
-// 		golang.org/x/text v0.3.0
-// 		gopkg.in/yaml.v2 v2.1.0
-// 	)
-//
-// The go.mod file can also specify replacements and excluded versions
-// that only apply when building the module directly; they are ignored
-// when the module is incorporated into a larger build.
-// For more about the go.mod file, see 'go help go.mod'.
-//
-// To start a new module, simply create a go.mod file in the root of the
-// module's directory tree, containing only a module statement.
-// The 'go mod init' command can be used to do this:
-//
-// 	go mod init example.com/m
-//
-// In a project already using an existing dependency management tool like
-// godep, glide, or dep, 'go mod init' will also add require statements
-// matching the existing configuration.
-//
-// Once the go.mod file exists, no additional steps are required:
-// go commands like 'go build', 'go test', or even 'go list' will automatically
-// add new dependencies as needed to satisfy imports.
-//
-// The main module and the build list
-//
-// The "main module" is the module containing the directory where the go command
-// is run. The go command finds the module root by looking for a go.mod in the
-// current directory, or else the current directory's parent directory,
-// or else the parent's parent directory, and so on.
-//
-// The main module's go.mod file defines the precise set of packages available
-// for use by the go command, through require, replace, and exclude statements.
-// Dependency modules, found by following require statements, also contribute
-// to the definition of that set of packages, but only through their go.mod
-// files' require statements: any replace and exclude statements in dependency
-// modules are ignored. The replace and exclude statements therefore allow the
-// main module complete control over its own build, without also being subject
-// to complete control by dependencies.
-//
-// The set of modules providing packages to builds is called the "build list".
-// The build list initially contains only the main module. Then the go command
-// adds to the list the exact module versions required by modules already
-// on the list, recursively, until there is nothing left to add to the list.
-// If multiple versions of a particular module are added to the list,
-// then at the end only the latest version (according to semantic version
-// ordering) is kept for use in the build.
-//
-// The 'go list' command provides information about the main module
-// and the build list. For example:
-//
-// 	go list -m              # print path of main module
-// 	go list -m -f={{.Dir}}  # print root directory of main module
-// 	go list -m all          # print build list
-//
-// Maintaining module requirements
-//
-// The go.mod file is meant to be readable and editable by both
-// programmers and tools. The go command itself automatically updates the go.mod file
-// to maintain a standard formatting and the accuracy of require statements.
-//
-// Any go command that finds an unfamiliar import will look up the module
-// containing that import and add the latest version of that module
-// to go.mod automatically. In most cases, therefore, it suffices to
-// add an import to source code and run 'go build', 'go test', or even 'go list':
-// as part of analyzing the package, the go command will discover
-// and resolve the import and update the go.mod file.
-//
-// Any go command can determine that a module requirement is
-// missing and must be added, even when considering only a single
-// package from the module. On the other hand, determining that a module requirement
-// is no longer necessary and can be deleted requires a full view of
-// all packages in the module, across all possible build configurations
-// (architectures, operating systems, build tags, and so on).
-// The 'go mod tidy' command builds that view and then
-// adds any missing module requirements and removes unnecessary ones.
-//
-// As part of maintaining the require statements in go.mod, the go command
-// tracks which ones provide packages imported directly by the current module
-// and which ones provide packages only used indirectly by other module
-// dependencies. Requirements needed only for indirect uses are marked with a
-// "// indirect" comment in the go.mod file. Indirect requirements are
-// automatically removed from the go.mod file once they are implied by other
-// direct requirements. Indirect requirements only arise when using modules
-// that fail to state some of their own dependencies or when explicitly
-// upgrading a module's dependencies ahead of its own stated requirements.
-//
-// Because of this automatic maintenance, the information in go.mod is an
-// up-to-date, readable description of the build.
-//
-// The 'go get' command updates go.mod to change the module versions used in a
-// build. An upgrade of one module may imply upgrading others, and similarly a
-// downgrade of one module may imply downgrading others. The 'go get' command
-// makes these implied changes as well. If go.mod is edited directly, commands
-// like 'go build' or 'go list' will assume that an upgrade is intended and
-// automatically make any implied upgrades and update go.mod to reflect them.
-//
-// The 'go mod' command provides other functionality for use in maintaining
-// and understanding modules and go.mod files. See 'go help mod'.
-//
-// The -mod build flag provides additional control over updating and use of go.mod.
-//
-// If invoked with -mod=readonly, the go command is disallowed from the implicit
-// automatic updating of go.mod described above. Instead, it fails when any changes
-// to go.mod are needed. This setting is most useful to check that go.mod does
-// not need updates, such as in a continuous integration and testing system.
-// The "go get" command remains permitted to update go.mod even with -mod=readonly,
-// and the "go mod" commands do not take the -mod flag (or any other build flags).
-//
-// If invoked with -mod=vendor, the go command loads packages from the main
-// module's vendor directory instead of downloading modules to and loading packages
-// from the module cache. The go command assumes the vendor directory holds
-// correct copies of dependencies, and it does not compute the set of required
-// module versions from go.mod files. However, the go command does check that
-// vendor/modules.txt (generated by 'go mod vendor') contains metadata consistent
-// with go.mod.
-//
-// If invoked with -mod=mod, the go command loads modules from the module cache
-// even if there is a vendor directory present.
-//
-// If the go command is not invoked with a -mod flag and the vendor directory
-// is present and the "go" version in go.mod is 1.14 or higher, the go command
-// will act as if it were invoked with -mod=vendor.
-//
-// Pseudo-versions
-//
-// The go.mod file and the go command more generally use semantic versions as
-// the standard form for describing module versions, so that versions can be
-// compared to determine which should be considered earlier or later than another.
-// A module version like v1.2.3 is introduced by tagging a revision in the
-// underlying source repository. Untagged revisions can be referred to
-// using a "pseudo-version" like v0.0.0-yyyymmddhhmmss-abcdefabcdef,
-// where the time is the commit time in UTC and the final suffix is the prefix
-// of the commit hash. The time portion ensures that two pseudo-versions can
-// be compared to determine which happened later, the commit hash identifes
-// the underlying commit, and the prefix (v0.0.0- in this example) is derived from
-// the most recent tagged version in the commit graph before this commit.
-//
-// There are three pseudo-version forms:
-//
-// vX.0.0-yyyymmddhhmmss-abcdefabcdef is used when there is no earlier
-// versioned commit with an appropriate major version before the target commit.
-// (This was originally the only form, so some older go.mod files use this form
-// even for commits that do follow tags.)
-//
-// vX.Y.Z-pre.0.yyyymmddhhmmss-abcdefabcdef is used when the most
-// recent versioned commit before the target commit is vX.Y.Z-pre.
-//
-// vX.Y.(Z+1)-0.yyyymmddhhmmss-abcdefabcdef is used when the most
-// recent versioned commit before the target commit is vX.Y.Z.
-//
-// Pseudo-versions never need to be typed by hand: the go command will accept
-// the plain commit hash and translate it into a pseudo-version (or a tagged
-// version if available) automatically. This conversion is an example of a
-// module query.
-//
-// Module queries
-//
-// The go command accepts a "module query" in place of a module version
-// both on the command line and in the main module's go.mod file.
-// (After evaluating a query found in the main module's go.mod file,
-// the go command updates the file to replace the query with its result.)
-//
-// A fully-specified semantic version, such as "v1.2.3",
-// evaluates to that specific version.
-//
-// A semantic version prefix, such as "v1" or "v1.2",
-// evaluates to the latest available tagged version with that prefix.
-//
-// A semantic version comparison, such as "<v1.2.3" or ">=v1.5.6",
-// evaluates to the available tagged version nearest to the comparison target
-// (the latest version for < and <=, the earliest version for > and >=).
-//
-// The string "latest" matches the latest available tagged version,
-// or else the underlying source repository's latest untagged revision.
-//
-// The string "upgrade" is like "latest", but if the module is
-// currently required at a later version than the version "latest"
-// would select (for example, a newer pre-release version), "upgrade"
-// will select the later version instead.
-//
-// The string "patch" matches the latest available tagged version
-// of a module with the same major and minor version numbers as the
-// currently required version. If no version is currently required,
-// "patch" is equivalent to "latest".
-//
-// A revision identifier for the underlying source repository, such as
-// a commit hash prefix, revision tag, or branch name, selects that
-// specific code revision. If the revision is also tagged with a
-// semantic version, the query evaluates to that semantic version.
-// Otherwise the query evaluates to a pseudo-version for the commit.
-// Note that branches and tags with names that are matched by other
-// query syntax cannot be selected this way. For example, the query
-// "v2" means the latest version starting with "v2", not the branch
-// named "v2".
-//
-// All queries prefer release versions to pre-release versions.
-// For example, "<v1.2.3" will prefer to return "v1.2.2"
-// instead of "v1.2.3-pre1", even though "v1.2.3-pre1" is nearer
-// to the comparison target.
-//
-// Module versions disallowed by exclude statements in the
-// main module's go.mod are considered unavailable and cannot
-// be returned by queries.
-//
-// For example, these commands are all valid:
-//
-// 	go get github.com/gorilla/mux@latest    # same (@latest is default for 'go get')
-// 	go get github.com/gorilla/mux@v1.6.2    # records v1.6.2
-// 	go get github.com/gorilla/mux@e3702bed2 # records v1.6.2
-// 	go get github.com/gorilla/mux@c856192   # records v0.0.0-20180517173623-c85619274f5d
-// 	go get github.com/gorilla/mux@master    # records current meaning of master
-//
-// Module compatibility and semantic versioning
-//
-// The go command requires that modules use semantic versions and expects that
-// the versions accurately describe compatibility: it assumes that v1.5.4 is a
-// backwards-compatible replacement for v1.5.3, v1.4.0, and even v1.0.0.
-// More generally the go command expects that packages follow the
-// "import compatibility rule", which says:
-//
-// "If an old package and a new package have the same import path,
-// the new package must be backwards compatible with the old package."
-//
-// Because the go command assumes the import compatibility rule,
-// a module definition can only set the minimum required version of one
-// of its dependencies: it cannot set a maximum or exclude selected versions.
-// Still, the import compatibility rule is not a guarantee: it may be that
-// v1.5.4 is buggy and not a backwards-compatible replacement for v1.5.3.
-// Because of this, the go command never updates from an older version
-// to a newer version of a module unasked.
-//
-// In semantic versioning, changing the major version number indicates a lack
-// of backwards compatibility with earlier versions. To preserve import
-// compatibility, the go command requires that modules with major version v2
-// or later use a module path with that major version as the final element.
-// For example, version v2.0.0 of example.com/m must instead use module path
-// example.com/m/v2, and packages in that module would use that path as
-// their import path prefix, as in example.com/m/v2/sub/pkg. Including the
-// major version number in the module path and import paths in this way is
-// called "semantic import versioning". Pseudo-versions for modules with major
-// version v2 and later begin with that major version instead of v0, as in
-// v2.0.0-20180326061214-4fc5987536ef.
-//
-// As a special case, module paths beginning with gopkg.in/ continue to use the
-// conventions established on that system: the major version is always present,
-// and it is preceded by a dot instead of a slash: gopkg.in/yaml.v1
-// and gopkg.in/yaml.v2, not gopkg.in/yaml and gopkg.in/yaml/v2.
-//
-// The go command treats modules with different module paths as unrelated:
-// it makes no connection between example.com/m and example.com/m/v2.
-// Modules with different major versions can be used together in a build
-// and are kept separate by the fact that their packages use different
-// import paths.
-//
-// In semantic versioning, major version v0 is for initial development,
-// indicating no expectations of stability or backwards compatibility.
-// Major version v0 does not appear in the module path, because those
-// versions are preparation for v1.0.0, and v1 does not appear in the
-// module path either.
-//
-// Code written before the semantic import versioning convention
-// was introduced may use major versions v2 and later to describe
-// the same set of unversioned import paths as used in v0 and v1.
-// To accommodate such code, if a source code repository has a
-// v2.0.0 or later tag for a file tree with no go.mod, the version is
-// considered to be part of the v1 module's available versions
-// and is given an +incompatible suffix when converted to a module
-// version, as in v2.0.0+incompatible. The +incompatible tag is also
-// applied to pseudo-versions derived from such versions, as in
-// v2.0.1-0.yyyymmddhhmmss-abcdefabcdef+incompatible.
-//
-// In general, having a dependency in the build list (as reported by 'go list -m all')
-// on a v0 version, pre-release version, pseudo-version, or +incompatible version
-// is an indication that problems are more likely when upgrading that
-// dependency, since there is no expectation of compatibility for those.
-//
-// See https://research.swtch.com/vgo-import for more information about
-// semantic import versioning, and see https://semver.org/ for more about
-// semantic versioning.
-//
-// Module code layout
-//
-// For now, see https://research.swtch.com/vgo-module for information
-// about how source code in version control systems is mapped to
-// module file trees.
-//
-// Module downloading and verification
-//
-// The go command can fetch modules from a proxy or connect to source control
-// servers directly, according to the setting of the GOPROXY environment
-// variable (see 'go help env'). The default setting for GOPROXY is
-// "https://proxy.golang.org,direct", which means to try the
-// Go module mirror run by Google and fall back to a direct connection
-// if the proxy reports that it does not have the module (HTTP error 404 or 410).
-// See https://proxy.golang.org/privacy for the service's privacy policy.
-//
-// If GOPROXY is set to the string "direct", downloads use a direct connection to
-// source control servers. Setting GOPROXY to "off" disallows downloading modules
-// from any source. Otherwise, GOPROXY is expected to be list of module proxy URLs
-// separated by either comma (,) or pipe (|) characters, which control error
-// fallback behavior. For each request, the go command tries each proxy in
-// sequence. If there is an error, the go command will try the next proxy in the
-// list if the error is a 404 or 410 HTTP response or if the current proxy is
-// followed by a pipe character, indicating it is safe to fall back on any error.
-//
-// The GOPRIVATE and GONOPROXY environment variables allow bypassing
-// the proxy for selected modules. See 'go help module-private' for details.
-//
-// No matter the source of the modules, the go command checks downloads against
-// known checksums, to detect unexpected changes in the content of any specific
-// module version from one day to the next. This check first consults the current
-// module's go.sum file but falls back to the Go checksum database, controlled by
-// the GOSUMDB and GONOSUMDB environment variables. See 'go help module-auth'
-// for details.
-//
-// See 'go help goproxy' for details about the proxy protocol and also
-// the format of the cached downloaded packages.
-//
-// Modules and vendoring
-//
-// When using modules, the go command typically satisfies dependencies by
-// downloading modules from their sources and using those downloaded copies
-// (after verification, as described in the previous section). Vendoring may
-// be used to allow interoperation with older versions of Go, or to ensure
-// that all files used for a build are stored together in a single file tree.
-//
-// The command 'go mod vendor' constructs a directory named vendor in the main
-// module's root directory that contains copies of all packages needed to support
-// builds and tests of packages in the main module. 'go mod vendor' also
-// creates the file vendor/modules.txt that contains metadata about vendored
-// packages and module versions. This file should be kept consistent with go.mod:
-// when vendoring is used, 'go mod vendor' should be run after go.mod is updated.
-//
-// If the vendor directory is present in the main module's root directory, it will
-// be used automatically if the "go" version in the main module's go.mod file is
-// 1.14 or higher. Build commands like 'go build' and 'go test' will load packages
-// from the vendor directory instead of accessing the network or the local module
-// cache. To explicitly enable vendoring, invoke the go command with the flag
-// -mod=vendor. To disable vendoring, use the flag -mod=mod.
-//
-// Unlike vendoring in GOPATH, the go command ignores vendor directories in
-// locations other than the main module's root directory.
+// For a detailed reference on modules, see https://golang.org/ref/mod.
 //
 //
 // Module authentication using go.sum
 //
-// The go command tries to authenticate every downloaded module,
-// checking that the bits downloaded for a specific module version today
-// match bits downloaded yesterday. This ensures repeatable builds
-// and detects introduction of unexpected changes, malicious or not.
+// When the go command downloads a module zip file or go.mod file into the
+// module cache, it computes a cryptographic hash and compares it with a known
+// value to verify the file hasn't changed since it was first downloaded. Known
+// hashes are stored in a file in the module root directory named go.sum. Hashes
+// may also be downloaded from the checksum database depending on the values of
+// GOSUMDB, GOPRIVATE, and GONOSUMDB.
 //
-// In each module's root, alongside go.mod, the go command maintains
-// a file named go.sum containing the cryptographic checksums of the
-// module's dependencies.
-//
-// The form of each line in go.sum is three fields:
-//
-// 	<module> <version>[/go.mod] <hash>
-//
-// Each known module version results in two lines in the go.sum file.
-// The first line gives the hash of the module version's file tree.
-// The second line appends "/go.mod" to the version and gives the hash
-// of only the module version's (possibly synthesized) go.mod file.
-// The go.mod-only hash allows downloading and authenticating a
-// module version's go.mod file, which is needed to compute the
-// dependency graph, without also downloading all the module's source code.
-//
-// The hash begins with an algorithm prefix of the form "h<N>:".
-// The only defined algorithm prefix is "h1:", which uses SHA-256.
-//
-// Module authentication failures
-//
-// The go command maintains a cache of downloaded packages and computes
-// and records the cryptographic checksum of each package at download time.
-// In normal operation, the go command checks the main module's go.sum file
-// against these precomputed checksums instead of recomputing them on
-// each command invocation. The 'go mod verify' command checks that
-// the cached copies of module downloads still match both their recorded
-// checksums and the entries in go.sum.
-//
-// In day-to-day development, the checksum of a given module version
-// should never change. Each time a dependency is used by a given main
-// module, the go command checks its local cached copy, freshly
-// downloaded or not, against the main module's go.sum. If the checksums
-// don't match, the go command reports the mismatch as a security error
-// and refuses to run the build. When this happens, proceed with caution:
-// code changing unexpectedly means today's build will not match
-// yesterday's, and the unexpected change may not be beneficial.
-//
-// If the go command reports a mismatch in go.sum, the downloaded code
-// for the reported module version does not match the one used in a
-// previous build of the main module. It is important at that point
-// to find out what the right checksum should be, to decide whether
-// go.sum is wrong or the downloaded code is wrong. Usually go.sum is right:
-// you want to use the same code you used yesterday.
-//
-// If a downloaded module is not yet included in go.sum and it is a publicly
-// available module, the go command consults the Go checksum database to fetch
-// the expected go.sum lines. If the downloaded code does not match those
-// lines, the go command reports the mismatch and exits. Note that the
-// database is not consulted for module versions already listed in go.sum.
-//
-// If a go.sum mismatch is reported, it is always worth investigating why
-// the code downloaded today differs from what was downloaded yesterday.
-//
-// The GOSUMDB environment variable identifies the name of checksum database
-// to use and optionally its public key and URL, as in:
-//
-// 	GOSUMDB="sum.golang.org"
-// 	GOSUMDB="sum.golang.org+<publickey>"
-// 	GOSUMDB="sum.golang.org+<publickey> https://sum.golang.org"
-//
-// The go command knows the public key of sum.golang.org, and also that the name
-// sum.golang.google.cn (available inside mainland China) connects to the
-// sum.golang.org checksum database; use of any other database requires giving
-// the public key explicitly.
-// The URL defaults to "https://" followed by the database name.
-//
-// GOSUMDB defaults to "sum.golang.org", the Go checksum database run by Google.
-// See https://sum.golang.org/privacy for the service's privacy policy.
-//
-// If GOSUMDB is set to "off", or if "go get" is invoked with the -insecure flag,
-// the checksum database is not consulted, and all unrecognized modules are
-// accepted, at the cost of giving up the security guarantee of verified repeatable
-// downloads for all modules. A better way to bypass the checksum database
-// for specific modules is to use the GOPRIVATE or GONOSUMDB environment
-// variables. See 'go help module-private' for details.
-//
-// The 'go env -w' command (see 'go help env') can be used to set these variables
-// for future go command invocations.
-//
-//
-// Module configuration for non-public modules
-//
-// The go command defaults to downloading modules from the public Go module
-// mirror at proxy.golang.org. It also defaults to validating downloaded modules,
-// regardless of source, against the public Go checksum database at sum.golang.org.
-// These defaults work well for publicly available source code.
-//
-// The GOPRIVATE environment variable controls which modules the go command
-// considers to be private (not available publicly) and should therefore not use the
-// proxy or checksum database. The variable is a comma-separated list of
-// glob patterns (in the syntax of Go's path.Match) of module path prefixes.
-// For example,
-//
-// 	GOPRIVATE=*.corp.example.com,rsc.io/private
-//
-// causes the go command to treat as private any module with a path prefix
-// matching either pattern, including git.corp.example.com/xyzzy, rsc.io/private,
-// and rsc.io/private/quux.
-//
-// The GOPRIVATE environment variable may be used by other tools as well to
-// identify non-public modules. For example, an editor could use GOPRIVATE
-// to decide whether to hyperlink a package import to a godoc.org page.
-//
-// For fine-grained control over module download and validation, the GONOPROXY
-// and GONOSUMDB environment variables accept the same kind of glob list
-// and override GOPRIVATE for the specific decision of whether to use the proxy
-// and checksum database, respectively.
-//
-// For example, if a company ran a module proxy serving private modules,
-// users would configure go using:
-//
-// 	GOPRIVATE=*.corp.example.com
-// 	GOPROXY=proxy.example.com
-// 	GONOPROXY=none
-//
-// This would tell the go command and other tools that modules beginning with
-// a corp.example.com subdomain are private but that the company proxy should
-// be used for downloading both public and private modules, because
-// GONOPROXY has been set to a pattern that won't match any modules,
-// overriding GOPRIVATE.
-//
-// The 'go env -w' command (see 'go help env') can be used to set these variables
-// for future go command invocations.
+// For details, see https://golang.org/ref/mod#authenticating.
 //
 //
 // Package lists and patterns
@@ -3057,6 +2505,48 @@
 //
 // Directory and file names that begin with "." or "_" are ignored
 // by the go tool, as are directories named "testdata".
+//
+//
+// Configuration for downloading non-public code
+//
+// The go command defaults to downloading modules from the public Go module
+// mirror at proxy.golang.org. It also defaults to validating downloaded modules,
+// regardless of source, against the public Go checksum database at sum.golang.org.
+// These defaults work well for publicly available source code.
+//
+// The GOPRIVATE environment variable controls which modules the go command
+// considers to be private (not available publicly) and should therefore not use
+// the proxy or checksum database. The variable is a comma-separated list of
+// glob patterns (in the syntax of Go's path.Match) of module path prefixes.
+// For example,
+//
+// 	GOPRIVATE=*.corp.example.com,rsc.io/private
+//
+// causes the go command to treat as private any module with a path prefix
+// matching either pattern, including git.corp.example.com/xyzzy, rsc.io/private,
+// and rsc.io/private/quux.
+//
+// For fine-grained control over module download and validation, the GONOPROXY
+// and GONOSUMDB environment variables accept the same kind of glob list
+// and override GOPRIVATE for the specific decision of whether to use the proxy
+// and checksum database, respectively.
+//
+// For example, if a company ran a module proxy serving private modules,
+// users would configure go using:
+//
+// 	GOPRIVATE=*.corp.example.com
+// 	GOPROXY=proxy.example.com
+// 	GONOPROXY=none
+//
+// The GOPRIVATE variable is also used to define the "public" and "private"
+// patterns for the GOVCS variable; see 'go help vcs'. For that usage,
+// GOPRIVATE applies even in GOPATH mode. In that case, it matches import paths
+// instead of module paths.
+//
+// The 'go env -w' command (see 'go help env') can be used to set these variables
+// for future go command invocations.
+//
+// For more details, see https://golang.org/ref/mod#private-modules.
 //
 //
 // Testing flags
@@ -3349,6 +2839,79 @@
 // declaration, and no test or benchmark functions.
 //
 // See the documentation of the testing package for more information.
+//
+//
+// Controlling version control with GOVCS
+//
+// The 'go get' command can run version control commands like git
+// to download imported code. This functionality is critical to the decentralized
+// Go package ecosystem, in which code can be imported from any server,
+// but it is also a potential security problem, if a malicious server finds a
+// way to cause the invoked version control command to run unintended code.
+//
+// To balance the functionality and security concerns, the 'go get' command
+// by default will only use git and hg to download code from public servers.
+// But it will use any known version control system (bzr, fossil, git, hg, svn)
+// to download code from private servers, defined as those hosting packages
+// matching the GOPRIVATE variable (see 'go help private'). The rationale behind
+// allowing only Git and Mercurial is that these two systems have had the most
+// attention to issues of being run as clients of untrusted servers. In contrast,
+// Bazaar, Fossil, and Subversion have primarily been used in trusted,
+// authenticated environments and are not as well scrutinized as attack surfaces.
+//
+// The version control command restrictions only apply when using direct version
+// control access to download code. When downloading modules from a proxy,
+// 'go get' uses the proxy protocol instead, which is always permitted.
+// By default, the 'go get' command uses the Go module mirror (proxy.golang.org)
+// for public packages and only falls back to version control for private
+// packages or when the mirror refuses to serve a public package (typically for
+// legal reasons). Therefore, clients can still access public code served from
+// Bazaar, Fossil, or Subversion repositories by default, because those downloads
+// use the Go module mirror, which takes on the security risk of running the
+// version control commands, using a custom sandbox.
+//
+// The GOVCS variable can be used to change the allowed version control systems
+// for specific packages (identified by a module or import path).
+// The GOVCS variable applies both when using modules and when using GOPATH.
+// When using modules, the patterns match against the module path.
+// When using GOPATH, the patterns match against the import path
+// corresponding to the root of the version control repository.
+//
+// The general form of the GOVCS setting is a comma-separated list of
+// pattern:vcslist rules. The pattern is a glob pattern that must match
+// one or more leading elements of the module or import path. The vcslist
+// is a pipe-separated list of allowed version control commands, or "all"
+// to allow use of any known command, or "off" to allow nothing.
+// The earliest matching pattern in the list applies, even if later patterns
+// might also match.
+//
+// For example, consider:
+//
+// 	GOVCS=github.com:git,evil.com:off,*:git|hg
+//
+// With this setting, code with an module or import path beginning with
+// github.com/ can only use git; paths on evil.com cannot use any version
+// control command, and all other paths (* matches everything) can use
+// only git or hg.
+//
+// The special patterns "public" and "private" match public and private
+// module or import paths. A path is private if it matches the GOPRIVATE
+// variable; otherwise it is public.
+//
+// If no rules in the GOVCS variable match a particular module or import path,
+// the 'go get' command applies its default rule, which can now be summarized
+// in GOVCS notation as 'public:git|hg,private:all'.
+//
+// To allow unfettered use of any version control system for any package, use:
+//
+// 	GOVCS=*:all
+//
+// To disable all use of version control, use:
+//
+// 	GOVCS=*:off
+//
+// The 'go env -w' command (see 'go help env') can be used to set the GOVCS
+// variable for future go command invocations.
 //
 //
 package main

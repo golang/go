@@ -13,28 +13,28 @@ const x complex64 = 0
 const y complex128 = 0
 
 var _ = x / 1e-20
-var _ = x / 1e-50   // ERROR "complex division by zero"
-var _ = x / 1e-1000 // ERROR "complex division by zero"
+var _ = x / 1e-50   // GC_ERROR "division by zero"
+var _ = x / 1e-1000 // GC_ERROR "division by zero"
 var _ = x / 1e-20i
-var _ = x / 1e-50i   // ERROR "complex division by zero"
-var _ = x / 1e-1000i // ERROR "complex division by zero"
+var _ = x / 1e-50i   // GC_ERROR "division by zero"
+var _ = x / 1e-1000i // GC_ERROR "division by zero"
 
 var _ = x / 1e-45 // smallest positive float32
 
 var _ = x / (1e-20 + 1e-20i)
 var _ = x / (1e-50 + 1e-20i)
 var _ = x / (1e-20 + 1e-50i)
-var _ = x / (1e-50 + 1e-50i)     // ERROR "complex division by zero"
-var _ = x / (1e-1000 + 1e-1000i) // ERROR "complex division by zero"
+var _ = x / (1e-50 + 1e-50i)     // GC_ERROR "division by zero"
+var _ = x / (1e-1000 + 1e-1000i) // GC_ERROR "division by zero"
 
 var _ = y / 1e-50
-var _ = y / 1e-1000 // ERROR "complex division by zero"
+var _ = y / 1e-1000 // GC_ERROR "division by zero"
 var _ = y / 1e-50i
-var _ = y / 1e-1000i // ERROR "complex division by zero"
+var _ = y / 1e-1000i // GC_ERROR "division by zero"
 
 var _ = y / 5e-324 // smallest positive float64
 
 var _ = y / (1e-50 + 1e-50)
 var _ = y / (1e-1000 + 1e-50i)
 var _ = y / (1e-50 + 1e-1000i)
-var _ = y / (1e-1000 + 1e-1000i) // ERROR "complex division by zero"
+var _ = y / (1e-1000 + 1e-1000i) // GC_ERROR "division by zero"

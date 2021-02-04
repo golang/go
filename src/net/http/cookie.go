@@ -220,7 +220,7 @@ func (c *Cookie) String() string {
 	}
 	switch c.SameSite {
 	case SameSiteDefaultMode:
-		b.WriteString("; SameSite")
+		// Skip, default mode is obtained by not emitting the attribute.
 	case SameSiteNoneMode:
 		b.WriteString("; SameSite=None")
 	case SameSiteLaxMode:

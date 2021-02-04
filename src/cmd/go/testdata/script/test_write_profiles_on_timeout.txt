@@ -2,12 +2,15 @@
 
 [short] skip
 
-cd profiling
 ! go test -cpuprofile cpu.pprof -memprofile mem.pprof -timeout 1ms
 grep . cpu.pprof
 grep . mem.pprof
 
--- profiling/timeout_test.go --
+-- go.mod --
+module profiling
+
+go 1.16
+-- timeout_test.go --
 package timeouttest_test
 import "testing"
 import "time"

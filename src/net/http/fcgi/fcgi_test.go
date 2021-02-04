@@ -8,8 +8,8 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -221,7 +221,11 @@ var cleanUpTests = []struct {
 }
 
 type nopWriteCloser struct {
-	io.ReadWriter
+	io.Reader
+}
+
+func (nopWriteCloser) Write(buf []byte) (int, error) {
+	return len(buf), nil
 }
 
 func (nopWriteCloser) Close() error {
@@ -235,14 +239,14 @@ func TestChildServeCleansUp(t *testing.T) {
 	for _, tt := range cleanUpTests {
 		input := make([]byte, len(tt.input))
 		copy(input, tt.input)
-		rc := nopWriteCloser{bytes.NewBuffer(input)}
+		rc := nopWriteCloser{bytes.NewReader(input)}
 		done := make(chan bool)
 		c := newChild(rc, http.HandlerFunc(func(
 			w http.ResponseWriter,
 			r *http.Request,
 		) {
 			// block on reading body of request
-			_, err := io.Copy(ioutil.Discard, r.Body)
+			_, err := io.Copy(io.Discard, r.Body)
 			if err != tt.err {
 				t.Errorf("Expected %#v, got %#v", tt.err, err)
 			}
@@ -274,7 +278,7 @@ func TestMalformedParams(t *testing.T) {
 		// end of params
 		1, 4, 0, 1, 0, 0, 0, 0,
 	}
-	rw := rwNopCloser{bytes.NewReader(input), ioutil.Discard}
+	rw := rwNopCloser{bytes.NewReader(input), io.Discard}
 	c := newChild(rw, http.DefaultServeMux)
 	c.serve()
 }
@@ -325,7 +329,7 @@ func TestChildServeReadsEnvVars(t *testing.T) {
 	for _, tt := range envVarTests {
 		input := make([]byte, len(tt.input))
 		copy(input, tt.input)
-		rc := nopWriteCloser{bytes.NewBuffer(input)}
+		rc := nopWriteCloser{bytes.NewReader(input)}
 		done := make(chan bool)
 		c := newChild(rc, http.HandlerFunc(func(
 			w http.ResponseWriter,
@@ -342,5 +346,56 @@ func TestChildServeReadsEnvVars(t *testing.T) {
 		}))
 		go c.serve()
 		<-done
+	}
+}
+
+func TestResponseWriterSniffsContentType(t *testing.T) {
+	var tests = []struct {
+		name   string
+		body   string
+		wantCT string
+	}{
+		{
+			name:   "no body",
+			wantCT: "text/plain; charset=utf-8",
+		},
+		{
+			name:   "html",
+			body:   "<html><head><title>test page</title></head><body>This is a body</body></html>",
+			wantCT: "text/html; charset=utf-8",
+		},
+		{
+			name:   "text",
+			body:   strings.Repeat("gopher", 86),
+			wantCT: "text/plain; charset=utf-8",
+		},
+		{
+			name:   "jpg",
+			body:   "\xFF\xD8\xFF" + strings.Repeat("B", 1024),
+			wantCT: "image/jpeg",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := make([]byte, len(streamFullRequestStdin))
+			copy(input, streamFullRequestStdin)
+			rc := nopWriteCloser{bytes.NewReader(input)}
+			done := make(chan bool)
+			var resp *response
+			c := newChild(rc, http.HandlerFunc(func(
+				w http.ResponseWriter,
+				r *http.Request,
+			) {
+				io.WriteString(w, tt.body)
+				resp = w.(*response)
+				done <- true
+			}))
+			defer c.cleanUp()
+			go c.serve()
+			<-done
+			if got := resp.Header().Get("Content-Type"); got != tt.wantCT {
+				t.Errorf("got a Content-Type of %q; expected it to start with %q", got, tt.wantCT)
+			}
+		})
 	}
 }

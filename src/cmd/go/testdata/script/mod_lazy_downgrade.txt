@@ -1,0 +1,145 @@
+# This test illustrates the interaction between lazy loading and downgrading in
+# 'go get.
+
+# The package import graph used in this test looks like:
+#
+# lazy ---- a
+#           |
+#           a_test ---- b
+#                       b_test ---- c
+#
+# The module dependency graph initially looks like:
+#
+# lazy ---- a.1 ---- b.1 ---- c.1
+#      \                     /
+#        b.3 ---- c.2    b.2
+#
+# (Note that lazy loading will prune out the dependency from b.1 on c.1.)
+
+cp go.mod go.mod.orig
+go mod tidy
+cmp go.mod.orig go.mod
+
+go list -m all
+stdout '^example.com/a v0.1.0 '
+stdout '^example.com/b v0.3.0 '
+stdout '^example.com/c v0.2.0 '
+
+# Downgrading c should also downgrade the b that requires it.
+
+go get -d example.com/c@v0.1.0
+go list -m all
+stdout '^example.com/a v0.1.0 '
+stdout '^example.com/b v0.2.0 '
+stdout '^example.com/c v0.1.0 '
+
+# Removing c entirely should also remove the a and b that require it.
+
+go get -d example.com/c@none
+go list -m all
+! stdout '^example.com/a '
+! stdout '^example.com/b '
+! stdout '^example.com/c '
+
+
+# With lazy loading, downgrading c should work the same way, but dependencies
+# outside of the deepening scan should not affect the downgrade.
+
+cp go.mod.orig go.mod
+go mod edit -go=1.16
+
+go list -m all
+stdout '^example.com/a v0.1.0 '
+stdout '^example.com/b v0.3.0 '
+stdout '^example.com/c v0.2.0 '
+
+go get -d example.com/c@v0.1.0
+go list -m all
+stdout '^example.com/a v0.1.0 '
+stdout '^example.com/b v0.2.0 '
+stdout '^example.com/c v0.1.0 '
+
+go get -d example.com/c@none
+go list -m all
+! stdout '^example.com/a '  # TODO(#36460): example.com/a v0.1.0
+! stdout '^example.com/b '  # TODO(#36460): example.com/b v0.1.0
+! stdout '^example.com/c '
+
+-- go.mod --
+module example.com/lazy
+
+go 1.15
+
+require (
+	example.com/a v0.1.0
+	example.com/b v0.3.0 // indirect
+)
+
+replace (
+	example.com/a v0.1.0 => ./a
+	example.com/b v0.1.0 => ./b1
+	example.com/b v0.2.0 => ./b2
+	example.com/b v0.3.0 => ./b3
+	example.com/c v0.1.0 => ./c
+	example.com/c v0.2.0 => ./c
+)
+-- lazy.go --
+package lazy
+
+import _ "example.com/a"
+
+-- a/go.mod --
+module example.com/a
+
+go 1.15
+
+require example.com/b v0.1.0
+-- a/a.go --
+package a
+-- a/a_test.go --
+package a_test
+
+import _ "example.com/b"
+
+-- b1/go.mod --
+module example.com/b
+
+go 1.15
+
+require example.com/c v0.1.0
+-- b1/b.go --
+package b
+-- b1/b_test.go --
+package b_test
+import _ "example.com/c"
+
+-- b2/go.mod --
+module example.com/b
+
+go 1.15
+
+require example.com/c v0.1.0
+-- b2/b.go --
+package b
+-- b2/b_test.go --
+package b_test
+import _ "example.com/c"
+
+-- b3/go.mod --
+module example.com/b
+
+go 1.15
+
+require example.com/c v0.2.0
+-- b3/b.go --
+package b
+-- b3/b_test.go --
+package b_test
+import _ "example.com/c"
+
+-- c/go.mod --
+module example.com/c
+
+go 1.15
+-- c/c.go --
+package c

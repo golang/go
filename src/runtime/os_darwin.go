@@ -130,6 +130,18 @@ func osinit() {
 	physPageSize = getPageSize()
 }
 
+func sysctlbynameInt32(name []byte) (int32, int32) {
+	out := int32(0)
+	nout := unsafe.Sizeof(out)
+	ret := sysctlbyname(&name[0], (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
+	return ret, out
+}
+
+//go:linkname internal_cpu_getsysctlbyname internal/cpu.getsysctlbyname
+func internal_cpu_getsysctlbyname(name []byte) (int32, int32) {
+	return sysctlbynameInt32(name)
+}
+
 const (
 	_CTL_HW      = 6
 	_HW_NCPU     = 3
@@ -198,7 +210,6 @@ func newosproc(mp *m) {
 		exit(1)
 	}
 	mp.g0.stack.hi = stacksize // for mstart
-	//mSysStatInc(&memstats.stacks_sys, stacksize) //TODO: do this?
 
 	// Tell the pthread library we won't join with this thread.
 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
@@ -247,7 +258,7 @@ func newosproc0(stacksize uintptr, fn uintptr) {
 		exit(1)
 	}
 	g0.stack.hi = stacksize // for mstart
-	mSysStatInc(&memstats.stacks_sys, stacksize)
+	memstats.stacks_sys.add(int64(stacksize))
 
 	// Tell the pthread library we won't join with this thread.
 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
@@ -284,14 +295,20 @@ func libpreinit() {
 func mpreinit(mp *m) {
 	mp.gsignal = malg(32 * 1024) // OS X wants >= 8K
 	mp.gsignal.m = mp
+	if GOOS == "darwin" && GOARCH == "arm64" {
+		// mlock the signal stack to work around a kernel bug where it may
+		// SIGILL when the signal stack is not faulted in while a signal
+		// arrives. See issue 42774.
+		mlock(unsafe.Pointer(mp.gsignal.stack.hi-physPageSize), physPageSize)
+	}
 }
 
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
-	// The alternate signal stack is buggy on arm64.
+	// iOS does not support alternate signal stack.
 	// The signal handler handles it directly.
-	if GOARCH != "arm64" {
+	if !(GOOS == "ios" && GOARCH == "arm64") {
 		minitSignalStack()
 	}
 	minitSignalMask()
@@ -301,11 +318,16 @@ func minit() {
 // Called from dropm to undo the effect of an minit.
 //go:nosplit
 func unminit() {
-	// The alternate signal stack is buggy on arm64.
+	// iOS does not support alternate signal stack.
 	// See minit.
-	if GOARCH != "arm64" {
+	if !(GOOS == "ios" && GOARCH == "arm64") {
 		unminitSignals()
 	}
+}
+
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+func mdestroy(mp *m) {
 }
 
 //go:nosplit

@@ -9,4 +9,4 @@ package foo
 
 func fn(a float32) {}
 
-var f func(arg int) = fn  // ERROR "cannot use fn .type func.float32.. as type func.int. in assignment|different parameter types"
+var f func(arg int) = fn  // ERROR "cannot use fn .type func.float32.. as type func.int. in assignment|different parameter types|incompatible type"

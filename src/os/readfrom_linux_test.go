@@ -9,6 +9,7 @@ import (
 	"internal/poll"
 	"io"
 	"math/rand"
+	"os"
 	. "os"
 	"path/filepath"
 	"strconv"
@@ -169,6 +170,35 @@ func TestCopyFileRange(t *testing.T) {
 			mustSeekStart(t, dst)
 			mustContainData(t, dst, data)
 		})
+	})
+	t.Run("Nil", func(t *testing.T) {
+		var nilFile *File
+		anyFile, err := os.CreateTemp("", "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer Remove(anyFile.Name())
+		defer anyFile.Close()
+
+		if _, err := io.Copy(nilFile, nilFile); err != ErrInvalid {
+			t.Errorf("io.Copy(nilFile, nilFile) = %v, want %v", err, ErrInvalid)
+		}
+		if _, err := io.Copy(anyFile, nilFile); err != ErrInvalid {
+			t.Errorf("io.Copy(anyFile, nilFile) = %v, want %v", err, ErrInvalid)
+		}
+		if _, err := io.Copy(nilFile, anyFile); err != ErrInvalid {
+			t.Errorf("io.Copy(nilFile, anyFile) = %v, want %v", err, ErrInvalid)
+		}
+
+		if _, err := nilFile.ReadFrom(nilFile); err != ErrInvalid {
+			t.Errorf("nilFile.ReadFrom(nilFile) = %v, want %v", err, ErrInvalid)
+		}
+		if _, err := anyFile.ReadFrom(nilFile); err != ErrInvalid {
+			t.Errorf("anyFile.ReadFrom(nilFile) = %v, want %v", err, ErrInvalid)
+		}
+		if _, err := nilFile.ReadFrom(anyFile); err != ErrInvalid {
+			t.Errorf("nilFile.ReadFrom(anyFile) = %v, want %v", err, ErrInvalid)
+		}
 	})
 }
 

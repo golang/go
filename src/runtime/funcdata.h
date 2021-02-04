@@ -8,16 +8,15 @@
 //
 // These must agree with symtab.go and ../cmd/internal/objabi/funcdata.go.
 
-#define PCDATA_RegMapIndex 0
+#define PCDATA_UnsafePoint 0
 #define PCDATA_StackMapIndex 1
 #define PCDATA_InlTreeIndex 2
 
 #define FUNCDATA_ArgsPointerMaps 0 /* garbage collector blocks */
 #define FUNCDATA_LocalsPointerMaps 1
-#define FUNCDATA_RegPointerMaps 2
-#define FUNCDATA_StackObjects 3
-#define FUNCDATA_InlTree 4
-#define FUNCDATA_OpenCodedDeferInfo 5 /* info for func with open-coded defers */
+#define FUNCDATA_StackObjects 2
+#define FUNCDATA_InlTree 3
+#define FUNCDATA_OpenCodedDeferInfo 4 /* info for func with open-coded defers */
 
 // Pseudo-assembly statements.
 
@@ -32,9 +31,9 @@
 // defines the pointer map for the function's arguments.
 // GO_ARGS should be the first instruction in a function that uses it.
 // It can be omitted if there are no arguments at all.
-// GO_ARGS is inserted implicitly by the linker for any function
-// that also has a Go prototype and therefore is usually not necessary
-// to write explicitly.
+// GO_ARGS is inserted implicitly by the linker for any function whose
+// name starts with a middle-dot and that also has a Go prototype; it
+// is therefore usually not necessary to write explicitly.
 #define GO_ARGS	FUNCDATA $FUNCDATA_ArgsPointerMaps, go_args_stackmap(SB)
 
 // GO_RESULTS_INITIALIZED indicates that the assembly function

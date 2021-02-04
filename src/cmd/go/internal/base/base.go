@@ -7,11 +7,12 @@
 package base
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	exec "internal/execabs"
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 
@@ -24,7 +25,7 @@ import (
 type Command struct {
 	// Run runs the command.
 	// The args are the arguments after the command name.
-	Run func(cmd *Command, args []string)
+	Run func(ctx context.Context, cmd *Command, args []string)
 
 	// UsageLine is the one-line usage message.
 	// The words between "go" and the first flag or argument in the line are taken to be the command name.
@@ -53,6 +54,20 @@ var Go = &Command{
 	UsageLine: "go",
 	Long:      `Go is a tool for managing Go source code.`,
 	// Commands initialized in package main
+}
+
+// hasFlag reports whether a command or any of its subcommands contain the given
+// flag.
+func hasFlag(c *Command, name string) bool {
+	if f := c.Flag.Lookup(name); f != nil {
+		return true
+	}
+	for _, sub := range c.Commands {
+		if hasFlag(sub, name) {
+			return true
+		}
+	}
+	return false
 }
 
 // LongName returns the command's long name: all the words in the usage line between "go" and a flag or argument,

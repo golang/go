@@ -97,6 +97,7 @@ package module
 
 import (
 	"fmt"
+	"path"
 	"sort"
 	"strings"
 	"unicode"
@@ -224,13 +225,13 @@ func firstPathOK(r rune) bool {
 }
 
 // pathOK reports whether r can appear in an import path element.
-// Paths can be ASCII letters, ASCII digits, and limited ASCII punctuation: + - . _ and ~.
+// Paths can be ASCII letters, ASCII digits, and limited ASCII punctuation: - . _ and ~.
 // This matches what "go get" has historically recognized in import paths.
 // TODO(rsc): We would like to allow Unicode letters, but that requires additional
 // care in the safe encoding (see "escaped paths" above).
 func pathOK(r rune) bool {
 	if r < utf8.RuneSelf {
-		return r == '+' || r == '-' || r == '.' || r == '_' || r == '~' ||
+		return r == '-' || r == '.' || r == '_' || r == '~' ||
 			'0' <= r && r <= '9' ||
 			'A' <= r && r <= 'Z' ||
 			'a' <= r && r <= 'z'
@@ -313,11 +314,13 @@ func CheckPath(path string) error {
 // separated by slashes (U+002F). (It must not begin with nor end in a slash.)
 //
 // A valid path element is a non-empty string made up of
-// ASCII letters, ASCII digits, and limited ASCII punctuation: + - . _ and ~.
+// ASCII letters, ASCII digits, and limited ASCII punctuation: - . _ and ~.
 // It must not begin or end with a dot (U+002E), nor contain two dots in a row.
 //
 // The element prefix up to the first dot must not be a reserved file name
-// on Windows, regardless of case (CON, com1, NuL, and so on).
+// on Windows, regardless of case (CON, com1, NuL, and so on). The element
+// must not have a suffix of a tilde followed by one or more ASCII digits
+// (to exclude paths elements that look like Windows short-names).
 //
 // CheckImportPath may be less restrictive in the future, but see the
 // top-level package documentation for additional information about
@@ -402,6 +405,29 @@ func checkElem(elem string, fileName bool) error {
 			return fmt.Errorf("%q disallowed as path element component on Windows", short)
 		}
 	}
+
+	if fileName {
+		// don't check for Windows short-names in file names. They're
+		// only an issue for import paths.
+		return nil
+	}
+
+	// Reject path components that look like Windows short-names.
+	// Those usually end in a tilde followed by one or more ASCII digits.
+	if tilde := strings.LastIndexByte(short, '~'); tilde >= 0 && tilde < len(short)-1 {
+		suffix := short[tilde+1:]
+		suffixIsDigits := true
+		for _, r := range suffix {
+			if r < '0' || r > '9' {
+				suffixIsDigits = false
+				break
+			}
+		}
+		if suffixIsDigits {
+			return fmt.Errorf("trailing tilde and digits in path element")
+		}
+	}
+
 	return nil
 }
 
@@ -715,4 +741,50 @@ func unescapeString(escaped string) (string, bool) {
 		return "", false
 	}
 	return string(buf), true
+}
+
+// MatchPrefixPatterns reports whether any path prefix of target matches one of
+// the glob patterns (as defined by path.Match) in the comma-separated globs
+// list. This implements the algorithm used when matching a module path to the
+// GOPRIVATE environment variable, as described by 'go help module-private'.
+//
+// It ignores any empty or malformed patterns in the list.
+func MatchPrefixPatterns(globs, target string) bool {
+	for globs != "" {
+		// Extract next non-empty glob in comma-separated list.
+		var glob string
+		if i := strings.Index(globs, ","); i >= 0 {
+			glob, globs = globs[:i], globs[i+1:]
+		} else {
+			glob, globs = globs, ""
+		}
+		if glob == "" {
+			continue
+		}
+
+		// A glob with N+1 path elements (N slashes) needs to be matched
+		// against the first N+1 path elements of target,
+		// which end just before the N+1'th slash.
+		n := strings.Count(glob, "/")
+		prefix := target
+		// Walk target, counting slashes, truncating at the N+1'th slash.
+		for i := 0; i < len(target); i++ {
+			if target[i] == '/' {
+				if n == 0 {
+					prefix = target[:i]
+					break
+				}
+				n--
+			}
+		}
+		if n > 0 {
+			// Not enough prefix elements.
+			continue
+		}
+		matched, _ := path.Match(glob, prefix)
+		if matched {
+			return true
+		}
+	}
+	return false
 }

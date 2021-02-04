@@ -1,3 +1,4 @@
+// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -75,7 +76,7 @@ var (
 			}
 		case *syntax.Name:
 			if x.Value == "nil" {
-				want = Typ[UntypedNil]
+				want = NewInterfaceType(nil, nil) // interface{}
 			}
 		}
 		if want != nil && !Identical(tv.Type, want) {
@@ -529,4 +530,29 @@ func TestIssue34921(t *testing.T) {
 		}
 		pkg = res // res is imported by the next package in this test
 	}
+}
+
+func TestIssue43088(t *testing.T) {
+	// type T1 struct {
+	//         x T2
+	// }
+	//
+	// type T2 struct {
+	//         x struct {
+	//                 x T2
+	//         }
+	// }
+	n1 := NewTypeName(syntax.Pos{}, nil, "T1", nil)
+	T1 := NewNamed(n1, nil, nil)
+	n2 := NewTypeName(syntax.Pos{}, nil, "T2", nil)
+	T2 := NewNamed(n2, nil, nil)
+	s1 := NewStruct([]*Var{NewField(syntax.Pos{}, nil, "x", T2, false)}, nil)
+	T1.SetUnderlying(s1)
+	s2 := NewStruct([]*Var{NewField(syntax.Pos{}, nil, "x", T2, false)}, nil)
+	s3 := NewStruct([]*Var{NewField(syntax.Pos{}, nil, "x", s2, false)}, nil)
+	T2.SetUnderlying(s3)
+
+	// These calls must terminate (no endless recursion).
+	Comparable(T1)
+	Comparable(T2)
 }

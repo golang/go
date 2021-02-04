@@ -7,7 +7,7 @@ package work
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -169,7 +169,7 @@ func TestSharedLibName(t *testing.T) {
 	for _, data := range testData {
 		func() {
 			if data.rootedAt != "" {
-				tmpGopath, err := ioutil.TempDir("", "gopath")
+				tmpGopath, err := os.MkdirTemp("", "gopath")
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -221,10 +221,8 @@ func pkgImportPath(pkgpath string) *load.Package {
 // See https://golang.org/issue/18878.
 func TestRespectSetgidDir(t *testing.T) {
 	switch runtime.GOOS {
-	case "darwin":
-		if runtime.GOARCH == "arm64" {
-			t.Skip("can't set SetGID bit with chmod on iOS")
-		}
+	case "ios":
+		t.Skip("can't set SetGID bit with chmod on iOS")
 	case "windows", "plan9":
 		t.Skip("chown/chmod setgid are not supported on Windows or Plan 9")
 	}
@@ -239,7 +237,7 @@ func TestRespectSetgidDir(t *testing.T) {
 		return cmdBuf.WriteString(fmt.Sprint(a...))
 	}
 
-	setgiddir, err := ioutil.TempDir("", "SetGroupID")
+	setgiddir, err := os.MkdirTemp("", "SetGroupID")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,13 +253,13 @@ func TestRespectSetgidDir(t *testing.T) {
 	}
 
 	// Change setgiddir's permissions to include the SetGID bit.
-	if err := os.Chmod(setgiddir, 0755|os.ModeSetgid); err != nil {
+	if err := os.Chmod(setgiddir, 0755|fs.ModeSetgid); err != nil {
 		t.Fatal(err)
 	}
 
-	pkgfile, err := ioutil.TempFile("", "pkgfile")
+	pkgfile, err := os.CreateTemp("", "pkgfile")
 	if err != nil {
-		t.Fatalf("ioutil.TempFile(\"\", \"pkgfile\"): %v", err)
+		t.Fatalf("os.CreateTemp(\"\", \"pkgfile\"): %v", err)
 	}
 	defer os.Remove(pkgfile.Name())
 	defer pkgfile.Close()

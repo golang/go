@@ -250,6 +250,13 @@ var parseTests = []parseTest{
 	{"comment trim left and right", "x \r\n\t{{- /* */ -}}\n\n\ty", noError, `"x""y"`},
 	{"block definition", `{{block "foo" .}}hello{{end}}`, noError,
 		`{{template "foo" .}}`},
+
+	{"newline in assignment", "{{ $x \n := \n 1 \n }}", noError, "{{$x := 1}}"},
+	{"newline in empty action", "{{\n}}", hasError, "{{\n}}"},
+	{"newline in pipeline", "{{\n\"x\"\n|\nprintf\n}}", noError, `{{"x" | printf}}`},
+	{"newline in comment", "{{/*\nhello\n*/}}", noError, ""},
+	{"newline in comment", "{{-\n/*\nhello\n*/\n-}}", noError, ""},
+
 	// Errors.
 	{"unclosed action", "hello{{range", hasError, ""},
 	{"unmatched end", "{{end}}", hasError, ""},
@@ -348,6 +355,30 @@ func TestParseCopy(t *testing.T) {
 	testParse(true, t)
 }
 
+func TestParseWithComments(t *testing.T) {
+	textFormat = "%q"
+	defer func() { textFormat = "%s" }()
+	tests := [...]parseTest{
+		{"comment", "{{/*\n\n\n*/}}", noError, "{{/*\n\n\n*/}}"},
+		{"comment trim left", "x \r\n\t{{- /* hi */}}", noError, `"x"{{/* hi */}}`},
+		{"comment trim right", "{{/* hi */ -}}\n\n\ty", noError, `{{/* hi */}}"y"`},
+		{"comment trim left and right", "x \r\n\t{{- /* */ -}}\n\n\ty", noError, `"x"{{/* */}}"y"`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			tr := New(test.name)
+			tr.Mode = ParseComments
+			tmpl, err := tr.Parse(test.input, "", "", make(map[string]*Tree))
+			if err != nil {
+				t.Errorf("%q: expected error; got none", test.name)
+			}
+			if result := tmpl.Root.String(); result != test.result {
+				t.Errorf("%s=(%q): got\n\t%v\nexpected\n\t%v", test.name, test.input, result, test.result)
+			}
+		})
+	}
+}
+
 type isEmptyTest struct {
 	name  string
 	input string
@@ -358,6 +389,7 @@ var isEmptyTests = []isEmptyTest{
 	{"empty", ``, true},
 	{"nonempty", `hello`, false},
 	{"spaces only", " \t\n \t\n", true},
+	{"comment only", "{{/* comment */}}", true},
 	{"definition", `{{define "x"}}something{{end}}`, true},
 	{"definitions and space", "{{define `x`}}something{{end}}\n\n{{define `y`}}something{{end}}\n\n", true},
 	{"definitions and text", "{{define `x`}}something{{end}}\nx\n{{define `y`}}something{{end}}\ny\n", false},
@@ -401,23 +433,38 @@ var errorTests = []parseTest{
 	// Check line numbers are accurate.
 	{"unclosed1",
 		"line1\n{{",
-		hasError, `unclosed1:2: unexpected unclosed action in command`},
+		hasError, `unclosed1:2: unclosed action`},
 	{"unclosed2",
 		"line1\n{{define `x`}}line2\n{{",
-		hasError, `unclosed2:3: unexpected unclosed action in command`},
+		hasError, `unclosed2:3: unclosed action`},
+	{"unclosed3",
+		"line1\n{{\"x\"\n\"y\"\n",
+		hasError, `unclosed3:4: unclosed action started at unclosed3:2`},
+	{"unclosed4",
+		"{{\n\n\n\n\n",
+		hasError, `unclosed4:6: unclosed action started at unclosed4:1`},
+	{"var1",
+		"line1\n{{\nx\n}}",
+		hasError, `var1:3: function "x" not defined`},
 	// Specific errors.
 	{"function",
 		"{{foo}}",
 		hasError, `function "foo" not defined`},
-	{"comment",
+	{"comment1",
 		"{{/*}}",
-		hasError, `unclosed comment`},
+		hasError, `comment1:1: unclosed comment`},
+	{"comment2",
+		"{{/*\nhello\n}}",
+		hasError, `comment2:1: unclosed comment`},
 	{"lparen",
 		"{{.X (1 2 3}}",
 		hasError, `unclosed left paren`},
 	{"rparen",
-		"{{.X 1 2 3)}}",
-		hasError, `unexpected ")"`},
+		"{{.X 1 2 3 ) }}",
+		hasError, `unexpected ")" in command`},
+	{"rparen2",
+		"{{(.X 1 2 3",
+		hasError, `unclosed action`},
 	{"space",
 		"{{`x`3}}",
 		hasError, `in operand`},
@@ -463,7 +510,7 @@ var errorTests = []parseTest{
 		hasError, `missing value for parenthesized pipeline`},
 	{"multilinerawstring",
 		"{{ $v := `\n` }} {{",
-		hasError, `multilinerawstring:2: unexpected unclosed action`},
+		hasError, `multilinerawstring:2: unclosed action`},
 	{"rangeundefvar",
 		"{{range $k}}{{end}}",
 		hasError, `undefined variable`},

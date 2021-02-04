@@ -19,7 +19,7 @@ exec $WORK/testimport$GOEXE other/x/y/z/w .
 stdout w2.go
 
 ! exec $WORK/testimport$GOEXE gobuild.example.com/x/y/z/w .
-stderr 'cannot find module providing package gobuild.example.com/x/y/z/w'
+stderr 'no required module provides package gobuild.example.com/x/y/z/w; to add it:\n\tgo get gobuild.example.com/x/y/z/w'
 
 cd z
 exec $WORK/testimport$GOEXE other/x/y/z/w .

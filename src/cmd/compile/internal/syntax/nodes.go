@@ -55,8 +55,8 @@ type (
 	ImportDecl struct {
 		Group        *Group // nil means not part of a group
 		Pragma       Pragma
-		LocalPkgName *Name // including "."; nil means no rename present
-		Path         *BasicLit
+		LocalPkgName *Name     // including "."; nil means no rename present
+		Path         *BasicLit // Path.Bad || Path.Kind == StringLit; nil means no path
 		decl
 	}
 
@@ -116,11 +116,18 @@ func (*decl) aDecl() {}
 
 // All declarations belonging to the same group point to the same Group node.
 type Group struct {
-	dummy int // not empty so we are guaranteed different Group instances
+	_ int // not empty so we are guaranteed different Group instances
 }
 
 // ----------------------------------------------------------------------------
 // Expressions
+
+func NewName(pos Pos, value string) *Name {
+	n := new(Name)
+	n.pos = pos
+	n.Value = value
+	return n
+}
 
 type (
 	Expr interface {
@@ -360,7 +367,7 @@ type (
 
 	AssignStmt struct {
 		Op       Operator // 0 means no operation
-		Lhs, Rhs Expr     // Rhs == ImplicitOne means Lhs++ (Op == Add) or Lhs-- (Op == Sub)
+		Lhs, Rhs Expr     // Rhs == nil means Lhs++ (Op == Add) or Lhs-- (Op == Sub)
 		simpleStmt
 	}
 

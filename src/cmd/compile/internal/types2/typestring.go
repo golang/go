@@ -1,3 +1,4 @@
+// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -349,9 +350,6 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited 
 		prev = b
 
 		if t, _ := p.typ.(*TypeParam); t != nil {
-			if t.ptr {
-				buf.WriteByte('*')
-			}
 			writeType(buf, t, qf, visited)
 		} else {
 			buf.WriteString(p.name)

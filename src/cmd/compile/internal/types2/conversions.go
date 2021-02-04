@@ -1,3 +1,4 @@
+// UNREVIEWED
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -48,14 +49,16 @@ func (check *Checker) conversion(x *operand, T Type) {
 	// given a type explicitly by a constant declaration or conversion,...".
 	if isUntyped(x.typ) {
 		final := T
-		// - For conversions to interfaces, use the argument's default type.
+		// - For conversions to interfaces, except for untyped nil arguments,
+		//   use the argument's default type.
 		// - For conversions of untyped constants to non-constant types, also
 		//   use the default type (e.g., []byte("foo") should report string
 		//   not []byte as type for the constant "foo").
-		// - Keep untyped nil for untyped nil arguments.
 		// - For integer to string conversions, keep the argument type.
 		//   (See also the TODO below.)
-		if IsInterface(T) || constArg && !isConstType(T) {
+		if x.typ == Typ[UntypedNil] {
+			// ok
+		} else if IsInterface(T) || constArg && !isConstType(T) {
 			final = Default(x.typ)
 		} else if isInteger(x.typ) && isString(T) {
 			final = x.typ

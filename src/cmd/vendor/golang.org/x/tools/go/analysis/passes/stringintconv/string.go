@@ -101,7 +101,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 		diag := analysis.Diagnostic{
 			Pos:     n.Pos(),
-			Message: fmt.Sprintf("conversion from %s to %s yields a string of one rune", source, target),
+			Message: fmt.Sprintf("conversion from %s to %s yields a string of one rune, not a string of digits (did you mean fmt.Sprint(x)?)", source, target),
 			SuggestedFixes: []analysis.SuggestedFix{
 				{
 					Message: "Did you mean to convert a rune to a string?",

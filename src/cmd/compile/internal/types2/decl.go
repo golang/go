@@ -1,3 +1,4 @@
+// UNREVIEWED
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -186,7 +187,7 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 	switch obj := obj.(type) {
 	case *Const:
 		check.decl = d // new package-level const decl
-		check.constDecl(obj, d.vtyp, d.init)
+		check.constDecl(obj, d.vtyp, d.init, d.inherited)
 	case *Var:
 		check.decl = d // new package-level var decl
 		check.varDecl(obj, d.lhs, d.vtyp, d.init)
@@ -363,7 +364,11 @@ func (check *Checker) cycleError(cycle []Object) {
 	//           cycle? That would be more consistent with other error messages.
 	i := firstInSrc(cycle)
 	obj := cycle[i]
-	check.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name())
+	if check.conf.CompilerErrorMessages {
+		check.errorf(obj.Pos(), "invalid recursive type %s", obj.Name())
+	} else {
+		check.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name())
+	}
 	for range cycle {
 		check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
 		i++
@@ -420,12 +425,16 @@ func firstInSrc(path []Object) int {
 	return fst
 }
 
-func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr) {
+func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr, inherited bool) {
 	assert(obj.typ == nil)
 
-	// use the correct value of iota
-	defer func(iota constant.Value) { check.iota = iota }(check.iota)
+	// use the correct value of iota and errpos
+	defer func(iota constant.Value, errpos syntax.Pos) {
+		check.iota = iota
+		check.errpos = errpos
+	}(check.iota, check.errpos)
 	check.iota = obj.val
+	check.errpos = nopos
 
 	// provide valid constant value under all circumstances
 	obj.val = constant.MakeUnknown()
@@ -448,6 +457,15 @@ func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr) {
 	// check initialization
 	var x operand
 	if init != nil {
+		if inherited {
+			// The initialization expression is inherited from a previous
+			// constant declaration, and (error) positions refer to that
+			// expression and not the current constant declaration. Use
+			// the constant identifier position for any errors during
+			// init expression evaluation since that is all we have
+			// (see issues #42991, #42992).
+			check.errpos = obj.pos
+		}
 		check.expr(&x, init)
 	}
 	check.initConst(obj, &x)
@@ -455,6 +473,20 @@ func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr) {
 
 func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
 	assert(obj.typ == nil)
+
+	// If we have undefined variable types due to errors,
+	// mark variables as used to avoid follow-on errors.
+	// Matches compiler behavior.
+	defer func() {
+		if obj.typ == Typ[Invalid] {
+			obj.used = true
+		}
+		for _, lhs := range lhs {
+			if lhs.typ == Typ[Invalid] {
+				lhs.used = true
+			}
+		}
+	}()
 
 	// determine type, if any
 	if typ != nil {
@@ -654,33 +686,24 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeNa
 	var bound Type
 	for i, j := 0, 0; i < len(list); i = j {
 		f := list[i]
-		ftype := f.Type
 
 		// determine the range of type parameters list[i:j] with identical type bound
 		// (declared as in (type a, b, c B))
 		j = i + 1
-		for j < len(list) && list[j].Type == ftype {
+		for j < len(list) && list[j].Type == f.Type {
 			j++
 		}
 
 		// this should never be the case, but be careful
-		if ftype == nil {
+		if f.Type == nil {
 			continue
 		}
-
-		// If the type bound expects exactly one type argument, permit leaving
-		// it away and use the corresponding type parameter as implicit argument.
-		// This allows us to write (type p b(p), q b(q), r b(r)) as (type p, q, r b).
-		// Enabled if enableImplicitTParam is set.
-		const enableImplicitTParam = false
 
 		// The predeclared identifier "any" is visible only as a constraint
 		// in a type parameter list. Look for it before general constraint
 		// resolution.
 		if tident, _ := f.Type.(*syntax.Name); tident != nil && tident.Value == "any" && check.lookup("any") == nil {
 			bound = universeAny
-		} else if enableImplicitTParam {
-			bound = check.anyType(f.Type)
 		} else {
 			bound = check.typ(f.Type)
 		}
@@ -691,34 +714,6 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeNa
 		//           type C(type T C) interface {}
 		//           (issue #39724).
 		if _, ok := bound.Under().(*Interface); ok {
-			if enableImplicitTParam && isGeneric(bound) {
-				base := bound.(*Named) // only a *Named type can be generic
-				if j-i != 1 || len(base.tparams) != 1 {
-					// TODO(gri) make this error message better
-					check.errorf(ftype, "cannot use generic type %s without instantiation (more than one type parameter)", bound)
-					bound = Typ[Invalid]
-					continue
-				}
-				// We have exactly one type parameter.
-				// "Manually" instantiate the bound with each type
-				// parameter the bound applies to.
-				// TODO(gri) this code (in more general form) is also in
-				// checker.typInternal for the *ast.CallExpr case. Factor?
-				typ := new(instance)
-				typ.check = check
-				typ.pos = ftype.Pos()
-				typ.base = base
-				typ.targs = []Type{tparams[i].typ}
-				typ.poslist = []syntax.Pos{f.Name.Pos()}
-				// Make sure we check instantiation works at least once
-				// and that the resulting type is valid.
-				check.atEnd(func() {
-					check.validType(typ.expand(), nil)
-				})
-				// update bound and recorded type
-				bound = typ
-				check.recordTypeAndValue(ftype, typexpr, typ, nil)
-			}
 			// set the type bounds
 			for i < j {
 				tparams[i].typ.(*TypeParam).bound = bound
@@ -733,15 +728,9 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeNa
 }
 
 func (check *Checker) declareTypeParam(tparams []*TypeName, name *syntax.Name) []*TypeName {
-	var ptr bool
-	nstr := name.Value
-	if len(nstr) > 0 && nstr[0] == '*' {
-		ptr = true
-		nstr = nstr[1:]
-	}
-	tpar := NewTypeName(name.Pos(), check.pkg, nstr, nil)
-	check.NewTypeParam(ptr, tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
-	check.declare(check.scope, name, tpar, check.scope.pos)      // TODO(gri) check scope position
+	tpar := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
+	check.NewTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
+	check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
 	tparams = append(tparams, tpar)
 
 	if check.conf.Trace {
@@ -797,7 +786,11 @@ func (check *Checker) collectMethods(obj *TypeName) {
 			case *Var:
 				check.errorf(m.pos, "field and method with the same name %s", m.name)
 			case *Func:
-				check.errorf(m.pos, "method %s already declared for %s", m.name, obj)
+				if check.conf.CompilerErrorMessages {
+					check.errorf(m.pos, "%s.%s redeclared in this block", obj.Name(), m.name)
+				} else {
+					check.errorf(m.pos, "method %s already declared for %s", m.name, obj)
+				}
 			default:
 				unreachable()
 			}
@@ -885,7 +878,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 					init = values[i]
 				}
 
-				check.constDecl(obj, last.Type, init)
+				check.constDecl(obj, last.Type, init, inherited)
 			}
 
 			// Constants must always have init values.

@@ -1,3 +1,4 @@
+// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -9,7 +10,8 @@ import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"go/constant"
-	"go/token"
+	"unicode"
+	"unicode/utf8"
 )
 
 // An Object describes a named language entity such as a package,
@@ -59,10 +61,15 @@ type Object interface {
 	setScopePos(pos syntax.Pos)
 }
 
+func isExported(name string) bool {
+	ch, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(ch)
+}
+
 // Id returns name if it is exported, otherwise it
 // returns the name qualified with the package path.
 func Id(pkg *Package, name string) string {
-	if token.IsExported(name) {
+	if isExported(name) {
 		return name
 	}
 	// unexported names need the package path for differentiation
@@ -142,7 +149,7 @@ func (obj *object) Type() Type { return obj.typ }
 // Exported reports whether the object is exported (starts with a capital letter).
 // It doesn't take into account whether the object is in a local (function) scope
 // or not.
-func (obj *object) Exported() bool { return token.IsExported(obj.name) }
+func (obj *object) Exported() bool { return isExported(obj.name) }
 
 // Id is a wrapper for Id(obj.Pkg(), obj.Name()).
 func (obj *object) Id() string { return Id(obj.pkg, obj.name) }
@@ -322,6 +329,36 @@ func (obj *Func) FullName() string {
 
 // Scope returns the scope of the function's body block.
 func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
+
+// Less reports whether function a is ordered before function b.
+//
+// Functions are ordered exported before non-exported, then by name,
+// and finally (for non-exported functions) by package path.
+//
+// TODO(gri) The compiler also sorts by package height before package
+//           path for non-exported names.
+func (a *Func) less(b *Func) bool {
+	if a == b {
+		return false
+	}
+
+	// Exported functions before non-exported.
+	ea := isExported(a.name)
+	eb := isExported(b.name)
+	if ea != eb {
+		return ea
+	}
+
+	// Order by name and then (for non-exported names) by package.
+	if a.name != b.name {
+		return a.name < b.name
+	}
+	if !ea {
+		return a.pkg.path < b.pkg.path
+	}
+
+	return false
+}
 
 func (*Func) isDependency() {} // a function may be a dependency of an initialization expression
 

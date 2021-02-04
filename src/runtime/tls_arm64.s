@@ -9,33 +9,39 @@
 #include "tls_arm64.h"
 
 TEXT runtime·load_g(SB),NOSPLIT,$0
+#ifndef TLS_darwin
+#ifndef GOOS_openbsd
 	MOVB	runtime·iscgo(SB), R0
 	CBZ	R0, nocgo
+#endif
+#endif
 
 	MRS_TPIDR_R0
-#ifdef GOOS_darwin
+#ifdef TLS_darwin
 	// Darwin sometimes returns unaligned pointers
 	AND	$0xfffffffffffffff8, R0
 #endif
 	MOVD	runtime·tls_g(SB), R27
-	ADD	R27, R0
-	MOVD	0(R0), g
+	MOVD	(R0)(R27), g
 
 nocgo:
 	RET
 
 TEXT runtime·save_g(SB),NOSPLIT,$0
+#ifndef TLS_darwin
+#ifndef GOOS_openbsd
 	MOVB	runtime·iscgo(SB), R0
 	CBZ	R0, nocgo
+#endif
+#endif
 
 	MRS_TPIDR_R0
-#ifdef GOOS_darwin
+#ifdef TLS_darwin
 	// Darwin sometimes returns unaligned pointers
 	AND	$0xfffffffffffffff8, R0
 #endif
 	MOVD	runtime·tls_g(SB), R27
-	ADD	R27, R0
-	MOVD	g, 0(R0)
+	MOVD	g, (R0)(R27)
 
 nocgo:
 	RET

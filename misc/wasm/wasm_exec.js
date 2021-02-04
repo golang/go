@@ -11,6 +11,7 @@
 	// - Node.js
 	// - Electron
 	// - Parcel
+	// - Webpack
 
 	if (typeof global !== "undefined") {
 		// global already exists
@@ -28,7 +29,7 @@
 
 	if (!global.fs && global.require) {
 		const fs = require("fs");
-		if (Object.keys(fs) !== 0) {
+		if (typeof fs === "object" && fs !== null && Object.keys(fs).length !== 0) {
 			global.fs = fs;
 		}
 	}
@@ -101,13 +102,16 @@
 		}
 	}
 
-	if (!global.crypto) {
+	if (!global.crypto && global.require) {
 		const nodeCrypto = require("crypto");
 		global.crypto = {
 			getRandomValues(b) {
 				nodeCrypto.randomFillSync(b);
 			},
 		};
+	}
+	if (!global.crypto) {
+		throw new Error("global.crypto is not available, polyfill required (getRandomValues only)");
 	}
 
 	if (!global.performance) {
@@ -119,12 +123,18 @@
 		};
 	}
 
-	if (!global.TextEncoder) {
+	if (!global.TextEncoder && global.require) {
 		global.TextEncoder = require("util").TextEncoder;
 	}
+	if (!global.TextEncoder) {
+		throw new Error("global.TextEncoder is not available, polyfill required");
+	}
 
-	if (!global.TextDecoder) {
+	if (!global.TextDecoder && global.require) {
 		global.TextDecoder = require("util").TextDecoder;
+	}
+	if (!global.TextDecoder) {
+		throw new Error("global.TextDecoder is not available, polyfill required");
 	}
 
 	// End of polyfills for common API.
@@ -254,6 +264,7 @@
 
 					// func wasmExit(code int32)
 					"runtime.wasmExit": (sp) => {
+						sp >>>= 0;
 						const code = this.mem.getInt32(sp + 8, true);
 						this.exited = true;
 						delete this._inst;
@@ -266,6 +277,7 @@
 
 					// func wasmWrite(fd uintptr, p unsafe.Pointer, n int32)
 					"runtime.wasmWrite": (sp) => {
+						sp >>>= 0;
 						const fd = getInt64(sp + 8);
 						const p = getInt64(sp + 16);
 						const n = this.mem.getInt32(sp + 24, true);
@@ -274,16 +286,19 @@
 
 					// func resetMemoryDataView()
 					"runtime.resetMemoryDataView": (sp) => {
+						sp >>>= 0;
 						this.mem = new DataView(this._inst.exports.mem.buffer);
 					},
 
 					// func nanotime1() int64
 					"runtime.nanotime1": (sp) => {
+						sp >>>= 0;
 						setInt64(sp + 8, (timeOrigin + performance.now()) * 1000000);
 					},
 
 					// func walltime1() (sec int64, nsec int32)
 					"runtime.walltime1": (sp) => {
+						sp >>>= 0;
 						const msec = (new Date).getTime();
 						setInt64(sp + 8, msec / 1000);
 						this.mem.setInt32(sp + 16, (msec % 1000) * 1000000, true);
@@ -291,6 +306,7 @@
 
 					// func scheduleTimeoutEvent(delay int64) int32
 					"runtime.scheduleTimeoutEvent": (sp) => {
+						sp >>>= 0;
 						const id = this._nextCallbackTimeoutID;
 						this._nextCallbackTimeoutID++;
 						this._scheduledTimeouts.set(id, setTimeout(
@@ -310,6 +326,7 @@
 
 					// func clearTimeoutEvent(id int32)
 					"runtime.clearTimeoutEvent": (sp) => {
+						sp >>>= 0;
 						const id = this.mem.getInt32(sp + 8, true);
 						clearTimeout(this._scheduledTimeouts.get(id));
 						this._scheduledTimeouts.delete(id);
@@ -317,11 +334,13 @@
 
 					// func getRandomData(r []byte)
 					"runtime.getRandomData": (sp) => {
+						sp >>>= 0;
 						crypto.getRandomValues(loadSlice(sp + 8));
 					},
 
 					// func finalizeRef(v ref)
 					"syscall/js.finalizeRef": (sp) => {
+						sp >>>= 0;
 						const id = this.mem.getUint32(sp + 8, true);
 						this._goRefCounts[id]--;
 						if (this._goRefCounts[id] === 0) {
@@ -334,44 +353,51 @@
 
 					// func stringVal(value string) ref
 					"syscall/js.stringVal": (sp) => {
+						sp >>>= 0;
 						storeValue(sp + 24, loadString(sp + 8));
 					},
 
 					// func valueGet(v ref, p string) ref
 					"syscall/js.valueGet": (sp) => {
+						sp >>>= 0;
 						const result = Reflect.get(loadValue(sp + 8), loadString(sp + 16));
-						sp = this._inst.exports.getsp(); // see comment above
+						sp = this._inst.exports.getsp() >>> 0; // see comment above
 						storeValue(sp + 32, result);
 					},
 
 					// func valueSet(v ref, p string, x ref)
 					"syscall/js.valueSet": (sp) => {
+						sp >>>= 0;
 						Reflect.set(loadValue(sp + 8), loadString(sp + 16), loadValue(sp + 32));
 					},
 
 					// func valueDelete(v ref, p string)
 					"syscall/js.valueDelete": (sp) => {
+						sp >>>= 0;
 						Reflect.deleteProperty(loadValue(sp + 8), loadString(sp + 16));
 					},
 
 					// func valueIndex(v ref, i int) ref
 					"syscall/js.valueIndex": (sp) => {
+						sp >>>= 0;
 						storeValue(sp + 24, Reflect.get(loadValue(sp + 8), getInt64(sp + 16)));
 					},
 
 					// valueSetIndex(v ref, i int, x ref)
 					"syscall/js.valueSetIndex": (sp) => {
+						sp >>>= 0;
 						Reflect.set(loadValue(sp + 8), getInt64(sp + 16), loadValue(sp + 24));
 					},
 
 					// func valueCall(v ref, m string, args []ref) (ref, bool)
 					"syscall/js.valueCall": (sp) => {
+						sp >>>= 0;
 						try {
 							const v = loadValue(sp + 8);
 							const m = Reflect.get(v, loadString(sp + 16));
 							const args = loadSliceOfValues(sp + 32);
 							const result = Reflect.apply(m, v, args);
-							sp = this._inst.exports.getsp(); // see comment above
+							sp = this._inst.exports.getsp() >>> 0; // see comment above
 							storeValue(sp + 56, result);
 							this.mem.setUint8(sp + 64, 1);
 						} catch (err) {
@@ -382,11 +408,12 @@
 
 					// func valueInvoke(v ref, args []ref) (ref, bool)
 					"syscall/js.valueInvoke": (sp) => {
+						sp >>>= 0;
 						try {
 							const v = loadValue(sp + 8);
 							const args = loadSliceOfValues(sp + 16);
 							const result = Reflect.apply(v, undefined, args);
-							sp = this._inst.exports.getsp(); // see comment above
+							sp = this._inst.exports.getsp() >>> 0; // see comment above
 							storeValue(sp + 40, result);
 							this.mem.setUint8(sp + 48, 1);
 						} catch (err) {
@@ -397,11 +424,12 @@
 
 					// func valueNew(v ref, args []ref) (ref, bool)
 					"syscall/js.valueNew": (sp) => {
+						sp >>>= 0;
 						try {
 							const v = loadValue(sp + 8);
 							const args = loadSliceOfValues(sp + 16);
 							const result = Reflect.construct(v, args);
-							sp = this._inst.exports.getsp(); // see comment above
+							sp = this._inst.exports.getsp() >>> 0; // see comment above
 							storeValue(sp + 40, result);
 							this.mem.setUint8(sp + 48, 1);
 						} catch (err) {
@@ -412,11 +440,13 @@
 
 					// func valueLength(v ref) int
 					"syscall/js.valueLength": (sp) => {
+						sp >>>= 0;
 						setInt64(sp + 16, parseInt(loadValue(sp + 8).length));
 					},
 
 					// valuePrepareString(v ref) (ref, int)
 					"syscall/js.valuePrepareString": (sp) => {
+						sp >>>= 0;
 						const str = encoder.encode(String(loadValue(sp + 8)));
 						storeValue(sp + 16, str);
 						setInt64(sp + 24, str.length);
@@ -424,17 +454,20 @@
 
 					// valueLoadString(v ref, b []byte)
 					"syscall/js.valueLoadString": (sp) => {
+						sp >>>= 0;
 						const str = loadValue(sp + 8);
 						loadSlice(sp + 16).set(str);
 					},
 
 					// func valueInstanceOf(v ref, t ref) bool
 					"syscall/js.valueInstanceOf": (sp) => {
+						sp >>>= 0;
 						this.mem.setUint8(sp + 24, (loadValue(sp + 8) instanceof loadValue(sp + 16)) ? 1 : 0);
 					},
 
 					// func copyBytesToGo(dst []byte, src ref) (int, bool)
 					"syscall/js.copyBytesToGo": (sp) => {
+						sp >>>= 0;
 						const dst = loadSlice(sp + 8);
 						const src = loadValue(sp + 32);
 						if (!(src instanceof Uint8Array || src instanceof Uint8ClampedArray)) {
@@ -449,6 +482,7 @@
 
 					// func copyBytesToJS(dst ref, src []byte) (int, bool)
 					"syscall/js.copyBytesToJS": (sp) => {
+						sp >>>= 0;
 						const dst = loadValue(sp + 8);
 						const src = loadSlice(sp + 16);
 						if (!(dst instanceof Uint8Array || dst instanceof Uint8ClampedArray)) {
@@ -469,6 +503,9 @@
 		}
 
 		async run(instance) {
+			if (!(instance instanceof WebAssembly.Instance)) {
+				throw new Error("Go.run: WebAssembly.Instance expected");
+			}
 			this._inst = instance;
 			this.mem = new DataView(this._inst.exports.mem.buffer);
 			this._values = [ // JS values that Go currently has references to, indexed by reference id
@@ -556,6 +593,7 @@
 	}
 
 	if (
+		typeof module !== "undefined" &&
 		global.require &&
 		global.require.main === module &&
 		global.process &&

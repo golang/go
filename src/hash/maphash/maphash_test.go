@@ -165,3 +165,32 @@ func TestSeedFromReset(t *testing.T) {
 // Make sure a Hash implements the hash.Hash and hash.Hash64 interfaces.
 var _ hash.Hash = &Hash{}
 var _ hash.Hash64 = &Hash{}
+
+func benchmarkSize(b *testing.B, size int) {
+	h := &Hash{}
+	buf := make([]byte, size)
+	b.SetBytes(int64(size))
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		h.Reset()
+		h.Write(buf)
+		h.Sum64()
+	}
+}
+
+func BenchmarkHash8Bytes(b *testing.B) {
+	benchmarkSize(b, 8)
+}
+
+func BenchmarkHash320Bytes(b *testing.B) {
+	benchmarkSize(b, 320)
+}
+
+func BenchmarkHash1K(b *testing.B) {
+	benchmarkSize(b, 1024)
+}
+
+func BenchmarkHash8K(b *testing.B) {
+	benchmarkSize(b, 8192)
+}

@@ -10,17 +10,16 @@ stderr '^x.go:2:8: cannot find module providing package rsc\.io/quote: import lo
 ! stderr '\(\)' # If we don't have a reason for -mod=readonly, don't log an empty one.
 cmp go.mod go.mod.empty
 
-# -mod=readonly should be set implicitly if the go.mod file is read-only
-chmod 0400 go.mod
+# -mod=readonly should be set by default.
 env GOFLAGS=
 ! go list all
-stderr '^x.go:2:8: cannot find module providing package rsc\.io/quote: import lookup disabled by -mod=readonly\n\t\(go.mod file is read-only\.\)$'
+stderr '^x.go:2:8: no required module provides package rsc\.io/quote; to add it:\n\tgo get rsc\.io/quote$'
+cmp go.mod go.mod.empty
 
-chmod 0600 go.mod
 env GOFLAGS=-mod=readonly
 
 # update go.mod - go get allowed
-go get rsc.io/quote
+go get -d rsc.io/quote
 grep rsc.io/quote go.mod
 
 # update go.mod - go mod tidy allowed
@@ -42,24 +41,50 @@ go list -m all
 
 # -mod=readonly should reject inconsistent go.mod files
 # (ones that would be rewritten).
-go mod edit -require rsc.io/sampler@v1.2.0
+go get -d rsc.io/sampler@v1.2.0
+go mod edit -require rsc.io/quote@v1.5.2
 cp go.mod go.mod.inconsistent
 ! go list
 stderr 'go: updates to go.mod needed, disabled by -mod=readonly'
 cmp go.mod go.mod.inconsistent
 
+# We get a different message when -mod=readonly is used by default.
+env GOFLAGS=
+! go list
+stderr '^go: updates to go.mod needed; to update it:\n\tgo mod tidy'
+
 # However, it should not reject files missing a 'go' directive,
 # since that was not always required.
 cp go.mod.nogo go.mod
 go list all
+cmp go.mod go.mod.nogo
 
 # Nor should it reject files with redundant (not incorrect)
 # requirements.
 cp go.mod.redundant go.mod
 go list all
+cmp go.mod go.mod.redundant
 
 cp go.mod.indirect go.mod
 go list all
+cmp go.mod go.mod.indirect
+
+
+# If we identify a missing package as a dependency of some other package in the
+# main module, we should suggest 'go mod tidy' instead of resolving it.
+
+cp go.mod.untidy go.mod
+! go list all
+stderr '^x.go:2:8: no required module provides package rsc.io/quote; to add it:\n\tgo get rsc.io/quote$'
+
+! go list -deps .
+stderr '^x.go:2:8: no required module provides package rsc.io/quote; to add it:\n\tgo get rsc.io/quote$'
+
+# However, if we didn't see an import from the main module, we should suggest
+# 'go get -d' instead, because we don't know whether 'go mod tidy' would add it.
+! go list rsc.io/quote
+stderr '^no required module provides package rsc.io/quote; to add it:\n\tgo get rsc.io/quote$'
+
 
 -- go.mod --
 module m
@@ -95,4 +120,12 @@ require (
 	rsc.io/quote v1.5.2 // indirect
 	rsc.io/sampler v1.3.0 // indirect
 	rsc.io/testonly v1.0.0 // indirect
+)
+-- go.mod.untidy --
+module m
+
+go 1.20
+
+require (
+	rsc.io/sampler v1.3.0 // indirect
 )

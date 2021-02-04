@@ -8,6 +8,7 @@ import (
 	"flag"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/str"
 )
 
@@ -28,13 +29,43 @@ func (v *StringsFlag) String() string {
 	return "<StringsFlag>"
 }
 
+// explicitStringFlag is like a regular string flag, but it also tracks whether
+// the string was set explicitly to a non-empty value.
+type explicitStringFlag struct {
+	value    *string
+	explicit *bool
+}
+
+func (f explicitStringFlag) String() string {
+	if f.value == nil {
+		return ""
+	}
+	return *f.value
+}
+
+func (f explicitStringFlag) Set(v string) error {
+	*f.value = v
+	if v != "" {
+		*f.explicit = true
+	}
+	return nil
+}
+
 // AddBuildFlagsNX adds the -n and -x build flags to the flag set.
 func AddBuildFlagsNX(flags *flag.FlagSet) {
 	flags.BoolVar(&cfg.BuildN, "n", false, "")
 	flags.BoolVar(&cfg.BuildX, "x", false, "")
 }
 
-// AddLoadFlags adds the -mod build flag to the flag set.
-func AddLoadFlags(flags *flag.FlagSet) {
-	flags.StringVar(&cfg.BuildMod, "mod", "", "")
+// AddModFlag adds the -mod build flag to the flag set.
+func AddModFlag(flags *flag.FlagSet) {
+	flags.Var(explicitStringFlag{value: &cfg.BuildMod, explicit: &cfg.BuildModExplicit}, "mod", "")
+}
+
+// AddModCommonFlags adds the module-related flags common to build commands
+// and 'go mod' subcommands.
+func AddModCommonFlags(flags *flag.FlagSet) {
+	flags.BoolVar(&cfg.ModCacheRW, "modcacherw", false, "")
+	flags.StringVar(&cfg.ModFile, "modfile", "", "")
+	flags.StringVar(&fsys.OverlayFile, "overlay", "", "")
 }

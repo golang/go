@@ -24,5 +24,5 @@ func g() {
 
 func h() {
 	type T4 struct{ m map[T4]int } // ERROR "invalid map key"
-	type _ map[T4]int              // ERROR "invalid map key"
+	type _ map[T4]int              // GC_ERROR "invalid map key"
 }

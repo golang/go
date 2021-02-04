@@ -518,6 +518,29 @@ func TestUnmarshal(t *testing.T) {
 	}
 }
 
+func TestUnmarshalWithNilOrNonPointer(t *testing.T) {
+	tests := []struct {
+		b    []byte
+		v    interface{}
+		want string
+	}{
+		{b: []byte{0x05, 0x00}, v: nil, want: "asn1: Unmarshal recipient value is nil"},
+		{b: []byte{0x05, 0x00}, v: RawValue{}, want: "asn1: Unmarshal recipient value is non-pointer asn1.RawValue"},
+		{b: []byte{0x05, 0x00}, v: (*RawValue)(nil), want: "asn1: Unmarshal recipient value is nil *asn1.RawValue"},
+	}
+
+	for _, test := range tests {
+		_, err := Unmarshal(test.b, test.v)
+		if err == nil {
+			t.Errorf("Unmarshal expecting error, got nil")
+			continue
+		}
+		if g, w := err.Error(), test.want; g != w {
+			t.Errorf("InvalidUnmarshalError mismatch\nGot:  %q\nWant: %q", g, w)
+		}
+	}
+}
+
 type Certificate struct {
 	TBSCertificate     TBSCertificate
 	SignatureAlgorithm AlgorithmIdentifier

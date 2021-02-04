@@ -8,7 +8,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -29,7 +29,7 @@ func chtmpdir(t *testing.T) func() {
 	if err != nil {
 		t.Fatalf("chtmpdir: %v", err)
 	}
-	d, err := ioutil.TempDir("", "test")
+	d, err := os.MkdirTemp("", "test")
 	if err != nil {
 		t.Fatalf("chtmpdir: %v", err)
 	}
@@ -159,7 +159,7 @@ func TestLinuxDeathSignal(t *testing.T) {
 
 	// Copy the test binary to a location that a non-root user can read/execute
 	// after we drop privileges
-	tempDir, err := ioutil.TempDir("", "TestDeathSignal")
+	tempDir, err := os.MkdirTemp("", "TestDeathSignal")
 	if err != nil {
 		t.Fatalf("cannot create temporary directory: %v", err)
 	}
@@ -320,7 +320,7 @@ func TestSyscallNoError(t *testing.T) {
 
 	// Copy the test binary to a location that a non-root user can read/execute
 	// after we drop privileges
-	tempDir, err := ioutil.TempDir("", "TestSyscallNoError")
+	tempDir, err := os.MkdirTemp("", "TestSyscallNoError")
 	if err != nil {
 		t.Fatalf("cannot create temporary directory: %v", err)
 	}
@@ -353,7 +353,7 @@ func TestSyscallNoError(t *testing.T) {
 		t.Fatalf("failed to chown test binary %q, %v", tmpBinary, err)
 	}
 
-	err = os.Chmod(tmpBinary, 0755|os.ModeSetuid)
+	err = os.Chmod(tmpBinary, 0755|fs.ModeSetuid)
 	if err != nil {
 		t.Fatalf("failed to set setuid bit on test binary %q, %v", tmpBinary, err)
 	}
@@ -397,4 +397,275 @@ func syscallNoError() {
 
 	fmt.Println(uintptr(euid1), "/", int(e), "/", uintptr(euid2))
 	os.Exit(0)
+}
+
+// reference uapi/linux/prctl.h
+const (
+	PR_GET_KEEPCAPS uintptr = 7
+	PR_SET_KEEPCAPS         = 8
+)
+
+// TestAllThreadsSyscall tests that the go runtime can perform
+// syscalls that execute on all OSThreads - with which to support
+// POSIX semantics for security state changes.
+func TestAllThreadsSyscall(t *testing.T) {
+	if _, _, err := syscall.AllThreadsSyscall(syscall.SYS_PRCTL, PR_SET_KEEPCAPS, 0, 0); err == syscall.ENOTSUP {
+		t.Skip("AllThreadsSyscall disabled with cgo")
+	}
+
+	fns := []struct {
+		label string
+		fn    func(uintptr) error
+	}{
+		{
+			label: "prctl<3-args>",
+			fn: func(v uintptr) error {
+				_, _, e := syscall.AllThreadsSyscall(syscall.SYS_PRCTL, PR_SET_KEEPCAPS, v, 0)
+				if e != 0 {
+					return e
+				}
+				return nil
+			},
+		},
+		{
+			label: "prctl<6-args>",
+			fn: func(v uintptr) error {
+				_, _, e := syscall.AllThreadsSyscall6(syscall.SYS_PRCTL, PR_SET_KEEPCAPS, v, 0, 0, 0, 0)
+				if e != 0 {
+					return e
+				}
+				return nil
+			},
+		},
+	}
+
+	waiter := func(q <-chan uintptr, r chan<- uintptr, once bool) {
+		for x := range q {
+			runtime.LockOSThread()
+			v, _, e := syscall.Syscall(syscall.SYS_PRCTL, PR_GET_KEEPCAPS, 0, 0)
+			if e != 0 {
+				t.Errorf("tid=%d prctl(PR_GET_KEEPCAPS) failed: %v", syscall.Gettid(), e)
+			} else if x != v {
+				t.Errorf("tid=%d prctl(PR_GET_KEEPCAPS) mismatch: got=%d want=%d", syscall.Gettid(), v, x)
+			}
+			r <- v
+			if once {
+				break
+			}
+			runtime.UnlockOSThread()
+		}
+	}
+
+	// launches per fns member.
+	const launches = 11
+	question := make(chan uintptr)
+	response := make(chan uintptr)
+	defer close(question)
+
+	routines := 0
+	for i, v := range fns {
+		for j := 0; j < launches; j++ {
+			// Add another goroutine - the closest thing
+			// we can do to encourage more OS thread
+			// creation - while the test is running.  The
+			// actual thread creation may or may not be
+			// needed, based on the number of available
+			// unlocked OS threads at the time waiter
+			// calls runtime.LockOSThread(), but the goal
+			// of doing this every time through the loop
+			// is to race thread creation with v.fn(want)
+			// being executed. Via the once boolean we
+			// also encourage one in 5 waiters to return
+			// locked after participating in only one
+			// question response sequence. This allows the
+			// test to race thread destruction too.
+			once := routines%5 == 4
+			go waiter(question, response, once)
+
+			// Keep a count of how many goroutines are
+			// going to participate in the
+			// question/response test. This will count up
+			// towards 2*launches minus the count of
+			// routines that have been invoked with
+			// once=true.
+			routines++
+
+			// Decide what value we want to set the
+			// process-shared KEEPCAPS. Note, there is
+			// an explicit repeat of 0 when we change the
+			// variant of the syscall being used.
+			want := uintptr(j & 1)
+
+			// Invoke the AllThreadsSyscall* variant.
+			if err := v.fn(want); err != nil {
+				t.Errorf("[%d,%d] %s(PR_SET_KEEPCAPS, %d, ...): %v", i, j, v.label, j&1, err)
+			}
+
+			// At this point, we want all launched Go
+			// routines to confirm that they see the
+			// wanted value for KEEPCAPS.
+			for k := 0; k < routines; k++ {
+				question <- want
+			}
+
+			// At this point, we should have a large
+			// number of locked OS threads all wanting to
+			// reply.
+			for k := 0; k < routines; k++ {
+				if got := <-response; got != want {
+					t.Errorf("[%d,%d,%d] waiter result got=%d, want=%d", i, j, k, got, want)
+				}
+			}
+
+			// Provide an explicit opportunity for this Go
+			// routine to change Ms.
+			runtime.Gosched()
+
+			if once {
+				// One waiter routine will have exited.
+				routines--
+			}
+
+			// Whatever M we are now running on, confirm
+			// we see the wanted value too.
+			if v, _, e := syscall.Syscall(syscall.SYS_PRCTL, PR_GET_KEEPCAPS, 0, 0); e != 0 {
+				t.Errorf("[%d,%d] prctl(PR_GET_KEEPCAPS) failed: %v", i, j, e)
+			} else if v != want {
+				t.Errorf("[%d,%d] prctl(PR_GET_KEEPCAPS) gave wrong value: got=%v, want=1", i, j, v)
+			}
+		}
+	}
+}
+
+// compareStatus is used to confirm the contents of the thread
+// specific status files match expectations.
+func compareStatus(filter, expect string) error {
+	expected := filter + expect
+	pid := syscall.Getpid()
+	fs, err := os.ReadDir(fmt.Sprintf("/proc/%d/task", pid))
+	if err != nil {
+		return fmt.Errorf("unable to find %d tasks: %v", pid, err)
+	}
+	expectedProc := fmt.Sprintf("Pid:\t%d", pid)
+	foundAThread := false
+	for _, f := range fs {
+		tf := fmt.Sprintf("/proc/%s/status", f.Name())
+		d, err := os.ReadFile(tf)
+		if err != nil {
+			// There are a surprising number of ways this
+			// can error out on linux.  We've seen all of
+			// the following, so treat any error here as
+			// equivalent to the "process is gone":
+			//    os.IsNotExist(err),
+			//    "... : no such process",
+			//    "... : bad file descriptor.
+			continue
+		}
+		lines := strings.Split(string(d), "\n")
+		for _, line := range lines {
+			// Different kernel vintages pad differently.
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "Pid:\t") {
+				// On loaded systems, it is possible
+				// for a TID to be reused really
+				// quickly. As such, we need to
+				// validate that the thread status
+				// info we just read is a task of the
+				// same process PID as we are
+				// currently running, and not a
+				// recently terminated thread
+				// resurfaced in a different process.
+				if line != expectedProc {
+					break
+				}
+				// Fall through in the unlikely case
+				// that filter at some point is
+				// "Pid:\t".
+			}
+			if strings.HasPrefix(line, filter) {
+				if line != expected {
+					return fmt.Errorf("%q got:%q want:%q (bad) [pid=%d file:'%s' %v]\n", tf, line, expected, pid, string(d), expectedProc)
+				}
+				foundAThread = true
+				break
+			}
+		}
+	}
+	if !foundAThread {
+		return fmt.Errorf("found no thread /proc/<TID>/status files for process %q", expectedProc)
+	}
+	return nil
+}
+
+// killAThread locks the goroutine to an OS thread and exits; this
+// causes an OS thread to terminate.
+func killAThread(c <-chan struct{}) {
+	runtime.LockOSThread()
+	<-c
+	return
+}
+
+// TestSetuidEtc performs tests on all of the wrapped system calls
+// that mirror to the 9 glibc syscalls with POSIX semantics. The test
+// here is considered authoritative and should compile and run
+// CGO_ENABLED=0 or 1. Note, there is an extended copy of this same
+// test in ../../misc/cgo/test/issue1435.go which requires
+// CGO_ENABLED=1 and launches pthreads from C that run concurrently
+// with the Go code of the test - and the test validates that these
+// pthreads are also kept in sync with the security state changed with
+// the syscalls. Care should be taken to mirror any enhancements to
+// this test here in that file too.
+func TestSetuidEtc(t *testing.T) {
+	if syscall.Getuid() != 0 {
+		t.Skip("skipping root only test")
+	}
+	vs := []struct {
+		call           string
+		fn             func() error
+		filter, expect string
+	}{
+		{call: "Setegid(1)", fn: func() error { return syscall.Setegid(1) }, filter: "Gid:", expect: "\t0\t1\t0\t1"},
+		{call: "Setegid(0)", fn: func() error { return syscall.Setegid(0) }, filter: "Gid:", expect: "\t0\t0\t0\t0"},
+
+		{call: "Seteuid(1)", fn: func() error { return syscall.Seteuid(1) }, filter: "Uid:", expect: "\t0\t1\t0\t1"},
+		{call: "Setuid(0)", fn: func() error { return syscall.Setuid(0) }, filter: "Uid:", expect: "\t0\t0\t0\t0"},
+
+		{call: "Setgid(1)", fn: func() error { return syscall.Setgid(1) }, filter: "Gid:", expect: "\t1\t1\t1\t1"},
+		{call: "Setgid(0)", fn: func() error { return syscall.Setgid(0) }, filter: "Gid:", expect: "\t0\t0\t0\t0"},
+
+		{call: "Setgroups([]int{0,1,2,3})", fn: func() error { return syscall.Setgroups([]int{0, 1, 2, 3}) }, filter: "Groups:", expect: "\t0 1 2 3"},
+		{call: "Setgroups(nil)", fn: func() error { return syscall.Setgroups(nil) }, filter: "Groups:", expect: ""},
+		{call: "Setgroups([]int{0})", fn: func() error { return syscall.Setgroups([]int{0}) }, filter: "Groups:", expect: "\t0"},
+
+		{call: "Setregid(101,0)", fn: func() error { return syscall.Setregid(101, 0) }, filter: "Gid:", expect: "\t101\t0\t0\t0"},
+		{call: "Setregid(0,102)", fn: func() error { return syscall.Setregid(0, 102) }, filter: "Gid:", expect: "\t0\t102\t102\t102"},
+		{call: "Setregid(0,0)", fn: func() error { return syscall.Setregid(0, 0) }, filter: "Gid:", expect: "\t0\t0\t0\t0"},
+
+		{call: "Setreuid(1,0)", fn: func() error { return syscall.Setreuid(1, 0) }, filter: "Uid:", expect: "\t1\t0\t0\t0"},
+		{call: "Setreuid(0,2)", fn: func() error { return syscall.Setreuid(0, 2) }, filter: "Uid:", expect: "\t0\t2\t2\t2"},
+		{call: "Setreuid(0,0)", fn: func() error { return syscall.Setreuid(0, 0) }, filter: "Uid:", expect: "\t0\t0\t0\t0"},
+
+		{call: "Setresgid(101,0,102)", fn: func() error { return syscall.Setresgid(101, 0, 102) }, filter: "Gid:", expect: "\t101\t0\t102\t0"},
+		{call: "Setresgid(0,102,101)", fn: func() error { return syscall.Setresgid(0, 102, 101) }, filter: "Gid:", expect: "\t0\t102\t101\t102"},
+		{call: "Setresgid(0,0,0)", fn: func() error { return syscall.Setresgid(0, 0, 0) }, filter: "Gid:", expect: "\t0\t0\t0\t0"},
+
+		{call: "Setresuid(1,0,2)", fn: func() error { return syscall.Setresuid(1, 0, 2) }, filter: "Uid:", expect: "\t1\t0\t2\t0"},
+		{call: "Setresuid(0,2,1)", fn: func() error { return syscall.Setresuid(0, 2, 1) }, filter: "Uid:", expect: "\t0\t2\t1\t2"},
+		{call: "Setresuid(0,0,0)", fn: func() error { return syscall.Setresuid(0, 0, 0) }, filter: "Uid:", expect: "\t0\t0\t0\t0"},
+	}
+
+	for i, v := range vs {
+		// Generate some thread churn as we execute the tests.
+		c := make(chan struct{})
+		go killAThread(c)
+		close(c)
+
+		if err := v.fn(); err != nil {
+			t.Errorf("[%d] %q failed: %v", i, v.call, err)
+			continue
+		}
+		if err := compareStatus(v.filter, v.expect); err != nil {
+			t.Errorf("[%d] %q comparison: %v", i, v.call, err)
+		}
+	}
 }

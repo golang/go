@@ -6,7 +6,7 @@ package os_test
 
 import (
 	"internal/testenv"
-	"io/ioutil"
+	"os"
 	. "os"
 	"path/filepath"
 	"runtime"
@@ -78,7 +78,7 @@ func TestMkdirAll(t *testing.T) {
 func TestMkdirAllWithSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpDir, err := ioutil.TempDir("", "TestMkdirAllWithSymlink-")
+	tmpDir, err := os.MkdirTemp("", "TestMkdirAllWithSymlink-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +107,7 @@ func TestMkdirAllAtSlash(t *testing.T) {
 	switch runtime.GOOS {
 	case "android", "plan9", "windows":
 		t.Skipf("skipping on %s", runtime.GOOS)
-	case "darwin":
+	case "darwin", "ios":
 		switch runtime.GOARCH {
 		case "arm64":
 			t.Skipf("skipping on darwin/arm64, mkdir returns EPERM")

@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package main_test
 
 import (
-	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,16 +15,18 @@ import (
 )
 
 func TestAbsolutePath(t *testing.T) {
-	t.Parallel()
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
 
-	tmp, err := ioutil.TempDir("", "TestAbsolutePath")
+	tmp, err := os.MkdirTemp("", "TestAbsolutePath")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer robustio.RemoveAll(tmp)
 
 	file := filepath.Join(tmp, "a.go")
-	err = ioutil.WriteFile(file, []byte{}, 0644)
+	err = os.WriteFile(file, []byte{}, 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestAbsolutePath(t *testing.T) {
 
 	noVolume := file[len(filepath.VolumeName(file)):]
 	wrongPath := filepath.Join(dir, noVolume)
-	cmd := exec.Command(testenv.GoToolPath(t), "build", noVolume)
+	cmd := exec.Command(tg.goTool(), "build", noVolume)
 	cmd.Dir = dir
 	output, err := cmd.CombinedOutput()
 	if err == nil {

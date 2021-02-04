@@ -8,8 +8,8 @@ env GO111MODULE=on
 cd $WORK/testdata
 go mod init testdata.tld/foo
 
-# Building a package within that module should resolve its dependencies.
-go build
+# Getting a package within that module should resolve its dependencies.
+go get -d
 grep 'rsc.io/quote' go.mod
 
 # Tidying the module should preserve those dependencies.
@@ -26,7 +26,7 @@ exists vendor/rsc.io/quote
 cd $WORK/_ignored
 go mod init testdata.tld/foo
 
-go build
+go get
 grep 'rsc.io/quote' go.mod
 
 go mod tidy

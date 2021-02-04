@@ -21,6 +21,7 @@ type ModulePublic struct {
 	Dir       string        `json:",omitempty"` // directory holding local copy of files, if any
 	GoMod     string        `json:",omitempty"` // path to go.mod file describing module, if any
 	GoVersion string        `json:",omitempty"` // go version used in module
+	Retracted []string      `json:",omitempty"` // retraction information, if any (with -retracted or -u)
 	Error     *ModuleError  `json:",omitempty"` // error loading module
 }
 
@@ -30,18 +31,26 @@ type ModuleError struct {
 
 func (m *ModulePublic) String() string {
 	s := m.Path
+	versionString := func(mm *ModulePublic) string {
+		v := mm.Version
+		if len(mm.Retracted) == 0 {
+			return v
+		}
+		return v + " (retracted)"
+	}
+
 	if m.Version != "" {
-		s += " " + m.Version
+		s += " " + versionString(m)
 		if m.Update != nil {
-			s += " [" + m.Update.Version + "]"
+			s += " [" + versionString(m.Update) + "]"
 		}
 	}
 	if m.Replace != nil {
 		s += " => " + m.Replace.Path
 		if m.Replace.Version != "" {
-			s += " " + m.Replace.Version
+			s += " " + versionString(m.Replace)
 			if m.Replace.Update != nil {
-				s += " [" + m.Replace.Update.Version + "]"
+				s += " [" + versionString(m.Replace.Update) + "]"
 			}
 		}
 	}

@@ -126,12 +126,13 @@ func header(arch string) {
 	}
 	fmt.Fprintf(out, "#include \"go_asm.h\"\n")
 	fmt.Fprintf(out, "#include \"textflag.h\"\n\n")
-	fmt.Fprintf(out, "TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0\n")
+	fmt.Fprintf(out, "// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.\n")
+	fmt.Fprintf(out, "TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0\n")
 }
 
 func p(f string, args ...interface{}) {
 	fmted := fmt.Sprintf(f, args...)
-	fmt.Fprintf(out, "\t%s\n", strings.Replace(fmted, "\n", "\n\t", -1))
+	fmt.Fprintf(out, "\t%s\n", strings.ReplaceAll(fmted, "\n", "\n\t"))
 }
 
 func label(l string) {
@@ -189,7 +190,6 @@ func (l *layout) restore() {
 
 func gen386() {
 	p("PUSHFL")
-
 	// Save general purpose registers.
 	var l = layout{sp: "SP"}
 	for _, reg := range regNames386 {
@@ -198,12 +198,6 @@ func gen386() {
 		}
 		l.add("MOVL", reg, 4)
 	}
-
-	// Save the 387 state.
-	l.addSpecial(
-		"FSAVE %d(SP)\nFLDCW runtime·controlWord64(SB)",
-		"FRSTOR %d(SP)",
-		108)
 
 	// Save SSE state only if supported.
 	lSSE := layout{stack: l.stack, sp: "SP"}
@@ -355,10 +349,10 @@ func genARM64() {
 	p("MOVD R29, -8(RSP)") // save frame pointer (only used on Linux)
 	p("SUB $8, RSP, R29")  // set up new frame pointer
 	p("#endif")
-	// On darwin, save the LR again after decrementing SP. We run the
-	// signal handler on the G stack (as it doesn't support SA_ONSTACK),
+	// On iOS, save the LR again after decrementing SP. We run the
+	// signal handler on the G stack (as it doesn't support sigaltstack),
 	// so any writes below SP may be clobbered.
-	p("#ifdef GOOS_darwin")
+	p("#ifdef GOOS_ios")
 	p("MOVD R30, (RSP)")
 	p("#endif")
 
@@ -502,12 +496,12 @@ func genPPC64() {
 }
 
 func genRISCV64() {
-	// X0 (zero), X1 (LR), X2 (SP), X4 (g), X31 (TMP) are special.
+	// X0 (zero), X1 (LR), X2 (SP), X4 (TP), X27 (g), X31 (TMP) are special.
 	var l = layout{sp: "X2", stack: 8}
 
-	// Add integer registers (X3, X5-X30).
+	// Add integer registers (X3, X5-X26, X28-30).
 	for i := 3; i < 31; i++ {
-		if i == 4 {
+		if i == 4 || i == 27 {
 			continue
 		}
 		reg := fmt.Sprintf("X%d", i)

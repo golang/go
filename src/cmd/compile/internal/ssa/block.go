@@ -52,7 +52,7 @@ type Block struct {
 	Controls [2]*Value
 
 	// Auxiliary info for the block. Its value depends on the Kind.
-	Aux    interface{}
+	Aux    Aux
 	AuxInt int64
 
 	// The unordered set of Values that define the operation of this block.

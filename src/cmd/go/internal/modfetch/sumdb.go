@@ -12,7 +12,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"io/fs"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -22,9 +23,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/get"
 	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/str"
 	"cmd/go/internal/web"
 
 	"golang.org/x/mod/module"
@@ -34,7 +33,7 @@ import (
 
 // useSumDB reports whether to use the Go checksum database for the given module.
 func useSumDB(mod module.Version) bool {
-	return cfg.GOSUMDB != "off" && !get.Insecure && !str.GlobsMatchPath(cfg.GONOSUMDB, mod.Path)
+	return cfg.GOSUMDB != "off" && !cfg.Insecure && !module.MatchPrefixPatterns(cfg.GONOSUMDB, mod.Path)
 }
 
 // lookupSumDB returns the Go checksum database's go.sum lines for the given module,
@@ -184,7 +183,7 @@ func (c *dbClient) initBase() {
 			return nil
 		}
 	})
-	if errors.Is(err, os.ErrNotExist) {
+	if errors.Is(err, fs.ErrNotExist) {
 		// No proxies, or all proxies failed (with 404, 410, or were were allowed
 		// to fall back), or we reached an explicit "direct" or "off".
 		c.base = c.direct
@@ -205,7 +204,7 @@ func (c *dbClient) ReadConfig(file string) (data []byte, err error) {
 	}
 	targ := filepath.Join(cfg.SumdbDir, file)
 	data, err = lockedfile.Read(targ)
-	if errors.Is(err, os.ErrNotExist) {
+	if errors.Is(err, fs.ErrNotExist) {
 		// Treat non-existent as empty, to bootstrap the "latest" file
 		// the first time we connect to a given database.
 		return []byte{}, nil
@@ -229,7 +228,7 @@ func (*dbClient) WriteConfig(file string, old, new []byte) error {
 		return err
 	}
 	defer f.Close()
-	data, err := ioutil.ReadAll(f)
+	data, err := io.ReadAll(f)
 	if err != nil {
 		return err
 	}
@@ -259,7 +258,7 @@ func (*dbClient) ReadCache(file string) ([]byte, error) {
 	// during which the empty file can be locked for reading.
 	// Treat observing an empty file as file not found.
 	if err == nil && len(data) == 0 {
-		err = &os.PathError{Op: "read", Path: targ, Err: os.ErrNotExist}
+		err = &fs.PathError{Op: "read", Path: targ, Err: fs.ErrNotExist}
 	}
 	return data, err
 }

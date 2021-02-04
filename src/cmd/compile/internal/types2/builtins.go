@@ -1,3 +1,4 @@
+// UNREVIEWED
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -280,7 +281,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		// both argument types must be identical
 		if !check.identical(x.typ, y.typ) {
-			check.invalidArgf(x, "mismatched types %s and %s", x.typ, y.typ)
+			check.invalidOpf(x, "%s (mismatched types %s and %s)", call, x.typ, y.typ)
 			return
 		}
 
@@ -367,8 +368,8 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 
-		if !x.assignableTo(check, m.key, nil) {
-			check.invalidArgf(x, "%s is not assignable to %s", x, m.key)
+		check.assignment(x, m.key, "argument to delete")
+		if x.mode == invalid {
 			return
 		}
 
@@ -726,7 +727,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 
 		// construct a suitable new type parameter
 		tpar := NewTypeName(nopos, nil /* = Universe pkg */, "<type parameter>", nil)
-		ptyp := check.NewTypeParam(tp.ptr, tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
+		ptyp := check.NewTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
 		tsum := NewSum(rtypes)
 		ptyp.bound = &Interface{types: tsum, allMethods: markComplete, allTypes: tsum}
 

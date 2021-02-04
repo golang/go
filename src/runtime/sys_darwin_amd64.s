@@ -10,6 +10,8 @@
 #include "go_tls.h"
 #include "textflag.h"
 
+#define CLOCK_REALTIME		0
+
 // Exit the entire program (like C exit)
 TEXT runtime·exit_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
@@ -103,6 +105,9 @@ TEXT runtime·madvise_trampoline(SB), NOSPLIT, $0
 	POPQ	BP
 	RET
 
+TEXT runtime·mlock_trampoline(SB), NOSPLIT, $0
+	UNDEF // unimplemented
+
 GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)
 
 TEXT runtime·nanotime_trampoline(SB),NOSPLIT,$0
@@ -137,9 +142,9 @@ initialized:
 TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP			// make a frame; keep stack aligned
 	MOVQ	SP, BP
-	// DI already has *timeval
-	XORL	SI, SI // no timezone needed
-	CALL	libc_gettimeofday(SB)
+	MOVQ	DI, SI			// arg 2 timespec
+	MOVL	$CLOCK_REALTIME, DI	// arg 1 clock_id
+	CALL	libc_clock_gettime(SB)
 	POPQ	BP
 	RET
 
@@ -366,12 +371,24 @@ TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
 	MOVL	8(DI), SI		// arg 2 miblen
-	MOVQ	16(DI), DX		// arg 3 out
-	MOVQ	24(DI), CX		// arg 4 size
-	MOVQ	32(DI), R8		// arg 5 dst
-	MOVQ	40(DI), R9		// arg 6 ndst
+	MOVQ	16(DI), DX		// arg 3 oldp
+	MOVQ	24(DI), CX		// arg 4 oldlenp
+	MOVQ	32(DI), R8		// arg 5 newp
+	MOVQ	40(DI), R9		// arg 6 newlen
 	MOVQ	0(DI), DI		// arg 1 mib
 	CALL	libc_sysctl(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·sysctlbyname_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI		// arg 2 oldp
+	MOVQ	16(DI), DX		// arg 3 oldlenp
+	MOVQ	24(DI), CX		// arg 4 newp
+	MOVQ	32(DI), R8		// arg 5 newlen
+	MOVQ	0(DI), DI		// arg 1 name
+	CALL	libc_sysctlbyname(SB)
 	POPQ	BP
 	RET
 

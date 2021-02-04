@@ -272,6 +272,12 @@ func setProcessCPUProfiler(hz int32) {
 			atomic.Storeuintptr(&fwdSig[_SIGPROF], getsig(_SIGPROF))
 			setsig(_SIGPROF, funcPC(sighandler))
 		}
+
+		var it itimerval
+		it.it_interval.tv_sec = 0
+		it.it_interval.set_usec(1000000 / hz)
+		it.it_value = it.it_interval
+		setitimer(_ITIMER_PROF, &it, nil)
 	} else {
 		// If the Go signal handler should be disabled by default,
 		// switch back to the signal handler that was installed
@@ -296,23 +302,16 @@ func setProcessCPUProfiler(hz int32) {
 				setsig(_SIGPROF, h)
 			}
 		}
+
+		setitimer(_ITIMER_PROF, &itimerval{}, nil)
 	}
 }
 
 // setThreadCPUProfiler makes any thread-specific changes required to
 // implement profiling at a rate of hz.
+// No changes required on Unix systems.
 func setThreadCPUProfiler(hz int32) {
-	var it itimerval
-	if hz == 0 {
-		setitimer(_ITIMER_PROF, &it, nil)
-	} else {
-		it.it_interval.tv_sec = 0
-		it.it_interval.set_usec(1000000 / hz)
-		it.it_value = it.it_interval
-		setitimer(_ITIMER_PROF, &it, nil)
-	}
-	_g_ := getg()
-	_g_.m.profilehz = hz
+	getg().m.profilehz = hz
 }
 
 func sigpipe() {
@@ -336,6 +335,10 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
 	// Acknowledge the preemption.
 	atomic.Xadd(&gp.m.preemptGen, 1)
 	atomic.Store(&gp.m.signalPending, 0)
+
+	if GOOS == "darwin" || GOOS == "ios" {
+		atomic.Xadd(&pendingPreemptSignals, -1)
+	}
 }
 
 const preemptMSupported = true
@@ -347,23 +350,27 @@ const preemptMSupported = true
 // safe-point, it will preempt the goroutine. It always atomically
 // increments mp.preemptGen after handling a preemption request.
 func preemptM(mp *m) {
-	if GOOS == "darwin" && GOARCH == "arm64" && !iscgo {
-		// On darwin, we use libc calls, and cgo is required on ARM64
-		// so we have TLS set up to save/restore G during C calls. If cgo is
-		// absent, we cannot save/restore G in TLS, and if a signal is
-		// received during C execution we cannot get the G. Therefore don't
-		// send signals.
-		// This can only happen in the go_bootstrap program (otherwise cgo is
-		// required).
-		return
+	// On Darwin, don't try to preempt threads during exec.
+	// Issue #41702.
+	if GOOS == "darwin" || GOOS == "ios" {
+		execLock.rlock()
 	}
+
 	if atomic.Cas(&mp.signalPending, 0, 1) {
+		if GOOS == "darwin" || GOOS == "ios" {
+			atomic.Xadd(&pendingPreemptSignals, 1)
+		}
+
 		// If multiple threads are preempting the same M, it may send many
 		// signals to the same M such that it hardly make progress, causing
 		// live-lock problem. Apparently this could happen on darwin. See
 		// issue #37741.
 		// Only send a signal if there isn't already one pending.
 		signalM(mp, sigPreempt)
+	}
+
+	if GOOS == "darwin" || GOOS == "ios" {
+		execLock.runlock()
 	}
 }
 
@@ -425,6 +432,9 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 			// no non-Go signal handler for sigPreempt.
 			// The default behavior for sigPreempt is to ignore
 			// the signal, so badsignal will be a no-op anyway.
+			if GOOS == "darwin" || GOOS == "ios" {
+				atomic.Xadd(&pendingPreemptSignals, -1)
+			}
 			return
 		}
 		c.fixsigcode(sig)
@@ -432,14 +442,14 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 		return
 	}
 
+	setg(g.m.gsignal)
+
 	// If some non-Go code called sigaltstack, adjust.
 	var gsignalStack gsignalStack
 	setStack := adjustSignalStack(sig, g.m, &gsignalStack)
 	if setStack {
 		g.m.gsignal.stktopsp = getcallersp()
 	}
-
-	setg(g.m.gsignal)
 
 	if g.stackguard0 == stackFork {
 		signalDuringFork(sig)
@@ -465,6 +475,14 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
 		return false
 	}
 
+	var st stackt
+	sigaltstack(nil, &st)
+	stsp := uintptr(unsafe.Pointer(st.ss_sp))
+	if st.ss_flags&_SS_DISABLE == 0 && sp >= stsp && sp < stsp+st.ss_size {
+		setGsignalStack(&st, gsigStack)
+		return true
+	}
+
 	if sp >= mp.g0.stack.lo && sp < mp.g0.stack.hi {
 		// The signal was delivered on the g0 stack.
 		// This can happen when linked with C code
@@ -473,29 +491,25 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
 		// the signal handler directly when C code,
 		// including C code called via cgo, calls a
 		// TSAN-intercepted function such as malloc.
+		//
+		// We check this condition last as g0.stack.lo
+		// may be not very accurate (see mstart).
 		st := stackt{ss_size: mp.g0.stack.hi - mp.g0.stack.lo}
 		setSignalstackSP(&st, mp.g0.stack.lo)
 		setGsignalStack(&st, gsigStack)
 		return true
 	}
 
-	var st stackt
-	sigaltstack(nil, &st)
+	// sp is not within gsignal stack, g0 stack, or sigaltstack. Bad.
+	setg(nil)
+	needm()
 	if st.ss_flags&_SS_DISABLE != 0 {
-		setg(nil)
-		needm(0)
 		noSignalStack(sig)
-		dropm()
-	}
-	stsp := uintptr(unsafe.Pointer(st.ss_sp))
-	if sp < stsp || sp >= stsp+st.ss_size {
-		setg(nil)
-		needm(0)
+	} else {
 		sigNotOnStack(sig)
-		dropm()
 	}
-	setGsignalStack(&st, gsigStack)
-	return true
+	dropm()
+	return false
 }
 
 // crashing is the number of m's we have waited for when implementing
@@ -536,7 +550,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		return
 	}
 
-	if sig == sigPreempt {
+	if sig == sigPreempt && debug.asyncpreemptoff == 0 {
 		// Might be a preemption signal.
 		doSigPreempt(gp, c)
 		// Even if this was definitely a preemption signal, it
@@ -616,7 +630,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		print("signal arrived during cgo execution\n")
 		gp = _g_.m.lockedg.ptr()
 	}
-	if sig == _SIGILL {
+	if sig == _SIGILL || sig == _SIGFPE {
 		// It would be nice to know how long the instruction is.
 		// Unfortunately, that's complicated to do in general (mostly for x86
 		// and s930x, but other archs have non-standard instruction lengths also).
@@ -711,7 +725,7 @@ func sigpanic() {
 		}
 		// Support runtime/debug.SetPanicOnFault.
 		if g.paniconfault {
-			panicmem()
+			panicmemAddr(g.sigcode1)
 		}
 		print("unexpected fault address ", hex(g.sigcode1), "\n")
 		throw("fault")
@@ -721,7 +735,7 @@ func sigpanic() {
 		}
 		// Support runtime/debug.SetPanicOnFault.
 		if g.paniconfault {
-			panicmem()
+			panicmemAddr(g.sigcode1)
 		}
 		print("unexpected fault address ", hex(g.sigcode1), "\n")
 		throw("fault")
@@ -930,7 +944,7 @@ func badsignal(sig uintptr, c *sigctxt) {
 		exit(2)
 		*(*uintptr)(unsafe.Pointer(uintptr(123))) = 2
 	}
-	needm(0)
+	needm()
 	if !sigsend(uint32(sig)) {
 		// A foreign thread received the signal sig, and the
 		// Go code does not want to handle it.
@@ -976,7 +990,7 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 	// This function and its caller sigtrampgo assumes SIGPIPE is delivered on the
 	// originating thread. This property does not hold on macOS (golang.org/issue/33384),
 	// so we have no choice but to ignore SIGPIPE.
-	if GOOS == "darwin" && sig == _SIGPIPE {
+	if (GOOS == "darwin" || GOOS == "ios") && sig == _SIGPIPE {
 		return true
 	}
 
@@ -1010,15 +1024,15 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 	return true
 }
 
-// msigsave saves the current thread's signal mask into mp.sigmask.
+// sigsave saves the current thread's signal mask into *p.
 // This is used to preserve the non-Go signal mask when a non-Go
 // thread calls a Go function.
 // This is nosplit and nowritebarrierrec because it is called by needm
 // which may be called on a non-Go thread with no g available.
 //go:nosplit
 //go:nowritebarrierrec
-func msigsave(mp *m) {
-	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
+func sigsave(p *sigset) {
+	sigprocmask(_SIG_SETMASK, nil, p)
 }
 
 // msigrestore sets the current thread's signal mask to sigmask.
@@ -1032,15 +1046,26 @@ func msigrestore(sigmask sigset) {
 	sigprocmask(_SIG_SETMASK, &sigmask, nil)
 }
 
-// sigblock blocks all signals in the current thread's signal mask.
+// sigsetAllExiting is used by sigblock(true) when a thread is
+// exiting. sigset_all is defined in OS specific code, and per GOOS
+// behavior may override this default for sigsetAllExiting: see
+// osinit().
+var sigsetAllExiting = sigset_all
+
+// sigblock blocks signals in the current thread's signal mask.
 // This is used to block signals while setting up and tearing down g
-// when a non-Go thread calls a Go function.
-// The OS-specific code is expected to define sigset_all.
+// when a non-Go thread calls a Go function. When a thread is exiting
+// we use the sigsetAllExiting value, otherwise the OS specific
+// definition of sigset_all is used.
 // This is nosplit and nowritebarrierrec because it is called by needm
 // which may be called on a non-Go thread with no g available.
 //go:nosplit
 //go:nowritebarrierrec
-func sigblock() {
+func sigblock(exiting bool) {
+	if exiting {
+		sigprocmask(_SIG_SETMASK, &sigsetAllExiting, nil)
+		return
+	}
 	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
 }
 
@@ -1090,7 +1115,7 @@ func minitSignalStack() {
 // thread's signal mask. When this is called all signals have been
 // blocked for the thread.  This starts with m.sigmask, which was set
 // either from initSigmask for a newly created thread or by calling
-// msigsave if this is a non-Go thread calling a Go function. It
+// sigsave if this is a non-Go thread calling a Go function. It
 // removes all essential signals from the mask, thus causing those
 // signals to not be blocked. Then it sets the thread's signal mask.
 // After this is called the thread can receive signals.

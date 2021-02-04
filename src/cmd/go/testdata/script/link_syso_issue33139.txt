@@ -2,19 +2,19 @@
 # embedded in a package, that is referenced by a Go assembly function.
 # See issue 33139.
 [!gc] skip
-[!exec:cc] skip
+[!cgo] skip
 
 # External linking is not supported on linux/ppc64.
 # See: https://github.com/golang/go/issues/8912
 [linux] [ppc64] skip
 
-# External linking is not supported on linux/riscv64.
-# See: https://github.com/golang/go/issues/36739
-[linux] [riscv64] skip
-
 cc -c -o syso/objTestImpl.syso syso/src/objTestImpl.c
 go build -ldflags='-linkmode=external' ./cmd/main.go
 
+-- go.mod --
+module m
+
+go 1.16
 -- syso/objTest.s --
 #include "textflag.h"
 
@@ -36,7 +36,7 @@ void objTestImpl() { /* Empty */ }
 -- cmd/main.go --
 package main
 
-import "syso"
+import "m/syso"
 
 func main() {
 	syso.ObjTest()

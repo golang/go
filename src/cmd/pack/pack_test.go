@@ -7,48 +7,21 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"cmd/internal/archive"
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
-	"unicode/utf8"
 )
-
-func TestExactly16Bytes(t *testing.T) {
-	var tests = []string{
-		"",
-		"a",
-		"日本語",
-		"1234567890123456",
-		"12345678901234567890",
-		"1234567890123本語4567890",
-		"12345678901234日本語567890",
-		"123456789012345日本語67890",
-		"1234567890123456日本語7890",
-		"1234567890123456日本語7日本語890",
-	}
-	for _, str := range tests {
-		got := exactly16Bytes(str)
-		if len(got) != 16 {
-			t.Errorf("exactly16Bytes(%q) is %q, length %d", str, got, len(got))
-		}
-		// Make sure it is full runes.
-		for _, c := range got {
-			if c == utf8.RuneError {
-				t.Errorf("exactly16Bytes(%q) is %q, has partial rune", str, got)
-			}
-		}
-	}
-}
 
 // tmpDir creates a temporary directory and returns its name.
 func tmpDir(t *testing.T) string {
-	name, err := ioutil.TempDir("", "pack")
+	name, err := os.MkdirTemp("", "pack")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,12 +31,12 @@ func tmpDir(t *testing.T) string {
 // testCreate creates an archive in the specified directory.
 func testCreate(t *testing.T, dir string) {
 	name := filepath.Join(dir, "pack.a")
-	ar := archive(name, os.O_RDWR, nil)
+	ar := openArchive(name, os.O_RDWR|os.O_CREATE, nil)
 	// Add an entry by hand.
 	ar.addFile(helloFile.Reset())
-	ar.fd.Close()
+	ar.a.File().Close()
 	// Now check it.
-	ar = archive(name, os.O_RDONLY, []string{helloFile.name})
+	ar = openArchive(name, os.O_RDONLY, []string{helloFile.name})
 	var buf bytes.Buffer
 	stdout = &buf
 	verbose = true
@@ -72,7 +45,7 @@ func testCreate(t *testing.T, dir string) {
 		verbose = false
 	}()
 	ar.scan(ar.printContents)
-	ar.fd.Close()
+	ar.a.File().Close()
 	result := buf.String()
 	// Expect verbose output plus file contents.
 	expect := fmt.Sprintf("%s\n%s", helloFile.name, helloFile.contents)
@@ -103,15 +76,14 @@ func TestTableOfContents(t *testing.T) {
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 	name := filepath.Join(dir, "pack.a")
-	ar := archive(name, os.O_RDWR, nil)
+	ar := openArchive(name, os.O_RDWR|os.O_CREATE, nil)
 
 	// Add some entries by hand.
 	ar.addFile(helloFile.Reset())
 	ar.addFile(goodbyeFile.Reset())
-	ar.fd.Close()
+	ar.a.File().Close()
 
 	// Now print it.
-	ar = archive(name, os.O_RDONLY, nil)
 	var buf bytes.Buffer
 	stdout = &buf
 	verbose = true
@@ -119,8 +91,9 @@ func TestTableOfContents(t *testing.T) {
 		stdout = os.Stdout
 		verbose = false
 	}()
+	ar = openArchive(name, os.O_RDONLY, nil)
 	ar.scan(ar.tableOfContents)
-	ar.fd.Close()
+	ar.a.File().Close()
 	result := buf.String()
 	// Expect verbose listing.
 	expect := fmt.Sprintf("%s\n%s\n", helloFile.Entry(), goodbyeFile.Entry())
@@ -131,9 +104,9 @@ func TestTableOfContents(t *testing.T) {
 	// Do it again without verbose.
 	verbose = false
 	buf.Reset()
-	ar = archive(name, os.O_RDONLY, nil)
+	ar = openArchive(name, os.O_RDONLY, nil)
 	ar.scan(ar.tableOfContents)
-	ar.fd.Close()
+	ar.a.File().Close()
 	result = buf.String()
 	// Expect non-verbose listing.
 	expect = fmt.Sprintf("%s\n%s\n", helloFile.name, goodbyeFile.name)
@@ -144,9 +117,9 @@ func TestTableOfContents(t *testing.T) {
 	// Do it again with file list arguments.
 	verbose = false
 	buf.Reset()
-	ar = archive(name, os.O_RDONLY, []string{helloFile.name})
+	ar = openArchive(name, os.O_RDONLY, []string{helloFile.name})
 	ar.scan(ar.tableOfContents)
-	ar.fd.Close()
+	ar.a.File().Close()
 	result = buf.String()
 	// Expect only helloFile.
 	expect = fmt.Sprintf("%s\n", helloFile.name)
@@ -161,11 +134,11 @@ func TestExtract(t *testing.T) {
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 	name := filepath.Join(dir, "pack.a")
-	ar := archive(name, os.O_RDWR, nil)
+	ar := openArchive(name, os.O_RDWR|os.O_CREATE, nil)
 	// Add some entries by hand.
 	ar.addFile(helloFile.Reset())
 	ar.addFile(goodbyeFile.Reset())
-	ar.fd.Close()
+	ar.a.File().Close()
 	// Now extract one file. We chdir to the directory of the archive for simplicity.
 	pwd, err := os.Getwd()
 	if err != nil {
@@ -181,10 +154,10 @@ func TestExtract(t *testing.T) {
 			t.Fatal("os.Chdir: ", err)
 		}
 	}()
-	ar = archive(name, os.O_RDONLY, []string{goodbyeFile.name})
+	ar = openArchive(name, os.O_RDONLY, []string{goodbyeFile.name})
 	ar.scan(ar.extractContents)
-	ar.fd.Close()
-	data, err := ioutil.ReadFile(goodbyeFile.name)
+	ar.a.File().Close()
+	data, err := os.ReadFile(goodbyeFile.name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +182,7 @@ func TestHello(t *testing.T) {
 			println("hello world")
 		}
 	`
-	err := ioutil.WriteFile(hello, []byte(prog), 0666)
+	err := os.WriteFile(hello, []byte(prog), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,7 +250,7 @@ func TestLargeDefs(t *testing.T) {
 			println("ok")
 		}
 	`
-	err = ioutil.WriteFile(main, []byte(prog), 0666)
+	err = os.WriteFile(main, []byte(prog), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -307,13 +280,13 @@ func TestIssue21703(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	const aSrc = `package a; const X = "\n!\n"`
-	err := ioutil.WriteFile(filepath.Join(dir, "a.go"), []byte(aSrc), 0666)
+	err := os.WriteFile(filepath.Join(dir, "a.go"), []byte(aSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	const bSrc = `package b; import _ "a"`
-	err = ioutil.WriteFile(filepath.Join(dir, "b.go"), []byte(bSrc), 0666)
+	err = os.WriteFile(filepath.Join(dir, "b.go"), []byte(bSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -327,6 +300,95 @@ func TestIssue21703(t *testing.T) {
 	run(goBin, "tool", "compile", "a.go")
 	run("./pack", "c", "a.a", "a.o")
 	run(goBin, "tool", "compile", "-I", ".", "b.go")
+}
+
+// Test the "c" command can "see through" the archive generated by the compiler.
+// This is peculiar. (See issue #43271)
+func TestCreateWithCompilerObj(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+	src := filepath.Join(dir, "p.go")
+	prog := "package p; var X = 42\n"
+	err := os.WriteFile(src, []byte(prog), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	run := func(args ...string) string {
+		return doRun(t, dir, args...)
+	}
+
+	goBin := testenv.GoToolPath(t)
+	run(goBin, "build", "cmd/pack") // writes pack binary to dir
+	run(goBin, "tool", "compile", "-pack", "-o", "p.a", "p.go")
+	run("./pack", "c", "packed.a", "p.a")
+	fi, err := os.Stat(filepath.Join(dir, "p.a"))
+	if err != nil {
+		t.Fatalf("stat p.a failed: %v", err)
+	}
+	fi2, err := os.Stat(filepath.Join(dir, "packed.a"))
+	if err != nil {
+		t.Fatalf("stat packed.a failed: %v", err)
+	}
+	// For compiler-generated object file, the "c" command is
+	// expected to get (essentially) the same file back, instead
+	// of packing it into a new archive with a single entry.
+	if want, got := fi.Size(), fi2.Size(); want != got {
+		t.Errorf("packed file with different size: want %d, got %d", want, got)
+	}
+
+	// Test -linkobj flag as well.
+	run(goBin, "tool", "compile", "-linkobj", "p2.a", "-o", "p.x", "p.go")
+	run("./pack", "c", "packed2.a", "p2.a")
+	fi, err = os.Stat(filepath.Join(dir, "p2.a"))
+	if err != nil {
+		t.Fatalf("stat p2.a failed: %v", err)
+	}
+	fi2, err = os.Stat(filepath.Join(dir, "packed2.a"))
+	if err != nil {
+		t.Fatalf("stat packed2.a failed: %v", err)
+	}
+	if want, got := fi.Size(), fi2.Size(); want != got {
+		t.Errorf("packed file with different size: want %d, got %d", want, got)
+	}
+
+	run("./pack", "c", "packed3.a", "p.x")
+	fi, err = os.Stat(filepath.Join(dir, "p.x"))
+	if err != nil {
+		t.Fatalf("stat p.x failed: %v", err)
+	}
+	fi2, err = os.Stat(filepath.Join(dir, "packed3.a"))
+	if err != nil {
+		t.Fatalf("stat packed3.a failed: %v", err)
+	}
+	if want, got := fi.Size(), fi2.Size(); want != got {
+		t.Errorf("packed file with different size: want %d, got %d", want, got)
+	}
+}
+
+// Test the "r" command creates the output file if it does not exist.
+func TestRWithNonexistentFile(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+	src := filepath.Join(dir, "p.go")
+	prog := "package p; var X = 42\n"
+	err := os.WriteFile(src, []byte(prog), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	run := func(args ...string) string {
+		return doRun(t, dir, args...)
+	}
+
+	goBin := testenv.GoToolPath(t)
+	run(goBin, "build", "cmd/pack") // writes pack binary to dir
+	run(goBin, "tool", "compile", "-o", "p.o", "p.go")
+	run("./pack", "r", "p.a", "p.o") // should succeed
 }
 
 // doRun runs a program in a directory and returns the output.
@@ -354,11 +416,11 @@ var goodbyeFile = &FakeFile{
 	mode:     0644,
 }
 
-// FakeFile implements FileLike and also os.FileInfo.
+// FakeFile implements FileLike and also fs.FileInfo.
 type FakeFile struct {
 	name     string
 	contents string
-	mode     os.FileMode
+	mode     fs.FileMode
 	offset   int
 }
 
@@ -375,7 +437,7 @@ func (f *FakeFile) Name() string {
 	return f.name
 }
 
-func (f *FakeFile) Stat() (os.FileInfo, error) {
+func (f *FakeFile) Stat() (fs.FileInfo, error) {
 	return f, nil
 }
 
@@ -392,13 +454,13 @@ func (f *FakeFile) Close() error {
 	return nil
 }
 
-// os.FileInfo methods.
+// fs.FileInfo methods.
 
 func (f *FakeFile) Size() int64 {
 	return int64(len(f.contents))
 }
 
-func (f *FakeFile) Mode() os.FileMode {
+func (f *FakeFile) Mode() fs.FileMode {
 	return f.mode
 }
 
@@ -416,13 +478,13 @@ func (f *FakeFile) Sys() interface{} {
 
 // Special helpers.
 
-func (f *FakeFile) Entry() *Entry {
-	return &Entry{
-		name:  f.name,
-		mtime: 0, // Defined to be zero.
-		uid:   0, // Ditto.
-		gid:   0, // Ditto.
-		mode:  f.mode,
-		size:  int64(len(f.contents)),
+func (f *FakeFile) Entry() *archive.Entry {
+	return &archive.Entry{
+		Name:  f.name,
+		Mtime: 0, // Defined to be zero.
+		Uid:   0, // Ditto.
+		Gid:   0, // Ditto.
+		Mode:  f.mode,
+		Data:  archive.Data{Size: int64(len(f.contents))},
 	}
 }

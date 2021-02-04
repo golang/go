@@ -30,8 +30,8 @@ type _ T3[bool]
 
 // methods
 func (T1[P]) m1() {}
-func (x T2[P1, P2, P3]) m1() {}
-func (_ T3[_]) m1() {}
+func (T1[_]) m2() {}
+func (x T2[P1, P2, P3]) m() {}
 
 // type lists
 type _ interface {
@@ -39,7 +39,6 @@ type _ interface {
 	m2()
 	type int, float32, string
 	m3()
-	type bool
 }
 
 // embedded instantiated types

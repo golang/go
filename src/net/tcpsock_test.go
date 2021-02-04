@@ -393,7 +393,7 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 		}
 		defer ls.teardown()
 		ch := make(chan error, 1)
-		handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
+		handler := func(ls *localServer, ln Listener) { ls.transponder(ln, ch) }
 		if err := ls.buildup(handler); err != nil {
 			t.Fatal(err)
 		}
@@ -647,7 +647,7 @@ func TestTCPSelfConnect(t *testing.T) {
 		n = 1000
 	}
 	switch runtime.GOOS {
-	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "illumos", "solaris", "windows":
+	case "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "illumos", "solaris", "windows":
 		// Non-Linux systems take a long time to figure
 		// out that there is nothing listening on localhost.
 		n = 100

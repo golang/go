@@ -1,3 +1,4 @@
+// UNREVIEWED
 // Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -383,9 +384,8 @@ func TestCorrectMethodPackage(t *testing.T) {
 	}
 
 	mutex := imports["sync"].Scope().Lookup("Mutex").(*types2.TypeName).Type()
-	mset := types2.NewMethodSet(types2.NewPointer(mutex)) // methods of *sync.Mutex
-	sel := mset.Lookup(nil, "Lock")
-	lock := sel.Obj().(*types2.Func)
+	obj, _, _ := types2.LookupFieldOrMethod(types2.NewPointer(mutex), false, nil, "Lock")
+	lock := obj.(*types2.Func)
 	if got, want := lock.Pkg().Path(), "sync"; got != want {
 		t.Errorf("got package path %q; want %q", got, want)
 	}

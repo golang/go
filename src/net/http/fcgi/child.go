@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/cgi"
@@ -74,10 +73,12 @@ func (r *request) parseParams() {
 
 // response implements http.ResponseWriter.
 type response struct {
-	req         *request
-	header      http.Header
-	w           *bufWriter
-	wroteHeader bool
+	req            *request
+	header         http.Header
+	code           int
+	wroteHeader    bool
+	wroteCGIHeader bool
+	w              *bufWriter
 }
 
 func newResponse(c *child, req *request) *response {
@@ -92,11 +93,14 @@ func (r *response) Header() http.Header {
 	return r.header
 }
 
-func (r *response) Write(data []byte) (int, error) {
+func (r *response) Write(p []byte) (n int, err error) {
 	if !r.wroteHeader {
 		r.WriteHeader(http.StatusOK)
 	}
-	return r.w.Write(data)
+	if !r.wroteCGIHeader {
+		r.writeCGIHeader(p)
+	}
+	return r.w.Write(p)
 }
 
 func (r *response) WriteHeader(code int) {
@@ -104,22 +108,34 @@ func (r *response) WriteHeader(code int) {
 		return
 	}
 	r.wroteHeader = true
+	r.code = code
 	if code == http.StatusNotModified {
 		// Must not have body.
 		r.header.Del("Content-Type")
 		r.header.Del("Content-Length")
 		r.header.Del("Transfer-Encoding")
-	} else if r.header.Get("Content-Type") == "" {
-		r.header.Set("Content-Type", "text/html; charset=utf-8")
 	}
-
 	if r.header.Get("Date") == "" {
 		r.header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
 	}
+}
 
-	fmt.Fprintf(r.w, "Status: %d %s\r\n", code, http.StatusText(code))
+// writeCGIHeader finalizes the header sent to the client and writes it to the output.
+// p is not written by writeHeader, but is the first chunk of the body
+// that will be written. It is sniffed for a Content-Type if none is
+// set explicitly.
+func (r *response) writeCGIHeader(p []byte) {
+	if r.wroteCGIHeader {
+		return
+	}
+	r.wroteCGIHeader = true
+	fmt.Fprintf(r.w, "Status: %d %s\r\n", r.code, http.StatusText(r.code))
+	if _, hasType := r.header["Content-Type"]; r.code != http.StatusNotModified && !hasType {
+		r.header.Set("Content-Type", http.DetectContentType(p))
+	}
 	r.header.Write(r.w)
 	r.w.WriteString("\r\n")
+	r.w.Flush()
 }
 
 func (r *response) Flush() {
@@ -166,7 +182,7 @@ func (c *child) serve() {
 
 var errCloseConn = errors.New("fcgi: connection should be closed")
 
-var emptyBody = ioutil.NopCloser(strings.NewReader(""))
+var emptyBody = io.NopCloser(strings.NewReader(""))
 
 // ErrRequestAborted is returned by Read when a handler attempts to read the
 // body of a request that has been aborted by the web server.
@@ -290,6 +306,8 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
 		httpReq = httpReq.WithContext(envVarCtx)
 		c.handler.ServeHTTP(r, httpReq)
 	}
+	// Make sure we serve something even if nothing was written to r
+	r.Write(nil)
 	r.Close()
 	c.mu.Lock()
 	delete(c.requests, req.reqId)
@@ -303,7 +321,7 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
 	// some sort of abort request to the host, so the host
 	// can properly cut off the client sending all the data.
 	// For now just bound it a little and
-	io.CopyN(ioutil.Discard, body, 100<<20)
+	io.CopyN(io.Discard, body, 100<<20)
 	body.Close()
 
 	if !req.keepConn {

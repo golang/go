@@ -15,29 +15,30 @@ import (
 )
 
 var (
-	Debug      = flag.Bool("debug", false, "dump instructions as they are parsed")
-	OutputFile = flag.String("o", "", "output file; default foo.o for /a/b/c/foo.s as first argument")
-	PrintOut   = flag.Bool("S", false, "print assembly and machine code")
-	TrimPath   = flag.String("trimpath", "", "remove prefix from recorded source file paths")
-	Shared     = flag.Bool("shared", false, "generate code that can be linked into a shared library")
-	Dynlink    = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
-	AllErrors  = flag.Bool("e", false, "no limit on number of errors reported")
-	SymABIs    = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
-	Importpath = flag.String("p", "", "set expected package import to path")
-	Spectre    = flag.String("spectre", "", "enable spectre mitigations in `list` (all, ret)")
-
-	Go115Newobj = flag.Bool("go115newobj", true, "use new object file format")
+	Debug            = flag.Bool("debug", false, "dump instructions as they are parsed")
+	OutputFile       = flag.String("o", "", "output file; default foo.o for /a/b/c/foo.s as first argument")
+	TrimPath         = flag.String("trimpath", "", "remove prefix from recorded source file paths")
+	Shared           = flag.Bool("shared", false, "generate code that can be linked into a shared library")
+	Dynlink          = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
+	Linkshared       = flag.Bool("linkshared", false, "generate code that will be linked against Go shared libraries")
+	AllErrors        = flag.Bool("e", false, "no limit on number of errors reported")
+	SymABIs          = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
+	Importpath       = flag.String("p", "", "set expected package import to path")
+	Spectre          = flag.String("spectre", "", "enable spectre mitigations in `list` (all, ret)")
+	CompilingRuntime = flag.Bool("compiling-runtime", false, "source to be compiled is part of the Go runtime")
 )
 
 var (
-	D MultiFlag
-	I MultiFlag
+	D        MultiFlag
+	I        MultiFlag
+	PrintOut int
 )
 
 func init() {
 	flag.Var(&D, "D", "predefined symbol with optional simple value -D=identifier=value; can be set multiple times")
 	flag.Var(&I, "I", "include directory; can be set multiple times")
 	objabi.AddVersionFlag() // -V
+	objabi.Flagcount("S", "print assembly and machine code", &PrintOut)
 }
 
 // MultiFlag allows setting a value multiple times to collect a list, as in -I=dir1 -I=dir2.

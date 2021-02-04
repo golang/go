@@ -11,5 +11,4 @@ go mod init m
 cmp stderr stderr-expected
 
 -- stderr-expected --
-go get: inconsistent versions:
-	example.com/newcycle/a@v1.0.0 requires example.com/newcycle/a@v1.0.1 (not example.com/newcycle/a@v1.0.0)
+go get: example.com/newcycle/a@v1.0.0 requires example.com/newcycle/a@v1.0.1, not example.com/newcycle/a@v1.0.0

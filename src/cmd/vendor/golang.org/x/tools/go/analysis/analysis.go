@@ -1,3 +1,7 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package analysis
 
 import (
@@ -95,12 +99,13 @@ type Pass struct {
 	Analyzer *Analyzer // the identity of the current analyzer
 
 	// syntax and type information
-	Fset       *token.FileSet // file position information
-	Files      []*ast.File    // the abstract syntax tree of each file
-	OtherFiles []string       // names of non-Go files of this package
-	Pkg        *types.Package // type information about the package
-	TypesInfo  *types.Info    // type information about the syntax trees
-	TypesSizes types.Sizes    // function for computing sizes of types
+	Fset         *token.FileSet // file position information
+	Files        []*ast.File    // the abstract syntax tree of each file
+	OtherFiles   []string       // names of non-Go files of this package
+	IgnoredFiles []string       // names of ignored source files in this package
+	Pkg          *types.Package // type information about the package
+	TypesInfo    *types.Info    // type information about the syntax trees
+	TypesSizes   types.Sizes    // function for computing sizes of types
 
 	// Report reports a Diagnostic, a finding about a specific location
 	// in the analyzed source code such as a potential mistake.

@@ -9,11 +9,17 @@
 
 package main
 
-func f() { // ERROR "stack frame too large"
-	var x [800e6]byte
-	g(x)
-	return
+type Big = [400e6]byte
+
+func f() { // GC_ERROR "stack frame too large"
+	// Note: This test relies on the fact that we currently always
+	// spill function-results to the stack, even if they're so
+	// large that we would normally heap allocate them. If we ever
+	// improve the backend to spill temporaries to the heap, this
+	// test will probably need updating to find some new way to
+	// construct an overly large stack frame.
+	g(h(), h())
 }
 
-//go:noinline
-func g([800e6]byte) {}
+func g(Big, Big)
+func h() Big

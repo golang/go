@@ -76,32 +76,14 @@ func debugCallCheck(pc uintptr) string {
 			return
 		}
 
-		if !go115ReduceLiveness {
-			// Look up PC's register map.
-			pcdata := int32(-1)
-			if pc != f.entry {
-				pc--
-				pcdata = pcdatavalue(f, _PCDATA_RegMapIndex, pc, nil)
-			}
-			if pcdata == -1 {
-				pcdata = 0 // in prologue
-			}
-			stkmap := (*stackmap)(funcdata(f, _FUNCDATA_RegPointerMaps))
-			if pcdata == -2 || stkmap == nil {
-				// Not at a safe point.
-				ret = debugCallUnsafePoint
-				return
-			}
-		} else {
-			// Check that this isn't an unsafe-point.
-			if pc != f.entry {
-				pc--
-			}
-			up := pcdatavalue(f, _PCDATA_UnsafePoint, pc, nil)
-			if up != _PCDATA_UnsafePointSafe {
-				// Not at a safe point.
-				ret = debugCallUnsafePoint
-			}
+		// Check that this isn't an unsafe-point.
+		if pc != f.entry {
+			pc--
+		}
+		up := pcdatavalue(f, _PCDATA_UnsafePoint, pc, nil)
+		if up != _PCDATA_UnsafePointSafe {
+			// Not at a safe point.
+			ret = debugCallUnsafePoint
 		}
 	})
 	return ret

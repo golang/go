@@ -1,5 +1,10 @@
 env GO111MODULE=on
 
+# Populate go.sum.
+# TODO(golang.org/issue/41297): we shouldn't need go.sum. None of the commands
+# below depend on the build list.
+go mod download
+
 go list -m -versions rsc.io/quote
 stdout '^rsc.io/quote v1.0.0 v1.1.0 v1.2.0 v1.2.1 v1.3.0 v1.4.0 v1.5.0 v1.5.1 v1.5.2 v1.5.3-pre1$'
 
@@ -30,3 +35,8 @@ stdout 'no matching versions for query ">v1.5.3"'
 -- go.mod --
 module x
 require rsc.io/quote v1.0.0
+
+-- use.go --
+package use
+
+import _ "rsc.io/quote"

@@ -4,14 +4,14 @@
 
 package exec
 
-import "os"
+import "io/fs"
 
 func init() {
 	skipStdinCopyError = func(err error) bool {
 		// Ignore hungup errors copying to stdin if the program
 		// completed successfully otherwise.
 		// See Issue 35753.
-		pe, ok := err.(*os.PathError)
+		pe, ok := err.(*fs.PathError)
 		return ok &&
 			pe.Op == "write" && pe.Path == "|1" &&
 			pe.Err.Error() == "i/o on hungup channel"

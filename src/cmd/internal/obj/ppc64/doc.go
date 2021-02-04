@@ -4,9 +4,7 @@
 
 /*
 Package ppc64 implements a PPC64 assembler that assembles Go asm into
-the corresponding PPC64 binary instructions as defined by the Power
-ISA. Since POWER8 is the minimum instruction set used by GOARCHes ppc64le
-and ppc64, refer to ISA 2.07B or later for details.
+the corresponding PPC64 instructions as defined by the Power ISA 3.0B.
 
 This document provides information on how to write code in Go assembler
 for PPC64, focusing on the differences between Go and PPC64 assembly language.
@@ -16,16 +14,24 @@ updates to the Go assembly language used mnemonics that are mostly similar if no
 identical to the PPC64 mneumonics, such as VMX and VSX instructions. Not all detail
 is included here; refer to the Power ISA document if interested in more detail.
 
+Starting with Go 1.15 the Go objdump supports the -gnu option, which provides a
+side by side view of the Go assembler and the PPC64 assembler output. This is
+extremely helpful in determining what final PPC64 assembly is generated from the
+corresponding Go assembly.
+
 In the examples below, the Go assembly is on the left, PPC64 assembly on the right.
 
 1. Operand ordering
 
   In Go asm, the last operand (right) is the target operand, but with PPC64 asm,
-  the first operand (left) is the target. In general, the remaining operands are
-  in the same order except in a few special cases, especially those with 4 operands.
+  the first operand (left) is the target. The order of the remaining operands is
+  not consistent: in general opcodes with 3 operands that perform math or logical
+  operations have their operands in reverse order. Opcodes for vector instructions
+  and those with more than 3 operands usually have operands in the same order except
+  for the target operand, which is first in PPC64 asm and last in Go asm.
 
   Example:
-    ADD R3, R4, R5		<=>	add r5, r3, r4
+    ADD R3, R4, R5		<=>	add r5, r4, r3
 
 2. Constant operands
 
@@ -178,6 +184,40 @@ In the examples below, the Go assembly is on the left, PPC64 assembly on the rig
 
   Functions in Go are aligned to 16 bytes, as is the case in all other compilers
   for PPC64.
+
+6. Shift instructions
+
+  The simple scalar shifts on PPC64 expect a shift count that fits in 5 bits for
+  32-bit values or 6 bit for 64-bit values. If the shift count is a constant value
+  greater than the max then the assembler sets it to the max for that size (31 for
+  32 bit values, 63 for 64 bit values). If the shift count is in a register, then
+  only the low 5 or 6 bits of the register will be used as the shift count. The
+  Go compiler will add appropriate code to compare the shift value to achieve the
+  the correct result, and the assembler does not add extra checking.
+
+  Examples:
+
+    SRAD $8,R3,R4		=>	sradi r4,r3,8
+    SRD $8,R3,R4		=>	rldicl r4,r3,56,8
+    SLD $8,R3,R4		=>	rldicr r4,r3,8,55
+    SRAW $16,R4,R5		=>	srawi r5,r4,16
+    SRW $40,R4,R5		=>	rlwinm r5,r4,0,0,31
+    SLW $12,R4,R5		=>	rlwinm r5,r4,12,0,19
+
+  Some non-simple shifts have operands in the Go assembly which don't map directly
+  onto operands in the PPC64 assembly. When an operand in a shift instruction in the
+  Go assembly is a bit mask, that mask is represented as a start and end bit in the
+  PPC64 assembly instead of a mask. See the ISA for more detail on these types of shifts.
+  Here are a few examples:
+
+    RLWMI $7,R3,$65535,R6 	=>	rlwimi r6,r3,7,16,31
+    RLDMI $0,R4,$7,R6 		=>	rldimi r6,r4,0,61
+
+  More recently, Go opcodes were added which map directly onto the PPC64 opcodes. It is
+  recommended to use the newer opcodes to avoid confusion.
+
+    RLDICL $0,R4,$15,R6		=>	rldicl r6,r4,0,15
+    RLDICR $0,R4,$15,R6		=>	rldicr r6.r4,0,15
 
 Register naming
 

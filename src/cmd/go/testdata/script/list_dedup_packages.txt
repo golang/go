@@ -1,4 +1,5 @@
 # Setup
+env GO111MODULE=off
 mkdir $WORK/tmp/testdata/src/xtestonly
 cp f.go $WORK/tmp/testdata/src/xtestonly/f.go
 cp f_test.go $WORK/tmp/testdata/src/xtestonly/f_test.go

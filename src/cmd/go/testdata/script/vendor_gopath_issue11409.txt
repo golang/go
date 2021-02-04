@@ -1,4 +1,5 @@
 [!windows] [short] stop 'this test only applies to Windows'
+env GO111MODULE=off
 
 go build run_go.go
 exec ./run_go$GOEXE $GOPATH $GOPATH/src/vend/hello

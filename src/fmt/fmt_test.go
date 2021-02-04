@@ -290,11 +290,11 @@ var fmtTests = []struct {
 	{"%q", '\U00000e00', `'\u0e00'`},
 	{"%q", '\U0010ffff', `'\U0010ffff'`},
 	// Runes that are not valid.
-	{"%q", int32(-1), "%!q(int32=-1)"},
+	{"%q", int32(-1), `'�'`},
 	{"%q", 0xDC80, `'�'`},
-	{"%q", rune(0x110000), "%!q(int32=1114112)"},
-	{"%q", int64(0xFFFFFFFFF), "%!q(int64=68719476735)"},
-	{"%q", uint64(0xFFFFFFFFF), "%!q(uint64=68719476735)"},
+	{"%q", rune(0x110000), `'�'`},
+	{"%q", int64(0xFFFFFFFFF), `'�'`},
+	{"%q", uint64(0xFFFFFFFFF), `'�'`},
 
 	// width
 	{"%5s", "abc", "  abc"},

@@ -10,6 +10,8 @@
 #include "go_tls.h"
 #include "textflag.h"
 
+#define CLOCK_REALTIME		0
+
 TEXT notok<>(SB),NOSPLIT,$0
 	MOVD	$0, R8
 	MOVD	R8, (R8)
@@ -118,6 +120,12 @@ TEXT runtime·madvise_trampoline(SB),NOSPLIT,$0
 	BL	libc_madvise(SB)
 	RET
 
+TEXT runtime·mlock_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 len
+	MOVD	0(R0), R0	// arg 1 addr
+	BL	libc_mlock(SB)
+	RET
+
 TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
 	MOVD	8(R0), R1	// arg 2 new
 	MOVD	16(R0), R2	// arg 3 old
@@ -126,9 +134,9 @@ TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
-	// R0 already has *timeval
-	MOVD	$0, R1 // no timezone needed
-	BL	libc_gettimeofday(SB)
+	MOVD	R0, R1			// arg 2 timespec
+	MOVW	$CLOCK_REALTIME, R0 	// arg 1 clock_id
+	BL	libc_clock_gettime(SB)
 	RET
 
 GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)
@@ -197,11 +205,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$192
 
 	// this might be called in external code context,
 	// where g is not set.
-	MOVB	runtime·iscgo(SB), R0
-	CMP	$0, R0
-	BEQ	2(PC)
 	BL	runtime·load_g(SB)
 
+#ifdef GOOS_ios
 	MOVD	RSP, R6
 	CMP	$0, g
 	BEQ	nog
@@ -226,16 +232,21 @@ nog:
 	// Switch to gsignal stack.
 	MOVD	R6, RSP
 
-	// Call sigtrampgo.
+	// Save arguments.
 	MOVW	R0, (8*1)(RSP)
 	MOVD	R1, (8*2)(RSP)
 	MOVD	R2, (8*3)(RSP)
+#endif
+
+	// Call sigtrampgo.
 	MOVD	$runtime·sigtrampgo(SB), R11
 	BL	(R11)
 
+#ifdef GOOS_ios
 	// Switch to old stack.
 	MOVD	(8*4)(RSP), R5
 	MOVD	R5, RSP
+#endif
 
 	// Restore callee-save registers.
 	MOVD	(8*4)(RSP), R19
@@ -290,13 +301,23 @@ TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
 
 TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$0
 	MOVW	8(R0), R1	// arg 2 miblen
-	MOVD	16(R0), R2	// arg 3 out
-	MOVD	24(R0), R3	// arg 4 size
-	MOVD	32(R0), R4	// arg 5 dst
-	MOVD	40(R0), R5	// arg 6 ndst
+	MOVD	16(R0), R2	// arg 3 oldp
+	MOVD	24(R0), R3	// arg 4 oldlenp
+	MOVD	32(R0), R4	// arg 5 newp
+	MOVD	40(R0), R5	// arg 6 newlen
 	MOVD	0(R0), R0	// arg 1 mib
 	BL	libc_sysctl(SB)
 	RET
+
+TEXT runtime·sysctlbyname_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 oldp
+	MOVD	16(R0), R2	// arg 3 oldlenp
+	MOVD	24(R0), R3	// arg 4 newp
+	MOVD	32(R0), R4	// arg 5 newlen
+	MOVD	0(R0), R0	// arg 1 name
+	BL	libc_sysctlbyname(SB)
+	RET
+
 
 TEXT runtime·kqueue_trampoline(SB),NOSPLIT,$0
 	BL	libc_kqueue(SB)
@@ -329,12 +350,20 @@ TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
 	ADD	$16, RSP
 	RET
 
-// sigaltstack on iOS is not supported and will always
-// run the signal handler on the main stack, so our sigtramp has
-// to do the stack switch ourselves.
 TEXT runtime·sigaltstack_trampoline(SB),NOSPLIT,$0
+#ifdef GOOS_ios
+	// sigaltstack on iOS is not supported and will always
+	// run the signal handler on the main stack, so our sigtramp has
+	// to do the stack switch ourselves.
 	MOVW	$43, R0
 	BL	libc_exit(SB)
+#else
+	MOVD	8(R0), R1		// arg 2 old
+	MOVD	0(R0), R0		// arg 1 new
+	CALL	libc_sigaltstack(SB)
+	CBZ	R0, 2(PC)
+	BL	notok<>(SB)
+#endif
 	RET
 
 // Thread related functions
@@ -367,7 +396,8 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$160
 	FMOVD	F14, 144(RSP)
 	FMOVD	F15, 152(RSP)
 
-	MOVD    m_g0(R0), g
+	MOVD	m_g0(R0), g
+	BL	·save_g(SB)
 
 	BL	runtime·mstart(SB)
 
@@ -481,6 +511,18 @@ TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
 	MOVD	8(R0), R1	// arg 2 sig
 	MOVD	0(R0), R0	// arg 1 thread
 	BL	libc_pthread_kill(SB)
+	RET
+
+TEXT runtime·pthread_key_create_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 destructor
+	MOVD	0(R0), R0	// arg 1 *key
+	BL	libc_pthread_key_create(SB)
+	RET
+
+TEXT runtime·pthread_setspecific_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 value
+	MOVD	0(R0), R0	// arg 1 key
+	BL	libc_pthread_setspecific(SB)
 	RET
 
 // syscall calls a function in libc on behalf of the syscall package.
@@ -692,4 +734,24 @@ TEXT runtime·syscall6X(SB),NOSPLIT,$0
 	ADD	$16, RSP
 	MOVD	R0, 72(R2)	// save err
 ok:
+	RET
+
+// syscallNoErr is like syscall6 but does not check for errors, and
+// only returns one value, for use with standard C ABI library functions.
+TEXT runtime·syscallNoErr(SB),NOSPLIT,$0
+	SUB	$16, RSP	// push structure pointer
+	MOVD	R0, (RSP)
+
+	MOVD	0(R0), R12	// fn
+	MOVD	16(R0), R1	// a2
+	MOVD	24(R0), R2	// a3
+	MOVD	32(R0), R3	// a4
+	MOVD	40(R0), R4	// a5
+	MOVD	48(R0), R5	// a6
+	MOVD	8(R0), R0	// a1
+	BL	(R12)
+
+	MOVD	(RSP), R2	// pop structure pointer
+	ADD	$16, RSP
+	MOVD	R0, 56(R2)	// save r1
 	RET

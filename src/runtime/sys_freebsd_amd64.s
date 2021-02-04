@@ -18,6 +18,8 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	MOVQ ut+24(FP), R8
 	MOVL $454, AX
 	SYSCALL
+	JCC	2(PC)
+	NEGQ	AX
 	MOVL	AX, ret+32(FP)
 	RET
 
@@ -26,6 +28,8 @@ TEXT runtime·thr_new(SB),NOSPLIT,$0
 	MOVL size+8(FP), SI
 	MOVL $455, AX
 	SYSCALL
+	JCC	2(PC)
+	NEGQ	AX
 	MOVL	AX, ret+16(FP)
 	RET
 
@@ -118,6 +122,8 @@ TEXT runtime·pipe2(SB),NOSPLIT,$0-20
 	MOVL	flags+0(FP), SI
 	MOVL	$542, AX
 	SYSCALL
+	JCC	2(PC)
+	NEGQ	AX
 	MOVL	AX, errno+16(FP)
 	RET
 

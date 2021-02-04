@@ -1,0 +1,22 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type t[ /* ERROR type parameters must be named */ a, b] struct{}
+type t[a t, b t, /* ERROR type parameters must be named */ c] struct{}
+type t struct {
+	t [n]byte
+	t[a]
+	t[a, b]
+}
+type t interface {
+	t[a]
+	m /* ERROR method cannot have type parameters */ [_ _, /* ERROR mixed */ _]()
+	t[a, b]
+}
+
+func f[ /* ERROR empty type parameter list */ ]()
+func f[ /* ERROR type parameters must be named */ a, b]()
+func f[a t, b t, /* ERROR type parameters must be named */ c]()

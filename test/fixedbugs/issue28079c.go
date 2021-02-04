@@ -11,5 +11,5 @@ package p
 import "unsafe"
 
 func f() {
-	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "invalid operation: .*shift of type float64.*"
+	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "invalid operation: .*shift of type float64.*|non-integer type for left operand of shift|shifted operand .* must be integer"
 }

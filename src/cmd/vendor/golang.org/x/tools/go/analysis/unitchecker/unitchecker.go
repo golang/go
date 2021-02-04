@@ -63,6 +63,7 @@ type Config struct {
 	ImportPath                string
 	GoFiles                   []string
 	NonGoFiles                []string
+	IgnoredFiles              []string
 	ImportMap                 map[string]string
 	PackageFile               map[string]string
 	Standard                  map[string]bool
@@ -333,6 +334,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 				Fset:              fset,
 				Files:             files,
 				OtherFiles:        cfg.NonGoFiles,
+				IgnoredFiles:      cfg.IgnoredFiles,
 				Pkg:               pkg,
 				TypesInfo:         info,
 				TypesSizes:        tc.Sizes,

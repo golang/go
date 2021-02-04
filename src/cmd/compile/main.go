@@ -8,12 +8,14 @@ import (
 	"cmd/compile/internal/amd64"
 	"cmd/compile/internal/arm"
 	"cmd/compile/internal/arm64"
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
 	"cmd/compile/internal/mips"
 	"cmd/compile/internal/mips64"
 	"cmd/compile/internal/ppc64"
 	"cmd/compile/internal/riscv64"
 	"cmd/compile/internal/s390x"
+	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/wasm"
 	"cmd/compile/internal/x86"
 	"cmd/internal/objabi"
@@ -22,7 +24,7 @@ import (
 	"os"
 )
 
-var archInits = map[string]func(*gc.Arch){
+var archInits = map[string]func(*ssagen.ArchInfo){
 	"386":      x86.Init,
 	"amd64":    amd64.Init,
 	"arm":      arm.Init,
@@ -50,5 +52,5 @@ func main() {
 	}
 
 	gc.Main(archInit)
-	gc.Exit(0)
+	base.Exit(0)
 }

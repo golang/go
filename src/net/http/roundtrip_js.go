@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strconv"
 	"syscall/js"
 )
@@ -92,15 +91,17 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		// See https://github.com/web-platform-tests/wpt/issues/7693 for WHATWG tests issue.
 		// See https://developer.mozilla.org/en-US/docs/Web/API/Streams_API for more details on the Streams API
 		// and browser support.
-		body, err := ioutil.ReadAll(req.Body)
+		body, err := io.ReadAll(req.Body)
 		if err != nil {
 			req.Body.Close() // RoundTrip must always close the body, including on errors.
 			return nil, err
 		}
 		req.Body.Close()
-		buf := uint8Array.New(len(body))
-		js.CopyBytesToJS(buf, body)
-		opt.Set("body", buf)
+		if len(body) != 0 {
+			buf := uint8Array.New(len(body))
+			js.CopyBytesToJS(buf, body)
+			opt.Set("body", buf)
+		}
 	}
 
 	fetchPromise := js.Global().Call("fetch", req.URL.String(), opt)

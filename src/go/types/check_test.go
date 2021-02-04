@@ -35,6 +35,7 @@ import (
 	"go/token"
 	"internal/testenv"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -106,7 +107,7 @@ func errMap(t *testing.T, testname string, files []*ast.File) map[string][]strin
 
 	for _, file := range files {
 		filename := fset.Position(file.Package).Filename
-		src, err := ioutil.ReadFile(filename)
+		src, err := os.ReadFile(filename)
 		if err != nil {
 			t.Fatalf("%s: could not read %s", testname, filename)
 		}
@@ -288,7 +289,7 @@ func TestFixedbugs(t *testing.T) { testDir(t, "fixedbugs") }
 func testDir(t *testing.T, dir string) {
 	testenv.MustHaveGoBuild(t)
 
-	fis, err := ioutil.ReadDir(dir)
+	fis, err := os.ReadDir(dir)
 	if err != nil {
 		t.Error(err)
 		return

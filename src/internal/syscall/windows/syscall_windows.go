@@ -131,6 +131,14 @@ type IpAdapterAddresses struct {
 	/* more fields might be present here. */
 }
 
+type FILE_BASIC_INFO struct {
+	CreationTime   syscall.Filetime
+	LastAccessTime syscall.Filetime
+	LastWriteTime  syscall.Filetime
+	ChangedTime    syscall.Filetime
+	FileAttributes uint32
+}
+
 const (
 	IfOperStatusUp             = 1
 	IfOperStatusDown           = 2
@@ -145,6 +153,7 @@ const (
 //sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
 //sys	MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) = MoveFileExW
 //sys	GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) = kernel32.GetModuleFileNameW
+//sys	SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
 
 const (
 	WSA_FLAG_OVERLAPPED        = 0x01
@@ -333,3 +342,5 @@ func LoadGetFinalPathNameByHandle() error {
 
 //sys	CreateEnvironmentBlock(block **uint16, token syscall.Token, inheritExisting bool) (err error) = userenv.CreateEnvironmentBlock
 //sys	DestroyEnvironmentBlock(block *uint16) (err error) = userenv.DestroyEnvironmentBlock
+
+//sys	RtlGenRandom(buf []byte) (err error) = advapi32.SystemFunction036

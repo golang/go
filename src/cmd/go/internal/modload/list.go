@@ -5,47 +5,62 @@
 package modload
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modinfo"
-	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 
 	"golang.org/x/mod/module"
 )
 
-func ListModules(args []string, listU, listVersions bool) []*modinfo.ModulePublic {
-	mods := listModules(args, listVersions)
-	if listU || listVersions {
-		var work par.Work
+func ListModules(ctx context.Context, args []string, listU, listVersions, listRetracted bool) []*modinfo.ModulePublic {
+	mods := listModules(ctx, args, listVersions, listRetracted)
+
+	type token struct{}
+	sem := make(chan token, runtime.GOMAXPROCS(0))
+	if listU || listVersions || listRetracted {
 		for _, m := range mods {
-			work.Add(m)
+			add := func(m *modinfo.ModulePublic) {
+				sem <- token{}
+				go func() {
+					if listU {
+						addUpdate(ctx, m)
+					}
+					if listVersions {
+						addVersions(ctx, m, listRetracted)
+					}
+					if listRetracted || listU {
+						addRetraction(ctx, m)
+					}
+					<-sem
+				}()
+			}
+
+			add(m)
 			if m.Replace != nil {
-				work.Add(m.Replace)
+				add(m.Replace)
 			}
 		}
-		work.Do(10, func(item interface{}) {
-			m := item.(*modinfo.ModulePublic)
-			if listU {
-				addUpdate(m)
-			}
-			if listVersions {
-				addVersions(m)
-			}
-		})
 	}
+	// Fill semaphore channel to wait for all tasks to finish.
+	for n := cap(sem); n > 0; n-- {
+		sem <- token{}
+	}
+
 	return mods
 }
 
-func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
-	LoadBuildList()
+func listModules(ctx context.Context, args []string, listVersions, listRetracted bool) []*modinfo.ModulePublic {
+	LoadAllModules(ctx)
 	if len(args) == 0 {
-		return []*modinfo.ModulePublic{moduleInfo(buildList[0], true)}
+		return []*modinfo.ModulePublic{moduleInfo(ctx, buildList[0], true, listRetracted)}
 	}
 
 	var mods []*modinfo.ModulePublic
@@ -71,7 +86,13 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
 				}
 			}
 
-			info, err := Query(path, vers, current, nil)
+			allowed := CheckAllowed
+			if IsRevisionQuery(vers) || listRetracted {
+				// Allow excluded and retracted versions if the user asked for a
+				// specific revision or used 'go list -retracted'.
+				allowed = nil
+			}
+			info, err := Query(ctx, path, vers, current, allowed)
 			if err != nil {
 				mods = append(mods, &modinfo.ModulePublic{
 					Path:    path,
@@ -80,7 +101,8 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
 				})
 				continue
 			}
-			mods = append(mods, moduleInfo(module.Version{Path: path, Version: info.Version}, false))
+			mod := moduleInfo(ctx, module.Version{Path: path, Version: info.Version}, false, listRetracted)
+			mods = append(mods, mod)
 			continue
 		}
 
@@ -105,7 +127,7 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
 				matched = true
 				if !matchedBuildList[i] {
 					matchedBuildList[i] = true
-					mods = append(mods, moduleInfo(m, true))
+					mods = append(mods, moduleInfo(ctx, m, true, listRetracted))
 				}
 			}
 		}
@@ -115,9 +137,10 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
 					// Don't make the user provide an explicit '@latest' when they're
 					// explicitly asking what the available versions are.
 					// Instead, resolve the module, even if it isn't an existing dependency.
-					info, err := Query(arg, "latest", "", nil)
+					info, err := Query(ctx, arg, "latest", "", nil)
 					if err == nil {
-						mods = append(mods, moduleInfo(module.Version{Path: arg, Version: info.Version}, false))
+						mod := moduleInfo(ctx, module.Version{Path: arg, Version: info.Version}, false, listRetracted)
+						mods = append(mods, mod)
 					} else {
 						mods = append(mods, &modinfo.ModulePublic{
 							Path:  arg,

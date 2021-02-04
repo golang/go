@@ -35,13 +35,12 @@ func main() {
 	flags.Parse()
 
 	ctxt := obj.Linknew(architecture.LinkArch)
-	if *flags.PrintOut {
-		ctxt.Debugasm = 1
-	}
+	ctxt.Debugasm = flags.PrintOut
 	ctxt.Flag_dynlink = *flags.Dynlink
+	ctxt.Flag_linkshared = *flags.Linkshared
 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
-	ctxt.Flag_go115newobj = *flags.Go115Newobj
 	ctxt.IsAsm = true
+	ctxt.Pkgpath = *flags.Importpath
 	switch *flags.Spectre {
 	default:
 		log.Printf("unknown setting -spectre=%s", *flags.Spectre)
@@ -76,7 +75,8 @@ func main() {
 	var failedFile string
 	for _, f := range flag.Args() {
 		lexer := lex.NewLexer(f)
-		parser := asm.NewParser(ctxt, architecture, lexer)
+		parser := asm.NewParser(ctxt, architecture, lexer,
+			*flags.CompilingRuntime)
 		ctxt.DiagFunc = func(format string, args ...interface{}) {
 			diag = true
 			log.Printf(format, args...)
@@ -97,8 +97,8 @@ func main() {
 		}
 	}
 	if ok && !*flags.SymABIs {
-		ctxt.NumberSyms(true)
-		obj.WriteObjFile(ctxt, buf, "")
+		ctxt.NumberSyms()
+		obj.WriteObjFile(ctxt, buf)
 	}
 	if !ok || diag {
 		if failedFile != "" {

@@ -5,7 +5,6 @@
 package testing_test
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,6 +16,38 @@ import (
 
 func TestMain(m *testing.M) {
 	os.Exit(m.Run())
+}
+
+func TestTempDirInCleanup(t *testing.T) {
+	var dir string
+
+	t.Run("test", func(t *testing.T) {
+		t.Cleanup(func() {
+			dir = t.TempDir()
+		})
+		_ = t.TempDir()
+	})
+
+	fi, err := os.Stat(dir)
+	if fi != nil {
+		t.Fatalf("Directory %q from user Cleanup still exists", dir)
+	}
+	if !os.IsNotExist(err) {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
+func TestTempDirInBenchmark(t *testing.T) {
+	testing.Benchmark(func(b *testing.B) {
+		if !b.Run("test", func(b *testing.B) {
+			// Add a loop so that the test won't fail. See issue 38677.
+			for i := 0; i < b.N; i++ {
+				_ = b.TempDir()
+			}
+		}) {
+			t.Fatal("Sub test failure in a benchmark")
+		}
+	})
 }
 
 func TestTempDir(t *testing.T) {
@@ -70,11 +101,11 @@ func testTempDir(t *testing.T) {
 	if !fi.IsDir() {
 		t.Errorf("dir %q is not a dir", dir)
 	}
-	fis, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(fis) > 0 {
-		t.Errorf("unexpected %d files in TempDir: %v", len(fis), fis)
+	if len(files) > 0 {
+		t.Errorf("unexpected %d files in TempDir: %v", len(files), files)
 	}
 }

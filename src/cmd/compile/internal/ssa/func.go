@@ -33,15 +33,8 @@ type Func struct {
 	Blocks []*Block    // unordered set of all basic blocks (note: not indexable by ID)
 	Entry  *Block      // the entry basic block
 
-	// If we are using open-coded defers, this is the first call to a deferred
-	// function in the final defer exit sequence that we generated. This call
-	// should be after all defer statements, and will have all args, etc. of
-	// all defer calls as live. The liveness info of this call will be used
-	// for the deferreturn/ret segment generated for functions with open-coded
-	// defers.
-	LastDeferExit *Value
-	bid           idAlloc // block ID allocator
-	vid           idAlloc // value ID allocator
+	bid idAlloc // block ID allocator
+	vid idAlloc // value ID allocator
 
 	// Given an environment variable used for debug hash match,
 	// what file (if any) receives the yes/no logging?
@@ -51,9 +44,10 @@ type Func struct {
 	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
 	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
 
-	scheduled bool // Values in Blocks are in final order
-	laidout   bool // Blocks are ordered
-	NoSplit   bool // true if function is marked as nosplit.  Used by schedule check pass.
+	scheduled   bool  // Values in Blocks are in final order
+	laidout     bool  // Blocks are ordered
+	NoSplit     bool  // true if function is marked as nosplit.  Used by schedule check pass.
+	dumpFileSeq uint8 // the sequence numbers of dump file. (%s_%02d__%s.dump", funcname, dumpFileSeq, phaseName)
 
 	// when register allocation is done, maps value ids to locations
 	RegAlloc []Location
@@ -63,6 +57,11 @@ type Func struct {
 	// Names is a copy of NamedValues.Keys. We keep a separate list
 	// of keys to make iteration order deterministic.
 	Names []LocalSlot
+
+	// RegArgs is a slice of register-memory pairs that must be spilled and unspilled in the uncommon path of function entry.
+	RegArgs []ArgPair
+	// AuxCall describing parameters and results for this function.
+	OwnAux *AuxCall
 
 	// WBLoads is a list of Blocks that branch on the write
 	// barrier flag. Safe-points are disabled from the OpLoad that
@@ -263,6 +262,49 @@ func (f *Func) LogStat(key string, args ...interface{}) {
 	f.Warnl(f.Entry.Pos, "\t%s\t%s%s\t%s", n, key, value, f.Name)
 }
 
+// unCacheLine removes v from f's constant cache "line" for aux,
+// resets v.InCache when it is found (and removed),
+// and returns whether v was found in that line.
+func (f *Func) unCacheLine(v *Value, aux int64) bool {
+	vv := f.constants[aux]
+	for i, cv := range vv {
+		if v == cv {
+			vv[i] = vv[len(vv)-1]
+			vv[len(vv)-1] = nil
+			f.constants[aux] = vv[0 : len(vv)-1]
+			v.InCache = false
+			return true
+		}
+	}
+	return false
+}
+
+// unCache removes v from f's constant cache.
+func (f *Func) unCache(v *Value) {
+	if v.InCache {
+		aux := v.AuxInt
+		if f.unCacheLine(v, aux) {
+			return
+		}
+		if aux == 0 {
+			switch v.Op {
+			case OpConstNil:
+				aux = constNilMagic
+			case OpConstSlice:
+				aux = constSliceMagic
+			case OpConstString:
+				aux = constEmptyStringMagic
+			case OpConstInterface:
+				aux = constInterfaceMagic
+			}
+			if aux != 0 && f.unCacheLine(v, aux) {
+				return
+			}
+		}
+		f.Fatalf("unCached value %s not found in cache, auxInt=0x%x, adjusted aux=0x%x", v.LongString(), v.AuxInt, aux)
+	}
+}
+
 // freeValue frees a value. It must no longer be referenced or have any args.
 func (f *Func) freeValue(v *Value) {
 	if v.Block == nil {
@@ -276,19 +318,8 @@ func (f *Func) freeValue(v *Value) {
 	}
 	// Clear everything but ID (which we reuse).
 	id := v.ID
-
-	// Values with zero arguments and OpOffPtr values might be cached, so remove them there.
-	nArgs := opcodeTable[v.Op].argLen
-	if nArgs == 0 || v.Op == OpOffPtr {
-		vv := f.constants[v.AuxInt]
-		for i, cv := range vv {
-			if v == cv {
-				vv[i] = vv[len(vv)-1]
-				vv[len(vv)-1] = nil
-				f.constants[v.AuxInt] = vv[0 : len(vv)-1]
-				break
-			}
-		}
+	if v.InCache {
+		f.unCache(v)
 	}
 	*v = Value{}
 	v.ID = id
@@ -351,13 +382,7 @@ func (b *Block) NewValue0I(pos src.XPos, op Op, t *types.Type, auxint int64) *Va
 }
 
 // NewValue returns a new value in the block with no arguments and an aux value.
-func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux interface{}) *Value {
-	if _, ok := aux.(int64); ok {
-		// Disallow int64 aux values. They should be in the auxint field instead.
-		// Maybe we want to allow this at some point, but for now we disallow it
-		// to prevent errors like using NewValue1A instead of NewValue1I.
-		b.Fatalf("aux field has int64 type op=%s type=%s aux=%v", op, t, aux)
-	}
+func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux Aux) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -366,7 +391,7 @@ func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux interface{}) 
 }
 
 // NewValue returns a new value in the block with no arguments and both an auxint and aux values.
-func (b *Block) NewValue0IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux interface{}) *Value {
+func (b *Block) NewValue0IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Aux = aux
@@ -395,7 +420,7 @@ func (b *Block) NewValue1I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
 }
 
 // NewValue1A returns a new value in the block with one argument and an aux value.
-func (b *Block) NewValue1A(pos src.XPos, op Op, t *types.Type, aux interface{}, arg *Value) *Value {
+func (b *Block) NewValue1A(pos src.XPos, op Op, t *types.Type, aux Aux, arg *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -406,7 +431,7 @@ func (b *Block) NewValue1A(pos src.XPos, op Op, t *types.Type, aux interface{}, 
 }
 
 // NewValue1IA returns a new value in the block with one argument and both an auxint and aux values.
-func (b *Block) NewValue1IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux interface{}, arg *Value) *Value {
+func (b *Block) NewValue1IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux, arg *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Aux = aux
@@ -429,7 +454,7 @@ func (b *Block) NewValue2(pos src.XPos, op Op, t *types.Type, arg0, arg1 *Value)
 }
 
 // NewValue2A returns a new value in the block with two arguments and one aux values.
-func (b *Block) NewValue2A(pos src.XPos, op Op, t *types.Type, aux interface{}, arg0, arg1 *Value) *Value {
+func (b *Block) NewValue2A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, arg1 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -454,7 +479,7 @@ func (b *Block) NewValue2I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
 }
 
 // NewValue2IA returns a new value in the block with two arguments and both an auxint and aux values.
-func (b *Block) NewValue2IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux interface{}, arg0, arg1 *Value) *Value {
+func (b *Block) NewValue2IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux, arg0, arg1 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Aux = aux
@@ -495,7 +520,7 @@ func (b *Block) NewValue3I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
 }
 
 // NewValue3A returns a new value in the block with three argument and an aux value.
-func (b *Block) NewValue3A(pos src.XPos, op Op, t *types.Type, aux interface{}, arg0, arg1, arg2 *Value) *Value {
+func (b *Block) NewValue3A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, arg1, arg2 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -554,6 +579,7 @@ func (f *Func) constVal(op Op, t *types.Type, c int64, setAuxInt bool) *Value {
 		v = f.Entry.NewValue0(src.NoXPos, op, t)
 	}
 	f.constants[c] = append(vv, v)
+	v.InCache = true
 	return v
 }
 
@@ -606,7 +632,7 @@ func (f *Func) ConstNil(t *types.Type) *Value {
 }
 func (f *Func) ConstEmptyString(t *types.Type) *Value {
 	v := f.constVal(OpConstString, t, constEmptyStringMagic, false)
-	v.Aux = ""
+	v.Aux = StringToAux("")
 	return v
 }
 func (f *Func) ConstOffPtrSP(t *types.Type, c int64, sp *Value) *Value {
@@ -645,7 +671,7 @@ func (f *Func) Idom() []*Block {
 	return f.cachedIdom
 }
 
-// sdom returns a sparse tree representing the dominator relationships
+// Sdom returns a sparse tree representing the dominator relationships
 // among the blocks of f.
 func (f *Func) Sdom() SparseTree {
 	if f.cachedSdom == nil {
@@ -684,7 +710,8 @@ func (f *Func) invalidateCFG() {
 //  GSHS_LOGFILE
 // or standard out if that is empty or there is an error
 // opening the file.
-func (f *Func) DebugHashMatch(evname, name string) bool {
+func (f *Func) DebugHashMatch(evname string) bool {
+	name := f.fe.MyImportPath() + "." + f.Name
 	evhash := os.Getenv(evname)
 	switch evhash {
 	case "":
@@ -733,7 +760,7 @@ func (f *Func) logDebugHashMatch(evname, name string) {
 		file = os.Stdout
 		if tmpfile := os.Getenv("GSHS_LOGFILE"); tmpfile != "" {
 			var err error
-			file, err = os.Create(tmpfile)
+			file, err = os.OpenFile(tmpfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 			if err != nil {
 				f.Fatalf("could not open hash-testing logfile %s", tmpfile)
 			}
@@ -746,4 +773,26 @@ func (f *Func) logDebugHashMatch(evname, name string) {
 
 func DebugNameMatch(evname, name string) bool {
 	return os.Getenv(evname) == name
+}
+
+func (f *Func) spSb() (sp, sb *Value) {
+	initpos := src.NoXPos // These are originally created with no position in ssa.go; if they are optimized out then recreated, should be the same.
+	for _, v := range f.Entry.Values {
+		if v.Op == OpSB {
+			sb = v
+		}
+		if v.Op == OpSP {
+			sp = v
+		}
+		if sb != nil && sp != nil {
+			return
+		}
+	}
+	if sb == nil {
+		sb = f.Entry.NewValue0(initpos.WithNotStmt(), OpSB, f.Config.Types.Uintptr)
+	}
+	if sp == nil {
+		sp = f.Entry.NewValue0(initpos.WithNotStmt(), OpSP, f.Config.Types.Uintptr)
+	}
+	return
 }

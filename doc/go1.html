@@ -1647,14 +1647,14 @@ c := signal.Incoming()
 is
 </p>
 <pre>
-c := make(chan os.Signal)
+c := make(chan os.Signal, 1)
 signal.Notify(c) // ask for all signals
 </pre>
 <p>
 but most code should list the specific signals it wants to handle instead:
 </p>
 <pre>
-c := make(chan os.Signal)
+c := make(chan os.Signal, 1)
 signal.Notify(c, syscall.SIGHUP, syscall.SIGQUIT)
 </pre>
 

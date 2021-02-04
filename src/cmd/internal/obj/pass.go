@@ -36,8 +36,8 @@ package obj
 // In the case of an infinite loop, brloop returns nil.
 func brloop(p *Prog) *Prog {
 	c := 0
-	for q := p; q != nil; q = q.Pcond {
-		if q.As != AJMP || q.Pcond == nil {
+	for q := p; q != nil; q = q.To.Target() {
+		if q.As != AJMP || q.To.Target() == nil {
 			return q
 		}
 		c++
@@ -118,7 +118,7 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 }
 
 func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
-	for p := sym.Func.Text; p != nil; p = p.Link {
+	for p := sym.Func().Text; p != nil; p = p.Link {
 		checkaddr(ctxt, p, &p.From)
 		if p.GetFrom3() != nil {
 			checkaddr(ctxt, p, p.GetFrom3())
@@ -132,15 +132,13 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 			continue
 		}
 		if p.To.Val != nil {
-			// TODO: Remove To.Val.(*Prog) in favor of p->pcond.
-			p.Pcond = p.To.Val.(*Prog)
 			continue
 		}
 
 		if p.To.Sym != nil {
 			continue
 		}
-		q := sym.Func.Text
+		q := sym.Func().Text
 		for q != nil && p.To.Offset != q.Pc {
 			if q.Forwd != nil && p.To.Offset >= q.Forwd.Pc {
 				q = q.Forwd
@@ -158,8 +156,7 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 			p.To.Type = TYPE_NONE
 		}
 
-		p.To.Val = q
-		p.Pcond = q
+		p.To.SetTarget(q)
 	}
 
 	if !ctxt.Flag_optimize {
@@ -167,13 +164,13 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 	}
 
 	// Collapse series of jumps to jumps.
-	for p := sym.Func.Text; p != nil; p = p.Link {
-		if p.Pcond == nil {
+	for p := sym.Func().Text; p != nil; p = p.Link {
+		if p.To.Target() == nil {
 			continue
 		}
-		p.Pcond = brloop(p.Pcond)
-		if p.Pcond != nil && p.To.Type == TYPE_BRANCH {
-			p.To.Offset = p.Pcond.Pc
+		p.To.SetTarget(brloop(p.To.Target()))
+		if p.To.Target() != nil && p.To.Type == TYPE_BRANCH {
+			p.To.Offset = p.To.Target().Pc
 		}
 	}
 }

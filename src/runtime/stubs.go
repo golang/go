@@ -73,7 +73,15 @@ func badsystemstack() {
 // *ptr is uninitialized memory (e.g., memory that's being reused
 // for a new allocation) and hence contains only "junk".
 //
+// memclrNoHeapPointers ensures that if ptr is pointer-aligned, and n
+// is a multiple of the pointer size, then any pointer-aligned,
+// pointer-sized portion is cleared atomically. Despite the function
+// name, this is necessary because this function is the underlying
+// implementation of typedmemclr and memclrHasPointers. See the doc of
+// memmove for more details.
+//
 // The (CPU-specific) implementations of this function are in memclr_*.s.
+//
 //go:noescape
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 
@@ -130,7 +138,13 @@ func fastrandn(n uint32) uint32 {
 //go:linkname sync_fastrand sync.fastrand
 func sync_fastrand() uint32 { return fastrand() }
 
-// in asm_*.s
+//go:linkname net_fastrand net.fastrand
+func net_fastrand() uint32 { return fastrand() }
+
+//go:linkname os_fastrand os.fastrand
+func os_fastrand() uint32 { return fastrand() }
+
+// in internal/bytealg/equal_*.s
 //go:noescape
 func memequal(a, b unsafe.Pointer, size uintptr) bool
 
@@ -145,7 +159,13 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 	return unsafe.Pointer(x ^ 0)
 }
 
-func cgocallback(fn, frame unsafe.Pointer, framesize, ctxt uintptr)
+// Not all cgocallback frames are actually cgocallback,
+// so not all have these arguments. Mark them uintptr so that the GC
+// does not misinterpret memory when the arguments are not present.
+// cgocallback is not called from Go, only from crosscall2.
+// This in turn calls cgocallbackg, which is where we'll find
+// pointer-declared arguments.
+func cgocallback(fn, frame, ctxt uintptr)
 func gogo(buf *gobuf)
 func gosave(buf *gobuf)
 
@@ -160,10 +180,11 @@ func breakpoint()
 // back into arg+retoffset before returning. If copying result bytes back,
 // the caller should pass the argument frame type as argtype, so that
 // call can execute appropriate write barriers during the copy.
-// Package reflect passes a frame type. In package runtime, there is only
-// one call that copies results back, in cgocallbackg1, and it does NOT pass a
-// frame type, meaning there are no write barriers invoked. See that call
-// site for justification.
+//
+// Package reflect always passes a frame type. In package runtime,
+// Windows callbacks are the only use of this that copies results
+// back, and those cannot have pointers in their results, so runtime
+// passes nil for the frame type.
 //
 // Package reflect accesses this symbol through a linkname.
 func reflectcall(argtype *_type, fn, arg unsafe.Pointer, argsize uint32, retoffset uint32)
@@ -183,14 +204,6 @@ type neverCallThisFunction struct{}
 // call on the stack will cause gentraceback to stop walking the stack
 // prematurely and if there is leftover state it may panic.
 func goexit(neverCallThisFunction)
-
-// Not all cgocallback_gofunc frames are actually cgocallback_gofunc,
-// so not all have these arguments. Mark them uintptr so that the GC
-// does not misinterpret memory when the arguments are not present.
-// cgocallback_gofunc is not called from go, only from cgocallback,
-// so the arguments will be found via cgocallback's pointer-declared arguments.
-// See the assembly implementations for more details.
-func cgocallback_gofunc(fv, frame, framesize, ctxt uintptr)
 
 // publicationBarrier performs a store/store barrier (a "publication"
 // or "export" barrier). Some form of synchronization is required
@@ -271,6 +284,7 @@ func return0()
 
 // in asm_*.s
 // not called directly; definitions here supply type information for traceback.
+func call16(typ, fn, arg unsafe.Pointer, n, retoffset uint32)
 func call32(typ, fn, arg unsafe.Pointer, n, retoffset uint32)
 func call64(typ, fn, arg unsafe.Pointer, n, retoffset uint32)
 func call128(typ, fn, arg unsafe.Pointer, n, retoffset uint32)

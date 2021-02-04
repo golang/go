@@ -1,8 +1,13 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package analysis
 
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"unicode"
 )
 
@@ -58,12 +63,26 @@ func Validate(analyzers []*Analyzer) error {
 			}
 
 			// recursion
-			for i, req := range a.Requires {
+			for _, req := range a.Requires {
 				if err := visit(req); err != nil {
-					return fmt.Errorf("%s.Requires[%d]: %v", a.Name, i, err)
+					return err
 				}
 			}
 			color[a] = black
+		}
+
+		if color[a] == grey {
+			stack := []*Analyzer{a}
+			inCycle := map[string]bool{}
+			for len(stack) > 0 {
+				current := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				if color[current] == grey && !inCycle[current.Name] {
+					inCycle[current.Name] = true
+					stack = append(stack, current.Requires...)
+				}
+			}
+			return &CycleInRequiresGraphError{AnalyzerNames: inCycle}
 		}
 
 		return nil
@@ -94,4 +113,18 @@ func validIdent(name string) bool {
 		}
 	}
 	return name != ""
+}
+
+type CycleInRequiresGraphError struct {
+	AnalyzerNames map[string]bool
+}
+
+func (e *CycleInRequiresGraphError) Error() string {
+	var b strings.Builder
+	b.WriteString("cycle detected involving the following analyzers:")
+	for n := range e.AnalyzerNames {
+		b.WriteByte(' ')
+		b.WriteString(n)
+	}
+	return b.String()
 }

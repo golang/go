@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"go/build"
 	"internal/testenv"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,6 +22,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -38,9 +39,7 @@ import (
 // TestScript runs the tests in testdata/script/*.txt.
 func TestScript(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	if skipExternal {
-		t.Skipf("skipping external tests on %s/%s", runtime.GOOS, runtime.GOARCH)
-	}
+	testenv.SkipIfShortAndSlow(t)
 
 	files, err := filepath.Glob("testdata/script/*.txt")
 	if err != nil {
@@ -135,11 +134,15 @@ func (ts *testScript) setup() {
 		"GOSUMDB=" + testSumDBVerifierKey,
 		"GONOPROXY=",
 		"GONOSUMDB=",
+		"GOVCS=*:all",
 		"PWD=" + ts.cd,
 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 		"devnull=" + os.DevNull,
 		"goversion=" + goVersion(ts),
 		":=" + string(os.PathListSeparator),
+	}
+	if !testenv.HasExternalNetwork() {
+		ts.env = append(ts.env, "TESTGONETWORK=panic", "TESTGOVCS=panic")
 	}
 
 	if runtime.GOOS == "plan9" {
@@ -216,7 +219,7 @@ func (ts *testScript) run() {
 	for _, f := range a.Files {
 		name := ts.mkabs(ts.expand(f.Name, false))
 		ts.check(os.MkdirAll(filepath.Dir(name), 0777))
-		ts.check(ioutil.WriteFile(name, f.Data, 0666))
+		ts.check(os.WriteFile(name, f.Data, 0666))
 	}
 
 	// With -v or -testwork, start log with full environment.
@@ -296,6 +299,8 @@ Script:
 				ok = os.Geteuid() == 0
 			case "symlink":
 				ok = testenv.HasSymlink()
+			case "case-sensitive":
+				ok = isCaseSensitive(ts.t)
 			default:
 				if strings.HasPrefix(cond.tag, "exec:") {
 					prog := cond.tag[len("exec:"):]
@@ -364,6 +369,41 @@ Script:
 	}
 }
 
+var (
+	onceCaseSensitive sync.Once
+	caseSensitive     bool
+)
+
+func isCaseSensitive(t *testing.T) bool {
+	onceCaseSensitive.Do(func() {
+		tmpdir, err := os.MkdirTemp("", "case-sensitive")
+		if err != nil {
+			t.Fatal("failed to create directory to determine case-sensitivity:", err)
+		}
+		defer os.RemoveAll(tmpdir)
+
+		fcap := filepath.Join(tmpdir, "FILE")
+		if err := os.WriteFile(fcap, []byte{}, 0644); err != nil {
+			t.Fatal("error writing file to determine case-sensitivity:", err)
+		}
+
+		flow := filepath.Join(tmpdir, "file")
+		_, err = os.ReadFile(flow)
+		switch {
+		case err == nil:
+			caseSensitive = false
+			return
+		case os.IsNotExist(err):
+			caseSensitive = true
+			return
+		default:
+			t.Fatal("unexpected error reading file when determining case-sensitivity:", err)
+		}
+	})
+
+	return caseSensitive
+}
+
 // scriptCmds are the script command implementations.
 // Keep list and the implementations below sorted by name.
 //
@@ -409,9 +449,9 @@ func (ts *testScript) cmdAddcrlf(want simpleStatus, args []string) {
 
 	for _, file := range args {
 		file = ts.mkabs(file)
-		data, err := ioutil.ReadFile(file)
+		data, err := os.ReadFile(file)
 		ts.check(err)
-		ts.check(ioutil.WriteFile(file, bytes.ReplaceAll(data, []byte("\n"), []byte("\r\n")), 0666))
+		ts.check(os.WriteFile(file, bytes.ReplaceAll(data, []byte("\n"), []byte("\r\n")), 0666))
 	}
 }
 
@@ -462,7 +502,7 @@ func (ts *testScript) cmdChmod(want simpleStatus, args []string) {
 		ts.fatalf("usage: chmod perm paths...")
 	}
 	perm, err := strconv.ParseUint(args[0], 0, 32)
-	if err != nil || perm&uint64(os.ModePerm) != perm {
+	if err != nil || perm&uint64(fs.ModePerm) != perm {
 		ts.fatalf("invalid mode: %s", args[0])
 	}
 	for _, arg := range args[1:] {
@@ -470,7 +510,7 @@ func (ts *testScript) cmdChmod(want simpleStatus, args []string) {
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(ts.cd, arg)
 		}
-		err := os.Chmod(path, os.FileMode(perm))
+		err := os.Chmod(path, fs.FileMode(perm))
 		ts.check(err)
 	}
 }
@@ -516,12 +556,12 @@ func (ts *testScript) doCmdCmp(args []string, env, quiet bool) {
 	} else if name1 == "stderr" {
 		text1 = ts.stderr
 	} else {
-		data, err := ioutil.ReadFile(ts.mkabs(name1))
+		data, err := os.ReadFile(ts.mkabs(name1))
 		ts.check(err)
 		text1 = string(data)
 	}
 
-	data, err := ioutil.ReadFile(ts.mkabs(name2))
+	data, err := os.ReadFile(ts.mkabs(name2))
 	ts.check(err)
 	text2 = string(data)
 
@@ -557,7 +597,7 @@ func (ts *testScript) cmdCp(want simpleStatus, args []string) {
 		var (
 			src  string
 			data []byte
-			mode os.FileMode
+			mode fs.FileMode
 		)
 		switch arg {
 		case "stdout":
@@ -573,14 +613,14 @@ func (ts *testScript) cmdCp(want simpleStatus, args []string) {
 			info, err := os.Stat(src)
 			ts.check(err)
 			mode = info.Mode() & 0777
-			data, err = ioutil.ReadFile(src)
+			data, err = os.ReadFile(src)
 			ts.check(err)
 		}
 		targ := dst
 		if dstDir {
 			targ = filepath.Join(dst, filepath.Base(src))
 		}
-		err := ioutil.WriteFile(targ, data, mode)
+		err := os.WriteFile(targ, data, mode)
 		switch want {
 		case failure:
 			if err == nil {
@@ -856,7 +896,7 @@ func scriptMatch(ts *testScript, want simpleStatus, args []string, text, name st
 	isGrep := name == "grep"
 	if isGrep {
 		name = args[1] // for error messages
-		data, err := ioutil.ReadFile(ts.mkabs(args[1]))
+		data, err := os.ReadFile(ts.mkabs(args[1]))
 		ts.check(err)
 		text = string(data)
 	}
@@ -1218,7 +1258,12 @@ func (ts *testScript) parse(line string) command {
 
 		if cmd.name != "" {
 			cmd.args = append(cmd.args, arg)
-			isRegexp = false // Commands take only one regexp argument, so no subsequent args are regexps.
+			// Commands take only one regexp argument (after the optional flags),
+			// so no subsequent args are regexps. Liberally assume an argument that
+			// starts with a '-' is a flag.
+			if len(arg) == 0 || arg[0] != '-' {
+				isRegexp = false
+			}
 			return
 		}
 

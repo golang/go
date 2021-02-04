@@ -7,7 +7,7 @@ package modload
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,9 +40,9 @@ func readVendorList() {
 		vendorPkgModule = make(map[string]module.Version)
 		vendorVersion = make(map[string]string)
 		vendorMeta = make(map[module.Version]vendorMetadata)
-		data, err := ioutil.ReadFile(filepath.Join(ModRoot(), "vendor/modules.txt"))
+		data, err := os.ReadFile(filepath.Join(ModRoot(), "vendor/modules.txt"))
 		if err != nil {
-			if !errors.Is(err, os.ErrNotExist) {
+			if !errors.Is(err, fs.ErrNotExist) {
 				base.Fatalf("go: %s", err)
 			}
 			return
@@ -133,7 +133,7 @@ func checkVendorConsistency() {
 	readVendorList()
 
 	pre114 := false
-	if modFile.Go == nil || semver.Compare("v"+modFile.Go.Version, "v1.14") < 0 {
+	if semver.Compare(index.goVersionV, "v1.14") < 0 {
 		// Go versions before 1.14 did not include enough information in
 		// vendor/modules.txt to check for consistency.
 		// If we know that we're on an earlier version, relax the consistency check.
@@ -150,6 +150,8 @@ func checkVendorConsistency() {
 		}
 	}
 
+	// Iterate over the Require directives in their original (not indexed) order
+	// so that the errors match the original file.
 	for _, r := range modFile.Require {
 		if !vendorMeta[r.Mod].Explicit {
 			if pre114 {
@@ -212,6 +214,6 @@ func checkVendorConsistency() {
 	}
 
 	if vendErrors.Len() > 0 {
-		base.Fatalf("go: inconsistent vendoring in %s:%s\n\nrun 'go mod vendor' to sync, or use -mod=mod or -mod=readonly to ignore the vendor directory", modRoot, vendErrors)
+		base.Fatalf("go: inconsistent vendoring in %s:%s\n\n\tTo ignore the vendor directory, use -mod=readonly or -mod=mod.\n\tTo sync the vendor directory, run:\n\t\tgo mod vendor", modRoot, vendErrors)
 	}
 }

@@ -12,9 +12,9 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
+	"os"
 )
 
 func main() {
@@ -36,7 +36,7 @@ func main() {
 	}
 	fmt.Fprintln(&buf, "}")
 
-	if err := ioutil.WriteFile("fastlog2table.go", buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile("fastlog2table.go", buf.Bytes(), 0644); err != nil {
 		log.Fatalln(err)
 	}
 }

@@ -7,6 +7,7 @@ package dwarf_test
 import (
 	. "debug/dwarf"
 	"encoding/binary"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -54,6 +55,20 @@ func TestReaderSeek(t *testing.T) {
 		{0x400611, nil},
 	}
 	testRanges(t, "testdata/line-gcc.elf", want)
+
+	want = []wantRange{
+		{0x401122, [][2]uint64{{0x401122, 0x401166}}},
+		{0x401165, [][2]uint64{{0x401122, 0x401166}}},
+		{0x401166, [][2]uint64{{0x401166, 0x401179}}},
+	}
+	testRanges(t, "testdata/line-gcc-dwarf5.elf", want)
+
+	want = []wantRange{
+		{0x401130, [][2]uint64{{0x401130, 0x40117e}}},
+		{0x40117d, [][2]uint64{{0x401130, 0x40117e}}},
+		{0x40117e, nil},
+	}
+	testRanges(t, "testdata/line-clang-dwarf5.elf", want)
 }
 
 func TestRangesSection(t *testing.T) {
@@ -96,44 +111,72 @@ func testRanges(t *testing.T, name string, want []wantRange) {
 }
 
 func TestReaderRanges(t *testing.T) {
-	d := elfData(t, "testdata/line-gcc.elf")
-
-	subprograms := []struct {
+	type subprograms []struct {
 		name   string
 		ranges [][2]uint64
+	}
+	tests := []struct {
+		filename    string
+		subprograms subprograms
 	}{
-		{"f1", [][2]uint64{{0x40059d, 0x4005e7}}},
-		{"main", [][2]uint64{{0x4005e7, 0x400601}}},
-		{"f2", [][2]uint64{{0x400601, 0x400611}}},
+		{
+			"testdata/line-gcc.elf",
+			subprograms{
+				{"f1", [][2]uint64{{0x40059d, 0x4005e7}}},
+				{"main", [][2]uint64{{0x4005e7, 0x400601}}},
+				{"f2", [][2]uint64{{0x400601, 0x400611}}},
+			},
+		},
+		{
+			"testdata/line-gcc-dwarf5.elf",
+			subprograms{
+				{"main", [][2]uint64{{0x401147, 0x401166}}},
+				{"f1", [][2]uint64{{0x401122, 0x401147}}},
+				{"f2", [][2]uint64{{0x401166, 0x401179}}},
+			},
+		},
+		{
+			"testdata/line-clang-dwarf5.elf",
+			subprograms{
+				{"main", [][2]uint64{{0x401130, 0x401144}}},
+				{"f1", [][2]uint64{{0x401150, 0x40117e}}},
+				{"f2", [][2]uint64{{0x401180, 0x401197}}},
+			},
+		},
 	}
 
-	r := d.Reader()
-	i := 0
-	for entry, err := r.Next(); entry != nil && err == nil; entry, err = r.Next() {
-		if entry.Tag != TagSubprogram {
-			continue
+	for _, test := range tests {
+		d := elfData(t, test.filename)
+		subprograms := test.subprograms
+
+		r := d.Reader()
+		i := 0
+		for entry, err := r.Next(); entry != nil && err == nil; entry, err = r.Next() {
+			if entry.Tag != TagSubprogram {
+				continue
+			}
+
+			if i > len(subprograms) {
+				t.Fatalf("%s: too many subprograms (expected at most %d)", test.filename, i)
+			}
+
+			if got := entry.Val(AttrName).(string); got != subprograms[i].name {
+				t.Errorf("%s: subprogram %d name is %s, expected %s", test.filename, i, got, subprograms[i].name)
+			}
+			ranges, err := d.Ranges(entry)
+			if err != nil {
+				t.Errorf("%s: subprogram %d: %v", test.filename, i, err)
+				continue
+			}
+			if !reflect.DeepEqual(ranges, subprograms[i].ranges) {
+				t.Errorf("%s: subprogram %d ranges are %x, expected %x", test.filename, i, ranges, subprograms[i].ranges)
+			}
+			i++
 		}
 
-		if i > len(subprograms) {
-			t.Fatalf("too many subprograms (expected at most %d)", i)
+		if i < len(subprograms) {
+			t.Errorf("%s: saw only %d subprograms, expected %d", test.filename, i, len(subprograms))
 		}
-
-		if got := entry.Val(AttrName).(string); got != subprograms[i].name {
-			t.Errorf("subprogram %d name is %s, expected %s", i, got, subprograms[i].name)
-		}
-		ranges, err := d.Ranges(entry)
-		if err != nil {
-			t.Errorf("subprogram %d: %v", i, err)
-			continue
-		}
-		if !reflect.DeepEqual(ranges, subprograms[i].ranges) {
-			t.Errorf("subprogram %d ranges are %x, expected %x", i, ranges, subprograms[i].ranges)
-		}
-		i++
-	}
-
-	if i < len(subprograms) {
-		t.Errorf("saw only %d subprograms, expected %d", i, len(subprograms))
 	}
 }
 
@@ -207,5 +250,46 @@ func Test64Bit(t *testing.T) {
 		if r.ByteOrder() != test.byteOrder {
 			t.Errorf("%s: got byte order %s, want %s", test.name, r.ByteOrder(), test.byteOrder)
 		}
+	}
+}
+
+func TestUnitIteration(t *testing.T) {
+	// Iterate over all ELF test files we have and ensure that
+	// we get the same set of compilation units skipping (method 0)
+	// and not skipping (method 1) CU children.
+	files, err := filepath.Glob(filepath.Join("testdata", "*.elf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range files {
+		t.Run(file, func(t *testing.T) {
+			d := elfData(t, file)
+			var units [2][]interface{}
+			for method := range units {
+				for r := d.Reader(); ; {
+					ent, err := r.Next()
+					if err != nil {
+						t.Fatal(err)
+					}
+					if ent == nil {
+						break
+					}
+					if ent.Tag == TagCompileUnit {
+						units[method] = append(units[method], ent.Val(AttrName))
+					}
+					if method == 0 {
+						if ent.Tag != TagCompileUnit {
+							t.Fatalf("found unexpected tag %v on top level", ent.Tag)
+						}
+						r.SkipChildren()
+					}
+				}
+			}
+			t.Logf("skipping CUs:     %v", units[0])
+			t.Logf("not-skipping CUs: %v", units[1])
+			if !reflect.DeepEqual(units[0], units[1]) {
+				t.Fatal("set of CUs differ")
+			}
+		})
 	}
 }

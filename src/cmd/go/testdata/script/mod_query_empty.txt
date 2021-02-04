@@ -8,7 +8,7 @@ go mod download example.com/join@v1.1.0
 env GOPROXY=file:///$WORK/badproxy
 cp go.mod.orig go.mod
 ! go get -d example.com/join/subpkg
-stderr 'go get example.com/join/subpkg: example.com/join/subpkg@v0.0.0-20190624000000-123456abcdef: .*'
+stderr 'go get: example.com/join/subpkg@v0.0.0-20190624000000-123456abcdef: .*'
 
 # If @v/list is empty, the 'go' command should still try to resolve
 # other module paths.
@@ -40,7 +40,7 @@ env GOPROXY=file:///$WORK/gatekeeper
 chmod 0000 $WORK/gatekeeper/example.com/join/subpkg/@latest
 cp go.mod.orig go.mod
 ! go get -d example.com/join/subpkg
-stderr 'go get example.com/join/subpkg: module example.com/join/subpkg: (invalid character .+|reading file://.*/gatekeeper/example.com/join/subpkg/@latest: .+)'
+stderr 'go get: module example.com/join/subpkg: (invalid response from proxy ".+": invalid character .+|reading file://.*/gatekeeper/example.com/join/subpkg/@latest: .+)'
 
 -- go.mod.orig --
 module example.com/othermodule

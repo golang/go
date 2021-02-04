@@ -12,41 +12,41 @@ package main
 func f0(x int) {
 	switch x {
 	case 0:
-	case 0: // ERROR "duplicate case 0 in switch"
+	case 0: // ERROR "duplicate case (0 in switch)?"
 	}
 
 	switch x {
 	case 0:
-	case int(0): // ERROR "duplicate case int.0. .value 0. in switch"
+	case int(0): // ERROR "duplicate case (int.0. .value 0. in switch)?"
 	}
 }
 
 func f1(x float32) {
 	switch x {
 	case 5:
-	case 5: // ERROR "duplicate case 5 in switch"
-	case 5.0: // ERROR "duplicate case 5 in switch"
+	case 5: // ERROR "duplicate case (5 in switch)?"
+	case 5.0: // ERROR "duplicate case (5 in switch)?"
 	}
 }
 
 func f2(s string) {
 	switch s {
 	case "":
-	case "": // ERROR "duplicate case .. in switch"
+	case "": // ERROR "duplicate case (.. in switch)?"
 	case "abc":
-	case "abc": // ERROR "duplicate case .abc. in switch"
+	case "abc": // ERROR "duplicate case (.abc. in switch)?"
 	}
 }
 
 func f3(e interface{}) {
 	switch e {
 	case 0:
-	case 0: // ERROR "duplicate case 0 in switch"
+	case 0: // ERROR "duplicate case (0 in switch)?"
 	case int64(0):
 	case float32(10):
-	case float32(10): // ERROR "duplicate case float32\(10\) .value 10. in switch"
+	case float32(10): // ERROR "duplicate case (float32\(10\) .value 10. in switch)?"
 	case float64(10):
-	case float64(10): // ERROR "duplicate case float64\(10\) .value 10. in switch"
+	case float64(10): // ERROR "duplicate case (float64\(10\) .value 10. in switch)?"
 	}
 }
 
@@ -82,13 +82,13 @@ func f7(a int) {
 func f8(r rune) {
 	const x = 10
 	switch r {
-	case 33, 33: // ERROR "duplicate case 33 in switch"
+	case 33, 33: // ERROR "duplicate case (33 in switch)?"
 	case 34, '"': // ERROR "duplicate case '"' .value 34. in switch"
-	case 35, rune('#'): // ERROR "duplicate case rune.'#'. .value 35. in switch"
-	case 36, rune(36): // ERROR "duplicate case rune.36. .value 36. in switch"
-	case 37, '$'+1: // ERROR "duplicate case '\$' \+ 1 .value 37. in switch"
+	case 35, rune('#'): // ERROR "duplicate case (rune.'#'. .value 35. in switch)?"
+	case 36, rune(36): // ERROR "duplicate case (rune.36. .value 36. in switch)?"
+	case 37, '$'+1: // ERROR "duplicate case ('\$' \+ 1 .value 37. in switch)?"
 	case 'b':
-	case 'a', 'b', 'c', 'd': // ERROR "duplicate case 'b' .value 98."
-	case x, x: // ERROR "duplicate case x .value 10."
+	case 'a', 'b', 'c', 'd': // ERROR "duplicate case ('b' .value 98.)?"
+	case x, x: // ERROR "duplicate case (x .value 10.)?"
 	}
 }

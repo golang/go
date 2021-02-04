@@ -1,5 +1,4 @@
 env GO111MODULE=on
-env GOPROXY=$GOPROXY/quiet
 [short] skip
 
 # A 'go get' that worked at a previous version should continue to work at that version,
@@ -10,7 +9,7 @@ go list -m all
 stdout 'example.com/split v1.0.0'
 
 # A 'go get' that simultaneously upgrades away conflicting package defitions is not ambiguous.
-go get example.com/split/subpkg@v1.1.0
+go get -d example.com/split/subpkg@v1.1.0
 
 # A 'go get' without an upgrade should find the package.
 rm go.mod
@@ -29,7 +28,9 @@ go list -m all
 stdout 'example.com/join/subpkg v1.0.0'
 
 # A 'go get' that simultaneously upgrades away conflicting package definitions is not ambiguous.
-go get example.com/join/subpkg@v1.1.0
+# (A wildcard pattern applies to both packages and modules,
+# because we define wildcard matching to apply after version resolution.)
+go get -d example.com/join/subpkg/...@v1.1.0
 
 # A 'go get' without an upgrade should find the package.
 rm go.mod

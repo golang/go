@@ -1,0 +1,22 @@
+Module example.com/retract/rename is renamed in this version.
+
+This happens frequently when a repository is renamed or when a go.mod file
+is added for the first time with a custom module path.
+-- .info --
+{"Version":"v1.9.0-new"}
+-- .mod --
+module example.com/retract/newname
+
+go 1.16
+
+// bad
+retract v1.0.0-bad
+-- go.mod --
+module example.com/retract/newname
+
+go 1.16
+
+// bad
+retract v1.0.0-bad
+-- newname.go --
+package newname

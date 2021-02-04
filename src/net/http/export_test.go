@@ -254,7 +254,7 @@ func hookSetter(dst *func()) func(func()) {
 }
 
 func ExportHttp2ConfigureTransport(t *Transport) error {
-	t2, err := http2configureTransport(t)
+	t2, err := http2configureTransports(t)
 	if err != nil {
 		return err
 	}
@@ -272,6 +272,17 @@ func (s *Server) ExportAllConnsIdle() bool {
 		}
 	}
 	return true
+}
+
+func (s *Server) ExportAllConnsByState() map[ConnState]int {
+	states := map[ConnState]int{}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for c := range s.activeConn {
+		st, _ := c.getState()
+		states[st] += 1
+	}
+	return states
 }
 
 func (r *Request) WithT(t *testing.T) *Request {

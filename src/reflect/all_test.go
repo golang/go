@@ -74,6 +74,10 @@ var typeTests = []pair{
 	{struct{ x ([]int8) }{}, "[]int8"},
 	{struct{ x (map[string]int32) }{}, "map[string]int32"},
 	{struct{ x (chan<- string) }{}, "chan<- string"},
+	{struct{ x (chan<- chan string) }{}, "chan<- chan string"},
+	{struct{ x (chan<- <-chan string) }{}, "chan<- <-chan string"},
+	{struct{ x (<-chan <-chan string) }{}, "<-chan <-chan string"},
+	{struct{ x (chan (<-chan string)) }{}, "chan (<-chan string)"},
 	{struct {
 		x struct {
 			c chan *int32
@@ -824,6 +828,11 @@ var loop1, loop2 Loop
 var loopy1, loopy2 Loopy
 var cycleMap1, cycleMap2, cycleMap3 map[string]interface{}
 
+type structWithSelfPtr struct {
+	p *structWithSelfPtr
+	s string
+}
+
 func init() {
 	loop1 = &loop2
 	loop2 = &loop1
@@ -880,6 +889,7 @@ var deepEqualTests = []DeepEqualTest{
 	{[]float64{math.NaN()}, self{}, true},
 	{map[float64]float64{math.NaN(): 1}, map[float64]float64{1: 2}, false},
 	{map[float64]float64{math.NaN(): 1}, self{}, true},
+	{&structWithSelfPtr{p: &structWithSelfPtr{s: "a"}}, &structWithSelfPtr{p: &structWithSelfPtr{s: "b"}}, false},
 
 	// Nil vs empty: not the same.
 	{[]int{}, []int(nil), false},
@@ -1715,6 +1725,14 @@ func TestSelectMaxCases(t *testing.T) {
 	_, _, _ = Select(sCases)
 }
 
+func TestSelectNop(t *testing.T) {
+	// "select { default: }" should always return the default case.
+	chosen, _, _ := Select([]SelectCase{{Dir: SelectDefault}})
+	if chosen != 0 {
+		t.Fatalf("expected Select to return 0, but got %#v", chosen)
+	}
+}
+
 func BenchmarkSelect(b *testing.B) {
 	channel := make(chan int)
 	close(channel)
@@ -2387,8 +2405,14 @@ func TestVariadicMethodValue(t *testing.T) {
 	points := []Point{{20, 21}, {22, 23}, {24, 25}}
 	want := int64(p.TotalDist(points[0], points[1], points[2]))
 
+	// Variadic method of type.
+	tfunc := TypeOf((func(Point, ...Point) int)(nil))
+	if tt := TypeOf(p).Method(4).Type; tt != tfunc {
+		t.Errorf("Variadic Method Type from TypeOf is %s; want %s", tt, tfunc)
+	}
+
 	// Curried method of value.
-	tfunc := TypeOf((func(...Point) int)(nil))
+	tfunc = TypeOf((func(...Point) int)(nil))
 	v := ValueOf(p).Method(4)
 	if tt := v.Type(); tt != tfunc {
 		t.Errorf("Variadic Method Type is %s; want %s", tt, tfunc)
@@ -3983,9 +4007,12 @@ var convertTests = []struct {
 	{V(int16(-3)), V(string("\uFFFD"))},
 	{V(int32(-4)), V(string("\uFFFD"))},
 	{V(int64(-5)), V(string("\uFFFD"))},
+	{V(int64(-1 << 32)), V(string("\uFFFD"))},
+	{V(int64(1 << 32)), V(string("\uFFFD"))},
 	{V(uint(0x110001)), V(string("\uFFFD"))},
 	{V(uint32(0x110002)), V(string("\uFFFD"))},
 	{V(uint64(0x110003)), V(string("\uFFFD"))},
+	{V(uint64(1 << 32)), V(string("\uFFFD"))},
 	{V(uintptr(0x110004)), V(string("\uFFFD"))},
 
 	// named string
@@ -4241,24 +4268,6 @@ var gFloat32 float32
 
 func TestConvertNaNs(t *testing.T) {
 	const snan uint32 = 0x7f800001
-
-	// Test to see if a store followed by a load of a signaling NaN
-	// maintains the signaling bit. The only platform known to fail
-	// this test is 386,GO386=387. The real test below will always fail
-	// if the platform can't even store+load a float without mucking
-	// with the bits.
-	gFloat32 = math.Float32frombits(snan)
-	runtime.Gosched() // make sure we don't optimize the store/load away
-	r := math.Float32bits(gFloat32)
-	if r != snan {
-		// This should only happen on 386,GO386=387. We have no way to
-		// test for 387, so we just make sure we're at least on 386.
-		if runtime.GOARCH != "386" {
-			t.Errorf("store/load of sNaN not faithful")
-		}
-		t.Skip("skipping test, float store+load not faithful")
-	}
-
 	type myFloat32 float32
 	x := V(myFloat32(math.Float32frombits(snan)))
 	y := x.Convert(TypeOf(float32(0)))
@@ -5485,6 +5494,18 @@ func TestChanOf(t *testing.T) {
 	// check that type already in binary is found
 	type T1 int
 	checkSameType(t, ChanOf(BothDir, TypeOf(T1(1))), (chan T1)(nil))
+
+	// Check arrow token association in undefined chan types.
+	var left chan<- chan T
+	var right chan (<-chan T)
+	tLeft := ChanOf(SendDir, ChanOf(BothDir, TypeOf(T(""))))
+	tRight := ChanOf(BothDir, ChanOf(RecvDir, TypeOf(T(""))))
+	if tLeft != TypeOf(left) {
+		t.Errorf("chan<-chan: have %s, want %T", tLeft, left)
+	}
+	if tRight != TypeOf(right) {
+		t.Errorf("chan<-chan: have %s, want %T", tRight, right)
+	}
 }
 
 func TestChanOfDir(t *testing.T) {
@@ -5976,6 +5997,14 @@ func TestReflectMethodTraceback(t *testing.T) {
 	}
 }
 
+func TestSmallZero(t *testing.T) {
+	type T [10]byte
+	typ := TypeOf(T{})
+	if allocs := testing.AllocsPerRun(100, func() { Zero(typ) }); allocs > 0 {
+		t.Errorf("Creating small zero values caused %f allocs, want 0", allocs)
+	}
+}
+
 func TestBigZero(t *testing.T) {
 	const size = 1 << 10
 	var v [size]byte
@@ -5984,6 +6013,27 @@ func TestBigZero(t *testing.T) {
 		if z[i] != 0 {
 			t.Fatalf("Zero object not all zero, index %d", i)
 		}
+	}
+}
+
+func TestZeroSet(t *testing.T) {
+	type T [16]byte
+	type S struct {
+		a uint64
+		T T
+		b uint64
+	}
+	v := S{
+		a: 0xaaaaaaaaaaaaaaaa,
+		T: T{9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9},
+		b: 0xbbbbbbbbbbbbbbbb,
+	}
+	ValueOf(&v).Elem().Field(1).Set(Zero(TypeOf(T{})))
+	if v != (S{
+		a: 0xaaaaaaaaaaaaaaaa,
+		b: 0xbbbbbbbbbbbbbbbb,
+	}) {
+		t.Fatalf("Setting a field to a Zero value didn't work")
 	}
 }
 
@@ -6445,11 +6495,8 @@ func verifyGCBitsSlice(t *testing.T, typ Type, cap int, bits []byte) {
 	// Repeat the bitmap for the slice size, trimming scalars in
 	// the last element.
 	bits = rep(cap, bits)
-	for len(bits) > 2 && bits[len(bits)-1] == 0 {
+	for len(bits) > 0 && bits[len(bits)-1] == 0 {
 		bits = bits[:len(bits)-1]
-	}
-	if len(bits) == 2 && bits[0] == 0 && bits[1] == 0 {
-		bits = bits[:0]
 	}
 	if !bytes.Equal(heapBits, bits) {
 		t.Errorf("heapBits incorrect for make(%v, 0, %v)\nhave %v\nwant %v", typ, cap, heapBits, bits)

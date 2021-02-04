@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"os"
+	"io/fs"
 	"strings"
 	"testing"
 )
@@ -40,7 +40,7 @@ func nameFilter(filename string) bool {
 	return false
 }
 
-func dirFilter(f os.FileInfo) bool { return nameFilter(f.Name()) }
+func dirFilter(f fs.FileInfo) bool { return nameFilter(f.Name()) }
 
 func TestParseFile(t *testing.T) {
 	src := "package p\nvar _=s[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]"

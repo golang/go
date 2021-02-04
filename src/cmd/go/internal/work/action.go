@@ -10,10 +10,10 @@ import (
 	"bufio"
 	"bytes"
 	"container/heap"
+	"context"
 	"debug/elf"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -25,6 +25,7 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/trace"
 	"cmd/internal/buildid"
 )
 
@@ -63,13 +64,13 @@ type Builder struct {
 
 // An Action represents a single action in the action graph.
 type Action struct {
-	Mode       string                        // description of action operation
-	Package    *load.Package                 // the package this action works on
-	Deps       []*Action                     // actions that must happen before this one
-	Func       func(*Builder, *Action) error // the action itself (nil = no-op)
-	IgnoreFail bool                          // whether to run f even if dependencies fail
-	TestOutput *bytes.Buffer                 // test output buffer
-	Args       []string                      // additional args for runProgram
+	Mode       string                                         // description of action operation
+	Package    *load.Package                                  // the package this action works on
+	Deps       []*Action                                      // actions that must happen before this one
+	Func       func(*Builder, context.Context, *Action) error // the action itself (nil = no-op)
+	IgnoreFail bool                                           // whether to run f even if dependencies fail
+	TestOutput *bytes.Buffer                                  // test output buffer
+	Args       []string                                       // additional args for runProgram
 
 	triggers []*Action // inverse of deps
 
@@ -91,10 +92,12 @@ type Action struct {
 	output    []byte     // output redirect buffer (nil means use b.Print)
 
 	// Execution state.
-	pending  int         // number of deps yet to complete
-	priority int         // relative execution priority
-	Failed   bool        // whether the action failed
-	json     *actionJSON // action graph information
+	pending      int               // number of deps yet to complete
+	priority     int               // relative execution priority
+	Failed       bool              // whether the action failed
+	json         *actionJSON       // action graph information
+	nonGoOverlay map[string]string // map from non-.go source files to copied files in objdir. Nil if no overlay is used.
+	traceSpan    *trace.Span
 }
 
 // BuildActionID returns the action ID section of a's build ID.
@@ -249,7 +252,7 @@ func (b *Builder) Init() {
 	if cfg.BuildN {
 		b.WorkDir = "$WORK"
 	} else {
-		tmp, err := ioutil.TempDir(cfg.Getenv("GOTMPDIR"), "go-build")
+		tmp, err := os.MkdirTemp(cfg.Getenv("GOTMPDIR"), "go-build")
 		if err != nil {
 			base.Fatalf("go: creating work dir: %v", err)
 		}

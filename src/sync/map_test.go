@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/quick"
 )
@@ -169,5 +170,28 @@ func TestConcurrentRange(t *testing.T) {
 		if len(seen) != mapSize {
 			t.Fatalf("Range visited %v elements of %v-element Map", len(seen), mapSize)
 		}
+	}
+}
+
+func TestIssue40999(t *testing.T) {
+	var m sync.Map
+
+	// Since the miss-counting in missLocked (via Delete)
+	// compares the miss count with len(m.dirty),
+	// add an initial entry to bias len(m.dirty) above the miss count.
+	m.Store(nil, struct{}{})
+
+	var finalized uint32
+
+	// Set finalizers that count for collected keys. A non-zero count
+	// indicates that keys have not been leaked.
+	for atomic.LoadUint32(&finalized) == 0 {
+		p := new(int)
+		runtime.SetFinalizer(p, func(*int) {
+			atomic.AddUint32(&finalized, 1)
+		})
+		m.Store(p, struct{}{})
+		m.Delete(p)
+		runtime.GC()
 	}
 }

@@ -1,3 +1,4 @@
+// UNREVIEWED
 // Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -7,7 +8,6 @@ package types2
 import (
 	"cmd/compile/internal/syntax"
 	"fmt"
-	"sort"
 )
 
 // A Type represents a type of Go.
@@ -480,8 +480,8 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 	}
 
 	// sort for API stability
-	sort.Sort(byUniqueMethodName(methods))
-	sort.Stable(byUniqueTypeName(embeddeds))
+	sortMethods(methods)
+	sortTypes(embeddeds)
 
 	typ.methods = methods
 	typ.embeddeds = embeddeds
@@ -684,7 +684,7 @@ func (t *Interface) Complete() *Interface {
 	}
 
 	if methods != nil {
-		sort.Sort(byUniqueMethodName(methods))
+		sortMethods(methods)
 		t.allMethods = methods
 	}
 	t.allTypes = allTypes
@@ -831,17 +831,20 @@ func (t *Named) AddMethod(m *Func) {
 type TypeParam struct {
 	check *Checker  // for lazy type bound completion
 	id    uint64    // unique id
-	ptr   bool      // pointer designation
 	obj   *TypeName // corresponding type name
 	index int       // parameter index
 	bound Type      // *Named or *Interface; underlying type is always *Interface
 	aType
 }
 
+func (t *TypeParam) Obj() *TypeName {
+	return t.obj
+}
+
 // NewTypeParam returns a new TypeParam.
-func (check *Checker) NewTypeParam(ptr bool, obj *TypeName, index int, bound Type) *TypeParam {
+func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
 	assert(bound != nil)
-	typ := &TypeParam{check: check, id: check.nextId, ptr: ptr, obj: obj, index: index, bound: bound}
+	typ := &TypeParam{check: check, id: check.nextId, obj: obj, index: index, bound: bound}
 	check.nextId++
 	if obj.typ == nil {
 		obj.typ = typ

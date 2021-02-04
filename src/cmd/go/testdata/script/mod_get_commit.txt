@@ -1,5 +1,4 @@
 env GO111MODULE=on
-env GOPROXY=$GOPROXY/quiet
 [short] skip
 
 # @commit should resolve
@@ -33,11 +32,11 @@ go install -x golang.org/x/text/language
 ! go get -d -x golang.org/x/text/foo@14c0d48
 
 # get pseudo-version should record that version
-go get rsc.io/quote@v0.0.0-20180214005840-23179ee8a569
+go get -d rsc.io/quote@v0.0.0-20180214005840-23179ee8a569
 grep 'rsc.io/quote v0.0.0-20180214005840-23179ee8a569' go.mod
 
 # but as commit should record as v1.5.1
-go get rsc.io/quote@23179ee8
+go get -d rsc.io/quote@23179ee8
 grep 'rsc.io/quote v1.5.1' go.mod
 
 # go mod edit -require does not interpret commits

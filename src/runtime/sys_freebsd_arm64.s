@@ -60,6 +60,9 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	MOVD	ut+24(FP), R4
 	MOVD	$SYS__umtx_op, R8
 	SVC
+	BCC	ok
+	NEG	R0, R0
+ok:
 	MOVW	R0, ret+32(FP)
 	RET
 
@@ -69,6 +72,9 @@ TEXT runtime·thr_new(SB),NOSPLIT,$0
 	MOVW	size+8(FP), R1
 	MOVD	$SYS_thr_new, R8
 	SVC
+	BCC	ok
+	NEG	R0, R0
+ok:
 	MOVW	R0, ret+16(FP)
 	RET
 
@@ -514,25 +520,4 @@ TEXT runtime·getCntxct(SB),NOSPLIT,$0
 	MRS	CNTVCT_EL0, R0
 
 	MOVW	R0, ret+8(FP)
-	RET
-
-// func getisar0() uint64
-TEXT runtime·getisar0(SB),NOSPLIT,$0
-	// get Instruction Set Attributes 0 into R0
-	MRS	ID_AA64ISAR0_EL1, R0
-	MOVD	R0, ret+0(FP)
-	RET
-
-// func getisar1() uint64
-TEXT runtime·getisar1(SB),NOSPLIT,$0
-	// get Instruction Set Attributes 1 into R0
-	MRS	ID_AA64ISAR1_EL1, R0
-	MOVD	R0, ret+0(FP)
-	RET
-
-// func getpfr0() uint64
-TEXT runtime·getpfr0(SB),NOSPLIT,$0
-	// get Processor Feature Register 0 into R0
-	MRS	ID_AA64PFR0_EL1, R0
-	MOVD	R0, ret+0(FP)
 	RET

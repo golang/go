@@ -104,7 +104,7 @@
 // If b3 is the primary predecessor of b2, then we use x3 in b2 and
 // add a x4:CX->BX copy at the end of b4.
 // But the definition of x3 doesn't dominate b2.  We should really
-// insert a dummy phi at the start of b2 (x5=phi(x3,x4):BX) to keep
+// insert an extra phi at the start of b2 (x5=phi(x3,x4):BX) to keep
 // SSA form. For now, we ignore this problem as remaining in strict
 // SSA form isn't needed after regalloc. We'll just leave the use
 // of x3 not dominated by the definition of x3, and the CX->BX copy
@@ -114,6 +114,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -588,7 +589,7 @@ func (s *regAllocState) init(f *Func) {
 	if s.f.Config.hasGReg {
 		s.allocatable &^= 1 << s.GReg
 	}
-	if s.f.Config.ctxt.Framepointer_enabled && s.f.Config.FPReg >= 0 {
+	if objabi.Framepointer_enabled && s.f.Config.FPReg >= 0 {
 		s.allocatable &^= 1 << uint(s.f.Config.FPReg)
 	}
 	if s.f.Config.LinkReg != -1 {
@@ -624,9 +625,6 @@ func (s *regAllocState) init(f *Func) {
 		default:
 			s.f.fe.Fatalf(src.NoXPos, "arch %s not implemented", s.f.Config.arch)
 		}
-	}
-	if s.f.Config.use387 {
-		s.allocatable &^= 1 << 15 // X7 disallowed (one 387 register is used as scratch space during SSE->387 generation in ../x86/387.go)
 	}
 
 	// Linear scan register allocation can be influenced by the order in which blocks appear.
@@ -785,9 +783,9 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
 		return 0
 	}
 	if t.IsFloat() || t == types.TypeInt128 {
-		if t.Etype == types.TFLOAT32 && s.f.Config.fp32RegMask != 0 {
+		if t.Kind() == types.TFLOAT32 && s.f.Config.fp32RegMask != 0 {
 			m = s.f.Config.fp32RegMask
-		} else if t.Etype == types.TFLOAT64 && s.f.Config.fp64RegMask != 0 {
+		} else if t.Kind() == types.TFLOAT64 && s.f.Config.fp64RegMask != 0 {
 			m = s.f.Config.fp64RegMask
 		} else {
 			m = s.f.Config.fpRegMask
@@ -1015,8 +1013,8 @@ func (s *regAllocState) regalloc(f *Func) {
 			// Copy phi ops into new schedule.
 			b.Values = append(b.Values, phis...)
 
-			// Third pass - pick registers for phis whose inputs
-			// were not in a register.
+			// Third pass - pick registers for phis whose input
+			// was not in a register in the primary predecessor.
 			for i, v := range phis {
 				if !s.values[v.ID].needReg {
 					continue
@@ -1024,10 +1022,25 @@ func (s *regAllocState) regalloc(f *Func) {
 				if phiRegs[i] != noRegister {
 					continue
 				}
-				if s.f.Config.use387 && v.Type.IsFloat() {
-					continue // 387 can't handle floats in registers between blocks
-				}
 				m := s.compatRegs(v.Type) &^ phiUsed &^ s.used
+				// If one of the other inputs of v is in a register, and the register is available,
+				// select this register, which can save some unnecessary copies.
+				for i, pe := range b.Preds {
+					if int32(i) == idx {
+						continue
+					}
+					ri := noRegister
+					for _, er := range s.endRegs[pe.b.ID] {
+						if er.v == s.orig[v.Args[i].ID] {
+							ri = er.r
+							break
+						}
+					}
+					if ri != noRegister && m>>ri&1 != 0 {
+						m = regMask(1) << ri
+						break
+					}
+				}
 				if m != 0 {
 					r := pickReg(m)
 					phiRegs[i] = r
@@ -1125,7 +1138,19 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 				rp, ok := s.f.getHome(v.ID).(*Register)
 				if !ok {
-					continue
+					// If v is not assigned a register, pick a register assigned to one of v's inputs.
+					// Hopefully v will get assigned that register later.
+					// If the inputs have allocated register information, add it to desired,
+					// which may reduce spill or copy operations when the register is available.
+					for _, a := range v.Args {
+						rp, ok = s.f.getHome(a.ID).(*Register)
+						if ok {
+							break
+						}
+					}
+					if !ok {
+						continue
+					}
 				}
 				desired.add(v.Args[pidx].ID, register(rp.num))
 			}
@@ -1224,7 +1249,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					// This forces later liveness analysis to make the
 					// value live at this point.
 					v.SetArg(0, s.makeSpill(a, b))
-				} else if _, ok := a.Aux.(GCNode); ok && vi.rematerializeable {
+				} else if _, ok := a.Aux.(*ir.Name); ok && vi.rematerializeable {
 					// Rematerializeable value with a gc.Node. This is the address of
 					// a stack object (e.g. an LEAQ). Keep the object live.
 					// Change it to VarLive, which is what plive expects for locals.
@@ -1528,11 +1553,6 @@ func (s *regAllocState) regalloc(f *Func) {
 			s.freeUseRecords = u
 		}
 
-		// Spill any values that can't live across basic block boundaries.
-		if s.f.Config.use387 {
-			s.freeRegs(s.f.Config.fpRegMask)
-		}
-
 		// If we are approaching a merge point and we are the primary
 		// predecessor of it, find live values that we use soon after
 		// the merge point and promote them to registers now.
@@ -1562,10 +1582,20 @@ func (s *regAllocState) regalloc(f *Func) {
 					continue
 				}
 				v := s.orig[vid]
-				if s.f.Config.use387 && v.Type.IsFloat() {
-					continue // 387 can't handle floats in registers between blocks
-				}
 				m := s.compatRegs(v.Type) &^ s.used
+				// Used desired register if available.
+			outerloop:
+				for _, e := range desired.entries {
+					if e.ID != v.ID {
+						continue
+					}
+					for _, r := range e.regs {
+						if r != noRegister && m>>r&1 != 0 {
+							m = regMask(1) << r
+							break outerloop
+						}
+					}
+				}
 				if m&^desired.avoid != 0 {
 					m &^= desired.avoid
 				}
@@ -1627,7 +1657,9 @@ func (s *regAllocState) regalloc(f *Func) {
 				// we'll rematerialize during the merge.
 				continue
 			}
-			//fmt.Printf("live-at-end spill for %s at %s\n", s.orig[e.ID], b)
+			if s.f.pass.debug > regDebug {
+				fmt.Printf("live-at-end spill for %s at %s\n", s.orig[e.ID], b)
+			}
 			spill := s.makeSpill(s.orig[e.ID], b)
 			s.spillLive[b.ID] = append(s.spillLive[b.ID], spill.ID)
 		}
@@ -2498,7 +2530,7 @@ func (s *regAllocState) computeLive() {
 		for _, b := range f.Blocks {
 			fmt.Printf("  %s:", b)
 			for _, x := range s.live[b.ID] {
-				fmt.Printf(" v%d", x.ID)
+				fmt.Printf(" v%d(%d)", x.ID, x.dist)
 				for _, e := range s.desired[b.ID].entries {
 					if e.ID != x.ID {
 						continue

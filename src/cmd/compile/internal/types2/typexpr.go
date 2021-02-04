@@ -31,7 +31,11 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 		if e.Value == "_" {
 			check.errorf(e, "cannot use _ as value or type")
 		} else {
-			check.errorf(e, "undeclared name: %s", e.Value)
+			if check.conf.CompilerErrorMessages {
+				check.errorf(e, "undefined: %s", e.Value)
+			} else {
+				check.errorf(e, "undeclared name: %s", e.Value)
+			}
 		}
 		return
 	}
@@ -52,12 +56,12 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 	}
 	assert(typ != nil)
 
-	// The object may be dot-imported: If so, remove its package from
-	// the map of unused dot imports for the respective file scope.
+	// The object may have been dot-imported.
+	// If so, mark the respective package as used.
 	// (This code is only needed for dot-imports. Without them,
 	// we only have to mark variables, see *Var case below).
-	if pkg := obj.Pkg(); pkg != check.pkg && pkg != nil {
-		delete(check.unusedDotImports[scope], pkg)
+	if pkgName := check.dotImportMap[dotImportKey{scope, obj}]; pkgName != nil {
+		pkgName.used = true
 	}
 
 	switch obj := obj.(type) {
@@ -107,7 +111,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 		x.mode = builtin
 
 	case *Nil:
-		x.mode = value
+		x.mode = nilvalue
 
 	default:
 		unreachable()
@@ -225,13 +229,13 @@ func isubst(x syntax.Expr, smap map[*syntax.Name]*syntax.Name) syntax.Expr {
 	case *syntax.ListExpr:
 		var elems []syntax.Expr
 		for i, elem := range n.ElemList {
-			Elem := isubst(elem, smap)
-			if Elem != elem {
+			new := isubst(elem, smap)
+			if new != elem {
 				if elems == nil {
 					elems = make([]syntax.Expr, len(n.ElemList))
 					copy(elems, n.ElemList)
 				}
-				elems[i] = Elem
+				elems[i] = new
 			}
 		}
 		if elems != nil {
@@ -306,14 +310,11 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 			// - only do this if we have the right number (otherwise an error is reported elsewhere)
 			if len(sig.rparams) == len(recvTParams) {
 				// We have a list of *TypeNames but we need a list of Types.
-				// While creating this list, also update type parameter pointer designation
-				// for each (*TypeParam) list entry, by copying the information from the
-				// receiver base type's type parameters.
 				list := make([]Type, len(sig.rparams))
 				for i, t := range sig.rparams {
-					t.typ.(*TypeParam).ptr = recvTParams[i].typ.(*TypeParam).ptr
 					list[i] = t.typ
 				}
+				smap := makeSubstMap(recvTParams, list)
 				for i, tname := range sig.rparams {
 					bound := recvTParams[i].typ.(*TypeParam).bound
 					// bound is (possibly) parameterized in the context of the
@@ -322,7 +323,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 					// TODO(gri) should we assume now that bounds always exist?
 					//           (no bound == empty interface)
 					if bound != nil {
-						bound = check.subst(tname.pos, bound, makeSubstMap(recvTParams, list))
+						bound = check.subst(tname.pos, bound, smap)
 						tname.typ.(*TypeParam).bound = bound
 					}
 				}
@@ -387,6 +388,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 				// as the method."
 				if T.obj.pkg != check.pkg {
 					err = "type not defined in this package"
+					if check.conf.CompilerErrorMessages {
+						check.errorf(recv.pos, "cannot define new methods on non-local type %s", recv.typ)
+						err = ""
+					}
 				} else {
 					switch u := optype(T.Under()).(type) {
 					case *Basic:
@@ -398,11 +403,17 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 						err = "pointer or interface type"
 					}
 				}
-			} else {
+			} else if T := t.Basic(); T != nil {
 				err = "basic or unnamed type"
+				if check.conf.CompilerErrorMessages {
+					check.errorf(recv.pos, "cannot define new methods on non-local type %s", recv.typ)
+					err = ""
+				}
+			} else {
+				check.errorf(recv.pos, "invalid receiver type %s", recv.typ)
 			}
 			if err != "" {
-				check.errorf(recv.pos, "invalid receiver %s (%s)", recv.typ, err)
+				check.errorf(recv.pos, "invalid receiver type %s (%s)", recv.typ, err)
 				// ok to continue
 			}
 		}
@@ -417,7 +428,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 // goTypeName returns the Go type name for typ and
 // removes any occurences of "types." from that name.
 func goTypeName(typ Type) string {
-	return strings.ReplaceAll(fmt.Sprintf("%T", typ), "types.", "")
+	return strings.Replace(fmt.Sprintf("%T", typ), "types.", "", -1) // strings.ReplaceAll is not available in Go 1.4
 }
 
 // typInternal drives type checking of types.
@@ -510,6 +521,12 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		typ.elem = check.varType(e.Elem)
 		return typ
 
+	case *syntax.DotsType:
+		// dots are handled explicitly where they are legal
+		// (array composite literals and parameter lists)
+		check.error(e, "invalid use of '...'")
+		check.use(e.Elem)
+
 	case *syntax.StructType:
 		typ := new(Struct)
 		def.setUnderlying(typ)
@@ -523,6 +540,9 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 			typ.base = check.varType(e.X)
 			return typ
 		}
+
+		check.errorf(e0, "%s is not a type", e0)
+		check.use(e0)
 
 	case *syntax.FuncType:
 		typ := new(Signature)
@@ -611,11 +631,8 @@ func (check *Checker) typOrNil(e syntax.Expr) Type {
 	case typexpr:
 		check.instantiatedOperand(&x)
 		return x.typ
-	case value:
-		if x.isNil() {
-			return nil
-		}
-		fallthrough
+	case nilvalue:
+		return nil
 	default:
 		check.errorf(&x, "%s is not a type", &x)
 	}
@@ -632,9 +649,9 @@ func (check *Checker) instantiatedType(x syntax.Expr, targs []syntax.Expr, def *
 		unreachable() // should have been caught by genericType
 	}
 
-	// create a new type Instance rather than instantiate the type
+	// create a new type instance rather than instantiate the type
 	// TODO(gri) should do argument number check here rather than
-	// when instantiating the type?
+	//           when instantiating the type?
 	typ := new(instance)
 	def.setUnderlying(typ)
 
@@ -795,7 +812,11 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 			// of a type list (f.Name.Value == "type").
 			name := f.Name.Value
 			if name == "_" {
-				check.errorf(f.Name, "invalid method name _")
+				if check.conf.CompilerErrorMessages {
+					check.errorf(f.Name, "methods must have a unique non-blank name")
+				} else {
+					check.errorf(f.Name, "invalid method name _")
+				}
 				continue // ignore
 			}
 
@@ -855,8 +876,8 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 	}
 
 	// sort for API stability
-	sort.Sort(byUniqueMethodName(ityp.methods))
-	sort.Stable(byUniqueTypeName(ityp.embeddeds))
+	sortMethods(ityp.methods)
+	sortTypes(ityp.embeddeds)
 
 	check.later(func() { check.completeInterface(iface.Pos(), ityp) })
 }
@@ -964,7 +985,7 @@ func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
 	}
 
 	if methods != nil {
-		sort.Sort(byUniqueMethodName(methods))
+		sortMethods(methods)
 		ityp.allMethods = methods
 	}
 	ityp.allTypes = allTypes
@@ -1008,6 +1029,10 @@ func intersect(x, y Type) (r Type) {
 	return NewSum(rtypes)
 }
 
+func sortTypes(list []Type) {
+	sort.Stable(byUniqueTypeName(list))
+}
+
 // byUniqueTypeName named type lists can be sorted by their unique type names.
 type byUniqueTypeName []Type
 
@@ -1022,15 +1047,29 @@ func sortName(t Type) string {
 	return ""
 }
 
+func sortMethods(list []*Func) {
+	sort.Sort(byUniqueMethodName(list))
+}
+
+func assertSortedMethods(list []*Func) {
+	if !debug {
+		panic("internal error: assertSortedMethods called outside debug mode")
+	}
+	if !sort.IsSorted(byUniqueMethodName(list)) {
+		panic("internal error: methods not sorted")
+	}
+}
+
 // byUniqueMethodName method lists can be sorted by their unique method names.
 type byUniqueMethodName []*Func
 
 func (a byUniqueMethodName) Len() int           { return len(a) }
-func (a byUniqueMethodName) Less(i, j int) bool { return a[i].Id() < a[j].Id() }
+func (a byUniqueMethodName) Less(i, j int) bool { return a[i].less(a[j]) }
 func (a byUniqueMethodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func (check *Checker) tag(t *syntax.BasicLit) string {
-	if t != nil {
+	// If t.Bad, an error was reported during parsing.
+	if t != nil && !t.Bad {
 		if t.Kind == syntax.StringLit {
 			if val, err := strconv.Unquote(t.Value); err == nil {
 				return val
@@ -1091,6 +1130,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 			typ = check.varType(f.Type)
 			prev = f.Type
 		}
+		tag = ""
 		if i < len(e.TagList) {
 			tag = check.tag(e.TagList[i])
 		}
@@ -1099,8 +1139,9 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 			add(f.Name, false, f.Name.Pos())
 		} else {
 			// embedded field
-			// spec: "An embedded type must be specified as a (possibly parenthesized) type name T or
-			// as a pointer to a non-interface type name *T, and T itself may not be a pointer type."
+			// spec: "An embedded type must be specified as a type name T or as a
+			// pointer to a non-interface type name *T, and T itself may not be a
+			// pointer type."
 			pos := startPos(f.Type)
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
@@ -1110,6 +1151,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 				continue
 			}
 			add(name, true, pos)
+
 			// Because we have a name, typ must be of the form T or *T, where T is the name
 			// of a (named or alias) type, and t (= deref(typ)) must be the type of T.
 			// We must delay this check to the end because we don't want to instantiate
@@ -1171,34 +1213,21 @@ func (check *Checker) collectTypeConstraints(pos syntax.Pos, types []syntax.Expr
 			check.invalidASTf(pos, "missing type constraint")
 			continue
 		}
-		typ := check.varType(texpr)
-		// A type constraint may be a predeclared type or a
-		// composite type composed of only predeclared types.
-		// TODO(gri) If we enable this again it also must run
-		// at the end.
-		const restricted = false
-		var why string
-		if restricted && !check.typeConstraint(typ, &why) {
-			check.errorf(texpr, "invalid type constraint %s (%s)", typ, why)
-			continue
-		}
-		list = append(list, typ)
+		list = append(list, check.varType(texpr))
 	}
 
-	// Ensure that each type is only present once in the type list.
-	// Types may be interfaces, which may not be complete yet. It's
-	// ok to do this check at the end because it's not a requirement
-	// for correctness of the code.
+	// Ensure that each type is only present once in the type list.  Types may be
+	// interfaces, which may not be complete yet. It's ok to do this check at the
+	// end because it's not a requirement for correctness of the code.
+	// Note: This is a quadratic algorithm, but type lists tend to be short.
 	check.atEnd(func() {
-		uniques := make([]Type, 0, len(list)) // assume all types are unique
 		for i, t := range list {
 			if t := t.Interface(); t != nil {
 				check.completeInterface(types[i].Pos(), t)
 			}
-			if includes(uniques, t) {
+			if includes(list[:i], t) {
 				check.softErrorf(types[i], "duplicate type %s in type list", t)
 			}
-			uniques = append(uniques, t)
 		}
 	})
 
@@ -1213,62 +1242,6 @@ func includes(list []Type, typ Type) bool {
 		}
 	}
 	return false
-}
-
-// typeConstraint checks that typ may be used in a type list.
-// For now this just checks for the absence of defined (*Named) types.
-func (check *Checker) typeConstraint(typ Type, why *string) bool {
-	switch t := typ.(type) {
-	case *Basic:
-		// ok
-	case *Array:
-		return check.typeConstraint(t.elem, why)
-	case *Slice:
-		return check.typeConstraint(t.elem, why)
-	case *Struct:
-		for _, f := range t.fields {
-			if !check.typeConstraint(f.typ, why) {
-				return false
-			}
-		}
-	case *Pointer:
-		return check.typeConstraint(t.base, why)
-	case *Tuple:
-		if t == nil {
-			return true
-		}
-		for _, v := range t.vars {
-			if !check.typeConstraint(v.typ, why) {
-				return false
-			}
-		}
-	case *Signature:
-		if len(t.tparams) != 0 {
-			panic("type parameter in function type")
-		}
-		return (t.recv == nil || check.typeConstraint(t.recv.typ, why)) &&
-			check.typeConstraint(t.params, why) &&
-			check.typeConstraint(t.results, why)
-	case *Interface:
-		t.assertCompleteness()
-		for _, m := range t.allMethods {
-			if !check.typeConstraint(m.typ, why) {
-				return false
-			}
-		}
-	case *Map:
-		return check.typeConstraint(t.key, why) && check.typeConstraint(t.elem, why)
-	case *Chan:
-		return check.typeConstraint(t.elem, why)
-	case *Named:
-		*why = check.sprintf("contains defined type %s", t)
-		return false
-	case *TypeParam:
-		// ok, e.g.: func f (type T interface { type T }) ()
-	default:
-		unreachable()
-	}
-	return true
 }
 
 func ptrBase(x *syntax.Operation) syntax.Expr {

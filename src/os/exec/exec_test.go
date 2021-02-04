@@ -15,7 +15,6 @@ import (
 	"internal/poll"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -386,7 +385,7 @@ func TestPipeLookPathLeak(t *testing.T) {
 	// Reading /proc/self/fd is more reliable than calling lsof, so try that
 	// first.
 	numOpenFDs := func() (int, []byte, error) {
-		fds, err := ioutil.ReadDir("/proc/self/fd")
+		fds, err := os.ReadDir("/proc/self/fd")
 		if err != nil {
 			return 0, nil, err
 		}
@@ -605,6 +604,10 @@ func TestExtraFiles(t *testing.T) {
 	testenv.MustHaveExec(t)
 	testenv.MustHaveGoBuild(t)
 
+	// This test runs with cgo disabled. External linking needs cgo, so
+	// it doesn't work if external linking is required.
+	testenv.MustInternalLink(t)
+
 	if runtime.GOOS == "windows" {
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
@@ -633,7 +636,7 @@ func TestExtraFiles(t *testing.T) {
 	// cgo), to make sure none of that potential C code leaks fds.
 	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	// quiet expected TLS handshake error "remote error: bad certificate"
-	ts.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
+	ts.Config.ErrorLog = log.New(io.Discard, "", 0)
 	ts.StartTLS()
 	defer ts.Close()
 	_, err = http.Get(ts.URL)
@@ -641,7 +644,7 @@ func TestExtraFiles(t *testing.T) {
 		t.Errorf("success trying to fetch %s; want an error", ts.URL)
 	}
 
-	tf, err := ioutil.TempFile("", "")
+	tf, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("TempFile: %v", err)
 	}
@@ -687,6 +690,18 @@ func TestExtraFiles(t *testing.T) {
 	c.Stdout = &stdout
 	c.Stderr = &stderr
 	c.ExtraFiles = []*os.File{tf}
+	if runtime.GOOS == "illumos" {
+		// Some facilities in illumos are implemented via access
+		// to /proc by libc; such accesses can briefly occupy a
+		// low-numbered fd.  If this occurs concurrently with the
+		// test that checks for leaked descriptors, the check can
+		// become confused and report a spurious leaked descriptor.
+		// (See issue #42431 for more detailed analysis.)
+		//
+		// Attempt to constrain the use of additional threads in the
+		// child process to make this test less flaky:
+		c.Env = append(os.Environ(), "GOMAXPROCS=1")
+	}
 	err = c.Run()
 	if err != nil {
 		t.Fatalf("Run: %v\n--- stdout:\n%s--- stderr:\n%s", err, stdout.Bytes(), stderr.Bytes())
@@ -826,7 +841,7 @@ func TestHelperProcess(*testing.T) {
 			}
 		}
 	case "stdinClose":
-		b, err := ioutil.ReadAll(os.Stdin)
+		b, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)

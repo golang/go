@@ -558,8 +558,8 @@ func (r *negativeEOFReader) Read(p []byte) (int, error) {
 	return -1, io.EOF
 }
 
-// Test that the scanner doesn't panic on a reader that returns a
-// negative count of bytes read (issue 38053).
+// Test that the scanner doesn't panic and returns ErrBadReadCount
+// on a reader that returns a negative count of bytes read (issue 38053).
 func TestNegativeEOFReader(t *testing.T) {
 	r := negativeEOFReader(10)
 	scanner := NewScanner(&r)
@@ -571,8 +571,8 @@ func TestNegativeEOFReader(t *testing.T) {
 			break
 		}
 	}
-	if scanner.Err() == nil {
-		t.Error("scanner.Err returned nil, expected an error")
+	if got, want := scanner.Err(), ErrBadReadCount; got != want {
+		t.Errorf("scanner.Err: got %v, want %v", got, want)
 	}
 }
 
@@ -584,11 +584,13 @@ func (largeReader) Read(p []byte) (int, error) {
 	return len(p) + 1, nil
 }
 
+// Test that the scanner doesn't panic and returns ErrBadReadCount
+// on a reader that returns an impossibly large count of bytes read (issue 38053).
 func TestLargeReader(t *testing.T) {
 	scanner := NewScanner(largeReader{})
 	for scanner.Scan() {
 	}
-	if scanner.Err() == nil {
-		t.Error("scanner.Err returned nil, expected an error")
+	if got, want := scanner.Err(), ErrBadReadCount; got != want {
+		t.Errorf("scanner.Err: got %v, want %v", got, want)
 	}
 }

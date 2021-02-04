@@ -8,7 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,10 +34,10 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 
 	const (
 		cmdfile             = `printdir.cmd`
-		perm    os.FileMode = 0700
+		perm    fs.FileMode = 0700
 	)
 
-	tmp, err := ioutil.TempDir("", "testWinSplitListTestIsValid")
+	tmp, err := os.MkdirTemp("", "testWinSplitListTestIsValid")
 	if err != nil {
 		t.Fatalf("TempDir failed: %v", err)
 	}
@@ -62,7 +62,7 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 			return
 		}
 		fn, data := filepath.Join(dd, cmdfile), []byte("@echo "+d+"\r\n")
-		if err = ioutil.WriteFile(fn, data, perm); err != nil {
+		if err = os.WriteFile(fn, data, perm); err != nil {
 			t.Errorf("%d,%d: WriteFile(%#q) failed: %v", ti, i, fn, err)
 			return
 		}
@@ -103,7 +103,7 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 func TestWindowsEvalSymlinks(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpDir, err := ioutil.TempDir("", "TestWindowsEvalSymlinks")
+	tmpDir, err := os.MkdirTemp("", "TestWindowsEvalSymlinks")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,13 +161,13 @@ func TestWindowsEvalSymlinks(t *testing.T) {
 // TestEvalSymlinksCanonicalNames verify that EvalSymlinks
 // returns "canonical" path names on windows.
 func TestEvalSymlinksCanonicalNames(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "evalsymlinkcanonical")
+	tmp, err := os.MkdirTemp("", "evalsymlinkcanonical")
 	if err != nil {
 		t.Fatal("creating temp dir:", err)
 	}
 	defer os.RemoveAll(tmp)
 
-	// ioutil.TempDir might return "non-canonical" name.
+	// os.MkdirTemp might return "non-canonical" name.
 	cTmpName, err := filepath.EvalSymlinks(tmp)
 	if err != nil {
 		t.Errorf("EvalSymlinks(%q) error: %v", tmp, err)
@@ -412,9 +412,12 @@ func TestToNorm(t *testing.T) {
 		{`{{tmp}}\test`, `.\foo\bar`, `foo\bar`},
 		{`{{tmp}}\test`, `foo\..\foo\bar`, `foo\bar`},
 		{`{{tmp}}\test`, `FOO\BAR`, `foo\bar`},
+
+		// test UNC paths
+		{".", `\\localhost\c$`, `\\localhost\c$`},
 	}
 
-	tmp, err := ioutil.TempDir("", "testToNorm")
+	tmp, err := os.MkdirTemp("", "testToNorm")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -425,7 +428,7 @@ func TestToNorm(t *testing.T) {
 		}
 	}()
 
-	// ioutil.TempDir might return "non-canonical" name.
+	// os.MkdirTemp might return "non-canonical" name.
 	ctmp, err := filepath.EvalSymlinks(tmp)
 	if err != nil {
 		t.Fatal(err)
@@ -523,7 +526,7 @@ func TestNTNamespaceSymlink(t *testing.T) {
 		t.Skip("skipping test because mklink command does not support junctions")
 	}
 
-	tmpdir, err := ioutil.TempDir("", "TestNTNamespaceSymlink")
+	tmpdir, err := os.MkdirTemp("", "TestNTNamespaceSymlink")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -560,7 +563,7 @@ func TestNTNamespaceSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
 	file := filepath.Join(tmpdir, "file")
-	err = ioutil.WriteFile(file, []byte(""), 0666)
+	err = os.WriteFile(file, []byte(""), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}

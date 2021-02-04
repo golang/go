@@ -76,7 +76,15 @@ func Len64(n uint64) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
+	// ppc64le:"SUBC","CNTLZD"
+	// ppc64:"SUBC","CNTLZD"
 	return bits.Len64(n)
+}
+
+func SubFromLen64(n uint64) int {
+	// ppc64le:"CNTLZD",-"SUBC"
+	// ppc64:"CNTLZD",-"SUBC"
+	return 64 - bits.Len64(n)
 }
 
 func Len32(n uint32) int {
@@ -205,7 +213,7 @@ func RotateLeft64(n uint64) uint64 {
 	// arm64:"ROR"
 	// ppc64:"ROTL"
 	// ppc64le:"ROTL"
-	// s390x:"RLLG"
+	// s390x:"RISBGZ\t[$]0, [$]63, [$]37, "
 	// wasm:"I64Rotl"
 	return bits.RotateLeft64(n, 37)
 }
@@ -289,6 +297,12 @@ func TrailingZeros64(n uint64) int {
 	// ppc64le/power9: "CNTTZD"
 	// wasm:"I64Ctz"
 	return bits.TrailingZeros64(n)
+}
+
+func TrailingZeros64Subtract(n uint64) int {
+	// ppc64le/power8:"NEG","SUBC","ANDN","POPCNTD"
+	// ppc64le/power9:"SUBC","CNTTZD"
+	return bits.TrailingZeros64(1 - n)
 }
 
 func TrailingZeros32(n uint32) int {

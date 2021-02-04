@@ -1,3 +1,4 @@
+// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -16,12 +17,13 @@ import (
 
 // A declInfo describes a package-level const, type, var, or func declaration.
 type declInfo struct {
-	file  *Scope           // scope of file containing this declaration
-	lhs   []*Var           // lhs of n:1 variable declarations, or nil
-	vtyp  syntax.Expr      // type, or nil (for const and var declarations only)
-	init  syntax.Expr      // init/orig expression, or nil (for const and var declarations only)
-	tdecl *syntax.TypeDecl // type declaration, or nil
-	fdecl *syntax.FuncDecl // func declaration, or nil
+	file      *Scope           // scope of file containing this declaration
+	lhs       []*Var           // lhs of n:1 variable declarations, or nil
+	vtyp      syntax.Expr      // type, or nil (for const and var declarations only)
+	init      syntax.Expr      // init/orig expression, or nil (for const and var declarations only)
+	inherited bool             // if set, the init expression is inherited from a previous constant declaration
+	tdecl     *syntax.TypeDecl // type declaration, or nil
+	fdecl     *syntax.FuncDecl // func declaration, or nil
 
 	// The deps field tracks initialization expression dependencies.
 	deps map[Object]bool // lazily initialized
@@ -234,6 +236,9 @@ func (check *Checker) collectObjects() {
 			switch s := decl.(type) {
 			case *syntax.ImportDecl:
 				// import package
+				if s.Path == nil || s.Path.Bad {
+					continue // error reported during parsing
+				}
 				path, err := validatedImportPath(s.Path.Value)
 				if err != nil {
 					check.errorf(s.Path, "invalid import path (%s)", err)
@@ -245,14 +250,6 @@ func (check *Checker) collectObjects() {
 					continue
 				}
 
-				// add package to list of explicit imports
-				// (this functionality is provided as a convenience
-				// for clients; it is not needed for type-checking)
-				if !pkgImports[imp] {
-					pkgImports[imp] = true
-					pkg.imports = append(pkg.imports, imp)
-				}
-
 				// local name overrides imported package name
 				name := imp.name
 				if s.LocalPkgName != nil {
@@ -262,27 +259,41 @@ func (check *Checker) collectObjects() {
 						check.errorf(s.LocalPkgName, `cannot rename import "C"`)
 						continue
 					}
-					if name == "init" {
-						check.errorf(s.LocalPkgName, "cannot declare init - must be func")
-						continue
-					}
 				}
 
-				obj := NewPkgName(s.Pos(), pkg, name, imp)
+				if name == "init" {
+					check.errorf(s.LocalPkgName, "cannot import package as init - init must be a func")
+					continue
+				}
+
+				// add package to list of explicit imports
+				// (this functionality is provided as a convenience
+				// for clients; it is not needed for type-checking)
+				if !pkgImports[imp] {
+					pkgImports[imp] = true
+					pkg.imports = append(pkg.imports, imp)
+				}
+
+				pkgName := NewPkgName(s.Pos(), pkg, name, imp)
 				if s.LocalPkgName != nil {
 					// in a dot-import, the dot represents the package
-					check.recordDef(s.LocalPkgName, obj)
+					check.recordDef(s.LocalPkgName, pkgName)
 				} else {
-					check.recordImplicit(s, obj)
+					check.recordImplicit(s, pkgName)
 				}
 
 				if path == "C" {
 					// match cmd/compile (not prescribed by spec)
-					obj.used = true
+					pkgName.used = true
 				}
 
 				// add import to file scope
+				check.imports = append(check.imports, pkgName)
 				if name == "." {
+					// dot-import
+					if check.dotImportMap == nil {
+						check.dotImportMap = make(map[dotImportKey]*PkgName)
+					}
 					// merge imported scope with file scope
 					for _, obj := range imp.scope.elems {
 						// A package scope may contain non-exported objects,
@@ -296,16 +307,15 @@ func (check *Checker) collectObjects() {
 							if alt := fileScope.Insert(obj); alt != nil {
 								check.errorf(s.LocalPkgName, "%s redeclared in this block", obj.Name())
 								check.reportAltDecl(alt)
+							} else {
+								check.dotImportMap[dotImportKey{fileScope, obj}] = pkgName
 							}
 						}
 					}
-					// add position to set of dot-import positions for this file
-					// (this is only needed for "imported but not used" errors)
-					check.addUnusedDotImport(fileScope, imp, s.Pos())
 				} else {
 					// declare imported package object in file scope
 					// (no need to provide s.LocalPkgName since we called check.recordDef earlier)
-					check.declare(fileScope, nil, obj, nopos)
+					check.declare(fileScope, nil, pkgName, nopos)
 				}
 
 			case *syntax.ConstDecl:
@@ -337,7 +347,7 @@ func (check *Checker) collectObjects() {
 						init = values[i]
 					}
 
-					d := &declInfo{file: fileScope, vtyp: last.Type, init: init}
+					d := &declInfo{file: fileScope, vtyp: last.Type, init: init, inherited: inherited}
 					check.declarePkgObj(name, obj, d)
 				}
 
@@ -392,15 +402,16 @@ func (check *Checker) collectObjects() {
 				obj := NewFunc(d.Name.Pos(), pkg, name, nil)
 				if d.Recv == nil {
 					// regular function
-					if name == "init" {
+					if name == "init" || name == "main" && pkg.name == "main" {
 						if d.TParamList != nil {
-							//check.softErrorf(d.TParamList.Pos(), "func init must have no type parameters")
-							check.softErrorf(d.Name, "func init must have no type parameters")
+							check.softErrorf(d, "func %s must have no type parameters", name)
 						}
 						if t := d.Type; len(t.ParamList) != 0 || len(t.ResultList) != 0 {
-							check.softErrorf(d, "func init must have no arguments and no return values")
+							check.softErrorf(d, "func %s must have no arguments and no return values", name)
 						}
-						// don't declare init functions in the package scope - they are invisible
+					}
+					// don't declare init functions in the package scope - they are invisible
+					if name == "init" {
 						obj.parent = pkg.scope
 						check.recordDef(d.Name, obj)
 						// init functions must have a body
@@ -490,11 +501,13 @@ L: // unpack receiver type
 		case *syntax.ParenExpr:
 			rtyp = t.X
 		// case *ast.StarExpr:
+		//      ptr = true
 		// 	rtyp = t.X
 		case *syntax.Operation:
 			if t.Op != syntax.Mul || t.Y != nil {
 				break
 			}
+			ptr = true
 			rtyp = t.X
 		default:
 			break L
@@ -518,7 +531,7 @@ L: // unpack receiver type
 					check.errorf(arg, "receiver type parameter %s must be an identifier", arg)
 				}
 				if par == nil {
-					par = newName(arg.Pos(), "_")
+					par = syntax.NewName(arg.Pos(), "_")
 				}
 				tparams = append(tparams, par)
 			}
@@ -665,39 +678,38 @@ func (check *Checker) unusedImports() {
 	// any of its exported identifiers. To import a package solely for its side-effects
 	// (initialization), use the blank identifier as explicit package name."
 
-	// check use of regular imported packages
-	for _, scope := range check.pkg.scope.children /* file scopes */ {
-		for _, obj := range scope.elems {
-			if obj, ok := obj.(*PkgName); ok {
-				// Unused "blank imports" are automatically ignored
-				// since _ identifiers are not entered into scopes.
-				if !obj.used {
-					path := obj.imported.path
-					base := pkgName(path)
-					if obj.name == base {
-						check.softErrorf(obj.pos, "%q imported but not used", path)
-					} else {
-						check.softErrorf(obj.pos, "%q imported but not used as %s", path, obj.name)
-					}
-				}
-			}
-		}
-	}
-
-	// check use of dot-imported packages
-	for _, unusedDotImports := range check.unusedDotImports {
-		for pkg, pos := range unusedDotImports {
-			check.softErrorf(pos, "%q imported but not used", pkg.path)
+	for _, obj := range check.imports {
+		if !obj.used && obj.name != "_" {
+			check.errorUnusedPkg(obj)
 		}
 	}
 }
 
-// pkgName returns the package name (last element) of an import path.
-func pkgName(path string) string {
-	if i := strings.LastIndex(path, "/"); i >= 0 {
-		path = path[i+1:]
+func (check *Checker) errorUnusedPkg(obj *PkgName) {
+	// If the package was imported with a name other than the final
+	// import path element, show it explicitly in the error message.
+	// Note that this handles both renamed imports and imports of
+	// packages containing unconventional package declarations.
+	// Note that this uses / always, even on Windows, because Go import
+	// paths always use forward slashes.
+	path := obj.imported.path
+	elem := path
+	if i := strings.LastIndex(elem, "/"); i >= 0 {
+		elem = elem[i+1:]
 	}
-	return path
+	if obj.name == "" || obj.name == "." || obj.name == elem {
+		if check.conf.CompilerErrorMessages {
+			check.softErrorf(obj, "imported and not used: %q", path)
+		} else {
+			check.softErrorf(obj, "%q imported but not used", path)
+		}
+	} else {
+		if check.conf.CompilerErrorMessages {
+			check.softErrorf(obj, "imported and not used: %q as %s", path, obj.name)
+		} else {
+			check.softErrorf(obj, "%q imported but not used as %s", path, obj.name)
+		}
+	}
 }
 
 // dir makes a good-faith attempt to return the directory

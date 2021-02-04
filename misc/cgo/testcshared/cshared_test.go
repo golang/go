@@ -7,6 +7,8 @@ package cshared_test
 import (
 	"bytes"
 	"debug/elf"
+	"debug/pe"
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -98,7 +100,7 @@ func testMain(m *testing.M) int {
 	}
 
 	switch GOOS {
-	case "darwin":
+	case "darwin", "ios":
 		// For Darwin/ARM.
 		// TODO(crawshaw): can we do better?
 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
@@ -107,7 +109,7 @@ func testMain(m *testing.M) int {
 	}
 	libgodir := GOOS + "_" + GOARCH
 	switch GOOS {
-	case "darwin":
+	case "darwin", "ios":
 		if GOARCH == "arm64" {
 			libgodir += "_shared"
 		}
@@ -355,6 +357,101 @@ func TestExportedSymbols(t *testing.T) {
 	}
 }
 
+func checkNumberOfExportedFunctionsWindows(t *testing.T, exportAllSymbols bool) {
+	const prog = `
+package main
+
+import "C"
+
+//export GoFunc
+func GoFunc() {
+	println(42)
+}
+
+//export GoFunc2
+func GoFunc2() {
+	println(24)
+}
+
+func main() {
+}
+`
+
+	tmpdir := t.TempDir()
+
+	srcfile := filepath.Join(tmpdir, "test.go")
+	objfile := filepath.Join(tmpdir, "test.dll")
+	if err := ioutil.WriteFile(srcfile, []byte(prog), 0666); err != nil {
+		t.Fatal(err)
+	}
+	argv := []string{"build", "-buildmode=c-shared"}
+	if exportAllSymbols {
+		argv = append(argv, "-ldflags", "-extldflags=-Wl,--export-all-symbols")
+	}
+	argv = append(argv, "-o", objfile, srcfile)
+	out, err := exec.Command("go", argv...).CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failure: %s\n%s\n", err, string(out))
+	}
+
+	f, err := pe.Open(objfile)
+	if err != nil {
+		t.Fatalf("pe.Open failed: %v", err)
+	}
+	defer f.Close()
+	section := f.Section(".edata")
+	if section == nil {
+		t.Fatalf(".edata section is not present")
+	}
+
+	// TODO: deduplicate this struct from cmd/link/internal/ld/pe.go
+	type IMAGE_EXPORT_DIRECTORY struct {
+		_                 [2]uint32
+		_                 [2]uint16
+		_                 [2]uint32
+		NumberOfFunctions uint32
+		NumberOfNames     uint32
+		_                 [3]uint32
+	}
+	var e IMAGE_EXPORT_DIRECTORY
+	if err := binary.Read(section.Open(), binary.LittleEndian, &e); err != nil {
+		t.Fatalf("binary.Read failed: %v", err)
+	}
+
+	// Only the two exported functions and _cgo_dummy_export should be exported
+	expectedNumber := uint32(3)
+
+	if exportAllSymbols {
+		if e.NumberOfFunctions <= expectedNumber {
+			t.Fatalf("missing exported functions: %v", e.NumberOfFunctions)
+		}
+		if e.NumberOfNames <= expectedNumber {
+			t.Fatalf("missing exported names: %v", e.NumberOfNames)
+		}
+	} else {
+		if e.NumberOfFunctions != expectedNumber {
+			t.Fatalf("got %d exported functions; want %d", e.NumberOfFunctions, expectedNumber)
+		}
+		if e.NumberOfNames != expectedNumber {
+			t.Fatalf("got %d exported names; want %d", e.NumberOfNames, expectedNumber)
+		}
+	}
+}
+
+func TestNumberOfExportedFunctions(t *testing.T) {
+	if GOOS != "windows" {
+		t.Skip("skipping windows only test")
+	}
+	t.Parallel()
+
+	t.Run("OnlyExported", func(t *testing.T) {
+		checkNumberOfExportedFunctionsWindows(t, false)
+	})
+	t.Run("All", func(t *testing.T) {
+		checkNumberOfExportedFunctionsWindows(t, true)
+	})
+}
+
 // test1: shared library can be dynamically loaded and exported symbols are accessible.
 func TestExportedSymbolsWithDynamicLoad(t *testing.T) {
 	t.Parallel()
@@ -407,7 +504,7 @@ func TestUnexportedSymbols(t *testing.T) {
 	adbPush(t, libname)
 
 	linkFlags := "-Wl,--no-as-needed"
-	if GOOS == "darwin" {
+	if GOOS == "darwin" || GOOS == "ios" {
 		linkFlags = ""
 	}
 
@@ -636,7 +733,7 @@ func copyFile(t *testing.T, dst, src string) {
 
 func TestGo2C2Go(t *testing.T) {
 	switch GOOS {
-	case "darwin":
+	case "darwin", "ios":
 		// Darwin shared libraries don't support the multiple
 		// copies of the runtime package implied by this test.
 		t.Skip("linking c-shared into Go programs not supported on Darwin; issue 29061")

@@ -12,26 +12,14 @@ import (
 	"cmd/internal/objabi"
 	"errors"
 	"fmt"
-	"os/exec"
+	exec "internal/execabs"
 	"sort"
 	"strconv"
 	"strings"
 )
 
-// TODO(go115newobj): clean up. Some constant prefixes here are no longer
-// needed in the new object files.
-
 // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
 const InfoPrefix = "go.info."
-
-// RangePrefix is the prefix for all the symbols containing DWARF location lists.
-const LocPrefix = "go.loc."
-
-// RangePrefix is the prefix for all the symbols containing DWARF range lists.
-const RangePrefix = "go.range."
-
-// DebugLinesPrefix is the prefix for all the symbols containing DWARF debug_line information from the compiler.
-const DebugLinesPrefix = "go.debuglines."
 
 // ConstInfoPrefix is the prefix for all symbols containing DWARF info
 // entries that contain constants.
@@ -113,26 +101,26 @@ func EnableLogging(doit bool) {
 	logDwarf = doit
 }
 
-// UnifyRanges merges the list of ranges of c into the list of ranges of s
-func (s *Scope) UnifyRanges(c *Scope) {
-	out := make([]Range, 0, len(s.Ranges)+len(c.Ranges))
-
+// MergeRanges creates a new range list by merging the ranges from
+// its two arguments, then returns the new list.
+func MergeRanges(in1, in2 []Range) []Range {
+	out := make([]Range, 0, len(in1)+len(in2))
 	i, j := 0, 0
 	for {
 		var cur Range
-		if i < len(s.Ranges) && j < len(c.Ranges) {
-			if s.Ranges[i].Start < c.Ranges[j].Start {
-				cur = s.Ranges[i]
+		if i < len(in2) && j < len(in1) {
+			if in2[i].Start < in1[j].Start {
+				cur = in2[i]
 				i++
 			} else {
-				cur = c.Ranges[j]
+				cur = in1[j]
 				j++
 			}
-		} else if i < len(s.Ranges) {
-			cur = s.Ranges[i]
+		} else if i < len(in2) {
+			cur = in2[i]
 			i++
-		} else if j < len(c.Ranges) {
-			cur = c.Ranges[j]
+		} else if j < len(in1) {
+			cur = in1[j]
 			j++
 		} else {
 			break
@@ -145,7 +133,12 @@ func (s *Scope) UnifyRanges(c *Scope) {
 		}
 	}
 
-	s.Ranges = out
+	return out
+}
+
+// UnifyRanges merges the ranges from 'c' into the list of ranges for 's'.
+func (s *Scope) UnifyRanges(c *Scope) {
+	s.Ranges = MergeRanges(s.Ranges, c.Ranges)
 }
 
 // AppendRange adds r to s, if r is non-empty.
@@ -390,7 +383,7 @@ func expandPseudoForm(form uint8) uint8 {
 		return form
 	}
 	expandedForm := DW_FORM_udata
-	if objabi.GOOS == "darwin" {
+	if objabi.GOOS == "darwin" || objabi.GOOS == "ios" {
 		expandedForm = DW_FORM_data4
 	}
 	return uint8(expandedForm)
@@ -398,9 +391,9 @@ func expandPseudoForm(form uint8) uint8 {
 
 // Abbrevs() returns the finalized abbrev array for the platform,
 // expanding any DW_FORM pseudo-ops to real values.
-func Abbrevs() [DW_NABRV]dwAbbrev {
+func Abbrevs() []dwAbbrev {
 	if abbrevsFinalized {
-		return abbrevs
+		return abbrevs[:]
 	}
 	for i := 1; i < DW_NABRV; i++ {
 		for j := 0; j < len(abbrevs[i].attr); j++ {
@@ -408,7 +401,7 @@ func Abbrevs() [DW_NABRV]dwAbbrev {
 		}
 	}
 	abbrevsFinalized = true
-	return abbrevs
+	return abbrevs[:]
 }
 
 // abbrevs is a raw table of abbrev entries; it needs to be post-processed

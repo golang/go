@@ -28,7 +28,7 @@ func makeSubstMap(tpars []*TypeName, targs []Type) *substMap {
 	assert(len(tpars) == len(targs))
 	proj := make(map[*TypeParam]Type, len(tpars))
 	for i, tpar := range tpars {
-		// We must expand type arguments otherwise *Instance
+		// We must expand type arguments otherwise *instance
 		// types end up as components in composite types.
 		// TODO(gri) explain why this causes problems, if it does
 		targ := expand(targs[i]) // possibly nil
@@ -70,7 +70,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
 		}()
 	}
 
-	assert(poslist == nil || len(poslist) <= len(targs))
+	assert(len(poslist) <= len(targs))
 
 	// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
 	var tparams []*TypeName
@@ -80,9 +80,10 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
 	case *Signature:
 		tparams = t.tparams
 		defer func() {
-			// If we had an unexpected failure somewhere don't
-			// panic below when asserting res.(*Signature).
-			if res == nil {
+			// If we had an unexpected failure somewhere don't panic below when
+			// asserting res.(*Signature). Check for *Signature in case Typ[Invalid]
+			// is returned.
+			if _, ok := res.(*Signature); !ok {
 				return
 			}
 			// If the signature doesn't use its type parameters, subst
@@ -142,29 +143,17 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
 		// - check only if we have methods
 		check.completeInterface(nopos, iface)
 		if len(iface.allMethods) > 0 {
-			// If the type argument is a type parameter itself, its pointer designation
-			// must match the pointer designation of the callee's type parameter.
 			// If the type argument is a pointer to a type parameter, the type argument's
 			// method set is empty.
 			// TODO(gri) is this what we want? (spec question)
-			if tparg := targ.TypeParam(); tparg != nil {
-				if tparg.ptr != tpar.ptr {
-					check.errorf(pos, "pointer designation mismatch")
-					break
-				}
-			} else if base, isPtr := deref(targ); isPtr && base.TypeParam() != nil {
+			if base, isPtr := deref(targ); isPtr && base.TypeParam() != nil {
 				check.errorf(pos, "%s has no methods", targ)
 				break
 			}
-			// If a type parameter is marked as a pointer type, the type bound applies
-			// to a pointer of the type argument.
-			actual := targ
-			if tpar.ptr {
-				actual = NewPointer(targ)
-			}
-			if m, wrong := check.missingMethod(actual, iface, true); m != nil {
+			if m, wrong := check.missingMethod(targ, iface, true); m != nil {
 				// TODO(gri) needs to print updated name to avoid major confusion in error message!
 				//           (print warning for now)
+				// Old warning:
 				// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)
 				if m.name == "==" {
 					// We don't want to report "missing method ==".
@@ -187,7 +176,6 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
 		if iface.allTypes == nil {
 			continue // nothing to do
 		}
-		// iface.allTypes != nil
 
 		// If targ is itself a type parameter, each of its possible types, but at least one, must be in the
 		// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
@@ -290,7 +278,9 @@ func (subst *subster) typ(typ Type) Type {
 		results := subst.tuple(t.results)
 		if recv != t.recv || params != t.params || results != t.results {
 			return &Signature{
-				rparams:  t.rparams,
+				rparams: t.rparams,
+				// TODO(gri) Why can't we nil out tparams here, rather than in
+				//           instantiate above?
 				tparams:  t.tparams,
 				scope:    t.scope,
 				recv:     recv,
@@ -355,7 +345,6 @@ func (subst *subster) typ(typ Type) Type {
 		var new_targs []Type
 
 		if len(t.targs) > 0 {
-
 			// already instantiated
 			dump(">>> %s already instantiated", t)
 			assert(len(t.targs) == len(t.tparams))
@@ -379,13 +368,10 @@ func (subst *subster) typ(typ Type) Type {
 				dump(">>> nothing to substitute in %s", t)
 				return t // nothing to substitute
 			}
-
 		} else {
-
 			// not yet instantiated
 			dump(">>> first instantiation of %s", t)
 			new_targs = subst.smap.targs
-
 		}
 
 		// before creating a new named type, check if we have this one already
@@ -431,9 +417,9 @@ func (subst *subster) typ(typ Type) Type {
 func instantiatedHash(typ *Named, targs []Type) string {
 	var buf bytes.Buffer
 	writeTypeName(&buf, typ.obj, nil)
-	buf.WriteByte('(')
+	buf.WriteByte('[')
 	writeTypeList(&buf, targs, nil, nil)
-	buf.WriteByte(')')
+	buf.WriteByte(']')
 
 	// With respect to the represented type, whether a
 	// type is fully expanded or stored as instance

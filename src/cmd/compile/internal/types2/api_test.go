@@ -1,3 +1,4 @@
+// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -150,7 +151,7 @@ func TestValuesInfo(t *testing.T) {
 		// look for expression
 		var expr syntax.Expr
 		for e := range info.Types {
-			if ExprString(e) == test.expr {
+			if syntax.String(e) == test.expr {
 				expr = e
 				break
 			}
@@ -181,6 +182,9 @@ func TestValuesInfo(t *testing.T) {
 }
 
 func TestTypesInfo(t *testing.T) {
+	// Test sources that are not expected to typecheck must start with the broken prefix.
+	const broken = "package broken_"
+
 	var tests = []struct {
 		src  string
 		expr string // expression
@@ -192,6 +196,43 @@ func TestTypesInfo(t *testing.T) {
 		{`package b2; var x interface{} = 0.`, `0.`, `float64`},
 		{`package b3; var x interface{} = 0i`, `0i`, `complex128`},
 		{`package b4; var x interface{} = "foo"`, `"foo"`, `string`},
+
+		// uses of nil
+		{`package n0; var _ *int = nil`, `nil`, `*int`},
+		{`package n1; var _ func() = nil`, `nil`, `func()`},
+		{`package n2; var _ []byte = nil`, `nil`, `[]byte`},
+		{`package n3; var _ map[int]int = nil`, `nil`, `map[int]int`},
+		{`package n4; var _ chan int = nil`, `nil`, `chan int`},
+		{`package n5a; var _ interface{} = (*int)(nil)`, `nil`, `*int`},
+		{`package n5b; var _ interface{m()} = nil`, `nil`, `interface{m()}`},
+		{`package n6; import "unsafe"; var _ unsafe.Pointer = nil`, `nil`, `unsafe.Pointer`},
+
+		{`package n10; var (x *int; _ = x == nil)`, `nil`, `*int`},
+		{`package n11; var (x func(); _ = x == nil)`, `nil`, `func()`},
+		{`package n12; var (x []byte; _ = x == nil)`, `nil`, `[]byte`},
+		{`package n13; var (x map[int]int; _ = x == nil)`, `nil`, `map[int]int`},
+		{`package n14; var (x chan int; _ = x == nil)`, `nil`, `chan int`},
+		{`package n15a; var (x interface{}; _ = x == (*int)(nil))`, `nil`, `*int`},
+		{`package n15b; var (x interface{m()}; _ = x == nil)`, `nil`, `interface{m()}`},
+		{`package n15; import "unsafe"; var (x unsafe.Pointer; _ = x == nil)`, `nil`, `unsafe.Pointer`},
+
+		{`package n20; var _ = (*int)(nil)`, `nil`, `*int`},
+		{`package n21; var _ = (func())(nil)`, `nil`, `func()`},
+		{`package n22; var _ = ([]byte)(nil)`, `nil`, `[]byte`},
+		{`package n23; var _ = (map[int]int)(nil)`, `nil`, `map[int]int`},
+		{`package n24; var _ = (chan int)(nil)`, `nil`, `chan int`},
+		{`package n25a; var _ = (interface{})((*int)(nil))`, `nil`, `*int`},
+		{`package n25b; var _ = (interface{m()})(nil)`, `nil`, `interface{m()}`},
+		{`package n26; import "unsafe"; var _ = unsafe.Pointer(nil)`, `nil`, `unsafe.Pointer`},
+
+		{`package n30; func f(*int) { f(nil) }`, `nil`, `*int`},
+		{`package n31; func f(func()) { f(nil) }`, `nil`, `func()`},
+		{`package n32; func f([]byte) { f(nil) }`, `nil`, `[]byte`},
+		{`package n33; func f(map[int]int) { f(nil) }`, `nil`, `map[int]int`},
+		{`package n34; func f(chan int) { f(nil) }`, `nil`, `chan int`},
+		{`package n35a; func f(interface{}) { f((*int)(nil)) }`, `nil`, `*int`},
+		{`package n35b; func f(interface{m()}) { f(nil) }`, `nil`, `interface{m()}`},
+		{`package n35; import "unsafe"; func f(unsafe.Pointer) { f(nil) }`, `nil`, `unsafe.Pointer`},
 
 		// comma-ok expressions
 		{`package p0; var x interface{}; var _, _ = x.(int)`,
@@ -274,25 +315,25 @@ func TestTypesInfo(t *testing.T) {
 		},
 
 		// tests for broken code that doesn't parse or type-check
-		{`package x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
-		{`package x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},
-		{`package x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a, f: b,}}`, `b`, `string`},
-		{`package x3; var x = panic("");`, `panic`, `func(interface{})`},
+		{broken + `x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
+		{broken + `x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},
+		{broken + `x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a, f: b,}}`, `b`, `string`},
+		{broken + `x3; var x = panic("");`, `panic`, `func(interface{})`},
 		{`package x4; func _() { panic("") }`, `panic`, `func(interface{})`},
-		{`package x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
+		{broken + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
 
 		// parameterized functions
-		{`package p0; func f[T any](T); var _ = f[int]`, `f`, `func[T₁ any](T₁)`},
+		{`package p0; func f[T any](T); var _ = f[int]`, `f`, `func[T₁ interface{}](T₁)`},
 		{`package p1; func f[T any](T); var _ = f[int]`, `f[int]`, `func(int)`},
-		{`package p2; func f[T any](T); var _ = f(42)`, `f`, `func[T₁ any](T₁)`},
-		{`package p2; func f[T any](T); var _ = f(42)`, `f(42)`, `()`},
+		{`package p2; func f[T any](T); func _() { f(42) }`, `f`, `func[T₁ interface{}](T₁)`},
+		{`package p3; func f[T any](T); func _() { f(42) }`, `f(42)`, `()`},
 
 		// type parameters
 		{`package t0; type t[] int; var _ t`, `t`, `t0.t`}, // t[] is a syntax error that is ignored in this test in favor of t
-		{`package t1; type t[P any] int; var _ t[int]`, `t`, `t1.t[P₁ any]`},
+		{`package t1; type t[P any] int; var _ t[int]`, `t`, `t1.t[P₁ interface{}]`},
 		{`package t2; type t[P interface{}] int; var _ t[int]`, `t`, `t2.t[P₁ interface{}]`},
 		{`package t3; type t[P, Q interface{}] int; var _ t[int, int]`, `t`, `t3.t[P₁, Q₂ interface{}]`},
-		{`package t4; type t[P, Q interface{ m() }] int; var _ t[int, int]`, `t`, `t4.t[P₁, Q₂ interface{m()}]`},
+		{broken + `t4; type t[P, Q interface{ m() }] int; var _ t[int, int]`, `t`, `broken_t4.t[P₁, Q₂ interface{m()}]`},
 
 		// instantiated types must be sanitized
 		{`package g0; type t[P any] int; var x struct{ f t[int] }; var _ = x.f`, `x.f`, `g0.t[int]`},
@@ -300,12 +341,22 @@ func TestTypesInfo(t *testing.T) {
 
 	for _, test := range tests {
 		info := Info{Types: make(map[syntax.Expr]TypeAndValue)}
-		name, _ := mayTypecheck(t, "TypesInfo", test.src, &info)
+		var name string
+		if strings.HasPrefix(test.src, broken) {
+			var err error
+			name, err = mayTypecheck(t, "TypesInfo", test.src, &info)
+			if err == nil {
+				t.Errorf("package %s: expected to fail but passed", name)
+				continue
+			}
+		} else {
+			name = mustTypecheck(t, "TypesInfo", test.src, &info)
+		}
 
 		// look for expression type
 		var typ Type
 		for e, tv := range info.Types {
-			if ExprString(e) == test.expr {
+			if syntax.String(e) == test.expr {
 				typ = tv.Type
 				break
 			}
@@ -453,7 +504,7 @@ func TestInferredInfo(t *testing.T) {
 			default:
 				panic(fmt.Sprintf("unexpected call expression type %T", call))
 			}
-			if ExprString(fun) == test.fun {
+			if syntax.String(fun) == test.fun {
 				targs = inf.Targs
 				sig = inf.Sig
 				break
@@ -686,8 +737,8 @@ func TestPredicatesInfo(t *testing.T) {
 
 		// values
 		{`package v0; var (a, b int; _ = a + b)`, `a + b`, `value`},
-		{`package v1; var _ = &[]int{1}`, `([]int literal)`, `value`},
-		{`package v2; var _ = func(){}`, `(func() literal)`, `value`},
+		{`package v1; var _ = &[]int{1}`, `[]int{…}`, `value`},
+		{`package v2; var _ = func(){}`, `func() {}`, `value`},
 		{`package v4; func f() { _ = f }`, `f`, `value`},
 		{`package v3; var _ *int = nil`, `nil`, `value, nil`},
 		{`package v3; var _ *int = (nil)`, `(nil)`, `value, nil`},
@@ -732,8 +783,8 @@ func TestPredicatesInfo(t *testing.T) {
 		// look for expression predicates
 		got := "<missing>"
 		for e, tv := range info.Types {
-			//println(name, ExprString(e))
-			if ExprString(e) == test.expr {
+			//println(name, syntax.String(e))
+			if syntax.String(e) == test.expr {
 				got = predString(tv)
 				break
 			}
@@ -798,10 +849,10 @@ func TestScopesInfo(t *testing.T) {
 			"file:", "func:",
 		}},
 		{`package p15; func _(c chan int) { select{ case <-c: } }`, []string{
-			"file:", "func:c", "select:",
+			"file:", "func:c", "comm:",
 		}},
 		{`package p16; func _(c chan int) { select{ case i := <-c: x := i; _ = x} }`, []string{
-			"file:", "func:c", "select:i x",
+			"file:", "func:c", "comm:i x",
 		}},
 		{`package p17; func _() { for{} }`, []string{
 			"file:", "func:", "for:", "block:",
@@ -895,10 +946,10 @@ func TestInitOrderInfo(t *testing.T) {
 			"z = 0", "a, b = f()",
 		}},
 		{`package p7; var (a = func() int { return b }(); b = 1)`, []string{
-			"b = 1", "a = (func() int literal)()",
+			"b = 1", "a = func() int {…}()",
 		}},
 		{`package p8; var (a, b = func() (_, _ int) { return c, c }(); c = 1)`, []string{
-			"c = 1", "a, b = (func() (_, _ int) literal)()",
+			"c = 1", "a, b = func() (_, _ int) {…}()",
 		}},
 		{`package p9; type T struct{}; func (T) m() int { _ = y; return 0 }; var x, y = T.m, 1`, []string{
 			"y = 1", "x = T.m",

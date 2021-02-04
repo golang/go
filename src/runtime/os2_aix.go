@@ -18,11 +18,11 @@ import (
 
 //go:cgo_import_dynamic libc___n_pthreads __n_pthreads "libpthread.a/shr_xpg5_64.o"
 //go:cgo_import_dynamic libc___mod_init __mod_init "libc.a/shr_64.o"
-//go:linkname libc___n_pthreads libc___n_pthread
+//go:linkname libc___n_pthreads libc___n_pthreads
 //go:linkname libc___mod_init libc___mod_init
 
 var (
-	libc___n_pthread,
+	libc___n_pthreads,
 	libc___mod_init libFunc
 )
 
@@ -518,9 +518,10 @@ func sigaltstack(new, old *stackt) {
 }
 
 //go:nosplit
-func getsystemcfg(label uint) uintptr {
+//go:linkname internal_cpu_getsystemcfg internal/cpu.getsystemcfg
+func internal_cpu_getsystemcfg(label uint) uint {
 	r, _ := syscall1(&libc_getsystemcfg, uintptr(label))
-	return r
+	return uint(r)
 }
 
 func usleep1(us uint32)

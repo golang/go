@@ -221,7 +221,7 @@ func parseKernelInetAddr(af int, b []byte) (int, Addr, error) {
 	//   to make the <length, prefix> tuple to be conformed with
 	//   the routing message boundary
 	l := int(b[0])
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		// On Darwin, an address in the kernel form is also
 		// used as a message filler.
 		if l == 0 || len(b) > roundup(l) {

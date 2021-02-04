@@ -4,18 +4,21 @@
 
 package types
 
-import "cmd/internal/src"
+import (
+	"cmd/compile/internal/base"
+	"cmd/internal/src"
+)
 
 // Declaration stack & operations
 
 var blockgen int32 = 1 // max block number
-var Block int32        // current block number
+var Block int32 = 1    // current block number
 
 // A dsym stores a symbol's shadowed declaration so that it can be
 // restored once the block scope ends.
 type dsym struct {
 	sym        *Sym // sym == nil indicates stack mark
-	def        *Node
+	def        Object
 	block      int32
 	lastlineno src.XPos // last declaration for diagnostic
 }
@@ -56,7 +59,7 @@ func Popdcl() {
 		d.sym = nil
 		d.def = nil
 	}
-	Fatalf("popdcl: no stack mark")
+	base.Fatalf("popdcl: no stack mark")
 }
 
 // Markdcl records the start of a new block scope for declarations.
@@ -69,7 +72,7 @@ func Markdcl() {
 	Block = blockgen
 }
 
-func IsDclstackValid() bool {
+func isDclstackValid() bool {
 	for _, d := range dclstack {
 		if d.sym == nil {
 			return false
@@ -79,19 +82,20 @@ func IsDclstackValid() bool {
 }
 
 // PkgDef returns the definition associated with s at package scope.
-func (s *Sym) PkgDef() *Node {
+func (s *Sym) PkgDef() Object {
 	return *s.pkgDefPtr()
 }
 
 // SetPkgDef sets the definition associated with s at package scope.
-func (s *Sym) SetPkgDef(n *Node) {
+func (s *Sym) SetPkgDef(n Object) {
 	*s.pkgDefPtr() = n
 }
 
-func (s *Sym) pkgDefPtr() **Node {
+func (s *Sym) pkgDefPtr() *Object {
 	// Look for outermost saved declaration, which must be the
 	// package scope definition, if present.
-	for _, d := range dclstack {
+	for i := range dclstack {
+		d := &dclstack[i]
 		if s == d.sym {
 			return &d.def
 		}
@@ -100,4 +104,10 @@ func (s *Sym) pkgDefPtr() **Node {
 	// Otherwise, the declaration hasn't been shadowed within a
 	// function scope.
 	return &s.Def
+}
+
+func CheckDclstack() {
+	if !isDclstackValid() {
+		base.Fatalf("mark left on the dclstack")
+	}
 }

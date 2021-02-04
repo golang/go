@@ -1,3 +1,4 @@
+// UNREVIEWED
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -7,6 +8,7 @@
 package types2
 
 import (
+	"bytes"
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"strconv"
@@ -51,7 +53,7 @@ func (check *Checker) sprintf(format string, args ...interface{}) string {
 		case syntax.Pos:
 			arg = a.String()
 		case syntax.Expr:
-			arg = ExprString(a)
+			arg = syntax.String(a)
 		case Object:
 			arg = ObjectString(a, check.qualifier)
 		case Type:
@@ -83,6 +85,17 @@ func (check *Checker) err(pos syntax.Pos, msg string, soft bool) {
 	// and only if we have at least one error already reported.
 	if check.firstErr != nil && (strings.Index(msg, "invalid operand") > 0 || strings.Index(msg, "invalid type") > 0) {
 		return
+	}
+
+	// If we are encountering an error while evaluating an inherited
+	// constant initialization expression, pos is the position of in
+	// the original expression, and not of the currently declared
+	// constant identifier. Use the provided errpos instead.
+	// TODO(gri) We may also want to augment the error message and
+	// refer to the position (pos) in the original expression.
+	if check.errpos.IsKnown() {
+		assert(check.iota != nil)
+		pos = check.errpos
 	}
 
 	err := Error{pos, stripAnnotations(msg), msg, soft}
@@ -144,7 +157,8 @@ func posFor(at poser) syntax.Pos {
 
 // stripAnnotations removes internal (type) annotations from s.
 func stripAnnotations(s string) string {
-	var b strings.Builder
+	// Would like to use strings.Builder but it's not available in Go 1.4.
+	var b bytes.Buffer
 	for _, r := range s {
 		// strip #'s and subscript digits
 		if r != instanceMarker && !('₀' <= r && r < '₀'+10) { // '₀' == U+2080

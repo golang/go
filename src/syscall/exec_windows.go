@@ -25,73 +25,89 @@ var ForkLock sync.RWMutex
 //   but only if there is space or tab inside s.
 func EscapeArg(s string) string {
 	if len(s) == 0 {
-		return "\"\""
+		return `""`
 	}
-	n := len(s)
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '"', '\\', ' ', '\t':
+			// Some escaping required.
+			b := make([]byte, 0, len(s)+2)
+			b = appendEscapeArg(b, s)
+			return string(b)
+		}
+	}
+	return s
+}
+
+// appendEscapeArg escapes the string s, as per escapeArg,
+// appends the result to b, and returns the updated slice.
+func appendEscapeArg(b []byte, s string) []byte {
+	if len(s) == 0 {
+		return append(b, `""`...)
+	}
+
+	needsBackslash := false
 	hasSpace := false
 	for i := 0; i < len(s); i++ {
 		switch s[i] {
 		case '"', '\\':
-			n++
+			needsBackslash = true
 		case ' ', '\t':
 			hasSpace = true
 		}
 	}
-	if hasSpace {
-		n += 2
+
+	if !needsBackslash && !hasSpace {
+		// No special handling required; normal case.
+		return append(b, s...)
 	}
-	if n == len(s) {
-		return s
+	if !needsBackslash {
+		// hasSpace is true, so we need to quote the string.
+		b = append(b, '"')
+		b = append(b, s...)
+		return append(b, '"')
 	}
 
-	qs := make([]byte, n)
-	j := 0
 	if hasSpace {
-		qs[j] = '"'
-		j++
+		b = append(b, '"')
 	}
 	slashes := 0
 	for i := 0; i < len(s); i++ {
-		switch s[i] {
+		c := s[i]
+		switch c {
 		default:
 			slashes = 0
-			qs[j] = s[i]
 		case '\\':
 			slashes++
-			qs[j] = s[i]
 		case '"':
 			for ; slashes > 0; slashes-- {
-				qs[j] = '\\'
-				j++
+				b = append(b, '\\')
 			}
-			qs[j] = '\\'
-			j++
-			qs[j] = s[i]
+			b = append(b, '\\')
 		}
-		j++
+		b = append(b, c)
 	}
 	if hasSpace {
 		for ; slashes > 0; slashes-- {
-			qs[j] = '\\'
-			j++
+			b = append(b, '\\')
 		}
-		qs[j] = '"'
-		j++
+		b = append(b, '"')
 	}
-	return string(qs[:j])
+
+	return b
 }
 
 // makeCmdLine builds a command line out of args by escaping "special"
 // characters and joining the arguments with spaces.
 func makeCmdLine(args []string) string {
-	var s string
+	var b []byte
 	for _, v := range args {
-		if s != "" {
-			s += " "
+		if len(b) > 0 {
+			b = append(b, ' ')
 		}
-		s += EscapeArg(v)
+		b = appendEscapeArg(b, v)
 	}
-	return s
+	return string(b)
 }
 
 // createEnvBlock converts an array of environment strings into
@@ -225,6 +241,7 @@ type SysProcAttr struct {
 	Token             Token               // if set, runs new process in the security context represented by the token
 	ProcessAttributes *SecurityAttributes // if set, applies these security attributes as the descriptor for the new process
 	ThreadAttributes  *SecurityAttributes // if set, applies these security attributes as the descriptor for the main thread of the new process
+	NoInheritHandles  bool                // if set, each inheritable handle in the calling process is not inherited by the new process
 }
 
 var zeroProcAttr ProcAttr
@@ -325,9 +342,9 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 
 	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT
 	if sys.Token != 0 {
-		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, true, flags, createEnvBlock(attr.Env), dirp, si, pi)
+		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, si, pi)
 	} else {
-		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, true, flags, createEnvBlock(attr.Env), dirp, si, pi)
+		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, si, pi)
 	}
 	if err != nil {
 		return 0, 0, err

@@ -66,7 +66,7 @@ const (
 	// to each stack below the usual guard area for OS-specific
 	// purposes like signal handling. Used on Windows, Plan 9,
 	// and iOS because they do not use a separate stack.
-	_StackSystem = sys.GoosWindows*512*sys.PtrSize + sys.GoosPlan9*512 + sys.GoosDarwin*sys.GoarchArm*1024 + sys.GoosDarwin*sys.GoarchArm64*1024
+	_StackSystem = sys.GoosWindows*512*sys.PtrSize + sys.GoosPlan9*512 + sys.GoosIos*sys.GoarchArm64*1024
 
 	// The minimum size of stack used by Go code
 	_StackMin = 2048
@@ -187,7 +187,7 @@ func stackpoolalloc(order uint8) gclinkptr {
 	lockWithRankMayAcquire(&mheap_.lock, lockRankMheap)
 	if s == nil {
 		// no free stacks. Allocate another span worth.
-		s = mheap_.allocManual(_StackCacheSize>>_PageShift, &memstats.stacks_inuse)
+		s = mheap_.allocManual(_StackCacheSize>>_PageShift, spanAllocStack)
 		if s == nil {
 			throw("out of memory")
 		}
@@ -251,7 +251,7 @@ func stackpoolfree(x gclinkptr, order uint8) {
 		stackpool[order].item.span.remove(s)
 		s.manualFreeList = 0
 		osStackFree(s)
-		mheap_.freeManual(s, &memstats.stacks_inuse)
+		mheap_.freeManual(s, spanAllocStack)
 	}
 }
 
@@ -396,7 +396,7 @@ func stackalloc(n uint32) stack {
 
 		if s == nil {
 			// Allocate a new stack from the heap.
-			s = mheap_.allocManual(npage, &memstats.stacks_inuse)
+			s = mheap_.allocManual(npage, spanAllocStack)
 			if s == nil {
 				throw("out of memory")
 			}
@@ -480,7 +480,7 @@ func stackfree(stk stack) {
 			// Free the stack immediately if we're
 			// sweeping.
 			osStackFree(s)
-			mheap_.freeManual(s, &memstats.stacks_inuse)
+			mheap_.freeManual(s, spanAllocStack)
 		} else {
 			// If the GC is running, we can't return a
 			// stack span to the heap because it could be
@@ -496,6 +496,8 @@ func stackfree(stk stack) {
 }
 
 var maxstacksize uintptr = 1 << 20 // enough until runtime.main sets it for real
+
+var maxstackceiling = maxstacksize
 
 var ptrnames = []string{
 	0: "scalar",
@@ -556,6 +558,7 @@ func adjustpointer(adjinfo *adjustinfo, vpp unsafe.Pointer) {
 }
 
 // Information from the compiler about the layout of stack frames.
+// Note: this type must agree with reflect.bitVector.
 type bitvector struct {
 	n        int32 // # of bits
 	bytedata *uint8
@@ -647,12 +650,8 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 	}
 
 	// Adjust saved base pointer if there is one.
+	// TODO what about arm64 frame pointer adjustment?
 	if sys.ArchFamily == sys.AMD64 && frame.argp-frame.varp == 2*sys.RegSize {
-		if !framepointer_enabled {
-			print("runtime: found space for saved base pointer, but no framepointer experiment\n")
-			print("argp=", hex(frame.argp), " varp=", hex(frame.varp), "\n")
-			throw("bad frame layout")
-		}
 		if stackDebug >= 3 {
 			print("      saved bp\n")
 		}
@@ -863,6 +862,13 @@ func copystack(gp *g, newsize uintptr) {
 	// Adjust sudogs, synchronizing with channel ops if necessary.
 	ncopy := used
 	if !gp.activeStackChans {
+		if newsize < old.hi-old.lo && atomic.Load8(&gp.parkingOnChan) != 0 {
+			// It's not safe for someone to shrink this stack while we're actively
+			// parking on a channel, but it is safe to grow since we do that
+			// ourselves and explicitly don't want to synchronize with channels
+			// since we could self-deadlock.
+			throw("racy sudog adjustment due to parking on channel")
+		}
 		adjustsudogs(gp, &adjinfo)
 	} else {
 		// sudogs may be pointing in to the stack and gp has
@@ -1053,8 +1059,12 @@ func newstack() {
 		}
 	}
 
-	if newsize > maxstacksize {
-		print("runtime: goroutine stack exceeds ", maxstacksize, "-byte limit\n")
+	if newsize > maxstacksize || newsize > maxstackceiling {
+		if maxstacksize < maxstackceiling {
+			print("runtime: goroutine stack exceeds ", maxstacksize, "-byte limit\n")
+		} else {
+			print("runtime: goroutine stack exceeds ", maxstackceiling, "-byte limit\n")
+		}
 		print("runtime: sp=", hex(sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n")
 		throw("stack overflow")
 	}
@@ -1102,7 +1112,11 @@ func isShrinkStackSafe(gp *g) bool {
 	// We also can't copy the stack if we're at an asynchronous
 	// safe-point because we don't have precise pointer maps for
 	// all frames.
-	return gp.syscallsp == 0 && !gp.asyncSafePoint
+	//
+	// We also can't *shrink* the stack in the window between the
+	// goroutine calling gopark to park on a channel and
+	// gp.activeStackChans being set.
+	return gp.syscallsp == 0 && !gp.asyncSafePoint && atomic.Load8(&gp.parkingOnChan) == 0
 }
 
 // Maybe shrink the stack being used by gp.
@@ -1179,7 +1193,7 @@ func freeStackSpans() {
 				list.remove(s)
 				s.manualFreeList = 0
 				osStackFree(s)
-				mheap_.freeManual(s, &memstats.stacks_inuse)
+				mheap_.freeManual(s, spanAllocStack)
 			}
 			s = next
 		}
@@ -1193,7 +1207,7 @@ func freeStackSpans() {
 			next := s.next
 			stackLarge.free[i].remove(s)
 			osStackFree(s)
-			mheap_.freeManual(s, &memstats.stacks_inuse)
+			mheap_.freeManual(s, spanAllocStack)
 			s = next
 		}
 	}

@@ -196,3 +196,17 @@ func TestIssue25756(t *testing.T) {
 		})
 	}
 }
+
+func TestMethod(t *testing.T) {
+	// Exported symbol's method must be live.
+	goCmd(t, "build", "-buildmode=plugin", "-o", "plugin.so", "./method/plugin.go")
+	goCmd(t, "build", "-o", "method.exe", "./method/main.go")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "./method.exe")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, out)
+	}
+}

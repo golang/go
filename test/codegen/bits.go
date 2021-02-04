@@ -310,9 +310,18 @@ func op_bic(x, y uint32) uint32 {
 	return x &^ y
 }
 
-func op_eon(x, y uint32) uint32 {
+func op_eon(x, y, z uint32, a []uint32, n, m uint64) uint64 {
+	// arm64:`EON\t`,-`EOR`,-`MVN`
+	a[0] = x ^ (y ^ 0xffffffff)
+
+	// arm64:`EON\t`,-`EOR`,-`MVN`
+	a[1] = ^(y ^ z)
+
 	// arm64:`EON\t`,-`XOR`
-	return x ^ ^y
+	a[2] = x ^ ^z
+
+	// arm64:`EON\t`,-`EOR`,-`MVN`
+	return n ^ (m ^ 0xffffffffffffffff)
 }
 
 func op_orn(x, y uint32) uint32 {
@@ -330,4 +339,16 @@ func bitSetTest(x int) bool {
 	// amd64:"ANDQ\t[$]9, AX"
 	// amd64:"CMPQ\tAX, [$]9"
 	return x&9 == 9
+}
+
+// mask contiguous one bits
+func cont1Mask64U(x uint64) uint64 {
+	// s390x:"RISBGZ\t[$]16, [$]47, [$]0,"
+	return x & 0x0000ffffffff0000
+}
+
+// mask contiguous zero bits
+func cont0Mask64U(x uint64) uint64 {
+	// s390x:"RISBGZ\t[$]48, [$]15, [$]0,"
+	return x & 0xffff00000000ffff
 }
