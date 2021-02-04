@@ -21,7 +21,7 @@ func checkLower(f *Func) {
 				continue // lowered
 			}
 			switch v.Op {
-			case OpSP, OpSB, OpInitMem, OpArg, OpPhi, OpVarDef, OpVarKill, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1, OpConvert, OpInlMark:
+			case OpSP, OpSB, OpInitMem, OpArg, OpPhi, OpVarDef, OpVarKill, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1, OpSelectN, OpConvert, OpInlMark:
 				continue // ok not to lower
 			case OpGetG:
 				if f.Config.hasGReg {

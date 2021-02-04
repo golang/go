@@ -170,6 +170,7 @@ type expandState struct {
 	sdom         SparseTree
 	common       map[selKey]*Value
 	offsets      map[offsetKey]*Value
+	memForCall   map[ID]*Value // For a call, need to know the unique selector that gets the mem.
 }
 
 // intPairTypes returns the pair of 32-bit int types needed to encode a 64-bit integer type on a target
@@ -280,7 +281,6 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 		if !x.isAlreadyExpandedAggregateType(selector.Type) {
 			if leafType == selector.Type { // OpIData leads us here, sometimes.
 				leaf.copyOf(selector)
-
 			} else {
 				x.f.Fatalf("Unexpected OpArg type, selector=%s, leaf=%s\n", selector.LongString(), leaf.LongString())
 			}
@@ -357,13 +357,43 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 		which := selector.AuxInt
 		if which == aux.NResults() { // mem is after the results.
 			// rewrite v as a Copy of call -- the replacement call will produce a mem.
-			leaf.copyOf(call)
+			if call.Op == OpStaticLECall {
+				if leaf != selector {
+					panic("Unexpected selector of memory")
+				}
+				// StaticCall selector will address last element of Result.
+				// TODO do this for all the other call types eventually.
+				if aux.abiInfo == nil {
+					panic(fmt.Errorf("aux.abiInfo nil for call %s", call.LongString()))
+				}
+				if existing := x.memForCall[call.ID]; existing == nil {
+					selector.AuxInt = int64(aux.abiInfo.OutRegistersUsed())
+					x.memForCall[call.ID] = selector
+				} else {
+					selector.copyOf(existing)
+				}
+			} else {
+				leaf.copyOf(call)
+			}
 		} else {
 			leafType := removeTrivialWrapperTypes(leaf.Type)
 			if x.canSSAType(leafType) {
 				pt := types.NewPtr(leafType)
 				off := x.offsetFrom(x.sp, offset+aux.OffsetOfResult(which), pt)
 				// Any selection right out of the arg area/registers has to be same Block as call, use call as mem input.
+				if call.Op == OpStaticLECall { // TODO this is temporary until all calls are register-able
+					// Create a "mem" for any loads that need to occur.
+					if mem := x.memForCall[call.ID]; mem != nil {
+						if mem.Block != call.Block {
+							panic(fmt.Errorf("selector and call need to be in same block, selector=%s; call=%s", selector.LongString(), call.LongString()))
+						}
+						call = mem
+					} else {
+						mem = call.Block.NewValue1I(call.Pos.WithNotStmt(), OpSelectN, types.TypeMem, int64(aux.abiInfo.OutRegistersUsed()), call)
+						x.memForCall[call.ID] = mem
+						call = mem
+					}
+				}
 				if leaf.Block == call.Block {
 					leaf.reset(OpLoad)
 					leaf.SetArgs2(off, call)
@@ -835,6 +865,7 @@ func expandCalls(f *Func) {
 		sdom:         f.Sdom(),
 		common:       make(map[selKey]*Value),
 		offsets:      make(map[offsetKey]*Value),
+		memForCall:   make(map[ID]*Value),
 	}
 
 	// For 32-bit, need to deal with decomposition of 64-bit integers, which depends on endianness.
@@ -1173,7 +1204,8 @@ func expandCalls(f *Func) {
 			switch v.Op {
 			case OpStaticLECall:
 				v.Op = OpStaticCall
-				v.Type = types.TypeMem
+				// TODO need to insert all the register types.
+				v.Type = types.NewResults([]*types.Type{types.TypeMem})
 			case OpClosureLECall:
 				v.Op = OpClosureCall
 				v.Type = types.TypeMem

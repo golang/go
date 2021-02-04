@@ -581,10 +581,17 @@ func NewTuple(t1, t2 *Type) *Type {
 	return t
 }
 
-func NewResults(types []*Type) *Type {
+func newResults(types []*Type) *Type {
 	t := New(TRESULTS)
 	t.Extra.(*Results).Types = types
 	return t
+}
+
+func NewResults(types []*Type) *Type {
+	if len(types) == 1 && types[0] == TypeMem {
+		return TypeResultMem
+	}
+	return newResults(types)
 }
 
 func newSSA(name string) *Type {
@@ -1407,6 +1414,9 @@ func (t *Type) PtrTo() *Type {
 }
 
 func (t *Type) NumFields() int {
+	if t.kind == TRESULTS {
+		return len(t.Extra.(*Results).Types)
+	}
 	return t.Fields().Len()
 }
 func (t *Type) FieldType(i int) *Type {
@@ -1597,11 +1607,12 @@ func FakeRecvType() *Type {
 
 var (
 	// TSSA types. HasPointers assumes these are pointer-free.
-	TypeInvalid = newSSA("invalid")
-	TypeMem     = newSSA("mem")
-	TypeFlags   = newSSA("flags")
-	TypeVoid    = newSSA("void")
-	TypeInt128  = newSSA("int128")
+	TypeInvalid   = newSSA("invalid")
+	TypeMem       = newSSA("mem")
+	TypeFlags     = newSSA("flags")
+	TypeVoid      = newSSA("void")
+	TypeInt128    = newSSA("int128")
+	TypeResultMem = newResults([]*Type{TypeMem})
 )
 
 // NewNamed returns a new named type for the given type name.

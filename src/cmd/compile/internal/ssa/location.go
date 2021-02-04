@@ -88,6 +88,20 @@ func (t LocPair) String() string {
 	return fmt.Sprintf("<%s,%s>", n0, n1)
 }
 
+type LocResults []Location
+
+func (t LocResults) String() string {
+	s := "<"
+	a := ""
+	for _, r := range t {
+		a += s
+		s = ","
+		a += r.String()
+	}
+	a += ">"
+	return a
+}
+
 type ArgPair struct {
 	reg *Register
 	mem LocalSlot

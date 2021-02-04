@@ -203,9 +203,19 @@ func (a *AuxCall) String() string {
 	return fn + "}"
 }
 
+func ACParamsToTypes(ps []Param) (ts []*types.Type) {
+	for _, p := range ps {
+		ts = append(ts, p.Type)
+	}
+	return
+}
+
 // StaticAuxCall returns an AuxCall for a static call.
 func StaticAuxCall(sym *obj.LSym, args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
 	// TODO Create regInfo for AuxCall
+	if paramResultInfo == nil {
+		panic(fmt.Errorf("Nil paramResultInfo, sym=%v", sym))
+	}
 	return &AuxCall{Fn: sym, args: args, results: results, abiInfo: paramResultInfo}
 }
 
