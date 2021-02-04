@@ -380,10 +380,9 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		pkgs := load.PackagesAndErrors(ctx, pkgPatterns)
 		load.CheckPackageErrors(pkgs)
 		work.InstallPackages(ctx, pkgPatterns, pkgs)
-		// TODO(#40276): After Go 1.16, print a deprecation notice when building
-		// and installing main packages. 'go install pkg' or
-		// 'go install pkg@version' should be used instead.
-		// Give the specific argument to use if possible.
+		// TODO(#40276): After Go 1.16, print a deprecation notice when building and
+		// installing main packages. 'go install pkg' or 'go install pkg@version'
+		// should be used instead. Give the specific argument to use if possible.
 	}
 
 	if !modload.HasModRoot() {
@@ -1453,7 +1452,18 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns 
 			}
 		}
 		for _, pkg := range pkgs {
-			if _, _, err := modload.Lookup("", false, pkg); err != nil {
+			if dir, _, err := modload.Lookup("", false, pkg); err != nil {
+				if dir != "" && errors.Is(err, imports.ErrNoGo) {
+					// Since dir is non-empty, we must have located source files
+					// associated with either the package or its test — ErrNoGo must
+					// indicate that none of those source files happen to apply in this
+					// configuration. If we are actually building the package (no -d
+					// flag), the compiler will report the problem; otherwise, assume that
+					// the user is going to build or test it in some other configuration
+					// and suppress the error.
+					continue
+				}
+
 				base.SetExitStatus(1)
 				if ambiguousErr := (*modload.AmbiguousImportError)(nil); errors.As(err, &ambiguousErr) {
 					for _, m := range ambiguousErr.Modules {
