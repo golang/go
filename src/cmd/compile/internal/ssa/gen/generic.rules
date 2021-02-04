@@ -1970,37 +1970,6 @@
 
 (Sqrt (Const64F [c])) && !math.IsNaN(math.Sqrt(c)) => (Const64F [math.Sqrt(c)])
 
-// recognize runtime.newobject and don't Zero/Nilcheck it
-(Zero (Load (OffPtr [c] (SP)) mem) mem)
-	&& mem.Op == OpStaticCall
-	&& isSameCall(mem.Aux, "runtime.newobject")
-	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
-	=> mem
-(Store (Load (OffPtr [c] (SP)) mem) x mem)
-	&& isConstZero(x)
-	&& mem.Op == OpStaticCall
-	&& isSameCall(mem.Aux, "runtime.newobject")
-	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
-	=> mem
-(Store (OffPtr (Load (OffPtr [c] (SP)) mem)) x mem)
-	&& isConstZero(x)
-	&& mem.Op == OpStaticCall
-	&& isSameCall(mem.Aux, "runtime.newobject")
-	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
-	=> mem
-// nil checks just need to rewrite to something useless.
-// they will be deadcode eliminated soon afterwards.
-(NilCheck (Load (OffPtr [c] (SP)) (StaticCall {sym} _)) _)
-	&& isSameCall(sym, "runtime.newobject")
-	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
-	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
-	=> (Invalid)
-(NilCheck (OffPtr (Load (OffPtr [c] (SP)) (StaticCall {sym} _))) _)
-	&& isSameCall(sym, "runtime.newobject")
-	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
-	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
-	=> (Invalid)
-
 // for rewriting results of some late-expanded rewrites (below)
 (SelectN [0] (MakeResult a ___)) => a
 (SelectN [1] (MakeResult a b ___)) => b
@@ -2021,12 +1990,12 @@
 	&& isSameCall(call.Aux, "runtime.newobject")
 	=> mem
 
-(NilCheck (SelectN [0] call:(StaticLECall _ _)) (SelectN [1] call))
+(NilCheck (SelectN [0] call:(StaticLECall _ _)) _)
 	&& isSameCall(call.Aux, "runtime.newobject")
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
 	=> (Invalid)
 
-(NilCheck (OffPtr (SelectN [0] call:(StaticLECall _ _))) (SelectN [1] call))
+(NilCheck (OffPtr (SelectN [0] call:(StaticLECall _ _))) _)
 	&& isSameCall(call.Aux, "runtime.newobject")
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
 	=> (Invalid)
@@ -2083,15 +2052,19 @@
 (IsNonNil (Addr _)) => (ConstBool [true])
 (IsNonNil (LocalAddr _ _)) => (ConstBool [true])
 
+// TODO REGISTER ARGS this will need revision.
+// Because expand calls runs after prove, constants useful to this pattern may not appear
+// In the future both versions need to exist; the memory and register variants.
+
 // Inline small or disjoint runtime.memmove calls with constant length.
 // See the comment in op Move in genericOps.go for discussion of the type.
-(StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
+(SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem)))))
 	&& sz >= 0
 	&& isSameCall(sym, "runtime.memmove")
 	&& t.IsPtr() // avoids TUINTPTR, see issue 30061
 	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
 	&& isInlinableMemmove(dst, src, int64(sz), config)
-	&& clobber(s1, s2, s3)
+	&& clobber(s1, s2, s3, call)
 	=> (Move {t.Elem()} [int64(sz)] dst src mem)
 
 // Inline small or disjoint runtime.memmove calls with constant length.
@@ -2104,13 +2077,6 @@
 	&& isInlinableMemmove(dst, src, int64(sz), config)
 	&& clobber(call)
 	=> (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
-
-// De-virtualize interface calls into static calls.
-// Note that (ITab (IMake)) doesn't get
-// rewritten until after the first opt pass,
-// so this rule should trigger reliably.
-(InterCall [argsize] {auxCall} (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem) && devirt(v, auxCall, itab, off) != nil =>
-	(StaticCall [int32(argsize)] {devirt(v, auxCall, itab, off)} mem)
 
 // De-virtualize late-expanded interface calls into late-expanded static calls.
 // Note that (ITab (IMake)) doesn't get rewritten until after the first opt pass,
@@ -2499,8 +2465,8 @@
 				(Store {t5} (OffPtr <tt5> [o5] dst) d4
 					(Zero {t1} [n] dst mem)))))
 
-// TODO this does not fire before call expansion; is that acceptable?
-(StaticCall {sym} x) && needRaceCleanup(sym, v) => x
+(SelectN [0] call:(StaticLECall {sym} a x)) && needRaceCleanup(sym, call) && clobber(call) => x
+(SelectN [0] call:(StaticLECall {sym} x)) && needRaceCleanup(sym, call) && clobber(call) => x
 
 // Collapse moving A -> B -> C into just A -> C.
 // Later passes (deadstore, elim unread auto) will remove the A -> B move, if possible.

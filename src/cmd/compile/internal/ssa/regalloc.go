@@ -761,6 +761,9 @@ func (s *regAllocState) advanceUses(v *Value) {
 // current instruction.
 func (s *regAllocState) liveAfterCurrentInstruction(v *Value) bool {
 	u := s.values[v.ID].uses
+	if u == nil {
+		panic(fmt.Errorf("u is nil, v = %s, s.values[v.ID] = %v", v.LongString(), s.values[v.ID]))
+	}
 	d := u.dist
 	for u != nil && u.dist == d {
 		u = u.next
@@ -1208,13 +1211,17 @@ func (s *regAllocState) regalloc(f *Func) {
 				s.sb = v.ID
 				continue
 			}
-			if v.Op == OpSelect0 || v.Op == OpSelect1 {
+			if v.Op == OpSelect0 || v.Op == OpSelect1 || v.Op == OpSelectN {
 				if s.values[v.ID].needReg {
-					var i = 0
-					if v.Op == OpSelect1 {
-						i = 1
+					if v.Op == OpSelectN {
+						s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocResults)[int(v.AuxInt)].(*Register).num), v, v)
+					} else {
+						var i = 0
+						if v.Op == OpSelect1 {
+							i = 1
+						}
+						s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocPair)[i].(*Register).num), v, v)
 					}
-					s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocPair)[i].(*Register).num), v, v)
 				}
 				b.Values = append(b.Values, v)
 				s.advanceUses(v)
@@ -1767,6 +1774,9 @@ func (s *regAllocState) placeSpills() {
 		// put the spill of v.  At the start "best" is the best place
 		// we have found so far.
 		// TODO: find a way to make this O(1) without arbitrary cutoffs.
+		if v == nil {
+			panic(fmt.Errorf("nil v, s.orig[%d], vi = %v, spill = %s", i, vi, spill.LongString()))
+		}
 		best := v.Block
 		bestArg := v
 		var bestDepth int16
