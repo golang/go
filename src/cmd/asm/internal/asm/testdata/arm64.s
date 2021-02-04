@@ -395,13 +395,13 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 // LD1/ST1
 	VLD1	(R8), [V1.B16, V2.B16]                          // 01a1404c
 	VLD1.P	(R3), [V31.H8, V0.H8]                           // 7fa4df4c
-	VLD1.P	(R8)(R20), [V21.B16, V22.B16]                   // VLD1.P	(R8)(R20*1), [V21.B16,V22.B16] // 15a1d44c
+	VLD1.P	(R8)(R20), [V21.B16, V22.B16]                   // 15a1d44c
 	VLD1.P	64(R1), [V5.B16, V6.B16, V7.B16, V8.B16]        // 2520df4c
 	VLD1.P	1(R0), V4.B[15]                                 // 041cdf4d
 	VLD1.P	2(R0), V4.H[7]                                  // 0458df4d
 	VLD1.P	4(R0), V4.S[3]                                  // 0490df4d
 	VLD1.P	8(R0), V4.D[1]                                  // 0484df4d
-	VLD1.P	(R0)(R1), V4.D[1]                               // VLD1.P	(R0)(R1*1), V4.D[1] // 0484c14d
+	VLD1.P	(R0)(R1), V4.D[1]                               // 0484c14d
 	VLD1	(R0), V4.D[1]                                   // 0484404d
 	VST1.P	[V4.S4, V5.S4], 32(R1)                          // 24a89f4c
 	VST1	[V0.S4, V1.S4], (R0)                            // 00a8004c
@@ -409,29 +409,29 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VLD1.P	24(R30), [V3.S2,V4.S2,V5.S2]                    // c36bdf0c
 	VLD2	(R29), [V23.H8, V24.H8]                         // b787404c
 	VLD2.P	16(R0), [V18.B8, V19.B8]                        // 1280df0c
-	VLD2.P	(R1)(R2), [V15.S2, V16.S2]                      // VLD2.P	(R1)(R2*1), [V15.S2,V16.S2] // 2f88c20c
+	VLD2.P	(R1)(R2), [V15.S2, V16.S2]                      // 2f88c20c
 	VLD3	(R27), [V11.S4, V12.S4, V13.S4]                 // 6b4b404c
 	VLD3.P	48(RSP), [V11.S4, V12.S4, V13.S4]               // eb4bdf4c
-	VLD3.P	(R30)(R2), [V14.D2, V15.D2, V16.D2]             // VLD3.P	(R30)(R2*1), [V14.D2,V15.D2,V16.D2] // ce4fc24c
+	VLD3.P	(R30)(R2), [V14.D2, V15.D2, V16.D2]             // ce4fc24c
 	VLD4	(R15), [V10.H4, V11.H4, V12.H4, V13.H4]         // ea05400c
 	VLD4.P	32(R24), [V31.B8, V0.B8, V1.B8, V2.B8]          // 1f03df0c
-	VLD4.P	(R13)(R9), [V14.S2, V15.S2, V16.S2, V17.S2]     // VLD4.P	(R13)(R9*1), [V14.S2,V15.S2,V16.S2,V17.S2] // ae09c90c
+	VLD4.P	(R13)(R9), [V14.S2, V15.S2, V16.S2, V17.S2]     // ae09c90c
 	VLD1R	(R1), [V9.B8]                                   // 29c0400d
 	VLD1R.P	(R1), [V9.B8]                                   // 29c0df0d
 	VLD1R.P	1(R1), [V2.B8]                                  // 22c0df0d
 	VLD1R.P	2(R1), [V2.H4]                                  // 22c4df0d
 	VLD1R	(R0), [V0.B16]                                  // 00c0404d
 	VLD1R.P	(R0), [V0.B16]                                  // 00c0df4d
-	VLD1R.P	(R15)(R1), [V15.H4]                             // VLD1R.P	(R15)(R1*1), [V15.H4] // efc5c10d
+	VLD1R.P	(R15)(R1), [V15.H4]                             // efc5c10d
 	VLD2R	(R15), [V15.H4, V16.H4]                         // efc5600d
 	VLD2R.P	16(R0), [V0.D2, V1.D2]                          // 00ccff4d
-	VLD2R.P	(R0)(R5), [V31.D1, V0.D1]                       // VLD2R.P	(R0)(R5*1), [V31.D1, V0.D1] // 1fcce50d
+	VLD2R.P	(R0)(R5), [V31.D1, V0.D1]                       // 1fcce50d
 	VLD3R	(RSP), [V31.S2, V0.S2, V1.S2]                   // ffeb400d
 	VLD3R.P	6(R15), [V15.H4, V16.H4, V17.H4]                // efe5df0d
-	VLD3R.P	(R15)(R6), [V15.H8, V16.H8, V17.H8]             // VLD3R.P	(R15)(R6*1), [V15.H8, V16.H8, V17.H8] // efe5c64d
+	VLD3R.P	(R15)(R6), [V15.H8, V16.H8, V17.H8]             // efe5c64d
 	VLD4R	(R0), [V0.B8, V1.B8, V2.B8, V3.B8]              // 00e0600d
 	VLD4R.P	16(RSP), [V31.S4, V0.S4, V1.S4, V2.S4]          // ffebff4d
-	VLD4R.P	(R15)(R9), [V15.H4, V16.H4, V17.H4, V18.H4]     // VLD4R.P	(R15)(R9*1), [V15.H4, V16.H4, V17.H4, V18.H4] // efe5e90d
+	VLD4R.P	(R15)(R9), [V15.H4, V16.H4, V17.H4, V18.H4]     // efe5e90d
 	VST1.P	[V24.S2], 8(R2)                                 // 58789f0c
 	VST1	[V29.S2, V30.S2], (R29)                         // bdab000c
 	VST1	[V14.H4, V15.H4, V16.H4], (R27)                 // 6e67000c
@@ -439,17 +439,17 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VST1.P	V4.H[7], 2(R0)                                  // 04589f4d
 	VST1.P	V4.S[3], 4(R0)                                  // 04909f4d
 	VST1.P	V4.D[1], 8(R0)                                  // 04849f4d
-	VST1.P	V4.D[1], (R0)(R1)                               // VST1.P	V4.D[1], (R0)(R1*1) // 0484814d
+	VST1.P	V4.D[1], (R0)(R1)                               // 0484814d
 	VST1	V4.D[1], (R0)                                   // 0484004d
 	VST2	[V22.H8, V23.H8], (R23)                         // f686004c
 	VST2.P	[V14.H4, V15.H4], 16(R17)                       // 2e869f0c
-	VST2.P	[V14.H4, V15.H4], (R3)(R17)                     // VST2.P	[V14.H4,V15.H4], (R3)(R17*1) // 6e84910c
+	VST2.P	[V14.H4, V15.H4], (R3)(R17)                     // 6e84910c
 	VST3	[V1.D2, V2.D2, V3.D2], (R11)                    // 614d004c
 	VST3.P	[V18.S4, V19.S4, V20.S4], 48(R25)               // 324b9f4c
-	VST3.P	[V19.B8, V20.B8, V21.B8], (R3)(R7)              // VST3.P	[V19.B8, V20.B8, V21.B8], (R3)(R7*1) // 7340870c
+	VST3.P	[V19.B8, V20.B8, V21.B8], (R3)(R7)              // 7340870c
 	VST4	[V22.D2, V23.D2, V24.D2, V25.D2], (R3)          // 760c004c
 	VST4.P	[V14.D2, V15.D2, V16.D2, V17.D2], 64(R15)       // ee0d9f4c
-	VST4.P	[V24.B8, V25.B8, V26.B8, V27.B8], (R3)(R23)     // VST4.P	[V24.B8, V25.B8, V26.B8, V27.B8], (R3)(R23*1) // 7800970c
+	VST4.P	[V24.B8, V25.B8, V26.B8, V27.B8], (R3)(R23)     // 7800970c
 
 // pre/post-indexed
 	FMOVS.P	F20, 4(R0)                                      // 144400bc
@@ -536,29 +536,29 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 
 // shifted or extended register offset.
 	MOVD	(R2)(R6.SXTW), R4               // 44c866f8
-	MOVD	(R3)(R6), R5                    // MOVD	(R3)(R6*1), R5               // 656866f8
-	MOVD	(R2)(R6), R4                    // MOVD	(R2)(R6*1), R4               // 446866f8
+	MOVD	(R3)(R6), R5                    // 656866f8
+	MOVD	(R2)(R6), R4                    // 446866f8
 	MOVWU	(R19)(R20<<2), R20              // 747a74b8
 	MOVD	(R2)(R6<<3), R4                 // 447866f8
 	MOVD	(R3)(R7.SXTX<<3), R8            // 68f867f8
 	MOVWU	(R5)(R4.UXTW), R10              // aa4864b8
 	MOVBU	(R3)(R9.UXTW), R8               // 68486938
-	MOVBU	(R5)(R8), R10                   // MOVBU	(R5)(R8*1), R10      // aa686838
+	MOVBU	(R5)(R8), R10                   // aa686838
 	MOVHU	(R2)(R7.SXTW<<1), R11           // 4bd86778
 	MOVHU	(R1)(R2<<1), R5                 // 25786278
 	MOVB	(R9)(R3.UXTW), R6               // 2649a338
-	MOVB	(R10)(R6), R15                  // MOVB	(R10)(R6*1), R15             // 4f69a638
+	MOVB	(R10)(R6), R15                  // 4f69a638
 	MOVB	(R29)(R30<<0), R14              // ae7bbe38
-	MOVB	(R29)(R30), R14                 // MOVB	(R29)(R30*1), R14            // ae6bbe38
+	MOVB	(R29)(R30), R14                 // ae6bbe38
 	MOVH	(R5)(R7.SXTX<<1), R19           // b3f8a778
 	MOVH	(R8)(R4<<1), R10                // 0a79a478
 	MOVW	(R9)(R8.SXTW<<2), R19           // 33d9a8b8
 	MOVW	(R1)(R4.SXTX), R11              // 2be8a4b8
 	MOVW	(R1)(R4.SXTX), ZR               // 3fe8a4b8
-	MOVW	(R2)(R5), R12                   // MOVW	(R2)(R5*1), R12               // 4c68a5b8
-	FMOVS	(R2)(R6), F4                    // FMOVS	(R2)(R6*1), F4        // 446866bc
+	MOVW	(R2)(R5), R12                   // 4c68a5b8
+	FMOVS	(R2)(R6), F4                    // 446866bc
 	FMOVS	(R2)(R6<<2), F4                 // 447866bc
-	FMOVD	(R2)(R6), F4                    // FMOVD	(R2)(R6*1), F4        // 446866fc
+	FMOVD	(R2)(R6), F4                    // 446866fc
 	FMOVD	(R2)(R6<<3), F4                 // 447866fc
 
 	MOVD	R5, (R2)(R6<<3)                 // 457826f8
@@ -568,15 +568,15 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVW	R7, (R3)(R4.SXTW)               // 67c824b8
 	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
 	MOVB	R8, (R3)(R9.UXTW)               // 68482938
-	MOVB	R10, (R5)(R8)                   // MOVB	R10, (R5)(R8*1)               // aa682838
+	MOVB	R10, (R5)(R8)                   // aa682838
 	MOVH	R11, (R2)(R7.SXTW<<1)           // 4bd82778
 	MOVH	R5, (R1)(R2<<1)                 // 25782278
 	MOVH	R7, (R2)(R5.SXTX<<1)            // 47f82578
 	MOVH	R8, (R3)(R6.UXTW)               // 68482678
 	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
-	FMOVS	F4, (R2)(R6)                    // FMOVS	F4, (R2)(R6*1)        // 446826bc
+	FMOVS	F4, (R2)(R6)                    // 446826bc
 	FMOVS	F4, (R2)(R6<<2)                 // 447826bc
-	FMOVD	F4, (R2)(R6)                    // FMOVD	F4, (R2)(R6*1)        // 446826fc
+	FMOVD	F4, (R2)(R6)                    // 446826fc
 	FMOVD	F4, (R2)(R6<<3)                 // 447826fc
 
 // vmov
