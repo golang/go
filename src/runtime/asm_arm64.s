@@ -113,23 +113,6 @@ TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
  *  go-routine
  */
 
-// void gosave(Gobuf*)
-// save state in Gobuf; setjmp
-TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
-	MOVD	buf+0(FP), R3
-	MOVD	RSP, R0
-	MOVD	R0, gobuf_sp(R3)
-	MOVD	R29, gobuf_bp(R3)
-	MOVD	LR, gobuf_pc(R3)
-	MOVD	g, gobuf_g(R3)
-	MOVD	ZR, gobuf_lr(R3)
-	MOVD	ZR, gobuf_ret(R3)
-	// Assert ctxt is zero. See func save.
-	MOVD	gobuf_ctxt(R3), R0
-	CBZ	R0, 2(PC)
-	CALL	runtime·badctxt(SB)
-	RET
-
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB), NOSPLIT, $24-8
