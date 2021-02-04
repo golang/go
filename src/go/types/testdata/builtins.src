@@ -283,7 +283,7 @@ func delete1() {
 	delete() // ERROR not enough arguments
 	delete(1) // ERROR not enough arguments
 	delete(1, 2, 3) // ERROR too many arguments
-	delete(m, 0 /* ERROR not assignable */)
+	delete(m, 0 /* ERROR cannot use */)
 	delete(m, s)
 	_ = delete /* ERROR used as value */ (m, s)
 
