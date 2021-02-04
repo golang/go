@@ -1364,6 +1364,18 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 	POPQ	R15
 	RET
 
+// Initialize special registers then jump to sigpanic.
+// This function is injected from the signal handler for panicking
+// signals. It is quite painful to set X15 in the signal context,
+// so we do it here.
+TEXT ·sigpanic0<ABIInternal>(SB),NOSPLIT,$0-0
+#ifdef GOEXPERIMENT_REGABI
+	get_tls(R14)
+	MOVQ	g(R14), R14
+	XORPS	X15, X15
+#endif
+	JMP	·sigpanic<ABIInternal>(SB)
+
 // gcWriteBarrier performs a heap pointer write and informs the GC.
 //
 // gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
