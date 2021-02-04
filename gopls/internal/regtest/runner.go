@@ -47,9 +47,6 @@ const (
 	// Experimental enables all of the experimental configurations that are
 	// being developed. Currently, it enables the workspace module.
 	Experimental
-	// NormalModes are the global default execution modes, when unmodified by
-	// test flags or by individual test options.
-	NormalModes = Singleton | Experimental
 )
 
 // A Runner runs tests in gopls execution environments, as specified by its
