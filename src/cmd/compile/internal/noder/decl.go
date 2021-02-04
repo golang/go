@@ -102,10 +102,6 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 
 func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 	if decl.Alias {
-		if !types.AllowsGoVersion(types.LocalPkg, 1, 9) {
-			base.ErrorfAt(g.pos(decl), "type aliases only supported as of -lang=go1.9")
-		}
-
 		name, _ := g.def(decl.Name)
 		g.pragmaFlags(decl.Pragma, 0)
 
