@@ -310,7 +310,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		r.performWildcardQueries(ctx)
 		r.performPatternAllQueries(ctx)
 
-		if changed := r.resolveCandidates(ctx, queries, nil); changed {
+		if changed := r.resolveQueries(ctx, queries); changed {
 			// 'go get' arguments can be (and often are) package patterns rather than
 			// (just) modules. A package can be provided by any module with a prefix
 			// of its import path, and a wildcard can even match packages in modules
@@ -347,12 +347,12 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		// - ambiguous import errors.
 		//   TODO(#27899): Try to resolve ambiguous import errors automatically.
 		upgrades := r.findAndUpgradeImports(ctx, queries)
-		if changed := r.resolveCandidates(ctx, nil, upgrades); changed {
+		if changed := r.applyUpgrades(ctx, upgrades); changed {
 			continue
 		}
 
 		r.findMissingWildcards(ctx)
-		if changed := r.resolveCandidates(ctx, r.wildcardQueries, nil); changed {
+		if changed := r.resolveQueries(ctx, r.wildcardQueries); changed {
 			continue
 		}
 
@@ -460,9 +460,8 @@ type resolver struct {
 	// that resolved the module to that version (the “reason”).
 	resolvedVersion map[string]versionReason
 
-	buildList                 []module.Version
-	buildListResolvedVersions int               // len(resolvedVersion) when buildList was computed
-	buildListVersion          map[string]string // index of buildList (module path → version)
+	buildList        []module.Version
+	buildListVersion map[string]string // index of buildList (module path → version)
 
 	initialVersion map[string]string // index of the initial build list at the start of 'go get'
 
@@ -1176,24 +1175,19 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
 // to be updated before its dependencies can be loaded.
 var errVersionChange = errors.New("version change needed")
 
-// resolveCandidates resolves candidates sets that are attached to the given
+// resolveQueries resolves candidate sets that are attached to the given
 // queries and/or needed to provide the given missing-package dependencies.
 //
-// resolveCandidates starts by resolving one module version from each
+// resolveQueries starts by resolving one module version from each
 // unambiguous pathSet attached to the given queries.
 //
 // If no unambiguous query results in a change to the build list,
-// resolveCandidates modifies the build list by adding one module version from
-// each pathSet in missing, but does not mark those versions as resolved
-// (so they can still be modified by other queries).
-//
-// If that still does not result in any changes to the build list,
-// resolveCandidates revisits the ambiguous query candidates and resolves them
+// resolveQueries revisits the ambiguous query candidates and resolves them
 // arbitrarily in order to guarantee forward progress.
 //
 // If all pathSets are resolved without any changes to the build list,
-// resolveCandidates returns with changed=false.
-func (r *resolver) resolveCandidates(ctx context.Context, queries []*query, upgrades []pathSet) (changed bool) {
+// resolveQueries returns with changed=false.
+func (r *resolver) resolveQueries(ctx context.Context, queries []*query) (changed bool) {
 	defer base.ExitIfErrors()
 
 	// Note: this is O(N²) with the number of pathSets in the worst case.
@@ -1247,12 +1241,52 @@ func (r *resolver) resolveCandidates(ctx context.Context, queries []*query, upgr
 		}
 	}
 
-	if changed := r.updateBuildList(ctx, nil); changed {
-		// The build list has changed, so disregard any missing packages: they might
-		// now be determined by requirements in the build list, which we would
-		// prefer to use instead of arbitrary "latest" versions.
-		return true
+	if resolved > 0 {
+		if changed = r.updateBuildList(ctx, nil); changed {
+			// The build list has changed, so disregard any remaining ambiguous queries:
+			// they might now be determined by requirements in the build list, which we
+			// would prefer to use instead of arbitrary versions.
+			return true
+		}
 	}
+
+	// The build list will be the same on the next iteration as it was on this
+	// iteration, so any ambiguous queries will remain so. In order to make
+	// progress, resolve them arbitrarily but deterministically.
+	//
+	// If that results in conflicting versions, the user can re-run 'go get'
+	// with additional explicit versions for the conflicting packages or
+	// modules.
+	resolvedArbitrarily := 0
+	for _, q := range queries {
+		for _, cs := range q.candidates {
+			isPackage, m := r.chooseArbitrarily(cs)
+			if isPackage {
+				q.matchesPackages = true
+			}
+			r.resolve(q, m)
+			resolvedArbitrarily++
+		}
+	}
+	if resolvedArbitrarily > 0 {
+		changed = r.updateBuildList(ctx, nil)
+	}
+	return changed
+}
+
+// applyUpgrades disambiguates candidate sets that are needed to upgrade (or
+// provide) transitive dependencies imported by previously-resolved packages.
+//
+// applyUpgrades modifies the build list by adding one module version from each
+// pathSet in upgrades, then downgrading (or further upgrading) those modules as
+// needed to maintain any already-resolved versions of other modules.
+// applyUpgrades does not mark the new versions as resolved, so they can still
+// be further modified by other queries (such as wildcards).
+//
+// If all pathSets are resolved without any changes to the build list,
+// applyUpgrades returns with changed=false.
+func (r *resolver) applyUpgrades(ctx context.Context, upgrades []pathSet) (changed bool) {
+	defer base.ExitIfErrors()
 
 	// Arbitrarily add a "latest" version that provides each missing package, but
 	// do not mark the version as resolved: we still want to allow the explicit
@@ -1276,27 +1310,9 @@ func (r *resolver) resolveCandidates(ctx context.Context, queries []*query, upgr
 		tentative = append(tentative, m)
 	}
 	base.ExitIfErrors()
-	if changed := r.updateBuildList(ctx, tentative); changed {
-		return true
-	}
 
-	// The build list will be the same on the next iteration as it was on this
-	// iteration, so any ambiguous queries will remain so. In order to make
-	// progress, resolve them arbitrarily but deterministically.
-	//
-	// If that results in conflicting versions, the user can re-run 'go get'
-	// with additional explicit versions for the conflicting packages or
-	// modules.
-	for _, q := range queries {
-		for _, cs := range q.candidates {
-			isPackage, m := r.chooseArbitrarily(cs)
-			if isPackage {
-				q.matchesPackages = true
-			}
-			r.resolve(q, m)
-		}
-	}
-	return r.updateBuildList(ctx, nil)
+	changed = r.updateBuildList(ctx, tentative)
+	return changed
 }
 
 // disambiguate eliminates candidates from cs that conflict with other module
@@ -1614,11 +1630,10 @@ func (r *resolver) resolve(q *query, m module.Version) {
 //
 // If the additional modules conflict with the resolved versions, they will be
 // downgraded to a non-conflicting version (possibly "none").
+//
+// If the resulting build list is the same as the one resulting from the last
+// call to updateBuildList, updateBuildList returns with changed=false.
 func (r *resolver) updateBuildList(ctx context.Context, additions []module.Version) (changed bool) {
-	if len(additions) == 0 && len(r.resolvedVersion) == r.buildListResolvedVersions {
-		return false
-	}
-
 	defer base.ExitIfErrors()
 
 	resolved := make([]module.Version, 0, len(r.resolvedVersion))
@@ -1649,7 +1664,6 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 	}
 
 	buildList := modload.LoadAllModules(ctx)
-	r.buildListResolvedVersions = len(r.resolvedVersion)
 	if reflect.DeepEqual(r.buildList, buildList) {
 		return false
 	}
