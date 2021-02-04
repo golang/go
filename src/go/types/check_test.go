@@ -27,12 +27,14 @@ package types_test
 
 import (
 	"flag"
+	"fmt"
 	"go/ast"
 	"go/importer"
 	"go/parser"
 	"go/scanner"
 	"go/token"
 	"internal/testenv"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -47,54 +49,6 @@ var (
 	listErrors  = flag.Bool("errlist", false, "list errors")
 	testFiles   = flag.String("files", "", "space-separated list of test files")
 )
-
-// The test filenames do not end in .go so that they are invisible
-// to gofmt since they contain comments that must not change their
-// positions relative to surrounding tokens.
-
-// Each tests entry is list of files belonging to the same package.
-var tests = [][]string{
-	{"testdata/errors.src"},
-	{"testdata/importdecl0a.src", "testdata/importdecl0b.src"},
-	{"testdata/importdecl1a.src", "testdata/importdecl1b.src"},
-	{"testdata/importC.src"}, // special handling in checkFiles
-	{"testdata/cycles.src"},
-	{"testdata/cycles1.src"},
-	{"testdata/cycles2.src"},
-	{"testdata/cycles3.src"},
-	{"testdata/cycles4.src"},
-	{"testdata/cycles5.src"},
-	{"testdata/init0.src"},
-	{"testdata/init1.src"},
-	{"testdata/init2.src"},
-	{"testdata/decls0.src"},
-	{"testdata/decls1.src"},
-	{"testdata/decls2a.src", "testdata/decls2b.src"},
-	{"testdata/decls3.src"},
-	{"testdata/decls4.src"},
-	{"testdata/decls5.src"},
-	{"testdata/const0.src"},
-	{"testdata/const1.src"},
-	{"testdata/constdecl.src"},
-	{"testdata/vardecl.src"},
-	{"testdata/expr0.src"},
-	{"testdata/expr1.src"},
-	{"testdata/expr2.src"},
-	{"testdata/expr3.src"},
-	{"testdata/methodsets.src"},
-	{"testdata/shifts.src"},
-	{"testdata/builtins.src"},
-	{"testdata/conversions.src"},
-	{"testdata/conversions2.src"},
-	{"testdata/stmt0.src"},
-	{"testdata/stmt1.src"},
-	{"testdata/gotos.src"},
-	{"testdata/labels.src"},
-	{"testdata/literals.src"},
-	{"testdata/issues.src"},
-	{"testdata/blank.src"},
-	{"testdata/issue25008b.src", "testdata/issue25008a.src"}, // order (b before a) is crucial!
-}
 
 var fset = token.NewFileSet()
 
@@ -236,9 +190,13 @@ func eliminate(t *testing.T, errmap map[string][]string, errlist []error) {
 	}
 }
 
-func checkFiles(t *testing.T, testfiles []string) {
+func checkFiles(t *testing.T, sources []string) {
+	if len(sources) == 0 {
+		t.Fatal("no source files")
+	}
+
 	// parse files and collect parser errors
-	files, errlist := parseFiles(t, testfiles)
+	files, errlist := parseFiles(t, sources)
 
 	pkgName := "<no package>"
 	if len(files) > 0 {
@@ -254,10 +212,13 @@ func checkFiles(t *testing.T, testfiles []string) {
 
 	// typecheck and collect typechecker errors
 	var conf Config
+
 	// special case for importC.src
-	if len(testfiles) == 1 && strings.HasSuffix(testfiles[0], "importC.src") {
+	if len(sources) == 1 && strings.HasSuffix(sources[0], "importC.src") {
 		conf.FakeImportC = true
 	}
+	// TODO(rFindley) we may need to use the source importer when adding generics
+	// tests.
 	conf.Importer = importer.Default()
 	conf.Error = func(err error) {
 		if *haltOnError {
@@ -306,44 +267,52 @@ func checkFiles(t *testing.T, testfiles []string) {
 	}
 }
 
+// TestCheck is for manual testing of selected input files, provided with -files.
 func TestCheck(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-
-	// Declare builtins for testing.
-	DefPredeclaredTestFuncs()
-
-	// If explicit test files are specified, only check those.
-	if files := *testFiles; files != "" {
-		checkFiles(t, strings.Split(files, " "))
+	if *testFiles == "" {
 		return
 	}
-
-	// Otherwise, run all the tests.
-	for _, files := range tests {
-		checkFiles(t, files)
-	}
+	testenv.MustHaveGoBuild(t)
+	DefPredeclaredTestFuncs()
+	checkFiles(t, strings.Split(*testFiles, " "))
 }
 
-func TestFixedBugs(t *testing.T) { testDir(t, "fixedbugs") }
+func TestTestdata(t *testing.T)  { DefPredeclaredTestFuncs(); testDir(t, "testdata") }
+func TestFixedbugs(t *testing.T) { testDir(t, "fixedbugs") }
 
 func testDir(t *testing.T, dir string) {
 	testenv.MustHaveGoBuild(t)
 
-	dirs, err := os.ReadDir(dir)
+	fis, err := os.ReadDir(dir)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 
-	for _, d := range dirs {
-		testname := filepath.Base(d.Name())
-		testname = strings.TrimSuffix(testname, filepath.Ext(testname))
-		t.Run(testname, func(t *testing.T) {
-			filename := filepath.Join(dir, d.Name())
-			if d.IsDir() {
-				t.Errorf("skipped directory %q", filename)
-				return
+	for _, fi := range fis {
+		path := filepath.Join(dir, fi.Name())
+
+		// if fi is a directory, its files make up a single package
+		var files []string
+		if fi.IsDir() {
+			fis, err := ioutil.ReadDir(path)
+			if err != nil {
+				t.Error(err)
+				continue
 			}
-			checkFiles(t, []string{filename})
+			files = make([]string, len(fis))
+			for i, fi := range fis {
+				// if fi is a directory, checkFiles below will complain
+				files[i] = filepath.Join(path, fi.Name())
+				if testing.Verbose() {
+					fmt.Printf("\t%s\n", files[i])
+				}
+			}
+		} else {
+			files = []string{path}
+		}
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			checkFiles(t, files)
 		})
 	}
 }
