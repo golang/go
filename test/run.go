@@ -1963,7 +1963,6 @@ var excluded = map[string]bool{
 	"fixedbugs/issue25958.go":  true, // types2 doesn't report a follow-on error (pref: types2)
 	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors
 	"fixedbugs/issue28268.go":  true, // types2 reports follow-on errors
-	"fixedbugs/issue31747.go":  true, // types2 is missing support for -lang flag
 	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
 	"fixedbugs/issue34329.go":  true, // types2 is missing support for -lang flag
 	"fixedbugs/issue41575.go":  true, // types2 reports alternative positions in separate error
