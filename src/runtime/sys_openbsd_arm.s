@@ -465,3 +465,342 @@ TEXT runtime·sigaltstack_trampoline(SB),NOSPLIT,$0
 	MOVW	R8, (R8)
 	MOVW	R9, R13
 	RET
+
+// syscall calls a function in libc on behalf of the syscall package.
+// syscall takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall must be called on the g0 stack with the
+// C calling convention (use libcCall).
+//
+// syscall expects a 32-bit result and tests for 32-bit -1
+// to decide there was an error.
+TEXT runtime·syscall(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+
+	MOVW	R0, R8
+
+	MOVW	(0*4)(R8), R7 // fn
+	MOVW	(1*4)(R8), R0 // a1
+	MOVW	(2*4)(R8), R1 // a2
+	MOVW	(3*4)(R8), R2 // a3
+
+	BL	(R7)
+
+	MOVW	R0, (4*4)(R8) // r1
+	MOVW	R1, (5*4)(R8) // r2
+
+	// Standard libc functions return -1 on error and set errno.
+	CMP	$-1, R0
+	BNE	ok
+
+	// Get error code from libc.
+	BL	libc_errno(SB)
+	MOVW	(R0), R1
+	MOVW	R1, (6*4)(R8) // err
+
+ok:
+	MOVW	$0, R0		// no error (it's ignored anyway)
+	MOVW	R9, R13
+	RET
+
+// syscallX calls a function in libc on behalf of the syscall package.
+// syscallX takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscallX must be called on the g0 stack with the
+// C calling convention (use libcCall).
+//
+// syscallX is like syscall but expects a 64-bit result
+// and tests for 64-bit -1 to decide there was an error.
+TEXT runtime·syscallX(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+
+	MOVW	R0, R8
+
+	MOVW	(0*4)(R8), R7 // fn
+	MOVW	(1*4)(R8), R0 // a1
+	MOVW	(2*4)(R8), R1 // a2
+	MOVW	(3*4)(R8), R2 // a3
+
+	BL	(R7)
+
+	MOVW	R0, (4*4)(R8) // r1
+	MOVW	R1, (5*4)(R8) // r2
+
+	// Standard libc functions return -1 on error and set errno.
+	CMP	$-1, R0
+	BNE	ok
+	CMP	$-1, R1
+	BNE	ok
+
+	// Get error code from libc.
+	BL	libc_errno(SB)
+	MOVW	(R0), R1
+	MOVW	R1, (6*4)(R8) // err
+
+ok:
+	MOVW	$0, R0		// no error (it's ignored anyway)
+	MOVW	R9, R13
+	RET
+
+// syscall6 calls a function in libc on behalf of the syscall package.
+// syscall6 takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall6 must be called on the g0 stack with the
+// C calling convention (use libcCall).
+//
+// syscall6 expects a 32-bit result and tests for 32-bit -1
+// to decide there was an error.
+TEXT runtime·syscall6(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	SUB	$8, R13
+	BIC     $0x7, R13		// align for ELF ABI
+
+	MOVW	R0, R8
+
+	MOVW	(0*4)(R8), R7 // fn
+	MOVW	(1*4)(R8), R0 // a1
+	MOVW	(2*4)(R8), R1 // a2
+	MOVW	(3*4)(R8), R2 // a3
+	MOVW	(4*4)(R8), R3 // a4
+	MOVW	(5*4)(R8), R4 // a5
+	MOVW	R4, 0(R13)
+	MOVW	(6*4)(R8), R5 // a6
+	MOVW	R5, 4(R13)
+
+	BL	(R7)
+
+	MOVW	R0, (7*4)(R8) // r1
+	MOVW	R1, (8*4)(R8) // r2
+
+	// Standard libc functions return -1 on error and set errno.
+	CMP	$-1, R0
+	BNE	ok
+
+	// Get error code from libc.
+	BL	libc_errno(SB)
+	MOVW	(R0), R1
+	MOVW	R1, (9*4)(R8) // err
+
+ok:
+	MOVW	$0, R0		// no error (it's ignored anyway)
+	MOVW	R9, R13
+	RET
+
+// syscall6X calls a function in libc on behalf of the syscall package.
+// syscall6X takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall6X must be called on the g0 stack with the
+// C calling convention (use libcCall).
+//
+// syscall6X is like syscall6 but expects a 64-bit result
+// and tests for 64-bit -1 to decide there was an error.
+TEXT runtime·syscall6X(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	SUB	$8, R13
+	BIC     $0x7, R13		// align for ELF ABI
+
+	MOVW	R0, R8
+
+	MOVW	(0*4)(R8), R7 // fn
+	MOVW	(1*4)(R8), R0 // a1
+	MOVW	(2*4)(R8), R1 // a2
+	MOVW	(3*4)(R8), R2 // a3
+	MOVW	(4*4)(R8), R3 // a4
+	MOVW	(5*4)(R8), R4 // a5
+	MOVW	R4, 0(R13)
+	MOVW	(6*4)(R8), R5 // a6
+	MOVW	R5, 4(R13)
+
+	BL	(R7)
+
+	MOVW	R0, (7*4)(R8) // r1
+	MOVW	R1, (8*4)(R8) // r2
+
+	// Standard libc functions return -1 on error and set errno.
+	CMP	$-1, R0
+	BNE	ok
+	CMP	$-1, R1
+	BNE	ok
+
+	// Get error code from libc.
+	BL	libc_errno(SB)
+	MOVW	(R0), R1
+	MOVW	R1, (9*4)(R8) // err
+
+ok:
+	MOVW	$0, R0		// no error (it's ignored anyway)
+	MOVW	R9, R13
+	RET
+
+// syscall10 calls a function in libc on behalf of the syscall package.
+// syscall10 takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	a7    uintptr
+//	a8    uintptr
+//	a9    uintptr
+//	a10   uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall10 must be called on the g0 stack with the
+// C calling convention (use libcCall).
+TEXT runtime·syscall10(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	SUB	$24, R13
+	BIC     $0x7, R13		// align for ELF ABI
+
+	MOVW	R0, R8
+
+	MOVW	(0*4)(R8), R7 // fn
+	MOVW	(1*4)(R8), R0 // a1
+	MOVW	(2*4)(R8), R1 // a2
+	MOVW	(3*4)(R8), R2 // a3
+	MOVW	(4*4)(R8), R3 // a4
+	MOVW	(5*4)(R8), R4 // a5
+	MOVW	R4, 0(R13)
+	MOVW	(6*4)(R8), R5 // a6
+	MOVW	R5, 4(R13)
+	MOVW	(7*4)(R8), R6 // a7
+	MOVW	R6, 8(R13)
+	MOVW	(8*4)(R8), R4 // a8
+	MOVW	R4, 12(R13)
+	MOVW	(9*4)(R8), R5 // a9
+	MOVW	R5, 16(R13)
+	MOVW	(10*4)(R8), R6 // a10
+	MOVW	R6, 20(R13)
+
+	BL	(R7)
+
+	MOVW	R0, (11*4)(R8) // r1
+	MOVW	R1, (12*4)(R8) // r2
+
+	// Standard libc functions return -1 on error and set errno.
+	CMP	$-1, R0
+	BNE	ok
+
+	// Get error code from libc.
+	BL	libc_errno(SB)
+	MOVW	(R0), R1
+	MOVW	R1, (13*4)(R8) // err
+
+ok:
+	MOVW	$0, R0		// no error (it's ignored anyway)
+	MOVW	R9, R13
+	RET
+
+// syscall10X calls a function in libc on behalf of the syscall package.
+// syscall10X takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	a7    uintptr
+//	a8    uintptr
+//	a9    uintptr
+//	a10   uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall10X must be called on the g0 stack with the
+// C calling convention (use libcCall).
+//
+// syscall10X is like syscall10 but expects a 64-bit result
+// and tests for 64-bit -1 to decide there was an error.
+TEXT runtime·syscall10X(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	SUB	$24, R13
+	BIC     $0x7, R13		// align for ELF ABI
+
+	MOVW	R0, R8
+
+	MOVW	(0*4)(R8), R7 // fn
+	MOVW	(1*4)(R8), R0 // a1
+	MOVW	(2*4)(R8), R1 // a2
+	MOVW	(3*4)(R8), R2 // a3
+	MOVW	(4*4)(R8), R3 // a4
+	MOVW	(5*4)(R8), R4 // a5
+	MOVW	R4, 0(R13)
+	MOVW	(6*4)(R8), R5 // a6
+	MOVW	R5, 4(R13)
+	MOVW	(7*4)(R8), R6 // a7
+	MOVW	R6, 8(R13)
+	MOVW	(8*4)(R8), R4 // a8
+	MOVW	R4, 12(R13)
+	MOVW	(9*4)(R8), R5 // a9
+	MOVW	R5, 16(R13)
+	MOVW	(10*4)(R8), R6 // a10
+	MOVW	R6, 20(R13)
+
+	BL	(R7)
+
+	MOVW	R0, (11*4)(R8) // r1
+	MOVW	R1, (12*4)(R8) // r2
+
+	// Standard libc functions return -1 on error and set errno.
+	CMP	$-1, R0
+	BNE	ok
+	CMP	$-1, R1
+	BNE	ok
+
+	// Get error code from libc.
+	BL	libc_errno(SB)
+	MOVW	(R0), R1
+	MOVW	R1, (13*4)(R8) // err
+
+ok:
+	MOVW	$0, R0		// no error (it's ignored anyway)
+	MOVW	R9, R13
+	RET
