@@ -137,7 +137,7 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 		err := s.Test(ctx, a0, a1, a2)
 		return nil, err
 	case "gopls.tidy":
-		var a0 URIArg
+		var a0 URIArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
@@ -151,7 +151,7 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 		err := s.ToggleGCDetails(ctx, a0)
 		return nil, err
 	case "gopls.update_go_sum":
-		var a0 URIArg
+		var a0 URIArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
@@ -307,7 +307,7 @@ func NewTestCommand(title string, a0 protocol.DocumentURI, a1 []string, a2 []str
 	}, nil
 }
 
-func NewTidyCommand(title string, a0 URIArg) (protocol.Command, error) {
+func NewTidyCommand(title string, a0 URIArgs) (protocol.Command, error) {
 	args, err := MarshalArgs(a0)
 	if err != nil {
 		return protocol.Command{}, err
@@ -331,7 +331,7 @@ func NewToggleGCDetailsCommand(title string, a0 URIArg) (protocol.Command, error
 	}, nil
 }
 
-func NewUpdateGoSumCommand(title string, a0 URIArg) (protocol.Command, error) {
+func NewUpdateGoSumCommand(title string, a0 URIArgs) (protocol.Command, error) {
 	args, err := MarshalArgs(a0)
 	if err != nil {
 		return protocol.Command{}, err

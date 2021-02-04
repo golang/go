@@ -194,7 +194,7 @@ Args:
 ```
 {
 	// The file URI.
-	"URI": string,
+	"URIs": []string,
 }
 ```
 
@@ -222,7 +222,7 @@ Args:
 ```
 {
 	// The file URI.
-	"URI": string,
+	"URIs": []string,
 }
 ```
 

@@ -782,3 +782,61 @@ package exclude
 		env.Await(env.DiagnosticAtRegexp("include/include.go", `exclude.(X)`))
 	})
 }
+
+// Confirm that a fix for a tidy module will correct all modules in the
+// workspace.
+func TestMultiModule_OneBrokenModule(t *testing.T) {
+	testenv.NeedsGo1Point(t, 15)
+
+	const mod = `
+-- a/go.mod --
+module a.com
+
+go 1.12
+-- a/main.go --
+package main
+-- b/go.mod --
+module b.com
+
+go 1.12
+
+require (
+	example.com v1.2.3
+)
+-- b/go.sum --
+-- b/main.go --
+package b
+
+import "example.com/blah"
+
+func main() {
+	blah.Hello()
+}
+`
+	WithOptions(
+		ProxyFiles(workspaceProxy),
+		Modes(Experimental),
+	).Run(t, mod, func(t *testing.T, env *Env) {
+		params := &protocol.PublishDiagnosticsParams{}
+		env.OpenFile("a/go.mod")
+		env.Await(
+			ReadDiagnostics("a/go.mod", params),
+		)
+		for _, d := range params.Diagnostics {
+			if d.Message != `go.sum is out of sync with go.mod. Please update it by applying the quick fix.` {
+				continue
+			}
+			actions, err := env.GetQuickFixes("a/go.mod", []protocol.Diagnostic{d})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(actions) != 2 {
+				t.Fatalf("expected 2 code actions, got %v", len(actions))
+			}
+			env.ApplyQuickFixes("a/go.mod", []protocol.Diagnostic{d})
+		}
+		env.Await(
+			EmptyDiagnostics("a/go.mod"),
+		)
+	})
+}

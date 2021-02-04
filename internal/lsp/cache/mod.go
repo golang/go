@@ -214,17 +214,23 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 
 // extractGoCommandError tries to parse errors that come from the go command
 // and shape them into go.mod diagnostics.
-func (s *snapshot) extractGoCommandErrors(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, goCmdError string) []*source.Diagnostic {
+func (s *snapshot) extractGoCommandErrors(ctx context.Context, snapshot source.Snapshot, goCmdError string) []*source.Diagnostic {
 	var srcErrs []*source.Diagnostic
-	if srcErr := s.parseModError(ctx, fh, goCmdError); srcErr != nil {
-		srcErrs = append(srcErrs, srcErr)
+	if srcErr := s.parseModError(ctx, goCmdError); srcErr != nil {
+		srcErrs = append(srcErrs, srcErr...)
 	}
-	// If the error message contains a position, use that. Don't pass a file
-	// handle in, as it might not be the file associated with the error.
 	if srcErr := extractErrorWithPosition(ctx, goCmdError, s); srcErr != nil {
 		srcErrs = append(srcErrs, srcErr)
-	} else if srcErr := s.matchErrorToModule(ctx, fh, goCmdError); srcErr != nil {
-		srcErrs = append(srcErrs, srcErr)
+	} else {
+		for _, uri := range s.ModFiles() {
+			fh, err := s.GetFile(ctx, uri)
+			if err != nil {
+				continue
+			}
+			if srcErr := s.matchErrorToModule(ctx, fh, goCmdError); srcErr != nil {
+				srcErrs = append(srcErrs, srcErr)
+			}
+		}
 	}
 	return srcErrs
 }

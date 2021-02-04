@@ -151,8 +151,7 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 
 	return mth.tidy(ctx, s)
 }
-
-func (s *snapshot) parseModError(ctx context.Context, fh source.FileHandle, errText string) *source.Diagnostic {
+func (s *snapshot) parseModError(ctx context.Context, errText string) []*source.Diagnostic {
 	// Match on common error messages. This is really hacky, but I'm not sure
 	// of any better way. This can be removed when golang/go#39164 is resolved.
 	isInconsistentVendor := strings.Contains(errText, "inconsistent vendoring")
@@ -162,58 +161,78 @@ func (s *snapshot) parseModError(ctx context.Context, fh source.FileHandle, errT
 		return nil
 	}
 
-	pmf, err := s.ParseMod(ctx, fh)
-	if err != nil {
-		return nil
-	}
-	if pmf.File.Module == nil || pmf.File.Module.Syntax == nil {
-		return nil
-	}
-	rng, err := rangeFromPositions(pmf.Mapper, pmf.File.Module.Syntax.Start, pmf.File.Module.Syntax.End)
-	if err != nil {
-		return nil
-	}
-	// TODO(rFindley): we shouldn't really need to call three constructors here.
-	//                 Reconsider this.
-	args := command.URIArg{protocol.URIFromSpanURI(fh.URI())}
 	switch {
 	case isInconsistentVendor:
+		uri := s.ModFiles()[0]
+		args := command.URIArg{URI: protocol.URIFromSpanURI(uri)}
+		rng, err := s.uriToModDecl(ctx, uri)
+		if err != nil {
+			return nil
+		}
 		cmd, err := command.NewVendorCommand("Run go mod vendor", args)
 		if err != nil {
 			return nil
 		}
-		return &source.Diagnostic{
-			URI:      fh.URI(),
+		return []*source.Diagnostic{{
+			URI:      uri,
 			Range:    rng,
 			Severity: protocol.SeverityError,
 			Source:   source.ListError,
 			Message: `Inconsistent vendoring detected. Please re-run "go mod vendor".
 See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 			SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd)},
-		}
+		}}
 
 	case isGoSumUpdates:
-		tidyCmd, err := command.NewTidyCommand("Run go mod tidy", args)
-		if err != nil {
-			return nil
+		var args []protocol.DocumentURI
+		for _, uri := range s.ModFiles() {
+			args = append(args, protocol.URIFromSpanURI(uri))
 		}
-		updateCmd, err := command.NewUpdateGoSumCommand("Update go.sum", args)
-		if err != nil {
-			return nil
+		var diagnostics []*source.Diagnostic
+		for _, uri := range s.ModFiles() {
+			rng, err := s.uriToModDecl(ctx, uri)
+			if err != nil {
+				return nil
+			}
+			tidyCmd, err := command.NewTidyCommand("Run go mod tidy", command.URIArgs{URIs: args})
+			if err != nil {
+				return nil
+			}
+			updateCmd, err := command.NewUpdateGoSumCommand("Update go.sum", command.URIArgs{URIs: args})
+			if err != nil {
+				return nil
+			}
+			diagnostics = append(diagnostics, &source.Diagnostic{
+				URI:      uri,
+				Range:    rng,
+				Severity: protocol.SeverityError,
+				Source:   source.ListError,
+				Message:  `go.sum is out of sync with go.mod. Please update it by applying the quick fix.`,
+				SuggestedFixes: []source.SuggestedFix{
+					source.SuggestedFixFromCommand(tidyCmd),
+					source.SuggestedFixFromCommand(updateCmd),
+				},
+			})
 		}
-		return &source.Diagnostic{
-			URI:      fh.URI(),
-			Range:    rng,
-			Severity: protocol.SeverityError,
-			Source:   source.ListError,
-			Message:  `go.sum is out of sync with go.mod. Please update it or run "go mod tidy".`,
-			SuggestedFixes: []source.SuggestedFix{
-				source.SuggestedFixFromCommand(tidyCmd),
-				source.SuggestedFixFromCommand(updateCmd),
-			},
-		}
+		return diagnostics
+	default:
+		return nil
 	}
-	return nil
+}
+
+func (s *snapshot) uriToModDecl(ctx context.Context, uri span.URI) (protocol.Range, error) {
+	fh, err := s.GetFile(ctx, uri)
+	if err != nil {
+		return protocol.Range{}, nil
+	}
+	pmf, err := s.ParseMod(ctx, fh)
+	if err != nil {
+		return protocol.Range{}, nil
+	}
+	if pmf.File.Module == nil || pmf.File.Module.Syntax == nil {
+		return protocol.Range{}, nil
+	}
+	return rangeFromPositions(pmf.Mapper, pmf.File.Module.Syntax.Start, pmf.File.Module.Syntax.End)
 }
 
 func hashImports(ctx context.Context, wsPackages []source.Package) (string, error) {

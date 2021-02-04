@@ -200,6 +200,12 @@ func (e *Env) ApplyQuickFixes(path string, diagnostics []protocol.Diagnostic) {
 	}
 }
 
+// GetQuickFixes returns the available quick fix code actions.
+func (e *Env) GetQuickFixes(path string, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
+	e.T.Helper()
+	return e.Editor.GetQuickFixes(e.Ctx, path, nil, diagnostics)
+}
+
 // Hover in the editor, calling t.Fatal on any error.
 func (e *Env) Hover(name string, pos fake.Pos) (*protocol.MarkupContent, fake.Pos) {
 	e.T.Helper()

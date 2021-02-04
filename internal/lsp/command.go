@@ -184,23 +184,41 @@ func (c *commandHandler) GoGetModule(ctx context.Context, args command.Dependenc
 
 // TODO(rFindley): UpdateGoSum, Tidy, and Vendor could probably all be one command.
 
-func (c *commandHandler) UpdateGoSum(ctx context.Context, args command.URIArg) error {
+func (c *commandHandler) UpdateGoSum(ctx context.Context, args command.URIArgs) error {
 	return c.run(ctx, commandConfig{
 		requireSave: true,
 		progress:    "Updating go.sum",
-		forURI:      args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		return runSimpleGoCommand(ctx, deps.snapshot, source.UpdateUserModFile|source.AllowNetwork, args.URI.SpanURI(), "list", []string{"all"})
+		for _, uri := range args.URIs {
+			snapshot, fh, ok, release, err := c.s.beginFileRequest(ctx, uri, source.UnknownKind)
+			defer release()
+			if !ok {
+				return err
+			}
+			if err := runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile|source.AllowNetwork, fh.URI(), "list", []string{"all"}); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }
 
-func (c *commandHandler) Tidy(ctx context.Context, args command.URIArg) error {
+func (c *commandHandler) Tidy(ctx context.Context, args command.URIArgs) error {
 	return c.run(ctx, commandConfig{
 		requireSave: true,
 		progress:    "Running go mod tidy",
-		forURI:      args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		return runSimpleGoCommand(ctx, deps.snapshot, source.UpdateUserModFile|source.AllowNetwork, args.URI.SpanURI(), "mod", []string{"tidy"})
+		for _, uri := range args.URIs {
+			snapshot, fh, ok, release, err := c.s.beginFileRequest(ctx, uri, source.UnknownKind)
+			defer release()
+			if !ok {
+				return err
+			}
+			if err := runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile|source.AllowNetwork, fh.URI(), "mod", []string{"tidy"}); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }
 

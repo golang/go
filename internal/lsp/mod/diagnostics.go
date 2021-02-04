@@ -105,7 +105,12 @@ func DiagnosticsForMod(ctx context.Context, snapshot source.Snapshot, fh source.
 		event.Error(ctx, "diagnosing go.mod", err)
 	}
 	if err == nil {
-		diagnostics = append(diagnostics, tidied.Diagnostics...)
+		for _, d := range tidied.Diagnostics {
+			if d.URI != fh.URI() {
+				continue
+			}
+			diagnostics = append(diagnostics, d)
+		}
 	}
 	return diagnostics, nil
 }

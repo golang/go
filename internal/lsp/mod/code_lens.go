@@ -86,7 +86,7 @@ func tidyLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 		return nil, nil
 	}
 	uri := protocol.URIFromSpanURI(fh.URI())
-	cmd, err := command.NewTidyCommand("Run go mod tidy", command.URIArg{URI: uri})
+	cmd, err := command.NewTidyCommand("Run go mod tidy", command.URIArgs{URIs: []protocol.DocumentURI{uri}})
 	if err != nil {
 		return nil, err
 	}

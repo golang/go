@@ -1032,14 +1032,7 @@ func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
 	}
 	criticalErr := &source.CriticalError{
 		MainError: loadErr,
-	}
-	// Attempt to place diagnostics in the relevant go.mod files, if any.
-	for _, uri := range s.ModFiles() {
-		fh, err := s.GetFile(ctx, uri)
-		if err != nil {
-			continue
-		}
-		criticalErr.DiagList = append(criticalErr.DiagList, s.extractGoCommandErrors(ctx, s, fh, loadErr.Error())...)
+		DiagList:  s.extractGoCommandErrors(ctx, s, loadErr.Error()),
 	}
 	return criticalErr
 }

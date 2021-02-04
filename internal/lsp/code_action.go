@@ -553,6 +553,7 @@ func quickFixesForDiagnostics(ctx context.Context, snapshot source.Snapshot, pdi
 	}
 	return quickFixes, nil
 }
+
 func sameDiagnostic(pd protocol.Diagnostic, sd *source.Diagnostic) bool {
 	return pd.Message == sd.Message && protocol.CompareRange(pd.Range, sd.Range) == 0 && pd.Source == string(sd.Source)
 }

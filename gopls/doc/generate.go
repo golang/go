@@ -410,6 +410,10 @@ func argDoc(arg *commandmeta.Field, level int) string {
 		return "{ ... }"
 	}
 	under := arg.Type.Underlying()
+	switch u := under.(type) {
+	case *types.Slice:
+		return fmt.Sprintf("[]%s", u.Elem().Underlying().String())
+	}
 	return types.TypeString(under, nil)
 }
 

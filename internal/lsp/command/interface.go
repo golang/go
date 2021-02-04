@@ -61,7 +61,7 @@ type Interface interface {
 	// Tidy: Run go mod tidy
 	//
 	// Runs `go mod tidy` for a module.
-	Tidy(context.Context, URIArg) error
+	Tidy(context.Context, URIArgs) error
 
 	// Vendor: Run go mod vendor
 	//
@@ -71,7 +71,7 @@ type Interface interface {
 	// UpdateGoSum: Update go.sum
 	//
 	// Updates the go.sum file for a module.
-	UpdateGoSum(context.Context, URIArg) error
+	UpdateGoSum(context.Context, URIArgs) error
 
 	// CheckUpgrades: Check for upgrades
 	//
@@ -149,6 +149,11 @@ type ApplyFixArgs struct {
 type URIArg struct {
 	// The file URI.
 	URI protocol.DocumentURI
+}
+
+type URIArgs struct {
+	// The file URI.
+	URIs []protocol.DocumentURI
 }
 
 type CheckUpgradesArgs struct {

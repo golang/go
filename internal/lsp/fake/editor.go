@@ -754,22 +754,15 @@ func (e *Editor) ApplyQuickFixes(ctx context.Context, path string, rng *protocol
 	return e.codeAction(ctx, path, rng, diagnostics, protocol.QuickFix, protocol.SourceFixAll)
 }
 
+// GetQuickFixes returns the available quick fix code actions.
+func (e *Editor) GetQuickFixes(ctx context.Context, path string, rng *protocol.Range, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
+	return e.getCodeActions(ctx, path, rng, diagnostics, protocol.QuickFix, protocol.SourceFixAll)
+}
+
 func (e *Editor) codeAction(ctx context.Context, path string, rng *protocol.Range, diagnostics []protocol.Diagnostic, only ...protocol.CodeActionKind) error {
-	if e.Server == nil {
-		return nil
-	}
-	params := &protocol.CodeActionParams{}
-	params.TextDocument.URI = e.sandbox.Workdir.URI(path)
-	params.Context.Only = only
-	if diagnostics != nil {
-		params.Context.Diagnostics = diagnostics
-	}
-	if rng != nil {
-		params.Range = *rng
-	}
-	actions, err := e.Server.CodeAction(ctx, params)
+	actions, err := e.getCodeActions(ctx, path, rng, diagnostics, only...)
 	if err != nil {
-		return errors.Errorf("textDocument/codeAction: %w", err)
+		return err
 	}
 	for _, action := range actions {
 		if action.Title == "" {
@@ -812,6 +805,22 @@ func (e *Editor) codeAction(ctx context.Context, path string, rng *protocol.Rang
 		}
 	}
 	return nil
+}
+
+func (e *Editor) getCodeActions(ctx context.Context, path string, rng *protocol.Range, diagnostics []protocol.Diagnostic, only ...protocol.CodeActionKind) ([]protocol.CodeAction, error) {
+	if e.Server == nil {
+		return nil, nil
+	}
+	params := &protocol.CodeActionParams{}
+	params.TextDocument.URI = e.sandbox.Workdir.URI(path)
+	params.Context.Only = only
+	if diagnostics != nil {
+		params.Context.Diagnostics = diagnostics
+	}
+	if rng != nil {
+		params.Range = *rng
+	}
+	return e.Server.CodeAction(ctx, params)
 }
 
 func (e *Editor) ExecuteCommand(ctx context.Context, params *protocol.ExecuteCommandParams) (interface{}, error) {
