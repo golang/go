@@ -51,12 +51,12 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 	}
 	assert(typ != nil)
 
-	// The object may be dot-imported: If so, remove its package from
-	// the map of unused dot imports for the respective file scope.
+	// The object may have been dot-imported.
+	// If so, mark the respective package as used.
 	// (This code is only needed for dot-imports. Without them,
 	// we only have to mark variables, see *Var case below).
-	if pkg := obj.Pkg(); pkg != check.pkg && pkg != nil {
-		delete(check.unusedDotImports[scope], pkg)
+	if pkgName := check.dotImportMap[dotImportKey{scope, obj}]; pkgName != nil {
+		pkgName.used = true
 	}
 
 	switch obj := obj.(type) {
