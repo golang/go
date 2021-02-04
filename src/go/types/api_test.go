@@ -42,7 +42,7 @@ func mustTypecheck(t *testing.T, path, source string, info *Info) string {
 	return pkg.Name()
 }
 
-func mayTypecheck(t *testing.T, path, source string, info *Info) string {
+func mayTypecheck(t *testing.T, path, source string, info *Info) (string, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, path, source, 0)
 	if f == nil { // ignore errors unless f is nil
@@ -52,8 +52,8 @@ func mayTypecheck(t *testing.T, path, source string, info *Info) string {
 		Error:    func(err error) {},
 		Importer: importer.Default(),
 	}
-	pkg, _ := conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
-	return pkg.Name()
+	pkg, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
+	return pkg.Name(), err
 }
 
 func TestValuesInfo(t *testing.T) {
@@ -175,6 +175,9 @@ func TestValuesInfo(t *testing.T) {
 }
 
 func TestTypesInfo(t *testing.T) {
+	// Test sources that are not expected to typecheck must start with the broken prefix.
+	const broken = "package broken_"
+
 	var tests = []struct {
 		src  string
 		expr string // expression
@@ -186,6 +189,39 @@ func TestTypesInfo(t *testing.T) {
 		{`package b2; var x interface{} = 0.`, `0.`, `float64`},
 		{`package b3; var x interface{} = 0i`, `0i`, `complex128`},
 		{`package b4; var x interface{} = "foo"`, `"foo"`, `string`},
+
+		// uses of nil
+		{`package n0; var _ *int = nil`, `nil`, `untyped nil`},
+		{`package n1; var _ func() = nil`, `nil`, `untyped nil`},
+		{`package n2; var _ []byte = nil`, `nil`, `untyped nil`},
+		{`package n3; var _ map[int]int = nil`, `nil`, `untyped nil`},
+		{`package n4; var _ chan int = nil`, `nil`, `untyped nil`},
+		{`package n5; var _ interface{} = nil`, `nil`, `untyped nil`},
+		{`package n6; import "unsafe"; var _ unsafe.Pointer = nil`, `nil`, `untyped nil`},
+
+		{`package n10; var (x *int; _ = x == nil)`, `nil`, `untyped nil`},
+		{`package n11; var (x func(); _ = x == nil)`, `nil`, `untyped nil`},
+		{`package n12; var (x []byte; _ = x == nil)`, `nil`, `untyped nil`},
+		{`package n13; var (x map[int]int; _ = x == nil)`, `nil`, `untyped nil`},
+		{`package n14; var (x chan int; _ = x == nil)`, `nil`, `untyped nil`},
+		{`package n15; var (x interface{}; _ = x == nil)`, `nil`, `untyped nil`},
+		{`package n15; import "unsafe"; var (x unsafe.Pointer; _ = x == nil)`, `nil`, `untyped nil`},
+
+		{`package n20; var _ = (*int)(nil)`, `nil`, `untyped nil`},
+		{`package n21; var _ = (func())(nil)`, `nil`, `untyped nil`},
+		{`package n22; var _ = ([]byte)(nil)`, `nil`, `untyped nil`},
+		{`package n23; var _ = (map[int]int)(nil)`, `nil`, `untyped nil`},
+		{`package n24; var _ = (chan int)(nil)`, `nil`, `untyped nil`},
+		{`package n25; var _ = (interface{})(nil)`, `nil`, `untyped nil`},
+		{`package n26; import "unsafe"; var _ = unsafe.Pointer(nil)`, `nil`, `untyped nil`},
+
+		{`package n30; func f(*int) { f(nil) }`, `nil`, `untyped nil`},
+		{`package n31; func f(func()) { f(nil) }`, `nil`, `untyped nil`},
+		{`package n32; func f([]byte) { f(nil) }`, `nil`, `untyped nil`},
+		{`package n33; func f(map[int]int) { f(nil) }`, `nil`, `untyped nil`},
+		{`package n34; func f(chan int) { f(nil) }`, `nil`, `untyped nil`},
+		{`package n35; func f(interface{}) { f(nil) }`, `nil`, `untyped nil`},
+		{`package n35; import "unsafe"; func f(unsafe.Pointer) { f(nil) }`, `nil`, `untyped nil`},
 
 		// comma-ok expressions
 		{`package p0; var x interface{}; var _, _ = x.(int)`,
@@ -268,17 +304,27 @@ func TestTypesInfo(t *testing.T) {
 		},
 
 		// tests for broken code that doesn't parse or type-check
-		{`package x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
-		{`package x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},
-		{`package x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a; f: b;}}`, `b`, `string`},
-		{`package x3; var x = panic("");`, `panic`, `func(interface{})`},
+		{broken + `x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
+		{broken + `x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},
+		{broken + `x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a; f: b;}}`, `b`, `string`},
+		{broken + `x3; var x = panic("");`, `panic`, `func(interface{})`},
 		{`package x4; func _() { panic("") }`, `panic`, `func(interface{})`},
-		{`package x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
+		{broken + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
 	}
 
 	for _, test := range tests {
 		info := Info{Types: make(map[ast.Expr]TypeAndValue)}
-		name := mayTypecheck(t, "TypesInfo", test.src, &info)
+		var name string
+		if strings.HasPrefix(test.src, broken) {
+			var err error
+			name, err = mayTypecheck(t, "TypesInfo", test.src, &info)
+			if err == nil {
+				t.Errorf("package %s: expected to fail but passed", name)
+				continue
+			}
+		} else {
+			name = mustTypecheck(t, "TypesInfo", test.src, &info)
+		}
 
 		// look for expression type
 		var typ Type

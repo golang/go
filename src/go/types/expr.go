@@ -579,6 +579,8 @@ func (check *Checker) implicitType(x *operand, target Type) Type {
 			if !hasNil(target) {
 				return nil
 			}
+			// Preserve the type of nil as UntypedNil: see #13061.
+			return Typ[UntypedNil]
 		default:
 			return nil
 		}
