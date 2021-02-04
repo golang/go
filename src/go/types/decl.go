@@ -751,8 +751,12 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	obj.typ = sig // guard against cycles
 	fdecl := decl.fdecl
 	check.funcType(sig, fdecl.Recv, fdecl.Type)
-	if sig.recv == nil && obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
-		check.errorf(fdecl, _InvalidInitSig, "func init must have no arguments and no return values")
+	if sig.recv == nil {
+		if obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
+			check.errorf(fdecl, _InvalidInitDecl, "func init must have no arguments and no return values")
+		} else if obj.name == "main" && check.pkg.name == "main" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
+			check.errorf(fdecl, _InvalidMainDecl, "func main must have no arguments and no return values")
+		}
 		// ok to continue
 	}
 
