@@ -379,6 +379,11 @@ func (a *Aux) Write(w *Writer) { w.Bytes(a[:]) }
 // for testing
 func (a *Aux) fromBytes(b []byte) { copy(a[:], b) }
 
+// Used to construct an artifically large array type when reading an
+// item from the object file relocs section or aux sym section (needs
+// to work on 32-bit as well as 64-bit). See issue 41621.
+const huge = (1<<31 - 1) / RelocSize
+
 // Referenced symbol name.
 //
 // Serialized format:
@@ -652,7 +657,7 @@ func (r *Reader) Reloc(i int, j int) *Reloc {
 func (r *Reader) Relocs(i int) []Reloc {
 	off := r.RelocOff(i, 0)
 	n := r.NReloc(i)
-	return (*[1 << 20]Reloc)(unsafe.Pointer(&r.b[off]))[:n:n]
+	return (*[huge]Reloc)(unsafe.Pointer(&r.b[off]))[:n:n]
 }
 
 // NAux returns the number of aux symbols of the i-th symbol.
@@ -678,7 +683,7 @@ func (r *Reader) Aux(i int, j int) *Aux {
 func (r *Reader) Auxs(i int) []Aux {
 	off := r.AuxOff(i, 0)
 	n := r.NAux(i)
-	return (*[1 << 20]Aux)(unsafe.Pointer(&r.b[off]))[:n:n]
+	return (*[huge]Aux)(unsafe.Pointer(&r.b[off]))[:n:n]
 }
 
 // DataOff returns the offset of the i-th symbol's data.

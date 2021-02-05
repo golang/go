@@ -1515,6 +1515,18 @@ func Asmbpe(ctxt *Link) {
 	case sys.AMD64, sys.I386, sys.ARM:
 	}
 
+	if rsrcsym != 0 {
+		// The resource symbol may have been copied to the mmap'd
+		// output buffer. If so, certain conditions can cause that
+		// mmap'd output buffer to be munmap'd before we get a chance
+		// to use it. To avoid any issues we copy the data to the heap
+		// when the resource symbol exists.
+		rsrc := ctxt.loader.Syms[rsrcsym]
+		data := make([]byte, len(rsrc.P))
+		copy(data, rsrc.P)
+		rsrc.P = data
+	}
+
 	t := pefile.addSection(".text", int(Segtext.Length), int(Segtext.Length))
 	t.characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
 	if ctxt.LinkMode == LinkExternal {
