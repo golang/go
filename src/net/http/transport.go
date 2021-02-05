@@ -1764,6 +1764,20 @@ type erringRoundTripper interface {
 	RoundTripErr() error
 }
 
+// ProxyConnectError holds the response to an unsuccessful proxy CONNECT request.
+type ProxyConnectError struct {
+	Response *Response
+}
+
+func (p *ProxyConnectError) Error() string {
+	// Don't return full Response.Status for backwards compatibility
+	f := strings.SplitN(p.Response.Status, " ", 2)
+	if len(f) < 2 {
+		return "unknown status code"
+	}
+	return f[1]
+}
+
 var testHookProxyConnectTimeout = context.WithTimeout
 
 func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn bool, internalStateHook func()) (pconn *persistConn, err error) {
@@ -1929,12 +1943,10 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 		}
 
 		if resp.StatusCode != 200 {
-			_, text, ok := strings.Cut(resp.Status, " ")
 			conn.Close()
-			if !ok {
-				return nil, errors.New("unknown status code")
+			return nil, &ProxyConnectError{
+				Response: resp,
 			}
-			return nil, errors.New(text)
 		}
 	}
 
