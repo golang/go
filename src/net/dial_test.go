@@ -827,8 +827,12 @@ func TestDialCancel(t *testing.T) {
 				t.Fatalf("dial error after %d ticks (%d before cancel sent): %v",
 					ticks, cancelTick-ticks, err)
 			}
-			if oe, ok := err.(*OpError); !ok || oe.Err != errCanceled {
+			oe, ok := err.(*OpError);
+			if !ok || oe.Err != errCanceled {
 				t.Fatalf("dial error = %v (%T); want OpError with Err == errCanceled", err, err)
+			}
+			if la, ok := oe.Source.(*TCPAddr); !ok || la == nil || la.Port == 0 {
+				t.Fatalf("dial error = %v (%T); expected Source (local address) details, got %#v", err, err, oe.Source)
 			}
 			return // success.
 		}

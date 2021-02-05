@@ -68,8 +68,12 @@ func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only
 		}
 	}
 	if err := fd.dial(ctx, laddr, raddr, ctrlFn); err != nil {
+		// get the local socket address for better error information,
+		// if available
+		lsa, _ := syscall.Getsockname(fd.pfd.Sysfd)
+		fd.setAddr(fd.addrFunc()(lsa), raddr)
 		fd.Close()
-		return nil, err
+		return fd, err
 	}
 	return fd, nil
 }

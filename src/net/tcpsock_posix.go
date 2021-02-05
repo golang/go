@@ -96,7 +96,10 @@ func (sd *sysDialer) doDialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCP
 	}
 
 	if err != nil {
-		return nil, err
+		// this TCP connection won't be used; it contains the laddr
+		// used in the failed connection attempt if there was one for
+		// better error information from net.Dial
+		return &TCPConn{conn{fd}}, err
 	}
 	return newTCPConn(fd), nil
 }

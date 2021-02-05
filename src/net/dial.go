@@ -524,7 +524,18 @@ func (sd *sysDialer) dialSerial(ctx context.Context, ras addrList) (Conn, error)
 	for i, ra := range ras {
 		select {
 		case <-ctx.Done():
-			return nil, &OpError{Op: "dial", Net: sd.network, Source: sd.LocalAddr, Addr: ra, Err: mapErr(ctx.Err())}
+			// if the first dial failed due to a deadline timeout but we had several
+			// IPs in our list of remote addresses, we will set firstError the first
+			// time through this loop, then hit this ctx.Done() case.  If that happens,
+			// try to pull the LocalAddr off firstErr, as it will contain the actual
+			// address used when trying to dial the connection.
+			la := sd.LocalAddr
+			if firstErr != nil {
+				if err, ok := firstErr.(*OpError); ok {
+					la = err.Source
+				}
+			}
+			return nil, &OpError{Op: "dial", Net: sd.network, Source: la, Addr: ra, Err: mapErr(ctx.Err())}
 		default:
 		}
 
@@ -554,6 +565,7 @@ func (sd *sysDialer) dialSerial(ctx context.Context, ras addrList) (Conn, error)
 		}
 	}
 
+
 	if firstErr == nil {
 		firstErr = &OpError{Op: "dial", Net: sd.network, Source: nil, Addr: nil, Err: errMissingAddress}
 	}
@@ -576,8 +588,13 @@ func (sd *sysDialer) dialSingle(ctx context.Context, ra Addr) (c Conn, err error
 	la := sd.LocalAddr
 	switch ra := ra.(type) {
 	case *TCPAddr:
-		la, _ := la.(*TCPAddr)
-		c, err = sd.dialTCP(ctx, la, ra)
+		tla, _ := la.(*TCPAddr)
+		c, err = sd.dialTCP(ctx, tla, ra)
+		if c != nil {
+			// if we have information about the actual local addr used in the dialTCP
+			// attempt, use it
+			la = c.LocalAddr()
+		}
 	case *UDPAddr:
 		la, _ := la.(*UDPAddr)
 		c, err = sd.dialUDP(ctx, la, ra)
