@@ -3774,6 +3774,41 @@ func TestRoundTripReturnsProxyError(t *testing.T) {
 	}
 }
 
+// Test for issue 38143
+// Return an error containing the proxy CONNECT request if status is not 200
+func TestRoundTripReturnsProxyConnectError(t *testing.T) {
+	s := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.WriteHeader(StatusServiceUnavailable)
+	}))
+	defer s.Close()
+
+	proxyURL, err := url.Parse(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := &Transport{
+		Proxy: ProxyURL(proxyURL),
+	}
+
+	req, err := NewRequest("GET", "https://example.com", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, got := tr.RoundTrip(req)
+
+	switch errType := got.(type) {
+	case *ProxyConnectError:
+	default:
+		t.Errorf("Wrong error type returned, Got: %T, Want: *ProxyConnectError", errType)
+	}
+
+	// Test backwards compatibility
+	if got.Error() != "Service Unavailable" {
+		t.Error("Non-backwards compatible error message from *ProxyConnectError")
+	}
+}
+
 // tests that putting an idle conn after a call to CloseIdleConns does return it
 func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
 	tr := &Transport{}

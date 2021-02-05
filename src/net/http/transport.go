@@ -1553,6 +1553,19 @@ type erringRoundTripper interface {
 	RoundTripErr() error
 }
 
+type ProxyConnectError struct {
+	Response *Response
+}
+
+func (p *ProxyConnectError) Error() string {
+	// Don't return full Response.Status for backwards compatibility
+	f := strings.SplitN(p.Response.Status, " ", 2)
+	if len(f) < 2 {
+		return "unknown status code"
+	}
+	return f[1]
+}
+
 func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *persistConn, err error) {
 	pconn = &persistConn{
 		t:             t,
@@ -1711,12 +1724,10 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			return nil, err
 		}
 		if resp.StatusCode != 200 {
-			f := strings.SplitN(resp.Status, " ", 2)
 			conn.Close()
-			if len(f) < 2 {
-				return nil, errors.New("unknown status code")
+			return nil, &ProxyConnectError{
+				Response: resp,
 			}
-			return nil, errors.New(f[1])
 		}
 	}
 
