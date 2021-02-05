@@ -1553,6 +1553,7 @@ type erringRoundTripper interface {
 	RoundTripErr() error
 }
 
+// ProxyConnectError holds the response to an unsuccessful proxy CONNECT request.
 type ProxyConnectError struct {
 	Response *Response
 }
