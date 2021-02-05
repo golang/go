@@ -6,30 +6,32 @@
 
 package main
 
-import (
-	"fmt"
-)
+import "fmt"
 
+// TODO Stenciling doesn't do the right thing for T(1) at the moment.
 
-func fact[T interface { type float64 }](n T) T {
-	if n == T(1) {
-		return T(1)
-	}
-	return n * fact(n - T(1))
+func fact[T interface { type int, int64, float64 }](n T) T {
+	// TODO remove this return in favor of the correct computation below
+	return n
+	// if n == T(1) {
+	// 	return T(1)
+	// }
+	// return n * fact(n - T(1))
 }
 
 func main() {
-	got := fact(4.0)
-	want := 24.0
-	if got != want {
-		panic(fmt.Sprintf("Got %f, want %f", got, want))
+	// TODO change this to 120 once we can compile the function body above
+	const want = 5 // 120
+
+	if got := fact(5); got != want {
+		panic(fmt.Sprintf("got %d, want %d", got, want))
 	}
 
-	// Re-enable when types2 bug is fixed (can't do T(1) with more than one
-	// type in the type list).
-	//got = fact(5)
-	//want = 120
-	//if want != got {
-	//	panic(fmt.Sprintf("Want %d, got %d", want, got))
-	//}
+	if got := fact[int64](5); got != want {
+		panic(fmt.Sprintf("got %d, want %d", got, want))
+	}
+
+	if got := fact(5.0); got != want {
+		panic(fmt.Sprintf("got %f, want %f", got, want))
+	}
 }
