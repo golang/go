@@ -25,15 +25,6 @@ type Command struct {
 
 	// Async controls whether the command executes asynchronously.
 	Async bool
-
-	// appliesFn is an optional field to indicate whether or not a command can
-	// be applied to the given inputs. If it returns false, we should not
-	// suggest this command for these inputs.
-	appliesFn AppliesFunc
-
-	// suggestedFixFn is an optional field to generate the edits that the
-	// command produces for the given inputs.
-	suggestedFixFn SuggestedFixFunc
 }
 
 // CommandPrefix is the prefix of all command names gopls uses externally.
@@ -44,8 +35,6 @@ const CommandPrefix = "gopls."
 func (c Command) ID() string {
 	return CommandPrefix + c.Name
 }
-
-type AppliesFunc func(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) bool
 
 // SuggestedFixFunc is a function used to get the suggested fixes for a given
 // gopls command, some of which are provided by go/analysis.Analyzers. Some of
@@ -153,39 +142,27 @@ var (
 	// CommandFillStruct is a gopls command to fill a struct with default
 	// values.
 	CommandFillStruct = &Command{
-		Name:           "fill_struct",
-		Title:          "Fill struct",
-		suggestedFixFn: fillstruct.SuggestedFix,
+		Name:  "fill_struct",
+		Title: "Fill struct",
 	}
 
 	// CommandUndeclaredName adds a variable declaration for an undeclared
 	// name.
 	CommandUndeclaredName = &Command{
-		Name:           "undeclared_name",
-		Title:          "Undeclared name",
-		suggestedFixFn: undeclaredname.SuggestedFix,
+		Name:  "undeclared_name",
+		Title: "Undeclared name",
 	}
 
 	// CommandExtractVariable extracts an expression to a variable.
 	CommandExtractVariable = &Command{
-		Name:           "extract_variable",
-		Title:          "Extract to variable",
-		suggestedFixFn: extractVariable,
-		appliesFn: func(_ *token.FileSet, rng span.Range, _ []byte, file *ast.File, _ *types.Package, _ *types.Info) bool {
-			_, _, ok, _ := canExtractVariable(rng, file)
-			return ok
-		},
+		Name:  "extract_variable",
+		Title: "Extract to variable",
 	}
 
 	// CommandExtractFunction extracts statements to a function.
 	CommandExtractFunction = &Command{
-		Name:           "extract_function",
-		Title:          "Extract to function",
-		suggestedFixFn: extractFunction,
-		appliesFn: func(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, _ *types.Package, info *types.Info) bool {
-			_, ok, _ := canExtractFunction(fset, rng, src, file, info)
-			return ok
-		},
+		Name:  "extract_function",
+		Title: "Extract to function",
 	}
 
 	// CommandGenerateGoplsMod (re)generates the gopls.mod file.
@@ -195,38 +172,26 @@ var (
 	}
 )
 
-// Applies reports whether the command c implements a suggested fix that is
-// relevant to the given rng.
-func (c *Command) Applies(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range) bool {
-	// If there is no applies function, assume that the command applies.
-	if c.appliesFn == nil {
-		return true
-	}
-	fset, rng, src, file, _, pkg, info, err := getAllSuggestedFixInputs(ctx, snapshot, fh, pRng)
-	if err != nil {
-		return false
-	}
-	return c.appliesFn(fset, rng, src, file, pkg, info)
+// suggestedFixes maps a suggested fix command id to its handler.
+var suggestedFixes = map[string]SuggestedFixFunc{
+	CommandFillStruct.ID():      fillstruct.SuggestedFix,
+	CommandUndeclaredName.ID():  undeclaredname.SuggestedFix,
+	CommandExtractVariable.ID(): extractVariable,
+	CommandExtractFunction.ID(): extractFunction,
 }
 
-// IsSuggestedFix reports whether the given command is intended to work as a
-// suggested fix. Suggested fix commands are intended to return edits which are
-// then applied to the workspace.
-func (c *Command) IsSuggestedFix() bool {
-	return c.suggestedFixFn != nil
-}
-
-// SuggestedFix applies the command's suggested fix to the given file and
+// ApplyFix applies the command's suggested fix to the given file and
 // range, returning the resulting edits.
-func (c *Command) SuggestedFix(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle, pRng protocol.Range) ([]protocol.TextDocumentEdit, error) {
-	if c.suggestedFixFn == nil {
-		return nil, fmt.Errorf("no suggested fix function for %s", c.Name)
+func ApplyFix(ctx context.Context, cmdid string, snapshot Snapshot, fh VersionedFileHandle, pRng protocol.Range) ([]protocol.TextDocumentEdit, error) {
+	handler, ok := suggestedFixes[cmdid]
+	if !ok {
+		return nil, fmt.Errorf("no suggested fix function for %s", cmdid)
 	}
 	fset, rng, src, file, m, pkg, info, err := getAllSuggestedFixInputs(ctx, snapshot, fh, pRng)
 	if err != nil {
 		return nil, err
 	}
-	fix, err := c.suggestedFixFn(fset, rng, src, file, pkg, info)
+	fix, err := handler(fset, rng, src, file, pkg, info)
 	if err != nil {
 		return nil, err
 	}
@@ -270,17 +235,9 @@ func getAllSuggestedFixInputs(ctx context.Context, snapshot Snapshot, fh FileHan
 	if err != nil {
 		return nil, span.Range{}, nil, nil, nil, nil, nil, errors.Errorf("getting file for Identifier: %w", err)
 	}
-	spn, err := pgf.Mapper.RangeSpan(pRng)
+	rng, err := pgf.Mapper.RangeToSpanRange(pRng)
 	if err != nil {
 		return nil, span.Range{}, nil, nil, nil, nil, nil, err
 	}
-	rng, err := spn.Range(pgf.Mapper.Converter)
-	if err != nil {
-		return nil, span.Range{}, nil, nil, nil, nil, nil, err
-	}
-	src, err := fh.Read()
-	if err != nil {
-		return nil, span.Range{}, nil, nil, nil, nil, nil, err
-	}
-	return snapshot.FileSet(), rng, src, pgf.File, pgf.Mapper, pkg.GetTypes(), pkg.GetTypesInfo(), nil
+	return snapshot.FileSet(), rng, pgf.Src, pgf.File, pgf.Mapper, pkg.GetTypes(), pkg.GetTypesInfo(), nil
 }

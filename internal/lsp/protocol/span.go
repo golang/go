@@ -85,6 +85,14 @@ func (m *ColumnMapper) RangeSpan(r Range) (span.Span, error) {
 	return span.New(m.URI, start, end).WithAll(m.Converter)
 }
 
+func (m *ColumnMapper) RangeToSpanRange(r Range) (span.Range, error) {
+	spn, err := m.RangeSpan(r)
+	if err != nil {
+		return span.Range{}, err
+	}
+	return spn.Range(m.Converter)
+}
+
 func (m *ColumnMapper) PointSpan(p Position) (span.Span, error) {
 	start, err := m.Point(p)
 	if err != nil {

@@ -533,7 +533,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string,
 	}
 	var res map[span.URI]string
 	if cmd := action.Command; cmd != nil {
-		edits, err := commandToEdits(r.ctx, snapshot, fh, rng, action.Command.Command)
+		edits, err := source.ApplyFix(r.ctx, cmd.Command, snapshot, fh, rng)
 		if err != nil {
 			t.Fatalf("error converting command %q to edits: %v", action.Command.Command, err)
 		}
@@ -555,27 +555,6 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string,
 			t.Errorf("suggested fixes failed for %s:\n%s", u.Filename(), tests.Diff(t, want, got))
 		}
 	}
-}
-
-func commandToEdits(ctx context.Context, snapshot source.Snapshot, fh source.VersionedFileHandle, rng protocol.Range, cmd string) ([]protocol.TextDocumentEdit, error) {
-	var command *source.Command
-	for _, c := range source.Commands {
-		if c.ID() == cmd {
-			command = c
-			break
-		}
-	}
-	if command == nil {
-		return nil, fmt.Errorf("no known command for %s", cmd)
-	}
-	if !command.Applies(ctx, snapshot, fh, rng) {
-		return nil, fmt.Errorf("cannot apply %v", command.ID())
-	}
-	edits, err := command.SuggestedFix(ctx, snapshot, fh, rng)
-	if err != nil {
-		return nil, fmt.Errorf("error calling command.SuggestedFix: %v", err)
-	}
-	return edits, nil
 }
 
 func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span) {
@@ -618,7 +597,7 @@ func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span
 	if len(actions) == 0 || len(actions) > 1 {
 		t.Fatalf("unexpected number of code actions, want 1, got %v", len(actions))
 	}
-	edits, err := commandToEdits(r.ctx, snapshot, fh, rng, actions[0].Command.Command)
+	edits, err := source.ApplyFix(r.ctx, actions[0].Command.Command, snapshot, fh, rng)
 	if err != nil {
 		t.Fatal(err)
 	}

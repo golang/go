@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
@@ -433,14 +434,23 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, pkg source.P
 	if err != nil {
 		return nil, err
 	}
+	_, pgf, err := source.GetParsedFile(ctx, snapshot, fh, source.NarrowestPackage)
+	if err != nil {
+		return nil, errors.Errorf("getting file for Identifier: %w", err)
+	}
+	srng, err := pgf.Mapper.RangeToSpanRange(rng)
+	if err != nil {
+		return nil, err
+	}
+	var commands []*source.Command
+	if _, ok, _ := source.CanExtractFunction(snapshot.FileSet(), srng, pgf.Src, pgf.File); ok {
+		commands = append(commands, source.CommandExtractFunction)
+	}
+	if _, _, ok, _ := source.CanExtractVariable(srng, pgf.File); ok {
+		commands = append(commands, source.CommandExtractVariable)
+	}
 	var actions []protocol.CodeAction
-	for _, command := range []*source.Command{
-		source.CommandExtractFunction,
-		source.CommandExtractVariable,
-	} {
-		if !command.Applies(ctx, snapshot, fh, rng) {
-			continue
-		}
+	for _, command := range commands {
 		actions = append(actions, protocol.CodeAction{
 			Title: command.Title,
 			Kind:  protocol.RefactorExtract,

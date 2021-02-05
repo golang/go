@@ -22,7 +22,7 @@ import (
 )
 
 func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, _ *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
-	expr, path, ok, err := canExtractVariable(rng, file)
+	expr, path, ok, err := CanExtractVariable(rng, file)
 	if !ok {
 		return nil, fmt.Errorf("extractVariable: cannot extract %s: %v", fset.Position(rng.Start), err)
 	}
@@ -90,9 +90,9 @@ func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 	}, nil
 }
 
-// canExtractVariable reports whether the code in the given range can be
+// CanExtractVariable reports whether the code in the given range can be
 // extracted to a variable.
-func canExtractVariable(rng span.Range, file *ast.File) (ast.Expr, []ast.Node, bool, error) {
+func CanExtractVariable(rng span.Range, file *ast.File) (ast.Expr, []ast.Node, bool, error) {
 	if rng.Start == rng.End {
 		return nil, nil, false, fmt.Errorf("start and end are equal")
 	}
@@ -180,7 +180,7 @@ type returnVariable struct {
 // of the function and insert this call as well as the extracted function into
 // their proper locations.
 func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
-	p, ok, err := canExtractFunction(fset, rng, src, file, info)
+	p, ok, err := CanExtractFunction(fset, rng, src, file)
 	if !ok {
 		return nil, fmt.Errorf("extractFunction: cannot extract %s: %v",
 			fset.Position(rng.Start), err)
@@ -792,9 +792,9 @@ type fnExtractParams struct {
 	start ast.Node
 }
 
-// canExtractFunction reports whether the code in the given range can be
+// CanExtractFunction reports whether the code in the given range can be
 // extracted to a function.
-func canExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, _ *types.Info) (*fnExtractParams, bool, error) {
+func CanExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File) (*fnExtractParams, bool, error) {
 	if rng.Start == rng.End {
 		return nil, false, fmt.Errorf("start and end are equal")
 	}

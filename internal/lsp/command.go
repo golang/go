@@ -26,348 +26,314 @@ import (
 )
 
 func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCommandParams) (interface{}, error) {
-	var command *source.Command
-	for _, c := range source.Commands {
-		if c.ID() == params.Command {
-			command = c
-			break
-		}
-	}
-	if command == nil {
-		return nil, fmt.Errorf("no known command")
-	}
-	var match bool
+	var found bool
 	for _, name := range s.session.Options().SupportedCommands {
-		if command.ID() == name {
-			match = true
+		if name == params.Command {
+			found = true
 			break
 		}
 	}
-	if !match {
-		return nil, fmt.Errorf("%s is not a supported command", command.ID())
-	}
-	ctx, cancel := context.WithCancel(xcontext.Detach(ctx))
-
-	var work *workDone
-	// Don't show progress for suggested fixes. They should be quick.
-	if !command.IsSuggestedFix() {
-		// Start progress prior to spinning off a goroutine specifically so that
-		// clients are aware of the work item before the command completes. This
-		// matters for regtests, where having a continuous thread of work is
-		// convenient for assertions.
-		work = s.progress.start(ctx, command.Title, "Running...", params.WorkDoneToken, cancel)
+	if !found {
+		return nil, fmt.Errorf("%s is not a supported command", params.Command)
 	}
 
-	run := func() {
-		defer cancel()
-		err := s.runCommand(ctx, work, command, params.Arguments)
-		switch {
-		case errors.Is(err, context.Canceled):
-			work.end(command.Title + ": canceled")
-		case err != nil:
-			event.Error(ctx, fmt.Sprintf("%s: command error", command.Title), err)
-			work.end(command.Title + ": failed")
-			// Show a message when work completes with error, because the progress end
-			// message is typically dismissed immediately by LSP clients.
-			s.showCommandError(ctx, command.Title, err)
-		default:
-			work.end(command.ID() + ": completed")
-		}
+	cmd := &commandHandler{
+		ctx:    ctx,
+		s:      s,
+		params: params,
 	}
-	if command.Async {
-		go run()
-	} else {
-		run()
-	}
-	// Errors running the command are displayed to the user above, so don't
-	// return them.
-	return nil, nil
+	return cmd.dispatch()
 }
 
-func (s *Server) runSuggestedFixCommand(ctx context.Context, command *source.Command, args []json.RawMessage) error {
-	var uri protocol.DocumentURI
-	var rng protocol.Range
-	if err := source.UnmarshalArgs(args, &uri, &rng); err != nil {
-		return err
-	}
-	snapshot, fh, ok, release, err := s.beginFileRequest(ctx, uri, source.Go)
-	defer release()
-	if !ok {
-		return err
-	}
-	edits, err := command.SuggestedFix(ctx, snapshot, fh, rng)
-	if err != nil {
-		return err
-	}
-	r, err := s.client.ApplyEdit(ctx, &protocol.ApplyWorkspaceEditParams{
-		Edit: protocol.WorkspaceEdit{
-			DocumentChanges: edits,
-		},
-	})
-	if err != nil {
-		return err
-	}
-	if !r.Applied {
-		return errors.New(r.FailureReason)
-	}
-	return nil
+type commandHandler struct {
+	// ctx is temporarily held so that we may implement the command.Interface interface.
+	ctx    context.Context
+	s      *Server
+	params *protocol.ExecuteCommandParams
 }
 
-func (s *Server) showCommandError(ctx context.Context, title string, err error) {
-	// Command error messages should not be cancelable.
-	ctx = xcontext.Detach(ctx)
-	if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-		Type:    protocol.Error,
-		Message: fmt.Sprintf("%s failed: %v", title, err),
-	}); err != nil {
-		event.Error(ctx, title+": failed to show message", err)
-	}
-}
-
+// commandConfig configures common command set-up and execution.
 type commandConfig struct {
+	async       bool
 	requireSave bool                 // whether all files must be saved for the command to work
+	progress    string               // title to use for progress reporting. If empty, no progress will be reported.
 	forURI      protocol.DocumentURI // URI to resolve to a snapshot. If unset, snapshot will be nil.
 }
 
-func (s *Server) prepareAndRun(ctx context.Context, cfg commandConfig, run func(source.Snapshot) error) error {
+// commandDeps is evaluated from a commandConfig. Note that not all fields may
+// be populated, depending on which configuration is set. See comments in-line
+// for details.
+type commandDeps struct {
+	snapshot source.Snapshot            // present if cfg.forURI was set
+	fh       source.VersionedFileHandle // present if cfg.forURI was set
+	work     *workDone                  // present cfg.progress was set
+}
+
+type commandFunc func(context.Context, commandDeps) error
+
+func (c *commandHandler) run(cfg commandConfig, run commandFunc) (err error) {
 	if cfg.requireSave {
-		for _, overlay := range s.session.Overlays() {
+		for _, overlay := range c.s.session.Overlays() {
 			if !overlay.Saved() {
 				return errors.New("All files must be saved first")
 			}
 		}
 	}
-	var snapshot source.Snapshot
+	var deps commandDeps
 	if cfg.forURI != "" {
-		snap, _, ok, release, err := s.beginFileRequest(ctx, cfg.forURI, source.UnknownKind)
+		var ok bool
+		var release func()
+		deps.snapshot, deps.fh, ok, release, err = c.s.beginFileRequest(c.ctx, cfg.forURI, source.UnknownKind)
 		defer release()
 		if !ok {
 			return err
 		}
-		snapshot = snap
 	}
-	return run(snapshot)
+	ctx, cancel := context.WithCancel(xcontext.Detach(c.ctx))
+	if cfg.progress != "" {
+		deps.work = c.s.progress.start(ctx, cfg.progress, "Running...", c.params.WorkDoneToken, cancel)
+	}
+	runcmd := func() error {
+		defer cancel()
+		err := run(ctx, deps)
+		switch {
+		case errors.Is(err, context.Canceled):
+			deps.work.end("canceled")
+		case err != nil:
+			event.Error(ctx, "command error", err)
+			deps.work.end("failed")
+		default:
+			deps.work.end("completed")
+		}
+		return err
+	}
+	if cfg.async {
+		go runcmd()
+		return nil
+	}
+	return runcmd()
 }
 
-func (s *Server) runCommand(ctx context.Context, work *workDone, command *source.Command, args []json.RawMessage) (err error) {
-	// If the command has a suggested fix function available, use it and apply
-	// the edits to the workspace.
-	if command.IsSuggestedFix() {
-		return s.runSuggestedFixCommand(ctx, command, args)
-	}
-	switch command {
-	case source.CommandTest:
+func (c *commandHandler) dispatch() (interface{}, error) {
+	switch c.params.Command {
+	case source.CommandFillStruct.ID(), source.CommandUndeclaredName.ID(),
+		source.CommandExtractVariable.ID(), source.CommandExtractFunction.ID():
+		var uri protocol.DocumentURI
+		var rng protocol.Range
+		if err := source.UnmarshalArgs(c.params.Arguments, &uri, &rng); err != nil {
+			return nil, err
+		}
+		err := c.ApplyFix(uri, rng)
+		return nil, err
+	case source.CommandTest.ID():
 		var uri protocol.DocumentURI
 		var tests, benchmarks []string
-		if err := source.UnmarshalArgs(args, &uri, &tests, &benchmarks); err != nil {
-			return err
+		if err := source.UnmarshalArgs(c.params.Arguments, &uri, &tests, &benchmarks); err != nil {
+			return nil, err
 		}
-		return s.prepareAndRun(ctx, commandConfig{
-			requireSave: true,
-			forURI:      uri,
-		}, func(snapshot source.Snapshot) error {
-			return s.runTests(ctx, snapshot, uri, work, tests, benchmarks)
-		})
-	case source.CommandGenerate:
+		err := c.RunTests(uri, tests, benchmarks)
+		return nil, err
+	case source.CommandGenerate.ID():
 		var uri protocol.DocumentURI
 		var recursive bool
-		if err := source.UnmarshalArgs(args, &uri, &recursive); err != nil {
-			return err
+		if err := source.UnmarshalArgs(c.params.Arguments, &uri, &recursive); err != nil {
+			return nil, err
 		}
-		return s.prepareAndRun(ctx, commandConfig{
-			requireSave: true,
-			forURI:      uri,
-		}, func(snapshot source.Snapshot) error {
-			return s.runGoGenerate(ctx, snapshot, uri.SpanURI(), recursive, work)
-		})
-	case source.CommandRegenerateCgo:
+		err := c.Generate(uri, recursive)
+		return nil, err
+	case source.CommandRegenerateCgo.ID():
 		var uri protocol.DocumentURI
-		if err := source.UnmarshalArgs(args, &uri); err != nil {
+		if err := source.UnmarshalArgs(c.params.Arguments, &uri); err != nil {
+			return nil, err
+		}
+		return nil, c.RegenerateCgo(uri)
+	case source.CommandTidy.ID():
+		var uri protocol.DocumentURI
+		if err := source.UnmarshalArgs(c.params.Arguments, &uri); err != nil {
+			return nil, err
+		}
+		return nil, c.Tidy(uri)
+	case source.CommandVendor.ID():
+		var uri protocol.DocumentURI
+		if err := source.UnmarshalArgs(c.params.Arguments, &uri); err != nil {
+			return nil, err
+		}
+		return nil, c.Vendor(uri)
+	case source.CommandUpdateGoSum.ID():
+		var uri protocol.DocumentURI
+		if err := source.UnmarshalArgs(c.params.Arguments, &uri); err != nil {
+			return nil, err
+		}
+		return nil, c.UpdateGoSum(uri)
+	case source.CommandCheckUpgrades.ID():
+		var uri protocol.DocumentURI
+		var modules []string
+		if err := source.UnmarshalArgs(c.params.Arguments, &uri, &modules); err != nil {
+			return nil, err
+		}
+		return nil, c.CheckUpgrades(uri, modules)
+	case source.CommandAddDependency.ID(), source.CommandUpgradeDependency.ID():
+		var uri protocol.DocumentURI
+		var goCmdArgs []string
+		var addRequire bool
+		if err := source.UnmarshalArgs(c.params.Arguments, &uri, &addRequire, &goCmdArgs); err != nil {
+			return nil, err
+		}
+		return nil, c.GoGetModule(uri, addRequire, goCmdArgs)
+	case source.CommandRemoveDependency.ID():
+		var uri protocol.DocumentURI
+		var modulePath string
+		var onlyDiagnostic bool
+		if err := source.UnmarshalArgs(c.params.Arguments, &uri, &onlyDiagnostic, &modulePath); err != nil {
+			return nil, err
+		}
+		return nil, c.RemoveDependency(modulePath, uri, onlyDiagnostic)
+	case source.CommandGoGetPackage.ID():
+		var uri protocol.DocumentURI
+		var pkg string
+		var addRequire bool
+		if err := source.UnmarshalArgs(c.params.Arguments, &uri, &addRequire, &pkg); err != nil {
+			return nil, err
+		}
+		return nil, c.GoGetPackage(uri, addRequire, pkg)
+	case source.CommandToggleDetails.ID():
+		var uri protocol.DocumentURI
+		if err := source.UnmarshalArgs(c.params.Arguments, &uri); err != nil {
+			return nil, err
+		}
+		return nil, c.GCDetails(uri)
+	case source.CommandGenerateGoplsMod.ID():
+		return nil, c.GenerateGoplsMod()
+	}
+	return nil, fmt.Errorf("unsupported command: %s", c.params.Command)
+}
+
+func (c *commandHandler) ApplyFix(uri protocol.DocumentURI, rng protocol.Range) error {
+	return c.run(commandConfig{
+		// Note: no progress here. Applying fixes should be quick.
+		forURI: uri,
+	}, func(ctx context.Context, deps commandDeps) error {
+		edits, err := source.ApplyFix(ctx, c.params.Command, deps.snapshot, deps.fh, rng)
+		if err != nil {
 			return err
 		}
+		r, err := c.s.client.ApplyEdit(ctx, &protocol.ApplyWorkspaceEditParams{
+			Edit: protocol.WorkspaceEdit{
+				DocumentChanges: edits,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		if !r.Applied {
+			return errors.New(r.FailureReason)
+		}
+		return nil
+	})
+}
+
+func (c *commandHandler) RegenerateCgo(uri protocol.DocumentURI) error {
+	return c.run(commandConfig{
+		progress: source.CommandRegenerateCgo.Title,
+	}, func(ctx context.Context, deps commandDeps) error {
 		mod := source.FileModification{
 			URI:    uri.SpanURI(),
 			Action: source.InvalidateMetadata,
 		}
-		return s.didModifyFiles(ctx, []source.FileModification{mod}, FromRegenerateCgo)
-	case source.CommandTidy, source.CommandVendor:
-		var uri protocol.DocumentURI
-		if err := source.UnmarshalArgs(args, &uri); err != nil {
-			return err
-		}
-		// The flow for `go mod tidy` and `go mod vendor` is almost identical,
-		// so we combine them into one case for convenience.
-		action := "tidy"
-		if command == source.CommandVendor {
-			action = "vendor"
-		}
-		return s.prepareAndRun(ctx, commandConfig{
-			requireSave: true,
-			forURI:      uri,
-		}, func(snapshot source.Snapshot) error {
-			return runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile|source.AllowNetwork, uri.SpanURI(), "mod", []string{action})
-		})
-	case source.CommandUpdateGoSum:
-		var uri protocol.DocumentURI
-		if err := source.UnmarshalArgs(args, &uri); err != nil {
-			return err
-		}
-		return s.prepareAndRun(ctx, commandConfig{
-			requireSave: true,
-			forURI:      uri,
-		}, func(snapshot source.Snapshot) error {
-			return runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile|source.AllowNetwork, uri.SpanURI(), "list", []string{"all"})
-		})
-	case source.CommandCheckUpgrades:
-		var uri protocol.DocumentURI
-		var modules []string
-		if err := source.UnmarshalArgs(args, &uri, &modules); err != nil {
-			return err
-		}
-		snapshot, _, ok, release, err := s.beginFileRequest(ctx, uri, source.UnknownKind)
-		defer release()
-		if !ok {
-			return err
-		}
-		upgrades, err := s.getUpgrades(ctx, snapshot, uri.SpanURI(), modules)
-		if err != nil {
-			return err
-		}
-		snapshot.View().RegisterModuleUpgrades(upgrades)
-		// Re-diagnose the snapshot to publish the new module diagnostics.
-		s.diagnoseSnapshot(snapshot, nil, false)
-		return nil
-	case source.CommandAddDependency, source.CommandUpgradeDependency:
-		var uri protocol.DocumentURI
-		var goCmdArgs []string
-		var addRequire bool
-		if err := source.UnmarshalArgs(args, &uri, &addRequire, &goCmdArgs); err != nil {
-			return err
-		}
-		return s.prepareAndRun(ctx, commandConfig{
-			requireSave: true,
-			forURI:      uri,
-		}, func(snapshot source.Snapshot) error {
-			return s.runGoGetModule(ctx, snapshot, uri.SpanURI(), addRequire, goCmdArgs)
-		})
-	case source.CommandRemoveDependency:
-		var uri protocol.DocumentURI
-		var modulePath string
-		var onlyDiagnostic bool
-		if err := source.UnmarshalArgs(args, &uri, &onlyDiagnostic, &modulePath); err != nil {
-			return err
-		}
-		return s.removeDependency(ctx, modulePath, uri, onlyDiagnostic)
-	case source.CommandGoGetPackage:
-		var uri protocol.DocumentURI
-		var pkg string
-		var addRequire bool
-		if err := source.UnmarshalArgs(args, &uri, &addRequire, &pkg); err != nil {
-			return err
-		}
-		return s.prepareAndRun(ctx, commandConfig{
-			forURI: uri,
-		}, func(snapshot source.Snapshot) error {
-			return s.runGoGetPackage(ctx, snapshot, uri.SpanURI(), addRequire, pkg)
-		})
-
-	case source.CommandToggleDetails:
-		var uri protocol.DocumentURI
-		if err := source.UnmarshalArgs(args, &uri); err != nil {
-			return err
-		}
-		return s.prepareAndRun(ctx, commandConfig{
-			requireSave: true,
-			forURI:      uri,
-		}, func(snapshot source.Snapshot) error {
-			pkgDir := span.URIFromPath(filepath.Dir(uri.SpanURI().Filename()))
-			s.gcOptimizationDetailsMu.Lock()
-			if _, ok := s.gcOptimizationDetails[pkgDir]; ok {
-				delete(s.gcOptimizationDetails, pkgDir)
-				s.clearDiagnosticSource(gcDetailsSource)
-			} else {
-				s.gcOptimizationDetails[pkgDir] = struct{}{}
-			}
-			s.gcOptimizationDetailsMu.Unlock()
-			s.diagnoseSnapshot(snapshot, nil, false)
-			return nil
-		})
-	case source.CommandGenerateGoplsMod:
-		var v source.View
-		if len(args) == 0 {
-			views := s.session.Views()
-			if len(views) != 1 {
-				return fmt.Errorf("cannot resolve view: have %d views", len(views))
-			}
-			v = views[0]
-		} else {
-			var uri protocol.DocumentURI
-			if err := source.UnmarshalArgs(args, &uri); err != nil {
-				return err
-			}
-			var err error
-			v, err = s.session.ViewOf(uri.SpanURI())
-			if err != nil {
-				return err
-			}
-		}
-		snapshot, release := v.Snapshot(ctx)
-		defer release()
-		modFile, err := cache.BuildGoplsMod(ctx, v.Folder(), snapshot)
-		if err != nil {
-			return errors.Errorf("getting workspace mod file: %w", err)
-		}
-		content, err := modFile.Format()
-		if err != nil {
-			return errors.Errorf("formatting mod file: %w", err)
-		}
-		filename := filepath.Join(v.Folder().Filename(), "gopls.mod")
-		if err := ioutil.WriteFile(filename, content, 0644); err != nil {
-			return errors.Errorf("writing mod file: %w", err)
-		}
-	default:
-		return fmt.Errorf("unsupported command: %s", command.ID())
-	}
-	return nil
+		return c.s.didModifyFiles(c.ctx, []source.FileModification{mod}, FromRegenerateCgo)
+	})
 }
 
-func (s *Server) removeDependency(ctx context.Context, modulePath string, uri protocol.DocumentURI, onlyDiagnostic bool) error {
-	return s.prepareAndRun(ctx, commandConfig{
-		requireSave: true,
-		forURI:      uri,
-	}, func(source.Snapshot) error {
-
-		snapshot, fh, ok, release, err := s.beginFileRequest(ctx, uri, source.UnknownKind)
-		defer release()
-		if !ok {
+func (c *commandHandler) CheckUpgrades(uri protocol.DocumentURI, modules []string) error {
+	return c.run(commandConfig{
+		forURI:   uri,
+		progress: source.CommandCheckUpgrades.Title,
+	}, func(ctx context.Context, deps commandDeps) error {
+		upgrades, err := c.s.getUpgrades(ctx, deps.snapshot, uri.SpanURI(), modules)
+		if err != nil {
 			return err
 		}
+		deps.snapshot.View().RegisterModuleUpgrades(upgrades)
+		// Re-diagnose the snapshot to publish the new module diagnostics.
+		c.s.diagnoseSnapshot(deps.snapshot, nil, false)
+		return nil
+	})
+}
+
+func (c *commandHandler) GoGetModule(uri protocol.DocumentURI, addRequire bool, goCmdArgs []string) error {
+	return c.run(commandConfig{
+		requireSave: true,
+		progress:    "Running go get",
+		forURI:      uri,
+	}, func(ctx context.Context, deps commandDeps) error {
+		return runGoGetModule(ctx, deps.snapshot, uri.SpanURI(), addRequire, goCmdArgs)
+	})
+}
+
+// TODO(rFindley): UpdateGoSum, Tidy, and Vendor could probably all be one command.
+
+func (c *commandHandler) UpdateGoSum(uri protocol.DocumentURI) error {
+	return c.run(commandConfig{
+		requireSave: true,
+		progress:    source.CommandUpdateGoSum.Title,
+		forURI:      uri,
+	}, func(ctx context.Context, deps commandDeps) error {
+		return runSimpleGoCommand(ctx, deps.snapshot, source.UpdateUserModFile|source.AllowNetwork, uri.SpanURI(), "list", []string{"all"})
+	})
+}
+
+func (c *commandHandler) Tidy(uri protocol.DocumentURI) error {
+	return c.run(commandConfig{
+		requireSave: true,
+		progress:    source.CommandTidy.Title,
+		forURI:      uri,
+	}, func(ctx context.Context, deps commandDeps) error {
+		return runSimpleGoCommand(ctx, deps.snapshot, source.UpdateUserModFile|source.AllowNetwork, uri.SpanURI(), "mod", []string{"tidy"})
+	})
+}
+
+func (c *commandHandler) Vendor(uri protocol.DocumentURI) error {
+	return c.run(commandConfig{
+		requireSave: true,
+		progress:    source.CommandVendor.Title,
+		forURI:      uri,
+	}, func(ctx context.Context, deps commandDeps) error {
+		return runSimpleGoCommand(ctx, deps.snapshot, source.UpdateUserModFile|source.AllowNetwork, uri.SpanURI(), "mod", []string{"vendor"})
+	})
+}
+
+func (c *commandHandler) RemoveDependency(modulePath string, uri protocol.DocumentURI, onlyDiagnostic bool) error {
+	return c.run(commandConfig{
+		requireSave: true,
+		progress:    source.CommandRemoveDependency.Title,
+		forURI:      uri,
+	}, func(ctx context.Context, deps commandDeps) error {
 		// If the module is tidied apart from the one unused diagnostic, we can
 		// run `go get module@none`, and then run `go mod tidy`. Otherwise, we
 		// must make textual edits.
 		// TODO(rstambler): In Go 1.17+, we will be able to use the go command
 		// without checking if the module is tidy.
 		if onlyDiagnostic {
-			if err := s.runGoGetModule(ctx, snapshot, uri.SpanURI(), false, []string{modulePath + "@none"}); err != nil {
+			if err := runGoGetModule(ctx, deps.snapshot, uri.SpanURI(), false, []string{modulePath + "@none"}); err != nil {
 				return err
 			}
-			return runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile|source.AllowNetwork, uri.SpanURI(), "mod", []string{"tidy"})
+			return runSimpleGoCommand(ctx, deps.snapshot, source.UpdateUserModFile|source.AllowNetwork, uri.SpanURI(), "mod", []string{"tidy"})
 		}
-		pm, err := snapshot.ParseMod(ctx, fh)
+		pm, err := deps.snapshot.ParseMod(ctx, deps.fh)
 		if err != nil {
 			return err
 		}
-		edits, err := dropDependency(snapshot, pm, modulePath)
+		edits, err := dropDependency(deps.snapshot, pm, modulePath)
 		if err != nil {
 			return err
 		}
-		response, err := s.client.ApplyEdit(ctx, &protocol.ApplyWorkspaceEditParams{
+		response, err := c.s.client.ApplyEdit(ctx, &protocol.ApplyWorkspaceEditParams{
 			Edit: protocol.WorkspaceEdit{
 				DocumentChanges: []protocol.TextDocumentEdit{{
 					TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
-						Version: fh.Version(),
+						Version: deps.fh.Version(),
 						TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-							URI: protocol.URIFromSpanURI(fh.URI()),
+							URI: protocol.URIFromSpanURI(deps.fh.URI()),
 						},
 					},
 					Edits: edits,
@@ -409,7 +375,29 @@ func dropDependency(snapshot source.Snapshot, pm *source.ParsedModule, modulePat
 	return source.ToProtocolEdits(pm.Mapper, diff)
 }
 
-func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri protocol.DocumentURI, work *workDone, tests, benchmarks []string) error {
+func (c *commandHandler) RunTests(uri protocol.DocumentURI, tests, benchmarks []string) error {
+	return c.run(commandConfig{
+		async:       true,
+		progress:    source.CommandTest.Title,
+		requireSave: true,
+		forURI:      uri,
+	}, func(ctx context.Context, deps commandDeps) error {
+		if err := c.runTests(ctx, deps.snapshot, deps.work, uri, tests, benchmarks); err != nil {
+			if err := c.s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+				Type:    protocol.Error,
+				Message: fmt.Sprintf("Running tests failed: %v", err),
+			}); err != nil {
+				event.Error(ctx, "running tests: failed to show message", err)
+			}
+		}
+		// Since we're running asynchronously, any error returned here would be
+		// ignored.
+		return nil
+	})
+}
+
+func (c *commandHandler) runTests(ctx context.Context, snapshot source.Snapshot, work *workDone, uri protocol.DocumentURI, tests, benchmarks []string) error {
+	// TODO: fix the error reporting when this runs async.
 	pkgs, err := snapshot.PackagesForFile(ctx, uri.SpanURI(), source.TypecheckWorkspace)
 	if err != nil {
 		return err
@@ -478,49 +466,57 @@ func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri pro
 		message += "\n" + buf.String()
 	}
 
-	return s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+	return c.s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 		Type:    protocol.Info,
 		Message: message,
 	})
 }
 
-func (s *Server) runGoGenerate(ctx context.Context, snapshot source.Snapshot, dir span.URI, recursive bool, work *workDone) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+func (c *commandHandler) Generate(uri protocol.DocumentURI, recursive bool) error {
+	return c.run(commandConfig{
+		requireSave: true,
+		progress:    source.CommandGenerate.Title,
+		forURI:      uri,
+	}, func(ctx context.Context, deps commandDeps) error {
+		er := &eventWriter{ctx: ctx, operation: "generate"}
 
-	er := &eventWriter{ctx: ctx, operation: "generate"}
-
-	pattern := "."
-	if recursive {
-		pattern = "./..."
-	}
-
-	inv := &gocommand.Invocation{
-		Verb:       "generate",
-		Args:       []string{"-x", pattern},
-		WorkingDir: dir.Filename(),
-	}
-	stderr := io.MultiWriter(er, workDoneWriter{work})
-	if err := snapshot.RunGoCommandPiped(ctx, source.Normal, inv, er, stderr); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *Server) runGoGetPackage(ctx context.Context, snapshot source.Snapshot, uri span.URI, addRequire bool, pkg string) error {
-	stdout, err := snapshot.RunGoCommandDirect(ctx, source.WriteTemporaryModFile|source.AllowNetwork, &gocommand.Invocation{
-		Verb:       "list",
-		Args:       []string{"-f", "{{.Module.Path}}@{{.Module.Version}}", pkg},
-		WorkingDir: filepath.Dir(uri.Filename()),
+		pattern := "."
+		if recursive {
+			pattern = "./..."
+		}
+		inv := &gocommand.Invocation{
+			Verb:       "generate",
+			Args:       []string{"-x", pattern},
+			WorkingDir: uri.SpanURI().Filename(),
+		}
+		stderr := io.MultiWriter(er, workDoneWriter{deps.work})
+		if err := deps.snapshot.RunGoCommandPiped(ctx, source.Normal, inv, er, stderr); err != nil {
+			return err
+		}
+		return nil
 	})
-	if err != nil {
-		return err
-	}
-	ver := strings.TrimSpace(stdout.String())
-	return s.runGoGetModule(ctx, snapshot, uri, addRequire, []string{ver})
 }
 
-func (s *Server) runGoGetModule(ctx context.Context, snapshot source.Snapshot, uri span.URI, addRequire bool, args []string) error {
+func (c *commandHandler) GoGetPackage(puri protocol.DocumentURI, addRequire bool, pkg string) error {
+	return c.run(commandConfig{
+		forURI:   puri,
+		progress: source.CommandGoGetPackage.Title,
+	}, func(ctx context.Context, deps commandDeps) error {
+		uri := puri.SpanURI()
+		stdout, err := deps.snapshot.RunGoCommandDirect(ctx, source.WriteTemporaryModFile|source.AllowNetwork, &gocommand.Invocation{
+			Verb:       "list",
+			Args:       []string{"-f", "{{.Module.Path}}@{{.Module.Version}}", pkg},
+			WorkingDir: filepath.Dir(uri.Filename()),
+		})
+		if err != nil {
+			return err
+		}
+		ver := strings.TrimSpace(stdout.String())
+		return runGoGetModule(ctx, deps.snapshot, uri, addRequire, []string{ver})
+	})
+}
+
+func runGoGetModule(ctx context.Context, snapshot source.Snapshot, uri span.URI, addRequire bool, args []string) error {
 	if addRequire {
 		// Using go get to create a new dependency results in an
 		// `// indirect` comment we may not want. The only way to avoid it
@@ -564,4 +560,52 @@ func (s *Server) getUpgrades(ctx context.Context, snapshot source.Snapshot, uri 
 		upgrades[mod.Path] = mod.Update.Version
 	}
 	return upgrades, nil
+}
+
+func (c *commandHandler) GCDetails(uri protocol.DocumentURI) error {
+	return c.run(commandConfig{
+		requireSave: true,
+		progress:    source.CommandToggleDetails.Title,
+		forURI:      uri,
+	}, func(ctx context.Context, deps commandDeps) error {
+		pkgDir := span.URIFromPath(filepath.Dir(uri.SpanURI().Filename()))
+		c.s.gcOptimizationDetailsMu.Lock()
+		if _, ok := c.s.gcOptimizationDetails[pkgDir]; ok {
+			delete(c.s.gcOptimizationDetails, pkgDir)
+			c.s.clearDiagnosticSource(gcDetailsSource)
+		} else {
+			c.s.gcOptimizationDetails[pkgDir] = struct{}{}
+		}
+		c.s.gcOptimizationDetailsMu.Unlock()
+		c.s.diagnoseSnapshot(deps.snapshot, nil, false)
+		return nil
+	})
+}
+
+func (c *commandHandler) GenerateGoplsMod() error {
+	return c.run(commandConfig{
+		requireSave: true,
+		progress:    source.CommandGenerateGoplsMod.Title,
+	}, func(ctx context.Context, deps commandDeps) error {
+		views := c.s.session.Views()
+		if len(views) != 1 {
+			return fmt.Errorf("cannot resolve view: have %d views", len(views))
+		}
+		v := views[0]
+		snapshot, release := v.Snapshot(ctx)
+		defer release()
+		modFile, err := cache.BuildGoplsMod(ctx, snapshot.View().Folder(), snapshot)
+		if err != nil {
+			return errors.Errorf("getting workspace mod file: %w", err)
+		}
+		content, err := modFile.Format()
+		if err != nil {
+			return errors.Errorf("formatting mod file: %w", err)
+		}
+		filename := filepath.Join(snapshot.View().Folder().Filename(), "gopls.mod")
+		if err := ioutil.WriteFile(filename, content, 0644); err != nil {
+			return errors.Errorf("writing mod file: %w", err)
+		}
+		return nil
+	})
 }
