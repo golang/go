@@ -18,6 +18,7 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
+	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -172,13 +173,15 @@ func (s *snapshot) parseModError(ctx context.Context, fh source.FileHandle, errT
 	if err != nil {
 		return nil
 	}
-	args, err := source.MarshalArgs(protocol.URIFromSpanURI(fh.URI()))
-	if err != nil {
-		return nil
-	}
-
+	// TODO(rFindley): we shouldn't really need to call three constructors here.
+	//                 Reconsider this.
+	args := command.URIArg{protocol.URIFromSpanURI(fh.URI())}
 	switch {
 	case isInconsistentVendor:
+		cmd, err := command.NewVendorCommand("Run go mod vendor", args)
+		if err != nil {
+			return nil
+		}
 		return &source.Diagnostic{
 			URI:      fh.URI(),
 			Range:    rng,
@@ -186,17 +189,18 @@ func (s *snapshot) parseModError(ctx context.Context, fh source.FileHandle, errT
 			Source:   source.ListError,
 			Message: `Inconsistent vendoring detected. Please re-run "go mod vendor".
 See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
-			SuggestedFixes: []source.SuggestedFix{{
-				Title: source.CommandVendor.Title,
-				Command: &protocol.Command{
-					Command:   source.CommandVendor.ID(),
-					Title:     source.CommandVendor.Title,
-					Arguments: args,
-				},
-			}},
+			SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd)},
 		}
 
 	case isGoSumUpdates:
+		tidyCmd, err := command.NewTidyCommand("Run go mod tidy", args)
+		if err != nil {
+			return nil
+		}
+		updateCmd, err := command.NewUpdateGoSumCommand("Update go.sum", args)
+		if err != nil {
+			return nil
+		}
 		return &source.Diagnostic{
 			URI:      fh.URI(),
 			Range:    rng,
@@ -204,22 +208,8 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 			Source:   source.ListError,
 			Message:  `go.sum is out of sync with go.mod. Please update it or run "go mod tidy".`,
 			SuggestedFixes: []source.SuggestedFix{
-				{
-					Title: source.CommandTidy.Title,
-					Command: &protocol.Command{
-						Command:   source.CommandTidy.ID(),
-						Title:     source.CommandTidy.Title,
-						Arguments: args,
-					},
-				},
-				{
-					Title: source.CommandUpdateGoSum.Title,
-					Command: &protocol.Command{
-						Command:   source.CommandUpdateGoSum.ID(),
-						Title:     source.CommandUpdateGoSum.Title,
-						Arguments: args,
-					},
-				},
+				source.SuggestedFixFromCommand(tidyCmd),
+				source.SuggestedFixFromCommand(updateCmd),
 			},
 		}
 	}
@@ -385,24 +375,22 @@ func unusedDiagnostic(m *protocol.ColumnMapper, req *modfile.Require, onlyDiagno
 	if err != nil {
 		return nil, err
 	}
-	args, err := source.MarshalArgs(m.URI, onlyDiagnostic, req.Mod.Path)
+	title := fmt.Sprintf("Remove dependency: %s", req.Mod.Path)
+	cmd, err := command.NewRemoveDependencyCommand(title, command.RemoveDependencyArgs{
+		URI:            protocol.URIFromSpanURI(m.URI),
+		OnlyDiagnostic: onlyDiagnostic,
+		ModulePath:     req.Mod.Path,
+	})
 	if err != nil {
 		return nil, err
 	}
 	return &source.Diagnostic{
-		URI:      m.URI,
-		Range:    rng,
-		Severity: protocol.SeverityWarning,
-		Source:   source.ModTidyError,
-		Message:  fmt.Sprintf("%s is not used in this module", req.Mod.Path),
-		SuggestedFixes: []source.SuggestedFix{{
-			Title: fmt.Sprintf("Remove dependency: %s", req.Mod.Path),
-			Command: &protocol.Command{
-				Title:     source.CommandRemoveDependency.Title,
-				Command:   source.CommandRemoveDependency.ID(),
-				Arguments: args,
-			},
-		}},
+		URI:            m.URI,
+		Range:          rng,
+		Severity:       protocol.SeverityWarning,
+		Source:         source.ModTidyError,
+		Message:        fmt.Sprintf("%s is not used in this module", req.Mod.Path),
+		SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd)},
 	}, nil
 }
 
@@ -459,24 +447,22 @@ func missingModuleDiagnostic(snapshot source.Snapshot, pm *source.ParsedModule, 
 			return nil, err
 		}
 	}
-	args, err := source.MarshalArgs(pm.Mapper.URI, !req.Indirect, []string{req.Mod.Path + "@" + req.Mod.Version})
+	title := fmt.Sprintf("Add %s to your go.mod file", req.Mod.Path)
+	cmd, err := command.NewAddDependencyCommand(title, command.DependencyArgs{
+		URI:        protocol.URIFromSpanURI(pm.Mapper.URI),
+		AddRequire: !req.Indirect,
+		GoCmdArgs:  []string{req.Mod.Path + "@" + req.Mod.Version},
+	})
 	if err != nil {
 		return nil, err
 	}
 	return &source.Diagnostic{
-		URI:      pm.Mapper.URI,
-		Range:    rng,
-		Severity: protocol.SeverityError,
-		Source:   source.ModTidyError,
-		Message:  fmt.Sprintf("%s is not in your go.mod file", req.Mod.Path),
-		SuggestedFixes: []source.SuggestedFix{{
-			Title: fmt.Sprintf("Add %s to your go.mod file", req.Mod.Path),
-			Command: &protocol.Command{
-				Title:     source.CommandAddDependency.Title,
-				Command:   source.CommandAddDependency.ID(),
-				Arguments: args,
-			},
-		}},
+		URI:            pm.Mapper.URI,
+		Range:          rng,
+		Severity:       protocol.SeverityError,
+		Source:         source.ModTidyError,
+		Message:        fmt.Sprintf("%s is not in your go.mod file", req.Mod.Path),
+		SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd)},
 	}, nil
 }
 

@@ -505,11 +505,11 @@ type Analyzer struct {
 	// the value of the Staticcheck setting overrides this field.
 	Enabled bool
 
-	// Command is the name of the command used to invoke the suggested fixes
-	// for the analyzer. It is non-nil if we expect this analyzer to provide
-	// its fix separately from its diagnostics. That is, we should apply the
-	// analyzer's suggested fixes through a Command, not a TextEdit.
-	Command *Command
+	// Fix is the name of the suggested fix name used to invoke the suggested
+	// fixes for the analyzer. It is non-empty if we expect this analyzer to
+	// provide its fix separately from its diagnostics. That is, we should apply
+	// the analyzer's suggested fixes through a Command, not a TextEdit.
+	Fix string
 
 	// If this is true, then we can apply the suggested fixes
 	// as part of a source.FixAll codeaction.

@@ -10,7 +10,6 @@ import (
 	. "golang.org/x/tools/gopls/internal/regtest"
 
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/testenv"
 )
 
@@ -70,10 +69,6 @@ func _() {
 		d := &protocol.PublishDiagnosticsParams{}
 		env.Await(ReadDiagnostics("go.mod", d))
 		env.ApplyQuickFixes("go.mod", d.Diagnostics)
-
-		// Check for file changes when the command completes.
-		env.Await(CompletedWork(source.CommandVendor.Title, 1))
-		env.CheckForFileChanges()
 
 		// Confirm that there is no longer any inconsistent vendoring.
 		env.Await(

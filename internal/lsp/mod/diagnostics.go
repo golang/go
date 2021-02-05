@@ -11,6 +11,7 @@ import (
 	"fmt"
 
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -65,24 +66,22 @@ func DiagnosticsForMod(ctx context.Context, snapshot source.Snapshot, fh source.
 			return nil, err
 		}
 		// Upgrade to the exact version we offer the user, not the most recent.
-		args, err := source.MarshalArgs(fh.URI(), false, []string{req.Mod.Path + "@" + ver})
+		title := fmt.Sprintf("Upgrade to %v", ver)
+		cmd, err := command.NewUpgradeDependencyCommand(title, command.DependencyArgs{
+			URI:        protocol.URIFromSpanURI(fh.URI()),
+			AddRequire: false,
+			GoCmdArgs:  []string{req.Mod.Path + "@" + ver},
+		})
 		if err != nil {
 			return nil, err
 		}
 		diagnostics = append(diagnostics, &source.Diagnostic{
-			URI:      fh.URI(),
-			Range:    rng,
-			Severity: protocol.SeverityInformation,
-			Source:   source.UpgradeNotification,
-			Message:  fmt.Sprintf("%v can be upgraded", req.Mod.Path),
-			SuggestedFixes: []source.SuggestedFix{{
-				Title: fmt.Sprintf("Upgrade to %v", ver),
-				Command: &protocol.Command{
-					Title:     fmt.Sprintf("Upgrade to %v", ver),
-					Command:   source.CommandUpgradeDependency.ID(),
-					Arguments: args,
-				},
-			}},
+			URI:            fh.URI(),
+			Range:          rng,
+			Severity:       protocol.SeverityInformation,
+			Source:         source.UpgradeNotification,
+			Message:        fmt.Sprintf("%v can be upgraded", req.Mod.Path),
+			SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd)},
 		})
 	}
 

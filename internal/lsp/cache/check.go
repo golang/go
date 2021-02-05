@@ -21,6 +21,7 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -485,18 +486,16 @@ func addGoGetFixes(ctx context.Context, snapshot source.Snapshot, pkg *pkg) erro
 			continue
 		}
 		direct := !strings.Contains(diag.Message, "error while importing")
-		args, err := source.MarshalArgs(pkg.compiledGoFiles[0].URI, direct, matches[1])
+		title := fmt.Sprintf("go get package %v", matches[1])
+		cmd, err := command.NewGoGetPackageCommand(title, command.GoGetPackageArgs{
+			URI:        protocol.URIFromSpanURI(pkg.compiledGoFiles[0].URI),
+			AddRequire: direct,
+			Pkg:        matches[1],
+		})
 		if err != nil {
 			return err
 		}
-		diag.SuggestedFixes = append(diag.SuggestedFixes, source.SuggestedFix{
-			Title: fmt.Sprintf("go get package %v", matches[1]),
-			Command: &protocol.Command{
-				Title:     fmt.Sprintf("go get package %v", matches[1]),
-				Command:   source.CommandGoGetPackage.ID(),
-				Arguments: args,
-			},
-		})
+		diag.SuggestedFixes = append(diag.SuggestedFixes, source.SuggestedFixFromCommand(cmd))
 	}
 	return nil
 }

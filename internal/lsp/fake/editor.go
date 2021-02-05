@@ -15,8 +15,8 @@ import (
 	"sync"
 
 	"golang.org/x/tools/internal/jsonrpc2"
+	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
 )
@@ -892,18 +892,22 @@ func (e *Editor) checkBufferPosition(path string, pos Pos) error {
 // path. It does not report any resulting file changes as a watched file
 // change, so must be followed by a call to Workdir.CheckForFileChanges once
 // the generate command has completed.
+// TODO(rFindley): this shouldn't be necessary anymore. Delete it.
 func (e *Editor) RunGenerate(ctx context.Context, dir string) error {
 	if e.Server == nil {
 		return nil
 	}
 	absDir := e.sandbox.Workdir.AbsPath(dir)
-	jsonArgs, err := source.MarshalArgs(span.URIFromPath(absDir), false)
+	cmd, err := command.NewGenerateCommand("", command.GenerateArgs{
+		Dir:       protocol.URIFromSpanURI(span.URIFromPath(absDir)),
+		Recursive: false,
+	})
 	if err != nil {
 		return err
 	}
 	params := &protocol.ExecuteCommandParams{
-		Command:   source.CommandGenerate.ID(),
-		Arguments: jsonArgs,
+		Command:   cmd.Command,
+		Arguments: cmd.Arguments,
 	}
 	if _, err := e.ExecuteCommand(ctx, params); err != nil {
 		return fmt.Errorf("running generate: %v", err)

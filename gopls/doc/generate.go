@@ -29,6 +29,8 @@ import (
 	"github.com/sanity-io/litter"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/lsp/command"
+	"golang.org/x/tools/internal/lsp/command/commandmeta"
 	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/source"
 )
@@ -87,7 +89,7 @@ func loadAPI() (*source.APIJSON, error) {
 
 	// Transform the internal command name to the external command name.
 	for _, c := range api.Commands {
-		c.Command = source.CommandPrefix + c.Command
+		c.Command = command.ID(c.Command)
 	}
 	for _, m := range []map[string]source.Analyzer{
 		defaults.DefaultAnalyzers,
@@ -368,90 +370,40 @@ func valueDoc(name, value, doc string) string {
 }
 
 func loadCommands(pkg *packages.Package) ([]*source.CommandJSON, error) {
-	// The code that defines commands is much more complicated than the
-	// code that defines options, so reading comments for the Doc is very
-	// fragile. If this causes problems, we should switch to a dynamic
-	// approach and put the doc in the Commands struct rather than reading
-	// from the source code.
-
-	// Find the Commands slice.
-	typesSlice := pkg.Types.Scope().Lookup("Commands")
-	f, err := fileForPos(pkg, typesSlice.Pos())
-	if err != nil {
-		return nil, err
-	}
-	path, _ := astutil.PathEnclosingInterval(f, typesSlice.Pos(), typesSlice.Pos())
-	vspec := path[1].(*ast.ValueSpec)
-	var astSlice *ast.CompositeLit
-	for i, name := range vspec.Names {
-		if name.Name == "Commands" {
-			astSlice = vspec.Values[i].(*ast.CompositeLit)
-		}
-	}
 
 	var commands []*source.CommandJSON
 
+	_, cmds, err := commandmeta.Load()
+	if err != nil {
+		return nil, err
+	}
 	// Parse the objects it contains.
-	for _, elt := range astSlice.Elts {
-		// Find the composite literal of the Command.
-		typesCommand := pkg.TypesInfo.ObjectOf(elt.(*ast.Ident))
-		path, _ := astutil.PathEnclosingInterval(f, typesCommand.Pos(), typesCommand.Pos())
-		vspec := path[1].(*ast.ValueSpec)
-
-		var astCommand ast.Expr
-		for i, name := range vspec.Names {
-			if name.Name == typesCommand.Name() {
-				astCommand = vspec.Values[i]
-			}
-		}
-
-		// Read the Name and Title fields of the literal.
-		var name, title string
-		ast.Inspect(astCommand, func(n ast.Node) bool {
-			kv, ok := n.(*ast.KeyValueExpr)
-			if ok {
-				k := kv.Key.(*ast.Ident).Name
-				switch k {
-				case "Name":
-					name = strings.Trim(kv.Value.(*ast.BasicLit).Value, `"`)
-				case "Title":
-					title = strings.Trim(kv.Value.(*ast.BasicLit).Value, `"`)
-				}
-			}
-			return true
-		})
-
-		if title == "" {
-			title = name
-		}
-
-		// Conventionally, the doc starts with the name of the variable.
-		// Replace it with the name of the command.
-		doc := vspec.Doc.Text()
-		doc = strings.Replace(doc, typesCommand.Name(), name, 1)
-
+	for _, cmd := range cmds {
 		commands = append(commands, &source.CommandJSON{
-			Command: name,
-			Title:   title,
-			Doc:     doc,
+			Command: cmd.Name,
+			Title:   cmd.Title,
+			Doc:     cmd.Doc,
 		})
 	}
 	return commands, nil
 }
 
 func loadLenses(commands []*source.CommandJSON) []*source.LensJSON {
-	lensNames := map[string]struct{}{}
+	all := map[command.Command]struct{}{}
 	for k := range source.LensFuncs() {
-		lensNames[k] = struct{}{}
+		all[k] = struct{}{}
 	}
 	for k := range mod.LensFuncs() {
-		lensNames[k] = struct{}{}
+		if _, ok := all[k]; ok {
+			panic(fmt.Sprintf("duplicate lens %q", string(k)))
+		}
+		all[k] = struct{}{}
 	}
 
 	var lenses []*source.LensJSON
 
 	for _, cmd := range commands {
-		if _, ok := lensNames[cmd.Command]; ok {
+		if _, ok := all[command.Command(cmd.Command)]; ok {
 			lenses = append(lenses, &source.LensJSON{
 				Lens:  cmd.Command,
 				Title: cmd.Title,

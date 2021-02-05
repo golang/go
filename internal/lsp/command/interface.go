@@ -28,10 +28,16 @@ import "golang.org/x/tools/internal/lsp/protocol"
 //     is considered the command 'Title'.
 //     TODO(rFindley): reconsider this -- Title may be unnecessary.
 type Interface interface {
+	// ApplyFix: Apply a fix
+	//
+	// Applies a fix to a region of source code.
+	ApplyFix(ApplyFixArgs) error
 	// Test: Run test(s) (legacy)
 	//
-	// Deprecated: use gopls.run_tests.
+	// Runs `go test` for a specific set of test or benchmark functions.
 	Test(protocol.DocumentURI, []string, []string) error
+
+	// TODO: deprecate Test in favor of RunTests below.
 
 	// Test: Run test(s)
 	//
@@ -91,7 +97,14 @@ type Interface interface {
 	// GCDetails: Toggle gc_details
 	//
 	// Toggle the calculation of gc annotations.
-	GCDetails(URIArg) error
+	GCDetails(protocol.DocumentURI) error
+
+	// TODO: deprecate GCDetails in favor of ToggleGCDetails below.
+
+	// ToggleGCDetails: Toggle gc_details
+	//
+	// Toggle the calculation of gc annotations.
+	ToggleGCDetails(URIArg) error
 
 	// GenerateGoplsMod: Generate gopls.mod
 	//
@@ -111,15 +124,20 @@ type RunTestsArgs struct {
 }
 
 type GenerateArgs struct {
-	// URI is any file within the directory to generate. Usually this is the file
-	// containing the '//go:generate' directive.
-	URI protocol.DocumentURI
+	// Dir is the directory to generate.
+	Dir protocol.DocumentURI
 
 	// Recursive controls whether to generate recursively (go generate ./...)
 	Recursive bool
 }
 
 // TODO(rFindley): document the rest of these once the docgen is fleshed out.
+
+type ApplyFixArgs struct {
+	Fix   string
+	URI   protocol.DocumentURI
+	Range protocol.Range
+}
 
 type URIArg struct {
 	URI protocol.DocumentURI
@@ -143,6 +161,7 @@ type RemoveDependencyArgs struct {
 }
 
 type GoGetPackageArgs struct {
-	URI protocol.DocumentURI
-	Pkg string
+	URI        protocol.DocumentURI
+	Pkg        string
+	AddRequire bool
 }

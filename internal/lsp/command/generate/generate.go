@@ -34,10 +34,22 @@ import (
 	{{end}}
 )
 
+const (
+{{- range .Commands}}
+	{{.MethodName}} Command = "{{.Name}}"
+{{- end}}
+)
+
+var Commands = []Command {
+{{- range .Commands}}
+	{{.MethodName}},
+{{- end}}
+}
+
 func Dispatch(params *protocol.ExecuteCommandParams, s Interface) (interface{}, error) {
 	switch params.Command {
 	{{- range .Commands}}
-	case "{{.Name}}":
+	case "{{.ID}}":
 		{{- if .Args -}}
 			{{- range $i, $v := .Args}}
 		var a{{$i}} {{typeString $v.Type}}
@@ -61,7 +73,7 @@ func New{{.MethodName}}Command(title string, {{range $i, $v := .Args}}{{if $i}},
 	}
 	return protocol.Command{
 		Title: title,
-		Command: "{{.Name}}",
+		Command: "{{.ID}}",
 		Arguments: args,
 	}, nil
 }
@@ -76,7 +88,7 @@ type data struct {
 func Generate() ([]byte, error) {
 	pkg, cmds, err := commandmeta.Load()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("loading command data: %v", err)
 	}
 	qf := func(p *types.Package) string {
 		if p == pkg.Types {

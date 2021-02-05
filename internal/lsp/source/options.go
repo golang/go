@@ -53,6 +53,7 @@ import (
 	"golang.org/x/tools/internal/lsp/analysis/simplifyslice"
 	"golang.org/x/tools/internal/lsp/analysis/undeclaredname"
 	"golang.org/x/tools/internal/lsp/analysis/unusedparams"
+	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/diff/myers"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -70,7 +71,7 @@ var (
 func DefaultOptions() *Options {
 	optionsOnce.Do(func() {
 		var commands []string
-		for _, c := range Commands {
+		for _, c := range command.Commands {
 			commands = append(commands, c.ID())
 		}
 		defaultOptions = &Options{
@@ -129,12 +130,12 @@ func DefaultOptions() *Options {
 						CompletionBudget: 100 * time.Millisecond,
 					},
 					Codelenses: map[string]bool{
-						CommandGenerate.Name:          true,
-						CommandRegenerateCgo.Name:     true,
-						CommandTidy.Name:              true,
-						CommandToggleDetails.Name:     false,
-						CommandUpgradeDependency.Name: true,
-						CommandVendor.Name:            true,
+						string(command.Generate):          true,
+						string(command.RegenerateCgo):     true,
+						string(command.Tidy):              true,
+						string(command.GCDetails):         false,
+						string(command.UpgradeDependency): true,
+						string(command.Vendor):            true,
 					},
 				},
 			},
@@ -676,8 +677,8 @@ func (o *Options) enableAllExperiments() {
 }
 
 func (o *Options) enableAllExperimentMaps() {
-	if _, ok := o.Codelenses[CommandToggleDetails.Name]; !ok {
-		o.Codelenses[CommandToggleDetails.Name] = true
+	if _, ok := o.Codelenses[string(command.GCDetails)]; !ok {
+		o.Codelenses[string(command.GCDetails)] = true
 	}
 	if _, ok := o.Analyses[unusedparams.Analyzer.Name]; !ok {
 		o.Analyses[unusedparams.Analyzer.Name] = true
@@ -1089,7 +1090,7 @@ func typeErrorAnalyzers() map[string]Analyzer {
 		undeclaredname.Analyzer.Name: {
 			Analyzer:   undeclaredname.Analyzer,
 			FixesError: undeclaredname.FixesError,
-			Command:    CommandUndeclaredName,
+			Fix:        UndeclaredName,
 			Enabled:    true,
 		},
 	}
@@ -1099,7 +1100,7 @@ func convenienceAnalyzers() map[string]Analyzer {
 	return map[string]Analyzer{
 		fillstruct.Analyzer.Name: {
 			Analyzer: fillstruct.Analyzer,
-			Command:  CommandFillStruct,
+			Fix:      FillStruct,
 			Enabled:  true,
 		},
 	}

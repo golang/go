@@ -16,6 +16,44 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
+const (
+	AddDependency     Command = "add_dependency"
+	ApplyFix          Command = "apply_fix"
+	CheckUpgrades     Command = "check_upgrades"
+	GCDetails         Command = "gc_details"
+	Generate          Command = "generate"
+	GenerateGoplsMod  Command = "generate_gopls_mod"
+	GoGetPackage      Command = "go_get_package"
+	RegenerateCgo     Command = "regenerate_cgo"
+	RemoveDependency  Command = "remove_dependency"
+	RunTests          Command = "run_tests"
+	Test              Command = "test"
+	Tidy              Command = "tidy"
+	ToggleGCDetails   Command = "toggle_gc_details"
+	UpdateGoSum       Command = "update_go_sum"
+	UpgradeDependency Command = "upgrade_dependency"
+	Vendor            Command = "vendor"
+)
+
+var Commands = []Command{
+	AddDependency,
+	ApplyFix,
+	CheckUpgrades,
+	GCDetails,
+	Generate,
+	GenerateGoplsMod,
+	GoGetPackage,
+	RegenerateCgo,
+	RemoveDependency,
+	RunTests,
+	Test,
+	Tidy,
+	ToggleGCDetails,
+	UpdateGoSum,
+	UpgradeDependency,
+	Vendor,
+}
+
 func Dispatch(params *protocol.ExecuteCommandParams, s Interface) (interface{}, error) {
 	switch params.Command {
 	case "gopls.add_dependency":
@@ -25,6 +63,13 @@ func Dispatch(params *protocol.ExecuteCommandParams, s Interface) (interface{}, 
 		}
 		err := s.AddDependency(a0)
 		return nil, err
+	case "gopls.apply_fix":
+		var a0 ApplyFixArgs
+		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
+			return nil, err
+		}
+		err := s.ApplyFix(a0)
+		return nil, err
 	case "gopls.check_upgrades":
 		var a0 CheckUpgradesArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
@@ -33,7 +78,7 @@ func Dispatch(params *protocol.ExecuteCommandParams, s Interface) (interface{}, 
 		err := s.CheckUpgrades(a0)
 		return nil, err
 	case "gopls.gc_details":
-		var a0 URIArg
+		var a0 protocol.DocumentURI
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
@@ -97,6 +142,13 @@ func Dispatch(params *protocol.ExecuteCommandParams, s Interface) (interface{}, 
 		}
 		err := s.Tidy(a0)
 		return nil, err
+	case "gopls.toggle_gc_details":
+		var a0 URIArg
+		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
+			return nil, err
+		}
+		err := s.ToggleGCDetails(a0)
+		return nil, err
 	case "gopls.update_go_sum":
 		var a0 URIArg
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
@@ -134,6 +186,18 @@ func NewAddDependencyCommand(title string, a0 DependencyArgs) (protocol.Command,
 	}, nil
 }
 
+func NewApplyFixCommand(title string, a0 ApplyFixArgs) (protocol.Command, error) {
+	args, err := MarshalArgs(a0)
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.apply_fix",
+		Arguments: args,
+	}, nil
+}
+
 func NewCheckUpgradesCommand(title string, a0 CheckUpgradesArgs) (protocol.Command, error) {
 	args, err := MarshalArgs(a0)
 	if err != nil {
@@ -146,7 +210,7 @@ func NewCheckUpgradesCommand(title string, a0 CheckUpgradesArgs) (protocol.Comma
 	}, nil
 }
 
-func NewGCDetailsCommand(title string, a0 URIArg) (protocol.Command, error) {
+func NewGCDetailsCommand(title string, a0 protocol.DocumentURI) (protocol.Command, error) {
 	args, err := MarshalArgs(a0)
 	if err != nil {
 		return protocol.Command{}, err
@@ -250,6 +314,18 @@ func NewTidyCommand(title string, a0 URIArg) (protocol.Command, error) {
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.tidy",
+		Arguments: args,
+	}, nil
+}
+
+func NewToggleGCDetailsCommand(title string, a0 URIArg) (protocol.Command, error) {
+	args, err := MarshalArgs(a0)
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.toggle_gc_details",
 		Arguments: args,
 	}, nil
 }

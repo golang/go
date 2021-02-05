@@ -12,9 +12,9 @@ import (
 
 	. "golang.org/x/tools/gopls/internal/regtest"
 
+	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/testenv"
 )
@@ -53,7 +53,7 @@ const (
 		},
 		{
 			label:        "generate disabled",
-			enabled:      map[string]bool{source.CommandGenerate.Name: false},
+			enabled:      map[string]bool{string(command.Generate): false},
 			wantCodeLens: false,
 		},
 	}
@@ -161,7 +161,7 @@ require golang.org/x/hello v1.3.3
 	t.Run("Upgrade individual dependency", func(t *testing.T) {
 		WithOptions(ProxyFiles(proxyWithLatest)).Run(t, shouldUpdateDep, func(t *testing.T, env *Env) {
 			env.OpenFile("go.mod")
-			env.ExecuteCodeLensCommand("go.mod", source.CommandCheckUpgrades)
+			env.ExecuteCodeLensCommand("go.mod", command.CheckUpgrades)
 			d := &protocol.PublishDiagnosticsParams{}
 			env.Await(OnceMet(env.DiagnosticAtRegexpWithMessage("go.mod", `require`, "can be upgraded"),
 				ReadDiagnostics("go.mod", d)))
@@ -219,7 +219,7 @@ func main() {
 `
 	WithOptions(ProxyFiles(proxy)).Run(t, shouldRemoveDep, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
-		env.ExecuteCodeLensCommand("go.mod", source.CommandTidy)
+		env.ExecuteCodeLensCommand("go.mod", command.Tidy)
 		env.Await(env.DoneWithChangeWatchedFiles())
 		got := env.Editor.BufferText("go.mod")
 		const wantGoMod = `module mod.com
@@ -266,7 +266,7 @@ func Foo() {
 		env.Await(env.DiagnosticAtRegexp("cgo.go", `C\.(fortytwo)`))
 
 		// Regenerate cgo, fixing the diagnostic.
-		env.ExecuteCodeLensCommand("cgo.go", source.CommandRegenerateCgo)
+		env.ExecuteCodeLensCommand("cgo.go", command.RegenerateCgo)
 		env.Await(EmptyDiagnostics("cgo.go"))
 	})
 }
@@ -301,7 +301,7 @@ func main() {
 		Timeout(60*time.Second),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		env.ExecuteCodeLensCommand("main.go", source.CommandToggleDetails)
+		env.ExecuteCodeLensCommand("main.go", command.GCDetails)
 		d := &protocol.PublishDiagnosticsParams{}
 		env.Await(
 			OnceMet(
@@ -334,7 +334,7 @@ func main() {
 		env.Await(DiagnosticAt("main.go", 6, 12))
 
 		// Toggle the GC details code lens again so now it should be off.
-		env.ExecuteCodeLensCommand("main.go", source.CommandToggleDetails)
+		env.ExecuteCodeLensCommand("main.go", command.GCDetails)
 		env.Await(
 			EmptyDiagnostics("main.go"),
 		)

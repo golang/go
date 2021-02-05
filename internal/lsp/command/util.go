@@ -9,6 +9,17 @@ import (
 	"fmt"
 )
 
+// ID returns the command name for use in the LSP.
+func ID(name string) string {
+	return "gopls." + name
+}
+
+type Command string
+
+func (c Command) ID() string {
+	return ID(string(c))
+}
+
 // MarshalArgs encodes the given arguments to json.RawMessages. This function
 // is used to construct arguments to a protocol.Command.
 //

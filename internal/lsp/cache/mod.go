@@ -15,6 +15,7 @@ import (
 	"golang.org/x/mod/module"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
+	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -285,7 +286,12 @@ func (s *snapshot) matchErrorToModule(ctx context.Context, fh source.FileHandle,
 	disabledByGOPROXY := strings.Contains(goCmdError, "disabled by GOPROXY=off")
 	shouldAddDep := strings.Contains(goCmdError, "to add it")
 	if innermost != nil && (disabledByGOPROXY || shouldAddDep) {
-		args, err := source.MarshalArgs(fh.URI(), false, []string{fmt.Sprintf("%v@%v", innermost.Path, innermost.Version)})
+		title := fmt.Sprintf("Download %v@%v", innermost.Path, innermost.Version)
+		cmd, err := command.NewAddDependencyCommand(title, command.DependencyArgs{
+			URI:        protocol.URIFromSpanURI(fh.URI()),
+			AddRequire: false,
+			GoCmdArgs:  []string{fmt.Sprintf("%v@%v", innermost.Path, innermost.Version)},
+		})
 		if err != nil {
 			return nil
 		}
@@ -294,19 +300,12 @@ func (s *snapshot) matchErrorToModule(ctx context.Context, fh source.FileHandle,
 			msg = fmt.Sprintf("%v@%v has not been downloaded", innermost.Path, innermost.Version)
 		}
 		return &source.Diagnostic{
-			URI:      fh.URI(),
-			Range:    rng,
-			Severity: protocol.SeverityError,
-			Message:  msg,
-			Source:   source.ListError,
-			SuggestedFixes: []source.SuggestedFix{{
-				Title: fmt.Sprintf("Download %v@%v", innermost.Path, innermost.Version),
-				Command: &protocol.Command{
-					Title:     source.CommandAddDependency.Title,
-					Command:   source.CommandAddDependency.ID(),
-					Arguments: args,
-				},
-			}},
+			URI:            fh.URI(),
+			Range:          rng,
+			Severity:       protocol.SeverityError,
+			Message:        msg,
+			Source:         source.ListError,
+			SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd)},
 		}
 	}
 	diagSource := source.ListError

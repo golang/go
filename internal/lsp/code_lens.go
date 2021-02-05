@@ -10,6 +10,7 @@ import (
 	"sort"
 
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -21,26 +22,26 @@ func (s *Server) codeLens(ctx context.Context, params *protocol.CodeLensParams) 
 	if !ok {
 		return nil, err
 	}
-	var lensFuncs map[string]source.LensFunc
+	var lenses map[command.Command]source.LensFunc
 	switch fh.Kind() {
 	case source.Mod:
-		lensFuncs = mod.LensFuncs()
+		lenses = mod.LensFuncs()
 	case source.Go:
-		lensFuncs = source.LensFuncs()
+		lenses = source.LensFuncs()
 	default:
 		// Unsupported file kind for a code lens.
 		return nil, nil
 	}
 	var result []protocol.CodeLens
-	for lens, lf := range lensFuncs {
-		if !snapshot.View().Options().Codelenses[lens] {
+	for cmd, lf := range lenses {
+		if !snapshot.View().Options().Codelenses[string(cmd)] {
 			continue
 		}
 		added, err := lf(ctx, snapshot, fh)
 		// Code lens is called on every keystroke, so we should just operate in
 		// a best-effort mode, ignoring errors.
 		if err != nil {
-			event.Error(ctx, fmt.Sprintf("code lens %s failed", lens), err)
+			event.Error(ctx, fmt.Sprintf("code lens %s failed", cmd), err)
 			continue
 		}
 		result = append(result, added...)

@@ -9,9 +9,9 @@ import (
 	"path"
 	"testing"
 
+	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/lsp/source"
 	errors "golang.org/x/xerrors"
 )
 
@@ -299,7 +299,7 @@ func (e *Env) CodeLens(path string) []protocol.CodeLens {
 
 // ExecuteCodeLensCommand executes the command for the code lens matching the
 // given command name.
-func (e *Env) ExecuteCodeLensCommand(path string, cmd *source.Command) {
+func (e *Env) ExecuteCodeLensCommand(path string, cmd command.Command) {
 	lenses := e.CodeLens(path)
 	var lens protocol.CodeLens
 	var found bool

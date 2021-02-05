@@ -31,6 +31,10 @@ type Command struct {
 	Result types.Type
 }
 
+func (c *Command) ID() string {
+	return command.ID(c.Name)
+}
+
 type Field struct {
 	Name    string
 	Doc     string
@@ -44,14 +48,18 @@ type Field struct {
 func Load() (*packages.Package, []*Command, error) {
 	pkgs, err := packages.Load(
 		&packages.Config{
-			Mode: packages.NeedTypes | packages.NeedTypesInfo | packages.NeedSyntax | packages.NeedDeps,
+			Mode:       packages.NeedTypes | packages.NeedTypesInfo | packages.NeedSyntax | packages.NeedImports | packages.NeedDeps,
+			BuildFlags: []string{"-tags=generate"},
 		},
 		"golang.org/x/tools/internal/lsp/command",
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("packages.Load: %v", err)
 	}
 	pkg := pkgs[0]
+	if len(pkg.Errors) > 0 {
+		return pkg, nil, pkg.Errors[0]
+	}
 
 	// For a bit of type safety, use reflection to get the interface name within
 	// the package scope.
@@ -138,7 +146,10 @@ func (l *fieldLoader) loadField(pkg *packages.Package, node *ast.Field, obj *typ
 			obj2 := s.Field(i)
 			pkg2 := pkg
 			if obj2.Pkg() != pkg2.Types {
-				pkg2 = pkg.Imports[obj2.Pkg().Path()]
+				pkg2, ok = pkg.Imports[obj2.Pkg().Path()]
+				if !ok {
+					return nil, fmt.Errorf("missing import for %q: %q", pkg.ID, obj2.Pkg().Path())
+				}
 			}
 			node2, err := findField(pkg2, obj2.Pos())
 			if err != nil {
@@ -160,7 +171,7 @@ func (l *fieldLoader) loadField(pkg *packages.Package, node *ast.Field, obj *typ
 //
 // The doc comment should be of the form: "MethodName: Title\nDocumentation"
 func splitDoc(text string) (title, doc string) {
-	docParts := strings.SplitN(doc, "\n", 2)
+	docParts := strings.SplitN(text, "\n", 2)
 	titleParts := strings.SplitN(docParts[0], ":", 2)
 	if len(titleParts) > 1 {
 		title = strings.TrimSpace(titleParts[1])
@@ -177,7 +188,7 @@ func lspName(methodName string) string {
 	for i := range words {
 		words[i] = strings.ToLower(words[i])
 	}
-	return "gopls." + strings.Join(words, "_")
+	return strings.Join(words, "_")
 }
 
 // splitCamel splits s into words, according to camel-case word boundaries.

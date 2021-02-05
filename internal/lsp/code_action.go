@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/imports"
+	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -264,7 +265,7 @@ func analysisFixes(ctx context.Context, snapshot source.Snapshot, pkg source.Pac
 		}
 		// If the suggested fix for the diagnostic is expected to be separate,
 		// see if there are any supported commands available.
-		if analyzer.Command != nil {
+		if analyzer.Fix != "" {
 			action, err := diagnosticToCommandCodeAction(ctx, snapshot, srcErr, &diag, protocol.QuickFix)
 			if err != nil {
 				return nil, nil, err
@@ -362,7 +363,7 @@ func convenienceFixes(ctx context.Context, snapshot source.Snapshot, pkg source.
 		if !a.IsEnabled(snapshot.View()) {
 			continue
 		}
-		if a.Command == nil {
+		if a.Fix == "" {
 			event.Error(ctx, "convenienceFixes", fmt.Errorf("no suggested fixes for convenience analyzer %s", a.Analyzer.Name))
 			continue
 		}
@@ -399,10 +400,14 @@ func diagnosticToCommandCodeAction(ctx context.Context, snapshot source.Snapshot
 	if analyzer == nil {
 		return nil, fmt.Errorf("no convenience analyzer for source %s", sd.Source)
 	}
-	if analyzer.Command == nil {
-		return nil, fmt.Errorf("no command for convenience analyzer %s", analyzer.Analyzer.Name)
+	if analyzer.Fix == "" {
+		return nil, fmt.Errorf("no fix for convenience analyzer %s", analyzer.Analyzer.Name)
 	}
-	jsonArgs, err := source.MarshalArgs(sd.URI, sd.Range)
+	cmd, err := command.NewApplyFixCommand(sd.Message, command.ApplyFixArgs{
+		URI:   protocol.URIFromSpanURI(sd.URI),
+		Range: sd.Range,
+		Fix:   analyzer.Fix,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -414,11 +419,7 @@ func diagnosticToCommandCodeAction(ctx context.Context, snapshot source.Snapshot
 		Title:       sd.Message,
 		Kind:        kind,
 		Diagnostics: diagnostics,
-		Command: &protocol.Command{
-			Command:   analyzer.Command.ID(),
-			Title:     sd.Message,
-			Arguments: jsonArgs,
-		},
+		Command:     &cmd,
 	}, nil
 }
 
@@ -430,10 +431,6 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, pkg source.P
 	if err != nil {
 		return nil, err
 	}
-	jsonArgs, err := source.MarshalArgs(uri, rng)
-	if err != nil {
-		return nil, err
-	}
 	_, pgf, err := source.GetParsedFile(ctx, snapshot, fh, source.NarrowestPackage)
 	if err != nil {
 		return nil, errors.Errorf("getting file for Identifier: %w", err)
@@ -442,22 +439,36 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, pkg source.P
 	if err != nil {
 		return nil, err
 	}
-	var commands []*source.Command
+	puri := protocol.URIFromSpanURI(uri)
+	var commands []protocol.Command
 	if _, ok, _ := source.CanExtractFunction(snapshot.FileSet(), srng, pgf.Src, pgf.File); ok {
-		commands = append(commands, source.CommandExtractFunction)
+		cmd, err := command.NewApplyFixCommand("Extract to function", command.ApplyFixArgs{
+			URI:   puri,
+			Fix:   source.ExtractFunction,
+			Range: rng,
+		})
+		if err != nil {
+			return nil, err
+		}
+		commands = append(commands, cmd)
 	}
 	if _, _, ok, _ := source.CanExtractVariable(srng, pgf.File); ok {
-		commands = append(commands, source.CommandExtractVariable)
+		cmd, err := command.NewApplyFixCommand("Extract variable", command.ApplyFixArgs{
+			URI:   puri,
+			Fix:   source.ExtractVariable,
+			Range: rng,
+		})
+		if err != nil {
+			return nil, err
+		}
+		commands = append(commands, cmd)
 	}
 	var actions []protocol.CodeAction
-	for _, command := range commands {
+	for _, cmd := range commands {
 		actions = append(actions, protocol.CodeAction{
-			Title: command.Title,
-			Kind:  protocol.RefactorExtract,
-			Command: &protocol.Command{
-				Command:   command.ID(),
-				Arguments: jsonArgs,
-			},
+			Title:   cmd.Title,
+			Kind:    protocol.RefactorExtract,
+			Command: &cmd,
 		})
 	}
 	return actions, nil
@@ -574,17 +585,13 @@ func goTest(ctx context.Context, snapshot source.Snapshot, uri span.URI, rng pro
 		return nil, nil
 	}
 
-	jsonArgs, err := source.MarshalArgs(uri, tests, benchmarks)
+	cmd, err := command.NewTestCommand("Run tests and benchmarks", protocol.URIFromSpanURI(uri), tests, benchmarks)
 	if err != nil {
 		return nil, err
 	}
 	return []protocol.CodeAction{{
-		Title: source.CommandTest.Name,
-		Kind:  protocol.GoTest,
-		Command: &protocol.Command{
-			Title:     source.CommandTest.Title,
-			Command:   source.CommandTest.ID(),
-			Arguments: jsonArgs,
-		},
+		Title:   cmd.Title,
+		Kind:    protocol.GoTest,
+		Command: &cmd,
 	}}, nil
 }

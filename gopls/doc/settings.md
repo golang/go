@@ -388,42 +388,35 @@ features are subject to change.
 
 Identifier: `gc_details`
 
-gc_details controls calculation of gc annotations.
-
+Toggle the calculation of gc annotations.
 ### **Run go generate**
 
 Identifier: `generate`
 
-generate runs `go generate` for a given directory.
-
+Runs `go generate` for a given directory.
 ### **Regenerate cgo**
 
 Identifier: `regenerate_cgo`
 
-regenerate_cgo regenerates cgo definitions.
-
-### **Run test(s)**
+Regenerates cgo definitions.
+### **Run test(s) (legacy)**
 
 Identifier: `test`
 
-test runs `go test` for a specific test function.
-
+Runs `go test` for a specific set of test or benchmark functions.
 ### **Run go mod tidy**
 
 Identifier: `tidy`
 
-tidy runs `go mod tidy` for a module.
-
+Runs `go mod tidy` for a module.
 ### **Upgrade dependency**
 
 Identifier: `upgrade_dependency`
 
-upgrade_dependency upgrades a dependency.
-
+Upgrades a dependency in the go.mod file for a module.
 ### **Run go mod vendor**
 
 Identifier: `vendor`
 
-vendor runs `go mod vendor` for a module.
-
+Runs `go mod vendor` for a module.
 <!-- END Lenses: DO NOT MANUALLY EDIT THIS SECTION -->
