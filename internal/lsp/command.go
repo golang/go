@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -174,20 +175,19 @@ func (c *commandHandler) UpgradeDependency(ctx context.Context, args command.Dep
 
 func (c *commandHandler) GoGetModule(ctx context.Context, args command.DependencyArgs) error {
 	return c.run(ctx, commandConfig{
-		requireSave: true,
-		progress:    "Running go get",
-		forURI:      args.URI,
+		progress: "Running go get",
+		forURI:   args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		return runGoGetModule(ctx, deps.snapshot, args.URI.SpanURI(), args.AddRequire, args.GoCmdArgs)
+		return c.s.runGoModUpdateCommands(ctx, deps.snapshot, args.URI.SpanURI(), func(invoke func(...string) (*bytes.Buffer, error)) error {
+			return runGoGetModule(invoke, args.AddRequire, args.GoCmdArgs)
+		})
 	})
 }
 
 // TODO(rFindley): UpdateGoSum, Tidy, and Vendor could probably all be one command.
-
 func (c *commandHandler) UpdateGoSum(ctx context.Context, args command.URIArgs) error {
 	return c.run(ctx, commandConfig{
-		requireSave: true,
-		progress:    "Updating go.sum",
+		progress: "Updating go.sum",
 	}, func(ctx context.Context, deps commandDeps) error {
 		for _, uri := range args.URIs {
 			snapshot, fh, ok, release, err := c.s.beginFileRequest(ctx, uri, source.UnknownKind)
@@ -195,7 +195,10 @@ func (c *commandHandler) UpdateGoSum(ctx context.Context, args command.URIArgs) 
 			if !ok {
 				return err
 			}
-			if err := runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile|source.AllowNetwork, fh.URI(), "list", []string{"all"}); err != nil {
+			if err := c.s.runGoModUpdateCommands(ctx, snapshot, fh.URI(), func(invoke func(...string) (*bytes.Buffer, error)) error {
+				_, err := invoke("list", "all")
+				return err
+			}); err != nil {
 				return err
 			}
 		}
@@ -214,7 +217,10 @@ func (c *commandHandler) Tidy(ctx context.Context, args command.URIArgs) error {
 			if !ok {
 				return err
 			}
-			if err := runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile|source.AllowNetwork, fh.URI(), "mod", []string{"tidy"}); err != nil {
+			if err := c.s.runGoModUpdateCommands(ctx, snapshot, fh.URI(), func(invoke func(...string) (*bytes.Buffer, error)) error {
+				_, err := invoke("mod", "tidy")
+				return err
+			}); err != nil {
 				return err
 			}
 		}
@@ -228,15 +234,19 @@ func (c *commandHandler) Vendor(ctx context.Context, args command.URIArg) error 
 		progress:    "Running go mod vendor",
 		forURI:      args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		return runSimpleGoCommand(ctx, deps.snapshot, source.UpdateUserModFile|source.AllowNetwork, args.URI.SpanURI(), "mod", []string{"vendor"})
+		_, err := deps.snapshot.RunGoCommandDirect(ctx, source.Normal|source.AllowNetwork, &gocommand.Invocation{
+			Verb:       "mod",
+			Args:       []string{"vendor"},
+			WorkingDir: filepath.Dir(args.URI.SpanURI().Filename()),
+		})
+		return err
 	})
 }
 
 func (c *commandHandler) RemoveDependency(ctx context.Context, args command.RemoveDependencyArgs) error {
 	return c.run(ctx, commandConfig{
-		requireSave: true,
-		progress:    "Removing dependency",
-		forURI:      args.URI,
+		progress: "Removing dependency",
+		forURI:   args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
 		// If the module is tidied apart from the one unused diagnostic, we can
 		// run `go get module@none`, and then run `go mod tidy`. Otherwise, we
@@ -244,10 +254,13 @@ func (c *commandHandler) RemoveDependency(ctx context.Context, args command.Remo
 		// TODO(rstambler): In Go 1.17+, we will be able to use the go command
 		// without checking if the module is tidy.
 		if args.OnlyDiagnostic {
-			if err := runGoGetModule(ctx, deps.snapshot, args.URI.SpanURI(), false, []string{args.ModulePath + "@none"}); err != nil {
+			return c.s.runGoModUpdateCommands(ctx, deps.snapshot, args.URI.SpanURI(), func(invoke func(...string) (*bytes.Buffer, error)) error {
+				if err := runGoGetModule(invoke, false, []string{args.ModulePath + "@none"}); err != nil {
+					return err
+				}
+				_, err := invoke("mod", "tidy")
 				return err
-			}
-			return runSimpleGoCommand(ctx, deps.snapshot, source.UpdateUserModFile|source.AllowNetwork, args.URI.SpanURI(), "mod", []string{"tidy"})
+			})
 		}
 		pm, err := deps.snapshot.ParseMod(ctx, deps.fh)
 		if err != nil {
@@ -444,39 +457,114 @@ func (c *commandHandler) GoGetPackage(ctx context.Context, args command.GoGetPac
 		forURI:   args.URI,
 		progress: "Running go get",
 	}, func(ctx context.Context, deps commandDeps) error {
-		uri := args.URI.SpanURI()
+		// Run on a throwaway go.mod, otherwise it'll write to the real one.
 		stdout, err := deps.snapshot.RunGoCommandDirect(ctx, source.WriteTemporaryModFile|source.AllowNetwork, &gocommand.Invocation{
 			Verb:       "list",
 			Args:       []string{"-f", "{{.Module.Path}}@{{.Module.Version}}", args.Pkg},
-			WorkingDir: filepath.Dir(uri.Filename()),
+			WorkingDir: filepath.Dir(args.URI.SpanURI().Filename()),
 		})
 		if err != nil {
 			return err
 		}
 		ver := strings.TrimSpace(stdout.String())
-		return runGoGetModule(ctx, deps.snapshot, uri, args.AddRequire, []string{ver})
+		return c.s.runGoModUpdateCommands(ctx, deps.snapshot, args.URI.SpanURI(), func(invoke func(...string) (*bytes.Buffer, error)) error {
+			return runGoGetModule(invoke, args.AddRequire, []string{ver})
+		})
 	})
 }
 
-func runGoGetModule(ctx context.Context, snapshot source.Snapshot, uri span.URI, addRequire bool, args []string) error {
+func (s *Server) runGoModUpdateCommands(ctx context.Context, snapshot source.Snapshot, uri span.URI, run func(invoke func(...string) (*bytes.Buffer, error)) error) error {
+	tmpModfile, newModBytes, newSumBytes, err := snapshot.RunGoCommands(ctx, true, filepath.Dir(uri.Filename()), run)
+	if err != nil {
+		return err
+	}
+	if !tmpModfile {
+		return nil
+	}
+	modURI := snapshot.GoModForFile(uri)
+	sumURI := span.URIFromPath(strings.TrimSuffix(modURI.Filename(), ".mod") + ".sum")
+	modEdits, err := applyFileEdits(ctx, snapshot, modURI, newModBytes)
+	if err != nil {
+		return err
+	}
+	sumEdits, err := applyFileEdits(ctx, snapshot, sumURI, newSumBytes)
+	if err != nil {
+		return err
+	}
+	changes := append(sumEdits, modEdits...)
+	if len(changes) == 0 {
+		return nil
+	}
+	response, err := s.client.ApplyEdit(ctx, &protocol.ApplyWorkspaceEditParams{
+		Edit: protocol.WorkspaceEdit{
+			DocumentChanges: changes,
+		},
+	})
+	if err != nil {
+		return err
+	}
+	if !response.Applied {
+		return fmt.Errorf("edits not applied because of %s", response.FailureReason)
+	}
+	return nil
+}
+
+func applyFileEdits(ctx context.Context, snapshot source.Snapshot, uri span.URI, newContent []byte) ([]protocol.TextDocumentEdit, error) {
+	fh, err := snapshot.GetVersionedFile(ctx, uri)
+	if err != nil {
+		return nil, err
+	}
+	oldContent, err := fh.Read()
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	if bytes.Equal(oldContent, newContent) {
+		return nil, nil
+	}
+
+	// Sending a workspace edit to a closed file causes VS Code to open the
+	// file and leave it unsaved. We would rather apply the changes directly,
+	// especially to go.sum, which should be mostly invisible to the user.
+	if !snapshot.IsOpen(uri) {
+		err := ioutil.WriteFile(uri.Filename(), newContent, 0666)
+		return nil, err
+	}
+
+	m := &protocol.ColumnMapper{
+		URI:       fh.URI(),
+		Converter: span.NewContentConverter(fh.URI().Filename(), oldContent),
+		Content:   oldContent,
+	}
+	diff, err := snapshot.View().Options().ComputeEdits(uri, string(oldContent), string(newContent))
+	if err != nil {
+		return nil, err
+	}
+	edits, err := source.ToProtocolEdits(m, diff)
+	if err != nil {
+		return nil, err
+	}
+	return []protocol.TextDocumentEdit{{
+		TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
+			Version: fh.Version(),
+			TextDocumentIdentifier: protocol.TextDocumentIdentifier{
+				URI: protocol.URIFromSpanURI(uri),
+			},
+		},
+		Edits: edits,
+	}}, nil
+}
+
+func runGoGetModule(invoke func(...string) (*bytes.Buffer, error), addRequire bool, args []string) error {
 	if addRequire {
 		// Using go get to create a new dependency results in an
 		// `// indirect` comment we may not want. The only way to avoid it
 		// is to add the require as direct first. Then we can use go get to
 		// update go.sum and tidy up.
-		if err := runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile, uri, "mod", append([]string{"edit", "-require"}, args...)); err != nil {
+		if _, err := invoke(append([]string{"mod", "edit", "-require"}, args...)...); err != nil {
 			return err
 		}
 	}
-	return runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile|source.AllowNetwork, uri, "get", append([]string{"-d"}, args...))
-}
-
-func runSimpleGoCommand(ctx context.Context, snapshot source.Snapshot, mode source.InvocationFlags, uri span.URI, verb string, args []string) error {
-	_, err := snapshot.RunGoCommandDirect(ctx, mode, &gocommand.Invocation{
-		Verb:       verb,
-		Args:       args,
-		WorkingDir: filepath.Dir(uri.Filename()),
-	})
+	_, err := invoke(append([]string{"get", "-d"}, args...)...)
 	return err
 }
 

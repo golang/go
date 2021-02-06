@@ -94,6 +94,10 @@ type Snapshot interface {
 	// WorkingDir must be specified.
 	RunGoCommandDirect(ctx context.Context, mode InvocationFlags, inv *gocommand.Invocation) (*bytes.Buffer, error)
 
+	// RunGoCommands runs a series of `go` commands that updates the go.mod
+	// and go.sum file for wd, and returns their updated contents.
+	RunGoCommands(ctx context.Context, allowNetwork bool, wd string, run func(invoke func(...string) (*bytes.Buffer, error)) error) (bool, []byte, []byte, error)
+
 	// RunProcessEnvFunc runs fn with the process env for this snapshot's view.
 	// Note: the process env contains cached module and filesystem state.
 	RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error) error
@@ -185,7 +189,7 @@ const (
 
 	// AllowNetwork is a flag bit that indicates the invocation should be
 	// allowed to access the network.
-	AllowNetwork = 1 << 10
+	AllowNetwork InvocationFlags = 1 << 10
 )
 
 func (m InvocationFlags) Mode() InvocationFlags {

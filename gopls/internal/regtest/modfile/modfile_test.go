@@ -323,7 +323,7 @@ go 1.14
 			),
 		)
 		env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
-		if got := env.ReadWorkspaceFile("a/go.mod"); got != want {
+		if got := env.Editor.BufferText("a/go.mod"); got != want {
 			t.Fatalf("unexpected go.mod content:\n%s", tests.Diff(t, want, got))
 		}
 	})
@@ -502,6 +502,7 @@ require (
 	example.com/blah/v2 v2.0.0
 )
 `
+		env.SaveBuffer("a/go.mod")
 		env.Await(EmptyDiagnostics("a/main.go"))
 		if got := env.Editor.BufferText("a/go.mod"); got != want {
 			t.Fatalf("suggested fixes failed:\n%s", tests.Diff(t, want, got))
@@ -542,7 +543,7 @@ func main() {
 				env.DiagnosticAtRegexp("a/go.mod", "example.com v1.2.2"),
 			)
 			env.RegexpReplace("a/go.mod", "v1.2.2", "v1.2.3")
-			env.Editor.SaveBuffer(env.Ctx, "a/go.mod") // go.mod changes must be on disk
+			env.SaveBuffer("a/go.mod") // Save to trigger diagnostics.
 
 			d := protocol.PublishDiagnosticsParams{}
 			env.Await(
@@ -552,7 +553,7 @@ func main() {
 				),
 			)
 			env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
-
+			env.SaveBuffer("a/go.mod") // Save to trigger diagnostics.
 			env.Await(
 				EmptyDiagnostics("a/go.mod"),
 				env.DiagnosticAtRegexp("a/main.go", "x = "),
@@ -826,6 +827,7 @@ func main() {
 			),
 		)
 		env.ApplyQuickFixes("go.mod", d.Diagnostics)
+		env.SaveBuffer("go.mod") // Save to trigger diagnostics.
 		env.Await(
 			EmptyDiagnostics("go.mod"),
 		)
@@ -925,6 +927,7 @@ func main() {}
 		WithOptions(
 			ProxyFiles(proxy),
 		).Run(t, mod, func(t *testing.T, env *Env) {
+			env.OpenFile("go.mod")
 			d := &protocol.PublishDiagnosticsParams{}
 			env.Await(
 				OnceMet(
@@ -937,7 +940,7 @@ func main() {}
 go 1.12
 `
 			env.ApplyQuickFixes("go.mod", d.Diagnostics)
-			if got := env.ReadWorkspaceFile("go.mod"); got != want {
+			if got := env.Editor.BufferText("go.mod"); got != want {
 				t.Fatalf("unexpected content in go.mod:\n%s", tests.Diff(t, want, got))
 			}
 		})

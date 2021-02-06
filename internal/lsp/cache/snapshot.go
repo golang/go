@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"go/types"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -253,6 +254,44 @@ func (s *snapshot) RunGoCommandPiped(ctx context.Context, mode source.Invocation
 	}
 	defer cleanup()
 	return s.view.session.gocmdRunner.RunPiped(ctx, *inv, stdout, stderr)
+}
+
+func (s *snapshot) RunGoCommands(ctx context.Context, allowNetwork bool, wd string, run func(invoke func(...string) (*bytes.Buffer, error)) error) (bool, []byte, []byte, error) {
+	var flags source.InvocationFlags
+	if s.workspaceMode()&tempModfile != 0 {
+		flags = source.WriteTemporaryModFile
+	} else {
+		flags = source.Normal
+	}
+	if allowNetwork {
+		flags |= source.AllowNetwork
+	}
+	tmpURI, inv, cleanup, err := s.goCommandInvocation(ctx, flags, &gocommand.Invocation{WorkingDir: wd})
+	if err != nil {
+		return false, nil, nil, err
+	}
+	defer cleanup()
+	invoke := func(args ...string) (*bytes.Buffer, error) {
+		inv.Verb = args[0]
+		inv.Args = args[1:]
+		return s.view.session.gocmdRunner.Run(ctx, *inv)
+	}
+	if err := run(invoke); err != nil {
+		return false, nil, nil, err
+	}
+	if flags.Mode() != source.WriteTemporaryModFile {
+		return false, nil, nil, nil
+	}
+	var modBytes, sumBytes []byte
+	modBytes, err = ioutil.ReadFile(tmpURI.Filename())
+	if err != nil && !os.IsNotExist(err) {
+		return false, nil, nil, err
+	}
+	sumBytes, err = ioutil.ReadFile(strings.TrimSuffix(tmpURI.Filename(), ".mod") + ".sum")
+	if err != nil && !os.IsNotExist(err) {
+		return false, nil, nil, err
+	}
+	return true, modBytes, sumBytes, nil
 }
 
 func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.InvocationFlags, inv *gocommand.Invocation) (tmpURI span.URI, updatedInv *gocommand.Invocation, cleanup func(), err error) {
@@ -1386,8 +1425,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 			}
 		}
 		if isGoMod(uri) {
-			// If the view's go.mod file's contents have changed, invalidate
-			// the metadata for every known package in the snapshot.
 			delete(result.parseModHandles, uri)
 		}
 		// Handle the invalidated file; it may have new contents or not exist.

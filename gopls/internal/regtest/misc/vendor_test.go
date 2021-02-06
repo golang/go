@@ -48,31 +48,22 @@ func _() {
 	var q int // hardcode a diagnostic
 }
 `
-	// TODO(rstambler): Remove this when golang/go#41819 is resolved.
 	WithOptions(
 		Modes(Singleton),
 		ProxyFiles(basicProxy),
 	).Run(t, pkgThatUsesVendoring, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a1.go")
+		d := &protocol.PublishDiagnosticsParams{}
 		env.Await(
-			// The editor should pop up a message suggesting that the user
-			// run `go mod vendor`, along with a button to do so.
-			// By default, the fake editor always accepts such suggestions,
-			// so once we see the request, we can assume that `go mod vendor`
-			// will be executed.
 			OnceMet(
-				env.DoneWithOpen(),
-				env.DiagnosticAtRegexp("go.mod", "module mod.com"),
+				env.DiagnosticAtRegexpWithMessage("go.mod", "module mod.com", "Inconsistent vendoring"),
+				ReadDiagnostics("go.mod", d),
 			),
 		)
-		// Apply the quickfix associated with the diagnostic.
-		d := &protocol.PublishDiagnosticsParams{}
-		env.Await(ReadDiagnostics("go.mod", d))
 		env.ApplyQuickFixes("go.mod", d.Diagnostics)
 
-		// Confirm that there is no longer any inconsistent vendoring.
 		env.Await(
-			DiagnosticAt("a/a1.go", 6, 5),
+			env.DiagnosticAtRegexpWithMessage("a/a1.go", `q int`, "not used"),
 		)
 	})
 }

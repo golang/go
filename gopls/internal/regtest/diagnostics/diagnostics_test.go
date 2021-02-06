@@ -692,7 +692,7 @@ func main() {
 		env.Await(EmptyDiagnostics("main.go"))
 		env.Await(
 			OnceMet(
-				env.DiagnosticAtRegexp("go.mod", "require github.com/ardanlabs/conf"),
+				env.DiagnosticAtRegexpWithMessage("go.mod", "require github.com/ardanlabs/conf", "not used in this module"),
 				ReadDiagnostics("go.mod", &d),
 			),
 		)
@@ -741,7 +741,6 @@ func main() {
 			),
 		)
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
-		env.CheckForFileChanges()
 		env.Await(
 			EmptyDiagnostics("main.go"),
 		)
