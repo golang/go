@@ -82,25 +82,9 @@ func Selected(path string) (version string) {
 // the listed modules requiring a higher version of another), EditBuildList
 // returns a *ConstraintError and leaves the build list in its previous state.
 func EditBuildList(ctx context.Context, add, mustSelect []module.Version) error {
-	var upgraded = capVersionSlice(buildList)
-	if len(add) > 0 {
-		// First, upgrade the build list with any additions.
-		// In theory we could just append the additions to the build list and let
-		// mvs.Downgrade take care of resolving the upgrades too, but the
-		// diagnostics from Upgrade are currently much better in case of errors.
-		var err error
-		upgraded, err = mvs.Upgrade(Target, &mvsReqs{buildList: upgraded}, add...)
-		if err != nil {
-			return err
-		}
-	}
+	LoadModFile(ctx)
 
-	downgraded, err := mvs.Downgrade(Target, &mvsReqs{buildList: append(upgraded, mustSelect...)}, mustSelect...)
-	if err != nil {
-		return err
-	}
-
-	final, err := mvs.Upgrade(Target, &mvsReqs{buildList: downgraded}, mustSelect...)
+	final, err := editBuildList(ctx, buildList, add, mustSelect)
 	if err != nil {
 		return err
 	}
@@ -112,10 +96,7 @@ func EditBuildList(ctx context.Context, add, mustSelect []module.Version) error 
 	inconsistent := false
 	for _, m := range mustSelect {
 		s, ok := selected[m.Path]
-		if !ok {
-			if m.Version != "none" {
-				panic(fmt.Sprintf("internal error: mvs.BuildList lost %v", m))
-			}
+		if !ok && m.Version == "none" {
 			continue
 		}
 		if s.Version != m.Version {
@@ -135,7 +116,7 @@ func EditBuildList(ctx context.Context, add, mustSelect []module.Version) error 
 		return nil
 	}
 
-	// We overshot one or more of the modules in mustSelected, which means that
+	// We overshot one or more of the modules in mustSelect, which means that
 	// Downgrade removed something in mustSelect because it conflicted with
 	// something else in mustSelect.
 	//
@@ -170,7 +151,7 @@ func EditBuildList(ctx context.Context, add, mustSelect []module.Version) error 
 		s, ok := selected[m.Path]
 		if !ok {
 			if m.Version != "none" {
-				panic(fmt.Sprintf("internal error: mvs.BuildList lost %v", m))
+				panic(fmt.Sprintf("internal error: editBuildList lost %v", m))
 			}
 			continue
 		}
