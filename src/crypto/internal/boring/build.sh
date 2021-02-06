@@ -187,7 +187,8 @@ clang -c -o umod.o umod.s
 
 ld -r -nostdlib --whole-archive -o goboringcrypto.o libcrypto.a umod.o
 echo __umodti3 _goboringcrypto___umodti3 >>renames.txt
-objcopy --redefine-syms=renames.txt goboringcrypto.o goboringcrypto2.o
+objcopy --remove-section=.llvm_addrsig goboringcrypto.o goboringcrypto1.o # b/179161016
+objcopy --redefine-syms=renames.txt goboringcrypto1.o goboringcrypto2.o
 objcopy --keep-global-symbols=globals.txt goboringcrypto2.o goboringcrypto_linux_amd64.syso
 
 # Done!
