@@ -19,12 +19,14 @@ git worktree add --track -b "$BRANCH" "$WORKTREE" "origin/$TARGET"
 
 cd "$WORKTREE"
 export GIT_GOFMT_HOOK=off
-git merge --no-commit "$SOURCE" || echo "Ignoring conflict..."
+git merge --no-commit --no-stat "$SOURCE" || echo "Ignoring conflict..."
 [[ -f VERSION ]] && git rm -f VERSION
+git checkout --ours codereview.cfg && git add codereview.cfg
 git commit -m "all: merge $SOURCE into $TARGET"
 
 if ! git log --format=%B -n 1 | grep "\[$TARGET\] "; then
     echo "The commit does not seem to be targeting the BoringCrypto branch."
+    echo "(Or you are missing the git-codereview hooks.)"
     exit 1
 fi
 
