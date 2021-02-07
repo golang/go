@@ -33,7 +33,7 @@ type Value struct {
 	pointer unsafe.Pointer // contains non-scalar values.
 }
 
-// Kind returns the a tag representing the kind of value this is.
+// Kind returns the tag representing the kind of value this is.
 func (v Value) Kind() ValueKind {
 	return v.kind
 }
