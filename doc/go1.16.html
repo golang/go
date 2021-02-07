@@ -378,6 +378,26 @@ func TestFoo(t *testing.T) {
   fixes.
 </p>
 
+<h4 id="vet-asn1-unmarshal">New warning for asn1.Unmarshal</h4>
+
+<p><!-- CL 243397 -->
+  The vet tool now warns about invalid calls of
+  <a href="/pkg/encoding/asn1/#Unmarshal"><code>asn1.Unmarshal</code></a>.
+  If you pass non-pointer or nil argument to
+  <a href="/pkg/encoding/asn1/#Unmarshal"><code>asn1.Unmarshal</code></a>,
+  the vet tool will report it.
+</p>
+
+<p>
+  The vet tool already has been checking invalid <code>Unmarshal</code> and
+  <code>Decode</code> calls of other encoding packages such as
+  <a href="/pkg/encoding/json"><code>encoding/json</code></a>,
+  <a href="/pkg/encoding/xml"><code>encoding/xml</code></a>.
+  This release makes the vet tool check
+  <a href="/pkg/encoding/asn1"><code>encoding/asn1</code></a>'s one
+  as well.
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p>
