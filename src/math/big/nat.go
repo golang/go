@@ -881,7 +881,7 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 		// then floor(u1/v1) >= floor(u/v)
 		//
 		// Moreover, the difference is at most 2 if len(v1) >= len(u/v)
-		// We choose s = B-1 since len(v)-B >= B+1 >= len(u/v)
+		// We choose s = B-1 since len(v)-s >= B+1 >= len(u/v)
 		s := (B - 1)
 		// Except for the first step, the top bits are always
 		// a division remainder, so the quotient length is <= n.
