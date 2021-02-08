@@ -113,55 +113,68 @@ type Interface interface {
 }
 
 type RunTestsArgs struct {
-	// URI is the test file containing the tests to run.
+	// The test file containing the tests to run.
 	URI protocol.DocumentURI
 
-	// Tests holds specific test names to run, e.g. TestFoo.
+	// Specific test names to run, e.g. TestFoo.
 	Tests []string
 
-	// Benchmarks holds specific benchmarks to run, e.g. BenchmarkFoo.
+	// Specific benchmarks to run, e.g. BenchmarkFoo.
 	Benchmarks []string
 }
 
 type GenerateArgs struct {
-	// Dir is the directory to generate.
+	// URI for the directory to generate.
 	Dir protocol.DocumentURI
 
-	// Recursive controls whether to generate recursively (go generate ./...)
+	// Whether to generate recursively (go generate ./...)
 	Recursive bool
 }
 
 // TODO(rFindley): document the rest of these once the docgen is fleshed out.
 
 type ApplyFixArgs struct {
-	Fix   string
-	URI   protocol.DocumentURI
+	// The fix to apply.
+	Fix string
+	// The file URI for the document to fix.
+	URI protocol.DocumentURI
+	// The document range to scan for fixes.
 	Range protocol.Range
 }
 
 type URIArg struct {
+	// The file URI.
 	URI protocol.DocumentURI
 }
 
 type CheckUpgradesArgs struct {
-	URI     protocol.DocumentURI
+	// The go.mod file URI.
+	URI protocol.DocumentURI
+	// The modules to check.
 	Modules []string
 }
 
 type DependencyArgs struct {
-	URI        protocol.DocumentURI
-	GoCmdArgs  []string
+	// The go.mod file URI.
+	URI protocol.DocumentURI
+	// Additional args to pass to the go command.
+	GoCmdArgs []string
+	// Whether to add a require directive.
 	AddRequire bool
 }
 
 type RemoveDependencyArgs struct {
-	URI            protocol.DocumentURI
+	// The go.mod file URI.
+	URI protocol.DocumentURI
+	// The module path to remove.
 	ModulePath     string
 	OnlyDiagnostic bool
 }
 
 type GoGetPackageArgs struct {
-	URI        protocol.DocumentURI
+	// Any document URI within the relevant module.
+	URI protocol.DocumentURI
+	// The package to go get.
 	Pkg        string
 	AddRequire bool
 }

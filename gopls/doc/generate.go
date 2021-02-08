@@ -383,9 +383,55 @@ func loadCommands(pkg *packages.Package) ([]*source.CommandJSON, error) {
 			Command: cmd.Name,
 			Title:   cmd.Title,
 			Doc:     cmd.Doc,
+			ArgDoc:  argsDoc(cmd.Args),
 		})
 	}
 	return commands, nil
+}
+
+func argsDoc(args []*commandmeta.Field) string {
+	var b strings.Builder
+	for i, arg := range args {
+		b.WriteString(argDoc(arg, 0))
+		if i != len(args)-1 {
+			b.WriteString(",\n")
+		}
+	}
+	return b.String()
+}
+
+func argDoc(arg *commandmeta.Field, level int) string {
+	// Max level to expand struct fields.
+	const maxLevel = 3
+	if len(arg.Fields) > 0 {
+		if level < maxLevel {
+			return structDoc(arg.Fields, level)
+		}
+		return "{ ... }"
+	}
+	under := arg.Type.Underlying()
+	return types.TypeString(under, nil)
+}
+
+func structDoc(fields []*commandmeta.Field, level int) string {
+	var b strings.Builder
+	b.WriteString("{\n")
+	indent := strings.Repeat("\t", level)
+	for _, fld := range fields {
+		if fld.Doc != "" && level == 0 {
+			doclines := strings.Split(fld.Doc, "\n")
+			for _, line := range doclines {
+				fmt.Fprintf(&b, "%s\t// %s\n", indent, line)
+			}
+		}
+		tag := fld.JSONTag
+		if tag == "" {
+			tag = fld.Name
+		}
+		fmt.Fprintf(&b, "%s\t%q: %s,\n", indent, tag, argDoc(fld, level+1))
+	}
+	fmt.Fprintf(&b, "%s}", indent)
+	return b.String()
 }
 
 func loadLenses(commands []*source.CommandJSON) []*source.LensJSON {
@@ -686,6 +732,9 @@ func rewriteCommands(doc []byte, api *source.APIJSON) ([]byte, error) {
 	section := bytes.NewBuffer(nil)
 	for _, command := range api.Commands {
 		fmt.Fprintf(section, "### **%v**\nIdentifier: `%v`\n\n%v\n\n", command.Title, command.Command, command.Doc)
+		if command.ArgDoc != "" {
+			fmt.Fprintf(section, "Args:\n\n```\n%s\n```\n\n", command.ArgDoc)
+		}
 	}
 	return replaceSection(doc, "Commands", section.Bytes())
 }

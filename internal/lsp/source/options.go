@@ -1195,6 +1195,7 @@ type CommandJSON struct {
 	Command string
 	Title   string
 	Doc     string
+	ArgDoc  string
 }
 
 type LensJSON struct {
