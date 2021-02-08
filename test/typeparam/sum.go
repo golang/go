@@ -10,7 +10,7 @@ import (
 	"fmt"
 )
 
-func add[T interface{ type int, float64 }](vec []T) T {
+func sum[T interface{ type int, float64 }](vec []T) T {
 	var sum T
 	for _, elt := range vec {
 		sum = sum + elt
@@ -28,23 +28,23 @@ func abs(f float64) float64 {
 func main() {
 	vec1 := []int{3, 4}
 	vec2 := []float64{5.8, 9.6}
+	got := sum[int](vec1)
 	want := vec1[0] + vec1[1]
-	got := add[int](vec1)
-	if want != got {
-		panic(fmt.Sprintf("Want %d, got %d", want, got))
+	if got != want {
+		panic(fmt.Sprintf("Got %d, want %d", got, want))
 	}
-	got = add(vec1)
+	got = sum(vec1)
 	if want != got {
-		panic(fmt.Sprintf("Want %d, got %d", want, got))
+		panic(fmt.Sprintf("Got %d, want %d", got, want))
 	}
 
 	fwant := vec2[0] + vec2[1]
-	fgot := add[float64](vec2)
+	fgot := sum[float64](vec2)
 	if abs(fgot - fwant) > 1e-10 {
-		panic(fmt.Sprintf("Want %f, got %f", fwant, fgot))
+		panic(fmt.Sprintf("Got %f, want %f", fgot, fwant))
 	}
-	fgot = add(vec2)
+	fgot = sum(vec2)
 	if abs(fgot - fwant) > 1e-10 {
-		panic(fmt.Sprintf("Want %f, got %f", fwant, fgot))
+		panic(fmt.Sprintf("Got %f, want %f", fgot, fwant))
 	}
 }

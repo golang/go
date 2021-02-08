@@ -20,7 +20,11 @@ import (
 // creates the required stencils for simple generic functions.
 func (g *irgen) stencil() {
 	g.target.Stencils = make(map[*types.Sym]*ir.Func)
-	for _, decl := range g.target.Decls {
+	// Don't use range(g.target.Decls) - we also want to process any new instantiated
+	// functions that are created during this loop, in order to handle generic
+	// functions calling other generic functions.
+	for i := 0; i < len(g.target.Decls); i++ {
+		decl := g.target.Decls[i]
 		if decl.Op() != ir.ODCLFUNC || decl.Type().NumTParams() > 0 {
 			// Skip any non-function declarations and skip generic functions
 			continue
@@ -142,6 +146,9 @@ func (subst *subster) node(n ir.Node) ir.Node {
 	var edit func(ir.Node) ir.Node
 	edit = func(x ir.Node) ir.Node {
 		switch x.Op() {
+		case ir.OTYPE:
+			return ir.TypeNode(subst.typ(x.Type()))
+
 		case ir.ONAME:
 			name := x.(*ir.Name)
 			if v := subst.vars[name]; v != nil {
@@ -211,21 +218,21 @@ func (subst *subster) typ(t *types.Type) *types.Type {
 	case types.TARRAY:
 		elem := t.Elem()
 		newelem := subst.typ(elem)
-		if subst.typ(elem) != elem {
+		if newelem != elem {
 			return types.NewArray(newelem, t.NumElem())
 		}
 
 	case types.TPTR:
 		elem := t.Elem()
 		newelem := subst.typ(elem)
-		if subst.typ(elem) != elem {
+		if newelem != elem {
 			return types.NewPtr(newelem)
 		}
 
 	case types.TSLICE:
 		elem := t.Elem()
 		newelem := subst.typ(elem)
-		if subst.typ(elem) != elem {
+		if newelem != elem {
 			return types.NewSlice(newelem)
 		}
 
