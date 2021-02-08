@@ -384,6 +384,12 @@ and disabled using the `codelenses` setting, documented above. Their names and
 features are subject to change.
 
 <!-- BEGIN Lenses: DO NOT MANUALLY EDIT THIS SECTION -->
+### **Toggle gc_details**
+
+Identifier: `gc_details`
+
+gc_details controls calculation of gc annotations.
+
 ### **Run go generate**
 
 Identifier: `generate`
@@ -419,11 +425,5 @@ upgrade_dependency upgrades a dependency.
 Identifier: `vendor`
 
 vendor runs `go mod vendor` for a module.
-
-### **Toggle gc_details**
-
-Identifier: `gc_details`
-
-gc_details controls calculation of gc annotations.
 
 <!-- END Lenses: DO NOT MANUALLY EDIT THIS SECTION -->

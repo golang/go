@@ -576,6 +576,11 @@ var GeneratedAPIJSON = &APIJSON{
 					ValueType: "bool",
 					Keys: []EnumKey{
 						{
+							Name:    "\"gc_details\"",
+							Doc:     "gc_details controls calculation of gc annotations.\n",
+							Default: "false",
+						},
+						{
 							Name:    "\"generate\"",
 							Doc:     "generate runs `go generate` for a given directory.\n",
 							Default: "true",
@@ -604,11 +609,6 @@ var GeneratedAPIJSON = &APIJSON{
 							Name:    "\"vendor\"",
 							Doc:     "vendor runs `go mod vendor` for a module.\n",
 							Default: "true",
-						},
-						{
-							Name:    "\"gc_details\"",
-							Doc:     "gc_details controls calculation of gc annotations.\n",
-							Default: "false",
 						},
 					},
 				},
@@ -673,9 +673,24 @@ var GeneratedAPIJSON = &APIJSON{
 	},
 	Commands: []*CommandJSON{
 		{
-			Command: "gopls.generate",
-			Title:   "Run go generate",
-			Doc:     "generate runs `go generate` for a given directory.\n",
+			Command: "gopls.add_dependency",
+			Title:   "Add dependency",
+			Doc:     "add_dependency adds a dependency.\n",
+		},
+		{
+			Command: "gopls.check_upgrades",
+			Title:   "Check for upgrades",
+			Doc:     "check_upgrades checks for module upgrades.\n",
+		},
+		{
+			Command: "gopls.extract_function",
+			Title:   "Extract to function",
+			Doc:     "extract_function extracts statements to a function.\n",
+		},
+		{
+			Command: "gopls.extract_variable",
+			Title:   "Extract to variable",
+			Doc:     "extract_variable extracts an expression to a variable.\n",
 		},
 		{
 			Command: "gopls.fill_struct",
@@ -683,9 +698,34 @@ var GeneratedAPIJSON = &APIJSON{
 			Doc:     "fill_struct is a gopls command to fill a struct with default\nvalues.\n",
 		},
 		{
+			Command: "gopls.gc_details",
+			Title:   "Toggle gc_details",
+			Doc:     "gc_details controls calculation of gc annotations.\n",
+		},
+		{
+			Command: "gopls.generate",
+			Title:   "Run go generate",
+			Doc:     "generate runs `go generate` for a given directory.\n",
+		},
+		{
+			Command: "gopls.generate_gopls_mod",
+			Title:   "Generate gopls.mod",
+			Doc:     "generate_gopls_mod (re)generates the gopls.mod file.\n",
+		},
+		{
+			Command: "gopls.go_get_package",
+			Title:   "go get package",
+			Doc:     "go_get_package runs `go get` to fetch a package.\n",
+		},
+		{
 			Command: "gopls.regenerate_cgo",
 			Title:   "Regenerate cgo",
 			Doc:     "regenerate_cgo regenerates cgo definitions.\n",
+		},
+		{
+			Command: "gopls.remove_dependency",
+			Title:   "Remove dependency",
+			Doc:     "remove_dependency removes a dependency.\n",
 		},
 		{
 			Command: "gopls.test",
@@ -698,29 +738,14 @@ var GeneratedAPIJSON = &APIJSON{
 			Doc:     "tidy runs `go mod tidy` for a module.\n",
 		},
 		{
-			Command: "gopls.update_go_sum",
-			Title:   "Update go.sum",
-			Doc:     "update_go_sum updates the go.sum file for a module.\n",
-		},
-		{
 			Command: "gopls.undeclared_name",
 			Title:   "Undeclared name",
 			Doc:     "undeclared_name adds a variable declaration for an undeclared\nname.\n",
 		},
 		{
-			Command: "gopls.go_get_package",
-			Title:   "go get package",
-			Doc:     "go_get_package runs `go get` to fetch a package.\n",
-		},
-		{
-			Command: "gopls.check_upgrades",
-			Title:   "Check for upgrades",
-			Doc:     "check_upgrades checks for module upgrades.\n",
-		},
-		{
-			Command: "gopls.add_dependency",
-			Title:   "Add dependency",
-			Doc:     "add_dependency adds a dependency.\n",
+			Command: "gopls.update_go_sum",
+			Title:   "Update go.sum",
+			Doc:     "update_go_sum updates the go.sum file for a module.\n",
 		},
 		{
 			Command: "gopls.upgrade_dependency",
@@ -728,37 +753,17 @@ var GeneratedAPIJSON = &APIJSON{
 			Doc:     "upgrade_dependency upgrades a dependency.\n",
 		},
 		{
-			Command: "gopls.remove_dependency",
-			Title:   "Remove dependency",
-			Doc:     "remove_dependency removes a dependency.\n",
-		},
-		{
 			Command: "gopls.vendor",
 			Title:   "Run go mod vendor",
 			Doc:     "vendor runs `go mod vendor` for a module.\n",
 		},
-		{
-			Command: "gopls.extract_variable",
-			Title:   "Extract to variable",
-			Doc:     "extract_variable extracts an expression to a variable.\n",
-		},
-		{
-			Command: "gopls.extract_function",
-			Title:   "Extract to function",
-			Doc:     "extract_function extracts statements to a function.\n",
-		},
-		{
-			Command: "gopls.gc_details",
-			Title:   "Toggle gc_details",
-			Doc:     "gc_details controls calculation of gc annotations.\n",
-		},
-		{
-			Command: "gopls.generate_gopls_mod",
-			Title:   "Generate gopls.mod",
-			Doc:     "generate_gopls_mod (re)generates the gopls.mod file.\n",
-		},
 	},
 	Lenses: []*LensJSON{
+		{
+			Lens:  "gc_details",
+			Title: "Toggle gc_details",
+			Doc:   "gc_details controls calculation of gc annotations.\n",
+		},
 		{
 			Lens:  "generate",
 			Title: "Run go generate",
@@ -788,11 +793,6 @@ var GeneratedAPIJSON = &APIJSON{
 			Lens:  "vendor",
 			Title: "Run go mod vendor",
 			Doc:   "vendor runs `go mod vendor` for a module.\n",
-		},
-		{
-			Lens:  "gc_details",
-			Title: "Toggle gc_details",
-			Doc:   "gc_details controls calculation of gc annotations.\n",
 		},
 	},
 	Analyzers: []*AnalyzerJSON{

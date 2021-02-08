@@ -57,23 +57,23 @@ type SuggestedFixFunc func(fset *token.FileSet, rng span.Range, src []byte, file
 
 // Commands are the commands currently supported by gopls.
 var Commands = []*Command{
-	CommandGenerate,
+	CommandAddDependency,
+	CommandCheckUpgrades,
+	CommandExtractFunction,
+	CommandExtractVariable,
 	CommandFillStruct,
+	CommandToggleDetails, // gc_details
+	CommandGenerate,
+	CommandGenerateGoplsMod,
+	CommandGoGetPackage,
 	CommandRegenerateCgo,
+	CommandRemoveDependency,
 	CommandTest,
 	CommandTidy,
-	CommandUpdateGoSum,
 	CommandUndeclaredName,
-	CommandGoGetPackage,
-	CommandCheckUpgrades,
-	CommandAddDependency,
+	CommandUpdateGoSum,
 	CommandUpgradeDependency,
-	CommandRemoveDependency,
 	CommandVendor,
-	CommandExtractVariable,
-	CommandExtractFunction,
-	CommandToggleDetails,
-	CommandGenerateGoplsMod,
 }
 
 var (
