@@ -378,6 +378,16 @@ func TestFoo(t *testing.T) {
   fixes.
 </p>
 
+<h4 id="vet-asn1-unmarshal">New warning for asn1.Unmarshal</h4>
+
+<p><!-- CL 243397 -->
+  The vet tool now warns about incorrectly passing a non-pointer or nil argument to
+  <a href="/pkg/encoding/asn1/#Unmarshal"><code>asn1.Unmarshal</code></a>.
+  This is like the existing checks for
+  <a href="/pkg/encoding/json/#Unmarshal"><code>encoding/json.Unmarshal</code></a>
+  and <a href="/pkg/encoding/xml/#Unmarshal"><code>encoding/xml.Unmarshal</code></a>.
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p>
