@@ -252,14 +252,6 @@ func (check *Checker) collectObjects() {
 					return
 				}
 
-				// add package to list of explicit imports
-				// (this functionality is provided as a convenience
-				// for clients; it is not needed for type-checking)
-				if !pkgImports[imp] {
-					pkgImports[imp] = true
-					pkg.imports = append(pkg.imports, imp)
-				}
-
 				// local name overrides imported package name
 				name := imp.name
 				if d.spec.Name != nil {
@@ -269,10 +261,19 @@ func (check *Checker) collectObjects() {
 						check.errorf(d.spec.Name, _ImportCRenamed, `cannot rename import "C"`)
 						return
 					}
-					if name == "init" {
-						check.errorf(d.spec.Name, _InvalidInitDecl, "cannot declare init - must be func")
-						return
-					}
+				}
+
+				if name == "init" {
+					check.errorf(d.spec.Name, _InvalidInitDecl, "cannot import package as init - init must be a func")
+					return
+				}
+
+				// add package to list of explicit imports
+				// (this functionality is provided as a convenience
+				// for clients; it is not needed for type-checking)
+				if !pkgImports[imp] {
+					pkgImports[imp] = true
+					pkg.imports = append(pkg.imports, imp)
 				}
 
 				pkgName := NewPkgName(d.spec.Pos(), pkg, name, imp)
