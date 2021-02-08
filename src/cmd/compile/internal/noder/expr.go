@@ -87,11 +87,13 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 
 	case *syntax.CompositeLit:
 		return g.compLit(typ, expr)
+
 	case *syntax.FuncLit:
 		return g.funcLit(typ, expr)
 
 	case *syntax.AssertExpr:
 		return Assert(pos, g.expr(expr.X), g.typeExpr(expr.Type))
+
 	case *syntax.CallExpr:
 		fun := g.expr(expr.Fun)
 		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.Targs) > 0 {
@@ -114,6 +116,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 
 		}
 		return Call(pos, g.typ(typ), fun, g.exprs(expr.ArgList), expr.HasDots)
+
 	case *syntax.IndexExpr:
 		var targs []ir.Node
 		if _, ok := expr.Index.(*syntax.ListExpr); ok {
@@ -139,6 +142,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 
 	case *syntax.ParenExpr:
 		return g.expr(expr.X) // skip parens; unneeded after parse+typecheck
+
 	case *syntax.SelectorExpr:
 		// Qualified identifier.
 		if name, ok := expr.X.(*syntax.Name); ok {
@@ -147,8 +151,8 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 				return typecheck.Expr(g.use(expr.Sel))
 			}
 		}
+		return g.selectorExpr(pos, typ, expr)
 
-		return g.selectorExpr(pos, expr)
 	case *syntax.SliceExpr:
 		return Slice(pos, g.expr(expr.X), g.expr(expr.Index[0]), g.expr(expr.Index[1]), g.expr(expr.Index[2]))
 
@@ -172,15 +176,22 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 // selectorExpr resolves the choice of ODOT, ODOTPTR, OCALLPART (eventually
 // ODOTMETH & ODOTINTER), and OMETHEXPR and deals with embedded fields here rather
 // than in typecheck.go.
-func (g *irgen) selectorExpr(pos src.XPos, expr *syntax.SelectorExpr) ir.Node {
-	selinfo := g.info.Selections[expr]
+func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.SelectorExpr) ir.Node {
+	x := g.expr(expr.X)
+	if x.Type().Kind() == types.TTYPEPARAM {
+		// Leave a method call on a type param as an OXDOT, since it can
+		// only be fully transformed once it has an instantiated type.
+		n := ir.NewSelectorExpr(pos, ir.OXDOT, x, typecheck.Lookup(expr.Sel.Value))
+		typed(g.typ(typ), n)
+		return n
+	}
 
+	selinfo := g.info.Selections[expr]
 	// Everything up to the last selection is an implicit embedded field access,
 	// and the last selection is determined by selinfo.Kind().
 	index := selinfo.Index()
 	embeds, last := index[:len(index)-1], index[len(index)-1]
 
-	x := g.expr(expr.X)
 	origx := x
 	for _, ix := range embeds {
 		x = Implicit(DotField(pos, x, ix))
