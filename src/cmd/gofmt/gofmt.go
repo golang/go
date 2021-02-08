@@ -131,20 +131,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 			fmt.Fprintln(out, filename)
 		}
 		if *write {
-			// make a temporary backup before overwriting original
-			bakname, err := backupFile(filename+".", src, perm)
-			if err != nil {
-				return err
-			}
-			err = os.WriteFile(filename, res, perm)
-			if err != nil {
-				os.Rename(bakname, filename)
-				return err
-			}
-			err = os.Remove(bakname)
-			if err != nil {
-				return err
-			}
+			return replaceFile(filename, res, perm)
 		}
 		if *doDiff {
 			data, err := diffWithReplaceTempFile(src, res, filename)
@@ -272,30 +259,38 @@ func replaceTempFilename(diff []byte, filename string) ([]byte, error) {
 
 const chmodSupported = runtime.GOOS != "windows"
 
-// backupFile writes data to a new file named filename<number> with permissions perm,
-// with <number randomly chosen such that the file name is unique. backupFile returns
-// the chosen file name.
-func backupFile(filename string, data []byte, perm fs.FileMode) (string, error) {
-	// create backup file
-	f, err := os.CreateTemp(filepath.Dir(filename), filepath.Base(filename))
+// replaceFile writes data to a new file named filename<number> with
+// permissions perm, with <number> randomly chosen such that the file name is
+// unique. Then atomically replaces the original file with it.
+func replaceFile(filename string, data []byte, perm fs.FileMode) error {
+	// create temporary file
+	f, err := os.CreateTemp(filepath.Dir(filename+"."), filepath.Base(filename+"."))
 	if err != nil {
 		return "", err
 	}
-	bakname := f.Name()
+	tmpname := f.Name()
+	defer f.Close()
+	defer os.Remove(tmpname)
+
+	// update the file permissions
 	if chmodSupported {
 		err = f.Chmod(perm)
 		if err != nil {
-			f.Close()
-			os.Remove(bakname)
-			return bakname, err
+			return err
 		}
 	}
 
-	// write data to backup file
+	// write data to temp file
 	_, err = f.Write(data)
 	if err1 := f.Close(); err == nil {
 		err = err1
 	}
+	if err != nil {
+		return err
+	}
 
-	return bakname, err
+	// finally swap the original file when the new content
+	err = os.Rename(tmpname, filename)
+
+	return err
 }
