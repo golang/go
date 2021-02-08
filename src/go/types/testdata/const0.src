@@ -348,3 +348,10 @@ const _ = unsafe.Sizeof(func() {
 	assert(one == 1)
 	assert(iota == 0)
 })
+
+// untyped constants must not get arbitrarily large
+const (
+	huge = 1<<1000
+	_ = huge * huge * /* ERROR constant multiplication overflow */ huge
+	_ = huge << 1000 << /* ERROR constant shift overflow */ 1000
+)
