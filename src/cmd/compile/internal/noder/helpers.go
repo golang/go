@@ -119,6 +119,16 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
 	n.IsDDD = dots
 
+	if fun.Op() == ir.OXDOT {
+		if fun.(*ir.SelectorExpr).X.Type().Kind() != types.TTYPEPARAM {
+			base.FatalfAt(pos, "Expecting type param receiver in %v", fun)
+		}
+		// For methods called in a generic function, don't do any extra
+		// transformations. We will do those later when we create the
+		// instantiated function and have the correct receiver type.
+		typed(typ, n)
+		return n
+	}
 	if fun.Op() != ir.OFUNCINST {
 		// If no type params, still do normal typechecking, since we're
 		// still missing some things done by tcCall below (mainly

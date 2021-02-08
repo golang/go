@@ -1657,6 +1657,7 @@ func NewInterface(pkg *Pkg, methods []*Field) *Type {
 // not really be needed except for the type checker).
 func NewTypeParam(pkg *Pkg, constraint *Type) *Type {
 	t := New(TTYPEPARAM)
+	constraint.wantEtype(TINTER)
 	t.methods = constraint.methods
 	t.Extra.(*Interface).pkg = pkg
 	return t

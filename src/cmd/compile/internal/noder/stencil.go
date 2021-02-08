@@ -173,6 +173,33 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			m.SetType(subst.typ(x.Type()))
 		}
 		ir.EditChildren(m, edit)
+
+		// A method value/call via a type param will have been left as an
+		// OXDOT. When we see this during stenciling, finish the
+		// typechecking, now that we have the instantiated receiver type.
+		// We need to do this now, since the access/selection to the
+		// method for the real type is very different from the selection
+		// for the type param.
+		if x.Op() == ir.OXDOT {
+			// Will transform to an OCALLPART
+			m.SetTypecheck(0)
+			typecheck.Expr(m)
+		}
+		if x.Op() == ir.OCALL {
+			call := m.(*ir.CallExpr)
+			if call.X.Op() != ir.OCALLPART {
+				base.FatalfAt(call.Pos(), "Expecting OXDOT with CALL")
+			}
+			// Redo the typechecking, now that we know the method
+			// value is being called
+			call.X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
+			call.X.SetTypecheck(0)
+			call.X.SetType(nil)
+			typecheck.Callee(call.X)
+			m.SetTypecheck(0)
+			typecheck.Call(m.(*ir.CallExpr))
+		}
+
 		if x.Op() == ir.OCLOSURE {
 			x := x.(*ir.ClosureExpr)
 			// Need to save/duplicate x.Func.Nname,
@@ -206,6 +233,31 @@ func (subst *subster) list(l []ir.Node) []ir.Node {
 	return s
 }
 
+// tstruct substitutes type params in a structure type
+func (subst *subster) tstruct(t *types.Type) *types.Type {
+	if t.NumFields() == 0 {
+		return t
+	}
+	var newfields []*types.Field
+	for i, f := range t.Fields().Slice() {
+		t2 := subst.typ(f.Type)
+		if t2 != f.Type && newfields == nil {
+			newfields = make([]*types.Field, t.NumFields())
+			for j := 0; j < i; j++ {
+				newfields[j] = t.Field(j)
+			}
+		}
+		if newfields != nil {
+			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
+		}
+	}
+	if newfields != nil {
+		return types.NewStruct(t.Pkg(), newfields)
+	}
+	return t
+
+}
+
 // typ substitutes any type parameter found with the corresponding type argument.
 func (subst *subster) typ(t *types.Type) *types.Type {
 	for i, tp := range subst.tparams.Slice() {
@@ -237,20 +289,23 @@ func (subst *subster) typ(t *types.Type) *types.Type {
 		}
 
 	case types.TSTRUCT:
-		newfields := make([]*types.Field, t.NumFields())
-		change := false
-		for i, f := range t.Fields().Slice() {
-			t2 := subst.typ(f.Type)
-			if t2 != f.Type {
-				change = true
-			}
-			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
-		}
-		if change {
-			return types.NewStruct(t.Pkg(), newfields)
+		newt := subst.tstruct(t)
+		if newt != t {
+			return newt
 		}
 
-		// TODO: case TFUNC
+	case types.TFUNC:
+		newrecvs := subst.tstruct(t.Recvs())
+		newparams := subst.tstruct(t.Params())
+		newresults := subst.tstruct(t.Results())
+		if newrecvs != t.Recvs() || newparams != t.Params() || newresults != t.Results() {
+			var newrecv *types.Field
+			if newrecvs.NumFields() > 0 {
+				newrecv = newrecvs.Field(0)
+			}
+			return types.NewSignature(t.Pkg(), newrecv, nil, newparams.FieldSlice(), newresults.FieldSlice())
+		}
+
 		// TODO: case TCHAN
 		// TODO: case TMAP
 		// TODO: case TINTER
