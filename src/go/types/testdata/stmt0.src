@@ -90,7 +90,7 @@ func assignments1() {
 
 	// assignments to _
 	_ = nil /* ERROR "use of untyped nil" */
-	_ = 1 /* ERROR overflow */ <<1000
+	_ = 1  << /* ERROR constant shift overflow */ 1000
 	(_) = 0
 }
 

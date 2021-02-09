@@ -84,11 +84,6 @@ func (check *Checker) op(m opPredicates, x *operand, op token.Token) bool {
 func (check *Checker) overflow(x *operand, op token.Token, opPos token.Pos) {
 	assert(x.mode == constant_)
 
-	what := "" // operator description, if any
-	if int(op) < len(op2str) {
-		what = op2str[op]
-	}
-
 	if x.val.Kind() == constant.Unknown {
 		// TODO(gri) We should report exactly what went wrong. At the
 		//           moment we don't have the (go/constant) API for that.
@@ -105,15 +100,37 @@ func (check *Checker) overflow(x *operand, op token.Token, opPos token.Pos) {
 	}
 
 	// Untyped integer values must not grow arbitrarily.
-	const limit = 4 * 512 // 512 is the constant precision - we need more because old tests had no limits
-	if x.val.Kind() == constant.Int && constant.BitLen(x.val) > limit {
-		check.errorf(atPos(opPos), _InvalidConstVal, "constant %s overflow", what)
+	const prec = 512 // 512 is the constant precision
+	if x.val.Kind() == constant.Int && constant.BitLen(x.val) > prec {
+		check.errorf(atPos(opPos), _InvalidConstVal, "constant %s overflow", opName(x.expr))
 		x.val = constant.MakeUnknown()
 	}
 }
 
+// opName returns the name of an operation, or the empty string.
+// For now, only operations that might overflow are handled.
+// TODO(gri) Expand this to a general mechanism giving names to
+//           nodes?
+func opName(e ast.Expr) string {
+	switch e := e.(type) {
+	case *ast.BinaryExpr:
+		if int(e.Op) < len(op2str2) {
+			return op2str2[e.Op]
+		}
+	case *ast.UnaryExpr:
+		if int(e.Op) < len(op2str1) {
+			return op2str1[e.Op]
+		}
+	}
+	return ""
+}
+
+var op2str1 = [...]string{
+	token.XOR: "bitwise complement",
+}
+
 // This is only used for operations that may cause overflow.
-var op2str = [...]string{
+var op2str2 = [...]string{
 	token.ADD: "addition",
 	token.SUB: "subtraction",
 	token.XOR: "bitwise XOR",
@@ -763,8 +780,17 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 
 	if x.mode == constant_ {
 		if y.mode == constant_ {
+			// if either x or y has an unknown value, the result is unknown
+			if x.val.Kind() == constant.Unknown || y.val.Kind() == constant.Unknown {
+				x.val = constant.MakeUnknown()
+				// ensure the correct type - see comment below
+				if !isInteger(x.typ) {
+					x.typ = Typ[UntypedInt]
+				}
+				return
+			}
 			// rhs must be within reasonable bounds in constant shifts
-			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64
+			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see issue #44057)
 			s, ok := constant.Uint64Val(yval)
 			if !ok || s > shiftBound {
 				check.invalidOp(y, _InvalidShiftCount, "invalid shift count %s", y)
