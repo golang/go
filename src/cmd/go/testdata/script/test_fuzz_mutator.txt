@@ -1,3 +1,6 @@
+# TODO(jayconrod): support shared memory on more platforms.
+[!darwin] [!linux] [!windows] skip
+
 # Test basic fuzzing mutator behavior.
 #
 # fuzz_test.go has two fuzz targets (FuzzA, FuzzB) which both add a seed value.

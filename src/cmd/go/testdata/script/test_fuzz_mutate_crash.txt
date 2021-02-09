@@ -1,3 +1,6 @@
+# TODO(jayconrod): support shared memory on more platforms.
+[!darwin] [!linux] [!windows] skip
+
 # Tests that a crash caused by a mutator-discovered input writes the bad input
 # to testdata, and fails+reports correctly. This tests the end-to-end behavior
 # of the mutator finding a crash while fuzzing, adding it as a regression test

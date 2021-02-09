@@ -1,3 +1,6 @@
+# TODO(jayconrod): support shared memory on more platforms.
+[!darwin] [!linux] [!windows] skip
+
 # Matches only fuzz targets to test.
 go test standalone_fuzz_test.go
 ! stdout '^ok.*\[no tests to run\]'
