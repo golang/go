@@ -52,12 +52,12 @@ func (a *ABIParamResultInfo) OutRegistersUsed() int {
 	return a.outRegistersUsed
 }
 
-func (a *ABIParamResultInfo) InParam(i int) ABIParamAssignment {
-	return a.inparams[i]
+func (a *ABIParamResultInfo) InParam(i int) *ABIParamAssignment {
+	return &a.inparams[i]
 }
 
-func (a *ABIParamResultInfo) OutParam(i int) ABIParamAssignment {
-	return a.outparams[i]
+func (a *ABIParamResultInfo) OutParam(i int) *ABIParamAssignment {
+	return &a.outparams[i]
 }
 
 func (a *ABIParamResultInfo) SpillAreaOffset() int64 {
@@ -109,6 +109,18 @@ func (a *ABIParamAssignment) SpillOffset() int32 {
 		panic("Stack-allocated parameters have no spill offset")
 	}
 	return a.offset
+}
+
+// FrameOffset returns the location that a value would spill to, if any exists.
+// For register-allocated inputs, that is their spill offset reserved for morestack
+// (might as well use it, it is there); for stack-allocated inputs and outputs,
+// that is their location on the stack.  For register-allocated outputs, there is
+// no defined spill area, so return -1.
+func (a *ABIParamAssignment) FrameOffset(i *ABIParamResultInfo) int64 {
+	if len(a.Registers) == 0 || a.offset == -1 {
+		return int64(a.offset)
+	}
+	return int64(a.offset) + i.SpillAreaOffset()
 }
 
 // RegAmounts holds a specified number of integer/float registers.
@@ -265,7 +277,30 @@ func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
 	result.spillAreaSize = alignTo(s.spillOffset, types.RegSize)
 	result.outRegistersUsed = s.rUsed.intRegs + s.rUsed.floatRegs
 
+	// Fill in the frame offsets for receiver, inputs, results
+	k := 0
+	if t.NumRecvs() != 0 {
+		config.updateOffset(result, ft.Receiver.FieldSlice()[0], result.inparams[0], false)
+		k++
+	}
+	for i, f := range ft.Params.FieldSlice() {
+		config.updateOffset(result, f, result.inparams[k+i], false)
+	}
+	for i, f := range ft.Results.FieldSlice() {
+		config.updateOffset(result, f, result.outparams[i], true)
+	}
 	return result
+}
+
+func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field, a ABIParamAssignment, isReturn bool) {
+	if !isReturn || len(a.Registers) == 0 {
+		// TODO in next CL, assign
+		if f.Offset != a.FrameOffset(result) {
+			if config.regAmounts.intRegs == 0 && config.regAmounts.floatRegs == 0 {
+				panic(fmt.Errorf("Expected node offset %d != abi offset %d", f.Offset, a.FrameOffset(result)))
+			}
+		}
+	}
 }
 
 //......................................................................
