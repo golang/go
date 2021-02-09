@@ -1208,11 +1208,11 @@ func traceGCSTWDone() {
 func traceGCSweepStart() {
 	// Delay the actual GCSweepStart event until the first span
 	// sweep. If we don't sweep anything, don't emit any events.
-	_p_ := getg().m.p.ptr()
-	if _p_.traceSweep {
+	pp := getg().m.p.ptr()
+	if pp.traceSweep {
 		throw("double traceGCSweepStart")
 	}
-	_p_.traceSweep, _p_.traceSwept, _p_.traceReclaimed = true, 0, 0
+	pp.traceSweep, pp.traceSwept, pp.traceReclaimed = true, 0, 0
 }
 
 // traceGCSweepSpan traces the sweep of a single page.
@@ -1220,24 +1220,24 @@ func traceGCSweepStart() {
 // This may be called outside a traceGCSweepStart/traceGCSweepDone
 // pair; however, it will not emit any trace events in this case.
 func traceGCSweepSpan(bytesSwept uintptr) {
-	_p_ := getg().m.p.ptr()
-	if _p_.traceSweep {
-		if _p_.traceSwept == 0 {
+	pp := getg().m.p.ptr()
+	if pp.traceSweep {
+		if pp.traceSwept == 0 {
 			traceEvent(traceEvGCSweepStart, 1)
 		}
-		_p_.traceSwept += bytesSwept
+		pp.traceSwept += bytesSwept
 	}
 }
 
 func traceGCSweepDone() {
-	_p_ := getg().m.p.ptr()
-	if !_p_.traceSweep {
+	pp := getg().m.p.ptr()
+	if !pp.traceSweep {
 		throw("missing traceGCSweepStart")
 	}
-	if _p_.traceSwept != 0 {
-		traceEvent(traceEvGCSweepDone, -1, uint64(_p_.traceSwept), uint64(_p_.traceReclaimed))
+	if pp.traceSwept != 0 {
+		traceEvent(traceEvGCSweepDone, -1, uint64(pp.traceSwept), uint64(pp.traceReclaimed))
 	}
-	_p_.traceSweep = false
+	pp.traceSweep = false
 }
 
 func traceGCMarkAssistStart() {
@@ -1258,14 +1258,14 @@ func traceGoCreate(newg *g, pc uintptr) {
 
 func traceGoStart() {
 	_g_ := getg().m.curg
-	_p_ := _g_.m.p
+	pp := _g_.m.p
 	_g_.traceseq++
-	if _p_.ptr().gcMarkWorkerMode != gcMarkWorkerNotWorker {
-		traceEvent(traceEvGoStartLabel, -1, uint64(_g_.goid), _g_.traceseq, trace.markWorkerLabels[_p_.ptr().gcMarkWorkerMode])
-	} else if _g_.tracelastp == _p_ {
+	if pp.ptr().gcMarkWorkerMode != gcMarkWorkerNotWorker {
+		traceEvent(traceEvGoStartLabel, -1, uint64(_g_.goid), _g_.traceseq, trace.markWorkerLabels[pp.ptr().gcMarkWorkerMode])
+	} else if _g_.tracelastp == pp {
 		traceEvent(traceEvGoStartLocal, -1, uint64(_g_.goid))
 	} else {
-		_g_.tracelastp = _p_
+		_g_.tracelastp = pp
 		traceEvent(traceEvGoStart, -1, uint64(_g_.goid), _g_.traceseq)
 	}
 }
@@ -1294,12 +1294,12 @@ func traceGoPark(traceEv byte, skip int) {
 }
 
 func traceGoUnpark(gp *g, skip int) {
-	_p_ := getg().m.p
+	pp := getg().m.p
 	gp.traceseq++
-	if gp.tracelastp == _p_ {
+	if gp.tracelastp == pp {
 		traceEvent(traceEvGoUnblockLocal, skip, uint64(gp.goid))
 	} else {
-		gp.tracelastp = _p_
+		gp.tracelastp = pp
 		traceEvent(traceEvGoUnblock, skip, uint64(gp.goid), gp.traceseq)
 	}
 }

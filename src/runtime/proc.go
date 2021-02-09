@@ -733,8 +733,8 @@ func schedinit() {
 	if debug.cgocheck > 1 {
 		writeBarrier.cgo = true
 		writeBarrier.enabled = true
-		for _, p := range allp {
-			p.wbBuf.reset()
+		for _, pp := range allp {
+			pp.wbBuf.reset()
 		}
 	}
 
@@ -1193,25 +1193,25 @@ func stopTheWorldWithSema() {
 	_g_.m.p.ptr().status = _Pgcstop // Pgcstop is only diagnostic.
 	sched.stopwait--
 	// try to retake all P's in Psyscall status
-	for _, p := range allp {
-		s := p.status
-		if s == _Psyscall && atomic.Cas(&p.status, s, _Pgcstop) {
+	for _, pp := range allp {
+		s := pp.status
+		if s == _Psyscall && atomic.Cas(&pp.status, s, _Pgcstop) {
 			if trace.enabled {
-				traceGoSysBlock(p)
-				traceProcStop(p)
+				traceGoSysBlock(pp)
+				traceProcStop(pp)
 			}
-			p.syscalltick++
+			pp.syscalltick++
 			sched.stopwait--
 		}
 	}
 	// stop idle P's
 	now := nanotime()
 	for {
-		p, _ := pidleget(now)
-		if p == nil {
+		pp, _ := pidleget(now)
+		if pp == nil {
 			break
 		}
-		p.status = _Pgcstop
+		pp.status = _Pgcstop
 		sched.stopwait--
 	}
 	wait := sched.stopwait > 0
@@ -1234,8 +1234,8 @@ func stopTheWorldWithSema() {
 	if sched.stopwait != 0 {
 		bad = "stopTheWorld: not stopped (stopwait != 0)"
 	} else {
-		for _, p := range allp {
-			if p.status != _Pgcstop {
+		for _, pp := range allp {
+			if pp.status != _Pgcstop {
 				bad = "stopTheWorld: not stopped (status != _Pgcstop)"
 			}
 		}
@@ -1583,7 +1583,7 @@ found:
 //go:systemstack
 func forEachP(fn func(*p)) {
 	mp := acquirem()
-	_p_ := getg().m.p.ptr()
+	pp := getg().m.p.ptr()
 
 	lock(&sched.lock)
 	if sched.safePointWait != 0 {
@@ -1593,9 +1593,9 @@ func forEachP(fn func(*p)) {
 	sched.safePointFn = fn
 
 	// Ask all Ps to run the safe point function.
-	for _, p := range allp {
-		if p != _p_ {
-			atomic.Store(&p.runSafePointFn, 1)
+	for _, p2 := range allp {
+		if p2 != pp {
+			atomic.Store(&p2.runSafePointFn, 1)
 		}
 	}
 	preemptall()
@@ -1617,19 +1617,19 @@ func forEachP(fn func(*p)) {
 	unlock(&sched.lock)
 
 	// Run fn for the current P.
-	fn(_p_)
+	fn(pp)
 
 	// Force Ps currently in _Psyscall into _Pidle and hand them
 	// off to induce safe point function execution.
-	for _, p := range allp {
-		s := p.status
-		if s == _Psyscall && p.runSafePointFn == 1 && atomic.Cas(&p.status, s, _Pidle) {
+	for _, p2 := range allp {
+		s := p2.status
+		if s == _Psyscall && p2.runSafePointFn == 1 && atomic.Cas(&p2.status, s, _Pidle) {
 			if trace.enabled {
-				traceGoSysBlock(p)
-				traceProcStop(p)
+				traceGoSysBlock(p2)
+				traceProcStop(p2)
 			}
-			p.syscalltick++
-			handoffp(p)
+			p2.syscalltick++
+			handoffp(p2)
 		}
 	}
 
@@ -1650,8 +1650,8 @@ func forEachP(fn func(*p)) {
 	if sched.safePointWait != 0 {
 		throw("forEachP: not done")
 	}
-	for _, p := range allp {
-		if p.runSafePointFn != 0 {
+	for _, p2 := range allp {
+		if p2.runSafePointFn != 0 {
 			throw("forEachP: P did not run fn")
 		}
 	}
@@ -1707,20 +1707,20 @@ type cgothreadstart struct {
 // id is optional pre-allocated m ID. Omit by passing -1.
 //
 // This function is allowed to have write barriers even if the caller
-// isn't because it borrows _p_.
+// isn't because it borrows pp.
 //
 //go:yeswritebarrierrec
-func allocm(_p_ *p, fn func(), id int64) *m {
+func allocm(pp *p, fn func(), id int64) *m {
 	allocmLock.rlock()
 
-	// The caller owns _p_, but we may borrow (i.e., acquirep) it. We must
+	// The caller owns pp, but we may borrow (i.e., acquirep) it. We must
 	// disable preemption to ensure it is not stolen, which would make the
 	// caller lose ownership.
 	acquirem()
 
 	_g_ := getg()
 	if _g_.m.p == 0 {
-		acquirep(_p_) // temporarily borrow p for mallocs in this function
+		acquirep(pp) // temporarily borrow p for mallocs in this function
 	}
 
 	// Release the free M list. We need to do this somewhere and
@@ -1761,7 +1761,7 @@ func allocm(_p_ *p, fn func(), id int64) *m {
 	}
 	mp.g0.m = mp
 
-	if _p_ == _g_.m.p.ptr() {
+	if pp == _g_.m.p.ptr() {
 		releasep()
 	}
 
@@ -2085,7 +2085,7 @@ var newmHandoff struct {
 // id is optional pre-allocated m ID. Omit by passing -1.
 //
 //go:nowritebarrierrec
-func newm(fn func(), _p_ *p, id int64) {
+func newm(fn func(), pp *p, id int64) {
 	// allocm adds a new M to allm, but they do not start until created by
 	// the OS in newm1 or the template thread.
 	//
@@ -2098,8 +2098,8 @@ func newm(fn func(), _p_ *p, id int64) {
 	// start.
 	acquirem()
 
-	mp := allocm(_p_, fn, id)
-	mp.nextp.set(_p_)
+	mp := allocm(pp, fn, id)
+	mp.nextp.set(pp)
 	mp.sigmask = initSigmask
 	if gp := getg(); gp != nil && gp.m != nil && (gp.m.lockedExt != 0 || gp.m.incgo) && GOOS != "plan9" {
 		// We're on a locked M or a thread that may have been
@@ -2258,7 +2258,7 @@ func mspinning() {
 // Must not have write barriers because this may be called without a P.
 //
 //go:nowritebarrierrec
-func startm(_p_ *p, spinning bool) {
+func startm(pp *p, spinning bool) {
 	// Disable preemption.
 	//
 	// Every owned P must have an owner that will eventually stop it in the
@@ -2277,9 +2277,9 @@ func startm(_p_ *p, spinning bool) {
 	// disable preemption before acquiring a P from pidleget below.
 	mp := acquirem()
 	lock(&sched.lock)
-	if _p_ == nil {
-		_p_, _ = pidleget(0)
-		if _p_ == nil {
+	if pp == nil {
+		pp, _ = pidleget(0)
+		if pp == nil {
 			unlock(&sched.lock)
 			if spinning {
 				// The caller incremented nmspinning, but there are no idle Ps,
@@ -2314,8 +2314,8 @@ func startm(_p_ *p, spinning bool) {
 			// The caller incremented nmspinning, so set m.spinning in the new M.
 			fn = mspinning
 		}
-		newm(fn, _p_, id)
-		// Ownership transfer of _p_ committed by start in newm.
+		newm(fn, pp, id)
+		// Ownership transfer of pp committed by start in newm.
 		// Preemption is now safe.
 		releasem(mp)
 		return
@@ -2327,14 +2327,14 @@ func startm(_p_ *p, spinning bool) {
 	if nmp.nextp != 0 {
 		throw("startm: m has p")
 	}
-	if spinning && !runqempty(_p_) {
+	if spinning && !runqempty(pp) {
 		throw("startm: p has runnable gs")
 	}
 	// The caller incremented nmspinning, so set m.spinning in the new M.
 	nmp.spinning = spinning
-	nmp.nextp.set(_p_)
+	nmp.nextp.set(pp)
 	notewakeup(&nmp.park)
-	// Ownership transfer of _p_ committed by wakeup. Preemption is now
+	// Ownership transfer of pp committed by wakeup. Preemption is now
 	// safe.
 	releasem(mp)
 }
@@ -2343,34 +2343,34 @@ func startm(_p_ *p, spinning bool) {
 // Always runs without a P, so write barriers are not allowed.
 //
 //go:nowritebarrierrec
-func handoffp(_p_ *p) {
+func handoffp(pp *p) {
 	// handoffp must start an M in any situation where
-	// findrunnable would return a G to run on _p_.
+	// findrunnable would return a G to run on pp.
 
 	// if it has local work, start it straight away
-	if !runqempty(_p_) || sched.runqsize != 0 {
-		startm(_p_, false)
+	if !runqempty(pp) || sched.runqsize != 0 {
+		startm(pp, false)
 		return
 	}
 	// if there's trace work to do, start it straight away
 	if (trace.enabled || trace.shutdown) && traceReaderAvailable() {
-		startm(_p_, false)
+		startm(pp, false)
 		return
 	}
 	// if it has GC work, start it straight away
-	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(_p_) {
-		startm(_p_, false)
+	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(pp) {
+		startm(pp, false)
 		return
 	}
 	// no local work, check that there are no spinning/idle M's,
 	// otherwise our help is not required
 	if atomic.Load(&sched.nmspinning)+atomic.Load(&sched.npidle) == 0 && atomic.Cas(&sched.nmspinning, 0, 1) { // TODO: fast atomic
-		startm(_p_, true)
+		startm(pp, true)
 		return
 	}
 	lock(&sched.lock)
 	if sched.gcwaiting != 0 {
-		_p_.status = _Pgcstop
+		pp.status = _Pgcstop
 		sched.stopwait--
 		if sched.stopwait == 0 {
 			notewakeup(&sched.stopnote)
@@ -2378,8 +2378,8 @@ func handoffp(_p_ *p) {
 		unlock(&sched.lock)
 		return
 	}
-	if _p_.runSafePointFn != 0 && atomic.Cas(&_p_.runSafePointFn, 1, 0) {
-		sched.safePointFn(_p_)
+	if pp.runSafePointFn != 0 && atomic.Cas(&pp.runSafePointFn, 1, 0) {
+		sched.safePointFn(pp)
 		sched.safePointWait--
 		if sched.safePointWait == 0 {
 			notewakeup(&sched.safePointNote)
@@ -2387,21 +2387,21 @@ func handoffp(_p_ *p) {
 	}
 	if sched.runqsize != 0 {
 		unlock(&sched.lock)
-		startm(_p_, false)
+		startm(pp, false)
 		return
 	}
 	// If this is the last running P and nobody is polling network,
 	// need to wakeup another M to poll network.
 	if sched.npidle == uint32(gomaxprocs-1) && atomic.Load64(&sched.lastpoll) != 0 {
 		unlock(&sched.lock)
-		startm(_p_, false)
+		startm(pp, false)
 		return
 	}
 
 	// The scheduler lock cannot be held when calling wakeNetPoller below
 	// because wakeNetPoller may call wakep which may call startm.
-	when := nobarrierWakeTime(_p_)
-	pidleput(_p_, 0)
+	when := nobarrierWakeTime(pp)
+	pidleput(pp, 0)
 	unlock(&sched.lock)
 
 	if when != 0 {
@@ -2432,8 +2432,8 @@ func stoplockedm() {
 	}
 	if _g_.m.p != 0 {
 		// Schedule another M to run this p.
-		_p_ := releasep()
-		handoffp(_p_)
+		pp := releasep()
+		handoffp(pp)
 	}
 	incidlelocked(1)
 	// Wait until another thread schedules lockedg again.
@@ -2464,8 +2464,8 @@ func startlockedm(gp *g) {
 	}
 	// directly handoff current P to the locked m
 	incidlelocked(-1)
-	_p_ := releasep()
-	mp.nextp.set(_p_)
+	pp := releasep()
+	mp.nextp.set(pp)
 	notewakeup(&mp.park)
 	stopm()
 }
@@ -2486,9 +2486,9 @@ func gcstopm() {
 			throw("gcstopm: negative nmspinning")
 		}
 	}
-	_p_ := releasep()
+	pp := releasep()
 	lock(&sched.lock)
-	_p_.status = _Pgcstop
+	pp.status = _Pgcstop
 	sched.stopwait--
 	if sched.stopwait == 0 {
 		notewakeup(&sched.stopnote)
@@ -2558,12 +2558,12 @@ func findRunnable() (gp *g, inheritTime, tryWakeP bool) {
 	// an M.
 
 top:
-	_p_ := _g_.m.p.ptr()
+	pp := _g_.m.p.ptr()
 	if sched.gcwaiting != 0 {
 		gcstopm()
 		goto top
 	}
-	if _p_.runSafePointFn != 0 {
+	if pp.runSafePointFn != 0 {
 		runSafePointFn()
 	}
 
@@ -2571,7 +2571,7 @@ top:
 	// which may steal timers. It's important that between now
 	// and then, nothing blocks, so these numbers remain mostly
 	// relevant.
-	now, pollUntil, _ := checkTimers(_p_, 0)
+	now, pollUntil, _ := checkTimers(pp, 0)
 
 	// Try to schedule the trace reader.
 	if trace.enabled || trace.shutdown {
@@ -2585,7 +2585,7 @@ top:
 
 	// Try to schedule a GC worker.
 	if gcBlackenEnabled != 0 {
-		gp, now = gcController.findRunnableGCWorker(_p_, now)
+		gp, now = gcController.findRunnableGCWorker(pp, now)
 		if gp != nil {
 			return gp, false, true
 		}
@@ -2594,9 +2594,9 @@ top:
 	// Check the global runnable queue once in a while to ensure fairness.
 	// Otherwise two goroutines can completely occupy the local runqueue
 	// by constantly respawning each other.
-	if _p_.schedtick%61 == 0 && sched.runqsize > 0 {
+	if pp.schedtick%61 == 0 && sched.runqsize > 0 {
 		lock(&sched.lock)
-		gp = globrunqget(_p_, 1)
+		gp = globrunqget(pp, 1)
 		unlock(&sched.lock)
 		if gp != nil {
 			return gp, false, false
@@ -2614,14 +2614,14 @@ top:
 	}
 
 	// local runq
-	if gp, inheritTime := runqget(_p_); gp != nil {
+	if gp, inheritTime := runqget(pp); gp != nil {
 		return gp, inheritTime, false
 	}
 
 	// global runq
 	if sched.runqsize != 0 {
 		lock(&sched.lock)
-		gp := globrunqget(_p_, 0)
+		gp := globrunqget(pp, 0)
 		unlock(&sched.lock)
 		if gp != nil {
 			return gp, false, false
@@ -2680,10 +2680,10 @@ top:
 	//
 	// If we're in the GC mark phase, can safely scan and blacken objects,
 	// and have work to do, run idle-time marking rather than give up the P.
-	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(_p_) && gcController.addIdleMarkWorker() {
+	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(pp) && gcController.addIdleMarkWorker() {
 		node := (*gcBgMarkWorkerNode)(gcBgMarkWorkerPool.pop())
 		if node != nil {
-			_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
+			pp.gcMarkWorkerMode = gcMarkWorkerIdleMode
 			gp := node.gp.ptr()
 			casgstatus(gp, _Gwaiting, _Grunnable)
 			if trace.enabled {
@@ -2722,19 +2722,19 @@ top:
 
 	// return P and block
 	lock(&sched.lock)
-	if sched.gcwaiting != 0 || _p_.runSafePointFn != 0 {
+	if sched.gcwaiting != 0 || pp.runSafePointFn != 0 {
 		unlock(&sched.lock)
 		goto top
 	}
 	if sched.runqsize != 0 {
-		gp := globrunqget(_p_, 0)
+		gp := globrunqget(pp, 0)
 		unlock(&sched.lock)
 		return gp, false, false
 	}
-	if releasep() != _p_ {
+	if releasep() != pp {
 		throw("findrunnable: wrong p")
 	}
-	now = pidleput(_p_, now)
+	now = pidleput(pp, now)
 	unlock(&sched.lock)
 
 	// Delicate dance: thread transitions from spinning to non-spinning
@@ -2771,23 +2771,23 @@ top:
 		// latency. See golang.org/issue/43997.
 
 		// Check all runqueues once again.
-		_p_ = checkRunqsNoP(allpSnapshot, idlepMaskSnapshot)
-		if _p_ != nil {
-			acquirep(_p_)
+		pp = checkRunqsNoP(allpSnapshot, idlepMaskSnapshot)
+		if pp != nil {
+			acquirep(pp)
 			_g_.m.spinning = true
 			atomic.Xadd(&sched.nmspinning, 1)
 			goto top
 		}
 
 		// Check for idle-priority GC work again.
-		_p_, gp = checkIdleGCNoP()
-		if _p_ != nil {
-			acquirep(_p_)
+		pp, gp = checkIdleGCNoP()
+		if pp != nil {
+			acquirep(pp)
 			_g_.m.spinning = true
 			atomic.Xadd(&sched.nmspinning, 1)
 
 			// Run the idle worker.
-			_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
+			pp.gcMarkWorkerMode = gcMarkWorkerIdleMode
 			casgstatus(gp, _Gwaiting, _Grunnable)
 			if trace.enabled {
 				traceGoUnpark(gp, 0)
@@ -2836,12 +2836,12 @@ top:
 			goto top
 		}
 		lock(&sched.lock)
-		_p_, _ = pidleget(now)
+		pp, _ = pidleget(now)
 		unlock(&sched.lock)
-		if _p_ == nil {
+		if pp == nil {
 			injectglist(&list)
 		} else {
-			acquirep(_p_)
+			acquirep(pp)
 			if !list.empty() {
 				gp := list.pop()
 				injectglist(&list)
@@ -3471,10 +3471,10 @@ func goexit1() {
 // goexit continuation on g0.
 func goexit0(gp *g) {
 	_g_ := getg()
-	_p_ := _g_.m.p.ptr()
+	pp := _g_.m.p.ptr()
 
 	casgstatus(gp, _Grunning, _Gdead)
-	gcController.addScannableStack(_p_, -int64(gp.stack.hi-gp.stack.lo))
+	gcController.addScannableStack(pp, -int64(gp.stack.hi-gp.stack.lo))
 	if isSystemGoroutine(gp, false) {
 		atomic.Xadd(&sched.ngsys, -1)
 	}
@@ -3505,7 +3505,7 @@ func goexit0(gp *g) {
 	dropg()
 
 	if GOARCH == "wasm" { // no threads yet on wasm
-		gfput(_p_, gp)
+		gfput(pp, gp)
 		schedule() // never returns
 	}
 
@@ -3513,7 +3513,7 @@ func goexit0(gp *g) {
 		print("invalid m->lockedInt = ", _g_.m.lockedInt, "\n")
 		throw("internal lockOSThread error")
 	}
-	gfput(_p_, gp)
+	gfput(pp, gp)
 	if locked {
 		// The goroutine may have locked this thread because
 		// it put it in an unusual kernel state. Kill it
@@ -3682,15 +3682,15 @@ func entersyscall_sysmon() {
 
 func entersyscall_gcwait() {
 	_g_ := getg()
-	_p_ := _g_.m.oldp.ptr()
+	pp := _g_.m.oldp.ptr()
 
 	lock(&sched.lock)
-	if sched.stopwait > 0 && atomic.Cas(&_p_.status, _Psyscall, _Pgcstop) {
+	if sched.stopwait > 0 && atomic.Cas(&pp.status, _Psyscall, _Pgcstop) {
 		if trace.enabled {
-			traceGoSysBlock(_p_)
-			traceProcStop(_p_)
+			traceGoSysBlock(pp)
+			traceProcStop(pp)
 		}
-		_p_.syscalltick++
+		pp.syscalltick++
 		if sched.stopwait--; sched.stopwait == 0 {
 			notewakeup(&sched.stopnote)
 		}
@@ -3910,14 +3910,14 @@ func exitsyscallfast_reacquired() {
 
 func exitsyscallfast_pidle() bool {
 	lock(&sched.lock)
-	_p_, _ := pidleget(0)
-	if _p_ != nil && atomic.Load(&sched.sysmonwait) != 0 {
+	pp, _ := pidleget(0)
+	if pp != nil && atomic.Load(&sched.sysmonwait) != 0 {
 		atomic.Store(&sched.sysmonwait, 0)
 		notewakeup(&sched.sysmonnote)
 	}
 	unlock(&sched.lock)
-	if _p_ != nil {
-		acquirep(_p_)
+	if pp != nil {
+		acquirep(pp)
 		return true
 	}
 	return false
@@ -3933,12 +3933,12 @@ func exitsyscall0(gp *g) {
 	casgstatus(gp, _Gsyscall, _Grunnable)
 	dropg()
 	lock(&sched.lock)
-	var _p_ *p
+	var pp *p
 	if schedEnabled(gp) {
-		_p_, _ = pidleget(0)
+		pp, _ = pidleget(0)
 	}
 	var locked bool
-	if _p_ == nil {
+	if pp == nil {
 		globrunqput(gp)
 
 		// Below, we stoplockedm if gp is locked. globrunqput releases
@@ -3952,8 +3952,8 @@ func exitsyscall0(gp *g) {
 		notewakeup(&sched.sysmonnote)
 	}
 	unlock(&sched.lock)
-	if _p_ != nil {
-		acquirep(_p_)
+	if pp != nil {
+		acquirep(pp)
 		execute(gp, false) // Never returns.
 	}
 	if locked {
@@ -4089,8 +4089,8 @@ func newproc(fn *funcval) {
 	systemstack(func() {
 		newg := newproc1(fn, gp, pc)
 
-		_p_ := getg().m.p.ptr()
-		runqput(_p_, newg, true)
+		pp := getg().m.p.ptr()
+		runqput(pp, newg, true)
 
 		if mainStarted {
 			wakep()
@@ -4109,8 +4109,8 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 	}
 	acquirem() // disable preemption because it can be holding p in a local var
 
-	_p_ := _g_.m.p.ptr()
-	newg := gfget(_p_)
+	pp := _g_.m.p.ptr()
+	newg := gfget(pp)
 	if newg == nil {
 		newg = malg(_StackMin)
 		casgstatus(newg, _Gidle, _Gdead)
@@ -4166,18 +4166,18 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 		newg.tracking = true
 	}
 	casgstatus(newg, _Gdead, _Grunnable)
-	gcController.addScannableStack(_p_, int64(newg.stack.hi-newg.stack.lo))
+	gcController.addScannableStack(pp, int64(newg.stack.hi-newg.stack.lo))
 
-	if _p_.goidcache == _p_.goidcacheend {
+	if pp.goidcache == pp.goidcacheend {
 		// Sched.goidgen is the last allocated id,
 		// this batch must be [sched.goidgen+1, sched.goidgen+GoidCacheBatch].
 		// At startup sched.goidgen=0, so main goroutine receives goid=1.
-		_p_.goidcache = atomic.Xadd64(&sched.goidgen, _GoidCacheBatch)
-		_p_.goidcache -= _GoidCacheBatch - 1
-		_p_.goidcacheend = _p_.goidcache + _GoidCacheBatch
+		pp.goidcache = atomic.Xadd64(&sched.goidgen, _GoidCacheBatch)
+		pp.goidcache -= _GoidCacheBatch - 1
+		pp.goidcacheend = pp.goidcache + _GoidCacheBatch
 	}
-	newg.goid = int64(_p_.goidcache)
-	_p_.goidcache++
+	newg.goid = int64(pp.goidcache)
+	pp.goidcache++
 	if raceenabled {
 		newg.racectx = racegostart(callerpc)
 		if newg.labels != nil {
@@ -4230,7 +4230,7 @@ func saveAncestors(callergp *g) *[]ancestorInfo {
 
 // Put on gfree list.
 // If local list is too long, transfer a batch to the global list.
-func gfput(_p_ *p, gp *g) {
+func gfput(pp *p, gp *g) {
 	if readgstatus(gp) != _Gdead {
 		throw("gfput: bad status (not Gdead)")
 	}
@@ -4245,17 +4245,17 @@ func gfput(_p_ *p, gp *g) {
 		gp.stackguard0 = 0
 	}
 
-	_p_.gFree.push(gp)
-	_p_.gFree.n++
-	if _p_.gFree.n >= 64 {
+	pp.gFree.push(gp)
+	pp.gFree.n++
+	if pp.gFree.n >= 64 {
 		var (
 			inc      int32
 			stackQ   gQueue
 			noStackQ gQueue
 		)
-		for _p_.gFree.n >= 32 {
-			gp = _p_.gFree.pop()
-			_p_.gFree.n--
+		for pp.gFree.n >= 32 {
+			gp = pp.gFree.pop()
+			pp.gFree.n--
 			if gp.stack.lo == 0 {
 				noStackQ.push(gp)
 			} else {
@@ -4273,12 +4273,12 @@ func gfput(_p_ *p, gp *g) {
 
 // Get from gfree list.
 // If local list is empty, grab a batch from global list.
-func gfget(_p_ *p) *g {
+func gfget(pp *p) *g {
 retry:
-	if _p_.gFree.empty() && (!sched.gFree.stack.empty() || !sched.gFree.noStack.empty()) {
+	if pp.gFree.empty() && (!sched.gFree.stack.empty() || !sched.gFree.noStack.empty()) {
 		lock(&sched.gFree.lock)
 		// Move a batch of free Gs to the P.
-		for _p_.gFree.n < 32 {
+		for pp.gFree.n < 32 {
 			// Prefer Gs with stacks.
 			gp := sched.gFree.stack.pop()
 			if gp == nil {
@@ -4288,17 +4288,17 @@ retry:
 				}
 			}
 			sched.gFree.n--
-			_p_.gFree.push(gp)
-			_p_.gFree.n++
+			pp.gFree.push(gp)
+			pp.gFree.n++
 		}
 		unlock(&sched.gFree.lock)
 		goto retry
 	}
-	gp := _p_.gFree.pop()
+	gp := pp.gFree.pop()
 	if gp == nil {
 		return nil
 	}
-	_p_.gFree.n--
+	pp.gFree.n--
 	if gp.stack.lo != 0 && gp.stack.hi-gp.stack.lo != uintptr(startingStackSize) {
 		// Deallocate old stack. We kept it in gfput because it was the
 		// right size when the goroutine was put on the free list, but
@@ -4331,15 +4331,15 @@ retry:
 }
 
 // Purge all cached G's from gfree list to the global list.
-func gfpurge(_p_ *p) {
+func gfpurge(pp *p) {
 	var (
 		inc      int32
 		stackQ   gQueue
 		noStackQ gQueue
 	)
-	for !_p_.gFree.empty() {
-		gp := _p_.gFree.pop()
-		_p_.gFree.n--
+	for !pp.gFree.empty() {
+		gp := pp.gFree.pop()
+		pp.gFree.n--
 		if gp.stack.lo == 0 {
 			noStackQ.push(gp)
 		} else {
@@ -4467,8 +4467,8 @@ func badunlockosthread() {
 
 func gcount() int32 {
 	n := int32(atomic.Loaduintptr(&allglen)) - sched.gFree.n - int32(atomic.Load(&sched.ngsys))
-	for _, _p_ := range allp {
-		n -= _p_.gFree.n
+	for _, pp := range allp {
+		n -= pp.gFree.n
 	}
 
 	// All these variables can be changed concurrently, so the result can be inconsistent.
@@ -4874,10 +4874,10 @@ func procresize(nprocs int32) *p {
 			_g_.m.p.ptr().m = 0
 		}
 		_g_.m.p = 0
-		p := allp[0]
-		p.m = 0
-		p.status = _Pidle
-		acquirep(p)
+		pp := allp[0]
+		pp.m = 0
+		pp.status = _Pidle
+		acquirep(pp)
 		if trace.enabled {
 			traceGoStart()
 		}
@@ -4888,8 +4888,8 @@ func procresize(nprocs int32) *p {
 
 	// release resources from unused P's
 	for i := nprocs; i < old; i++ {
-		p := allp[i]
-		p.destroy()
+		pp := allp[i]
+		pp.destroy()
 		// can't free P itself because it can be referenced by an M in syscall
 	}
 
@@ -4904,17 +4904,17 @@ func procresize(nprocs int32) *p {
 
 	var runnablePs *p
 	for i := nprocs - 1; i >= 0; i-- {
-		p := allp[i]
-		if _g_.m.p.ptr() == p {
+		pp := allp[i]
+		if _g_.m.p.ptr() == pp {
 			continue
 		}
-		p.status = _Pidle
-		if runqempty(p) {
-			pidleput(p, now)
+		pp.status = _Pidle
+		if runqempty(pp) {
+			pidleput(pp, now)
 		} else {
-			p.m.set(mget())
-			p.link.set(runnablePs)
-			runnablePs = p
+			pp.m.set(mget())
+			pp.link.set(runnablePs)
+			runnablePs = pp
 		}
 	}
 	stealOrder.reset(uint32(nprocs))
@@ -4930,18 +4930,18 @@ func procresize(nprocs int32) *p {
 // Associate p and the current m.
 //
 // This function is allowed to have write barriers even if the caller
-// isn't because it immediately acquires _p_.
+// isn't because it immediately acquires pp.
 //
 //go:yeswritebarrierrec
-func acquirep(_p_ *p) {
+func acquirep(pp *p) {
 	// Do the part that isn't allowed to have write barriers.
-	wirep(_p_)
+	wirep(pp)
 
 	// Have p; write barriers now allowed.
 
 	// Perform deferred mcache flush before this P can allocate
 	// from a potentially stale mcache.
-	_p_.mcache.prepareForSweep()
+	pp.mcache.prepareForSweep()
 
 	if trace.enabled {
 		traceProcStart()
@@ -4949,28 +4949,28 @@ func acquirep(_p_ *p) {
 }
 
 // wirep is the first step of acquirep, which actually associates the
-// current M to _p_. This is broken out so we can disallow write
+// current M to pp. This is broken out so we can disallow write
 // barriers for this part, since we don't yet have a P.
 //
 //go:nowritebarrierrec
 //go:nosplit
-func wirep(_p_ *p) {
+func wirep(pp *p) {
 	_g_ := getg()
 
 	if _g_.m.p != 0 {
 		throw("wirep: already in go")
 	}
-	if _p_.m != 0 || _p_.status != _Pidle {
+	if pp.m != 0 || pp.status != _Pidle {
 		id := int64(0)
-		if _p_.m != 0 {
-			id = _p_.m.ptr().id
+		if pp.m != 0 {
+			id = pp.m.ptr().id
 		}
-		print("wirep: p->m=", _p_.m, "(", id, ") p->status=", _p_.status, "\n")
+		print("wirep: p->m=", pp.m, "(", id, ") p->status=", pp.status, "\n")
 		throw("wirep: invalid p state")
 	}
-	_g_.m.p.set(_p_)
-	_p_.m.set(_g_.m)
-	_p_.status = _Prunning
+	_g_.m.p.set(pp)
+	pp.m.set(_g_.m)
+	pp.status = _Prunning
 }
 
 // Disassociate p and the current m.
@@ -4980,18 +4980,18 @@ func releasep() *p {
 	if _g_.m.p == 0 {
 		throw("releasep: invalid arg")
 	}
-	_p_ := _g_.m.p.ptr()
-	if _p_.m.ptr() != _g_.m || _p_.status != _Prunning {
-		print("releasep: m=", _g_.m, " m->p=", _g_.m.p.ptr(), " p->m=", hex(_p_.m), " p->status=", _p_.status, "\n")
+	pp := _g_.m.p.ptr()
+	if pp.m.ptr() != _g_.m || pp.status != _Prunning {
+		print("releasep: m=", _g_.m, " m->p=", _g_.m.p.ptr(), " p->m=", hex(pp.m), " p->status=", pp.status, "\n")
 		throw("releasep: invalid p state")
 	}
 	if trace.enabled {
 		traceProcStop(_g_.m.p.ptr())
 	}
 	_g_.m.p = 0
-	_p_.m = 0
-	_p_.status = _Pidle
-	return _p_
+	pp.m = 0
+	pp.status = _Pidle
+	return pp
 }
 
 func incidlelocked(v int32) {
@@ -5099,8 +5099,8 @@ func checkdead() {
 	}
 
 	// There are no goroutines running, so we can look at the P's.
-	for _, _p_ := range allp {
-		if len(_p_.timers) > 0 {
+	for _, pp := range allp {
+		if len(pp.timers) > 0 {
 			return
 		}
 	}
@@ -5289,23 +5289,23 @@ func retake(now int64) uint32 {
 	// temporarily drop the allpLock. Hence, we need to re-fetch
 	// allp each time around the loop.
 	for i := 0; i < len(allp); i++ {
-		_p_ := allp[i]
-		if _p_ == nil {
+		pp := allp[i]
+		if pp == nil {
 			// This can happen if procresize has grown
 			// allp but not yet created new Ps.
 			continue
 		}
-		pd := &_p_.sysmontick
-		s := _p_.status
+		pd := &pp.sysmontick
+		s := pp.status
 		sysretake := false
 		if s == _Prunning || s == _Psyscall {
 			// Preempt G if it's running for too long.
-			t := int64(_p_.schedtick)
+			t := int64(pp.schedtick)
 			if int64(pd.schedtick) != t {
 				pd.schedtick = uint32(t)
 				pd.schedwhen = now
 			} else if pd.schedwhen+forcePreemptNS <= now {
-				preemptone(_p_)
+				preemptone(pp)
 				// In case of syscall, preemptone() doesn't
 				// work, because there is no M wired to P.
 				sysretake = true
@@ -5313,7 +5313,7 @@ func retake(now int64) uint32 {
 		}
 		if s == _Psyscall {
 			// Retake P from syscall if it's there for more than 1 sysmon tick (at least 20us).
-			t := int64(_p_.syscalltick)
+			t := int64(pp.syscalltick)
 			if !sysretake && int64(pd.syscalltick) != t {
 				pd.syscalltick = uint32(t)
 				pd.syscallwhen = now
@@ -5322,7 +5322,7 @@ func retake(now int64) uint32 {
 			// On the one hand we don't want to retake Ps if there is no other work to do,
 			// but on the other hand we want to retake them eventually
 			// because they can prevent the sysmon thread from deep sleep.
-			if runqempty(_p_) && atomic.Load(&sched.nmspinning)+atomic.Load(&sched.npidle) > 0 && pd.syscallwhen+10*1000*1000 > now {
+			if runqempty(pp) && atomic.Load(&sched.nmspinning)+atomic.Load(&sched.npidle) > 0 && pd.syscallwhen+10*1000*1000 > now {
 				continue
 			}
 			// Drop allpLock so we can take sched.lock.
@@ -5332,14 +5332,14 @@ func retake(now int64) uint32 {
 			// Otherwise the M from which we retake can exit the syscall,
 			// increment nmidle and report deadlock.
 			incidlelocked(-1)
-			if atomic.Cas(&_p_.status, s, _Pidle) {
+			if atomic.Cas(&pp.status, s, _Pidle) {
 				if trace.enabled {
-					traceGoSysBlock(_p_)
-					traceProcStop(_p_)
+					traceGoSysBlock(pp)
+					traceProcStop(pp)
 				}
 				n++
-				_p_.syscalltick++
-				handoffp(_p_)
+				pp.syscalltick++
+				handoffp(pp)
 			}
 			incidlelocked(1)
 			lock(&allpLock)
@@ -5356,11 +5356,11 @@ func retake(now int64) uint32 {
 // Returns true if preemption request was issued to at least one goroutine.
 func preemptall() bool {
 	res := false
-	for _, _p_ := range allp {
-		if _p_.status != _Prunning {
+	for _, pp := range allp {
+		if pp.status != _Prunning {
 			continue
 		}
-		if preemptone(_p_) {
+		if preemptone(pp) {
 			res = true
 		}
 	}
@@ -5377,8 +5377,8 @@ func preemptall() bool {
 // The actual preemption will happen at some point in the future
 // and will be indicated by the gp->status no longer being
 // Grunning
-func preemptone(_p_ *p) bool {
-	mp := _p_.m.ptr()
+func preemptone(pp *p) bool {
+	mp := pp.m.ptr()
 	if mp == nil || mp == getg().m {
 		return false
 	}
@@ -5397,7 +5397,7 @@ func preemptone(_p_ *p) bool {
 
 	// Request an async preemption of this P.
 	if preemptMSupported && debug.asyncpreemptoff == 0 {
-		_p_.preempt = true
+		pp.preempt = true
 		preemptM(mp)
 	}
 
@@ -5420,16 +5420,16 @@ func schedtrace(detailed bool) {
 	// We must be careful while reading data from P's, M's and G's.
 	// Even if we hold schedlock, most data can be changed concurrently.
 	// E.g. (p->m ? p->m->id : -1) can crash if p->m changes from non-nil to nil.
-	for i, _p_ := range allp {
-		mp := _p_.m.ptr()
-		h := atomic.Load(&_p_.runqhead)
-		t := atomic.Load(&_p_.runqtail)
+	for i, pp := range allp {
+		mp := pp.m.ptr()
+		h := atomic.Load(&pp.runqhead)
+		t := atomic.Load(&pp.runqtail)
 		if detailed {
 			id := int64(-1)
 			if mp != nil {
 				id = mp.id
 			}
-			print("  P", i, ": status=", _p_.status, " schedtick=", _p_.schedtick, " syscalltick=", _p_.syscalltick, " m=", id, " runqsize=", t-h, " gfreecnt=", _p_.gFree.n, " timerslen=", len(_p_.timers), "\n")
+			print("  P", i, ": status=", pp.status, " schedtick=", pp.schedtick, " syscalltick=", pp.syscalltick, " m=", id, " runqsize=", t-h, " gfreecnt=", pp.gFree.n, " timerslen=", len(pp.timers), "\n")
 		} else {
 			// In non-detailed mode format lengths of per-P run queues as:
 			// [len1 len2 len3 len4]
@@ -5450,12 +5450,12 @@ func schedtrace(detailed bool) {
 	}
 
 	for mp := allm; mp != nil; mp = mp.alllink {
-		_p_ := mp.p.ptr()
+		pp := mp.p.ptr()
 		gp := mp.curg
 		lockedg := mp.lockedg.ptr()
 		id1 := int32(-1)
-		if _p_ != nil {
-			id1 = _p_.id
+		if pp != nil {
+			id1 = pp.id
 		}
 		id2 := int64(-1)
 		if gp != nil {
@@ -5592,7 +5592,7 @@ func globrunqputbatch(batch *gQueue, n int32) {
 
 // Try get a batch of G's from the global runnable queue.
 // sched.lock must be held.
-func globrunqget(_p_ *p, max int32) *g {
+func globrunqget(pp *p, max int32) *g {
 	assertLockHeld(&sched.lock)
 
 	if sched.runqsize == 0 {
@@ -5606,8 +5606,8 @@ func globrunqget(_p_ *p, max int32) *g {
 	if max > 0 && n > max {
 		n = max
 	}
-	if n > int32(len(_p_.runq))/2 {
-		n = int32(len(_p_.runq)) / 2
+	if n > int32(len(pp.runq))/2 {
+		n = int32(len(pp.runq)) / 2
 	}
 
 	sched.runqsize -= n
@@ -5616,7 +5616,7 @@ func globrunqget(_p_ *p, max int32) *g {
 	n--
 	for ; n > 0; n-- {
 		gp1 := sched.runq.pop()
-		runqput(_p_, gp1, false)
+		runqput(pp, gp1, false)
 	}
 	return gp
 }
@@ -5696,21 +5696,21 @@ func updateTimerPMask(pp *p) {
 // May run during STW, so write barriers are not allowed.
 //
 //go:nowritebarrierrec
-func pidleput(_p_ *p, now int64) int64 {
+func pidleput(pp *p, now int64) int64 {
 	assertLockHeld(&sched.lock)
 
-	if !runqempty(_p_) {
+	if !runqempty(pp) {
 		throw("pidleput: P has non-empty run queue")
 	}
 	if now == 0 {
 		now = nanotime()
 	}
-	updateTimerPMask(_p_) // clear if there are no timers.
-	idlepMask.set(_p_.id)
-	_p_.link = sched.pidle
-	sched.pidle.set(_p_)
+	updateTimerPMask(pp) // clear if there are no timers.
+	idlepMask.set(pp.id)
+	pp.link = sched.pidle
+	sched.pidle.set(pp)
 	atomic.Xadd(&sched.npidle, 1)
-	if !_p_.limiterEvent.start(limiterEventIdle, now) {
+	if !pp.limiterEvent.start(limiterEventIdle, now) {
 		throw("must be able to track idle limiter event")
 	}
 	return now
@@ -5726,33 +5726,33 @@ func pidleput(_p_ *p, now int64) int64 {
 func pidleget(now int64) (*p, int64) {
 	assertLockHeld(&sched.lock)
 
-	_p_ := sched.pidle.ptr()
-	if _p_ != nil {
+	pp := sched.pidle.ptr()
+	if pp != nil {
 		// Timer may get added at any time now.
 		if now == 0 {
 			now = nanotime()
 		}
-		timerpMask.set(_p_.id)
-		idlepMask.clear(_p_.id)
-		sched.pidle = _p_.link
+		timerpMask.set(pp.id)
+		idlepMask.clear(pp.id)
+		sched.pidle = pp.link
 		atomic.Xadd(&sched.npidle, -1)
-		_p_.limiterEvent.stop(limiterEventIdle, now)
+		pp.limiterEvent.stop(limiterEventIdle, now)
 	}
-	return _p_, now
+	return pp, now
 }
 
-// runqempty reports whether _p_ has no Gs on its local run queue.
+// runqempty reports whether pp has no Gs on its local run queue.
 // It never returns true spuriously.
-func runqempty(_p_ *p) bool {
-	// Defend against a race where 1) _p_ has G1 in runqnext but runqhead == runqtail,
-	// 2) runqput on _p_ kicks G1 to the runq, 3) runqget on _p_ empties runqnext.
+func runqempty(pp *p) bool {
+	// Defend against a race where 1) pp has G1 in runqnext but runqhead == runqtail,
+	// 2) runqput on pp kicks G1 to the runq, 3) runqget on pp empties runqnext.
 	// Simply observing that runqhead == runqtail and then observing that runqnext == nil
 	// does not mean the queue is empty.
 	for {
-		head := atomic.Load(&_p_.runqhead)
-		tail := atomic.Load(&_p_.runqtail)
-		runnext := atomic.Loaduintptr((*uintptr)(unsafe.Pointer(&_p_.runnext)))
-		if tail == atomic.Load(&_p_.runqtail) {
+		head := atomic.Load(&pp.runqhead)
+		tail := atomic.Load(&pp.runqtail)
+		runnext := atomic.Loaduintptr((*uintptr)(unsafe.Pointer(&pp.runnext)))
+		if tail == atomic.Load(&pp.runqtail) {
 			return head == tail && runnext == 0
 		}
 	}
@@ -5771,18 +5771,18 @@ const randomizeScheduler = raceenabled
 
 // runqput tries to put g on the local runnable queue.
 // If next is false, runqput adds g to the tail of the runnable queue.
-// If next is true, runqput puts g in the _p_.runnext slot.
+// If next is true, runqput puts g in the pp.runnext slot.
 // If the run queue is full, runnext puts g on the global queue.
 // Executed only by the owner P.
-func runqput(_p_ *p, gp *g, next bool) {
+func runqput(pp *p, gp *g, next bool) {
 	if randomizeScheduler && next && fastrandn(2) == 0 {
 		next = false
 	}
 
 	if next {
 	retryNext:
-		oldnext := _p_.runnext
-		if !_p_.runnext.cas(oldnext, guintptr(unsafe.Pointer(gp))) {
+		oldnext := pp.runnext
+		if !pp.runnext.cas(oldnext, guintptr(unsafe.Pointer(gp))) {
 			goto retryNext
 		}
 		if oldnext == 0 {
@@ -5793,14 +5793,14 @@ func runqput(_p_ *p, gp *g, next bool) {
 	}
 
 retry:
-	h := atomic.LoadAcq(&_p_.runqhead) // load-acquire, synchronize with consumers
-	t := _p_.runqtail
-	if t-h < uint32(len(_p_.runq)) {
-		_p_.runq[t%uint32(len(_p_.runq))].set(gp)
-		atomic.StoreRel(&_p_.runqtail, t+1) // store-release, makes the item available for consumption
+	h := atomic.LoadAcq(&pp.runqhead) // load-acquire, synchronize with consumers
+	t := pp.runqtail
+	if t-h < uint32(len(pp.runq)) {
+		pp.runq[t%uint32(len(pp.runq))].set(gp)
+		atomic.StoreRel(&pp.runqtail, t+1) // store-release, makes the item available for consumption
 		return
 	}
-	if runqputslow(_p_, gp, h, t) {
+	if runqputslow(pp, gp, h, t) {
 		return
 	}
 	// the queue is not full, now the put above must succeed
@@ -5809,19 +5809,19 @@ retry:
 
 // Put g and a batch of work from local runnable queue on global queue.
 // Executed only by the owner P.
-func runqputslow(_p_ *p, gp *g, h, t uint32) bool {
-	var batch [len(_p_.runq)/2 + 1]*g
+func runqputslow(pp *p, gp *g, h, t uint32) bool {
+	var batch [len(pp.runq)/2 + 1]*g
 
 	// First, grab a batch from local queue.
 	n := t - h
 	n = n / 2
-	if n != uint32(len(_p_.runq)/2) {
+	if n != uint32(len(pp.runq)/2) {
 		throw("runqputslow: queue is not full")
 	}
 	for i := uint32(0); i < n; i++ {
-		batch[i] = _p_.runq[(h+i)%uint32(len(_p_.runq))].ptr()
+		batch[i] = pp.runq[(h+i)%uint32(len(pp.runq))].ptr()
 	}
-	if !atomic.CasRel(&_p_.runqhead, h, h+n) { // cas-release, commits consume
+	if !atomic.CasRel(&pp.runqhead, h, h+n) { // cas-release, commits consume
 		return false
 	}
 	batch[n] = gp
@@ -5886,50 +5886,50 @@ func runqputbatch(pp *p, q *gQueue, qsize int) {
 // If inheritTime is true, gp should inherit the remaining time in the
 // current time slice. Otherwise, it should start a new time slice.
 // Executed only by the owner P.
-func runqget(_p_ *p) (gp *g, inheritTime bool) {
+func runqget(pp *p) (gp *g, inheritTime bool) {
 	// If there's a runnext, it's the next G to run.
-	next := _p_.runnext
+	next := pp.runnext
 	// If the runnext is non-0 and the CAS fails, it could only have been stolen by another P,
 	// because other Ps can race to set runnext to 0, but only the current P can set it to non-0.
 	// Hence, there's no need to retry this CAS if it falls.
-	if next != 0 && _p_.runnext.cas(next, 0) {
+	if next != 0 && pp.runnext.cas(next, 0) {
 		return next.ptr(), true
 	}
 
 	for {
-		h := atomic.LoadAcq(&_p_.runqhead) // load-acquire, synchronize with other consumers
-		t := _p_.runqtail
+		h := atomic.LoadAcq(&pp.runqhead) // load-acquire, synchronize with other consumers
+		t := pp.runqtail
 		if t == h {
 			return nil, false
 		}
-		gp := _p_.runq[h%uint32(len(_p_.runq))].ptr()
-		if atomic.CasRel(&_p_.runqhead, h, h+1) { // cas-release, commits consume
+		gp := pp.runq[h%uint32(len(pp.runq))].ptr()
+		if atomic.CasRel(&pp.runqhead, h, h+1) { // cas-release, commits consume
 			return gp, false
 		}
 	}
 }
 
-// runqdrain drains the local runnable queue of _p_ and returns all goroutines in it.
+// runqdrain drains the local runnable queue of pp and returns all goroutines in it.
 // Executed only by the owner P.
-func runqdrain(_p_ *p) (drainQ gQueue, n uint32) {
-	oldNext := _p_.runnext
-	if oldNext != 0 && _p_.runnext.cas(oldNext, 0) {
+func runqdrain(pp *p) (drainQ gQueue, n uint32) {
+	oldNext := pp.runnext
+	if oldNext != 0 && pp.runnext.cas(oldNext, 0) {
 		drainQ.pushBack(oldNext.ptr())
 		n++
 	}
 
 retry:
-	h := atomic.LoadAcq(&_p_.runqhead) // load-acquire, synchronize with other consumers
-	t := _p_.runqtail
+	h := atomic.LoadAcq(&pp.runqhead) // load-acquire, synchronize with other consumers
+	t := pp.runqtail
 	qn := t - h
 	if qn == 0 {
 		return
 	}
-	if qn > uint32(len(_p_.runq)) { // read inconsistent h and t
+	if qn > uint32(len(pp.runq)) { // read inconsistent h and t
 		goto retry
 	}
 
-	if !atomic.CasRel(&_p_.runqhead, h, h+qn) { // cas-release, commits consume
+	if !atomic.CasRel(&pp.runqhead, h, h+qn) { // cas-release, commits consume
 		goto retry
 	}
 
@@ -5941,34 +5941,34 @@ retry:
 	// meanwhile, other P's can't access to all G's in local P's runnable queue and steal them.
 	// See https://groups.google.com/g/golang-dev/c/0pTKxEKhHSc/m/6Q85QjdVBQAJ for more details.
 	for i := uint32(0); i < qn; i++ {
-		gp := _p_.runq[(h+i)%uint32(len(_p_.runq))].ptr()
+		gp := pp.runq[(h+i)%uint32(len(pp.runq))].ptr()
 		drainQ.pushBack(gp)
 		n++
 	}
 	return
 }
 
-// Grabs a batch of goroutines from _p_'s runnable queue into batch.
+// Grabs a batch of goroutines from pp's runnable queue into batch.
 // Batch is a ring buffer starting at batchHead.
 // Returns number of grabbed goroutines.
 // Can be executed by any P.
-func runqgrab(_p_ *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool) uint32 {
+func runqgrab(pp *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool) uint32 {
 	for {
-		h := atomic.LoadAcq(&_p_.runqhead) // load-acquire, synchronize with other consumers
-		t := atomic.LoadAcq(&_p_.runqtail) // load-acquire, synchronize with the producer
+		h := atomic.LoadAcq(&pp.runqhead) // load-acquire, synchronize with other consumers
+		t := atomic.LoadAcq(&pp.runqtail) // load-acquire, synchronize with the producer
 		n := t - h
 		n = n - n/2
 		if n == 0 {
 			if stealRunNextG {
-				// Try to steal from _p_.runnext.
-				if next := _p_.runnext; next != 0 {
-					if _p_.status == _Prunning {
-						// Sleep to ensure that _p_ isn't about to run the g
+				// Try to steal from pp.runnext.
+				if next := pp.runnext; next != 0 {
+					if pp.status == _Prunning {
+						// Sleep to ensure that pp isn't about to run the g
 						// we are about to steal.
 						// The important use case here is when the g running
-						// on _p_ ready()s another g and then almost
+						// on pp ready()s another g and then almost
 						// immediately blocks. Instead of stealing runnext
-						// in this window, back off to give _p_ a chance to
+						// in this window, back off to give pp a chance to
 						// schedule runnext. This will avoid thrashing gs
 						// between different Ps.
 						// A sync chan send/recv takes ~50ns as of time of
@@ -5982,7 +5982,7 @@ func runqgrab(_p_ *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool
 							osyield()
 						}
 					}
-					if !_p_.runnext.cas(next, 0) {
+					if !pp.runnext.cas(next, 0) {
 						continue
 					}
 					batch[batchHead%uint32(len(batch))] = next
@@ -5991,14 +5991,14 @@ func runqgrab(_p_ *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool
 			}
 			return 0
 		}
-		if n > uint32(len(_p_.runq)/2) { // read inconsistent h and t
+		if n > uint32(len(pp.runq)/2) { // read inconsistent h and t
 			continue
 		}
 		for i := uint32(0); i < n; i++ {
-			g := _p_.runq[(h+i)%uint32(len(_p_.runq))]
+			g := pp.runq[(h+i)%uint32(len(pp.runq))]
 			batch[(batchHead+i)%uint32(len(batch))] = g
 		}
-		if atomic.CasRel(&_p_.runqhead, h, h+n) { // cas-release, commits consume
+		if atomic.CasRel(&pp.runqhead, h, h+n) { // cas-release, commits consume
 			return n
 		}
 	}
@@ -6007,22 +6007,22 @@ func runqgrab(_p_ *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool
 // Steal half of elements from local runnable queue of p2
 // and put onto local runnable queue of p.
 // Returns one of the stolen elements (or nil if failed).
-func runqsteal(_p_, p2 *p, stealRunNextG bool) *g {
-	t := _p_.runqtail
-	n := runqgrab(p2, &_p_.runq, t, stealRunNextG)
+func runqsteal(pp, p2 *p, stealRunNextG bool) *g {
+	t := pp.runqtail
+	n := runqgrab(p2, &pp.runq, t, stealRunNextG)
 	if n == 0 {
 		return nil
 	}
 	n--
-	gp := _p_.runq[(t+n)%uint32(len(_p_.runq))].ptr()
+	gp := pp.runq[(t+n)%uint32(len(pp.runq))].ptr()
 	if n == 0 {
 		return gp
 	}
-	h := atomic.LoadAcq(&_p_.runqhead) // load-acquire, synchronize with consumers
-	if t-h+n >= uint32(len(_p_.runq)) {
+	h := atomic.LoadAcq(&pp.runqhead) // load-acquire, synchronize with consumers
+	if t-h+n >= uint32(len(pp.runq)) {
 		throw("runqsteal: runq overflow")
 	}
-	atomic.StoreRel(&_p_.runqtail, t+n) // store-release, makes the item available for consumption
+	atomic.StoreRel(&pp.runqtail, t+n) // store-release, makes the item available for consumption
 	return gp
 }
 

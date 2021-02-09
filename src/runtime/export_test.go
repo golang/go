@@ -84,23 +84,23 @@ func GCMask(x any) (ret []byte) {
 }
 
 func RunSchedLocalQueueTest() {
-	_p_ := new(p)
-	gs := make([]g, len(_p_.runq))
+	pp := new(p)
+	gs := make([]g, len(pp.runq))
 	Escape(gs) // Ensure gs doesn't move, since we use guintptrs
-	for i := 0; i < len(_p_.runq); i++ {
-		if g, _ := runqget(_p_); g != nil {
+	for i := 0; i < len(pp.runq); i++ {
+		if g, _ := runqget(pp); g != nil {
 			throw("runq is not empty initially")
 		}
 		for j := 0; j < i; j++ {
-			runqput(_p_, &gs[i], false)
+			runqput(pp, &gs[i], false)
 		}
 		for j := 0; j < i; j++ {
-			if g, _ := runqget(_p_); g != &gs[i] {
+			if g, _ := runqget(pp); g != &gs[i] {
 				print("bad element at iter ", i, "/", j, "\n")
 				throw("bad element")
 			}
 		}
-		if g, _ := runqget(_p_); g != nil {
+		if g, _ := runqget(pp); g != nil {
 			throw("runq is not empty afterwards")
 		}
 	}

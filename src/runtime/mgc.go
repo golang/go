@@ -811,21 +811,21 @@ top:
 		// result in a deadlock as we attempt to preempt a worker that's
 		// trying to preempt us (e.g. for a stack scan).
 		casgstatus(gp, _Grunning, _Gwaiting)
-		forEachP(func(_p_ *p) {
+		forEachP(func(pp *p) {
 			// Flush the write barrier buffer, since this may add
 			// work to the gcWork.
-			wbBufFlush1(_p_)
+			wbBufFlush1(pp)
 
 			// Flush the gcWork, since this may create global work
 			// and set the flushedWork flag.
 			//
 			// TODO(austin): Break up these workbufs to
 			// better distribute work.
-			_p_.gcw.dispose()
+			pp.gcw.dispose()
 			// Collect the flushedWork flag.
-			if _p_.gcw.flushedWork {
+			if pp.gcw.flushedWork {
 				atomic.Xadd(&gcMarkDoneFlushed, 1)
-				_p_.gcw.flushedWork = false
+				pp.gcw.flushedWork = false
 			}
 		})
 		casgstatus(gp, _Gwaiting, _Grunning)
@@ -1075,8 +1075,8 @@ func gcMarkTermination() {
 	// is necessary to sweep all spans, we need to ensure all
 	// mcaches are flushed before we start the next GC cycle.
 	systemstack(func() {
-		forEachP(func(_p_ *p) {
-			_p_.mcache.prepareForSweep()
+		forEachP(func(pp *p) {
+			pp.mcache.prepareForSweep()
 		})
 	})
 	// Now that we've swept stale spans in mcaches, they don't

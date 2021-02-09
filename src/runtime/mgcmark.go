@@ -595,15 +595,15 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 	}
 	now := nanotime()
 	duration := now - startTime
-	_p_ := gp.m.p.ptr()
-	_p_.gcAssistTime += duration
+	pp := gp.m.p.ptr()
+	pp.gcAssistTime += duration
 	if trackLimiterEvent {
-		_p_.limiterEvent.stop(limiterEventMarkAssist, now)
+		pp.limiterEvent.stop(limiterEventMarkAssist, now)
 	}
-	if _p_.gcAssistTime > gcAssistTimeSlack {
-		gcController.assistTime.Add(_p_.gcAssistTime)
+	if pp.gcAssistTime > gcAssistTimeSlack {
+		gcController.assistTime.Add(pp.gcAssistTime)
 		gcCPULimiter.update(now)
-		_p_.gcAssistTime = 0
+		pp.gcAssistTime = 0
 	}
 }
 
