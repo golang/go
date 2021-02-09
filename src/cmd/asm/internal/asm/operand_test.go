@@ -259,6 +259,7 @@ var amd64OperandTests = []operandTest{
 	{"R15", "R15"},
 	{"R8", "R8"},
 	{"R9", "R9"},
+	{"g", "R14"},
 	{"SI", "SI"},
 	{"SP", "SP"},
 	{"X0", "X0"},

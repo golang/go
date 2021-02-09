@@ -637,13 +637,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
+	var regg int16
 	if !p.From.Sym.NoSplit() || (p.From.Sym.Wrapper() && !p.From.Sym.ABIWrapper()) {
-		p = obj.Appendp(p, newprog)
-		p = load_g_cx(ctxt, p, newprog) // load g into CX
+		if ctxt.Arch.Family == sys.AMD64 && objabi.Regabi_enabled != 0 && cursym.ABI() == obj.ABIInternal {
+			regg = REGG // use the g register directly in ABIInternal
+		} else {
+			p = obj.Appendp(p, newprog)
+			p = load_g_cx(ctxt, p, newprog) // load g into CX
+			regg = REG_CX
+		}
 	}
 
 	if !cursym.Func().Text.From.Sym.NoSplit() {
-		p = stacksplit(ctxt, cursym, p, newprog, autoffset, int32(textarg)) // emit split check
+		p = stacksplit(ctxt, cursym, p, newprog, autoffset, int32(textarg), regg) // emit split check
 	}
 
 	// Delve debugger would like the next instruction to be noted as the end of the function prologue.
@@ -695,7 +701,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		//   g._panic.argp = bottom-of-frame
 		// }
 		//
-		//	MOVQ g_panic(CX), BX
+		//	MOVQ g_panic(g), BX
 		//	TESTQ BX, BX
 		//	JNE checkargp
 		// end:
@@ -718,7 +724,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p = obj.Appendp(p, newprog)
 		p.As = AMOVQ
 		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = REG_CX
+		p.From.Reg = regg
 		p.From.Offset = 4 * int64(ctxt.Arch.PtrSize) // g_panic
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_BX
@@ -969,9 +975,9 @@ func load_g_cx(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) *obj.Prog {
 
 // Append code to p to check for stack split.
 // Appends to (does not overwrite) p.
-// Assumes g is in CX.
+// Assumes g is in rg.
 // Returns last new instruction.
-func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgAlloc, framesize int32, textarg int32) *obj.Prog {
+func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgAlloc, framesize int32, textarg int32, rg int16) *obj.Prog {
 	cmp := ACMPQ
 	lea := ALEAQ
 	mov := AMOVQ
@@ -993,7 +999,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.As = cmp
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_SP
-		indir_cx(ctxt, &p.To)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = rg
 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 		if cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
@@ -1021,7 +1028,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.As = cmp
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_AX
-		indir_cx(ctxt, &p.To)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = rg
 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 		if cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
@@ -1047,7 +1055,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p = obj.Appendp(p, newprog)
 
 		p.As = mov
-		indir_cx(ctxt, &p.From)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = rg
 		p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 		if cursym.CFunc() {
 			p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1

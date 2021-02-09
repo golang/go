@@ -364,6 +364,8 @@ func TestFoo(t *testing.T) {
 }
 </pre>
 
+<h4 id="vet-frame-pointer">New warning for frame pointer</h4>
+
 <p><!-- CL 248686, CL 276372 -->
   The vet tool now warns about amd64 assembly that clobbers the BP
   register (the frame pointer) without saving and restoring it,

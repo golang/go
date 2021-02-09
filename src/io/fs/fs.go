@@ -36,6 +36,7 @@ type FS interface {
 // sequences of path elements, like “x/y/z”.
 // Path names must not contain a “.” or “..” or empty element,
 // except for the special case that the root directory is named “.”.
+// Leading and trailing slashes (like “/x” or “x/”) are not allowed.
 //
 // Paths are slash-separated on all systems, even Windows.
 // Backslashes must not appear in path names.

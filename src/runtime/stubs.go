@@ -167,7 +167,6 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 // pointer-declared arguments.
 func cgocallback(fn, frame, ctxt uintptr)
 func gogo(buf *gobuf)
-func gosave(buf *gobuf)
 
 //go:noescape
 func jmpdefer(fv *funcval, argp uintptr)
@@ -357,3 +356,7 @@ func duffcopy()
 
 // Called from linker-generated .initarray; declared for go vet; do NOT call from Go.
 func addmoduledata()
+
+// Injected by the signal handler for panicking signals. On many platforms it just
+// jumps to sigpanic.
+func sigpanic0()

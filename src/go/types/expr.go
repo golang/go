@@ -586,7 +586,8 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 			if !hasNil(target) {
 				return nil, nil, _InvalidUntypedConversion
 			}
-			// TODO(rFindley) return UntypedNil here (golang.org/issues/13061).
+			// Preserve the type of nil as UntypedNil: see #13061.
+			return Typ[UntypedNil], nil, 0
 		default:
 			return nil, nil, _InvalidUntypedConversion
 		}
