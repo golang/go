@@ -77,4 +77,5 @@ import "testing"
 
 func Fuzz(f *testing.F) {
     f.Log("all good here")
+    f.Fuzz(func(*testing.T, []byte) {})
 }
