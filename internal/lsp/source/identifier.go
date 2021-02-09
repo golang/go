@@ -98,10 +98,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *a
 	// Handle import specs separately, as there is no formal position for a
 	// package declaration.
 	if result, err := importSpec(snapshot, pkg, file, pos); result != nil || err != nil {
-		if snapshot.View().Options().ImportShortcut.ShowDefinition() {
-			return result, err
-		}
-		return nil, nil
+		return result, err
 	}
 	path := pathEnclosingObjNode(file, pos)
 	if path == nil {

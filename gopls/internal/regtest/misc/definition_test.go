@@ -11,6 +11,7 @@ import (
 
 	. "golang.org/x/tools/gopls/internal/regtest"
 
+	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/tests"
 )
 
@@ -133,4 +134,48 @@ func main() {
 			t.Fatalf("hover failed:\n%s", tests.Diff(t, want, content.Value))
 		}
 	})
+}
+
+func TestImportShortcut(t *testing.T) {
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- main.go --
+package main
+
+import "fmt"
+
+func main() {}
+`
+	for _, tt := range []struct {
+		wantLinks      int
+		wantDef        bool
+		importShortcut string
+	}{
+		{1, false, "Link"},
+		{0, true, "Definition"},
+		{1, true, "Both"},
+	} {
+		t.Run(tt.importShortcut, func(t *testing.T) {
+			WithOptions(
+				EditorConfig{
+					ImportShortcut: tt.importShortcut,
+				},
+			).Run(t, mod, func(t *testing.T, env *Env) {
+				env.OpenFile("main.go")
+				file, pos := env.GoToDefinition("main.go", env.RegexpSearch("main.go", `"fmt"`))
+				if !tt.wantDef && (file != "" || pos != (fake.Pos{})) {
+					t.Fatalf("expected no definition, got one: %s:%v", file, pos)
+				} else if tt.wantDef && file == "" && pos == (fake.Pos{}) {
+					t.Fatalf("expected definition, got none")
+				}
+				links := env.DocumentLink("main.go")
+				if len(links) != tt.wantLinks {
+					t.Fatalf("expected %v links, got %v", tt.wantLinks, len(links))
+				}
+			})
+		})
+	}
 }

@@ -109,6 +109,8 @@ type EditorConfig struct {
 	DirectoryFilters []string
 
 	VerboseOutput bool
+
+	ImportShortcut string
 }
 
 // NewEditor Creates a new Editor.
@@ -236,6 +238,10 @@ func (e *Editor) configuration() map[string]interface{} {
 
 	if e.Config.VerboseOutput {
 		config["verboseOutput"] = true
+	}
+
+	if e.Config.ImportShortcut != "" {
+		config["importShortcut"] = e.Config.ImportShortcut
 	}
 
 	// TODO(rFindley): change to the new settings name once it is no longer

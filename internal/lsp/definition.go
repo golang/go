@@ -21,7 +21,9 @@ func (s *Server) definition(ctx context.Context, params *protocol.DefinitionPara
 	if err != nil {
 		return nil, err
 	}
-
+	if !snapshot.View().Options().ImportShortcut.ShowDefinition() {
+		return nil, nil
+	}
 	var locations []protocol.Location
 	for _, ref := range ident.Declaration.MappedRange {
 		decRange, err := ref.Range()
