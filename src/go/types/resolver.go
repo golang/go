@@ -379,14 +379,20 @@ func (check *Checker) collectObjects() {
 						check.error(d.decl.Recv, _BadRecv, "method is missing receiver")
 						// treat as function
 					}
-					if name == "init" {
+					if name == "init" || (name == "main" && check.pkg.name == "main") {
+						code := _InvalidInitDecl
+						if name == "main" {
+							code = _InvalidMainDecl
+						}
 						if d.decl.Type.TParams != nil {
-							check.softErrorf(d.decl.Type.TParams, _InvalidInitSig, "func init must have no type parameters")
+							check.softErrorf(d.decl.Type.TParams, code, "func %s must have no type parameters", name)
 						}
 						if t := d.decl.Type; t.Params.NumFields() != 0 || t.Results != nil {
 							// TODO(rFindley) Should this be a hard error?
-							check.softErrorf(d.decl, _InvalidInitSig, "func init must have no arguments and no return values")
+							check.softErrorf(d.decl, code, "func %s must have no arguments and no return values", name)
 						}
+					}
+					if name == "init" {
 						// don't declare init functions in the package scope - they are invisible
 						obj.parent = pkg.scope
 						check.recordDef(d.decl.Name, obj)
