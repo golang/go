@@ -270,7 +270,7 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
 		}
 
 		res := ir.NewResultExpr(base.Pos, nil, types.BADWIDTH)
-		res.Offset = base.Ctxt.FixedFrameSize() + r.Offset
+		res.Index = int64(i)
 		res.SetType(r.Type)
 		res.SetTypecheck(1)
 

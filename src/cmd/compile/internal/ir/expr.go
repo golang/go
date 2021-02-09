@@ -447,14 +447,14 @@ func (n *ParenExpr) SetOTYPE(t *types.Type) {
 	t.SetNod(n)
 }
 
-// A ResultExpr represents a direct access to a result slot on the stack frame.
+// A ResultExpr represents a direct access to a result.
 type ResultExpr struct {
 	miniExpr
-	Offset int64
+	Index int64 // index of the result expr.
 }
 
-func NewResultExpr(pos src.XPos, typ *types.Type, offset int64) *ResultExpr {
-	n := &ResultExpr{Offset: offset}
+func NewResultExpr(pos src.XPos, typ *types.Type, index int64) *ResultExpr {
+	n := &ResultExpr{Index: index}
 	n.pos = pos
 	n.op = ORESULT
 	n.typ = typ

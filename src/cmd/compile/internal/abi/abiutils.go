@@ -151,6 +151,13 @@ func (a *ABIConfig) Copy() *ABIConfig {
 	return &b
 }
 
+// LocalsOffset returns the architecture-dependent offset from SP for args and results.
+// In theory this is only used for debugging; it ought to already be incorporated into
+// results from the ABI-related methods
+func (a *ABIConfig) LocalsOffset() int64 {
+	return a.offsetForLocals
+}
+
 // NumParamRegs returns the number of parameter registers used for a given type,
 // without regard for the number available.
 func (a *ABIConfig) NumParamRegs(t *types.Type) int {
@@ -237,23 +244,22 @@ func (config *ABIConfig) ABIAnalyzeTypes(rcvr *types.Type, ins, outs []*types.Ty
 	return result
 }
 
-// ABIAnalyze takes a function type 't' and an ABI rules description
+// ABIAnalyzeFuncType takes a function type 'ft' and an ABI rules description
 // 'config' and analyzes the function to determine how its parameters
 // and results will be passed (in registers or on the stack), returning
 // an ABIParamResultInfo object that holds the results of the analysis.
-func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
+func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Func) *ABIParamResultInfo {
 	setup()
 	s := assignState{
 		stackOffset: config.offsetForLocals,
 		rTotal:      config.regAmounts,
 	}
 	result := &ABIParamResultInfo{config: config}
-	ft := t.FuncType()
-	result.preAllocateParams(t.NumRecvs() != 0, ft.Params.NumFields(), ft.Results.NumFields())
+	result.preAllocateParams(ft.Receiver != nil, ft.Params.NumFields(), ft.Results.NumFields())
 
 	// Receiver
 	// TODO(register args) ? seems like "struct" and "fields" is not right anymore for describing function parameters
-	if t.NumRecvs() != 0 {
+	if ft.Receiver != nil && ft.Receiver.NumFields() != 0 {
 		r := ft.Receiver.FieldSlice()[0]
 		result.inparams = append(result.inparams,
 			s.assignParamOrReturn(r.Type, r.Nname, false))
@@ -279,7 +285,14 @@ func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
 	result.offsetToSpillArea = alignTo(s.stackOffset, types.RegSize)
 	result.spillAreaSize = alignTo(s.spillOffset, types.RegSize)
 	result.outRegistersUsed = s.rUsed.intRegs + s.rUsed.floatRegs
+	return result
+}
 
+// ABIAnalyze returns the same result as ABIAnalyzeFuncType, but also
+// updates the offsets of all the receiver, input, and output fields.
+func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
+	ft := t.FuncType()
+	result := config.ABIAnalyzeFuncType(ft)
 	// Fill in the frame offsets for receiver, inputs, results
 	k := 0
 	if t.NumRecvs() != 0 {
@@ -296,13 +309,11 @@ func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
 }
 
 func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field, a ABIParamAssignment, isReturn bool) {
+	// Everything except return values in registers has either a frame home (if not in a register) or a frame spill location.
 	if !isReturn || len(a.Registers) == 0 {
-		// TODO in next CL, assign
-		if f.Offset+config.offsetForLocals != a.FrameOffset(result) {
-			if config.regAmounts.intRegs == 0 && config.regAmounts.floatRegs == 0 {
-				panic(fmt.Errorf("Expected node offset %d != abi offset %d", f.Offset, a.FrameOffset(result)))
-			}
-		}
+		// The type frame offset DOES NOT show effects of minimum frame size.
+		// Getting this wrong breaks stackmaps, see liveness/plive.go:WriteFuncMap and typebits/typebits.go:Set
+		f.Offset = a.FrameOffset(result)-config.LocalsOffset()
 	}
 }
 

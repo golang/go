@@ -32,6 +32,10 @@ func isBlockMultiValueExit(b *Block) bool {
 	return (b.Kind == BlockRet || b.Kind == BlockRetJmp) && len(b.Controls) > 0 && b.Controls[0].Op == OpMakeResult
 }
 
+func badVal(s string, v *Value) error {
+	return fmt.Errorf("%s %s", s, v.LongString())
+}
+
 // removeTrivialWrapperTypes unwraps layers of
 // struct { singleField SomeType } and [1]SomeType
 // until a non-wrapper type is reached.  This is useful
@@ -231,6 +235,9 @@ func (x *expandState) splitSlots(ls []LocalSlot, sfx string, offset int64, ty *t
 
 // prAssignForArg returns the ABIParamAssignment for v, assumed to be an OpArg.
 func (x *expandState) prAssignForArg(v *Value) abi.ABIParamAssignment {
+	if v.Op != OpArg {
+		panic(badVal("Wanted OpArg, instead saw", v))
+	}
 	name := v.Aux.(*ir.Name)
 	fPri := x.f.OwnAux.abiInfo
 	for _, a := range fPri.InParams() {
@@ -275,9 +282,6 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 	}
 	switch selector.Op {
 	case OpArg:
-		paramAssignment := x.prAssignForArg(selector)
-		_ = paramAssignment
-		// TODO(register args)
 		if !x.isAlreadyExpandedAggregateType(selector.Type) {
 			if leafType == selector.Type { // OpIData leads us here, sometimes.
 				leaf.copyOf(selector)
@@ -364,7 +368,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 				// StaticCall selector will address last element of Result.
 				// TODO do this for all the other call types eventually.
 				if aux.abiInfo == nil {
-					panic(fmt.Errorf("aux.abiInfo nil for call %s", call.LongString()))
+					panic(badVal("aux.abiInfo nil for call", call))
 				}
 				if existing := x.memForCall[call.ID]; existing == nil {
 					selector.AuxInt = int64(aux.abiInfo.OutRegistersUsed())
@@ -566,9 +570,6 @@ func (x *expandState) decomposeArgOrLoad(pos src.XPos, b *Block, base, source, m
 // pos and b locate the store instruction, base is the base of the store target, source is the "base" of the value input,
 // mem is the input mem, t is the type in question, and offArg and offStore are the offsets from the respective bases.
 func storeOneArg(x *expandState, pos src.XPos, b *Block, base, source, mem *Value, t *types.Type, offArg, offStore int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
-	paramAssignment := x.prAssignForArg(source)
-	_ = paramAssignment
-	// TODO(register args)
 	w := x.common[selKey{source, offArg, t.Width, t}]
 	if w == nil {
 		w = source.Block.NewValue0IA(source.Pos, OpArg, t, offArg, source.Aux)
@@ -1198,10 +1199,24 @@ func expandCalls(f *Func) {
 
 	deleteNamedVals(f, toDelete)
 
-	// Step 4: rewrite the calls themselves, correcting the type
+	// Step 4: rewrite the calls themselves, correcting the type.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			switch v.Op {
+			case OpArg:
+				pa := x.prAssignForArg(v)
+				switch len(pa.Registers) {
+				case 0:
+					frameOff := v.Aux.(*ir.Name).FrameOffset()
+					if pa.Offset() != int32(frameOff+x.f.ABISelf.LocalsOffset()) {
+						panic(fmt.Errorf("Parameter assignment %d and OpArg.Aux frameOffset %d disagree, op=%s\n",
+							pa.Offset(), frameOff, v.LongString()))
+					}
+				case 1:
+				default:
+					panic(badVal("Saw unexpeanded OpArg", v))
+				}
+
 			case OpStaticLECall:
 				v.Op = OpStaticCall
 				// TODO need to insert all the register types.

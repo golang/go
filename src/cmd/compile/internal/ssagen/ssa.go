@@ -301,7 +301,7 @@ func (s *state) emitOpenDeferInfo() {
 	var maxargsize int64
 	for i := len(s.openDefers) - 1; i >= 0; i-- {
 		r := s.openDefers[i]
-		argsize := r.n.X.Type().ArgWidth()
+		argsize := r.n.X.Type().ArgWidth() // TODO register args: but maybe use of abi0 will make this easy
 		if argsize > maxargsize {
 			maxargsize = argsize
 		}
@@ -324,17 +324,28 @@ func (s *state) emitOpenDeferInfo() {
 		}
 		off = dvarint(x, off, int64(numArgs))
 		if r.rcvrNode != nil {
-			off = dvarint(x, off, -r.rcvrNode.FrameOffset())
+			off = dvarint(x, off, -okOffset(r.rcvrNode.FrameOffset()))
 			off = dvarint(x, off, s.config.PtrSize)
-			off = dvarint(x, off, 0)
+			off = dvarint(x, off, 0) // This is okay because defer records use ABI0 (for now)
 		}
+
+		// TODO(register args) assume abi0 for this?
+		ab := s.f.ABI0
+		pri := ab.ABIAnalyzeFuncType(r.n.X.Type().FuncType())
 		for j, arg := range r.argNodes {
 			f := getParam(r.n, j)
-			off = dvarint(x, off, -arg.FrameOffset())
+			off = dvarint(x, off, -okOffset(arg.FrameOffset()))
 			off = dvarint(x, off, f.Type.Size())
-			off = dvarint(x, off, f.Offset)
+			off = dvarint(x, off, okOffset(pri.InParam(j).FrameOffset(pri))-ab.LocalsOffset()) // defer does not want the fixed frame adjustment
 		}
 	}
+}
+
+func okOffset(offset int64) int64 {
+	if offset >= types.BOGUS_FUNARG_OFFSET {
+		panic(fmt.Errorf("Bogus offset %d", offset))
+	}
+	return offset
 }
 
 // buildssa builds an SSA function for fn.
@@ -528,7 +539,13 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	// Populate SSAable arguments.
 	for _, n := range fn.Dcl {
 		if n.Class == ir.PPARAM && s.canSSA(n) {
-			v := s.newValue0A(ssa.OpArg, n.Type(), n)
+			var v *ssa.Value
+			if n.Sym().Name == ".fp" {
+				// Race-detector's get-caller-pc incantation is NOT a real Arg.
+				v = s.newValue0(ssa.OpGetCallerPC, n.Type())
+			} else {
+				v = s.newValue0A(ssa.OpArg, n.Type(), n)
+			}
 			s.vars[n] = v
 			s.addNamedValue(n, v) // This helps with debugging information, not needed for compilation itself.
 		}
@@ -2917,15 +2934,11 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 	case ir.ORESULT:
 		n := n.(*ir.ResultExpr)
 		if s.prevCall == nil || s.prevCall.Op != ssa.OpStaticLECall && s.prevCall.Op != ssa.OpInterLECall && s.prevCall.Op != ssa.OpClosureLECall {
-			// Do the old thing
-			addr := s.constOffPtrSP(types.NewPtr(n.Type()), n.Offset)
-			return s.rawLoad(n.Type(), addr)
+			panic("Expected to see a previous call")
 		}
-		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffsetAndType(n.Offset, n.Type())
+		which := n.Index
 		if which == -1 {
-			// Do the old thing // TODO: Panic instead.
-			addr := s.constOffPtrSP(types.NewPtr(n.Type()), n.Offset)
-			return s.rawLoad(n.Type(), addr)
+			panic(fmt.Errorf("ORESULT %v does not match call %s", n, s.prevCall))
 		}
 		if TypeOK(n.Type()) {
 			return s.newValue1I(ssa.OpSelectN, n.Type(), which, s.prevCall)
@@ -4889,7 +4902,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 
 		// Then, store all the arguments of the defer call.
 		ft := fn.Type()
-		off := t.FieldOff(12)
+		off := t.FieldOff(12) // TODO register args: be sure this isn't a hardcoded param stack offset.
 		args := n.Args
 
 		// Set receiver (for interface calls). Always a pointer.
@@ -5131,15 +5144,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 	case ir.ORESULT:
 		// load return from callee
 		n := n.(*ir.ResultExpr)
-		if s.prevCall == nil || s.prevCall.Op != ssa.OpStaticLECall && s.prevCall.Op != ssa.OpInterLECall && s.prevCall.Op != ssa.OpClosureLECall {
-			return s.constOffPtrSP(t, n.Offset)
-		}
-		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffsetAndType(n.Offset, n.Type())
-		if which == -1 {
-			// Do the old thing // TODO: Panic instead.
-			return s.constOffPtrSP(t, n.Offset)
-		}
-		x := s.newValue1I(ssa.OpSelectNAddr, t, which, s.prevCall)
+		x := s.newValue1I(ssa.OpSelectNAddr, t, n.Index, s.prevCall)
 		return x
 
 	case ir.OINDEX:

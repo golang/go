@@ -411,7 +411,8 @@ type Field struct {
 	Nname Object
 
 	// Offset in bytes of this field or method within its enclosing struct
-	// or interface Type.
+	// or interface Type.  Exception: if field is function receiver, arg or
+	// result, then this is BOGUS_FUNARG_OFFSET; types does not know the Abi.
 	Offset int64
 }
 
@@ -1719,6 +1720,14 @@ func NewTypeParam(pkg *Pkg, constraint *Type) *Type {
 	return t
 }
 
+const BOGUS_FUNARG_OFFSET = 1000000000
+
+func unzeroFieldOffsets(f []*Field) {
+	for i := range f {
+		f[i].Offset = BOGUS_FUNARG_OFFSET // This will cause an explosion if it is not corrected
+	}
+}
+
 // NewSignature returns a new function type for the given receiver,
 // parametes, results, and type parameters, any of which may be nil.
 func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Type {
@@ -1739,6 +1748,11 @@ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Typ
 		return s
 	}
 
+	if recv != nil {
+		recv.Offset = BOGUS_FUNARG_OFFSET
+	}
+	unzeroFieldOffsets(params)
+	unzeroFieldOffsets(results)
 	ft.Receiver = funargs(recvs, FunargRcvr)
 	ft.TParams = funargs(tparams, FunargTparams)
 	ft.Params = funargs(params, FunargParams)
