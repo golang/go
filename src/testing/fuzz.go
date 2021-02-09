@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
 	"time"
 )
 
@@ -42,11 +43,12 @@ type InternalFuzzTarget struct {
 // F is a type passed to fuzz targets for fuzz testing.
 type F struct {
 	common
-	context  *fuzzContext
-	inFuzzFn bool          // set to true when fuzz function is running
-	corpus   []corpusEntry // corpus is the in-memory corpus
-	result   FuzzResult    // result is the result of running the fuzz target
-	fuzzFunc func(f *F)    // fuzzFunc is the function which makes up the fuzz target
+	fuzzContext *fuzzContext
+	testContext *testContext
+	inFuzzFn    bool          // set to true when fuzz function is running
+	corpus      []corpusEntry // corpus is the in-memory corpus
+	result      FuzzResult    // result is the result of running the fuzz target
+	fuzzCalled  bool
 }
 
 var _ TB = (*F)(nil)
@@ -204,173 +206,129 @@ func (f *F) Add(args ...interface{}) {
 // target by calling runtime.Goexit. To run any code after this function, use
 // Cleanup.
 func (f *F) Fuzz(ff interface{}) {
-	defer runtime.Goexit() // exit after this function
+	if f.fuzzCalled {
+		panic("testing: F.Fuzz called more than once")
+	}
+	f.fuzzCalled = true
 
 	fn, ok := ff.(func(*T, []byte))
 	if !ok {
 		panic("testing: Fuzz function must have type func(*testing.T, []byte)")
 	}
+	f.Helper()
 
 	// Load seed corpus
-	c, err := f.context.readCorpus(filepath.Join(corpusDir, f.name))
+	c, err := f.fuzzContext.readCorpus(filepath.Join(corpusDir, f.name))
 	if err != nil {
 		f.Fatal(err)
 	}
 	f.corpus = append(f.corpus, c...)
-	// TODO(jayconrod,katiehockman): dedupe testdata corpus with entries from f.Add
 
-	var errStr string
-	run := func(t *T, b []byte) {
-		defer func() {
-			err := recover()
-			// If the function has recovered but the test hasn't finished,
-			// it is due to a nil panic or runtime.GoExit.
-			if !t.finished && err == nil {
-				err = errNilPanicOrGoexit
-			}
-			if err != nil {
-				t.Fail()
-				t.output = []byte(fmt.Sprintf("    %s", err))
-			}
-			f.inFuzzFn = false
-			t.signal <- true // signal that the test has finished
-		}()
-		// TODO(katiehockman, jayconrod): consider replacing inFuzzFn with
-		// general purpose flag that checks whether specific methods can be
-		// called.
+	// run calls fn on a given input, as a subtest with its own T.
+	// run is analogous to T.Run. The test filtering and cleanup works similarly.
+	// fn is called in its own goroutine.
+	//
+	// TODO(jayconrod,katiehockman): dedupe testdata corpus with entries from f.Add
+	// TODO(jayconrod,katiehockman): handle T.Parallel calls within fuzz function.
+	run := func(e corpusEntry) error {
+		testName, ok, _ := f.testContext.match.fullName(&f.common, e.Name)
+		if !ok || shouldFailFast() {
+			return nil
+		}
+		// Record the stack trace at the point of this call so that if the subtest
+		// function - which runs in a separate stack - is marked as a helper, we can
+		// continue walking the stack into the parent test.
+		var pc [maxStackLen]uintptr
+		n := runtime.Callers(2, pc[:])
+		t := &T{
+			common: common{
+				barrier: make(chan bool),
+				signal:  make(chan bool),
+				name:    testName,
+				parent:  &f.common,
+				level:   f.level + 1,
+				creator: pc[:n],
+				chatty:  f.chatty,
+			},
+			context: f.testContext,
+		}
+		t.w = indenter{&t.common}
+		if t.chatty != nil {
+			t.chatty.Updatef(t.name, "=== RUN  %s\n", t.name)
+		}
 		f.inFuzzFn = true
-		fn(t, b)
-		t.finished = true
+		go tRunner(t, func(t *T) { fn(t, e.Data) })
+		<-t.signal
+		f.inFuzzFn = false
+		if t.Failed() {
+			return errors.New(string(t.output))
+		}
+		return nil
 	}
 
 	switch {
-	case f.context.coordinateFuzzing != nil:
+	case f.fuzzContext.coordinateFuzzing != nil:
 		// Fuzzing is enabled, and this is the test process started by 'go test'.
 		// Act as the coordinator process, and coordinate workers to perform the
 		// actual fuzzing.
 		corpusTargetDir := filepath.Join(corpusDir, f.name)
 		cacheTargetDir := filepath.Join(*fuzzCacheDir, f.name)
-		err := f.context.coordinateFuzzing(*fuzzDuration, *parallel, f.corpus, corpusTargetDir, cacheTargetDir)
+		err := f.fuzzContext.coordinateFuzzing(*fuzzDuration, *parallel, f.corpus, corpusTargetDir, cacheTargetDir)
 		if err != nil {
-			f.Fail()
 			f.result = FuzzResult{Error: err}
+			f.Error(err)
+			if crashErr, ok := err.(fuzzCrashError); ok {
+				crashName := crashErr.CrashName()
+				f.Logf("Crash written to %s", filepath.Join("testdata/corpus", f.name, crashName))
+				f.Logf("To re-run:\ngo test %s -run=%s/%s", f.fuzzContext.importPath(), f.name, crashName)
+			}
 		}
-		f.setRan()
-		f.finished = true
 		// TODO(jayconrod,katiehockman): Aggregate statistics across workers
 		// and add to FuzzResult (ie. time taken, num iterations)
 
-	case f.context.runFuzzWorker != nil:
+	case f.fuzzContext.runFuzzWorker != nil:
 		// Fuzzing is enabled, and this is a worker process. Follow instructions
 		// from the coordinator.
-		err := f.context.runFuzzWorker(func(e corpusEntry) error {
-			t := &T{
-				common: common{
-					signal: make(chan bool),
-					w:      f.w,
-					chatty: f.chatty,
-				},
-				context: newTestContext(1, nil),
-			}
-			go run(t, e.Data)
-			<-t.signal
-			if t.Failed() {
-				return errors.New(string(t.output))
-			}
-			return nil
-		})
-		if err != nil {
+		if err := f.fuzzContext.runFuzzWorker(run); err != nil {
 			// TODO(jayconrod,katiehockman): how should we handle a failure to
 			// communicate with the coordinator? Might be caused by the coordinator
 			// terminating early.
-			fmt.Fprintf(os.Stderr, "testing: communicating with fuzz coordinator: %v\n", err)
-			os.Exit(1)
+			f.Errorf("communicating with fuzzing coordinator: %v", err)
 		}
-		f.setRan()
-		f.finished = true
 
 	default:
 		// Fuzzing is not enabled. Only run the seed corpus.
-		for _, c := range f.corpus {
-			t := &T{
-				common: common{
-					signal: make(chan bool),
-					w:      f.w,
-					chatty: f.chatty,
-				},
-				context: newTestContext(1, nil),
-			}
-			go run(t, c.Data)
-			<-t.signal
-			if t.Failed() {
-				f.Fail()
-				errStr += string(t.output)
-			}
-			f.setRan()
-		}
-		f.finished = true
-		if f.Failed() {
-			f.result = FuzzResult{Error: errors.New(errStr)}
-			return
+		for _, e := range f.corpus {
+			run(e)
 		}
 	}
+
+	// Record that the fuzz function (or coordinateFuzzing or runFuzzWorker)
+	// returned normally. This is used to distinguish runtime.Goexit below
+	// from panic(nil).
+	f.finished = true
+
+	// Terminate the goroutine. F.Fuzz should not return.
+	// We cannot call runtime.Goexit from a deferred function: if there is a
+	// panic, that would replace the panic value with nil.
+	runtime.Goexit()
 }
 
 func (f *F) report() {
-	if *isFuzzWorker {
+	if *isFuzzWorker || f.parent == nil {
 		return
 	}
+	dstr := fmtDuration(f.duration)
+	format := "--- %s: %s (%s)\n"
 	if f.Failed() {
-		fmt.Fprintf(f.w, "--- FAIL: %s\n%s\n", f.name, f.result.String())
+		f.flushToParent(f.name, format, "FAIL", f.name, dstr)
 	} else if f.chatty != nil {
 		if f.Skipped() {
-			f.chatty.Updatef(f.name, "SKIP\n")
+			f.flushToParent(f.name, format, "SKIP", f.name, dstr)
 		} else {
-			f.chatty.Updatef(f.name, "PASS\n")
+			f.flushToParent(f.name, format, "PASS", f.name, dstr)
 		}
 	}
-}
-
-// run runs each fuzz target in its own goroutine with its own *F.
-func (f *F) run(ft InternalFuzzTarget) (ran, ok bool) {
-	f = &F{
-		common: common{
-			signal: make(chan bool),
-			name:   ft.Name,
-			chatty: f.chatty,
-			w:      f.w,
-		},
-		context: f.context,
-	}
-	if f.chatty != nil {
-		f.chatty.Updatef(ft.Name, "=== RUN   %s\n", ft.Name)
-	}
-	go f.runTarget(ft.Fn)
-	<-f.signal
-	return f.ran, !f.failed
-}
-
-// runTarget runs the given target, handling panics and exits
-// within the test, and reporting errors.
-func (f *F) runTarget(fn func(*F)) {
-	defer func() {
-		err := recover()
-		// If the function has recovered but the test hasn't finished,
-		// it is due to a nil panic or runtime.GoExit.
-		if !f.finished && err == nil {
-			err = errNilPanicOrGoexit
-		}
-		if err != nil {
-			f.Fail()
-			f.result = FuzzResult{Error: fmt.Errorf("    %s", err)}
-		}
-		f.report()
-		f.setRan()
-		f.signal <- true // signal that the test has finished
-	}()
-	defer f.runCleanup(normalPanic)
-	fn(f)
-	f.finished = true
 }
 
 // FuzzResult contains the results of a fuzz run.
@@ -389,10 +347,24 @@ func (r FuzzResult) String() string {
 	return s
 }
 
+// fuzzCrashError is satisfied by a crash detected within the fuzz function.
+// These errors are written to the seed corpus and can be re-run with 'go test'.
+// Errors within the fuzzing framework (like I/O errors between coordinator
+// and worker processes) don't satisfy this interface.
+type fuzzCrashError interface {
+	error
+	Unwrap() error
+
+	// CrashName returns the name of the subtest that corresponds to the saved
+	// crash input file in the seed corpus. The test can be re-run with
+	// go test $pkg -run=$target/$name where $pkg is the package's import path,
+	// $target is the fuzz target name, and $name is the string returned here.
+	CrashName() string
+}
+
 // fuzzContext holds all fields that are common to all fuzz targets.
 type fuzzContext struct {
-	runMatch          *matcher
-	fuzzMatch         *matcher
+	importPath        func() string
 	coordinateFuzzing func(time.Duration, int, []corpusEntry, string, string) error
 	runFuzzWorker     func(func(corpusEntry) error) error
 	readCorpus        func(string) ([]corpusEntry, error)
@@ -406,35 +378,44 @@ func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bo
 	if len(fuzzTargets) == 0 || *isFuzzWorker {
 		return ran, ok
 	}
-	ctx := &fuzzContext{
-		runMatch:   newMatcher(deps.MatchString, *match, "-test.run"),
+	m := newMatcher(deps.MatchString, *match, "-test.run")
+	tctx := newTestContext(*parallel, m)
+	fctx := &fuzzContext{
+		importPath: deps.ImportPath,
 		readCorpus: deps.ReadCorpus,
 	}
-	var fts []InternalFuzzTarget
-	for _, ft := range fuzzTargets {
-		if _, matched, _ := ctx.runMatch.fullName(nil, ft.Name); matched {
-			fts = append(fts, ft)
-		}
-	}
-	f := &F{
-		common: common{
-			w: os.Stdout,
-		},
-		fuzzFunc: func(f *F) {
-			for _, ft := range fts {
-				// Run each fuzz target in it's own goroutine.
-				ftRan, ftOk := f.run(ft)
-				ran = ran || ftRan
-				ok = ok && ftOk
-			}
-		},
-		context: ctx,
-	}
+	root := common{w: os.Stdout} // gather output in one place
 	if Verbose() {
-		f.chatty = newChattyPrinter(f.w)
+		root.chatty = newChattyPrinter(root.w)
 	}
-	f.fuzzFunc(f)
-	return ran, ok
+	for _, ft := range fuzzTargets {
+		if shouldFailFast() {
+			break
+		}
+		testName, matched, _ := tctx.match.fullName(nil, ft.Name)
+		if !matched {
+			continue
+		}
+		f := &F{
+			common: common{
+				signal: make(chan bool),
+				name:   testName,
+				parent: &root,
+				level:  root.level + 1,
+				chatty: root.chatty,
+			},
+			testContext: tctx,
+			fuzzContext: fctx,
+		}
+		f.w = indenter{&f.common}
+		if f.chatty != nil {
+			f.chatty.Updatef(f.name, "=== RUN  %s\n", f.name)
+		}
+
+		go fRunner(f, ft.Fn)
+		<-f.signal
+	}
+	return root.ran, !root.Failed()
 }
 
 // runFuzzing runs the fuzz target matching the pattern for -fuzz. Only one such
@@ -447,26 +428,26 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool) 
 	if len(fuzzTargets) == 0 || *matchFuzz == "" {
 		return false, true
 	}
-	ctx := &fuzzContext{
-		fuzzMatch:  newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz"),
+	m := newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")
+	tctx := newTestContext(1, m)
+	fctx := &fuzzContext{
+		importPath: deps.ImportPath,
 		readCorpus: deps.ReadCorpus,
 	}
 	if *isFuzzWorker {
-		ctx.runFuzzWorker = deps.RunFuzzWorker
+		fctx.runFuzzWorker = deps.RunFuzzWorker
 	} else {
-		ctx.coordinateFuzzing = deps.CoordinateFuzzing
+		fctx.coordinateFuzzing = deps.CoordinateFuzzing
 	}
-	f := &F{
-		common: common{
-			signal: make(chan bool),
-			w:      os.Stdout,
-		},
-		context: ctx,
+	root := common{w: os.Stdout}
+	if Verbose() && !*isFuzzWorker {
+		root.chatty = newChattyPrinter(root.w)
 	}
 	var target *InternalFuzzTarget
+	var f *F
 	for i := range fuzzTargets {
 		ft := &fuzzTargets[i]
-		testName, matched, _ := ctx.fuzzMatch.fullName(&f.common, ft.Name)
+		testName, matched, _ := tctx.match.fullName(nil, ft.Name)
 		if !matched {
 			continue
 		}
@@ -475,18 +456,96 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool) 
 			return false, true
 		}
 		target = ft
-		f.name = testName
+		f = &F{
+			common: common{
+				signal: make(chan bool),
+				name:   testName,
+				parent: &root,
+				level:  root.level + 1,
+				chatty: root.chatty,
+			},
+			fuzzContext: fctx,
+			testContext: tctx,
+		}
+		f.w = indenter{&f.common}
 	}
 	if target == nil {
 		return false, true
 	}
-	if Verbose() {
-		f.chatty = newChattyPrinter(f.w)
-		if !*isFuzzWorker {
-			f.chatty.Updatef(f.name, "--- FUZZ: %s\n", f.name)
-		}
+	if f.chatty != nil {
+		f.chatty.Updatef(f.name, "=== FUZZ  %s\n", f.name)
 	}
-	go f.runTarget(target.Fn)
+	go fRunner(f, target.Fn)
 	<-f.signal
 	return f.ran, !f.failed
+}
+
+// fRunner wraps a call to a fuzz target and ensures that cleanup functions are
+// called and status flags are set. fRunner should be called in its own
+// goroutine. To wait for its completion, receive f.signal.
+//
+// fRunner is analogous with tRunner, which wraps subtests started with T.Run.
+// Tests and fuzz targets work a little differently, so for now, these functions
+// aren't consoldiated.
+func fRunner(f *F, fn func(*F)) {
+	// When this goroutine is done, either because runtime.Goexit was called,
+	// a panic started, or fn returned normally, record the duration and send
+	// t.signal, indicating the fuzz target is done.
+	defer func() {
+		// Detect whether the fuzz target panicked or called runtime.Goexit without
+		// calling F.Fuzz, F.Fail, or F.Skip. If it did, panic (possibly replacing
+		// a nil panic value). Nothing should recover after fRunner unwinds,
+		// so this should crash the process with a stack. Unfortunately, recovering
+		// here adds stack frames, but the location of the original panic should
+		// still be clear.
+		if f.Failed() {
+			atomic.AddUint32(&numFailed, 1)
+		}
+		err := recover()
+		f.mu.RLock()
+		ok := f.skipped || f.failed || (f.fuzzCalled && f.finished)
+		f.mu.RUnlock()
+		if err == nil && !ok {
+			err = errNilPanicOrGoexit
+		}
+
+		// If we recovered a panic or inappropriate runtime.Goexit, fail the test,
+		// flush the output log up to the root, then panic.
+		if err != nil {
+			f.Fail()
+			for root := &f.common; root.parent != nil; root = root.parent {
+				root.mu.Lock()
+				root.duration += time.Since(root.start)
+				d := root.duration
+				root.mu.Unlock()
+				root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
+			}
+			panic(err)
+		}
+
+		// No panic or inappropriate Goexit. Record duration and report the result.
+		f.duration += time.Since(f.start)
+		f.report()
+		f.done = true
+		f.setRan()
+
+		// Only report that the test is complete if it doesn't panic,
+		// as otherwise the test binary can exit before the panic is
+		// reported to the user. See issue 41479.
+		f.signal <- true
+	}()
+	defer func() {
+		f.runCleanup(normalPanic)
+	}()
+
+	f.start = time.Now()
+	fn(f)
+
+	// Code beyond this point is only executed if fn returned normally.
+	// That means fn did not call F.Fuzz or F.Skip. It should have called F.Fail.
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if !f.failed {
+		panic(f.name + " returned without calling F.Fuzz, F.Fail, or F.Skip")
+	}
 }

@@ -3,17 +3,15 @@
 
 # Test that running a fuzz target that returns without failing or calling
 # f.Fuzz fails and causes a non-zero exit status.
-# BUG(jayconrod): for now, it passes.
-go test noop_fuzz_test.go
-stdout ok
-! stdout FAIL
+! go test noop_fuzz_test.go
+! stdout ^ok
+stdout FAIL
 
 # Test that fuzzing a fuzz target that returns without failing or calling
 # f.Fuzz fails and causes a non-zero exit status.
-# BUG(jayconrod): for now, it passes.
-go test -fuzz=Fuzz -fuzztime=5s -parallel=1 noop_fuzz_test.go
-stdout ok
-! stdout FAIL
+! go test -fuzz=Fuzz -fuzztime=5s -parallel=1 noop_fuzz_test.go
+! stdout ^ok
+stdout FAIL
 
 # Test that calling f.Error in a fuzz target causes a non-zero exit status.
 ! go test -fuzz=Fuzz -fuzztime=5s -parallel=1 error_fuzz_test.go

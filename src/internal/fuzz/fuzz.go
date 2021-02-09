@@ -10,6 +10,7 @@ package fuzz
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -143,7 +144,10 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, co
 			// A worker found a crasher. Write it to testdata and return it.
 			fileName, err := writeToCorpus(crasher.Data, corpusDir)
 			if err == nil {
-				err = fmt.Errorf("    Crash written to %s\n%s", fileName, crasher.errMsg)
+				err = &crashError{
+					name: filepath.Base(fileName),
+					err:  errors.New(crasher.errMsg),
+				}
 			}
 			// TODO(jayconrod,katiehockman): if -keepfuzzing, report the error to
 			// the user and restart the crashed worker.
@@ -179,6 +183,26 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, co
 
 	// TODO(jayconrod,katiehockman): if a crasher can't be written to corpusDir,
 	// write to cacheDir instead.
+}
+
+// crashError wraps a crasher written to the seed corpus. It saves the name
+// of the file where the input causing the crasher was saved. The testing
+// framework uses this to report a command to re-run that specific input.
+type crashError struct {
+	name string
+	err  error
+}
+
+func (e *crashError) Error() string {
+	return e.err.Error()
+}
+
+func (e *crashError) Unwrap() error {
+	return e.err
+}
+
+func (e *crashError) CrashName() string {
+	return e.name
 }
 
 type corpus struct {
