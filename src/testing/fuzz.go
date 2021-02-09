@@ -43,10 +43,13 @@ type InternalFuzzTarget struct {
 type F struct {
 	common
 	context  *fuzzContext
+	inFuzzFn bool          // set to true when fuzz function is running
 	corpus   []corpusEntry // corpus is the in-memory corpus
 	result   FuzzResult    // result is the result of running the fuzz target
 	fuzzFunc func(f *F)    // fuzzFunc is the function which makes up the fuzz target
 }
+
+var _ TB = (*F)(nil)
 
 // corpusEntry is an alias to the same type as internal/fuzz.CorpusEntry.
 // We use a type alias because we don't want to export this type, and we can't
@@ -54,6 +57,124 @@ type F struct {
 type corpusEntry = struct {
 	Name string
 	Data []byte
+}
+
+// Cleanup registers a function to be called when the test and all its
+// subtests complete. Cleanup functions will be called in last added,
+// first called order.
+func (f *F) Cleanup(fn func()) {
+	if f.inFuzzFn {
+		panic("testing: f.Cleanup was called inside the f.Fuzz function")
+	}
+	f.common.Cleanup(fn)
+}
+
+// Error is equivalent to Log followed by Fail.
+func (f *F) Error(args ...interface{}) {
+	if f.inFuzzFn {
+		panic("testing: f.Error was called inside the f.Fuzz function")
+	}
+	f.common.Error(args...)
+}
+
+// Errorf is equivalent to Logf followed by Fail.
+func (f *F) Errorf(format string, args ...interface{}) {
+	if f.inFuzzFn {
+		panic("testing: f.Errorf was called inside the f.Fuzz function")
+	}
+	f.common.Errorf(format, args...)
+}
+
+// Fail marks the function as having failed but continues execution.
+func (f *F) Fail() {
+	if f.inFuzzFn {
+		panic("testing: f.Fail was called inside the f.Fuzz function")
+	}
+	f.common.Fail()
+}
+
+// FailNow marks the function as having failed and stops its execution
+// by calling runtime.Goexit (which then runs all deferred calls in the
+// current goroutine).
+// Execution will continue at the next test or benchmark.
+// FailNow must be called from the goroutine running the
+// test or benchmark function, not from other goroutines
+// created during the test. Calling FailNow does not stop
+// those other goroutines.
+func (f *F) FailNow() {
+	if f.inFuzzFn {
+		panic("testing: f.FailNow was called inside the f.Fuzz function")
+	}
+	f.common.FailNow()
+}
+
+// Fatal is equivalent to Log followed by FailNow.
+func (f *F) Fatal(args ...interface{}) {
+	if f.inFuzzFn {
+		panic("testing: f.Fatal was called inside the f.Fuzz function")
+	}
+	f.common.Fatal(args...)
+}
+
+// Fatalf is equivalent to Logf followed by FailNow.
+func (f *F) Fatalf(format string, args ...interface{}) {
+	if f.inFuzzFn {
+		panic("testing: f.Fatalf was called inside the f.Fuzz function")
+	}
+	f.common.Fatalf(format, args...)
+}
+
+// Helper marks the calling function as a test helper function.
+// When printing file and line information, that function will be skipped.
+// Helper may be called simultaneously from multiple goroutines.
+func (f *F) Helper() {
+	if f.inFuzzFn {
+		panic("testing: f.Helper was called inside the f.Fuzz function")
+	}
+	f.common.Helper()
+}
+
+// Skip is equivalent to Log followed by SkipNow.
+func (f *F) Skip(args ...interface{}) {
+	if f.inFuzzFn {
+		panic("testing: f.Skip was called inside the f.Fuzz function")
+	}
+	f.common.Skip(args...)
+}
+
+// SkipNow marks the test as having been skipped and stops its execution
+// by calling runtime.Goexit.
+// If a test fails (see Error, Errorf, Fail) and is then skipped,
+// it is still considered to have failed.
+// Execution will continue at the next test or benchmark. See also FailNow.
+// SkipNow must be called from the goroutine running the test, not from
+// other goroutines created during the test. Calling SkipNow does not stop
+// those other goroutines.
+func (f *F) SkipNow() {
+	if f.inFuzzFn {
+		panic("testing: f.SkipNow was called inside the f.Fuzz function")
+	}
+	f.common.SkipNow()
+}
+
+// Skipf is equivalent to Logf followed by SkipNow.
+func (f *F) Skipf(format string, args ...interface{}) {
+	if f.inFuzzFn {
+		panic("testing: f.Skipf was called inside the f.Fuzz function")
+	}
+	f.common.Skipf(format, args...)
+}
+
+// TempDir returns a temporary directory for the test to use.
+// The directory is automatically removed by Cleanup when the test and
+// all its subtests complete.
+// Each subsequent call to t.TempDir returns a unique directory;
+// if the directory creation fails, TempDir terminates the test by calling Fatal.
+func (f *F) TempDir() string {
+	if f.inFuzzFn {
+		panic("testing: f.TempDir was called inside the f.Fuzz function")
+	}
+	return f.common.TempDir()
 }
 
 // Add will add the arguments to the seed corpus for the fuzz target. This will
