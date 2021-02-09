@@ -84,6 +84,11 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 	if fun.Op() == ir.OTYPE {
 		// Actually a type conversion, not a function call.
 		n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
+		if fun.Type().Kind() == types.TTYPEPARAM {
+			// For type params, don't typecheck until we actually know
+			// the type.
+			return typed(typ, n)
+		}
 		return typecheck.Expr(n)
 	}
 

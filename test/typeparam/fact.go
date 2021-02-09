@@ -8,20 +8,15 @@ package main
 
 import "fmt"
 
-// TODO Stenciling doesn't do the right thing for T(1) at the moment.
-
 func fact[T interface { type int, int64, float64 }](n T) T {
-	// TODO remove this return in favor of the correct computation below
-	return n
-	// if n == T(1) {
-	// 	return T(1)
-	// }
-	// return n * fact(n - T(1))
+	if n == T(1) {
+		return T(1)
+	}
+	return n * fact(n - T(1))
 }
 
 func main() {
-	// TODO change this to 120 once we can compile the function body above
-	const want = 5 // 120
+	const want = 120
 
 	if got := fact(5); got != want {
 		panic(fmt.Sprintf("got %d, want %d", got, want))
