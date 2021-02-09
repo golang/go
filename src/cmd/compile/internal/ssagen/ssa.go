@@ -7,6 +7,7 @@ package ssagen
 import (
 	"bufio"
 	"bytes"
+	"cmd/compile/internal/abi"
 	"encoding/binary"
 	"fmt"
 	"go/constant"
@@ -208,6 +209,32 @@ func InitConfig() {
 	ir.Syms.SigPanic = typecheck.LookupRuntimeFunc("sigpanic")
 }
 
+// AbiForFunc returns the ABI for a function, used to figure out arg/result mapping for rtcall and bodyless functions.
+// This follows policy for GOEXPERIMENT=regabi, //go:registerparams, and currently defined ABIInternal.
+// Policy is subject to change....
+// This always returns a freshly copied ABI.
+func AbiForFunc(fn *ir.Func) *abi.ABIConfig {
+	return abiForFunc(fn, ssaConfig.ABI0, ssaConfig.ABI1).Copy() // No idea what races will result, be safe
+}
+
+// abiForFunc implements ABI policy for a function, but does not return a copy of the ABI.
+// Passing a nil function returns ABIInternal.
+func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
+	a := abi1
+	if true || objabi.Regabi_enabled == 0 {
+		a = abi0
+	}
+	if fn != nil && fn.Pragma&ir.RegisterParams != 0 { // TODO(register args) remove after register abi is working
+		name := ir.FuncName(fn)
+		if strings.Contains(name, ".") {
+			base.ErrorfAt(fn.Pos(), "Calls to //go:registerparams method %s won't work, remove the pragma from the declaration.", name)
+		}
+		a = abi1
+		base.WarnfAt(fn.Pos(), "declared function %v has register params", fn)
+	}
+	return a
+}
+
 // getParam returns the Field of ith param of node n (which is a
 // function/method/interface call), where the receiver of a method call is
 // considered as the 0th parameter. This does not include the receiver of an
@@ -357,25 +384,10 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	if fn.Pragma&ir.Nosplit != 0 {
 		s.f.NoSplit = true
 	}
-	s.f.ABI0 = ssaConfig.ABI0.Copy() // Make a copy to avoid racy map operations in type-width cache.
+	s.f.ABI0 = ssaConfig.ABI0.Copy() // Make a copy to avoid racy map operations in type-register-width cache.
 	s.f.ABI1 = ssaConfig.ABI1.Copy()
-
-	s.f.ABIDefault = s.f.ABI1 // Default ABI for function calls with no parsed signature for a pragma, e.g. rtcall
-	// TODO(register args) -- remove "true ||"; in the short run, turning on the register ABI experiment still leaves the compiler defaulting to ABI0.
-	// TODO(register args) -- remove this conditional entirely when register ABI is not an experiment.
-	if true || objabi.Regabi_enabled == 0 {
-		s.f.ABIDefault = s.f.ABI0 // reset
-	}
-
-	s.f.ABISelf = s.f.ABIDefault
-
-	if fn.Pragma&ir.RegisterParams != 0 { // TODO(register args) remove after register abi is working
-		s.f.ABISelf = s.f.ABI1
-		if strings.Contains(name, ".") {
-			base.ErrorfAt(fn.Pos(), "Calls to //go:registerparams method %s won't work, remove the pragma from the declaration.", name)
-		}
-		s.f.Warnl(fn.Pos(), "declared function %v has register params", fn)
-	}
+	s.f.ABIDefault = abiForFunc(nil, s.f.ABI0, s.f.ABI1)
+	s.f.ABISelf = abiForFunc(fn, s.f.ABI0, s.f.ABI1)
 
 	s.panics = map[funcLine]*ssa.Block{}
 	s.softFloat = s.config.SoftFloat
@@ -4731,7 +4743,7 @@ func (s *state) openDeferExit() {
 			v := s.load(r.closure.Type.Elem(), r.closure)
 			s.maybeNilCheckClosure(v, callDefer)
 			codeptr := s.rawLoad(types.Types[types.TUINTPTR], v)
-			aux := ssa.ClosureAuxCall(ACArgs, ACResults)
+			aux := ssa.ClosureAuxCall(ACArgs, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
 			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, v)
 		} else {
 			aux := ssa.StaticAuxCall(fn.(*ir.Name).Linksym(), ACArgs, ACResults,
@@ -4972,10 +4984,11 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			// critical that we not clobber any arguments already
 			// stored onto the stack.
 			codeptr = s.rawLoad(types.Types[types.TUINTPTR], closure)
-			aux := ssa.ClosureAuxCall(ACArgs, ACResults)
+			aux := ssa.ClosureAuxCall(ACArgs, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
 			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, closure)
 		case codeptr != nil:
-			aux := ssa.InterfaceAuxCall(ACArgs, ACResults)
+			// Note that the "receiver" parameter is nil because the actual receiver is the first input parameter.
+			aux := ssa.InterfaceAuxCall(ACArgs, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
 			call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
 		case callee != nil:
 			aux := ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), ACArgs, ACResults, params)
