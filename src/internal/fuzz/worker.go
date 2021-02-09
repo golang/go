@@ -329,7 +329,7 @@ func (w *worker) stop() error {
 //
 // RunFuzzWorker returns an error if it could not communicate with the
 // coordinator process.
-func RunFuzzWorker(ctx context.Context, fn func([]byte) error) error {
+func RunFuzzWorker(ctx context.Context, fn func(CorpusEntry) error) error {
 	comm, err := getWorkerComm()
 	if err != nil {
 		return err
@@ -386,7 +386,7 @@ type workerServer struct {
 
 	// fuzzFn runs the worker's fuzz function on the given input and returns
 	// an error if it finds a crasher (the process may also exit or crash).
-	fuzzFn func([]byte) error
+	fuzzFn func(CorpusEntry) error
 }
 
 // serve reads serialized RPC messages on fuzzIn. When serve receives a message,
@@ -463,7 +463,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
 			b := mem.valueRef()
 			ws.m.mutate(&b)
 			mem.setValueLen(len(b))
-			if err := ws.fuzzFn(b); err != nil {
+			if err := ws.fuzzFn(CorpusEntry{Data: b}); err != nil {
 				return fuzzResponse{Err: err.Error()}
 			}
 			// TODO(jayconrod,katiehockman): return early if we find an

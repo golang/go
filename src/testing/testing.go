@@ -1364,8 +1364,8 @@ func (f matchStringOnly) SetPanicOnExit0(bool)                        {}
 func (f matchStringOnly) CoordinateFuzzing(time.Duration, int, []corpusEntry, string, string) error {
 	return errMain
 }
-func (f matchStringOnly) RunFuzzWorker(func([]byte) error) error   { return errMain }
-func (f matchStringOnly) ReadCorpus(string) ([]corpusEntry, error) { return nil, errMain }
+func (f matchStringOnly) RunFuzzWorker(func(corpusEntry) error) error { return errMain }
+func (f matchStringOnly) ReadCorpus(string) ([]corpusEntry, error)    { return nil, errMain }
 
 // Main is an internal function, part of the implementation of the "go test" command.
 // It was exported because it is cross-package and predates "internal" packages.
@@ -1409,7 +1409,7 @@ type testDeps interface {
 	StopTestLog() error
 	WriteProfileTo(string, io.Writer, int) error
 	CoordinateFuzzing(time.Duration, int, []corpusEntry, string, string) error
-	RunFuzzWorker(func([]byte) error) error
+	RunFuzzWorker(func(corpusEntry) error) error
 	ReadCorpus(string) ([]corpusEntry, error)
 }
 

@@ -142,7 +142,7 @@ func (f *F) Fuzz(ff interface{}) {
 	case f.context.runFuzzWorker != nil:
 		// Fuzzing is enabled, and this is a worker process. Follow instructions
 		// from the coordinator.
-		err := f.context.runFuzzWorker(func(input []byte) error {
+		err := f.context.runFuzzWorker(func(e corpusEntry) error {
 			t := &T{
 				common: common{
 					signal: make(chan bool),
@@ -151,7 +151,7 @@ func (f *F) Fuzz(ff interface{}) {
 				},
 				context: newTestContext(1, nil),
 			}
-			go run(t, input)
+			go run(t, e.Data)
 			<-t.signal
 			if t.Failed() {
 				return errors.New(string(t.output))
@@ -273,7 +273,7 @@ type fuzzContext struct {
 	runMatch          *matcher
 	fuzzMatch         *matcher
 	coordinateFuzzing func(time.Duration, int, []corpusEntry, string, string) error
-	runFuzzWorker     func(func([]byte) error) error
+	runFuzzWorker     func(func(corpusEntry) error) error
 	readCorpus        func(string) ([]corpusEntry, error)
 }
 
