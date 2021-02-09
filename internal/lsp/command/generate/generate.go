@@ -46,7 +46,7 @@ var Commands = []Command {
 {{- end}}
 }
 
-func Dispatch(params *protocol.ExecuteCommandParams, s Interface) (interface{}, error) {
+func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Interface) (interface{}, error) {
 	switch params.Command {
 	{{- range .Commands}}
 	case "{{.ID}}":
@@ -58,7 +58,7 @@ func Dispatch(params *protocol.ExecuteCommandParams, s Interface) (interface{}, 
 			return nil, err
 		}
 		{{end -}}
-		{{- if .Result -}}res, {{end}}err := s.{{.MethodName}}({{block "callargs" .}}{{range $i, $v := .Args}}{{if $i}}, {{end}}a{{$i}}{{end}}{{end}})
+		{{- if .Result -}}res, {{end}}err := s.{{.MethodName}}(ctx{{range $i, $v := .Args}}, a{{$i}}{{end}})
 		return {{if .Result}}res{{else}}nil{{end}}, err
 	{{- end}}
 	}
@@ -67,7 +67,7 @@ func Dispatch(params *protocol.ExecuteCommandParams, s Interface) (interface{}, 
 {{- range .Commands}}
 
 func New{{.MethodName}}Command(title string, {{range $i, $v := .Args}}{{if $i}}, {{end}}a{{$i}} {{typeString $v.Type}}{{end}}) (protocol.Command, error) {
-	args, err := MarshalArgs({{template "callargs" .}})
+	args, err := MarshalArgs({{range $i, $v := .Args}}{{if $i}}, {{end}}a{{$i}}{{end}})
 	if err != nil {
 		return protocol.Command{}, err
 	}
@@ -107,7 +107,8 @@ func Generate() ([]byte, error) {
 	d := data{
 		Commands: cmds,
 		Imports: map[string]bool{
-			"fmt": true,
+			"context": true,
+			"fmt":     true,
 			"golang.org/x/tools/internal/lsp/protocol": true,
 		},
 	}

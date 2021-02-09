@@ -39,16 +39,13 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 	}
 
 	handler := &commandHandler{
-		ctx:    ctx,
 		s:      s,
 		params: params,
 	}
-	return command.Dispatch(params, handler)
+	return command.Dispatch(ctx, params, handler)
 }
 
 type commandHandler struct {
-	// ctx is temporarily held so that we may implement the command.Interface interface.
-	ctx    context.Context
 	s      *Server
 	params *protocol.ExecuteCommandParams
 }
@@ -72,7 +69,7 @@ type commandDeps struct {
 
 type commandFunc func(context.Context, commandDeps) error
 
-func (c *commandHandler) run(cfg commandConfig, run commandFunc) (err error) {
+func (c *commandHandler) run(ctx context.Context, cfg commandConfig, run commandFunc) (err error) {
 	if cfg.requireSave {
 		for _, overlay := range c.s.session.Overlays() {
 			if !overlay.Saved() {
@@ -84,13 +81,13 @@ func (c *commandHandler) run(cfg commandConfig, run commandFunc) (err error) {
 	if cfg.forURI != "" {
 		var ok bool
 		var release func()
-		deps.snapshot, deps.fh, ok, release, err = c.s.beginFileRequest(c.ctx, cfg.forURI, source.UnknownKind)
+		deps.snapshot, deps.fh, ok, release, err = c.s.beginFileRequest(ctx, cfg.forURI, source.UnknownKind)
 		defer release()
 		if !ok {
 			return err
 		}
 	}
-	ctx, cancel := context.WithCancel(xcontext.Detach(c.ctx))
+	ctx, cancel := context.WithCancel(xcontext.Detach(ctx))
 	if cfg.progress != "" {
 		deps.work = c.s.progress.start(ctx, cfg.progress, "Running...", c.params.WorkDoneToken, cancel)
 	}
@@ -115,8 +112,8 @@ func (c *commandHandler) run(cfg commandConfig, run commandFunc) (err error) {
 	return runcmd()
 }
 
-func (c *commandHandler) ApplyFix(args command.ApplyFixArgs) error {
-	return c.run(commandConfig{
+func (c *commandHandler) ApplyFix(ctx context.Context, args command.ApplyFixArgs) error {
+	return c.run(ctx, commandConfig{
 		// Note: no progress here. Applying fixes should be quick.
 		forURI: args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
@@ -139,20 +136,20 @@ func (c *commandHandler) ApplyFix(args command.ApplyFixArgs) error {
 	})
 }
 
-func (c *commandHandler) RegenerateCgo(args command.URIArg) error {
-	return c.run(commandConfig{
+func (c *commandHandler) RegenerateCgo(ctx context.Context, args command.URIArg) error {
+	return c.run(ctx, commandConfig{
 		progress: "Regenerating Cgo",
 	}, func(ctx context.Context, deps commandDeps) error {
 		mod := source.FileModification{
 			URI:    args.URI.SpanURI(),
 			Action: source.InvalidateMetadata,
 		}
-		return c.s.didModifyFiles(c.ctx, []source.FileModification{mod}, FromRegenerateCgo)
+		return c.s.didModifyFiles(ctx, []source.FileModification{mod}, FromRegenerateCgo)
 	})
 }
 
-func (c *commandHandler) CheckUpgrades(args command.CheckUpgradesArgs) error {
-	return c.run(commandConfig{
+func (c *commandHandler) CheckUpgrades(ctx context.Context, args command.CheckUpgradesArgs) error {
+	return c.run(ctx, commandConfig{
 		forURI:   args.URI,
 		progress: "Checking for upgrades",
 	}, func(ctx context.Context, deps commandDeps) error {
@@ -167,16 +164,16 @@ func (c *commandHandler) CheckUpgrades(args command.CheckUpgradesArgs) error {
 	})
 }
 
-func (c *commandHandler) AddDependency(args command.DependencyArgs) error {
-	return c.GoGetModule(args)
+func (c *commandHandler) AddDependency(ctx context.Context, args command.DependencyArgs) error {
+	return c.GoGetModule(ctx, args)
 }
 
-func (c *commandHandler) UpgradeDependency(args command.DependencyArgs) error {
-	return c.GoGetModule(args)
+func (c *commandHandler) UpgradeDependency(ctx context.Context, args command.DependencyArgs) error {
+	return c.GoGetModule(ctx, args)
 }
 
-func (c *commandHandler) GoGetModule(args command.DependencyArgs) error {
-	return c.run(commandConfig{
+func (c *commandHandler) GoGetModule(ctx context.Context, args command.DependencyArgs) error {
+	return c.run(ctx, commandConfig{
 		requireSave: true,
 		progress:    "Running go get",
 		forURI:      args.URI,
@@ -187,8 +184,8 @@ func (c *commandHandler) GoGetModule(args command.DependencyArgs) error {
 
 // TODO(rFindley): UpdateGoSum, Tidy, and Vendor could probably all be one command.
 
-func (c *commandHandler) UpdateGoSum(args command.URIArg) error {
-	return c.run(commandConfig{
+func (c *commandHandler) UpdateGoSum(ctx context.Context, args command.URIArg) error {
+	return c.run(ctx, commandConfig{
 		requireSave: true,
 		progress:    "Updating go.sum",
 		forURI:      args.URI,
@@ -197,8 +194,8 @@ func (c *commandHandler) UpdateGoSum(args command.URIArg) error {
 	})
 }
 
-func (c *commandHandler) Tidy(args command.URIArg) error {
-	return c.run(commandConfig{
+func (c *commandHandler) Tidy(ctx context.Context, args command.URIArg) error {
+	return c.run(ctx, commandConfig{
 		requireSave: true,
 		progress:    "Running go mod tidy",
 		forURI:      args.URI,
@@ -207,8 +204,8 @@ func (c *commandHandler) Tidy(args command.URIArg) error {
 	})
 }
 
-func (c *commandHandler) Vendor(args command.URIArg) error {
-	return c.run(commandConfig{
+func (c *commandHandler) Vendor(ctx context.Context, args command.URIArg) error {
+	return c.run(ctx, commandConfig{
 		requireSave: true,
 		progress:    "Running go mod vendor",
 		forURI:      args.URI,
@@ -217,8 +214,8 @@ func (c *commandHandler) Vendor(args command.URIArg) error {
 	})
 }
 
-func (c *commandHandler) RemoveDependency(args command.RemoveDependencyArgs) error {
-	return c.run(commandConfig{
+func (c *commandHandler) RemoveDependency(ctx context.Context, args command.RemoveDependencyArgs) error {
+	return c.run(ctx, commandConfig{
 		requireSave: true,
 		progress:    "Removing dependency",
 		forURI:      args.URI,
@@ -290,16 +287,16 @@ func dropDependency(snapshot source.Snapshot, pm *source.ParsedModule, modulePat
 	return source.ToProtocolEdits(pm.Mapper, diff)
 }
 
-func (c *commandHandler) Test(uri protocol.DocumentURI, tests, benchmarks []string) error {
-	return c.RunTests(command.RunTestsArgs{
+func (c *commandHandler) Test(ctx context.Context, uri protocol.DocumentURI, tests, benchmarks []string) error {
+	return c.RunTests(ctx, command.RunTestsArgs{
 		URI:        uri,
 		Tests:      tests,
 		Benchmarks: benchmarks,
 	})
 }
 
-func (c *commandHandler) RunTests(args command.RunTestsArgs) error {
-	return c.run(commandConfig{
+func (c *commandHandler) RunTests(ctx context.Context, args command.RunTestsArgs) error {
+	return c.run(ctx, commandConfig{
 		async:       true,
 		progress:    "Running go test",
 		requireSave: true,
@@ -395,12 +392,12 @@ func (c *commandHandler) runTests(ctx context.Context, snapshot source.Snapshot,
 	})
 }
 
-func (c *commandHandler) Generate(args command.GenerateArgs) error {
+func (c *commandHandler) Generate(ctx context.Context, args command.GenerateArgs) error {
 	title := "Running go generate ."
 	if args.Recursive {
 		title = "Running go generate ./..."
 	}
-	return c.run(commandConfig{
+	return c.run(ctx, commandConfig{
 		requireSave: true,
 		progress:    title,
 		forURI:      args.Dir,
@@ -424,8 +421,8 @@ func (c *commandHandler) Generate(args command.GenerateArgs) error {
 	})
 }
 
-func (c *commandHandler) GoGetPackage(args command.GoGetPackageArgs) error {
-	return c.run(commandConfig{
+func (c *commandHandler) GoGetPackage(ctx context.Context, args command.GoGetPackageArgs) error {
+	return c.run(ctx, commandConfig{
 		forURI:   args.URI,
 		progress: "Running go get",
 	}, func(ctx context.Context, deps commandDeps) error {
@@ -489,12 +486,12 @@ func (s *Server) getUpgrades(ctx context.Context, snapshot source.Snapshot, uri 
 	return upgrades, nil
 }
 
-func (c *commandHandler) GCDetails(uri protocol.DocumentURI) error {
-	return c.ToggleGCDetails(command.URIArg{URI: uri})
+func (c *commandHandler) GCDetails(ctx context.Context, uri protocol.DocumentURI) error {
+	return c.ToggleGCDetails(ctx, command.URIArg{URI: uri})
 }
 
-func (c *commandHandler) ToggleGCDetails(args command.URIArg) error {
-	return c.run(commandConfig{
+func (c *commandHandler) ToggleGCDetails(ctx context.Context, args command.URIArg) error {
+	return c.run(ctx, commandConfig{
 		requireSave: true,
 		progress:    "Toggling GC Details",
 		forURI:      args.URI,
@@ -513,9 +510,9 @@ func (c *commandHandler) ToggleGCDetails(args command.URIArg) error {
 	})
 }
 
-func (c *commandHandler) GenerateGoplsMod(args command.URIArg) error {
+func (c *commandHandler) GenerateGoplsMod(ctx context.Context, args command.URIArg) error {
 	// TODO: go back to using URI
-	return c.run(commandConfig{
+	return c.run(ctx, commandConfig{
 		requireSave: true,
 		progress:    "Generating gopls.mod",
 	}, func(ctx context.Context, deps commandDeps) error {

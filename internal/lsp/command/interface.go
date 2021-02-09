@@ -14,7 +14,11 @@ package command
 
 //go:generate go run -tags=generate generate.go
 
-import "golang.org/x/tools/internal/lsp/protocol"
+import (
+	"context"
+
+	"golang.org/x/tools/internal/lsp/protocol"
+)
 
 // Interface defines the interface gopls exposes for the
 // workspace/executeCommand request.
@@ -31,85 +35,85 @@ type Interface interface {
 	// ApplyFix: Apply a fix
 	//
 	// Applies a fix to a region of source code.
-	ApplyFix(ApplyFixArgs) error
+	ApplyFix(context.Context, ApplyFixArgs) error
 	// Test: Run test(s) (legacy)
 	//
 	// Runs `go test` for a specific set of test or benchmark functions.
-	Test(protocol.DocumentURI, []string, []string) error
+	Test(context.Context, protocol.DocumentURI, []string, []string) error
 
 	// TODO: deprecate Test in favor of RunTests below.
 
 	// Test: Run test(s)
 	//
 	// Runs `go test` for a specific set of test or benchmark functions.
-	RunTests(RunTestsArgs) error
+	RunTests(context.Context, RunTestsArgs) error
 
 	// Generate: Run go generate
 	//
 	// Runs `go generate` for a given directory.
-	Generate(GenerateArgs) error
+	Generate(context.Context, GenerateArgs) error
 
 	// RegenerateCgo: Regenerate cgo
 	//
 	// Regenerates cgo definitions.
-	RegenerateCgo(URIArg) error
+	RegenerateCgo(context.Context, URIArg) error
 
 	// Tidy: Run go mod tidy
 	//
 	// Runs `go mod tidy` for a module.
-	Tidy(URIArg) error
+	Tidy(context.Context, URIArg) error
 
 	// Vendor: Run go mod vendor
 	//
 	// Runs `go mod vendor` for a module.
-	Vendor(URIArg) error
+	Vendor(context.Context, URIArg) error
 
 	// UpdateGoSum: Update go.sum
 	//
 	// Updates the go.sum file for a module.
-	UpdateGoSum(URIArg) error
+	UpdateGoSum(context.Context, URIArg) error
 
 	// CheckUpgrades: Check for upgrades
 	//
 	// Checks for module upgrades.
-	CheckUpgrades(CheckUpgradesArgs) error
+	CheckUpgrades(context.Context, CheckUpgradesArgs) error
 
 	// AddDependency: Add dependency
 	//
 	// Adds a dependency to the go.mod file for a module.
-	AddDependency(DependencyArgs) error
+	AddDependency(context.Context, DependencyArgs) error
 
 	// UpgradeDependency: Upgrade dependency
 	//
 	// Upgrades a dependency in the go.mod file for a module.
-	UpgradeDependency(DependencyArgs) error
+	UpgradeDependency(context.Context, DependencyArgs) error
 
 	// RemoveDependency: Remove dependency
 	//
 	// Removes a dependency from the go.mod file of a module.
-	RemoveDependency(RemoveDependencyArgs) error
+	RemoveDependency(context.Context, RemoveDependencyArgs) error
 
 	// GoGetPackage: go get package
 	//
 	// Runs `go get` to fetch a package.
-	GoGetPackage(GoGetPackageArgs) error
+	GoGetPackage(context.Context, GoGetPackageArgs) error
 
 	// GCDetails: Toggle gc_details
 	//
 	// Toggle the calculation of gc annotations.
-	GCDetails(protocol.DocumentURI) error
+	GCDetails(context.Context, protocol.DocumentURI) error
 
 	// TODO: deprecate GCDetails in favor of ToggleGCDetails below.
 
 	// ToggleGCDetails: Toggle gc_details
 	//
 	// Toggle the calculation of gc annotations.
-	ToggleGCDetails(URIArg) error
+	ToggleGCDetails(context.Context, URIArg) error
 
 	// GenerateGoplsMod: Generate gopls.mod
 	//
 	// (Re)generate the gopls.mod file for a workspace.
-	GenerateGoplsMod(URIArg) error
+	GenerateGoplsMod(context.Context, URIArg) error
 }
 
 type RunTestsArgs struct {
