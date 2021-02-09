@@ -6,7 +6,6 @@ package fs
 
 import (
 	"path"
-	"runtime"
 )
 
 // A GlobFS is a file system with a Glob method.
@@ -111,8 +110,8 @@ func glob(fs FS, dir, pattern string, matches []string) (m []string, e error) {
 // recognized by path.Match.
 func hasMeta(path string) bool {
 	for i := 0; i < len(path); i++ {
-		c := path[i]
-		if c == '*' || c == '?' || c == '[' || runtime.GOOS == "windows" && c == '\\' {
+		switch path[i] {
+		case '*', '?', '[', '\\':
 			return true
 		}
 	}
