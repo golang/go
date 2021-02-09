@@ -41,6 +41,11 @@ type Reqs interface {
 	// Note that v1 < v2 can be written Max(v1, v2) != v1
 	// and similarly v1 <= v2 can be written Max(v1, v2) == v2.
 	Max(v1, v2 string) string
+}
+
+// An UpgradeReqs is a Reqs that can also identify available upgrades.
+type UpgradeReqs interface {
+	Reqs
 
 	// Upgrade returns the upgraded version of m,
 	// for use during an UpgradeAll operation.
@@ -54,6 +59,11 @@ type Reqs interface {
 	// TODO(rsc): Upgrade must be able to return errors,
 	// but should "no latest version" just return m instead?
 	Upgrade(m module.Version) (module.Version, error)
+}
+
+// A DowngradeReqs is a Reqs that can also identify available downgrades.
+type DowngradeReqs interface {
+	Reqs
 
 	// Previous returns the version of m.Path immediately prior to m.Version,
 	// or "none" if no such version is known.
@@ -323,7 +333,7 @@ func Req(target module.Version, base []string, reqs Reqs) ([]module.Version, err
 
 // UpgradeAll returns a build list for the target module
 // in which every module is upgraded to its latest version.
-func UpgradeAll(target module.Version, reqs Reqs) ([]module.Version, error) {
+func UpgradeAll(target module.Version, reqs UpgradeReqs) ([]module.Version, error) {
 	return buildList(target, reqs, func(m module.Version) (module.Version, error) {
 		if m.Path == target.Path {
 			return target, nil
@@ -335,7 +345,7 @@ func UpgradeAll(target module.Version, reqs Reqs) ([]module.Version, error) {
 
 // Upgrade returns a build list for the target module
 // in which the given additional modules are upgraded.
-func Upgrade(target module.Version, reqs Reqs, upgrade ...module.Version) ([]module.Version, error) {
+func Upgrade(target module.Version, reqs UpgradeReqs, upgrade ...module.Version) ([]module.Version, error) {
 	list, err := reqs.Required(target)
 	if err != nil {
 		return nil, err
@@ -374,7 +384,7 @@ func Upgrade(target module.Version, reqs Reqs, upgrade ...module.Version) ([]mod
 // The versions to be downgraded may be unreachable from reqs.Latest and
 // reqs.Previous, but the methods of reqs must otherwise handle such versions
 // correctly.
-func Downgrade(target module.Version, reqs Reqs, downgrade ...module.Version) ([]module.Version, error) {
+func Downgrade(target module.Version, reqs DowngradeReqs, downgrade ...module.Version) ([]module.Version, error) {
 	// Per https://research.swtch.com/vgo-mvs#algorithm_4:
 	// “To avoid an unnecessary downgrade to E 1.1, we must also add a new
 	// requirement on E 1.2. We can apply Algorithm R to find the minimal set of
