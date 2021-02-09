@@ -36,6 +36,8 @@ import (
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/internal/sys"
+
+	"golang.org/x/mod/module"
 )
 
 var IgnoreImports bool // control whether we ignore imports in packages
@@ -2090,6 +2092,9 @@ func validEmbedPattern(pattern string) bool {
 // can't or won't be included in modules and therefore shouldn't be treated
 // as existing for embedding.
 func isBadEmbedName(name string) bool {
+	if err := module.CheckFilePath(name); err != nil {
+		return true
+	}
 	switch name {
 	// Empty string should be impossible but make it bad.
 	case "":
