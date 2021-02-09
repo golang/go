@@ -174,30 +174,36 @@ func (subst *subster) node(n ir.Node) ir.Node {
 		}
 		ir.EditChildren(m, edit)
 
-		// A method value/call via a type param will have been left as an
-		// OXDOT. When we see this during stenciling, finish the
-		// typechecking, now that we have the instantiated receiver type.
-		// We need to do this now, since the access/selection to the
-		// method for the real type is very different from the selection
-		// for the type param.
 		if x.Op() == ir.OXDOT {
-			// Will transform to an OCALLPART
+			// A method value/call via a type param will have been left as an
+			// OXDOT. When we see this during stenciling, finish the
+			// typechecking, now that we have the instantiated receiver type.
+			// We need to do this now, since the access/selection to the
+			// method for the real type is very different from the selection
+			// for the type param.
 			m.SetTypecheck(0)
+			// m will transform to an OCALLPART
 			typecheck.Expr(m)
 		}
 		if x.Op() == ir.OCALL {
 			call := m.(*ir.CallExpr)
-			if call.X.Op() != ir.OCALLPART {
-				base.FatalfAt(call.Pos(), "Expecting OXDOT with CALL")
+			if call.X.Op() == ir.OTYPE {
+				// Do typechecking on a conversion, now that we
+				// know the type argument.
+				m.SetTypecheck(0)
+				m = typecheck.Expr(m)
+			} else if call.X.Op() == ir.OCALLPART {
+				// Redo the typechecking, now that we know the method
+				// value is being called.
+				call.X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
+				call.X.SetTypecheck(0)
+				call.X.SetType(nil)
+				typecheck.Callee(call.X)
+				m.SetTypecheck(0)
+				typecheck.Call(m.(*ir.CallExpr))
+			} else {
+				base.FatalfAt(call.Pos(), "Expecting OCALLPART or OTYPE with CALL")
 			}
-			// Redo the typechecking, now that we know the method
-			// value is being called
-			call.X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
-			call.X.SetTypecheck(0)
-			call.X.SetType(nil)
-			typecheck.Callee(call.X)
-			m.SetTypecheck(0)
-			typecheck.Call(m.(*ir.CallExpr))
 		}
 
 		if x.Op() == ir.OCLOSURE {
