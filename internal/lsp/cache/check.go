@@ -522,7 +522,6 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *pkg) ([]*source.Diagnost
 		}
 		relevantErrors = append(relevantErrors, depsError)
 	}
-	event.Log(ctx, fmt.Sprintf("errors before (%#v) and after filtering (%#v)", pkg.m.depsErrors, relevantErrors))
 
 	// Don't build the import index for nothing.
 	if len(relevantErrors) == 0 {
