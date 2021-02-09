@@ -132,7 +132,7 @@ func (TestDeps) SetPanicOnExit0(v bool) {
 	testlog.SetPanicOnExit0(v)
 }
 
-func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed []fuzz.CorpusEntry, corpusDir, cacheDir string) error {
+func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed []fuzz.CorpusEntry, corpusDir, cacheDir string) (err error) {
 	// Fuzzing may be interrupted with a timeout or if the user presses ^C.
 	// In either case, we'll stop worker processes gracefully and save
 	// crashers and interesting values.
@@ -143,14 +143,14 @@ func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed []fu
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
 	defer stop()
 	defer cancel()
-	err := fuzz.CoordinateFuzzing(ctx, parallel, seed, corpusDir, cacheDir)
+	err = fuzz.CoordinateFuzzing(ctx, parallel, seed, corpusDir, cacheDir)
 	if err == ctx.Err() {
 		return nil
 	}
 	return err
 }
 
-func (TestDeps) RunFuzzWorker(fn func([]byte) error) error {
+func (TestDeps) RunFuzzWorker(fn func(fuzz.CorpusEntry) error) error {
 	// Worker processes may or may not receive a signal when the user presses ^C
 	// On POSIX operating systems, a signal sent to a process group is delivered
 	// to all processes in that group. This is not the case on Windows.
