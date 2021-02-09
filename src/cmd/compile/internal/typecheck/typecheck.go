@@ -1175,7 +1175,7 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 			base.Errorf("%v is both field and method", n.Sel)
 		}
 		if f1.Offset == types.BADWIDTH {
-			base.Fatalf("lookdot badwidth %v %p", f1, f1)
+			base.Fatalf("lookdot badwidth t=%v, f1=%v@%p", t, f1, f1)
 		}
 		n.Selection = f1
 		n.SetType(f1.Type)

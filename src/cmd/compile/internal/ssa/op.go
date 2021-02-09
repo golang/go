@@ -86,63 +86,39 @@ type AuxCall struct {
 	abiInfo *abi.ABIParamResultInfo // TODO remove fields above redundant with this information.
 }
 
-// ResultForOffsetAndType returns the index of a t-typed result at *A* particular offset among the results.
-// An arbitrary number of zero-width-typed results may reside at the same offset with a single not-zero-width
-// typed result, but the ones with the same type are all indistinguishable so it doesn't matter "which one"
-// is obtained.
-// This does not include the mem result for the call opcode.
-func (a *AuxCall) ResultForOffsetAndType(offset int64, t *types.Type) int64 {
-	which := int64(-1)
-	for i := int64(0); i < a.NResults(); i++ { // note aux NResults does not include mem result.
-		if a.OffsetOfResult(i) == offset && a.TypeOfResult(i) == t {
-			which = i
-			break
-		}
-	}
-	return which
-}
-
 // OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
 func (a *AuxCall) OffsetOfResult(which int64) int64 {
-	o := int64(a.results[which].Offset)
 	n := int64(a.abiInfo.OutParam(int(which)).Offset())
-	if o != n {
-		panic(fmt.Errorf("Result old=%d, new=%d, auxcall=%s, oparams=%v", o, n, a, a.abiInfo.OutParams()))
-	}
-	return int64(a.abiInfo.OutParam(int(which)).Offset())
+	return n
 }
 
 // OffsetOfArg returns the SP offset of argument which (indexed 0, 1, etc).
 // If the call is to a method, the receiver is the first argument (i.e., index 0)
 func (a *AuxCall) OffsetOfArg(which int64) int64 {
-	o := int64(a.args[which].Offset)
 	n := int64(a.abiInfo.InParam(int(which)).Offset())
-	if o != n {
-		panic(fmt.Errorf("Arg old=%d, new=%d, auxcall=%s, iparams=%v", o, n, a, a.abiInfo.InParams()))
-	}
-	return int64(a.abiInfo.InParam(int(which)).Offset())
+	return n
 }
 
 // RegsOfResult returns the register(s) used for result which (indexed 0, 1, etc).
 func (a *AuxCall) RegsOfResult(which int64) []abi.RegIndex {
-	return a.results[which].Reg
+	return a.abiInfo.OutParam(int(which)).Registers
 }
 
 // RegsOfArg returns the register(s) used for argument which (indexed 0, 1, etc).
 // If the call is to a method, the receiver is the first argument (i.e., index 0)
 func (a *AuxCall) RegsOfArg(which int64) []abi.RegIndex {
-	return a.args[which].Reg
+	return a.abiInfo.InParam(int(which)).Registers
 }
 
 // TypeOfResult returns the type of result which (indexed 0, 1, etc).
 func (a *AuxCall) TypeOfResult(which int64) *types.Type {
-	return a.results[which].Type
+	return a.abiInfo.OutParam(int(which)).Type
 }
 
 // TypeOfArg returns the type of argument which (indexed 0, 1, etc).
 // If the call is to a method, the receiver is the first argument (i.e., index 0)
 func (a *AuxCall) TypeOfArg(which int64) *types.Type {
-	return a.args[which].Type
+	return a.abiInfo.InParam(int(which)).Type
 }
 
 // SizeOfResult returns the size of result which (indexed 0, 1, etc).
@@ -158,7 +134,7 @@ func (a *AuxCall) SizeOfArg(which int64) int64 {
 
 // NResults returns the number of results
 func (a *AuxCall) NResults() int64 {
-	return int64(len(a.results))
+	return int64(len(a.abiInfo.OutParams()))
 }
 
 // LateExpansionResultType returns the result type (including trailing mem)
@@ -174,7 +150,7 @@ func (a *AuxCall) LateExpansionResultType() *types.Type {
 
 // NArgs returns the number of arguments (including receiver, if there is one).
 func (a *AuxCall) NArgs() int64 {
-	return int64(len(a.args))
+	return int64(len(a.abiInfo.InParams()))
 }
 
 // String returns
