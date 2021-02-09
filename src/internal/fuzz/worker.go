@@ -96,6 +96,11 @@ func (w *worker) runFuzzing() error {
 				w.stop()
 				return nil
 			}
+			if w.waitErr == nil {
+				// Worker exited 0.
+				w.stop()
+				return fmt.Errorf("worker exited unexpectedly with status 0")
+			}
 
 			// Unexpected termination. Inform the coordinator about the crash.
 			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
@@ -108,11 +113,7 @@ func (w *worker) runFuzzing() error {
 				errMsg:      message,
 			}
 			w.coordinator.crasherC <- crasher
-			err := w.stop()
-			if err == nil {
-				err = fmt.Errorf("worker exited unexpectedly")
-			}
-			return err
+			return w.stop()
 
 		case input := <-inputC:
 			// Received input from coordinator.
