@@ -943,9 +943,13 @@ func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
 			check.errorf(pos, "duplicate method %s", m.name)
 			check.errorf(mpos[other.(*Func)], "\tother declaration of %s", m.name) // secondary error, \t indented
 		default:
-			// check method signatures after all types are computed (issue #33656)
+			// We have a duplicate method name in an embedded (not explicitly declared) method.
+			// Check method signatures after all types are computed (issue #33656).
+			// If we're pre-go1.14 (overlapping embeddings are not permitted), report that
+			// error here as well (even though we could do it eagerly) because it's the same
+			// error message.
 			check.atEnd(func() {
-				if !check.identical(m.typ, other.Type()) {
+				if !check.allowVersion(m.pkg, 1, 14) || !check.identical(m.typ, other.Type()) {
 					check.errorf(pos, "duplicate method %s", m.name)
 					check.errorf(mpos[other.(*Func)], "\tother declaration of %s", m.name) // secondary error, \t indented
 				}
