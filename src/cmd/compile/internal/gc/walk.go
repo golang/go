@@ -550,8 +550,12 @@ opswitch:
 	case OCLOSUREVAR, OCFUNC:
 
 	case OCALLINTER, OCALLFUNC, OCALLMETH:
-		if n.Op == OCALLINTER {
+		if n.Op == OCALLINTER || n.Op == OCALLMETH {
+			// We expect both interface call reflect.Type.Method and concrete
+			// call reflect.(*rtype).Method.
 			usemethod(n)
+		}
+		if n.Op == OCALLINTER {
 			markUsedIfaceMethod(n)
 		}
 
@@ -3706,6 +3710,16 @@ func usemethod(n *Node) {
 			return
 		}
 		if !res1.Type.IsBoolean() {
+			return
+		}
+	}
+
+	// Don't mark reflect.(*rtype).Method, etc. themselves in the reflect package.
+	// Those functions may be alive via the itab, which should not cause all methods
+	// alive. We only want to mark their callers.
+	if myimportpath == "reflect" {
+		switch Curfn.Func.Nname.Sym.Name { // TODO: is there a better way than hardcoding the names?
+		case "(*rtype).Method", "(*rtype).MethodByName", "(*interfaceType).Method", "(*interfaceType).MethodByName":
 			return
 		}
 	}
