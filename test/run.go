@@ -1964,7 +1964,6 @@ var excluded = map[string]bool{
 	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors
 	"fixedbugs/issue28268.go":  true, // types2 reports follow-on errors
 	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
-	"fixedbugs/issue34329.go":  true, // types2 is missing support for -lang flag
 	"fixedbugs/issue41575.go":  true, // types2 reports alternative positions in separate error
 	"fixedbugs/issue42058a.go": true, // types2 doesn't report "channel element type too large"
 	"fixedbugs/issue42058b.go": true, // types2 doesn't report "channel element type too large"
