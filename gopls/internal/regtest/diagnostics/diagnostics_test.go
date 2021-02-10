@@ -16,7 +16,6 @@ import (
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/testenv"
 )
 
@@ -526,7 +525,6 @@ func _() {
 `
 	Run(t, generated, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		original := env.ReadWorkspaceFile("main.go")
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
 			OnceMet(
@@ -534,12 +532,8 @@ func _() {
 				ReadDiagnostics("main.go", &d),
 			),
 		)
-		// Apply fixes and save the buffer.
-		env.ApplyQuickFixes("main.go", d.Diagnostics)
-		env.SaveBuffer("main.go")
-		fixed := env.ReadWorkspaceFile("main.go")
-		if original != fixed {
-			t.Fatalf("generated file was changed by quick fixes:\n%s", tests.Diff(t, original, fixed))
+		if fixes := env.GetQuickFixes("main.go", d.Diagnostics); len(fixes) != 0 {
+			t.Errorf("got quick fixes %v, wanted none", fixes)
 		}
 	})
 }

@@ -573,15 +573,15 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 		}
 		if err != nil {
 			event.Error(ctx, "initial workspace load failed", err)
-			if modDiagnostics != nil {
-				s.initializedErr = &source.CriticalError{
-					MainError: errors.Errorf("errors loading modules: %v: %w", err, modDiagnostics),
-					DiagList:  modDiagnostics,
-				}
-			} else {
-				s.initializedErr = &source.CriticalError{
-					MainError: err,
-				}
+			extractedDiags, _ := s.extractGoCommandErrors(ctx, err.Error())
+			s.initializedErr = &source.CriticalError{
+				MainError: err,
+				DiagList:  append(modDiagnostics, extractedDiags...),
+			}
+		} else if len(modDiagnostics) != 0 {
+			s.initializedErr = &source.CriticalError{
+				MainError: fmt.Errorf("error loading module names"),
+				DiagList:  modDiagnostics,
 			}
 		} else {
 			// Clear out the initialization error, in case it had been set

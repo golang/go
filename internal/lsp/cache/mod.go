@@ -60,13 +60,26 @@ func (s *snapshot) ParseMod(ctx context.Context, modFH source.FileHandle) (*sour
 			Converter: span.NewContentConverter(modFH.URI().Filename(), contents),
 			Content:   contents,
 		}
-		file, err := modfile.Parse(modFH.URI().Filename(), contents, nil)
-
+		file, parseErr := modfile.Parse(modFH.URI().Filename(), contents, nil)
 		// Attempt to convert the error to a standardized parse error.
 		var parseErrors []*source.Diagnostic
-		if err != nil {
-			if parseErr := extractErrorWithPosition(ctx, err.Error(), s); parseErr != nil {
-				parseErrors = []*source.Diagnostic{parseErr}
+		if parseErr != nil {
+			mfErrList, ok := parseErr.(modfile.ErrorList)
+			if !ok {
+				return &parseModData{err: fmt.Errorf("unexpected parse error type %v", parseErr)}
+			}
+			for _, mfErr := range mfErrList {
+				rng, err := rangeFromPositions(m, mfErr.Pos, mfErr.Pos)
+				if err != nil {
+					return &parseModData{err: err}
+				}
+				parseErrors = []*source.Diagnostic{{
+					URI:      modFH.URI(),
+					Range:    rng,
+					Severity: protocol.SeverityError,
+					Source:   source.ParseError,
+					Message:  mfErr.Err.Error(),
+				}}
 			}
 		}
 		return &parseModData{
@@ -76,7 +89,7 @@ func (s *snapshot) ParseMod(ctx context.Context, modFH source.FileHandle) (*sour
 				File:        file,
 				ParseErrors: parseErrors,
 			},
-			err: err,
+			err: parseErr,
 		}
 	}, nil)
 
@@ -214,46 +227,67 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 
 // extractGoCommandError tries to parse errors that come from the go command
 // and shape them into go.mod diagnostics.
-func (s *snapshot) extractGoCommandErrors(ctx context.Context, snapshot source.Snapshot, goCmdError string) []*source.Diagnostic {
-	var srcErrs []*source.Diagnostic
-	if srcErr := s.parseModError(ctx, goCmdError); srcErr != nil {
-		srcErrs = append(srcErrs, srcErr...)
+func (s *snapshot) extractGoCommandErrors(ctx context.Context, goCmdError string) ([]*source.Diagnostic, error) {
+	diagLocations := map[*source.ParsedModule]span.Span{}
+	backupDiagLocations := map[*source.ParsedModule]span.Span{}
+
+	// The go command emits parse errors for completely invalid go.mod files.
+	// Those are reported by our own diagnostics and can be ignored here.
+	// As of writing, we are not aware of any other errors that include
+	// file/position information, so don't even try to find it.
+	if strings.Contains(goCmdError, "errors parsing go.mod") {
+		return nil, nil
 	}
-	if srcErr := extractErrorWithPosition(ctx, goCmdError, s); srcErr != nil {
-		srcErrs = append(srcErrs, srcErr)
-	} else {
-		for _, uri := range s.ModFiles() {
-			fh, err := s.GetFile(ctx, uri)
-			if err != nil {
-				continue
-			}
-			if srcErr := s.matchErrorToModule(ctx, fh, goCmdError); srcErr != nil {
-				srcErrs = append(srcErrs, srcErr)
-			}
+
+	// Match the error against all the mod files in the workspace.
+	for _, uri := range s.ModFiles() {
+		fh, err := s.GetFile(ctx, uri)
+		if err != nil {
+			return nil, err
+		}
+		pm, err := s.ParseMod(ctx, fh)
+		if err != nil {
+			return nil, err
+		}
+		spn, found, err := s.matchErrorToModule(ctx, pm, goCmdError)
+		if err != nil {
+			return nil, err
+		}
+		if found {
+			diagLocations[pm] = spn
+		} else {
+			backupDiagLocations[pm] = spn
 		}
 	}
-	return srcErrs
+
+	// If we didn't find any good matches, assign diagnostics to all go.mod files.
+	if len(diagLocations) == 0 {
+		diagLocations = backupDiagLocations
+	}
+
+	var srcErrs []*source.Diagnostic
+	for pm, spn := range diagLocations {
+		diag, err := s.goCommandDiagnostic(pm, spn, goCmdError)
+		if err != nil {
+			return nil, err
+		}
+		srcErrs = append(srcErrs, diag)
+	}
+	return srcErrs, nil
 }
 
 var moduleVersionInErrorRe = regexp.MustCompile(`[:\s]([+-._~0-9A-Za-z]+)@([+-._~0-9A-Za-z]+)[:\s]`)
 
-// matchErrorToModule attempts to match module version in error messages.
+// matchErrorToModule matches a go command error message to a go.mod file.
 // Some examples:
 //
 //    example.com@v1.2.2: reading example.com/@v/v1.2.2.mod: no such file or directory
 //    go: github.com/cockroachdb/apd/v2@v2.0.72: reading github.com/cockroachdb/apd/go.mod at revision v2.0.72: unknown revision v2.0.72
 //    go: example.com@v1.2.3 requires\n\trandom.org@v1.2.3: parsing go.mod:\n\tmodule declares its path as: bob.org\n\tbut was required as: random.org
 //
-// We search for module@version, starting from the end to find the most
-// relevant module, e.g. random.org@v1.2.3 above. Then we associate the error
-// with a directive that references any of the modules mentioned.
-func (s *snapshot) matchErrorToModule(ctx context.Context, fh source.FileHandle, goCmdError string) *source.Diagnostic {
-	pm, err := s.ParseMod(ctx, fh)
-	if err != nil {
-		return nil
-	}
-
-	var innermost *module.Version
+// It returns the location of a reference to the one of the modules and true
+// if one exists. If none is found it returns a fallback location and false.
+func (s *snapshot) matchErrorToModule(ctx context.Context, pm *source.ParsedModule, goCmdError string) (span.Span, bool, error) {
 	var reference *modfile.Line
 	matches := moduleVersionInErrorRe.FindAllStringSubmatch(goCmdError, -1)
 
@@ -267,9 +301,6 @@ func (s *snapshot) matchErrorToModule(ctx context.Context, fh source.FileHandle,
 		if err := module.Check(ver.Path, ver.Version); err != nil {
 			continue
 		}
-		if innermost == nil {
-			innermost = &ver
-		}
 		reference = findModuleReference(pm.File, ver)
 		if reference != nil {
 			break
@@ -278,52 +309,112 @@ func (s *snapshot) matchErrorToModule(ctx context.Context, fh source.FileHandle,
 
 	if reference == nil {
 		// No match for the module path was found in the go.mod file.
-		// Show the error on the module declaration, if one exists.
+		// Show the error on the module declaration, if one exists, or
+		// just the first line of the file.
 		if pm.File.Module == nil {
-			return nil
+			return span.New(pm.URI, span.NewPoint(1, 1, 0), span.Point{}), false, nil
 		}
-		reference = pm.File.Module.Syntax
+		spn, err := spanFromPositions(pm.Mapper, pm.File.Module.Syntax.Start, pm.File.Module.Syntax.End)
+		return spn, false, err
 	}
 
-	rng, err := rangeFromPositions(pm.Mapper, reference.Start, reference.End)
+	spn, err := spanFromPositions(pm.Mapper, reference.Start, reference.End)
+	return spn, true, err
+}
+
+// goCommandDiagnostic creates a diagnostic for a given go command error.
+func (s *snapshot) goCommandDiagnostic(pm *source.ParsedModule, spn span.Span, goCmdError string) (*source.Diagnostic, error) {
+	rng, err := pm.Mapper.Range(spn)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	disabledByGOPROXY := strings.Contains(goCmdError, "disabled by GOPROXY=off")
-	shouldAddDep := strings.Contains(goCmdError, "to add it")
-	if innermost != nil && (disabledByGOPROXY || shouldAddDep) {
+
+	matches := moduleVersionInErrorRe.FindAllStringSubmatch(goCmdError, -1)
+	var innermost *module.Version
+	for i := len(matches) - 1; i >= 0; i-- {
+		ver := module.Version{Path: matches[i][1], Version: matches[i][2]}
+		// Any module versions that come from the workspace module should not
+		// be shown to the user.
+		if source.IsWorkspaceModuleVersion(ver.Version) {
+			continue
+		}
+		if err := module.Check(ver.Path, ver.Version); err != nil {
+			continue
+		}
+		innermost = &ver
+		break
+	}
+
+	switch {
+	case strings.Contains(goCmdError, "inconsistent vendoring"):
+		cmd, err := command.NewVendorCommand("Run go mod vendor", command.URIArg{URI: protocol.URIFromSpanURI(pm.URI)})
+		if err != nil {
+			return nil, err
+		}
+		return &source.Diagnostic{
+			URI:      pm.URI,
+			Range:    rng,
+			Severity: protocol.SeverityError,
+			Source:   source.ListError,
+			Message: `Inconsistent vendoring detected. Please re-run "go mod vendor".
+See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
+			SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd)},
+		}, nil
+
+	case strings.Contains(goCmdError, "updates to go.sum needed"), strings.Contains(goCmdError, "missing go.sum entry"):
+		var args []protocol.DocumentURI
+		for _, uri := range s.ModFiles() {
+			args = append(args, protocol.URIFromSpanURI(uri))
+		}
+		tidyCmd, err := command.NewTidyCommand("Run go mod tidy", command.URIArgs{URIs: args})
+		if err != nil {
+			return nil, err
+		}
+		updateCmd, err := command.NewUpdateGoSumCommand("Update go.sum", command.URIArgs{URIs: args})
+		if err != nil {
+			return nil, err
+		}
+		msg := "go.sum is out of sync with go.mod. Please update it by applying the quick fix."
+		if innermost != nil {
+			msg = fmt.Sprintf("go.sum is out of sync with go.mod: entry for %v is missing. Please updating it by applying the quick fix.", innermost)
+		}
+		return &source.Diagnostic{
+			URI:      pm.URI,
+			Range:    rng,
+			Severity: protocol.SeverityError,
+			Source:   source.ListError,
+			Message:  msg,
+			SuggestedFixes: []source.SuggestedFix{
+				source.SuggestedFixFromCommand(tidyCmd),
+				source.SuggestedFixFromCommand(updateCmd),
+			},
+		}, nil
+	case strings.Contains(goCmdError, "disabled by GOPROXY=off") && innermost != nil:
 		title := fmt.Sprintf("Download %v@%v", innermost.Path, innermost.Version)
 		cmd, err := command.NewAddDependencyCommand(title, command.DependencyArgs{
-			URI:        protocol.URIFromSpanURI(fh.URI()),
+			URI:        protocol.URIFromSpanURI(pm.URI),
 			AddRequire: false,
 			GoCmdArgs:  []string{fmt.Sprintf("%v@%v", innermost.Path, innermost.Version)},
 		})
 		if err != nil {
-			return nil
-		}
-		msg := goCmdError
-		if disabledByGOPROXY {
-			msg = fmt.Sprintf("%v@%v has not been downloaded", innermost.Path, innermost.Version)
+			return nil, err
 		}
 		return &source.Diagnostic{
-			URI:            fh.URI(),
+			URI:            pm.URI,
 			Range:          rng,
 			Severity:       protocol.SeverityError,
-			Message:        msg,
+			Message:        fmt.Sprintf("%v@%v has not been downloaded", innermost.Path, innermost.Version),
 			Source:         source.ListError,
 			SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd)},
-		}
-	}
-	diagSource := source.ListError
-	if fh != nil {
-		diagSource = source.ParseError
-	}
-	return &source.Diagnostic{
-		URI:      fh.URI(),
-		Range:    rng,
-		Severity: protocol.SeverityError,
-		Source:   diagSource,
-		Message:  goCmdError,
+		}, nil
+	default:
+		return &source.Diagnostic{
+			URI:      pm.URI,
+			Range:    rng,
+			Severity: protocol.SeverityError,
+			Source:   source.ListError,
+			Message:  goCmdError,
+		}, nil
 	}
 }
 
@@ -344,57 +435,4 @@ func findModuleReference(mf *modfile.File, ver module.Version) *modfile.Line {
 		}
 	}
 	return nil
-}
-
-// errorPositionRe matches errors messages of the form <filename>:<line>:<col>,
-// where the <col> is optional.
-var errorPositionRe = regexp.MustCompile(`(?P<pos>.*:([\d]+)(:([\d]+))?): (?P<msg>.+)`)
-
-// extractErrorWithPosition returns a structured error with position
-// information for the given unstructured error. If a file handle is provided,
-// the error position will be on that file. This is useful for parse errors,
-// where we already know the file with the error.
-func extractErrorWithPosition(ctx context.Context, goCmdError string, src source.FileSource) *source.Diagnostic {
-	matches := errorPositionRe.FindStringSubmatch(strings.TrimSpace(goCmdError))
-	if len(matches) == 0 {
-		return nil
-	}
-	var pos, msg string
-	for i, name := range errorPositionRe.SubexpNames() {
-		if name == "pos" {
-			pos = matches[i]
-		}
-		if name == "msg" {
-			msg = matches[i]
-		}
-	}
-	spn := span.Parse(pos)
-	fh, err := src.GetFile(ctx, spn.URI())
-	if err != nil {
-		return nil
-	}
-	content, err := fh.Read()
-	if err != nil {
-		return nil
-	}
-	m := &protocol.ColumnMapper{
-		URI:       spn.URI(),
-		Converter: span.NewContentConverter(spn.URI().Filename(), content),
-		Content:   content,
-	}
-	rng, err := m.Range(spn)
-	if err != nil {
-		return nil
-	}
-	diagSource := source.ListError
-	if fh != nil {
-		diagSource = source.ParseError
-	}
-	return &source.Diagnostic{
-		URI:      spn.URI(),
-		Range:    rng,
-		Severity: protocol.SeverityError,
-		Source:   diagSource,
-		Message:  msg,
-	}
 }

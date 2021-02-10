@@ -1022,22 +1022,22 @@ func (s *snapshot) isOpenLocked(uri span.URI) bool {
 }
 
 func (s *snapshot) awaitLoaded(ctx context.Context) error {
-	err := s.awaitLoadedAllErrors(ctx)
+	loadErr := s.awaitLoadedAllErrors(ctx)
 
 	// If we still have absolutely no metadata, check if the view failed to
 	// initialize and return any errors.
 	// TODO(rstambler): Should we clear the error after we return it?
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if len(s.metadata) == 0 {
-		return err
+	if len(s.metadata) == 0 && loadErr != nil {
+		return loadErr.MainError
 	}
 	return nil
 }
 
 func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
 	loadErr := s.awaitLoadedAllErrors(ctx)
-	if errors.Is(loadErr, context.Canceled) {
+	if loadErr != nil && errors.Is(loadErr.MainError, context.Canceled) {
 		return nil
 	}
 
@@ -1060,14 +1060,10 @@ func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
 		return nil
 	}
 
-	if strings.Contains(loadErr.Error(), "cannot find main module") {
+	if strings.Contains(loadErr.MainError.Error(), "cannot find main module") {
 		return s.workspaceLayoutError(ctx)
 	}
-	criticalErr := &source.CriticalError{
-		MainError: loadErr,
-		DiagList:  s.extractGoCommandErrors(ctx, s, loadErr.Error()),
-	}
-	return criticalErr
+	return loadErr
 }
 
 const adHocPackagesWarning = `You are outside of a module and outside of $GOPATH/src.
@@ -1095,27 +1091,32 @@ func containsCommandLineArguments(pkgs []source.Package) bool {
 	return false
 }
 
-func (s *snapshot) awaitLoadedAllErrors(ctx context.Context) error {
+func (s *snapshot) awaitLoadedAllErrors(ctx context.Context) *source.CriticalError {
 	// Do not return results until the snapshot's view has been initialized.
 	s.AwaitInitialized(ctx)
 
 	if ctx.Err() != nil {
-		return ctx.Err()
+		return &source.CriticalError{MainError: ctx.Err()}
 	}
 
 	if err := s.reloadWorkspace(ctx); err != nil {
-		return err
+		diags, _ := s.extractGoCommandErrors(ctx, err.Error())
+		return &source.CriticalError{
+			MainError: err,
+			DiagList:  diags,
+		}
 	}
 	if err := s.reloadOrphanedFiles(ctx); err != nil {
-		return err
+		diags, _ := s.extractGoCommandErrors(ctx, err.Error())
+		return &source.CriticalError{
+			MainError: err,
+			DiagList:  diags,
+		}
 	}
 	// TODO(rstambler): Should we be more careful about returning the
 	// initialization error? Is it possible for the initialization error to be
 	// corrected without a successful reinitialization?
-	if s.initializedErr == nil {
-		return nil
-	}
-	return s.initializedErr.MainError
+	return s.initializedErr
 }
 
 func (s *snapshot) AwaitInitialized(ctx context.Context) {

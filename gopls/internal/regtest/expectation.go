@@ -12,6 +12,7 @@ import (
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/testenv"
 )
 
 // An Expectation asserts that the state of the editor at a point in time
@@ -579,4 +580,17 @@ func NoDiagnosticAt(name string, line, col int) DiagnosticExpectation {
 // otherwise it may always succeed.
 func NoDiagnosticWithMessage(name, msg string) DiagnosticExpectation {
 	return DiagnosticExpectation{path: name, message: msg, present: false}
+}
+
+// GoSum asserts that a "go.sum is out of sync" diagnostic for the given module
+// (as formatted in a go.mod file, e.g. "example.com v1.0.0") is present.
+func (e *Env) GoSumDiagnostic(name, module string) Expectation {
+	e.T.Helper()
+	// In 1.16, go.sum diagnostics should appear on the relevant module. Earlier
+	// errors have no information and appear on the module declaration.
+	if testenv.Go1Point() >= 16 {
+		return e.DiagnosticAtRegexpWithMessage(name, module, "go.sum is out of sync")
+	} else {
+		return e.DiagnosticAtRegexpWithMessage(name, `module`, "go.sum is out of sync")
+	}
 }

@@ -818,25 +818,25 @@ func main() {
 		Modes(Experimental),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		params := &protocol.PublishDiagnosticsParams{}
-		env.OpenFile("a/go.mod")
+		env.OpenFile("b/go.mod")
 		env.Await(
-			ReadDiagnostics("a/go.mod", params),
+			OnceMet(
+				env.GoSumDiagnostic("b/go.mod", `example.com v1.2.3`),
+				ReadDiagnostics("b/go.mod", params),
+			),
 		)
 		for _, d := range params.Diagnostics {
-			if d.Message != `go.sum is out of sync with go.mod. Please update it by applying the quick fix.` {
+			if !strings.Contains(d.Message, "go.sum is out of sync") {
 				continue
 			}
-			actions, err := env.Editor.GetQuickFixes(env.Ctx, "a/go.mod", nil, []protocol.Diagnostic{d})
-			if err != nil {
-				t.Fatal(err)
-			}
+			actions := env.GetQuickFixes("b/go.mod", []protocol.Diagnostic{d})
 			if len(actions) != 2 {
 				t.Fatalf("expected 2 code actions, got %v", len(actions))
 			}
-			env.ApplyQuickFixes("a/go.mod", []protocol.Diagnostic{d})
+			env.ApplyQuickFixes("b/go.mod", []protocol.Diagnostic{d})
 		}
 		env.Await(
-			EmptyDiagnostics("a/go.mod"),
+			EmptyDiagnostics("b/go.mod"),
 		)
 	})
 }
