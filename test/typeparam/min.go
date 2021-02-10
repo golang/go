@@ -10,8 +10,11 @@ import (
 	"fmt"
 )
 
+type Ordered interface {
+	type int, int64, float64
+}
 
-func min[T interface{ type int }](x, y T) T {
+func min[T Ordered](x, y T) T {
 	if x < y {
 		return x
 	}
@@ -19,14 +22,20 @@ func min[T interface{ type int }](x, y T) T {
 }
 
 func main() {
-	want := 2
-	got := min[int](2, 3)
-	if want != got {
-		panic(fmt.Sprintf("Want %d, got %d", want, got))
+	const want = 2
+	if got := min[int](2, 3); got != want {
+		panic(fmt.Sprintf("got %d, want %d", got, want))
 	}
 
-	got = min(2, 3)
-	if want != got {
-		panic(fmt.Sprintf("Want %d, got %d", want, got))
+	if got := min(2, 3); got != want {
+		panic(fmt.Sprintf("want %d, got %d", want, got))
+	}
+
+	if got := min[float64](3.5, 2.0); got != want {
+		panic(fmt.Sprintf("got %d, want %d", got, want))
+	}
+
+	if got := min(3.5, 2.0); got != want {
+		panic(fmt.Sprintf("got %d, want %d", got, want))
 	}
 }

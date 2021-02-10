@@ -73,16 +73,16 @@ func main() {
 	got := stringify(x)
 	want := []string{"1", "2", "3"}
 	if !reflect.DeepEqual(got, want) {
-		panic(fmt.Sprintf("Got %s, want %s", got, want))
+		panic(fmt.Sprintf("got %s, want %s", got, want))
 	}
 
 	got = stringify2(x)
 	if !reflect.DeepEqual(got, want) {
-		panic(fmt.Sprintf("Got %s, want %s", got, want))
+		panic(fmt.Sprintf("got %s, want %s", got, want))
 	}
 
 	got = stringify3(x)
 	if !reflect.DeepEqual(got, want) {
-		panic(fmt.Sprintf("Got %s, want %s", got, want))
+		panic(fmt.Sprintf("got %s, want %s", got, want))
 	}
 }

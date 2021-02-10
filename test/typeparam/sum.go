@@ -31,20 +31,20 @@ func main() {
 	got := sum[int](vec1)
 	want := vec1[0] + vec1[1]
 	if got != want {
-		panic(fmt.Sprintf("Got %d, want %d", got, want))
+		panic(fmt.Sprintf("got %d, want %d", got, want))
 	}
 	got = sum(vec1)
 	if want != got {
-		panic(fmt.Sprintf("Got %d, want %d", got, want))
+		panic(fmt.Sprintf("got %d, want %d", got, want))
 	}
 
 	fwant := vec2[0] + vec2[1]
 	fgot := sum[float64](vec2)
 	if abs(fgot - fwant) > 1e-10 {
-		panic(fmt.Sprintf("Got %f, want %f", fgot, fwant))
+		panic(fmt.Sprintf("got %f, want %f", fgot, fwant))
 	}
 	fgot = sum(vec2)
 	if abs(fgot - fwant) > 1e-10 {
-		panic(fmt.Sprintf("Got %f, want %f", fgot, fwant))
+		panic(fmt.Sprintf("got %f, want %f", fgot, fwant))
 	}
 }

@@ -80,7 +80,7 @@ func makeInstName(inst *ir.InstExpr) *types.Sym {
 		if i > 0 {
 			b.WriteString(",")
 		}
-		b.WriteString(targ.Name().Sym().Name)
+		b.WriteString(targ.Type().String())
 	}
 	b.WriteString("]")
 	return typecheck.Lookup(b.String())
@@ -107,6 +107,7 @@ func genericSubst(name *types.Sym, inst *ir.InstExpr) *ir.Func {
 	newf.Nname = ir.NewNameAt(inst.Pos(), name)
 	newf.Nname.Func = newf
 	newf.Nname.Defn = newf
+	name.Def = newf.Nname
 
 	subst := &subster{
 		newf:    newf,
@@ -160,6 +161,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			m.SetType(newt)
 			m.Curfn = subst.newf
 			m.Class = name.Class
+			m.Func = name.Func
 			subst.vars[name] = m
 			m.SetTypecheck(1)
 			return m
@@ -170,7 +172,17 @@ func (subst *subster) node(n ir.Node) ir.Node {
 		}
 		m := ir.Copy(x)
 		if _, isExpr := m.(ir.Expr); isExpr {
-			m.SetType(subst.typ(x.Type()))
+			t := x.Type()
+			if t == nil {
+				// t can be nil only if this is a call that has no
+				// return values, so allow that and otherwise give
+				// an error.
+				if _, isCallExpr := m.(*ir.CallExpr); !isCallExpr {
+					base.Fatalf(fmt.Sprintf("Nil type for %v", x))
+				}
+			} else {
+				m.SetType(subst.typ(x.Type()))
+			}
 		}
 		ir.EditChildren(m, edit)
 

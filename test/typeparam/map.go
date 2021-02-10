@@ -26,7 +26,7 @@ func main() {
 	got := mapper([]int{1, 2, 3}, strconv.Itoa)
 	want := []string{"1", "2", "3"}
 	if !reflect.DeepEqual(got, want) {
-		panic(fmt.Sprintf("Got %s, want %s", got, want))
+		panic(fmt.Sprintf("got %s, want %s", got, want))
 	}
 
 	fgot := mapper([]float64{2.5, 2.3, 3.5}, func(f float64) string {
@@ -34,6 +34,6 @@ func main() {
 	})
 	fwant := []string{"2.5", "2.3", "3.5"}
 	if !reflect.DeepEqual(fgot, fwant) {
-		panic(fmt.Sprintf("Got %s, want %s", fgot, fwant))
+		panic(fmt.Sprintf("got %s, want %s", fgot, fwant))
 	}
 }
