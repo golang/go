@@ -269,8 +269,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpMIPSCMPGTD:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = v.Args[0].Reg()
 		p.Reg = v.Args[1].Reg()
+		p.From.Reg = v.Args[0].Reg()
 	case ssa.OpMIPSMOVWaddr:
 		p := s.Prog(mips.AMOVW)
 		p.From.Type = obj.TYPE_ADDR
