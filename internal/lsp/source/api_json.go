@@ -742,7 +742,7 @@ var GeneratedAPIJSON = &APIJSON{
 			Command: "gopls.tidy",
 			Title:   "Run go mod tidy",
 			Doc:     "Runs `go mod tidy` for a module.",
-			ArgDoc:  "{\n\t// The file URI.\n\t\"URIs\": []string,\n}",
+			ArgDoc:  "{\n\t// The file URIs.\n\t\"URIs\": []string,\n}",
 		},
 		{
 			Command: "gopls.toggle_gc_details",
@@ -754,7 +754,7 @@ var GeneratedAPIJSON = &APIJSON{
 			Command: "gopls.update_go_sum",
 			Title:   "Update go.sum",
 			Doc:     "Updates the go.sum file for a module.",
-			ArgDoc:  "{\n\t// The file URI.\n\t\"URIs\": []string,\n}",
+			ArgDoc:  "{\n\t// The file URIs.\n\t\"URIs\": []string,\n}",
 		},
 		{
 			Command: "gopls.upgrade_dependency",

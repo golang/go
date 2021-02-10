@@ -193,7 +193,7 @@ Args:
 
 ```
 {
-	// The file URI.
+	// The file URIs.
 	"URIs": []string,
 }
 ```
@@ -221,7 +221,7 @@ Args:
 
 ```
 {
-	// The file URI.
+	// The file URIs.
 	"URIs": []string,
 }
 ```

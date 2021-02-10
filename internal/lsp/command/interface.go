@@ -152,7 +152,7 @@ type URIArg struct {
 }
 
 type URIArgs struct {
-	// The file URI.
+	// The file URIs.
 	URIs []protocol.DocumentURI
 }
 

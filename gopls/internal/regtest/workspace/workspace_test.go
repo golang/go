@@ -826,7 +826,7 @@ func main() {
 			if d.Message != `go.sum is out of sync with go.mod. Please update it by applying the quick fix.` {
 				continue
 			}
-			actions, err := env.GetQuickFixes("a/go.mod", []protocol.Diagnostic{d})
+			actions, err := env.Editor.GetQuickFixes(env.Ctx, "a/go.mod", nil, []protocol.Diagnostic{d})
 			if err != nil {
 				t.Fatal(err)
 			}
