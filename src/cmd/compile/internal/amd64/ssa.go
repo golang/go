@@ -176,8 +176,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 	case ssa.OpAMD64ADDQ, ssa.OpAMD64ADDL:
 		r := v.Reg()
-		r1 := v.Args[0].Reg()
 		r2 := v.Args[1].Reg()
+		r1 := v.Args[0].Reg()
 		switch {
 		case r == r1:
 			p := s.Prog(v.Op.Asm())
