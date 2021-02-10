@@ -26,6 +26,9 @@ The flags are:
 		Do not print reformatted sources to standard output.
 		If a file's formatting is different from gofmt's, print its name
 		to standard output.
+	-G
+		Allow generic code, using type parameters.
+		See golang.org/issues/43651 for more information.
 	-r rule
 		Apply the rewrite rule to the source before reformatting.
 	-s
