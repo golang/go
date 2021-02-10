@@ -751,9 +751,9 @@ func schedinit() {
 }
 
 func dumpgstatus(gp *g) {
-	_g_ := getg()
-	print("runtime: gp: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", readgstatus(gp), "\n")
-	print("runtime:  g:  g=", _g_, ", goid=", _g_.goid, ",  g->atomicstatus=", readgstatus(_g_), "\n")
+	thisg := getg()
+	print("runtime:   gp: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", readgstatus(gp), "\n")
+	print("runtime: getg:  g=", thisg, ", goid=", thisg.goid, ",  g->atomicstatus=", readgstatus(thisg), "\n")
 }
 
 // sched.lock must be held.
@@ -848,7 +848,6 @@ func ready(gp *g, traceskip int, next bool) {
 	status := readgstatus(gp)
 
 	// Mark runnable.
-	_g_ := getg()
 	mp := acquirem() // disable preemption because it can be holding p in a local var
 	if status&^_Gscan != _Gwaiting {
 		dumpgstatus(gp)
@@ -857,7 +856,7 @@ func ready(gp *g, traceskip int, next bool) {
 
 	// status is Gwaiting or Gscanwaiting, make Grunnable and put on runq
 	casgstatus(gp, _Gwaiting, _Grunnable)
-	runqput(_g_.m.p.ptr(), gp, next)
+	runqput(mp.p.ptr(), gp, next)
 	wakep()
 	releasem(mp)
 }
@@ -2453,10 +2452,8 @@ func stoplockedm() {
 //
 //go:nowritebarrierrec
 func startlockedm(gp *g) {
-	_g_ := getg()
-
 	mp := gp.lockedm.ptr()
-	if mp == _g_.m {
+	if mp == getg().m {
 		throw("startlockedm: locked to me")
 	}
 	if mp.nextp != 0 {
@@ -2507,7 +2504,7 @@ func gcstopm() {
 //
 //go:yeswritebarrierrec
 func execute(gp *g, inheritTime bool) {
-	_g_ := getg()
+	mp := getg().m
 
 	if goroutineProfile.active {
 		// Make sure that gp has had its stack written out to the goroutine
@@ -2518,19 +2515,19 @@ func execute(gp *g, inheritTime bool) {
 
 	// Assign gp.m before entering _Grunning so running Gs have an
 	// M.
-	_g_.m.curg = gp
-	gp.m = _g_.m
+	mp.curg = gp
+	gp.m = mp
 	casgstatus(gp, _Grunnable, _Grunning)
 	gp.waitsince = 0
 	gp.preempt = false
 	gp.stackguard0 = gp.stack.lo + _StackGuard
 	if !inheritTime {
-		_g_.m.p.ptr().schedtick++
+		mp.p.ptr().schedtick++
 	}
 
 	// Check whether the profiler needs to be turned on or off.
 	hz := sched.profilehz
-	if _g_.m.profilehz != hz {
+	if mp.profilehz != hz {
 		setThreadCPUProfiler(hz)
 	}
 
@@ -2551,14 +2548,14 @@ func execute(gp *g, inheritTime bool) {
 // tryWakeP indicates that the returned goroutine is not normal (GC worker, trace
 // reader) so the caller should try to wake a P.
 func findRunnable() (gp *g, inheritTime, tryWakeP bool) {
-	_g_ := getg()
+	mp := getg().m
 
 	// The conditions here and in handoffp must agree: if
 	// findrunnable would return a G to run, handoffp must start
 	// an M.
 
 top:
-	pp := _g_.m.p.ptr()
+	pp := mp.p.ptr()
 	if sched.gcwaiting != 0 {
 		gcstopm()
 		goto top
@@ -2653,9 +2650,9 @@ top:
 	// This is necessary to prevent excessive CPU consumption when
 	// GOMAXPROCS>>1 but the program parallelism is low.
 	procs := uint32(gomaxprocs)
-	if _g_.m.spinning || 2*atomic.Load(&sched.nmspinning) < procs-atomic.Load(&sched.npidle) {
-		if !_g_.m.spinning {
-			_g_.m.spinning = true
+	if mp.spinning || 2*atomic.Load(&sched.nmspinning) < procs-atomic.Load(&sched.npidle) {
+		if !mp.spinning {
+			mp.spinning = true
 			atomic.Xadd(&sched.nmspinning, 1)
 		}
 
@@ -2757,9 +2754,9 @@ top:
 	// we also observe no idle Ps it is OK to skip unparking a new worker
 	// thread: the system is fully loaded so no spinning threads are required.
 	// Also see "Worker thread parking/unparking" comment at the top of the file.
-	wasSpinning := _g_.m.spinning
-	if _g_.m.spinning {
-		_g_.m.spinning = false
+	wasSpinning := mp.spinning
+	if mp.spinning {
+		mp.spinning = false
 		if int32(atomic.Xadd(&sched.nmspinning, -1)) < 0 {
 			throw("findrunnable: negative nmspinning")
 		}
@@ -2774,7 +2771,7 @@ top:
 		pp = checkRunqsNoP(allpSnapshot, idlepMaskSnapshot)
 		if pp != nil {
 			acquirep(pp)
-			_g_.m.spinning = true
+			mp.spinning = true
 			atomic.Xadd(&sched.nmspinning, 1)
 			goto top
 		}
@@ -2783,7 +2780,7 @@ top:
 		pp, gp = checkIdleGCNoP()
 		if pp != nil {
 			acquirep(pp)
-			_g_.m.spinning = true
+			mp.spinning = true
 			atomic.Xadd(&sched.nmspinning, 1)
 
 			// Run the idle worker.
@@ -2807,10 +2804,10 @@ top:
 	// Poll network until next timer.
 	if netpollinited() && (atomic.Load(&netpollWaiters) > 0 || pollUntil != 0) && atomic.Xchg64(&sched.lastpoll, 0) != 0 {
 		atomic.Store64(&sched.pollUntil, uint64(pollUntil))
-		if _g_.m.p != 0 {
+		if mp.p != 0 {
 			throw("findrunnable: netpoll with p")
 		}
-		if _g_.m.spinning {
+		if mp.spinning {
 			throw("findrunnable: netpoll with spinning")
 		}
 		// Refresh now.
@@ -2852,7 +2849,7 @@ top:
 				return gp, false, false
 			}
 			if wasSpinning {
-				_g_.m.spinning = true
+				mp.spinning = true
 				atomic.Xadd(&sched.nmspinning, 1)
 			}
 			goto top
@@ -3175,31 +3172,31 @@ func injectglist(glist *gList) {
 // One round of scheduler: find a runnable goroutine and execute it.
 // Never returns.
 func schedule() {
-	_g_ := getg()
+	mp := getg().m
 
-	if _g_.m.locks != 0 {
+	if mp.locks != 0 {
 		throw("schedule: holding locks")
 	}
 
-	if _g_.m.lockedg != 0 {
+	if mp.lockedg != 0 {
 		stoplockedm()
-		execute(_g_.m.lockedg.ptr(), false) // Never returns.
+		execute(mp.lockedg.ptr(), false) // Never returns.
 	}
 
 	// We should not schedule away from a g that is executing a cgo call,
 	// since the cgo call is using the m's g0 stack.
-	if _g_.m.incgo {
+	if mp.incgo {
 		throw("schedule: in cgo")
 	}
 
 top:
-	pp := _g_.m.p.ptr()
+	pp := mp.p.ptr()
 	pp.preempt = false
 
 	// Safety check: if we are spinning, the run queue should be empty.
 	// Check this before calling checkTimers, as that might call
 	// goready to put a ready goroutine on the local run queue.
-	if _g_.m.spinning && (pp.runnext != 0 || pp.runqhead != pp.runqtail) {
+	if mp.spinning && (pp.runnext != 0 || pp.runqhead != pp.runqtail) {
 		throw("schedule: spinning with local work")
 	}
 
@@ -3208,7 +3205,7 @@ top:
 	// This thread is going to run a goroutine and is not spinning anymore,
 	// so if it was marked as spinning we need to reset it now and potentially
 	// start a new spinning M.
-	if _g_.m.spinning {
+	if mp.spinning {
 		resetspinning()
 	}
 
@@ -3331,19 +3328,19 @@ func parkunlock_c(gp *g, lock unsafe.Pointer) bool {
 
 // park continuation on g0.
 func park_m(gp *g) {
-	_g_ := getg()
+	mp := getg().m
 
 	if trace.enabled {
-		traceGoPark(_g_.m.waittraceev, _g_.m.waittraceskip)
+		traceGoPark(mp.waittraceev, mp.waittraceskip)
 	}
 
 	casgstatus(gp, _Grunning, _Gwaiting)
 	dropg()
 
-	if fn := _g_.m.waitunlockf; fn != nil {
-		ok := fn(gp, _g_.m.waitlock)
-		_g_.m.waitunlockf = nil
-		_g_.m.waitlock = nil
+	if fn := mp.waitunlockf; fn != nil {
+		ok := fn(gp, mp.waitlock)
+		mp.waitunlockf = nil
+		mp.waitlock = nil
 		if !ok {
 			if trace.enabled {
 				traceGoUnpark(gp, 2)
@@ -3470,8 +3467,8 @@ func goexit1() {
 
 // goexit continuation on g0.
 func goexit0(gp *g) {
-	_g_ := getg()
-	pp := _g_.m.p.ptr()
+	mp := getg().m
+	pp := mp.p.ptr()
 
 	casgstatus(gp, _Grunning, _Gdead)
 	gcController.addScannableStack(pp, -int64(gp.stack.hi-gp.stack.lo))
@@ -3481,7 +3478,7 @@ func goexit0(gp *g) {
 	gp.m = nil
 	locked := gp.lockedm != 0
 	gp.lockedm = 0
-	_g_.m.lockedg = 0
+	mp.lockedg = 0
 	gp.preemptStop = false
 	gp.paniconfault = false
 	gp._defer = nil // should be true already but just in case.
@@ -3509,8 +3506,8 @@ func goexit0(gp *g) {
 		schedule() // never returns
 	}
 
-	if _g_.m.lockedInt != 0 {
-		print("invalid m->lockedInt = ", _g_.m.lockedInt, "\n")
+	if mp.lockedInt != 0 {
+		print("invalid m->lockedInt = ", mp.lockedInt, "\n")
 		throw("internal lockOSThread error")
 	}
 	gfput(pp, gp)
@@ -3522,11 +3519,11 @@ func goexit0(gp *g) {
 		// Return to mstart, which will release the P and exit
 		// the thread.
 		if GOOS != "plan9" { // See golang.org/issue/22227.
-			gogo(&_g_.m.g0.sched)
+			gogo(&mp.g0.sched)
 		} else {
 			// Clear lockedExt on plan9 since we may end up re-using
 			// this thread.
-			_g_.m.lockedExt = 0
+			mp.lockedExt = 0
 		}
 	}
 	schedule()
@@ -4102,14 +4099,12 @@ func newproc(fn *funcval) {
 // address of the go statement that created this. The caller is responsible
 // for adding the new g to the scheduler.
 func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
-	_g_ := getg()
-
 	if fn == nil {
 		fatal("go of nil func value")
 	}
-	acquirem() // disable preemption because it can be holding p in a local var
 
-	pp := _g_.m.p.ptr()
+	mp := acquirem() // disable preemption because we hold M and P in local vars.
+	pp := mp.p.ptr()
 	newg := gfget(pp)
 	if newg == nil {
 		newg = malg(_StackMin)
@@ -4148,8 +4143,8 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 		atomic.Xadd(&sched.ngsys, +1)
 	} else {
 		// Only user goroutines inherit pprof labels.
-		if _g_.m.curg != nil {
-			newg.labels = _g_.m.curg.labels
+		if mp.curg != nil {
+			newg.labels = mp.curg.labels
 		}
 		if goroutineProfile.active {
 			// A concurrent goroutine profile is running. It should include
@@ -4189,7 +4184,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 	if trace.enabled {
 		traceGoCreate(newg, newg.startpc)
 	}
-	releasem(_g_.m)
+	releasem(mp)
 
 	return newg
 }
