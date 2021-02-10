@@ -1140,6 +1140,23 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		goto Error
 
 	case *ast.BasicLit:
+		switch e.Kind {
+		case token.INT, token.FLOAT, token.IMAG:
+			// The max. mantissa precision for untyped numeric values
+			// is 512 bits, or 4048 bits for each of the two integer
+			// parts of a fraction for floating-point numbers that are
+			// represented accurately in the go/constant package.
+			// Constant literals that are longer than this many bits
+			// are not meaningful; and excessively long constants may
+			// consume a lot of space and time for a useless conversion.
+			// Cap constant length with a generous upper limit that also
+			// allows for separators between all digits.
+			const limit = 10000
+			if len(e.Value) > limit {
+				check.errorf(e, _InvalidConstVal, "excessively long constant: %s... (%d chars)", e.Value[:10], len(e.Value))
+				goto Error
+			}
+		}
 		x.setConst(e.Kind, e.Value)
 		if x.mode == invalid {
 			// The parser already establishes syntactic correctness.
