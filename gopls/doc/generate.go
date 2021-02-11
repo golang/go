@@ -379,12 +379,16 @@ func loadCommands(pkg *packages.Package) ([]*source.CommandJSON, error) {
 	}
 	// Parse the objects it contains.
 	for _, cmd := range cmds {
-		commands = append(commands, &source.CommandJSON{
+		cmdjson := &source.CommandJSON{
 			Command: cmd.Name,
 			Title:   cmd.Title,
 			Doc:     cmd.Doc,
 			ArgDoc:  argsDoc(cmd.Args),
-		})
+		}
+		if cmd.Result != nil {
+			cmdjson.ResultDoc = typeDoc(cmd.Result, 0)
+		}
+		commands = append(commands, cmdjson)
 	}
 	return commands, nil
 }
@@ -392,7 +396,7 @@ func loadCommands(pkg *packages.Package) ([]*source.CommandJSON, error) {
 func argsDoc(args []*commandmeta.Field) string {
 	var b strings.Builder
 	for i, arg := range args {
-		b.WriteString(argDoc(arg, 0))
+		b.WriteString(typeDoc(arg, 0))
 		if i != len(args)-1 {
 			b.WriteString(",\n")
 		}
@@ -400,12 +404,12 @@ func argsDoc(args []*commandmeta.Field) string {
 	return b.String()
 }
 
-func argDoc(arg *commandmeta.Field, level int) string {
+func typeDoc(arg *commandmeta.Field, level int) string {
 	// Max level to expand struct fields.
 	const maxLevel = 3
 	if len(arg.Fields) > 0 {
 		if level < maxLevel {
-			return structDoc(arg.Fields, level)
+			return arg.FieldMod + structDoc(arg.Fields, level)
 		}
 		return "{ ... }"
 	}
@@ -432,7 +436,7 @@ func structDoc(fields []*commandmeta.Field, level int) string {
 		if tag == "" {
 			tag = fld.Name
 		}
-		fmt.Fprintf(&b, "%s\t%q: %s,\n", indent, tag, argDoc(fld, level+1))
+		fmt.Fprintf(&b, "%s\t%q: %s,\n", indent, tag, typeDoc(fld, level+1))
 	}
 	fmt.Fprintf(&b, "%s}", indent)
 	return b.String()
@@ -738,6 +742,9 @@ func rewriteCommands(doc []byte, api *source.APIJSON) ([]byte, error) {
 		fmt.Fprintf(section, "### **%v**\nIdentifier: `%v`\n\n%v\n\n", command.Title, command.Command, command.Doc)
 		if command.ArgDoc != "" {
 			fmt.Fprintf(section, "Args:\n\n```\n%s\n```\n\n", command.ArgDoc)
+		}
+		if command.ResultDoc != "" {
+			fmt.Fprintf(section, "Result:\n\n```\n%s\n```\n\n", command.ResultDoc)
 		}
 	}
 	return replaceSection(doc, "Commands", section.Bytes())

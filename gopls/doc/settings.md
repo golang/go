@@ -448,7 +448,7 @@ Runs `go test` for a specific set of test or benchmark functions.
 Identifier: `tidy`
 
 Runs `go mod tidy` for a module.
-### **Upgrade dependency**
+### **Upgrade a dependency**
 
 Identifier: `upgrade_dependency`
 

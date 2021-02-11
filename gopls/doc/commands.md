@@ -3,7 +3,7 @@
 This document describes the LSP-level commands supported by `gopls`. They cannot be invoked directly by users, and all the details are subject to change, so nobody should rely on this information.
 
 <!-- BEGIN Commands: DO NOT MANUALLY EDIT THIS SECTION -->
-### **Add dependency**
+### **Add a dependency**
 Identifier: `gopls.add_dependency`
 
 Adds a dependency to the go.mod file for a module.
@@ -21,11 +21,12 @@ Args:
 }
 ```
 
-### **asks the server to add an import path to a given Go file.**
+### **Add an import**
 Identifier: `gopls.add_import`
 
-The method will call applyEdit on the client so that clients don't have
-to apply the edit themselves.
+Ask the server to add an import path to a given Go file.  The method will
+call applyEdit on the client so that clients don't have to apply the edit
+themselves.
 
 Args:
 
@@ -124,7 +125,7 @@ Args:
 }
 ```
 
-### **go get package**
+### **go get a package**
 Identifier: `gopls.go_get_package`
 
 Runs `go get` to fetch a package.
@@ -141,10 +142,10 @@ Args:
 }
 ```
 
-### **retrieves a list of packages**
+### **List known packages**
 Identifier: `gopls.list_known_packages`
 
-that are importable from the given URI.
+Retrieve a list of packages that are importable from the given URI.
 
 Args:
 
@@ -152,6 +153,19 @@ Args:
 {
 	// The file URI.
 	"URI": string,
+}
+```
+
+Result:
+
+```
+{
+	// Packages is a list of packages relative
+	// to the URIArg passed by the command request.
+	// In other words, it omits paths that are already
+	// imported or cannot be imported due to compiler
+	// restrictions.
+	"Packages": []string,
 }
 ```
 
@@ -169,7 +183,7 @@ Args:
 }
 ```
 
-### **Remove dependency**
+### **Remove a dependency**
 Identifier: `gopls.remove_dependency`
 
 Removes a dependency from the go.mod file of a module.
@@ -204,10 +218,10 @@ Args:
 }
 ```
 
-### ****
+### **Start the gopls debug server if it isn't running, and**
 Identifier: `gopls.start_debugging`
 
-
+return the debug address.
 
 Args:
 
@@ -227,6 +241,24 @@ Args:
 	// If the server was already debugging this field has no effect, and the
 	// result will contain the previously configured debug URL(s).
 	"Addr": string,
+}
+```
+
+Result:
+
+```
+{
+	// The URLs to use to access the debug servers, for all gopls instances in
+	// the serving path. For the common case of a single gopls instance (i.e. no
+	// daemon), this will be exactly one address.
+	// 
+	// In the case of one or more gopls instances forwarding the LSP to a daemon,
+	// URLs will contain debug addresses for each server in the serving path, in
+	// serving order. The daemon debug address will be the last entry in the
+	// slice. If any intermediate gopls instance fails to start debugging, no
+	// error will be returned but the debug URL for that server in the URLs slice
+	// will be empty.
+	"URLs": []string,
 }
 ```
 
@@ -285,7 +317,7 @@ Args:
 }
 ```
 
-### **Upgrade dependency**
+### **Upgrade a dependency**
 Identifier: `gopls.upgrade_dependency`
 
 Upgrades a dependency in the go.mod file for a module.
@@ -317,9 +349,21 @@ Args:
 }
 ```
 
-### ****
+### **Query workspace metadata**
 Identifier: `gopls.workspace_metadata`
 
+Query the server for information about active workspaces.
 
+Result:
+
+```
+{
+	// All workspaces for this session.
+	"Workspaces": []{
+		"Name": string,
+		"ModuleDir": string,
+	},
+}
+```
 
 <!-- END Commands: DO NOT MANUALLY EDIT THIS SECTION -->

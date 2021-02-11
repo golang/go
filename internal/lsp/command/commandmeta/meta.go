@@ -28,7 +28,7 @@ type Command struct {
 	Title  string
 	Doc    string
 	Args   []*Field
-	Result types.Type
+	Result *Field
 }
 
 func (c *Command) ID() string {
@@ -36,10 +36,11 @@ func (c *Command) ID() string {
 }
 
 type Field struct {
-	Name    string
-	Doc     string
-	JSONTag string
-	Type    types.Type
+	Name     string
+	Doc      string
+	JSONTag  string
+	Type     types.Type
+	FieldMod string
 	// In some circumstances, we may want to recursively load additional field
 	// descriptors for fields of struct types, documenting their internals.
 	Fields []*Field
@@ -110,15 +111,15 @@ func (l *fieldLoader) loadMethod(pkg *packages.Package, m *types.Func) (*Command
 		return nil, fmt.Errorf("final return must be error")
 	}
 	if rlen == 2 {
-		c.Result = sig.Results().At(0).Type()
+		obj := sig.Results().At(0)
+		c.Result, err = l.loadField(pkg, obj, "", "")
+		if err != nil {
+			return nil, err
+		}
 	}
-	ftype := node.Type.(*ast.FuncType)
-	if sig.Params().Len() != ftype.Params.NumFields() {
-		panic("bug: mismatching method params")
-	}
-	for i, p := range ftype.Params.List {
-		pt := sig.Params().At(i)
-		fld, err := l.loadField(pkg, p, pt, "")
+	for i := 0; i < sig.Params().Len(); i++ {
+		obj := sig.Params().At(i)
+		fld, err := l.loadField(pkg, obj, "", "")
 		if err != nil {
 			return nil, err
 		}
@@ -136,20 +137,29 @@ func (l *fieldLoader) loadMethod(pkg *packages.Package, m *types.Func) (*Command
 	return c, nil
 }
 
-func (l *fieldLoader) loadField(pkg *packages.Package, node *ast.Field, obj *types.Var, tag string) (*Field, error) {
+func (l *fieldLoader) loadField(pkg *packages.Package, obj *types.Var, doc, tag string) (*Field, error) {
 	if existing, ok := l.loaded[obj]; ok {
 		return existing, nil
 	}
 	fld := &Field{
 		Name:    obj.Name(),
-		Doc:     strings.TrimSpace(node.Doc.Text()),
+		Doc:     strings.TrimSpace(doc),
 		Type:    obj.Type(),
 		JSONTag: reflect.StructTag(tag).Get("json"),
 	}
 	under := fld.Type.Underlying()
-	if p, ok := under.(*types.Pointer); ok {
-		under = p.Elem()
+	// Quick-and-dirty handling for various underyling types.
+	switch p := under.(type) {
+	case *types.Pointer:
+		under = p.Elem().Underlying()
+	case *types.Array:
+		under = p.Elem().Underlying()
+		fld.FieldMod = fmt.Sprintf("[%d]", p.Len())
+	case *types.Slice:
+		under = p.Elem().Underlying()
+		fld.FieldMod = "[]"
 	}
+
 	if s, ok := under.(*types.Struct); ok {
 		for i := 0; i < s.NumFields(); i++ {
 			obj2 := s.Field(i)
@@ -160,12 +170,12 @@ func (l *fieldLoader) loadField(pkg *packages.Package, node *ast.Field, obj *typ
 					return nil, fmt.Errorf("missing import for %q: %q", pkg.ID, obj2.Pkg().Path())
 				}
 			}
-			node2, err := findField(pkg2, obj2.Pos())
+			node, err := findField(pkg2, obj2.Pos())
 			if err != nil {
 				return nil, err
 			}
 			tag := s.Tag(i)
-			structField, err := l.loadField(pkg2, node2, obj2, tag)
+			structField, err := l.loadField(pkg2, obj2, node.Doc.Text(), tag)
 			if err != nil {
 				return nil, err
 			}

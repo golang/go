@@ -120,9 +120,11 @@ func Generate() ([]byte, error) {
 				d.Imports[pth] = true
 			}
 		}
-		pth := pkgPath(c.Result)
-		if pth != "" && pth != thispkg {
-			d.Imports[pth] = true
+		if c.Result != nil {
+			pth := pkgPath(c.Result.Type)
+			if pth != "" && pth != thispkg {
+				d.Imports[pth] = true
+			}
 		}
 	}
 

@@ -1267,10 +1267,11 @@ type EnumValue struct {
 }
 
 type CommandJSON struct {
-	Command string
-	Title   string
-	Doc     string
-	ArgDoc  string
+	Command   string
+	Title     string
+	Doc       string
+	ArgDoc    string
+	ResultDoc string
 }
 
 type LensJSON struct {
