@@ -596,7 +596,7 @@ var testSigusr1 func(gp *g) bool
 
 // sighandler is invoked when a signal occurs. The global g will be
 // set to a gsignal goroutine and we will be running on the alternate
-// signal stack. The parameter g will be the value of the global g
+// signal stack. The parameter gp will be the value of the global g
 // when the signal occurred. The sig, info, and ctxt parameters are
 // from the system signal handler: they are the parameters passed when
 // the SA is passed to the sigaction system call.
@@ -606,9 +606,11 @@ var testSigusr1 func(gp *g) bool
 //
 //go:nowritebarrierrec
 func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
-	_g_ := getg()
+	// The g executing the signal handler. This is almost always
+	// mp.gsignal. See delayedSignal for an exception.
+	gsignal := getg()
+	mp := gsignal.m
 	c := &sigctxt{info, ctxt}
-	mp := _g_.m
 
 	// Cgo TSAN (not the Go race detector) intercepts signals and calls the
 	// signal handler at a later time. When the signal handler is called, the
@@ -620,7 +622,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	// signal delivery. We use that as an indicator of delayed signals.
 	// For delayed signals, the handler is called on the g0 stack (see
 	// adjustSignalStack).
-	delayedSignal := *cgo_yield != nil && mp != nil && _g_.stack == mp.g0.stack
+	delayedSignal := *cgo_yield != nil && mp != nil && gsignal.stack == mp.g0.stack
 
 	if sig == _SIGPROF {
 		// Some platforms (Linux) have per-thread timers, which we use in
@@ -710,8 +712,8 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		return
 	}
 
-	_g_.m.throwing = throwTypeRuntime
-	_g_.m.caughtsig.set(gp)
+	mp.throwing = throwTypeRuntime
+	mp.caughtsig.set(gp)
 
 	if crashing == 0 {
 		startpanic_m()
@@ -723,12 +725,12 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		print("Signal ", sig, "\n")
 	}
 
-	print("PC=", hex(c.sigpc()), " m=", _g_.m.id, " sigcode=", c.sigcode(), "\n")
-	if _g_.m.incgo && gp == _g_.m.g0 && _g_.m.curg != nil {
+	print("PC=", hex(c.sigpc()), " m=", mp.id, " sigcode=", c.sigcode(), "\n")
+	if mp.incgo && gp == mp.g0 && mp.curg != nil {
 		print("signal arrived during cgo execution\n")
 		// Switch to curg so that we get a traceback of the Go code
 		// leading up to the cgocall, which switched from curg to g0.
-		gp = _g_.m.curg
+		gp = mp.curg
 	}
 	if sig == _SIGILL || sig == _SIGFPE {
 		// It would be nice to know how long the instruction is.
@@ -760,10 +762,10 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	if level > 0 {
 		goroutineheader(gp)
 		tracebacktrap(c.sigpc(), c.sigsp(), c.siglr(), gp)
-		if crashing > 0 && gp != _g_.m.curg && _g_.m.curg != nil && readgstatus(_g_.m.curg)&^_Gscan == _Grunning {
+		if crashing > 0 && gp != mp.curg && mp.curg != nil && readgstatus(mp.curg)&^_Gscan == _Grunning {
 			// tracebackothers on original m skipped this one; trace it now.
-			goroutineheader(_g_.m.curg)
-			traceback(^uintptr(0), ^uintptr(0), 0, _g_.m.curg)
+			goroutineheader(mp.curg)
+			traceback(^uintptr(0), ^uintptr(0), 0, mp.curg)
 		} else if crashing == 0 {
 			tracebackothers(gp)
 			print("\n")
@@ -1207,15 +1209,15 @@ func minitSignals() {
 // of whether it is already set). Record which choice was made in
 // newSigstack, so that it can be undone in unminit.
 func minitSignalStack() {
-	_g_ := getg()
+	mp := getg().m
 	var st stackt
 	sigaltstack(nil, &st)
 	if st.ss_flags&_SS_DISABLE != 0 || !iscgo {
-		signalstack(&_g_.m.gsignal.stack)
-		_g_.m.newSigstack = true
+		signalstack(&mp.gsignal.stack)
+		mp.newSigstack = true
 	} else {
-		setGsignalStack(&st, &_g_.m.goSigStack)
-		_g_.m.newSigstack = false
+		setGsignalStack(&st, &mp.goSigStack)
+		mp.newSigstack = false
 	}
 }
 
