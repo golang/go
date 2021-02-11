@@ -112,6 +112,9 @@ type I1[T any] interface{
 	m1(T)
 }
 
+// There is no such thing as a variadic generic type.
+type _[T ... /* ERROR invalid use of ... */ interface{}] struct{}
+
 // Generic interfaces may be embedded as one would expect.
 type I2 interface {
 	I1(int)     // method!

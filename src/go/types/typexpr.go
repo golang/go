@@ -488,6 +488,12 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		typ.elem = check.varType(e.Elt)
 		return typ
 
+	case *ast.Ellipsis:
+		// dots are handled explicitly where they are legal
+		// (array composite literals and parameter lists)
+		check.error(e, _InvalidDotDotDot, "invalid use of '...'")
+		check.use(e.Elt)
+
 	case *ast.StructType:
 		typ := new(Struct)
 		def.setUnderlying(typ)
