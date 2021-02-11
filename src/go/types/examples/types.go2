@@ -267,3 +267,20 @@ func _() {
 	var _ comparable /* ERROR comparable */
 	var _ C /* ERROR comparable */
 }
+
+// Type parameters are never const types, i.e., it's
+// not possible to declare a constant of type parameter type.
+// (If a type list contains just a single const type, we could
+// allow it, but such type lists don't make much sense in the
+// first place.)
+func _[T interface { type int, float64 }]() {
+	// not valid
+	const _ = T /* ERROR not constant */ (0)
+	const _ T /* ERROR invalid constant type T */ = 1
+
+	// valid
+	var _ = T(0)
+	var _ T = 1
+	_ = T(0)
+}
+
