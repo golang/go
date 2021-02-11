@@ -114,6 +114,10 @@ type Interface interface {
 	//
 	// (Re)generate the gopls.mod file for a workspace.
 	GenerateGoplsMod(context.Context, URIArg) error
+
+	ListKnownPackages(context.Context, URIArg) (ListKnownPackagesResult, error)
+
+	AddImport(context.Context, AddImportArgs) (AddImportResult, error)
 }
 
 type RunTestsArgs struct {
@@ -186,4 +190,19 @@ type GoGetPackageArgs struct {
 	// The package to go get.
 	Pkg        string
 	AddRequire bool
+}
+
+// TODO (Marwan): document :)
+
+type AddImportArgs struct {
+	ImportPath string
+	URI        protocol.DocumentURI
+}
+
+type AddImportResult struct {
+	Edits []protocol.TextDocumentEdit
+}
+
+type ListKnownPackagesResult struct {
+	Packages []string
 }

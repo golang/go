@@ -52,7 +52,7 @@ type commandHandler struct {
 
 // commandConfig configures common command set-up and execution.
 type commandConfig struct {
-	async       bool
+	async       bool                 // whether to run the command asynchronously. Async commands cannot return results.
 	requireSave bool                 // whether all files must be saved for the command to work
 	progress    string               // title to use for progress reporting. If empty, no progress will be reported.
 	forURI      protocol.DocumentURI // URI to resolve to a snapshot. If unset, snapshot will be nil.
@@ -555,4 +555,29 @@ func (c *commandHandler) GenerateGoplsMod(ctx context.Context, args command.URIA
 		}
 		return nil
 	})
+}
+
+func (c *commandHandler) ListKnownPackages(ctx context.Context, args command.URIArg) (command.ListKnownPackagesResult, error) {
+	var result command.ListKnownPackagesResult
+	err := c.run(ctx, commandConfig{
+		progress: "Listing packages", // optional, causes a progress report during command execution
+		forURI:   args.URI,           // optional, populates deps.snapshot and deps.fh
+	}, func(ctx context.Context, deps commandDeps) error {
+		// Marwan: add implementation here. deps.snapshot and deps.fh are available for use.
+		result.Packages = []string{}
+		return nil
+	})
+	return result, err
+}
+
+func (c *commandHandler) AddImport(ctx context.Context, args command.AddImportArgs) (command.AddImportResult, error) {
+	var result command.AddImportResult
+	err := c.run(ctx, commandConfig{
+		progress: "Adding import",
+		forURI:   args.URI,
+	}, func(ctx context.Context, deps commandDeps) error {
+		result.Edits = nil
+		return nil
+	})
+	return result, err
 }

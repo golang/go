@@ -58,8 +58,7 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 			return nil, err
 		}
 		{{end -}}
-		{{- if .Result -}}res, {{end}}err := s.{{.MethodName}}(ctx{{range $i, $v := .Args}}, a{{$i}}{{end}})
-		return {{if .Result}}res{{else}}nil{{end}}, err
+		return {{if not .Result}}nil, {{end}}s.{{.MethodName}}(ctx{{range $i, $v := .Args}}, a{{$i}}{{end}})
 	{{- end}}
 	}
 	return nil, fmt.Errorf("unsupported command %q", params.Command)

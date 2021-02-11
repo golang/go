@@ -21,6 +21,20 @@ Args:
 }
 ```
 
+### ****
+Identifier: `gopls.add_import`
+
+
+
+Args:
+
+```
+{
+	"ImportPath": string,
+	"URI": string,
+}
+```
+
 ### **Apply a fix**
 Identifier: `gopls.apply_fix`
 
@@ -119,6 +133,20 @@ Args:
 	// The package to go get.
 	"Pkg": string,
 	"AddRequire": bool,
+}
+```
+
+### ****
+Identifier: `gopls.list_known_packages`
+
+
+
+Args:
+
+```
+{
+	// The file URI.
+	"URI": string,
 }
 ```
 

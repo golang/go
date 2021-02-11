@@ -19,12 +19,14 @@ import (
 
 const (
 	AddDependency     Command = "add_dependency"
+	AddImport         Command = "add_import"
 	ApplyFix          Command = "apply_fix"
 	CheckUpgrades     Command = "check_upgrades"
 	GCDetails         Command = "gc_details"
 	Generate          Command = "generate"
 	GenerateGoplsMod  Command = "generate_gopls_mod"
 	GoGetPackage      Command = "go_get_package"
+	ListKnownPackages Command = "list_known_packages"
 	RegenerateCgo     Command = "regenerate_cgo"
 	RemoveDependency  Command = "remove_dependency"
 	RunTests          Command = "run_tests"
@@ -38,12 +40,14 @@ const (
 
 var Commands = []Command{
 	AddDependency,
+	AddImport,
 	ApplyFix,
 	CheckUpgrades,
 	GCDetails,
 	Generate,
 	GenerateGoplsMod,
 	GoGetPackage,
+	ListKnownPackages,
 	RegenerateCgo,
 	RemoveDependency,
 	RunTests,
@@ -62,71 +66,73 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
-		err := s.AddDependency(ctx, a0)
-		return nil, err
+		return nil, s.AddDependency(ctx, a0)
+	case "gopls.add_import":
+		var a0 AddImportArgs
+		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
+			return nil, err
+		}
+		return s.AddImport(ctx, a0)
 	case "gopls.apply_fix":
 		var a0 ApplyFixArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
-		err := s.ApplyFix(ctx, a0)
-		return nil, err
+		return nil, s.ApplyFix(ctx, a0)
 	case "gopls.check_upgrades":
 		var a0 CheckUpgradesArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
-		err := s.CheckUpgrades(ctx, a0)
-		return nil, err
+		return nil, s.CheckUpgrades(ctx, a0)
 	case "gopls.gc_details":
 		var a0 protocol.DocumentURI
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
-		err := s.GCDetails(ctx, a0)
-		return nil, err
+		return nil, s.GCDetails(ctx, a0)
 	case "gopls.generate":
 		var a0 GenerateArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
-		err := s.Generate(ctx, a0)
-		return nil, err
+		return nil, s.Generate(ctx, a0)
 	case "gopls.generate_gopls_mod":
 		var a0 URIArg
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
-		err := s.GenerateGoplsMod(ctx, a0)
-		return nil, err
+		return nil, s.GenerateGoplsMod(ctx, a0)
 	case "gopls.go_get_package":
 		var a0 GoGetPackageArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
-		err := s.GoGetPackage(ctx, a0)
-		return nil, err
+		return nil, s.GoGetPackage(ctx, a0)
+	case "gopls.list_known_packages":
+		var a0 URIArg
+		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
+			return nil, err
+		}
+		return s.ListKnownPackages(ctx, a0)
 	case "gopls.regenerate_cgo":
 		var a0 URIArg
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
-		err := s.RegenerateCgo(ctx, a0)
-		return nil, err
+		return nil, s.RegenerateCgo(ctx, a0)
 	case "gopls.remove_dependency":
 		var a0 RemoveDependencyArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
-		err := s.RemoveDependency(ctx, a0)
-		return nil, err
+		return nil, s.RemoveDependency(ctx, a0)
 	case "gopls.run_tests":
 		var a0 RunTestsArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
-		err := s.RunTests(ctx, a0)
-		return nil, err
+		return nil, s.RunTests(ctx, a0)
 	case "gopls.test":
 		var a0 protocol.DocumentURI
 		var a1 []string
@@ -134,43 +140,37 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 		if err := UnmarshalArgs(params.Arguments, &a0, &a1, &a2); err != nil {
 			return nil, err
 		}
-		err := s.Test(ctx, a0, a1, a2)
-		return nil, err
+		return nil, s.Test(ctx, a0, a1, a2)
 	case "gopls.tidy":
 		var a0 URIArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
-		err := s.Tidy(ctx, a0)
-		return nil, err
+		return nil, s.Tidy(ctx, a0)
 	case "gopls.toggle_gc_details":
 		var a0 URIArg
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
-		err := s.ToggleGCDetails(ctx, a0)
-		return nil, err
+		return nil, s.ToggleGCDetails(ctx, a0)
 	case "gopls.update_go_sum":
 		var a0 URIArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
-		err := s.UpdateGoSum(ctx, a0)
-		return nil, err
+		return nil, s.UpdateGoSum(ctx, a0)
 	case "gopls.upgrade_dependency":
 		var a0 DependencyArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
-		err := s.UpgradeDependency(ctx, a0)
-		return nil, err
+		return nil, s.UpgradeDependency(ctx, a0)
 	case "gopls.vendor":
 		var a0 URIArg
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
-		err := s.Vendor(ctx, a0)
-		return nil, err
+		return nil, s.Vendor(ctx, a0)
 	}
 	return nil, fmt.Errorf("unsupported command %q", params.Command)
 }
@@ -183,6 +183,18 @@ func NewAddDependencyCommand(title string, a0 DependencyArgs) (protocol.Command,
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.add_dependency",
+		Arguments: args,
+	}, nil
+}
+
+func NewAddImportCommand(title string, a0 AddImportArgs) (protocol.Command, error) {
+	args, err := MarshalArgs(a0)
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.add_import",
 		Arguments: args,
 	}, nil
 }
@@ -255,6 +267,18 @@ func NewGoGetPackageCommand(title string, a0 GoGetPackageArgs) (protocol.Command
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.go_get_package",
+		Arguments: args,
+	}, nil
+}
+
+func NewListKnownPackagesCommand(title string, a0 URIArg) (protocol.Command, error) {
+	args, err := MarshalArgs(a0)
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.list_known_packages",
 		Arguments: args,
 	}, nil
 }

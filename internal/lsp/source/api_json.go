@@ -679,6 +679,12 @@ var GeneratedAPIJSON = &APIJSON{
 			ArgDoc:  "{\n\t// The go.mod file URI.\n\t\"URI\": string,\n\t// Additional args to pass to the go command.\n\t\"GoCmdArgs\": []string,\n\t// Whether to add a require directive.\n\t\"AddRequire\": bool,\n}",
 		},
 		{
+			Command: "gopls.add_import",
+			Title:   "",
+			Doc:     "",
+			ArgDoc:  "{\n\t\"ImportPath\": string,\n\t\"URI\": string,\n}",
+		},
+		{
 			Command: "gopls.apply_fix",
 			Title:   "Apply a fix",
 			Doc:     "Applies a fix to a region of source code.",
@@ -713,6 +719,12 @@ var GeneratedAPIJSON = &APIJSON{
 			Title:   "go get package",
 			Doc:     "Runs `go get` to fetch a package.",
 			ArgDoc:  "{\n\t// Any document URI within the relevant module.\n\t\"URI\": string,\n\t// The package to go get.\n\t\"Pkg\": string,\n\t\"AddRequire\": bool,\n}",
+		},
+		{
+			Command: "gopls.list_known_packages",
+			Title:   "",
+			Doc:     "",
+			ArgDoc:  "{\n\t// The file URI.\n\t\"URI\": string,\n}",
 		},
 		{
 			Command: "gopls.regenerate_cgo",
