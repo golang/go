@@ -730,14 +730,14 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
 
 // If e != nil, it must be the shift expression; it may be nil for non-constant shifts.
 func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
-	untypedx := isUntyped(x.typ)
+	// TODO(gri) This function seems overly complex. Revisit.
 
 	var xval constant.Value
 	if x.mode == constant_ {
 		xval = constant.ToInt(x.val)
 	}
 
-	if isInteger(x.typ) || untypedx && xval != nil && xval.Kind() == constant.Int {
+	if isInteger(x.typ) || isUntyped(x.typ) && xval != nil && xval.Kind() == constant.Int {
 		// The lhs is of integer type or an untyped constant representable
 		// as an integer. Nothing to do.
 	} else {
@@ -749,16 +749,26 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 
 	// spec: "The right operand in a shift expression must have integer type
 	// or be an untyped constant representable by a value of type uint."
-	switch {
-	case isInteger(y.typ):
-		// nothing to do
-	case isUntyped(y.typ):
+
+	// Provide a good error message for negative shift counts.
+	if y.mode == constant_ {
+		yval := constant.ToInt(y.val) // consider -1, 1.0, but not -1.1
+		if yval.Kind() == constant.Int && constant.Sign(yval) < 0 {
+			check.invalidOp(y, _InvalidShiftCount, "negative shift count %s", y)
+			x.mode = invalid
+			return
+		}
+	}
+
+	// Caution: Check for isUntyped first because isInteger includes untyped
+	//          integers (was bug #43697).
+	if isUntyped(y.typ) {
 		check.convertUntyped(y, Typ[Uint])
 		if y.mode == invalid {
 			x.mode = invalid
 			return
 		}
-	default:
+	} else if !isInteger(y.typ) {
 		check.invalidOp(y, _InvalidShiftCount, "shift count %s must be integer", y)
 		x.mode = invalid
 		return
@@ -816,7 +826,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 		}
 
 		// non-constant shift with constant lhs
-		if untypedx {
+		if isUntyped(x.typ) {
 			// spec: "If the left operand of a non-constant shift
 			// expression is an untyped constant, the type of the
 			// constant is what it would be if the shift expression
