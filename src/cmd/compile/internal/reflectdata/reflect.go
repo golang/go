@@ -1288,6 +1288,11 @@ func ITabSym(it *obj.LSym, offset int64) *obj.LSym {
 
 // NeedRuntimeType ensures that a runtime type descriptor is emitted for t.
 func NeedRuntimeType(t *types.Type) {
+	if t.HasTParam() {
+		// Generic types don't have a runtime type descriptor (but will
+		// have a dictionary)
+		return
+	}
 	if _, ok := signatset[t]; !ok {
 		signatset[t] = struct{}{}
 		signatslice = append(signatslice, t)

@@ -5,6 +5,7 @@
 package noder
 
 import (
+	"bytes"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
@@ -25,6 +26,8 @@ func (g *irgen) pkg(pkg *types2.Package) *types.Pkg {
 	return types.NewPkg(pkg.Path(), pkg.Name())
 }
 
+// typ converts a types2.Type to a types.Type, including caching of previously
+// translated types.
 func (g *irgen) typ(typ types2.Type) *types.Type {
 	// Caching type mappings isn't strictly needed, because typ0 preserves
 	// type identity; but caching minimizes memory blow-up from mapping the
@@ -46,11 +49,79 @@ func (g *irgen) typ(typ types2.Type) *types.Type {
 	return res
 }
 
+// instTypeName2 creates a name for an instantiated type, base on the type args
+// (given as types2 types).
+func instTypeName2(name string, targs []types2.Type) string {
+	b := bytes.NewBufferString(name)
+	b.WriteByte('[')
+	for i, targ := range targs {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(types2.TypeString(targ,
+			func(*types2.Package) string { return "" }))
+	}
+	b.WriteByte(']')
+	return b.String()
+}
+
+// typ0 converts a types2.Type to a types.Type, but doesn't do the caching check
+// at the top level.
 func (g *irgen) typ0(typ types2.Type) *types.Type {
 	switch typ := typ.(type) {
 	case *types2.Basic:
 		return g.basic(typ)
 	case *types2.Named:
+		if typ.TParams() != nil {
+			// typ is an instantiation of a defined (named) generic type.
+			// This instantiation should also be a defined (named) type.
+			// types2 gives us the substituted type in t.Underlying()
+			// The substituted type may or may not still have type
+			// params. We might, for example, be substituting one type
+			// param for another type param.
+
+			if typ.TArgs() == nil {
+				base.Fatalf("In typ0, Targs should be set if TParams is set")
+			}
+
+			// When converted to types.Type, typ must have a name,
+			// based on the names of the type arguments. We need a
+			// name to deal with recursive generic types (and it also
+			// looks better when printing types).
+			instName := instTypeName2(typ.Obj().Name(), typ.TArgs())
+			s := g.pkg(typ.Obj().Pkg()).Lookup(instName)
+			if s.Def != nil {
+				// We have already encountered this instantiation,
+				// so use the type we previously created, since there
+				// must be exactly one instance of a defined type.
+				return s.Def.Type()
+			}
+
+			// Create a forwarding type first and put it in the g.typs
+			// map, in order to deal with recursive generic types.
+			ntyp := types.New(types.TFORW)
+			g.typs[typ] = ntyp
+			ntyp.SetUnderlying(g.typ(typ.Underlying()))
+			ntyp.SetSym(s)
+
+			if ntyp.HasTParam() {
+				// If ntyp still has type params, then we must be
+				// referencing something like 'value[T2]', as when
+				// specifying the generic receiver of a method,
+				// where value was defined as "type value[T any]
+				// ...". Save the type args, which will now be the
+				// new type params of the current type.
+				ntyp.RParams = make([]*types.Type, len(typ.TArgs()))
+				for i, targ := range typ.TArgs() {
+					ntyp.RParams[i] = g.typ(targ)
+				}
+			}
+
+			// Make sure instantiated type can be uniquely found from
+			// the sym
+			s.Def = ir.TypeNode(ntyp)
+			return ntyp
+		}
 		obj := g.obj(typ.Obj())
 		if obj.Op() != ir.OTYPE {
 			base.FatalfAt(obj.Pos(), "expected type: %L", obj)

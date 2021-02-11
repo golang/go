@@ -195,7 +195,7 @@ Outer:
 	// eventually export any exportable generic functions.
 	j := 0
 	for i, decl := range g.target.Decls {
-		if decl.Op() != ir.ODCLFUNC || decl.Type().NumTParams() == 0 {
+		if decl.Op() != ir.ODCLFUNC || !decl.Type().HasTParam() {
 			g.target.Decls[j] = g.target.Decls[i]
 			j++
 		}

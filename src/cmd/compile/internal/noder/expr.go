@@ -209,7 +209,7 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 	// interface embedding).
 
 	var n ir.Node
-	method := selinfo.Obj().(*types2.Func)
+	method2 := selinfo.Obj().(*types2.Func)
 
 	if kind == types2.MethodExpr {
 		// OMETHEXPR is unusual in using directly the node and type of the
@@ -221,9 +221,11 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 		n = MethodExpr(pos, origx, x.Type(), last)
 	} else {
 		// Add implicit addr/deref for method values, if needed.
-		if !x.Type().IsInterface() {
-			recvTyp := method.Type().(*types2.Signature).Recv().Type()
-			_, wantPtr := recvTyp.(*types2.Pointer)
+		if x.Type().IsInterface() {
+			n = DotMethod(pos, x, last)
+		} else {
+			recvType2 := method2.Type().(*types2.Signature).Recv().Type()
+			_, wantPtr := recvType2.(*types2.Pointer)
 			havePtr := x.Type().IsPtr()
 
 			if havePtr != wantPtr {
@@ -233,13 +235,45 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 					x = Implicit(Addr(pos, x))
 				}
 			}
-			if !g.match(x.Type(), recvTyp, false) {
-				base.FatalfAt(pos, "expected %L to have type %v", x, recvTyp)
+			recvType2Base := recvType2
+			if wantPtr {
+				recvType2Base = recvType2.Pointer().Elem()
+			}
+			if len(recvType2Base.Named().TParams()) > 0 {
+				// recvType2 is the original generic type that is
+				// instantiated for this method call.
+				// selinfo.Recv() is the instantiated type
+				recvType2 = recvType2Base
+				// method is the generic method associated with the gen type
+				method := g.obj(recvType2.Named().Method(last))
+				n = ir.NewSelectorExpr(pos, ir.OCALLPART, x, method.Sym())
+				n.(*ir.SelectorExpr).Selection = types.NewField(pos, method.Sym(), method.Type())
+				n.(*ir.SelectorExpr).Selection.Nname = method
+				typed(method.Type(), n)
+
+				// selinfo.Targs() are the types used to
+				// instantiate the type of receiver
+				targs2 := selinfo.TArgs()
+				targs := make([]ir.Node, len(targs2))
+				for i, targ2 := range targs2 {
+					targs[i] = ir.TypeNode(g.typ(targ2))
+				}
+
+				// Create function instantiation with the type
+				// args for the receiver type for the method call.
+				n = ir.NewInstExpr(pos, ir.OFUNCINST, n, targs)
+				typed(g.typ(typ), n)
+				return n
+			}
+
+			if !g.match(x.Type(), recvType2, false) {
+				base.FatalfAt(pos, "expected %L to have type %v", x, recvType2)
+			} else {
+				n = DotMethod(pos, x, last)
 			}
 		}
-		n = DotMethod(pos, x, last)
 	}
-	if have, want := n.Sym(), g.selector(method); have != want {
+	if have, want := n.Sym(), g.selector(method2); have != want {
 		base.FatalfAt(pos, "bad Sym: have %v, want %v", have, want)
 	}
 	return n
