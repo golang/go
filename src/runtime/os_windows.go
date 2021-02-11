@@ -18,6 +18,7 @@ const (
 //go:cgo_import_dynamic runtime._AddVectoredExceptionHandler AddVectoredExceptionHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CloseHandle CloseHandle%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateEventA CreateEventA%4 "kernel32.dll"
+//go:cgo_import_dynamic runtime._CreateFileA CreateFileA%7 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateIoCompletionPort CreateIoCompletionPort%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateThread CreateThread%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateWaitableTimerA CreateWaitableTimerA%3 "kernel32.dll"
@@ -67,6 +68,7 @@ var (
 	_AddVectoredExceptionHandler,
 	_CloseHandle,
 	_CreateEventA,
+	_CreateFileA,
 	_CreateIoCompletionPort,
 	_CreateThread,
 	_CreateWaitableTimerA,
@@ -132,7 +134,9 @@ var (
 	// Load ntdll.dll manually during startup, otherwise Mingw
 	// links wrong printf function to cgo executable (see issue
 	// 12030 for details).
-	_NtWaitForSingleObject stdFunction
+	_NtWaitForSingleObject  stdFunction
+	_RtlGetCurrentPeb       stdFunction
+	_RtlGetNtVersionNumbers stdFunction
 
 	// These are from non-kernel32.dll, so we prefer to LoadLibraryEx them.
 	_timeBeginPeriod,
@@ -219,21 +223,22 @@ func windowsFindfunc(lib uintptr, name []byte) stdFunction {
 	return stdFunction(unsafe.Pointer(f))
 }
 
-var sysDirectory [521]byte
+const _MAX_PATH = 260 // https://docs.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation
+var sysDirectory [_MAX_PATH + 1]byte
 var sysDirectoryLen uintptr
 
 func windowsLoadSystemLib(name []byte) uintptr {
+	if sysDirectoryLen == 0 {
+		l := stdcall2(_GetSystemDirectoryA, uintptr(unsafe.Pointer(&sysDirectory[0])), uintptr(len(sysDirectory)-1))
+		if l == 0 || l > uintptr(len(sysDirectory)-1) {
+			throw("Unable to determine system directory")
+		}
+		sysDirectory[l] = '\\'
+		sysDirectoryLen = l + 1
+	}
 	if useLoadLibraryEx {
 		return stdcall3(_LoadLibraryExA, uintptr(unsafe.Pointer(&name[0])), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
 	} else {
-		if sysDirectoryLen == 0 {
-			l := stdcall2(_GetSystemDirectoryA, uintptr(unsafe.Pointer(&sysDirectory[0])), uintptr(len(sysDirectory)-1))
-			if l == 0 || l > uintptr(len(sysDirectory)-1) {
-				throw("Unable to determine system directory")
-			}
-			sysDirectory[l] = '\\'
-			sysDirectoryLen = l + 1
-		}
 		absName := append(sysDirectory[:sysDirectoryLen], name...)
 		return stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&absName[0])))
 	}
@@ -266,6 +271,8 @@ func loadOptionalSyscalls() {
 		throw("ntdll.dll not found")
 	}
 	_NtWaitForSingleObject = windowsFindfunc(n32, []byte("NtWaitForSingleObject\000"))
+	_RtlGetCurrentPeb = windowsFindfunc(n32, []byte("RtlGetCurrentPeb\000"))
+	_RtlGetNtVersionNumbers = windowsFindfunc(n32, []byte("RtlGetNtVersionNumbers\000"))
 
 	if !haveCputicksAsm {
 		_QueryPerformanceCounter = windowsFindfunc(k32, []byte("QueryPerformanceCounter\000"))
@@ -471,6 +478,74 @@ func initHighResTimer() {
 	}
 }
 
+//go:linkname canUseLongPaths os.canUseLongPaths
+var canUseLongPaths bool
+
+// We want this to be large enough to hold the contents of sysDirectory, *plus*
+// a slash and another component that itself is greater than MAX_PATH.
+var longFileName [(_MAX_PATH+1)*2 + 1]byte
+
+// initLongPathSupport initializes the canUseLongPaths variable, which is
+// linked into os.canUseLongPaths for determining whether or not long paths
+// need to be fixed up. In the best case, this function is running on newer
+// Windows 10 builds, which have a bit field member of the PEB called
+// "IsLongPathAwareProcess." When this is set, we don't need to go through the
+// error-prone fixup function in order to access long paths. So this init
+// function first checks the Windows build number, sets the flag, and then
+// tests to see if it's actually working. If everything checks out, then
+// canUseLongPaths is set to true, and later when called, os.fixLongPath
+// returns early without doing work.
+func initLongPathSupport() {
+	const (
+		IsLongPathAwareProcess = 0x80
+		PebBitFieldOffset      = 3
+		OPEN_EXISTING          = 3
+		ERROR_PATH_NOT_FOUND   = 3
+	)
+
+	// Check that we're ≥ 10.0.15063.
+	var maj, min, build uint32
+	stdcall3(_RtlGetNtVersionNumbers, uintptr(unsafe.Pointer(&maj)), uintptr(unsafe.Pointer(&min)), uintptr(unsafe.Pointer(&build)))
+	if maj < 10 || (maj == 10 && min == 0 && build&0xffff < 15063) {
+		return
+	}
+
+	// Set the IsLongPathAwareProcess flag of the PEB's bit field.
+	bitField := (*byte)(unsafe.Pointer(stdcall0(_RtlGetCurrentPeb) + PebBitFieldOffset))
+	originalBitField := *bitField
+	*bitField |= IsLongPathAwareProcess
+
+	// Check that this actually has an effect, by constructing a large file
+	// path and seeing whether we get ERROR_PATH_NOT_FOUND, rather than
+	// some other error, which would indicate the path is too long, and
+	// hence long path support is not successful. This whole section is NOT
+	// strictly necessary, but is a nice validity check for the near to
+	// medium term, when this functionality is still relatively new in
+	// Windows.
+	getRandomData(longFileName[len(longFileName)-33 : len(longFileName)-1])
+	start := copy(longFileName[:], sysDirectory[:sysDirectoryLen])
+	const dig = "0123456789abcdef"
+	for i := 0; i < 32; i++ {
+		longFileName[start+i*2] = dig[longFileName[len(longFileName)-33+i]>>4]
+		longFileName[start+i*2+1] = dig[longFileName[len(longFileName)-33+i]&0xf]
+	}
+	start += 64
+	for i := start; i < len(longFileName)-1; i++ {
+		longFileName[i] = 'A'
+	}
+	stdcall7(_CreateFileA, uintptr(unsafe.Pointer(&longFileName[0])), 0, 0, 0, OPEN_EXISTING, 0, 0)
+	// The ERROR_PATH_NOT_FOUND error value is distinct from
+	// ERROR_FILE_NOT_FOUND or ERROR_INVALID_NAME, the latter of which we
+	// expect here due to the final component being too long.
+	if getlasterror() == ERROR_PATH_NOT_FOUND {
+		*bitField = originalBitField
+		println("runtime: warning: IsLongPathAwareProcess failed to enable long paths; proceeding in fixup mode")
+		return
+	}
+
+	canUseLongPaths = true
+}
+
 func osinit() {
 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
 
@@ -486,6 +561,8 @@ func osinit() {
 
 	initHighResTimer()
 	timeBeginPeriodRetValue = osRelax(false)
+
+	initLongPathSupport()
 
 	ncpu = getproccount()
 
