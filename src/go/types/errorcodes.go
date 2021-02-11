@@ -1366,4 +1366,7 @@ const (
 	//  	return i
 	//  }
 	_InvalidGo
+
+	// _BadDecl occurs when a declaration has invalid syntax.
+	_BadDecl
 )

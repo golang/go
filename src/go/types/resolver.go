@@ -23,7 +23,7 @@ type declInfo struct {
 	init      ast.Expr      // init/orig expression, or nil
 	inherited bool          // if set, the init expression is inherited from a previous constant declaration
 	fdecl     *ast.FuncDecl // func declaration, or nil
-	alias     bool          // type alias declaration
+	aliasPos  token.Pos     // If valid, the decl is a type alias and aliasPos is the position of '='.
 
 	// The deps field tracks initialization expression dependencies.
 	deps map[Object]bool // lazily initialized
@@ -366,7 +366,7 @@ func (check *Checker) collectObjects() {
 				}
 			case typeDecl:
 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
-				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, typ: d.spec.Type, alias: d.spec.Assign.IsValid()})
+				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, typ: d.spec.Type, aliasPos: d.spec.Assign})
 			case funcDecl:
 				info := &declInfo{file: fileScope, fdecl: d.decl}
 				name := d.decl.Name.Name
@@ -493,7 +493,7 @@ func (check *Checker) resolveBaseTypeName(typ ast.Expr) (ptr bool, base *TypeNam
 		// we're done if tdecl defined tname as a new type
 		// (rather than an alias)
 		tdecl := check.objMap[tname] // must exist for objects in package scope
-		if !tdecl.alias {
+		if !tdecl.aliasPos.IsValid() {
 			return ptr, tname
 		}
 
@@ -534,7 +534,7 @@ func (check *Checker) packageObjects() {
 	// phase 1
 	for _, obj := range objList {
 		// If we have a type alias, collect it for the 2nd phase.
-		if tname, _ := obj.(*TypeName); tname != nil && check.objMap[tname].alias {
+		if tname, _ := obj.(*TypeName); tname != nil && check.objMap[tname].aliasPos.IsValid() {
 			aliasList = append(aliasList, tname)
 			continue
 		}
