@@ -232,14 +232,12 @@ func StartTrace() error {
 	// - or GoSysExit appears for a goroutine for which we don't emit EvGoInSyscall below.
 	// To instruct traceEvent that it must not ignore events below, we set startingtrace.
 	// trace.enabled is set afterwards once we have emitted all preliminary events.
-	_g_ := getg()
-	_g_.m.startingtrace = true
+	mp := getg().m
+	mp.startingtrace = true
 
 	// Obtain current stack ID to use in all traceEvGoCreate events below.
-	mp := acquirem()
 	stkBuf := make([]uintptr, traceStackSize)
 	stackID := traceStackID(mp, stkBuf, 2)
-	releasem(mp)
 
 	profBuf := newProfBuf(2, profBufWordCount, profBufTagCount) // after the timestamp, header is [pp.id, gp.goid]
 	trace.cpuLogRead = profBuf
@@ -293,7 +291,7 @@ func StartTrace() error {
 	trace.strings = make(map[string]uint64)
 
 	trace.seqGC = 0
-	_g_.m.startingtrace = false
+	mp.startingtrace = false
 	trace.enabled = true
 
 	// Register runtime goroutine labels.
@@ -782,19 +780,18 @@ func traceReadCPU() {
 }
 
 func traceStackID(mp *m, buf []uintptr, skip int) uint64 {
-	_g_ := getg()
-	gp := mp.curg
+	gp := getg()
+	curgp := mp.curg
 	var nstk int
-	if gp == _g_ {
+	if curgp == gp {
 		nstk = callers(skip+1, buf)
-	} else if gp != nil {
-		gp = mp.curg
-		nstk = gcallers(gp, skip, buf)
+	} else if curgp != nil {
+		nstk = gcallers(curgp, skip, buf)
 	}
 	if nstk > 0 {
 		nstk-- // skip runtime.goexit
 	}
-	if nstk > 0 && gp.goid == 1 {
+	if nstk > 0 && curgp.goid == 1 {
 		nstk-- // skip runtime.main
 	}
 	id := trace.stackTab.put(buf[:nstk])
