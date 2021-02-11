@@ -13,7 +13,9 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 	"fmt"
+	"strings"
 )
 
 // stencil scans functions for instantiated generic function calls and
@@ -61,6 +63,17 @@ func (g *irgen) stencil() {
 			// Replace the OFUNCINST with a direct reference to the
 			// new stenciled function
 			call.X = st.Nname
+			if inst.X.Op() == ir.OCALLPART {
+				// When we create an instantiation of a method
+				// call, we make it a function. So, move the
+				// receiver to be the first arg of the function
+				// call.
+				withRecv := make([]ir.Node, len(call.Args)+1)
+				dot := inst.X.(*ir.SelectorExpr)
+				withRecv[0] = dot.X
+				copy(withRecv[1:], call.Args)
+				call.Args = withRecv
+			}
 			modified = true
 		})
 		if base.Flag.W > 1 && modified {
@@ -74,7 +87,12 @@ func (g *irgen) stencil() {
 // the name of the function and the types of the type params.
 func makeInstName(inst *ir.InstExpr) *types.Sym {
 	b := bytes.NewBufferString("#")
-	b.WriteString(inst.X.(*ir.Name).Name().Sym().Name)
+	if meth, ok := inst.X.(*ir.SelectorExpr); ok {
+		// Write the name of the generic method, including receiver type
+		b.WriteString(meth.Selection.Nname.Sym().Name)
+	} else {
+		b.WriteString(inst.X.(*ir.Name).Name().Sym().Name)
+	}
 	b.WriteString("[")
 	for i, targ := range inst.Targs {
 		if i > 0 {
@@ -90,18 +108,38 @@ func makeInstName(inst *ir.InstExpr) *types.Sym {
 // instantiation of a generic function with specified type arguments.
 type subster struct {
 	newf    *ir.Func // Func node for the new stenciled function
-	tparams *types.Fields
+	tparams []*types.Field
 	targs   []ir.Node
 	// The substitution map from name nodes in the generic function to the
 	// name nodes in the new stenciled function.
 	vars map[*ir.Name]*ir.Name
+	seen map[*types.Type]*types.Type
 }
 
 // genericSubst returns a new function with the specified name. The function is an
-// instantiation of a generic function with type params, as specified by inst.
+// instantiation of a generic function or method with type params, as specified by
+// inst. For a method with a generic receiver, it returns an instantiated function
+// type where the receiver becomes the first parameter. Otherwise the instantiated
+// method would still need to be transformed by later compiler phases.
 func genericSubst(name *types.Sym, inst *ir.InstExpr) *ir.Func {
-	// Similar to noder.go: funcDecl
-	nameNode := inst.X.(*ir.Name)
+	var nameNode *ir.Name
+	var tparams []*types.Field
+	if selExpr, ok := inst.X.(*ir.SelectorExpr); ok {
+		// Get the type params from the method receiver (after skipping
+		// over any pointer)
+		nameNode = ir.AsNode(selExpr.Selection.Nname).(*ir.Name)
+		recvType := selExpr.Type().Recv().Type
+		if recvType.IsPtr() {
+			recvType = recvType.Elem()
+		}
+		tparams = make([]*types.Field, len(recvType.RParams))
+		for i, rparam := range recvType.RParams {
+			tparams[i] = types.NewField(src.NoXPos, nil, rparam)
+		}
+	} else {
+		nameNode = inst.X.(*ir.Name)
+		tparams = nameNode.Type().TParams().Fields().Slice()
+	}
 	gf := nameNode.Func
 	newf := ir.NewFunc(inst.Pos())
 	newf.Nname = ir.NewNameAt(inst.Pos(), name)
@@ -111,9 +149,10 @@ func genericSubst(name *types.Sym, inst *ir.InstExpr) *ir.Func {
 
 	subst := &subster{
 		newf:    newf,
-		tparams: nameNode.Type().TParams().Fields(),
+		tparams: tparams,
 		targs:   inst.Targs,
 		vars:    make(map[*ir.Name]*ir.Name),
+		seen:    make(map[*types.Type]*types.Type),
 	}
 
 	newf.Dcl = make([]*ir.Name, len(gf.Dcl))
@@ -125,9 +164,12 @@ func genericSubst(name *types.Sym, inst *ir.InstExpr) *ir.Func {
 	// Ugly: we have to insert the Name nodes of the parameters/results into
 	// the function type. The current function type has no Nname fields set,
 	// because it came via conversion from the types2 type.
-	oldt := inst.Type()
-	newt := types.NewSignature(oldt.Pkg(), nil, nil, subst.fields(ir.PPARAM, oldt.Params(), newf.Dcl),
-		subst.fields(ir.PPARAMOUT, oldt.Results(), newf.Dcl))
+	oldt := inst.X.Type()
+	// We also transform a generic method type to the corresponding
+	// instantiated function type where the receiver is the first parameter.
+	newt := types.NewSignature(oldt.Pkg(), nil, nil,
+		subst.fields(ir.PPARAM, append(oldt.Recvs().FieldSlice(), oldt.Params().FieldSlice()...), newf.Dcl),
+		subst.fields(ir.PPARAMOUT, oldt.Results().FieldSlice(), newf.Dcl))
 
 	newf.Nname.Ntype = ir.TypeNode(newt)
 	newf.Nname.SetType(newt)
@@ -276,41 +318,81 @@ func (subst *subster) tstruct(t *types.Type) *types.Type {
 
 }
 
-// typ substitutes any type parameter found with the corresponding type argument.
-func (subst *subster) typ(t *types.Type) *types.Type {
-	for i, tp := range subst.tparams.Slice() {
-		if tp.Type == t {
-			return subst.targs[i].Type()
+// instTypeName creates a name for an instantiated type, based on the type args
+func instTypeName(name string, targs []ir.Node) string {
+	b := bytes.NewBufferString(name)
+	b.WriteByte('[')
+	for i, targ := range targs {
+		if i > 0 {
+			b.WriteByte(',')
 		}
+		b.WriteString(targ.Type().String())
+	}
+	b.WriteByte(']')
+	return b.String()
+}
+
+// typ computes the type obtained by substituting any type parameter in t with the
+// corresponding type argument in subst. If t contains no type parameters, the
+// result is t; otherwise the result is a new type.
+// It deals with recursive types by using a map and TFORW types.
+// TODO(danscales) deal with recursion besides ptr/struct cases.
+func (subst *subster) typ(t *types.Type) *types.Type {
+	if !t.HasTParam() {
+		return t
+	}
+	if subst.seen[t] != nil {
+		// We've hit a recursive type
+		return subst.seen[t]
 	}
 
+	var newt *types.Type
 	switch t.Kind() {
+	case types.TTYPEPARAM:
+		for i, tp := range subst.tparams {
+			if tp.Type == t {
+				return subst.targs[i].Type()
+			}
+		}
+		return t
+
 	case types.TARRAY:
 		elem := t.Elem()
 		newelem := subst.typ(elem)
 		if newelem != elem {
-			return types.NewArray(newelem, t.NumElem())
+			newt = types.NewArray(newelem, t.NumElem())
 		}
 
 	case types.TPTR:
 		elem := t.Elem()
+		// In order to deal with recursive generic types, create a TFORW
+		// type initially and store it in the seen map, so it can be
+		// accessed if this type appears recursively within the type.
+		forw := types.New(types.TFORW)
+		subst.seen[t] = forw
 		newelem := subst.typ(elem)
 		if newelem != elem {
-			return types.NewPtr(newelem)
+			forw.SetUnderlying(types.NewPtr(newelem))
+			newt = forw
 		}
+		delete(subst.seen, t)
 
 	case types.TSLICE:
 		elem := t.Elem()
 		newelem := subst.typ(elem)
 		if newelem != elem {
-			return types.NewSlice(newelem)
+			newt = types.NewSlice(newelem)
 		}
 
 	case types.TSTRUCT:
-		newt := subst.tstruct(t)
+		forw := types.New(types.TFORW)
+		subst.seen[t] = forw
+		newt = subst.tstruct(t)
 		if newt != t {
-			return newt
+			forw.SetUnderlying(newt)
+			newt = forw
 		}
+		delete(subst.seen, t)
 
 	case types.TFUNC:
 		newrecvs := subst.tstruct(t.Recvs())
@@ -321,21 +403,39 @@ func (subst *subster) typ(t *types.Type) *types.Type {
 			if newrecvs.NumFields() > 0 {
 				newrecv = newrecvs.Field(0)
 			}
-			return types.NewSignature(t.Pkg(), newrecv, nil, newparams.FieldSlice(), newresults.FieldSlice())
+			newt = types.NewSignature(t.Pkg(), newrecv, nil, newparams.FieldSlice(), newresults.FieldSlice())
 		}
 
 		// TODO: case TCHAN
 		// TODO: case TMAP
 		// TODO: case TINTER
 	}
+	if newt != nil {
+		if t.Sym() != nil {
+			// Since we've substituted types, we also need to change
+			// the defined name of the type, by removing the old types
+			// (in brackets) from the name, and adding the new types.
+			oldname := t.Sym().Name
+			i := strings.Index(oldname, "[")
+			oldname = oldname[:i]
+			sym := t.Sym().Pkg.Lookup(instTypeName(oldname, subst.targs))
+			if sym.Def != nil {
+				// We've already created this instantiated defined type.
+				return sym.Def.Type()
+			}
+			newt.SetSym(sym)
+			sym.Def = ir.TypeNode(newt)
+		}
+		return newt
+	}
+
 	return t
 }
 
 // fields sets the Nname field for the Field nodes inside a type signature, based
 // on the corresponding in/out parameters in dcl. It depends on the in and out
 // parameters being in order in dcl.
-func (subst *subster) fields(class ir.Class, oldt *types.Type, dcl []*ir.Name) []*types.Field {
-	oldfields := oldt.FieldSlice()
+func (subst *subster) fields(class ir.Class, oldfields []*types.Field, dcl []*ir.Name) []*types.Field {
 	newfields := make([]*types.Field, len(oldfields))
 	var i int
 
