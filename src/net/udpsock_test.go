@@ -445,3 +445,24 @@ func TestUDPReadSizeError(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkWriteToReadFromUDP(b *testing.B) {
+	conn, err := ListenUDP("udp4", new(UDPAddr))
+	if err != nil {
+		b.Fatal(err)
+	}
+	addr := conn.LocalAddr()
+	buf := make([]byte, 8)
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := conn.WriteTo(buf, addr)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, _, err = conn.ReadFromUDP(buf)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
