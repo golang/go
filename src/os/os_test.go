@@ -2719,6 +2719,40 @@ func TestDirFS(t *testing.T) {
 	if err := fstest.TestFS(DirFS("./testdata/dirfs"), "a", "b", "dir/x"); err != nil {
 		t.Fatal(err)
 	}
+
+	// Test that Open does not accept backslash as separator.
+	d := DirFS(".")
+	_, err := d.Open(`testdata\dirfs`)
+	if err == nil {
+		t.Fatalf(`Open testdata\dirfs succeeded`)
+	}
+}
+
+func TestDirFSPathsValid(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skipf("skipping on Windows")
+	}
+
+	d := t.TempDir()
+	if err := os.WriteFile(filepath.Join(d, "control.txt"), []byte(string("Hello, world!")), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d, `e:xperi\ment.txt`), []byte(string("Hello, colon and backslash!")), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	fsys := os.DirFS(d)
+	err := fs.WalkDir(fsys, ".", func(path string, e fs.DirEntry, err error) error {
+		if fs.ValidPath(e.Name()) {
+			t.Logf("%q ok", e.Name())
+		} else {
+			t.Errorf("%q INVALID", e.Name())
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestReadFileProc(t *testing.T) {

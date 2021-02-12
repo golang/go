@@ -32,9 +32,9 @@ func runtime_readMetrics(unsafe.Pointer, int, int)
 //
 // Note that re-use has some caveats. Notably, Values should not be read or
 // manipulated while a Read with that value is outstanding; that is a data race.
-// This property includes pointer-typed Values (e.g. Float64Histogram) whose
-// underlying storage will be reused by Read when possible. To safely use such
-// values in a concurrent setting, all data must be deep-copied.
+// This property includes pointer-typed Values (for example, Float64Histogram)
+// whose underlying storage will be reused by Read when possible. To safely use
+// such values in a concurrent setting, all data must be deep-copied.
 //
 // It is safe to execute multiple Read calls concurrently, but their arguments
 // must share no underlying memory. When in doubt, create a new []Sample from
