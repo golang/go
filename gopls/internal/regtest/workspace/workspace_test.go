@@ -786,9 +786,6 @@ package exclude
 // Confirm that a fix for a tidy module will correct all modules in the
 // workspace.
 func TestMultiModule_OneBrokenModule(t *testing.T) {
-	if testing.Short() {
-		t.Skip("flaky test - golang.org/issue/44227")
-	}
 	testenv.NeedsGo1Point(t, 15)
 
 	const mod = `

@@ -956,10 +956,7 @@ func (s *snapshot) isWorkspacePackage(id packageID) (packagePath, bool) {
 }
 
 func (s *snapshot) FindFile(uri span.URI) source.VersionedFileHandle {
-	f, err := s.view.getFile(uri)
-	if err != nil {
-		return nil
-	}
+	f := s.view.getFile(uri)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -973,10 +970,7 @@ func (s *snapshot) FindFile(uri span.URI) source.VersionedFileHandle {
 // GetVersionedFile succeeds even if the file does not exist. A non-nil error return
 // indicates some type of internal error, for example if ctx is cancelled.
 func (s *snapshot) GetVersionedFile(ctx context.Context, uri span.URI) (source.VersionedFileHandle, error) {
-	f, err := s.view.getFile(uri)
-	if err != nil {
-		return nil, err
-	}
+	f := s.view.getFile(uri)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()

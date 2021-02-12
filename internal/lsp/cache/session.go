@@ -454,9 +454,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 		// Apply the changes to all affected views.
 		for _, view := range changedViews {
 			// Make sure that the file is added to the view.
-			if _, err := view.getFile(c.URI); err != nil {
-				return nil, nil, err
-			}
+			_ = view.getFile(c.URI)
 			if _, ok := views[view]; !ok {
 				views[view] = make(map[span.URI]*fileChange)
 			}

@@ -384,24 +384,21 @@ func (v *View) knownFile(uri span.URI) bool {
 	return f != nil && err == nil
 }
 
-// getFile returns a file for the given URI. It will always succeed because it
-// adds the file to the managed set if needed.
-func (v *View) getFile(uri span.URI) (*fileBase, error) {
+// getFile returns a file for the given URI.
+func (v *View) getFile(uri span.URI) *fileBase {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	f, err := v.findFile(uri)
-	if err != nil {
-		return nil, err
-	} else if f != nil {
-		return f, nil
+	f, _ := v.findFile(uri)
+	if f != nil {
+		return f
 	}
 	f = &fileBase{
 		view:  v,
 		fname: uri.Filename(),
 	}
 	v.mapFile(uri, f)
-	return f, nil
+	return f
 }
 
 // findFile checks the cache for any file matching the given uri.
