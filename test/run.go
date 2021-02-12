@@ -902,6 +902,7 @@ func (t *test) run() {
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
+		cmd = append(cmd, flags...)
 		cmd = append(cmd, ".")
 		out, err := runcmd(cmd...)
 		if err != nil {
