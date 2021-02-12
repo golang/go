@@ -27,6 +27,19 @@ func FoldingRange(ctx context.Context, snapshot Snapshot, fh FileHandle, lineFol
 	if err != nil {
 		return nil, err
 	}
+
+	// With parse errors, we wouldn't be able to produce accurate folding info.
+	// LSP protocol (3.16) currently does not have a way to handle this case
+	// (https://github.com/microsoft/language-server-protocol/issues/1200).
+	// We cannot return an error either because we are afraid some editors
+	// may not handle errors nicely. As a workaround, we now return an empty
+	// result and let the client handle this case by double check the file
+	// contents (i.e. if the file is not empty and the folding range result
+	// is empty, raise an internal error).
+	if pgf.ParseErr != nil {
+		return nil, nil
+	}
+
 	fset := snapshot.FileSet()
 
 	// Get folding ranges for comments separately as they are not walked by ast.Inspect.

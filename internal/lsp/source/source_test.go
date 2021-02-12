@@ -376,8 +376,8 @@ func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, data s
 			return []byte(got), nil
 		}))
 
-		if want != got {
-			t.Errorf("%s: foldingRanges failed for %s, expected:\n%v\ngot:\n%v", tag, uri.Filename(), want, got)
+		if diff := tests.Diff(t, want, got); diff != "" {
+			t.Errorf("%s: foldingRanges failed for %s, diff:\n%v", tag, uri.Filename(), diff)
 		}
 	}
 
@@ -403,8 +403,8 @@ func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, data s
 				return []byte(got), nil
 			}))
 
-			if want != got {
-				t.Errorf("%s: failed for %s, expected:\n%v\ngot:\n%v", tag, uri.Filename(), want, got)
+			if diff := tests.Diff(t, want, got); diff != "" {
+				t.Errorf("%s: failed for %s, diff:\n%v", tag, uri.Filename(), diff)
 			}
 		}
 
