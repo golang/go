@@ -620,10 +620,21 @@ func DirFS(dir string) fs.FS {
 	return dirFS(dir)
 }
 
+func containsAny(s, chars string) bool {
+	for i := 0; i < len(s); i++ {
+		for j := 0; j < len(chars); j++ {
+			if s[i] == chars[j] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 type dirFS string
 
 func (dir dirFS) Open(name string) (fs.File, error) {
-	if !fs.ValidPath(name) {
+	if !fs.ValidPath(name) || runtime.GOOS == "windows" && containsAny(name, `\:`) {
 		return nil, &PathError{Op: "open", Path: name, Err: ErrInvalid}
 	}
 	f, err := Open(string(dir) + "/" + name)

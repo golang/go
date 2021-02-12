@@ -33,9 +33,10 @@ var isValidPathTests = []struct {
 	{"x/..", false},
 	{"x/../y", false},
 	{"x//y", false},
-	{`x\`, false},
-	{`x\y`, false},
-	{`\x`, false},
+	{`x\`, true},
+	{`x\y`, true},
+	{`x:y`, true},
+	{`\x`, true},
 }
 
 func TestValidPath(t *testing.T) {

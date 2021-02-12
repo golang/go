@@ -480,8 +480,12 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
 
 // walkCall walks an OCALLFUNC, OCALLINTER, or OCALLMETH node.
 func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
-	if n.Op() == ir.OCALLINTER {
+	if n.Op() == ir.OCALLINTER || n.Op() == ir.OCALLMETH {
+		// We expect both interface call reflect.Type.Method and concrete
+		// call reflect.(*rtype).Method.
 		usemethod(n)
+	}
+	if n.Op() == ir.OCALLINTER {
 		reflectdata.MarkUsedIfaceMethod(n)
 	}
 
@@ -895,6 +899,16 @@ func usemethod(n *ir.CallExpr) {
 			return
 		}
 		if !res1.Type.IsBoolean() {
+			return
+		}
+	}
+
+	// Don't mark reflect.(*rtype).Method, etc. themselves in the reflect package.
+	// Those functions may be alive via the itab, which should not cause all methods
+	// alive. We only want to mark their callers.
+	if base.Ctxt.Pkgpath == "reflect" {
+		switch ir.CurFunc.Nname.Sym().Name { // TODO: is there a better way than hardcoding the names?
+		case "(*rtype).Method", "(*rtype).MethodByName", "(*interfaceType).Method", "(*interfaceType).MethodByName":
 			return
 		}
 	}
