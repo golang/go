@@ -352,3 +352,12 @@ func cont0Mask64U(x uint64) uint64 {
 	// s390x:"RISBGZ\t[$]48, [$]15, [$]0,"
 	return x & 0xffff00000000ffff
 }
+
+func issue44228a(a []int64, i int) bool {
+	// amd64: "BTQ", -"SHL"
+	return a[i>>6]&(1<<(i&63)) != 0
+}
+func issue44228b(a []int32, i int) bool {
+	// amd64: "BTL", -"SHL"
+	return a[i>>5]&(1<<(i&31)) != 0
+}

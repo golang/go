@@ -2191,6 +2191,11 @@
 	&& clobber(l) =>
   @l.Block (CMP(Q|L|W|B)constload {sym} [makeValAndOff64(0, int64(off))] ptr mem)
 
+// Convert ANDload to MOVload when we can do the AND in a containing TEST op.
+// Only do when it's within the same block, so we don't have flags live across basic block boundaries.
+// See issue 44228.
+(TEST(Q|L) a:(AND(Q|L)load [off] {sym} x ptr mem) a) && a.Uses == 2 && a.Block == v.Block && clobber(a) => (TEST(Q|L) (MOV(Q|L)load <a.Type> [off] {sym} ptr mem) x)
+
 (MOVBload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read8(sym, int64(off)))])
 (MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 (MOVLload [off] {sym} (SB) _) && symIsRO(sym) => (MOVQconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])

@@ -27141,6 +27141,33 @@ func rewriteValueAMD64_OpAMD64TESTL(v *Value) bool {
 		}
 		break
 	}
+	// match: (TESTL a:(ANDLload [off] {sym} x ptr mem) a)
+	// cond: a.Uses == 2 && a.Block == v.Block && clobber(a)
+	// result: (TESTL (MOVLload <a.Type> [off] {sym} ptr mem) x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			a := v_0
+			if a.Op != OpAMD64ANDLload {
+				continue
+			}
+			off := auxIntToInt32(a.AuxInt)
+			sym := auxToSym(a.Aux)
+			mem := a.Args[2]
+			x := a.Args[0]
+			ptr := a.Args[1]
+			if a != v_1 || !(a.Uses == 2 && a.Block == v.Block && clobber(a)) {
+				continue
+			}
+			v.reset(OpAMD64TESTL)
+			v0 := b.NewValue0(a.Pos, OpAMD64MOVLload, a.Type)
+			v0.AuxInt = int32ToAuxInt(off)
+			v0.Aux = symToAux(sym)
+			v0.AddArg2(ptr, mem)
+			v.AddArg2(v0, x)
+			return true
+		}
+		break
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64TESTLconst(v *Value) bool {
@@ -27242,6 +27269,33 @@ func rewriteValueAMD64_OpAMD64TESTQ(v *Value) bool {
 			v0.AuxInt = valAndOffToAuxInt(makeValAndOff64(0, int64(off)))
 			v0.Aux = symToAux(sym)
 			v0.AddArg2(ptr, mem)
+			return true
+		}
+		break
+	}
+	// match: (TESTQ a:(ANDQload [off] {sym} x ptr mem) a)
+	// cond: a.Uses == 2 && a.Block == v.Block && clobber(a)
+	// result: (TESTQ (MOVQload <a.Type> [off] {sym} ptr mem) x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			a := v_0
+			if a.Op != OpAMD64ANDQload {
+				continue
+			}
+			off := auxIntToInt32(a.AuxInt)
+			sym := auxToSym(a.Aux)
+			mem := a.Args[2]
+			x := a.Args[0]
+			ptr := a.Args[1]
+			if a != v_1 || !(a.Uses == 2 && a.Block == v.Block && clobber(a)) {
+				continue
+			}
+			v.reset(OpAMD64TESTQ)
+			v0 := b.NewValue0(a.Pos, OpAMD64MOVQload, a.Type)
+			v0.AuxInt = int32ToAuxInt(off)
+			v0.Aux = symToAux(sym)
+			v0.AddArg2(ptr, mem)
+			v.AddArg2(v0, x)
 			return true
 		}
 		break
