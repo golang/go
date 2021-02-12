@@ -593,6 +593,24 @@ func (fd *FD) ReadFrom(buf []byte) (int, syscall.Sockaddr, error) {
 	return n, sa, nil
 }
 
+// ReadFrom wraps the recvfrom network call for IPv4.
+func (fd *FD) ReadFromInet4(buf []byte, sa4 *syscall.SockaddrInet4) (int, error) {
+	n, sa, err := fd.ReadFrom(buf)
+	if sa != nil {
+		*sa4 = *(sa.(*syscall.SockaddrInet4))
+	}
+	return n, err
+}
+
+// ReadFrom wraps the recvfrom network call for IPv6.
+func (fd *FD) ReadFromInet6(buf []byte, sa6 *syscall.SockaddrInet6) (int, error) {
+	n, sa, err := fd.ReadFrom(buf)
+	if sa != nil {
+		*sa6 = *(sa.(*syscall.SockaddrInet6))
+	}
+	return n, err
+}
+
 // Write implements io.Writer.
 func (fd *FD) Write(buf []byte) (int, error) {
 	if err := fd.writeLock(); err != nil {
