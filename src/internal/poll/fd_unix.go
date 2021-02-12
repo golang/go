@@ -230,6 +230,60 @@ func (fd *FD) ReadFrom(p []byte) (int, syscall.Sockaddr, error) {
 	}
 }
 
+// ReadFrom wraps the recvfrom network call for IPv4.
+func (fd *FD) ReadFromInet4(p []byte, from *syscall.SockaddrInet4) (int, error) {
+	if err := fd.readLock(); err != nil {
+		return 0, err
+	}
+	defer fd.readUnlock()
+	if err := fd.pd.prepareRead(fd.isFile); err != nil {
+		return 0, err
+	}
+	for {
+		n, err := syscall.RecvfromInet4(fd.Sysfd, p, 0, from)
+		if err != nil {
+			if err == syscall.EINTR {
+				continue
+			}
+			n = 0
+			if err == syscall.EAGAIN && fd.pd.pollable() {
+				if err = fd.pd.waitRead(fd.isFile); err == nil {
+					continue
+				}
+			}
+		}
+		err = fd.eofError(n, err)
+		return n, err
+	}
+}
+
+// ReadFrom wraps the recvfrom network call for IPv6.
+func (fd *FD) ReadFromInet6(p []byte, from *syscall.SockaddrInet6) (int, error) {
+	if err := fd.readLock(); err != nil {
+		return 0, err
+	}
+	defer fd.readUnlock()
+	if err := fd.pd.prepareRead(fd.isFile); err != nil {
+		return 0, err
+	}
+	for {
+		n, err := syscall.RecvfromInet6(fd.Sysfd, p, 0, from)
+		if err != nil {
+			if err == syscall.EINTR {
+				continue
+			}
+			n = 0
+			if err == syscall.EAGAIN && fd.pd.pollable() {
+				if err = fd.pd.waitRead(fd.isFile); err == nil {
+					continue
+				}
+			}
+		}
+		err = fd.eofError(n, err)
+		return n, err
+	}
+}
+
 // ReadMsg wraps the recvmsg network call.
 func (fd *FD) ReadMsg(p []byte, oob []byte, flags int) (int, int, int, syscall.Sockaddr, error) {
 	if err := fd.readLock(); err != nil {
