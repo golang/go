@@ -1758,7 +1758,14 @@ func buildWorkspaceModFile(ctx context.Context, modFiles map[span.URI]struct{}, 
 	goVersion := "1.12"
 
 	paths := make(map[string]span.URI)
-	for modURI := range modFiles {
+	var sortedModURIs []span.URI
+	for uri := range modFiles {
+		sortedModURIs = append(sortedModURIs, uri)
+	}
+	sort.Slice(sortedModURIs, func(i, j int) bool {
+		return sortedModURIs[i] < sortedModURIs[j]
+	})
+	for _, modURI := range sortedModURIs {
 		fh, err := fs.GetFile(ctx, modURI)
 		if err != nil {
 			return nil, err
@@ -1799,7 +1806,7 @@ func buildWorkspaceModFile(ctx context.Context, modFiles map[span.URI]struct{}, 
 	}
 	// Go back through all of the modules to handle any of their replace
 	// statements.
-	for modURI := range modFiles {
+	for _, modURI := range sortedModURIs {
 		fh, err := fs.GetFile(ctx, modURI)
 		if err != nil {
 			return nil, err
