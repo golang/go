@@ -14,13 +14,13 @@ Do not send CLs removing the interior tags from such phrases.
   main ul li { margin: 0.5em 0; }
 </style>
 
-<h2 id="introduction">DRAFT RELEASE NOTES — Introduction to Go 1.16</h2>
+<h2 id="introduction">Introduction to Go 1.16</h2>
 
 <p>
-  <strong>
-    Go 1.16 is not yet released. These are work-in-progress
-    release notes. Go 1.16 is expected to be released in February 2021.
-  </strong>
+  The latest Go release, version 1.16, arrives six months after <a href="/doc/go1.15">Go 1.15</a>.
+  Most of its changes are in the implementation of the toolchain, runtime, and libraries.
+  As always, the release maintains the Go 1 <a href="/doc/go1compat.html">promise of compatibility</a>.
+  We expect almost all Go programs to continue to compile and run as before.
 </p>
 
 <h2 id="language">Changes to the language</h2>
@@ -505,7 +505,7 @@ func TestFoo(t *testing.T) {
   On the consumer side,
   the new <a href="/pkg/net/http/#FS"><code>http.FS</code></a>
   function converts an <code>fs.FS</code> to an
-  <a href="/pkg/net/http/#Handler"><code>http.Handler</code></a>.
+  <a href="/pkg/net/http/#FileSystem"><code>http.FileSystem</code></a>.
   Also, the <a href="/pkg/html/template/"><code>html/template</code></a>
   and <a href="/pkg/text/template/"><code>text/template</code></a>
   packages’ <a href="/pkg/html/template/#ParseFS"><code>ParseFS</code></a>
@@ -952,7 +952,7 @@ func TestFoo(t *testing.T) {
     <p><!-- CL 243939 -->
       The new <a href="/pkg/net/http/#FS"><code>http.FS</code></a>
       function converts an <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a>
-      to an <a href="/pkg/net/http/#Handler"><code>http.Handler</code></a>.
+      to an <a href="/pkg/net/http/#FileSystem"><code>http.FileSystem</code></a>.
     </p>
   </dd>
 </dl><!-- net/http -->
