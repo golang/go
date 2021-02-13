@@ -583,7 +583,7 @@ TEXT	·alignPc(SB),NOSPLIT, $0-0
 `
 
 // TestFuncAlign verifies that the address of a function can be aligned
-// with a specfic value on arm64.
+// with a specific value on arm64.
 func TestFuncAlign(t *testing.T) {
 	if runtime.GOARCH != "arm64" || runtime.GOOS != "linux" {
 		t.Skip("skipping on non-linux/arm64 platform")
