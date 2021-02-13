@@ -800,13 +800,28 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
 }
 
 // regspec returns the regInfo for operation op.
-func (s *regAllocState) regspec(op Op) regInfo {
+func (s *regAllocState) regspec(v *Value) regInfo {
+	op := v.Op
 	if op == OpConvert {
 		// OpConvert is a generic op, so it doesn't have a
 		// register set in the static table. It can use any
 		// allocatable integer register.
 		m := s.allocatable & s.f.Config.gpRegMask
 		return regInfo{inputs: []inputInfo{{regs: m}}, outputs: []outputInfo{{regs: m}}}
+	}
+	if op == OpArgIntReg {
+		reg := v.Block.Func.Config.intParamRegs[v.AuxInt8()]
+		return regInfo{outputs: []outputInfo{{regs: 1 << uint(reg)}}}
+	}
+	if op == OpArgFloatReg {
+		reg := v.Block.Func.Config.floatParamRegs[v.AuxInt8()]
+		return regInfo{outputs: []outputInfo{{regs: 1 << uint(reg)}}}
+	}
+	if op.IsCall() {
+		// TODO Panic if not okay
+		if ac, ok := v.Aux.(*AuxCall); ok && ac.reg != nil {
+			return *ac.reg
+		}
 	}
 	return opcodeTable[op].reg
 }
@@ -1163,7 +1178,7 @@ func (s *regAllocState) regalloc(f *Func) {
 		for i := len(oldSched) - 1; i >= 0; i-- {
 			v := oldSched[i]
 			prefs := desired.remove(v.ID)
-			regspec := s.regspec(v.Op)
+			regspec := s.regspec(v)
 			desired.clobber(regspec.clobbers)
 			for _, j := range regspec.inputs {
 				if countRegs(j.regs) != 1 {
@@ -1193,7 +1208,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			if s.f.pass.debug > regDebug {
 				fmt.Printf("  processing %s\n", v.LongString())
 			}
-			regspec := s.regspec(v.Op)
+			regspec := s.regspec(v)
 			if v.Op == OpPhi {
 				f.Fatalf("phi %s not at start of block", v)
 			}
@@ -2447,7 +2462,7 @@ func (s *regAllocState) computeLive() {
 					// desired registers back though phi nodes.
 					continue
 				}
-				regspec := s.regspec(v.Op)
+				regspec := s.regspec(v)
 				// Cancel desired registers if they get clobbered.
 				desired.clobber(regspec.clobbers)
 				// Update desired registers if there are any fixed register inputs.

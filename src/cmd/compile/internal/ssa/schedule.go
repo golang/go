@@ -137,7 +137,7 @@ func schedule(f *Func) {
 			case v.Op == OpVarDef:
 				// We want all the vardefs next.
 				score[v.ID] = ScoreVarDef
-			case v.Op == OpArg:
+			case v.Op == OpArg || v.Op == OpArgIntReg || v.Op == OpArgFloatReg:
 				// We want all the args as early as possible, for better debugging.
 				score[v.ID] = ScoreArg
 			case v.Type.IsMemory():
