@@ -158,6 +158,13 @@ func (a *ABIConfig) LocalsOffset() int64 {
 	return a.offsetForLocals
 }
 
+// FloatIndexFor translates r into an index in the floating point parameter
+// registers.  If the result is negative, the input index was actually for the
+// integer parameter registers.
+func (a *ABIConfig) FloatIndexFor(r RegIndex) int64 {
+	return int64(r) - int64(a.regAmounts.intRegs)
+}
+
 // NumParamRegs returns the number of parameter registers used for a given type,
 // without regard for the number available.
 func (a *ABIConfig) NumParamRegs(t *types.Type) int {
