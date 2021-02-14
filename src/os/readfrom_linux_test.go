@@ -106,7 +106,7 @@ func TestCopyFileRange(t *testing.T) {
 				t.Fatal(err)
 			}
 			if n != int64(len(data)) {
-				t.Fatalf("transfered %d, want %d", n, len(data))
+				t.Fatalf("transferred %d, want %d", n, len(data))
 			}
 			if !hook.called {
 				t.Fatalf("should have called poll.CopyFileRange")
@@ -130,7 +130,7 @@ func TestCopyFileRange(t *testing.T) {
 				t.Fatal(err)
 			}
 			if n != int64(len(data)) {
-				t.Fatalf("transfered %d, want %d", n, len(data))
+				t.Fatalf("transferred %d, want %d", n, len(data))
 			}
 			if !hook.called {
 				t.Fatalf("should have called poll.CopyFileRange")
@@ -162,7 +162,7 @@ func TestCopyFileRange(t *testing.T) {
 				t.Fatal(err)
 			}
 			if n != int64(len(data)) {
-				t.Fatalf("transfered %d, want %d", n, len(data))
+				t.Fatalf("transferred %d, want %d", n, len(data))
 			}
 			if !hook.called {
 				t.Fatalf("should have called poll.CopyFileRange")
