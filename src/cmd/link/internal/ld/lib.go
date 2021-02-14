@@ -1343,8 +1343,6 @@ func (ctxt *Link) hostlink() {
 		if ctxt.HeadType == objabi.Hdarwin {
 			argv = append(argv, "-dynamiclib")
 		} else {
-			// ELF.
-			argv = append(argv, "-Wl,-Bsymbolic")
 			if ctxt.UseRelro() {
 				argv = append(argv, "-Wl,-z,relro")
 			}
@@ -1357,6 +1355,8 @@ func (ctxt *Link) hostlink() {
 				// Pass -z nodelete to mark the shared library as
 				// non-closeable: a dlclose will do nothing.
 				argv = append(argv, "-Wl,-z,nodelete")
+				// Only pass Bsymbolic on non-Windows.
+				argv = append(argv, "-Wl,-Bsymbolic")
 			}
 		}
 	case BuildModeShared:
