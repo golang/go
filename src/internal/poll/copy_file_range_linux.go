@@ -112,7 +112,15 @@ func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err
 			return 0, false, nil
 		case nil:
 			if n == 0 {
-				// src is at EOF, which means we are done.
+				// If we did not read any bytes at all,
+				// then this file may be in a file system
+				// where copy_file_range silently fails.
+				// https://lore.kernel.org/linux-fsdevel/20210126233840.GG4626@dread.disaster.area/T/#m05753578c7f7882f6e9ffe01f981bc223edef2b0
+				if written == 0 {
+					return 0, false, nil
+				}
+				// Otherwise src is at EOF, which means
+				// we are done.
 				return written, true, nil
 			}
 			remain -= n
