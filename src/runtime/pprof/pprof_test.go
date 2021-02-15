@@ -279,7 +279,7 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
 
 	broken := false
 	switch runtime.GOOS {
-	case "darwin", "ios", "dragonfly", "netbsd", "illumos", "solaris":
+	case "ios", "dragonfly", "netbsd", "illumos", "solaris":
 		broken = true
 	case "openbsd":
 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
