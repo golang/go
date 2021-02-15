@@ -119,7 +119,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			switch p.To.Name {
 			case obj.NAME_NONE:
 				p.As = AJALR
-			case obj.NAME_EXTERN:
+			case obj.NAME_EXTERN, obj.NAME_STATIC:
 				// Handled in preprocess.
 			default:
 				ctxt.Diag("unsupported name %d for %v", p.To.Name, p)
@@ -267,7 +267,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 				p.As = movToStore(p.As)
 				p.To.Reg = addrToReg(p.To)
 
-			case obj.NAME_EXTERN:
+			case obj.NAME_EXTERN, obj.NAME_STATIC:
 				// AUIPC $off_hi, TMP
 				// S $off_lo, TMP, R
 				as := p.As
@@ -666,7 +666,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			switch p.To.Type {
 			case obj.TYPE_MEM:
 				switch p.To.Name {
-				case obj.NAME_EXTERN:
+				case obj.NAME_EXTERN, obj.NAME_STATIC:
 					// JMP to symbol.
 					jalrToSym(ctxt, p, newprog, REG_ZERO)
 				}
