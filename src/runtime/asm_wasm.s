@@ -34,7 +34,9 @@ TEXT ·checkASM(SB), NOSPLIT, $0-1
 
 TEXT runtime·gogo(SB), NOSPLIT, $0-8
 	MOVD buf+0(FP), R0
-	MOVD gobuf_g(R0), g
+	MOVD gobuf_g(R0), R1
+	MOVD 0(R1), R2	// make sure g != nil
+	MOVD R1, g
 	MOVD gobuf_sp(R0), SP
 
 	// Put target PC at -8(SP), wasm_pc_f_loop will pick it up
@@ -69,7 +71,6 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	// save state in g->sched
 	MOVD 0(SP), g_sched+gobuf_pc(g)     // caller's PC
 	MOVD $fn+0(FP), g_sched+gobuf_sp(g) // caller's SP
-	MOVD g, g_sched+gobuf_g(g)
 
 	// if g == g0 call badmcall
 	Get g
@@ -143,7 +144,6 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	MOVD $runtime·systemstack_switch(SB), g_sched+gobuf_pc(g)
 
 	MOVD SP, g_sched+gobuf_sp(g)
-	MOVD g, g_sched+gobuf_g(g)
 
 	// switch to g0
 	MOVD R2, g
@@ -270,7 +270,6 @@ TEXT runtime·morestack(SB), NOSPLIT, $0-0
 
 	// Set g->sched to context in f.
 	MOVD 0(SP), g_sched+gobuf_pc(g)
-	MOVD g, g_sched+gobuf_g(g)
 	MOVD $8(SP), g_sched+gobuf_sp(g) // f's SP
 	MOVD CTXT, g_sched+gobuf_ctxt(g)
 

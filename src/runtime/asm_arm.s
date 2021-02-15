@@ -208,21 +208,14 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
 
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
-TEXT runtime·gogo(SB),NOSPLIT,$8-4
+TEXT runtime·gogo(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	buf+0(FP), R1
 	MOVW	gobuf_g(R1), R0
-	BL	setg<>(SB)
+	MOVW	0(R0), R2	// make sure g != nil
+	B	gogo<>(SB)
 
-	// NOTE: We updated g above, and we are about to update SP.
-	// Until LR and PC are also updated, the g/SP/LR/PC quadruple
-	// are out of sync and must not be used as the basis of a traceback.
-	// Sigprof skips the traceback when SP is not within g's bounds,
-	// and when the PC is inside this function, runtime.gogo.
-	// Since we are about to update SP, until we complete runtime.gogo
-	// we must not leave this function. In particular, no calls
-	// after this point: it must be straight-line code until the
-	// final B instruction.
-	// See large comment in sigprof for more details.
+TEXT gogo<>(SB),NOSPLIT|NOFRAME,$0
+	BL	setg<>(SB)
 	MOVW	gobuf_sp(R1), R13	// restore SP==R13
 	MOVW	gobuf_lr(R1), LR
 	MOVW	gobuf_ret(R1), R0
@@ -246,7 +239,6 @@ TEXT runtime·mcall(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	LR, (g_sched+gobuf_pc)(g)
 	MOVW	$0, R11
 	MOVW	R11, (g_sched+gobuf_lr)(g)
-	MOVW	g, (g_sched+gobuf_g)(g)
 
 	// Switch to m->g0 & its stack, call fn.
 	MOVW	g, R1
@@ -537,7 +529,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	ADD	$4, R11 // get past push {lr}
 	MOVW	R11, (g_sched+gobuf_pc)(g)
 	MOVW	R13, (g_sched+gobuf_sp)(g)
-	MOVW	g, (g_sched+gobuf_g)(g)
 	MOVW	$0, R11
 	MOVW	R11, (g_sched+gobuf_lr)(g)
 	MOVW	R11, (g_sched+gobuf_ret)(g)
