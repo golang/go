@@ -1281,6 +1281,9 @@ func mstart() {
 	mexit(osStack)
 }
 
+// The go:noinline is to guarantee the getcallerpc/getcallersp below are safe,
+// so that we can set up g0.sched to return to the call of mstart1 above.
+//go:noinline
 func mstart1() {
 	_g_ := getg()
 
@@ -1288,11 +1291,16 @@ func mstart1() {
 		throw("bad runtime·mstart")
 	}
 
-	// Record the caller for use as the top of stack in mcall and
-	// for terminating the thread.
+	// Set up m.g0.sched as a label returning returning to just
+	// after the mstart1 call in mstart0 above, for use by goexit0 and mcall.
 	// We're never coming back to mstart1 after we call schedule,
 	// so other calls can reuse the current frame.
-	save(getcallerpc(), getcallersp())
+	// And goexit0 does a gogo that needs to return from mstart1
+	// and let mstart0 exit the thread.
+	_g_.sched.g = guintptr(unsafe.Pointer(_g_))
+	_g_.sched.pc = getcallerpc()
+	_g_.sched.sp = getcallersp()
+
 	asminit()
 	minit()
 
@@ -3445,11 +3453,19 @@ func goexit0(gp *g) {
 func save(pc, sp uintptr) {
 	_g_ := getg()
 
+	if _g_ == _g_.m.g0 || _g_ == _g_.m.gsignal {
+		// m.g0.sched is special and must describe the context
+		// for exiting the thread. mstart1 writes to it directly.
+		// m.gsignal.sched should not be used at all.
+		// This check makes sure save calls do not accidentally
+		// run in contexts where they'd write to system g's.
+		throw("save on system g not allowed")
+	}
+
 	_g_.sched.pc = pc
 	_g_.sched.sp = sp
 	_g_.sched.lr = 0
 	_g_.sched.ret = 0
-	_g_.sched.g = guintptr(unsafe.Pointer(_g_))
 	// We need to ensure ctxt is zero, but can't have a write
 	// barrier here. However, it should always already be zero.
 	// Assert that.

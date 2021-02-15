@@ -91,9 +91,14 @@ TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
 
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
-TEXT runtime·gogo(SB), NOSPLIT, $16-8
+TEXT runtime·gogo(SB), NOSPLIT|NOFRAME, $0-8
 	MOVV	buf+0(FP), R3
-	MOVV	gobuf_g(R3), g	// make sure g is not nil
+	MOVV	gobuf_g(R3), R4
+	MOVV	0(R4), R5	// make sure g != nil
+	JMP	gogo<>(SB)
+
+TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
+	MOVV	R5, g
 	JAL	runtime·save_g(SB)
 
 	MOVV	0(g), R2
@@ -117,7 +122,6 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
 	MOVV	R29, (g_sched+gobuf_sp)(g)
 	MOVV	R31, (g_sched+gobuf_pc)(g)
 	MOVV	R0, (g_sched+gobuf_lr)(g)
-	MOVV	g, (g_sched+gobuf_g)(g)
 
 	// Switch to m->g0 & its stack, call fn.
 	MOVV	g, R1
@@ -404,7 +408,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	MOVV	R29, (g_sched+gobuf_sp)(g)
 	MOVV	R0, (g_sched+gobuf_lr)(g)
 	MOVV	R0, (g_sched+gobuf_ret)(g)
-	MOVV	g, (g_sched+gobuf_g)(g)
 	// Assert ctxt is zero. See func save.
 	MOVV	(g_sched+gobuf_ctxt)(g), R1
 	BEQ	R1, 2(PC)
