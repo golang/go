@@ -1089,7 +1089,7 @@ func nilfunc() {
 }
 
 // adjust Gobuf as if it executed a call to fn
-// and then did an immediate gosave.
+// and then stopped before the first instruction in fn.
 func gostartcallfn(gobuf *gobuf, fv *funcval) {
 	var fn unsafe.Pointer
 	if fv != nil {

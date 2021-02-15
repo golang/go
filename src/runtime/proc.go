@@ -3482,7 +3482,7 @@ func save(pc, sp uintptr) {
 // This is called only from the go syscall library and cgocall,
 // not from the low-level system calls used by the runtime.
 //
-// Entersyscall cannot split the stack: the gosave must
+// Entersyscall cannot split the stack: the save must
 // make g->sched refer to the caller's stack segment, because
 // entersyscall is going to return immediately after.
 //
