@@ -187,6 +187,10 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverInformation,
 			}
 		}
 	}
+	if obj.Pkg() == nil {
+		event.Log(ctx, fmt.Sprintf("nil package for %s", obj))
+		return h, nil
+	}
 	h.importPath = obj.Pkg().Path()
 	h.LinkPath = h.importPath
 	if mod, version, ok := moduleAtVersion(h.LinkPath, i); ok {
