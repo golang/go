@@ -16,9 +16,7 @@ Interface
 Metrics are designated by a string key, rather than, for example, a field name in
 a struct. The full list of supported metrics is always available in the slice of
 Descriptions returned by All. Each Description also includes useful information
-about the metric, such as how to display it (for example, gauge vs. counter)
-and how difficult or disruptive it is to obtain it (for example, do you need to
-stop the world?).
+about the metric.
 
 Thus, users of this API are encouraged to sample supported metrics defined by the
 slice returned by All to remain compatible across Go versions. Of course, situations
