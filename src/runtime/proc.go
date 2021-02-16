@@ -2681,85 +2681,40 @@ top:
 		}
 	}
 
-	// Steal work from other P's.
+	// Spinning Ms: steal work from other Ps.
+	//
+	// Limit the number of spinning Ms to half the number of busy Ps.
+	// This is necessary to prevent excessive CPU consumption when
+	// GOMAXPROCS>>1 but the program parallelism is low.
 	procs := uint32(gomaxprocs)
-	ranTimer := false
-	// If number of spinning M's >= number of busy P's, block.
-	// This is necessary to prevent excessive CPU consumption
-	// when GOMAXPROCS>>1 but the program parallelism is low.
-	if !_g_.m.spinning && 2*atomic.Load(&sched.nmspinning) >= procs-atomic.Load(&sched.npidle) {
-		goto stop
-	}
-	if !_g_.m.spinning {
-		_g_.m.spinning = true
-		atomic.Xadd(&sched.nmspinning, 1)
-	}
-	const stealTries = 4
-	for i := 0; i < stealTries; i++ {
-		stealTimersOrRunNextG := i == stealTries-1
+	if _g_.m.spinning || 2*atomic.Load(&sched.nmspinning) < procs-atomic.Load(&sched.npidle) {
+		if !_g_.m.spinning {
+			_g_.m.spinning = true
+			atomic.Xadd(&sched.nmspinning, 1)
+		}
 
-		for enum := stealOrder.start(fastrand()); !enum.done(); enum.next() {
-			if sched.gcwaiting != 0 {
-				goto top
-			}
-			p2 := allp[enum.position()]
-			if _p_ == p2 {
-				continue
-			}
-
-			// Steal timers from p2. This call to checkTimers is the only place
-			// where we might hold a lock on a different P's timers. We do this
-			// once on the last pass before checking runnext because stealing
-			// from the other P's runnext should be the last resort, so if there
-			// are timers to steal do that first.
-			//
-			// We only check timers on one of the stealing iterations because
-			// the time stored in now doesn't change in this loop and checking
-			// the timers for each P more than once with the same value of now
-			// is probably a waste of time.
-			//
-			// timerpMask tells us whether the P may have timers at all. If it
-			// can't, no need to check at all.
-			if stealTimersOrRunNextG && timerpMask.read(enum.position()) {
-				tnow, w, ran := checkTimers(p2, now)
-				now = tnow
-				if w != 0 && (pollUntil == 0 || w < pollUntil) {
-					pollUntil = w
-				}
-				if ran {
-					// Running the timers may have
-					// made an arbitrary number of G's
-					// ready and added them to this P's
-					// local run queue. That invalidates
-					// the assumption of runqsteal
-					// that is always has room to add
-					// stolen G's. So check now if there
-					// is a local G to run.
-					if gp, inheritTime := runqget(_p_); gp != nil {
-						return gp, inheritTime
-					}
-					ranTimer = true
-				}
-			}
-
-			// Don't bother to attempt to steal if p2 is idle.
-			if !idlepMask.read(enum.position()) {
-				if gp := runqsteal(_p_, p2, stealTimersOrRunNextG); gp != nil {
-					return gp, false
-				}
-			}
+		gp, inheritTime, tnow, w, newWork := stealWork(now)
+		now = tnow
+		if gp != nil {
+			// Successfully stole.
+			return gp, inheritTime
+		}
+		if newWork {
+			// There may be new timer or GC work; restart to
+			// discover.
+			goto top
+		}
+		if w != 0 && (pollUntil == 0 || w < pollUntil) {
+			// Earlier timer to wait for.
+			pollUntil = w
 		}
 	}
-	if ranTimer {
-		// Running a timer may have made some goroutine ready.
-		goto top
-	}
 
-stop:
-
-	// We have nothing to do. If we're in the GC mark phase, can
-	// safely scan and blacken objects, and have work to do, run
-	// idle-time marking rather than give up the P.
+	// We have nothing to do.
+	//
+	// If we're in the GC mark phase, can safely scan and blacken objects,
+	// and have work to do, run idle-time marking rather than give up the
+	// P.
 	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(_p_) {
 		node := (*gcBgMarkWorkerNode)(gcBgMarkWorkerPool.pop())
 		if node != nil {
@@ -3008,6 +2963,81 @@ func pollWork() bool {
 	return false
 }
 
+// stealWork attempts to steal a runnable goroutine or timer from any P.
+//
+// If newWork is true, new work may have been readied.
+//
+// If now is not 0 it is the current time. stealWork returns the passed time or
+// the current time if now was passed as 0.
+func stealWork(now int64) (gp *g, inheritTime bool, rnow, pollUntil int64, newWork bool) {
+	pp := getg().m.p.ptr()
+
+	ranTimer := false
+
+	const stealTries = 4
+	for i := 0; i < stealTries; i++ {
+		stealTimersOrRunNextG := i == stealTries-1
+
+		for enum := stealOrder.start(fastrand()); !enum.done(); enum.next() {
+			if sched.gcwaiting != 0 {
+				// GC work may be available.
+				return nil, false, now, pollUntil, true
+			}
+			p2 := allp[enum.position()]
+			if pp == p2 {
+				continue
+			}
+
+			// Steal timers from p2. This call to checkTimers is the only place
+			// where we might hold a lock on a different P's timers. We do this
+			// once on the last pass before checking runnext because stealing
+			// from the other P's runnext should be the last resort, so if there
+			// are timers to steal do that first.
+			//
+			// We only check timers on one of the stealing iterations because
+			// the time stored in now doesn't change in this loop and checking
+			// the timers for each P more than once with the same value of now
+			// is probably a waste of time.
+			//
+			// timerpMask tells us whether the P may have timers at all. If it
+			// can't, no need to check at all.
+			if stealTimersOrRunNextG && timerpMask.read(enum.position()) {
+				tnow, w, ran := checkTimers(p2, now)
+				now = tnow
+				if w != 0 && (pollUntil == 0 || w < pollUntil) {
+					pollUntil = w
+				}
+				if ran {
+					// Running the timers may have
+					// made an arbitrary number of G's
+					// ready and added them to this P's
+					// local run queue. That invalidates
+					// the assumption of runqsteal
+					// that it always has room to add
+					// stolen G's. So check now if there
+					// is a local G to run.
+					if gp, inheritTime := runqget(pp); gp != nil {
+						return gp, inheritTime, now, pollUntil, ranTimer
+					}
+					ranTimer = true
+				}
+			}
+
+			// Don't bother to attempt to steal if p2 is idle.
+			if !idlepMask.read(enum.position()) {
+				if gp := runqsteal(pp, p2, stealTimersOrRunNextG); gp != nil {
+					return gp, false, now, pollUntil, ranTimer
+				}
+			}
+		}
+	}
+
+	// No goroutines found to steal. Regardless, running a timer may have
+	// made some goroutine ready that we missed. Indicate the next timer to
+	// wait for.
+	return nil, false, now, pollUntil, ranTimer
+}
+
 // wakeNetPoller wakes up the thread sleeping in the network poller if it isn't
 // going to wake up before the when argument; or it wakes an idle P to service
 // timers and the network poller if there isn't one already.
@@ -3252,7 +3282,7 @@ func dropg() {
 
 // checkTimers runs any timers for the P that are ready.
 // If now is not 0 it is the current time.
-// It returns the current time or 0 if it is not known,
+// It returns the passed time or the current time if now was passed as 0.
 // and the time when the next timer should run or 0 if there is no next timer,
 // and reports whether it ran any timers.
 // If the time when the next timer should run is not 0,
