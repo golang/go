@@ -50,33 +50,64 @@ var modinfo string
 //    any work to do.
 //
 // The current approach:
-// We unpark an additional thread when we ready a goroutine if (1) there is an
-// idle P and there are no "spinning" worker threads. A worker thread is considered
-// spinning if it is out of local work and did not find work in global run queue/
-// netpoller; the spinning state is denoted in m.spinning and in sched.nmspinning.
-// Threads unparked this way are also considered spinning; we don't do goroutine
-// handoff so such threads are out of work initially. Spinning threads do some
-// spinning looking for work in per-P run queues before parking. If a spinning
-// thread finds work it takes itself out of the spinning state and proceeds to
-// execution. If it does not find work it takes itself out of the spinning state
-// and then parks.
-// If there is at least one spinning thread (sched.nmspinning>1), we don't unpark
-// new threads when readying goroutines. To compensate for that, if the last spinning
-// thread finds work and stops spinning, it must unpark a new spinning thread.
-// This approach smooths out unjustified spikes of thread unparking,
-// but at the same time guarantees eventual maximal CPU parallelism utilization.
 //
-// The main implementation complication is that we need to be very careful during
-// spinning->non-spinning thread transition. This transition can race with submission
-// of a new goroutine, and either one part or another needs to unpark another worker
-// thread. If they both fail to do that, we can end up with semi-persistent CPU
-// underutilization. The general pattern for goroutine readying is: submit a goroutine
-// to local work queue, #StoreLoad-style memory barrier, check sched.nmspinning.
-// The general pattern for spinning->non-spinning transition is: decrement nmspinning,
-// #StoreLoad-style memory barrier, check all per-P work queues for new work.
-// Note that all this complexity does not apply to global run queue as we are not
-// sloppy about thread unparking when submitting to global queue. Also see comments
-// for nmspinning manipulation.
+// This approach applies to three primary sources of potential work: readying a
+// goroutine, new/modified-earlier timers, and idle-priority GC. See below for
+// additional details.
+//
+// We unpark an additional thread when we submit work if (this is wakep()):
+// 1. There is an idle P, and
+// 2. There are no "spinning" worker threads.
+//
+// A worker thread is considered spinning if it is out of local work and did
+// not find work in the global run queue or netpoller; the spinning state is
+// denoted in m.spinning and in sched.nmspinning. Threads unparked this way are
+// also considered spinning; we don't do goroutine handoff so such threads are
+// out of work initially. Spinning threads spin on looking for work in per-P
+// run queues and timer heaps or from the GC before parking. If a spinning
+// thread finds work it takes itself out of the spinning state and proceeds to
+// execution. If it does not find work it takes itself out of the spinning
+// state and then parks.
+//
+// If there is at least one spinning thread (sched.nmspinning>1), we don't
+// unpark new threads when submitting work. To compensate for that, if the last
+// spinning thread finds work and stops spinning, it must unpark a new spinning
+// thread.  This approach smooths out unjustified spikes of thread unparking,
+// but at the same time guarantees eventual maximal CPU parallelism
+// utilization.
+//
+// The main implementation complication is that we need to be very careful
+// during spinning->non-spinning thread transition. This transition can race
+// with submission of new work, and either one part or another needs to unpark
+// another worker thread. If they both fail to do that, we can end up with
+// semi-persistent CPU underutilization.
+//
+// The general pattern for submission is:
+// 1. Submit work to the local run queue, timer heap, or GC state.
+// 2. #StoreLoad-style memory barrier.
+// 3. Check sched.nmspinning.
+//
+// The general pattern for spinning->non-spinning transition is:
+// 1. Decrement nmspinning.
+// 2. #StoreLoad-style memory barrier.
+// 3. Check all per-P work queues and GC for new work.
+//
+// Note that all this complexity does not apply to global run queue as we are
+// not sloppy about thread unparking when submitting to global queue. Also see
+// comments for nmspinning manipulation.
+//
+// How these different sources of work behave varies, though it doesn't affect
+// the synchronization approach:
+// * Ready goroutine: this is an obvious source of work; the goroutine is
+//   immediately ready and must run on some thread eventually.
+// * New/modified-earlier timer: The current timer implementation (see time.go)
+//   uses netpoll in a thread with no work available to wait for the soonest
+//   timer. If there is no thread waiting, we want a new spinning thread to go
+//   wait.
+// * Idle-priority GC: The GC wakes a stopped idle thread to contribute to
+//   background GC work (note: currently disabled per golang.org/issue/19112).
+//   Also see golang.org/issue/44313, as this should be extended to all GC
+//   workers.
 
 var (
 	m0           m
@@ -2785,18 +2816,25 @@ stop:
 	pidleput(_p_)
 	unlock(&sched.lock)
 
-	// Delicate dance: thread transitions from spinning to non-spinning state,
-	// potentially concurrently with submission of new goroutines. We must
-	// drop nmspinning first and then check all per-P queues again (with
-	// #StoreLoad memory barrier in between). If we do it the other way around,
-	// another thread can submit a goroutine after we've checked all run queues
-	// but before we drop nmspinning; as a result nobody will unpark a thread
-	// to run the goroutine.
+	// Delicate dance: thread transitions from spinning to non-spinning
+	// state, potentially concurrently with submission of new work. We must
+	// drop nmspinning first and then check all sources again (with
+	// #StoreLoad memory barrier in between). If we do it the other way
+	// around, another thread can submit work after we've checked all
+	// sources but before we drop nmspinning; as a result nobody will
+	// unpark a thread to run the work.
+	//
+	// This applies to the following sources of work:
+	//
+	// * Goroutines added to a per-P run queue.
+	// * New/modified-earlier timers on a per-P timer heap.
+	// * Idle-priority GC work (barring golang.org/issue/19112).
+	//
 	// If we discover new work below, we need to restore m.spinning as a signal
 	// for resetspinning to unpark a new worker thread (because there can be more
 	// than one starving goroutine). However, if after discovering new work
-	// we also observe no idle Ps, it is OK to just park the current thread:
-	// the system is fully loaded so no spinning threads are required.
+	// we also observe no idle Ps it is OK to skip unparking a new worker
+	// thread: the system is fully loaded so no spinning threads are required.
 	// Also see "Worker thread parking/unparking" comment at the top of the file.
 	wasSpinning := _g_.m.spinning
 	if _g_.m.spinning {
