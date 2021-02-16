@@ -55,6 +55,7 @@ func isRuntimeDepPkg(pkg string) bool {
 	switch pkg {
 	case "runtime",
 		"sync/atomic",      // runtime may call to sync/atomic, due to go:linkname
+		"internal/abi",     // used by reflectcall (and maybe more)
 		"internal/bytealg", // for IndexByte
 		"internal/cpu":     // for cpu features
 		return true
