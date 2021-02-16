@@ -5,12 +5,12 @@
 package riscv64
 
 import (
-	"cmd/compile/internal/gc"
+	"cmd/compile/internal/objw"
 	"cmd/internal/obj"
 	"cmd/internal/obj/riscv"
 )
 
-func ginsnop(pp *gc.Progs) *obj.Prog {
+func ginsnop(pp *objw.Progs) *obj.Prog {
 	// Hardware nop is ADD $0, ZERO
 	p := pp.Prog(riscv.AADD)
 	p.From.Type = obj.TYPE_CONST

@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
@@ -235,7 +236,7 @@ func nilcheckelim2(f *Func) {
 				continue
 			}
 			if v.Type.IsMemory() || v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
-				if v.Op == OpVarKill || v.Op == OpVarLive || (v.Op == OpVarDef && !v.Aux.(GCNode).Typ().HasPointers()) {
+				if v.Op == OpVarKill || v.Op == OpVarLive || (v.Op == OpVarDef && !v.Aux.(*ir.Name).Type().HasPointers()) {
 					// These ops don't really change memory.
 					continue
 					// Note: OpVarDef requires that the defined variable not have pointers.

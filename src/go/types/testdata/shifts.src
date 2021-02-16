@@ -20,7 +20,7 @@ func shifts0() {
 		// This depends on the exact spec wording which is not
 		// done yet.
 		// TODO(gri) revisit and adjust when spec change is done
-		_ = 1<<- /* ERROR "truncated to uint" */ 1.0
+		_ = 1<<- /* ERROR "negative shift count" */ 1.0
 		_ = 1<<1075 /* ERROR "invalid shift" */
 		_ = 2.0<<1
 		_ = 1<<1.0
@@ -60,11 +60,13 @@ func shifts1() {
 		_ uint = 1 << u
 		_ float32 = 1 /* ERROR "must be integer" */ << u
 
-		// for issue 14822
+		// issue #14822
+		_ = 1<<( /* ERROR "overflows uint" */ 1<<64)
 		_ = 1<<( /* ERROR "invalid shift count" */ 1<<64-1)
-		_ = 1<<( /* ERROR "invalid shift count" */ 1<<64)
-		_ = u<<(1<<63) // valid
-		_ = u<<(1<<64) // valid
+
+		// issue #43697
+		_ = u<<( /* ERROR "overflows uint" */ 1<<64)
+		_ = u<<(1<<64-1)
 	)
 }
 

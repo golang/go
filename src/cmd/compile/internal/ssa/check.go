@@ -166,7 +166,7 @@ func checkFunc(f *Func) {
 					f.Fatalf("value %v has an AuxInt that encodes a NaN", v)
 				}
 			case auxString:
-				if _, ok := v.Aux.(string); !ok {
+				if _, ok := v.Aux.(stringAux); !ok {
 					f.Fatalf("value %v has Aux type %T, want string", v, v.Aux)
 				}
 				canHaveAux = true

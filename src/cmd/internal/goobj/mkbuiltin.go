@@ -118,8 +118,8 @@ func mkbuiltin(w io.Writer) {
 
 // addBasicTypes returns the symbol names for basic types that are
 // defined in the runtime and referenced in other packages.
-// Needs to be kept in sync with reflect.go:dumpbasictypes() and
-// reflect.go:dtypesym() in the compiler.
+// Needs to be kept in sync with reflect.go:WriteBasicTypes() and
+// reflect.go:writeType() in the compiler.
 func enumerateBasicTypes() []extra {
 	names := [...]string{
 		"int8", "uint8", "int16", "uint16",

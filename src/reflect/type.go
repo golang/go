@@ -1865,7 +1865,7 @@ func MapOf(key, elem Type) Type {
 
 	// Make a map type.
 	// Note: flag values must match those used in the TMAP case
-	// in ../cmd/compile/internal/gc/reflect.go:dtypesym.
+	// in ../cmd/compile/internal/gc/reflect.go:writeType.
 	var imap interface{} = (map[unsafe.Pointer]unsafe.Pointer)(nil)
 	mt := **(**mapType)(unsafe.Pointer(&imap))
 	mt.str = resolveReflectName(newName(s, "", false))
@@ -2984,21 +2984,20 @@ type layoutKey struct {
 
 type layoutType struct {
 	t         *rtype
-	argSize   uintptr // size of arguments
-	retOffset uintptr // offset of return values.
-	stack     *bitVector
 	framePool *sync.Pool
+	abi       abiDesc
 }
 
 var layoutCache sync.Map // map[layoutKey]layoutType
 
 // funcLayout computes a struct type representing the layout of the
-// function arguments and return values for the function type t.
+// stack-assigned function arguments and return values for the function
+// type t.
 // If rcvr != nil, rcvr specifies the type of the receiver.
 // The returned type exists only for GC, so we only fill out GC relevant info.
 // Currently, that's just size and the GC program. We also fill in
 // the name for possible debugging use.
-func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, argSize, retOffset uintptr, stk *bitVector, framePool *sync.Pool) {
+func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Pool, abi abiDesc) {
 	if t.Kind() != Func {
 		panic("reflect: funcLayout of non-func type " + t.String())
 	}
@@ -3008,46 +3007,24 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, argSize, retOffset 
 	k := layoutKey{t, rcvr}
 	if lti, ok := layoutCache.Load(k); ok {
 		lt := lti.(layoutType)
-		return lt.t, lt.argSize, lt.retOffset, lt.stack, lt.framePool
+		return lt.t, lt.framePool, lt.abi
 	}
 
-	// compute gc program & stack bitmap for arguments
-	ptrmap := new(bitVector)
-	var offset uintptr
-	if rcvr != nil {
-		// Reflect uses the "interface" calling convention for
-		// methods, where receivers take one word of argument
-		// space no matter how big they actually are.
-		if ifaceIndir(rcvr) || rcvr.pointers() {
-			ptrmap.append(1)
-		} else {
-			ptrmap.append(0)
-		}
-		offset += ptrSize
-	}
-	for _, arg := range t.in() {
-		offset += -offset & uintptr(arg.align-1)
-		addTypeBits(ptrmap, offset, arg)
-		offset += arg.size
-	}
-	argSize = offset
-	offset += -offset & (ptrSize - 1)
-	retOffset = offset
-	for _, res := range t.out() {
-		offset += -offset & uintptr(res.align-1)
-		addTypeBits(ptrmap, offset, res)
-		offset += res.size
-	}
-	offset += -offset & (ptrSize - 1)
+	// Compute the ABI layout.
+	abi = newAbiDesc(t, rcvr)
 
 	// build dummy rtype holding gc program
 	x := &rtype{
-		align:   ptrSize,
-		size:    offset,
-		ptrdata: uintptr(ptrmap.n) * ptrSize,
+		align: ptrSize,
+		// Don't add spill space here; it's only necessary in
+		// reflectcall's frame, not in the allocated frame.
+		// TODO(mknyszek): Remove this comment when register
+		// spill space in the frame is no longer required.
+		size:    align(abi.retOffset+abi.ret.stackBytes, ptrSize),
+		ptrdata: uintptr(abi.stackPtrs.n) * ptrSize,
 	}
-	if ptrmap.n > 0 {
-		x.gcdata = &ptrmap.data[0]
+	if abi.stackPtrs.n > 0 {
+		x.gcdata = &abi.stackPtrs.data[0]
 	}
 
 	var s string
@@ -3064,13 +3041,11 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, argSize, retOffset 
 	}}
 	lti, _ := layoutCache.LoadOrStore(k, layoutType{
 		t:         x,
-		argSize:   argSize,
-		retOffset: retOffset,
-		stack:     ptrmap,
 		framePool: framePool,
+		abi:       abi,
 	})
 	lt := lti.(layoutType)
-	return lt.t, lt.argSize, lt.retOffset, lt.stack, lt.framePool
+	return lt.t, lt.framePool, lt.abi
 }
 
 // ifaceIndir reports whether t is stored indirectly in an interface value.

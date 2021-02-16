@@ -785,7 +785,7 @@
   => (RISBGZ x {s390x.NewRotateParams(r.Start, r.Start, -r.Start&63)})
 
 // Canonicalize the order of arguments to comparisons - helps with CSE.
-((CMP|CMPW|CMPU|CMPWU) x y) && x.ID > y.ID => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
+((CMP|CMPW|CMPU|CMPWU) x y) && canonLessThan(x,y) => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
 
 // Use sign/zero extend instead of RISBGZ.
 (RISBGZ x {r}) && r == s390x.NewRotateParams(56, 63, 0) => (MOVBZreg x)

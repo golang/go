@@ -174,21 +174,6 @@ TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
  *  go-routine
  */
 
-// void gosave(Gobuf*)
-// save state in Gobuf; setjmp
-TEXT runtime·gosave(SB), NOSPLIT, $-8-8
-	MOVD	buf+0(FP), R3
-	MOVD	R15, gobuf_sp(R3)
-	MOVD	LR, gobuf_pc(R3)
-	MOVD	g, gobuf_g(R3)
-	MOVD	$0, gobuf_lr(R3)
-	MOVD	$0, gobuf_ret(R3)
-	// Assert ctxt is zero. See func save.
-	MOVD	gobuf_ctxt(R3), R3
-	CMPBEQ	R3, $0, 2(PC)
-	BL	runtime·badctxt(SB)
-	RET
-
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB), NOSPLIT, $16-8
@@ -368,7 +353,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	BR	runtime·morestack(SB)
 
 // reflectcall: call a function with the given argument list
-// func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
+// func call(stackArgsType *_type, f *FuncVal, stackArgs *byte, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs).
 // we don't have variable-sized frames, so we use a small number
 // of constant-sized-frame functions to encode a few bits of size in the pc.
 // Caution: ugly multiline assembly macros in your future!
@@ -381,8 +366,8 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	BR	(R5)
 // Note: can't just "BR NAME(SB)" - bad inlining results.
 
-TEXT ·reflectcall(SB), NOSPLIT, $-8-32
-	MOVWZ argsize+24(FP), R3
+TEXT ·reflectcall(SB), NOSPLIT, $-8-48
+	MOVWZ	frameSize+32(FP), R3
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
@@ -414,11 +399,11 @@ TEXT ·reflectcall(SB), NOSPLIT, $-8-32
 	BR	(R5)
 
 #define CALLFN(NAME,MAXSIZE)			\
-TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
+TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
-	MOVD	arg+16(FP), R4;			\
-	MOVWZ	argsize+24(FP), R5;		\
+	MOVD	stackArgs+16(FP), R4;			\
+	MOVWZ	stackArgsSize+24(FP), R5;		\
 	MOVD	$stack-MAXSIZE(SP), R6;		\
 loopArgs: /* copy 256 bytes at a time */	\
 	CMP	R5, $256;			\
@@ -439,11 +424,11 @@ callFunction:					\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	BL	(R8);				\
 	/* copy return values back */		\
-	MOVD	argtype+0(FP), R7;		\
-	MOVD	arg+16(FP), R6;			\
-	MOVWZ	n+24(FP), R5;			\
+	MOVD	stackArgsType+0(FP), R7;		\
+	MOVD	stackArgs+16(FP), R6;			\
+	MOVWZ	stackArgsSize+24(FP), R5;			\
 	MOVD	$stack-MAXSIZE(SP), R4;		\
-	MOVWZ	retoffset+28(FP), R1;		\
+	MOVWZ	stackRetOffset+28(FP), R1;		\
 	ADD	R1, R4;				\
 	ADD	R1, R6;				\
 	SUB	R1, R5;				\
@@ -454,11 +439,12 @@ callFunction:					\
 // separate function so it can allocate stack space for the arguments
 // to reflectcallmove. It does not follow the Go ABI; it expects its
 // arguments in registers.
-TEXT callRet<>(SB), NOSPLIT, $32-0
+TEXT callRet<>(SB), NOSPLIT, $40-0
 	MOVD	R7, 8(R15)
 	MOVD	R6, 16(R15)
 	MOVD	R4, 24(R15)
 	MOVD	R5, 32(R15)
+	MOVD	$0, 40(R15)
 	BL	runtime·reflectcallmove(SB)
 	RET
 
