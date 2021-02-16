@@ -81,58 +81,58 @@ type UnknownType undefined
 	}
 
 	var sorted []*types.Package
-	for pkg := range prog.AllPackages {
-		sorted = append(sorted, pkg)
+	for pkg, info := range prog.AllPackages {
+		if info.Files != nil { // non-empty directory
+			sorted = append(sorted, pkg)
+		}
 	}
 	sort.Slice(sorted, func(i, j int) bool {
 		return sorted[i].Path() < sorted[j].Path()
 	})
 
 	for _, pkg := range sorted {
-		info := prog.AllPackages[pkg]
-		if info.Files == nil {
-			continue // empty directory
+		if exportdata, err := iexport(conf.Fset, pkg); err != nil {
+			t.Error(err)
+		} else {
+			testPkgData(t, conf.Fset, pkg, exportdata)
 		}
-		exportdata, err := iexport(conf.Fset, pkg)
-		if err != nil {
-			t.Fatal(err)
-		}
+	}
+}
 
-		imports := make(map[string]*types.Package)
-		fset2 := token.NewFileSet()
-		n, pkg2, err := gcimporter.IImportData(fset2, imports, exportdata, pkg.Path())
-		if err != nil {
-			t.Errorf("IImportData(%s): %v", pkg.Path(), err)
+func testPkgData(t *testing.T, fset *token.FileSet, pkg *types.Package, exportdata []byte) {
+	imports := make(map[string]*types.Package)
+	fset2 := token.NewFileSet()
+	_, pkg2, err := gcimporter.IImportData(fset2, imports, exportdata, pkg.Path())
+	if err != nil {
+		t.Errorf("IImportData(%s): %v", pkg.Path(), err)
+	}
+
+	testPkg(t, fset, pkg, fset2, pkg2)
+}
+
+func testPkg(t *testing.T, fset *token.FileSet, pkg *types.Package, fset2 *token.FileSet, pkg2 *types.Package) {
+	// Compare the packages' corresponding members.
+	for _, name := range pkg.Scope().Names() {
+		if !ast.IsExported(name) {
 			continue
 		}
-		if n != len(exportdata) {
-			t.Errorf("IImportData(%s) decoded %d bytes, want %d",
-				pkg.Path(), n, len(exportdata))
+		obj1 := pkg.Scope().Lookup(name)
+		obj2 := pkg2.Scope().Lookup(name)
+		if obj2 == nil {
+			t.Errorf("%s.%s not found, want %s", pkg.Path(), name, obj1)
+			continue
 		}
 
-		// Compare the packages' corresponding members.
-		for _, name := range pkg.Scope().Names() {
-			if !ast.IsExported(name) {
-				continue
-			}
-			obj1 := pkg.Scope().Lookup(name)
-			obj2 := pkg2.Scope().Lookup(name)
-			if obj2 == nil {
-				t.Fatalf("%s.%s not found, want %s", pkg.Path(), name, obj1)
-				continue
-			}
+		fl1 := fileLine(fset, obj1)
+		fl2 := fileLine(fset2, obj2)
+		if fl1 != fl2 {
+			t.Errorf("%s.%s: got posn %s, want %s",
+				pkg.Path(), name, fl2, fl1)
+		}
 
-			fl1 := fileLine(conf.Fset, obj1)
-			fl2 := fileLine(fset2, obj2)
-			if fl1 != fl2 {
-				t.Errorf("%s.%s: got posn %s, want %s",
-					pkg.Path(), name, fl2, fl1)
-			}
-
-			if err := cmpObj(obj1, obj2); err != nil {
-				t.Errorf("%s.%s: %s\ngot:  %s\nwant: %s",
-					pkg.Path(), name, err, obj2, obj1)
-			}
+		if err := cmpObj(obj1, obj2); err != nil {
+			t.Errorf("%s.%s: %s\ngot:  %s\nwant: %s",
+				pkg.Path(), name, err, obj2, obj1)
 		}
 	}
 }
