@@ -59,10 +59,23 @@ const (
 )
 
 // IImportData imports a package from the serialized package data
-// and returns the number of bytes consumed and a reference to the package.
+// and returns 0 and a reference to the package.
 // If the export data version is not recognized or the format is otherwise
 // compromised, an error is returned.
-func IImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (_ int, pkg *types.Package, err error) {
+func IImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (int, *types.Package, error) {
+	pkgs, err := iimportCommon(fset, imports, data, false, path)
+	if err != nil {
+		return 0, nil, err
+	}
+	return 0, pkgs[0], nil
+}
+
+// IImportBundle imports a set of packages from the serialized package bundle.
+func IImportBundle(fset *token.FileSet, imports map[string]*types.Package, data []byte) ([]*types.Package, error) {
+	return iimportCommon(fset, imports, data, true, "")
+}
+
+func iimportCommon(fset *token.FileSet, imports map[string]*types.Package, data []byte, bundle bool, path string) (pkgs []*types.Package, err error) {
 	const currentVersion = 1
 	version := int64(-1)
 	defer func() {
@@ -76,6 +89,15 @@ func IImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 	}()
 
 	r := &intReader{bytes.NewReader(data), path}
+
+	if bundle {
+		bundleVersion := r.uint64()
+		switch bundleVersion {
+		case bundleVersion:
+		default:
+			errorf("unknown bundle format version %d", bundleVersion)
+		}
+	}
 
 	version = int64(r.uint64())
 	switch version {
@@ -143,39 +165,58 @@ func IImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 		p.pkgIndex[pkg] = nameIndex
 		pkgList[i] = pkg
 	}
-	if len(pkgList) == 0 {
-		errorf("no packages found for %s", path)
-		panic("unreachable")
+
+	if bundle {
+		pkgs = make([]*types.Package, r.uint64())
+		for i := range pkgs {
+			pkg := p.pkgAt(r.uint64())
+			imps := make([]*types.Package, r.uint64())
+			for j := range imps {
+				imps[j] = p.pkgAt(r.uint64())
+			}
+			pkg.SetImports(imps)
+			pkgs[i] = pkg
+		}
+	} else {
+		if len(pkgList) == 0 {
+			errorf("no packages found for %s", path)
+			panic("unreachable")
+		}
+		pkgs = pkgList[:1]
+
+		// record all referenced packages as imports
+		list := append(([]*types.Package)(nil), pkgList[1:]...)
+		sort.Sort(byPath(list))
+		pkgs[0].SetImports(list)
 	}
-	p.ipkg = pkgList[0]
-	names := make([]string, 0, len(p.pkgIndex[p.ipkg]))
-	for name := range p.pkgIndex[p.ipkg] {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	for _, name := range names {
-		p.doDecl(p.ipkg, name)
+
+	for _, pkg := range pkgs {
+		if pkg.Complete() {
+			continue
+		}
+
+		names := make([]string, 0, len(p.pkgIndex[pkg]))
+		for name := range p.pkgIndex[pkg] {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			p.doDecl(pkg, name)
+		}
+
+		// package was imported completely and without errors
+		pkg.MarkComplete()
 	}
 
 	for _, typ := range p.interfaceList {
 		typ.Complete()
 	}
 
-	// record all referenced packages as imports
-	list := append(([]*types.Package)(nil), pkgList[1:]...)
-	sort.Sort(byPath(list))
-	p.ipkg.SetImports(list)
-
-	// package was imported completely and without errors
-	p.ipkg.MarkComplete()
-
-	consumed, _ := r.Seek(0, io.SeekCurrent)
-	return int(consumed), p.ipkg, nil
+	return pkgs, nil
 }
 
 type iimporter struct {
 	ipath   string
-	ipkg    *types.Package
 	version int
 
 	stringData  []byte
@@ -227,9 +268,6 @@ func (p *iimporter) pkgAt(off uint64) *types.Package {
 		return pkg
 	}
 	path := p.stringAt(off)
-	if path == p.ipath {
-		return p.ipkg
-	}
 	errorf("missing package %q in %q", path, p.ipath)
 	return nil
 }

@@ -134,6 +134,21 @@ type UnknownType undefined
 			testPkgData(t, conf.Fset, pkg, exportdata)
 		}
 	}
+
+	var bundle bytes.Buffer
+	if err := gcimporter.IExportBundle(&bundle, conf.Fset, sorted); err != nil {
+		t.Fatal(err)
+	}
+	fset2 := token.NewFileSet()
+	imports := make(map[string]*types.Package)
+	pkgs2, err := gcimporter.IImportBundle(fset2, imports, bundle.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i, pkg := range sorted {
+		testPkg(t, conf.Fset, pkg, fset2, pkgs2[i])
+	}
 }
 
 func testPkgData(t *testing.T, fset *token.FileSet, pkg *types.Package, exportdata []byte) {

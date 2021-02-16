@@ -105,3 +105,25 @@ func Write(out io.Writer, fset *token.FileSet, pkg *types.Package) error {
 	}
 	return gcimporter.IExportData(out, fset, pkg)
 }
+
+// ReadBundle reads an export bundle from in, decodes it, and returns type
+// information for the packages.
+// File position information is added to fset.
+//
+// ReadBundle may inspect and add to the imports map to ensure that references
+// within the export bundle to other packages are consistent.
+//
+// On return, the state of the reader is undefined.
+func ReadBundle(in io.Reader, fset *token.FileSet, imports map[string]*types.Package) ([]*types.Package, error) {
+	data, err := ioutil.ReadAll(in)
+	if err != nil {
+		return nil, fmt.Errorf("reading export bundle: %v", err)
+	}
+	return gcimporter.IImportBundle(fset, imports, data)
+}
+
+// WriteBundle writes encoded type information for the specified packages to out.
+// The FileSet provides file position information for named objects.
+func WriteBundle(out io.Writer, fset *token.FileSet, pkgs []*types.Package) error {
+	return gcimporter.IExportBundle(out, fset, pkgs)
+}
