@@ -1808,7 +1808,7 @@
 // 		The directory where the go command will write
 // 		temporary source files, packages, and binaries.
 // 	GOVCS
-// 	  Lists version control commands that may be used with matching servers.
+// 		Lists version control commands that may be used with matching servers.
 // 		See 'go help vcs'.
 //
 // Environment variables for use with cgo:
@@ -2410,6 +2410,17 @@
 //
 // For a detailed reference on modules, see https://golang.org/ref/mod.
 //
+// By default, the go command may download modules from https://proxy.golang.org.
+// It may authenticate modules using the checksum database at
+// https://sum.golang.org. Both services are operated by the Go team at Google.
+// The privacy policies for these services are available at
+// https://proxy.golang.org/privacy and https://sum.golang.org/privacy,
+// respectively.
+//
+// The go command's download behavior may be configured using GOPROXY, GOSUMDB,
+// GOPRIVATE, and other environment variables. See 'go help environment'
+// and https://golang.org/ref/mod#private-module-privacy for more information.
+//
 //
 // Module authentication using go.sum
 //
@@ -2868,20 +2879,23 @@
 // legal reasons). Therefore, clients can still access public code served from
 // Bazaar, Fossil, or Subversion repositories by default, because those downloads
 // use the Go module mirror, which takes on the security risk of running the
-// version control commands, using a custom sandbox.
+// version control commands using a custom sandbox.
 //
 // The GOVCS variable can be used to change the allowed version control systems
 // for specific packages (identified by a module or import path).
-// The GOVCS variable applies both when using modules and when using GOPATH.
-// When using modules, the patterns match against the module path.
-// When using GOPATH, the patterns match against the import path
-// corresponding to the root of the version control repository.
+// The GOVCS variable applies when building package in both module-aware mode
+// and GOPATH mode. When using modules, the patterns match against the module path.
+// When using GOPATH, the patterns match against the import path corresponding to
+// the root of the version control repository.
 //
 // The general form of the GOVCS setting is a comma-separated list of
 // pattern:vcslist rules. The pattern is a glob pattern that must match
 // one or more leading elements of the module or import path. The vcslist
 // is a pipe-separated list of allowed version control commands, or "all"
-// to allow use of any known command, or "off" to allow nothing.
+// to allow use of any known command, or "off" to disallow all commands.
+// Note that if a module matches a pattern with vcslist "off", it may still be
+// downloaded if the origin server uses the "mod" scheme, which instructs the
+// go command to download the module using the GOPROXY protocol.
 // The earliest matching pattern in the list applies, even if later patterns
 // might also match.
 //
@@ -2889,7 +2903,7 @@
 //
 // 	GOVCS=github.com:git,evil.com:off,*:git|hg
 //
-// With this setting, code with an module or import path beginning with
+// With this setting, code with a module or import path beginning with
 // github.com/ can only use git; paths on evil.com cannot use any version
 // control command, and all other paths (* matches everything) can use
 // only git or hg.

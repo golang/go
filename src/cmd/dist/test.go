@@ -727,14 +727,6 @@ func (t *tester) registerTests() {
 		}
 	}
 
-	// Doc tests only run on builders.
-	// They find problems approximately never.
-	if goos != "js" && goos != "android" && !t.iOS() && os.Getenv("GO_BUILDER_NAME") != "" {
-		t.registerTest("doc_progs", "../doc/progs", "go", "run", "run.go")
-		t.registerTest("wiki", "../doc/articles/wiki", t.goTest(), ".")
-		t.registerTest("codewalk", "../doc/codewalk", t.goTest(), "codewalk_test.go")
-	}
-
 	if goos != "android" && !t.iOS() {
 		// There are no tests in this directory, only benchmarks.
 		// Check that the test binary builds but don't bother running it.

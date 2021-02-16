@@ -14,13 +14,13 @@ Do not send CLs removing the interior tags from such phrases.
   main ul li { margin: 0.5em 0; }
 </style>
 
-<h2 id="introduction">DRAFT RELEASE NOTES — Introduction to Go 1.16</h2>
+<h2 id="introduction">Introduction to Go 1.16</h2>
 
 <p>
-  <strong>
-    Go 1.16 is not yet released. These are work-in-progress
-    release notes. Go 1.16 is expected to be released in February 2021.
-  </strong>
+  The latest Go release, version 1.16, arrives six months after <a href="/doc/go1.15">Go 1.15</a>.
+  Most of its changes are in the implementation of the toolchain, runtime, and libraries.
+  As always, the release maintains the Go 1 <a href="/doc/go1compat.html">promise of compatibility</a>.
+  We expect almost all Go programs to continue to compile and run as before.
 </p>
 
 <h2 id="language">Changes to the language</h2>
@@ -78,6 +78,16 @@ Do not send CLs removing the interior tags from such phrases.
   Go now supports the MIPS64 architecture on OpenBSD
   (the <code>openbsd/mips64</code> port). This port does not yet
   support cgo.
+</p>
+
+<p><!-- golang.org/issue/36435, many CLs -->
+  On the 64-bit x86 and 64-bit ARM architectures on OpenBSD (the
+  <code>openbsd/amd64</code> and <code>openbsd/arm64</code> ports), system
+  calls are now made through <code>libc</code>, instead of directly using
+  the <code>SYSCALL</code>/<code>SVC</code> instruction. This ensures
+  forward-compatibility with future versions of OpenBSD. In particular,
+  OpenBSD 6.9 onwards will require system calls to be made through
+  <code>libc</code> for non-static Go binaries.
 </p>
 
 <h3 id="386">386</h3>
@@ -146,7 +156,7 @@ Do not send CLs removing the interior tags from such phrases.
   <code>retract</code> directives may now be used in a <code>go.mod</code> file
   to indicate that certain published versions of the module should not be used
   by other modules. A module author may retract a version after a severe problem
-  is discovered or if the version was published unintentionally.<br>
+  is discovered or if the version was published unintentionally.
 </p>
 
 <p><!-- golang.org/issue/26603 -->
@@ -164,10 +174,12 @@ Do not send CLs removing the interior tags from such phrases.
   non-reproducible builds.
 </p>
 
-<p><!-- golang.org/issue/43052 -->
-  The <code>go</code> command now disallows non-ASCII import paths in module
-  mode. Non-ASCII module paths have already been disallowed so this change
-  affects module subdirectory paths that contain non-ASCII characters.
+<p><!-- golang.org/issue/43052, golang.org/issue/43985 -->
+  In module mode, the <code>go</code> command now disallows import paths that
+  include non-ASCII characters or path elements with a leading dot character
+  (<code>.</code>). Module paths with these characters were already disallowed
+  (see <a href="/ref/mod#go-mod-file-ident">Module paths and versions</a>),
+  so this change affects only paths within module subdirectories.
 </p>
 
 <h4 id="embed">Embedding Files</h4>
@@ -305,7 +317,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="vet">Vet</h3>
 
-<h4 id="vet-string-int">New warning for invalid testing.T use in
+<h4 id="vet-testing-T">New warning for invalid testing.T use in
 goroutines</h4>
 
 <p><!-- CL 235677 -->
@@ -354,6 +366,8 @@ func TestFoo(t *testing.T) {
 }
 </pre>
 
+<h4 id="vet-frame-pointer">New warning for frame pointer</h4>
+
 <p><!-- CL 248686, CL 276372 -->
   The vet tool now warns about amd64 assembly that clobbers the BP
   register (the frame pointer) without saving and restoring it,
@@ -364,6 +378,16 @@ func TestFoo(t *testing.T) {
   prologue and epilogue to preserve the BP register for you.
   See <a href="https://golang.org/cl/248260">CL 248260</a> for example
   fixes.
+</p>
+
+<h4 id="vet-asn1-unmarshal">New warning for asn1.Unmarshal</h4>
+
+<p><!-- CL 243397 -->
+  The vet tool now warns about incorrectly passing a non-pointer or nil argument to
+  <a href="/pkg/encoding/asn1/#Unmarshal"><code>asn1.Unmarshal</code></a>.
+  This is like the existing checks for
+  <a href="/pkg/encoding/json/#Unmarshal"><code>encoding/json.Unmarshal</code></a>
+  and <a href="/pkg/encoding/xml/#Unmarshal"><code>encoding/xml.Unmarshal</code></a>.
 </p>
 
 <h2 id="runtime">Runtime</h2>
@@ -481,7 +505,7 @@ func TestFoo(t *testing.T) {
   On the consumer side,
   the new <a href="/pkg/net/http/#FS"><code>http.FS</code></a>
   function converts an <code>fs.FS</code> to an
-  <a href="/pkg/net/http/#Handler"><code>http.Handler</code></a>.
+  <a href="/pkg/net/http/#FileSystem"><code>http.FileSystem</code></a>.
   Also, the <a href="/pkg/html/template/"><code>html/template</code></a>
   and <a href="/pkg/text/template/"><code>text/template</code></a>
   packages’ <a href="/pkg/html/template/#ParseFS"><code>ParseFS</code></a>
@@ -762,6 +786,25 @@ func TestFoo(t *testing.T) {
   </dd>
 </dl><!-- go/build -->
 
+<dl id="go/build/constraint"><dt><a href="/pkg/go/build/constraint/">go/build/constraint</a></dt>
+  <dd>
+    <p><!-- CL 240604 -->
+      The new
+      <a href="/pkg/go/build/constraint/"><code>go/build/constraint</code></a>
+      package parses build constraint lines, both the original
+      <code>// +build</code> syntax and the <code>//go:build</code>
+      syntax that will be introduced in Go 1.17.
+      This package exists so that tools built with Go 1.16 will be able
+      to process Go 1.17 source code.
+      See <a href="https://golang.org/design/draft-gobuild">https://golang.org/design/draft-gobuild</a>
+      for details about the build constraint syntaxes and the planned
+      transition to the <code>//go:build</code> syntax.
+      Note that <code>//go:build</code> lines are <b>not</b> supported
+      in Go 1.16 and should not be introduced into Go programs yet.
+    </p>
+  </dd>
+</dl><!-- go/build/constraint -->
+
 <dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
   <dd>
     <p><!-- CL 243938 -->
@@ -880,7 +923,7 @@ func TestFoo(t *testing.T) {
     </p>
 
     <p><!-- CL 250039 -->
-      The <a href="/pkg/net/http/#Client">Client</a> now sends
+      The <a href="/pkg/net/http/#Client"><code>Client</code></a> now sends
       an explicit <code>Content-Length:</code> <code>0</code>
       header in <code>PATCH</code> requests with empty bodies,
       matching the existing behavior of <code>POST</code> and <code>PUT</code>.
@@ -909,7 +952,7 @@ func TestFoo(t *testing.T) {
     <p><!-- CL 243939 -->
       The new <a href="/pkg/net/http/#FS"><code>http.FS</code></a>
       function converts an <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a>
-      to an <a href="/pkg/net/http/#Handler"><code>http.Handler</code></a>.
+      to an <a href="/pkg/net/http/#FileSystem"><code>http.FileSystem</code></a>.
     </p>
   </dd>
 </dl><!-- net/http -->
@@ -927,7 +970,7 @@ func TestFoo(t *testing.T) {
 <dl id="net/smtp"><dt><a href="/pkg/net/smtp/">net/smtp</a></dt>
   <dd>
     <p><!-- CL 247257 -->
-      The <a href="/pkg/net/smtp/#Client">Client</a>'s
+      The <a href="/pkg/net/smtp/#Client"><code>Client</code></a>'s
       <a href="/pkg/net/smtp/#Client.Mail"><code>Mail</code></a>
       method now sends the <code>SMTPUTF8</code> directive to
       servers that support it, signaling that addresses are encoded in UTF-8.

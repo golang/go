@@ -9,17 +9,27 @@
 // files read from the package directory or subdirectories at compile time.
 //
 // For example, here are three ways to embed a file named hello.txt
-// and then print its contents at run time:
+// and then print its contents at run time.
 //
-//	import "embed"
+// Embedding one file into a string:
+//
+//	import _ "embed"
 //
 //	//go:embed hello.txt
 //	var s string
 //	print(s)
 //
+// Embedding one file into a slice of bytes:
+//
+//	import _ "embed"
+//
 //	//go:embed hello.txt
 //	var b []byte
 //	print(string(b))
+//
+// Embedded one or more files into a file system:
+//
+//	import "embed"
 //
 //	//go:embed hello.txt
 //	var f embed.FS
@@ -34,8 +44,8 @@
 // The directive must immediately precede a line containing the declaration of a single variable.
 // Only blank lines and ‘//’ line comments are permitted between the directive and the declaration.
 //
-// The variable must be of type string, []byte, or FS exactly. Named types or type aliases
-// derived from those types are not allowed.
+// The type of the variable must be a string type, or a slice of a byte type,
+// or FS (or an alias of FS).
 //
 // For example:
 //
@@ -51,12 +61,15 @@
 // The Go build system will recognize the directives and arrange for the declared variable
 // (in the example above, content) to be populated with the matching files from the file system.
 //
-// The //go:embed directive accepts multiple space-separated patterns for brevity,
-// but it can also be repeated, to avoid very long lines when there are many patterns.
-// The patterns are interpreted relative to the package directory containing the source file.
-// The path separator is a forward slash, even on Windows systems.
-// To allow for naming files with spaces in their names, patterns can be written
-// as Go double-quoted or back-quoted string literals.
+// The //go:embed directive accepts multiple space-separated patterns for
+// brevity, but it can also be repeated, to avoid very long lines when there are
+// many patterns. The patterns are interpreted relative to the package directory
+// containing the source file. The path separator is a forward slash, even on
+// Windows systems. Patterns may not contain ‘.’ or ‘..’ or empty path elements,
+// nor may they begin or end with a slash. To match everything in the current
+// directory, use ‘*’ instead of ‘.’. To allow for naming files with spaces in
+// their names, patterns can be written as Go double-quoted or back-quoted
+// string literals.
 //
 // If a pattern names a directory, all files in the subtree rooted at that directory are
 // embedded (recursively), except that files with names beginning with ‘.’ or ‘_’
@@ -70,15 +83,12 @@
 //
 // The //go:embed directive can be used with both exported and unexported variables,
 // depending on whether the package wants to make the data available to other packages.
-// Similarly, it can be used with both global and function-local variables,
-// depending on what is more convenient in context.
+// It can only be used with global variables at package scope,
+// not with local variables.
 //
 // Patterns must not match files outside the package's module, such as ‘.git/*’ or symbolic links.
 // Matches for empty directories are ignored. After that, each pattern in a //go:embed line
 // must match at least one file or non-empty directory.
-//
-// Patterns must not contain ‘.’ or ‘..’ path elements nor begin with a leading slash.
-// To match everything in the current directory, use ‘*’ instead of ‘.’.
 //
 // If any patterns are invalid or have invalid matches, the build will fail.
 //

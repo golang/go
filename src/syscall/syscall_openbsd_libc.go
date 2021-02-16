@@ -2,11 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build openbsd,amd64
+// +build openbsd,amd64 openbsd,arm64
 
 package syscall
 
 import "unsafe"
+
+func init() {
+	execveOpenBSD = execve
+}
 
 //sys directSyscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr) (ret uintptr, err error) = SYS_syscall
 
@@ -56,6 +60,8 @@ func funcPC(f func()) uintptr {
 	return **(**uintptr)(unsafe.Pointer(&f))
 }
 
+//sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_read
+//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_write
 //sys	Seek(fd int, offset int64, whence int) (newoffset int64, err error) = SYS_lseek
 //sys	getcwd(buf []byte) (n int, err error)
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error)
@@ -69,25 +75,3 @@ func funcPC(f func()) uintptr {
 //sys	fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) = SYS_fcntl
 //sys   unlinkat(fd int, path string, flags int) (err error)
 //sys   openat(fd int, path string, flags int, perm uint32) (fdret int, err error)
-
-func init() {
-	execveOpenBSD = execve
-}
-
-func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
-	r0, _, e1 := syscall(funcPC(libc_read_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
-	n = int(r0)
-	if e1 != 0 {
-		err = errnoErr(e1)
-	}
-	return
-}
-
-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
-	r0, _, e1 := syscall(funcPC(libc_write_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
-	n = int(r0)
-	if e1 != 0 {
-		err = errnoErr(e1)
-	}
-	return
-}
