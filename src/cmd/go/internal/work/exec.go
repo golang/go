@@ -2776,9 +2776,14 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 
 	// gcc
 	cflags := str.StringList(cgoCPPFLAGS, cgoCFLAGS)
+	exportCflags := str.StringList(cflags, "-fno-lto")
 	for _, cfile := range cfiles {
 		ofile := nextOfile()
-		if err := b.gcc(a, p, a.Objdir, ofile, cflags, objdir+cfile); err != nil {
+		currentCflags := cflags
+		if cfile == "_cgo_export.c" {
+			currentCflags = exportCflags
+		}
+		if err := b.gcc(a, p, a.Objdir, ofile, currentCflags, objdir+cfile); err != nil {
 			return nil, nil, err
 		}
 		outObj = append(outObj, ofile)
