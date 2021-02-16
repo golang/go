@@ -25,12 +25,12 @@ import (
 // 0: Go1.11 encoding
 const iexportVersion = 0
 
-// IExportData returns the binary export data for pkg.
+// IExportData writes indexed export data for pkg to out.
 //
 // If no file set is provided, position info will be missing.
 // The package path of the top-level package will not be recorded,
 // so that calls to IImportData can override with a provided package path.
-func IExportData(fset *token.FileSet, pkg *types.Package) (b []byte, err error) {
+func IExportData(out io.Writer, fset *token.FileSet, pkg *types.Package) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			if ierr, ok := e.(internalError); ok {
@@ -43,7 +43,6 @@ func IExportData(fset *token.FileSet, pkg *types.Package) (b []byte, err error) 
 	}()
 
 	p := iexporter{
-		out:         bytes.NewBuffer(nil),
 		fset:        fset,
 		allPkgs:     map[*types.Package]bool{},
 		stringIndex: map[string]uint64{},
@@ -80,17 +79,16 @@ func IExportData(fset *token.FileSet, pkg *types.Package) (b []byte, err error) 
 
 	// Assemble header.
 	var hdr intWriter
-	hdr.WriteByte('i')
 	hdr.uint64(iexportVersion)
 	hdr.uint64(uint64(p.strings.Len()))
 	hdr.uint64(dataLen)
 
 	// Flush output.
-	io.Copy(p.out, &hdr)
-	io.Copy(p.out, &p.strings)
-	io.Copy(p.out, &p.data0)
+	io.Copy(out, &hdr)
+	io.Copy(out, &p.strings)
+	io.Copy(out, &p.data0)
 
-	return p.out.Bytes(), nil
+	return nil
 }
 
 // writeIndex writes out an object index. mainIndex indicates whether

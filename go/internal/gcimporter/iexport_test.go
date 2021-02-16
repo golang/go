@@ -9,6 +9,7 @@
 package gcimporter_test
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -27,6 +28,14 @@ import (
 	"golang.org/x/tools/go/internal/gcimporter"
 	"golang.org/x/tools/go/loader"
 )
+
+func iexport(fset *token.FileSet, pkg *types.Package) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := gcimporter.IExportData(&buf, fset, pkg); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
 
 func TestIExportData_stdlib(t *testing.T) {
 	if runtime.Compiler == "gccgo" {
@@ -84,14 +93,9 @@ type UnknownType undefined
 		if info.Files == nil {
 			continue // empty directory
 		}
-		exportdata, err := gcimporter.IExportData(conf.Fset, pkg)
+		exportdata, err := iexport(conf.Fset, pkg)
 		if err != nil {
 			t.Fatal(err)
-		}
-		if exportdata[0] == 'i' {
-			exportdata = exportdata[1:] // trim the 'i' in the header
-		} else {
-			t.Fatalf("unexpected first character of export data: %v", exportdata[0])
 		}
 
 		imports := make(map[string]*types.Package)
@@ -151,14 +155,9 @@ func TestIExportData_long(t *testing.T) {
 	}
 
 	// export
-	exportdata, err := gcimporter.IExportData(fset1, pkg)
+	exportdata, err := iexport(fset1, pkg)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if exportdata[0] == 'i' {
-		exportdata = exportdata[1:] // trim the 'i' in the header
-	} else {
-		t.Fatalf("unexpected first character of export data: %v", exportdata[0])
 	}
 
 	// import
@@ -199,14 +198,9 @@ func TestIExportData_typealiases(t *testing.T) {
 
 	// export
 	// use a nil fileset here to confirm that it doesn't panic
-	exportdata, err := gcimporter.IExportData(nil, pkg1)
+	exportdata, err := iexport(nil, pkg1)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if exportdata[0] == 'i' {
-		exportdata = exportdata[1:] // trim the 'i' in the header
-	} else {
-		t.Fatalf("unexpected first character of export data: %v", exportdata[0])
 	}
 
 	// import
