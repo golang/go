@@ -370,10 +370,16 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 	r := relocs.At(ri)
 	switch r.Type() {
 	case objabi.R_CALLARM:
-		// r.Add is the instruction
-		// low 24-bit encodes the target address
-		t := (ldr.SymValue(rs) + int64(signext24(r.Add()&0xffffff)*4) - (ldr.SymValue(s) + int64(r.Off()))) / 4
-		if t > 0x7fffff || t < -0x800000 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
+		var t int64
+		// ldr.SymValue(rs) == 0 indicates a cross-package jump to a function that is not yet
+		// laid out. Conservatively use a trampoline. This should be rare, as we lay out packages
+		// in dependency order.
+		if ldr.SymValue(rs) != 0 {
+			// r.Add is the instruction
+			// low 24-bit encodes the target address
+			t = (ldr.SymValue(rs) + int64(signext24(r.Add()&0xffffff)*4) - (ldr.SymValue(s) + int64(r.Off()))) / 4
+		}
+		if t > 0x7fffff || t < -0x800000 || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
 			// direct call too far, need to insert trampoline.
 			// look up existing trampolines first. if we found one within the range
 			// of direct call, we can reuse it. otherwise create a new one.
@@ -445,7 +451,7 @@ func gentramp(arch *sys.Arch, linkmode ld.LinkMode, ldr *loader.Loader, tramp *l
 	arch.ByteOrder.PutUint32(P[8:], o3)
 	tramp.SetData(P)
 
-	if linkmode == ld.LinkExternal {
+	if linkmode == ld.LinkExternal || ldr.SymValue(target) == 0 {
 		r, _ := tramp.AddRel(objabi.R_ADDR)
 		r.SetOff(8)
 		r.SetSiz(4)
