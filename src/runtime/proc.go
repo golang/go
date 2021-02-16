@@ -3136,7 +3136,9 @@ top:
 	}
 	if gp == nil && gcBlackenEnabled != 0 {
 		gp = gcController.findRunnableGCWorker(_g_.m.p.ptr())
-		tryWakeP = tryWakeP || gp != nil
+		if gp != nil {
+			tryWakeP = true
+		}
 	}
 	if gp == nil {
 		// Check the global runnable queue once in a while to ensure fairness.
