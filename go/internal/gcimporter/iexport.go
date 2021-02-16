@@ -472,10 +472,10 @@ func (w *exportWriter) param(obj types.Object) {
 func (w *exportWriter) value(typ types.Type, v constant.Value) {
 	w.typ(typ, nil)
 
-	switch v.Kind() {
-	case constant.Bool:
+	switch b := typ.Underlying().(*types.Basic); b.Info() & types.IsConstType {
+	case types.IsBoolean:
 		w.bool(constant.BoolVal(v))
-	case constant.Int:
+	case types.IsInteger:
 		var i big.Int
 		if i64, exact := constant.Int64Val(v); exact {
 			i.SetInt64(i64)
@@ -485,25 +485,27 @@ func (w *exportWriter) value(typ types.Type, v constant.Value) {
 			i.SetString(v.ExactString(), 10)
 		}
 		w.mpint(&i, typ)
-	case constant.Float:
+	case types.IsFloat:
 		f := constantToFloat(v)
 		w.mpfloat(f, typ)
-	case constant.Complex:
+	case types.IsComplex:
 		w.mpfloat(constantToFloat(constant.Real(v)), typ)
 		w.mpfloat(constantToFloat(constant.Imag(v)), typ)
-	case constant.String:
+	case types.IsString:
 		w.string(constant.StringVal(v))
-	case constant.Unknown:
-		// package contains type errors
 	default:
-		panic(internalErrorf("unexpected value %v (%T)", v, v))
+		if b.Kind() == types.Invalid {
+			// package contains type errors
+			break
+		}
+		panic(internalErrorf("unexpected type %v (%v)", typ, typ.Underlying()))
 	}
 }
 
 // constantToFloat converts a constant.Value with kind constant.Float to a
 // big.Float.
 func constantToFloat(x constant.Value) *big.Float {
-	assert(x.Kind() == constant.Float)
+	x = constant.ToFloat(x)
 	// Use the same floating-point precision (512) as cmd/compile
 	// (see Mpprec in cmd/compile/internal/gc/mpfloat.go).
 	const mpprec = 512

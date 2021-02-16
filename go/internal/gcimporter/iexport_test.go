@@ -9,6 +9,7 @@
 package gcimporter_test
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"go/ast"
@@ -17,7 +18,9 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"io/ioutil"
 	"math/big"
+	"os"
 	"reflect"
 	"runtime"
 	"sort"
@@ -28,6 +31,27 @@ import (
 	"golang.org/x/tools/go/internal/gcimporter"
 	"golang.org/x/tools/go/loader"
 )
+
+func readExportFile(filename string) ([]byte, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	buf := bufio.NewReader(f)
+	if _, err := gcimporter.FindExportData(buf); err != nil {
+		return nil, err
+	}
+
+	if ch, err := buf.ReadByte(); err != nil {
+		return nil, err
+	} else if ch != 'i' {
+		return nil, fmt.Errorf("unexpected byte: %v", ch)
+	}
+
+	return ioutil.ReadAll(buf)
+}
 
 func iexport(fset *token.FileSet, pkg *types.Package) ([]byte, error) {
 	var buf bytes.Buffer
@@ -54,6 +78,9 @@ func TestIExportData_stdlib(t *testing.T) {
 	conf := loader.Config{
 		Build:       &ctxt,
 		AllowErrors: true,
+		TypeChecker: types.Config{
+			Sizes: types.SizesFor(ctxt.Compiler, ctxt.GOARCH),
+		},
 	}
 	for _, path := range buildutil.AllPackages(conf.Build) {
 		conf.Import(path)
@@ -96,6 +123,16 @@ type UnknownType undefined
 		} else {
 			testPkgData(t, conf.Fset, pkg, exportdata)
 		}
+
+		if pkg.Name() == "main" || pkg.Name() == "haserrors" {
+			// skip; no export data
+		} else if bp, err := ctxt.Import(pkg.Path(), "", build.FindOnly); err != nil {
+			t.Log("warning:", err)
+		} else if exportdata, err := readExportFile(bp.PkgObj); err != nil {
+			t.Log("warning:", err)
+		} else {
+			testPkgData(t, conf.Fset, pkg, exportdata)
+		}
 	}
 }
 
@@ -111,6 +148,10 @@ func testPkgData(t *testing.T, fset *token.FileSet, pkg *types.Package, exportda
 }
 
 func testPkg(t *testing.T, fset *token.FileSet, pkg *types.Package, fset2 *token.FileSet, pkg2 *types.Package) {
+	if _, err := iexport(fset2, pkg2); err != nil {
+		t.Errorf("reexport %q: %v", pkg.Path(), err)
+	}
+
 	// Compare the packages' corresponding members.
 	for _, name := range pkg.Scope().Names() {
 		if !ast.IsExported(name) {

@@ -12,6 +12,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
@@ -117,7 +118,8 @@ type UnknownType undefined
 
 func fileLine(fset *token.FileSet, obj types.Object) string {
 	posn := fset.Position(obj.Pos())
-	return fmt.Sprintf("%s:%d", posn.Filename, posn.Line)
+	filename := filepath.Clean(strings.ReplaceAll(posn.Filename, "$GOROOT", build.Default.GOROOT))
+	return fmt.Sprintf("%s:%d", filename, posn.Line)
 }
 
 // equalObj reports how x and y differ.  They are assumed to belong to
