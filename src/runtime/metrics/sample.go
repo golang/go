@@ -14,7 +14,7 @@ type Sample struct {
 	// Name is the name of the metric sampled.
 	//
 	// It must correspond to a name in one of the metric descriptions
-	// returned by Descriptions.
+	// returned by All.
 	Name string
 
 	// Value is the value of the metric sample.

@@ -107,14 +107,12 @@ func trampoline(ctxt *Link, s loader.Sym) {
 		}
 		rs = ldr.ResolveABIAlias(rs)
 		if ldr.SymValue(rs) == 0 && (ldr.SymType(rs) != sym.SDYNIMPORT && ldr.SymType(rs) != sym.SUNDEFEXT) {
-			if ldr.SymPkg(rs) != ldr.SymPkg(s) {
-				if !isRuntimeDepPkg(ldr.SymPkg(s)) || !isRuntimeDepPkg(ldr.SymPkg(rs)) {
-					ctxt.Errorf(s, "unresolved inter-package jump to %s(%s) from %s", ldr.SymName(rs), ldr.SymPkg(rs), ldr.SymPkg(s))
-				}
-				// runtime and its dependent packages may call to each other.
-				// they are fine, as they will be laid down together.
+			if ldr.SymPkg(rs) == ldr.SymPkg(s) {
+				continue // symbols in the same package are laid out together
 			}
-			continue
+			if isRuntimeDepPkg(ldr.SymPkg(s)) && isRuntimeDepPkg(ldr.SymPkg(rs)) {
+				continue // runtime packages are laid out together
+			}
 		}
 
 		thearch.Trampoline(ctxt, ldr, ri, rs, s)
