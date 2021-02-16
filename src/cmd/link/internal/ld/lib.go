@@ -489,9 +489,15 @@ func (ctxt *Link) loadlib() {
 	case 0:
 		// nothing to do
 	case 1, 2:
-		flags = loader.FlagStrictDups
+		flags |= loader.FlagStrictDups
 	default:
 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
+	}
+	if !*flagAbiWrap || ctxt.linkShared {
+		// Use ABI aliases if ABI wrappers are not used.
+		// TODO: for now we still use ABI aliases in shared linkage, even if
+		// the wrapper is enabled.
+		flags |= loader.FlagUseABIAlias
 	}
 	elfsetstring1 := func(str string, off int) { elfsetstring(ctxt, 0, str, off) }
 	ctxt.loader = loader.NewLoader(flags, elfsetstring1, &ctxt.ErrorReporter.ErrorReporter)
@@ -2091,6 +2097,26 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		Errorf(nil, "cannot read symbols from shared library: %s", libpath)
 		return
 	}
+
+	// collect text symbol ABI versions.
+	symabi := make(map[string]int) // map (unmangled) symbol name to version
+	if *flagAbiWrap {
+		for _, elfsym := range syms {
+			if elf.ST_TYPE(elfsym.Info) != elf.STT_FUNC {
+				continue
+			}
+			// Demangle the name. Keep in sync with symtab.go:putelfsym.
+			if strings.HasSuffix(elfsym.Name, ".abiinternal") {
+				// ABIInternal symbol has mangled name, so the primary symbol is ABI0.
+				symabi[strings.TrimSuffix(elfsym.Name, ".abiinternal")] = 0
+			}
+			if strings.HasSuffix(elfsym.Name, ".abi0") {
+				// ABI0 symbol has mangled name, so the primary symbol is ABIInternal.
+				symabi[strings.TrimSuffix(elfsym.Name, ".abi0")] = sym.SymVerABIInternal
+			}
+		}
+	}
+
 	for _, elfsym := range syms {
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_NOTYPE || elf.ST_TYPE(elfsym.Info) == elf.STT_SECTION {
 			continue
@@ -2099,12 +2125,23 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		// Symbols whose names start with "type." are compiler
 		// generated, so make functions with that prefix internal.
 		ver := 0
+		symname := elfsym.Name // (unmangled) symbol name
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type.") {
 			ver = sym.SymVerABIInternal
+		} else if *flagAbiWrap && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
+			if strings.HasSuffix(elfsym.Name, ".abiinternal") {
+				ver = sym.SymVerABIInternal
+				symname = strings.TrimSuffix(elfsym.Name, ".abiinternal")
+			} else if strings.HasSuffix(elfsym.Name, ".abi0") {
+				ver = 0
+				symname = strings.TrimSuffix(elfsym.Name, ".abi0")
+			} else if abi, ok := symabi[elfsym.Name]; ok {
+				ver = abi
+			}
 		}
 
 		l := ctxt.loader
-		s := l.LookupOrCreateSym(elfsym.Name, ver)
+		s := l.LookupOrCreateSym(symname, ver)
 
 		// Because loadlib above loads all .a files before loading
 		// any shared libraries, any non-dynimport symbols we find
@@ -2129,6 +2166,10 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			}
 		}
 
+		if symname != elfsym.Name {
+			l.SetSymExtname(s, elfsym.Name)
+		}
+
 		// For function symbols, we don't know what ABI is
 		// available, so alias it under both ABIs.
 		//
@@ -2137,7 +2178,12 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		// mangle Go function names in the .so to include the
 		// ABI.
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
-			alias := ctxt.loader.LookupOrCreateSym(elfsym.Name, sym.SymVerABIInternal)
+			if *flagAbiWrap {
+				if _, ok := symabi[symname]; ok {
+					continue // only use alias for functions w/o ABI wrappers
+				}
+			}
+			alias := ctxt.loader.LookupOrCreateSym(symname, sym.SymVerABIInternal)
 			if l.SymType(alias) != 0 {
 				continue
 			}

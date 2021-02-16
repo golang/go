@@ -111,7 +111,7 @@
 // 	-p n
 // 		the number of programs, such as build commands or
 // 		test binaries, that can be run in parallel.
-// 		The default is the number of CPUs available.
+// 		The default is GOMAXPROCS, normally the number of CPUs available.
 // 	-race
 // 		enable data race detection.
 // 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,

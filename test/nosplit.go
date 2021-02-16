@@ -353,7 +353,14 @@ TestCases:
 			log.Fatal(err)
 		}
 
-		cmd := exec.Command("go", "build")
+		// Turn off ABI0 wrapper generation for now. The problem here is
+		// that in these test cases main.main is an assembly routine,
+		// thus calls to it will have to go through an ABI wrapper. The
+		// ABI wrapper will consume some stack space, which throws off
+		// the numbers.
+		workaround := "-gcflags=-abiwrap=0"
+
+		cmd := exec.Command("go", "build", workaround)
 		cmd.Dir = dir
 		output, err := cmd.CombinedOutput()
 		if err == nil {

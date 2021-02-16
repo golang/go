@@ -129,7 +129,11 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		}
 	}
 
-	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), gcflags, gcargs, "-D", p.Internal.LocalPrefix}
+	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), gcflags, gcargs}
+	if p.Internal.LocalPrefix != "" {
+		// Workaround #43883.
+		args = append(args, "-D", p.Internal.LocalPrefix)
+	}
 	if importcfg != nil {
 		if err := b.writeFile(objdir+"importcfg", importcfg); err != nil {
 			return "", nil, err
@@ -235,16 +239,19 @@ CheckFlags:
 	//   - it has no successor packages to compile (usually package main)
 	//   - all paths through the build graph pass through it
 	//   - critical path scheduling says it is high priority
-	// and in such a case, set c to runtime.NumCPU.
+	// and in such a case, set c to runtime.GOMAXPROCS(0).
+	// By default this is the same as runtime.NumCPU.
 	// We do this now when p==1.
+	// To limit parallelism, set GOMAXPROCS below numCPU; this may be useful
+	// on a low-memory builder, or if a deterministic build order is required.
+	c := runtime.GOMAXPROCS(0)
 	if cfg.BuildP == 1 {
-		// No process parallelism. Max out c.
-		return runtime.NumCPU()
+		// No process parallelism, do not cap compiler parallelism.
+		return c
 	}
-	// Some process parallelism. Set c to min(4, numcpu).
-	c := 4
-	if ncpu := runtime.NumCPU(); ncpu < c {
-		c = ncpu
+	// Some process parallelism. Set c to min(4, maxprocs).
+	if c > 4 {
+		c = 4
 	}
 	return c
 }

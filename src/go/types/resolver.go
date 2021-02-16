@@ -23,7 +23,7 @@ type declInfo struct {
 	init      ast.Expr      // init/orig expression, or nil
 	inherited bool          // if set, the init expression is inherited from a previous constant declaration
 	fdecl     *ast.FuncDecl // func declaration, or nil
-	alias     bool          // type alias declaration
+	aliasPos  token.Pos     // If valid, the decl is a type alias and aliasPos is the position of '='.
 
 	// The deps field tracks initialization expression dependencies.
 	deps map[Object]bool // lazily initialized
@@ -252,14 +252,6 @@ func (check *Checker) collectObjects() {
 					return
 				}
 
-				// add package to list of explicit imports
-				// (this functionality is provided as a convenience
-				// for clients; it is not needed for type-checking)
-				if !pkgImports[imp] {
-					pkgImports[imp] = true
-					pkg.imports = append(pkg.imports, imp)
-				}
-
 				// local name overrides imported package name
 				name := imp.name
 				if d.spec.Name != nil {
@@ -269,27 +261,41 @@ func (check *Checker) collectObjects() {
 						check.errorf(d.spec.Name, _ImportCRenamed, `cannot rename import "C"`)
 						return
 					}
-					if name == "init" {
-						check.errorf(d.spec.Name, _InvalidInitDecl, "cannot declare init - must be func")
-						return
-					}
 				}
 
-				obj := NewPkgName(d.spec.Pos(), pkg, name, imp)
+				if name == "init" {
+					check.errorf(d.spec.Name, _InvalidInitDecl, "cannot import package as init - init must be a func")
+					return
+				}
+
+				// add package to list of explicit imports
+				// (this functionality is provided as a convenience
+				// for clients; it is not needed for type-checking)
+				if !pkgImports[imp] {
+					pkgImports[imp] = true
+					pkg.imports = append(pkg.imports, imp)
+				}
+
+				pkgName := NewPkgName(d.spec.Pos(), pkg, name, imp)
 				if d.spec.Name != nil {
 					// in a dot-import, the dot represents the package
-					check.recordDef(d.spec.Name, obj)
+					check.recordDef(d.spec.Name, pkgName)
 				} else {
-					check.recordImplicit(d.spec, obj)
+					check.recordImplicit(d.spec, pkgName)
 				}
 
 				if path == "C" {
 					// match cmd/compile (not prescribed by spec)
-					obj.used = true
+					pkgName.used = true
 				}
 
 				// add import to file scope
+				check.imports = append(check.imports, pkgName)
 				if name == "." {
+					// dot-import
+					if check.dotImportMap == nil {
+						check.dotImportMap = make(map[dotImportKey]*PkgName)
+					}
 					// merge imported scope with file scope
 					for _, obj := range imp.scope.elems {
 						// A package scope may contain non-exported objects,
@@ -303,16 +309,15 @@ func (check *Checker) collectObjects() {
 							if alt := fileScope.Insert(obj); alt != nil {
 								check.errorf(d.spec.Name, _DuplicateDecl, "%s redeclared in this block", obj.Name())
 								check.reportAltDecl(alt)
+							} else {
+								check.dotImportMap[dotImportKey{fileScope, obj}] = pkgName
 							}
 						}
 					}
-					// add position to set of dot-import positions for this file
-					// (this is only needed for "imported but not used" errors)
-					check.addUnusedDotImport(fileScope, imp, d.spec)
 				} else {
 					// declare imported package object in file scope
 					// (no need to provide s.Name since we called check.recordDef earlier)
-					check.declare(fileScope, nil, obj, token.NoPos)
+					check.declare(fileScope, nil, pkgName, token.NoPos)
 				}
 			case constDecl:
 				// declare all constants
@@ -361,7 +366,7 @@ func (check *Checker) collectObjects() {
 				}
 			case typeDecl:
 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
-				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, typ: d.spec.Type, alias: d.spec.Assign.IsValid()})
+				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, typ: d.spec.Type, aliasPos: d.spec.Assign})
 			case funcDecl:
 				info := &declInfo{file: fileScope, fdecl: d.decl}
 				name := d.decl.Name.Name
@@ -488,7 +493,7 @@ func (check *Checker) resolveBaseTypeName(typ ast.Expr) (ptr bool, base *TypeNam
 		// we're done if tdecl defined tname as a new type
 		// (rather than an alias)
 		tdecl := check.objMap[tname] // must exist for objects in package scope
-		if !tdecl.alias {
+		if !tdecl.aliasPos.IsValid() {
 			return ptr, tname
 		}
 
@@ -529,7 +534,7 @@ func (check *Checker) packageObjects() {
 	// phase 1
 	for _, obj := range objList {
 		// If we have a type alias, collect it for the 2nd phase.
-		if tname, _ := obj.(*TypeName); tname != nil && check.objMap[tname].alias {
+		if tname, _ := obj.(*TypeName); tname != nil && check.objMap[tname].aliasPos.IsValid() {
 			aliasList = append(aliasList, tname)
 			continue
 		}
@@ -566,39 +571,30 @@ func (check *Checker) unusedImports() {
 	// any of its exported identifiers. To import a package solely for its side-effects
 	// (initialization), use the blank identifier as explicit package name."
 
-	// check use of regular imported packages
-	for _, scope := range check.pkg.scope.children /* file scopes */ {
-		for _, obj := range scope.elems {
-			if obj, ok := obj.(*PkgName); ok {
-				// Unused "blank imports" are automatically ignored
-				// since _ identifiers are not entered into scopes.
-				if !obj.used {
-					path := obj.imported.path
-					base := pkgName(path)
-					if obj.name == base {
-						check.softErrorf(obj, _UnusedImport, "%q imported but not used", path)
-					} else {
-						check.softErrorf(obj, _UnusedImport, "%q imported but not used as %s", path, obj.name)
-					}
-				}
-			}
-		}
-	}
-
-	// check use of dot-imported packages
-	for _, unusedDotImports := range check.unusedDotImports {
-		for pkg, pos := range unusedDotImports {
-			check.softErrorf(pos, _UnusedImport, "%q imported but not used", pkg.path)
+	for _, obj := range check.imports {
+		if !obj.used && obj.name != "_" {
+			check.errorUnusedPkg(obj)
 		}
 	}
 }
 
-// pkgName returns the package name (last element) of an import path.
-func pkgName(path string) string {
-	if i := strings.LastIndex(path, "/"); i >= 0 {
-		path = path[i+1:]
+func (check *Checker) errorUnusedPkg(obj *PkgName) {
+	// If the package was imported with a name other than the final
+	// import path element, show it explicitly in the error message.
+	// Note that this handles both renamed imports and imports of
+	// packages containing unconventional package declarations.
+	// Note that this uses / always, even on Windows, because Go import
+	// paths always use forward slashes.
+	path := obj.imported.path
+	elem := path
+	if i := strings.LastIndex(elem, "/"); i >= 0 {
+		elem = elem[i+1:]
 	}
-	return path
+	if obj.name == "" || obj.name == "." || obj.name == elem {
+		check.softErrorf(obj, _UnusedImport, "%q imported but not used", path)
+	} else {
+		check.softErrorf(obj, _UnusedImport, "%q imported but not used as %s", path, obj.name)
+	}
 }
 
 // dir makes a good-faith attempt to return the directory

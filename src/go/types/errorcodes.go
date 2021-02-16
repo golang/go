@@ -386,8 +386,8 @@ const (
 	// _InvalidInitSig occurs when an init function declares parameters or
 	// results.
 	//
-	// Example:
-	//  func init() int { return 1 }
+	// Deprecated: no longer emitted by the type checker. _InvalidInitDecl is
+	// used instead.
 	_InvalidInitSig
 
 	// _InvalidInitDecl occurs when init is declared as anything other than a
@@ -395,6 +395,9 @@ const (
 	//
 	// Example:
 	//  var init = 1
+	//
+	// Example:
+	//  func init() int { return 1 }
 	_InvalidInitDecl
 
 	// _InvalidMainDecl occurs when main is declared as anything other than a
@@ -1363,4 +1366,7 @@ const (
 	//  	return i
 	//  }
 	_InvalidGo
+
+	// _BadDecl occurs when a declaration has invalid syntax.
+	_BadDecl
 )

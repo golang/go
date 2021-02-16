@@ -80,6 +80,11 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 		if !strings.HasPrefix(s.Name, "\"\".") {
 			continue
 		}
+		if s.ABIWrapper() {
+			// Don't create an args_stackmap symbol reference for an ABI
+			// wrapper function
+			continue
+		}
 		found := false
 		for p := s.Func().Text; p != nil; p = p.Link {
 			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == objabi.FUNCDATA_ArgsPointerMaps {
@@ -134,6 +139,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
 	s.Set(AttrReflectMethod, flag&REFLECTMETHOD != 0)
 	s.Set(AttrWrapper, flag&WRAPPER != 0)
+	s.Set(AttrABIWrapper, flag&ABIWRAPPER != 0)
 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
 	s.Set(AttrTopFrame, flag&TOPFRAME != 0)

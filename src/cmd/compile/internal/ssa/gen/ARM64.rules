@@ -1151,7 +1151,7 @@
 (CMPW (MOVDconst [c]) x) => (InvertFlags (CMPWconst [int32(c)] x))
 
 // Canonicalize the order of arguments to comparisons - helps with CSE.
-((CMP|CMPW) x y) && x.ID > y.ID => (InvertFlags ((CMP|CMPW) y x))
+((CMP|CMPW) x y) && canonLessThan(x,y) => (InvertFlags ((CMP|CMPW) y x))
 
 // mul-neg => mneg
 (NEG (MUL x y)) => (MNEG x y)

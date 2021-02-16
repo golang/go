@@ -383,7 +383,7 @@ type maptype struct {
 }
 
 // Note: flag values must match those used in the TMAP case
-// in ../cmd/compile/internal/gc/reflect.go:dtypesym.
+// in ../cmd/compile/internal/gc/reflect.go:writeType.
 func (mt *maptype) indirectkey() bool { // store ptr to key instead of key itself
 	return mt.flags&1 != 0
 }

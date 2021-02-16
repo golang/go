@@ -78,13 +78,77 @@ func (check *Checker) op(m opPredicates, x *operand, op token.Token) bool {
 	return true
 }
 
+// overflow checks that the constant x is representable by its type.
+// For untyped constants, it checks that the value doesn't become
+// arbitrarily large.
+func (check *Checker) overflow(x *operand, op token.Token, opPos token.Pos) {
+	assert(x.mode == constant_)
+
+	if x.val.Kind() == constant.Unknown {
+		// TODO(gri) We should report exactly what went wrong. At the
+		//           moment we don't have the (go/constant) API for that.
+		//           See also TODO in go/constant/value.go.
+		check.errorf(atPos(opPos), _InvalidConstVal, "constant result is not representable")
+		return
+	}
+
+	// Typed constants must be representable in
+	// their type after each constant operation.
+	if typ, ok := x.typ.Underlying().(*Basic); ok && isTyped(typ) {
+		check.representable(x, typ)
+		return
+	}
+
+	// Untyped integer values must not grow arbitrarily.
+	const prec = 512 // 512 is the constant precision
+	if x.val.Kind() == constant.Int && constant.BitLen(x.val) > prec {
+		check.errorf(atPos(opPos), _InvalidConstVal, "constant %s overflow", opName(x.expr))
+		x.val = constant.MakeUnknown()
+	}
+}
+
+// opName returns the name of an operation, or the empty string.
+// For now, only operations that might overflow are handled.
+// TODO(gri) Expand this to a general mechanism giving names to
+//           nodes?
+func opName(e ast.Expr) string {
+	switch e := e.(type) {
+	case *ast.BinaryExpr:
+		if int(e.Op) < len(op2str2) {
+			return op2str2[e.Op]
+		}
+	case *ast.UnaryExpr:
+		if int(e.Op) < len(op2str1) {
+			return op2str1[e.Op]
+		}
+	}
+	return ""
+}
+
+var op2str1 = [...]string{
+	token.XOR: "bitwise complement",
+}
+
+// This is only used for operations that may cause overflow.
+var op2str2 = [...]string{
+	token.ADD: "addition",
+	token.SUB: "subtraction",
+	token.XOR: "bitwise XOR",
+	token.MUL: "multiplication",
+	token.SHL: "shift",
+}
+
 // The unary expression e may be nil. It's passed in for better error messages only.
-func (check *Checker) unary(x *operand, e *ast.UnaryExpr, op token.Token) {
-	switch op {
+func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
+	check.expr(x, e.X)
+	if x.mode == invalid {
+		return
+	}
+	switch e.Op {
 	case token.AND:
 		// spec: "As an exception to the addressability
 		// requirement x may also be a composite literal."
-		if _, ok := unparen(x.expr).(*ast.CompositeLit); !ok && x.mode != variable {
+		if _, ok := unparen(e.X).(*ast.CompositeLit); !ok && x.mode != variable {
 			check.invalidOp(x, _UnaddressableOperand, "cannot take address of %s", x)
 			x.mode = invalid
 			return
@@ -111,26 +175,23 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr, op token.Token) {
 		return
 	}
 
-	if !check.op(unaryOpPredicates, x, op) {
+	if !check.op(unaryOpPredicates, x, e.Op) {
 		x.mode = invalid
 		return
 	}
 
 	if x.mode == constant_ {
-		typ := x.typ.Underlying().(*Basic)
+		if x.val.Kind() == constant.Unknown {
+			// nothing to do (and don't cause an error below in the overflow check)
+			return
+		}
 		var prec uint
-		if isUnsigned(typ) {
-			prec = uint(check.conf.sizeof(typ) * 8)
+		if isUnsigned(x.typ) {
+			prec = uint(check.conf.sizeof(x.typ) * 8)
 		}
-		x.val = constant.UnaryOp(op, x.val, prec)
-		// Typed constants must be representable in
-		// their type after each constant operation.
-		if isTyped(typ) {
-			if e != nil {
-				x.expr = e // for better error message
-			}
-			check.representable(x, typ)
-		}
+		x.val = constant.UnaryOp(e.Op, x.val, prec)
+		x.expr = e
+		check.overflow(x, e.Op, x.Pos())
 		return
 	}
 
@@ -579,6 +640,8 @@ func (check *Checker) implicitType(x *operand, target Type) Type {
 			if !hasNil(target) {
 				return nil
 			}
+			// Preserve the type of nil as UntypedNil: see #13061.
+			return Typ[UntypedNil]
 		default:
 			return nil
 		}
@@ -665,15 +728,16 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
 	x.typ = Typ[UntypedBool]
 }
 
-func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
-	untypedx := isUntyped(x.typ)
+// If e != nil, it must be the shift expression; it may be nil for non-constant shifts.
+func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+	// TODO(gri) This function seems overly complex. Revisit.
 
 	var xval constant.Value
 	if x.mode == constant_ {
 		xval = constant.ToInt(x.val)
 	}
 
-	if isInteger(x.typ) || untypedx && xval != nil && xval.Kind() == constant.Int {
+	if isInteger(x.typ) || isUntyped(x.typ) && xval != nil && xval.Kind() == constant.Int {
 		// The lhs is of integer type or an untyped constant representable
 		// as an integer. Nothing to do.
 	} else {
@@ -685,17 +749,31 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
 
 	// spec: "The right operand in a shift expression must have integer type
 	// or be an untyped constant representable by a value of type uint."
-	switch {
-	case isInteger(y.typ):
-		// nothing to do
-	case isUntyped(y.typ):
+
+	// Provide a good error message for negative shift counts.
+	if y.mode == constant_ {
+		yval := constant.ToInt(y.val) // consider -1, 1.0, but not -1.1
+		if yval.Kind() == constant.Int && constant.Sign(yval) < 0 {
+			check.invalidOp(y, _InvalidShiftCount, "negative shift count %s", y)
+			x.mode = invalid
+			return
+		}
+	}
+
+	// Caution: Check for isUntyped first because isInteger includes untyped
+	//          integers (was bug #43697).
+	if isUntyped(y.typ) {
 		check.convertUntyped(y, Typ[Uint])
 		if y.mode == invalid {
 			x.mode = invalid
 			return
 		}
-	default:
+	} else if !isInteger(y.typ) {
 		check.invalidOp(y, _InvalidShiftCount, "shift count %s must be integer", y)
+		x.mode = invalid
+		return
+	} else if !isUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
+		check.invalidOp(y, _InvalidShiftCount, "signed shift count %s requires go1.13 or later", y)
 		x.mode = invalid
 		return
 	}
@@ -716,8 +794,17 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
 
 	if x.mode == constant_ {
 		if y.mode == constant_ {
+			// if either x or y has an unknown value, the result is unknown
+			if x.val.Kind() == constant.Unknown || y.val.Kind() == constant.Unknown {
+				x.val = constant.MakeUnknown()
+				// ensure the correct type - see comment below
+				if !isInteger(x.typ) {
+					x.typ = Typ[UntypedInt]
+				}
+				return
+			}
 			// rhs must be within reasonable bounds in constant shifts
-			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64
+			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see issue #44057)
 			s, ok := constant.Uint64Val(yval)
 			if !ok || s > shiftBound {
 				check.invalidOp(y, _InvalidShiftCount, "invalid shift count %s", y)
@@ -733,19 +820,17 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
 			}
 			// x is a constant so xval != nil and it must be of Int kind.
 			x.val = constant.Shift(xval, op, uint(s))
-			// Typed constants must be representable in
-			// their type after each constant operation.
-			if isTyped(x.typ) {
-				if e != nil {
-					x.expr = e // for better error message
-				}
-				check.representable(x, x.typ.Underlying().(*Basic))
+			x.expr = e
+			opPos := x.Pos()
+			if b, _ := e.(*ast.BinaryExpr); b != nil {
+				opPos = b.OpPos
 			}
+			check.overflow(x, op, opPos)
 			return
 		}
 
 		// non-constant shift with constant lhs
-		if untypedx {
+		if isUntyped(x.typ) {
 			// spec: "If the left operand of a non-constant shift
 			// expression is an untyped constant, the type of the
 			// constant is what it would be if the shift expression
@@ -801,8 +886,9 @@ var binaryOpPredicates = opPredicates{
 	token.LOR:  isBoolean,
 }
 
-// The binary expression e may be nil. It's passed in for better error messages only.
-func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, op token.Token, opPos token.Pos) {
+// If e != nil, it must be the binary expression; it may be nil for non-constant expressions
+// (when invoked for an assignment operation where the binary expression is implicit).
+func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token.Token, opPos token.Pos) {
 	var y operand
 
 	check.expr(x, lhs)
@@ -877,30 +963,19 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
 	}
 
 	if x.mode == constant_ && y.mode == constant_ {
-		xval := x.val
-		yval := y.val
-		typ := x.typ.Underlying().(*Basic)
+		// if either x or y has an unknown value, the result is unknown
+		if x.val.Kind() == constant.Unknown || y.val.Kind() == constant.Unknown {
+			x.val = constant.MakeUnknown()
+			// x.typ is unchanged
+			return
+		}
 		// force integer division of integer operands
-		if op == token.QUO && isInteger(typ) {
+		if op == token.QUO && isInteger(x.typ) {
 			op = token.QUO_ASSIGN
 		}
-		x.val = constant.BinaryOp(xval, op, yval)
-		// report error if valid operands lead to an invalid result
-		if xval.Kind() != constant.Unknown && yval.Kind() != constant.Unknown && x.val.Kind() == constant.Unknown {
-			// TODO(gri) We should report exactly what went wrong. At the
-			//           moment we don't have the (go/constant) API for that.
-			//           See also TODO in go/constant/value.go.
-			check.errorf(atPos(opPos), _InvalidConstVal, "constant result is not representable")
-			// TODO(gri) Should we mark operands with unknown values as invalid?
-		}
-		// Typed constants must be representable in
-		// their type after each constant operation.
-		if isTyped(typ) {
-			if e != nil {
-				x.expr = e // for better error message
-			}
-			check.representable(x, typ)
-		}
+		x.val = constant.BinaryOp(x.val, op, y.val)
+		x.expr = e
+		check.overflow(x, op, opPos)
 		return
 	}
 
@@ -1079,6 +1154,24 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		goto Error
 
 	case *ast.BasicLit:
+		switch e.Kind {
+		case token.INT, token.FLOAT, token.IMAG:
+			check.langCompat(e)
+			// The max. mantissa precision for untyped numeric values
+			// is 512 bits, or 4048 bits for each of the two integer
+			// parts of a fraction for floating-point numbers that are
+			// represented accurately in the go/constant package.
+			// Constant literals that are longer than this many bits
+			// are not meaningful; and excessively long constants may
+			// consume a lot of space and time for a useless conversion.
+			// Cap constant length with a generous upper limit that also
+			// allows for separators between all digits.
+			const limit = 10000
+			if len(e.Value) > limit {
+				check.errorf(e, _InvalidConstVal, "excessively long constant: %s... (%d chars)", e.Value[:10], len(e.Value))
+				goto Error
+			}
+		}
 		x.setConst(e.Kind, e.Value)
 		if x.mode == invalid {
 			// The parser already establishes syntactic correctness.
@@ -1536,11 +1629,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		}
 
 	case *ast.UnaryExpr:
-		check.expr(x, e.X)
-		if x.mode == invalid {
-			goto Error
-		}
-		check.unary(x, e, e.Op)
+		check.unary(x, e)
 		if x.mode == invalid {
 			goto Error
 		}

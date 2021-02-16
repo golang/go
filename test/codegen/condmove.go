@@ -31,7 +31,7 @@ func cmovuintptr(x, y uintptr) uintptr {
 	if x < y {
 		x = -y
 	}
-	// amd64:"CMOVQCS"
+	// amd64:"CMOVQ(HI|CS)"
 	// arm64:"CSEL\t(LO|HI)"
 	// wasm:"Select"
 	return x
@@ -41,7 +41,7 @@ func cmov32bit(x, y uint32) uint32 {
 	if x < y {
 		x = -y
 	}
-	// amd64:"CMOVLCS"
+	// amd64:"CMOVL(HI|CS)"
 	// arm64:"CSEL\t(LO|HI)"
 	// wasm:"Select"
 	return x
@@ -51,7 +51,7 @@ func cmov16bit(x, y uint16) uint16 {
 	if x < y {
 		x = -y
 	}
-	// amd64:"CMOVWCS"
+	// amd64:"CMOVW(HI|CS)"
 	// arm64:"CSEL\t(LO|HI)"
 	// wasm:"Select"
 	return x

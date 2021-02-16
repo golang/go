@@ -273,25 +273,6 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
  *  go-routine
  */
 
-// void gosave(Gobuf*)
-// save state in Gobuf; setjmp
-TEXT runtime·gosave(SB), NOSPLIT, $0-4
-	MOVL	buf+0(FP), AX		// gobuf
-	LEAL	buf+0(FP), BX		// caller's SP
-	MOVL	BX, gobuf_sp(AX)
-	MOVL	0(SP), BX		// caller's PC
-	MOVL	BX, gobuf_pc(AX)
-	MOVL	$0, gobuf_ret(AX)
-	// Assert ctxt is zero. See func save.
-	MOVL	gobuf_ctxt(AX), BX
-	TESTL	BX, BX
-	JZ	2(PC)
-	CALL	runtime·badctxt(SB)
-	get_tls(CX)
-	MOVL	g(CX), BX
-	MOVL	BX, gobuf_g(AX)
-	RET
-
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB), NOSPLIT, $8-4
@@ -477,7 +458,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
 	JMP runtime·morestack(SB)
 
 // reflectcall: call a function with the given argument list
-// func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
+// func call(stackArgsType *_type, f *FuncVal, stackArgs *byte, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs).
 // we don't have variable-sized frames, so we use a small number
 // of constant-sized-frame functions to encode a few bits of size in the pc.
 // Caution: ugly multiline assembly macros in your future!
@@ -489,8 +470,8 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
 	JMP	AX
 // Note: can't just "JMP NAME(SB)" - bad inlining results.
 
-TEXT ·reflectcall(SB), NOSPLIT, $0-20
-	MOVL	argsize+12(FP), CX
+TEXT ·reflectcall(SB), NOSPLIT, $0-28
+	MOVL	frameSize+20(FP), CX
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
@@ -522,11 +503,11 @@ TEXT ·reflectcall(SB), NOSPLIT, $0-20
 	JMP	AX
 
 #define CALLFN(NAME,MAXSIZE)			\
-TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
+TEXT NAME(SB), WRAPPER, $MAXSIZE-28;		\
 	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
-	MOVL	argptr+8(FP), SI;		\
-	MOVL	argsize+12(FP), CX;		\
+	MOVL	stackArgs+8(FP), SI;		\
+	MOVL	stackArgsSize+12(FP), CX;		\
 	MOVL	SP, DI;				\
 	REP;MOVSB;				\
 	/* call function */			\
@@ -535,10 +516,10 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	CALL	AX;				\
 	/* copy return values back */		\
-	MOVL	argtype+0(FP), DX;		\
-	MOVL	argptr+8(FP), DI;		\
-	MOVL	argsize+12(FP), CX;		\
-	MOVL	retoffset+16(FP), BX;		\
+	MOVL	stackArgsType+0(FP), DX;		\
+	MOVL	stackArgs+8(FP), DI;		\
+	MOVL	stackArgsSize+12(FP), CX;		\
+	MOVL	stackRetOffset+16(FP), BX;		\
 	MOVL	SP, SI;				\
 	ADDL	BX, DI;				\
 	ADDL	BX, SI;				\
@@ -550,11 +531,12 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
 // separate function so it can allocate stack space for the arguments
 // to reflectcallmove. It does not follow the Go ABI; it expects its
 // arguments in registers.
-TEXT callRet<>(SB), NOSPLIT, $16-0
+TEXT callRet<>(SB), NOSPLIT, $20-0
 	MOVL	DX, 0(SP)
 	MOVL	DI, 4(SP)
 	MOVL	SI, 8(SP)
 	MOVL	CX, 12(SP)
+	MOVL	$0, 16(SP)
 	CALL	runtime·reflectcallmove(SB)
 	RET
 
