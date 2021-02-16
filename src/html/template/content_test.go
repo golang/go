@@ -184,7 +184,7 @@ func TestTypedContent(t *testing.T) {
 			},
 		},
 		{
-			`<script type="text/javascript">alert("{{.}}")</script>`,
+			`<script>alert("{{.}}")</script>`,
 			[]string{
 				`\u003cb\u003e \u0022foo%\u0022 O\u0027Reilly \u0026bar;`,
 				`a[href =~ \u0022\/\/example.com\u0022]#foo`,
@@ -199,7 +199,7 @@ func TestTypedContent(t *testing.T) {
 			},
 		},
 		{
-			`<script type="text/javascript">alert({{.}})</script>`,
+			`<script>alert({{.}})</script>`,
 			[]string{
 				`"\u003cb\u003e \"foo%\" O'Reilly \u0026bar;"`,
 				`"a[href =~ \"//example.com\"]#foo"`,

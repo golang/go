@@ -362,7 +362,7 @@ body.darkmode ellipse.outline-black { outline: gray solid 2px; }
 
 </style>
 
-<script type="text/javascript">
+<script>
 
 // Contains phase names which are expanded by default. Other columns are collapsed.
 let expandedDefault = [

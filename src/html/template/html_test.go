@@ -59,7 +59,7 @@ func TestStripTags(t *testing.T) {
 		{"Foo <!-- Bar --> Baz", "Foo  Baz"},
 		{"<", "<"},
 		{"foo < bar", "foo < bar"},
-		{`Foo<script type="text/javascript">alert(1337)</script>Bar`, "FooBar"},
+		{`Foo<script>alert(1337)</script>Bar`, "FooBar"},
 		{`Foo<div title="1>2">Bar`, "FooBar"},
 		{`I <3 Ponies!`, `I <3 Ponies!`},
 		{`<script>foo()</script>`, ``},

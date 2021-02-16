@@ -166,9 +166,9 @@ var templMMU = `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8">
-    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-    <script type="text/javascript">
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script>
       google.charts.load('current', {'packages':['corechart']});
       var chartsReady = false;
       google.charts.setOnLoadCallback(function() { chartsReady = true; refreshChart(); });
