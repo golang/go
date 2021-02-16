@@ -672,13 +672,19 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 
 	relocs := ldr.Relocs(s)
 	r := relocs.At2(ri)
-	t := ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
+	var t int64
+	// ldr.SymValue(rs) == 0 indicates a cross-package jump to a function that is not yet
+	// laid out. Conservatively use a trampoline. This should be rare, as we lay out packages
+	// in dependency order.
+	if ldr.SymValue(rs) != 0 {
+		t = ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
+	}
 	switch r.Type() {
 	case objabi.R_CALLPOWER:
 
 		// If branch offset is too far then create a trampoline.
 
-		if (ctxt.IsExternal() && ldr.SymSect(s) != ldr.SymSect(rs)) || (ctxt.IsInternal() && int64(int32(t<<6)>>6) != t) || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
+		if (ctxt.IsExternal() && ldr.SymSect(s) != ldr.SymSect(rs)) || (ctxt.IsInternal() && int64(int32(t<<6)>>6) != t) || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
 			var tramp loader.Sym
 			for i := 0; ; i++ {
 
@@ -769,7 +775,7 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 
 		// With external linking, the target address must be
 		// relocated using LO and HA
-		if ctxt.IsExternal() {
+		if ctxt.IsExternal() || ldr.SymValue(target) == 0 {
 			r := loader.Reloc{
 				Off:  0,
 				Type: objabi.R_ADDRPOWER,
