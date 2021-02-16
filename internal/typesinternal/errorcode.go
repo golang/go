@@ -1209,6 +1209,16 @@ const (
 	//  }
 	InvalidTypeSwitch
 
+	// InvalidExprSwitch occurs when a switch expression is not comparable.
+	//
+	// Example:
+	//  func _() {
+	//  	var a struct{ _ func() }
+	//  	switch a /* ERROR cannot switch on a */ {
+	//  	}
+	//  }
+	InvalidExprSwitch
+
 	/* control flow > select */
 
 	// InvalidSelectCase occurs when a select case is not a channel send or

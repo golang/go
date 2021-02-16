@@ -124,24 +124,25 @@ func _() {
 	_ = x[DuplicateDefault-114]
 	_ = x[BadTypeKeyword-115]
 	_ = x[InvalidTypeSwitch-116]
-	_ = x[InvalidSelectCase-117]
-	_ = x[UndeclaredLabel-118]
-	_ = x[DuplicateLabel-119]
-	_ = x[MisplacedLabel-120]
-	_ = x[UnusedLabel-121]
-	_ = x[JumpOverDecl-122]
-	_ = x[JumpIntoBlock-123]
-	_ = x[InvalidMethodExpr-124]
-	_ = x[WrongArgCount-125]
-	_ = x[InvalidCall-126]
-	_ = x[UnusedResults-127]
-	_ = x[InvalidDefer-128]
-	_ = x[InvalidGo-129]
+	_ = x[InvalidExprSwitch-117]
+	_ = x[InvalidSelectCase-118]
+	_ = x[UndeclaredLabel-119]
+	_ = x[DuplicateLabel-120]
+	_ = x[MisplacedLabel-121]
+	_ = x[UnusedLabel-122]
+	_ = x[JumpOverDecl-123]
+	_ = x[JumpIntoBlock-124]
+	_ = x[InvalidMethodExpr-125]
+	_ = x[WrongArgCount-126]
+	_ = x[InvalidCall-127]
+	_ = x[UnusedResults-128]
+	_ = x[InvalidDefer-129]
+	_ = x[InvalidGo-130]
 }
 
-const _ErrorCode_name = "TestBlankPkgNameMismatchedPkgNameInvalidPkgUseBadImportPathBrokenImportImportCRenamedUnusedImportInvalidInitCycleDuplicateDeclInvalidDeclCycleInvalidTypeCycleInvalidConstInitInvalidConstValInvalidConstTypeUntypedNilWrongAssignCountUnassignableOperandNoNewVarMultiValAssignOpInvalidIfaceAssignInvalidChanAssignIncompatibleAssignUnaddressableFieldAssignNotATypeInvalidArrayLenBlankIfaceMethodIncomparableMapKeyInvalidIfaceEmbedInvalidPtrEmbedBadRecvInvalidRecvDuplicateFieldAndMethodDuplicateMethodInvalidBlankInvalidIotaMissingInitBodyInvalidInitSigInvalidInitDeclInvalidMainDeclTooManyValuesNotAnExprTruncatedFloatNumericOverflowUndefinedOpMismatchedTypesDivByZeroNonNumericIncDecUnaddressableOperandInvalidIndirectionNonIndexableOperandInvalidIndexSwappedSliceIndicesNonSliceableOperandInvalidSliceExprInvalidShiftCountInvalidShiftOperandInvalidReceiveInvalidSendDuplicateLitKeyMissingLitKeyInvalidLitIndexOversizeArrayLitMixedStructLitInvalidStructLitMissingLitFieldDuplicateLitFieldUnexportedLitFieldInvalidLitFieldUntypedLitInvalidLitAmbiguousSelectorUndeclaredImportedNameUnexportedNameUndeclaredNameMissingFieldOrMethodBadDotDotDotSyntaxNonVariadicDotDotDotMisplacedDotDotDotInvalidDotDotDotOperandInvalidDotDotDotUncalledBuiltinInvalidAppendInvalidCapInvalidCloseInvalidCopyInvalidComplexInvalidDeleteInvalidImagInvalidLenSwappedMakeArgsInvalidMakeInvalidRealInvalidAssertImpossibleAssertInvalidConversionInvalidUntypedConversionBadOffsetofSyntaxInvalidOffsetofUnusedExprUnusedVarMissingReturnWrongResultCountOutOfScopeResultInvalidCondInvalidPostDeclInvalidChanRangeInvalidIterVarInvalidRangeExprMisplacedBreakMisplacedContinueMisplacedFallthroughDuplicateCaseDuplicateDefaultBadTypeKeywordInvalidTypeSwitchInvalidSelectCaseUndeclaredLabelDuplicateLabelMisplacedLabelUnusedLabelJumpOverDeclJumpIntoBlockInvalidMethodExprWrongArgCountInvalidCallUnusedResultsInvalidDeferInvalidGo"
+const _ErrorCode_name = "TestBlankPkgNameMismatchedPkgNameInvalidPkgUseBadImportPathBrokenImportImportCRenamedUnusedImportInvalidInitCycleDuplicateDeclInvalidDeclCycleInvalidTypeCycleInvalidConstInitInvalidConstValInvalidConstTypeUntypedNilWrongAssignCountUnassignableOperandNoNewVarMultiValAssignOpInvalidIfaceAssignInvalidChanAssignIncompatibleAssignUnaddressableFieldAssignNotATypeInvalidArrayLenBlankIfaceMethodIncomparableMapKeyInvalidIfaceEmbedInvalidPtrEmbedBadRecvInvalidRecvDuplicateFieldAndMethodDuplicateMethodInvalidBlankInvalidIotaMissingInitBodyInvalidInitSigInvalidInitDeclInvalidMainDeclTooManyValuesNotAnExprTruncatedFloatNumericOverflowUndefinedOpMismatchedTypesDivByZeroNonNumericIncDecUnaddressableOperandInvalidIndirectionNonIndexableOperandInvalidIndexSwappedSliceIndicesNonSliceableOperandInvalidSliceExprInvalidShiftCountInvalidShiftOperandInvalidReceiveInvalidSendDuplicateLitKeyMissingLitKeyInvalidLitIndexOversizeArrayLitMixedStructLitInvalidStructLitMissingLitFieldDuplicateLitFieldUnexportedLitFieldInvalidLitFieldUntypedLitInvalidLitAmbiguousSelectorUndeclaredImportedNameUnexportedNameUndeclaredNameMissingFieldOrMethodBadDotDotDotSyntaxNonVariadicDotDotDotMisplacedDotDotDotInvalidDotDotDotOperandInvalidDotDotDotUncalledBuiltinInvalidAppendInvalidCapInvalidCloseInvalidCopyInvalidComplexInvalidDeleteInvalidImagInvalidLenSwappedMakeArgsInvalidMakeInvalidRealInvalidAssertImpossibleAssertInvalidConversionInvalidUntypedConversionBadOffsetofSyntaxInvalidOffsetofUnusedExprUnusedVarMissingReturnWrongResultCountOutOfScopeResultInvalidCondInvalidPostDeclInvalidChanRangeInvalidIterVarInvalidRangeExprMisplacedBreakMisplacedContinueMisplacedFallthroughDuplicateCaseDuplicateDefaultBadTypeKeywordInvalidTypeSwitchInvalidExprSwitchInvalidSelectCaseUndeclaredLabelDuplicateLabelMisplacedLabelUnusedLabelJumpOverDeclJumpIntoBlockInvalidMethodExprWrongArgCountInvalidCallUnusedResultsInvalidDeferInvalidGo"
 
-var _ErrorCode_index = [...]uint16{0, 4, 16, 33, 46, 59, 71, 85, 97, 113, 126, 142, 158, 174, 189, 205, 215, 231, 250, 258, 274, 292, 309, 327, 351, 359, 374, 390, 408, 425, 440, 447, 458, 481, 496, 508, 519, 534, 548, 563, 578, 591, 600, 614, 629, 640, 655, 664, 680, 700, 718, 737, 749, 768, 787, 803, 820, 839, 853, 864, 879, 892, 907, 923, 937, 953, 968, 985, 1003, 1018, 1028, 1038, 1055, 1077, 1091, 1105, 1125, 1143, 1163, 1181, 1204, 1220, 1235, 1248, 1258, 1270, 1281, 1295, 1308, 1319, 1329, 1344, 1355, 1366, 1379, 1395, 1412, 1436, 1453, 1468, 1478, 1487, 1500, 1516, 1532, 1543, 1558, 1574, 1588, 1604, 1618, 1635, 1655, 1668, 1684, 1698, 1715, 1732, 1747, 1761, 1775, 1786, 1798, 1811, 1828, 1841, 1852, 1865, 1877, 1886}
+var _ErrorCode_index = [...]uint16{0, 4, 16, 33, 46, 59, 71, 85, 97, 113, 126, 142, 158, 174, 189, 205, 215, 231, 250, 258, 274, 292, 309, 327, 351, 359, 374, 390, 408, 425, 440, 447, 458, 481, 496, 508, 519, 534, 548, 563, 578, 591, 600, 614, 629, 640, 655, 664, 680, 700, 718, 737, 749, 768, 787, 803, 820, 839, 853, 864, 879, 892, 907, 923, 937, 953, 968, 985, 1003, 1018, 1028, 1038, 1055, 1077, 1091, 1105, 1125, 1143, 1163, 1181, 1204, 1220, 1235, 1248, 1258, 1270, 1281, 1295, 1308, 1319, 1329, 1344, 1355, 1366, 1379, 1395, 1412, 1436, 1453, 1468, 1478, 1487, 1500, 1516, 1532, 1543, 1558, 1574, 1588, 1604, 1618, 1635, 1655, 1668, 1684, 1698, 1715, 1732, 1749, 1764, 1778, 1792, 1803, 1815, 1828, 1845, 1858, 1869, 1882, 1894, 1903}
 
 func (i ErrorCode) String() string {
 	i -= 1
