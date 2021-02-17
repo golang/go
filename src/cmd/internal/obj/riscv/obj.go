@@ -302,7 +302,10 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 		//   LUI top20bits(c), R
 		//   ADD bottom12bits(c), R, R
 		if p.As != AMOV {
-			ctxt.Diag("unsupported constant load at %v", p)
+			ctxt.Diag("%v: unsupported constant load", p)
+		}
+		if p.To.Type != obj.TYPE_REG {
+			ctxt.Diag("%v: constant load must target register", p)
 		}
 		off := p.From.Offset
 		to := p.To
