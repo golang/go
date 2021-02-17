@@ -80,10 +80,10 @@ var runtimeDecls = [...]struct {
 	{"convT2Enoptr", funcTag, 59},
 	{"convT2I", funcTag, 59},
 	{"convT2Inoptr", funcTag, 59},
-	{"assertE2I", funcTag, 57},
-	{"assertE2I2", funcTag, 60},
-	{"assertI2I", funcTag, 57},
-	{"assertI2I2", funcTag, 60},
+	{"assertE2I", funcTag, 60},
+	{"assertE2I2", funcTag, 57},
+	{"assertI2I", funcTag, 60},
+	{"assertI2I2", funcTag, 57},
 	{"panicdottypeE", funcTag, 61},
 	{"panicdottypeI", funcTag, 61},
 	{"panicnildottype", funcTag, 62},
@@ -280,7 +280,7 @@ func runtimeTypes() []*types.Type {
 	typs[57] = newSig(params(typs[1], typs[2]), params(typs[2]))
 	typs[58] = newSig(params(typs[2]), params(typs[7]))
 	typs[59] = newSig(params(typs[1], typs[3]), params(typs[2]))
-	typs[60] = newSig(params(typs[1], typs[2]), params(typs[2], typs[6]))
+	typs[60] = newSig(params(typs[1], typs[1]), params(typs[1]))
 	typs[61] = newSig(params(typs[1], typs[1], typs[1]), nil)
 	typs[62] = newSig(params(typs[1]), nil)
 	typs[63] = types.NewPtr(typs[5])
