@@ -214,6 +214,10 @@ start:
 	FMVSX	X5, F0					// 538002f0
 	FMVXW	F0, X5					// d30200e0
 	FMVWX	X5, F0					// 538002f0
+	FMADDS	F1, F2, F3, F4				// 43822018
+	FMSUBS	F1, F2, F3, F4				// 47822018
+	FNMSUBS	F1, F2, F3, F4				// 4b822018
+	FNMADDS	F1, F2, F3, F4				// 4f822018
 
 	// 11.8: Single-Precision Floating-Point Compare Instructions
 	FEQS	F0, F1, X7				// d3a300a0
@@ -254,6 +258,10 @@ start:
 	FSGNJXD	F1, F0, F2				// 53211022
 	FMVXD	F0, X5					// d30200e2
 	FMVDX	X5, F0					// 538002f2
+	FMADDD	F1, F2, F3, F4				// 4382201a
+	FMSUBD	F1, F2, F3, F4				// 4782201a
+	FNMSUBD	F1, F2, F3, F4				// 4b82201a
+	FNMADDD	F1, F2, F3, F4				// 4f82201a
 
 	// 12.6: Double-Precision Floating-Point Classify Instruction
 	FCLASSD	F0, X5					// d31200e2

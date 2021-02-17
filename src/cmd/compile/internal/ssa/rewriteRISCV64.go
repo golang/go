@@ -209,6 +209,9 @@ func rewriteValueRISCV64(v *Value) bool {
 		return rewriteValueRISCV64_OpEqB(v)
 	case OpEqPtr:
 		return rewriteValueRISCV64_OpEqPtr(v)
+	case OpFMA:
+		v.Op = OpRISCV64FMADDD
+		return true
 	case OpGetCallerPC:
 		v.Op = OpRISCV64LoweredGetCallerPC
 		return true
@@ -432,6 +435,14 @@ func rewriteValueRISCV64(v *Value) bool {
 		return rewriteValueRISCV64_OpRISCV64ADDI(v)
 	case OpRISCV64AND:
 		return rewriteValueRISCV64_OpRISCV64AND(v)
+	case OpRISCV64FMADDD:
+		return rewriteValueRISCV64_OpRISCV64FMADDD(v)
+	case OpRISCV64FMSUBD:
+		return rewriteValueRISCV64_OpRISCV64FMSUBD(v)
+	case OpRISCV64FNMADDD:
+		return rewriteValueRISCV64_OpRISCV64FNMADDD(v)
+	case OpRISCV64FNMSUBD:
+		return rewriteValueRISCV64_OpRISCV64FNMSUBD(v)
 	case OpRISCV64MOVBUload:
 		return rewriteValueRISCV64_OpRISCV64MOVBUload(v)
 	case OpRISCV64MOVBUreg:
@@ -2826,6 +2837,186 @@ func rewriteValueRISCV64_OpRISCV64AND(v *Value) bool {
 			return true
 		}
 		break
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64FMADDD(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (FMADDD neg:(FNEGD x) y z)
+	// cond: neg.Uses == 1
+	// result: (FNMADDD x y z)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			neg := v_0
+			if neg.Op != OpRISCV64FNEGD {
+				continue
+			}
+			x := neg.Args[0]
+			y := v_1
+			z := v_2
+			if !(neg.Uses == 1) {
+				continue
+			}
+			v.reset(OpRISCV64FNMADDD)
+			v.AddArg3(x, y, z)
+			return true
+		}
+		break
+	}
+	// match: (FMADDD x y neg:(FNEGD z))
+	// cond: neg.Uses == 1
+	// result: (FMSUBD x y z)
+	for {
+		x := v_0
+		y := v_1
+		neg := v_2
+		if neg.Op != OpRISCV64FNEGD {
+			break
+		}
+		z := neg.Args[0]
+		if !(neg.Uses == 1) {
+			break
+		}
+		v.reset(OpRISCV64FMSUBD)
+		v.AddArg3(x, y, z)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64FMSUBD(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (FMSUBD neg:(FNEGD x) y z)
+	// cond: neg.Uses == 1
+	// result: (FNMSUBD x y z)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			neg := v_0
+			if neg.Op != OpRISCV64FNEGD {
+				continue
+			}
+			x := neg.Args[0]
+			y := v_1
+			z := v_2
+			if !(neg.Uses == 1) {
+				continue
+			}
+			v.reset(OpRISCV64FNMSUBD)
+			v.AddArg3(x, y, z)
+			return true
+		}
+		break
+	}
+	// match: (FMSUBD x y neg:(FNEGD z))
+	// cond: neg.Uses == 1
+	// result: (FMADDD x y z)
+	for {
+		x := v_0
+		y := v_1
+		neg := v_2
+		if neg.Op != OpRISCV64FNEGD {
+			break
+		}
+		z := neg.Args[0]
+		if !(neg.Uses == 1) {
+			break
+		}
+		v.reset(OpRISCV64FMADDD)
+		v.AddArg3(x, y, z)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64FNMADDD(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (FNMADDD neg:(FNEGD x) y z)
+	// cond: neg.Uses == 1
+	// result: (FMADDD x y z)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			neg := v_0
+			if neg.Op != OpRISCV64FNEGD {
+				continue
+			}
+			x := neg.Args[0]
+			y := v_1
+			z := v_2
+			if !(neg.Uses == 1) {
+				continue
+			}
+			v.reset(OpRISCV64FMADDD)
+			v.AddArg3(x, y, z)
+			return true
+		}
+		break
+	}
+	// match: (FNMADDD x y neg:(FNEGD z))
+	// cond: neg.Uses == 1
+	// result: (FNMSUBD x y z)
+	for {
+		x := v_0
+		y := v_1
+		neg := v_2
+		if neg.Op != OpRISCV64FNEGD {
+			break
+		}
+		z := neg.Args[0]
+		if !(neg.Uses == 1) {
+			break
+		}
+		v.reset(OpRISCV64FNMSUBD)
+		v.AddArg3(x, y, z)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64FNMSUBD(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (FNMSUBD neg:(FNEGD x) y z)
+	// cond: neg.Uses == 1
+	// result: (FMSUBD x y z)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			neg := v_0
+			if neg.Op != OpRISCV64FNEGD {
+				continue
+			}
+			x := neg.Args[0]
+			y := v_1
+			z := v_2
+			if !(neg.Uses == 1) {
+				continue
+			}
+			v.reset(OpRISCV64FMSUBD)
+			v.AddArg3(x, y, z)
+			return true
+		}
+		break
+	}
+	// match: (FNMSUBD x y neg:(FNEGD z))
+	// cond: neg.Uses == 1
+	// result: (FNMADDD x y z)
+	for {
+		x := v_0
+		y := v_1
+		neg := v_2
+		if neg.Op != OpRISCV64FNEGD {
+			break
+		}
+		z := neg.Args[0]
+		if !(neg.Uses == 1) {
+			break
+		}
+		v.reset(OpRISCV64FNMADDD)
+		v.AddArg3(x, y, z)
+		return true
 	}
 	return false
 }
