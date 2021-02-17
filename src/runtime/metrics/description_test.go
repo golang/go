@@ -7,9 +7,7 @@ package metrics_test
 import (
 	"bufio"
 	"os"
-	"path/filepath"
 	"regexp"
-	"runtime"
 	"runtime/metrics"
 	"strings"
 	"testing"
@@ -26,17 +24,9 @@ func TestDescriptionNameFormat(t *testing.T) {
 }
 
 func extractMetricDocs(t *testing.T) map[string]string {
-	if runtime.GOOS == "android" {
-		t.Skip("no access to Go source on android")
-	}
-
-	// Get doc.go.
-	_, filename, _, _ := runtime.Caller(0)
-	filename = filepath.Join(filepath.Dir(filename), "doc.go")
-
-	f, err := os.Open(filename)
+	f, err := os.Open("doc.go")
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to open doc.go in runtime/metrics package: %v", err)
 	}
 	const (
 		stateSearch          = iota // look for list of metrics
@@ -53,7 +43,7 @@ func extractMetricDocs(t *testing.T) map[string]string {
 		line := strings.TrimSpace(s.Text())
 		switch state {
 		case stateSearch:
-			if line == "Supported metrics" {
+			if line == "Below is the full list of supported metrics, ordered lexicographically." {
 				state = stateNextMetric
 			}
 		case stateNextMetric:
@@ -90,7 +80,7 @@ func extractMetricDocs(t *testing.T) map[string]string {
 		}
 	}
 	if state == stateSearch {
-		t.Fatalf("failed to find supported metrics docs in %s", filename)
+		t.Fatalf("failed to find supported metrics docs in %s", f.Name())
 	}
 	return result
 }

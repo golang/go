@@ -722,7 +722,7 @@ func (p *ExtendedGroupElement) FromBytes(s *[32]byte) bool {
 	FeOne(&p.Z)
 	FeSquare(&u, &p.Y)
 	FeMul(&v, &u, &d)
-	FeSub(&u, &u, &p.Z) // y = y^2-1
+	FeSub(&u, &u, &p.Z) // u = y^2-1
 	FeAdd(&v, &v, &p.Z) // v = dy^2+1
 
 	FeSquare(&v3, &v)

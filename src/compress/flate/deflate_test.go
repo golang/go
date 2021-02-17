@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"math/rand"
+	"os"
 	"reflect"
 	"runtime/debug"
 	"sync"
@@ -387,7 +387,7 @@ func TestDeflateInflateString(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 	for _, test := range deflateInflateStringTests {
-		gold, err := ioutil.ReadFile(test.filename)
+		gold, err := os.ReadFile(test.filename)
 		if err != nil {
 			t.Error(err)
 		}
@@ -685,7 +685,7 @@ func (w *failWriter) Write(b []byte) (int, error) {
 
 func TestWriterPersistentError(t *testing.T) {
 	t.Parallel()
-	d, err := ioutil.ReadFile("../../testdata/Isaac.Newton-Opticks.txt")
+	d, err := os.ReadFile("../../testdata/Isaac.Newton-Opticks.txt")
 	if err != nil {
 		t.Fatalf("ReadFile: %v", err)
 	}

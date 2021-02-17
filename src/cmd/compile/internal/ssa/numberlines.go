@@ -5,7 +5,6 @@
 package ssa
 
 import (
-	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 	"sort"
@@ -21,15 +20,6 @@ func isPoorStatementOp(op Op) bool {
 		return true
 	}
 	return false
-}
-
-// LosesStmtMark reports whether a prog with op as loses its statement mark on the way to DWARF.
-// The attributes from some opcodes are lost in translation.
-// TODO: this is an artifact of how funcpctab combines information for instructions at a single PC.
-// Should try to fix it there.
-func LosesStmtMark(as obj.As) bool {
-	// is_stmt does not work for these; it DOES for ANOP even though that generates no code.
-	return as == obj.APCDATA || as == obj.AFUNCDATA
 }
 
 // nextGoodStatementIndex returns an index at i or later that is believed

@@ -30,10 +30,14 @@ grep 'rsc.io/quote v1.5.1' go.mod
 
 
 # The main module cannot be updated to a specific version.
+! go get -d rsc.io@v0.1.0
+stderr '^go get: can''t request version "v0.1.0" of the main module \(rsc.io\)$'
+
+# A package in the main module can't be upgraded either.
 ! go get -d rsc.io/x@v0.1.0
 stderr '^go get: package rsc.io/x is in the main module, so can''t request version v0.1.0$'
 
-# The main module cannot be updated to @latest, which is a specific version.
+# Nor can a pattern matching packages in the main module.
 ! go get -d rsc.io/x/...@latest
 stderr '^go get: pattern rsc.io/x/... matches package rsc.io/x in the main module, so can''t request version latest$'
 

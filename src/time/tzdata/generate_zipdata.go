@@ -10,7 +10,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 )
@@ -40,7 +39,7 @@ const zipdata = `
 
 func main() {
 	// We should be run in the $GOROOT/src/time/tzdata directory.
-	data, err := ioutil.ReadFile("../../../lib/time/zoneinfo.zip")
+	data, err := os.ReadFile("../../../lib/time/zoneinfo.zip")
 	if err != nil {
 		die("cannot find zoneinfo.zip file: %v", err)
 	}

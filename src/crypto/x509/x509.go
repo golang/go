@@ -1997,49 +1997,6 @@ func buildCSRExtensions(template *CertificateRequest) ([]pkix.Extension, error) 
 		})
 	}
 
-	if template.KeyUsage != 0 &&
-		!oidInExtensions(oidExtensionKeyUsage, template.ExtraExtensions) {
-		ext, err := marshalKeyUsage(template.KeyUsage)
-		if err != nil {
-			return nil, err
-		}
-		ret = append(ret, ext)
-	}
-
-	if (len(template.ExtKeyUsage) > 0 || len(template.UnknownExtKeyUsage) > 0) &&
-		!oidInExtensions(oidExtensionExtendedKeyUsage, template.ExtraExtensions) {
-		ext, err := marshalExtKeyUsage(template.ExtKeyUsage, template.UnknownExtKeyUsage)
-		if err != nil {
-			return nil, err
-		}
-		ret = append(ret, ext)
-	}
-
-	if template.BasicConstraintsValid && !oidInExtensions(oidExtensionBasicConstraints, template.ExtraExtensions) {
-		ext, err := marshalBasicConstraints(template.IsCA, template.MaxPathLen, template.MaxPathLenZero)
-		if err != nil {
-			return nil, err
-		}
-		ret = append(ret, ext)
-	}
-
-	if len(template.SubjectKeyId) > 0 && !oidInExtensions(oidExtensionSubjectKeyId, template.ExtraExtensions) {
-		skidBytes, err := asn1.Marshal(template.SubjectKeyId)
-		if err != nil {
-			return nil, err
-		}
-		ret = append(ret, pkix.Extension{Id: oidExtensionSubjectKeyId, Value: skidBytes})
-	}
-
-	if len(template.PolicyIdentifiers) > 0 &&
-		!oidInExtensions(oidExtensionCertificatePolicies, template.ExtraExtensions) {
-		ext, err := marshalCertificatePolicies(template.PolicyIdentifiers)
-		if err != nil {
-			return nil, err
-		}
-		ret = append(ret, ext)
-	}
-
 	return append(ret, template.ExtraExtensions...), nil
 }
 
@@ -2405,7 +2362,6 @@ type CertificateRequest struct {
 	Version            int
 	Signature          []byte
 	SignatureAlgorithm SignatureAlgorithm
-	KeyUsage           KeyUsage
 
 	PublicKeyAlgorithm PublicKeyAlgorithm
 	PublicKey          interface{}
@@ -2438,37 +2394,6 @@ type CertificateRequest struct {
 	EmailAddresses []string
 	IPAddresses    []net.IP
 	URIs           []*url.URL
-
-	ExtKeyUsage        []ExtKeyUsage           // Sequence of extended key usages.
-	UnknownExtKeyUsage []asn1.ObjectIdentifier // Encountered extended key usages unknown to this package.
-
-	// BasicConstraintsValid indicates whether IsCA, MaxPathLen,
-	// and MaxPathLenZero are valid.
-	BasicConstraintsValid bool
-	IsCA                  bool
-
-	// MaxPathLen and MaxPathLenZero indicate the presence and
-	// value of the BasicConstraints' "pathLenConstraint".
-	//
-	// When parsing a certificate, a positive non-zero MaxPathLen
-	// means that the field was specified, -1 means it was unset,
-	// and MaxPathLenZero being true mean that the field was
-	// explicitly set to zero. The case of MaxPathLen==0 with MaxPathLenZero==false
-	// should be treated equivalent to -1 (unset).
-	//
-	// When generating a certificate, an unset pathLenConstraint
-	// can be requested with either MaxPathLen == -1 or using the
-	// zero value for both MaxPathLen and MaxPathLenZero.
-	MaxPathLen int
-	// MaxPathLenZero indicates that BasicConstraintsValid==true
-	// and MaxPathLen==0 should be interpreted as an actual
-	// maximum path length of zero. Otherwise, that combination is
-	// interpreted as MaxPathLen not being set.
-	MaxPathLenZero bool
-
-	SubjectKeyId []byte
-
-	PolicyIdentifiers []asn1.ObjectIdentifier
 }
 
 // These structures reflect the ASN.1 structure of X.509 certificate
@@ -2566,15 +2491,6 @@ func parseCSRExtensions(rawAttributes []asn1.RawValue) ([]pkix.Extension, error)
 //  - EmailAddresses
 //  - IPAddresses
 //  - URIs
-//  - KeyUsage
-//  - ExtKeyUsage
-//  - UnknownExtKeyUsage
-//  - BasicConstraintsValid
-//  - IsCA
-//  - MaxPathLen
-//  - MaxPathLenZero
-//  - SubjectKeyId
-//  - PolicyIdentifiers
 //  - ExtraExtensions
 //  - Attributes (deprecated)
 //
@@ -2796,30 +2712,6 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
 		switch {
 		case extension.Id.Equal(oidExtensionSubjectAltName):
 			out.DNSNames, out.EmailAddresses, out.IPAddresses, out.URIs, err = parseSANExtension(extension.Value)
-			if err != nil {
-				return nil, err
-			}
-		case extension.Id.Equal(oidExtensionKeyUsage):
-			out.KeyUsage, err = parseKeyUsageExtension(extension.Value)
-		case extension.Id.Equal(oidExtensionExtendedKeyUsage):
-			out.ExtKeyUsage, out.UnknownExtKeyUsage, err = parseExtKeyUsageExtension(extension.Value)
-			if err != nil {
-				return nil, err
-			}
-		case extension.Id.Equal(oidExtensionBasicConstraints):
-			out.IsCA, out.MaxPathLen, err = parseBasicConstraintsExtension(extension.Value)
-			if err != nil {
-				return nil, err
-			}
-			out.BasicConstraintsValid = true
-			out.MaxPathLenZero = out.MaxPathLen == 0
-		case extension.Id.Equal(oidExtensionSubjectKeyId):
-			out.SubjectKeyId, err = parseSubjectKeyIdExtension(extension.Value)
-			if err != nil {
-				return nil, err
-			}
-		case extension.Id.Equal(oidExtensionCertificatePolicies):
-			out.PolicyIdentifiers, err = parseCertificatePoliciesExtension(extension.Value)
 			if err != nil {
 				return nil, err
 			}

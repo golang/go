@@ -340,11 +340,11 @@ start:
 	// Branch pseudo-instructions
 	BEQZ	X5, start	// BEQZ	X5, 2		// e38602c0
 	BGEZ	X5, start	// BGEZ	X5, 2		// e3d402c0
-	BGT	X5, X6, start	// BGT	X5, X6, 2	// e3c262c0
-	BGTU	X5, X6, start	// BGTU	X5, X6, 2	// e3e062c0
+	BGT	X5, X6, start	// BGT	X5, X6, 2	// e34253c0
+	BGTU	X5, X6, start	// BGTU	X5, X6, 2	// e36053c0
 	BGTZ	X5, start	// BGTZ	X5, 2		// e34e50be
-	BLE	X5, X6, start	// BLE	X5, X6, 2	// e3dc62be
-	BLEU	X5, X6, start	// BLEU	X5, X6, 2	// e3fa62be
+	BLE	X5, X6, start	// BLE	X5, X6, 2	// e35c53be
+	BLEU	X5, X6, start	// BLEU	X5, X6, 2	// e37a53be
 	BLEZ	X5, start	// BLEZ	X5, 2		// e35850be
 	BLTZ	X5, start	// BLTZ	X5, 2		// e3c602be
 	BNEZ	X5, start	// BNEZ	X5, 2		// e39402be

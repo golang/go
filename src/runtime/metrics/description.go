@@ -23,6 +23,11 @@ type Description struct {
 	// Examples of units might be "seconds", "bytes", "bytes/second", "cpu-seconds",
 	// "byte*cpu-seconds", and "bytes/second/second".
 	//
+	// For histograms, multiple units may apply. For instance, the units of the buckets and
+	// the count. By convention, for histograms, the units of the count are always "samples"
+	// with the type of sample evident by the metric's name, while the unit in the name
+	// specifies the buckets' unit.
+	//
 	// A complete name might look like "/memory/heap/free:bytes".
 	Name string
 
@@ -41,10 +46,6 @@ type Description struct {
 	//
 	// This flag thus indicates whether or not it's useful to compute a rate from this value.
 	Cumulative bool
-
-	// StopTheWorld is whether or not the metric requires a stop-the-world
-	// event in order to collect it.
-	StopTheWorld bool
 }
 
 // The English language descriptions below must be kept in sync with the
@@ -58,7 +59,7 @@ var allDesc = []Description{
 	},
 	{
 		Name:        "/gc/cycles/forced:gc-cycles",
-		Description: "Count of completed forced GC cycles.",
+		Description: "Count of completed GC cycles forced by the application.",
 		Kind:        KindUint64,
 		Cumulative:  true,
 	},
@@ -69,14 +70,16 @@ var allDesc = []Description{
 		Cumulative:  true,
 	},
 	{
-		Name:        "/gc/heap/allocs-by-size:objects",
+		Name:        "/gc/heap/allocs-by-size:bytes",
 		Description: "Distribution of all objects allocated by approximate size.",
 		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
 	},
 	{
-		Name:        "/gc/heap/frees-by-size:objects",
+		Name:        "/gc/heap/frees-by-size:bytes",
 		Description: "Distribution of all objects freed by approximate size.",
 		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
 	},
 	{
 		Name:        "/gc/heap/goal:bytes",
@@ -92,30 +95,35 @@ var allDesc = []Description{
 		Name:        "/gc/pauses:seconds",
 		Description: "Distribution individual GC-related stop-the-world pause latencies.",
 		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
 	},
 	{
-		Name:        "/memory/classes/heap/free:bytes",
-		Description: "Memory that is available for allocation, and may be returned to the underlying system.",
-		Kind:        KindUint64,
+		Name: "/memory/classes/heap/free:bytes",
+		Description: "Memory that is completely free and eligible to be returned to the underlying system, " +
+			"but has not been. This metric is the runtime's estimate of free address space that is backed by " +
+			"physical memory.",
+		Kind: KindUint64,
 	},
 	{
 		Name:        "/memory/classes/heap/objects:bytes",
-		Description: "Memory occupied by live objects and dead objects that have not yet been collected.",
+		Description: "Memory occupied by live objects and dead objects that have not yet been marked free by the garbage collector.",
 		Kind:        KindUint64,
 	},
 	{
-		Name:        "/memory/classes/heap/released:bytes",
-		Description: "Memory that has been returned to the underlying system.",
-		Kind:        KindUint64,
+		Name: "/memory/classes/heap/released:bytes",
+		Description: "Memory that is completely free and has been returned to the underlying system. This " +
+			"metric is the runtime's estimate of free address space that is still mapped into the process, " +
+			"but is not backed by physical memory.",
+		Kind: KindUint64,
 	},
 	{
 		Name:        "/memory/classes/heap/stacks:bytes",
-		Description: "Memory allocated from the heap that is occupied by stacks.",
+		Description: "Memory allocated from the heap that is reserved for stack space, whether or not it is currently in-use.",
 		Kind:        KindUint64,
 	},
 	{
 		Name:        "/memory/classes/heap/unused:bytes",
-		Description: "Memory that is unavailable for allocation, but cannot be returned to the underlying system.",
+		Description: "Memory that is reserved for heap objects but is not currently used to hold heap objects.",
 		Kind:        KindUint64,
 	},
 	{

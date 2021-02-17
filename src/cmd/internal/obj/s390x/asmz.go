@@ -3700,7 +3700,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		}
 
 	case 80: // sync
-		zRR(op_BCR, uint32(NotEqual), 0, asm)
+		zRR(op_BCR, 14, 0, asm) // fast-BCR-serialization
 
 	case 81: // float to fixed and fixed to float moves (no conversion)
 		switch p.As {

@@ -10,8 +10,10 @@
 
 TEXT runtime·load_g(SB),NOSPLIT,$0
 #ifndef TLS_darwin
+#ifndef GOOS_openbsd
 	MOVB	runtime·iscgo(SB), R0
 	CBZ	R0, nocgo
+#endif
 #endif
 
 	MRS_TPIDR_R0
@@ -27,8 +29,10 @@ nocgo:
 
 TEXT runtime·save_g(SB),NOSPLIT,$0
 #ifndef TLS_darwin
+#ifndef GOOS_openbsd
 	MOVB	runtime·iscgo(SB), R0
 	CBZ	R0, nocgo
+#endif
 #endif
 
 	MRS_TPIDR_R0

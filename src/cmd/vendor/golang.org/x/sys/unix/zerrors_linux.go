@@ -1217,6 +1217,12 @@ const (
 	LOOP_SET_STATUS_SETTABLE_FLAGS              = 0xc
 	LO_KEY_SIZE                                 = 0x20
 	LO_NAME_SIZE                                = 0x40
+	LWTUNNEL_IP6_MAX                            = 0x8
+	LWTUNNEL_IP_MAX                             = 0x8
+	LWTUNNEL_IP_OPTS_MAX                        = 0x3
+	LWTUNNEL_IP_OPT_ERSPAN_MAX                  = 0x4
+	LWTUNNEL_IP_OPT_GENEVE_MAX                  = 0x3
+	LWTUNNEL_IP_OPT_VXLAN_MAX                   = 0x1
 	MADV_COLD                                   = 0x14
 	MADV_DODUMP                                 = 0x11
 	MADV_DOFORK                                 = 0xb

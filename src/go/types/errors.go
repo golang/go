@@ -89,6 +89,18 @@ func (check *Checker) err(err error) {
 		return
 	}
 
+	if check.errpos != nil && isInternal {
+		// If we have an internal error and the errpos override is set, use it to
+		// augment our error positioning.
+		// TODO(rFindley) we may also want to augment the error message and refer
+		// to the position (pos) in the original expression.
+		span := spanOf(check.errpos)
+		e.Pos = span.pos
+		e.go116start = span.start
+		e.go116end = span.end
+		err = e
+	}
+
 	if check.firstErr == nil {
 		check.firstErr = err
 	}
@@ -111,15 +123,15 @@ func (check *Checker) err(err error) {
 }
 
 func (check *Checker) newError(at positioner, code errorCode, soft bool, msg string) error {
-	ext := spanOf(at)
+	span := spanOf(at)
 	return Error{
 		Fset:       check.fset,
-		Pos:        ext.pos,
+		Pos:        span.pos,
 		Msg:        msg,
 		Soft:       soft,
 		go116code:  code,
-		go116start: ext.start,
-		go116end:   ext.end,
+		go116start: span.start,
+		go116end:   span.end,
 	}
 }
 

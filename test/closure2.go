@@ -9,6 +9,8 @@
 
 package main
 
+var never bool
+
 func main() {
 	{
 		type X struct {
@@ -113,6 +115,18 @@ func main() {
 		}
 		if g() != 2 {
 			panic("g() != 2")
+		}
+	}
+
+	{
+		var g func() int
+		q := 0
+		q, g = 1, func() int { return q }
+		if never {
+			g = func() int { return 2 }
+		}
+		if g() != 1 {
+			panic("g() != 1")
 		}
 	}
 }

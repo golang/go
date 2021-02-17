@@ -81,7 +81,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 )
@@ -100,7 +99,7 @@ func truncateLike(t, p time.Time) time.Time {
 
 func main() {
 	var t1 time.Time
-	b1, err := ioutil.ReadFile(os.Args[1])
+	b1, err := os.ReadFile(os.Args[1])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -111,7 +110,7 @@ func main() {
 	}
 
 	var t2 time.Time
-	b2, err := ioutil.ReadFile(os.Args[2])
+	b2, err := os.ReadFile(os.Args[2])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

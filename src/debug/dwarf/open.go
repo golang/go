@@ -26,10 +26,10 @@ type Data struct {
 	str      []byte
 
 	// New sections added in DWARF 5.
-	addr       *debugAddr
+	addr       []byte
 	lineStr    []byte
 	strOffsets []byte
-	rngLists   *rngLists
+	rngLists   []byte
 
 	// parsed data
 	abbrevCache map[uint64]abbrevTable
@@ -38,21 +38,6 @@ type Data struct {
 	typeCache   map[Offset]Type
 	typeSigs    map[uint64]*typeUnit
 	unit        []unit
-}
-
-// rngLists represents the contents of a debug_rnglists section (DWARFv5).
-type rngLists struct {
-	is64  bool
-	asize uint8
-	data  []byte
-	ver   uint16
-}
-
-// debugAddr represents the contents of a debug_addr section (DWARFv5).
-type debugAddr struct {
-	is64  bool
-	asize uint8
-	data  []byte
 }
 
 var errSegmentSelector = errors.New("non-zero segment_selector size not supported")
@@ -132,76 +117,14 @@ func (d *Data) AddSection(name string, contents []byte) error {
 	var err error
 	switch name {
 	case ".debug_addr":
-		d.addr, err = d.parseAddrHeader(contents)
+		d.addr = contents
 	case ".debug_line_str":
 		d.lineStr = contents
 	case ".debug_str_offsets":
 		d.strOffsets = contents
 	case ".debug_rnglists":
-		d.rngLists, err = d.parseRngListsHeader(contents)
+		d.rngLists = contents
 	}
 	// Just ignore names that we don't yet support.
 	return err
-}
-
-// parseRngListsHeader reads the header of a debug_rnglists section, see
-// DWARFv5 section 7.28 (page 242).
-func (d *Data) parseRngListsHeader(bytes []byte) (*rngLists, error) {
-	rngLists := &rngLists{data: bytes}
-
-	buf := makeBuf(d, unknownFormat{}, "rnglists", 0, bytes)
-	_, rngLists.is64 = buf.unitLength()
-
-	rngLists.ver = buf.uint16() // version
-
-	rngLists.asize = buf.uint8()
-	segsize := buf.uint8()
-	if segsize != 0 {
-		return nil, errSegmentSelector
-	}
-
-	// Header fields not read: offset_entry_count, offset table
-
-	return rngLists, nil
-}
-
-func (rngLists *rngLists) version() int {
-	return int(rngLists.ver)
-}
-
-func (rngLists *rngLists) dwarf64() (bool, bool) {
-	return rngLists.is64, true
-}
-
-func (rngLists *rngLists) addrsize() int {
-	return int(rngLists.asize)
-}
-
-// parseAddrHeader reads the header of a debug_addr section, see DWARFv5
-// section 7.27 (page 241).
-func (d *Data) parseAddrHeader(bytes []byte) (*debugAddr, error) {
-	addr := &debugAddr{data: bytes}
-
-	buf := makeBuf(d, unknownFormat{}, "addr", 0, bytes)
-	_, addr.is64 = buf.unitLength()
-
-	addr.asize = buf.uint8()
-	segsize := buf.uint8()
-	if segsize != 0 {
-		return nil, errSegmentSelector
-	}
-
-	return addr, nil
-}
-
-func (addr *debugAddr) version() int {
-	return 5
-}
-
-func (addr *debugAddr) dwarf64() (bool, bool) {
-	return addr.is64, true
-}
-
-func (addr *debugAddr) addrsize() int {
-	return int(addr.asize)
 }

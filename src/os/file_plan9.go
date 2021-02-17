@@ -336,16 +336,6 @@ func hasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
 }
 
-// LastIndexByte from the strings package.
-func lastIndex(s string, sep byte) int {
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i] == sep {
-			return i
-		}
-	}
-	return -1
-}
-
 func rename(oldname, newname string) error {
 	dirname := oldname[:lastIndex(oldname, '/')+1]
 	if hasPrefix(newname, dirname) {

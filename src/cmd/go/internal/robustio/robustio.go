@@ -22,7 +22,7 @@ func Rename(oldpath, newpath string) error {
 	return rename(oldpath, newpath)
 }
 
-// ReadFile is like ioutil.ReadFile, but on Windows retries errors that may
+// ReadFile is like os.ReadFile, but on Windows retries errors that may
 // occur if the file is concurrently replaced.
 //
 // (See golang.org/issue/31247 and golang.org/issue/32188.)

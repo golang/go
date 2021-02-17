@@ -177,6 +177,10 @@ func runTests(t *testing.T) ([]byte, error) {
 	)
 	// There are races: we expect tests to fail and the exit code to be non-zero.
 	out, _ := cmd.CombinedOutput()
+	if bytes.Contains(out, []byte("fatal error:")) {
+		// But don't expect runtime to crash.
+		return out, fmt.Errorf("runtime fatal error")
+	}
 	return out, nil
 }
 

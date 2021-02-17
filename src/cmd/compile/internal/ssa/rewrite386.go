@@ -1027,6 +1027,19 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (ADDLconst [c] x:(SP))
+	// result: (LEAL [c] x)
+	for {
+		c := auxIntToInt32(v.AuxInt)
+		x := v_0
+		if x.Op != OpSP {
+			break
+		}
+		v.reset(Op386LEAL)
+		v.AuxInt = int32ToAuxInt(c)
+		v.AddArg(x)
+		return true
+	}
 	// match: (ADDLconst [c] (LEAL1 [d] {s} x y))
 	// cond: is32Bit(int64(c)+int64(d))
 	// result: (LEAL1 [c+d] {s} x y)
@@ -1772,12 +1785,12 @@ func rewriteValue386_Op386CMPB(v *Value) bool {
 		return true
 	}
 	// match: (CMPB x y)
-	// cond: x.ID > y.ID
+	// cond: canonLessThan(x,y)
 	// result: (InvertFlags (CMPB y x))
 	for {
 		x := v_0
 		y := v_1
-		if !(x.ID > y.ID) {
+		if !(canonLessThan(x, y)) {
 			break
 		}
 		v.reset(Op386InvertFlags)
@@ -2065,12 +2078,12 @@ func rewriteValue386_Op386CMPL(v *Value) bool {
 		return true
 	}
 	// match: (CMPL x y)
-	// cond: x.ID > y.ID
+	// cond: canonLessThan(x,y)
 	// result: (InvertFlags (CMPL y x))
 	for {
 		x := v_0
 		y := v_1
-		if !(x.ID > y.ID) {
+		if !(canonLessThan(x, y)) {
 			break
 		}
 		v.reset(Op386InvertFlags)
@@ -2373,12 +2386,12 @@ func rewriteValue386_Op386CMPW(v *Value) bool {
 		return true
 	}
 	// match: (CMPW x y)
-	// cond: x.ID > y.ID
+	// cond: canonLessThan(x,y)
 	// result: (InvertFlags (CMPW y x))
 	for {
 		x := v_0
 		y := v_1
-		if !(x.ID > y.ID) {
+		if !(canonLessThan(x, y)) {
 			break
 		}
 		v.reset(Op386InvertFlags)

@@ -101,8 +101,7 @@ func gcMarkRootPrepare() {
 	// Gs may be created after this point, but it's okay that we
 	// ignore them because they begin life without any roots, so
 	// there's nothing to scan, and any roots they create during
-	// the concurrent phase will be scanned during mark
-	// termination.
+	// the concurrent phase will be caught by the write barrier.
 	work.nStackRoots = int(atomic.Loaduintptr(&allglen))
 
 	work.markrootNext = 0
@@ -133,7 +132,6 @@ fail:
 	println("gp", gp, "goid", gp.goid,
 		"status", readgstatus(gp),
 		"gcscandone", gp.gcscandone)
-	unlock(&allglock) // Avoid self-deadlock with traceback.
 	throw("scan missed a g")
 }
 

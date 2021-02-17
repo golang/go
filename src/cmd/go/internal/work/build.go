@@ -9,9 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
+	exec "internal/execabs"
 	"internal/goroot"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -71,7 +71,7 @@ and test commands:
 	-p n
 		the number of programs, such as build commands or
 		test binaries, that can be run in parallel.
-		The default is the number of CPUs available.
+		The default is GOMAXPROCS, normally the number of CPUs available.
 	-race
 		enable data race detection.
 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
@@ -113,7 +113,10 @@ and test commands:
 		created with -buildmode=shared.
 	-mod mode
 		module download mode to use: readonly, vendor, or mod.
-		See 'go help modules' for more.
+		By default, if a vendor directory is present and the go version in go.mod
+		is 1.14 or higher, the go command acts as if -mod=vendor were set.
+		Otherwise, the go command acts as if -mod=readonly were set.
+		See https://golang.org/ref/mod#build-commands for details.
 	-modcacherw
 		leave newly-created directories in the module cache read-write
 		instead of making them read-only.
@@ -124,6 +127,17 @@ and test commands:
 		directory, but it is not accessed. When -modfile is specified, an
 		alternate go.sum file is also used: its path is derived from the
 		-modfile flag by trimming the ".mod" extension and appending ".sum".
+	-overlay file
+		read a JSON config file that provides an overlay for build operations.
+		The file is a JSON struct with a single field, named 'Replace', that
+		maps each disk file path (a string) to its backing file path, so that
+		a build will run as if the disk file path exists with the contents
+		given by the backing file paths, or as if the disk file path does not
+		exist if its backing file path is empty. Support for the -overlay flag
+		has some limitations:importantly, cgo files included from outside the
+		include path must be  in the same directory as the Go package they are
+		included from, and overlays will not appear when binaries and tests are
+		run through go run and go test respectively.
 	-pkgdir dir
 		install and load all packages from dir instead of the usual locations.
 		For example, when building with a non-standard configuration,
@@ -267,6 +281,11 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	}
 	if mask&OmitModCommonFlags == 0 {
 		base.AddModCommonFlags(&cmd.Flag)
+	} else {
+		// Add the overlay flag even when we don't add the rest of the mod common flags.
+		// This only affects 'go get' in GOPATH mode, but add the flag anyway for
+		// consistency.
+		cmd.Flag.StringVar(&fsys.OverlayFile, "overlay", "", "")
 	}
 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
@@ -278,8 +297,6 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
-
-	cmd.Flag.StringVar(&fsys.OverlayFile, "overlay", "", "")
 
 	// Undocumented, unstable debugging flags.
 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
@@ -355,7 +372,8 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	var b Builder
 	b.Init()
 
-	pkgs := load.PackagesForBuild(ctx, args)
+	pkgs := load.PackagesAndErrors(ctx, args)
+	load.CheckPackageErrors(pkgs)
 
 	explicitO := len(cfg.BuildO) > 0
 
@@ -385,7 +403,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 		fmt.Fprint(os.Stderr, "go build: -i flag is deprecated\n")
 	}
 
-	pkgs = omitTestOnly(pkgsFilter(load.Packages(ctx, args)))
+	pkgs = omitTestOnly(pkgsFilter(pkgs))
 
 	// Special case -o /dev/null by not writing at all.
 	if cfg.BuildO == os.DevNull {
@@ -568,8 +586,32 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 			return
 		}
 	}
+
 	BuildInit()
-	pkgs := load.PackagesForBuild(ctx, args)
+	pkgs := load.PackagesAndErrors(ctx, args)
+	if cfg.ModulesEnabled && !modload.HasModRoot() {
+		haveErrors := false
+		allMissingErrors := true
+		for _, pkg := range pkgs {
+			if pkg.Error == nil {
+				continue
+			}
+			haveErrors = true
+			if missingErr := (*modload.ImportMissingError)(nil); !errors.As(pkg.Error, &missingErr) {
+				allMissingErrors = false
+				break
+			}
+		}
+		if haveErrors && allMissingErrors {
+			latestArgs := make([]string, len(args))
+			for i := range args {
+				latestArgs[i] = args[i] + "@latest"
+			}
+			hint := strings.Join(latestArgs, " ")
+			base.Fatalf("go install: version is required when current directory is not in a module\n\tTry 'go install %s' to install the latest version", hint)
+		}
+	}
+	load.CheckPackageErrors(pkgs)
 	if cfg.BuildI {
 		allGoroot := true
 		for _, pkg := range pkgs {
@@ -582,6 +624,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 			fmt.Fprint(os.Stderr, "go install: -i flag is deprecated\n")
 		}
 	}
+
 	InstallPackages(ctx, args, pkgs)
 }
 
@@ -765,7 +808,8 @@ func installOutsideModule(ctx context.Context, args []string) {
 		// Don't check for retractions if a specific revision is requested.
 		allowed = nil
 	}
-	qrs, err := modload.QueryPackages(ctx, patterns[0], version, modload.Selected, allowed)
+	noneSelected := func(path string) (version string) { return "none" }
+	qrs, err := modload.QueryPackages(ctx, patterns[0], version, noneSelected, allowed)
 	if err != nil {
 		base.Fatalf("go install %s: %v", args[0], err)
 	}
@@ -789,14 +833,16 @@ func installOutsideModule(ctx context.Context, args []string) {
 		base.Fatalf(directiveFmt, args[0], installMod, "exclude")
 	}
 
-	// Initialize the build list using a dummy main module that requires the
-	// module providing the packages on the command line.
-	target := module.Version{Path: "go-install-target"}
-	modload.SetBuildList([]module.Version{target, installMod})
+	// Since we are in NoRoot mode, the build list initially contains only
+	// the dummy command-line-arguments module. Add a requirement on the
+	// module that provides the packages named on the command line.
+	if err := modload.EditBuildList(ctx, nil, []module.Version{installMod}); err != nil {
+		base.Fatalf("go install %s: %v", args[0], err)
+	}
 
 	// Load packages for all arguments. Ignore non-main packages.
 	// Print a warning if an argument contains "..." and matches no main packages.
-	// PackagesForBuild already prints warnings for patterns that don't match any
+	// PackagesAndErrors already prints warnings for patterns that don't match any
 	// packages, so be careful not to double print.
 	matchers := make([]func(string) bool, len(patterns))
 	for i, p := range patterns {
@@ -807,7 +853,8 @@ func installOutsideModule(ctx context.Context, args []string) {
 
 	// TODO(golang.org/issue/40276): don't report errors loading non-main packages
 	// matched by a pattern.
-	pkgs := load.PackagesForBuild(ctx, patterns)
+	pkgs := load.PackagesAndErrors(ctx, patterns)
+	load.CheckPackageErrors(pkgs)
 	mainPkgs := make([]*load.Package, 0, len(pkgs))
 	mainCount := make([]int, len(patterns))
 	nonMainCount := make([]int, len(patterns))
@@ -837,11 +884,6 @@ func installOutsideModule(ctx context.Context, args []string) {
 	}
 
 	// Check that named packages are all provided by the same module.
-	for _, mod := range modload.LoadedModules() {
-		if mod.Path == installMod.Path && mod.Version != installMod.Version {
-			base.Fatalf("go install: %s: module requires a higher version of itself (%s)", installMod, mod.Version)
-		}
-	}
 	for _, pkg := range mainPkgs {
 		if pkg.Module == nil {
 			// Packages in std, cmd, and their vendored dependencies

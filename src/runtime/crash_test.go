@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -117,7 +116,7 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 	testprog.Lock()
 	defer testprog.Unlock()
 	if testprog.dir == "" {
-		dir, err := ioutil.TempDir("", "go-build")
+		dir, err := os.MkdirTemp("", "go-build")
 		if err != nil {
 			t.Fatalf("failed to create temp directory: %v", err)
 		}
@@ -288,6 +287,18 @@ func TestRecursivePanic4(t *testing.T) {
 	output := runTestProg(t, "testprog", "RecursivePanic4")
 	want := `panic: first panic [recovered]
 	panic: second panic
+`
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+
+}
+
+func TestRecursivePanic5(t *testing.T) {
+	output := runTestProg(t, "testprog", "RecursivePanic5")
+	want := `first panic
+second panic
+panic: third panic
 `
 	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)

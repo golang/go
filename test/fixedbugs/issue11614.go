@@ -11,7 +11,7 @@
 package main
 
 type I interface {
-	int // ERROR "interface contains embedded non-interface int"
+	int // ERROR "interface contains embedded non-interface"
 }
 
 func n() {
@@ -19,7 +19,7 @@ func n() {
 }
 
 func m() {
-	(interface{int}) // ERROR "interface contains embedded non-interface int" "type interface { int } is not an expression"
+	(interface{int}) // ERROR "interface contains embedded non-interface" "type interface { int } is not an expression"
 }
 
 func main() {

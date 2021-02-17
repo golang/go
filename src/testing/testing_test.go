@@ -5,7 +5,6 @@
 package testing_test
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -102,11 +101,11 @@ func testTempDir(t *testing.T) {
 	if !fi.IsDir() {
 		t.Errorf("dir %q is not a dir", dir)
 	}
-	fis, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(fis) > 0 {
-		t.Errorf("unexpected %d files in TempDir: %v", len(fis), fis)
+	if len(files) > 0 {
+		t.Errorf("unexpected %d files in TempDir: %v", len(files), files)
 	}
 }

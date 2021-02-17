@@ -663,8 +663,8 @@
 ((OR|XOR)W x (MOVDconst [c])) => ((OR|XOR)Wconst [int32(c)] x)
 
 // Constant shifts.
-(S(LD|RD|RAD) x (MOVDconst [c])) => (S(LD|RD|RAD)const x [int8(c&63)])
-(S(LW|RW|RAW) x (MOVDconst [c])) && c&32 == 0 => (S(LW|RW|RAW)const x [int8(c&31)])
+(S(LD|RD|RAD) x (MOVDconst [c])) => (S(LD|RD|RAD)const x [uint8(c&63)])
+(S(LW|RW|RAW) x (MOVDconst [c])) && c&32 == 0 => (S(LW|RW|RAW)const x [uint8(c&31)])
 (S(LW|RW)     _ (MOVDconst [c])) && c&32 != 0 => (MOVDconst [0])
 (SRAW         x (MOVDconst [c])) && c&32 != 0 => (SRAWconst x [31])
 
@@ -685,8 +685,8 @@
 (SRAW x (MOV(W|H|B|WZ|HZ|BZ)reg y)) => (SRAW x y)
 
 // Match rotate by constant.
-(RLLG x (MOVDconst [c])) => (RISBGZ x {s390x.NewRotateParams(0, 63, int8(c&63))})
-(RLL  x (MOVDconst [c])) => (RLLconst x [int8(c&31)])
+(RLLG x (MOVDconst [c])) => (RISBGZ x {s390x.NewRotateParams(0, 63, uint8(c&63))})
+(RLL  x (MOVDconst [c])) => (RLLconst x [uint8(c&31)])
 
 // Match rotate by constant pattern.
 ((ADD|OR|XOR)  (SLDconst x [c]) (SRDconst x [64-c])) => (RISBGZ x {s390x.NewRotateParams(0, 63, c)})
@@ -705,10 +705,10 @@
 (CMP(W|WU) (MOVDconst [c]) x) => (InvertFlags (CMP(W|WU)const x [int32(c)]))
 
 // Match (x >> c) << d to 'rotate then insert selected bits [into zero]'.
-(SLDconst (SRDconst x [c]) [d]) => (RISBGZ x {s390x.NewRotateParams(max8(0, c-d), 63-d, (d-c)&63)})
+(SLDconst (SRDconst x [c]) [d]) => (RISBGZ x {s390x.NewRotateParams(uint8(max8(0, int8(c-d))), 63-d, uint8(int8(d-c)&63))})
 
 // Match (x << c) >> d to 'rotate then insert selected bits [into zero]'.
-(SRDconst (SLDconst x [c]) [d]) => (RISBGZ x {s390x.NewRotateParams(d, min8(63, 63-c+d), (c-d)&63)})
+(SRDconst (SLDconst x [c]) [d]) => (RISBGZ x {s390x.NewRotateParams(d, uint8(min8(63, int8(63-c+d))), uint8(int8(c-d)&63))})
 
 // Absorb input zero extension into 'rotate then insert selected bits [into zero]'.
 (RISBGZ (MOVWZreg x) {r}) && r.InMerge(0xffffffff) != nil => (RISBGZ x {*r.InMerge(0xffffffff)})
@@ -785,7 +785,7 @@
   => (RISBGZ x {s390x.NewRotateParams(r.Start, r.Start, -r.Start&63)})
 
 // Canonicalize the order of arguments to comparisons - helps with CSE.
-((CMP|CMPW|CMPU|CMPWU) x y) && x.ID > y.ID => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
+((CMP|CMPW|CMPU|CMPWU) x y) && canonLessThan(x,y) => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
 
 // Use sign/zero extend instead of RISBGZ.
 (RISBGZ x {r}) && r == s390x.NewRotateParams(56, 63, 0) => (MOVBZreg x)
@@ -818,18 +818,18 @@
 
 // c = 2ˣ + 2ʸ => c - 2ˣ = 2ʸ
 (MULL(D|W)const <t> x [c]) && isPowerOfTwo32(c&(c-1))
-  => ((ADD|ADDW) (SL(D|W)const <t> x [int8(log32(c&(c-1)))])
-                 (SL(D|W)const <t> x [int8(log32(c&^(c-1)))]))
+  => ((ADD|ADDW) (SL(D|W)const <t> x [uint8(log32(c&(c-1)))])
+                 (SL(D|W)const <t> x [uint8(log32(c&^(c-1)))]))
 
 // c = 2ʸ - 2ˣ => c + 2ˣ = 2ʸ
 (MULL(D|W)const <t> x [c]) && isPowerOfTwo32(c+(c&^(c-1)))
-  => ((SUB|SUBW) (SL(D|W)const <t> x [int8(log32(c+(c&^(c-1))))])
-                 (SL(D|W)const <t> x [int8(log32(c&^(c-1)))]))
+  => ((SUB|SUBW) (SL(D|W)const <t> x [uint8(log32(c+(c&^(c-1))))])
+                 (SL(D|W)const <t> x [uint8(log32(c&^(c-1)))]))
 
 // c = 2ˣ - 2ʸ => -c + 2ˣ = 2ʸ
 (MULL(D|W)const <t> x [c]) && isPowerOfTwo32(-c+(-c&^(-c-1)))
-  => ((SUB|SUBW) (SL(D|W)const <t> x [int8(log32(-c&^(-c-1)))])
-                 (SL(D|W)const <t> x [int8(log32(-c+(-c&^(-c-1))))]))
+  => ((SUB|SUBW) (SL(D|W)const <t> x [uint8(log32(-c&^(-c-1)))])
+                 (SL(D|W)const <t> x [uint8(log32(-c+(-c&^(-c-1))))]))
 
 // Fold ADD into MOVDaddr. Odd offsets from SB shouldn't be folded (LARL can't handle them).
 (ADDconst [c] (MOVDaddr [d] {s} x:(SB))) && ((c+d)&1 == 0) && is32Bit(int64(c)+int64(d)) => (MOVDaddr [c+d] {s} x)

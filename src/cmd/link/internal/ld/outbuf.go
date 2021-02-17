@@ -113,6 +113,7 @@ func (out *OutBuf) Close() error {
 	}
 	if out.isMmapped() {
 		out.copyHeap()
+		out.purgeSignatureCache()
 		out.munmap()
 	}
 	if out.f == nil {
@@ -133,6 +134,15 @@ func (out *OutBuf) Close() error {
 // isMmapped returns true if the OutBuf is mmaped.
 func (out *OutBuf) isMmapped() bool {
 	return len(out.buf) != 0
+}
+
+// Data returns the whole written OutBuf as a byte slice.
+func (out *OutBuf) Data() []byte {
+	if out.isMmapped() {
+		out.copyHeap()
+		return out.buf
+	}
+	return out.heap
 }
 
 // copyHeap copies the heap to the mmapped section of memory, returning true if
@@ -183,7 +193,9 @@ func (out *OutBuf) writeLoc(lenToWrite int64) (int64, []byte) {
 		// See if our heap would grow to be too large, and if so, copy it to the end
 		// of the mmapped area.
 		if heapLen > maxOutBufHeapLen && out.copyHeap() {
-			heapPos, heapLen, lenNeeded = 0, 0, lenToWrite
+			heapPos -= heapLen
+			lenNeeded = heapPos + lenToWrite
+			heapLen = 0
 		}
 		out.heap = append(out.heap, make([]byte, lenNeeded-heapLen)...)
 	}

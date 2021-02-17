@@ -10,5 +10,5 @@ package main
 
 import "unsafe"
 
-type s struct { unsafe.Pointer } // ERROR "embedded type cannot be a pointer"
+type s struct { unsafe.Pointer } // ERROR "embedded type cannot be a pointer|embedded type may not be a pointer"
 type s1 struct { p unsafe.Pointer }

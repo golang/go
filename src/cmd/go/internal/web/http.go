@@ -80,6 +80,13 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		return res, nil
 	}
 
+	if url.Host == "localhost.localdev" {
+		return nil, fmt.Errorf("no such host localhost.localdev")
+	}
+	if os.Getenv("TESTGONETWORK") == "panic" && !strings.HasPrefix(url.Host, "127.0.0.1") && !strings.HasPrefix(url.Host, "0.0.0.0") {
+		panic("use of network: " + url.String())
+	}
+
 	fetch := func(url *urlpkg.URL) (*urlpkg.URL, *http.Response, error) {
 		// Note: The -v build flag does not mean "print logging information",
 		// despite its historical misuse for this in GOPATH-based go get.

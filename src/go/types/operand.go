@@ -195,9 +195,15 @@ func (x *operand) setConst(tok token.Token, lit string) {
 		unreachable()
 	}
 
+	val := constant.MakeFromLiteral(lit, tok, 0)
+	if val.Kind() == constant.Unknown {
+		x.mode = invalid
+		x.typ = Typ[Invalid]
+		return
+	}
 	x.mode = constant_
 	x.typ = Typ[kind]
-	x.val = constant.MakeFromLiteral(lit, tok, 0)
+	x.val = val
 }
 
 // isNil reports whether x is the nil value.

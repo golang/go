@@ -6448,3 +6448,62 @@ func BenchmarkResponseStatusLine(b *testing.B) {
 		}
 	})
 }
+func TestDisableKeepAliveUpgrade(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	setParallel(t)
+	defer afterTest(t)
+
+	s := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Connection", "Upgrade")
+		w.Header().Set("Upgrade", "someProto")
+		w.WriteHeader(StatusSwitchingProtocols)
+		c, buf, err := w.(Hijacker).Hijack()
+		if err != nil {
+			return
+		}
+		defer c.Close()
+
+		// Copy from the *bufio.ReadWriter, which may contain buffered data.
+		// Copy to the net.Conn, to avoid buffering the output.
+		io.Copy(c, buf)
+	}))
+	s.Config.SetKeepAlivesEnabled(false)
+	s.Start()
+	defer s.Close()
+
+	cl := s.Client()
+	cl.Transport.(*Transport).DisableKeepAlives = true
+
+	resp, err := cl.Get(s.URL)
+	if err != nil {
+		t.Fatalf("failed to perform request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != StatusSwitchingProtocols {
+		t.Fatalf("unexpected status code: %v", resp.StatusCode)
+	}
+
+	rwc, ok := resp.Body.(io.ReadWriteCloser)
+	if !ok {
+		t.Fatalf("Response.Body is not a io.ReadWriteCloser: %T", resp.Body)
+	}
+
+	_, err = rwc.Write([]byte("hello"))
+	if err != nil {
+		t.Fatalf("failed to write to body: %v", err)
+	}
+
+	b := make([]byte, 5)
+	_, err = io.ReadFull(rwc, b)
+	if err != nil {
+		t.Fatalf("failed to read from body: %v", err)
+	}
+
+	if string(b) != "hello" {
+		t.Fatalf("unexpected value read from body:\ngot: %q\nwant: %q", b, "hello")
+	}
+}

@@ -60,6 +60,9 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	MOVD	ut+24(FP), R4
 	MOVD	$SYS__umtx_op, R8
 	SVC
+	BCC	ok
+	NEG	R0, R0
+ok:
 	MOVW	R0, ret+32(FP)
 	RET
 
@@ -69,6 +72,9 @@ TEXT runtime·thr_new(SB),NOSPLIT,$0
 	MOVW	size+8(FP), R1
 	MOVD	$SYS_thr_new, R8
 	SVC
+	BCC	ok
+	NEG	R0, R0
+ok:
 	MOVW	R0, ret+16(FP)
 	RET
 

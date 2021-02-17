@@ -15,7 +15,6 @@ import (
 	"go/scanner"
 	"go/token"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path"
 	pathpkg "path"
@@ -37,6 +36,8 @@ import (
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/internal/sys"
+
+	"golang.org/x/mod/module"
 )
 
 var IgnoreImports bool // control whether we ignore imports in packages
@@ -97,7 +98,7 @@ type PackagePublic struct {
 
 	// Embedded files
 	EmbedPatterns []string `json:",omitempty"` // //go:embed patterns
-	EmbedFiles    []string `json:",omitempty"` // files and directories matched by EmbedPatterns
+	EmbedFiles    []string `json:",omitempty"` // files matched by EmbedPatterns
 
 	// Cgo directives
 	CgoCFLAGS    []string `json:",omitempty"` // cgo: flags for C compiler
@@ -123,11 +124,11 @@ type PackagePublic struct {
 	TestGoFiles        []string `json:",omitempty"` // _test.go files in package
 	TestImports        []string `json:",omitempty"` // imports from TestGoFiles
 	TestEmbedPatterns  []string `json:",omitempty"` // //go:embed patterns
-	TestEmbedFiles     []string `json:",omitempty"` // //files matched by EmbedPatterns
+	TestEmbedFiles     []string `json:",omitempty"` // files matched by TestEmbedPatterns
 	XTestGoFiles       []string `json:",omitempty"` // _test.go files outside package
 	XTestImports       []string `json:",omitempty"` // imports from XTestGoFiles
 	XTestEmbedPatterns []string `json:",omitempty"` // //go:embed patterns
-	XTestEmbedFiles    []string `json:",omitempty"` // //files matched by EmbedPatterns
+	XTestEmbedFiles    []string `json:",omitempty"` // files matched by XTestEmbedPatterns
 }
 
 // AllFiles returns the names of all the files considered for the package.
@@ -305,7 +306,7 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 	}
 
 	if path != stk.Top() {
-		p = setErrorPos(p, importPos)
+		p.Error.setPos(importPos)
 	}
 }
 
@@ -419,6 +420,9 @@ type PackageError struct {
 }
 
 func (p *PackageError) Error() string {
+	// TODO(#43696): decide when to print the stack or the position based on
+	// the error type and whether the package is in the main module.
+	// Document the rationale.
 	if p.Pos != "" && (len(p.ImportStack) == 0 || !p.alwaysPrintStack) {
 		// Omit import stack. The full path to the file where the error
 		// is the most important thing.
@@ -452,6 +456,15 @@ func (p *PackageError) MarshalJSON() ([]byte, error) {
 		Err         string
 	}{p.ImportStack, p.Pos, p.Err.Error()}
 	return json.Marshal(perr)
+}
+
+func (p *PackageError) setPos(posList []token.Position) {
+	if len(posList) == 0 {
+		return
+	}
+	pos := posList[0]
+	pos.Filename = base.ShortPath(pos.Filename)
+	p.Pos = pos.String()
 }
 
 // ImportPathError is a type of error that prevents a package from being loaded
@@ -702,17 +715,19 @@ func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *
 				Err:         ImportErrorf(path, "non-canonical import path %q: should be %q", path, pathpkg.Clean(path)),
 			}
 			p.Incomplete = true
-			setErrorPos(p, importPos)
+			p.Error.setPos(importPos)
 		}
 	}
 
 	// Checked on every import because the rules depend on the code doing the importing.
 	if perr := disallowInternal(srcDir, parent, parentPath, p, stk); perr != p {
-		return setErrorPos(perr, importPos)
+		perr.Error.setPos(importPos)
+		return perr
 	}
 	if mode&ResolveImport != 0 {
 		if perr := disallowVendor(srcDir, path, parentPath, p, stk); perr != p {
-			return setErrorPos(perr, importPos)
+			perr.Error.setPos(importPos)
+			return perr
 		}
 	}
 
@@ -722,7 +737,8 @@ func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *
 			ImportStack: stk.Copy(),
 			Err:         ImportErrorf(path, "import %q is a program, not an importable package", path),
 		}
-		return setErrorPos(&perr, importPos)
+		perr.Error.setPos(importPos)
+		return &perr
 	}
 
 	if p.Internal.Local && parent != nil && !parent.Internal.Local {
@@ -737,18 +753,10 @@ func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *
 			ImportStack: stk.Copy(),
 			Err:         err,
 		}
-		return setErrorPos(&perr, importPos)
+		perr.Error.setPos(importPos)
+		return &perr
 	}
 
-	return p
-}
-
-func setErrorPos(p *Package, importPos []token.Position) *Package {
-	if len(importPos) > 0 {
-		pos := importPos[0]
-		pos.Filename = base.ShortPath(pos.Filename)
-		p.Error.Pos = pos.String()
-	}
 	return p
 }
 
@@ -776,11 +784,7 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
 	}
 
 	if strings.Contains(path, "@") {
-		if cfg.ModulesEnabled {
-			return nil, false, errors.New("can only use path@version syntax with 'go get'")
-		} else {
-			return nil, false, errors.New("cannot use path@version syntax in GOPATH mode")
-		}
+		return nil, false, errors.New("can only use path@version syntax with 'go get' and 'go install' in module-aware mode")
 	}
 
 	// Determine canonical package path and directory.
@@ -1153,7 +1157,7 @@ var (
 // goModPath returns the module path in the go.mod in dir, if any.
 func goModPath(dir string) (path string) {
 	return goModPathCache.Do(dir, func() interface{} {
-		data, err := ioutil.ReadFile(filepath.Join(dir, "go.mod"))
+		data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 		if err != nil {
 			return ""
 		}
@@ -1302,9 +1306,9 @@ HaveGoMod:
 // Otherwise it is not possible to vendor just a/b/c and still import the
 // non-vendored a/b. See golang.org/issue/13832.
 func hasGoFiles(dir string) bool {
-	fis, _ := ioutil.ReadDir(dir)
-	for _, fi := range fis {
-		if !fi.IsDir() && strings.HasSuffix(fi.Name(), ".go") {
+	files, _ := os.ReadDir(dir)
+	for _, f := range files {
+		if !f.IsDir() && strings.HasSuffix(f.Name(), ".go") {
 			return true
 		}
 	}
@@ -1660,7 +1664,7 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 			// must be either in an explicit command-line argument,
 			// or on the importer side (indicated by a non-empty importPos).
 			if path != stk.Top() && len(importPos) > 0 {
-				p = setErrorPos(p, importPos)
+				p.Error.setPos(importPos)
 			}
 		}
 	}
@@ -1668,11 +1672,6 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 	if err != nil {
 		p.Incomplete = true
 		p.setLoadPackageDataError(err, path, stk, importPos)
-	}
-
-	p.EmbedFiles, p.Internal.Embed, err = p.resolveEmbed(p.EmbedPatterns)
-	if err != nil {
-		setError(err)
 	}
 
 	useBindir := p.Name == "main"
@@ -1734,7 +1733,7 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 			// not work for any package that lacks a Target — such as a non-main
 			// package in module mode. We should probably fix that.
 			shlibnamefile := p.Target[:len(p.Target)-2] + ".shlibname"
-			shlib, err := ioutil.ReadFile(shlibnamefile)
+			shlib, err := os.ReadFile(shlibnamefile)
 			if err != nil && !os.IsNotExist(err) {
 				base.Fatalf("reading shlibname: %v", err)
 			}
@@ -1810,8 +1809,19 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 		return
 	}
 
+	// Errors after this point are caused by this package, not the importing
+	// package. Pushing the path here prevents us from reporting the error
+	// with the position of the import declaration.
 	stk.Push(path)
 	defer stk.Pop()
+
+	p.EmbedFiles, p.Internal.Embed, err = resolveEmbed(p.Dir, p.EmbedPatterns)
+	if err != nil {
+		p.Incomplete = true
+		setError(err)
+		embedErr := err.(*EmbedError)
+		p.Error.setPos(p.Internal.Build.EmbedPatternPos[embedErr.Pattern])
+	}
 
 	// Check for case-insensitive collision of input files.
 	// To avoid problems on case-insensitive files, we reject any package
@@ -1916,35 +1926,62 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 	}
 }
 
+// An EmbedError indicates a problem with a go:embed directive.
+type EmbedError struct {
+	Pattern string
+	Err     error
+}
+
+func (e *EmbedError) Error() string {
+	return fmt.Sprintf("pattern %s: %v", e.Pattern, e.Err)
+}
+
+func (e *EmbedError) Unwrap() error {
+	return e.Err
+}
+
 // ResolveEmbed resolves //go:embed patterns and returns only the file list.
-// For use by go list to compute p.TestEmbedFiles and p.XTestEmbedFiles.
-func (p *Package) ResolveEmbed(patterns []string) []string {
-	files, _, _ := p.resolveEmbed(patterns)
-	return files
+// For use by go mod vendor to find embedded files it should copy into the
+// vendor directory.
+// TODO(#42504): Once go mod vendor uses load.PackagesAndErrors, just
+// call (*Package).ResolveEmbed
+func ResolveEmbed(dir string, patterns []string) ([]string, error) {
+	files, _, err := resolveEmbed(dir, patterns)
+	return files, err
 }
 
 // resolveEmbed resolves //go:embed patterns to precise file lists.
 // It sets files to the list of unique files matched (for go list),
 // and it sets pmap to the more precise mapping from
 // patterns to files.
-// TODO(rsc): All these messages need position information for better error reports.
-func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[string][]string, err error) {
+func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[string][]string, err error) {
+	var pattern string
+	defer func() {
+		if err != nil {
+			err = &EmbedError{
+				Pattern: pattern,
+				Err:     err,
+			}
+		}
+	}()
+
+	// TODO(rsc): All these messages need position information for better error reports.
 	pmap = make(map[string][]string)
 	have := make(map[string]int)
 	dirOK := make(map[string]bool)
 	pid := 0 // pattern ID, to allow reuse of have map
-	for _, pattern := range patterns {
+	for _, pattern = range patterns {
 		pid++
 
 		// Check pattern is valid for //go:embed.
 		if _, err := path.Match(pattern, ""); err != nil || !validEmbedPattern(pattern) {
-			return nil, nil, fmt.Errorf("pattern %s: invalid pattern syntax", pattern)
+			return nil, nil, fmt.Errorf("invalid pattern syntax")
 		}
 
 		// Glob to find matches.
-		match, err := fsys.Glob(p.Dir + string(filepath.Separator) + filepath.FromSlash(pattern))
+		match, err := fsys.Glob(pkgdir + string(filepath.Separator) + filepath.FromSlash(pattern))
 		if err != nil {
-			return nil, nil, fmt.Errorf("pattern %s: %v", pattern, err)
+			return nil, nil, err
 		}
 
 		// Filter list of matches down to the ones that will still exist when
@@ -1953,7 +1990,7 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
 		// then there may be other things lying around, like symbolic links or .git directories.)
 		var list []string
 		for _, file := range match {
-			rel := filepath.ToSlash(file[len(p.Dir)+1:]) // file, relative to p.Dir
+			rel := filepath.ToSlash(file[len(pkgdir)+1:]) // file, relative to p.Dir
 
 			what := "file"
 			info, err := fsys.Lstat(file)
@@ -1966,28 +2003,28 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
 
 			// Check that directories along path do not begin a new module
 			// (do not contain a go.mod).
-			for dir := file; len(dir) > len(p.Dir)+1 && !dirOK[dir]; dir = filepath.Dir(dir) {
+			for dir := file; len(dir) > len(pkgdir)+1 && !dirOK[dir]; dir = filepath.Dir(dir) {
 				if _, err := fsys.Stat(filepath.Join(dir, "go.mod")); err == nil {
-					return nil, nil, fmt.Errorf("pattern %s: cannot embed %s %s: in different module", pattern, what, rel)
+					return nil, nil, fmt.Errorf("cannot embed %s %s: in different module", what, rel)
 				}
 				if dir != file {
 					if info, err := fsys.Lstat(dir); err == nil && !info.IsDir() {
-						return nil, nil, fmt.Errorf("pattern %s: cannot embed %s %s: in non-directory %s", pattern, what, rel, dir[len(p.Dir)+1:])
+						return nil, nil, fmt.Errorf("cannot embed %s %s: in non-directory %s", what, rel, dir[len(pkgdir)+1:])
 					}
 				}
 				dirOK[dir] = true
 				if elem := filepath.Base(dir); isBadEmbedName(elem) {
 					if dir == file {
-						return nil, nil, fmt.Errorf("pattern %s: cannot embed %s %s: invalid name %s", pattern, what, rel, elem)
+						return nil, nil, fmt.Errorf("cannot embed %s %s: invalid name %s", what, rel, elem)
 					} else {
-						return nil, nil, fmt.Errorf("pattern %s: cannot embed %s %s: in invalid directory %s", pattern, what, rel, elem)
+						return nil, nil, fmt.Errorf("cannot embed %s %s: in invalid directory %s", what, rel, elem)
 					}
 				}
 			}
 
 			switch {
 			default:
-				return nil, nil, fmt.Errorf("pattern %s: cannot embed irregular file %s", pattern, rel)
+				return nil, nil, fmt.Errorf("cannot embed irregular file %s", rel)
 
 			case info.Mode().IsRegular():
 				if have[rel] != pid {
@@ -2003,7 +2040,17 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
 					if err != nil {
 						return err
 					}
-					rel := filepath.ToSlash(path[len(p.Dir)+1:])
+					rel := filepath.ToSlash(path[len(pkgdir)+1:])
+					name := info.Name()
+					if path != file && (isBadEmbedName(name) || name[0] == '.' || name[0] == '_') {
+						// Ignore bad names, assuming they won't go into modules.
+						// Also avoid hidden files that user may not know about.
+						// See golang.org/issue/42328.
+						if info.IsDir() {
+							return fs.SkipDir
+						}
+						return nil
+					}
 					if info.IsDir() {
 						if _, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil {
 							return filepath.SkipDir
@@ -2011,10 +2058,6 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
 						return nil
 					}
 					if !info.Mode().IsRegular() {
-						return nil
-					}
-					if isBadEmbedName(info.Name()) {
-						// Ignore bad names, assuming they won't go into modules.
 						return nil
 					}
 					count++
@@ -2028,13 +2071,13 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
 					return nil, nil, err
 				}
 				if count == 0 {
-					return nil, nil, fmt.Errorf("pattern %s: cannot embed directory %s: contains no embeddable files", pattern, rel)
+					return nil, nil, fmt.Errorf("cannot embed directory %s: contains no embeddable files", rel)
 				}
 			}
 		}
 
 		if len(list) == 0 {
-			return nil, nil, fmt.Errorf("pattern %s: no matching files found", pattern)
+			return nil, nil, fmt.Errorf("no matching files found")
 		}
 		sort.Strings(list)
 		pmap[pattern] = list
@@ -2055,7 +2098,13 @@ func validEmbedPattern(pattern string) bool {
 // can't or won't be included in modules and therefore shouldn't be treated
 // as existing for embedding.
 func isBadEmbedName(name string) bool {
+	if err := module.CheckFilePath(name); err != nil {
+		return true
+	}
 	switch name {
+	// Empty string should be impossible but make it bad.
+	case "":
+		return true
 	// Version control directories won't be present in module.
 	case ".bzr", ".hg", ".git", ".svn":
 		return true
@@ -2312,30 +2361,14 @@ func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack,
 // argument where needed.
 var ModResolveTests bool
 
-// Packages returns the packages named by the
-// command line arguments 'args'. If a named package
-// cannot be loaded at all (for example, if the directory does not exist),
-// then packages prints an error and does not include that
-// package in the results. However, if errors occur trying
-// to load dependencies of a named package, the named
-// package is still returned, with p.Incomplete = true
-// and details in p.DepsErrors.
-func Packages(ctx context.Context, args []string) []*Package {
-	var pkgs []*Package
-	for _, pkg := range PackagesAndErrors(ctx, args) {
-		if pkg.Error != nil {
-			base.Errorf("%v", pkg.Error)
-			continue
-		}
-		pkgs = append(pkgs, pkg)
-	}
-	return pkgs
-}
-
-// PackagesAndErrors is like 'packages' but returns a
-// *Package for every argument, even the ones that
-// cannot be loaded at all.
-// The packages that fail to load will have p.Error != nil.
+// PackagesAndErrors returns the packages named by the command line arguments
+// 'patterns'. If a named package cannot be loaded, PackagesAndErrors returns
+// a *Package with the Error field describing the failure. If errors are found
+// loading imported packages, the DepsErrors field is set. The Incomplete field
+// may be set as well.
+//
+// To obtain a flat list of packages, use PackageList.
+// To report errors loading packages, use ReportPackageErrors.
 func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
 	ctx, span := trace.StartSpan(ctx, "load.PackagesAndErrors")
 	defer span.Done()
@@ -2425,20 +2458,9 @@ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
 	return pkgs
 }
 
-func setToolFlags(pkgs ...*Package) {
-	for _, p := range PackageList(pkgs) {
-		p.Internal.Asmflags = BuildAsmflags.For(p)
-		p.Internal.Gcflags = BuildGcflags.For(p)
-		p.Internal.Ldflags = BuildLdflags.For(p)
-		p.Internal.Gccgoflags = BuildGccgoflags.For(p)
-	}
-}
-
-// PackagesForBuild is like Packages but exits
-// if any of the packages or their dependencies have errors
-// (cannot be built).
-func PackagesForBuild(ctx context.Context, args []string) []*Package {
-	pkgs := PackagesAndErrors(ctx, args)
+// CheckPackageErrors prints errors encountered loading pkgs and their
+// dependencies, then exits with a non-zero status if any errors were found.
+func CheckPackageErrors(pkgs []*Package) {
 	printed := map[*PackageError]bool{}
 	for _, pkg := range pkgs {
 		if pkg.Error != nil {
@@ -2473,8 +2495,15 @@ func PackagesForBuild(ctx context.Context, args []string) []*Package {
 		seen[pkg.ImportPath] = true
 	}
 	base.ExitIfErrors()
+}
 
-	return pkgs
+func setToolFlags(pkgs ...*Package) {
+	for _, p := range PackageList(pkgs) {
+		p.Internal.Asmflags = BuildAsmflags.For(p)
+		p.Internal.Gcflags = BuildGcflags.For(p)
+		p.Internal.Ldflags = BuildLdflags.For(p)
+		p.Internal.Gccgoflags = BuildGccgoflags.For(p)
+	}
 }
 
 // GoFilesPackage creates a package for building a collection of Go files

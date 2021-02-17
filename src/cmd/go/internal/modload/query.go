@@ -21,6 +21,7 @@ import (
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/search"
+	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 
 	"golang.org/x/mod/module"
@@ -109,10 +110,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 		allowed = func(context.Context, module.Version) error { return nil }
 	}
 
-	if path == Target.Path {
-		if query != "upgrade" && query != "patch" {
-			return nil, &QueryMatchesMainModuleError{Pattern: path, Query: query}
-		}
+	if path == Target.Path && (query == "upgrade" || query == "patch") {
 		if err := allowed(ctx, Target); err != nil {
 			return nil, fmt.Errorf("internal error: main module version is not allowed: %w", err)
 		}
@@ -582,6 +580,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 		}
 	}
 
+	var queryMatchesMainModule bool
 	if HasModRoot() {
 		m := match(Target, modRoot, true)
 		if len(m.Pkgs) > 0 {
@@ -605,7 +604,11 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 			return nil, nil, err
 		}
 
-		if query != "upgrade" && query != "patch" && matchPattern(Target.Path) {
+		if matchPattern(Target.Path) {
+			queryMatchesMainModule = true
+		}
+
+		if (query == "upgrade" || query == "patch") && queryMatchesMainModule {
 			if err := allowed(ctx, Target); err == nil {
 				modOnly = &QueryResult{
 					Mod: Target,
@@ -620,14 +623,20 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 		candidateModules = modulePrefixesExcludingTarget(base)
 	)
 	if len(candidateModules) == 0 {
-		if modOnly == nil {
+		if modOnly != nil {
+			return nil, modOnly, nil
+		} else if queryMatchesMainModule {
+			return nil, nil, &QueryMatchesMainModuleError{
+				Pattern: pattern,
+				Query:   query,
+			}
+		} else {
 			return nil, nil, &PackageNotInModuleError{
 				Mod:     Target,
 				Query:   query,
 				Pattern: pattern,
 			}
 		}
-		return nil, modOnly, nil
 	}
 
 	err = modfetch.TryProxies(func(proxy string) error {
@@ -675,6 +684,12 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 		return err
 	})
 
+	if queryMatchesMainModule && len(results) == 0 && modOnly == nil && errors.Is(err, fs.ErrNotExist) {
+		return nil, nil, &QueryMatchesMainModuleError{
+			Pattern: pattern,
+			Query:   query,
+		}
+	}
 	return results[:len(results):len(results)], modOnly, err
 }
 
@@ -991,13 +1006,8 @@ func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
 	sort.Slice(versions, func(i, j int) bool {
 		return semver.Compare(versions[i], versions[j]) < 0
 	})
-	uniq := versions[:1]
-	for _, v := range versions {
-		if v != uniq[len(uniq)-1] {
-			uniq = append(uniq, v)
-		}
-	}
-	return uniq, nil
+	str.Uniq(&versions)
+	return versions, nil
 }
 
 func (rr *replacementRepo) Stat(rev string) (*modfetch.RevInfo, error) {

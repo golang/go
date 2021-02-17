@@ -263,6 +263,7 @@ const (
 	FREGRET  = REG_X0
 	REGSP    = REG_SP
 	REGCTXT  = REG_DX
+	REGG     = REG_R14     // g register in ABIInternal
 	REGEXT   = REG_R15     // compiler allocates external registers R15 down
 	FREGMIN  = REG_X0 + 5  // first register variable
 	FREGEXT  = REG_X0 + 15 // first external register

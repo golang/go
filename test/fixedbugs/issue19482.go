@@ -22,13 +22,13 @@ func ok() {
 
 var (
 	y = T{"stare"}
-	w = T{_: "look"} // ERROR "invalid field name _ in struct initializer"
+	w = T{_: "look"} // ERROR "invalid field name _ in struct initializer|expected struct field name"
 	_ = T{"page"}
-	_ = T{_: "out"} // ERROR "invalid field name _ in struct initializer"
+	_ = T{_: "out"} // ERROR "invalid field name _ in struct initializer|expected struct field name"
 )
 
 func bad() {
-	var z = T{_: "verse"} // ERROR "invalid field name _ in struct initializer"
+	var z = T{_: "verse"} // ERROR "invalid field name _ in struct initializer|expected struct field name"
 	_ = z
-	_ = T{_: "itinerary"} // ERROR "invalid field name _ in struct initializer"
+	_ = T{_: "itinerary"} // ERROR "invalid field name _ in struct initializer|expected struct field name"
 }

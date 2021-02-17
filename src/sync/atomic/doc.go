@@ -43,15 +43,14 @@ import (
 	"unsafe"
 )
 
-// BUG(rsc): On x86-32, the 64-bit functions use instructions unavailable before the Pentium MMX.
+// BUG(rsc): On 386, the 64-bit functions use instructions unavailable before the Pentium MMX.
 //
 // On non-Linux ARM, the 64-bit functions use instructions unavailable before the ARMv6k core.
 //
-// On ARM, x86-32, and 32-bit MIPS,
-// it is the caller's responsibility to arrange for 64-bit
-// alignment of 64-bit words accessed atomically. The first word in a
-// variable or in an allocated struct, array, or slice can be relied upon to be
-// 64-bit aligned.
+// On ARM, 386, and 32-bit MIPS, it is the caller's responsibility
+// to arrange for 64-bit alignment of 64-bit words accessed atomically.
+// The first word in a variable or in an allocated struct, array, or slice can
+// be relied upon to be 64-bit aligned.
 
 // SwapInt32 atomically stores new into *addr and returns the previous *addr value.
 func SwapInt32(addr *int32, new int32) (old int32)

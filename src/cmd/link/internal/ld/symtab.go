@@ -102,6 +102,41 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 		elfshnum = xosect.Elfsect.(*ElfShdr).shnum
 	}
 
+	sname := ldr.SymExtname(x)
+
+	// For functions with ABI wrappers, we have to make sure that we
+	// don't wind up with two elf symbol table entries with the same
+	// name (since this will generated an error from the external
+	// linker). In the CgoExportStatic case, we want the ABI0 symbol
+	// to have the primary symbol table entry (since it's going to be
+	// called from C), so we rename the ABIInternal symbol. In all
+	// other cases, we rename the ABI0 symbol, since we want
+	// cross-load-module calls to target ABIInternal.
+	//
+	// TODO: generalize this for non-ELF (put the rename code in the
+	// loader, and store the rename result in SymExtname).
+	//
+	// TODO: avoid the ldr.Lookup calls below by instead using an aux
+	// sym or marker relocation to associate the wrapper with the
+	// wrapped function.
+	//
+	if *flagAbiWrap {
+		if !ldr.IsExternal(x) && ldr.SymType(x) == sym.STEXT {
+			// First case
+			if ldr.SymVersion(x) == sym.SymVerABIInternal {
+				if s2 := ldr.Lookup(sname, sym.SymVerABI0); s2 != 0 && ldr.AttrCgoExportStatic(s2) && ldr.SymType(s2) == sym.STEXT {
+					sname = sname + ".abiinternal"
+				}
+			}
+			// Second case
+			if ldr.SymVersion(x) == sym.SymVerABI0 && !ldr.AttrCgoExportStatic(x) {
+				if s2 := ldr.Lookup(sname, sym.SymVerABIInternal); s2 != 0 && ldr.SymType(s2) == sym.STEXT {
+					sname = sname + ".abi0"
+				}
+			}
+		}
+	}
+
 	// One pass for each binding: elf.STB_LOCAL, elf.STB_GLOBAL,
 	// maybe one day elf.STB_WEAK.
 	bind := elf.STB_GLOBAL
@@ -139,8 +174,6 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 		// instructions are inserted.
 		other |= 3 << 5
 	}
-
-	sname := ldr.SymExtname(x)
 
 	// When dynamically linking, we create Symbols by reading the names from
 	// the symbol tables of the shared libraries and so the names need to
@@ -483,6 +516,8 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 			symtype = s.Sym()
 			symtyperel = s.Sym()
 		}
+		setCarrierSym(sym.STYPE, symtype)
+		setCarrierSym(sym.STYPERELRO, symtyperel)
 	}
 
 	groupSym := func(name string, t sym.SymKind) loader.Sym {
@@ -490,6 +525,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		s.SetType(t)
 		s.SetSize(0)
 		s.SetLocal(true)
+		setCarrierSym(t, s.Sym())
 		return s.Sym()
 	}
 	var (
@@ -799,4 +835,24 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		lastmoduledatap.AddAddr(ctxt.Arch, moduledata.Sym())
 	}
 	return symGroupType
+}
+
+// CarrierSymByType tracks carrier symbols and their sizes.
+var CarrierSymByType [sym.SXREF]struct {
+	Sym  loader.Sym
+	Size int64
+}
+
+func setCarrierSym(typ sym.SymKind, s loader.Sym) {
+	if CarrierSymByType[typ].Sym != 0 {
+		panic(fmt.Sprintf("carrier symbol for type %v already set", typ))
+	}
+	CarrierSymByType[typ].Sym = s
+}
+
+func setCarrierSize(typ sym.SymKind, sz int64) {
+	if CarrierSymByType[typ].Size != 0 {
+		panic(fmt.Sprintf("carrier symbol size for type %v already set", typ))
+	}
+	CarrierSymByType[typ].Size = sz
 }

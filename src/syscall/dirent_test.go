@@ -9,7 +9,6 @@ package syscall_test
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -27,7 +26,7 @@ func TestDirent(t *testing.T) {
 		filenameMinSize = 11
 	)
 
-	d, err := ioutil.TempDir("", "dirent-test")
+	d, err := os.MkdirTemp("", "dirent-test")
 	if err != nil {
 		t.Fatalf("tempdir: %v", err)
 	}
@@ -36,7 +35,7 @@ func TestDirent(t *testing.T) {
 
 	for i, c := range []byte("0123456789") {
 		name := string(bytes.Repeat([]byte{c}, filenameMinSize+i))
-		err = ioutil.WriteFile(filepath.Join(d, name), nil, 0644)
+		err = os.WriteFile(filepath.Join(d, name), nil, 0644)
 		if err != nil {
 			t.Fatalf("writefile: %v", err)
 		}
@@ -93,7 +92,7 @@ func TestDirentRepeat(t *testing.T) {
 	}
 
 	// Make a directory containing N files
-	d, err := ioutil.TempDir("", "direntRepeat-test")
+	d, err := os.MkdirTemp("", "direntRepeat-test")
 	if err != nil {
 		t.Fatalf("tempdir: %v", err)
 	}
@@ -104,7 +103,7 @@ func TestDirentRepeat(t *testing.T) {
 		files = append(files, fmt.Sprintf("file%d", i))
 	}
 	for _, file := range files {
-		err = ioutil.WriteFile(filepath.Join(d, file), []byte("contents"), 0644)
+		err = os.WriteFile(filepath.Join(d, file), []byte("contents"), 0644)
 		if err != nil {
 			t.Fatalf("writefile: %v", err)
 		}

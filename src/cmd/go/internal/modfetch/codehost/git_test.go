@@ -12,7 +12,6 @@ import (
 	"internal/testenv"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -54,7 +53,7 @@ func testMain(m *testing.M) int {
 		return 0
 	}
 
-	dir, err := ioutil.TempDir("", "gitrepo-test-")
+	dir, err := os.MkdirTemp("", "gitrepo-test-")
 	if err != nil {
 		log.Fatal(err)
 	}

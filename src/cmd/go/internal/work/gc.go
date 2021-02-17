@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -130,7 +129,11 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		}
 	}
 
-	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), gcflags, gcargs, "-D", p.Internal.LocalPrefix}
+	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), gcflags, gcargs}
+	if p.Internal.LocalPrefix != "" {
+		// Workaround #43883.
+		args = append(args, "-D", p.Internal.LocalPrefix)
+	}
 	if importcfg != nil {
 		if err := b.writeFile(objdir+"importcfg", importcfg); err != nil {
 			return "", nil, err
@@ -236,16 +239,19 @@ CheckFlags:
 	//   - it has no successor packages to compile (usually package main)
 	//   - all paths through the build graph pass through it
 	//   - critical path scheduling says it is high priority
-	// and in such a case, set c to runtime.NumCPU.
+	// and in such a case, set c to runtime.GOMAXPROCS(0).
+	// By default this is the same as runtime.NumCPU.
 	// We do this now when p==1.
+	// To limit parallelism, set GOMAXPROCS below numCPU; this may be useful
+	// on a low-memory builder, or if a deterministic build order is required.
+	c := runtime.GOMAXPROCS(0)
 	if cfg.BuildP == 1 {
-		// No process parallelism. Max out c.
-		return runtime.NumCPU()
+		// No process parallelism, do not cap compiler parallelism.
+		return c
 	}
-	// Some process parallelism. Set c to min(4, numcpu).
-	c := 4
-	if ncpu := runtime.NumCPU(); ncpu < c {
-		c = ncpu
+	// Some process parallelism. Set c to min(4, maxprocs).
+	if c > 4 {
+		c = 4
 	}
 	return c
 }
@@ -370,9 +376,10 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 
 	var ofiles []string
 	for _, sfile := range sfiles {
+		overlayPath, _ := fsys.OverlayPath(mkAbs(p.Dir, sfile))
 		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
 		ofiles = append(ofiles, ofile)
-		args1 := append(args, "-o", ofile, mkAbs(p.Dir, sfile))
+		args1 := append(args, "-o", ofile, overlayPath)
 		if err := b.run(a, p.Dir, p.ImportPath, nil, args1...); err != nil {
 			return nil, err
 		}
@@ -388,7 +395,8 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
 			if p.ImportPath == "runtime/cgo" && strings.HasPrefix(sfile, "gcc_") {
 				continue
 			}
-			args = append(args, mkAbs(p.Dir, sfile))
+			op, _ := fsys.OverlayPath(mkAbs(p.Dir, sfile))
+			args = append(args, op)
 		}
 
 		// Supply an empty go_asm.h as if the compiler had been run.
@@ -424,11 +432,11 @@ func toolVerify(a *Action, b *Builder, p *load.Package, newTool string, ofile st
 	if err := b.run(a, p.Dir, p.ImportPath, nil, newArgs...); err != nil {
 		return err
 	}
-	data1, err := ioutil.ReadFile(ofile)
+	data1, err := os.ReadFile(ofile)
 	if err != nil {
 		return err
 	}
-	data2, err := ioutil.ReadFile(ofile + ".new")
+	data2, err := os.ReadFile(ofile + ".new")
 	if err != nil {
 		return err
 	}
@@ -578,7 +586,7 @@ func pluginPath(a *Action) string {
 	}
 	fmt.Fprintf(h, "build ID: %s\n", buildID)
 	for _, file := range str.StringList(p.GoFiles, p.CgoFiles, p.SFiles) {
-		data, err := ioutil.ReadFile(filepath.Join(p.Dir, file))
+		data, err := os.ReadFile(filepath.Join(p.Dir, file))
 		if err != nil {
 			base.Fatalf("go: %s", err)
 		}

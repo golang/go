@@ -718,5 +718,5 @@ func f44(f func() [2]*int) interface{} { // ERROR "live at entry to f44: f"
 	}
 	ret := T{}
 	ret.s[0] = f()
-	return ret // ERROR "stack object .autotmp_5 T"
+	return ret // ERROR "stack object .autotmp_[0-9]+ T"
 }

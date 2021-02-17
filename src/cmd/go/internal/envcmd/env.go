@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/build"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -88,6 +87,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
 		{Name: "GOTOOLDIR", Value: base.ToolDir},
 		{Name: "GOVCS", Value: cfg.GOVCS},
+		{Name: "GOVERSION", Value: runtime.Version()},
 	}
 
 	if work.GccgoBin != "" {
@@ -399,7 +399,7 @@ func getOrigEnv(key string) string {
 
 func checkEnvWrite(key, val string) error {
 	switch key {
-	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOTOOLDIR":
+	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOTOOLDIR", "GOVERSION":
 		return fmt.Errorf("%s cannot be modified", key)
 	case "GOENV":
 		return fmt.Errorf("%s can only be set using the OS environment", key)
@@ -451,7 +451,7 @@ func updateEnvFile(add map[string]string, del map[string]bool) {
 	if file == "" {
 		base.Fatalf("go env: cannot find go env config: %v", err)
 	}
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil && (!os.IsNotExist(err) || len(add) == 0) {
 		base.Fatalf("go env: reading go env config: %v", err)
 	}
@@ -505,11 +505,11 @@ func updateEnvFile(add map[string]string, del map[string]bool) {
 	}
 
 	data = []byte(strings.Join(lines, ""))
-	err = ioutil.WriteFile(file, data, 0666)
+	err = os.WriteFile(file, data, 0666)
 	if err != nil {
 		// Try creating directory.
 		os.MkdirAll(filepath.Dir(file), 0777)
-		err = ioutil.WriteFile(file, data, 0666)
+		err = os.WriteFile(file, data, 0666)
 		if err != nil {
 			base.Fatalf("go env: writing go env config: %v", err)
 		}

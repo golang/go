@@ -11,7 +11,6 @@ import (
 	"sort"
 
 	"cmd/go/internal/modfetch"
-	"cmd/go/internal/mvs"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -21,16 +20,6 @@ import (
 // with any exclusions or replacements applied internally.
 type mvsReqs struct {
 	buildList []module.Version
-}
-
-// Reqs returns the current module requirement graph.
-// Future calls to SetBuildList do not affect the operation
-// of the returned Reqs.
-func Reqs() mvs.Reqs {
-	r := &mvsReqs{
-		buildList: buildList,
-	}
-	return r
 }
 
 func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
@@ -119,22 +108,6 @@ func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
 	i := sort.Search(len(list), func(i int) bool { return semver.Compare(list[i], m.Version) >= 0 })
 	if i > 0 {
 		return module.Version{Path: m.Path, Version: list[i-1]}, nil
-	}
-	return module.Version{Path: m.Path, Version: "none"}, nil
-}
-
-// next returns the next version of m.Path after m.Version.
-// It is only used by the exclusion processing in the Required method,
-// not called directly by MVS.
-func (*mvsReqs) next(m module.Version) (module.Version, error) {
-	// TODO(golang.org/issue/38714): thread tracing context through MVS.
-	list, err := versions(context.TODO(), m.Path, CheckAllowed)
-	if err != nil {
-		return module.Version{}, err
-	}
-	i := sort.Search(len(list), func(i int) bool { return semver.Compare(list[i], m.Version) > 0 })
-	if i < len(list) {
-		return module.Version{Path: m.Path, Version: list[i]}, nil
 	}
 	return module.Version{Path: m.Path, Version: "none"}, nil
 }

@@ -7,7 +7,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"syscall"
 )
@@ -17,7 +16,7 @@ func gettid() int {
 }
 
 func tidExists(tid int) (exists, supported bool) {
-	stat, err := ioutil.ReadFile(fmt.Sprintf("/proc/self/task/%d/stat", tid))
+	stat, err := os.ReadFile(fmt.Sprintf("/proc/self/task/%d/stat", tid))
 	if os.IsNotExist(err) {
 		return false, true
 	}
