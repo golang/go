@@ -444,8 +444,12 @@ func (t *tester) registerTests() {
 			fatalf("Error running go list std cmd: %v:\n%s", err, cmd.Stderr)
 		}
 		pkgs := strings.Fields(string(all))
-		for _, pkg := range pkgs {
-			t.registerStdTest(pkg, true)
+		if false {
+			// Disable -G=3 option for standard tests for now, since
+			// they are flaky on the builder.
+			for _, pkg := range pkgs {
+				t.registerStdTest(pkg, true /* -G=3 flag */)
+			}
 		}
 		for _, pkg := range pkgs {
 			t.registerStdTest(pkg, false)
