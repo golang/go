@@ -118,15 +118,8 @@ type UnknownType undefined
 
 func fileLine(fset *token.FileSet, obj types.Object) string {
 	posn := fset.Position(obj.Pos())
-	filename := strings.ReplaceAll(posn.Filename, "$GOROOT", build.Default.GOROOT)
-	if runtime.GOOS == "darwin" {
-		// cmd/compile and go/loader are inconsistent about which spelling
-		// to use in os/signal/internal/pty's position information.
-		// TODO(mdempsky): Investigate why they're inconsistent, and why
-		// for only that one package (golang.org/issue/44339).
-		filename = strings.ReplaceAll(filename, "/private/var/folders/", "/var/folders/")
-	}
-	return fmt.Sprintf("%s:%d", filepath.Clean(filename), posn.Line)
+	filename := filepath.Clean(strings.ReplaceAll(posn.Filename, "$GOROOT", runtime.GOROOT()))
+	return fmt.Sprintf("%s:%d", filename, posn.Line)
 }
 
 // equalObj reports how x and y differ.  They are assumed to belong to
