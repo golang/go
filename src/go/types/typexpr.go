@@ -53,12 +53,12 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 	}
 	assert(typ != nil)
 
-	// The object may be dot-imported: If so, remove its package from
-	// the map of unused dot imports for the respective file scope.
+	// The object may have been dot-imported.
+	// If so, mark the respective package as used.
 	// (This code is only needed for dot-imports. Without them,
 	// we only have to mark variables, see *Var case below).
-	if pkg := obj.Pkg(); pkg != check.pkg && pkg != nil {
-		delete(check.unusedDotImports[scope], pkg)
+	if pkgName := check.dotImportMap[dotImportKey{scope, obj}]; pkgName != nil {
+		pkgName.used = true
 	}
 
 	switch obj := obj.(type) {
@@ -832,8 +832,8 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	}
 
 	// sort for API stability
-	sort.Sort(byUniqueMethodName(ityp.methods))
-	sort.Stable(byUniqueTypeName(ityp.embeddeds))
+	sortMethods(ityp.methods)
+	sortTypes(ityp.embeddeds)
 
 	check.later(func() { check.completeInterface(iface.Pos(), ityp) })
 }
@@ -899,9 +899,13 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 			check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
 			check.errorf(atPos(mpos[other.(*Func)]), _DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
 		default:
-			// check method signatures after all types are computed (issue #33656)
+			// We have a duplicate method name in an embedded (not explicitly declared) method.
+			// Check method signatures after all types are computed (issue #33656).
+			// If we're pre-go1.14 (overlapping embeddings are not permitted), report that
+			// error here as well (even though we could do it eagerly) because it's the same
+			// error message.
 			check.atEnd(func() {
-				if !check.identical(m.typ, other.Type()) {
+				if !check.allowVersion(m.pkg, 1, 14) || !check.identical(m.typ, other.Type()) {
 					check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
 					check.errorf(atPos(mpos[other.(*Func)]), _DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
 				}
@@ -986,6 +990,10 @@ func intersect(x, y Type) (r Type) {
 	return NewSum(rtypes)
 }
 
+func sortTypes(list []Type) {
+	sort.Stable(byUniqueTypeName(list))
+}
+
 // byUniqueTypeName named type lists can be sorted by their unique type names.
 type byUniqueTypeName []Type
 
@@ -998,6 +1006,19 @@ func sortName(t Type) string {
 		return named.obj.Id()
 	}
 	return ""
+}
+
+func sortMethods(list []*Func) {
+	sort.Sort(byUniqueMethodName(list))
+}
+
+func assertSortedMethods(list []*Func) {
+	if !debug {
+		panic("internal error: assertSortedMethods called outside debug mode")
+	}
+	if !sort.IsSorted(byUniqueMethodName(list)) {
+		panic("internal error: methods not sorted")
+	}
 }
 
 // byUniqueMethodName method lists can be sorted by their unique method names.

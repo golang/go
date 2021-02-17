@@ -265,8 +265,27 @@ func parsePAXRecord(s string) (k, v, r string, err error) {
 		return "", "", s, ErrHeader
 	}
 
+	afterSpace := int64(sp + 1)
+	beforeLastNewLine := n - 1
+	// In some cases, "length" was perhaps padded/malformed, and
+	// trying to index past where the space supposedly is goes past
+	// the end of the actual record.
+	// For example:
+	//    "0000000000000000000000000000000030 mtime=1432668921.098285006\n30 ctime=2147483649.15163319"
+	//                                  ^     ^
+	//                                  |     |
+	//                                  |  afterSpace=35
+	//                                  |
+	//                          beforeLastNewLine=29
+	// yet indexOf(firstSpace) MUST BE before endOfRecord.
+	//
+	// See https://golang.org/issues/40196.
+	if afterSpace >= beforeLastNewLine {
+		return "", "", s, ErrHeader
+	}
+
 	// Extract everything between the space and the final newline.
-	rec, nl, rem := s[sp+1:n-1], s[n-1:n], s[n:]
+	rec, nl, rem := s[afterSpace:beforeLastNewLine], s[beforeLastNewLine:n], s[n:]
 	if nl != "\n" {
 		return "", "", s, ErrHeader
 	}

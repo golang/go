@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -874,7 +875,13 @@ func reflectcallSave(p *_panic, fn, arg unsafe.Pointer, argsize uint32) {
 		p.pc = getcallerpc()
 		p.sp = unsafe.Pointer(getcallersp())
 	}
-	reflectcall(nil, fn, arg, argsize, argsize)
+	// Pass a dummy RegArgs for now since no function actually implements
+	// the register-based ABI.
+	//
+	// TODO(mknyszek): Implement this properly, setting up arguments in
+	// registers as necessary in the caller.
+	var regs abi.RegArgs
+	reflectcall(nil, fn, arg, argsize, argsize, argsize, &regs)
 	if p != nil {
 		p.pc = 0
 		p.sp = unsafe.Pointer(nil)
@@ -968,7 +975,9 @@ func gopanic(e interface{}) {
 			}
 		} else {
 			p.argp = unsafe.Pointer(getargp(0))
-			reflectcall(nil, unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz))
+
+			var regs abi.RegArgs
+			reflectcall(nil, unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz), uint32(d.siz), &regs)
 		}
 		p.argp = nil
 

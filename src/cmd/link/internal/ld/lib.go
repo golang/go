@@ -489,9 +489,15 @@ func (ctxt *Link) loadlib() {
 	case 0:
 		// nothing to do
 	case 1, 2:
-		flags = loader.FlagStrictDups
+		flags |= loader.FlagStrictDups
 	default:
 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
+	}
+	if !*flagAbiWrap || ctxt.linkShared {
+		// Use ABI aliases if ABI wrappers are not used.
+		// TODO: for now we still use ABI aliases in shared linkage, even if
+		// the wrapper is enabled.
+		flags |= loader.FlagUseABIAlias
 	}
 	elfsetstring1 := func(str string, off int) { elfsetstring(ctxt, 0, str, off) }
 	ctxt.loader = loader.NewLoader(flags, elfsetstring1, &ctxt.ErrorReporter.ErrorReporter)

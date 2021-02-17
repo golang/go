@@ -47,7 +47,8 @@ import (
 var (
 	haltOnError = flag.Bool("halt", false, "halt on error")
 	listErrors  = flag.Bool("errlist", false, "list errors")
-	testFiles   = flag.String("files", "", "space-separated list of test files")
+	testFiles   = flag.String("files", "", "comma-separated list of test files")
+	goVersion   = flag.String("lang", "", "Go language version (e.g. \"go1.12\"")
 )
 
 var fset = token.NewFileSet()
@@ -68,11 +69,11 @@ func splitError(err error) (pos, msg string) {
 	return
 }
 
-func parseFiles(t *testing.T, filenames []string, mode parser.Mode) ([]*ast.File, []error) {
+func parseFiles(t *testing.T, filenames []string, srcs [][]byte, mode parser.Mode) ([]*ast.File, []error) {
 	var files []*ast.File
 	var errlist []error
-	for _, filename := range filenames {
-		file, err := parser.ParseFile(fset, filename, nil, mode)
+	for i, filename := range filenames {
+		file, err := parser.ParseFile(fset, filename, srcs[i], mode)
 		if file == nil {
 			t.Fatalf("%s: %s", filename, err)
 		}
@@ -101,19 +102,17 @@ var errRx = regexp.MustCompile(`^ *ERROR *(HERE)? *"?([^"]*)"?`)
 // errMap collects the regular expressions of ERROR comments found
 // in files and returns them as a map of error positions to error messages.
 //
-func errMap(t *testing.T, testname string, files []*ast.File) map[string][]string {
+// srcs must be a slice of the same length as files, containing the original
+// source for the parsed AST.
+func errMap(t *testing.T, files []*ast.File, srcs [][]byte) map[string][]string {
 	// map of position strings to lists of error message patterns
 	errmap := make(map[string][]string)
 
-	for _, file := range files {
-		filename := fset.Position(file.Package).Filename
-		src, err := os.ReadFile(filename)
-		if err != nil {
-			t.Fatalf("%s: could not read %s", testname, filename)
-		}
-
+	for i, file := range files {
+		tok := fset.File(file.Package)
+		src := srcs[i]
 		var s scanner.Scanner
-		s.Init(fset.AddFile(filename, -1, len(src)), src, nil, scanner.ScanComments)
+		s.Init(tok, src, nil, scanner.ScanComments)
 		var prev token.Pos // position of last non-comment, non-semicolon token
 		var here token.Pos // position immediately after the token at position prev
 
@@ -190,22 +189,41 @@ func eliminate(t *testing.T, errmap map[string][]string, errlist []error) {
 	}
 }
 
-func checkFiles(t *testing.T, sources []string) {
-	if len(sources) == 0 {
+// goVersionRx matches a Go version string using '_', e.g. "go1_12".
+var goVersionRx = regexp.MustCompile(`^go[1-9][0-9]*_(0|[1-9][0-9]*)$`)
+
+// asGoVersion returns a regular Go language version string
+// if s is a Go version string using '_' rather than '.' to
+// separate the major and minor version numbers (e.g. "go1_12").
+// Otherwise it returns the empty string.
+func asGoVersion(s string) string {
+	if goVersionRx.MatchString(s) {
+		return strings.Replace(s, "_", ".", 1)
+	}
+	return ""
+}
+
+func checkFiles(t *testing.T, goVersion string, filenames []string, srcs [][]byte) {
+	if len(filenames) == 0 {
 		t.Fatal("no source files")
 	}
 
 	mode := parser.AllErrors
-	if strings.HasSuffix(sources[0], ".go2") {
+	if strings.HasSuffix(filenames[0], ".go2") {
 		mode |= parser.ParseTypeParams
 	}
 
 	// parse files and collect parser errors
-	files, errlist := parseFiles(t, sources, mode)
+	files, errlist := parseFiles(t, filenames, srcs, mode)
 
 	pkgName := "<no package>"
 	if len(files) > 0 {
 		pkgName = files[0].Name.Name
+	}
+
+	// if no Go version is given, consider the package name
+	if goVersion == "" {
+		goVersion = asGoVersion(pkgName)
 	}
 
 	if *listErrors && len(errlist) > 0 {
@@ -217,13 +235,15 @@ func checkFiles(t *testing.T, sources []string) {
 
 	// typecheck and collect typechecker errors
 	var conf Config
+	conf.GoVersion = goVersion
 
 	// special case for importC.src
-	if len(sources) == 1 && strings.HasSuffix(sources[0], "importC.src") {
-		conf.FakeImportC = true
+	if len(filenames) == 1 {
+		if strings.HasSuffix(filenames[0], "importC.src") {
+			conf.FakeImportC = true
+		}
 	}
-	// TODO(rFindley) we may need to use the source importer when adding generics
-	// tests.
+
 	conf.Importer = importer.Default()
 	conf.Error = func(err error) {
 		if *haltOnError {
@@ -258,7 +278,7 @@ func checkFiles(t *testing.T, sources []string) {
 
 	// match and eliminate errors;
 	// we are expecting the following errors
-	errmap := errMap(t, pkgName, files)
+	errmap := errMap(t, files, srcs)
 	eliminate(t, errmap, errlist)
 
 	// there should be no expected errors left
@@ -273,13 +293,20 @@ func checkFiles(t *testing.T, sources []string) {
 }
 
 // TestCheck is for manual testing of selected input files, provided with -files.
+// The accepted Go language version can be controlled with the -lang flag.
 func TestCheck(t *testing.T) {
 	if *testFiles == "" {
 		return
 	}
 	testenv.MustHaveGoBuild(t)
 	DefPredeclaredTestFuncs()
-	checkFiles(t, strings.Split(*testFiles, " "))
+	testPkg(t, strings.Split(*testFiles, ","), *goVersion)
+}
+
+func TestLongConstants(t *testing.T) {
+	format := "package longconst\n\nconst _ = %s\nconst _ = %s // ERROR excessively long constant"
+	src := fmt.Sprintf(format, strings.Repeat("1", 9999), strings.Repeat("1", 10001))
+	checkFiles(t, "", []string{"longconst.go"}, [][]byte{[]byte(src)})
 }
 
 func TestTestdata(t *testing.T)  { DefPredeclaredTestFuncs(); testDir(t, "testdata") }
@@ -299,26 +326,33 @@ func testDir(t *testing.T, dir string) {
 		path := filepath.Join(dir, fi.Name())
 
 		// if fi is a directory, its files make up a single package
-		var files []string
+		var filenames []string
 		if fi.IsDir() {
 			fis, err := ioutil.ReadDir(path)
 			if err != nil {
 				t.Error(err)
 				continue
 			}
-			files = make([]string, len(fis))
-			for i, fi := range fis {
-				// if fi is a directory, checkFiles below will complain
-				files[i] = filepath.Join(path, fi.Name())
-				if testing.Verbose() {
-					fmt.Printf("\t%s\n", files[i])
-				}
+			for _, fi := range fis {
+				filenames = append(filenames, filepath.Join(path, fi.Name()))
 			}
 		} else {
-			files = []string{path}
+			filenames = []string{path}
 		}
 		t.Run(filepath.Base(path), func(t *testing.T) {
-			checkFiles(t, files)
+			testPkg(t, filenames, "")
 		})
 	}
+}
+
+func testPkg(t *testing.T, filenames []string, goVersion string) {
+	srcs := make([][]byte, len(filenames))
+	for i, filename := range filenames {
+		src, err := os.ReadFile(filename)
+		if err != nil {
+			t.Fatalf("could not read %s: %v", filename, err)
+		}
+		srcs[i] = src
+	}
+	checkFiles(t, goVersion, filenames, srcs)
 }

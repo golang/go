@@ -129,7 +129,6 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
-		lhs.used = true
 		return nil
 	}
 
