@@ -383,7 +383,7 @@ func (w *writer) Sym(s *LSym) {
 
 func (w *writer) Hash64(s *LSym) {
 	if !s.ContentAddressable() || len(s.R) != 0 {
-		panic("Hash of non-content-addresable symbol")
+		panic("Hash of non-content-addressable symbol")
 	}
 	b := contentHash64(s)
 	w.Bytes(b[:])
@@ -391,7 +391,7 @@ func (w *writer) Hash64(s *LSym) {
 
 func (w *writer) Hash(s *LSym) {
 	if !s.ContentAddressable() {
-		panic("Hash of non-content-addresable symbol")
+		panic("Hash of non-content-addressable symbol")
 	}
 	b := w.contentHash(s)
 	w.Bytes(b[:])

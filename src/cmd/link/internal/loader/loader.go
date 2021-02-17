@@ -1547,7 +1547,7 @@ func (l *Loader) SymUnit(i Sym) *sym.CompilationUnit {
 // regular compiler-generated Go symbols), but in the case of
 // building with "-linkshared" (when a symbol is read from a
 // shared library), will hold the library name.
-// NOTE: this correspondes to sym.Symbol.File field.
+// NOTE: this corresponds to sym.Symbol.File field.
 func (l *Loader) SymPkg(i Sym) string {
 	if f, ok := l.symPkg[i]; ok {
 		return f

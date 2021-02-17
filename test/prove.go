@@ -1013,7 +1013,7 @@ func sh64noopt(n int64) int64 {
 // opt, an earlier pass, has already replaced it.
 // The fix for this issue allows prove to zero a right shift that was added as
 // part of the less-than-optimal reqwrite. That change by prove then allows
-// lateopt to clean up all the unneccesary parts of the original division
+// lateopt to clean up all the unnecessary parts of the original division
 // replacement. See issue #36159.
 func divShiftClean(n int) int {
 	if n < 0 {
