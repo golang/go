@@ -334,8 +334,7 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
 	//
 	// TODO(mknyszek): Remove this when we no longer have
 	// caller reserved spill space.
-	spillInt := uintptr(0)
-	spillFloat := uintptr(0)
+	spill := uintptr(0)
 
 	// Compute gc program & stack bitmap for stack arguments
 	stackPtrs := new(bitVector)
@@ -351,21 +350,19 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
 				stackPtrs.append(0)
 			}
 		} else {
-			spillInt += ptrSize
+			spill += ptrSize
 		}
 	}
 	for _, arg := range t.in() {
-		i, f := in.iregs, in.fregs
 		stkStep := in.addArg(arg)
 		if stkStep != nil {
 			addTypeBits(stackPtrs, stkStep.stkOff, arg)
 		} else {
-			i, f = in.iregs-i, in.fregs-f
-			spillInt += uintptr(i) * ptrSize
-			spillFloat += uintptr(f) * abi.EffectiveFloatRegSize
+			spill = align(spill, uintptr(arg.align))
+			spill += arg.size
 		}
 	}
-	spill := align(spillInt+spillFloat, ptrSize)
+	spill = align(spill, ptrSize)
 
 	// From the input parameters alone, we now know
 	// the stackCallArgsSize and retOffset.
