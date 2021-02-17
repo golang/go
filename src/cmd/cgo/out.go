@@ -1028,7 +1028,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		fmt.Fprintf(fgo2, "//go:cgo_export_static _cgoexp%s_%s\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgo2, "func _cgoexp%s_%s(a *%s) {\n", cPrefix, exp.ExpName, gotype)
 
-		fmt.Fprintf(fm, "int _cgoexp%s_%s;\n", cPrefix, exp.ExpName)
+		fmt.Fprintf(fm, "void _cgoexp%s_%s(void* p){};\n", cPrefix, exp.ExpName)
 
 		if gccResult != "void" {
 			// Write results back to frame.
