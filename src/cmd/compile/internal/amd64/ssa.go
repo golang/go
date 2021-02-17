@@ -980,8 +980,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssagen.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpArgIntReg, ssa.OpArgFloatReg:
-		ssagen.CheckArgReg(v)
 	case ssa.OpAMD64LoweredGetClosurePtr:
 		// Closure pointer is DX.
 		ssagen.CheckLoweredGetClosurePtr(v)

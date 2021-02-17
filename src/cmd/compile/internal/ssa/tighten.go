@@ -18,7 +18,7 @@ func tighten(f *Func) {
 				continue
 			}
 			switch v.Op {
-			case OpPhi, OpArg, OpSelect0, OpSelect1, OpSelectN:
+			case OpPhi, OpArg, OpArgIntReg, OpArgFloatReg, OpSelect0, OpSelect1, OpSelectN:
 				// Phis need to stay in their block.
 				// Arg must stay in the entry block.
 				// Tuple selectors must stay with the tuple generator.

@@ -77,6 +77,16 @@ type Param struct {
 	Name   *ir.Name // For OwnAux, need to prepend stores with Vardefs
 }
 
+type AuxNameOffset struct {
+	Name   *ir.Name
+	Offset int64
+}
+
+func (a *AuxNameOffset) CanBeAnSSAAux() {}
+func (a *AuxNameOffset) String() string {
+	return fmt.Sprintf("%s+%d", a.Name.Sym().Name, a.Offset)
+}
+
 type AuxCall struct {
 	// TODO(register args) this information is largely redundant with ../abi information, needs cleanup once new ABI is in place.
 	Fn      *obj.LSym
