@@ -49,7 +49,7 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, co
 	}
 
 	sharedMemSize := 100 << 20 // 100 MB
-	corpus, err := readCorpusAndCache(seed, corpusDir, cacheDir)
+	corpus, err := readCache(seed, cacheDir)
 	if err != nil {
 		return err
 	}
@@ -262,7 +262,7 @@ type coordinator struct {
 	errC chan error
 }
 
-// readCorpusAndCache creates a combined corpus from seed values, values in the
+// readCache creates a combined corpus from seed values, values in the
 // corpus directory (in testdata), and values in the cache (in GOCACHE/fuzz).
 //
 // TODO(jayconrod,katiehockman): if a value in the cache has the wrong type,
@@ -270,16 +270,14 @@ type coordinator struct {
 // the same package at a different version or in a different module.
 // TODO(jayconrod,katiehockman): need a mechanism that can remove values that
 // aren't useful anymore, for example, because they have the wrong type.
-func readCorpusAndCache(seed []CorpusEntry, corpusDir, cacheDir string) (corpus, error) {
+func readCache(seed []CorpusEntry, cacheDir string) (corpus, error) {
 	var c corpus
 	c.entries = append(c.entries, seed...)
-	for _, dir := range []string{corpusDir, cacheDir} {
-		entries, err := ReadCorpus(dir)
-		if err != nil {
-			return corpus{}, err
-		}
-		c.entries = append(c.entries, entries...)
+	entries, err := ReadCorpus(cacheDir)
+	if err != nil {
+		return corpus{}, err
 	}
+	c.entries = append(c.entries, entries...)
 	return c, nil
 }
 
