@@ -202,6 +202,28 @@ func TestNanosecondsToUTCAndBack(t *testing.T) {
 	}
 }
 
+func TestUnixMilli(t *testing.T) {
+	f := func(msec int64) bool {
+		t := UnixMilli(msec)
+		return t.UnixMilli() == msec
+	}
+	cfg := &quick.Config{MaxCount: 10000}
+	if err := quick.Check(f, cfg); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUnixMicro(t *testing.T) {
+	f := func(usec int64) bool {
+		t := UnixMicro(usec)
+		return t.UnixMicro() == usec
+	}
+	cfg := &quick.Config{MaxCount: 10000}
+	if err := quick.Check(f, cfg); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // The time routines provide no way to get absolute time
 // (seconds since zero), but we need it to compute the right
 // answer for bizarre roundings like "to the nearest 3 ns".
@@ -959,6 +981,8 @@ var mallocTest = []struct {
 }{
 	{0, `time.Now()`, func() { t = Now() }},
 	{0, `time.Now().UnixNano()`, func() { u = Now().UnixNano() }},
+	{0, `time.Now().UnixMilli()`, func() { u = Now().UnixMilli() }},
+	{0, `time.Now().UnixMicro()`, func() { u = Now().UnixMicro() }},
 }
 
 func TestCountMallocs(t *testing.T) {
@@ -1249,6 +1273,8 @@ var defaultLocTests = []struct {
 
 	{"Unix", func(t1, t2 Time) bool { return t1.Unix() == t2.Unix() }},
 	{"UnixNano", func(t1, t2 Time) bool { return t1.UnixNano() == t2.UnixNano() }},
+	{"UnixMilli", func(t1, t2 Time) bool { return t1.UnixMilli() == t2.UnixMilli() }},
+	{"UnixMicro", func(t1, t2 Time) bool { return t1.UnixMicro() == t2.UnixMicro() }},
 
 	{"MarshalBinary", func(t1, t2 Time) bool {
 		a1, b1 := t1.MarshalBinary()
@@ -1298,6 +1324,18 @@ func BenchmarkNow(b *testing.B) {
 func BenchmarkNowUnixNano(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		u = Now().UnixNano()
+	}
+}
+
+func BenchmarkNowUnixMilli(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		u = Now().UnixMilli()
+	}
+}
+
+func BenchmarkNowUnixMicro(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		u = Now().UnixMicro()
 	}
 }
 
