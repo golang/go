@@ -481,7 +481,7 @@ func (r *RefFlags) SetFlag2(x uint8) { r[9] = x }
 
 func (r *RefFlags) Write(w *Writer) { w.Bytes(r[:]) }
 
-// Used to construct an artifically large array type when reading an
+// Used to construct an artificially large array type when reading an
 // item from the object file relocs section or aux sym section (needs
 // to work on 32-bit as well as 64-bit). See issue 41621.
 const huge = (1<<31 - 1) / RelocSize

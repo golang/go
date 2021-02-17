@@ -481,7 +481,7 @@ func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
 
 	// Acquire the metricsSema but with handoff. This operation
 	// is expensive enough that queueing up goroutines and handing
-	// off between them will be noticably better-behaved.
+	// off between them will be noticeably better-behaved.
 	semacquire1(&metricsSema, true, 0, 0)
 
 	// Ensure the map is initialized.
