@@ -18,7 +18,7 @@ import (
 	"golang.org/x/tools/playground/socket"
 	"golang.org/x/tools/present"
 
-	// This will register handlers at /compile and /share that will proxy to the
+	// This will register a handler at /compile that will proxy to the
 	// respective endpoints at play.golang.org. This allows the frontend to call
 	// these endpoints without needing cross-origin request sharing (CORS).
 	// Note that this is imported regardless of whether the endpoints are used or

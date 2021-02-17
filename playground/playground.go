@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package playground registers HTTP handlers at "/compile" and "/share" that
-// proxy requests to the golang.org playground service.
+// Package playground registers an HTTP handler at "/compile" that
+// proxies requests to the golang.org playground service.
 // This package may be used unaltered on App Engine Standard with Go 1.11+ runtime.
 package playground // import "golang.org/x/tools/playground"
 
@@ -14,27 +14,31 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
-	"strings"
 	"time"
-
-	"golang.org/x/tools/godoc/golangorgenv"
 )
 
 const baseURL = "https://play.golang.org"
 
 func init() {
-	http.HandleFunc("/compile", bounce)
-	http.HandleFunc("/share", bounce)
+	http.Handle("/compile", Proxy())
+}
+
+// Proxy returns a handler that can be registered on /compile to proxy requests to the Go playground.
+//
+// This package already contains a func init that does:
+//
+//	func init() {
+//		http.Handle("/compile", Proxy())
+//	}
+//
+// Proxy may be useful for servers that use HTTP muxes other than the default mux.
+func Proxy() http.Handler {
+	return http.HandlerFunc(bounce)
 }
 
 func bounce(w http.ResponseWriter, r *http.Request) {
 	b := new(bytes.Buffer)
-	if err := passThru(b, r); os.IsPermission(err) {
-		http.Error(w, "403 Forbidden", http.StatusForbidden)
-		log.Println(err)
-		return
-	} else if err != nil {
+	if err := passThru(b, r); err != nil {
 		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
 		log.Println(err)
 		return
@@ -43,9 +47,6 @@ func bounce(w http.ResponseWriter, r *http.Request) {
 }
 
 func passThru(w io.Writer, req *http.Request) error {
-	if req.URL.Path == "/share" && googleCN(req) {
-		return os.ErrPermission
-	}
 	defer req.Body.Close()
 	url := baseURL + req.URL.Path
 	ctx, cancel := context.WithTimeout(req.Context(), 60*time.Second)
@@ -68,23 +69,4 @@ func post(ctx context.Context, url, contentType string, body io.Reader) (*http.R
 	}
 	req.Header.Set("Content-Type", contentType)
 	return http.DefaultClient.Do(req.WithContext(ctx))
-}
-
-// googleCN reports whether request r is considered
-// to be served from golang.google.cn.
-func googleCN(r *http.Request) bool {
-	if r.FormValue("googlecn") != "" {
-		return true
-	}
-	if strings.HasSuffix(r.Host, ".cn") {
-		return true
-	}
-	if !golangorgenv.CheckCountry() {
-		return false
-	}
-	switch r.Header.Get("X-Appengine-Country") {
-	case "", "ZZ", "CN":
-		return true
-	}
-	return false
 }

@@ -14,11 +14,9 @@ import (
 	"golang.org/x/tools/godoc"
 	"golang.org/x/tools/godoc/redirect"
 	"golang.org/x/tools/godoc/vfs"
-)
 
-// This package registers "/compile" and "/share" handlers
-// that redirect to the golang.org playground.
-import _ "golang.org/x/tools/playground"
+	_ "golang.org/x/tools/playground" // register "/compile" playground redirect
+)
 
 var (
 	pres *godoc.Presentation

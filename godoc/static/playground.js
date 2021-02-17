@@ -517,7 +517,7 @@ function PlaygroundOutput(el) {
       sharing = true;
 
       var sharingData = body();
-      $.ajax('/share', {
+      $.ajax('https://play.golang.org/share', {
         processData: false,
         data: sharingData,
         type: 'POST',
