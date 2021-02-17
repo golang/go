@@ -123,7 +123,7 @@ func fileLine(fset *token.FileSet, obj types.Object) string {
 		// cmd/compile and go/loader are inconsistent about which spelling
 		// to use in os/signal/internal/pty's position information.
 		// TODO(mdempsky): Investigate why they're inconsistent, and why
-		// for only that one package.
+		// for only that one package (golang.org/issue/44339).
 		filename = strings.ReplaceAll(filename, "/private/var/folders/", "/var/folders/")
 	}
 	return fmt.Sprintf("%s:%d", filepath.Clean(filename), posn.Line)
