@@ -76,8 +76,12 @@ var depsRules = `
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
 
+	# These packages depend only on unsafe.
+	unsafe
+	< internal/abi;
+
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
-	internal/cpu, unsafe
+	internal/abi, internal/cpu, unsafe
 	< internal/bytealg
 	< internal/unsafeheader
 	< runtime/internal/sys
@@ -285,7 +289,7 @@ var depsRules = `
 	math/big, go/token
 	< go/constant;
 
-	container/heap, go/constant, go/parser
+	container/heap, go/constant, go/parser, regexp
 	< go/types;
 
 	FMT

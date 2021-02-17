@@ -14,13 +14,13 @@ Do not send CLs removing the interior tags from such phrases.
   main ul li { margin: 0.5em 0; }
 </style>
 
-<h2 id="introduction">DRAFT RELEASE NOTES — Introduction to Go 1.16</h2>
+<h2 id="introduction">Introduction to Go 1.16</h2>
 
 <p>
-  <strong>
-    Go 1.16 is not yet released. These are work-in-progress
-    release notes. Go 1.16 is expected to be released in February 2021.
-  </strong>
+  The latest Go release, version 1.16, arrives six months after <a href="/doc/go1.15">Go 1.15</a>.
+  Most of its changes are in the implementation of the toolchain, runtime, and libraries.
+  As always, the release maintains the Go 1 <a href="/doc/go1compat.html">promise of compatibility</a>.
+  We expect almost all Go programs to continue to compile and run as before.
 </p>
 
 <h2 id="language">Changes to the language</h2>
@@ -174,10 +174,12 @@ Do not send CLs removing the interior tags from such phrases.
   non-reproducible builds.
 </p>
 
-<p><!-- golang.org/issue/43052 -->
-  The <code>go</code> command now disallows non-ASCII import paths in module
-  mode. Non-ASCII module paths have already been disallowed so this change
-  affects module subdirectory paths that contain non-ASCII characters.
+<p><!-- golang.org/issue/43052, golang.org/issue/43985 -->
+  In module mode, the <code>go</code> command now disallows import paths that
+  include non-ASCII characters or path elements with a leading dot character
+  (<code>.</code>). Module paths with these characters were already disallowed
+  (see <a href="/ref/mod#go-mod-file-ident">Module paths and versions</a>),
+  so this change affects only paths within module subdirectories.
 </p>
 
 <h4 id="embed">Embedding Files</h4>
@@ -315,7 +317,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="vet">Vet</h3>
 
-<h4 id="vet-string-int">New warning for invalid testing.T use in
+<h4 id="vet-testing-T">New warning for invalid testing.T use in
 goroutines</h4>
 
 <p><!-- CL 235677 -->
@@ -376,6 +378,16 @@ func TestFoo(t *testing.T) {
   prologue and epilogue to preserve the BP register for you.
   See <a href="https://golang.org/cl/248260">CL 248260</a> for example
   fixes.
+</p>
+
+<h4 id="vet-asn1-unmarshal">New warning for asn1.Unmarshal</h4>
+
+<p><!-- CL 243397 -->
+  The vet tool now warns about incorrectly passing a non-pointer or nil argument to
+  <a href="/pkg/encoding/asn1/#Unmarshal"><code>asn1.Unmarshal</code></a>.
+  This is like the existing checks for
+  <a href="/pkg/encoding/json/#Unmarshal"><code>encoding/json.Unmarshal</code></a>
+  and <a href="/pkg/encoding/xml/#Unmarshal"><code>encoding/xml.Unmarshal</code></a>.
 </p>
 
 <h2 id="runtime">Runtime</h2>
@@ -493,7 +505,7 @@ func TestFoo(t *testing.T) {
   On the consumer side,
   the new <a href="/pkg/net/http/#FS"><code>http.FS</code></a>
   function converts an <code>fs.FS</code> to an
-  <a href="/pkg/net/http/#Handler"><code>http.Handler</code></a>.
+  <a href="/pkg/net/http/#FileSystem"><code>http.FileSystem</code></a>.
   Also, the <a href="/pkg/html/template/"><code>html/template</code></a>
   and <a href="/pkg/text/template/"><code>text/template</code></a>
   packages’ <a href="/pkg/html/template/#ParseFS"><code>ParseFS</code></a>
@@ -940,7 +952,7 @@ func TestFoo(t *testing.T) {
     <p><!-- CL 243939 -->
       The new <a href="/pkg/net/http/#FS"><code>http.FS</code></a>
       function converts an <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a>
-      to an <a href="/pkg/net/http/#Handler"><code>http.Handler</code></a>.
+      to an <a href="/pkg/net/http/#FileSystem"><code>http.FileSystem</code></a>.
     </p>
   </dd>
 </dl><!-- net/http -->

@@ -542,7 +542,7 @@ General-purpose environment variables:
 		The directory where the go command will write
 		temporary source files, packages, and binaries.
 	GOVCS
-	  Lists version control commands that may be used with matching servers.
+		Lists version control commands that may be used with matching servers.
 		See 'go help vcs'.
 
 Environment variables for use with cgo:

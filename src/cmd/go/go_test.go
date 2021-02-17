@@ -811,6 +811,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	// so that we can change files.
 	for _, copydir := range []string{
 		"src/runtime",
+		"src/internal/abi",
 		"src/internal/bytealg",
 		"src/internal/cpu",
 		"src/math/bits",

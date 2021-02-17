@@ -1,4 +1,4 @@
-// runindir
+// runindir -gcflags=-c=1
 // +build !windows
 
 // Copyright 2021 The Go Authors. All rights reserved.
