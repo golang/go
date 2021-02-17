@@ -88,5 +88,5 @@ func isInterruptError(err error) bool {
 		return false
 	}
 	status := exitErr.Sys().(syscall.WaitStatus)
-	return status.Signal() == syscall.SIGINT
+	return status.Signal() == syscall.SIGINT || status.Signal() == syscall.SIGKILL
 }
