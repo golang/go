@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package generate is used to generate command bindings from the gopls command
+// Package gen is used to generate command bindings from the gopls command
 // interface.
-package generate
+package gen
 
 import (
 	"bytes"

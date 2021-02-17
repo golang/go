@@ -9,7 +9,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/command/generate"
+	"golang.org/x/tools/internal/lsp/command/gen"
 	"golang.org/x/tools/internal/testenv"
 )
 
@@ -21,7 +21,7 @@ func TestGenerated(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	generated, err := generate.Generate()
+	generated, err := gen.Generate()
 	if err != nil {
 		t.Fatal(err)
 	}
