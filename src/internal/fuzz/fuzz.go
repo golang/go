@@ -18,7 +18,6 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
-	"sync"
 )
 
 // CoordinateFuzzing creates several worker processes and communicates with
@@ -82,8 +81,8 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
 		inputC:       make(chan CorpusEntry),
 		interestingC: make(chan CorpusEntry),
 		crasherC:     make(chan crasherEntry),
-		errC:         make(chan error),
 	}
+	errC := make(chan error)
 
 	newWorker := func() (*worker, error) {
 		mem, err := sharedMemTempFile(sharedMemSize)
@@ -102,6 +101,19 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
 		}, nil
 	}
 
+	var fuzzErr error
+	stopping := false
+	stop := func(err error) {
+		if fuzzErr == nil || fuzzErr == ctx.Err() {
+			fuzzErr = err
+		}
+		if stopping {
+			return
+		}
+		stopping = true
+		close(c.doneC)
+	}
+
 	// Start workers.
 	workers := make([]*worker, parallel)
 	for i := range workers {
@@ -111,38 +123,22 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
 			return err
 		}
 	}
-
-	workerErrs := make([]error, len(workers))
-	var wg sync.WaitGroup
-	wg.Add(len(workers))
 	for i := range workers {
-		go func(i int) {
-			defer wg.Done()
-			workerErrs[i] = workers[i].runFuzzing()
-			if cleanErr := workers[i].cleanup(); workerErrs[i] == nil {
-				workerErrs[i] = cleanErr
+		w := workers[i]
+		go func() {
+			err := w.runFuzzing()
+			cleanErr := w.cleanup()
+			if err == nil {
+				err = cleanErr
 			}
-		}(i)
+			errC <- err
+		}()
 	}
 
-	// Before returning, signal workers to stop, wait for them to actually stop,
-	// and gather any errors they encountered.
-	defer func() {
-		close(c.doneC)
-		wg.Wait()
-		if err == nil || err == ctx.Err() {
-			for _, werr := range workerErrs {
-				if werr != nil {
-					// Return the first error found, replacing ctx.Err() if a more
-					// interesting error is found.
-					err = werr
-					break
-				}
-			}
-		}
-	}()
-
 	// Main event loop.
+	// Do not return until all workers have terminated. We avoid a deadlock by
+	// receiving messages from workers even after closing c.doneC.
+	activeWorkers := len(workers)
 	i := 0
 	for {
 		select {
@@ -152,7 +148,7 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
 			// not the coordinator or worker processes. 'go test' will stop running
 			// actions, but it won't interrupt its child processes. This makes it
 			// difficult to stop fuzzing on Windows without a timeout.
-			return ctx.Err()
+			stop(ctx.Err())
 
 		case crasher := <-c.crasherC:
 			// A worker found a crasher. Write it to testdata and return it.
@@ -165,7 +161,7 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
 			}
 			// TODO(jayconrod,katiehockman): if -keepfuzzing, report the error to
 			// the user and restart the crashed worker.
-			return err
+			stop(err)
 
 		case entry := <-c.interestingC:
 			// Some interesting input arrived from a worker.
@@ -179,13 +175,17 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
 			corpus.entries = append(corpus.entries, entry)
 			if cacheDir != "" {
 				if _, err := writeToCorpus(entry.Data, cacheDir); err != nil {
-					return err
+					stop(err)
 				}
 			}
 
-		case err := <-c.errC:
-			// A worker encountered a fatal error.
-			return err
+		case err := <-errC:
+			// A worker terminated, possibly after encountering a fatal error.
+			stop(err)
+			activeWorkers--
+			if activeWorkers == 0 {
+				return fuzzErr
+			}
 
 		case c.inputC <- corpus.entries[i]:
 			// Send the next input to any worker.
@@ -268,10 +268,6 @@ type coordinator struct {
 	// should be saved in the corpus, and we may want to stop fuzzing after
 	// receiving one.
 	crasherC chan crasherEntry
-
-	// errC is sent internal errors encountered by workers. When the coordinator
-	// receives an error, it closes doneC and returns.
-	errC chan error
 }
 
 // readCache creates a combined corpus from seed values and values in the cache

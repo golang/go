@@ -72,8 +72,7 @@ func (w *worker) runFuzzing() error {
 	// Start the process.
 	if err := w.start(); err != nil {
 		// We couldn't start the worker process. We can't do anything, and it's
-		// likely that other workers can't either, so give up.
-		w.coordinator.errC <- err
+		// likely that other workers can't either, so don't try to restart.
 		return err
 	}
 

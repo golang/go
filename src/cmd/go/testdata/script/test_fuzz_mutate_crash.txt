@@ -8,50 +8,48 @@
 
 [short] skip
 
-# TODO: remove -parallel=1 once the races are fixed.
-
 # Running the seed corpus for all of the targets should pass the first
 # time, since nothing in the seed corpus will cause a crash.
-go test -parallel=1
+go test
 
 # Running the fuzzer should find a crashing input quickly.
-! go test -fuzz=FuzzWithBug -fuzztime=5s -parallel=1
+! go test -fuzz=FuzzWithBug -fuzztime=5s
 stdout 'testdata[/\\]corpus[/\\]FuzzWithBug[/\\]'
 stdout 'this input caused a crash!'
 go run check_testdata.go FuzzWithBug
 
 # Now, the failing bytes should have been added to the seed corpus for
 # the target, and should fail when run without fuzzing.
-! go test -parallel=1
+! go test
 
 # Running the fuzzer should find a crashing input quickly for fuzzing two types.
-! go test -run=FuzzWithTwoTypes -fuzz=FuzzWithTwoTypes -fuzztime=5s -parallel=1
+! go test -run=FuzzWithTwoTypes -fuzz=FuzzWithTwoTypes -fuzztime=5s
 stdout 'testdata[/\\]corpus[/\\]FuzzWithTwoTypes[/\\]'
 stdout 'these inputs caused a crash!'
 go run check_testdata.go FuzzWithTwoTypes
 
-! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=5s -parallel=1
+! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=5s
 stdout 'testdata[/\\]corpus[/\\]FuzzWithNilPanic[/\\]'
 stdout 'runtime.Goexit'
 go run check_testdata.go FuzzWithNilPanic
 
-! go test -run=FuzzWithFail -fuzz=FuzzWithFail -fuzztime=5s -parallel=1
+! go test -run=FuzzWithFail -fuzz=FuzzWithFail -fuzztime=5s
 stdout 'testdata[/\\]corpus[/\\]FuzzWithFail[/\\]'
 go run check_testdata.go FuzzWithFail
 
-! go test -run=FuzzWithErrorf -fuzz=FuzzWithErrorf -fuzztime=5s -parallel=1
+! go test -run=FuzzWithErrorf -fuzz=FuzzWithErrorf -fuzztime=5s
 stdout 'testdata[/\\]corpus[/\\]FuzzWithErrorf[/\\]'
 # TODO: Uncomment this part of the test once it's fixed
 # stdout 'errorf was called here'
 go run check_testdata.go FuzzWithErrorf
 
-! go test -run=FuzzWithFatalf -fuzz=FuzzWithFatalf -fuzztime=5s -parallel=1
+! go test -run=FuzzWithFatalf -fuzz=FuzzWithFatalf -fuzztime=5s
 stdout 'testdata[/\\]corpus[/\\]FuzzWithFatalf[/\\]'
 # TODO: Uncomment this part of the test once it's fixed
 # stdout 'fatalf was called here'
 go run check_testdata.go FuzzWithFatalf
 
-! go test -run=FuzzWithBadExit -fuzz=FuzzWithBadExit -fuzztime=5s -parallel=1
+! go test -run=FuzzWithBadExit -fuzz=FuzzWithBadExit -fuzztime=5s
 stdout 'testdata[/\\]corpus[/\\]FuzzWithBadExit[/\\]'
 stdout 'unexpectedly'
 go run check_testdata.go FuzzWithBadExit
@@ -154,8 +152,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	if len(files) != 1 {
-		fmt.Fprintln(os.Stderr, fmt.Errorf("expect only one new mutation to be written to testdata", len(files)))
+	if len(files) == 0 {
+		fmt.Fprintf(os.Stderr, "expect at least one new mutation to be written to testdata\n")
 		os.Exit(1)
 	}
 
@@ -166,13 +164,13 @@ func main() {
 		os.Exit(1)
 	}
 	if bytes.Equal(contents, []byte("aa")) {
-		fmt.Fprintln(os.Stderr, fmt.Errorf("newly written testdata entry was not mutated"))
+		fmt.Fprintf(os.Stderr, "newly written testdata entry was not mutated\n")
 		os.Exit(1)
 	}
 	// The hash of the bytes in the file should match the filename.
 	h := []byte(fmt.Sprintf("%x", sha256.Sum256(contents)))
 	if !bytes.Equal([]byte(fname), h) {
-		fmt.Fprintln(os.Stderr, fmt.Errorf("hash of bytes %q does not match filename %q", h, fname))
+		fmt.Fprintf(os.Stderr, "hash of bytes %q does not match filename %q\n", h, fname)
 		os.Exit(1)
 	}
 }

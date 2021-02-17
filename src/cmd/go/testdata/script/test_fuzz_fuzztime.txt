@@ -7,7 +7,7 @@
 go test
 
 # Fuzzing should exit 0 when after fuzztime, even if timeout is short.
-go test -timeout=10ms -fuzz=FuzzFast -fuzztime=5s -parallel=1
+go test -timeout=10ms -fuzz=FuzzFast -fuzztime=5s
 
 # We should see the same behavior when invoking the test binary directly.
 go test -c
