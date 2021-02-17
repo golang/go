@@ -42,7 +42,6 @@ type Config struct {
 	useHmul        bool          // Use optimizations that need Hmul* operations
 	SoftFloat      bool          //
 	Race           bool          // race detector enabled
-	NeedsFpScratch bool          // No direct move between GP and FP register sets
 	BigEndian      bool          //
 	UseFMA         bool          // Use hardware FMA operation
 }

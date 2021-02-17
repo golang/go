@@ -63,7 +63,6 @@ type opData struct {
 	nilCheck          bool   // this op is a nil check on arg0
 	faultOnNilArg0    bool   // this op will fault if arg0 is nil (and aux encodes a small offset)
 	faultOnNilArg1    bool   // this op will fault if arg1 is nil (and aux encodes a small offset)
-	usesScratch       bool   // this op requires scratch memory space
 	hasSideEffects    bool   // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
 	zeroWidth         bool   // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
 	unsafePoint       bool   // this op is an unsafe point, i.e. not safe for async preemption
@@ -320,9 +319,6 @@ func genOp() {
 					log.Fatalf("faultOnNilArg1 with aux %s not allowed", v.aux)
 				}
 			}
-			if v.usesScratch {
-				fmt.Fprintln(w, "usesScratch: true,")
-			}
 			if v.hasSideEffects {
 				fmt.Fprintln(w, "hasSideEffects: true,")
 			}
@@ -403,8 +399,6 @@ func genOp() {
 
 	// generate op string method
 	fmt.Fprintln(w, "func (o Op) String() string {return opcodeTable[o].name }")
-
-	fmt.Fprintln(w, "func (o Op) UsesScratch() bool { return opcodeTable[o].usesScratch }")
 
 	fmt.Fprintln(w, "func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }")
 	fmt.Fprintln(w, "func (o Op) IsCall() bool { return opcodeTable[o].call }")

@@ -15,7 +15,6 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
-	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -90,7 +89,6 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		}
 	}
 
-	scratchUsed := false
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if n, ok := v.Aux.(*ir.Name); ok {
@@ -104,15 +102,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 					n.SetUsed(true)
 				}
 			}
-			if !scratchUsed {
-				scratchUsed = v.Op.UsesScratch()
-			}
-
 		}
-	}
-
-	if f.Config.NeedsFpScratch && scratchUsed {
-		s.scratchFpMem = typecheck.TempAt(src.NoXPos, s.curfn, types.Types[types.TUINT64])
 	}
 
 	sort.Sort(byStackVar(fn.Dcl))

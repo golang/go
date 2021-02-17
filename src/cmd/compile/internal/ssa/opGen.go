@@ -2912,7 +2912,6 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
-		usesScratch:  true,
 		asm:          x86.AADDSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2944,7 +2943,6 @@ var opcodeTable = [...]opInfo{
 		name:         "SUBSS",
 		argLen:       2,
 		resultInArg0: true,
-		usesScratch:  true,
 		asm:          x86.ASUBSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2976,7 +2974,6 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
-		usesScratch:  true,
 		asm:          x86.AMULSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3008,7 +3005,6 @@ var opcodeTable = [...]opInfo{
 		name:         "DIVSS",
 		argLen:       2,
 		resultInArg0: true,
-		usesScratch:  true,
 		asm:          x86.ADIVSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -4072,10 +4068,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "UCOMISS",
-		argLen:      2,
-		usesScratch: true,
-		asm:         x86.AUCOMISS,
+		name:   "UCOMISS",
+		argLen: 2,
+		asm:    x86.AUCOMISS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
@@ -4084,10 +4079,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "UCOMISD",
-		argLen:      2,
-		usesScratch: true,
-		asm:         x86.AUCOMISD,
+		name:   "UCOMISD",
+		argLen: 2,
+		asm:    x86.AUCOMISD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
@@ -5027,10 +5021,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "CVTTSD2SL",
-		argLen:      1,
-		usesScratch: true,
-		asm:         x86.ACVTTSD2SL,
+		name:   "CVTTSD2SL",
+		argLen: 1,
+		asm:    x86.ACVTTSD2SL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
@@ -5041,10 +5034,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "CVTTSS2SL",
-		argLen:      1,
-		usesScratch: true,
-		asm:         x86.ACVTTSS2SL,
+		name:   "CVTTSS2SL",
+		argLen: 1,
+		asm:    x86.ACVTTSS2SL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
@@ -5055,10 +5047,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "CVTSL2SS",
-		argLen:      1,
-		usesScratch: true,
-		asm:         x86.ACVTSL2SS,
+		name:   "CVTSL2SS",
+		argLen: 1,
+		asm:    x86.ACVTSL2SS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -5069,10 +5060,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "CVTSL2SD",
-		argLen:      1,
-		usesScratch: true,
-		asm:         x86.ACVTSL2SD,
+		name:   "CVTSL2SD",
+		argLen: 1,
+		asm:    x86.ACVTSL2SD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -5083,10 +5073,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "CVTSD2SS",
-		argLen:      1,
-		usesScratch: true,
-		asm:         x86.ACVTSD2SS,
+		name:   "CVTSD2SS",
+		argLen: 1,
+		asm:    x86.ACVTSD2SS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
@@ -36128,7 +36117,6 @@ var opcodeTable = [...]opInfo{
 func (o Op) Asm() obj.As          { return opcodeTable[o].asm }
 func (o Op) Scale() int16         { return int16(opcodeTable[o].scale) }
 func (o Op) String() string       { return opcodeTable[o].name }
-func (o Op) UsesScratch() bool    { return opcodeTable[o].usesScratch }
 func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }
 func (o Op) IsCall() bool         { return opcodeTable[o].call }
 func (o Op) HasSideEffects() bool { return opcodeTable[o].hasSideEffects }
