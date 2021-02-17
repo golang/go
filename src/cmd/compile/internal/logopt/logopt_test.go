@@ -51,7 +51,7 @@ func want(t *testing.T, out string, desired string) {
 
 func wantN(t *testing.T, out string, desired string, n int) {
 	if strings.Count(out, desired) != n {
-		t.Errorf("expected exactly %d occurences of %s in \n%s", n, desired, out)
+		t.Errorf("expected exactly %d occurrences of %s in \n%s", n, desired, out)
 	}
 }
 
@@ -132,7 +132,7 @@ func TestLogOpt(t *testing.T) {
 	// Check at both 1 and 8-byte alignments.
 	t.Run("Copy", func(t *testing.T) {
 		const copyCode = `package x
-func s128a1(x *[128]int8) [128]int8 { 
+func s128a1(x *[128]int8) [128]int8 {
 	return *x
 }
 func s127a1(x *[127]int8) [127]int8 {
@@ -219,7 +219,7 @@ func s15a8(x *[15]int64) [15]int64 {
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from \u0026y.b (address-of)"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":9},"end":{"line":4,"character":9}}},"message":"inlineLoc"},`+
-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~R0 = \u003cN\u003e (assign-pair)"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~R0 = \u0026y.b (assign-pair)"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r2 = ~R0:"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return (*int)(~R0) (return)"}]}`)
 	})

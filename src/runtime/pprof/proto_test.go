@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"internal/profile"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"reflect"
@@ -78,7 +77,7 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
 	switch runtime.GOOS {
 	case "linux", "android", "netbsd":
 		// Figure out two addresses from /proc/self/maps.
-		mmap, err := ioutil.ReadFile("/proc/self/maps")
+		mmap, err := os.ReadFile("/proc/self/maps")
 		if err != nil {
 			t.Fatal(err)
 		}

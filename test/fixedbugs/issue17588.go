@@ -11,7 +11,7 @@
 
 package p
 
-type F func(b T)  // ERROR "T is not a type"
+type F func(b T)  // ERROR "T is not a type|expected type"
 
 func T(fn F) {
     func() {

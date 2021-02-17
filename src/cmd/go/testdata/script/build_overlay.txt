@@ -43,6 +43,24 @@ go build -overlay overlay.json -o main_cgo_angle$GOEXE ./cgo_hello_angle
 exec ./main_cgo_angle$GOEXE
 stdout '^hello cgo\r?\n'
 
+go build -overlay overlay.json -o main_call_asm$GOEXE ./call_asm
+exec ./main_call_asm$GOEXE
+! stdout .
+
+# Change the contents of a file in the overlay and ensure that makes the target stale
+go install -overlay overlay.json ./test_cache
+go list -overlay overlay.json -f '{{.Stale}}' ./test_cache
+stdout '^false$'
+cp overlay/test_cache_different.go overlay/test_cache.go
+go list -overlay overlay.json -f '{{.Stale}}' ./test_cache
+stdout '^true$'
+
+go list -compiled -overlay overlay.json -f '{{range .CompiledGoFiles}}{{. | printf "%s\n"}}{{end}}' ./cgo_hello_replace
+cp stdout compiled_cgo_sources.txt
+go run ../print_line_comments.go compiled_cgo_sources.txt
+stdout $GOPATH[/\\]src[/\\]m[/\\]cgo_hello_replace[/\\]cgo_hello_replace.go
+! stdout $GOPATH[/\\]src[/\\]m[/\\]overlay[/\\]hello.c
+
 # Run same tests but with gccgo.
 env GO111MODULE=off
 [!exec:gccgo] stop
@@ -73,6 +91,11 @@ go build -compiler=gccgo  -overlay overlay.json -o main_cgo_angle_gccgo$GOEXE ./
 exec ./main_cgo_angle_gccgo$GOEXE
 stdout '^hello cgo\r?\n'
 
+go build -compiler=gccgo -overlay overlay.json -o main_call_asm_gccgo$GOEXE ./call_asm
+exec ./main_call_asm_gccgo$GOEXE
+! stdout .
+
+
 -- m/go.mod --
 // TODO(matloob): how do overlays work with go.mod (especially if mod=readonly)
 module m
@@ -99,7 +122,11 @@ the actual code is in the overlay
 		"dir2/i.go": "overlay/dir2_i.go",
 		"printpath/main.go": "overlay/printpath.go",
 		"printpath/other.go": "overlay2/printpath2.go",
+		"call_asm/asm_gc.s": "overlay/asm_gc.s",
+		"call_asm/asm_gccgo.s": "overlay/asm_gccgo.s",
+		"test_cache/main.go": "overlay/test_cache.go",
 		"cgo_hello_replace/cgo_header.h": "overlay/cgo_head.h",
+		"cgo_hello_replace/hello.c": "overlay/hello.c",
 		"cgo_hello_quote/cgo_hello.go": "overlay/cgo_hello_quote.go",
 		"cgo_hello_quote/cgo_header.h": "overlay/cgo_head.h",
 		"cgo_hello_angle/cgo_hello.go": "overlay/cgo_hello_angle.go",
@@ -119,10 +146,10 @@ func main() {
  // Test that this header is replaced with one that has the proper declaration.
 void say_goodbye();
 
--- m/cgo_hello_replace/goodbye.c --
+-- m/cgo_hello_replace/hello.c --
 #include <stdio.h>
 
-void say_hello() { puts("hello cgo\n"); fflush(stdout); }
+void say_goodbye() { puts("goodbye cgo\n"); fflush(stdout); }
 
 -- m/overlay/f.go --
 package main
@@ -131,6 +158,14 @@ import "m/dir2"
 
 func main() {
 	dir2.PrintMessage()
+}
+-- m/call_asm/main.go --
+package main
+
+func foo() // There will be a "missing function body" error if the assembly file isn't found.
+
+func main() {
+	foo()
 }
 -- m/overlay/dir_g.go --
 package dir
@@ -198,6 +233,40 @@ func main() {
 }
 -- m/overlay/cgo_head.h --
 void say_hello();
+-- m/overlay/hello.c --
+#include <stdio.h>
+
+void say_hello() { puts("hello cgo\n"); fflush(stdout); }
+-- m/overlay/asm_gc.s --
+// +build !gccgo
+
+TEXT ·foo(SB),0,$0
+	RET
+
+-- m/overlay/asm_gccgo.s --
+// +build gccgo
+
+.globl main.foo
+.text
+main.foo:
+	ret
+
+-- m/overlay/test_cache.go --
+package foo
+
+import "fmt"
+
+func bar() {
+	fmt.Println("something")
+}
+-- m/overlay/test_cache_different.go --
+package foo
+
+import "fmt"
+
+func bar() {
+	fmt.Println("different")
+}
 -- m/cgo_hello_quote/hello.c --
 #include <stdio.h>
 
@@ -207,3 +276,33 @@ void say_hello() { puts("hello cgo\n"); fflush(stdout); }
 
 void say_hello() { puts("hello cgo\n"); fflush(stdout); }
 
+-- print_line_comments.go --
+package main
+
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"strings"
+)
+
+func main() {
+	compiledGoFilesArg := os.Args[1]
+	b, err := ioutil.ReadFile(compiledGoFilesArg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	compiledGoFiles := strings.Split(strings.TrimSpace(string(b)), "\n")
+	for _, f := range compiledGoFiles {
+		b, err := ioutil.ReadFile(f)
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, line := range strings.Split(string(b), "\n") {
+			if strings.HasPrefix(line, "#line") || strings.HasPrefix(line, "//line") {
+				fmt.Println(line)
+			}
+		}
+	}
+}

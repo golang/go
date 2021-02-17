@@ -322,6 +322,7 @@ type extSymPayload struct {
 const (
 	// Loader.flags
 	FlagStrictDups = 1 << iota
+	FlagUseABIAlias
 )
 
 func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorReporter) *Loader {
@@ -2270,6 +2271,9 @@ func abiToVer(abi uint16, localSymVersion int) int {
 // symbol. If the sym in question is not an alias, the sym itself is
 // returned.
 func (l *Loader) ResolveABIAlias(s Sym) Sym {
+	if l.flags&FlagUseABIAlias == 0 {
+		return s
+	}
 	if s == 0 {
 		return 0
 	}

@@ -9,4 +9,4 @@
 package p
 
 var v uint
-var x = []byte((1 << v) + 1) // ERROR "cannot convert"
+var x = []byte((1 << v) + 1) // ERROR "cannot convert|non-integer type for left operand of shift"

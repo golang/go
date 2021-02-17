@@ -6,8 +6,6 @@
 
 package types
 
-import "sort"
-
 func isNamed(typ Type) bool {
 	if _, ok := typ.(*Basic); ok {
 		return ok
@@ -79,6 +77,18 @@ func IsInterface(typ Type) bool {
 
 // Comparable reports whether values of type T are comparable.
 func Comparable(T Type) bool {
+	return comparable(T, nil)
+}
+
+func comparable(T Type, seen map[Type]bool) bool {
+	if seen[T] {
+		return true
+	}
+	if seen == nil {
+		seen = make(map[Type]bool)
+	}
+	seen[T] = true
+
 	switch t := T.Underlying().(type) {
 	case *Basic:
 		// assume invalid types to be comparable
@@ -88,13 +98,13 @@ func Comparable(T Type) bool {
 		return true
 	case *Struct:
 		for _, f := range t.fields {
-			if !Comparable(f.typ) {
+			if !comparable(f.typ, seen) {
 				return false
 			}
 		}
 		return true
 	case *Array:
-		return Comparable(t.elem)
+		return comparable(t.elem, seen)
 	}
 	return false
 }
@@ -261,8 +271,8 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 					p = p.prev
 				}
 				if debug {
-					assert(sort.IsSorted(byUniqueMethodName(a)))
-					assert(sort.IsSorted(byUniqueMethodName(b)))
+					assertSortedMethods(a)
+					assertSortedMethods(b)
 				}
 				for i, f := range a {
 					g := b[i]

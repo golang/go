@@ -7,13 +7,13 @@ package cpu_test
 import (
 	"errors"
 	. "internal/cpu"
-	"io/ioutil"
+	"os"
 	"regexp"
 	"testing"
 )
 
 func getFeatureList() ([]string, error) {
-	cpuinfo, err := ioutil.ReadFile("/proc/cpuinfo")
+	cpuinfo, err := os.ReadFile("/proc/cpuinfo")
 	if err != nil {
 		return nil, err
 	}

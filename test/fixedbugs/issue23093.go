@@ -6,4 +6,4 @@
 
 package p
 
-var f = func() { f() } // ERROR "initialization loop"
+var f = func() { f() } // ERROR "initialization loop|initialization expression for .*f.* depends upon itself"

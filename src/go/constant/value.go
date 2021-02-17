@@ -17,6 +17,7 @@ import (
 	"go/token"
 	"math"
 	"math/big"
+	"math/bits"
 	"strconv"
 	"strings"
 	"sync"
@@ -65,6 +66,11 @@ type Value interface {
 // Maximum supported mantissa precision.
 // The spec requires at least 256 bits; typical implementations use 512 bits.
 const prec = 512
+
+// TODO(gri) Consider storing "error" information in an unknownVal so clients
+//           can provide better error messages. For instance, if a number is
+//           too large (incl. infinity), that could be recorded in unknownVal.
+//           See also #20583 and #42695 for use cases.
 
 type (
 	unknownVal struct{}
@@ -297,10 +303,16 @@ func makeFloat(x *big.Float) Value {
 	if x.Sign() == 0 {
 		return floatVal0
 	}
+	if x.IsInf() {
+		return unknownVal{}
+	}
 	return floatVal{x}
 }
 
 func makeComplex(re, im Value) Value {
+	if re.Kind() == Unknown || im.Kind() == Unknown {
+		return unknownVal{}
+	}
 	return complexVal{re, im}
 }
 
@@ -359,16 +371,13 @@ func MakeUint64(x uint64) Value {
 }
 
 // MakeFloat64 returns the Float value for x.
+// If x is -0.0, the result is 0.0.
 // If x is not finite, the result is an Unknown.
 func MakeFloat64(x float64) Value {
 	if math.IsInf(x, 0) || math.IsNaN(x) {
 		return unknownVal{}
 	}
-	// convert -0 to 0
-	if x == 0 {
-		return int64Val(0)
-	}
-	return ratVal{newRat().SetFloat64(x)}
+	return ratVal{newRat().SetFloat64(x + 0)} // convert -0 to 0
 }
 
 // MakeFromLiteral returns the corresponding integer, floating-point,
@@ -583,11 +592,11 @@ func Make(x interface{}) Value {
 	case int64:
 		return int64Val(x)
 	case *big.Int:
-		return intVal{x}
+		return makeInt(x)
 	case *big.Rat:
-		return ratVal{x}
+		return makeRat(x)
 	case *big.Float:
-		return floatVal{x}
+		return makeFloat(x)
 	default:
 		return unknownVal{}
 	}
@@ -599,7 +608,11 @@ func Make(x interface{}) Value {
 func BitLen(x Value) int {
 	switch x := x.(type) {
 	case int64Val:
-		return i64toi(x).val.BitLen()
+		u := uint64(x)
+		if x < 0 {
+			u = uint64(-x)
+		}
+		return 64 - bits.LeadingZeros64(u)
 	case intVal:
 		return x.val.BitLen()
 	case unknownVal:
@@ -1007,52 +1020,55 @@ func match(x, y Value) (_, _ Value) {
 	}
 	// ord(x) <= ord(y)
 
-	switch x := x.(type) {
+	// Prefer to return the original x and y arguments when possible,
+	// to avoid unnecessary heap allocations.
+
+	switch x1 := x.(type) {
 	case boolVal, *stringVal, complexVal:
 		return x, y
 
 	case int64Val:
-		switch y := y.(type) {
+		switch y.(type) {
 		case int64Val:
 			return x, y
 		case intVal:
-			return i64toi(x), y
+			return i64toi(x1), y
 		case ratVal:
-			return i64tor(x), y
+			return i64tor(x1), y
 		case floatVal:
-			return i64tof(x), y
+			return i64tof(x1), y
 		case complexVal:
-			return vtoc(x), y
+			return vtoc(x1), y
 		}
 
 	case intVal:
-		switch y := y.(type) {
+		switch y.(type) {
 		case intVal:
 			return x, y
 		case ratVal:
-			return itor(x), y
+			return itor(x1), y
 		case floatVal:
-			return itof(x), y
+			return itof(x1), y
 		case complexVal:
-			return vtoc(x), y
+			return vtoc(x1), y
 		}
 
 	case ratVal:
-		switch y := y.(type) {
+		switch y.(type) {
 		case ratVal:
 			return x, y
 		case floatVal:
-			return rtof(x), y
+			return rtof(x1), y
 		case complexVal:
-			return vtoc(x), y
+			return vtoc(x1), y
 		}
 
 	case floatVal:
-		switch y := y.(type) {
+		switch y.(type) {
 		case floatVal:
 			return x, y
 		case complexVal:
-			return vtoc(x), y
+			return vtoc(x1), y
 		}
 	}
 

@@ -57,7 +57,7 @@ func main() {
 
 	// cannot type-assert non-interfaces
 	f := 2.0
-	_ = f.(int) // ERROR "non-interface type"
+	_ = f.(int) // ERROR "non-interface type|only valid for interface types"
 
 }
 
@@ -100,6 +100,7 @@ type T2 struct{}
 func (t *T2) M() {}
 func (t *T2) _() {}
 
-// Check that nothing satisfies an interface with blank methods.
-var b1 B1 = &T2{} // ERROR "incompatible|missing _ method"
-var b2 B2 = &T2{} // ERROR "incompatible|missing _ method"
+// Already reported about the invalid blank interface method above;
+// no need to report about not implementing it.
+var b1 B1 = &T2{}
+var b2 B2 = &T2{}

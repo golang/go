@@ -2,19 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package modload_test
+package modload
 
 import (
 	"testing"
-
-	"cmd/go/internal/modload"
 )
 
 func TestReqsMax(t *testing.T) {
 	type testCase struct {
 		a, b, want string
 	}
-	reqs := modload.Reqs()
+	reqs := new(mvsReqs)
 	for _, tc := range []testCase{
 		{a: "v0.1.0", b: "v0.2.0", want: "v0.2.0"},
 		{a: "v0.2.0", b: "v0.1.0", want: "v0.2.0"},
@@ -27,7 +25,7 @@ func TestReqsMax(t *testing.T) {
 	} {
 		max := reqs.Max(tc.a, tc.b)
 		if max != tc.want {
-			t.Errorf("Reqs().Max(%q, %q) = %q; want %q", tc.a, tc.b, max, tc.want)
+			t.Errorf("(%T).Max(%q, %q) = %q; want %q", reqs, tc.a, tc.b, max, tc.want)
 		}
 	}
 }

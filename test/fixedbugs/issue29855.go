@@ -10,7 +10,7 @@ type T struct {
 	GlobalName string
 }
 
-var t = T{Name: "foo"} // ERROR "unknown field 'Name' in struct literal of type T"
+var t = T{Name: "foo"} // ERROR "unknown field 'Name' in struct literal of type T|unknown field .*Name.* in .*T"
 
 func (t T) Name() string {
 	return t.GlobalName

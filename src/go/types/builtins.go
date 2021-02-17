@@ -353,8 +353,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		if ok, code := x.assignableTo(check, m.key, nil); !ok {
-			check.invalidArg(x, code, "%s is not assignable to %s", x, m.key)
+		check.assignment(x, m.key, "argument to delete")
+		if x.mode == invalid {
 			return
 		}
 

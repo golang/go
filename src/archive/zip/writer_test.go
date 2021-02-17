@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"math/rand"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -237,7 +237,7 @@ func TestWriterTime(t *testing.T) {
 		t.Fatalf("unexpected Close error: %v", err)
 	}
 
-	want, err := ioutil.ReadFile("testdata/time-go.zip")
+	want, err := os.ReadFile("testdata/time-go.zip")
 	if err != nil {
 		t.Fatalf("unexpected ReadFile error: %v", err)
 	}

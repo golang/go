@@ -15,11 +15,11 @@ var x int
 func f1() {
 	switch x {
 	case 1:
-		continue // ERROR "continue is not in a loop$"
+		continue // ERROR "continue is not in a loop$|continue statement not within for"
 	}
 	select {
 	default:
-		continue // ERROR "continue is not in a loop$"
+		continue // ERROR "continue is not in a loop$|continue statement not within for"
 	}
 
 }
@@ -103,14 +103,14 @@ L5:
 		}
 	}
 
-	continue // ERROR "continue is not in a loop$"
+	continue // ERROR "continue is not in a loop$|continue statement not within for"
 	for {
-		continue on // ERROR "continue label not defined: on"
+		continue on // ERROR "continue label not defined: on|invalid continue label .*on"
 	}
 
-	break // ERROR "break is not in a loop, switch, or select"
+	break // ERROR "break is not in a loop, switch, or select|break statement not within for or switch or select"
 	for {
-		break dance // ERROR "break label not defined: dance"
+		break dance // ERROR "break label not defined: dance|invalid break label .*dance"
 	}
 
 	for {

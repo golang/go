@@ -10,7 +10,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -118,7 +117,7 @@ func TestTransferWriterWriteBodyReaderTypes(t *testing.T) {
 
 	nBytes := int64(1 << 10)
 	newFileFunc := func() (r io.Reader, done func(), err error) {
-		f, err := ioutil.TempFile("", "net-http-newfilefunc")
+		f, err := os.CreateTemp("", "net-http-newfilefunc")
 		if err != nil {
 			return nil, nil, err
 		}

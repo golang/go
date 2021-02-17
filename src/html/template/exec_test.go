@@ -14,6 +14,7 @@ import (
 	"io"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"text/template"
 )
@@ -1704,5 +1705,129 @@ func TestIssue31810(t *testing.T) {
 	}
 	if b.String() != "result" {
 		t.Errorf("%s got %q, expected %q", textCall, b.String(), "result")
+	}
+}
+
+// Issue 39807. There was a race applying escapeTemplate.
+
+const raceText = `
+{{- define "jstempl" -}}
+var v = "v";
+{{- end -}}
+<script type="application/javascript">
+{{ template "jstempl" $ }}
+</script>
+`
+
+func TestEscapeRace(t *testing.T) {
+	t.Skip("this test currently fails with -race; see issue #39807")
+
+	tmpl := New("")
+	_, err := tmpl.New("templ.html").Parse(raceText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const count = 20
+	for i := 0; i < count; i++ {
+		_, err := tmpl.New(fmt.Sprintf("x%d.html", i)).Parse(`{{ template "templ.html" .}}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < count; j++ {
+				sub := tmpl.Lookup(fmt.Sprintf("x%d.html", j))
+				if err := sub.Execute(io.Discard, nil); err != nil {
+					t.Error(err)
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func TestRecursiveExecute(t *testing.T) {
+	tmpl := New("")
+
+	recur := func() (HTML, error) {
+		var sb strings.Builder
+		if err := tmpl.ExecuteTemplate(&sb, "subroutine", nil); err != nil {
+			t.Fatal(err)
+		}
+		return HTML(sb.String()), nil
+	}
+
+	m := FuncMap{
+		"recur": recur,
+	}
+
+	top, err := tmpl.New("x.html").Funcs(m).Parse(`{{recur}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tmpl.New("subroutine").Parse(`<a href="/x?p={{"'a<b'"}}">`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := top.Execute(io.Discard, nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// recursiveInvoker is for TestRecursiveExecuteViaMethod.
+type recursiveInvoker struct {
+	t    *testing.T
+	tmpl *Template
+}
+
+func (r *recursiveInvoker) Recur() (string, error) {
+	var sb strings.Builder
+	if err := r.tmpl.ExecuteTemplate(&sb, "subroutine", nil); err != nil {
+		r.t.Fatal(err)
+	}
+	return sb.String(), nil
+}
+
+func TestRecursiveExecuteViaMethod(t *testing.T) {
+	tmpl := New("")
+	top, err := tmpl.New("x.html").Parse(`{{.Recur}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tmpl.New("subroutine").Parse(`<a href="/x?p={{"'a<b'"}}">`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := &recursiveInvoker{
+		t:    t,
+		tmpl: tmpl,
+	}
+	if err := top.Execute(io.Discard, r); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Issue 43295.
+func TestTemplateFuncsAfterClone(t *testing.T) {
+	s := `{{ f . }}`
+	want := "test"
+	orig := New("orig").Funcs(map[string]interface{}{
+		"f": func(in string) string {
+			return in
+		},
+	}).New("child")
+
+	overviewTmpl := Must(Must(orig.Clone()).Parse(s))
+	var out strings.Builder
+	if err := overviewTmpl.Execute(&out, want); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != want {
+		t.Fatalf("got %q; want %q", got, want)
 	}
 }

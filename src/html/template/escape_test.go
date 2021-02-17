@@ -243,7 +243,7 @@ func TestEscape(t *testing.T) {
 		{
 			"badMarshaler",
 			`<button onclick='alert(1/{{.B}}in numbers)'>`,
-			`<button onclick='alert(1/ /* json: error calling MarshalJSON for type *template.badMarshaler: json: invalid character &#39;f&#39; looking for beginning of object key string */null in numbers)'>`,
+			`<button onclick='alert(1/ /* json: error calling MarshalJSON for type *template.badMarshaler: invalid character &#39;f&#39; looking for beginning of object key string */null in numbers)'>`,
 		},
 		{
 			"jsMarshaler",

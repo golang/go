@@ -8,8 +8,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -218,7 +218,7 @@ func TestNoLongerSavingPriorExpansions(t *testing.T) {
 }
 
 func BenchmarkDecoder(b *testing.B) {
-	buf, err := ioutil.ReadFile("../testdata/e.txt")
+	buf, err := os.ReadFile("../testdata/e.txt")
 	if err != nil {
 		b.Fatal(err)
 	}

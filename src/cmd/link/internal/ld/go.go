@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -289,6 +291,62 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pk
 	return
 }
 
+// openbsdTrimLibVersion indicates whether a shared library is
+// versioned and if it is, returns the unversioned name. The
+// OpenBSD library naming scheme is lib<name>.so.<major>.<minor>
+func openbsdTrimLibVersion(lib string) (string, bool) {
+	parts := strings.Split(lib, ".")
+	if len(parts) != 4 {
+		return "", false
+	}
+	if parts[1] != "so" {
+		return "", false
+	}
+	if _, err := strconv.Atoi(parts[2]); err != nil {
+		return "", false
+	}
+	if _, err := strconv.Atoi(parts[3]); err != nil {
+		return "", false
+	}
+	return fmt.Sprintf("%s.%s", parts[0], parts[1]), true
+}
+
+// dedupLibrariesOpenBSD dedups a list of shared libraries, treating versioned
+// and unversioned libraries as equivalents. Versioned libraries are preferred
+// and retained over unversioned libraries. This avoids the situation where
+// the use of cgo results in a DT_NEEDED for a versioned library (for example,
+// libc.so.96.1), while a dynamic import specifies an unversioned library (for
+// example, libc.so) - this would otherwise result in two DT_NEEDED entries
+// for the same library, resulting in a failure when ld.so attempts to load
+// the Go binary.
+func dedupLibrariesOpenBSD(ctxt *Link, libs []string) []string {
+	libraries := make(map[string]string)
+	for _, lib := range libs {
+		if name, ok := openbsdTrimLibVersion(lib); ok {
+			// Record unversioned name as seen.
+			seenlib[name] = true
+			libraries[name] = lib
+		} else if _, ok := libraries[lib]; !ok {
+			libraries[lib] = lib
+		}
+	}
+
+	libs = nil
+	for _, lib := range libraries {
+		libs = append(libs, lib)
+	}
+	sort.Strings(libs)
+
+	return libs
+}
+
+func dedupLibraries(ctxt *Link, libs []string) []string {
+	if ctxt.Target.IsOpenbsd() {
+		return dedupLibrariesOpenBSD(ctxt, libs)
+	}
+	return libs
+}
+
 var seenlib = make(map[string]bool)
 
 func adddynlib(ctxt *Link, lib string) {
@@ -385,7 +443,7 @@ func (ctxt *Link) addexport() {
 	for _, exp := range ctxt.dynexp {
 		Adddynsym(ctxt.loader, &ctxt.Target, &ctxt.ArchSyms, exp)
 	}
-	for _, lib := range dynlib {
+	for _, lib := range dedupLibraries(ctxt, dynlib) {
 		adddynlib(ctxt, lib)
 	}
 }

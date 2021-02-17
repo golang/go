@@ -5,7 +5,6 @@
 package syscall_test
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -13,7 +12,7 @@ import (
 )
 
 func TestWin32finddata(t *testing.T) {
-	dir, err := ioutil.TempDir("", "go-build")
+	dir, err := os.MkdirTemp("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}

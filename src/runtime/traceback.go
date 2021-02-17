@@ -396,13 +396,21 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			// If there is inlining info, print the inner frames.
 			if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
 				inltree := (*[1 << 20]inlinedCall)(inldata)
+				var inlFunc _func
+				inlFuncInfo := funcInfo{&inlFunc, f.datap}
 				for {
 					ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, nil)
 					if ix < 0 {
 						break
 					}
-					if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp, nprint == 0, inltree[ix].funcID, lastFuncID) {
-						name := funcnameFromNameoff(f, inltree[ix].func_)
+
+					// Create a fake _func for the
+					// inlined function.
+					inlFunc.nameoff = inltree[ix].func_
+					inlFunc.funcID = inltree[ix].funcID
+
+					if (flags&_TraceRuntimeFrames) != 0 || showframe(inlFuncInfo, gp, nprint == 0, inlFuncInfo.funcID, lastFuncID) {
+						name := funcname(inlFuncInfo)
 						file, line := funcline(f, tracepc)
 						print(name, "(...)\n")
 						print("\t", file, ":", line, "\n")
@@ -811,6 +819,9 @@ func showframe(f funcInfo, gp *g, firstFrame bool, funcID, childID funcID) bool 
 // showfuncinfo reports whether a function with the given characteristics should
 // be printed during a traceback.
 func showfuncinfo(f funcInfo, firstFrame bool, funcID, childID funcID) bool {
+	// Note that f may be a synthesized funcInfo for an inlined
+	// function, in which case only nameoff and funcID are set.
+
 	level, _, _ := gotraceback()
 	if level > 1 {
 		// Show all frames.
@@ -906,17 +917,25 @@ func tracebackothers(me *g) {
 	level, _, _ := gotraceback()
 
 	// Show the current goroutine first, if we haven't already.
-	g := getg()
-	gp := g.m.curg
-	if gp != nil && gp != me {
+	curgp := getg().m.curg
+	if curgp != nil && curgp != me {
 		print("\n")
-		goroutineheader(gp)
-		traceback(^uintptr(0), ^uintptr(0), 0, gp)
+		goroutineheader(curgp)
+		traceback(^uintptr(0), ^uintptr(0), 0, curgp)
 	}
 
-	lock(&allglock)
-	for _, gp := range allgs {
-		if gp == me || gp == g.m.curg || readgstatus(gp) == _Gdead || isSystemGoroutine(gp, false) && level < 2 {
+	// We can't take allglock here because this may be during fatal
+	// throw/panic, where locking allglock could be out-of-order or a
+	// direct deadlock.
+	//
+	// Instead, use atomic access to allgs which requires no locking. We
+	// don't lock against concurrent creation of new Gs, but even with
+	// allglock we may miss Gs created after this loop.
+	ptr, length := atomicAllG()
+	for i := uintptr(0); i < length; i++ {
+		gp := atomicAllGIndex(ptr, i)
+
+		if gp == me || gp == curgp || readgstatus(gp) == _Gdead || isSystemGoroutine(gp, false) && level < 2 {
 			continue
 		}
 		print("\n")
@@ -925,14 +944,13 @@ func tracebackothers(me *g) {
 		// called from a signal handler initiated during a
 		// systemstack call. The original G is still in the
 		// running state, and we want to print its stack.
-		if gp.m != g.m && readgstatus(gp)&^_Gscan == _Grunning {
+		if gp.m != getg().m && readgstatus(gp)&^_Gscan == _Grunning {
 			print("\tgoroutine running on other thread; stack unavailable\n")
 			printcreatedby(gp)
 		} else {
 			traceback(^uintptr(0), ^uintptr(0), 0, gp)
 		}
 	}
-	unlock(&allglock)
 }
 
 // tracebackHexdump hexdumps part of stk around frame.sp and frame.fp

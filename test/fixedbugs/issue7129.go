@@ -15,7 +15,7 @@ func g() bool { return true }
 func h(int, int) {}
 
 func main() {
-	f(g())        // ERROR "in argument to f"
-	f(true)       // ERROR "in argument to f"
-	h(true, true) // ERROR "in argument to h"
+	f(g())        // ERROR "in argument to f|incompatible type"
+	f(true)       // ERROR "in argument to f|incompatible type"
+	h(true, true) // ERROR "in argument to h|incompatible type"
 }

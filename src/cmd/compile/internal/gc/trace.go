@@ -9,6 +9,8 @@ package gc
 import (
 	"os"
 	tracepkg "runtime/trace"
+
+	"cmd/compile/internal/base"
 )
 
 func init() {
@@ -18,10 +20,10 @@ func init() {
 func traceHandlerGo17(traceprofile string) {
 	f, err := os.Create(traceprofile)
 	if err != nil {
-		Fatalf("%v", err)
+		base.Fatalf("%v", err)
 	}
 	if err := tracepkg.Start(f); err != nil {
-		Fatalf("%v", err)
+		base.Fatalf("%v", err)
 	}
-	atExit(tracepkg.Stop)
+	base.AtExit(tracepkg.Stop)
 }

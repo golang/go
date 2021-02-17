@@ -281,21 +281,25 @@ func reportError(q *query, err error) {
 	// TODO(bcmills): Use errors.As to unpack these errors instead of parsing
 	// strings with regular expressions.
 
-	patternRE := regexp.MustCompile("(?m)(?:[ \t(\"`]|^)" + regexp.QuoteMeta(q.pattern) + "(?:[ @:)\"`]|$)")
+	patternRE := regexp.MustCompile("(?m)(?:[ \t(\"`]|^)" + regexp.QuoteMeta(q.pattern) + "(?:[ @:;)\"`]|$)")
 	if patternRE.MatchString(errStr) {
 		if q.rawVersion == "" {
 			base.Errorf("go get: %s", errStr)
 			return
 		}
 
-		versionRE := regexp.MustCompile("(?m)(?:[ @(\"`]|^)" + regexp.QuoteMeta(q.version) + "(?:[ :)\"`]|$)")
+		versionRE := regexp.MustCompile("(?m)(?:[ @(\"`]|^)" + regexp.QuoteMeta(q.version) + "(?:[ :;)\"`]|$)")
 		if versionRE.MatchString(errStr) {
 			base.Errorf("go get: %s", errStr)
 			return
 		}
 	}
 
-	base.Errorf("go get %s: %s", q, errStr)
+	if qs := q.String(); qs != "" {
+		base.Errorf("go get %s: %s", qs, errStr)
+	} else {
+		base.Errorf("go get: %s", errStr)
+	}
 }
 
 func reportConflict(pq *query, m module.Version, conflict versionReason) {

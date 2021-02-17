@@ -32,6 +32,8 @@ func raceacquireg(gp *g, addr unsafe.Pointer)                               { th
 func raceacquirectx(racectx uintptr, addr unsafe.Pointer)                   { throw("race") }
 func racerelease(addr unsafe.Pointer)                                       { throw("race") }
 func racereleaseg(gp *g, addr unsafe.Pointer)                               { throw("race") }
+func racereleaseacquire(addr unsafe.Pointer)                                { throw("race") }
+func racereleaseacquireg(gp *g, addr unsafe.Pointer)                        { throw("race") }
 func racereleasemerge(addr unsafe.Pointer)                                  { throw("race") }
 func racereleasemergeg(gp *g, addr unsafe.Pointer)                          { throw("race") }
 func racefingo()                                                            { throw("race") }

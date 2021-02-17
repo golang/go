@@ -1777,15 +1777,15 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		case ABGEZ:
 			ins.as, ins.rs1, ins.rs2 = ABGE, REG_ZERO, uint32(p.From.Reg)
 		case ABGT:
-			ins.as, ins.rs1, ins.rs2 = ABLT, uint32(p.Reg), uint32(p.From.Reg)
+			ins.as, ins.rs1, ins.rs2 = ABLT, uint32(p.From.Reg), uint32(p.Reg)
 		case ABGTU:
-			ins.as, ins.rs1, ins.rs2 = ABLTU, uint32(p.Reg), uint32(p.From.Reg)
+			ins.as, ins.rs1, ins.rs2 = ABLTU, uint32(p.From.Reg), uint32(p.Reg)
 		case ABGTZ:
 			ins.as, ins.rs1, ins.rs2 = ABLT, uint32(p.From.Reg), REG_ZERO
 		case ABLE:
-			ins.as, ins.rs1, ins.rs2 = ABGE, uint32(p.Reg), uint32(p.From.Reg)
+			ins.as, ins.rs1, ins.rs2 = ABGE, uint32(p.From.Reg), uint32(p.Reg)
 		case ABLEU:
-			ins.as, ins.rs1, ins.rs2 = ABGEU, uint32(p.Reg), uint32(p.From.Reg)
+			ins.as, ins.rs1, ins.rs2 = ABGEU, uint32(p.From.Reg), uint32(p.Reg)
 		case ABLEZ:
 			ins.as, ins.rs1, ins.rs2 = ABGE, uint32(p.From.Reg), REG_ZERO
 		case ABLTZ:

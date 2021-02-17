@@ -25,8 +25,8 @@ func main() {
 	cs = cr // ERROR "illegal types|incompatible|cannot"
 
 	var n int
-	<-n    // ERROR "receive from non-chan"
-	n <- 2 // ERROR "send to non-chan"
+	<-n    // ERROR "receive from non-chan|expected channel"
+	n <- 2 // ERROR "send to non-chan|must be channel"
 
 	c <- 0       // ok
 	<-c          // ok
@@ -66,5 +66,5 @@ func main() {
 	close(c)
 	close(cs)
 	close(cr) // ERROR "receive"
-	close(n)  // ERROR "invalid operation.*non-chan type"
+	close(n)  // ERROR "invalid operation.*non-chan type|must be channel"
 }

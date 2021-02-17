@@ -9,23 +9,18 @@ import (
 	"path"
 )
 
-// SkipDir is used as a return value from WalkFuncs to indicate that
+// SkipDir is used as a return value from WalkDirFuncs to indicate that
 // the directory named in the call is to be skipped. It is not returned
 // as an error by any function.
 var SkipDir = errors.New("skip this directory")
 
 // WalkDirFunc is the type of the function called by WalkDir to visit
-// each each file or directory.
+// each file or directory.
 //
-// The path argument contains the argument to Walk as a prefix.
-// That is, if Walk is called with root argument "dir" and finds a file
+// The path argument contains the argument to WalkDir as a prefix.
+// That is, if WalkDir is called with root argument "dir" and finds a file
 // named "a" in that directory, the walk function will be called with
 // argument "dir/a".
-//
-// The directory and file are joined with Join, which may clean the
-// directory name: if Walk is called with the root argument "x/../dir"
-// and finds a file named "a" in that directory, the walk function will
-// be called with argument "dir/a", not "x/../dir/a".
 //
 // The d argument is the fs.DirEntry for the named path.
 //
@@ -42,9 +37,9 @@ var SkipDir = errors.New("skip this directory")
 //
 // WalkDir calls the function with a non-nil err argument in two cases.
 //
-// First, if the initial os.Lstat on the root directory fails, WalkDir
+// First, if the initial fs.Stat on the root directory fails, WalkDir
 // calls the function with path set to root, d set to nil, and err set to
-// the error from os.Lstat.
+// the error from fs.Stat.
 //
 // Second, if a directory's ReadDir method fails, WalkDir calls the
 // function with path set to the directory's path, d set to an
@@ -56,7 +51,7 @@ var SkipDir = errors.New("skip this directory")
 // after a failed ReadDir and reports the error from ReadDir.
 // (If ReadDir succeeds, there is no second call.)
 //
-// The differences between WalkDirFunc compared to WalkFunc are:
+// The differences between WalkDirFunc compared to filepath.WalkFunc are:
 //
 //   - The second argument has type fs.DirEntry instead of fs.FileInfo.
 //   - The function is called before reading a directory, to allow SkipDir
@@ -64,7 +59,7 @@ var SkipDir = errors.New("skip this directory")
 //   - If a directory read fails, the function is called a second time
 //     for that directory to report the error.
 //
-type WalkDirFunc func(path string, entry DirEntry, err error) error
+type WalkDirFunc func(path string, d DirEntry, err error) error
 
 // walkDir recursively descends path, calling walkDirFn.
 func walkDir(fsys FS, name string, d DirEntry, walkDirFn WalkDirFunc) error {

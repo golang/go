@@ -180,13 +180,14 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// everything.
 	load.ClearPackageCache()
 
-	pkgs := load.PackagesForBuild(ctx, args)
+	pkgs := load.PackagesAndErrors(ctx, args)
+	load.CheckPackageErrors(pkgs)
 
 	// Phase 3. Install.
 	if *getD {
 		// Download only.
-		// Check delayed until now so that importPaths
-		// and packagesForBuild have a chance to print errors.
+		// Check delayed until now so that downloadPaths
+		// and CheckPackageErrors have a chance to print errors.
 		return
 	}
 
@@ -201,7 +202,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 func downloadPaths(patterns []string) []string {
 	for _, arg := range patterns {
 		if strings.Contains(arg, "@") {
-			base.Fatalf("go: cannot use path@version syntax in GOPATH mode")
+			base.Fatalf("go: can only use path@version syntax with 'go get' and 'go install' in module-aware mode")
 			continue
 		}
 

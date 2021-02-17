@@ -16,7 +16,6 @@ import (
 	"go/scanner"
 	"go/token"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -87,7 +86,7 @@ func firstComment(filename string) string {
 }
 
 func testTestDir(t *testing.T, path string, ignore ...string) {
-	files, err := ioutil.ReadDir(path)
+	files, err := os.ReadDir(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,6 +106,7 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		// get per-file instructions
 		expectErrors := false
 		filename := filepath.Join(path, f.Name())
+		goVersion := ""
 		if comment := firstComment(filename); comment != "" {
 			fields := strings.Fields(comment)
 			switch fields[0] {
@@ -116,12 +116,16 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 				expectErrors = true
 				for _, arg := range fields[1:] {
 					if arg == "-0" || arg == "-+" || arg == "-std" {
-						// Marked explicitly as not expected errors (-0),
+						// Marked explicitly as not expecting errors (-0),
 						// or marked as compiling runtime/stdlib, which is only done
 						// to trigger runtime/stdlib-only error output.
 						// In both cases, the code should typecheck.
 						expectErrors = false
 						break
+					}
+					const prefix = "-lang="
+					if strings.HasPrefix(arg, prefix) {
+						goVersion = arg[len(prefix):]
 					}
 				}
 			}
@@ -130,7 +134,7 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		// parse and type-check file
 		file, err := parser.ParseFile(fset, filename, nil, 0)
 		if err == nil {
-			conf := Config{Importer: stdLibImporter}
+			conf := Config{GoVersion: goVersion, Importer: stdLibImporter}
 			_, err = conf.Check(filename, fset, []*ast.File{file}, nil)
 		}
 
@@ -156,6 +160,9 @@ func TestStdTest(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
 		"directive.go",   // tests compiler rejection of bad directive placement - ignore
+		"embedfunc.go",   // tests //go:embed
+		"embedvers.go",   // tests //go:embed
+		"linkname2.go",   // go/types doesn't check validity of //go:xxx directives
 	)
 }
 
@@ -169,19 +176,15 @@ func TestStdFixed(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
 		"issue6889.go",   // gc-specific test
-		"issue7746.go",   // large constants - consumes too much memory
 		"issue11362.go",  // canonical import path check
 		"issue16369.go",  // go/types handles this correctly - not an issue
 		"issue18459.go",  // go/types doesn't check validity of //go:xxx directives
 		"issue18882.go",  // go/types doesn't check validity of //go:xxx directives
-		"issue20232.go",  // go/types handles larger constants than gc
 		"issue20529.go",  // go/types does not have constraints on stack size
 		"issue22200.go",  // go/types does not have constraints on stack size
 		"issue22200b.go", // go/types does not have constraints on stack size
 		"issue25507.go",  // go/types does not have constraints on stack size
 		"issue20780.go",  // go/types does not have constraints on stack size
-		"issue31747.go",  // go/types does not have constraints on language level (-lang=go1.12) (see #31793)
-		"issue34329.go",  // go/types does not have constraints on language level (-lang=go1.13) (see #31793)
 		"bug251.go",      // issue #34333 which was exposed with fix for #34151
 		"issue42058a.go", // go/types does not have constraints on channel element size
 		"issue42058b.go", // go/types does not have constraints on channel element size
@@ -297,7 +300,7 @@ func (w *walker) walk(dir string) {
 		return
 	}
 
-	fis, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		w.errh(err)
 		return
@@ -317,9 +320,9 @@ func (w *walker) walk(dir string) {
 	}
 
 	// traverse subdirectories, but don't walk into testdata
-	for _, fi := range fis {
-		if fi.IsDir() && fi.Name() != "testdata" {
-			w.walk(filepath.Join(dir, fi.Name()))
+	for _, f := range files {
+		if f.IsDir() && f.Name() != "testdata" {
+			w.walk(filepath.Join(dir, f.Name()))
 		}
 	}
 }

@@ -10,7 +10,7 @@ const (
 	c0   = 1 << 100
 	c1   = c0 * c0
 	c2   = c1 * c1
-	c3   = c2 * c2 // ERROR "overflow"
+	c3   = c2 * c2 // GC_ERROR "overflow"
 	c4   = c3 * c3
 	c5   = c4 * c4
 	c6   = c5 * c5
@@ -21,7 +21,7 @@ const (
 	c11  = c10 * c10
 	c12  = c11 * c11
 	c13  = c12 * c12
-	c14  = c13 * c13
+	c14  = c13 * c13 // GCCGO_ERROR "overflow"
 	c15  = c14 * c14
 	c16  = c15 * c15
 	c17  = c16 * c16

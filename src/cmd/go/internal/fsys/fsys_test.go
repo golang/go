@@ -8,7 +8,6 @@ import (
 	"internal/testenv"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -47,7 +46,7 @@ func initOverlay(t *testing.T, config string) {
 		if err := os.MkdirAll(filepath.Dir(name), 0777); err != nil {
 			t.Fatal(err)
 		}
-		if err := ioutil.WriteFile(name, f.Data, 0666); err != nil {
+		if err := os.WriteFile(name, f.Data, 0666); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -65,11 +65,14 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	pc := uintptr(c.rip())
 	sp := uintptr(c.rsp())
 
+	// In case we are panicking from external code, we need to initialize
+	// Go special registers. We inject sigpanic0 (instead of sigpanic),
+	// which takes care of that.
 	if shouldPushSigpanic(gp, pc, *(*uintptr)(unsafe.Pointer(sp))) {
-		c.pushCall(funcPC(sigpanic), pc)
+		c.pushCall(funcPC(sigpanic0), pc)
 	} else {
 		// Not safe to push the call. Just clobber the frame.
-		c.set_rip(uint64(funcPC(sigpanic)))
+		c.set_rip(uint64(funcPC(sigpanic0)))
 	}
 }
 

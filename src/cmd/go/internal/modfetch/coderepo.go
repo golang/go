@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path"
 	"sort"
@@ -966,7 +965,7 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 	subdir = strings.Trim(subdir, "/")
 
 	// Spool to local file.
-	f, err := ioutil.TempFile("", "go-codehost-")
+	f, err := os.CreateTemp("", "go-codehost-")
 	if err != nil {
 		dl.Close()
 		return err

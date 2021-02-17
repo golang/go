@@ -7,7 +7,6 @@ package filepath_test
 import (
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	. "path/filepath"
 	"reflect"
@@ -182,7 +181,7 @@ var globSymlinkTests = []struct {
 func TestGlobSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpDir, err := ioutil.TempDir("", "globsymlink")
+	tmpDir, err := os.MkdirTemp("", "globsymlink")
 	if err != nil {
 		t.Fatal("creating temp dir:", err)
 	}
@@ -268,7 +267,7 @@ func TestWindowsGlob(t *testing.T) {
 		t.Skipf("skipping windows specific test")
 	}
 
-	tmpDir, err := ioutil.TempDir("", "TestWindowsGlob")
+	tmpDir, err := os.MkdirTemp("", "TestWindowsGlob")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -302,7 +301,7 @@ func TestWindowsGlob(t *testing.T) {
 		}
 	}
 	for _, file := range files {
-		err := ioutil.WriteFile(Join(tmpDir, file), nil, 0666)
+		err := os.WriteFile(Join(tmpDir, file), nil, 0666)
 		if err != nil {
 			t.Fatal(err)
 		}

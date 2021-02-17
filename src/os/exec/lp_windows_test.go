@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -307,7 +306,7 @@ var lookPathTests = []lookPathTest{
 }
 
 func TestLookPath(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "TestLookPath")
+	tmp, err := os.MkdirTemp("", "TestLookPath")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
 	}
@@ -504,7 +503,7 @@ var commandTests = []commandTest{
 }
 
 func TestCommand(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "TestCommand")
+	tmp, err := os.MkdirTemp("", "TestCommand")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
 	}
@@ -529,7 +528,7 @@ func TestCommand(t *testing.T) {
 func buildPrintPathExe(t *testing.T, dir string) string {
 	const name = "printpath"
 	srcname := name + ".go"
-	err := ioutil.WriteFile(filepath.Join(dir, srcname), []byte(printpathSrc), 0644)
+	err := os.WriteFile(filepath.Join(dir, srcname), []byte(printpathSrc), 0644)
 	if err != nil {
 		t.Fatalf("failed to create source: %v", err)
 	}

@@ -7,13 +7,17 @@ package httputil
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"runtime"
+	"runtime/pprof"
 	"strings"
 	"testing"
+	"time"
 )
 
 type eofReader struct{}
@@ -311,11 +315,39 @@ func TestDumpRequest(t *testing.T) {
 			}
 		}
 	}
-	if dg := runtime.NumGoroutine() - numg0; dg > 4 {
-		buf := make([]byte, 4096)
-		buf = buf[:runtime.Stack(buf, true)]
-		t.Errorf("Unexpectedly large number of new goroutines: %d new: %s", dg, buf)
+
+	// Validate we haven't leaked any goroutines.
+	var dg int
+	dl := deadline(t, 5*time.Second, time.Second)
+	for time.Now().Before(dl) {
+		if dg = runtime.NumGoroutine() - numg0; dg <= 4 {
+			// No unexpected goroutines.
+			return
+		}
+
+		// Allow goroutines to schedule and die off.
+		runtime.Gosched()
 	}
+
+	buf := make([]byte, 4096)
+	buf = buf[:runtime.Stack(buf, true)]
+	t.Errorf("Unexpectedly large number of new goroutines: %d new: %s", dg, buf)
+}
+
+// deadline returns the time which is needed before t.Deadline()
+// if one is configured and it is s greater than needed in the future,
+// otherwise defaultDelay from the current time.
+func deadline(t *testing.T, defaultDelay, needed time.Duration) time.Time {
+	if dl, ok := t.Deadline(); ok {
+		if dl = dl.Add(-needed); dl.After(time.Now()) {
+			// Allow an arbitrarily long delay.
+			return dl
+		}
+	}
+
+	// No deadline configured or its closer than needed from now
+	// so just use the default.
+	return time.Now().Add(defaultDelay)
 }
 
 func chunk(s string) string {
@@ -442,6 +474,46 @@ func TestDumpResponse(t *testing.T) {
 
 		if got != tt.want {
 			t.Errorf("%d.\nDumpResponse got:\n%s\n\nWant:\n%s\n", i, got, tt.want)
+		}
+	}
+}
+
+// Issue 38352: Check for deadlock on cancelled requests.
+func TestDumpRequestOutIssue38352(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	t.Parallel()
+
+	timeout := 10 * time.Second
+	if deadline, ok := t.Deadline(); ok {
+		timeout = time.Until(deadline)
+		timeout -= time.Second * 2 // Leave 2 seconds to report failures.
+	}
+	for i := 0; i < 1000; i++ {
+		delay := time.Duration(rand.Intn(5)) * time.Millisecond
+		ctx, cancel := context.WithTimeout(context.Background(), delay)
+		defer cancel()
+
+		r := bytes.NewBuffer(make([]byte, 10000))
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://example.com", r)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out := make(chan error)
+		go func() {
+			_, err = DumpRequestOut(req, true)
+			out <- err
+		}()
+
+		select {
+		case <-out:
+		case <-time.After(timeout):
+			b := &bytes.Buffer{}
+			fmt.Fprintf(b, "deadlock detected on iteration %d after %s with delay: %v\n", i, timeout, delay)
+			pprof.Lookup("goroutine").WriteTo(b, 1)
+			t.Fatal(b.String())
 		}
 	}
 }

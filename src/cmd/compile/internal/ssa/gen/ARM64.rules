@@ -1151,7 +1151,7 @@
 (CMPW (MOVDconst [c]) x) => (InvertFlags (CMPWconst [int32(c)] x))
 
 // Canonicalize the order of arguments to comparisons - helps with CSE.
-((CMP|CMPW) x y) && x.ID > y.ID => (InvertFlags ((CMP|CMPW) y x))
+((CMP|CMPW) x y) && canonLessThan(x,y) => (InvertFlags ((CMP|CMPW) y x))
 
 // mul-neg => mneg
 (NEG (MUL x y)) => (MNEG x y)
@@ -1372,14 +1372,14 @@
 (MADDW a (MOVDconst [c]) (MOVDconst [d])) => (ADDconst [int64(int32(c)*int32(d))] a)
 (MSUB  a (MOVDconst [c]) (MOVDconst [d])) => (SUBconst [c*d] a)
 (MSUBW a (MOVDconst [c]) (MOVDconst [d])) => (SUBconst [int64(int32(c)*int32(d))] a)
-(DIV   (MOVDconst [c]) (MOVDconst [d])) => (MOVDconst [c/d])
-(UDIV  (MOVDconst [c]) (MOVDconst [d])) => (MOVDconst [int64(uint64(c)/uint64(d))])
-(DIVW  (MOVDconst [c]) (MOVDconst [d])) => (MOVDconst [int64(int32(c)/int32(d))])
-(UDIVW (MOVDconst [c]) (MOVDconst [d])) => (MOVDconst [int64(uint32(c)/uint32(d))])
-(MOD   (MOVDconst [c]) (MOVDconst [d])) => (MOVDconst [c%d])
-(UMOD  (MOVDconst [c]) (MOVDconst [d])) => (MOVDconst [int64(uint64(c)%uint64(d))])
-(MODW  (MOVDconst [c]) (MOVDconst [d])) => (MOVDconst [int64(int32(c)%int32(d))])
-(UMODW (MOVDconst [c]) (MOVDconst [d])) => (MOVDconst [int64(uint32(c)%uint32(d))])
+(DIV   (MOVDconst [c]) (MOVDconst [d])) && d != 0 => (MOVDconst [c/d])
+(UDIV  (MOVDconst [c]) (MOVDconst [d])) && d != 0 => (MOVDconst [int64(uint64(c)/uint64(d))])
+(DIVW  (MOVDconst [c]) (MOVDconst [d])) && d != 0 => (MOVDconst [int64(int32(c)/int32(d))])
+(UDIVW (MOVDconst [c]) (MOVDconst [d])) && d != 0 => (MOVDconst [int64(uint32(c)/uint32(d))])
+(MOD   (MOVDconst [c]) (MOVDconst [d])) && d != 0 => (MOVDconst [c%d])
+(UMOD  (MOVDconst [c]) (MOVDconst [d])) && d != 0 => (MOVDconst [int64(uint64(c)%uint64(d))])
+(MODW  (MOVDconst [c]) (MOVDconst [d])) && d != 0 => (MOVDconst [int64(int32(c)%int32(d))])
+(UMODW (MOVDconst [c]) (MOVDconst [d])) && d != 0 => (MOVDconst [int64(uint32(c)%uint32(d))])
 (ANDconst [c] (MOVDconst [d]))  => (MOVDconst [c&d])
 (ANDconst [c] (ANDconst [d] x)) => (ANDconst [c&d] x)
 (ANDconst [c] (MOVWUreg x)) => (ANDconst [c&(1<<32-1)] x)

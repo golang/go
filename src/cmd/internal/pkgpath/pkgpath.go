@@ -10,9 +10,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	exec "internal/execabs"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"strings"
 )
 
@@ -50,9 +50,12 @@ func ToSymbolFunc(cmd, tmpdir string) (func(string) string, error) {
 		return nil, err
 	}
 
-	// New mangling: expect go.l..u00e4ufer.Run
-	// Old mangling: expect go.l__ufer.Run
-	if bytes.Contains(buf, []byte("go.l..u00e4ufer.Run")) {
+	// Original mangling: go.l__ufer.Run
+	// Mangling v2: go.l..u00e4ufer.Run
+	// Mangling v3: go_0l_u00e4ufer.Run
+	if bytes.Contains(buf, []byte("go_0l_u00e4ufer.Run")) {
+		return toSymbolV3, nil
+	} else if bytes.Contains(buf, []byte("go.l..u00e4ufer.Run")) {
 		return toSymbolV2, nil
 	} else if bytes.Contains(buf, []byte("go.l__ufer.Run")) {
 		return toSymbolV1, nil
@@ -82,7 +85,7 @@ func toSymbolV1(ppath string) string {
 	return strings.Map(clean, ppath)
 }
 
-// toSymbolV2 converts a package path using the newer mangling scheme.
+// toSymbolV2 converts a package path using the second mangling scheme.
 func toSymbolV2(ppath string) string {
 	// This has to build at boostrap time, so it has to build
 	// with Go 1.4, so we don't use strings.Builder.
@@ -103,6 +106,63 @@ func toSymbolV2(ppath string) string {
 			enc = fmt.Sprintf("..u%04x", c)
 		default:
 			enc = fmt.Sprintf("..U%08x", c)
+		}
+		bsl = append(bsl, enc...)
+		changed = true
+	}
+	if !changed {
+		return ppath
+	}
+	return string(bsl)
+}
+
+// v3UnderscoreCodes maps from a character that supports an underscore
+// encoding to the underscore encoding character.
+var v3UnderscoreCodes = map[byte]byte{
+	'_': '_',
+	'.': '0',
+	'/': '1',
+	'*': '2',
+	',': '3',
+	'{': '4',
+	'}': '5',
+	'[': '6',
+	']': '7',
+	'(': '8',
+	')': '9',
+	'"': 'a',
+	' ': 'b',
+	';': 'c',
+}
+
+// toSymbolV3 converts a package path using the third mangling scheme.
+func toSymbolV3(ppath string) string {
+	// This has to build at boostrap time, so it has to build
+	// with Go 1.4, so we don't use strings.Builder.
+	bsl := make([]byte, 0, len(ppath))
+	changed := false
+	for _, c := range ppath {
+		if ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z') || ('0' <= c && c <= '9') {
+			bsl = append(bsl, byte(c))
+			continue
+		}
+
+		if c < 0x80 {
+			if u, ok := v3UnderscoreCodes[byte(c)]; ok {
+				bsl = append(bsl, '_', u)
+				changed = true
+				continue
+			}
+		}
+
+		var enc string
+		switch {
+		case c < 0x80:
+			enc = fmt.Sprintf("_x%02x", c)
+		case c < 0x10000:
+			enc = fmt.Sprintf("_u%04x", c)
+		default:
+			enc = fmt.Sprintf("_U%08x", c)
 		}
 		bsl = append(bsl, enc...)
 		changed = true

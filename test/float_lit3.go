@@ -37,12 +37,11 @@ var x = []interface{}{
 
 	// If the compiler's internal floating point representation
 	// is shorter than 1024 bits, it cannot distinguish max64+ulp64/2-1 and max64+ulp64/2.
-	// gc uses fewer than 1024 bits, so allow it to print the overflow error for the -1 case.
 	float64(max64 + ulp64/2 - two1024/two256), // ok
-	float64(max64 + ulp64/2 - 1),              // GC_ERROR "constant 1\.79769e\+308 overflows float64"
+	float64(max64 + ulp64/2 - 1),              // ok
 	float64(max64 + ulp64/2),                  // ERROR "constant 1\.79769e\+308 overflows float64"
 
 	float64(-max64 - ulp64/2 + two1024/two256), // ok
-	float64(-max64 - ulp64/2 + 1),              // GC_ERROR "constant -1\.79769e\+308 overflows float64"
+	float64(-max64 - ulp64/2 + 1),              // ok
 	float64(-max64 - ulp64/2),                  // ERROR "constant -1\.79769e\+308 overflows float64"
 }

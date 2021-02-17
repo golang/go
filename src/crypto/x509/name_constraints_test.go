@@ -14,7 +14,6 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"net/url"
@@ -2005,7 +2004,7 @@ func TestConstraintCases(t *testing.T) {
 }
 
 func writePEMsToTempFile(certs []*Certificate) *os.File {
-	file, err := ioutil.TempFile("", "name_constraints_test")
+	file, err := os.CreateTemp("", "name_constraints_test")
 	if err != nil {
 		panic("cannot create tempfile")
 	}

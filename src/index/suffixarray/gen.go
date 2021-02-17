@@ -11,8 +11,8 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 )
 
@@ -20,7 +20,7 @@ func main() {
 	log.SetPrefix("gen: ")
 	log.SetFlags(0)
 
-	data, err := ioutil.ReadFile("sais.go")
+	data, err := os.ReadFile("sais.go")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func main() {
 		}
 	}
 
-	if err := ioutil.WriteFile("sais2.go", buf.Bytes(), 0666); err != nil {
+	if err := os.WriteFile("sais2.go", buf.Bytes(), 0666); err != nil {
 		log.Fatal(err)
 	}
 }

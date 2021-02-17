@@ -92,6 +92,13 @@ func sendNote(s *byte) bool {
 	return true
 }
 
+// sigRecvPrepareForFixup is a no-op on plan9. (This would only be
+// called while GC is disabled.)
+//
+//go:nosplit
+func sigRecvPrepareForFixup() {
+}
+
 // Called to receive the next queued signal.
 // Must only be called from a single goroutine at a time.
 //go:linkname signal_recv os/signal.signal_recv

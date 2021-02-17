@@ -18,6 +18,12 @@ var testFsys = fstest.MapFS{
 		ModTime: time.Now(),
 		Sys:     &sysValue,
 	},
+	"sub/goodbye.txt": {
+		Data:    []byte("goodbye, world"),
+		Mode:    0456,
+		ModTime: time.Now(),
+		Sys:     &sysValue,
+	},
 }
 
 var sysValue int
@@ -39,5 +45,15 @@ func TestReadFile(t *testing.T) {
 	data, err = ReadFile(openOnly{testFsys}, "hello.txt")
 	if string(data) != "hello, world" || err != nil {
 		t.Fatalf(`ReadFile(openOnly, "hello.txt") = %q, %v, want %q, nil`, data, err, "hello, world")
+	}
+
+	// Test that ReadFile on Sub of . works (sub_test checks non-trivial subs).
+	sub, err := Sub(testFsys, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err = ReadFile(sub, "hello.txt")
+	if string(data) != "hello, world" || err != nil {
+		t.Fatalf(`ReadFile(sub(.), "hello.txt") = %q, %v, want %q, nil`, data, err, "hello, world")
 	}
 }

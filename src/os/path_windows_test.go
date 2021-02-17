@@ -5,7 +5,6 @@
 package os_test
 
 import (
-	"io/ioutil"
 	"os"
 	"strings"
 	"syscall"
@@ -48,7 +47,7 @@ func TestFixLongPath(t *testing.T) {
 }
 
 func TestMkdirAllExtendedLength(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "TestMkdirAllExtendedLength")
+	tmpDir, err := os.MkdirTemp("", "TestMkdirAllExtendedLength")
 	if err != nil {
 		t.Fatal(err)
 	}

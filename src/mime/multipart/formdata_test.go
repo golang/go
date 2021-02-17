@@ -53,20 +53,16 @@ func TestReadFormWithNamelessFile(t *testing.T) {
 	}
 }
 
-// Issue 40430: Ensure that we report integer overflows in additions of maxMemory,
-// instead of silently and subtly failing without indication.
+// Issue 40430: Handle ReadForm(math.MaxInt64)
 func TestReadFormMaxMemoryOverflow(t *testing.T) {
 	b := strings.NewReader(strings.ReplaceAll(messageWithTextContentType, "\n", "\r\n"))
 	r := NewReader(b, boundary)
 	f, err := r.ReadForm(math.MaxInt64)
-	if err == nil {
-		t.Fatal("Unexpected a non-nil error")
+	if err != nil {
+		t.Fatalf("ReadForm(MaxInt64): %v", err)
 	}
-	if f != nil {
-		t.Fatalf("Unexpected returned a non-nil form: %v\n", f)
-	}
-	if g, w := err.Error(), "integer overflow from maxMemory"; !strings.Contains(g, w) {
-		t.Errorf(`Error mismatch\n%q\ndid not contain\n%q`, g, w)
+	if f == nil {
+		t.Fatal("ReadForm(MaxInt64): missing form")
 	}
 }
 

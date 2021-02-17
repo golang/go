@@ -562,7 +562,7 @@ func (p *pageAlloc) scavengeUnreserve(r addrRange, gen uint32) {
 func (p *pageAlloc) scavengeOne(work addrRange, max uintptr, mayUnlock bool) (uintptr, addrRange) {
 	assertLockHeld(p.mheapLock)
 
-	// Defensively check if we've recieved an empty address range.
+	// Defensively check if we've received an empty address range.
 	// If so, just return.
 	if work.size() == 0 {
 		// Nothing to do.

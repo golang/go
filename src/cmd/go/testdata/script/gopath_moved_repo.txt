@@ -45,7 +45,6 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"log"
 	"os"
 )
@@ -57,11 +56,11 @@ func main() {
 
 	base := []byte(os.Args[1])
 	path := os.Args[2]
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile(path, bytes.ReplaceAll(data, base, append(base, "XXX"...)), 0644)
+	err = os.WriteFile(path, bytes.ReplaceAll(data, base, append(base, "XXX"...)), 0644)
 	if err != nil {
 		log.Fatal(err)
 	}

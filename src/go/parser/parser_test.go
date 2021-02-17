@@ -82,6 +82,14 @@ func TestParseDir(t *testing.T) {
 	}
 }
 
+func TestIssue42951(t *testing.T) {
+	path := "./testdata/issue42951"
+	_, err := ParseDir(token.NewFileSet(), path, nil, 0)
+	if err != nil {
+		t.Errorf("ParseDir(%s): %v", path, err)
+	}
+}
+
 func TestParseExpr(t *testing.T) {
 	// just kicking the tires:
 	// a valid arithmetic expression

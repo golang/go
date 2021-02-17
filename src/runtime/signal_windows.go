@@ -43,16 +43,9 @@ func initExceptionHandler() {
 //
 //go:nosplit
 func isAbort(r *context) bool {
-	switch GOARCH {
-	case "386", "amd64":
-		// In the case of an abort, the exception IP is one byte after
-		// the INT3 (this differs from UNIX OSes).
-		return isAbortPC(r.ip() - 1)
-	case "arm":
-		return isAbortPC(r.ip())
-	default:
-		return false
-	}
+	// In the case of an abort, the exception IP is one byte after
+	// the INT3 (this differs from UNIX OSes).
+	return isAbortPC(r.ip() - 1)
 }
 
 // isgoexception reports whether this exception should be translated

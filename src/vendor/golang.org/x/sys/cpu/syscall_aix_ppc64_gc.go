@@ -7,7 +7,7 @@
 // (See golang.org/issue/32102)
 
 // +build aix,ppc64
-// +build !gccgo
+// +build gc
 
 package cpu
 

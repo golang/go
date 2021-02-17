@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 )
 
@@ -36,32 +37,44 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
+		(*ast.StarExpr)(nil),
+		(*ast.UnaryExpr)(nil),
 	}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		x := n.(*ast.CallExpr)
-		if len(x.Args) != 1 {
-			return
-		}
-		if hasBasicType(pass.TypesInfo, x.Fun, types.UnsafePointer) &&
-			hasBasicType(pass.TypesInfo, x.Args[0], types.Uintptr) &&
-			!isSafeUintptr(pass.TypesInfo, x.Args[0]) {
-			pass.ReportRangef(x, "possible misuse of unsafe.Pointer")
+		switch x := n.(type) {
+		case *ast.CallExpr:
+			if len(x.Args) == 1 &&
+				hasBasicType(pass.TypesInfo, x.Fun, types.UnsafePointer) &&
+				hasBasicType(pass.TypesInfo, x.Args[0], types.Uintptr) &&
+				!isSafeUintptr(pass.TypesInfo, x.Args[0]) {
+				pass.ReportRangef(x, "possible misuse of unsafe.Pointer")
+			}
+		case *ast.StarExpr:
+			if t := pass.TypesInfo.Types[x].Type; isReflectHeader(t) {
+				pass.ReportRangef(x, "possible misuse of %s", t)
+			}
+		case *ast.UnaryExpr:
+			if x.Op != token.AND {
+				return
+			}
+			if t := pass.TypesInfo.Types[x.X].Type; isReflectHeader(t) {
+				pass.ReportRangef(x, "possible misuse of %s", t)
+			}
 		}
 	})
 	return nil, nil
 }
 
 // isSafeUintptr reports whether x - already known to be a uintptr -
-// is safe to convert to unsafe.Pointer. It is safe if x is itself derived
-// directly from an unsafe.Pointer via conversion and pointer arithmetic
-// or if x is the result of reflect.Value.Pointer or reflect.Value.UnsafeAddr
-// or obtained from the Data field of a *reflect.SliceHeader or *reflect.StringHeader.
+// is safe to convert to unsafe.Pointer.
 func isSafeUintptr(info *types.Info, x ast.Expr) bool {
-	switch x := x.(type) {
-	case *ast.ParenExpr:
-		return isSafeUintptr(info, x.X)
+	// Check unsafe.Pointer safety rules according to
+	// https://golang.org/pkg/unsafe/#Pointer.
 
+	switch x := analysisutil.Unparen(x).(type) {
 	case *ast.SelectorExpr:
+		// "(6) Conversion of a reflect.SliceHeader or
+		// reflect.StringHeader Data field to or from Pointer."
 		if x.Sel.Name != "Data" {
 			break
 		}
@@ -78,44 +91,56 @@ func isSafeUintptr(info *types.Info, x ast.Expr) bool {
 		// For now approximate by saying that *Header is okay
 		// but Header is not.
 		pt, ok := info.Types[x.X].Type.(*types.Pointer)
-		if ok {
-			t, ok := pt.Elem().(*types.Named)
-			if ok && t.Obj().Pkg().Path() == "reflect" {
-				switch t.Obj().Name() {
-				case "StringHeader", "SliceHeader":
-					return true
-				}
-			}
+		if ok && isReflectHeader(pt.Elem()) {
+			return true
 		}
 
 	case *ast.CallExpr:
-		switch len(x.Args) {
-		case 0:
-			// maybe call to reflect.Value.Pointer or reflect.Value.UnsafeAddr.
-			sel, ok := x.Fun.(*ast.SelectorExpr)
-			if !ok {
-				break
-			}
-			switch sel.Sel.Name {
-			case "Pointer", "UnsafeAddr":
-				t, ok := info.Types[sel.X].Type.(*types.Named)
-				if ok && t.Obj().Pkg().Path() == "reflect" && t.Obj().Name() == "Value" {
-					return true
-				}
-			}
-
-		case 1:
-			// maybe conversion of uintptr to unsafe.Pointer
-			return hasBasicType(info, x.Fun, types.Uintptr) &&
-				hasBasicType(info, x.Args[0], types.UnsafePointer)
+		// "(5) Conversion of the result of reflect.Value.Pointer or
+		// reflect.Value.UnsafeAddr from uintptr to Pointer."
+		if len(x.Args) != 0 {
+			break
 		}
-
-	case *ast.BinaryExpr:
-		switch x.Op {
-		case token.ADD, token.SUB, token.AND_NOT:
-			return isSafeUintptr(info, x.X) && !isSafeUintptr(info, x.Y)
+		sel, ok := x.Fun.(*ast.SelectorExpr)
+		if !ok {
+			break
+		}
+		switch sel.Sel.Name {
+		case "Pointer", "UnsafeAddr":
+			t, ok := info.Types[sel.X].Type.(*types.Named)
+			if ok && t.Obj().Pkg().Path() == "reflect" && t.Obj().Name() == "Value" {
+				return true
+			}
 		}
 	}
+
+	// "(3) Conversion of a Pointer to a uintptr and back, with arithmetic."
+	return isSafeArith(info, x)
+}
+
+// isSafeArith reports whether x is a pointer arithmetic expression that is safe
+// to convert to unsafe.Pointer.
+func isSafeArith(info *types.Info, x ast.Expr) bool {
+	switch x := analysisutil.Unparen(x).(type) {
+	case *ast.CallExpr:
+		// Base case: initial conversion from unsafe.Pointer to uintptr.
+		return len(x.Args) == 1 &&
+			hasBasicType(info, x.Fun, types.Uintptr) &&
+			hasBasicType(info, x.Args[0], types.UnsafePointer)
+
+	case *ast.BinaryExpr:
+		// "It is valid both to add and to subtract offsets from a
+		// pointer in this way. It is also valid to use &^ to round
+		// pointers, usually for alignment."
+		switch x.Op {
+		case token.ADD, token.SUB, token.AND_NOT:
+			// TODO(mdempsky): Match compiler
+			// semantics. ADD allows a pointer on either
+			// side; SUB and AND_NOT don't care about RHS.
+			return isSafeArith(info, x.X) && !isSafeArith(info, x.Y)
+		}
+	}
+
 	return false
 }
 
@@ -127,4 +152,17 @@ func hasBasicType(info *types.Info, x ast.Expr, kind types.BasicKind) bool {
 	}
 	b, ok := t.(*types.Basic)
 	return ok && b.Kind() == kind
+}
+
+// isReflectHeader reports whether t is reflect.SliceHeader or reflect.StringHeader.
+func isReflectHeader(t types.Type) bool {
+	if named, ok := t.(*types.Named); ok {
+		if obj := named.Obj(); obj.Pkg() != nil && obj.Pkg().Path() == "reflect" {
+			switch obj.Name() {
+			case "SliceHeader", "StringHeader":
+				return true
+			}
+		}
+	}
+	return false
 }

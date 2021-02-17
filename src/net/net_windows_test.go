@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
@@ -176,7 +175,7 @@ func runCmd(args ...string) ([]byte, error) {
 		}
 		return b
 	}
-	f, err := ioutil.TempFile("", "netcmd")
+	f, err := os.CreateTemp("", "netcmd")
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +188,7 @@ func runCmd(args ...string) ([]byte, error) {
 			return nil, fmt.Errorf("%s failed: %v: %q", args[0], err, string(removeUTF8BOM(out)))
 		}
 		var err2 error
-		out, err2 = ioutil.ReadFile(f.Name())
+		out, err2 = os.ReadFile(f.Name())
 		if err2 != nil {
 			return nil, err2
 		}
@@ -198,7 +197,7 @@ func runCmd(args ...string) ([]byte, error) {
 		}
 		return nil, fmt.Errorf("%s failed: %v", args[0], err)
 	}
-	out, err = ioutil.ReadFile(f.Name())
+	out, err = os.ReadFile(f.Name())
 	if err != nil {
 		return nil, err
 	}

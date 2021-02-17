@@ -206,23 +206,6 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
  *  go-routine
  */
 
-// void gosave(Gobuf*)
-// save state in Gobuf; setjmp
-TEXT runtime·gosave(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	buf+0(FP), R0
-	MOVW	R13, gobuf_sp(R0)
-	MOVW	LR, gobuf_pc(R0)
-	MOVW	g, gobuf_g(R0)
-	MOVW	$0, R11
-	MOVW	R11, gobuf_lr(R0)
-	MOVW	R11, gobuf_ret(R0)
-	// Assert ctxt is zero. See func save.
-	MOVW	gobuf_ctxt(R0), R0
-	CMP	R0, R11
-	B.EQ	2(PC)
-	CALL	runtime·badctxt(SB)
-	RET
-
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB),NOSPLIT,$8-4
@@ -421,7 +404,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	B runtime·morestack(SB)
 
 // reflectcall: call a function with the given argument list
-// func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
+// func call(stackArgsType *_type, f *FuncVal, stackArgs *byte, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs).
 // we don't have variable-sized frames, so we use a small number
 // of constant-sized-frame functions to encode a few bits of size in the pc.
 // Caution: ugly multiline assembly macros in your future!
@@ -432,8 +415,8 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	$NAME(SB), R1;		\
 	B	(R1)
 
-TEXT ·reflectcall(SB),NOSPLIT|NOFRAME,$0-20
-	MOVW	argsize+12(FP), R0
+TEXT ·reflectcall(SB),NOSPLIT|NOFRAME,$0-28
+	MOVW	frameSize+20(FP), R0
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
@@ -465,11 +448,11 @@ TEXT ·reflectcall(SB),NOSPLIT|NOFRAME,$0-20
 	B	(R1)
 
 #define CALLFN(NAME,MAXSIZE)			\
-TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
+TEXT NAME(SB), WRAPPER, $MAXSIZE-28;		\
 	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
-	MOVW	argptr+8(FP), R0;		\
-	MOVW	argsize+12(FP), R2;		\
+	MOVW	stackArgs+8(FP), R0;		\
+	MOVW	stackArgsSize+12(FP), R2;		\
 	ADD	$4, R13, R1;			\
 	CMP	$0, R2;				\
 	B.EQ	5(PC);				\
@@ -483,10 +466,10 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	BL	(R0);				\
 	/* copy return values back */		\
-	MOVW	argtype+0(FP), R4;		\
-	MOVW	argptr+8(FP), R0;		\
-	MOVW	argsize+12(FP), R2;		\
-	MOVW	retoffset+16(FP), R3;		\
+	MOVW	stackArgsType+0(FP), R4;		\
+	MOVW	stackArgs+8(FP), R0;		\
+	MOVW	stackArgsSize+12(FP), R2;		\
+	MOVW	stackArgsRetOffset+16(FP), R3;		\
 	ADD	$4, R13, R1;			\
 	ADD	R3, R1;				\
 	ADD	R3, R0;				\
@@ -498,11 +481,13 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
 // separate function so it can allocate stack space for the arguments
 // to reflectcallmove. It does not follow the Go ABI; it expects its
 // arguments in registers.
-TEXT callRet<>(SB), NOSPLIT, $16-0
+TEXT callRet<>(SB), NOSPLIT, $20-0
 	MOVW	R4, 4(R13)
 	MOVW	R0, 8(R13)
 	MOVW	R1, 12(R13)
 	MOVW	R2, 16(R13)
+	MOVW	$0, R7
+	MOVW	R7, 20(R13)
 	BL	runtime·reflectcallmove(SB)
 	RET
 

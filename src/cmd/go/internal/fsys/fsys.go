@@ -86,7 +86,7 @@ func Init(wd string) error {
 		return nil
 	}
 
-	b, err := ioutil.ReadFile(OverlayFile)
+	b, err := os.ReadFile(OverlayFile)
 	if err != nil {
 		return fmt.Errorf("reading overlay file: %v", err)
 	}
@@ -327,12 +327,22 @@ func OverlayPath(path string) (string, bool) {
 
 // Open opens the file at or overlaid on the given path.
 func Open(path string) (*os.File, error) {
+	return OpenFile(path, os.O_RDONLY, 0)
+}
+
+// OpenFile opens the file at or overlaid on the given path with the flag and perm.
+func OpenFile(path string, flag int, perm os.FileMode) (*os.File, error) {
 	cpath := canonicalize(path)
 	if node, ok := overlay[cpath]; ok {
+		// Opening a file in the overlay.
 		if node.isDir() {
-			return nil, &fs.PathError{Op: "Open", Path: path, Err: errors.New("fsys.Open doesn't support opening directories yet")}
+			return nil, &fs.PathError{Op: "OpenFile", Path: path, Err: errors.New("fsys.OpenFile doesn't support opening directories yet")}
 		}
-		return os.Open(node.actualFilePath)
+		// We can't open overlaid paths for write.
+		if perm != os.FileMode(os.O_RDONLY) {
+			return nil, &fs.PathError{Op: "OpenFile", Path: path, Err: errors.New("overlaid files can't be opened for write")}
+		}
+		return os.OpenFile(node.actualFilePath, flag, perm)
 	}
 	if parent, ok := parentIsOverlayFile(filepath.Dir(cpath)); ok {
 		// The file is deleted explicitly in the Replace map,
@@ -344,7 +354,7 @@ func Open(path string) (*os.File, error) {
 			Err:  fmt.Errorf("file %s does not exist: parent directory %s is replaced by a file in overlay", path, parent),
 		}
 	}
-	return os.Open(cpath)
+	return os.OpenFile(cpath, flag, perm)
 }
 
 // IsDirWithGoFiles reports whether dir is a directory containing Go files

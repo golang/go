@@ -14,8 +14,8 @@ func G() (int, int, int) {
 }
 
 func F() {
-	a, b := G()	// ERROR "assignment mismatch"
-	a, b = G()	// ERROR "assignment mismatch"
+	a, b := G()	// ERROR "mismatch"
+	a, b = G()	// ERROR "mismatch"
 	_, _ = a, b
 }
 

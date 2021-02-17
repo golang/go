@@ -11,7 +11,6 @@ import (
 	"internal/testenv"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"math"
 	"os"
 	"path"
@@ -263,7 +262,7 @@ func TestFileInfoHeaderDir(t *testing.T) {
 func TestFileInfoHeaderSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpdir, err := ioutil.TempDir("", "TestFileInfoHeaderSymlink")
+	tmpdir, err := os.MkdirTemp("", "TestFileInfoHeaderSymlink")
 	if err != nil {
 		t.Fatal(err)
 	}

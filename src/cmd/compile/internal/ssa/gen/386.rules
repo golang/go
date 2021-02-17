@@ -475,7 +475,7 @@
 (CMPB (MOVLconst [c]) x) => (InvertFlags (CMPBconst x [int8(c)]))
 
 // Canonicalize the order of arguments to comparisons - helps with CSE.
-(CMP(L|W|B) x y) && x.ID > y.ID => (InvertFlags (CMP(L|W|B) y x))
+(CMP(L|W|B) x y) && canonLessThan(x,y) => (InvertFlags (CMP(L|W|B) y x))
 
 // strength reduction
 // Assumes that the following costs from https://gmplib.org/~tege/x86-timing.pdf:
@@ -531,6 +531,7 @@
 // fold ADDL into LEAL
 (ADDLconst [c] (LEAL [d] {s} x)) && is32Bit(int64(c)+int64(d)) => (LEAL [c+d] {s} x)
 (LEAL [c] {s} (ADDLconst [d] x)) && is32Bit(int64(c)+int64(d)) => (LEAL [c+d] {s} x)
+(ADDLconst [c] x:(SP)) => (LEAL [c] x) // so it is rematerializeable
 (LEAL [c] {s} (ADDL x y)) && x.Op != OpSB && y.Op != OpSB => (LEAL1 [c] {s} x y)
 (ADDL x (LEAL [c] {s} y)) && x.Op != OpSB && y.Op != OpSB => (LEAL1 [c] {s} x y)
 

@@ -12,7 +12,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"mime/multipart"
 	. "net/http"
@@ -285,7 +284,7 @@ func TestMaxInt64ForMultipartFormMaxMemoryOverflow(t *testing.T) {
 		t.Fatal(err)
 	}
 	res.Body.Close()
-	if g, w := res.StatusCode, StatusBadRequest; g != w {
+	if g, w := res.StatusCode, StatusOK; g != w {
 		t.Fatalf("Status code mismatch: got %d, want %d", g, w)
 	}
 }
@@ -1164,7 +1163,7 @@ func BenchmarkFileAndServer_64MB(b *testing.B) {
 }
 
 func benchmarkFileAndServer(b *testing.B, n int64) {
-	f, err := ioutil.TempFile(os.TempDir(), "go-bench-http-file-and-server")
+	f, err := os.CreateTemp(os.TempDir(), "go-bench-http-file-and-server")
 	if err != nil {
 		b.Fatalf("Failed to create temp file: %v", err)
 	}

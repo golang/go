@@ -94,9 +94,7 @@ func (f *xcoffFile) pcln() (textStart uint64, symtab, pclntab []byte, err error)
 	if pclntab, err = loadXCOFFTable(f.xcoff, "runtime.pclntab", "runtime.epclntab"); err != nil {
 		return 0, nil, nil, err
 	}
-	if symtab, err = loadXCOFFTable(f.xcoff, "runtime.symtab", "runtime.esymtab"); err != nil {
-		return 0, nil, nil, err
-	}
+	symtab, _ = loadXCOFFTable(f.xcoff, "runtime.symtab", "runtime.esymtab") // ignore error, this symbol is not useful anyway
 	return textStart, symtab, pclntab, nil
 }
 

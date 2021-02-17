@@ -104,7 +104,8 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
 	// GDB will assign a line number of zero the last row in the line
 	// table, which we don't want.
 	lastlen := uint64(s.Size - (lastpc - s.Func().Text.Pc))
-	putpclcdelta(ctxt, dctxt, lines, lastlen, 0)
+	dctxt.AddUint8(lines, dwarf.DW_LNS_advance_pc)
+	dwarf.Uleb128put(dctxt, lines, int64(lastlen))
 	dctxt.AddUint8(lines, 0) // start extended opcode
 	dwarf.Uleb128put(dctxt, lines, 1)
 	dctxt.AddUint8(lines, dwarf.DW_LNE_end_sequence)

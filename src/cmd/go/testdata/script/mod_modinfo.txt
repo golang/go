@@ -69,7 +69,6 @@ package main
 import (
 	"bytes"
 	"encoding/hex"
-	"io/ioutil"
 	"log"
 	"os"
 
@@ -77,7 +76,7 @@ import (
 )
 
 func main() {
-	b, err := ioutil.ReadFile(os.Args[0])
+	b, err := os.ReadFile(os.Args[0])
 	if err != nil {
 		log.Fatal(err)
 	}

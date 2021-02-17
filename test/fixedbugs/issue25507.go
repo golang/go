@@ -16,14 +16,14 @@ type large struct {
 	b [1500000000]byte
 }
 
-func (x large) f1() int { // ERROR "stack frame too large"
+func (x large) f1() int { // GC_ERROR "stack frame too large"
 	return 5
 }
 
-func f2(x large) int { // ERROR "stack frame too large"
+func f2(x large) int { // GC_ERROR "stack frame too large"
 	return 5
 }
 
-func f3() (x large, i int) { // ERROR "stack frame too large"
+func f3() (x large, i int) { // GC_ERROR "stack frame too large"
 	return
 }
