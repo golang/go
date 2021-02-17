@@ -539,16 +539,32 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 
 	// Populate SSAable arguments.
 	for _, n := range fn.Dcl {
-		if n.Class == ir.PPARAM && s.canSSA(n) {
-			var v *ssa.Value
-			if n.Sym().Name == ".fp" {
-				// Race-detector's get-caller-pc incantation is NOT a real Arg.
-				v = s.newValue0(ssa.OpGetCallerPC, n.Type())
-			} else {
-				v = s.newValue0A(ssa.OpArg, n.Type(), n)
+		if n.Class == ir.PPARAM {
+			if s.canSSA(n) {
+				var v *ssa.Value
+				if n.Sym().Name == ".fp" {
+					// Race-detector's get-caller-pc incantation is NOT a real Arg.
+					v = s.newValue0(ssa.OpGetCallerPC, n.Type())
+				} else {
+					v = s.newValue0A(ssa.OpArg, n.Type(), n)
+				}
+				s.vars[n] = v
+				s.addNamedValue(n, v) // This helps with debugging information, not needed for compilation itself.
+			} else if !s.canSSAName(n) { // I.e., the address was taken.  The type may or may not be okay.
+				// If the value will arrive in registers,
+				// AND if it can be SSA'd (if it cannot, panic for now),
+				// THEN
+				// (1) receive it as an OpArg (but do not store its name in the var table)
+				// (2) store it to its spill location, which is its address as well.
+				paramAssignment := ssa.ParamAssignmentForArgName(s.f, n)
+				if len(paramAssignment.Registers) > 0 {
+					if !TypeOK(n.Type()) { // TODO register args -- if v is not an SSA-able type, must decompose, here.
+						panic(fmt.Errorf("Arg in registers is too big to be SSA'd, need to implement decomposition, type=%v, n=%v", n.Type(), n))
+					}
+					v := s.newValue0A(ssa.OpArg, n.Type(), n)
+					s.store(n.Type(), s.decladdrs[n], v)
+				}
 			}
-			s.vars[n] = v
-			s.addNamedValue(n, v) // This helps with debugging information, not needed for compilation itself.
 		}
 	}
 
@@ -6545,6 +6561,8 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 				// memory arg needs no code
 			case ssa.OpArg:
 				// input args need no code
+			case ssa.OpArgIntReg, ssa.OpArgFloatReg:
+				CheckArgReg(v)
 			case ssa.OpSP, ssa.OpSB:
 				// nothing to do
 			case ssa.OpSelect0, ssa.OpSelect1, ssa.OpSelectN:

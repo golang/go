@@ -1517,6 +1517,9 @@ func (s *regAllocState) regalloc(f *Func) {
 					}
 					s.f.setHome(v, outLocs)
 					// Note that subsequent SelectX instructions will do the assignReg calls.
+				} else if v.Type.IsResults() {
+					// TODO register arguments need to make this work
+					panic("Oops, implement this.")
 				} else {
 					if r := outRegs[0]; r != noRegister {
 						s.assignReg(r, v, v)
