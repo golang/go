@@ -50,7 +50,7 @@ func new[T any]() *T {
 // result type from the assignment to keep things simple and
 // easy to understand.
 var _ = new[int]()
-var _ *float64 = new(float64)() // the result type is indeed *float64
+var _ *float64 = new[float64]() // the result type is indeed *float64
 
 // A function may have multiple type parameters, of course.
 func foo[A, B, C any](a A, b []B, c *C) B {
@@ -59,7 +59,7 @@ func foo[A, B, C any](a A, b []B, c *C) B {
 }
 
 // As before, we can pass type parameters explicitly.
-var s = foo[int, string, float64](1, []string{"first"}, new(float64)())
+var s = foo[int, string, float64](1, []string{"first"}, new[float64]())
 
 // Or we can use type inference.
 var _ float64 = foo(42, []float64{1.0}, &s)

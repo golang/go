@@ -38,7 +38,7 @@ var _ = f(0 /* ERROR cannot use 0 .* as \[\]chan int */ )
 func swap[A, B any](a A, b B) (B, A) { return b, a }
 
 var _ = swap /* ERROR single value is expected */ [int, float32](1, 2)
-var f32, i = swap[int, float32](swap(float32, int)(1, 2))
+var f32, i = swap[int, float32](swap[float32, int](1, 2))
 var _ float32 = f32
 var _ int = i
 
@@ -76,11 +76,11 @@ var _ *int = new[int]()
 func _[T any](map[T /* ERROR incomparable map key type T \(missing comparable constraint\) */]int) // w/o constraint we don't know if T is comparable
 
 func f1[T1 any](struct{T1}) int
-var _ = f1(int)(struct{T1}{})
+var _ = f1[int](struct{T1}{})
 type T1 = int
 
 func f2[t1 any](struct{t1; x float32}) int
-var _ = f2(t1)(struct{t1; x float32}{})
+var _ = f2[t1](struct{t1; x float32}{})
 type t1 = int
 
 
@@ -216,9 +216,9 @@ var _ = f8(1) /* ERROR not enough arguments */
 var _ = f8(1, 2.3)
 var _ = f8(1, 2.3, 3.4, 4.5)
 var _ = f8(1, 2.3, 3.4, 4 /* ERROR does not match */ )
-var _ = f8(int, float64)(1, 2.3, 3.4, 4)
+var _ = f8[int, float64](1, 2.3, 3.4, 4)
 
-var _ = f8(int, float64)(0, 0, nil...) // test case for #18268
+var _ = f8[int, float64](0, 0, nil...) // test case for #18268
 
 // init functions cannot have type parameters
 
@@ -271,7 +271,7 @@ type A[T any] T
 func (a A[T]) m() A[T]
 
 func _[T any]() {
-	f12(A[T])()
+	f12[A[T]]()
 }
 
 // method expressions

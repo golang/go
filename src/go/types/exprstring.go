@@ -72,6 +72,14 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 		WriteExpr(buf, x.Index)
 		buf.WriteByte(']')
 
+	case *ast.ListExpr:
+		for i, e := range x.ElemList {
+			if i > 0 {
+				buf.WriteString(", ")
+			}
+			WriteExpr(buf, e)
+		}
+
 	case *ast.SliceExpr:
 		WriteExpr(buf, x.X)
 		buf.WriteByte('[')
@@ -98,16 +106,12 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 
 	case *ast.CallExpr:
 		WriteExpr(buf, x.Fun)
-		var l, r byte = '(', ')'
-		if x.Brackets {
-			l, r = '[', ']'
-		}
-		buf.WriteByte(l)
+		buf.WriteByte('(')
 		writeExprList(buf, x.Args)
 		if x.Ellipsis.IsValid() {
 			buf.WriteString("...")
 		}
-		buf.WriteByte(r)
+		buf.WriteByte(')')
 
 	case *ast.StarExpr:
 		buf.WriteByte('*')

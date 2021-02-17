@@ -870,7 +870,11 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		// TODO(gri): should treat[] like parentheses and undo one level of depth
 		p.expr1(x.X, token.HighestPrec, 1)
 		p.print(x.Lbrack, token.LBRACK)
-		p.expr0(x.Index, depth+1)
+		if e, _ := x.Index.(*ast.ListExpr); e != nil {
+			p.exprList(x.Lbrack, e.ElemList, depth+1, commaTerm, x.Rbrack, false)
+		} else {
+			p.expr0(x.Index, depth+1)
+		}
 		p.print(x.Rbrack, token.RBRACK)
 
 	case *ast.SliceExpr:
@@ -919,32 +923,25 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 			depth++
 		}
 		var wasIndented bool
-		if x.Brackets {
+		if _, ok := x.Fun.(*ast.FuncType); ok {
+			// conversions to literal function types require parentheses around the type
+			p.print(token.LPAREN)
 			wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
-			p.print(x.Lparen, token.LBRACK)
-			p.exprList(x.Lparen, x.Args, depth, commaTerm, x.Rparen, false)
-			p.print(x.Rparen, token.RBRACK)
+			p.print(token.RPAREN)
 		} else {
-			if _, ok := x.Fun.(*ast.FuncType); ok {
-				// conversions to literal function types require parentheses around the type
-				p.print(token.LPAREN)
-				wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
-				p.print(token.RPAREN)
-			} else {
-				wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
-			}
-			p.print(x.Lparen, token.LPAREN)
-			if x.Ellipsis.IsValid() {
-				p.exprList(x.Lparen, x.Args, depth, 0, x.Ellipsis, false)
-				p.print(x.Ellipsis, token.ELLIPSIS)
-				if x.Rparen.IsValid() && p.lineFor(x.Ellipsis) < p.lineFor(x.Rparen) {
-					p.print(token.COMMA, formfeed)
-				}
-			} else {
-				p.exprList(x.Lparen, x.Args, depth, commaTerm, x.Rparen, false)
-			}
-			p.print(x.Rparen, token.RPAREN)
+			wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
 		}
+		p.print(x.Lparen, token.LPAREN)
+		if x.Ellipsis.IsValid() {
+			p.exprList(x.Lparen, x.Args, depth, 0, x.Ellipsis, false)
+			p.print(x.Ellipsis, token.ELLIPSIS)
+			if x.Rparen.IsValid() && p.lineFor(x.Ellipsis) < p.lineFor(x.Rparen) {
+				p.print(token.COMMA, formfeed)
+			}
+		} else {
+			p.exprList(x.Lparen, x.Args, depth, commaTerm, x.Rparen, false)
+		}
+		p.print(x.Rparen, token.RPAREN)
 		if wasIndented {
 			p.print(unindent)
 		}
