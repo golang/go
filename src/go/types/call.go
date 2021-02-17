@@ -14,25 +14,103 @@ import (
 	"unicode"
 )
 
-// TODO(rFindley) this has diverged a bit from types2. Bring it up to date.
-// If call == nil, the "call" was an index expression, and orig is of type *ast.IndexExpr.
-func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKind {
-	assert(orig != nil)
-	if call != nil {
-		assert(call == orig)
-		check.exprOrType(x, call.Fun)
-	} else {
-		// We must have an index expression.
-		// x has already been set up (evaluation of orig.X).
-		// Set up fake call so we can use its fields below.
-		expr := orig.(*ast.IndexExpr)
-		call = &ast.CallExpr{Fun: expr.X, Lparen: expr.Lbrack, Args: []ast.Expr{expr.Index}, Rparen: expr.Rbrack, Brackets: true}
+// funcInst type-checks a function instantiaton inst and returns the result in x.
+// The operand x must be the evaluation of inst.X and its type must be a signature.
+func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
+	args, ok := check.exprOrTypeList(unpackExpr(inst.Index))
+	if !ok {
+		x.mode = invalid
+		x.expr = inst
+		return
 	}
+	if len(args) > 0 && args[0].mode != typexpr {
+		check.errorf(args[0], _NotAType, "%s is not a type", args[0])
+		ok = false
+	}
+
+	// check number of type arguments
+	n := len(args)
+	sig := x.typ.(*Signature)
+	if n > len(sig.tparams) {
+		check.errorf(args[n-1], _Todo, "got %d type arguments but want %d", n, len(sig.tparams))
+		x.mode = invalid
+		x.expr = inst
+		return
+	}
+
+	// collect types
+	targs := make([]Type, n)
+	// TODO(rFindley) use a positioner here? instantiate would need to be
+	//                updated accordingly.
+	poslist := make([]token.Pos, n)
+	for i, a := range args {
+		if a.mode != typexpr {
+			// error was reported earlier
+			x.mode = invalid
+			x.expr = inst
+			return
+		}
+		targs[i] = a.typ
+		poslist[i] = a.Pos()
+	}
+
+	// if we don't have enough type arguments, use constraint type inference
+	var inferred bool
+	if n < len(sig.tparams) {
+		var failed int
+		targs, failed = check.inferB(sig.tparams, targs)
+		if targs == nil {
+			// error was already reported
+			x.mode = invalid
+			x.expr = inst
+			return
+		}
+		if failed >= 0 {
+			// at least one type argument couldn't be inferred
+			assert(targs[failed] == nil)
+			tpar := sig.tparams[failed]
+			check.errorf(inNode(inst, inst.Rbrack), 0, "cannot infer %s (%v) (%s)", tpar.name, tpar.pos, targs)
+			x.mode = invalid
+			x.expr = inst
+			return
+		}
+		// all type arguments were inferred sucessfully
+		if debug {
+			for _, targ := range targs {
+				assert(targ != nil)
+			}
+		}
+		n = len(targs)
+		inferred = true
+	}
+	assert(n == len(sig.tparams))
+
+	// instantiate function signature
+	for i, typ := range targs {
+		// some positions may be missing if types are inferred
+		var pos token.Pos
+		if i < len(poslist) {
+			pos = poslist[i]
+		}
+		check.ordinaryType(atPos(pos), typ)
+	}
+	res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
+	assert(res.tparams == nil) // signature is not generic anymore
+	if inferred {
+		check.recordInferred(inst, targs, res)
+	}
+	x.typ = res
+	x.mode = value
+	x.expr = inst
+}
+
+func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
+	check.exprOrType(x, call.Fun)
 
 	switch x.mode {
 	case invalid:
 		check.use(call.Args...)
-		x.expr = orig
+		x.expr = call
 		return statement
 
 	case typexpr:
@@ -72,7 +150,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKi
 			check.use(call.Args...)
 			check.errorf(call.Args[n-1], _WrongArgCount, "too many arguments in conversion to %s", T)
 		}
-		x.expr = orig
+		x.expr = call
 		return conversion
 
 	case builtin:
@@ -80,7 +158,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKi
 		if !check.builtin(x, call, id) {
 			x.mode = invalid
 		}
-		x.expr = orig
+		x.expr = call
 		// a non-constant result implies a function call
 		if x.mode != invalid && x.mode != constant_ {
 			check.hasCallOrRecv = true
@@ -95,108 +173,17 @@ func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKi
 		if sig == nil {
 			check.invalidOp(x, _InvalidCall, "cannot call non-function %s", x)
 			x.mode = invalid
-			x.expr = orig
+			x.expr = call
 			return statement
 		}
 
 		// evaluate arguments
 		args, ok := check.exprOrTypeList(call.Args)
-		if ok && call.Brackets && len(args) > 0 && args[0].mode != typexpr {
-			check.errorf(args[0], _NotAType, "%s is not a type", args[0])
-			ok = false
-		}
 		if !ok {
 			x.mode = invalid
-			x.expr = orig
+			x.expr = call
 			return expression
 		}
-
-		// instantiate function if needed
-		if n := len(args); n > 0 && len(sig.tparams) > 0 && args[0].mode == typexpr {
-			// If the first argument is a type, assume we have explicit type arguments.
-
-			// check number of type arguments
-			if n > len(sig.tparams) {
-				check.errorf(args[n-1], _Todo, "got %d type arguments but want %d", n, len(sig.tparams))
-				x.mode = invalid
-				x.expr = orig
-				return expression
-			}
-
-			// collect types
-			targs := make([]Type, n)
-			// TODO(rFindley) use a positioner here? instantiate would need to be
-			//                updated accordingly.
-			poslist := make([]token.Pos, n)
-			for i, a := range args {
-				if a.mode != typexpr {
-					// error was reported earlier
-					x.mode = invalid
-					x.expr = orig
-					return expression
-				}
-				targs[i] = a.typ
-				poslist[i] = a.Pos()
-			}
-
-			// if we don't have enough type arguments, use constraint type inference
-			var inferred bool
-			if n < len(sig.tparams) {
-				var failed int
-				targs, failed = check.inferB(sig.tparams, targs)
-				if targs == nil {
-					// error was already reported
-					x.mode = invalid
-					x.expr = orig
-					return expression
-				}
-				if failed >= 0 {
-					// at least one type argument couldn't be inferred
-					assert(targs[failed] == nil)
-					tpar := sig.tparams[failed]
-					ppos := check.fset.Position(tpar.pos).String()
-					check.errorf(inNode(call, call.Rparen), 0, "cannot infer %s (%s) (%s)", tpar.name, ppos, targs)
-					x.mode = invalid
-					x.expr = orig
-					return expression
-				}
-				// all type arguments were inferred sucessfully
-				if debug {
-					for _, targ := range targs {
-						assert(targ != nil)
-					}
-				}
-				n = len(targs)
-				inferred = true
-			}
-			assert(n == len(sig.tparams))
-
-			// instantiate function signature
-			for i, typ := range targs {
-				// some positions may be missing if types are inferred
-				var pos token.Pos
-				if i < len(poslist) {
-					pos = poslist[i]
-				}
-				check.ordinaryType(atPos(pos), typ)
-			}
-			res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
-			assert(res.tparams == nil) // signature is not generic anymore
-			if inferred {
-				check.recordInferred(orig, targs, res)
-			}
-			x.typ = res
-			x.mode = value
-			x.expr = orig
-			return expression
-		}
-
-		// If we reach here, orig must have been a regular call, not an index
-		// expression.
-		// TODO(rFindley) with a manually constructed AST it is possible to reach
-		//                this assertion. We should return an invalidAST error here
-		//                rather than panicking.
-		assert(!call.Brackets)
 
 		sig = check.arguments(call, sig, args)
 

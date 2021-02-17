@@ -21,7 +21,7 @@ func _() {
 	eql(x, x)
 	eql(y, y)
 	eql(y, nil)
-	eql(io.Reader)(nil, nil)
+	eql[io.Reader](nil, nil)
 }
 
 // If we have a receiver of pointer type (below: *T) we must ignore
@@ -55,8 +55,8 @@ func (T) m1()
 func (*T) m2()
 
 func _() {
-	f2(T /* ERROR wrong method signature */ )()
-	f2(*T)()
+	f2[T /* ERROR wrong method signature */]()
+	f2[*T]()
 }
 
 // When a type parameter is used as an argument to instantiate a parameterized
@@ -244,7 +244,7 @@ func append[T interface{}, S sliceOf[T], T2 interface{ type T }](s S, t ...T2) S
 
 var f           func()
 var cancelSlice []context.CancelFunc
-var _ = append(context.CancelFunc, []context.CancelFunc, context.CancelFunc)(cancelSlice, f)
+var _ = append[context.CancelFunc, []context.CancelFunc, context.CancelFunc](cancelSlice, f)
 
 // A generic function must be instantiated with a type, not a value.
 

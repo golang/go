@@ -208,21 +208,28 @@ func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
 			new.X = X
 			return &new
 		}
-	case *ast.CallExpr:
-		var args []ast.Expr
-		for i, arg := range n.Args {
-			new := isubst(arg, smap)
-			if new != arg {
-				if args == nil {
-					args = make([]ast.Expr, len(n.Args))
-					copy(args, n.Args)
+	case *ast.IndexExpr:
+		index := isubst(n.Index, smap)
+		if index != n.Index {
+			new := *n
+			new.Index = index
+			return &new
+		}
+	case *ast.ListExpr:
+		var elems []ast.Expr
+		for i, elem := range n.ElemList {
+			new := isubst(elem, smap)
+			if new != elem {
+				if elems == nil {
+					elems = make([]ast.Expr, len(n.ElemList))
+					copy(elems, n.ElemList)
 				}
-				args[i] = new
+				elems[i] = new
 			}
 		}
-		if args != nil {
+		if elems != nil {
 			new := *n
-			new.Args = args
+			new.ElemList = elems
 			return &new
 		}
 	case *ast.ParenExpr:
@@ -460,14 +467,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		}
 
 	case *ast.IndexExpr:
-		return check.instantiatedType(e.X, []ast.Expr{e.Index}, def)
-
-	case *ast.CallExpr:
-		if e.Brackets {
-			return check.instantiatedType(e.Fun, e.Args, def)
-		} else {
-			check.errorf(e0, _NotAType, "%s is not a type", e0)
-		}
+		return check.instantiatedType(e.X, unpackExpr(e.Index), def)
 
 	case *ast.ParenExpr:
 		// Generic types must be instantiated before they can be used in any form.
@@ -1158,10 +1158,6 @@ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
 		return e.Sel
 	case *ast.IndexExpr:
 		return embeddedFieldIdent(e.X)
-	case *ast.CallExpr:
-		if e.Brackets {
-			return embeddedFieldIdent(e.Fun)
-		}
 	}
 	return nil // invalid embedded field
 }
