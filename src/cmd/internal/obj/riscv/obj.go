@@ -1214,60 +1214,77 @@ func validateRIII(ctxt *obj.Link, ins *instruction) {
 	wantIntReg(ctxt, ins.as, "rd", ins.rd)
 	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
 	wantIntReg(ctxt, ins.as, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
 }
 
 func validateRFFF(ctxt *obj.Link, ins *instruction) {
 	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
 	wantFloatReg(ctxt, ins.as, "rs1", ins.rs1)
 	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+}
+
+func validateRFFFF(ctxt *obj.Link, ins *instruction) {
+	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
+	wantFloatReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
+	wantFloatReg(ctxt, ins.as, "rs3", ins.rs3)
 }
 
 func validateRFFI(ctxt *obj.Link, ins *instruction) {
 	wantIntReg(ctxt, ins.as, "rd", ins.rd)
 	wantFloatReg(ctxt, ins.as, "rs1", ins.rs1)
 	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
 }
 
 func validateRFI(ctxt *obj.Link, ins *instruction) {
 	wantIntReg(ctxt, ins.as, "rd", ins.rd)
 	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
 	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
 }
 
 func validateRIF(ctxt *obj.Link, ins *instruction) {
 	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
 	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
 	wantIntReg(ctxt, ins.as, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
 }
 
 func validateRFF(ctxt *obj.Link, ins *instruction) {
 	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
 	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
 	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
 }
 
 func validateII(ctxt *obj.Link, ins *instruction) {
 	wantImmI(ctxt, ins.as, ins.imm, 12)
 	wantIntReg(ctxt, ins.as, "rd", ins.rd)
 	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
 }
 
 func validateIF(ctxt *obj.Link, ins *instruction) {
 	wantImmI(ctxt, ins.as, ins.imm, 12)
 	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
 	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
 }
 
 func validateSI(ctxt *obj.Link, ins *instruction) {
 	wantImmI(ctxt, ins.as, ins.imm, 12)
 	wantIntReg(ctxt, ins.as, "rd", ins.rd)
 	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
 }
 
 func validateSF(ctxt *obj.Link, ins *instruction) {
 	wantImmI(ctxt, ins.as, ins.imm, 12)
 	wantIntReg(ctxt, ins.as, "rd", ins.rd)
 	wantFloatReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
 }
 
 func validateB(ctxt *obj.Link, ins *instruction) {
@@ -1278,6 +1295,7 @@ func validateB(ctxt *obj.Link, ins *instruction) {
 	wantNoneReg(ctxt, ins.as, "rd", ins.rd)
 	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
 	wantIntReg(ctxt, ins.as, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
 }
 
 func validateU(ctxt *obj.Link, ins *instruction) {
@@ -1285,6 +1303,7 @@ func validateU(ctxt *obj.Link, ins *instruction) {
 	wantIntReg(ctxt, ins.as, "rd", ins.rd)
 	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
 	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
 }
 
 func validateJ(ctxt *obj.Link, ins *instruction) {
@@ -1295,6 +1314,7 @@ func validateJ(ctxt *obj.Link, ins *instruction) {
 	wantIntReg(ctxt, ins.as, "rd", ins.rd)
 	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
 	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
 }
 
 func validateRaw(ctxt *obj.Link, ins *instruction) {
@@ -1317,12 +1337,32 @@ func encodeR(as obj.As, rs1, rs2, rd, funct3, funct7 uint32) uint32 {
 	return funct7<<25 | enc.funct7<<25 | enc.rs2<<20 | rs2<<20 | rs1<<15 | enc.funct3<<12 | funct3<<12 | rd<<7 | enc.opcode
 }
 
+// encodeR4 encodes an R4-type RISC-V instruction.
+func encodeR4(as obj.As, rs1, rs2, rs3, rd, funct3, funct2 uint32) uint32 {
+	enc := encode(as)
+	if enc == nil {
+		panic("encodeR4: could not encode instruction")
+	}
+	if enc.rs2 != 0 {
+		panic("encodeR4: instruction uses rs2")
+	}
+	funct2 |= enc.funct7
+	if funct2&^3 != 0 {
+		panic("encodeR4: funct2 requires more than 2 bits")
+	}
+	return rs3<<27 | funct2<<25 | rs2<<20 | rs1<<15 | enc.funct3<<12 | funct3<<12 | rd<<7 | enc.opcode
+}
+
 func encodeRIII(ins *instruction) uint32 {
 	return encodeR(ins.as, regI(ins.rs1), regI(ins.rs2), regI(ins.rd), ins.funct3, ins.funct7)
 }
 
 func encodeRFFF(ins *instruction) uint32 {
 	return encodeR(ins.as, regF(ins.rs1), regF(ins.rs2), regF(ins.rd), ins.funct3, ins.funct7)
+}
+
+func encodeRFFFF(ins *instruction) uint32 {
+	return encodeR4(ins.as, regF(ins.rs1), regF(ins.rs2), regF(ins.rs3), regF(ins.rd), ins.funct3, ins.funct7)
 }
 
 func encodeRFFI(ins *instruction) uint32 {
@@ -1462,12 +1502,13 @@ var (
 	// integer register inputs and an integer register output; sFEncoding
 	// indicates an S-type instruction with rs2 being a float register.
 
-	rIIIEncoding = encoding{encode: encodeRIII, validate: validateRIII, length: 4}
-	rFFFEncoding = encoding{encode: encodeRFFF, validate: validateRFFF, length: 4}
-	rFFIEncoding = encoding{encode: encodeRFFI, validate: validateRFFI, length: 4}
-	rFIEncoding  = encoding{encode: encodeRFI, validate: validateRFI, length: 4}
-	rIFEncoding  = encoding{encode: encodeRIF, validate: validateRIF, length: 4}
-	rFFEncoding  = encoding{encode: encodeRFF, validate: validateRFF, length: 4}
+	rIIIEncoding  = encoding{encode: encodeRIII, validate: validateRIII, length: 4}
+	rFFFEncoding  = encoding{encode: encodeRFFF, validate: validateRFFF, length: 4}
+	rFFFFEncoding = encoding{encode: encodeRFFFF, validate: validateRFFFF, length: 4}
+	rFFIEncoding  = encoding{encode: encodeRFFI, validate: validateRFFI, length: 4}
+	rFIEncoding   = encoding{encode: encodeRFI, validate: validateRFI, length: 4}
+	rIFEncoding   = encoding{encode: encodeRIF, validate: validateRIF, length: 4}
+	rFFEncoding   = encoding{encode: encodeRFF, validate: validateRFF, length: 4}
 
 	iIEncoding = encoding{encode: encodeII, validate: validateII, length: 4}
 	iFEncoding = encoding{encode: encodeIF, validate: validateIF, length: 4}
@@ -1609,13 +1650,17 @@ var encodings = [ALAST & obj.AMask]encoding{
 	AFSW & obj.AMask: sFEncoding,
 
 	// 11.6: Single-Precision Floating-Point Computational Instructions
-	AFADDS & obj.AMask:  rFFFEncoding,
-	AFSUBS & obj.AMask:  rFFFEncoding,
-	AFMULS & obj.AMask:  rFFFEncoding,
-	AFDIVS & obj.AMask:  rFFFEncoding,
-	AFMINS & obj.AMask:  rFFFEncoding,
-	AFMAXS & obj.AMask:  rFFFEncoding,
-	AFSQRTS & obj.AMask: rFFFEncoding,
+	AFADDS & obj.AMask:   rFFFEncoding,
+	AFSUBS & obj.AMask:   rFFFEncoding,
+	AFMULS & obj.AMask:   rFFFEncoding,
+	AFDIVS & obj.AMask:   rFFFEncoding,
+	AFMINS & obj.AMask:   rFFFEncoding,
+	AFMAXS & obj.AMask:   rFFFEncoding,
+	AFSQRTS & obj.AMask:  rFFFEncoding,
+	AFMADDS & obj.AMask:  rFFFFEncoding,
+	AFMSUBS & obj.AMask:  rFFFFEncoding,
+	AFNMSUBS & obj.AMask: rFFFFEncoding,
+	AFNMADDS & obj.AMask: rFFFFEncoding,
 
 	// 11.7: Single-Precision Floating-Point Conversion and Move Instructions
 	AFCVTWS & obj.AMask:  rFIEncoding,
@@ -1647,13 +1692,17 @@ var encodings = [ALAST & obj.AMask]encoding{
 	AFSD & obj.AMask: sFEncoding,
 
 	// 12.4: Double-Precision Floating-Point Computational Instructions
-	AFADDD & obj.AMask:  rFFFEncoding,
-	AFSUBD & obj.AMask:  rFFFEncoding,
-	AFMULD & obj.AMask:  rFFFEncoding,
-	AFDIVD & obj.AMask:  rFFFEncoding,
-	AFMIND & obj.AMask:  rFFFEncoding,
-	AFMAXD & obj.AMask:  rFFFEncoding,
-	AFSQRTD & obj.AMask: rFFFEncoding,
+	AFADDD & obj.AMask:   rFFFEncoding,
+	AFSUBD & obj.AMask:   rFFFEncoding,
+	AFMULD & obj.AMask:   rFFFEncoding,
+	AFDIVD & obj.AMask:   rFFFEncoding,
+	AFMIND & obj.AMask:   rFFFEncoding,
+	AFMAXD & obj.AMask:   rFFFEncoding,
+	AFSQRTD & obj.AMask:  rFFFEncoding,
+	AFMADDD & obj.AMask:  rFFFFEncoding,
+	AFMSUBD & obj.AMask:  rFFFFEncoding,
+	AFNMSUBD & obj.AMask: rFFFFEncoding,
+	AFNMADDD & obj.AMask: rFFFFEncoding,
 
 	// 12.5: Double-Precision Floating-Point Conversion and Move Instructions
 	AFCVTWD & obj.AMask:  rFIEncoding,
@@ -1719,9 +1768,10 @@ type instruction struct {
 	rd     uint32 // Destination register
 	rs1    uint32 // Source register 1
 	rs2    uint32 // Source register 2
+	rs3    uint32 // Source register 3
 	imm    int64  // Immediate
 	funct3 uint32 // Function 3
-	funct7 uint32 // Function 7
+	funct7 uint32 // Function 7 (or Function 2)
 }
 
 func (ins *instruction) encode() (uint32, error) {
@@ -1760,6 +1810,12 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		rs1: uint32(p.Reg),
 		rs2: uint32(p.From.Reg),
 		imm: p.From.Offset,
+	}
+
+	if len(p.RestArgs) == 1 {
+		ins.rs3 = uint32(p.RestArgs[0].Reg)
+	} else if len(p.RestArgs) > 0 {
+		p.Ctxt.Diag("too many source registers")
 	}
 
 	inss := []*instruction{ins}
@@ -1898,6 +1954,12 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		// to be the second input operand.
 		ins.rs1 = uint32(p.From.Reg)
 		ins.rs2 = REG_F0
+
+	case AFMADDS, AFMSUBS, AFNMADDS, AFNMSUBS,
+		AFMADDD, AFMSUBD, AFNMADDD, AFNMSUBD:
+		// Swap the first two operands so that the operands are in the same
+		// order as they are in the specification: RS1, RS2, RS3, RD.
+		ins.rs1, ins.rs2 = ins.rs2, ins.rs1
 
 	case ANEG, ANEGW:
 		// NEG rs, rd -> SUB rs, X0, rd
