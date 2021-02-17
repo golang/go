@@ -442,10 +442,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
 	MOVL	$0, DX
 	JMP	runtime·morestack(SB)
 
-// REFLECTCALL_USE_REGABI is not defined. It must be defined in conjunction with the
-// register constants in the internal/abi package.
-
-#ifdef REFLECTCALL_USE_REGABI
+#ifdef GOEXPERIMENT_REGABI
 // spillArgs stores return values from registers to a *internal/abi.RegArgs in R12.
 TEXT spillArgs<>(SB),NOSPLIT,$0-0
 	MOVQ AX, 0(R12)

@@ -9,6 +9,30 @@ import (
 	"unsafe"
 )
 
+// These variables are used by the register assignment
+// algorithm in this file.
+//
+// They should be modified with care (no other reflect code
+// may be executing) and are generally only modified
+// when testing this package.
+//
+// They should never be set higher than their internal/abi
+// constant counterparts, because the system relies on a
+// structure that is at least large enough to hold the
+// registers the system supports.
+//
+// Currently they're set to zero because using the actual
+// constants will break every part of the toolchain that
+// uses reflect to call functions (e.g. go test, or anything
+// that uses text/template). The values that are currently
+// commented out there should be the actual values once
+// we're ready to use the register ABI everywhere.
+var (
+	intArgRegs   = 0          // abi.IntArgRegs
+	floatArgRegs = 0          // abi.FloatArgRegs
+	floatRegSize = uintptr(0) // uintptr(abi.EffectiveFloatRegSize)
+)
+
 // abiStep represents an ABI "instruction." Each instruction
 // describes one part of how to translate between a Go value
 // in memory and a call frame.
@@ -226,7 +250,7 @@ func (a *abiSeq) assignIntN(offset, size uintptr, n int, ptrMap uint8) bool {
 	if ptrMap != 0 && size != ptrSize {
 		panic("non-empty pointer map passed for non-pointer-size values")
 	}
-	if a.iregs+n > abi.IntArgRegs {
+	if a.iregs+n > intArgRegs {
 		return false
 	}
 	for i := 0; i < n; i++ {
@@ -255,7 +279,7 @@ func (a *abiSeq) assignFloatN(offset, size uintptr, n int) bool {
 	if n < 0 {
 		panic("invalid n")
 	}
-	if a.fregs+n > abi.FloatArgRegs || abi.EffectiveFloatRegSize < size {
+	if a.fregs+n > floatArgRegs || floatRegSize < size {
 		return false
 	}
 	for i := 0; i < n; i++ {
