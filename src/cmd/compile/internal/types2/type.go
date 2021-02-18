@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -207,7 +206,7 @@ type Signature struct {
 	// and store it in the Func Object) because when type-checking a function
 	// literal we call the general type checker which returns a general Type.
 	// We then unpack the *Signature and use the scope for the literal body.
-	rparams  []*TypeName // reveiver type parameters from left to right; or nil
+	rparams  []*TypeName // receiver type parameters from left to right; or nil
 	tparams  []*TypeName // type parameters from left to right; or nil
 	scope    *Scope      // function scope, present for package-local signatures
 	recv     *Var        // nil if not a method
@@ -725,9 +724,8 @@ type TypeParam struct {
 	bound Type      // *Named or *Interface; underlying type is always *Interface
 }
 
-func (t *TypeParam) Obj() *TypeName {
-	return t.obj
-}
+// Obj returns the type name for the type parameter t.
+func (t *TypeParam) Obj() *TypeName { return t.obj }
 
 // NewTypeParam returns a new TypeParam.
 func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
@@ -747,6 +745,7 @@ func (t *TypeParam) Bound() *Interface {
 	if n, _ := t.bound.(*Named); n != nil {
 		pos = n.obj.pos
 	}
+	// TODO(gri) switch this to an unexported method on Checker.
 	t.check.completeInterface(pos, iface)
 	return iface
 }
@@ -762,7 +761,7 @@ func optype(typ Type) Type {
 	if t := asTypeParam(typ); t != nil {
 		// If the optype is typ, return the top type as we have
 		// no information. It also prevents infinite recursion
-		// via the TypeParam converter methods. This can happen
+		// via the asTypeParam converter function. This can happen
 		// for a type parameter list of the form:
 		// (type T interface { type T }).
 		// See also issue #39680.
