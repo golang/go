@@ -619,9 +619,11 @@ func PtrDataSize(t *Type) int64 {
 	case TSTRUCT:
 		// Find the last field that has pointers.
 		var lastPtrField *Field
-		for _, t1 := range t.Fields().Slice() {
-			if t1.Type.HasPointers() {
-				lastPtrField = t1
+		fs := t.Fields().Slice()
+		for i := len(fs) - 1; i >= 0; i-- {
+			if fs[i].Type.HasPointers() {
+				lastPtrField = fs[i]
+				break
 			}
 		}
 		return lastPtrField.Offset + PtrDataSize(lastPtrField.Type)
