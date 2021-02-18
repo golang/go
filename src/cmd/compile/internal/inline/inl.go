@@ -852,17 +852,25 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		}
 	}
 
+	// We can delay declaring+initializing result parameters if:
+	// (1) there's exactly one "return" statement in the inlined function;
+	// (2) it's not an empty return statement (#44355); and
+	// (3) the result parameters aren't named.
+	delayretvars := true
+
 	nreturns := 0
 	ir.VisitList(ir.Nodes(fn.Inl.Body), func(n ir.Node) {
-		if n != nil && n.Op() == ir.ORETURN {
+		if n, ok := n.(*ir.ReturnStmt); ok {
 			nreturns++
+			if len(n.Results) == 0 {
+				delayretvars = false // empty return statement (case 2)
+			}
 		}
 	})
 
-	// We can delay declaring+initializing result parameters if:
-	// (1) there's only one "return" statement in the inlined
-	// function, and (2) the result parameters aren't named.
-	delayretvars := nreturns == 1
+	if nreturns != 1 {
+		delayretvars = false // not exactly one return statement (case 1)
+	}
 
 	// temporaries for return values.
 	var retvars []ir.Node
@@ -873,7 +881,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 			m = inlvar(n)
 			m = typecheck.Expr(m).(*ir.Name)
 			inlvars[n] = m
-			delayretvars = false // found a named result parameter
+			delayretvars = false // found a named result parameter (case 3)
 		} else {
 			// anonymous return values, synthesize names for use in assignment that replaces return
 			m = retvar(t, i)
