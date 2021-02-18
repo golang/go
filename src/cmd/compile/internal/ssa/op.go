@@ -96,6 +96,54 @@ type AuxCall struct {
 	abiInfo *abi.ABIParamResultInfo // TODO remove fields above redundant with this information.
 }
 
+// Reg returns the regInfo for a given call, combining the derived in/out register masks
+// with the machine-specific register information in the input i.  (The machine-specific
+// regInfo is much handier at the call site than it is when the AuxCall is being constructed,
+// therefore do this lazily).
+//
+// TODO: there is a Clever Hack that allows pre-generation of a small-ish number of the slices
+// of inputInfo and outputInfo used here, provided that we are willing to reorder the inputs
+// and outputs from calls, so that all integer registers come first, then all floating registers.
+// At this point (active development of register ABI) that is very premature,
+// but if this turns out to be a cost, we could do it.
+func (a *AuxCall) Reg(i *regInfo, c *Config) *regInfo {
+	if a.reg.clobbers != 0 {
+		// Already updated
+		return a.reg
+	}
+	if a.abiInfo.InRegistersUsed()+a.abiInfo.OutRegistersUsed() == 0 {
+		// Shortcut for zero case, also handles old ABI.
+		a.reg = i
+		return a.reg
+	}
+	a.reg.inputs = append(a.reg.inputs, i.inputs...)
+	for _, p := range a.abiInfo.InParams() {
+		for _, r := range p.Registers {
+			m := archRegForAbiReg(r, c)
+			a.reg.inputs = append(a.reg.inputs, inputInfo{idx: len(a.reg.inputs), regs: (1 << m)})
+		}
+	}
+	a.reg.outputs = append(a.reg.outputs, i.outputs...)
+	for _, p := range a.abiInfo.OutParams() {
+		for _, r := range p.Registers {
+			m := archRegForAbiReg(r, c)
+			a.reg.outputs = append(a.reg.outputs, outputInfo{idx: len(a.reg.outputs), regs: (1 << m)})
+		}
+	}
+	a.reg.clobbers = i.clobbers
+	return a.reg
+}
+
+func archRegForAbiReg(r abi.RegIndex, c *Config) uint8 {
+	var m int8
+	if int(r) < len(c.intParamRegs) {
+		m = c.intParamRegs[r]
+	} else {
+		m = c.floatParamRegs[int(r)-len(c.intParamRegs)]
+	}
+	return uint8(m)
+}
+
 // OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
 func (a *AuxCall) OffsetOfResult(which int64) int64 {
 	n := int64(a.abiInfo.OutParam(int(which)).Offset())
@@ -217,7 +265,11 @@ func StaticAuxCall(sym *obj.LSym, args []Param, results []Param, paramResultInfo
 	if paramResultInfo == nil {
 		panic(fmt.Errorf("Nil paramResultInfo, sym=%v", sym))
 	}
-	return &AuxCall{Fn: sym, args: args, results: results, abiInfo: paramResultInfo}
+	var reg *regInfo
+	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
+		reg = &regInfo{}
+	}
+	return &AuxCall{Fn: sym, args: args, results: results, abiInfo: paramResultInfo, reg: reg}
 }
 
 // InterfaceAuxCall returns an AuxCall for an interface call.
