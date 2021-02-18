@@ -61,7 +61,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
 			check.indent--
 			var under Type
 			if res != nil {
-				// Calling Under() here may lead to endless instantiations.
+				// Calling under() here may lead to endless instantiations.
 				// Test case: type T[P any] T[P]
 				// TODO(gri) investigate if that's a bug or to be expected.
 				under = res.Underlying()
@@ -186,7 +186,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
 				break
 			}
 			for _, t := range unpack(targBound.allTypes) {
-				if !iface.isSatisfiedBy(t.Under()) {
+				if !iface.isSatisfiedBy(t) {
 					// TODO(gri) match this error message with the one below (or vice versa)
 					check.softErrorf(pos, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, t, iface.allTypes)
 					break
@@ -197,7 +197,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
 
 		// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
 		if !iface.isSatisfiedBy(targ) {
-			check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ.Under(), iface.allTypes)
+			check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, under(targ), iface.allTypes)
 			break
 		}
 	}

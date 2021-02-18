@@ -656,7 +656,7 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
 	}
 
 	// typed target
-	switch t := optype(target.Under()).(type) {
+	switch t := optype(target).(type) {
 	case *Basic:
 		if x.mode == constant_ {
 			check.representable(x, t)
@@ -1258,7 +1258,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		case hint != nil:
 			// no composite literal type present - use hint (element type of enclosing type)
 			typ = hint
-			base, _ = deref(typ.Under()) // *T implies &T{}
+			base, _ = deref(under(typ)) // *T implies &T{}
 
 		default:
 			// TODO(gri) provide better error messages depending on context
@@ -1266,7 +1266,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			goto Error
 		}
 
-		switch utyp := optype(base.Under()).(type) {
+		switch utyp := optype(base).(type) {
 		case *Struct:
 			if len(e.ElemList) == 0 {
 				break
@@ -1475,7 +1475,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		// ordinary index expression
 		valid := false
 		length := int64(-1) // valid if >= 0
-		switch typ := optype(x.typ.Under()).(type) {
+		switch typ := optype(x.typ).(type) {
 		case *Basic:
 			if isString(typ) {
 				valid = true
@@ -1528,7 +1528,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			nmaps := 0           // number of map types in sum type
 			if typ.is(func(t Type) bool {
 				var e Type
-				switch t := t.Under().(type) {
+				switch t := under(t).(type) {
 				case *Basic:
 					if isString(t) {
 						e = universeByte
@@ -1637,7 +1637,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 
 		valid := false
 		length := int64(-1) // valid if >= 0
-		switch typ := optype(x.typ.Under()).(type) {
+		switch typ := optype(x.typ).(type) {
 		case *Basic:
 			if isString(typ) {
 				if e.Full {
@@ -1738,7 +1738,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		if x.mode == invalid {
 			goto Error
 		}
-		xtyp, _ := x.typ.Under().(*Interface)
+		xtyp, _ := under(x.typ).(*Interface)
 		if xtyp == nil {
 			check.errorf(x, "%s is not an interface type", x)
 			goto Error

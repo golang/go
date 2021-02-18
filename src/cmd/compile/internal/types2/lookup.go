@@ -141,7 +141,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 
 				// continue with underlying type, but only if it's not a type parameter
 				// TODO(gri) is this what we want to do for type parameters? (spec question)
-				typ = named.Under()
+				typ = under(named)
 				if asTypeParam(typ) != nil {
 					continue
 				}

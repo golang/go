@@ -215,9 +215,9 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		// want *Named types.)
 		switch {
 		case !isNamed(x) && y != nil && asNamed(y) != nil:
-			return u.nify(x, y.Under(), p)
+			return u.nify(x, under(y), p)
 		case x != nil && asNamed(x) != nil && !isNamed(y):
-			return u.nify(x.Under(), y, p)
+			return u.nify(under(x), y, p)
 		}
 	}
 
