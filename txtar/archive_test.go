@@ -70,7 +70,7 @@ func TestFormat(t *testing.T) {
 					{"file1", []byte("File 1 text.\n-- foo ---\nMore file 1 text.\n")},
 					{"file 2", []byte("File 2 text.\n")},
 					{"empty", []byte{}},
-					{"noNL", []byte("hello world\n")},
+					{"noNL", []byte("hello world")},
 				},
 			},
 			wanted: `comment1
@@ -90,7 +90,7 @@ hello world
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := Format(tt.input)
-			if !reflect.DeepEqual(string(result), tt.wanted) {
+			if string(result) != tt.wanted {
 				t.Errorf("Wrong output. \nGot:\n%s\nWant:\n%s\n", string(result), tt.wanted)
 			}
 		})
