@@ -20,14 +20,14 @@ var encVersion1 = "go test fuzz v1"
 // corpus.
 func marshalCorpusFile(vals ...interface{}) []byte {
 	if len(vals) == 0 {
-		panic("must have at least one value to encode")
+		panic("must have at least one value to marshal")
 	}
 	b := bytes.NewBuffer([]byte(encVersion1))
 	// TODO(katiehockman): keep uint8 and int32 encoding where applicable,
 	// instead of changing to byte and rune respectively.
 	for _, val := range vals {
 		switch t := val.(type) {
-		case int, int8, int16, int64, uint, uint16, uint32, uint64, uintptr, float32, float64, bool:
+		case int, int8, int16, int64, uint, uint16, uint32, uint64, float32, float64, bool:
 			fmt.Fprintf(b, "\n%T(%v)", t, t)
 		case string:
 			fmt.Fprintf(b, "\nstring(%q)", t)
@@ -47,7 +47,7 @@ func marshalCorpusFile(vals ...interface{}) []byte {
 // unmarshalCorpusFile decodes corpus bytes into their respective values.
 func unmarshalCorpusFile(b []byte) ([]interface{}, error) {
 	if len(b) == 0 {
-		return nil, fmt.Errorf("cannot decode empty string")
+		return nil, fmt.Errorf("cannot unmarshal empty string")
 	}
 	lines := bytes.Split(b, []byte("\n"))
 	if len(lines) < 2 {

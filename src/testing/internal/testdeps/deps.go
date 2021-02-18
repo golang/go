@@ -18,6 +18,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"reflect"
 	"regexp"
 	"runtime/pprof"
 	"strings"
@@ -132,7 +133,7 @@ func (TestDeps) SetPanicOnExit0(v bool) {
 	testlog.SetPanicOnExit0(v)
 }
 
-func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed []fuzz.CorpusEntry, corpusDir, cacheDir string) (err error) {
+func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed []fuzz.CorpusEntry, types []reflect.Type, corpusDir, cacheDir string) (err error) {
 	// Fuzzing may be interrupted with a timeout or if the user presses ^C.
 	// In either case, we'll stop worker processes gracefully and save
 	// crashers and interesting values.
@@ -143,7 +144,7 @@ func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed []fu
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
 	defer stop()
 	defer cancel()
-	err = fuzz.CoordinateFuzzing(ctx, parallel, seed, corpusDir, cacheDir)
+	err = fuzz.CoordinateFuzzing(ctx, parallel, seed, types, corpusDir, cacheDir)
 	if err == ctx.Err() {
 		return nil
 	}
@@ -168,6 +169,6 @@ func (TestDeps) RunFuzzWorker(fn func(fuzz.CorpusEntry) error) error {
 	return nil
 }
 
-func (TestDeps) ReadCorpus(dir string) ([]fuzz.CorpusEntry, error) {
-	return fuzz.ReadCorpus(dir)
+func (TestDeps) ReadCorpus(dir string, types []reflect.Type) ([]fuzz.CorpusEntry, error) {
+	return fuzz.ReadCorpus(dir, types)
 }
