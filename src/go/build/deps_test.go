@@ -484,7 +484,7 @@ var depsRules = `
 	FMT, flag, runtime/debug, runtime/trace, internal/sysinfo
 	< testing;
 
-	FMT, crypto/sha256, encoding/json, math/rand
+	FMT, crypto/sha256, encoding/json, go/ast, go/parser, go/token, math/rand
 	< internal/fuzz;
 
 	internal/fuzz, internal/testlog, runtime/pprof, regexp
