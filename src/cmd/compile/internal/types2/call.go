@@ -17,14 +17,14 @@ import (
 // The operand x must be the evaluation of inst.X and its type must be a signature.
 func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 	args, ok := check.exprOrTypeList(unpackExpr(inst.Index))
-	if ok && len(args) > 0 && args[0].mode != typexpr {
-		check.errorf(args[0], "%s is not a type", args[0])
-		ok = false
-	}
 	if !ok {
 		x.mode = invalid
 		x.expr = inst
 		return
+	}
+	if len(args) > 0 && args[0].mode != typexpr {
+		check.errorf(args[0], "%s is not a type", args[0])
+		ok = false
 	}
 
 	// check number of type arguments
@@ -77,7 +77,6 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 				assert(targ != nil)
 			}
 		}
-		//check.dump("### inferred targs = %s", targs)
 		n = len(targs)
 		inferred = true
 	}
