@@ -293,10 +293,15 @@ func Req(target module.Version, base []string, reqs Reqs) ([]module.Version, err
 	}
 	// First walk the base modules that must be listed.
 	var min []module.Version
+	haveBase := map[string]bool{}
 	for _, path := range base {
+		if haveBase[path] {
+			continue
+		}
 		m := module.Version{Path: path, Version: max[path]}
 		min = append(min, m)
 		walk(m)
+		haveBase[path] = true
 	}
 	// Now the reverse postorder to bring in anything else.
 	for i := len(postorder) - 1; i >= 0; i-- {
@@ -370,10 +375,19 @@ func Upgrade(target module.Version, reqs Reqs, upgrade ...module.Version) ([]mod
 // reqs.Previous, but the methods of reqs must otherwise handle such versions
 // correctly.
 func Downgrade(target module.Version, reqs Reqs, downgrade ...module.Version) ([]module.Version, error) {
-	list, err := reqs.Required(target)
+	// Per https://research.swtch.com/vgo-mvs#algorithm_4:
+	// “To avoid an unnecessary downgrade to E 1.1, we must also add a new
+	// requirement on E 1.2. We can apply Algorithm R to find the minimal set of
+	// new requirements to write to go.mod.”
+	//
+	// In order to generate those new requirements, we need to identify versions
+	// for every module in the build list — not just reqs.Required(target).
+	list, err := BuildList(target, reqs)
 	if err != nil {
 		return nil, err
 	}
+	list = list[1:] // remove target
+
 	max := make(map[string]string)
 	for _, r := range list {
 		max[r.Path] = r.Version
@@ -406,6 +420,9 @@ func Downgrade(target module.Version, reqs Reqs, downgrade ...module.Version) ([
 		}
 		added[m] = true
 		if v, ok := max[m.Path]; ok && reqs.Max(m.Version, v) != v {
+			// m would upgrade an existing dependency — it is not a strict downgrade,
+			// and because it was already present as a dependency, it could affect the
+			// behavior of other relevant packages.
 			exclude(m)
 			return
 		}
@@ -422,6 +439,7 @@ func Downgrade(target module.Version, reqs Reqs, downgrade ...module.Version) ([
 			// is transient (we couldn't download go.mod), return the error from
 			// Downgrade. Currently, we can't tell what kind of error it is.
 			exclude(m)
+			return
 		}
 		for _, r := range list {
 			add(r)
@@ -433,8 +451,8 @@ func Downgrade(target module.Version, reqs Reqs, downgrade ...module.Version) ([
 		}
 	}
 
-	var out []module.Version
-	out = append(out, target)
+	downgraded := make([]module.Version, 0, len(list)+1)
+	downgraded = append(downgraded, target)
 List:
 	for _, r := range list {
 		add(r)
@@ -461,10 +479,14 @@ List:
 			add(p)
 			r = p
 		}
-		out = append(out, r)
+		downgraded = append(downgraded, r)
 	}
 
-	return out, nil
+	return BuildList(target, &override{
+		target: target,
+		list:   downgraded,
+		Reqs:   reqs,
+	})
 }
 
 type override struct {
