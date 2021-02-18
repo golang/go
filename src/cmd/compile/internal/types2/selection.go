@@ -55,11 +55,11 @@ func (s *Selection) Recv() Type { return s.recv }
 // TODO(gri):  fix this bug.
 func (s *Selection) TArgs() []Type {
 	r := s.recv
-	if r.Pointer() != nil {
-		r = r.Pointer().Elem()
+	if p := asPointer(r); p != nil {
+		r = p.Elem()
 	}
-	if r.Named() != nil {
-		return r.Named().TArgs()
+	if n := asNamed(r); n != nil {
+		return n.TArgs()
 	}
 	// The base type (after skipping any pointer) must be a Named type. The
 	// bug is that sometimes it can be an instance type (which is supposed to

@@ -237,15 +237,15 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 			}
 			recvType2Base := recvType2
 			if wantPtr {
-				recvType2Base = recvType2.Pointer().Elem()
+				recvType2Base = types2.AsPointer(recvType2).Elem()
 			}
-			if len(recvType2Base.Named().TParams()) > 0 {
+			if len(types2.AsNamed(recvType2Base).TParams()) > 0 {
 				// recvType2 is the original generic type that is
 				// instantiated for this method call.
 				// selinfo.Recv() is the instantiated type
 				recvType2 = recvType2Base
 				// method is the generic method associated with the gen type
-				method := g.obj(recvType2.Named().Method(last))
+				method := g.obj(types2.AsNamed(recvType2).Method(last))
 				n = ir.NewSelectorExpr(pos, ir.OCALLPART, x, method.Sym())
 				n.(*ir.SelectorExpr).Selection = types.NewField(pos, method.Sym(), method.Type())
 				n.(*ir.SelectorExpr).Selection.Nname = method
