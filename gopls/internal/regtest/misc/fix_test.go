@@ -23,39 +23,35 @@ go 1.14
 -- main.go --
 package main
 
-import "go/types"
+type Info struct {
+	WordCounts map[string]int
+	Words []string
+}
 
 func Foo() {
-	_ = types.Info{}
+	_ = Info{}
 }
 `
 	Run(t, basic, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
+		pos := env.RegexpSearch("main.go", "Info{}").ToProtocolPosition()
 		if err := env.Editor.RefactorRewrite(env.Ctx, "main.go", &protocol.Range{
-			Start: protocol.Position{
-				Line:      5,
-				Character: 16,
-			},
-			End: protocol.Position{
-				Line:      5,
-				Character: 16,
-			},
+			Start: pos,
+			End:   pos,
 		}); err != nil {
 			t.Fatal(err)
 		}
 		want := `package main
 
-import "go/types"
+type Info struct {
+	WordCounts map[string]int
+	Words []string
+}
 
 func Foo() {
-	_ = types.Info{
-		Types:      map[ast.Expr]types.TypeAndValue{},
-		Defs:       map[*ast.Ident]types.Object{},
-		Uses:       map[*ast.Ident]types.Object{},
-		Implicits:  map[ast.Node]types.Object{},
-		Selections: map[*ast.SelectorExpr]*types.Selection{},
-		Scopes:     map[ast.Node]*types.Scope{},
-		InitOrder:  []*types.Initializer{},
+	_ = Info{
+		WordCounts: map[string]int{},
+		Words:      []string{},
 	}
 }
 `
