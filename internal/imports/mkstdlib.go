@@ -14,7 +14,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
-	exec "golang.org/x/sys/execabs"
 	"io"
 	"io/ioutil"
 	"log"
@@ -23,6 +22,8 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+
+	exec "golang.org/x/sys/execabs"
 )
 
 func mustOpen(name string) io.Reader {
@@ -66,6 +67,7 @@ func main() {
 		mustOpen(api("go1.13.txt")),
 		mustOpen(api("go1.14.txt")),
 		mustOpen(api("go1.15.txt")),
+		mustOpen(api("go1.16.txt")),
 
 		// The API of the syscall/js package needs to be computed explicitly,
 		// because it's not included in the GOROOT/api/go1.*.txt files at this time.
