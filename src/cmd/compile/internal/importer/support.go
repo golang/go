@@ -125,5 +125,4 @@ var predeclared = []types2.Type{
 type anyType struct{}
 
 func (t anyType) Underlying() types2.Type { return t }
-func (t anyType) Under() types2.Type      { return t }
 func (t anyType) String() string          { return "any" }

@@ -138,7 +138,7 @@ func (check *Checker) varType(e syntax.Expr) Type {
 // ordinaryType reports an error if typ is an interface type containing
 // type lists or is (or embeds) the predeclared type comparable.
 func (check *Checker) ordinaryType(pos syntax.Pos, typ Type) {
-	// We don't want to call Under() (via Interface) or complete interfaces while we
+	// We don't want to call under() (via Interface) or complete interfaces while we
 	// are in the middle of type-checking parameter declarations that might belong to
 	// interface methods. Delay this check to the end of type-checking.
 	check.atEnd(func() {
@@ -393,7 +393,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 						err = ""
 					}
 				} else {
-					switch u := optype(T.Under()).(type) {
+					switch u := optype(T).(type) {
 					case *Basic:
 						// unsafe.Pointer is treated like a regular pointer
 						if u.kind == UnsafePointer {
@@ -442,7 +442,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 			check.indent--
 			var under Type
 			if T != nil {
-				// Calling Under() here may lead to endless instantiations.
+				// Calling under() here may lead to endless instantiations.
 				// Test case: type T[P any] *T[P]
 				// TODO(gri) investigate if that's a bug or to be expected
 				// (see also analogous comment in Checker.instantiate).
@@ -967,7 +967,7 @@ func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
 	posList := check.posMap[ityp]
 	for i, typ := range ityp.embeddeds {
 		pos := posList[i] // embedding position
-		utyp := typ.Under()
+		utyp := under(typ)
 		etyp := asInterface(utyp)
 		if etyp == nil {
 			if utyp != Typ[Invalid] {
@@ -1159,12 +1159,12 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 			// Because we have a name, typ must be of the form T or *T, where T is the name
 			// of a (named or alias) type, and t (= deref(typ)) must be the type of T.
 			// We must delay this check to the end because we don't want to instantiate
-			// (via t.Under()) a possibly incomplete type.
+			// (via under(t)) a possibly incomplete type.
 			embeddedTyp := typ // for closure below
 			embeddedPos := pos
 			check.atEnd(func() {
 				t, isPtr := deref(embeddedTyp)
-				switch t := optype(t.Under()).(type) {
+				switch t := optype(t).(type) {
 				case *Basic:
 					if t == Typ[Invalid] {
 						// error was reported before

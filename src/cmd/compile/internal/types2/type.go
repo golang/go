@@ -18,23 +18,9 @@ type Type interface {
 	// client packages (here for backward-compatibility).
 	Underlying() Type
 
-	// Under returns the true expanded underlying type.
-	// If it doesn't exist, the result is Typ[Invalid].
-	// Under must only be called when a type is known
-	// to be fully set up.
-	Under() Type
-
 	// String returns a string representation of a type.
 	String() string
 }
-
-// aType implements default type behavior
-type aType struct{}
-
-// These methods must be implemented by each type.
-func (aType) Underlying() Type { panic("unreachable") }
-func (aType) Under() Type      { panic("unreachable") }
-func (aType) String() string   { panic("unreachable") }
 
 // BasicKind describes the kind of basic type.
 type BasicKind int
@@ -99,7 +85,6 @@ type Basic struct {
 	kind BasicKind
 	info BasicInfo
 	name string
-	aType
 }
 
 // Kind returns the kind of basic type b.
@@ -115,7 +100,6 @@ func (b *Basic) Name() string { return b.name }
 type Array struct {
 	len  int64
 	elem Type
-	aType
 }
 
 // NewArray returns a new array type for the given element type and length.
@@ -132,7 +116,6 @@ func (a *Array) Elem() Type { return a.elem }
 // A Slice represents a slice type.
 type Slice struct {
 	elem Type
-	aType
 }
 
 // NewSlice returns a new slice type for the given element type.
@@ -145,7 +128,6 @@ func (s *Slice) Elem() Type { return s.elem }
 type Struct struct {
 	fields []*Var
 	tags   []string // field tags; nil if there are no tags
-	aType
 }
 
 // NewStruct returns a new struct with the given fields and corresponding field tags.
@@ -182,7 +164,6 @@ func (s *Struct) Tag(i int) string {
 // A Pointer represents a pointer type.
 type Pointer struct {
 	base Type // element type
-	aType
 }
 
 // NewPointer returns a new pointer type for the given element (base) type.
@@ -196,17 +177,15 @@ func (p *Pointer) Elem() Type { return p.base }
 // assignments; they are not first class types of Go.
 type Tuple struct {
 	vars []*Var
-	aType
 }
-
-// TODO(gri) Don't represent empty tuples with a (*Tuple)(nil) pointer;
-//           it's too subtle and causes problems. Use a singleton instead.
 
 // NewTuple returns a new tuple for the given variables.
 func NewTuple(x ...*Var) *Tuple {
 	if len(x) > 0 {
 		return &Tuple{vars: x}
 	}
+	// TODO(gri) Don't represent empty tuples with a (*Tuple)(nil) pointer;
+	//           it's too subtle and causes problems.
 	return nil
 }
 
@@ -235,7 +214,6 @@ type Signature struct {
 	params   *Tuple      // (incoming) parameters from left to right; or nil
 	results  *Tuple      // (outgoing) results from left to right; or nil
 	variadic bool        // true if the last parameter's type is of the form ...T (or string, for append built-in only)
-	aType
 }
 
 // NewSignature returns a new function type for the given receiver, parameters,
@@ -284,7 +262,6 @@ func (s *Signature) Variadic() bool { return s.variadic }
 // first class types of Go.
 type Sum struct {
 	types []Type // types are unique
-	aType
 }
 
 // NewSum returns a new Sum type consisting of the provided
@@ -336,8 +313,6 @@ type Interface struct {
 	allTypes   Type    // intersection of all embedded and locally declared types  (TODO(gri) need better field name)
 
 	obj Object // type declaration defining this interface; or nil (for better error messages)
-
-	aType
 }
 
 // unpack unpacks a type into a list of types.
@@ -468,10 +443,7 @@ func (t *Interface) Empty() bool {
 		return len(t.allMethods) == 0 && t.allTypes == nil
 	}
 	return !t.iterate(func(t *Interface) bool {
-		if len(t.methods) > 0 || t.types != nil {
-			return true
-		}
-		return false
+		return len(t.methods) > 0 || t.types != nil
 	}, nil)
 }
 
@@ -483,10 +455,7 @@ func (t *Interface) HasTypeList() bool {
 	}
 
 	return t.iterate(func(t *Interface) bool {
-		if t.types != nil {
-			return true
-		}
-		return false
+		return t.types != nil
 	}, nil)
 }
 
@@ -560,7 +529,7 @@ func (t *Interface) isSatisfiedBy(typ Type) bool {
 		return true
 	}
 	types := unpack(t.allTypes)
-	return includes(types, typ) || includes(types, typ.Under())
+	return includes(types, typ) || includes(types, under(typ))
 }
 
 // Complete computes the interface's method set. It must be called by users of
@@ -598,7 +567,7 @@ func (t *Interface) Complete() *Interface {
 	allTypes := t.types
 
 	for _, typ := range t.embeddeds {
-		utyp := typ.Under()
+		utyp := under(typ)
 		etyp := asInterface(utyp)
 		if etyp == nil {
 			if utyp != Typ[Invalid] {
@@ -633,7 +602,6 @@ func (t *Interface) Complete() *Interface {
 // A Map represents a map type.
 type Map struct {
 	key, elem Type
-	aType
 }
 
 // NewMap returns a new map for the given key and element types.
@@ -651,7 +619,6 @@ func (m *Map) Elem() Type { return m.elem }
 type Chan struct {
 	dir  ChanDir
 	elem Type
-	aType
 }
 
 // A ChanDir value indicates a channel direction.
@@ -677,7 +644,7 @@ func (c *Chan) Elem() Type { return c.elem }
 
 // A Named represents a named (defined) type.
 type Named struct {
-	check      *Checker    // for Named.Under implementation
+	check      *Checker    // for Named.under implementation
 	info       typeInfo    // for cycle detection
 	obj        *TypeName   // corresponding declared object
 	orig       Type        // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
@@ -685,7 +652,6 @@ type Named struct {
 	tparams    []*TypeName // type parameters, or nil
 	targs      []Type      // type arguments (after instantiation), or nil
 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
-	aType
 }
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
@@ -757,7 +723,6 @@ type TypeParam struct {
 	obj   *TypeName // corresponding type name
 	index int       // parameter index
 	bound Type      // *Named or *Interface; underlying type is always *Interface
-	aType
 }
 
 func (t *TypeParam) Obj() *TypeName {
@@ -788,7 +753,7 @@ func (t *TypeParam) Bound() *Interface {
 
 // optype returns a type's operational type. Except for
 // type parameters, the operational type is the same
-// as the underlying type (as returned by Under). For
+// as the underlying type (as returned by under). For
 // Type parameters, the operational type is determined
 // by the corresponding type bound's type list. The
 // result may be the bottom or top type, but it is never
@@ -802,12 +767,12 @@ func optype(typ Type) Type {
 		// (type T interface { type T }).
 		// See also issue #39680.
 		if u := t.Bound().allTypes; u != nil && u != typ {
-			// u != typ and u is a type parameter => u.Under() != typ, so this is ok
-			return u.Under()
+			// u != typ and u is a type parameter => under(u) != typ, so this is ok
+			return under(u)
 		}
 		return theTop
 	}
-	return typ.Under()
+	return under(typ)
 }
 
 // An instance represents an instantiated generic type syntactically
@@ -821,7 +786,6 @@ type instance struct {
 	targs   []Type       // type arguments
 	poslist []syntax.Pos // position of each targ; for error reporting only
 	value   Type         // base(targs...) after instantiation or Typ[Invalid]; nil if not yet set
-	aType
 }
 
 // expand returns the instantiated (= expanded) type of t.
@@ -863,9 +827,7 @@ func init() { expandf = expand }
 // It is the underlying type of a type parameter that
 // cannot be satisfied by any type, usually because
 // the intersection of type constraints left nothing).
-type bottom struct {
-	aType
-}
+type bottom struct{}
 
 // theBottom is the singleton bottom type.
 var theBottom = &bottom{}
@@ -875,9 +837,7 @@ var theBottom = &bottom{}
 // can be satisfied by any type (ignoring methods),
 // usually because the type constraint has no type
 // list.
-type top struct {
-	aType
-}
+type top struct{}
 
 // theTop is the singleton top type.
 var theTop = &top{}
@@ -900,25 +860,6 @@ func (t *instance) Underlying() Type  { return t }
 func (t *bottom) Underlying() Type    { return t }
 func (t *top) Underlying() Type       { return t }
 
-// Type-specific implementations of Under.
-func (t *Basic) Under() Type     { return t }
-func (t *Array) Under() Type     { return t }
-func (t *Slice) Under() Type     { return t }
-func (t *Struct) Under() Type    { return t }
-func (t *Pointer) Under() Type   { return t }
-func (t *Tuple) Under() Type     { return t }
-func (t *Signature) Under() Type { return t }
-func (t *Sum) Under() Type       { return t } // TODO(gri) is this correct?
-func (t *Interface) Under() Type { return t }
-func (t *Map) Under() Type       { return t }
-func (t *Chan) Under() Type      { return t }
-
-// see decl.go for implementation of Named.Under
-func (t *TypeParam) Under() Type { return t }
-func (t *instance) Under() Type  { return t.expand().Under() }
-func (t *bottom) Under() Type    { return t }
-func (t *top) Under() Type       { return t }
-
 // Type-specific implementations of String.
 func (t *Basic) String() string     { return TypeString(t, nil) }
 func (t *Array) String() string     { return TypeString(t, nil) }
@@ -936,6 +877,27 @@ func (t *TypeParam) String() string { return TypeString(t, nil) }
 func (t *instance) String() string  { return TypeString(t, nil) }
 func (t *bottom) String() string    { return TypeString(t, nil) }
 func (t *top) String() string       { return TypeString(t, nil) }
+
+// under returns the true expanded underlying type.
+// If it doesn't exist, the result is Typ[Invalid].
+// under must only be called when a type is known
+// to be fully set up.
+//
+// under is set to underf to avoid an initialization cycle.
+// TODO(gri) this doesn't happen in go/types - investigate
+var under func(Type) Type
+
+func init() {
+	under = underf
+}
+
+func underf(t Type) Type {
+	// TODO(gri) is this correct for *Sum?
+	if n := asNamed(t); n != nil {
+		return n.under()
+	}
+	return t
+}
 
 // Converters
 //
@@ -1007,6 +969,6 @@ func asNamed(t Type) *Named {
 }
 
 func asTypeParam(t Type) *TypeParam {
-	u, _ := t.Under().(*TypeParam)
+	u, _ := under(t).(*TypeParam)
 	return u
 }

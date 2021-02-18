@@ -25,7 +25,7 @@ func isGeneric(typ Type) bool {
 }
 
 func is(typ Type, what BasicInfo) bool {
-	switch t := optype(typ.Under()).(type) {
+	switch t := optype(typ).(type) {
 	case *Basic:
 		return t.info&what != 0
 	case *Sum:
@@ -73,7 +73,7 @@ func isOrdered(typ Type) bool { return is(typ, IsOrdered) }
 
 func isConstType(typ Type) bool {
 	// Type parameters are never const types.
-	t, _ := typ.Under().(*Basic)
+	t, _ := under(typ).(*Basic)
 	return t != nil && t.info&IsConstType != 0
 }
 
@@ -108,7 +108,7 @@ func comparable(T Type, seen map[Type]bool) bool {
 		return t.Bound().IsComparable()
 	}
 
-	switch t := optype(T.Under()).(type) {
+	switch t := optype(T).(type) {
 	case *Basic:
 		// assume invalid types to be comparable
 		// to avoid follow-up errors
@@ -137,7 +137,7 @@ func comparable(T Type, seen map[Type]bool) bool {
 
 // hasNil reports whether a type includes the nil value.
 func hasNil(typ Type) bool {
-	switch t := optype(typ.Under()).(type) {
+	switch t := optype(typ).(type) {
 	case *Basic:
 		return t.kind == UnsafePointer
 	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:

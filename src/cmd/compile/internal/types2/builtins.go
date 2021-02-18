@@ -142,7 +142,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		mode := invalid
 		var typ Type
 		var val constant.Value
-		switch typ = implicitArrayDeref(optype(x.typ.Under())); t := typ.(type) {
+		switch typ = implicitArrayDeref(optype(x.typ)); t := typ.(type) {
 		case *Basic:
 			if isString(t) && id == _Len {
 				if x.mode == constant_ {
@@ -178,7 +178,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		case *Sum:
 			if t.is(func(t Type) bool {
-				switch t := t.Under().(type) {
+				switch t := under(t).(type) {
 				case *Basic:
 					if isString(t) && id == _Len {
 						return true
@@ -330,7 +330,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 		var src Type
-		switch t := optype(y.typ.Under()).(type) {
+		switch t := optype(y.typ).(type) {
 		case *Basic:
 			if isString(y.typ) {
 				src = universeByte
@@ -453,7 +453,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		var valid func(t Type) bool
 		valid = func(t Type) bool {
 			var m int
-			switch t := optype(t.Under()).(type) {
+			switch t := optype(t).(type) {
 			case *Slice:
 				m = 2
 			case *Map, *Chan:

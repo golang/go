@@ -257,8 +257,8 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 		return true
 	}
 
-	Vu := optype(V.Under())
-	Tu := optype(T.Under())
+	Vu := optype(V)
+	Tu := optype(T)
 
 	// x is an untyped value representable by a value of type T
 	// TODO(gri) This is borrowing from checker.convertUntyped and
