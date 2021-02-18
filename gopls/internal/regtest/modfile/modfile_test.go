@@ -1045,3 +1045,68 @@ example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
 		}
 	})
 }
+
+func TestDownloadDeps(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+
+	const proxy = `
+-- example.com@v1.2.3/go.mod --
+module example.com
+
+go 1.12
+
+require random.org v1.2.3
+-- example.com@v1.2.3/blah/blah.go --
+package blah
+
+import "random.org/bye"
+
+func SaySomething() {
+	bye.Goodbye()
+}
+-- random.org@v1.2.3/go.mod --
+module random.org
+
+go 1.12
+-- random.org@v1.2.3/bye/bye.go --
+package bye
+
+func Goodbye() {
+	println("Bye")
+}
+`
+
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- go.sum --
+-- main.go --
+package main
+
+import (
+	"example.com/blah"
+)
+
+func main() {
+	blah.SaySomething()
+}
+`
+	WithOptions(
+		ProxyFiles(proxy),
+		Modes(Singleton),
+	).Run(t, mod, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		d := &protocol.PublishDiagnosticsParams{}
+		env.Await(
+			env.DiagnosticAtRegexpWithMessage("main.go", `"example.com/blah"`, `could not import example.com/blah (no required module provides package "example.com/blah")`),
+			ReadDiagnostics("main.go", d),
+		)
+		env.ApplyQuickFixes("main.go", d.Diagnostics)
+		env.Await(
+			EmptyDiagnostics("main.go"),
+			NoDiagnostics("go.mod"),
+		)
+	})
+}

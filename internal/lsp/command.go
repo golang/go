@@ -468,7 +468,13 @@ func (c *commandHandler) GoGetPackage(ctx context.Context, args command.GoGetPac
 		}
 		ver := strings.TrimSpace(stdout.String())
 		return c.s.runGoModUpdateCommands(ctx, deps.snapshot, args.URI.SpanURI(), func(invoke func(...string) (*bytes.Buffer, error)) error {
-			return runGoGetModule(invoke, args.AddRequire, []string{ver})
+			if args.AddRequire {
+				if err := addModuleRequire(invoke, []string{ver}); err != nil {
+					return err
+				}
+			}
+			_, err := invoke(append([]string{"get", "-d"}, args.Pkg)...)
+			return err
 		})
 	})
 }
@@ -556,15 +562,20 @@ func applyFileEdits(ctx context.Context, snapshot source.Snapshot, uri span.URI,
 
 func runGoGetModule(invoke func(...string) (*bytes.Buffer, error), addRequire bool, args []string) error {
 	if addRequire {
-		// Using go get to create a new dependency results in an
-		// `// indirect` comment we may not want. The only way to avoid it
-		// is to add the require as direct first. Then we can use go get to
-		// update go.sum and tidy up.
-		if _, err := invoke(append([]string{"mod", "edit", "-require"}, args...)...); err != nil {
+		if err := addModuleRequire(invoke, args); err != nil {
 			return err
 		}
 	}
 	_, err := invoke(append([]string{"get", "-d"}, args...)...)
+	return err
+}
+
+func addModuleRequire(invoke func(...string) (*bytes.Buffer, error), args []string) error {
+	// Using go get to create a new dependency results in an
+	// `// indirect` comment we may not want. The only way to avoid it
+	// is to add the require as direct first. Then we can use go get to
+	// update go.sum and tidy up.
+	_, err := invoke(append([]string{"mod", "edit", "-require"}, args...)...)
 	return err
 }
 
