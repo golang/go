@@ -63,7 +63,7 @@ func sourceDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, severi
 				return diags, nil
 			}
 		} else {
-			spn = span.Parse(e.Pos)
+			spn = span.ParseInDir(e.Pos, pkg.m.config.Dir)
 		}
 	case *scanner.Error:
 		msg = e.Msg
