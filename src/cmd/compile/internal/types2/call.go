@@ -563,7 +563,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 			check.errorf(e.Sel, "cannot call pointer method %s on %s", sel, x.typ)
 		default:
 			var why string
-			if tpar := x.typ.TypeParam(); tpar != nil {
+			if tpar := asTypeParam(x.typ); tpar != nil {
 				// Type parameter bounds don't specify fields, so don't mention "field".
 				switch obj := tpar.Bound().obj.(type) {
 				case nil:

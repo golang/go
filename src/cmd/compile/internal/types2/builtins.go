@@ -577,7 +577,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _Alignof:
 		// unsafe.Alignof(x T) uintptr
-		if x.typ.TypeParam() != nil {
+		if asTypeParam(x.typ) != nil {
 			check.invalidOpf(call, "unsafe.Alignof undefined for %s", x)
 			return
 		}
@@ -638,7 +638,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _Sizeof:
 		// unsafe.Sizeof(x T) uintptr
-		if x.typ.TypeParam() != nil {
+		if asTypeParam(x.typ) != nil {
 			check.invalidOpf(call, "unsafe.Sizeof undefined for %s", x)
 			return
 		}
@@ -705,7 +705,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 // applyTypeFunc returns nil.
 // If x is not a type parameter, the result is f(x).
 func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
-	if tp := x.TypeParam(); tp != nil {
+	if tp := asTypeParam(x); tp != nil {
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
 		var rtypes []Type

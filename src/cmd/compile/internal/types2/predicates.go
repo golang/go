@@ -104,7 +104,7 @@ func comparable(T Type, seen map[Type]bool) bool {
 	//     interface{ comparable; type []byte }
 	//
 	// is not comparable because []byte is not comparable.
-	if t := T.TypeParam(); t != nil && optype(t) == theTop {
+	if t := asTypeParam(T); t != nil && optype(t) == theTop {
 		return t.Bound().IsComparable()
 	}
 
