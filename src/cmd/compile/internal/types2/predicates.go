@@ -79,7 +79,7 @@ func isConstType(typ Type) bool {
 
 // IsInterface reports whether typ is an interface type.
 func IsInterface(typ Type) bool {
-	return typ.Interface() != nil
+	return asInterface(typ) != nil
 }
 
 // Comparable reports whether values of type T are comparable.

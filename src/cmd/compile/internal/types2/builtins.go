@@ -82,7 +82,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// of S and the respective parameter passing rules apply."
 		S := x.typ
 		var T Type
-		if s := S.Slice(); s != nil {
+		if s := asSlice(S); s != nil {
 			T = s.elem
 		} else {
 			check.invalidArgf(x, "%s is not a slice", x)
@@ -210,7 +210,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _Close:
 		// close(c)
-		c := x.typ.Chan()
+		c := asChan(x.typ)
 		if c == nil {
 			check.invalidArgf(x, "%s is not a channel", x)
 			return
@@ -286,7 +286,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		// the argument types must be of floating-point type
 		f := func(x Type) Type {
-			if t := x.Basic(); t != nil {
+			if t := asBasic(x); t != nil {
 				switch t.kind {
 				case Float32:
 					return Typ[Complex64]
@@ -320,7 +320,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	case _Copy:
 		// copy(x, y []T) int
 		var dst Type
-		if t := x.typ.Slice(); t != nil {
+		if t := asSlice(x.typ); t != nil {
 			dst = t.elem
 		}
 
@@ -357,7 +357,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _Delete:
 		// delete(m, k)
-		m := x.typ.Map()
+		m := asMap(x.typ)
 		if m == nil {
 			check.invalidArgf(x, "%s is not a map", x)
 			return
@@ -404,7 +404,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		// the argument must be of complex type
 		f := func(x Type) Type {
-			if t := x.Basic(); t != nil {
+			if t := asBasic(x); t != nil {
 				switch t.kind {
 				case Complex64:
 					return Typ[Float32]
@@ -757,7 +757,7 @@ func makeSig(res Type, args ...Type) *Signature {
 //
 func implicitArrayDeref(typ Type) Type {
 	if p, ok := typ.(*Pointer); ok {
-		if a := p.base.Array(); a != nil {
+		if a := asArray(p.base); a != nil {
 			return a
 		}
 	}

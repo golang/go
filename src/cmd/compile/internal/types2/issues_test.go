@@ -391,7 +391,7 @@ func TestIssue28005(t *testing.T) {
 		if obj == nil {
 			t.Fatal("object X not found")
 		}
-		iface := obj.Type().Interface() // object X must be an interface
+		iface := obj.Type().Underlying().(*Interface) // object X must be an interface
 		if iface == nil {
 			t.Fatalf("%s is not an interface", obj)
 		}
@@ -414,7 +414,7 @@ func TestIssue28282(t *testing.T) {
 	it := NewInterfaceType(nil, []Type{et})
 	it.Complete()
 	// verify that after completing the interface, the embedded method remains unchanged
-	want := et.Interface().Method(0)
+	want := et.Underlying().(*Interface).Method(0)
 	got := it.Method(0)
 	if got != want {
 		t.Fatalf("%s.Method(0): got %q (%p); want %q (%p)", it, got, got, want, want)

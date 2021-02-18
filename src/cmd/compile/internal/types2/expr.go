@@ -110,7 +110,7 @@ func (check *Checker) overflow(x *operand) {
 	// Typed constants must be representable in
 	// their type after each constant operation.
 	if isTyped(x.typ) {
-		check.representable(x, x.typ.Basic())
+		check.representable(x, asBasic(x.typ))
 		return
 	}
 
@@ -173,7 +173,7 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 		return
 
 	case syntax.Recv:
-		typ := x.typ.Chan()
+		typ := asChan(x.typ)
 		if typ == nil {
 			check.invalidOpf(x, "cannot receive from non-channel %s", x)
 			x.mode = invalid
@@ -543,7 +543,7 @@ func (check *Checker) updateExprType(x syntax.Expr, typ Type, final bool) {
 	// If the new type is not final and still untyped, just
 	// update the recorded type.
 	if !final && isUntyped(typ) {
-		old.typ = typ.Basic()
+		old.typ = asBasic(typ)
 		check.untyped[x] = old
 		return
 	}
@@ -1396,7 +1396,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 					duplicate := false
 					// if the key is of interface type, the type is also significant when checking for duplicates
 					xkey := keyVal(x.val)
-					if utyp.key.Interface() != nil {
+					if asInterface(utyp.key) != nil {
 						for _, vtyp := range visited[xkey] {
 							if check.identical(vtyp, x.typ) {
 								duplicate = true
@@ -1465,7 +1465,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		}
 
 		if x.mode == value {
-			if sig := x.typ.Signature(); sig != nil && len(sig.tparams) > 0 {
+			if sig := asSignature(x.typ); sig != nil && len(sig.tparams) > 0 {
 				// function instantiation
 				check.funcInst(x, e)
 				return expression
@@ -1498,7 +1498,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			x.typ = typ.elem
 
 		case *Pointer:
-			if typ := typ.base.Array(); typ != nil {
+			if typ := asArray(typ.base); typ != nil {
 				valid = true
 				length = typ.len
 				x.mode = variable
@@ -1536,7 +1536,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 				case *Array:
 					e = t.elem
 				case *Pointer:
-					if t := t.base.Array(); t != nil {
+					if t := asArray(t.base); t != nil {
 						e = t.elem
 					}
 				case *Slice:
@@ -1665,7 +1665,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			x.typ = &Slice{elem: typ.elem}
 
 		case *Pointer:
-			if typ := typ.base.Array(); typ != nil {
+			if typ := asArray(typ.base); typ != nil {
 				valid = true
 				length = typ.len
 				x.typ = &Slice{elem: typ.elem}
@@ -1797,7 +1797,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 				case typexpr:
 					x.typ = &Pointer{base: x.typ}
 				default:
-					if typ := x.typ.Pointer(); typ != nil {
+					if typ := asPointer(x.typ); typ != nil {
 						x.mode = variable
 						x.typ = typ.base
 					} else {

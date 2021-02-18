@@ -351,7 +351,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			return
 		}
 
-		tch := ch.typ.Chan()
+		tch := asChan(ch.typ)
 		if tch == nil {
 			check.invalidOpf(s, "cannot send to non-chan type %s", ch.typ)
 			return
@@ -890,7 +890,7 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 	case *Slice:
 		return Typ[Int], typ.elem, ""
 	case *Pointer:
-		if typ := typ.base.Array(); typ != nil {
+		if typ := asArray(typ.base); typ != nil {
 			return Typ[Int], typ.elem, ""
 		}
 	case *Map:

@@ -314,7 +314,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		return
 	}
 
-	if ityp := V.Interface(); ityp != nil {
+	if ityp := asInterface(V); ityp != nil {
 		check.completeInterface(nopos, ityp)
 		// TODO(gri) allMethods is sorted - can do this more efficiently
 		for _, m := range T.allMethods {
@@ -434,7 +434,7 @@ func (check *Checker) assertableTo(V *Interface, T Type, strict bool) (method, w
 	// no static check is required if T is an interface
 	// spec: "If T is an interface type, x.(T) asserts that the
 	//        dynamic type of x implements the interface T."
-	if T.Interface() != nil && !(strict || forceStrict) {
+	if asInterface(T) != nil && !(strict || forceStrict) {
 		return
 	}
 	return check.missingMethod(T, V, false)
@@ -452,8 +452,8 @@ func deref(typ Type) (Type, bool) {
 // derefStructPtr dereferences typ if it is a (named or unnamed) pointer to a
 // (named or unnamed) struct and returns its base. Otherwise it returns typ.
 func derefStructPtr(typ Type) Type {
-	if p := typ.Pointer(); p != nil {
-		if p.base.Struct() != nil {
+	if p := asPointer(typ); p != nil {
+		if asStruct(p.base) != nil {
 			return p.base
 		}
 	}
