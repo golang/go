@@ -123,6 +123,24 @@ func (a *abiSeq) stepsForValue(i int) []abiStep {
 func (a *abiSeq) addArg(t *rtype) *abiStep {
 	pStart := len(a.steps)
 	a.valueStart = append(a.valueStart, pStart)
+	if t.size == 0 {
+		// If the size of the argument type is zero, then
+		// in order to degrade gracefully into ABI0, we need
+		// to stack-assign this type. The reason is that
+		// although zero-sized types take up no space on the
+		// stack, they do cause the next argument to be aligned.
+		// So just do that here, but don't bother actually
+		// generating a new ABI step for it (there's nothing to
+		// actually copy).
+		//
+		// We cannot handle this in the recursive case of
+		// regAssign because zero-sized *fields* of a
+		// non-zero-sized struct do not cause it to be
+		// stack-assigned. So we need a special case here
+		// at the top.
+		a.stackBytes = align(a.stackBytes, uintptr(t.align))
+		return nil
+	}
 	if !a.regAssign(t, 0) {
 		a.steps = a.steps[:pStart]
 		a.stackAssign(t.size, uintptr(t.align))
