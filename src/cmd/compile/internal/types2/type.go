@@ -971,3 +971,8 @@ func asTypeParam(t Type) *TypeParam {
 	u, _ := under(t).(*TypeParam)
 	return u
 }
+
+// Exported for the compiler.
+
+func AsPointer(t Type) *Pointer { return asPointer(t) }
+func AsNamed(t Type) *Named     { return asNamed(t) }
