@@ -354,13 +354,13 @@ func check(t Testing, gopath string, pass *analysis.Pass, diagnostics []analysis
 		// Any comment starting with "want" is treated
 		// as an expectation, even without following whitespace.
 		if rest := strings.TrimPrefix(text, "want"); rest != text {
-			expects, err := parseExpectations(rest)
+			lineDelta, expects, err := parseExpectations(rest)
 			if err != nil {
 				t.Errorf("%s:%d: in 'want' comment: %s", filename, linenum, err)
 				return
 			}
 			if expects != nil {
-				want[key{filename, linenum}] = expects
+				want[key{filename, linenum + lineDelta}] = expects
 			}
 		}
 	}
@@ -526,13 +526,13 @@ func (ex expectation) String() string {
 // parseExpectations parses the content of a "// want ..." comment
 // and returns the expectations, a mixture of diagnostics ("rx") and
 // facts (name:"rx").
-func parseExpectations(text string) ([]expectation, error) {
+func parseExpectations(text string) (lineDelta int, expects []expectation, err error) {
 	var scanErr string
 	sc := new(scanner.Scanner).Init(strings.NewReader(text))
 	sc.Error = func(s *scanner.Scanner, msg string) {
 		scanErr = msg // e.g. bad string escape
 	}
-	sc.Mode = scanner.ScanIdents | scanner.ScanStrings | scanner.ScanRawStrings
+	sc.Mode = scanner.ScanIdents | scanner.ScanStrings | scanner.ScanRawStrings | scanner.ScanInts
 
 	scanRegexp := func(tok rune) (*regexp.Regexp, error) {
 		if tok != scanner.String && tok != scanner.RawString {
@@ -543,14 +543,19 @@ func parseExpectations(text string) ([]expectation, error) {
 		return regexp.Compile(pattern)
 	}
 
-	var expects []expectation
 	for {
 		tok := sc.Scan()
 		switch tok {
+		case '+':
+			tok = sc.Scan()
+			if tok != scanner.Int {
+				return 0, nil, fmt.Errorf("got +%s, want +Int", scanner.TokenString(tok))
+			}
+			lineDelta, _ = strconv.Atoi(sc.TokenText())
 		case scanner.String, scanner.RawString:
 			rx, err := scanRegexp(tok)
 			if err != nil {
-				return nil, err
+				return 0, nil, err
 			}
 			expects = append(expects, expectation{"diagnostic", "", rx})
 
@@ -558,24 +563,24 @@ func parseExpectations(text string) ([]expectation, error) {
 			name := sc.TokenText()
 			tok = sc.Scan()
 			if tok != ':' {
-				return nil, fmt.Errorf("got %s after %s, want ':'",
+				return 0, nil, fmt.Errorf("got %s after %s, want ':'",
 					scanner.TokenString(tok), name)
 			}
 			tok = sc.Scan()
 			rx, err := scanRegexp(tok)
 			if err != nil {
-				return nil, err
+				return 0, nil, err
 			}
 			expects = append(expects, expectation{"fact", name, rx})
 
 		case scanner.EOF:
 			if scanErr != "" {
-				return nil, fmt.Errorf("%s", scanErr)
+				return 0, nil, fmt.Errorf("%s", scanErr)
 			}
-			return expects, nil
+			return lineDelta, expects, nil
 
 		default:
-			return nil, fmt.Errorf("unexpected %s", scanner.TokenString(tok))
+			return 0, nil, fmt.Errorf("unexpected %s", scanner.TokenString(tok))
 		}
 	}
 }

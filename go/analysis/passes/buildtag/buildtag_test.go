@@ -5,6 +5,8 @@
 package buildtag_test
 
 import (
+	"runtime"
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
@@ -13,6 +15,9 @@ import (
 )
 
 func Test(t *testing.T) {
+	if strings.HasPrefix(runtime.Version(), "go1.") && runtime.Version() < "go1.16" {
+		t.Skipf("skipping on %v", runtime.Version())
+	}
 	analyzer := *buildtag.Analyzer
 	analyzer.Run = func(pass *analysis.Pass) (interface{}, error) {
 		defer func() {

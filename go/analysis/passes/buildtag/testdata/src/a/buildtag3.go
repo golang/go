@@ -2,15 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build no
+// want +3 `[+]build lines do not match //go:build condition`
+
+//go:build good
+// +build bad
 
 package a
-
-// want +1 `misplaced \+build comment`
-// +build toolate
-
-// want +1 `misplaced //go:build comment`
-//go:build toolate
 
 var _ = `
 // +build notacomment
