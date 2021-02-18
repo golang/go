@@ -127,7 +127,3 @@ type anyType struct{}
 func (t anyType) Underlying() types2.Type { return t }
 func (t anyType) Under() types2.Type      { return t }
 func (t anyType) String() string          { return "any" }
-
-// types2.aType is not exported for now so we need to implemented these here.
-func (anyType) Named() *types2.Named         { return nil }
-func (anyType) TypeParam() *types2.TypeParam { return nil }

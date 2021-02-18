@@ -211,12 +211,12 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		// match a type name against an unnamed type literal, consider
 		// the underlying type of the named type.
 		// (Subtle: We use isNamed to include any type with a name (incl.
-		// basic types and type parameters. We use Named() because we only
+		// basic types and type parameters. We use asNamed because we only
 		// want *Named types.)
 		switch {
-		case !isNamed(x) && y != nil && y.Named() != nil:
+		case !isNamed(x) && y != nil && asNamed(y) != nil:
 			return u.nify(x, y.Under(), p)
-		case x != nil && x.Named() != nil && !isNamed(y):
+		case x != nil && asNamed(x) != nil && !isNamed(y):
 			return u.nify(x.Under(), y, p)
 		}
 	}

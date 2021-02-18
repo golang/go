@@ -146,7 +146,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
 			// If the type argument is a pointer to a type parameter, the type argument's
 			// method set is empty.
 			// TODO(gri) is this what we want? (spec question)
-			if base, isPtr := deref(targ); isPtr && base.TypeParam() != nil {
+			if base, isPtr := deref(targ); isPtr && asTypeParam(base) != nil {
 				check.errorf(pos, "%s has no methods", targ)
 				break
 			}
@@ -179,7 +179,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
 
 		// If targ is itself a type parameter, each of its possible types, but at least one, must be in the
 		// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
-		if targ := targ.TypeParam(); targ != nil {
+		if targ := asTypeParam(targ); targ != nil {
 			targBound := targ.Bound()
 			if targBound.allTypes == nil {
 				check.softErrorf(pos, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)

@@ -559,7 +559,7 @@ func (n0 *Named) Under() Type {
 
 	// If the underlying type of a defined type is not a defined
 	// type, then that is the desired underlying type.
-	n := u.Named()
+	n := asNamed(u)
 	if n == nil {
 		return u // common case
 	}
@@ -573,7 +573,7 @@ func (n0 *Named) Under() Type {
 			u = Typ[Invalid]
 			break
 		}
-		n1 := u.Named()
+		n1 := asNamed(u)
 		if n1 == nil {
 			break // end of chain
 		}
@@ -760,7 +760,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 
 	// spec: "If the base type is a struct type, the non-blank method
 	// and field names must be distinct."
-	base := obj.typ.Named() // shouldn't fail but be conservative
+	base := asNamed(obj.typ) // shouldn't fail but be conservative
 	if base != nil {
 		if t, _ := base.underlying.(*Struct); t != nil {
 			for _, fld := range t.fields {

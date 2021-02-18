@@ -26,13 +26,6 @@ type Type interface {
 
 	// String returns a string representation of a type.
 	String() string
-
-	// If the receiver for Named and TypeParam is of
-	// the respective type (possibly after unpacking
-	// an instance type), these methods return that
-	// type. Otherwise the result is nil.
-	Named() *Named
-	TypeParam() *TypeParam
 }
 
 // aType implements default type behavior
@@ -42,9 +35,6 @@ type aType struct{}
 func (aType) Underlying() Type { panic("unreachable") }
 func (aType) Under() Type      { panic("unreachable") }
 func (aType) String() string   { panic("unreachable") }
-
-func (aType) Named() *Named         { return nil }
-func (aType) TypeParam() *TypeParam { return nil }
 
 // BasicKind describes the kind of basic type.
 type BasicKind int
@@ -209,6 +199,9 @@ type Tuple struct {
 	aType
 }
 
+// TODO(gri) Don't represent empty tuples with a (*Tuple)(nil) pointer;
+//           it's too subtle and causes problems. Use a singleton instead.
+
 // NewTuple returns a new tuple for the given variables.
 func NewTuple(x ...*Var) *Tuple {
 	if len(x) > 0 {
@@ -216,16 +209,6 @@ func NewTuple(x ...*Var) *Tuple {
 	}
 	return nil
 }
-
-// We cannot rely on the embedded X() *X methods because (*Tuple)(nil)
-// is a valid *Tuple value but (*Tuple)(nil).X() would panic without
-// these implementations. At the moment we only need X = Basic, Named,
-// but add all because missing one leads to very confusing bugs.
-// TODO(gri) Don't represent empty tuples with a (*Tuple)(nil) pointer;
-//           it's too subtle and causes problems.
-
-func (*Tuple) Named() *Named         { return nil }
-func (*Tuple) TypeParam() *TypeParam { return nil }
 
 // Len returns the number variables of tuple t.
 func (t *Tuple) Len() int {
@@ -730,9 +713,6 @@ func (check *Checker) NewNamed(obj *TypeName, underlying Type, methods []*Func) 
 // Obj returns the type name for the named type t.
 func (t *Named) Obj() *TypeName { return t.obj }
 
-// func (t *Named) Named() *Named      // declared below
-func (t *Named) TypeParam() *TypeParam { return t.Under().TypeParam() }
-
 // TODO(gri) Come up with a better representation and API to distinguish
 //           between parameterized instantiated and non-instantiated types.
 
@@ -814,7 +794,7 @@ func (t *TypeParam) Bound() *Interface {
 // result may be the bottom or top type, but it is never
 // the incoming type parameter.
 func optype(typ Type) Type {
-	if t := typ.TypeParam(); t != nil {
+	if t := asTypeParam(typ); t != nil {
 		// If the optype is typ, return the top type as we have
 		// no information. It also prevents infinite recursion
 		// via the TypeParam converter methods. This can happen
@@ -830,9 +810,6 @@ func optype(typ Type) Type {
 	return typ.Under()
 }
 
-// func (t *TypeParam) Named() *Named         // Named does not unpack type parameters
-// func (t *TypeParam) TypeParam() *TypeParam // declared below
-
 // An instance represents an instantiated generic type syntactically
 // (without expanding the instantiation). Type instances appear only
 // during type-checking and are replaced by their fully instantiated
@@ -846,9 +823,6 @@ type instance struct {
 	value   Type         // base(targs...) after instantiation or Typ[Invalid]; nil if not yet set
 	aType
 }
-
-func (t *instance) Named() *Named         { return t.expand().Named() }
-func (t *instance) TypeParam() *TypeParam { return t.expand().TypeParam() }
 
 // expand returns the instantiated (= expanded) type of t.
 // The result is either an instantiated *Named type, or
@@ -907,9 +881,6 @@ type top struct {
 
 // theTop is the singleton top type.
 var theTop = &top{}
-
-func (t *Named) Named() *Named             { return t }
-func (t *TypeParam) TypeParam() *TypeParam { return t }
 
 // Type-specific implementations of Underlying.
 func (t *Basic) Underlying() Type     { return t }
@@ -1024,4 +995,18 @@ func asMap(t Type) *Map {
 func asChan(t Type) *Chan {
 	op, _ := optype(t).(*Chan)
 	return op
+}
+
+// If the argument to asNamed and asTypeParam is of the respective types
+// (possibly after expanding an instance type), these methods return that type.
+// Otherwise the result is nil.
+
+func asNamed(t Type) *Named {
+	e, _ := expand(t).(*Named)
+	return e
+}
+
+func asTypeParam(t Type) *TypeParam {
+	u, _ := t.Under().(*TypeParam)
+	return u
 }

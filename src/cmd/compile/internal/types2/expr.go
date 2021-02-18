@@ -615,7 +615,7 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 	// TODO(gri) We should not need this because we have the code
 	// for Sum types in convertUntypedInternal. But at least one
 	// test fails. Investigate.
-	if t := target.TypeParam(); t != nil {
+	if t := asTypeParam(target); t != nil {
 		types := t.Bound().allTypes
 		if types == nil {
 			goto Error

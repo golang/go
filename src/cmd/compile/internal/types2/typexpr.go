@@ -302,7 +302,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 				// Also: Don't report an error via genericType since it will be reported
 				//       again when we type-check the signature.
 				// TODO(gri) maybe the receiver should be marked as invalid instead?
-				if recv := check.genericType(rname, false).Named(); recv != nil {
+				if recv := asNamed(check.genericType(rname, false)); recv != nil {
 					recvTParams = recv.tparams
 				}
 			}
@@ -382,7 +382,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 		// (ignore invalid types - error was reported before)
 		if t := rtyp; t != Typ[Invalid] {
 			var err string
-			if T := t.Named(); T != nil {
+			if T := asNamed(t); T != nil {
 				// spec: "The type denoted by T is called the receiver base type; it must not
 				// be a pointer or interface type and it must be declared in the same package
 				// as the method."
@@ -575,7 +575,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		check.atEnd(func() {
 			if !Comparable(typ.key) {
 				var why string
-				if typ.key.TypeParam() != nil {
+				if asTypeParam(typ.key) != nil {
 					why = " (missing comparable constraint)"
 				}
 				check.errorf(e.Key, "invalid map key type %s%s", typ.key, why)
@@ -644,7 +644,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, targs []syntax.Expr, def *
 	if b == Typ[Invalid] {
 		return b // error already reported
 	}
-	base := b.Named()
+	base := asNamed(b)
 	if base == nil {
 		unreachable() // should have been caught by genericType
 	}
@@ -1045,7 +1045,7 @@ func (a byUniqueTypeName) Less(i, j int) bool { return sortName(a[i]) < sortName
 func (a byUniqueTypeName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func sortName(t Type) string {
-	if named := t.Named(); named != nil {
+	if named := asNamed(t); named != nil {
 		return named.obj.Id()
 	}
 	return ""
