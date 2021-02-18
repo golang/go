@@ -982,6 +982,11 @@ func matchtag(tag string) bool {
 		}
 		return !matchtag(tag[1:])
 	}
+	if os.Getenv("GOEXPERIMENT") == "regabi" && tag == "goexperiment.regabi" {
+		// TODO: maybe we can handle GOEXPERIMENT more generally.
+		// Or remove once we commit to regabi (#40724).
+		return true
+	}
 	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" ||
 		(goos == "android" && tag == "linux") ||
 		(goos == "illumos" && tag == "solaris") ||
