@@ -14,7 +14,7 @@ go test -fuzz=FuzzA -fuzztime=5s -parallel=1 -log=fuzz
 go run check_logs.go fuzz fuzz.worker
 
 # Test that the mutator is good enough to find several unique mutations.
-! go test -v -fuzz=Fuzz -parallel=1 -fuzztime=30s mutator_test.go
+! go test -fuzz=Fuzz -parallel=1 -fuzztime=30s mutator_test.go
 ! stdout ok
 stdout FAIL
 stdout 'mutator found enough unique mutations'

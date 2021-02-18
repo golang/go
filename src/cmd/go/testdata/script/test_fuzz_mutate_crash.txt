@@ -24,6 +24,12 @@ go run check_testdata.go FuzzWithBug
 # the target, and should fail when run without fuzzing.
 ! go test -parallel=1
 
+# Running the fuzzer should find a crashing input quickly for fuzzing two types.
+! go test -run=FuzzWithTwoTypes -fuzz=FuzzWithTwoTypes -fuzztime=5s -parallel=1
+stdout 'testdata[/\\]corpus[/\\]FuzzWithTwoTypes[/\\]'
+stdout 'these inputs caused a crash!'
+go run check_testdata.go FuzzWithTwoTypes
+
 ! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=5s -parallel=1
 stdout 'testdata[/\\]corpus[/\\]FuzzWithNilPanic[/\\]'
 stdout 'runtime.Goexit'
@@ -60,6 +66,14 @@ func FuzzWithNilPanic(f *testing.F) {
 	f.Fuzz(func(t *testing.T, b []byte) {
 		if string(b) != "aa" {
 			panic(nil)
+		}
+	})
+}
+
+func FuzzWithTwoTypes(f *testing.F) {
+	f.Fuzz(func(t *testing.T, a, b []byte) {
+		if len(a) > 0 && len(b) > 0 {
+			panic("these inputs caused a crash!")
 		}
 	})
 }

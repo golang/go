@@ -116,6 +116,21 @@ stdout 'off by one error'
 ! stdout ^ok
 stdout FAIL
 
+# Test panic with unsupported seed corpus
+! go test -run FuzzUnsupported fuzz_add_test.go
+! stdout ^ok
+stdout FAIL
+
+# Test panic with different number of args to f.Add
+! go test -run FuzzAddDifferentNumber fuzz_add_test.go
+! stdout ^ok
+stdout FAIL
+
+# Test panic with different type of args to f.Add
+! go test -run FuzzAddDifferentType fuzz_add_test.go
+! stdout ^ok
+stdout FAIL
+
 # Test fatal with testdata seed corpus
 ! go test -run FuzzFail corpustesting/fuzz_testdata_corpus_test.go
 ! stdout ^ok
@@ -127,6 +142,11 @@ go test -run FuzzPass corpustesting/fuzz_testdata_corpus_test.go
 stdout ok
 ! stdout FAIL
 ! stdout 'fatal here'
+
+# Test panic with malformed seed corpus
+! go test -run FuzzFail corpustesting/fuzz_testdata_corpus_test.go
+! stdout ^ok
+stdout FAIL
 
 # Test pass with file in other nested testdata directory
 go test -run FuzzInNestedDir corpustesting/fuzz_testdata_corpus_test.go
@@ -316,6 +336,24 @@ func FuzzNilPanic(f *testing.F) {
     })
 }
 
+func FuzzUnsupported(f *testing.F) {
+    m := make(map[string]bool)
+    f.Add(m)
+    f.Fuzz(func(t *testing.T, b []byte) {})
+}
+
+func FuzzAddDifferentNumber(f *testing.F) {
+    f.Add([]byte("a"))
+    f.Add([]byte("a"), []byte("b"))
+    f.Fuzz(func(t *testing.T, b []byte) {})
+}
+
+func FuzzAddDifferentType(f *testing.F) {
+    f.Add(false)
+    f.Add(1234)
+    f.Fuzz(func(t *testing.T, b []byte) {})
+}
+
 -- corpustesting/fuzz_testdata_corpus_test.go --
 package fuzz_testdata_corpus
 
@@ -324,7 +362,7 @@ import "testing"
 func fuzzFn(f *testing.F) {
     f.Helper()
     f.Fuzz(func(t *testing.T, b []byte) {
-        if string(b) == "12345\n" {
+        if string(b) == "12345" {
             t.Fatal("fatal here")
         }
     })
@@ -338,13 +376,22 @@ func FuzzPass(f *testing.F) {
     fuzzFn(f)
 }
 
+func FuzzPanic(f *testing.F) {
+    f.Fuzz(func(t *testing.T, b []byte) {})
+}
+
 func FuzzInNestedDir(f *testing.F) {
-    fuzzFn(f)
+    f.Fuzz(func(t *testing.T, b []byte) {})
 }
 
 -- corpustesting/testdata/corpus/FuzzFail/1 --
-12345
+go test fuzz v1
+[]byte("12345")
 -- corpustesting/testdata/corpus/FuzzPass/1 --
-00000
+go test fuzz v1
+[]byte("00000")
+-- corpustesting/testdata/corpus/FuzzPanic/1 --
+malformed
 -- corpustesting/testdata/corpus/FuzzInNestedDir/anotherdir/1 --
-12345
+go test fuzz v1
+[]byte("12345")

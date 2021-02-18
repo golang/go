@@ -453,6 +453,10 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
 	mem := <-ws.memMu
 	defer func() { ws.memMu <- mem }()
 
+	vals, err := unmarshalCorpusFile(mem.valueCopy())
+	if err != nil {
+		panic(err)
+	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -460,10 +464,11 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
 			// real heuristic once we have one.
 			return fuzzResponse{Interesting: true}
 		default:
-			b := mem.valueRef()
-			ws.m.mutate(&b)
+			vals = ws.m.mutate(vals, cap(mem.valueRef()))
+			b := marshalCorpusFile(vals...)
 			mem.setValueLen(len(b))
-			if err := ws.fuzzFn(CorpusEntry{Data: b}); err != nil {
+			mem.setValue(b)
+			if err := ws.fuzzFn(CorpusEntry{Values: vals}); err != nil {
 				return fuzzResponse{Err: err.Error()}
 			}
 			// TODO(jayconrod,katiehockman): return early if we find an

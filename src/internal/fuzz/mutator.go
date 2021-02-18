@@ -6,6 +6,7 @@ package fuzz
 
 import (
 	"encoding/binary"
+	"fmt"
 	"reflect"
 	"unsafe"
 )
@@ -49,12 +50,38 @@ func min(a, b int) int {
 	return b
 }
 
-// mutate performs several mutations directly onto the provided byte slice.
-func (m *mutator) mutate(ptrB *[]byte) {
-	// TODO(jayconrod,katiehockman): make this use zero allocations
-	// TODO(katiehockman): pull some of these functions into helper methods
-	// and test that each case is working as expected.
+// mutate performs several mutations on the provided values.
+func (m *mutator) mutate(vals []interface{}, maxBytes int) []interface{} {
+	// TODO(jayconrod,katiehockman): use as few allocations as possible
+	// TODO(katiehockman): pull some of these functions into helper methods and
+	// test that each case is working as expected.
 	// TODO(katiehockman): perform more types of mutations.
+
+	// maxPerVal will represent the maximum number of bytes that each value be
+	// allowed after mutating, giving an equal amount of capacity to each line.
+	// Allow a little wiggle room for the encoding.
+	maxPerVal := maxBytes/len(vals) - 100
+
+	// Pick a random value to mutate.
+	// TODO: consider mutating more than one value at a time.
+	i := m.rand(len(vals))
+	// TODO(katiehockman): support mutating other types
+	switch v := vals[i].(type) {
+	case []byte:
+		if len(v) > maxPerVal {
+			panic(fmt.Sprintf("cannot mutate bytes of length %d", len(v)))
+		}
+		b := make([]byte, 0, maxPerVal)
+		b = append(b, v...)
+		m.mutateBytes(&b)
+		vals[i] = b
+		return vals
+	default:
+		panic(fmt.Sprintf("type not supported for mutating: %T", vals[i]))
+	}
+}
+
+func (m *mutator) mutateBytes(ptrB *[]byte) {
 	b := *ptrB
 	defer func() {
 		oldHdr := (*reflect.SliceHeader)(unsafe.Pointer(ptrB))
@@ -103,6 +130,10 @@ func (m *mutator) mutate(ptrB *[]byte) {
 				dst = m.rand(len(b))
 			}
 			n := m.chooseLen(len(b) - src)
+			if len(b)+n >= cap(b) {
+				iter--
+				continue
+			}
 			tmp := make([]byte, n)
 			copy(tmp, b[src:])
 			b = b[:len(b)+n]
