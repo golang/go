@@ -142,7 +142,7 @@ func (check *Checker) ordinaryType(pos syntax.Pos, typ Type) {
 	// are in the middle of type-checking parameter declarations that might belong to
 	// interface methods. Delay this check to the end of type-checking.
 	check.atEnd(func() {
-		if t := typ.Interface(); t != nil {
+		if t := asInterface(typ); t != nil {
 			check.completeInterface(pos, t) // TODO(gri) is this the correct position?
 			if t.allTypes != nil {
 				check.softErrorf(pos, "interface contains type constraints (%s)", t.allTypes)
@@ -403,7 +403,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 						err = "pointer or interface type"
 					}
 				}
-			} else if T := t.Basic(); T != nil {
+			} else if T := asBasic(t); T != nil {
 				err = "basic or unnamed type"
 				if check.conf.CompilerErrorMessages {
 					check.errorf(recv.pos, "cannot define new methods on non-local type %s", recv.typ)
@@ -968,7 +968,7 @@ func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
 	for i, typ := range ityp.embeddeds {
 		pos := posList[i] // embedding position
 		utyp := typ.Under()
-		etyp := utyp.Interface()
+		etyp := asInterface(utyp)
 		if etyp == nil {
 			if utyp != Typ[Invalid] {
 				var format string
@@ -1226,7 +1226,7 @@ func (check *Checker) collectTypeConstraints(pos syntax.Pos, types []syntax.Expr
 	// Note: This is a quadratic algorithm, but type lists tend to be short.
 	check.atEnd(func() {
 		for i, t := range list {
-			if t := t.Interface(); t != nil {
+			if t := asInterface(t); t != nil {
 				check.completeInterface(types[i].Pos(), t)
 			}
 			if includes(list[:i], t) {

@@ -21,7 +21,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 	switch {
 	case constArg && isConstType(T):
 		// constant conversion
-		switch t := T.Basic(); {
+		switch t := asBasic(T); {
 		case representableConst(x.val, check, t, &x.val):
 			ok = true
 		case isInteger(x.typ) && isString(t):
@@ -140,26 +140,26 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
 }
 
 func isUintptr(typ Type) bool {
-	t := typ.Basic()
+	t := asBasic(typ)
 	return t != nil && t.kind == Uintptr
 }
 
 func isUnsafePointer(typ Type) bool {
-	// TODO(gri): Is this typ.Basic() instead of typ.(*Basic) correct?
+	// TODO(gri): Is this asBasic(typ) instead of typ.(*Basic) correct?
 	//            (The former calls typ.Under(), while the latter doesn't.)
 	//            The spec does not say so, but gc claims it is. See also
 	//            issue 6326.
-	t := typ.Basic()
+	t := asBasic(typ)
 	return t != nil && t.kind == UnsafePointer
 }
 
 func isPointer(typ Type) bool {
-	return typ.Pointer() != nil
+	return asPointer(typ) != nil
 }
 
 func isBytesOrRunes(typ Type) bool {
-	if s := typ.Slice(); s != nil {
-		t := s.elem.Basic()
+	if s := asSlice(typ); s != nil {
+		t := asBasic(s.elem)
 		return t != nil && (t.kind == Byte || t.kind == Rune)
 	}
 	return false

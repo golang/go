@@ -327,7 +327,7 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited 
 	var writeBounds bool
 	for _, p := range list {
 		// bound(p) should be an interface but be careful (it may be invalid)
-		b := bound(p).Interface()
+		b := asInterface(bound(p))
 		if b != nil && !b.Empty() {
 			writeBounds = true
 			break
@@ -395,7 +395,7 @@ func writeTuple(buf *bytes.Buffer, tup *Tuple, variadic bool, qf Qualifier, visi
 				} else {
 					// special case:
 					// append(s, "foo"...) leads to signature func([]byte, string...)
-					if t := typ.Basic(); t == nil || t.kind != String {
+					if t := asBasic(typ); t == nil || t.kind != String {
 						panic("internal error: string type expected")
 					}
 					writeType(buf, typ, qf, visited)

@@ -121,7 +121,7 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
 		case 1:
 			check.expr(x, call.ArgList[0])
 			if x.mode != invalid {
-				if t := T.Interface(); t != nil {
+				if t := asInterface(T); t != nil {
 					check.completeInterface(nopos, t)
 					if t.IsConstraint() {
 						check.errorf(call, "cannot use interface %s in conversion (contains type list or is comparable)", T)
@@ -157,7 +157,7 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
 		// function/method call
 		cgocall := x.mode == cgofunc
 
-		sig := x.typ.Signature()
+		sig := asSignature(x.typ)
 		if sig == nil {
 			check.invalidOpf(x, "cannot call non-function %s", x)
 			x.mode = invalid
