@@ -1204,8 +1204,6 @@ func embeddedFieldIdent(e syntax.Expr) *syntax.Name {
 		return e.Sel
 	case *syntax.IndexExpr:
 		return embeddedFieldIdent(e.X)
-	case *syntax.ParenExpr:
-		return embeddedFieldIdent(e.X)
 	}
 	return nil // invalid embedded field
 }
