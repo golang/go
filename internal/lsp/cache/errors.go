@@ -244,7 +244,7 @@ func onlyDeletions(fixes []source.SuggestedFix) bool {
 
 func typesCodeHref(snapshot *snapshot, code typesinternal.ErrorCode) string {
 	target := snapshot.View().Options().LinkTarget
-	return fmt.Sprintf("https://%s/golang.org/x/tools/internal/typesinternal#%s", target, code.String())
+	return source.BuildLink(target, "golang.org/x/tools/internal/typesinternal", code.String())
 }
 
 func suggestedAnalysisFixes(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnostic, kinds []protocol.CodeActionKind) ([]source.SuggestedFix, error) {
