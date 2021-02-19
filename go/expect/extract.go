@@ -42,7 +42,7 @@ func Parse(fset *token.FileSet, filename string, content []byte) ([]*Note, error
 		// there are ways you can break the parser such that it will not add all the
 		// comments to the ast, which may result in files where the tests are silently
 		// not run.
-		file, err := parser.ParseFile(fset, filename, src, parser.ParseComments)
+		file, err := parser.ParseFile(fset, filename, src, parser.ParseComments|parser.AllErrors)
 		if file == nil {
 			return nil, err
 		}
