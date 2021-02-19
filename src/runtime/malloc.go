@@ -730,7 +730,9 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 
 mapped:
 	// Create arena metadata.
-	for ri := arenaIndex(uintptr(v)); ri <= arenaIndex(uintptr(v)+size-1); ri++ {
+	end := arenaIndex(uintptr(v) + size - 1)
+	_ = h.arenas[end.l1()] // hoist bounds checks out of the loop
+	for ri := arenaIndex(uintptr(v)); ri <= end; ri++ {
 		l2 := h.arenas[ri.l1()]
 		if l2 == nil {
 			// Allocate an L2 arena map.
