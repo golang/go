@@ -5,7 +5,6 @@
 package misc
 
 import (
-	"log"
 	"testing"
 
 	. "golang.org/x/tools/gopls/internal/regtest"
@@ -59,18 +58,13 @@ const a = 2
 
 func TestFailingDiagnosticClearingOnEdit(t *testing.T) {
 	Run(t, badPackageDup, func(t *testing.T, env *Env) {
-		log.SetFlags(log.Lshortfile)
 		env.OpenFile("b.go")
-		env.Await(env.AnyDiagnosticAtCurrentVersion("a.go"))
-		// no diagnostics for either b.go or 'gen.go', but there should be
-		env.Await(NoDiagnostics("b.go"))
+		// no diagnostics for any files, but there should be
+		env.Await(NoDiagnostics("a.go"), NoDiagnostics("b.go"))
 
 		// Fix the error by editing the const name in b.go to `b`.
 		env.RegexpReplace("b.go", "(a) = 2", "b")
-		env.Await(
-			EmptyDiagnostics("a.go"),
-			// expected, as there have never been any diagnostics for b.go
-			NoDiagnostics("b.go"),
-		)
+
+		// The diagnostics that weren't sent above should now be cleared.
 	})
 }

@@ -442,8 +442,7 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 
 	// We don't care about a package's errors unless we have parsed it in full.
 	if mode == source.ParseFull {
-		expandErrors(rawErrors)
-		for _, e := range rawErrors {
+		for _, e := range expandErrors(rawErrors) {
 			srcDiags, err := sourceDiagnostics(ctx, snapshot, pkg, protocol.SeverityError, e)
 			if err != nil {
 				event.Error(ctx, "unable to compute error positions", err, tag.Package.Of(pkg.ID()))
@@ -654,27 +653,51 @@ func (e extendedError) Error() string {
 // This code associates the secondary error with its primary error, which can
 // then be used as RelatedInformation when the error becomes a diagnostic.
 func expandErrors(errs []error) []error {
+	var result []error
 	for i := 0; i < len(errs); {
 		e, ok := errs[i].(types.Error)
 		if !ok {
+			result = append(result, errs[i])
 			i++
 			continue
 		}
-		enew := extendedError{
+		original := extendedError{
 			primary: e,
 		}
-		j := i + 1
-		for ; j < len(errs); j++ {
-			spl, ok := errs[j].(types.Error)
+		for i++; i < len(errs); i++ {
+			spl, ok := errs[i].(types.Error)
 			if !ok || len(spl.Msg) == 0 || spl.Msg[0] != '\t' {
 				break
 			}
-			enew.secondaries = append(enew.secondaries, spl)
+			spl.Msg = spl.Msg[1:]
+			original.secondaries = append(original.secondaries, spl)
 		}
-		errs[i] = enew
-		i = j
+
+		// Clone the error to all its related locations -- VS Code, at least,
+		// doesn't do it for us.
+		result = append(result, original)
+		for i, mainSecondary := range original.secondaries {
+			// Create the new primary error, with a tweaked message, in the
+			// secondary's location. We need to start from the secondary to
+			// capture its unexported location fields.
+			relocatedSecondary := mainSecondary
+			relocatedSecondary.Msg = fmt.Sprintf("%v (full error below)", original.primary.Msg)
+			relocatedSecondary.Soft = original.primary.Soft
+
+			// Copy over the secondary errors, noting the location of the
+			// current error we're cloning.
+			clonedError := extendedError{primary: relocatedSecondary, secondaries: []types.Error{original.primary}}
+			for j, secondary := range original.secondaries {
+				if i == j {
+					secondary.Msg += " (this error)"
+				}
+				clonedError.secondaries = append(clonedError.secondaries, secondary)
+			}
+			result = append(result, clonedError)
+		}
+
 	}
-	return errs
+	return result
 }
 
 // resolveImportPath resolves an import path in pkg to a package from deps.
