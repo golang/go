@@ -98,11 +98,11 @@ TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
 TEXT runtime·gogo(SB), NOSPLIT|NOFRAME, $0-8
 	MOVV	buf+0(FP), R3
 	MOVV	gobuf_g(R3), R4
-	MOVV	0(R4), R5	// make sure g != nil
+	MOVV	0(R4), R0	// make sure g != nil
 	JMP	gogo<>(SB)
 
 TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
-	MOVV	R5, g
+	MOVV	R4, g
 	JAL	runtime·save_g(SB)
 
 	MOVV	0(g), R2
