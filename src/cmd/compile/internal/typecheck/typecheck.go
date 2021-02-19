@@ -1612,6 +1612,10 @@ func checkassign(stmt ir.Node, n ir.Node) {
 		return
 	}
 
+	defer n.SetType(nil)
+	if n.Diag() {
+		return
+	}
 	switch {
 	case n.Op() == ir.ODOT && n.(*ir.SelectorExpr).X.Op() == ir.OINDEXMAP:
 		base.Errorf("cannot assign to struct field %v in map", n)
@@ -1621,13 +1625,6 @@ func checkassign(stmt ir.Node, n ir.Node) {
 		base.Errorf("cannot assign to %v (declared const)", n)
 	default:
 		base.Errorf("cannot assign to %v", n)
-	}
-	n.SetType(nil)
-}
-
-func checkassignlist(stmt ir.Node, l ir.Nodes) {
-	for _, n := range l {
-		checkassign(stmt, n)
 	}
 }
 
