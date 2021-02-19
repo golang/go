@@ -1,5 +1,3 @@
-// +build ignore
-
 package A1
 
 import (

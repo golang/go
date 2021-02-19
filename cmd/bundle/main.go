@@ -228,6 +228,7 @@ func bundle(src, dst, dstpkg, prefix, buildTags string) ([]byte, error) {
 
 	var out bytes.Buffer
 	if buildTags != "" {
+		fmt.Fprintf(&out, "//go:build %s\n", buildTags)
 		fmt.Fprintf(&out, "// +build %s\n\n", buildTags)
 	}
 

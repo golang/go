@@ -1,8 +1,8 @@
 package templates
 
-// Test 
+// Test
 
 import "sync"
 
 func before(s sync.RWMutex) { s.Lock() }
-func after(s sync.RWMutex) { s.RLock() }
+func after(s sync.RWMutex)  { s.RLock() }

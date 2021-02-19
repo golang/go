@@ -1,5 +1,3 @@
-// +build ignore
-
 package H1
 
 import "go/ast"

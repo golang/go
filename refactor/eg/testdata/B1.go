@@ -1,5 +1,3 @@
-// +build ignore
-
 package B1
 
 import "time"
