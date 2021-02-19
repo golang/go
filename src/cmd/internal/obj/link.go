@@ -473,6 +473,7 @@ type FuncInfo struct {
 	Autot    map[*LSym]struct{}
 	Pcln     Pcln
 	InlMarks []InlMark
+	spills   []RegSpill
 
 	dwarfInfoSym       *LSym
 	dwarfLocSym        *LSym
@@ -550,6 +551,11 @@ type InlMark struct {
 // just before the body of the inlined function.
 func (fi *FuncInfo) AddInlMark(p *Prog, id int32) {
 	fi.InlMarks = append(fi.InlMarks, InlMark{p: p, id: id})
+}
+
+// AddSpill appends a spill record to the list for FuncInfo fi
+func (fi *FuncInfo) AddSpill(s RegSpill) {
+	fi.spills = append(fi.spills, s)
 }
 
 // Record the type symbol for an auto variable so that the linker
@@ -803,12 +809,12 @@ type Auto struct {
 	Gotype  *LSym
 }
 
-// RegArg provides spill/fill information for a register-resident argument
+// RegSpill provides spill/fill information for a register-resident argument
 // to a function.  These need spilling/filling in the safepoint/stackgrowth case.
 // At the time of fill/spill, the offset must be adjusted by the architecture-dependent
 // adjustment to hardware SP that occurs in a call instruction.  E.g., for AMD64,
 // at Offset+8 because the return address was pushed.
-type RegArg struct {
+type RegSpill struct {
 	Addr           Addr
 	Reg            int16
 	Spill, Unspill As
@@ -844,7 +850,6 @@ type Link struct {
 	DebugInfo          func(fn *LSym, info *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
 	GenAbstractFunc    func(fn *LSym)
 	Errors             int
-	RegArgs            []RegArg
 
 	InParallel    bool // parallel backend phase in effect
 	UseBASEntries bool // use Base Address Selection Entries in location lists and PC ranges
@@ -893,9 +898,11 @@ func (ctxt *Link) Logf(format string, args ...interface{}) {
 	ctxt.Bso.Flush()
 }
 
-func (ctxt *Link) SpillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
+// SpillRegisterArgs emits the code to spill register args into whatever
+// locations the spill records specify.
+func (fi *FuncInfo) SpillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
 	// Spill register args.
-	for _, ra := range ctxt.RegArgs {
+	for _, ra := range fi.spills {
 		spill := Appendp(last, pa)
 		spill.As = ra.Spill
 		spill.From.Type = TYPE_REG
@@ -906,9 +913,11 @@ func (ctxt *Link) SpillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
 	return last
 }
 
-func (ctxt *Link) UnspillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
+// UnspillRegisterArgs emits the code to restore register args from whatever
+// locations the spill records specify.
+func (fi *FuncInfo) UnspillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
 	// Unspill any spilled register args
-	for _, ra := range ctxt.RegArgs {
+	for _, ra := range fi.spills {
 		unspill := Appendp(last, pa)
 		unspill.As = ra.Unspill
 		unspill.From = ra.Addr

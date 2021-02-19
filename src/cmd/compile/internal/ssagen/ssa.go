@@ -221,7 +221,7 @@ func AbiForFunc(fn *ir.Func) *abi.ABIConfig {
 // Passing a nil function returns ABIInternal.
 func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
 	a := abi1
-	if true || objabi.Regabi_enabled == 0 {
+	if !regabiEnabledForAllCompilation() {
 		a = abi0
 	}
 	if fn != nil && fn.Pragma&ir.RegisterParams != 0 { // TODO(register args) remove after register abi is working
@@ -233,6 +233,11 @@ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
 		base.WarnfAt(fn.Pos(), "declared function %v has register params", fn)
 	}
 	return a
+}
+
+func regabiEnabledForAllCompilation() bool {
+	// TODO compiler does not yet change behavior for GOEXPERIMENT=regabi
+	return false && objabi.Regabi_enabled != 0
 }
 
 // getParam returns the Field of ith param of node n (which is a
@@ -6404,6 +6409,10 @@ type State struct {
 	OnWasmStackSkipped int
 }
 
+func (s *State) FuncInfo() *obj.FuncInfo {
+	return s.pp.CurFunc.LSym.Func()
+}
+
 // Prog appends a new Prog.
 func (s *State) Prog(as obj.As) *obj.Prog {
 	p := s.pp.Prog(as)
@@ -6561,11 +6570,9 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 				// memory arg needs no code
 			case ssa.OpArg:
 				// input args need no code
-			case ssa.OpArgIntReg, ssa.OpArgFloatReg:
-				CheckArgReg(v)
 			case ssa.OpSP, ssa.OpSB:
 				// nothing to do
-			case ssa.OpSelect0, ssa.OpSelect1, ssa.OpSelectN:
+			case ssa.OpSelect0, ssa.OpSelect1, ssa.OpSelectN, ssa.OpMakeResult:
 				// nothing to do
 			case ssa.OpGetG:
 				// nothing to do when there's a g register,
@@ -7468,6 +7475,39 @@ func deferstruct(stksize int64) *types.Type {
 	s.SetNoalg(true)
 	types.CalcStructSize(s)
 	return s
+}
+
+// SlotAddr uses LocalSlot information to initialize an obj.Addr
+// The resulting addr is used in a non-standard context -- in the prologue
+// of a function, before the frame has been constructed, so the standard
+// addressing for the parameters will be wrong.
+func SpillSlotAddr(slot *ssa.LocalSlot, baseReg int16, extraOffset int64) obj.Addr {
+	n, off := slot.N, slot.Off
+	if n.Class != ir.PPARAM && n.Class != ir.PPARAMOUT {
+		panic("Only expected to see param and returns here")
+	}
+	return obj.Addr{
+		Name:   obj.NAME_NONE,
+		Type:   obj.TYPE_MEM,
+		Reg:    baseReg,
+		Offset: off + extraOffset + n.FrameOffset(),
+	}
+}
+
+// AddrForParamSlot fills in an Addr appropriately for a Spill,
+// Restore, or VARLIVE.
+func AddrForParamSlot(slot *ssa.LocalSlot, addr *obj.Addr) {
+	// TODO replace this boilerplate in a couple of places.
+	n, off := slot.N, slot.Off
+	addr.Type = obj.TYPE_MEM
+	addr.Sym = n.Linksym()
+	addr.Offset = off
+	if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
+		addr.Name = obj.NAME_PARAM
+		addr.Offset += n.FrameOffset()
+	} else {
+		addr.Name = obj.NAME_AUTO
+	}
 }
 
 var (
