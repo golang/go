@@ -36,6 +36,9 @@ type Object interface {
 	// color returns the object's color.
 	color() color
 
+	// setType sets the type of the object.
+	setType(Type)
+
 	// setOrder sets the order number of the object. It must be > 0.
 	setOrder(uint32)
 
@@ -149,6 +152,7 @@ func (obj *object) color() color        { return obj.color_ }
 func (obj *object) scopePos() token.Pos { return obj.scopePos_ }
 
 func (obj *object) setParent(parent *Scope)   { obj.parent = parent }
+func (obj *object) setType(typ Type)          { obj.typ = typ }
 func (obj *object) setOrder(order uint32)     { assert(order > 0); obj.order_ = order }
 func (obj *object) setColor(color color)      { assert(color != white); obj.color_ = color }
 func (obj *object) setScopePos(pos token.Pos) { obj.scopePos_ = pos }
@@ -299,7 +303,7 @@ type Func struct {
 // NewFunc returns a new function with the given signature, representing
 // the function's type.
 func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
-	// don't store a nil signature
+	// don't store a (typed) nil signature
 	var typ Type
 	if sig != nil {
 		typ = sig
@@ -420,7 +424,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 		if tname.IsAlias() {
 			buf.WriteString(" =")
 		} else {
-			typ = typ.Underlying()
+			typ = under(typ)
 		}
 	}
 

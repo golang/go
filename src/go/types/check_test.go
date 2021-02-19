@@ -69,11 +69,11 @@ func splitError(err error) (pos, msg string) {
 	return
 }
 
-func parseFiles(t *testing.T, filenames []string, srcs [][]byte) ([]*ast.File, []error) {
+func parseFiles(t *testing.T, filenames []string, srcs [][]byte, mode parser.Mode) ([]*ast.File, []error) {
 	var files []*ast.File
 	var errlist []error
 	for i, filename := range filenames {
-		file, err := parser.ParseFile(fset, filename, srcs[i], parser.AllErrors)
+		file, err := parser.ParseFile(fset, filename, srcs[i], mode)
 		if file == nil {
 			t.Fatalf("%s: %s", filename, err)
 		}
@@ -208,8 +208,13 @@ func checkFiles(t *testing.T, goVersion string, filenames []string, srcs [][]byt
 		t.Fatal("no source files")
 	}
 
+	mode := parser.AllErrors
+	if strings.HasSuffix(filenames[0], ".go2") {
+		mode |= parser.ParseTypeParams
+	}
+
 	// parse files and collect parser errors
-	files, errlist := parseFiles(t, filenames, srcs)
+	files, errlist := parseFiles(t, filenames, srcs, mode)
 
 	pkgName := "<no package>"
 	if len(files) > 0 {
@@ -305,6 +310,7 @@ func TestLongConstants(t *testing.T) {
 }
 
 func TestTestdata(t *testing.T)  { DefPredeclaredTestFuncs(); testDir(t, "testdata") }
+func TestExamples(t *testing.T)  { testDir(t, "examples") }
 func TestFixedbugs(t *testing.T) { testDir(t, "fixedbugs") }
 
 func testDir(t *testing.T, dir string) {

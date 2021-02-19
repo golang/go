@@ -1288,6 +1288,11 @@ func ITabSym(it *obj.LSym, offset int64) *obj.LSym {
 
 // NeedRuntimeType ensures that a runtime type descriptor is emitted for t.
 func NeedRuntimeType(t *types.Type) {
+	if t.HasTParam() {
+		// Generic types don't have a runtime type descriptor (but will
+		// have a dictionary)
+		return
+	}
 	if _, ok := signatset[t]; !ok {
 		signatset[t] = struct{}{}
 		signatslice = append(signatslice, t)
@@ -1399,7 +1404,7 @@ func WriteBasicTypes() {
 		// The latter is the type of an auto-generated wrapper.
 		writeType(types.NewPtr(types.ErrorType))
 
-		writeType(types.NewSignature(types.NoPkg, nil, []*types.Field{
+		writeType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
 			types.NewField(base.Pos, nil, types.ErrorType),
 		}, []*types.Field{
 			types.NewField(base.Pos, nil, types.Types[types.TSTRING]),

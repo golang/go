@@ -1,0 +1,108 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package tinferenceB
+
+import "strconv"
+
+type any interface{}
+
+// TODO(rFindley) the below partially applied function types should probably
+//                not be permitted (spec question).
+
+func f0[A any, B interface{type C}, C interface{type D}, D interface{type A}](A, B, C, D)
+func _() {
+	f := f0[string]
+	f("a", "b", "c", "d")
+	f0("a", "b", "c", "d")
+}
+
+func f1[A any, B interface{type A}](A, B)
+func _() {
+	f := f1[int]
+	f(int(0), int(0))
+	f1(int(0), int(0))
+}
+
+func f2[A any, B interface{type []A}](A, B)
+func _() {
+	f := f2[byte]
+	f(byte(0), []byte{})
+	f2(byte(0), []byte{})
+}
+
+func f3[A any, B interface{type C}, C interface{type *A}](A, B, C)
+func _() {
+	f := f3[int]
+	var x int
+	f(x, &x, &x)
+	f3(x, &x, &x)
+}
+
+func f4[A any, B interface{type []C}, C interface{type *A}](A, B, C)
+func _() {
+	f := f4[int]
+	var x int
+	f(x, []*int{}, &x)
+	f4(x, []*int{}, &x)
+}
+
+func f5[A interface{type struct{b B; c C}}, B any, C interface{type *B}](x B) A
+func _() {
+	x := f5(1.2)
+	var _ float64 = x.b
+	var _ float64 = *x.c
+}
+
+func f6[A any, B interface{type struct{f []A}}](B) A
+func _() {
+	x := f6(struct{f []string}{})
+	var _ string = x
+}
+
+// TODO(gri) Need to flag invalid recursive constraints. At the
+// moment these cause infinite recursions and stack overflow.
+// func f7[A interface{type B}, B interface{type A}]()
+
+// More realistic examples
+
+func Double[S interface{ type []E }, E interface{ type int, int8, int16, int32, int64 }](s S) S {
+	r := make(S, len(s))
+	for i, v := range s {
+		r[i] = v + v
+	}
+	return r
+}
+
+type MySlice []int
+
+var _ = Double(MySlice{1})
+
+// From the draft design.
+
+type Setter[B any] interface {
+	Set(string)
+	type *B
+}
+
+func FromStrings[T interface{}, PT Setter[T]](s []string) []T {
+	result := make([]T, len(s))
+	for i, v := range s {
+		// The type of &result[i] is *T which is in the type list
+		// of Setter2, so we can convert it to PT.
+		p := PT(&result[i])
+		// PT has a Set method.
+		p.Set(v)
+	}
+	return result
+}
+
+type Settable int
+
+func (p *Settable) Set(s string) {
+	i, _ := strconv.Atoi(s) // real code should not ignore the error
+	*p = Settable(i)
+}
+
+var _ = FromStrings[Settable]([]string{"1", "2"})
