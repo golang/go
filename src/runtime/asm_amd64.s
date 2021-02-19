@@ -677,7 +677,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
 	MOVQ	(g_sched+gobuf_ctxt)(R14), R9
 	TESTQ	R9, R9
 	JZ	2(PC)
-	CALL	runtime·badctxt(SB)
+	CALL	runtime·abort(SB)
 	RET
 
 // func asmcgocall_no_g(fn, arg unsafe.Pointer)

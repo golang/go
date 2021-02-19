@@ -413,7 +413,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	// Assert ctxt is zero. See func save.
 	MOVW	(g_sched+gobuf_ctxt)(g), R1
 	BEQ	R1, 2(PC)
-	JAL	runtime·badctxt(SB)
+	JAL	runtime·abort(SB)
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32

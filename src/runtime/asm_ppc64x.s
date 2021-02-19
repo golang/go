@@ -547,7 +547,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	(g_sched+gobuf_ctxt)(g), R31
 	CMP	R0, R31
 	BEQ	2(PC)
-	BL	runtime·badctxt(SB)
+	BL	runtime·abort(SB)
 	RET
 
 #ifdef GOOS_aix

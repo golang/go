@@ -618,7 +618,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
 	MOVL	(g_sched+gobuf_ctxt)(BX), AX
 	TESTL	AX, AX
 	JZ	2(PC)
-	CALL	runtime·badctxt(SB)
+	CALL	runtime·abort(SB)
 	POPL	BX
 	POPL	AX
 	RET
