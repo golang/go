@@ -11,6 +11,7 @@ import (
 	"context"
 	"fmt"
 	"internal/profile"
+	"internal/race"
 	"internal/testenv"
 	"io"
 	"math/big"
@@ -261,18 +262,13 @@ func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []*profile.Loca
 // as interpreted by matches, and returns the parsed profile.
 func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []string, f func(dur time.Duration)) *profile.Profile {
 	switch runtime.GOOS {
-	case "darwin", "ios":
-		switch runtime.GOARCH {
-		case "arm64":
-			// nothing
-		default:
-			out, err := exec.Command("uname", "-a").CombinedOutput()
-			if err != nil {
-				t.Fatal(err)
-			}
-			vers := string(out)
-			t.Logf("uname -a: %v", vers)
+	case "darwin":
+		out, err := exec.Command("uname", "-a").CombinedOutput()
+		if err != nil {
+			t.Fatal(err)
 		}
+		vers := string(out)
+		t.Logf("uname -a: %v", vers)
 	case "plan9":
 		t.Skip("skipping on plan9")
 	}
@@ -588,6 +584,13 @@ func stackContainsAll(spec string, count uintptr, stk []*profile.Location, label
 }
 
 func TestMorestack(t *testing.T) {
+	if runtime.GOOS == "darwin" && race.Enabled {
+		// For whatever reason, using the race detector on macOS keeps us
+		// from finding the newstack/growstack calls in the profile.
+		// Not worth worrying about.
+		// https://build.golang.org/log/280d387327806e17c8aabeb38b9503dbbd942ed1
+		t.Skip("skipping on darwin race detector")
+	}
 	testCPUProfile(t, stackContainsAll, []string{"runtime.newstack,runtime/pprof.growstack"}, avoidFunctions(), func(duration time.Duration) {
 		t := time.After(duration)
 		c := make(chan bool)
