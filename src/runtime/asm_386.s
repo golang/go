@@ -89,7 +89,7 @@ GLOBL _rt0_386_lib_argc<>(SB),NOPTR, $4
 DATA _rt0_386_lib_argv<>(SB)/4, $0
 GLOBL _rt0_386_lib_argv<>(SB),NOPTR, $4
 
-TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	// Copy arguments forward on an even stack.
 	// Users of this function jump to it, they don't call it.
 	MOVL	0(SP), AX
@@ -269,16 +269,23 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
 	FLDCW	runtime·controlWord64(SB)
 	RET
 
+TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	runtime·mstart0(SB)
+	RET // not reached
+
 /*
  *  go-routine
  */
 
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
-TEXT runtime·gogo(SB), NOSPLIT, $8-4
+TEXT runtime·gogo(SB), NOSPLIT, $0-4
 	MOVL	buf+0(FP), BX		// gobuf
 	MOVL	gobuf_g(BX), DX
 	MOVL	0(DX), CX		// make sure g != nil
+	JMP	gogo<>(SB)
+
+TEXT gogo<>(SB), NOSPLIT, $0
 	get_tls(CX)
 	MOVL	DX, g(CX)
 	MOVL	gobuf_sp(BX), SP	// restore SP
@@ -303,7 +310,6 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
 	MOVL	BX, (g_sched+gobuf_pc)(AX)
 	LEAL	fn+0(FP), BX	// caller's SP
 	MOVL	BX, (g_sched+gobuf_sp)(AX)
-	MOVL	AX, (g_sched+gobuf_g)(AX)
 
 	// switch to m->g0 & its stack, call fn
 	MOVL	g(DX), BX
@@ -352,18 +358,12 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-4
 	// switch stacks
 	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
-	MOVL	$runtime·systemstack_switch(SB), (g_sched+gobuf_pc)(AX)
-	MOVL	SP, (g_sched+gobuf_sp)(AX)
-	MOVL	AX, (g_sched+gobuf_g)(AX)
+	CALL	gosave_systemstack_switch<>(SB)
 
 	// switch to g0
 	get_tls(CX)
 	MOVL	DX, g(CX)
 	MOVL	(g_sched+gobuf_sp)(DX), BX
-	// make it look like mstart called systemstack on g0, to stop traceback
-	SUBL	$4, BX
-	MOVL	$runtime·mstart(SB), DX
-	MOVL	DX, 0(BX)
 	MOVL	BX, SP
 
 	// call target function
@@ -438,7 +438,6 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	// Set g->sched to context in f.
 	MOVL	0(SP), AX	// f's PC
 	MOVL	AX, (g_sched+gobuf_pc)(SI)
-	MOVL	SI, (g_sched+gobuf_g)(SI)
 	LEAL	4(SP), AX	// f's SP
 	MOVL	AX, (g_sched+gobuf_sp)(SI)
 	MOVL	DX, (g_sched+gobuf_ctxt)(SI)
@@ -601,24 +600,43 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
 	MOVL	0(DX), BX
 	JMP	BX	// but first run the deferred function
 
-// Save state of caller into g->sched.
-TEXT gosave<>(SB),NOSPLIT,$0
+// Save state of caller into g->sched,
+// but using fake PC from systemstack_switch.
+// Must only be called from functions with no locals ($0)
+// or else unwinding from systemstack_switch is incorrect.
+TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
 	PUSHL	AX
 	PUSHL	BX
 	get_tls(BX)
 	MOVL	g(BX), BX
 	LEAL	arg+0(FP), AX
 	MOVL	AX, (g_sched+gobuf_sp)(BX)
-	MOVL	-4(AX), AX
+	MOVL	$runtime·systemstack_switch(SB), AX
 	MOVL	AX, (g_sched+gobuf_pc)(BX)
 	MOVL	$0, (g_sched+gobuf_ret)(BX)
 	// Assert ctxt is zero. See func save.
 	MOVL	(g_sched+gobuf_ctxt)(BX), AX
 	TESTL	AX, AX
 	JZ	2(PC)
-	CALL	runtime·badctxt(SB)
+	CALL	runtime·abort(SB)
 	POPL	BX
 	POPL	AX
+	RET
+
+// func asmcgocall_no_g(fn, arg unsafe.Pointer)
+// Call fn(arg) aligned appropriately for the gcc ABI.
+// Called on a system stack, and there may be no g yet (during needm).
+TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-8
+	MOVL	fn+0(FP), AX
+	MOVL	arg+4(FP), BX
+	MOVL	SP, DX
+	SUBL	$32, SP
+	ANDL	$~15, SP	// alignment, perhaps unnecessary
+	MOVL	DX, 8(SP)	// save old SP
+	MOVL	BX, 0(SP)	// first argument in x86-32 ABI
+	CALL	AX
+	MOVL	8(SP), DX
+	MOVL	DX, SP
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32
@@ -645,7 +663,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 	JEQ	noswitch
 	CMPL	DI, m_gsignal(BP)
 	JEQ	noswitch
-	CALL	gosave<>(SB)
+	CALL	gosave_systemstack_switch<>(SB)
 	get_tls(CX)
 	MOVL	SI, g(CX)
 	MOVL	(g_sched+gobuf_sp)(SI), SP
@@ -1293,7 +1311,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
 
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.
-TEXT runtime·goexit(SB),NOSPLIT,$0-0
+TEXT runtime·goexit(SB),NOSPLIT|TOPFRAME,$0-0
 	BYTE	$0x90	// NOP
 	CALL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit

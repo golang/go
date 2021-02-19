@@ -12,13 +12,9 @@ import (
 )
 
 // adjust Gobuf as if it executed a call to fn with context ctxt
-// and then did an immediate gosave.
+// and then stopped before the first instruction in fn.
 func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
 	sp := buf.sp
-	if sys.RegSize > sys.PtrSize {
-		sp -= sys.PtrSize
-		*(*uintptr)(unsafe.Pointer(sp)) = 0
-	}
 	sp -= sys.PtrSize
 	*(*uintptr)(unsafe.Pointer(sp)) = buf.pc
 	buf.sp = sp

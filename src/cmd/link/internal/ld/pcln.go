@@ -796,7 +796,14 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 		}
 		off = uint32(sb.SetUint8(ctxt.Arch, int64(off), uint8(funcID)))
 
-		off += 2 // pad
+		// flag uint8
+		var flag objabi.FuncFlag
+		if fi.Valid() {
+			flag = fi.FuncFlag()
+		}
+		off = uint32(sb.SetUint8(ctxt.Arch, int64(off), uint8(flag)))
+
+		off += 1 // pad
 
 		// nfuncdata must be the final entry.
 		funcdata, funcdataoff = funcData(fi, 0, funcdata, funcdataoff)

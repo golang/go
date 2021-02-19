@@ -104,7 +104,7 @@ func Pipe(p []int) (err error) {
 	return
 }
 
-//sysnb pipe2(p *[2]_C_int, flags int) (err error)
+//sysnb	pipe2(p *[2]_C_int, flags int) (err error)
 
 func Pipe2(p []int, flags int) (err error) {
 	if len(p) != 2 {

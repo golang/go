@@ -27,6 +27,11 @@ func osyield() {
 }
 func sched_yield_trampoline()
 
+//go:nosplit
+func osyield_no_g() {
+	asmcgocall_no_g(unsafe.Pointer(funcPC(sched_yield_trampoline)), unsafe.Pointer(nil))
+}
+
 //go:cgo_import_dynamic libc_thrsleep __thrsleep "libc.so"
 //go:cgo_import_dynamic libc_thrwakeup __thrwakeup "libc.so"
 //go:cgo_import_dynamic libc_sched_yield sched_yield "libc.so"

@@ -5,12 +5,9 @@
 package sys
 
 const (
-	ArchFamily          = PPC64
-	BigEndian           = true
-	DefaultPhysPageSize = 65536
-	PCQuantum           = 4
-	Int64Align          = 8
-	MinFrameSize        = 32
+	_ArchFamily          = PPC64
+	_DefaultPhysPageSize = 65536
+	_PCQuantum           = 4
+	_MinFrameSize        = 32
+	_StackAlign          = 16
 )
-
-type Uintreg uint64
