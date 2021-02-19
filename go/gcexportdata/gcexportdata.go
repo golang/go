@@ -114,6 +114,8 @@ func Write(out io.Writer, fset *token.FileSet, pkg *types.Package) error {
 // within the export bundle to other packages are consistent.
 //
 // On return, the state of the reader is undefined.
+//
+// Experimental: This API is experimental and may change in the future.
 func ReadBundle(in io.Reader, fset *token.FileSet, imports map[string]*types.Package) ([]*types.Package, error) {
 	data, err := ioutil.ReadAll(in)
 	if err != nil {
@@ -124,6 +126,8 @@ func ReadBundle(in io.Reader, fset *token.FileSet, imports map[string]*types.Pac
 
 // WriteBundle writes encoded type information for the specified packages to out.
 // The FileSet provides file position information for named objects.
+//
+// Experimental: This API is experimental and may change in the future.
 func WriteBundle(out io.Writer, fset *token.FileSet, pkgs []*types.Package) error {
 	return gcimporter.IExportBundle(out, fset, pkgs)
 }
