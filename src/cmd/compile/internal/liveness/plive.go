@@ -297,6 +297,22 @@ func affectedVar(v *ssa.Value) (*ir.Name, ssa.SymEffect) {
 		n, _ := ssa.AutoVar(v)
 		return n, ssa.SymWrite
 
+	case ssa.OpArgIntReg:
+		// This forces the spill slot for the register to be live at function entry.
+		// one of the following holds for a function F with pointer-valued register arg X:
+		//  0. No GC (so an uninitialized spill slot is okay)
+		//  1. GC at entry of F.  GC is precise, but the spills around morestack initialize X's spill slot
+		//  2. Stack growth at entry of F.  Same as GC.
+		//  3. GC occurs within F itself.  This has to be from preemption, and thus GC is conservative.
+		//     a. X is in a register -- then X is seen, and the spill slot is also scanned conservatively.
+		//     b. X is spilled -- the spill slot is initialized, and scanned conservatively
+		//     c. X is not live -- the spill slot is scanned conservatively, and it may contain X from an earlier spill.
+		//  4. GC within G, transitively called from F
+		//    a. X is live at call site, therefore is spilled, to its spill slot (which is live because of subsequent LoadReg).
+		//    b. X is not live at call site -- but neither is its spill slot.
+		n, _ := ssa.AutoVar(v)
+		return n, ssa.SymRead
+
 	case ssa.OpVarLive:
 		return v.Aux.(*ir.Name), ssa.SymRead
 	case ssa.OpVarDef, ssa.OpVarKill:

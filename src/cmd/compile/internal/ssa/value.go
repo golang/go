@@ -517,9 +517,13 @@ func (*Value) CanBeAnSSAAux() {}
 // AutoVar returns a *Name and int64 representing the auto variable and offset within it
 // where v should be spilled.
 func AutoVar(v *Value) (*ir.Name, int64) {
-	loc := v.Block.Func.RegAlloc[v.ID].(LocalSlot)
-	if v.Type.Size() > loc.Type.Size() {
-		v.Fatalf("spill/restore type %s doesn't fit in slot type %s", v.Type, loc.Type)
+	if loc, ok := v.Block.Func.RegAlloc[v.ID].(LocalSlot); ok {
+		if v.Type.Size() > loc.Type.Size() {
+			v.Fatalf("spill/restore type %s doesn't fit in slot type %s", v.Type, loc.Type)
+		}
+		return loc.N, loc.Off
 	}
-	return loc.N, loc.Off
+	// Assume it is a register, return its spill slot, which needs to be live
+	nameOff := v.Aux.(*AuxNameOffset)
+	return nameOff.Name, nameOff.Offset
 }
