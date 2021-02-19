@@ -528,7 +528,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OPACK:
 		n := n.(*ir.PkgName)
 		base.Errorf("use of package %v without selector", n.Sym())
-		n.SetType(nil)
+		n.SetDiag(true)
 		return n
 
 	// types (ODEREF is with exprs)
