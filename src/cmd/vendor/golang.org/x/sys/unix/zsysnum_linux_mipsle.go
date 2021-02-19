@@ -420,4 +420,6 @@ const (
 	SYS_OPENAT2                      = 4437
 	SYS_PIDFD_GETFD                  = 4438
 	SYS_FACCESSAT2                   = 4439
+	SYS_PROCESS_MADVISE              = 4440
+	SYS_EPOLL_PWAIT2                 = 4441
 )

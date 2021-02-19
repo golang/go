@@ -15,3 +15,6 @@ func stackcheck()
 // Called from assembly only; declared for go vet.
 func setldt(slot uintptr, base unsafe.Pointer, size uintptr)
 func emptyfunc()
+
+//go:noescape
+func asmcgocall_no_g(fn, arg unsafe.Pointer)

@@ -68,6 +68,19 @@ func Pipe(p []int) (err error) {
 	return nil
 }
 
+//sysnb	pipe2(p *[2]_C_int, flags int) (err error)
+
+func Pipe2(p []int, flags int) error {
+	if len(p) != 2 {
+		return EINVAL
+	}
+	var pp [2]_C_int
+	err := pipe2(&pp, flags)
+	p[0] = int(pp[0])
+	p[1] = int(pp[1])
+	return err
+}
+
 func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	if sa.Port < 0 || sa.Port > 0xFFFF {
 		return nil, 0, EINVAL
@@ -566,7 +579,7 @@ func IoctlGetTermio(fd int, req uint) (*Termio, error) {
 	return &value, err
 }
 
-//sys   poll(fds *PollFd, nfds int, timeout int) (n int, err error)
+//sys	poll(fds *PollFd, nfds int, timeout int) (n int, err error)
 
 func Poll(fds []PollFd, timeout int) (n int, err error) {
 	if len(fds) == 0 {
@@ -669,6 +682,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Statvfs(path string, vfsstat *Statvfs_t) (err error)
 //sys	Symlink(path string, link string) (err error)
 //sys	Sync() (err error)
+//sys	Sysconf(which int) (n int64, err error)
 //sysnb	Times(tms *Tms) (ticks uintptr, err error)
 //sys	Truncate(path string, length int64) (err error)
 //sys	Fsync(fd int) (err error)

@@ -454,6 +454,7 @@ type FuncInfo struct {
 	Locals   int32
 	Align    int32
 	FuncID   objabi.FuncID
+	FuncFlag objabi.FuncFlag
 	Text     *Prog
 	Autot    map[*LSym]struct{}
 	Pcln     Pcln
@@ -619,10 +620,6 @@ const (
 	// target of an inline during compilation
 	AttrWasInlined
 
-	// TopFrame means that this function is an entry point and unwinders should not
-	// keep unwinding beyond this frame.
-	AttrTopFrame
-
 	// Indexed indicates this symbol has been assigned with an index (when using the
 	// new object file format).
 	AttrIndexed
@@ -663,7 +660,6 @@ func (a *Attribute) NeedCtxt() bool           { return a.load()&AttrNeedCtxt != 
 func (a *Attribute) NoFrame() bool            { return a.load()&AttrNoFrame != 0 }
 func (a *Attribute) Static() bool             { return a.load()&AttrStatic != 0 }
 func (a *Attribute) WasInlined() bool         { return a.load()&AttrWasInlined != 0 }
-func (a *Attribute) TopFrame() bool           { return a.load()&AttrTopFrame != 0 }
 func (a *Attribute) Indexed() bool            { return a.load()&AttrIndexed != 0 }
 func (a *Attribute) UsedInIface() bool        { return a.load()&AttrUsedInIface != 0 }
 func (a *Attribute) ContentAddressable() bool { return a.load()&AttrContentAddressable != 0 }
@@ -713,14 +709,13 @@ var textAttrStrings = [...]struct {
 	{bit: AttrNoFrame, s: "NOFRAME"},
 	{bit: AttrStatic, s: "STATIC"},
 	{bit: AttrWasInlined, s: ""},
-	{bit: AttrTopFrame, s: "TOPFRAME"},
 	{bit: AttrIndexed, s: ""},
 	{bit: AttrContentAddressable, s: ""},
 	{bit: AttrABIWrapper, s: "ABIWRAPPER"},
 }
 
-// TextAttrString formats a for printing in as part of a TEXT prog.
-func (a Attribute) TextAttrString() string {
+// String formats a for printing in as part of a TEXT prog.
+func (a Attribute) String() string {
 	var s string
 	for _, x := range textAttrStrings {
 		if a&x.bit != 0 {
@@ -744,6 +739,18 @@ func (a Attribute) TextAttrString() string {
 		s = s[:len(s)-1]
 	}
 	return s
+}
+
+// TextAttrString formats the symbol attributes for printing in as part of a TEXT prog.
+func (s *LSym) TextAttrString() string {
+	attr := s.Attribute.String()
+	if s.Func().FuncFlag&objabi.FuncFlag_TOPFRAME != 0 {
+		if attr != "" {
+			attr += "|"
+		}
+		attr += "TOPFRAME"
+	}
+	return attr
 }
 
 func (s *LSym) String() string {

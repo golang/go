@@ -51,6 +51,11 @@ func sys_umtx_wakeup(addr *uint32, val int32) int32
 
 func osyield()
 
+//go:nosplit
+func osyield_no_g() {
+	osyield()
+}
+
 func kqueue() int32
 
 //go:noescape

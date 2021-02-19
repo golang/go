@@ -7,7 +7,7 @@
 #include "textflag.h"
 
 // func rt0_go()
-TEXT runtime·rt0_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// X2 = stack; A0 = argc; A1 = argv
 	ADD	$-24, X2
 	MOV	A0, 8(X2)	// argc
@@ -70,6 +70,10 @@ nocgo:
 	WORD $0 // crash if reached
 	RET
 
+TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	runtime·mstart0(SB)
+	RET // not reached
+
 // void setg_gcc(G*); set g called from gcc with g in A0
 TEXT setg_gcc<>(SB),NOSPLIT,$0-0
 	MOV	A0, g
@@ -114,21 +118,12 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 switch:
 	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
-	MOV	$runtime·systemstack_switch(SB), T2
-	ADD	$8, T2	// get past prologue
-	MOV	T2, (g_sched+gobuf_pc)(g)
-	MOV	X2, (g_sched+gobuf_sp)(g)
-	MOV	ZERO, (g_sched+gobuf_lr)(g)
-	MOV	g, (g_sched+gobuf_g)(g)
+	CALL	gosave_systemstack_switch<>(SB)
 
 	// switch to g0
 	MOV	T1, g
 	CALL	runtime·save_g(SB)
 	MOV	(g_sched+gobuf_sp)(g), T0
-	// make it look like mstart called systemstack on g0, to stop traceback
-	ADD	$-8, T0
-	MOV	$runtime·mstart(SB), T1
-	MOV	T1, 0(T0)
 	MOV	T0, X2
 
 	// call target function
@@ -233,12 +228,16 @@ TEXT runtime·return0(SB), NOSPLIT, $0
 // restore state from Gobuf; longjmp
 
 // func gogo(buf *gobuf)
-TEXT runtime·gogo(SB), NOSPLIT, $16-8
+TEXT runtime·gogo(SB), NOSPLIT|NOFRAME, $0-8
 	MOV	buf+0(FP), T0
-	MOV	gobuf_g(T0), g	// make sure g is not nil
+	MOV	gobuf_g(T0), T1
+	MOV	0(T1), ZERO // make sure g != nil
+	JMP	gogo<>(SB)
+
+TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
+	MOV	T1, g
 	CALL	runtime·save_g(SB)
 
-	MOV	(g), ZERO // make sure g is not nil
 	MOV	gobuf_sp(T0), X2
 	MOV	gobuf_lr(T0), RA
 	MOV	gobuf_ret(T0), A0
@@ -279,7 +278,6 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
 	MOV	X2, (g_sched+gobuf_sp)(g)
 	MOV	RA, (g_sched+gobuf_pc)(g)
 	MOV	ZERO, (g_sched+gobuf_lr)(g)
-	MOV	g, (g_sched+gobuf_g)(g)
 
 	// Switch to m->g0 & its stack, call fn.
 	MOV	g, T0
@@ -297,16 +295,22 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
 	JALR	RA, T1
 	JMP	runtime·badmcall2(SB)
 
-// Save state of caller into g->sched. Smashes X31.
-TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
-	MOV	X1, (g_sched+gobuf_pc)(g)
+// Save state of caller into g->sched,
+// but using fake PC from systemstack_switch.
+// Must only be called from functions with no locals ($0)
+// or else unwinding from systemstack_switch is incorrect.
+// Smashes X31.
+TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+	MOV	$runtime·systemstack_switch(SB), X31
+	ADD	$8, X31	// get past prologue
+	MOV	X31, (g_sched+gobuf_pc)(g)
 	MOV	X2, (g_sched+gobuf_sp)(g)
 	MOV	ZERO, (g_sched+gobuf_lr)(g)
 	MOV	ZERO, (g_sched+gobuf_ret)(g)
 	// Assert ctxt is zero. See func save.
 	MOV	(g_sched+gobuf_ctxt)(g), X31
 	BEQ	ZERO, X31, 2(PC)
-	CALL	runtime·badctxt(SB)
+	CALL	runtime·abort(SB)
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32
@@ -327,7 +331,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOV	m_g0(X6), X7
 	BEQ	X7, g, g0
 
-	CALL	gosave<>(SB)
+	CALL	gosave_systemstack_switch<>(SB)
 	MOV	X7, g
 	CALL	runtime·save_g(SB)
 	MOV	(g_sched+gobuf_sp)(g), X2

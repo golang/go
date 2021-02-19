@@ -148,6 +148,9 @@ func tstart_stdcall(newm *m)
 // Called by OS using stdcall ABI.
 func ctrlhandler()
 
+// Init-time helper
+func wintls()
+
 type mOS struct {
 	threadLock mutex   // protects "thread" and prevents closing
 	thread     uintptr // thread handle
@@ -236,6 +239,8 @@ func windowsLoadSystemLib(name []byte) uintptr {
 	}
 }
 
+const haveCputicksAsm = GOARCH == "386" || GOARCH == "amd64"
+
 func loadOptionalSyscalls() {
 	var kernel32dll = []byte("kernel32.dll\000")
 	k32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&kernel32dll[0])))
@@ -262,7 +267,7 @@ func loadOptionalSyscalls() {
 	}
 	_NtWaitForSingleObject = windowsFindfunc(n32, []byte("NtWaitForSingleObject\000"))
 
-	if GOARCH == "arm" {
+	if !haveCputicksAsm {
 		_QueryPerformanceCounter = windowsFindfunc(k32, []byte("QueryPerformanceCounter\000"))
 		if _QueryPerformanceCounter == nil {
 			throw("could not find QPC syscalls")
@@ -379,7 +384,6 @@ const (
 // in sys_windows_386.s and sys_windows_amd64.s:
 func externalthreadhandler()
 func getlasterror() uint32
-func setlasterror(err uint32)
 
 // When loading DLLs, we prefer to use LoadLibraryEx with
 // LOAD_LIBRARY_SEARCH_* flags, if available. LoadLibraryEx is not
@@ -453,23 +457,22 @@ func createHighResTimer() uintptr {
 		_SYNCHRONIZE|_TIMER_QUERY_STATE|_TIMER_MODIFY_STATE)
 }
 
+const highResTimerSupported = GOARCH == "386" || GOARCH == "amd64"
+
 func initHighResTimer() {
-	if GOARCH == "arm" {
+	if !highResTimerSupported {
 		// TODO: Not yet implemented.
 		return
 	}
 	h := createHighResTimer()
 	if h != 0 {
 		haveHighResTimer = true
-		usleep2Addr = unsafe.Pointer(funcPC(usleep2HighRes))
 		stdcall1(_CloseHandle, h)
 	}
 }
 
 func osinit() {
 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
-	usleep2Addr = unsafe.Pointer(funcPC(usleep2))
-	switchtothreadAddr = unsafe.Pointer(funcPC(switchtothread))
 
 	setBadSignalMsg()
 
@@ -1061,26 +1064,39 @@ func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 	return stdcall(fn)
 }
 
-// In sys_windows_386.s and sys_windows_amd64.s.
-func onosstack(fn unsafe.Pointer, arg uint32)
-
-// These are not callable functions. They should only be called via onosstack.
-func usleep2(usec uint32)
-func usleep2HighRes(usec uint32)
+// These must run on the system stack only.
+func usleep2(dt int32)
+func usleep2HighRes(dt int32)
 func switchtothread()
 
-var usleep2Addr unsafe.Pointer
-var switchtothreadAddr unsafe.Pointer
+//go:nosplit
+func osyield_no_g() {
+	switchtothread()
+}
 
 //go:nosplit
 func osyield() {
-	onosstack(switchtothreadAddr, 0)
+	systemstack(switchtothread)
+}
+
+//go:nosplit
+func usleep_no_g(us uint32) {
+	dt := -10 * int32(us) // relative sleep (negative), 100ns units
+	usleep2(dt)
 }
 
 //go:nosplit
 func usleep(us uint32) {
-	// Have 1us units; want 100ns units.
-	onosstack(usleep2Addr, 10*us)
+	systemstack(func() {
+		dt := -10 * int32(us) // relative sleep (negative), 100ns units
+		// If the high-res timer is available and its handle has been allocated for this m, use it.
+		// Otherwise fall back to the low-res one, which doesn't need a handle.
+		if haveHighResTimer && getg().m.highResTimer != 0 {
+			usleep2HighRes(dt)
+		} else {
+			usleep2(dt)
+		}
+	})
 }
 
 func ctrlhandler1(_type uint32) uint32 {
@@ -1123,21 +1139,21 @@ func profilem(mp *m, thread uintptr) {
 	c.contextflags = _CONTEXT_CONTROL
 	stdcall2(_GetThreadContext, thread, uintptr(unsafe.Pointer(c)))
 
-	gp := gFromTLS(mp)
+	gp := gFromSP(mp, c.sp())
 
 	sigprof(c.ip(), c.sp(), c.lr(), gp, mp)
 }
 
-func gFromTLS(mp *m) *g {
-	switch GOARCH {
-	case "arm":
-		tls := &mp.tls[0]
-		return **((***g)(unsafe.Pointer(tls)))
-	case "386", "amd64":
-		tls := &mp.tls[0]
-		return *((**g)(unsafe.Pointer(tls)))
+func gFromSP(mp *m, sp uintptr) *g {
+	if gp := mp.g0; gp != nil && gp.stack.lo < sp && sp < gp.stack.hi {
+		return gp
 	}
-	throw("unsupported architecture")
+	if gp := mp.gsignal; gp != nil && gp.stack.lo < sp && sp < gp.stack.hi {
+		return gp
+	}
+	if gp := mp.curg; gp != nil && gp.stack.lo < sp && sp < gp.stack.hi {
+		return gp
+	}
 	return nil
 }
 
@@ -1208,14 +1224,14 @@ func setThreadCPUProfiler(hz int32) {
 	atomic.Store((*uint32)(unsafe.Pointer(&getg().m.profilehz)), uint32(hz))
 }
 
-const preemptMSupported = GOARCH != "arm"
+const preemptMSupported = GOARCH == "386" || GOARCH == "amd64"
 
 // suspendLock protects simultaneous SuspendThread operations from
 // suspending each other.
 var suspendLock mutex
 
 func preemptM(mp *m) {
-	if GOARCH == "arm" {
+	if !preemptMSupported {
 		// TODO: Implement call injection
 		return
 	}
@@ -1286,7 +1302,7 @@ func preemptM(mp *m) {
 	unlock(&suspendLock)
 
 	// Does it want a preemption and is it safe to preempt?
-	gp := gFromTLS(mp)
+	gp := gFromSP(mp, c.sp())
 	if wantAsyncPreempt(gp) {
 		if ok, newpc := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()); ok {
 			// Inject call to asyncPreempt

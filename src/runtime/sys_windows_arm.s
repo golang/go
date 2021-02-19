@@ -6,6 +6,8 @@
 #include "go_tls.h"
 #include "textflag.h"
 
+// Note: For system ABI, R0-R3 are args, R4-R11 are callee-save.
+
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
 	MOVM.DB.W [R4, R5, R14], (R13)	// push {r4, r5, lr}
@@ -103,11 +105,6 @@ TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	MOVW	R0, ret+0(FP)
 	RET
 
-TEXT runtime·setlasterror(SB),NOSPLIT|NOFRAME,$0
-	MRC	15, 0, R1, C13, C0, 2
-	MOVW	R0, 0x34(R1)
-	RET
-
 // Called by Windows as a Vectored Exception Handler (VEH).
 // First argument is pointer to struct containing
 // exception record and context pointers.
@@ -144,11 +141,10 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
 	MOVW	(g_sched+gobuf_sp)(g), R3	// R3 = g->gobuf.sp
 	BL      runtime·save_g(SB)
 
-	// traceback will think that we've done PUSH and SUB
-	// on this stack, so subtract them here to match.
-	// (we need room for sighandler arguments anyway).
+	// make room for sighandler arguments
 	// and re-save old SP for restoring later.
-	SUB	$(40+8+20), R3
+	// (note that the 24(R3) here must match the 24(R13) above.)
+	SUB	$40, R3
 	MOVW	R13, 24(R3)		// save old stack pointer
 	MOVW	R3, R13			// switch stack
 
@@ -156,21 +152,13 @@ g0:
 	MOVW	0(R6), R2	// R2 = ExceptionPointers->ExceptionRecord
 	MOVW	4(R6), R3	// R3 = ExceptionPointers->ContextRecord
 
-	// make it look like mstart called us on g0, to stop traceback
-	MOVW    $runtime·mstart(SB), R4
-
-	MOVW	R4, 0(R13)	// Save link register for traceback
+	MOVW	$0, R4
+	MOVW	R4, 0(R13)	// No saved link register.
 	MOVW	R2, 4(R13)	// Move arg0 (ExceptionRecord) into position
 	MOVW	R3, 8(R13)	// Move arg1 (ContextRecord) into position
 	MOVW	R5, 12(R13)	// Move arg2 (original g) into position
 	BL	(R7)		// Call the go routine
 	MOVW	16(R13), R4	// Fetch return value from stack
-
-	// Compute the value of the g0 stack pointer after deallocating
-	// this frame, then allocating 8 bytes. We may need to store
-	// the resume SP and PC on the g0 stack to work around
-	// control flow guard when we resume from the exception.
-	ADD	$(40+20), R13, R12
 
 	// switch back to original stack and g
 	MOVW	24(R13), R13
@@ -188,42 +176,45 @@ done:
 	BEQ	return
 
 	// Check if we need to set up the control flow guard workaround.
-	// On Windows/ARM, the stack pointer must lie within system
-	// stack limits when we resume from exception.
+	// On Windows, the stack pointer in the context must lie within
+	// system stack limits when we resume from exception.
 	// Store the resume SP and PC on the g0 stack,
-	// and return to returntramp on the g0 stack. returntramp
+	// and return to sigresume on the g0 stack. sigresume
 	// pops the saved PC and SP from the g0 stack, resuming execution
 	// at the desired location.
-	// If returntramp has already been set up by a previous exception
+	// If sigresume has already been set up by a previous exception
 	// handler, don't clobber the stored SP and PC on the stack.
 	MOVW	4(R3), R3			// PEXCEPTION_POINTERS->Context
-	MOVW	0x40(R3), R2			// load PC from context record
-	MOVW	$returntramp<>(SB), R1
+	MOVW	context_pc(R3), R2		// load PC from context record
+	MOVW	$sigresume<>(SB), R1
 	CMP	R1, R2
 	B.EQ	return				// do not clobber saved SP/PC
 
-	// Save resume SP and PC on g0 stack
-	MOVW	0x38(R3), R2			// load SP from context record
-	MOVW	R2, 0(R12)			// Store resume SP on g0 stack
-	MOVW	0x40(R3), R2			// load PC from context record
-	MOVW	R2, 4(R12)			// Store resume PC on g0 stack
+	// Save resume SP and PC into R0, R1.
+	MOVW	context_spr(R3), R2
+	MOVW	R2, context_r0(R3)
+	MOVW	context_pc(R3), R2
+	MOVW	R2, context_r1(R3)
 
-	// Set up context record to return to returntramp on g0 stack
-	MOVW	R12, 0x38(R3)			// save g0 stack pointer
-						// in context record
-	MOVW	$returntramp<>(SB), R2	// save resume address
-	MOVW	R2, 0x40(R3)			// in context record
+	// Set up context record to return to sigresume on g0 stack
+	MOVW	R12, context_spr(R3)
+	MOVW	$sigresume<>(SB), R2
+	MOVW	R2, context_pc(R3)
 
 return:
 	B	(R14)				// return
 
-//
 // Trampoline to resume execution from exception handler.
 // This is part of the control flow guard workaround.
 // It switches stacks and jumps to the continuation address.
-//
-TEXT returntramp<>(SB),NOSPLIT|NOFRAME,$0
-	MOVM.IA	(R13), [R13, R15]		// ldm sp, [sp, pc]
+// R0 and R1 are set above at the end of sigtramp<>
+// in the context that starts executing at sigresume<>.
+TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
+	// Important: do not smash LR,
+	// which is set to a live value when handling
+	// a signal by pushing a call to sigpanic onto the stack.
+	MOVW	R0, R13
+	B	(R1)
 
 TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$runtime·exceptionhandler(SB), R1
@@ -259,16 +250,17 @@ TEXT runtime·profileloop(SB),NOSPLIT|NOFRAME,$0
 //   +----------------+
 // 12| argument (r0)  |
 //---+----------------+
-// 8 | param1         |
+// 8 | param1         | (also return value for called Go function)
 //   +----------------+
 // 4 | param0         |
 //   +----------------+
-// 0 | retval         |
+// 0 | slot for LR    |
 //   +----------------+
 //
-TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	MOVM.DB.W [R4-R11, R14], (R13)		// push {r4-r11, lr}
 	SUB	$(m__size + g__size + 20), R13	// space for locals
+	MOVW	R14, 0(R13)			// push LR again for anything unwinding the stack
 	MOVW	R0, 12(R13)
 	MOVW	R1, 16(R13)
 
@@ -307,7 +299,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$0, g
 	BL	runtime·save_g(SB)
 
-	MOVW	0(R13), R0			// load return value
+	MOVW	8(R13), R0			// load return value
 	ADD	$(m__size + g__size + 20), R13	// free locals
 	MOVM.IA.W (R13), [R4-R11, R15]		// pop {r4-r11, pc}
 
@@ -359,9 +351,6 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R0, g_m(g)
 	BL	runtime·save_g(SB)
 
-	// do per-thread TLS initialization
-	BL	init_thread_tls<>(SB)
-
 	// Layout new m scheduler stack on os stack.
 	MOVW	R13, R0
 	MOVW	R0, g_stack+stack_hi(g)
@@ -377,79 +366,11 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$0, R0
 	MOVM.IA.W (R13), [R4-R11, R15]		// pop {r4-r11, pc}
 
-// onosstack calls fn on OS stack.
-// adapted from asm_arm.s : systemstack
-// func onosstack(fn unsafe.Pointer, arg uint32)
-TEXT runtime·onosstack(SB),NOSPLIT,$0
-	MOVW	fn+0(FP), R5		// R5 = fn
-	MOVW	arg+4(FP), R6		// R6 = arg
-
-	// This function can be called when there is no g,
-	// for example, when we are handling a callback on a non-go thread.
-	// In this case we're already on the system stack.
-	CMP	$0, g
-	BEQ	noswitch
-
-	MOVW	g_m(g), R1		// R1 = m
-
-	MOVW	m_gsignal(R1), R2	// R2 = gsignal
-	CMP	g, R2
-	B.EQ	noswitch
-
-	MOVW	m_g0(R1), R2		// R2 = g0
-	CMP	g, R2
-	B.EQ	noswitch
-
-	MOVW	m_curg(R1), R3
-	CMP	g, R3
-	B.EQ	switch
-
-	// Bad: g is not gsignal, not g0, not curg. What is it?
-	// Hide call from linker nosplit analysis.
-	MOVW	$runtime·badsystemstack(SB), R0
-	BL	(R0)
-	B	runtime·abort(SB)
-
-switch:
-	// save our state in g->sched. Pretend to
-	// be systemstack_switch if the G stack is scanned.
-	MOVW	$runtime·systemstack_switch(SB), R3
-	ADD	$4, R3, R3 // get past push {lr}
-	MOVW	R3, (g_sched+gobuf_pc)(g)
-	MOVW	R13, (g_sched+gobuf_sp)(g)
-	MOVW	LR, (g_sched+gobuf_lr)(g)
-	MOVW	g, (g_sched+gobuf_g)(g)
-
-	// switch to g0
-	MOVW	R2, g
-	MOVW	(g_sched+gobuf_sp)(R2), R3
-	// make it look like mstart called systemstack on g0, to stop traceback
-	SUB	$4, R3, R3
-	MOVW	$runtime·mstart(SB), R4
-	MOVW	R4, 0(R3)
-	MOVW	R3, R13
-
-	// call target function
-	MOVW	R6, R0		// arg
-	BL	(R5)
-
-	// switch back to g
-	MOVW	g_m(g), R1
-	MOVW	m_curg(R1), g
-	MOVW	(g_sched+gobuf_sp)(g), R13
-	MOVW	$0, R3
-	MOVW	R3, (g_sched+gobuf_sp)(g)
-	RET
-
-noswitch:
-	// Using a tail call here cleans up tracebacks since we won't stop
-	// at an intermediate systemstack.
-	MOVW.P	4(R13), R14	// restore LR
-	MOVW	R6, R0		// arg
-	B	(R5)
-
-// Runs on OS stack. Duration (in 100ns units) is in R0.
-TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0
+// Runs on OS stack.
+// duration (in -100ns units) is in dt+0(FP).
+// g may be nil.
+TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0-4
+	MOVW	dt+0(FP), R0
 	MOVM.DB.W [R4, R14], (R13)	// push {r4, lr}
 	MOVW	R13, R4			// Save SP
 	SUB	$8, R13			// R13 = R13 - 8
@@ -465,9 +386,11 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R4, R13			// Restore SP
 	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
 
-// Runs on OS stack. Duration (in 100ns units) is in R0.
+// Runs on OS stack.
+// duration (in -100ns units) is in dt+0(FP).
+// g is valid.
 // TODO: neeeds to be implemented properly.
-TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$0-4
 	B	runtime·abort(SB)
 
 // Runs on OS stack.
@@ -497,7 +420,7 @@ TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
 #define time_hi1 4
 #define time_hi2 8
 
-TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
+TEXT runtime·nanotime1(SB),NOSPLIT|NOFRAME,$0-8
 	MOVW	$0, R0
 	MOVB	runtime·useQPCTime(SB), R0
 	CMP	$0, R0
@@ -521,9 +444,8 @@ loop:
 	RET
 useQPC:
 	B	runtime·nanotimeQPC(SB)		// tail call
-	RET
 
-TEXT time·now(SB),NOSPLIT,$0-20
+TEXT time·now(SB),NOSPLIT|NOFRAME,$0-20
 	MOVW    $0, R0
 	MOVB    runtime·useQPCTime(SB), R0
 	CMP	$0, R0
@@ -597,8 +519,7 @@ wall:
 	MOVW	R1,nsec+8(FP)
 	RET
 useQPC:
-	B	runtime·nanotimeQPC(SB)		// tail call
-	RET
+	B	runtime·nowQPC(SB)		// tail call
 
 // save_g saves the g register (R10) into thread local memory
 // so that we can call externally compiled
@@ -656,39 +577,8 @@ TEXT runtime·_initcgo(SB),NOSPLIT|NOFRAME,$0
 	MOVW 	$runtime·tls_g(SB), R1
 	MOVW	R0, (R1)
 
-	BL	init_thread_tls<>(SB)
-
 	MOVW	R4, R13
 	MOVM.IA.W (R13), [R4, R15]	// pop {r4, pc}
-
-// void init_thread_tls()
-//
-// Does per-thread TLS initialization. Saves a pointer to the TLS slot
-// holding G, in the current m.
-//
-//     g->m->tls[0] = &_TEB->TlsSlots[tls_g]
-//
-// The purpose of this is to enable the profiling handler to get the
-// current g associated with the thread. We cannot use m->curg because curg
-// only holds the current user g. If the thread is executing system code or
-// external code, m->curg will be NULL. The thread's TLS slot always holds
-// the current g, so save a reference to this location so the profiling
-// handler can get the real g from the thread's m.
-//
-// Clobbers R0-R3
-TEXT init_thread_tls<>(SB),NOSPLIT|NOFRAME,$0
-	// compute &_TEB->TlsSlots[tls_g]
-	MRC	15, 0, R0, C13, C0, 2
-	ADD	$0xe10, R0
-	MOVW 	$runtime·tls_g(SB), R1
-	MOVW	(R1), R1
-	MOVW	R1<<2, R1
-	ADD	R1, R0
-
-	// save in g->m->tls[0]
-	MOVW	g_m(g), R1
-	MOVW	R0, m_tls(R1)
-	RET
 
 // Holds the TLS Slot, which was allocated by TlsAlloc()
 GLOBL runtime·tls_g+0(SB), NOPTR, $4

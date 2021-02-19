@@ -568,6 +568,40 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 	return true
 }
 
+func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, sectoff int64) bool {
+	var v uint32
+
+	rs := r.Xsym
+	rt := r.Type
+
+	if ldr.SymDynid(rs) < 0 {
+		ldr.Errorf(s, "reloc %d (%s) to non-coff symbol %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymType(rs), ldr.SymType(rs))
+		return false
+	}
+
+	out.Write32(uint32(sectoff))
+	out.Write32(uint32(ldr.SymDynid(rs)))
+
+	switch rt {
+	default:
+		return false
+
+	case objabi.R_DWARFSECREF:
+		v = ld.IMAGE_REL_ARM64_SECREL
+
+	case objabi.R_ADDR:
+		if r.Size == 8 {
+			v = ld.IMAGE_REL_ARM64_ADDR64
+		} else {
+			v = ld.IMAGE_REL_ARM64_ADDR32
+		}
+	}
+
+	out.Write16(uint16(v))
+
+	return true
+}
+
 func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (int64, int, bool) {
 	const noExtReloc = 0
 	const isOk = true

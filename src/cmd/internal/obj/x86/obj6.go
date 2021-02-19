@@ -35,6 +35,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
+	"log"
 	"math"
 	"strings"
 )
@@ -839,6 +840,20 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		switch p.As {
 		default:
+			if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_SP && p.As != ACMPL && p.As != ACMPQ {
+				f := cursym.Func()
+				if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
+					f.FuncFlag |= objabi.FuncFlag_SPWRITE
+					if ctxt.Debugvlog || !ctxt.IsAsm {
+						ctxt.Logf("auto-SPWRITE: %s %v\n", cursym.Name, p)
+						if !ctxt.IsAsm {
+							ctxt.Diag("invalid auto-SPWRITE in non-assembly")
+							ctxt.DiagFlush()
+							log.Fatalf("bad SPWRITE")
+						}
+					}
+				}
+			}
 			continue
 
 		case APUSHL, APUSHFL:

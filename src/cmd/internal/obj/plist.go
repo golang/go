@@ -134,6 +134,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	}
 	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
 	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0)
+	s.Func().FuncFlag = toFuncFlag(flag)
 	s.Set(AttrOnList, true)
 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
 	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
@@ -142,12 +143,19 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	s.Set(AttrABIWrapper, flag&ABIWRAPPER != 0)
 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
-	s.Set(AttrTopFrame, flag&TOPFRAME != 0)
 	s.Type = objabi.STEXT
 	ctxt.Text = append(ctxt.Text, s)
 
 	// Set up DWARF entries for s
 	ctxt.dwarfSym(s)
+}
+
+func toFuncFlag(flag int) objabi.FuncFlag {
+	var out objabi.FuncFlag
+	if flag&TOPFRAME != 0 {
+		out |= objabi.FuncFlag_TOPFRAME
+	}
+	return out
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
