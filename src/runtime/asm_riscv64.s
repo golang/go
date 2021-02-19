@@ -449,7 +449,7 @@ TEXT callRet<>(SB), NOSPLIT, $40-0
 	MOV	A1, 16(X2)
 	MOV	A3, 24(X2)
 	MOV	A2, 32(X2)
-	MOV	$0, 40(X2)
+	MOV	ZERO, 40(X2)
 	CALL	runtime·reflectcallmove(SB)
 	RET
 
