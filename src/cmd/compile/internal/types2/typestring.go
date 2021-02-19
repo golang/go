@@ -126,19 +126,14 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 			if i > 0 {
 				buf.WriteString("; ")
 			}
-			buf.WriteString(f.name)
-			if f.embedded {
-				// emphasize that the embedded field's name
-				// doesn't match the field's type name
-				if f.name != embeddedFieldName(f.typ) {
-					buf.WriteString(" /* = ")
-					writeType(buf, f.typ, qf, visited)
-					buf.WriteString(" */")
-				}
-			} else {
+			// This doesn't do the right thing for embedded type
+			// aliases where we should print the alias name, not
+			// the aliased type (see issue #44410).
+			if !f.embedded {
+				buf.WriteString(f.name)
 				buf.WriteByte(' ')
-				writeType(buf, f.typ, qf, visited)
 			}
+			writeType(buf, f.typ, qf, visited)
 			if tag := t.Tag(i); tag != "" {
 				fmt.Fprintf(buf, " %q", tag)
 			}
@@ -421,25 +416,6 @@ func writeSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier, visited []T
 
 	// multiple or named result(s)
 	writeTuple(buf, sig.results, false, qf, visited)
-}
-
-// embeddedFieldName returns an embedded field's name given its type.
-// The result is "" if the type doesn't have an embedded field name.
-func embeddedFieldName(typ Type) string {
-	switch t := typ.(type) {
-	case *Basic:
-		return t.name
-	case *Named:
-		return t.obj.name
-	case *Pointer:
-		// *T is ok, but **T is not
-		if _, ok := t.base.(*Pointer); !ok {
-			return embeddedFieldName(t.base)
-		}
-	case *instance:
-		return t.base.obj.name
-	}
-	return "" // not a (pointer to) a defined type
 }
 
 // subscript returns the decimal (utf8) representation of x using subscript digits.
