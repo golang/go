@@ -986,14 +986,18 @@ func (r *importReader) node() ir.Node {
 		fn.ClosureVars = cvars
 		r.allClosureVars = append(r.allClosureVars, cvars...)
 
-		fn.Dcl = r.readFuncDcls(fn)
-		body := r.stmtList()
+		fn.Inl = &ir.Inline{}
+		// Read in the Dcls and Body of the closure after temporarily
+		// setting r.curfn to fn.
+		r.funcBody(fn)
+		fn.Dcl = fn.Inl.Dcl
+		fn.Body = fn.Inl.Body
+		fn.Inl = nil
+
 		ir.FinishCaptureNames(pos, r.curfn, fn)
 
 		clo := ir.NewClosureExpr(pos, fn)
 		fn.OClosure = clo
-
-		fn.Body = body
 
 		return clo
 
