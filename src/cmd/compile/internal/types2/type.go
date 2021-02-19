@@ -881,16 +881,7 @@ func (t *top) String() string       { return TypeString(t, nil) }
 // If it doesn't exist, the result is Typ[Invalid].
 // under must only be called when a type is known
 // to be fully set up.
-//
-// under is set to underf to avoid an initialization cycle.
-// TODO(gri) this doesn't happen in go/types - investigate
-var under func(Type) Type
-
-func init() {
-	under = underf
-}
-
-func underf(t Type) Type {
+func under(t Type) Type {
 	// TODO(gri) is this correct for *Sum?
 	if n := asNamed(t); n != nil {
 		return n.under()

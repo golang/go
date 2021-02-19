@@ -59,11 +59,16 @@ the type (and constant value, if any) is recorded via Info.Types, if present.
 
 type opPredicates map[syntax.Operator]func(Type) bool
 
-var unaryOpPredicates = opPredicates{
-	syntax.Add: isNumeric,
-	syntax.Sub: isNumeric,
-	syntax.Xor: isInteger,
-	syntax.Not: isBoolean,
+var unaryOpPredicates opPredicates
+
+func init() {
+	// Setting unaryOpPredicates in init avoids declaration cycles.
+	unaryOpPredicates = opPredicates{
+		syntax.Add: isNumeric,
+		syntax.Sub: isNumeric,
+		syntax.Xor: isInteger,
+		syntax.Not: isBoolean,
+	}
 }
 
 func (check *Checker) op(m opPredicates, x *operand, op syntax.Operator) bool {
@@ -896,20 +901,25 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 	x.mode = value
 }
 
-var binaryOpPredicates = opPredicates{
-	syntax.Add: isNumericOrString,
-	syntax.Sub: isNumeric,
-	syntax.Mul: isNumeric,
-	syntax.Div: isNumeric,
-	syntax.Rem: isInteger,
+var binaryOpPredicates opPredicates
 
-	syntax.And:    isInteger,
-	syntax.Or:     isInteger,
-	syntax.Xor:    isInteger,
-	syntax.AndNot: isInteger,
+func init() {
+	// Setting binaryOpPredicates in init avoids declaration cycles.
+	binaryOpPredicates = opPredicates{
+		syntax.Add: isNumericOrString,
+		syntax.Sub: isNumeric,
+		syntax.Mul: isNumeric,
+		syntax.Div: isNumeric,
+		syntax.Rem: isInteger,
 
-	syntax.AndAnd: isBoolean,
-	syntax.OrOr:   isBoolean,
+		syntax.And:    isInteger,
+		syntax.Or:     isInteger,
+		syntax.Xor:    isInteger,
+		syntax.AndNot: isInteger,
+
+		syntax.AndAnd: isBoolean,
+		syntax.OrOr:   isBoolean,
+	}
 }
 
 // If e != nil, it must be the binary expression; it may be nil for non-constant expressions
