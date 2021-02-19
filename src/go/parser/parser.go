@@ -1754,7 +1754,14 @@ func (p *parser) parsePrimaryExpr(lhs bool) (x ast.Expr) {
 			default:
 				pos := p.pos
 				p.errorExpected(pos, "selector or type assertion")
-				p.next() // make progress
+				// TODO(rFindley) The check for token.RBRACE below is a targeted fix
+				//                to error recovery sufficient to make the x/tools tests to
+				//                pass with the new parsing logic introduced for type
+				//                parameters. Remove this once error recovery has been
+				//                more generally reconsidered.
+				if p.tok != token.RBRACE {
+					p.next() // make progress
+				}
 				sel := &ast.Ident{NamePos: pos, Name: "_"}
 				x = &ast.SelectorExpr{X: x, Sel: sel}
 			}
