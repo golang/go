@@ -607,7 +607,7 @@ func (r *importReader) signature(recv *types.Field) *types.Type {
 	if n := len(params); n > 0 {
 		params[n-1].SetIsDDD(r.bool())
 	}
-	return types.NewSignature(r.currPkg, recv, params, results)
+	return types.NewSignature(r.currPkg, recv, nil, params, results)
 }
 
 func (r *importReader) paramList() []*types.Field {

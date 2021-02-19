@@ -8,6 +8,8 @@ package main
 
 import "os"
 
+var _ = os.Open // avoid imported and not used error
+
 type T struct {
 	File int
 }

@@ -26,12 +26,13 @@ import (
 
 var (
 	// main operation modes
-	list        = flag.Bool("l", false, "list files whose formatting differs from gofmt's")
-	write       = flag.Bool("w", false, "write result to (source) file instead of stdout")
-	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'a[b:len(a)] -> a[b:]')")
-	simplifyAST = flag.Bool("s", false, "simplify code")
-	doDiff      = flag.Bool("d", false, "display diffs instead of rewriting files")
-	allErrors   = flag.Bool("e", false, "report all errors (not just the first 10 on different lines)")
+	list            = flag.Bool("l", false, "list files whose formatting differs from gofmt's")
+	write           = flag.Bool("w", false, "write result to (source) file instead of stdout")
+	rewriteRule     = flag.String("r", "", "rewrite rule (e.g., 'a[b:len(a)] -> a[b:]')")
+	simplifyAST     = flag.Bool("s", false, "simplify code")
+	doDiff          = flag.Bool("d", false, "display diffs instead of rewriting files")
+	allErrors       = flag.Bool("e", false, "report all errors (not just the first 10 on different lines)")
+	allowTypeParams = flag.Bool("G", false, "allow generic code")
 
 	// debugging
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to this file")
@@ -70,6 +71,9 @@ func initParserMode() {
 	parserMode = parser.ParseComments
 	if *allErrors {
 		parserMode |= parser.AllErrors
+	}
+	if *allowTypeParams {
+		parserMode |= parser.ParseTypeParams
 	}
 }
 

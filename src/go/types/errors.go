@@ -89,15 +89,18 @@ func (check *Checker) err(err error) {
 		return
 	}
 
-	if check.errpos != nil && isInternal {
-		// If we have an internal error and the errpos override is set, use it to
-		// augment our error positioning.
-		// TODO(rFindley) we may also want to augment the error message and refer
-		// to the position (pos) in the original expression.
-		span := spanOf(check.errpos)
-		e.Pos = span.pos
-		e.go116start = span.start
-		e.go116end = span.end
+	if isInternal {
+		e.Msg = stripAnnotations(e.Msg)
+		if check.errpos != nil {
+			// If we have an internal error and the errpos override is set, use it to
+			// augment our error positioning.
+			// TODO(rFindley) we may also want to augment the error message and refer
+			// to the position (pos) in the original expression.
+			span := spanOf(check.errpos)
+			e.Pos = span.pos
+			e.go116start = span.start
+			e.go116end = span.end
+		}
 		err = e
 	}
 
@@ -224,4 +227,19 @@ func spanOf(at positioner) posSpan {
 		pos := at.Pos()
 		return posSpan{pos, pos, pos}
 	}
+}
+
+// stripAnnotations removes internal (type) annotations from s.
+func stripAnnotations(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		// strip #'s and subscript digits
+		if r != instanceMarker && !('₀' <= r && r < '₀'+10) { // '₀' == U+2080
+			b.WriteRune(r)
+		}
+	}
+	if b.Len() < len(s) {
+		return b.String()
+	}
+	return s
 }

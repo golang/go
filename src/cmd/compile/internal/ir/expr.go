@@ -670,6 +670,20 @@ func (n *UnaryExpr) SetOp(op Op) {
 	}
 }
 
+// An InstExpr is a generic function or type instantiation.
+type InstExpr struct {
+	miniExpr
+	X     Node
+	Targs []Node
+}
+
+func NewInstExpr(pos src.XPos, op Op, x Node, targs []Node) *InstExpr {
+	n := &InstExpr{X: x, Targs: targs}
+	n.pos = pos
+	n.op = op
+	return n
+}
+
 func IsZero(n Node) bool {
 	switch n.Op() {
 	case ONIL:

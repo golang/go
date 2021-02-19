@@ -54,6 +54,7 @@ type CmdFlags struct {
 	C CountFlag    "help:\"disable printing of columns in error messages\""
 	D string       "help:\"set relative `path` for local imports\""
 	E CountFlag    "help:\"debug symbol export\""
+	G CountFlag    "help:\"accept generic code\""
 	I func(string) "help:\"add `directory` to import search path\""
 	K CountFlag    "help:\"debug missing line numbers\""
 	L CountFlag    "help:\"show full file names in error messages\""
