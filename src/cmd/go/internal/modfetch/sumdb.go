@@ -4,6 +4,7 @@
 
 // Go checksum database lookup
 
+//go:build !cmd_go_bootstrap
 // +build !cmd_go_bootstrap
 
 package modfetch

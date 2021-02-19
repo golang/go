@@ -28,6 +28,7 @@
 // unnecessary rechecks of sig.mask, but it cannot lead to missed signals
 // nor deadlocks.
 
+//go:build !plan9
 // +build !plan9
 
 package runtime
