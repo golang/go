@@ -4,6 +4,7 @@
 
 // No testdata on Android.
 
+//go:build !android
 // +build !android
 
 package rta_test

@@ -4,6 +4,7 @@
 
 // TODO(rfindley): figure out why go generate fails on android builders.
 
+//go:build !android
 // +build !android
 
 package misc

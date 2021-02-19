@@ -4,6 +4,7 @@
 
 // Incomplete std lib sources on Android.
 
+//go:build !android
 // +build !android
 
 package importgraph_test

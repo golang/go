@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build appengine || (!linux && !darwin && !freebsd && !openbsd && !netbsd)
 // +build appengine !linux,!darwin,!freebsd,!openbsd,!netbsd
 
 package fastwalk

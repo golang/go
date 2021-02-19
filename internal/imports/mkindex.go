@@ -1,3 +1,4 @@
+//go:build ignore
 // +build ignore
 
 // Copyright 2013 The Go Authors. All rights reserved.
