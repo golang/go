@@ -29,6 +29,8 @@ to standard error.
 
 The -e flag causes tidy to attempt to proceed despite errors
 encountered while loading packages.
+
+See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 	`,
 	Run: runTidy,
 }

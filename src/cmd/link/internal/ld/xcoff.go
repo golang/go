@@ -574,6 +574,7 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
 	if size == 0 {
 		return
 	}
+	// TODO: use CarrierSymByType
 
 	ldr := ctxt.loader
 	switch stype {

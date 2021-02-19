@@ -237,9 +237,6 @@ func testGoAndCgoDisasm(t *testing.T, printCode bool, printGnuAsm bool) {
 	t.Parallel()
 	testDisasm(t, "fmthello.go", printCode, printGnuAsm)
 	if build.Default.CgoEnabled {
-		if runtime.GOOS == "aix" {
-			return // issue 40972
-		}
 		testDisasm(t, "fmthellocgo.go", printCode, printGnuAsm)
 	}
 }
@@ -261,8 +258,6 @@ func TestDisasmExtld(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
 		t.Skipf("skipping on %s", runtime.GOOS)
-	case "aix":
-		t.Skipf("skipping on AIX, see issue 40972")
 	}
 	t.Parallel()
 	testDisasm(t, "fmthello.go", false, false, "-ldflags=-linkmode=external")

@@ -5,13 +5,13 @@
 package mips
 
 import (
-	"cmd/compile/internal/gc"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj/mips"
 	"cmd/internal/objabi"
 )
 
-func Init(arch *gc.Arch) {
+func Init(arch *ssagen.ArchInfo) {
 	arch.LinkArch = &mips.Linkmips
 	if objabi.GOARCH == "mipsle" {
 		arch.LinkArch = &mips.Linkmipsle
@@ -22,7 +22,7 @@ func Init(arch *gc.Arch) {
 	arch.ZeroRange = zerorange
 	arch.Ginsnop = ginsnop
 	arch.Ginsnopdefer = ginsnop
-	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+	arch.SSAMarkMoves = func(s *ssagen.State, b *ssa.Block) {}
 	arch.SSAGenValue = ssaGenValue
 	arch.SSAGenBlock = ssaGenBlock
 }

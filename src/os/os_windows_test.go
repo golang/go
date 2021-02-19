@@ -692,7 +692,16 @@ func TestReadStdin(t *testing.T) {
 		poll.ReadConsole = old
 	}()
 
-	testConsole := os.NewConsoleFile(syscall.Stdin, "test")
+	p, err := syscall.GetCurrentProcess()
+	if err != nil {
+		t.Fatalf("Unable to get handle to current process: %v", err)
+	}
+	var stdinDuplicate syscall.Handle
+	err = syscall.DuplicateHandle(p, syscall.Handle(syscall.Stdin), p, &stdinDuplicate, 0, false, syscall.DUPLICATE_SAME_ACCESS)
+	if err != nil {
+		t.Fatalf("Unable to duplicate stdin: %v", err)
+	}
+	testConsole := os.NewConsoleFile(stdinDuplicate, "test")
 
 	var tests = []string{
 		"abc",

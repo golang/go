@@ -195,7 +195,7 @@ func msigrestore(sigmask sigset) {
 func clearSignalHandlers() {
 }
 
-func sigblock() {
+func sigblock(exiting bool) {
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -211,6 +211,11 @@ func minit() {
 
 // Called from dropm to undo the effect of an minit.
 func unminit() {
+}
+
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+func mdestroy(mp *m) {
 }
 
 var sysstat = []byte("/dev/sysstat\x00")
@@ -335,12 +340,22 @@ func osyield() {
 }
 
 //go:nosplit
+func osyield_no_g() {
+	osyield()
+}
+
+//go:nosplit
 func usleep(µs uint32) {
 	ms := int32(µs / 1000)
 	if ms == 0 {
 		ms = 1
 	}
 	sleep(ms)
+}
+
+//go:nosplit
+func usleep_no_g(usec uint32) {
+	usleep(usec)
 }
 
 //go:nosplit

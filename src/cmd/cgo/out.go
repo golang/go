@@ -14,10 +14,10 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	exec "internal/execabs"
 	"internal/xcoff"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -953,9 +953,9 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		// Build the wrapper function compiled by gcc.
 		gccExport := ""
 		if goos == "windows" {
-			gccExport = "__declspec(dllexport)"
+			gccExport = "__declspec(dllexport) "
 		}
-		s := fmt.Sprintf("%s %s %s(", gccExport, gccResult, exp.ExpName)
+		s := fmt.Sprintf("%s%s %s(", gccExport, gccResult, exp.ExpName)
 		if fn.Recv != nil {
 			s += p.cgoType(fn.Recv.List[0].Type).C.String()
 			s += " recv"

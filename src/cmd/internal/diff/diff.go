@@ -7,9 +7,10 @@
 package diff
 
 import (
+	"bytes"
+	exec "internal/execabs"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"runtime"
 )
 
@@ -38,6 +39,25 @@ func Diff(prefix string, b1, b2 []byte) ([]byte, error) {
 		// Ignore that failure as long as we get output.
 		err = nil
 	}
+
+	// If we are on Windows and the diff is Cygwin diff,
+	// machines can get into a state where every Cygwin
+	// command works fine but prints a useless message like:
+	//
+	//	Cygwin WARNING:
+	//	  Couldn't compute FAST_CWD pointer.  This typically occurs if you're using
+	//	  an older Cygwin version on a newer Windows.  Please update to the latest
+	//	  available Cygwin version from https://cygwin.com/.  If the problem persists,
+	//	  please see https://cygwin.com/problems.html
+	//
+	// Skip over that message and just return the actual diff.
+	if len(data) > 0 && !bytes.HasPrefix(data, []byte("--- ")) {
+		i := bytes.Index(data, []byte("\n--- "))
+		if i >= 0 && i < 80*10 && bytes.Contains(data[:i], []byte("://cygwin.com/")) {
+			data = data[i+1:]
+		}
+	}
+
 	return data, err
 }
 

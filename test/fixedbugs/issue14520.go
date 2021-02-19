@@ -9,6 +9,6 @@ package f
 import /* // ERROR "import path" */ `
 bogus`
 
-func f(x int /* // ERROR "unexpected newline"
+func f(x int /* // GC_ERROR "unexpected newline"
 
-*/)
+*/) // GCCGO_ERROR "expected .*\).*|expected declaration"

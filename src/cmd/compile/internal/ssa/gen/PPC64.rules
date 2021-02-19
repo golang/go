@@ -1088,7 +1088,7 @@
 (CMPWU (MOVDconst [c]) y) && isU16Bit(c) => (InvertFlags (CMPWUconst y [int32(c)]))
 
 // Canonicalize the order of arguments to comparisons - helps with CSE.
-((CMP|CMPW|CMPU|CMPWU) x y) && x.ID > y.ID => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
+((CMP|CMPW|CMPU|CMPWU) x y) && canonLessThan(x,y) => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
 
 // ISEL auxInt values 0=LT 1=GT 2=EQ   arg2 ? arg0 : arg1
 // ISEL auxInt values 4=GE 5=LE 6=NE   arg2 ? arg1 : arg0

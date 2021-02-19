@@ -9,9 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
+	exec "internal/execabs"
 	"internal/goroot"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -71,7 +71,7 @@ and test commands:
 	-p n
 		the number of programs, such as build commands or
 		test binaries, that can be run in parallel.
-		The default is the number of CPUs available.
+		The default is GOMAXPROCS, normally the number of CPUs available.
 	-race
 		enable data race detection.
 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
@@ -113,7 +113,10 @@ and test commands:
 		created with -buildmode=shared.
 	-mod mode
 		module download mode to use: readonly, vendor, or mod.
-		See 'go help modules' for more.
+		By default, if a vendor directory is present and the go version in go.mod
+		is 1.14 or higher, the go command acts as if -mod=vendor were set.
+		Otherwise, the go command acts as if -mod=readonly were set.
+		See https://golang.org/ref/mod#build-commands for details.
 	-modcacherw
 		leave newly-created directories in the module cache read-write
 		instead of making them read-only.
@@ -369,7 +372,8 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	var b Builder
 	b.Init()
 
-	pkgs := load.PackagesForBuild(ctx, args)
+	pkgs := load.PackagesAndErrors(ctx, args)
+	load.CheckPackageErrors(pkgs)
 
 	explicitO := len(cfg.BuildO) > 0
 
@@ -399,7 +403,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 		fmt.Fprint(os.Stderr, "go build: -i flag is deprecated\n")
 	}
 
-	pkgs = omitTestOnly(pkgsFilter(load.Packages(ctx, args)))
+	pkgs = omitTestOnly(pkgsFilter(pkgs))
 
 	// Special case -o /dev/null by not writing at all.
 	if cfg.BuildO == os.DevNull {
@@ -582,8 +586,32 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 			return
 		}
 	}
+
 	BuildInit()
-	pkgs := load.PackagesForBuild(ctx, args)
+	pkgs := load.PackagesAndErrors(ctx, args)
+	if cfg.ModulesEnabled && !modload.HasModRoot() {
+		haveErrors := false
+		allMissingErrors := true
+		for _, pkg := range pkgs {
+			if pkg.Error == nil {
+				continue
+			}
+			haveErrors = true
+			if missingErr := (*modload.ImportMissingError)(nil); !errors.As(pkg.Error, &missingErr) {
+				allMissingErrors = false
+				break
+			}
+		}
+		if haveErrors && allMissingErrors {
+			latestArgs := make([]string, len(args))
+			for i := range args {
+				latestArgs[i] = args[i] + "@latest"
+			}
+			hint := strings.Join(latestArgs, " ")
+			base.Fatalf("go install: version is required when current directory is not in a module\n\tTry 'go install %s' to install the latest version", hint)
+		}
+	}
+	load.CheckPackageErrors(pkgs)
 	if cfg.BuildI {
 		allGoroot := true
 		for _, pkg := range pkgs {
@@ -596,6 +624,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 			fmt.Fprint(os.Stderr, "go install: -i flag is deprecated\n")
 		}
 	}
+
 	InstallPackages(ctx, args, pkgs)
 }
 
@@ -813,7 +842,7 @@ func installOutsideModule(ctx context.Context, args []string) {
 
 	// Load packages for all arguments. Ignore non-main packages.
 	// Print a warning if an argument contains "..." and matches no main packages.
-	// PackagesForBuild already prints warnings for patterns that don't match any
+	// PackagesAndErrors already prints warnings for patterns that don't match any
 	// packages, so be careful not to double print.
 	matchers := make([]func(string) bool, len(patterns))
 	for i, p := range patterns {
@@ -824,7 +853,8 @@ func installOutsideModule(ctx context.Context, args []string) {
 
 	// TODO(golang.org/issue/40276): don't report errors loading non-main packages
 	// matched by a pattern.
-	pkgs := load.PackagesForBuild(ctx, patterns)
+	pkgs := load.PackagesAndErrors(ctx, patterns)
+	load.CheckPackageErrors(pkgs)
 	mainPkgs := make([]*load.Package, 0, len(pkgs))
 	mainCount := make([]int, len(patterns))
 	nonMainCount := make([]int, len(patterns))

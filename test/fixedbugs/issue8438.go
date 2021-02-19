@@ -10,8 +10,8 @@
 package main
 
 func main() {
-	_ = []byte{"foo"}   // ERROR "cannot use"
-	_ = []int{"foo"}    // ERROR "cannot use"
-	_ = []rune{"foo"}   // ERROR "cannot use"
+	_ = []byte{"foo"}   // ERROR "cannot use|incompatible type"
+	_ = []int{"foo"}    // ERROR "cannot use|incompatible type"
+	_ = []rune{"foo"}   // ERROR "cannot use|incompatible type"
 	_ = []string{"foo"} // OK
 }

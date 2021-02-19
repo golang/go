@@ -65,7 +65,6 @@ var (
 	procRegOpenKeyExW                      = modadvapi32.NewProc("RegOpenKeyExW")
 	procRegQueryInfoKeyW                   = modadvapi32.NewProc("RegQueryInfoKeyW")
 	procRegQueryValueExW                   = modadvapi32.NewProc("RegQueryValueExW")
-	procSystemFunction036                  = modadvapi32.NewProc("SystemFunction036")
 	procCertAddCertificateContextToStore   = modcrypt32.NewProc("CertAddCertificateContextToStore")
 	procCertCloseStore                     = modcrypt32.NewProc("CertCloseStore")
 	procCertCreateCertificateContext       = modcrypt32.NewProc("CertCreateCertificateContext")
@@ -329,14 +328,6 @@ func RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32
 	r0, _, _ := Syscall6(procRegQueryValueExW.Addr(), 6, uintptr(key), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(reserved)), uintptr(unsafe.Pointer(valtype)), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(buflen)))
 	if r0 != 0 {
 		regerrno = Errno(r0)
-	}
-	return
-}
-
-func RtlGenRandom(buf *uint8, bytes uint32) (err error) {
-	r1, _, e1 := Syscall(procSystemFunction036.Addr(), 2, uintptr(unsafe.Pointer(buf)), uintptr(bytes), 0)
-	if r1 == 0 {
-		err = errnoErr(e1)
 	}
 	return
 }

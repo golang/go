@@ -16,7 +16,7 @@ env GO111MODULE=auto
 cd m
 cp go.mod go.mod.orig
 ! go list -m all
-stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; try ''go mod download example.com/cmd'' to add it$'
+stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; to add it:\n\tgo mod download example.com/cmd$'
 go install example.com/cmd/a@latest
 cmp go.mod go.mod.orig
 exists $GOPATH/bin/a$GOEXE
@@ -67,9 +67,9 @@ cd tmp
 go mod init tmp
 go mod edit -require=rsc.io/fortune@v1.0.0
 ! go install -mod=readonly $GOPATH/pkg/mod/rsc.io/fortune@v1.0.0
-stderr '^go: rsc.io/fortune@v1.0.0: missing go.sum entry; try ''go mod download rsc.io/fortune'' to add it$'
+stderr '^go: rsc.io/fortune@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download rsc.io/fortune$'
 ! go install -mod=readonly ../../pkg/mod/rsc.io/fortune@v1.0.0
-stderr '^go: rsc.io/fortune@v1.0.0: missing go.sum entry; try ''go mod download rsc.io/fortune'' to add it$'
+stderr '^go: rsc.io/fortune@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download rsc.io/fortune$'
 go get -d rsc.io/fortune@v1.0.0
 go install -mod=readonly $GOPATH/pkg/mod/rsc.io/fortune@v1.0.0
 exists $GOPATH/bin/fortune$GOEXE
@@ -175,6 +175,11 @@ stdout '^\tmod\texample.com/cmd\tv1.0.0\t'
 go install example.com/cmd/a@v1.9.0
 go version -m $GOPATH/bin/a$GOEXE
 stdout '^\tmod\texample.com/cmd\tv1.9.0\t'
+env GO111MODULE=
+
+# 'go install pkg@version' succeeds when -mod=readonly is set explicitly.
+# Verifies #43278.
+go install -mod=readonly example.com/cmd/a@v1.0.0
 
 -- m/go.mod --
 module m

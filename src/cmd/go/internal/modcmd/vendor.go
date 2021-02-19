@@ -7,7 +7,9 @@ package modcmd
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"go/build"
 	"io"
 	"io/fs"
 	"os"
@@ -19,7 +21,9 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/imports"
+	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/str"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -38,6 +42,8 @@ modules and packages to standard error.
 
 The -e flag causes vendor to attempt to proceed despite errors
 encountered while loading packages.
+
+See https://golang.org/ref/mod#go-mod-vendor for more about 'go mod vendor'.
 	`,
 	Run: runVendor,
 }
@@ -180,19 +186,76 @@ func moduleLine(m, r module.Version) string {
 }
 
 func vendorPkg(vdir, pkg string) {
+	// TODO(#42504): Instead of calling modload.ImportMap then build.ImportDir,
+	// just call load.PackagesAndErrors. To do that, we need to add a good way
+	// to ignore build constraints.
 	realPath := modload.ImportMap(pkg)
 	if realPath != pkg && modload.ImportMap(realPath) != "" {
 		fmt.Fprintf(os.Stderr, "warning: %s imported as both %s and %s; making two copies.\n", realPath, realPath, pkg)
 	}
 
+	copiedFiles := make(map[string]bool)
 	dst := filepath.Join(vdir, pkg)
 	src := modload.PackageDir(realPath)
 	if src == "" {
 		fmt.Fprintf(os.Stderr, "internal error: no pkg for %s -> %s\n", pkg, realPath)
 	}
-	copyDir(dst, src, matchPotentialSourceFile)
+	copyDir(dst, src, matchPotentialSourceFile, copiedFiles)
 	if m := modload.PackageModule(realPath); m.Path != "" {
-		copyMetadata(m.Path, realPath, dst, src)
+		copyMetadata(m.Path, realPath, dst, src, copiedFiles)
+	}
+
+	ctx := build.Default
+	ctx.UseAllFiles = true
+	bp, err := ctx.ImportDir(src, build.IgnoreVendor)
+	// Because UseAllFiles is set on the build.Context, it's possible ta get
+	// a MultiplePackageError on an otherwise valid package: the package could
+	// have different names for GOOS=windows and GOOS=mac for example. On the
+	// other hand if there's a NoGoError, the package might have source files
+	// specifying "// +build ignore" those packages should be skipped because
+	// embeds from ignored files can't be used.
+	// TODO(#42504): Find a better way to avoid errors from ImportDir. We'll
+	// need to figure this out when we switch to PackagesAndErrors as per the
+	// TODO above.
+	var multiplePackageError *build.MultiplePackageError
+	var noGoError *build.NoGoError
+	if err != nil {
+		if errors.As(err, &noGoError) {
+			return // No source files in this package are built. Skip embeds in ignored files.
+		} else if !errors.As(err, &multiplePackageError) { // multiplePackgeErrors are okay, but others are not.
+			base.Fatalf("internal error: failed to find embedded files of %s: %v\n", pkg, err)
+		}
+	}
+	embedPatterns := str.StringList(bp.EmbedPatterns, bp.TestEmbedPatterns, bp.XTestEmbedPatterns)
+	embeds, err := load.ResolveEmbed(bp.Dir, embedPatterns)
+	if err != nil {
+		base.Fatalf("go mod vendor: %v", err)
+	}
+	for _, embed := range embeds {
+		embedDst := filepath.Join(dst, embed)
+		if copiedFiles[embedDst] {
+			continue
+		}
+
+		// Copy the file as is done by copyDir below.
+		r, err := os.Open(filepath.Join(src, embed))
+		if err != nil {
+			base.Fatalf("go mod vendor: %v", err)
+		}
+		if err := os.MkdirAll(filepath.Dir(embedDst), 0777); err != nil {
+			base.Fatalf("go mod vendor: %v", err)
+		}
+		w, err := os.Create(embedDst)
+		if err != nil {
+			base.Fatalf("go mod vendor: %v", err)
+		}
+		if _, err := io.Copy(w, r); err != nil {
+			base.Fatalf("go mod vendor: %v", err)
+		}
+		r.Close()
+		if err := w.Close(); err != nil {
+			base.Fatalf("go mod vendor: %v", err)
+		}
 	}
 }
 
@@ -205,14 +268,14 @@ var copiedMetadata = make(map[metakey]bool)
 
 // copyMetadata copies metadata files from parents of src to parents of dst,
 // stopping after processing the src parent for modPath.
-func copyMetadata(modPath, pkg, dst, src string) {
+func copyMetadata(modPath, pkg, dst, src string, copiedFiles map[string]bool) {
 	for parent := 0; ; parent++ {
 		if copiedMetadata[metakey{modPath, dst}] {
 			break
 		}
 		copiedMetadata[metakey{modPath, dst}] = true
 		if parent > 0 {
-			copyDir(dst, src, matchMetadata)
+			copyDir(dst, src, matchMetadata, copiedFiles)
 		}
 		if modPath == pkg {
 			break
@@ -280,7 +343,7 @@ func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
 }
 
 // copyDir copies all regular files satisfying match(info) from src to dst.
-func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool) {
+func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool, copiedFiles map[string]bool) {
 	files, err := os.ReadDir(src)
 	if err != nil {
 		base.Fatalf("go mod vendor: %v", err)
@@ -292,11 +355,14 @@ func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool) {
 		if file.IsDir() || !file.Type().IsRegular() || !match(src, file) {
 			continue
 		}
+		copiedFiles[file.Name()] = true
 		r, err := os.Open(filepath.Join(src, file.Name()))
 		if err != nil {
 			base.Fatalf("go mod vendor: %v", err)
 		}
-		w, err := os.Create(filepath.Join(dst, file.Name()))
+		dstPath := filepath.Join(dst, file.Name())
+		copiedFiles[dstPath] = true
+		w, err := os.Create(dstPath)
 		if err != nil {
 			base.Fatalf("go mod vendor: %v", err)
 		}

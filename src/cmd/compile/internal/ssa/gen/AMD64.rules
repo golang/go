@@ -361,31 +361,31 @@
 // Adjust zeros to be a multiple of 16 bytes.
 (Zero [s] destptr mem) && s%16 != 0 && s > 16 && s%16 > 8 && config.useSSE =>
 	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
-		(MOVOstore destptr (MOVOconst [0]) mem))
+		(MOVOstorezero destptr mem))
 
 (Zero [s] destptr mem) && s%16 != 0 && s > 16 && s%16 <= 8 && config.useSSE =>
 	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
 		(MOVQstoreconst [makeValAndOff32(0,0)] destptr mem))
 
 (Zero [16] destptr mem) && config.useSSE =>
-	(MOVOstore destptr (MOVOconst [0]) mem)
+	(MOVOstorezero destptr mem)
 (Zero [32] destptr mem) && config.useSSE =>
-	(MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0])
-		(MOVOstore destptr (MOVOconst [0]) mem))
+	(MOVOstorezero (OffPtr <destptr.Type> destptr [16])
+		(MOVOstorezero destptr mem))
 (Zero [48] destptr mem) && config.useSSE =>
-	(MOVOstore (OffPtr <destptr.Type> destptr [32]) (MOVOconst [0])
-		(MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0])
-			(MOVOstore destptr (MOVOconst [0]) mem)))
+	(MOVOstorezero (OffPtr <destptr.Type> destptr [32])
+		(MOVOstorezero (OffPtr <destptr.Type> destptr [16])
+			(MOVOstorezero destptr mem)))
 (Zero [64] destptr mem) && config.useSSE =>
-	(MOVOstore (OffPtr <destptr.Type> destptr [48]) (MOVOconst [0])
-		(MOVOstore (OffPtr <destptr.Type> destptr [32]) (MOVOconst [0])
-			(MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0])
-				(MOVOstore destptr (MOVOconst [0]) mem))))
+	(MOVOstorezero (OffPtr <destptr.Type> destptr [48])
+		(MOVOstorezero (OffPtr <destptr.Type> destptr [32])
+			(MOVOstorezero (OffPtr <destptr.Type> destptr [16])
+				(MOVOstorezero destptr mem))))
 
 // Medium zeroing uses a duff device.
 (Zero [s] destptr mem)
 	&& s > 64 && s <= 1024 && s%16 == 0 && !config.noDuffDevice =>
-	(DUFFZERO [s] destptr (MOVOconst [0]) mem)
+	(DUFFZERO [s] destptr mem)
 
 // Large zeroing uses REP STOSQ.
 (Zero [s] destptr mem)
@@ -459,7 +459,7 @@
 (IsInBounds idx len) => (SETB (CMPQ idx len))
 (IsSliceInBounds idx len) => (SETBE (CMPQ idx len))
 (NilCheck ...) => (LoweredNilCheck ...)
-(GetG ...) => (LoweredGetG ...)
+(GetG mem) && !base.Flag.ABIWrap => (LoweredGetG mem) // only lower in old ABI. in new ABI we have a G register.
 (GetClosurePtr ...) => (LoweredGetClosurePtr ...)
 (GetCallerPC ...) => (LoweredGetCallerPC ...)
 (GetCallerSP ...) => (LoweredGetCallerSP ...)
@@ -916,7 +916,7 @@
 (CMPB (MOVLconst [c]) x) => (InvertFlags (CMPBconst x [int8(c)]))
 
 // Canonicalize the order of arguments to comparisons - helps with CSE.
-(CMP(Q|L|W|B) x y) && x.ID > y.ID => (InvertFlags (CMP(Q|L|W|B) y x))
+(CMP(Q|L|W|B) x y) && canonLessThan(x,y) => (InvertFlags (CMP(Q|L|W|B) y x))
 
 // Using MOVZX instead of AND is cheaper.
 (AND(Q|L)const [  0xFF] x) => (MOVBQZX x)
@@ -1900,7 +1900,7 @@
   && c.Val() == 0
   && c2.Val() == 0
   && clobber(x)
-  => (MOVOstore [c2.Off32()] {s} p (MOVOconst [0]) mem)
+  => (MOVOstorezero [c2.Off32()] {s} p mem)
 
 // Combine stores into larger (unaligned) stores. Little endian.
 (MOVBstore [i] {s} p (SHR(W|L|Q)const [8] w) x:(MOVBstore [i-1] {s} p w mem))

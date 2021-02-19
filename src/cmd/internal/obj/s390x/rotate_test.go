@@ -10,7 +10,7 @@ import (
 
 func TestRotateParamsMask(t *testing.T) {
 	tests := []struct {
-		start, end, amount int8
+		start, end, amount uint8
 		inMask, outMask    uint64
 	}{
 		// start before end, no rotation

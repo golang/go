@@ -89,6 +89,14 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
         TestGoFiles     []string   // _test.go files in package
         XTestGoFiles    []string   // _test.go files outside package
 
+        // Embedded files
+        EmbedPatterns      []string // //go:embed patterns
+        EmbedFiles         []string // files matched by EmbedPatterns
+        TestEmbedPatterns  []string // //go:embed patterns in TestGoFiles
+        TestEmbedFiles     []string // files matched by TestEmbedPatterns
+        XTestEmbedPatterns []string // //go:embed patterns in XTestGoFiles
+        XTestEmbedFiles    []string // files matched by XTestEmbedPatterns
+
         // Cgo directives
         CgoCFLAGS    []string // cgo: flags for C compiler
         CgoCPPFLAGS  []string // cgo: flags for C preprocessor
@@ -300,7 +308,7 @@ For more about build flags, see 'go help build'.
 
 For more about specifying packages, see 'go help packages'.
 
-For more about modules, see 'go help modules'.
+For more about modules, see https://golang.org/ref/mod.
 	`,
 }
 
@@ -471,11 +479,18 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	load.IgnoreImports = *listFind
-	var pkgs []*load.Package
-	if *listE {
-		pkgs = load.PackagesAndErrors(ctx, args)
-	} else {
-		pkgs = load.Packages(ctx, args)
+	pkgs := load.PackagesAndErrors(ctx, args)
+	if !*listE {
+		w := 0
+		for _, pkg := range pkgs {
+			if pkg.Error != nil {
+				base.Errorf("%v", pkg.Error)
+				continue
+			}
+			pkgs[w] = pkg
+			w++
+		}
+		pkgs = pkgs[:w]
 		base.ExitIfErrors()
 	}
 
@@ -570,8 +585,6 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		// Show vendor-expanded paths in listing
 		p.TestImports = p.Resolve(p.TestImports)
 		p.XTestImports = p.Resolve(p.XTestImports)
-		p.TestEmbedFiles = p.ResolveEmbed(p.TestEmbedPatterns)
-		p.XTestEmbedFiles = p.ResolveEmbed(p.XTestEmbedPatterns)
 		p.DepOnly = !cmdline[p]
 
 		if *listCompiled {

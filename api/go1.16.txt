@@ -1,0 +1,501 @@
+pkg archive/zip, method (*ReadCloser) Open(string) (fs.File, error)
+pkg archive/zip, method (*Reader) Open(string) (fs.File, error)
+pkg crypto/x509, method (SystemRootsError) Unwrap() error
+pkg debug/elf, const DT_ADDRRNGHI = 1879047935
+pkg debug/elf, const DT_ADDRRNGHI DynTag
+pkg debug/elf, const DT_ADDRRNGLO = 1879047680
+pkg debug/elf, const DT_ADDRRNGLO DynTag
+pkg debug/elf, const DT_AUDIT = 1879047932
+pkg debug/elf, const DT_AUDIT DynTag
+pkg debug/elf, const DT_AUXILIARY = 2147483645
+pkg debug/elf, const DT_AUXILIARY DynTag
+pkg debug/elf, const DT_CHECKSUM = 1879047672
+pkg debug/elf, const DT_CHECKSUM DynTag
+pkg debug/elf, const DT_CONFIG = 1879047930
+pkg debug/elf, const DT_CONFIG DynTag
+pkg debug/elf, const DT_DEPAUDIT = 1879047931
+pkg debug/elf, const DT_DEPAUDIT DynTag
+pkg debug/elf, const DT_FEATURE = 1879047676
+pkg debug/elf, const DT_FEATURE DynTag
+pkg debug/elf, const DT_FILTER = 2147483647
+pkg debug/elf, const DT_FILTER DynTag
+pkg debug/elf, const DT_FLAGS_1 = 1879048187
+pkg debug/elf, const DT_FLAGS_1 DynTag
+pkg debug/elf, const DT_GNU_CONFLICT = 1879047928
+pkg debug/elf, const DT_GNU_CONFLICT DynTag
+pkg debug/elf, const DT_GNU_CONFLICTSZ = 1879047670
+pkg debug/elf, const DT_GNU_CONFLICTSZ DynTag
+pkg debug/elf, const DT_GNU_HASH = 1879047925
+pkg debug/elf, const DT_GNU_HASH DynTag
+pkg debug/elf, const DT_GNU_LIBLIST = 1879047929
+pkg debug/elf, const DT_GNU_LIBLIST DynTag
+pkg debug/elf, const DT_GNU_LIBLISTSZ = 1879047671
+pkg debug/elf, const DT_GNU_LIBLISTSZ DynTag
+pkg debug/elf, const DT_GNU_PRELINKED = 1879047669
+pkg debug/elf, const DT_GNU_PRELINKED DynTag
+pkg debug/elf, const DT_MIPS_AUX_DYNAMIC = 1879048241
+pkg debug/elf, const DT_MIPS_AUX_DYNAMIC DynTag
+pkg debug/elf, const DT_MIPS_BASE_ADDRESS = 1879048198
+pkg debug/elf, const DT_MIPS_BASE_ADDRESS DynTag
+pkg debug/elf, const DT_MIPS_COMPACT_SIZE = 1879048239
+pkg debug/elf, const DT_MIPS_COMPACT_SIZE DynTag
+pkg debug/elf, const DT_MIPS_CONFLICT = 1879048200
+pkg debug/elf, const DT_MIPS_CONFLICT DynTag
+pkg debug/elf, const DT_MIPS_CONFLICTNO = 1879048203
+pkg debug/elf, const DT_MIPS_CONFLICTNO DynTag
+pkg debug/elf, const DT_MIPS_CXX_FLAGS = 1879048226
+pkg debug/elf, const DT_MIPS_CXX_FLAGS DynTag
+pkg debug/elf, const DT_MIPS_DELTA_CLASS = 1879048215
+pkg debug/elf, const DT_MIPS_DELTA_CLASS DynTag
+pkg debug/elf, const DT_MIPS_DELTA_CLASSSYM = 1879048224
+pkg debug/elf, const DT_MIPS_DELTA_CLASSSYM DynTag
+pkg debug/elf, const DT_MIPS_DELTA_CLASSSYM_NO = 1879048225
+pkg debug/elf, const DT_MIPS_DELTA_CLASSSYM_NO DynTag
+pkg debug/elf, const DT_MIPS_DELTA_CLASS_NO = 1879048216
+pkg debug/elf, const DT_MIPS_DELTA_CLASS_NO DynTag
+pkg debug/elf, const DT_MIPS_DELTA_INSTANCE = 1879048217
+pkg debug/elf, const DT_MIPS_DELTA_INSTANCE DynTag
+pkg debug/elf, const DT_MIPS_DELTA_INSTANCE_NO = 1879048218
+pkg debug/elf, const DT_MIPS_DELTA_INSTANCE_NO DynTag
+pkg debug/elf, const DT_MIPS_DELTA_RELOC = 1879048219
+pkg debug/elf, const DT_MIPS_DELTA_RELOC DynTag
+pkg debug/elf, const DT_MIPS_DELTA_RELOC_NO = 1879048220
+pkg debug/elf, const DT_MIPS_DELTA_RELOC_NO DynTag
+pkg debug/elf, const DT_MIPS_DELTA_SYM = 1879048221
+pkg debug/elf, const DT_MIPS_DELTA_SYM DynTag
+pkg debug/elf, const DT_MIPS_DELTA_SYM_NO = 1879048222
+pkg debug/elf, const DT_MIPS_DELTA_SYM_NO DynTag
+pkg debug/elf, const DT_MIPS_DYNSTR_ALIGN = 1879048235
+pkg debug/elf, const DT_MIPS_DYNSTR_ALIGN DynTag
+pkg debug/elf, const DT_MIPS_FLAGS = 1879048197
+pkg debug/elf, const DT_MIPS_FLAGS DynTag
+pkg debug/elf, const DT_MIPS_GOTSYM = 1879048211
+pkg debug/elf, const DT_MIPS_GOTSYM DynTag
+pkg debug/elf, const DT_MIPS_GP_VALUE = 1879048240
+pkg debug/elf, const DT_MIPS_GP_VALUE DynTag
+pkg debug/elf, const DT_MIPS_HIDDEN_GOTIDX = 1879048231
+pkg debug/elf, const DT_MIPS_HIDDEN_GOTIDX DynTag
+pkg debug/elf, const DT_MIPS_HIPAGENO = 1879048212
+pkg debug/elf, const DT_MIPS_HIPAGENO DynTag
+pkg debug/elf, const DT_MIPS_ICHECKSUM = 1879048195
+pkg debug/elf, const DT_MIPS_ICHECKSUM DynTag
+pkg debug/elf, const DT_MIPS_INTERFACE = 1879048234
+pkg debug/elf, const DT_MIPS_INTERFACE DynTag
+pkg debug/elf, const DT_MIPS_INTERFACE_SIZE = 1879048236
+pkg debug/elf, const DT_MIPS_INTERFACE_SIZE DynTag
+pkg debug/elf, const DT_MIPS_IVERSION = 1879048196
+pkg debug/elf, const DT_MIPS_IVERSION DynTag
+pkg debug/elf, const DT_MIPS_LIBLIST = 1879048201
+pkg debug/elf, const DT_MIPS_LIBLIST DynTag
+pkg debug/elf, const DT_MIPS_LIBLISTNO = 1879048208
+pkg debug/elf, const DT_MIPS_LIBLISTNO DynTag
+pkg debug/elf, const DT_MIPS_LOCALPAGE_GOTIDX = 1879048229
+pkg debug/elf, const DT_MIPS_LOCALPAGE_GOTIDX DynTag
+pkg debug/elf, const DT_MIPS_LOCAL_GOTIDX = 1879048230
+pkg debug/elf, const DT_MIPS_LOCAL_GOTIDX DynTag
+pkg debug/elf, const DT_MIPS_LOCAL_GOTNO = 1879048202
+pkg debug/elf, const DT_MIPS_LOCAL_GOTNO DynTag
+pkg debug/elf, const DT_MIPS_MSYM = 1879048199
+pkg debug/elf, const DT_MIPS_MSYM DynTag
+pkg debug/elf, const DT_MIPS_OPTIONS = 1879048233
+pkg debug/elf, const DT_MIPS_OPTIONS DynTag
+pkg debug/elf, const DT_MIPS_PERF_SUFFIX = 1879048238
+pkg debug/elf, const DT_MIPS_PERF_SUFFIX DynTag
+pkg debug/elf, const DT_MIPS_PIXIE_INIT = 1879048227
+pkg debug/elf, const DT_MIPS_PIXIE_INIT DynTag
+pkg debug/elf, const DT_MIPS_PLTGOT = 1879048242
+pkg debug/elf, const DT_MIPS_PLTGOT DynTag
+pkg debug/elf, const DT_MIPS_PROTECTED_GOTIDX = 1879048232
+pkg debug/elf, const DT_MIPS_PROTECTED_GOTIDX DynTag
+pkg debug/elf, const DT_MIPS_RLD_MAP = 1879048214
+pkg debug/elf, const DT_MIPS_RLD_MAP DynTag
+pkg debug/elf, const DT_MIPS_RLD_MAP_REL = 1879048245
+pkg debug/elf, const DT_MIPS_RLD_MAP_REL DynTag
+pkg debug/elf, const DT_MIPS_RLD_TEXT_RESOLVE_ADDR = 1879048237
+pkg debug/elf, const DT_MIPS_RLD_TEXT_RESOLVE_ADDR DynTag
+pkg debug/elf, const DT_MIPS_RLD_VERSION = 1879048193
+pkg debug/elf, const DT_MIPS_RLD_VERSION DynTag
+pkg debug/elf, const DT_MIPS_RWPLT = 1879048244
+pkg debug/elf, const DT_MIPS_RWPLT DynTag
+pkg debug/elf, const DT_MIPS_SYMBOL_LIB = 1879048228
+pkg debug/elf, const DT_MIPS_SYMBOL_LIB DynTag
+pkg debug/elf, const DT_MIPS_SYMTABNO = 1879048209
+pkg debug/elf, const DT_MIPS_SYMTABNO DynTag
+pkg debug/elf, const DT_MIPS_TIME_STAMP = 1879048194
+pkg debug/elf, const DT_MIPS_TIME_STAMP DynTag
+pkg debug/elf, const DT_MIPS_UNREFEXTNO = 1879048210
+pkg debug/elf, const DT_MIPS_UNREFEXTNO DynTag
+pkg debug/elf, const DT_MOVEENT = 1879047674
+pkg debug/elf, const DT_MOVEENT DynTag
+pkg debug/elf, const DT_MOVESZ = 1879047675
+pkg debug/elf, const DT_MOVESZ DynTag
+pkg debug/elf, const DT_MOVETAB = 1879047934
+pkg debug/elf, const DT_MOVETAB DynTag
+pkg debug/elf, const DT_PLTPAD = 1879047933
+pkg debug/elf, const DT_PLTPAD DynTag
+pkg debug/elf, const DT_PLTPADSZ = 1879047673
+pkg debug/elf, const DT_PLTPADSZ DynTag
+pkg debug/elf, const DT_POSFLAG_1 = 1879047677
+pkg debug/elf, const DT_POSFLAG_1 DynTag
+pkg debug/elf, const DT_PPC64_GLINK = 1879048192
+pkg debug/elf, const DT_PPC64_GLINK DynTag
+pkg debug/elf, const DT_PPC64_OPD = 1879048193
+pkg debug/elf, const DT_PPC64_OPD DynTag
+pkg debug/elf, const DT_PPC64_OPDSZ = 1879048194
+pkg debug/elf, const DT_PPC64_OPDSZ DynTag
+pkg debug/elf, const DT_PPC64_OPT = 1879048195
+pkg debug/elf, const DT_PPC64_OPT DynTag
+pkg debug/elf, const DT_PPC_GOT = 1879048192
+pkg debug/elf, const DT_PPC_GOT DynTag
+pkg debug/elf, const DT_PPC_OPT = 1879048193
+pkg debug/elf, const DT_PPC_OPT DynTag
+pkg debug/elf, const DT_RELACOUNT = 1879048185
+pkg debug/elf, const DT_RELACOUNT DynTag
+pkg debug/elf, const DT_RELCOUNT = 1879048186
+pkg debug/elf, const DT_RELCOUNT DynTag
+pkg debug/elf, const DT_SPARC_REGISTER = 1879048193
+pkg debug/elf, const DT_SPARC_REGISTER DynTag
+pkg debug/elf, const DT_SYMINENT = 1879047679
+pkg debug/elf, const DT_SYMINENT DynTag
+pkg debug/elf, const DT_SYMINFO = 1879047935
+pkg debug/elf, const DT_SYMINFO DynTag
+pkg debug/elf, const DT_SYMINSZ = 1879047678
+pkg debug/elf, const DT_SYMINSZ DynTag
+pkg debug/elf, const DT_SYMTAB_SHNDX = 34
+pkg debug/elf, const DT_SYMTAB_SHNDX DynTag
+pkg debug/elf, const DT_TLSDESC_GOT = 1879047927
+pkg debug/elf, const DT_TLSDESC_GOT DynTag
+pkg debug/elf, const DT_TLSDESC_PLT = 1879047926
+pkg debug/elf, const DT_TLSDESC_PLT DynTag
+pkg debug/elf, const DT_USED = 2147483646
+pkg debug/elf, const DT_USED DynTag
+pkg debug/elf, const DT_VALRNGHI = 1879047679
+pkg debug/elf, const DT_VALRNGHI DynTag
+pkg debug/elf, const DT_VALRNGLO = 1879047424
+pkg debug/elf, const DT_VALRNGLO DynTag
+pkg debug/elf, const DT_VERDEF = 1879048188
+pkg debug/elf, const DT_VERDEF DynTag
+pkg debug/elf, const DT_VERDEFNUM = 1879048189
+pkg debug/elf, const DT_VERDEFNUM DynTag
+pkg debug/elf, const PT_AARCH64_ARCHEXT = 1879048192
+pkg debug/elf, const PT_AARCH64_ARCHEXT ProgType
+pkg debug/elf, const PT_AARCH64_UNWIND = 1879048193
+pkg debug/elf, const PT_AARCH64_UNWIND ProgType
+pkg debug/elf, const PT_ARM_ARCHEXT = 1879048192
+pkg debug/elf, const PT_ARM_ARCHEXT ProgType
+pkg debug/elf, const PT_ARM_EXIDX = 1879048193
+pkg debug/elf, const PT_ARM_EXIDX ProgType
+pkg debug/elf, const PT_GNU_EH_FRAME = 1685382480
+pkg debug/elf, const PT_GNU_EH_FRAME ProgType
+pkg debug/elf, const PT_GNU_MBIND_HI = 1685386580
+pkg debug/elf, const PT_GNU_MBIND_HI ProgType
+pkg debug/elf, const PT_GNU_MBIND_LO = 1685382485
+pkg debug/elf, const PT_GNU_MBIND_LO ProgType
+pkg debug/elf, const PT_GNU_PROPERTY = 1685382483
+pkg debug/elf, const PT_GNU_PROPERTY ProgType
+pkg debug/elf, const PT_GNU_RELRO = 1685382482
+pkg debug/elf, const PT_GNU_RELRO ProgType
+pkg debug/elf, const PT_GNU_STACK = 1685382481
+pkg debug/elf, const PT_GNU_STACK ProgType
+pkg debug/elf, const PT_MIPS_ABIFLAGS = 1879048195
+pkg debug/elf, const PT_MIPS_ABIFLAGS ProgType
+pkg debug/elf, const PT_MIPS_OPTIONS = 1879048194
+pkg debug/elf, const PT_MIPS_OPTIONS ProgType
+pkg debug/elf, const PT_MIPS_REGINFO = 1879048192
+pkg debug/elf, const PT_MIPS_REGINFO ProgType
+pkg debug/elf, const PT_MIPS_RTPROC = 1879048193
+pkg debug/elf, const PT_MIPS_RTPROC ProgType
+pkg debug/elf, const PT_OPENBSD_BOOTDATA = 1705253862
+pkg debug/elf, const PT_OPENBSD_BOOTDATA ProgType
+pkg debug/elf, const PT_OPENBSD_RANDOMIZE = 1705237478
+pkg debug/elf, const PT_OPENBSD_RANDOMIZE ProgType
+pkg debug/elf, const PT_OPENBSD_WXNEEDED = 1705237479
+pkg debug/elf, const PT_OPENBSD_WXNEEDED ProgType
+pkg debug/elf, const PT_PAX_FLAGS = 1694766464
+pkg debug/elf, const PT_PAX_FLAGS ProgType
+pkg debug/elf, const PT_S390_PGSTE = 1879048192
+pkg debug/elf, const PT_S390_PGSTE ProgType
+pkg debug/elf, const PT_SUNWSTACK = 1879048187
+pkg debug/elf, const PT_SUNWSTACK ProgType
+pkg debug/elf, const PT_SUNW_EH_FRAME = 1685382480
+pkg debug/elf, const PT_SUNW_EH_FRAME ProgType
+pkg embed, method (FS) Open(string) (fs.File, error)
+pkg embed, method (FS) ReadDir(string) ([]fs.DirEntry, error)
+pkg embed, method (FS) ReadFile(string) ([]uint8, error)
+pkg embed, type FS struct
+pkg flag, func Func(string, string, func(string) error)
+pkg flag, method (*FlagSet) Func(string, string, func(string) error)
+pkg go/build, type Package struct, EmbedPatterns []string
+pkg go/build, type Package struct, EmbedPatternPos map[string][]token.Position
+pkg go/build, type Package struct, IgnoredOtherFiles []string
+pkg go/build, type Package struct, TestEmbedPatterns []string
+pkg go/build, type Package struct, TestEmbedPatternPos map[string][]token.Position
+pkg go/build, type Package struct, XTestEmbedPatterns []string
+pkg go/build, type Package struct, XTestEmbedPatternPos map[string][]token.Position
+pkg go/build/constraint, func IsGoBuild(string) bool
+pkg go/build/constraint, func IsPlusBuild(string) bool
+pkg go/build/constraint, func Parse(string) (Expr, error)
+pkg go/build/constraint, func PlusBuildLines(Expr) ([]string, error)
+pkg go/build/constraint, method (*AndExpr) Eval(func(string) bool) bool
+pkg go/build/constraint, method (*AndExpr) String() string
+pkg go/build/constraint, method (*NotExpr) Eval(func(string) bool) bool
+pkg go/build/constraint, method (*NotExpr) String() string
+pkg go/build/constraint, method (*OrExpr) Eval(func(string) bool) bool
+pkg go/build/constraint, method (*OrExpr) String() string
+pkg go/build/constraint, method (*SyntaxError) Error() string
+pkg go/build/constraint, method (*TagExpr) Eval(func(string) bool) bool
+pkg go/build/constraint, method (*TagExpr) String() string
+pkg go/build/constraint, type AndExpr struct
+pkg go/build/constraint, type AndExpr struct, X Expr
+pkg go/build/constraint, type AndExpr struct, Y Expr
+pkg go/build/constraint, type Expr interface, Eval(func(string) bool) bool
+pkg go/build/constraint, type Expr interface, String() string
+pkg go/build/constraint, type Expr interface, unexported methods
+pkg go/build/constraint, type NotExpr struct
+pkg go/build/constraint, type NotExpr struct, X Expr
+pkg go/build/constraint, type OrExpr struct
+pkg go/build/constraint, type OrExpr struct, X Expr
+pkg go/build/constraint, type OrExpr struct, Y Expr
+pkg go/build/constraint, type SyntaxError struct
+pkg go/build/constraint, type SyntaxError struct, Err string
+pkg go/build/constraint, type SyntaxError struct, Offset int
+pkg go/build/constraint, type TagExpr struct
+pkg go/build/constraint, type TagExpr struct, Tag string
+pkg html/template, func ParseFS(fs.FS, ...string) (*Template, error)
+pkg html/template, method (*Template) ParseFS(fs.FS, ...string) (*Template, error)
+pkg io, func NopCloser(Reader) ReadCloser
+pkg io, func ReadAll(Reader) ([]uint8, error)
+pkg io, type ReadSeekCloser interface { Close, Read, Seek }
+pkg io, type ReadSeekCloser interface, Close() error
+pkg io, type ReadSeekCloser interface, Read([]uint8) (int, error)
+pkg io, type ReadSeekCloser interface, Seek(int64, int) (int64, error)
+pkg io, var Discard Writer
+pkg io/fs, const ModeAppend = 1073741824
+pkg io/fs, const ModeAppend FileMode
+pkg io/fs, const ModeCharDevice = 2097152
+pkg io/fs, const ModeCharDevice FileMode
+pkg io/fs, const ModeDevice = 67108864
+pkg io/fs, const ModeDevice FileMode
+pkg io/fs, const ModeDir = 2147483648
+pkg io/fs, const ModeDir FileMode
+pkg io/fs, const ModeExclusive = 536870912
+pkg io/fs, const ModeExclusive FileMode
+pkg io/fs, const ModeIrregular = 524288
+pkg io/fs, const ModeIrregular FileMode
+pkg io/fs, const ModeNamedPipe = 33554432
+pkg io/fs, const ModeNamedPipe FileMode
+pkg io/fs, const ModePerm = 511
+pkg io/fs, const ModePerm FileMode
+pkg io/fs, const ModeSetgid = 4194304
+pkg io/fs, const ModeSetgid FileMode
+pkg io/fs, const ModeSetuid = 8388608
+pkg io/fs, const ModeSetuid FileMode
+pkg io/fs, const ModeSocket = 16777216
+pkg io/fs, const ModeSocket FileMode
+pkg io/fs, const ModeSticky = 1048576
+pkg io/fs, const ModeSticky FileMode
+pkg io/fs, const ModeSymlink = 134217728
+pkg io/fs, const ModeSymlink FileMode
+pkg io/fs, const ModeTemporary = 268435456
+pkg io/fs, const ModeTemporary FileMode
+pkg io/fs, const ModeType = 2401763328
+pkg io/fs, const ModeType FileMode
+pkg io/fs, func Glob(FS, string) ([]string, error)
+pkg io/fs, func ReadDir(FS, string) ([]DirEntry, error)
+pkg io/fs, func ReadFile(FS, string) ([]uint8, error)
+pkg io/fs, func Stat(FS, string) (FileInfo, error)
+pkg io/fs, func Sub(FS, string) (FS, error)
+pkg io/fs, func ValidPath(string) bool
+pkg io/fs, func WalkDir(FS, string, WalkDirFunc) error
+pkg io/fs, method (*PathError) Error() string
+pkg io/fs, method (*PathError) Timeout() bool
+pkg io/fs, method (*PathError) Unwrap() error
+pkg io/fs, method (FileMode) IsDir() bool
+pkg io/fs, method (FileMode) IsRegular() bool
+pkg io/fs, method (FileMode) Perm() FileMode
+pkg io/fs, method (FileMode) String() string
+pkg io/fs, method (FileMode) Type() FileMode
+pkg io/fs, type DirEntry interface { Info, IsDir, Name, Type }
+pkg io/fs, type DirEntry interface, Info() (FileInfo, error)
+pkg io/fs, type DirEntry interface, IsDir() bool
+pkg io/fs, type DirEntry interface, Name() string
+pkg io/fs, type DirEntry interface, Type() FileMode
+pkg io/fs, type FS interface { Open }
+pkg io/fs, type FS interface, Open(string) (File, error)
+pkg io/fs, type File interface { Close, Read, Stat }
+pkg io/fs, type File interface, Close() error
+pkg io/fs, type File interface, Read([]uint8) (int, error)
+pkg io/fs, type File interface, Stat() (FileInfo, error)
+pkg io/fs, type FileInfo interface { IsDir, ModTime, Mode, Name, Size, Sys }
+pkg io/fs, type FileInfo interface, IsDir() bool
+pkg io/fs, type FileInfo interface, ModTime() time.Time
+pkg io/fs, type FileInfo interface, Mode() FileMode
+pkg io/fs, type FileInfo interface, Name() string
+pkg io/fs, type FileInfo interface, Size() int64
+pkg io/fs, type FileInfo interface, Sys() interface{}
+pkg io/fs, type FileMode uint32
+pkg io/fs, type GlobFS interface { Glob, Open }
+pkg io/fs, type GlobFS interface, Glob(string) ([]string, error)
+pkg io/fs, type GlobFS interface, Open(string) (File, error)
+pkg io/fs, type PathError struct
+pkg io/fs, type PathError struct, Err error
+pkg io/fs, type PathError struct, Op string
+pkg io/fs, type PathError struct, Path string
+pkg io/fs, type ReadDirFS interface { Open, ReadDir }
+pkg io/fs, type ReadDirFS interface, Open(string) (File, error)
+pkg io/fs, type ReadDirFS interface, ReadDir(string) ([]DirEntry, error)
+pkg io/fs, type ReadDirFile interface { Close, Read, ReadDir, Stat }
+pkg io/fs, type ReadDirFile interface, Close() error
+pkg io/fs, type ReadDirFile interface, Read([]uint8) (int, error)
+pkg io/fs, type ReadDirFile interface, ReadDir(int) ([]DirEntry, error)
+pkg io/fs, type ReadDirFile interface, Stat() (FileInfo, error)
+pkg io/fs, type ReadFileFS interface { Open, ReadFile }
+pkg io/fs, type ReadFileFS interface, Open(string) (File, error)
+pkg io/fs, type ReadFileFS interface, ReadFile(string) ([]uint8, error)
+pkg io/fs, type StatFS interface { Open, Stat }
+pkg io/fs, type StatFS interface, Open(string) (File, error)
+pkg io/fs, type StatFS interface, Stat(string) (FileInfo, error)
+pkg io/fs, type SubFS interface { Open, Sub }
+pkg io/fs, type SubFS interface, Open(string) (File, error)
+pkg io/fs, type SubFS interface, Sub(string) (FS, error)
+pkg io/fs, type WalkDirFunc func(string, DirEntry, error) error
+pkg io/fs, var ErrClosed error
+pkg io/fs, var ErrExist error
+pkg io/fs, var ErrInvalid error
+pkg io/fs, var ErrNotExist error
+pkg io/fs, var ErrPermission error
+pkg io/fs, var SkipDir error
+pkg log, func Default() *Logger
+pkg net, var ErrClosed error
+pkg net/http, func FS(fs.FS) FileSystem
+pkg net/http, type Transport struct, GetProxyConnectHeader func(context.Context, *url.URL, string) (Header, error)
+pkg os, const ModeAppend fs.FileMode
+pkg os, const ModeCharDevice fs.FileMode
+pkg os, const ModeDevice fs.FileMode
+pkg os, const ModeDir fs.FileMode
+pkg os, const ModeExclusive fs.FileMode
+pkg os, const ModeIrregular fs.FileMode
+pkg os, const ModeNamedPipe fs.FileMode
+pkg os, const ModePerm fs.FileMode
+pkg os, const ModeSetgid fs.FileMode
+pkg os, const ModeSetuid fs.FileMode
+pkg os, const ModeSocket fs.FileMode
+pkg os, const ModeSticky fs.FileMode
+pkg os, const ModeSymlink fs.FileMode
+pkg os, const ModeTemporary fs.FileMode
+pkg os, const ModeType fs.FileMode
+pkg os, func Chmod(string, fs.FileMode) error
+pkg os, func CreateTemp(string, string) (*File, error)
+pkg os, func DirFS(string) fs.FS
+pkg os, func Lstat(string) (fs.FileInfo, error)
+pkg os, func Mkdir(string, fs.FileMode) error
+pkg os, func MkdirAll(string, fs.FileMode) error
+pkg os, func MkdirTemp(string, string) (string, error)
+pkg os, func OpenFile(string, int, fs.FileMode) (*File, error)
+pkg os, func ReadDir(string) ([]fs.DirEntry, error)
+pkg os, func ReadFile(string) ([]uint8, error)
+pkg os, func SameFile(fs.FileInfo, fs.FileInfo) bool
+pkg os, func Stat(string) (fs.FileInfo, error)
+pkg os, func WriteFile(string, []uint8, fs.FileMode) error
+pkg os, method (*File) Chmod(fs.FileMode) error
+pkg os, method (*File) ReadDir(int) ([]fs.DirEntry, error)
+pkg os, method (*File) Readdir(int) ([]fs.FileInfo, error)
+pkg os, method (*File) Stat() (fs.FileInfo, error)
+pkg os, type DirEntry = fs.DirEntry
+pkg os, type FileInfo = fs.FileInfo
+pkg os, type FileMode = fs.FileMode
+pkg os, type PathError = fs.PathError
+pkg os, var ErrProcessDone error
+pkg os/signal, func NotifyContext(context.Context, ...os.Signal) (context.Context, context.CancelFunc)
+pkg path/filepath, func WalkDir(string, fs.WalkDirFunc) error
+pkg runtime/metrics, const KindBad = 0
+pkg runtime/metrics, const KindBad ValueKind
+pkg runtime/metrics, const KindFloat64 = 2
+pkg runtime/metrics, const KindFloat64 ValueKind
+pkg runtime/metrics, const KindFloat64Histogram = 3
+pkg runtime/metrics, const KindFloat64Histogram ValueKind
+pkg runtime/metrics, const KindUint64 = 1
+pkg runtime/metrics, const KindUint64 ValueKind
+pkg runtime/metrics, func All() []Description
+pkg runtime/metrics, func Read([]Sample)
+pkg runtime/metrics, method (Value) Float64() float64
+pkg runtime/metrics, method (Value) Float64Histogram() *Float64Histogram
+pkg runtime/metrics, method (Value) Kind() ValueKind
+pkg runtime/metrics, method (Value) Uint64() uint64
+pkg runtime/metrics, type Description struct
+pkg runtime/metrics, type Description struct, Cumulative bool
+pkg runtime/metrics, type Description struct, Description string
+pkg runtime/metrics, type Description struct, Kind ValueKind
+pkg runtime/metrics, type Description struct, Name string
+pkg runtime/metrics, type Float64Histogram struct
+pkg runtime/metrics, type Float64Histogram struct, Buckets []float64
+pkg runtime/metrics, type Float64Histogram struct, Counts []uint64
+pkg runtime/metrics, type Sample struct
+pkg runtime/metrics, type Sample struct, Name string
+pkg runtime/metrics, type Sample struct, Value Value
+pkg runtime/metrics, type Value struct
+pkg runtime/metrics, type ValueKind int
+pkg syscall (linux-386), func AllThreadsSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-386), func AllThreadsSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-386), func Setegid(int) error
+pkg syscall (linux-386), func Seteuid(int) error
+pkg syscall (linux-386-cgo), func AllThreadsSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-386-cgo), func AllThreadsSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-386-cgo), func Setegid(int) error
+pkg syscall (linux-386-cgo), func Seteuid(int) error
+pkg syscall (linux-amd64), func AllThreadsSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-amd64), func AllThreadsSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-amd64), func Setegid(int) error
+pkg syscall (linux-amd64), func Seteuid(int) error
+pkg syscall (linux-amd64-cgo), func AllThreadsSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-amd64-cgo), func AllThreadsSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-amd64-cgo), func Setegid(int) error
+pkg syscall (linux-amd64-cgo), func Seteuid(int) error
+pkg syscall (linux-arm), func AllThreadsSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-arm), func AllThreadsSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-arm), func Setegid(int) error
+pkg syscall (linux-arm), func Seteuid(int) error
+pkg syscall (linux-arm-cgo), func AllThreadsSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-arm-cgo), func AllThreadsSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-arm-cgo), func Setegid(int) error
+pkg syscall (linux-arm-cgo), func Seteuid(int) error
+pkg syscall (windows-386), method (*DLLError) Unwrap() error
+pkg syscall (windows-386), type SysProcAttr struct, NoInheritHandles bool
+pkg syscall (windows-amd64), method (*DLLError) Unwrap() error
+pkg syscall (windows-amd64), type SysProcAttr struct, NoInheritHandles bool
+pkg testing/fstest, func TestFS(fs.FS, ...string) error
+pkg testing/fstest, method (MapFS) Glob(string) ([]string, error)
+pkg testing/fstest, method (MapFS) Open(string) (fs.File, error)
+pkg testing/fstest, method (MapFS) ReadDir(string) ([]fs.DirEntry, error)
+pkg testing/fstest, method (MapFS) ReadFile(string) ([]uint8, error)
+pkg testing/fstest, method (MapFS) Stat(string) (fs.FileInfo, error)
+pkg testing/fstest, method (MapFS) Sub(string) (fs.FS, error)
+pkg testing/fstest, type MapFS map[string]*MapFile
+pkg testing/fstest, type MapFile struct
+pkg testing/fstest, type MapFile struct, Data []uint8
+pkg testing/fstest, type MapFile struct, ModTime time.Time
+pkg testing/fstest, type MapFile struct, Mode fs.FileMode
+pkg testing/fstest, type MapFile struct, Sys interface{}
+pkg testing/iotest, func ErrReader(error) io.Reader
+pkg testing/iotest, func TestReader(io.Reader, []uint8) error
+pkg text/template, func ParseFS(fs.FS, ...string) (*Template, error)
+pkg text/template, method (*Template) ParseFS(fs.FS, ...string) (*Template, error)
+pkg text/template/parse, const NodeComment = 20
+pkg text/template/parse, const NodeComment NodeType
+pkg text/template/parse, const ParseComments = 1
+pkg text/template/parse, const ParseComments Mode
+pkg text/template/parse, method (*CommentNode) Copy() Node
+pkg text/template/parse, method (*CommentNode) String() string
+pkg text/template/parse, method (CommentNode) Position() Pos
+pkg text/template/parse, method (CommentNode) Type() NodeType
+pkg text/template/parse, type CommentNode struct
+pkg text/template/parse, type CommentNode struct, Text string
+pkg text/template/parse, type CommentNode struct, embedded NodeType
+pkg text/template/parse, type CommentNode struct, embedded Pos
+pkg text/template/parse, type Mode uint
+pkg text/template/parse, type Tree struct, Mode Mode
+pkg unicode, const Version = "13.0.0"
+pkg unicode, var Chorasmian *RangeTable
+pkg unicode, var Dives_Akuru *RangeTable
+pkg unicode, var Khitan_Small_Script *RangeTable
+pkg unicode, var Yezidi *RangeTable

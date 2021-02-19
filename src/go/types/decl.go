@@ -189,7 +189,7 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 		check.varDecl(obj, d.lhs, d.typ, d.init)
 	case *TypeName:
 		// invalid recursive types are detected via path
-		check.typeDecl(obj, d.typ, def, d.alias)
+		check.typeDecl(obj, d.typ, def, d.aliasPos)
 	case *Func:
 		// functions may be recursive - no need to track dependencies
 		check.funcDecl(obj, d)
@@ -234,7 +234,7 @@ func (check *Checker) cycle(obj Object) (isCycle bool) {
 			// this information explicitly in the object.
 			var alias bool
 			if d := check.objMap[obj]; d != nil {
-				alias = d.alias // package-level object
+				alias = d.aliasPos.IsValid() // package-level object
 			} else {
 				alias = obj.IsAlias() // function local object
 			}
@@ -626,14 +626,17 @@ func (n *Named) setUnderlying(typ Type) {
 	}
 }
 
-func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, alias bool) {
+func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, aliasPos token.Pos) {
 	assert(obj.typ == nil)
 
 	check.later(func() {
 		check.validType(obj.typ, nil)
 	})
 
-	if alias {
+	if aliasPos.IsValid() {
+		if !check.allowVersion(obj.pkg, 1, 9) {
+			check.errorf(atPos(aliasPos), _BadDecl, "type aliases requires go1.9 or later")
+		}
 
 		obj.typ = Typ[Invalid]
 		obj.typ = check.typ(typ)
@@ -664,9 +667,12 @@ func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, alias bo
 
 	}
 
+	// TODO(rFindley): move to the callsite, as this is only needed for top-level
+	//                 decls.
 	check.addMethodDecls(obj)
 }
 
+// TODO(rFindley): rename to collectMethods, to be consistent with types2.
 func (check *Checker) addMethodDecls(obj *TypeName) {
 	// get associated methods
 	// (Checker.collectObjects only collects methods with non-blank names;
@@ -677,7 +683,7 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 		return
 	}
 	delete(check.methods, obj)
-	assert(!check.objMap[obj].alias) // don't use TypeName.IsAlias (requires fully set up object)
+	assert(!check.objMap[obj].aliasPos.IsValid()) // don't use TypeName.IsAlias (requires fully set up object)
 
 	// use an objset to check for name conflicts
 	var mset objset
@@ -737,8 +743,12 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	obj.typ = sig // guard against cycles
 	fdecl := decl.fdecl
 	check.funcType(sig, fdecl.Recv, fdecl.Type)
-	if sig.recv == nil && obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
-		check.errorf(fdecl, _InvalidInitSig, "func init must have no arguments and no return values")
+	if sig.recv == nil {
+		if obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
+			check.errorf(fdecl, _InvalidInitDecl, "func init must have no arguments and no return values")
+		} else if obj.name == "main" && check.pkg.name == "main" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
+			check.errorf(fdecl, _InvalidMainDecl, "func main must have no arguments and no return values")
+		}
 		// ok to continue
 	}
 
@@ -846,7 +856,7 @@ func (check *Checker) declStmt(d ast.Decl) {
 			check.declare(check.scope, d.spec.Name, obj, scopePos)
 			// mark and unmark type before calling typeDecl; its type is still nil (see Checker.objDecl)
 			obj.setColor(grey + color(check.push(obj)))
-			check.typeDecl(obj, d.spec.Type, nil, d.spec.Assign.IsValid())
+			check.typeDecl(obj, d.spec.Type, nil, d.spec.Assign)
 			check.pop().setColor(black)
 		default:
 			check.invalidAST(d.node(), "unknown ast.Decl node %T", d.node())

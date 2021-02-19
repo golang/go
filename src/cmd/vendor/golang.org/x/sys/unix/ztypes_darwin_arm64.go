@@ -210,6 +210,13 @@ type RawSockaddrCtl struct {
 
 type _Socklen uint32
 
+type Xucred struct {
+	Version uint32
+	Uid     uint32
+	Ngroups int16
+	Groups  [16]uint32
+}
+
 type Linger struct {
 	Onoff  int32
 	Linger int32
@@ -273,6 +280,7 @@ const (
 	SizeofSockaddrUnix     = 0x6a
 	SizeofSockaddrDatalink = 0x14
 	SizeofSockaddrCtl      = 0x20
+	SizeofXucred           = 0x4c
 	SizeofLinger           = 0x8
 	SizeofIovec            = 0x10
 	SizeofIPMreq           = 0x8

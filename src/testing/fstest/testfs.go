@@ -24,6 +24,7 @@ import (
 // It also checks that the file system contains at least the expected files.
 // As a special case, if no expected files are listed, fsys must be empty.
 // Otherwise, fsys must only contain at least the listed files: it can also contain others.
+// The contents of fsys must not change concurrently with TestFS.
 //
 // If TestFS finds any misbehaviors, it returns an error reporting all of them.
 // The error text spans multiple lines, one per detected misbehavior.
@@ -121,7 +122,7 @@ func (t *fsTester) openDir(dir string) fs.ReadDirFile {
 	d, ok := f.(fs.ReadDirFile)
 	if !ok {
 		f.Close()
-		t.errorf("%s: Open returned File type %T, not a io.ReadDirFile", dir, f)
+		t.errorf("%s: Open returned File type %T, not a fs.ReadDirFile", dir, f)
 		return nil
 	}
 	return d
@@ -402,9 +403,10 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
 		return
 	}
 	fentry := formatEntry(entry)
-	finfo := formatInfoEntry(info)
-	if fentry != finfo {
-		t.errorf("%s: mismatch:\n\tentry = %s\n\tfile.Stat() = %s", path, fentry, finfo)
+	fientry := formatInfoEntry(info)
+	// Note: mismatch here is OK for symlink, because Open dereferences symlink.
+	if fentry != fientry && entry.Type()&fs.ModeSymlink == 0 {
+		t.errorf("%s: mismatch:\n\tentry = %s\n\tfile.Stat() = %s", path, fentry, fientry)
 	}
 
 	einfo, err := entry.Info()
@@ -412,12 +414,22 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
 		t.errorf("%s: entry.Info: %v", path, err)
 		return
 	}
-	fentry = formatInfo(einfo)
-	finfo = formatInfo(info)
-	if fentry != finfo {
-		t.errorf("%s: mismatch:\n\tentry.Info() = %s\n\tfile.Stat() = %s\n", path, fentry, finfo)
+	finfo := formatInfo(info)
+	if entry.Type()&fs.ModeSymlink != 0 {
+		// For symlink, just check that entry.Info matches entry on common fields.
+		// Open deferences symlink, so info itself may differ.
+		feentry := formatInfoEntry(einfo)
+		if fentry != feentry {
+			t.errorf("%s: mismatch\n\tentry = %s\n\tentry.Info() = %s\n", path, fentry, feentry)
+		}
+	} else {
+		feinfo := formatInfo(einfo)
+		if feinfo != finfo {
+			t.errorf("%s: mismatch:\n\tentry.Info() = %s\n\tfile.Stat() = %s\n", path, feinfo, finfo)
+		}
 	}
 
+	// Stat should be the same as Open+Stat, even for symlinks.
 	info2, err := fs.Stat(t.fsys, path)
 	if err != nil {
 		t.errorf("%s: fs.Stat: %v", path, err)

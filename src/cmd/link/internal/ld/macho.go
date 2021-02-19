@@ -969,6 +969,15 @@ func machosymorder(ctxt *Link) {
 	}
 }
 
+// AddMachoSym adds s to Mach-O symbol table, used in GenSymLate.
+// Currently only used on ARM64 when external linking.
+func AddMachoSym(ldr *loader.Loader, s loader.Sym) {
+	ldr.SetSymDynid(s, int32(nsortsym))
+	sortsym = append(sortsym, s)
+	nsortsym++
+	nkind[symkind(ldr, s)]++
+}
+
 // machoShouldExport reports whether a symbol needs to be exported.
 //
 // When dynamically linking, all non-local variables and plugin-exported

@@ -16,13 +16,12 @@ Interface
 Metrics are designated by a string key, rather than, for example, a field name in
 a struct. The full list of supported metrics is always available in the slice of
 Descriptions returned by All. Each Description also includes useful information
-about the metric, such as how to display it (e.g. gauge vs. counter) and how difficult
-or disruptive it is to obtain it (e.g. do you need to stop the world?).
+about the metric.
 
 Thus, users of this API are encouraged to sample supported metrics defined by the
 slice returned by All to remain compatible across Go versions. Of course, situations
 arise where reading specific metrics is critical. For these cases, users are
-encouranged to use build tags, and although metrics may be deprecated and removed,
+encouraged to use build tags, and although metrics may be deprecated and removed,
 users should consider this to be an exceptional and rare event, coinciding with a
 very large change in a particular Go implementation.
 
@@ -61,10 +60,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/gc/cycles/total:gc-cycles
 		Count of all completed GC cycles.
 
-	/gc/heap/allocs-by-size:objects
+	/gc/heap/allocs-by-size:bytes
 		Distribution of all objects allocated by approximate size.
 
-	/gc/heap/frees-by-size:objects
+	/gc/heap/frees-by-size:bytes
 		Distribution of all objects freed by approximate size.
 
 	/gc/heap/goal:bytes

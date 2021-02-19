@@ -11,3 +11,8 @@
 DATA runtime·no_pointers_stackmap+0x00(SB)/4, $2
 DATA runtime·no_pointers_stackmap+0x04(SB)/4, $0
 GLOBL runtime·no_pointers_stackmap(SB),RODATA, $8
+
+#ifndef GOARCH_amd64
+TEXT ·sigpanic0<ABIInternal>(SB),NOSPLIT,$0-0
+	JMP	·sigpanic<ABIInternal>(SB)
+#endif

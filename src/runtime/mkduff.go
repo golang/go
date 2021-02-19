@@ -62,15 +62,15 @@ func gen(arch string, tags, zero, copy func(io.Writer)) {
 func notags(w io.Writer) { fmt.Fprintln(w) }
 
 func zeroAMD64(w io.Writer) {
-	// X0: zero
+	// X15: zero
 	// DI: ptr to memory to be zeroed
 	// DI is updated as a side effect.
-	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $0-0")
+	fmt.Fprintln(w, "TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT, $0-0")
 	for i := 0; i < 16; i++ {
-		fmt.Fprintln(w, "\tMOVUPS\tX0,(DI)")
-		fmt.Fprintln(w, "\tMOVUPS\tX0,16(DI)")
-		fmt.Fprintln(w, "\tMOVUPS\tX0,32(DI)")
-		fmt.Fprintln(w, "\tMOVUPS\tX0,48(DI)")
+		fmt.Fprintln(w, "\tMOVUPS\tX15,(DI)")
+		fmt.Fprintln(w, "\tMOVUPS\tX15,16(DI)")
+		fmt.Fprintln(w, "\tMOVUPS\tX15,32(DI)")
+		fmt.Fprintln(w, "\tMOVUPS\tX15,48(DI)")
 		fmt.Fprintln(w, "\tLEAQ\t64(DI),DI") // We use lea instead of add, to avoid clobbering flags
 		fmt.Fprintln(w)
 	}
@@ -84,7 +84,7 @@ func copyAMD64(w io.Writer) {
 	//
 	// This is equivalent to a sequence of MOVSQ but
 	// for some reason that is 3.5x slower than this code.
-	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT, $0-0")
+	fmt.Fprintln(w, "TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT, $0-0")
 	for i := 0; i < 64; i++ {
 		fmt.Fprintln(w, "\tMOVUPS\t(SI), X0")
 		fmt.Fprintln(w, "\tADDQ\t$16, SI")

@@ -7,6 +7,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -156,7 +157,7 @@ func (s *stackAllocState) stackalloc() {
 		if v.Aux == nil {
 			f.Fatalf("%s has nil Aux\n", v.LongString())
 		}
-		loc := LocalSlot{N: v.Aux.(GCNode), Type: v.Type, Off: v.AuxInt}
+		loc := LocalSlot{N: v.Aux.(*ir.Name), Type: v.Type, Off: v.AuxInt}
 		if f.pass.debug > stackDebug {
 			fmt.Printf("stackalloc %s to %s\n", v, loc)
 		}
