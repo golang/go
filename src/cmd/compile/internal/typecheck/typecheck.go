@@ -433,8 +433,8 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	case top&ctxType == 0 && n.Op() == ir.OTYPE && t != nil:
 		if !n.Type().Broke() {
 			base.Errorf("type %v is not an expression", n.Type())
+			n.SetDiag(true)
 		}
-		n.SetType(nil)
 
 	case top&(ctxStmt|ctxExpr) == ctxStmt && !isStmt && t != nil:
 		if !n.Diag() {
