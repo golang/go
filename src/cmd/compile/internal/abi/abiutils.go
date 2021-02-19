@@ -5,6 +5,7 @@
 package abi
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -337,6 +338,9 @@ func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field
 		if fOffset == types.BOGUS_FUNARG_OFFSET {
 			// Set the Offset the first time. After that, we may recompute it, but it should never change.
 			f.Offset = off
+			if f.Nname != nil {
+				f.Nname.(*ir.Name).SetFrameOffset(off)
+			}
 		} else if fOffset != off {
 			panic(fmt.Errorf("Offset changed from %d to %d", fOffset, off))
 		}

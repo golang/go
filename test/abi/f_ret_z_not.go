@@ -16,18 +16,18 @@ type NZ struct {
 }
 
 //go:noinline
-func f(x,y int) (Z,NZ,Z) {
+func f(x, y int) (Z, NZ, Z) {
 	var z Z
-	return z,NZ{x,y},z
+	return z, NZ{x, y}, z
 }
 
 //go:noinline
-func g() (Z,NZ,Z) {
-	a,b,c := f(3,4)
-	return c,b,a
+func g() (Z, NZ, Z) {
+	a, b, c := f(3, 4)
+	return c, b, a
 }
 
 func main() {
-	_,b,_ := g()
-	fmt.Println(b.x+b.y)
+	_, b, _ := g()
+	fmt.Println(b.x + b.y)
 }

@@ -980,6 +980,17 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssagen.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpArgIntReg, ssa.OpArgFloatReg:
+		// The assembler needs to wrap the entry safepoint/stack growth code with spill/unspill
+		// The loop only runs once.
+		for _, ap := range v.Block.Func.RegArgs {
+			// Pass the spill/unspill information along to the assembler, offset by size of return PC pushed on stack.
+			addr := ssagen.SpillSlotAddr(ap.Mem(), x86.REG_SP, v.Block.Func.Config.PtrSize)
+			s.FuncInfo().AddSpill(
+				obj.RegSpill{Reg: ap.Reg(), Addr: addr, Unspill: loadByType(ap.Type()), Spill: storeByType(ap.Type())})
+		}
+		v.Block.Func.RegArgs = nil
+		ssagen.CheckArgReg(v)
 	case ssa.OpAMD64LoweredGetClosurePtr:
 		// Closure pointer is DX.
 		ssagen.CheckLoweredGetClosurePtr(v)
