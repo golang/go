@@ -174,6 +174,12 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			// So we don't need to exclude it with the other SP-writing functions.
 			flag &^= funcFlag_SPWRITE
 		}
+		if frame.pc == pc0 && frame.sp == sp0 && pc0 == gp.syscallpc && sp0 == gp.syscallsp {
+			// Some Syscall functions write to SP, but they do so only after
+			// saving the entry PC/SP using entersyscall.
+			// Since we are using the entry PC/SP, the later SP write doesn't matter.
+			flag &^= funcFlag_SPWRITE
+		}
 
 		// Found an actual function.
 		// Derive frame pointer and link register.
