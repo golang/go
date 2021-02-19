@@ -492,6 +492,41 @@ List:
 		downgraded = append(downgraded, r)
 	}
 
+	// The downgrades we computed above only downgrade to versions enumerated by
+	// reqs.Previous. However, reqs.Previous omits some versions — such as
+	// pseudo-versions and retracted versions — that may be selected as transitive
+	// requirements of other modules.
+	//
+	// If one of those requirements pulls the version back up above the version
+	// identified by reqs.Previous, then the transitive dependencies of that that
+	// initially-downgraded version should no longer matter — in particular, we
+	// should not add new dependencies on module paths that nothing else in the
+	// updated module graph even requires.
+	//
+	// In order to eliminate those spurious dependencies, we recompute the build
+	// list with the actual versions of the downgraded modules as selected by MVS,
+	// instead of our initial downgrades.
+	// (See the downhiddenartifact and downhiddencross test cases).
+	actual, err := BuildList(target, &override{
+		target: target,
+		list:   downgraded,
+		Reqs:   reqs,
+	})
+	if err != nil {
+		return nil, err
+	}
+	actualVersion := make(map[string]string, len(actual))
+	for _, m := range actual {
+		actualVersion[m.Path] = m.Version
+	}
+
+	downgraded = downgraded[:0]
+	for _, m := range list {
+		if v, ok := actualVersion[m.Path]; ok {
+			downgraded = append(downgraded, module.Version{Path: m.Path, Version: v})
+		}
+	}
+
 	return BuildList(target, &override{
 		target: target,
 		list:   downgraded,
