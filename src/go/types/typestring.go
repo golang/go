@@ -126,6 +126,13 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 			if i > 0 {
 				buf.WriteString("; ")
 			}
+			// For compatibility with versions < go1.16, qualify the field name
+			// of embedded fields with the package name. Various tests (such as
+			// in x/tools/cmd/guru) depend on this output; and x/tools packages
+			// are run against earlier versions of Go.
+			if n, _ := f.typ.(*Named); f.embedded && n != nil && n.obj != nil && n.obj.pkg != nil {
+				writePackage(buf, n.obj.pkg, qf)
+			}
 			buf.WriteString(f.name)
 			if f.embedded {
 				// emphasize that the embedded field's name
