@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build cgo && !osusergo
 // +build cgo,!osusergo
 
 // Even though this file requires no C, it is used to provide a
