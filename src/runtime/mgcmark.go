@@ -119,6 +119,7 @@ func gcMarkRootCheck() {
 	lock(&allglock)
 	// Check that stacks have been scanned.
 	var gp *g
+	_ = allgs[work.nStackRoots-1]
 	for i := 0; i < work.nStackRoots; i++ {
 		gp = allgs[i]
 		if !gp.gcscandone {
