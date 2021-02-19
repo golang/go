@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
+	"io/fs"
 	"os"
 	. "os"
 	osexec "os/exec"
@@ -2298,6 +2299,7 @@ func TestLongPath(t *testing.T) {
 
 func testKillProcess(t *testing.T, processKiller func(p *Process)) {
 	testenv.MustHaveExec(t)
+	t.Parallel()
 
 	// Re-exec the test binary itself to emulate "sleep 1".
 	cmd := osexec.Command(Args[0], "-test.run", "TestSleep")
@@ -2305,14 +2307,15 @@ func testKillProcess(t *testing.T, processKiller func(p *Process)) {
 	if err != nil {
 		t.Fatalf("Failed to start test process: %v", err)
 	}
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		processKiller(cmd.Process)
+
+	defer func() {
+		if err := cmd.Wait(); err == nil {
+			t.Errorf("Test process succeeded, but expected to fail")
+		}
 	}()
-	err = cmd.Wait()
-	if err == nil {
-		t.Errorf("Test process succeeded, but expected to fail")
-	}
+
+	time.Sleep(100 * time.Millisecond)
+	processKiller(cmd.Process)
 }
 
 // TestSleep emulates "sleep 1". It is a helper for testKillProcess, so we
@@ -2687,7 +2690,67 @@ func TestOpenFileKeepsPermissions(t *testing.T) {
 }
 
 func TestDirFS(t *testing.T) {
-	if err := fstest.TestFS(DirFS("./signal"), "signal.go", "internal/pty/pty.go"); err != nil {
+	// On Windows, we force the MFT to update by reading the actual metadata from GetFileInformationByHandle and then
+	// explicitly setting that. Otherwise it might get out of sync with FindFirstFile. See golang.org/issues/42637.
+	if runtime.GOOS == "windows" {
+		if err := filepath.WalkDir("./testdata/dirfs", func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				t.Fatal(err)
+			}
+			info, err := d.Info()
+			if err != nil {
+				t.Fatal(err)
+			}
+			stat, err := Stat(path) // This uses GetFileInformationByHandle internally.
+			if err != nil {
+				t.Fatal(err)
+			}
+			if stat.ModTime() == info.ModTime() {
+				return nil
+			}
+			if err := Chtimes(path, stat.ModTime(), stat.ModTime()); err != nil {
+				t.Log(err) // We only log, not die, in case the test directory is not writable.
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := fstest.TestFS(DirFS("./testdata/dirfs"), "a", "b", "dir/x"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test that Open does not accept backslash as separator.
+	d := DirFS(".")
+	_, err := d.Open(`testdata\dirfs`)
+	if err == nil {
+		t.Fatalf(`Open testdata\dirfs succeeded`)
+	}
+}
+
+func TestDirFSPathsValid(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skipf("skipping on Windows")
+	}
+
+	d := t.TempDir()
+	if err := os.WriteFile(filepath.Join(d, "control.txt"), []byte(string("Hello, world!")), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d, `e:xperi\ment.txt`), []byte(string("Hello, colon and backslash!")), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	fsys := os.DirFS(d)
+	err := fs.WalkDir(fsys, ".", func(path string, e fs.DirEntry, err error) error {
+		if fs.ValidPath(e.Name()) {
+			t.Logf("%q ok", e.Name())
+		} else {
+			t.Errorf("%q INVALID", e.Name())
+		}
+		return nil
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
 }

@@ -28,18 +28,18 @@ var (
 	BuildA                 bool   // -a flag
 	BuildBuildmode         string // -buildmode flag
 	BuildContext           = defaultContext()
-	BuildMod               string             // -mod flag
-	BuildModExplicit       bool               // whether -mod was set explicitly
-	BuildModReason         string             // reason -mod was set, if set by default
-	BuildI                 bool               // -i flag
-	BuildLinkshared        bool               // -linkshared flag
-	BuildMSan              bool               // -msan flag
-	BuildN                 bool               // -n flag
-	BuildO                 string             // -o flag
-	BuildP                 = runtime.NumCPU() // -p flag
-	BuildPkgdir            string             // -pkgdir flag
-	BuildRace              bool               // -race flag
-	BuildToolexec          []string           // -toolexec flag
+	BuildMod               string                  // -mod flag
+	BuildModExplicit       bool                    // whether -mod was set explicitly
+	BuildModReason         string                  // reason -mod was set, if set by default
+	BuildI                 bool                    // -i flag
+	BuildLinkshared        bool                    // -linkshared flag
+	BuildMSan              bool                    // -msan flag
+	BuildN                 bool                    // -n flag
+	BuildO                 string                  // -o flag
+	BuildP                 = runtime.GOMAXPROCS(0) // -p flag
+	BuildPkgdir            string                  // -pkgdir flag
+	BuildRace              bool                    // -race flag
+	BuildToolexec          []string                // -toolexec flag
 	BuildToolchainName     string
 	BuildToolchainCompiler func() string
 	BuildToolchainLinker   func() string

@@ -446,10 +446,10 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 	if actual.Path == "" {
 		actual = m
 	}
-	if cfg.BuildMod == "readonly" && actual.Version != "" {
+	if HasModRoot() && cfg.BuildMod == "readonly" && actual.Version != "" {
 		key := module.Version{Path: actual.Path, Version: actual.Version + "/go.mod"}
 		if !modfetch.HaveSum(key) {
-			suggestion := fmt.Sprintf("; try 'go mod download %s' to add it", m.Path)
+			suggestion := fmt.Sprintf("; to add it:\n\tgo mod download %s", m.Path)
 			return nil, module.VersionError(actual, &sumMissingError{suggestion: suggestion})
 		}
 	}

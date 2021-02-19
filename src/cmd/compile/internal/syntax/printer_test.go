@@ -18,7 +18,7 @@ func TestPrint(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
-	// provide a dummy error handler so parsing doesn't stop after first error
+	// provide a no-op error handler so parsing doesn't stop after first error
 	ast, err := ParseFile(*src_, func(error) {}, nil, 0)
 	if err != nil {
 		t.Error(err)

@@ -5,14 +5,15 @@
 package x86
 
 import (
-	"cmd/compile/internal/gc"
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj/x86"
 	"cmd/internal/objabi"
 	"fmt"
 	"os"
 )
 
-func Init(arch *gc.Arch) {
+func Init(arch *ssagen.ArchInfo) {
 	arch.LinkArch = &x86.Link386
 	arch.REGSP = x86.REGSP
 	arch.SSAGenValue = ssaGenValue
@@ -24,10 +25,10 @@ func Init(arch *gc.Arch) {
 		arch.SoftFloat = true
 	case "387":
 		fmt.Fprintf(os.Stderr, "unsupported setting GO386=387. Consider using GO386=softfloat instead.\n")
-		gc.Exit(1)
+		base.Exit(1)
 	default:
 		fmt.Fprintf(os.Stderr, "unsupported setting GO386=%s\n", v)
-		gc.Exit(1)
+		base.Exit(1)
 
 	}
 

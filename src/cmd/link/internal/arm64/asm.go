@@ -37,6 +37,7 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
+	"fmt"
 	"log"
 )
 
@@ -472,6 +473,20 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 	rs := r.Xsym
 	rt := r.Type
 	siz := r.Size
+	xadd := r.Xadd
+
+	if xadd != signext24(xadd) {
+		// If the relocation target would overflow the addend, then target
+		// a linker-manufactured label symbol with a smaller addend instead.
+		label := ldr.Lookup(machoLabelName(ldr, rs, xadd), ldr.SymVersion(rs))
+		if label != 0 {
+			xadd = ldr.SymValue(rs) + xadd - ldr.SymValue(label)
+			rs = label
+		}
+		if xadd != signext24(xadd) {
+			ldr.Errorf(s, "internal error: relocation addend overflow: %s+0x%x", ldr.SymName(rs), xadd)
+		}
+	}
 
 	if ldr.SymType(rs) == sym.SHOSTOBJ || rt == objabi.R_CALLARM64 || rt == objabi.R_ADDRARM64 || rt == objabi.R_ARM64_GOTPCREL {
 		if ldr.SymDynid(rs) < 0 {
@@ -489,18 +504,14 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 		}
 	}
 
-	if r.Xadd != signext24(r.Xadd) {
-		ldr.Errorf(s, "relocation addend overflow: %s+0x%x", ldr.SymName(rs), r.Xadd)
-	}
-
 	switch rt {
 	default:
 		return false
 	case objabi.R_ADDR:
 		v |= ld.MACHO_ARM64_RELOC_UNSIGNED << 28
 	case objabi.R_CALLARM64:
-		if r.Xadd != 0 {
-			ldr.Errorf(s, "ld64 doesn't allow BR26 reloc with non-zero addend: %s+%d", ldr.SymName(rs), r.Xadd)
+		if xadd != 0 {
+			ldr.Errorf(s, "ld64 doesn't allow BR26 reloc with non-zero addend: %s+%d", ldr.SymName(rs), xadd)
 		}
 
 		v |= 1 << 24 // pc-relative bit
@@ -511,13 +522,13 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 		// if r.Xadd is non-zero, add two MACHO_ARM64_RELOC_ADDEND.
 		if r.Xadd != 0 {
 			out.Write32(uint32(sectoff + 4))
-			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
+			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(xadd&0xffffff))
 		}
 		out.Write32(uint32(sectoff + 4))
 		out.Write32(v | (ld.MACHO_ARM64_RELOC_PAGEOFF12 << 28) | (2 << 25))
 		if r.Xadd != 0 {
 			out.Write32(uint32(sectoff))
-			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
+			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(xadd&0xffffff))
 		}
 		v |= 1 << 24 // pc-relative bit
 		v |= ld.MACHO_ARM64_RELOC_PAGE21 << 28
@@ -527,13 +538,13 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 		// if r.Xadd is non-zero, add two MACHO_ARM64_RELOC_ADDEND.
 		if r.Xadd != 0 {
 			out.Write32(uint32(sectoff + 4))
-			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
+			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(xadd&0xffffff))
 		}
 		out.Write32(uint32(sectoff + 4))
 		out.Write32(v | (ld.MACHO_ARM64_RELOC_GOT_LOAD_PAGEOFF12 << 28) | (2 << 25))
 		if r.Xadd != 0 {
 			out.Write32(uint32(sectoff))
-			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
+			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(xadd&0xffffff))
 		}
 		v |= 1 << 24 // pc-relative bit
 		v |= ld.MACHO_ARM64_RELOC_GOT_LOAD_PAGE21 << 28
@@ -554,6 +565,40 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 
 	out.Write32(uint32(sectoff))
 	out.Write32(v)
+	return true
+}
+
+func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, sectoff int64) bool {
+	var v uint32
+
+	rs := r.Xsym
+	rt := r.Type
+
+	if ldr.SymDynid(rs) < 0 {
+		ldr.Errorf(s, "reloc %d (%s) to non-coff symbol %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymType(rs), ldr.SymType(rs))
+		return false
+	}
+
+	out.Write32(uint32(sectoff))
+	out.Write32(uint32(ldr.SymDynid(rs)))
+
+	switch rt {
+	default:
+		return false
+
+	case objabi.R_DWARFSECREF:
+		v = ld.IMAGE_REL_ARM64_SECREL
+
+	case objabi.R_ADDR:
+		if r.Size == 8 {
+			v = ld.IMAGE_REL_ARM64_ADDR64
+		} else {
+			v = ld.IMAGE_REL_ARM64_ADDR32
+		}
+	}
+
+	out.Write16(uint16(v))
+
 	return true
 }
 
@@ -971,4 +1016,67 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	} else {
 		ldr.Errorf(s, "addpltsym: unsupported binary format")
 	}
+}
+
+const machoRelocLimit = 1 << 23
+
+func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
+	// When external linking on darwin, Mach-O relocation has only signed 24-bit
+	// addend. For large symbols, we generate "label" symbols in the middle, so
+	// that relocations can target them with smaller addends.
+	if !ctxt.IsDarwin() || !ctxt.IsExternal() {
+		return
+	}
+
+	big := false
+	for _, seg := range ld.Segments {
+		if seg.Length >= machoRelocLimit {
+			big = true
+			break
+		}
+	}
+	if !big {
+		return // skip work if nothing big
+	}
+
+	// addLabelSyms adds "label" symbols at s+machoRelocLimit, s+2*machoRelocLimit, etc.
+	addLabelSyms := func(s loader.Sym, sz int64) {
+		v := ldr.SymValue(s)
+		for off := int64(machoRelocLimit); off < sz; off += machoRelocLimit {
+			p := ldr.LookupOrCreateSym(machoLabelName(ldr, s, off), ldr.SymVersion(s))
+			ldr.SetAttrReachable(p, true)
+			ldr.SetSymValue(p, v+off)
+			ldr.SetSymSect(p, ldr.SymSect(s))
+			ld.AddMachoSym(ldr, p)
+			//fmt.Printf("gensymlate %s %x\n", ldr.SymName(p), ldr.SymValue(p))
+		}
+	}
+
+	for s, n := loader.Sym(1), loader.Sym(ldr.NSym()); s < n; s++ {
+		if !ldr.AttrReachable(s) {
+			continue
+		}
+		if ldr.SymType(s) == sym.STEXT {
+			continue // we don't target the middle of a function
+		}
+		sz := ldr.SymSize(s)
+		if sz <= machoRelocLimit {
+			continue
+		}
+		addLabelSyms(s, sz)
+	}
+
+	// Also for carrier symbols (for which SymSize is 0)
+	for _, ss := range ld.CarrierSymByType {
+		if ss.Sym != 0 && ss.Size > machoRelocLimit {
+			addLabelSyms(ss.Sym, ss.Size)
+		}
+	}
+}
+
+// machoLabelName returns the name of the "label" symbol used for a
+// relocation targeting s+off. The label symbols is used on darwin
+// when external linking, so that the addend fits in a Mach-O relocation.
+func machoLabelName(ldr *loader.Loader, s loader.Sym, off int64) string {
+	return fmt.Sprintf("%s.%d", ldr.SymExtname(s), off/machoRelocLimit)
 }

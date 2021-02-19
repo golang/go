@@ -373,6 +373,10 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		if val.IsNil() {
 			break
 		}
+		if val.Type().ChanDir() == reflect.SendDir {
+			s.errorf("range over send-only channel %v", val)
+			break
+		}
 		i := 0
 		for ; ; i++ {
 			elem, ok := val.Recv()

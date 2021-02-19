@@ -1575,6 +1575,7 @@ var cgoEnabled = map[string]bool{
 	"windows/386":     true,
 	"windows/amd64":   true,
 	"windows/arm":     false,
+	"windows/arm64":   false,
 }
 
 // List of platforms which are supported but not complete yet. These get
@@ -1764,6 +1765,8 @@ func IsRuntimePackagePath(pkgpath string) bool {
 	case "reflect":
 		rval = true
 	case "syscall":
+		rval = true
+	case "crypto/x509/internal/macos": // libc function wrappers need to be ABIInternal
 		rval = true
 	default:
 		rval = strings.HasPrefix(pkgpath, "runtime/internal")

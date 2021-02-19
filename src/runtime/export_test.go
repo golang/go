@@ -200,8 +200,6 @@ func GostringW(w []uint16) (s string) {
 	return
 }
 
-type Uintreg sys.Uintreg
-
 var Open = open
 var Close = closefd
 var Read = read
@@ -1201,12 +1199,12 @@ type TimeHistogram timeHistogram
 
 // Counts returns the counts for the given bucket, subBucket indices.
 // Returns true if the bucket was valid, otherwise returns the counts
-// for the overflow bucket and false.
+// for the underflow bucket and false.
 func (th *TimeHistogram) Count(bucket, subBucket uint) (uint64, bool) {
 	t := (*timeHistogram)(th)
 	i := bucket*TimeHistNumSubBuckets + subBucket
 	if i >= uint(len(t.counts)) {
-		return t.overflow, false
+		return t.underflow, false
 	}
 	return t.counts[i], true
 }

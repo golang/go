@@ -6,7 +6,6 @@ package tls
 
 import (
 	"bytes"
-	"context"
 	"crypto"
 	"crypto/elliptic"
 	"crypto/x509"
@@ -18,7 +17,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -40,12 +38,10 @@ func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessa
 		cli.writeRecord(recordTypeHandshake, m.marshal())
 		c.Close()
 	}()
-	ctx := context.Background()
 	conn := Server(s, serverConfig)
-	ch, err := conn.readClientHello(ctx)
+	ch, err := conn.readClientHello()
 	hs := serverHandshakeState{
 		c:           conn,
-		ctx:         ctx,
 		clientHello: ch,
 	}
 	if err == nil {
@@ -1425,11 +1421,9 @@ func TestSNIGivenOnFailure(t *testing.T) {
 		c.Close()
 	}()
 	conn := Server(s, serverConfig)
-	ctx := context.Background()
-	ch, err := conn.readClientHello(ctx)
+	ch, err := conn.readClientHello()
 	hs := serverHandshakeState{
 		c:           conn,
-		ctx:         ctx,
 		clientHello: ch,
 	}
 	if err == nil {
@@ -1680,46 +1674,6 @@ func TestMultipleCertificates(t *testing.T) {
 	}
 	if got := clientState.PeerCertificates[0].PublicKeyAlgorithm; got != x509.RSA {
 		t.Errorf("expected RSA certificate, got %v", got)
-	}
-}
-
-func TestServerHandshakeContextCancellation(t *testing.T) {
-	c, s := localPipe(t)
-	clientConfig := testConfig.Clone()
-	clientErr := make(chan error, 1)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		defer close(clientErr)
-		defer c.Close()
-		clientHello := &clientHelloMsg{
-			vers:               VersionTLS10,
-			random:             make([]byte, 32),
-			cipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
-			compressionMethods: []uint8{compressionNone},
-		}
-		cli := Client(c, clientConfig)
-		_, err := cli.writeRecord(recordTypeHandshake, clientHello.marshal())
-		cancel()
-		clientErr <- err
-	}()
-	conn := Server(s, testConfig)
-	err := conn.HandshakeContext(ctx)
-	if err == nil {
-		t.Fatal("Server handshake did not error when the context was canceled")
-	}
-	if err != context.Canceled {
-		t.Errorf("Unexpected server handshake error: %v", err)
-	}
-	if err := <-clientErr; err != nil {
-		t.Errorf("Unexpected client error: %v", err)
-	}
-	if runtime.GOARCH == "wasm" {
-		t.Skip("conn.Close does not error as expected when called multiple times on WASM")
-	}
-	err = conn.Close()
-	if err == nil {
-		t.Error("Server connection was not closed when the context was canceled")
 	}
 }
 

@@ -28,9 +28,9 @@ import (
 // input left by. Note that this rotation is performed
 // before the masked region is used.
 type RotateParams struct {
-	Start  int8 // big-endian start bit index [0..63]
-	End    int8 // big-endian end bit index [0..63]
-	Amount int8 // amount to rotate left
+	Start  uint8 // big-endian start bit index [0..63]
+	End    uint8 // big-endian end bit index [0..63]
+	Amount uint8 // amount to rotate left
 }
 
 // NewRotateParams creates a set of parameters representing a
@@ -39,7 +39,7 @@ type RotateParams struct {
 //
 // The start and end indexes and the rotation amount must all
 // be in the range 0-63 inclusive or this function will panic.
-func NewRotateParams(start, end, amount int8) RotateParams {
+func NewRotateParams(start, end, amount uint8) RotateParams {
 	if start&^63 != 0 {
 		panic("start out of bounds")
 	}
@@ -58,7 +58,7 @@ func NewRotateParams(start, end, amount int8) RotateParams {
 
 // RotateLeft generates a new set of parameters with the rotation amount
 // increased by the given value. The selected bits are left unchanged.
-func (r RotateParams) RotateLeft(amount int8) RotateParams {
+func (r RotateParams) RotateLeft(amount uint8) RotateParams {
 	r.Amount += amount
 	r.Amount &= 63
 	return r
@@ -100,8 +100,8 @@ func (r RotateParams) OutMerge(mask uint64) *RotateParams {
 	}
 
 	// update start and end positions (rotation amount remains the same)
-	r.Start = int8(o+z) & 63
-	r.End = (r.Start + int8(l) - 1) & 63
+	r.Start = uint8(o+z) & 63
+	r.End = (r.Start + uint8(l) - 1) & 63
 	return &r
 }
 
@@ -113,3 +113,5 @@ func (r RotateParams) OutMerge(mask uint64) *RotateParams {
 func (r RotateParams) InMerge(mask uint64) *RotateParams {
 	return r.OutMerge(bits.RotateLeft64(mask, int(r.Amount)))
 }
+
+func (RotateParams) CanBeAnSSAAux() {}

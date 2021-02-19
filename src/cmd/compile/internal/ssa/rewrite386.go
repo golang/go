@@ -1785,12 +1785,12 @@ func rewriteValue386_Op386CMPB(v *Value) bool {
 		return true
 	}
 	// match: (CMPB x y)
-	// cond: x.ID > y.ID
+	// cond: canonLessThan(x,y)
 	// result: (InvertFlags (CMPB y x))
 	for {
 		x := v_0
 		y := v_1
-		if !(x.ID > y.ID) {
+		if !(canonLessThan(x, y)) {
 			break
 		}
 		v.reset(Op386InvertFlags)
@@ -2078,12 +2078,12 @@ func rewriteValue386_Op386CMPL(v *Value) bool {
 		return true
 	}
 	// match: (CMPL x y)
-	// cond: x.ID > y.ID
+	// cond: canonLessThan(x,y)
 	// result: (InvertFlags (CMPL y x))
 	for {
 		x := v_0
 		y := v_1
-		if !(x.ID > y.ID) {
+		if !(canonLessThan(x, y)) {
 			break
 		}
 		v.reset(Op386InvertFlags)
@@ -2386,12 +2386,12 @@ func rewriteValue386_Op386CMPW(v *Value) bool {
 		return true
 	}
 	// match: (CMPW x y)
-	// cond: x.ID > y.ID
+	// cond: canonLessThan(x,y)
 	// result: (InvertFlags (CMPW y x))
 	for {
 		x := v_0
 		y := v_1
-		if !(x.ID > y.ID) {
+		if !(canonLessThan(x, y)) {
 			break
 		}
 		v.reset(Op386InvertFlags)

@@ -28,6 +28,11 @@ import (
 //
 var buildList []module.Version
 
+// additionalExplicitRequirements is a list of modules paths for which
+// WriteGoMod should record explicit requirements, even if they would be
+// selected without those requirements. Each path must also appear in buildList.
+var additionalExplicitRequirements []string
+
 // capVersionSlice returns s with its cap reduced to its length.
 func capVersionSlice(s []module.Version) []module.Version {
 	return s[:len(s):len(s)]
@@ -121,6 +126,12 @@ func EditBuildList(ctx context.Context, add, mustSelect []module.Version) error 
 
 	if !inconsistent {
 		buildList = final
+		additionalExplicitRequirements = make([]string, 0, len(mustSelect))
+		for _, m := range mustSelect {
+			if m.Version != "none" {
+				additionalExplicitRequirements = append(additionalExplicitRequirements, m.Path)
+			}
+		}
 		return nil
 	}
 

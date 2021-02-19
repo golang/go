@@ -9,5 +9,5 @@
 package p
 
 func f() uintptr {
-	return nil // ERROR "cannot use nil as type uintptr in return argument"
+	return nil // ERROR "cannot use nil as type uintptr in return argument|incompatible type"
 }

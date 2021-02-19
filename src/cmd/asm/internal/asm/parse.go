@@ -305,7 +305,7 @@ func (p *Parser) pseudo(word string, operands [][]lex.Token) bool {
 // references and writes symabis information to w.
 //
 // The symabis format is documented at
-// cmd/compile/internal/gc.readSymABIs.
+// cmd/compile/internal/ssagen.ReadSymABIs.
 func (p *Parser) symDefRef(w io.Writer, word string, operands [][]lex.Token) {
 	switch word {
 	case "TEXT":

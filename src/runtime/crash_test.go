@@ -294,6 +294,18 @@ func TestRecursivePanic4(t *testing.T) {
 
 }
 
+func TestRecursivePanic5(t *testing.T) {
+	output := runTestProg(t, "testprog", "RecursivePanic5")
+	want := `first panic
+second panic
+panic: third panic
+`
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+
+}
+
 func TestGoexitCrash(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
 	testenv.MustInternalLink(t)

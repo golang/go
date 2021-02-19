@@ -11,6 +11,6 @@ package p
 
 func f() {
 	var x []byte
-	x++ // ERROR "invalid operation: x[+][+]"
+	x++ // ERROR "invalid operation: x[+][+]|non-numeric type"
 
 }

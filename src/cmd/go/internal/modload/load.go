@@ -280,11 +280,11 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 	checkMultiplePaths()
 	for _, pkg := range loaded.pkgs {
 		if pkg.err != nil {
-			if pkg.flags.has(pkgInAll) {
-				if imErr := (*ImportMissingError)(nil); errors.As(pkg.err, &imErr) {
-					imErr.inAll = true
-				} else if sumErr := (*ImportMissingSumError)(nil); errors.As(pkg.err, &sumErr) {
-					sumErr.inAll = true
+			if sumErr := (*ImportMissingSumError)(nil); errors.As(pkg.err, &sumErr) {
+				if importer := pkg.stack; importer != nil {
+					sumErr.importer = importer.path
+					sumErr.importerVersion = importer.mod.Version
+					sumErr.importerIsTest = importer.testOf != nil
 				}
 			}
 
@@ -863,12 +863,21 @@ func loadFromRoots(params loaderParams) *loader {
 	for _, pkg := range ld.pkgs {
 		if pkg.mod == Target {
 			for _, dep := range pkg.imports {
-				if dep.mod.Path != "" {
+				if dep.mod.Path != "" && dep.mod.Path != Target.Path && index != nil {
+					_, explicit := index.require[dep.mod]
+					if allowWriteGoMod && cfg.BuildMod == "readonly" && !explicit {
+						// TODO(#40775): attach error to package instead of using
+						// base.Errorf. Ideally, 'go list' should not fail because of this,
+						// but today, LoadPackages calls WriteGoMod unconditionally, which
+						// would fail with a less clear message.
+						base.Errorf("go: %[1]s: package %[2]s imported from implicitly required module; to add missing requirements, run:\n\tgo get %[2]s@%[3]s", pkg.path, dep.path, dep.mod.Version)
+					}
 					ld.direct[dep.mod.Path] = true
 				}
 			}
 		}
 	}
+	base.ExitIfErrors()
 
 	// If we didn't scan all of the imports from the main module, or didn't use
 	// imports.AnyTags, then we didn't necessarily load every package that
@@ -1074,13 +1083,20 @@ func (ld *loader) load(pkg *loadPkg) {
 		}
 	}
 
-	imports, testImports, err := scanDir(pkg.dir, ld.Tags)
-	if err != nil {
-		pkg.err = err
-		return
-	}
-
 	pkg.inStd = (search.IsStandardImportPath(pkg.path) && search.InDir(pkg.dir, cfg.GOROOTsrc) != "")
+
+	var imports, testImports []string
+
+	if cfg.BuildContext.Compiler == "gccgo" && pkg.inStd {
+		// We can't scan standard packages for gccgo.
+	} else {
+		var err error
+		imports, testImports, err = scanDir(pkg.dir, ld.Tags)
+		if err != nil {
+			pkg.err = err
+			return
+		}
+	}
 
 	pkg.imports = make([]*loadPkg, 0, len(imports))
 	var importFlags loadPkgFlags

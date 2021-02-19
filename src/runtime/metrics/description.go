@@ -23,6 +23,11 @@ type Description struct {
 	// Examples of units might be "seconds", "bytes", "bytes/second", "cpu-seconds",
 	// "byte*cpu-seconds", and "bytes/second/second".
 	//
+	// For histograms, multiple units may apply. For instance, the units of the buckets and
+	// the count. By convention, for histograms, the units of the count are always "samples"
+	// with the type of sample evident by the metric's name, while the unit in the name
+	// specifies the buckets' unit.
+	//
 	// A complete name might look like "/memory/heap/free:bytes".
 	Name string
 
@@ -41,10 +46,6 @@ type Description struct {
 	//
 	// This flag thus indicates whether or not it's useful to compute a rate from this value.
 	Cumulative bool
-
-	// StopTheWorld is whether or not the metric requires a stop-the-world
-	// event in order to collect it.
-	StopTheWorld bool
 }
 
 // The English language descriptions below must be kept in sync with the
@@ -69,14 +70,16 @@ var allDesc = []Description{
 		Cumulative:  true,
 	},
 	{
-		Name:        "/gc/heap/allocs-by-size:objects",
+		Name:        "/gc/heap/allocs-by-size:bytes",
 		Description: "Distribution of all objects allocated by approximate size.",
 		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
 	},
 	{
-		Name:        "/gc/heap/frees-by-size:objects",
+		Name:        "/gc/heap/frees-by-size:bytes",
 		Description: "Distribution of all objects freed by approximate size.",
 		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
 	},
 	{
 		Name:        "/gc/heap/goal:bytes",
@@ -92,6 +95,7 @@ var allDesc = []Description{
 		Name:        "/gc/pauses:seconds",
 		Description: "Distribution individual GC-related stop-the-world pause latencies.",
 		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
 	},
 	{
 		Name: "/memory/classes/heap/free:bytes",

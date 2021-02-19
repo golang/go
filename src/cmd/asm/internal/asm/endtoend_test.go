@@ -36,6 +36,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
 	var ok bool
 	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+	ctxt.IsAsm = true
 	defer ctxt.Bso.Flush()
 	failed := false
 	ctxt.DiagFunc = func(format string, args ...interface{}) {
@@ -278,6 +279,7 @@ func testErrors(t *testing.T, goarch, file string) {
 	var ok bool
 	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+	ctxt.IsAsm = true
 	defer ctxt.Bso.Flush()
 	failed := false
 	var errBuf bytes.Buffer

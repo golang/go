@@ -31,6 +31,8 @@ modified since being downloaded. If all the modules are unmodified,
 verify prints "all modules verified." Otherwise it reports which
 modules have been changed and causes 'go mod' to exit with a
 non-zero status.
+
+See https://golang.org/ref/mod#go-mod-verify for more about 'go mod verify'.
 	`,
 	Run: runVerify,
 }

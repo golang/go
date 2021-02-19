@@ -361,7 +361,12 @@ func (r *Response) isProtocolSwitch() bool {
 // isProtocolSwitchResponse reports whether the response code and
 // response header indicate a successful protocol upgrade response.
 func isProtocolSwitchResponse(code int, h Header) bool {
-	return code == StatusSwitchingProtocols &&
-		h.Get("Upgrade") != "" &&
+	return code == StatusSwitchingProtocols && isProtocolSwitchHeader(h)
+}
+
+// isProtocolSwitchHeader reports whether the request or response header
+// is for a protocol switch.
+func isProtocolSwitchHeader(h Header) bool {
+	return h.Get("Upgrade") != "" &&
 		httpguts.HeaderValuesContainsToken(h["Connection"], "Upgrade")
 }

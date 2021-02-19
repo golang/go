@@ -301,6 +301,24 @@ func getHugePageSize() uintptr {
 func osinit() {
 	ncpu = getproccount()
 	physHugePageSize = getHugePageSize()
+	if iscgo {
+		// #42494 glibc and musl reserve some signals for
+		// internal use and require they not be blocked by
+		// the rest of a normal C runtime. When the go runtime
+		// blocks...unblocks signals, temporarily, the blocked
+		// interval of time is generally very short. As such,
+		// these expectations of *libc code are mostly met by
+		// the combined go+cgo system of threads. However,
+		// when go causes a thread to exit, via a return from
+		// mstart(), the combined runtime can deadlock if
+		// these signals are blocked. Thus, don't block these
+		// signals when exiting threads.
+		// - glibc: SIGCANCEL (32), SIGSETXID (33)
+		// - musl: SIGTIMER (32), SIGCANCEL (33), SIGSYNCCALL (34)
+		sigdelset(&sigsetAllExiting, 32)
+		sigdelset(&sigsetAllExiting, 33)
+		sigdelset(&sigsetAllExiting, 34)
+	}
 	osArchInit()
 }
 
@@ -357,6 +375,11 @@ func unminit() {
 	unminitSignals()
 }
 
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+func mdestroy(mp *m) {
+}
+
 //#ifdef GOARCH_386
 //#define sa_handler k_sa_handler
 //#endif
@@ -386,6 +409,11 @@ func raiseproc(sig uint32)
 //go:noescape
 func sched_getaffinity(pid, len uintptr, buf *byte) int32
 func osyield()
+
+//go:nosplit
+func osyield_no_g() {
+	osyield()
+}
 
 func pipe() (r, w int32, errno int32)
 func pipe2(flags int32) (r, w int32, errno int32)

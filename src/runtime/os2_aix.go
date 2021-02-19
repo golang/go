@@ -18,11 +18,11 @@ import (
 
 //go:cgo_import_dynamic libc___n_pthreads __n_pthreads "libpthread.a/shr_xpg5_64.o"
 //go:cgo_import_dynamic libc___mod_init __mod_init "libc.a/shr_64.o"
-//go:linkname libc___n_pthreads libc___n_pthread
+//go:linkname libc___n_pthreads libc___n_pthreads
 //go:linkname libc___mod_init libc___mod_init
 
 var (
-	libc___n_pthread,
+	libc___n_pthreads,
 	libc___mod_init libFunc
 )
 
@@ -527,20 +527,17 @@ func internal_cpu_getsystemcfg(label uint) uint {
 func usleep1(us uint32)
 
 //go:nosplit
-func usleep(us uint32) {
-	_g_ := getg()
-
-	// Check the validity of m because we might be called in cgo callback
-	// path early enough where there isn't a g or a m available yet.
-	if _g_ != nil && _g_.m != nil {
-		r, err := syscall1(&libc_usleep, uintptr(us))
-		if int32(r) == -1 {
-			println("syscall usleep failed: ", hex(err))
-			throw("syscall usleep")
-		}
-		return
-	}
+func usleep_no_g(us uint32) {
 	usleep1(us)
+}
+
+//go:nosplit
+func usleep(us uint32) {
+	r, err := syscall1(&libc_usleep, uintptr(us))
+	if int32(r) == -1 {
+		println("syscall usleep failed: ", hex(err))
+		throw("syscall usleep")
+	}
 }
 
 //go:nosplit
@@ -611,20 +608,17 @@ func raiseproc(sig uint32) {
 func osyield1()
 
 //go:nosplit
-func osyield() {
-	_g_ := getg()
-
-	// Check the validity of m because it might be called during a cgo
-	// callback early enough where m isn't available yet.
-	if _g_ != nil && _g_.m != nil {
-		r, err := syscall0(&libc_sched_yield)
-		if int32(r) == -1 {
-			println("syscall osyield failed: ", hex(err))
-			throw("syscall osyield")
-		}
-		return
-	}
+func osyield_no_g() {
 	osyield1()
+}
+
+//go:nosplit
+func osyield() {
+	r, err := syscall0(&libc_sched_yield)
+	if int32(r) == -1 {
+		println("syscall osyield failed: ", hex(err))
+		throw("syscall osyield")
+	}
 }
 
 //go:nosplit

@@ -6460,13 +6460,15 @@ func TestDisableKeepAliveUpgrade(t *testing.T) {
 		w.Header().Set("Connection", "Upgrade")
 		w.Header().Set("Upgrade", "someProto")
 		w.WriteHeader(StatusSwitchingProtocols)
-		c, _, err := w.(Hijacker).Hijack()
+		c, buf, err := w.(Hijacker).Hijack()
 		if err != nil {
 			return
 		}
 		defer c.Close()
 
-		io.Copy(c, c)
+		// Copy from the *bufio.ReadWriter, which may contain buffered data.
+		// Copy to the net.Conn, to avoid buffering the output.
+		io.Copy(c, buf)
 	}))
 	s.Config.SetKeepAlivesEnabled(false)
 	s.Start()
@@ -6480,6 +6482,10 @@ func TestDisableKeepAliveUpgrade(t *testing.T) {
 		t.Fatalf("failed to perform request: %v", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != StatusSwitchingProtocols {
+		t.Fatalf("unexpected status code: %v", resp.StatusCode)
+	}
 
 	rwc, ok := resp.Body.(io.ReadWriteCloser)
 	if !ok {

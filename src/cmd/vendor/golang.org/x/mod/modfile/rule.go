@@ -832,7 +832,16 @@ func (f *File) DropRequire(path string) error {
 	return nil
 }
 
+// AddExclude adds a exclude statement to the mod file. Errors if the provided
+// version is not a canonical version string
 func (f *File) AddExclude(path, vers string) error {
+	if !isCanonicalVersion(vers) {
+		return &module.InvalidVersionError{
+			Version: vers,
+			Err:     errors.New("must be of the form v1.2.3"),
+		}
+	}
+
 	var hint *Line
 	for _, x := range f.Exclude {
 		if x.Mod.Path == path && x.Mod.Version == vers {
@@ -904,7 +913,22 @@ func (f *File) DropReplace(oldPath, oldVers string) error {
 	return nil
 }
 
+// AddRetract adds a retract statement to the mod file. Errors if the provided
+// version interval does not consist of canonical version strings
 func (f *File) AddRetract(vi VersionInterval, rationale string) error {
+	if !isCanonicalVersion(vi.High) {
+		return &module.InvalidVersionError{
+			Version: vi.High,
+			Err:     errors.New("must be of the form v1.2.3"),
+		}
+	}
+	if !isCanonicalVersion(vi.Low) {
+		return &module.InvalidVersionError{
+			Version: vi.Low,
+			Err:     errors.New("must be of the form v1.2.3"),
+		}
+	}
+
 	r := &Retract{
 		VersionInterval: vi,
 	}
@@ -1060,4 +1084,10 @@ func lineRetractLess(li, lj *Line) bool {
 		return cmp > 0
 	}
 	return semver.Compare(vii.High, vij.High) > 0
+}
+
+// isCanonicalVersion tests if the provided version string represents a valid
+// canonical version.
+func isCanonicalVersion(vers string) bool {
+	return vers != "" && semver.Canonical(vers) == vers
 }

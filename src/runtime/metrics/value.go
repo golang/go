@@ -33,7 +33,7 @@ type Value struct {
 	pointer unsafe.Pointer // contains non-scalar values.
 }
 
-// Kind returns the a tag representing the kind of value this is.
+// Kind returns the tag representing the kind of value this is.
 func (v Value) Kind() ValueKind {
 	return v.kind
 }
@@ -63,7 +63,7 @@ func (v Value) Float64() float64 {
 // If v.Kind() != KindFloat64Histogram, this method panics.
 func (v Value) Float64Histogram() *Float64Histogram {
 	if v.kind != KindFloat64Histogram {
-		panic("called Float64 on non-float64 metric value")
+		panic("called Float64Histogram on non-Float64Histogram metric value")
 	}
 	return (*Float64Histogram)(v.pointer)
 }

@@ -2964,44 +2964,34 @@ func certPoolEqual(a, b *CertPool) bool {
 }
 
 func TestCertificateRequestRoundtripFields(t *testing.T) {
+	urlA, err := url.Parse("https://example.com/_")
+	if err != nil {
+		t.Fatal(err)
+	}
+	urlB, err := url.Parse("https://example.org/_")
+	if err != nil {
+		t.Fatal(err)
+	}
 	in := &CertificateRequest{
-		KeyUsage:              KeyUsageCertSign,
-		ExtKeyUsage:           []ExtKeyUsage{ExtKeyUsageAny},
-		UnknownExtKeyUsage:    []asn1.ObjectIdentifier{{1, 2, 3}},
-		BasicConstraintsValid: true,
-		IsCA:                  true,
-		MaxPathLen:            0,
-		MaxPathLenZero:        true,
-		SubjectKeyId:          []byte{1, 2, 3},
-		PolicyIdentifiers:     []asn1.ObjectIdentifier{{1, 2, 3}},
+		DNSNames:       []string{"example.com", "example.org"},
+		EmailAddresses: []string{"a@example.com", "b@example.com"},
+		IPAddresses:    []net.IP{net.IPv4(192, 0, 2, 0), net.IPv6loopback},
+		URIs:           []*url.URL{urlA, urlB},
 	}
 	out := marshalAndParseCSR(t, in)
 
-	if in.KeyUsage != out.KeyUsage {
-		t.Fatalf("Unexpected KeyUsage: got %v, want %v", out.KeyUsage, in.KeyUsage)
+	if !reflect.DeepEqual(in.DNSNames, out.DNSNames) {
+		t.Fatalf("Unexpected DNSNames: got %v, want %v", out.DNSNames, in.DNSNames)
 	}
-	if !reflect.DeepEqual(in.ExtKeyUsage, out.ExtKeyUsage) {
-		t.Fatalf("Unexpected ExtKeyUsage: got %v, want %v", out.ExtKeyUsage, in.ExtKeyUsage)
+	if !reflect.DeepEqual(in.EmailAddresses, out.EmailAddresses) {
+		t.Fatalf("Unexpected EmailAddresses: got %v, want %v", out.EmailAddresses, in.EmailAddresses)
 	}
-	if !reflect.DeepEqual(in.UnknownExtKeyUsage, out.UnknownExtKeyUsage) {
-		t.Fatalf("Unexpected UnknownExtKeyUsage: got %v, want %v", out.UnknownExtKeyUsage, in.UnknownExtKeyUsage)
+	if len(in.IPAddresses) != len(out.IPAddresses) ||
+		!in.IPAddresses[0].Equal(out.IPAddresses[0]) ||
+		!in.IPAddresses[1].Equal(out.IPAddresses[1]) {
+		t.Fatalf("Unexpected IPAddresses: got %v, want %v", out.IPAddresses, in.IPAddresses)
 	}
-	if in.BasicConstraintsValid != out.BasicConstraintsValid {
-		t.Fatalf("Unexpected BasicConstraintsValid: got %v, want %v", out.BasicConstraintsValid, in.BasicConstraintsValid)
-	}
-	if in.IsCA != out.IsCA {
-		t.Fatalf("Unexpected IsCA: got %v, want %v", out.IsCA, in.IsCA)
-	}
-	if in.MaxPathLen != out.MaxPathLen {
-		t.Fatalf("Unexpected MaxPathLen: got %v, want %v", out.MaxPathLen, in.MaxPathLen)
-	}
-	if in.MaxPathLenZero != out.MaxPathLenZero {
-		t.Fatalf("Unexpected MaxPathLenZero: got %v, want %v", out.MaxPathLenZero, in.MaxPathLenZero)
-	}
-	if !reflect.DeepEqual(in.SubjectKeyId, out.SubjectKeyId) {
-		t.Fatalf("Unexpected SubjectKeyId: got %v, want %v", out.SubjectKeyId, in.SubjectKeyId)
-	}
-	if !reflect.DeepEqual(in.PolicyIdentifiers, out.PolicyIdentifiers) {
-		t.Fatalf("Unexpected PolicyIdentifiers: got %v, want %v", out.PolicyIdentifiers, in.PolicyIdentifiers)
+	if !reflect.DeepEqual(in.URIs, out.URIs) {
+		t.Fatalf("Unexpected URIs: got %v, want %v", out.URIs, in.URIs)
 	}
 }

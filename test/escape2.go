@@ -1547,7 +1547,7 @@ func foo153(v interface{}) *int { // ERROR "v does not escape"
 	case int: // ERROR "moved to heap: x$"
 		return &x
 	}
-	panic(0)
+	panic(0) // ERROR "0 escapes to heap"
 }
 
 // issue 8185 - &result escaping into result

@@ -56,84 +56,48 @@ var CmdGet = &base.Command{
 	UsageLine: "go get [-d] [-t] [-u] [-v] [-insecure] [build flags] [packages]",
 	Short:     "add dependencies to current module and install them",
 	Long: `
-Get resolves and adds dependencies to the current development module
-and then builds and installs them.
+Get resolves its command-line arguments to packages at specific module versions,
+updates go.mod to require those versions, downloads source code into the
+module cache, then builds and installs the named packages.
 
-The first step is to resolve which dependencies to add.
+To add a dependency for a package or upgrade it to its latest version:
 
-For each named package or package pattern, get must decide which version of
-the corresponding module to use. By default, get looks up the latest tagged
-release version, such as v0.4.5 or v1.2.3. If there are no tagged release
-versions, get looks up the latest tagged pre-release version, such as
-v0.0.1-pre1. If there are no tagged versions at all, get looks up the latest
-known commit. If the module is not already required at a later version
-(for example, a pre-release newer than the latest release), get will use
-the version it looked up. Otherwise, get will use the currently
-required version.
+	go get example.com/pkg
 
-This default version selection can be overridden by adding an @version
-suffix to the package argument, as in 'go get golang.org/x/text@v0.3.0'.
-The version may be a prefix: @v1 denotes the latest available version starting
-with v1. See 'go help modules' under the heading 'Module queries' for the
-full query syntax.
+To upgrade or downgrade a package to a specific version:
 
-For modules stored in source control repositories, the version suffix can
-also be a commit hash, branch identifier, or other syntax known to the
-source control system, as in 'go get golang.org/x/text@master'. Note that
-branches with names that overlap with other module query syntax cannot be
-selected explicitly. For example, the suffix @v2 means the latest version
-starting with v2, not the branch named v2.
+	go get example.com/pkg@v1.2.3
 
-If a module under consideration is already a dependency of the current
-development module, then get will update the required version.
-Specifying a version earlier than the current required version is valid and
-downgrades the dependency. The version suffix @none indicates that the
-dependency should be removed entirely, downgrading or removing modules
-depending on it as needed.
+To remove a dependency on a module and downgrade modules that require it:
 
-The version suffix @latest explicitly requests the latest minor release of
-the module named by the given path. The suffix @upgrade is like @latest but
-will not downgrade a module if it is already required at a revision or
-pre-release version newer than the latest released version. The suffix
-@patch requests the latest patch release: the latest released version
-with the same major and minor version numbers as the currently required
-version. Like @upgrade, @patch will not downgrade a module already required
-at a newer version. If the path is not already required, @upgrade is
-equivalent to @latest, and @patch is disallowed.
+	go get example.com/mod@none
 
-Although get defaults to using the latest version of the module containing
-a named package, it does not use the latest version of that module's
-dependencies. Instead it prefers to use the specific dependency versions
-requested by that module. For example, if the latest A requires module
-B v1.2.3, while B v1.2.4 and v1.3.1 are also available, then 'go get A'
-will use the latest A but then use B v1.2.3, as requested by A. (If there
-are competing requirements for a particular module, then 'go get' resolves
-those requirements by taking the maximum requested version.)
+See https://golang.org/ref/mod#go-get for details.
+
+The 'go install' command may be used to build and install packages. When a
+version is specified, 'go install' runs in module-aware mode and ignores
+the go.mod file in the current directory. For example:
+
+	go install example.com/pkg@v1.2.3
+	go install example.com/pkg@latest
+
+See 'go help install' or https://golang.org/ref/mod#go-install for details.
+
+In addition to build flags (listed in 'go help build') 'go get' accepts the
+following flags.
 
 The -t flag instructs get to consider modules needed to build tests of
 packages specified on the command line.
 
 The -u flag instructs get to update modules providing dependencies
 of packages named on the command line to use newer minor or patch
-releases when available. Continuing the previous example, 'go get -u A'
-will use the latest A with B v1.3.1 (not B v1.2.3). If B requires module C,
-but C does not provide any packages needed to build packages in A
-(not including tests), then C will not be updated.
+releases when available.
 
 The -u=patch flag (not -u patch) also instructs get to update dependencies,
 but changes the default to select patch releases.
-Continuing the previous example,
-'go get -u=patch A@latest' will use the latest A with B v1.2.4 (not B v1.2.3),
-while 'go get -u=patch A' will use a patch release of A instead.
 
 When the -t and -u flags are used together, get will update
 test dependencies as well.
-
-In general, adding a new dependency may require upgrading
-existing dependencies to keep a working build, and 'go get' does
-this automatically. Similarly, downgrading one dependency may
-require downgrading other dependencies, and 'go get' does
-this automatically as well.
 
 The -insecure flag permits fetching from repositories and resolving
 custom domains using insecure schemes such as HTTP, and also bypassess
@@ -143,12 +107,8 @@ To permit the use of insecure schemes, use the GOINSECURE environment
 variable instead. To bypass module sum validation, use GOPRIVATE or
 GONOSUMDB. See 'go help environment' for details.
 
-The second step is to download (if needed), build, and install
-the named packages.
-
-The -d flag instructs get to skip this step, downloading source code
-needed to build the named packages and their dependencies, but not
-building or installing.
+The -d flag instructs get not to build or install packages. get will only
+update go.mod and download source code needed to build packages.
 
 Building and installing packages with get is deprecated. In a future release,
 the -d flag will be enabled by default, and 'go get' will be only be used to
@@ -157,31 +117,14 @@ dependencies from the current module, use 'go install'. To install a package
 ignoring the current module, use 'go install' with an @version suffix like
 "@latest" after each argument.
 
-If an argument names a module but not a package (because there is no
-Go source code in the module's root directory), then the install step
-is skipped for that argument, instead of causing a build failure.
-For example 'go get golang.org/x/perf' succeeds even though there
-is no code corresponding to that import path.
-
-Note that package patterns are allowed and are expanded after resolving
-the module versions. For example, 'go get golang.org/x/perf/cmd/...'
-adds the latest golang.org/x/perf and then installs the commands in that
-latest version.
-
-With no package arguments, 'go get' applies to Go package in the
-current directory, if any. In particular, 'go get -u' and
-'go get -u=patch' update all the dependencies of that package.
-With no package arguments and also without -u, 'go get' is not much more
-than 'go install', and 'go get -d' not much more than 'go list'.
-
-For more about modules, see 'go help modules'.
+For more about modules, see https://golang.org/ref/mod.
 
 For more about specifying packages, see 'go help packages'.
 
 This text describes the behavior of get using modules to manage source
 code and dependencies. If instead the go command is running in GOPATH
 mode, the details of get's flags and effects change, as does 'go help get'.
-See 'go help modules' and 'go help gopath-get'.
+See 'go help gopath-get'.
 
 See also: go build, go install, go clean, go mod.
 	`,
@@ -233,20 +176,23 @@ packages or when the mirror refuses to serve a public package (typically for
 legal reasons). Therefore, clients can still access public code served from
 Bazaar, Fossil, or Subversion repositories by default, because those downloads
 use the Go module mirror, which takes on the security risk of running the
-version control commands, using a custom sandbox.
+version control commands using a custom sandbox.
 
 The GOVCS variable can be used to change the allowed version control systems
 for specific packages (identified by a module or import path).
-The GOVCS variable applies both when using modules and when using GOPATH.
-When using modules, the patterns match against the module path.
-When using GOPATH, the patterns match against the import path
-corresponding to the root of the version control repository.
+The GOVCS variable applies when building package in both module-aware mode
+and GOPATH mode. When using modules, the patterns match against the module path.
+When using GOPATH, the patterns match against the import path corresponding to
+the root of the version control repository.
 
 The general form of the GOVCS setting is a comma-separated list of
 pattern:vcslist rules. The pattern is a glob pattern that must match
 one or more leading elements of the module or import path. The vcslist
 is a pipe-separated list of allowed version control commands, or "all"
-to allow use of any known command, or "off" to allow nothing.
+to allow use of any known command, or "off" to disallow all commands.
+Note that if a module matches a pattern with vcslist "off", it may still be
+downloaded if the origin server uses the "mod" scheme, which instructs the
+go command to download the module using the GOPROXY protocol.
 The earliest matching pattern in the list applies, even if later patterns
 might also match.
 
@@ -254,7 +200,7 @@ For example, consider:
 
 	GOVCS=github.com:git,evil.com:off,*:git|hg
 
-With this setting, code with an module or import path beginning with
+With this setting, code with a module or import path beginning with
 github.com/ can only use git; paths on evil.com cannot use any version
 control command, and all other paths (* matches everything) can use
 only git or hg.
@@ -364,7 +310,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		r.performWildcardQueries(ctx)
 		r.performPatternAllQueries(ctx)
 
-		if changed := r.resolveCandidates(ctx, queries, nil); changed {
+		if changed := r.resolveQueries(ctx, queries); changed {
 			// 'go get' arguments can be (and often are) package patterns rather than
 			// (just) modules. A package can be provided by any module with a prefix
 			// of its import path, and a wildcard can even match packages in modules
@@ -401,12 +347,12 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		// - ambiguous import errors.
 		//   TODO(#27899): Try to resolve ambiguous import errors automatically.
 		upgrades := r.findAndUpgradeImports(ctx, queries)
-		if changed := r.resolveCandidates(ctx, nil, upgrades); changed {
+		if changed := r.applyUpgrades(ctx, upgrades); changed {
 			continue
 		}
 
 		r.findMissingWildcards(ctx)
-		if changed := r.resolveCandidates(ctx, r.wildcardQueries, nil); changed {
+		if changed := r.resolveQueries(ctx, r.wildcardQueries); changed {
 			continue
 		}
 
@@ -434,11 +380,12 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// directory.
 	if !*getD && len(pkgPatterns) > 0 {
 		work.BuildInit()
-		pkgs := load.PackagesForBuild(ctx, pkgPatterns)
+		pkgs := load.PackagesAndErrors(ctx, pkgPatterns)
+		load.CheckPackageErrors(pkgs)
 		work.InstallPackages(ctx, pkgPatterns, pkgs)
-		// TODO(#40276): After Go 1.16, print a deprecation notice when building
-		// and installing main packages. 'go install pkg' or
-		// 'go install pkg@version' should be used instead.
+		// TODO(#40276): After Go 1.16, print a deprecation notice when building and
+		// installing main packages. 'go install pkg' or 'go install pkg@version'
+		// should be used instead. Give the specific argument to use if possible.
 	}
 
 	if !modload.HasModRoot() {
@@ -513,9 +460,8 @@ type resolver struct {
 	// that resolved the module to that version (the “reason”).
 	resolvedVersion map[string]versionReason
 
-	buildList                 []module.Version
-	buildListResolvedVersions int               // len(resolvedVersion) when buildList was computed
-	buildListVersion          map[string]string // index of buildList (module path → version)
+	buildList        []module.Version
+	buildListVersion map[string]string // index of buildList (module path → version)
 
 	initialVersion map[string]string // index of the initial build list at the start of 'go get'
 
@@ -1229,24 +1175,19 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
 // to be updated before its dependencies can be loaded.
 var errVersionChange = errors.New("version change needed")
 
-// resolveCandidates resolves candidates sets that are attached to the given
+// resolveQueries resolves candidate sets that are attached to the given
 // queries and/or needed to provide the given missing-package dependencies.
 //
-// resolveCandidates starts by resolving one module version from each
+// resolveQueries starts by resolving one module version from each
 // unambiguous pathSet attached to the given queries.
 //
 // If no unambiguous query results in a change to the build list,
-// resolveCandidates modifies the build list by adding one module version from
-// each pathSet in missing, but does not mark those versions as resolved
-// (so they can still be modified by other queries).
-//
-// If that still does not result in any changes to the build list,
-// resolveCandidates revisits the ambiguous query candidates and resolves them
+// resolveQueries revisits the ambiguous query candidates and resolves them
 // arbitrarily in order to guarantee forward progress.
 //
 // If all pathSets are resolved without any changes to the build list,
-// resolveCandidates returns with changed=false.
-func (r *resolver) resolveCandidates(ctx context.Context, queries []*query, upgrades []pathSet) (changed bool) {
+// resolveQueries returns with changed=false.
+func (r *resolver) resolveQueries(ctx context.Context, queries []*query) (changed bool) {
 	defer base.ExitIfErrors()
 
 	// Note: this is O(N²) with the number of pathSets in the worst case.
@@ -1300,12 +1241,52 @@ func (r *resolver) resolveCandidates(ctx context.Context, queries []*query, upgr
 		}
 	}
 
-	if changed := r.updateBuildList(ctx, nil); changed {
-		// The build list has changed, so disregard any missing packages: they might
-		// now be determined by requirements in the build list, which we would
-		// prefer to use instead of arbitrary "latest" versions.
-		return true
+	if resolved > 0 {
+		if changed = r.updateBuildList(ctx, nil); changed {
+			// The build list has changed, so disregard any remaining ambiguous queries:
+			// they might now be determined by requirements in the build list, which we
+			// would prefer to use instead of arbitrary versions.
+			return true
+		}
 	}
+
+	// The build list will be the same on the next iteration as it was on this
+	// iteration, so any ambiguous queries will remain so. In order to make
+	// progress, resolve them arbitrarily but deterministically.
+	//
+	// If that results in conflicting versions, the user can re-run 'go get'
+	// with additional explicit versions for the conflicting packages or
+	// modules.
+	resolvedArbitrarily := 0
+	for _, q := range queries {
+		for _, cs := range q.candidates {
+			isPackage, m := r.chooseArbitrarily(cs)
+			if isPackage {
+				q.matchesPackages = true
+			}
+			r.resolve(q, m)
+			resolvedArbitrarily++
+		}
+	}
+	if resolvedArbitrarily > 0 {
+		changed = r.updateBuildList(ctx, nil)
+	}
+	return changed
+}
+
+// applyUpgrades disambiguates candidate sets that are needed to upgrade (or
+// provide) transitive dependencies imported by previously-resolved packages.
+//
+// applyUpgrades modifies the build list by adding one module version from each
+// pathSet in upgrades, then downgrading (or further upgrading) those modules as
+// needed to maintain any already-resolved versions of other modules.
+// applyUpgrades does not mark the new versions as resolved, so they can still
+// be further modified by other queries (such as wildcards).
+//
+// If all pathSets are resolved without any changes to the build list,
+// applyUpgrades returns with changed=false.
+func (r *resolver) applyUpgrades(ctx context.Context, upgrades []pathSet) (changed bool) {
+	defer base.ExitIfErrors()
 
 	// Arbitrarily add a "latest" version that provides each missing package, but
 	// do not mark the version as resolved: we still want to allow the explicit
@@ -1329,27 +1310,9 @@ func (r *resolver) resolveCandidates(ctx context.Context, queries []*query, upgr
 		tentative = append(tentative, m)
 	}
 	base.ExitIfErrors()
-	if changed := r.updateBuildList(ctx, tentative); changed {
-		return true
-	}
 
-	// The build list will be the same on the next iteration as it was on this
-	// iteration, so any ambiguous queries will remain so. In order to make
-	// progress, resolve them arbitrarily but deterministically.
-	//
-	// If that results in conflicting versions, the user can re-run 'go get'
-	// with additional explicit versions for the conflicting packages or
-	// modules.
-	for _, q := range queries {
-		for _, cs := range q.candidates {
-			isPackage, m := r.chooseArbitrarily(cs)
-			if isPackage {
-				q.matchesPackages = true
-			}
-			r.resolve(q, m)
-		}
-	}
-	return r.updateBuildList(ctx, nil)
+	changed = r.updateBuildList(ctx, tentative)
+	return changed
 }
 
 // disambiguate eliminates candidates from cs that conflict with other module
@@ -1508,7 +1471,18 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns 
 			}
 		}
 		for _, pkg := range pkgs {
-			if _, _, err := modload.Lookup("", false, pkg); err != nil {
+			if dir, _, err := modload.Lookup("", false, pkg); err != nil {
+				if dir != "" && errors.Is(err, imports.ErrNoGo) {
+					// Since dir is non-empty, we must have located source files
+					// associated with either the package or its test — ErrNoGo must
+					// indicate that none of those source files happen to apply in this
+					// configuration. If we are actually building the package (no -d
+					// flag), the compiler will report the problem; otherwise, assume that
+					// the user is going to build or test it in some other configuration
+					// and suppress the error.
+					continue
+				}
+
 				base.SetExitStatus(1)
 				if ambiguousErr := (*modload.AmbiguousImportError)(nil); errors.As(err, &ambiguousErr) {
 					for _, m := range ambiguousErr.Modules {
@@ -1556,7 +1530,7 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns 
 		}
 	}
 	if retractPath != "" {
-		fmt.Fprintf(os.Stderr, "go: run 'go get %s@latest' to switch to the latest unretracted version\n", retractPath)
+		fmt.Fprintf(os.Stderr, "go: to switch to the latest unretracted version, run:\n\tgo get %s@latest", retractPath)
 	}
 }
 
@@ -1656,11 +1630,10 @@ func (r *resolver) resolve(q *query, m module.Version) {
 //
 // If the additional modules conflict with the resolved versions, they will be
 // downgraded to a non-conflicting version (possibly "none").
+//
+// If the resulting build list is the same as the one resulting from the last
+// call to updateBuildList, updateBuildList returns with changed=false.
 func (r *resolver) updateBuildList(ctx context.Context, additions []module.Version) (changed bool) {
-	if len(additions) == 0 && len(r.resolvedVersion) == r.buildListResolvedVersions {
-		return false
-	}
-
 	defer base.ExitIfErrors()
 
 	resolved := make([]module.Version, 0, len(r.resolvedVersion))
@@ -1691,7 +1664,6 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 	}
 
 	buildList := modload.LoadAllModules(ctx)
-	r.buildListResolvedVersions = len(r.resolvedVersion)
 	if reflect.DeepEqual(r.buildList, buildList) {
 		return false
 	}
