@@ -12,6 +12,8 @@ package testdata
 
 // ERRORNEXT "misplaced \+build comment"
 // +build toolate
+// ERRORNEXT "misplaced //go:build comment"
+//go:build toolate
 
 var _ = 3
 
