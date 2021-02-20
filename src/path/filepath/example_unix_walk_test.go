@@ -8,18 +8,13 @@ package filepath_test
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 )
 
 func prepareTestDirTree(tree string) (string, error) {
-	tmpDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		return "", fmt.Errorf("error creating temp directory: %v\n", err)
-	}
-
-	err = os.MkdirAll(filepath.Join(tmpDir, tree), 0755)
+	tmpDir := os.TempDir()
+	err := os.MkdirAll(filepath.Join(tmpDir, tree), 0755)
 	if err != nil {
 		os.RemoveAll(tmpDir)
 		return "", err
@@ -40,7 +35,7 @@ func ExampleWalk() {
 	subDirToSkip := "skip"
 
 	fmt.Println("On Unix:")
-	err = filepath.Walk(".", func(path string, info fs.FileInfo, err error) error {
+	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
 			return err
