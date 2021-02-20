@@ -300,8 +300,6 @@ func TestIssue22525(t *testing.T) {
 }
 
 func TestIssue25627(t *testing.T) {
-	t.Skip("requires syntax tree inspection")
-
 	const prefix = `package p; import "unsafe"; type P *struct{}; type I interface{}; type T `
 	// The src strings (without prefix) are constructed such that the number of semicolons
 	// plus one corresponds to the number of fields expected in the respective struct.
@@ -325,20 +323,17 @@ func TestIssue25627(t *testing.T) {
 			}
 		}
 
-		unimplemented()
-		/*
-			ast.Inspect(f, func(n syntax.Node) bool {
-				if spec, _ := n.(*syntax.TypeDecl); spec != nil {
-					if tv, ok := info.Types[spec.Type]; ok && spec.Name.Value == "T" {
-						want := strings.Count(src, ";") + 1
-						if got := tv.Type.(*Struct).NumFields(); got != want {
-							t.Errorf("%s: got %d fields; want %d", src, got, want)
-						}
+		syntax.Walk(f, func(n syntax.Node) bool {
+			if decl, _ := n.(*syntax.TypeDecl); decl != nil {
+				if tv, ok := info.Types[decl.Type]; ok && decl.Name.Value == "T" {
+					want := strings.Count(src, ";") + 1
+					if got := tv.Type.(*Struct).NumFields(); got != want {
+						t.Errorf("%s: got %d fields; want %d", src, got, want)
 					}
 				}
-				return true
-			})
-		*/
+			}
+			return false
+		})
 	}
 }
 
