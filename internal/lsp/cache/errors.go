@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 
+	errors "golang.org/x/xerrors"
+
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/analysisinternal"
@@ -23,7 +25,6 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/typesinternal"
-	errors "golang.org/x/xerrors"
 )
 
 func sourceDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, severity protocol.DiagnosticSeverity, e interface{}) ([]*source.Diagnostic, error) {
@@ -167,7 +168,7 @@ func sourceDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, severi
 
 func typesCodeHref(snapshot *snapshot, code typesinternal.ErrorCode) string {
 	target := snapshot.View().Options().LinkTarget
-	return fmt.Sprintf("%s/golang.org/x/tools/internal/typesinternal#%s", target, code.String())
+	return fmt.Sprintf("https://%s/golang.org/x/tools/internal/typesinternal#%s", target, code.String())
 }
 
 func suggestedAnalysisFixes(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnostic) ([]source.SuggestedFix, error) {
