@@ -525,7 +525,7 @@ func XTestInterlockedCancels(t testingT) {
 	parent, cancelParent := WithCancel(Background())
 	child, cancelChild := WithCancel(parent)
 	go func() {
-		parent.Done()
+		<-parent.Done()
 		cancelChild()
 	}()
 	cancelParent()
