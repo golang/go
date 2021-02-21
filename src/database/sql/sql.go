@@ -48,7 +48,7 @@ func Register(name string, driver driver.Driver) {
 		panic("sql: Register driver is nil")
 	}
 	if name == "" {
-		panic("sq: Driver name is empty")
+		panic("sql: Driver name is empty")
 	}
 	if _, dup := drivers[name]; dup {
 		panic("sql: Register called twice for driver " + name)
