@@ -5,7 +5,7 @@
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
 // commit: dae62de921d25964e8732411ca09e532dde992f5
-// last fetched Sat Jan 23 2021 16:14:55 GMT-0500 (Eastern Standard Time)
+// last fetched Thu Feb 04 2021 11:11:02 GMT-0500 (Eastern Standard Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -240,34 +240,19 @@ type ChangeAnnotation struct {
  */
 type ChangeAnnotationIdentifier = string
 
-type ClientCapabilities = struct {
-	Workspace struct {
-		/**
-		 * Workspace specific client capabilities.
-		 */
-		WorkspaceClientCapabilities
-		/**
-		 * The client has support for workspace folders
-		 *
-		 * @since 3.6.0
-		 */
-		WorkspaceFolders bool `json:"workspaceFolders,omitempty"`
-		/**
-		 * The client supports `workspace/configuration` requests.
-		 *
-		 * @since 3.6.0
-		 */
-		Configuration bool `json:"configuration,omitempty"`
-	}
+type ClientCapabilities struct {
+	/**
+	 * The workspace client capabilities
+	 */
+	Workspace Workspace2Gn `json:"workspace,omitempty"`
 	/**
 	 * Text document specific client capabilities.
 	 */
 	TextDocument TextDocumentClientCapabilities `json:"textDocument,omitempty"`
-	Window       struct {
-		/**
-		 * Window specific client capabilities.
-		 */
-		WindowClientCapabilities
+	/**
+	 * Window specific client capabilities.
+	 */
+	Window struct {
 		/**
 		 * Whether client supports server initiated progress using the
 		 * `window/workDoneProgress/create` request.
@@ -275,7 +260,19 @@ type ClientCapabilities = struct {
 		 * Since 3.15.0
 		 */
 		WorkDoneProgress bool `json:"workDoneProgress,omitempty"`
-	}
+		/**
+		 * Capabilities specific to the showMessage request.
+		 *
+		 * @since 3.16.0
+		 */
+		ShowMessage ShowMessageRequestClientCapabilities `json:"showMessage,omitempty"`
+		/**
+		 * Capabilities specific to the showDocument request.
+		 *
+		 * @since 3.16.0
+		 */
+		ShowDocument ShowDocumentClientCapabilities `json:"showDocument,omitempty"`
+	} `json:"window,omitempty"`
 	/**
 	 * General client capabilities.
 	 *
@@ -1036,7 +1033,7 @@ type ConfigurationClientCapabilities struct {
 	/**
 	 * The workspace client capabilities
 	 */
-	Workspace WorkspaceGn `json:"workspace,omitempty"`
+	Workspace Workspace3Gn `json:"workspace,omitempty"`
 }
 
 type ConfigurationItem struct {
@@ -2372,71 +2369,7 @@ type ImplementationRegistrationOptions struct {
  */
 type InitializeError float64
 
-type InitializeParams = struct {
-	InnerInitializeParams
-	WorkspaceFoldersInitializeParams
-}
-
-/**
- * The result returned from an initialize request.
- */
-type InitializeResult struct {
-	/**
-	 * The capabilities the language server provides.
-	 */
-	Capabilities ServerCapabilities `json:"capabilities"`
-	/**
-	 * Information about the server.
-	 *
-	 * @since 3.15.0
-	 */
-	ServerInfo struct {
-		/**
-		 * The name of the server as defined by the server.
-		 */
-		Name string `json:"name"`
-		/**
-		 * The server's version as defined by the server.
-		 */
-		Version string `json:"version,omitempty"`
-	} `json:"serverInfo,omitempty"`
-}
-
-type InitializedParams struct {
-}
-
-/**
- * Defines the capabilities provided by the client.
- */
-type InnerClientCapabilities struct {
-	/**
-	 * Workspace specific client capabilities.
-	 */
-	Workspace WorkspaceClientCapabilities `json:"workspace,omitempty"`
-	/**
-	 * Text document specific client capabilities.
-	 */
-	TextDocument TextDocumentClientCapabilities `json:"textDocument,omitempty"`
-	/**
-	 * Window specific client capabilities.
-	 */
-	Window WindowClientCapabilities `json:"window,omitempty"`
-	/**
-	 * General client capabilities.
-	 *
-	 * @since 3.16.0
-	 */
-	General GeneralClientCapabilities `json:"general,omitempty"`
-	/**
-	 * Experimental client capabilities.
-	 */
-	Experimental interface{} `json:"experimental,omitempty"`
-}
-
-/**
- * The initialize parameters
- */
-type InnerInitializeParams struct {
+type InitializeParams struct {
 	/**
 	 * The process Id of the parent process that started
 	 * the server.
@@ -2495,143 +2428,38 @@ type InnerInitializeParams struct {
 	 * The initial trace setting. If omitted trace is disabled ('off').
 	 */
 	Trace string/*'off' | 'messages' | 'verbose'*/ `json:"trace,omitempty"`
-	WorkDoneProgressParams
+	/**
+	 * The actual configured workspace folders.
+	 */
+	WorkspaceFolders []WorkspaceFolder/*WorkspaceFolder[] | null*/ `json:"workspaceFolders"`
 }
 
 /**
- * Defines the capabilities provided by a language
- * server.
+ * The result returned from an initialize request.
  */
-type InnerServerCapabilities struct {
+type InitializeResult struct {
 	/**
-	 * Defines how text documents are synced. Is either a detailed structure defining each notification or
-	 * for backwards compatibility the TextDocumentSyncKind number.
+	 * The capabilities the language server provides.
 	 */
-	TextDocumentSync interface{}/*TextDocumentSyncOptions | TextDocumentSyncKind*/ `json:"textDocumentSync,omitempty"`
+	Capabilities ServerCapabilities `json:"capabilities"`
 	/**
-	 * The server provides completion support.
-	 */
-	CompletionProvider CompletionOptions `json:"completionProvider,omitempty"`
-	/**
-	 * The server provides hover support.
-	 */
-	HoverProvider bool/*boolean | HoverOptions*/ `json:"hoverProvider,omitempty"`
-	/**
-	 * The server provides signature help support.
-	 */
-	SignatureHelpProvider SignatureHelpOptions `json:"signatureHelpProvider,omitempty"`
-	/**
-	 * The server provides Goto Declaration support.
-	 */
-	DeclarationProvider interface{}/* bool | DeclarationOptions | DeclarationRegistrationOptions*/ `json:"declarationProvider,omitempty"`
-	/**
-	 * The server provides goto definition support.
-	 */
-	DefinitionProvider bool/*boolean | DefinitionOptions*/ `json:"definitionProvider,omitempty"`
-	/**
-	 * The server provides Goto Type Definition support.
-	 */
-	TypeDefinitionProvider interface{}/* bool | TypeDefinitionOptions | TypeDefinitionRegistrationOptions*/ `json:"typeDefinitionProvider,omitempty"`
-	/**
-	 * The server provides Goto Implementation support.
-	 */
-	ImplementationProvider interface{}/* bool | ImplementationOptions | ImplementationRegistrationOptions*/ `json:"implementationProvider,omitempty"`
-	/**
-	 * The server provides find references support.
-	 */
-	ReferencesProvider bool/*boolean | ReferenceOptions*/ `json:"referencesProvider,omitempty"`
-	/**
-	 * The server provides document highlight support.
-	 */
-	DocumentHighlightProvider bool/*boolean | DocumentHighlightOptions*/ `json:"documentHighlightProvider,omitempty"`
-	/**
-	 * The server provides document symbol support.
-	 */
-	DocumentSymbolProvider bool/*boolean | DocumentSymbolOptions*/ `json:"documentSymbolProvider,omitempty"`
-	/**
-	 * The server provides code actions. CodeActionOptions may only be
-	 * specified if the client states that it supports
-	 * `codeActionLiteralSupport` in its initial `initialize` request.
-	 */
-	CodeActionProvider interface{}/*boolean | CodeActionOptions*/ `json:"codeActionProvider,omitempty"`
-	/**
-	 * The server provides code lens.
-	 */
-	CodeLensProvider CodeLensOptions `json:"codeLensProvider,omitempty"`
-	/**
-	 * The server provides document link support.
-	 */
-	DocumentLinkProvider DocumentLinkOptions `json:"documentLinkProvider,omitempty"`
-	/**
-	 * The server provides color provider support.
-	 */
-	ColorProvider interface{}/* bool | DocumentColorOptions | DocumentColorRegistrationOptions*/ `json:"colorProvider,omitempty"`
-	/**
-	 * The server provides workspace symbol support.
-	 */
-	WorkspaceSymbolProvider bool/*boolean | WorkspaceSymbolOptions*/ `json:"workspaceSymbolProvider,omitempty"`
-	/**
-	 * The server provides document formatting.
-	 */
-	DocumentFormattingProvider bool/*boolean | DocumentFormattingOptions*/ `json:"documentFormattingProvider,omitempty"`
-	/**
-	 * The server provides document range formatting.
-	 */
-	DocumentRangeFormattingProvider bool/*boolean | DocumentRangeFormattingOptions*/ `json:"documentRangeFormattingProvider,omitempty"`
-	/**
-	 * The server provides document formatting on typing.
-	 */
-	DocumentOnTypeFormattingProvider DocumentOnTypeFormattingOptions `json:"documentOnTypeFormattingProvider,omitempty"`
-	/**
-	 * The server provides rename support. RenameOptions may only be
-	 * specified if the client states that it supports
-	 * `prepareSupport` in its initial `initialize` request.
-	 */
-	RenameProvider interface{}/*boolean | RenameOptions*/ `json:"renameProvider,omitempty"`
-	/**
-	 * The server provides folding provider support.
-	 */
-	FoldingRangeProvider interface{}/* bool | FoldingRangeOptions | FoldingRangeRegistrationOptions*/ `json:"foldingRangeProvider,omitempty"`
-	/**
-	 * The server provides selection range support.
-	 */
-	SelectionRangeProvider interface{}/* bool | SelectionRangeOptions | SelectionRangeRegistrationOptions*/ `json:"selectionRangeProvider,omitempty"`
-	/**
-	 * The server provides execute command support.
-	 */
-	ExecuteCommandProvider ExecuteCommandOptions `json:"executeCommandProvider,omitempty"`
-	/**
-	 * The server provides call hierarchy support.
+	 * Information about the server.
 	 *
-	 * @since 3.16.0
+	 * @since 3.15.0
 	 */
-	CallHierarchyProvider interface{}/* bool | CallHierarchyOptions | CallHierarchyRegistrationOptions*/ `json:"callHierarchyProvider,omitempty"`
-	/**
-	 * The server provides linked editing range support.
-	 *
-	 * @since 3.16.0
-	 */
-	LinkedEditingRangeProvider interface{}/* bool | LinkedEditingRangeOptions | LinkedEditingRangeRegistrationOptions*/ `json:"linkedEditingRangeProvider,omitempty"`
-	/**
-	 * The server provides semantic tokens support.
-	 *
-	 * @since 3.16.0
-	 */
-	SemanticTokensProvider interface{}/*SemanticTokensOptions | SemanticTokensRegistrationOptions*/ `json:"semanticTokensProvider,omitempty"`
-	/**
-	 * Window specific server capabilities.
-	 */
-	Workspace WorkspaceGn `json:"workspace,omitempty"`
-	/**
-	 * The server provides moniker support.
-	 *
-	 * @since 3.16.0
-	 */
-	MonikerProvider interface{}/* bool | MonikerOptions | MonikerRegistrationOptions*/ `json:"monikerProvider,omitempty"`
-	/**
-	 * Experimental server capabilities.
-	 */
-	Experimental interface{} `json:"experimental,omitempty"`
+	ServerInfo struct {
+		/**
+		 * The name of the server as defined by the server.
+		 */
+		Name string `json:"name"`
+		/**
+		 * The server's version as defined by the server.
+		 */
+		Version string `json:"version,omitempty"`
+	} `json:"serverInfo,omitempty"`
+}
+
+type InitializedParams struct {
 }
 
 /**
@@ -2667,8 +2495,6 @@ type InsertTextFormat float64
  * @since 3.16.0
  */
 type InsertTextMode float64
-
-type Integer float64
 
 /**
  * Client capabilities for the linked editing range request.
@@ -3576,9 +3402,136 @@ type SemanticTokensWorkspaceClientCapabilities struct {
 	RefreshSupport bool `json:"refreshSupport,omitempty"`
 }
 
-type ServerCapabilities = struct {
-	InnerServerCapabilities
-	WorkspaceFoldersServerCapabilities
+type ServerCapabilities struct {
+	/**
+	 * Defines how text documents are synced. Is either a detailed structure defining each notification or
+	 * for backwards compatibility the TextDocumentSyncKind number.
+	 */
+	TextDocumentSync interface{}/*TextDocumentSyncOptions | TextDocumentSyncKind*/ `json:"textDocumentSync,omitempty"`
+	/**
+	 * The server provides completion support.
+	 */
+	CompletionProvider CompletionOptions `json:"completionProvider,omitempty"`
+	/**
+	 * The server provides hover support.
+	 */
+	HoverProvider bool/*boolean | HoverOptions*/ `json:"hoverProvider,omitempty"`
+	/**
+	 * The server provides signature help support.
+	 */
+	SignatureHelpProvider SignatureHelpOptions `json:"signatureHelpProvider,omitempty"`
+	/**
+	 * The server provides Goto Declaration support.
+	 */
+	DeclarationProvider interface{}/* bool | DeclarationOptions | DeclarationRegistrationOptions*/ `json:"declarationProvider,omitempty"`
+	/**
+	 * The server provides goto definition support.
+	 */
+	DefinitionProvider bool/*boolean | DefinitionOptions*/ `json:"definitionProvider,omitempty"`
+	/**
+	 * The server provides Goto Type Definition support.
+	 */
+	TypeDefinitionProvider interface{}/* bool | TypeDefinitionOptions | TypeDefinitionRegistrationOptions*/ `json:"typeDefinitionProvider,omitempty"`
+	/**
+	 * The server provides Goto Implementation support.
+	 */
+	ImplementationProvider interface{}/* bool | ImplementationOptions | ImplementationRegistrationOptions*/ `json:"implementationProvider,omitempty"`
+	/**
+	 * The server provides find references support.
+	 */
+	ReferencesProvider bool/*boolean | ReferenceOptions*/ `json:"referencesProvider,omitempty"`
+	/**
+	 * The server provides document highlight support.
+	 */
+	DocumentHighlightProvider bool/*boolean | DocumentHighlightOptions*/ `json:"documentHighlightProvider,omitempty"`
+	/**
+	 * The server provides document symbol support.
+	 */
+	DocumentSymbolProvider bool/*boolean | DocumentSymbolOptions*/ `json:"documentSymbolProvider,omitempty"`
+	/**
+	 * The server provides code actions. CodeActionOptions may only be
+	 * specified if the client states that it supports
+	 * `codeActionLiteralSupport` in its initial `initialize` request.
+	 */
+	CodeActionProvider interface{}/*boolean | CodeActionOptions*/ `json:"codeActionProvider,omitempty"`
+	/**
+	 * The server provides code lens.
+	 */
+	CodeLensProvider CodeLensOptions `json:"codeLensProvider,omitempty"`
+	/**
+	 * The server provides document link support.
+	 */
+	DocumentLinkProvider DocumentLinkOptions `json:"documentLinkProvider,omitempty"`
+	/**
+	 * The server provides color provider support.
+	 */
+	ColorProvider interface{}/* bool | DocumentColorOptions | DocumentColorRegistrationOptions*/ `json:"colorProvider,omitempty"`
+	/**
+	 * The server provides workspace symbol support.
+	 */
+	WorkspaceSymbolProvider bool/*boolean | WorkspaceSymbolOptions*/ `json:"workspaceSymbolProvider,omitempty"`
+	/**
+	 * The server provides document formatting.
+	 */
+	DocumentFormattingProvider bool/*boolean | DocumentFormattingOptions*/ `json:"documentFormattingProvider,omitempty"`
+	/**
+	 * The server provides document range formatting.
+	 */
+	DocumentRangeFormattingProvider bool/*boolean | DocumentRangeFormattingOptions*/ `json:"documentRangeFormattingProvider,omitempty"`
+	/**
+	 * The server provides document formatting on typing.
+	 */
+	DocumentOnTypeFormattingProvider DocumentOnTypeFormattingOptions `json:"documentOnTypeFormattingProvider,omitempty"`
+	/**
+	 * The server provides rename support. RenameOptions may only be
+	 * specified if the client states that it supports
+	 * `prepareSupport` in its initial `initialize` request.
+	 */
+	RenameProvider interface{}/*boolean | RenameOptions*/ `json:"renameProvider,omitempty"`
+	/**
+	 * The server provides folding provider support.
+	 */
+	FoldingRangeProvider interface{}/* bool | FoldingRangeOptions | FoldingRangeRegistrationOptions*/ `json:"foldingRangeProvider,omitempty"`
+	/**
+	 * The server provides selection range support.
+	 */
+	SelectionRangeProvider interface{}/* bool | SelectionRangeOptions | SelectionRangeRegistrationOptions*/ `json:"selectionRangeProvider,omitempty"`
+	/**
+	 * The server provides execute command support.
+	 */
+	ExecuteCommandProvider ExecuteCommandOptions `json:"executeCommandProvider,omitempty"`
+	/**
+	 * The server provides call hierarchy support.
+	 *
+	 * @since 3.16.0
+	 */
+	CallHierarchyProvider interface{}/* bool | CallHierarchyOptions | CallHierarchyRegistrationOptions*/ `json:"callHierarchyProvider,omitempty"`
+	/**
+	 * The server provides linked editing range support.
+	 *
+	 * @since 3.16.0
+	 */
+	LinkedEditingRangeProvider interface{}/* bool | LinkedEditingRangeOptions | LinkedEditingRangeRegistrationOptions*/ `json:"linkedEditingRangeProvider,omitempty"`
+	/**
+	 * The server provides semantic tokens support.
+	 *
+	 * @since 3.16.0
+	 */
+	SemanticTokensProvider interface{}/*SemanticTokensOptions | SemanticTokensRegistrationOptions*/ `json:"semanticTokensProvider,omitempty"`
+	/**
+	 * The workspace server capabilities
+	 */
+	Workspace Workspace5Gn `json:"workspace,omitempty"`
+	/**
+	 * The server provides moniker support.
+	 *
+	 * @since 3.16.0
+	 */
+	MonikerProvider interface{}/* bool | MonikerOptions | MonikerRegistrationOptions*/ `json:"monikerProvider,omitempty"`
+	/**
+	 * Experimental server capabilities.
+	 */
+	Experimental interface{} `json:"experimental,omitempty"`
 }
 
 type SetTraceParams struct {
@@ -4063,8 +4016,6 @@ type TextDocumentClientCapabilities struct {
 /**
  * An event describing a change to a text document. If range and rangeLength are omitted
  * the new text is considered to be the full content of the document.
- *
- * @deprecated Use the text document from the new vscode-languageserver-textdocument package.
  */
 type TextDocumentContentChangeEvent = struct {
 	/**
@@ -4284,8 +4235,6 @@ type TypeDefinitionRegistrationOptions struct {
  */
 type URI = string
 
-type Uinteger float64
-
 /**
  * Moniker uniqueness level to define scope of the moniker.
  *
@@ -4415,6 +4364,18 @@ type WorkDoneProgressClientCapabilities struct {
 		 * Since 3.15.0
 		 */
 		WorkDoneProgress bool `json:"workDoneProgress,omitempty"`
+		/**
+		 * Capabilities specific to the showMessage request.
+		 *
+		 * @since 3.16.0
+		 */
+		ShowMessage ShowMessageRequestClientCapabilities `json:"showMessage,omitempty"`
+		/**
+		 * Capabilities specific to the showDocument request.
+		 *
+		 * @since 3.16.0
+		 */
+		ShowDocument ShowDocumentClientCapabilities `json:"showDocument,omitempty"`
 	} `json:"window,omitempty"`
 }
 
@@ -4634,7 +4595,7 @@ type WorkspaceFoldersClientCapabilities struct {
 	/**
 	 * The workspace client capabilities
 	 */
-	Workspace WorkspaceGn `json:"workspace,omitempty"`
+	Workspace Workspace6Gn `json:"workspace,omitempty"`
 }
 
 type WorkspaceFoldersInitializeParams struct {
@@ -4648,7 +4609,7 @@ type WorkspaceFoldersServerCapabilities struct {
 	/**
 	 * The workspace server capabilities
 	 */
-	Workspace WorkspaceGn `json:"workspace,omitempty"`
+	Workspace Workspace8Gn `json:"workspace,omitempty"`
 }
 
 /**
@@ -4989,8 +4950,6 @@ const (
 	 */
 
 	AdjustIndentation InsertTextMode = 2
-	INT_MIN_VALUE     Integer        = -2147483648
-	INT_MAX_VALUE     Integer        = 2147483647
 	/**
 	 * Plain text is supported as a content format
 	 */
@@ -5128,9 +5087,7 @@ const (
 	 * send.
 	 */
 
-	Incremental    TextDocumentSyncKind = 2
-	UINT_MIN_VALUE Uinteger             = 0
-	UINT_MAX_VALUE Uinteger             = 2147483647
+	Incremental TextDocumentSyncKind = 2
 	/**
 	 * The moniker is only unique inside a document
 	 */
@@ -5177,10 +5134,147 @@ type ParamInitialize struct {
 	InitializeParams
 	WorkDoneProgressParams
 }
-type WorkspaceGn struct {
-	WorkspaceFolders WorkspaceFoldersGn `json:"workspaceFolders,omitempty"`
+type Workspace2Gn struct {
+	/**
+	 * The client supports applying batch edits
+	 * to the workspace by supporting the request
+	 * 'workspace/applyEdit'
+	 */
+	ApplyEdit bool `json:"applyEdit,omitempty"`
+
+	/**
+	 * Capabilities specific to `WorkspaceEdit`s
+	 */
+	WorkspaceEdit *WorkspaceEditClientCapabilities `json:"workspaceEdit,omitempty"`
+
+	/**
+	 * Capabilities specific to the `workspace/didChangeConfiguration` notification.
+	 */
+	DidChangeConfiguration DidChangeConfigurationClientCapabilities `json:"didChangeConfiguration,omitempty"`
+
+	/**
+	 * Capabilities specific to the `workspace/didChangeWatchedFiles` notification.
+	 */
+	DidChangeWatchedFiles DidChangeWatchedFilesClientCapabilities `json:"didChangeWatchedFiles,omitempty"`
+
+	/**
+	 * Capabilities specific to the `workspace/symbol` request.
+	 */
+	Symbol *WorkspaceSymbolClientCapabilities `json:"symbol,omitempty"`
+
+	/**
+	 * Capabilities specific to the `workspace/executeCommand` request.
+	 */
+	ExecuteCommand ExecuteCommandClientCapabilities `json:"executeCommand,omitempty"`
+
+	/**
+	 * Capabilities specific to the semantic token requests scoped to the
+	 * workspace.
+	 *
+	 * @since 3.16.0.
+	 */
+	SemanticTokens SemanticTokensWorkspaceClientCapabilities `json:"semanticTokens,omitempty"`
+
+	/**
+	 * Capabilities specific to the code lens requests scoped to the
+	 * workspace.
+	 *
+	 * @since 3.16.0.
+	 */
+	CodeLens CodeLensWorkspaceClientCapabilities `json:"codeLens,omitempty"`
+
+	/**
+	 * The client has support for file notifications/requests for user operations on files.
+	 *
+	 * Since 3.16.0
+	 */
+	FileOperations *FileOperationClientCapabilities `json:"fileOperations,omitempty"`
+
+	/**
+	 * The client has support for workspace folders
+	 *
+	 * @since 3.6.0
+	 */
+	WorkspaceFolders bool `json:"workspaceFolders,omitempty"`
+
+	/**
+	 * The client supports `workspace/configuration` requests.
+	 *
+	 * @since 3.6.0
+	 */
+	Configuration bool `json:"configuration,omitempty"`
 }
-type WorkspaceFoldersGn struct {
+type Workspace3Gn struct {
+	/**
+	 * The client supports applying batch edits
+	 * to the workspace by supporting the request
+	 * 'workspace/applyEdit'
+	 */
+	ApplyEdit bool `json:"applyEdit,omitempty"`
+
+	/**
+	 * Capabilities specific to `WorkspaceEdit`s
+	 */
+	WorkspaceEdit *WorkspaceEditClientCapabilities `json:"workspaceEdit,omitempty"`
+
+	/**
+	 * Capabilities specific to the `workspace/didChangeConfiguration` notification.
+	 */
+	DidChangeConfiguration DidChangeConfigurationClientCapabilities `json:"didChangeConfiguration,omitempty"`
+
+	/**
+	 * Capabilities specific to the `workspace/didChangeWatchedFiles` notification.
+	 */
+	DidChangeWatchedFiles DidChangeWatchedFilesClientCapabilities `json:"didChangeWatchedFiles,omitempty"`
+
+	/**
+	 * Capabilities specific to the `workspace/symbol` request.
+	 */
+	Symbol *WorkspaceSymbolClientCapabilities `json:"symbol,omitempty"`
+
+	/**
+	 * Capabilities specific to the `workspace/executeCommand` request.
+	 */
+	ExecuteCommand ExecuteCommandClientCapabilities `json:"executeCommand,omitempty"`
+
+	/**
+	 * Capabilities specific to the semantic token requests scoped to the
+	 * workspace.
+	 *
+	 * @since 3.16.0.
+	 */
+	SemanticTokens SemanticTokensWorkspaceClientCapabilities `json:"semanticTokens,omitempty"`
+
+	/**
+	 * Capabilities specific to the code lens requests scoped to the
+	 * workspace.
+	 *
+	 * @since 3.16.0.
+	 */
+	CodeLens CodeLensWorkspaceClientCapabilities `json:"codeLens,omitempty"`
+
+	/**
+	 * The client has support for file notifications/requests for user operations on files.
+	 *
+	 * Since 3.16.0
+	 */
+	FileOperations *FileOperationClientCapabilities `json:"fileOperations,omitempty"`
+
+	/**
+	 * The client has support for workspace folders
+	 *
+	 * @since 3.6.0
+	 */
+	WorkspaceFolders bool `json:"workspaceFolders,omitempty"`
+
+	/**
+	 * The client supports `workspace/configuration` requests.
+	 *
+	 * @since 3.6.0
+	 */
+	Configuration bool `json:"configuration,omitempty"`
+}
+type WorkspaceFolders4Gn struct {
 	/**
 	 * The Server has support for workspace folders
 	 */
@@ -5196,4 +5290,111 @@ type WorkspaceFoldersGn struct {
 	 * using the `client/unregisterCapability` request.
 	 */
 	ChangeNotifications string/*string | boolean*/ `json:"changeNotifications,omitempty"`
+}
+type Workspace5Gn struct {
+	/**
+	* The server is interested in notifications/requests for operations on files.
+	*
+	* @since 3.16.0
+	 */
+	FileOperations *FileOperationOptions `json:"fileOperations,omitempty"`
+
+	WorkspaceFolders WorkspaceFolders4Gn `json:"workspaceFolders,omitempty"`
+}
+type Workspace6Gn struct {
+	/**
+	 * The client supports applying batch edits
+	 * to the workspace by supporting the request
+	 * 'workspace/applyEdit'
+	 */
+	ApplyEdit bool `json:"applyEdit,omitempty"`
+
+	/**
+	 * Capabilities specific to `WorkspaceEdit`s
+	 */
+	WorkspaceEdit *WorkspaceEditClientCapabilities `json:"workspaceEdit,omitempty"`
+
+	/**
+	 * Capabilities specific to the `workspace/didChangeConfiguration` notification.
+	 */
+	DidChangeConfiguration DidChangeConfigurationClientCapabilities `json:"didChangeConfiguration,omitempty"`
+
+	/**
+	 * Capabilities specific to the `workspace/didChangeWatchedFiles` notification.
+	 */
+	DidChangeWatchedFiles DidChangeWatchedFilesClientCapabilities `json:"didChangeWatchedFiles,omitempty"`
+
+	/**
+	 * Capabilities specific to the `workspace/symbol` request.
+	 */
+	Symbol *WorkspaceSymbolClientCapabilities `json:"symbol,omitempty"`
+
+	/**
+	 * Capabilities specific to the `workspace/executeCommand` request.
+	 */
+	ExecuteCommand ExecuteCommandClientCapabilities `json:"executeCommand,omitempty"`
+
+	/**
+	 * Capabilities specific to the semantic token requests scoped to the
+	 * workspace.
+	 *
+	 * @since 3.16.0.
+	 */
+	SemanticTokens SemanticTokensWorkspaceClientCapabilities `json:"semanticTokens,omitempty"`
+
+	/**
+	 * Capabilities specific to the code lens requests scoped to the
+	 * workspace.
+	 *
+	 * @since 3.16.0.
+	 */
+	CodeLens CodeLensWorkspaceClientCapabilities `json:"codeLens,omitempty"`
+
+	/**
+	 * The client has support for file notifications/requests for user operations on files.
+	 *
+	 * Since 3.16.0
+	 */
+	FileOperations *FileOperationClientCapabilities `json:"fileOperations,omitempty"`
+
+	/**
+	 * The client has support for workspace folders
+	 *
+	 * @since 3.6.0
+	 */
+	WorkspaceFolders bool `json:"workspaceFolders,omitempty"`
+
+	/**
+	 * The client supports `workspace/configuration` requests.
+	 *
+	 * @since 3.6.0
+	 */
+	Configuration bool `json:"configuration,omitempty"`
+}
+type WorkspaceFolders7Gn struct {
+	/**
+	 * The Server has support for workspace folders
+	 */
+	Supported bool `json:"supported,omitempty"`
+
+	/**
+	 * Whether the server wants to receive workspace folder
+	 * change notifications.
+	 *
+	 * If a strings is provided the string is treated as a ID
+	 * under which the notification is registered on the client
+	 * side. The ID can be used to unregister for these events
+	 * using the `client/unregisterCapability` request.
+	 */
+	ChangeNotifications string/*string | boolean*/ `json:"changeNotifications,omitempty"`
+}
+type Workspace8Gn struct {
+	/**
+	* The server is interested in notifications/requests for operations on files.
+	*
+	* @since 3.16.0
+	 */
+	FileOperations *FileOperationOptions `json:"fileOperations,omitempty"`
+
+	WorkspaceFolders WorkspaceFolders7Gn `json:"workspaceFolders,omitempty"`
 }

@@ -90,42 +90,40 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
-			InnerServerCapabilities: protocol.InnerServerCapabilities{
-				CallHierarchyProvider: true,
-				CodeActionProvider:    codeActionProvider,
-				CompletionProvider: protocol.CompletionOptions{
-					TriggerCharacters: []string{"."},
+			CallHierarchyProvider: true,
+			CodeActionProvider:    codeActionProvider,
+			CompletionProvider: protocol.CompletionOptions{
+				TriggerCharacters: []string{"."},
+			},
+			DefinitionProvider:         true,
+			TypeDefinitionProvider:     true,
+			ImplementationProvider:     true,
+			DocumentFormattingProvider: true,
+			DocumentSymbolProvider:     true,
+			WorkspaceSymbolProvider:    true,
+			ExecuteCommandProvider: protocol.ExecuteCommandOptions{
+				Commands: options.SupportedCommands,
+			},
+			FoldingRangeProvider:      true,
+			HoverProvider:             true,
+			DocumentHighlightProvider: true,
+			DocumentLinkProvider:      protocol.DocumentLinkOptions{},
+			ReferencesProvider:        true,
+			RenameProvider:            renameOpts,
+			SignatureHelpProvider: protocol.SignatureHelpOptions{
+				TriggerCharacters: []string{"(", ","},
+			},
+			TextDocumentSync: &protocol.TextDocumentSyncOptions{
+				Change:    protocol.Incremental,
+				OpenClose: true,
+				Save: protocol.SaveOptions{
+					IncludeText: false,
 				},
-				DefinitionProvider:         true,
-				TypeDefinitionProvider:     true,
-				ImplementationProvider:     true,
-				DocumentFormattingProvider: true,
-				DocumentSymbolProvider:     true,
-				WorkspaceSymbolProvider:    true,
-				ExecuteCommandProvider: protocol.ExecuteCommandOptions{
-					Commands: options.SupportedCommands,
-				},
-				FoldingRangeProvider:      true,
-				HoverProvider:             true,
-				DocumentHighlightProvider: true,
-				DocumentLinkProvider:      protocol.DocumentLinkOptions{},
-				ReferencesProvider:        true,
-				RenameProvider:            renameOpts,
-				SignatureHelpProvider: protocol.SignatureHelpOptions{
-					TriggerCharacters: []string{"(", ","},
-				},
-				TextDocumentSync: &protocol.TextDocumentSyncOptions{
-					Change:    protocol.Incremental,
-					OpenClose: true,
-					Save: protocol.SaveOptions{
-						IncludeText: false,
-					},
-				},
-				Workspace: protocol.WorkspaceGn{
-					WorkspaceFolders: protocol.WorkspaceFoldersGn{
-						Supported:           true,
-						ChangeNotifications: "workspace/didChangeWorkspaceFolders",
-					},
+			},
+			Workspace: protocol.Workspace5Gn{
+				WorkspaceFolders: protocol.WorkspaceFolders4Gn{
+					Supported:           true,
+					ChangeNotifications: "workspace/didChangeWorkspaceFolders",
 				},
 			},
 		},
