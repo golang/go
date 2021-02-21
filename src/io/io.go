@@ -378,6 +378,10 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
 // the copy is implemented by calling src.WriteTo(dst).
 // Otherwise, if dst implements the ReaderFrom interface,
 // the copy is implemented by calling dst.ReadFrom(src).
+// Copy returns the same error as the WriterTo and
+// ReaderFrom encounter. in most case
+// not return EOF error in the implenet of WriterTo
+// and ReaderFrom.
 func Copy(dst Writer, src Reader) (written int64, err error) {
 	return copyBuffer(dst, src, nil)
 }
