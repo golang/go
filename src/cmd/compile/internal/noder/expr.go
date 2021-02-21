@@ -325,19 +325,22 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
 	return typecheck.Expr(ir.NewCompLitExpr(g.pos(lit), ir.OCOMPLIT, ir.TypeNode(g.typ(typ)), exprs))
 }
 
-func (g *irgen) funcLit(typ types2.Type, expr *syntax.FuncLit) ir.Node {
+func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {
 	fn := ir.NewFunc(g.pos(expr))
 	fn.SetIsHiddenClosure(ir.CurFunc != nil)
 
 	fn.Nname = ir.NewNameAt(g.pos(expr), typecheck.ClosureName(ir.CurFunc))
 	ir.MarkFunc(fn.Nname)
-	fn.Nname.SetType(g.typ(typ))
+	typ := g.typ(typ2)
 	fn.Nname.Func = fn
 	fn.Nname.Defn = fn
+	// Set Ntype for now to be compatible with later parts of compile, remove later.
+	fn.Nname.Ntype = ir.TypeNode(typ)
+	typed(typ, fn.Nname)
+	fn.SetTypecheck(1)
 
 	fn.OClosure = ir.NewClosureExpr(g.pos(expr), fn)
-	fn.OClosure.SetType(fn.Nname.Type())
-	fn.OClosure.SetTypecheck(1)
+	typed(typ, fn.OClosure)
 
 	g.funcBody(fn, nil, expr.Type, expr.Body)
 
