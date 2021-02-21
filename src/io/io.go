@@ -176,9 +176,10 @@ type ReadWriteSeeker interface {
 
 // ReaderFrom is the interface that wraps the ReadFrom method.
 //
-// ReadFrom reads data from r until EOF or error.
-// The return value n is the number of bytes read.
-// Any error except EOF encountered during the read is also returned.
+// ReadFrom reads data from r until EOF or error. The return value n is the
+// number of bytes read. Any error except EOF encountered during the read is
+// also returned. This method will never return EOF, even if no bytes were
+// read.
 //
 // The Copy function uses ReaderFrom if available.
 type ReaderFrom interface {
@@ -187,9 +188,10 @@ type ReaderFrom interface {
 
 // WriterTo is the interface that wraps the WriteTo method.
 //
-// WriteTo writes data to w until there's no more data to write or
-// when an error occurs. The return value n is the number of bytes
-// written. Any error encountered during the write is also returned.
+// WriteTo writes data to w until there's no more data to write or when an
+// error occurs. The return value n is the number of bytes written. Any error
+// except EOF encountered during the write is also returned. This method will
+// never return EOF, even if no bytes were read.
 //
 // The Copy function uses WriterTo if available.
 type WriterTo interface {
