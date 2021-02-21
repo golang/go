@@ -303,7 +303,7 @@ func (t *fsTester) checkGlob(dir string, list []fs.DirEntry) {
 		for i, e := range elem {
 			var pattern []rune
 			for j, r := range e {
-				if r == '*' || r == '?' || r == '\\' || r == '[' {
+				if r == '*' || r == '?' || r == '\\' || r == '[' || r == '-' {
 					pattern = append(pattern, '\\', r)
 					continue
 				}
