@@ -16,9 +16,9 @@ cmpenv go.mod $WORK/go.mod.init
 cmpenv go.mod $WORK/go.mod.init
 
 # go mod edits
-go mod edit -droprequire=x.1 -require=x.1@v1.0.0 -require=x.2@v1.1.0 -droprequire=x.2 -exclude='x.1 @ v1.2.0' -exclude=x.1@v1.2.1 -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z' -retract=v1.6.0 -retract=[v1.1.0,v1.2.0] -retract=[v1.3.0,v1.4.0] -retract=v1.0.0
+go mod edit -droprequire=x.1 -require=x.1@v1.0.0 -require=x.2@v1.1.0 -droprequire=x.2 -exclude='x.1 @ v1.2.0' -exclude=x.1@v1.2.1 -exclude=x.1@v2.0.0+incompatible -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z' -retract=v1.6.0 -retract=[v1.1.0,v1.2.0] -retract=[v1.3.0,v1.4.0] -retract=v1.0.0
 cmpenv go.mod $WORK/go.mod.edit1
-go mod edit -droprequire=x.1 -dropexclude=x.1@v1.2.1 -dropreplace=x.1@v1.3.0 -require=x.3@v1.99.0 -dropretract=v1.0.0 -dropretract=[v1.1.0,v1.2.0]
+go mod edit -droprequire=x.1 -dropexclude=x.1@v1.2.1 -dropexclude=x.1@v2.0.0+incompatible -dropreplace=x.1@v1.3.0 -require=x.3@v1.99.0 -dropretract=v1.0.0 -dropretract=[v1.1.0,v1.2.0]
 cmpenv go.mod $WORK/go.mod.edit2
 
 # -exclude and -retract reject invalid versions.
@@ -26,6 +26,17 @@ cmpenv go.mod $WORK/go.mod.edit2
 stderr '^go mod: -exclude=example.com/m@bad: version "bad" invalid: must be of the form v1.2.3$'
 ! go mod edit -retract=bad
 stderr '^go mod: -retract=bad: version "bad" invalid: must be of the form v1.2.3$'
+
+! go mod edit -exclude=example.com/m@v2.0.0
+stderr '^go mod: -exclude=example.com/m@v2\.0\.0: version "v2\.0\.0" invalid: should be v2\.0\.0\+incompatible \(or module example\.com/m/v2\)$'
+
+! go mod edit -exclude=example.com/m/v2@v1.0.0
+stderr '^go mod: -exclude=example.com/m/v2@v1\.0\.0: version "v1\.0\.0" invalid: should be v2, not v1$'
+
+! go mod edit -exclude=gopkg.in/example.v1@v2.0.0
+stderr '^go mod: -exclude=gopkg\.in/example\.v1@v2\.0\.0: version "v2\.0\.0" invalid: should be v1, not v2$'
+
+cmpenv go.mod $WORK/go.mod.edit2
 
 # go mod edit -json
 go mod edit -json
@@ -88,6 +99,7 @@ require x.1 v1.0.0
 exclude (
 	x.1 v1.2.0
 	x.1 v1.2.1
+	x.1 v2.0.0+incompatible
 )
 
 replace (

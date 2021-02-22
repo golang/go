@@ -835,11 +835,8 @@ func (f *File) DropRequire(path string) error {
 // AddExclude adds a exclude statement to the mod file. Errors if the provided
 // version is not a canonical version string
 func (f *File) AddExclude(path, vers string) error {
-	if !isCanonicalVersion(vers) {
-		return &module.InvalidVersionError{
-			Version: vers,
-			Err:     errors.New("must be of the form v1.2.3"),
-		}
+	if err := checkCanonicalVersion(path, vers); err != nil {
+		return err
 	}
 
 	var hint *Line
@@ -916,17 +913,15 @@ func (f *File) DropReplace(oldPath, oldVers string) error {
 // AddRetract adds a retract statement to the mod file. Errors if the provided
 // version interval does not consist of canonical version strings
 func (f *File) AddRetract(vi VersionInterval, rationale string) error {
-	if !isCanonicalVersion(vi.High) {
-		return &module.InvalidVersionError{
-			Version: vi.High,
-			Err:     errors.New("must be of the form v1.2.3"),
-		}
+	var path string
+	if f.Module != nil {
+		path = f.Module.Mod.Path
 	}
-	if !isCanonicalVersion(vi.Low) {
-		return &module.InvalidVersionError{
-			Version: vi.Low,
-			Err:     errors.New("must be of the form v1.2.3"),
-		}
+	if err := checkCanonicalVersion(path, vi.High); err != nil {
+		return err
+	}
+	if err := checkCanonicalVersion(path, vi.Low); err != nil {
+		return err
 	}
 
 	r := &Retract{
@@ -1086,8 +1081,40 @@ func lineRetractLess(li, lj *Line) bool {
 	return semver.Compare(vii.High, vij.High) > 0
 }
 
-// isCanonicalVersion tests if the provided version string represents a valid
-// canonical version.
-func isCanonicalVersion(vers string) bool {
-	return vers != "" && semver.Canonical(vers) == vers
+// checkCanonicalVersion returns a non-nil error if vers is not a canonical
+// version string or does not match the major version of path.
+//
+// If path is non-empty, the error text suggests a format with a major version
+// corresponding to the path.
+func checkCanonicalVersion(path, vers string) error {
+	_, pathMajor, pathMajorOk := module.SplitPathVersion(path)
+
+	if vers == "" || vers != module.CanonicalVersion(vers) {
+		if pathMajor == "" {
+			return &module.InvalidVersionError{
+				Version: vers,
+				Err:     fmt.Errorf("must be of the form v1.2.3"),
+			}
+		}
+		return &module.InvalidVersionError{
+			Version: vers,
+			Err:     fmt.Errorf("must be of the form %s.2.3", module.PathMajorPrefix(pathMajor)),
+		}
+	}
+
+	if pathMajorOk {
+		if err := module.CheckPathMajor(vers, pathMajor); err != nil {
+			if pathMajor == "" {
+				// In this context, the user probably wrote "v2.3.4" when they meant
+				// "v2.3.4+incompatible". Suggest that instead of "v0 or v1".
+				return &module.InvalidVersionError{
+					Version: vers,
+					Err:     fmt.Errorf("should be %s+incompatible (or module %s/%v)", vers, path, semver.Major(vers)),
+				}
+			}
+			return err
+		}
+	}
+
+	return nil
 }
