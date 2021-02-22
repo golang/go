@@ -14,7 +14,7 @@ import (
 )
 
 // encVersion1 will be the first line of a file with version 1 encoding.
-var encVersion1 = "version 1"
+var encVersion1 = "go test fuzz v1"
 
 // marshalCorpusFile encodes an arbitrary number of arguments into the file format for the
 // corpus.

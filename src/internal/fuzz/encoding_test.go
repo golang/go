@@ -19,59 +19,59 @@ func TestUnmarshalMarshal(t *testing.T) {
 			ok: false, // missing version
 		},
 		{
-			in: `version 1
+			in: `go test fuzz v1
 string("a"bcad")`,
 			ok: false, // malformed
 		},
 		{
-			in: `version 1
+			in: `go test fuzz v1
 int()`,
 			ok: false, // empty value
 		},
 		{
-			in: `version 1
+			in: `go test fuzz v1
 uint(-32)`,
 			ok: false, // invalid negative uint
 		},
 		{
-			in: `version 1
+			in: `go test fuzz v1
 int8(1234456)`,
 			ok: false, // int8 too large
 		},
 		{
-			in: `version 1
+			in: `go test fuzz v1
 int(20*5)`,
 			ok: false, // expression in int value
 		},
 		{
-			in: `version 1
+			in: `go test fuzz v1
 int(--5)`,
 			ok: false, // expression in int value
 		},
 		{
-			in: `version 1
+			in: `go test fuzz v1
 bool(0)`,
 			ok: false, // malformed bool
 		},
 		{
-			in: `version 1
+			in: `go test fuzz v1
 byte('aa)`,
 			ok: false, // malformed byte
 		},
 		{
-			in: `version 1
+			in: `go test fuzz v1
 byte('☃')`,
 			ok: false, // byte out of range
 		},
 		{
-			in: `version 1
+			in: `go test fuzz v1
 string("extra")
 []byte("spacing")  
     `,
 			ok: true,
 		},
 		{
-			in: `version 1
+			in: `go test fuzz v1
 int(-23)
 int8(-2)
 int64(2342425)
