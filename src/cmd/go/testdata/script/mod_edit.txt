@@ -26,6 +26,25 @@ cmpenv go.mod $WORK/go.mod.edit2
 stderr '^go mod: -exclude=example.com/m@bad: version "bad" invalid: must be of the form v1.2.3$'
 ! go mod edit -retract=bad
 stderr '^go mod: -retract=bad: version "bad" invalid: must be of the form v1.2.3$'
+cmpenv go.mod $WORK/go.mod.edit2
+
+cp go.mod go.mod.beforebugs
+
+# BUG(#44497): -exclude accepts a mismatched major version without +incompatible, but should not.
+go mod edit -exclude=example.com/m@v2.0.0
+! go mod edit -json
+stderr '^go: errors parsing go.mod:\n.*[/\\]go.mod:16: exclude example\.com/m: version "v2\.0\.0" invalid: should be v0 or v1, not v2$'
+cp go.mod.beforebugs go.mod
+
+# BUG(#44497): -exclude accepts a v1 version for a v2 module, but should not.
+go mod edit -exclude=example.com/m/v2@v1.0.0
+! go mod edit -json
+stderr '^go: errors parsing go.mod:\n.*[/\\]go.mod:16: exclude example\.com/m/v2: version "v1\.0\.0" invalid: should be v2, not v1$'
+cp go.mod.beforebugs go.mod
+
+# BUG(#44497): -exclude rejects a +incompatible version for an unversioned
+# module path, but should not.
+! go mod edit -exclude=example.com/m@v2.0.0+incompatible
 
 # go mod edit -json
 go mod edit -json
