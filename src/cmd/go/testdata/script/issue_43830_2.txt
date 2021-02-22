@@ -1,0 +1,28 @@
+# tests golang.org/issue/43830
+
+[!cgo] skip
+
+env CGO_CFLAGS='-flto -ffat-lto-objects'
+go build main.go
+
+-- main.go --
+
+package main
+
+import "fmt"
+
+// #include "hello.h"
+import "C"
+
+func main() {
+	hello := C.hello
+	fmt.Printf("%v\n", hello)
+}
+
+-- hello.h --
+
+#include <stdio.h>
+
+void hello(void) {
+  printf("hello\n");
+}
