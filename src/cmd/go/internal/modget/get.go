@@ -30,7 +30,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"sort"
 	"strings"
@@ -1635,7 +1634,8 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 		}
 	}
 
-	if err := modload.EditBuildList(ctx, additions, resolved); err != nil {
+	changed, err := modload.EditBuildList(ctx, additions, resolved)
+	if err != nil {
 		var constraint *modload.ConstraintError
 		if !errors.As(err, &constraint) {
 			base.Errorf("go get: %v", err)
@@ -1654,12 +1654,11 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 		}
 		return false
 	}
-
-	buildList := modload.LoadAllModules(ctx)
-	if reflect.DeepEqual(r.buildList, buildList) {
+	if !changed {
 		return false
 	}
-	r.buildList = buildList
+
+	r.buildList = modload.LoadAllModules(ctx)
 	r.buildListVersion = make(map[string]string, len(r.buildList))
 	for _, m := range r.buildList {
 		r.buildListVersion[m.Path] = m.Version
