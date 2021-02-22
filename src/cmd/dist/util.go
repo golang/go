@@ -389,6 +389,10 @@ func xgetgoarm() string {
 		// sense to auto-detect the setting.
 		return "7"
 	}
+	if goos == "windows" {
+		// windows/arm only works with ARMv7 executables.
+		return "7"
+	}
 	if gohostarch != "arm" || goos != gohostos {
 		// Conservative default for cross-compilation.
 		return "5"

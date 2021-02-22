@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Pool is no-op under race detector, so all these tests do not work.
+//go:build !race
 // +build !race
 
 package sync_test

@@ -1,3 +1,4 @@
+//go:build cgo
 // +build cgo
 
 // Copyright 2019 The Go Authors. All rights reserved.

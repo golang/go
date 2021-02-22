@@ -88,7 +88,7 @@ func medianBucket(h *metrics.Float64Histogram) float64 {
 	total = 0
 	for i, count := range h.Counts {
 		total += count
-		if total > thresh {
+		if total >= thresh {
 			return h.Buckets[i]
 		}
 	}

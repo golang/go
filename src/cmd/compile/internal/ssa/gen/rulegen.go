@@ -582,6 +582,7 @@ func fprint(w io.Writer, n Node) {
 			"math",
 			"cmd/internal/obj",
 			"cmd/internal/objabi",
+			"cmd/compile/internal/base",
 			"cmd/compile/internal/types",
 		}, n.Arch.imports...) {
 			fmt.Fprintf(w, "import %q\n", path)

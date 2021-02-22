@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris
 // +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
 
 package os
@@ -66,6 +67,10 @@ type file struct {
 // making it invalid; see runtime.SetFinalizer for more information on when
 // a finalizer might be run. On Unix systems this will cause the SetDeadline
 // methods to stop working.
+// Because file descriptors can be reused, the returned file descriptor may
+// only be closed through the Close method of f, or by its finalizer during
+// garbage collection. Otherwise, during garbage collection the finalizer
+// may close an unrelated file descriptor with the same (reused) number.
 //
 // As an alternative, see the f.SyscallConn method.
 func (f *File) Fd() uintptr {
@@ -90,6 +95,10 @@ func (f *File) Fd() uintptr {
 // descriptor. On Unix systems, if the file descriptor is in
 // non-blocking mode, NewFile will attempt to return a pollable File
 // (one for which the SetDeadline methods work).
+//
+// After passing it to NewFile, fd may become invalid under the same
+// conditions described in the comments of the Fd method, and the same
+// constraints apply.
 func NewFile(fd uintptr, name string) *File {
 	kind := kindNewFile
 	if nb, err := unix.IsNonblock(int(fd)); err == nil && nb {

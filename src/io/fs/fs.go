@@ -10,6 +10,7 @@ package fs
 import (
 	"internal/oserror"
 	"time"
+	"unicode/utf8"
 )
 
 // An FS provides access to a hierarchical file system.
@@ -32,14 +33,22 @@ type FS interface {
 
 // ValidPath reports whether the given path name
 // is valid for use in a call to Open.
-// Path names passed to open are unrooted, slash-separated
-// sequences of path elements, like “x/y/z”.
-// Path names must not contain a “.” or “..” or empty element,
-// except for the special case that the root directory is named “.”.
 //
-// Paths are slash-separated on all systems, even Windows.
-// Backslashes must not appear in path names.
+// Path names passed to open are UTF-8-encoded,
+// unrooted, slash-separated sequences of path elements, like “x/y/z”.
+// Path names must not contain an element that is “.” or “..” or the empty string,
+// except for the special case that the root directory is named “.”.
+// Paths must not start or end with a slash: “/x” and “x/” are invalid.
+//
+// Note that paths are slash-separated on all systems, even Windows.
+// Paths containing other characters such as backslash and colon
+// are accepted as valid, but those characters must never be
+// interpreted by an FS implementation as path element separators.
 func ValidPath(name string) bool {
+	if !utf8.ValidString(name) {
+		return false
+	}
+
 	if name == "." {
 		// special case
 		return true
@@ -49,9 +58,6 @@ func ValidPath(name string) bool {
 	for {
 		i := 0
 		for i < len(name) && name[i] != '/' {
-			if name[i] == '\\' {
-				return false
-			}
 			i++
 		}
 		elem := name[:i]

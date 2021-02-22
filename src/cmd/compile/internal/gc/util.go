@@ -8,59 +8,35 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+
+	"cmd/compile/internal/base"
 )
 
-// Line returns n's position as a string. If n has been inlined,
-// it uses the outermost position where n has been inlined.
-func (n *Node) Line() string {
-	return linestr(n.Pos)
-}
-
-var atExitFuncs []func()
-
-func atExit(f func()) {
-	atExitFuncs = append(atExitFuncs, f)
-}
-
-func Exit(code int) {
-	for i := len(atExitFuncs) - 1; i >= 0; i-- {
-		f := atExitFuncs[i]
-		atExitFuncs = atExitFuncs[:i]
-		f()
-	}
-	os.Exit(code)
-}
-
 var (
-	blockprofile   string
-	cpuprofile     string
-	memprofile     string
 	memprofilerate int64
-	traceprofile   string
 	traceHandler   func(string)
-	mutexprofile   string
 )
 
 func startProfile() {
-	if cpuprofile != "" {
-		f, err := os.Create(cpuprofile)
+	if base.Flag.CPUProfile != "" {
+		f, err := os.Create(base.Flag.CPUProfile)
 		if err != nil {
-			Fatalf("%v", err)
+			base.Fatalf("%v", err)
 		}
 		if err := pprof.StartCPUProfile(f); err != nil {
-			Fatalf("%v", err)
+			base.Fatalf("%v", err)
 		}
-		atExit(pprof.StopCPUProfile)
+		base.AtExit(pprof.StopCPUProfile)
 	}
-	if memprofile != "" {
+	if base.Flag.MemProfile != "" {
 		if memprofilerate != 0 {
 			runtime.MemProfileRate = int(memprofilerate)
 		}
-		f, err := os.Create(memprofile)
+		f, err := os.Create(base.Flag.MemProfile)
 		if err != nil {
-			Fatalf("%v", err)
+			base.Fatalf("%v", err)
 		}
-		atExit(func() {
+		base.AtExit(func() {
 			// Profile all outstanding allocations.
 			runtime.GC()
 			// compilebench parses the memory profile to extract memstats,
@@ -68,36 +44,36 @@ func startProfile() {
 			// See golang.org/issue/18641 and runtime/pprof/pprof.go:writeHeap.
 			const writeLegacyFormat = 1
 			if err := pprof.Lookup("heap").WriteTo(f, writeLegacyFormat); err != nil {
-				Fatalf("%v", err)
+				base.Fatalf("%v", err)
 			}
 		})
 	} else {
 		// Not doing memory profiling; disable it entirely.
 		runtime.MemProfileRate = 0
 	}
-	if blockprofile != "" {
-		f, err := os.Create(blockprofile)
+	if base.Flag.BlockProfile != "" {
+		f, err := os.Create(base.Flag.BlockProfile)
 		if err != nil {
-			Fatalf("%v", err)
+			base.Fatalf("%v", err)
 		}
 		runtime.SetBlockProfileRate(1)
-		atExit(func() {
+		base.AtExit(func() {
 			pprof.Lookup("block").WriteTo(f, 0)
 			f.Close()
 		})
 	}
-	if mutexprofile != "" {
-		f, err := os.Create(mutexprofile)
+	if base.Flag.MutexProfile != "" {
+		f, err := os.Create(base.Flag.MutexProfile)
 		if err != nil {
-			Fatalf("%v", err)
+			base.Fatalf("%v", err)
 		}
 		startMutexProfiling()
-		atExit(func() {
+		base.AtExit(func() {
 			pprof.Lookup("mutex").WriteTo(f, 0)
 			f.Close()
 		})
 	}
-	if traceprofile != "" && traceHandler != nil {
-		traceHandler(traceprofile)
+	if base.Flag.TraceProfile != "" && traceHandler != nil {
+		traceHandler(base.Flag.TraceProfile)
 	}
 }

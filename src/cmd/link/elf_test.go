@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build dragonfly || freebsd || linux || netbsd || openbsd
 // +build dragonfly freebsd linux netbsd openbsd
 
 package main
@@ -226,6 +227,12 @@ func main() {
 
 func TestPIESize(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+
+	// We don't want to test -linkmode=external if cgo is not supported.
+	// On some systems -buildmode=pie implies -linkmode=external, so just
+	// always skip the test if cgo is not supported.
+	testenv.MustHaveCGO(t)
+
 	if !sys.BuildModeSupported(runtime.Compiler, "pie", runtime.GOOS, runtime.GOARCH) {
 		t.Skip("-buildmode=pie not supported")
 	}

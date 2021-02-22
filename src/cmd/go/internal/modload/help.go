@@ -6,8 +6,6 @@ package modload
 
 import "cmd/go/internal/base"
 
-// TODO(rsc): The "module code layout" section needs to be written.
-
 var HelpModules = &base.Command{
 	UsageLine: "modules",
 	Short:     "modules, module versions, and more",
@@ -22,6 +20,17 @@ For a series of tutorials on modules, see
 https://golang.org/doc/tutorial/create-module.
 
 For a detailed reference on modules, see https://golang.org/ref/mod.
+
+By default, the go command may download modules from https://proxy.golang.org.
+It may authenticate modules using the checksum database at
+https://sum.golang.org. Both services are operated by the Go team at Google.
+The privacy policies for these services are available at
+https://proxy.golang.org/privacy and https://sum.golang.org/privacy,
+respectively.
+
+The go command's download behavior may be configured using GOPROXY, GOSUMDB,
+GOPRIVATE, and other environment variables. See 'go help environment'
+and https://golang.org/ref/mod#private-module-privacy for more information.
 	`,
 }
 

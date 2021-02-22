@@ -1,0 +1,6 @@
+# regabipragma.dir/tmp
+tmp/foo.go:17:6: declared function F has register params
+# regabipragma.dir
+./main.go:21:6: declared function f has register params
+./main.go:32:9: called function f has register params
+./main.go:33:13: called function tmp.F has register params
