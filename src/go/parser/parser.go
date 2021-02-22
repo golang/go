@@ -1485,8 +1485,9 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
 		// empty index, slice or index expressions are not permitted;
 		// accept them for parsing tolerance, but complain
 		p.errorExpected(p.pos, "operand")
+		rbrack := p.pos
 		p.next()
-		return x
+		return &ast.BadExpr{From: x.Pos(), To: rbrack}
 	}
 	p.exprLev++
 
