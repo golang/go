@@ -12,6 +12,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 
 	"golang.org/x/mod/module"
@@ -81,12 +82,12 @@ func Selected(path string) (version string) {
 // If the versions listed in mustSelect are mutually incompatible (due to one of
 // the listed modules requiring a higher version of another), EditBuildList
 // returns a *ConstraintError and leaves the build list in its previous state.
-func EditBuildList(ctx context.Context, add, mustSelect []module.Version) error {
+func EditBuildList(ctx context.Context, add, mustSelect []module.Version) (changed bool, err error) {
 	LoadModFile(ctx)
 
 	final, err := editBuildList(ctx, buildList, add, mustSelect)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	selected := make(map[string]module.Version, len(final))
@@ -106,14 +107,18 @@ func EditBuildList(ctx context.Context, add, mustSelect []module.Version) error 
 	}
 
 	if !inconsistent {
-		buildList = final
 		additionalExplicitRequirements = make([]string, 0, len(mustSelect))
 		for _, m := range mustSelect {
 			if m.Version != "none" {
 				additionalExplicitRequirements = append(additionalExplicitRequirements, m.Path)
 			}
 		}
-		return nil
+		changed := false
+		if !reflect.DeepEqual(buildList, final) {
+			buildList = final
+			changed = true
+		}
+		return changed, nil
 	}
 
 	// We overshot one or more of the modules in mustSelect, which means that
@@ -136,7 +141,7 @@ func EditBuildList(ctx context.Context, add, mustSelect []module.Version) error 
 		m, queue = queue[0], queue[1:]
 		required, err := reqs.Required(m)
 		if err != nil {
-			return err
+			return false, err
 		}
 		for _, r := range required {
 			if _, ok := reason[r]; !ok {
@@ -164,7 +169,7 @@ func EditBuildList(ctx context.Context, add, mustSelect []module.Version) error 
 		}
 	}
 
-	return &ConstraintError{
+	return false, &ConstraintError{
 		Conflicts: conflicts,
 	}
 }

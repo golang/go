@@ -836,7 +836,7 @@ func installOutsideModule(ctx context.Context, args []string) {
 	// Since we are in NoRoot mode, the build list initially contains only
 	// the dummy command-line-arguments module. Add a requirement on the
 	// module that provides the packages named on the command line.
-	if err := modload.EditBuildList(ctx, nil, []module.Version{installMod}); err != nil {
+	if _, err := modload.EditBuildList(ctx, nil, []module.Version{installMod}); err != nil {
 		base.Fatalf("go install %s: %v", args[0], err)
 	}
 
