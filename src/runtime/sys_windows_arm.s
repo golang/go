@@ -160,6 +160,11 @@ g0:
 	BL	(R7)		// Call the go routine
 	MOVW	16(R13), R4	// Fetch return value from stack
 
+	// Save system stack pointer for sigresume setup below.
+	// The exact value does not matter - nothing is read or written
+	// from this address. It just needs to be on the system stack.
+	MOVW	R13, R12
+
 	// switch back to original stack and g
 	MOVW	24(R13), R13
 	MOVW	20(R13), g
