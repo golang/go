@@ -65,8 +65,6 @@ func setNonblock(fd int32)
 
 func pipe() (r, w int32, errno int32)
 
-const stackSystem = 0
-
 // From DragonFly's <sys/sysctl.h>
 const (
 	_CTL_HW      = 6
