@@ -101,6 +101,70 @@ func (a *ABIParamAssignment) Offset() int32 {
 	return a.offset
 }
 
+// RegisterTypes returns a slice of the types of the registers
+// corresponding to a slice of parameters.  The returned slice
+// has capacity for one more, likely a memory type.
+func RegisterTypes(apa []ABIParamAssignment) []*types.Type {
+	rcount := 0
+	for _, pa := range apa {
+		rcount += len(pa.Registers)
+	}
+	if rcount == 0 {
+		// Note that this catches top-level struct{} and [0]Foo, which are stack allocated.
+		return make([]*types.Type, 0, 1)
+	}
+	rts := make([]*types.Type, 0, rcount+1)
+	for _, pa := range apa {
+		if len(pa.Registers) == 0 {
+			continue
+		}
+		rts = appendParamRegs(rts, pa.Type)
+	}
+	return rts
+}
+
+func appendParamRegs(rts []*types.Type, t *types.Type) []*types.Type {
+	if t.IsScalar() || t.IsPtrShaped() {
+		if t.IsComplex() {
+			c := types.FloatForComplex(t)
+			return append(rts, c, c)
+		} else {
+			if int(t.Size()) <= types.RegSize {
+				return append(rts, t)
+			}
+			// assume 64bit int on 32-bit machine
+			// TODO endianness? Should high-order (sign bits) word come first?
+			if t.IsSigned() {
+				rts = append(rts, types.Types[types.TINT32])
+			} else {
+				rts = append(rts, types.Types[types.TUINT32])
+			}
+			return append(rts, types.Types[types.TUINT32])
+		}
+	} else {
+		typ := t.Kind()
+		switch typ {
+		case types.TARRAY:
+			for i := int64(0); i < t.Size(); i++ { // 0 gets no registers, plus future-proofing.
+				rts = appendParamRegs(rts, t.Elem())
+			}
+		case types.TSTRUCT:
+			for _, f := range t.FieldSlice() {
+				if f.Type.Size() > 0 { // embedded zero-width types receive no registers
+					rts = appendParamRegs(rts, f.Type)
+				}
+			}
+		case types.TSLICE:
+			return appendParamRegs(rts, synthSlice)
+		case types.TSTRING:
+			return appendParamRegs(rts, synthString)
+		case types.TINTER:
+			return appendParamRegs(rts, synthIface)
+		}
+	}
+	return rts
+}
+
 // SpillOffset returns the offset *within the spill area* for the parameter that "a" describes.
 // Registers will be spilled here; if a memory home is needed (for a pointer method e.g.)
 // then that will be the address.
