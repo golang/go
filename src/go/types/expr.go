@@ -1,4 +1,3 @@
-// REVIEW INCOMPLETE
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -100,8 +99,8 @@ func (check *Checker) overflow(x *operand, op token.Token, opPos token.Pos) {
 
 	// Typed constants must be representable in
 	// their type after each constant operation.
-	if typ := asBasic(x.typ); typ != nil && isTyped(typ) {
-		check.representable(x, typ)
+	if isTyped(x.typ) {
+		check.representable(x, asBasic(x.typ))
 		return
 	}
 
@@ -191,10 +190,9 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 			// nothing to do (and don't cause an error below in the overflow check)
 			return
 		}
-		typ := asBasic(x.typ)
 		var prec uint
-		if isUnsigned(typ) {
-			prec = uint(check.conf.sizeof(typ) * 8)
+		if isUnsigned(x.typ) {
+			prec = uint(check.conf.sizeof(x.typ) * 8)
 		}
 		x.val = constant.UnaryOp(e.Op, x.val, prec)
 		x.expr = e
@@ -400,14 +398,20 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
 // representable checks that a constant operand is representable in the given
 // basic type.
 func (check *Checker) representable(x *operand, typ *Basic) {
-	if v, code := check.representation(x, typ); code != 0 {
+	v, code := check.representation(x, typ)
+	if code != 0 {
 		check.invalidConversion(code, x, typ)
 		x.mode = invalid
-	} else if v != nil {
-		x.val = v
+		return
 	}
+	assert(v != nil)
+	x.val = v
 }
 
+// representation returns the representation of the constant operand x as the
+// basic type typ.
+//
+// If no such representation is possible, it returns a non-zero error code.
 func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, errorCode) {
 	assert(x.mode == constant_)
 	v := x.val
@@ -593,7 +597,10 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 
 // implicitTypeAndValue returns the implicit type of x when used in a context
 // where the target type is expected. If no such implicit conversion is
-// possible, it returns a nil Type.
+// possible, it returns a nil Type and non-zero error code.
+//
+// If x is a constant operand, the returned constant.Value will be the
+// representation of x in this context.
 func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, constant.Value, errorCode) {
 	target = expand(target)
 	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
@@ -994,9 +1001,8 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 			// x.typ is unchanged
 			return
 		}
-		typ := asBasic(x.typ)
 		// force integer division of integer operands
-		if op == token.QUO && isInteger(typ) {
+		if op == token.QUO && isInteger(x.typ) {
 			op = token.QUO_ASSIGN
 		}
 		x.val = constant.BinaryOp(x.val, op, y.val)
