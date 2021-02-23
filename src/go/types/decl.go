@@ -726,7 +726,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 		// The predeclared identifier "any" is visible only as a constraint
 		// in a type parameter list. Look for it before general constraint
 		// resolution.
-		if tident, _ := f.Type.(*ast.Ident); tident != nil && tident.Name == "any" && check.lookup("any") == nil {
+		if tident, _ := unparen(f.Type).(*ast.Ident); tident != nil && tident.Name == "any" && check.lookup("any") == nil {
 			bound = universeAny
 		} else {
 			bound = check.typ(f.Type)
