@@ -830,6 +830,9 @@ func (s *regAllocState) regspec(v *Value) regInfo {
 			return *ac.Reg(&opcodeTable[op].reg, s.f.Config)
 		}
 	}
+	if op == OpMakeResult && s.f.OwnAux.reg != nil {
+		return *s.f.OwnAux.ResultReg(s.f.Config)
+	}
 	return opcodeTable[op].reg
 }
 
