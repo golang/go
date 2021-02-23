@@ -899,6 +899,10 @@ static uint16_t issue31093F(uint16_t v) { return v; }
 // issue 32579
 typedef struct S32579 { unsigned char data[1]; } S32579;
 
+// issue 37033, cgo.Handle
+extern void GoFunc37033(uintptr_t handle);
+void cFunc37033(uintptr_t handle) { GoFunc37033(handle); }
+
 // issue 38649
 // Test that #define'd type aliases work.
 #define netbsd_gid unsigned int
@@ -920,6 +924,7 @@ import (
 	"os/signal"
 	"reflect"
 	"runtime"
+	"runtime/cgo"
 	"sync"
 	"syscall"
 	"testing"
@@ -2227,6 +2232,23 @@ func test32579(t *testing.T) {
 	C.memset(unsafe.Pointer(&s[0].data[0]), 1, 1)
 	if s[0].data[0] != 1 {
 		t.Errorf("&s[0].data[0] failed: got %d, want %d", s[0].data[0], 1)
+	}
+}
+
+// issue 37033, check if cgo.Handle works properly
+
+func testHandle(t *testing.T) {
+	ch := make(chan int)
+
+	for i := 0; i < 42; i++ {
+		h := cgo.NewHandle(ch)
+		go func() {
+			C.cFunc37033(C.uintptr_t(h))
+		}()
+		if v := <-ch; issue37033 != v {
+			t.Fatalf("unexpected receiving value: got %d, want %d", v, issue37033)
+		}
+		h.Delete()
 	}
 }
 
