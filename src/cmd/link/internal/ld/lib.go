@@ -556,7 +556,12 @@ func (ctxt *Link) loadlib() {
 			if ctxt.BuildMode == BuildModeShared || ctxt.linkShared {
 				Exitf("cannot implicitly include runtime/cgo in a shared library")
 			}
-			loadobjfile(ctxt, lib)
+			for ; i < len(ctxt.Library); i++ {
+				lib := ctxt.Library[i]
+				if lib.Shlib == "" {
+					loadobjfile(ctxt, lib)
+				}
+			}
 		}
 	}
 
