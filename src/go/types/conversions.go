@@ -142,7 +142,7 @@ func isUintptr(typ Type) bool {
 }
 
 func isUnsafePointer(typ Type) bool {
-	// TODO(gri): Is this asBasic() instead of typ.(*Basic) correct?
+	// TODO(gri): Is this asBasic(typ) instead of typ.(*Basic) correct?
 	//            (The former calls under(), while the latter doesn't.)
 	//            The spec does not say so, but gc claims it is. See also
 	//            issue 6326.
