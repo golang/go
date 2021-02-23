@@ -549,3 +549,25 @@ func TestIssue43088(t *testing.T) {
 	Comparable(T1)
 	Comparable(T2)
 }
+
+func TestIssue44515(t *testing.T) {
+	typ := Unsafe.Scope().Lookup("Pointer").Type()
+
+	got := TypeString(typ, nil)
+	want := "unsafe.Pointer"
+	if got != want {
+		t.Errorf("got %q; want %q", got, want)
+	}
+
+	qf := func(pkg *Package) string {
+		if pkg == Unsafe {
+			return "foo"
+		}
+		return ""
+	}
+	got = TypeString(typ, qf)
+	want = "foo.Pointer"
+	if got != want {
+		t.Errorf("got %q; want %q", got, want)
+	}
+}
