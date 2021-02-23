@@ -375,12 +375,11 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
 // duration (in -100ns units) is in dt+0(FP).
 // g may be nil.
 TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	dt+0(FP), R0
+	MOVW	dt+0(FP), R3
 	MOVM.DB.W [R4, R14], (R13)	// push {r4, lr}
 	MOVW	R13, R4			// Save SP
 	SUB	$8, R13			// R13 = R13 - 8
 	BIC	$0x7, R13		// Align SP for ABI
-	RSB	$0, R0, R3		// R3 = -R0
 	MOVW	$0, R1			// R1 = FALSE (alertable)
 	MOVW	$-1, R0			// R0 = handle
 	MOVW	R13, R2			// R2 = pTime
