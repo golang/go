@@ -10,7 +10,6 @@ import (
 	"internal/syscall/windows/sysdll"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 	"os/exec"
@@ -446,7 +445,7 @@ func TestStdcallAndCDeclCallbacks(t *testing.T) {
 	if _, err := exec.LookPath("gcc"); err != nil {
 		t.Skip("skipping test: gcc is missing")
 	}
-	tmp, err := ioutil.TempDir("", "TestCDeclCallback")
+	tmp, err := os.MkdirTemp("", "TestCDeclCallback")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
 	}
@@ -602,14 +601,14 @@ uintptr_t cfunc(callback f, uintptr_t n) {
    return r;
 }
 `
-	tmpdir, err := ioutil.TempDir("", "TestReturnAfterStackGrowInCallback")
+	tmpdir, err := os.MkdirTemp("", "TestReturnAfterStackGrowInCallback")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
 	}
 	defer os.RemoveAll(tmpdir)
 
 	srcname := "mydll.c"
-	err = ioutil.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	err = os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -671,14 +670,14 @@ uintptr_t cfunc(uintptr_t a, double b, float c, double d) {
 	return 0;
 }
 `
-	tmpdir, err := ioutil.TempDir("", "TestFloatArgs")
+	tmpdir, err := os.MkdirTemp("", "TestFloatArgs")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
 	}
 	defer os.RemoveAll(tmpdir)
 
 	srcname := "mydll.c"
-	err = ioutil.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	err = os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -733,14 +732,14 @@ double cfuncDouble(uintptr_t a, double b, float c, double d) {
 	return 0;
 }
 `
-	tmpdir, err := ioutil.TempDir("", "TestFloatReturn")
+	tmpdir, err := os.MkdirTemp("", "TestFloatReturn")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
 	}
 	defer os.RemoveAll(tmpdir)
 
 	srcname := "mydll.c"
-	err = ioutil.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	err = os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -948,7 +947,7 @@ func TestDLLPreloadMitigation(t *testing.T) {
 		t.Skip("skipping test: gcc is missing")
 	}
 
-	tmpdir, err := ioutil.TempDir("", "TestDLLPreloadMitigation")
+	tmpdir, err := os.MkdirTemp("", "TestDLLPreloadMitigation")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
 	}
@@ -969,12 +968,13 @@ func TestDLLPreloadMitigation(t *testing.T) {
 #include <stdint.h>
 #include <windows.h>
 
-uintptr_t cfunc() {
+uintptr_t cfunc(void) {
    SetLastError(123);
+   return 0;
 }
 `
 	srcname := "nojack.c"
-	err = ioutil.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	err = os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1034,7 +1034,7 @@ func TestBigStackCallbackSyscall(t *testing.T) {
 		t.Fatal("Abs failed: ", err)
 	}
 
-	tmpdir, err := ioutil.TempDir("", "TestBigStackCallback")
+	tmpdir, err := os.MkdirTemp("", "TestBigStackCallback")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
 	}
@@ -1183,14 +1183,14 @@ func BenchmarkOsYield(b *testing.B) {
 }
 
 func BenchmarkRunningGoProgram(b *testing.B) {
-	tmpdir, err := ioutil.TempDir("", "BenchmarkRunningGoProgram")
+	tmpdir, err := os.MkdirTemp("", "BenchmarkRunningGoProgram")
 	if err != nil {
 		b.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
 
 	src := filepath.Join(tmpdir, "main.go")
-	err = ioutil.WriteFile(src, []byte(benchmarkRunningGoProgram), 0666)
+	err = os.WriteFile(src, []byte(benchmarkRunningGoProgram), 0666)
 	if err != nil {
 		b.Fatal(err)
 	}

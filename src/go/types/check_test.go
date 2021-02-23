@@ -33,7 +33,7 @@ import (
 	"go/scanner"
 	"go/token"
 	"internal/testenv"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -153,7 +153,7 @@ func errMap(t *testing.T, testname string, files []*ast.File) map[string][]strin
 
 	for _, file := range files {
 		filename := fset.Position(file.Package).Filename
-		src, err := ioutil.ReadFile(filename)
+		src, err := os.ReadFile(filename)
 		if err != nil {
 			t.Fatalf("%s: could not read %s", testname, filename)
 		}
@@ -329,17 +329,17 @@ func TestFixedBugs(t *testing.T) { testDir(t, "fixedbugs") }
 func testDir(t *testing.T, dir string) {
 	testenv.MustHaveGoBuild(t)
 
-	fis, err := ioutil.ReadDir(dir)
+	dirs, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, fi := range fis {
-		testname := filepath.Base(fi.Name())
+	for _, d := range dirs {
+		testname := filepath.Base(d.Name())
 		testname = strings.TrimSuffix(testname, filepath.Ext(testname))
 		t.Run(testname, func(t *testing.T) {
-			filename := filepath.Join(dir, fi.Name())
-			if fi.IsDir() {
+			filename := filepath.Join(dir, d.Name())
+			if d.IsDir() {
 				t.Errorf("skipped directory %q", filename)
 				return
 			}

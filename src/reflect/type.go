@@ -1132,9 +1132,6 @@ func (tag StructTag) Lookup(key string) (value string, ok bool) {
 	// When modifying this code, also update the validateStructTag code
 	// in cmd/vet/structtag.go.
 
-	// keyFound indicates that such key on the left side has already been found.
-	var keyFound bool
-
 	for tag != "" {
 		// Skip leading space.
 		i := 0
@@ -1154,29 +1151,11 @@ func (tag StructTag) Lookup(key string) (value string, ok bool) {
 		for i < len(tag) && tag[i] > ' ' && tag[i] != ':' && tag[i] != '"' && tag[i] != 0x7f {
 			i++
 		}
-		if i == 0 || i+1 >= len(tag) || tag[i] < ' ' || tag[i] == 0x7f {
+		if i == 0 || i+1 >= len(tag) || tag[i] != ':' || tag[i+1] != '"' {
 			break
 		}
 		name := string(tag[:i])
-		tag = tag[i:]
-
-		// If we found a space char here - assume that we have a tag with
-		// multiple keys.
-		if tag[0] == ' ' {
-			if name == key {
-				keyFound = true
-			}
-			continue
-		}
-
-		// Spaces were filtered above so we assume that here we have
-		// only valid tag value started with `:"`.
-		if tag[0] != ':' || tag[1] != '"' {
-			break
-		}
-
-		// Remove the colon leaving tag at the start of the quoted string.
-		tag = tag[1:]
+		tag = tag[i+1:]
 
 		// Scan quoted string to find value.
 		i = 1
@@ -1192,7 +1171,7 @@ func (tag StructTag) Lookup(key string) (value string, ok bool) {
 		qvalue := string(tag[:i+1])
 		tag = tag[i+1:]
 
-		if key == name || keyFound {
+		if key == name {
 			value, err := strconv.Unquote(qvalue)
 			if err != nil {
 				break

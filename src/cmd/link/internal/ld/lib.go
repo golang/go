@@ -49,11 +49,11 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
+	exec "internal/execabs"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -296,6 +296,11 @@ func (ctxt *Link) CanUsePlugins() bool {
 		panic("CanUsePlugins called before all symbols loaded")
 	}
 	return ctxt.canUsePlugins
+}
+
+// NeedCodeSign reports whether we need to code-sign the output binary.
+func (ctxt *Link) NeedCodeSign() bool {
+	return ctxt.IsDarwin() && ctxt.IsARM64()
 }
 
 var (
@@ -1269,6 +1274,7 @@ func (ctxt *Link) hostlink() {
 		}
 	case objabi.Hopenbsd:
 		argv = append(argv, "-Wl,-nopie")
+		argv = append(argv, "-pthread")
 	case objabi.Hwindows:
 		if windowsgui {
 			argv = append(argv, "-mwindows")
@@ -1454,7 +1460,7 @@ func (ctxt *Link) hostlink() {
 	}
 
 	const compressDWARF = "-Wl,--compress-debug-sections=zlib-gnu"
-	if ctxt.compressDWARF && linkerFlagSupported(argv[0], altLinker, compressDWARF) {
+	if ctxt.compressDWARF && linkerFlagSupported(ctxt.Arch, argv[0], altLinker, compressDWARF) {
 		argv = append(argv, compressDWARF)
 	}
 
@@ -1544,7 +1550,7 @@ func (ctxt *Link) hostlink() {
 	if ctxt.BuildMode == BuildModeExe && !ctxt.linkShared && !(ctxt.IsDarwin() && ctxt.IsARM64()) {
 		// GCC uses -no-pie, clang uses -nopie.
 		for _, nopie := range []string{"-no-pie", "-nopie"} {
-			if linkerFlagSupported(argv[0], altLinker, nopie) {
+			if linkerFlagSupported(ctxt.Arch, argv[0], altLinker, nopie) {
 				argv = append(argv, nopie)
 				break
 			}
@@ -1556,10 +1562,22 @@ func (ctxt *Link) hostlink() {
 		checkStatic(p)
 	}
 	if ctxt.HeadType == objabi.Hwindows {
+		// Determine which linker we're using. Add in the extldflags in
+		// case used has specified "-fuse-ld=...".
+		cmd := exec.Command(*flagExtld, *flagExtldflags, "-Wl,--version")
+		usingLLD := false
+		if out, err := cmd.CombinedOutput(); err == nil {
+			if bytes.Contains(out, []byte("LLD ")) {
+				usingLLD = true
+			}
+		}
+
 		// use gcc linker script to work around gcc bug
 		// (see https://golang.org/issue/20183 for details).
-		p := writeGDBLinkerScript()
-		argv = append(argv, "-Wl,-T,"+p)
+		if !usingLLD {
+			p := writeGDBLinkerScript()
+			argv = append(argv, "-Wl,-T,"+p)
+		}
 		// libmingw32 and libmingwex have some inter-dependencies,
 		// so must use linker groups.
 		argv = append(argv, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")
@@ -1643,11 +1661,17 @@ func (ctxt *Link) hostlink() {
 			Exitf("%s: %v", os.Args[0], err)
 		}
 	}
+	if ctxt.NeedCodeSign() {
+		err := machoCodeSign(ctxt, *flagOutfile)
+		if err != nil {
+			Exitf("%s: code signing failed: %v", os.Args[0], err)
+		}
+	}
 }
 
 var createTrivialCOnce sync.Once
 
-func linkerFlagSupported(linker, altLinker, flag string) bool {
+func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
 	createTrivialCOnce.Do(func() {
 		src := filepath.Join(*flagTmpdir, "trivial.c")
 		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
@@ -1681,7 +1705,7 @@ func linkerFlagSupported(linker, altLinker, flag string) bool {
 		"-target",
 	}
 
-	var flags []string
+	flags := hostlinkArchArgs(arch)
 	keep := false
 	skip := false
 	extldflags := strings.Fields(*flagExtldflags)
@@ -1727,12 +1751,19 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
 	switch arch.Family {
 	case sys.I386:
 		return []string{"-m32"}
-	case sys.AMD64, sys.S390X:
+	case sys.AMD64:
+		if objabi.GOOS == "darwin" {
+			return []string{"-arch", "x86_64", "-m64"}
+		}
+		return []string{"-m64"}
+	case sys.S390X:
 		return []string{"-m64"}
 	case sys.ARM:
 		return []string{"-marm"}
 	case sys.ARM64:
-		// nothing needed
+		if objabi.GOOS == "darwin" {
+			return []string{"-arch", "arm64"}
+		}
 	case sys.MIPS64:
 		return []string{"-mabi=64"}
 	case sys.MIPS:
@@ -1791,14 +1822,14 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 		return ldhostobj(ldmacho, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
-	if c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86 {
+	if /* x86 */ c1 == 0x4c && c2 == 0x01 || /* x86_64 */ c1 == 0x64 && c2 == 0x86 || /* armv7 */ c1 == 0xc4 && c2 == 0x01 {
 		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			textp, rsrc, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
 			if err != nil {
 				Errorf(nil, "%v", err)
 				return
 			}
-			if rsrc != 0 {
+			if len(rsrc) != 0 {
 				setpersrc(ctxt, rsrc)
 			}
 			ctxt.Textp = append(ctxt.Textp, textp...)

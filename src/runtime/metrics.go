@@ -41,10 +41,28 @@ func initMetrics() {
 	if metricsInit {
 		return
 	}
-	sizeClassBuckets = make([]float64, _NumSizeClasses)
-	for i := range sizeClassBuckets {
-		sizeClassBuckets[i] = float64(class_to_size[i])
+
+	sizeClassBuckets = make([]float64, _NumSizeClasses, _NumSizeClasses+1)
+	// Skip size class 0 which is a stand-in for large objects, but large
+	// objects are tracked separately (and they actually get placed in
+	// the last bucket, not the first).
+	sizeClassBuckets[0] = 1 // The smallest allocation is 1 byte in size.
+	for i := 1; i < _NumSizeClasses; i++ {
+		// Size classes have an inclusive upper-bound
+		// and exclusive lower bound (e.g. 48-byte size class is
+		// (32, 48]) whereas we want and inclusive lower-bound
+		// and exclusive upper-bound (e.g. 48-byte size class is
+		// [33, 49). We can achieve this by shifting all bucket
+		// boundaries up by 1.
+		//
+		// Also, a float64 can precisely represent integers with
+		// value up to 2^53 and size classes are relatively small
+		// (nowhere near 2^48 even) so this will give us exact
+		// boundaries.
+		sizeClassBuckets[i] = float64(class_to_size[i] + 1)
 	}
+	sizeClassBuckets = append(sizeClassBuckets, float64Inf())
+
 	timeHistBuckets = timeHistogramMetricsBuckets()
 	metrics = map[string]metricData{
 		"/gc/cycles/automatic:gc-cycles": {
@@ -68,23 +86,27 @@ func initMetrics() {
 				out.scalar = in.sysStats.gcCyclesDone
 			},
 		},
-		"/gc/heap/allocs-by-size:objects": {
+		"/gc/heap/allocs-by-size:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(sizeClassBuckets)
 				hist.counts[len(hist.counts)-1] = uint64(in.heapStats.largeAllocCount)
-				for i := range hist.buckets {
-					hist.counts[i] = uint64(in.heapStats.smallAllocCount[i])
+				// Cut off the first index which is ostensibly for size class 0,
+				// but large objects are tracked separately so it's actually unused.
+				for i, count := range in.heapStats.smallAllocCount[1:] {
+					hist.counts[i] = uint64(count)
 				}
 			},
 		},
-		"/gc/heap/frees-by-size:objects": {
+		"/gc/heap/frees-by-size:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(sizeClassBuckets)
 				hist.counts[len(hist.counts)-1] = uint64(in.heapStats.largeFreeCount)
-				for i := range hist.buckets {
-					hist.counts[i] = uint64(in.heapStats.smallFreeCount[i])
+				// Cut off the first index which is ostensibly for size class 0,
+				// but large objects are tracked separately so it's actually unused.
+				for i, count := range in.heapStats.smallFreeCount[1:] {
+					hist.counts[i] = uint64(count)
 				}
 			},
 		},
@@ -105,9 +127,12 @@ func initMetrics() {
 		"/gc/pauses:seconds": {
 			compute: func(_ *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(timeHistBuckets)
-				hist.counts[len(hist.counts)-1] = atomic.Load64(&memstats.gcPauseDist.overflow)
-				for i := range hist.buckets {
-					hist.counts[i] = atomic.Load64(&memstats.gcPauseDist.counts[i])
+				// The bottom-most bucket, containing negative values, is tracked
+				// as a separately as underflow, so fill that in manually and then
+				// iterate over the rest.
+				hist.counts[0] = atomic.Load64(&memstats.gcPauseDist.underflow)
+				for i := range memstats.gcPauseDist.counts {
+					hist.counts[i+1] = atomic.Load64(&memstats.gcPauseDist.counts[i])
 				}
 			},
 		},
@@ -426,8 +451,8 @@ func (v *metricValue) float64HistOrInit(buckets []float64) *metricFloat64Histogr
 		v.pointer = unsafe.Pointer(hist)
 	}
 	hist.buckets = buckets
-	if len(hist.counts) != len(hist.buckets)+1 {
-		hist.counts = make([]uint64, len(buckets)+1)
+	if len(hist.counts) != len(hist.buckets)-1 {
+		hist.counts = make([]uint64, len(buckets)-1)
 	}
 	return hist
 }

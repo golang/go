@@ -6,7 +6,6 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
-	"cmd/internal/objabi"
 	"fmt"
 	"strings"
 )
@@ -2442,15 +2441,6 @@ func derefall(t *types.Type) *types.Type {
 	return t
 }
 
-type typeSymKey struct {
-	t *types.Type
-	s *types.Sym
-}
-
-// dotField maps (*types.Type, *types.Sym) pairs to the corresponding struct field (*types.Type with Etype==TFIELD).
-// It is a cache for use during usefield in walk.go, only enabled when field tracking.
-var dotField = map[typeSymKey]*types.Field{}
-
 func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 	s := n.Sym
 
@@ -2481,9 +2471,6 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 		}
 		n.Xoffset = f1.Offset
 		n.Type = f1.Type
-		if objabi.Fieldtrack_enabled > 0 {
-			dotField[typeSymKey{t.Orig, s}] = f1
-		}
 		if t.IsInterface() {
 			if n.Left.Type.IsPtr() {
 				n.Left = nod(ODEREF, n.Left, nil) // implicitstar
@@ -2492,6 +2479,8 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 			}
 
 			n.Op = ODOTINTER
+		} else {
+			n.SetOpt(f1)
 		}
 
 		return f1

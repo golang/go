@@ -5,7 +5,6 @@
 package auth
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -99,7 +98,7 @@ func readNetrc() {
 		return
 	}
 
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			netrcErr = err

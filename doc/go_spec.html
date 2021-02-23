@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Oct 7, 2020",
+	"Subtitle": "Version of Feb 10, 2021",
 	"Path": "/ref/spec"
 }-->
 
@@ -3400,7 +3400,7 @@ A type assertion used in an <a href="#Assignments">assignment</a> or initializat
 v, ok = x.(T)
 v, ok := x.(T)
 var v, ok = x.(T)
-var v, ok T1 = x.(T)
+var v, ok interface{} = x.(T) // dynamic types of v and ok are T and bool
 </pre>
 
 <p>
@@ -3446,7 +3446,7 @@ In a function call, the function value and arguments are evaluated in
 After they are evaluated, the parameters of the call are passed by value to the function
 and the called function begins execution.
 The return parameters of the function are passed by value
-back to the calling function when the function returns.
+back to the caller when the function returns.
 </p>
 
 <p>

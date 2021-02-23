@@ -237,6 +237,7 @@ func racewriterange(addr, size uintptr)
 // memory sanitizer
 func msanread(addr, size uintptr)
 func msanwrite(addr, size uintptr)
+func msanmove(dst, src, size uintptr)
 
 func checkptrAlignment(unsafe.Pointer, *byte, uintptr)
 func checkptrArithmetic(unsafe.Pointer, []unsafe.Pointer)

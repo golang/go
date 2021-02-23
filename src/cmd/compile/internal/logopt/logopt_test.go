@@ -51,7 +51,7 @@ func want(t *testing.T, out string, desired string) {
 
 func wantN(t *testing.T, out string, desired string, n int) {
 	if strings.Count(out, desired) != n {
-		t.Errorf("expected exactly %d occurences of %s in \n%s", n, desired, out)
+		t.Errorf("expected exactly %d occurrences of %s in \n%s", n, desired, out)
 	}
 }
 

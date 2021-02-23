@@ -61,5 +61,5 @@ L10:
 
 	goto L10
 
-	goto go2 // ERROR "label go2 not defined"
+	goto go2 // ERROR "label go2 not defined|reference to undefined label .*go2"
 }

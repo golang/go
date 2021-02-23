@@ -65,7 +65,6 @@ var (
 	procRegOpenKeyExW                      = modadvapi32.NewProc("RegOpenKeyExW")
 	procRegQueryInfoKeyW                   = modadvapi32.NewProc("RegQueryInfoKeyW")
 	procRegQueryValueExW                   = modadvapi32.NewProc("RegQueryValueExW")
-	procSystemFunction036                  = modadvapi32.NewProc("SystemFunction036")
 	procCertAddCertificateContextToStore   = modcrypt32.NewProc("CertAddCertificateContextToStore")
 	procCertCloseStore                     = modcrypt32.NewProc("CertCloseStore")
 	procCertCreateCertificateContext       = modcrypt32.NewProc("CertCreateCertificateContext")
@@ -333,14 +332,6 @@ func RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32
 	return
 }
 
-func RtlGenRandom(buf *uint8, bytes uint32) (err error) {
-	r1, _, e1 := Syscall(procSystemFunction036.Addr(), 2, uintptr(unsafe.Pointer(buf)), uintptr(bytes), 0)
-	if r1 == 0 {
-		err = errnoErr(e1)
-	}
-	return
-}
-
 func CertAddCertificateContextToStore(store Handle, certContext *CertContext, addDisposition uint32, storeContext **CertContext) (err error) {
 	r1, _, e1 := Syscall6(procCertAddCertificateContextToStore.Addr(), 4, uintptr(store), uintptr(unsafe.Pointer(certContext)), uintptr(addDisposition), uintptr(unsafe.Pointer(storeContext)), 0, 0)
 	if r1 == 0 {
@@ -399,7 +390,7 @@ func CertGetCertificateChain(engine Handle, leaf *CertContext, time *Filetime, a
 func CertOpenStore(storeProvider uintptr, msgAndCertEncodingType uint32, cryptProv uintptr, flags uint32, para uintptr) (handle Handle, err error) {
 	r0, _, e1 := Syscall6(procCertOpenStore.Addr(), 5, uintptr(storeProvider), uintptr(msgAndCertEncodingType), uintptr(cryptProv), uintptr(flags), uintptr(para), 0)
 	handle = Handle(r0)
-	if handle == InvalidHandle {
+	if handle == 0 {
 		err = errnoErr(e1)
 	}
 	return

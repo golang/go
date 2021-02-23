@@ -60,7 +60,6 @@ import "C"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -75,7 +74,7 @@ func init() {
 func CgoPprof() {
 	runtime.SetCgoTraceback(0, unsafe.Pointer(C.pprofCgoTraceback), nil, nil)
 
-	f, err := ioutil.TempFile("", "prof")
+	f, err := os.CreateTemp("", "prof")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)

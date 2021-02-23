@@ -194,7 +194,8 @@ func expandCalls(f *Func) {
 				}
 				break
 			}
-			if leaf.Op == OpIData {
+			switch leaf.Op {
+			case OpIData, OpStructSelect, OpArraySelect:
 				leafType = removeTrivialWrapperTypes(leaf.Type)
 			}
 			aux := selector.Aux

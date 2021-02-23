@@ -35,7 +35,6 @@ import (
 	"fmt"
 	"go/format"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 )
@@ -65,7 +64,7 @@ func main() {
 	if *stdout {
 		_, err = os.Stdout.Write(out)
 	} else {
-		err = ioutil.WriteFile("sizeclasses.go", out, 0666)
+		err = os.WriteFile("sizeclasses.go", out, 0666)
 	}
 	if err != nil {
 		log.Fatal(err)

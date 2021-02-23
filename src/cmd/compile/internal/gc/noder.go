@@ -397,7 +397,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
 					p.yyerrorpos(e.Pos, "//go:embed only allowed in Go files that import \"embed\"")
 				}
 			} else {
-				exprs = varEmbed(p, names, typ, exprs, pragma.Embeds)
+				varEmbed(p, names, typ, exprs, pragma.Embeds)
 			}
 			pragma.Embeds = nil
 		}

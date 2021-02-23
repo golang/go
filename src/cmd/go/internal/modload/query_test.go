@@ -7,7 +7,6 @@ package modload
 import (
 	"context"
 	"internal/testenv"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -27,7 +26,7 @@ func TestMain(m *testing.M) {
 func testMain(m *testing.M) int {
 	cfg.GOPROXY = "direct"
 
-	dir, err := ioutil.TempDir("", "modload-test-")
+	dir, err := os.MkdirTemp("", "modload-test-")
 	if err != nil {
 		log.Fatal(err)
 	}

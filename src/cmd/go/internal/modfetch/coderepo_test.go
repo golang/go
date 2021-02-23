@@ -11,7 +11,6 @@ import (
 	"hash"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"reflect"
@@ -38,7 +37,7 @@ func testMain(m *testing.M) int {
 	// code, bypass the sum database.
 	cfg.GOSUMDB = "off"
 
-	dir, err := ioutil.TempDir("", "gitrepo-test-")
+	dir, err := os.MkdirTemp("", "gitrepo-test-")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -424,7 +423,7 @@ var codeRepoTests = []codeRepoTest{
 func TestCodeRepo(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	tmpdir, err := ioutil.TempDir("", "modfetch-test-")
+	tmpdir, err := os.MkdirTemp("", "modfetch-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -491,9 +490,9 @@ func TestCodeRepo(t *testing.T) {
 
 					needHash := !testing.Short() && (tt.zipFileHash != "" || tt.zipSum != "")
 					if tt.zip != nil || tt.zipErr != "" || needHash {
-						f, err := ioutil.TempFile(tmpdir, tt.version+".zip.")
+						f, err := os.CreateTemp(tmpdir, tt.version+".zip.")
 						if err != nil {
-							t.Fatalf("ioutil.TempFile: %v", err)
+							t.Fatalf("os.CreateTemp: %v", err)
 						}
 						zipfile := f.Name()
 						defer func() {
@@ -655,7 +654,7 @@ var codeRepoVersionsTests = []struct {
 func TestCodeRepoVersions(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	tmpdir, err := ioutil.TempDir("", "vgo-modfetch-test-")
+	tmpdir, err := os.MkdirTemp("", "vgo-modfetch-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -729,7 +728,7 @@ var latestTests = []struct {
 func TestLatest(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	tmpdir, err := ioutil.TempDir("", "vgo-modfetch-test-")
+	tmpdir, err := os.MkdirTemp("", "vgo-modfetch-test-")
 	if err != nil {
 		t.Fatal(err)
 	}

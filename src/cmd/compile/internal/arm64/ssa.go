@@ -1054,7 +1054,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64LessThanF,
 		ssa.OpARM64LessEqualF,
 		ssa.OpARM64GreaterThanF,
-		ssa.OpARM64GreaterEqualF:
+		ssa.OpARM64GreaterEqualF,
+		ssa.OpARM64NotLessThanF,
+		ssa.OpARM64NotLessEqualF,
+		ssa.OpARM64NotGreaterThanF,
+		ssa.OpARM64NotGreaterEqualF:
 		// generate boolean values using CSET
 		p := s.Prog(arm64.ACSET)
 		p.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
@@ -1098,10 +1102,16 @@ var condBits = map[ssa.Op]int16{
 	ssa.OpARM64GreaterThanU:  arm64.COND_HI,
 	ssa.OpARM64GreaterEqual:  arm64.COND_GE,
 	ssa.OpARM64GreaterEqualU: arm64.COND_HS,
-	ssa.OpARM64LessThanF:     arm64.COND_MI,
-	ssa.OpARM64LessEqualF:    arm64.COND_LS,
-	ssa.OpARM64GreaterThanF:  arm64.COND_GT,
-	ssa.OpARM64GreaterEqualF: arm64.COND_GE,
+	ssa.OpARM64LessThanF:     arm64.COND_MI, // Less than
+	ssa.OpARM64LessEqualF:    arm64.COND_LS, // Less than or equal to
+	ssa.OpARM64GreaterThanF:  arm64.COND_GT, // Greater than
+	ssa.OpARM64GreaterEqualF: arm64.COND_GE, // Greater than or equal to
+
+	// The following condition codes have unordered to handle comparisons related to NaN.
+	ssa.OpARM64NotLessThanF:     arm64.COND_PL, // Greater than, equal to, or unordered
+	ssa.OpARM64NotLessEqualF:    arm64.COND_HI, // Greater than or unordered
+	ssa.OpARM64NotGreaterThanF:  arm64.COND_LE, // Less than, equal to or unordered
+	ssa.OpARM64NotGreaterEqualF: arm64.COND_LT, // Less than or unordered
 }
 
 var blockJump = map[ssa.BlockKind]struct {

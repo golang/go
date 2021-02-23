@@ -94,10 +94,11 @@ func typecheckinl(fn *Node) {
 	typecheckslice(fn.Func.Inl.Body, ctxStmt)
 	Curfn = savefn
 
-	// During typechecking, declarations are added to
-	// Curfn.Func.Dcl. Move them to Inl.Dcl for consistency with
-	// how local functions behave. (Append because typecheckinl
-	// may be called multiple times.)
+	// During expandInline (which imports fn.Func.Inl.Body),
+	// declarations are added to fn.Func.Dcl by funcHdr(). Move them
+	// to fn.Func.Inl.Dcl for consistency with how local functions
+	// behave. (Append because typecheckinl may be called multiple
+	// times.)
 	fn.Func.Inl.Dcl = append(fn.Func.Inl.Dcl, fn.Func.Dcl...)
 	fn.Func.Dcl = nil
 
@@ -448,9 +449,9 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		v.visitList(n.Ninit) || v.visitList(n.Nbody)
 }
 
-// Inlcopy and inlcopylist recursively copy the body of a function.
-// Any name-like node of non-local class is marked for re-export by adding it to
-// the exportlist.
+// inlcopylist (together with inlcopy) recursively copies a list of nodes, except
+// that it keeps the same ONAME, OTYPE, and OLITERAL nodes. It is used for copying
+// the body and dcls of an inlineable function.
 func inlcopylist(ll []*Node) []*Node {
 	s := make([]*Node, 0, len(ll))
 	for _, n := range ll {
@@ -831,15 +832,19 @@ func (v *reassignVisitor) visit(n *Node) *Node {
 		return nil
 	}
 	switch n.Op {
-	case OAS:
+	case OAS, OSELRECV:
 		if n.Left == v.name && n != v.name.Name.Defn {
 			return n
 		}
-	case OAS2, OAS2FUNC, OAS2MAPR, OAS2DOTTYPE:
+	case OAS2, OAS2FUNC, OAS2MAPR, OAS2DOTTYPE, OAS2RECV:
 		for _, p := range n.List.Slice() {
 			if p == v.name && n != v.name.Name.Defn {
 				return n
 			}
+		}
+	case OSELRECV2:
+		if (n.Left == v.name || n.List.First() == v.name) && n != v.name.Name.Defn {
+			return n
 		}
 	}
 	if a := v.visit(n.Left); a != nil {
@@ -889,10 +894,10 @@ func inlParam(t *types.Field, as *Node, inlvars map[*Node]*Node) *Node {
 
 var inlgen int
 
-// If n is a call, and fn is a function with an inlinable body,
-// return an OINLCALL.
-// On return ninit has the parameter assignments, the nbody is the
-// inlined function body and list, rlist contain the input, output
+// If n is a call node (OCALLFUNC or OCALLMETH), and fn is an ONAME node for a
+// function with an inlinable body, return an OINLCALL node that can replace n.
+// The returned node's Ninit has the parameter assignments, the Nbody is the
+// inlined function body, and (List, Rlist) contain the (input, output)
 // parameters.
 // The result of mkinlcall MUST be assigned back to n, e.g.
 // 	n.Left = mkinlcall(n.Left, fn, isddd)
@@ -961,6 +966,21 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 	}
 
 	ninit := n.Ninit
+
+	// For normal function calls, the function callee expression
+	// may contain side effects (e.g., added by addinit during
+	// inlconv2expr or inlconv2list). Make sure to preserve these,
+	// if necessary (#42703).
+	if n.Op == OCALLFUNC {
+		callee := n.Left
+		for callee.Op == OCONVNOP {
+			ninit.AppendNodes(&callee.Ninit)
+			callee = callee.Left
+		}
+		if callee.Op != ONAME && callee.Op != OCLOSURE {
+			Fatalf("unexpected callee expression: %v", callee)
+		}
+	}
 
 	// Make temp names to use instead of the originals.
 	inlvars := make(map[*Node]*Node)

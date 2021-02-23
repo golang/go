@@ -280,7 +280,7 @@ func MOVCONST(d int64, s int, rt int) uint32 {
 const (
 	// Optab.flag
 	LFROM     = 1 << 0 // p.From uses constant pool
-	LFROM3    = 1 << 1 // p.From3 uses constant pool
+	LFROM128  = 1 << 1 // p.From3<<64+p.From forms a 128-bit constant in literal pool
 	LTO       = 1 << 2 // p.To uses constant pool
 	NOTUSETMP = 1 << 3 // p expands to multiple instructions, but does NOT use REGTMP
 )
@@ -419,7 +419,7 @@ var optab = []Optab{
 	{AMOVD, C_LACON, C_NONE, C_NONE, C_RSP, 34, 8, REGSP, LFROM, 0},
 
 	// Move a large constant to a vector register.
-	{AVMOVQ, C_VCON, C_NONE, C_VCON, C_VREG, 101, 4, 0, LFROM | LFROM3, 0},
+	{AVMOVQ, C_VCON, C_NONE, C_VCON, C_VREG, 101, 4, 0, LFROM128, 0},
 	{AVMOVD, C_VCON, C_NONE, C_NONE, C_VREG, 101, 4, 0, LFROM, 0},
 	{AVMOVS, C_LCON, C_NONE, C_NONE, C_VREG, 101, 4, 0, LFROM, 0},
 
@@ -995,8 +995,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		if o.flag&LFROM != 0 {
 			c.addpool(p, &p.From)
 		}
-		if o.flag&LFROM3 != 0 {
-			c.addpool(p, p.GetFrom3())
+		if o.flag&LFROM128 != 0 {
+			c.addpool128(p, &p.From, p.GetFrom3())
 		}
 		if o.flag&LTO != 0 {
 			c.addpool(p, &p.To)
@@ -1199,6 +1199,36 @@ func (c *ctxt7) flushpool(p *obj.Prog, skip int) {
 		c.pool.size = 0
 		c.pool.start = 0
 	}
+}
+
+// addpool128 adds a 128-bit constant to literal pool by two consecutive DWORD
+// instructions, the 128-bit constant is formed by ah.Offset<<64+al.Offset.
+func (c *ctxt7) addpool128(p *obj.Prog, al, ah *obj.Addr) {
+	lit := al.Offset
+	q := c.newprog()
+	q.As = ADWORD
+	q.To.Type = obj.TYPE_CONST
+	q.To.Offset = lit
+	q.Pc = int64(c.pool.size)
+
+	lit = ah.Offset
+	t := c.newprog()
+	t.As = ADWORD
+	t.To.Type = obj.TYPE_CONST
+	t.To.Offset = lit
+	t.Pc = int64(c.pool.size + 8)
+	q.Link = t
+
+	if c.blitrl == nil {
+		c.blitrl = q
+		c.pool.start = uint32(p.Pc)
+	} else {
+		c.elitrl.Link = q
+	}
+
+	c.elitrl = t
+	c.pool.size += 16
+	p.Pool = q
 }
 
 /*

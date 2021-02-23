@@ -13,8 +13,8 @@ import (
 	"fmt"
 	"go/format"
 	"io"
-	"io/ioutil"
 	"log"
+	"os"
 )
 
 var header = []byte(`// Copyright 2017 The Go Authors. All rights reserved.
@@ -40,7 +40,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = ioutil.WriteFile("bits_tables.go", out, 0666)
+	err = os.WriteFile("bits_tables.go", out, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}

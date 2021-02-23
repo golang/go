@@ -79,6 +79,7 @@ func initssaconfig() {
 	growslice = sysfunc("growslice")
 	msanread = sysfunc("msanread")
 	msanwrite = sysfunc("msanwrite")
+	msanmove = sysfunc("msanmove")
 	newobject = sysfunc("newobject")
 	newproc = sysfunc("newproc")
 	panicdivide = sysfunc("panicdivide")
@@ -966,7 +967,45 @@ func (s *state) newValueOrSfCall2(op ssa.Op, t *types.Type, arg0, arg1 *ssa.Valu
 	return s.newValue2(op, t, arg0, arg1)
 }
 
-func (s *state) instrument(t *types.Type, addr *ssa.Value, wr bool) {
+type instrumentKind uint8
+
+const (
+	instrumentRead = iota
+	instrumentWrite
+	instrumentMove
+)
+
+func (s *state) instrument(t *types.Type, addr *ssa.Value, kind instrumentKind) {
+	s.instrument2(t, addr, nil, kind)
+}
+
+// instrumentFields instruments a read/write operation on addr.
+// If it is instrumenting for MSAN and t is a struct type, it instruments
+// operation for each field, instead of for the whole struct.
+func (s *state) instrumentFields(t *types.Type, addr *ssa.Value, kind instrumentKind) {
+	if !flag_msan || !t.IsStruct() {
+		s.instrument(t, addr, kind)
+		return
+	}
+	for _, f := range t.Fields().Slice() {
+		if f.Sym.IsBlank() {
+			continue
+		}
+		offptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(f.Type), f.Offset, addr)
+		s.instrumentFields(f.Type, offptr, kind)
+	}
+}
+
+func (s *state) instrumentMove(t *types.Type, dst, src *ssa.Value) {
+	if flag_msan {
+		s.instrument2(t, dst, src, instrumentMove)
+	} else {
+		s.instrument(t, src, instrumentRead)
+		s.instrument(t, dst, instrumentWrite)
+	}
+}
+
+func (s *state) instrument2(t *types.Type, addr, addr2 *ssa.Value, kind instrumentKind) {
 	if !s.curfn.Func.InstrumentBody() {
 		return
 	}
@@ -983,33 +1022,54 @@ func (s *state) instrument(t *types.Type, addr *ssa.Value, wr bool) {
 	var fn *obj.LSym
 	needWidth := false
 
+	if addr2 != nil && kind != instrumentMove {
+		panic("instrument2: non-nil addr2 for non-move instrumentation")
+	}
+
 	if flag_msan {
-		fn = msanread
-		if wr {
+		switch kind {
+		case instrumentRead:
+			fn = msanread
+		case instrumentWrite:
 			fn = msanwrite
+		case instrumentMove:
+			fn = msanmove
+		default:
+			panic("unreachable")
 		}
 		needWidth = true
 	} else if flag_race && t.NumComponents(types.CountBlankFields) > 1 {
 		// for composite objects we have to write every address
 		// because a write might happen to any subobject.
 		// composites with only one element don't have subobjects, though.
-		fn = racereadrange
-		if wr {
+		switch kind {
+		case instrumentRead:
+			fn = racereadrange
+		case instrumentWrite:
 			fn = racewriterange
+		default:
+			panic("unreachable")
 		}
 		needWidth = true
 	} else if flag_race {
 		// for non-composite objects we can write just the start
 		// address, as any write must write the first byte.
-		fn = raceread
-		if wr {
+		switch kind {
+		case instrumentRead:
+			fn = raceread
+		case instrumentWrite:
 			fn = racewrite
+		default:
+			panic("unreachable")
 		}
 	} else {
 		panic("unreachable")
 	}
 
 	args := []*ssa.Value{addr}
+	if addr2 != nil {
+		args = append(args, addr2)
+	}
 	if needWidth {
 		args = append(args, s.constInt(types.Types[TUINTPTR], w))
 	}
@@ -1017,7 +1077,7 @@ func (s *state) instrument(t *types.Type, addr *ssa.Value, wr bool) {
 }
 
 func (s *state) load(t *types.Type, src *ssa.Value) *ssa.Value {
-	s.instrument(t, src, false)
+	s.instrumentFields(t, src, instrumentRead)
 	return s.rawLoad(t, src)
 }
 
@@ -1030,15 +1090,14 @@ func (s *state) store(t *types.Type, dst, val *ssa.Value) {
 }
 
 func (s *state) zero(t *types.Type, dst *ssa.Value) {
-	s.instrument(t, dst, true)
+	s.instrument(t, dst, instrumentWrite)
 	store := s.newValue2I(ssa.OpZero, types.TypeMem, t.Size(), dst, s.mem())
 	store.Aux = t
 	s.vars[&memVar] = store
 }
 
 func (s *state) move(t *types.Type, dst, src *ssa.Value) {
-	s.instrument(t, src, false)
-	s.instrument(t, dst, true)
+	s.instrumentMove(t, dst, src)
 	store := s.newValue3I(ssa.OpMove, types.TypeMem, t.Size(), dst, src, s.mem())
 	store.Aux = t
 	s.vars[&memVar] = store
@@ -5248,7 +5307,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 
 // do *left = right for type t.
 func (s *state) storeType(t *types.Type, left, right *ssa.Value, skip skipMask, leftIsStmt bool) {
-	s.instrument(t, left, true)
+	s.instrument(t, left, instrumentWrite)
 
 	if skip == 0 && (!t.HasPointers() || ssa.IsStackAddr(left)) {
 		// Known to not have write barrier. Store the whole type.
@@ -5866,7 +5925,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 				// Load type out of itab, build interface with existing idata.
 				off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(Widthptr), itab)
 				typ := s.load(byteptr, off)
-				idata := s.newValue1(ssa.OpIData, n.Type, iface)
+				idata := s.newValue1(ssa.OpIData, byteptr, iface)
 				res = s.newValue2(ssa.OpIMake, n.Type, typ, idata)
 				return
 			}
@@ -5888,7 +5947,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 			bOk.AddEdgeTo(bEnd)
 			bFail.AddEdgeTo(bEnd)
 			s.startBlock(bEnd)
-			idata := s.newValue1(ssa.OpIData, n.Type, iface)
+			idata := s.newValue1(ssa.OpIData, byteptr, iface)
 			res = s.newValue2(ssa.OpIMake, n.Type, s.variable(&typVar, byteptr), idata)
 			resok = cond
 			delete(s.vars, &typVar)

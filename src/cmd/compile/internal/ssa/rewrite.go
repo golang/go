@@ -974,9 +974,10 @@ func flagArg(v *Value) *Value {
 }
 
 // arm64Negate finds the complement to an ARM64 condition code,
-// for example Equal -> NotEqual or LessThan -> GreaterEqual
+// for example !Equal -> NotEqual or !LessThan -> GreaterEqual
 //
-// TODO: add floating-point conditions
+// For floating point, it's more subtle because NaN is unordered. We do
+// !LessThanF -> NotLessThanF, the latter takes care of NaNs.
 func arm64Negate(op Op) Op {
 	switch op {
 	case OpARM64LessThan:
@@ -1000,13 +1001,21 @@ func arm64Negate(op Op) Op {
 	case OpARM64NotEqual:
 		return OpARM64Equal
 	case OpARM64LessThanF:
-		return OpARM64GreaterEqualF
-	case OpARM64GreaterThanF:
-		return OpARM64LessEqualF
+		return OpARM64NotLessThanF
+	case OpARM64NotLessThanF:
+		return OpARM64LessThanF
 	case OpARM64LessEqualF:
+		return OpARM64NotLessEqualF
+	case OpARM64NotLessEqualF:
+		return OpARM64LessEqualF
+	case OpARM64GreaterThanF:
+		return OpARM64NotGreaterThanF
+	case OpARM64NotGreaterThanF:
 		return OpARM64GreaterThanF
 	case OpARM64GreaterEqualF:
-		return OpARM64LessThanF
+		return OpARM64NotGreaterEqualF
+	case OpARM64NotGreaterEqualF:
+		return OpARM64GreaterEqualF
 	default:
 		panic("unreachable")
 	}
@@ -1017,8 +1026,6 @@ func arm64Negate(op Op) Op {
 // that the same result would be produced if the arguments
 // to the flag-generating instruction were reversed, e.g.
 // (InvertFlags (CMP x y)) -> (CMP y x)
-//
-// TODO: add floating-point conditions
 func arm64Invert(op Op) Op {
 	switch op {
 	case OpARM64LessThan:
@@ -1047,6 +1054,14 @@ func arm64Invert(op Op) Op {
 		return OpARM64GreaterEqualF
 	case OpARM64GreaterEqualF:
 		return OpARM64LessEqualF
+	case OpARM64NotLessThanF:
+		return OpARM64NotGreaterThanF
+	case OpARM64NotGreaterThanF:
+		return OpARM64NotLessThanF
+	case OpARM64NotLessEqualF:
+		return OpARM64NotGreaterEqualF
+	case OpARM64NotGreaterEqualF:
+		return OpARM64NotLessEqualF
 	default:
 		panic("unreachable")
 	}
@@ -1427,10 +1442,11 @@ func DecodePPC64RotateMask(sauxint int64) (rotate, mb, me int64, mask uint64) {
 	return
 }
 
-// This verifies that the mask occupies the
-// rightmost bits.
+// This verifies that the mask is a set of
+// consecutive bits including the least
+// significant bit.
 func isPPC64ValidShiftMask(v int64) bool {
-	if ((v + 1) & v) == 0 {
+	if (v != 0) && ((v+1)&v) == 0 {
 		return true
 	}
 	return false

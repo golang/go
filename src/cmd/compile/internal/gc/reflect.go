@@ -1618,8 +1618,12 @@ func dumptabs() {
 			//	typ  typeOff // pointer to symbol
 			// }
 			nsym := dname(p.s.Name, "", nil, true)
+			tsym := dtypesym(p.t)
 			ot = dsymptrOff(s, ot, nsym)
-			ot = dsymptrOff(s, ot, dtypesym(p.t))
+			ot = dsymptrOff(s, ot, tsym)
+			// Plugin exports symbols as interfaces. Mark their types
+			// as UsedInIface.
+			tsym.Set(obj.AttrUsedInIface, true)
 		}
 		ggloblsym(s, int32(ot), int16(obj.RODATA))
 

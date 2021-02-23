@@ -1564,6 +1564,10 @@ const (
 	OpARM64LessEqualF
 	OpARM64GreaterThanF
 	OpARM64GreaterEqualF
+	OpARM64NotLessThanF
+	OpARM64NotLessEqualF
+	OpARM64NotGreaterThanF
+	OpARM64NotGreaterEqualF
 	OpARM64DUFFZERO
 	OpARM64LoweredZero
 	OpARM64DUFFCOPY
@@ -20799,6 +20803,42 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "NotLessThanF",
+		argLen: 1,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:   "NotLessEqualF",
+		argLen: 1,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:   "NotGreaterThanF",
+		argLen: 1,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:   "NotGreaterEqualF",
+		argLen: 1,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
 		name:           "DUFFZERO",
 		auxType:        auxInt64,
 		argLen:         2,
@@ -30569,7 +30609,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SLDconst",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     s390x.ASLD,
 		reg: regInfo{
@@ -30583,7 +30623,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SLWconst",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     s390x.ASLW,
 		reg: regInfo{
@@ -30625,7 +30665,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SRDconst",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     s390x.ASRD,
 		reg: regInfo{
@@ -30639,7 +30679,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SRWconst",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     s390x.ASRW,
 		reg: regInfo{
@@ -30683,7 +30723,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "SRADconst",
-		auxType:      auxInt8,
+		auxType:      auxUInt8,
 		argLen:       1,
 		clobberFlags: true,
 		asm:          s390x.ASRAD,
@@ -30698,7 +30738,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "SRAWconst",
-		auxType:      auxInt8,
+		auxType:      auxUInt8,
 		argLen:       1,
 		clobberFlags: true,
 		asm:          s390x.ASRAW,
@@ -30741,7 +30781,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "RLLconst",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     s390x.ARLL,
 		reg: regInfo{

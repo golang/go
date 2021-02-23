@@ -35,11 +35,12 @@ func (mode *BuildMode) Set(s string) error {
 	default:
 		return fmt.Errorf("invalid buildmode: %q", s)
 	case "exe":
-		if objabi.GOOS == "darwin" && objabi.GOARCH == "arm64" {
-			*mode = BuildModePIE // On darwin/arm64 everything is PIE.
-			break
+		switch objabi.GOOS + "/" + objabi.GOARCH {
+		case "darwin/arm64", "windows/arm": // On these platforms, everything is PIE
+			*mode = BuildModePIE
+		default:
+			*mode = BuildModeExe
 		}
-		*mode = BuildModeExe
 	case "pie":
 		switch objabi.GOOS {
 		case "aix", "android", "linux", "windows", "darwin", "ios":

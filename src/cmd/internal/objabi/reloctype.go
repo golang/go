@@ -156,6 +156,9 @@ const (
 	// R_ARM64_LDST8 sets a LD/ST immediate value to bits [11:0] of a local address.
 	R_ARM64_LDST8
 
+	// R_ARM64_LDST16 sets a LD/ST immediate value to bits [11:1] of a local address.
+	R_ARM64_LDST16
+
 	// R_ARM64_LDST32 sets a LD/ST immediate value to bits [11:2] of a local address.
 	R_ARM64_LDST32
 

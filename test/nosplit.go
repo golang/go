@@ -1,4 +1,4 @@
-// +build !nacl,!js,!aix,!gcflags_noopt
+// +build !nacl,!js,!aix,!gcflags_noopt,gc
 // run
 
 // Copyright 2014 The Go Authors. All rights reserved.

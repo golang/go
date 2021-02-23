@@ -4,7 +4,7 @@
 
 // +build linux
 // +build mips mipsle
-// +build !gccgo
+// +build gc
 
 #include "textflag.h"
 

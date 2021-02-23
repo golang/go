@@ -9,7 +9,6 @@ package runtime
 import "unsafe"
 
 var NonblockingPipe = nonblockingPipe
-var Pipe = pipe
 var SetNonblock = setNonblock
 var Closeonexec = closeonexec
 

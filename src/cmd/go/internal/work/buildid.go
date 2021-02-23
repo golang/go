@@ -7,14 +7,14 @@ package work
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	exec "internal/execabs"
 	"os"
-	"os/exec"
 	"strings"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/str"
 	"cmd/internal/buildid"
 )
@@ -343,7 +343,7 @@ func (b *Builder) gccgoBuildIDFile(a *Action) (string, error) {
 		}
 	}
 
-	if err := ioutil.WriteFile(sfile, buf.Bytes(), 0666); err != nil {
+	if err := os.WriteFile(sfile, buf.Bytes(), 0666); err != nil {
 		return "", err
 	}
 
@@ -375,6 +375,7 @@ func (b *Builder) buildID(file string) string {
 
 // fileHash returns the content hash of the named file.
 func (b *Builder) fileHash(file string) string {
+	file, _ = fsys.OverlayPath(file)
 	sum, err := cache.FileHash(file)
 	if err != nil {
 		return ""
@@ -645,7 +646,7 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 	}
 
 	if rewrite {
-		w, err := os.OpenFile(target, os.O_WRONLY, 0)
+		w, err := os.OpenFile(target, os.O_RDWR, 0)
 		if err != nil {
 			return err
 		}

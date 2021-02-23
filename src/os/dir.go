@@ -4,7 +4,10 @@
 
 package os
 
-import "io/fs"
+import (
+	"io/fs"
+	"sort"
+)
 
 type readdirMode int
 
@@ -103,3 +106,20 @@ func (f *File) ReadDir(n int) ([]DirEntry, error) {
 // testingForceReadDirLstat forces ReadDir to call Lstat, for testing that code path.
 // This can be difficult to provoke on some Unix systems otherwise.
 var testingForceReadDirLstat bool
+
+// ReadDir reads the named directory,
+// returning all its directory entries sorted by filename.
+// If an error occurs reading the directory,
+// ReadDir returns the entries it was able to read before the error,
+// along with the error.
+func ReadDir(name string) ([]DirEntry, error) {
+	f, err := Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	dirs, err := f.ReadDir(-1)
+	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
+	return dirs, err
+}

@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -123,7 +124,7 @@ func TestNoDuplicateNeededEntries(t *testing.T) {
 
 	var count int
 	for _, lib := range libs {
-		if lib == "libc.so" {
+		if lib == "libc.so" || strings.HasPrefix(lib, "libc.so.") {
 			count++
 		}
 	}

@@ -6,7 +6,7 @@ package embedtest_test
 
 import (
 	"embed"
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -59,7 +59,7 @@ func TestXGlobal(t *testing.T) {
 	testString(t, concurrency2, "concurrency2", "Concurrency is not parallelism.\n")
 	testString(t, string(glass2), "glass2", "I can eat glass and it doesn't hurt me.\n")
 
-	big, err := ioutil.ReadFile("testdata/ascii.txt")
+	big, err := os.ReadFile("testdata/ascii.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,18 +89,4 @@ func TestXGlobal(t *testing.T) {
 		t.Fatalf("bbig and bbig2 do not share storage")
 	}
 	bbig[0] = old
-}
-
-func TestXLocal(t *testing.T) {
-	//go:embed testdata/*o.txt
-	var local embed.FS
-	testFiles(t, local, "testdata/hello.txt", "hello, world\n")
-
-	//go:embed testdata/k*.txt
-	var s string
-	testString(t, s, "local variable s", "If a program is too slow, it must have a loop.\n")
-
-	//go:embed testdata/h*.txt
-	var b []byte
-	testString(t, string(b), "local variable b", "hello, world\n")
 }

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"internal/obscuretestdata"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,7 +30,7 @@ func testMain(m *testing.M) int {
 		return 0
 	}
 
-	tmpDir, err := ioutil.TempDir("", "TestNM")
+	tmpDir, err := os.MkdirTemp("", "TestNM")
 	if err != nil {
 		fmt.Println("TempDir failed:", err)
 		return 2
@@ -88,7 +87,7 @@ func TestNonGoExecs(t *testing.T) {
 
 func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 	t.Parallel()
-	tmpdir, err := ioutil.TempDir("", "TestGoExec")
+	tmpdir, err := os.MkdirTemp("", "TestGoExec")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +221,7 @@ func TestGoExec(t *testing.T) {
 
 func testGoLib(t *testing.T, iscgo bool) {
 	t.Parallel()
-	tmpdir, err := ioutil.TempDir("", "TestGoLib")
+	tmpdir, err := os.MkdirTemp("", "TestGoLib")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +244,7 @@ func testGoLib(t *testing.T, iscgo bool) {
 		err = e
 	}
 	if err == nil {
-		err = ioutil.WriteFile(filepath.Join(libpath, "go.mod"), []byte("module mylib\n"), 0666)
+		err = os.WriteFile(filepath.Join(libpath, "go.mod"), []byte("module mylib\n"), 0666)
 	}
 	if err != nil {
 		t.Fatal(err)

@@ -118,11 +118,6 @@ func testMain(m *testing.M) int {
 		cc = append(cc, s[start:])
 	}
 
-	if GOOS == "darwin" || GOOS == "ios" {
-		// For Darwin/ARM.
-		// TODO: do we still need this?
-		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
-	}
 	if GOOS == "aix" {
 		// -Wl,-bnoobjreorder is mandatory to keep the same layout
 		// in .text section.

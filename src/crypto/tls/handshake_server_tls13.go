@@ -6,7 +6,6 @@ package tls
 
 import (
 	"bytes"
-	"context"
 	"crypto"
 	"crypto/hmac"
 	"crypto/rsa"
@@ -24,7 +23,6 @@ const maxClientPSKIdentities = 5
 
 type serverHandshakeStateTLS13 struct {
 	c               *Conn
-	ctx             context.Context
 	clientHello     *clientHelloMsg
 	hello           *serverHelloMsg
 	sentDummyCCS    bool
@@ -381,7 +379,7 @@ func (hs *serverHandshakeStateTLS13) pickCertificate() error {
 		return c.sendAlert(alertMissingExtension)
 	}
 
-	certificate, err := c.config.getCertificate(clientHelloInfo(hs.ctx, c, hs.clientHello))
+	certificate, err := c.config.getCertificate(clientHelloInfo(c, hs.clientHello))
 	if err != nil {
 		if err == errNoCertificates {
 			c.sendAlert(alertUnrecognizedName)

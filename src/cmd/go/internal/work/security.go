@@ -179,7 +179,7 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-Wl,-berok`),
 	re(`-Wl,-Bstatic`),
 	re(`-Wl,-Bsymbolic-functions`),
-	re(`-WL,-O([^@,\-][^,]*)?`),
+	re(`-Wl,-O([^@,\-][^,]*)?`),
 	re(`-Wl,-d[ny]`),
 	re(`-Wl,--disable-new-dtags`),
 	re(`-Wl,-e[=,][a-zA-Z0-9]*`),

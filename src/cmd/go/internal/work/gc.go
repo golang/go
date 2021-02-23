@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -370,9 +369,10 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 
 	var ofiles []string
 	for _, sfile := range sfiles {
+		overlayPath, _ := fsys.OverlayPath(mkAbs(p.Dir, sfile))
 		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
 		ofiles = append(ofiles, ofile)
-		args1 := append(args, "-o", ofile, mkAbs(p.Dir, sfile))
+		args1 := append(args, "-o", ofile, overlayPath)
 		if err := b.run(a, p.Dir, p.ImportPath, nil, args1...); err != nil {
 			return nil, err
 		}
@@ -388,7 +388,8 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
 			if p.ImportPath == "runtime/cgo" && strings.HasPrefix(sfile, "gcc_") {
 				continue
 			}
-			args = append(args, mkAbs(p.Dir, sfile))
+			op, _ := fsys.OverlayPath(mkAbs(p.Dir, sfile))
+			args = append(args, op)
 		}
 
 		// Supply an empty go_asm.h as if the compiler had been run.
@@ -424,11 +425,11 @@ func toolVerify(a *Action, b *Builder, p *load.Package, newTool string, ofile st
 	if err := b.run(a, p.Dir, p.ImportPath, nil, newArgs...); err != nil {
 		return err
 	}
-	data1, err := ioutil.ReadFile(ofile)
+	data1, err := os.ReadFile(ofile)
 	if err != nil {
 		return err
 	}
-	data2, err := ioutil.ReadFile(ofile + ".new")
+	data2, err := os.ReadFile(ofile + ".new")
 	if err != nil {
 		return err
 	}
@@ -578,7 +579,7 @@ func pluginPath(a *Action) string {
 	}
 	fmt.Fprintf(h, "build ID: %s\n", buildID)
 	for _, file := range str.StringList(p.GoFiles, p.CgoFiles, p.SFiles) {
-		data, err := ioutil.ReadFile(filepath.Join(p.Dir, file))
+		data, err := os.ReadFile(filepath.Join(p.Dir, file))
 		if err != nil {
 			base.Fatalf("go: %s", err)
 		}

@@ -5,7 +5,6 @@
 package main_test
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,14 +19,14 @@ func TestAbsolutePath(t *testing.T) {
 	defer tg.cleanup()
 	tg.parallel()
 
-	tmp, err := ioutil.TempDir("", "TestAbsolutePath")
+	tmp, err := os.MkdirTemp("", "TestAbsolutePath")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer robustio.RemoveAll(tmp)
 
 	file := filepath.Join(tmp, "a.go")
-	err = ioutil.WriteFile(file, []byte{}, 0644)
+	err = os.WriteFile(file, []byte{}, 0644)
 	if err != nil {
 		t.Fatal(err)
 	}

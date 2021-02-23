@@ -27,8 +27,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
+	"os"
 )
 
 func main() {
@@ -54,7 +54,7 @@ func gen(arch string, tags, zero, copy func(io.Writer)) {
 	fmt.Fprintln(&buf)
 	copy(&buf)
 
-	if err := ioutil.WriteFile("duff_"+arch+".s", buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile("duff_"+arch+".s", buf.Bytes(), 0644); err != nil {
 		log.Fatalln(err)
 	}
 }

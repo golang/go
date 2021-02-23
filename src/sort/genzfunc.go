@@ -20,8 +20,8 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"log"
+	"os"
 	"regexp"
 )
 
@@ -92,7 +92,7 @@ func main() {
 	out.Write(src)
 
 	const target = "zfuncversion.go"
-	if err := ioutil.WriteFile(target, out.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(target, out.Bytes(), 0644); err != nil {
 		log.Fatal(err)
 	}
 }

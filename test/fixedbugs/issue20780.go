@@ -9,7 +9,7 @@
 
 package main
 
-func f() { // ERROR "stack frame too large"
+func f() { // GC_ERROR "stack frame too large"
 	var x [800e6]byte
 	g(x)
 	return

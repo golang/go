@@ -206,8 +206,8 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 		}
 
 		// We need to be able to reference dynimport symbols when linking against
-		// shared libraries, and Solaris, Darwin and AIX need it always
-		if !target.IsSolaris() && !target.IsDarwin() && !target.IsAIX() && rs != 0 && rst == sym.SDYNIMPORT && !target.IsDynlinkingGo() && !ldr.AttrSubSymbol(rs) {
+		// shared libraries, and AIX, Darwin, OpenBSD and Solaris always need it.
+		if !target.IsAIX() && !target.IsDarwin() && !target.IsSolaris() && !target.IsOpenbsd() && rs != 0 && rst == sym.SDYNIMPORT && !target.IsDynlinkingGo() && !ldr.AttrSubSymbol(rs) {
 			if !(target.IsPPC64() && target.IsExternal() && ldr.SymName(rs) == ".TOC.") {
 				st.err.Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", ldr.SymName(rs), rst, rst, rt, sym.RelocName(target.Arch, rt))
 			}
@@ -1815,6 +1815,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	for _, symn := range sym.ReadOnly {
 		symnStartValue := state.datsize
 		state.assignToSection(sect, symn, sym.SRODATA)
+		setCarrierSize(symn, state.datsize-symnStartValue)
 		if ctxt.HeadType == objabi.Haix {
 			// Read-only symbols might be wrapped inside their outer
 			// symbol.
@@ -1902,6 +1903,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 				}
 			}
 			state.assignToSection(sect, symn, sym.SRODATA)
+			setCarrierSize(symn, state.datsize-symnStartValue)
 			if ctxt.HeadType == objabi.Haix {
 				// Read-only symbols might be wrapped inside their outer
 				// symbol.
@@ -1949,6 +1951,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pctab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.functab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.epclntab", 0), sect)
+	setCarrierSize(sym.SPCLNTAB, int64(sect.Length))
 	if ctxt.HeadType == objabi.Haix {
 		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SPCLNTAB)
 	}

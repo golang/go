@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -85,13 +84,13 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 
 	t.Parallel()
 
-	dir, err := ioutil.TempDir("", "go-build")
+	dir, err := os.MkdirTemp("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}
 	defer os.RemoveAll(dir)
 
-	if err := ioutil.WriteFile(filepath.Join(dir, "main.go"), []byte(crashDumpsAllThreadsSource), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(crashDumpsAllThreadsSource), 0666); err != nil {
 		t.Fatalf("failed to create Go file: %v", err)
 	}
 
@@ -232,12 +231,19 @@ func TestPanicSystemstack(t *testing.T) {
 	}
 	defer pr.Close()
 
-	// Wait for "x\nx\n" to indicate readiness.
+	// Wait for "x\nx\n" to indicate almost-readiness.
 	buf := make([]byte, 4)
 	_, err = io.ReadFull(pr, buf)
 	if err != nil || string(buf) != "x\nx\n" {
 		t.Fatal("subprocess failed; output:\n", string(buf))
 	}
+
+	// The child blockers print "x\n" and then block on a lock. Receiving
+	// those bytes only indicates that the child is _about to block_. Since
+	// we don't have a way to know when it is fully blocked, sleep a bit to
+	// make us less likely to lose the race and signal before the child
+	// blocks.
+	time.Sleep(100 * time.Millisecond)
 
 	// Send SIGQUIT.
 	if err := cmd.Process.Signal(syscall.SIGQUIT); err != nil {

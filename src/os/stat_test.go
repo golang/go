@@ -7,7 +7,6 @@ package os_test
 import (
 	"internal/testenv"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -186,7 +185,7 @@ func testSymlinkSameFile(t *testing.T, path, link string) {
 func TestDirAndSymlinkStats(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpdir, err := ioutil.TempDir("", "TestDirAndSymlinkStats")
+	tmpdir, err := os.MkdirTemp("", "TestDirAndSymlinkStats")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,14 +218,14 @@ func TestDirAndSymlinkStats(t *testing.T) {
 func TestFileAndSymlinkStats(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpdir, err := ioutil.TempDir("", "TestFileAndSymlinkStats")
+	tmpdir, err := os.MkdirTemp("", "TestFileAndSymlinkStats")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
 
 	file := filepath.Join(tmpdir, "file")
-	err = ioutil.WriteFile(file, []byte(""), 0644)
+	err = os.WriteFile(file, []byte(""), 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,7 +252,7 @@ func TestFileAndSymlinkStats(t *testing.T) {
 func TestSymlinkWithTrailingSlash(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpdir, err := ioutil.TempDir("", "TestSymlinkWithTrailingSlash")
+	tmpdir, err := os.MkdirTemp("", "TestSymlinkWithTrailingSlash")
 	if err != nil {
 		t.Fatal(err)
 	}

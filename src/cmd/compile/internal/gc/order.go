@@ -891,7 +891,7 @@ func (o *Order) stmt(n *Node) {
 				// c is always evaluated; x and ok are only evaluated when assigned.
 				r.Right.Left = o.expr(r.Right.Left, nil)
 
-				if r.Right.Left.Op != ONAME {
+				if !r.Right.Left.IsAutoTmp() {
 					r.Right.Left = o.copyExpr(r.Right.Left, r.Right.Left.Type, false)
 				}
 

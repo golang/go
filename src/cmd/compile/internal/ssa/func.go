@@ -790,10 +790,10 @@ func (f *Func) spSb() (sp, sb *Value) {
 		}
 	}
 	if sb == nil {
-		sb = f.Entry.NewValue0(initpos, OpSB, f.Config.Types.Uintptr)
+		sb = f.Entry.NewValue0(initpos.WithNotStmt(), OpSB, f.Config.Types.Uintptr)
 	}
 	if sp == nil {
-		sp = f.Entry.NewValue0(initpos, OpSP, f.Config.Types.Uintptr)
+		sp = f.Entry.NewValue0(initpos.WithNotStmt(), OpSP, f.Config.Types.Uintptr)
 	}
 	return
 }

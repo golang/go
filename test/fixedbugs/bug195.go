@@ -19,7 +19,7 @@ type I4 interface { // GC_ERROR "invalid recursive type I4\n\tLINE: I4 refers to
 }
 
 type I5 interface { // GC_ERROR "invalid recursive type I5\n\tLINE: I5 refers to\n\tLINE+4: I6 refers to\n\tLINE: I5$"
-	I6 // GCCGO_ERROR "interface"
+	I6
 }
 
 type I6 interface {

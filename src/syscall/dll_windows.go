@@ -20,6 +20,8 @@ type DLLError struct {
 
 func (e *DLLError) Error() string { return e.Msg }
 
+func (e *DLLError) Unwrap() error { return e.Err }
+
 // Implemented in ../runtime/syscall_windows.go.
 
 func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)

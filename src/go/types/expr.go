@@ -802,7 +802,7 @@ var binaryOpPredicates = opPredicates{
 }
 
 // The binary expression e may be nil. It's passed in for better error messages only.
-func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, op token.Token) {
+func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, op token.Token, opPos token.Pos) {
 	var y operand
 
 	check.expr(x, lhs)
@@ -885,6 +885,14 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
 			op = token.QUO_ASSIGN
 		}
 		x.val = constant.BinaryOp(xval, op, yval)
+		// report error if valid operands lead to an invalid result
+		if xval.Kind() != constant.Unknown && yval.Kind() != constant.Unknown && x.val.Kind() == constant.Unknown {
+			// TODO(gri) We should report exactly what went wrong. At the
+			//           moment we don't have the (go/constant) API for that.
+			//           See also TODO in go/constant/value.go.
+			check.errorf(atPos(opPos), _InvalidConstVal, "constant result is not representable")
+			// TODO(gri) Should we mark operands with unknown values as invalid?
+		}
 		// Typed constants must be representable in
 		// their type after each constant operation.
 		if isTyped(typ) {
@@ -1073,7 +1081,11 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 	case *ast.BasicLit:
 		x.setConst(e.Kind, e.Value)
 		if x.mode == invalid {
-			check.invalidAST(e, "invalid literal %v", e.Value)
+			// The parser already establishes syntactic correctness.
+			// If we reach here it's because of number under-/overflow.
+			// TODO(gri) setConst (and in turn the go/constant package)
+			// should return an error describing the issue.
+			check.errorf(e, _InvalidConstVal, "malformed constant: %s", e.Value)
 			goto Error
 		}
 
@@ -1357,9 +1369,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			var key operand
 			check.expr(&key, e.Index)
 			check.assignment(&key, typ.key, "map index")
-			if x.mode == invalid {
-				goto Error
-			}
+			// ok to continue even if indexing failed - map element type is known
 			x.mode = mapindex
 			x.typ = typ.elem
 			x.expr = e
@@ -1540,7 +1550,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		}
 
 	case *ast.BinaryExpr:
-		check.binary(x, e, e.X, e.Y, e.Op)
+		check.binary(x, e, e.X, e.Y, e.Op, e.OpPos)
 		if x.mode == invalid {
 			goto Error
 		}

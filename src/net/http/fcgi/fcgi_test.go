@@ -221,7 +221,11 @@ var cleanUpTests = []struct {
 }
 
 type nopWriteCloser struct {
-	io.ReadWriter
+	io.Reader
+}
+
+func (nopWriteCloser) Write(buf []byte) (int, error) {
+	return len(buf), nil
 }
 
 func (nopWriteCloser) Close() error {
@@ -235,7 +239,7 @@ func TestChildServeCleansUp(t *testing.T) {
 	for _, tt := range cleanUpTests {
 		input := make([]byte, len(tt.input))
 		copy(input, tt.input)
-		rc := nopWriteCloser{bytes.NewBuffer(input)}
+		rc := nopWriteCloser{bytes.NewReader(input)}
 		done := make(chan bool)
 		c := newChild(rc, http.HandlerFunc(func(
 			w http.ResponseWriter,
@@ -325,7 +329,7 @@ func TestChildServeReadsEnvVars(t *testing.T) {
 	for _, tt := range envVarTests {
 		input := make([]byte, len(tt.input))
 		copy(input, tt.input)
-		rc := nopWriteCloser{bytes.NewBuffer(input)}
+		rc := nopWriteCloser{bytes.NewReader(input)}
 		done := make(chan bool)
 		c := newChild(rc, http.HandlerFunc(func(
 			w http.ResponseWriter,
@@ -375,7 +379,7 @@ func TestResponseWriterSniffsContentType(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			input := make([]byte, len(streamFullRequestStdin))
 			copy(input, streamFullRequestStdin)
-			rc := nopWriteCloser{bytes.NewBuffer(input)}
+			rc := nopWriteCloser{bytes.NewReader(input)}
 			done := make(chan bool)
 			var resp *response
 			c := newChild(rc, http.HandlerFunc(func(

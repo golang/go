@@ -8,7 +8,6 @@ package syscall_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -29,7 +28,7 @@ func testGetdirentries(t *testing.T, count int) {
 	if count > 100 && testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
 		t.Skip("skipping in -short mode")
 	}
-	d, err := ioutil.TempDir("", "getdirentries-test")
+	d, err := os.MkdirTemp("", "getdirentries-test")
 	if err != nil {
 		t.Fatalf("Tempdir: %v", err)
 	}
@@ -41,7 +40,7 @@ func testGetdirentries(t *testing.T, count int) {
 
 	// Make files in the temp directory
 	for _, name := range names {
-		err := ioutil.WriteFile(filepath.Join(d, name), []byte("data"), 0)
+		err := os.WriteFile(filepath.Join(d, name), []byte("data"), 0)
 		if err != nil {
 			t.Fatalf("WriteFile: %v", err)
 		}

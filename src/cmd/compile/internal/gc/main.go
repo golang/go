@@ -46,6 +46,7 @@ var (
 	Debug_closure      int
 	Debug_compilelater int
 	debug_dclstack     int
+	Debug_dumpptrs     int
 	Debug_libfuzzer    int
 	Debug_panic        int
 	Debug_slice        int
@@ -75,6 +76,7 @@ var debugtab = []struct {
 	{"compilelater", "compile functions as late as possible", &Debug_compilelater},
 	{"disablenil", "disable nil checks", &disable_checknil},
 	{"dclstack", "run internal dclstack check", &debug_dclstack},
+	{"dumpptrs", "show Node pointer values in Dump/dumplist output", &Debug_dumpptrs},
 	{"gcprog", "print dump of GC programs", &Debug_gcprog},
 	{"libfuzzer", "coverage instrumentation for libfuzzer", &Debug_libfuzzer},
 	{"nil", "print information about nil checks", &Debug_checknil},
@@ -89,6 +91,7 @@ var debugtab = []struct {
 	{"dwarfinl", "print information about DWARF inlined function creation", &Debug_gendwarfinl},
 	{"softfloat", "force compiler to emit soft-float code", &Debug_softfloat},
 	{"defer", "print information about defer compilation", &Debug_defer},
+	{"fieldtrack", "enable fieldtracking", &objabi.Fieldtrack_enabled},
 }
 
 const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]

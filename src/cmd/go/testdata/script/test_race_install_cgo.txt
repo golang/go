@@ -29,7 +29,6 @@ go 1.16
 package main
 
 import (
-	"io/ioutil"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -37,7 +36,7 @@ import (
 )
 
 func main() {
-	b, err := ioutil.ReadFile(os.Args[1])
+	b, err := os.ReadFile(os.Args[1])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -59,7 +58,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 )
@@ -67,7 +65,7 @@ import (
 
 func main() {
 	var t1 time.Time
-	b1, err := ioutil.ReadFile(os.Args[1])
+	b1, err := os.ReadFile(os.Args[1])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -78,7 +76,7 @@ func main() {
 	}
 
 	var t2 time.Time
-	b2, err := ioutil.ReadFile(os.Args[2])
+	b2, err := os.ReadFile(os.Args[2])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

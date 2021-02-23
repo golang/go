@@ -72,7 +72,7 @@ func clearSignalHandlers() {
 }
 
 //go:nosplit
-func sigblock() {
+func sigblock(exiting bool) {
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -82,6 +82,11 @@ func minit() {
 
 // Called from dropm to undo the effect of an minit.
 func unminit() {
+}
+
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+func mdestroy(mp *m) {
 }
 
 func osinit() {

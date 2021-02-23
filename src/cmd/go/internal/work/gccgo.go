@@ -6,9 +6,8 @@ package work
 
 import (
 	"fmt"
-	"io/ioutil"
+	exec "internal/execabs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -93,6 +92,12 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg,
 			}
 			args = append(args, "-I", root)
 		}
+	}
+	if embedcfg != nil && b.gccSupportsFlag(args[:1], "-fgo-embedcfg=/dev/null") {
+		if err := b.writeFile(objdir+"embedcfg", embedcfg); err != nil {
+			return "", nil, err
+		}
+		args = append(args, "-fgo-embedcfg="+objdir+"embedcfg")
 	}
 
 	if b.gccSupportsFlag(args[:1], "-ffile-prefix-map=a=b") {
@@ -199,7 +204,7 @@ func (tools gccgoToolchain) asm(b *Builder, a *Action, sfiles []string) ([]strin
 		base := filepath.Base(sfile)
 		ofile := a.Objdir + base[:len(base)-len(".s")] + ".o"
 		ofiles = append(ofiles, ofile)
-		sfile = mkAbs(p.Dir, sfile)
+		sfile, _ = fsys.OverlayPath(mkAbs(p.Dir, sfile))
 		defs := []string{"-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch}
 		if pkgpath := tools.gccgoCleanPkgpath(b, p); pkgpath != "" {
 			defs = append(defs, `-D`, `GOPKGPATH=`+pkgpath)
@@ -271,7 +276,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 	}
 
 	readCgoFlags := func(flagsFile string) error {
-		flags, err := ioutil.ReadFile(flagsFile)
+		flags, err := os.ReadFile(flagsFile)
 		if err != nil {
 			return err
 		}

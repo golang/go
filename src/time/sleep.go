@@ -31,6 +31,8 @@ func when(d Duration) int64 {
 	}
 	t := runtimeNano() + int64(d)
 	if t < 0 {
+		// N.B. runtimeNano() and d are always positive, so addition
+		// (including overflow) will never result in t == 0.
 		t = 1<<63 - 1 // math.MaxInt64
 	}
 	return t
@@ -99,7 +101,9 @@ func NewTimer(d Duration) *Timer {
 // It returns true if the timer had been active, false if the timer had
 // expired or been stopped.
 //
-// Reset should be invoked only on stopped or expired timers with drained channels.
+// For a Timer created with NewTimer, Reset should be invoked only on
+// stopped or expired timers with drained channels.
+//
 // If a program has already received a value from t.C, the timer is known
 // to have expired and the channel drained, so t.Reset can be used directly.
 // If a program has not yet received a value from t.C, however,
@@ -118,6 +122,15 @@ func NewTimer(d Duration) *Timer {
 // is a race condition between draining the channel and the new timer expiring.
 // Reset should always be invoked on stopped or expired channels, as described above.
 // The return value exists to preserve compatibility with existing programs.
+//
+// For a Timer created with AfterFunc(d, f), Reset either reschedules
+// when f will run, in which case Reset returns true, or schedules f
+// to run again, in which case it returns false.
+// When Reset returns false, Reset neither waits for the prior f to
+// complete before returning nor does it guarantee that the subsequent
+// goroutine running f does not run concurrently with the prior
+// one. If the caller needs to know whether the prior execution of
+// f is completed, it must coordinate with f explicitly.
 func (t *Timer) Reset(d Duration) bool {
 	if t.r.f == nil {
 		panic("time: Reset called on uninitialized Timer")

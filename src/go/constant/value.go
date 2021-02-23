@@ -66,6 +66,11 @@ type Value interface {
 // The spec requires at least 256 bits; typical implementations use 512 bits.
 const prec = 512
 
+// TODO(gri) Consider storing "error" information in an unknownVal so clients
+//           can provide better error messages. For instance, if a number is
+//           too large (incl. infinity), that could be recorded in unknownVal.
+//           See also #20583 and #42695 for use cases.
+
 type (
 	unknownVal struct{}
 	boolVal    bool
@@ -297,10 +302,16 @@ func makeFloat(x *big.Float) Value {
 	if x.Sign() == 0 {
 		return floatVal0
 	}
+	if x.IsInf() {
+		return unknownVal{}
+	}
 	return floatVal{x}
 }
 
 func makeComplex(re, im Value) Value {
+	if re.Kind() == Unknown || im.Kind() == Unknown {
+		return unknownVal{}
+	}
 	return complexVal{re, im}
 }
 
@@ -359,16 +370,13 @@ func MakeUint64(x uint64) Value {
 }
 
 // MakeFloat64 returns the Float value for x.
+// If x is -0.0, the result is 0.0.
 // If x is not finite, the result is an Unknown.
 func MakeFloat64(x float64) Value {
 	if math.IsInf(x, 0) || math.IsNaN(x) {
 		return unknownVal{}
 	}
-	// convert -0 to 0
-	if x == 0 {
-		return int64Val(0)
-	}
-	return ratVal{newRat().SetFloat64(x)}
+	return ratVal{newRat().SetFloat64(x + 0)} // convert -0 to 0
 }
 
 // MakeFromLiteral returns the corresponding integer, floating-point,
@@ -583,11 +591,11 @@ func Make(x interface{}) Value {
 	case int64:
 		return int64Val(x)
 	case *big.Int:
-		return intVal{x}
+		return makeInt(x)
 	case *big.Rat:
-		return ratVal{x}
+		return makeRat(x)
 	case *big.Float:
-		return floatVal{x}
+		return makeFloat(x)
 	default:
 		return unknownVal{}
 	}

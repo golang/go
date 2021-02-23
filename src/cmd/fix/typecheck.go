@@ -9,9 +9,8 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
+	exec "internal/execabs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -162,12 +161,12 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, ass
 			if err != nil {
 				return err
 			}
-			dir, err := ioutil.TempDir(os.TempDir(), "fix_cgo_typecheck")
+			dir, err := os.MkdirTemp(os.TempDir(), "fix_cgo_typecheck")
 			if err != nil {
 				return err
 			}
 			defer os.RemoveAll(dir)
-			err = ioutil.WriteFile(filepath.Join(dir, "in.go"), txt, 0600)
+			err = os.WriteFile(filepath.Join(dir, "in.go"), txt, 0600)
 			if err != nil {
 				return err
 			}
@@ -176,7 +175,7 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, ass
 			if err != nil {
 				return err
 			}
-			out, err := ioutil.ReadFile(filepath.Join(dir, "_cgo_gotypes.go"))
+			out, err := os.ReadFile(filepath.Join(dir, "_cgo_gotypes.go"))
 			if err != nil {
 				return err
 			}

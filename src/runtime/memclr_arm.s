@@ -30,6 +30,8 @@
 #define N	R12
 #define TMP	R12				/* N and TMP don't overlap */
 
+// See memclrNoHeapPointers Go doc for important implementation constraints.
+
 // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-8
 	MOVW	ptr+0(FP), TO

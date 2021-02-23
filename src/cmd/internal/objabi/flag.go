@@ -5,6 +5,7 @@
 package objabi
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -59,6 +60,9 @@ func expandArgs(in []string) (out []string) {
 				log.Fatal(err)
 			}
 			args := strings.Split(strings.TrimSpace(strings.Replace(string(slurp), "\r", "", -1)), "\n")
+			for i, arg := range args {
+				args[i] = DecodeArg(arg)
+			}
 			out = append(out, expandArgs(args)...)
 		} else if out != nil {
 			out = append(out, s)
@@ -160,3 +164,38 @@ func (f fn1) Set(s string) error {
 }
 
 func (f fn1) String() string { return "" }
+
+// DecodeArg decodes an argument.
+//
+// This function is public for testing with the parallel encoder.
+func DecodeArg(arg string) string {
+	// If no encoding, fastpath out.
+	if !strings.ContainsAny(arg, "\\\n") {
+		return arg
+	}
+
+	// We can't use strings.Builder as this must work at bootstrap.
+	var b bytes.Buffer
+	var wasBS bool
+	for _, r := range arg {
+		if wasBS {
+			switch r {
+			case '\\':
+				b.WriteByte('\\')
+			case 'n':
+				b.WriteByte('\n')
+			default:
+				// This shouldn't happen. The only backslashes that reach here
+				// should encode '\n' and '\\' exclusively.
+				panic("badly formatted input")
+			}
+		} else if r == '\\' {
+			wasBS = true
+			continue
+		} else {
+			b.WriteRune(r)
+		}
+		wasBS = false
+	}
+	return b.String()
+}

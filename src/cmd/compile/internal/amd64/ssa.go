@@ -76,7 +76,7 @@ func storeByType(t *types.Type) obj.As {
 			return x86.AMOVQ
 		}
 	}
-	panic("bad store type")
+	panic(fmt.Sprintf("bad store type %v", t))
 }
 
 // moveByType returns the reg->reg move instruction of the given type.
@@ -101,7 +101,7 @@ func moveByType(t *types.Type) obj.As {
 		case 16:
 			return x86.AMOVUPS // int128s are in SSE registers
 		default:
-			panic(fmt.Sprintf("bad int register width %d:%s", t.Size(), t))
+			panic(fmt.Sprintf("bad int register width %d:%v", t.Size(), t))
 		}
 	}
 }

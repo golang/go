@@ -11,7 +11,6 @@ import (
 	"internal/obscuretestdata"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -629,7 +628,7 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
 	var c []byte
 	if ft.Content != nil {
 		c = ft.Content
-	} else if c, err = ioutil.ReadFile("testdata/" + ft.File); err != nil {
+	} else if c, err = os.ReadFile("testdata/" + ft.File); err != nil {
 		t.Error(err)
 		return
 	}
@@ -685,7 +684,7 @@ func TestInvalidFiles(t *testing.T) {
 }
 
 func messWith(fileName string, corrupter func(b []byte)) (r io.ReaderAt, size int64) {
-	data, err := ioutil.ReadFile(filepath.Join("testdata", fileName))
+	data, err := os.ReadFile(filepath.Join("testdata", fileName))
 	if err != nil {
 		panic("Error reading " + fileName + ": " + err.Error())
 	}
@@ -792,17 +791,17 @@ func returnRecursiveZip() (r io.ReaderAt, size int64) {
 //
 //	func main() {
 //		bigZip := makeZip("big.file", io.LimitReader(zeros{}, 1<<32-1))
-//		if err := ioutil.WriteFile("/tmp/big.zip", bigZip, 0666); err != nil {
+//		if err := os.WriteFile("/tmp/big.zip", bigZip, 0666); err != nil {
 //			log.Fatal(err)
 //		}
 //
 //		biggerZip := makeZip("big.zip", bytes.NewReader(bigZip))
-//		if err := ioutil.WriteFile("/tmp/bigger.zip", biggerZip, 0666); err != nil {
+//		if err := os.WriteFile("/tmp/bigger.zip", biggerZip, 0666); err != nil {
 //			log.Fatal(err)
 //		}
 //
 //		biggestZip := makeZip("bigger.zip", bytes.NewReader(biggerZip))
-//		if err := ioutil.WriteFile("/tmp/biggest.zip", biggestZip, 0666); err != nil {
+//		if err := os.WriteFile("/tmp/biggest.zip", biggestZip, 0666); err != nil {
 //			log.Fatal(err)
 //		}
 //	}

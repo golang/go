@@ -26,7 +26,6 @@ func fdopendir(fd int) (dir uintptr, err error) {
 
 func libc_fdopendir_trampoline()
 
-//go:linkname libc_fdopendir libc_fdopendir
 //go:cgo_import_dynamic libc_fdopendir fdopendir "/usr/lib/libSystem.B.dylib"
 
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {

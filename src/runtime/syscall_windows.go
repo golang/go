@@ -109,14 +109,19 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 			// passed as two words (little endian); and
 			// structs are pushed on the stack. In
 			// fastcall, arguments larger than the word
-			// size are passed by reference.
+			// size are passed by reference. On arm,
+			// 8-byte aligned arguments round up to the
+			// next even register and can be split across
+			// registers and the stack.
 			panic("compileCallback: argument size is larger than uintptr")
 		}
-		if k := t.kind & kindMask; GOARCH == "amd64" && (k == kindFloat32 || k == kindFloat64) {
+		if k := t.kind & kindMask; (GOARCH == "amd64" || GOARCH == "arm") && (k == kindFloat32 || k == kindFloat64) {
 			// In fastcall, floating-point arguments in
 			// the first four positions are passed in
 			// floating-point registers, which we don't
-			// currently spill.
+			// currently spill. arm passes floating-point
+			// arguments in VFP registers, which we also
+			// don't support.
 			panic("compileCallback: float arguments not supported")
 		}
 
@@ -128,6 +133,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 		// argument word and all supported Windows
 		// architectures are little endian, so src is already
 		// pointing to the right place for smaller arguments.
+		// The same is true on arm.
 
 		// Copy just the size of the argument. Note that this
 		// could be a small by-value struct, but C and Go
@@ -139,7 +145,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 			abiMap = append(abiMap, part)
 		}
 
-		// cdecl, stdcall, and fastcall pad arguments to word size.
+		// cdecl, stdcall, fastcall, and arm pad arguments to word size.
 		src += sys.PtrSize
 		// The Go ABI packs arguments.
 		dst += t.size
@@ -205,7 +211,18 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 
 type callbackArgs struct {
 	index uintptr
-	args  unsafe.Pointer // Arguments in stdcall/cdecl convention, with registers spilled
+	// args points to the argument block.
+	//
+	// For cdecl and stdcall, all arguments are on the stack.
+	//
+	// For fastcall, the trampoline spills register arguments to
+	// the reserved spill slots below the stack arguments,
+	// resulting in a layout equivalent to stdcall.
+	//
+	// For arm, the trampoline stores the register arguments just
+	// below the stack arguments, so again we can treat it as one
+	// big stack arguments frame.
+	args unsafe.Pointer
 	// Below are out-args from callbackWrap
 	result uintptr
 	retPop uintptr // For 386 cdecl, how many bytes to pop on return
@@ -216,7 +233,7 @@ func callbackWrap(a *callbackArgs) {
 	c := cbs.ctxt[a.index]
 	a.retPop = c.retPop
 
-	// Convert from stdcall to Go ABI.
+	// Convert from C to Go ABI.
 	var frame [callbackMaxFrame]byte
 	goArgs := unsafe.Pointer(&frame)
 	for _, part := range c.abiMap {

@@ -31,10 +31,6 @@ type ImportMissingError struct {
 	Module   module.Version
 	QueryErr error
 
-	// inAll indicates whether Path is in the "all" package pattern,
-	// and thus would be added by 'go mod tidy'.
-	inAll bool
-
 	// isStd indicates whether we would expect to find the package in the standard
 	// library. This is normally true for all dotless import paths, but replace
 	// directives can cause us to treat the replaced paths as also being in
@@ -58,7 +54,7 @@ func (e *ImportMissingError) Error() string {
 		if e.QueryErr != nil {
 			return fmt.Sprintf("cannot find module providing package %s: %v", e.Path, e.QueryErr)
 		}
-		if cfg.BuildMod == "mod" {
+		if cfg.BuildMod == "mod" || (cfg.BuildMod == "readonly" && allowMissingModuleImports) {
 			return "cannot find module providing package " + e.Path
 		}
 
@@ -67,16 +63,14 @@ func (e *ImportMissingError) Error() string {
 			if !modfetch.IsZeroPseudoVersion(e.replaced.Version) {
 				suggestArg = e.replaced.String()
 			}
-			return fmt.Sprintf("module %s provides package %s and is replaced but not required; try 'go get -d %s' to add it", e.replaced.Path, e.Path, suggestArg)
+			return fmt.Sprintf("module %s provides package %s and is replaced but not required; to add it:\n\tgo get %s", e.replaced.Path, e.Path, suggestArg)
 		}
 
 		suggestion := ""
 		if !HasModRoot() {
 			suggestion = ": working directory is not part of a module"
-		} else if e.inAll {
-			suggestion = "; try 'go mod tidy' to add it"
 		} else {
-			suggestion = fmt.Sprintf("; try 'go get -d %s' to add it", e.Path)
+			suggestion = fmt.Sprintf("; to add it:\n\tgo get %s", e.Path)
 		}
 		return fmt.Sprintf("no required module provides package %s%s", e.Path, suggestion)
 	}
@@ -136,24 +130,57 @@ func (e *AmbiguousImportError) Error() string {
 }
 
 // ImportMissingSumError is reported in readonly mode when we need to check
-// if a module in the build list contains a package, but we don't have a sum
-// for its .zip file.
+// if a module contains a package, but we don't have a sum for its .zip file.
+// We might need sums for multiple modules to verify the package is unique.
+//
+// TODO(#43653): consolidate multiple errors of this type into a single error
+// that suggests a 'go get' command for root packages that transtively import
+// packages from modules with missing sums. load.CheckPackageErrors would be
+// a good place to consolidate errors, but we'll need to attach the import
+// stack here.
 type ImportMissingSumError struct {
-	importPath   string
-	found, inAll bool
+	importPath                string
+	found                     bool
+	mods                      []module.Version
+	importer, importerVersion string // optional, but used for additional context
+	importerIsTest            bool
 }
 
 func (e *ImportMissingSumError) Error() string {
+	var importParen string
+	if e.importer != "" {
+		importParen = fmt.Sprintf(" (imported by %s)", e.importer)
+	}
 	var message string
 	if e.found {
-		message = fmt.Sprintf("missing go.sum entry needed to verify package %s is provided by exactly one module", e.importPath)
+		message = fmt.Sprintf("missing go.sum entry needed to verify package %s%s is provided by exactly one module", e.importPath, importParen)
 	} else {
-		message = fmt.Sprintf("missing go.sum entry for module providing package %s", e.importPath)
+		message = fmt.Sprintf("missing go.sum entry for module providing package %s%s", e.importPath, importParen)
 	}
-	if e.inAll {
-		return message + "; try 'go mod tidy' to add it"
+	var hint string
+	if e.importer == "" {
+		// Importing package is unknown, or the missing package was named on the
+		// command line. Recommend 'go mod download' for the modules that could
+		// provide the package, since that shouldn't change go.mod.
+		args := make([]string, len(e.mods))
+		for i, mod := range e.mods {
+			args[i] = mod.Path
+		}
+		hint = fmt.Sprintf("; to add:\n\tgo mod download %s", strings.Join(args, " "))
+	} else {
+		// Importing package is known (common case). Recommend 'go get' on the
+		// current version of the importing package.
+		tFlag := ""
+		if e.importerIsTest {
+			tFlag = " -t"
+		}
+		version := ""
+		if e.importerVersion != "" {
+			version = "@" + e.importerVersion
+		}
+		hint = fmt.Sprintf("; to add:\n\tgo get%s %s%s", tFlag, e.importer, version)
 	}
-	return message
+	return message + hint
 }
 
 func (e *ImportMissingSumError) ImportPath() string {
@@ -244,7 +271,7 @@ func importFromBuildList(ctx context.Context, path string, buildList []module.Ve
 	// Check each module on the build list.
 	var dirs []string
 	var mods []module.Version
-	haveSumErr := false
+	var sumErrMods []module.Version
 	for _, m := range buildList {
 		if !maybeInModule(path, m.Path) {
 			// Avoid possibly downloading irrelevant modules.
@@ -257,8 +284,9 @@ func importFromBuildList(ctx context.Context, path string, buildList []module.Ve
 				// We are missing a sum needed to fetch a module in the build list.
 				// We can't verify that the package is unique, and we may not find
 				// the package at all. Keep checking other modules to decide which
-				// error to report.
-				haveSumErr = true
+				// error to report. Multiple sums may be missing if we need to look in
+				// multiple nested modules to resolve the import.
+				sumErrMods = append(sumErrMods, m)
 				continue
 			}
 			// Report fetch error.
@@ -279,8 +307,12 @@ func importFromBuildList(ctx context.Context, path string, buildList []module.Ve
 	if len(mods) > 1 {
 		return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: dirs, Modules: mods}
 	}
-	if haveSumErr {
-		return module.Version{}, "", &ImportMissingSumError{importPath: path, found: len(mods) > 0}
+	if len(sumErrMods) > 0 {
+		return module.Version{}, "", &ImportMissingSumError{
+			importPath: path,
+			mods:       sumErrMods,
+			found:      len(mods) > 0,
+		}
 	}
 	if len(mods) == 1 {
 		return mods[0], dirs[0], nil
@@ -365,7 +397,7 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 		return module.Version{}, &ImportMissingError{Path: path, isStd: true}
 	}
 
-	if cfg.BuildMod == "readonly" {
+	if cfg.BuildMod == "readonly" && !allowMissingModuleImports {
 		// In readonly mode, we can't write go.mod, so we shouldn't try to look up
 		// the module. If readonly mode was enabled explicitly, include that in
 		// the error message.
@@ -477,7 +509,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	if isLocal {
 		for d := dir; d != mdir && len(d) > len(mdir); {
 			haveGoMod := haveGoModCache.Do(d, func() interface{} {
-				fi, err := os.Stat(filepath.Join(d, "go.mod"))
+				fi, err := fsys.Stat(filepath.Join(d, "go.mod"))
 				return err == nil && !fi.IsDir()
 			}).(bool)
 
@@ -531,7 +563,7 @@ func fetch(ctx context.Context, mod module.Version, needSum bool) (dir string, i
 			// dirInModule does not report errors for missing modules,
 			// so if we don't report the error now, later failures will be
 			// very mysterious.
-			if _, err := os.Stat(dir); err != nil {
+			if _, err := fsys.Stat(dir); err != nil {
 				if os.IsNotExist(err) {
 					// Semantically the module version itself “exists” — we just don't
 					// have its source code. Remove the equivalence to os.ErrNotExist,
@@ -547,7 +579,7 @@ func fetch(ctx context.Context, mod module.Version, needSum bool) (dir string, i
 		mod = r
 	}
 
-	if cfg.BuildMod == "readonly" && needSum && !modfetch.HaveSum(mod) {
+	if HasModRoot() && cfg.BuildMod == "readonly" && needSum && !modfetch.HaveSum(mod) {
 		return "", false, module.VersionError(mod, &sumMissingError{})
 	}
 
