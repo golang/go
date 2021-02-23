@@ -385,9 +385,9 @@ func TestIssue28005(t *testing.T) {
 			}
 		}
 		if obj == nil {
-			t.Fatal("interface not found")
+			t.Fatal("object X not found")
 		}
-		iface := obj.Type().Underlying().(*Interface) // I must be an interface
+		iface := obj.Type().Underlying().(*Interface) // object X must be an interface
 
 		// Each iface method m is embedded; and m's receiver base type name
 		// must match the method's name per the choice in the source file.
