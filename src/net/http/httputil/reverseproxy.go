@@ -45,7 +45,21 @@ type ReverseProxy struct {
 	// back to the original client unmodified.
 	// Director must not access the provided Request
 	// after returning.
+	// Deprecated: New code should use the new ModifyRequest method,
+	// which allows returning an error to interrupt the flow.
 	Director func(*http.Request)
+
+	// ModifyRequest must be a function which modifies
+	// the request into a new request to be sent
+	// using Transport. Its response is then copied
+	// back to the original client unmodified.
+	// ModifyRequest must not access the provided Request
+	// after returning.
+	// If ModifyResponse returns an error, ErrorHandler is called
+	// with its error value. If ErrorHandler is nil, its default
+	// implementation is used.
+	// If ModifyRequest is nil, the old Director method is called.
+	ModifyRequest func(*http.Request) error
 
 	// The transport used to perform proxy requests.
 	// If nil, http.DefaultTransport is used.
@@ -141,7 +155,7 @@ func joinURLPath(a, b *url.URL) (path, rawpath string) {
 // Director policy.
 func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
 	targetQuery := target.RawQuery
-	director := func(req *http.Request) {
+	modifyRequest := func(req *http.Request) error {
 		req.URL.Scheme = target.Scheme
 		req.URL.Host = target.Host
 		req.URL.Path, req.URL.RawPath = joinURLPath(target, req.URL)
@@ -154,8 +168,9 @@ func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
 			// explicitly disable User-Agent so it's not set to default value
 			req.Header.Set("User-Agent", "")
 		}
+		return nil
 	}
-	return &ReverseProxy{Director: director}
+	return &ReverseProxy{ModifyRequest: modifyRequest}
 }
 
 func copyHeader(dst, src http.Header) {
@@ -193,6 +208,20 @@ func (p *ReverseProxy) getErrorHandler() func(http.ResponseWriter, *http.Request
 		return p.ErrorHandler
 	}
 	return p.defaultErrorHandler
+}
+
+// modifyRequest conditionally runs the optional ModifyRequest hook or the old
+// Director policy and reports whether the request should proceed.
+func (p *ReverseProxy) modifyRequest(rw http.ResponseWriter, req *http.Request) bool {
+	if p.ModifyRequest == nil {
+		p.Director(req)
+		return true
+	}
+	if err := p.ModifyRequest(req); err != nil {
+		p.getErrorHandler()(rw, req, err)
+		return false
+	}
+	return true
 }
 
 // modifyResponse conditionally runs the optional ModifyResponse hook
@@ -238,7 +267,9 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		outreq.Header = make(http.Header) // Issue 33142: historical behavior was to always allocate
 	}
 
-	p.Director(outreq)
+	if !p.modifyRequest(rw, outreq) {
+		return
+	}
 	outreq.Close = false
 
 	reqUpType := upgradeType(outreq.Header)

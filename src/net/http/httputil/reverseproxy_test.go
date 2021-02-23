@@ -293,10 +293,10 @@ func TestXForwardedFor_Omit(t *testing.T) {
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 
-	oldDirector := proxyHandler.Director
-	proxyHandler.Director = func(r *http.Request) {
+	oldModifyRequest := proxyHandler.ModifyRequest
+	proxyHandler.ModifyRequest = func(r *http.Request) error {
 		r.Header["X-Forwarded-For"] = nil
-		oldDirector(r)
+		return oldModifyRequest(r)
 	}
 
 	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
@@ -694,8 +694,8 @@ func TestReverseProxy_NilBody(t *testing.T) {
 // Issue 33142: always allocate the request headers
 func TestReverseProxy_AllocatedHeader(t *testing.T) {
 	proxyHandler := new(ReverseProxy)
-	proxyHandler.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
-	proxyHandler.Director = func(*http.Request) {}     // noop
+	proxyHandler.ErrorLog = log.New(io.Discard, "", 0)                    // quiet for tests
+	proxyHandler.ModifyRequest = func(*http.Request) error { return nil } // noop
 	proxyHandler.Transport = RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Header == nil {
 			t.Error("Header == nil; want a non-nil Header")
@@ -898,8 +898,8 @@ func BenchmarkServeHTTP(b *testing.B) {
 		Body:       io.NopCloser(strings.NewReader("")),
 	}
 	proxy := &ReverseProxy{
-		Director:  func(*http.Request) {},
-		Transport: &staticTransport{res},
+		ModifyRequest: func(*http.Request) error { return nil },
+		Transport:     &staticTransport{res},
 	}
 
 	w := httptest.NewRecorder()
@@ -957,20 +957,21 @@ func TestClonesRequestHeaders(t *testing.T) {
 	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
 	req.RemoteAddr = "1.2.3.4:56789"
 	rp := &ReverseProxy{
-		Director: func(req *http.Request) {
-			req.Header.Set("From-Director", "1")
+		ModifyRequest: func(req *http.Request) error {
+			req.Header.Set("From-ModifyRequest", "1")
+			return nil
 		},
 		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-			if v := req.Header.Get("From-Director"); v != "1" {
-				t.Errorf("From-Directory value = %q; want 1", v)
+			if v := req.Header.Get("From-ModifyRequest"); v != "1" {
+				t.Errorf("From-ModifyRequest value = %q; want 1", v)
 			}
 			return nil, io.EOF
 		}),
 	}
 	rp.ServeHTTP(httptest.NewRecorder(), req)
 
-	if req.Header.Get("From-Director") == "1" {
-		t.Error("Director header mutation modified caller's request")
+	if req.Header.Get("From-ModifyRequest") == "1" {
+		t.Error("ModifyRequest header mutation modified caller's request")
 	}
 	if req.Header.Get("X-Forwarded-For") != "" {
 		t.Error("X-Forward-For header mutation modified caller's request")
@@ -991,7 +992,7 @@ func TestModifyResponseClosesBody(t *testing.T) {
 	logBuf := new(bytes.Buffer)
 	outErr := errors.New("ModifyResponse error")
 	rp := &ReverseProxy{
-		Director: func(req *http.Request) {},
+		ModifyRequest: func(req *http.Request) error { return nil },
 		Transport: &staticTransport{&http.Response{
 			StatusCode: 200,
 			Body:       closeCheck,
@@ -1417,4 +1418,52 @@ func TestJoinURLPath(t *testing.T) {
 				p, rp)
 		}
 	}
+}
+
+func TestModifyRequestPrecedence(t *testing.T) {
+	log.SetOutput(io.Discard)
+	defer log.SetOutput(os.Stderr)
+	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
+	req.RemoteAddr = "1.2.3.4:56789"
+	rp := &ReverseProxy{
+		Director: func(req *http.Request) {
+			req.Header.Set("From-Director", "1")
+		},
+		ModifyRequest: func(req *http.Request) error {
+			req.Header.Set("From-ModifyRequest", "1")
+			return nil
+		},
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			if v := req.Header.Get("From-ModifyRequest"); v != "1" {
+				t.Errorf("From-ModifyRequest value = %q; want 1", v)
+			}
+			if v := req.Header.Get("From-Director"); v != "" {
+				t.Errorf("From-Director value = %q; want nothing", v)
+			}
+			return nil, io.EOF
+		}),
+	}
+	rp.ServeHTTP(httptest.NewRecorder(), req)
+}
+
+func TestModifyRequestDirectorFallback(t *testing.T) {
+	log.SetOutput(io.Discard)
+	defer log.SetOutput(os.Stderr)
+	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
+	req.RemoteAddr = "1.2.3.4:56789"
+	rp := &ReverseProxy{
+		Director: func(req *http.Request) {
+			req.Header.Set("From-Director", "1")
+		},
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			if v := req.Header.Get("From-Director"); v != "1" {
+				t.Errorf("From-Director value = %q; want 1", v)
+			}
+			if v := req.Header.Get("From-ModifyRequest"); v != "" {
+				t.Errorf("From-ModifyRequest value = %q; want nothing", v)
+			}
+			return nil, io.EOF
+		}),
+	}
+	rp.ServeHTTP(httptest.NewRecorder(), req)
 }
