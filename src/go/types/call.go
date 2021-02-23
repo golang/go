@@ -1,4 +1,3 @@
-// REVIEW INCOMPLETE
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -114,19 +113,9 @@ func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
 		return statement
 
 	case typexpr:
-		// conversion or type instantiation
+		// conversion
 		T := x.typ
 		x.mode = invalid
-		if isGeneric(T) {
-			// type instantiation
-			x.typ = check.typ(call)
-			if x.typ != Typ[Invalid] {
-				x.mode = typexpr
-			}
-			return expression
-		}
-
-		// conversion
 		switch n := len(call.Args); n {
 		case 0:
 			check.errorf(inNode(call, call.Rparen), _WrongArgCount, "missing argument in conversion to %s", T)
@@ -217,6 +206,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
 
 // exprOrTypeList returns a list of operands and reports an error if the
 // list contains a mix of values and types (ignoring invalid operands).
+// TODO(rFindley) Now we can split this into exprList and typeList.
 func (check *Checker) exprOrTypeList(elist []ast.Expr) (xlist []*operand, ok bool) {
 	ok = true
 
@@ -437,8 +427,6 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 	}
 
 	// check arguments
-	// TODO(gri) Possible optimization (may be tricky): We could avoid
-	//           checking arguments from which we inferred type arguments.
 	for i, a := range args {
 		check.assignment(a, sigParams.vars[i].typ, check.sprintf("argument to %s", call.Fun))
 	}
