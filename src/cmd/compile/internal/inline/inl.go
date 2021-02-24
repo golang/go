@@ -354,15 +354,15 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		return true
 
 	case ir.OCLOSURE:
-		// TODO(danscales,mdempsky): Get working with -G.
-		// Probably after #43818 is fixed.
-		if base.Flag.G > 0 {
-			v.reason = "inlining closures not yet working with -G"
+		if base.Debug.InlFuncsWithClosures == 0 {
+			// TODO(danscales): change default of InlFuncsWithClosures
+			// to 1 when #44370 is fixed
+			v.reason = "not inlining functions with closures"
 			return true
 		}
 
-		// TODO(danscales) - fix some bugs when budget is lowered below 15
-		// Maybe make budget proportional to number of closure variables, e.g.:
+		// TODO(danscales): Maybe make budget proportional to number of closure
+		// variables, e.g.:
 		//v.budget -= int32(len(n.(*ir.ClosureExpr).Func.ClosureVars) * 3)
 		v.budget -= 15
 		// Scan body of closure (which DoChildren doesn't automatically
