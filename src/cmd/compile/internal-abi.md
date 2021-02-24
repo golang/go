@@ -402,9 +402,6 @@ Special-purpose registers are as follows:
 | R15 | GOT reference temporary | Fixed if dynlink |
 | X15 | Zero value | Fixed |
 
-TODO: We may start with the existing TLS-based g and move to R14
-later.
-
 *Rationale*: These register meanings are compatible with Go’s
 stack-based calling convention except for R14 and X15, which will have
 to be restored on transitions from ABI0 code to ABIInternal code.
