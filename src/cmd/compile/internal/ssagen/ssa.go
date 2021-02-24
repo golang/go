@@ -555,19 +555,26 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 				}
 				s.vars[n] = v
 				s.addNamedValue(n, v) // This helps with debugging information, not needed for compilation itself.
-			} else if !s.canSSAName(n) { // I.e., the address was taken.  The type may or may not be okay.
-				// If the value will arrive in registers,
-				// AND if it can be SSA'd (if it cannot, panic for now),
-				// THEN
-				// (1) receive it as an OpArg (but do not store its name in the var table)
-				// (2) store it to its spill location, which is its address as well.
+			} else { // address was taken AND/OR too large for SSA
 				paramAssignment := ssa.ParamAssignmentForArgName(s.f, n)
 				if len(paramAssignment.Registers) > 0 {
-					if !TypeOK(n.Type()) { // TODO register args -- if v is not an SSA-able type, must decompose, here.
-						panic(fmt.Errorf("Arg in registers is too big to be SSA'd, need to implement decomposition, type=%v, n=%v", n.Type(), n))
+					if TypeOK(n.Type()) { // SSA-able type, so address was taken -- receive value in OpArg, DO NOT bind to var, store immediately to memory.
+						v := s.newValue0A(ssa.OpArg, n.Type(), n)
+						s.store(n.Type(), s.decladdrs[n], v)
+					} else { // Too big for SSA.
+						// Brute force, and early, do a bunch of stores from registers
+						// TODO fix the nasty storeArgOrLoad recursion in ssa/expand_calls.go so this Just Works with store of a big Arg.
+						typs, offs := paramAssignment.RegisterTypesAndOffsets()
+						for i, t := range typs {
+							o := offs[i]
+							r := paramAssignment.Registers[i]
+							op, reg := ssa.ArgOpAndRegisterFor(r, s.f.ABISelf)
+							v := s.newValue0I(op, t, reg)
+							v.Aux = &ssa.AuxNameOffset{Name: n, Offset: o}
+							p := s.newValue1I(ssa.OpOffPtr, types.NewPtr(n.Type()), o, s.decladdrs[n])
+							s.store(t, p, v)
+						}
 					}
-					v := s.newValue0A(ssa.OpArg, n.Type(), n)
-					s.store(n.Type(), s.decladdrs[n], v)
 				}
 			}
 		}
