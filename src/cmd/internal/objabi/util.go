@@ -158,8 +158,8 @@ func init() {
 		Experiment.RegabiWrappers = true
 		Experiment.RegabiG = true
 		Experiment.RegabiReflect = true
+		Experiment.RegabiDefer = true
 		// Not ready yet:
-		//Experiment.RegabiDefer = true
 		//Experiment.RegabiArgs = true
 	}
 	// Check regabi dependencies.

@@ -263,12 +263,7 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 
 	// Turn f(a, b, []T{c, d, e}...) back into f(a, b, c, d, e).
 	if !isBuiltinCall && n.IsDDD {
-		last := len(n.Args) - 1
-		if va := n.Args[last]; va.Op() == ir.OSLICELIT {
-			va := va.(*ir.CompLitExpr)
-			n.Args = append(n.Args[:last], va.List...)
-			n.IsDDD = false
-		}
+		undoVariadic(n)
 	}
 
 	wrapArgs := n.Args
@@ -324,4 +319,23 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 
 	call = ir.NewCallExpr(base.Pos, ir.OCALL, fn.Nname, wrapArgs)
 	return walkExpr(typecheck.Stmt(call), init)
+}
+
+// undoVariadic turns a call to a variadic function of the form
+//
+//      f(a, b, []T{c, d, e}...)
+//
+// back into
+//
+//      f(a, b, c, d, e)
+//
+func undoVariadic(call *ir.CallExpr) {
+	if call.IsDDD {
+		last := len(call.Args) - 1
+		if va := call.Args[last]; va.Op() == ir.OSLICELIT {
+			va := va.(*ir.CompLitExpr)
+			call.Args = append(call.Args[:last], va.List...)
+			call.IsDDD = false
+		}
+	}
 }

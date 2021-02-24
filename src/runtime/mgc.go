@@ -207,17 +207,22 @@ func readgogc() int32 {
 	return 100
 }
 
+// Temporary in order to enable register ABI work.
+// TODO(register args): convert back to local chan in gcenabled, passed to "go" stmts.
+var gcenable_setup chan int
+
 // gcenable is called after the bulk of the runtime initialization,
 // just before we're about to start letting user code run.
 // It kicks off the background sweeper goroutine, the background
 // scavenger goroutine, and enables GC.
 func gcenable() {
 	// Kick off sweeping and scavenging.
-	c := make(chan int, 2)
-	go bgsweep(c)
-	go bgscavenge(c)
-	<-c
-	<-c
+	gcenable_setup = make(chan int, 2)
+	go bgsweep()
+	go bgscavenge()
+	<-gcenable_setup
+	<-gcenable_setup
+	gcenable_setup = nil
 	memstats.enablegc = true // now that runtime is initialized, GC is okay
 }
 
