@@ -471,9 +471,6 @@ pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, Pad_cgo_1 [4]uint8
 pkg syscall (openbsd-amd64-cgo), type Timespec struct, Pad_cgo_0 [4]uint8
 pkg syscall (openbsd-amd64-cgo), type Timespec struct, Sec int32
 pkg syscall (windows-386), const TOKEN_ALL_ACCESS = 983295
-pkg syscall (windows-386), func CreateIoCompletionPort(Handle, Handle, uint32, uint32) (Handle, error)
-pkg syscall (windows-386), func GetQueuedCompletionStatus(Handle, *uint32, *uint32, **Overlapped, uint32) error
-pkg syscall (windows-386), func PostQueuedCompletionStatus(Handle, uint32, uint32, *Overlapped) error
 pkg syscall (windows-386), type AddrinfoW struct, Addr uintptr
 pkg syscall (windows-386), type CertChainPolicyPara struct, ExtraPolicyPara uintptr
 pkg syscall (windows-386), type CertChainPolicyStatus struct, ExtraPolicyStatus uintptr
@@ -483,9 +480,6 @@ pkg syscall (windows-386), type CertRevocationInfo struct, OidSpecificInfo uintp
 pkg syscall (windows-386), type CertSimpleChain struct, TrustListInfo uintptr
 pkg syscall (windows-386), type RawSockaddrAny struct, Pad [96]int8
 pkg syscall (windows-amd64), const TOKEN_ALL_ACCESS = 983295
-pkg syscall (windows-amd64), func CreateIoCompletionPort(Handle, Handle, uint32, uint32) (Handle, error)
-pkg syscall (windows-amd64), func GetQueuedCompletionStatus(Handle, *uint32, *uint32, **Overlapped, uint32) error
-pkg syscall (windows-amd64), func PostQueuedCompletionStatus(Handle, uint32, uint32, *Overlapped) error
 pkg syscall (windows-amd64), type AddrinfoW struct, Addr uintptr
 pkg syscall (windows-amd64), type CertChainPolicyPara struct, ExtraPolicyPara uintptr
 pkg syscall (windows-amd64), type CertChainPolicyStatus struct, ExtraPolicyStatus uintptr
