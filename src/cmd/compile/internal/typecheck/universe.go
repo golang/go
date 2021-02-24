@@ -329,7 +329,7 @@ func InitUniverse() {
 }
 
 func makeErrorInterface() *types.Type {
-	sig := types.NewSignature(types.NoPkg, fakeRecvField(), nil, []*types.Field{
+	sig := types.NewSignature(types.NoPkg, fakeRecvField(), nil, nil, []*types.Field{
 		types.NewField(src.NoXPos, nil, types.Types[types.TSTRING]),
 	})
 	method := types.NewField(src.NoXPos, Lookup("Error"), sig)

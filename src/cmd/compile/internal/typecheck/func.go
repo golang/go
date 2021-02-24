@@ -100,6 +100,11 @@ func PartialCallType(n *ir.SelectorExpr) *types.Type {
 	return t
 }
 
+// True if we are typechecking an inline body in ImportedBody below. We use this
+// flag to not create a new closure function in tcClosure when we are just
+// typechecking an inline body, as opposed to the body of a real function.
+var inTypeCheckInl bool
+
 // Lazy typechecking of imported bodies. For local functions, CanInline will set ->typecheck
 // because they're a copy of an already checked body.
 func ImportedBody(fn *ir.Func) {
@@ -138,7 +143,12 @@ func ImportedBody(fn *ir.Func) {
 
 	savefn := ir.CurFunc
 	ir.CurFunc = fn
+	if inTypeCheckInl {
+		base.Fatalf("inTypeCheckInl should not be set recursively")
+	}
+	inTypeCheckInl = true
 	Stmts(fn.Inl.Body)
+	inTypeCheckInl = false
 	ir.CurFunc = savefn
 
 	// During ImportBody (which imports fn.Func.Inl.Body),
@@ -307,7 +317,6 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 	// body in ImportedBody(), since we only want to create the named function
 	// when the closure is actually inlined (and then we force a typecheck
 	// explicitly in (*inlsubst).node()).
-	inTypeCheckInl := ir.CurFunc != nil && ir.CurFunc.Body == nil
 	if !inTypeCheckInl {
 		fn.Nname.SetSym(ClosureName(ir.CurFunc))
 		ir.MarkFunc(fn.Nname)

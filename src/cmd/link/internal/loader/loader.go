@@ -241,7 +241,6 @@ type Loader struct {
 	attrExternal         Bitmap // external symbols, indexed by ext sym index
 
 	attrReadOnly         map[Sym]bool     // readonly data for this sym
-	attrTopFrame         map[Sym]struct{} // top frame symbols
 	attrSpecial          map[Sym]struct{} // "special" frame symbols
 	attrCgoExportDynamic map[Sym]struct{} // "cgo_export_dynamic" symbols
 	attrCgoExportStatic  map[Sym]struct{} // "cgo_export_static" symbols
@@ -349,7 +348,6 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 		plt:                  make(map[Sym]int32),
 		got:                  make(map[Sym]int32),
 		dynid:                make(map[Sym]int32),
-		attrTopFrame:         make(map[Sym]struct{}),
 		attrSpecial:          make(map[Sym]struct{}),
 		attrCgoExportDynamic: make(map[Sym]struct{}),
 		attrCgoExportStatic:  make(map[Sym]struct{}),
@@ -1006,24 +1004,6 @@ func (l *Loader) SetAttrExternal(i Sym, v bool) {
 		l.attrExternal.Set(l.extIndex(i))
 	} else {
 		l.attrExternal.Unset(l.extIndex(i))
-	}
-}
-
-// AttrTopFrame returns true for a function symbol that is an entry
-// point, meaning that unwinders should stop when they hit this
-// function.
-func (l *Loader) AttrTopFrame(i Sym) bool {
-	_, ok := l.attrTopFrame[i]
-	return ok
-}
-
-// SetAttrTopFrame sets the "top frame" property for a symbol (see
-// AttrTopFrame).
-func (l *Loader) SetAttrTopFrame(i Sym, v bool) {
-	if v {
-		l.attrTopFrame[i] = struct{}{}
-	} else {
-		delete(l.attrTopFrame, i)
 	}
 }
 
@@ -1905,7 +1885,11 @@ func (fi *FuncInfo) Locals() int {
 }
 
 func (fi *FuncInfo) FuncID() objabi.FuncID {
-	return objabi.FuncID((*goobj.FuncInfo)(nil).ReadFuncID(fi.data))
+	return (*goobj.FuncInfo)(nil).ReadFuncID(fi.data)
+}
+
+func (fi *FuncInfo) FuncFlag() objabi.FuncFlag {
+	return (*goobj.FuncInfo)(nil).ReadFuncFlag(fi.data)
 }
 
 func (fi *FuncInfo) Pcsp() Sym {
@@ -1990,6 +1974,13 @@ func (fi *FuncInfo) File(k int) goobj.CUFileIndex {
 		panic("need to call Preload first")
 	}
 	return (*goobj.FuncInfo)(nil).ReadFile(fi.data, fi.lengths.FileOff, uint32(k))
+}
+
+// TopFrame returns true if the function associated with this FuncInfo
+// is an entry point, meaning that unwinders should stop when they hit
+// this function.
+func (fi *FuncInfo) TopFrame() bool {
+	return (fi.FuncFlag() & objabi.FuncFlag_TOPFRAME) != 0
 }
 
 type InlTreeNode struct {
@@ -2151,9 +2142,6 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
 		}
 		gi := st.addSym(name, v, r, i, kind, osym)
 		r.syms[i] = gi
-		if osym.TopFrame() {
-			l.SetAttrTopFrame(gi, true)
-		}
 		if osym.Local() {
 			l.SetAttrLocal(gi, true)
 		}
@@ -2411,7 +2399,6 @@ func (l *Loader) CopyAttributes(src Sym, dst Sym) {
 		// when copying attributes from a dupOK ABI wrapper symbol to
 		// the real target symbol (which may not be marked dupOK).
 	}
-	l.SetAttrTopFrame(dst, l.AttrTopFrame(src))
 	l.SetAttrSpecial(dst, l.AttrSpecial(src))
 	l.SetAttrCgoExportDynamic(dst, l.AttrCgoExportDynamic(src))
 	l.SetAttrCgoExportStatic(dst, l.AttrCgoExportStatic(src))

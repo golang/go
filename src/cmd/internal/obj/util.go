@@ -187,7 +187,7 @@ func (p *Prog) WriteInstructionString(w io.Writer) {
 		// In short, print one of these two:
 		// TEXT	foo(SB), DUPOK|NOSPLIT, $0
 		// TEXT	foo(SB), $0
-		s := p.From.Sym.Attribute.TextAttrString()
+		s := p.From.Sym.TextAttrString()
 		if s != "" {
 			fmt.Fprintf(w, "%s%s", sep, s)
 			sep = ", "

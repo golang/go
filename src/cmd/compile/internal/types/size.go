@@ -499,6 +499,11 @@ func CalcSize(t *Type) {
 			base.Warn("bad type %v %d\n", t1, w)
 		}
 		t.Align = 1
+
+	case TTYPEPARAM:
+		// TODO(danscales) - remove when we eliminate the need
+		// to do CalcSize in noder2 (which shouldn't be needed in the noder)
+		w = int64(PtrSize)
 	}
 
 	if PtrSize == 4 && w != int64(int32(w)) {

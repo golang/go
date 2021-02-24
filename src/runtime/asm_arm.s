@@ -112,7 +112,7 @@ GLOBL _rt0_arm_lib_argv<>(SB),NOPTR,$4
 
 // using NOFRAME means do not save LR on stack.
 // argc is in R0, argv is in R1.
-TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	MOVW	$0xcafebabe, R12
 
 	// copy arguments forward on an even stack
@@ -202,27 +202,24 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
 	WORD	$0xeee1ba10	// vmsr fpscr, r11
 	RET
 
+TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	BL	runtime·mstart0(SB)
+	RET // not reached
+
 /*
  *  go-routine
  */
 
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
-TEXT runtime·gogo(SB),NOSPLIT,$8-4
+TEXT runtime·gogo(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	buf+0(FP), R1
 	MOVW	gobuf_g(R1), R0
-	BL	setg<>(SB)
+	MOVW	0(R0), R2	// make sure g != nil
+	B	gogo<>(SB)
 
-	// NOTE: We updated g above, and we are about to update SP.
-	// Until LR and PC are also updated, the g/SP/LR/PC quadruple
-	// are out of sync and must not be used as the basis of a traceback.
-	// Sigprof skips the traceback when SP is not within g's bounds,
-	// and when the PC is inside this function, runtime.gogo.
-	// Since we are about to update SP, until we complete runtime.gogo
-	// we must not leave this function. In particular, no calls
-	// after this point: it must be straight-line code until the
-	// final B instruction.
-	// See large comment in sigprof for more details.
+TEXT gogo<>(SB),NOSPLIT|NOFRAME,$0
+	BL	setg<>(SB)
 	MOVW	gobuf_sp(R1), R13	// restore SP==R13
 	MOVW	gobuf_lr(R1), LR
 	MOVW	gobuf_ret(R1), R0
@@ -246,7 +243,6 @@ TEXT runtime·mcall(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	LR, (g_sched+gobuf_pc)(g)
 	MOVW	$0, R11
 	MOVW	R11, (g_sched+gobuf_lr)(g)
-	MOVW	g, (g_sched+gobuf_g)(g)
 
 	// Switch to m->g0 & its stack, call fn.
 	MOVW	g, R1
@@ -305,24 +301,14 @@ TEXT runtime·systemstack(SB),NOSPLIT,$0-4
 switch:
 	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
-	MOVW	$runtime·systemstack_switch(SB), R3
-	ADD	$4, R3, R3 // get past push {lr}
-	MOVW	R3, (g_sched+gobuf_pc)(g)
-	MOVW	R13, (g_sched+gobuf_sp)(g)
-	MOVW	LR, (g_sched+gobuf_lr)(g)
-	MOVW	g, (g_sched+gobuf_g)(g)
+	BL	gosave_systemstack_switch<>(SB)
 
 	// switch to g0
 	MOVW	R0, R5
 	MOVW	R2, R0
 	BL	setg<>(SB)
 	MOVW	R5, R0
-	MOVW	(g_sched+gobuf_sp)(R2), R3
-	// make it look like mstart called systemstack on g0, to stop traceback
-	SUB	$4, R3, R3
-	MOVW	$runtime·mstart(SB), R4
-	MOVW	R4, 0(R3)
-	MOVW	R3, R13
+	MOVW	(g_sched+gobuf_sp)(R2), R13
 
 	// call target function
 	MOVW	R0, R7
@@ -524,10 +510,6 @@ CALLFN(·call1073741824, 1073741824)
 // 1. grab stored LR for caller
 // 2. sub 4 bytes to get back to BL deferreturn
 // 3. B to fn
-// TODO(rsc): Push things on stack and then use pop
-// to load all registers simultaneously, so that a profiling
-// interrupt can never see mismatched SP/LR/PC.
-// (And double-check that pop is atomic in that way.)
 TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
 	MOVW	0(R13), LR
 	MOVW	$-4(LR), LR	// BL deferreturn
@@ -537,19 +519,39 @@ TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
 	MOVW	0(R7), R1
 	B	(R1)
 
-// Save state of caller into g->sched. Smashes R11.
-TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
-	MOVW	LR, (g_sched+gobuf_pc)(g)
+// Save state of caller into g->sched,
+// but using fake PC from systemstack_switch.
+// Must only be called from functions with no locals ($0)
+// or else unwinding from systemstack_switch is incorrect.
+// Smashes R11.
+TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+	MOVW	$runtime·systemstack_switch(SB), R11
+	ADD	$4, R11 // get past push {lr}
+	MOVW	R11, (g_sched+gobuf_pc)(g)
 	MOVW	R13, (g_sched+gobuf_sp)(g)
 	MOVW	$0, R11
 	MOVW	R11, (g_sched+gobuf_lr)(g)
 	MOVW	R11, (g_sched+gobuf_ret)(g)
-	MOVW	R11, (g_sched+gobuf_ctxt)(g)
 	// Assert ctxt is zero. See func save.
 	MOVW	(g_sched+gobuf_ctxt)(g), R11
-	CMP	$0, R11
+	TST	R11, R11
 	B.EQ	2(PC)
-	CALL	runtime·badctxt(SB)
+	BL	runtime·abort(SB)
+	RET
+
+// func asmcgocall_no_g(fn, arg unsafe.Pointer)
+// Call fn(arg) aligned appropriately for the gcc ABI.
+// Called on a system stack, and there may be no g yet (during needm).
+TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-8
+	MOVW	fn+0(FP), R1
+	MOVW	arg+4(FP), R0
+	MOVW	R13, R2
+	SUB	$32, R13
+	BIC	$0x7, R13	// alignment for gcc ABI
+	MOVW	R2, 8(R13)
+	BL	(R1)
+	MOVW	8(R13), R2
+	MOVW	R2, R13
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32
@@ -575,7 +577,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 	MOVW	m_g0(R8), R3
 	CMP	R3, g
 	BEQ	nosave
-	BL	gosave<>(SB)
+	BL	gosave_systemstack_switch<>(SB)
 	MOVW	R0, R5
 	MOVW	R3, R0
 	BL	setg<>(SB)

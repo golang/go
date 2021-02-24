@@ -25,6 +25,11 @@ func exportf(bout *bio.Writer, format string, args ...interface{}) {
 func dumpexport(bout *bio.Writer) {
 	p := &exporter{marked: make(map[*types.Type]bool)}
 	for _, n := range typecheck.Target.Exports {
+		// Must catch it here rather than Export(), because the type can be
+		// not fully set (still TFORW) when Export() is called.
+		if n.Type() != nil && n.Type().HasTParam() {
+			base.Fatalf("Cannot (yet) export a generic type: %v", n)
+		}
 		p.markObject(n)
 	}
 

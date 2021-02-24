@@ -306,14 +306,7 @@ func unwindm(restore *bool) {
 		// unwind of g's stack (see comment at top of file).
 		mp := acquirem()
 		sched := &mp.g0.sched
-		switch GOARCH {
-		default:
-			throw("unwindm not implemented")
-		case "386", "amd64", "arm", "ppc64", "ppc64le", "mips64", "mips64le", "s390x", "mips", "mipsle", "riscv64":
-			sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + sys.MinFrameSize))
-		case "arm64":
-			sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 16))
-		}
+		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + alignUp(sys.MinFrameSize, sys.StackAlign)))
 
 		// Do the accounting that cgocall will not have a chance to do
 		// during an unwind.

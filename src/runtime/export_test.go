@@ -200,8 +200,6 @@ func GostringW(w []uint16) (s string) {
 	return
 }
 
-type Uintreg sys.Uintreg
-
 var Open = open
 var Close = closefd
 var Read = read

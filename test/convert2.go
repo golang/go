@@ -22,7 +22,7 @@ func _() {
 	var t T
 	var u struct{}
 	s = s
-	s = t // ERROR "cannot use .* in assignment"
+	s = t // ERROR "cannot use .* in assignment|incompatible type"
 	s = u
 	s = S(s)
 	s = S(t)
@@ -42,12 +42,12 @@ func _() {
 		x int "bar"
 	}
 	s = s
-	s = t // ERROR "cannot use .* in assignment"
-	s = u // ERROR "cannot use .* in assignment"
+	s = t // ERROR "cannot use .* in assignment|incompatible type"
+	s = u // ERROR "cannot use .* in assignment|incompatible type"
 	s = S(s)
 	s = S(t)
 	s = S(u)
-	t = u // ERROR "cannot use .* in assignment"
+	t = u // ERROR "cannot use .* in assignment|incompatible type"
 	t = T(u)
 }
 
@@ -63,12 +63,12 @@ func _() {
 		x E "bar"
 	}
 	s = s
-	s = t // ERROR "cannot use .* in assignment"
-	s = u // ERROR "cannot use .* in assignment"
+	s = t // ERROR "cannot use .* in assignment|incompatible type"
+	s = u // ERROR "cannot use .* in assignment|incompatible type"
 	s = S(s)
 	s = S(t)
 	s = S(u)
-	t = u // ERROR "cannot use .* in assignment"
+	t = u // ERROR "cannot use .* in assignment|incompatible type"
 	t = T(u)
 }
 
@@ -91,12 +91,12 @@ func _() {
 		} "bar"
 	}
 	s = s
-	s = t // ERROR "cannot use .* in assignment"
-	s = u // ERROR "cannot use .* in assignment"
+	s = t // ERROR "cannot use .* in assignment|incompatible type"
+	s = u // ERROR "cannot use .* in assignment|incompatible type"
 	s = S(s)
 	s = S(t)
 	s = S(u)
-	t = u // ERROR "cannot use .* in assignment"
+	t = u // ERROR "cannot use .* in assignment|incompatible type"
 	t = T(u)
 }
 
@@ -117,12 +117,12 @@ func _() {
 		x E2 "bar"
 	}
 	s = s
-	s = t // ERROR "cannot use .* in assignment"
-	s = u // ERROR "cannot use .* in assignment"
+	s = t // ERROR "cannot use .* in assignment|incompatible type"
+	s = u // ERROR "cannot use .* in assignment|incompatible type"
 	s = S(s)
 	s = S(t) // ERROR "cannot convert"
 	s = S(u) // ERROR "cannot convert"
-	t = u    // ERROR "cannot use .* in assignment"
+	t = u    // ERROR "cannot use .* in assignment|incompatible type"
 	t = T(u)
 }
 
@@ -142,12 +142,12 @@ func _() {
 	var t T
 	var u struct{ f func(E) }
 	s = s
-	s = t // ERROR "cannot use .* in assignment"
-	s = u // ERROR "cannot use .* in assignment"
+	s = t // ERROR "cannot use .* in assignment|incompatible type"
+	s = u // ERROR "cannot use .* in assignment|incompatible type"
 	s = S(s)
 	s = S(t)
 	s = S(u) // ERROR "cannot convert"
-	t = u    // ERROR "cannot use .* in assignment"
+	t = u    // ERROR "cannot use .* in assignment|incompatible type"
 	t = T(u) // ERROR "cannot convert"
 }
 
@@ -160,12 +160,12 @@ func _() {
 	var t *T
 	var u *struct{}
 	s = s
-	s = t // ERROR "cannot use .* in assignment"
-	s = u // ERROR "cannot use .* in assignment"
+	s = t // ERROR "cannot use .* in assignment|incompatible type"
+	s = u // ERROR "cannot use .* in assignment|incompatible type"
 	s = (*S)(s)
 	s = (*S)(t)
 	s = (*S)(u)
-	t = u // ERROR "cannot use .* in assignment"
+	t = u // ERROR "cannot use .* in assignment|incompatible type"
 	t = (*T)(u)
 }
 
@@ -180,12 +180,12 @@ func _() {
 		x int "bar"
 	}
 	s = s
-	s = t // ERROR "cannot use .* in assignment"
-	s = u // ERROR "cannot use .* in assignment"
+	s = t // ERROR "cannot use .* in assignment|incompatible type"
+	s = u // ERROR "cannot use .* in assignment|incompatible type"
 	s = (*S)(s)
 	s = (*S)(t)
 	s = (*S)(u)
-	t = u // ERROR "cannot use .* in assignment"
+	t = u // ERROR "cannot use .* in assignment|incompatible type"
 	t = (*T)(u)
 }
 
@@ -201,12 +201,12 @@ func _() {
 		x E "bar"
 	}
 	s = s
-	s = t // ERROR "cannot use .* in assignment"
-	s = u // ERROR "cannot use .* in assignment"
+	s = t // ERROR "cannot use .* in assignment|incompatible type"
+	s = u // ERROR "cannot use .* in assignment|incompatible type"
 	s = (*S)(s)
 	s = (*S)(t)
 	s = (*S)(u)
-	t = u // ERROR "cannot use .* in assignment"
+	t = u // ERROR "cannot use .* in assignment|incompatible type"
 	t = (*T)(u)
 }
 
@@ -229,12 +229,12 @@ func _() {
 		} "bar"
 	}
 	s = s
-	s = t // ERROR "cannot use .* in assignment"
-	s = u // ERROR "cannot use .* in assignment"
+	s = t // ERROR "cannot use .* in assignment|incompatible type"
+	s = u // ERROR "cannot use .* in assignment|incompatible type"
 	s = (*S)(s)
 	s = (*S)(t)
 	s = (*S)(u)
-	t = u // ERROR "cannot use .* in assignment"
+	t = u // ERROR "cannot use .* in assignment|incompatible type"
 	t = (*T)(u)
 }
 
@@ -255,12 +255,12 @@ func _() {
 		x E2 "bar"
 	}
 	s = s
-	s = t // ERROR "cannot use .* in assignment"
-	s = u // ERROR "cannot use .* in assignment"
+	s = t // ERROR "cannot use .* in assignment|incompatible type"
+	s = u // ERROR "cannot use .* in assignment|incompatible type"
 	s = (*S)(s)
 	s = (*S)(t) // ERROR "cannot convert"
 	s = (*S)(u) // ERROR "cannot convert"
-	t = u       // ERROR "cannot use .* in assignment"
+	t = u       // ERROR "cannot use .* in assignment|incompatible type"
 	t = (*T)(u)
 }
 
@@ -280,12 +280,12 @@ func _() {
 	var t *T
 	var u *struct{ f func(E) }
 	s = s
-	s = t // ERROR "cannot use .* in assignment"
-	s = u // ERROR "cannot use .* in assignment"
+	s = t // ERROR "cannot use .* in assignment|incompatible type"
+	s = u // ERROR "cannot use .* in assignment|incompatible type"
 	s = (*S)(s)
 	s = (*S)(t)
 	s = (*S)(u) // ERROR "cannot convert"
-	t = u       // ERROR "cannot use .* in assignment"
+	t = u       // ERROR "cannot use .* in assignment|incompatible type"
 	t = (*T)(u) // ERROR "cannot convert"
 }
 
@@ -305,11 +305,11 @@ func _() {
 	var t *T
 	var u *struct{ f func(E) }
 	s = s
-	s = t // ERROR "cannot use .* in assignment"
-	s = u // ERROR "cannot use .* in assignment"
+	s = t // ERROR "cannot use .* in assignment|incompatible type"
+	s = u // ERROR "cannot use .* in assignment|incompatible type"
 	s = (*S)(s)
 	s = (*S)(t)
 	s = (*S)(u) // ERROR "cannot convert"
-	t = u       // ERROR "cannot use .* in assignment"
+	t = u       // ERROR "cannot use .* in assignment|incompatible type"
 	t = (*T)(u) // ERROR "cannot convert"
 }

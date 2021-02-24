@@ -9,10 +9,12 @@
 #include "tls_arm64.h"
 
 TEXT runtime·load_g(SB),NOSPLIT,$0
-#ifndef TLS_darwin
+#ifndef GOOS_darwin
 #ifndef GOOS_openbsd
+#ifndef GOOS_windows
 	MOVB	runtime·iscgo(SB), R0
 	CBZ	R0, nocgo
+#endif
 #endif
 #endif
 
@@ -28,10 +30,12 @@ nocgo:
 	RET
 
 TEXT runtime·save_g(SB),NOSPLIT,$0
-#ifndef TLS_darwin
+#ifndef GOOS_darwin
 #ifndef GOOS_openbsd
+#ifndef GOOS_windows
 	MOVB	runtime·iscgo(SB), R0
 	CBZ	R0, nocgo
+#endif
 #endif
 #endif
 

@@ -340,12 +340,22 @@ func osyield() {
 }
 
 //go:nosplit
+func osyield_no_g() {
+	osyield()
+}
+
+//go:nosplit
 func usleep(µs uint32) {
 	ms := int32(µs / 1000)
 	if ms == 0 {
 		ms = 1
 	}
 	sleep(ms)
+}
+
+//go:nosplit
+func usleep_no_g(usec uint32) {
+	usleep(usec)
 }
 
 //go:nosplit

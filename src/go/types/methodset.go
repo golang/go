@@ -73,6 +73,9 @@ func NewMethodSet(T Type) *MethodSet {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
 	//          This function and lookupFieldOrMethod should be kept in sync.
 
+	// TODO(gri) This code is out-of-sync with the lookup code at this point.
+	//           Need to update.
+
 	// method set up to the current depth, allocated lazily
 	var base methodSet
 
@@ -108,7 +111,7 @@ func NewMethodSet(T Type) *MethodSet {
 
 			// If we have a named type, we may have associated methods.
 			// Look for those first.
-			if named, _ := typ.(*Named); named != nil {
+			if named := asNamed(typ); named != nil {
 				if seen[named] {
 					// We have seen this type before, at a more shallow depth
 					// (note that multiples of this type at the current depth

@@ -13,3 +13,8 @@ func thrsleep(ident uintptr, clock_id int32, tsp *timespec, lock uintptr, abort 
 func thrwakeup(ident uintptr, n int32) int32
 
 func osyield()
+
+//go:nosplit
+func osyield_no_g() {
+	osyield()
+}

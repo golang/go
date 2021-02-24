@@ -354,6 +354,13 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		return true
 
 	case ir.OCLOSURE:
+		// TODO(danscales,mdempsky): Get working with -G.
+		// Probably after #43818 is fixed.
+		if base.Flag.G > 0 {
+			v.reason = "inlining closures not yet working with -G"
+			return true
+		}
+
 		// TODO(danscales) - fix some bugs when budget is lowered below 15
 		// Maybe make budget proportional to number of closure variables, e.g.:
 		//v.budget -= int32(len(n.(*ir.ClosureExpr).Func.ClosureVars) * 3)
@@ -1221,7 +1228,7 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
 		newrecv = newrecvs[0]
 	}
 	newt := types.NewSignature(oldt.Pkg(), newrecv,
-		subst.fields(oldt.Params()), subst.fields(oldt.Results()))
+		nil, subst.fields(oldt.Params()), subst.fields(oldt.Results()))
 
 	newfn.Nname.SetType(newt)
 	newfn.Body = subst.list(oldfn.Body)
