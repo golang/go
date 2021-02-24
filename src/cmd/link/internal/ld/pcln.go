@@ -143,7 +143,16 @@ func emitPcln(ctxt *Link, s loader.Sym, container loader.Bitmap) bool {
 	}
 	// We want to generate func table entries only for the "lowest
 	// level" symbols, not containers of subsymbols.
-	return !container.Has(s)
+	if container.Has(s) {
+		return false
+	}
+	// Avoid emitting RISC-V HI20 symbols - we do not need these
+	// in the function table.
+	const fakeLabelName = ".L0 "
+	if ctxt.Target.IsRISCV64() && ctxt.loader.SymType(s) == sym.STEXT && ctxt.loader.SymName(s) == fakeLabelName {
+		return false
+	}
+	return true
 }
 
 func (state *pclnState) computeDeferReturn(target *Target, s loader.Sym) uint32 {
@@ -574,7 +583,7 @@ func expandGoroot(s string) string {
 
 const (
 	BUCKETSIZE    = 256 * MINFUNC
-	SUBBUCKETS    = 32
+	SUBBUCKETS    = 16
 	SUBBUCKETSIZE = BUCKETSIZE / SUBBUCKETS
 	NOIDX         = 0x7fffffff
 )
