@@ -8,7 +8,6 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"fmt"
-	"log"
 )
 
 // A BuildMode indicates the sort of object we are building.
@@ -181,7 +180,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	if ctxt.Debugvlog > 1 {
 		defer func() {
 			if res {
-				log.Printf("external linking is forced by: %s\n", reason)
+				ctxt.Logf("external linking is forced by: %s\n", reason)
 			}
 		}()
 	}
