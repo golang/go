@@ -12,28 +12,27 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+)
 
-type Z struct {
-}
-
-type NZ struct {
-	x, y int
-}
-
+//go:registerparams
 //go:noinline
-func f(x, y int) (Z, NZ, Z) {
-	var z Z
-	return z, NZ{x, y}, z
+func F(a, b, c *int) int {
+	return *a + *b + *c
 }
 
+//go:registerparams
 //go:noinline
-func g() (Z, NZ, Z) {
-	a, b, c := f(3, 4)
-	return c, b, a
+func H(s, t string) string {
+	return s + " " + t
 }
 
 func main() {
-	_, b, _ := g()
-	fmt.Println(b.x + b.y)
+	a, b, c := 1, 4, 16
+	x := F(&a, &b, &c)
+	fmt.Printf("x = %d\n", x)
+	y := H("Hello", "World!")
+	fmt.Println("len(y) =", len(y))
+	fmt.Println("y =", y)
 }

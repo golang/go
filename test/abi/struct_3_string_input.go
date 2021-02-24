@@ -12,28 +12,29 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+)
 
-type Z struct {
+var sink *string
+
+type toobig struct {
+	a, b, c string
 }
 
-type NZ struct {
-	x, y int
-}
-
+//go:registerparams
 //go:noinline
-func f(x, y int) (Z, NZ, Z) {
-	var z Z
-	return z, NZ{x, y}, z
-}
-
-//go:noinline
-func g() (Z, NZ, Z) {
-	a, b, c := f(3, 4)
-	return c, b, a
+func H(x toobig) string {
+	return x.a + " " + x.b + " " + x.c
 }
 
 func main() {
-	_, b, _ := g()
-	fmt.Println(b.x + b.y)
+	s := H(toobig{"Hello", "there,", "World"})
+	gotVsWant(s, "Hello there, World")
+}
+
+func gotVsWant(got, want string) {
+	if got != want {
+		fmt.Printf("FAIL, got %s, wanted %s\n", got, want)
+	}
 }
