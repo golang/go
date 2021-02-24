@@ -455,13 +455,12 @@ The arithmetic status flags are treated like scratch registers and not
 preserved across calls.
 All other bits in RFLAGS are system flags.
 
-The CPU is always in MMX technology state (not x87 mode).
+At function calls and returns, the CPU is in x87 mode (not MMX
+technology mode).
 
-*Rationale*: Go on amd64 uses the XMM registers and never uses the x87
-registers, so it makes sense to assume the CPU is in MMX mode.
-Otherwise, any function that used the XMM registers would have to
-execute an EMMS instruction before calling another function or
-returning (this is the case in the SysV ABI).
+*Rationale*: Go on amd64 does not use either the x87 registers or MMX
+registers. Hence, we follow the SysV platform conventions in order to
+simplify transitions to and from the C ABI.
 
 At calls, the MXCSR control bits are always set as follows:
 
