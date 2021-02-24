@@ -10,7 +10,6 @@
 package foo
 
 import (
-	"math"
 	"runtime"
 	"unsafe"
 )
@@ -267,12 +266,18 @@ func gd3() func() { // ERROR "can inline gd3"
 // Issue #42788 - ensure ODEREF OCONVNOP* OADDR is low cost.
 func EncodeQuad(d []uint32, x [6]float32) { // ERROR "can inline EncodeQuad" "d does not escape"
 	_ = d[:6]
-	d[0] = math.Float32bits(x[0]) // ERROR "inlining call to math.Float32bits"
-	d[1] = math.Float32bits(x[1]) // ERROR "inlining call to math.Float32bits"
-	d[2] = math.Float32bits(x[2]) // ERROR "inlining call to math.Float32bits"
-	d[3] = math.Float32bits(x[3]) // ERROR "inlining call to math.Float32bits"
-	d[4] = math.Float32bits(x[4]) // ERROR "inlining call to math.Float32bits"
-	d[5] = math.Float32bits(x[5]) // ERROR "inlining call to math.Float32bits"
+	d[0] = float32bits(x[0]) // ERROR "inlining call to float32bits"
+	d[1] = float32bits(x[1]) // ERROR "inlining call to float32bits"
+	d[2] = float32bits(x[2]) // ERROR "inlining call to float32bits"
+	d[3] = float32bits(x[3]) // ERROR "inlining call to float32bits"
+	d[4] = float32bits(x[4]) // ERROR "inlining call to float32bits"
+	d[5] = float32bits(x[5]) // ERROR "inlining call to float32bits"
+}
+
+// float32bits is a copy of math.Float32bits to ensure that
+// these tests pass with `-gcflags=-l`.
+func float32bits(f float32) uint32 { // ERROR "can inline float32bits"
+	return *(*uint32)(unsafe.Pointer(&f))
 }
 
 // Ensure OCONVNOP is zero cost.
