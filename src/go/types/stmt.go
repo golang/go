@@ -907,7 +907,7 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 			msg = "send-only channel"
 		}
 		return typ.elem, Typ[Invalid], msg
-	case *Sum:
+	case *_Sum:
 		first := true
 		var key, val Type
 		var msg string

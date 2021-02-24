@@ -240,11 +240,11 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 // contain methods whose receiver type is a different interface.
 func (s *Signature) Recv() *Var { return s.recv }
 
-// TParams returns the type parameters of signature s, or nil.
-func (s *Signature) TParams() []*TypeName { return s.tparams }
+// _TParams returns the type parameters of signature s, or nil.
+func (s *Signature) _TParams() []*TypeName { return s.tparams }
 
-// SetTParams sets the type parameters of signature s.
-func (s *Signature) SetTParams(tparams []*TypeName) { s.tparams = tparams }
+// _SetTParams sets the type parameters of signature s.
+func (s *Signature) _SetTParams(tparams []*TypeName) { s.tparams = tparams }
 
 // Params returns the parameters of signature s, or nil.
 func (s *Signature) Params() *Tuple { return s.params }
@@ -255,19 +255,19 @@ func (s *Signature) Results() *Tuple { return s.results }
 // Variadic reports whether the signature s is variadic.
 func (s *Signature) Variadic() bool { return s.variadic }
 
-// A Sum represents a set of possible types.
+// A _Sum represents a set of possible types.
 // Sums are currently used to represent type lists of interfaces
 // and thus the underlying types of type parameters; they are not
 // first class types of Go.
-type Sum struct {
+type _Sum struct {
 	types []Type // types are unique
 }
 
-// NewSum returns a new Sum type consisting of the provided
+// _NewSum returns a new Sum type consisting of the provided
 // types if there are more than one. If there is exactly one
 // type, it returns that type. If the list of types is empty
 // the result is nil.
-func NewSum(types []Type) Type {
+func _NewSum(types []Type) Type {
 	if len(types) == 0 {
 		return nil
 	}
@@ -278,7 +278,7 @@ func NewSum(types []Type) Type {
 	// current use case of type lists.
 	// TODO(gri) Come up with the rules for sum types.
 	for _, t := range types {
-		if _, ok := t.(*Sum); ok {
+		if _, ok := t.(*_Sum); ok {
 			panic("sum type contains sum type - unimplemented")
 		}
 	}
@@ -286,11 +286,11 @@ func NewSum(types []Type) Type {
 	if len(types) == 1 {
 		return types[0]
 	}
-	return &Sum{types: types}
+	return &_Sum{types: types}
 }
 
 // is reports whether all types in t satisfy pred.
-func (s *Sum) is(pred func(Type) bool) bool {
+func (s *_Sum) is(pred func(Type) bool) bool {
 	if s == nil {
 		return false
 	}
@@ -446,8 +446,8 @@ func (t *Interface) Empty() bool {
 	}, nil)
 }
 
-// HasTypeList reports whether interface t has a type list, possibly from an embedded type.
-func (t *Interface) HasTypeList() bool {
+// _HasTypeList reports whether interface t has a type list, possibly from an embedded type.
+func (t *Interface) _HasTypeList() bool {
 	if t.allMethods != nil {
 		// interface is complete - quick test
 		return t.allTypes != nil
@@ -458,8 +458,8 @@ func (t *Interface) HasTypeList() bool {
 	}, nil)
 }
 
-// IsComparable reports whether interface t is or embeds the predeclared interface "comparable".
-func (t *Interface) IsComparable() bool {
+// _IsComparable reports whether interface t is or embeds the predeclared interface "comparable".
+func (t *Interface) _IsComparable() bool {
 	if t.allMethods != nil {
 		// interface is complete - quick test
 		_, m := lookupMethod(t.allMethods, nil, "==")
@@ -472,8 +472,8 @@ func (t *Interface) IsComparable() bool {
 	}, nil)
 }
 
-// IsConstraint reports t.HasTypeList() || t.IsComparable().
-func (t *Interface) IsConstraint() bool {
+// _IsConstraint reports t.HasTypeList() || t.IsComparable().
+func (t *Interface) _IsConstraint() bool {
 	if t.allMethods != nil {
 		// interface is complete - quick test
 		if t.allTypes != nil {
@@ -667,7 +667,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	return typ
 }
 
-func (check *Checker) NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	typ := &Named{check: check, obj: obj, orig: underlying, underlying: underlying, methods: methods}
 	if obj.typ == nil {
 		obj.typ = typ
@@ -681,15 +681,15 @@ func (t *Named) Obj() *TypeName { return t.obj }
 // TODO(gri) Come up with a better representation and API to distinguish
 //           between parameterized instantiated and non-instantiated types.
 
-// TParams returns the type parameters of the named type t, or nil.
+// _TParams returns the type parameters of the named type t, or nil.
 // The result is non-nil for an (originally) parameterized type even if it is instantiated.
-func (t *Named) TParams() []*TypeName { return t.tparams }
+func (t *Named) _TParams() []*TypeName { return t.tparams }
 
-// TArgs returns the type arguments after instantiation of the named type t, or nil if not instantiated.
-func (t *Named) TArgs() []Type { return t.targs }
+// _TArgs returns the type arguments after instantiation of the named type t, or nil if not instantiated.
+func (t *Named) _TArgs() []Type { return t.targs }
 
-// SetTArgs sets the type arguments of Named.
-func (t *Named) SetTArgs(args []Type) { t.targs = args }
+// _SetTArgs sets the type arguments of Named.
+func (t *Named) _SetTArgs(args []Type) { t.targs = args }
 
 // NumMethods returns the number of explicit methods whose receiver is named type t.
 func (t *Named) NumMethods() int { return len(t.methods) }
@@ -715,8 +715,8 @@ func (t *Named) AddMethod(m *Func) {
 	}
 }
 
-// A TypeParam represents a type parameter type.
-type TypeParam struct {
+// A _TypeParam represents a type parameter type.
+type _TypeParam struct {
 	check *Checker  // for lazy type bound completion
 	id    uint64    // unique id
 	obj   *TypeName // corresponding type name
@@ -724,10 +724,10 @@ type TypeParam struct {
 	bound Type      // *Named or *Interface; underlying type is always *Interface
 }
 
-// NewTypeParam returns a new TypeParam.
-func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
+// newTypeParam returns a new TypeParam.
+func (check *Checker) newTypeParam(obj *TypeName, index int, bound Type) *_TypeParam {
 	assert(bound != nil)
-	typ := &TypeParam{check: check, id: check.nextId, obj: obj, index: index, bound: bound}
+	typ := &_TypeParam{check: check, id: check.nextId, obj: obj, index: index, bound: bound}
 	check.nextId++
 	if obj.typ == nil {
 		obj.typ = typ
@@ -735,7 +735,7 @@ func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypePa
 	return typ
 }
 
-func (t *TypeParam) Bound() *Interface {
+func (t *_TypeParam) Bound() *Interface {
 	iface := asInterface(t.bound)
 	// use the type bound position if we have one
 	pos := token.NoPos
@@ -839,40 +839,40 @@ type top struct{}
 var theTop = &top{}
 
 // Type-specific implementations of Underlying.
-func (t *Basic) Underlying() Type     { return t }
-func (t *Array) Underlying() Type     { return t }
-func (t *Slice) Underlying() Type     { return t }
-func (t *Struct) Underlying() Type    { return t }
-func (t *Pointer) Underlying() Type   { return t }
-func (t *Tuple) Underlying() Type     { return t }
-func (t *Signature) Underlying() Type { return t }
-func (t *Sum) Underlying() Type       { return t }
-func (t *Interface) Underlying() Type { return t }
-func (t *Map) Underlying() Type       { return t }
-func (t *Chan) Underlying() Type      { return t }
-func (t *Named) Underlying() Type     { return t.underlying }
-func (t *TypeParam) Underlying() Type { return t }
-func (t *instance) Underlying() Type  { return t }
-func (t *bottom) Underlying() Type    { return t }
-func (t *top) Underlying() Type       { return t }
+func (t *Basic) Underlying() Type      { return t }
+func (t *Array) Underlying() Type      { return t }
+func (t *Slice) Underlying() Type      { return t }
+func (t *Struct) Underlying() Type     { return t }
+func (t *Pointer) Underlying() Type    { return t }
+func (t *Tuple) Underlying() Type      { return t }
+func (t *Signature) Underlying() Type  { return t }
+func (t *_Sum) Underlying() Type       { return t }
+func (t *Interface) Underlying() Type  { return t }
+func (t *Map) Underlying() Type        { return t }
+func (t *Chan) Underlying() Type       { return t }
+func (t *Named) Underlying() Type      { return t.underlying }
+func (t *_TypeParam) Underlying() Type { return t }
+func (t *instance) Underlying() Type   { return t }
+func (t *bottom) Underlying() Type     { return t }
+func (t *top) Underlying() Type        { return t }
 
 // Type-specific implementations of String.
-func (t *Basic) String() string     { return TypeString(t, nil) }
-func (t *Array) String() string     { return TypeString(t, nil) }
-func (t *Slice) String() string     { return TypeString(t, nil) }
-func (t *Struct) String() string    { return TypeString(t, nil) }
-func (t *Pointer) String() string   { return TypeString(t, nil) }
-func (t *Tuple) String() string     { return TypeString(t, nil) }
-func (t *Signature) String() string { return TypeString(t, nil) }
-func (t *Sum) String() string       { return TypeString(t, nil) }
-func (t *Interface) String() string { return TypeString(t, nil) }
-func (t *Map) String() string       { return TypeString(t, nil) }
-func (t *Chan) String() string      { return TypeString(t, nil) }
-func (t *Named) String() string     { return TypeString(t, nil) }
-func (t *TypeParam) String() string { return TypeString(t, nil) }
-func (t *instance) String() string  { return TypeString(t, nil) }
-func (t *bottom) String() string    { return TypeString(t, nil) }
-func (t *top) String() string       { return TypeString(t, nil) }
+func (t *Basic) String() string      { return TypeString(t, nil) }
+func (t *Array) String() string      { return TypeString(t, nil) }
+func (t *Slice) String() string      { return TypeString(t, nil) }
+func (t *Struct) String() string     { return TypeString(t, nil) }
+func (t *Pointer) String() string    { return TypeString(t, nil) }
+func (t *Tuple) String() string      { return TypeString(t, nil) }
+func (t *Signature) String() string  { return TypeString(t, nil) }
+func (t *_Sum) String() string       { return TypeString(t, nil) }
+func (t *Interface) String() string  { return TypeString(t, nil) }
+func (t *Map) String() string        { return TypeString(t, nil) }
+func (t *Chan) String() string       { return TypeString(t, nil) }
+func (t *Named) String() string      { return TypeString(t, nil) }
+func (t *_TypeParam) String() string { return TypeString(t, nil) }
+func (t *instance) String() string   { return TypeString(t, nil) }
+func (t *bottom) String() string     { return TypeString(t, nil) }
+func (t *top) String() string        { return TypeString(t, nil) }
 
 // under returns the true expanded underlying type.
 // If it doesn't exist, the result is Typ[Invalid].
@@ -909,20 +909,9 @@ func asSlice(t Type) *Slice {
 	return op
 }
 
-// TODO (rFindley) delete this on the dev.typeparams branch. This is only
-// exported in the prototype for legacy compatibility.
-func AsStruct(t Type) *Struct {
-	return asStruct(t)
-}
-
 func asStruct(t Type) *Struct {
 	op, _ := optype(t).(*Struct)
 	return op
-}
-
-// TODO(rFindley) delete this on the dev.typeparams branch (see ToStruct).
-func AsPointer(t Type) *Pointer {
-	return asPointer(t)
 }
 
 func asPointer(t Type) *Pointer {
@@ -940,8 +929,8 @@ func asSignature(t Type) *Signature {
 	return op
 }
 
-func asSum(t Type) *Sum {
-	op, _ := optype(t).(*Sum)
+func asSum(t Type) *_Sum {
+	op, _ := optype(t).(*_Sum)
 	return op
 }
 
@@ -969,7 +958,7 @@ func asNamed(t Type) *Named {
 	return e
 }
 
-func asTypeParam(t Type) *TypeParam {
-	u, _ := under(t).(*TypeParam)
+func asTypeParam(t Type) *_TypeParam {
+	u, _ := under(t).(*_TypeParam)
 	return u
 }

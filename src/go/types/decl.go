@@ -713,7 +713,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 
 	setBoundAt := func(at int, bound Type) {
 		assert(IsInterface(bound))
-		tparams[at].typ.(*TypeParam).bound = bound
+		tparams[at].typ.(*_TypeParam).bound = bound
 	}
 
 	index := 0
@@ -756,7 +756,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident) []*TypeName {
 	for _, name := range names {
 		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-		check.NewTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
+		check.newTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
 		check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
 		tparams = append(tparams, tpar)
 	}

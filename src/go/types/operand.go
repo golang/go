@@ -242,7 +242,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 
 	// x is an untyped value representable by a value of type T.
 	if isUntyped(Vu) {
-		if t, ok := Tu.(*Sum); ok {
+		if t, ok := Tu.(*_Sum); ok {
 			return t.is(func(t Type) bool {
 				// TODO(gri) this could probably be more efficient
 				ok, _ := x.assignableTo(check, t, reason)

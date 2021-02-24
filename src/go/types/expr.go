@@ -660,7 +660,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		default:
 			return nil, nil, _InvalidUntypedConversion
 		}
-	case *Sum:
+	case *_Sum:
 		ok := t.is(func(t Type) bool {
 			target, _, _ := check.implicitTypeAndValue(x, t)
 			return target != nil
@@ -1517,7 +1517,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			x.expr = e
 			return expression
 
-		case *Sum:
+		case *_Sum:
 			// A sum type can be indexed if all of the sum's types
 			// support indexing and have the same index and element
 			// type. Special rules apply for maps in the sum type.
@@ -1549,7 +1549,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					tkey = t.key
 					e = t.elem
 					nmaps++
-				case *TypeParam:
+				case *_TypeParam:
 					check.errorf(x, 0, "type of %s contains a type parameter - cannot index (implementation restriction)", x)
 				case *instance:
 					panic("unimplemented")
@@ -1661,7 +1661,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			valid = true
 			// x.typ doesn't change
 
-		case *Sum, *TypeParam:
+		case *_Sum, *_TypeParam:
 			check.errorf(x, 0, "generic slice expressions not yet implemented")
 			goto Error
 		}

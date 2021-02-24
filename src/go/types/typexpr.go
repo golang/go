@@ -146,7 +146,7 @@ func (check *Checker) ordinaryType(pos positioner, typ Type) {
 				check.softErrorf(pos, _Todo, "interface contains type constraints (%s)", t.allTypes)
 				return
 			}
-			if t.IsComparable() {
+			if t._IsComparable() {
 				check.softErrorf(pos, _Todo, "interface is (or embeds) comparable")
 			}
 		}
@@ -301,7 +301,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				}
 				smap := makeSubstMap(recvTParams, list)
 				for i, tname := range sig.rparams {
-					bound := recvTParams[i].typ.(*TypeParam).bound
+					bound := recvTParams[i].typ.(*_TypeParam).bound
 					// bound is (possibly) parameterized in the context of the
 					// receiver type declaration. Substitute parameters for the
 					// current context.
@@ -309,7 +309,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 					//           (no bound == empty interface)
 					if bound != nil {
 						bound = check.subst(tname.pos, bound, smap)
-						tname.typ.(*TypeParam).bound = bound
+						tname.typ.(*_TypeParam).bound = bound
 					}
 				}
 			}
@@ -333,7 +333,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	recvList, _ := check.collectParams(scope, recvPar, recvTyp, false) // use rewritten receiver type, if any
 	params, variadic := check.collectParams(scope, ftyp.Params, nil, true)
 	results, _ := check.collectParams(scope, ftyp.Results, nil, false)
-	scope.Squash(func(obj, alt Object) {
+	scope.squash(func(obj, alt Object) {
 		check.errorf(obj, _DuplicateDecl, "%s redeclared in this block", obj.Name())
 		check.reportAltDecl(alt)
 	})
@@ -823,7 +823,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	}
 
 	// type constraints
-	ityp.types = NewSum(check.collectTypeConstraints(iface.Pos(), types))
+	ityp.types = _NewSum(check.collectTypeConstraints(iface.Pos(), types))
 
 	if len(ityp.methods) == 0 && ityp.types == nil && len(ityp.embeddeds) == 0 {
 		// empty interface
@@ -928,7 +928,7 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 		if etyp == nil {
 			if utyp != Typ[Invalid] {
 				var format string
-				if _, ok := utyp.(*TypeParam); ok {
+				if _, ok := utyp.(*_TypeParam); ok {
 					format = "%s is a type parameter, not an interface"
 				} else {
 					format = "%s is not an interface"
@@ -987,7 +987,7 @@ func intersect(x, y Type) (r Type) {
 	if rtypes == nil {
 		return theBottom
 	}
-	return NewSum(rtypes)
+	return _NewSum(rtypes)
 }
 
 func sortTypes(list []Type) {
