@@ -657,7 +657,7 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
 	case OpCopy:
 		return x.storeArgOrLoad(pos, b, source.Args[0], mem, t, offset, loadRegOffset, storeRc)
 
-	case OpLoad:
+	case OpLoad, OpDereference:
 		ret := x.decomposeArgOrLoad(pos, b, source, mem, t, offset, loadRegOffset, storeRc, storeOneLoad, storeTwoLoad)
 		if ret != nil {
 			return ret
@@ -820,6 +820,9 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
 	}
 
 	s := mem
+	if source.Op == OpDereference {
+		source.Op = OpLoad // For purposes of parameter passing expansion, a Dereference is a Load.
+	}
 	if storeRc.hasRegs() {
 		storeRc.addArg(source)
 	} else {
@@ -846,13 +849,10 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) (*Value, []*Value) {
 		auxI := int64(i)
 		aRegs := aux.RegsOfArg(auxI)
 		aType := aux.TypeOfArg(auxI)
-		if a.Op == OpDereference {
+		if len(aRegs) == 0 && a.Op == OpDereference {
 			aOffset := aux.OffsetOfArg(auxI)
 			if a.MemoryArg() != m0 {
 				x.f.Fatalf("Op...LECall and OpDereference have mismatched mem, %s and %s", v.LongString(), a.LongString())
-			}
-			if len(aRegs) > 0 {
-				x.f.Fatalf("Not implemented yet, not-SSA-type %v passed in registers", aType)
 			}
 			// "Dereference" of addressed (probably not-SSA-eligible) value becomes Move
 			// TODO(register args) this will be more complicated with registers in the picture.
@@ -969,10 +969,7 @@ func expandCalls(f *Func) {
 				auxOffset := int64(0)
 				auxSize := aux.SizeOfResult(i)
 				aRegs := aux.RegsOfResult(int64(j))
-				if a.Op == OpDereference {
-					if len(aRegs) > 0 {
-						x.f.Fatalf("Not implemented yet, not-SSA-type %v returned in register", auxType)
-					}
+				if len(aRegs) == 0 && a.Op == OpDereference {
 					// Avoid a self-move, and if one is detected try to remove the already-inserted VarDef for the assignment that won't happen.
 					if dAddr, dMem := a.Args[0], a.Args[1]; dAddr.Op == OpLocalAddr && dAddr.Args[0].Op == OpSP &&
 						dAddr.Args[1] == dMem && dAddr.Aux == aux.results[i].Name {
@@ -1391,4 +1388,15 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 			return w
 		}
 	}
+}
+
+// argOpAndRegisterFor converts an abi register index into an ssa Op and corresponding
+// arg register index.
+// TODO could call this in at least two places earlier in this file.
+func ArgOpAndRegisterFor(r abi.RegIndex, abiConfig *abi.ABIConfig) (Op, int64) {
+	i := abiConfig.FloatIndexFor(r)
+	if i >= 0 { // float PR
+		return OpArgFloatReg, i
+	}
+	return OpArgIntReg, int64(r)
 }
