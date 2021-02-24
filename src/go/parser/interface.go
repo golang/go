@@ -55,6 +55,7 @@ const (
 	Trace                                          // print a trace of parsed productions
 	DeclarationErrors                              // report declaration errors
 	SpuriousErrors                                 // same as AllErrors, for backward-compatibility
+	ParseTypeParams                                // Placeholder. Will control the parsing of type parameters.
 	AllErrors         = SpuriousErrors             // report all errors (not just the first 10 on different lines)
 )
 

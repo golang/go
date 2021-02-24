@@ -71,8 +71,8 @@ func callbackasmAddr(i int) uintptr {
 		panic("unsupported architecture")
 	case "386", "amd64":
 		entrySize = 5
-	case "arm":
-		// On ARM, each entry is a MOV instruction
+	case "arm", "arm64":
+		// On ARM and ARM64, each entry is a MOV instruction
 		// followed by a branch instruction
 		entrySize = 8
 	}
@@ -116,13 +116,14 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 			// registers and the stack.
 			panic("compileCallback: argument size is larger than uintptr")
 		}
-		if k := t.kind & kindMask; (GOARCH == "amd64" || GOARCH == "arm") && (k == kindFloat32 || k == kindFloat64) {
+		if k := t.kind & kindMask; GOARCH != "386" && (k == kindFloat32 || k == kindFloat64) {
 			// In fastcall, floating-point arguments in
 			// the first four positions are passed in
 			// floating-point registers, which we don't
 			// currently spill. arm passes floating-point
 			// arguments in VFP registers, which we also
 			// don't support.
+			// So basically we only support 386.
 			panic("compileCallback: float arguments not supported")
 		}
 
@@ -147,6 +148,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 		}
 
 		// cdecl, stdcall, fastcall, and arm pad arguments to word size.
+		// TODO(rsc): On arm and arm64 do we need to skip the caller's saved LR?
 		src += sys.PtrSize
 		// The Go ABI packs arguments.
 		dst += t.size

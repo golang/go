@@ -20,7 +20,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 	switch {
 	case constArg && isConstType(T):
 		// constant conversion
-		switch t := T.Underlying().(*Basic); {
+		switch t := asBasic(T); {
 		case representableConst(x.val, check, t, &x.val):
 			ok = true
 		case isInteger(x.typ) && isString(t):
@@ -87,8 +87,8 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
 
 	// "x's type and T have identical underlying types if tags are ignored"
 	V := x.typ
-	Vu := V.Underlying()
-	Tu := T.Underlying()
+	Vu := under(V)
+	Tu := under(T)
 	if check.identicalIgnoreTags(Vu, Tu) {
 		return true
 	}
@@ -97,14 +97,14 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
 	// have identical underlying types if tags are ignored"
 	if V, ok := V.(*Pointer); ok {
 		if T, ok := T.(*Pointer); ok {
-			if check.identicalIgnoreTags(V.base.Underlying(), T.base.Underlying()) {
+			if check.identicalIgnoreTags(under(V.base), under(T.base)) {
 				return true
 			}
 		}
 	}
 
 	// "x's type and T are both integer or floating point types"
-	if (isInteger(V) || isFloat(V)) && (isInteger(T) || isFloat(T)) {
+	if isIntegerOrFloat(V) && isIntegerOrFloat(T) {
 		return true
 	}
 
@@ -137,27 +137,27 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
 }
 
 func isUintptr(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.kind == Uintptr
+	t := asBasic(typ)
+	return t != nil && t.kind == Uintptr
 }
 
 func isUnsafePointer(typ Type) bool {
-	// TODO(gri): Is this (typ.Underlying() instead of just typ) correct?
+	// TODO(gri): Is this asBasic() instead of typ.(*Basic) correct?
+	//            (The former calls under(), while the latter doesn't.)
 	//            The spec does not say so, but gc claims it is. See also
 	//            issue 6326.
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.kind == UnsafePointer
+	t := asBasic(typ)
+	return t != nil && t.kind == UnsafePointer
 }
 
 func isPointer(typ Type) bool {
-	_, ok := typ.Underlying().(*Pointer)
-	return ok
+	return asPointer(typ) != nil
 }
 
 func isBytesOrRunes(typ Type) bool {
-	if s, ok := typ.(*Slice); ok {
-		t, ok := s.elem.Underlying().(*Basic)
-		return ok && (t.kind == Byte || t.kind == Rune)
+	if s := asSlice(typ); s != nil {
+		t := asBasic(s.elem)
+		return t != nil && (t.kind == Byte || t.kind == Rune)
 	}
 	return false
 }

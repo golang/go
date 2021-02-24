@@ -130,6 +130,12 @@ func usleep_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
+func usleep_no_g(usec uint32) {
+	asmcgocall_no_g(unsafe.Pointer(funcPC(usleep_trampoline)), unsafe.Pointer(&usec))
+}
+
+//go:nosplit
+//go:cgo_unsafe_args
 func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32 {
 	return libcCall(unsafe.Pointer(funcPC(sysctl_trampoline)), unsafe.Pointer(&mib))
 }

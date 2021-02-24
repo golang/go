@@ -12,5 +12,5 @@ type a struct {
 
 func main() {
   av := a{};
-  _ = *a(av); // ERROR "invalid indirect|expected pointer"
+  _ = *a(av); // ERROR "invalid indirect|expected pointer|cannot indirect"
 }

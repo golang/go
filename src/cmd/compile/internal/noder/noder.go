@@ -30,6 +30,9 @@ func LoadPackage(filenames []string) {
 	base.Timer.Start("fe", "parse")
 
 	mode := syntax.CheckBranches
+	if base.Flag.G != 0 {
+		mode |= syntax.AllowGenerics
+	}
 
 	// Limit the number of simultaneously open files.
 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
@@ -65,9 +68,15 @@ func LoadPackage(filenames []string) {
 		for e := range p.err {
 			p.errorAt(e.Pos, "%s", e.Msg)
 		}
-		lines += p.file.Lines
+		lines += p.file.EOF.Line()
 	}
 	base.Timer.AddEvent(int64(lines), "lines")
+
+	if base.Flag.G != 0 {
+		// Use types2 to type-check and possibly generate IR.
+		check2(noders)
+		return
+	}
 
 	for _, p := range noders {
 		p.node()
@@ -1031,8 +1040,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 	case *syntax.DeclStmt:
 		return ir.NewBlockStmt(src.NoXPos, p.decls(stmt.DeclList))
 	case *syntax.AssignStmt:
-		if stmt.Rhs == syntax.ImplicitOne {
-			one := constant.MakeInt64(1)
+		if stmt.Rhs == nil {
 			pos := p.pos(stmt)
 			n := ir.NewAssignOpStmt(pos, p.binOp(stmt.Op), p.expr(stmt.Lhs), ir.NewBasicLit(pos, one))
 			n.IncDec = true
@@ -1447,6 +1455,20 @@ func (p *noder) basicLit(lit *syntax.BasicLit) constant.Value {
 	switch lit.Kind {
 	case syntax.IntLit, syntax.FloatLit, syntax.ImagLit:
 		checkLangCompat(lit)
+		// The max. mantissa precision for untyped numeric values
+		// is 512 bits, or 4048 bits for each of the two integer
+		// parts of a fraction for floating-point numbers that are
+		// represented accurately in the go/constant package.
+		// Constant literals that are longer than this many bits
+		// are not meaningful; and excessively long constants may
+		// consume a lot of space and time for a useless conversion.
+		// Cap constant length with a generous upper limit that also
+		// allows for separators between all digits.
+		const limit = 10000
+		if len(lit.Value) > limit {
+			p.errorAt(lit.Pos(), "excessively long constant: %s... (%d chars)", lit.Value[:10], len(lit.Value))
+			return constant.MakeUnknown()
+		}
 	}
 
 	v := constant.MakeFromLiteral(lit.Value, tokenForLitKind[lit.Kind], 0)

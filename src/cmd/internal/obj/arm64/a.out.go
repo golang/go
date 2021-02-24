@@ -239,7 +239,7 @@ const (
 	REGCTXT = REG_R26 // environment for closures
 	REGTMP  = REG_R27 // reserved for liblink
 	REGG    = REG_R28 // G
-	REGFP   = REG_R29 // frame pointer, unused in the Go toolchain
+	REGFP   = REG_R29 // frame pointer
 	REGLINK = REG_R30
 
 	// ARM64 uses R31 as both stack pointer and zero register,

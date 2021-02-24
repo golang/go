@@ -229,6 +229,8 @@ func Callers(skip int, pc []uintptr) int {
 	return callers(skip, pc)
 }
 
+var defaultGOROOT string // set by cmd/link
+
 // GOROOT returns the root of the Go tree. It uses the
 // GOROOT environment variable, if set at process start,
 // or else the root used during the Go build.
@@ -237,7 +239,7 @@ func GOROOT() string {
 	if s != "" {
 		return s
 	}
-	return sys.DefaultGoroot
+	return defaultGOROOT
 }
 
 // Version returns the Go tree's version string.

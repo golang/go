@@ -91,6 +91,10 @@ func (d *deadcodePass) init() {
 		names = append(names, exp)
 	}
 
+	if d.ctxt.Debugvlog > 1 {
+		d.ctxt.Logf("deadcode start names: %v\n", names)
+	}
+
 	for _, name := range names {
 		// Mark symbol as a data/ABI0 symbol.
 		d.mark(d.ldr.Lookup(name, 0), 0)

@@ -37,7 +37,9 @@ func assembleScopes(fnsym *obj.LSym, fn *ir.Func, dwarfVars []*dwarf.Var, varSco
 	}
 
 	scopeVariables(dwarfVars, varScopes, dwarfScopes)
-	scopePCs(fnsym, fn.Marks, dwarfScopes)
+	if fnsym.Func().Text != nil {
+		scopePCs(fnsym, fn.Marks, dwarfScopes)
+	}
 	return compactScopes(dwarfScopes)
 }
 

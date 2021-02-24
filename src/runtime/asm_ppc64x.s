@@ -16,7 +16,7 @@
 #define cgoCalleeStackSize 32
 #endif
 
-TEXT runtime·rt0_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// R1 = stack; R3 = argc; R4 = argv; R13 = C TLS base pointer
 
 	// initialize essential registers
@@ -124,18 +124,26 @@ TEXT runtime·reginit(SB),NOSPLIT|NOFRAME,$0-0
 	XOR R0, R0
 	RET
 
+TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	BL	runtime·mstart0(SB)
+	RET // not reached
+
 /*
  *  go-routine
  */
 
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
-TEXT runtime·gogo(SB), NOSPLIT, $16-8
+TEXT runtime·gogo(SB), NOSPLIT|NOFRAME, $0-8
 	MOVD	buf+0(FP), R5
-	MOVD	gobuf_g(R5), g	// make sure g is not nil
+	MOVD	gobuf_g(R5), R6
+	MOVD	0(R6), R4	// make sure g != nil
+	BR	gogo<>(SB)
+
+TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
+	MOVD	R6, g
 	BL	runtime·save_g(SB)
 
-	MOVD	0(g), R4
 	MOVD	gobuf_sp(R5), R1
 	MOVD	gobuf_lr(R5), R31
 #ifndef GOOS_aix
@@ -163,7 +171,6 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
 	MOVD	LR, R31
 	MOVD	R31, (g_sched+gobuf_pc)(g)
 	MOVD	R0, (g_sched+gobuf_lr)(g)
-	MOVD	g, (g_sched+gobuf_g)(g)
 
 	// Switch to m->g0 & its stack, call fn.
 	MOVD	g, R3
@@ -229,22 +236,12 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 switch:
 	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
-	MOVD	$runtime·systemstack_switch(SB), R6
-	ADD     $16, R6 // get past prologue (including r2-setting instructions when they're there)
-	MOVD	R6, (g_sched+gobuf_pc)(g)
-	MOVD	R1, (g_sched+gobuf_sp)(g)
-	MOVD	R0, (g_sched+gobuf_lr)(g)
-	MOVD	g, (g_sched+gobuf_g)(g)
+	BL	gosave_systemstack_switch<>(SB)
 
 	// switch to g0
 	MOVD	R5, g
 	BL	runtime·save_g(SB)
-	MOVD	(g_sched+gobuf_sp)(g), R3
-	// make it look like mstart called systemstack on g0, to stop traceback
-	SUB	$FIXED_FRAME, R3
-	MOVD	$runtime·mstart(SB), R4
-	MOVD	R4, 0(R3)
-	MOVD	R3, R1
+	MOVD	(g_sched+gobuf_sp)(g), R1
 
 	// call target function
 	MOVD	0(R11), R12	// code pointer
@@ -534,9 +531,14 @@ TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
 	MOVD	R12, CTR
 	BR	(CTR)
 
-// Save state of caller into g->sched. Smashes R31.
-TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
-	MOVD	LR, R31
+// Save state of caller into g->sched,
+// but using fake PC from systemstack_switch.
+// Must only be called from functions with no locals ($0)
+// or else unwinding from systemstack_switch is incorrect.
+// Smashes R31.
+TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+	MOVD	$runtime·systemstack_switch(SB), R31
+	ADD     $16, R31 // get past prologue (including r2-setting instructions when they're there)
 	MOVD	R31, (g_sched+gobuf_pc)(g)
 	MOVD	R1, (g_sched+gobuf_sp)(g)
 	MOVD	R0, (g_sched+gobuf_lr)(g)
@@ -545,7 +547,7 @@ TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	(g_sched+gobuf_ctxt)(g), R31
 	CMP	R0, R31
 	BEQ	2(PC)
-	BL	runtime·badctxt(SB)
+	BL	runtime·abort(SB)
 	RET
 
 #ifdef GOOS_aix
@@ -577,7 +579,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVD	m_g0(R8), R6
 	CMP	R6, g
 	BEQ	g0
-	BL	gosave<>(SB)
+	BL	gosave_systemstack_switch<>(SB)
 	MOVD	R6, g
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R1

@@ -84,7 +84,7 @@ GLOBL _rt0_amd64_lib_argc<>(SB),NOPTR, $8
 DATA _rt0_amd64_lib_argv<>(SB)/8, $0
 GLOBL _rt0_amd64_lib_argv<>(SB),NOPTR, $8
 
-TEXT runtime·rt0_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// copy arguments forward on an even stack
 	MOVQ	DI, AX		// argc
 	MOVQ	SI, BX		// argv
@@ -250,16 +250,23 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
 	// No per-thread init.
 	RET
 
+TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	runtime·mstart0(SB)
+	RET // not reached
+
 /*
  *  go-routine
  */
 
 // func gogo(buf *gobuf)
 // restore state from Gobuf; longjmp
-TEXT runtime·gogo(SB), NOSPLIT, $16-8
+TEXT runtime·gogo(SB), NOSPLIT, $0-8
 	MOVQ	buf+0(FP), BX		// gobuf
 	MOVQ	gobuf_g(BX), DX
 	MOVQ	0(DX), CX		// make sure g != nil
+	JMP	gogo<>(SB)
+
+TEXT gogo<>(SB), NOSPLIT, $0
 	get_tls(CX)
 	MOVQ	DX, g(CX)
 	MOVQ	DX, R14		// set the g register
@@ -287,7 +294,6 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	MOVQ	BX, (g_sched+gobuf_pc)(AX)
 	LEAQ	fn+0(FP), BX	// caller's SP
 	MOVQ	BX, (g_sched+gobuf_sp)(AX)
-	MOVQ	AX, (g_sched+gobuf_g)(AX)
 	MOVQ	BP, (g_sched+gobuf_bp)(AX)
 
 	// switch to m->g0 & its stack, call fn
@@ -338,20 +344,12 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	// switch stacks
 	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
-	MOVQ	$runtime·systemstack_switch(SB), SI
-	MOVQ	SI, (g_sched+gobuf_pc)(AX)
-	MOVQ	SP, (g_sched+gobuf_sp)(AX)
-	MOVQ	AX, (g_sched+gobuf_g)(AX)
-	MOVQ	BP, (g_sched+gobuf_bp)(AX)
+	CALL	gosave_systemstack_switch<>(SB)
 
 	// switch to g0
 	MOVQ	DX, g(CX)
 	MOVQ	DX, R14 // set the g register
 	MOVQ	(g_sched+gobuf_sp)(DX), BX
-	// make it look like mstart called systemstack on g0, to stop traceback
-	SUBQ	$8, BX
-	MOVQ	$runtime·mstart(SB), DX
-	MOVQ	DX, 0(BX)
 	MOVQ	BX, SP
 
 	// call target function
@@ -426,7 +424,6 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	// Set g->sched to context in f.
 	MOVQ	0(SP), AX // f's PC
 	MOVQ	AX, (g_sched+gobuf_pc)(SI)
-	MOVQ	SI, (g_sched+gobuf_g)(SI)
 	LEAQ	8(SP), AX // f's SP
 	MOVQ	AX, (g_sched+gobuf_sp)(SI)
 	MOVQ	BP, (g_sched+gobuf_bp)(SI)
@@ -660,13 +657,17 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
 	MOVQ	0(DX), BX
 	JMP	BX	// but first run the deferred function
 
-// Save state of caller into g->sched. Smashes R9.
-TEXT gosave<>(SB),NOSPLIT,$0
+// Save state of caller into g->sched,
+// but using fake PC from systemstack_switch.
+// Must only be called from functions with no locals ($0)
+// or else unwinding from systemstack_switch is incorrect.
+// Smashes R9.
+TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
 #ifndef GOEXPERIMENT_REGABI
 	get_tls(R14)
 	MOVQ	g(R14), R14
 #endif
-	MOVQ	0(SP), R9
+	MOVQ	$runtime·systemstack_switch(SB), R9
 	MOVQ	R9, (g_sched+gobuf_pc)(R14)
 	LEAQ	8(SP), R9
 	MOVQ	R9, (g_sched+gobuf_sp)(R14)
@@ -676,7 +677,24 @@ TEXT gosave<>(SB),NOSPLIT,$0
 	MOVQ	(g_sched+gobuf_ctxt)(R14), R9
 	TESTQ	R9, R9
 	JZ	2(PC)
-	CALL	runtime·badctxt(SB)
+	CALL	runtime·abort(SB)
+	RET
+
+// func asmcgocall_no_g(fn, arg unsafe.Pointer)
+// Call fn(arg) aligned appropriately for the gcc ABI.
+// Called on a system stack, and there may be no g yet (during needm).
+TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
+	MOVQ	fn+0(FP), AX
+	MOVQ	arg+8(FP), BX
+	MOVQ	SP, DX
+	SUBQ	$32, SP
+	ANDQ	$~15, SP	// alignment
+	MOVQ	DX, 8(SP)
+	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
+	MOVQ	BX, CX		// CX = first argument in Win64
+	CALL	AX
+	MOVQ	8(SP), DX
+	MOVQ	DX, SP
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32
@@ -707,7 +725,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 
 	// Switch to system stack.
 	MOVQ	m_g0(R8), SI
-	CALL	gosave<>(SB)
+	CALL	gosave_systemstack_switch<>(SB)
 	MOVQ	SI, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(SI), SP
 
@@ -1426,7 +1444,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
 // so as to make it identifiable to traceback (this
 // function it used as a sentinel; traceback wants to
 // see the func PC, not a wrapper PC).
-TEXT runtime·goexit<ABIInternal>(SB),NOSPLIT,$0-0
+TEXT runtime·goexit<ABIInternal>(SB),NOSPLIT|TOPFRAME,$0-0
 	BYTE	$0x90	// NOP
 	CALL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit

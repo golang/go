@@ -7,6 +7,7 @@ package noder
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	pathpkg "path"
 	"runtime"
@@ -17,16 +18,41 @@ import (
 	"unicode/utf8"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/importer"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/compile/internal/types2"
 	"cmd/internal/archive"
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
+
+// Temporary import helper to get type2-based type-checking going.
+type gcimports struct {
+	packages map[string]*types2.Package
+}
+
+func (m *gcimports) Import(path string) (*types2.Package, error) {
+	return m.ImportFrom(path, "" /* no vendoring */, 0)
+}
+
+func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*types2.Package, error) {
+	if mode != 0 {
+		panic("mode must be 0")
+	}
+
+	path, err := resolveImportPath(path)
+	if err != nil {
+		return nil, err
+	}
+
+	lookup := func(path string) (io.ReadCloser, error) { return openPackage(path) }
+	return importer.Import(m.packages, path, srcDir, lookup)
+}
 
 func isDriveLetter(b byte) bool {
 	return 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z'
