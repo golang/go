@@ -502,7 +502,7 @@ const pcbucketsize = 256 * minfunc // size of bucket in the pc->func lookup tabl
 // This table uses 20 bytes for every 4096 bytes of code, or ~0.5% overhead.
 type findfuncbucket struct {
 	idx        uint32
-	subbuckets [16]byte
+	subbuckets [32]byte
 }
 
 func moduledataverify() {
