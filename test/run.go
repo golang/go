@@ -438,6 +438,16 @@ func (ctxt *context) match(name string) bool {
 		}
 	}
 
+	exp := os.Getenv("GOEXPERIMENT")
+	if exp != "" {
+		experiments := strings.Split(exp, ",")
+		for _, e := range experiments {
+			if name == "goexperiment."+e {
+				return true
+			}
+		}
+	}
+
 	if name == ctxt.GOOS || name == ctxt.GOARCH || name == "gc" {
 		return true
 	}

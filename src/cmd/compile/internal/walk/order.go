@@ -14,6 +14,7 @@ import (
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -731,6 +732,9 @@ func (o *orderState) stmt(n ir.Node) {
 		t := o.markTemp()
 		o.init(n.Call)
 		o.call(n.Call)
+		if objabi.Experiment.RegabiDefer {
+			o.wrapGoDefer(n)
+		}
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
@@ -1434,4 +1438,248 @@ func (o *orderState) as2ok(n *ir.AssignListStmt) {
 
 	o.out = append(o.out, n)
 	o.stmt(typecheck.Stmt(as))
+}
+
+var wrapGoDefer_prgen int
+
+// wrapGoDefer wraps the target of a "go" or "defer" statement with a
+// new "function with no arguments" closure. Specifically, it converts
+//
+//   defer f(x, y)
+//
+// to
+//
+//   x1, y1 := x, y
+//   defer func() { f(x1, y1) }()
+//
+// This is primarily to enable a quicker bringup of defers under the
+// new register ABI; by doing this conversion, we can simplify the
+// code in the runtime that invokes defers on the panic path.
+func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
+	call := n.Call
+
+	var callX ir.Node      // thing being called
+	var callArgs []ir.Node // call arguments
+
+	// A helper to recreate the call within the closure.
+	var mkNewCall func(pos src.XPos, op ir.Op, fun ir.Node, args []ir.Node) ir.Node
+
+	// Defer calls come in many shapes and sizes; not all of them
+	// are ir.CallExpr's. Examine the type to see what we're dealing with.
+	switch x := call.(type) {
+	case *ir.CallExpr:
+		callX = x.X
+		callArgs = x.Args
+		mkNewCall = func(pos src.XPos, op ir.Op, fun ir.Node, args []ir.Node) ir.Node {
+			newcall := ir.NewCallExpr(pos, op, fun, args)
+			newcall.IsDDD = x.IsDDD
+			return ir.Node(newcall)
+		}
+	case *ir.UnaryExpr: // ex: OCLOSE
+		callArgs = []ir.Node{x.X}
+		mkNewCall = func(pos src.XPos, op ir.Op, fun ir.Node, args []ir.Node) ir.Node {
+			if len(args) != 1 {
+				panic("internal error, expecting single arg to close")
+			}
+			return ir.Node(ir.NewUnaryExpr(pos, op, args[0]))
+		}
+	case *ir.BinaryExpr: // ex: OCOPY
+		callArgs = []ir.Node{x.X, x.Y}
+		mkNewCall = func(pos src.XPos, op ir.Op, fun ir.Node, args []ir.Node) ir.Node {
+			if len(args) != 2 {
+				panic("internal error, expecting two args")
+			}
+			return ir.Node(ir.NewBinaryExpr(pos, op, args[0], args[1]))
+		}
+	default:
+		panic("unhandled op")
+	}
+
+	// No need to wrap if called func has no args. However in the case
+	// of "defer func() { ... }()" we need to protect against the
+	// possibility of directClosureCall rewriting things so that the
+	// call does have arguments.
+	if len(callArgs) == 0 {
+		if c, ok := call.(*ir.CallExpr); ok && callX != nil && callX.Op() == ir.OCLOSURE {
+			cloFunc := callX.(*ir.ClosureExpr).Func
+			cloFunc.SetClosureCalled(false)
+			c.PreserveClosure = true
+		}
+		return
+	}
+
+	if c, ok := call.(*ir.CallExpr); ok {
+		// To simplify things, turn f(a, b, []T{c, d, e}...) back
+		// into f(a, b, c, d, e) -- when the final call is run through the
+		// type checker below, it will rebuild the proper slice literal.
+		undoVariadic(c)
+		callX = c.X
+		callArgs = c.Args
+	}
+
+	// This is set to true if the closure we're generating escapes
+	// (needs heap allocation).
+	cloEscapes := func() bool {
+		if n.Op() == ir.OGO {
+			// For "go", assume that all closures escape (with an
+			// exception for the runtime, which doesn't permit
+			// heap-allocated closures).
+			return base.Ctxt.Pkgpath != "runtime"
+		}
+		// For defer, just use whatever result escape analysis
+		// has determined for the defer.
+		return n.Esc() != ir.EscNever
+	}()
+
+	// A helper for making a copy of an argument.
+	mkArgCopy := func(arg ir.Node) *ir.Name {
+		argCopy := o.copyExpr(arg)
+		// The value of 128 below is meant to be consistent with code
+		// in escape analysis that picks byval/byaddr based on size.
+		argCopy.SetByval(argCopy.Type().Size() <= 128 || cloEscapes)
+		return argCopy
+	}
+
+	unsafeArgs := make([]*ir.Name, len(callArgs))
+	origArgs := callArgs
+
+	// Copy the arguments to the function into temps.
+	pos := n.Pos()
+	outerfn := ir.CurFunc
+	var newNames []*ir.Name
+	for i := range callArgs {
+		arg := callArgs[i]
+		var argname *ir.Name
+		if arg.Op() == ir.OCONVNOP && arg.Type().IsUintptr() && arg.(*ir.ConvExpr).X.Type().IsUnsafePtr() {
+			// No need for copy here; orderState.call() above has already inserted one.
+			arg = arg.(*ir.ConvExpr).X
+			argname = arg.(*ir.Name)
+			unsafeArgs[i] = argname
+		} else {
+			argname = mkArgCopy(arg)
+		}
+		newNames = append(newNames, argname)
+	}
+
+	// Deal with cases where the function expression (what we're
+	// calling) is not a simple function symbol.
+	var fnExpr *ir.Name
+	var methSelectorExpr *ir.SelectorExpr
+	if callX != nil {
+		switch {
+		case callX.Op() == ir.ODOTMETH || callX.Op() == ir.ODOTINTER:
+			// Handle defer of a method call, e.g. "defer v.MyMethod(x, y)"
+			n := callX.(*ir.SelectorExpr)
+			n.X = mkArgCopy(n.X)
+			methSelectorExpr = n
+		case !(callX.Op() == ir.ONAME && callX.(*ir.Name).Class == ir.PFUNC):
+			// Deal with "defer returnsafunc()(x, y)" (for
+			// example) by copying the callee expression.
+			fnExpr = mkArgCopy(callX)
+			if callX.Op() == ir.OCLOSURE {
+				// For "defer func(...)", in addition to copying the
+				// closure into a temp, mark it as no longer directly
+				// called.
+				callX.(*ir.ClosureExpr).Func.SetClosureCalled(false)
+			}
+		}
+	}
+
+	// Create a new no-argument function that we'll hand off to defer.
+	var noFuncArgs []*ir.Field
+	noargst := ir.NewFuncType(base.Pos, nil, noFuncArgs, nil)
+	wrapGoDefer_prgen++
+	wrapname := fmt.Sprintf("%v·dwrap·%d", outerfn, wrapGoDefer_prgen)
+	sym := types.LocalPkg.Lookup(wrapname)
+	fn := typecheck.DeclFunc(sym, noargst)
+	fn.SetIsHiddenClosure(true)
+	fn.SetWrapper(true)
+
+	// helper for capturing reference to a var declared in an outer scope.
+	capName := func(pos src.XPos, fn *ir.Func, n *ir.Name) *ir.Name {
+		t := n.Type()
+		cv := ir.CaptureName(pos, fn, n)
+		cv.SetType(t)
+		return typecheck.Expr(cv).(*ir.Name)
+	}
+
+	// Call args (x1, y1) need to be captured as part of the newly
+	// created closure.
+	newCallArgs := []ir.Node{}
+	for i := range newNames {
+		var arg ir.Node
+		arg = capName(callArgs[i].Pos(), fn, newNames[i])
+		if unsafeArgs[i] != nil {
+			arg = ir.NewConvExpr(arg.Pos(), origArgs[i].Op(), origArgs[i].Type(), arg)
+		}
+		newCallArgs = append(newCallArgs, arg)
+	}
+	// Also capture the function or method expression (if needed) into
+	// the closure.
+	if fnExpr != nil {
+		callX = capName(callX.Pos(), fn, fnExpr)
+	}
+	if methSelectorExpr != nil {
+		methSelectorExpr.X = capName(callX.Pos(), fn, methSelectorExpr.X.(*ir.Name))
+	}
+	ir.FinishCaptureNames(pos, outerfn, fn)
+
+	// This flags a builtin as opposed to a regular call.
+	irregular := (call.Op() != ir.OCALLFUNC &&
+		call.Op() != ir.OCALLMETH &&
+		call.Op() != ir.OCALLINTER)
+
+	// Construct new function body:  f(x1, y1)
+	op := ir.OCALL
+	if irregular {
+		op = call.Op()
+	}
+	newcall := mkNewCall(call.Pos(), op, callX, newCallArgs)
+
+	// Type-check the result.
+	if !irregular {
+		typecheck.Call(newcall.(*ir.CallExpr))
+	} else {
+		typecheck.Stmt(newcall)
+	}
+
+	// Finalize body, register function on the main decls list.
+	fn.Body = []ir.Node{newcall}
+	typecheck.FinishFuncBody()
+	typecheck.Func(fn)
+	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
+
+	// Create closure expr
+	clo := ir.NewClosureExpr(pos, fn)
+	fn.OClosure = clo
+	clo.SetType(fn.Type())
+
+	// Set escape properties for closure.
+	if n.Op() == ir.OGO {
+		// For "go", assume that the closure is going to escape
+		// (with an exception for the runtime, which doesn't
+		// permit heap-allocated closures).
+		if base.Ctxt.Pkgpath != "runtime" {
+			clo.SetEsc(ir.EscHeap)
+		}
+	} else {
+		// For defer, just use whatever result escape analysis
+		// has determined for the defer.
+		if n.Esc() == ir.EscNever {
+			clo.SetTransient(true)
+			clo.SetEsc(ir.EscNone)
+		}
+	}
+
+	// Create new top level call to closure over argless function.
+	topcall := ir.NewCallExpr(pos, ir.OCALL, clo, []ir.Node{})
+	typecheck.Call(topcall)
+
+	// Tag the call to insure that directClosureCall doesn't undo our work.
+	topcall.PreserveClosure = true
+
+	fn.SetClosureCalled(false)
+
+	// Finally, point the defer statement at the newly generated call.
+	n.Call = topcall
 }
