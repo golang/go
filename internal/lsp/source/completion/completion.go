@@ -522,7 +522,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 			literal:           opts.LiteralCompletions && opts.InsertTextFormat == protocol.SnippetTextFormat,
 			budget:            opts.CompletionBudget,
 			snippets:          opts.InsertTextFormat == protocol.SnippetTextFormat,
-			postfix:           opts.PostfixCompletions,
+			postfix:           opts.ExperimentalPostfixCompletions,
 		},
 		// default to a matcher that always matches
 		matcher:        prefixMatcher(""),

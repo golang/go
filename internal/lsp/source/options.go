@@ -129,8 +129,9 @@ func DefaultOptions() *Options {
 						SymbolStyle:    DynamicSymbols,
 					},
 					CompletionOptions: CompletionOptions{
-						Matcher:          Fuzzy,
-						CompletionBudget: 100 * time.Millisecond,
+						Matcher:                        Fuzzy,
+						CompletionBudget:               100 * time.Millisecond,
+						ExperimentalPostfixCompletions: false,
 					},
 					Codelenses: map[string]bool{
 						string(command.Generate):          true,
@@ -144,7 +145,6 @@ func DefaultOptions() *Options {
 			},
 			InternalOptions: InternalOptions{
 				LiteralCompletions:      true,
-				PostfixCompletions:      true,
 				TempModfile:             true,
 				CompleteUnimported:      true,
 				CompletionDocumentation: true,
@@ -294,6 +294,10 @@ type CompletionOptions struct {
 	// Matcher sets the algorithm that is used when calculating completion
 	// candidates.
 	Matcher Matcher `status:"advanced"`
+
+	// ExperimentalPostfixCompletions enables artifical method snippets
+	// such as "someSlice.sort!".
+	ExperimentalPostfixCompletions bool `status:"experimental"`
 }
 
 type DocumentationOptions struct {
@@ -436,11 +440,6 @@ type InternalOptions struct {
 	// "&someStruct{}" are offered. Tests disable this flag to simplify
 	// their expected values.
 	LiteralCompletions bool
-
-	// PostfixCompletions enables pseudo method snippets such as
-	// "someSlice.sort!". Tests disable this flag to simplify their
-	// expected values.
-	PostfixCompletions bool
 
 	// VerboseWorkDoneProgress controls whether the LSP server should send
 	// progress reports for all work done outside the scope of an RPC.
@@ -687,6 +686,7 @@ func (o *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer) {
 // should be enabled in enableAllExperimentMaps.
 func (o *Options) enableAllExperiments() {
 	o.SemanticTokens = true
+	o.ExperimentalPostfixCompletions = true
 }
 
 func (o *Options) enableAllExperimentMaps() {
@@ -857,6 +857,9 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 
 	case "expandWorkspaceToModule":
 		result.setBool(&o.ExpandWorkspaceToModule)
+
+	case "experimentalPostfixCompletions":
+		result.setBool(&o.ExperimentalPostfixCompletions)
 
 	case "experimentalWorkspaceModule":
 		result.setBool(&o.ExperimentalWorkspaceModule)

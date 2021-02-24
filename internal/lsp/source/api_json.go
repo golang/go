@@ -222,6 +222,19 @@ var GeneratedAPIJSON = &APIJSON{
 				Hierarchy: "ui.completion",
 			},
 			{
+				Name: "experimentalPostfixCompletions",
+				Type: "bool",
+				Doc:  "experimentalPostfixCompletions enables artifical method snippets\nsuch as \"someSlice.sort!\".\n",
+				EnumKeys: EnumKeys{
+					ValueType: "",
+					Keys:      nil,
+				},
+				EnumValues: nil,
+				Default:    "false",
+				Status:     "experimental",
+				Hierarchy:  "ui.completion",
+			},
+			{
 				Name: "importShortcut",
 				Type: "enum",
 				Doc:  "importShortcut specifies whether import statements should link to\ndocumentation or go to definitions.\n",

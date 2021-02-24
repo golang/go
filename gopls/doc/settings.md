@@ -209,6 +209,15 @@ Must be one of:
 * `"Fuzzy"`
 Default: `"Fuzzy"`.
 
+##### **experimentalPostfixCompletions** *bool*
+
+**This setting is experimental and may be deleted.**
+
+experimentalPostfixCompletions enables artifical method snippets
+such as "someSlice.sort!".
+
+Default: `false`.
+
 #### Diagnostic
 
 ##### **analyses** *map[string]bool*

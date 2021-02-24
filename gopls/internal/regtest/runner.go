@@ -70,19 +70,21 @@ type Runner struct {
 }
 
 type runConfig struct {
-	editor    fake.EditorConfig
-	sandbox   fake.SandboxConfig
-	modes     Mode
-	timeout   time.Duration
-	debugAddr string
-	skipLogs  bool
-	skipHooks bool
+	editor      fake.EditorConfig
+	sandbox     fake.SandboxConfig
+	modes       Mode
+	timeout     time.Duration
+	debugAddr   string
+	skipLogs    bool
+	skipHooks   bool
+	optionsHook func(*source.Options)
 }
 
 func (r *Runner) defaultConfig() *runConfig {
 	return &runConfig{
-		modes:   r.DefaultModes,
-		timeout: r.Timeout,
+		modes:       r.DefaultModes,
+		timeout:     r.Timeout,
+		optionsHook: hooks.Options,
 	}
 }
 
@@ -115,6 +117,19 @@ func ProxyFiles(txt string) RunOption {
 func Modes(modes Mode) RunOption {
 	return optionSetter(func(opts *runConfig) {
 		opts.modes = modes
+	})
+}
+
+// Options configures the various server and user options.
+func Options(hook func(*source.Options)) RunOption {
+	return optionSetter(func(opts *runConfig) {
+		old := opts.optionsHook
+		opts.optionsHook = func(o *source.Options) {
+			if old != nil {
+				old(o)
+			}
+			hook(o)
+		}
 	})
 }
 
@@ -216,7 +231,7 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 	tests := []struct {
 		name      string
 		mode      Mode
-		getServer func(context.Context, *testing.T) jsonrpc2.StreamServer
+		getServer func(context.Context, *testing.T, func(*source.Options)) jsonrpc2.StreamServer
 	}{
 		{"singleton", Singleton, singletonServer},
 		{"forwarded", Forwarded, r.forwardedServer},
@@ -268,7 +283,7 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 			// better solution to ensure that all Go processes started by gopls have
 			// exited before we clean up.
 			r.AddCloser(sandbox)
-			ss := tc.getServer(ctx, t)
+			ss := tc.getServer(ctx, t, config.optionsHook)
 			framer := jsonrpc2.NewRawStream
 			ls := &loggingFramer{}
 			if !config.skipLogs {
@@ -367,38 +382,38 @@ func (s *loggingFramer) printBuffers(testname string, w io.Writer) {
 	fmt.Fprintf(os.Stderr, "#### End Gopls Test Logs for %q\n", testname)
 }
 
-func singletonServer(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
-	return lsprpc.NewStreamServer(cache.New(hooks.Options), false)
+func singletonServer(ctx context.Context, t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
+	return lsprpc.NewStreamServer(cache.New(optsHook), false)
 }
 
-func experimentalWorkspaceModule(_ context.Context, t *testing.T) jsonrpc2.StreamServer {
+func experimentalWorkspaceModule(_ context.Context, t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
 	options := func(o *source.Options) {
-		hooks.Options(o)
+		optsHook(o)
 		o.ExperimentalWorkspaceModule = true
 	}
 	return lsprpc.NewStreamServer(cache.New(options), false)
 }
 
-func (r *Runner) forwardedServer(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
-	ts := r.getTestServer()
+func (r *Runner) forwardedServer(ctx context.Context, t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
+	ts := r.getTestServer(optsHook)
 	return lsprpc.NewForwarder("tcp", ts.Addr)
 }
 
 // getTestServer gets the shared test server instance to connect to, or creates
 // one if it doesn't exist.
-func (r *Runner) getTestServer() *servertest.TCPServer {
+func (r *Runner) getTestServer(optsHook func(*source.Options)) *servertest.TCPServer {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.ts == nil {
 		ctx := context.Background()
 		ctx = debug.WithInstance(ctx, "", "off")
-		ss := lsprpc.NewStreamServer(cache.New(hooks.Options), false)
+		ss := lsprpc.NewStreamServer(cache.New(optsHook), false)
 		r.ts = servertest.NewTCPServer(ctx, ss, nil)
 	}
 	return r.ts
 }
 
-func (r *Runner) separateProcessServer(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
+func (r *Runner) separateProcessServer(ctx context.Context, t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
 	// TODO(rfindley): can we use the autostart behavior here, instead of
 	// pre-starting the remote?
 	socket := r.getRemoteSocket(t)
