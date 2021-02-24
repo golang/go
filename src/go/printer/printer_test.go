@@ -19,6 +19,10 @@ import (
 	"time"
 )
 
+// parseTypeParams tells go/parser to parse type parameters. Must be kept in
+// sync with go/parser/interface.go.
+const parseTypeParams parser.Mode = 1 << 30
+
 const (
 	dataDir  = "testdata"
 	tabwidth = 8
@@ -35,6 +39,7 @@ const (
 	rawFormat
 	normNumber
 	idempotent
+	allowTypeParams
 )
 
 // format parses src, prints the corresponding AST, verifies the resulting
@@ -42,7 +47,11 @@ const (
 // if any.
 func format(src []byte, mode checkMode) ([]byte, error) {
 	// parse src
-	f, err := parser.ParseFile(fset, "", src, parser.ParseComments|parser.ParseTypeParams)
+	parseMode := parser.ParseComments
+	if mode&allowTypeParams != 0 {
+		parseMode |= parseTypeParams
+	}
+	f, err := parser.ParseFile(fset, "", src, parseMode)
 	if err != nil {
 		return nil, fmt.Errorf("parse: %s\n%s", err, src)
 	}
@@ -70,7 +79,7 @@ func format(src []byte, mode checkMode) ([]byte, error) {
 
 	// make sure formatted output is syntactically correct
 	res := buf.Bytes()
-	if _, err := parser.ParseFile(fset, "", res, parser.ParseTypeParams); err != nil {
+	if _, err := parser.ParseFile(fset, "", res, parseTypeParams); err != nil {
 		return nil, fmt.Errorf("re-parse: %s\n%s", err, buf.Bytes())
 	}
 
@@ -201,13 +210,13 @@ var data = []entry{
 	{"linebreaks.input", "linebreaks.golden", idempotent},
 	{"expressions.input", "expressions.golden", idempotent},
 	{"expressions.input", "expressions.raw", rawFormat | idempotent},
-	{"declarations.input", "declarations.golden", 0},
+	{"declarations.input", "declarations.golden", allowTypeParams},
 	{"statements.input", "statements.golden", 0},
 	{"slow.input", "slow.golden", idempotent},
 	{"complit.input", "complit.x", export},
 	{"go2numbers.input", "go2numbers.golden", idempotent},
 	{"go2numbers.input", "go2numbers.norm", normNumber | idempotent},
-	{"generics.input", "generics.golden", idempotent},
+	{"generics.input", "generics.golden", idempotent | allowTypeParams},
 	{"gobuild1.input", "gobuild1.golden", idempotent},
 	{"gobuild2.input", "gobuild2.golden", idempotent},
 	{"gobuild3.input", "gobuild3.golden", idempotent},

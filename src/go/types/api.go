@@ -184,11 +184,11 @@ type Info struct {
 	// qualified identifiers are collected in the Uses map.
 	Types map[ast.Expr]TypeAndValue
 
-	// Inferred maps calls of parameterized functions that use
-	// type inference to the inferred type arguments and signature
+	// _Inferred maps calls of parameterized functions that use
+	// type inference to the _Inferred type arguments and signature
 	// of the function called. The recorded "call" expression may be
 	// an *ast.CallExpr (as in f(x)), or an *ast.IndexExpr (s in f[T]).
-	Inferred map[ast.Expr]Inferred
+	_Inferred map[ast.Expr]_Inferred
 
 	// Defs maps identifiers to the objects they define (including
 	// package names, dots "." of dot-imports, and blank "_" identifiers).
@@ -346,9 +346,9 @@ func (tv TypeAndValue) HasOk() bool {
 	return tv.mode == commaok || tv.mode == mapindex
 }
 
-// Inferred reports the inferred type arguments and signature
+// _Inferred reports the _Inferred type arguments and signature
 // for a parameterized function call that uses type inference.
-type Inferred struct {
+type _Inferred struct {
 	Targs []Type
 	Sig   *Signature
 }

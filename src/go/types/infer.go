@@ -98,7 +98,7 @@ func (check *Checker) infer(tparams []*TypeName, params *Tuple, args []*operand)
 		// only parameter type it can possibly match against is a *TypeParam.
 		// Thus, only keep the indices of generic parameters that are not of
 		// composite types and which don't have a type inferred yet.
-		if tpar, _ := par.typ.(*TypeParam); tpar != nil && u.x.at(tpar.index) == nil {
+		if tpar, _ := par.typ.(*_TypeParam); tpar != nil && u.x.at(tpar.index) == nil {
 			indices[j] = i
 			j++
 		}
@@ -201,7 +201,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 			}
 		}
 
-	case *Sum:
+	case *_Sum:
 		return w.isParameterizedList(t.types)
 
 	case *Signature:
@@ -243,7 +243,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 	case *Named:
 		return w.isParameterizedList(t.targs)
 
-	case *TypeParam:
+	case *_TypeParam:
 		// t must be one of w.tparams
 		return t.index < len(w.tparams) && w.tparams[t.index].typ == t
 
@@ -291,7 +291,7 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type) (types []Type, i
 
 	// Unify type parameters with their structural constraints, if any.
 	for _, tpar := range tparams {
-		typ := tpar.typ.(*TypeParam)
+		typ := tpar.typ.(*_TypeParam)
 		sbound := check.structuralType(typ.bound)
 		if sbound != nil {
 			if !u.unify(typ, sbound) {

@@ -24,7 +24,7 @@ func sanitizeInfo(info *Info) {
 		}
 	}
 
-	for e, inf := range info.Inferred {
+	for e, inf := range info._Inferred {
 		changed := false
 		for i, targ := range inf.Targs {
 			if typ := s.typ(targ); typ != targ {
@@ -37,7 +37,7 @@ func sanitizeInfo(info *Info) {
 			changed = true
 		}
 		if changed {
-			info.Inferred[e] = inf
+			info._Inferred[e] = inf
 		}
 	}
 
@@ -102,7 +102,7 @@ func (s sanitizer) typ(typ Type) Type {
 		s.tuple(t.params)
 		s.tuple(t.results)
 
-	case *Sum:
+	case *_Sum:
 		s.typeList(t.types)
 
 	case *Interface:
@@ -135,7 +135,7 @@ func (s sanitizer) typ(typ Type) Type {
 		s.typeList(t.targs)
 		s.funcList(t.methods)
 
-	case *TypeParam:
+	case *_TypeParam:
 		if bound := s.typ(t.bound); bound != t.bound {
 			t.bound = bound
 		}
