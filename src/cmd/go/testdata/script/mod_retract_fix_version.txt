@@ -1,0 +1,24 @@
+# retract must not be used without a module directive.
+! go list -m all
+stderr 'go.mod:3: no module directive found, so retract cannot be used$'
+
+# Commands that update go.mod should fix non-canonical versions in
+# retract directives.
+# Verifies #44494.
+go mod edit -module=rsc.io/quote/v2
+! go list -m all
+stderr '^go: updates to go.mod needed; to update it:\n\tgo mod tidy$'
+go mod tidy
+go list -m all
+cmp go.mod go.mod.want
+
+-- go.mod --
+go 1.16
+
+retract latest
+-- go.mod.want --
+go 1.16
+
+retract v2.0.1
+
+module rsc.io/quote/v2
