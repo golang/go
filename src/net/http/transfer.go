@@ -636,7 +636,14 @@ func (t *transferReader) parseTransferEncoding() error {
 	// surfaces in HTTP/1.1 due to the risk of request smuggling, so we keep it
 	// strict and simple.
 	if len(raw) != 1 {
-		return &unsupportedTEError{fmt.Sprintf("too many transfer encodings: %q", raw)}
+		// support Transfer-Encoding: [chunked, chunked, chunked] for microservice remote call
+		uniqRaw := map[string]interface{}{}
+		for _, part := range raw {
+			uniqRaw[strings.ToLower(textproto.TrimString(part))] = nil
+		}
+		if len(uniqRaw) > 1 {
+			return &unsupportedTEError{fmt.Sprintf("too many transfer encodings: %q", raw)}
+		}
 	}
 	if strings.ToLower(textproto.TrimString(raw[0])) != "chunked" {
 		return &unsupportedTEError{fmt.Sprintf("unsupported transfer encoding: %q", raw[0])}

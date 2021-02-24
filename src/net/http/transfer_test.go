@@ -311,6 +311,10 @@ func TestParseTransferEncoding(t *testing.T) {
 			hdr:     Header{"Transfer-Encoding": {"chunked"}},
 			wantErr: nil,
 		},
+		{
+			hdr:     Header{"Transfer-Encoding": {"chunked", "chunked"}},
+			wantErr: nil,
+		},
 	}
 
 	for i, tt := range tests {
