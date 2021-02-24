@@ -1,6 +1,7 @@
 # tests golang.org/issue/43830
 
-[!cgo] skip
+[!cgo] skip "skipping test without cgo"
+[!exec:gcc] skip "skipping test without gcc present"
 
 env CGO_CFLAGS='-flto -ffat-lto-objects'
 go build main.go add.go
