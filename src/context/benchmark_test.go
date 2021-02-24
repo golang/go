@@ -5,7 +5,6 @@
 package context_test
 
 import (
-	"context"
 	. "context"
 	"fmt"
 	"runtime"
@@ -141,7 +140,7 @@ func BenchmarkCheckCanceled(b *testing.B) {
 }
 
 func BenchmarkContextCancelDone(b *testing.B) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := WithCancel(Background())
 	defer cancel()
 
 	b.RunParallel(func(pb *testing.PB) {
