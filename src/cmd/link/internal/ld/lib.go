@@ -1404,6 +1404,17 @@ func (ctxt *Link) hostlink() {
 		return argv
 	}
 
+	// Enables Full/Partial RELRO.
+	addRELROargs := func(argv []string) []string {
+		relro := "-Wl,-z,relro"
+		// Enable Full RELRO
+		if !*FlagL {
+			relro += ",-z,now"
+		}
+		argv = append(argv, relro)
+		return argv
+	}
+
 	switch ctxt.BuildMode {
 	case BuildModeExe:
 		if ctxt.HeadType == objabi.Hdarwin {
@@ -1420,7 +1431,7 @@ func (ctxt *Link) hostlink() {
 		default:
 			// ELF.
 			if ctxt.UseRelro() {
-				argv = append(argv, "-Wl,-z,relro")
+				argv = addRELROargs(argv)
 			}
 			argv = append(argv, "-pie")
 		}
@@ -1429,7 +1440,7 @@ func (ctxt *Link) hostlink() {
 			argv = append(argv, "-dynamiclib")
 		} else {
 			if ctxt.UseRelro() {
-				argv = append(argv, "-Wl,-z,relro")
+				argv = addRELROargs(argv)
 			}
 			argv = append(argv, "-shared")
 			if ctxt.HeadType == objabi.Hwindows {
@@ -1444,7 +1455,7 @@ func (ctxt *Link) hostlink() {
 		}
 	case BuildModeShared:
 		if ctxt.UseRelro() {
-			argv = append(argv, "-Wl,-z,relro")
+			argv = addRELROargs(argv)
 		}
 		argv = append(argv, "-shared")
 	case BuildModePlugin:
@@ -1452,7 +1463,7 @@ func (ctxt *Link) hostlink() {
 			argv = append(argv, "-dynamiclib")
 		} else {
 			if ctxt.UseRelro() {
-				argv = append(argv, "-Wl,-z,relro")
+				argv = addRELROargs(argv)
 			}
 			argv = append(argv, "-shared")
 		}

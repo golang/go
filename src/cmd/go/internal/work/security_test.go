@@ -150,6 +150,8 @@ var goodLinkerFlags = [][]string{
 	{"-Wl,--just-symbols,foo"},
 	{"-Wl,--warn-error"},
 	{"-Wl,--no-warn-error"},
+	{"-Wl,-z,relro"},
+	{"-Wl,-z,relro,-z,now"},
 	{"foo.so"},
 	{"_世界.dll"},
 	{"./x.o"},
@@ -227,6 +229,7 @@ var badLinkerFlags = [][]string{
 	{"-Wl,-R,foo,bar"},
 	{"-Wl,-R,@foo"},
 	{"-Wl,--just-symbols,@foo"},
+	{"-Wl,-z,relro,-z,nottoday"},
 	{"../x.o"},
 }
 
