@@ -738,6 +738,22 @@ func formatMember(obj types.Object, maxname int) string {
 			}
 		}
 		if typestr == "" {
+			// The fix for #44515 changed the printing of unsafe.Pointer
+			// such that it uses a qualifier if one is provided. Using
+			// the types.RelativeTo qualifier provided here, the output
+			// is just "Pointer" rather than "unsafe.Pointer". This is
+			// consistent with the printing of non-type objects but it
+			// breaks an existing test which needs to work with older
+			// versions of Go. Re-establish the original output by not
+			// using a qualifier at all if we're printing a type from
+			// package unsafe - there's only unsafe.Pointer (#44596).
+			// NOTE: This correction can be removed (and the test's
+			// golden file adjusted) once we only run against go1.17
+			// or bigger.
+			qualifier := qualifier
+			if obj.Pkg() == types.Unsafe {
+				qualifier = nil
+			}
 			typestr = types.TypeString(typ, qualifier)
 		}
 		buf.WriteString(typestr)
