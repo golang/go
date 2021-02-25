@@ -354,9 +354,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		return true
 
 	case ir.OCLOSURE:
-		if base.Debug.InlFuncsWithClosures == 0 {
-			// TODO(danscales): change default of InlFuncsWithClosures
-			// to 1 when #44370 is fixed
+		if base.Debug.InlFuncsWithClosures == 0 || base.Flag.G > 0 {
 			v.reason = "not inlining functions with closures"
 			return true
 		}
