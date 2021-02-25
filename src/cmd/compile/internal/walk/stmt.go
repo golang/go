@@ -241,9 +241,6 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		init.Append(ir.TakeInit(n)...)
 	}
 
-	// TODO(mdempsky): Do this right after type checking.
-	rewriteMethodCall(n)
-
 	isBuiltinCall := n.Op() != ir.OCALLFUNC && n.Op() != ir.OCALLMETH && n.Op() != ir.OCALLINTER
 
 	// Turn f(a, b, []T{c, d, e}...) back into f(a, b, c, d, e).
