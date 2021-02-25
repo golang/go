@@ -305,8 +305,10 @@ func (check *Checker) collectObjects() {
 							// the object may be imported into more than one file scope
 							// concurrently. See issue #32154.)
 							if alt := fileScope.Insert(obj); alt != nil {
-								check.errorf(s.LocalPkgName, "%s redeclared in this block", obj.Name())
-								check.reportAltDecl(alt)
+								var err error_
+								err.errorf(s.LocalPkgName, "%s redeclared in this block", obj.Name())
+								err.recordAltDecl(alt)
+								check.report(&err)
 							} else {
 								check.dotImportMap[dotImportKey{fileScope, obj}] = pkgName
 							}
@@ -456,14 +458,16 @@ func (check *Checker) collectObjects() {
 	for _, scope := range fileScopes {
 		for _, obj := range scope.elems {
 			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
+				var err error_
 				if pkg, ok := obj.(*PkgName); ok {
-					check.errorf(alt, "%s already declared through import of %s", alt.Name(), pkg.Imported())
-					check.reportAltDecl(pkg)
+					err.errorf(alt, "%s already declared through import of %s", alt.Name(), pkg.Imported())
+					err.recordAltDecl(pkg)
 				} else {
-					check.errorf(alt, "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
-					// TODO(gri) dot-imported objects don't have a position; reportAltDecl won't print anything
-					check.reportAltDecl(obj)
+					err.errorf(alt, "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
+					// TODO(gri) dot-imported objects don't have a position; recordAltDecl won't print anything
+					err.recordAltDecl(obj)
 				}
+				check.report(&err)
 			}
 		}
 	}
