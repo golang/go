@@ -45,9 +45,10 @@ func initExceptionHandler() {
 //go:nosplit
 func isAbort(r *context) bool {
 	pc := r.ip()
-	if GOARCH == "386" || GOARCH == "amd64" {
+	if GOARCH == "386" || GOARCH == "amd64" || GOARCH == "arm" {
 		// In the case of an abort, the exception IP is one byte after
-		// the INT3 (this differs from UNIX OSes).
+		// the INT3 (this differs from UNIX OSes). Note that on ARM,
+		// this means that the exception IP is no longer aligned.
 		pc--
 	}
 	return isAbortPC(pc)
