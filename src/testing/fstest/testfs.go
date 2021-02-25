@@ -119,6 +119,9 @@ func (t *fsTester) openDir(dir string) fs.ReadDirFile {
 		t.errorf("%s: Open: %v", dir, err)
 		return nil
 	}
+	// It'd be nice to test here that f.Read fails, because f is a directory.
+	// However, FreeBSD supports calling read on a directory.
+	// See https://groups.google.com/g/golang-dev/c/rh8jwxyG1PQ.
 	d, ok := f.(fs.ReadDirFile)
 	if !ok {
 		f.Close()
@@ -512,6 +515,12 @@ func (t *fsTester) checkFile(file string) {
 	if err != nil {
 		t.errorf("%s: Open: %v", file, err)
 		return
+	}
+
+	if dir, ok := f.(fs.ReadDirFile); ok {
+		if _, err := dir.ReadDir(-1); err == nil {
+			t.errorf("%s: ReadDir of non-dir file should return an error", file)
+		}
 	}
 
 	data, err := ioutil.ReadAll(f)
