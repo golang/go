@@ -539,9 +539,10 @@ func fixVersion(ctx context.Context, fixed *bool) modfile.VersionFixer {
 			}
 		}
 		if vers != "" && module.CanonicalVersion(vers) == vers {
-			if err := module.CheckPathMajor(vers, pathMajor); err == nil {
-				return vers, nil
+			if err := module.CheckPathMajor(vers, pathMajor); err != nil {
+				return "", module.VersionError(module.Version{Path: path, Version: vers}, err)
 			}
+			return vers, nil
 		}
 
 		info, err := Query(ctx, path, vers, "", nil)
