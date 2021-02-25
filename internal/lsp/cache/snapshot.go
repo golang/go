@@ -15,6 +15,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -1680,7 +1681,36 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, newSnapshot *sn
 		}
 		return true, false
 	}
+
+	// Re-evaluate build constraints and embed patterns. It would be preferable
+	// to only do this on save, but we don't have the prior versions accessible.
+	oldComments := extractMagicComments(original.File)
+	newComments := extractMagicComments(current.File)
+	if len(oldComments) != len(newComments) {
+		return true, false
+	}
+	for i := range oldComments {
+		if oldComments[i] != newComments[i] {
+			return true, false
+		}
+	}
+
 	return false, false
+}
+
+var buildConstraintOrEmbedRe = regexp.MustCompile(`^//(go:embed|go:build|\s*\+build).*`)
+
+// extractMagicComments finds magic comments that affect metadata in f.
+func extractMagicComments(f *ast.File) []string {
+	var results []string
+	for _, cg := range f.Comments {
+		for _, c := range cg.List {
+			if buildConstraintOrEmbedRe.MatchString(c.Text) {
+				results = append(results, c.Text)
+			}
+		}
+	}
+	return results
 }
 
 func (s *snapshot) BuiltinPackage(ctx context.Context) (*source.BuiltinPackage, error) {

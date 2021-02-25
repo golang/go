@@ -1789,3 +1789,30 @@ func main() {}
 		)
 	})
 }
+
+func TestBuildTagChange(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- foo.go --
+// decoy comment
+// +build hidden
+// decoy comment
+
+package foo
+var Foo = 1
+-- bar.go --
+package foo
+var Bar = Foo
+`
+
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("foo.go")
+		env.Await(env.DiagnosticAtRegexpWithMessage("bar.go", `Foo`, "undeclared name"))
+		env.RegexpReplace("foo.go", `\+build`, "")
+		env.Await(EmptyDiagnostics("bar.go"))
+	})
+
+}
