@@ -111,9 +111,6 @@ func xinit() {
 		fatalf("$GOROOT must be set")
 	}
 	goroot = filepath.Clean(b)
-	if modRoot := findModuleRoot(goroot); modRoot != "" {
-		fatalf("found go.mod file in %s: $GOROOT must not be inside a module", modRoot)
-	}
 
 	b = os.Getenv("GOROOT_FINAL")
 	if b == "" {
@@ -241,6 +238,9 @@ func xinit() {
 	os.Setenv("LANGUAGE", "en_US.UTF8")
 
 	workdir = xworkdir()
+	if err := ioutil.WriteFile(pathf("%s/go.mod", workdir), []byte("module bootstrap"), 0666); err != nil {
+		fatalf("cannot write stub go.mod: %s", err)
+	}
 	xatexit(rmworkdir)
 
 	tooldir = pathf("%s/pkg/tool/%s_%s", goroot, gohostos, gohostarch)
@@ -1505,11 +1505,11 @@ func goCmd(goBinary string, cmd string, args ...string) {
 		goCmd = append(goCmd, "-p=1")
 	}
 
-	run(goroot, ShowOutput|CheckExit, append(goCmd, args...)...)
+	run(workdir, ShowOutput|CheckExit, append(goCmd, args...)...)
 }
 
 func checkNotStale(goBinary string, targets ...string) {
-	out := run(goroot, CheckExit,
+	out := run(workdir, CheckExit,
 		append([]string{
 			goBinary,
 			"list", "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags,
@@ -1519,7 +1519,7 @@ func checkNotStale(goBinary string, targets ...string) {
 		os.Setenv("GODEBUG", "gocachehash=1")
 		for _, target := range []string{"runtime/internal/sys", "cmd/dist", "cmd/link"} {
 			if strings.Contains(out, "STALE "+target) {
-				run(goroot, ShowOutput|CheckExit, goBinary, "list", "-f={{.ImportPath}} {{.Stale}}", target)
+				run(workdir, ShowOutput|CheckExit, goBinary, "list", "-f={{.ImportPath}} {{.Stale}}", target)
 				break
 			}
 		}
@@ -1613,20 +1613,6 @@ func checkCC() {
 			"To set a C compiler, set CC=the-compiler.\n"+
 			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc[""], err, outputHdr, output)
 	}
-}
-
-func findModuleRoot(dir string) (root string) {
-	for {
-		if fi, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
-			return dir
-		}
-		d := filepath.Dir(dir)
-		if d == dir {
-			break
-		}
-		dir = d
-	}
-	return ""
 }
 
 func defaulttarg() string {
