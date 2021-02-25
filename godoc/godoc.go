@@ -398,9 +398,8 @@ func sanitizeFunc(src string) string {
 }
 
 type PageInfo struct {
-	Dirname  string // directory containing the package
-	Err      error  // error or nil
-	GoogleCN bool   // page is being served from golang.google.cn
+	Dirname string // directory containing the package
+	Err     error  // error or nil
 
 	Mode PageInfoMode // display metadata from query string
 
@@ -614,8 +613,7 @@ func (p *Presentation) example_htmlFunc(info *PageInfo, funcName string) string 
 
 		err := p.ExampleHTML.Execute(&buf, struct {
 			Name, Doc, Code, Play, Output string
-			GoogleCN                      bool
-		}{eg.Name, eg.Doc, code, play, out, info.GoogleCN})
+		}{eg.Name, eg.Doc, code, play, out})
 		if err != nil {
 			log.Print(err)
 		}

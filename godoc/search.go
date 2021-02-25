@@ -122,7 +122,6 @@ func (p *Presentation) HandleSearch(w http.ResponseWriter, r *http.Request) {
 		Tabtitle: query,
 		Query:    query,
 		Body:     body.Bytes(),
-		GoogleCN: googleCN(r),
 	})
 }
 
