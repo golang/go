@@ -1,6 +1,9 @@
+/* eslint-disable no-extra-semi */
+/* eslint-disable semi */
 
 // for us typescript ignorati, having an import makes this file a module
 import * as fs from 'fs';
+import * as process from 'process';
 import * as ts from 'typescript';
 
 // This file contains various utilities having to do with producing strings
@@ -71,12 +74,12 @@ export function computeHeader(pkgDoc: boolean): string {
 
   `
   const a =
-    `// Package protocol contains data types and code for LSP jsonrpcs\n` +
-    `// generated automatically from vscode-languageserver-node\n` +
+    '// Package protocol contains data types and code for LSP jsonrpcs\n' +
+    '// generated automatically from vscode-languageserver-node\n' +
     `// commit: ${gitHash}\n` +
     `// last fetched ${lastDate}\n`
   const b = 'package protocol\n'
-  const c = `\n// Code generated (see typescript/README.md) DO NOT EDIT.\n\n`
+  const c = '\n// Code generated (see typescript/README.md) DO NOT EDIT.\n\n'
   if (pkgDoc) {
     return cp + a + b + c
   }
@@ -158,6 +161,7 @@ function seenAdd(x: string) {
   seenThings[x] = (seenThings[x] === undefined ? 1 : seenThings[x] + 1)
 }
 
+// eslint-disable-next-line no-unused-vars
 function describe(node: ts.Node, pr: (s: string) => any) {
   if (node === undefined) {
     return
@@ -219,7 +223,12 @@ export function strKind(n: ts.Node): string {
   if (n == null || n == undefined) {
     return 'null'
   }
-  const x = ts.SyntaxKind[n.kind];
+   return kindToStr(n.kind);
+}
+
+export function kindToStr(k: ts.SyntaxKind): string {
+  if (k === undefined) return 'unDefined'
+  const x = ts.SyntaxKind[k];
   // some of these have two names
   switch (x) {
     default:

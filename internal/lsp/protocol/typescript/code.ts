@@ -1,3 +1,6 @@
+/* eslint-disable no-extra-semi */
+/* eslint-disable semi */
+/* eslint-disable no-useless-return */
 // read files from vscode-languageserver-node, and generate Go rpc stubs
 // and data definitions. (and maybe someday unmarshaling code)
 
@@ -22,13 +25,15 @@ import * as u from './util';
 import { constName, getComments, goName, loc, strKind } from './util';
 
 var program: ts.Program;
+// eslint-disable-next-line no-unused-vars
+var checker: ts.TypeChecker;
 
 function parse() {
   // this won't complain if some fnames don't exist
   program = ts.createProgram(
     u.fnames,
     { target: ts.ScriptTarget.ES2018, module: ts.ModuleKind.CommonJS });
-  program.getTypeChecker();  // finish type checking and assignment
+  checker = program.getTypeChecker();  // finish type checking and assignment
 }
 
 // ----- collecting information for RPCs
@@ -73,7 +78,7 @@ function findRPCs(node: ts.Node) {
     if (name == 'method') {  // mostly StringLiteral but NoSubstitutionTemplateLiteral in protocol.semanticTokens.ts
       if (!ts.isStringLiteral(decl.initializer)) {
         if (!ts.isNoSubstitutionTemplateLiteral(decl.initializer)) {
-          console.log(`${decl.initializer.getText()}`);
+          console.log(`81: ${decl.initializer.getText()}`);
           throw new Error(`expect StringLiteral at ${loc(decl)} got ${strKind(decl.initializer)}`);
         }
       }
@@ -81,8 +86,8 @@ function findRPCs(node: ts.Node) {
     }
     else if (name == 'type') {  // NewExpression
       if (!ts.isNewExpression(decl.initializer))
-        throw new Error(`expecte new at ${loc(decl)}`);
-      const nn: ts.NewExpression = decl.initializer
+        throw new Error(`89 expected new at ${loc(decl)}`);
+      const nn: ts.NewExpression = decl.initializer;
       newNode = nn
       const mtd = nn.arguments[0];
       if (ts.isStringLiteral(mtd)) rpc = mtd.getText();
@@ -104,7 +109,7 @@ function findRPCs(node: ts.Node) {
       }
     }
   }
-  if (rpc == '') throw new Error(`no name found at ${loc(x)}`);
+  if (rpc == '') throw new Error(`112 no name found at ${loc(x)}`);
   // remember the implied types
   const [a, b] = ptypes.get(rpc);
   const add = function (n: ts.Node) {
@@ -137,18 +142,22 @@ function setReceives() {
   receives.set('$/progress', 'client');
   // a small check
   receives.forEach((_, k) => {
-    if (!req.get(k) && !not.get(k)) throw new Error(`missing ${k}}`);
-    if (req.get(k) && not.get(k)) throw new Error(`dup ${k}`);
-  })
+    if (!req.get(k) && !not.get(k)) throw new Error(`145 missing ${k}}`);
+    if (req.get(k) && not.get(k)) throw new Error(`146 dup ${k}`);
+  });
 }
 
+type DataKind = 'module' | 'interface' | 'alias' | 'enum' | 'class';
+
 interface Data {
+  kind: DataKind;
   me: ts.Node;   // root node for this type
   name: string;  // Go name
+  origname: string; // their name
   generics: ts.NodeArray<ts.TypeParameterDeclaration>;
   as: ts.NodeArray<ts.HeritageClause>;  // inheritance
   // Interface
-  properties: ts.NodeArray<ts.TypeElement>;  // ts.PropertySignature
+  properties: ts.NodeArray<ts.PropertySignature>
   alias: ts.TypeNode;                        // type alias
   // module
   statements: ts.NodeArray<ts.Statement>;
@@ -156,28 +165,72 @@ interface Data {
   // class
   members: ts.NodeArray<ts.PropertyDeclaration>;
 }
-function newData(n: ts.Node, nm: string): Data {
+function newData(n: ts.Node, nm: string, k: DataKind, origname: string): Data {
   return {
-    me: n, name: goName(nm),
-    generics: ts.createNodeArray<ts.TypeParameterDeclaration>(), as: ts.createNodeArray<ts.HeritageClause>(),
-    properties: ts.createNodeArray<ts.TypeElement>(), alias: undefined,
-    statements: ts.createNodeArray<ts.Statement>(),
-    enums: ts.createNodeArray<ts.EnumMember>(),
-    members: ts.createNodeArray<ts.PropertyDeclaration>(),
+    kind: k,
+    me: n, name: goName(nm), origname: origname,
+    generics: ts.factory.createNodeArray<ts.TypeParameterDeclaration>(),
+    as: ts.factory.createNodeArray<ts.HeritageClause>(),
+    properties: ts.factory.createNodeArray<ts.PropertySignature>(), alias: undefined,
+    statements: ts.factory.createNodeArray<ts.Statement>(),
+    enums: ts.factory.createNodeArray<ts.EnumMember>(),
+    members: ts.factory.createNodeArray<ts.PropertyDeclaration>(),
   }
 }
 
 // for debugging, produce a skeleton description
 function strData(d: Data): string {
+  if (!d) { return 'nil'; }
   const f = function (na: ts.NodeArray<any>): number {
     return na.length
   };
-  return `D(${d.name}) g;${f(d.generics)} a:${f(d.as)} p:${f(d.properties)} s:${f(d.statements)} e:${f(d.enums)} m:${f(d.members)} ${d.alias != undefined}`
+  const nm = d.name == d.origname ? `${d.name}` : `${d.name}/${d.origname}`
+  return `g:${f(d.generics)} a:${f(d.as)} p:${f(d.properties)} s:${f(d.statements)} e:${f(d.enums)} m:${f(d.members)} a:${d.alias !== undefined} D(${nm}) k:${d.kind}`
 }
 
 let data = new Map<string, Data>();            // parsed data types
 let seenTypes = new Map<string, Data>();       // type names we've seen
 let extraTypes = new Map<string, string[]>();  // to avoid struct params
+
+function setData(nm: string, d: Data) {
+  const v = data.get(nm);
+  if (!v) {
+    data.set(nm, d);
+    return;
+  }
+  // if there are multiple definitions of the same name, decide what to do.
+  // For now the choices are only aliases and modules
+  // alias is preferred unless the constant values are needed
+  if (nm === 'PrepareSupportDefaultBehavior') {
+    // want the alias, as we're going to change the type and can't afford a constant
+    if (d.kind === 'alias') data.set(nm, d);
+    else if (v.kind == 'alias') data.set(nm, v);
+    else throw new Error(`208 ${d.kind} ${v.kind}`);
+    return;
+  }
+  if (nm === 'CodeActionKind') {
+    // want the module, need the constants
+    if (d.kind === 'module') data.set(nm, d);
+    else if (v.kind === 'module') data.set(nm, v);
+    else throw new Error(`215 ${d.kind} ${v.kind}`);
+  }
+  if (v.kind === 'alias' && d.kind !== 'alias') return;
+  if (d.kind === 'alias' && v.kind !== 'alias') {
+    data.set(nm, d);
+    return;
+  }
+  if (v.kind === 'alias' && d.kind === 'alias') return;
+  // protocol/src/common/protocol.foldingRange.ts 44: 1 (39: 2) and
+  // types/src/main.ts 397: 1 (392: 2)
+  // for FoldingRangeKind
+  if (d.me.getText() === v.me.getText()) return;
+  // error messages for an unexpected case
+  console.log(`228 ${strData(v)} ${loc(v.me)} for`);
+  console.log(`229 ${v.me.getText().replace(/\n/g, '\\n')}`);
+  console.log(`230 ${strData(d)} ${loc(d.me)}`);
+  console.log(`231 ${d.me.getText().replace(/\n/g, '\\n')}`);
+  throw new Error(`232 setData found ${v.kind} for ${d.kind}`);
+}
 
 // look at top level data definitions
 function genTypes(node: ts.Node) {
@@ -192,7 +245,7 @@ function genTypes(node: ts.Node) {
   if (ts.isInterfaceDeclaration(node)) {
     const v: ts.InterfaceDeclaration = node;
     // need to check the members, many of which are disruptive
-    let mems: ts.TypeElement[] = [];
+    let mems: ts.PropertySignature[] = [];
     const f = function (t: ts.TypeElement) {
       if (ts.isPropertySignature(t)) {
         mems.push(t);
@@ -203,7 +256,7 @@ function genTypes(node: ts.Node) {
         // [key: string]: boolean | number | string | undefined;
         // and InitializeResult: [custom: string]: any;]
       } else
-        throw new Error(`206 unexpected ${strKind(t)}`);
+        throw new Error(`259 unexpected ${strKind(t)}`);
     };
     v.members.forEach(f);
     if (mems.length == 0 && !v.heritageClauses &&
@@ -211,8 +264,8 @@ function genTypes(node: ts.Node) {
       return  // Don't seem to need any of these [Logger, PipTransport, ...]
     }
     // Found one we want
-    let x = newData(v, goName(v.name.getText()));
-    x.properties = ts.createNodeArray<ts.TypeElement>(mems);
+    let x = newData(v, goName(v.name.getText()), 'interface', v.name.getText());
+    x.properties = ts.factory.createNodeArray<ts.PropertySignature>(mems);
     if (v.typeParameters) x.generics = v.typeParameters;
     if (v.heritageClauses) x.as = v.heritageClauses;
     if (x.generics.length > 1) {  // Unneeded
@@ -220,12 +273,12 @@ function genTypes(node: ts.Node) {
       return
     };
     if (data.has(x.name)) {  // modifying one we've seen
-      x = dataMerge(x, data.get(x.name));
+      x = dataChoose(x, data.get(x.name));
     }
-    data.set(x.name, x);
+    setData(x.name, x);
   } else if (ts.isTypeAliasDeclaration(node)) {
     const v: ts.TypeAliasDeclaration = node;
-    let x = newData(v, v.name.getText());
+    let x = newData(v, v.name.getText(), 'alias', v.name.getText());
     x.alias = v.type;
     // if type is a union of constants, we (mostly) don't want it
     // (at the top level)
@@ -237,11 +290,11 @@ function genTypes(node: ts.Node) {
     if (v.typeParameters) {
       x.generics = v.typeParameters;
     }
-    if (data.has(x.name)) x = dataMerge(x, data.get(x.name));
+    if (data.has(x.name)) x = dataChoose(x, data.get(x.name));
     if (x.generics.length > 1) {
       return
-    };
-    data.set(x.name, x);
+    }
+    setData(x.name, x);
   } else if (ts.isModuleDeclaration(node)) {
     const v: ts.ModuleDeclaration = node;
     if (!ts.isModuleBlock(v.body)) {
@@ -259,7 +312,7 @@ function genTypes(node: ts.Node) {
       }
       if (!ts.isVariableStatement(x))
         throw new Error(
-          `expected VariableStatment ${loc(x)} ${strKind(x)} ${x.getText()}`);
+          `315 expected VariableStatment ${loc(x)} ${strKind(x)} ${x.getText()}`);
       if (hasNewExpression(x)) {
         return
       };
@@ -269,18 +322,18 @@ function genTypes(node: ts.Node) {
     if (s.length == 0) {
       return
     };
-    let m = newData(node, v.name.getText());
-    m.statements = ts.createNodeArray<ts.Statement>(s);
-    if (data.has(m.name)) m = dataMerge(m, data.get(m.name));
-    data.set(m.name, m);
+    let m = newData(node, v.name.getText(), 'module', v.name.getText());
+    m.statements = ts.factory.createNodeArray<ts.Statement>(s);
+    if (data.has(m.name)) m = dataChoose(m, data.get(m.name));
+    setData(m.name, m);
   } else if (ts.isEnumDeclaration(node)) {
     const nm = node.name.getText();
-    let v = newData(node, nm);
+    let v = newData(node, nm, 'enum', node.name.getText());
     v.enums = node.members;
     if (data.has(nm)) {
-      v = dataMerge(v, data.get(nm));
+      v = dataChoose(v, data.get(nm));
     }
-    data.set(nm, v);
+    setData(nm, v);
   } else if (ts.isClassDeclaration(node)) {
     const v: ts.ClassDeclaration = node;
     var d: ts.PropertyDeclaration[] = [];
@@ -307,8 +360,8 @@ function genTypes(node: ts.Node) {
     if (d.length == 0) {
       return
     }  // don't need it
-    let c = newData(v, v.name.getText());
-    c.members = ts.createNodeArray<ts.PropertyDeclaration>(d);
+    let c = newData(v, v.name.getText(), 'class', v.name.getText());
+    c.members = ts.factory.createNodeArray<ts.PropertyDeclaration>(d);
     if (v.typeParameters) {
       c.generics = v.typeParameters
     }
@@ -320,22 +373,21 @@ function genTypes(node: ts.Node) {
     }
     if (data.has(c.name))
       throw new Error(`Class dup ${loc(c.me)} and ${loc(data.get(c.name).me)}`);
-    data.set(c.name, c);
+    setData(c.name, c);
   } else {
-    throw new Error(`325 unexpected ${strKind(node)} ${loc(node)} `)
+    throw new Error(`378 unexpected ${strKind(node)} ${loc(node)} `)
   }
 }
 
-// Typescript can accumulate
-function dataMerge(a: Data, b: Data): Data {
-  // maybe they are textually identical? (it happens)
+// Typescript can accumulate, but this chooses one or the other
+function dataChoose(a: Data, b: Data): Data {
+  // maybe they are textually identical? (e.g., FoldingRangeKind)
   const [at, bt] = [a.me.getText(), b.me.getText()];
   if (at == bt) {
     return a;
   }
   switch (a.name) {
     case 'InitializeError':
-    case 'MessageType':
     case 'CompletionItemTag':
     case 'SymbolTag':
     case 'CodeActionKind':
@@ -354,8 +406,8 @@ function dataMerge(a: Data, b: Data): Data {
       return a;
   }
   console.log(
-    `357 ${strKind(a.me)} ${strKind(b.me)} ${a.name} ${loc(a.me)} ${loc(b.me)}`)
-  throw new Error(`Fix dataMerge for ${a.name}`);
+    `409 ${strKind(a.me)} ${strKind(b.me)} ${a.name} ${loc(a.me)} ${loc(b.me)}`)
+  throw new Error(`410 Fix dataChoose for ${a.name}`);
 }
 
 // is a node an ancestor of a NewExpression
@@ -375,6 +427,7 @@ function checkOnce() {
 }
 
 // helper function to find underlying types
+// eslint-disable-next-line no-unused-vars
 function underlying(n: ts.Node, f: (n: ts.Node) => void) {
   if (!n) return;
   const ff = function (n: ts.Node) {
@@ -416,9 +469,9 @@ function underlying(n: ts.Node, f: (n: ts.Node) => void) {
     // we only see these in moreTypes, but they are handled elsewhere
   } else if (ts.isEnumMember(n)) {
     if (ts.isStringLiteral(n.initializer)) return;
-    throw new Error(`419 EnumMember ${strKind(n.initializer)} ${n.name.getText()}`)
+    throw new Error(`472 EnumMember ${strKind(n.initializer)} ${n.name.getText()}`)
   } else {
-    throw new Error(`421 saw ${strKind(n)} in underlying. ${n.getText()} at ${loc(n)}`)
+    throw new Error(`474 saw ${strKind(n)} in underlying. ${n.getText()} at ${loc(n)}`)
   }
 }
 
@@ -436,7 +489,6 @@ function moreTypes() {
   extra('WatchKind')
   extra('FoldingRangeKind')
   // not sure why these weren't picked up
-  extra('FileSystemWatcher')
   extra('DidChangeWatchedFilesRegistrationOptions')
   extra('WorkDoneProgressBegin')
   extra('WorkDoneProgressReport')
@@ -449,8 +501,9 @@ function moreTypes() {
     const add = function (n: ts.Node) {
       const nm = goName(n.getText());
       if (seenTypes.has(nm) || m.has(nm)) return;
-      // For generic parameters, this might set it to undefined
-      m.set(nm, data.get(nm));
+      if (data.get(nm)) {
+        m.set(nm, data.get(nm));
+      }
     };
     // expect all the heritage clauses have single Identifiers
     const h = function (n: ts.Node) {
@@ -472,42 +525,171 @@ function moreTypes() {
     ;
 }
 
+function cleanData() { // middle pass
+  // seenTypes contains all the top-level types.
+  seenTypes.forEach((d) => {
+    if (d.kind == 'alias') mergeAlias(d);
+  });
+}
+
+function sameType(a: ts.TypeNode, b: ts.TypeNode): boolean {
+  if (a.kind !== b.kind) return false;
+  if (a.kind === ts.SyntaxKind.BooleanKeyword) return true;
+  if (ts.isTypeReferenceNode(a) && ts.isTypeReferenceNode(b) &&
+    a.typeName.getText() === b.typeName.getText()) return true;
+  if (ts.isArrayTypeNode(a) && ts.isArrayTypeNode(b)) return sameType(a.elementType, b.elementType);
+  if (ts.isTypeLiteralNode(a) && ts.isTypeLiteralNode(b)) {
+    if (a.members.length !== b.members.length) return false;
+    if (a.members.length === 1) return a.members[0].name.getText() === b.members[0].name.getText();
+    if (loc(a) === loc(b)) return true;
+  }
+  throw new Error(`546 sameType? ${strKind(a)} ${strKind(b)}`);
+}
+
+type propMap = Map<string, ts.PropertySignature>;
+function propMapSet(pm: propMap, name: string, v: ts.PropertySignature) {
+  if (!pm.get(name)) {
+    try { getComments(v); } catch (e) { console.log(`552 ${name} ${e}`); }
+    pm.set(name, v);
+    return;
+  }
+  const a = pm.get(name).type;
+  const b = v.type;
+  if (sameType(a, b)) {
+    return;
+  }
+  if (ts.isTypeReferenceNode(a) && ts.isTypeLiteralNode(b)) {
+    const x = mergeTypeRefLit(name, a, b);
+    const fake: Object = v;
+    fake['type'] = x;
+    check(fake as ts.PropertySignature, '565')
+    pm.set(name, fake as ts.PropertySignature);
+    return;
+  }
+  if (ts.isTypeLiteralNode(a) && ts.isTypeLiteralNode(b)) {
+    const x = mergeTypeLitLit(name, a, b);
+    const fake: Object = v;
+    fake['type'] = x;
+    check(fake as ts.PropertySignature, '578');
+    pm.set(name, fake as ts.PropertySignature);
+    return;
+  }
+  console.log(`577 ${pm.get(name).getText()}\n${v.getText()}`);
+  throw new Error(`578 should merge ${strKind(a)} and ${strKind(b)} for ${name}`);
+}
+function addToProperties(pm: propMap, tn: ts.TypeNode, prefix = '') {
+  if (ts.isTypeReferenceNode(tn)) {
+    const d = seenTypes.get(goName(tn.typeName.getText()));
+    if (tn.typeName.getText() === 'T') return;
+    if (!d) throw new Error(`584 ${tn.typeName.getText()} not found`);
+    if (d.properties.length === 0 && d.alias === undefined) return;
+    if (d.alias !== undefined) {
+      if (ts.isIntersectionTypeNode(d.alias)) {
+        d.alias.types.forEach((tn) => addToProperties(pm, tn, prefix)); // prefix?
+        return;
+      }
+    }
+    d.properties.forEach((ps) => {
+      const name = `${prefix}.${ps.name.getText()}`;
+      propMapSet(pm, name, ps);
+      addToProperties(pm, ps.type, name);
+    });
+  } else if (strKind(tn) === 'TypeLiteral') {
+    if (!ts.isTypeLiteralNode(tn)) new Error(`598 ${strKind(tn)}`);
+    tn.forEachChild((child: ts.Node) => {
+      if (!ts.isPropertySignature(child)) throw new Error(`600 ${strKind(child)}`);
+      const name = `${prefix}.${child.name.getText()}`;
+      propMapSet(pm, name, child);
+      addToProperties(pm, child.type, name);
+    });
+  }
+}
+function deepProperties(d: Data): propMap {
+  let properties: propMap = new Map<string, ts.PropertySignature>();
+  if (!d.alias || !ts.isIntersectionTypeNode(d.alias)) return;
+  d.alias.types.forEach((ts) => addToProperties(properties, ts));
+  return properties;
+}
+
+function mergeAlias(d: Data) {
+  const props = deepProperties(d);
+  if (!props) return; // nothing merged
+  // now each element of props should have length 1
+  // change d to merged, toss its alias field, fill in its properties
+  const v: ts.PropertySignature[] = [];
+  props.forEach((ps, nm) => {
+    const xlen = nm.split('.').length;
+    if (xlen !== 2) return; // not top-level
+    v.push(ps);
+  });
+  d.kind = 'interface';
+  d.alias = undefined;
+  d.properties = ts.factory.createNodeArray(v);
+}
+
+function mergeTypeLitLit(name: string, a: ts.TypeLiteralNode, b: ts.TypeLiteralNode): ts.TypeLiteralNode {
+  const v = new Map<string, ts.TypeElement>(); // avoid duplicates
+  a.members.forEach((te) => v.set(te.name.getText(), te));
+  b.members.forEach((te) => v.set(te.name.getText(), te));
+  const x: ts.TypeElement[] = [];
+  v.forEach((te) => x.push(te));
+  const fake: Object = a;
+  fake['members'] = x;
+  check(fake as ts.TypeLiteralNode, '643');
+  return fake as ts.TypeLiteralNode;
+}
+
+function mergeTypeRefLit(name: string, a: ts.TypeReferenceNode, b: ts.TypeLiteralNode): ts.TypeLiteralNode {
+  const d = seenTypes.get(goName(a.typeName.getText()));
+  if (!d) throw new Error(`644 name ${a.typeName.getText()} not found`);
+  const typ = d.me;
+  if (!ts.isInterfaceDeclaration(typ)) throw new Error(`646 got ${strKind(typ)} not InterfaceDecl`);
+  const v = new Map<string, ts.TypeElement>(); // avoid duplicates
+  typ.members.forEach((te) => v.set(te.name.getText(), te));
+  b.members.forEach((te) => v.set(te.name.getText(), te));
+  const x: ts.TypeElement[] = [];
+  v.forEach((te) => x.push(te));
+
+  const w = ts.factory.createNodeArray(x);
+  //w.pos = b.members.pos;
+  //w.end = b.members.end;
+  //b.members = w;
+  const fk: Object = b;
+  fk['members'] = w;
+  fk['members']['pos'] = b.members.pos;
+  fk['members']['end'] = b.members.end;
+  check(fk as ts.TypeLiteralNode, '662');
+  return fk as ts.TypeLiteralNode;
+}
+
+// check that constructed nodes still have associated text
+function check(n: ts.Node, loc: string) {
+  try { getComments(n) } catch (e) { console.log(`check at ${loc} ${e}`); }
+  try { n.getText() } catch (e) { console.log(`text check at ${loc}`); }
+}
+
 let typesOut = new Array<string>();
 let constsOut = new Array<string>();
 
 // generate Go types
 function toGo(d: Data, nm: string) {
   if (!d) return;  // this is probably a generic T
-  if (d.alias) {
-    goTypeAlias(d, nm);
-  } else if (d.statements.length > 0) {
-    goModule(d, nm);
-  } else if (d.enums.length > 0) {
-    goEnum(d, nm);
-  } else if (
-    d.properties.length > 0 || d.as.length > 0 || nm == 'InitializedParams') {
-    goInterface(d, nm);
-  } else
-    throw new Error(
-      `492 more cases in toGo ${nm} ${d.as.length} ${d.generics.length} `)
+  if (d.name.startsWith('Inner') || d.name === 'WindowClientCapabilities') return; // removed by alias processing
+  if (d.name === 'Integer' || d.name === 'Uinteger') return; // unneeded
+  switch (d.kind) {
+    case 'alias':
+      goTypeAlias(d, nm); break;
+    case 'module': goModule(d, nm); break;
+    case 'enum': goEnum(d, nm); break;
+    case 'interface': goInterface(d, nm); break;
+    default:
+      throw new Error(
+        `672: more cases in toGo ${nm} ${d.kind}`);
+  }
 }
 
-// these fields need a *. (making every optional struct indirect led to very
-// complex literals in gopls.)
-// As of Jan 2021 (3.16.0) consider (sent by server)
-// LocationLink.originSelectionRange // unused by gopls
-// Diagnostics.codeDescription
-// CreateFile.createFileOptions and .annotationID // unused by gopls
-// same for RenameFile and DeleteFile
-// InitializeResult.serverInfo // gopls always sets
-// InnerServerCapabilites.completionProvider, .signatureHelpProvider, .documentLinkProvider,
-//   .executeCommandProvider, .Workspace  // always set
-// InnerserverCapabilities.codeLensProvier, .DocumentOnTypeFormattingProvider // unused(?)
-// FileOperationPattern.options // unused
-// CompletionItem.command
-// Hover.Range (?)
-// CodeAction.disabled, .command
-// CodeLens.command
+// these fields need a * and are not covered by the code
+// that calls isStructType.
 var starred: [string, string][] = [
   ['TextDocumentContentChangeEvent', 'range'], ['CodeAction', 'command'],
   ['CodeAction', 'disabled'],
@@ -520,15 +702,15 @@ function goInterface(d: Data, nm: string) {
   let ans = `type ${goName(nm)} struct {\n`;
 
   // generate the code for each member
-  const g = function (n: ts.TypeElement) {
+  const g = function (n: ts.PropertySignature) {
     if (!ts.isPropertySignature(n))
       throw new Error(`expected PropertySignature got ${strKind(n)} `);
     ans = ans.concat(getComments(n));
     const json = u.JSON(n);
-    // SelectionRange is a recursive type
     let gt = goType(n.type, n.name.getText());
     if (gt == d.name) gt = '*' + gt; // avoid recursive types (SelectionRange)
     // there are several cases where a * is needed
+    // (putting * in front of too many things breaks uses of CodeActionKind)
     starred.forEach(([a, b]) => {
       if (d.name == a && n.name.getText() == b) {
         gt = '*' + gt;
@@ -554,7 +736,7 @@ function goInterface(d: Data, nm: string) {
 // Generates type definitions, and named constants
 function goModule(d: Data, nm: string) {
   if (d.generics.length > 0 || d.as.length > 0) {
-    throw new Error(`557 goModule: unexpected for ${nm}
+    throw new Error(`743 goModule: unexpected for ${nm}
   `)
   }
   // all the statements should be export const <id>: value
@@ -564,14 +746,14 @@ function goModule(d: Data, nm: string) {
   let isNumeric = false;
   const f = function (n: ts.Statement, i: number) {
     if (!ts.isVariableStatement(n)) {
-      throw new Error(`567 ${nm} ${i} expected VariableStatement,
+      throw new Error(`753 ${nm} ${i} expected VariableStatement,
       got ${strKind(n)}`);
     }
     const c = getComments(n)
     const v = n.declarationList.declarations[0];  // only one
 
     if (!v.initializer)
-      throw new Error(`574 no initializer ${nm} ${i} ${v.name.getText()}`)
+      throw new Error(`760 no initializer ${nm} ${i} ${v.name.getText()}`)
     isNumeric = strKind(v.initializer) == 'NumericLiteral';
     if (c != '') constsOut.push(c);  // no point if there are no comments
     // There are duplicates.
@@ -583,7 +765,7 @@ function goModule(d: Data, nm: string) {
   d.statements.forEach(f)
   typesOut.push(getComments(d.me))
   // Or should they be type aliases?
-  typesOut.push(`type ${nm} ${isNumeric ? 'float64' : 'string'}`) // PJW: superfluous Integer and Uinteger
+  typesOut.push(`type ${nm} ${isNumeric ? 'float64' : 'string'}`)
 }
 
 // generate Go code for an enum. Both types and named constants
@@ -615,7 +797,7 @@ function goTypeAlias(d: Data, nm: string) {
   // d.alias doesn't seem to have comments
   let aliasStr = goName(nm) == 'DocumentURI' ? ' ' : ' = ';
   if (nm == 'PrepareSupportDefaultBehavior') {
-    // code-insiders is sending a bool, not a number. PJW: check this after Jan/2021
+    // code-insiders is sending a bool, not a number. PJW: check this after Feb/2021
     // (and gopls never looks at it anyway)
     typesOut.push(`type ${goName(nm)}${aliasStr}interface{}\n`);
     return;
@@ -692,7 +874,9 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
       if (a == 'NumberKeyword' && b == 'StringKeyword') {  // ID
         return `interface{} ${help}`
       }
-      if (b == 'NullKeyword') {
+      if (b == 'NullKeyword' || n.types[1].getText() === 'null') {
+        // PJW: fix this. it looks like 'null' is now being parsed as LiteralType
+        // and check the other keyword cases
         if (nm == 'textDocument/codeAction') {
           // (Command | CodeAction)[] | null
           return `[]CodeAction ${help}`
@@ -720,7 +904,8 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
       if (a == 'TypeLiteral' && nm == 'TextDocumentContentChangeEvent') {
         return `${goType(n.types[0], nm)}`
       }
-      throw new Error(`709 ${a} ${b} ${n.getText()} ${loc(n)}`);
+      console.log(`911 ${n.types[1].getText()} ${loc(n.types[1])}`)
+      throw new Error(`912 ${nm}: a:${a} b:${b} ${n.getText()} ${loc(n)}`);
     }
     case 3: {
       const aa = strKind(n.types[0])
@@ -751,6 +936,7 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
     case 4:
       if (nm == 'documentChanges') return `TextDocumentEdit ${help} `;
       if (nm == 'textDocument/prepareRename') return `Range ${help} `;
+    // eslint-disable-next-line no-fallthrough
     default:
       throw new Error(`goUnionType len=${n.types.length} nm=${nm}`);
   }
@@ -758,7 +944,7 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
   // Result will be interface{} with a comment
   let isLiteral = true;
   let literal = 'string';
-  let res = `interface{} /* `
+  let res = 'interface{} /* '
   n.types.forEach((v: ts.TypeNode, i: number) => {
     // might get an interface inside:
     //  (Command | CodeAction)[] | null
@@ -843,6 +1029,29 @@ function expandIntersection(n: ts.IntersectionTypeNode): string {
   return ans
 }
 
+// Does it make sense to use a pointer?
+function isStructType(te: ts.TypeNode): boolean {
+  switch (strKind(te)) {
+    case 'UnionType': // really need to know which type will be chosen
+    case 'BooleanKeyword':
+    case 'StringKeyword':
+    case 'ArrayType':
+      return false;
+    case 'TypeLiteral': return false; // true makes for difficult compound constants
+    // but think more carefully to understands why starred is needed.
+    case 'TypeReference': {
+      if (!ts.isTypeReferenceNode(te)) throw new Error(`1047 impossible ${strKind(te)}`);
+      const d = seenTypes.get(goName(te.typeName.getText()));
+      if (d.properties.length > 1) return true;
+      // alias or interface with a single property (The alias is Uinteger, which we ignore later)
+      if (d.alias) return false;
+      const x = d.properties[0].type;
+      return isStructType(x);
+    }
+    default: throw new Error(`1055 indirectable> ${strKind(te)}`);
+  }
+}
+
 function goTypeLiteral(n: ts.TypeLiteralNode, nm: string): string {
   let ans: string[] = [];  // in case we generate a new extra type
   let res = 'struct{\n';   // the actual answer usually
@@ -857,12 +1066,13 @@ function goTypeLiteral(n: ts.TypeLiteralNode, nm: string): string {
         typ = '*' + typ;
         json = json.substring(0, json.length - 2) + ',omitempty"`'
       })
+      if (typ[0] !== '*' && isStructType(nx.type)) typ = '*' + typ
       res = res.concat(`${v} ${goName(nx.name.getText())} ${typ}`, json, '\n')
       ans.push(`${v}${goName(nx.name.getText())} ${typ} ${json}\n`)
     } else if (ts.isIndexSignatureDeclaration(nx)) {
       if (nx.getText() == '[uri: string]: TextEdit[];') {
         res = 'map[string][]TextEdit';
-        ans.push(`map[string][]TextEdit`);  // this is never used
+        ans.push('map[string][]TextEdit');  // this is never used
         return;
       }
       if (nx.getText() == '[id: string /* ChangeAnnotationIdentifier */]: ChangeAnnotation;') {
@@ -870,9 +1080,9 @@ function goTypeLiteral(n: ts.TypeLiteralNode, nm: string): string {
         ans.push(res);
         return
       }
-      throw new Error(`873 handle ${nx.getText()} ${loc(nx)}`);
+      throw new Error(`1087 handle ${nx.getText()} ${loc(nx)}`);
     } else
-      throw new Error(`TypeLiteral had ${strKind(nx)}`)
+      throw new Error(`TypeLiteral had ${strKind(nx)}`);
   };
   n.members.forEach(g);
   // for some the generated type is wanted, for others it's not needed
@@ -880,8 +1090,10 @@ function goTypeLiteral(n: ts.TypeLiteralNode, nm: string): string {
     if (res.startsWith('struct')) return res + '}';  // map[] is special
     return res
   }
-  extraTypes.set(goName(nm) + 'Gn', ans)
-  return goName(nm) + 'Gn'
+  // these names have to be made unique
+  const genName = `${goName(nm)}${extraTypes.size}Gn`
+  extraTypes.set(genName, ans)
+  return genName
 }
 
 // print all the types and constants and extra types
@@ -999,7 +1211,8 @@ function goReq(side: side, m: string) {
     }`;
   }
   const arg2 = a == '' ? '' : ', &params';
-  let case2 = `if err := ${side.name}.${nm}(ctx${arg2}); err != nil {
+  // if case2 is not explicitly typed string, typescript makes it a union of strings
+  let case2: string = `if err := ${side.name}.${nm}(ctx${arg2}); err != nil {
     event.Error(ctx, "", err)
   }`;
   if (b != '' && b != 'void') {
@@ -1182,6 +1395,8 @@ function main() {
   // find all the types implied by seenTypes and rpcs to try to avoid
   // generating types that aren't used
   moreTypes();
+  // do merging
+  cleanData();
   // and print the Go code
   outputTypes()
   console.log(`seen ${seenTypes.size + extraTypes.size}`)
