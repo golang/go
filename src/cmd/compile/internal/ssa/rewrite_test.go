@@ -13,7 +13,7 @@ func TestMove(t *testing.T) {
 	copy(x[1:], x[:])
 	for i := 1; i < len(x); i++ {
 		if int(x[i]) != i {
-			t.Errorf("Memmove got converted to OpMove in alias-unsafe way. Got %d insted of %d in position %d", int(x[i]), i, i+1)
+			t.Errorf("Memmove got converted to OpMove in alias-unsafe way. Got %d instead of %d in position %d", int(x[i]), i, i+1)
 		}
 	}
 }
