@@ -1,4 +1,4 @@
-// 
+//
 PACKAGE issue16153
 
 IMPORTPATH
@@ -8,25 +8,25 @@ FILENAMES
 	testdata/issue16153.go
 
 CONSTANTS
-	// original test case 
+	// original test case
 	const (
 		x1	uint8	= 255
 		Y1		= 256
 	)
 
-	// variations 
+	// variations
 	const (
 		x2	uint8	= 255
 		Y2
 	)
 
-	// 
+	//
 	const (
 		X3	int64	= iota
 		Y3		= 1
 	)
 
-	// 
+	//
 	const (
 		X4	int64	= iota
 		Y4

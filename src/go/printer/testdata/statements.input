@@ -470,7 +470,7 @@ func _() {
 	_ = 0  // the indentation here should not be affected by the long label name
 AnOverlongLabel:
 	_ = 0
-	
+
 	if true {
 		_ = 0
 	}

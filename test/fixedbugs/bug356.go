@@ -16,23 +16,23 @@ func main() {
 		println("BUG bug344", y)
 		return
 	}
-	
+
 	i++
 	if y := x << (i&5); y != 12345<<1 {
 		println("BUG bug344a", y)
 	}
-	
+
 	i = 70
 	if y := x << i; y != 0 {
 		println("BUG bug344b", y)
 	}
-	
+
 	i = 1<<32
 	if y := x << i; y != 0 {
 		println("BUG bug344c", y)
 	}
 }
-	
+
 
 /*
 typecheck [1008592b0]

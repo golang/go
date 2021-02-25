@@ -32,7 +32,7 @@ var (
 var (
 	i0 = 1
 	i1 = 1<<'\x01'
-	
+
 	i = []int{i0, i1}
 )
 
@@ -42,6 +42,6 @@ const (
 
 var (
 	b0 = maxRune < r0
-	
+
 	b = []bool{b0}
 )

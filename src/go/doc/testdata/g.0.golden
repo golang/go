@@ -8,7 +8,7 @@ FILENAMES
 	testdata/g.go
 
 CONSTANTS
-	// 
+	//
 	const (
 		A, _	= iota, iota
 		_, D
@@ -18,14 +18,14 @@ CONSTANTS
 
 
 VARIABLES
-	// 
+	//
 	var (
 		_, C2, _	= 1, 2, 3
 		C4, _, C6	= 4, 5, 6
 		_, C8, _	= 7, 8, 9
 	)
 
-	// 
+	//
 	var (
 		_, X = f()
 	)

@@ -13,7 +13,7 @@ func f() int {
 	panic("oops")
 }
 
-func g() int {	
+func g() int {
 	return 12345
 }
 

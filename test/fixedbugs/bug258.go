@@ -25,7 +25,7 @@ func main() {
 		} else {
 			println("BUG 2")
 		}
-		
+
 		if math.Pow(2, 3) != 8 {
 			println("BUG 3")
 		}

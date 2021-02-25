@@ -352,7 +352,7 @@ func _() int {
 		for {
 			break L
 		}
-	}	
+	}
 } // ERROR "missing return"
 
 func _() int {
@@ -1047,7 +1047,7 @@ func _() int {
 		for {
 			break L
 		}
-	}	
+	}
 } // ERROR "missing return"
 
 func _() int {
@@ -1754,7 +1754,7 @@ var _ = func() int {
 		for {
 			break L
 		}
-	}	
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
@@ -2449,7 +2449,7 @@ var _ = func() int {
 		for {
 			break L
 		}
-	}	
+	}
 } // ERROR "missing return"
 
 var _ = func() int {

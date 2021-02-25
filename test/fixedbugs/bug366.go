@@ -24,7 +24,7 @@ func main() {
        // 5
        var a, b byte = 5, 3
        five(int64(a / (a / b)))
-       
+
        // integer divide by zero in golang.org sandbox
        // 0 on windows/amd64
        x := [3]byte{2, 3, 5}

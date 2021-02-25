@@ -34,7 +34,7 @@ func main() {
 func setup() {
 	var Ts []interface{}
 	buf := make([]byte, 128)
-	
+
 	for i := 0; i < 10000; i++ {
 		s := string(buf)
 		t := &T{ptr: new(*int)}
@@ -42,7 +42,7 @@ func setup() {
 		Ts = append(Ts, t)
 		things = append(things, s[len(s):])
 	}
-	
+
 	things = append(things, Ts...)
 }
 

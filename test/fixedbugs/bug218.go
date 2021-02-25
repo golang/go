@@ -18,6 +18,6 @@ func main() {
 }
 
 /*
-6g bug218.go 
+6g bug218.go
 <epoch>: fatal error: dowidth: unknown type: blank
 */

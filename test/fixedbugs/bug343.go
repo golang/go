@@ -24,7 +24,7 @@ func main() {
 		println("BUG bug343", x)
 	}
 }
-	
+
 
 /*
 typecheck [1008592b0]

@@ -335,18 +335,18 @@ func main() {
 	for _, mk := range mks {
 		test1(mk(closedsync()))
 	}
-	
+
 	for _, testclosed := range testcloseds {
 		for _, mk := range mks {
 			testclosed(mk(closedasync()))
 		}
 	}
-	
-	var ch chan int	
+
+	var ch chan int
 	shouldPanic(func() {
 		close(ch)
 	})
-	
+
 	ch = make(chan int)
 	close(ch)
 	shouldPanic(func() {

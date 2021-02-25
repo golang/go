@@ -95,7 +95,7 @@ func CheckI(name string, i Tinter, inc int) {
 		failed = true
 		print(name, ".M(1000, 99) = ", b, ", ", x, " want 99, ", 1000+inc, "\n")
 	}
-	
+
 	CheckF("(i="+name+")", i.M, inc)
 }
 
@@ -113,7 +113,7 @@ func checkI(name string, i tinter, inc int) {
 		failed = true
 		print(name, ".m(1000, 99) = ", b, ", ", x, " want 99, ", 1000+inc, "\n")
 	}
-	
+
 	checkF("(i="+name+")", i.m, inc)
 }
 
@@ -183,7 +183,7 @@ func main() {
 	CheckI("pbv", pbv, 11)
 	CheckF("pbv.M", pbv.M, 11)
 	CheckF("(*pbv).M", (*pbv).M, 11)
-	
+
 	bp := Tbigp([2]uintptr{7,8})
 	CheckI("&bp", &bp, 15)
 	CheckF("bp.M", bp.M, 15)
@@ -237,7 +237,7 @@ func main() {
 	checkI("_pbv", _pbv, 11)
 	checkF("_pbv.m", _pbv.m, 11)
 	checkF("(*_pbv).m", (*_pbv).m, 11)
-	
+
 	_bp := tbigp([2]uintptr{7,8})
 	checkI("&_bp", &_bp, 15)
 	checkF("_bp.m", _bp.m, 15)
@@ -246,7 +246,7 @@ func main() {
 	checkI("_pbp", _pbp, 15)
 	checkF("_pbp.m", _pbp.m, 15)
 	checkF("(*_pbp).m", (*_pbp).m, 15)
-	
+
 	t4 := T4{}
 	t3 := T3{&t4}
 	t2 := T2{&t3}
@@ -259,7 +259,7 @@ func main() {
 	CheckI("&t2", &t2, 40)
 	CheckI("t1", t1, 40)
 	CheckI("&t1", &t1, 40)
-	
+
 	// x.M panics if x is an interface type and is nil,
 	// or if x.M expands to (*x).M where x is nil,
 	// or if x.M expands to x.y.z.w.M where something
@@ -281,7 +281,7 @@ func main() {
 	if f != nil {
 		panic("something set f")
 	}
-	
+
 	// x.M does not panic if x is a nil pointer and
 	// M is a method with a pointer receiver.
 	shouldNotPanic(func() { psp = nil; f = psp.M })

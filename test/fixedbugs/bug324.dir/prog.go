@@ -26,7 +26,7 @@ func main() {
 	// same here - should be and is legal
 	var px p.Exported
 	px = p.X
-	
+
 	// this assignment is correctly illegal:
 	//	px.private undefined (cannot refer to unexported field or method private)
 	// px.private()
@@ -44,7 +44,7 @@ func main() {
 		recover()
 	}()
 	x = px.(Exported)
-	
+
 	println("should not get this far")
 
 	// this is a legitimate call, but because of the previous assignment,

@@ -20,6 +20,6 @@ exit:
 }
 
 /*
-uetli:~/Source/go/test/bugs gri$ 6g bug076.go 
+uetli:~/Source/go/test/bugs gri$ 6g bug076.go
 bug076.go:11: label redeclared: exit
 */

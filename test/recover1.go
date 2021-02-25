@@ -36,7 +36,7 @@ func mustRecover(x interface{}) {
 		println("wrong value", v, x)
 		die()
 	}
-	
+
 	// the value should be gone now regardless
 	v = recover()
 	if v != nil {

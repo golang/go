@@ -1,4 +1,4 @@
-// 
+//
 PACKAGE issue22856
 
 IMPORTPATH
@@ -19,27 +19,27 @@ FUNCTIONS
 
 
 TYPES
-	// 
+	//
 	type T struct{}
 
-	// 
+	//
 	func New() T
 
-	// 
+	//
 	func NewArray() [1]T
 
-	// 
+	//
 	func NewPointer() *T
 
-	// 
+	//
 	func NewPointerArray() [1]*T
 
-	// 
+	//
 	func NewPointerOfPointer() **T
 
-	// 
+	//
 	func NewPointerSlice() []*T
 
-	// 
+	//
 	func NewSlice() []T
 

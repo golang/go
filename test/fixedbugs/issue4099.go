@@ -20,7 +20,7 @@ func F2([]byte)
 func G() {
 	var buf1 [10]byte
 	F1(buf1[:])
-	
+
 	var buf2 [10]byte // ERROR "moved to heap: buf2"
 	F2(buf2[:])
 }

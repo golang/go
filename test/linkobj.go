@@ -37,28 +37,28 @@ func main() {
 
 	writeFile("p1.go", `
 		package p1
-		
+
 		func F() {
 			println("hello from p1")
 		}
 	`)
 	writeFile("p2.go", `
 		package p2
-		
+
 		import "./p1"
 
 		func F() {
 			p1.F()
 			println("hello from p2")
 		}
-		
+
 		func main() {}
 	`)
 	writeFile("p3.go", `
 		package main
 
 		import "./p2"
-		
+
 		func main() {
 			p2.F()
 			println("hello from main")

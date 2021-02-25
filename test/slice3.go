@@ -136,7 +136,7 @@ func checkSlice(desc string, f func() []byte, xbase, xlen, xcap int) {
 		}
 		// "no panic" is checked below
 	}()
-	
+
 	x := f()
 
 	arrayBase := uintptr(unsafe.Pointer(array))

@@ -7,7 +7,7 @@
 //line foo/bar.y:4
 package main
 //line foo/bar.y:60
-func main() { 
+func main() {
 //line foo/bar.y:297
 	f, l := 0, 0
 //line yacctab:1

@@ -259,7 +259,7 @@ func ManageStatus0(
 	stat chan<- *TargetInfo,
 	TargetHistorySize int) {
 }
-    
+
 func ManageStatus1(
 	in <-chan *Status,
 	req <-chan Request,

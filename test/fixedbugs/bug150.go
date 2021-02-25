@@ -9,7 +9,7 @@ package bug150
 type T int
 func (t T) M()
 
-type M interface { M() } 
+type M interface { M() }
 
 func g() (T, T)
 

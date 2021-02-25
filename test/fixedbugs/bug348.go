@@ -13,7 +13,7 @@ import (
 
 func f() {
 	var x *string
-	
+
 	for _, i := range *x {  // THIS IS LINE 17
 		println(i)
 	}

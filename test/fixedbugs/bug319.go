@@ -10,7 +10,7 @@ import "unsafe"
 
 func main() {
 	var x int
-	
+
 	a := uint64(uintptr(unsafe.Pointer(&x)))
 	b := uint32(uintptr(unsafe.Pointer(&x)))
 	c := uint16(uintptr(unsafe.Pointer(&x)))

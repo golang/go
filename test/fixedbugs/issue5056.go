@@ -24,7 +24,7 @@ var bar, foobar *int
 func main() {
 	var quux iface
 	var x Foo
-	
+
 	quux = x
 	bar = quux.Esc()
 	foobar = quux.Esc()

@@ -312,7 +312,7 @@ func _() {
 `
 	_ = `foo
 		bar`
-	_ = `three spaces before the end of the line starting here:   
+	_ = `three spaces before the end of the line starting here:
 they must not be removed`
 }
 

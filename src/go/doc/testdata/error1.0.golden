@@ -1,4 +1,4 @@
-// 
+//
 PACKAGE error1
 
 IMPORTPATH
@@ -8,19 +8,19 @@ FILENAMES
 	testdata/error1.go
 
 TYPES
-	// 
+	//
 	type I0 interface {
 		// When embedded, the predeclared error interface
 		// must remain visible in interface types.
 		error
 	}
 
-	// 
+	//
 	type S0 struct {
 		// contains filtered or unexported fields
 	}
 
-	// 
+	//
 	type T0 struct {
 		ExportedField interface {
 			// error should be visible

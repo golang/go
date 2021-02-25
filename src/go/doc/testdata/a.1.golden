@@ -1,4 +1,4 @@
-// comment 0  comment 1 
+// comment 0  comment 1
 PACKAGE a
 
 IMPORTPATH
@@ -21,7 +21,7 @@ BUG(uid)	bug1
 
 
 NOTES
-NOTE(uid)	
+NOTE(uid)
 
 NOTE(foo)	1 of 4 - this is the first line of note 1
 	- note 1 continues on this 2nd line

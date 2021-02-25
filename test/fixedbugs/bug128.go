@@ -17,7 +17,7 @@ func main() {
 }
 
 /*
-uetli:~/Source/go1/test/bugs gri$ 6g bug127.go 
+uetli:~/Source/go1/test/bugs gri$ 6g bug127.go
 bug127.go:5: switch statement must have case labels
 bug127.go:9: switch statement must have case labels
 */

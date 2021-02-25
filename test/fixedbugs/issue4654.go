@@ -14,7 +14,7 @@ import "unsafe"
 func f() {
 	defer int(0) // ERROR "defer requires function call, not conversion|is not used"
 	go string([]byte("abc")) // ERROR "go requires function call, not conversion|is not used"
-	
+
 	var c complex128
 	var f float64
 	var t struct {X int}
@@ -38,7 +38,7 @@ func f() {
 	defer unsafe.Alignof(t.X) // ERROR "defer discards result of unsafe.Alignof|is not used"
 	defer unsafe.Offsetof(t.X) // ERROR "defer discards result of unsafe.Offsetof|is not used"
 	defer unsafe.Sizeof(t) // ERROR "defer discards result of unsafe.Sizeof|is not used"
-	
+
 	defer copy(x, x) // ok
 	m := make(map[int]int)
 	defer delete(m, 1) // ok

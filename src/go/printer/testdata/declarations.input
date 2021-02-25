@@ -235,7 +235,7 @@ const (
 
 	_ = iota
 	_
-	
+
 	// a comment
 	_
 
@@ -246,9 +246,9 @@ const (
 type (
 	_ int
 	_ struct {}
-	
+
 	_ interface{}
-	
+
 	// a comment
 	_ map[string]int
 )
@@ -261,7 +261,7 @@ var (
 	_ string = "foo"
 
 	_ bool
-	
+
 	// a comment
 	_ bool
 )

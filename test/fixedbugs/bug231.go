@@ -15,7 +15,7 @@ func main() {
 	var t T
 	var m M
 	var i I
-	
+
 	i = m
 	i = t	// ERROR "not a method|has no methods" "does not implement I"
 	_ = i

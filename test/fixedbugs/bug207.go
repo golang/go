@@ -18,6 +18,6 @@ type T struct {
 var t T
 
 func main() {
-	if fmt.Sprint("xxx", t) != "yyy" { 
+	if fmt.Sprint("xxx", t) != "yyy" {
 	}
 }

@@ -103,8 +103,8 @@ func checkdiv3(x, y uint64) {
 	if (uint64(uint8(x)) == x || uint64(uint8(^x)) == ^x) && (uint64(uint8(y)) == y || uint64(uint8(^y)) == ^y) {
 		checkuint8(uint8(x), uint8(y))
 	}
-	
-	
+
+
 	sx := int64(x)
 	sy := int64(y)
 	checkint64(sx, sy)
@@ -430,7 +430,7 @@ func udiv(x, y uint64) (q, r uint64) {
 		}
 		y >>= 1
 	}
-	return q, x	
+	return q, x
 }
 
 // signed divide and mod: do unsigned and adjust signs.

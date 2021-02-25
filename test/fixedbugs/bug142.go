@@ -27,5 +27,5 @@ mainstart+0xf /Users/rsc/goX/src/runtime/amd64/asm.s:53
 	mainstart()
 sys·Goexit /Users/rsc/goX/src/runtime/proc.c:124
 	sys·Goexit()
-; 
+;
 */

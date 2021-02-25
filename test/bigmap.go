@@ -35,7 +35,7 @@ func main() {
 	cmp(m[1], seq(11, 13))
 	cmp(m[2], seq(2, 9))
 	cmp(m[3], seq(3, 17))
-	
+
 
 	{
 		type T [1]byte

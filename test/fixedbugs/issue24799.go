@@ -20,7 +20,7 @@ type Level string
 // not aligned to 4 bytes due to the type of relocation that
 // is generated for the instruction. A fix was made to avoid
 // generating an instruction with DS relocation for go.strings
-// since their alignment is not known until link time. 
+// since their alignment is not known until link time.
 
 // This problem only affects go.string since other types have
 // correct alignment.

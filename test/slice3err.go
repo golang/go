@@ -25,7 +25,7 @@ func f() {
 	_ = array[i::k] // ERROR "middle index required in 3-index slice|invalid slice indices"
 	_ = array[:j:k]
 	_ = array[i:j:k]
-	
+
 	_ = slice[:]
 	_ = slice[i:]
 	_ = slice[:j]
@@ -38,7 +38,7 @@ func f() {
 	_ = slice[i::k] // ERROR "middle index required in 3-index slice|invalid slice indices"
 	_ = slice[:j:k]
 	_ = slice[i:j:k]
-	
+
 	_ = str[:]
 	_ = str[i:]
 	_ = str[:j]
@@ -70,7 +70,7 @@ func f() {
 	_ = array[2:j:1] // ERROR "invalid slice index|invalid slice indices"
 	_ = array[1:2:k]
 	_ = array[2:1:k] // ERROR "invalid slice index|invalid slice indices|inverted slice"
-	
+
 	_ = slice[1:2]
 	_ = slice[2:1] // ERROR "invalid slice index|invalid slice indices|inverted slice"
 	_ = slice[2:2]
@@ -88,7 +88,7 @@ func f() {
 	_ = slice[2:j:1] // ERROR "invalid slice index|invalid slice indices"
 	_ = slice[1:2:k]
 	_ = slice[2:1:k] // ERROR "invalid slice index|invalid slice indices|inverted slice"
-	
+
 	_ = str[1:2]
 	_ = str[2:1] // ERROR "invalid slice index|invalid slice indices|inverted slice"
 	_ = str[2:2]

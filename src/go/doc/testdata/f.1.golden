@@ -8,9 +8,9 @@ FILENAMES
 	testdata/f.go
 
 TYPES
-	// 
+	//
 	type private struct{}
 
-	// Exported must always be visible. Was issue 2824. 
+	// Exported must always be visible. Was issue 2824.
 	func Exported() private
 

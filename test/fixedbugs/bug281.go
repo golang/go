@@ -42,12 +42,12 @@ func main() {
 		println("BUG dot: ", q.X, q.Y)
 		return
 	}
-	
+
 	q = p.Sub(o.Points()[0])
 	if q.X != 0 || q.Y != 300 {
 		println("BUG index const: ", q.X, q.Y)
 	}
-	
+
 	q = p.Sub(o.Points()[x])
 	if q.X != 0 || q.Y != 300 {
 		println("BUG index var: ", q.X, q.Y)
