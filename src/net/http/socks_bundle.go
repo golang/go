@@ -362,6 +362,8 @@ func (d *socksDialer) DialWithConn(ctx context.Context, c net.Conn, network, add
 // Unlike DialContext, it returns a raw transport connection instead
 // of a forward proxy connection.
 //
+// Dial uses context.Background internally.
+//
 // Deprecated: Use DialContext or DialWithConn instead.
 func (d *socksDialer) Dial(network, address string) (net.Conn, error) {
 	if err := d.validateTarget(network, address); err != nil {

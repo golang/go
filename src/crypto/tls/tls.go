@@ -111,6 +111,9 @@ func (timeoutError) Temporary() bool { return true }
 //
 // DialWithDialer interprets a nil configuration as equivalent to the zero
 // configuration; see the documentation of Config for the defaults.
+//
+// DialWithDialer uses context.Background internally; to specify the context,
+// use Dialer.DialContext with NetDialer set to the desired dialer.
 func DialWithDialer(dialer *net.Dialer, network, addr string, config *Config) (*Conn, error) {
 	return dial(context.Background(), dialer, network, addr, config)
 }
@@ -224,6 +227,9 @@ type Dialer struct {
 // handshake, returning the resulting TLS connection.
 //
 // The returned Conn, if any, will always be of type *Conn.
+//
+// Dial uses context.Background internally; to specify the context,
+// use DialContext.
 func (d *Dialer) Dial(network, addr string) (net.Conn, error) {
 	return d.DialContext(context.Background(), network, addr)
 }
