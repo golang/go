@@ -850,6 +850,12 @@ func (db *DB) Close() error {
 		}
 	}
 	db.stop()
+	if c, ok := db.connector.(io.Closer); ok {
+		err1 := c.Close()
+		if err1 != nil {
+			err = err1
+		}
+	}
 	return err
 }
 
