@@ -503,8 +503,21 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 	}
 	n.SetWalked(true)
 
+	// If this is a method call t.M(...),
+	// rewrite into a function call T.M(t, ...).
 	// TODO(mdempsky): Do this right after type checking.
-	rewriteMethodCall(n)
+	if n.Op() == ir.OCALLMETH {
+		withRecv := make([]ir.Node, len(n.Args)+1)
+		dot := n.X.(*ir.SelectorExpr)
+		withRecv[0] = dot.X
+		copy(withRecv[1:], n.Args)
+		n.Args = withRecv
+
+		dot = ir.NewSelectorExpr(dot.Pos(), ir.OXDOT, ir.TypeNode(dot.X.Type()), dot.Selection.Sym)
+
+		n.SetOp(ir.OCALLFUNC)
+		n.X = typecheck.Expr(dot)
+	}
 
 	args := n.Args
 	params := n.X.Type().Params()
@@ -532,23 +545,6 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 	}
 
 	n.Args = args
-}
-
-// rewriteMethodCall rewrites a method call t.M(...) into a function call T.M(t, ...).
-func rewriteMethodCall(n *ir.CallExpr) {
-	if n.Op() != ir.OCALLMETH {
-		return
-	}
-	withRecv := make([]ir.Node, len(n.Args)+1)
-	dot := n.X.(*ir.SelectorExpr)
-	withRecv[0] = dot.X
-	copy(withRecv[1:], n.Args)
-	n.Args = withRecv
-
-	dot = ir.NewSelectorExpr(dot.Pos(), ir.OXDOT, ir.TypeNode(dot.X.Type()), dot.Selection.Sym)
-
-	n.SetOp(ir.OCALLFUNC)
-	n.X = typecheck.Expr(dot)
 }
 
 // walkDivMod walks an ODIV or OMOD node.

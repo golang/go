@@ -48,30 +48,6 @@ func f() int {
 	return test("return", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
 }
 
-type S struct{}
-
-//go:noinline
-//go:uintptrescapes
-func (S) test(s string, p, q uintptr, rest ...uintptr) int {
-	runtime.GC()
-	runtime.GC()
-
-	if *(*string)(unsafe.Pointer(p)) != "ok" {
-		panic(s + ": p failed")
-	}
-	if *(*string)(unsafe.Pointer(q)) != "ok" {
-		panic(s + ": q failed")
-	}
-	for _, r := range rest {
-		if *(*string)(unsafe.Pointer(r)) != "ok" {
-			panic(s + ": r[i] failed")
-		}
-	}
-
-	done <- true
-	return 0
-}
-
 func main() {
 	test("normal", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
 	<-done
@@ -81,12 +57,6 @@ func main() {
 
 	func() {
 		defer test("defer", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
-	}()
-	<-done
-
-	func() {
-		s := &S{}
-		defer s.test("method call", uintptr(setup()), uintptr(setup()))
 	}()
 	<-done
 
