@@ -1229,6 +1229,9 @@ func GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uint32, overla
 	err := getQueuedCompletionStatus(cphandle, qty, pukey, overlapped, timeout)
 	if key != nil {
 		*key = uint32(ukey)
+		if uintptr(*key) != ukey && err == nil {
+			err = errorspkg.New("GetQueuedCompletionStatus returned key overflow")
+		}
 	}
 	return err
 }
