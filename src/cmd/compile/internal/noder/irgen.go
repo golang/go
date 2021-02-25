@@ -41,14 +41,6 @@ func check2(noders []*noder) {
 		CompilerErrorMessages: true, // use error strings matching existing compiler errors
 		Error: func(err error) {
 			terr := err.(types2.Error)
-			if len(terr.Msg) > 0 && terr.Msg[0] == '\t' {
-				// types2 reports error clarifications via separate
-				// error messages which are indented with a tab.
-				// Ignore them to satisfy tools and tests that expect
-				// only one error in such cases.
-				// TODO(gri) Need to adjust error reporting in types2.
-				return
-			}
 			base.ErrorfAt(m.makeXPos(terr.Pos), "%s", terr.Msg)
 		},
 		Importer: &gcimports{

@@ -29,6 +29,83 @@ func unreachable() {
 	panic("unreachable")
 }
 
+// An error_ represents a type-checking error.
+// To report an error_, call Checker.report.
+type error_ struct {
+	desc []errorDesc
+	soft bool // TODO(gri) eventually determine this from an error code
+}
+
+// An errorDesc describes part of a type-checking error.
+type errorDesc struct {
+	pos    syntax.Pos
+	format string
+	args   []interface{}
+}
+
+func (err *error_) empty() bool {
+	return err.desc == nil
+}
+
+func (err *error_) pos() syntax.Pos {
+	if err.empty() {
+		return nopos
+	}
+	return err.desc[0].pos
+}
+
+func (err *error_) msg(qf Qualifier) string {
+	if err.empty() {
+		return "no error"
+	}
+	var buf bytes.Buffer
+	for i := range err.desc {
+		p := &err.desc[i]
+		if i > 0 {
+			fmt.Fprintf(&buf, "\n\t%s: ", p.pos)
+		}
+		buf.WriteString(sprintf(qf, p.format, p.args...))
+	}
+	return buf.String()
+}
+
+// String is for testing.
+func (err *error_) String() string {
+	if err.empty() {
+		return "no error"
+	}
+	return fmt.Sprintf("%s: %s", err.pos(), err.msg(nil))
+}
+
+// errorf adds formatted error information to err.
+// It may be called multiple times to provide additional information.
+func (err *error_) errorf(at poser, format string, args ...interface{}) {
+	err.desc = append(err.desc, errorDesc{posFor(at), format, args})
+}
+
+func sprintf(qf Qualifier, format string, args ...interface{}) string {
+	for i, arg := range args {
+		switch a := arg.(type) {
+		case nil:
+			arg = "<nil>"
+		case operand:
+			panic("internal error: should always pass *operand")
+		case *operand:
+			arg = operandString(a, qf)
+		case syntax.Pos:
+			arg = a.String()
+		case syntax.Expr:
+			arg = syntax.String(a)
+		case Object:
+			arg = ObjectString(a, qf)
+		case Type:
+			arg = TypeString(a, qf)
+		}
+		args[i] = arg
+	}
+	return fmt.Sprintf(format, args...)
+}
+
 func (check *Checker) qualifier(pkg *Package) string {
 	// Qualify the package unless it's the package being type-checked.
 	if pkg != check.pkg {
@@ -42,26 +119,14 @@ func (check *Checker) qualifier(pkg *Package) string {
 }
 
 func (check *Checker) sprintf(format string, args ...interface{}) string {
-	for i, arg := range args {
-		switch a := arg.(type) {
-		case nil:
-			arg = "<nil>"
-		case operand:
-			panic("internal error: should always pass *operand")
-		case *operand:
-			arg = operandString(a, check.qualifier)
-		case syntax.Pos:
-			arg = a.String()
-		case syntax.Expr:
-			arg = syntax.String(a)
-		case Object:
-			arg = ObjectString(a, check.qualifier)
-		case Type:
-			arg = TypeString(a, check.qualifier)
-		}
-		args[i] = arg
+	return sprintf(check.qualifier, format, args...)
+}
+
+func (check *Checker) report(err *error_) {
+	if err.empty() {
+		panic("internal error: reporting no error")
 	}
-	return fmt.Sprintf(format, args...)
+	check.err(err.pos(), err.msg(check.qualifier), err.soft)
 }
 
 func (check *Checker) trace(pos syntax.Pos, format string, args ...interface{}) {

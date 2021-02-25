@@ -253,8 +253,10 @@ L:
 			// (quadratic algorithm, but these lists tend to be very short)
 			for _, vt := range seen[val] {
 				if check.identical(v.typ, vt.typ) {
-					check.errorf(&v, "duplicate case %s in expression switch", &v)
-					check.error(vt.pos, "\tprevious case") // secondary error, \t indented
+					var err error_
+					err.errorf(&v, "duplicate case %s in expression switch", &v)
+					err.errorf(vt.pos, "previous case")
+					check.report(&err)
 					continue L
 				}
 			}
@@ -282,8 +284,10 @@ L:
 				if T != nil {
 					Ts = T.String()
 				}
-				check.errorf(e, "duplicate case %s in type switch", Ts)
-				check.error(pos, "\tprevious case") // secondary error, \t indented
+				var err error_
+				err.errorf(e, "duplicate case %s in type switch", Ts)
+				err.errorf(pos, "previous case")
+				check.report(&err)
 				continue L
 			}
 		}
@@ -430,8 +434,10 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 				// with the same name as a result parameter is in scope at the place of the return."
 				for _, obj := range res.vars {
 					if alt := check.lookup(obj.name); alt != nil && alt != obj {
-						check.errorf(s, "result parameter %s not in scope at return", obj.name)
-						check.errorf(alt, "\tinner declaration of %s", obj)
+						var err error_
+						err.errorf(s, "result parameter %s not in scope at return", obj.name)
+						err.errorf(alt, "inner declaration of %s", obj)
+						check.report(&err)
 						// ok to continue
 					}
 				}

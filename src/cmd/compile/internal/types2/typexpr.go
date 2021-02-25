@@ -352,8 +352,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 	params, variadic := check.collectParams(scope, ftyp.ParamList, nil, true)
 	results, _ := check.collectParams(scope, ftyp.ResultList, nil, false)
 	scope.Squash(func(obj, alt Object) {
-		check.errorf(obj, "%s redeclared in this block", obj.Name())
-		check.reportAltDecl(alt)
+		var err error_
+		err.errorf(obj, "%s redeclared in this block", obj.Name())
+		err.recordAltDecl(alt)
+		check.report(&err)
 	})
 
 	if recvPar != nil {
@@ -796,8 +798,10 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 sy
 
 func (check *Checker) declareInSet(oset *objset, pos syntax.Pos, obj Object) bool {
 	if alt := oset.insert(obj); alt != nil {
-		check.errorf(pos, "%s redeclared", obj.Name())
-		check.reportAltDecl(alt)
+		var err error_
+		err.errorf(pos, "%s redeclared", obj.Name())
+		err.recordAltDecl(alt)
+		check.report(&err)
 		return false
 	}
 	return true
@@ -940,8 +944,10 @@ func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
 			methods = append(methods, m)
 			mpos[m] = pos
 		case explicit:
-			check.errorf(pos, "duplicate method %s", m.name)
-			check.errorf(mpos[other.(*Func)], "\tother declaration of %s", m.name) // secondary error, \t indented
+			var err error_
+			err.errorf(pos, "duplicate method %s", m.name)
+			err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
+			check.report(&err)
 		default:
 			// We have a duplicate method name in an embedded (not explicitly declared) method.
 			// Check method signatures after all types are computed (issue #33656).
@@ -950,8 +956,10 @@ func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
 			// error message.
 			check.atEnd(func() {
 				if !check.allowVersion(m.pkg, 1, 14) || !check.identical(m.typ, other.Type()) {
-					check.errorf(pos, "duplicate method %s", m.name)
-					check.errorf(mpos[other.(*Func)], "\tother declaration of %s", m.name) // secondary error, \t indented
+					var err error_
+					err.errorf(pos, "duplicate method %s", m.name)
+					err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
+					check.report(&err)
 				}
 			})
 		}
