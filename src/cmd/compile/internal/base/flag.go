@@ -159,6 +159,7 @@ func ParseFlags() {
 	Flag.LinkShared = &Ctxt.Flag_linkshared
 	Flag.Shared = &Ctxt.Flag_shared
 	Flag.WB = true
+	Debug.InlFuncsWithClosures = 1
 
 	Flag.Cfg.ImportMap = make(map[string]string)
 
