@@ -308,7 +308,7 @@ func (*Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err 
 	}
 	for _, line := range lines {
 		if i := bytealg.IndexByteString(line, '\t'); i >= 0 {
-			txt = append(txt, absDomainName([]byte(line[i+1:])))
+			txt = append(txt, line[i+1:])
 		}
 	}
 	return
