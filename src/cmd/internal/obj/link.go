@@ -360,7 +360,7 @@ func (p *Prog) SetFrom3(a Addr) {
 	p.RestArgs = []AddrPos{{a, Source}}
 }
 
-// SetTo2 assings []Args{{a, 1}} to p.RestArgs when the second destination
+// SetTo2 assigns []Args{{a, 1}} to p.RestArgs when the second destination
 // operand does not fit into prog.RegTo2.
 func (p *Prog) SetTo2(a Addr) {
 	p.RestArgs = []AddrPos{{a, Destination}}
