@@ -20,7 +20,7 @@ import (
 //
 // Should we try to use the IPv4 socket interface if we're only
 // dealing with IPv4 sockets? As long as the host system understands
-// IPv4-mapped IPv6, it's okay to pass IPv4-mapeed IPv6 addresses to
+// IPv4-mapped IPv6, it's okay to pass IPv4-mapped IPv6 addresses to
 // the IPv6 interface. That simplifies our code and is most
 // general. Unfortunately, we need to run on kernels built without
 // IPv6 support too. So probe the kernel to figure it out.
