@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"go/scanner"
 	"go/token"
 	"go/types"
 	"io"
@@ -262,7 +263,7 @@ type ParsedGoFile struct {
 	// actual content of the file if we have fixed the AST.
 	Src      []byte
 	Mapper   *protocol.ColumnMapper
-	ParseErr error
+	ParseErr scanner.ErrorList
 }
 
 // A ParsedModule contains the results of parsing a go.mod file.

@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"go/scanner"
 	"go/types"
 	"path"
 	"path/filepath"
@@ -302,7 +303,7 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 	}
 	var (
 		files        = make([]*ast.File, len(m.compiledGoFiles))
-		parseErrors  = make([]error, len(m.compiledGoFiles))
+		parseErrors  = make([]scanner.ErrorList, len(m.compiledGoFiles))
 		actualErrors = make([]error, len(m.compiledGoFiles))
 		wg           sync.WaitGroup
 

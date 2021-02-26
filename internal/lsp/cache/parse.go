@@ -246,7 +246,7 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 	if fh.Kind() != source.Go {
 		return &parseGoData{err: errors.Errorf("cannot parse non-Go file %s", fh.URI())}
 	}
-	buf, err := fh.Read()
+	src, err := fh.Read()
 	if err != nil {
 		return &parseGoData{err: err}
 	}
@@ -255,37 +255,32 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 	if mode == source.ParseHeader {
 		parserMode = parser.ImportsOnly | parser.ParseComments
 	}
-	file, parseError := parser.ParseFile(fset, fh.URI().Filename(), buf, parserMode)
-	var tok *token.File
-	var fixed bool
-	if file != nil {
-		tok = fset.File(file.Pos())
-		if tok == nil {
-			tok = fset.AddFile(fh.URI().Filename(), -1, len(buf))
-			tok.SetLinesForContent(buf)
-			return &parseGoData{
-				parsed: &source.ParsedGoFile{
-					URI:  fh.URI(),
-					Mode: mode,
-					Src:  buf,
-					File: file,
-					Tok:  tok,
-					Mapper: &protocol.ColumnMapper{
-						URI:       fh.URI(),
-						Content:   buf,
-						Converter: span.NewTokenConverter(fset, tok),
-					},
-					ParseErr: parseError,
-				},
-			}
-		}
 
+	file, err := parser.ParseFile(fset, fh.URI().Filename(), src, parserMode)
+	var parseErr scanner.ErrorList
+	if err != nil {
+		// We passed a byte slice, so the only possible error is a parse error.
+		parseErr = err.(scanner.ErrorList)
+	}
+
+	tok := fset.File(file.Pos())
+	if tok == nil {
+		// file.Pos is the location of the package declaration. If there was
+		// none, we can't find the token.File that ParseFile created, and we
+		// have no choice but to recreate it.
+		tok = fset.AddFile(fh.URI().Filename(), -1, len(src))
+		tok.SetLinesForContent(src)
+	}
+
+	fixed := false
+	// If there were parse errors, attempt to fix them up.
+	if parseErr != nil {
 		// Fix any badly parsed parts of the AST.
-		fixed = fixAST(ctx, file, tok, buf)
+		fixed = fixAST(ctx, file, tok, src)
 
 		for i := 0; i < 10; i++ {
 			// Fix certain syntax errors that render the file unparseable.
-			newSrc := fixSrc(file, tok, buf)
+			newSrc := fixSrc(file, tok, src)
 			if newSrc == nil {
 				break
 			}
@@ -294,11 +289,11 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 			// it is likely we got stuck in a loop somehow. Log out a diff
 			// of the last changes we made to aid in debugging.
 			if i == 9 {
-				edits, err := myers.ComputeEdits(fh.URI(), string(buf), string(newSrc))
+				edits, err := myers.ComputeEdits(fh.URI(), string(src), string(newSrc))
 				if err != nil {
 					event.Error(ctx, "error generating fixSrc diff", err, tag.File.Of(tok.Name()))
 				} else {
-					unified := diff.ToUnified("before", "after", string(buf), edits)
+					unified := diff.ToUnified("before", "after", string(src), edits)
 					event.Log(ctx, fmt.Sprintf("fixSrc loop - last diff:\n%v", unified), tag.File.Of(tok.Name()))
 				}
 			}
@@ -307,44 +302,33 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 			if newFile != nil {
 				// Maintain the original parseError so we don't try formatting the doctored file.
 				file = newFile
-				buf = newSrc
+				src = newSrc
 				tok = fset.File(file.Pos())
 
-				fixed = fixAST(ctx, file, tok, buf)
+				fixed = fixAST(ctx, file, tok, src)
 			}
-
-		}
-
-		if mode == source.ParseExported {
-			trimAST(file)
 		}
 	}
 
-	// A missing file is always an error; use the parse error or make one up if there isn't one.
-	if file == nil {
-		if parseError == nil {
-			parseError = errors.Errorf("parsing %s failed with no parse error reported", fh.URI())
-		}
-		err = parseError
-	}
-	m := &protocol.ColumnMapper{
-		URI:       fh.URI(),
-		Converter: span.NewTokenConverter(fset, tok),
-		Content:   buf,
+	if mode == source.ParseExported {
+		trimAST(file)
 	}
 
 	return &parseGoData{
 		parsed: &source.ParsedGoFile{
-			URI:      fh.URI(),
-			Mode:     mode,
-			Src:      buf,
-			File:     file,
-			Tok:      tok,
-			Mapper:   m,
-			ParseErr: parseError,
+			URI:  fh.URI(),
+			Mode: mode,
+			Src:  src,
+			File: file,
+			Tok:  tok,
+			Mapper: &protocol.ColumnMapper{
+				URI:       fh.URI(),
+				Converter: span.NewTokenConverter(fset, tok),
+				Content:   src,
+			},
+			ParseErr: parseErr,
 		},
 		fixed: fixed,
-		err:   err,
 	}
 }
 
