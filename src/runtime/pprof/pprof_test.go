@@ -14,6 +14,7 @@ import (
 	"internal/profile"
 	"internal/testenv"
 	"io"
+	"math"
 	"math/big"
 	"os"
 	"os/exec"
@@ -24,6 +25,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	_ "unsafe"
 )
 
 func cpuHogger(f func(x int) int, y *int, dur time.Duration) {
@@ -894,6 +896,74 @@ func blockCond() {
 	c.Wait()
 	mu.Unlock()
 }
+
+// See http://golang.org/cl/299991.
+func TestBlockProfileBias(t *testing.T) {
+	rate := int(1000) // arbitrary value
+	runtime.SetBlockProfileRate(rate)
+	defer runtime.SetBlockProfileRate(0)
+
+	// simulate blocking events
+	blockFrequentShort(rate)
+	blockInfrequentLong(rate)
+
+	var w bytes.Buffer
+	Lookup("block").WriteTo(&w, 0)
+	p, err := profile.Parse(&w)
+	if err != nil {
+		t.Fatalf("failed to parse profile: %v", err)
+	}
+	t.Logf("parsed proto: %s", p)
+
+	il := float64(-1) // blockInfrequentLong duration
+	fs := float64(-1) // blockFrequentShort duration
+	for _, s := range p.Sample {
+		for _, l := range s.Location {
+			for _, line := range l.Line {
+				if len(s.Value) < 2 {
+					t.Fatal("block profile has less than 2 sample types")
+				}
+
+				if line.Function.Name == "runtime/pprof.blockInfrequentLong" {
+					il = float64(s.Value[1])
+				} else if line.Function.Name == "runtime/pprof.blockFrequentShort" {
+					fs = float64(s.Value[1])
+				}
+			}
+		}
+	}
+	if il == -1 || fs == -1 {
+		t.Fatal("block profile is missing expected functions")
+	}
+
+	// stddev of bias from 100 runs on local machine multiplied by 10x
+	const threshold = 0.2
+	if bias := (il - fs) / il; math.Abs(bias) > threshold {
+		t.Fatalf("bias: abs(%f) > %f", bias, threshold)
+	} else {
+		t.Logf("bias: abs(%f) < %f", bias, threshold)
+	}
+}
+
+// blockFrequentShort produces 100000 block events with an average duration of
+// rate / 10.
+func blockFrequentShort(rate int) {
+	for i := 0; i < 100000; i++ {
+		blockevent(int64(rate/10), 1)
+	}
+}
+
+// blockFrequentShort produces 10000 block events with an average duration of
+// rate.
+func blockInfrequentLong(rate int) {
+	for i := 0; i < 10000; i++ {
+		blockevent(int64(rate), 1)
+	}
+}
+
+// Used by TestBlockProfileBias.
+//go:linkname blockevent runtime.blockevent
+func blockevent(cycles int64, skip int)
 
 func TestMutexProfile(t *testing.T) {
 	// Generate mutex profile

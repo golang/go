@@ -133,7 +133,7 @@ func (a *memRecordCycle) add(b *memRecordCycle) {
 // A blockRecord is the bucket data for a bucket of type blockProfile,
 // which is used in blocking and mutex profiles.
 type blockRecord struct {
-	count  int64
+	count  float64
 	cycles int64
 }
 
@@ -398,20 +398,23 @@ func blockevent(cycles int64, skip int) {
 	if cycles <= 0 {
 		cycles = 1
 	}
-	if blocksampled(cycles) {
-		saveblockevent(cycles, skip+1, blockProfile)
+
+	rate := int64(atomic.Load64(&blockprofilerate))
+	if blocksampled(cycles, rate) {
+		saveblockevent(cycles, rate, skip+1, blockProfile)
 	}
 }
 
-func blocksampled(cycles int64) bool {
-	rate := int64(atomic.Load64(&blockprofilerate))
+// blocksampled returns true for all events where cycles >= rate. Shorter
+// events have a cycles/rate random chance of returning true.
+func blocksampled(cycles, rate int64) bool {
 	if rate <= 0 || (rate > cycles && int64(fastrand())%rate > cycles) {
 		return false
 	}
 	return true
 }
 
-func saveblockevent(cycles int64, skip int, which bucketType) {
+func saveblockevent(cycles, rate int64, skip int, which bucketType) {
 	gp := getg()
 	var nstk int
 	var stk [maxStack]uintptr
@@ -422,8 +425,15 @@ func saveblockevent(cycles int64, skip int, which bucketType) {
 	}
 	lock(&proflock)
 	b := stkbucket(which, 0, stk[:nstk], true)
-	b.bp().count++
-	b.bp().cycles += cycles
+
+	if which == blockProfile && cycles < rate {
+		// Remove sampling bias, see discussion on http://golang.org/cl/299991.
+		b.bp().count += float64(rate) / float64(cycles)
+		b.bp().cycles += rate
+	} else {
+		b.bp().count++
+		b.bp().cycles += cycles
+	}
 	unlock(&proflock)
 }
 
@@ -454,7 +464,7 @@ func mutexevent(cycles int64, skip int) {
 	// TODO(pjw): measure impact of always calling fastrand vs using something
 	// like malloc.go:nextSample()
 	if rate > 0 && int64(fastrand())%rate == 0 {
-		saveblockevent(cycles, skip+1, mutexProfile)
+		saveblockevent(cycles, rate, skip+1, mutexProfile)
 	}
 }
 
@@ -656,7 +666,12 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 		for b := bbuckets; b != nil; b = b.allnext {
 			bp := b.bp()
 			r := &p[0]
-			r.Count = bp.count
+			r.Count = int64(bp.count)
+			// Prevent callers from having to worry about division by zero errors.
+			// See discussion on http://golang.org/cl/299991.
+			if r.Count == 0 {
+				r.Count = 1
+			}
 			r.Cycles = bp.cycles
 			if raceenabled {
 				racewriterangepc(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0), getcallerpc(), funcPC(BlockProfile))
