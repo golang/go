@@ -8,8 +8,8 @@
 // Morever, this file will be used during the building of
 // gccgo's libgo and thus must not used a CGo method.
 
-// +build aix
-// +build gccgo
+//go:build aix && gccgo
+// +build aix,gccgo
 
 package cpu
 

@@ -595,14 +595,18 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 		}
 
 		if a.Extend == lsl {
+			// Refer to ARM reference manual, for byte load/store(register), the index
+			// shift amount must be 0, encoded in "S" as 0 if omitted, or as 1 if present.
 			// a.Amount indicates the index shift amount, encoded in "S" field.
-			// a.ShiftMustBeZero is set true when the index shift amount must be 0,
-			// even if the a.Amount field is not 0.
-			// When a.ShiftMustBeZero is ture, GNU syntax prints #0 shift amount if
-			// "S" equals to 1, or does not print #0 shift amount if "S" equals to 0.
-			// Go syntax should never print a zero index shift amount.
+			// a.ShiftMustBeZero is set true indicates the index shift amount must be 0.
+			// When a.ShiftMustBeZero is true, GNU syntax prints "[Xn, Xm lsl #0]" if "S"
+			// equals to 1, or prints "[Xn, Xm]" if "S" equals to 0.
 			if a.Amount != 0 && !a.ShiftMustBeZero {
 				index = fmt.Sprintf("(%s<<%d)", indexreg, a.Amount)
+			} else if a.ShiftMustBeZero && a.Amount == 1 {
+				// When a.ShiftMustBeZero is ture, Go syntax prints "(Rm<<0)" if "a.Amount"
+				// equals to 1.
+				index = fmt.Sprintf("(%s<<0)", indexreg)
 			} else {
 				index = fmt.Sprintf("(%s)", indexreg)
 			}

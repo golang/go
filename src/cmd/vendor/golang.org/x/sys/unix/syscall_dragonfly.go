@@ -105,13 +105,16 @@ func Pipe(p []int) (err error) {
 	return
 }
 
-//sysnb	pipe2(flags int) (r int, w int, err error)
+//sysnb	pipe2(p *[2]_C_int, flags int) (r int, w int, err error)
 
 func Pipe2(p []int, flags int) (err error) {
 	if len(p) != 2 {
 		return EINVAL
 	}
-	p[0], p[1], err = pipe2(flags)
+	var pp [2]_C_int
+	// pipe2 on dragonfly takes an fds array as an argument, but still
+	// returns the file descriptors.
+	p[0], p[1], err = pipe2(&pp, flags)
 	return err
 }
 
