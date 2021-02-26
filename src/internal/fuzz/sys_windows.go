@@ -9,8 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
-	"strconv"
-	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -19,7 +17,13 @@ type sharedMemSys struct {
 	mapObj syscall.Handle
 }
 
-func sharedMemMapFile(f *os.File, size int, removeOnClose bool) (*sharedMem, error) {
+func sharedMemMapFile(f *os.File, size int, removeOnClose bool) (mem *sharedMem, err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("mapping temporary file %s: %w", f.Name(), err)
+		}
+	}()
+
 	// Create a file mapping object. The object itself is not shared.
 	mapObj, err := syscall.CreateFileMapping(
 		syscall.Handle(f.Fd()), // fhandle
@@ -86,12 +90,11 @@ func (m *sharedMem) Close() error {
 // run a worker process.
 func setWorkerComm(cmd *exec.Cmd, comm workerComm) {
 	mem := <-comm.memMu
-	memFD := mem.f.Fd()
+	memName := mem.f.Name()
 	comm.memMu <- mem
 	syscall.SetHandleInformation(syscall.Handle(comm.fuzzIn.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
 	syscall.SetHandleInformation(syscall.Handle(comm.fuzzOut.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
-	syscall.SetHandleInformation(syscall.Handle(memFD), syscall.HANDLE_FLAG_INHERIT, 1)
-	cmd.Env = append(cmd.Env, fmt.Sprintf("GO_TEST_FUZZ_WORKER_HANDLES=%x,%x,%x", comm.fuzzIn.Fd(), comm.fuzzOut.Fd(), memFD))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GO_TEST_FUZZ_WORKER_HANDLES=%x,%x,%q", comm.fuzzIn.Fd(), comm.fuzzOut.Fd(), memName))
 }
 
 // getWorkerComm returns communication channels in the worker process.
@@ -100,27 +103,21 @@ func getWorkerComm() (comm workerComm, err error) {
 	if v == "" {
 		return workerComm{}, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES not set")
 	}
-	parts := strings.Split(v, ",")
-	if len(parts) != 3 {
-		return workerComm{}, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES has invalid value")
-	}
-	base := 16
-	bitSize := 64
-	handles := make([]syscall.Handle, len(parts))
-	for i, s := range parts {
-		h, err := strconv.ParseInt(s, base, bitSize)
-		if err != nil {
-			return workerComm{}, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES has invalid value: %v", err)
-		}
-		handles[i] = syscall.Handle(h)
+	var fuzzInFD, fuzzOutFD uintptr
+	var memName string
+	if _, err := fmt.Sscanf(v, "%x,%x,%q", &fuzzInFD, &fuzzOutFD, &memName); err != nil {
+		return workerComm{}, fmt.Errorf("parsing GO_TEST_FUZZ_WORKER_HANDLES=%s: %v", v, err)
 	}
 
-	fuzzIn := os.NewFile(uintptr(handles[0]), "fuzz_in")
-	fuzzOut := os.NewFile(uintptr(handles[1]), "fuzz_out")
-	tmpFile := os.NewFile(uintptr(handles[2]), "fuzz_mem")
+	fuzzIn := os.NewFile(fuzzInFD, "fuzz_in")
+	fuzzOut := os.NewFile(fuzzOutFD, "fuzz_out")
+	tmpFile, err := os.OpenFile(memName, os.O_RDWR, 0)
+	if err != nil {
+		return workerComm{}, fmt.Errorf("worker opening temp file: %w", err)
+	}
 	fi, err := tmpFile.Stat()
 	if err != nil {
-		return workerComm{}, err
+		return workerComm{}, fmt.Errorf("worker checking temp file size: %w", err)
 	}
 	size := int(fi.Size())
 	if int64(size) != fi.Size() {

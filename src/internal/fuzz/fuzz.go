@@ -96,7 +96,7 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
 			dir:         dir,
 			binPath:     binPath,
 			args:        args,
-			env:         env,
+			env:         env[:len(env):len(env)], // copy on append to ensure workers don't overwrite each other.
 			coordinator: c,
 			memMu:       memMu,
 		}, nil
