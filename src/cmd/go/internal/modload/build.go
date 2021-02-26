@@ -113,7 +113,11 @@ func addVersions(ctx context.Context, m *modinfo.ModulePublic, listRetracted boo
 	if listRetracted {
 		allowed = CheckExclusions
 	}
-	m.Versions, _ = versions(ctx, m.Path, allowed)
+	var err error
+	m.Versions, err = versions(ctx, m.Path, allowed)
+	if err != nil && m.Error == nil {
+		m.Error = &modinfo.ModuleError{Err: err.Error()}
+	}
 }
 
 // addRetraction fills in m.Retracted if the module was retracted by its author.
