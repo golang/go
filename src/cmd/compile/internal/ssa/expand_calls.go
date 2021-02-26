@@ -248,7 +248,7 @@ func (x *expandState) splitSlots(ls []LocalSlot, sfx string, offset int64, ty *t
 }
 
 // prAssignForArg returns the ABIParamAssignment for v, assumed to be an OpArg.
-func (x *expandState) prAssignForArg(v *Value) abi.ABIParamAssignment {
+func (x *expandState) prAssignForArg(v *Value) *abi.ABIParamAssignment {
 	if v.Op != OpArg {
 		panic(badVal("Wanted OpArg, instead saw", v))
 	}
@@ -256,13 +256,12 @@ func (x *expandState) prAssignForArg(v *Value) abi.ABIParamAssignment {
 }
 
 // ParamAssignmentForArgName returns the ABIParamAssignment for f's arg with matching name.
-func ParamAssignmentForArgName(f *Func, name *ir.Name) abi.ABIParamAssignment {
+func ParamAssignmentForArgName(f *Func, name *ir.Name) *abi.ABIParamAssignment {
 	abiInfo := f.OwnAux.abiInfo
-	// This is unfortunate, but apparently the only way.
-	// TODO after register args stabilize, find a better way
-	for _, a := range abiInfo.InParams() {
+	ip := abiInfo.InParams()
+	for i, a := range ip {
 		if a.Name == name {
-			return a
+			return &ip[i]
 		}
 	}
 	panic(fmt.Errorf("Did not match param %v in prInfo %+v", name, abiInfo.InParams()))
@@ -646,6 +645,7 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
 		fmt.Printf("\tstoreArgOrLoad(%s;  %s;  %s; %d; %s)\n", source.LongString(), mem.String(), t.String(), offset, storeRc.String())
 	}
 
+	// Start with Opcodes that can be disassembled
 	switch source.Op {
 	case OpCopy:
 		return x.storeArgOrLoad(pos, b, source.Args[0], mem, t, offset, loadRegOffset, storeRc)
@@ -1025,14 +1025,9 @@ func expandCalls(f *Func) {
 						t = tSrc
 					}
 				}
-				if iAEATt {
-					if x.debug {
-						fmt.Printf("Splitting store %s\n", v.LongString())
-					}
-					dst, mem := v.Args[0], v.Args[2]
-					mem = x.storeArgOrLoad(v.Pos, b, source, mem, t, 0, 0, registerCursor{storeDest: dst})
-					v.copyOf(mem)
-				}
+				dst, mem := v.Args[0], v.Args[2]
+				mem = x.storeArgOrLoad(v.Pos, b, source, mem, t, 0, 0, registerCursor{storeDest: dst})
+				v.copyOf(mem)
 			}
 		}
 	}
@@ -1322,14 +1317,12 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 	}
 
 	pa := x.prAssignForArg(baseArg)
-	switch len(pa.Registers) {
-	case 0:
+	if len(pa.Registers) == 0 { // Arg is on stack
 		frameOff := baseArg.Aux.(*ir.Name).FrameOffset()
 		if pa.Offset() != int32(frameOff+x.f.ABISelf.LocalsOffset()) {
 			panic(fmt.Errorf("Parameter assignment %d and OpArg.Aux frameOffset %d disagree, op=%s",
 				pa.Offset(), frameOff, baseArg.LongString()))
 		}
-
 		aux := baseArg.Aux
 		auxInt := baseArg.AuxInt + offset
 		if toReplace != nil && toReplace.Block == baseArg.Block {
@@ -1350,35 +1343,34 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 			}
 			return w
 		}
-
-	default:
-		r := pa.Registers[regOffset]
-		auxInt := x.f.ABISelf.FloatIndexFor(r)
-		op := OpArgFloatReg
-		// TODO seems like this has implications for debugging. How does this affect the location?
-		if auxInt < 0 { // int (not float) parameter register
-			op = OpArgIntReg
-			auxInt = int64(r)
+	}
+	// Arg is in registers
+	r := pa.Registers[regOffset]
+	auxInt := x.f.ABISelf.FloatIndexFor(r)
+	op := OpArgFloatReg
+	// TODO seems like this has implications for debugging. How does this affect the location?
+	if auxInt < 0 { // int (not float) parameter register
+		op = OpArgIntReg
+		auxInt = int64(r)
+	}
+	aux := &AuxNameOffset{baseArg.Aux.(*ir.Name), baseArg.AuxInt + offset}
+	if toReplace != nil && toReplace.Block == baseArg.Block {
+		toReplace.reset(op)
+		toReplace.Aux = aux
+		toReplace.AuxInt = auxInt
+		toReplace.Type = t
+		x.commonArgs[key] = toReplace
+		return toReplace
+	} else {
+		w := baseArg.Block.NewValue0IA(pos, op, t, auxInt, aux)
+		if x.debug {
+			fmt.Printf("\tnew %s\n", w.LongString())
 		}
-		aux := &AuxNameOffset{baseArg.Aux.(*ir.Name), baseArg.AuxInt + offset}
-		if toReplace != nil && toReplace.Block == baseArg.Block {
-			toReplace.reset(op)
-			toReplace.Aux = aux
-			toReplace.AuxInt = auxInt
-			toReplace.Type = t
-			x.commonArgs[key] = toReplace
-			return toReplace
-		} else {
-			w := baseArg.Block.NewValue0IA(pos, op, t, auxInt, aux)
-			if x.debug {
-				fmt.Printf("\tnew %s\n", w.LongString())
-			}
-			x.commonArgs[key] = w
-			if toReplace != nil {
-				toReplace.copyOf(w)
-			}
-			return w
+		x.commonArgs[key] = w
+		if toReplace != nil {
+			toReplace.copyOf(w)
 		}
+		return w
 	}
 }
 

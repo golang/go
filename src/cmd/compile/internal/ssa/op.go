@@ -133,7 +133,9 @@ func (a *AuxCall) Reg(i *regInfo, c *Config) *regInfo {
 	a.reg.clobbers = i.clobbers
 	return a.reg
 }
-
+func (a *AuxCall) ABI() *abi.ABIConfig {
+	return a.abiInfo.Config()
+}
 func (a *AuxCall) ResultReg(c *Config) *regInfo {
 	if a.abiInfo.OutRegistersUsed() == 0 {
 		return a.reg
@@ -160,6 +162,11 @@ func archRegForAbiReg(r abi.RegIndex, c *Config) uint8 {
 		m = c.floatParamRegs[int(r)-len(c.intParamRegs)]
 	}
 	return uint8(m)
+}
+
+// OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
+func (a *AuxCall) ParamAssignmentForResult(which int64) *abi.ABIParamAssignment {
+	return a.abiInfo.OutParam(int(which))
 }
 
 // OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
