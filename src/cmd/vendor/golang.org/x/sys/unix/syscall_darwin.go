@@ -382,7 +382,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 // The usual level and opt are SOL_LOCAL and LOCAL_PEERCRED, respectively.
 func GetsockoptXucred(fd, level, opt int) (*Xucred, error) {
 	x := new(Xucred)
-	vallen := _Socklen(unsafe.Sizeof(Xucred{}))
+	vallen := _Socklen(SizeofXucred)
 	err := getsockopt(fd, level, opt, unsafe.Pointer(x), &vallen)
 	return x, err
 }

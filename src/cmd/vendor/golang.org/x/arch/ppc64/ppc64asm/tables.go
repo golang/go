@@ -2794,6 +2794,7 @@ var (
 	ap_FPReg_16_20             = &argField{Type: TypeFPReg, Shift: 0, BitFields: BitFields{{16, 5}}}
 	ap_FPReg_11_15             = &argField{Type: TypeFPReg, Shift: 0, BitFields: BitFields{{11, 5}}}
 	ap_FPReg_21_25             = &argField{Type: TypeFPReg, Shift: 0, BitFields: BitFields{{21, 5}}}
+	ap_ImmUnsigned_6_8         = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{6, 3}}}
 	ap_ImmUnsigned_16_19       = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{16, 4}}}
 	ap_ImmUnsigned_15_15       = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{15, 1}}}
 	ap_ImmUnsigned_7_14        = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{7, 8}}}
@@ -3653,21 +3654,21 @@ var instFormats = [...]instFormat{
 	{MCRFS, 0xfc0007fe, 0xfc000080, 0x63f801, // Move to Condition Register from FPSCR X-form (mcrfs BF,BFA)
 		[5]*argField{ap_CondRegField_6_8, ap_CondRegField_11_13}},
 	{MTFSFI, 0xfc0007ff, 0xfc00010c, 0x7e0800, // Move To FPSCR Field Immediate X-form (mtfsfi BF,U,W)
-		[5]*argField{ap_CondRegField_6_8, ap_ImmUnsigned_16_19, ap_ImmUnsigned_15_15}},
+		[5]*argField{ap_ImmUnsigned_6_8, ap_ImmUnsigned_16_19, ap_ImmUnsigned_15_15}},
 	{MTFSFICC, 0xfc0007ff, 0xfc00010d, 0x7e0800, // Move To FPSCR Field Immediate X-form (mtfsfi. BF,U,W)
-		[5]*argField{ap_CondRegField_6_8, ap_ImmUnsigned_16_19, ap_ImmUnsigned_15_15}},
+		[5]*argField{ap_ImmUnsigned_6_8, ap_ImmUnsigned_16_19, ap_ImmUnsigned_15_15}},
 	{MTFSF, 0xfc0007ff, 0xfc00058e, 0x0, // Move To FPSCR Fields XFL-form (mtfsf FLM,FRB,L,W)
 		[5]*argField{ap_ImmUnsigned_7_14, ap_FPReg_16_20, ap_ImmUnsigned_6_6, ap_ImmUnsigned_15_15}},
 	{MTFSFCC, 0xfc0007ff, 0xfc00058f, 0x0, // Move To FPSCR Fields XFL-form (mtfsf. FLM,FRB,L,W)
 		[5]*argField{ap_ImmUnsigned_7_14, ap_FPReg_16_20, ap_ImmUnsigned_6_6, ap_ImmUnsigned_15_15}},
 	{MTFSB0, 0xfc0007ff, 0xfc00008c, 0x1ff800, // Move To FPSCR Bit 0 X-form (mtfsb0 BT)
-		[5]*argField{ap_CondRegBit_6_10}},
+		[5]*argField{ap_ImmUnsigned_6_10}},
 	{MTFSB0CC, 0xfc0007ff, 0xfc00008d, 0x1ff800, // Move To FPSCR Bit 0 X-form (mtfsb0. BT)
-		[5]*argField{ap_CondRegBit_6_10}},
+		[5]*argField{ap_ImmUnsigned_6_10}},
 	{MTFSB1, 0xfc0007ff, 0xfc00004c, 0x1ff800, // Move To FPSCR Bit 1 X-form (mtfsb1 BT)
-		[5]*argField{ap_CondRegBit_6_10}},
+		[5]*argField{ap_ImmUnsigned_6_10}},
 	{MTFSB1CC, 0xfc0007ff, 0xfc00004d, 0x1ff800, // Move To FPSCR Bit 1 X-form (mtfsb1. BT)
-		[5]*argField{ap_CondRegBit_6_10}},
+		[5]*argField{ap_ImmUnsigned_6_10}},
 	{LVEBX, 0xfc0007fe, 0x7c00000e, 0x1, // Load Vector Element Byte Indexed X-form (lvebx VRT,RA,RB)
 		[5]*argField{ap_VecReg_6_10, ap_Reg_11_15, ap_Reg_16_20}},
 	{LVEHX, 0xfc0007fe, 0x7c00004e, 0x1, // Load Vector Element Halfword Indexed X-form (lvehx VRT,RA,RB)

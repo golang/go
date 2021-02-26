@@ -25,12 +25,11 @@ func AddSourceTemplates(t *template.Template) {
 }
 
 const weblistPageCSS = `<style type="text/css">
-body {
+body #content{
 font-family: sans-serif;
 }
 h1 {
   font-size: 1.5em;
-  margin-bottom: 4px;
 }
 .legend {
   font-size: 1.25em;
