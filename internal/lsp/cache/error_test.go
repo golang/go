@@ -28,7 +28,7 @@ func TestParseErrorMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			spn := parseGoListError(tt.in)
+			spn := parseGoListError(tt.in, ".")
 			fn := spn.URI().Filename()
 
 			if !strings.HasSuffix(fn, tt.expectedFileName) {

@@ -383,7 +383,7 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 		// Try to attach error messages to the file as much as possible.
 		var found bool
 		for _, e := range m.errors {
-			srcDiags, err := sourceDiagnostics(ctx, snapshot, pkg, protocol.SeverityError, e)
+			srcDiags, err := goPackagesErrorDiagnostics(ctx, snapshot, pkg, e)
 			if err != nil {
 				continue
 			}
@@ -445,7 +445,7 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 	if len(m.errors) != 0 {
 		pkg.hasListOrParseErrors = true
 		for _, e := range m.errors {
-			diags, err := sourceDiagnostics(ctx, snapshot, pkg, protocol.SeverityError, e)
+			diags, err := goPackagesErrorDiagnostics(ctx, snapshot, pkg, e)
 			if err != nil {
 				event.Error(ctx, "unable to compute positions for list errors", err, tag.Package.Of(pkg.ID()))
 				continue
@@ -457,7 +457,7 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 	if len(parseErrors) != 0 {
 		pkg.hasListOrParseErrors = true
 		for _, e := range parseErrors {
-			diags, err := sourceDiagnostics(ctx, snapshot, pkg, protocol.SeverityError, e)
+			diags, err := parseErrorDiagnostics(ctx, snapshot, pkg, e)
 			if err != nil {
 				event.Error(ctx, "unable to compute positions for parse errors", err, tag.Package.Of(pkg.ID()))
 				continue
@@ -472,7 +472,7 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 
 	for _, e := range expandErrors(typeErrors) {
 		pkg.hasTypeErrors = true
-		diags, err := sourceDiagnostics(ctx, snapshot, pkg, protocol.SeverityError, e)
+		diags, err := typeErrorDiagnostics(ctx, snapshot, pkg, e)
 		if err != nil {
 			event.Error(ctx, "unable to compute positions for type errors", err, tag.Package.Of(pkg.ID()))
 			continue
