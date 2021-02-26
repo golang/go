@@ -2909,7 +2909,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 			addr := s.constOffPtrSP(types.NewPtr(n.Type()), n.Offset)
 			return s.rawLoad(n.Type(), addr)
 		}
-		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffset(n.Offset)
+		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffsetAndType(n.Offset, n.Type())
 		if which == -1 {
 			// Do the old thing // TODO: Panic instead.
 			addr := s.constOffPtrSP(types.NewPtr(n.Type()), n.Offset)
@@ -5119,7 +5119,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 		if s.prevCall == nil || s.prevCall.Op != ssa.OpStaticLECall && s.prevCall.Op != ssa.OpInterLECall && s.prevCall.Op != ssa.OpClosureLECall {
 			return s.constOffPtrSP(t, n.Offset)
 		}
-		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffset(n.Offset)
+		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffsetAndType(n.Offset, n.Type())
 		if which == -1 {
 			// Do the old thing // TODO: Panic instead.
 			return s.constOffPtrSP(t, n.Offset)

@@ -86,12 +86,15 @@ type AuxCall struct {
 	abiInfo *abi.ABIParamResultInfo // TODO remove fields above redundant with this information.
 }
 
-// ResultForOffset returns the index of the result at a particular offset among the results
+// ResultForOffsetAndType returns the index of a t-typed result at *A* particular offset among the results.
+// An arbitrary number of zero-width-typed results may reside at the same offset with a single not-zero-width
+// typed result, but the ones with the same type are all indistinguishable so it doesn't matter "which one"
+// is obtained.
 // This does not include the mem result for the call opcode.
-func (a *AuxCall) ResultForOffset(offset int64) int64 {
+func (a *AuxCall) ResultForOffsetAndType(offset int64, t *types.Type) int64 {
 	which := int64(-1)
 	for i := int64(0); i < a.NResults(); i++ { // note aux NResults does not include mem result.
-		if a.OffsetOfResult(i) == offset {
+		if a.OffsetOfResult(i) == offset && a.TypeOfResult(i) == t {
 			which = i
 			break
 		}
