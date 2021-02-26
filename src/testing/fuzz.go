@@ -34,6 +34,11 @@ var (
 	corpusDir = "testdata/corpus"
 )
 
+// fuzzWorkerExitCode is used as an exit code by fuzz worker processes after an internal error.
+// This distinguishes internal errors from uncontrolled panics and other crashes.
+// Keep in sync with internal/fuzz.workerExitCode.
+const fuzzWorkerExitCode = 70
+
 // InternalFuzzTarget is an internal type but exported because it is cross-package;
 // it is part of the implementation of the "go test" command.
 type InternalFuzzTarget struct {
@@ -256,6 +261,9 @@ func (f *F) Fuzz(ff interface{}) {
 		panic("testing: F.Fuzz called more than once")
 	}
 	f.fuzzCalled = true
+	if f.failed {
+		return
+	}
 	f.Helper()
 
 	// ff should be in the form func(*testing.T, ...interface{})
@@ -362,9 +370,9 @@ func (f *F) Fuzz(ff interface{}) {
 		// Fuzzing is enabled, and this is a worker process. Follow instructions
 		// from the coordinator.
 		if err := f.fuzzContext.runFuzzWorker(run); err != nil {
-			// TODO(jayconrod,katiehockman): how should we handle a failure to
-			// communicate with the coordinator? Might be caused by the coordinator
-			// terminating early.
+			// Internal errors are marked with f.Fail; user code may call this too, before F.Fuzz.
+			// The worker will exit with fuzzWorkerExitCode, indicating this is a failure
+			// (and 'go test' should exit non-zero) but a crasher should not be recorded.
 			f.Errorf("communicating with fuzzing coordinator: %v", err)
 		}
 

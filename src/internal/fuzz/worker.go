@@ -26,6 +26,11 @@ const (
 	// workerTimeoutDuration is the amount of time a worker can go without
 	// responding to the coordinator before being stopped.
 	workerTimeoutDuration = 1 * time.Second
+
+	// workerExitCode is used as an exit code by fuzz worker processes after an internal error.
+	// This distinguishes internal errors from uncontrolled panics and other crashes.
+	// Keep in sync with internal/fuzz.workerExitCode.
+	workerExitCode = 70
 )
 
 // worker manages a worker process running a test binary. The worker object
@@ -72,8 +77,29 @@ func (w *worker) runFuzzing() error {
 		return err
 	}
 
-	inputC := w.coordinator.inputC // set to nil when processing input
-	fuzzC := make(chan struct{})   // sent when we finish processing an input.
+	// inputC is set to w.coordinator.inputC when the worker is able to process
+	// input. It's nil at other times, so its case won't be selected in the
+	// event loop below.
+	var inputC chan CorpusEntry
+
+	// A value is sent to fuzzC to tell the worker to prepare to process an input
+	// by setting inputC.
+	fuzzC := make(chan struct{}, 1)
+
+	// Send the worker a message to make sure it can respond.
+	// Errors that occur before we get a response likely indicate that
+	// the worker did not call F.Fuzz or called F.Fail first.
+	// We don't record crashers for these errors.
+	pinged := false
+	go func() {
+		err := w.client.ping()
+		if err != nil {
+			w.stop() // trigger termC case below
+			return
+		}
+		pinged = true
+		fuzzC <- struct{}{}
+	}()
 
 	// Main event loop.
 	for {
@@ -91,15 +117,20 @@ func (w *worker) runFuzzing() error {
 
 		case <-w.termC:
 			// Worker process terminated unexpectedly.
+			if !pinged {
+				w.stop()
+				return fmt.Errorf("worker terminated without fuzzing")
+				// TODO(jayconrod,katiehockman): record and return stderr.
+			}
 			if isInterruptError(w.waitErr) {
 				// Worker interrupted by SIGINT. See comment in doneC case.
 				w.stop()
 				return nil
 			}
-			if w.waitErr == nil {
-				// Worker exited 0.
+			if exitErr, ok := w.waitErr.(*exec.ExitError); ok && exitErr.ExitCode() == workerExitCode {
 				w.stop()
-				return fmt.Errorf("worker exited unexpectedly with status 0")
+				return fmt.Errorf("worker exited unexpectedly due to an internal failure")
+				// TODO(jayconrod,katiehockman): record and return stderr.
 			}
 
 			// Unexpected termination. Inform the coordinator about the crash.
@@ -342,6 +373,7 @@ func RunFuzzWorker(ctx context.Context, fn func(CorpusEntry) error) error {
 // a minimalist RPC mechanism. Exactly one of its fields must be set to indicate
 // which method to call.
 type call struct {
+	Ping *pingArgs
 	Fuzz *fuzzArgs
 }
 
@@ -365,6 +397,12 @@ type fuzzResponse struct {
 	// crash can occur without any output (e.g. with t.Fail()).
 	Err string
 }
+
+// pingArgs contains arguments to workerServer.ping.
+type pingArgs struct{}
+
+// pingResponse contains results from workerServer.ping.
+type pingResponse struct{}
 
 // workerComm holds pipes and shared memory used for communication
 // between the coordinator process (client) and a worker process (server).
@@ -439,6 +477,8 @@ func (ws *workerServer) serve(ctx context.Context) error {
 		switch {
 		case c.Fuzz != nil:
 			resp = ws.fuzz(ctx, *c.Fuzz)
+		case c.Ping != nil:
+			resp = ws.ping(ctx, *c.Ping)
 		default:
 			return errors.New("no arguments provided for any call")
 		}
@@ -480,6 +520,12 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
 			// interesting value.
 		}
 	}
+}
+
+// ping does nothing. The coordinator calls this method to ensure the worker
+// has called F.Fuzz and can communicate.
+func (ws *workerServer) ping(ctx context.Context, args pingArgs) pingResponse {
+	return pingResponse{}
 }
 
 // workerClient is a minimalist RPC client. The coordinator process uses a
@@ -559,4 +605,17 @@ func (wc *workerClient) fuzz(valueIn []byte, args fuzzArgs) (valueOut []byte, re
 	wc.memMu <- mem
 
 	return valueOut, resp, err
+}
+
+// ping tells the worker to call the ping method. See workerServer.ping.
+func (wc *workerClient) ping() error {
+	c := call{Ping: &pingArgs{}}
+	if err := wc.enc.Encode(c); err != nil {
+		return err
+	}
+	var resp pingResponse
+	if err := wc.dec.Decode(&resp); err != nil {
+		return err
+	}
+	return nil
 }
