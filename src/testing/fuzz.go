@@ -70,6 +70,7 @@ func (f *F) Cleanup(fn func()) {
 	if f.inFuzzFn {
 		panic("testing: f.Cleanup was called inside the f.Fuzz function")
 	}
+	f.common.Helper()
 	f.common.Cleanup(fn)
 }
 
@@ -78,6 +79,7 @@ func (f *F) Error(args ...interface{}) {
 	if f.inFuzzFn {
 		panic("testing: f.Error was called inside the f.Fuzz function")
 	}
+	f.common.Helper()
 	f.common.Error(args...)
 }
 
@@ -86,6 +88,7 @@ func (f *F) Errorf(format string, args ...interface{}) {
 	if f.inFuzzFn {
 		panic("testing: f.Errorf was called inside the f.Fuzz function")
 	}
+	f.common.Helper()
 	f.common.Errorf(format, args...)
 }
 
@@ -94,6 +97,7 @@ func (f *F) Fail() {
 	if f.inFuzzFn {
 		panic("testing: f.Fail was called inside the f.Fuzz function")
 	}
+	f.common.Helper()
 	f.common.Fail()
 }
 
@@ -109,6 +113,7 @@ func (f *F) FailNow() {
 	if f.inFuzzFn {
 		panic("testing: f.FailNow was called inside the f.Fuzz function")
 	}
+	f.common.Helper()
 	f.common.FailNow()
 }
 
@@ -117,6 +122,7 @@ func (f *F) Fatal(args ...interface{}) {
 	if f.inFuzzFn {
 		panic("testing: f.Fatal was called inside the f.Fuzz function")
 	}
+	f.common.Helper()
 	f.common.Fatal(args...)
 }
 
@@ -125,6 +131,7 @@ func (f *F) Fatalf(format string, args ...interface{}) {
 	if f.inFuzzFn {
 		panic("testing: f.Fatalf was called inside the f.Fuzz function")
 	}
+	f.common.Helper()
 	f.common.Fatalf(format, args...)
 }
 
@@ -135,7 +142,25 @@ func (f *F) Helper() {
 	if f.inFuzzFn {
 		panic("testing: f.Helper was called inside the f.Fuzz function")
 	}
-	f.common.Helper()
+
+	// common.Helper is inlined here.
+	// If we called it, it would mark F.Helper as the helper
+	// instead of the caller.
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.helperPCs == nil {
+		f.helperPCs = make(map[uintptr]struct{})
+	}
+	// repeating code from callerName here to save walking a stack frame
+	var pc [1]uintptr
+	n := runtime.Callers(2, pc[:]) // skip runtime.Callers + Helper
+	if n == 0 {
+		panic("testing: zero callers found")
+	}
+	if _, found := f.helperPCs[pc[0]]; !found {
+		f.helperPCs[pc[0]] = struct{}{}
+		f.helperNames = nil // map will be recreated next time it is needed
+	}
 }
 
 // Skip is equivalent to Log followed by SkipNow.
@@ -143,6 +168,7 @@ func (f *F) Skip(args ...interface{}) {
 	if f.inFuzzFn {
 		panic("testing: f.Skip was called inside the f.Fuzz function")
 	}
+	f.common.Helper()
 	f.common.Skip(args...)
 }
 
@@ -158,6 +184,7 @@ func (f *F) SkipNow() {
 	if f.inFuzzFn {
 		panic("testing: f.SkipNow was called inside the f.Fuzz function")
 	}
+	f.common.Helper()
 	f.common.SkipNow()
 }
 
@@ -166,6 +193,7 @@ func (f *F) Skipf(format string, args ...interface{}) {
 	if f.inFuzzFn {
 		panic("testing: f.Skipf was called inside the f.Fuzz function")
 	}
+	f.common.Helper()
 	f.common.Skipf(format, args...)
 }
 
@@ -178,6 +206,7 @@ func (f *F) TempDir() string {
 	if f.inFuzzFn {
 		panic("testing: f.TempDir was called inside the f.Fuzz function")
 	}
+	f.common.Helper()
 	return f.common.TempDir()
 }
 

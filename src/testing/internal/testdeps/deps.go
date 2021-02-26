@@ -166,7 +166,7 @@ func (TestDeps) RunFuzzWorker(fn func(fuzz.CorpusEntry) error) error {
 	if err == ctx.Err() {
 		return nil
 	}
-	return nil
+	return err
 }
 
 func (TestDeps) ReadCorpus(dir string, types []reflect.Type) ([]fuzz.CorpusEntry, error) {
