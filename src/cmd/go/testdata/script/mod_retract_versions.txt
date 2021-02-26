@@ -10,9 +10,8 @@ go list -m -e -f $FMT example.com/retract/self/pseudo@latest
 stdout '^example.com/retract/self/pseudo: "module example.com/retract/self/pseudo: no matching versions for query \\"latest\\"" "latest"$'
 
 
-	# BUG(#44296): Adding --versions should not cause a retracted version to be reported.
 go list -m -e -f $FMT --versions example.com/retract/self/pseudo
-stdout '^example.com/retract/self/pseudo "v1.9.0"$'
+stdout '^example.com/retract/self/pseudo ""$'
 
 go list -m -e -f $FMT --versions example.com/retract/self/pseudo@latest
 stdout '^example.com/retract/self/pseudo: "module example.com/retract/self/pseudo: no matching versions for query \\"latest\\"" "latest"$'
