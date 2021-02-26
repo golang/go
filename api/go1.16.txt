@@ -1,5 +1,6 @@
 pkg archive/zip, method (*ReadCloser) Open(string) (fs.File, error)
 pkg archive/zip, method (*Reader) Open(string) (fs.File, error)
+pkg crypto/boring, func Enabled() bool
 pkg crypto/x509, method (SystemRootsError) Unwrap() error
 pkg debug/elf, const DT_ADDRRNGHI = 1879047935
 pkg debug/elf, const DT_ADDRRNGHI DynTag
