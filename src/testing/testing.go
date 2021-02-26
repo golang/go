@@ -1464,7 +1464,11 @@ func (m *M) Run() (code int) {
 	}
 	if !*isFuzzWorker && !fuzzingOk {
 		fmt.Println("FAIL")
-		m.exitCode = 1
+		if *isFuzzWorker {
+			m.exitCode = fuzzWorkerExitCode
+		} else {
+			m.exitCode = 1
+		}
 		return
 	}
 
