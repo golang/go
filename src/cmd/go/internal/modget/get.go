@@ -369,7 +369,23 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// directory.
 	if !*getD && len(pkgPatterns) > 0 {
 		work.BuildInit()
-		pkgs := load.PackagesAndErrors(ctx, pkgPatterns)
+
+		var pkgs []*load.Package
+		for _, pkg := range load.PackagesAndErrors(ctx, pkgPatterns) {
+			if pkg.Error != nil {
+				var noGo *load.NoGoError
+				if errors.As(pkg.Error.Err, &noGo) {
+					if m := modload.PackageModule(pkg.ImportPath); m.Path == pkg.ImportPath {
+						// pkg is at the root of a module, and doesn't exist with the current
+						// build tags. Probably the user just wanted to change the version of
+						// that module — not also build the package — so suppress the error.
+						// (See https://golang.org/issue/33526.)
+						continue
+					}
+				}
+			}
+			pkgs = append(pkgs, pkg)
+		}
 		load.CheckPackageErrors(pkgs)
 		work.InstallPackages(ctx, pkgPatterns, pkgs)
 		// TODO(#40276): After Go 1.16, print a deprecation notice when building and
@@ -1453,6 +1469,7 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns 
 			LoadTests:                *getT,
 			ResolveMissingImports:    false,
 			AllowErrors:              true,
+			SilenceNoGoErrors:        true,
 		}
 		matches, pkgs := modload.LoadPackages(ctx, pkgOpts, pkgPatterns...)
 		for _, m := range matches {
@@ -1468,9 +1485,9 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns 
 					// associated with either the package or its test — ErrNoGo must
 					// indicate that none of those source files happen to apply in this
 					// configuration. If we are actually building the package (no -d
-					// flag), the compiler will report the problem; otherwise, assume that
-					// the user is going to build or test it in some other configuration
-					// and suppress the error.
+					// flag), we will report the problem then; otherwise, assume that the
+					// user is going to build or test this package in some other
+					// configuration and suppress the error.
 					continue
 				}
 

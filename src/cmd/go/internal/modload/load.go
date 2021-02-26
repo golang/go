@@ -181,6 +181,15 @@ type PackageOpts struct {
 	// future version).
 	SilenceMissingStdImports bool
 
+	// SilenceNoGoErrors indicates that LoadPackages should not print
+	// imports.ErrNoGo errors.
+	// This allows the caller to invoke LoadPackages (and report other errors)
+	// without knowing whether the requested packages exist for the given tags.
+	//
+	// Note that if a requested package does not exist *at all*, it will fail
+	// during module resolution and the error will not be suppressed.
+	SilenceNoGoErrors bool
+
 	// SilenceUnmatchedWarnings suppresses the warnings normally emitted for
 	// patterns that did not match any packages.
 	SilenceUnmatchedWarnings bool
@@ -290,6 +299,10 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 	// Report errors, if any.
 	checkMultiplePaths()
 	for _, pkg := range loaded.pkgs {
+		if !pkg.isTest() {
+			loadedPackages = append(loadedPackages, pkg.path)
+		}
+
 		if pkg.err != nil {
 			if sumErr := (*ImportMissingSumError)(nil); errors.As(pkg.err, &sumErr) {
 				if importer := pkg.stack; importer != nil {
@@ -298,22 +311,23 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 					sumErr.importerIsTest = importer.testOf != nil
 				}
 			}
-			silence := opts.SilenceErrors
+
+			if opts.SilenceErrors {
+				continue
+			}
 			if stdErr := (*ImportMissingError)(nil); errors.As(pkg.err, &stdErr) &&
 				stdErr.isStd && opts.SilenceMissingStdImports {
-				silence = true
+				continue
+			}
+			if opts.SilenceNoGoErrors && errors.Is(pkg.err, imports.ErrNoGo) {
+				continue
 			}
 
-			if !silence {
-				if opts.AllowErrors {
-					fmt.Fprintf(os.Stderr, "%s: %v\n", pkg.stackText(), pkg.err)
-				} else {
-					base.Errorf("%s: %v", pkg.stackText(), pkg.err)
-				}
+			if opts.AllowErrors {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", pkg.stackText(), pkg.err)
+			} else {
+				base.Errorf("%s: %v", pkg.stackText(), pkg.err)
 			}
-		}
-		if !pkg.isTest() {
-			loadedPackages = append(loadedPackages, pkg.path)
 		}
 	}
 	if !opts.SilenceErrors {
