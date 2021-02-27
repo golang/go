@@ -564,11 +564,27 @@
 (AtomicAdd32 ...) => (LoweredAtomicAdd32 ...)
 (AtomicAdd64 ...) => (LoweredAtomicAdd64 ...)
 
+// AtomicAnd8(ptr,val) => LoweredAtomicAnd32(ptr&^3, ^((uint8(val) ^ 0xff) << ((ptr & 3) * 8)))
+(AtomicAnd8 ptr val mem) =>
+	(LoweredAtomicAnd32 (ANDI <typ.Uintptr> [^3] ptr)
+		(NOT <typ.UInt32> (SLL <typ.UInt32> (XORI <typ.UInt32> [0xff] (ZeroExt8to32 val))
+			(SLLI <typ.UInt64> [3] (ANDI <typ.UInt64> [3] ptr)))) mem)
+
+(AtomicAnd32 ...) => (LoweredAtomicAnd32 ...)
+
 (AtomicCompareAndSwap32 ...) => (LoweredAtomicCas32 ...)
 (AtomicCompareAndSwap64 ...) => (LoweredAtomicCas64 ...)
 
 (AtomicExchange32 ...) => (LoweredAtomicExchange32 ...)
 (AtomicExchange64 ...) => (LoweredAtomicExchange64 ...)
+
+// AtomicOr8(ptr,val)  => LoweredAtomicOr32(ptr&^3, uint32(val)<<((ptr&3)*8))
+(AtomicOr8 ptr val mem) =>
+	(LoweredAtomicOr32 (ANDI <typ.Uintptr> [^3] ptr)
+		(SLL <typ.UInt32> (ZeroExt8to32 val)
+			(SLLI <typ.UInt64> [3] (ANDI <typ.UInt64> [3] ptr))) mem)
+
+(AtomicOr32  ...) => (LoweredAtomicOr32  ...)
 
 // Conditional branches
 (If cond yes no) => (BNEZ cond yes no)

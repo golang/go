@@ -510,6 +510,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p6 := s.Prog(obj.ANOP)
 		p2.To.SetTarget(p6)
 
+	case ssa.OpRISCV64LoweredAtomicAnd32, ssa.OpRISCV64LoweredAtomicOr32:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		p.RegTo2 = riscv.REG_ZERO
+
 	case ssa.OpRISCV64LoweredZero:
 		mov, sz := largestMove(v.AuxInt)
 

@@ -52,6 +52,11 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpAtomicAdd64:
 		v.Op = OpRISCV64LoweredAtomicAdd64
 		return true
+	case OpAtomicAnd32:
+		v.Op = OpRISCV64LoweredAtomicAnd32
+		return true
+	case OpAtomicAnd8:
+		return rewriteValueRISCV64_OpAtomicAnd8(v)
 	case OpAtomicCompareAndSwap32:
 		v.Op = OpRISCV64LoweredAtomicCas32
 		return true
@@ -76,6 +81,11 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpAtomicLoadPtr:
 		v.Op = OpRISCV64LoweredAtomicLoad64
 		return true
+	case OpAtomicOr32:
+		v.Op = OpRISCV64LoweredAtomicOr32
+		return true
+	case OpAtomicOr8:
+		return rewriteValueRISCV64_OpAtomicOr8(v)
 	case OpAtomicStore32:
 		v.Op = OpRISCV64LoweredAtomicStore32
 		return true
@@ -678,6 +688,71 @@ func rewriteValueRISCV64_OpAddr(v *Value) bool {
 		v.AuxInt = int32ToAuxInt(0)
 		v.Aux = symToAux(sym)
 		v.AddArg(base)
+		return true
+	}
+}
+func rewriteValueRISCV64_OpAtomicAnd8(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (AtomicAnd8 ptr val mem)
+	// result: (LoweredAtomicAnd32 (ANDI <typ.Uintptr> [^3] ptr) (NOT <typ.UInt32> (SLL <typ.UInt32> (XORI <typ.UInt32> [0xff] (ZeroExt8to32 val)) (SLLI <typ.UInt64> [3] (ANDI <typ.UInt64> [3] ptr)))) mem)
+	for {
+		ptr := v_0
+		val := v_1
+		mem := v_2
+		v.reset(OpRISCV64LoweredAtomicAnd32)
+		v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Uintptr)
+		v0.AuxInt = int64ToAuxInt(^3)
+		v0.AddArg(ptr)
+		v1 := b.NewValue0(v.Pos, OpRISCV64NOT, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpRISCV64SLL, typ.UInt32)
+		v3 := b.NewValue0(v.Pos, OpRISCV64XORI, typ.UInt32)
+		v3.AuxInt = int64ToAuxInt(0xff)
+		v4 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
+		v4.AddArg(val)
+		v3.AddArg(v4)
+		v5 := b.NewValue0(v.Pos, OpRISCV64SLLI, typ.UInt64)
+		v5.AuxInt = int64ToAuxInt(3)
+		v6 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.UInt64)
+		v6.AuxInt = int64ToAuxInt(3)
+		v6.AddArg(ptr)
+		v5.AddArg(v6)
+		v2.AddArg2(v3, v5)
+		v1.AddArg(v2)
+		v.AddArg3(v0, v1, mem)
+		return true
+	}
+}
+func rewriteValueRISCV64_OpAtomicOr8(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (AtomicOr8 ptr val mem)
+	// result: (LoweredAtomicOr32 (ANDI <typ.Uintptr> [^3] ptr) (SLL <typ.UInt32> (ZeroExt8to32 val) (SLLI <typ.UInt64> [3] (ANDI <typ.UInt64> [3] ptr))) mem)
+	for {
+		ptr := v_0
+		val := v_1
+		mem := v_2
+		v.reset(OpRISCV64LoweredAtomicOr32)
+		v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Uintptr)
+		v0.AuxInt = int64ToAuxInt(^3)
+		v0.AddArg(ptr)
+		v1 := b.NewValue0(v.Pos, OpRISCV64SLL, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
+		v2.AddArg(val)
+		v3 := b.NewValue0(v.Pos, OpRISCV64SLLI, typ.UInt64)
+		v3.AuxInt = int64ToAuxInt(3)
+		v4 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.UInt64)
+		v4.AuxInt = int64ToAuxInt(3)
+		v4.AddArg(ptr)
+		v3.AddArg(v4)
+		v1.AddArg2(v2, v3)
+		v.AddArg3(v0, v1, mem)
 		return true
 	}
 }
