@@ -20,12 +20,6 @@ type selKey struct {
 	typ           *types.Type
 }
 
-type offsetKey struct {
-	from   *Value
-	offset int64
-	pt     *types.Type
-}
-
 type Abi1RO uint8 // An offset within a parameter's slice of register indices, for abi1.
 
 func isBlockMultiValueExit(b *Block) bool {
@@ -194,8 +188,7 @@ type expandState struct {
 	sdom            SparseTree
 	commonSelectors map[selKey]*Value // used to de-dupe selectors
 	commonArgs      map[selKey]*Value // used to de-dupe OpArg/OpArgIntReg/OpArgFloatReg
-	offsets         map[offsetKey]*Value
-	memForCall      map[ID]*Value // For a call, need to know the unique selector that gets the mem.
+	memForCall      map[ID]*Value     // For a call, need to know the unique selector that gets the mem.
 }
 
 // intPairTypes returns the pair of 32-bit int types needed to encode a 64-bit integer type on a target
@@ -223,9 +216,16 @@ func (x *expandState) isAlreadyExpandedAggregateType(t *types.Type) bool {
 
 // offsetFrom creates an offset from a pointer, simplifying chained offsets and offsets from SP
 // TODO should also optimize offsets from SB?
-func (x *expandState) offsetFrom(from *Value, offset int64, pt *types.Type) *Value {
-	if offset == 0 && from.Type == pt { // this is not actually likely
-		return from
+func (x *expandState) offsetFrom(b *Block, from *Value, offset int64, pt *types.Type) *Value {
+	ft := from.Type
+	if offset == 0 {
+		if ft == pt {
+			return from
+		}
+		// This captures common, (apparently) safe cases.  The unsafe cases involve ft == uintptr
+		if (ft.IsPtr() || ft.IsUnsafePtr()) && pt.IsPtr() {
+			return from
+		}
 	}
 	// Simplify, canonicalize
 	for from.Op == OpOffPtr {
@@ -235,14 +235,7 @@ func (x *expandState) offsetFrom(from *Value, offset int64, pt *types.Type) *Val
 	if from == x.sp {
 		return x.f.ConstOffPtrSP(pt, offset, x.sp)
 	}
-	key := offsetKey{from, offset, pt}
-	v := x.offsets[key]
-	if v != nil {
-		return v
-	}
-	v = from.Block.NewValue1I(from.Pos.WithNotStmt(), OpOffPtr, pt, offset, from)
-	x.offsets[key] = v
-	return v
+	return b.NewValue1I(from.Pos.WithNotStmt(), OpOffPtr, pt, offset, from)
 }
 
 // splitSlots splits one "field" (specified by sfx, offset, and ty) out of the LocalSlots in ls and returns the new LocalSlots this generates.
@@ -426,7 +419,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 						leaf.copyOf(w)
 					}
 				} else {
-					off := x.offsetFrom(x.sp, offset+aux.OffsetOfResult(which), pt)
+					off := x.offsetFrom(x.f.Entry, x.sp, offset+aux.OffsetOfResult(which), pt)
 					if leaf.Block == call.Block {
 						leaf.reset(OpLoad)
 						leaf.SetArgs2(off, call)
@@ -531,7 +524,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 
 func (x *expandState) rewriteDereference(b *Block, base, a, mem *Value, offset, size int64, typ *types.Type, pos src.XPos) *Value {
 	source := a.Args[0]
-	dst := x.offsetFrom(base, offset, source.Type)
+	dst := x.offsetFrom(b, base, offset, source.Type)
 	if a.Uses == 1 && a.Block == b {
 		a.reset(OpMove)
 		a.Pos = pos
@@ -624,7 +617,7 @@ func storeOneArg(x *expandState, pos src.XPos, b *Block, source, mem *Value, t *
 
 // storeOneLoad creates a decomposed (one step) load that is then stored.
 func storeOneLoad(x *expandState, pos src.XPos, b *Block, source, mem *Value, t *types.Type, offArg, offStore int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
-	from := x.offsetFrom(source.Args[0], offArg, types.NewPtr(t))
+	from := x.offsetFrom(b, source.Args[0], offArg, types.NewPtr(t))
 	w := source.Block.NewValue2(source.Pos, OpLoad, t, from, mem)
 	return x.storeArgOrLoad(pos, b, w, mem, t, offStore, loadRegOffset, storeRc)
 }
@@ -826,7 +819,7 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
 	if storeRc.hasRegs() {
 		storeRc.addArg(source)
 	} else {
-		dst := x.offsetFrom(storeRc.storeDest, offset, types.NewPtr(t))
+		dst := x.offsetFrom(b, storeRc.storeDest, offset, types.NewPtr(t))
 		s = b.NewValue3A(pos, OpStore, types.TypeMem, t, dst, source, mem)
 	}
 	if x.debug {
@@ -904,7 +897,6 @@ func expandCalls(f *Func) {
 		namedSelects: make(map[*Value][]namedVal),
 		sdom:         f.Sdom(),
 		commonArgs:   make(map[selKey]*Value),
-		offsets:      make(map[offsetKey]*Value),
 		memForCall:   make(map[ID]*Value),
 	}
 
@@ -1098,7 +1090,7 @@ func expandCalls(f *Func) {
 				which := v.AuxInt
 				aux := call.Aux.(*AuxCall)
 				pt := v.Type
-				off := x.offsetFrom(x.sp, aux.OffsetOfResult(which), pt)
+				off := x.offsetFrom(x.f.Entry, x.sp, aux.OffsetOfResult(which), pt)
 				v.copyOf(off)
 			}
 		}
