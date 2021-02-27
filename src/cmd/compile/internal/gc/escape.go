@@ -1376,9 +1376,10 @@ func containsClosure(f, c *Node) bool {
 
 // leak records that parameter l leaks to sink.
 func (l *EscLocation) leakTo(sink *EscLocation, derefs int) {
-	// If sink is a result parameter and we can fit return bits
-	// into the escape analysis tag, then record a return leak.
-	if sink.isName(PPARAMOUT) && sink.curfn == l.curfn {
+	// If sink is a result parameter that doesn't escape (#44614)
+	// and we can fit return bits into the escape analysis tag,
+	// then record as a result leak.
+	if !sink.escapes && sink.isName(PPARAMOUT) && sink.curfn == l.curfn {
 		// TODO(mdempsky): Eliminate dependency on Vargen here.
 		ri := int(sink.n.Name.Vargen) - 1
 		if ri < numEscResults {
