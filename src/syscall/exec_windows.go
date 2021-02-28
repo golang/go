@@ -340,7 +340,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 		si.ShowWindow = SW_HIDE
 	}
 	if sys.ParentProcess != 0 {
-		err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, uintptr(unsafe.Pointer(&sys.ParentProcess)), unsafe.Sizeof(sys.ParentProcess), 0, nil)
+		err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, unsafe.Pointer(&sys.ParentProcess), unsafe.Sizeof(sys.ParentProcess), nil, nil)
 		if err != nil {
 			return 0, 0, err
 		}
@@ -351,7 +351,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 
 	fd = append(fd, sys.AdditionalInheritedHandles...)
 	// Do not accidentally inherit more than these handles.
-	err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_HANDLE_LIST, uintptr(unsafe.Pointer(&fd[0])), uintptr(len(fd))*unsafe.Sizeof(fd[0]), 0, nil)
+	err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&fd[0]), uintptr(len(fd))*unsafe.Sizeof(fd[0]), nil, nil)
 	if err != nil {
 		return 0, 0, err
 	}
