@@ -26,7 +26,7 @@ import (
 )
 
 var CmdGet = &base.Command{
-	UsageLine: "go get [-d] [-f] [-t] [-u] [-v] [-fix] [-insecure] [build flags] [packages]",
+	UsageLine: "go get [-d] [-f] [-t] [-u] [-v] [-fix] [build flags] [packages]",
 	Short:     "download and install packages and dependencies",
 	Long: `
 Get downloads the packages named by the import paths, along with their
@@ -42,13 +42,6 @@ of the original.
 
 The -fix flag instructs get to run the fix tool on the downloaded packages
 before resolving dependencies or building the code.
-
-The -insecure flag permits fetching from repositories and resolving
-custom domains using insecure schemes such as HTTP. Use with caution.
-This flag is deprecated and will be removed in a future version of go.
-The GOINSECURE environment variable should be used instead, since it
-provides control over which packages may be retrieved using an insecure
-scheme. See 'go help environment' for details.
 
 The -t flag instructs get to also download the packages required to build
 the tests for the specified packages.
@@ -115,7 +108,6 @@ var (
 func init() {
 	work.AddBuildFlags(CmdGet, work.OmitModFlag|work.OmitModCommonFlags)
 	CmdGet.Run = runGet // break init loop
-	CmdGet.Flag.BoolVar(&cfg.Insecure, "insecure", cfg.Insecure, "")
 }
 
 func runGet(ctx context.Context, cmd *base.Command, args []string) {
@@ -128,9 +120,6 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 
 	if *getF && !*getU {
 		base.Fatalf("go get: cannot use -f flag without -u")
-	}
-	if cfg.Insecure {
-		fmt.Fprintf(os.Stderr, "go get: -insecure flag is deprecated; see 'go help get' for details\n")
 	}
 
 	// Disable any prompting for passwords by Git.
@@ -435,7 +424,7 @@ func downloadPackage(p *load.Package) error {
 		return fmt.Errorf("%s: invalid import path: %v", p.ImportPath, err)
 	}
 	security := web.SecureOnly
-	if cfg.Insecure || module.MatchPrefixPatterns(cfg.GOINSECURE, importPrefix) {
+	if module.MatchPrefixPatterns(cfg.GOINSECURE, importPrefix) {
 		security = web.Insecure
 	}
 

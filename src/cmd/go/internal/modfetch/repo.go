@@ -267,7 +267,7 @@ var (
 func lookupDirect(path string) (Repo, error) {
 	security := web.SecureOnly
 
-	if allowInsecure(path) {
+	if module.MatchPrefixPatterns(cfg.GOINSECURE, path) {
 		security = web.Insecure
 	}
 	rr, err := vcs.RepoRootForImportPath(path, vcs.PreferMod, security)
@@ -312,7 +312,7 @@ func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
 	// version control system, we ignore meta tags about modules
 	// and use only direct source control entries (get.IgnoreMod).
 	security := web.SecureOnly
-	if allowInsecure(path) {
+	if module.MatchPrefixPatterns(cfg.GOINSECURE, path) {
 		security = web.Insecure
 	}
 	rr, err := vcs.RepoRootForImportPath(path, vcs.IgnoreMod, security)
