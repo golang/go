@@ -7,8 +7,11 @@ package syscall_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"testing"
+	"time"
+	"unsafe"
 )
 
 func TestWin32finddata(t *testing.T) {
@@ -73,5 +76,38 @@ func ExampleLoadLibrary() {
 func TestTOKEN_ALL_ACCESS(t *testing.T) {
 	if syscall.TOKEN_ALL_ACCESS != 0xF01FF {
 		t.Errorf("TOKEN_ALL_ACCESS = %x, want 0xF01FF", syscall.TOKEN_ALL_ACCESS)
+	}
+}
+
+func TestProcThreadAttributeListPointers(t *testing.T) {
+	list, err := syscall.NewProcThreadAttributeList(1)
+	if err != nil {
+		t.Errorf("unable to create ProcThreadAttributeList: %v", err)
+	}
+	done := make(chan struct{})
+	fds := make([]syscall.Handle, 20)
+	runtime.SetFinalizer(&fds[0], func(*syscall.Handle) {
+		close(done)
+	})
+	err = syscall.UpdateProcThreadAttribute(list, 0, syscall.PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&fds[0]), uintptr(len(fds))*unsafe.Sizeof(fds[0]), nil, nil)
+	if err != nil {
+		syscall.DeleteProcThreadAttributeList(list)
+		t.Errorf("unable to update ProcThreadAttributeList: %v", err)
+		return
+	}
+	runtime.GC()
+	runtime.GC()
+	select {
+	case <-done:
+		t.Error("ProcThreadAttributeList was garbage collected unexpectedly")
+	default:
+	}
+	syscall.DeleteProcThreadAttributeList(list)
+	runtime.GC()
+	runtime.GC()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Error("ProcThreadAttributeList was not garbage collected after a second")
 	}
 }

@@ -286,7 +286,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	CreateHardLink(filename *uint16, existingfilename *uint16, reserved uintptr) (err error) [failretval&0xff==0] = CreateHardLinkW
 //sys	initializeProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, attrcount uint32, flags uint32, size *uintptr) (err error) = InitializeProcThreadAttributeList
 //sys	deleteProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST) = DeleteProcThreadAttributeList
-//sys	updateProcThreadAttribute(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, flags uint32, attr uintptr, value uintptr, size uintptr, prevvalue uintptr, returnedsize *uintptr) (err error) = UpdateProcThreadAttribute
+//sys	updateProcThreadAttribute(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, flags uint32, attr uintptr, value unsafe.Pointer, size uintptr, prevvalue unsafe.Pointer, returnedsize *uintptr) (err error) = UpdateProcThreadAttribute
 
 // syscall interface implementation for other packages
 
@@ -1256,7 +1256,8 @@ func newProcThreadAttributeList(maxAttrCount uint32) (*_PROC_THREAD_ATTRIBUTE_LI
 		}
 		return nil, err
 	}
-	al := (*_PROC_THREAD_ATTRIBUTE_LIST)(unsafe.Pointer(&make([]byte, size)[0]))
+	// size is guaranteed to be ≥1 by initializeProcThreadAttributeList.
+	al := (*_PROC_THREAD_ATTRIBUTE_LIST)(unsafe.Pointer(&make([]unsafe.Pointer, (size+ptrSize-1)/ptrSize)[0]))
 	err = initializeProcThreadAttributeList(al, maxAttrCount, 0, &size)
 	if err != nil {
 		return nil, err
