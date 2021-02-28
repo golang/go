@@ -246,20 +246,8 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 	ctx, done := event.Start(ctx, "Server.diagnosePkg", tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
 	defer done()
 	includeAnalysis := alwaysAnalyze // only run analyses for packages with open files
-	var gcDetailsDir span.URI        // find the package's optimization details, if available
 	for _, pgf := range pkg.CompiledGoFiles() {
-		if snapshot.IsOpen(pgf.URI) {
-			includeAnalysis = true
-		}
-		if gcDetailsDir == "" {
-			dirURI := span.URIFromPath(filepath.Dir(pgf.URI.Filename()))
-			s.gcOptimizationDetailsMu.Lock()
-			_, ok := s.gcOptimizationDetails[dirURI]
-			s.gcOptimizationDetailsMu.Unlock()
-			if ok {
-				gcDetailsDir = dirURI
-			}
-		}
+		includeAnalysis = includeAnalysis || snapshot.IsOpen(pgf.URI)
 	}
 
 	typeCheckDiagnostics := source.GetTypeCheckDiagnostics(ctx, snapshot, pkg)
@@ -276,10 +264,14 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 			s.storeDiagnostics(snapshot, uri, analysisSource, diags)
 		}
 	}
-	// If gc optimization details are available, add them to the
+
+	// If gc optimization details are requested, add them to the
 	// diagnostic reports.
-	if gcDetailsDir != "" {
-		gcReports, err := source.GCOptimizationDetails(ctx, snapshot, gcDetailsDir)
+	s.gcOptimizationDetailsMu.Lock()
+	_, enableGCDetails := s.gcOptimizationDetails[pkg.ID()]
+	s.gcOptimizationDetailsMu.Unlock()
+	if enableGCDetails {
+		gcReports, err := source.GCOptimizationDetails(ctx, snapshot, pkg)
 		if err != nil {
 			event.Error(ctx, "warning: gc details", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
 		}

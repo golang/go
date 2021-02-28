@@ -613,13 +613,16 @@ func (c *commandHandler) ToggleGCDetails(ctx context.Context, args command.URIAr
 		progress:    "Toggling GC Details",
 		forURI:      args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		pkgDir := span.URIFromPath(filepath.Dir(args.URI.SpanURI().Filename()))
+		pkg, err := deps.snapshot.PackageForFile(ctx, deps.fh.URI(), source.TypecheckWorkspace, source.NarrowestPackage)
+		if err != nil {
+			return err
+		}
 		c.s.gcOptimizationDetailsMu.Lock()
-		if _, ok := c.s.gcOptimizationDetails[pkgDir]; ok {
-			delete(c.s.gcOptimizationDetails, pkgDir)
+		if _, ok := c.s.gcOptimizationDetails[pkg.ID()]; ok {
+			delete(c.s.gcOptimizationDetails, pkg.ID())
 			c.s.clearDiagnosticSource(gcDetailsSource)
 		} else {
-			c.s.gcOptimizationDetails[pkgDir] = struct{}{}
+			c.s.gcOptimizationDetails[pkg.ID()] = struct{}{}
 		}
 		c.s.gcOptimizationDetailsMu.Unlock()
 		c.s.diagnoseSnapshot(deps.snapshot, nil, false)

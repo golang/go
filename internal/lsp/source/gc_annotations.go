@@ -35,7 +35,11 @@ const (
 	Bounds Annotation = "bounds"
 )
 
-func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, pkgDir span.URI) (map[VersionedFileIdentity][]*Diagnostic, error) {
+func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, pkg Package) (map[VersionedFileIdentity][]*Diagnostic, error) {
+	if len(pkg.CompiledGoFiles()) == 0 {
+		return nil, nil
+	}
+	pkgDir := filepath.Dir(pkg.CompiledGoFiles()[0].URI.Filename())
 	outDir := filepath.Join(os.TempDir(), fmt.Sprintf("gopls-%d.details", os.Getpid()))
 
 	if err := os.MkdirAll(outDir, 0700); err != nil {
@@ -60,7 +64,7 @@ func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, pkgDir span.U
 			fmt.Sprintf("-o=%s", tmpFile.Name()),
 			".",
 		},
-		WorkingDir: pkgDir.Filename(),
+		WorkingDir: pkgDir,
 	}
 	_, err = snapshot.RunGoCommandDirect(ctx, Normal, inv)
 	if err != nil {
@@ -83,7 +87,7 @@ func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, pkgDir span.U
 		if fh == nil {
 			continue
 		}
-		if pkgDir.Filename() != filepath.Dir(fh.URI().Filename()) {
+		if pkgDir != filepath.Dir(fh.URI().Filename()) {
 			// https://github.com/golang/go/issues/42198
 			// sometimes the detail diagnostics generated for files
 			// outside the package can never be taken back.
