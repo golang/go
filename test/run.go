@@ -757,7 +757,7 @@ func (t *test) run() {
 		// up and running against the existing test cases. The explicitly
 		// listed files don't pass yet, usually because the error messages
 		// are slightly different (this list is not complete). Any errorcheck
-		// tests that require output from analysis phases past intial type-
+		// tests that require output from analysis phases past initial type-
 		// checking are also excluded since these phases are not running yet.
 		// We can get rid of this code once types2 is fully plugged in.
 

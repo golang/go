@@ -108,7 +108,7 @@ func TestChangingProcessParent(t *testing.T) {
 	}
 	childOutput, err = ioutil.ReadFile(childDumpPath)
 	if err != nil {
-		t.Fatalf("reading child ouput failed: %v", err)
+		t.Fatalf("reading child output failed: %v", err)
 	}
 	if got, want := string(childOutput), fmt.Sprintf("%d", parent.Process.Pid); got != want {
 		t.Fatalf("child output: want %q, got %q", want, got)

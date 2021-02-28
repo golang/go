@@ -71,7 +71,7 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 			x.expr = inst
 			return
 		}
-		// all type arguments were inferred sucessfully
+		// all type arguments were inferred successfully
 		if debug {
 			for _, targ := range targs {
 				assert(targ != nil)
@@ -402,7 +402,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
 				return
 			}
 		}
-		// all type arguments were inferred sucessfully
+		// all type arguments were inferred successfully
 		if debug {
 			for _, targ := range targs {
 				assert(targ != nil)

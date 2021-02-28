@@ -146,7 +146,7 @@ func _() {
 
 // We accept parenthesized embedded struct fields so we can distinguish between
 // a named field with a parenthesized type foo (T) and an embedded parameterized
-// type (foo(T)), similarly to interace embedding.
+// type (foo(T)), similarly to interface embedding.
 // They still need to be valid embedded types after the parentheses are stripped
 // (i.e., in contrast to interfaces, we cannot embed a struct literal). The name
 // of the embedded field is derived as before, after stripping parentheses.
