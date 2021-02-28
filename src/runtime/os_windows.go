@@ -1380,7 +1380,7 @@ func preemptM(mp *m) {
 
 	// Does it want a preemption and is it safe to preempt?
 	gp := gFromSP(mp, c.sp())
-	if wantAsyncPreempt(gp) {
+	if gp != nil && wantAsyncPreempt(gp) {
 		if ok, newpc := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()); ok {
 			// Inject call to asyncPreempt
 			targetPC := funcPC(asyncPreempt)
