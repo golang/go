@@ -24,25 +24,6 @@ type RelatedInformation struct {
 	Message string
 }
 
-func GetTypeCheckDiagnostics(ctx context.Context, snapshot Snapshot, pkg Package) map[span.URI][]*Diagnostic {
-	onlyIgnoredFiles := true
-	for _, pgf := range pkg.CompiledGoFiles() {
-		onlyIgnoredFiles = onlyIgnoredFiles && snapshot.IgnoredFile(pgf.URI)
-	}
-	if onlyIgnoredFiles {
-		return nil
-	}
-
-	diagSets := emptyDiagnostics(pkg)
-	for _, diag := range pkg.GetDiagnostics() {
-		diagSets[diag.URI] = append(diagSets[diag.URI], diag)
-	}
-	for uri, diags := range diagSets {
-		diagSets[uri] = cloneDiagnostics(diags)
-	}
-	return diagSets
-}
-
 func Analyze(ctx context.Context, snapshot Snapshot, pkg Package, typeCheckDiagnostics map[span.URI][]*Diagnostic) (map[span.URI][]*Diagnostic, error) {
 	// Exit early if the context has been canceled. This also protects us
 	// from a race on Options, see golang/go#36699.
@@ -57,7 +38,7 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkg Package, typeCheckDiagn
 	}
 	analysisDiagnostics = cloneDiagnostics(analysisDiagnostics)
 
-	reports := emptyDiagnostics(pkg)
+	reports := map[span.URI][]*Diagnostic{}
 	// Report diagnostics and errors from root analyzers.
 	for _, diag := range analysisDiagnostics {
 		// If the diagnostic comes from a "convenience" analyzer, it is not
@@ -134,26 +115,16 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (Vers
 	if err != nil {
 		return VersionedFileIdentity{}, nil, err
 	}
-	typeCheckDiagnostics := GetTypeCheckDiagnostics(ctx, snapshot, pkg)
-	diagnostics := typeCheckDiagnostics[fh.URI()]
+	diagnostics := pkg.GetDiagnostics()
+	fileDiags := diagnostics[fh.URI()]
 	if !pkg.HasListOrParseErrors() {
-		reports, err := Analyze(ctx, snapshot, pkg, typeCheckDiagnostics)
+		analysisDiags, err := Analyze(ctx, snapshot, pkg, diagnostics)
 		if err != nil {
 			return VersionedFileIdentity{}, nil, err
 		}
-		diagnostics = append(diagnostics, reports[fh.URI()]...)
+		fileDiags = append(fileDiags, analysisDiags[fh.URI()]...)
 	}
-	return fh.VersionedFileIdentity(), diagnostics, nil
-}
-
-func emptyDiagnostics(pkg Package) map[span.URI][]*Diagnostic {
-	diags := map[span.URI][]*Diagnostic{}
-	for _, pgf := range pkg.CompiledGoFiles() {
-		if _, ok := diags[pgf.URI]; !ok {
-			diags[pgf.URI] = nil
-		}
-	}
-	return diags
+	return fh.VersionedFileIdentity(), fileDiags, nil
 }
 
 // onlyDeletions returns true if all of the suggested fixes are deletions.

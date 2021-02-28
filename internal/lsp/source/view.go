@@ -548,7 +548,7 @@ type Package interface {
 	CompiledGoFiles() []*ParsedGoFile
 	File(uri span.URI) (*ParsedGoFile, error)
 	GetSyntax() []*ast.File
-	GetDiagnostics() []*Diagnostic
+	GetDiagnostics() map[span.URI][]*Diagnostic
 	GetTypes() *types.Package
 	GetTypesInfo() *types.Info
 	GetTypesSizes() types.Sizes

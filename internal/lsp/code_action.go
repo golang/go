@@ -126,7 +126,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			return nil, err
 		}
 		if (wanted[protocol.QuickFix] || wanted[protocol.SourceFixAll]) && len(diagnostics) > 0 {
-			pkgQuickFixes, err := quickFixesForDiagnostics(ctx, snapshot, diagnostics, pkg.GetDiagnostics())
+			pkgQuickFixes, err := quickFixesForDiagnostics(ctx, snapshot, diagnostics, pkg.GetDiagnostics()[fh.URI()])
 			if err != nil {
 				return nil, err
 			}

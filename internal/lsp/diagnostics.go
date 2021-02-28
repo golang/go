@@ -245,14 +245,20 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg source.Package, alwaysAnalyze bool) {
 	ctx, done := event.Start(ctx, "Server.diagnosePkg", tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
 	defer done()
+	enableDiagnostics := false
 	includeAnalysis := alwaysAnalyze // only run analyses for packages with open files
 	for _, pgf := range pkg.CompiledGoFiles() {
+		enableDiagnostics = enableDiagnostics || !snapshot.IgnoredFile(pgf.URI)
 		includeAnalysis = includeAnalysis || snapshot.IsOpen(pgf.URI)
 	}
+	// Don't show any diagnostics on ignored files.
+	if !enableDiagnostics {
+		return
+	}
 
-	typeCheckDiagnostics := source.GetTypeCheckDiagnostics(ctx, snapshot, pkg)
-	for uri, diags := range typeCheckDiagnostics {
-		s.storeDiagnostics(snapshot, uri, typeCheckSource, diags)
+	typeCheckDiagnostics := pkg.GetDiagnostics()
+	for _, cgf := range pkg.CompiledGoFiles() {
+		s.storeDiagnostics(snapshot, cgf.URI, typeCheckSource, typeCheckDiagnostics[cgf.URI])
 	}
 	if includeAnalysis && !pkg.HasListOrParseErrors() {
 		reports, err := source.Analyze(ctx, snapshot, pkg, typeCheckDiagnostics)
@@ -260,8 +266,8 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 			event.Error(ctx, "warning: diagnose package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
 			return
 		}
-		for uri, diags := range reports {
-			s.storeDiagnostics(snapshot, uri, analysisSource, diags)
+		for _, cgf := range pkg.CompiledGoFiles() {
+			s.storeDiagnostics(snapshot, cgf.URI, analysisSource, reports[cgf.URI])
 		}
 	}
 
