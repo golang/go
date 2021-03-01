@@ -992,6 +992,11 @@ func (r *importReader) node() ir.Node {
 		r.funcBody(fn)
 		fn.Dcl = fn.Inl.Dcl
 		fn.Body = fn.Inl.Body
+		if len(fn.Body) == 0 {
+			// An empty closure must be represented as a single empty
+			// block statement, else it will be dropped.
+			fn.Body = []ir.Node{ir.NewBlockStmt(src.NoXPos, nil)}
+		}
 		fn.Inl = nil
 
 		ir.FinishCaptureNames(pos, r.curfn, fn)
