@@ -695,7 +695,9 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 
 // modulePrefixesExcludingTarget returns all prefixes of path that may plausibly
 // exist as a module, excluding targetPrefix but otherwise including path
-// itself, sorted by descending length.
+// itself, sorted by descending length. Prefixes that are not valid module paths
+// but are valid package paths (like "m" or "example.com/.gen") are included,
+// since they might be replaced.
 func modulePrefixesExcludingTarget(path string) []string {
 	prefixes := make([]string, 0, strings.Count(path, "/")+1)
 
@@ -747,6 +749,7 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
 		noPackage   *PackageNotInModuleError
 		noVersion   *NoMatchingVersionError
 		noPatchBase *NoPatchBaseError
+		invalidPath *module.InvalidPathError // see comment in case below
 		notExistErr error
 	)
 	for _, r := range results {
@@ -766,6 +769,17 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
 		case *NoPatchBaseError:
 			if noPatchBase == nil {
 				noPatchBase = rErr
+			}
+		case *module.InvalidPathError:
+			// The prefix was not a valid module path, and there was no replacement.
+			// Prefixes like this may appear in candidateModules, since we handle
+			// replaced modules that weren't required in the repo lookup process
+			// (see lookupRepo).
+			//
+			// A shorter prefix may be a valid module path and may contain a valid
+			// import path, so this is a low-priority error.
+			if invalidPath == nil {
+				invalidPath = rErr
 			}
 		default:
 			if errors.Is(rErr, fs.ErrNotExist) {
@@ -800,6 +814,8 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
 			err = noVersion
 		case noPatchBase != nil:
 			err = noPatchBase
+		case invalidPath != nil:
+			err = invalidPath
 		case notExistErr != nil:
 			err = notExistErr
 		default:
