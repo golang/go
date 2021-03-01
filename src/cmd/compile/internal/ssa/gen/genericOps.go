@@ -336,8 +336,8 @@ var genericOps = []opData{
 
 	// Like Arg, these are generic ops that survive lowering. AuxInt is a register index, and the actual output register for each index is defined by the architecture.
 	// AuxInt = integer argument index (not a register number). ABI-specified spill loc obtained from function
-	{name: "ArgIntReg", aux: "Int8", zeroWidth: true},   // argument to the function in an int reg.
-	{name: "ArgFloatReg", aux: "Int8", zeroWidth: true}, // argument to the function in a float reg.
+	{name: "ArgIntReg", aux: "NameOffsetInt8", zeroWidth: true},   // argument to the function in an int reg.
+	{name: "ArgFloatReg", aux: "NameOffsetInt8", zeroWidth: true}, // argument to the function in a float reg.
 
 	// The address of a variable.  arg0 is the base pointer.
 	// If the variable is a global, the base pointer will be SB and

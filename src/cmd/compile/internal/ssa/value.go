@@ -78,7 +78,7 @@ func (v *Value) String() string {
 }
 
 func (v *Value) AuxInt8() int8 {
-	if opcodeTable[v.Op].auxType != auxInt8 {
+	if opcodeTable[v.Op].auxType != auxInt8 && opcodeTable[v.Op].auxType != auxNameOffsetInt8 {
 		v.Fatalf("op %s doesn't have an int8 aux field", v.Op)
 	}
 	return int8(v.AuxInt)

@@ -35445,14 +35445,14 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:      "ArgIntReg",
-		auxType:   auxInt8,
+		auxType:   auxNameOffsetInt8,
 		argLen:    0,
 		zeroWidth: true,
 		generic:   true,
 	},
 	{
 		name:      "ArgFloatReg",
-		auxType:   auxInt8,
+		auxType:   auxNameOffsetInt8,
 		argLen:    0,
 		zeroWidth: true,
 		generic:   true,
