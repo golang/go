@@ -104,13 +104,13 @@ func (a *AuxCall) ResultForOffsetAndType(offset int64, t *types.Type) int64 {
 
 // OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
 func (a *AuxCall) OffsetOfResult(which int64) int64 {
-	return int64(a.abiInfo.OutParam(int(which)).Offset())
+	return int64(a.results[which].Offset)
 }
 
 // OffsetOfArg returns the SP offset of argument which (indexed 0, 1, etc).
 // If the call is to a method, the receiver is the first argument (i.e., index 0)
 func (a *AuxCall) OffsetOfArg(which int64) int64 {
-	return int64(a.abiInfo.InParam(int(which)).Offset())
+	return int64(a.args[which].Offset)
 }
 
 // RegsOfResult returns the register(s) used for result which (indexed 0, 1, etc).
@@ -206,9 +206,6 @@ func (a *AuxCall) String() string {
 	return fn + "}"
 }
 
-// ACParamsToTypes translates a slice of Param into a slice of *types.Type
-// This is a helper call for ssagen/ssa.go.
-// TODO remove this, as part of replacing fields of AuxCall with abi.ABIParamResultInfo.
 func ACParamsToTypes(ps []Param) (ts []*types.Type) {
 	for _, p := range ps {
 		ts = append(ts, p.Type)
@@ -218,6 +215,7 @@ func ACParamsToTypes(ps []Param) (ts []*types.Type) {
 
 // StaticAuxCall returns an AuxCall for a static call.
 func StaticAuxCall(sym *obj.LSym, args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
+	// TODO Create regInfo for AuxCall
 	if paramResultInfo == nil {
 		panic(fmt.Errorf("Nil paramResultInfo, sym=%v", sym))
 	}
@@ -225,13 +223,15 @@ func StaticAuxCall(sym *obj.LSym, args []Param, results []Param, paramResultInfo
 }
 
 // InterfaceAuxCall returns an AuxCall for an interface call.
-func InterfaceAuxCall(args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
-	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo}
+func InterfaceAuxCall(args []Param, results []Param) *AuxCall {
+	// TODO Create regInfo for AuxCall
+	return &AuxCall{Fn: nil, args: args, results: results}
 }
 
 // ClosureAuxCall returns an AuxCall for a closure call.
-func ClosureAuxCall(args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
-	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo}
+func ClosureAuxCall(args []Param, results []Param) *AuxCall {
+	// TODO Create regInfo for AuxCall
+	return &AuxCall{Fn: nil, args: args, results: results}
 }
 
 func (*AuxCall) CanBeAnSSAAux() {}
