@@ -378,7 +378,7 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
 	// Stack-assigned return values do not share
 	// space with arguments like they do with registers,
 	// so we need to inject a stack offset here.
-	// Fake it by artifically extending stackBytes by
+	// Fake it by artificially extending stackBytes by
 	// the return offset.
 	out.stackBytes = retOffset
 	for i, res := range t.out() {

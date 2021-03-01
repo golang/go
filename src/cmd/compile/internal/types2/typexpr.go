@@ -426,7 +426,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 }
 
 // goTypeName returns the Go type name for typ and
-// removes any occurences of "types." from that name.
+// removes any occurrences of "types." from that name.
 func goTypeName(typ Type) string {
 	return strings.Replace(fmt.Sprintf("%T", typ), "types.", "", -1) // strings.ReplaceAll is not available in Go 1.4
 }
@@ -710,7 +710,7 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
 }
 
 // typeList provides the list of types corresponding to the incoming expression list.
-// If an error occured, the result is nil, but all list elements were type-checked.
+// If an error occurred, the result is nil, but all list elements were type-checked.
 func (check *Checker) typeList(list []syntax.Expr) []Type {
 	res := make([]Type, len(list)) // res != nil even if len(list) == 0
 	for i, x := range list {
