@@ -333,8 +333,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 	c.useSSE = true
 	c.UseFMA = true
 
-	c.ABI0 = abi.NewABIConfig(0, 0)
-	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs))
+	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.FixedFrameSize())
+	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.FixedFrameSize())
 
 	// On Plan 9, floating point operations are not allowed in note handler.
 	if objabi.GOOS == "plan9" {

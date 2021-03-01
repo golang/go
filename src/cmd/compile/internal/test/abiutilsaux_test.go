@@ -129,36 +129,4 @@ func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
 			strings.TrimSpace(exp.dump), regResString, reason)
 	}
 
-	// Analyze again with empty register set.
-	empty := abi.NewABIConfig(0, 0)
-	emptyRes := empty.ABIAnalyze(ft)
-	emptyResString := emptyRes.String()
-
-	// Walk the results and make sure the offsets assigned match
-	// up with those assiged by CalcSize. This checks to make sure that
-	// when we have no available registers the ABI assignment degenerates
-	// back to the original ABI0.
-
-	// receiver
-	failed := 0
-	rfsl := ft.Recvs().Fields().Slice()
-	poff := 0
-	if len(rfsl) != 0 {
-		failed |= verifyParamResultOffset(t, rfsl[0], emptyRes.InParams()[0], "receiver", 0)
-		poff = 1
-	}
-	// params
-	pfsl := ft.Params().Fields().Slice()
-	for k, f := range pfsl {
-		verifyParamResultOffset(t, f, emptyRes.InParams()[k+poff], "param", k)
-	}
-	// results
-	ofsl := ft.Results().Fields().Slice()
-	for k, f := range ofsl {
-		failed |= verifyParamResultOffset(t, f, emptyRes.OutParams()[k], "result", k)
-	}
-
-	if failed != 0 {
-		t.Logf("emptyres:\n%s\n", emptyResString)
-	}
 }

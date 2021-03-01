@@ -52,12 +52,12 @@ func (a *ABIParamResultInfo) OutRegistersUsed() int {
 	return a.outRegistersUsed
 }
 
-func (a *ABIParamResultInfo) InParam(i int) ABIParamAssignment {
-	return a.inparams[i]
+func (a *ABIParamResultInfo) InParam(i int) *ABIParamAssignment {
+	return &a.inparams[i]
 }
 
-func (a *ABIParamResultInfo) OutParam(i int) ABIParamAssignment {
-	return a.outparams[i]
+func (a *ABIParamResultInfo) OutParam(i int) *ABIParamAssignment {
+	return &a.outparams[i]
 }
 
 func (a *ABIParamResultInfo) SpillAreaOffset() int64 {
@@ -111,6 +111,18 @@ func (a *ABIParamAssignment) SpillOffset() int32 {
 	return a.offset
 }
 
+// FrameOffset returns the location that a value would spill to, if any exists.
+// For register-allocated inputs, that is their spill offset reserved for morestack
+// (might as well use it, it is there); for stack-allocated inputs and outputs,
+// that is their location on the stack.  For register-allocated outputs, there is
+// no defined spill area, so return -1.
+func (a *ABIParamAssignment) FrameOffset(i *ABIParamResultInfo) int64 {
+	if len(a.Registers) == 0 || a.offset == -1 {
+		return int64(a.offset)
+	}
+	return int64(a.offset) + i.SpillAreaOffset()
+}
+
 // RegAmounts holds a specified number of integer/float registers.
 type RegAmounts struct {
 	intRegs   int
@@ -121,14 +133,15 @@ type RegAmounts struct {
 // by the ABI rules for parameter passing and result returning.
 type ABIConfig struct {
 	// Do we need anything more than this?
+	offsetForLocals  int64 // e.g., obj.(*Link).FixedFrameSize() -- extra linkage information on some architectures.
 	regAmounts       RegAmounts
 	regsForTypeCache map[*types.Type]int
 }
 
 // NewABIConfig returns a new ABI configuration for an architecture with
 // iRegsCount integer/pointer registers and fRegsCount floating point registers.
-func NewABIConfig(iRegsCount, fRegsCount int) *ABIConfig {
-	return &ABIConfig{regAmounts: RegAmounts{iRegsCount, fRegsCount}, regsForTypeCache: make(map[*types.Type]int)}
+func NewABIConfig(iRegsCount, fRegsCount int, offsetForLocals int64) *ABIConfig {
+	return &ABIConfig{offsetForLocals: offsetForLocals, regAmounts: RegAmounts{iRegsCount, fRegsCount}, regsForTypeCache: make(map[*types.Type]int)}
 }
 
 // Copy returns a copy of an ABIConfig for use in a function's compilation so that access to the cache does not need to be protected with a mutex.
@@ -190,7 +203,8 @@ func (a *ABIParamResultInfo) preAllocateParams(hasRcvr bool, nIns, nOuts int) {
 func (config *ABIConfig) ABIAnalyzeTypes(rcvr *types.Type, ins, outs []*types.Type) *ABIParamResultInfo {
 	setup()
 	s := assignState{
-		rTotal: config.regAmounts,
+		stackOffset: config.offsetForLocals,
+		rTotal:      config.regAmounts,
 	}
 	result := &ABIParamResultInfo{config: config}
 	result.preAllocateParams(rcvr != nil, len(ins), len(outs))
@@ -230,7 +244,8 @@ func (config *ABIConfig) ABIAnalyzeTypes(rcvr *types.Type, ins, outs []*types.Ty
 func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
 	setup()
 	s := assignState{
-		rTotal: config.regAmounts,
+		stackOffset: config.offsetForLocals,
+		rTotal:      config.regAmounts,
 	}
 	result := &ABIParamResultInfo{config: config}
 	ft := t.FuncType()
@@ -265,7 +280,30 @@ func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
 	result.spillAreaSize = alignTo(s.spillOffset, types.RegSize)
 	result.outRegistersUsed = s.rUsed.intRegs + s.rUsed.floatRegs
 
+	// Fill in the frame offsets for receiver, inputs, results
+	k := 0
+	if t.NumRecvs() != 0 {
+		config.updateOffset(result, ft.Receiver.FieldSlice()[0], result.inparams[0], false)
+		k++
+	}
+	for i, f := range ft.Params.FieldSlice() {
+		config.updateOffset(result, f, result.inparams[k+i], false)
+	}
+	for i, f := range ft.Results.FieldSlice() {
+		config.updateOffset(result, f, result.outparams[i], true)
+	}
 	return result
+}
+
+func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field, a ABIParamAssignment, isReturn bool) {
+	if !isReturn || len(a.Registers) == 0 {
+		// TODO in next CL, assign
+		if f.Offset+config.offsetForLocals != a.FrameOffset(result) {
+			if config.regAmounts.intRegs == 0 && config.regAmounts.floatRegs == 0 {
+				panic(fmt.Errorf("Expected node offset %d != abi offset %d", f.Offset, a.FrameOffset(result)))
+			}
+		}
+	}
 }
 
 //......................................................................
