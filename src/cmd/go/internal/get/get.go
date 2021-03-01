@@ -431,7 +431,7 @@ func downloadPackage(p *load.Package) error {
 		}
 		importPrefix = importPrefix[:slash]
 	}
-	if err := module.CheckImportPath(importPrefix); err != nil {
+	if err := checkImportPath(importPrefix); err != nil {
 		return fmt.Errorf("%s: invalid import path: %v", p.ImportPath, err)
 	}
 	security := web.SecureOnly
@@ -590,4 +590,32 @@ func selectTag(goVersion string, tags []string) (match string) {
 		}
 	}
 	return ""
+}
+
+// checkImportPath is like module.CheckImportPath, but it forbids leading dots
+// in path elements. This can lead to 'go get' creating .git and other VCS
+// directories in places we might run VCS tools later.
+func checkImportPath(path string) error {
+	if err := module.CheckImportPath(path); err != nil {
+		return err
+	}
+	checkElem := func(elem string) error {
+		if elem[0] == '.' {
+			return fmt.Errorf("malformed import path %q: leading dot in path element", path)
+		}
+		return nil
+	}
+	elemStart := 0
+	for i, r := range path {
+		if r == '/' {
+			if err := checkElem(path[elemStart:]); err != nil {
+				return err
+			}
+			elemStart = i + 1
+		}
+	}
+	if err := checkElem(path[elemStart:]); err != nil {
+		return err
+	}
+	return nil
 }
