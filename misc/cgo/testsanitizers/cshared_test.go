@@ -19,6 +19,12 @@ func TestShared(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	GOARCH, err := goEnv("GOARCH")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	libExt := "so"
 	if GOOS == "darwin" {
 		libExt = "dylib"
@@ -41,6 +47,11 @@ func TestShared(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		name := strings.TrimSuffix(tc.src, ".go")
+		//The memory sanitizer tests require support for the -msan option.
+		if tc.sanitizer == "memory" && !mSanSupported(GOOS, GOARCH) {
+			t.Logf("skipping %s test on %s/%s; -msan option is not supported.", name, GOOS, GOARCH)
+			continue
+		}
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			config := configure(tc.sanitizer)
