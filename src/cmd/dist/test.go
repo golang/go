@@ -736,8 +736,9 @@ func (t *tester) registerTests() {
 		if gohostos == "linux" && goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", ".")
 		}
-		if mSanSupported(goos, goarch) {
-			t.registerHostTest("testsanitizers/msan", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
+		if goos == "linux" {
+			// because syscall.SysProcAttri struct used in misc/cgo/testsanitizers is only built on linux.
+			t.registerHostTest("testsanitizers", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
 		}
 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
 			t.registerHostTest("cgo_errors", "../misc/cgo/errors", "misc/cgo/errors", ".")
@@ -1635,17 +1636,6 @@ func raceDetectorSupported(goos, goarch string) bool {
 		return goarch == "amd64" || goarch == "arm64"
 	case "freebsd", "netbsd", "openbsd", "windows":
 		return goarch == "amd64"
-	default:
-		return false
-	}
-}
-
-// mSanSupported is a copy of the function cmd/internal/sys.MSanSupported,
-// which can't be used here because cmd/dist has to be buildable by Go 1.4.
-func mSanSupported(goos, goarch string) bool {
-	switch goos {
-	case "linux":
-		return goarch == "amd64" || goarch == "arm64"
 	default:
 		return false
 	}
