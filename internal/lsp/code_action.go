@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strings"
 
-	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/command"
@@ -126,11 +125,15 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			return nil, err
 		}
 		if (wanted[protocol.QuickFix] || wanted[protocol.SourceFixAll]) && len(diagnostics) > 0 {
-			pkgQuickFixes, err := quickFixesForDiagnostics(ctx, snapshot, diagnostics, pkg.GetDiagnostics()[fh.URI()])
+			pkgDiagnostics, err := snapshot.DiagnosePackage(ctx, pkg)
 			if err != nil {
 				return nil, err
 			}
-			codeActions = append(codeActions, pkgQuickFixes...)
+			diagnosticFixes, err := quickFixesForDiagnostics(ctx, snapshot, diagnostics, pkgDiagnostics[fh.URI()])
+			if err != nil {
+				return nil, err
+			}
+			codeActions = append(codeActions, diagnosticFixes...)
 			analysisQuickFixes, highConfidenceEdits, err := analysisFixes(ctx, snapshot, pkg, diagnostics)
 			if err != nil {
 				return nil, err
@@ -302,7 +305,7 @@ func findDiagnostic(ctx context.Context, snapshot source.Snapshot, pkgID string,
 	if analyzer == nil {
 		return nil, source.Analyzer{}, false
 	}
-	analysisErrors, err := snapshot.Analyze(ctx, pkgID, analyzer.Analyzer)
+	analysisErrors, err := snapshot.Analyze(ctx, pkgID, []*source.Analyzer{analyzer})
 	if err != nil {
 		return nil, source.Analyzer{}, false
 	}
@@ -333,32 +336,19 @@ func diagnosticToAnalyzer(snapshot source.Snapshot, src, msg string) (analyzer *
 		}
 	}()
 	if a, ok := snapshot.View().Options().DefaultAnalyzers[src]; ok {
-		return &a
+		return a
 	}
 	if a, ok := snapshot.View().Options().StaticcheckAnalyzers[src]; ok {
-		return &a
+		return a
 	}
 	if a, ok := snapshot.View().Options().ConvenienceAnalyzers[src]; ok {
-		return &a
-	}
-	// Hack: We publish diagnostics with the source "compiler" for type errors,
-	// but these analyzers have different names. Try both possibilities.
-	if a, ok := snapshot.View().Options().TypeErrorAnalyzers[src]; ok {
-		return &a
-	}
-	if src != "compiler" {
-		return nil
-	}
-	for _, a := range snapshot.View().Options().TypeErrorAnalyzers {
-		if a.FixesError(msg) {
-			return &a
-		}
+		return a
 	}
 	return nil
 }
 
 func convenienceFixes(ctx context.Context, snapshot source.Snapshot, pkg source.Package, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
-	var analyzers []*analysis.Analyzer
+	var analyzers []*source.Analyzer
 	for _, a := range snapshot.View().Options().ConvenienceAnalyzers {
 		if !a.IsEnabled(snapshot.View()) {
 			continue
@@ -367,9 +357,9 @@ func convenienceFixes(ctx context.Context, snapshot source.Snapshot, pkg source.
 			event.Error(ctx, "convenienceFixes", fmt.Errorf("no suggested fixes for convenience analyzer %s", a.Analyzer.Name))
 			continue
 		}
-		analyzers = append(analyzers, a.Analyzer)
+		analyzers = append(analyzers, a)
 	}
-	diagnostics, err := snapshot.Analyze(ctx, pkg.ID(), analyzers...)
+	diagnostics, err := snapshot.Analyze(ctx, pkg.ID(), analyzers)
 	if err != nil {
 		return nil, err
 	}

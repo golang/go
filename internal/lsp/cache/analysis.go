@@ -18,17 +18,21 @@ import (
 	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/debug/tag"
-	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
+	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
 )
 
-func (s *snapshot) Analyze(ctx context.Context, id string, analyzers ...*analysis.Analyzer) ([]*source.Diagnostic, error) {
+func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*source.Analyzer) ([]*source.Diagnostic, error) {
 	var roots []*actionHandle
 
 	for _, a := range analyzers {
-		ah, err := s.actionHandle(ctx, packageID(id), a)
+
+		if !a.IsEnabled(s.view) {
+			continue
+		}
+		ah, err := s.actionHandle(ctx, packageID(id), a.Analyzer)
 		if err != nil {
 			return nil, err
 		}
@@ -324,7 +328,7 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 	analysisinternal.SetTypeErrors(pass, pkg.typeErrors)
 
 	if pkg.IsIllTyped() {
-		data.err = errors.Errorf("analysis skipped due to errors in package: %v", pkg.GetDiagnostics())
+		data.err = errors.Errorf("analysis skipped due to errors in package")
 		return data
 	}
 	data.result, data.err = pass.Analyzer.Run(pass)
@@ -348,7 +352,7 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 	}
 
 	for _, diag := range diagnostics {
-		srcDiags, err := analysisDiagnosticDiagnostics(ctx, snapshot, pkg, protocol.SeverityWarning, diag)
+		srcDiags, err := analysisDiagnosticDiagnostics(ctx, snapshot, pkg, analyzer, diag)
 		if err != nil {
 			event.Error(ctx, "unable to compute analysis error position", err, tag.Category.Of(diag.Category), tag.Package.Of(pkg.ID()))
 			continue
@@ -390,4 +394,39 @@ func factType(fact analysis.Fact) reflect.Type {
 		panic(fmt.Sprintf("invalid Fact type: got %T, want pointer", t))
 	}
 	return t
+}
+
+func (s *snapshot) DiagnosePackage(ctx context.Context, spkg source.Package) (map[span.URI][]*source.Diagnostic, error) {
+	pkg := spkg.(*pkg)
+	// Apply type error analyzers. They augment type error diagnostics with their own fixes.
+	var analyzers []*source.Analyzer
+	for _, a := range s.View().Options().TypeErrorAnalyzers {
+		analyzers = append(analyzers, a)
+	}
+	var errorAnalyzerDiag []*source.Diagnostic
+	if pkg.hasTypeErrors {
+		var err error
+		errorAnalyzerDiag, err = s.Analyze(ctx, pkg.ID(), analyzers)
+		if err != nil {
+			return nil, err
+		}
+	}
+	diags := map[span.URI][]*source.Diagnostic{}
+	for _, diag := range pkg.diagnostics {
+		for _, eaDiag := range errorAnalyzerDiag {
+			if eaDiag.URI == diag.URI && eaDiag.Range == diag.Range && eaDiag.Message == diag.Message {
+				// Type error analyzers just add fixes and tags. Make a copy,
+				// since we don't own either, and overwrite.
+				// The analyzer itself can't do this merge because
+				// analysis.Diagnostic doesn't have all the fields, and Analyze
+				// can't because it doesn't have the type error, notably its code.
+				clone := *diag
+				clone.SuggestedFixes = eaDiag.SuggestedFixes
+				clone.Tags = eaDiag.Tags
+				diag = &clone
+			}
+		}
+		diags[diag.URI] = append(diags[diag.URI], diag)
+	}
+	return diags, nil
 }

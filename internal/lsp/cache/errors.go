@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -139,7 +140,16 @@ func typeErrorDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, e e
 	return []*source.Diagnostic{diag}, nil
 }
 
-func analysisDiagnosticDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, severity protocol.DiagnosticSeverity, e *analysis.Diagnostic) ([]*source.Diagnostic, error) {
+func analysisDiagnosticDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, a *analysis.Analyzer, e *analysis.Diagnostic) ([]*source.Diagnostic, error) {
+	var srcAnalyzer *source.Analyzer
+	// Find the analyzer that generated this diagnostic.
+	for _, sa := range source.EnabledAnalyzers(snapshot) {
+		if a == sa.Analyzer {
+			srcAnalyzer = sa
+			break
+		}
+	}
+
 	spn, err := span.NewRange(snapshot.FileSet(), e.Pos, e.End).Span()
 	if err != nil {
 		return nil, err
@@ -152,11 +162,22 @@ func analysisDiagnosticDiagnostics(ctx context.Context, snapshot *snapshot, pkg 
 	if err != nil {
 		return nil, err
 	}
+	if srcAnalyzer.Fix != "" {
+		cmd, err := command.NewApplyFixCommand(e.Message, command.ApplyFixArgs{
+			URI:   protocol.URIFromSpanURI(spn.URI()),
+			Range: rng,
+			Fix:   srcAnalyzer.Fix,
+		})
+		if err != nil {
+			return nil, err
+		}
+		fixes = append(fixes, source.SuggestedFixFromCommand(cmd))
+	}
 	related, err := relatedInformation(snapshot, pkg, e)
 	if err != nil {
 		return nil, err
 	}
-	return []*source.Diagnostic{{
+	diag := &source.Diagnostic{
 		URI:            spn.URI(),
 		Range:          rng,
 		Severity:       protocol.SeverityWarning,
@@ -164,7 +185,29 @@ func analysisDiagnosticDiagnostics(ctx context.Context, snapshot *snapshot, pkg 
 		Message:        e.Message,
 		Related:        related,
 		SuggestedFixes: fixes,
-	}}, nil
+	}
+	// If the fixes only delete code, assume that the diagnostic is reporting dead code.
+	if onlyDeletions(fixes) {
+		diag.Tags = []protocol.DiagnosticTag{protocol.Unnecessary}
+	}
+	return []*source.Diagnostic{diag}, nil
+}
+
+// onlyDeletions returns true if all of the suggested fixes are deletions.
+func onlyDeletions(fixes []source.SuggestedFix) bool {
+	for _, fix := range fixes {
+		for _, edits := range fix.Edits {
+			for _, edit := range edits {
+				if edit.NewText != "" {
+					return false
+				}
+				if protocol.ComparePosition(edit.Range.Start, edit.Range.End) == 0 {
+					return false
+				}
+			}
+		}
+	}
+	return len(fixes) > 0
 }
 
 func typesCodeHref(snapshot *snapshot, code typesinternal.ErrorCode) string {

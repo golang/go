@@ -60,3 +60,28 @@ func Foo() {
 		}
 	})
 }
+
+func TestFillReturns(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- main.go --
+package main
+
+func Foo() error {
+	return
+}
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		var d protocol.PublishDiagnosticsParams
+		env.Await(OnceMet(
+			env.DiagnosticAtRegexpWithMessage("main.go", `return`, "wrong number of return values"),
+			ReadDiagnostics("main.go", &d),
+		))
+		env.ApplyQuickFixes("main.go", d.Diagnostics)
+		env.Await(EmptyDiagnostics("main.go"))
+	})
+}

@@ -153,7 +153,7 @@ func DefaultOptions() *Options {
 				DefaultAnalyzers:     defaultAnalyzers(),
 				TypeErrorAnalyzers:   typeErrorAnalyzers(),
 				ConvenienceAnalyzers: convenienceAnalyzers(),
-				StaticcheckAnalyzers: map[string]Analyzer{},
+				StaticcheckAnalyzers: map[string]*Analyzer{},
 				GoDiff:               true,
 			},
 		}
@@ -418,10 +418,10 @@ type Hooks struct {
 	ComputeEdits         diff.ComputeEdits
 	URLRegexp            *regexp.Regexp
 	GofumptFormat        func(ctx context.Context, src []byte) ([]byte, error)
-	DefaultAnalyzers     map[string]Analyzer
-	TypeErrorAnalyzers   map[string]Analyzer
-	ConvenienceAnalyzers map[string]Analyzer
-	StaticcheckAnalyzers map[string]Analyzer
+	DefaultAnalyzers     map[string]*Analyzer
+	TypeErrorAnalyzers   map[string]*Analyzer
+	ConvenienceAnalyzers map[string]*Analyzer
+	StaticcheckAnalyzers map[string]*Analyzer
 }
 
 // InternalOptions contains settings that are not intended for use by the
@@ -656,8 +656,8 @@ func (o *Options) Clone() *Options {
 	result.BuildFlags = copySlice(o.BuildFlags)
 	result.DirectoryFilters = copySlice(o.DirectoryFilters)
 
-	copyAnalyzerMap := func(src map[string]Analyzer) map[string]Analyzer {
-		dst := make(map[string]Analyzer)
+	copyAnalyzerMap := func(src map[string]*Analyzer) map[string]*Analyzer {
+		dst := make(map[string]*Analyzer)
 		for k, v := range src {
 			dst[k] = v
 		}
@@ -671,7 +671,7 @@ func (o *Options) Clone() *Options {
 }
 
 func (o *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer) {
-	o.StaticcheckAnalyzers[a.Name] = Analyzer{Analyzer: a, Enabled: true}
+	o.StaticcheckAnalyzers[a.Name] = &Analyzer{Analyzer: a, Enabled: true}
 }
 
 // enableAllExperiments turns on all of the experimental "off-by-default"
@@ -1050,7 +1050,7 @@ func (r *OptionResult) setString(s *string) {
 
 // EnabledAnalyzers returns all of the analyzers enabled for the given
 // snapshot.
-func EnabledAnalyzers(snapshot Snapshot) (analyzers []Analyzer) {
+func EnabledAnalyzers(snapshot Snapshot) (analyzers []*Analyzer) {
 	for _, a := range snapshot.View().Options().DefaultAnalyzers {
 		if a.IsEnabled(snapshot.View()) {
 			analyzers = append(analyzers, a)
@@ -1074,35 +1074,31 @@ func EnabledAnalyzers(snapshot Snapshot) (analyzers []Analyzer) {
 	return analyzers
 }
 
-func typeErrorAnalyzers() map[string]Analyzer {
-	return map[string]Analyzer{
+func typeErrorAnalyzers() map[string]*Analyzer {
+	return map[string]*Analyzer{
 		fillreturns.Analyzer.Name: {
 			Analyzer:       fillreturns.Analyzer,
-			FixesError:     fillreturns.FixesError,
 			HighConfidence: true,
 			Enabled:        true,
 		},
 		nonewvars.Analyzer.Name: {
-			Analyzer:   nonewvars.Analyzer,
-			FixesError: nonewvars.FixesError,
-			Enabled:    true,
+			Analyzer: nonewvars.Analyzer,
+			Enabled:  true,
 		},
 		noresultvalues.Analyzer.Name: {
-			Analyzer:   noresultvalues.Analyzer,
-			FixesError: noresultvalues.FixesError,
-			Enabled:    true,
+			Analyzer: noresultvalues.Analyzer,
+			Enabled:  true,
 		},
 		undeclaredname.Analyzer.Name: {
-			Analyzer:   undeclaredname.Analyzer,
-			FixesError: undeclaredname.FixesError,
-			Fix:        UndeclaredName,
-			Enabled:    true,
+			Analyzer: undeclaredname.Analyzer,
+			Fix:      UndeclaredName,
+			Enabled:  true,
 		},
 	}
 }
 
-func convenienceAnalyzers() map[string]Analyzer {
-	return map[string]Analyzer{
+func convenienceAnalyzers() map[string]*Analyzer {
+	return map[string]*Analyzer{
 		fillstruct.Analyzer.Name: {
 			Analyzer: fillstruct.Analyzer,
 			Fix:      FillStruct,
@@ -1111,8 +1107,8 @@ func convenienceAnalyzers() map[string]Analyzer {
 	}
 }
 
-func defaultAnalyzers() map[string]Analyzer {
-	return map[string]Analyzer{
+func defaultAnalyzers() map[string]*Analyzer {
+	return map[string]*Analyzer{
 		// The traditional vet suite:
 		asmdecl.Analyzer.Name:       {Analyzer: asmdecl.Analyzer, Enabled: true},
 		assign.Analyzer.Name:        {Analyzer: assign.Analyzer, Enabled: true},

@@ -91,7 +91,7 @@ func loadAPI() (*source.APIJSON, error) {
 	for _, c := range api.Commands {
 		c.Command = command.ID(c.Command)
 	}
-	for _, m := range []map[string]source.Analyzer{
+	for _, m := range []map[string]*source.Analyzer{
 		defaults.DefaultAnalyzers,
 		defaults.TypeErrorAnalyzers,
 		defaults.ConvenienceAnalyzers,
@@ -464,7 +464,7 @@ func loadLenses(commands []*source.CommandJSON) []*source.LensJSON {
 	return lenses
 }
 
-func loadAnalyzers(m map[string]source.Analyzer) []*source.AnalyzerJSON {
+func loadAnalyzers(m map[string]*source.Analyzer) []*source.AnalyzerJSON {
 	var sorted []string
 	for _, a := range m {
 		sorted = append(sorted, a.Analyzer.Name)

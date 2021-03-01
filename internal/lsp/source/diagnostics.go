@@ -7,7 +7,6 @@ package source
 import (
 	"context"
 
-	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 )
@@ -32,11 +31,10 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkg Package, typeCheckDiagn
 	}
 	// If we don't have any list or parse errors, run analyses.
 	analyzers := pickAnalyzers(snapshot, pkg.HasTypeErrors())
-	analysisDiagnostics, err := snapshot.Analyze(ctx, pkg.ID(), analyzers...)
+	analysisDiagnostics, err := snapshot.Analyze(ctx, pkg.ID(), analyzers)
 	if err != nil {
 		return nil, err
 	}
-	analysisDiagnostics = cloneDiagnostics(analysisDiagnostics)
 
 	reports := map[span.URI][]*Diagnostic{}
 	// Report diagnostics and errors from root analyzers.
@@ -48,59 +46,22 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkg Package, typeCheckDiagn
 		if isConvenienceAnalyzer(string(diag.Source)) {
 			continue
 		}
-		// This is a bit of a hack, but clients > 3.15 will be able to grey out unnecessary code.
-		// If we are deleting code as part of all of our suggested fixes, assume that this is dead code.
-		// TODO(golang/go#34508): Return these codes from the diagnostics themselves.
-		var tags []protocol.DiagnosticTag
-		if onlyDeletions(diag.SuggestedFixes) {
-			tags = append(tags, protocol.Unnecessary)
-		}
-		// Type error analyzers only alter the tags for existing type errors.
-		if _, ok := snapshot.View().Options().TypeErrorAnalyzers[string(diag.Source)]; ok {
-			existingDiagnostics := typeCheckDiagnostics[diag.URI]
-			for _, existing := range existingDiagnostics {
-				if r := protocol.CompareRange(diag.Range, existing.Range); r != 0 {
-					continue
-				}
-				if diag.Message != existing.Message {
-					continue
-				}
-				existing.Tags = append(existing.Tags, tags...)
-			}
-		} else {
-			diag.Tags = append(diag.Tags, tags...)
-			reports[diag.URI] = append(reports[diag.URI], diag)
-		}
+		reports[diag.URI] = append(reports[diag.URI], diag)
 	}
 	return reports, nil
 }
 
-// cloneDiagnostics makes a shallow copy of diagnostics so that Analyze
-// can add tags to them without affecting the cached diagnostics.
-func cloneDiagnostics(diags []*Diagnostic) []*Diagnostic {
-	result := []*Diagnostic{}
-	for _, d := range diags {
-		clone := *d
-		result = append(result, &clone)
-	}
-	return result
-}
-
-func pickAnalyzers(snapshot Snapshot, hadTypeErrors bool) []*analysis.Analyzer {
+func pickAnalyzers(snapshot Snapshot, hadTypeErrors bool) []*Analyzer {
 	// Always run convenience analyzers.
-	categories := []map[string]Analyzer{snapshot.View().Options().ConvenienceAnalyzers}
-	// If we had type errors, only run type error analyzers.
-	if hadTypeErrors {
-		categories = append(categories, snapshot.View().Options().TypeErrorAnalyzers)
-	} else {
+	categories := []map[string]*Analyzer{snapshot.View().Options().ConvenienceAnalyzers}
+	// If we had type errors, don't run any other analyzers.
+	if !hadTypeErrors {
 		categories = append(categories, snapshot.View().Options().DefaultAnalyzers, snapshot.View().Options().StaticcheckAnalyzers)
 	}
-	var analyzers []*analysis.Analyzer
-	for _, m := range categories {
-		for _, a := range m {
-			if a.IsEnabled(snapshot.View()) {
-				analyzers = append(analyzers, a.Analyzer)
-			}
+	var analyzers []*Analyzer
+	for _, cat := range categories {
+		for _, a := range cat {
+			analyzers = append(analyzers, a)
 		}
 	}
 	return analyzers
@@ -115,7 +76,10 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (Vers
 	if err != nil {
 		return VersionedFileIdentity{}, nil, err
 	}
-	diagnostics := pkg.GetDiagnostics()
+	diagnostics, err := snapshot.DiagnosePackage(ctx, pkg)
+	if err != nil {
+		return VersionedFileIdentity{}, nil, err
+	}
 	fileDiags := diagnostics[fh.URI()]
 	if !pkg.HasListOrParseErrors() {
 		analysisDiags, err := Analyze(ctx, snapshot, pkg, diagnostics)
@@ -125,23 +89,6 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (Vers
 		fileDiags = append(fileDiags, analysisDiags[fh.URI()]...)
 	}
 	return fh.VersionedFileIdentity(), fileDiags, nil
-}
-
-// onlyDeletions returns true if all of the suggested fixes are deletions.
-func onlyDeletions(fixes []SuggestedFix) bool {
-	for _, fix := range fixes {
-		for _, edits := range fix.Edits {
-			for _, edit := range edits {
-				if edit.NewText != "" {
-					return false
-				}
-				if protocol.ComparePosition(edit.Range.Start, edit.Range.End) == 0 {
-					return false
-				}
-			}
-		}
-	}
-	return len(fixes) > 0
 }
 
 func isConvenienceAnalyzer(category string) bool {

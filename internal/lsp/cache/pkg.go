@@ -86,17 +86,6 @@ func (p *pkg) GetSyntax() []*ast.File {
 	return syntax
 }
 
-func (p *pkg) GetDiagnostics() map[span.URI][]*source.Diagnostic {
-	diags := map[span.URI][]*source.Diagnostic{}
-	for _, diag := range p.diagnostics {
-		// As of writing, source.Analyze modifies the diagnostics it receives.
-		// Shallow copy to avoid races.
-		clone := *diag
-		diags[diag.URI] = append(diags[diag.URI], &clone)
-	}
-	return diags
-}
-
 func (p *pkg) GetTypes() *types.Package {
 	return p.types
 }

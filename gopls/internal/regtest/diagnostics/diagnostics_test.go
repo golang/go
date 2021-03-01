@@ -1252,7 +1252,7 @@ func main() {
 	})
 }
 
-func TestStaticcheckDiagnostic(t *testing.T) {
+func TestSimplifyCompositeLitDiagnostic(t *testing.T) {
 	const files = `
 -- go.mod --
 module mod.com
@@ -1277,8 +1277,16 @@ func main() {
 		EditorConfig{EnableStaticcheck: true},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		// Staticcheck should generate a diagnostic to simplify this literal.
-		env.Await(env.DiagnosticAtRegexp("main.go", `t{"msg"}`))
+		var d protocol.PublishDiagnosticsParams
+		env.Await(OnceMet(
+			env.DiagnosticAtRegexpWithMessage("main.go", `t{"msg"}`, "redundant type"),
+			ReadDiagnostics("main.go", &d),
+		))
+		if tags := d.Diagnostics[0].Tags; len(tags) == 0 || tags[0] != protocol.Unnecessary {
+			t.Errorf("wanted Unnecessary tag on diagnostic, got %v", tags)
+		}
+		env.ApplyQuickFixes("main.go", d.Diagnostics)
+		env.Await(EmptyDiagnostics("main.go"))
 	})
 }
 

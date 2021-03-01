@@ -256,14 +256,18 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 		return
 	}
 
-	typeCheckDiagnostics := pkg.GetDiagnostics()
+	pkgDiagnostics, err := snapshot.DiagnosePackage(ctx, pkg)
+	if err != nil {
+		event.Error(ctx, "warning: diagnosing package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
+		return
+	}
 	for _, cgf := range pkg.CompiledGoFiles() {
-		s.storeDiagnostics(snapshot, cgf.URI, typeCheckSource, typeCheckDiagnostics[cgf.URI])
+		s.storeDiagnostics(snapshot, cgf.URI, typeCheckSource, pkgDiagnostics[cgf.URI])
 	}
 	if includeAnalysis && !pkg.HasListOrParseErrors() {
-		reports, err := source.Analyze(ctx, snapshot, pkg, typeCheckDiagnostics)
+		reports, err := source.Analyze(ctx, snapshot, pkg, pkgDiagnostics)
 		if err != nil {
-			event.Error(ctx, "warning: diagnose package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
+			event.Error(ctx, "warning: analyzing package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
 			return
 		}
 		for _, cgf := range pkg.CompiledGoFiles() {
