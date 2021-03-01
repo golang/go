@@ -192,6 +192,21 @@ func (e *InvalidVersionError) Error() string {
 
 func (e *InvalidVersionError) Unwrap() error { return e.Err }
 
+// An InvalidPathError indicates a module, import, or file path doesn't
+// satisfy all naming constraints. See CheckPath, CheckImportPath,
+// and CheckFilePath for specific restrictions.
+type InvalidPathError struct {
+	Kind string // "module", "import", or "file"
+	Path string
+	Err  error
+}
+
+func (e *InvalidPathError) Error() string {
+	return fmt.Sprintf("malformed %s path %q: %v", e.Kind, e.Path, e.Err)
+}
+
+func (e *InvalidPathError) Unwrap() error { return e.Err }
+
 // Check checks that a given module path, version pair is valid.
 // In addition to the path being a valid module path
 // and the version being a valid semantic version,
@@ -296,30 +311,36 @@ func fileNameOK(r rune) bool {
 // this second requirement is replaced by a requirement that the path
 // follow the gopkg.in server's conventions.
 // Third, no path element may begin with a dot.
-func CheckPath(path string) error {
+func CheckPath(path string) (err error) {
+	defer func() {
+		if err != nil {
+			err = &InvalidPathError{Kind: "module", Path: path, Err: err}
+		}
+	}()
+
 	if err := checkPath(path, modulePath); err != nil {
-		return fmt.Errorf("malformed module path %q: %v", path, err)
+		return err
 	}
 	i := strings.Index(path, "/")
 	if i < 0 {
 		i = len(path)
 	}
 	if i == 0 {
-		return fmt.Errorf("malformed module path %q: leading slash", path)
+		return fmt.Errorf("leading slash")
 	}
 	if !strings.Contains(path[:i], ".") {
-		return fmt.Errorf("malformed module path %q: missing dot in first path element", path)
+		return fmt.Errorf("missing dot in first path element")
 	}
 	if path[0] == '-' {
-		return fmt.Errorf("malformed module path %q: leading dash in first path element", path)
+		return fmt.Errorf("leading dash in first path element")
 	}
 	for _, r := range path[:i] {
 		if !firstPathOK(r) {
-			return fmt.Errorf("malformed module path %q: invalid char %q in first path element", path, r)
+			return fmt.Errorf("invalid char %q in first path element", r)
 		}
 	}
 	if _, _, ok := SplitPathVersion(path); !ok {
-		return fmt.Errorf("malformed module path %q: invalid version", path)
+		return fmt.Errorf("invalid version")
 	}
 	return nil
 }
@@ -343,7 +364,7 @@ func CheckPath(path string) error {
 // subtleties of Unicode.
 func CheckImportPath(path string) error {
 	if err := checkPath(path, importPath); err != nil {
-		return fmt.Errorf("malformed import path %q: %v", path, err)
+		return &InvalidPathError{Kind: "import", Path: path, Err: err}
 	}
 	return nil
 }
@@ -358,12 +379,13 @@ const (
 	filePath
 )
 
-// checkPath checks that a general path is valid.
-// It returns an error describing why but not mentioning path.
-// Because these checks apply to both module paths and import paths,
-// the caller is expected to add the "malformed ___ path %q: " prefix.
-// fileName indicates whether the final element of the path is a file name
-// (as opposed to a directory name).
+// checkPath checks that a general path is valid. kind indicates what
+// specific constraints should be applied.
+//
+// checkPath returns an error describing why the path is not valid.
+// Because these checks apply to module, import, and file paths,
+// and because other checks may be applied, the caller is expected to wrap
+// this error with InvalidPathError.
 func checkPath(path string, kind pathKind) error {
 	if !utf8.ValidString(path) {
 		return fmt.Errorf("invalid UTF-8")
@@ -477,7 +499,7 @@ func checkElem(elem string, kind pathKind) error {
 // subtleties of Unicode.
 func CheckFilePath(path string) error {
 	if err := checkPath(path, filePath); err != nil {
-		return fmt.Errorf("malformed file path %q: %v", path, err)
+		return &InvalidPathError{Kind: "file", Path: path, Err: err}
 	}
 	return nil
 }
