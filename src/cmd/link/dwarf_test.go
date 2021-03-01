@@ -91,7 +91,8 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 				exe = filepath.Join(tmpDir, "go.o")
 			}
 
-			if runtime.GOOS == "darwin" {
+			darwinSymbolTestIsTooFlaky := true // Turn this off, it is too flaky -- See #32218
+			if runtime.GOOS == "darwin" && !darwinSymbolTestIsTooFlaky {
 				if _, err = exec.LookPath("symbols"); err == nil {
 					// Ensure Apple's tooling can parse our object for symbols.
 					out, err = exec.Command("symbols", exe).CombinedOutput()
