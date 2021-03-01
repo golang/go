@@ -162,9 +162,12 @@ func poll_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
 	pd.self = pd
 	unlock(&pd.lock)
 
-	var errno int32
-	errno = netpollopen(fd, pd)
-	return pd, int(errno)
+	errno := netpollopen(fd, pd)
+	if errno != 0 {
+		pollcache.free(pd)
+		return nil, int(errno)
+	}
+	return pd, 0
 }
 
 //go:linkname poll_runtime_pollClose internal/poll.runtime_pollClose
