@@ -95,6 +95,7 @@ type completionOptions struct {
 	fullDocumentation bool
 	placeholders      bool
 	literal           bool
+	snippets          bool
 	matcher           source.Matcher
 	budget            time.Duration
 }
@@ -519,6 +520,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 			placeholders:      opts.UsePlaceholders,
 			literal:           opts.LiteralCompletions && opts.InsertTextFormat == protocol.SnippetTextFormat,
 			budget:            opts.CompletionBudget,
+			snippets:          opts.InsertTextFormat == protocol.SnippetTextFormat,
 		},
 		// default to a matcher that always matches
 		matcher:        prefixMatcher(""),

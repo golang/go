@@ -150,9 +150,8 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		prefix = typeName + "(" + prefix
 		suffix = ")"
 	}
-
-	// Add variadic "..." if we are filling in a variadic param.
-	if cand.variadic {
+	// Add variadic "..." only if snippets if enabled or cand is not a function
+	if cand.variadic && (c.opts.snippets || !cand.expandFuncCall) {
 		suffix += "..."
 	}
 
