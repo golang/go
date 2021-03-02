@@ -596,7 +596,7 @@
 //
 // Usage:
 //
-// 	go get [-d] [-t] [-u] [-v] [-insecure] [build flags] [packages]
+// 	go get [-d] [-t] [-u] [-v] [build flags] [packages]
 //
 // Get resolves its command-line arguments to packages at specific module versions,
 // updates go.mod to require those versions, downloads source code into the
@@ -640,14 +640,6 @@
 //
 // When the -t and -u flags are used together, get will update
 // test dependencies as well.
-//
-// The -insecure flag permits fetching from repositories and resolving
-// custom domains using insecure schemes such as HTTP, and also bypassess
-// module sum validation using the checksum database. Use with caution.
-// This flag is deprecated and will be removed in a future version of go.
-// To permit the use of insecure schemes, use the GOINSECURE environment
-// variable instead. To bypass module sum validation, use GOPRIVATE or
-// GONOSUMDB. See 'go help environment' for details.
 //
 // The -d flag instructs get not to build or install packages. get will only
 // update go.mod and download source code needed to build packages.
@@ -1783,9 +1775,8 @@
 // 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
 // 		of module path prefixes that should always be fetched in an insecure
 // 		manner. Only applies to dependencies that are being fetched directly.
-// 		Unlike the -insecure flag on 'go get', GOINSECURE does not disable
-// 		checksum database validation. GOPRIVATE or GONOSUMDB may be used
-// 		to achieve that.
+// 		GOINSECURE does not disable checksum database validation. GOPRIVATE or
+// 		GONOSUMDB may be used to achieve that.
 // 	GOOS
 // 		The operating system for which to compile code.
 // 		Examples are linux, darwin, windows, netbsd.
@@ -2135,7 +2126,7 @@
 // This help text, accessible as 'go help gopath-get' even in module-aware mode,
 // describes 'go get' as it operates in legacy GOPATH mode.
 //
-// Usage: go get [-d] [-f] [-t] [-u] [-v] [-fix] [-insecure] [build flags] [packages]
+// Usage: go get [-d] [-f] [-t] [-u] [-v] [-fix] [build flags] [packages]
 //
 // Get downloads the packages named by the import paths, along with their
 // dependencies. It then installs the named packages, like 'go install'.
@@ -2150,13 +2141,6 @@
 //
 // The -fix flag instructs get to run the fix tool on the downloaded packages
 // before resolving dependencies or building the code.
-//
-// The -insecure flag permits fetching from repositories and resolving
-// custom domains using insecure schemes such as HTTP. Use with caution.
-// This flag is deprecated and will be removed in a future version of go.
-// The GOINSECURE environment variable should be used instead, since it
-// provides control over which packages may be retrieved using an insecure
-// scheme. See 'go help environment' for details.
 //
 // The -t flag instructs get to also download the packages required to build
 // the tests for the specified packages.
@@ -2342,7 +2326,7 @@
 // will result in the following requests:
 //
 // 	https://example.org/pkg/foo?go-get=1 (preferred)
-// 	http://example.org/pkg/foo?go-get=1  (fallback, only with -insecure)
+// 	http://example.org/pkg/foo?go-get=1  (fallback, only with use of correctly set GOINSECURE)
 //
 // If that page contains the meta tag
 //

@@ -43,8 +43,16 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="go-command">Go command</h3>
 
-<p>
-  TODO: complete this section, or delete if not needed
+<h4 id="go-get"><code>go</code> <code>get</code></h4>
+
+<p><!-- golang.org/issue/37519 -->
+  The <code>go</code> <code>get</code> <code>-insecure</code> flag is
+  deprecated and has been removed. To permit the use of insecure schemes
+  when fetching dependencies, please use the <code>GOINSECURE</code>
+  environment variable. The <code>-insecure</code> flag also bypassed module
+  sum validation, use <code>GOPRIVATE</code> or <code>GONOSUMDB</code> if
+  you need that functionality. See <code>go</code> <code>help</code>
+  <code>environment</code> for details.
 </p>
 
 <h2 id="runtime">Runtime</h2>
