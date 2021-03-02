@@ -133,7 +133,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		} else {
 			lastHasPtr = false
 		}
-		if Arch.LinkArch.InFamily(sys.ARM, sys.PPC64) {
+		if Arch.LinkArch.InFamily(sys.PPC64) {
 			s.stksize = types.Rnd(s.stksize, int64(types.PtrSize))
 		}
 		n.SetFrameOffset(-s.stksize)
