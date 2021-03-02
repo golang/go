@@ -98,11 +98,12 @@ Usage: ` + CmdGet.UsageLine + `
 }
 
 var (
-	getD   = CmdGet.Flag.Bool("d", false, "")
-	getF   = CmdGet.Flag.Bool("f", false, "")
-	getT   = CmdGet.Flag.Bool("t", false, "")
-	getU   = CmdGet.Flag.Bool("u", false, "")
-	getFix = CmdGet.Flag.Bool("fix", false, "")
+	getD        = CmdGet.Flag.Bool("d", false, "")
+	getF        = CmdGet.Flag.Bool("f", false, "")
+	getT        = CmdGet.Flag.Bool("t", false, "")
+	getU        = CmdGet.Flag.Bool("u", false, "")
+	getFix      = CmdGet.Flag.Bool("fix", false, "")
+	getInsecure = CmdGet.Flag.Bool("insecure", false, "")
 )
 
 func init() {
@@ -120,6 +121,9 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 
 	if *getF && !*getU {
 		base.Fatalf("go get: cannot use -f flag without -u")
+	}
+	if *getInsecure {
+		base.Fatalf("go get: -insecure flag is no longer supported; use GOINSECURE instead")
 	}
 
 	// Disable any prompting for passwords by Git.

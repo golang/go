@@ -218,12 +218,13 @@ variable for future go command invocations.
 }
 
 var (
-	getD   = CmdGet.Flag.Bool("d", false, "")
-	getF   = CmdGet.Flag.Bool("f", false, "")
-	getFix = CmdGet.Flag.Bool("fix", false, "")
-	getM   = CmdGet.Flag.Bool("m", false, "")
-	getT   = CmdGet.Flag.Bool("t", false, "")
-	getU   upgradeFlag
+	getD        = CmdGet.Flag.Bool("d", false, "")
+	getF        = CmdGet.Flag.Bool("f", false, "")
+	getFix      = CmdGet.Flag.Bool("fix", false, "")
+	getM        = CmdGet.Flag.Bool("m", false, "")
+	getT        = CmdGet.Flag.Bool("t", false, "")
+	getU        upgradeFlag
+	getInsecure = CmdGet.Flag.Bool("insecure", false, "")
 	// -v is cfg.BuildV
 )
 
@@ -272,6 +273,9 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	if *getM {
 		base.Fatalf("go get: -m flag is no longer supported; consider -d to skip building packages")
+	}
+	if *getInsecure {
+		base.Fatalf("go get: -insecure flag is no longer supported; use GOINSECURE instead")
 	}
 	load.ModResolveTests = *getT
 
