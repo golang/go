@@ -509,5 +509,3 @@ func NewPkgName(pos src.XPos, sym *types.Sym, pkg *types.Pkg) *PkgName {
 	p.pos = pos
 	return p
 }
-
-var RegFP *Name

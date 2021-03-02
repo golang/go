@@ -354,9 +354,4 @@ func DeclareUniverse() {
 		s1.Def = s.Def
 		s1.Block = s.Block
 	}
-
-	ir.RegFP = NewName(Lookup(".fp"))
-	ir.RegFP.SetType(types.Types[types.TINT32])
-	ir.RegFP.Class = ir.PPARAM
-	ir.RegFP.SetUsed(true)
 }
