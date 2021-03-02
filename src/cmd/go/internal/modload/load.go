@@ -134,6 +134,11 @@ type PackageOpts struct {
 	// If nil, treated as equivalent to imports.Tags().
 	Tags map[string]bool
 
+	// VendorModulesInGOROOTSrc indicates that if we are within a module in
+	// GOROOT/src, packages in the module's vendor directory should be resolved as
+	// actual module dependencies (instead of standard-library packages).
+	VendorModulesInGOROOTSrc bool
+
 	// ResolveMissingImports indicates that we should attempt to add module
 	// dependencies as needed to resolve imports of packages that are not found.
 	//
@@ -1170,13 +1175,13 @@ func (ld *loader) stdVendor(parentPath, path string) string {
 	}
 
 	if str.HasPathPrefix(parentPath, "cmd") {
-		if Target.Path != "cmd" {
+		if !ld.VendorModulesInGOROOTSrc || Target.Path != "cmd" {
 			vendorPath := pathpkg.Join("cmd", "vendor", path)
 			if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
 				return vendorPath
 			}
 		}
-	} else if Target.Path != "std" || str.HasPathPrefix(parentPath, "vendor") {
+	} else if !ld.VendorModulesInGOROOTSrc || Target.Path != "std" || str.HasPathPrefix(parentPath, "vendor") {
 		// If we are outside of the 'std' module, resolve imports from within 'std'
 		// to the vendor directory.
 		//
