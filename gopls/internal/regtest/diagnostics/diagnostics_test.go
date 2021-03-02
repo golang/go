@@ -1818,7 +1818,6 @@ var Bar = Foo
 }
 
 func TestIssue44736(t *testing.T) {
-	t.Skip("failing test - see golang.org/issues/44736")
 	const files = `
 	-- go.mod --
 module blah.com

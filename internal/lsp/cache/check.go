@@ -308,7 +308,7 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 		wg           sync.WaitGroup
 
 		mu             sync.Mutex
-		skipTypeErrors bool
+		haveFixedFiles bool
 	)
 	for i, cgf := range m.compiledGoFiles {
 		wg.Add(1)
@@ -328,10 +328,10 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 			pkg.compiledGoFiles[i] = pgf
 			files[i], parseErrors[i], actualErrors[i] = pgf.File, pgf.ParseErr, err
 
-			// If we have fixed parse errors in any of the files,
-			// we should hide type errors, as they may be completely nonsensical.
+			// If we have fixed parse errors in any of the files, we should hide type
+			// errors, as they may be completely nonsensical.
 			mu.Lock()
-			skipTypeErrors = skipTypeErrors || fixed
+			haveFixedFiles = haveFixedFiles || fixed
 			mu.Unlock()
 		}(i, cgf)
 	}
@@ -454,6 +454,19 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 		}
 	}
 
+	// Our heuristic for whether to show type checking errors is:
+	//  + If any file was 'fixed', don't show type checking errors as we
+	//    can't guarantee that they reference accurate locations in the source.
+	//  + If there is a parse error _in the current file_, suppress type
+	//    errors in that file.
+	//  + Otherwise, show type errors even in the presence of parse errors in
+	//    other package files. go/types attempts to suppress follow-on errors
+	//    due to bad syntax, so on balance type checking errors still provide
+	//    a decent signal/noise ratio as long as the file in question parses.
+
+	// Track URIs with parse errors so that we can suppress type errors for these
+	// files.
+	unparseable := map[span.URI]bool{}
 	if len(parseErrors) != 0 {
 		pkg.hasListOrParseErrors = true
 		for _, e := range parseErrors {
@@ -462,11 +475,14 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 				event.Error(ctx, "unable to compute positions for parse errors", err, tag.Package.Of(pkg.ID()))
 				continue
 			}
-			pkg.diagnostics = append(pkg.diagnostics, diags...)
+			for _, diag := range diags {
+				unparseable[diag.URI] = true
+				pkg.diagnostics = append(pkg.diagnostics, diag)
+			}
 		}
 	}
 
-	if pkg.hasListOrParseErrors || skipTypeErrors {
+	if haveFixedFiles {
 		return pkg, nil
 	}
 
@@ -477,8 +493,15 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 			event.Error(ctx, "unable to compute positions for type errors", err, tag.Package.Of(pkg.ID()))
 			continue
 		}
-		pkg.diagnostics = append(pkg.diagnostics, diags...)
 		pkg.typeErrors = append(pkg.typeErrors, e.primary)
+		for _, diag := range diags {
+			// If the file didn't parse cleanly, it is highly likely that type
+			// checking errors will be confusing or redundant. But otherwise, type
+			// checking usually provides a good enough signal to include.
+			if !unparseable[diag.URI] {
+				pkg.diagnostics = append(pkg.diagnostics, diag)
+			}
+		}
 	}
 
 	depsErrors, err := snapshot.depsErrors(ctx, pkg)
