@@ -183,6 +183,7 @@ type ClientOptions struct {
 	HierarchicalDocumentSymbolSupport bool
 	SemanticTypes                     []string
 	SemanticMods                      []string
+	RelatedInformationSupported       bool
 }
 
 // ServerOptions holds LSP-specific configuration that is provided by the
@@ -616,6 +617,9 @@ func (o *Options) ForClientCapabilities(caps protocol.ClientCapabilities) {
 	o.SemanticMods = caps.TextDocument.SemanticTokens.TokenModifiers
 	// we don't need Requests, as we support full functionality
 	// we don't need Formats, as there is only one, for now
+
+	// Check if the client supports diagnostic related information.
+	o.RelatedInformationSupported = caps.TextDocument.PublishDiagnostics.RelatedInformation
 }
 
 func (o *Options) Clone() *Options {

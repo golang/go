@@ -486,7 +486,7 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 		return pkg, nil
 	}
 
-	for _, e := range expandErrors(typeErrors) {
+	for _, e := range expandErrors(typeErrors, snapshot.View().Options().RelatedInformationSupported) {
 		pkg.hasTypeErrors = true
 		diags, err := typeErrorDiagnostics(ctx, snapshot, pkg, e)
 		if err != nil {
@@ -698,9 +698,12 @@ func (e extendedError) Error() string {
 // there is a multiply-defined function, the secondary error points back to the
 // definition first noticed.
 //
-// This code associates the secondary error with its primary error, which can
+// This function associates the secondary error with its primary error, which can
 // then be used as RelatedInformation when the error becomes a diagnostic.
-func expandErrors(errs []types.Error) []extendedError {
+//
+// If supportsRelatedInformation is false, the secondary is instead embedded as
+// additional context in the primary error.
+func expandErrors(errs []types.Error, supportsRelatedInformation bool) []extendedError {
 	var result []extendedError
 	for i := 0; i < len(errs); {
 		original := extendedError{
@@ -723,7 +726,11 @@ func expandErrors(errs []types.Error) []extendedError {
 			// secondary's location. We need to start from the secondary to
 			// capture its unexported location fields.
 			relocatedSecondary := mainSecondary
-			relocatedSecondary.Msg = fmt.Sprintf("%v (full error below)", original.primary.Msg)
+			if supportsRelatedInformation {
+				relocatedSecondary.Msg = fmt.Sprintf("%v (see details)", original.primary.Msg)
+			} else {
+				relocatedSecondary.Msg = fmt.Sprintf("%v (this error: %v)", original.primary.Msg, mainSecondary.Msg)
+			}
 			relocatedSecondary.Soft = original.primary.Soft
 
 			// Copy over the secondary errors, noting the location of the
