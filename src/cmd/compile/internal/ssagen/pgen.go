@@ -138,7 +138,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		} else {
 			lastHasPtr = false
 		}
-		if Arch.LinkArch.InFamily(sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
+		if Arch.LinkArch.InFamily(sys.ARM, sys.ARM64, sys.PPC64) {
 			s.stksize = types.Rnd(s.stksize, int64(types.PtrSize))
 		}
 		n.SetFrameOffset(-s.stksize)
