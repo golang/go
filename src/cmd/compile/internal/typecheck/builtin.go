@@ -177,26 +177,26 @@ var runtimeDecls = [...]struct {
 	{"uint64tofloat64", funcTag, 116},
 	{"uint32tofloat64", funcTag, 117},
 	{"complex128div", funcTag, 118},
+	{"getcallerpc", funcTag, 119},
 	{"racefuncenter", funcTag, 31},
-	{"racefuncenterfp", funcTag, 9},
 	{"racefuncexit", funcTag, 9},
 	{"raceread", funcTag, 31},
 	{"racewrite", funcTag, 31},
-	{"racereadrange", funcTag, 119},
-	{"racewriterange", funcTag, 119},
-	{"msanread", funcTag, 119},
-	{"msanwrite", funcTag, 119},
-	{"msanmove", funcTag, 120},
-	{"checkptrAlignment", funcTag, 121},
-	{"checkptrArithmetic", funcTag, 123},
-	{"libfuzzerTraceCmp1", funcTag, 125},
-	{"libfuzzerTraceCmp2", funcTag, 127},
-	{"libfuzzerTraceCmp4", funcTag, 128},
-	{"libfuzzerTraceCmp8", funcTag, 129},
-	{"libfuzzerTraceConstCmp1", funcTag, 125},
-	{"libfuzzerTraceConstCmp2", funcTag, 127},
-	{"libfuzzerTraceConstCmp4", funcTag, 128},
-	{"libfuzzerTraceConstCmp8", funcTag, 129},
+	{"racereadrange", funcTag, 120},
+	{"racewriterange", funcTag, 120},
+	{"msanread", funcTag, 120},
+	{"msanwrite", funcTag, 120},
+	{"msanmove", funcTag, 121},
+	{"checkptrAlignment", funcTag, 122},
+	{"checkptrArithmetic", funcTag, 124},
+	{"libfuzzerTraceCmp1", funcTag, 126},
+	{"libfuzzerTraceCmp2", funcTag, 128},
+	{"libfuzzerTraceCmp4", funcTag, 129},
+	{"libfuzzerTraceCmp8", funcTag, 130},
+	{"libfuzzerTraceConstCmp1", funcTag, 126},
+	{"libfuzzerTraceConstCmp2", funcTag, 128},
+	{"libfuzzerTraceConstCmp4", funcTag, 129},
+	{"libfuzzerTraceConstCmp8", funcTag, 130},
 	{"x86HasPOPCNT", varTag, 6},
 	{"x86HasSSE41", varTag, 6},
 	{"x86HasFMA", varTag, 6},
@@ -219,7 +219,7 @@ func params(tlist ...*types.Type) []*types.Field {
 }
 
 func runtimeTypes() []*types.Type {
-	var typs [130]*types.Type
+	var typs [131]*types.Type
 	typs[0] = types.ByteType
 	typs[1] = types.NewPtr(typs[0])
 	typs[2] = types.Types[types.TANY]
@@ -339,16 +339,17 @@ func runtimeTypes() []*types.Type {
 	typs[116] = newSig(params(typs[24]), params(typs[20]))
 	typs[117] = newSig(params(typs[65]), params(typs[20]))
 	typs[118] = newSig(params(typs[26], typs[26]), params(typs[26]))
-	typs[119] = newSig(params(typs[5], typs[5]), nil)
-	typs[120] = newSig(params(typs[5], typs[5], typs[5]), nil)
-	typs[121] = newSig(params(typs[7], typs[1], typs[5]), nil)
-	typs[122] = types.NewSlice(typs[7])
-	typs[123] = newSig(params(typs[7], typs[122]), nil)
-	typs[124] = types.Types[types.TUINT8]
-	typs[125] = newSig(params(typs[124], typs[124]), nil)
-	typs[126] = types.Types[types.TUINT16]
-	typs[127] = newSig(params(typs[126], typs[126]), nil)
-	typs[128] = newSig(params(typs[65], typs[65]), nil)
-	typs[129] = newSig(params(typs[24], typs[24]), nil)
+	typs[119] = newSig(nil, params(typs[5]))
+	typs[120] = newSig(params(typs[5], typs[5]), nil)
+	typs[121] = newSig(params(typs[5], typs[5], typs[5]), nil)
+	typs[122] = newSig(params(typs[7], typs[1], typs[5]), nil)
+	typs[123] = types.NewSlice(typs[7])
+	typs[124] = newSig(params(typs[7], typs[123]), nil)
+	typs[125] = types.Types[types.TUINT8]
+	typs[126] = newSig(params(typs[125], typs[125]), nil)
+	typs[127] = types.Types[types.TUINT16]
+	typs[128] = newSig(params(typs[127], typs[127]), nil)
+	typs[129] = newSig(params(typs[65], typs[65]), nil)
+	typs[130] = newSig(params(typs[24], typs[24]), nil)
 	return typs[:]
 }

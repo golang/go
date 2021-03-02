@@ -6,6 +6,7 @@
 // to update builtin.go. This is not done automatically
 // to avoid depending on having a working compiler binary.
 
+//go:build ignore
 // +build ignore
 
 package runtime
@@ -224,9 +225,10 @@ func uint32tofloat64(uint32) float64
 
 func complex128div(num complex128, den complex128) (quo complex128)
 
+func getcallerpc() uintptr
+
 // race detection
 func racefuncenter(uintptr)
-func racefuncenterfp()
 func racefuncexit()
 func raceread(uintptr)
 func racewrite(uintptr)
