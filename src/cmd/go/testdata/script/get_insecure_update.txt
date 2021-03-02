@@ -6,9 +6,9 @@ env GO111MODULE=off
 exec git clone -q http://github.com/golang/example github.com/golang/example
 
 # Update without GOINSECURE should fail.
-# Update with GOINSECURE should succeed.
 # We need -f to ignore import comments.
 ! go get -d -u -f github.com/golang/example/hello
 
+# Update with GOINSECURE should succeed.
 env GOINSECURE=github.com/golang/example/hello
 go get -d -u -f github.com/golang/example/hello

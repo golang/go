@@ -14,12 +14,10 @@ env GO111MODULE=off
 
 # GOPATH: Try again with GOINSECURE (should succeed).
 env GOINSECURE=insecure.go-get-issue-15410.appspot.com
-env GONOSUMDB=insecure.go-get-issue-15410.appspot.com
 go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
 
 # GOPATH: Try updating without GOINSECURE (should fail).
 env GOINSECURE=''
-env GONOSUMDB=''
 ! go get -d -u -f insecure.go-get-issue-15410.appspot.com/pkg/p
 
 # Modules: Set up
