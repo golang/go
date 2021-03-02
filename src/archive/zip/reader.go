@@ -664,7 +664,7 @@ func toValidName(name string) string {
 	if strings.HasPrefix(p, "/") {
 		p = p[len("/"):]
 	}
-	for strings.HasPrefix(name, "../") {
+	for strings.HasPrefix(p, "../") {
 		p = p[len("../"):]
 	}
 	return p
