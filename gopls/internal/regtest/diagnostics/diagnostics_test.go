@@ -1816,3 +1816,42 @@ var Bar = Foo
 	})
 
 }
+
+func TestIssue44736(t *testing.T) {
+	t.Skip("failing test - see golang.org/issues/44736")
+	const files = `
+	-- go.mod --
+module blah.com
+
+go 1.16
+-- main.go --
+package main
+
+import "fmt"
+
+func main() {
+	asdf
+	fmt.Printf("This is a test %v")
+	fdas
+}
+-- other.go --
+package main
+
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		env.OpenFile("other.go")
+		env.Await(
+			env.DiagnosticAtRegexpWithMessage("main.go", "asdf", "undeclared name"),
+			env.DiagnosticAtRegexpWithMessage("main.go", "fdas", "undeclared name"),
+		)
+		env.SetBufferContent("other.go", "package main\n\nasdf")
+		// The new diagnostic in other.go should not suppress diagnostics in main.go.
+		env.Await(
+			OnceMet(
+				env.DiagnosticAtRegexpWithMessage("other.go", "asdf", "expected declaration"),
+				env.DiagnosticAtRegexpWithMessage("main.go", "asdf", "undeclared name"),
+			),
+		)
+	})
+}
