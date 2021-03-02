@@ -147,6 +147,19 @@ func (s *snapshot) ModFiles() []span.URI {
 	return uris
 }
 
+func (s *snapshot) Templates() map[span.URI]source.VersionedFileHandle {
+	if !s.view.options.ExperimentalTemplateSupport {
+		return nil
+	}
+	ans := map[span.URI]source.VersionedFileHandle{}
+	for k, x := range s.files {
+		if strings.HasSuffix(filepath.Ext(k.Filename()), "tmpl") {
+			ans[k] = x
+		}
+	}
+	return ans
+}
+
 func (s *snapshot) ValidBuildConfiguration() bool {
 	return validBuildConfiguration(s.view.rootURI, &s.view.workspaceInformation, s.workspace.getActiveModFiles())
 }
@@ -677,6 +690,7 @@ func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]stru
 	// applied to every folder in the workspace.
 	patterns := map[string]struct{}{
 		"**/*.{go,mod,sum}": {},
+		"**/*.*tmpl":        {},
 	}
 	dirs := s.workspace.dirs(ctx, s)
 	for _, dir := range dirs {
@@ -690,7 +704,7 @@ func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]stru
 		// TODO(rstambler): If microsoft/vscode#3025 is resolved before
 		// microsoft/vscode#101042, we will need a work-around for Windows
 		// drive letter casing.
-		patterns[fmt.Sprintf("%s/**/*.{go,mod,sum}", dirName)] = struct{}{}
+		patterns[fmt.Sprintf("%s/**/*.{go,mod,sum,tmpl}", dirName)] = struct{}{}
 	}
 
 	// Some clients do not send notifications for changes to directories that

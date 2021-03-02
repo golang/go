@@ -99,7 +99,8 @@ func DefaultOptions() *Options {
 						protocol.SourceOrganizeImports: true,
 						protocol.QuickFix:              true,
 					},
-					Sum: {},
+					Sum:  {},
+					Tmpl: {},
 				},
 				SupportedCommands: commands,
 			},
@@ -241,6 +242,10 @@ type BuildOptions struct {
 	// ExperimentalWorkspaceModule opts a user into the experimental support
 	// for multi-module workspaces.
 	ExperimentalWorkspaceModule bool `status:"experimental"`
+
+	// ExperimentalTemplateSupport opts into the experimental support
+	// for template files.
+	ExperimentalTemplateSupport bool `status:"experimental"`
 
 	// ExperimentalPackageCacheKey controls whether to use a coarser cache key
 	// for package type information to increase cache hits. This setting removes
@@ -715,6 +720,7 @@ func (o *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer, enabled bool) {
 func (o *Options) enableAllExperiments() {
 	o.SemanticTokens = true
 	o.ExperimentalPostfixCompletions = true
+	o.ExperimentalTemplateSupport = true
 }
 
 func (o *Options) enableAllExperimentMaps() {
@@ -898,6 +904,9 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 
 	case "experimentalWorkspaceModule":
 		result.setBool(&o.ExperimentalWorkspaceModule)
+
+	case "experimentalTemplateSupport":
+		result.setBool(&o.ExperimentalTemplateSupport)
 
 	case "experimentalDiagnosticsDelay":
 		result.setDuration(&o.ExperimentalDiagnosticsDelay)

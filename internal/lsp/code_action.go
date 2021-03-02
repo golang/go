@@ -54,6 +54,9 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			wanted[only] = supportedCodeActions[only] || explicit[only]
 		}
 	}
+	if len(supportedCodeActions) == 0 {
+		return nil, nil // not an error if there are none supported
+	}
 	if len(wanted) == 0 {
 		return nil, fmt.Errorf("no supported code action to execute for %s, wanted %v", uri, params.Context.Only)
 	}

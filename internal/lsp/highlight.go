@@ -11,6 +11,7 @@ import (
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/template"
 )
 
 func (s *Server) documentHighlight(ctx context.Context, params *protocol.DocumentHighlightParams) ([]protocol.DocumentHighlight, error) {
@@ -19,6 +20,11 @@ func (s *Server) documentHighlight(ctx context.Context, params *protocol.Documen
 	if !ok {
 		return nil, err
 	}
+
+	if fh.Kind() == source.Tmpl {
+		return template.Highlight(ctx, snapshot, fh, params.Position)
+	}
+
 	rngs, err := source.Highlight(ctx, snapshot, fh, params.Position)
 	if err != nil {
 		event.Error(ctx, "no highlight", err, tag.URI.Of(params.TextDocument.URI))

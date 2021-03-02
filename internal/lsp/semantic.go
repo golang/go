@@ -19,6 +19,7 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/template"
 	errors "golang.org/x/xerrors"
 )
 
@@ -48,7 +49,8 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 	ans := protocol.SemanticTokens{
 		Data: []uint32{},
 	}
-	snapshot, _, ok, release, err := s.beginFileRequest(ctx, td.URI, source.Go)
+	kind := source.DetectLanguage("", td.URI.SpanURI().Filename())
+	snapshot, _, ok, release, err := s.beginFileRequest(ctx, td.URI, kind)
 	defer release()
 	if !ok {
 		return nil, err
@@ -58,6 +60,23 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 		// return an error, so if the option changes
 		// the client won't remember the wrong answer
 		return nil, errors.Errorf("semantictokens are disabled")
+	}
+	if kind == source.Tmpl {
+		// this is a little cumbersome to avoid both exporting 'encoded' and its methods
+		// and to avoid import cycles
+		e := &encoded{
+			ctx:      ctx,
+			rng:      rng,
+			tokTypes: s.session.Options().SemanticTypes,
+			tokMods:  s.session.Options().SemanticMods,
+		}
+		add := func(line, start uint32, len uint32) {
+			e.add(line, start, len, tokMacro, nil)
+		}
+		data := func() ([]uint32, error) {
+			return e.Data()
+		}
+		return template.SemanticTokens(ctx, snapshot, td.URI.SpanURI(), add, data)
 	}
 	pkg, err := snapshot.PackageForFile(ctx, td.URI.SpanURI(), source.TypecheckFull, source.WidestPackage)
 	if err != nil {
@@ -132,6 +151,8 @@ const (
 	tokString    tokenType = "string"
 	tokNumber    tokenType = "number"
 	tokOperator  tokenType = "operator"
+
+	tokMacro tokenType = "macro" // for templates
 )
 
 func (e *encoded) token(start token.Pos, leng int, typ tokenType, mods []string) {
@@ -414,7 +435,7 @@ func (e *encoded) ident(x *ast.Ident) {
 	case *types.Var:
 		e.token(x.Pos(), len(x.Name), tokVariable, nil)
 	default:
-		// replace with panic after extensive testing
+		// can't happen
 		if use == nil {
 			msg := fmt.Sprintf("%#v/%#v %#v %#v", x, x.Obj, e.ti.Defs[x], e.ti.Uses[x])
 			e.unexpected(msg)
@@ -489,7 +510,7 @@ func (e *encoded) definitionFor(x *ast.Ident) (tokenType, []string) {
 			return tokType, mods
 		}
 	}
-	// panic after extensive testing
+	// can't happen
 	msg := fmt.Sprintf("failed to find the decl for %s", e.pgf.Tok.PositionFor(x.Pos(), false))
 	e.unexpected(msg)
 	return "", []string{""}
@@ -582,11 +603,9 @@ func (e *encoded) importSpec(d *ast.ImportSpec) {
 	e.token(start, len(nm), tokNamespace, nil)
 }
 
-// panic on unexpected state
+// log unexpected state
 func (e *encoded) unexpected(msg string) {
-	log.Print(msg)
-	log.Print(e.strStack())
-	panic(msg)
+	event.Error(e.ctx, e.strStack(), errors.New(msg))
 }
 
 // SemType returns a string equivalent of the type, for gopls semtok

@@ -168,14 +168,21 @@ func DetectLanguage(langID, filename string) FileKind {
 		return Mod
 	case "go.sum":
 		return Sum
+	case "tmpl":
+		return Tmpl
 	}
 	// Fallback to detecting the language based on the file extension.
-	switch filepath.Ext(filename) {
+	switch ext := filepath.Ext(filename); ext {
 	case ".mod":
 		return Mod
 	case ".sum":
 		return Sum
-	default: // fallback to Go
+	default:
+		if strings.HasSuffix(ext, "tmpl") {
+			// .tmpl, .gotmpl, etc
+			return Tmpl
+		}
+		// It's a Go file, or we shouldn't be seeing it
 		return Go
 	}
 }
@@ -186,6 +193,8 @@ func (k FileKind) String() string {
 		return "go.mod"
 	case Sum:
 		return "go.sum"
+	case Tmpl:
+		return "tmpl"
 	default:
 		return "go"
 	}

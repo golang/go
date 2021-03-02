@@ -19,6 +19,7 @@ import (
 	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/template"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
@@ -208,6 +209,12 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 	// will still be shown as a ShowMessage. If there is no error, any running
 	// error progress reports will be closed.
 	s.showCriticalErrorStatus(ctx, snapshot, criticalErr)
+
+	// There may be .tmpl files.
+	for _, f := range snapshot.Templates() {
+		diags := template.Diagnose(f)
+		s.storeDiagnostics(snapshot, f.URI(), typeCheckSource, diags)
+	}
 
 	// If there are no workspace packages, there is nothing to diagnose and
 	// there are no orphaned files.

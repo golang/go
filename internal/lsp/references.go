@@ -9,13 +9,17 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/template"
 )
 
 func (s *Server) references(ctx context.Context, params *protocol.ReferenceParams) ([]protocol.Location, error) {
-	snapshot, fh, ok, release, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.Go)
+	snapshot, fh, ok, release, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.UnknownKind)
 	defer release()
 	if !ok {
 		return nil, err
+	}
+	if fh.Kind() == source.Tmpl {
+		return template.References(ctx, snapshot, fh, params)
 	}
 	references, err := source.References(ctx, snapshot, fh, params.Position, params.Context.IncludeDeclaration)
 	if err != nil {

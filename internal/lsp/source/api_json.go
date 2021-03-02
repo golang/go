@@ -93,6 +93,19 @@ var GeneratedAPIJSON = &APIJSON{
 				Hierarchy:  "build",
 			},
 			{
+				Name: "experimentalTemplateSupport",
+				Type: "bool",
+				Doc:  "experimentalTemplateSupport opts into the experimental support\nfor template files.\n",
+				EnumKeys: EnumKeys{
+					ValueType: "",
+					Keys:      nil,
+				},
+				EnumValues: nil,
+				Default:    "false",
+				Status:     "experimental",
+				Hierarchy:  "build",
+			},
+			{
 				Name: "experimentalPackageCacheKey",
 				Type: "bool",
 				Doc:  "experimentalPackageCacheKey controls whether to use a coarser cache key\nfor package type information to increase cache hits. This setting removes\nthe user's environment, build flags, and working directory from the cache\nkey, which should be a safe change as all relevant inputs into the type\nchecking pass are already hashed into the key. This is temporarily guarded\nby an experiment because caching behavior is subtle and difficult to\ncomprehensively test.\n",

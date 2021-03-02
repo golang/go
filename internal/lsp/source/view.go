@@ -69,6 +69,9 @@ type Snapshot interface {
 	// workspace.
 	IgnoredFile(uri span.URI) bool
 
+	// Templates returns the .tmpl files
+	Templates() map[span.URI]VersionedFileHandle
+
 	// ParseGo returns the parsed AST for the file.
 	// If the file is not available, returns nil and an error.
 	ParseGo(ctx context.Context, fh FileHandle, mode ParseMode) (*ParsedGoFile, error)
@@ -509,6 +512,8 @@ const (
 	Mod
 	// Sum is a go.sum file.
 	Sum
+	// Tmpl is a template file.
+	Tmpl
 )
 
 // Analyzer represents a go/analysis analyzer with some boolean properties

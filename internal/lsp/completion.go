@@ -15,6 +15,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/source/completion"
+	"golang.org/x/tools/internal/lsp/template"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -31,6 +32,8 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 		candidates, surrounding, err = completion.Completion(ctx, snapshot, fh, params.Position, params.Context)
 	case source.Mod:
 		candidates, surrounding = nil, nil
+	case source.Tmpl:
+		candidates, surrounding, err = template.Completion(ctx, snapshot, fh, params.Position, params.Context)
 	}
 	if err != nil {
 		event.Error(ctx, "no completions found", err, tag.Position.Of(params.Position))

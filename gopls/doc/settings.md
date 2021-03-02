@@ -112,6 +112,15 @@ for multi-module workspaces.
 
 Default: `false`.
 
+#### **experimentalTemplateSupport** *bool*
+
+**This setting is experimental and may be deleted.**
+
+experimentalTemplateSupport opts into the experimental support
+for template files.
+
+Default: `false`.
+
 #### **experimentalPackageCacheKey** *bool*
 
 **This setting is experimental and may be deleted.**

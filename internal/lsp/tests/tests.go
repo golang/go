@@ -233,7 +233,8 @@ func DefaultOptions(o *source.Options) {
 		source.Mod: {
 			protocol.SourceOrganizeImports: true,
 		},
-		source.Sum: {},
+		source.Sum:  {},
+		source.Tmpl: {},
 	}
 	o.UserOptions.Codelenses[string(command.Test)] = true
 	o.HoverKind = source.SynopsisDocumentation
