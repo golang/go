@@ -1120,9 +1120,10 @@ func (r *resolver) findAndUpgradeImports(ctx context.Context, queries []*query) 
 // build list.
 func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPackage func(ctx context.Context, path string, m module.Version) (versionOk bool)) {
 	opts := modload.PackageOpts{
-		Tags:          imports.AnyTags(),
-		LoadTests:     *getT,
-		SilenceErrors: true, // May be fixed by subsequent upgrades or downgrades.
+		Tags:                     imports.AnyTags(),
+		VendorModulesInGOROOTSrc: true,
+		LoadTests:                *getT,
+		SilenceErrors:            true, // May be fixed by subsequent upgrades or downgrades.
 	}
 
 	opts.AllowPackage = func(ctx context.Context, path string, m module.Version) error {
@@ -1459,9 +1460,10 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns 
 		// LoadPackages will print errors (since it has more context) but will not
 		// exit, since we need to load retractions later.
 		pkgOpts := modload.PackageOpts{
-			LoadTests:             *getT,
-			ResolveMissingImports: false,
-			AllowErrors:           true,
+			VendorModulesInGOROOTSrc: true,
+			LoadTests:                *getT,
+			ResolveMissingImports:    false,
+			AllowErrors:              true,
 		}
 		matches, pkgs := modload.LoadPackages(ctx, pkgOpts, pkgPatterns...)
 		for _, m := range matches {
