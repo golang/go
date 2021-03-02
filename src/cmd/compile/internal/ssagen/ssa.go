@@ -4564,6 +4564,9 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 	if sym.Pkg == types.LocalPkg {
 		pkg = base.Ctxt.Pkgpath
 	}
+	if sym.Pkg == ir.Pkgs.Runtime {
+		pkg = "runtime"
+	}
 	if base.Flag.Race && pkg == "sync/atomic" {
 		// The race detector needs to be able to intercept these calls.
 		// We can't intrinsify them.
