@@ -5176,10 +5176,6 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 			if v != nil {
 				return v
 			}
-			if n == ir.RegFP {
-				// Special arg that points to the frame pointer (Used by ORECOVER).
-				return s.entryNewValue2A(ssa.OpLocalAddr, t, n, s.sp, s.startmem)
-			}
 			s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
 			return nil
 		case ir.PAUTO:

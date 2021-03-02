@@ -226,6 +226,7 @@ func uint32tofloat64(uint32) float64
 func complex128div(num complex128, den complex128) (quo complex128)
 
 func getcallerpc() uintptr
+func getcallersp() uintptr
 
 // race detection
 func racefuncenter(uintptr)

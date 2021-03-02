@@ -93,12 +93,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		for _, v := range b.Values {
 			if n, ok := v.Aux.(*ir.Name); ok {
 				switch n.Class {
-				case ir.PPARAM, ir.PPARAMOUT:
-					// Don't modify RegFP; it is a global.
-					if n != ir.RegFP {
-						n.SetUsed(true)
-					}
-				case ir.PAUTO:
+				case ir.PPARAM, ir.PPARAMOUT, ir.PAUTO:
 					n.SetUsed(true)
 				}
 			}
