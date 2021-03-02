@@ -185,6 +185,7 @@ func analysisDiagnosticDiagnostics(ctx context.Context, snapshot *snapshot, pkg 
 		Message:        e.Message,
 		Related:        related,
 		SuggestedFixes: fixes,
+		Analyzer:       srcAnalyzer,
 	}
 	// If the fixes only delete code, assume that the diagnostic is reporting dead code.
 	if onlyDeletions(fixes) {

@@ -588,6 +588,7 @@ type Diagnostic struct {
 	// Fields below are used internally to generate quick fixes. They aren't
 	// part of the LSP spec and don't leave the server.
 	SuggestedFixes []SuggestedFix
+	Analyzer       *Analyzer
 }
 
 type DiagnosticSource string

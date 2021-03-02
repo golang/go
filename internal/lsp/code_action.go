@@ -62,14 +62,18 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	switch fh.Kind() {
 	case source.Mod:
 		if diagnostics := params.Context.Diagnostics; len(diagnostics) > 0 {
-			modQuickFixes, err := moduleQuickFixes(ctx, snapshot, fh, diagnostics)
+			diags, err := mod.DiagnosticsForMod(ctx, snapshot, fh)
 			if source.IsNonFatalGoModError(err) {
 				return nil, nil
 			}
 			if err != nil {
 				return nil, err
 			}
-			codeActions = append(codeActions, modQuickFixes...)
+			quickFixes, err := quickFixesForDiagnostics(ctx, snapshot, diagnostics, diags)
+			if err != nil {
+				return nil, err
+			}
+			codeActions = append(codeActions, quickFixes...)
 		}
 	case source.Go:
 		// Don't suggest fixes for generated files, since they are generally
@@ -125,40 +129,61 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			return nil, err
 		}
 		if (wanted[protocol.QuickFix] || wanted[protocol.SourceFixAll]) && len(diagnostics) > 0 {
-			pkgDiagnostics, err := snapshot.DiagnosePackage(ctx, pkg)
+			analysisDiags, err := source.Analyze(ctx, snapshot, pkg)
 			if err != nil {
 				return nil, err
 			}
-			diagnosticFixes, err := quickFixesForDiagnostics(ctx, snapshot, diagnostics, pkgDiagnostics[fh.URI()])
-			if err != nil {
-				return nil, err
-			}
-			codeActions = append(codeActions, diagnosticFixes...)
-			analysisQuickFixes, highConfidenceEdits, err := analysisFixes(ctx, snapshot, pkg, diagnostics)
-			if err != nil {
-				return nil, err
-			}
-			if wanted[protocol.QuickFix] {
-				// Add the quick fixes reported by go/analysis.
-				codeActions = append(codeActions, analysisQuickFixes...)
 
-				// If there are any diagnostics relating to the go.mod file,
-				// add their corresponding quick fixes.
-				modQuickFixes, err := moduleQuickFixes(ctx, snapshot, fh, diagnostics)
-				if source.IsNonFatalGoModError(err) {
-					// Not a fatal error.
-					event.Error(ctx, "module suggested fixes failed", err, tag.Directory.Of(snapshot.View().Folder()))
+			if wanted[protocol.QuickFix] {
+				pkgDiagnostics, err := snapshot.DiagnosePackage(ctx, pkg)
+				if err != nil {
+					return nil, err
 				}
-				codeActions = append(codeActions, modQuickFixes...)
+				quickFixDiags := append(pkgDiagnostics[uri], analysisDiags[uri]...)
+				modURI := snapshot.GoModForFile(fh.URI())
+				if modURI != "" {
+					modFH, err := snapshot.GetVersionedFile(ctx, modURI)
+					if err != nil {
+						return nil, err
+					}
+					modDiags, err := mod.DiagnosticsForMod(ctx, snapshot, modFH)
+					if err != nil && !source.IsNonFatalGoModError(err) {
+						// Not a fatal error.
+						event.Error(ctx, "module suggested fixes failed", err, tag.Directory.Of(snapshot.View().Folder()))
+					}
+					quickFixDiags = append(quickFixDiags, modDiags...)
+				}
+				quickFixes, err := quickFixesForDiagnostics(ctx, snapshot, diagnostics, quickFixDiags)
+				if err != nil {
+					return nil, err
+				}
+				codeActions = append(codeActions, quickFixes...)
+
 			}
-			if wanted[protocol.SourceFixAll] && len(highConfidenceEdits) > 0 {
-				codeActions = append(codeActions, protocol.CodeAction{
-					Title: "Simplifications",
-					Kind:  protocol.SourceFixAll,
-					Edit: protocol.WorkspaceEdit{
-						DocumentChanges: highConfidenceEdits,
-					},
-				})
+			if wanted[protocol.SourceFixAll] {
+				var fixAllEdits []protocol.TextDocumentEdit
+				for _, ad := range analysisDiags[uri] {
+					if ad.Analyzer == nil || !ad.Analyzer.HighConfidence {
+						continue
+					}
+					for _, fix := range ad.SuggestedFixes {
+						edits := fix.Edits[fh.URI()]
+						if len(edits) == 0 {
+							continue
+						}
+						fixAllEdits = append(fixAllEdits, documentChanges(fh, edits)...)
+					}
+
+				}
+				if len(fixAllEdits) != 0 {
+					codeActions = append(codeActions, protocol.CodeAction{
+						Title: "Simplifications",
+						Kind:  protocol.SourceFixAll,
+						Edit: protocol.WorkspaceEdit{
+							DocumentChanges: fixAllEdits,
+						},
+					})
+				}
 			}
 		}
 		if ctx.Err() != nil {
@@ -251,78 +276,6 @@ func importDiagnostics(fix *imports.ImportFix, diagnostics []protocol.Diagnostic
 		}
 	}
 	return results
-}
-
-func analysisFixes(ctx context.Context, snapshot source.Snapshot, pkg source.Package, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, []protocol.TextDocumentEdit, error) {
-	if len(diagnostics) == 0 {
-		return nil, nil, nil
-	}
-	var (
-		codeActions       []protocol.CodeAction
-		sourceFixAllEdits []protocol.TextDocumentEdit
-	)
-	for _, diag := range diagnostics {
-		srcErr, analyzer, ok := findDiagnostic(ctx, snapshot, pkg.ID(), diag)
-		if !ok {
-			continue
-		}
-		// If the suggested fix for the diagnostic is expected to be separate,
-		// see if there are any supported commands available.
-		if analyzer.Fix != "" {
-			action, err := diagnosticToCommandCodeAction(ctx, snapshot, srcErr, &diag, protocol.QuickFix)
-			if err != nil {
-				return nil, nil, err
-			}
-			codeActions = append(codeActions, *action)
-			continue
-		}
-		for _, fix := range srcErr.SuggestedFixes {
-			action := protocol.CodeAction{
-				Title:       fix.Title,
-				Kind:        protocol.QuickFix,
-				Diagnostics: []protocol.Diagnostic{diag},
-				Edit:        protocol.WorkspaceEdit{},
-			}
-			for uri, edits := range fix.Edits {
-				fh, err := snapshot.GetVersionedFile(ctx, uri)
-				if err != nil {
-					return nil, nil, err
-				}
-				docChanges := documentChanges(fh, edits)
-				if analyzer.HighConfidence {
-					sourceFixAllEdits = append(sourceFixAllEdits, docChanges...)
-				}
-				action.Edit.DocumentChanges = append(action.Edit.DocumentChanges, docChanges...)
-			}
-			codeActions = append(codeActions, action)
-		}
-	}
-	return codeActions, sourceFixAllEdits, nil
-}
-
-func findDiagnostic(ctx context.Context, snapshot source.Snapshot, pkgID string, diag protocol.Diagnostic) (*source.Diagnostic, source.Analyzer, bool) {
-	analyzer := diagnosticToAnalyzer(snapshot, diag.Source, diag.Message)
-	if analyzer == nil {
-		return nil, source.Analyzer{}, false
-	}
-	analysisErrors, err := snapshot.Analyze(ctx, pkgID, []*source.Analyzer{analyzer})
-	if err != nil {
-		return nil, source.Analyzer{}, false
-	}
-	for _, err := range analysisErrors {
-		if err.Message != diag.Message {
-			continue
-		}
-		if protocol.CompareRange(err.Range, diag.Range) != 0 {
-			continue
-		}
-		if string(err.Source) != analyzer.Analyzer.Name {
-			continue
-		}
-		// The error matches.
-		return err, *analyzer, true
-	}
-	return nil, source.Analyzer{}, false
 }
 
 // diagnosticToAnalyzer return the analyzer associated with a given diagnostic.
@@ -476,29 +429,6 @@ func documentChanges(fh source.VersionedFileHandle, edits []protocol.TextEdit) [
 			Edits: edits,
 		},
 	}
-}
-
-func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.VersionedFileHandle, pdiags []protocol.Diagnostic) ([]protocol.CodeAction, error) {
-	var modFH source.VersionedFileHandle
-	switch fh.Kind() {
-	case source.Mod:
-		modFH = fh
-	case source.Go:
-		modURI := snapshot.GoModForFile(fh.URI())
-		if modURI == "" {
-			return nil, nil
-		}
-		var err error
-		modFH, err = snapshot.GetVersionedFile(ctx, modURI)
-		if err != nil {
-			return nil, err
-		}
-	}
-	diags, err := mod.DiagnosticsForMod(ctx, snapshot, modFH)
-	if err != nil {
-		return nil, err
-	}
-	return quickFixesForDiagnostics(ctx, snapshot, pdiags, diags)
 }
 
 func quickFixesForDiagnostics(ctx context.Context, snapshot source.Snapshot, pdiags []protocol.Diagnostic, sdiags []*source.Diagnostic) ([]protocol.CodeAction, error) {

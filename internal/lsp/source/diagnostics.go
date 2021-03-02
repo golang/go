@@ -23,7 +23,7 @@ type RelatedInformation struct {
 	Message string
 }
 
-func Analyze(ctx context.Context, snapshot Snapshot, pkg Package, typeCheckDiagnostics map[span.URI][]*Diagnostic) (map[span.URI][]*Diagnostic, error) {
+func Analyze(ctx context.Context, snapshot Snapshot, pkg Package) (map[span.URI][]*Diagnostic, error) {
 	// Exit early if the context has been canceled. This also protects us
 	// from a race on Options, see golang/go#36699.
 	if ctx.Err() != nil {
@@ -82,7 +82,7 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (Vers
 	}
 	fileDiags := diagnostics[fh.URI()]
 	if !pkg.HasListOrParseErrors() {
-		analysisDiags, err := Analyze(ctx, snapshot, pkg, diagnostics)
+		analysisDiags, err := Analyze(ctx, snapshot, pkg)
 		if err != nil {
 			return VersionedFileIdentity{}, nil, err
 		}
