@@ -19,7 +19,6 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
-	"cmd/internal/sys"
 )
 
 // cmpstackvarlt reports whether the stack variable a sorts before b.
@@ -132,9 +131,6 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			lastHasPtr = true
 		} else {
 			lastHasPtr = false
-		}
-		if Arch.LinkArch.InFamily(sys.PPC64) {
-			s.stksize = types.Rnd(s.stksize, int64(types.PtrSize))
 		}
 		n.SetFrameOffset(-s.stksize)
 	}
