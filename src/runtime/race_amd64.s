@@ -167,21 +167,13 @@ call:
 ret:
 	RET
 
-// func runtime·racefuncenterfp(fp uintptr)
-// Called from instrumented code.
-// Like racefuncenter but passes FP, not PC
-TEXT	runtime·racefuncenterfp(SB), NOSPLIT, $0-8
-	MOVQ	fp+0(FP), R11
-	MOVQ	-8(R11), R11
-	JMP	racefuncenter<>(SB)
-
 // func runtime·racefuncenter(pc uintptr)
 // Called from instrumented code.
 TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
 	MOVQ	callpc+0(FP), R11
 	JMP	racefuncenter<>(SB)
 
-// Common code for racefuncenter/racefuncenterfp
+// Common code for racefuncenter
 // R11 = caller's return address
 TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 	MOVQ	DX, BX		// save function entry context (for closures)
