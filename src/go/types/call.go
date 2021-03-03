@@ -592,31 +592,42 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 	// methods may not have a fully set up signature yet
 	if m, _ := obj.(*Func); m != nil {
 		check.objDecl(m, nil)
-		// If m has a parameterized receiver type, infer the type parameter
-		// values from the actual receiver provided and then substitute the
-		// type parameters in the signature accordingly.
+		// If m has a parameterized receiver type, infer the type arguments from
+		// the actual receiver provided and then substitute the type parameters in
+		// the signature accordingly.
 		// TODO(gri) factor this code out
 		sig := m.typ.(*Signature)
 		if len(sig.rparams) > 0 {
+			// For inference to work, we must use the receiver type
+			// matching the receiver in the actual method declaration.
+			// If the method is embedded, the matching receiver is the
+			// embedded struct or interface that declared the method.
+			// Traverse the embedding to find that type (issue #44688).
+			recv := x.typ
+			for i := 0; i < len(index)-1; i++ {
+				// The embedded type is either a struct or a pointer to
+				// a struct except for the last one (which we don't need).
+				recv = asStruct(derefStructPtr(recv)).Field(index[i]).typ
+			}
+
 			// The method may have a pointer receiver, but the actually provided receiver
 			// may be a (hopefully addressable) non-pointer value, or vice versa. Here we
 			// only care about inferring receiver type parameters; to make the inference
 			// work, match up pointer-ness of receiver and argument.
-			arg := x
-			if ptrRecv := isPointer(sig.recv.typ); ptrRecv != isPointer(arg.typ) {
-				copy := *arg
+			if ptrRecv := isPointer(sig.recv.typ); ptrRecv != isPointer(recv) {
 				if ptrRecv {
-					copy.typ = NewPointer(arg.typ)
+					recv = NewPointer(recv)
 				} else {
-					copy.typ = arg.typ.(*Pointer).base
+					recv = recv.(*Pointer).base
 				}
-				arg = &copy
 			}
-			targs, failed := check.infer(sig.rparams, NewTuple(sig.recv), []*operand{arg})
+			arg := operand{mode: variable, expr: x.expr, typ: recv}
+			targs, failed := check.infer(sig.rparams, NewTuple(sig.recv), []*operand{&arg})
 			if failed >= 0 {
 				// We may reach here if there were other errors (see issue #40056).
 				// check.infer will report a follow-up error.
-				// TODO(gri) avoid the follow-up error or provide better explanation.
+				// TODO(gri) avoid the follow-up error as it is confusing
+				//           (there's no inference in the source code)
 				goto Error
 			}
 			// Don't modify m. Instead - for now - make a copy of m and use that instead.
