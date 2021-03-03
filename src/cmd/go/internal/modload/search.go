@@ -187,7 +187,7 @@ func MatchInModule(ctx context.Context, pattern string, m module.Version, tags m
 		matchPackages(ctx, match, tags, includeStd, nil)
 	}
 
-	LoadModFile(ctx)
+	LoadModFile(ctx) // Sets Target, needed by fetch and matchPackages.
 
 	if !match.IsLiteral() {
 		matchPackages(ctx, match, tags, omitStd, []module.Version{m})

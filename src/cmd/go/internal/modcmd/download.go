@@ -137,7 +137,8 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	listRetractions := false
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
-	for _, info := range modload.ListModules(ctx, args, listU, listVersions, listRetractions) {
+	infos, infosErr := modload.ListModules(ctx, args, listU, listVersions, listRetractions)
+	for _, info := range infos {
 		if info.Replace != nil {
 			info = info.Replace
 		}
@@ -188,5 +189,12 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	// Update go.mod and especially go.sum if needed.
-	modload.WriteGoMod()
+	modload.WriteGoMod(ctx)
+
+	// If there was an error matching some of the requested packages, emit it now
+	// (after we've written the checksums for the modules that were downloaded
+	// successfully).
+	if infosErr != nil {
+		base.Errorf("go mod download: %v", infosErr)
+	}
 }

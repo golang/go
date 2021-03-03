@@ -12,6 +12,7 @@ import (
 	"internal/goroot"
 	"io/fs"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -202,20 +203,20 @@ func (e *invalidImportError) Unwrap() error {
 	return e.err
 }
 
-// importFromBuildList finds the module and directory in the build list
+// importFromModules finds the module and directory in the build list
 // containing the package with the given import path. The answer must be unique:
-// importFromBuildList returns an error if multiple modules attempt to provide
+// importFromModules returns an error if multiple modules attempt to provide
 // the same package.
 //
-// importFromBuildList can return a module with an empty m.Path, for packages in
+// importFromModules can return a module with an empty m.Path, for packages in
 // the standard library.
 //
-// importFromBuildList can return an empty directory string, for fake packages
+// importFromModules can return an empty directory string, for fake packages
 // like "C" and "unsafe".
 //
-// If the package cannot be found in buildList,
-// importFromBuildList returns an *ImportMissingError.
-func importFromBuildList(ctx context.Context, path string, buildList []module.Version) (m module.Version, dir string, err error) {
+// If the package is not present in any module selected from the requirement
+// graph, importFromModules returns an *ImportMissingError.
+func importFromModules(ctx context.Context, path string, rs *Requirements) (m module.Version, dir string, err error) {
 	if strings.Contains(path, "@") {
 		return module.Version{}, "", fmt.Errorf("import path should not have @version")
 	}
@@ -269,12 +270,34 @@ func importFromBuildList(ctx context.Context, path string, buildList []module.Ve
 	// Check each module on the build list.
 	var dirs []string
 	var mods []module.Version
+
+	// Iterate over possible modules for the path, not all selected modules.
+	// Iterating over selected modules would make the overall loading time
+	// O(M × P) for M modules providing P imported packages, whereas iterating
+	// over path prefixes is only O(P × k) with maximum path depth k. For
+	// large projects both M and P may be very large (note that M ≤ P), but k
+	// will tend to remain smallish (if for no other reason than filesystem
+	// path limitations).
+	var mg *ModuleGraph
+	if go117LazyTODO {
+		// Pull the prefix-matching loop below into another (new) loop.
+		// If the main module is lazy, try it once with mg == nil, and then load mg
+		// and try again.
+	} else {
+		mg, err = rs.Graph(ctx)
+		if err != nil {
+			return module.Version{}, "", &ImportMissingError{Path: path, QueryErr: err}
+		}
+	}
+
 	var sumErrMods []module.Version
-	for _, m := range buildList {
-		if !maybeInModule(path, m.Path) {
-			// Avoid possibly downloading irrelevant modules.
+	for prefix := path; prefix != "."; prefix = pathpkg.Dir(prefix) {
+		v := mg.Selected(prefix)
+		if v == "none" {
 			continue
 		}
+		m := module.Version{Path: prefix, Version: v}
+
 		needSum := true
 		root, isLocal, err := fetch(ctx, m, needSum)
 		if err != nil {
@@ -283,7 +306,7 @@ func importFromBuildList(ctx context.Context, path string, buildList []module.Ve
 				// We can't verify that the package is unique, and we may not find
 				// the package at all. Keep checking other modules to decide which
 				// error to report. Multiple sums may be missing if we need to look in
-				// multiple nested modules to resolve the import.
+				// multiple nested modules to resolve the import; we'll report them all.
 				sumErrMods = append(sumErrMods, m)
 				continue
 			}
@@ -302,20 +325,37 @@ func importFromBuildList(ctx context.Context, path string, buildList []module.Ve
 			dirs = append(dirs, dir)
 		}
 	}
+
 	if len(mods) > 1 {
+		// We produce the list of directories from longest to shortest candidate
+		// module path, but the AmbiguousImportError should report them from
+		// shortest to longest. Reverse them now.
+		for i := 0; i < len(mods)/2; i++ {
+			j := len(mods) - 1 - i
+			mods[i], mods[j] = mods[j], mods[i]
+			dirs[i], dirs[j] = dirs[j], dirs[i]
+		}
 		return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: dirs, Modules: mods}
 	}
+
 	if len(sumErrMods) > 0 {
+		for i := 0; i < len(sumErrMods)/2; i++ {
+			j := len(sumErrMods) - 1 - i
+			sumErrMods[i], sumErrMods[j] = sumErrMods[j], sumErrMods[i]
+		}
 		return module.Version{}, "", &ImportMissingSumError{
 			importPath: path,
 			mods:       sumErrMods,
 			found:      len(mods) > 0,
 		}
 	}
+
 	if len(mods) == 1 {
 		return mods[0], dirs[0], nil
 	}
 
+	// We checked the full module graph and still didn't find the
+	// requested package.
 	var queryErr error
 	if !HasModRoot() {
 		queryErr = ErrNoModRoot
@@ -328,7 +368,7 @@ func importFromBuildList(ctx context.Context, path string, buildList []module.Ve
 //
 // Unlike QueryPattern, queryImport prefers to add a replaced version of a
 // module *before* checking the proxies for a version to add.
-func queryImport(ctx context.Context, path string) (module.Version, error) {
+func queryImport(ctx context.Context, path string, rs *Requirements) (module.Version, error) {
 	// To avoid spurious remote fetches, try the latest replacement for each
 	// module (golang.org/issue/26241).
 	if index != nil {
@@ -417,7 +457,12 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 	// and return m, dir, ImpportMissingError.
 	fmt.Fprintf(os.Stderr, "go: finding module for package %s\n", path)
 
-	candidates, err := QueryPackages(ctx, path, "latest", Selected, CheckAllowed)
+	mg, err := rs.Graph(ctx)
+	if err != nil {
+		return module.Version{}, err
+	}
+
+	candidates, err := QueryPackages(ctx, path, "latest", mg.Selected, CheckAllowed)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			// Return "cannot find module providing package […]" instead of whatever
@@ -430,28 +475,21 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 
 	candidate0MissingVersion := ""
 	for i, c := range candidates {
-		cm := c.Mod
-		canAdd := true
-		for _, bm := range buildList {
-			if bm.Path == cm.Path && semver.Compare(bm.Version, cm.Version) > 0 {
-				// QueryPattern proposed that we add module cm to provide the package,
-				// but we already depend on a newer version of that module (and we don't
-				// have the package).
-				//
-				// This typically happens when a package is present at the "@latest"
-				// version (e.g., v1.0.0) of a module, but we have a newer version
-				// of the same module in the build list (e.g., v1.0.1-beta), and
-				// the package is not present there.
-				canAdd = false
-				if i == 0 {
-					candidate0MissingVersion = bm.Version
-				}
-				break
+		if v := mg.Selected(c.Mod.Path); semver.Compare(v, c.Mod.Version) > 0 {
+			// QueryPattern proposed that we add module c.Mod to provide the package,
+			// but we already depend on a newer version of that module (and that
+			// version doesn't have the package).
+			//
+			// This typically happens when a package is present at the "@latest"
+			// version (e.g., v1.0.0) of a module, but we have a newer version
+			// of the same module in the build list (e.g., v1.0.1-beta), and
+			// the package is not present there.
+			if i == 0 {
+				candidate0MissingVersion = v
 			}
+			continue
 		}
-		if canAdd {
-			return cm, nil
-		}
+		return c.Mod, nil
 	}
 	return module.Version{}, &ImportMissingError{
 		Path:              path,

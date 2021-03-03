@@ -287,8 +287,6 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// 'go get' is expected to do this, unlike other commands.
 	modload.AllowMissingModuleImports()
 
-	modload.LoadModFile(ctx) // Initializes modload.Target.
-
 	queries := parseArgs(ctx, args)
 
 	r := newResolver(ctx, queries)
@@ -401,7 +399,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	oldReqs := reqsFromGoMod(modload.ModFile())
 
 	modload.AllowWriteGoMod()
-	modload.WriteGoMod()
+	modload.WriteGoMod(ctx)
 	modload.DisallowWriteGoMod()
 
 	newReqs := reqsFromGoMod(modload.ModFile())
@@ -483,7 +481,11 @@ type versionReason struct {
 }
 
 func newResolver(ctx context.Context, queries []*query) *resolver {
-	buildList := modload.LoadAllModules(ctx)
+	// LoadModGraph also sets modload.Target, which is needed by various resolver
+	// methods.
+	mg := modload.LoadModGraph(ctx)
+
+	buildList := mg.BuildList()
 	initialVersion := make(map[string]string, len(buildList))
 	for _, m := range buildList {
 		initialVersion[m.Path] = m.Version
@@ -692,7 +694,7 @@ func (r *resolver) performLocalQueries(ctx context.Context) {
 
 			// Absolute paths like C:\foo and relative paths like ../foo... are
 			// restricted to matching packages in the main module.
-			pkgPattern := modload.DirImportPath(q.pattern)
+			pkgPattern := modload.DirImportPath(ctx, q.pattern)
 			if pkgPattern == "." {
 				return errSet(fmt.Errorf("%s%s is not within module rooted at %s", q.pattern, absDetail, modload.ModRoot()))
 			}
@@ -1675,7 +1677,7 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 		return false
 	}
 
-	r.buildList = modload.LoadAllModules(ctx)
+	r.buildList = modload.LoadModGraph(ctx).BuildList()
 	r.buildListVersion = make(map[string]string, len(r.buildList))
 	for _, m := range r.buildList {
 		r.buildListVersion[m.Path] = m.Version
