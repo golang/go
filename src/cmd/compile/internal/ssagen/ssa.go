@@ -1240,7 +1240,7 @@ func (s *state) instrumentFields(t *types.Type, addr *ssa.Value, kind instrument
 		if f.Sym.IsBlank() {
 			continue
 		}
-		offptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(f.Type), f.Offset, addr)
+		offptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(f.Type), abi.FieldOffsetOf(f), addr)
 		s.instrumentFields(f.Type, offptr, kind)
 	}
 }
@@ -4759,7 +4759,7 @@ func (s *state) openDeferExit() {
 		}
 		for j, argAddrVal := range r.argVals {
 			f := getParam(r.n, j)
-			ACArgs = append(ACArgs, ssa.Param{Type: f.Type, Offset: int32(argStart + f.Offset)})
+			ACArgs = append(ACArgs, ssa.Param{Type: f.Type, Offset: int32(argStart + abi.FieldOffsetOf(f))})
 			var a *ssa.Value
 			if !TypeOK(f.Type) {
 				a = s.newValue2(ssa.OpDereference, f.Type, argAddrVal, s.mem())
@@ -4867,12 +4867,12 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 	types.CalcSize(fn.Type())
 	stksize := fn.Type().ArgWidth() // includes receiver, args, and results
 
-	abi := s.f.ABI1
+	callABI := s.f.ABI1
 	if !inRegisters {
-		abi = s.f.ABI0
+		callABI = s.f.ABI0
 	}
 
-	params := abi.ABIAnalyze(n.X.Type())
+	params := callABI.ABIAnalyze(n.X.Type())
 
 	res := n.X.Type().Results()
 	if k == callNormal {
@@ -4933,7 +4933,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		}
 		// Set other args.
 		for _, f := range ft.Params().Fields().Slice() {
-			s.storeArgWithBase(args[0], f.Type, addr, off+f.Offset)
+			s.storeArgWithBase(args[0], f.Type, addr, off+abi.FieldOffsetOf(f))
 			args = args[1:]
 		}
 

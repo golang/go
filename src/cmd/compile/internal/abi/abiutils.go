@@ -315,12 +315,31 @@ func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
 	return result
 }
 
+// parameterUpdateMu protects the Offset field of function/method parameters (a subset of structure Fields)
+var parameterUpdateMu sync.Mutex
+
+// FieldOffsetOf returns a concurency-safe version of f.Offset
+func FieldOffsetOf(f *types.Field) int64 {
+	parameterUpdateMu.Lock()
+	defer parameterUpdateMu.Unlock()
+	return f.Offset
+}
+
 func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field, a ABIParamAssignment, isReturn bool) {
 	// Everything except return values in registers has either a frame home (if not in a register) or a frame spill location.
 	if !isReturn || len(a.Registers) == 0 {
 		// The type frame offset DOES NOT show effects of minimum frame size.
 		// Getting this wrong breaks stackmaps, see liveness/plive.go:WriteFuncMap and typebits/typebits.go:Set
-		f.Offset = a.FrameOffset(result)-config.LocalsOffset()
+		parameterUpdateMu.Lock()
+		defer parameterUpdateMu.Unlock()
+		off := a.FrameOffset(result) - config.LocalsOffset()
+		fOffset := f.Offset
+		if fOffset == types.BOGUS_FUNARG_OFFSET {
+			// Set the Offset the first time. After that, we may recompute it, but it should never change.
+			f.Offset = off
+		} else if fOffset != off {
+			panic(fmt.Errorf("Offset changed from %d to %d", fOffset, off))
+		}
 	}
 }
 
