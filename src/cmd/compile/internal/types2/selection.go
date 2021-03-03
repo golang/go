@@ -51,8 +51,8 @@ func (s *Selection) Kind() SelectionKind { return s.kind }
 // Recv returns the type of x in x.f.
 func (s *Selection) Recv() Type { return s.recv }
 
-// Work-around for bug where a (*instance) shows up in a final type.
-// TODO(gri):  fix this bug.
+// Work-around for a compiler issue where an (*instance) escapes.
+// TODO(gri): Is this still needed?
 func (s *Selection) TArgs() []Type {
 	r := s.recv
 	if p := asPointer(r); p != nil {
