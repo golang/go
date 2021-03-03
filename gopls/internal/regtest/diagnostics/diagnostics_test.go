@@ -2045,3 +2045,92 @@ func Hello() {}
 		)
 	})
 }
+
+func TestReloadInvalidMetadata(t *testing.T) {
+	// We only use invalid metadata for Go versions > 1.12.
+	testenv.NeedsGo1Point(t, 13)
+
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- main.go --
+package main
+
+func _() {}
+`
+	WithOptions(
+		EditorConfig{
+			ExperimentalUseInvalidMetadata: true,
+		},
+		// ExperimentalWorkspaceModule has a different failure mode for this
+		// case.
+		Modes(Singleton),
+	).Run(t, mod, func(t *testing.T, env *Env) {
+		env.Await(
+			OnceMet(
+				InitialWorkspaceLoad,
+				CompletedWork("Load", 1, false),
+			),
+		)
+
+		// Break the go.mod file on disk, expecting a reload.
+		env.WriteWorkspaceFile("go.mod", `modul mod.com
+
+go 1.12
+`)
+		env.Await(
+			OnceMet(
+				env.DoneWithChangeWatchedFiles(),
+				env.DiagnosticAtRegexp("go.mod", "modul"),
+				CompletedWork("Load", 1, false),
+			),
+		)
+
+		env.OpenFile("main.go")
+		env.Await(env.DoneWithOpen())
+		// The first edit after the go.mod file invalidation should cause a reload.
+		// Any subsequent simple edits should not.
+		content := `package main
+
+func main() {
+	_ = 1
+}
+`
+		env.EditBuffer("main.go", fake.NewEdit(0, 0, 3, 0, content))
+		env.Await(
+			OnceMet(
+				env.DoneWithChange(),
+				CompletedWork("Load", 2, false),
+				NoLogMatching(protocol.Error, "error loading file"),
+			),
+		)
+		env.RegexpReplace("main.go", "_ = 1", "_ = 2")
+		env.Await(
+			OnceMet(
+				env.DoneWithChange(),
+				CompletedWork("Load", 2, false),
+				NoLogMatching(protocol.Error, "error loading file"),
+			),
+		)
+		// Add an import to the main.go file and confirm that it does get
+		// reloaded, but the reload fails, so we see a diagnostic on the new
+		// "fmt" import.
+		env.EditBuffer("main.go", fake.NewEdit(0, 0, 5, 0, `package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("")
+}
+`))
+		env.Await(
+			OnceMet(
+				env.DoneWithChange(),
+				env.DiagnosticAtRegexp("main.go", `"fmt"`),
+				CompletedWork("Load", 3, false),
+			),
+		)
+	})
+}

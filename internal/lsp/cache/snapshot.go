@@ -138,6 +138,9 @@ type knownMetadata struct {
 	// valid is true if the given metadata is valid.
 	// Invalid metadata can still be used if a metadata reload fails.
 	valid bool
+
+	// shouldLoad is true if the given metadata should be reloaded.
+	shouldLoad bool
 }
 
 func (s *snapshot) ID() uint64 {
@@ -1028,6 +1031,71 @@ func (s *snapshot) getMetadata(id packageID) *knownMetadata {
 	return s.metadata[id]
 }
 
+func (s *snapshot) shouldLoad(scope interface{}) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	switch scope := scope.(type) {
+	case packagePath:
+		var meta *knownMetadata
+		for _, m := range s.metadata {
+			if m.pkgPath != scope {
+				continue
+			}
+			meta = m
+		}
+		if meta == nil || meta.shouldLoad {
+			return true
+		}
+		return false
+	case fileURI:
+		uri := span.URI(scope)
+		ids := s.ids[uri]
+		if len(ids) == 0 {
+			return true
+		}
+		for _, id := range ids {
+			m, ok := s.metadata[id]
+			if !ok || m.shouldLoad {
+				return true
+			}
+		}
+		return false
+	default:
+		return true
+	}
+}
+
+func (s *snapshot) clearShouldLoad(scope interface{}) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	switch scope := scope.(type) {
+	case packagePath:
+		var meta *knownMetadata
+		for _, m := range s.metadata {
+			if m.pkgPath == scope {
+				meta = m
+			}
+		}
+		if meta == nil {
+			return
+		}
+		meta.shouldLoad = false
+	case fileURI:
+		uri := span.URI(scope)
+		ids := s.ids[uri]
+		if len(ids) == 0 {
+			return
+		}
+		for _, id := range ids {
+			if m, ok := s.metadata[id]; ok {
+				m.shouldLoad = false
+			}
+		}
+	}
+}
+
 // noValidMetadataForURILocked reports whether there is any valid metadata for
 // the given URI.
 func (s *snapshot) noValidMetadataForURILocked(uri span.URI) bool {
@@ -1573,9 +1641,12 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 
 		// Check if the file's package name or imports have changed,
 		// and if so, invalidate this file's packages' metadata.
-		shouldInvalidateMetadata, pkgNameChanged, importDeleted := s.shouldInvalidateMetadata(ctx, result, originalFH, change.fileHandle)
-		anyImportDeleted = anyImportDeleted || importDeleted
+		var shouldInvalidateMetadata, pkgNameChanged, importDeleted bool
+		if !isGoMod(uri) {
+			shouldInvalidateMetadata, pkgNameChanged, importDeleted = s.shouldInvalidateMetadata(ctx, result, originalFH, change.fileHandle)
+		}
 		invalidateMetadata := forceReloadMetadata || workspaceReload || shouldInvalidateMetadata
+		anyImportDeleted = anyImportDeleted || importDeleted
 
 		// Mark all of the package IDs containing the given file.
 		// TODO: if the file has moved into a new package, we should invalidate that too.
@@ -1748,8 +1819,9 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		invalidateMetadata := idsToInvalidate[k]
 		// Mark invalidated metadata rather than deleting it outright.
 		result.metadata[k] = &knownMetadata{
-			metadata: v.metadata,
-			valid:    v.valid && !invalidateMetadata,
+			metadata:   v.metadata,
+			valid:      v.valid && !invalidateMetadata,
+			shouldLoad: v.shouldLoad || invalidateMetadata,
 		}
 	}
 	// Copy the URI to package ID mappings, skipping only those URIs whose

@@ -54,22 +54,21 @@ type metadata struct {
 
 // load calls packages.Load for the given scopes, updating package metadata,
 // import graph, and mapped files with the result.
-func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interface{}) error {
-	if s.view.Options().VerboseWorkDoneProgress {
-		work := s.view.session.progress.Start(ctx, "Load", fmt.Sprintf("Loading scopes %s", scopes), nil, nil)
-		defer func() {
-			go func() {
-				work.End("Done.")
-			}()
-		}()
-	}
-
+func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interface{}) (err error) {
 	var query []string
 	var containsDir bool // for logging
 	for _, scope := range scopes {
-		if scope == "" {
+		if !s.shouldLoad(scope) {
 			continue
 		}
+		// Unless the context was canceled, set "shouldLoad" to false for all
+		// of the metadata we attempted to load.
+		defer func() {
+			if errors.Is(err, context.Canceled) {
+				return
+			}
+			s.clearShouldLoad(scope)
+		}()
 		switch scope := scope.(type) {
 		case packagePath:
 			if source.IsCommandLineArguments(string(scope)) {
@@ -109,6 +108,15 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 		return nil
 	}
 	sort.Strings(query) // for determinism
+
+	if s.view.Options().VerboseWorkDoneProgress {
+		work := s.view.session.progress.Start(ctx, "Load", fmt.Sprintf("Loading query=%s", query), nil, nil)
+		defer func() {
+			go func() {
+				work.End("Done.")
+			}()
+		}()
+	}
 
 	ctx, done := event.Start(ctx, "cache.view.load", tag.Query.Of(query))
 	defer done()
@@ -452,6 +460,8 @@ func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *pa
 
 	// If we've already set the metadata for this snapshot, reuse it.
 	if original, ok := s.metadata[m.id]; ok && original.valid {
+		// Since we've just reloaded, clear out shouldLoad.
+		original.shouldLoad = false
 		m = original.metadata
 	} else {
 		s.metadata[m.id] = &knownMetadata{

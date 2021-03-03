@@ -365,7 +365,6 @@ func Hello() int {
 		)
 		env.ApplyQuickFixes("moda/a/go.mod", d.Diagnostics)
 		env.Await(env.DoneWithChangeWatchedFiles())
-
 		got, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
 		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(got, want) {
 			t.Errorf("expected %s, got %v", want, got)

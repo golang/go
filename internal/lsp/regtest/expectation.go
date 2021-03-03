@@ -29,7 +29,7 @@ type Expectation interface {
 var (
 	// InitialWorkspaceLoad is an expectation that the workspace initial load has
 	// completed. It is verified via workdone reporting.
-	InitialWorkspaceLoad = CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1)
+	InitialWorkspaceLoad = CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1, false)
 )
 
 // A Verdict is the result of checking an expectation against the current
@@ -196,7 +196,7 @@ func ShowMessageRequest(title string) SimpleExpectation {
 // to be completely processed.
 func (e *Env) DoneWithOpen() Expectation {
 	opens := e.Editor.Stats().DidOpen
-	return CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), opens)
+	return CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), opens, true)
 }
 
 // StartedChange expects there to have been i work items started for
@@ -209,28 +209,28 @@ func StartedChange(i uint64) Expectation {
 // editor to be completely processed.
 func (e *Env) DoneWithChange() Expectation {
 	changes := e.Editor.Stats().DidChange
-	return CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), changes)
+	return CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), changes, true)
 }
 
 // DoneWithSave expects all didSave notifications currently sent by the editor
 // to be completely processed.
 func (e *Env) DoneWithSave() Expectation {
 	saves := e.Editor.Stats().DidSave
-	return CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidSave), saves)
+	return CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidSave), saves, true)
 }
 
 // DoneWithChangeWatchedFiles expects all didChangeWatchedFiles notifications
 // currently sent by the editor to be completely processed.
 func (e *Env) DoneWithChangeWatchedFiles() Expectation {
 	changes := e.Editor.Stats().DidChangeWatchedFiles
-	return CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), changes)
+	return CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), changes, true)
 }
 
 // DoneWithClose expects all didClose notifications currently sent by the
 // editor to be completely processed.
 func (e *Env) DoneWithClose() Expectation {
 	changes := e.Editor.Stats().DidClose
-	return CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidClose), changes)
+	return CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidClose), changes, true)
 }
 
 // StartedWork expect a work item to have been started >= atLeast times.
@@ -253,16 +253,20 @@ func StartedWork(title string, atLeast uint64) SimpleExpectation {
 //
 // Since the Progress API doesn't include any hidden metadata, we must use the
 // progress notification title to identify the work we expect to be completed.
-func CompletedWork(title string, atLeast uint64) SimpleExpectation {
+func CompletedWork(title string, count uint64, atLeast bool) SimpleExpectation {
 	check := func(s State) Verdict {
-		if s.completedWork[title] >= atLeast {
+		if s.completedWork[title] == count || atLeast && s.completedWork[title] > count {
 			return Met
 		}
 		return Unmet
 	}
+	desc := fmt.Sprintf("completed work %q %v times", title, count)
+	if atLeast {
+		desc = fmt.Sprintf("completed work %q at least %d time(s)", title, count)
+	}
 	return SimpleExpectation{
 		check:       check,
-		description: fmt.Sprintf("completed work %q at least %d time(s)", title, atLeast),
+		description: desc,
 	}
 }
 
