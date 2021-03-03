@@ -9,10 +9,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/ast"
+	"go/constant"
 	"go/doc"
 	"go/format"
 	"go/types"
 	"strings"
+	"time"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -232,6 +234,18 @@ func objectString(obj types.Object, qf types.Qualifier) string {
 	switch obj := obj.(type) {
 	case *types.Const:
 		str = fmt.Sprintf("%s = %s", str, obj.Val())
+
+		// Try to add a formatted duration as an inline comment
+		typ, ok := obj.Type().(*types.Named)
+		if !ok {
+			break
+		}
+		pkg := typ.Obj().Pkg()
+		if pkg.Path() == "time" && pkg.Scope().Lookup("Duration") != nil {
+			if d, ok := constant.Int64Val(obj.Val()); ok {
+				str += " // " + time.Duration(d).String()
+			}
+		}
 	}
 	return str
 }
