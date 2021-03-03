@@ -11,12 +11,12 @@ import (
 	"strconv"
 )
 
-type Setter[B any] interface {
+type _Setter[B any] interface {
         Set(string)
 	type *B
 }
 
-func fromStrings1[T any, PT Setter[T]](s []string) []T {
+func fromStrings1[T any, PT _Setter[T]](s []string) []T {
         result := make([]T, len(s))
         for i, v := range s {
                 // The type of &result[i] is *T which is in the type list

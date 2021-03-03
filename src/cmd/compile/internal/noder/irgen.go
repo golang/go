@@ -100,6 +100,9 @@ type irgen struct {
 	objs   map[types2.Object]*ir.Name
 	typs   map[types2.Type]*types.Type
 	marker dwarfgen.ScopeMarker
+
+	// Fully-instantiated generic types whose methods should be instantiated
+	instTypeList []*types.Type
 }
 
 func (g *irgen) generate(noders []*noder) {

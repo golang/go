@@ -243,6 +243,9 @@ func (s *Signature) Recv() *Var { return s.recv }
 // TParams returns the type parameters of signature s, or nil.
 func (s *Signature) TParams() []*TypeName { return s.tparams }
 
+// RParams returns the receiver type params of signature s, or nil.
+func (s *Signature) RParams() []*TypeName { return s.rparams }
+
 // SetTParams sets the type parameters of signature s.
 func (s *Signature) SetTParams(tparams []*TypeName) { s.tparams = tparams }
 
@@ -965,5 +968,6 @@ func asTypeParam(t Type) *TypeParam {
 
 // Exported for the compiler.
 
-func AsPointer(t Type) *Pointer { return asPointer(t) }
-func AsNamed(t Type) *Named     { return asNamed(t) }
+func AsPointer(t Type) *Pointer     { return asPointer(t) }
+func AsNamed(t Type) *Named         { return asNamed(t) }
+func AsSignature(t Type) *Signature { return asSignature(t) }
