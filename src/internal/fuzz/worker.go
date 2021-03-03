@@ -142,7 +142,7 @@ func (w *worker) runFuzzing() error {
 					}
 					// TODO(jayconrod): what happens if testing.F.Fuzz is never called?
 					// TODO(jayconrod): time out if the test process hangs.
-				} else if resp.Err != "" {
+				} else if resp.Crashed {
 					// The worker found a crasher. Inform the coordinator.
 					crasher := crasherEntry{
 						CorpusEntry: CorpusEntry{Data: value},
@@ -357,7 +357,12 @@ type fuzzResponse struct {
 	// the coordinator (for example, because it expanded coverage).
 	Interesting bool
 
-	// Err is set if the value in shared memory caused a crash.
+	// Crashed indicates the value in shared memory caused a crash.
+	Crashed bool
+
+	// Err is the error string caused by the value in shared memory. This alone
+	// cannot be used to determine whether this value caused a crash, since a
+	// crash can occur without any output (e.g. with t.Fail()).
 	Err string
 }
 
@@ -469,7 +474,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
 			mem.setValueLen(len(b))
 			mem.setValue(b)
 			if err := ws.fuzzFn(CorpusEntry{Values: vals}); err != nil {
-				return fuzzResponse{Err: err.Error()}
+				return fuzzResponse{Crashed: true, Err: err.Error()}
 			}
 			// TODO(jayconrod,katiehockman): return early if we find an
 			// interesting value.

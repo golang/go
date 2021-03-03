@@ -35,6 +35,22 @@ stdout 'testdata[/\\]corpus[/\\]FuzzWithNilPanic[/\\]'
 stdout 'runtime.Goexit'
 go run check_testdata.go FuzzWithNilPanic
 
+! go test -run=FuzzWithFail -fuzz=FuzzWithFail -fuzztime=5s -parallel=1
+stdout 'testdata[/\\]corpus[/\\]FuzzWithFail[/\\]'
+go run check_testdata.go FuzzWithFail
+
+! go test -run=FuzzWithErrorf -fuzz=FuzzWithErrorf -fuzztime=5s -parallel=1
+stdout 'testdata[/\\]corpus[/\\]FuzzWithErrorf[/\\]'
+# TODO: Uncomment this part of the test once it's fixed
+# stdout 'errorf was called here'
+go run check_testdata.go FuzzWithErrorf
+
+! go test -run=FuzzWithFatalf -fuzz=FuzzWithFatalf -fuzztime=5s -parallel=1
+stdout 'testdata[/\\]corpus[/\\]FuzzWithFatalf[/\\]'
+# TODO: Uncomment this part of the test once it's fixed
+# stdout 'fatalf was called here'
+go run check_testdata.go FuzzWithFatalf
+
 ! go test -run=FuzzWithBadExit -fuzz=FuzzWithBadExit -fuzztime=5s -parallel=1
 stdout 'testdata[/\\]corpus[/\\]FuzzWithBadExit[/\\]'
 stdout 'unexpectedly'
@@ -66,6 +82,33 @@ func FuzzWithNilPanic(f *testing.F) {
 	f.Fuzz(func(t *testing.T, b []byte) {
 		if string(b) != "aa" {
 			panic(nil)
+		}
+	})
+}
+
+func FuzzWithFail(f *testing.F) {
+	f.Add([]byte("aa"))
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if string(b) != "aa" {
+			t.Fail()
+		}
+	})
+}
+
+func FuzzWithErrorf(f *testing.F) {
+	f.Add([]byte("aa"))
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if string(b) != "aa" {
+			t.Errorf("errorf was called here")
+		}
+	})
+}
+
+func FuzzWithFatalf(f *testing.F) {
+	f.Add([]byte("aa"))
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if string(b) != "aa" {
+			t.Fatalf("fatalf was called here")
 		}
 	})
 }
