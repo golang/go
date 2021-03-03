@@ -492,7 +492,7 @@ func (ws *workerServer) serve(ctx context.Context) error {
 // a given amount of time. fuzz returns early if it finds an input that crashes
 // the fuzz function or an input that expands coverage.
 func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
-	ctx, cancel := context.WithTimeout(ctx, args.Duration)
+	fuzzCtx, cancel := context.WithTimeout(ctx, args.Duration)
 	defer cancel()
 	mem := <-ws.memMu
 	defer func() { ws.memMu <- mem }()
@@ -503,22 +503,129 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
 	}
 	for {
 		select {
-		case <-ctx.Done():
+		case <-fuzzCtx.Done():
 			// TODO(jayconrod,katiehockman): this value is not interesting. Use a
 			// real heuristic once we have one.
 			return fuzzResponse{Interesting: true}
 		default:
 			vals = ws.m.mutate(vals, cap(mem.valueRef()))
-			b := marshalCorpusFile(vals...)
-			mem.setValueLen(len(b))
-			mem.setValue(b)
+			writeToMem(vals, mem)
 			if err := ws.fuzzFn(CorpusEntry{Values: vals}); err != nil {
+				if minErr := ws.minimize(ctx, vals, mem); minErr != nil {
+					// Minimization found a different error, so use that one.
+					writeToMem(vals, mem)
+					err = minErr
+				}
 				return fuzzResponse{Crashed: true, Err: err.Error()}
 			}
 			// TODO(jayconrod,katiehockman): return early if we find an
 			// interesting value.
 		}
 	}
+}
+
+// minimizeInput applies a series of minimizing transformations on the provided
+// vals, ensuring that each minimization still causes an error in fuzzFn. Before
+// every call to fuzzFn, it marshals the new vals and writes it to the provided
+// mem just in case an unrecoverable error occurs. It runs for a maximum of one
+// minute, and returns the last error it found.
+func (ws *workerServer) minimize(ctx context.Context, vals []interface{}, mem *sharedMem) error {
+	// TODO(jayconrod,katiehockman): consider making the maximum minimization
+	// time customizable with a go command flag.
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	var retErr error
+
+	// tryMinimized will run the fuzz function for the values in vals at the
+	// time the function is called. If err is nil, then the minimization was
+	// unsuccessful, since we expect an error to still occur.
+	tryMinimized := func(i int, prevVal interface{}) error {
+		err := ws.fuzzFn(CorpusEntry{Values: vals})
+		if err == nil {
+			// The fuzz function succeeded, so return the value at index i back
+			// to the previously failing input.
+			vals[i] = prevVal
+		} else {
+			// The fuzz function failed, so save the most recent error.
+			retErr = err
+		}
+		return err
+	}
+	for valI := range vals {
+		switch v := vals[valI].(type) {
+		case bool, byte, rune:
+			continue // can't minimize
+		case string, int, int8, int16, int64, uint, uint16, uint32, uint64, float32, float64:
+			// TODO(jayconrod,katiehockman): support minimizing other types
+		case []byte:
+			// First, try to cut the tail.
+			for n := 1024; n != 0; n /= 2 {
+				for len(v) > n {
+					if ctx.Done() != nil {
+						return retErr
+					}
+					vals[valI] = v[:len(v)-n]
+					if tryMinimized(valI, v) != nil {
+						break
+					}
+					// Set v to the new value to continue iterating.
+					v = v[:len(v)-n]
+				}
+			}
+
+			// Then, try to remove each individual byte.
+			tmp := make([]byte, len(v))
+			for i := 0; i < len(v)-1; i++ {
+				if ctx.Done() != nil {
+					return retErr
+				}
+				candidate := tmp[:len(v)-1]
+				copy(candidate[:i], v[:i])
+				copy(candidate[i:], v[i+1:])
+				vals[valI] = candidate
+				if tryMinimized(valI, v) != nil {
+					continue
+				}
+				// Update v to delete the value at index i.
+				copy(v[i:], v[i+1:])
+				v = v[:len(candidate)]
+				// v[i] is now different, so decrement i to redo this iteration
+				// of the loop with the new value.
+				i--
+			}
+
+			// Then, try to remove each possible subset of bytes.
+			for i := 0; i < len(v)-1; i++ {
+				copy(tmp, v[:i])
+				for j := len(v); j > i+1; j-- {
+					if ctx.Done() != nil {
+						return retErr
+					}
+					candidate := tmp[:len(v)-j+i]
+					copy(candidate[i:], v[j:])
+					vals[valI] = candidate
+					if tryMinimized(valI, v) != nil {
+						continue
+					}
+					// Update v and reset the loop with the new length.
+					copy(v[i:], v[j:])
+					v = v[:len(candidate)]
+					j = len(v)
+				}
+			}
+			// TODO(jayconrod,katiehockman): consider adding canonicalization
+			// which replaces each individual byte with '0'
+		default:
+			panic("unreachable")
+		}
+	}
+	return retErr
+}
+
+func writeToMem(vals []interface{}, mem *sharedMem) {
+	b := marshalCorpusFile(vals...)
+	mem.setValueLen(len(b))
+	mem.setValue(b)
 }
 
 // ping does nothing. The coordinator calls this method to ensure the worker
