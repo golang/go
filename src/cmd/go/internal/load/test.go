@@ -100,7 +100,7 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
 	defer pre.flush()
 	allImports := append([]string{}, p.TestImports...)
 	allImports = append(allImports, p.XTestImports...)
-	pre.preloadImports(allImports, p.Internal.Build)
+	pre.preloadImports(ctx, allImports, p.Internal.Build)
 
 	var ptestErr, pxtestErr *PackageError
 	var imports, ximports []*Package

@@ -665,9 +665,9 @@ func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *
 		parentRoot = parent.Root
 		parentIsStd = parent.Standard
 	}
-	bp, loaded, err := loadPackageData(path, parentPath, srcDir, parentRoot, parentIsStd, mode)
+	bp, loaded, err := loadPackageData(ctx, path, parentPath, srcDir, parentRoot, parentIsStd, mode)
 	if loaded && pre != nil && !IgnoreImports {
-		pre.preloadImports(bp.Imports, bp)
+		pre.preloadImports(ctx, bp.Imports, bp)
 	}
 	if bp == nil {
 		if importErr, ok := err.(ImportPathError); !ok || importErr.ImportPath() != path {
@@ -714,7 +714,7 @@ func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *
 	}
 
 	// Checked on every import because the rules depend on the code doing the importing.
-	if perr := disallowInternal(srcDir, parent, parentPath, p, stk); perr != p {
+	if perr := disallowInternal(ctx, srcDir, parent, parentPath, p, stk); perr != p {
 		perr.Error.setPos(importPos)
 		return perr
 	}
@@ -763,7 +763,7 @@ func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *
 //
 // loadPackageData returns a boolean, loaded, which is true if this is the
 // first time the package was loaded. Callers may preload imports in this case.
-func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd bool, mode int) (bp *build.Package, loaded bool, err error) {
+func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoot string, parentIsStd bool, mode int) (bp *build.Package, loaded bool, err error) {
 	if path == "" {
 		panic("loadPackageData called with empty package path")
 	}
@@ -836,7 +836,7 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
 			}
 			data.p, data.err = cfg.BuildContext.ImportDir(r.dir, buildMode)
 			if data.p.Root == "" && cfg.ModulesEnabled {
-				if info := modload.PackageModuleInfo(path); info != nil {
+				if info := modload.PackageModuleInfo(ctx, path); info != nil {
 					data.p.Root = info.Dir
 				}
 			}
@@ -950,7 +950,7 @@ func newPreload() *preload {
 // preloadMatches loads data for package paths matched by patterns.
 // When preloadMatches returns, some packages may not be loaded yet, but
 // loadPackageData and loadImport are always safe to call.
-func (pre *preload) preloadMatches(matches []*search.Match) {
+func (pre *preload) preloadMatches(ctx context.Context, matches []*search.Match) {
 	for _, m := range matches {
 		for _, pkg := range m.Pkgs {
 			select {
@@ -959,10 +959,10 @@ func (pre *preload) preloadMatches(matches []*search.Match) {
 			case pre.sema <- struct{}{}:
 				go func(pkg string) {
 					mode := 0 // don't use vendoring or module import resolution
-					bp, loaded, err := loadPackageData(pkg, "", base.Cwd, "", false, mode)
+					bp, loaded, err := loadPackageData(ctx, pkg, "", base.Cwd, "", false, mode)
 					<-pre.sema
 					if bp != nil && loaded && err == nil && !IgnoreImports {
-						pre.preloadImports(bp.Imports, bp)
+						pre.preloadImports(ctx, bp.Imports, bp)
 					}
 				}(pkg)
 			}
@@ -973,7 +973,7 @@ func (pre *preload) preloadMatches(matches []*search.Match) {
 // preloadImports queues a list of imports for preloading.
 // When preloadImports returns, some packages may not be loaded yet,
 // but loadPackageData and loadImport are always safe to call.
-func (pre *preload) preloadImports(imports []string, parent *build.Package) {
+func (pre *preload) preloadImports(ctx context.Context, imports []string, parent *build.Package) {
 	parentIsStd := parent.Goroot && parent.ImportPath != "" && search.IsStandardImportPath(parent.ImportPath)
 	for _, path := range imports {
 		if path == "C" || path == "unsafe" {
@@ -984,10 +984,10 @@ func (pre *preload) preloadImports(imports []string, parent *build.Package) {
 			return
 		case pre.sema <- struct{}{}:
 			go func(path string) {
-				bp, loaded, err := loadPackageData(path, parent.ImportPath, parent.Dir, parent.Root, parentIsStd, ResolveImport)
+				bp, loaded, err := loadPackageData(ctx, path, parent.ImportPath, parent.Dir, parent.Root, parentIsStd, ResolveImport)
 				<-pre.sema
 				if bp != nil && loaded && err == nil && !IgnoreImports {
-					pre.preloadImports(bp.Imports, bp)
+					pre.preloadImports(ctx, bp.Imports, bp)
 				}
 			}(path)
 		}
@@ -1343,7 +1343,7 @@ func reusePackage(p *Package, stk *ImportStack) *Package {
 // is allowed to import p.
 // If the import is allowed, disallowInternal returns the original package p.
 // If not, it returns a new package containing just an appropriate error.
-func disallowInternal(srcDir string, importer *Package, importerPath string, p *Package, stk *ImportStack) *Package {
+func disallowInternal(ctx context.Context, srcDir string, importer *Package, importerPath string, p *Package, stk *ImportStack) *Package {
 	// golang.org/s/go14internal:
 	// An import of a path containing the element “internal”
 	// is disallowed if the importing code is outside the tree
@@ -1415,7 +1415,7 @@ func disallowInternal(srcDir string, importer *Package, importerPath string, p *
 			// directory containing them.
 			// If the directory is outside the main module, this will resolve to ".",
 			// which is not a prefix of any valid module.
-			importerPath = modload.DirImportPath(importer.Dir)
+			importerPath = modload.DirImportPath(ctx, importer.Dir)
 		}
 		parentOfInternal := p.ImportPath[:i]
 		if str.HasPathPrefix(importerPath, parentOfInternal) {
@@ -1918,7 +1918,7 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 		if p.Internal.CmdlineFiles {
 			mainPath = "command-line-arguments"
 		}
-		p.Module = modload.PackageModuleInfo(mainPath)
+		p.Module = modload.PackageModuleInfo(ctx, mainPath)
 		if p.Name == "main" && len(p.DepsErrors) == 0 {
 			p.Internal.BuildInfo = modload.PackageBuildInfo(mainPath, p.Deps)
 		}
@@ -2405,7 +2405,7 @@ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
 
 	pre := newPreload()
 	defer pre.flush()
-	pre.preloadMatches(matches)
+	pre.preloadMatches(ctx, matches)
 
 	for _, m := range matches {
 		for _, pkg := range m.Pkgs {

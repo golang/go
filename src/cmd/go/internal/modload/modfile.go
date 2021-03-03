@@ -30,6 +30,11 @@ import (
 // tests outside of the main module.
 const narrowAllVersionV = "v1.16"
 
+// go1117LazyTODO is a constant that exists only until lazy loading is
+// implemented. Its use indicates a condition that will need to change if the
+// main module is lazy.
+const go117LazyTODO = false
+
 var modFile *modfile.File
 
 // A modFileIndex is an index of data corresponding to a modFile
@@ -133,10 +138,7 @@ func CheckRetractions(ctx context.Context, m module.Version) error {
 		// We load the raw file here: the go.mod file may have a different module
 		// path that we expect if the module or its repository was renamed.
 		// We still want to apply retractions to other aliases of the module.
-		rm := module.Version{Path: path, Version: rev.Version}
-		if repl := Replacement(rm); repl.Path != "" {
-			rm = repl
-		}
+		rm := resolveReplacement(module.Version{Path: path, Version: rev.Version})
 		summary, err := rawGoModSummary(rm)
 		if err != nil {
 			return &entry{nil, err}
@@ -240,6 +242,15 @@ func Replacement(mod module.Version) module.Version {
 		}
 	}
 	return module.Version{}
+}
+
+// resolveReplacement returns the module actually used to load the source code
+// for m: either m itself, or the replacement for m (iff m is replaced).
+func resolveReplacement(m module.Version) module.Version {
+	if r := Replacement(m); r.Path != "" {
+		return r
+	}
+	return m
 }
 
 // indexModFile rebuilds the index of modFile.
@@ -441,10 +452,7 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 		return summary, nil
 	}
 
-	actual := Replacement(m)
-	if actual.Path == "" {
-		actual = m
-	}
+	actual := resolveReplacement(m)
 	if HasModRoot() && cfg.BuildMod == "readonly" && actual.Version != "" {
 		key := module.Version{Path: actual.Path, Version: actual.Version + "/go.mod"}
 		if !modfetch.HaveSum(key) {

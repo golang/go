@@ -7,13 +7,13 @@ cp go.mod go.mod.orig
 
 ! go list -mod=readonly -m all
 stderr '^go: ignoring requirement on excluded version rsc.io/sampler v1\.99\.99$'
-stderr '^go: updates to go.mod needed, disabled by -mod=readonly$'
+stderr '^go: updates to go.mod needed, disabled by -mod=readonly; to update it:\n\tgo mod tidy$'
 ! stdout '^rsc.io/sampler v1.99.99'
 cmp go.mod go.mod.orig
 
 ! go list -mod=vendor -m rsc.io/sampler
 stderr '^go: ignoring requirement on excluded version rsc.io/sampler v1\.99\.99$'
-stderr '^go list -m: module rsc.io/sampler: can''t resolve module using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass\.\)$'
+stderr '^go: updates to go.mod needed, disabled by -mod=vendor; to update it:\n\tgo mod tidy$'
 ! stdout '^rsc.io/sampler v1.99.99'
 cmp go.mod go.mod.orig
 

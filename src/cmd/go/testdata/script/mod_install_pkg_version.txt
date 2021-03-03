@@ -16,7 +16,7 @@ env GO111MODULE=auto
 cd m
 cp go.mod go.mod.orig
 ! go list -m all
-stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; to add it:\n\tgo mod download example.com/cmd$'
+stderr '^go list -m: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; to add it:\n\tgo mod download example.com/cmd$'
 go install example.com/cmd/a@latest
 cmp go.mod go.mod.orig
 exists $GOPATH/bin/a$GOEXE

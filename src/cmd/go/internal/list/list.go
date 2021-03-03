@@ -423,7 +423,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go list -m: not using modules")
 		}
 
-		modload.LoadModFile(ctx) // Parses go.mod and sets cfg.BuildMod.
+		modload.LoadModFile(ctx) // Sets cfg.BuildMod as a side-effect.
 		if cfg.BuildMod == "vendor" {
 			const actionDisabledFormat = "go list -m: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
 
@@ -447,12 +447,15 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			}
 		}
 
-		mods := modload.ListModules(ctx, args, *listU, *listVersions, *listRetracted)
+		mods, err := modload.ListModules(ctx, args, *listU, *listVersions, *listRetracted)
 		if !*listE {
 			for _, m := range mods {
 				if m.Error != nil {
 					base.Errorf("go list -m: %v", m.Error.Err)
 				}
+			}
+			if err != nil {
+				base.Errorf("go list -m: %v", err)
 			}
 			base.ExitIfErrors()
 		}
@@ -681,7 +684,10 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		if len(args) > 0 {
 			listU := false
 			listVersions := false
-			rmods := modload.ListModules(ctx, args, listU, listVersions, *listRetracted)
+			rmods, err := modload.ListModules(ctx, args, listU, listVersions, *listRetracted)
+			if err != nil && !*listE {
+				base.Errorf("go list -retracted: %v", err)
+			}
 			for i, arg := range args {
 				rmod := rmods[i]
 				for _, mod := range argToMods[arg] {
