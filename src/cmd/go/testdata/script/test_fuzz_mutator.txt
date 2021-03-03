@@ -14,10 +14,20 @@ go test -fuzz=FuzzA -fuzztime=5s -parallel=1 -log=fuzz
 go run check_logs.go fuzz fuzz.worker
 
 # Test that the mutator is good enough to find several unique mutations.
-! go test -fuzz=Fuzz -parallel=1 -fuzztime=30s mutator_test.go
+! go test -fuzz=FuzzMutator -parallel=1 -fuzztime=30s mutator_test.go
 ! stdout '^ok'
 stdout FAIL
 stdout 'mutator found enough unique mutations'
+
+# Test that minimization is working.
+! go test -fuzz=FuzzMinimizer -run=FuzzMinimizer -parallel=1 -fuzztime=5s minimizer_test.go
+! stdout ok
+# TODO(jayconrod,katiehockman): Once logging is fixed, add this test in.
+# stdout 'got the minimum size!'
+stdout FAIL
+
+# Test that re-running the minimized value causes a crash.
+! go test -run=FuzzMinimizer minimizer_test.go
 
 -- go.mod --
 module m
@@ -64,6 +74,31 @@ func FuzzB(f *testing.F) {
 	f.Add([]byte("seed"))
 	f.Fuzz(func(t *testing.T, b []byte) {
 		fmt.Fprintf(logFile, "FuzzB %q\n", b)
+	})
+}
+
+-- minimizer_test.go --
+package fuzz_test
+
+import (
+	"bytes"
+	"testing"
+)
+
+func FuzzMinimizer(f *testing.F) {
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if len(b) < 100 {
+			// Make sure that b is large enough that it can be minimized
+			return
+		}
+		if len(b) == 100 {
+			t.Logf("got the minimum size!")
+		}
+		if bytes.ContainsAny(b, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+			// Given the randomness of the mutations, this should allow the
+			// minimizer to trim down the value quite a bit.
+			t.Errorf("contains a letter")
+		}
 	})
 }
 
@@ -170,7 +205,7 @@ import (
 
 // TODO(katiehockman): re-work this test once we have a better fuzzing engine
 // (ie. more mutations, and compiler instrumentation)
-func Fuzz(f *testing.F) {
+func FuzzMutator(f *testing.F) {
 	// TODO(katiehockman): simplify this once we can dedupe crashes (e.g.
 	// replace map with calls to panic, and simply count the number of crashes
 	// that were added to testdata)
