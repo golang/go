@@ -84,6 +84,7 @@ func DownloadDir(m module.Version) (string, error) {
 		return "", err
 	}
 
+	// Check whether the directory itself exists.
 	dir := filepath.Join(cfg.GOMODCACHE, enc+"@"+encVer)
 	if fi, err := os.Stat(dir); os.IsNotExist(err) {
 		return dir, err
@@ -92,6 +93,9 @@ func DownloadDir(m module.Version) (string, error) {
 	} else if !fi.IsDir() {
 		return dir, &DownloadDirPartialError{dir, errors.New("not a directory")}
 	}
+
+	// Check if a .partial file exists. This is created at the beginning of
+	// a download and removed after the zip is extracted.
 	partialPath, err := CachePath(m, "partial")
 	if err != nil {
 		return dir, err
@@ -99,6 +103,19 @@ func DownloadDir(m module.Version) (string, error) {
 	if _, err := os.Stat(partialPath); err == nil {
 		return dir, &DownloadDirPartialError{dir, errors.New("not completely extracted")}
 	} else if !os.IsNotExist(err) {
+		return dir, err
+	}
+
+	// Check if a .ziphash file exists. It should be created before the
+	// zip is extracted, but if it was deleted (by another program?), we need
+	// to re-calculate it.
+	ziphashPath, err := CachePath(m, "ziphash")
+	if err != nil {
+		return dir, err
+	}
+	if _, err := os.Stat(ziphashPath); os.IsNotExist(err) {
+		return dir, &DownloadDirPartialError{dir, errors.New("ziphash file is missing")}
+	} else if err != nil {
 		return dir, err
 	}
 	return dir, nil
