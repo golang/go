@@ -67,6 +67,7 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 		ResolveMissingImports:    true,
 		LoadTests:                true,
 		AllowErrors:              tidyE,
+		SilenceMissingStdImports: true,
 	}, "all")
 
 	modload.TidyBuildList()

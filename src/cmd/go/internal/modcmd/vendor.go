@@ -69,6 +69,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 		ResolveMissingImports:    true,
 		UseVendorAll:             true,
 		AllowErrors:              vendorE,
+		SilenceMissingStdImports: true,
 	}
 	_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
 
