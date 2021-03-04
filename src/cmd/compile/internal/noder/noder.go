@@ -689,7 +689,7 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		if expr.Kind == syntax.RuneLit {
 			n.SetType(types.UntypedRune)
 		}
-		n.SetDiag(expr.Bad) // avoid follow-on errors if there was a syntax error
+		n.SetDiag(expr.Bad || n.Val().Kind() == constant.Unknown) // avoid follow-on errors if there was a syntax error
 		return n
 	case *syntax.CompositeLit:
 		n := ir.NewCompLitExpr(p.pos(expr), ir.OCOMPLIT, p.typeExpr(expr.Type), nil)
