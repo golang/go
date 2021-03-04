@@ -48,7 +48,7 @@ func tcAddr(n *ir.AddrExpr) ir.Node {
 }
 
 func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
-	if l.Type() == nil || l.Type() == nil {
+	if l.Type() == nil || r.Type() == nil {
 		return l, r, nil
 	}
 
