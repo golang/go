@@ -22,7 +22,7 @@ func GetSizesGolist(ctx context.Context, inv gocommand.Invocation, gocmdRunner *
 	stdout, stderr, friendlyErr, rawErr := gocmdRunner.RunRaw(ctx, inv)
 	var goarch, compiler string
 	if rawErr != nil {
-		if strings.Contains(rawErr.Error(), "cannot find main module") {
+		if rawErrMsg := rawErr.Error(); strings.Contains(rawErrMsg, "cannot find main module") || strings.Contains(rawErrMsg, "go.mod file not found") {
 			// User's running outside of a module. All bets are off. Get GOARCH and guess compiler is gc.
 			// TODO(matloob): Is this a problem in practice?
 			inv.Verb = "env"

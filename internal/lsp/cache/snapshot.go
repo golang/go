@@ -1061,7 +1061,7 @@ func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
 		return nil
 	}
 
-	if strings.Contains(loadErr.MainError.Error(), "cannot find main module") {
+	if errMsg := loadErr.MainError.Error(); strings.Contains(errMsg, "cannot find main module") || strings.Contains(errMsg, "go.mod file not found") {
 		return s.workspaceLayoutError(ctx)
 	}
 	return loadErr

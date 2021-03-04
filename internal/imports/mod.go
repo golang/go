@@ -89,8 +89,10 @@ func (r *ModuleResolver) init() error {
 		err := r.initAllMods()
 		// We expect an error when running outside of a module with
 		// GO111MODULE=on. Other errors are fatal.
-		if err != nil && !strings.Contains(err.Error(), "working directory is not part of a module") {
-			return err
+		if err != nil {
+			if errMsg := err.Error(); !strings.Contains(errMsg, "working directory is not part of a module") && !strings.Contains(errMsg, "go.mod file not found") {
+				return err
+			}
 		}
 	}
 
