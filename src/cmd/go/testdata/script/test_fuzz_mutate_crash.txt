@@ -37,16 +37,19 @@ go run check_testdata.go FuzzWithNilPanic
 stdout 'testdata[/\\]corpus[/\\]FuzzWithFail[/\\]'
 go run check_testdata.go FuzzWithFail
 
+! go test -run=FuzzWithLogFail -fuzz=FuzzWithLogFail -fuzztime=5s
+stdout 'testdata[/\\]corpus[/\\]FuzzWithLogFail[/\\]'
+stdout 'logged something'
+go run check_testdata.go FuzzWithLogFail
+
 ! go test -run=FuzzWithErrorf -fuzz=FuzzWithErrorf -fuzztime=5s
 stdout 'testdata[/\\]corpus[/\\]FuzzWithErrorf[/\\]'
-# TODO: Uncomment this part of the test once it's fixed
-# stdout 'errorf was called here'
+stdout 'errorf was called here'
 go run check_testdata.go FuzzWithErrorf
 
 ! go test -run=FuzzWithFatalf -fuzz=FuzzWithFatalf -fuzztime=5s
 stdout 'testdata[/\\]corpus[/\\]FuzzWithFatalf[/\\]'
-# TODO: Uncomment this part of the test once it's fixed
-# stdout 'fatalf was called here'
+stdout 'fatalf was called here'
 go run check_testdata.go FuzzWithFatalf
 
 ! go test -run=FuzzWithBadExit -fuzz=FuzzWithBadExit -fuzztime=5s
@@ -88,6 +91,16 @@ func FuzzWithFail(f *testing.F) {
 	f.Add([]byte("aa"))
 	f.Fuzz(func(t *testing.T, b []byte) {
 		if string(b) != "aa" {
+			t.Fail()
+		}
+	})
+}
+
+func FuzzWithLogFail(f *testing.F) {
+	f.Add([]byte("aa"))
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if string(b) != "aa" {
+			t.Log("logged something")
 			t.Fail()
 		}
 	})

@@ -137,7 +137,7 @@ func (w *worker) runFuzzing() error {
 			mem := <-w.memMu
 			value := mem.valueCopy()
 			w.memMu <- mem
-			message := fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
+			message := fmt.Sprintf("fuzzing process terminated unexpectedly: %v\n", w.waitErr)
 			crasher := crasherEntry{
 				CorpusEntry: CorpusEntry{Data: value},
 				errMsg:      message,
