@@ -12,13 +12,13 @@ stdout 'NUL|/dev/null'
 # 'go list' without arguments implicitly operates on the current directory,
 # which is not in a module.
 ! go list
-stderr 'cannot find main module'
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 go list -m
 stdout '^command-line-arguments$'
 # 'go list' in the working directory should fail even if there is a a 'package
 # main' present: without a main module, we do not know its package path.
 ! go list ./needmod
-stderr 'cannot find main module'
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 # 'go list all' lists the transitive import graph of the main module,
 # which is empty if there is no main module.
@@ -41,7 +41,7 @@ stdout 'command-line-arguments'
 
 # 'go list' on a package from a module should fail.
 ! go list example.com/printversion
-stderr '^no required module provides package example.com/printversion: working directory is not part of a module$'
+stderr '^no required module provides package example.com/printversion: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 
 # 'go list -m' with an explicit version should resolve that version.
@@ -54,19 +54,19 @@ stdout 'v1.0.0\s+v1.0.1\s+v1.1.0'
 
 # 'go list -m all' should fail. "all" is not meaningful outside of a module.
 ! go list -m all
-stderr 'go: cannot match "all": working directory is not part of a module'
+stderr 'go: cannot match "all": go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 # 'go list -m <mods> all' should also fail.
 ! go list -m example.com/printversion@v1.0.0 all
-stderr 'go: cannot match "all": working directory is not part of a module'
+stderr 'go: cannot match "all": go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 ! stdout 'example.com/version'
 
 # 'go list -m' with wildcards should fail. Wildcards match modules in the
 # build list, so they aren't meaningful outside a module.
 ! go list -m ...
-stderr 'go: cannot match "...": working directory is not part of a module'
+stderr 'go: cannot match "...": go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 ! go list -m rsc.io/quote/...
-stderr 'go: cannot match "rsc.io/quote/...": working directory is not part of a module'
+stderr 'go: cannot match "rsc.io/quote/...": go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 
 # 'go clean' should skip the current directory if it isn't in a module.
@@ -76,20 +76,20 @@ go clean -n
 
 # 'go mod graph' should fail, since there's no module graph.
 ! go mod graph
-stderr 'cannot find main module'
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 # 'go mod why' should fail, since there is no main module to depend on anything.
 ! go mod why -m example.com/version
-stderr 'cannot find main module'
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 # 'go mod edit', 'go mod tidy', and 'go mod fmt' should fail:
 # there is no go.mod file to edit.
 ! go mod tidy
-stderr 'cannot find main module'
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 ! go mod edit -fmt
-stderr 'cannot find main module'
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 ! go mod edit -require example.com/version@v1.0.0
-stderr 'cannot find main module'
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 
 # 'go mod download' without arguments should report an error.
@@ -104,33 +104,33 @@ exists $GOPATH/pkg/mod/cache/download/example.com/printversion/@v/v1.0.0.zip
 
 # 'go mod download all' should fail. "all" is not meaningful outside of a module.
 ! go mod download all
-stderr 'go: cannot match "all": working directory is not part of a module'
+stderr 'go: cannot match "all": go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 
 # 'go mod vendor' should fail: it starts by clearing the existing vendor
 # directory, and we don't know where that is.
 ! go mod vendor
-stderr 'cannot find main module'
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 
 # 'go mod verify' should fail: we have no modules to verify.
 ! go mod verify
-stderr 'cannot find main module'
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 
 # 'go get' without arguments implicitly operates on the main module, and thus
 # should fail.
 ! go get
-stderr 'cannot find main module'
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 ! go get -u
-stderr 'cannot find main module'
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 ! go get -u ./needmod
-stderr 'cannot find main module'
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 # 'go get -u all' upgrades the transitive import graph of the main module,
 # which is empty.
 ! go get -u all
-stderr 'go get: cannot match "all": working directory is not part of a module'
+stderr '^go get: cannot match "all": go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 # 'go get' should check the proposed module graph for consistency,
 # even though we won't write it anywhere.
@@ -147,16 +147,16 @@ exists $GOPATH/pkg/mod/example.com/version@v1.0.0
 # 'go build' without arguments implicitly operates on the current directory, and should fail.
 cd needmod
 ! go build
-stderr 'cannot find main module'
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 cd ..
 
 # 'go build' of a non-module directory should fail too.
 ! go build ./needmod
-stderr 'cannot find main module'
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 # 'go build' of source files should fail if they import anything outside std.
 ! go build -n ./needmod/needmod.go
-stderr '^needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: working directory is not part of a module$'
+stderr '^needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 # 'go build' of source files should succeed if they do not import anything outside std.
 go build -n -o ignore ./stdonly/stdonly.go
@@ -179,7 +179,7 @@ go doc fmt
 
 # 'go doc' should fail for a package path outside a module.
 ! go doc example.com/version
-stderr 'doc: no required module provides package example.com/version: working directory is not part of a module'
+stderr 'doc: no required module provides package example.com/version: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 # 'go install' with a version should succeed if all constraints are met.
 # See mod_install_pkg_version.
@@ -194,7 +194,7 @@ stderr '^go install: version is required when current directory is not in a modu
 # 'go install' should fail if a source file imports a package that must be
 # resolved to a module.
 ! go install ./needmod/needmod.go
-stderr 'needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: working directory is not part of a module'
+stderr 'needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 # 'go install' should succeed with a package in GOROOT.
 go install cmd/addr2line
@@ -206,12 +206,12 @@ stderr 'can only use path@version syntax with'
 
 # 'go run' should fail if a package argument must be resolved to a module.
 ! go run example.com/printversion
-stderr '^no required module provides package example.com/printversion: working directory is not part of a module$'
+stderr '^no required module provides package example.com/printversion: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 # 'go run' should fail if a source file imports a package that must be
 # resolved to a module.
 ! go run ./needmod/needmod.go
-stderr '^needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: working directory is not part of a module$'
+stderr '^needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 
 # 'go fmt' should be able to format files outside of a module.

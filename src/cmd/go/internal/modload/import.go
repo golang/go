@@ -51,7 +51,7 @@ func (e *ImportMissingError) Error() string {
 		if e.isStd {
 			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
 		}
-		if e.QueryErr != nil {
+		if e.QueryErr != nil && e.QueryErr != ErrNoModRoot {
 			return fmt.Sprintf("cannot find module providing package %s: %v", e.Path, e.QueryErr)
 		}
 		if cfg.BuildMod == "mod" || (cfg.BuildMod == "readonly" && allowMissingModuleImports) {
@@ -66,13 +66,11 @@ func (e *ImportMissingError) Error() string {
 			return fmt.Sprintf("module %s provides package %s and is replaced but not required; to add it:\n\tgo get %s", e.replaced.Path, e.Path, suggestArg)
 		}
 
-		suggestion := ""
-		if !HasModRoot() {
-			suggestion = ": working directory is not part of a module"
-		} else {
-			suggestion = fmt.Sprintf("; to add it:\n\tgo get %s", e.Path)
+		message := fmt.Sprintf("no required module provides package %s", e.Path)
+		if e.QueryErr != nil {
+			return fmt.Sprintf("%s: %v", message, e.QueryErr)
 		}
-		return fmt.Sprintf("no required module provides package %s%s", e.Path, suggestion)
+		return fmt.Sprintf("%s; to add it:\n\tgo get %s", message, e.Path)
 	}
 
 	if e.newMissingVersion != "" {
@@ -318,7 +316,11 @@ func importFromBuildList(ctx context.Context, path string, buildList []module.Ve
 		return mods[0], dirs[0], nil
 	}
 
-	return module.Version{}, "", &ImportMissingError{Path: path, isStd: pathIsStd}
+	var queryErr error
+	if !HasModRoot() {
+		queryErr = ErrNoModRoot
+	}
+	return module.Version{}, "", &ImportMissingError{Path: path, QueryErr: queryErr, isStd: pathIsStd}
 }
 
 // queryImport attempts to locate a module that can be added to the current
