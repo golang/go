@@ -876,7 +876,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OTYPESW:
 		n := n.(*ir.TypeSwitchGuard)
 		base.Errorf("use of .(type) outside type switch")
-		n.SetType(nil)
+		n.SetDiag(true)
 		return n
 
 	case ir.ODCLFUNC:
