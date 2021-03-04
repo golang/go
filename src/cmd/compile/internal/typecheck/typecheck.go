@@ -482,7 +482,9 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.OLITERAL:
 		if n.Sym() == nil && n.Type() == nil {
-			base.Fatalf("literal missing type: %v", n)
+			if !n.Diag() {
+				base.Fatalf("literal missing type: %v", n)
+			}
 		}
 		return n
 
