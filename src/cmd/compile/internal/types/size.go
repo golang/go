@@ -100,7 +100,7 @@ func expandiface(t *Type) {
 	}
 
 	for _, m := range t.Methods().Slice() {
-		if m.Sym != nil {
+		if m.Sym != nil || m.Type == nil {
 			continue
 		}
 
