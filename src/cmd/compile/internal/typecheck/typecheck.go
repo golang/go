@@ -2104,7 +2104,7 @@ func CheckUnused(fn *ir.Func) {
 
 // CheckReturn makes sure that fn terminates appropriately.
 func CheckReturn(fn *ir.Func) {
-	if fn.Type().NumResults() != 0 && len(fn.Body) != 0 {
+	if fn.Type() != nil && fn.Type().NumResults() != 0 && len(fn.Body) != 0 {
 		markBreak(fn)
 		if !isTermNodes(fn.Body) {
 			base.ErrorfAt(fn.Endlineno, "missing return at end of function")
