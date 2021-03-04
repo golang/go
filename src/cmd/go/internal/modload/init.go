@@ -56,6 +56,12 @@ var (
 	CmdModModule string // module argument for 'go mod init'
 
 	allowMissingModuleImports bool
+
+	// SilenceMissingStdImports indicates that LoadALL should not print an error
+	// or terminate the process if an imported package is missing, and the import
+	// path looks like it might be in the standard library (perhaps in a future
+	// Go version).
+	SilenceMissingStdImports bool
 )
 
 // ModFile returns the parsed go.mod file.

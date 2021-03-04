@@ -433,6 +433,11 @@ func loadAll(testAll bool) []string {
 	var paths []string
 	for _, pkg := range loaded.pkgs {
 		if pkg.err != nil {
+			if impErr := (*ImportMissingError)(nil); SilenceMissingStdImports &&
+				errors.As(pkg.err, &impErr) &&
+				search.IsStandardImportPath(impErr.Path) {
+				continue
+			}
 			base.Errorf("%s: %v", pkg.stackText(), pkg.err)
 			continue
 		}
