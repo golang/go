@@ -96,28 +96,12 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go run: no go files listed")
 	}
 	cmdArgs := args[i:]
-	if p.Error != nil {
-		base.Fatalf("%s", p.Error)
-	}
+	load.CheckPackageErrors([]*load.Package{p})
 
-	p.Internal.OmitDebug = true
-	if len(p.DepsErrors) > 0 {
-		// Since these are errors in dependencies,
-		// the same error might show up multiple times,
-		// once in each package that depends on it.
-		// Only print each once.
-		printed := map[*load.PackageError]bool{}
-		for _, err := range p.DepsErrors {
-			if !printed[err] {
-				printed[err] = true
-				base.Errorf("%s", err)
-			}
-		}
-	}
-	base.ExitIfErrors()
 	if p.Name != "main" {
 		base.Fatalf("go run: cannot run non-main package")
 	}
+	p.Internal.OmitDebug = true
 	p.Target = "" // must build - not up to date
 	if p.Internal.CmdlineFiles {
 		//set executable name if go file is given as cmd-argument
