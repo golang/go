@@ -523,6 +523,7 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 // and inserts the final newline if needed and indentation spaces for formatting.
 // This function must be called with c.mu held.
 func (c *common) decorate(s string, skip int) string {
+	// TODO(jayconrod,katiehockman): Consider refactoring the logging logic.
 	// If more helper PCs have been added since we last did the conversion
 	if c.helperNames == nil {
 		c.helperNames = make(map[string]struct{})
