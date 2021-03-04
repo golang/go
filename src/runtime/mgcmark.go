@@ -1273,7 +1273,7 @@ func scanobject(b uintptr, gcw *gcWork) {
 
 		// At this point we have extracted the next potential pointer.
 		// Quickly filter out nil and pointers back to the current object.
-		if obj != 0 && (obj-b >= n || obj-b < 0) {
+		if obj != 0 && obj-b >= n {
 			// Test if obj points into the Go heap and, if so,
 			// mark the object.
 			//
