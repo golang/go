@@ -481,10 +481,10 @@ func (p *printer) printRawNode(n Node) {
 		if len(n.FieldList) > 0 {
 			if p.linebreaks {
 				p.print(newline, indent)
-				p.printFieldList(n.FieldList, n.TagList)
+				p.printFieldList(n.FieldList, n.TagList, _Semi)
 				p.print(outdent, newline)
 			} else {
-				p.printFieldList(n.FieldList, n.TagList)
+				p.printFieldList(n.FieldList, n.TagList, _Semi)
 			}
 		}
 		p.print(_Rbrace)
@@ -494,19 +494,39 @@ func (p *printer) printRawNode(n Node) {
 		p.printSignature(n)
 
 	case *InterfaceType:
+		// separate type list and method list
+		var types []Expr
+		var methods []*Field
+		for _, f := range n.MethodList {
+			if f.Name != nil && f.Name.Value == "type" {
+				types = append(types, f.Type)
+			} else {
+				// method or embedded interface
+				methods = append(methods, f)
+			}
+		}
+
+		multiLine := len(n.MethodList) > 0 && p.linebreaks
 		p.print(_Interface)
-		if len(n.MethodList) > 0 && p.linebreaks {
+		if multiLine {
 			p.print(blank)
 		}
 		p.print(_Lbrace)
-		if len(n.MethodList) > 0 {
-			if p.linebreaks {
-				p.print(newline, indent)
-				p.printMethodList(n.MethodList)
-				p.print(outdent, newline)
-			} else {
-				p.printMethodList(n.MethodList)
+		if multiLine {
+			p.print(newline, indent)
+		}
+		if len(types) > 0 {
+			p.print(_Type, blank)
+			p.printExprList(types)
+			if len(methods) > 0 {
+				p.print(_Semi, blank)
 			}
+		}
+		if len(methods) > 0 {
+			p.printMethodList(methods)
+		}
+		if multiLine {
+			p.print(outdent, newline)
 		}
 		p.print(_Rbrace)
 
@@ -667,7 +687,13 @@ func (p *printer) printRawNode(n Node) {
 		if n.Group == nil {
 			p.print(_Type, blank)
 		}
-		p.print(n.Name, blank)
+		p.print(n.Name)
+		if n.TParamList != nil {
+			p.print(_Lbrack)
+			p.printFieldList(n.TParamList, nil, _Comma)
+			p.print(_Rbrack)
+		}
+		p.print(blank)
 		if n.Alias {
 			p.print(_Assign, blank)
 		}
@@ -696,6 +722,11 @@ func (p *printer) printRawNode(n Node) {
 			p.print(_Rparen, blank)
 		}
 		p.print(n.Name)
+		if n.TParamList != nil {
+			p.print(_Lbrack)
+			p.printFieldList(n.TParamList, nil, _Comma)
+			p.print(_Rbrack)
+		}
 		p.printSignature(n.Type)
 		if n.Body != nil {
 			p.print(blank, n.Body)
@@ -746,14 +777,14 @@ func (p *printer) printFields(fields []*Field, tags []*BasicLit, i, j int) {
 	}
 }
 
-func (p *printer) printFieldList(fields []*Field, tags []*BasicLit) {
+func (p *printer) printFieldList(fields []*Field, tags []*BasicLit, sep token) {
 	i0 := 0
 	var typ Expr
 	for i, f := range fields {
 		if f.Name == nil || f.Type != typ {
 			if i0 < i {
 				p.printFields(fields, tags, i0, i)
-				p.print(_Semi, newline)
+				p.print(sep, newline)
 				i0 = i
 			}
 			typ = f.Type
