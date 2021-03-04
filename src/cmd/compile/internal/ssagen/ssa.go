@@ -230,7 +230,6 @@ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
 			base.ErrorfAt(fn.Pos(), "Calls to //go:registerparams method %s won't work, remove the pragma from the declaration.", name)
 		}
 		a = abi1
-		base.WarnfAt(fn.Pos(), "declared function %v has register params", fn)
 	}
 	return a
 }
@@ -4850,9 +4849,6 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			inRegistersImported := fn.Pragma()&ir.RegisterParams != 0
 			inRegistersSamePackage := fn.Func != nil && fn.Func.Pragma&ir.RegisterParams != 0
 			inRegisters = inRegistersImported || inRegistersSamePackage
-			if inRegisters {
-				s.f.Warnl(n.Pos(), "called function %v has register params", callee)
-			}
 			break
 		}
 		closure = s.expr(fn)
