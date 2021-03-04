@@ -121,6 +121,7 @@
 (Com(32|16|8) x) => (NORconst [0] x)
 
 (Sqrt ...) => (SQRTD ...)
+(Sqrt32 ...) => (SQRTF ...)
 
 // TODO: optimize this case?
 (Ctz32NonZero ...) => (Ctz32 ...)
@@ -558,6 +559,10 @@
 // if a register move has only 1 use, just use the same register without emitting instruction
 // MOVWnop doesn't emit instruction, only for ensuring the type.
 (MOVWreg x) && x.Uses == 1 => (MOVWnop x)
+
+// TODO: we should be able to get rid of MOVWnop all together.
+// But for now, this is enough to get rid of lots of them.
+(MOVWnop (MOVWconst [c])) => (MOVWconst [c])
 
 // fold constant into arithmatic ops
 (ADD x (MOVWconst [c])) => (ADDconst [c] x)

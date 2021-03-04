@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || solaris
 // +build aix solaris
 
 // This file handles forkAndExecInChild function for OS using libc syscall like AIX or Solaris.

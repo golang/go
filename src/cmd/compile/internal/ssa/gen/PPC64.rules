@@ -71,6 +71,7 @@
 (Round(32|64)F ...) => (LoweredRound(32|64)F ...)
 
 (Sqrt ...) => (FSQRT ...)
+(Sqrt32 ...) => (FSQRTS ...)
 (Floor ...) => (FFLOOR ...)
 (Ceil ...) => (FCEIL ...)
 (Trunc ...) => (FTRUNC ...)

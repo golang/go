@@ -115,9 +115,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			p.To.Reg = y
 		}
 	case ssa.OpMIPS64MOVVnop:
-		if v.Reg() != v.Args[0].Reg() {
-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
-		}
 		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
@@ -358,6 +355,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpMIPS64MOVDF,
 		ssa.OpMIPS64NEGF,
 		ssa.OpMIPS64NEGD,
+		ssa.OpMIPS64SQRTF,
 		ssa.OpMIPS64SQRTD:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG

@@ -56,6 +56,7 @@
 (Com(32|16|8) ...) => (MVN ...)
 
 (Sqrt ...) => (SQRTD ...)
+(Sqrt32 ...) => (SQRTF ...)
 (Abs ...) => (ABSD ...)
 
 // TODO: optimize this for ARMv5 and ARMv6
@@ -545,6 +546,10 @@
 // if a register move has only 1 use, just use the same register without emitting instruction
 // MOVWnop doesn't emit instruction, only for ensuring the type.
 (MOVWreg x) && x.Uses == 1 => (MOVWnop x)
+
+// TODO: we should be able to get rid of MOVWnop all together.
+// But for now, this is enough to get rid of lots of them.
+(MOVWnop (MOVWconst [c])) => (MOVWconst [c])
 
 // mul by constant
 (MUL x (MOVWconst [c])) && int32(c) == -1 => (RSBconst [0] x)

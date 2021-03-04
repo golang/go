@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build (openbsd && amd64) || (openbsd && arm64)
 // +build openbsd,amd64 openbsd,arm64
 
 package runtime
@@ -127,6 +128,12 @@ func usleep(usec uint32) {
 	libcCall(unsafe.Pointer(funcPC(usleep_trampoline)), unsafe.Pointer(&usec))
 }
 func usleep_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func usleep_no_g(usec uint32) {
+	asmcgocall_no_g(unsafe.Pointer(funcPC(usleep_trampoline)), unsafe.Pointer(&usec))
+}
 
 //go:nosplit
 //go:cgo_unsafe_args

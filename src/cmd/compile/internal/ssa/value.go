@@ -78,7 +78,7 @@ func (v *Value) String() string {
 }
 
 func (v *Value) AuxInt8() int8 {
-	if opcodeTable[v.Op].auxType != auxInt8 {
+	if opcodeTable[v.Op].auxType != auxInt8 && opcodeTable[v.Op].auxType != auxNameOffsetInt8 {
 		v.Fatalf("op %s doesn't have an int8 aux field", v.Op)
 	}
 	return int8(v.AuxInt)
@@ -411,6 +411,23 @@ func (v *Value) isGenericIntConst() bool {
 	return v != nil && (v.Op == OpConst64 || v.Op == OpConst32 || v.Op == OpConst16 || v.Op == OpConst8)
 }
 
+// ResultReg returns the result register assigned to v, in cmd/internal/obj/$ARCH numbering.
+// It is similar to Reg and Reg0, except that it is usable interchangeably for all Value Ops.
+// If you know v.Op, using Reg or Reg0 (as appropriate) will be more efficient.
+func (v *Value) ResultReg() int16 {
+	reg := v.Block.Func.RegAlloc[v.ID]
+	if reg == nil {
+		v.Fatalf("nil reg for value: %s\n%s\n", v.LongString(), v.Block.Func)
+	}
+	if pair, ok := reg.(LocPair); ok {
+		reg = pair[0]
+	}
+	if reg == nil {
+		v.Fatalf("nil reg0 for value: %s\n%s\n", v.LongString(), v.Block.Func)
+	}
+	return reg.(*Register).objNum
+}
+
 // Reg returns the register assigned to v, in cmd/internal/obj/$ARCH numbering.
 func (v *Value) Reg() int16 {
 	reg := v.Block.Func.RegAlloc[v.ID]
@@ -484,7 +501,7 @@ func (v *Value) removeable() bool {
 	if v.Type.IsMemory() {
 		// All memory ops aren't needed here, but we do need
 		// to keep calls at least (because they might have
-		// syncronization operations we can't see).
+		// synchronization operations we can't see).
 		return false
 	}
 	if v.Op.HasSideEffects() {

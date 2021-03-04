@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/abi"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"crypto/sha1"
@@ -43,6 +44,10 @@ type Func struct {
 	DebugTest      bool           // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
 	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
 	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
+	ABI0           *abi.ABIConfig // A copy, for no-sync access
+	ABI1           *abi.ABIConfig // A copy, for no-sync access
+	ABISelf        *abi.ABIConfig // ABI for function being compiled
+	ABIDefault     *abi.ABIConfig // ABI for rtcall and other no-parsed-signature/pragma functions.
 
 	scheduled   bool  // Values in Blocks are in final order
 	laidout     bool  // Blocks are ordered

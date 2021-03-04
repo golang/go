@@ -351,7 +351,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			return
 		}
 
-		tch := ch.typ.Chan()
+		tch := asChan(ch.typ)
 		if tch == nil {
 			check.invalidOpf(s, "cannot send to non-chan type %s", ch.typ)
 			return
@@ -680,7 +680,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	if x.mode == invalid {
 		return
 	}
-	xtyp, _ := x.typ.Under().(*Interface)
+	xtyp, _ := under(x.typ).(*Interface)
 	if xtyp == nil {
 		check.errorf(&x, "%s is not an interface type", &x)
 		return
@@ -769,7 +769,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 	// determine key/value types
 	var key, val Type
 	if x.mode != invalid {
-		typ := optype(x.typ.Under())
+		typ := optype(x.typ)
 		if _, ok := typ.(*Chan); ok && sValue != nil {
 			// TODO(gri) this also needs to happen for channels in generic variables
 			check.softErrorf(sValue, "range over %s permits only one iteration variable", &x)
@@ -890,7 +890,7 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 	case *Slice:
 		return Typ[Int], typ.elem, ""
 	case *Pointer:
-		if typ := typ.base.Array(); typ != nil {
+		if typ := asArray(typ.base); typ != nil {
 			return Typ[Int], typ.elem, ""
 		}
 	case *Map:
@@ -906,7 +906,7 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 		var key, val Type
 		var msg string
 		typ.is(func(t Type) bool {
-			k, v, m := rangeKeyVal(t.Under(), wantKey, wantVal)
+			k, v, m := rangeKeyVal(under(t), wantKey, wantVal)
 			if k == nil || m != "" {
 				key, val, msg = k, v, m
 				return false

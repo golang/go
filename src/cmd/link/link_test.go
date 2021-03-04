@@ -583,7 +583,7 @@ TEXT	·alignPc(SB),NOSPLIT, $0-0
 `
 
 // TestFuncAlign verifies that the address of a function can be aligned
-// with a specfic value on arm64.
+// with a specific value on arm64.
 func TestFuncAlign(t *testing.T) {
 	if runtime.GOARCH != "arm64" || runtime.GOOS != "linux" {
 		t.Skip("skipping on non-linux/arm64 platform")
@@ -753,23 +753,24 @@ func TestIndexMismatch(t *testing.T) {
 	}
 }
 
-func TestPErsrc(t *testing.T) {
+func TestPErsrcBinutils(t *testing.T) {
 	// Test that PE rsrc section is handled correctly (issue 39658).
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOARCH != "amd64" || runtime.GOOS != "windows" {
-		t.Skipf("this is a windows/amd64-only test")
+	if (runtime.GOARCH != "386" && runtime.GOARCH != "amd64") || runtime.GOOS != "windows" {
+		// This test is limited to amd64 and 386, because binutils is limited as such
+		t.Skipf("this is only for windows/amd64 and windows/386")
 	}
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "TestPErsrc")
+	tmpdir, err := ioutil.TempDir("", "TestPErsrcBinutils")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
 
-	pkgdir := filepath.Join("testdata", "testPErsrc")
+	pkgdir := filepath.Join("testdata", "pe-binutils")
 	exe := filepath.Join(tmpdir, "a.exe")
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
 	cmd.Dir = pkgdir
@@ -787,19 +788,36 @@ func TestPErsrc(t *testing.T) {
 	if !bytes.Contains(b, []byte("Hello Gophers!")) {
 		t.Fatalf("binary does not contain expected content")
 	}
+}
 
-	pkgdir = filepath.Join("testdata", "testPErsrc-complex")
-	exe = filepath.Join(tmpdir, "a.exe")
-	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
+func TestPErsrcLLVM(t *testing.T) {
+	// Test that PE rsrc section is handled correctly (issue 39658).
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS != "windows" {
+		t.Skipf("this is a windows-only test")
+	}
+
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "TestPErsrcLLVM")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	pkgdir := filepath.Join("testdata", "pe-llvm")
+	exe := filepath.Join(tmpdir, "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
 	cmd.Dir = pkgdir
 	// cmd.Env = append(os.Environ(), "GOOS=windows", "GOARCH=amd64") // uncomment if debugging in a cross-compiling environment
-	out, err = cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("building failed: %v, output:\n%s", err, out)
 	}
 
 	// Check that the binary contains the rsrc data
-	b, err = ioutil.ReadFile(exe)
+	b, err := ioutil.ReadFile(exe)
 	if err != nil {
 		t.Fatalf("reading output failed: %v", err)
 	}

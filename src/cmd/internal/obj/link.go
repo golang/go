@@ -39,6 +39,7 @@ import (
 	"cmd/internal/sys"
 	"fmt"
 	"sync"
+	"sync/atomic"
 )
 
 // An Addr is an argument to an instruction.
@@ -359,7 +360,21 @@ func (p *Prog) SetFrom3(a Addr) {
 	p.RestArgs = []AddrPos{{a, Source}}
 }
 
-// SetTo2 assings []Args{{a, 1}} to p.RestArgs when the second destination
+// SetFrom3Reg calls p.SetFrom3 with a register Addr containing reg.
+//
+// Deprecated: for the same reasons as Prog.GetFrom3.
+func (p *Prog) SetFrom3Reg(reg int16) {
+	p.SetFrom3(Addr{Type: TYPE_REG, Reg: reg})
+}
+
+// SetFrom3Const calls p.SetFrom3 with a const Addr containing x.
+//
+// Deprecated: for the same reasons as Prog.GetFrom3.
+func (p *Prog) SetFrom3Const(off int64) {
+	p.SetFrom3(Addr{Type: TYPE_CONST, Offset: off})
+}
+
+// SetTo2 assigns []Args{{a, 1}} to p.RestArgs when the second destination
 // operand does not fit into prog.RegTo2.
 func (p *Prog) SetTo2(a Addr) {
 	p.RestArgs = []AddrPos{{a, Destination}}
@@ -453,6 +468,7 @@ type FuncInfo struct {
 	Locals   int32
 	Align    int32
 	FuncID   objabi.FuncID
+	FuncFlag objabi.FuncFlag
 	Text     *Prog
 	Autot    map[*LSym]struct{}
 	Pcln     Pcln
@@ -618,10 +634,6 @@ const (
 	// target of an inline during compilation
 	AttrWasInlined
 
-	// TopFrame means that this function is an entry point and unwinders should not
-	// keep unwinding beyond this frame.
-	AttrTopFrame
-
 	// Indexed indicates this symbol has been assigned with an index (when using the
 	// new object file format).
 	AttrIndexed
@@ -647,37 +659,51 @@ const (
 	attrABIBase
 )
 
-func (a Attribute) DuplicateOK() bool        { return a&AttrDuplicateOK != 0 }
-func (a Attribute) MakeTypelink() bool       { return a&AttrMakeTypelink != 0 }
-func (a Attribute) CFunc() bool              { return a&AttrCFunc != 0 }
-func (a Attribute) NoSplit() bool            { return a&AttrNoSplit != 0 }
-func (a Attribute) Leaf() bool               { return a&AttrLeaf != 0 }
-func (a Attribute) OnList() bool             { return a&AttrOnList != 0 }
-func (a Attribute) ReflectMethod() bool      { return a&AttrReflectMethod != 0 }
-func (a Attribute) Local() bool              { return a&AttrLocal != 0 }
-func (a Attribute) Wrapper() bool            { return a&AttrWrapper != 0 }
-func (a Attribute) NeedCtxt() bool           { return a&AttrNeedCtxt != 0 }
-func (a Attribute) NoFrame() bool            { return a&AttrNoFrame != 0 }
-func (a Attribute) Static() bool             { return a&AttrStatic != 0 }
-func (a Attribute) WasInlined() bool         { return a&AttrWasInlined != 0 }
-func (a Attribute) TopFrame() bool           { return a&AttrTopFrame != 0 }
-func (a Attribute) Indexed() bool            { return a&AttrIndexed != 0 }
-func (a Attribute) UsedInIface() bool        { return a&AttrUsedInIface != 0 }
-func (a Attribute) ContentAddressable() bool { return a&AttrContentAddressable != 0 }
-func (a Attribute) ABIWrapper() bool         { return a&AttrABIWrapper != 0 }
+func (a *Attribute) load() Attribute { return Attribute(atomic.LoadUint32((*uint32)(a))) }
+
+func (a *Attribute) DuplicateOK() bool        { return a.load()&AttrDuplicateOK != 0 }
+func (a *Attribute) MakeTypelink() bool       { return a.load()&AttrMakeTypelink != 0 }
+func (a *Attribute) CFunc() bool              { return a.load()&AttrCFunc != 0 }
+func (a *Attribute) NoSplit() bool            { return a.load()&AttrNoSplit != 0 }
+func (a *Attribute) Leaf() bool               { return a.load()&AttrLeaf != 0 }
+func (a *Attribute) OnList() bool             { return a.load()&AttrOnList != 0 }
+func (a *Attribute) ReflectMethod() bool      { return a.load()&AttrReflectMethod != 0 }
+func (a *Attribute) Local() bool              { return a.load()&AttrLocal != 0 }
+func (a *Attribute) Wrapper() bool            { return a.load()&AttrWrapper != 0 }
+func (a *Attribute) NeedCtxt() bool           { return a.load()&AttrNeedCtxt != 0 }
+func (a *Attribute) NoFrame() bool            { return a.load()&AttrNoFrame != 0 }
+func (a *Attribute) Static() bool             { return a.load()&AttrStatic != 0 }
+func (a *Attribute) WasInlined() bool         { return a.load()&AttrWasInlined != 0 }
+func (a *Attribute) Indexed() bool            { return a.load()&AttrIndexed != 0 }
+func (a *Attribute) UsedInIface() bool        { return a.load()&AttrUsedInIface != 0 }
+func (a *Attribute) ContentAddressable() bool { return a.load()&AttrContentAddressable != 0 }
+func (a *Attribute) ABIWrapper() bool         { return a.load()&AttrABIWrapper != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
-	if value {
-		*a |= flag
-	} else {
-		*a &^= flag
+	for {
+		v0 := a.load()
+		v := v0
+		if value {
+			v |= flag
+		} else {
+			v &^= flag
+		}
+		if atomic.CompareAndSwapUint32((*uint32)(a), uint32(v0), uint32(v)) {
+			break
+		}
 	}
 }
 
-func (a Attribute) ABI() ABI { return ABI(a / attrABIBase) }
+func (a *Attribute) ABI() ABI { return ABI(a.load() / attrABIBase) }
 func (a *Attribute) SetABI(abi ABI) {
 	const mask = 1 // Only one ABI bit for now.
-	*a = (*a &^ (mask * attrABIBase)) | Attribute(abi)*attrABIBase
+	for {
+		v0 := a.load()
+		v := (v0 &^ (mask * attrABIBase)) | Attribute(abi)*attrABIBase
+		if atomic.CompareAndSwapUint32((*uint32)(a), uint32(v0), uint32(v)) {
+			break
+		}
+	}
 }
 
 var textAttrStrings = [...]struct {
@@ -697,14 +723,13 @@ var textAttrStrings = [...]struct {
 	{bit: AttrNoFrame, s: "NOFRAME"},
 	{bit: AttrStatic, s: "STATIC"},
 	{bit: AttrWasInlined, s: ""},
-	{bit: AttrTopFrame, s: "TOPFRAME"},
 	{bit: AttrIndexed, s: ""},
 	{bit: AttrContentAddressable, s: ""},
 	{bit: AttrABIWrapper, s: "ABIWRAPPER"},
 }
 
-// TextAttrString formats a for printing in as part of a TEXT prog.
-func (a Attribute) TextAttrString() string {
+// String formats a for printing in as part of a TEXT prog.
+func (a Attribute) String() string {
 	var s string
 	for _, x := range textAttrStrings {
 		if a&x.bit != 0 {
@@ -728,6 +753,18 @@ func (a Attribute) TextAttrString() string {
 		s = s[:len(s)-1]
 	}
 	return s
+}
+
+// TextAttrString formats the symbol attributes for printing in as part of a TEXT prog.
+func (s *LSym) TextAttrString() string {
+	attr := s.Attribute.String()
+	if s.Func().FuncFlag&objabi.FuncFlag_TOPFRAME != 0 {
+		if attr != "" {
+			attr += "|"
+		}
+		attr += "TOPFRAME"
+	}
+	return attr
 }
 
 func (s *LSym) String() string {

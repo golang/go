@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 // mkasm.go generates assembly trampolines to call library routines from Go.
@@ -53,7 +54,8 @@ func main() {
 		fn := line[5 : len(line)-13]
 		if !trampolines[fn] {
 			trampolines[fn] = true
-			fmt.Fprintf(&out, "TEXT ·%s_trampoline(SB),NOSPLIT,$0-0\n", fn)
+			// The trampolines are ABIInternal as they are address-taken in Go code.
+			fmt.Fprintf(&out, "TEXT ·%s_trampoline<ABIInternal>(SB),NOSPLIT,$0-0\n", fn)
 			fmt.Fprintf(&out, "\tJMP\t%s(SB)\n", fn)
 		}
 	}

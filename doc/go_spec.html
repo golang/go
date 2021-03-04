@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Feb 2, 2021",
+	"Subtitle": "Version of Feb 24, 2021",
 	"Path": "/ref/spec"
 }-->
 
@@ -830,7 +830,7 @@ The underlying type of <code>[]B1</code>, <code>B3</code>, and <code>B4</code> i
 
 <h3 id="Method_sets">Method sets</h3>
 <p>
-A type may have a <i>method set</i> associated with it.
+A type has a (possibly empty) <i>method set</i> associated with it.
 The method set of an <a href="#Interface_types">interface type</a> is its interface.
 The method set of any other type <code>T</code> consists of all
 <a href="#Method_declarations">methods</a> declared with receiver type <code>T</code>.
@@ -3446,7 +3446,7 @@ In a function call, the function value and arguments are evaluated in
 After they are evaluated, the parameters of the call are passed by value to the function
 and the called function begins execution.
 The return parameters of the function are passed by value
-back to the calling function when the function returns.
+back to the caller when the function returns.
 </p>
 
 <p>
@@ -3532,9 +3532,9 @@ within <code>Greeting</code>, <code>who</code> will have the value
 </p>
 
 <p>
-If the final argument is assignable to a slice type <code>[]T</code>, it is
-passed unchanged as the value for a <code>...T</code> parameter if the argument
-is followed by <code>...</code>. In this case no new slice is created.
+If the final argument is assignable to a slice type <code>[]T</code> and
+is followed by <code>...</code>, it is passed unchanged as the value
+for a <code>...T</code> parameter. In this case no new slice is created.
 </p>
 
 <p>

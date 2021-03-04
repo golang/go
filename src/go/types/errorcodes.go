@@ -6,6 +6,9 @@ package types
 
 type errorCode int
 
+// TODO(rFindley): ensure that existing error codes do not change in the
+//                 dev.typeparams branch.
+
 // This file defines the error codes that can be produced during type-checking.
 // Collectively, these codes provide an identifier that may be used to
 // implement special handling for certain types of errors.
@@ -386,8 +389,8 @@ const (
 	// _InvalidInitSig occurs when an init function declares parameters or
 	// results.
 	//
-	// Example:
-	//  func init() int { return 1 }
+	// Deprecated: no longer emitted by the type checker. _InvalidInitDecl is
+	// used instead.
 	_InvalidInitSig
 
 	// _InvalidInitDecl occurs when init is declared as anything other than a
@@ -395,6 +398,9 @@ const (
 	//
 	// Example:
 	//  var init = 1
+	//
+	// Example:
+	//  func init() int { return 1 }
 	_InvalidInitDecl
 
 	// _InvalidMainDecl occurs when main is declared as anything other than a
@@ -1311,6 +1317,9 @@ const (
 	//  	return i
 	//  }
 	_InvalidGo
+
+	// _BadDecl occurs when a declaration has invalid syntax.
+	_BadDecl
 
 	// _Todo is a placeholder for error codes that have not been decided.
 	// TODO(rFindley) remove this error code after deciding on errors for generics code.

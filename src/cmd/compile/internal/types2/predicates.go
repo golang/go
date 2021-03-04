@@ -25,7 +25,7 @@ func isGeneric(typ Type) bool {
 }
 
 func is(typ Type, what BasicInfo) bool {
-	switch t := optype(typ.Under()).(type) {
+	switch t := optype(typ).(type) {
 	case *Basic:
 		return t.info&what != 0
 	case *Sum:
@@ -69,12 +69,17 @@ func isUntyped(typ Type) bool {
 	return !isTyped(typ)
 }
 
-func isOrdered(typ Type) bool   { return is(typ, IsOrdered) }
-func isConstType(typ Type) bool { return is(typ, IsConstType) }
+func isOrdered(typ Type) bool { return is(typ, IsOrdered) }
+
+func isConstType(typ Type) bool {
+	// Type parameters are never const types.
+	t, _ := under(typ).(*Basic)
+	return t != nil && t.info&IsConstType != 0
+}
 
 // IsInterface reports whether typ is an interface type.
 func IsInterface(typ Type) bool {
-	return typ.Interface() != nil
+	return asInterface(typ) != nil
 }
 
 // Comparable reports whether values of type T are comparable.
@@ -99,11 +104,11 @@ func comparable(T Type, seen map[Type]bool) bool {
 	//     interface{ comparable; type []byte }
 	//
 	// is not comparable because []byte is not comparable.
-	if t := T.TypeParam(); t != nil && optype(t) == theTop {
+	if t := asTypeParam(T); t != nil && optype(t) == theTop {
 		return t.Bound().IsComparable()
 	}
 
-	switch t := optype(T.Under()).(type) {
+	switch t := optype(T).(type) {
 	case *Basic:
 		// assume invalid types to be comparable
 		// to avoid follow-up errors
@@ -132,7 +137,7 @@ func comparable(T Type, seen map[Type]bool) bool {
 
 // hasNil reports whether a type includes the nil value.
 func hasNil(typ Type) bool {
-	switch t := optype(typ.Under()).(type) {
+	switch t := optype(typ).(type) {
 	case *Basic:
 		return t.kind == UnsafePointer
 	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:

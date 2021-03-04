@@ -761,6 +761,9 @@ func (s *regAllocState) advanceUses(v *Value) {
 // current instruction.
 func (s *regAllocState) liveAfterCurrentInstruction(v *Value) bool {
 	u := s.values[v.ID].uses
+	if u == nil {
+		panic(fmt.Errorf("u is nil, v = %s, s.values[v.ID] = %v", v.LongString(), s.values[v.ID]))
+	}
 	d := u.dist
 	for u != nil && u.dist == d {
 		u = u.next
@@ -797,13 +800,28 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
 }
 
 // regspec returns the regInfo for operation op.
-func (s *regAllocState) regspec(op Op) regInfo {
+func (s *regAllocState) regspec(v *Value) regInfo {
+	op := v.Op
 	if op == OpConvert {
 		// OpConvert is a generic op, so it doesn't have a
 		// register set in the static table. It can use any
 		// allocatable integer register.
 		m := s.allocatable & s.f.Config.gpRegMask
 		return regInfo{inputs: []inputInfo{{regs: m}}, outputs: []outputInfo{{regs: m}}}
+	}
+	if op == OpArgIntReg {
+		reg := v.Block.Func.Config.intParamRegs[v.AuxInt8()]
+		return regInfo{outputs: []outputInfo{{regs: 1 << uint(reg)}}}
+	}
+	if op == OpArgFloatReg {
+		reg := v.Block.Func.Config.floatParamRegs[v.AuxInt8()]
+		return regInfo{outputs: []outputInfo{{regs: 1 << uint(reg)}}}
+	}
+	if op.IsCall() {
+		// TODO Panic if not okay
+		if ac, ok := v.Aux.(*AuxCall); ok && ac.reg != nil {
+			return *ac.reg
+		}
 	}
 	return opcodeTable[op].reg
 }
@@ -1160,7 +1178,7 @@ func (s *regAllocState) regalloc(f *Func) {
 		for i := len(oldSched) - 1; i >= 0; i-- {
 			v := oldSched[i]
 			prefs := desired.remove(v.ID)
-			regspec := s.regspec(v.Op)
+			regspec := s.regspec(v)
 			desired.clobber(regspec.clobbers)
 			for _, j := range regspec.inputs {
 				if countRegs(j.regs) != 1 {
@@ -1190,7 +1208,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			if s.f.pass.debug > regDebug {
 				fmt.Printf("  processing %s\n", v.LongString())
 			}
-			regspec := s.regspec(v.Op)
+			regspec := s.regspec(v)
 			if v.Op == OpPhi {
 				f.Fatalf("phi %s not at start of block", v)
 			}
@@ -1208,13 +1226,17 @@ func (s *regAllocState) regalloc(f *Func) {
 				s.sb = v.ID
 				continue
 			}
-			if v.Op == OpSelect0 || v.Op == OpSelect1 {
+			if v.Op == OpSelect0 || v.Op == OpSelect1 || v.Op == OpSelectN {
 				if s.values[v.ID].needReg {
-					var i = 0
-					if v.Op == OpSelect1 {
-						i = 1
+					if v.Op == OpSelectN {
+						s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocResults)[int(v.AuxInt)].(*Register).num), v, v)
+					} else {
+						var i = 0
+						if v.Op == OpSelect1 {
+							i = 1
+						}
+						s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocPair)[i].(*Register).num), v, v)
 					}
-					s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocPair)[i].(*Register).num), v, v)
 				}
 				b.Values = append(b.Values, v)
 				s.advanceUses(v)
@@ -1495,6 +1517,9 @@ func (s *regAllocState) regalloc(f *Func) {
 					}
 					s.f.setHome(v, outLocs)
 					// Note that subsequent SelectX instructions will do the assignReg calls.
+				} else if v.Type.IsResults() {
+					// TODO register arguments need to make this work
+					panic("Oops, implement this.")
 				} else {
 					if r := outRegs[0]; r != noRegister {
 						s.assignReg(r, v, v)
@@ -1767,6 +1792,9 @@ func (s *regAllocState) placeSpills() {
 		// put the spill of v.  At the start "best" is the best place
 		// we have found so far.
 		// TODO: find a way to make this O(1) without arbitrary cutoffs.
+		if v == nil {
+			panic(fmt.Errorf("nil v, s.orig[%d], vi = %v, spill = %s", i, vi, spill.LongString()))
+		}
 		best := v.Block
 		bestArg := v
 		var bestDepth int16
@@ -2437,7 +2465,7 @@ func (s *regAllocState) computeLive() {
 					// desired registers back though phi nodes.
 					continue
 				}
-				regspec := s.regspec(v.Op)
+				regspec := s.regspec(v)
 				// Cancel desired registers if they get clobbered.
 				desired.clobber(regspec.clobbers)
 				// Update desired registers if there are any fixed register inputs.

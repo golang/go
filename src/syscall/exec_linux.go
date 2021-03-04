@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build linux
 // +build linux
 
 package syscall
@@ -207,18 +208,12 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		}
 	}
 
-	var hasRawVforkSyscall bool
-	switch runtime.GOARCH {
-	case "amd64", "arm64", "ppc64", "riscv64", "s390x":
-		hasRawVforkSyscall = true
-	}
-
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.
 	runtime_BeforeFork()
 	locked = true
 	switch {
-	case hasRawVforkSyscall && (sys.Cloneflags&CLONE_NEWUSER == 0 && sys.Unshareflags&CLONE_NEWUSER == 0):
+	case sys.Cloneflags&CLONE_NEWUSER == 0 && sys.Unshareflags&CLONE_NEWUSER == 0:
 		r1, err1 = rawVforkSyscall(SYS_CLONE, uintptr(SIGCHLD|CLONE_VFORK|CLONE_VM)|sys.Cloneflags)
 	case runtime.GOARCH == "s390x":
 		r1, _, err1 = RawSyscall6(SYS_CLONE, 0, uintptr(SIGCHLD)|sys.Cloneflags, 0, 0, 0, 0)

@@ -49,10 +49,10 @@ func offByOne[Elem constraints.Integer](a, b Elem) bool {
 func TestEqualFn(t *testing.T) {
 	s1 := []int{1, 2, 3}
 	s2 := []int{2, 3, 4}
-	if EqualFn(s1, s1, offByOne(int)) {
+	if EqualFn(s1, s1, offByOne[int]) {
 		t.Errorf("EqualFn(%v, %v, offByOne) = true, want false", s1, s1)
 	}
-	if !EqualFn(s1, s2, offByOne(int)) {
+	if !EqualFn(s1, s2, offByOne[int]) {
 		t.Errorf("EqualFn(%v, %v, offByOne) = false, want true", s1, s2)
 	}
 
@@ -62,7 +62,7 @@ func TestEqualFn(t *testing.T) {
 		t.Errorf("EqualFn(%v, %v, strings.EqualFold) = false, want true", s3, s4)
 	}
 
-	if !EqualFn(s1[:0], nil, offByOne(int)) {
+	if !EqualFn(s1[:0], nil, offByOne[int]) {
 		t.Errorf("EqualFn(%v, nil, offByOne) = false, want true", s1[:0])
 	}
 }

@@ -419,7 +419,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// If it is a Compare-and-Swap-Release operation, set the EH field with
 		// the release hint.
 		if v.AuxInt == 0 {
-			p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: 0})
+			p.SetFrom3Const(0)
 		}
 		// CMP reg1,reg2
 		p1 := s.Prog(cmp)
@@ -586,7 +586,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		// clrlslwi ra,rs,mb,sh will become rlwinm ra,rs,sh,mb-sh,31-sh as described in ISA
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)}
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)})
+		p.SetFrom3Const(ssa.GetPPC64Shiftsh(shifts))
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
@@ -598,7 +598,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		// clrlsldi ra,rs,mb,sh will become rldic ra,rs,sh,mb-sh
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)}
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)})
+		p.SetFrom3Const(ssa.GetPPC64Shiftsh(shifts))
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
@@ -610,7 +610,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		shifts := v.AuxInt
 		p := s.Prog(v.Op.Asm())
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)}
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)})
+		p.SetFrom3Const(ssa.GetPPC64Shiftmb(shifts))
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
@@ -658,7 +658,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
 		p.Reg = v.Args[0].Reg()
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(rot)}
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(mask)})
+		p.SetFrom3Const(int64(mask))
 
 		// Auxint holds mask
 	case ssa.OpPPC64RLWNM:
@@ -667,7 +667,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
 		p.Reg = v.Args[0].Reg()
 		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[1].Reg()}
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(mask)})
+		p.SetFrom3Const(int64(mask))
 
 	case ssa.OpPPC64MADDLD:
 		r := v.Reg()
@@ -679,7 +679,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r1
 		p.Reg = r2
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r3})
+		p.SetFrom3Reg(r3)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
@@ -693,7 +693,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r1
 		p.Reg = r3
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r2})
+		p.SetFrom3Reg(r2)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
@@ -720,7 +720,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssa.OpPPC64SUBFCconst:
 		p := s.Prog(v.Op.Asm())
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt})
+		p.SetFrom3Const(v.AuxInt)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
@@ -910,7 +910,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// AuxInt values 4,5,6 implemented with reverse operand order from 0,1,2
 		if v.AuxInt > 3 {
 			p.Reg = r.Reg
-			p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[0].Reg()})
+			p.SetFrom3Reg(v.Args[0].Reg())
 		} else {
 			p.Reg = v.Args[0].Reg()
 			p.SetFrom3(r)
@@ -1784,7 +1784,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		pp.To.Reg = ppc64.REG_LR
 
 		// Insert a hint this is not a subroutine return.
-		pp.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: 1})
+		pp.SetFrom3Const(1)
 
 		if base.Ctxt.Flag_shared {
 			// When compiling Go into PIC, the function we just

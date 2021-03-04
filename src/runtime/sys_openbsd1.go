@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build (openbsd && amd64) || (openbsd && arm64)
 // +build openbsd,amd64 openbsd,arm64
 
 package runtime
@@ -26,6 +27,11 @@ func osyield() {
 	libcCall(unsafe.Pointer(funcPC(sched_yield_trampoline)), unsafe.Pointer(nil))
 }
 func sched_yield_trampoline()
+
+//go:nosplit
+func osyield_no_g() {
+	asmcgocall_no_g(unsafe.Pointer(funcPC(sched_yield_trampoline)), unsafe.Pointer(nil))
+}
 
 //go:cgo_import_dynamic libc_thrsleep __thrsleep "libc.so"
 //go:cgo_import_dynamic libc_thrwakeup __thrwakeup "libc.so"

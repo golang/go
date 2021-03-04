@@ -487,12 +487,14 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 	off := config.ctxt.FixedFrameSize()
 
 	var ACArgs []Param
+	var argTypes []*types.Type
 	if typ != nil { // for typedmemmove
 		taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
 		off = round(off, taddr.Type.Alignment())
 		arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
 		mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, taddr, mem)
 		ACArgs = append(ACArgs, Param{Type: b.Func.Config.Types.Uintptr, Offset: int32(off)})
+		argTypes = append(argTypes, b.Func.Config.Types.Uintptr)
 		off += taddr.Type.Size()
 	}
 
@@ -500,6 +502,7 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 	arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
 	mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, ptr, mem)
 	ACArgs = append(ACArgs, Param{Type: ptr.Type, Offset: int32(off)})
+	argTypes = append(argTypes, ptr.Type)
 	off += ptr.Type.Size()
 
 	if val != nil {
@@ -507,14 +510,15 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 		arg = b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
 		mem = b.NewValue3A(pos, OpStore, types.TypeMem, val.Type, arg, val, mem)
 		ACArgs = append(ACArgs, Param{Type: val.Type, Offset: int32(off)})
+		argTypes = append(argTypes, val.Type)
 		off += val.Type.Size()
 	}
 	off = round(off, config.PtrSize)
 
 	// issue call
-	mem = b.NewValue1A(pos, OpStaticCall, types.TypeMem, StaticAuxCall(fn, ACArgs, nil), mem)
+	mem = b.NewValue1A(pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(fn, ACArgs, nil, b.Func.ABIDefault.ABIAnalyzeTypes(nil, argTypes, nil)), mem)
 	mem.AuxInt = off - config.ctxt.FixedFrameSize()
-	return mem
+	return b.NewValue1I(pos, OpSelectN, types.TypeMem, 0, mem)
 }
 
 // round to a multiple of r, r is a power of 2
@@ -562,12 +566,20 @@ func IsReadOnlyGlobalAddr(v *Value) bool {
 
 // IsNewObject reports whether v is a pointer to a freshly allocated & zeroed object at memory state mem.
 func IsNewObject(v *Value, mem *Value) bool {
+	// TODO this will need updating for register args; the OpLoad is wrong.
 	if v.Op != OpLoad {
 		return false
 	}
 	if v.MemoryArg() != mem {
 		return false
 	}
+	if mem.Op != OpSelectN {
+		return false
+	}
+	if mem.Type != types.TypeMem {
+		return false
+	} // assume it is the right selection if true
+	mem = mem.Args[0]
 	if mem.Op != OpStaticCall {
 		return false
 	}

@@ -141,6 +141,8 @@ func expandiface(t *Type) {
 }
 
 func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
+	// flag is 0 (receiver), 1 (actual struct), or RegSize (in/out parameters)
+	isStruct := flag == 1
 	starto := o
 	maxalign := int32(flag)
 	if maxalign < 1 {
@@ -161,7 +163,9 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 		if f.Type.Align > 0 {
 			o = Rnd(o, int64(f.Type.Align))
 		}
-		f.Offset = o
+		if isStruct { // For receiver/args/results, depends on ABI
+			f.Offset = o
+		}
 		if f.Nname != nil {
 			// addrescapes has similar code to update these offsets.
 			// Usually addrescapes runs after calcStructOffset,
@@ -624,9 +628,11 @@ func PtrDataSize(t *Type) int64 {
 	case TSTRUCT:
 		// Find the last field that has pointers.
 		var lastPtrField *Field
-		for _, t1 := range t.Fields().Slice() {
-			if t1.Type.HasPointers() {
-				lastPtrField = t1
+		fs := t.Fields().Slice()
+		for i := len(fs) - 1; i >= 0; i-- {
+			if fs[i].Type.HasPointers() {
+				lastPtrField = fs[i]
+				break
 			}
 		}
 		return lastPtrField.Offset + PtrDataSize(lastPtrField.Type)

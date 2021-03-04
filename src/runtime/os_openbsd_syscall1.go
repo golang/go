@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build openbsd && !amd64 && !arm64
 // +build openbsd,!amd64,!arm64
 
 package runtime
@@ -13,3 +14,8 @@ func thrsleep(ident uintptr, clock_id int32, tsp *timespec, lock uintptr, abort 
 func thrwakeup(ident uintptr, n int32) int32
 
 func osyield()
+
+//go:nosplit
+func osyield_no_g() {
+	osyield()
+}

@@ -17,14 +17,14 @@ import (
 // The operand x must be the evaluation of inst.X and its type must be a signature.
 func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 	args, ok := check.exprOrTypeList(unpackExpr(inst.Index))
-	if ok && len(args) > 0 && args[0].mode != typexpr {
-		check.errorf(args[0], "%s is not a type", args[0])
-		ok = false
-	}
 	if !ok {
 		x.mode = invalid
 		x.expr = inst
 		return
+	}
+	if len(args) > 0 && args[0].mode != typexpr {
+		check.errorf(args[0], "%s is not a type", args[0])
+		ok = false
 	}
 
 	// check number of type arguments
@@ -71,13 +71,12 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 			x.expr = inst
 			return
 		}
-		// all type arguments were inferred sucessfully
+		// all type arguments were inferred successfully
 		if debug {
 			for _, targ := range targs {
 				assert(targ != nil)
 			}
 		}
-		//check.dump("### inferred targs = %s", targs)
 		n = len(targs)
 		inferred = true
 	}
@@ -121,7 +120,7 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
 		case 1:
 			check.expr(x, call.ArgList[0])
 			if x.mode != invalid {
-				if t := T.Interface(); t != nil {
+				if t := asInterface(T); t != nil {
 					check.completeInterface(nopos, t)
 					if t.IsConstraint() {
 						check.errorf(call, "cannot use interface %s in conversion (contains type list or is comparable)", T)
@@ -157,7 +156,7 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
 		// function/method call
 		cgocall := x.mode == cgofunc
 
-		sig := x.typ.Signature()
+		sig := asSignature(x.typ)
 		if sig == nil {
 			check.invalidOpf(x, "cannot call non-function %s", x)
 			x.mode = invalid
@@ -403,7 +402,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
 				return
 			}
 		}
-		// all type arguments were inferred sucessfully
+		// all type arguments were inferred successfully
 		if debug {
 			for _, targ := range targs {
 				assert(targ != nil)
@@ -563,7 +562,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 			check.errorf(e.Sel, "cannot call pointer method %s on %s", sel, x.typ)
 		default:
 			var why string
-			if tpar := x.typ.TypeParam(); tpar != nil {
+			if tpar := asTypeParam(x.typ); tpar != nil {
 				// Type parameter bounds don't specify fields, so don't mention "field".
 				switch obj := tpar.Bound().obj.(type) {
 				case nil:
@@ -598,34 +597,43 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 	if m, _ := obj.(*Func); m != nil {
 		// check.dump("### found method %s", m)
 		check.objDecl(m, nil)
-		// If m has a parameterized receiver type, infer the type parameter
-		// values from the actual receiver provided and then substitute the
-		// type parameters in the signature accordingly.
+		// If m has a parameterized receiver type, infer the type arguments
+		// from the actual receiver provided and then substitute the type
+		// parameters accordingly.
 		// TODO(gri) factor this code out
 		sig := m.typ.(*Signature)
 		if len(sig.rparams) > 0 {
-			//check.dump("### recv typ = %s", x.typ)
+			// For inference to work, we must use the receiver type
+			// matching the receiver in the actual method declaration.
+			// If the method is embedded, the matching receiver is the
+			// embedded struct or interface that declared the method.
+			// Traverse the embedding to find that type (issue #44688).
+			recv := x.typ
+			for i := 0; i < len(index)-1; i++ {
+				// The embedded type is always a struct or a pointer to
+				// a struct except for the last one (which we don't need).
+				recv = asStruct(derefStructPtr(recv)).Field(index[i]).typ
+			}
+			//check.dump("### recv = %s", recv)
 			//check.dump("### method = %s rparams = %s tparams = %s", m, sig.rparams, sig.tparams)
 			// The method may have a pointer receiver, but the actually provided receiver
 			// may be a (hopefully addressable) non-pointer value, or vice versa. Here we
 			// only care about inferring receiver type parameters; to make the inference
 			// work, match up pointer-ness of receiver and argument.
-			arg := x
-			if ptrRecv := isPointer(sig.recv.typ); ptrRecv != isPointer(arg.typ) {
-				copy := *arg
+			if ptrRecv := isPointer(sig.recv.typ); ptrRecv != isPointer(recv) {
 				if ptrRecv {
-					copy.typ = NewPointer(arg.typ)
+					recv = NewPointer(recv)
 				} else {
-					copy.typ = arg.typ.(*Pointer).base
+					recv = recv.(*Pointer).base
 				}
-				arg = &copy
 			}
-			targs, failed := check.infer(sig.rparams, NewTuple(sig.recv), []*operand{arg})
+			arg := operand{mode: variable, expr: x.expr, typ: recv}
+			targs, failed := check.infer(sig.rparams, NewTuple(sig.recv), []*operand{&arg})
 			//check.dump("### inferred targs = %s", targs)
 			if failed >= 0 {
 				// We may reach here if there were other errors (see issue #40056).
 				// check.infer will report a follow-up error.
-				// TODO(gri) avoid the follow-up error or provide better explanation.
+				// TODO(gri) avoid the follow-up error as it is confusing (there's no inference in the source code)
 				goto Error
 			}
 			// Don't modify m. Instead - for now - make a copy of m and use that instead.

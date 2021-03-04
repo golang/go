@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -15,7 +14,7 @@ import "bytes"
 // is impossible because unification fails, an error is reported and the resulting types list is
 // nil, and index is 0. Otherwise, types is the list of inferred type arguments, and index is
 // the index of the first type argument in that list that couldn't be inferred (and thus is nil).
-// If all type arguments where inferred successfully, index is < 0.
+// If all type arguments were inferred successfully, index is < 0.
 func (check *Checker) infer(tparams []*TypeName, params *Tuple, args []*operand) (types []Type, index int) {
 	assert(params.Len() == len(args))
 
@@ -70,7 +69,7 @@ func (check *Checker) infer(tparams []*TypeName, params *Tuple, args []*operand)
 			if targ := arg.typ; isTyped(targ) {
 				// If we permit bidirectional unification, and targ is
 				// a generic function, we need to initialize u.y with
-				// the respectice type parameters of targ.
+				// the respective type parameters of targ.
 				if !u.unify(par.typ, targ) {
 					errorf("type", par.typ, targ, arg)
 					return nil, 0
@@ -290,21 +289,19 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type) (types []Type, i
 	// Unify type parameters with their structural constraints, if any.
 	for _, tpar := range tparams {
 		typ := tpar.typ.(*TypeParam)
-		sbound := check.structuralType(typ.bound.Under())
+		sbound := check.structuralType(typ.bound)
 		if sbound != nil {
-			//check.dump(">>> unify(%s, %s)", tpar, sbound)
 			if !u.unify(typ, sbound) {
 				check.errorf(tpar.pos, "%s does not match %s", tpar, sbound)
 				return nil, 0
 			}
-			//check.dump(">>> => indices = %v, types = %s", u.x.indices, u.types)
 		}
 	}
 
 	// u.x.types() now contains the incoming type arguments plus any additional type
 	// arguments for which there were structural constraints. The newly inferred non-
 	// nil entries may still contain references to other type parameters. For instance,
-	// for [type A interface{}, B interface{type []C}, C interface{type *A}], if A == int
+	// for [A any, B interface{type []C}, C interface{type *A}], if A == int
 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
 	// remaining type parameters by substituting the type parameters in this type list
 	// until nothing changes anymore.
@@ -316,7 +313,7 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type) (types []Type, i
 	}
 
 	// dirty tracks the indices of all types that may still contain type parameters.
-	// We know that nil types entries and entries corresponding to provided (non-nil)
+	// We know that nil type entries and entries corresponding to provided (non-nil)
 	// type arguments are clean, so exclude them from the start.
 	var dirty []int
 	for i, typ := range types {
@@ -326,8 +323,8 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type) (types []Type, i
 	}
 
 	for len(dirty) > 0 {
-		// TODO(gri) Instead of creating a new smap for each iteration,
-		// provide an update operation for smaps and only change when
+		// TODO(gri) Instead of creating a new substMap for each iteration,
+		// provide an update operation for substMaps and only change when
 		// needed. Optimization.
 		smap := makeSubstMap(tparams, types)
 		n := 0
@@ -341,14 +338,13 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type) (types []Type, i
 		}
 		dirty = dirty[:n]
 	}
-	//check.dump(">>> inferred types = %s", types)
 
 	return
 }
 
 // structuralType returns the structural type of a constraint, if any.
 func (check *Checker) structuralType(constraint Type) Type {
-	if iface, _ := constraint.(*Interface); iface != nil {
+	if iface, _ := under(constraint).(*Interface); iface != nil {
 		check.completeInterface(nopos, iface)
 		types := unpack(iface.allTypes)
 		if len(types) == 1 {

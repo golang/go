@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -99,9 +98,15 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		buf.WriteString("<nil>")
 
 	case *Basic:
-		if t.kind == UnsafePointer {
-			buf.WriteString("unsafe.")
+		// exported basic types go into package unsafe
+		// (currently this is just unsafe.Pointer)
+		if isExported(t.name) {
+			if obj, _ := Unsafe.scope.Lookup(t.name).(*TypeName); obj != nil {
+				writeTypeName(buf, obj, qf)
+				break
+			}
 		}
+
 		if gcCompatibilityMode {
 			// forget the alias names
 			switch t.kind {
@@ -127,19 +132,14 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 			if i > 0 {
 				buf.WriteString("; ")
 			}
-			buf.WriteString(f.name)
-			if f.embedded {
-				// emphasize that the embedded field's name
-				// doesn't match the field's type name
-				if f.name != embeddedFieldName(f.typ) {
-					buf.WriteString(" /* = ")
-					writeType(buf, f.typ, qf, visited)
-					buf.WriteString(" */")
-				}
-			} else {
+			// This doesn't do the right thing for embedded type
+			// aliases where we should print the alias name, not
+			// the aliased type (see issue #44410).
+			if !f.embedded {
+				buf.WriteString(f.name)
 				buf.WriteByte(' ')
-				writeType(buf, f.typ, qf, visited)
 			}
+			writeType(buf, f.typ, qf, visited)
 			if tag := t.Tag(i); tag != "" {
 				fmt.Fprintf(buf, " %q", tag)
 			}
@@ -314,33 +314,16 @@ func writeTypeList(buf *bytes.Buffer, list []Type, qf Qualifier, visited []Type)
 }
 
 func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited []Type) {
-	// bound returns the type bound for tname. The result is never nil.
-	bound := func(tname *TypeName) Type {
-		// be careful to avoid crashes in case of inconsistencies
-		if t, _ := tname.typ.(*TypeParam); t != nil && t.bound != nil {
-			return t.bound
-		}
-		return &emptyInterface
-	}
-
-	// If a single type bound is not the empty interface, we have to write them all.
-	var writeBounds bool
-	for _, p := range list {
-		// bound(p) should be an interface but be careful (it may be invalid)
-		b := bound(p).Interface()
-		if b != nil && !b.Empty() {
-			writeBounds = true
-			break
-		}
-	}
-	writeBounds = true // always write the bounds for new type parameter list syntax
-
 	buf.WriteString("[")
 	var prev Type
 	for i, p := range list {
-		b := bound(p)
+		// TODO(gri) support 'any' sugar here.
+		var b Type = &emptyInterface
+		if t, _ := p.typ.(*TypeParam); t != nil && t.bound != nil {
+			b = t.bound
+		}
 		if i > 0 {
-			if writeBounds && b != prev {
+			if b != prev {
 				// type bound changed - write previous one before advancing
 				buf.WriteByte(' ')
 				writeType(buf, prev, qf, visited)
@@ -355,7 +338,7 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited 
 			buf.WriteString(p.name)
 		}
 	}
-	if writeBounds && prev != nil {
+	if prev != nil {
 		buf.WriteByte(' ')
 		writeType(buf, prev, qf, visited)
 	}
@@ -395,7 +378,7 @@ func writeTuple(buf *bytes.Buffer, tup *Tuple, variadic bool, qf Qualifier, visi
 				} else {
 					// special case:
 					// append(s, "foo"...) leads to signature func([]byte, string...)
-					if t := typ.Basic(); t == nil || t.kind != String {
+					if t := asBasic(typ); t == nil || t.kind != String {
 						panic("internal error: string type expected")
 					}
 					writeType(buf, typ, qf, visited)
@@ -439,25 +422,6 @@ func writeSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier, visited []T
 
 	// multiple or named result(s)
 	writeTuple(buf, sig.results, false, qf, visited)
-}
-
-// embeddedFieldName returns an embedded field's name given its type.
-// The result is "" if the type doesn't have an embedded field name.
-func embeddedFieldName(typ Type) string {
-	switch t := typ.(type) {
-	case *Basic:
-		return t.name
-	case *Named:
-		return t.obj.name
-	case *Pointer:
-		// *T is ok, but **T is not
-		if _, ok := t.base.(*Pointer); !ok {
-			return embeddedFieldName(t.base)
-		}
-	case *instance:
-		return t.base.obj.name
-	}
-	return "" // not a (pointer to) a defined type
 }
 
 // subscript returns the decimal (utf8) representation of x using subscript digits.

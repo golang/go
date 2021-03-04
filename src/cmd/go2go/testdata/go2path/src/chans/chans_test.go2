@@ -72,7 +72,7 @@ func TestFilter(t *testing.T) {
 }
 
 func TestSink(t *testing.T) {
-	c := Sink(int)(context.Background())
+	c := Sink[int](context.Background())
 	after := time.NewTimer(time.Minute)
 	defer after.Stop()
 	send := func(v int) {
@@ -141,7 +141,7 @@ func TestExclusiveTry(t *testing.T) {
 }
 
 func TestRanger(t *testing.T) {
-	s, r := Ranger(int)()
+	s, r := Ranger[int]()
 
 	ctx := context.Background()
 	go func() {

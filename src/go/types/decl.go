@@ -654,6 +654,9 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 
 	if alias {
 		// type alias declaration
+		if !check.allowVersion(obj.pkg, 1, 9) {
+			check.errorf(atPos(tdecl.Assign), _BadDecl, "type aliases requires go1.9 or later")
+		}
 
 		obj.typ = Typ[Invalid]
 		obj.typ = check.anyType(tdecl.Type)
@@ -710,7 +713,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 
 	setBoundAt := func(at int, bound Type) {
 		assert(IsInterface(bound))
-		tparams[at].typ.(*TypeParam).bound = bound
+		tparams[at].typ.(*_TypeParam).bound = bound
 	}
 
 	index := 0
@@ -723,7 +726,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 		// The predeclared identifier "any" is visible only as a constraint
 		// in a type parameter list. Look for it before general constraint
 		// resolution.
-		if tident, _ := f.Type.(*ast.Ident); tident != nil && tident.Name == "any" && check.lookup("any") == nil {
+		if tident, _ := unparen(f.Type).(*ast.Ident); tident != nil && tident.Name == "any" && check.lookup("any") == nil {
 			bound = universeAny
 		} else {
 			bound = check.typ(f.Type)
@@ -753,7 +756,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident) []*TypeName {
 	for _, name := range names {
 		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-		check.NewTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
+		check.newTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
 		check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
 		tparams = append(tparams, tpar)
 	}

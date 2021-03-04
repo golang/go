@@ -110,6 +110,7 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		// get per-file instructions
 		expectErrors := false
 		filename := filepath.Join(path, f.Name())
+		goVersion := ""
 		if comment := firstComment(filename); comment != "" {
 			fields := strings.Fields(comment)
 			switch fields[0] {
@@ -119,12 +120,16 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 				expectErrors = true
 				for _, arg := range fields[1:] {
 					if arg == "-0" || arg == "-+" || arg == "-std" {
-						// Marked explicitly as not expected errors (-0),
+						// Marked explicitly as not expecting errors (-0),
 						// or marked as compiling runtime/stdlib, which is only done
 						// to trigger runtime/stdlib-only error output.
 						// In both cases, the code should typecheck.
 						expectErrors = false
 						break
+					}
+					const prefix = "-lang="
+					if strings.HasPrefix(arg, prefix) {
+						goVersion = arg[len(prefix):]
 					}
 				}
 			}
@@ -136,7 +141,7 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		}
 		file, err := syntax.ParseFile(filename, nil, nil, 0)
 		if err == nil {
-			conf := Config{Importer: stdLibImporter}
+			conf := Config{GoVersion: goVersion, Importer: stdLibImporter}
 			_, err = conf.Check(filename, []*syntax.File{file}, nil)
 		}
 
@@ -182,14 +187,11 @@ func TestStdFixed(t *testing.T) {
 		"issue16369.go",  // go/types handles this correctly - not an issue
 		"issue18459.go",  // go/types doesn't check validity of //go:xxx directives
 		"issue18882.go",  // go/types doesn't check validity of //go:xxx directives
-		"issue20232.go",  // go/types handles larger constants than gc
 		"issue20529.go",  // go/types does not have constraints on stack size
 		"issue22200.go",  // go/types does not have constraints on stack size
 		"issue22200b.go", // go/types does not have constraints on stack size
 		"issue25507.go",  // go/types does not have constraints on stack size
 		"issue20780.go",  // go/types does not have constraints on stack size
-		"issue31747.go",  // go/types does not have constraints on language level (-lang=go1.12) (see #31793)
-		"issue34329.go",  // go/types does not have constraints on language level (-lang=go1.13) (see #31793)
 		"issue42058a.go", // go/types does not have constraints on channel element size
 		"issue42058b.go", // go/types does not have constraints on channel element size
 		"bug251.go",      // issue #34333 which was exposed with fix for #34151
@@ -239,7 +241,7 @@ func typecheck(t *testing.T, path string, filenames []string) {
 	// Perform checks of API invariants.
 
 	// All Objects have a package, except predeclared ones.
-	errorError := Universe.Lookup("error").Type().Interface().ExplicitMethod(0) // (error).Error
+	errorError := Universe.Lookup("error").Type().Underlying().(*Interface).ExplicitMethod(0) // (error).Error
 	for id, obj := range info.Uses {
 		predeclared := obj == Universe.Lookup(obj.Name()) || obj == errorError
 		if predeclared == (obj.Pkg() != nil) {

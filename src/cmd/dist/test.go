@@ -444,8 +444,12 @@ func (t *tester) registerTests() {
 			fatalf("Error running go list std cmd: %v:\n%s", err, cmd.Stderr)
 		}
 		pkgs := strings.Fields(string(all))
-		for _, pkg := range pkgs {
-			t.registerStdTest(pkg, true)
+		if false {
+			// Disable -G=3 option for standard tests for now, since
+			// they are flaky on the builder.
+			for _, pkg := range pkgs {
+				t.registerStdTest(pkg, true /* -G=3 flag */)
+			}
 		}
 		for _, pkg := range pkgs {
 			t.registerStdTest(pkg, false)
@@ -741,14 +745,6 @@ func (t *tester) registerTests() {
 		if gohostos == "linux" && t.extLink() {
 			t.registerTest("testsigfwd", "../misc/cgo/testsigfwd", "go", "run", ".")
 		}
-	}
-
-	// Doc tests only run on builders.
-	// They find problems approximately never.
-	if goos != "js" && goos != "android" && !t.iOS() && os.Getenv("GO_BUILDER_NAME") != "" {
-		t.registerTest("doc_progs", "../doc/progs", "go", "run", "run.go")
-		t.registerTest("wiki", "../doc/articles/wiki", t.goTest(), ".")
-		t.registerTest("codewalk", "../doc/codewalk", t.goTest(), "codewalk_test.go")
 	}
 
 	if goos != "android" && !t.iOS() {
@@ -1637,7 +1633,7 @@ func raceDetectorSupported(goos, goarch string) bool {
 		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64"
 	case "darwin":
 		return goarch == "amd64" || goarch == "arm64"
-	case "freebsd", "netbsd", "windows":
+	case "freebsd", "netbsd", "openbsd", "windows":
 		return goarch == "amd64"
 	default:
 		return false

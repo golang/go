@@ -1,3 +1,4 @@
+//go:build amd64 && (linux || darwin)
 // +build amd64
 // +build linux darwin
 

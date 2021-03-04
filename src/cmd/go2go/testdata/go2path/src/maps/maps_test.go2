@@ -57,7 +57,7 @@ func TestEqual(t *testing.T) {
 	if Equal(nil, m1) {
 		t.Errorf("Equal(nil, %v) = true, want false", m1)
 	}
-	if !Equal(int, int)(nil, nil) {
+	if !Equal[int, int](nil, nil) {
 		t.Error("Equal(nil, nil) = false, want true")
 	}
 	if ms := map[int]int{1: 2}; Equal(m1, ms) {

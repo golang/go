@@ -245,7 +245,7 @@ var importRuntimeCgo = flag.Bool("import_runtime_cgo", true, "import runtime/cgo
 var importSyscall = flag.Bool("import_syscall", true, "import syscall in generated code")
 var trimpath = flag.String("trimpath", "", "applies supplied rewrites or trims prefixes to recorded source file paths")
 
-var goarch, goos string
+var goarch, goos, gomips, gomips64 string
 
 func main() {
 	objabi.AddVersionFlag() // -V
@@ -405,6 +405,8 @@ func newPackage(args []string) *Package {
 	if s := os.Getenv("GOOS"); s != "" {
 		goos = s
 	}
+	gomips = objabi.GOMIPS
+	gomips64 = objabi.GOMIPS64
 	ptrSize := ptrSizeMap[goarch]
 	if ptrSize == 0 {
 		fatalf("unknown ptrSize for $GOARCH %q", goarch)

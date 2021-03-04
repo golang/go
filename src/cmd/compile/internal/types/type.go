@@ -176,6 +176,11 @@ type Type struct {
 	Align uint8 // the required alignment of this type, in bytes (0 means Width and Align have not yet been computed)
 
 	flags bitset8
+
+	// Type params (in order) of this named type that need to be instantiated.
+	// TODO(danscales): for space reasons, should probably be a pointer to a
+	// slice, possibly change the name of this field.
+	RParams []*Type
 }
 
 func (*Type) CanBeAnSSAAux() {}
@@ -186,6 +191,7 @@ const (
 	typeNoalg                  // suppress hash and eq algorithm generation
 	typeDeferwidth             // width computation has been deferred and type is on deferredTypeStack
 	typeRecur
+	typeHasTParam // there is a typeparam somewhere in the type (generic function or type)
 )
 
 func (t *Type) NotInHeap() bool  { return t.flags&typeNotInHeap != 0 }
@@ -193,12 +199,14 @@ func (t *Type) Broke() bool      { return t.flags&typeBroke != 0 }
 func (t *Type) Noalg() bool      { return t.flags&typeNoalg != 0 }
 func (t *Type) Deferwidth() bool { return t.flags&typeDeferwidth != 0 }
 func (t *Type) Recur() bool      { return t.flags&typeRecur != 0 }
+func (t *Type) HasTParam() bool  { return t.flags&typeHasTParam != 0 }
 
 func (t *Type) SetNotInHeap(b bool)  { t.flags.set(typeNotInHeap, b) }
 func (t *Type) SetBroke(b bool)      { t.flags.set(typeBroke, b) }
 func (t *Type) SetNoalg(b bool)      { t.flags.set(typeNoalg, b) }
 func (t *Type) SetDeferwidth(b bool) { t.flags.set(typeDeferwidth, b) }
 func (t *Type) SetRecur(b bool)      { t.flags.set(typeRecur, b) }
+func (t *Type) SetHasTParam(b bool)  { t.flags.set(typeHasTParam, b) }
 
 // Kind returns the kind of type t.
 func (t *Type) Kind() Kind { return t.kind }
@@ -403,7 +411,8 @@ type Field struct {
 	Nname Object
 
 	// Offset in bytes of this field or method within its enclosing struct
-	// or interface Type.
+	// or interface Type.  Exception: if field is function receiver, arg or
+	// result, then this is BOGUS_FUNARG_OFFSET; types does not know the Abi.
 	Offset int64
 }
 
@@ -527,6 +536,9 @@ func NewArray(elem *Type, bound int64) *Type {
 	t := New(TARRAY)
 	t.Extra = &Array{Elem: elem, Bound: bound}
 	t.SetNotInHeap(elem.NotInHeap())
+	if elem.HasTParam() {
+		t.SetHasTParam(true)
+	}
 	return t
 }
 
@@ -542,6 +554,9 @@ func NewSlice(elem *Type) *Type {
 	t := New(TSLICE)
 	t.Extra = Slice{Elem: elem}
 	elem.cache.slice = t
+	if elem.HasTParam() {
+		t.SetHasTParam(true)
+	}
 	return t
 }
 
@@ -551,6 +566,9 @@ func NewChan(elem *Type, dir ChanDir) *Type {
 	ct := t.ChanType()
 	ct.Elem = elem
 	ct.Dir = dir
+	if elem.HasTParam() {
+		t.SetHasTParam(true)
+	}
 	return t
 }
 
@@ -558,13 +576,23 @@ func NewTuple(t1, t2 *Type) *Type {
 	t := New(TTUPLE)
 	t.Extra.(*Tuple).first = t1
 	t.Extra.(*Tuple).second = t2
+	if t1.HasTParam() || t2.HasTParam() {
+		t.SetHasTParam(true)
+	}
+	return t
+}
+
+func newResults(types []*Type) *Type {
+	t := New(TRESULTS)
+	t.Extra.(*Results).Types = types
 	return t
 }
 
 func NewResults(types []*Type) *Type {
-	t := New(TRESULTS)
-	t.Extra.(*Results).Types = types
-	return t
+	if len(types) == 1 && types[0] == TypeMem {
+		return TypeResultMem
+	}
+	return newResults(types)
 }
 
 func newSSA(name string) *Type {
@@ -579,6 +607,9 @@ func NewMap(k, v *Type) *Type {
 	mt := t.MapType()
 	mt.Key = k
 	mt.Elem = v
+	if k.HasTParam() || v.HasTParam() {
+		t.SetHasTParam(true)
+	}
 	return t
 }
 
@@ -597,6 +628,12 @@ func NewPtr(elem *Type) *Type {
 		if t.Elem() != elem {
 			base.Fatalf("NewPtr: elem mismatch")
 		}
+		if elem.HasTParam() {
+			// Extra check when reusing the cache, since the elem
+			// might have still been undetermined (i.e. a TFORW type)
+			// when this entry was cached.
+			t.SetHasTParam(true)
+		}
 		return t
 	}
 
@@ -606,6 +643,9 @@ func NewPtr(elem *Type) *Type {
 	t.Align = uint8(PtrSize)
 	if NewPtrCacheEnabled {
 		elem.cache.ptr = t
+	}
+	if elem.HasTParam() {
+		t.SetHasTParam(true)
 	}
 	return t
 }
@@ -1375,6 +1415,9 @@ func (t *Type) PtrTo() *Type {
 }
 
 func (t *Type) NumFields() int {
+	if t.kind == TRESULTS {
+		return len(t.Extra.(*Results).Types)
+	}
 	return t.Fields().Len()
 }
 func (t *Type) FieldType(i int) *Type {
@@ -1565,11 +1608,12 @@ func FakeRecvType() *Type {
 
 var (
 	// TSSA types. HasPointers assumes these are pointer-free.
-	TypeInvalid = newSSA("invalid")
-	TypeMem     = newSSA("mem")
-	TypeFlags   = newSSA("flags")
-	TypeVoid    = newSSA("void")
-	TypeInt128  = newSSA("int128")
+	TypeInvalid   = newSSA("invalid")
+	TypeMem       = newSSA("mem")
+	TypeFlags     = newSSA("flags")
+	TypeVoid      = newSSA("void")
+	TypeInt128    = newSSA("int128")
+	TypeResultMem = newResults([]*Type{TypeMem})
 )
 
 // NewNamed returns a new named type for the given type name.
@@ -1611,6 +1655,9 @@ func (t *Type) SetUnderlying(underlying *Type) {
 	if underlying.Broke() {
 		t.SetBroke(true)
 	}
+	if underlying.HasTParam() {
+		t.SetHasTParam(true)
+	}
 
 	// spec: "The declared type does not inherit any methods bound
 	// to the existing type, but the method set of an interface
@@ -1631,6 +1678,15 @@ func (t *Type) SetUnderlying(underlying *Type) {
 			base.ErrorfAt(ft.Embedlineno, "embedded type cannot be a pointer")
 		}
 	}
+}
+
+func fieldsHasTParam(fields []*Field) bool {
+	for _, f := range fields {
+		if f.Type != nil && f.Type.HasTParam() {
+			return true
+		}
+	}
+	return false
 }
 
 // NewBasic returns a new basic type of the given kind.
@@ -1657,9 +1713,19 @@ func NewInterface(pkg *Pkg, methods []*Field) *Type {
 // not really be needed except for the type checker).
 func NewTypeParam(pkg *Pkg, constraint *Type) *Type {
 	t := New(TTYPEPARAM)
+	constraint.wantEtype(TINTER)
 	t.methods = constraint.methods
 	t.Extra.(*Interface).pkg = pkg
+	t.SetHasTParam(true)
 	return t
+}
+
+const BOGUS_FUNARG_OFFSET = 1000000000
+
+func unzeroFieldOffsets(f []*Field) {
+	for i := range f {
+		f[i].Offset = BOGUS_FUNARG_OFFSET // This will cause an explosion if it is not corrected
+	}
 }
 
 // NewSignature returns a new function type for the given receiver,
@@ -1682,11 +1748,20 @@ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Typ
 		return s
 	}
 
+	if recv != nil {
+		recv.Offset = BOGUS_FUNARG_OFFSET
+	}
+	unzeroFieldOffsets(params)
+	unzeroFieldOffsets(results)
 	ft.Receiver = funargs(recvs, FunargRcvr)
 	ft.TParams = funargs(tparams, FunargTparams)
 	ft.Params = funargs(params, FunargParams)
 	ft.Results = funargs(results, FunargResults)
 	ft.pkg = pkg
+	if len(tparams) > 0 || fieldsHasTParam(recvs) || fieldsHasTParam(params) ||
+		fieldsHasTParam(results) {
+		t.SetHasTParam(true)
+	}
 
 	return t
 }
@@ -1699,6 +1774,9 @@ func NewStruct(pkg *Pkg, fields []*Field) *Type {
 		t.SetBroke(true)
 	}
 	t.Extra.(*Struct).pkg = pkg
+	if fieldsHasTParam(fields) {
+		t.SetHasTParam(true)
+	}
 	return t
 }
 

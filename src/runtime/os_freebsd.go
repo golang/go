@@ -36,6 +36,11 @@ func sys_umtx_op(addr *uint32, mode int32, val uint32, uaddr1 uintptr, ut *umtx_
 
 func osyield()
 
+//go:nosplit
+func osyield_no_g() {
+	osyield()
+}
+
 func kqueue() int32
 
 //go:noescape

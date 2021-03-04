@@ -864,7 +864,7 @@ func (t *test) run() {
 		// up and running against the existing test cases. The explicitly
 		// listed files don't pass yet, usually because the error messages
 		// are slightly different (this list is not complete). Any errorcheck
-		// tests that require output from analysis phases past intial type-
+		// tests that require output from analysis phases past initial type-
 		// checking are also excluded since these phases are not running yet.
 		// We can get rid of this code once types2 is fully plugged in.
 
@@ -1068,6 +1068,7 @@ func (t *test) run() {
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
+		cmd = append(cmd, flags...)
 		cmd = append(cmd, ".")
 		out, err := runcmd(cmd...)
 		if err != nil {
@@ -2070,9 +2071,7 @@ var excluded = map[string]bool{
 	"fixedbugs/issue25958.go":  true, // types2 doesn't report a follow-on error (pref: types2)
 	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors
 	"fixedbugs/issue28268.go":  true, // types2 reports follow-on errors
-	"fixedbugs/issue31747.go":  true, // types2 is missing support for -lang flag
 	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
-	"fixedbugs/issue34329.go":  true, // types2 is missing support for -lang flag
 	"fixedbugs/issue41575.go":  true, // types2 reports alternative positions in separate error
 	"fixedbugs/issue42058a.go": true, // types2 doesn't report "channel element type too large"
 	"fixedbugs/issue42058b.go": true, // types2 doesn't report "channel element type too large"
@@ -2085,5 +2084,4 @@ var excluded = map[string]bool{
 	"fixedbugs/issue7525c.go":  true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525d.go":  true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525e.go":  true, // types2 reports init cycle error on different line - ok otherwise
-	"fixedbugs/issue7746.go":   true, // types2 reports overflow on a different line
 }

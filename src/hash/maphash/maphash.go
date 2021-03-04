@@ -34,7 +34,7 @@ type Seed struct {
 //
 // The zero Hash is a valid Hash ready to use.
 // A zero Hash chooses a random seed for itself during
-// the first call to a Reset, Write, Seed, Sum64, or Seed method.
+// the first call to a Reset, Write, Seed, or Sum64 method.
 // For control over the seed, use SetSeed.
 //
 // The computed hash values depend only on the initial seed and

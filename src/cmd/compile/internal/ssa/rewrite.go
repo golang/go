@@ -765,7 +765,7 @@ func devirt(v *Value, aux Aux, sym Sym, offset int64) *AuxCall {
 		return nil
 	}
 	va := aux.(*AuxCall)
-	return StaticAuxCall(lsym, va.args, va.results)
+	return StaticAuxCall(lsym, va.args, va.results, va.abiInfo)
 }
 
 // de-virtualize an InterLECall
@@ -793,7 +793,8 @@ func devirtLESym(v *Value, aux Aux, sym Sym, offset int64) *obj.LSym {
 
 func devirtLECall(v *Value, sym *obj.LSym) *Value {
 	v.Op = OpStaticLECall
-	v.Aux.(*AuxCall).Fn = sym
+	auxcall := v.Aux.(*AuxCall)
+	auxcall.Fn = sym
 	v.RemoveArg(0)
 	return v
 }
@@ -1617,7 +1618,7 @@ func needRaceCleanup(sym *AuxCall, v *Value) bool {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			switch v.Op {
-			case OpStaticCall:
+			case OpStaticCall, OpStaticLECall:
 				// Check for racefuncenter/racefuncenterfp will encounter racefuncexit and vice versa.
 				// Allow calls to panic*
 				s := v.Aux.(*AuxCall).Fn.String()
@@ -1632,15 +1633,20 @@ func needRaceCleanup(sym *AuxCall, v *Value) bool {
 				return false
 			case OpPanicBounds, OpPanicExtend:
 				// Note: these are panic generators that are ok (like the static calls above).
-			case OpClosureCall, OpInterCall:
+			case OpClosureCall, OpInterCall, OpClosureLECall, OpInterLECall:
 				// We must keep the race functions if there are any other call types.
 				return false
 			}
 		}
 	}
 	if isSameCall(sym, "runtime.racefuncenter") {
+		// TODO REGISTER ABI this needs to be cleaned up.
 		// If we're removing racefuncenter, remove its argument as well.
 		if v.Args[0].Op != OpStore {
+			if v.Op == OpStaticLECall {
+				// there is no store, yet.
+				return true
+			}
 			return false
 		}
 		mem := v.Args[0].Args[2]

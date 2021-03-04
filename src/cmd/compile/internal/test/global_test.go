@@ -50,7 +50,7 @@ func main() {
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", dst, src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("could not build target: %v", err)
+		t.Fatalf("could not build target: %v\n%s", err, out)
 	}
 
 	// Check destination to see if scanf code was included.
@@ -95,7 +95,7 @@ func main() {
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags", "-S", "-o", filepath.Join(dir, "test"), src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("could not build target: %v", err)
+		t.Fatalf("could not build target: %v\n%s", err, out)
 	}
 
 	patterns := []string{

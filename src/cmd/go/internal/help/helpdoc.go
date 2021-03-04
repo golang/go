@@ -251,7 +251,7 @@ For example,
 will result in the following requests:
 
 	https://example.org/pkg/foo?go-get=1 (preferred)
-	http://example.org/pkg/foo?go-get=1  (fallback, only with -insecure)
+	http://example.org/pkg/foo?go-get=1  (fallback, only with use of correctly set GOINSECURE)
 
 If that page contains the meta tag
 
@@ -517,9 +517,8 @@ General-purpose environment variables:
 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
 		of module path prefixes that should always be fetched in an insecure
 		manner. Only applies to dependencies that are being fetched directly.
-		Unlike the -insecure flag on 'go get', GOINSECURE does not disable
-		checksum database validation. GOPRIVATE or GONOSUMDB may be used
-		to achieve that.
+		GOINSECURE does not disable checksum database validation. GOPRIVATE or
+		GONOSUMDB may be used to achieve that.
 	GOOS
 		The operating system for which to compile code.
 		Examples are linux, darwin, windows, netbsd.
@@ -542,7 +541,7 @@ General-purpose environment variables:
 		The directory where the go command will write
 		temporary source files, packages, and binaries.
 	GOVCS
-	  Lists version control commands that may be used with matching servers.
+		Lists version control commands that may be used with matching servers.
 		See 'go help vcs'.
 
 Environment variables for use with cgo:

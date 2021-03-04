@@ -197,10 +197,8 @@ func (t *translator) instantiateTypeDecl(qid qualifiedIdent, typ *types.Named, a
 		}
 		var tparams []ast.Expr
 		switch rtyp := rtyp.(type) {
-		case *ast.CallExpr:
-			tparams = rtyp.Args
 		case *ast.IndexExpr:
-			tparams = []ast.Expr{rtyp.Index}
+			tparams = unpackExpr(rtyp.Index)
 		default:
 			panic("unexpected AST type")
 		}
@@ -709,7 +707,8 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 	case *ast.IndexExpr:
 		x := t.instantiateExpr(ta, e.X)
 		index := t.instantiateExpr(ta, e.Index)
-		origInferred, haveInferred := t.importer.info.Inferred[e]
+		inferredInfo := types.GetInferred(t.importer.info)
+		origInferred, haveInferred := inferredInfo[e]
 		var newInferred types.Inferred
 		inferredChanged := false
 		if haveInferred {
@@ -731,7 +730,12 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 			Rbrack: e.Rbrack,
 		}
 		if haveInferred {
-			t.importer.info.Inferred[r] = newInferred
+			inferredInfo[r] = newInferred
+		}
+	case *ast.ListExpr:
+		list, changed := t.instantiateExprList(ta, e.ElemList)
+		if changed {
+			r = &ast.ListExpr{ElemList: list}
 		}
 	case *ast.SliceExpr:
 		x := t.instantiateExpr(ta, e.X)
@@ -765,7 +769,8 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 	case *ast.CallExpr:
 		fun := t.instantiateExpr(ta, e.Fun)
 		args, argsChanged := t.instantiateExprList(ta, e.Args)
-		origInferred, haveInferred := t.importer.info.Inferred[e]
+		inferredInfo := types.GetInferred(t.importer.info)
+		origInferred, haveInferred := inferredInfo[e]
 		var newInferred types.Inferred
 		inferredChanged := false
 		if haveInferred {
@@ -792,7 +797,7 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 			Rparen:   e.Rparen,
 		}
 		if haveInferred {
-			t.importer.info.Inferred[r] = newInferred
+			inferredInfo[r] = newInferred
 		}
 	case *ast.StarExpr:
 		x := t.instantiateExpr(ta, e.X)

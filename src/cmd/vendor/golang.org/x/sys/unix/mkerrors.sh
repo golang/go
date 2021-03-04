@@ -65,6 +65,7 @@ includes_Darwin='
 #include <sys/ptrace.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/sockio.h>
 #include <sys/sys_domain.h>
 #include <sys/sysctl.h>
@@ -204,6 +205,7 @@ struct ltchars {
 #include <linux/devlink.h>
 #include <linux/dm-ioctl.h>
 #include <linux/errqueue.h>
+#include <linux/ethtool_netlink.h>
 #include <linux/falloc.h>
 #include <linux/fanotify.h>
 #include <linux/filter.h>
@@ -479,7 +481,7 @@ ccflags="$@"
 		$2 ~ /^LOCK_(SH|EX|NB|UN)$/ ||
 		$2 ~ /^LO_(KEY|NAME)_SIZE$/ ||
 		$2 ~ /^LOOP_(CLR|CTL|GET|SET)_/ ||
-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|ICMP6|TCP|MCAST|EVFILT|NOTE|EV|SHUT|PROT|MAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR)_/ ||
+		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|ICMP6|TCP|MCAST|EVFILT|NOTE|EV|SHUT|PROT|MAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR|LOCAL)_/ ||
 		$2 ~ /^TP_STATUS_/ ||
 		$2 ~ /^FALLOC_/ ||
 		$2 == "ICMPV6_FILTER" ||
@@ -561,7 +563,9 @@ ccflags="$@"
 		$2 ~ /^(HDIO|WIN|SMART)_/ ||
 		$2 ~ /^CRYPTO_/ ||
 		$2 ~ /^TIPC_/ ||
+		$2 !~  "DEVLINK_RELOAD_LIMITS_VALID_MASK" &&
 		$2 ~ /^DEVLINK_/ ||
+		$2 ~ /^ETHTOOL_/ ||
 		$2 ~ /^LWTUNNEL_IP/ ||
 		$2 !~ "WMESGLEN" &&
 		$2 ~ /^W[A-Z0-9]+$/ ||

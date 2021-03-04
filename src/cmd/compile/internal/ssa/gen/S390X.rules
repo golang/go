@@ -142,6 +142,8 @@
 (Round       x) => (FIDBR [1] x)
 (FMA     x y z) => (FMADD z x y)
 
+(Sqrt32    ...) => (FSQRTS ...)
+
 // Atomic loads and stores.
 // The SYNC instruction (fast-BCR-serialization) prevents store-load
 // reordering. Other sequences of memory operations (load-load,
@@ -1419,6 +1421,16 @@
   && x.Uses == 1
   && clobber(x)
   => (MOVDBRstore [i-4] {s} p w0 mem)
+
+(MOVBstore [7] p1 (SRDconst w)
+  x1:(MOVHBRstore [5] p1 (SRDconst w)
+  x2:(MOVWBRstore [1] p1 (SRDconst w)
+  x3:(MOVBstore p1 w mem))))
+  && x1.Uses == 1
+  && x2.Uses == 1
+  && x3.Uses == 1
+  && clobber(x1, x2, x3)
+  => (MOVDBRstore p1 w mem)
 
 // Combining byte loads into larger (unaligned) loads.
 

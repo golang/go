@@ -93,6 +93,7 @@ var (
 	procCreateSymbolicLinkW                = modkernel32.NewProc("CreateSymbolicLinkW")
 	procCreateToolhelp32Snapshot           = modkernel32.NewProc("CreateToolhelp32Snapshot")
 	procDeleteFileW                        = modkernel32.NewProc("DeleteFileW")
+	procDeleteProcThreadAttributeList      = modkernel32.NewProc("DeleteProcThreadAttributeList")
 	procDeviceIoControl                    = modkernel32.NewProc("DeviceIoControl")
 	procDuplicateHandle                    = modkernel32.NewProc("DuplicateHandle")
 	procExitProcess                        = modkernel32.NewProc("ExitProcess")
@@ -131,6 +132,7 @@ var (
 	procGetTempPathW                       = modkernel32.NewProc("GetTempPathW")
 	procGetTimeZoneInformation             = modkernel32.NewProc("GetTimeZoneInformation")
 	procGetVersion                         = modkernel32.NewProc("GetVersion")
+	procInitializeProcThreadAttributeList  = modkernel32.NewProc("InitializeProcThreadAttributeList")
 	procLoadLibraryW                       = modkernel32.NewProc("LoadLibraryW")
 	procLocalFree                          = modkernel32.NewProc("LocalFree")
 	procMapViewOfFile                      = modkernel32.NewProc("MapViewOfFile")
@@ -153,6 +155,7 @@ var (
 	procSetHandleInformation               = modkernel32.NewProc("SetHandleInformation")
 	procTerminateProcess                   = modkernel32.NewProc("TerminateProcess")
 	procUnmapViewOfFile                    = modkernel32.NewProc("UnmapViewOfFile")
+	procUpdateProcThreadAttribute          = modkernel32.NewProc("UpdateProcThreadAttribute")
 	procVirtualLock                        = modkernel32.NewProc("VirtualLock")
 	procVirtualUnlock                      = modkernel32.NewProc("VirtualUnlock")
 	procWaitForSingleObject                = modkernel32.NewProc("WaitForSingleObject")
@@ -515,7 +518,7 @@ func CreateHardLink(filename *uint16, existingfilename *uint16, reserved uintptr
 	return
 }
 
-func CreateIoCompletionPort(filehandle Handle, cphandle Handle, key uint32, threadcnt uint32) (handle Handle, err error) {
+func createIoCompletionPort(filehandle Handle, cphandle Handle, key uintptr, threadcnt uint32) (handle Handle, err error) {
 	r0, _, e1 := Syscall6(procCreateIoCompletionPort.Addr(), 4, uintptr(filehandle), uintptr(cphandle), uintptr(key), uintptr(threadcnt), 0, 0)
 	handle = Handle(r0)
 	if handle == 0 {
@@ -566,6 +569,11 @@ func DeleteFile(path *uint16) (err error) {
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
+	return
+}
+
+func deleteProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST) {
+	Syscall(procDeleteProcThreadAttributeList.Addr(), 1, uintptr(unsafe.Pointer(attrlist)), 0, 0)
 	return
 }
 
@@ -822,7 +830,7 @@ func GetProcessTimes(handle Handle, creationTime *Filetime, exitTime *Filetime, 
 	return
 }
 
-func GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (err error) {
+func getQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uintptr, overlapped **Overlapped, timeout uint32) (err error) {
 	r1, _, e1 := Syscall6(procGetQueuedCompletionStatus.Addr(), 5, uintptr(cphandle), uintptr(unsafe.Pointer(qty)), uintptr(unsafe.Pointer(key)), uintptr(unsafe.Pointer(overlapped)), uintptr(timeout), 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
@@ -897,6 +905,14 @@ func GetVersion() (ver uint32, err error) {
 	return
 }
 
+func initializeProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, attrcount uint32, flags uint32, size *uintptr) (err error) {
+	r1, _, e1 := Syscall6(procInitializeProcThreadAttributeList.Addr(), 4, uintptr(unsafe.Pointer(attrlist)), uintptr(attrcount), uintptr(flags), uintptr(unsafe.Pointer(size)), 0, 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func LoadLibrary(libname string) (handle Handle, err error) {
 	var _p0 *uint16
 	_p0, err = UTF16PtrFromString(libname)
@@ -954,7 +970,7 @@ func OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle Handle, err 
 	return
 }
 
-func PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uint32, overlapped *Overlapped) (err error) {
+func postQueuedCompletionStatus(cphandle Handle, qty uint32, key uintptr, overlapped *Overlapped) (err error) {
 	r1, _, e1 := Syscall6(procPostQueuedCompletionStatus.Addr(), 4, uintptr(cphandle), uintptr(qty), uintptr(key), uintptr(unsafe.Pointer(overlapped)), 0, 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
@@ -1093,6 +1109,14 @@ func TerminateProcess(handle Handle, exitcode uint32) (err error) {
 
 func UnmapViewOfFile(addr uintptr) (err error) {
 	r1, _, e1 := Syscall(procUnmapViewOfFile.Addr(), 1, uintptr(addr), 0, 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func updateProcThreadAttribute(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, flags uint32, attr uintptr, value uintptr, size uintptr, prevvalue uintptr, returnedsize *uintptr) (err error) {
+	r1, _, e1 := Syscall9(procUpdateProcThreadAttribute.Addr(), 7, uintptr(unsafe.Pointer(attrlist)), uintptr(flags), uintptr(attr), uintptr(value), uintptr(size), uintptr(prevvalue), uintptr(unsafe.Pointer(returnedsize)), 0, 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build goexperiment.staticlockranking
 // +build goexperiment.staticlockranking
 
 package runtime
@@ -219,7 +220,7 @@ func releaseLockRank(rank lockRank) {
 func lockWithRankMayAcquire(l *mutex, rank lockRank) {
 	gp := getg()
 	if gp.m.locksHeldLen == 0 {
-		// No possibilty of lock ordering problem if no other locks held
+		// No possibility of lock ordering problem if no other locks held
 		return
 	}
 

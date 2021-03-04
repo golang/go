@@ -155,6 +155,9 @@ func (g *irgen) objFinish(name *ir.Name, class ir.Class, typ *types.Type) {
 			break // methods are exported with their receiver type
 		}
 		if types.IsExported(sym.Name) {
+			if name.Class == ir.PFUNC && name.Type().NumTParams() > 0 {
+				base.FatalfAt(name.Pos(), "Cannot export a generic function (yet): %v", name)
+			}
 			typecheck.Export(name)
 		}
 		if base.Flag.AsmHdr != "" && !name.Sym().Asm() {

@@ -88,12 +88,13 @@ type Checker struct {
 	conf *Config
 	pkg  *Package
 	*Info
-	nextId uint64                      // unique Id for type parameters (first valid Id is 1)
-	objMap map[Object]*declInfo        // maps package-level objects and (non-interface) methods to declaration info
-	impMap map[importKey]*Package      // maps (import path, source directory) to (complete or fake) package
-	posMap map[*Interface][]syntax.Pos // maps interface types to lists of embedded interface positions
-	typMap map[string]*Named           // maps an instantiated named type hash to a *Named type
-	pkgCnt map[string]int              // counts number of imported packages with a given name (for better error messages)
+	version version                     // accepted language version
+	nextId  uint64                      // unique Id for type parameters (first valid Id is 1)
+	objMap  map[Object]*declInfo        // maps package-level objects and (non-interface) methods to declaration info
+	impMap  map[importKey]*Package      // maps (import path, source directory) to (complete or fake) package
+	posMap  map[*Interface][]syntax.Pos // maps interface types to lists of embedded interface positions
+	typMap  map[string]*Named           // maps an instantiated named type hash to a *Named type
+	pkgCnt  map[string]int              // counts number of imported packages with a given name (for better error messages)
 
 	// information collected during type-checking of a set of package files
 	// (initialized by Files, valid only for the duration of check.Files;
@@ -182,16 +183,22 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
 		info = new(Info)
 	}
 
+	version, err := parseGoVersion(conf.GoVersion)
+	if err != nil {
+		panic(fmt.Sprintf("invalid Go version %q (%v)", conf.GoVersion, err))
+	}
+
 	return &Checker{
-		conf:   conf,
-		pkg:    pkg,
-		Info:   info,
-		nextId: 1,
-		objMap: make(map[Object]*declInfo),
-		impMap: make(map[importKey]*Package),
-		posMap: make(map[*Interface][]syntax.Pos),
-		typMap: make(map[string]*Named),
-		pkgCnt: make(map[string]int),
+		conf:    conf,
+		pkg:     pkg,
+		Info:    info,
+		version: version,
+		nextId:  1,
+		objMap:  make(map[Object]*declInfo),
+		impMap:  make(map[importKey]*Package),
+		posMap:  make(map[*Interface][]syntax.Pos),
+		typMap:  make(map[string]*Named),
+		pkgCnt:  make(map[string]int),
 	}
 }
 

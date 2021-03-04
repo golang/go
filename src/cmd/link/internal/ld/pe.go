@@ -42,11 +42,11 @@ type IMAGE_EXPORT_DIRECTORY struct {
 	AddressOfNameOrdinals uint32
 }
 
-const (
-	PEBASE = 0x00400000
-)
-
 var (
+	// PEBASE is the base address for the executable.
+	// It is small for 32-bit and large for 64-bit.
+	PEBASE int64
+
 	// SectionAlignment must be greater than or equal to FileAlignment.
 	// The default is the page size for the architecture.
 	PESECTALIGN int64 = 0x1000
@@ -66,9 +66,12 @@ const (
 	IMAGE_SCN_MEM_WRITE              = 0x80000000
 	IMAGE_SCN_MEM_DISCARDABLE        = 0x2000000
 	IMAGE_SCN_LNK_NRELOC_OVFL        = 0x1000000
+	IMAGE_SCN_ALIGN_4BYTES           = 0x300000
+	IMAGE_SCN_ALIGN_8BYTES           = 0x400000
 	IMAGE_SCN_ALIGN_32BYTES          = 0x600000
 )
 
+// See https://docs.microsoft.com/en-us/windows/win32/debug/pe-format.
 // TODO(crawshaw): add these constants to debug/pe.
 const (
 	// TODO: the Microsoft doco says IMAGE_SYM_DTYPE_ARRAY is 3 and IMAGE_SYM_DTYPE_FUNCTION is 2
@@ -94,6 +97,25 @@ const (
 	IMAGE_REL_ARM_BRANCH24 = 0x0003
 	IMAGE_REL_ARM_BRANCH11 = 0x0004
 	IMAGE_REL_ARM_SECREL   = 0x000F
+
+	IMAGE_REL_ARM64_ABSOLUTE       = 0x0000
+	IMAGE_REL_ARM64_ADDR32         = 0x0001
+	IMAGE_REL_ARM64_ADDR32NB       = 0x0002
+	IMAGE_REL_ARM64_BRANCH26       = 0x0003
+	IMAGE_REL_ARM64_PAGEBASE_REL21 = 0x0004
+	IMAGE_REL_ARM64_REL21          = 0x0005
+	IMAGE_REL_ARM64_PAGEOFFSET_12A = 0x0006
+	IMAGE_REL_ARM64_PAGEOFFSET_12L = 0x0007
+	IMAGE_REL_ARM64_SECREL         = 0x0008
+	IMAGE_REL_ARM64_SECREL_LOW12A  = 0x0009
+	IMAGE_REL_ARM64_SECREL_HIGH12A = 0x000A
+	IMAGE_REL_ARM64_SECREL_LOW12L  = 0x000B
+	IMAGE_REL_ARM64_TOKEN          = 0x000C
+	IMAGE_REL_ARM64_SECTION        = 0x000D
+	IMAGE_REL_ARM64_ADDR64         = 0x000E
+	IMAGE_REL_ARM64_BRANCH19       = 0x000F
+	IMAGE_REL_ARM64_BRANCH14       = 0x0010
+	IMAGE_REL_ARM64_REL32          = 0x0011
 
 	IMAGE_REL_BASED_HIGHLOW = 3
 	IMAGE_REL_BASED_DIR64   = 10
@@ -316,8 +338,8 @@ func (sect *peSection) checkOffset(off int64) {
 // checkSegment verifies COFF section sect matches address
 // and file offset provided in segment seg.
 func (sect *peSection) checkSegment(seg *sym.Segment) {
-	if seg.Vaddr-PEBASE != uint64(sect.virtualAddress) {
-		Errorf(nil, "%s.VirtualAddress = %#x, want %#x", sect.name, uint64(int64(sect.virtualAddress)), uint64(int64(seg.Vaddr-PEBASE)))
+	if seg.Vaddr-uint64(PEBASE) != uint64(sect.virtualAddress) {
+		Errorf(nil, "%s.VirtualAddress = %#x, want %#x", sect.name, uint64(int64(sect.virtualAddress)), uint64(int64(seg.Vaddr-uint64(PEBASE))))
 		errorexit()
 	}
 	if seg.Fileoff != uint64(sect.pointerToRawData) {
@@ -398,14 +420,16 @@ func (f *peFile) addSection(name string, sectsize int, filesize int) *peSection 
 		name:             name,
 		shortName:        name,
 		index:            len(f.sections) + 1,
-		virtualSize:      uint32(sectsize),
 		virtualAddress:   f.nextSectOffset,
 		pointerToRawData: f.nextFileOffset,
 	}
 	f.nextSectOffset = uint32(Rnd(int64(f.nextSectOffset)+int64(sectsize), PESECTALIGN))
 	if filesize > 0 {
+		sect.virtualSize = uint32(sectsize)
 		sect.sizeOfRawData = uint32(Rnd(int64(filesize), PEFILEALIGN))
 		f.nextFileOffset += sect.sizeOfRawData
+	} else {
+		sect.sizeOfRawData = uint32(sectsize)
 	}
 	f.sections = append(f.sections, sect)
 	return sect
@@ -456,18 +480,19 @@ func (f *peFile) addInitArray(ctxt *Link) *peSection {
 	// However, the entire Go runtime is initialized from just one function, so it is unlikely
 	// that this will need to grow in the future.
 	var size int
+	var alignment uint32
 	switch objabi.GOARCH {
 	default:
 		Exitf("peFile.addInitArray: unsupported GOARCH=%q\n", objabi.GOARCH)
-	case "386":
+	case "386", "arm":
 		size = 4
-	case "amd64":
+		alignment = IMAGE_SCN_ALIGN_4BYTES
+	case "amd64", "arm64":
 		size = 8
-	case "arm":
-		size = 4
+		alignment = IMAGE_SCN_ALIGN_8BYTES
 	}
 	sect := f.addSection(".ctors", size, size)
-	sect.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
+	sect.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | alignment
 	sect.sizeOfRawData = uint32(size)
 	ctxt.Out.SeekSet(int64(sect.pointerToRawData))
 	sect.checkOffset(ctxt.Out.Offset())
@@ -477,7 +502,7 @@ func (f *peFile) addInitArray(ctxt *Link) *peSection {
 	switch objabi.GOARCH {
 	case "386", "arm":
 		ctxt.Out.Write32(uint32(addr))
-	case "amd64":
+	case "amd64", "arm64":
 		ctxt.Out.Write64(addr)
 	}
 	return sect
@@ -594,6 +619,8 @@ dwarfLoop:
 			ctxt.Out.Write16(IMAGE_REL_AMD64_ADDR64)
 		case "arm":
 			ctxt.Out.Write16(IMAGE_REL_ARM_ADDR32)
+		case "arm64":
+			ctxt.Out.Write16(IMAGE_REL_ARM64_ADDR64)
 		}
 		return 1
 	})
@@ -788,6 +815,8 @@ func (f *peFile) writeFileHeader(ctxt *Link) {
 		fh.Machine = pe.IMAGE_FILE_MACHINE_I386
 	case sys.ARM:
 		fh.Machine = pe.IMAGE_FILE_MACHINE_ARMNT
+	case sys.ARM64:
+		fh.Machine = pe.IMAGE_FILE_MACHINE_ARM64
 	}
 
 	fh.NumberOfSections = uint16(len(f.sections))
@@ -852,8 +881,8 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	}
 	oh64.BaseOfCode = f.textSect.virtualAddress
 	oh.BaseOfCode = f.textSect.virtualAddress
-	oh64.ImageBase = PEBASE
-	oh.ImageBase = PEBASE
+	oh64.ImageBase = uint64(PEBASE)
+	oh.ImageBase = uint32(PEBASE)
 	oh64.SectionAlignment = uint32(PESECTALIGN)
 	oh.SectionAlignment = uint32(PESECTALIGN)
 	oh64.FileAlignment = uint32(PEFILEALIGN)
@@ -891,13 +920,7 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	oh.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_NX_COMPAT
 
 	// The DLL can be relocated at load time.
-	switch ctxt.Arch.Family {
-	case sys.AMD64, sys.I386:
-		if ctxt.BuildMode == BuildModePIE {
-			oh64.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
-			oh.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
-		}
-	case sys.ARM:
+	if needPEBaseReloc(ctxt) {
 		oh64.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
 		oh.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
 	}
@@ -975,18 +998,23 @@ var pefile peFile
 func Peinit(ctxt *Link) {
 	var l int
 
-	switch ctxt.Arch.Family {
-	// 64-bit architectures
-	case sys.AMD64:
+	if ctxt.Arch.PtrSize == 8 {
+		// 64-bit architectures
 		pe64 = 1
+		PEBASE = 1 << 32
+		if ctxt.Arch.Family == sys.AMD64 {
+			// TODO(rsc): For cgo we currently use 32-bit relocations
+			// that fail when PEBASE is too large.
+			// We need to fix this, but for now, use a smaller PEBASE.
+			PEBASE = 1 << 22
+		}
 		var oh64 pe.OptionalHeader64
 		l = binary.Size(&oh64)
-
-	// 32-bit architectures
-	default:
+	} else {
+		// 32-bit architectures
+		PEBASE = 1 << 22
 		var oh pe.OptionalHeader32
 		l = binary.Size(&oh)
-
 	}
 
 	if ctxt.LinkMode == LinkExternal {
@@ -1210,7 +1238,7 @@ func addimports(ctxt *Link, datsect *peSection) {
 	endoff := ctxt.Out.Offset()
 
 	// write FirstThunks (allocated in .data section)
-	ftbase := uint64(ldr.SymValue(dynamic)) - uint64(datsect.virtualAddress) - PEBASE
+	ftbase := uint64(ldr.SymValue(dynamic)) - uint64(datsect.virtualAddress) - uint64(PEBASE)
 
 	ctxt.Out.SeekSet(int64(uint64(datsect.pointerToRawData) + ftbase))
 	for d := dr; d != nil; d = d.next {
@@ -1463,17 +1491,18 @@ func addPEBaseRelocSym(ldr *loader.Loader, s loader.Sym, rt *peBaseRelocTable) {
 	}
 }
 
+func needPEBaseReloc(ctxt *Link) bool {
+	// Non-PIE x86 binaries don't need the base relocation table.
+	// Everyone else does.
+	if (ctxt.Arch.Family == sys.I386 || ctxt.Arch.Family == sys.AMD64) && ctxt.BuildMode != BuildModePIE {
+		return false
+	}
+	return true
+}
+
 func addPEBaseReloc(ctxt *Link) {
-	// Arm does not work without base relocation table.
-	// 386 and amd64 will only require the table for BuildModePIE.
-	switch ctxt.Arch.Family {
-	default:
+	if !needPEBaseReloc(ctxt) {
 		return
-	case sys.I386, sys.AMD64:
-		if ctxt.BuildMode != BuildModePIE {
-			return
-		}
-	case sys.ARM:
 	}
 
 	var rt peBaseRelocTable
@@ -1562,12 +1591,6 @@ func addpersrc(ctxt *Link) {
 }
 
 func asmbPe(ctxt *Link) {
-	switch ctxt.Arch.Family {
-	default:
-		Exitf("unknown PE architecture: %v", ctxt.Arch.Family)
-	case sys.AMD64, sys.I386, sys.ARM:
-	}
-
 	t := pefile.addSection(".text", int(Segtext.Length), int(Segtext.Length))
 	t.characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
 	if ctxt.LinkMode == LinkExternal {

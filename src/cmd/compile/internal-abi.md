@@ -153,6 +153,7 @@ Assigning a receiver, argument, or result V of underlying type T works
 as follows:
 
 1. Remember I and FP.
+1. If T has zero size, add T to the stack sequence S and return.
 1. Try to register-assign V.
 1. If step 2 failed, reset I and FP to the values from step 1, add T
    to the stack sequence S, and assign V to this field in S.
@@ -295,6 +296,15 @@ An architecture may still define register meanings that aren’t
 compatible with ABI0, but these differences should be easy to account
 for in the compiler.
 
+The assignment algorithm assigns zero-sized values to the stack
+(assignment step 2) in order to support ABI0-equivalence.
+While these values take no space themselves, they do result in
+alignment padding on the stack in ABI0.
+Without this step, the internal ABI would register-assign zero-sized
+values even on architectures that provide no argument registers
+because they don't consume any registers, and hence not add alignment
+padding to the stack.
+
 The algorithm reserves spill space for arguments in the caller’s frame
 so that the compiler can generate a stack growth path that spills into
 this reserved space.
@@ -402,9 +412,6 @@ Special-purpose registers are as follows:
 | R15 | GOT reference temporary | Fixed if dynlink |
 | X15 | Zero value | Fixed |
 
-TODO: We may start with the existing TLS-based g and move to R14
-later.
-
 *Rationale*: These register meanings are compatible with Go’s
 stack-based calling convention except for R14 and X15, which will have
 to be restored on transitions from ABI0 code to ABIInternal code.
@@ -455,13 +462,12 @@ The arithmetic status flags are treated like scratch registers and not
 preserved across calls.
 All other bits in RFLAGS are system flags.
 
-The CPU is always in MMX technology state (not x87 mode).
+At function calls and returns, the CPU is in x87 mode (not MMX
+technology mode).
 
-*Rationale*: Go on amd64 uses the XMM registers and never uses the x87
-registers, so it makes sense to assume the CPU is in MMX mode.
-Otherwise, any function that used the XMM registers would have to
-execute an EMMS instruction before calling another function or
-returning (this is the case in the SysV ABI).
+*Rationale*: Go on amd64 does not use either the x87 registers or MMX
+registers. Hence, we follow the SysV platform conventions in order to
+simplify transitions to and from the C ABI.
 
 At calls, the MXCSR control bits are always set as follows:
 

@@ -596,7 +596,7 @@
 //
 // Usage:
 //
-// 	go get [-d] [-t] [-u] [-v] [-insecure] [build flags] [packages]
+// 	go get [-d] [-t] [-u] [-v] [build flags] [packages]
 //
 // Get resolves its command-line arguments to packages at specific module versions,
 // updates go.mod to require those versions, downloads source code into the
@@ -640,14 +640,6 @@
 //
 // When the -t and -u flags are used together, get will update
 // test dependencies as well.
-//
-// The -insecure flag permits fetching from repositories and resolving
-// custom domains using insecure schemes such as HTTP, and also bypassess
-// module sum validation using the checksum database. Use with caution.
-// This flag is deprecated and will be removed in a future version of go.
-// To permit the use of insecure schemes, use the GOINSECURE environment
-// variable instead. To bypass module sum validation, use GOPRIVATE or
-// GONOSUMDB. See 'go help environment' for details.
 //
 // The -d flag instructs get not to build or install packages. get will only
 // update go.mod and download source code needed to build packages.
@@ -1783,9 +1775,8 @@
 // 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
 // 		of module path prefixes that should always be fetched in an insecure
 // 		manner. Only applies to dependencies that are being fetched directly.
-// 		Unlike the -insecure flag on 'go get', GOINSECURE does not disable
-// 		checksum database validation. GOPRIVATE or GONOSUMDB may be used
-// 		to achieve that.
+// 		GOINSECURE does not disable checksum database validation. GOPRIVATE or
+// 		GONOSUMDB may be used to achieve that.
 // 	GOOS
 // 		The operating system for which to compile code.
 // 		Examples are linux, darwin, windows, netbsd.
@@ -1808,7 +1799,7 @@
 // 		The directory where the go command will write
 // 		temporary source files, packages, and binaries.
 // 	GOVCS
-// 	  Lists version control commands that may be used with matching servers.
+// 		Lists version control commands that may be used with matching servers.
 // 		See 'go help vcs'.
 //
 // Environment variables for use with cgo:
@@ -2135,7 +2126,7 @@
 // This help text, accessible as 'go help gopath-get' even in module-aware mode,
 // describes 'go get' as it operates in legacy GOPATH mode.
 //
-// Usage: go get [-d] [-f] [-t] [-u] [-v] [-fix] [-insecure] [build flags] [packages]
+// Usage: go get [-d] [-f] [-t] [-u] [-v] [-fix] [build flags] [packages]
 //
 // Get downloads the packages named by the import paths, along with their
 // dependencies. It then installs the named packages, like 'go install'.
@@ -2150,13 +2141,6 @@
 //
 // The -fix flag instructs get to run the fix tool on the downloaded packages
 // before resolving dependencies or building the code.
-//
-// The -insecure flag permits fetching from repositories and resolving
-// custom domains using insecure schemes such as HTTP. Use with caution.
-// This flag is deprecated and will be removed in a future version of go.
-// The GOINSECURE environment variable should be used instead, since it
-// provides control over which packages may be retrieved using an insecure
-// scheme. See 'go help environment' for details.
 //
 // The -t flag instructs get to also download the packages required to build
 // the tests for the specified packages.
@@ -2342,7 +2326,7 @@
 // will result in the following requests:
 //
 // 	https://example.org/pkg/foo?go-get=1 (preferred)
-// 	http://example.org/pkg/foo?go-get=1  (fallback, only with -insecure)
+// 	http://example.org/pkg/foo?go-get=1  (fallback, only with use of correctly set GOINSECURE)
 //
 // If that page contains the meta tag
 //
@@ -2409,6 +2393,17 @@
 // https://golang.org/doc/tutorial/create-module.
 //
 // For a detailed reference on modules, see https://golang.org/ref/mod.
+//
+// By default, the go command may download modules from https://proxy.golang.org.
+// It may authenticate modules using the checksum database at
+// https://sum.golang.org. Both services are operated by the Go team at Google.
+// The privacy policies for these services are available at
+// https://proxy.golang.org/privacy and https://sum.golang.org/privacy,
+// respectively.
+//
+// The go command's download behavior may be configured using GOPROXY, GOSUMDB,
+// GOPRIVATE, and other environment variables. See 'go help environment'
+// and https://golang.org/ref/mod#private-module-privacy for more information.
 //
 //
 // Module authentication using go.sum
@@ -2868,20 +2863,23 @@
 // legal reasons). Therefore, clients can still access public code served from
 // Bazaar, Fossil, or Subversion repositories by default, because those downloads
 // use the Go module mirror, which takes on the security risk of running the
-// version control commands, using a custom sandbox.
+// version control commands using a custom sandbox.
 //
 // The GOVCS variable can be used to change the allowed version control systems
 // for specific packages (identified by a module or import path).
-// The GOVCS variable applies both when using modules and when using GOPATH.
-// When using modules, the patterns match against the module path.
-// When using GOPATH, the patterns match against the import path
-// corresponding to the root of the version control repository.
+// The GOVCS variable applies when building package in both module-aware mode
+// and GOPATH mode. When using modules, the patterns match against the module path.
+// When using GOPATH, the patterns match against the import path corresponding to
+// the root of the version control repository.
 //
 // The general form of the GOVCS setting is a comma-separated list of
 // pattern:vcslist rules. The pattern is a glob pattern that must match
 // one or more leading elements of the module or import path. The vcslist
 // is a pipe-separated list of allowed version control commands, or "all"
-// to allow use of any known command, or "off" to allow nothing.
+// to allow use of any known command, or "off" to disallow all commands.
+// Note that if a module matches a pattern with vcslist "off", it may still be
+// downloaded if the origin server uses the "mod" scheme, which instructs the
+// go command to download the module using the GOPROXY protocol.
 // The earliest matching pattern in the list applies, even if later patterns
 // might also match.
 //
@@ -2889,7 +2887,7 @@
 //
 // 	GOVCS=github.com:git,evil.com:off,*:git|hg
 //
-// With this setting, code with an module or import path beginning with
+// With this setting, code with a module or import path beginning with
 // github.com/ can only use git; paths on evil.com cannot use any version
 // control command, and all other paths (* matches everything) can use
 // only git or hg.

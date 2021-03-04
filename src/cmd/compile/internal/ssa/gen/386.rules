@@ -54,6 +54,7 @@
 (Bswap32 ...) => (BSWAPL ...)
 
 (Sqrt ...) => (SQRTSD ...)
+(Sqrt32 ...) => (SQRTSS ...)
 
 (Ctz16 x) => (BSFL (ORLconst <typ.UInt32> [0x10000] x))
 (Ctz16NonZero ...) => (BSFL ...)

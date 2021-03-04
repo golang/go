@@ -7,6 +7,7 @@ package ssagen
 import (
 	"bufio"
 	"bytes"
+	"cmd/compile/internal/abi"
 	"encoding/binary"
 	"fmt"
 	"go/constant"
@@ -208,6 +209,32 @@ func InitConfig() {
 	ir.Syms.SigPanic = typecheck.LookupRuntimeFunc("sigpanic")
 }
 
+// AbiForFunc returns the ABI for a function, used to figure out arg/result mapping for rtcall and bodyless functions.
+// This follows policy for GOEXPERIMENT=regabi, //go:registerparams, and currently defined ABIInternal.
+// Policy is subject to change....
+// This always returns a freshly copied ABI.
+func AbiForFunc(fn *ir.Func) *abi.ABIConfig {
+	return abiForFunc(fn, ssaConfig.ABI0, ssaConfig.ABI1).Copy() // No idea what races will result, be safe
+}
+
+// abiForFunc implements ABI policy for a function, but does not return a copy of the ABI.
+// Passing a nil function returns ABIInternal.
+func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
+	a := abi1
+	if true || objabi.Regabi_enabled == 0 {
+		a = abi0
+	}
+	if fn != nil && fn.Pragma&ir.RegisterParams != 0 { // TODO(register args) remove after register abi is working
+		name := ir.FuncName(fn)
+		if strings.Contains(name, ".") {
+			base.ErrorfAt(fn.Pos(), "Calls to //go:registerparams method %s won't work, remove the pragma from the declaration.", name)
+		}
+		a = abi1
+		base.WarnfAt(fn.Pos(), "declared function %v has register params", fn)
+	}
+	return a
+}
+
 // getParam returns the Field of ith param of node n (which is a
 // function/method/interface call), where the receiver of a method call is
 // considered as the 0th parameter. This does not include the receiver of an
@@ -274,7 +301,7 @@ func (s *state) emitOpenDeferInfo() {
 	var maxargsize int64
 	for i := len(s.openDefers) - 1; i >= 0; i-- {
 		r := s.openDefers[i]
-		argsize := r.n.X.Type().ArgWidth()
+		argsize := r.n.X.Type().ArgWidth() // TODO register args: but maybe use of abi0 will make this easy
 		if argsize > maxargsize {
 			maxargsize = argsize
 		}
@@ -297,17 +324,28 @@ func (s *state) emitOpenDeferInfo() {
 		}
 		off = dvarint(x, off, int64(numArgs))
 		if r.rcvrNode != nil {
-			off = dvarint(x, off, -r.rcvrNode.FrameOffset())
+			off = dvarint(x, off, -okOffset(r.rcvrNode.FrameOffset()))
 			off = dvarint(x, off, s.config.PtrSize)
-			off = dvarint(x, off, 0)
+			off = dvarint(x, off, 0) // This is okay because defer records use ABI0 (for now)
 		}
+
+		// TODO(register args) assume abi0 for this?
+		ab := s.f.ABI0
+		pri := ab.ABIAnalyzeFuncType(r.n.X.Type().FuncType())
 		for j, arg := range r.argNodes {
 			f := getParam(r.n, j)
-			off = dvarint(x, off, -arg.FrameOffset())
+			off = dvarint(x, off, -okOffset(arg.FrameOffset()))
 			off = dvarint(x, off, f.Type.Size())
-			off = dvarint(x, off, f.Offset)
+			off = dvarint(x, off, okOffset(pri.InParam(j).FrameOffset(pri))-ab.LocalsOffset()) // defer does not want the fixed frame adjustment
 		}
 	}
+}
+
+func okOffset(offset int64) int64 {
+	if offset >= types.BOGUS_FUNARG_OFFSET {
+		panic(fmt.Errorf("Bogus offset %d", offset))
+	}
+	return offset
 }
 
 // buildssa builds an SSA function for fn.
@@ -357,12 +395,10 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	if fn.Pragma&ir.Nosplit != 0 {
 		s.f.NoSplit = true
 	}
-	if fn.Pragma&ir.RegisterParams != 0 { // TODO remove after register abi is working
-		if strings.Contains(name, ".") {
-			base.ErrorfAt(fn.Pos(), "Calls to //go:registerparams method %s won't work, remove the pragma from the declaration.", name)
-		}
-		s.f.Warnl(fn.Pos(), "declared function %v has register params", fn)
-	}
+	s.f.ABI0 = ssaConfig.ABI0.Copy() // Make a copy to avoid racy map operations in type-register-width cache.
+	s.f.ABI1 = ssaConfig.ABI1.Copy()
+	s.f.ABIDefault = abiForFunc(nil, s.f.ABI0, s.f.ABI1)
+	s.f.ABISelf = abiForFunc(fn, s.f.ABI0, s.f.ABI1)
 
 	s.panics = map[funcLine]*ssa.Block{}
 	s.softFloat = s.config.SoftFloat
@@ -449,18 +485,20 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 		s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, deferBitsTemp, s.mem(), false)
 	}
 
+	var params *abi.ABIParamResultInfo
+	params = s.f.ABISelf.ABIAnalyze(fn.Type())
+
 	// Generate addresses of local declarations
 	s.decladdrs = map[*ir.Name]*ssa.Value{}
-	var args []ssa.Param
 	var results []ssa.Param
 	for _, n := range fn.Dcl {
 		switch n.Class {
 		case ir.PPARAM:
+			// Be aware that blank and unnamed input parameters will not appear here, but do appear in the type
 			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type()), n, s.sp, s.startmem)
-			args = append(args, ssa.Param{Type: n.Type(), Offset: int32(n.FrameOffset())})
 		case ir.PPARAMOUT:
 			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type()), n, s.sp, s.startmem)
-			results = append(results, ssa.Param{Type: n.Type(), Offset: int32(n.FrameOffset()), Name: n})
+			results = append(results, ssa.Param{Name: n})
 		case ir.PAUTO:
 			// processed at each use, to prevent Addr coming
 			// before the decl.
@@ -468,14 +506,65 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 			s.Fatalf("local variable with class %v unimplemented", n.Class)
 		}
 	}
-	s.f.OwnAux = ssa.OwnAuxCall(args, results)
+
+	// TODO: figure out why base.Ctxt.FixedFrameSize() is not added to these offsets here (compare to calls).
+	// The input half is ignored unless a register ABI is used.
+	var args []ssa.Param
+	for _, p := range params.InParams() {
+		r := p.Registers
+		var o int32
+		if len(r) == 0 {
+			o = p.Offset()
+		} else {
+			o = p.SpillOffset() + int32(params.SpillAreaOffset())
+		}
+		args = append(args, ssa.Param{Type: p.Type, Offset: o, Reg: r})
+	}
+
+	// For now, need the ir.Name attached to these, so update those already created.
+	for i, p := range params.OutParams() {
+		r := p.Registers
+		var o int32
+		if len(r) == 0 {
+			o = p.Offset()
+		} else {
+			o = types.BADWIDTH
+		}
+		results[i].Type = p.Type
+		results[i].Offset = o
+		results[i].Reg = r
+	}
+
+	s.f.OwnAux = ssa.OwnAuxCall(fn.LSym, args, results, params)
 
 	// Populate SSAable arguments.
 	for _, n := range fn.Dcl {
-		if n.Class == ir.PPARAM && s.canSSA(n) {
-			v := s.newValue0A(ssa.OpArg, n.Type(), n)
-			s.vars[n] = v
-			s.addNamedValue(n, v) // This helps with debugging information, not needed for compilation itself.
+		if n.Class == ir.PPARAM {
+			if s.canSSA(n) {
+				var v *ssa.Value
+				if n.Sym().Name == ".fp" {
+					// Race-detector's get-caller-pc incantation is NOT a real Arg.
+					v = s.newValue0(ssa.OpGetCallerPC, n.Type())
+				} else {
+					v = s.newValue0A(ssa.OpArg, n.Type(), n)
+				}
+				s.vars[n] = v
+				s.addNamedValue(n, v) // This helps with debugging information, not needed for compilation itself.
+			} else if !s.canSSAName(n) { // I.e., the address was taken.  The type may or may not be okay.
+				// If the value will arrive in registers,
+				// AND if it can be SSA'd (if it cannot, panic for now),
+				// THEN
+				// (1) receive it as an OpArg (but do not store its name in the var table)
+				// (2) store it to its spill location, which is its address as well.
+				paramAssignment := ssa.ParamAssignmentForArgName(s.f, n)
+				if len(paramAssignment.Registers) > 0 {
+					if !TypeOK(n.Type()) { // TODO register args -- if v is not an SSA-able type, must decompose, here.
+						panic(fmt.Errorf("Arg in registers is too big to be SSA'd, need to implement decomposition, type=%v, n=%v", n.Type(), n))
+					}
+					v := s.newValue0A(ssa.OpArg, n.Type(), n)
+					s.store(n.Type(), s.decladdrs[n], v)
+				}
+			}
 		}
 	}
 
@@ -1151,7 +1240,7 @@ func (s *state) instrumentFields(t *types.Type, addr *ssa.Value, kind instrument
 		if f.Sym.IsBlank() {
 			continue
 		}
-		offptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(f.Type), f.Offset, addr)
+		offptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(f.Type), abi.FieldOffsetOf(f), addr)
 		s.instrumentFields(f.Type, offptr, kind)
 	}
 }
@@ -1846,7 +1935,7 @@ func (s *state) exit() *ssa.Block {
 		}
 
 		// Run exit code. Today, this is just racefuncexit, in -race mode.
-		// TODO this seems risky here with a register-ABI, but not clear it is right to do it earlier either.
+		// TODO(register args) this seems risky here with a register-ABI, but not clear it is right to do it earlier either.
 		// Spills in register allocation might just fix it.
 		s.stmtList(s.curfn.Exit)
 
@@ -2862,15 +2951,11 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 	case ir.ORESULT:
 		n := n.(*ir.ResultExpr)
 		if s.prevCall == nil || s.prevCall.Op != ssa.OpStaticLECall && s.prevCall.Op != ssa.OpInterLECall && s.prevCall.Op != ssa.OpClosureLECall {
-			// Do the old thing
-			addr := s.constOffPtrSP(types.NewPtr(n.Type()), n.Offset)
-			return s.rawLoad(n.Type(), addr)
+			panic("Expected to see a previous call")
 		}
-		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffset(n.Offset)
+		which := n.Index
 		if which == -1 {
-			// Do the old thing // TODO: Panic instead.
-			addr := s.constOffPtrSP(types.NewPtr(n.Type()), n.Offset)
-			return s.rawLoad(n.Type(), addr)
+			panic(fmt.Errorf("ORESULT %v does not match call %s", n, s.prevCall))
 		}
 		if TypeOK(n.Type()) {
 			return s.newValue1I(ssa.OpSelectN, n.Type(), which, s.prevCall)
@@ -4674,7 +4759,7 @@ func (s *state) openDeferExit() {
 		}
 		for j, argAddrVal := range r.argVals {
 			f := getParam(r.n, j)
-			ACArgs = append(ACArgs, ssa.Param{Type: f.Type, Offset: int32(argStart + f.Offset)})
+			ACArgs = append(ACArgs, ssa.Param{Type: f.Type, Offset: int32(argStart + abi.FieldOffsetOf(f))})
 			var a *ssa.Value
 			if !TypeOK(f.Type) {
 				a = s.newValue2(ssa.OpDereference, f.Type, argAddrVal, s.mem())
@@ -4688,10 +4773,11 @@ func (s *state) openDeferExit() {
 			v := s.load(r.closure.Type.Elem(), r.closure)
 			s.maybeNilCheckClosure(v, callDefer)
 			codeptr := s.rawLoad(types.Types[types.TUINTPTR], v)
-			aux := ssa.ClosureAuxCall(ACArgs, ACResults)
+			aux := ssa.ClosureAuxCall(ACArgs, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
 			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, v)
 		} else {
-			aux := ssa.StaticAuxCall(fn.(*ir.Name).Linksym(), ACArgs, ACResults)
+			aux := ssa.StaticAuxCall(fn.(*ir.Name).Linksym(), ACArgs, ACResults,
+				s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 		}
 		callArgs = append(callArgs, s.mem())
@@ -4738,18 +4824,9 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 	var codeptr *ssa.Value // ptr to target code (if dynamic)
 	var rcvr *ssa.Value    // receiver to set
 	fn := n.X
-	var ACArgs []ssa.Param
-	var ACResults []ssa.Param
-	var callArgs []*ssa.Value
-	res := n.X.Type().Results()
-	if k == callNormal {
-		nf := res.NumFields()
-		for i := 0; i < nf; i++ {
-			fp := res.Field(i)
-			ACResults = append(ACResults, ssa.Param{Type: fp.Type, Offset: int32(fp.Offset + base.Ctxt.FixedFrameSize())})
-		}
-	}
-
+	var ACArgs []ssa.Param    // AuxCall args
+	var ACResults []ssa.Param // AuxCall results
+	var callArgs []*ssa.Value // For late-expansion, the args themselves (not stored, args to the call instead).
 	inRegisters := false
 
 	switch n.Op() {
@@ -4757,7 +4834,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		if k == callNormal && fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC {
 			fn := fn.(*ir.Name)
 			callee = fn
-			// TODO remove after register abi is working
+			// TODO(register args) remove after register abi is working
 			inRegistersImported := fn.Pragma()&ir.RegisterParams != 0
 			inRegistersSamePackage := fn.Func != nil && fn.Func.Pragma&ir.RegisterParams != 0
 			inRegisters = inRegistersImported || inRegistersSamePackage
@@ -4790,6 +4867,27 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 	types.CalcSize(fn.Type())
 	stksize := fn.Type().ArgWidth() // includes receiver, args, and results
 
+	callABI := s.f.ABI1
+	if !inRegisters {
+		callABI = s.f.ABI0
+	}
+
+	params := callABI.ABIAnalyze(n.X.Type())
+
+	res := n.X.Type().Results()
+	if k == callNormal {
+		for _, p := range params.OutParams() {
+			r := p.Registers
+			var o int32
+			if len(r) == 0 {
+				o = p.Offset()
+			} else {
+				o = p.SpillOffset() + int32(params.SpillAreaOffset())
+			}
+			ACResults = append(ACResults, ssa.Param{Type: p.Type, Offset: o, Reg: r})
+		}
+	}
+
 	var call *ssa.Value
 	if k == callDeferStack {
 		// Make a defer struct d on the stack.
@@ -4821,7 +4919,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 
 		// Then, store all the arguments of the defer call.
 		ft := fn.Type()
-		off := t.FieldOff(12)
+		off := t.FieldOff(12) // TODO register args: be sure this isn't a hardcoded param stack offset.
 		args := n.Args
 
 		// Set receiver (for interface calls). Always a pointer.
@@ -4835,20 +4933,21 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		}
 		// Set other args.
 		for _, f := range ft.Params().Fields().Slice() {
-			s.storeArgWithBase(args[0], f.Type, addr, off+f.Offset)
+			s.storeArgWithBase(args[0], f.Type, addr, off+abi.FieldOffsetOf(f))
 			args = args[1:]
 		}
 
 		// Call runtime.deferprocStack with pointer to _defer record.
 		ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(base.Ctxt.FixedFrameSize())})
-		aux := ssa.StaticAuxCall(ir.Syms.DeferprocStack, ACArgs, ACResults)
+		aux := ssa.StaticAuxCall(ir.Syms.DeferprocStack, ACArgs, ACResults,
+			s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
 		callArgs = append(callArgs, addr, s.mem())
 		call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 		call.AddArgs(callArgs...)
 		if stksize < int64(types.PtrSize) {
 			// We need room for both the call to deferprocStack and the call to
 			// the deferred function.
-			// TODO Revisit this if/when we pass args in registers.
+			// TODO(register args) Revisit this if/when we pass args in registers.
 			stksize = int64(types.PtrSize)
 		}
 		call.AuxInt = stksize
@@ -4856,21 +4955,23 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		// Store arguments to stack, including defer/go arguments and receiver for method calls.
 		// These are written in SP-offset order.
 		argStart := base.Ctxt.FixedFrameSize()
+		// argExtra is for combining with ABI-derived offsets; argStart is for old ABI0 code (defer, go).
+		argExtra := int32(0) // TODO(register args) untangle this mess when fully transition to abiutils, defer/go sanitized.
 		// Defer/go args.
 		if k != callNormal {
 			// Write argsize and closure (args to newproc/deferproc).
 			argsize := s.constInt32(types.Types[types.TUINT32], int32(stksize))
-			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINT32], Offset: int32(argStart)})
+			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINT32], Offset: int32(argStart)}) // not argExtra
 			callArgs = append(callArgs, argsize)
 			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(argStart) + int32(types.PtrSize)})
 			callArgs = append(callArgs, closure)
 			stksize += 2 * int64(types.PtrSize)
 			argStart += 2 * int64(types.PtrSize)
+			argExtra = 2 * int32(types.PtrSize)
 		}
 
 		// Set receiver (for interface calls).
 		if rcvr != nil {
-			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(argStart)})
 			callArgs = append(callArgs, rcvr)
 		}
 
@@ -4880,11 +4981,20 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		if n.Op() == ir.OCALLMETH {
 			base.Fatalf("OCALLMETH missed by walkCall")
 		}
-		for i, n := range args {
-			f := t.Params().Field(i)
-			ACArg, arg := s.putArg(n, f.Type, argStart+f.Offset)
+
+		for _, p := range params.InParams() { // includes receiver for interface calls
+			r := p.Registers
+			var o int32
+			if len(r) == 0 {
+				o = p.Offset()
+			} else {
+				o = p.SpillOffset() + int32(params.SpillAreaOffset())
+			}
+			ACArg := ssa.Param{Type: p.Type, Offset: argExtra + o, Reg: r} // o from ABI includes any architecture-dependent offsets.
 			ACArgs = append(ACArgs, ACArg)
-			callArgs = append(callArgs, arg)
+		}
+		for i, n := range args {
+			callArgs = append(callArgs, s.putArg(n, t.Params().Field(i).Type))
 		}
 
 		callArgs = append(callArgs, s.mem())
@@ -4892,11 +5002,13 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		// call target
 		switch {
 		case k == callDefer:
-			aux := ssa.StaticAuxCall(ir.Syms.Deferproc, ACArgs, ACResults)
+			aux := ssa.StaticAuxCall(ir.Syms.Deferproc, ACArgs, ACResults,
+				s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults))) // TODO paramResultInfo for DeferProc
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 		case k == callGo:
-			aux := ssa.StaticAuxCall(ir.Syms.Newproc, ACArgs, ACResults)
-			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+			aux := ssa.StaticAuxCall(ir.Syms.Newproc, ACArgs, ACResults,
+				s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
+			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux) // TODO paramResultInfo for NewProc
 		case closure != nil:
 			// rawLoad because loading the code pointer from a
 			// closure is always safe, but IsSanitizerSafeAddr
@@ -4904,13 +5016,14 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			// critical that we not clobber any arguments already
 			// stored onto the stack.
 			codeptr = s.rawLoad(types.Types[types.TUINTPTR], closure)
-			aux := ssa.ClosureAuxCall(ACArgs, ACResults)
+			aux := ssa.ClosureAuxCall(ACArgs, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
 			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, closure)
 		case codeptr != nil:
-			aux := ssa.InterfaceAuxCall(ACArgs, ACResults)
+			// Note that the "receiver" parameter is nil because the actual receiver is the first input parameter.
+			aux := ssa.InterfaceAuxCall(ACArgs, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
 			call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
 		case callee != nil:
-			aux := ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), ACArgs, ACResults)
+			aux := ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), ACArgs, ACResults, params)
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 		default:
 			s.Fatalf("bad call type %v %v", n.Op(), n)
@@ -5048,15 +5161,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 	case ir.ORESULT:
 		// load return from callee
 		n := n.(*ir.ResultExpr)
-		if s.prevCall == nil || s.prevCall.Op != ssa.OpStaticLECall && s.prevCall.Op != ssa.OpInterLECall && s.prevCall.Op != ssa.OpClosureLECall {
-			return s.constOffPtrSP(t, n.Offset)
-		}
-		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffset(n.Offset)
-		if which == -1 {
-			// Do the old thing // TODO: Panic instead.
-			return s.constOffPtrSP(t, n.Offset)
-		}
-		x := s.newValue1I(ssa.OpSelectNAddr, t, which, s.prevCall)
+		x := s.newValue1I(ssa.OpSelectNAddr, t, n.Index, s.prevCall)
 		return x
 
 	case ir.OINDEX:
@@ -5370,6 +5475,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	var ACArgs []ssa.Param
 	var ACResults []ssa.Param
 	var callArgs []*ssa.Value
+	var callArgTypes []*types.Type
 
 	for _, arg := range args {
 		t := arg.Type
@@ -5377,6 +5483,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 		size := t.Size()
 		ACArgs = append(ACArgs, ssa.Param{Type: t, Offset: int32(off)})
 		callArgs = append(callArgs, arg)
+		callArgTypes = append(callArgTypes, t)
 		off += size
 	}
 	off = types.Rnd(off, int64(types.RegSize))
@@ -5391,7 +5498,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 
 	// Issue call
 	var call *ssa.Value
-	aux := ssa.StaticAuxCall(fn, ACArgs, ACResults)
+	aux := ssa.StaticAuxCall(fn, ACArgs, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, callArgTypes, results))
 	callArgs = append(callArgs, s.mem())
 	call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 	call.AddArgs(callArgs...)
@@ -5539,15 +5646,15 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 	}
 }
 
-// putArg evaluates n for the purpose of passing it as an argument to a function and returns the corresponding Param and value for the call.
-func (s *state) putArg(n ir.Node, t *types.Type, off int64) (ssa.Param, *ssa.Value) {
+// putArg evaluates n for the purpose of passing it as an argument to a function and returns the value for the call.
+func (s *state) putArg(n ir.Node, t *types.Type) *ssa.Value {
 	var a *ssa.Value
 	if !TypeOK(t) {
 		a = s.newValue2(ssa.OpDereference, t, s.addr(n), s.mem())
 	} else {
 		a = s.expr(n)
 	}
-	return ssa.Param{Type: t, Offset: int32(off)}, a
+	return a
 }
 
 func (s *state) storeArgWithBase(n ir.Node, t *types.Type, base *ssa.Value, off int64) {
@@ -6075,18 +6182,23 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 		if base.Debug.TypeAssert > 0 {
 			base.WarnfAt(n.Pos(), "type assertion not inlined")
 		}
-		if n.X.Type().IsEmptyInterface() {
-			if commaok {
-				call := s.rtcall(ir.Syms.AssertE2I2, true, []*types.Type{n.Type(), types.Types[types.TBOOL]}, target, iface)
-				return call[0], call[1]
+		if !commaok {
+			fn := ir.Syms.AssertI2I
+			if n.X.Type().IsEmptyInterface() {
+				fn = ir.Syms.AssertE2I
 			}
-			return s.rtcall(ir.Syms.AssertE2I, true, []*types.Type{n.Type()}, target, iface)[0], nil
+			data := s.newValue1(ssa.OpIData, types.Types[types.TUNSAFEPTR], iface)
+			tab := s.newValue1(ssa.OpITab, byteptr, iface)
+			tab = s.rtcall(fn, true, []*types.Type{byteptr}, target, tab)[0]
+			return s.newValue2(ssa.OpIMake, n.Type(), tab, data), nil
 		}
-		if commaok {
-			call := s.rtcall(ir.Syms.AssertI2I2, true, []*types.Type{n.Type(), types.Types[types.TBOOL]}, target, iface)
-			return call[0], call[1]
+		fn := ir.Syms.AssertI2I2
+		if n.X.Type().IsEmptyInterface() {
+			fn = ir.Syms.AssertE2I2
 		}
-		return s.rtcall(ir.Syms.AssertI2I, true, []*types.Type{n.Type()}, target, iface)[0], nil
+		res = s.rtcall(fn, true, []*types.Type{n.Type()}, target, iface)[0]
+		resok = s.newValue2(ssa.OpNeqInter, types.Types[types.TBOOL], res, s.constInterface(n.Type()))
+		return
 	}
 
 	if base.Debug.TypeAssert > 0 {
@@ -6266,6 +6378,8 @@ type Branch struct {
 
 // State contains state needed during Prog generation.
 type State struct {
+	ABI obj.ABI
+
 	pp *objw.Progs
 
 	// Branches remembers all the branch instructions we've seen
@@ -6274,9 +6388,6 @@ type State struct {
 
 	// bstart remembers where each block starts (indexed by block ID)
 	bstart []*obj.Prog
-
-	// Some architectures require a 64-bit temporary for FP-related register shuffling. Examples include PPC and Sparc V8.
-	ScratchFpMem *ir.Name
 
 	maxarg int64 // largest frame size for arguments to calls made by the function
 
@@ -6361,6 +6472,7 @@ func (s *State) DebugFriendlySetPosFrom(v *ssa.Value) {
 // genssa appends entries to pp for each instruction in f.
 func genssa(f *ssa.Func, pp *objw.Progs) {
 	var s State
+	s.ABI = f.OwnAux.Fn.ABI()
 
 	e := f.Frontend().(*ssafn)
 
@@ -6389,8 +6501,6 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		f.Logf("genssa %s\n", f.Name)
 		progToBlock[s.pp.Next] = f.Blocks[0]
 	}
-
-	s.ScratchFpMem = e.scratchFpMem
 
 	if base.Ctxt.Flag_locationlists {
 		if cap(f.Cache.ValueToProgAfter) < f.NumValues() {
@@ -6442,14 +6552,20 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			x := s.pp.Next
 			s.DebugFriendlySetPosFrom(v)
 
+			if v.Op.ResultInArg0() && v.ResultReg() != v.Args[0].Reg() {
+				v.Fatalf("input[0] and output not in same register %s", v.LongString())
+			}
+
 			switch v.Op {
 			case ssa.OpInitMem:
 				// memory arg needs no code
 			case ssa.OpArg:
 				// input args need no code
+			case ssa.OpArgIntReg, ssa.OpArgFloatReg:
+				CheckArgReg(v)
 			case ssa.OpSP, ssa.OpSB:
 				// nothing to do
-			case ssa.OpSelect0, ssa.OpSelect1:
+			case ssa.OpSelect0, ssa.OpSelect1, ssa.OpSelectN:
 				// nothing to do
 			case ssa.OpGetG:
 				// nothing to do when there's a g register,
@@ -6922,8 +7038,17 @@ func CheckLoweredPhi(v *ssa.Value) {
 // That register contains the closure pointer on closure entry.
 func CheckLoweredGetClosurePtr(v *ssa.Value) {
 	entry := v.Block.Func.Entry
+	// TODO register args: not all the register-producing ops can come first.
 	if entry != v.Block || entry.Values[0] != v {
 		base.Fatalf("in %s, badly placed LoweredGetClosurePtr: %v %v", v.Block.Func.Name, v.Block, v)
+	}
+}
+
+// CheckArgReg ensures that v is in the function's entry block.
+func CheckArgReg(v *ssa.Value) {
+	entry := v.Block.Func.Entry
+	if entry != v.Block {
+		base.Fatalf("in %s, badly placed ArgIReg or ArgFReg: %v %v", v.Block.Func.Name, v.Block, v)
 	}
 }
 
@@ -6938,17 +7063,6 @@ func AddrAuto(a *obj.Addr, v *ssa.Value) {
 	} else {
 		a.Name = obj.NAME_AUTO
 	}
-}
-
-func (s *State) AddrScratch(a *obj.Addr) {
-	if s.ScratchFpMem == nil {
-		panic("no scratch memory available; forgot to declare usesScratch for Op?")
-	}
-	a.Type = obj.TYPE_MEM
-	a.Name = obj.NAME_AUTO
-	a.Sym = s.ScratchFpMem.Linksym()
-	a.Reg = int16(Arch.REGSP)
-	a.Offset = s.ScratchFpMem.Offset_
 }
 
 // Call returns a new CALL instruction for the SSA value v.
@@ -7053,12 +7167,11 @@ func fieldIdx(n *ir.SelectorExpr) int {
 // ssafn holds frontend information about a function that the backend is processing.
 // It also exports a bunch of compiler services for the ssa backend.
 type ssafn struct {
-	curfn        *ir.Func
-	strings      map[string]*obj.LSym // map from constant string to data symbols
-	scratchFpMem *ir.Name             // temp for floating point register / memory moves on some architectures
-	stksize      int64                // stack size for current frame
-	stkptrsize   int64                // prefix of stack containing pointers
-	log          bool                 // print ssa debug to the stdout
+	curfn      *ir.Func
+	strings    map[string]*obj.LSym // map from constant string to data symbols
+	stksize    int64                // stack size for current frame
+	stkptrsize int64                // prefix of stack containing pointers
+	log        bool                 // print ssa debug to the stdout
 }
 
 // StringData returns a symbol which

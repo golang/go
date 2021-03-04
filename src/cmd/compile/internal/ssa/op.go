@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/abi"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -71,47 +72,63 @@ type auxType int8
 
 type Param struct {
 	Type   *types.Type
-	Offset int32    // Offset of Param if not in a register.
+	Offset int32 // Offset of Param if not in a register, spill offset if it is in a register input, types.BADWIDTH if it is a register output.
+	Reg    []abi.RegIndex
 	Name   *ir.Name // For OwnAux, need to prepend stores with Vardefs
 }
 
+type AuxNameOffset struct {
+	Name   *ir.Name
+	Offset int64
+}
+
+func (a *AuxNameOffset) CanBeAnSSAAux() {}
+func (a *AuxNameOffset) String() string {
+	return fmt.Sprintf("%s+%d", a.Name.Sym().Name, a.Offset)
+}
+
 type AuxCall struct {
+	// TODO(register args) this information is largely redundant with ../abi information, needs cleanup once new ABI is in place.
 	Fn      *obj.LSym
 	args    []Param // Includes receiver for method calls.  Does NOT include hidden closure pointer.
 	results []Param
-}
-
-// ResultForOffset returns the index of the result at a particular offset among the results
-// This does not include the mem result for the call opcode.
-func (a *AuxCall) ResultForOffset(offset int64) int64 {
-	which := int64(-1)
-	for i := int64(0); i < a.NResults(); i++ { // note aux NResults does not include mem result.
-		if a.OffsetOfResult(i) == offset {
-			which = i
-			break
-		}
-	}
-	return which
+	reg     *regInfo                // regInfo for this call // TODO for now nil means ignore
+	abiInfo *abi.ABIParamResultInfo // TODO remove fields above redundant with this information.
 }
 
 // OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
 func (a *AuxCall) OffsetOfResult(which int64) int64 {
-	return int64(a.results[which].Offset)
+	n := int64(a.abiInfo.OutParam(int(which)).Offset())
+	return n
 }
 
 // OffsetOfArg returns the SP offset of argument which (indexed 0, 1, etc).
+// If the call is to a method, the receiver is the first argument (i.e., index 0)
 func (a *AuxCall) OffsetOfArg(which int64) int64 {
-	return int64(a.args[which].Offset)
+	n := int64(a.abiInfo.InParam(int(which)).Offset())
+	return n
+}
+
+// RegsOfResult returns the register(s) used for result which (indexed 0, 1, etc).
+func (a *AuxCall) RegsOfResult(which int64) []abi.RegIndex {
+	return a.abiInfo.OutParam(int(which)).Registers
+}
+
+// RegsOfArg returns the register(s) used for argument which (indexed 0, 1, etc).
+// If the call is to a method, the receiver is the first argument (i.e., index 0)
+func (a *AuxCall) RegsOfArg(which int64) []abi.RegIndex {
+	return a.abiInfo.InParam(int(which)).Registers
 }
 
 // TypeOfResult returns the type of result which (indexed 0, 1, etc).
 func (a *AuxCall) TypeOfResult(which int64) *types.Type {
-	return a.results[which].Type
+	return a.abiInfo.OutParam(int(which)).Type
 }
 
 // TypeOfArg returns the type of argument which (indexed 0, 1, etc).
+// If the call is to a method, the receiver is the first argument (i.e., index 0)
 func (a *AuxCall) TypeOfArg(which int64) *types.Type {
-	return a.args[which].Type
+	return a.abiInfo.InParam(int(which)).Type
 }
 
 // SizeOfResult returns the size of result which (indexed 0, 1, etc).
@@ -120,13 +137,14 @@ func (a *AuxCall) SizeOfResult(which int64) int64 {
 }
 
 // SizeOfArg returns the size of argument which (indexed 0, 1, etc).
+// If the call is to a method, the receiver is the first argument (i.e., index 0)
 func (a *AuxCall) SizeOfArg(which int64) int64 {
 	return a.TypeOfArg(which).Width
 }
 
 // NResults returns the number of results
 func (a *AuxCall) NResults() int64 {
-	return int64(len(a.results))
+	return int64(len(a.abiInfo.OutParams()))
 }
 
 // LateExpansionResultType returns the result type (including trailing mem)
@@ -140,9 +158,9 @@ func (a *AuxCall) LateExpansionResultType() *types.Type {
 	return types.NewResults(tys)
 }
 
-// NArgs returns the number of arguments
+// NArgs returns the number of arguments (including receiver, if there is one).
 func (a *AuxCall) NArgs() int64 {
-	return int64(len(a.args))
+	return int64(len(a.abiInfo.InParams()))
 }
 
 // String returns
@@ -184,50 +202,65 @@ func (a *AuxCall) String() string {
 	return fn + "}"
 }
 
+// ACParamsToTypes translates a slice of Param into a slice of *types.Type
+// This is a helper call for ssagen/ssa.go.
+// TODO remove this, as part of replacing fields of AuxCall with abi.ABIParamResultInfo.
+func ACParamsToTypes(ps []Param) (ts []*types.Type) {
+	for _, p := range ps {
+		ts = append(ts, p.Type)
+	}
+	return
+}
+
 // StaticAuxCall returns an AuxCall for a static call.
-func StaticAuxCall(sym *obj.LSym, args []Param, results []Param) *AuxCall {
-	return &AuxCall{Fn: sym, args: args, results: results}
+func StaticAuxCall(sym *obj.LSym, args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
+	if paramResultInfo == nil {
+		panic(fmt.Errorf("Nil paramResultInfo, sym=%v", sym))
+	}
+	return &AuxCall{Fn: sym, args: args, results: results, abiInfo: paramResultInfo}
 }
 
 // InterfaceAuxCall returns an AuxCall for an interface call.
-func InterfaceAuxCall(args []Param, results []Param) *AuxCall {
-	return &AuxCall{Fn: nil, args: args, results: results}
+func InterfaceAuxCall(args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
+	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo}
 }
 
 // ClosureAuxCall returns an AuxCall for a closure call.
-func ClosureAuxCall(args []Param, results []Param) *AuxCall {
-	return &AuxCall{Fn: nil, args: args, results: results}
+func ClosureAuxCall(args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
+	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo}
 }
 
 func (*AuxCall) CanBeAnSSAAux() {}
 
 // OwnAuxCall returns a function's own AuxCall
-func OwnAuxCall(args []Param, results []Param) *AuxCall {
+
+func OwnAuxCall(fn *obj.LSym, args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
 	// TODO if this remains identical to ClosureAuxCall above after new ABI is done, should deduplicate.
-	return &AuxCall{Fn: nil, args: args, results: results}
+	return &AuxCall{Fn: fn, args: args, results: results, abiInfo: paramResultInfo}
 }
 
 const (
-	auxNone         auxType = iota
-	auxBool                 // auxInt is 0/1 for false/true
-	auxInt8                 // auxInt is an 8-bit integer
-	auxInt16                // auxInt is a 16-bit integer
-	auxInt32                // auxInt is a 32-bit integer
-	auxInt64                // auxInt is a 64-bit integer
-	auxInt128               // auxInt represents a 128-bit integer.  Always 0.
-	auxUInt8                // auxInt is an 8-bit unsigned integer
-	auxFloat32              // auxInt is a float32 (encoded with math.Float64bits)
-	auxFloat64              // auxInt is a float64 (encoded with math.Float64bits)
-	auxFlagConstant         // auxInt is a flagConstant
-	auxString               // aux is a string
-	auxSym                  // aux is a symbol (a *gc.Node for locals, an *obj.LSym for globals, or nil for none)
-	auxSymOff               // aux is a symbol, auxInt is an offset
-	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
-	auxTyp                  // aux is a type
-	auxTypSize              // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
-	auxCCop                 // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
-	auxCall                 // aux is a *ssa.AuxCall
-	auxCallOff              // aux is a *ssa.AuxCall, AuxInt is int64 param (in+out) size
+	auxNone           auxType = iota
+	auxBool                   // auxInt is 0/1 for false/true
+	auxInt8                   // auxInt is an 8-bit integer
+	auxInt16                  // auxInt is a 16-bit integer
+	auxInt32                  // auxInt is a 32-bit integer
+	auxInt64                  // auxInt is a 64-bit integer
+	auxInt128                 // auxInt represents a 128-bit integer.  Always 0.
+	auxUInt8                  // auxInt is an 8-bit unsigned integer
+	auxFloat32                // auxInt is a float32 (encoded with math.Float64bits)
+	auxFloat64                // auxInt is a float64 (encoded with math.Float64bits)
+	auxFlagConstant           // auxInt is a flagConstant
+	auxNameOffsetInt8         // aux is a &struct{Name ir.Name, Offset int64}; auxInt is index in parameter registers array
+	auxString                 // aux is a string
+	auxSym                    // aux is a symbol (a *gc.Node for locals, an *obj.LSym for globals, or nil for none)
+	auxSymOff                 // aux is a symbol, auxInt is an offset
+	auxSymValAndOff           // aux is a symbol, auxInt is a ValAndOff
+	auxTyp                    // aux is a type
+	auxTypSize                // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
+	auxCCop                   // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
+	auxCall                   // aux is a *ssa.AuxCall
+	auxCallOff                // aux is a *ssa.AuxCall, AuxInt is int64 param (in+out) size
 
 	// architecture specific aux types
 	auxARM64BitField     // aux is an arm64 bitfield lsb and width packed into auxInt

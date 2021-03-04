@@ -1454,7 +1454,7 @@ func (d *dwctxt) writeframes(fs loader.Sym) dwarfSecInfo {
 		// Emit a FDE, Section 6.4.1.
 		// First build the section contents into a byte buffer.
 		deltaBuf = deltaBuf[:0]
-		if haslr && d.ldr.AttrTopFrame(fn) {
+		if haslr && fi.TopFrame() {
 			// Mark the link register as having an undefined value.
 			// This stops call stack unwinders progressing any further.
 			// TODO: similar mark on non-LR architectures.
@@ -1480,7 +1480,7 @@ func (d *dwctxt) writeframes(fs loader.Sym) dwarfSecInfo {
 				spdelta += int64(d.arch.PtrSize)
 			}
 
-			if haslr && !d.ldr.AttrTopFrame(fn) {
+			if haslr && !fi.TopFrame() {
 				// TODO(bryanpkc): This is imprecise. In general, the instruction
 				// that stores the return address to the stack frame is not the
 				// same one that allocates the frame.

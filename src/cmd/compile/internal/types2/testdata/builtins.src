@@ -514,7 +514,7 @@ func panic1() {
 	panic("foo")
 	panic(false)
 	panic(1<<10)
-	panic(1 /* ERROR overflows */ <<1000)
+	panic(1 << /* ERROR constant shift overflow */ 1000)
 	_ = panic /* ERROR used as value */ (0)
 
 	var s []byte
@@ -538,7 +538,7 @@ func print1() {
 	print(2.718281828)
 	print(false)
 	print(1<<10)
-	print(1 /* ERROR overflows */ <<1000)
+	print(1 << /* ERROR constant shift overflow */ 1000)
 	println(nil /* ERROR untyped nil */ )
 
 	var s []int
@@ -564,7 +564,7 @@ func println1() {
 	println(2.718281828)
 	println(false)
 	println(1<<10)
-	println(1 /* ERROR overflows */ <<1000)
+	println(1 << /* ERROR constant shift overflow */ 1000)
 	println(nil /* ERROR untyped nil */ )
 
 	var s []int
@@ -695,7 +695,7 @@ func Alignof1() {
 	_ = unsafe.Alignof(42)
 	_ = unsafe.Alignof(new(struct{}))
 	_ = unsafe.Alignof(1<<10)
-	_ = unsafe.Alignof(1 /* ERROR overflows */ <<1000)
+	_ = unsafe.Alignof(1 << /* ERROR constant shift overflow */ 1000)
 	_ = unsafe.Alignof(nil /* ERROR "untyped nil */ )
 	unsafe /* ERROR not used */ .Alignof(x)
 
@@ -783,7 +783,7 @@ func Sizeof1() {
 	_ = unsafe.Sizeof(42)
 	_ = unsafe.Sizeof(new(complex128))
 	_ = unsafe.Sizeof(1<<10)
-	_ = unsafe.Sizeof(1 /* ERROR overflows */ <<1000)
+	_ = unsafe.Sizeof(1 << /* ERROR constant shift overflow */ 1000)
 	_ = unsafe.Sizeof(nil /* ERROR untyped nil */ )
 	unsafe /* ERROR not used */ .Sizeof(x)
 

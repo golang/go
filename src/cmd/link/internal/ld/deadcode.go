@@ -24,6 +24,7 @@ type deadcodePass struct {
 	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
 	markableMethods []methodref        // methods of reached types
 	reflectSeen     bool               // whether we have seen a reflect method call
+	dynlink         bool
 
 	methodsigstmp []methodsig // scratch buffer for decoding method signatures
 }
@@ -34,6 +35,7 @@ func (d *deadcodePass) init() {
 	if objabi.Fieldtrack_enabled != 0 {
 		d.ldr.Reachparent = make([]loader.Sym, d.ldr.NSym())
 	}
+	d.dynlink = d.ctxt.DynlinkingGo()
 
 	if d.ctxt.BuildMode == BuildModeShared {
 		// Mark all symbols defined in this library as reachable when
@@ -91,6 +93,10 @@ func (d *deadcodePass) init() {
 		names = append(names, exp)
 	}
 
+	if d.ctxt.Debugvlog > 1 {
+		d.ctxt.Logf("deadcode start names: %v\n", names)
+	}
+
 	for _, name := range names {
 		// Mark symbol as a data/ABI0 symbol.
 		d.mark(d.ldr.Lookup(name, 0), 0)
@@ -111,6 +117,11 @@ func (d *deadcodePass) flood() {
 		var usedInIface bool
 
 		if isgotype {
+			if d.dynlink {
+				// When dynaamic linking, a type may be passed across DSO
+				// boundary and get converted to interface at the other side.
+				d.ldr.SetAttrUsedInIface(symIdx, true)
+			}
 			usedInIface = d.ldr.AttrUsedInIface(symIdx)
 		}
 

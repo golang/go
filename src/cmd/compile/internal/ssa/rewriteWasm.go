@@ -527,6 +527,9 @@ func rewriteValueWasm(v *Value) bool {
 	case OpSqrt:
 		v.Op = OpWasmF64Sqrt
 		return true
+	case OpSqrt32:
+		v.Op = OpWasmF32Sqrt
+		return true
 	case OpStaticCall:
 		v.Op = OpWasmLoweredStaticCall
 		return true

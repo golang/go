@@ -54,7 +54,7 @@ func (check *Checker) lookupFieldOrMethod(T Type, addressable bool, pkg *Package
 	// Thus, if we have a named pointer type, proceed with the underlying
 	// pointer type but discard the result if it is a method since we would
 	// not have found it for T (see also issue 8590).
-	if t := T.Named(); t != nil {
+	if t := asNamed(T); t != nil {
 		if p, _ := t.underlying.(*Pointer); p != nil {
 			obj, index, indirect = check.rawLookupFieldOrMethod(p, false, pkg, name)
 			if _, ok := obj.(*Func); ok {
@@ -112,7 +112,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 
 			// If we have a named type, we may have associated methods.
 			// Look for those first.
-			if named := typ.Named(); named != nil {
+			if named := asNamed(typ); named != nil {
 				if seen[named] {
 					// We have seen this type before, at a more shallow depth
 					// (note that multiples of this type at the current depth
@@ -141,8 +141,8 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 
 				// continue with underlying type, but only if it's not a type parameter
 				// TODO(gri) is this what we want to do for type parameters? (spec question)
-				typ = named.Under()
-				if typ.TypeParam() != nil {
+				typ = under(named)
+				if asTypeParam(typ) != nil {
 					continue
 				}
 			}
@@ -314,7 +314,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		return
 	}
 
-	if ityp := V.Interface(); ityp != nil {
+	if ityp := asInterface(V); ityp != nil {
 		check.completeInterface(nopos, ityp)
 		// TODO(gri) allMethods is sorted - can do this more efficiently
 		for _, m := range T.allMethods {
@@ -352,7 +352,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 
 	// A concrete type implements T if it implements all methods of T.
 	Vd, _ := deref(V)
-	Vn := Vd.Named()
+	Vn := asNamed(Vd)
 	for _, m := range T.allMethods {
 		// TODO(gri) should this be calling lookupFieldOrMethod instead (and why not)?
 		obj, _, _ := check.rawLookupFieldOrMethod(V, false, m.pkg, m.name)
@@ -434,7 +434,7 @@ func (check *Checker) assertableTo(V *Interface, T Type, strict bool) (method, w
 	// no static check is required if T is an interface
 	// spec: "If T is an interface type, x.(T) asserts that the
 	//        dynamic type of x implements the interface T."
-	if T.Interface() != nil && !(strict || forceStrict) {
+	if asInterface(T) != nil && !(strict || forceStrict) {
 		return
 	}
 	return check.missingMethod(T, V, false)
@@ -452,8 +452,8 @@ func deref(typ Type) (Type, bool) {
 // derefStructPtr dereferences typ if it is a (named or unnamed) pointer to a
 // (named or unnamed) struct and returns its base. Otherwise it returns typ.
 func derefStructPtr(typ Type) Type {
-	if p := typ.Pointer(); p != nil {
-		if p.base.Struct() != nil {
+	if p := asPointer(typ); p != nil {
+		if asStruct(p.base) != nil {
 			return p.base
 		}
 	}

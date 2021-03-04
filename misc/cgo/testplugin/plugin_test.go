@@ -201,12 +201,11 @@ func TestMethod(t *testing.T) {
 	// Exported symbol's method must be live.
 	goCmd(t, "build", "-buildmode=plugin", "-o", "plugin.so", "./method/plugin.go")
 	goCmd(t, "build", "-o", "method.exe", "./method/main.go")
+	run(t, "./method.exe")
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "./method.exe")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, out)
-	}
+func TestMethod2(t *testing.T) {
+	goCmd(t, "build", "-buildmode=plugin", "-o", "method2.so", "./method2/plugin.go")
+	goCmd(t, "build", "-o", "method2.exe", "./method2/main.go")
+	run(t, "./method2.exe")
 }

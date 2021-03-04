@@ -2719,6 +2719,40 @@ func TestDirFS(t *testing.T) {
 	if err := fstest.TestFS(DirFS("./testdata/dirfs"), "a", "b", "dir/x"); err != nil {
 		t.Fatal(err)
 	}
+
+	// Test that Open does not accept backslash as separator.
+	d := DirFS(".")
+	_, err := d.Open(`testdata\dirfs`)
+	if err == nil {
+		t.Fatalf(`Open testdata\dirfs succeeded`)
+	}
+}
+
+func TestDirFSPathsValid(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skipf("skipping on Windows")
+	}
+
+	d := t.TempDir()
+	if err := os.WriteFile(filepath.Join(d, "control.txt"), []byte(string("Hello, world!")), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d, `e:xperi\ment.txt`), []byte(string("Hello, colon and backslash!")), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	fsys := os.DirFS(d)
+	err := fs.WalkDir(fsys, ".", func(path string, e fs.DirEntry, err error) error {
+		if fs.ValidPath(e.Name()) {
+			t.Logf("%q ok", e.Name())
+		} else {
+			t.Errorf("%q INVALID", e.Name())
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestReadFileProc(t *testing.T) {
@@ -2737,5 +2771,23 @@ func TestReadFileProc(t *testing.T) {
 	}
 	if len(data) == 0 || data[len(data)-1] != '\n' {
 		t.Fatalf("read %s: not newline-terminated: %q", name, data)
+	}
+}
+
+func TestWriteStringAlloc(t *testing.T) {
+	if runtime.GOOS == "js" {
+		t.Skip("js allocates a lot during File.WriteString")
+	}
+	d := t.TempDir()
+	f, err := Create(filepath.Join(d, "whiteboard.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	allocs := testing.AllocsPerRun(100, func() {
+		f.WriteString("I will not allocate when passed a string longer than 32 bytes.\n")
+	})
+	if allocs != 0 {
+		t.Errorf("expected 0 allocs for File.WriteString, got %v", allocs)
 	}
 }

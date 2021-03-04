@@ -55,8 +55,8 @@ func (check *Checker) conversion(x *operand, T Type) {
 		// - Keep untyped nil for untyped nil arguments.
 		// - For integer to string conversions, keep the argument type.
 		//   (See also the TODO below.)
-		if IsInterface(T) || constArg && !isConstType(T) {
-			final = Default(x.typ)
+		if IsInterface(T) || constArg && !isConstType(T) || x.isNil() {
+			final = Default(x.typ) // default type of untyped nil is untyped nil
 		} else if isInteger(x.typ) && isString(T) {
 			final = x.typ
 		}
@@ -142,7 +142,7 @@ func isUintptr(typ Type) bool {
 }
 
 func isUnsafePointer(typ Type) bool {
-	// TODO(gri): Is this asBasic() instead of typ.(*Basic) correct?
+	// TODO(gri): Is this asBasic(typ) instead of typ.(*Basic) correct?
 	//            (The former calls under(), while the latter doesn't.)
 	//            The spec does not say so, but gc claims it is. See also
 	//            issue 6326.

@@ -44,11 +44,13 @@ import (
 	"errors"
 	"internal/poll"
 	"internal/testlog"
+	"internal/unsafeheader"
 	"io"
 	"io/fs"
 	"runtime"
 	"syscall"
 	"time"
+	"unsafe"
 )
 
 // Name returns the name of the file as presented to Open.
@@ -246,7 +248,12 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 // WriteString is like Write, but writes the contents of string s rather than
 // a slice of bytes.
 func (f *File) WriteString(s string) (n int, err error) {
-	return f.Write([]byte(s))
+	var b []byte
+	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&b))
+	hdr.Data = (*unsafeheader.String)(unsafe.Pointer(&s)).Data
+	hdr.Cap = len(s)
+	hdr.Len = len(s)
+	return f.Write(b)
 }
 
 // Mkdir creates a new directory with the specified name and permission
@@ -620,10 +627,21 @@ func DirFS(dir string) fs.FS {
 	return dirFS(dir)
 }
 
+func containsAny(s, chars string) bool {
+	for i := 0; i < len(s); i++ {
+		for j := 0; j < len(chars); j++ {
+			if s[i] == chars[j] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 type dirFS string
 
 func (dir dirFS) Open(name string) (fs.File, error) {
-	if !fs.ValidPath(name) {
+	if !fs.ValidPath(name) || runtime.GOOS == "windows" && containsAny(name, `\:`) {
 		return nil, &PathError{Op: "open", Path: name, Err: ErrInvalid}
 	}
 	f, err := Open(string(dir) + "/" + name)

@@ -5,6 +5,8 @@
 package ssa
 
 import (
+	"cmd/compile/internal/abi"
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -20,30 +22,33 @@ type Config struct {
 	PtrSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.PtrSize
 	RegSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.RegSize
 	Types          Types
-	lowerBlock     blockRewriter // lowering function
-	lowerValue     valueRewriter // lowering function
-	splitLoad      valueRewriter // function for splitting merged load ops; only used on some architectures
-	registers      []Register    // machine registers
-	gpRegMask      regMask       // general purpose integer register mask
-	fpRegMask      regMask       // floating point register mask
-	fp32RegMask    regMask       // floating point register mask
-	fp64RegMask    regMask       // floating point register mask
-	specialRegMask regMask       // special register mask
-	GCRegMap       []*Register   // garbage collector register map, by GC register index
-	FPReg          int8          // register number of frame pointer, -1 if not used
-	LinkReg        int8          // register number of link register if it is a general purpose register, -1 if not used
-	hasGReg        bool          // has hardware g register
-	ctxt           *obj.Link     // Generic arch information
-	optimize       bool          // Do optimization
-	noDuffDevice   bool          // Don't use Duff's device
-	useSSE         bool          // Use SSE for non-float operations
-	useAvg         bool          // Use optimizations that need Avg* operations
-	useHmul        bool          // Use optimizations that need Hmul* operations
-	SoftFloat      bool          //
-	Race           bool          // race detector enabled
-	NeedsFpScratch bool          // No direct move between GP and FP register sets
-	BigEndian      bool          //
-	UseFMA         bool          // Use hardware FMA operation
+	lowerBlock     blockRewriter  // lowering function
+	lowerValue     valueRewriter  // lowering function
+	splitLoad      valueRewriter  // function for splitting merged load ops; only used on some architectures
+	registers      []Register     // machine registers
+	gpRegMask      regMask        // general purpose integer register mask
+	fpRegMask      regMask        // floating point register mask
+	fp32RegMask    regMask        // floating point register mask
+	fp64RegMask    regMask        // floating point register mask
+	specialRegMask regMask        // special register mask
+	intParamRegs   []int8         // register numbers of integer param (in/out) registers
+	floatParamRegs []int8         // register numbers of floating param (in/out) registers
+	ABI1           *abi.ABIConfig // "ABIInternal" under development // TODO change comment when this becomes current
+	ABI0           *abi.ABIConfig
+	GCRegMap       []*Register // garbage collector register map, by GC register index
+	FPReg          int8        // register number of frame pointer, -1 if not used
+	LinkReg        int8        // register number of link register if it is a general purpose register, -1 if not used
+	hasGReg        bool        // has hardware g register
+	ctxt           *obj.Link   // Generic arch information
+	optimize       bool        // Do optimization
+	noDuffDevice   bool        // Don't use Duff's device
+	useSSE         bool        // Use SSE for non-float operations
+	useAvg         bool        // Use optimizations that need Avg* operations
+	useHmul        bool        // Use optimizations that need Hmul* operations
+	SoftFloat      bool        //
+	Race           bool        // race detector enabled
+	BigEndian      bool        //
+	UseFMA         bool        // Use hardware FMA operation
 }
 
 type (
@@ -194,9 +199,12 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.registers = registersAMD64[:]
 		c.gpRegMask = gpRegMaskAMD64
 		c.fpRegMask = fpRegMaskAMD64
+		c.specialRegMask = specialRegMaskAMD64
+		c.intParamRegs = paramIntRegAMD64
+		c.floatParamRegs = paramFloatRegAMD64
 		c.FPReg = framepointerRegAMD64
 		c.LinkReg = linkRegAMD64
-		c.hasGReg = false
+		c.hasGReg = base.Flag.ABIWrap
 	case "386":
 		c.PtrSize = 4
 		c.RegSize = 4
@@ -324,6 +332,9 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 	c.optimize = optimize
 	c.useSSE = true
 	c.UseFMA = true
+
+	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.FixedFrameSize())
+	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.FixedFrameSize())
 
 	// On Plan 9, floating point operations are not allowed in note handler.
 	if objabi.GOOS == "plan9" {

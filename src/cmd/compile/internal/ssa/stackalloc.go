@@ -151,13 +151,24 @@ func (s *stackAllocState) stackalloc() {
 
 	// Allocate args to their assigned locations.
 	for _, v := range f.Entry.Values {
-		if v.Op != OpArg {
+		if v.Op != OpArg { // && v.Op != OpArgFReg && v.Op != OpArgIReg  {
 			continue
 		}
 		if v.Aux == nil {
 			f.Fatalf("%s has nil Aux\n", v.LongString())
 		}
-		loc := LocalSlot{N: v.Aux.(*ir.Name), Type: v.Type, Off: v.AuxInt}
+		var loc LocalSlot
+		var name *ir.Name
+		var offset int64
+		if v.Op == OpArg {
+			name = v.Aux.(*ir.Name)
+			offset = v.AuxInt
+		} else {
+			nameOff := v.Aux.(*AuxNameOffset)
+			name = nameOff.Name
+			offset = nameOff.Offset
+		}
+		loc = LocalSlot{N: name, Type: v.Type, Off: offset}
 		if f.pass.debug > stackDebug {
 			fmt.Printf("stackalloc %s to %s\n", v, loc)
 		}

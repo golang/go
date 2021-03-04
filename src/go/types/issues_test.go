@@ -385,9 +385,9 @@ func TestIssue28005(t *testing.T) {
 			}
 		}
 		if obj == nil {
-			t.Fatal("interface not found")
+			t.Fatal("object X not found")
 		}
-		iface := obj.Type().Underlying().(*Interface) // I must be an interface
+		iface := obj.Type().Underlying().(*Interface) // object X must be an interface
 
 		// Each iface method m is embedded; and m's receiver base type name
 		// must match the method's name per the choice in the source file.
@@ -548,4 +548,26 @@ func TestIssue43088(t *testing.T) {
 	// These calls must terminate (no endless recursion).
 	Comparable(T1)
 	Comparable(T2)
+}
+
+func TestIssue44515(t *testing.T) {
+	typ := Unsafe.Scope().Lookup("Pointer").Type()
+
+	got := TypeString(typ, nil)
+	want := "unsafe.Pointer"
+	if got != want {
+		t.Errorf("got %q; want %q", got, want)
+	}
+
+	qf := func(pkg *Package) string {
+		if pkg == Unsafe {
+			return "foo"
+		}
+		return ""
+	}
+	got = TypeString(typ, qf)
+	want = "foo.Pointer"
+	if got != want {
+		t.Errorf("got %q; want %q", got, want)
+	}
 }

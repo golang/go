@@ -112,9 +112,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			p.To.Reg = y
 		}
 	case ssa.OpMIPSMOVWnop:
-		if v.Reg() != v.Args[0].Reg() {
-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
-		}
 		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
@@ -244,9 +241,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpMIPSCMOVZ:
-		if v.Reg() != v.Args[0].Reg() {
-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
-		}
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[2].Reg()
@@ -254,9 +248,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpMIPSCMOVZzero:
-		if v.Reg() != v.Args[0].Reg() {
-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
-		}
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
@@ -372,6 +363,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpMIPSMOVDF,
 		ssa.OpMIPSNEGF,
 		ssa.OpMIPSNEGD,
+		ssa.OpMIPSSQRTF,
 		ssa.OpMIPSSQRTD,
 		ssa.OpMIPSCLZ:
 		p := s.Prog(v.Op.Asm())

@@ -38,7 +38,13 @@ const (
 
 var config = printer.Config{Mode: printerMode, Tabwidth: tabWidth}
 
-const parserMode = parser.ParseComments | parser.ParseTypeParams
+const (
+	parserMode = parser.ParseComments | parseTypeParams
+
+	// parseTypeParams tells go/parser to parse type parameters. Must be kept in
+	// sync with go/parser/interface.go.
+	parseTypeParams parser.Mode = 1 << 30
+)
 
 // Node formats node in canonical gofmt style and writes the result to dst.
 //

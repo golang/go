@@ -64,7 +64,7 @@ func checkListPointers[TElem any](t *testing.T, l *List[TElem], es []*Element[TE
 }
 
 func TestList(t *testing.T) {
-	l := New(string)()
+	l := New[string]()
 	checkListPointers(t, l, []*(Element[string]){})
 
 	// Single element list

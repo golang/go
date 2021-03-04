@@ -673,7 +673,7 @@ func (r *importReader) funcExt(n *ir.Name) {
 	r.linkname(n.Sym())
 	r.symIdx(n.Sym())
 
-	// TODO remove after register abi is working
+	// TODO(register args) remove after register abi is working
 	n.SetPragma(ir.PragmaFlag(r.uint64()))
 
 	// Escape analysis.
@@ -986,14 +986,23 @@ func (r *importReader) node() ir.Node {
 		fn.ClosureVars = cvars
 		r.allClosureVars = append(r.allClosureVars, cvars...)
 
-		fn.Dcl = r.readFuncDcls(fn)
-		body := r.stmtList()
+		fn.Inl = &ir.Inline{}
+		// Read in the Dcls and Body of the closure after temporarily
+		// setting r.curfn to fn.
+		r.funcBody(fn)
+		fn.Dcl = fn.Inl.Dcl
+		fn.Body = fn.Inl.Body
+		if len(fn.Body) == 0 {
+			// An empty closure must be represented as a single empty
+			// block statement, else it will be dropped.
+			fn.Body = []ir.Node{ir.NewBlockStmt(src.NoXPos, nil)}
+		}
+		fn.Inl = nil
+
 		ir.FinishCaptureNames(pos, r.curfn, fn)
 
 		clo := ir.NewClosureExpr(pos, fn)
 		fn.OClosure = clo
-
-		fn.Body = body
 
 		return clo
 

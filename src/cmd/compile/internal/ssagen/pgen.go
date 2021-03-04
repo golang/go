@@ -15,7 +15,6 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
-	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -90,7 +89,6 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		}
 	}
 
-	scratchUsed := false
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if n, ok := v.Aux.(*ir.Name); ok {
@@ -104,15 +102,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 					n.SetUsed(true)
 				}
 			}
-			if !scratchUsed {
-				scratchUsed = v.Op.UsesScratch()
-			}
-
 		}
-	}
-
-	if f.Config.NeedsFpScratch && scratchUsed {
-		s.scratchFpMem = typecheck.TempAt(src.NoXPos, s.curfn, types.Types[types.TUINT64])
 	}
 
 	sort.Sort(byStackVar(fn.Dcl))
@@ -148,7 +138,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		} else {
 			lastHasPtr = false
 		}
-		if Arch.LinkArch.InFamily(sys.MIPS, sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
+		if Arch.LinkArch.InFamily(sys.ARM, sys.ARM64, sys.PPC64) {
 			s.stksize = types.Rnd(s.stksize, int64(types.PtrSize))
 		}
 		n.SetFrameOffset(-s.stksize)
@@ -213,8 +203,7 @@ func StackOffset(slot ssa.LocalSlot) int32 {
 		if base.Ctxt.FixedFrameSize() == 0 {
 			off -= int64(types.PtrSize)
 		}
-		if objabi.Framepointer_enabled || objabi.GOARCH == "arm64" {
-			// There is a word space for FP on ARM64 even if the frame pointer is disabled
+		if objabi.Framepointer_enabled {
 			off -= int64(types.PtrSize)
 		}
 	case ir.PPARAM, ir.PPARAMOUT:

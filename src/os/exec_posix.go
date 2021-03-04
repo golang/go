@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris || windows
 // +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris windows
 
 package os
@@ -102,7 +103,12 @@ func (p *ProcessState) String() string {
 	res := ""
 	switch {
 	case status.Exited():
-		res = "exit status " + itoa(status.ExitStatus())
+		code := status.ExitStatus()
+		if runtime.GOOS == "windows" && uint(code) >= 1<<16 { // windows uses large hex numbers
+			res = "exit status " + uitox(uint(code))
+		} else { // unix systems use small decimal integers
+			res = "exit status " + itoa(code) // unix
+		}
 	case status.Signaled():
 		res = "signal: " + status.Signal().String()
 	case status.Stopped():

@@ -44,7 +44,8 @@ import (
 var (
 	haltOnError = flag.Bool("halt", false, "halt on error")
 	listErrors  = flag.Bool("errlist", false, "list errors")
-	testFiles   = flag.String("files", "", "space-separated list of test files")
+	testFiles   = flag.String("files", "", "comma-separated list of test files")
+	goVersion   = flag.String("lang", "", "Go language version (e.g. \"go1.12\"")
 )
 
 func parseFiles(t *testing.T, filenames []string, mode syntax.Mode) ([]*syntax.File, []error) {
@@ -83,7 +84,21 @@ func delta(x, y uint) uint {
 	}
 }
 
-func checkFiles(t *testing.T, sources []string, colDelta uint, trace bool) {
+// goVersionRx matches a Go version string using '_', e.g. "go1_12".
+var goVersionRx = regexp.MustCompile(`^go[1-9][0-9]*_(0|[1-9][0-9]*)$`)
+
+// asGoVersion returns a regular Go language version string
+// if s is a Go version string using '_' rather than '.' to
+// separate the major and minor version numbers (e.g. "go1_12").
+// Otherwise it returns the empty string.
+func asGoVersion(s string) string {
+	if goVersionRx.MatchString(s) {
+		return strings.Replace(s, "_", ".", 1)
+	}
+	return ""
+}
+
+func checkFiles(t *testing.T, sources []string, goVersion string, colDelta uint, trace bool) {
 	if len(sources) == 0 {
 		t.Fatal("no source files")
 	}
@@ -100,6 +115,11 @@ func checkFiles(t *testing.T, sources []string, colDelta uint, trace bool) {
 		pkgName = files[0].PkgName.Value
 	}
 
+	// if no Go version is given, consider the package name
+	if goVersion == "" {
+		goVersion = asGoVersion(pkgName)
+	}
+
 	if *listErrors && len(errlist) > 0 {
 		t.Errorf("--- %s:", pkgName)
 		for _, err := range errlist {
@@ -109,6 +129,7 @@ func checkFiles(t *testing.T, sources []string, colDelta uint, trace bool) {
 
 	// typecheck and collect typechecker errors
 	var conf Config
+	conf.GoVersion = goVersion
 	conf.AcceptMethodTypeParams = true
 	conf.InferFromConstraints = true
 	// special case for importC.src
@@ -220,13 +241,14 @@ func checkFiles(t *testing.T, sources []string, colDelta uint, trace bool) {
 }
 
 // TestCheck is for manual testing of selected input files, provided with -files.
+// The accepted Go language version can be controlled with the -lang flag.
 func TestCheck(t *testing.T) {
 	if *testFiles == "" {
 		return
 	}
 	testenv.MustHaveGoBuild(t)
 	DefPredeclaredTestFuncs()
-	checkFiles(t, strings.Split(*testFiles, " "), 0, testing.Verbose())
+	checkFiles(t, strings.Split(*testFiles, ","), *goVersion, 0, testing.Verbose())
 }
 
 func TestTestdata(t *testing.T)  { DefPredeclaredTestFuncs(); testDir(t, 75, "testdata") } // TODO(gri) narrow column tolerance
@@ -263,7 +285,7 @@ func testDir(t *testing.T, colDelta uint, dir string) {
 					fmt.Printf("\t%s\n", files[i])
 				}
 			}
-			checkFiles(t, files, colDelta, false)
+			checkFiles(t, files, "", colDelta, false)
 			continue
 		}
 
@@ -271,6 +293,6 @@ func testDir(t *testing.T, colDelta uint, dir string) {
 		if testing.Verbose() {
 			fmt.Printf("%3d %s\n", count, path)
 		}
-		checkFiles(t, []string{path}, colDelta, false)
+		checkFiles(t, []string{path}, "", colDelta, false)
 	}
 }

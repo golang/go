@@ -568,17 +568,23 @@ func newName(n, tag string, exported bool) name {
 // Method represents a single method.
 type Method struct {
 	// Name is the method name.
+	Name string
+
 	// PkgPath is the package path that qualifies a lower case (unexported)
 	// method name. It is empty for upper case (exported) method names.
 	// The combination of PkgPath and Name uniquely identifies a method
 	// in a method set.
 	// See https://golang.org/ref/spec#Uniqueness_of_identifiers
-	Name    string
 	PkgPath string
 
 	Type  Type  // method type
 	Func  Value // func with receiver as first argument
 	Index int   // index for Type.Method
+}
+
+// IsExported reports whether the method is exported.
+func (m Method) IsExported() bool {
+	return m.PkgPath == ""
 }
 
 const (
@@ -1090,6 +1096,7 @@ func (t *interfaceType) MethodByName(name string) (m Method, ok bool) {
 type StructField struct {
 	// Name is the field name.
 	Name string
+
 	// PkgPath is the package path that qualifies a lower case (unexported)
 	// field name. It is empty for upper case (exported) field names.
 	// See https://golang.org/ref/spec#Uniqueness_of_identifiers
@@ -1100,6 +1107,11 @@ type StructField struct {
 	Offset    uintptr   // offset within struct, in bytes
 	Index     []int     // index sequence for Type.FieldByIndex
 	Anonymous bool      // is an embedded field
+}
+
+// IsExported reports whether the field is exported.
+func (f StructField) IsExported() bool {
+	return f.PkgPath == ""
 }
 
 // A StructTag is the tag string in a struct field.
@@ -1723,7 +1735,7 @@ func typesByString(s string) []*rtype {
 		// This is a copy of sort.Search, with f(h) replaced by (*typ[h].String() >= s).
 		i, j := 0, len(offs)
 		for i < j {
-			h := i + (j-i)/2 // avoid overflow when computing h
+			h := i + (j-i)>>1 // avoid overflow when computing h
 			// i ≤ h < j
 			if !(rtypeOff(section, offs[h]).String() >= s) {
 				i = h + 1 // preserves f(i-1) == false
@@ -2771,8 +2783,7 @@ func runtimeStructField(field StructField) (structField, string) {
 		panic("reflect.StructOf: field \"" + field.Name + "\" is anonymous but has PkgPath set")
 	}
 
-	exported := field.PkgPath == ""
-	if exported {
+	if field.IsExported() {
 		// Best-effort check for misuse.
 		// Since this field will be treated as exported, not much harm done if Unicode lowercase slips through.
 		c := field.Name[0]
@@ -2788,7 +2799,7 @@ func runtimeStructField(field StructField) (structField, string) {
 
 	resolveReflectType(field.Type.common()) // install in runtime
 	f := structField{
-		name:        newName(field.Name, string(field.Tag), exported),
+		name:        newName(field.Name, string(field.Tag), field.IsExported()),
 		typ:         field.Type.common(),
 		offsetEmbed: offsetEmbed,
 	}
@@ -2984,21 +2995,20 @@ type layoutKey struct {
 
 type layoutType struct {
 	t         *rtype
-	argSize   uintptr // size of arguments
-	retOffset uintptr // offset of return values.
-	stack     *bitVector
 	framePool *sync.Pool
+	abi       abiDesc
 }
 
 var layoutCache sync.Map // map[layoutKey]layoutType
 
 // funcLayout computes a struct type representing the layout of the
-// function arguments and return values for the function type t.
+// stack-assigned function arguments and return values for the function
+// type t.
 // If rcvr != nil, rcvr specifies the type of the receiver.
 // The returned type exists only for GC, so we only fill out GC relevant info.
 // Currently, that's just size and the GC program. We also fill in
 // the name for possible debugging use.
-func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, argSize, retOffset uintptr, stk *bitVector, framePool *sync.Pool) {
+func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Pool, abi abiDesc) {
 	if t.Kind() != Func {
 		panic("reflect: funcLayout of non-func type " + t.String())
 	}
@@ -3008,46 +3018,24 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, argSize, retOffset 
 	k := layoutKey{t, rcvr}
 	if lti, ok := layoutCache.Load(k); ok {
 		lt := lti.(layoutType)
-		return lt.t, lt.argSize, lt.retOffset, lt.stack, lt.framePool
+		return lt.t, lt.framePool, lt.abi
 	}
 
-	// compute gc program & stack bitmap for arguments
-	ptrmap := new(bitVector)
-	var offset uintptr
-	if rcvr != nil {
-		// Reflect uses the "interface" calling convention for
-		// methods, where receivers take one word of argument
-		// space no matter how big they actually are.
-		if ifaceIndir(rcvr) || rcvr.pointers() {
-			ptrmap.append(1)
-		} else {
-			ptrmap.append(0)
-		}
-		offset += ptrSize
-	}
-	for _, arg := range t.in() {
-		offset += -offset & uintptr(arg.align-1)
-		addTypeBits(ptrmap, offset, arg)
-		offset += arg.size
-	}
-	argSize = offset
-	offset += -offset & (ptrSize - 1)
-	retOffset = offset
-	for _, res := range t.out() {
-		offset += -offset & uintptr(res.align-1)
-		addTypeBits(ptrmap, offset, res)
-		offset += res.size
-	}
-	offset += -offset & (ptrSize - 1)
+	// Compute the ABI layout.
+	abi = newAbiDesc(t, rcvr)
 
 	// build dummy rtype holding gc program
 	x := &rtype{
-		align:   ptrSize,
-		size:    offset,
-		ptrdata: uintptr(ptrmap.n) * ptrSize,
+		align: ptrSize,
+		// Don't add spill space here; it's only necessary in
+		// reflectcall's frame, not in the allocated frame.
+		// TODO(mknyszek): Remove this comment when register
+		// spill space in the frame is no longer required.
+		size:    align(abi.retOffset+abi.ret.stackBytes, ptrSize),
+		ptrdata: uintptr(abi.stackPtrs.n) * ptrSize,
 	}
-	if ptrmap.n > 0 {
-		x.gcdata = &ptrmap.data[0]
+	if abi.stackPtrs.n > 0 {
+		x.gcdata = &abi.stackPtrs.data[0]
 	}
 
 	var s string
@@ -3064,13 +3052,11 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, argSize, retOffset 
 	}}
 	lti, _ := layoutCache.LoadOrStore(k, layoutType{
 		t:         x,
-		argSize:   argSize,
-		retOffset: retOffset,
-		stack:     ptrmap,
 		framePool: framePool,
+		abi:       abi,
 	})
 	lt := lti.(layoutType)
-	return lt.t, lt.argSize, lt.retOffset, lt.stack, lt.framePool
+	return lt.t, lt.framePool, lt.abi
 }
 
 // ifaceIndir reports whether t is stored indirectly in an interface value.

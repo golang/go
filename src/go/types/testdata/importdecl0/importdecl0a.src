@@ -10,7 +10,7 @@ import (
 	// we can have multiple blank imports (was bug)
 	_ "math"
 	_ "net/rpc"
-	init /* ERROR "cannot declare init" */ "fmt"
+	init /* ERROR "cannot import package as init" */ "fmt"
 	// reflect defines a type "flag" which shows up in the gc export data
 	"reflect"
 	. /* ERROR "imported but not used" */ "reflect"

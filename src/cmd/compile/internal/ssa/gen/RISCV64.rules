@@ -92,6 +92,7 @@
 (Com8  ...) => (NOT ...)
 
 (Sqrt ...) => (FSQRTD ...)
+(Sqrt32 ...) => (FSQRTS ...)
 
 // Sign and zero extension.
 
@@ -251,7 +252,7 @@
 
 (EqPtr x y) => (SEQZ (SUB <x.Type> x y))
 (Eq64  x y) => (SEQZ (SUB <x.Type> x y))
-(Eq32  x y) => (SEQZ (SUBW <x.Type> x y))
+(Eq32  x y) => (SEQZ (SUB <x.Type> (ZeroExt32to64 x) (ZeroExt32to64 y)))
 (Eq16  x y) => (SEQZ (SUB <x.Type> (ZeroExt16to64 x) (ZeroExt16to64 y)))
 (Eq8   x y) => (SEQZ (SUB <x.Type> (ZeroExt8to64  x) (ZeroExt8to64  y)))
 (Eq64F ...) => (FEQD ...)
@@ -259,7 +260,7 @@
 
 (NeqPtr x y) => (SNEZ (SUB <x.Type> x y))
 (Neq64  x y) => (SNEZ (SUB <x.Type> x y))
-(Neq32  x y) => (SNEZ (SUBW <x.Type> x y))
+(Neq32  x y) => (SNEZ (SUB <x.Type> (ZeroExt32to64 x) (ZeroExt32to64 y)))
 (Neq16  x y) => (SNEZ (SUB <x.Type> (ZeroExt16to64 x) (ZeroExt16to64 y)))
 (Neq8   x y) => (SNEZ (SUB <x.Type> (ZeroExt8to64  x) (ZeroExt8to64  y)))
 (Neq64F ...) => (FNED ...)
@@ -563,11 +564,27 @@
 (AtomicAdd32 ...) => (LoweredAtomicAdd32 ...)
 (AtomicAdd64 ...) => (LoweredAtomicAdd64 ...)
 
+// AtomicAnd8(ptr,val) => LoweredAtomicAnd32(ptr&^3, ^((uint8(val) ^ 0xff) << ((ptr & 3) * 8)))
+(AtomicAnd8 ptr val mem) =>
+	(LoweredAtomicAnd32 (ANDI <typ.Uintptr> [^3] ptr)
+		(NOT <typ.UInt32> (SLL <typ.UInt32> (XORI <typ.UInt32> [0xff] (ZeroExt8to32 val))
+			(SLLI <typ.UInt64> [3] (ANDI <typ.UInt64> [3] ptr)))) mem)
+
+(AtomicAnd32 ...) => (LoweredAtomicAnd32 ...)
+
 (AtomicCompareAndSwap32 ...) => (LoweredAtomicCas32 ...)
 (AtomicCompareAndSwap64 ...) => (LoweredAtomicCas64 ...)
 
 (AtomicExchange32 ...) => (LoweredAtomicExchange32 ...)
 (AtomicExchange64 ...) => (LoweredAtomicExchange64 ...)
+
+// AtomicOr8(ptr,val)  => LoweredAtomicOr32(ptr&^3, uint32(val)<<((ptr&3)*8))
+(AtomicOr8 ptr val mem) =>
+	(LoweredAtomicOr32 (ANDI <typ.Uintptr> [^3] ptr)
+		(SLL <typ.UInt32> (ZeroExt8to32 val)
+			(SLLI <typ.UInt64> [3] (ANDI <typ.UInt64> [3] ptr))) mem)
+
+(AtomicOr32  ...) => (LoweredAtomicOr32  ...)
 
 // Conditional branches
 (If cond yes no) => (BNEZ cond yes no)
@@ -672,6 +689,10 @@
 // If a register move has only 1 use, just use the same register without emitting instruction
 // MOVnop does not emit an instruction, only for ensuring the type.
 (MOVDreg x) && x.Uses == 1 => (MOVDnop x)
+
+// TODO: we should be able to get rid of MOVDnop all together.
+// But for now, this is enough to get rid of lots of them.
+(MOVDnop (MOVDconst [c])) => (MOVDconst [c])
 
 // Fold constant into immediate instructions where possible.
 (ADD (MOVBconst [val]) x) => (ADDI [int64(val)] x)

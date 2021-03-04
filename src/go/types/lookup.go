@@ -107,7 +107,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 		var next []embeddedType // embedded types found at current depth
 
 		// look for (pkg, name) in all types at current depth
-		var tpar *TypeParam // set if obj receiver is a type parameter
+		var tpar *_TypeParam // set if obj receiver is a type parameter
 		for _, e := range current {
 			typ := e.typ
 
@@ -195,7 +195,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 					indirect = e.indirect
 				}
 
-			case *TypeParam:
+			case *_TypeParam:
 				// only consider explicit methods in the type parameter bound, not
 				// methods that may be common to all types in the type list.
 				if i, m := lookupMethod(t.Bound().allMethods, pkg, name); m != nil {

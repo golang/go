@@ -125,6 +125,12 @@ func (f *File) AddComment(text string) {
 
 type VersionFixer func(path, version string) (string, error)
 
+// errDontFix is returned by a VersionFixer to indicate the version should be
+// left alone, even if it's not canonical.
+var dontFixRetract VersionFixer = func(_, vers string) (string, error) {
+	return vers, nil
+}
+
 // Parse parses the data, reported in errors as being from file,
 // into a File struct. It applies fix, if non-nil, to canonicalize all module versions found.
 func Parse(file string, data []byte, fix VersionFixer) (*File, error) {
@@ -142,7 +148,7 @@ func ParseLax(file string, data []byte, fix VersionFixer) (*File, error) {
 	return parseToFile(file, data, fix, false)
 }
 
-func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (*File, error) {
+func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (parsed *File, err error) {
 	fs, err := parse(file, data)
 	if err != nil {
 		return nil, err
@@ -150,8 +156,18 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (*File
 	f := &File{
 		Syntax: fs,
 	}
-
 	var errs ErrorList
+
+	// fix versions in retract directives after the file is parsed.
+	// We need the module path to fix versions, and it might be at the end.
+	defer func() {
+		oldLen := len(errs)
+		f.fixRetract(fix, &errs)
+		if len(errs) > oldLen {
+			parsed, err = nil, errs
+		}
+	}()
+
 	for _, x := range fs.Stmt {
 		switch x := x.(type) {
 		case *Line:
@@ -370,7 +386,7 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
 
 	case "retract":
 		rationale := parseRetractRationale(block, line)
-		vi, err := parseVersionInterval(verb, &args, fix)
+		vi, err := parseVersionInterval(verb, "", &args, dontFixRetract)
 		if err != nil {
 			if strict {
 				wrapError(err)
@@ -394,6 +410,47 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
 			Syntax:          line,
 		}
 		f.Retract = append(f.Retract, retract)
+	}
+}
+
+// fixRetract applies fix to each retract directive in f, appending any errors
+// to errs.
+//
+// Most versions are fixed as we parse the file, but for retract directives,
+// the relevant module path is the one specified with the module directive,
+// and that might appear at the end of the file (or not at all).
+func (f *File) fixRetract(fix VersionFixer, errs *ErrorList) {
+	if fix == nil {
+		return
+	}
+	path := ""
+	if f.Module != nil {
+		path = f.Module.Mod.Path
+	}
+	var r *Retract
+	wrapError := func(err error) {
+		*errs = append(*errs, Error{
+			Filename: f.Syntax.Name,
+			Pos:      r.Syntax.Start,
+			Err:      err,
+		})
+	}
+
+	for _, r = range f.Retract {
+		if path == "" {
+			wrapError(errors.New("no module directive found, so retract cannot be used"))
+			return // only print the first one of these
+		}
+
+		args := r.Syntax.Token
+		if args[0] == "retract" {
+			args = args[1:]
+		}
+		vi, err := parseVersionInterval("retract", path, &args, fix)
+		if err != nil {
+			wrapError(err)
+		}
+		r.VersionInterval = vi
 	}
 }
 
@@ -491,13 +548,13 @@ func AutoQuote(s string) string {
 	return s
 }
 
-func parseVersionInterval(verb string, args *[]string, fix VersionFixer) (VersionInterval, error) {
+func parseVersionInterval(verb string, path string, args *[]string, fix VersionFixer) (VersionInterval, error) {
 	toks := *args
 	if len(toks) == 0 || toks[0] == "(" {
 		return VersionInterval{}, fmt.Errorf("expected '[' or version")
 	}
 	if toks[0] != "[" {
-		v, err := parseVersion(verb, "", &toks[0], fix)
+		v, err := parseVersion(verb, path, &toks[0], fix)
 		if err != nil {
 			return VersionInterval{}, err
 		}
@@ -509,7 +566,7 @@ func parseVersionInterval(verb string, args *[]string, fix VersionFixer) (Versio
 	if len(toks) == 0 {
 		return VersionInterval{}, fmt.Errorf("expected version after '['")
 	}
-	low, err := parseVersion(verb, "", &toks[0], fix)
+	low, err := parseVersion(verb, path, &toks[0], fix)
 	if err != nil {
 		return VersionInterval{}, err
 	}
@@ -523,7 +580,7 @@ func parseVersionInterval(verb string, args *[]string, fix VersionFixer) (Versio
 	if len(toks) == 0 {
 		return VersionInterval{}, fmt.Errorf("expected version after ','")
 	}
-	high, err := parseVersion(verb, "", &toks[0], fix)
+	high, err := parseVersion(verb, path, &toks[0], fix)
 	if err != nil {
 		return VersionInterval{}, err
 	}
@@ -631,8 +688,7 @@ func parseVersion(verb string, path string, s *string, fix VersionFixer) (string
 		}
 	}
 	if fix != nil {
-		var err error
-		t, err = fix(path, t)
+		fixed, err := fix(path, t)
 		if err != nil {
 			if err, ok := err.(*module.ModuleError); ok {
 				return "", &Error{
@@ -643,19 +699,23 @@ func parseVersion(verb string, path string, s *string, fix VersionFixer) (string
 			}
 			return "", err
 		}
+		t = fixed
+	} else {
+		cv := module.CanonicalVersion(t)
+		if cv == "" {
+			return "", &Error{
+				Verb:    verb,
+				ModPath: path,
+				Err: &module.InvalidVersionError{
+					Version: t,
+					Err:     errors.New("must be of the form v1.2.3"),
+				},
+			}
+		}
+		t = cv
 	}
-	if v := module.CanonicalVersion(t); v != "" {
-		*s = v
-		return *s, nil
-	}
-	return "", &Error{
-		Verb:    verb,
-		ModPath: path,
-		Err: &module.InvalidVersionError{
-			Version: t,
-			Err:     errors.New("must be of the form v1.2.3"),
-		},
-	}
+	*s = t
+	return *s, nil
 }
 
 func modulePathMajor(path string) (string, error) {
@@ -835,11 +895,8 @@ func (f *File) DropRequire(path string) error {
 // AddExclude adds a exclude statement to the mod file. Errors if the provided
 // version is not a canonical version string
 func (f *File) AddExclude(path, vers string) error {
-	if !isCanonicalVersion(vers) {
-		return &module.InvalidVersionError{
-			Version: vers,
-			Err:     errors.New("must be of the form v1.2.3"),
-		}
+	if err := checkCanonicalVersion(path, vers); err != nil {
+		return err
 	}
 
 	var hint *Line
@@ -916,17 +973,15 @@ func (f *File) DropReplace(oldPath, oldVers string) error {
 // AddRetract adds a retract statement to the mod file. Errors if the provided
 // version interval does not consist of canonical version strings
 func (f *File) AddRetract(vi VersionInterval, rationale string) error {
-	if !isCanonicalVersion(vi.High) {
-		return &module.InvalidVersionError{
-			Version: vi.High,
-			Err:     errors.New("must be of the form v1.2.3"),
-		}
+	var path string
+	if f.Module != nil {
+		path = f.Module.Mod.Path
 	}
-	if !isCanonicalVersion(vi.Low) {
-		return &module.InvalidVersionError{
-			Version: vi.Low,
-			Err:     errors.New("must be of the form v1.2.3"),
-		}
+	if err := checkCanonicalVersion(path, vi.High); err != nil {
+		return err
+	}
+	if err := checkCanonicalVersion(path, vi.Low); err != nil {
+		return err
 	}
 
 	r := &Retract{
@@ -1086,8 +1141,40 @@ func lineRetractLess(li, lj *Line) bool {
 	return semver.Compare(vii.High, vij.High) > 0
 }
 
-// isCanonicalVersion tests if the provided version string represents a valid
-// canonical version.
-func isCanonicalVersion(vers string) bool {
-	return vers != "" && semver.Canonical(vers) == vers
+// checkCanonicalVersion returns a non-nil error if vers is not a canonical
+// version string or does not match the major version of path.
+//
+// If path is non-empty, the error text suggests a format with a major version
+// corresponding to the path.
+func checkCanonicalVersion(path, vers string) error {
+	_, pathMajor, pathMajorOk := module.SplitPathVersion(path)
+
+	if vers == "" || vers != module.CanonicalVersion(vers) {
+		if pathMajor == "" {
+			return &module.InvalidVersionError{
+				Version: vers,
+				Err:     fmt.Errorf("must be of the form v1.2.3"),
+			}
+		}
+		return &module.InvalidVersionError{
+			Version: vers,
+			Err:     fmt.Errorf("must be of the form %s.2.3", module.PathMajorPrefix(pathMajor)),
+		}
+	}
+
+	if pathMajorOk {
+		if err := module.CheckPathMajor(vers, pathMajor); err != nil {
+			if pathMajor == "" {
+				// In this context, the user probably wrote "v2.3.4" when they meant
+				// "v2.3.4+incompatible". Suggest that instead of "v0 or v1".
+				return &module.InvalidVersionError{
+					Version: vers,
+					Err:     fmt.Errorf("should be %s+incompatible (or module %s/%v)", vers, path, semver.Major(vers)),
+				}
+			}
+			return err
+		}
+	}
+
+	return nil
 }

@@ -53,12 +53,12 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 	}
 	assert(typ != nil)
 
-	// The object may be dot-imported: If so, remove its package from
-	// the map of unused dot imports for the respective file scope.
+	// The object may have been dot-imported.
+	// If so, mark the respective package as used.
 	// (This code is only needed for dot-imports. Without them,
 	// we only have to mark variables, see *Var case below).
-	if pkg := obj.Pkg(); pkg != check.pkg && pkg != nil {
-		delete(check.unusedDotImports[scope], pkg)
+	if pkgName := check.dotImportMap[dotImportKey{scope, obj}]; pkgName != nil {
+		pkgName.used = true
 	}
 
 	switch obj := obj.(type) {
@@ -146,7 +146,7 @@ func (check *Checker) ordinaryType(pos positioner, typ Type) {
 				check.softErrorf(pos, _Todo, "interface contains type constraints (%s)", t.allTypes)
 				return
 			}
-			if t.IsComparable() {
+			if t._IsComparable() {
 				check.softErrorf(pos, _Todo, "interface is (or embeds) comparable")
 			}
 		}
@@ -208,21 +208,28 @@ func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
 			new.X = X
 			return &new
 		}
-	case *ast.CallExpr:
-		var args []ast.Expr
-		for i, arg := range n.Args {
-			new := isubst(arg, smap)
-			if new != arg {
-				if args == nil {
-					args = make([]ast.Expr, len(n.Args))
-					copy(args, n.Args)
+	case *ast.IndexExpr:
+		index := isubst(n.Index, smap)
+		if index != n.Index {
+			new := *n
+			new.Index = index
+			return &new
+		}
+	case *ast.ListExpr:
+		var elems []ast.Expr
+		for i, elem := range n.ElemList {
+			new := isubst(elem, smap)
+			if new != elem {
+				if elems == nil {
+					elems = make([]ast.Expr, len(n.ElemList))
+					copy(elems, n.ElemList)
 				}
-				args[i] = new
+				elems[i] = new
 			}
 		}
-		if args != nil {
+		if elems != nil {
 			new := *n
-			new.Args = args
+			new.ElemList = elems
 			return &new
 		}
 	case *ast.ParenExpr:
@@ -294,7 +301,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				}
 				smap := makeSubstMap(recvTParams, list)
 				for i, tname := range sig.rparams {
-					bound := recvTParams[i].typ.(*TypeParam).bound
+					bound := recvTParams[i].typ.(*_TypeParam).bound
 					// bound is (possibly) parameterized in the context of the
 					// receiver type declaration. Substitute parameters for the
 					// current context.
@@ -302,7 +309,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 					//           (no bound == empty interface)
 					if bound != nil {
 						bound = check.subst(tname.pos, bound, smap)
-						tname.typ.(*TypeParam).bound = bound
+						tname.typ.(*_TypeParam).bound = bound
 					}
 				}
 			}
@@ -326,7 +333,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	recvList, _ := check.collectParams(scope, recvPar, recvTyp, false) // use rewritten receiver type, if any
 	params, variadic := check.collectParams(scope, ftyp.Params, nil, true)
 	results, _ := check.collectParams(scope, ftyp.Results, nil, false)
-	scope.Squash(func(obj, alt Object) {
+	scope.squash(func(obj, alt Object) {
 		check.errorf(obj, _DuplicateDecl, "%s redeclared in this block", obj.Name())
 		check.reportAltDecl(alt)
 	})
@@ -391,7 +398,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 }
 
 // goTypeName returns the Go type name for typ and
-// removes any occurences of "types." from that name.
+// removes any occurrences of "types." from that name.
 func goTypeName(typ Type) string {
 	return strings.ReplaceAll(fmt.Sprintf("%T", typ), "types.", "")
 }
@@ -460,14 +467,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		}
 
 	case *ast.IndexExpr:
-		return check.instantiatedType(e.X, []ast.Expr{e.Index}, def)
-
-	case *ast.CallExpr:
-		if e.Brackets {
-			return check.instantiatedType(e.Fun, e.Args, def)
-		} else {
-			check.errorf(e0, _NotAType, "%s is not a type", e0)
-		}
+		return check.instantiatedType(e.X, unpackExpr(e.Index), def)
 
 	case *ast.ParenExpr:
 		// Generic types must be instantiated before they can be used in any form.
@@ -487,6 +487,12 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		def.setUnderlying(typ)
 		typ.elem = check.varType(e.Elt)
 		return typ
+
+	case *ast.Ellipsis:
+		// dots are handled explicitly where they are legal
+		// (array composite literals and parameter lists)
+		check.error(e, _InvalidDotDotDot, "invalid use of '...'")
+		check.use(e.Elt)
 
 	case *ast.StructType:
 		typ := new(Struct)
@@ -668,7 +674,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 }
 
 // typeList provides the list of types corresponding to the incoming expression list.
-// If an error occured, the result is nil, but all list elements were type-checked.
+// If an error occurred, the result is nil, but all list elements were type-checked.
 func (check *Checker) typeList(list []ast.Expr) []Type {
 	res := make([]Type, len(list)) // res != nil even if len(list) == 0
 	for i, x := range list {
@@ -817,7 +823,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	}
 
 	// type constraints
-	ityp.types = NewSum(check.collectTypeConstraints(iface.Pos(), types))
+	ityp.types = _NewSum(check.collectTypeConstraints(iface.Pos(), types))
 
 	if len(ityp.methods) == 0 && ityp.types == nil && len(ityp.embeddeds) == 0 {
 		// empty interface
@@ -826,8 +832,8 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	}
 
 	// sort for API stability
-	sort.Sort(byUniqueMethodName(ityp.methods))
-	sort.Stable(byUniqueTypeName(ityp.embeddeds))
+	sortMethods(ityp.methods)
+	sortTypes(ityp.embeddeds)
 
 	check.later(func() { check.completeInterface(iface.Pos(), ityp) })
 }
@@ -893,9 +899,13 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 			check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
 			check.errorf(atPos(mpos[other.(*Func)]), _DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
 		default:
-			// check method signatures after all types are computed (issue #33656)
+			// We have a duplicate method name in an embedded (not explicitly declared) method.
+			// Check method signatures after all types are computed (issue #33656).
+			// If we're pre-go1.14 (overlapping embeddings are not permitted), report that
+			// error here as well (even though we could do it eagerly) because it's the same
+			// error message.
 			check.atEnd(func() {
-				if !check.identical(m.typ, other.Type()) {
+				if !check.allowVersion(m.pkg, 1, 14) || !check.identical(m.typ, other.Type()) {
 					check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
 					check.errorf(atPos(mpos[other.(*Func)]), _DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
 				}
@@ -918,7 +928,7 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 		if etyp == nil {
 			if utyp != Typ[Invalid] {
 				var format string
-				if _, ok := utyp.(*TypeParam); ok {
+				if _, ok := utyp.(*_TypeParam); ok {
 					format = "%s is a type parameter, not an interface"
 				} else {
 					format = "%s is not an interface"
@@ -977,7 +987,11 @@ func intersect(x, y Type) (r Type) {
 	if rtypes == nil {
 		return theBottom
 	}
-	return NewSum(rtypes)
+	return _NewSum(rtypes)
+}
+
+func sortTypes(list []Type) {
+	sort.Stable(byUniqueTypeName(list))
 }
 
 // byUniqueTypeName named type lists can be sorted by their unique type names.
@@ -992,6 +1006,19 @@ func sortName(t Type) string {
 		return named.obj.Id()
 	}
 	return ""
+}
+
+func sortMethods(list []*Func) {
+	sort.Sort(byUniqueMethodName(list))
+}
+
+func assertSortedMethods(list []*Func) {
+	if !debug {
+		panic("internal error: assertSortedMethods called outside debug mode")
+	}
+	if !sort.IsSorted(byUniqueMethodName(list)) {
+		panic("internal error: methods not sorted")
+	}
 }
 
 // byUniqueMethodName method lists can be sorted by their unique method names.
@@ -1131,10 +1158,6 @@ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
 		return e.Sel
 	case *ast.IndexExpr:
 		return embeddedFieldIdent(e.X)
-	case *ast.CallExpr:
-		if e.Brackets {
-			return embeddedFieldIdent(e.Fun)
-		}
 	}
 	return nil // invalid embedded field
 }

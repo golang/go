@@ -99,7 +99,7 @@ type keyValue[K, V any] struct {
 
 // iterate returns an iterator that traverses the map.
 func (m *Map[K, V]) Iterate() *Iterator[K, V] {
-	sender, receiver := chans.Ranger(keyValue[K, V])()
+	sender, receiver := chans.Ranger[keyValue[K, V]]()
 	var f func(*node[K, V]) bool
 	f = func(n *node[K, V]) bool {
 		if n == nil {

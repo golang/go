@@ -5,7 +5,6 @@
 package runtime
 
 import (
-	"internal/cpu"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -327,7 +326,7 @@ type gobuf struct {
 	pc   uintptr
 	g    guintptr
 	ctxt unsafe.Pointer
-	ret  sys.Uintreg
+	ret  uintptr
 	lr   uintptr
 	bp   uintptr // for framepointer-enabled architectures
 }
@@ -713,7 +712,8 @@ type p struct {
 	// scheduler ASAP (regardless of what G is running on it).
 	preempt bool
 
-	pad cpu.CacheLinePad
+	// Padding is no longer needed. False sharing is now not a worry because p is large enough
+	// that its size class is an integer multiple of the cache line size (for any of our architectures).
 }
 
 type schedt struct {
@@ -833,10 +833,11 @@ type _func struct {
 	pcfile    uint32
 	pcln      uint32
 	npcdata   uint32
-	cuOffset  uint32  // runtime.cutab offset of this function's CU
-	funcID    funcID  // set for certain special runtime functions
-	_         [2]byte // pad
-	nfuncdata uint8   // must be last
+	cuOffset  uint32 // runtime.cutab offset of this function's CU
+	funcID    funcID // set for certain special runtime functions
+	flag      funcFlag
+	_         [1]byte // pad
+	nfuncdata uint8   // must be last, must end on a uint32-aligned boundary
 }
 
 // Pseudo-Func that is returned for PCs that occur in inlined code.
@@ -1105,4 +1106,4 @@ var (
 )
 
 // Must agree with cmd/internal/objabi.Framepointer_enabled.
-const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin" || GOOS == "ios")
+const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64"

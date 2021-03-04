@@ -298,7 +298,6 @@ const (
 	SymFlagNoSplit
 	SymFlagReflectMethod
 	SymFlagGoType
-	SymFlagTopFrame
 )
 
 // Sym.Flag2
@@ -332,7 +331,6 @@ func (s *Sym) Leaf() bool          { return s.Flag()&SymFlagLeaf != 0 }
 func (s *Sym) NoSplit() bool       { return s.Flag()&SymFlagNoSplit != 0 }
 func (s *Sym) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 }
 func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
-func (s *Sym) TopFrame() bool      { return s.Flag()&SymFlagTopFrame != 0 }
 func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
 func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
 
@@ -483,7 +481,7 @@ func (r *RefFlags) SetFlag2(x uint8) { r[9] = x }
 
 func (r *RefFlags) Write(w *Writer) { w.Bytes(r[:]) }
 
-// Used to construct an artifically large array type when reading an
+// Used to construct an artificially large array type when reading an
 // item from the object file relocs section or aux sym section (needs
 // to work on 32-bit as well as 64-bit). See issue 41621.
 const huge = (1<<31 - 1) / RelocSize

@@ -35,6 +35,7 @@ func check2(noders []*noder) {
 
 	// typechecking
 	conf := types2.Config{
+		GoVersion:             base.Flag.Lang,
 		InferFromConstraints:  true,
 		IgnoreLabels:          true, // parser already checked via syntax.CheckBranches mode
 		CompilerErrorMessages: true, // use error strings matching existing compiler errors
@@ -185,6 +186,21 @@ Outer:
 			return false
 		})
 	}
+
+	// Create any needed stencils of generic functions
+	g.stencil()
+
+	// For now, remove all generic functions from g.target.Decl, since they
+	// have been used for stenciling, but don't compile. TODO: We will
+	// eventually export any exportable generic functions.
+	j := 0
+	for i, decl := range g.target.Decls {
+		if decl.Op() != ir.ODCLFUNC || !decl.Type().HasTParam() {
+			g.target.Decls[j] = g.target.Decls[i]
+			j++
+		}
+	}
+	g.target.Decls = g.target.Decls[:j]
 }
 
 func (g *irgen) unhandled(what string, p poser) {

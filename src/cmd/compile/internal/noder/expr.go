@@ -87,11 +87,13 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 
 	case *syntax.CompositeLit:
 		return g.compLit(typ, expr)
+
 	case *syntax.FuncLit:
 		return g.funcLit(typ, expr)
 
 	case *syntax.AssertExpr:
 		return Assert(pos, g.expr(expr.X), g.typeExpr(expr.Type))
+
 	case *syntax.CallExpr:
 		fun := g.expr(expr.Fun)
 		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.Targs) > 0 {
@@ -114,6 +116,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 
 		}
 		return Call(pos, g.typ(typ), fun, g.exprs(expr.ArgList), expr.HasDots)
+
 	case *syntax.IndexExpr:
 		var targs []ir.Node
 		if _, ok := expr.Index.(*syntax.ListExpr); ok {
@@ -139,6 +142,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 
 	case *syntax.ParenExpr:
 		return g.expr(expr.X) // skip parens; unneeded after parse+typecheck
+
 	case *syntax.SelectorExpr:
 		// Qualified identifier.
 		if name, ok := expr.X.(*syntax.Name); ok {
@@ -147,8 +151,8 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 				return typecheck.Expr(g.use(expr.Sel))
 			}
 		}
+		return g.selectorExpr(pos, typ, expr)
 
-		return g.selectorExpr(pos, expr)
 	case *syntax.SliceExpr:
 		return Slice(pos, g.expr(expr.X), g.expr(expr.Index[0]), g.expr(expr.Index[1]), g.expr(expr.Index[2]))
 
@@ -172,15 +176,22 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 // selectorExpr resolves the choice of ODOT, ODOTPTR, OCALLPART (eventually
 // ODOTMETH & ODOTINTER), and OMETHEXPR and deals with embedded fields here rather
 // than in typecheck.go.
-func (g *irgen) selectorExpr(pos src.XPos, expr *syntax.SelectorExpr) ir.Node {
-	selinfo := g.info.Selections[expr]
+func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.SelectorExpr) ir.Node {
+	x := g.expr(expr.X)
+	if x.Type().Kind() == types.TTYPEPARAM {
+		// Leave a method call on a type param as an OXDOT, since it can
+		// only be fully transformed once it has an instantiated type.
+		n := ir.NewSelectorExpr(pos, ir.OXDOT, x, typecheck.Lookup(expr.Sel.Value))
+		typed(g.typ(typ), n)
+		return n
+	}
 
+	selinfo := g.info.Selections[expr]
 	// Everything up to the last selection is an implicit embedded field access,
 	// and the last selection is determined by selinfo.Kind().
 	index := selinfo.Index()
 	embeds, last := index[:len(index)-1], index[len(index)-1]
 
-	x := g.expr(expr.X)
 	origx := x
 	for _, ix := range embeds {
 		x = Implicit(DotField(pos, x, ix))
@@ -198,7 +209,7 @@ func (g *irgen) selectorExpr(pos src.XPos, expr *syntax.SelectorExpr) ir.Node {
 	// interface embedding).
 
 	var n ir.Node
-	method := selinfo.Obj().(*types2.Func)
+	method2 := selinfo.Obj().(*types2.Func)
 
 	if kind == types2.MethodExpr {
 		// OMETHEXPR is unusual in using directly the node and type of the
@@ -210,9 +221,11 @@ func (g *irgen) selectorExpr(pos src.XPos, expr *syntax.SelectorExpr) ir.Node {
 		n = MethodExpr(pos, origx, x.Type(), last)
 	} else {
 		// Add implicit addr/deref for method values, if needed.
-		if !x.Type().IsInterface() {
-			recvTyp := method.Type().(*types2.Signature).Recv().Type()
-			_, wantPtr := recvTyp.(*types2.Pointer)
+		if x.Type().IsInterface() {
+			n = DotMethod(pos, x, last)
+		} else {
+			recvType2 := method2.Type().(*types2.Signature).Recv().Type()
+			_, wantPtr := recvType2.(*types2.Pointer)
 			havePtr := x.Type().IsPtr()
 
 			if havePtr != wantPtr {
@@ -222,13 +235,45 @@ func (g *irgen) selectorExpr(pos src.XPos, expr *syntax.SelectorExpr) ir.Node {
 					x = Implicit(Addr(pos, x))
 				}
 			}
-			if !g.match(x.Type(), recvTyp, false) {
-				base.FatalfAt(pos, "expected %L to have type %v", x, recvTyp)
+			recvType2Base := recvType2
+			if wantPtr {
+				recvType2Base = types2.AsPointer(recvType2).Elem()
+			}
+			if len(types2.AsNamed(recvType2Base).TParams()) > 0 {
+				// recvType2 is the original generic type that is
+				// instantiated for this method call.
+				// selinfo.Recv() is the instantiated type
+				recvType2 = recvType2Base
+				// method is the generic method associated with the gen type
+				method := g.obj(types2.AsNamed(recvType2).Method(last))
+				n = ir.NewSelectorExpr(pos, ir.OCALLPART, x, method.Sym())
+				n.(*ir.SelectorExpr).Selection = types.NewField(pos, method.Sym(), method.Type())
+				n.(*ir.SelectorExpr).Selection.Nname = method
+				typed(method.Type(), n)
+
+				// selinfo.Targs() are the types used to
+				// instantiate the type of receiver
+				targs2 := selinfo.TArgs()
+				targs := make([]ir.Node, len(targs2))
+				for i, targ2 := range targs2 {
+					targs[i] = ir.TypeNode(g.typ(targ2))
+				}
+
+				// Create function instantiation with the type
+				// args for the receiver type for the method call.
+				n = ir.NewInstExpr(pos, ir.OFUNCINST, n, targs)
+				typed(g.typ(typ), n)
+				return n
+			}
+
+			if !g.match(x.Type(), recvType2, false) {
+				base.FatalfAt(pos, "expected %L to have type %v", x, recvType2)
+			} else {
+				n = DotMethod(pos, x, last)
 			}
 		}
-		n = DotMethod(pos, x, last)
 	}
-	if have, want := n.Sym(), g.selector(method); have != want {
+	if have, want := n.Sym(), g.selector(method2); have != want {
 		base.FatalfAt(pos, "bad Sym: have %v, want %v", have, want)
 	}
 	return n
@@ -280,19 +325,22 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
 	return typecheck.Expr(ir.NewCompLitExpr(g.pos(lit), ir.OCOMPLIT, ir.TypeNode(g.typ(typ)), exprs))
 }
 
-func (g *irgen) funcLit(typ types2.Type, expr *syntax.FuncLit) ir.Node {
+func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {
 	fn := ir.NewFunc(g.pos(expr))
 	fn.SetIsHiddenClosure(ir.CurFunc != nil)
 
 	fn.Nname = ir.NewNameAt(g.pos(expr), typecheck.ClosureName(ir.CurFunc))
 	ir.MarkFunc(fn.Nname)
-	fn.Nname.SetType(g.typ(typ))
+	typ := g.typ(typ2)
 	fn.Nname.Func = fn
 	fn.Nname.Defn = fn
+	// Set Ntype for now to be compatible with later parts of compile, remove later.
+	fn.Nname.Ntype = ir.TypeNode(typ)
+	typed(typ, fn.Nname)
+	fn.SetTypecheck(1)
 
 	fn.OClosure = ir.NewClosureExpr(g.pos(expr), fn)
-	fn.OClosure.SetType(fn.Nname.Type())
-	fn.OClosure.SetTypecheck(1)
+	typed(typ, fn.OClosure)
 
 	g.funcBody(fn, nil, expr.Type, expr.Body)
 

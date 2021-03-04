@@ -112,6 +112,9 @@ type I1[T any] interface{
 	m1(T)
 }
 
+// There is no such thing as a variadic generic type.
+type _[T ... /* ERROR invalid use of ... */ interface{}] struct{}
+
 // Generic interfaces may be embedded as one would expect.
 type I2 interface {
 	I1(int)     // method!
@@ -143,7 +146,7 @@ func _() {
 
 // We accept parenthesized embedded struct fields so we can distinguish between
 // a named field with a parenthesized type foo (T) and an embedded parameterized
-// type (foo(T)), similarly to interace embedding.
+// type (foo(T)), similarly to interface embedding.
 // They still need to be valid embedded types after the parentheses are stripped
 // (i.e., in contrast to interfaces, we cannot embed a struct literal). The name
 // of the embedded field is derived as before, after stripping parentheses.
@@ -264,3 +267,20 @@ func _() {
 	var _ comparable /* ERROR comparable */
 	var _ C /* ERROR comparable */
 }
+
+// Type parameters are never const types, i.e., it's
+// not possible to declare a constant of type parameter type.
+// (If a type list contains just a single const type, we could
+// allow it, but such type lists don't make much sense in the
+// first place.)
+func _[T interface { type int, float64 }]() {
+	// not valid
+	const _ = T /* ERROR not constant */ (0)
+	const _ T /* ERROR invalid constant type T */ = 1
+
+	// valid
+	var _ = T(0)
+	var _ T = 1
+	_ = T(0)
+}
+

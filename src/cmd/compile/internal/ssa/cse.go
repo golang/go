@@ -299,7 +299,7 @@ func cmpVal(v, w *Value, auxIDs auxmap) types.Cmp {
 	// OpSelect is a pseudo-op. We need to be more aggressive
 	// regarding CSE to keep multiple OpSelect's of the same
 	// argument from existing.
-	if v.Op != OpSelect0 && v.Op != OpSelect1 {
+	if v.Op != OpSelect0 && v.Op != OpSelect1 && v.Op != OpSelectN {
 		if tc := v.Type.Compare(w.Type); tc != types.CMPeq {
 			return tc
 		}

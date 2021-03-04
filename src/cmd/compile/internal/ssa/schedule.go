@@ -137,7 +137,7 @@ func schedule(f *Func) {
 			case v.Op == OpVarDef:
 				// We want all the vardefs next.
 				score[v.ID] = ScoreVarDef
-			case v.Op == OpArg:
+			case v.Op == OpArg || v.Op == OpArgIntReg || v.Op == OpArgFloatReg:
 				// We want all the args as early as possible, for better debugging.
 				score[v.ID] = ScoreArg
 			case v.Type.IsMemory():
@@ -145,7 +145,7 @@ func schedule(f *Func) {
 				// reduce register pressure. It also helps make sure
 				// VARDEF ops are scheduled before the corresponding LEA.
 				score[v.ID] = ScoreMemory
-			case v.Op == OpSelect0 || v.Op == OpSelect1:
+			case v.Op == OpSelect0 || v.Op == OpSelect1 || v.Op == OpSelectN:
 				// Schedule the pseudo-op of reading part of a tuple
 				// immediately after the tuple-generating op, since
 				// this value is already live. This also removes its
@@ -270,6 +270,20 @@ func schedule(f *Func) {
 					tuples[v.Args[0].ID] = make([]*Value, 2)
 				}
 				tuples[v.Args[0].ID][1] = v
+			case v.Op == OpSelectN:
+				if tuples[v.Args[0].ID] == nil {
+					tuples[v.Args[0].ID] = make([]*Value, v.Args[0].Type.NumFields())
+				}
+				tuples[v.Args[0].ID][v.AuxInt] = v
+			case v.Type.IsResults() && tuples[v.ID] != nil:
+				tup := tuples[v.ID]
+				for i := len(tup) - 1; i >= 0; i-- {
+					if tup[i] != nil {
+						order = append(order, tup[i])
+					}
+				}
+				delete(tuples, v.ID)
+				order = append(order, v)
 			case v.Type.IsTuple() && tuples[v.ID] != nil:
 				if tuples[v.ID][1] != nil {
 					order = append(order, tuples[v.ID][1])

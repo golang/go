@@ -235,13 +235,15 @@ type ProcAttr struct {
 }
 
 type SysProcAttr struct {
-	HideWindow        bool
-	CmdLine           string // used if non-empty, else the windows command line is built by escaping the arguments passed to StartProcess
-	CreationFlags     uint32
-	Token             Token               // if set, runs new process in the security context represented by the token
-	ProcessAttributes *SecurityAttributes // if set, applies these security attributes as the descriptor for the new process
-	ThreadAttributes  *SecurityAttributes // if set, applies these security attributes as the descriptor for the main thread of the new process
-	NoInheritHandles  bool                // if set, each inheritable handle in the calling process is not inherited by the new process
+	HideWindow                 bool
+	CmdLine                    string // used if non-empty, else the windows command line is built by escaping the arguments passed to StartProcess
+	CreationFlags              uint32
+	Token                      Token               // if set, runs new process in the security context represented by the token
+	ProcessAttributes          *SecurityAttributes // if set, applies these security attributes as the descriptor for the new process
+	ThreadAttributes           *SecurityAttributes // if set, applies these security attributes as the descriptor for the main thread of the new process
+	NoInheritHandles           bool                // if set, each inheritable handle in the calling process is not inherited by the new process
+	AdditionalInheritedHandles []Handle            // a list of additional handles, already marked as inheritable, that will be inherited by the new process
+	ParentProcess              Handle              // if non-zero, the new process regards the process given by this handle as its parent process, and AdditionalInheritedHandles, if set, should exist in this parent process
 }
 
 var zeroProcAttr ProcAttr
@@ -310,41 +312,57 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 		}
 	}
 
-	// Acquire the fork lock so that no other threads
-	// create new fds that are not yet close-on-exec
-	// before we fork.
-	ForkLock.Lock()
-	defer ForkLock.Unlock()
-
 	p, _ := GetCurrentProcess()
+	parentProcess := p
+	if sys.ParentProcess != 0 {
+		parentProcess = sys.ParentProcess
+	}
 	fd := make([]Handle, len(attr.Files))
 	for i := range attr.Files {
 		if attr.Files[i] > 0 {
-			err := DuplicateHandle(p, Handle(attr.Files[i]), p, &fd[i], 0, true, DUPLICATE_SAME_ACCESS)
+			err := DuplicateHandle(p, Handle(attr.Files[i]), parentProcess, &fd[i], 0, true, DUPLICATE_SAME_ACCESS)
 			if err != nil {
 				return 0, 0, err
 			}
-			defer CloseHandle(Handle(fd[i]))
+			defer DuplicateHandle(parentProcess, fd[i], 0, nil, 0, false, DUPLICATE_CLOSE_SOURCE)
 		}
 	}
-	si := new(StartupInfo)
+	si := new(_STARTUPINFOEXW)
+	si.ProcThreadAttributeList, err = newProcThreadAttributeList(2)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer deleteProcThreadAttributeList(si.ProcThreadAttributeList)
 	si.Cb = uint32(unsafe.Sizeof(*si))
 	si.Flags = STARTF_USESTDHANDLES
 	if sys.HideWindow {
 		si.Flags |= STARTF_USESHOWWINDOW
 		si.ShowWindow = SW_HIDE
 	}
+	if sys.ParentProcess != 0 {
+		err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, uintptr(unsafe.Pointer(&sys.ParentProcess)), unsafe.Sizeof(sys.ParentProcess), 0, nil)
+		if err != nil {
+			return 0, 0, err
+		}
+	}
 	si.StdInput = fd[0]
 	si.StdOutput = fd[1]
 	si.StdErr = fd[2]
 
+	fd = append(fd, sys.AdditionalInheritedHandles...)
+	// Do not accidentally inherit more than these handles.
+	err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_HANDLE_LIST, uintptr(unsafe.Pointer(&fd[0])), uintptr(len(fd))*unsafe.Sizeof(fd[0]), 0, nil)
+	if err != nil {
+		return 0, 0, err
+	}
+
 	pi := new(ProcessInformation)
 
-	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT
+	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT | _EXTENDED_STARTUPINFO_PRESENT
 	if sys.Token != 0 {
-		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, si, pi)
+		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
 	} else {
-		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, si, pi)
+		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
 	}
 	if err != nil {
 		return 0, 0, err

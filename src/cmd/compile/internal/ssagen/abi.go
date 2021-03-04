@@ -300,9 +300,20 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	// to allocate any stack space). Doing this will require some
 	// extra work in typecheck/walk/ssa, might want to add a new node
 	// OTAILCALL or something to this effect.
-	var tail ir.Node
-	if tfn.Type().NumResults() == 0 && tfn.Type().NumParams() == 0 && tfn.Type().NumRecvs() == 0 && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
+	tailcall := tfn.Type().NumResults() == 0 && tfn.Type().NumParams() == 0 && tfn.Type().NumRecvs() == 0
+	if base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink {
+		// cannot tailcall on PPC64 with dynamic linking, as we need
+		// to restore R2 after call.
+		tailcall = false
+	}
+	if base.Ctxt.Arch.Name == "amd64" && wrapperABI == obj.ABIInternal {
+		// cannot tailcall from ABIInternal to ABI0 on AMD64, as we need
+		// to special registers (X15) when returning to ABIInternal.
+		tailcall = false
+	}
 
+	var tail ir.Node
+	if tailcall {
 		tail = ir.NewTailCallStmt(base.Pos, f.Nname)
 	} else {
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)

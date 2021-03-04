@@ -398,7 +398,7 @@ func FinishCaptureNames(pos src.XPos, outerfn, fn *Func) {
 	// unhook them.
 	// make the list of pointers for the closure call.
 	for _, cv := range fn.ClosureVars {
-		// Unlink from n; see comment in syntax.go type Param for these fields.
+		// Unlink from n; see comment above on type Name for these fields.
 		n := cv.Defn.(*Name)
 		n.Innermost = cv.Outer
 

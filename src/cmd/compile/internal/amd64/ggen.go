@@ -22,8 +22,8 @@ var isPlan9 = objabi.GOOS == "plan9"
 const (
 	dzBlocks    = 16 // number of MOV/ADD blocks
 	dzBlockLen  = 4  // number of clears per block
-	dzBlockSize = 19 // size of instructions in a single block
-	dzMovSize   = 4  // size of single MOV instruction w/ offset
+	dzBlockSize = 23 // size of instructions in a single block
+	dzMovSize   = 5  // size of single MOV instruction w/ offset
 	dzLeaqSize  = 4  // size of single LEAQ instruction
 	dzClearStep = 16 // number of bytes cleared by each MOV instruction
 
@@ -56,8 +56,8 @@ func dzDI(b int64) int64 {
 
 func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Prog {
 	const (
-		ax = 1 << iota
-		x0
+		ax  = 1 << iota // if AX is already zeroed.
+		x15             // if X15 is already zeroed. Note: in new ABI, X15 is always zero.
 	)
 
 	if cnt == 0 {
@@ -85,29 +85,29 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.
 		}
 		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, off)
 	} else if !isPlan9 && cnt <= int64(8*types.RegSize) {
-		if *state&x0 == 0 {
-			p = pp.Append(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_REG, x86.REG_X0, 0)
-			*state |= x0
+		if objabi.Regabi_enabled == 0 && *state&x15 == 0 {
+			p = pp.Append(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_REG, x86.REG_X15, 0)
+			*state |= x15
 		}
 
 		for i := int64(0); i < cnt/16; i++ {
-			p = pp.Append(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_SP, off+i*16)
+			p = pp.Append(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_MEM, x86.REG_SP, off+i*16)
 		}
 
 		if cnt%16 != 0 {
-			p = pp.Append(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_SP, off+cnt-int64(16))
+			p = pp.Append(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_MEM, x86.REG_SP, off+cnt-int64(16))
 		}
 	} else if !isPlan9 && (cnt <= int64(128*types.RegSize)) {
-		if *state&x0 == 0 {
-			p = pp.Append(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_REG, x86.REG_X0, 0)
-			*state |= x0
+		if objabi.Regabi_enabled == 0 && *state&x15 == 0 {
+			p = pp.Append(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_REG, x86.REG_X15, 0)
+			*state |= x15
 		}
 		p = pp.Append(p, leaptr, obj.TYPE_MEM, x86.REG_SP, off+dzDI(cnt), obj.TYPE_REG, x86.REG_DI, 0)
 		p = pp.Append(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, dzOff(cnt))
 		p.To.Sym = ir.Syms.Duffzero
 
 		if cnt%16 != 0 {
-			p = pp.Append(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_DI, -int64(8))
+			p = pp.Append(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_MEM, x86.REG_DI, -int64(8))
 		}
 	} else {
 		if *state&ax == 0 {

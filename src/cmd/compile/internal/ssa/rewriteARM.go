@@ -202,6 +202,8 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpARMMOVWloadshiftRA(v)
 	case OpARMMOVWloadshiftRL:
 		return rewriteValueARM_OpARMMOVWloadshiftRL(v)
+	case OpARMMOVWnop:
+		return rewriteValueARM_OpARMMOVWnop(v)
 	case OpARMMOVWreg:
 		return rewriteValueARM_OpARMMOVWreg(v)
 	case OpARMMOVWstore:
@@ -820,6 +822,9 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpSlicemask(v)
 	case OpSqrt:
 		v.Op = OpARMSQRTD
+		return true
+	case OpSqrt32:
+		v.Op = OpARMSQRTF
 		return true
 	case OpStaticCall:
 		v.Op = OpARMCALLstatic
@@ -6497,6 +6502,21 @@ func rewriteValueARM_OpARMMOVWloadshiftRL(v *Value) bool {
 		v.reset(OpARMMOVWload)
 		v.AuxInt = int32ToAuxInt(int32(uint32(c) >> uint64(d)))
 		v.AddArg2(ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMMOVWnop(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (MOVWnop (MOVWconst [c]))
+	// result: (MOVWconst [c])
+	for {
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := auxIntToInt32(v_0.AuxInt)
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = int32ToAuxInt(c)
 		return true
 	}
 	return false

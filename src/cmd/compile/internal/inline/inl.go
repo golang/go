@@ -354,15 +354,13 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		return true
 
 	case ir.OCLOSURE:
-		// TODO(danscales,mdempsky): Get working with -G.
-		// Probably after #43818 is fixed.
-		if base.Flag.G > 0 {
-			v.reason = "inlining closures not yet working with -G"
+		if base.Debug.InlFuncsWithClosures == 0 {
+			v.reason = "not inlining functions with closures"
 			return true
 		}
 
-		// TODO(danscales) - fix some bugs when budget is lowered below 15
-		// Maybe make budget proportional to number of closure variables, e.g.:
+		// TODO(danscales): Maybe make budget proportional to number of closure
+		// variables, e.g.:
 		//v.budget -= int32(len(n.(*ir.ClosureExpr).Func.ClosureVars) * 3)
 		v.budget -= 15
 		// Scan body of closure (which DoChildren doesn't automatically
@@ -383,6 +381,22 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 
 	case ir.OAPPEND:
 		v.budget -= inlineExtraAppendCost
+
+	case ir.ODEREF:
+		// *(*X)(unsafe.Pointer(&x)) is low-cost
+		n := n.(*ir.StarExpr)
+
+		ptr := n.X
+		for ptr.Op() == ir.OCONVNOP {
+			ptr = ptr.(*ir.ConvExpr).X
+		}
+		if ptr.Op() == ir.OADDR {
+			v.budget += 1 // undo half of default cost of ir.ODEREF+ir.OADDR
+		}
+
+	case ir.OCONVNOP:
+		// This doesn't produce code, but the children might.
+		v.budget++ // undo default cost
 
 	case ir.ODCLCONST, ir.OFALL:
 		// These nodes don't produce code; omit from inlining budget.
@@ -836,17 +850,25 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		}
 	}
 
+	// We can delay declaring+initializing result parameters if:
+	// (1) there's exactly one "return" statement in the inlined function;
+	// (2) it's not an empty return statement (#44355); and
+	// (3) the result parameters aren't named.
+	delayretvars := true
+
 	nreturns := 0
 	ir.VisitList(ir.Nodes(fn.Inl.Body), func(n ir.Node) {
-		if n != nil && n.Op() == ir.ORETURN {
+		if n, ok := n.(*ir.ReturnStmt); ok {
 			nreturns++
+			if len(n.Results) == 0 {
+				delayretvars = false // empty return statement (case 2)
+			}
 		}
 	})
 
-	// We can delay declaring+initializing result parameters if:
-	// (1) there's only one "return" statement in the inlined
-	// function, and (2) the result parameters aren't named.
-	delayretvars := nreturns == 1
+	if nreturns != 1 {
+		delayretvars = false // not exactly one return statement (case 1)
+	}
 
 	// temporaries for return values.
 	var retvars []ir.Node
@@ -857,7 +879,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 			m = inlvar(n)
 			m = typecheck.Expr(m).(*ir.Name)
 			inlvars[n] = m
-			delayretvars = false // found a named result parameter
+			delayretvars = false // found a named result parameter (case 3)
 		} else {
 			// anonymous return values, synthesize names for use in assignment that replaces return
 			m = retvar(t, i)

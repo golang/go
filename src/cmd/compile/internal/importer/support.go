@@ -125,20 +125,4 @@ var predeclared = []types2.Type{
 type anyType struct{}
 
 func (t anyType) Underlying() types2.Type { return t }
-func (t anyType) Under() types2.Type      { return t }
 func (t anyType) String() string          { return "any" }
-
-// types2.aType is not exported for now so we need to implemented these here.
-func (anyType) Basic() *types2.Basic         { return nil }
-func (anyType) Array() *types2.Array         { return nil }
-func (anyType) Slice() *types2.Slice         { return nil }
-func (anyType) Struct() *types2.Struct       { return nil }
-func (anyType) Pointer() *types2.Pointer     { return nil }
-func (anyType) Tuple() *types2.Tuple         { return nil }
-func (anyType) Signature() *types2.Signature { return nil }
-func (anyType) Sum() *types2.Sum             { return nil }
-func (anyType) Interface() *types2.Interface { return nil }
-func (anyType) Map() *types2.Map             { return nil }
-func (anyType) Chan() *types2.Chan           { return nil }
-func (anyType) Named() *types2.Named         { return nil }
-func (anyType) TypeParam() *types2.TypeParam { return nil }

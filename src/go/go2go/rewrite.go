@@ -685,11 +685,11 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 	case *ast.CallExpr:
 		if ftyp, ok := t.lookupType(e.Fun).(*types.Signature); ok && len(ftyp.TParams()) > 0 {
 			t.translateFunctionInstantiation(pe)
-		} else if ntyp, ok := t.lookupType(e.Fun).(*types.Named); ok && len(ntyp.TParams()) > 0 && len(ntyp.TArgs()) == 0 {
-			t.translateTypeInstantiation(pe)
 		}
 		t.translateExprList(e.Args)
 		t.translateExpr(&e.Fun)
+	case *ast.ListExpr:
+		t.translateExprList(e.ElemList)
 	case *ast.StarExpr:
 		t.translateExpr(&e.X)
 	case *ast.UnaryExpr:
@@ -1044,13 +1044,14 @@ func (t *translator) instantiationTypes(x ast.Expr) (argList []ast.Expr, typeLis
 	var args []ast.Expr
 	switch x := x.(type) {
 	case *ast.CallExpr:
-		args = x.Args
+		// CallExprs may result in an implicit instantiation via type inference.
 	case *ast.IndexExpr:
-		args = []ast.Expr{x.Index}
+		args = unpackExpr(x.Index)
 	default:
-		panic("unexpected AST type")
+		panic(fmt.Sprintf("unexpected AST type %T", x))
 	}
-	inferred, haveInferred := t.importer.info.Inferred[x]
+	inferredInfo := types.GetInferred(t.importer.info)
+	inferred, haveInferred := inferredInfo[x]
 
 	if !haveInferred {
 		argList = args
@@ -1083,6 +1084,17 @@ func (t *translator) instantiationTypes(x ast.Expr) (argList []ast.Expr, typeLis
 	}
 
 	return
+}
+
+// unpackExpr unpacks an *ast.ListExpr into a list of ast.Expr.
+func unpackExpr(x ast.Expr) []ast.Expr {
+	if x, _ := x.(*ast.ListExpr); x != nil {
+		return x.ElemList
+	}
+	if x != nil {
+		return []ast.Expr{x}
+	}
+	return nil
 }
 
 // lookupInstantiatedType looks for an existing instantiation of an

@@ -68,7 +68,7 @@ func (f *subFS) shorten(name string) (rel string, ok bool) {
 	return "", false
 }
 
-// fixErr shortens any reported names in PathErrors by stripping dir.
+// fixErr shortens any reported names in PathErrors by stripping f.dir.
 func (f *subFS) fixErr(err error) error {
 	if e, ok := err.(*PathError); ok {
 		if short, ok := f.shorten(e.Path); ok {

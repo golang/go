@@ -78,7 +78,7 @@ func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err
 			// Go supports Linux >= 2.6.33, so the system call
 			// may not be present.
 			//
-			// If we see ENOSYS, we have certainly not transfered
+			// If we see ENOSYS, we have certainly not transferred
 			// any data, so we can tell the caller that we
 			// couldn't handle the transfer and let them fall
 			// back to more generic code.
@@ -91,13 +91,13 @@ func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err
 			// Prior to Linux 5.3, it was not possible to
 			// copy_file_range across file systems. Similarly to
 			// the ENOSYS case above, if we see EXDEV, we have
-			// not transfered any data, and we can let the caller
+			// not transferred any data, and we can let the caller
 			// fall back to generic code.
 			//
 			// As for EINVAL, that is what we see if, for example,
 			// dst or src refer to a pipe rather than a regular
 			// file. This is another case where no data has been
-			// transfered, so we consider it unhandled.
+			// transferred, so we consider it unhandled.
 			//
 			// If src and dst are on CIFS, we can see EIO.
 			// See issue #42334.
@@ -112,7 +112,15 @@ func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err
 			return 0, false, nil
 		case nil:
 			if n == 0 {
-				// src is at EOF, which means we are done.
+				// If we did not read any bytes at all,
+				// then this file may be in a file system
+				// where copy_file_range silently fails.
+				// https://lore.kernel.org/linux-fsdevel/20210126233840.GG4626@dread.disaster.area/T/#m05753578c7f7882f6e9ffe01f981bc223edef2b0
+				if written == 0 {
+					return 0, false, nil
+				}
+				// Otherwise src is at EOF, which means
+				// we are done.
 				return written, true, nil
 			}
 			remain -= n

@@ -86,7 +86,7 @@ func TestSortSliceFn(t *testing.T) {
 	c := make([][]int, len(slicesToSort))
 	copy(c, slicesToSort)
 	SliceFn(c, sorter)
-	if !slices.EqualFn(c, sortedSlices, func(a, b []int) bool { return slices.Equal(int)(a, b) }) {
+	if !slices.EqualFn(c, sortedSlices, func(a, b []int) bool { return slices.Equal[int](a, b) }) {
 		t.Errorf("got %v, want %v", c, sortedSlices)
 	}
 }
