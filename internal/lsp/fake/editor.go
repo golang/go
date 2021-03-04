@@ -57,12 +57,12 @@ type CallCounts struct {
 type buffer struct {
 	version int
 	path    string
-	content []string
+	lines   []string
 	dirty   bool
 }
 
 func (b buffer) text() string {
-	return strings.Join(b.content, "\n")
+	return strings.Join(b.lines, "\n")
 }
 
 // EditorConfig configures the editor's LSP session. This is similar to
@@ -334,6 +334,10 @@ func (e *Editor) onFileChanges(ctx context.Context, evts []FileEvent) {
 				if err != nil {
 					continue // A race with some other operation.
 				}
+				// No need to update if the buffer content hasn't changed.
+				if content == strings.Join(buf.lines, "\n") {
+					continue
+				}
 				// During shutdown, this call will fail. Ignore the error.
 				_ = e.setBufferContentLocked(ctx, evt.Path, false, strings.Split(content, "\n"), nil)
 			}
@@ -378,7 +382,7 @@ func (e *Editor) createBuffer(ctx context.Context, path string, dirty bool, cont
 	buf := buffer{
 		version: 1,
 		path:    path,
-		content: strings.Split(content, "\n"),
+		lines:   strings.Split(content, "\n"),
 		dirty:   dirty,
 	}
 	e.mu.Lock()
@@ -640,8 +644,8 @@ func (e *Editor) editBufferLocked(ctx context.Context, path string, edits []Edit
 	if !ok {
 		return fmt.Errorf("unknown buffer %q", path)
 	}
-	content := make([]string, len(buf.content))
-	copy(content, buf.content)
+	content := make([]string, len(buf.lines))
+	copy(content, buf.lines)
 	content, err := editContent(content, edits)
 	if err != nil {
 		return err
@@ -654,7 +658,7 @@ func (e *Editor) setBufferContentLocked(ctx context.Context, path string, dirty 
 	if !ok {
 		return fmt.Errorf("unknown buffer %q", path)
 	}
-	buf.content = content
+	buf.lines = content
 	buf.version++
 	buf.dirty = dirty
 	e.buffers[path] = buf
@@ -908,7 +912,7 @@ func (e *Editor) checkBufferPosition(path string, pos Pos) error {
 	if !ok {
 		return fmt.Errorf("buffer %q is not open", path)
 	}
-	if !inText(pos, buf.content) {
+	if !inText(pos, buf.lines) {
 		return fmt.Errorf("position %v is invalid in buffer %q", pos, path)
 	}
 	return nil
