@@ -78,7 +78,7 @@ func listModules(ctx context.Context, args []string, listVersions, listRetracted
 		if i := strings.Index(arg, "@"); i >= 0 {
 			path := arg[:i]
 			vers := arg[i+1:]
-			var current string
+			current := "none"
 			for _, m := range buildList {
 				if m.Path == path {
 					current = m.Version

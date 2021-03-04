@@ -330,7 +330,7 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
 		}
 
 	case query == "patch":
-		if current == "none" {
+		if current == "" || current == "none" {
 			return nil, &NoPatchBaseError{path}
 		}
 		if current == "" {
