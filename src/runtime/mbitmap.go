@@ -821,9 +821,11 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		mask3 = bitPointer | bitScan | mask2<<heapBitsShift // 01110111
 	)
 
-	// dataSize is always size rounded up to the next malloc size class,
-	// except in the case of allocating a defer block, in which case
-	// size is sizeof(_defer{}) (at least 6 words) and dataSize may be
+	// argument 'size' is always size rounded up to the next malloc size class,
+	// argument dataSize is always equal typ.size or typ.size * N (when typ is
+	// array and N is the size of array) except in the case of
+	// allocating a defer block, in which case
+	// dataSize is sizeof(_defer{}) (at least 6 words) and 'size' may be
 	// arbitrarily larger.
 	//
 	// The checks for size == sys.PtrSize and size == 2*sys.PtrSize can therefore
