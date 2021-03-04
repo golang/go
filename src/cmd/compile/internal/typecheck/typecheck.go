@@ -433,8 +433,8 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	case top&ctxType == 0 && n.Op() == ir.OTYPE && t != nil:
 		if !n.Type().Broke() {
 			base.Errorf("type %v is not an expression", n.Type())
+			n.SetDiag(true)
 		}
-		n.SetType(nil)
 
 	case top&(ctxStmt|ctxExpr) == ctxStmt && !isStmt && t != nil:
 		if !n.Diag() {
@@ -528,7 +528,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OPACK:
 		n := n.(*ir.PkgName)
 		base.Errorf("use of package %v without selector", n.Sym())
-		n.SetType(nil)
+		n.SetDiag(true)
 		return n
 
 	// types (ODEREF is with exprs)
@@ -1612,6 +1612,10 @@ func checkassign(stmt ir.Node, n ir.Node) {
 		return
 	}
 
+	defer n.SetType(nil)
+	if n.Diag() {
+		return
+	}
 	switch {
 	case n.Op() == ir.ODOT && n.(*ir.SelectorExpr).X.Op() == ir.OINDEXMAP:
 		base.Errorf("cannot assign to struct field %v in map", n)
@@ -1621,13 +1625,6 @@ func checkassign(stmt ir.Node, n ir.Node) {
 		base.Errorf("cannot assign to %v (declared const)", n)
 	default:
 		base.Errorf("cannot assign to %v", n)
-	}
-	n.SetType(nil)
-}
-
-func checkassignlist(stmt ir.Node, l ir.Nodes) {
-	for _, n := range l {
-		checkassign(stmt, n)
 	}
 }
 

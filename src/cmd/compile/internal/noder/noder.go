@@ -68,6 +68,9 @@ func LoadPackage(filenames []string) {
 		for e := range p.err {
 			p.errorAt(e.Pos, "%s", e.Msg)
 		}
+		if p.file == nil {
+			base.ErrorExit()
+		}
 		lines += p.file.EOF.Line()
 	}
 	base.Timer.AddEvent(int64(lines), "lines")
