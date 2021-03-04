@@ -1157,6 +1157,11 @@ func (w *response) WriteHeader(code int) {
 		if code == 103 {
 			// Per RFC 8297 we must not clear the current header map
 			w.handlerHeader.Write(w.conn.bufw)
+
+			w.conn.bufw.Write(crlf)
+			w.conn.bufw.Flush()
+
+			return
 		}
 		w.conn.bufw.Write(crlf)
 
