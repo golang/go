@@ -64,10 +64,11 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	modload.RootMode = modload.NeedRoot
 
 	loadOpts := modload.PackageOpts{
-		Tags:                  imports.AnyTags(),
-		ResolveMissingImports: true,
-		UseVendorAll:          true,
-		AllowErrors:           vendorE,
+		Tags:                     imports.AnyTags(),
+		ResolveMissingImports:    true,
+		UseVendorAll:             true,
+		AllowErrors:              vendorE,
+		SilenceMissingStdImports: true,
 	}
 	_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
 

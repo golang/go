@@ -170,6 +170,12 @@ type PackageOpts struct {
 	// that occur while loading packages. SilenceErrors implies AllowErrors.
 	SilenceErrors bool
 
+	// SilenceMissingStdImports indicates that LoadPackages should not print
+	// errors or terminate the process if an imported package is missing, and the
+	// import path looks like it might be in the standard library (perhaps in a
+	// future version).
+	SilenceMissingStdImports bool
+
 	// SilenceUnmatchedWarnings suppresses the warnings normally emitted for
 	// patterns that did not match any packages.
 	SilenceUnmatchedWarnings bool
@@ -287,8 +293,13 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 					sumErr.importerIsTest = importer.testOf != nil
 				}
 			}
+			silence := opts.SilenceErrors
+			if stdErr := (*ImportMissingError)(nil); errors.As(pkg.err, &stdErr) &&
+				stdErr.isStd && opts.SilenceMissingStdImports {
+				silence = true
+			}
 
-			if !opts.SilenceErrors {
+			if !silence {
 				if opts.AllowErrors {
 					fmt.Fprintf(os.Stderr, "%s: %v\n", pkg.stackText(), pkg.err)
 				} else {
