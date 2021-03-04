@@ -34,6 +34,17 @@ stdout PASS
 stdout 'all good here'
 ! stdout FAIL
 
+# Fuzz successful chatty fuzz target that includes a separate unit test.
+go test -v chatty_with_test_fuzz_test.go -fuzz=Fuzz -fuzztime=1s
+stdout ok
+stdout PASS
+! stdout FAIL
+# TODO: It's currently the case that it's logged twice. Fix that, and change
+# this check to verify it.
+stdout 'all good here'
+# Verify that the unit test is only run once.
+! stdout '(?s)logged foo.*logged foo'
+
 -- chatty_error_fuzz_test.go --
 package chatty_error_fuzz
 
@@ -74,6 +85,20 @@ func Fuzz(f *testing.F) {
 package chatty_fuzz
 
 import "testing"
+
+func Fuzz(f *testing.F) {
+    f.Log("all good here")
+    f.Fuzz(func(*testing.T, []byte) {})
+}
+
+-- chatty_with_test_fuzz_test.go --
+package chatty_with_test_fuzz
+
+import "testing"
+
+func TestFoo(t *testing.T) {
+    t.Log("logged foo")
+}
 
 func Fuzz(f *testing.F) {
     f.Log("all good here")
