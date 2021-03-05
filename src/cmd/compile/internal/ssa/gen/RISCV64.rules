@@ -423,7 +423,7 @@
 (Convert ...) => (MOVconvert ...)
 
 // Checks
-(IsNonNil p) => (NeqPtr (MOVDconst [0]) p)
+(IsNonNil ...) => (SNEZ ...)
 (IsInBounds ...) => (Less64U ...)
 (IsSliceInBounds ...) => (Leq64U ...)
 

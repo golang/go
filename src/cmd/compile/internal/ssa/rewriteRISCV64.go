@@ -239,7 +239,8 @@ func rewriteValueRISCV64(v *Value) bool {
 		v.Op = OpLess64U
 		return true
 	case OpIsNonNil:
-		return rewriteValueRISCV64_OpIsNonNil(v)
+		v.Op = OpRISCV64SNEZ
+		return true
 	case OpIsSliceInBounds:
 		v.Op = OpLeq64U
 		return true
@@ -1098,21 +1099,6 @@ func rewriteValueRISCV64_OpHmul32u(v *Value) bool {
 		v2.AddArg(y)
 		v0.AddArg2(v1, v2)
 		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpIsNonNil(v *Value) bool {
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (IsNonNil p)
-	// result: (NeqPtr (MOVDconst [0]) p)
-	for {
-		p := v_0
-		v.reset(OpNeqPtr)
-		v0 := b.NewValue0(v.Pos, OpRISCV64MOVDconst, typ.UInt64)
-		v0.AuxInt = int64ToAuxInt(0)
-		v.AddArg2(v0, p)
 		return true
 	}
 }
