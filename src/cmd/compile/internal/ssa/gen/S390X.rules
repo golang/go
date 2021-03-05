@@ -1422,15 +1422,15 @@
   && clobber(x)
   => (MOVDBRstore [i-4] {s} p w0 mem)
 
-(MOVBstore [7] p1 (SRDconst w)
-  x1:(MOVHBRstore [5] p1 (SRDconst w)
-  x2:(MOVWBRstore [1] p1 (SRDconst w)
-  x3:(MOVBstore p1 w mem))))
+(MOVBstore [7] {s} p1 (SRDconst w)
+  x1:(MOVHBRstore [5] {s} p1 (SRDconst w)
+  x2:(MOVWBRstore [1] {s} p1 (SRDconst w)
+  x3:(MOVBstore [0] {s} p1 w mem))))
   && x1.Uses == 1
   && x2.Uses == 1
   && x3.Uses == 1
   && clobber(x1, x2, x3)
-  => (MOVDBRstore p1 w mem)
+  => (MOVDBRstore {s} p1 w mem)
 
 // Combining byte loads into larger (unaligned) loads.
 
