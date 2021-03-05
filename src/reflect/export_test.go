@@ -4,7 +4,10 @@
 
 package reflect
 
-import "unsafe"
+import (
+	"sync"
+	"unsafe"
+)
 
 // MakeRO returns a copy of v with the read-only flag set.
 func MakeRO(v Value) Value {
@@ -16,6 +19,12 @@ func MakeRO(v Value) Value {
 func IsRO(v Value) bool {
 	return v.flag&flagStickyRO != 0
 }
+
+var (
+	IntArgRegs   = &intArgRegs
+	FloatArgRegs = &floatArgRegs
+	FloatRegSize = &floatRegSize
+)
 
 var CallGC = &callGC
 
@@ -121,4 +130,8 @@ func ResolveReflectName(s string) {
 
 type Buffer struct {
 	buf []byte
+}
+
+func ClearLayoutCache() {
+	layoutCache = sync.Map{}
 }
