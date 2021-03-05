@@ -7,6 +7,7 @@ package parser
 import (
 	"fmt"
 	"go/ast"
+	"go/internal/typeparams"
 	"go/token"
 )
 
@@ -450,10 +451,10 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
 				// at the identifier in the TypeSpec and ends at the end of the innermost
 				// containing block.
 				r.declare(spec, nil, r.topScope, ast.Typ, spec.Name)
-				if spec.TParams != nil {
+				if tparams := typeparams.Get(spec); tparams != nil {
 					r.openScope(spec.Pos())
 					defer r.closeScope()
-					r.walkFieldList(r.topScope, spec.TParams, ast.Typ)
+					r.walkFieldList(r.topScope, tparams, ast.Typ)
 				}
 				ast.Walk(r, spec.Type)
 			}
@@ -476,7 +477,6 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
 }
 
 func (r *resolver) walkFuncType(scope *ast.Scope, typ *ast.FuncType) {
-	r.walkFieldList(scope, typ.TParams, ast.Typ)
 	r.walkFieldList(scope, typ.Params, ast.Var)
 	r.walkFieldList(scope, typ.Results, ast.Var)
 }

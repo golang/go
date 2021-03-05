@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/internal/typeparams"
 	"go/token"
 	"sort"
 	"strconv"
@@ -389,8 +390,8 @@ func (check *Checker) collectObjects() {
 						if name == "main" {
 							code = _InvalidMainDecl
 						}
-						if d.decl.Type.TParams != nil {
-							check.softErrorf(d.decl.Type.TParams, code, "func %s must have no type parameters", name)
+						if tparams := typeparams.Get(d.decl.Type); tparams != nil {
+							check.softErrorf(tparams, code, "func %s must have no type parameters", name)
 						}
 						if t := d.decl.Type; t.Params.NumFields() != 0 || t.Results != nil {
 							// TODO(rFindley) Should this be a hard error?
@@ -497,7 +498,7 @@ L: // unpack receiver type
 	if ptyp, _ := rtyp.(*ast.IndexExpr); ptyp != nil {
 		rtyp = ptyp.X
 		if unpackParams {
-			for _, arg := range unpackExpr(ptyp.Index) {
+			for _, arg := range typeparams.UnpackExpr(ptyp.Index) {
 				var par *ast.Ident
 				switch arg := arg.(type) {
 				case *ast.Ident:

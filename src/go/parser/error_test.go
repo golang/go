@@ -23,6 +23,7 @@
 package parser
 
 import (
+	"go/internal/typeparams"
 	"go/scanner"
 	"go/token"
 	"os"
@@ -188,7 +189,11 @@ func TestErrors(t *testing.T) {
 		if !d.IsDir() && !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".src") || strings.HasSuffix(name, ".go2")) {
 			mode := DeclarationErrors | AllErrors
 			if strings.HasSuffix(name, ".go2") {
-				mode |= parseTypeParams
+				if !typeparams.Enabled {
+					continue
+				}
+			} else {
+				mode |= typeparams.DisallowParsing
 			}
 			checkErrors(t, filepath.Join(testdata, name), nil, mode, true)
 		}

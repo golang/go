@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/internal/typeparams"
 	"go/token"
 )
 
@@ -645,7 +646,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	})
 
 	alias := tdecl.Assign.IsValid()
-	if alias && tdecl.TParams != nil {
+	if alias && typeparams.Get(tdecl) != nil {
 		// The parser will ensure this but we may still get an invalid AST.
 		// Complain and continue as regular type definition.
 		check.error(atPos(tdecl.Assign), 0, "generic type cannot be alias")
@@ -668,10 +669,10 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 		def.setUnderlying(named)
 		obj.typ = named // make sure recursive type declarations terminate
 
-		if tdecl.TParams != nil {
+		if tparams := typeparams.Get(tdecl); tparams != nil {
 			check.openScope(tdecl, "type parameters")
 			defer check.closeScope()
-			named.tparams = check.collectTypeParams(tdecl.TParams)
+			named.tparams = check.collectTypeParams(tparams)
 		}
 
 		// determine underlying type of named
