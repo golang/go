@@ -154,10 +154,15 @@ type ResponseWriter interface {
 	// times before sending the final header.
 	//
 	// If the passed status code is 103, the current content of the header
-	// map will be sent as early hints for the client.
+	// map will be sent immediatly as early hints for the client.
 	//
 	// The server automatically sends the 100-continue response header
 	// when the Request.Body is read.
+	//
+	// Response headers may be buffered. In some cases (e.g. when using
+	// Resource Hints or Preload Link headers), sending headers to the
+	// client while the response is being generated can improve performance.
+	// To do so, use the Flusher interface.
 	WriteHeader(statusCode int)
 }
 
