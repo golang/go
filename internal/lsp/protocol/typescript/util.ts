@@ -1,5 +1,3 @@
-/* eslint-disable no-extra-semi */
-/* eslint-disable semi */
 
 // for us typescript ignorati, having an import makes this file a module
 import * as fs from 'fs';
@@ -11,29 +9,29 @@ import * as ts from 'typescript';
 
 // ------ create files
 let dir = process.env['HOME'];
-const srcDir = '/vscode-languageserver-node'
+const srcDir = '/vscode-languageserver-node';
 export const fnames = [
   `${dir}${srcDir}/protocol/src/common/protocol.ts`,
   `${dir}/${srcDir}/protocol/src/browser/main.ts`, `${dir}${srcDir}/types/src/main.ts`,
   `${dir}${srcDir}/jsonrpc/src/node/main.ts`
 ];
-export const gitHash = 'dae62de921d25964e8732411ca09e532dde992f5'
+export const gitHash = 'dae62de921d25964e8732411ca09e532dde992f5';
 let outFname = 'tsprotocol.go';
 let fda: number, fdb: number, fde: number;  // file descriptors
 
 export function createOutputFiles() {
-  fda = fs.openSync('/tmp/ts-a', 'w')  // dump of AST
-  fdb = fs.openSync('/tmp/ts-b', 'w')  // unused, for debugging
-  fde = fs.openSync(outFname, 'w')     // generated Go
+  fda = fs.openSync('/tmp/ts-a', 'w');  // dump of AST
+  fdb = fs.openSync('/tmp/ts-b', 'w');  // unused, for debugging
+  fde = fs.openSync(outFname, 'w');     // generated Go
 }
 export function pra(s: string) {
-  return (fs.writeSync(fda, s))
+  return (fs.writeSync(fda, s));
 }
 export function prb(s: string) {
-  return (fs.writeSync(fdb, s))
+  return (fs.writeSync(fdb, s));
 }
 export function prgo(s: string) {
-  return (fs.writeSync(fde, s))
+  return (fs.writeSync(fde, s));
 }
 
 // Get the hash value of the git commit
@@ -45,66 +43,66 @@ export function git(): string {
     a = a.substring(0, a.length - 1);
   }
   if (a.length == 40) {
-    return a  // a hash
+    return a;  // a hash
   }
   if (a.substring(0, 5) == 'ref: ') {
     const fname = `${dir}${srcDir}/.git/` + a.substring(5);
-    let b = fs.readFileSync(fname).toString()
+    let b = fs.readFileSync(fname).toString();
     if (b.length == 41) {
       return b.substring(0, 40);
     }
   }
-  throw new Error('failed to find the git commit hash')
+  throw new Error('failed to find the git commit hash');
 }
 
 // Produce a header for Go output files
 export function computeHeader(pkgDoc: boolean): string {
-  let lastMod = 0
-  let lastDate: Date
+  let lastMod = 0;
+  let lastDate: Date;
   for (const f of fnames) {
-    const st = fs.statSync(f)
+    const st = fs.statSync(f);
     if (st.mtimeMs > lastMod) {
-      lastMod = st.mtimeMs
-      lastDate = st.mtime
+      lastMod = st.mtimeMs;
+      lastDate = st.mtime;
     }
   }
   const cp = `// Copyright 2019 The Go Authors. All rights reserved.
   // Use of this source code is governed by a BSD-style
   // license that can be found in the LICENSE file.
 
-  `
+  `;
   const a =
     '// Package protocol contains data types and code for LSP jsonrpcs\n' +
     '// generated automatically from vscode-languageserver-node\n' +
     `// commit: ${gitHash}\n` +
-    `// last fetched ${lastDate}\n`
-  const b = 'package protocol\n'
-  const c = '\n// Code generated (see typescript/README.md) DO NOT EDIT.\n\n'
+    `// last fetched ${lastDate}\n`;
+  const b = 'package protocol\n';
+  const c = '\n// Code generated (see typescript/README.md) DO NOT EDIT.\n\n';
   if (pkgDoc) {
-    return cp + a + b + c
+    return cp + a + b + c;
   }
   else {
-    return cp + b + a + c
+    return cp + b + a + c;
   }
-};
+}
 
 // Turn a typescript name into an exportable Go name, and appease lint
 export function goName(s: string): string {
-  let ans = s
+  let ans = s;
   if (s.charAt(0) == '_') {
-    ans = 'Inner' + s.substring(1)
+    ans = 'Inner' + s.substring(1);
   }
-  else { ans = s.substring(0, 1).toUpperCase() + s.substring(1) };
-  ans = ans.replace(/Uri$/, 'URI')
-  ans = ans.replace(/Id$/, 'ID')
-  return ans
+  else { ans = s.substring(0, 1).toUpperCase() + s.substring(1); }
+  ans = ans.replace(/Uri$/, 'URI');
+  ans = ans.replace(/Id$/, 'ID');
+  return ans;
 }
 
 // Generate JSON tag for a struct field
 export function JSON(n: ts.PropertySignature): string {
   const json = `\`json:"${n.name.getText()}${
     n.questionToken != undefined ? ',omitempty' : ''}"\``;
-  return json
+  return json;
 }
 
 // Generate modifying prefixes and suffixes to ensure
@@ -115,24 +113,24 @@ export function constName(nm: string, type: string): string {
     ['DiagnosticSeverity', 'Severity'], ['WatchKind', 'Watch'],
     ['SignatureHelpTriggerKind', 'Sig'], ['CompletionItemTag', 'Compl'],
     ['Integer', 'INT_'], ['Uinteger', 'UINT_']
-  ])  // typeName->prefix
+  ]);  // typeName->prefix
   let suff = new Map<string, string>([
     ['CompletionItemKind', 'Completion'], ['InsertTextFormat', 'TextFormat'],
     ['SymbolTag', 'Symbol'], ['FileOperationPatternKind', 'Op'],
-  ])
+  ]);
   let ans = nm;
   if (pref.get(type)) ans = pref.get(type) + ans;
-  if (suff.has(type)) ans = ans + suff.get(type)
-  return ans
+  if (suff.has(type)) ans = ans + suff.get(type);
+  return ans;
 }
 
 // Find the comments associated with an AST node
 export function getComments(node: ts.Node): string {
   const sf = node.getSourceFile();
-  const start = node.getStart(sf, false)
-  const starta = node.getStart(sf, true)
-  const x = sf.text.substring(starta, start)
-  return x
+  const start = node.getStart(sf, false);
+  const starta = node.getStart(sf, true);
+  const x = sf.text.substring(starta, start);
+  return x;
 }
 
 
@@ -141,7 +139,7 @@ export function getComments(node: ts.Node): string {
 export function printAST(program: ts.Program) {
   // dump the ast, for debugging
   const f = function (n: ts.Node) {
-    describe(n, pra)
+    describe(n, pra);
   };
   for (const sourceFile of program.getSourceFiles()) {
     if (!sourceFile.isDeclarationFile) {
@@ -149,61 +147,61 @@ export function printAST(program: ts.Program) {
       ts.forEachChild(sourceFile, f);
     }
   }
-  pra('\n')
+  pra('\n');
   for (const key of Object.keys(seenThings).sort()) {
-    pra(`${key}: ${seenThings[key]} \n`)
+    pra(`${key}: ${seenThings[key]} \n`);
   }
 }
 
 // Used in printing the AST
 let seenThings = new Map<string, number>();
 function seenAdd(x: string) {
-  seenThings[x] = (seenThings[x] === undefined ? 1 : seenThings[x] + 1)
+  seenThings[x] = (seenThings[x] === undefined ? 1 : seenThings[x] + 1);
 }
 
 // eslint-disable-next-line no-unused-vars
 function describe(node: ts.Node, pr: (s: string) => any) {
   if (node === undefined) {
-    return
+    return;
   }
   let indent = '';
 
   function f(n: ts.Node) {
-    seenAdd(kinds(n))
+    seenAdd(kinds(n));
     if (ts.isIdentifier(n)) {
-      pr(`${indent} ${loc(n)} ${strKind(n)} ${n.text} \n`)
+      pr(`${indent} ${loc(n)} ${strKind(n)} ${n.text} \n`);
     }
     else if (ts.isPropertySignature(n) || ts.isEnumMember(n)) {
-      pra(`${indent} ${loc(n)} ${strKind(n)} \n`)
+      pra(`${indent} ${loc(n)} ${strKind(n)} \n`);
     }
     else if (ts.isTypeLiteralNode(n)) {
-      let m = n.members
-      pr(`${indent} ${loc(n)} ${strKind(n)} ${m.length} \n`)
+      let m = n.members;
+      pr(`${indent} ${loc(n)} ${strKind(n)} ${m.length} \n`);
     }
     else if (ts.isStringLiteral(n)) {
-      pr(`${indent} ${loc(n)} ${strKind(n)} ${n.text} \n`)
+      pr(`${indent} ${loc(n)} ${strKind(n)} ${n.text} \n`);
     }
-    else { pr(`${indent} ${loc(n)} ${strKind(n)} \n`) };
-    indent += ' .'
-    ts.forEachChild(n, f)
-    indent = indent.slice(0, indent.length - 2)
+    else { pr(`${indent} ${loc(n)} ${strKind(n)} \n`); }
+    indent += ' .';
+    ts.forEachChild(n, f);
+    indent = indent.slice(0, indent.length - 2);
   }
-  f(node)
+  f(node);
 }
 
 
 // For debugging, say where an AST node is in a file
 export function loc(node: ts.Node): string {
   const sf = node.getSourceFile();
-  const start = node.getStart()
-  const x = sf.getLineAndCharacterOfPosition(start)
-  const full = node.getFullStart()
-  const y = sf.getLineAndCharacterOfPosition(full)
-  let fn = sf.fileName
-  const n = fn.search(/-node./)
-  fn = fn.substring(n + 6)
+  const start = node.getStart();
+  const x = sf.getLineAndCharacterOfPosition(start);
+  const full = node.getFullStart();
+  const y = sf.getLineAndCharacterOfPosition(full);
+  let fn = sf.fileName;
+  const n = fn.search(/-node./);
+  fn = fn.substring(n + 6);
   return `${fn} ${x.line + 1}: ${x.character + 1} (${y.line + 1}: ${
-    y.character + 1})`
+    y.character + 1})`;
 }
 // --- various string stuff
 
@@ -211,9 +209,9 @@ export function loc(node: ts.Node): string {
 // as part of printing the AST tree
 function kinds(n: ts.Node): string {
   let res = 'Seen ' + strKind(n);
-  function f(n: ts.Node): void { res += ' ' + strKind(n) };
-  ts.forEachChild(n, f)
-  return res
+  function f(n: ts.Node): void { res += ' ' + strKind(n); }
+  ts.forEachChild(n, f);
+  return res;
 }
 
 // What kind of AST node is it? This would just be typescript's
@@ -221,13 +219,13 @@ function kinds(n: ts.Node): string {
 // are misleading
 export function strKind(n: ts.Node): string {
   if (n == null || n == undefined) {
-    return 'null'
+    return 'null';
   }
    return kindToStr(n.kind);
 }
 
 export function kindToStr(k: ts.SyntaxKind): string {
-  if (k === undefined) return 'unDefined'
+  if (k === undefined) return 'unDefined';
   const x = ts.SyntaxKind[k];
   // some of these have two names
   switch (x) {
