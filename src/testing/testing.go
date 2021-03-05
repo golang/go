@@ -667,6 +667,7 @@ var _ TB = (*B)(nil)
 type T struct {
 	common
 	isParallel bool
+	isEnvSet   bool
 	context    *testContext // For running tests and subtests.
 }
 
@@ -964,6 +965,29 @@ func (c *common) TempDir() string {
 	return dir
 }
 
+// Setenv calls os.Setenv(key, value) and uses Cleanup to
+// restore the environment variable to its original value
+// after the test.
+//
+// This cannot be used in parallel tests.
+func (c *common) Setenv(key, value string) {
+	prevValue, ok := os.LookupEnv(key)
+
+	if err := os.Setenv(key, value); err != nil {
+		c.Fatalf("cannot set environment variable: %v", err)
+	}
+
+	if ok {
+		c.Cleanup(func() {
+			os.Setenv(key, prevValue)
+		})
+	} else {
+		c.Cleanup(func() {
+			os.Unsetenv(key)
+		})
+	}
+}
+
 // panicHanding is an argument to runCleanup.
 type panicHandling int
 
@@ -1035,6 +1059,9 @@ func (t *T) Parallel() {
 	if t.isParallel {
 		panic("testing: t.Parallel called multiple times")
 	}
+	if t.isEnvSet {
+		panic("testing: t.Parallel called after t.Setenv; cannot set environment variables in parallel tests")
+	}
 	t.isParallel = true
 
 	// We don't want to include the time we spend waiting for serial tests
@@ -1066,6 +1093,21 @@ func (t *T) Parallel() {
 
 	t.start = time.Now()
 	t.raceErrors += -race.Errors()
+}
+
+// Setenv calls os.Setenv(key, value) and uses Cleanup to
+// restore the environment variable to its original value
+// after the test.
+//
+// This cannot be used in parallel tests.
+func (t *T) Setenv(key, value string) {
+	if t.isParallel {
+		panic("testing: t.Setenv called after t.Parallel; cannot set environment variables in parallel tests")
+	}
+
+	t.isEnvSet = true
+
+	t.common.Setenv(key, value)
 }
 
 // InternalTest is an internal type but exported because it is cross-package;
