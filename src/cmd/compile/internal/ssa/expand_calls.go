@@ -386,41 +386,34 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 		which := selector.AuxInt
 		if which == aux.NResults() { // mem is after the results.
 			// rewrite v as a Copy of call -- the replacement call will produce a mem.
-			if call.Op == OpStaticLECall {
-				if leaf != selector {
-					panic("Unexpected selector of memory")
-				}
-				// StaticCall selector will address last element of Result.
-				// TODO do this for all the other call types eventually.
-				if aux.abiInfo == nil {
-					panic(badVal("aux.abiInfo nil for call", call))
-				}
-				if existing := x.memForCall[call.ID]; existing == nil {
-					selector.AuxInt = int64(aux.abiInfo.OutRegistersUsed())
-					x.memForCall[call.ID] = selector
-				} else {
-					selector.copyOf(existing)
-				}
-			} else {
-				leaf.copyOf(call)
+			if leaf != selector {
+				panic("Unexpected selector of memory")
 			}
+			if aux.abiInfo == nil {
+				panic(badVal("aux.abiInfo nil for call", call))
+			}
+			if existing := x.memForCall[call.ID]; existing == nil {
+				selector.AuxInt = int64(aux.abiInfo.OutRegistersUsed())
+				x.memForCall[call.ID] = selector
+			} else {
+				selector.copyOf(existing)
+			}
+
 		} else {
 			leafType := removeTrivialWrapperTypes(leaf.Type)
 			if x.canSSAType(leafType) {
 				pt := types.NewPtr(leafType)
 				// Any selection right out of the arg area/registers has to be same Block as call, use call as mem input.
-				if call.Op == OpStaticLECall { // TODO this is temporary until all calls are register-able
-					// Create a "mem" for any loads that need to occur.
-					if mem := x.memForCall[call.ID]; mem != nil {
-						if mem.Block != call.Block {
-							panic(fmt.Errorf("selector and call need to be in same block, selector=%s; call=%s", selector.LongString(), call.LongString()))
-						}
-						call = mem
-					} else {
-						mem = call.Block.NewValue1I(call.Pos.WithNotStmt(), OpSelectN, types.TypeMem, int64(aux.abiInfo.OutRegistersUsed()), call)
-						x.memForCall[call.ID] = mem
-						call = mem
+				// Create a "mem" for any loads that need to occur.
+				if mem := x.memForCall[call.ID]; mem != nil {
+					if mem.Block != call.Block {
+						panic(fmt.Errorf("selector and call need to be in same block, selector=%s; call=%s", selector.LongString(), call.LongString()))
 					}
+					call = mem
+				} else {
+					mem = call.Block.NewValue1I(call.Pos.WithNotStmt(), OpSelectN, types.TypeMem, int64(aux.abiInfo.OutRegistersUsed()), call)
+					x.memForCall[call.ID] = mem
+					call = mem
 				}
 				outParam := aux.abiInfo.OutParam(int(which))
 				if len(outParam.Registers) > 0 {
@@ -1350,14 +1343,15 @@ func expandCalls(f *Func) {
 			case OpStaticLECall:
 				v.Op = OpStaticCall
 				rts := abi.RegisterTypes(v.Aux.(*AuxCall).abiInfo.OutParams())
-				// TODO need to insert all the register types.
 				v.Type = types.NewResults(append(rts, types.TypeMem))
 			case OpClosureLECall:
 				v.Op = OpClosureCall
-				v.Type = types.TypeMem
+				rts := abi.RegisterTypes(v.Aux.(*AuxCall).abiInfo.OutParams())
+				v.Type = types.NewResults(append(rts, types.TypeMem))
 			case OpInterLECall:
 				v.Op = OpInterCall
-				v.Type = types.TypeMem
+				rts := abi.RegisterTypes(v.Aux.(*AuxCall).abiInfo.OutParams())
+				v.Type = types.NewResults(append(rts, types.TypeMem))
 			}
 		}
 	}

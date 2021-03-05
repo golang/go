@@ -10,6 +10,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"fmt"
+	"strings"
 )
 
 // An Op encodes the specific operation that a Value performs.
@@ -68,6 +69,27 @@ type regInfo struct {
 	outputs []outputInfo
 }
 
+func (r *regInfo) String() string {
+	s := ""
+	s += "INS:\n"
+	for _, i := range r.inputs {
+		mask := fmt.Sprintf("%64b", i.regs)
+		mask = strings.Replace(mask, "0", ".", -1)
+		s += fmt.Sprintf("%2d |%s|\n", i.idx, mask)
+	}
+	s += "OUTS:\n"
+	for _, i := range r.outputs {
+		mask := fmt.Sprintf("%64b", i.regs)
+		mask = strings.Replace(mask, "0", ".", -1)
+		s += fmt.Sprintf("%2d |%s|\n", i.idx, mask)
+	}
+	s += "CLOBBERS:\n"
+	mask := fmt.Sprintf("%64b", r.clobbers)
+	mask = strings.Replace(mask, "0", ".", -1)
+	s += fmt.Sprintf("   |%s|\n", mask)
+	return s
+}
+
 type auxType int8
 
 type Param struct {
@@ -116,20 +138,25 @@ func (a *AuxCall) Reg(i *regInfo, c *Config) *regInfo {
 		a.reg = i
 		return a.reg
 	}
-	a.reg.inputs = append(a.reg.inputs, i.inputs...)
+
+	k := len(i.inputs)
 	for _, p := range a.abiInfo.InParams() {
 		for _, r := range p.Registers {
 			m := archRegForAbiReg(r, c)
-			a.reg.inputs = append(a.reg.inputs, inputInfo{idx: len(a.reg.inputs), regs: (1 << m)})
+			a.reg.inputs = append(a.reg.inputs, inputInfo{idx: k, regs: (1 << m)})
+			k++
 		}
 	}
-	a.reg.outputs = append(a.reg.outputs, i.outputs...)
+	a.reg.inputs = append(a.reg.inputs, i.inputs...) // These are less constrained, thus should come last
+	k = len(i.outputs)
 	for _, p := range a.abiInfo.OutParams() {
 		for _, r := range p.Registers {
 			m := archRegForAbiReg(r, c)
-			a.reg.outputs = append(a.reg.outputs, outputInfo{idx: len(a.reg.outputs), regs: (1 << m)})
+			a.reg.outputs = append(a.reg.outputs, outputInfo{idx: k, regs: (1 << m)})
+			k++
 		}
 	}
+	a.reg.outputs = append(a.reg.outputs, i.outputs...)
 	a.reg.clobbers = i.clobbers
 	return a.reg
 }
@@ -299,12 +326,20 @@ func StaticAuxCall(sym *obj.LSym, args []Param, results []Param, paramResultInfo
 
 // InterfaceAuxCall returns an AuxCall for an interface call.
 func InterfaceAuxCall(args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
-	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo}
+	var reg *regInfo
+	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
+		reg = &regInfo{}
+	}
+	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo, reg: reg}
 }
 
 // ClosureAuxCall returns an AuxCall for a closure call.
 func ClosureAuxCall(args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
-	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo}
+	var reg *regInfo
+	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
+		reg = &regInfo{}
+	}
+	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo, reg: reg}
 }
 
 func (*AuxCall) CanBeAnSSAAux() {}

@@ -264,7 +264,7 @@ var genericOps = []opData{
 	//   ±0  → ±0 (sign preserved)
 	//   x<0 → NaN
 	//   NaN → NaN
-	{name: "Sqrt", argLength: 1}, // √arg0   (floating point, double precision)
+	{name: "Sqrt", argLength: 1},   // √arg0   (floating point, double precision)
 	{name: "Sqrt32", argLength: 1}, // √arg0 (floating point, single precision)
 
 	// Round to integer, float64 only.
@@ -396,9 +396,28 @@ var genericOps = []opData{
 	// TODO(josharian): ClosureCall and InterCall should have Int32 aux
 	// to match StaticCall's 32 bit arg size limit.
 	// TODO(drchase,josharian): could the arg size limit be bundled into the rules for CallOff?
-	{name: "ClosureCall", argLength: 3, aux: "CallOff", call: true},    // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
-	{name: "StaticCall", argLength: -1, aux: "CallOff", call: true},    // call function aux.(*obj.LSym), arg0..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
-	{name: "InterCall", argLength: 2, aux: "CallOff", call: true},      // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
+
+	// Before lowering, LECalls receive their fixed inputs (first), memory (last),
+	// and a variable number of input values in the middle.
+	// They produce a variable number of result values.
+	// These values are not necessarily "SSA-able"; they can be too large,
+	// but in that case inputs are loaded immediately before with OpDereference,
+	// and outputs are stored immediately with OpStore.
+	//
+	// After call expansion, Calls have the same fixed-middle-memory arrangement of inputs,
+	// with the difference that the "middle" is only the register-resident inputs,
+	// and the non-register inputs are instead stored at ABI-defined offsets from SP
+	// (and the stores thread through the memory that is ultimately an input to the call).
+	// Outputs follow a similar pattern; register-resident outputs are the leading elements
+	// of a Result-typed output, with memory last, and any memory-resident outputs have been
+	// stored to ABI-defined locations.  Each non-memory input or output fits in a register.
+	//
+	// Subsequent architecture-specific lowering only changes the opcode.
+
+	{name: "ClosureCall", argLength: -1, aux: "CallOff", call: true}, // arg0=code pointer, arg1=context ptr, arg2..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "StaticCall", argLength: -1, aux: "CallOff", call: true},  // call function aux.(*obj.LSym), arg0..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "InterCall", argLength: -1, aux: "CallOff", call: true},   // interface call.  arg0=code pointer, arg1..argN-1 are register inputs, argN=memory, auxint=arg size.  Returns Result of register results, plus memory.
+
 	{name: "ClosureLECall", argLength: -1, aux: "CallOff", call: true}, // late-expanded closure call. arg0=code pointer, arg1=context ptr,  arg2..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
 	{name: "StaticLECall", argLength: -1, aux: "CallOff", call: true},  // late-expanded static call function aux.(*ssa.AuxCall.Fn). arg0..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
 	{name: "InterLECall", argLength: -1, aux: "CallOff", call: true},   // late-expanded interface call. arg0=code pointer, arg1..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
