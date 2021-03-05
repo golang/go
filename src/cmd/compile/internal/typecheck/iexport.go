@@ -246,6 +246,11 @@ const (
 	interfaceType
 )
 
+const (
+	debug = false
+	magic = 0x6742937dc293105
+)
+
 func WriteExports(out *bufio.Writer) {
 	p := iexporter{
 		allPkgs:     map[*types.Pkg]bool{},
@@ -1584,6 +1589,9 @@ func (w *exportWriter) expr(n ir.Node) {
 }
 
 func (w *exportWriter) op(op ir.Op) {
+	if debug {
+		w.uint64(magic)
+	}
 	w.uint64(uint64(op))
 }
 

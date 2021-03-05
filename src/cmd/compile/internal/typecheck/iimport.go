@@ -1228,6 +1228,9 @@ func (r *importReader) node() ir.Node {
 }
 
 func (r *importReader) op() ir.Op {
+	if debug && r.uint64() != magic {
+		base.Fatalf("import stream has desynchronized")
+	}
 	return ir.Op(r.uint64())
 }
 
