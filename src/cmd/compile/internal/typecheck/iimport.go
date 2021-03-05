@@ -63,7 +63,7 @@ func expandDecl(n ir.Node) ir.Node {
 
 func ImportBody(fn *ir.Func) {
 	if fn.Inl.Body != nil {
-		return
+		base.Fatalf("%v already has inline body", fn)
 	}
 
 	r := importReaderFor(fn.Nname.Sym(), inlineImporter)
