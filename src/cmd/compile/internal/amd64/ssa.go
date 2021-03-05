@@ -682,9 +682,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
-		ssagen.AddAux2(&p.From, v, sc.Off())
+		ssagen.AddAux2(&p.From, v, sc.Off64())
 		p.To.Type = obj.TYPE_CONST
-		p.To.Offset = sc.Val()
+		p.To.Offset = sc.Val64()
 	case ssa.OpAMD64CMPQloadidx8, ssa.OpAMD64CMPQloadidx1, ssa.OpAMD64CMPLloadidx4, ssa.OpAMD64CMPLloadidx1, ssa.OpAMD64CMPWloadidx2, ssa.OpAMD64CMPWloadidx1, ssa.OpAMD64CMPBloadidx1:
 		p := s.Prog(v.Op.Asm())
 		memIdx(&p.From, v)
@@ -695,9 +695,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		sc := v.AuxValAndOff()
 		p := s.Prog(v.Op.Asm())
 		memIdx(&p.From, v)
-		ssagen.AddAux2(&p.From, v, sc.Off())
+		ssagen.AddAux2(&p.From, v, sc.Off64())
 		p.To.Type = obj.TYPE_CONST
-		p.To.Offset = sc.Val()
+		p.To.Offset = sc.Val64()
 	case ssa.OpAMD64MOVLconst, ssa.OpAMD64MOVQconst:
 		x := v.Reg()
 
@@ -769,7 +769,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssagen.AddAux(&p.To, v)
 	case ssa.OpAMD64ADDQconstmodify, ssa.OpAMD64ADDLconstmodify:
 		sc := v.AuxValAndOff()
-		off := sc.Off()
+		off := sc.Off64()
 		val := sc.Val()
 		if val == 1 || val == -1 {
 			var asm obj.As
@@ -797,8 +797,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpAMD64BTCQconstmodify, ssa.OpAMD64BTCLconstmodify, ssa.OpAMD64BTSQconstmodify, ssa.OpAMD64BTSLconstmodify,
 		ssa.OpAMD64BTRQconstmodify, ssa.OpAMD64BTRLconstmodify, ssa.OpAMD64XORQconstmodify, ssa.OpAMD64XORLconstmodify:
 		sc := v.AuxValAndOff()
-		off := sc.Off()
-		val := sc.Val()
+		off := sc.Off64()
+		val := sc.Val64()
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = val
@@ -810,10 +810,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		sc := v.AuxValAndOff()
-		p.From.Offset = sc.Val()
+		p.From.Offset = sc.Val64()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
-		ssagen.AddAux2(&p.To, v, sc.Off())
+		ssagen.AddAux2(&p.To, v, sc.Off64())
 	case ssa.OpAMD64MOVOstorezero:
 		if s.ABI != obj.ABIInternal {
 			v.Fatalf("MOVOstorezero can be only used in ABIInternal functions")
@@ -836,7 +836,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		sc := v.AuxValAndOff()
-		p.From.Offset = sc.Val()
+		p.From.Offset = sc.Val64()
 		switch {
 		case p.As == x86.AADDQ && p.From.Offset == 1:
 			p.As = x86.AINCQ
@@ -852,7 +852,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			p.From.Type = obj.TYPE_NONE
 		}
 		memIdx(&p.To, v)
-		ssagen.AddAux2(&p.To, v, sc.Off())
+		ssagen.AddAux2(&p.To, v, sc.Off64())
 	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX, ssa.OpAMD64MOVLQZX, ssa.OpAMD64MOVWQZX, ssa.OpAMD64MOVBQZX,
 		ssa.OpAMD64CVTTSS2SL, ssa.OpAMD64CVTTSD2SL, ssa.OpAMD64CVTTSS2SQ, ssa.OpAMD64CVTTSD2SQ,
 		ssa.OpAMD64CVTSS2SD, ssa.OpAMD64CVTSD2SS:
