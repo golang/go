@@ -318,46 +318,46 @@
 
 // Lowering Zero instructions
 (Zero [0] _ mem) => mem
-(Zero [1] destptr mem) => (MOVBstoreconst [makeValAndOff32(0,0)] destptr mem)
-(Zero [2] destptr mem) => (MOVWstoreconst [makeValAndOff32(0,0)] destptr mem)
-(Zero [4] destptr mem) => (MOVLstoreconst [makeValAndOff32(0,0)] destptr mem)
-(Zero [8] destptr mem) => (MOVQstoreconst [makeValAndOff32(0,0)] destptr mem)
+(Zero [1] destptr mem) => (MOVBstoreconst [makeValAndOff(0,0)] destptr mem)
+(Zero [2] destptr mem) => (MOVWstoreconst [makeValAndOff(0,0)] destptr mem)
+(Zero [4] destptr mem) => (MOVLstoreconst [makeValAndOff(0,0)] destptr mem)
+(Zero [8] destptr mem) => (MOVQstoreconst [makeValAndOff(0,0)] destptr mem)
 
 (Zero [3] destptr mem) =>
-	(MOVBstoreconst [makeValAndOff32(0,2)] destptr
-		(MOVWstoreconst [makeValAndOff32(0,0)] destptr mem))
+	(MOVBstoreconst [makeValAndOff(0,2)] destptr
+		(MOVWstoreconst [makeValAndOff(0,0)] destptr mem))
 (Zero [5] destptr mem) =>
-	(MOVBstoreconst [makeValAndOff32(0,4)] destptr
-		(MOVLstoreconst [makeValAndOff32(0,0)] destptr mem))
+	(MOVBstoreconst [makeValAndOff(0,4)] destptr
+		(MOVLstoreconst [makeValAndOff(0,0)] destptr mem))
 (Zero [6] destptr mem) =>
-	(MOVWstoreconst [makeValAndOff32(0,4)] destptr
-		(MOVLstoreconst [makeValAndOff32(0,0)] destptr mem))
+	(MOVWstoreconst [makeValAndOff(0,4)] destptr
+		(MOVLstoreconst [makeValAndOff(0,0)] destptr mem))
 (Zero [7] destptr mem) =>
-	(MOVLstoreconst [makeValAndOff32(0,3)] destptr
-		(MOVLstoreconst [makeValAndOff32(0,0)] destptr mem))
+	(MOVLstoreconst [makeValAndOff(0,3)] destptr
+		(MOVLstoreconst [makeValAndOff(0,0)] destptr mem))
 
 // Strip off any fractional word zeroing.
 (Zero [s] destptr mem) && s%8 != 0 && s > 8 && !config.useSSE =>
 	(Zero [s-s%8] (OffPtr <destptr.Type> destptr [s%8])
-		(MOVQstoreconst [makeValAndOff32(0,0)] destptr mem))
+		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
 
 // Zero small numbers of words directly.
 (Zero [16] destptr mem) && !config.useSSE =>
-	(MOVQstoreconst [makeValAndOff32(0,8)] destptr
-		(MOVQstoreconst [makeValAndOff32(0,0)] destptr mem))
+	(MOVQstoreconst [makeValAndOff(0,8)] destptr
+		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
 (Zero [24] destptr mem) && !config.useSSE =>
-	(MOVQstoreconst [makeValAndOff32(0,16)] destptr
-		(MOVQstoreconst [makeValAndOff32(0,8)] destptr
-			(MOVQstoreconst [makeValAndOff32(0,0)] destptr mem)))
+	(MOVQstoreconst [makeValAndOff(0,16)] destptr
+		(MOVQstoreconst [makeValAndOff(0,8)] destptr
+			(MOVQstoreconst [makeValAndOff(0,0)] destptr mem)))
 (Zero [32] destptr mem) && !config.useSSE =>
-	(MOVQstoreconst [makeValAndOff32(0,24)] destptr
-		(MOVQstoreconst [makeValAndOff32(0,16)] destptr
-			(MOVQstoreconst [makeValAndOff32(0,8)] destptr
-				(MOVQstoreconst [makeValAndOff32(0,0)] destptr mem))))
+	(MOVQstoreconst [makeValAndOff(0,24)] destptr
+		(MOVQstoreconst [makeValAndOff(0,16)] destptr
+			(MOVQstoreconst [makeValAndOff(0,8)] destptr
+				(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))))
 
 (Zero [s] destptr mem) && s > 8 && s < 16 && config.useSSE =>
-	(MOVQstoreconst [makeValAndOff32(0,int32(s-8))] destptr
-		(MOVQstoreconst [makeValAndOff32(0,0)] destptr mem))
+	(MOVQstoreconst [makeValAndOff(0,int32(s-8))] destptr
+		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
 
 // Adjust zeros to be a multiple of 16 bytes.
 (Zero [s] destptr mem) && s%16 != 0 && s > 16 && s%16 > 8 && config.useSSE =>
@@ -366,7 +366,7 @@
 
 (Zero [s] destptr mem) && s%16 != 0 && s > 16 && s%16 <= 8 && config.useSSE =>
 	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
-		(MOVQstoreconst [makeValAndOff32(0,0)] destptr mem))
+		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
 
 (Zero [16] destptr mem) && config.useSSE =>
 	(MOVOstorezero destptr mem)
@@ -1122,13 +1122,13 @@
 
 // Fold constants into stores.
 (MOVQstore [off] {sym} ptr (MOVQconst [c]) mem) && validVal(c) =>
-	(MOVQstoreconst [makeValAndOff32(int32(c),off)] {sym} ptr mem)
+	(MOVQstoreconst [makeValAndOff(int32(c),off)] {sym} ptr mem)
 (MOVLstore [off] {sym} ptr (MOV(L|Q)const [c]) mem) =>
-	(MOVLstoreconst [makeValAndOff32(int32(c),off)] {sym} ptr mem)
+	(MOVLstoreconst [makeValAndOff(int32(c),off)] {sym} ptr mem)
 (MOVWstore [off] {sym} ptr (MOV(L|Q)const [c]) mem) =>
-	(MOVWstoreconst [makeValAndOff32(int32(int16(c)),off)] {sym} ptr mem)
+	(MOVWstoreconst [makeValAndOff(int32(int16(c)),off)] {sym} ptr mem)
 (MOVBstore [off] {sym} ptr (MOV(L|Q)const [c]) mem) =>
-	(MOVBstoreconst [makeValAndOff32(int32(int8(c)),off)] {sym} ptr mem)
+	(MOVBstoreconst [makeValAndOff(int32(int8(c)),off)] {sym} ptr mem)
 
 // Fold address offsets into constant stores.
 (MOV(Q|L|W|B)storeconst [sc] {s} (ADDQconst [off] ptr) mem) && ValAndOff(sc).canAdd32(off) =>
@@ -1868,32 +1868,32 @@
   && x.Uses == 1
   && a.Off() + 1 == c.Off()
   && clobber(x)
-  => (MOVWstoreconst [makeValAndOff64(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p mem)
+  => (MOVWstoreconst [makeValAndOff(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p mem)
 (MOVBstoreconst [a] {s} p x:(MOVBstoreconst [c] {s} p mem))
   && x.Uses == 1
   && a.Off() + 1 == c.Off()
   && clobber(x)
-  => (MOVWstoreconst [makeValAndOff64(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p mem)
+  => (MOVWstoreconst [makeValAndOff(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p mem)
 (MOVWstoreconst [c] {s} p x:(MOVWstoreconst [a] {s} p mem))
   && x.Uses == 1
   && a.Off() + 2 == c.Off()
   && clobber(x)
-  => (MOVLstoreconst [makeValAndOff64(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p mem)
+  => (MOVLstoreconst [makeValAndOff(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p mem)
 (MOVWstoreconst [a] {s} p x:(MOVWstoreconst [c] {s} p mem))
   && x.Uses == 1
   && a.Off() + 2 == c.Off()
   && clobber(x)
-  => (MOVLstoreconst [makeValAndOff64(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p mem)
+  => (MOVLstoreconst [makeValAndOff(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p mem)
 (MOVLstoreconst [c] {s} p x:(MOVLstoreconst [a] {s} p mem))
   && x.Uses == 1
   && a.Off() + 4 == c.Off()
   && clobber(x)
-  => (MOVQstore [a.Off32()] {s} p (MOVQconst [a.Val()&0xffffffff | c.Val()<<32]) mem)
+  => (MOVQstore [a.Off()] {s} p (MOVQconst [a.Val64()&0xffffffff | c.Val64()<<32]) mem)
 (MOVLstoreconst [a] {s} p x:(MOVLstoreconst [c] {s} p mem))
   && x.Uses == 1
   && a.Off() + 4 == c.Off()
   && clobber(x)
-  => (MOVQstore [a.Off32()] {s} p (MOVQconst [a.Val()&0xffffffff | c.Val()<<32]) mem)
+  => (MOVQstore [a.Off()] {s} p (MOVQconst [a.Val64()&0xffffffff | c.Val64()<<32]) mem)
 (MOVQstoreconst [c] {s} p x:(MOVQstoreconst [c2] {s} p mem))
   && config.useSSE
   && x.Uses == 1
@@ -1901,7 +1901,7 @@
   && c.Val() == 0
   && c2.Val() == 0
   && clobber(x)
-  => (MOVOstorezero [c2.Off32()] {s} p mem)
+  => (MOVOstorezero [c2.Off()] {s} p mem)
 
 // Combine stores into larger (unaligned) stores. Little endian.
 (MOVBstore [i] {s} p (SHR(W|L|Q)const [8] w) x:(MOVBstore [i-1] {s} p w mem))
@@ -2120,11 +2120,11 @@
 (MOVBQZX (MOVBQZX x)) => (MOVBQZX x)
 
 (MOVQstore [off] {sym} ptr a:((ADD|AND|OR|XOR|BTC|BTR|BTS)Qconst [c] l:(MOVQload [off] {sym} ptr2 mem)) mem)
-	&& isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(int64(c),int64(off)) && clobber(l, a) =>
-	((ADD|AND|OR|XOR|BTC|BTR|BTS)Qconstmodify {sym} [makeValAndOff32(int32(c),off)] ptr mem)
+	&& isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && clobber(l, a) =>
+	((ADD|AND|OR|XOR|BTC|BTR|BTS)Qconstmodify {sym} [makeValAndOff(int32(c),off)] ptr mem)
 (MOVLstore [off] {sym} ptr a:((ADD|AND|OR|XOR|BTC|BTR|BTS)Lconst [c] l:(MOVLload [off] {sym} ptr2 mem)) mem)
-	&& isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(int64(c),int64(off)) && clobber(l, a) =>
-	((ADD|AND|OR|XOR|BTC|BTR|BTS)Lconstmodify {sym} [makeValAndOff32(int32(c),off)] ptr mem)
+	&& isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && clobber(l, a) =>
+	((ADD|AND|OR|XOR|BTC|BTR|BTS)Lconstmodify {sym} [makeValAndOff(int32(c),off)] ptr mem)
 
 // float <-> int register moves, with no conversion.
 // These come up when compiling math.{Float{32,64}bits,Float{32,64}frombits}.
@@ -2184,23 +2184,22 @@
 (CMP(Q|L)const l:(MOV(Q|L)load {sym} [off] ptr mem) [c])
 	&& l.Uses == 1
 	&& clobber(l) =>
-@l.Block (CMP(Q|L)constload {sym} [makeValAndOff32(c,off)] ptr mem)
+@l.Block (CMP(Q|L)constload {sym} [makeValAndOff(c,off)] ptr mem)
 (CMP(W|B)const l:(MOV(W|B)load {sym} [off] ptr mem) [c])
 	&& l.Uses == 1
 	&& clobber(l) =>
-@l.Block (CMP(W|B)constload {sym} [makeValAndOff32(int32(c),off)] ptr mem)
+@l.Block (CMP(W|B)constload {sym} [makeValAndOff(int32(c),off)] ptr mem)
 
-(CMPQload {sym} [off] ptr (MOVQconst [c]) mem) && validValAndOff(c,int64(off)) => (CMPQconstload {sym} [makeValAndOff64(c,int64(off))] ptr mem)
-(CMPLload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(c),int64(off)) => (CMPLconstload {sym} [makeValAndOff32(c,off)] ptr mem)
-(CMPWload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int16(c)),int64(off)) => (CMPWconstload {sym} [makeValAndOff32(int32(int16(c)),off)] ptr mem)
-(CMPBload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int8(c)),int64(off)) => (CMPBconstload {sym} [makeValAndOff32(int32(int8(c)),off)] ptr mem)
+(CMPQload {sym} [off] ptr (MOVQconst [c]) mem) && validVal(c) => (CMPQconstload {sym} [makeValAndOff(int32(c),off)] ptr mem)
+(CMPLload {sym} [off] ptr (MOVLconst [c]) mem) => (CMPLconstload {sym} [makeValAndOff(c,off)] ptr mem)
+(CMPWload {sym} [off] ptr (MOVLconst [c]) mem) => (CMPWconstload {sym} [makeValAndOff(int32(int16(c)),off)] ptr mem)
+(CMPBload {sym} [off] ptr (MOVLconst [c]) mem) => (CMPBconstload {sym} [makeValAndOff(int32(int8(c)),off)] ptr mem)
 
 (TEST(Q|L|W|B)  l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) l2)
         && l == l2
 	&& l.Uses == 2
-	&& validValAndOff(0, int64(off))
 	&& clobber(l) =>
-  @l.Block (CMP(Q|L|W|B)constload {sym} [makeValAndOff64(0, int64(off))] ptr mem)
+  @l.Block (CMP(Q|L|W|B)constload {sym} [makeValAndOff(0, off)] ptr mem)
 
 // Convert ANDload to MOVload when we can do the AND in a containing TEST op.
 // Only do when it's within the same block, so we don't have flags live across basic block boundaries.

@@ -427,9 +427,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
-		ssagen.AddAux2(&p.From, v, sc.Off())
+		ssagen.AddAux2(&p.From, v, sc.Off64())
 		p.To.Type = obj.TYPE_CONST
-		p.To.Offset = sc.Val()
+		p.To.Offset = sc.Val64()
 	case ssa.Op386MOVLconst:
 		x := v.Reg()
 
@@ -544,7 +544,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			} else {
 				p = s.Prog(x86.ADECL)
 			}
-			off := sc.Off()
+			off := sc.Off64()
 			p.To.Type = obj.TYPE_MEM
 			p.To.Reg = v.Args[0].Reg()
 			ssagen.AddAux2(&p.To, v, off)
@@ -553,8 +553,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		fallthrough
 	case ssa.Op386ANDLconstmodify, ssa.Op386ORLconstmodify, ssa.Op386XORLconstmodify:
 		sc := v.AuxValAndOff()
-		off := sc.Off()
-		val := sc.Val()
+		off := sc.Off64()
+		val := sc.Val64()
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = val
@@ -591,10 +591,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		sc := v.AuxValAndOff()
-		p.From.Offset = sc.Val()
+		p.From.Offset = sc.Val64()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
-		ssagen.AddAux2(&p.To, v, sc.Off())
+		ssagen.AddAux2(&p.To, v, sc.Off64())
 	case ssa.Op386ADDLconstmodifyidx4:
 		sc := v.AuxValAndOff()
 		val := sc.Val()
@@ -605,7 +605,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			} else {
 				p = s.Prog(x86.ADECL)
 			}
-			off := sc.Off()
+			off := sc.Off64()
 			p.To.Type = obj.TYPE_MEM
 			p.To.Reg = v.Args[0].Reg()
 			p.To.Scale = 4
@@ -619,7 +619,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		sc := v.AuxValAndOff()
-		p.From.Offset = sc.Val()
+		p.From.Offset = sc.Val64()
 		r := v.Args[0].Reg()
 		i := v.Args[1].Reg()
 		switch v.Op {
@@ -637,7 +637,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = r
 		p.To.Index = i
-		ssagen.AddAux2(&p.To, v, sc.Off())
+		ssagen.AddAux2(&p.To, v, sc.Off64())
 	case ssa.Op386MOVWLSX, ssa.Op386MOVBLSX, ssa.Op386MOVWLZX, ssa.Op386MOVBLZX,
 		ssa.Op386CVTSL2SS, ssa.Op386CVTSL2SD,
 		ssa.Op386CVTTSS2SL, ssa.Op386CVTTSD2SL,

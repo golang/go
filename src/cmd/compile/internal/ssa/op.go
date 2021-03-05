@@ -382,13 +382,13 @@ type Sym interface {
 // The low 32 bits hold a pointer offset.
 type ValAndOff int64
 
-func (x ValAndOff) Val() int64   { return int64(x) >> 32 }
-func (x ValAndOff) Val32() int32 { return int32(int64(x) >> 32) }
+func (x ValAndOff) Val() int32   { return int32(int64(x) >> 32) }
+func (x ValAndOff) Val64() int64 { return int64(x) >> 32 }
 func (x ValAndOff) Val16() int16 { return int16(int64(x) >> 32) }
 func (x ValAndOff) Val8() int8   { return int8(int64(x) >> 32) }
 
-func (x ValAndOff) Off() int64   { return int64(int32(x)) }
-func (x ValAndOff) Off32() int32 { return int32(x) }
+func (x ValAndOff) Off64() int64 { return int64(int32(x)) }
+func (x ValAndOff) Off() int32   { return int32(x) }
 
 func (x ValAndOff) String() string {
 	return fmt.Sprintf("val=%d,off=%d", x.Val(), x.Off())
@@ -400,40 +400,16 @@ func validVal(val int64) bool {
 	return val == int64(int32(val))
 }
 
-// validOff reports whether the offset can be used
-// as an argument to makeValAndOff.
-func validOff(off int64) bool {
-	return off == int64(int32(off))
-}
-
-// validValAndOff reports whether we can fit the value and offset into
-// a ValAndOff value.
-func validValAndOff(val, off int64) bool {
-	if !validVal(val) {
-		return false
-	}
-	if !validOff(off) {
-		return false
-	}
-	return true
-}
-
-func makeValAndOff32(val, off int32) ValAndOff {
+func makeValAndOff(val, off int32) ValAndOff {
 	return ValAndOff(int64(val)<<32 + int64(uint32(off)))
-}
-func makeValAndOff64(val, off int64) ValAndOff {
-	if !validValAndOff(val, off) {
-		panic("invalid makeValAndOff64")
-	}
-	return ValAndOff(val<<32 + int64(uint32(off)))
 }
 
 func (x ValAndOff) canAdd32(off int32) bool {
-	newoff := x.Off() + int64(off)
+	newoff := x.Off64() + int64(off)
 	return newoff == int64(int32(newoff))
 }
 func (x ValAndOff) canAdd64(off int64) bool {
-	newoff := x.Off() + off
+	newoff := x.Off64() + off
 	return newoff == int64(int32(newoff))
 }
 
@@ -441,13 +417,13 @@ func (x ValAndOff) addOffset32(off int32) ValAndOff {
 	if !x.canAdd32(off) {
 		panic("invalid ValAndOff.addOffset32")
 	}
-	return makeValAndOff64(x.Val(), x.Off()+int64(off))
+	return makeValAndOff(x.Val(), x.Off()+off)
 }
 func (x ValAndOff) addOffset64(off int64) ValAndOff {
 	if !x.canAdd64(off) {
 		panic("invalid ValAndOff.addOffset64")
 	}
-	return makeValAndOff64(x.Val(), x.Off()+off)
+	return makeValAndOff(x.Val(), x.Off()+int32(off))
 }
 
 // int128 is a type that stores a 128-bit constant.
