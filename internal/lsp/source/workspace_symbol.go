@@ -351,14 +351,9 @@ func (sc *symbolCollector) walkFilesDecls(decls []ast.Decl) {
 		case *ast.FuncDecl:
 			kind := protocol.Function
 			var recv *ast.Ident
-			if decl.Recv != nil {
+			if decl.Recv.NumFields() > 0 {
 				kind = protocol.Method
-				switch typ := decl.Recv.List[0].Type.(type) {
-				case *ast.StarExpr:
-					recv = typ.X.(*ast.Ident)
-				case *ast.Ident:
-					recv = typ
-				}
+				recv = unpackRecv(decl.Recv.List[0].Type)
 			}
 			if recv != nil {
 				sc.match(decl.Name.Name, kind, decl.Name, recv)
@@ -383,6 +378,25 @@ func (sc *symbolCollector) walkFilesDecls(decls []ast.Decl) {
 			}
 		}
 	}
+}
+
+func unpackRecv(rtyp ast.Expr) *ast.Ident {
+	// Extract the receiver identifier. Lifted from go/types/resolver.go
+L:
+	for {
+		switch t := rtyp.(type) {
+		case *ast.ParenExpr:
+			rtyp = t.X
+		case *ast.StarExpr:
+			rtyp = t.X
+		default:
+			break L
+		}
+	}
+	if name, _ := rtyp.(*ast.Ident); name != nil {
+		return name
+	}
+	return nil
 }
 
 // walkType processes symbols related to a type expression. path is path of
