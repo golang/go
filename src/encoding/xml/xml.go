@@ -261,7 +261,7 @@ func NewTokenDecoder(t TokenReader) *Decoder {
 // call to Token. To acquire a copy of the bytes, call CopyToken
 // or the token's Copy method.
 //
-// Token expands self-closing elements such as <br/>
+// Token expands self-closing elements such as <br>
 // into separate start and end elements returned by successive calls.
 //
 // Token guarantees that the StartElement and EndElement
