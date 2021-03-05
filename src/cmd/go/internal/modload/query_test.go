@@ -106,7 +106,7 @@ var queryTests = []struct {
 	{path: queryRepo, query: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
 	{path: queryRepo, query: "ed5ffdaa", vers: "v1.9.10-pre2.0.20191220134614-ed5ffdaa1f5e"},
 
-	// golang.org/issue/29262: The major version for for a module without a suffix
+	// golang.org/issue/29262: The major version for a module without a suffix
 	// should be based on the most recent tag (v1 as appropriate, not v0
 	// unconditionally).
 	{path: queryRepo, query: "42abcb6df8ee", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},

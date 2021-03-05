@@ -519,7 +519,7 @@ func (t *Interface) iterate(f func(*Interface) bool, seen map[*Interface]bool) b
 }
 
 // isSatisfiedBy reports whether interface t's type list is satisfied by the type typ.
-// If the the type list is empty (absent), typ trivially satisfies the interface.
+// If the type list is empty (absent), typ trivially satisfies the interface.
 // TODO(gri) This is not a great name. Eventually, we should have a more comprehensive
 //           "implements" predicate.
 func (t *Interface) isSatisfiedBy(typ Type) bool {
