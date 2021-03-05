@@ -940,7 +940,7 @@ func (m mapper) Token() (Token, error) {
 }
 
 func TestNewTokenDecoderIdempotent(t *testing.T) {
-	d := NewDecoder(strings.NewReader(`<br/>`))
+	d := NewDecoder(strings.NewReader(`<br>`))
 	d2 := NewTokenDecoder(d)
 	if d != d2 {
 		t.Error("NewTokenDecoder did not detect underlying Decoder")
