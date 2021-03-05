@@ -61,6 +61,11 @@ stderr 'go: cannot match "all": go.mod file not found in current directory or an
 stderr 'go: cannot match "all": go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 ! stdout 'example.com/version'
 
+# 'go list -m <mods>' should fail if any of the mods lacks an explicit version.
+! go list -m example.com/printversion
+stderr 'go: cannot match "example.com/printversion" without -versions or an explicit version: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+! stdout 'example.com/version'
+
 # 'go list -m' with wildcards should fail. Wildcards match modules in the
 # build list, so they aren't meaningful outside a module.
 ! go list -m ...
