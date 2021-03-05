@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/importer"
+	"go/internal/typeparams"
 	"go/parser"
 	"go/token"
 	"internal/testenv"
@@ -48,8 +49,8 @@ func mustTypecheck(t *testing.T, path, source string, info *Info) string {
 const genericPkg = "package generic_"
 
 func modeForSource(src string) parser.Mode {
-	if strings.HasPrefix(src, genericPkg) {
-		return parseTypeParams
+	if !strings.HasPrefix(src, genericPkg) {
+		return typeparams.DisallowParsing
 	}
 	return 0
 }
@@ -347,6 +348,9 @@ func TestTypesInfo(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		if strings.HasPrefix(test.src, genericPkg) && !typeparams.Enabled {
+			continue
+		}
 		info := Info{Types: make(map[ast.Expr]TypeAndValue)}
 		var name string
 		if strings.HasPrefix(test.src, broken) {
@@ -401,6 +405,9 @@ func TestDefsInfo(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		if strings.HasPrefix(test.src, genericPkg) && !typeparams.Enabled {
+			continue
+		}
 		info := Info{
 			Defs: make(map[*ast.Ident]Object),
 		}
@@ -446,6 +453,9 @@ func TestUsesInfo(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		if strings.HasPrefix(test.src, genericPkg) && !typeparams.Enabled {
+			continue
+		}
 		info := Info{
 			Uses: make(map[*ast.Ident]Object),
 		}

@@ -4,6 +4,9 @@
 
 package generics
 
+func _[A, B any](a A, b B) int	{}
+func _[T any](x, y T) T
+
 type T[P any] struct{}
 type T[P1, P2, P3 any] struct{}
 
@@ -30,4 +33,11 @@ func _() {
 	type _ []T[P]
 	var _ []T[P]
 	_ = []T[P]{}
+}
+
+// properly format one-line type lists
+type _ interface{ type a }
+
+type _ interface {
+	type a, b, c
 }

@@ -19,6 +19,7 @@ package parser
 import (
 	"fmt"
 	"go/ast"
+	"go/internal/typeparams"
 	"go/scanner"
 	"go/token"
 	"strconv"
@@ -73,6 +74,10 @@ func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mod
 	p.mode = mode
 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
 	p.next()
+}
+
+func (p *parser) parseTypeParams() bool {
+	return typeparams.Enabled && p.mode&typeparams.DisallowParsing == 0
 }
 
 // ----------------------------------------------------------------------------
@@ -494,7 +499,7 @@ func (p *parser) parseQualifiedIdent(ident *ast.Ident) ast.Expr {
 	}
 
 	typ := p.parseTypeName(ident)
-	if p.tok == token.LBRACK && p.mode&parseTypeParams != 0 {
+	if p.tok == token.LBRACK && p.parseTypeParams() {
 		typ = p.parseTypeInstance(typ)
 	}
 
@@ -553,7 +558,7 @@ func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Ex
 	// TODO(rfindley): consider changing parseRhsOrType so that this function variable
 	// is not needed.
 	argparser := p.parseRhsOrType
-	if p.mode&parseTypeParams == 0 {
+	if !p.parseTypeParams() {
 		argparser = p.parseRhs
 	}
 	if p.tok != token.RBRACK {
@@ -583,19 +588,19 @@ func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Ex
 			// x [P]E
 			return x, &ast.ArrayType{Lbrack: lbrack, Len: args[0], Elt: elt}
 		}
-		if p.mode&parseTypeParams == 0 {
+		if !p.parseTypeParams() {
 			p.error(rbrack, "missing element type in array type expression")
 			return nil, &ast.BadExpr{From: args[0].Pos(), To: args[0].End()}
 		}
 	}
 
-	if p.mode&parseTypeParams == 0 {
+	if !p.parseTypeParams() {
 		p.error(firstComma, "expected ']', found ','")
 		return x, &ast.BadExpr{From: args[0].Pos(), To: args[len(args)-1].End()}
 	}
 
 	// x[P], x[P1, P2], ...
-	return nil, &ast.IndexExpr{X: x, Lbrack: lbrack, Index: &ast.ListExpr{ElemList: args}, Rbrack: rbrack}
+	return nil, &ast.IndexExpr{X: x, Lbrack: lbrack, Index: typeparams.PackExpr(args), Rbrack: rbrack}
 }
 
 func (p *parser) parseFieldDecl() *ast.Field {
@@ -878,7 +883,7 @@ func (p *parser) parseParameters(acceptTParams bool) (tparams, params *ast.Field
 		defer un(trace(p, "Parameters"))
 	}
 
-	if p.mode&parseTypeParams != 0 && acceptTParams && p.tok == token.LBRACK {
+	if p.parseTypeParams() && acceptTParams && p.tok == token.LBRACK {
 		opening := p.pos
 		p.next()
 		// [T any](params) syntax
@@ -951,7 +956,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 	x := p.parseTypeName(nil)
 	if ident, _ := x.(*ast.Ident); ident != nil {
 		switch {
-		case p.tok == token.LBRACK && p.mode&parseTypeParams != 0:
+		case p.tok == token.LBRACK && p.parseTypeParams():
 			// generic method or embedded instantiated type
 			lbrack := p.pos
 			p.next()
@@ -967,7 +972,8 @@ func (p *parser) parseMethodSpec() *ast.Field {
 				_, params := p.parseParameters(false)
 				results := p.parseResult()
 				idents = []*ast.Ident{ident}
-				typ = &ast.FuncType{Func: token.NoPos, TParams: tparams, Params: params, Results: results}
+				typ = &ast.FuncType{Func: token.NoPos, Params: params, Results: results}
+				typeparams.Set(typ, tparams)
 			} else {
 				// embedded instantiated type
 				// TODO(rfindley) should resolve all identifiers in x.
@@ -984,7 +990,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 					p.exprLev--
 				}
 				rbrack := p.expectClosing(token.RBRACK, "type argument list")
-				typ = &ast.IndexExpr{X: ident, Lbrack: lbrack, Index: &ast.ListExpr{ElemList: list}, Rbrack: rbrack}
+				typ = &ast.IndexExpr{X: ident, Lbrack: lbrack, Index: typeparams.PackExpr(list), Rbrack: rbrack}
 			}
 		case p.tok == token.LPAREN:
 			// ordinary method
@@ -1000,7 +1006,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 	} else {
 		// embedded, possibly instantiated type
 		typ = x
-		if p.tok == token.LBRACK && p.mode&parseTypeParams != 0 {
+		if p.tok == token.LBRACK && p.parseTypeParams() {
 			// embedded instantiated interface
 			typ = p.parseTypeInstance(typ)
 		}
@@ -1020,7 +1026,7 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 	pos := p.expect(token.INTERFACE)
 	lbrace := p.expect(token.LBRACE)
 	var list []*ast.Field
-	for p.tok == token.IDENT || p.mode&parseTypeParams != 0 && p.tok == token.TYPE {
+	for p.tok == token.IDENT || p.parseTypeParams() && p.tok == token.TYPE {
 		if p.tok == token.IDENT {
 			list = append(list, p.parseMethodSpec())
 		} else {
@@ -1108,14 +1114,14 @@ func (p *parser) parseTypeInstance(typ ast.Expr) ast.Expr {
 
 	closing := p.expectClosing(token.RBRACK, "type argument list")
 
-	return &ast.IndexExpr{X: typ, Lbrack: opening, Index: &ast.ListExpr{ElemList: list}, Rbrack: closing}
+	return &ast.IndexExpr{X: typ, Lbrack: opening, Index: typeparams.PackExpr(list), Rbrack: closing}
 }
 
 func (p *parser) tryIdentOrType() ast.Expr {
 	switch p.tok {
 	case token.IDENT:
 		typ := p.parseTypeName(nil)
-		if p.tok == token.LBRACK && p.mode&parseTypeParams != 0 {
+		if p.tok == token.LBRACK && p.parseTypeParams() {
 			typ = p.parseTypeInstance(typ)
 		}
 		return typ
@@ -1360,13 +1366,13 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
 		return &ast.IndexExpr{X: x, Lbrack: lbrack, Index: index[0], Rbrack: rbrack}
 	}
 
-	if p.mode&parseTypeParams == 0 {
+	if !p.parseTypeParams() {
 		p.error(firstComma, "expected ']' or ':', found ','")
 		return &ast.BadExpr{From: args[0].Pos(), To: args[len(args)-1].End()}
 	}
 
 	// instance expression
-	return &ast.IndexExpr{X: x, Lbrack: lbrack, Index: &ast.ListExpr{ElemList: args}, Rbrack: rbrack}
+	return &ast.IndexExpr{X: x, Lbrack: lbrack, Index: typeparams.PackExpr(args), Rbrack: rbrack}
 }
 
 func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
@@ -2406,7 +2412,7 @@ func (p *parser) parseValueSpec(doc *ast.CommentGroup, _ token.Pos, keyword toke
 func (p *parser) parseGenericType(spec *ast.TypeSpec, openPos token.Pos, name0 *ast.Ident, closeTok token.Token) {
 	list := p.parseParameterList(name0, closeTok, p.parseParamDecl, true)
 	closePos := p.expect(closeTok)
-	spec.TParams = &ast.FieldList{Opening: openPos, List: list, Closing: closePos}
+	typeparams.Set(spec, &ast.FieldList{Opening: openPos, List: list, Closing: closePos})
 	// Type alias cannot have type parameters. Accept them for robustness but complain.
 	if p.tok == token.ASSIGN {
 		p.error(p.pos, "generic type cannot be alias")
@@ -2432,7 +2438,7 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
 			p.exprLev++
 			x := p.parseExpr()
 			p.exprLev--
-			if name0, _ := x.(*ast.Ident); p.mode&parseTypeParams != 0 && name0 != nil && p.tok != token.RBRACK {
+			if name0, _ := x.(*ast.Ident); p.parseTypeParams() && name0 != nil && p.tok != token.RBRACK {
 				// generic type [T any];
 				p.parseGenericType(spec, lbrack, name0, token.RBRACK)
 			} else {
@@ -2537,12 +2543,12 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 		Name: ident,
 		Type: &ast.FuncType{
 			Func:    pos,
-			TParams: tparams,
 			Params:  params,
 			Results: results,
 		},
 		Body: body,
 	}
+	typeparams.Set(decl.Type, tparams)
 	return decl
 }
 

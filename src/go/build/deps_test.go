@@ -278,6 +278,7 @@ var depsRules = `
 	< go/token
 	< go/scanner
 	< go/ast
+	< go/internal/typeparams
 	< go/parser;
 
 	FMT

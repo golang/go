@@ -303,20 +303,6 @@ func (check *Checker) assignVars(lhs, origRHS []ast.Expr) {
 	}
 }
 
-// unpack unpacks an *ast.ListExpr into a list of ast.Expr.
-// TODO(gri) Should find a more efficient solution that doesn't
-//           require introduction of a new slice for simple
-//           expressions.
-func unpackExpr(x ast.Expr) []ast.Expr {
-	if x, _ := x.(*ast.ListExpr); x != nil {
-		return x.ElemList
-	}
-	if x != nil {
-		return []ast.Expr{x}
-	}
-	return nil
-}
-
 func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
 	top := len(check.delayed)
 	scope := check.scope

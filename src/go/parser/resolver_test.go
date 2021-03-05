@@ -7,6 +7,7 @@ package parser
 import (
 	"fmt"
 	"go/ast"
+	"go/internal/typeparams"
 	"go/scanner"
 	"go/token"
 	"os"
@@ -41,7 +42,11 @@ func TestResolution(t *testing.T) {
 			src := readFile(path) // panics on failure
 			var mode Mode
 			if strings.HasSuffix(path, ".go2") {
-				mode = parseTypeParams
+				if !typeparams.Enabled {
+					t.Skip("type params are not enabled")
+				}
+			} else {
+				mode |= typeparams.DisallowParsing
 			}
 			file, err := ParseFile(fset, path, src, mode)
 			if err != nil {

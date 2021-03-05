@@ -8,6 +8,7 @@ package types
 
 import (
 	"go/ast"
+	"go/internal/typeparams"
 	"go/token"
 	"strings"
 	"unicode"
@@ -16,7 +17,8 @@ import (
 // funcInst type-checks a function instantiaton inst and returns the result in x.
 // The operand x must be the evaluation of inst.X and its type must be a signature.
 func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
-	args, ok := check.exprOrTypeList(unpackExpr(inst.Index))
+	exprs := typeparams.UnpackExpr(inst.Index)
+	args, ok := check.exprOrTypeList(exprs)
 	if !ok {
 		x.mode = invalid
 		x.expr = inst

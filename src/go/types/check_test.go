@@ -30,6 +30,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/importer"
+	"go/internal/typeparams"
 	"go/parser"
 	"go/scanner"
 	"go/token"
@@ -42,10 +43,6 @@ import (
 
 	. "go/types"
 )
-
-// parseTypeParams tells go/parser to parse type parameters. Must be kept in
-// sync with go/parser/interface.go.
-const parseTypeParams parser.Mode = 1 << 30
 
 var (
 	haltOnError = flag.Bool("halt", false, "halt on error")
@@ -213,7 +210,11 @@ func checkFiles(t *testing.T, goVersion string, filenames []string, srcs [][]byt
 
 	mode := parser.AllErrors
 	if strings.HasSuffix(filenames[0], ".go2") {
-		mode |= parseTypeParams
+		if !typeparams.Enabled {
+			t.Skip("type params are not enabled")
+		}
+	} else {
+		mode |= typeparams.DisallowParsing
 	}
 
 	// parse files and collect parser errors

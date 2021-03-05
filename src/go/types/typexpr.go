@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/internal/typeparams"
 	"go/token"
 	"sort"
 	"strconv"
@@ -209,27 +210,22 @@ func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
 			return &new
 		}
 	case *ast.IndexExpr:
-		index := isubst(n.Index, smap)
-		if index != n.Index {
-			new := *n
-			new.Index = index
-			return &new
-		}
-	case *ast.ListExpr:
-		var elems []ast.Expr
-		for i, elem := range n.ElemList {
+		elems := typeparams.UnpackExpr(n.Index)
+		var newElems []ast.Expr
+		for i, elem := range elems {
 			new := isubst(elem, smap)
 			if new != elem {
-				if elems == nil {
-					elems = make([]ast.Expr, len(n.ElemList))
-					copy(elems, n.ElemList)
+				if newElems == nil {
+					newElems = make([]ast.Expr, len(elems))
+					copy(newElems, elems)
 				}
-				elems[i] = new
+				newElems[i] = new
 			}
 		}
-		if elems != nil {
+		if newElems != nil {
+			index := typeparams.PackExpr(newElems)
 			new := *n
-			new.ElemList = elems
+			new.Index = index
 			return &new
 		}
 	case *ast.ParenExpr:
@@ -316,13 +312,13 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		}
 	}
 
-	if ftyp.TParams != nil {
-		sig.tparams = check.collectTypeParams(ftyp.TParams)
+	if tparams := typeparams.Get(ftyp); tparams != nil {
+		sig.tparams = check.collectTypeParams(tparams)
 		// Always type-check method type parameters but complain that they are not allowed.
 		// (A separate check is needed when type-checking interface method signatures because
 		// they don't have a receiver specification.)
 		if recvPar != nil {
-			check.errorf(ftyp.TParams, _Todo, "methods cannot have type parameters")
+			check.errorf(tparams, _Todo, "methods cannot have type parameters")
 		}
 	}
 
@@ -467,7 +463,8 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		}
 
 	case *ast.IndexExpr:
-		return check.instantiatedType(e.X, unpackExpr(e.Index), def)
+		exprs := typeparams.UnpackExpr(e.Index)
+		return check.instantiatedType(e.X, exprs, def)
 
 	case *ast.ParenExpr:
 		// Generic types must be instantiated before they can be used in any form.
@@ -801,7 +798,11 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			// (This extra check is needed here because interface method signatures don't have
 			// a receiver specification.)
 			if sig.tparams != nil {
-				check.errorf(f.Type.(*ast.FuncType).TParams, _Todo, "methods cannot have type parameters")
+				var at positioner = f.Type
+				if tparams := typeparams.Get(f.Type); tparams != nil {
+					at = tparams
+				}
+				check.errorf(at, _Todo, "methods cannot have type parameters")
 			}
 
 			// use named receiver type if available (for better error messages)
