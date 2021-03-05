@@ -15,3 +15,8 @@ stdout '^example.com/retract/self/pseudo ""$'
 
 go list -m -e -f $FMT --versions example.com/retract/self/pseudo@latest
 stdout '^example.com/retract/self/pseudo: "module example.com/retract/self/pseudo: no matching versions for query \\"latest\\"" "latest"$'
+
+-- go.mod --
+module test
+
+go 1.17
