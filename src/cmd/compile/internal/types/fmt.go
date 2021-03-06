@@ -318,7 +318,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 	}
 
 	// Unless the 'L' flag was specified, if the type has a name, just print that name.
-	if verb != 'L' && t.Sym() != nil && t != Types[t.Kind()] && t.Kind() != TTYPEPARAM {
+	if verb != 'L' && t.Sym() != nil && t != Types[t.Kind()] {
 		switch mode {
 		case fmtTypeID, fmtTypeIDName:
 			if verb == 'S' {
