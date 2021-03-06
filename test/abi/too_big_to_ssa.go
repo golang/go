@@ -1,5 +1,6 @@
 // run
 
+//go:build !wasm
 // +build !wasm
 
 // Copyright 2021 The Go Authors. All rights reserved.
@@ -16,7 +17,7 @@ var sink *string
 
 type toobig struct {
 	// 6 words will not SSA but will fit in registers
-	a,b,c string
+	a, b, c string
 }
 
 //go:registerparams
@@ -27,8 +28,8 @@ func H(x toobig) string {
 
 //go:registerparams
 //go:noinline
-func I(a,b,c string) toobig {
-	return toobig{a,b,c}
+func I(a, b, c string) toobig {
+	return toobig{a, b, c}
 }
 
 func main() {

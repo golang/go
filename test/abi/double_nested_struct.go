@@ -8,7 +8,7 @@
 // license that can be found in the LICENSE file.
 
 // wasm is excluded because the compiler chatter about register abi pragma ends up
-// on stdout, and causes the expected output to not match. 
+// on stdout, and causes the expected output to not match.
 
 package main
 
@@ -37,13 +37,12 @@ func H(spp stringPairPair) string {
 
 //go:registerparams
 //go:noinline
-func G(a,b,c,d string) stringPairPair {
-	return stringPairPair{stringPair{a,b},stringPair{c,d}}
+func G(a, b, c, d string) stringPairPair {
+	return stringPairPair{stringPair{a, b}, stringPair{c, d}}
 }
 
-
 func main() {
-	spp := G("this","is","a","test")
+	spp := G("this", "is", "a", "test")
 	s := H(spp)
 	gotVsWant(s, "this is a test")
 }
