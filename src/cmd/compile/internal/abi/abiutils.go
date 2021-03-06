@@ -130,10 +130,15 @@ func (pa *ABIParamAssignment) RegisterTypesAndOffsets() ([]*types.Type, []int64)
 	}
 	typs := make([]*types.Type, 0, l)
 	offs := make([]int64, 0, l)
-	return appendParamTypes(typs, pa.Type), appendParamOffsets(offs, 0, pa.Type)
+	offs, _ = appendParamOffsets(offs, 0, pa.Type)
+	return appendParamTypes(typs, pa.Type), offs
 }
 
 func appendParamTypes(rts []*types.Type, t *types.Type) []*types.Type {
+	w := t.Width
+	if w == 0 {
+		return rts
+	}
 	if t.IsScalar() || t.IsPtrShaped() {
 		if t.IsComplex() {
 			c := types.FloatForComplex(t)
@@ -176,28 +181,30 @@ func appendParamTypes(rts []*types.Type, t *types.Type) []*types.Type {
 }
 
 // appendParamOffsets appends the offset(s) of type t, starting from "at",
-// to input offsets, and returns the longer slice.
-func appendParamOffsets(offsets []int64, at int64, t *types.Type) []int64 {
+// to input offsets, and returns the longer slice and the next unused offset.
+func appendParamOffsets(offsets []int64, at int64, t *types.Type) ([]int64, int64) {
 	at = align(at, t)
+	w := t.Width
+	if w == 0 {
+		return offsets, at
+	}
 	if t.IsScalar() || t.IsPtrShaped() {
 		if t.IsComplex() || int(t.Width) > types.RegSize { // complex and *int64 on 32-bit
-			s := t.Width / 2
-			return append(offsets, at, at+s)
+			s := w / 2
+			return append(offsets, at, at+s), at + w
 		} else {
-			return append(offsets, at)
+			return append(offsets, at), at + w
 		}
 	} else {
 		typ := t.Kind()
 		switch typ {
 		case types.TARRAY:
 			for i := int64(0); i < t.NumElem(); i++ {
-				offsets = appendParamOffsets(offsets, at, t.Elem())
+				offsets, at = appendParamOffsets(offsets, at, t.Elem())
 			}
-			return offsets
 		case types.TSTRUCT:
 			for _, f := range t.FieldSlice() {
-				offsets = appendParamOffsets(offsets, at, f.Type)
-				at += f.Type.Width
+				offsets, at = appendParamOffsets(offsets, at, f.Type)
 			}
 		case types.TSLICE:
 			return appendParamOffsets(offsets, at, synthSlice)
@@ -207,7 +214,7 @@ func appendParamOffsets(offsets []int64, at int64, t *types.Type) []int64 {
 			return appendParamOffsets(offsets, at, synthIface)
 		}
 	}
-	return offsets
+	return offsets, at
 }
 
 // SpillOffset returns the offset *within the spill area* for the parameter that "a" describes.
