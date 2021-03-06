@@ -1742,12 +1742,9 @@ func NewInterface(pkg *Pkg, methods []*Field) *Type {
 	return t
 }
 
-// NewTypeParam returns a new type param with the given constraint (which may
-// not really be needed except for the type checker).
-func NewTypeParam(pkg *Pkg, constraint *Type) *Type {
+// NewTypeParam returns a new type param.
+func NewTypeParam(pkg *Pkg) *Type {
 	t := New(TTYPEPARAM)
-	constraint.wantEtype(TINTER)
-	t.methods = constraint.methods
 	t.Extra.(*Interface).pkg = pkg
 	t.SetHasTParam(true)
 	return t

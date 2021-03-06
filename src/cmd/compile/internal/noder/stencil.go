@@ -553,7 +553,25 @@ func (subst *subster) typ(t *types.Type) *types.Type {
 				return subst.targs[i].Type()
 			}
 		}
-		return t
+		// If t is a simple typeparam T, then t has the name/symbol 'T'
+		// and t.Underlying() == t.
+		//
+		// However, consider the type definition: 'type P[T any] T'. We
+		// might use this definition so we can have a variant of type T
+		// that we can add new methods to. Suppose t is a reference to
+		// P[T]. t has the name 'P[T]', but its kind is TTYPEPARAM,
+		// because P[T] is defined as T. If we look at t.Underlying(), it
+		// is different, because the name of t.Underlying() is 'T' rather
+		// than 'P[T]'. But the kind of t.Underlying() is also TTYPEPARAM.
+		// In this case, we do the needed recursive substitution in the
+		// case statement below.
+		if t.Underlying() == t {
+			// t is a simple typeparam that didn't match anything in tparam
+			return t
+		}
+		// t is a more complex typeparam (e.g. P[T], as above, whose
+		// definition is just T).
+		assert(t.Sym() != nil)
 	}
 
 	var newsym *types.Sym
@@ -591,6 +609,15 @@ func (subst *subster) typ(t *types.Type) *types.Type {
 	var newt *types.Type
 
 	switch t.Kind() {
+	case types.TTYPEPARAM:
+		if t.Sym() == newsym {
+			// The substitution did not change the type.
+			return t
+		}
+		// Substitute the underlying typeparam (e.g. T in P[T], see
+		// the example describing type P[T] above).
+		newt = subst.typ(t.Underlying())
+		assert(newt != t)
 
 	case types.TARRAY:
 		elem := t.Elem()
