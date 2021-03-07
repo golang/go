@@ -303,7 +303,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 	if x.debug {
 		x.indent(3)
 		defer x.indent(-3)
-		x.Printf("rewriteSelect(%s, %s, %d)\n", leaf.LongString(), selector.LongString(), offset)
+		x.Printf("rewriteSelect(%s; %s; memOff=%d; regOff=%d)\n", leaf.LongString(), selector.LongString(), offset, regOffset)
 	}
 	var locs []LocalSlot
 	leafType := leaf.Type
@@ -581,7 +581,13 @@ func (x *expandState) decomposeArg(pos src.XPos, b *Block, source, mem *Value, t
 		rts, offs := pa.RegisterTypesAndOffsets()
 		last := loadRegOffset + x.regWidth(t)
 		if offs[loadRegOffset] != 0 {
-			panic(fmt.Errorf("offset %d of requested register %d should be zero", offs[loadRegOffset], loadRegOffset))
+			// Document the problem before panicking.
+			for i := 0; i < len(rts); i++ {
+				rt := rts[i]
+				off := offs[i]
+				fmt.Printf("rt=%s, off=%d, rt.Width=%d, rt.Align=%d\n", rt.String(), off, rt.Width, rt.Align)
+			}
+			panic(fmt.Errorf("offset %d of requested register %d should be zero, source=%s", offs[loadRegOffset], loadRegOffset, source.LongString()))
 		}
 		for i := loadRegOffset; i < last; i++ {
 			rt := rts[i]
@@ -704,7 +710,7 @@ func storeOneArg(x *expandState, pos src.XPos, b *Block, source, mem *Value, t *
 	if x.debug {
 		x.indent(3)
 		defer x.indent(-3)
-		fmt.Printf("storeOneArg(%s;  %s;  %s; aO=%d; sO=%d; lrO=%d; %s)\n", source.LongString(), mem.String(), t.String(), argOffset, storeOffset, loadRegOffset, storeRc.String())
+		x.Printf("storeOneArg(%s;  %s;  %s; aO=%d; sO=%d; lrO=%d; %s)\n", source.LongString(), mem.String(), t.String(), argOffset, storeOffset, loadRegOffset, storeRc.String())
 	}
 
 	w := x.commonArgs[selKey{source, argOffset, t.Width, t}]
@@ -1388,14 +1394,8 @@ func (x *expandState) rewriteArgToMemOrRegs(v *Value) *Value {
 		}
 	case 1:
 		r := pa.Registers[0]
-		i := x.f.ABISelf.FloatIndexFor(r)
-		// TODO seems like this has implications for debugging. How does this affect the location?
-		if i >= 0 { // float PR
-			v.Op = OpArgFloatReg
-		} else {
-			v.Op = OpArgIntReg
-			i = int64(r)
-		}
+		var i int64
+		v.Op, i = ArgOpAndRegisterFor(r, x.f.ABISelf)
 		v.Aux = &AuxNameOffset{v.Aux.(*ir.Name), 0}
 		v.AuxInt = i
 
@@ -1409,6 +1409,11 @@ func (x *expandState) rewriteArgToMemOrRegs(v *Value) *Value {
 // or rewrites it into a copy of the appropriate OpArgXXX.  The actual OpArgXXX is determined by combining baseArg (an OpArg)
 // with offset, regOffset, and t to determine which portion of it to reference (either all or a part, in memory or in registers).
 func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64, regOffset Abi1RO, t *types.Type, pos src.XPos) *Value {
+	if x.debug {
+		x.indent(3)
+		defer x.indent(-3)
+		x.Printf("newArgToMemOrRegs(base=%s; toReplace=%s; t=%s; memOff=%d; regOff=%d)\n", baseArg.String(), toReplace.LongString(), t, offset, regOffset)
+	}
 	key := selKey{baseArg, offset, t.Width, t}
 	w := x.commonArgs[key]
 	if w != nil {
@@ -1432,28 +1437,27 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 			toReplace.Aux = aux
 			toReplace.AuxInt = auxInt
 			toReplace.Type = t
-			x.commonArgs[key] = toReplace
-			return toReplace
+			w = toReplace
 		} else {
-			w := baseArg.Block.NewValue0IA(pos, OpArg, t, auxInt, aux)
-			x.commonArgs[key] = w
-			if x.debug {
-				x.Printf("---new %s\n", w.LongString())
-			}
-			if toReplace != nil {
-				toReplace.copyOf(w)
-			}
-			return w
+			w = baseArg.Block.NewValue0IA(pos, OpArg, t, auxInt, aux)
 		}
+		x.commonArgs[key] = w
+		if toReplace != nil {
+			toReplace.copyOf(w)
+		}
+		if x.debug {
+			x.Printf("-->%s\n", w.LongString())
+		}
+		return w
 	}
 	// Arg is in registers
 	r := pa.Registers[regOffset]
-	auxInt := x.f.ABISelf.FloatIndexFor(r)
-	op := OpArgFloatReg
-	// TODO seems like this has implications for debugging. How does this affect the location?
-	if auxInt < 0 { // int (not float) parameter register
-		op = OpArgIntReg
-		auxInt = int64(r)
+	op, auxInt := ArgOpAndRegisterFor(r, x.f.ABISelf)
+	if op == OpArgIntReg && t.IsFloat() || op == OpArgFloatReg && t.IsInteger() {
+		fmt.Printf("pa=%v\nx.f.OwnAux.abiInfo=%s\n",
+			pa.ToString(x.f.ABISelf, true),
+			x.f.OwnAux.abiInfo.String())
+		panic(fmt.Errorf("Op/Type mismatch, op=%s, type=%s", op.String(), t.String()))
 	}
 	aux := &AuxNameOffset{baseArg.Aux.(*ir.Name), baseArg.AuxInt + offset}
 	if toReplace != nil && toReplace.Block == baseArg.Block {
@@ -1461,24 +1465,23 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 		toReplace.Aux = aux
 		toReplace.AuxInt = auxInt
 		toReplace.Type = t
-		x.commonArgs[key] = toReplace
-		return toReplace
+		w = toReplace
 	} else {
-		w := baseArg.Block.NewValue0IA(pos, op, t, auxInt, aux)
-		if x.debug {
-			x.Printf("---new %s\n", w.LongString())
-		}
-		x.commonArgs[key] = w
-		if toReplace != nil {
-			toReplace.copyOf(w)
-		}
-		return w
+		w = baseArg.Block.NewValue0IA(pos, op, t, auxInt, aux)
 	}
+	x.commonArgs[key] = w
+	if toReplace != nil {
+		toReplace.copyOf(w)
+	}
+	if x.debug {
+		x.Printf("-->%s\n", w.LongString())
+	}
+	return w
+
 }
 
 // argOpAndRegisterFor converts an abi register index into an ssa Op and corresponding
 // arg register index.
-// TODO could call this in at least two places earlier in this file.
 func ArgOpAndRegisterFor(r abi.RegIndex, abiConfig *abi.ABIConfig) (Op, int64) {
 	i := abiConfig.FloatIndexFor(r)
 	if i >= 0 { // float PR

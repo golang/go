@@ -170,9 +170,9 @@ func TestABIUtilsStruct2(t *testing.T) {
 	exp := makeExpectedDump(`
         IN 0: R{ I0 } spilloffset: 0 typ: struct { int64; struct {} }
         IN 1: R{ I1 } spilloffset: 16 typ: struct { int64; struct {} }
-        IN 2: R{ I2 F0 } spilloffset: 32 typ: struct { float64; struct { int64; struct {} }; struct {} }
-        OUT 0: R{ I0 F0 } spilloffset: -1 typ: struct { float64; struct { int64; struct {} }; struct {} }
-        OUT 1: R{ I1 F1 } spilloffset: -1 typ: struct { float64; struct { int64; struct {} }; struct {} }
+        IN 2: R{ F0 I2 } spilloffset: 32 typ: struct { float64; struct { int64; struct {} }; struct {} }
+        OUT 0: R{ F0 I0 } spilloffset: -1 typ: struct { float64; struct { int64; struct {} }; struct {} }
+        OUT 1: R{ F1 I1 } spilloffset: -1 typ: struct { float64; struct { int64; struct {} }; struct {} }
         offsetToSpillArea: 0 spillAreaSize: 64
 `)
 
