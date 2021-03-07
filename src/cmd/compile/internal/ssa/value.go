@@ -499,7 +499,7 @@ func (v *Value) removeable() bool {
 		return false
 	}
 	if v.Type.IsMemory() {
-		// All memory ops aren't needed here, but we do need
+		// We don't need to preserve all memory ops, but we do need
 		// to keep calls at least (because they might have
 		// synchronization operations we can't see).
 		return false

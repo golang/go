@@ -27,7 +27,7 @@ const (
 	removeDeadValues                 = true
 )
 
-// deadcode indicates that rewrite should try to remove any values that become dead.
+// deadcode indicates whether rewrite should try to remove any values that become dead.
 func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValueChoice) {
 	// repeat rewrites until we find no more rewrites
 	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
