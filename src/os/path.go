@@ -25,6 +25,11 @@ func MkdirAll(path string, perm FileMode) error {
 		return &PathError{Op: "mkdir", Path: path, Err: syscall.ENOTDIR}
 	}
 
+	// Break out early if any portion of the path is inaccessible to the invoking user
+	if err == syscall.EACCES {
+		return err
+	}
+
 	// Slow path: make sure parent exists and then call Mkdir for path.
 	i := len(path)
 	for i > 0 && IsPathSeparator(path[i-1]) { // Skip trailing path separator.
