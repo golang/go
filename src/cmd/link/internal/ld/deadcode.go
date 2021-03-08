@@ -19,7 +19,7 @@ var _ = fmt.Print
 type deadcodePass struct {
 	ctxt *Link
 	ldr  *loader.Loader
-	wq   heap // work queue, using min-heap for beter locality
+	wq   heap // work queue, using min-heap for better locality
 
 	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
 	markableMethods []methodref        // methods of reached types
