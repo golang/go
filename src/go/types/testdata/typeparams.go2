@@ -431,32 +431,3 @@ func _[P interface{}] (x P) {
 func _[P any] (x P) {
 	x.m /* ERROR type bound for P has no method m */ ()
 }
-
-// automatic distinguishing between array and generic types
-// NOTE: Disabled when using unified parameter list syntax.
-/*
-const P = 10
-type A1 [P]byte
-func _(a A1) {
-        assert(len(a) == 10)
-}
-
-type A2 [P]struct{
-        f [P]byte
-}
-func _(a A2) {
-        assert(len(a) == 10)
-        assert(len(a[0].f) == 10)
-}
-
-type A3 [P]func(x [P]A3)
-func _(a A3) {
-        assert(len(a) == 10)
-}
-
-type T2[P] struct{ P }
-var _ T2[int]
-
-type T3[P] func(P)
-var _ T3[int]
-*/
