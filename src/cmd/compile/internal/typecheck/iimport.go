@@ -508,6 +508,12 @@ func (p *iimporter) typAt(off uint64) *types.Type {
 			base.Fatalf("predeclared type missing from cache: %d", off)
 		}
 		t = p.newReader(off-predeclReserved, nil).typ1()
+		// Ensure size is calculated for imported types. Since CL 283313, the compiler
+		// does not compile the function immediately when it sees them. Instead, funtions
+		// are pushed to compile queue, then draining from the queue for compiling.
+		// During this process, the size calculation is disabled, so it is not safe for
+		// calculating size during SSA generation anymore. See issue #44732.
+		types.CheckSize(t)
 		p.typCache[off] = t
 	}
 	return t
