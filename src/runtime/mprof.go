@@ -490,7 +490,22 @@ func (r *StackRecord) Stack() []uintptr {
 // memory profiling rate should do so just once, as early as
 // possible in the execution of the program (for example,
 // at the beginning of main).
-var MemProfileRate int = 512 * 1024
+var MemProfileRate int = defaultMemProfileRate(512 * 1024)
+
+// defaultMemProfileRate returns 0 if disableMemoryProfiling is set.
+// It exists primarily for the godoc rendering of MemProfileRate
+// above.
+func defaultMemProfileRate(v int) int {
+	if disableMemoryProfiling {
+		return 0
+	}
+	return v
+}
+
+// disableMemoryProfiling is set by the linker if runtime.MemProfile
+// is not used and the link type guarantees nobody else could use it
+// elsewhere.
+var disableMemoryProfiling bool
 
 // A MemProfileRecord describes the live objects allocated
 // by a particular call sequence (stack trace).
