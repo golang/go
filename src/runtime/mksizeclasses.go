@@ -37,6 +37,7 @@ import (
 	"go/format"
 	"io"
 	"log"
+	"math/bits"
 	"os"
 )
 
@@ -242,8 +243,9 @@ nextk:
 }
 
 func printComment(w io.Writer, classes []class) {
-	fmt.Fprintf(w, "// %-5s  %-9s  %-10s  %-7s  %-10s  %-9s\n", "class", "bytes/obj", "bytes/span", "objects", "tail waste", "max waste")
+	fmt.Fprintf(w, "// %-5s  %-9s  %-10s  %-7s  %-10s  %-9s  %-9s\n", "class", "bytes/obj", "bytes/span", "objects", "tail waste", "max waste", "min align")
 	prevSize := 0
+	var minAligns [32]int
 	for i, c := range classes {
 		if i == 0 {
 			continue
@@ -252,8 +254,28 @@ func printComment(w io.Writer, classes []class) {
 		objects := spanSize / c.size
 		tailWaste := spanSize - c.size*(spanSize/c.size)
 		maxWaste := float64((c.size-prevSize-1)*objects+tailWaste) / float64(spanSize)
+		alignBits := bits.TrailingZeros(uint(c.size))
+		for i := range minAligns {
+			if i > alignBits {
+				minAligns[i] = 0
+			} else if minAligns[i] == 0 {
+				minAligns[i] = c.size
+			}
+		}
 		prevSize = c.size
-		fmt.Fprintf(w, "// %5d  %9d  %10d  %7d  %10d  %8.2f%%\n", i, c.size, spanSize, objects, tailWaste, 100*maxWaste)
+		fmt.Fprintf(w, "// %5d  %9d  %10d  %7d  %10d  %8.2f%%  %9d\n", i, c.size, spanSize, objects, tailWaste, 100*maxWaste, 1<<alignBits)
+	}
+	fmt.Fprintf(w, "\n")
+
+	fmt.Fprintf(w, "// %-9s  %-4s  %-12s\n", "alignment", "bits", "min obj size")
+	for bits, size := range minAligns {
+		if size == 0 {
+			break
+		}
+		if bits+1 < len(minAligns) && size == minAligns[bits+1] {
+			continue
+		}
+		fmt.Fprintf(w, "// %9d  %4d  %12d\n", 1<<bits, bits, size)
 	}
 	fmt.Fprintf(w, "\n")
 }
