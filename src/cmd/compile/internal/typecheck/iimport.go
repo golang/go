@@ -466,6 +466,21 @@ func (r *importReader) ident(selector bool) *types.Sym {
 func (r *importReader) localIdent() *types.Sym { return r.ident(false) }
 func (r *importReader) selector() *types.Sym   { return r.ident(true) }
 
+func (r *importReader) exoticSelector() *types.Sym {
+	name := r.string()
+	if name == "" {
+		return nil
+	}
+	pkg := r.currPkg
+	if types.IsExported(name) {
+		pkg = types.LocalPkg
+	}
+	if r.uint64() != 0 {
+		pkg = r.pkg()
+	}
+	return pkg.Lookup(name)
+}
+
 func (r *importReader) qualifiedIdent() *ir.Ident {
 	name := r.string()
 	pkg := r.pkg()
@@ -753,7 +768,7 @@ func (r *importReader) doInline(fn *ir.Func) {
 		base.Fatalf("%v already has inline body", fn)
 	}
 
-	//fmt.Printf("Importing %v\n", n)
+	//fmt.Printf("Importing %s\n", fn.Nname.Sym().Name)
 	r.funcBody(fn)
 
 	importlist = append(importlist, fn)
@@ -1038,7 +1053,7 @@ func (r *importReader) node() ir.Node {
 
 	case ir.OXDOT:
 		// see parser.new_dotname
-		return ir.NewSelectorExpr(r.pos(), ir.OXDOT, r.expr(), r.selector())
+		return ir.NewSelectorExpr(r.pos(), ir.OXDOT, r.expr(), r.exoticSelector())
 
 	// case ODOTTYPE, ODOTTYPE2:
 	// 	unreachable - mapped to case ODOTTYPE below by exporter
