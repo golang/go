@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io/ioutil"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -25,11 +24,6 @@ func TestUndefinedRelocErrors(t *testing.T) {
 	testenv.MustInternalLink(t)
 
 	t.Parallel()
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
 
 	out, err := exec.Command(testenv.GoToolPath(t), "build", "./testdata/issue10978").CombinedOutput()
 	if err == nil {
@@ -108,11 +102,7 @@ func TestArchiveBuildInvokeWithExec(t *testing.T) {
 	case "openbsd", "windows":
 		t.Skip("c-archive unsupported")
 	}
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	srcfile := filepath.Join(dir, "test.go")
 	arfile := filepath.Join(dir, "test.a")
@@ -150,11 +140,7 @@ func TestPPC64LargeTextSectionSplitting(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 	t.Parallel()
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// NB: the use of -ldflags=-debugppc64textsize=1048576 tells the linker to
 	// split text sections at a size threshold of 1M instead of the
@@ -168,7 +154,7 @@ func TestPPC64LargeTextSectionSplitting(t *testing.T) {
 	}
 
 	// Result should be runnable.
-	_, err = exec.Command(exe, "version").CombinedOutput()
+	_, err := exec.Command(exe, "version").CombinedOutput()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,11 +180,7 @@ func testWindowsBuildmodeCSharedASLR(t *testing.T, useASLR bool) {
 	t.Parallel()
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	srcfile := filepath.Join(dir, "test.go")
 	objfile := filepath.Join(dir, "test.dll")

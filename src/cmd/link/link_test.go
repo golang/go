@@ -48,13 +48,9 @@ const X = "\n!\n"
 func main() {}
 `
 
-	tmpdir, err := ioutil.TempDir("", "issue21703")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v\n", err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
-	err = ioutil.WriteFile(filepath.Join(tmpdir, "main.go"), []byte(source), 0666)
+	err := ioutil.WriteFile(filepath.Join(tmpdir, "main.go"), []byte(source), 0666)
 	if err != nil {
 		t.Fatalf("failed to write main.go: %v\n", err)
 	}
@@ -83,11 +79,7 @@ func TestIssue28429(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	tmpdir, err := ioutil.TempDir("", "issue28429-")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	write := func(name, content string) {
 		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
@@ -126,11 +118,7 @@ func TestUnresolved(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "unresolved-")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	write := func(name, content string) {
 		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
@@ -195,11 +183,7 @@ func TestIssue33979(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "unresolved-")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	write := func(name, content string) {
 		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
@@ -300,11 +284,7 @@ func TestBuildForTvOS(t *testing.T) {
 		"-framework", "CoreFoundation",
 	}
 	lib := filepath.Join("testdata", "testBuildFortvOS", "lib.go")
-	tmpDir, err := ioutil.TempDir("", "go-link-TestBuildFortvOS")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	ar := filepath.Join(tmpDir, "lib.a")
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", ar, lib)
@@ -339,14 +319,10 @@ func TestXFlag(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "TestXFlag")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "main.go")
-	err = ioutil.WriteFile(src, []byte(testXFlagSrc), 0666)
+	err := ioutil.WriteFile(src, []byte(testXFlagSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -367,14 +343,10 @@ func TestMacOSVersion(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "TestMacOSVersion")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "main.go")
-	err = ioutil.WriteFile(src, []byte(testMacOSVersionSrc), 0666)
+	err := ioutil.WriteFile(src, []byte(testMacOSVersionSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,6 +365,7 @@ func TestMacOSVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer exef.Close()
 	exem, err := macho.NewFile(exef)
 	if err != nil {
 		t.Fatal(err)
@@ -446,14 +419,10 @@ func TestIssue34788Android386TLSSequence(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "TestIssue34788Android386TLSSequence")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "blah.go")
-	err = ioutil.WriteFile(src, []byte(Issue34788src), 0666)
+	err := ioutil.WriteFile(src, []byte(Issue34788src), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -506,14 +475,10 @@ func TestStrictDup(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "TestStrictDup")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "x.go")
-	err = ioutil.WriteFile(src, []byte(testStrictDupGoSrc), 0666)
+	err := ioutil.WriteFile(src, []byte(testStrictDupGoSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -592,14 +557,10 @@ func TestFuncAlign(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "TestFuncAlign")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "go.mod")
-	err = ioutil.WriteFile(src, []byte("module cmd/link/TestFuncAlign/falign"), 0666)
+	err := ioutil.WriteFile(src, []byte("module cmd/link/TestFuncAlign/falign"), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -665,14 +626,10 @@ func TestTrampoline(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "TestTrampoline")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "hello.go")
-	err = ioutil.WriteFile(src, []byte(testTrampSrc), 0666)
+	err := ioutil.WriteFile(src, []byte(testTrampSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -701,11 +658,7 @@ func TestIndexMismatch(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "TestIndexMismatch")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	aSrc := filepath.Join("testdata", "testIndexMismatch", "a.go")
 	bSrc := filepath.Join("testdata", "testIndexMismatch", "b.go")
@@ -764,11 +717,7 @@ func TestPErsrcBinutils(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "TestPErsrcBinutils")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	pkgdir := filepath.Join("testdata", "pe-binutils")
 	exe := filepath.Join(tmpdir, "a.exe")
@@ -800,11 +749,7 @@ func TestPErsrcLLVM(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "TestPErsrcLLVM")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	pkgdir := filepath.Join("testdata", "pe-llvm")
 	exe := filepath.Join(tmpdir, "a.exe")
@@ -831,12 +776,6 @@ func TestContentAddressableSymbols(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	t.Parallel()
-
-	tmpdir, err := ioutil.TempDir("", "TestContentAddressableSymbols")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
 
 	src := filepath.Join("testdata", "testHashedSyms", "p.go")
 	cmd := exec.Command(testenv.GoToolPath(t), "run", src)
@@ -881,14 +820,10 @@ func TestIssue38554(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "TestIssue38554")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "x.go")
-	err = ioutil.WriteFile(src, []byte(testIssue38554Src), 0666)
+	err := ioutil.WriteFile(src, []byte(testIssue38554Src), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v", err)
 	}
@@ -935,14 +870,10 @@ func TestIssue42396(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "TestIssue42396")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "main.go")
-	err = ioutil.WriteFile(src, []byte(testIssue42396src), 0666)
+	err := ioutil.WriteFile(src, []byte(testIssue42396src), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v", err)
 	}
@@ -992,14 +923,10 @@ func TestLargeReloc(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "TestIssue42396")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "x.go")
-	err = ioutil.WriteFile(src, []byte(testLargeRelocSrc), 0666)
+	err := ioutil.WriteFile(src, []byte(testLargeRelocSrc), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v", err)
 	}

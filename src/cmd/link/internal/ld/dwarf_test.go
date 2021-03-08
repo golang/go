@@ -39,11 +39,7 @@ func TestRuntimeTypesPresent(t *testing.T) {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	dir, err := ioutil.TempDir("", "TestRuntimeTypesPresent")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	f := gobuild(t, dir, `package main; func main() { }`, NoOpt)
 	defer f.Close()
@@ -171,11 +167,7 @@ func main() {
 		"main.Baz": {"Foo": true, "name": false},
 	}
 
-	dir, err := ioutil.TempDir("", "TestEmbeddedStructMarker")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	f := gobuild(t, dir, prog, NoOpt)
 
@@ -255,11 +247,8 @@ func main() {
 	y[0] = nil
 }
 `
-	dir, err := ioutil.TempDir("", "TestSizes")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
+
 	f := gobuild(t, dir, prog, NoOpt)
 	defer f.Close()
 	d, err := f.DWARF()
@@ -303,11 +292,7 @@ func main() {
 	c <- "foo"
 }
 `
-	dir, err := ioutil.TempDir("", "TestFieldOverlap")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	f := gobuild(t, dir, prog, NoOpt)
 	defer f.Close()
@@ -351,13 +336,10 @@ func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFil
 
 	prog := fmt.Sprintf("package main\n%s\nfunc main() {\n\nvar i int\ni = i\n}\n", directive)
 
-	dir, err := ioutil.TempDir("", testpoint)
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	f := gobuild(t, dir, prog, NoOpt)
+	defer f.Close()
 
 	d, err := f.DWARF()
 	if err != nil {
@@ -653,11 +635,7 @@ func main() {
     G = x
 }
 `
-	dir, err := ioutil.TempDir("", "TestInlinedRoutineRecords")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// Note: this is a build with "-l=4", as opposed to "-l -N". The
 	// test is intended to verify DWARF that is only generated when
@@ -665,6 +643,7 @@ func main() {
 	// main.main, however, hence we build with "-gcflags=-l=4" as opposed
 	// to "-gcflags=all=-l=4".
 	f := gobuild(t, dir, prog, OptInl4)
+	defer f.Close()
 
 	d, err := f.DWARF()
 	if err != nil {
@@ -788,14 +767,11 @@ func main() {
 func abstractOriginSanity(t *testing.T, pkgDir string, flags string) {
 	t.Parallel()
 
-	dir, err := ioutil.TempDir("", "TestAbstractOriginSanity")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// Build with inlining, to exercise DWARF inlining support.
 	f := gobuildTestdata(t, dir, filepath.Join(pkgDir, "main"), flags)
+	defer f.Close()
 
 	d, err := f.DWARF()
 	if err != nil {
@@ -973,13 +949,11 @@ func main() {
 	print(p)
 }
 `
-	dir, err := ioutil.TempDir("", "TestRuntimeType")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	f := gobuild(t, dir, prog, flags)
+	defer f.Close()
+
 	out, err := exec.Command(f.path).CombinedOutput()
 	if err != nil {
 		t.Fatalf("could not run test program: %v", err)
@@ -1043,11 +1017,7 @@ func TestIssue27614(t *testing.T) {
 
 	t.Parallel()
 
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	const prog = `package main
 
@@ -1161,11 +1131,7 @@ func TestStaticTmp(t *testing.T) {
 
 	t.Parallel()
 
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	const prog = `package main
 
@@ -1243,11 +1209,7 @@ func TestPackageNameAttr(t *testing.T) {
 
 	t.Parallel()
 
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	const prog = "package main\nfunc main() {\nprintln(\"hello world\")\n}\n"
 
@@ -1307,14 +1269,10 @@ func TestMachoIssue32233(t *testing.T) {
 		t.Skip("skipping; test only interesting on darwin")
 	}
 
-	tmpdir, err := ioutil.TempDir("", "TestMachoIssue32233")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
-	wd, err2 := os.Getwd()
-	if err2 != nil {
+	wd, err := os.Getwd()
+	if err != nil {
 		t.Fatalf("where am I? %v", err)
 	}
 	pdir := filepath.Join(wd, "testdata", "issue32233", "main")
@@ -1328,11 +1286,7 @@ func TestWindowsIssue36495(t *testing.T) {
 		t.Skip("skipping: test only on windows")
 	}
 
-	dir, err := ioutil.TempDir("", "TestEmbeddedStructMarker")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	prog := `
 package main
@@ -1347,6 +1301,7 @@ func main() {
 	if err != nil {
 		t.Fatalf("error opening pe file: %v", err)
 	}
+	defer exe.Close()
 	dw, err := exe.DWARF()
 	if err != nil {
 		t.Fatalf("error parsing DWARF: %v", err)
@@ -1397,17 +1352,14 @@ func TestIssue38192(t *testing.T) {
 
 	// Build a test program that contains a translation unit whose
 	// text (from am assembly source) contains only a single instruction.
-	tmpdir, err := ioutil.TempDir("", "TestIssue38192")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("where am I? %v", err)
 	}
 	pdir := filepath.Join(wd, "testdata", "issue38192")
 	f := gobuildTestdata(t, tmpdir, pdir, DefaultOpt)
+	defer f.Close()
 
 	// Open the resulting binary and examine the DWARF it contains.
 	// Look for the function of interest ("main.singleInstruction")
@@ -1520,17 +1472,15 @@ func TestIssue39757(t *testing.T) {
 	// compiler/runtime in ways that aren't happening now, so this
 	// might be something to check for if it does start failing.
 
-	tmpdir, err := ioutil.TempDir("", "TestIssue38192")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
+
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("where am I? %v", err)
 	}
 	pdir := filepath.Join(wd, "testdata", "issue39757")
 	f := gobuildTestdata(t, tmpdir, pdir, DefaultOpt)
+	defer f.Close()
 
 	syms, err := f.Symbols()
 	if err != nil {
