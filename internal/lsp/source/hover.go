@@ -241,7 +241,7 @@ func objectString(obj types.Object, qf types.Qualifier) string {
 			break
 		}
 		pkg := typ.Obj().Pkg()
-		if pkg.Path() == "time" && pkg.Scope().Lookup("Duration") != nil {
+		if pkg.Path() == "time" && typ.Obj().Name() == "Duration" {
 			if d, ok := constant.Int64Val(obj.Val()); ok {
 				str += " // " + time.Duration(d).String()
 			}
