@@ -41,6 +41,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVDBR (R3)(R4), R5             // 7ca41c28
 	MOVWBR (R3)(R4), R5             // 7ca41c2c
 	MOVHBR (R3)(R4), R5             // 7ca41e2c
+	MOVD $foo+4009806848(FP), R5    // 3fe1ef0138bfcc20
+	MOVD $foo(SB), R5               // 3fe0000038bf0000
 
 	MOVDU 8(R3), R4                 // e8830009
 	MOVDU (R3)(R4), R5              // 7ca4186a
