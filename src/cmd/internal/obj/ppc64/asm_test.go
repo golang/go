@@ -17,14 +17,20 @@ import (
 	"testing"
 )
 
-var invalidPCAlignSrc = `
+var platformEnvs = [][]string{
+	{"GOOS=aix", "GOARCH=ppc64"},
+	{"GOOS=linux", "GOARCH=ppc64"},
+	{"GOOS=linux", "GOARCH=ppc64le"},
+}
+
+const invalidPCAlignSrc = `
 TEXT test(SB),0,$0-0
 ADD $2, R3
 PCALIGN $64
 RET
 `
 
-var validPCAlignSrc = `
+const validPCAlignSrc = `
 TEXT test(SB),0,$0-0
 ADD $2, R3
 PCALIGN $16
@@ -37,10 +43,166 @@ ADD $4, R8
 RET
 `
 
-var platformEnvs = [][]string{
-	{"GOOS=aix", "GOARCH=ppc64"},
-	{"GOOS=linux", "GOARCH=ppc64"},
-	{"GOOS=linux", "GOARCH=ppc64le"},
+const x64pgm = `
+TEXT test(SB),0,$0-0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+PNOP
+`
+const x32pgm = `
+TEXT test(SB),0,$0-0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+PNOP
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+`
+
+const x16pgm = `
+TEXT test(SB),0,$0-0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+PNOP
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+`
+
+const x0pgm = `
+TEXT test(SB),0,$0-0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+PNOP
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+`
+const x64pgmA64 = `
+TEXT test(SB),0,$0-0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+PNOP
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+PNOP
+`
+
+const x64pgmA32 = `
+TEXT test(SB),0,$0-0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+PNOP
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+OR R0, R0
+PNOP
+`
+
+// Test that nops are inserted when crossing 64B boundaries, and
+// alignment is adjusted to avoid crossing.
+func TestPfxAlign(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	dir, err := ioutil.TempDir("", "testpfxalign")
+	if err != nil {
+		t.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	pgms := []struct {
+		text   []byte
+		align  string
+		hasNop bool
+	}{
+		{[]byte(x0pgm), "align=0x0", false},     // No alignment or nop adjustments needed
+		{[]byte(x16pgm), "align=0x20", false},   // Increased alignment needed
+		{[]byte(x32pgm), "align=0x40", false},   // Worst case alignment needed
+		{[]byte(x64pgm), "align=0x0", true},     // 0 aligned is default (16B) alignment
+		{[]byte(x64pgmA64), "align=0x40", true}, // extra alignment + nop
+		{[]byte(x64pgmA32), "align=0x20", true}, // extra alignment + nop
+	}
+
+	for _, pgm := range pgms {
+		tmpfile := filepath.Join(dir, "x.s")
+		err = ioutil.WriteFile(tmpfile, pgm.text, 0644)
+		if err != nil {
+			t.Fatalf("can't write output: %v\n", err)
+		}
+		cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
+		cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=ppc64le")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("Failed to compile %v: %v\n", pgm, err)
+		}
+		if !strings.Contains(string(out), pgm.align) {
+			t.Errorf(fmt.Sprintf("Fatal, misaligned text with prefixed instructions:\n%s\n", string(out)))
+		}
+		hasNop := strings.Contains(string(out), "00 00 00 60")
+		if hasNop != pgm.hasNop {
+			t.Errorf(fmt.Sprintf("Fatal, prefixed instruction is missing nop padding:\n%s\n", string(out)))
+		}
+	}
 }
 
 // TestLarge generates a very large file to verify that large

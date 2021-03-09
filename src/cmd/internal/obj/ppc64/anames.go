@@ -613,5 +613,6 @@ var Anames = []string{
 	"XVCVSXWSP",
 	"XVCVUXDSP",
 	"XVCVUXWSP",
+	"PNOP",
 	"LAST",
 }
