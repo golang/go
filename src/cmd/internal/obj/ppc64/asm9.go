@@ -195,7 +195,7 @@ var optab = []Optab{
 	{as: AFMUL, a1: C_FREG, a2: C_FREG, a6: C_FREG, type_: 32, size: 4},
 
 	{as: AMOVBU, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
-	{as: AMOVBU, a1: C_SOREG, a6: C_REG, type_: 9, size: 8},
+	{as: AMOVBU, a1: C_SOREG, a6: C_REG, type_: 8, size: 8},
 
 	{as: AMOVBZU, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
 	{as: AMOVBZU, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},
@@ -203,9 +203,9 @@ var optab = []Optab{
 	{as: AMOVHBR, a1: C_REG, a6: C_ZOREG, type_: 44, size: 4},
 	{as: AMOVHBR, a1: C_ZOREG, a6: C_REG, type_: 45, size: 4},
 
-	{as: AMOVB, a1: C_ADDR, a6: C_REG, type_: 76, size: 12},
-	{as: AMOVB, a1: C_LOREG, a6: C_REG, type_: 37, size: 12},
-	{as: AMOVB, a1: C_SOREG, a6: C_REG, type_: 9, size: 8},
+	{as: AMOVB, a1: C_ADDR, a6: C_REG, type_: 75, size: 12},
+	{as: AMOVB, a1: C_LOREG, a6: C_REG, type_: 36, size: 12},
+	{as: AMOVB, a1: C_SOREG, a6: C_REG, type_: 8, size: 8},
 	{as: AMOVB, a1: C_REG, a6: C_ADDR, type_: 74, size: 8},
 	{as: AMOVB, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
 	{as: AMOVB, a1: C_REG, a6: C_LOREG, type_: 35, size: 8},
@@ -2477,7 +2477,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 = AOP_IRR(inst, uint32(p.From.Reg), uint32(r), uint32(v))
 		}
 
-	case 8: /* mov soreg, r ==> lbz/lhz/lwz o(r) */
+	case 8: /* mov soreg, r ==> lbz/lhz/lwz o(r), lbz o(r) + extsb r,r */
 		r := int(p.From.Reg)
 
 		if r == 0 {
@@ -2501,21 +2501,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 = AOP_IRR(inst, uint32(p.To.Reg), uint32(r), uint32(v))
 		}
 
-	case 9: /* movb soreg, r ==> lbz o(r),r2; extsb r2,r2 */
-		r := int(p.From.Reg)
-
-		if r == 0 {
-			r = c.getimpliedreg(&p.From, p)
-		}
-		v := c.regoff(&p.From)
-		if p.From.Type == obj.TYPE_MEM && p.From.Index != 0 {
-			if v != 0 {
-				c.ctxt.Diag("illegal indexed instruction\n%v", p)
-			}
-			o1 = AOP_RRR(c.oploadx(p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(r))
-		} else {
-			o1 = AOP_IRR(c.opload(p.As), uint32(p.To.Reg), uint32(r), uint32(v))
-		}
+		// Sign extend MOVB operations. This is ignored for other cases (o.size == 4).
 		o2 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.To.Reg), 0)
 
 	case 10: /* sub Ra,[Rb],Rd => subf Rd,Ra,Rb */
@@ -3050,7 +3036,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = AOP_IRR(OP_ADDIS, REGTMP, uint32(r), uint32(high16adjusted(v)))
 		o2 = AOP_IRR(inst, uint32(p.From.Reg), REGTMP, uint32(v))
 
-	case 36: /* mov bz/h/hz lext/lauto/lreg,r ==> lbz/lha/lhz etc */
+	case 36: /* mov b/bz/h/hz lext/lauto/lreg,r ==> lbz+extsb/lbz/lha/lhz etc */
 		v := c.regoff(&p.From)
 
 		r := int(p.From.Reg)
@@ -3060,15 +3046,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = AOP_IRR(OP_ADDIS, REGTMP, uint32(r), uint32(high16adjusted(v)))
 		o2 = AOP_IRR(c.opload(p.As), uint32(p.To.Reg), REGTMP, uint32(v))
 
-	case 37: /* movb lext/lauto/lreg,r ==> lbz o(reg),r; extsb r */
-		v := c.regoff(&p.From)
-
-		r := int(p.From.Reg)
-		if r == 0 {
-			r = c.getimpliedreg(&p.From, p)
-		}
-		o1 = AOP_IRR(OP_ADDIS, REGTMP, uint32(r), uint32(high16adjusted(v)))
-		o2 = AOP_IRR(c.opload(p.As), uint32(p.To.Reg), REGTMP, uint32(v))
+		// Sign extend MOVB operations. This is ignored for other cases (o.size == 8).
 		o3 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.To.Reg), 0)
 
 	case 40: /* word */
@@ -3457,14 +3435,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1, o2 = c.symbolAccess(p.From.Sym, v, p.To.Reg, inst)
 		}
 
-	case 76:
-		v := c.vregoff(&p.From)
-		// Offsets in DS form loads must be a multiple of 4
-		inst := c.opload(p.As)
-		if c.opform(inst) == DS_FORM && v&0x3 != 0 {
-			log.Fatalf("invalid offset for DS form load/store %v", p)
-		}
-		o1, o2 = c.symbolAccess(p.From.Sym, v, p.To.Reg, inst)
+		// Sign extend MOVB operations. This is ignored for other cases (o.size == 8).
 		o3 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.To.Reg), 0)
 
 	case 79:
