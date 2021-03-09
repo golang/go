@@ -377,7 +377,6 @@ const (
 	C_SOREG // D/DS form memory operation
 	C_LOREG // 32 bit addis + D/DS-form memory operation
 	C_FPSCR
-	C_MSR
 	C_XER
 	C_LR
 	C_CTR
