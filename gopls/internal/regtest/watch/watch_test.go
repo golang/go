@@ -370,6 +370,7 @@ func _() {
 // Tests golang/go#38498. Delete a file and then force a reload.
 // Assert that we no longer try to load the file.
 func TestDeleteFiles(t *testing.T) {
+	testenv.NeedsGo1Point(t, 13) // Poor overlay support causes problems on 1.12.
 	const pkg = `
 -- go.mod --
 module mod.com

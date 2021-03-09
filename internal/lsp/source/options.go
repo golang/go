@@ -97,6 +97,7 @@ func DefaultOptions() *Options {
 					},
 					Mod: {
 						protocol.SourceOrganizeImports: true,
+						protocol.QuickFix:              true,
 					},
 					Sum: {},
 				},
@@ -1078,9 +1079,9 @@ func EnabledAnalyzers(snapshot Snapshot) (analyzers []*Analyzer) {
 func typeErrorAnalyzers() map[string]*Analyzer {
 	return map[string]*Analyzer{
 		fillreturns.Analyzer.Name: {
-			Analyzer:       fillreturns.Analyzer,
-			HighConfidence: true,
-			Enabled:        true,
+			Analyzer:   fillreturns.Analyzer,
+			ActionKind: protocol.SourceFixAll,
+			Enabled:    true,
 		},
 		nonewvars.Analyzer.Name: {
 			Analyzer: nonewvars.Analyzer,
@@ -1101,9 +1102,10 @@ func typeErrorAnalyzers() map[string]*Analyzer {
 func convenienceAnalyzers() map[string]*Analyzer {
 	return map[string]*Analyzer{
 		fillstruct.Analyzer.Name: {
-			Analyzer: fillstruct.Analyzer,
-			Fix:      FillStruct,
-			Enabled:  true,
+			Analyzer:   fillstruct.Analyzer,
+			Fix:        FillStruct,
+			Enabled:    true,
+			ActionKind: protocol.RefactorRewrite,
 		},
 	}
 }
@@ -1148,9 +1150,9 @@ func defaultAnalyzers() map[string]*Analyzer {
 		unusedwrite.Analyzer.Name:      {Analyzer: unusedwrite.Analyzer, Enabled: false},
 
 		// gofmt -s suite:
-		simplifycompositelit.Analyzer.Name: {Analyzer: simplifycompositelit.Analyzer, Enabled: true, HighConfidence: true},
-		simplifyrange.Analyzer.Name:        {Analyzer: simplifyrange.Analyzer, Enabled: true, HighConfidence: true},
-		simplifyslice.Analyzer.Name:        {Analyzer: simplifyslice.Analyzer, Enabled: true, HighConfidence: true},
+		simplifycompositelit.Analyzer.Name: {Analyzer: simplifycompositelit.Analyzer, Enabled: true, ActionKind: protocol.SourceFixAll},
+		simplifyrange.Analyzer.Name:        {Analyzer: simplifyrange.Analyzer, Enabled: true, ActionKind: protocol.SourceFixAll},
+		simplifyslice.Analyzer.Name:        {Analyzer: simplifyslice.Analyzer, Enabled: true, ActionKind: protocol.SourceFixAll},
 	}
 }
 

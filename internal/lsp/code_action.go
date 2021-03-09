@@ -69,7 +69,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			if err != nil {
 				return nil, err
 			}
-			quickFixes, err := quickFixesForDiagnostics(ctx, snapshot, diagnostics, diags)
+			quickFixes, err := codeActionsMatchingDiagnostics(ctx, snapshot, diagnostics, diags)
 			if err != nil {
 				return nil, err
 			}
@@ -128,75 +128,68 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		if err != nil {
 			return nil, err
 		}
-		if (wanted[protocol.QuickFix] || wanted[protocol.SourceFixAll]) && len(diagnostics) > 0 {
-			analysisDiags, err := source.Analyze(ctx, snapshot, pkg)
+
+		pkgDiagnostics, err := snapshot.DiagnosePackage(ctx, pkg)
+		if err != nil {
+			return nil, err
+		}
+		analysisDiags, err := source.Analyze(ctx, snapshot, pkg, true)
+		if err != nil {
+			return nil, err
+		}
+		fileDiags := append(pkgDiagnostics[uri], analysisDiags[uri]...)
+		modURI := snapshot.GoModForFile(fh.URI())
+		if modURI != "" {
+			modFH, err := snapshot.GetVersionedFile(ctx, modURI)
 			if err != nil {
 				return nil, err
 			}
-
-			if wanted[protocol.QuickFix] {
-				pkgDiagnostics, err := snapshot.DiagnosePackage(ctx, pkg)
-				if err != nil {
-					return nil, err
-				}
-				quickFixDiags := append(pkgDiagnostics[uri], analysisDiags[uri]...)
-				modURI := snapshot.GoModForFile(fh.URI())
-				if modURI != "" {
-					modFH, err := snapshot.GetVersionedFile(ctx, modURI)
-					if err != nil {
-						return nil, err
-					}
-					modDiags, err := mod.DiagnosticsForMod(ctx, snapshot, modFH)
-					if err != nil && !source.IsNonFatalGoModError(err) {
-						// Not a fatal error.
-						event.Error(ctx, "module suggested fixes failed", err, tag.Directory.Of(snapshot.View().Folder()))
-					}
-					quickFixDiags = append(quickFixDiags, modDiags...)
-				}
-				quickFixes, err := quickFixesForDiagnostics(ctx, snapshot, diagnostics, quickFixDiags)
-				if err != nil {
-					return nil, err
-				}
-				codeActions = append(codeActions, quickFixes...)
-
+			modDiags, err := mod.DiagnosticsForMod(ctx, snapshot, modFH)
+			if err != nil && !source.IsNonFatalGoModError(err) {
+				// Not a fatal error.
+				event.Error(ctx, "module suggested fixes failed", err, tag.Directory.Of(snapshot.View().Folder()))
 			}
-			if wanted[protocol.SourceFixAll] {
-				var fixAllEdits []protocol.TextDocumentEdit
-				for _, ad := range analysisDiags[uri] {
-					if ad.Analyzer == nil || !ad.Analyzer.HighConfidence {
-						continue
-					}
-					for _, fix := range ad.SuggestedFixes {
-						edits := fix.Edits[fh.URI()]
-						if len(edits) == 0 {
-							continue
-						}
-						fixAllEdits = append(fixAllEdits, documentChanges(fh, edits)...)
-					}
+			fileDiags = append(fileDiags, modDiags...)
+		}
 
-				}
-				if len(fixAllEdits) != 0 {
-					codeActions = append(codeActions, protocol.CodeAction{
-						Title: "Simplifications",
-						Kind:  protocol.SourceFixAll,
-						Edit: protocol.WorkspaceEdit{
-							DocumentChanges: fixAllEdits,
-						},
-					})
-				}
+		// Split diagnostics into fixes, which must match incoming diagnostics,
+		// and non-fixes, which must match the requested range. Build actions
+		// for all of them.
+		var fixDiags, nonFixDiags []*source.Diagnostic
+		for _, d := range fileDiags {
+			if len(d.SuggestedFixes) == 0 {
+				continue
+			}
+			kind := protocol.QuickFix
+			if d.Analyzer != nil && d.Analyzer.ActionKind != "" {
+				kind = d.Analyzer.ActionKind
+			}
+			if kind == protocol.QuickFix || kind == protocol.SourceFixAll {
+				fixDiags = append(fixDiags, d)
+			} else {
+				nonFixDiags = append(nonFixDiags, d)
 			}
 		}
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
+
+		fixActions, err := codeActionsMatchingDiagnostics(ctx, snapshot, diagnostics, fixDiags)
+		if err != nil {
+			return nil, err
 		}
-		// Add any suggestions that do not necessarily fix any diagnostics.
-		if wanted[protocol.RefactorRewrite] {
-			fixes, err := convenienceFixes(ctx, snapshot, pkg, uri, params.Range)
+		codeActions = append(codeActions, fixActions...)
+
+		for _, nonfix := range nonFixDiags {
+			// For now, only show diagnostics for matching lines. Maybe we should
+			// alter this behavior in the future, depending on the user experience.
+			if !protocol.Intersect(nonfix.Range, params.Range) {
+				continue
+			}
+			actions, err := codeActionsForDiagnostic(ctx, snapshot, nonfix, nil)
 			if err != nil {
 				return nil, err
 			}
-			codeActions = append(codeActions, fixes...)
+			codeActions = append(codeActions, actions...)
 		}
+
 		if wanted[protocol.RefactorExtract] {
 			fixes, err := extractionFixes(ctx, snapshot, pkg, uri, params.Range)
 			if err != nil {
@@ -217,7 +210,14 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		// Unsupported file kind for a code action.
 		return nil, nil
 	}
-	return codeActions, nil
+
+	var filtered []protocol.CodeAction
+	for _, action := range codeActions {
+		if wanted[action.Kind] {
+			filtered = append(filtered, action)
+		}
+	}
+	return filtered, nil
 }
 
 func (s *Server) getSupportedCodeActions() []protocol.CodeActionKind {
@@ -276,94 +276,6 @@ func importDiagnostics(fix *imports.ImportFix, diagnostics []protocol.Diagnostic
 		}
 	}
 	return results
-}
-
-// diagnosticToAnalyzer return the analyzer associated with a given diagnostic.
-// It assumes that the diagnostic's source will be the name of the analyzer.
-// If this changes, this approach will need to be reworked.
-func diagnosticToAnalyzer(snapshot source.Snapshot, src, msg string) (analyzer *source.Analyzer) {
-	// Make sure that the analyzer we found is enabled.
-	defer func() {
-		if analyzer != nil && !analyzer.IsEnabled(snapshot.View()) {
-			analyzer = nil
-		}
-	}()
-	if a, ok := snapshot.View().Options().DefaultAnalyzers[src]; ok {
-		return a
-	}
-	if a, ok := snapshot.View().Options().StaticcheckAnalyzers[src]; ok {
-		return a
-	}
-	if a, ok := snapshot.View().Options().ConvenienceAnalyzers[src]; ok {
-		return a
-	}
-	return nil
-}
-
-func convenienceFixes(ctx context.Context, snapshot source.Snapshot, pkg source.Package, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
-	var analyzers []*source.Analyzer
-	for _, a := range snapshot.View().Options().ConvenienceAnalyzers {
-		if !a.IsEnabled(snapshot.View()) {
-			continue
-		}
-		if a.Fix == "" {
-			event.Error(ctx, "convenienceFixes", fmt.Errorf("no suggested fixes for convenience analyzer %s", a.Analyzer.Name))
-			continue
-		}
-		analyzers = append(analyzers, a)
-	}
-	diagnostics, err := snapshot.Analyze(ctx, pkg.ID(), analyzers)
-	if err != nil {
-		return nil, err
-	}
-	var codeActions []protocol.CodeAction
-	for _, d := range diagnostics {
-		// For now, only show diagnostics for matching lines. Maybe we should
-		// alter this behavior in the future, depending on the user experience.
-		if d.URI != uri {
-			continue
-		}
-
-		if !protocol.Intersect(d.Range, rng) {
-			continue
-		}
-		action, err := diagnosticToCommandCodeAction(ctx, snapshot, d, nil, protocol.RefactorRewrite)
-		if err != nil {
-			return nil, err
-		}
-		codeActions = append(codeActions, *action)
-	}
-	return codeActions, nil
-}
-
-func diagnosticToCommandCodeAction(ctx context.Context, snapshot source.Snapshot, sd *source.Diagnostic, pd *protocol.Diagnostic, kind protocol.CodeActionKind) (*protocol.CodeAction, error) {
-	// The fix depends on the category of the analyzer. The diagnostic may be
-	// nil, so use the error's category.
-	analyzer := diagnosticToAnalyzer(snapshot, string(sd.Source), sd.Message)
-	if analyzer == nil {
-		return nil, fmt.Errorf("no convenience analyzer for source %s", sd.Source)
-	}
-	if analyzer.Fix == "" {
-		return nil, fmt.Errorf("no fix for convenience analyzer %s", analyzer.Analyzer.Name)
-	}
-	cmd, err := command.NewApplyFixCommand(sd.Message, command.ApplyFixArgs{
-		URI:   protocol.URIFromSpanURI(sd.URI),
-		Range: sd.Range,
-		Fix:   analyzer.Fix,
-	})
-	if err != nil {
-		return nil, err
-	}
-	var diagnostics []protocol.Diagnostic
-	if pd != nil {
-		diagnostics = append(diagnostics, *pd)
-	}
-	return &protocol.CodeAction{
-		Title:       sd.Message,
-		Kind:        kind,
-		Diagnostics: diagnostics,
-		Command:     &cmd,
-	}, nil
 }
 
 func extractionFixes(ctx context.Context, snapshot source.Snapshot, pkg source.Package, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
@@ -431,47 +343,63 @@ func documentChanges(fh source.VersionedFileHandle, edits []protocol.TextEdit) [
 	}
 }
 
-func quickFixesForDiagnostics(ctx context.Context, snapshot source.Snapshot, pdiags []protocol.Diagnostic, sdiags []*source.Diagnostic) ([]protocol.CodeAction, error) {
-	var quickFixes []protocol.CodeAction
-	for _, e := range sdiags {
+func codeActionsMatchingDiagnostics(ctx context.Context, snapshot source.Snapshot, pdiags []protocol.Diagnostic, sdiags []*source.Diagnostic) ([]protocol.CodeAction, error) {
+	var actions []protocol.CodeAction
+	for _, sd := range sdiags {
 		var diag *protocol.Diagnostic
-		for _, d := range pdiags {
-			if sameDiagnostic(d, e) {
-				diag = &d
+		for _, pd := range pdiags {
+			if sameDiagnostic(pd, sd) {
+				diag = &pd
 				break
 			}
 		}
 		if diag == nil {
 			continue
 		}
-		for _, fix := range e.SuggestedFixes {
-			action := protocol.CodeAction{
-				Title:       fix.Title,
-				Kind:        protocol.QuickFix,
-				Diagnostics: []protocol.Diagnostic{*diag},
-				Edit:        protocol.WorkspaceEdit{},
-				Command:     fix.Command,
-			}
-
-			for uri, edits := range fix.Edits {
-				fh, err := snapshot.GetVersionedFile(ctx, uri)
-				if err != nil {
-					return nil, err
-				}
-				action.Edit.DocumentChanges = append(action.Edit.DocumentChanges, protocol.TextDocumentEdit{
-					TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
-						Version: fh.Version(),
-						TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-							URI: protocol.URIFromSpanURI(uri),
-						},
-					},
-					Edits: edits,
-				})
-			}
-			quickFixes = append(quickFixes, action)
+		diagActions, err := codeActionsForDiagnostic(ctx, snapshot, sd, diag)
+		if err != nil {
+			return nil, err
 		}
+		actions = append(actions, diagActions...)
+
 	}
-	return quickFixes, nil
+	return actions, nil
+}
+
+func codeActionsForDiagnostic(ctx context.Context, snapshot source.Snapshot, sd *source.Diagnostic, pd *protocol.Diagnostic) ([]protocol.CodeAction, error) {
+	var actions []protocol.CodeAction
+	for _, fix := range sd.SuggestedFixes {
+		action := protocol.CodeAction{
+			Title:   fix.Title,
+			Kind:    protocol.QuickFix,
+			Edit:    protocol.WorkspaceEdit{},
+			Command: fix.Command,
+		}
+		if pd != nil {
+			action.Diagnostics = []protocol.Diagnostic{*pd}
+		}
+		if sd.Analyzer != nil && sd.Analyzer.ActionKind != "" {
+			action.Kind = sd.Analyzer.ActionKind
+		}
+
+		for uri, edits := range fix.Edits {
+			fh, err := snapshot.GetVersionedFile(ctx, uri)
+			if err != nil {
+				return nil, err
+			}
+			action.Edit.DocumentChanges = append(action.Edit.DocumentChanges, protocol.TextDocumentEdit{
+				TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
+					Version: fh.Version(),
+					TextDocumentIdentifier: protocol.TextDocumentIdentifier{
+						URI: protocol.URIFromSpanURI(uri),
+					},
+				},
+				Edits: edits,
+			})
+		}
+		actions = append(actions, action)
+	}
+	return actions, nil
 }
 
 func sameDiagnostic(pd protocol.Diagnostic, sd *source.Diagnostic) bool {

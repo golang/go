@@ -23,39 +23,19 @@ type RelatedInformation struct {
 	Message string
 }
 
-func Analyze(ctx context.Context, snapshot Snapshot, pkg Package) (map[span.URI][]*Diagnostic, error) {
+func Analyze(ctx context.Context, snapshot Snapshot, pkg Package, includeConvenience bool) (map[span.URI][]*Diagnostic, error) {
 	// Exit early if the context has been canceled. This also protects us
 	// from a race on Options, see golang/go#36699.
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
-	// If we don't have any list or parse errors, run analyses.
-	analyzers := pickAnalyzers(snapshot, pkg.HasTypeErrors())
-	analysisDiagnostics, err := snapshot.Analyze(ctx, pkg.ID(), analyzers)
-	if err != nil {
-		return nil, err
-	}
 
-	reports := map[span.URI][]*Diagnostic{}
-	// Report diagnostics and errors from root analyzers.
-	for _, diag := range analysisDiagnostics {
-		// If the diagnostic comes from a "convenience" analyzer, it is not
-		// meant to provide diagnostics, but rather only suggested fixes.
-		// Skip these types of errors in diagnostics; we will use their
-		// suggested fixes when providing code actions.
-		if isConvenienceAnalyzer(string(diag.Source)) {
-			continue
-		}
-		reports[diag.URI] = append(reports[diag.URI], diag)
+	categories := []map[string]*Analyzer{}
+	if includeConvenience {
+		categories = append(categories, snapshot.View().Options().ConvenienceAnalyzers)
 	}
-	return reports, nil
-}
-
-func pickAnalyzers(snapshot Snapshot, hadTypeErrors bool) []*Analyzer {
-	// Always run convenience analyzers.
-	categories := []map[string]*Analyzer{snapshot.View().Options().ConvenienceAnalyzers}
 	// If we had type errors, don't run any other analyzers.
-	if !hadTypeErrors {
+	if !pkg.HasTypeErrors() {
 		categories = append(categories, snapshot.View().Options().DefaultAnalyzers, snapshot.View().Options().StaticcheckAnalyzers)
 	}
 	var analyzers []*Analyzer
@@ -64,7 +44,18 @@ func pickAnalyzers(snapshot Snapshot, hadTypeErrors bool) []*Analyzer {
 			analyzers = append(analyzers, a)
 		}
 	}
-	return analyzers
+
+	analysisDiagnostics, err := snapshot.Analyze(ctx, pkg.ID(), analyzers)
+	if err != nil {
+		return nil, err
+	}
+
+	reports := map[span.URI][]*Diagnostic{}
+	// Report diagnostics and errors from root analyzers.
+	for _, diag := range analysisDiagnostics {
+		reports[diag.URI] = append(reports[diag.URI], diag)
+	}
+	return reports, nil
 }
 
 func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (VersionedFileIdentity, []*Diagnostic, error) {
@@ -82,7 +73,7 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (Vers
 	}
 	fileDiags := diagnostics[fh.URI()]
 	if !pkg.HasListOrParseErrors() {
-		analysisDiags, err := Analyze(ctx, snapshot, pkg)
+		analysisDiags, err := Analyze(ctx, snapshot, pkg, false)
 		if err != nil {
 			return VersionedFileIdentity{}, nil, err
 		}

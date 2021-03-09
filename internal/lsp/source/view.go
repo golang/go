@@ -520,9 +520,9 @@ type Analyzer struct {
 	// the analyzer's suggested fixes through a Command, not a TextEdit.
 	Fix string
 
-	// If this is true, then we can apply the suggested fixes
-	// as part of a source.FixAll codeaction.
-	HighConfidence bool
+	// ActionKind is the kind of code action this analyzer produces. If
+	// unspecified the type defaults to quickfix.
+	ActionKind protocol.CodeActionKind
 }
 
 func (a Analyzer) IsEnabled(view View) bool {
