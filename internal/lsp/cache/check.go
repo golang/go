@@ -13,7 +13,6 @@ import (
 	"go/types"
 	"path"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -22,7 +21,6 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -509,42 +507,8 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 		return nil, err
 	}
 	pkg.diagnostics = append(pkg.diagnostics, depsErrors...)
-	if err := addGoGetFixes(ctx, snapshot, pkg); err != nil {
-		return nil, err
-	}
 
 	return pkg, nil
-}
-
-var importErrorRe = regexp.MustCompile(`could not import ([^\s]+)`)
-var missingModuleErrorRe = regexp.MustCompile(`cannot find module providing package ([^\s:]+)`)
-
-func addGoGetFixes(ctx context.Context, snapshot source.Snapshot, pkg *pkg) error {
-	if len(pkg.compiledGoFiles) == 0 || snapshot.GoModForFile(pkg.compiledGoFiles[0].URI) == "" {
-		// Go get only supports module mode for now.
-		return nil
-	}
-	for _, diag := range pkg.diagnostics {
-		matches := importErrorRe.FindStringSubmatch(diag.Message)
-		if len(matches) == 0 {
-			matches = missingModuleErrorRe.FindStringSubmatch(diag.Message)
-		}
-		if len(matches) == 0 {
-			continue
-		}
-		direct := !strings.Contains(diag.Message, "error while importing")
-		title := fmt.Sprintf("go get package %v", matches[1])
-		cmd, err := command.NewGoGetPackageCommand(title, command.GoGetPackageArgs{
-			URI:        protocol.URIFromSpanURI(pkg.compiledGoFiles[0].URI),
-			AddRequire: direct,
-			Pkg:        matches[1],
-		})
-		if err != nil {
-			return err
-		}
-		diag.SuggestedFixes = append(diag.SuggestedFixes, source.SuggestedFixFromCommand(cmd))
-	}
-	return nil
 }
 
 func (s *snapshot) depsErrors(ctx context.Context, pkg *pkg) ([]*source.Diagnostic, error) {
@@ -592,27 +556,33 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *pkg) ([]*source.Diagnost
 		}
 	}
 
-	// Apply a diagnostic to any import involved in the error, stopping after
+	// Apply a diagnostic to any import involved in the error, stopping once
 	// we reach the workspace.
 	var errors []*source.Diagnostic
 	for _, depErr := range relevantErrors {
 		for i := len(depErr.ImportStack) - 1; i >= 0; i-- {
 			item := depErr.ImportStack[i]
+			if _, ok := s.isWorkspacePackage(packageID(item)); ok {
+				break
+			}
+
 			for _, imp := range allImports[item] {
 				rng, err := source.NewMappedRange(s.FileSet(), imp.cgf.Mapper, imp.imp.Pos(), imp.imp.End()).Range()
 				if err != nil {
 					return nil, err
 				}
+				fixes, err := goGetQuickFixes(s, imp.cgf.URI, item)
+				if err != nil {
+					return nil, err
+				}
 				errors = append(errors, &source.Diagnostic{
-					URI:      imp.cgf.URI,
-					Range:    rng,
-					Severity: protocol.SeverityError,
-					Source:   source.TypeError,
-					Message:  fmt.Sprintf("error while importing %v: %v", item, depErr.Err),
+					URI:            imp.cgf.URI,
+					Range:          rng,
+					Severity:       protocol.SeverityError,
+					Source:         source.TypeError,
+					Message:        fmt.Sprintf("error while importing %v: %v", item, depErr.Err),
+					SuggestedFixes: fixes,
 				})
-			}
-			if _, ok := s.isWorkspacePackage(packageID(item)); ok {
-				break
 			}
 		}
 	}
@@ -651,12 +621,17 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *pkg) ([]*source.Diagnost
 			if err != nil {
 				return nil, err
 			}
+			fixes, err := goGetQuickFixes(s, pm.URI, item)
+			if err != nil {
+				return nil, err
+			}
 			errors = append(errors, &source.Diagnostic{
-				URI:      pm.URI,
-				Range:    rng,
-				Severity: protocol.SeverityError,
-				Source:   source.TypeError,
-				Message:  fmt.Sprintf("error while importing %v: %v", item, depErr.Err),
+				URI:            pm.URI,
+				Range:          rng,
+				Severity:       protocol.SeverityError,
+				Source:         source.TypeError,
+				Message:        fmt.Sprintf("error while importing %v: %v", item, depErr.Err),
+				SuggestedFixes: fixes,
 			})
 			break
 		}

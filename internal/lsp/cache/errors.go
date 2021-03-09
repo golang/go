@@ -101,6 +101,8 @@ func parseErrorDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, er
 	}}, nil
 }
 
+var importErrorRe = regexp.MustCompile(`could not import ([^\s]+)`)
+
 func typeErrorDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, e extendedError) ([]*source.Diagnostic, error) {
 	code, spn, err := typeErrorData(snapshot.FileSet(), pkg, e.primary)
 	if err != nil {
@@ -137,7 +139,31 @@ func typeErrorDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, e e
 			Message: secondary.Msg,
 		})
 	}
+
+	if match := importErrorRe.FindStringSubmatch(e.primary.Msg); match != nil {
+		diag.SuggestedFixes, err = goGetQuickFixes(snapshot, spn.URI(), match[1])
+		if err != nil {
+			return nil, err
+		}
+	}
 	return []*source.Diagnostic{diag}, nil
+}
+
+func goGetQuickFixes(snapshot *snapshot, uri span.URI, pkg string) ([]source.SuggestedFix, error) {
+	// Go get only supports module mode for now.
+	if snapshot.workspaceMode()&moduleMode == 0 {
+		return nil, nil
+	}
+	title := fmt.Sprintf("go get package %v", pkg)
+	cmd, err := command.NewGoGetPackageCommand(title, command.GoGetPackageArgs{
+		URI:        protocol.URIFromSpanURI(uri),
+		AddRequire: true,
+		Pkg:        pkg,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return []source.SuggestedFix{source.SuggestedFixFromCommand(cmd)}, nil
 }
 
 func analysisDiagnosticDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, a *analysis.Analyzer, e *analysis.Diagnostic) ([]*source.Diagnostic, error) {
