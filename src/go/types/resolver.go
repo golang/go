@@ -130,7 +130,7 @@ func (check *Checker) filename(fileNo int) string {
 	return fmt.Sprintf("file[%d]", fileNo)
 }
 
-func (check *Checker) importPackage(pos token.Pos, path, dir string) *Package {
+func (check *Checker) importPackage(at positioner, path, dir string) *Package {
 	// If we already have a package for the given (path, dir)
 	// pair, use it instead of doing a full import.
 	// Checker.impMap only caches packages that are marked Complete
@@ -170,7 +170,7 @@ func (check *Checker) importPackage(pos token.Pos, path, dir string) *Package {
 			imp = nil // create fake package below
 		}
 		if err != nil {
-			check.errorf(atPos(pos), _BrokenImport, "could not import %s (%s)", path, err)
+			check.errorf(at, _BrokenImport, "could not import %s (%s)", path, err)
 			if imp == nil {
 				// create a new fake package
 				// come up with a sensible package name (heuristic)
@@ -254,7 +254,7 @@ func (check *Checker) collectObjects() {
 					return
 				}
 
-				imp := check.importPackage(d.spec.Path.Pos(), path, fileDir)
+				imp := check.importPackage(d.spec.Path, path, fileDir)
 				if imp == nil {
 					return
 				}
