@@ -107,3 +107,44 @@ func TestPCalign(t *testing.T) {
 		t.Errorf("Invalid alignment not detected for PCALIGN\n")
 	}
 }
+
+// Verify register constants are correctly aligned. Much of the ppc64 assembler assumes masking out significant
+// bits will produce a valid register number:
+// REG_Rx & 31 == x
+// REG_Fx & 31 == x
+// REG_Vx & 31 == x
+// REG_VSx & 63 == x
+// REG_SPRx & 1023 == x
+// REG_CRx & 7 == x
+//
+// VR and FPR disjointly overlap VSR, interpreting as VSR registers should produce the correctly overlapped VSR.
+// REG_FPx & 63 == x
+// REG_Vx & 63 == x + 32
+func TestRegValueAlignment(t *testing.T) {
+	tstFunc := func(rstart, rend, msk, rout int) {
+		for i := rstart; i <= rend; i++ {
+			if i&msk != rout {
+				t.Errorf("%v is not aligned to 0x%X (expected %d, got %d)\n", rconv(i), msk, rout, rstart&msk)
+			}
+			rout++
+		}
+	}
+	var testType = []struct {
+		rstart int
+		rend   int
+		msk    int
+		rout   int
+	}{
+		{REG_VS0, REG_VS63, 63, 0},
+		{REG_R0, REG_R31, 31, 0},
+		{REG_F0, REG_F31, 31, 0},
+		{REG_V0, REG_V31, 31, 0},
+		{REG_V0, REG_V31, 63, 32},
+		{REG_F0, REG_F31, 63, 0},
+		{REG_SPR0, REG_SPR0 + 1023, 1023, 0},
+		{REG_CR0, REG_CR7, 7, 0},
+	}
+	for _, t := range testType {
+		tstFunc(t.rstart, t.rend, t.msk, t.rout)
+	}
+}
