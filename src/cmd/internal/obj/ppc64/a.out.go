@@ -375,13 +375,9 @@ const (
 	C_SBRA
 	C_LBRA
 	C_LBRAPIC
-	C_SAUTO
-	C_LAUTO
-	C_SEXT
-	C_LEXT
 	C_ZOREG // conjecture: either (1) register + zeroed offset, or (2) "R0" implies zero or C_REG
-	C_SOREG // register + signed offset
-	C_LOREG
+	C_SOREG // D/DS form memory operation
+	C_LOREG // 32 bit addis + D/DS-form memory operation
 	C_FPSCR
 	C_MSR
 	C_XER
