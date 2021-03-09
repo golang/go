@@ -20,13 +20,13 @@ import (
 func FormatMediaType(t string, param map[string]string) string {
 	var b strings.Builder
 	if slash := strings.IndexByte(t, '/'); slash == -1 {
-		if !isToken(t) {
+		if !is2616Token(t) {
 			return ""
 		}
 		b.WriteString(strings.ToLower(t))
 	} else {
 		major, sub := t[:slash], t[slash+1:]
-		if !isToken(major) || !isToken(sub) {
+		if !is2616Token(major) || !is2616Token(sub) {
 			return ""
 		}
 		b.WriteString(strings.ToLower(major))
@@ -44,7 +44,7 @@ func FormatMediaType(t string, param map[string]string) string {
 		value := param[attribute]
 		b.WriteByte(';')
 		b.WriteByte(' ')
-		if !isToken(attribute) {
+		if !is2616Token(attribute) {
 			return ""
 		}
 		b.WriteString(strings.ToLower(attribute))
@@ -80,7 +80,7 @@ func FormatMediaType(t string, param map[string]string) string {
 			continue
 		}
 
-		if isToken(value) {
+		if is2616Token(value) {
 			b.WriteString(value)
 			continue
 		}

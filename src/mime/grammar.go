@@ -22,11 +22,22 @@ func isTokenChar(r rune) bool {
 	return r > 0x20 && r < 0x7f && !isTSpecial(r)
 }
 
-// isToken reports whether s is a 'token' as defined by RFC 1521
-// and RFC 2045.
-func isToken(s string) bool {
+func isNot2616TokenChar(r rune) bool {
+	// CHAR           = <any US-ASCII character (octets 0 - 127)>
+	// CTL            = <any US-ASCII control character (octets 0 - 31) and DEL (127)>
+	// token          = 1*<any CHAR except CTLs or separators>
+	// separators     = "(" | ")" | "<" | ">" | "@"
+	//                | "," | ";" | ":" | "\" | <">
+	//                | "/" | "[" | "]" | "?" | "="
+	//                | "{" | "}" | SP | HT
+	return r <= 0x20 || r >= 0x7f || strings.ContainsRune(`()<>@,;:\"/[]?={}`, r)
+}
+
+// is2616Token reports whether s is a 'token' as defined by RFC 2616,
+// which is more restrictive than RFC 1521 and RFC 2045.
+func is2616Token(s string) bool {
 	if s == "" {
 		return false
 	}
-	return strings.IndexFunc(s, isNotTokenChar) < 0
+	return strings.IndexFunc(s, isNot2616TokenChar) < 0
 }

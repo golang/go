@@ -397,6 +397,10 @@ func TestParseMediaType(t *testing.T) {
 		// Microsoft browers in intranet mode do not think they need to escape \ in file name.
 		{`form-data; name="file"; filename="C:\dev\go\robots.txt"`, "form-data", m("name", "file", "filename", `C:\dev\go\robots.txt`)},
 		{`form-data; name="file"; filename="C:\新建文件件\中文第二次测试.mp4"`, "form-data", m("name", "file", "filename", `C:\新建文件件\中文第二次测试.mp4`)},
+
+		// `{` and `}` are excluded from RFC 2616 token character set but included in RFC 2045 one.
+		{`attachment; foo=}{`, "attachment", m("foo", "}{")},
+		{`attachment; foo*=UTF-8''%01}{`, "attachment", m("foo", "\001}{")},
 	}
 	for _, test := range tests {
 		mt, params, err := ParseMediaType(test.in)
@@ -498,6 +502,7 @@ var formatTests = []formatTest{
 	{"foo/bar", map[string]string{"a": "av", "b": "bv", "c": "cv"}, "foo/bar; a=av; b=bv; c=cv"},
 	{"foo/bar", map[string]string{"0": "'", "9": "'"}, "foo/bar; 0='; 9='"},
 	{"foo", map[string]string{"bar": ""}, `foo; bar=""`},
+	{"foo", map[string]string{"bar": "}{"}, `foo; bar="}{"`},
 }
 
 func TestFormatMediaType(t *testing.T) {
