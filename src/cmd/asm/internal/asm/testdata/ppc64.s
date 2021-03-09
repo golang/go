@@ -77,6 +77,15 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVBU R4, 1(R3)                 // 9c830001
 	MOVBU R5, (R3)(R4)              // 7ca419ee
 
+	MOVB $0, R4			// 38800000
+	MOVBZ $0, R4			// 38800000
+	MOVH $0, R4			// 38800000
+	MOVHZ $0, R4			// 38800000
+	MOVW $0, R4			// 38800000
+	MOVWZ $0, R4			// 38800000
+	MOVD $0, R4			// 38800000
+	MOVD $0, R0			// 38000000
+
 	ADD $1, R3                      // 38630001
 	ADD $1, R3, R4                  // 38830001
 	ADD $-1, R4                     // 3884ffff
