@@ -295,16 +295,17 @@ const (
 
 const (
 	/* mark flags */
-	LABEL   = 1 << 0
-	LEAF    = 1 << 1
-	FLOAT   = 1 << 2
-	BRANCH  = 1 << 3
-	LOAD    = 1 << 4
-	FCMP    = 1 << 5
-	SYNC    = 1 << 6
-	LIST    = 1 << 7
-	FOLL    = 1 << 8
-	NOSCHED = 1 << 9
+	LABEL    = 1 << 0
+	LEAF     = 1 << 1
+	FLOAT    = 1 << 2
+	BRANCH   = 1 << 3
+	LOAD     = 1 << 4
+	FCMP     = 1 << 5
+	SYNC     = 1 << 6
+	LIST     = 1 << 7
+	FOLL     = 1 << 8
+	NOSCHED  = 1 << 9
+	PFX_X64B = 1 << 10 // A prefixed instruction crossing a 64B boundary
 )
 
 // Values for use in branch instruction BC
@@ -1012,6 +1013,9 @@ const (
 	AXVCVSXWSP
 	AXVCVUXDSP
 	AXVCVUXWSP
+
+	/* ISA 3.1 opcodes */
+	APNOP
 
 	ALAST
 
