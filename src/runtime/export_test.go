@@ -1233,7 +1233,9 @@ func (th *TimeHistogram) Record(duration int64) {
 func SetIntArgRegs(a int) int {
 	lock(&finlock)
 	old := intArgRegs
-	intArgRegs = a
+	if a >= 0 {
+		intArgRegs = a
+	}
 	unlock(&finlock)
 	return old
 }
