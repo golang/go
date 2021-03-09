@@ -46,6 +46,14 @@ var NetpollGenericInit = netpollGenericInit
 var Memmove = memmove
 var MemclrNoHeapPointers = memclrNoHeapPointers
 
+var LockPartialOrder = lockPartialOrder
+
+type LockRank lockRank
+
+func (l LockRank) String() string {
+	return lockRank(l).String()
+}
+
 const PreemptMSupported = preemptMSupported
 
 type LFNode struct {
