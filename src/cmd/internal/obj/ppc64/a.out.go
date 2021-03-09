@@ -368,10 +368,8 @@ const (
 	C_LCON   /* other 32 */
 	C_DCON   /* other 64 (could subdivide further) */
 	C_SACON  /* $n(REG) where n <= int16 */
-	C_SECON
-	C_LACON /* $n(REG) where int16 < n <= int32 */
-	C_LECON
-	C_DACON /* $n(REG) where int32 < n */
+	C_LACON  /* $n(REG) where int16 < n <= int32 */
+	C_DACON  /* $n(REG) where int32 < n */
 	C_SBRA
 	C_LBRA
 	C_LBRAPIC
