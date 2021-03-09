@@ -1297,6 +1297,7 @@ func main() {
   fmt.Println("Hello World")
 }`
 	f := gobuild(t, dir, prog, NoOpt)
+	defer f.Close()
 	exe, err := pe.Open(f.path)
 	if err != nil {
 		t.Fatalf("error opening pe file: %v", err)
