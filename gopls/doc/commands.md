@@ -286,4 +286,9 @@ Args:
 }
 ```
 
+### ****
+Identifier: `gopls.workspace_metadata`
+
+
+
 <!-- END Commands: DO NOT MANUALLY EDIT THIS SECTION -->

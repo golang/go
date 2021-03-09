@@ -7,7 +7,6 @@ package cache
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -30,7 +29,7 @@ type Session struct {
 
 	viewMu  sync.Mutex
 	views   []*View
-	viewMap map[span.URI]*View
+	viewMap map[span.URI]*View // map of URI->best view
 
 	overlayMu sync.Mutex
 	overlays  map[span.URI]*overlay
@@ -244,15 +243,13 @@ func (s *Session) createView(ctx context.Context, name string, folder, tempWorks
 		snapshot.initialize(initCtx, true)
 		if v.tempWorkspace != "" {
 			var err error
-			if err = os.Mkdir(v.tempWorkspace.Filename(), 0700); err == nil {
-				var wsdir span.URI
-				wsdir, err = snapshot.getWorkspaceDir(initCtx)
-				if err == nil {
-					err = copyWorkspace(v.tempWorkspace, wsdir)
-				}
+			var wsdir span.URI
+			wsdir, err = snapshot.getWorkspaceDir(initCtx)
+			if err == nil {
+				err = copyWorkspace(v.tempWorkspace, wsdir)
 			}
 			if err != nil {
-				event.Error(initCtx, "creating workspace dir", err)
+				event.Error(ctx, "copying workspace dir", err)
 			}
 		}
 		release()

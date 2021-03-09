@@ -683,3 +683,14 @@ func (c *commandHandler) AddImport(ctx context.Context, args command.AddImportAr
 	})
 	return result, err
 }
+
+func (c *commandHandler) WorkspaceMetadata(ctx context.Context) (command.WorkspaceMetadataResult, error) {
+	var result command.WorkspaceMetadataResult
+	for _, view := range c.s.session.Views() {
+		result.Workspaces = append(result.Workspaces, command.Workspace{
+			Name:      view.Name(),
+			ModuleDir: view.TempWorkspace().Filename(),
+		})
+	}
+	return result, nil
+}

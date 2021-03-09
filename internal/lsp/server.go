@@ -64,12 +64,12 @@ type Server struct {
 
 	stateMu sync.Mutex
 	state   serverState
-
-	session   source.Session
-	clientPID int
-
 	// notifications generated before serverInitialized
 	notifications []*protocol.ShowMessageParams
+
+	session source.Session
+
+	tempDir string
 
 	// changedFiles tracks files for which there has been a textDocument/didChange.
 	changedFilesMu sync.Mutex

@@ -790,6 +790,12 @@ var GeneratedAPIJSON = &APIJSON{
 			Doc:     "Runs `go mod vendor` for a module.",
 			ArgDoc:  "{\n\t// The file URI.\n\t\"URI\": string,\n}",
 		},
+		{
+			Command: "gopls.workspace_metadata",
+			Title:   "",
+			Doc:     "",
+			ArgDoc:  "",
+		},
 	},
 	Lenses: []*LensJSON{
 		{

@@ -37,6 +37,7 @@ const (
 	UpdateGoSum       Command = "update_go_sum"
 	UpgradeDependency Command = "upgrade_dependency"
 	Vendor            Command = "vendor"
+	WorkspaceMetadata Command = "workspace_metadata"
 )
 
 var Commands = []Command{
@@ -58,6 +59,7 @@ var Commands = []Command{
 	UpdateGoSum,
 	UpgradeDependency,
 	Vendor,
+	WorkspaceMetadata,
 }
 
 func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Interface) (interface{}, error) {
@@ -172,6 +174,8 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 			return nil, err
 		}
 		return nil, s.Vendor(ctx, a0)
+	case "gopls.workspace_metadata":
+		return s.WorkspaceMetadata(ctx)
 	}
 	return nil, fmt.Errorf("unsupported command %q", params.Command)
 }
@@ -388,6 +392,18 @@ func NewVendorCommand(title string, a0 URIArg) (protocol.Command, error) {
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.vendor",
+		Arguments: args,
+	}, nil
+}
+
+func NewWorkspaceMetadataCommand(title string) (protocol.Command, error) {
+	args, err := MarshalArgs()
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.workspace_metadata",
 		Arguments: args,
 	}, nil
 }

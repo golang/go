@@ -5,15 +5,16 @@
 package workspace
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	. "golang.org/x/tools/gopls/internal/regtest"
 
+	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/testenv"
@@ -647,10 +648,19 @@ func main() {
 		Modes(Experimental),
 		SendPID(),
 	).Run(t, multiModule, func(t *testing.T, env *Env) {
-		pid := os.Getpid()
+		params := &protocol.ExecuteCommandParams{
+			Command:   command.WorkspaceMetadata.ID(),
+			Arguments: []json.RawMessage{json.RawMessage("{}")},
+		}
+		var result command.WorkspaceMetadataResult
+		env.ExecuteCommand(params, &result)
+
+		if n := len(result.Workspaces); n != 1 {
+			env.T.Fatalf("got %d workspaces, want 1", n)
+		}
 		// Don't factor this out of Server.addFolders. vscode-go expects this
 		// directory.
-		modPath := filepath.Join(os.TempDir(), fmt.Sprintf("gopls-%d.workspace", pid), "go.mod")
+		modPath := filepath.Join(result.Workspaces[0].ModuleDir, "go.mod")
 		gotb, err := ioutil.ReadFile(modPath)
 		if err != nil {
 			t.Fatalf("reading expected workspace modfile: %v", err)

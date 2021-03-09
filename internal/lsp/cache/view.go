@@ -236,6 +236,10 @@ func (v *View) Folder() span.URI {
 	return v.folder
 }
 
+func (v *View) TempWorkspace() span.URI {
+	return v.tempWorkspace
+}
+
 func (v *View) Options() *source.Options {
 	v.optionsMu.Lock()
 	defer v.optionsMu.Unlock()
@@ -456,11 +460,6 @@ func (v *View) shutdown(ctx context.Context) {
 	go v.snapshot.generation.Destroy()
 	v.snapshotMu.Unlock()
 	v.importsState.destroy()
-	if v.tempWorkspace != "" {
-		if err := os.RemoveAll(v.tempWorkspace.Filename()); err != nil {
-			event.Error(ctx, "removing temp workspace", err)
-		}
-	}
 }
 
 func (v *View) Session() *Session {
@@ -623,7 +622,9 @@ func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*file
 	v.snapshot, workspaceChanged = oldSnapshot.clone(ctx, v.baseCtx, changes, forceReloadMetadata)
 	if workspaceChanged && v.tempWorkspace != "" {
 		snap := v.snapshot
+		release := snap.generation.Acquire(ctx)
 		go func() {
+			defer release()
 			wsdir, err := snap.getWorkspaceDir(ctx)
 			if err != nil {
 				event.Error(ctx, "getting workspace dir", err)

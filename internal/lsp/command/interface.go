@@ -118,6 +118,8 @@ type Interface interface {
 	ListKnownPackages(context.Context, URIArg) (ListKnownPackagesResult, error)
 
 	AddImport(context.Context, AddImportArgs) (AddImportResult, error)
+
+	WorkspaceMetadata(context.Context) (WorkspaceMetadataResult, error)
 }
 
 type RunTestsArgs struct {
@@ -205,4 +207,16 @@ type AddImportResult struct {
 
 type ListKnownPackagesResult struct {
 	Packages []string
+}
+
+type WorkspaceMetadataArgs struct {
+}
+
+type WorkspaceMetadataResult struct {
+	Workspaces []Workspace
+}
+
+type Workspace struct {
+	Name      string
+	ModuleDir string
 }
