@@ -209,7 +209,7 @@ var optab = []Optab{
 	{as: AMOVB, a1: C_REG, a6: C_ADDR, type_: 74, size: 8},
 	{as: AMOVB, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
 	{as: AMOVB, a1: C_REG, a6: C_LOREG, type_: 35, size: 8},
-	{as: AMOVB, a1: C_REG, a6: C_REG, type_: 12, size: 4},
+	{as: AMOVB, a1: C_REG, a6: C_REG, type_: 13, size: 4},
 
 	{as: AMOVBZ, a1: C_ADDR, a6: C_REG, type_: 75, size: 8},
 	{as: AMOVBZ, a1: C_LOREG, a6: C_REG, type_: 36, size: 8},
@@ -237,7 +237,7 @@ var optab = []Optab{
 	{as: AMOVD, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
 	{as: AMOVD, a1: C_REG, a6: C_LOREG, type_: 35, size: 8},
 	{as: AMOVD, a1: C_REG, a6: C_SPR, type_: 66, size: 4},
-	{as: AMOVD, a1: C_REG, a6: C_REG, type_: 1, size: 4},
+	{as: AMOVD, a1: C_REG, a6: C_REG, type_: 13, size: 4},
 
 	{as: AMOVW, a1: C_ADDCON, a6: C_REG, type_: 3, size: 4},
 	{as: AMOVW, a1: C_ANDCON, a6: C_REG, type_: 3, size: 4},
@@ -255,25 +255,7 @@ var optab = []Optab{
 	{as: AMOVW, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
 	{as: AMOVW, a1: C_REG, a6: C_LOREG, type_: 35, size: 8},
 	{as: AMOVW, a1: C_REG, a6: C_SPR, type_: 66, size: 4},
-	{as: AMOVW, a1: C_REG, a6: C_REG, type_: 12, size: 4},
-
-	{as: AMOVWZ, a1: C_ADDCON, a6: C_REG, type_: 3, size: 4},
-	{as: AMOVWZ, a1: C_ANDCON, a6: C_REG, type_: 3, size: 4},
-	{as: AMOVWZ, a1: C_UCON, a6: C_REG, type_: 3, size: 4},
-	{as: AMOVWZ, a1: C_SACON, a6: C_REG, type_: 3, size: 4},
-	{as: AMOVWZ, a1: C_ADDR, a6: C_REG, type_: 75, size: 8},
-	{as: AMOVWZ, a1: C_LCON, a6: C_REG, type_: 19, size: 8},
-	{as: AMOVWZ, a1: C_CREG, a6: C_REG, type_: 68, size: 4},
-	{as: AMOVWZ, a1: C_LACON, a6: C_REG, type_: 26, size: 8},
-	{as: AMOVWZ, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},
-	{as: AMOVWZ, a1: C_LOREG, a6: C_REG, type_: 36, size: 8},
-	{as: AMOVWZ, a1: C_SPR, a6: C_REG, type_: 66, size: 4},
-	{as: AMOVWZ, a1: C_REG, a6: C_ADDR, type_: 74, size: 8},
-	{as: AMOVWZ, a1: C_REG, a6: C_CREG, type_: 69, size: 4},
-	{as: AMOVWZ, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
-	{as: AMOVWZ, a1: C_REG, a6: C_LOREG, type_: 35, size: 8},
-	{as: AMOVWZ, a1: C_REG, a6: C_SPR, type_: 66, size: 4},
-	{as: AMOVWZ, a1: C_REG, a6: C_REG, type_: 13, size: 4},
+	{as: AMOVW, a1: C_REG, a6: C_REG, type_: 13, size: 4},
 
 	{as: AFMOVD, a1: C_ADDCON, a6: C_FREG, type_: 24, size: 8},
 	{as: AFMOVD, a1: C_SOREG, a6: C_FREG, type_: 8, size: 4},
@@ -1925,6 +1907,9 @@ func buildop(ctxt *obj.Link) {
 		case AFTSQRT:
 			opset(AFTSQRT, r0)
 
+		case AMOVW: /* load/store/move word with sign extension; move 32-bit literals  */
+			opset(AMOVWZ, r0) /* Same as above, but zero extended */
+
 		case AADD,
 			AADDIS,
 			AANDCC, /* and. Rb,Rs,Ra; andi. $uimm,Rs,Ra */
@@ -1932,9 +1917,6 @@ func buildop(ctxt *obj.Link) {
 			AFMOVSX,
 			AFMOVSZ,
 			ALSW,
-			AMOVW,
-			/* load/store/move word with sign extension; special 32-bit move; move 32-bit literals */
-			AMOVWZ, /* load/store/move word with zero extension; move 32-bit literals  */
 			AMOVD,  /* load/store/move 64-bit values, including 32-bit literals with/without sign-extension */
 			AMOVB,  /* macro: move byte with sign extension */
 			AMOVBU, /* macro: move byte with sign extension & update */
@@ -2392,20 +2374,6 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 0: /* pseudo ops */
 		break
 
-	case 1: /* mov r1,r2 ==> OR Rs,Rs,Ra */
-		if p.To.Reg == REGZERO && p.From.Type == obj.TYPE_CONST {
-			v := c.regoff(&p.From)
-			if r0iszero != 0 /*TypeKind(100016)*/ && v != 0 {
-				//nerrors--;
-				c.ctxt.Diag("literal operation on R0\n%v", p)
-			}
-
-			o1 = LOP_IRR(OP_ADDI, REGZERO, REGZERO, uint32(v))
-			break
-		}
-
-		o1 = LOP_RRR(OP_OR, uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.From.Reg))
-
 	case 2: /* int/cr/fp op Rb,[Ra],Rd */
 		r := int(p.Reg)
 
@@ -2594,34 +2562,35 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o2 = 0x60000000 // nop, sometimes overwritten by ld r2, 24(r1) when dynamic linking
 
-	case 12: /* movb r,r (extsb); movw r,r (extsw) */
-		if p.To.Reg == REGZERO && p.From.Type == obj.TYPE_CONST {
-			v := c.regoff(&p.From)
-			if r0iszero != 0 /*TypeKind(100016)*/ && v != 0 {
-				c.ctxt.Diag("literal operation on R0\n%v", p)
-			}
-
-			o1 = LOP_IRR(OP_ADDI, REGZERO, REGZERO, uint32(v))
+	case 13: /* mov[bhwd]{z,} r,r */
+		// This needs to handle "MOV* $0, Rx".  This shows up because $0 also
+		// matches C_REG if r0iszero. This happens because C_REG sorts before C_ANDCON
+		// TODO: fix the above behavior and cleanup this exception.
+		if p.From.Type == obj.TYPE_CONST {
+			o1 = LOP_IRR(OP_ADDI, REGZERO, uint32(p.To.Reg), 0)
 			break
 		}
-
-		if p.As == AMOVW {
-			o1 = LOP_RRR(OP_EXTSW, uint32(p.To.Reg), uint32(p.From.Reg), 0)
-		} else {
-			o1 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.From.Reg), 0)
+		if p.To.Type == obj.TYPE_CONST {
+			c.ctxt.Diag("cannot move into constant 0\n%v", p)
 		}
 
-	case 13: /* mov[bhw]z r,r; uses rlwinm not andi. to avoid changing CC */
-		if p.As == AMOVBZ {
+		switch p.As {
+		case AMOVB:
+			o1 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.From.Reg), 0)
+		case AMOVBZ:
 			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.From.Reg), 0, 24, 31)
-		} else if p.As == AMOVH {
+		case AMOVH:
 			o1 = LOP_RRR(OP_EXTSH, uint32(p.To.Reg), uint32(p.From.Reg), 0)
-		} else if p.As == AMOVHZ {
+		case AMOVHZ:
 			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.From.Reg), 0, 16, 31)
-		} else if p.As == AMOVWZ {
+		case AMOVW:
+			o1 = LOP_RRR(OP_EXTSW, uint32(p.To.Reg), uint32(p.From.Reg), 0)
+		case AMOVWZ:
 			o1 = OP_RLW(OP_RLDIC, uint32(p.To.Reg), uint32(p.From.Reg), 0, 0, 0) | 1<<5 /* MB=32 */
-		} else {
-			c.ctxt.Diag("internal: bad mov[bhw]z\n%v", p)
+		case AMOVD:
+			o1 = LOP_RRR(OP_OR, uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.From.Reg))
+		default:
+			c.ctxt.Diag("internal: bad register move/truncation\n%v", p)
 		}
 
 	case 14: /* rldc[lr] Rb,Rs,$mask,Ra -- left, right give different masks */
