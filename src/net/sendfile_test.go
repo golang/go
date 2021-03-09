@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"sync"
@@ -367,7 +366,7 @@ func TestSendfileOnWriteTimeoutExceeded(t *testing.T) {
 	}
 	defer conn.Close()
 
-	n, err := io.Copy(ioutil.Discard, conn)
+	n, err := io.Copy(io.Discard, conn)
 	if err != nil {
 		t.Fatalf("expected nil error, but got %v", err)
 	}
