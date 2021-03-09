@@ -224,12 +224,16 @@ func firstPathOK(r rune) bool {
 		'a' <= r && r <= 'z'
 }
 
-// pathOK reports whether r can appear in an import path element.
+// modPathOK reports whether r can appear in a module path element.
 // Paths can be ASCII letters, ASCII digits, and limited ASCII punctuation: - . _ and ~.
-// This matches what "go get" has historically recognized in import paths.
+//
+// This matches what "go get" has historically recognized in import paths,
+// and avoids confusing sequences like '%20' or '+' that would change meaning
+// if used in a URL.
+//
 // TODO(rsc): We would like to allow Unicode letters, but that requires additional
 // care in the safe encoding (see "escaped paths" above).
-func pathOK(r rune) bool {
+func modPathOK(r rune) bool {
 	if r < utf8.RuneSelf {
 		return r == '-' || r == '.' || r == '_' || r == '~' ||
 			'0' <= r && r <= '9' ||
@@ -237,6 +241,17 @@ func pathOK(r rune) bool {
 			'a' <= r && r <= 'z'
 	}
 	return false
+}
+
+// modPathOK reports whether r can appear in a package import path element.
+//
+// Import paths are intermediate between module paths and file paths: we allow
+// disallow characters that would be confusing or ambiguous as arguments to
+// 'go get' (such as '@' and ' ' ), but allow certain characters that are
+// otherwise-unambiguous on the command line and historically used for some
+// binary names (such as '++' as a suffix for compiler binaries and wrappers).
+func importPathOK(r rune) bool {
+	return modPathOK(r) || r == '+'
 }
 
 // fileNameOK reports whether r can appear in a file name.
@@ -394,12 +409,19 @@ func checkElem(elem string, kind pathKind) error {
 	if elem[len(elem)-1] == '.' {
 		return fmt.Errorf("trailing dot in path element")
 	}
-	charOK := pathOK
-	if kind == filePath {
-		charOK = fileNameOK
-	}
 	for _, r := range elem {
-		if !charOK(r) {
+		ok := false
+		switch kind {
+		case modulePath:
+			ok = modPathOK(r)
+		case importPath:
+			ok = importPathOK(r)
+		case filePath:
+			ok = fileNameOK(r)
+		default:
+			panic(fmt.Sprintf("internal error: invalid kind %v", kind))
+		}
+		if !ok {
 			return fmt.Errorf("invalid char %q", r)
 		}
 	}
