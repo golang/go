@@ -212,7 +212,7 @@ func TestLargeHashes(t *testing.T) {
 }
 
 var bench = New()
-var buf = make([]byte, 8192+1)
+var buf = make([]byte, 1024*1024*8+1)
 var sum = make([]byte, bench.Size())
 
 func benchmarkSize(b *testing.B, size int, unaligned bool) {
@@ -235,12 +235,36 @@ func BenchmarkHash8Bytes(b *testing.B) {
 	benchmarkSize(b, 8, false)
 }
 
+func BenchmarkHash64(b *testing.B) {
+	benchmarkSize(b, 64, false)
+}
+
+func BenchmarkHash128(b *testing.B) {
+	benchmarkSize(b, 128, false)
+}
+
+func BenchmarkHash256(b *testing.B) {
+	benchmarkSize(b, 256, false)
+}
+
+func BenchmarkHash512(b *testing.B) {
+	benchmarkSize(b, 512, false)
+}
+
 func BenchmarkHash1K(b *testing.B) {
 	benchmarkSize(b, 1024, false)
 }
 
 func BenchmarkHash8K(b *testing.B) {
 	benchmarkSize(b, 8192, false)
+}
+
+func BenchmarkHash1M(b *testing.B) {
+	benchmarkSize(b, 1024*1024, false)
+}
+
+func BenchmarkHash8M(b *testing.B) {
+	benchmarkSize(b, 8*1024*1024, false)
 }
 
 func BenchmarkHash8BytesUnaligned(b *testing.B) {
