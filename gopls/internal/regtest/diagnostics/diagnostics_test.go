@@ -1862,3 +1862,26 @@ package main
 		)
 	})
 }
+
+func TestInitialization(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.16
+-- main.go --
+package main
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("go.mod")
+		env.Await(env.DoneWithOpen())
+		env.RegexpReplace("go.mod", "module", "modul")
+		env.SaveBufferWithoutActions("go.mod")
+		env.Await(
+			OnceMet(
+				env.DoneWithSave(),
+				NoLogMatching(protocol.Error, "initial workspace load failed"),
+			),
+		)
+	})
+}
