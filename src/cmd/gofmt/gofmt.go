@@ -51,11 +51,11 @@ const (
 	//
 	// This value is defined in go/printer specifically for go/format and cmd/gofmt.
 	printerNormalizeNumbers = 1 << 30
-
-	// parseTypeParams tells go/parser to parse type parameters. Must be kept in
-	// sync with go/parser/interface.go.
-	parseTypeParams parser.Mode = 1 << 30
 )
+
+// parseTypeParams tells go/parser to parse type parameters. Must be kept in
+// sync with go/parser/interface.go.
+const parseTypeParams parser.Mode = 1 << 30
 
 var (
 	fileSet    = token.NewFileSet() // per process FileSet
