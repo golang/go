@@ -252,6 +252,8 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		return nil, 0, fmt.Errorf("loadelf: %s: %v", pn, fmt.Sprintf(str, args...))
 	}
 
+	ehdrFlags = initEhdrFlags
+
 	base := f.Offset()
 
 	var hdrbuf [64]byte
