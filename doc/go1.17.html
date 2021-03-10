@@ -138,6 +138,17 @@ Do not send CLs removing the interior tags from such phrases.
   module root when invoked within the <code>vendor</code> tree.
 </p>
 
+<h4 id="password-prompts">Password prompts</h4>
+
+<p><!-- golang.org/issue/44904 -->
+  The <code>go</code> command by default now suppresses SSH password prompts and
+  Git Credential Manager prompts when fetching Git repositories using SSH, as it
+  already did previously for other Git password prompts. Users authenticating to
+  private Git repos with password-protected SSH may configure
+  an <code>ssh-agent</code> to enable the <code>go</code> command to use
+  password-protected SSH keys.
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p>

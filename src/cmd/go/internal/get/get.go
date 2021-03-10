@@ -126,7 +126,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go get: -insecure flag is no longer supported; use GOINSECURE instead")
 	}
 
-	// Disable any prompting for passwords by Git.
+	// Disable any prompting for passwords by Git itself.
 	// Only has an effect for 2.3.0 or later, but avoiding
 	// the prompt in earlier versions is just too hard.
 	// If user has explicitly set GIT_TERMINAL_PROMPT=1, keep
@@ -136,7 +136,10 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		os.Setenv("GIT_TERMINAL_PROMPT", "0")
 	}
 
-	// Disable any ssh connection pooling by Git.
+	// Also disable prompting for passwords by the 'ssh' subprocess spawned by
+	// Git, because apparently GIT_TERMINAL_PROMPT isn't sufficient to do that.
+	// Adding '-o BatchMode=yes' should do the trick.
+	//
 	// If a Git subprocess forks a child into the background to cache a new connection,
 	// that child keeps stdout/stderr open. After the Git subprocess exits,
 	// os /exec expects to be able to read from the stdout/stderr pipe
@@ -150,7 +153,14 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// assume they know what they are doing and don't step on it.
 	// But default to turning off ControlMaster.
 	if os.Getenv("GIT_SSH") == "" && os.Getenv("GIT_SSH_COMMAND") == "" {
-		os.Setenv("GIT_SSH_COMMAND", "ssh -o ControlMaster=no")
+		os.Setenv("GIT_SSH_COMMAND", "ssh -o ControlMaster=no -o BatchMode=yes")
+	}
+
+	// And one more source of Git prompts: the Git Credential Manager Core for Windows.
+	//
+	// See https://github.com/microsoft/Git-Credential-Manager-Core/blob/master/docs/environment.md#gcm_interactive.
+	if os.Getenv("GCM_INTERACTIVE") == "" {
+		os.Setenv("GCM_INTERACTIVE", "never")
 	}
 
 	// Phase 1. Download/update.
