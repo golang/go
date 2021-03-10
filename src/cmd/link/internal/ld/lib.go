@@ -223,7 +223,7 @@ type Arch struct {
 	// to-be-relocated data item (from sym.P). Return is an updated
 	// offset value.
 	Archrelocvariant func(target *Target, ldr *loader.Loader, rel loader.Reloc,
-		rv sym.RelocVariant, sym loader.Sym, offset int64) (relocatedOffset int64)
+		rv sym.RelocVariant, sym loader.Sym, offset int64, data []byte) (relocatedOffset int64)
 
 	// Generate a trampoline for a call from s to rs if necessary. ri is
 	// index of the relocation.

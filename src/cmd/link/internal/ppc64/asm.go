@@ -859,7 +859,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	return val, nExtReloc, false
 }
 
-func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv sym.RelocVariant, s loader.Sym, t int64) (relocatedOffset int64) {
+func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv sym.RelocVariant, s loader.Sym, t int64, p []byte) (relocatedOffset int64) {
 	rs := ldr.ResolveABIAlias(r.Sym())
 	switch rv & sym.RV_TYPE_MASK {
 	default:
@@ -875,9 +875,10 @@ func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv 
 			// overflow depends on the instruction
 			var o1 uint32
 			if target.IsBigEndian() {
-				o1 = binary.BigEndian.Uint32(ldr.Data(s)[r.Off()-2:])
+				o1 = binary.BigEndian.Uint32(p[r.Off()-2:])
+
 			} else {
-				o1 = binary.LittleEndian.Uint32(ldr.Data(s)[r.Off():])
+				o1 = binary.LittleEndian.Uint32(p[r.Off():])
 			}
 			switch o1 >> 26 {
 			case 24, // ori
@@ -909,9 +910,9 @@ func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv 
 			// overflow depends on the instruction
 			var o1 uint32
 			if target.IsBigEndian() {
-				o1 = binary.BigEndian.Uint32(ldr.Data(s)[r.Off()-2:])
+				o1 = binary.BigEndian.Uint32(p[r.Off()-2:])
 			} else {
-				o1 = binary.LittleEndian.Uint32(ldr.Data(s)[r.Off():])
+				o1 = binary.LittleEndian.Uint32(p[r.Off():])
 			}
 			switch o1 >> 26 {
 			case 25, // oris
@@ -933,9 +934,9 @@ func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv 
 	case sym.RV_POWER_DS:
 		var o1 uint32
 		if target.IsBigEndian() {
-			o1 = uint32(binary.BigEndian.Uint16(ldr.Data(s)[r.Off():]))
+			o1 = uint32(binary.BigEndian.Uint16(p[r.Off():]))
 		} else {
-			o1 = uint32(binary.LittleEndian.Uint16(ldr.Data(s)[r.Off():]))
+			o1 = uint32(binary.LittleEndian.Uint16(p[r.Off():]))
 		}
 		if t&3 != 0 {
 			ldr.Errorf(s, "relocation for %s+%d is not aligned: %d", ldr.SymName(rs), r.Off(), t)

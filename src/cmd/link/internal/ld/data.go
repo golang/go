@@ -507,7 +507,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 
 		if target.IsPPC64() || target.IsS390X() {
 			if rv != sym.RV_NONE {
-				o = thearch.Archrelocvariant(target, ldr, r, rv, s, o)
+				o = thearch.Archrelocvariant(target, ldr, r, rv, s, o, P)
 			}
 		}
 
