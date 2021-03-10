@@ -160,8 +160,9 @@ type Type struct {
 	methods    Fields
 	allMethods Fields
 
-	nod        Object // canonical OTYPE node
-	underlying *Type  // original type (type literal or predefined type)
+	// canonical OTYPE node for a named type (should be an ir.Name node with same sym)
+	nod        Object
+	underlying *Type // original type (type literal or predefined type)
 
 	// Cache of composite types, with this type being the element type.
 	cache struct {
@@ -1642,7 +1643,7 @@ var (
 	TypeResultMem = newResults([]*Type{TypeMem})
 )
 
-// NewNamed returns a new named type for the given type name.
+// NewNamed returns a new named type for the given type name. obj should be an ir.Name.
 func NewNamed(obj Object) *Type {
 	t := New(TFORW)
 	t.sym = obj.Sym()
@@ -1650,7 +1651,7 @@ func NewNamed(obj Object) *Type {
 	return t
 }
 
-// Obj returns the type name for the named type t.
+// Obj returns the canonical type name node for a named type t, nil for an unnamed type.
 func (t *Type) Obj() Object {
 	if t.sym != nil {
 		return t.nod
