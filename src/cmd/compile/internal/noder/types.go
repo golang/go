@@ -120,10 +120,8 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 			// which may set HasTParam) before translating the
 			// underlying type itself, so we handle recursion
 			// correctly, including via method signatures.
-			ntyp := types.New(types.TFORW)
+			ntyp := newNamedTypeWithSym(g.pos(typ.Obj().Pos()), s)
 			g.typs[typ] = ntyp
-			ntyp.SetSym(s)
-			s.Def = ir.TypeNode(ntyp)
 
 			// If ntyp still has type params, then we must be
 			// referencing something like 'value[T2]', as when
