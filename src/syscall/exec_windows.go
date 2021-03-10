@@ -7,6 +7,7 @@
 package syscall
 
 import (
+	"runtime"
 	"sync"
 	"unicode/utf16"
 	"unsafe"
@@ -368,6 +369,8 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 		return 0, 0, err
 	}
 	defer CloseHandle(Handle(pi.Thread))
+	runtime.KeepAlive(fd)
+	runtime.KeepAlive(sys)
 
 	return int(pi.ProcessId), uintptr(pi.Process), nil
 }

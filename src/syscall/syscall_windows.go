@@ -1257,7 +1257,7 @@ func newProcThreadAttributeList(maxAttrCount uint32) (*_PROC_THREAD_ATTRIBUTE_LI
 		return nil, err
 	}
 	// size is guaranteed to be ≥1 by initializeProcThreadAttributeList.
-	al := (*_PROC_THREAD_ATTRIBUTE_LIST)(unsafe.Pointer(&make([]unsafe.Pointer, (size+ptrSize-1)/ptrSize)[0]))
+	al := (*_PROC_THREAD_ATTRIBUTE_LIST)(unsafe.Pointer(&make([]byte, size)[0]))
 	err = initializeProcThreadAttributeList(al, maxAttrCount, 0, &size)
 	if err != nil {
 		return nil, err

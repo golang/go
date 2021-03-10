@@ -4,8 +4,6 @@
 
 package syscall
 
-import "unsafe"
-
 const (
 	// Windows errors.
 	ERROR_FILE_NOT_FOUND      Errno = 2
@@ -493,11 +491,7 @@ type StartupInfo struct {
 }
 
 type _PROC_THREAD_ATTRIBUTE_LIST struct {
-	// This is of type unsafe.Pointer, not of type byte or uintptr, because
-	// the contents of it is mostly a list of pointers, and in most cases,
-	// that's a list of pointers to Go-allocated objects. In order to keep
-	// the GC from collecting these objects, we declare this as unsafe.Pointer.
-	_ [1]unsafe.Pointer
+	_ [1]byte
 }
 
 const (
