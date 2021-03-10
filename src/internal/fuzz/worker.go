@@ -274,18 +274,20 @@ func (w *worker) start() (err error) {
 // stop returns the error the process terminated with, if any (same as
 // w.waitErr).
 //
-// stop must be called once after start returns successfully, even if the
-// worker process terminates unexpectedly.
+// stop must be called at least once after start returns successfully, even if
+// the worker process terminates unexpectedly.
 func (w *worker) stop() error {
 	if w.termC == nil {
 		panic("worker was not started successfully")
 	}
 	select {
 	case <-w.termC:
-		// Worker already terminated, perhaps unexpectedly.
+		// Worker already terminated.
 		if w.client == nil {
-			panic("worker already stopped")
+			// stop already called.
+			return w.waitErr
 		}
+		// Possible unexpected termination.
 		w.client.Close()
 		w.cmd = nil
 		w.client = nil

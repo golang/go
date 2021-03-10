@@ -1039,6 +1039,12 @@ func (t *T) Parallel() {
 		panic("testing: t.Parallel called multiple times")
 	}
 	t.isParallel = true
+	if t.parent.barrier == nil {
+		// T.Parallel has no effect when fuzzing.
+		// Multiple processes may run in parallel, but only one input can run at a
+		// time per process so we can attribute crashes to specific inputs.
+		return
+	}
 
 	// We don't want to include the time we spend waiting for serial tests
 	// in the test duration. Record the elapsed time thus far and reset the

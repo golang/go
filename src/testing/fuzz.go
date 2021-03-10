@@ -298,7 +298,6 @@ func (f *F) Fuzz(ff interface{}) {
 	// fn is called in its own goroutine.
 	//
 	// TODO(jayconrod,katiehockman): dedupe testdata corpus with entries from f.Add
-	// TODO(jayconrod,katiehockman): handle T.Parallel calls within fuzz function.
 	// TODO(jayconrod,katiehockman): improve output when running the subtest.
 	// e.g. instead of
 	//    --- FAIL: FuzzSomethingError/#00 (0.00s)
@@ -485,11 +484,12 @@ func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bo
 		}
 		f := &F{
 			common: common{
-				signal: make(chan bool),
-				name:   testName,
-				parent: &root,
-				level:  root.level + 1,
-				chatty: root.chatty,
+				signal:  make(chan bool),
+				barrier: make(chan bool),
+				name:    testName,
+				parent:  &root,
+				level:   root.level + 1,
+				chatty:  root.chatty,
 			},
 			testContext: tctx,
 			fuzzContext: fctx,
@@ -548,11 +548,12 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool) 
 		target = ft
 		f = &F{
 			common: common{
-				signal: make(chan bool),
-				name:   testName,
-				parent: &root,
-				level:  root.level + 1,
-				chatty: root.chatty,
+				signal:  make(chan bool),
+				barrier: nil, // T.Parallel has no effect when fuzzing.
+				name:    testName,
+				parent:  &root,
+				level:   root.level + 1,
+				chatty:  root.chatty,
 			},
 			fuzzContext: fctx,
 			testContext: tctx,
@@ -576,7 +577,10 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool) 
 //
 // fRunner is analogous with tRunner, which wraps subtests started with T.Run.
 // Tests and fuzz targets work a little differently, so for now, these functions
-// aren't consoldiated.
+// aren't consolidated. In particular, because there are no F.Run and F.Parallel
+// methods, i.e., no fuzz sub-targets or parallel fuzz targets, a few
+// simplifications are made. We also require that F.Fuzz, F.Skip, or F.Fail is
+// called.
 func fRunner(f *F, fn func(*F)) {
 	// When this goroutine is done, either because runtime.Goexit was called,
 	// a panic started, or fn returned normally, record the duration and send
@@ -599,10 +603,29 @@ func fRunner(f *F, fn func(*F)) {
 			err = errNilPanicOrGoexit
 		}
 
+		// Use a deferred call to ensure that we report that the test is
+		// complete even if a cleanup function calls t.FailNow. See issue 41355.
+		didPanic := false
+		defer func() {
+			if didPanic {
+				return
+			}
+			if err != nil {
+				panic(err)
+			}
+			// Only report that the test is complete if it doesn't panic,
+			// as otherwise the test binary can exit before the panic is
+			// reported to the user. See issue 41479.
+			f.signal <- true
+		}()
+
 		// If we recovered a panic or inappropriate runtime.Goexit, fail the test,
 		// flush the output log up to the root, then panic.
-		if err != nil {
+		doPanic := func(err interface{}) {
 			f.Fail()
+			if r := f.runCleanup(recoverAndReturnPanic); r != nil {
+				f.Logf("cleanup panicked with %v", r)
+			}
 			for root := &f.common; root.parent != nil; root = root.parent {
 				root.mu.Lock()
 				root.duration += time.Since(root.start)
@@ -610,22 +633,41 @@ func fRunner(f *F, fn func(*F)) {
 				root.mu.Unlock()
 				root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
 			}
+			didPanic = true
 			panic(err)
 		}
+		if err != nil {
+			doPanic(err)
+		}
 
-		// No panic or inappropriate Goexit. Record duration and report the result.
+		// No panic or inappropriate Goexit.
 		f.duration += time.Since(f.start)
+
+		if len(f.sub) > 0 {
+			// Run parallel inputs.
+			// Release the parallel subtests.
+			close(f.barrier)
+			// Wait for the subtests to complete.
+			for _, sub := range f.sub {
+				<-sub.signal
+			}
+			cleanupStart := time.Now()
+			err := f.runCleanup(recoverAndReturnPanic)
+			f.duration += time.Since(cleanupStart)
+			if err != nil {
+				doPanic(err)
+			}
+		}
+
+		// Report after all subtests have finished.
 		f.report()
 		f.done = true
 		f.setRan()
-
-		// Only report that the test is complete if it doesn't panic,
-		// as otherwise the test binary can exit before the panic is
-		// reported to the user. See issue 41479.
-		f.signal <- true
 	}()
 	defer func() {
-		f.runCleanup(normalPanic)
+		if len(f.sub) == 0 {
+			f.runCleanup(normalPanic)
+		}
 	}()
 
 	f.start = time.Now()
