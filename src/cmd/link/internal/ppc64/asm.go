@@ -1039,8 +1039,11 @@ func ensureglinkresolver(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuilde
 	glink.AddUint32(ctxt.Arch, 0x7800f082) // srdi r0,r0,2
 
 	// r11 = address of the first byte of the PLT
-	glink.AddSymRef(ctxt.Arch, ctxt.PLT, 0, objabi.R_ADDRPOWER, 8)
-
+	r, _ := glink.AddRel(objabi.R_ADDRPOWER)
+	r.SetSym(ctxt.PLT)
+	r.SetSiz(8)
+	r.SetOff(int32(glink.Size()))
+	r.SetAdd(0)
 	glink.AddUint32(ctxt.Arch, 0x3d600000) // addis r11,0,.plt@ha
 	glink.AddUint32(ctxt.Arch, 0x396b0000) // addi r11,r11,.plt@l
 
