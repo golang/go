@@ -223,9 +223,10 @@ func AbiForBodylessFuncStackMap(fn *ir.Func) *abi.ABIConfig {
 	return ssaConfig.ABI0.Copy() // No idea what races will result, be safe
 }
 
-// TODO (NLT 2021-04-15) This must be changed to a name that cannot match; it may be helpful to other register ABI work to keep the trigger-logic
-const magicNameDotSuffix = ".MagicMethodNameForTestingRegisterABI"
-const magicLastTypeName = "MagicLastTypeNameForTestingRegisterABI"
+// These are disabled but remain ready for use in case they are needed for the next regabi port.
+// TODO if they are not needed for 1.18 / next register abi port, delete them.
+const magicNameDotSuffix = ".*disabled*MagicMethodNameForTestingRegisterABI"
+const magicLastTypeName = "*disabled*MagicLastTypeNameForTestingRegisterABI"
 
 // abiForFunc implements ABI policy for a function, but does not return a copy of the ABI.
 // Passing a nil function returns the default ABI based on experiment configuration.

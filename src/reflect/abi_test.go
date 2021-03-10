@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build goexperiment.regabi
-//go:build goexperiment.regabi
+//go:build goexperiment.regabireflect
+// +build goexperiment.regabireflect
 
 package reflect_test
 
@@ -16,6 +16,9 @@ import (
 	"testing/quick"
 )
 
+// As of early May 2021 this is no longer necessary for amd64,
+// but it remains in case this is needed for the next register abi port.
+// TODO (1.18) If enabling register ABI on additional architectures turns out not to need this, remove it.
 type MagicLastTypeNameForTestingRegisterABI struct{}
 
 func TestMethodValueCallABI(t *testing.T) {
