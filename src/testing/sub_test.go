@@ -480,9 +480,10 @@ func TestTRun(t *T) {
 			buf := &bytes.Buffer{}
 			root := &T{
 				common: common{
-					signal: make(chan bool),
-					name:   "Test",
-					w:      buf,
+					signal:  make(chan bool),
+					barrier: make(chan bool),
+					name:    "Test",
+					w:       buf,
 				},
 				context: ctx,
 			}
