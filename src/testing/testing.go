@@ -388,7 +388,7 @@ type common struct {
 	w           io.Writer            // For flushToParent.
 	ran         bool                 // Test or benchmark (or one of its subtests) was executed.
 	failed      bool                 // Test or benchmark has failed.
-	skipped     bool                 // Test of benchmark has been skipped.
+	skipped     bool                 // Test or benchmark has been skipped.
 	done        bool                 // Test is finished and all subtests have completed.
 	helperPCs   map[uintptr]struct{} // functions to be skipped when writing file/line info
 	helperNames map[string]struct{}  // helperPCs converted to function names
