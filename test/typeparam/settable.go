@@ -11,11 +11,14 @@ import (
 	"strconv"
 )
 
+// Various implementations of fromStrings().
+
 type _Setter[B any] interface {
         Set(string)
 	type *B
 }
 
+// Takes two type parameters where PT = *T
 func fromStrings1[T any, PT _Setter[T]](s []string) []T {
         result := make([]T, len(s))
         for i, v := range s {
@@ -28,6 +31,7 @@ func fromStrings1[T any, PT _Setter[T]](s []string) []T {
         return result
 }
 
+// Takes one type parameter and a set function
 func fromStrings2[T any](s []string, set func(*T, string)) []T {
         results := make([]T, len(s))
         for i, v := range s {
@@ -36,24 +40,65 @@ func fromStrings2[T any](s []string, set func(*T, string)) []T {
         return results
 }
 
-type Settable int
+type _Setter2 interface {
+        Set(string)
+}
 
-func (p *Settable) Set(s string) {
+// Takes only one type parameter, but causes a panic (see below)
+func fromStrings3[T _Setter2](s []string) []T {
+        results := make([]T, len(s))
+        for i, v := range s {
+		// Panics if T is a pointer type because receiver is T(nil).
+		results[i].Set(v)
+        }
+        return results
+}
+
+// Two concrete types with the appropriate Set method.
+
+type SettableInt int
+
+func (p *SettableInt) Set(s string) {
         i, err := strconv.Atoi(s)
         if err != nil {
                 panic(err)
         }
-        *p = Settable(i)
+        *p = SettableInt(i)
+}
+
+type SettableString struct {
+	s string
+}
+
+func (x *SettableString) Set(s string) {
+        x.s = s
 }
 
 func main() {
-        s := fromStrings1[Settable, *Settable]([]string{"1"})
+        s := fromStrings1[SettableInt, *SettableInt]([]string{"1"})
         if len(s) != 1 || s[0] != 1 {
                 panic(fmt.Sprintf("got %v, want %v", s, []int{1}))
         }
 
-        s = fromStrings2([]string{"1"}, func(p *Settable, s string) { p.Set(s) })
+	// Test out constraint type inference, which should determine that the second
+	// type param is *SettableString.
+	ps := fromStrings1[SettableString]([]string{"x", "y"})
+        if len(ps) != 2 || ps[0] != (SettableString{"x"}) || ps[1] != (SettableString{"y"}) {
+                panic(s)
+        }
+
+        s = fromStrings2([]string{"1"}, func(p *SettableInt, s string) { p.Set(s) })
         if len(s) != 1 || s[0] != 1 {
                 panic(fmt.Sprintf("got %v, want %v", s, []int{1}))
         }
+
+        defer func() {
+                if recover() == nil {
+                        panic("did not panic as expected")
+                }
+        }()
+        // This should type check but should panic at run time,
+        // because it will make a slice of *SettableInt and then call
+        // Set on a nil value.
+        fromStrings3[*SettableInt]([]string{"1"})
 }

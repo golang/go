@@ -96,7 +96,17 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 
 	case *syntax.CallExpr:
 		fun := g.expr(expr.Fun)
-		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.Targs) > 0 {
+
+		// The key for the Inferred map is usually the expr.
+		key := syntax.Expr(expr)
+		if _, ok := expr.Fun.(*syntax.IndexExpr); ok {
+			// If the Fun is an IndexExpr, then this may be a
+			// partial type inference case. In this case, we look up
+			// the IndexExpr in the Inferred map.
+			// TODO(gri): should types2 always record the callExpr as the key?
+			key = syntax.Expr(expr.Fun)
+		}
+		if inferred, ok := g.info.Inferred[key]; ok && len(inferred.Targs) > 0 {
 			targs := make([]ir.Node, len(inferred.Targs))
 			for i, targ := range inferred.Targs {
 				targs[i] = ir.TypeNode(g.typ(targ))
