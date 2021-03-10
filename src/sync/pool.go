@@ -70,6 +70,57 @@ type poolLocal struct {
 	pad [128 - unsafe.Sizeof(poolLocalInternal{})%128]byte
 }
 
+// The randomOrder and randomEnum are copied from runtime/proc.go
+type randomOrder struct {
+	count    uint32
+	coprimes []uint32
+}
+
+type randomEnum struct {
+	i     uint32
+	count uint32
+	pos   uint32
+	inc   uint32
+}
+
+func (ord *randomOrder) reset(count uint32) {
+	ord.count = count
+	ord.coprimes = ord.coprimes[:0]
+	for i := uint32(1); i <= count; i++ {
+		if gcd(i, count) == 1 {
+			ord.coprimes = append(ord.coprimes, i)
+		}
+	}
+}
+
+func (ord *randomOrder) start(i uint32) randomEnum {
+	return randomEnum{
+		count: ord.count,
+		pos:   i % ord.count,
+		inc:   ord.coprimes[i%uint32(len(ord.coprimes))],
+	}
+}
+
+func (enum *randomEnum) done() bool {
+	return enum.i == enum.count
+}
+
+func (enum *randomEnum) next() {
+	enum.i++
+	enum.pos = (enum.pos + enum.inc) % enum.count
+}
+
+func (enum *randomEnum) position() uint32 {
+	return enum.pos
+}
+
+func gcd(a, b uint32) uint32 {
+	for b != 0 {
+		a, b = b, a%b
+	}
+	return a
+}
+
 // from runtime
 func fastrand() uint32
 
@@ -153,12 +204,27 @@ func (p *Pool) Get() interface{} {
 func (p *Pool) getSlow(pid int) interface{} {
 	// See the comment in pin regarding ordering of the loads.
 	size := runtime_LoadAcquintptr(&p.localSize) // load-acquire
-	locals := p.local                            // load-consume
-	// Try to steal one element from other procs.
-	for i := 0; i < int(size); i++ {
-		l := indexLocal(locals, (pid+i+1)%int(size))
-		if x, _ := l.shared.popTail(); x != nil {
-			return x
+	// Load pOrder atomically to prevent possible races
+	order := (*randomOrder)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&pOrder)))) // load-consume
+
+	// Pin function always returns non-zero localSize, and it will remain so until runtime_procUnpin
+	// is called. This invariant is maintained by pin ensuring that locals is always big enough to
+	// account for the current P and that poolCleanup can never execute concurrently with a pinned P
+	// due to disabled preemtion.
+	// So, we can remove this condition which protects from division by zero in loop's body,
+	// but we leave it here just to be sure there is no any possibility for error
+	if size != 0 {
+		locals := p.local // load-consume
+		// Try to steal one element from other procs.
+		for rndp := order.start(fastrand()); !rndp.done(); rndp.next() {
+			i := int(rndp.position())
+			// While pOrder is limited to returning indexes within the range of Ps,
+			// locals may be smaller either because it was reset or because of a race
+			// with pinSlow. Hence, we must still mod the local index by size.
+			l := indexLocal(locals, (pid+i+1)%int(size))
+			if x, _ := l.shared.popTail(); x != nil {
+				return x
+			}
 		}
 	}
 
@@ -166,16 +232,25 @@ func (p *Pool) getSlow(pid int) interface{} {
 	// from all primary caches because we want objects in the
 	// victim cache to age out if at all possible.
 	size = atomic.LoadUintptr(&p.victimSize)
+
+	// We also have to ensure that victim cache is big enough to account current P
+	// and size is not equal to zero (protects from division by zero) similar as pin
+	// function do
 	if uintptr(pid) >= size {
 		return nil
 	}
-	locals = p.victim
+	locals := p.victim
 	l := indexLocal(locals, pid)
+
+	// Check private cache
 	if x := l.private; x != nil {
 		l.private = nil
 		return x
 	}
-	for i := 0; i < int(size); i++ {
+
+	// Try to fetch from the tail of other P queues
+	for rndp := order.start(fastrand()); !rndp.done(); rndp.next() {
+		i := int(rndp.position())
 		l := indexLocal(locals, (pid+i)%int(size))
 		if x, _ := l.shared.popTail(); x != nil {
 			return x
@@ -224,9 +299,13 @@ func (p *Pool) pinSlow() (*poolLocal, int) {
 	}
 	// If GOMAXPROCS changes between GCs, we re-allocate the array and lose the old one.
 	size := runtime.GOMAXPROCS(0)
+	// Set count of Ps for random ordering
+	order := &randomOrder{}
+	order.reset(uint32(size))
 	local := make([]poolLocal, size)
-	atomic.StorePointer(&p.local, unsafe.Pointer(&local[0])) // store-release
-	runtime_StoreReluintptr(&p.localSize, uintptr(size))     // store-release
+	atomic.StorePointer(&p.local, unsafe.Pointer(&local[0]))                               // store-release
+	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&pOrder)), unsafe.Pointer(order)) // store-release
+	runtime_StoreReluintptr(&p.localSize, uintptr(size))                                   // store-release
 	return &local[pid], pid
 }
 
@@ -267,6 +346,10 @@ var (
 	// oldPools is the set of pools that may have non-empty victim
 	// caches. Protected by STW.
 	oldPools []*Pool
+
+	// pOrder is a random order of Ps used for stealing. Writes
+	// are protected by allPoolsMu. Reads are atomic.
+	pOrder *randomOrder
 )
 
 func init() {
