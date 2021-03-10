@@ -22,7 +22,8 @@ stderr '^If this is a private repository, see https://golang.org/doc/faq#git_htt
 ! stderr 'unknown revision'
 ! stdout .
 
-[!linux] stop
+[!linux] stop  # Needs XDG_CONFIG_HOME.
+[!exec:false] stop
 
 # Test that Git clone errors will be shown to the user instead of a generic
 # "unknown revision" error. To do this we want to force git ls-remote to return
@@ -31,6 +32,7 @@ stderr '^If this is a private repository, see https://golang.org/doc/faq#git_htt
 # Set XDG_CONFIG_HOME to tell Git where to look for the git config file listed
 # below, which turns on ssh.
 env XDG_CONFIG_HOME=$TMPDIR
+env GIT_SSH_COMMAND=false
 ! go install github.com/golang/nonexist@master
 stderr 'fatal: Could not read from remote repository.'
 ! stderr 'unknown revision'
