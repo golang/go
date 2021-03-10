@@ -35,6 +35,7 @@ var files = []string{
 	"dirlist.html",
 	"error.html",
 	"example.html",
+	"favicon.ico",
 	"godoc.html",
 	"godocs.js",
 	"images/minus.gif",
