@@ -160,9 +160,9 @@ type splicePipe struct {
 	data int
 }
 
-// splicePipePool caches pipes to avoid high frequency construction and destruction of pipe buffers.
-// The garbage collector will free all pipes in the sync.Pool in periodically, thus we need to set up
-// a finalizer for each pipe to close the its file descriptors before the actual GC.
+// splicePipePool caches pipes to avoid high-frequency construction and destruction of pipe buffers.
+// The garbage collector will free all pipes in the sync.Pool periodically, thus we need to set up
+// a finalizer for each pipe to close its file descriptors before the actual GC.
 var splicePipePool = sync.Pool{New: newPoolPipe}
 
 func newPoolPipe() interface{} {
@@ -175,10 +175,10 @@ func newPoolPipe() interface{} {
 	return p
 }
 
-// getPipe tries to acquire a pipe buffer from the pool or create a new one with newPipe() if it gets nil from cache.
+// getPipe tries to acquire a pipe buffer from the pool or create a new one with newPipe() if it gets nil from the cache.
 //
 // Note that it may fail to create a new pipe buffer by newPipe(), in which case getPipe() will return a generic error
-// and system call name splice in string as the indication.
+// and system call name splice in a string as the indication.
 func getPipe() (*splicePipe, string, error) {
 	v := splicePipePool.Get()
 	if v == nil {
