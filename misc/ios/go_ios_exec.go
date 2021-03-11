@@ -564,7 +564,8 @@ func runLLDB(target, appdir, deviceapp string, args []string) ([]byte, error) {
 		env = append(env, e)
 	}
 	lldb := exec.Command(
-		"python",
+		"xcrun",
+		"python3",
 		"-", // Read script from stdin.
 		target,
 		appdir,
@@ -813,7 +814,7 @@ env = []
 for k, v in os.environ.items():
 	env.append(k + "=" + v)
 
-sys.path.append('/Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework/Resources/Python')
+sys.path.append('/Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework/Resources/Python3')
 
 import lldb
 
