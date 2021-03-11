@@ -451,14 +451,11 @@ type mspan struct {
 	// h->sweepgen is incremented by 2 after every GC
 
 	sweepgen    uint32
-	divMul      uint16        // for divide by elemsize - divMagic.mul
-	baseMask    uint16        // if non-0, elemsize is a power of 2, & this will get object allocation base
+	divMul      uint32        // for divide by elemsize
 	allocCount  uint16        // number of allocated objects
 	spanclass   spanClass     // size class and noscan (uint8)
 	state       mSpanStateBox // mSpanInUse etc; accessed atomically (get/set methods)
 	needzero    uint8         // needs to be zeroed before allocation
-	divShift    uint8         // for divide by elemsize - divMagic.shift
-	divShift2   uint8         // for divide by elemsize - divMagic.shift2
 	elemsize    uintptr       // computed from sizeclass or from npages
 	limit       uintptr       // end of data in span
 	speciallock mutex         // guards specials list
@@ -1224,20 +1221,11 @@ HaveSpan:
 		if sizeclass := spanclass.sizeclass(); sizeclass == 0 {
 			s.elemsize = nbytes
 			s.nelems = 1
-
-			s.divShift = 0
 			s.divMul = 0
-			s.divShift2 = 0
-			s.baseMask = 0
 		} else {
 			s.elemsize = uintptr(class_to_size[sizeclass])
 			s.nelems = nbytes / s.elemsize
-
-			m := &class_to_divmagic[sizeclass]
-			s.divShift = m.shift
-			s.divMul = m.mul
-			s.divShift2 = m.shift2
-			s.baseMask = m.baseMask
+			s.divMul = class_to_divmagic[sizeclass]
 		}
 
 		// Initialize mark and allocation structures.
