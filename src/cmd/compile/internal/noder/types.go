@@ -30,6 +30,23 @@ func (g *irgen) pkg(pkg *types2.Package) *types.Pkg {
 // typ converts a types2.Type to a types.Type, including caching of previously
 // translated types.
 func (g *irgen) typ(typ types2.Type) *types.Type {
+	res := g.typ1(typ)
+
+	// Calculate the size for all concrete types seen by the frontend. The old
+	// typechecker calls CheckSize() a lot, and we want to eliminate calling
+	// it eventually, so we should do it here instead. We only call it for
+	// top-level types (i.e. we do it here rather in typ1), to make sure that
+	// recursive types have been fully constructed before we call CheckSize.
+	if res != nil && !res.IsUntyped() && !res.IsFuncArgStruct() && !res.HasTParam() {
+		types.CheckSize(res)
+	}
+	return res
+}
+
+// typ1 is like typ, but doesn't call CheckSize, since it may have only
+// constructed part of a recursive type. Should not be called from outside this
+// file (g.typ is the "external" entry point).
+func (g *irgen) typ1(typ types2.Type) *types.Type {
 	// Cache type2-to-type mappings. Important so that each defined generic
 	// type (instantiated or not) has a single types.Type representation.
 	// Also saves a lot of computation and memory by avoiding re-translating
@@ -38,13 +55,6 @@ func (g *irgen) typ(typ types2.Type) *types.Type {
 	if !ok {
 		res = g.typ0(typ)
 		g.typs[typ] = res
-
-		// Ensure we calculate the size for all concrete types seen by
-		// the frontend. This is another heavy hammer for something that
-		// should really be the backend's responsibility instead.
-		//if res != nil && !res.IsUntyped() && !res.IsFuncArgStruct() {
-		//	types.CheckSize(res)
-		//}
 	}
 	return res
 }
@@ -121,12 +131,12 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 			// instantiated type.
 			rparams := make([]*types.Type, len(typ.TArgs()))
 			for i, targ := range typ.TArgs() {
-				rparams[i] = g.typ(targ)
+				rparams[i] = g.typ1(targ)
 			}
 			ntyp.SetRParams(rparams)
 			//fmt.Printf("Saw new type %v %v\n", instName, ntyp.HasTParam())
 
-			ntyp.SetUnderlying(g.typ(typ.Underlying()))
+			ntyp.SetUnderlying(g.typ1(typ.Underlying()))
 			g.fillinMethods(typ, ntyp)
 			return ntyp
 		}
@@ -137,23 +147,23 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 		return obj.Type()
 
 	case *types2.Array:
-		return types.NewArray(g.typ(typ.Elem()), typ.Len())
+		return types.NewArray(g.typ1(typ.Elem()), typ.Len())
 	case *types2.Chan:
-		return types.NewChan(g.typ(typ.Elem()), dirs[typ.Dir()])
+		return types.NewChan(g.typ1(typ.Elem()), dirs[typ.Dir()])
 	case *types2.Map:
-		return types.NewMap(g.typ(typ.Key()), g.typ(typ.Elem()))
+		return types.NewMap(g.typ1(typ.Key()), g.typ1(typ.Elem()))
 	case *types2.Pointer:
-		return types.NewPtr(g.typ(typ.Elem()))
+		return types.NewPtr(g.typ1(typ.Elem()))
 	case *types2.Signature:
 		return g.signature(nil, typ)
 	case *types2.Slice:
-		return types.NewSlice(g.typ(typ.Elem()))
+		return types.NewSlice(g.typ1(typ.Elem()))
 
 	case *types2.Struct:
 		fields := make([]*types.Field, typ.NumFields())
 		for i := range fields {
 			v := typ.Field(i)
-			f := types.NewField(g.pos(v), g.selector(v), g.typ(v.Type()))
+			f := types.NewField(g.pos(v), g.selector(v), g.typ1(v.Type()))
 			f.Note = typ.Tag(i)
 			if v.Embedded() {
 				f.Embedded = 1
@@ -167,7 +177,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 		for i := range embeddeds {
 			// TODO(mdempsky): Get embedding position.
 			e := typ.EmbeddedType(i)
-			embeddeds[i] = types.NewField(src.NoXPos, nil, g.typ(e))
+			embeddeds[i] = types.NewField(src.NoXPos, nil, g.typ1(e))
 		}
 
 		methods := make([]*types.Field, typ.NumExplicitMethods())
@@ -190,7 +200,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 
 		// TODO(danscales): we don't currently need to use the bounds
 		// anywhere, so eventually we can probably remove.
-		bound := g.typ(typ.Bound())
+		bound := g.typ1(typ.Bound())
 		*tp.Methods() = *bound.Methods()
 		return tp
 
@@ -205,8 +215,6 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 			fields[i] = g.param(typ.At(i))
 		}
 		t := types.NewStruct(types.LocalPkg, fields)
-		//types.CheckSize(t)
-		// Can only set after doing the types.CheckSize()
 		t.StructType().Funarg = types.FunargResults
 		return t
 
@@ -223,7 +231,7 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 	if typ.NumMethods() != 0 {
 		targs := make([]ir.Node, len(typ.TArgs()))
 		for i, targ := range typ.TArgs() {
-			targs[i] = ir.TypeNode(g.typ(targ))
+			targs[i] = ir.TypeNode(g.typ1(targ))
 		}
 
 		methods := make([]*types.Field, typ.NumMethods())
@@ -256,7 +264,7 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 					rparams := types2.AsSignature(m.Type()).RParams()
 					tparams := make([]*types.Field, len(rparams))
 					for i, rparam := range rparams {
-						tparams[i] = types.NewField(src.NoXPos, nil, g.typ(rparam.Type()))
+						tparams[i] = types.NewField(src.NoXPos, nil, g.typ1(rparam.Type()))
 					}
 					assert(len(tparams) == len(targs))
 					subst := &subster{
@@ -286,7 +294,7 @@ func (g *irgen) signature(recv *types.Field, sig *types2.Signature) *types.Type 
 	tparams := make([]*types.Field, len(tparams2))
 	for i := range tparams {
 		tp := tparams2[i]
-		tparams[i] = types.NewField(g.pos(tp), g.sym(tp), g.typ(tp.Type()))
+		tparams[i] = types.NewField(g.pos(tp), g.sym(tp), g.typ1(tp.Type()))
 	}
 
 	do := func(typ *types2.Tuple) []*types.Field {
@@ -306,7 +314,7 @@ func (g *irgen) signature(recv *types.Field, sig *types2.Signature) *types.Type 
 }
 
 func (g *irgen) param(v *types2.Var) *types.Field {
-	return types.NewField(g.pos(v), g.sym(v), g.typ(v.Type()))
+	return types.NewField(g.pos(v), g.sym(v), g.typ1(v.Type()))
 }
 
 func (g *irgen) sym(obj types2.Object) *types.Sym {
