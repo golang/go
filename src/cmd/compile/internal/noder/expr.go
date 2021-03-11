@@ -188,7 +188,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 // than in typecheck.go.
 func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.SelectorExpr) ir.Node {
 	x := g.expr(expr.X)
-	if x.Type().Kind() == types.TTYPEPARAM {
+	if x.Type().HasTParam() {
 		// Leave a method call on a type param as an OXDOT, since it can
 		// only be fully transformed once it has an instantiated type.
 		n := ir.NewSelectorExpr(pos, ir.OXDOT, x, typecheck.Lookup(expr.Sel.Value))

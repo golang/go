@@ -54,8 +54,11 @@ func Nil(pos src.XPos, typ *types.Type) ir.Node {
 // Expressions
 
 func Addr(pos src.XPos, x ir.Node) *ir.AddrExpr {
-	// TODO(mdempsky): Avoid typecheck.Expr. Probably just need to set OPTRLIT when appropriate.
-	n := typecheck.Expr(typecheck.NodAddrAt(pos, x)).(*ir.AddrExpr)
+	n := typecheck.NodAddrAt(pos, x)
+	switch x.Op() {
+	case ir.OARRAYLIT, ir.OMAPLIT, ir.OSLICELIT, ir.OSTRUCTLIT:
+		n.SetOp(ir.OPTRLIT)
+	}
 	typed(types.NewPtr(x.Type()), n)
 	return n
 }
@@ -125,7 +128,7 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 	n.IsDDD = dots
 
 	if fun.Op() == ir.OXDOT {
-		if fun.(*ir.SelectorExpr).X.Type().Kind() != types.TTYPEPARAM {
+		if !fun.(*ir.SelectorExpr).X.Type().HasTParam() {
 			base.FatalfAt(pos, "Expecting type param receiver in %v", fun)
 		}
 		// For methods called in a generic function, don't do any extra
