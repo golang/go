@@ -372,7 +372,7 @@ func (s *state) emitOpenDeferInfo() {
 }
 
 func okOffset(offset int64) int64 {
-	if offset >= types.BOGUS_FUNARG_OFFSET {
+	if offset == types.BOGUS_FUNARG_OFFSET {
 		panic(fmt.Errorf("Bogus offset %d", offset))
 	}
 	return offset
@@ -516,7 +516,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	}
 
 	var params *abi.ABIParamResultInfo
-	params = s.f.ABISelf.ABIAnalyze(fn.Type())
+	params = s.f.ABISelf.ABIAnalyze(fn.Type(), true)
 
 	// Generate addresses of local declarations
 	s.decladdrs = map[*ir.Name]*ssa.Value{}
@@ -4914,8 +4914,6 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			closure = iclosure
 		}
 	}
-	types.CalcSize(fn.Type())
-	stksize := fn.Type().ArgWidth() // includes receiver, args, and results
 
 	if regAbiForFuncType(n.X.Type().FuncType()) {
 		// fmt.Printf("Saw magic last type in call %v\n", n)
@@ -4927,7 +4925,9 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		callABI = s.f.ABI0
 	}
 
-	params := callABI.ABIAnalyze(n.X.Type())
+	params := callABI.ABIAnalyze(n.X.Type(), false /* Do not set (register) nNames from caller side -- can cause races. */ )
+	types.CalcSize(fn.Type())
+	stksize := params.ArgWidth() // includes receiver, args, and results
 
 	res := n.X.Type().Results()
 	if k == callNormal {
@@ -6838,13 +6838,13 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		f.HTMLWriter.WriteColumn("genssa", "genssa", "ssa-prog", buf.String())
 	}
 
-	defframe(&s, e)
+	defframe(&s, e, f)
 
 	f.HTMLWriter.Close()
 	f.HTMLWriter = nil
 }
 
-func defframe(s *State, e *ssafn) {
+func defframe(s *State, e *ssafn, f *ssa.Func) {
 	pp := s.pp
 
 	frame := types.Rnd(s.maxarg+e.stksize, int64(types.RegSize))
@@ -6854,7 +6854,7 @@ func defframe(s *State, e *ssafn) {
 
 	// Fill in argument and frame size.
 	pp.Text.To.Type = obj.TYPE_TEXTSIZE
-	pp.Text.To.Val = int32(types.Rnd(e.curfn.Type().ArgWidth(), int64(types.RegSize)))
+	pp.Text.To.Val = int32(types.Rnd(f.OwnAux.ArgWidth(), int64(types.RegSize)))
 	pp.Text.To.Offset = frame
 
 	// Insert code to zero ambiguously live variables so that the
@@ -6957,14 +6957,18 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 		a.Name = obj.NAME_EXTERN
 		a.Sym = n
 	case *ir.Name:
-		if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
+		if n.Class == ir.PPARAM || (n.Class == ir.PPARAMOUT && !n.IsOutputParamInRegisters()) {
 			a.Name = obj.NAME_PARAM
 			a.Sym = ir.Orig(n).(*ir.Name).Linksym()
 			a.Offset += n.FrameOffset()
 			break
 		}
 		a.Name = obj.NAME_AUTO
-		a.Sym = n.Linksym()
+		if n.Class == ir.PPARAMOUT {
+			a.Sym = ir.Orig(n).(*ir.Name).Linksym()
+		} else {
+			a.Sym = n.Linksym()
+		}
 		a.Offset += n.FrameOffset()
 	default:
 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
@@ -7108,7 +7112,7 @@ func AddrAuto(a *obj.Addr, v *ssa.Value) {
 	a.Sym = n.Linksym()
 	a.Reg = int16(Arch.REGSP)
 	a.Offset = n.FrameOffset() + off
-	if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
+	if n.Class == ir.PPARAM || (n.Class == ir.PPARAMOUT && !n.IsOutputParamInRegisters()) {
 		a.Name = obj.NAME_PARAM
 	} else {
 		a.Name = obj.NAME_AUTO
@@ -7545,10 +7549,10 @@ func AddrForParamSlot(slot *ssa.LocalSlot, addr *obj.Addr) {
 	addr.Type = obj.TYPE_MEM
 	addr.Sym = n.Linksym()
 	addr.Offset = off
-	if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
+	if n.Class == ir.PPARAM || (n.Class == ir.PPARAMOUT && !n.IsOutputParamInRegisters()) {
 		addr.Name = obj.NAME_PARAM
 		addr.Offset += n.FrameOffset()
-	} else {
+	} else { // out parameters in registers allocate stack slots like autos.
 		addr.Name = obj.NAME_AUTO
 	}
 }

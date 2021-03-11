@@ -69,6 +69,14 @@ func (a *ABIParamResultInfo) SpillAreaSize() int64 {
 	return a.spillAreaSize
 }
 
+// ArgWidth returns the amount of stack needed for all the inputs
+// and outputs of a function or method, including ABI-defined parameter
+// slots and ABI-defined spill slots for register-resident parameters.
+// The name is inherited from (*Type).ArgWidth(), which it replaces.
+func (a *ABIParamResultInfo) ArgWidth() int64 {
+	return a.spillAreaSize + a.offsetToSpillArea
+}
+
 // RegIndex stores the index into the set of machine registers used by
 // the ABI on a specific architecture for parameter passing.  RegIndex
 // values 0 through N-1 (where N is the number of integer registers
@@ -414,20 +422,25 @@ func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Func) *ABIParamResultInfo 
 
 // ABIAnalyze returns the same result as ABIAnalyzeFuncType, but also
 // updates the offsets of all the receiver, input, and output fields.
-func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
+// If setNname is true, it also sets the FrameOffset of the Nname for
+// the field(s); this is for use when compiling a function and figuring out
+// spill locations.  Doing this for callers can cause races for register
+// outputs because their frame location transitions from BOGUS_FUNARG_OFFSET
+// to zero to an as-if-AUTO offset that has no use for callers.
+func (config *ABIConfig) ABIAnalyze(t *types.Type, setNname bool) *ABIParamResultInfo {
 	ft := t.FuncType()
 	result := config.ABIAnalyzeFuncType(ft)
 	// Fill in the frame offsets for receiver, inputs, results
 	k := 0
 	if t.NumRecvs() != 0 {
-		config.updateOffset(result, ft.Receiver.FieldSlice()[0], result.inparams[0], false)
+		config.updateOffset(result, ft.Receiver.FieldSlice()[0], result.inparams[0], false, setNname)
 		k++
 	}
 	for i, f := range ft.Params.FieldSlice() {
-		config.updateOffset(result, f, result.inparams[k+i], false)
+		config.updateOffset(result, f, result.inparams[k+i], false, setNname)
 	}
 	for i, f := range ft.Results.FieldSlice() {
-		config.updateOffset(result, f, result.outparams[i], true)
+		config.updateOffset(result, f, result.outparams[i], true, setNname)
 	}
 	return result
 }
@@ -442,7 +455,7 @@ func FieldOffsetOf(f *types.Field) int64 {
 	return f.Offset
 }
 
-func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field, a ABIParamAssignment, isReturn bool) {
+func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field, a ABIParamAssignment, isReturn, setNname bool) {
 	// Everything except return values in registers has either a frame home (if not in a register) or a frame spill location.
 	if !isReturn || len(a.Registers) == 0 {
 		// The type frame offset DOES NOT show effects of minimum frame size.
@@ -455,10 +468,18 @@ func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field
 			// Set the Offset the first time. After that, we may recompute it, but it should never change.
 			f.Offset = off
 			if f.Nname != nil {
+				// always set it in this case.
 				f.Nname.(*ir.Name).SetFrameOffset(off)
+				f.Nname.(*ir.Name).SetIsOutputParamInRegisters(false)
 			}
 		} else if fOffset != off {
 			panic(fmt.Errorf("Offset changed from %d to %d", fOffset, off))
+		}
+	} else {
+		if setNname && f.Nname != nil {
+			fname := f.Nname.(*ir.Name)
+			fname.SetIsOutputParamInRegisters(true)
+			fname.SetFrameOffset(0)
 		}
 	}
 }

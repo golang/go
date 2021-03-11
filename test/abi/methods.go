@@ -14,7 +14,7 @@ import (
 )
 
 type toobig struct {
-	a,b,c string
+	a, b, c string
 }
 
 //go:registerparams
@@ -29,8 +29,8 @@ type AnInterface interface {
 
 //go:registerparams
 //go:noinline
-func I(a,b,c string) toobig {
-	return toobig{a,b,c}
+func I(a, b, c string) toobig {
+	return toobig{a, b, c}
 }
 
 // AnIid prevents the compiler from figuring out what the interface really is.
@@ -40,12 +40,13 @@ func AnIid(x AnInterface) AnInterface {
 }
 
 var tmp toobig
+
 func main() {
 	x := I("Ahoy", "1,", "2")
 	y := I("3", "there,", "4")
 	z := I("5", "6,", "Matey")
-	tmp = x.MagicMethodNameForTestingRegisterABI(y,z)
+	tmp = x.MagicMethodNameForTestingRegisterABI(y, z)
 	fmt.Println(tmp.a, tmp.b, tmp.c)
-	tmp = AnIid(&x).MagicMethodNameForTestingRegisterABI(y,z)
+	tmp = AnIid(&x).MagicMethodNameForTestingRegisterABI(y, z)
 	fmt.Println(tmp.a, tmp.b, tmp.c)
 }
