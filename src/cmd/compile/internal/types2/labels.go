@@ -212,7 +212,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 				}
 
 			default:
-				check.invalidASTf(s, "branch statement: %s %s", s.Tok, name)
+				check.errorf(s, invalidAST+"branch statement: %s %s", s.Tok, name)
 				return
 			}
 

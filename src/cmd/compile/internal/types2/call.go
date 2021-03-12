@@ -158,7 +158,7 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
 
 		sig := asSignature(x.typ)
 		if sig == nil {
-			check.invalidOpf(x, "cannot call non-function %s", x)
+			check.errorf(x, invalidOp+"cannot call non-function %s", x)
 			x.mode = invalid
 			x.expr = call
 			return statement
@@ -248,7 +248,7 @@ func (check *Checker) exprOrTypeList(elist []syntax.Expr) (xlist []*operand, ok 
 			}
 		}
 		if 0 < ntypes && ntypes < len(xlist) {
-			check.errorf(xlist[0], "mix of value and type expressions")
+			check.error(xlist[0], "mix of value and type expressions")
 			ok = false
 		}
 	}

@@ -357,12 +357,12 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 		tch := asChan(ch.typ)
 		if tch == nil {
-			check.invalidOpf(s, "cannot send to non-chan type %s", ch.typ)
+			check.errorf(s, invalidOp+"cannot send to non-chan type %s", ch.typ)
 			return
 		}
 
 		if tch.dir == RecvOnly {
-			check.invalidOpf(s, "cannot send to receive-only type %s", tch)
+			check.errorf(s, invalidOp+"cannot send to receive-only type %s", tch)
 			return
 		}
 
@@ -373,7 +373,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		if s.Rhs == nil {
 			// x++ or x--
 			if len(lhs) != 1 {
-				check.invalidASTf(s, "%s%s requires one operand", s.Op, s.Op)
+				check.errorf(s, invalidAST+"%s%s requires one operand", s.Op, s.Op)
 				return
 			}
 			var x operand
@@ -382,7 +382,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 				return
 			}
 			if !isNumeric(x.typ) {
-				check.invalidOpf(lhs[0], "%s%s%s (non-numeric type %s)", lhs[0], s.Op, s.Op, x.typ)
+				check.errorf(lhs[0], invalidOp+"%s%s%s (non-numeric type %s)", lhs[0], s.Op, s.Op, x.typ)
 				return
 			}
 			check.assignVar(lhs[0], &x)
@@ -484,7 +484,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			// goto's must have labels, should have been caught above
 			fallthrough
 		default:
-			check.invalidASTf(s, "branch statement: %s", s.Tok)
+			check.errorf(s, invalidAST+"branch statement: %s", s.Tok)
 		}
 
 	case *syntax.BlockStmt:
@@ -642,7 +642,7 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 	seen := make(valueMap) // map of seen case values to positions and types
 	for i, clause := range s.Body {
 		if clause == nil {
-			check.invalidASTf(clause, "incorrect expression switch case")
+			check.error(clause, invalidAST+"incorrect expression switch case")
 			continue
 		}
 		end := s.Rbrace
@@ -699,7 +699,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	seen := make(map[Type]syntax.Pos) // map of seen types to positions
 	for i, clause := range s.Body {
 		if clause == nil {
-			check.invalidASTf(s, "incorrect type switch case")
+			check.error(s, invalidAST+"incorrect type switch case")
 			continue
 		}
 		end := s.Rbrace
@@ -765,7 +765,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 	var sValue syntax.Expr
 	if p, _ := sKey.(*syntax.ListExpr); p != nil {
 		if len(p.ElemList) != 2 {
-			check.invalidASTf(s, "invalid lhs in range clause")
+			check.error(s, invalidAST+"invalid lhs in range clause")
 			return
 		}
 		sKey = p.ElemList[0]

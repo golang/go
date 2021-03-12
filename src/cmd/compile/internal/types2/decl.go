@@ -629,14 +629,14 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 	if alias && tdecl.TParamList != nil {
 		// The parser will ensure this but we may still get an invalid AST.
 		// Complain and continue as regular type definition.
-		check.errorf(tdecl, "generic type cannot be alias")
+		check.error(tdecl, "generic type cannot be alias")
 		alias = false
 	}
 
 	if alias {
 		// type alias declaration
 		if !check.allowVersion(obj.pkg, 1, 9) {
-			check.errorf(tdecl, "type aliases requires go1.9 or later")
+			check.error(tdecl, "type aliases requires go1.9 or later")
 		}
 
 		obj.typ = Typ[Invalid]
@@ -978,7 +978,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			check.pop().setColor(black)
 
 		default:
-			check.invalidASTf(s, "unknown syntax.Decl node %T", s)
+			check.errorf(s, invalidAST+"unknown syntax.Decl node %T", s)
 		}
 	}
 }
