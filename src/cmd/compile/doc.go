@@ -84,7 +84,7 @@ Flags:
 		linker and compiler input.
 	-m
 		Print optimization decisions. Higher values or repetition
-		produces more detail.
+		produce more detail.
 	-memprofile file
 		Write memory profile for the compilation to file.
 	-memprofilerate rate
