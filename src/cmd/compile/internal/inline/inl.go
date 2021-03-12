@@ -354,7 +354,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		return true
 
 	case ir.OCLOSURE:
-		if base.Debug.InlFuncsWithClosures == 0 {
+		if base.Debug.InlFuncsWithClosures == 0 || typecheck.Go117ExportTypes { // TODO: remove latter condition
 			v.reason = "not inlining functions with closures"
 			return true
 		}
@@ -1013,7 +1013,9 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	lab := ir.NewLabelStmt(base.Pos, retlabel)
 	body = append(body, lab)
 
-	typecheck.Stmts(body)
+	if !typecheck.Go117ExportTypes {
+		typecheck.Stmts(body)
+	}
 
 	if base.Flag.GenDwarfInl > 0 {
 		for _, v := range inlfvars {
