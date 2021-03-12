@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -324,8 +323,8 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
 	ddd := call.HasDots
 
 	// set up parameters
-	sig_params := sig.params // adjusted for variadic functions (may be nil for empty parameter lists!)
-	adjusted := false        // indicates if sig_params is different from t.params
+	sigParams := sig.params // adjusted for variadic functions (may be nil for empty parameter lists!)
+	adjusted := false       // indicates if sigParams is different from t.params
 	if sig.variadic {
 		if ddd {
 			// variadic_func(a, b, c...)
@@ -348,7 +347,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
 				for len(vars) < nargs {
 					vars = append(vars, NewParam(last.pos, last.pkg, last.name, typ))
 				}
-				sig_params = NewTuple(vars...) // possibly nil!
+				sigParams = NewTuple(vars...) // possibly nil!
 				adjusted = true
 				npars = nargs
 			} else {
@@ -380,7 +379,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
 	if len(sig.tparams) > 0 {
 		// TODO(gri) provide position information for targs so we can feed
 		//           it to the instantiate call for better error reporting
-		targs, failed := check.infer(sig.tparams, sig_params, args)
+		targs, failed := check.infer(sig.tparams, sigParams, args)
 		if targs == nil {
 			return // error already reported
 		}
@@ -419,15 +418,15 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
 		// need to compute it from the adjusted list; otherwise we can
 		// simply use the result signature's parameter list.
 		if adjusted {
-			sig_params = check.subst(call.Pos(), sig_params, makeSubstMap(sig.tparams, targs)).(*Tuple)
+			sigParams = check.subst(call.Pos(), sigParams, makeSubstMap(sig.tparams, targs)).(*Tuple)
 		} else {
-			sig_params = rsig.params
+			sigParams = rsig.params
 		}
 	}
 
 	// check arguments
 	for i, a := range args {
-		check.assignment(a, sig_params.vars[i].typ, "argument")
+		check.assignment(a, sigParams.vars[i].typ, "argument")
 	}
 
 	return
@@ -597,9 +596,9 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 	if m, _ := obj.(*Func); m != nil {
 		// check.dump("### found method %s", m)
 		check.objDecl(m, nil)
-		// If m has a parameterized receiver type, infer the type arguments
-		// from the actual receiver provided and then substitute the type
-		// parameters accordingly.
+		// If m has a parameterized receiver type, infer the type arguments from
+		// the actual receiver provided and then substitute the type parameters in
+		// the signature accordingly.
 		// TODO(gri) factor this code out
 		sig := m.typ.(*Signature)
 		if len(sig.rparams) > 0 {
@@ -610,7 +609,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 			// Traverse the embedding to find that type (issue #44688).
 			recv := x.typ
 			for i := 0; i < len(index)-1; i++ {
-				// The embedded type is always a struct or a pointer to
+				// The embedded type is either a struct or a pointer to
 				// a struct except for the last one (which we don't need).
 				recv = asStruct(derefStructPtr(recv)).Field(index[i]).typ
 			}
@@ -633,7 +632,8 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 			if failed >= 0 {
 				// We may reach here if there were other errors (see issue #40056).
 				// check.infer will report a follow-up error.
-				// TODO(gri) avoid the follow-up error as it is confusing (there's no inference in the source code)
+				// TODO(gri) avoid the follow-up error as it is confusing
+				//           (there's no inference in the source code)
 				goto Error
 			}
 			// Don't modify m. Instead - for now - make a copy of m and use that instead.
