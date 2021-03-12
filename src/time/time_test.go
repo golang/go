@@ -1481,7 +1481,7 @@ func TestTimeIsDST(t *testing.T) {
 	tzFixed := FixedZone("FIXED_TIME", 12345)
 
 	tests := [...]struct {
-		time   Time
+		time Time
 		want bool
 	}{
 		0: {Date(2009, 1, 1, 12, 0, 0, 0, UTC), false},
@@ -1498,6 +1498,31 @@ func TestTimeIsDST(t *testing.T) {
 		got := tt.time.IsDST()
 		if got != tt.want {
 			t.Errorf("#%d:: (%#v).IsDST()=%t, want %t", i, tt.time.Format(RFC3339), got, tt.want)
+		}
+	}
+}
+
+func TestTimeAddSecOverflow(t *testing.T) {
+	// Test it with positive delta.
+	var maxInt64 int64 = 1<<63 - 1
+	timeExt := maxInt64 - UnixToInternal - 50
+	notMonoTime := Unix(timeExt, 0)
+	for i := int64(0); i < 100; i++ {
+		sec := notMonoTime.Unix()
+		notMonoTime = notMonoTime.Add(Duration(i * 1e9))
+		if newSec := notMonoTime.Unix(); newSec != sec+i && newSec+UnixToInternal != maxInt64 {
+			t.Fatalf("time ext: %d overflows with positive delta, overflow threshold: %d", newSec, maxInt64)
+		}
+	}
+
+	// Test it with negative delta.
+	maxInt64 = -maxInt64
+	notMonoTime = NotMonoNegativeTime
+	for i := int64(0); i > -100; i-- {
+		sec := notMonoTime.Unix()
+		notMonoTime = notMonoTime.Add(Duration(i * 1e9))
+		if newSec := notMonoTime.Unix(); newSec != sec+i && newSec+UnixToInternal != maxInt64 {
+			t.Fatalf("time ext: %d overflows with positive delta, overflow threshold: %d", newSec, maxInt64)
 		}
 	}
 }

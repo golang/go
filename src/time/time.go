@@ -189,8 +189,15 @@ func (t *Time) addSec(d int64) {
 		t.stripMono()
 	}
 
-	// TODO: Check for overflow.
-	t.ext += d
+	// Check if the sum of t.ext and d overflows and handle it properly.
+	sum := t.ext + d
+	if (sum > t.ext) == (d > 0) {
+		t.ext = sum
+	} else if d > 0 {
+		t.ext = 1<<63 - 1
+	} else {
+		t.ext = -(1<<63 - 1)
+	}
 }
 
 // setLoc sets the location associated with the time.
