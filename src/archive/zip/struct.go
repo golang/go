@@ -341,11 +341,9 @@ func fileModeToUnixMode(mode fs.FileMode) uint32 {
 	case fs.ModeSocket:
 		m = s_IFSOCK
 	case fs.ModeDevice:
-		if mode&fs.ModeCharDevice != 0 {
-			m = s_IFCHR
-		} else {
-			m = s_IFBLK
-		}
+		m = s_IFBLK
+	case fs.ModeDevice | fs.ModeCharDevice:
+		m = s_IFCHR
 	}
 	if mode&fs.ModeSetuid != 0 {
 		m |= s_ISUID
