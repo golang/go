@@ -135,7 +135,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 			index := g.expr(expr.Index)
 			if index.Op() != ir.OTYPE {
 				// This is just a normal index expression
-				return Index(pos, g.expr(expr.X), index)
+				return Index(pos, g.typ(typ), g.expr(expr.X), index)
 			}
 			// This is generic function instantiation with a single type
 			targs = []ir.Node{index}

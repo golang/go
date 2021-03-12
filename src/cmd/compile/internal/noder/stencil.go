@@ -330,8 +330,13 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				m.SetIsClosureVar(true)
 			}
 			t := x.Type()
-			newt := subst.typ(t)
-			m.SetType(newt)
+			if t == nil {
+				assert(name.BuiltinOp != 0)
+			} else {
+				newt := subst.typ(t)
+				m.SetType(newt)
+			}
+			m.BuiltinOp = name.BuiltinOp
 			m.Curfn = subst.newf
 			m.Class = name.Class
 			m.Func = name.Func
@@ -396,11 +401,23 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// that the OXDOT was resolved.
 				call.SetTypecheck(0)
 				typecheck.Call(call)
+			} else if name := call.X.Name(); name != nil {
+				switch name.BuiltinOp {
+				case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OLEN, ir.OCAP, ir.OAPPEND:
+					// Call old typechecker (to do any
+					// transformations) now that we know the
+					// type of the args.
+					m.SetTypecheck(0)
+					m = typecheck.Expr(m)
+				default:
+					base.FatalfAt(call.Pos(), "Unexpected builtin op")
+				}
+
 			} else if call.X.Op() != ir.OFUNCINST {
 				// A call with an OFUNCINST will get typechecked
 				// in stencil() once we have created & attached the
 				// instantiation to be called.
-				base.FatalfAt(call.Pos(), "Expecting OCALLPART or OTYPE or OFUNCINST with CALL")
+				base.FatalfAt(call.Pos(), "Expecting OCALLPART or OTYPE or OFUNCINST or builtin with CALL")
 			}
 		}
 
