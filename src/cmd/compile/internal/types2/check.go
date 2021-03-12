@@ -214,7 +214,7 @@ func (check *Checker) initFiles(files []*syntax.File) {
 			if name != "_" {
 				pkg.name = name
 			} else {
-				check.errorf(file.PkgName, "invalid package name _")
+				check.error(file.PkgName, "invalid package name _")
 			}
 			fallthrough
 

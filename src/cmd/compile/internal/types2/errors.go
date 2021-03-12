@@ -142,7 +142,7 @@ func (check *Checker) dump(format string, args ...interface{}) {
 	fmt.Println(check.sprintf(format, args...))
 }
 
-func (check *Checker) err(pos syntax.Pos, msg string, soft bool) {
+func (check *Checker) err(at poser, msg string, soft bool) {
 	// Cheap trick: Don't report errors with messages containing
 	// "invalid operand" or "invalid type" as those tend to be
 	// follow-on errors which don't add useful information. Only
@@ -151,6 +151,8 @@ func (check *Checker) err(pos syntax.Pos, msg string, soft bool) {
 	if check.firstErr != nil && (strings.Index(msg, "invalid operand") > 0 || strings.Index(msg, "invalid type") > 0) {
 		return
 	}
+
+	pos := posFor(at)
 
 	// If we are encountering an error while evaluating an inherited
 	// constant initialization expression, pos is the position of in
@@ -179,32 +181,26 @@ func (check *Checker) err(pos syntax.Pos, msg string, soft bool) {
 	f(err)
 }
 
+const (
+	invalidAST = "invalid AST: "
+	invalidArg = "invalid argument: "
+	invalidOp  = "invalid operation: "
+)
+
 type poser interface {
 	Pos() syntax.Pos
 }
 
 func (check *Checker) error(at poser, msg string) {
-	check.err(posFor(at), msg, false)
+	check.err(at, msg, false)
 }
 
 func (check *Checker) errorf(at poser, format string, args ...interface{}) {
-	check.err(posFor(at), check.sprintf(format, args...), false)
+	check.err(at, check.sprintf(format, args...), false)
 }
 
 func (check *Checker) softErrorf(at poser, format string, args ...interface{}) {
-	check.err(posFor(at), check.sprintf(format, args...), true)
-}
-
-func (check *Checker) invalidASTf(at poser, format string, args ...interface{}) {
-	check.errorf(at, "invalid AST: "+format, args...)
-}
-
-func (check *Checker) invalidArgf(at poser, format string, args ...interface{}) {
-	check.errorf(at, "invalid argument: "+format, args...)
-}
-
-func (check *Checker) invalidOpf(at poser, format string, args ...interface{}) {
-	check.errorf(at, "invalid operation: "+format, args...)
+	check.err(at, check.sprintf(format, args...), true)
 }
 
 // posFor reports the left (= start) position of at.
