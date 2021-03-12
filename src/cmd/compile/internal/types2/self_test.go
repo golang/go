@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -7,16 +6,14 @@ package types2_test
 
 import (
 	"cmd/compile/internal/syntax"
-	"flag"
-	"fmt"
+	"path"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
 	. "cmd/compile/internal/types2"
 )
-
-var benchmark = flag.Bool("b", false, "run benchmarks")
 
 func TestSelf(t *testing.T) {
 	files, err := pkgFiles(".")
@@ -25,7 +22,7 @@ func TestSelf(t *testing.T) {
 	}
 
 	conf := Config{Importer: defaultImporter()}
-	_, err = conf.Check("go/types", files, nil)
+	_, err = conf.Check("cmd/compile/internal/types2", files, nil)
 	if err != nil {
 		// Importing go/constant doesn't work in the
 		// build dashboard environment. Don't report an error
@@ -36,34 +33,38 @@ func TestSelf(t *testing.T) {
 	}
 }
 
-func TestBenchmark(t *testing.T) {
-	if !*benchmark {
-		return
-	}
-
-	// We're not using testing's benchmarking mechanism directly
-	// because we want custom output.
-
-	for _, p := range []string{"types", "constant", filepath.Join("internal", "gcimporter")} {
-		path := filepath.Join("..", p)
-		runbench(t, path, false)
-		runbench(t, path, true)
-		fmt.Println()
+func BenchmarkCheck(b *testing.B) {
+	for _, p := range []string{
+		filepath.Join("src", "net", "http"),
+		filepath.Join("src", "go", "parser"),
+		filepath.Join("src", "go", "constant"),
+		filepath.Join("src", "go", "internal", "gcimporter"),
+	} {
+		b.Run(path.Base(p), func(b *testing.B) {
+			path := filepath.Join(runtime.GOROOT(), p)
+			for _, ignoreFuncBodies := range []bool{false, true} {
+				name := "funcbodies"
+				if ignoreFuncBodies {
+					name = "nofuncbodies"
+				}
+				b.Run(name, func(b *testing.B) {
+					b.Run("info", func(b *testing.B) {
+						runbench(b, path, ignoreFuncBodies, true)
+					})
+					b.Run("noinfo", func(b *testing.B) {
+						runbench(b, path, ignoreFuncBodies, false)
+					})
+				})
+			}
+		})
 	}
 }
 
-func runbench(t *testing.T, path string, ignoreFuncBodies bool) {
+func runbench(b *testing.B, path string, ignoreFuncBodies, writeInfo bool) {
 	files, err := pkgFiles(path)
 	if err != nil {
-		t.Fatal(err)
+		b.Fatal(err)
 	}
-
-	b := testing.Benchmark(func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			conf := Config{IgnoreFuncBodies: ignoreFuncBodies}
-			conf.Check(path, files, nil)
-		}
-	})
 
 	// determine line count
 	var lines uint
@@ -71,11 +72,30 @@ func runbench(t *testing.T, path string, ignoreFuncBodies bool) {
 		lines += f.EOF.Line()
 	}
 
-	d := time.Duration(b.NsPerOp())
-	fmt.Printf(
-		"%s: %s for %d lines (%d lines/s), ignoreFuncBodies = %v\n",
-		filepath.Base(path), d, lines, int64(float64(lines)/d.Seconds()), ignoreFuncBodies,
-	)
+	b.ResetTimer()
+	start := time.Now()
+	for i := 0; i < b.N; i++ {
+		conf := Config{
+			IgnoreFuncBodies: ignoreFuncBodies,
+			Importer:         defaultImporter(),
+		}
+		var info *Info
+		if writeInfo {
+			info = &Info{
+				Types:      make(map[syntax.Expr]TypeAndValue),
+				Defs:       make(map[*syntax.Name]Object),
+				Uses:       make(map[*syntax.Name]Object),
+				Implicits:  make(map[syntax.Node]Object),
+				Selections: make(map[*syntax.SelectorExpr]*Selection),
+				Scopes:     make(map[syntax.Node]*Scope),
+			}
+		}
+		if _, err := conf.Check(path, files, info); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.StopTimer()
+	b.ReportMetric(float64(lines)*float64(b.N)/time.Since(start).Seconds(), "lines/s")
 }
 
 func pkgFiles(path string) ([]*syntax.File, error) {
