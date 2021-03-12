@@ -168,7 +168,10 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList, listRetrac
 
 	// completeFromModCache fills in the extra fields in m using the module cache.
 	completeFromModCache := func(m *modinfo.ModulePublic) {
-		mod := module.Version{Path: m.Path, Version: m.Version}
+		checksumOk := func(suffix string) bool {
+			return !fromBuildList || m.Version == "" || cfg.BuildMod == "mod" ||
+				modfetch.HaveSum(module.Version{Path: m.Path, Version: m.Version + suffix})
+		}
 
 		if m.Version != "" {
 			if q, err := Query(ctx, m.Path, m.Version, "", nil); err != nil {
@@ -177,26 +180,35 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList, listRetrac
 				m.Version = q.Version
 				m.Time = &q.Time
 			}
+		}
+		mod := module.Version{Path: m.Path, Version: m.Version}
 
-			gomod, err := modfetch.CachePath(mod, "mod")
-			if err == nil {
-				if info, err := os.Stat(gomod); err == nil && info.Mode().IsRegular() {
-					m.GoMod = gomod
+		if m.GoVersion == "" && checksumOk("/go.mod") {
+			// Load the go.mod file to determine the Go version, since it hasn't
+			// already been populated from rawGoVersion.
+			if summary, err := rawGoModSummary(mod); err == nil && summary.goVersionV != "" {
+				m.GoVersion = summary.goVersionV[1:]
+			}
+		}
+
+		if m.Version != "" {
+			if checksumOk("/go.mod") {
+				gomod, err := modfetch.CachePath(mod, "mod")
+				if err == nil {
+					if info, err := os.Stat(gomod); err == nil && info.Mode().IsRegular() {
+						m.GoMod = gomod
+					}
 				}
 			}
-			dir, err := modfetch.DownloadDir(mod)
-			if err == nil {
-				m.Dir = dir
+			if checksumOk("") {
+				dir, err := modfetch.DownloadDir(mod)
+				if err == nil {
+					m.Dir = dir
+				}
 			}
 
 			if listRetracted {
 				addRetraction(ctx, m)
-			}
-		}
-
-		if m.GoVersion == "" {
-			if summary, err := rawGoModSummary(mod); err == nil && summary.goVersionV != "" {
-				m.GoVersion = summary.goVersionV[1:]
 			}
 		}
 	}
