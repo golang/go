@@ -16,7 +16,9 @@ package liveness
 
 import (
 	"crypto/md5"
+	"crypto/sha1"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -30,6 +32,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 )
 
 // OpVarDef is an annotation for the liveness analysis, marking a place
@@ -123,9 +126,9 @@ type liveness struct {
 	unsafePoints bitvec.BitVec
 
 	// An array with a bit vector for each safe point in the
-	// current Block during Liveness.epilogue. Indexed in Value
+	// current Block during liveness.epilogue. Indexed in Value
 	// order for that block. Additionally, for the entry block
-	// livevars[0] is the entry bitmap. Liveness.compact moves
+	// livevars[0] is the entry bitmap. liveness.compact moves
 	// these to stackMaps.
 	livevars []bitvec.BitVec
 
@@ -136,6 +139,8 @@ type liveness struct {
 	stackMaps   []bitvec.BitVec
 
 	cache progeffectscache
+
+	doClobber bool // Whether to clobber dead stack slots in this function.
 }
 
 // Map maps from *ssa.Value to LivenessIndex.
@@ -387,6 +392,9 @@ func newliveness(fn *ir.Func, f *ssa.Func, vars []*ir.Name, idx map[*ir.Name]int
 	lv.livenessMap.reset()
 
 	lv.markUnsafePoints()
+
+	lv.enableClobber()
+
 	return lv
 }
 
@@ -820,6 +828,10 @@ func (lv *liveness) epilogue() {
 			live.Or(*live, liveout)
 		}
 
+		if lv.doClobber {
+			lv.clobber(b)
+		}
+
 		// The liveness maps for this block are now complete. Compact them.
 		lv.compact(b)
 	}
@@ -873,7 +885,7 @@ func (lv *liveness) compact(b *ssa.Block) {
 	}
 	for _, v := range b.Values {
 		hasStackMap := lv.hasStackMap(v)
-		isUnsafePoint := lv.allUnsafe || lv.unsafePoints.Get(int32(v.ID))
+		isUnsafePoint := lv.allUnsafe || v.Op != ssa.OpClobber && lv.unsafePoints.Get(int32(v.ID))
 		idx := objw.LivenessIndex{StackMapIndex: objw.StackMapDontCare, IsUnsafePoint: isUnsafePoint}
 		if hasStackMap {
 			idx.StackMapIndex = lv.stackMapSet.add(lv.livevars[pos])
@@ -886,6 +898,153 @@ func (lv *liveness) compact(b *ssa.Block) {
 
 	// Reset livevars.
 	lv.livevars = lv.livevars[:0]
+}
+
+func (lv *liveness) enableClobber() {
+	// The clobberdead experiment inserts code to clobber pointer slots in all
+	// the dead variables (locals and args) at every synchronous safepoint.
+	if !base.Flag.ClobberDead {
+		return
+	}
+	if lv.fn.Pragma&ir.CgoUnsafeArgs != 0 {
+		// C or assembly code uses the exact frame layout. Don't clobber.
+		return
+	}
+	if len(lv.vars) > 10000 || len(lv.f.Blocks) > 10000 {
+		// Be careful to avoid doing too much work.
+		// Bail if >10000 variables or >10000 blocks.
+		// Otherwise, giant functions make this experiment generate too much code.
+		return
+	}
+	if lv.f.Name == "forkAndExecInChild" || lv.f.Name == "wbBufFlush" {
+		// forkAndExecInChild calls vfork on some platforms.
+		// The code we add here clobbers parts of the stack in the child.
+		// When the parent resumes, it is using the same stack frame. But the
+		// child has clobbered stack variables that the parent needs. Boom!
+		// In particular, the sys argument gets clobbered.
+		//
+		// runtime.wbBufFlush must not modify its arguments. See the comments
+		// in runtime/mwbbuf.go:wbBufFlush.
+		return
+	}
+	if h := os.Getenv("GOCLOBBERDEADHASH"); h != "" {
+		// Clobber only functions where the hash of the function name matches a pattern.
+		// Useful for binary searching for a miscompiled function.
+		hstr := ""
+		for _, b := range sha1.Sum([]byte(lv.f.Name)) {
+			hstr += fmt.Sprintf("%08b", b)
+		}
+		if !strings.HasSuffix(hstr, h) {
+			return
+		}
+		fmt.Printf("\t\t\tCLOBBERDEAD %s\n", lv.f.Name)
+	}
+	lv.doClobber = true
+}
+
+// Inserts code to clobber pointer slots in all the dead variables (locals and args)
+// at every synchronous safepoint in b.
+func (lv *liveness) clobber(b *ssa.Block) {
+	// Copy block's values to a temporary.
+	oldSched := append([]*ssa.Value{}, b.Values...)
+	b.Values = b.Values[:0]
+	idx := 0
+
+	// Clobber pointer slots in all dead variables at entry.
+	if b == lv.f.Entry {
+		for len(oldSched) > 0 && len(oldSched[0].Args) == 0 {
+			// Skip argless ops. We need to skip at least
+			// the lowered ClosurePtr op, because it
+			// really wants to be first. This will also
+			// skip ops like InitMem and SP, which are ok.
+			b.Values = append(b.Values, oldSched[0])
+			oldSched = oldSched[1:]
+		}
+		clobber(lv, b, lv.livevars[0])
+		idx++
+	}
+
+	// Copy values into schedule, adding clobbering around safepoints.
+	for _, v := range oldSched {
+		if !lv.hasStackMap(v) {
+			b.Values = append(b.Values, v)
+			continue
+		}
+		clobber(lv, b, lv.livevars[idx])
+		b.Values = append(b.Values, v)
+		idx++
+	}
+}
+
+// clobber generates code to clobber pointer slots in all dead variables
+// (those not marked in live). Clobbering instructions are added to the end
+// of b.Values.
+func clobber(lv *liveness, b *ssa.Block, live bitvec.BitVec) {
+	for i, n := range lv.vars {
+		if !live.Get(int32(i)) && !n.Addrtaken() {
+			// Don't clobber stack objects (address-taken). They are
+			// tracked dynamically.
+			clobberVar(b, n)
+		}
+	}
+}
+
+// clobberVar generates code to trash the pointers in v.
+// Clobbering instructions are added to the end of b.Values.
+func clobberVar(b *ssa.Block, v *ir.Name) {
+	clobberWalk(b, v, 0, v.Type())
+}
+
+// b = block to which we append instructions
+// v = variable
+// offset = offset of (sub-portion of) variable to clobber (in bytes)
+// t = type of sub-portion of v.
+func clobberWalk(b *ssa.Block, v *ir.Name, offset int64, t *types.Type) {
+	if !t.HasPointers() {
+		return
+	}
+	switch t.Kind() {
+	case types.TPTR,
+		types.TUNSAFEPTR,
+		types.TFUNC,
+		types.TCHAN,
+		types.TMAP:
+		clobberPtr(b, v, offset)
+
+	case types.TSTRING:
+		// struct { byte *str; int len; }
+		clobberPtr(b, v, offset)
+
+	case types.TINTER:
+		// struct { Itab *tab; void *data; }
+		// or, when isnilinter(t)==true:
+		// struct { Type *type; void *data; }
+		clobberPtr(b, v, offset)
+		clobberPtr(b, v, offset+int64(types.PtrSize))
+
+	case types.TSLICE:
+		// struct { byte *array; int len; int cap; }
+		clobberPtr(b, v, offset)
+
+	case types.TARRAY:
+		for i := int64(0); i < t.NumElem(); i++ {
+			clobberWalk(b, v, offset+i*t.Elem().Size(), t.Elem())
+		}
+
+	case types.TSTRUCT:
+		for _, t1 := range t.Fields().Slice() {
+			clobberWalk(b, v, offset+t1.Offset, t1.Type)
+		}
+
+	default:
+		base.Fatalf("clobberWalk: unexpected type, %v", t)
+	}
+}
+
+// clobberPtr generates a clobber of the pointer at offset offset in v.
+// The clobber instruction is added at the end of b.
+func clobberPtr(b *ssa.Block, v *ir.Name, offset int64) {
+	b.NewValue0IA(src.NoXPos, ssa.OpClobber, types.TypeVoid, offset, v)
 }
 
 func (lv *liveness) showlive(v *ssa.Value, live bitvec.BitVec) {
