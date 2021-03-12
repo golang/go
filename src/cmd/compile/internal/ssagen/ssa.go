@@ -367,7 +367,7 @@ func (s *state) emitOpenDeferInfo() {
 			f := getParam(r.n, j)
 			off = dvarint(x, off, -okOffset(arg.FrameOffset()))
 			off = dvarint(x, off, f.Type.Size())
-			off = dvarint(x, off, okOffset(pri.InParam(j+argAdjust).FrameOffset(pri))-ab.LocalsOffset()) // defer does not want the fixed frame adjustment
+			off = dvarint(x, off, okOffset(pri.InParam(j+argAdjust).FrameOffset(pri)))
 		}
 	}
 }
