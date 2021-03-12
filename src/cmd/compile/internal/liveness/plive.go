@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strings"
 
+	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/bitvec"
 	"cmd/compile/internal/ir"
@@ -1449,32 +1450,36 @@ func isfat(t *types.Type) bool {
 	return false
 }
 
-// TODO THIS IS ALL WRONG AND NEEDS TO USE ABI.
-func WriteFuncMap(fn *ir.Func) {
+// WriteFuncMap writes the pointer bitmaps for bodyless function fn's
+// inputs and outputs as the value of symbol <fn>.args_stackmap.
+// If fn has outputs, two bitmaps are written, otherwise just one.
+func WriteFuncMap(fn *ir.Func, abiInfo *abi.ABIParamResultInfo) {
 	if ir.FuncName(fn) == "_" || fn.Sym().Linkname != "" {
 		return
 	}
 	types.CalcSize(fn.Type())
-	lsym := base.Ctxt.Lookup(fn.LSym.Name + ".args_stackmap")
-	nptr := int(fn.Type().ArgWidth() / int64(types.PtrSize))
+	nptr := int(abiInfo.ArgWidth() / int64(types.PtrSize))
 	bv := bitvec.New(int32(nptr) * 2)
+
+	for _, p := range abiInfo.InParams() {
+		typebits.Set(p.Type, p.FrameOffset(abiInfo), bv)
+	}
+
 	nbitmap := 1
 	if fn.Type().NumResults() > 0 {
 		nbitmap = 2
 	}
+	lsym := base.Ctxt.Lookup(fn.LSym.Name + ".args_stackmap")
 	off := objw.Uint32(lsym, 0, uint32(nbitmap))
 	off = objw.Uint32(lsym, off, uint32(bv.N))
-
-	if ir.IsMethod(fn) {
-		typebits.Set(fn.Type().Recvs(), 0, bv)
-	}
-	if fn.Type().NumParams() > 0 {
-		typebits.Set(fn.Type().Params(), 0, bv)
-	}
 	off = objw.BitVec(lsym, off, bv)
 
 	if fn.Type().NumResults() > 0 {
-		typebits.Set(fn.Type().Results(), 0, bv)
+		for _, p := range abiInfo.OutParams() {
+			if len(p.Registers) == 0 {
+				typebits.Set(p.Type, p.FrameOffset(abiInfo), bv)
+			}
+		}
 		off = objw.BitVec(lsym, off, bv)
 	}
 

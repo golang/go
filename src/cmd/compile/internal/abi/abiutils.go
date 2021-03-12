@@ -236,16 +236,22 @@ func (a *ABIParamAssignment) SpillOffset() int32 {
 	return a.offset
 }
 
-// FrameOffset returns the location that a value would spill to, if any exists.
-// For register-allocated inputs, that is their spill offset reserved for morestack
-// (might as well use it, it is there); for stack-allocated inputs and outputs,
-// that is their location on the stack.  For register-allocated outputs, there is
-// no defined spill area, so return -1.
+// FrameOffset returns the frame-pointer-relative location that a function
+// would spill its input or output parameter to, if such a spill slot exists.
+// For register-allocated inputs that is their spill offset reserved for morestack;
+// for stack-allocated inputs and outputs, that is their location on the stack.
+// For register-allocated outputs, there is no defined spill area, so return -1.
+// (In a future version of the ABI, register-resident inputs may lose their defined
+// spill area to help reduce stack sizes.)
 func (a *ABIParamAssignment) FrameOffset(i *ABIParamResultInfo) int64 {
-	if len(a.Registers) == 0 || a.offset == -1 {
-		return int64(a.offset)
+	if a.offset == -1 {
+		return -1
 	}
-	return int64(a.offset) + i.SpillAreaOffset()
+	if len(a.Registers) == 0 { // passed on stack
+		return int64(a.offset) - i.config.LocalsOffset()
+	}
+	// spill area for registers
+	return int64(a.offset) + i.SpillAreaOffset() - i.config.LocalsOffset()
 }
 
 // RegAmounts holds a specified number of integer/float registers.
@@ -462,7 +468,7 @@ func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field
 		// Getting this wrong breaks stackmaps, see liveness/plive.go:WriteFuncMap and typebits/typebits.go:Set
 		parameterUpdateMu.Lock()
 		defer parameterUpdateMu.Unlock()
-		off := a.FrameOffset(result) - config.LocalsOffset()
+		off := a.FrameOffset(result)
 		fOffset := f.Offset
 		if fOffset == types.BOGUS_FUNARG_OFFSET {
 			// Set the Offset the first time. After that, we may recompute it, but it should never change.
