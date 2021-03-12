@@ -83,11 +83,12 @@ func Binary(pos src.XPos, op ir.Op, x, y ir.Node) ir.Node {
 }
 
 func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool) ir.Node {
-	// TODO(mdempsky): This should not be so difficult.
+	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
+	n.IsDDD = dots
+
 	if fun.Op() == ir.OTYPE {
 		// Actually a type conversion, not a function call.
-		n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
-		if fun.Type().Kind() == types.TTYPEPARAM {
+		if fun.Type().HasTParam() || args[0].Type().HasTParam() {
 			// For type params, don't typecheck until we actually know
 			// the type.
 			return typed(typ, n)
@@ -96,9 +97,34 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 	}
 
 	if fun, ok := fun.(*ir.Name); ok && fun.BuiltinOp != 0 {
-		// Call to a builtin function.
-		n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
-		n.IsDDD = dots
+		// For Builtin ops, we currently stay with using the old
+		// typechecker to transform the call to a more specific expression
+		// and possibly use more specific ops. However, for a bunch of the
+		// ops, we delay doing the old typechecker if any of the args have
+		// type params, for a variety of reasons:
+		//
+		// OMAKE: hard to choose specific ops OMAKESLICE, etc. until arg type is known
+		// OREAL/OIMAG: can't determine type float32/float64 until arg type know
+		// OLEN/OCAP: old typechecker will complain if arg is not obviously a slice/array.
+		// OAPPEND: old typechecker will complain if arg is not obviously slice, etc.
+		//
+		// We will eventually break out the transforming functionality
+		// needed for builtin's, and call it here or during stenciling, as
+		// appropriate.
+		switch fun.BuiltinOp {
+		case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OLEN, ir.OCAP, ir.OAPPEND:
+			hasTParam := false
+			for _, arg := range args {
+				if arg.Type().HasTParam() {
+					hasTParam = true
+					break
+				}
+			}
+			if hasTParam {
+				return typed(typ, n)
+			}
+		}
+
 		switch fun.BuiltinOp {
 		case ir.OCLOSE, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN:
 			return typecheck.Stmt(n)
@@ -123,9 +149,6 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 			fun.SetType(fun.Selection.Type)
 		}
 	}
-
-	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
-	n.IsDDD = dots
 
 	if fun.Op() == ir.OXDOT {
 		if !fun.(*ir.SelectorExpr).X.Type().HasTParam() {
@@ -230,9 +253,18 @@ func method(typ *types.Type, index int) *types.Field {
 	return types.ReceiverBaseType(typ).Methods().Index(index)
 }
 
-func Index(pos src.XPos, x, index ir.Node) ir.Node {
-	// TODO(mdempsky): Avoid typecheck.Expr (which will call tcIndex)
-	return typecheck.Expr(ir.NewIndexExpr(pos, x, index))
+func Index(pos src.XPos, typ *types.Type, x, index ir.Node) ir.Node {
+	n := ir.NewIndexExpr(pos, x, index)
+	// TODO(danscales): Temporary fix. Need to separate out the
+	// transformations done by the old typechecker (in tcIndex()), to be
+	// called here or after stenciling.
+	if x.Type().HasTParam() && x.Type().Kind() != types.TMAP &&
+		x.Type().Kind() != types.TSLICE && x.Type().Kind() != types.TARRAY {
+		// Old typechecker will complain if arg is not obviously a slice/array/map.
+		typed(typ, n)
+		return n
+	}
+	return typecheck.Expr(n)
 }
 
 func Slice(pos src.XPos, x, low, high, max ir.Node) ir.Node {

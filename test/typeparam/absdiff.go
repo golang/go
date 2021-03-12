@@ -8,7 +8,7 @@ package main
 
 import (
 	"fmt"
-	//"math"
+	"math"
 )
 
 type Numeric interface {
@@ -57,14 +57,14 @@ func (a orderedAbs[T]) Abs() orderedAbs[T] {
 
 // complexAbs is a helper type that defines an Abs method for
 // complex types.
-// type complexAbs[T Complex] T
+type complexAbs[T Complex] T
 
-// func (a complexAbs[T]) Abs() complexAbs[T] {
-// 	r := float64(real(a))
-// 	i := float64(imag(a))
-// 	d := math.Sqrt(r * r + i * i)
-// 	return complexAbs[T](complex(d, 0))
-// }
+func (a complexAbs[T]) Abs() complexAbs[T] {
+	r := float64(real(a))
+	i := float64(imag(a))
+	d := math.Sqrt(r * r + i * i)
+	return complexAbs[T](complex(d, 0))
+}
 
 // OrderedAbsDifference returns the absolute value of the difference
 // between a and b, where a and b are of an ordered type.
@@ -74,9 +74,9 @@ func orderedAbsDifference[T orderedNumeric](a, b T) T {
 
 // ComplexAbsDifference returns the absolute value of the difference
 // between a and b, where a and b are of a complex type.
-// func complexAbsDifference[T Complex](a, b T) T {
-// 	return T(absDifference(complexAbs[T](a), complexAbs[T](b)))
-// }
+func complexAbsDifference[T Complex](a, b T) T {
+	return T(absDifference(complexAbs[T](a), complexAbs[T](b)))
+}
 
 func main() {
 	if got, want := orderedAbsDifference(1.0, -2.0), 3.0; got != want {
@@ -89,11 +89,10 @@ func main() {
 		panic(fmt.Sprintf("got = %v, want = %v", got, want))
 	}
 
-	// Still have to handle built-ins real/abs to make this work
-	// if got, want := complexAbsDifference(5.0 + 2.0i, 2.0 - 2.0i), 5; got != want {
-	//	panic(fmt.Sprintf("got = %v, want = %v", got, want)
-	// }
-	// if got, want := complexAbsDifference(2.0 - 2.0i, 5.0 + 2.0i), 5; got != want {
-	//	panic(fmt.Sprintf("got = %v, want = %v", got, want)
-	// }
+	if got, want := complexAbsDifference(5.0 + 2.0i, 2.0 - 2.0i), 5+0i; got != want {
+		panic(fmt.Sprintf("got = %v, want = %v", got, want))
+	}
+	if got, want := complexAbsDifference(2.0 - 2.0i, 5.0 + 2.0i), 5+0i; got != want {
+		panic(fmt.Sprintf("got = %v, want = %v", got, want))
+	}
 }
