@@ -276,7 +276,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		key, val := cfg.GetArchEnv()
 		fmt.Fprintf(h, "%s=%s\n", key, val)
 
-		if exp := cfg.Getenv("GOEXPERIMENT"); exp != "" {
+		if exp := cfg.GOEXPERIMENT; exp != "" {
 			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", exp)
 		}
 
@@ -1250,7 +1250,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 		key, val := cfg.GetArchEnv()
 		fmt.Fprintf(h, "%s=%s\n", key, val)
 
-		if exp := cfg.Getenv("GOEXPERIMENT"); exp != "" {
+		if exp := cfg.GOEXPERIMENT; exp != "" {
 			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", exp)
 		}
 
