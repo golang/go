@@ -21,56 +21,7 @@ func errorResult(status int) redirectResult {
 
 func TestRedirects(t *testing.T) {
 	var tests = map[string]redirectResult{
-		"/build":    {301, "http://build.golang.org"},
-		"/ref":      {301, "/doc/#references"},
-		"/doc/mem":  {301, "/ref/mem"},
-		"/doc/spec": {301, "/ref/spec"},
-		"/tour":     {301, "http://tour.golang.org"},
-		"/foo":      errorResult(404),
-
-		"/pkg/asn1":           {301, "/pkg/encoding/asn1/"},
-		"/pkg/template/parse": {301, "/pkg/text/template/parse/"},
-
-		"/src/pkg/foo": {301, "/src/foo"},
-
-		"/cmd/gofix": {301, "/cmd/fix/"},
-
-		// git commits (/change)
-		// TODO: mercurial tags and LoadChangeMap.
-		"/change":   {301, "https://go.googlesource.com/go"},
-		"/change/a": {302, "https://go.googlesource.com/go/+/a"},
-
-		"/issue":                    {301, "https://github.com/golang/go/issues"},
-		"/issue?":                   {301, "https://github.com/golang/go/issues"},
-		"/issue/1":                  {302, "https://github.com/golang/go/issues/1"},
-		"/issue/new":                {301, "https://github.com/golang/go/issues/new"},
-		"/issue/new?a=b&c=d%20&e=f": {301, "https://github.com/golang/go/issues/new?a=b&c=d%20&e=f"},
-		"/issues":                   {301, "https://github.com/golang/go/issues"},
-		"/issues/1":                 {302, "https://github.com/golang/go/issues/1"},
-		"/issues/new":               {301, "https://github.com/golang/go/issues/new"},
-		"/issues/1/2/3":             errorResult(404),
-
-		"/wiki/foo":  {302, "https://github.com/golang/go/wiki/foo"},
-		"/wiki/foo/": {302, "https://github.com/golang/go/wiki/foo/"},
-
-		"/design":              {301, "https://go.googlesource.com/proposal/+/master/design"},
-		"/design/":             {302, "/design"},
-		"/design/123-foo":      {302, "https://go.googlesource.com/proposal/+/master/design/123-foo.md"},
-		"/design/text/123-foo": {302, "https://go.googlesource.com/proposal/+/master/design/text/123-foo.md"},
-
-		"/cl/1":          {302, "https://go-review.googlesource.com/1"},
-		"/cl/1/":         {302, "https://go-review.googlesource.com/1"},
-		"/cl/267120043":  {302, "https://codereview.appspot.com/267120043"},
-		"/cl/267120043/": {302, "https://codereview.appspot.com/267120043"},
-
-		// Verify that we're using the Rietveld CL table:
-		"/cl/152046": {302, "https://codereview.appspot.com/152046"},
-		"/cl/152047": {302, "https://go-review.googlesource.com/152047"},
-		"/cl/152048": {302, "https://codereview.appspot.com/152048"},
-
-		// And verify we're using the "bigEnoughAssumeRietveld" value:
-		"/cl/299999": {302, "https://go-review.googlesource.com/299999"},
-		"/cl/300000": {302, "https://codereview.appspot.com/300000"},
+		"/foo": errorResult(404),
 	}
 
 	mux := http.NewServeMux()
