@@ -31,6 +31,7 @@
 package ld
 
 import (
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
@@ -102,10 +103,14 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 		elfshnum = xosect.Elfsect.(*ElfShdr).shnum
 	}
 
+	sname := ldr.SymExtname(x)
+
 	// One pass for each binding: elf.STB_LOCAL, elf.STB_GLOBAL,
 	// maybe one day elf.STB_WEAK.
 	bind := elf.STB_GLOBAL
-	if ldr.IsFileLocal(x) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
+	if ldr.IsFileLocal(x) && !isStaticTmp(sname) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
+		// Static tmp is package local, but a package can be shared among multiple DSOs.
+		// They need to have a single view of the static tmp that are writable.
 		bind = elf.STB_LOCAL
 	}
 
@@ -139,8 +144,6 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 		// instructions are inserted.
 		other |= 3 << 5
 	}
-
-	sname := ldr.SymExtname(x)
 
 	// When dynamically linking, we create Symbols by reading the names from
 	// the symbol tables of the shared libraries and so the names need to
@@ -822,4 +825,8 @@ func setCarrierSize(typ sym.SymKind, sz int64) {
 		panic(fmt.Sprintf("carrier symbol size for type %v already set", typ))
 	}
 	CarrierSymByType[typ].Size = sz
+}
+
+func isStaticTmp(name string) bool {
+	return strings.Contains(name, "."+obj.StaticNamePref)
 }
