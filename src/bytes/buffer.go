@@ -387,7 +387,7 @@ var errUnreadByte = errors.New("bytes.Buffer: UnreadByte: previous operation was
 
 // UnreadByte unreads the last byte returned by the most recent successful
 // read operation that read at least one byte. If a write has happened since
-// the last read, if the last read returned an error, or if the read read zero
+// the last read, if the last read returned an error, or if the read reads zero
 // bytes, UnreadByte returns an error.
 func (b *Buffer) UnreadByte() error {
 	if b.lastRead == opInvalid {

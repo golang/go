@@ -699,7 +699,7 @@ func printpanics(p *_panic) {
 // specified by sp. If sp is nil, it uses the sp from the current defer record
 // (which has just been finished). Hence, it continues the stack scan from the
 // frame of the defer that just finished. It skips any frame that already has an
-// open-coded _defer record, which would have been been created from a previous
+// open-coded _defer record, which would have been created from a previous
 // (unrecovered) panic.
 //
 // Note: All entries of the defer chain (including this new open-coded entry) have

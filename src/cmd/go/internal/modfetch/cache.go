@@ -144,7 +144,7 @@ func lockVersion(mod module.Version) (unlock func(), err error) {
 	return lockedfile.MutexAt(path).Lock()
 }
 
-// SideLock locks a file within the module cache that that previously guarded
+// SideLock locks a file within the module cache that previously guarded
 // edits to files outside the cache, such as go.sum and go.mod files in the
 // user's working directory.
 // If err is nil, the caller MUST eventually call the unlock function.

@@ -162,7 +162,7 @@ const (
 	_UntypedNil
 
 	// _WrongAssignCount occurs when the number of values on the right-hand side
-	// of an assignment or or initialization expression does not match the number
+	// of an assignment or initialization expression does not match the number
 	// of variables on the left-hand side.
 	//
 	// Example:

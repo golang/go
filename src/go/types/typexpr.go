@@ -690,7 +690,7 @@ func (check *Checker) typeList(list []ast.Expr) []Type {
 }
 
 // collectParams declares the parameters of list in scope and returns the corresponding
-// variable list. If type0 != nil, it is used instead of the the first type in list.
+// variable list. If type0 != nil, it is used instead of the first type in list.
 func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, type0 ast.Expr, variadicOk bool) (params []*Var, variadic bool) {
 	if list == nil {
 		return
