@@ -239,7 +239,7 @@ func computeDivMagic(c *class) {
 func printComment(w io.Writer, classes []class) {
 	fmt.Fprintf(w, "// %-5s  %-9s  %-10s  %-7s  %-10s  %-9s  %-9s\n", "class", "bytes/obj", "bytes/span", "objects", "tail waste", "max waste", "min align")
 	prevSize := 0
-	var minAligns [32]int
+	var minAligns [pageShift + 1]int
 	for i, c := range classes {
 		if i == 0 {
 			continue
@@ -249,6 +249,10 @@ func printComment(w io.Writer, classes []class) {
 		tailWaste := spanSize - c.size*(spanSize/c.size)
 		maxWaste := float64((c.size-prevSize-1)*objects+tailWaste) / float64(spanSize)
 		alignBits := bits.TrailingZeros(uint(c.size))
+		if alignBits > pageShift {
+			// object alignment is capped at page alignment
+			alignBits = pageShift
+		}
 		for i := range minAligns {
 			if i > alignBits {
 				minAligns[i] = 0
