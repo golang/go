@@ -13,7 +13,7 @@ func main() {
 	var y float64
 	var z complex128
 
-	println(x/0) // ERROR "division by zero"
-	println(y/0)
-	println(z/0)
+	println(x / 0) // ERROR "division by zero"
+	println(y / 0)
+	println(z / 0)
 }

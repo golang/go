@@ -4,7 +4,7 @@
 
 package a
 
-type T struct { x int }
+type T struct{ x int }
 
 func F() interface{} {
 	return [2]T{}

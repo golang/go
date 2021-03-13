@@ -10,11 +10,11 @@
 package p
 
 type T struct {
-        toInt    map[string]int
-        toString map[int]string
+	toInt    map[string]int
+	toString map[int]string
 }
 
 var t = T{
-        foo.toInt:    make(map[string]int), // ERROR "field name"
-        bar.toString: make(map[int]string), // ERROR "field name"
+	foo.toInt:    make(map[string]int), // ERROR "field name"
+	bar.toString: make(map[int]string), // ERROR "field name"
 }

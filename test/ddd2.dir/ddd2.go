@@ -13,4 +13,3 @@ func Sum(args ...int) int {
 	}
 	return s
 }
-

@@ -15,7 +15,7 @@ import (
 
 type Empty struct {
 	f1, f2 *byte
-	empty struct{}
+	empty  struct{}
 }
 
 func F(e Empty, s []string) {

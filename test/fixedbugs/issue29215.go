@@ -7,14 +7,14 @@
 package main
 
 func f() {
-        var s string
-        var p, q bool
-        s = "a"
-        for p {
-                p = false == (true != q)
-                s = ""
-        }
-        _ = s == "bbb"
+	var s string
+	var p, q bool
+	s = "a"
+	for p {
+		p = false == (true != q)
+		s = ""
+	}
+	_ = s == "bbb"
 }
 
 // Another case: load from negative offset of a symbol

@@ -13,8 +13,8 @@ type I interface {
 
 type T int
 
-var _ I = T(0)	// GCCGO_ERROR "incompatible"
+var _ I = T(0) // GCCGO_ERROR "incompatible"
 
-func (T) m(buf []byte) (a int, b xxxx) {  // ERROR "xxxx"
+func (T) m(buf []byte) (a int, b xxxx) { // ERROR "xxxx"
 	return 0, nil
 }

@@ -28,18 +28,18 @@ func ExpectedInStackTrace() {
 }
 
 func main() {
-    defer func() {
-        if r := recover(); r != nil {
-        	stacktrace := string(debug.Stack())
-        	if strings.Contains(stacktrace, "NotExpectedInStackTrace") {
-        		fmt.Println("FAIL, stacktrace contains NotExpectedInStackTrace")
-        	}
-        	if !strings.Contains(stacktrace, "ExpectedInStackTrace") {
-        		fmt.Println("FAIL, stacktrace does not contain ExpectedInStackTrace")
-        	}
-        } else {
-        	fmt.Println("FAIL, should have panicked but did not")
-        }
-    }()
-    ExpectedInStackTrace()
+	defer func() {
+		if r := recover(); r != nil {
+			stacktrace := string(debug.Stack())
+			if strings.Contains(stacktrace, "NotExpectedInStackTrace") {
+				fmt.Println("FAIL, stacktrace contains NotExpectedInStackTrace")
+			}
+			if !strings.Contains(stacktrace, "ExpectedInStackTrace") {
+				fmt.Println("FAIL, stacktrace does not contain ExpectedInStackTrace")
+			}
+		} else {
+			fmt.Println("FAIL, should have panicked but did not")
+		}
+	}()
+	ExpectedInStackTrace()
 }

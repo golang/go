@@ -42,4 +42,3 @@ func escape(*int) {
 
 func f(int) {
 }
-

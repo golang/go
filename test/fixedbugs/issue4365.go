@@ -10,7 +10,7 @@
 package main
 
 type T interface {
-        M()
+	M()
 }
 
 type M struct{}
@@ -18,10 +18,10 @@ type M struct{}
 func (M) M() {}
 
 type Foo struct {
-        M
+	M
 }
 
 func main() {
-        var v T = Foo{} // ERROR "has no methods|not a method|cannot use"
-        _ = v
+	var v T = Foo{} // ERROR "has no methods|not a method|cannot use"
+	_ = v
 }

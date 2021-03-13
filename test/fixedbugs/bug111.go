@@ -6,7 +6,7 @@
 
 package main
 
-var ncall int;
+var ncall int
 
 type Iffy interface {
 	Me() Iffy
@@ -17,15 +17,15 @@ type Stucky struct {
 }
 
 func (s *Stucky) Me() Iffy {
-	ncall++;
+	ncall++
 	return s
 }
 
 func main() {
-	s := new(Stucky);
-	i := s.Me();
-	j := i.Me();
-	j.Me();
+	s := new(Stucky)
+	i := s.Me()
+	j := i.Me()
+	j.Me()
 	if ncall != 3 {
 		panic("bug111")
 	}

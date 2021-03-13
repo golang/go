@@ -22,7 +22,7 @@ func main() {
 	// This is still an error.
 	// var i1 I = t
 	// i1.M()
-	
+
 	// This combination is illegal because
 	// PM requires a pointer receiver.
 	// var pi1 PI = t

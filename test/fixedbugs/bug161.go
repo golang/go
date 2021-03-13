@@ -6,10 +6,10 @@
 
 package P
 
-const a = 0;
+const a = 0
 
 func f(a int) {
-	a = 0;
+	a = 0
 }
 
 /*

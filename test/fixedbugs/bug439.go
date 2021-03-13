@@ -14,7 +14,7 @@ func (e E) P() *E { return &e }
 
 const (
 	C1 E = 0
-	C2 = C1
+	C2   = C1
 )
 
 func F() *E {

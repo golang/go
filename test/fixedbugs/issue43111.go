@@ -41,7 +41,8 @@ func main() {
 
 	ch = make(chan int)
 	select {
-	case v := <-ch: _ = v
+	case v := <-ch:
+		_ = v
 	case nilch <- f():
 	}
 
@@ -53,7 +54,8 @@ func main() {
 
 	ch = make(chan int)
 	select {
-	case v, ok := <-ch: _, _ = v, ok
+	case v, ok := <-ch:
+		_, _ = v, ok
 	case nilch <- f():
 	}
 

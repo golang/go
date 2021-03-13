@@ -5,7 +5,7 @@
 package lib
 
 type T struct {
-	x int  // non-exported field
+	x int // non-exported field
 }
 
 func (t T) M() {

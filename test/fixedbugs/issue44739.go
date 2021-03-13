@@ -58,4 +58,3 @@ func main() {
 		fmt.Printf("FAIL: %s\n", gostring1)
 	}
 }
-

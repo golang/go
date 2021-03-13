@@ -55,4 +55,4 @@ func grow() {
 }
 
 //go:noinline
-func use(_ []uintptr) { }
+func use(_ []uintptr) {}

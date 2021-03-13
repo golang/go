@@ -24,7 +24,7 @@ func main() {
 	r, i := real(c0), imag(c0)
 	d := r - 1.292308
 	if d < 0 {
-		d = - d
+		d = -d
 	}
 	if d > 1e-6 {
 		println(r, "!= 1.292308")
@@ -32,7 +32,7 @@ func main() {
 	}
 	d = i + 0.1384615
 	if d < 0 {
-		d = - d
+		d = -d
 	}
 	if d > 1e-6 {
 		println(i, "!= -0.1384615")

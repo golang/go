@@ -16,53 +16,53 @@ type Tinter interface {
 
 type Tsmallv byte
 
-func (v Tsmallv) M(x int, b byte) (byte, int) { return b, x+int(v) }
+func (v Tsmallv) M(x int, b byte) (byte, int) { return b, x + int(v) }
 
 type Tsmallp byte
 
-func (p *Tsmallp) M(x int, b byte) (byte, int) { return b, x+int(*p) }
+func (p *Tsmallp) M(x int, b byte) (byte, int) { return b, x + int(*p) }
 
 type Twordv uintptr
 
-func (v Twordv) M(x int, b byte) (byte, int) { return b, x+int(v) }
+func (v Twordv) M(x int, b byte) (byte, int) { return b, x + int(v) }
 
 type Twordp uintptr
 
-func (p *Twordp) M(x int, b byte) (byte, int) { return b, x+int(*p) }
+func (p *Twordp) M(x int, b byte) (byte, int) { return b, x + int(*p) }
 
 type Tbigv [2]uintptr
 
-func (v Tbigv) M(x int, b byte) (byte, int) { return b, x+int(v[0])+int(v[1]) }
+func (v Tbigv) M(x int, b byte) (byte, int) { return b, x + int(v[0]) + int(v[1]) }
 
 type Tbigp [2]uintptr
 
-func (p *Tbigp) M(x int, b byte) (byte, int) { return b, x+int(p[0])+int(p[1]) }
+func (p *Tbigp) M(x int, b byte) (byte, int) { return b, x + int(p[0]) + int(p[1]) }
 
 // Again, with an unexported method.
 
 type tsmallv byte
 
-func (v tsmallv) m(x int, b byte) (byte, int) { return b, x+int(v) }
+func (v tsmallv) m(x int, b byte) (byte, int) { return b, x + int(v) }
 
 type tsmallp byte
 
-func (p *tsmallp) m(x int, b byte) (byte, int) { return b, x+int(*p) }
+func (p *tsmallp) m(x int, b byte) (byte, int) { return b, x + int(*p) }
 
 type twordv uintptr
 
-func (v twordv) m(x int, b byte) (byte, int) { return b, x+int(v) }
+func (v twordv) m(x int, b byte) (byte, int) { return b, x + int(v) }
 
 type twordp uintptr
 
-func (p *twordp) m(x int, b byte) (byte, int) { return b, x+int(*p) }
+func (p *twordp) m(x int, b byte) (byte, int) { return b, x + int(*p) }
 
 type tbigv [2]uintptr
 
-func (v tbigv) m(x int, b byte) (byte, int) { return b, x+int(v[0])+int(v[1]) }
+func (v tbigv) m(x int, b byte) (byte, int) { return b, x + int(v[0]) + int(v[1]) }
 
 type tbigp [2]uintptr
 
-func (p *tbigp) m(x int, b byte) (byte, int) { return b, x+int(p[0])+int(p[1]) }
+func (p *tbigp) m(x int, b byte) (byte, int) { return b, x + int(p[0]) + int(p[1]) }
 
 type tinter interface {
 	m(int, byte) (byte, int)
@@ -85,7 +85,7 @@ type T3 struct {
 type T4 struct {
 }
 
-func (t4 T4) M(x int, b byte) (byte, int) { return b, x+40 }
+func (t4 T4) M(x int, b byte) (byte, int) { return b, x + 40 }
 
 var failed = false
 
@@ -95,7 +95,7 @@ func CheckI(name string, i Tinter, inc int) {
 		failed = true
 		print(name, ".M(1000, 99) = ", b, ", ", x, " want 99, ", 1000+inc, "\n")
 	}
-	
+
 	CheckF("(i="+name+")", i.M, inc)
 }
 
@@ -113,7 +113,7 @@ func checkI(name string, i tinter, inc int) {
 		failed = true
 		print(name, ".m(1000, 99) = ", b, ", ", x, " want 99, ", 1000+inc, "\n")
 	}
-	
+
 	checkF("(i="+name+")", i.m, inc)
 }
 
@@ -183,8 +183,8 @@ func main() {
 	CheckI("pbv", pbv, 11)
 	CheckF("pbv.M", pbv.M, 11)
 	CheckF("(*pbv).M", (*pbv).M, 11)
-	
-	bp := Tbigp([2]uintptr{7,8})
+
+	bp := Tbigp([2]uintptr{7, 8})
 	CheckI("&bp", &bp, 15)
 	CheckF("bp.M", bp.M, 15)
 	CheckF("(&bp).M", (&bp).M, 15)
@@ -237,8 +237,8 @@ func main() {
 	checkI("_pbv", _pbv, 11)
 	checkF("_pbv.m", _pbv.m, 11)
 	checkF("(*_pbv).m", (*_pbv).m, 11)
-	
-	_bp := tbigp([2]uintptr{7,8})
+
+	_bp := tbigp([2]uintptr{7, 8})
 	checkI("&_bp", &_bp, 15)
 	checkF("_bp.m", _bp.m, 15)
 	checkF("(&_bp).m", (&_bp).m, 15)
@@ -246,7 +246,7 @@ func main() {
 	checkI("_pbp", _pbp, 15)
 	checkF("_pbp.m", _pbp.m, 15)
 	checkF("(*_pbp).m", (*_pbp).m, 15)
-	
+
 	t4 := T4{}
 	t3 := T3{&t4}
 	t2 := T2{&t3}
@@ -259,7 +259,7 @@ func main() {
 	CheckI("&t2", &t2, 40)
 	CheckI("t1", t1, 40)
 	CheckI("&t1", &t1, 40)
-	
+
 	// x.M panics if x is an interface type and is nil,
 	// or if x.M expands to (*x).M where x is nil,
 	// or if x.M expands to x.y.z.w.M where something
@@ -281,7 +281,7 @@ func main() {
 	if f != nil {
 		panic("something set f")
 	}
-	
+
 	// x.M does not panic if x is a nil pointer and
 	// M is a method with a pointer receiver.
 	shouldNotPanic(func() { psp = nil; f = psp.M })

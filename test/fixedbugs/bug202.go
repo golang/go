@@ -5,12 +5,11 @@
 // license that can be found in the LICENSE file.
 
 package main
+
 func f() {
-	v := [...]string{"a", "b"};
-	_ = v;
+	v := [...]string{"a", "b"}
+	_ = v
 }
 func main() {
-	f();
+	f()
 }
-
-

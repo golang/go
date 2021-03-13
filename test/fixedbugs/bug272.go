@@ -8,15 +8,15 @@
 
 package main
 
-func main() {	
+func main() {
 	n := int64(100)
 	x := make([]int, n)
-	x[99] = 234;	
+	x[99] = 234
 	z := x[n-1]
 	if z != 234 {
 		println("BUG")
 	}
-	n |= 1<<32
+	n |= 1 << 32
 	defer func() {
 		recover()
 	}()

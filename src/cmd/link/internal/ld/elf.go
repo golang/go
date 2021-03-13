@@ -522,22 +522,22 @@ func elfwriteinterp(out *OutBuf) int {
 // member of .gnu.attributes of MIPS for fpAbi
 const (
 	// No floating point is present in the module (default)
-	MIPS_FPABI_NONE    = 0
+	MIPS_FPABI_NONE = 0
 	// FP code in the module uses the FP32 ABI for a 32-bit ABI
-	MIPS_FPABI_ANY     = 1
+	MIPS_FPABI_ANY = 1
 	// FP code in the module only uses single precision ABI
-	MIPS_FPABI_SINGLE  = 2
+	MIPS_FPABI_SINGLE = 2
 	// FP code in the module uses soft-float ABI
-	MIPS_FPABI_SOFT    = 3
+	MIPS_FPABI_SOFT = 3
 	// FP code in the module assumes an FPU with FR=1 and has 12
 	// callee-saved doubles. Historic, no longer supported.
-	MIPS_FPABI_HIST    = 4
+	MIPS_FPABI_HIST = 4
 	// FP code in the module uses the FPXX  ABI
-	MIPS_FPABI_FPXX    = 5
+	MIPS_FPABI_FPXX = 5
 	// FP code in the module uses the FP64  ABI
-	MIPS_FPABI_FP64    = 6
+	MIPS_FPABI_FP64 = 6
 	// FP code in the module uses the FP64A ABI
-	MIPS_FPABI_FP64A   = 7
+	MIPS_FPABI_FP64A = 7
 )
 
 func elfMipsAbiFlags(sh *ElfShdr, startva uint64, resoff uint64) int {
@@ -585,7 +585,7 @@ func elfWriteMipsAbiFlags(ctxt *Link) int {
 	ctxt.Out.Write8(1)  // cpr1Size
 	ctxt.Out.Write8(0)  // cpr2Size
 	if objabi.GOMIPS == "softfloat" {
-		ctxt.Out.Write8(MIPS_FPABI_SOFT)  // fpAbi
+		ctxt.Out.Write8(MIPS_FPABI_SOFT) // fpAbi
 	} else {
 		// Go cannot make sure non odd-number-fpr is used (ie, in load a double from memory).
 		// So, we mark the object is MIPS I style paired float/double register scheme,
@@ -594,12 +594,12 @@ func elfWriteMipsAbiFlags(ctxt *Link) int {
 		// Note: MIPS_FPABI_ANY is bad naming: in fact it is MIPS I style FPR usage.
 		//       It is not for 'ANY'.
 		// TODO: switch to FPXX after be sure that no odd-number-fpr is used.
-		ctxt.Out.Write8(MIPS_FPABI_ANY)   // fpAbi
+		ctxt.Out.Write8(MIPS_FPABI_ANY) // fpAbi
 	}
-	ctxt.Out.Write32(0)  // isaExt
-	ctxt.Out.Write32(0)  // ases
-	ctxt.Out.Write32(0)  // flags1
-	ctxt.Out.Write32(0)  // flags2
+	ctxt.Out.Write32(0) // isaExt
+	ctxt.Out.Write32(0) // ases
+	ctxt.Out.Write32(0) // flags1
+	ctxt.Out.Write32(0) // flags2
 	return int(sh.Size)
 }
 
@@ -1538,7 +1538,6 @@ func (ctxt *Link) doelf() {
 		addgonote(ctxt, ".note.go.buildid", ELF_NOTE_GOBUILDID_TAG, []byte(*flagBuildid))
 	}
 
-
 	//type mipsGnuAttributes struct {
 	//	version uint8   // 'A'
 	//	length  uint32  // 15 including itself
@@ -1552,12 +1551,12 @@ func (ctxt *Link) doelf() {
 		gnuattributes := ldr.CreateSymForUpdate(".gnu.attributes", 0)
 		gnuattributes.SetType(sym.SELFROSECT)
 		gnuattributes.SetReachable(true)
-		gnuattributes.AddUint8('A')  // version 'A'
-		gnuattributes.AddUint32(ctxt.Arch, 15) // length 15 including itself
+		gnuattributes.AddUint8('A')               // version 'A'
+		gnuattributes.AddUint32(ctxt.Arch, 15)    // length 15 including itself
 		gnuattributes.AddBytes([]byte("gnu\x00")) // "gnu\0"
-		gnuattributes.AddUint8(1) // 1:file, 2: section, 3: symbol, 1 here
-		gnuattributes.AddUint32(ctxt.Arch, 7) // tag length, including tag, 7 here
-		gnuattributes.AddUint8(4) // 4 for FP, 8 for MSA
+		gnuattributes.AddUint8(1)                 // 1:file, 2: section, 3: symbol, 1 here
+		gnuattributes.AddUint32(ctxt.Arch, 7)     // tag length, including tag, 7 here
+		gnuattributes.AddUint8(4)                 // 4 for FP, 8 for MSA
 		if objabi.GOMIPS == "softfloat" {
 			gnuattributes.AddUint8(MIPS_FPABI_SOFT)
 		} else {

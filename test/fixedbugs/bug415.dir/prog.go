@@ -3,7 +3,9 @@
 // license that can be found in the LICENSE file.
 
 package main
-import "./p"
-func main() {}
-var _ p.A
 
+import "./p"
+
+func main() {}
+
+var _ p.A

@@ -8,14 +8,14 @@
 
 package p
 
-type A struct{
+type A struct {
 	H int
 }
 
 func (A) F() {}
 func (A) G() {}
 
-type B struct{
+type B struct {
 	G int
 	H int
 }

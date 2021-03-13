@@ -29,7 +29,7 @@ func main() {
 		panic("fail")
 	}
 	x := uint(5)
-	y := float64(uint64(1)<<x)	// used to fail to compile
+	y := float64(uint64(1) << x) // used to fail to compile
 	if y != 32 {
 		println("wrong y", y)
 		panic("fail")

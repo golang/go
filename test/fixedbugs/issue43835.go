@@ -35,7 +35,6 @@ func g() (bool, int) {
 	return true, *p
 }
 
-
 func h() (_ bool, _ int) {
 	defer func() {
 		recover()

@@ -25,13 +25,13 @@ func testBLTU(a, b int64) (r bool)
 func testBLTZ(a int64) (r bool)
 func testBNEZ(a int64) (r bool)
 
-func testGoBGE(a, b int64) bool { return a >= b }
+func testGoBGE(a, b int64) bool  { return a >= b }
 func testGoBGEU(a, b int64) bool { return uint64(a) >= uint64(b) }
-func testGoBGT(a, b int64) bool { return a > b }
+func testGoBGT(a, b int64) bool  { return a > b }
 func testGoBGTU(a, b int64) bool { return uint64(a) > uint64(b) }
-func testGoBLE(a, b int64) bool { return a <= b }
+func testGoBLE(a, b int64) bool  { return a <= b }
 func testGoBLEU(a, b int64) bool { return uint64(a) <= uint64(b) }
-func testGoBLT(a, b int64) bool { return a < b }
+func testGoBLT(a, b int64) bool  { return a < b }
 func testGoBLTZ(a, b int64) bool { return uint64(a) < uint64(b) }
 
 func TestBranchCondition(t *testing.T) {

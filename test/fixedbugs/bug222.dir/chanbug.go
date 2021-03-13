@@ -3,7 +3,8 @@
 // license that can be found in the LICENSE file
 
 package chanbug
+
 var C chan<- (chan int)
 var D chan<- func()
 var E func() chan int
-var F func() (func())
+var F func() func()

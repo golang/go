@@ -13,12 +13,12 @@ func f() int {
 	panic("oops")
 }
 
-func g() int {	
+func g() int {
 	return 12345
 }
 
 func main() {
-	g()	// leave 12345 on stack
+	g() // leave 12345 on stack
 	x := f()
 	if x != 0 {
 		panic(x)

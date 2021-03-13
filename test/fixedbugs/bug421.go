@@ -10,8 +10,8 @@
 package main
 
 func main() {
-	println(int(1) == uint(1))	// ERROR "types"
+	println(int(1) == uint(1)) // ERROR "types"
 	var x int = 1
 	var y uint = 1
-	println(x == y)			// ERROR "types"
+	println(x == y) // ERROR "types"
 }

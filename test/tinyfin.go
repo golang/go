@@ -32,7 +32,7 @@ func main() {
 	runtime.GC()
 	count := 0
 	done := make([]bool, N)
-	timeout := time.After(5*time.Second)
+	timeout := time.After(5 * time.Second)
 	for {
 		select {
 		case <-timeout:

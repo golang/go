@@ -7,20 +7,17 @@
 package bug066
 
 type Scope struct {
-	entries map[string] *Object;
+	entries map[string]*Object
 }
-
 
 type Type struct {
-	scope *Scope;
+	scope *Scope
 }
-
 
 type Object struct {
-	typ *Type;
+	typ *Type
 }
 
-
 func Lookup(scope *Scope) *Object {
-	return scope.entries["foo"];
+	return scope.entries["foo"]
 }

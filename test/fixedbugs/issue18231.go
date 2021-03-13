@@ -14,7 +14,7 @@ type T struct {
 }
 
 var _ = T{
-	f: {                // ERROR "missing type in composite literal|may only omit types within"
+	f: { // ERROR "missing type in composite literal|may only omit types within"
 		"a": "b",
 	},
 }

@@ -12,5 +12,5 @@ func main() {
 }
 
 func f() uint {
-	return 1<<31 // doesn't panic with 1<<31 - 1
+	return 1 << 31 // doesn't panic with 1<<31 - 1
 }

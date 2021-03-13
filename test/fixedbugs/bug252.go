@@ -11,5 +11,5 @@ func f(args ...int) {
 }
 
 func g(args ...interface{}) {
-	f(args)	// ERROR "cannot use|incompatible"
+	f(args) // ERROR "cannot use|incompatible"
 }

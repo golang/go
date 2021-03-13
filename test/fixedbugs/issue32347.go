@@ -12,7 +12,7 @@ package p
 const (
 	X1 = string(128049)
 	X2 = string(-1)
-	X3 = string(1<<48)
+	X3 = string(1 << 48)
 )
 
 var S1, S2, S3 = X1, X2, X3

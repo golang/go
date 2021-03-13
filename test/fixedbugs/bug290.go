@@ -8,8 +8,8 @@
 
 package main
 
-type X struct { x []X }
+type X struct{ x []X }
 
 func main() {
-	type Y struct { x []Y }	// used to get invalid recursive type
+	type Y struct{ x []Y } // used to get invalid recursive type
 }

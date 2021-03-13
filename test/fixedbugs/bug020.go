@@ -6,10 +6,10 @@
 
 package main
 
-var digits string;
+var digits string
 
 func putint(buf []byte, i, base, val int, digits string) {
-		buf[i] = digits[val];
+	buf[i] = digits[val]
 }
 
 func main() {

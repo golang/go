@@ -10,12 +10,12 @@ package main
 
 func main() {
 	var i uint = 33
-	var a = (1<<i) + 4.5  // ERROR "shift of type float64|invalid.*shift"
+	var a = (1 << i) + 4.5 // ERROR "shift of type float64|invalid.*shift"
 	println(a)
-	
-	var b = (1<<i) + 4.0  // ERROR "shift of type float64|invalid.*shift"
+
+	var b = (1 << i) + 4.0 // ERROR "shift of type float64|invalid.*shift"
 	println(b)
 
-	var c int64 = (1<<i) + 4.0  // ok - it's all int64
+	var c int64 = (1 << i) + 4.0 // ok - it's all int64
 	println(c)
 }

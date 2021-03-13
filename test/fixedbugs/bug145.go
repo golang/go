@@ -9,8 +9,8 @@ package main
 type t int
 
 func main() {
-	t := 0;
-	_ = t;
+	t := 0
+	_ = t
 }
 
 /*

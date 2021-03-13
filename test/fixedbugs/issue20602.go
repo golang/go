@@ -10,5 +10,5 @@
 package p
 
 var p = &[1]complex128{0}
-var _ = real(p)  // ERROR "type \*\[1\]complex128|argument must have complex type"
-var _ = imag(p)	 // ERROR "type \*\[1\]complex128|argument must have complex type"
+var _ = real(p) // ERROR "type \*\[1\]complex128|argument must have complex type"
+var _ = imag(p) // ERROR "type \*\[1\]complex128|argument must have complex type"

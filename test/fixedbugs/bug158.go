@@ -7,7 +7,7 @@
 package main
 
 func main() {
-	x := 0;
+	x := 0
 
 	// this compiles
 	switch x {
@@ -19,7 +19,6 @@ func main() {
 	case 0:
 	}
 }
-
 
 /*
 bug158.go:14: fatal error: dowidth: unknown type: E-33

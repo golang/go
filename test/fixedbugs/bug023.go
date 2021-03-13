@@ -7,7 +7,7 @@
 package main
 
 type Type interface {
-	TypeName() string;
+	TypeName() string
 }
 
 type TInt struct {
@@ -15,14 +15,13 @@ type TInt struct {
 
 // TInt
 func (i *TInt) TypeName() string {
-	return "int";
+	return "int"
 }
 
-
 func main() {
-	var t Type;
-	t = nil;
-	_ = t;
+	var t Type
+	t = nil
+	_ = t
 }
 
 /*

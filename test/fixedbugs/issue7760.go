@@ -13,13 +13,13 @@ import "unsafe"
 type myPointer unsafe.Pointer
 
 const _ = unsafe.Pointer(uintptr(1)) // ERROR "is not (a )?constant|invalid constant type"
-const _ = myPointer(uintptr(1)) // ERROR "is not (a )?constant|invalid constant type"
+const _ = myPointer(uintptr(1))      // ERROR "is not (a )?constant|invalid constant type"
 
 const _ = (*int)(unsafe.Pointer(uintptr(1))) // ERROR "is not (a )?constant|invalid constant type"
-const _ = (*int)(myPointer(uintptr(1))) // ERROR "is not (a )?constant|invalid constant type"
+const _ = (*int)(myPointer(uintptr(1)))      // ERROR "is not (a )?constant|invalid constant type"
 
 const _ = uintptr(unsafe.Pointer(uintptr(1))) // ERROR "is not (a )?constant|expression is not constant"
-const _ = uintptr(myPointer(uintptr(1))) // ERROR "is not (a )?constant|expression is no constant"
+const _ = uintptr(myPointer(uintptr(1)))      // ERROR "is not (a )?constant|expression is no constant"
 
 const _ = []byte("") // ERROR "is not (a )?constant|invalid constant type"
 const _ = []rune("") // ERROR "is not (a )?constant|invalid constant type"

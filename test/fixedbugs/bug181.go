@@ -7,5 +7,5 @@
 package main
 
 type T *struct {
-	T;	// ERROR "embed.*pointer"
+	T // ERROR "embed.*pointer"
 }

@@ -9,8 +9,8 @@
 package main
 
 func t(args ...interface{}) bool {
-        x := true
-        return x == args[0]
+	x := true
+	return x == args[0]
 }
 
 func main() {

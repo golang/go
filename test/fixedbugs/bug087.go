@@ -6,11 +6,11 @@
 
 package main
 
-const s string = "foo";
+const s string = "foo"
 
 func main() {
-	i := len(s);  // should be legal to take len() of a constant
-	_ = i;
+	i := len(s) // should be legal to take len() of a constant
+	_ = i
 }
 
 /*

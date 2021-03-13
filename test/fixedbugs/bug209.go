@@ -7,8 +7,8 @@
 package main
 
 func main() {
-	var buf [10]int;
-	for ; len(buf); {  // ERROR "bool"
+	var buf [10]int
+	for len(buf) { // ERROR "bool"
 	}
 }
 

@@ -10,12 +10,12 @@
 package p
 
 type S []T
-type T struct { x int }
+type T struct{ x int }
 
 var _ = map[string]*S{
 	"a": {
-		{ 1 },
+		{1},
 	},
 }
 
-var _ = [1]*S{ { {1}, } }
+var _ = [1]*S{{{1}}}

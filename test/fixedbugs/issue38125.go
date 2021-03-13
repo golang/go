@@ -18,5 +18,5 @@ type T = struct {
 
 func F() {
 	_ = T.M
-	_ = struct { I }.M
+	_ = struct{ I }.M
 }

@@ -33,20 +33,19 @@ func main() {
 	p.C12 = (chan (chan<- (<-chan int)))(nil)
 	p.C13 = (chan (chan<- (chan<- int)))(nil)
 
-	p.R1 = (chan <- chan int)(nil)
-	p.R3 = (<- chan chan int)(nil)
-	p.R4 = (chan chan <- int)(nil)
+	p.R1 = (chan<- chan int)(nil)
+	p.R3 = (<-chan chan int)(nil)
+	p.R4 = (chan chan<- int)(nil)
 
-	p.R5 = (<- chan <- chan int)(nil)
-	p.R6 = (chan <- <- chan int)(nil)
-	p.R7 = (chan <- chan <- int)(nil)
+	p.R5 = (<-chan <-chan int)(nil)
+	p.R6 = (chan<- <-chan int)(nil)
+	p.R7 = (chan<- chan<- int)(nil)
 
-	p.R8 = (<- chan <- chan chan int)(nil)
-	p.R9 = (<- chan chan <- chan int)(nil)
-	p.R10 = (chan <- <- chan chan int)(nil)
-	p.R11 = (chan <- chan <- chan int)(nil)
-	p.R12 = (chan chan <- <- chan int)(nil)
-	p.R13 = (chan chan <- chan <- int)(nil)
+	p.R8 = (<-chan <-chan chan int)(nil)
+	p.R9 = (<-chan chan<- chan int)(nil)
+	p.R10 = (chan<- <-chan chan int)(nil)
+	p.R11 = (chan<- chan<- chan int)(nil)
+	p.R12 = (chan chan<- <-chan int)(nil)
+	p.R13 = (chan chan<- chan<- int)(nil)
 
 }
-

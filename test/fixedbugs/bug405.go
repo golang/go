@@ -8,7 +8,7 @@
 
 package main
 
-type S struct {}
+type S struct{}
 
 func (_ S) F(i int) int {
 	return i

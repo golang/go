@@ -6,17 +6,17 @@
 
 package main
 
-func main() {	
-	c := make(chan bool, 1);
+func main() {
+	c := make(chan bool, 1)
 	select {
 	case _ = <-c:
-		panic("BUG: recv should not");
+		panic("BUG: recv should not")
 	default:
 	}
-	c <- true;
+	c <- true
 	select {
 	case _ = <-c:
 	default:
-		panic("BUG: recv should");
+		panic("BUG: recv should")
 	}
 }

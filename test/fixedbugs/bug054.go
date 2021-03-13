@@ -10,31 +10,31 @@ type Element interface {
 }
 
 type Vector struct {
-	elem []Element;
+	elem []Element
 }
 
 func (v *Vector) At(i int) Element {
-	return v.elem[i];
+	return v.elem[i]
 }
 
 type TStruct struct {
-	name string;
-	fields *Vector;
+	name   string
+	fields *Vector
 }
 
 func (s *TStruct) field(i int) *TStruct {
-	return s.fields.At(i).(*TStruct);
+	return s.fields.At(i).(*TStruct)
 }
 
 func main() {
-	v := new(Vector);
-	v.elem = make([]Element, 10);
-	t := new(TStruct);
-	t.name = "hi";
-	v.elem[0] = t;
-	s := new(TStruct);
-	s.name = "foo";
-	s.fields = v;
+	v := new(Vector)
+	v.elem = make([]Element, 10)
+	t := new(TStruct)
+	t.name = "hi"
+	v.elem[0] = t
+	s := new(TStruct)
+	s.name = "foo"
+	s.fields = v
 	if s.field(0).name != "hi" {
 		panic("bad name")
 	}

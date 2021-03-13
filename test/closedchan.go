@@ -18,7 +18,7 @@ var failed bool
 type Chan interface {
 	Send(int)
 	Nbsend(int) bool
-	Recv() (int)
+	Recv() int
 	Nbrecv() (int, bool)
 	Recv2() (int, bool)
 	Nbrecv2() (int, bool, bool)
@@ -214,7 +214,6 @@ func (c SSChan) Impl() string {
 	return "(select)"
 }
 
-
 func shouldPanic(f func()) {
 	defer func() {
 		if recover() == nil {
@@ -318,13 +317,13 @@ func closedasync() chan int {
 	return c
 }
 
-var mks = []func(chan int) Chan {
+var mks = []func(chan int) Chan{
 	func(c chan int) Chan { return XChan(c) },
 	func(c chan int) Chan { return SChan(c) },
 	func(c chan int) Chan { return SSChan(c) },
 }
 
-var testcloseds = []func(Chan) {
+var testcloseds = []func(Chan){
 	testasync1,
 	testasync2,
 	testasync3,
@@ -335,18 +334,18 @@ func main() {
 	for _, mk := range mks {
 		test1(mk(closedsync()))
 	}
-	
+
 	for _, testclosed := range testcloseds {
 		for _, mk := range mks {
 			testclosed(mk(closedasync()))
 		}
 	}
-	
-	var ch chan int	
+
+	var ch chan int
 	shouldPanic(func() {
 		close(ch)
 	})
-	
+
 	ch = make(chan int)
 	close(ch)
 	shouldPanic(func() {

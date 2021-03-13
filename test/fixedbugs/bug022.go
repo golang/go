@@ -7,15 +7,15 @@
 package main
 
 func putint(digits *string) {
-	var i byte;
-	i = (*digits)[7];  // compiles
-	i = digits[7];  // ERROR "illegal|is not|invalid"
-	_ = i;
+	var i byte
+	i = (*digits)[7] // compiles
+	i = digits[7]    // ERROR "illegal|is not|invalid"
+	_ = i
 }
 
 func main() {
-	s := "asdfasdfasdfasdf";
-	putint(&s);
+	s := "asdfasdfasdfasdf"
+	putint(&s)
 }
 
 /*

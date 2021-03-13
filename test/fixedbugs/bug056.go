@@ -11,8 +11,8 @@ func frexp() (a int, b float64) {
 }
 
 func main() {
-	a, b := frexp();
-	_, _ = a, b;
+	a, b := frexp()
+	_, _ = a, b
 }
 
 /*

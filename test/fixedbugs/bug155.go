@@ -6,7 +6,7 @@
 
 package main
 
-const big uint64 = 1<<63
+const big uint64 = 1 << 63
 
 func f(a uint64) uint64 {
 	return a << big

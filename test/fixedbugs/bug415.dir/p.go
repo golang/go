@@ -5,10 +5,9 @@
 package p
 
 type A struct {
-	s struct{int}
+	s struct{ int }
 }
 
 func (a *A) f() {
-	a.s = struct{int}{0}
+	a.s = struct{ int }{0}
 }
-

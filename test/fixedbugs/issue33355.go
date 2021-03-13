@@ -40,12 +40,12 @@ type Server struct {
 }
 
 type srvGateway struct {
-	outo     []*client
+	outo []*client
 }
 
 type subscription struct {
-	queue   []byte
-	client  *client
+	queue  []byte
+	client *client
 }
 
 type outsie struct {
@@ -144,4 +144,3 @@ func (c *client) gatewayInterest(acc, subj string) *SublistResult {
 func (s *Sublist) Match(subject string) *SublistResult {
 	return nil
 }
-

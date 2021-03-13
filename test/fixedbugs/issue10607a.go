@@ -54,7 +54,7 @@ func main() {
 
 			// 3 == NT_GNU_BUILD_ID
 			if typ == 3 && namesz == 4 && bytes.Equal(d[12:16], []byte("GNU\000")) {
-				id := string(d[12+an:12+an+descsz])
+				id := string(d[12+an : 12+an+descsz])
 				if id == "\x12\x34\x56\x78" {
 					c++
 				} else {

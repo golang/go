@@ -39,7 +39,7 @@ func fn() func(int, int) int {
 var fc func(int, int, chan int)
 
 func addc(x, y int, c chan int) {
-	c <- x+y
+	c <- x + y
 }
 
 func fnc() func(int, int, chan int) {
@@ -79,7 +79,7 @@ func main() {
 	three(<-c)
 	go fnc()(1, 2, c)
 	three(<-c)
-	go func(a, b int, c chan int) { c <- a+b }(1, 2, c)
+	go func(a, b int, c chan int) { c <- a + b }(1, 2, c)
 	three(<-c)
 
 	emptyresults()

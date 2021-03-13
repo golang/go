@@ -10,6 +10,7 @@
 package s
 
 type S0 struct{ f int }
+
 func (S0) m() {}
 
 type S1 struct{ S0 }

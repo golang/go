@@ -69,7 +69,7 @@ func main() {
 	}
 	defer os.RemoveAll(dir)
 
-	const limit = 10000 // compiler-internal constant length limit
+	const limit = 10000                    // compiler-internal constant length limit
 	testProg(dir, "x1", 0, limit, true)    // -G=0
 	testProg(dir, "x2", 0, limit+1, false) // -G=0
 	testProg(dir, "x1", 1, limit, true)    // -G=1 (new type checker)

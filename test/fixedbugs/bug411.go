@@ -14,6 +14,5 @@ func f1(a int64) {
 	f2(float64(a), float64(a))
 }
 
-func f2(a,b float64) {
+func f2(a, b float64) {
 }
-

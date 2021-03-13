@@ -34,7 +34,10 @@ func g() {
 }
 
 func main() {
-	var s struct { a T; b [8192-62]int } // allocate 64K, hopefully it's in a new span and a few bytes before it is garbage
+	var s struct {
+		a T
+		b [8192 - 62]int
+	} // allocate 64K, hopefully it's in a new span and a few bytes before it is garbage
 	sink = &s // force heap allocation
 	s.a[0] = 2
 	zero(&s.a)

@@ -6,34 +6,34 @@
 
 package main
 
-type myMap map[string] int;
+type myMap map[string]int
 
 func f() myMap {
-	m := make(map[string] int);
+	m := make(map[string]int)
 	return m
 }
 
 func main() {
-	m := make(myMap);
-	mp := &m;
+	m := make(myMap)
+	mp := &m
 
 	{
-		x, ok := m["key"];
-		_, _ = x, ok;
+		x, ok := m["key"]
+		_, _ = x, ok
 	}
 	{
-		x, ok := (*mp)["key"];
-		_, _ = x, ok;
+		x, ok := (*mp)["key"]
+		_, _ = x, ok
 	}
 	{
-		x, ok := f()["key"];
-		_, _ = x, ok;
+		x, ok := f()["key"]
+		_, _ = x, ok
 	}
 	{
-		var x int;
-		var ok bool;
-		x, ok = f()["key"];
-		_, _ = x, ok;
+		var x int
+		var ok bool
+		x, ok = f()["key"]
+		_, _ = x, ok
 	}
 }
 

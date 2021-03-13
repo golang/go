@@ -77,8 +77,8 @@ func main() {
 		print("-210.012 is ", -210.012, "\n")
 	}
 
-	if !close(0E+1, 0, 1, 0) {
-		print("0E+1 is ", 0E+1, "\n")
+	if !close(0e+1, 0, 1, 0) {
+		print("0E+1 is ", 0e+1, "\n")
 	}
 	if !close(+10e2, 10, 1, 2) {
 		print("+10e2 is ", +10e2, "\n")
@@ -87,8 +87,8 @@ func main() {
 		print("-210e3 is ", -210e3, "\n")
 	}
 
-	if !close(0E-1, 0, 1, 0) {
-		print("0E-1 is ", 0E-1, "\n")
+	if !close(0e-1, 0, 1, 0) {
+		print("0E-1 is ", 0e-1, "\n")
 	}
 	if !close(+0e23, 0, 1, 1) {
 		print("+0e23 is ", +0e23, "\n")
@@ -97,8 +97,8 @@ func main() {
 		print("-0e345 is ", -0e345, "\n")
 	}
 
-	if !close(0E1, 0, 1, 1) {
-		print("0E1 is ", 0E1, "\n")
+	if !close(0e1, 0, 1, 1) {
+		print("0E1 is ", 0e1, "\n")
 	}
 	if !close(+10e23, 10, 1, 23) {
 		print("+10e23 is ", +10e23, "\n")
@@ -107,8 +107,8 @@ func main() {
 		print("-210e34 is ", -210e34, "\n")
 	}
 
-	if !close(0.E1, 0, 1, 1) {
-		print("0.E1 is ", 0.E1, "\n")
+	if !close(0.e1, 0, 1, 1) {
+		print("0.E1 is ", 0.e1, "\n")
 	}
 	if !close(+10.e+2, 10, 1, 2) {
 		print("+10.e+2 is ", +10.e+2, "\n")
@@ -117,8 +117,8 @@ func main() {
 		print("-210.e-3 is ", -210.e-3, "\n")
 	}
 
-	if !close(.0E1, 0, 1, 1) {
-		print(".0E1 is ", .0E1, "\n")
+	if !close(.0e1, 0, 1, 1) {
+		print(".0E1 is ", .0e1, "\n")
 	}
 	if !close(+.01e2, 1, 100, 2) {
 		print("+.01e2 is ", +.01e2, "\n")
@@ -127,8 +127,8 @@ func main() {
 		print("-.012e3 is ", -.012e3, "\n")
 	}
 
-	if !close(0.0E1, 0, 1, 0) {
-		print("0.0E1 is ", 0.0E1, "\n")
+	if !close(0.0e1, 0, 1, 0) {
+		print("0.0E1 is ", 0.0e1, "\n")
 	}
 	if !close(+10.01e2, 1001, 100, 2) {
 		print("+10.01e2 is ", +10.01e2, "\n")
@@ -137,8 +137,8 @@ func main() {
 		print("-210.012e3 is ", -210.012e3, "\n")
 	}
 
-	if !close(0.E+12, 0, 1, 0) {
-		print("0.E+12 is ", 0.E+12, "\n")
+	if !close(0.e+12, 0, 1, 0) {
+		print("0.E+12 is ", 0.e+12, "\n")
 	}
 	if !close(+10.e23, 10, 1, 23) {
 		print("+10.e23 is ", +10.e23, "\n")
@@ -147,8 +147,8 @@ func main() {
 		print("-210.e33 is ", -210.e33, "\n")
 	}
 
-	if !close(.0E-12, 0, 1, 0) {
-		print(".0E-12 is ", .0E-12, "\n")
+	if !close(.0e-12, 0, 1, 0) {
+		print(".0E-12 is ", .0e-12, "\n")
 	}
 	if !close(+.01e23, 1, 100, 23) {
 		print("+.01e23 is ", +.01e23, "\n")
@@ -157,8 +157,8 @@ func main() {
 		print("-.012e34 is ", -.012e34, "\n")
 	}
 
-	if !close(0.0E12, 0, 1, 12) {
-		print("0.0E12 is ", 0.0E12, "\n")
+	if !close(0.0e12, 0, 1, 12) {
+		print("0.0E12 is ", 0.0e12, "\n")
 	}
 	if !close(+10.01e23, 1001, 100, 23) {
 		print("+10.01e23 is ", +10.01e23, "\n")
@@ -167,8 +167,8 @@ func main() {
 		print("-210.012e33 is ", -210.012e33, "\n")
 	}
 
-	if !close(0.E123, 0, 1, 123) {
-		print("0.E123 is ", 0.E123, "\n")
+	if !close(0.e123, 0, 1, 123) {
+		print("0.E123 is ", 0.e123, "\n")
 	}
 	if !close(+10.e+23, 10, 1, 23) {
 		print("+10.e+234 is ", +10.e+234, "\n")
@@ -177,8 +177,8 @@ func main() {
 		print("-210.e-35 is ", -210.e-35, "\n")
 	}
 
-	if !close(.0E123, 0, 1, 123) {
-		print(".0E123 is ", .0E123, "\n")
+	if !close(.0e123, 0, 1, 123) {
+		print(".0E123 is ", .0e123, "\n")
 	}
 	if !close(+.01e29, 1, 100, 29) {
 		print("+.01e29 is ", +.01e29, "\n")
@@ -187,8 +187,8 @@ func main() {
 		print("-.012e29 is ", -.012e29, "\n")
 	}
 
-	if !close(0.0E123, 0, 1, 123) {
-		print("0.0E123 is ", 0.0E123, "\n")
+	if !close(0.0e123, 0, 1, 123) {
+		print("0.0E123 is ", 0.0e123, "\n")
 	}
 	if !close(+10.01e31, 1001, 100, 31) {
 		print("+10.01e31 is ", +10.01e31, "\n")

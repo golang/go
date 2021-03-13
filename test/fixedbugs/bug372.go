@@ -7,14 +7,14 @@
 // Issue 2355
 package main
 
-type T struct {}
+type T struct{}
+
 func (T) m() string { return "T" }
 
 type TT struct {
 	T
 	m func() string
 }
-
 
 func ff() string { return "ff" }
 

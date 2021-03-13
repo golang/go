@@ -7,7 +7,7 @@
 package main
 
 func case1() {
-	rates := []int32{1,2,3,4,5,6}
+	rates := []int32{1, 2, 3, 4, 5, 6}
 	var sink [6]int
 	j := len(sink)
 	for star, _ := range rates {

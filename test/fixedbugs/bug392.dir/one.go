@@ -18,26 +18,25 @@ func F2(c chan int) bool { return c == (<-chan int)(nil) }
 func F3() (ret []int) { return append(ret, 1) }
 
 // Call of inlined method with blank receiver.
-func (_ *T) M() int { return 1 }
+func (_ *T) M() int  { return 1 }
 func (t *T) MM() int { return t.M() }
 
-
 // One more like issue 2678
-type S struct { x, y int }
+type S struct{ x, y int }
 type U []S
 
-func F4(S int) U { return U{{S,S}} }
+func F4(S int) U { return U{{S, S}} }
 
 func F5() []*S {
-	return []*S{ {1,2}, { 3, 4} }
+	return []*S{{1, 2}, {3, 4}}
 }
 
 func F6(S int) *U {
-	return &U{{S,S}}
+	return &U{{S, S}}
 }
 
 // Bug in the fix.
 
-type PB struct { x int }
+type PB struct{ x int }
 
 func (t *PB) Reset() { *t = PB{} }

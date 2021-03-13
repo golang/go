@@ -8,19 +8,21 @@
 
 package main
 
-func
-main() {
-	var x int;
+func main() {
+	var x int
 
-	x = fun(10,20,30);
-	if x != 60 { panic(x); }
+	x = fun(10, 20, 30)
+	if x != 60 {
+		panic(x)
+	}
 }
 
-func
-fun(ia,ib,ic int)int {
-	var o int;
+func fun(ia, ib, ic int) int {
+	var o int
 
-	o = ia+ib+ic;
-	if o != 60 { panic(o); }
-	return o;
+	o = ia + ib + ic
+	if o != 60 {
+		panic(o)
+	}
+	return o
 }

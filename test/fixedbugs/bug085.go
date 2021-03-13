@@ -9,7 +9,7 @@ package P
 var x int
 
 func foo() {
-	print(P.x);  // ERROR "undefined"
+	print(P.x) // ERROR "undefined"
 }
 
 /*

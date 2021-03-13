@@ -10,10 +10,11 @@ package main
 
 type S struct {
 }
-func (S) a() int{
+
+func (S) a() int {
 	return 0
 }
-func (S) b() int{
+func (S) b() int {
 	return 1
 }
 

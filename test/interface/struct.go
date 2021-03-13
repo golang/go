@@ -13,16 +13,20 @@ import "os"
 var fail int
 
 func check(b bool, msg string) {
-	if (!b) {
+	if !b {
 		println("failure in", msg)
 		fail++
 	}
 }
 
-type I1 interface { Get() int; Put(int) }
+type I1 interface {
+	Get() int
+	Put(int)
+}
 
-type S1 struct { i int }
-func (p S1) Get() int { return p.i }
+type S1 struct{ i int }
+
+func (p S1) Get() int  { return p.i }
 func (p S1) Put(i int) { p.i = i }
 
 func f1() {
@@ -49,8 +53,9 @@ func f3() {
 	check(s.i == 1, "f3 s")
 }
 
-type S2 struct { i int }
-func (p *S2) Get() int { return p.i }
+type S2 struct{ i int }
+
+func (p *S2) Get() int  { return p.i }
 func (p *S2) Put(i int) { p.i = i }
 
 // Disallowed by restriction of values going to pointer receivers
@@ -78,10 +83,14 @@ func f6() {
 	check(s.i == 2, "f6 s")
 }
 
-type I2 interface { Get() int64; Put(int64) }
+type I2 interface {
+	Get() int64
+	Put(int64)
+}
 
-type S3 struct { i, j, k, l int64 }
-func (p S3) Get() int64 { return p.l }
+type S3 struct{ i, j, k, l int64 }
+
+func (p S3) Get() int64  { return p.l }
 func (p S3) Put(i int64) { p.l = i }
 
 func f7() {
@@ -108,8 +117,9 @@ func f9() {
 	check(s.l == 4, "f9 s")
 }
 
-type S4 struct { i, j, k, l int64 }
-func (p *S4) Get() int64 { return p.l }
+type S4 struct{ i, j, k, l int64 }
+
+func (p *S4) Get() int64  { return p.l }
 func (p *S4) Put(i int64) { p.l = i }
 
 // Disallowed by restriction of values going to pointer receivers
@@ -141,13 +151,13 @@ func main() {
 	f1()
 	f2()
 	f3()
-//	f4()
+	//	f4()
 	f5()
 	f6()
 	f7()
 	f8()
 	f9()
-//	f10()
+	//	f10()
 	f11()
 	f12()
 	if fail > 0 {

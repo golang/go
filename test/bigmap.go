@@ -35,7 +35,6 @@ func main() {
 	cmp(m[1], seq(11, 13))
 	cmp(m[2], seq(2, 9))
 	cmp(m[3], seq(3, 17))
-	
 
 	{
 		type T [1]byte
@@ -47,7 +46,7 @@ func main() {
 			println(x, y)
 			panic("bad map")
 		}
-  	}
+	}
 	{
 		type T [100]byte
 		type V [1]byte
@@ -134,6 +133,6 @@ func main() {
 		if x, y := m[T{}][0], m[T{1}][0]; x != 1 || y != 2 {
 			println(x, y)
 			panic("bad map")
-  		}
-  	}
+		}
+	}
 }

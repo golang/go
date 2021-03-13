@@ -59,7 +59,7 @@ func main() {
 	if t3.m() != "main.localT.m" {
 		println("BUG: t3:", t3.m(), "called")
 	}
-	
+
 	i = new(myT3)
 	if i.m() != "main.localT.m" {
 		t := reflect.TypeOf(i)
@@ -70,7 +70,7 @@ func main() {
 		}
 		println("BUG: myT3:", i.m(), "called")
 	}
-	
+
 	var t4 struct {
 		localT
 		lib.T
@@ -82,7 +82,7 @@ func main() {
 	if i.m() != "main.localT.m" {
 		println("BUG: myT4:", i.m(), "called")
 	}
-	
+
 	var t5 struct {
 		lib.T
 		localT

@@ -7,8 +7,9 @@
 // Issue 2576
 package bug
 
-type T struct { a int }
+type T struct{ a int }
 
 func f(t T) {
-        switch _, _ = t.a, t.a; {}
+	switch _, _ = t.a, t.a; {
+	}
 }

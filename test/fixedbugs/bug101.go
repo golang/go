@@ -6,10 +6,14 @@
 
 package main
 
-var a = []int { 1, 2, 3 }
+var a = []int{1, 2, 3}
 
 func main() {
-	if len(a) != 3 { panic("array len") }
+	if len(a) != 3 {
+		panic("array len")
+	}
 	// print(a[0], " ", a[1], " ", a[2], "\n")
-	if a[0] != 1 || a[1] != 2 || a[2] != 3 { panic("array contents") }
+	if a[0] != 1 || a[1] != 2 || a[2] != 3 {
+		panic("array contents")
+	}
 }

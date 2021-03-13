@@ -6,7 +6,7 @@
 
 package main
 
-import . "unsafe"	// ERROR "not used"
+import . "unsafe" // ERROR "not used"
 
 func main() {
 	var x int

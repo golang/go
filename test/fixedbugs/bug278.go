@@ -15,9 +15,9 @@ func f() [10]int {
 var m map[int][10]int
 
 func main() {
-	f()[1] = 2	// ERROR "cannot|invalid"
-	f()[2:3][0] = 4	// ERROR "cannot|addressable"
+	f()[1] = 2      // ERROR "cannot|invalid"
+	f()[2:3][0] = 4 // ERROR "cannot|addressable"
 	var x = "abc"
-	x[2] = 3	// ERROR "cannot|invalid"
-	m[0][5] = 6  // ERROR "cannot|invalid"
+	x[2] = 3    // ERROR "cannot|invalid"
+	m[0][5] = 6 // ERROR "cannot|invalid"
 }

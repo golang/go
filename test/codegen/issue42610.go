@@ -10,13 +10,13 @@
 package codegen
 
 func f32(a []int32, i uint32) {
-        g := func(p int32) int32 {
-                i = uint32(p) * (uint32(p) & (i & 1))
-                return 1
-        }
-        // ppc64le: -"RLWNIM"
-        // ppc64: -"RLWNIM"
-        a[0] = g(8) >> 1
+	g := func(p int32) int32 {
+		i = uint32(p) * (uint32(p) & (i & 1))
+		return 1
+	}
+	// ppc64le: -"RLWNIM"
+	// ppc64: -"RLWNIM"
+	a[0] = g(8) >> 1
 }
 
 func f(a []int, i uint) {

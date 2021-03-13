@@ -12,7 +12,6 @@ exit:
 	goto exit
 }
 
-
 func main() {
 exit:
 	; // this should be legal (labels not properly scoped?)
@@ -20,6 +19,6 @@ exit:
 }
 
 /*
-uetli:~/Source/go/test/bugs gri$ 6g bug076.go 
+uetli:~/Source/go/test/bugs gri$ 6g bug076.go
 bug076.go:11: label redeclared: exit
 */

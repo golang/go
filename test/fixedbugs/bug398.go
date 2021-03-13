@@ -12,33 +12,33 @@ package p
 // exported interfaces
 
 type I1 interface {
-      F() interface{I1}
+	F() interface{ I1 }
 }
 
 type I2 interface {
-      F() interface{I2}
+	F() interface{ I2 }
 }
 
 var V1 I1
 var V2 I2
 
 func F() bool {
-       return V1 == V2
+	return V1 == V2
 }
 
 // non-exported interfaces
 
 type i1 interface {
-      F() interface{i1}
+	F() interface{ i1 }
 }
 
 type i2 interface {
-      F() interface{i2}
+	F() interface{ i2 }
 }
 
 var v1 i1
 var v2 i2
 
 func f() bool {
-       return v1 == v2
+	return v1 == v2
 }

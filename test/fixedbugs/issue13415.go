@@ -10,10 +10,10 @@
 package p
 
 func f() {
-    select {
-    case x, x := <-func() chan int { // ERROR "x repeated on left side of :=|redefinition|declared but not used"
-            c := make(chan int)
-            return c
-    }():
-    }
+	select {
+	case x, x := <-func() chan int { // ERROR "x repeated on left side of :=|redefinition|declared but not used"
+		c := make(chan int)
+		return c
+	}():
+	}
 }

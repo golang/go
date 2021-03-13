@@ -13,8 +13,8 @@ import (
 
 func f() {
 	var x *string
-	
-	for _, i := range *x {  // THIS IS LINE 17
+
+	for _, i := range *x { // THIS IS LINE 17
 		println(i)
 	}
 }
@@ -24,7 +24,7 @@ func g() {
 
 func main() {
 	defer func() {
-		for i := 0;; i++ {
+		for i := 0; ; i++ {
 			pc, file, line, ok := runtime.Caller(i)
 			if !ok {
 				print("BUG: bug348: cannot find caller\n")

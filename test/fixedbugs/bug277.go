@@ -43,7 +43,7 @@ func main() {
 		x int
 	}(s)
 	p = (*S)(p)
-	f = func(x int) int(f)
+	f = (func(x int) int)(f)
 	i = (interface {
 		m(x int) int
 	})(s) // this is accepted by 6g

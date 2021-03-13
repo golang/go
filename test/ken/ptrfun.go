@@ -9,37 +9,44 @@
 package main
 
 type C struct {
-	a	int;
-	x	func(p *C)int;
+	a int
+	x func(p *C) int
 }
 
-func (this *C) f()int {
-	return this.a;
+func (this *C) f() int {
+	return this.a
 }
 
-func
-main() {
-	var v int;
-	var c *C;
+func main() {
+	var v int
+	var c *C
 
-	c = new(C);
-	c.a = 6;
-	c.x = g;
+	c = new(C)
+	c.a = 6
+	c.x = g
 
-	v = g(c);
-	if v != 6 { panic(v); }
+	v = g(c)
+	if v != 6 {
+		panic(v)
+	}
 
-	v = c.x(c);
-	if v != 6 { panic(v); }
+	v = c.x(c)
+	if v != 6 {
+		panic(v)
+	}
 
-	v = c.f();
-	if v != 6 { panic(v); }
+	v = c.f()
+	if v != 6 {
+		panic(v)
+	}
 }
 
-func g(p *C)int {
-	var v int;
+func g(p *C) int {
+	var v int
 
-	v = p.a;
-	if v != 6 { panic(v); }
-	return p.a;
+	v = p.a
+	if v != 6 {
+		panic(v)
+	}
+	return p.a
 }

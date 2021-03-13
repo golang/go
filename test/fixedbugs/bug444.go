@@ -12,14 +12,14 @@ package main
 
 import "reflect"
 
-type T interface {}
+type T interface{}
 
 var x bool
 
 func main() {
-        reflect.TypeOf(nil)
-        reflect.TypeOf(T(nil)) // used to miscompile
-        shouldPanic()
+	reflect.TypeOf(nil)
+	reflect.TypeOf(T(nil)) // used to miscompile
+	shouldPanic()
 }
 
 func f() byte {

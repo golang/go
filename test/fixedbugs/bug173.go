@@ -11,9 +11,10 @@
 package main
 
 type T string
+
 func main() {
-	var t T = "hello";
-	println(t[0:4], t[4]);
+	var t T = "hello"
+	println(t[0:4], t[4])
 	for _, _ = range t {
 	}
 	for _ = range t {

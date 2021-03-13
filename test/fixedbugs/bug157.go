@@ -9,22 +9,25 @@ package main
 func f() {}
 
 func main() {
-	x := 0;
+	x := 0
 
 	// this compiles
 	switch x {
-	case 0: f();
-	default: f();
+	case 0:
+		f()
+	default:
+		f()
 	}
 
 	// this doesn't but it should
 	// (semicolons are not needed at the end of a statement list)
 	switch x {
-	case 0: f()
-	default: f()
+	case 0:
+		f()
+	default:
+		f()
 	}
 }
-
 
 /*
 bug157.go:20: syntax error near default

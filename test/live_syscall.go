@@ -30,7 +30,7 @@ func h() { // ERROR "can inline h"
 func i() { // ERROR "can inline i"
 	var t int
 	p := unsafe.Pointer(&t)
-	f(uintptr(p))           // ERROR "live at call to f: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+	f(uintptr(p)) // ERROR "live at call to f: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
 }
 
 func j() { // ERROR "can inline j"

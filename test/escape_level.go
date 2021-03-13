@@ -11,10 +11,10 @@ package escape
 var sink interface{}
 
 func level0() {
-	i := 0     // ERROR "moved to heap: i"
-	p0 := &i   // ERROR "moved to heap: p0"
-	p1 := &p0  // ERROR "moved to heap: p1"
-	p2 := &p1  // ERROR "moved to heap: p2"
+	i := 0    // ERROR "moved to heap: i"
+	p0 := &i  // ERROR "moved to heap: p0"
+	p1 := &p0 // ERROR "moved to heap: p1"
+	p2 := &p1 // ERROR "moved to heap: p2"
 	sink = &p2
 }
 
@@ -27,15 +27,15 @@ func level1() {
 }
 
 func level2() {
-	i := 0     // ERROR "moved to heap: i"
-	p0 := &i   // ERROR "moved to heap: p0"
+	i := 0   // ERROR "moved to heap: i"
+	p0 := &i // ERROR "moved to heap: p0"
 	p1 := &p0
 	p2 := &p1
 	sink = *p2
 }
 
 func level3() {
-	i := 0      // ERROR "moved to heap: i"
+	i := 0 // ERROR "moved to heap: i"
 	p0 := &i
 	p1 := &p0
 	p2 := &p1
@@ -43,23 +43,23 @@ func level3() {
 }
 
 func level4() {
-	i := 0     // ERROR "moved to heap: i"
-	p0 := &i   // ERROR "moved to heap: p0"
+	i := 0   // ERROR "moved to heap: i"
+	p0 := &i // ERROR "moved to heap: p0"
 	p1 := &p0
-	p2 := p1   // ERROR "moved to heap: p2"
+	p2 := p1 // ERROR "moved to heap: p2"
 	sink = &p2
 }
 
 func level5() {
-	i := 0    // ERROR "moved to heap: i"
-	p0 := &i  // ERROR "moved to heap: p0"
+	i := 0   // ERROR "moved to heap: i"
+	p0 := &i // ERROR "moved to heap: p0"
 	p1 := &p0
 	p2 := p1
 	sink = p2
 }
 
 func level6() {
-	i := 0    // ERROR "moved to heap: i"
+	i := 0 // ERROR "moved to heap: i"
 	p0 := &i
 	p1 := &p0
 	p2 := p1
@@ -67,16 +67,16 @@ func level6() {
 }
 
 func level7() {
-	i := 0    // ERROR "moved to heap: i"
+	i := 0 // ERROR "moved to heap: i"
 	p0 := &i
 	p1 := &p0
 	// note *p1 == &i
-	p2 := *p1  // ERROR "moved to heap: p2"
+	p2 := *p1 // ERROR "moved to heap: p2"
 	sink = &p2
 }
 
 func level8() {
-	i := 0    // ERROR "moved to heap: i"
+	i := 0 // ERROR "moved to heap: i"
 	p0 := &i
 	p1 := &p0
 	p2 := *p1

@@ -11,9 +11,9 @@ func main() {
 	// hash codes so it missed the duplication
 	// and worse, compiled the wrong code
 	// for one of them.
-	var x interface{};
+	var x interface{}
 	switch x.(type) {
 	case func(int):
-	case func(f int):	// ERROR "duplicate"
+	case func(f int): // ERROR "duplicate"
 	}
 }

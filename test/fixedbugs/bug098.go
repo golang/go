@@ -6,13 +6,13 @@
 
 package main
 
-type A []int;
-type M map[int] int;
+type A []int
+type M map[int]int
 
 func main() {
-	var a *A = &A{0};
-	var m *M = &M{0 : 0};  // should be legal to use & here for consistency with other composite constructors (prev. line)
-	_, _ = a, m;
+	var a *A = &A{0}
+	var m *M = &M{0: 0} // should be legal to use & here for consistency with other composite constructors (prev. line)
+	_, _ = a, m
 }
 
 /*

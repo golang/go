@@ -52,7 +52,7 @@ func test() error {
 	var buf bytes.Buffer
 	buf.WriteString(start)
 	for i := 0; i < count; i++ {
-		fmt.Fprintf(&buf, fn, i, i + 1)
+		fmt.Fprintf(&buf, fn, i, i+1)
 	}
 	fmt.Fprintf(&buf, fnlast, count)
 

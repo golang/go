@@ -5,4 +5,5 @@
 // license that can be found in the LICENSE file.
 
 package bug063
+
 const c = 0 ^ 0

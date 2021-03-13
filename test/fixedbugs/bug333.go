@@ -9,9 +9,9 @@
 package main
 
 func main() {
-       type Ts string
-       var ts Ts
-       _ = []byte(ts)
+	type Ts string
+	var ts Ts
+	_ = []byte(ts)
 }
 
 /*

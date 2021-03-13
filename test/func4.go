@@ -12,7 +12,7 @@ package main
 var notmain func()
 
 func main() {
-	var x = &main		// ERROR "address of|invalid"
-	main = notmain	// ERROR "assign to|invalid"
+	var x = &main  // ERROR "address of|invalid"
+	main = notmain // ERROR "assign to|invalid"
 	_ = x
 }

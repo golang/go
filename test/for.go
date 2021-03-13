@@ -44,11 +44,11 @@ func main() {
 	for sum < 100 {
 		sum = sum + 9
 	}
-	assertequal(sum, 99 + 9, "only one")
+	assertequal(sum, 99+9, "only one")
 
 	sum = 0
 	for i := 0; i <= 10; i++ {
-		if i % 2 == 0 {
+		if i%2 == 0 {
 			continue
 		}
 		sum = sum + i

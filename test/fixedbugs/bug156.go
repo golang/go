@@ -7,9 +7,9 @@
 package main
 
 func f(a int64) int64 {
-	const b int64 = 0;
-	n := a &^ b;
-	return n;
+	const b int64 = 0
+	n := a &^ b
+	return n
 }
 
 func main() {

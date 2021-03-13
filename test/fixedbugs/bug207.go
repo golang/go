@@ -12,12 +12,12 @@ package main
 import "fmt"
 
 type T struct {
-	a, b, c, d, e []int;
+	a, b, c, d, e []int
 }
 
 var t T
 
 func main() {
-	if fmt.Sprint("xxx", t) != "yyy" { 
+	if fmt.Sprint("xxx", t) != "yyy" {
 	}
 }

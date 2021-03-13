@@ -8,4 +8,3 @@
 // complex literals "a+bi" to "a+b".
 
 package ignored
-

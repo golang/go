@@ -23,11 +23,13 @@ func main() {
 	}
 }
 
-func foo(_ int) {}
+func foo(_ int)     {}
 func foo2(_, _ int) {}
 func foo3(int, int) {}
+
 type T int
-func (_ T) m1() {}
+
+func (_ T) m1()      {}
 func (t T) m2(_ int) {}
 
 func side() int {

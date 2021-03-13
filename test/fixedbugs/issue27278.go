@@ -50,7 +50,7 @@ func grow(n int) {
 	if n == 0 {
 		return
 	}
-	grow(n-1)
+	grow(n - 1)
 }
 
 // put some junk on stack, which cannot be valid address

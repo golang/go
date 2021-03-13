@@ -16,8 +16,6 @@ func ff( /*line :10*/ x string) bool {
 	return x == ""
 }
 
-
 func h(a string) bool {
 	return ff(a)
 }
-

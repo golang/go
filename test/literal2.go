@@ -31,8 +31,8 @@ func main() {
 	assert(0_1 == 01)
 	assert(012 == 012)
 	assert(0_1_2 == 012)
-	assert(0_1_2i == complex(0, 12)) // decimal digits despite leading 0 for backward-compatibility
-	assert(00089i == complex(0, 89)) // decimal digits despite leading 0 for backward-compatibility
+	assert(1_2i == complex(0, 12)) // decimal digits despite leading 0 for backward-compatibility
+	assert(89i == complex(0, 89))  // decimal digits despite leading 0 for backward-compatibility
 
 	// decimals
 	assert(1_000_000 == 1000000)

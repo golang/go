@@ -9,10 +9,10 @@
 package main
 
 // struct with four fields of basic type
-type S struct {a, b, c, d int}
+type S struct{ a, b, c, d int }
 
 // struct with five fields of basic type
-type T struct {a, b, c, d, e int}
+type T struct{ a, b, c, d, e int }
 
 // array with four elements
 type A [4]int

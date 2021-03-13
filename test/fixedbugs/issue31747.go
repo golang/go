@@ -14,10 +14,10 @@ const (
 	_ = 0xabc // ok
 	_ = 0x0p1 // ERROR "hexadecimal floating-point literals requires go1.13 or later"
 
-	_ = 0B111 // ERROR "binary"
-	_ = 0O567 // ERROR "octal"
-	_ = 0Xabc // ok
-	_ = 0X0P1 // ERROR "hexadecimal floating-point"
+	_ = 0b111 // ERROR "binary"
+	_ = 0o567 // ERROR "octal"
+	_ = 0xabc // ok
+	_ = 0x0p1 // ERROR "hexadecimal floating-point"
 
 	_ = 1_000i // ERROR "underscores"
 	_ = 0b111i // ERROR "binary"
