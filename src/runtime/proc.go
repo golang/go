@@ -1318,7 +1318,7 @@ func mstart1() {
 		throw("bad runtime·mstart")
 	}
 
-	// Set up m.g0.sched as a label returning returning to just
+	// Set up m.g0.sched as a label returning to just
 	// after the mstart1 call in mstart0 above, for use by goexit0 and mcall.
 	// We're never coming back to mstart1 after we call schedule,
 	// so other calls can reuse the current frame.

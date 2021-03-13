@@ -279,7 +279,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	// things in registers and pushing them onto the stack prior to
 	// the ABI0 call, meaning that they will always need to allocate
 	// stack space. If the compiler marks them as NOSPLIT this seems
-	// as though it could lead to situations where the the linker's
+	// as though it could lead to situations where the linker's
 	// nosplit-overflow analysis would trigger a link failure. On the
 	// other hand if they not tagged NOSPLIT then this could cause
 	// problems when building the runtime (since there may be calls to

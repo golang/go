@@ -42,7 +42,7 @@ func (t T1[[ /* ERROR must be an identifier */ ]int]) m2() {}
 func (t T1[int]) m3() { var _ int = 42 /* ERROR cannot use 42 .* as int */ }
 
 // The names of the type parameters used in a parameterized receiver
-// type don't have to match the type parameter names in the the declaration
+// type don't have to match the type parameter names in the declaration
 // of the type used for the receiver. In our example, even though T1 is
 // declared with type parameter named A, methods using that receiver type
 // are free to use their own name for that type parameter. That is, the

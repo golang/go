@@ -185,7 +185,7 @@ func (c *dbClient) initBase() {
 		}
 	})
 	if errors.Is(err, fs.ErrNotExist) {
-		// No proxies, or all proxies failed (with 404, 410, or were were allowed
+		// No proxies, or all proxies failed (with 404, 410, or were allowed
 		// to fall back), or we reached an explicit "direct" or "off".
 		c.base = c.direct
 	} else if err != nil {
