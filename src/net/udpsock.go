@@ -6,6 +6,7 @@ package net
 
 import (
 	"context"
+	"internal/itoa"
 	"syscall"
 )
 
@@ -34,9 +35,9 @@ func (a *UDPAddr) String() string {
 	}
 	ip := ipEmptyString(a.IP)
 	if a.Zone != "" {
-		return JoinHostPort(ip+"%"+a.Zone, itoa(a.Port))
+		return JoinHostPort(ip+"%"+a.Zone, itoa.Itoa(a.Port))
 	}
-	return JoinHostPort(ip, itoa(a.Port))
+	return JoinHostPort(ip, itoa.Itoa(a.Port))
 }
 
 func (a *UDPAddr) isWildcard() bool {

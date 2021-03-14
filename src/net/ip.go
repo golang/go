@@ -12,7 +12,10 @@
 
 package net
 
-import "internal/bytealg"
+import (
+	"internal/bytealg"
+	"internal/itoa"
+)
 
 // IP address lengths (bytes).
 const (
@@ -531,7 +534,7 @@ func (n *IPNet) String() string {
 	if l == -1 {
 		return nn.String() + "/" + m.String()
 	}
-	return nn.String() + "/" + uitoa(uint(l))
+	return nn.String() + "/" + itoa.Uitoa(uint(l))
 }
 
 // Parse IPv4 address (d.d.d.d).

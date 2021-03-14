@@ -11,7 +11,10 @@
 
 package syscall
 
-import "unsafe"
+import (
+	"internal/itoa"
+	"unsafe"
+)
 
 func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)
 
@@ -225,7 +228,7 @@ func Futimesat(dirfd int, path string, tv []Timeval) (err error) {
 func Futimes(fd int, tv []Timeval) (err error) {
 	// Believe it or not, this is the best we can do on Linux
 	// (and is what glibc does).
-	return Utimes("/proc/self/fd/"+itoa(fd), tv)
+	return Utimes("/proc/self/fd/"+itoa.Itoa(fd), tv)
 }
 
 const ImplementsGetwd = true

@@ -8,6 +8,7 @@
 package syscall
 
 import (
+	"internal/itoa"
 	"runtime"
 	"unsafe"
 )
@@ -568,7 +569,7 @@ func forkExecPipe(p []int) (err error) {
 func formatIDMappings(idMap []SysProcIDMap) []byte {
 	var data []byte
 	for _, im := range idMap {
-		data = append(data, []byte(itoa(im.ContainerID)+" "+itoa(im.HostID)+" "+itoa(im.Size)+"\n")...)
+		data = append(data, []byte(itoa.Itoa(im.ContainerID)+" "+itoa.Itoa(im.HostID)+" "+itoa.Itoa(im.Size)+"\n")...)
 	}
 	return data
 }
@@ -597,7 +598,7 @@ func writeIDMappings(path string, idMap []SysProcIDMap) error {
 // This is needed since kernel 3.19, because you can't write gid_map without
 // disabling setgroups() system call.
 func writeSetgroups(pid int, enable bool) error {
-	sgf := "/proc/" + itoa(pid) + "/setgroups"
+	sgf := "/proc/" + itoa.Itoa(pid) + "/setgroups"
 	fd, err := Open(sgf, O_RDWR, 0)
 	if err != nil {
 		return err
@@ -622,7 +623,7 @@ func writeSetgroups(pid int, enable bool) error {
 // for a process and it is called from the parent process.
 func writeUidGidMappings(pid int, sys *SysProcAttr) error {
 	if sys.UidMappings != nil {
-		uidf := "/proc/" + itoa(pid) + "/uid_map"
+		uidf := "/proc/" + itoa.Itoa(pid) + "/uid_map"
 		if err := writeIDMappings(uidf, sys.UidMappings); err != nil {
 			return err
 		}
@@ -633,7 +634,7 @@ func writeUidGidMappings(pid int, sys *SysProcAttr) error {
 		if err := writeSetgroups(pid, sys.GidMappingsEnableSetgroups); err != nil && err != ENOENT {
 			return err
 		}
-		gidf := "/proc/" + itoa(pid) + "/gid_map"
+		gidf := "/proc/" + itoa.Itoa(pid) + "/gid_map"
 		if err := writeIDMappings(gidf, sys.GidMappings); err != nil {
 			return err
 		}
