@@ -389,6 +389,13 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				typecheck.Callee(call.X)
 				call.SetTypecheck(0)
 				typecheck.Call(call)
+			} else if call.X.Op() == ir.ODOT || call.X.Op() == ir.ODOTPTR {
+				// An OXDOT for a generic receiver was resolved to
+				// an access to a field which has a function
+				// value. Typecheck the call to that function, now
+				// that the OXDOT was resolved.
+				call.SetTypecheck(0)
+				typecheck.Call(call)
 			} else if call.X.Op() != ir.OFUNCINST {
 				// A call with an OFUNCINST will get typechecked
 				// in stencil() once we have created & attached the
