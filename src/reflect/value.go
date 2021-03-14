@@ -6,6 +6,7 @@ package reflect
 
 import (
 	"internal/abi"
+	"internal/itoa"
 	"internal/unsafeheader"
 	"math"
 	"runtime"
@@ -2770,7 +2771,7 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
 
 // Convert returns the value v converted to type t.
 // If the usual Go conversion rules do not allow conversion
-// of the value v to type t, Convert panics.
+// of the value v to type t, or if converting v to type t panics, Convert panics.
 func (v Value) Convert(t Type) Value {
 	if v.flag&flagMethod != 0 {
 		v = makeMethodValue("Convert", v)
@@ -2840,6 +2841,11 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 			case Int32:
 				return cvtRunesString
 			}
+		}
+		// "x is a slice, T is a pointer-to-array type,
+		// and the slice and array types have identical element types."
+		if dst.Kind() == Ptr && dst.Elem().Kind() == Array && src.Elem() == dst.Elem().Elem() {
+			return cvtSliceArrayPtr
 		}
 
 	case Chan:
@@ -3032,6 +3038,16 @@ func cvtRunesString(v Value, t Type) Value {
 // convertOp: string -> []rune
 func cvtStringRunes(v Value, t Type) Value {
 	return makeRunes(v.flag.ro(), []rune(v.String()), t)
+}
+
+// convertOp: []T -> *[N]T
+func cvtSliceArrayPtr(v Value, t Type) Value {
+	n := t.Elem().Len()
+	h := (*unsafeheader.Slice)(v.ptr)
+	if n > h.Len {
+		panic("reflect: cannot convert slice with length " + itoa.Itoa(h.Len) + " to array pointer with length " + itoa.Itoa(n))
+	}
+	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Ptr)}
 }
 
 // convertOp: direct copy
