@@ -7,10 +7,13 @@
 
 package os
 
-import "syscall"
+import (
+	"internal/itoa"
+	"syscall"
+)
 
 func executable() (string, error) {
-	fn := "/proc/" + itoa(Getpid()) + "/text"
+	fn := "/proc/" + itoa.Itoa(Getpid()) + "/text"
 	f, err := Open(fn)
 	if err != nil {
 		return "", err

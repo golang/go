@@ -18,6 +18,7 @@ package net
 import (
 	"context"
 	"errors"
+	"internal/itoa"
 	"io"
 	"os"
 	"sync"
@@ -510,7 +511,7 @@ func (o hostLookupOrder) String() string {
 	if s, ok := lookupOrderName[o]; ok {
 		return s
 	}
-	return "hostLookupOrder=" + itoa(int(o)) + "??"
+	return "hostLookupOrder=" + itoa.Itoa(int(o)) + "??"
 }
 
 // goLookupHost is the native Go implementation of LookupHost.
