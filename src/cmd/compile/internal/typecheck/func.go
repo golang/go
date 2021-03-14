@@ -308,7 +308,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 		return
 	}
 
-	// Don't give a name and add to xtop if we are typechecking an inlined
+	// Don't give a name and add to Target.Decls if we are typechecking an inlined
 	// body in ImportedBody(), since we only want to create the named function
 	// when the closure is actually inlined (and then we force a typecheck
 	// explicitly in (*inlsubst).node()).
@@ -354,7 +354,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 		ir.Dump(s, fn)
 	}
 	if !inTypeCheckInl {
-		// Add function to xtop once only when we give it a name
+		// Add function to Target.Decls once only when we give it a name
 		Target.Decls = append(Target.Decls, fn)
 	}
 }
