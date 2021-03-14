@@ -205,6 +205,11 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.ConvExpr)
 		return walkConv(n, init)
 
+	case ir.OSLICE2ARRPTR:
+		n := n.(*ir.ConvExpr)
+		n.X = walkExpr(n.X, init)
+		return n
+
 	case ir.ODIV, ir.OMOD:
 		n := n.(*ir.BinaryExpr)
 		return walkDivMod(n, init)

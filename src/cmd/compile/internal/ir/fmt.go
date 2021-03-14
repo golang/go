@@ -206,6 +206,7 @@ var OpPrec = []int{
 	OPRINT:         8,
 	ORUNESTR:       8,
 	OSIZEOF:        8,
+	OSLICE2ARRPTR:  8,
 	OSTR2BYTES:     8,
 	OSTR2RUNES:     8,
 	OSTRUCTLIT:     8,
@@ -804,7 +805,8 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		ORUNES2STR,
 		OSTR2BYTES,
 		OSTR2RUNES,
-		ORUNESTR:
+		ORUNESTR,
+		OSLICE2ARRPTR:
 		n := n.(*ConvExpr)
 		if n.Type() == nil || n.Type().Sym() == nil {
 			fmt.Fprintf(s, "(%v)", n.Type())

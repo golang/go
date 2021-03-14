@@ -160,6 +160,12 @@ func goPanicSlice3CU(x uint, y int) {
 	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSlice3C})
 }
 
+// failures in the conversion (*[x]T)s, 0 <= x <= y, x == cap(s)
+func goPanicSliceConvert(x int, y int) {
+	panicCheck1(getcallerpc(), "slice length too short to convert to pointer to array")
+	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsConvert})
+}
+
 // Implemented in assembly, as they take arguments in registers.
 // Declared here to mark them as ABIInternal.
 func panicIndex(x int, y int)
@@ -178,6 +184,7 @@ func panicSlice3B(x int, y int)
 func panicSlice3BU(x uint, y int)
 func panicSlice3C(x int, y int)
 func panicSlice3CU(x uint, y int)
+func panicSliceConvert(x int, y int)
 
 var shiftError = error(errorString("negative shift amount"))
 

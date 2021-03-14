@@ -137,6 +137,7 @@ const (
 	OSTR2BYTES    // Type(Left) (Type is []byte, Left is a string)
 	OSTR2BYTESTMP // Type(Left) (Type is []byte, Left is a string, ephemeral)
 	OSTR2RUNES    // Type(Left) (Type is []rune, Left is a string)
+	OSLICE2ARRPTR // Type(Left) (Type is *[N]T, Left is a []T)
 	// Left = Right or (if Colas=true) Left := Right
 	// If Colas, then Ninit includes a DCL node for Left.
 	OAS

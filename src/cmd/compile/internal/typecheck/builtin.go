@@ -39,6 +39,7 @@ var runtimeDecls = [...]struct {
 	{"goPanicSlice3BU", funcTag, 18},
 	{"goPanicSlice3C", funcTag, 16},
 	{"goPanicSlice3CU", funcTag, 18},
+	{"goPanicSliceConvert", funcTag, 16},
 	{"printbool", funcTag, 19},
 	{"printfloat", funcTag, 21},
 	{"printint", funcTag, 23},

@@ -669,7 +669,10 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 			k = e.spill(k, n)
 		}
 		e.expr(k.note(n, "interface-converted"), n.X)
-
+	case ir.OSLICE2ARRPTR:
+		// the slice pointer flows directly to the result
+		n := n.(*ir.ConvExpr)
+		e.expr(k, n.X)
 	case ir.ORECV:
 		n := n.(*ir.UnaryExpr)
 		e.discard(n.X)

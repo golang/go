@@ -164,6 +164,7 @@ func InitConfig() {
 		BoundsCheckFunc[ssa.BoundsSlice3BU] = typecheck.LookupRuntimeFunc("goPanicSlice3BU")
 		BoundsCheckFunc[ssa.BoundsSlice3C] = typecheck.LookupRuntimeFunc("goPanicSlice3C")
 		BoundsCheckFunc[ssa.BoundsSlice3CU] = typecheck.LookupRuntimeFunc("goPanicSlice3CU")
+		BoundsCheckFunc[ssa.BoundsConvert] = typecheck.LookupRuntimeFunc("goPanicSliceConvert")
 	} else {
 		BoundsCheckFunc[ssa.BoundsIndex] = typecheck.LookupRuntimeFunc("panicIndex")
 		BoundsCheckFunc[ssa.BoundsIndexU] = typecheck.LookupRuntimeFunc("panicIndexU")
@@ -181,6 +182,7 @@ func InitConfig() {
 		BoundsCheckFunc[ssa.BoundsSlice3BU] = typecheck.LookupRuntimeFunc("panicSlice3BU")
 		BoundsCheckFunc[ssa.BoundsSlice3C] = typecheck.LookupRuntimeFunc("panicSlice3C")
 		BoundsCheckFunc[ssa.BoundsSlice3CU] = typecheck.LookupRuntimeFunc("panicSlice3CU")
+		BoundsCheckFunc[ssa.BoundsConvert] = typecheck.LookupRuntimeFunc("panicSliceConvert")
 	}
 	if Arch.LinkArch.PtrSize == 4 {
 		ExtendCheckFunc[ssa.BoundsIndex] = typecheck.LookupRuntimeVar("panicExtendIndex")
@@ -3147,6 +3149,18 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		}
 		p, l, _ := s.slice(v, i, j, nil, n.Bounded())
 		return s.newValue2(ssa.OpStringMake, n.Type(), p, l)
+
+	case ir.OSLICE2ARRPTR:
+		// if arrlen > slice.len {
+		//   panic(...)
+		// }
+		// slice.ptr
+		n := n.(*ir.ConvExpr)
+		v := s.expr(n.X)
+		arrlen := s.constInt(types.Types[types.TINT], n.Type().Elem().NumElem())
+		cap := s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], v)
+		s.boundsCheck(arrlen, cap, ssa.BoundsConvert, false)
+		return s.newValue1(ssa.OpSlicePtrUnchecked, types.Types[types.TINT], v)
 
 	case ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)

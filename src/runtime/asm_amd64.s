@@ -2091,6 +2091,14 @@ TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVQ	CX, y+8(FP)
 #endif
 	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
+TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	DX, AX
+#else
+	MOVQ	DX, x+0(FP)
+	MOVQ	BX, y+8(FP)
+#endif
+	JMP	runtime·goPanicSliceConvert<ABIInternal>(SB)
 
 #ifdef GOOS_android
 // Use the free TLS_SLOT_APP slot #2 on Android Q.
