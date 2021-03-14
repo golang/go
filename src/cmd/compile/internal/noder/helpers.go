@@ -138,30 +138,19 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 		return n
 	}
 	if fun.Op() != ir.OFUNCINST {
-		// If no type params, still do normal typechecking, since we're
-		// still missing some things done by tcCall below (mainly
-		// typecheckargs and typecheckaste).
+		// If no type params, do normal typechecking, since we're
+		// still missing some things done by tcCall (mainly
+		// typecheckaste/assignconvfn - implementing assignability of args
+		// to params).  This will convert OCALL to OCALLFUNC.
 		typecheck.Call(n)
 		return n
 	}
 
+	// Leave the op as OCALL, which indicates the call still needs typechecking.
 	n.Use = ir.CallUseExpr
 	if fun.Type().NumResults() == 0 {
 		n.Use = ir.CallUseStmt
 	}
-
-	// Rewrite call node depending on use.
-	switch fun.Op() {
-	case ir.ODOTINTER:
-		n.SetOp(ir.OCALLINTER)
-
-	case ir.ODOTMETH:
-		n.SetOp(ir.OCALLMETH)
-
-	default:
-		n.SetOp(ir.OCALLFUNC)
-	}
-
 	typed(typ, n)
 	return n
 }
