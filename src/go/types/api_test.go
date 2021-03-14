@@ -1430,6 +1430,9 @@ func TestConvertibleTo(t *testing.T) {
 		{newDefined(new(Struct)), new(Struct), true},
 		{newDefined(Typ[Int]), new(Struct), false},
 		{Typ[UntypedInt], Typ[Int], true},
+		{NewSlice(Typ[Int]), NewPointer(NewArray(Typ[Int], 10)), true},
+		{NewSlice(Typ[Int]), NewArray(Typ[Int], 10), false},
+		{NewSlice(Typ[Int]), NewPointer(NewArray(Typ[Uint], 10)), false},
 		// Untyped string values are not permitted by the spec, so the below
 		// behavior is undefined.
 		{Typ[UntypedString], Typ[String], true},

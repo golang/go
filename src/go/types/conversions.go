@@ -133,6 +133,18 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
 		return true
 	}
 
+	// "x is a slice, T is a pointer-to-array type,
+	// and the slice and array types have identical element types."
+	if s := asSlice(V); s != nil {
+		if p := asPointer(T); p != nil {
+			if a := asArray(p.Elem()); a != nil {
+				if check.identical(s.Elem(), a.Elem()) {
+					return true
+				}
+			}
+		}
+	}
+
 	return false
 }
 
