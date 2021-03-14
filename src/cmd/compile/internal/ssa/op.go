@@ -469,6 +469,7 @@ const (
 	BoundsSlice3BU                      // ... with unsigned high
 	BoundsSlice3C                       // 3-arg slicing operation, 0 <= low <= high failed
 	BoundsSlice3CU                      // ... with unsigned low
+	BoundsConvert                       // conversion to array pointer failed
 	BoundsKindCount
 )
 
@@ -496,7 +497,8 @@ func boundsABI(b int64) int {
 	case BoundsSlice3Alen,
 		BoundsSlice3AlenU,
 		BoundsSlice3Acap,
-		BoundsSlice3AcapU:
+		BoundsSlice3AcapU,
+		BoundsConvert:
 		return 0
 	case BoundsSliceAlen,
 		BoundsSliceAlenU,

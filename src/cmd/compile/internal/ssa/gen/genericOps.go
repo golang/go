@@ -479,6 +479,10 @@ var genericOps = []opData{
 	{name: "SlicePtr", argLength: 1, typ: "BytePtr"}, // ptr(arg0)
 	{name: "SliceLen", argLength: 1},                 // len(arg0)
 	{name: "SliceCap", argLength: 1},                 // cap(arg0)
+	// SlicePtrUnchecked, like SlicePtr, extracts the pointer from a slice.
+	// SlicePtr values are assumed non-nil, because they are guarded by bounds checks.
+	// SlicePtrUnchecked values can be nil.
+	{name: "SlicePtrUnchecked", argLength: 1},
 
 	// Complex (part/whole)
 	{name: "ComplexMake", argLength: 2}, // arg0=real, arg1=imag

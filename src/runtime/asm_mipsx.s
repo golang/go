@@ -801,6 +801,10 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-8
 	MOVW	R1, x+0(FP)
 	MOVW	R2, y+4(FP)
 	JMP	runtime·goPanicSlice3CU(SB)
+TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-8
+	MOVW	R3, x+0(FP)
+	MOVW	R4, y+4(FP)
+	JMP	runtime·goPanicSliceConvert(SB)
 
 // Extended versions for 64-bit indexes.
 TEXT runtime·panicExtendIndex(SB),NOSPLIT,$0-12

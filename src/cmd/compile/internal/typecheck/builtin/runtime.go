@@ -46,6 +46,7 @@ func goPanicSlice3B(x int, y int)
 func goPanicSlice3BU(x uint, y int)
 func goPanicSlice3C(x int, y int)
 func goPanicSlice3CU(x uint, y int)
+func goPanicSliceConvert(x int, y int)
 
 func printbool(bool)
 func printfloat(float64)

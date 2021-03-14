@@ -163,6 +163,10 @@ func TestStdTest(t *testing.T) {
 		"embedfunc.go",   // tests //go:embed
 		"embedvers.go",   // tests //go:embed
 		"linkname2.go",   // go/types doesn't check validity of //go:xxx directives
+
+		"convert2.go",     // temporary: go/types doesn't know yet about converting from slices to array pointers
+		"convert4.go",     // temporary: go/types doesn't know yet about converting from slices to array pointers
+		"escape_slice.go", // temporary: go/types doesn't know yet about converting from slices to array pointers
 	)
 }
 
