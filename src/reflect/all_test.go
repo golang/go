@@ -3822,6 +3822,10 @@ type MyStruct2 struct {
 }
 type MyString string
 type MyBytes []byte
+type MyBytesArrayPtr0 *[0]byte
+type MyBytesArrayPtr *[4]byte
+type MyBytesArray0 [0]byte
+type MyBytesArray [4]byte
 type MyRunes []int32
 type MyFunc func()
 type MyByte byte
@@ -4128,6 +4132,30 @@ var convertTests = []struct {
 	{V(MyString("runes♝")), V(MyRunes("runes♝"))},
 	{V(MyRunes("runes♕")), V(MyString("runes♕"))},
 
+	// slice to array pointer
+	{V([]byte(nil)), V((*[0]byte)(nil))},
+	{V([]byte{}), V(new([0]byte))},
+	{V([]byte{7}), V(&[1]byte{7})},
+	{V(MyBytes([]byte(nil))), V((*[0]byte)(nil))},
+	{V(MyBytes([]byte{})), V(new([0]byte))},
+	{V(MyBytes([]byte{9})), V(&[1]byte{9})},
+	{V([]byte(nil)), V(MyBytesArrayPtr0(nil))},
+	{V([]byte{}), V(MyBytesArrayPtr0(new([0]byte)))},
+	{V([]byte{1, 2, 3, 4}), V(MyBytesArrayPtr(&[4]byte{1, 2, 3, 4}))},
+	{V(MyBytes([]byte{})), V(MyBytesArrayPtr0(new([0]byte)))},
+	{V(MyBytes([]byte{5, 6, 7, 8})), V(MyBytesArrayPtr(&[4]byte{5, 6, 7, 8}))},
+
+	{V([]byte(nil)), V((*MyBytesArray0)(nil))},
+	{V([]byte{}), V((*MyBytesArray0)(new([0]byte)))},
+	{V([]byte{1, 2, 3, 4}), V(&MyBytesArray{1, 2, 3, 4})},
+	{V(MyBytes([]byte(nil))), V((*MyBytesArray0)(nil))},
+	{V(MyBytes([]byte{})), V((*MyBytesArray0)(new([0]byte)))},
+	{V(MyBytes([]byte{5, 6, 7, 8})), V(&MyBytesArray{5, 6, 7, 8})},
+	{V(new([0]byte)), V(new(MyBytesArray0))},
+	{V(new(MyBytesArray0)), V(new([0]byte))},
+	{V(MyBytesArrayPtr0(nil)), V((*[0]byte)(nil))},
+	{V((*[0]byte)(nil)), V(MyBytesArrayPtr0(nil))},
+
 	// named types and equal underlying types
 	{V(new(int)), V(new(integer))},
 	{V(new(integer)), V(new(int))},
@@ -4288,6 +4316,9 @@ func TestConvert(t *testing.T) {
 		if vout2.Type() != tt.out.Type() || !DeepEqual(out2, tt.out.Interface()) {
 			t.Errorf("ValueOf(%T(%[1]v)).Convert(%s) = %T(%[3]v), want %T(%[4]v)", tt.in.Interface(), t2, out2, tt.out.Interface())
 		}
+		if got, want := vout2.Kind(), vout2.Type().Kind(); got != want {
+			t.Errorf("ValueOf(%T(%[1]v)).Convert(%s) has internal kind %v want %v", tt.in.Interface(), t1, got, want)
+		}
 
 		// vout3 represents a new value of the out type, set to vout2.  This makes
 		// sure the converted value vout2 is really usable as a regular value.
@@ -4330,6 +4361,19 @@ func TestConvert(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestConvertPanic(t *testing.T) {
+	s := make([]byte, 4)
+	p := new([8]byte)
+	v := ValueOf(s)
+	pt := TypeOf(p)
+	if !v.Type().ConvertibleTo(pt) {
+		t.Errorf("[]byte should be convertible to *[8]byte")
+	}
+	shouldPanic("reflect: cannot convert slice with length 4 to array pointer with length 8", func() {
+		_ = v.Convert(pt)
+	})
 }
 
 var gFloat32 float32

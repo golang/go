@@ -106,9 +106,11 @@ type Type interface {
 	AssignableTo(u Type) bool
 
 	// ConvertibleTo reports whether a value of the type is convertible to type u.
+	// Even if ConvertibleTo returns true, the conversion may still panic.
 	ConvertibleTo(u Type) bool
 
 	// Comparable reports whether values of this type are comparable.
+	// Even if Comparable returns true, the comparison may still panic.
 	Comparable() bool
 
 	// Methods applicable only to some types, depending on Kind.
