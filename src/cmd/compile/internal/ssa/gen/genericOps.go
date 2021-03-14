@@ -264,7 +264,7 @@ var genericOps = []opData{
 	//   ±0  → ±0 (sign preserved)
 	//   x<0 → NaN
 	//   NaN → NaN
-	{name: "Sqrt", argLength: 1},   // √arg0   (floating point, double precision)
+	{name: "Sqrt", argLength: 1},   // √arg0 (floating point, double precision)
 	{name: "Sqrt32", argLength: 1}, // √arg0 (floating point, single precision)
 
 	// Round to integer, float64 only.
