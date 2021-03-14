@@ -118,7 +118,7 @@ func (d *deadcodePass) flood() {
 
 		if isgotype {
 			if d.dynlink {
-				// When dynaamic linking, a type may be passed across DSO
+				// When dynamic linking, a type may be passed across DSO
 				// boundary and get converted to interface at the other side.
 				d.ldr.SetAttrUsedInIface(symIdx, true)
 			}
