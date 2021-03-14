@@ -88,9 +88,8 @@ func _Map[a, b any](f _Function[a, b], xs _List[a]) _List[b] {
 
 func main() {
 	var xs _List[int] = _Cons[int]{3, _Cons[int]{6, _Nil[int]{}}}
-	// TODO(danscales): Remove conversion calls in next two, needed for now.
-	var ys _List[int] = _Map[int, int](_Function[int, int](incr{-5}), xs)
-	var xz _List[bool] = _Map[int, bool](_Function[int, bool](pos{}), ys)
+	var ys _List[int] = _Map[int, int](incr{-5}, xs)
+	var xz _List[bool] = _Map[int, bool](pos{}, ys)
 	cs1 := xz.(_Cons[bool])
 	cs2 := cs1.Tail.(_Cons[bool])
 	_, ok := cs2.Tail.(_Nil[bool])

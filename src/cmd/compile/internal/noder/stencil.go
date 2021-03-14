@@ -73,7 +73,7 @@ func (g *irgen) stencil() {
 				// immediately called.
 				foundFuncInst = true
 			}
-			if n.Op() != ir.OCALLFUNC || n.(*ir.CallExpr).X.Op() != ir.OFUNCINST {
+			if n.Op() != ir.OCALL || n.(*ir.CallExpr).X.Op() != ir.OFUNCINST {
 				return
 			}
 			// We have found a function call using a generic function
@@ -95,6 +95,10 @@ func (g *irgen) stencil() {
 				copy(withRecv[1:], call.Args)
 				call.Args = withRecv
 			}
+			// Do the typechecking of the Call now, which changes OCALL
+			// to OCALLFUNC and does typecheckaste/assignconvfn.
+			call.SetTypecheck(0)
+			typecheck.Call(call)
 			modified = true
 		})
 
@@ -348,7 +352,8 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// an error.
 				_, isCallExpr := m.(*ir.CallExpr)
 				_, isStructKeyExpr := m.(*ir.StructKeyExpr)
-				if !isCallExpr && !isStructKeyExpr {
+				if !isCallExpr && !isStructKeyExpr && x.Op() != ir.OPANIC &&
+					x.Op() != ir.OCLOSE {
 					base.Fatalf(fmt.Sprintf("Nil type for %v", x))
 				}
 			} else if x.Op() != ir.OCLOSURE {
@@ -382,10 +387,13 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				call.X.SetTypecheck(0)
 				call.X.SetType(nil)
 				typecheck.Callee(call.X)
-				m.SetTypecheck(0)
-				typecheck.Call(m.(*ir.CallExpr))
-			} else {
-				base.FatalfAt(call.Pos(), "Expecting OCALLPART or OTYPE with CALL")
+				call.SetTypecheck(0)
+				typecheck.Call(call)
+			} else if call.X.Op() != ir.OFUNCINST {
+				// A call with an OFUNCINST will get typechecked
+				// in stencil() once we have created & attached the
+				// instantiation to be called.
+				base.FatalfAt(call.Pos(), "Expecting OCALLPART or OTYPE or OFUNCINST with CALL")
 			}
 		}
 
@@ -420,6 +428,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			// Set Ntype for now to be compatible with later parts of compiler
 			newfn.Nname.Ntype = subst.node(oldfn.Nname.Ntype).(ir.Ntype)
 			typed(subst.typ(oldfn.Nname.Type()), newfn.Nname)
+			typed(newfn.Nname.Type(), m)
 			newfn.SetTypecheck(1)
 			subst.g.target.Decls = append(subst.g.target.Decls, newfn)
 		}
@@ -664,7 +673,18 @@ func (subst *subster) typ(t *types.Type) *types.Type {
 			newt = nil
 		}
 
-		// TODO: case TCHAN
+	case types.TCHAN:
+		elem := t.Elem()
+		newelem := subst.typ(elem)
+		if newelem != elem {
+			newt = types.NewChan(newelem, t.ChanDir())
+			if !newt.HasTParam() {
+				// TODO(danscales): not sure why I have to do this
+				// only for channels.....
+				types.CheckSize(newt)
+			}
+		}
+
 		// TODO: case TMAP
 	}
 	if newt == nil {
