@@ -252,7 +252,7 @@ func TestTzset(t *testing.T) {
 		{"PST8PDT,M3.2.0,M11.1.0", 0, 2172733201, "PST", -8 * 60 * 60, 2172733200, 2177452800, false, true},
 	} {
 		name, off, start, end, isDST, ok := time.Tzset(test.inStr, test.inEnd, test.inSec)
-		if name != test.name || off != test.off || start != test.start || end != test.end || ok != test.ok {
+		if name != test.name || off != test.off || start != test.start || end != test.end || isDST != test.isDST || ok != test.ok {
 			t.Errorf("tzset(%q, %d, %d) = %q, %d, %d, %d, %t, %t, want %q, %d, %d, %d, %t, %t", test.inStr, test.inEnd, test.inSec, name, off, start, end, isDST, ok, test.name, test.off, test.start, test.end, test.isDST, test.ok)
 		}
 	}
