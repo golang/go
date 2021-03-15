@@ -317,10 +317,15 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
 
 	startSec := int64(tzruleTime(year, startRule, stdOffset))
 	endSec := int64(tzruleTime(year, endRule, dstOffset))
+	dstIsDST, stdIsDST := true, false
+	// Note: this is a flipping of "DST" and "STD" while retaining the labels
+	// This happens in southern hemispheres. The labelling here thus is a little
+	// inconsistent with the goal.
 	if endSec < startSec {
 		startSec, endSec = endSec, startSec
 		stdName, dstName = dstName, stdName
 		stdOffset, dstOffset = dstOffset, stdOffset
+		stdIsDST, dstIsDST = dstIsDST, stdIsDST
 	}
 
 	// The start and end values that we return are accurate
@@ -328,11 +333,11 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
 	// just the start and end of the year. That suffices for
 	// the only caller that cares, which is Date.
 	if ysec < startSec {
-		return stdName, stdOffset, abs, startSec + abs, false, true
+		return stdName, stdOffset, abs, startSec + abs, stdIsDST, true
 	} else if ysec >= endSec {
-		return stdName, stdOffset, endSec + abs, abs + 365*secondsPerDay, false, true
+		return stdName, stdOffset, endSec + abs, abs + 365*secondsPerDay, stdIsDST, true
 	} else {
-		return dstName, dstOffset, startSec + abs, endSec + abs, true, true
+		return dstName, dstOffset, startSec + abs, endSec + abs, dstIsDST, true
 	}
 }
 

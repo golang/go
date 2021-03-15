@@ -1485,20 +1485,20 @@ func TestTimeIsDST(t *testing.T) {
 		time   Time
 		want bool
 	}{
-		0: {Date(2009, 6, 1, 12, 0, 0, 0, UTC), false},
-		1: {Date(2009, 1, 1, 12, 0, 0, 0, UTC), false},
-		2: {Date(2009, 6, 1, 12, 0, 0, 0, tzWithDST), true},
-		3: {Date(2009, 1, 1, 12, 0, 0, 0, tzWithDST), false},
-		4: {Date(2009, 6, 1, 12, 0, 0, 0, tzWithoutDST), false},
-		5: {Date(2009, 1, 1, 12, 0, 0, 0, tzWithoutDST), false},
-		6: {Date(2009, 6, 1, 12, 0, 0, 0, tzFixed), false},
-		7: {Date(2009, 1, 1, 12, 0, 0, 0, tzFixed), false},
+		0: {Date(2009, 1, 1, 12, 0, 0, 0, UTC), false},
+		1: {Date(2009, 6, 1, 12, 0, 0, 0, UTC), false},
+		2: {Date(2009, 1, 1, 12, 0, 0, 0, tzWithDST), true},
+		3: {Date(2009, 6, 1, 12, 0, 0, 0, tzWithDST), false},
+		4: {Date(2009, 1, 1, 12, 0, 0, 0, tzWithoutDST), false},
+		5: {Date(2009, 6, 1, 12, 0, 0, 0, tzWithoutDST), false},
+		6: {Date(2009, 1, 1, 12, 0, 0, 0, tzFixed), false},
+		7: {Date(2009, 6, 1, 12, 0, 0, 0, tzFixed), false},
 	}
 
 	for i, tt := range tests {
 		got := tt.time.IsDST()
 		if got != tt.want {
-			t.Errorf("#%d:: (%#v).IsDST()=%t, want %v", i, tt.time, got, tt.want)
+			t.Errorf("#%d:: (%#v).IsDST()=%t, want %v", i, tt.time.Format(RFC3339), got, tt.want)
 		}
 	}
 }
