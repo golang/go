@@ -764,7 +764,7 @@ func isValidImport(pkgPath, importPkgPath packagePath) bool {
 	if i == -1 {
 		return true
 	}
-	if pkgPath == "command-line-arguments" {
+	if isCommandLineArguments(string(pkgPath)) {
 		return true
 	}
 	return strings.HasPrefix(string(pkgPath), string(importPkgPath[:i]))

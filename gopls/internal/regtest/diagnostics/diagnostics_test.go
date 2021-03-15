@@ -572,12 +572,8 @@ hi mom
 			WithOptions(EditorConfig{
 				Env: map[string]string{"GO111MODULE": go111module},
 			}).Run(t, files, func(t *testing.T, env *Env) {
-				env.OpenFile("hello.txt")
 				env.Await(
-					OnceMet(
-						env.DoneWithOpen(),
-						NoShowMessage(),
-					),
+					NoOutstandingWork(),
 				)
 			})
 		})
@@ -603,7 +599,14 @@ func main() {
 	fmt.Println("")
 }
 `
-	WithOptions(InGOPATH()).Run(t, collision, func(t *testing.T, env *Env) {
+	WithOptions(
+		InGOPATH(),
+		EditorConfig{
+			Env: map[string]string{
+				"GO111MODULE": "off",
+			},
+		},
+	).Run(t, collision, func(t *testing.T, env *Env) {
 		env.OpenFile("x/x.go")
 		env.Await(
 			env.DiagnosticAtRegexpWithMessage("x/x.go", `^`, "found packages main (main.go) and x (x.go)"),
@@ -894,24 +897,6 @@ package foo_
 				env.DoneWithSave(),
 				NoDiagnostics("foo/foo.go"),
 			),
-		)
-	})
-}
-
-// Reproduces golang/go#40825.
-func TestEmptyGOPATHXTest_40825(t *testing.T) {
-	const files = `
--- x.go --
-package x
--- x_test.go --
-`
-
-	WithOptions(InGOPATH()).Run(t, files, func(t *testing.T, env *Env) {
-		env.OpenFile("x_test.go")
-		env.EditBuffer("x_test.go", fake.NewEdit(0, 0, 0, 0, "pack"))
-		env.Await(
-			env.DoneWithChange(),
-			NoShowMessage(),
 		)
 	})
 }
@@ -1491,6 +1476,11 @@ package foo_
 	WithOptions(
 		ProxyFiles(proxy),
 		InGOPATH(),
+		EditorConfig{
+			Env: map[string]string{
+				"GO111MODULE": "off",
+			},
+		},
 	).Run(t, contents, func(t *testing.T, env *Env) {
 		// Simulate typing character by character.
 		env.OpenFile("foo/foo_test.go")

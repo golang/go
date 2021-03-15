@@ -1085,7 +1085,7 @@ func shouldShowAdHocPackagesWarning(snapshot source.Snapshot, pkgs []source.Pack
 
 func containsCommandLineArguments(pkgs []source.Package) bool {
 	for _, pkg := range pkgs {
-		if strings.Contains(pkg.ID(), "command-line-arguments") {
+		if isCommandLineArguments(pkg.ID()) {
 			return true
 		}
 	}
@@ -1095,6 +1095,13 @@ func containsCommandLineArguments(pkgs []source.Package) bool {
 func (s *snapshot) awaitLoadedAllErrors(ctx context.Context) *source.CriticalError {
 	// Do not return results until the snapshot's view has been initialized.
 	s.AwaitInitialized(ctx)
+
+	// TODO(rstambler): Should we be more careful about returning the
+	// initialization error? Is it possible for the initialization error to be
+	// corrected without a successful reinitialization?
+	if s.initializedErr != nil {
+		return s.initializedErr
+	}
 
 	if ctx.Err() != nil {
 		return &source.CriticalError{MainError: ctx.Err()}
@@ -1114,10 +1121,7 @@ func (s *snapshot) awaitLoadedAllErrors(ctx context.Context) *source.CriticalErr
 			DiagList:  diags,
 		}
 	}
-	// TODO(rstambler): Should we be more careful about returning the
-	// initialization error? Is it possible for the initialization error to be
-	// corrected without a successful reinitialization?
-	return s.initializedErr
+	return nil
 }
 
 func (s *snapshot) AwaitInitialized(ctx context.Context) {
@@ -1173,11 +1177,27 @@ func (s *snapshot) reloadOrphanedFiles(ctx context.Context) error {
 	// that exist only in overlays. As a workaround, we search all of the files
 	// available in the snapshot and reload their metadata individually using a
 	// file= query if the metadata is unavailable.
-	scopes := s.orphanedFileScopes()
+	files := s.orphanedFiles()
+
+	// Files without a valid package declaration can't be loaded. Don't try.
+	var scopes []interface{}
+	for _, file := range files {
+		pgf, err := s.ParseGo(ctx, file, source.ParseHeader)
+		if err != nil {
+			continue
+		}
+		if !pgf.File.Package.IsValid() {
+			continue
+		}
+		scopes = append(scopes, fileURI(file.URI()))
+	}
+
 	if len(scopes) == 0 {
 		return nil
 	}
 
+	// The regtests match this exact log message, keep them in sync.
+	event.Log(ctx, "reloadOrphanedFiles reloading", tag.Query.Of(scopes))
 	err := s.load(ctx, false, scopes...)
 
 	// If we failed to load some files, i.e. they have no metadata,
@@ -1203,11 +1223,11 @@ func (s *snapshot) reloadOrphanedFiles(ctx context.Context) error {
 	return nil
 }
 
-func (s *snapshot) orphanedFileScopes() []interface{} {
+func (s *snapshot) orphanedFiles() []source.VersionedFileHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	scopeSet := make(map[span.URI]struct{})
+	var files []source.VersionedFileHandle
 	for uri, fh := range s.files {
 		// Don't try to reload metadata for go.mod files.
 		if fh.Kind() != source.Go {
@@ -1228,14 +1248,10 @@ func (s *snapshot) orphanedFileScopes() []interface{} {
 			continue
 		}
 		if s.getMetadataForURILocked(uri) == nil {
-			scopeSet[uri] = struct{}{}
+			files = append(files, fh)
 		}
 	}
-	var scopes []interface{}
-	for uri := range scopeSet {
-		scopes = append(scopes, fileURI(uri))
-	}
-	return scopes
+	return files
 }
 
 func contains(views []*View, view *View) bool {
@@ -1485,14 +1501,17 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	}
 	// Copy the URI to package ID mappings, skipping only those URIs whose
 	// metadata will be reloaded in future calls to load.
-copyIDs:
 	for k, ids := range s.ids {
+		var newIDs []packageID
 		for _, id := range ids {
 			if invalidateMetadata, ok := transitiveIDs[id]; invalidateMetadata && ok {
-				continue copyIDs
+				continue
 			}
+			newIDs = append(newIDs, id)
 		}
-		result.ids[k] = ids
+		if len(newIDs) != 0 {
+			result.ids[k] = newIDs
+		}
 	}
 	// Copy the set of initially loaded packages.
 	for id, pkgPath := range s.workspacePackages {
