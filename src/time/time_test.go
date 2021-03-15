@@ -1466,7 +1466,6 @@ func TestConcurrentTimerResetStop(t *testing.T) {
 	wg.Wait()
 }
 
-// Issue 42102: time: add Time.IsDST() bool method
 func TestTimeIsDST(t *testing.T) {
 	ForceZipFileForTesting(true)
 	defer ForceZipFileForTesting(false)

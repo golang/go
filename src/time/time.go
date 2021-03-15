@@ -1302,7 +1302,7 @@ func Unix(sec int64, nsec int64) Time {
 	return unixTime(sec, int32(nsec))
 }
 
-// IsDST returns true if the time in the configured location is in Daylight Savings Time
+// IsDST reports whether the time in the configured location is in Daylight Savings Time.
 func (t *Time) IsDST() bool {
 	_, _, _, _, isDST := t.loc.lookup(t.Unix())
 	return isDST
