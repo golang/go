@@ -257,10 +257,13 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
 	}
 
 	i.goVersionV = ""
-	if modFile.Go != nil {
+	if modFile.Go == nil {
+		rawGoVersion.Store(Target, "")
+	} else {
 		// We're going to use the semver package to compare Go versions, so go ahead
 		// and add the "v" prefix it expects once instead of every time.
 		i.goVersionV = "v" + modFile.Go.Version
+		rawGoVersion.Store(Target, modFile.Go.Version)
 	}
 
 	i.require = make(map[module.Version]requireMeta, len(modFile.Require))

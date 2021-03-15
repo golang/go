@@ -55,6 +55,18 @@ Do not send CLs removing the interior tags from such phrases.
   <code>environment</code> for details.
 </p>
 
+<h4 id="missing-go-directive"><code>go.mod</code> files missing <code>go</code> directives</h4>
+
+<p><!-- golang.org/issue/44976 -->
+  If the main module's <code>go.mod</code> file does not contain
+  a <a href="/doc/modules/gomod-ref#go"><code>go</code> directive</a> and
+  the <code>go</code> command cannot update the <code>go.mod</code> file, the
+  <code>go</code> command now assumes <code>go 1.11</code> instead of the
+  current release. (<code>go</code> <code>mod</code> <code>init</code> has added
+  <code>go</code> directives automatically <a href="/doc/go1.12#modules">since
+  Go 1.12</a>.)
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p>

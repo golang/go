@@ -63,8 +63,18 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 
 	pkgpath := pkgPath(a)
 	gcargs := []string{"-p", pkgpath}
-	if p.Module != nil && p.Module.GoVersion != "" && allowedVersion(p.Module.GoVersion) {
-		gcargs = append(gcargs, "-lang=go"+p.Module.GoVersion)
+	if p.Module != nil {
+		v := p.Module.GoVersion
+		if v == "" {
+			// We started adding a 'go' directive to the go.mod file unconditionally
+			// as of Go 1.12, so any module that still lacks such a directive must
+			// either have been authored before then, or have a hand-edited go.mod
+			// file that hasn't been updated by cmd/go since that edit.
+			v = "1.11"
+		}
+		if allowedVersion(v) {
+			gcargs = append(gcargs, "-lang=go"+v)
+		}
 	}
 	if p.Standard {
 		gcargs = append(gcargs, "-std")

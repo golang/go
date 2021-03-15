@@ -147,12 +147,14 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList, listRetrac
 			Version: m.Version,
 			Main:    true,
 		}
+		if v, ok := rawGoVersion.Load(Target); ok {
+			info.GoVersion = v.(string)
+		} else {
+			panic("internal error: GoVersion not set for main module")
+		}
 		if HasModRoot() {
 			info.Dir = ModRoot()
 			info.GoMod = ModFilePath()
-			if modFile.Go != nil {
-				info.GoVersion = modFile.Go.Version
-			}
 		}
 		return info
 	}
