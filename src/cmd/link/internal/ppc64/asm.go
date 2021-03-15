@@ -418,6 +418,7 @@ func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 		emitReloc(ld.XCOFF_R_TOCU|(0x0F<<8), 2)
 		emitReloc(ld.XCOFF_R_TOCL|(0x0F<<8), 6)
 	case objabi.R_POWER_TLS_LE:
+		// This only supports 16b relocations.  It is fixed up in archreloc.
 		emitReloc(ld.XCOFF_R_TLS_LE|0x0F<<8, 2)
 	case objabi.R_CALLPOWER:
 		if r.Size != 4 {
@@ -458,7 +459,10 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	case objabi.R_POWER_TLS:
 		out.Write64(uint64(elf.R_PPC64_TLS) | uint64(elfsym)<<32)
 	case objabi.R_POWER_TLS_LE:
-		out.Write64(uint64(elf.R_PPC64_TPREL16) | uint64(elfsym)<<32)
+		out.Write64(uint64(elf.R_PPC64_TPREL16_HA) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
+		out.Write64(uint64(sectoff + 4))
+		out.Write64(uint64(elf.R_PPC64_TPREL16_LO) | uint64(elfsym)<<32)
 	case objabi.R_POWER_TLS_IE:
 		out.Write64(uint64(elf.R_PPC64_GOT_TPREL16_HA) | uint64(elfsym)<<32)
 		out.Write64(uint64(r.Xadd))
@@ -797,11 +801,25 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			if !target.IsAIX() {
 				return val, nExtReloc, false
 			}
-		case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
-			// check Outer is nil, Type is TLSBSS?
+		case objabi.R_POWER_TLS:
 			nExtReloc = 1
-			if rt == objabi.R_POWER_TLS_IE {
-				nExtReloc = 2 // need two ELF relocations, see elfreloc1
+			return val, nExtReloc, true
+		case objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
+			if target.IsAIX() && rt == objabi.R_POWER_TLS_LE {
+				// Fixup val, an addis/addi pair of instructions, which generate a 32b displacement
+				// from the threadpointer (R13), into a 16b relocation. XCOFF only supports 16b
+				// TLS LE relocations. Likewise, verify this is an addis/addi sequence.
+				const expectedOpcodes = 0x3C00000038000000
+				const expectedOpmasks = 0xFC000000FC000000
+				if uint64(val)&expectedOpmasks != expectedOpcodes {
+					ldr.Errorf(s, "relocation for %s+%d is not an addis/addi pair: %16x", ldr.SymName(rs), r.Off(), uint64(val))
+				}
+				nval := (int64(uint32(0x380d0000)) | val&0x03e00000) << 32 // addi rX, r13, $0
+				nval |= int64(0x60000000)                                  // nop
+				val = nval
+				nExtReloc = 1
+			} else {
+				nExtReloc = 2
 			}
 			return val, nExtReloc, true
 		case objabi.R_ADDRPOWER,
@@ -855,10 +873,26 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			// the TLS.
 			v -= 0x800
 		}
-		if int64(int16(v)) != v {
+
+		var o1, o2 uint32
+		if int64(int32(v)) != v {
 			ldr.Errorf(s, "TLS offset out of range %d", v)
 		}
-		return (val &^ 0xffff) | (v & 0xffff), nExtReloc, true
+		if target.IsBigEndian() {
+			o1 = uint32(val >> 32)
+			o2 = uint32(val)
+		} else {
+			o1 = uint32(val)
+			o2 = uint32(val >> 32)
+		}
+
+		o1 |= uint32(((v + 0x8000) >> 16) & 0xFFFF)
+		o2 |= uint32(v & 0xFFFF)
+
+		if target.IsBigEndian() {
+			return int64(o1)<<32 | int64(o2), nExtReloc, true
+		}
+		return int64(o2)<<32 | int64(o1), nExtReloc, true
 	}
 
 	return val, nExtReloc, false
