@@ -191,16 +191,6 @@ func archRegForAbiReg(r abi.RegIndex, c *Config) uint8 {
 	return uint8(m)
 }
 
-// ArgWidth returns the amount of stack needed for all the inputs
-// and outputs of a function or method, including ABI-defined parameter
-// slots and ABI-defined spill slots for register-resident parameters.
-//
-// The name is taken from the types package's ArgWidth(<function type>),
-// which predated changes to the ABI; this version handles those changes.
-func (a *AuxCall) ArgWidth() int64 {
-	return a.abiInfo.ArgWidth()
-}
-
 // OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
 func (a *AuxCall) ParamAssignmentForResult(which int64) *abi.ABIParamAssignment {
 	return a.abiInfo.OutParam(int(which))

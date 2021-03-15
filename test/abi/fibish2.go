@@ -13,12 +13,12 @@ import "fmt"
 
 // Test that register results are correctly returned (and passed)
 
-type MagicLastTypeNameForTestingRegisterABI func(int, MagicLastTypeNameForTestingRegisterABI) int
+type MagicLastTypeNameForTestingRegisterABI func(int,MagicLastTypeNameForTestingRegisterABI) int
 
 //go:registerparams
 //go:noinline
 func minus(decrement int) MagicLastTypeNameForTestingRegisterABI {
-	return MagicLastTypeNameForTestingRegisterABI(func(x int, _ MagicLastTypeNameForTestingRegisterABI) int { return x - decrement })
+	return MagicLastTypeNameForTestingRegisterABI( func(x int, _ MagicLastTypeNameForTestingRegisterABI) int { return x-decrement} )
 }
 
 //go:noinline

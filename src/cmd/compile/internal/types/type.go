@@ -1750,7 +1750,7 @@ func NewTypeParam(pkg *Pkg) *Type {
 	return t
 }
 
-const BOGUS_FUNARG_OFFSET = -1000000000
+const BOGUS_FUNARG_OFFSET = 1000000000
 
 func unzeroFieldOffsets(f []*Field) {
 	for i := range f {
@@ -1759,7 +1759,7 @@ func unzeroFieldOffsets(f []*Field) {
 }
 
 // NewSignature returns a new function type for the given receiver,
-// parameters, results, and type parameters, any of which may be nil.
+// parametes, results, and type parameters, any of which may be nil.
 func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Type {
 	var recvs []*Field
 	if recv != nil {

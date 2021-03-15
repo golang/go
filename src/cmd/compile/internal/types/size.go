@@ -163,8 +163,18 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 		if f.Type.Align > 0 {
 			o = Rnd(o, int64(f.Type.Align))
 		}
-		if isStruct { // For receiver/args/results, do not set, it depends on ABI
+		if isStruct { // For receiver/args/results, depends on ABI
 			f.Offset = o
+		}
+		if f.Nname != nil {
+			// addrescapes has similar code to update these offsets.
+			// Usually addrescapes runs after calcStructOffset,
+			// in which case we could drop this,
+			// but function closure functions are the exception.
+			// NOTE(rsc): This comment may be stale.
+			// It's possible the ordering has changed and this is
+			// now the common case. I'm not sure.
+			f.Nname.(VarObject).RecordFrameOffset(o)
 		}
 
 		w := f.Type.Width
