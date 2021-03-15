@@ -17,7 +17,7 @@
 // load_g and save_g (in tls_arm64.s) clobber R27 (REGTMP) and R0.
 
 // void runtime·asmstdcall(void *c);
-TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·asmstdcall<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
 	STP.W	(R29, R30), -32(RSP)	// allocate C ABI stack frame
 	STP	(R19, R20), 16(RSP) // save old R19, R20
 	MOVD	R0, R19	// save libcall pointer
@@ -287,29 +287,29 @@ TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	R0, RSP
 	B	(R1)
 
-TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$runtime·exceptionhandler(SB), R1
+TEXT runtime·exceptiontramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+	MOVD	$runtime·exceptionhandler<ABIInternal>(SB), R1
 	B	sigtramp<>(SB)
 
-TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$runtime·firstcontinuehandler(SB), R1
+TEXT runtime·firstcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+	MOVD	$runtime·firstcontinuehandler<ABIInternal>(SB), R1
 	B	sigtramp<>(SB)
 
 TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$runtime·lastcontinuehandler(SB), R1
+	MOVD	$runtime·lastcontinuehandler<ABIInternal>(SB), R1
 	B	sigtramp<>(SB)
 
-TEXT runtime·ctrlhandler(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·ctrlhandler<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$runtime·ctrlhandler1(SB), R1
-	B	runtime·externalthreadhandler(SB)
+	B	runtime·externalthreadhandler<ABIInternal>(SB)
 
-TEXT runtime·profileloop(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$runtime·profileloop1(SB), R1
-	B	runtime·externalthreadhandler(SB)
+	B	runtime·externalthreadhandler<ABIInternal>(SB)
 
 // externalthreadhander called with R0 = uint32 arg, R1 = Go function f.
 // Need to call f(arg), which returns a uint32, and return it in R0.
-TEXT runtime·externalthreadhandler(SB),NOSPLIT|TOPFRAME,$96-0
+TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|TOPFRAME,$96-0
 	NO_LOCAL_POINTERS
 
 	// Push C callee-save registers R19-R28. LR, FP already saved.
@@ -369,7 +369,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT|TOPFRAME,$96-0
 
 GLOBL runtime·cbctxts(SB), NOPTR, $4
 
-TEXT runtime·callbackasm1(SB),NOSPLIT,$208-0
+TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$208-0
 	NO_LOCAL_POINTERS
 
 	// On entry, the trampoline in zcallback_windows_arm64.s left
@@ -416,7 +416,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$208-0
 	RET
 
 // uint32 tstart_stdcall(M *newm);
-TEXT runtime·tstart_stdcall(SB),NOSPLIT,$96-0
+TEXT runtime·tstart_stdcall<ABIInternal>(SB),NOSPLIT,$96-0
 	SAVE_R19_TO_R28(-10*8)
 
 	MOVD	m_g0(R0), g
