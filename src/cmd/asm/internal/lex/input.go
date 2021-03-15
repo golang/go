@@ -46,12 +46,30 @@ func NewInput(name string) *Input {
 func predefine(defines flags.MultiFlag) map[string]*Macro {
 	macros := make(map[string]*Macro)
 
-	if *flags.CompilingRuntime && objabi.Regabi_enabled != 0 {
-		const name = "GOEXPERIMENT_REGABI"
-		macros[name] = &Macro{
-			name:   name,
-			args:   nil,
-			tokens: Tokenize("1"),
+	// Set macros for various GOEXPERIMENTs so we can easily
+	// switch runtime assembly code based on them.
+	if *flags.CompilingRuntime {
+		set := func(name string) {
+			macros[name] = &Macro{
+				name:   name,
+				args:   nil,
+				tokens: Tokenize("1"),
+			}
+		}
+		if objabi.Experiment.RegabiWrappers {
+			set("GOEXPERIMENT_REGABI_WRAPPERS")
+		}
+		if objabi.Experiment.RegabiG {
+			set("GOEXPERIMENT_REGABI_G")
+		}
+		if objabi.Experiment.RegabiReflect {
+			set("GOEXPERIMENT_REGABI_REFLECT")
+		}
+		if objabi.Experiment.RegabiDefer {
+			set("GOEXPERIMENT_REGABI_DEFER")
+		}
+		if objabi.Experiment.RegabiArgs {
+			set("GOEXPERIMENT_REGABI_ARGS")
 		}
 	}
 

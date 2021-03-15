@@ -493,7 +493,7 @@ func (ctxt *Link) loadlib() {
 	default:
 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
 	}
-	if !*flagAbiWrap || ctxt.linkShared {
+	if !objabi.Experiment.RegabiWrappers || ctxt.linkShared {
 		// Use ABI aliases if ABI wrappers are not used.
 		// TODO: for now we still use ABI aliases in shared linkage, even if
 		// the wrapper is enabled.
@@ -2116,7 +2116,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 
 	// collect text symbol ABI versions.
 	symabi := make(map[string]int) // map (unmangled) symbol name to version
-	if *flagAbiWrap {
+	if objabi.Experiment.RegabiWrappers {
 		for _, elfsym := range syms {
 			if elf.ST_TYPE(elfsym.Info) != elf.STT_FUNC {
 				continue
@@ -2144,7 +2144,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		symname := elfsym.Name // (unmangled) symbol name
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type.") {
 			ver = sym.SymVerABIInternal
-		} else if *flagAbiWrap && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
+		} else if objabi.Experiment.RegabiWrappers && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
 			if strings.HasSuffix(elfsym.Name, ".abiinternal") {
 				ver = sym.SymVerABIInternal
 				symname = strings.TrimSuffix(elfsym.Name, ".abiinternal")
@@ -2194,7 +2194,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		// mangle Go function names in the .so to include the
 		// ABI.
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
-			if *flagAbiWrap {
+			if objabi.Experiment.RegabiWrappers {
 				if _, ok := symabi[symname]; ok {
 					continue // only use alias for functions w/o ABI wrappers
 				}

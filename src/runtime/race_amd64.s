@@ -146,7 +146,7 @@ TEXT	runtime·racewriterangepc1(SB), NOSPLIT, $0-24
 // If addr (RARG1) is out of range, do nothing.
 // Otherwise, setup goroutine context and invoke racecall. Other arguments already set.
 TEXT	racecalladdr<>(SB), NOSPLIT, $0-0
-#ifndef GOEXPERIMENT_REGABI
+#ifndef GOEXPERIMENT_REGABI_G
 	get_tls(R12)
 	MOVQ	g(R12), R14
 #endif
@@ -177,7 +177,7 @@ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
 // R11 = caller's return address
 TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 	MOVQ	DX, BX		// save function entry context (for closures)
-#ifndef GOEXPERIMENT_REGABI
+#ifndef GOEXPERIMENT_REGABI_G
 	get_tls(R12)
 	MOVQ	g(R12), R14
 #endif
@@ -193,7 +193,7 @@ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 // func runtime·racefuncexit()
 // Called from instrumented code.
 TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
-#ifndef GOEXPERIMENT_REGABI
+#ifndef GOEXPERIMENT_REGABI_G
 	get_tls(R12)
 	MOVQ	g(R12), R14
 #endif
@@ -355,7 +355,7 @@ racecallatomic_data:
 	JAE	racecallatomic_ignore
 racecallatomic_ok:
 	// Addr is within the good range, call the atomic function.
-#ifndef GOEXPERIMENT_REGABI
+#ifndef GOEXPERIMENT_REGABI_G
 	get_tls(R12)
 	MOVQ	g(R12), R14
 #endif
@@ -370,7 +370,7 @@ racecallatomic_ignore:
 	// An attempt to synchronize on the address would cause crash.
 	MOVQ	AX, BX	// remember the original function
 	MOVQ	$__tsan_go_ignore_sync_begin(SB), AX
-#ifndef GOEXPERIMENT_REGABI
+#ifndef GOEXPERIMENT_REGABI_G
 	get_tls(R12)
 	MOVQ	g(R12), R14
 #endif
@@ -401,7 +401,7 @@ TEXT	runtime·racecall(SB), NOSPLIT, $0-0
 
 // Switches SP to g0 stack and calls (AX). Arguments already set.
 TEXT	racecall<>(SB), NOSPLIT, $0-0
-#ifndef GOEXPERIMENT_REGABI
+#ifndef GOEXPERIMENT_REGABI_G
 	get_tls(R12)
 	MOVQ	g(R12), R14
 #endif

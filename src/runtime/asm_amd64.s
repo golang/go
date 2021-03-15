@@ -442,7 +442,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
 	MOVL	$0, DX
 	JMP	runtime·morestack(SB)
 
-#ifdef GOEXPERIMENT_REGABI
+#ifdef GOEXPERIMENT_REGABI_REFLECT
 // spillArgs stores return values from registers to a *internal/abi.RegArgs in R12.
 TEXT spillArgs<>(SB),NOSPLIT,$0-0
 	MOVQ AX, 0(R12)
@@ -660,7 +660,7 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
 // or else unwinding from systemstack_switch is incorrect.
 // Smashes R9.
 TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
-#ifndef GOEXPERIMENT_REGABI
+#ifndef GOEXPERIMENT_REGABI_G
 	get_tls(R14)
 	MOVQ	g(R14), R14
 #endif
@@ -1461,7 +1461,7 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 // signals. It is quite painful to set X15 in the signal context,
 // so we do it here.
 TEXT ·sigpanic0<ABIInternal>(SB),NOSPLIT,$0-0
-#ifdef GOEXPERIMENT_REGABI
+#ifdef GOEXPERIMENT_REGABI_G
 	get_tls(R14)
 	MOVQ	g(R14), R14
 	XORPS	X15, X15
@@ -1483,7 +1483,7 @@ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
 	MOVQ	R13, 104(SP)
 	// TODO: Consider passing g.m.p in as an argument so they can be shared
 	// across a sequence of write barriers.
-#ifdef GOEXPERIMENT_REGABI
+#ifdef GOEXPERIMENT_REGABI_G
 	MOVQ	g_m(R14), R13
 #else
 	get_tls(R13)

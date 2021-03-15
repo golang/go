@@ -85,7 +85,7 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.
 		}
 		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, off)
 	} else if !isPlan9 && cnt <= int64(8*types.RegSize) {
-		if objabi.Regabi_enabled == 0 && *state&x15 == 0 {
+		if !objabi.Experiment.RegabiG && *state&x15 == 0 {
 			p = pp.Append(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_REG, x86.REG_X15, 0)
 			*state |= x15
 		}
@@ -98,7 +98,7 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.
 			p = pp.Append(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_MEM, x86.REG_SP, off+cnt-int64(16))
 		}
 	} else if !isPlan9 && (cnt <= int64(128*types.RegSize)) {
-		if objabi.Regabi_enabled == 0 && *state&x15 == 0 {
+		if !objabi.Experiment.RegabiG && *state&x15 == 0 {
 			p = pp.Append(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_REG, x86.REG_X15, 0)
 			*state |= x15
 		}

@@ -261,8 +261,7 @@ func regAbiForFuncType(ft *types.Func) bool {
 }
 
 func regabiEnabledForAllCompilation() bool {
-	// TODO compiler does not yet change behavior for GOEXPERIMENT=regabi
-	return false && objabi.Regabi_enabled != 0
+	return objabi.Experiment.RegabiArgs
 }
 
 // getParam returns the Field of ith param of node n (which is a
@@ -7448,7 +7447,7 @@ func clobberBase(n ir.Node) ir.Node {
 //
 func callTargetLSym(callee *ir.Name, callerLSym *obj.LSym) *obj.LSym {
 	lsym := callee.Linksym()
-	if !base.Flag.ABIWrap {
+	if !objabi.Experiment.RegabiWrappers {
 		return lsym
 	}
 	fn := callee.Func

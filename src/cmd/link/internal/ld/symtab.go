@@ -121,7 +121,7 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 	// sym or marker relocation to associate the wrapper with the
 	// wrapped function.
 	//
-	if *flagAbiWrap {
+	if objabi.Experiment.RegabiWrappers {
 		if !ldr.IsExternal(x) && ldr.SymType(x) == sym.STEXT {
 			// First case
 			if ldr.SymVersion(x) == sym.SymVerABIInternal {

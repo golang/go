@@ -24,7 +24,7 @@ import (
 // useNewABIWrapGen returns TRUE if the compiler should generate an
 // ABI wrapper for the function 'f'.
 func useABIWrapGen(f *ir.Func) bool {
-	if !base.Flag.ABIWrap {
+	if !objabi.Experiment.RegabiWrappers {
 		return false
 	}
 
@@ -140,7 +140,7 @@ func ReadSymABIs(file, myimportpath string) {
 func InitLSym(f *ir.Func, hasBody bool) {
 	// FIXME: for new-style ABI wrappers, we set up the lsym at the
 	// point the wrapper is created.
-	if f.LSym != nil && base.Flag.ABIWrap {
+	if f.LSym != nil && objabi.Experiment.RegabiWrappers {
 		return
 	}
 	staticdata.NeedFuncSym(f.Sym())

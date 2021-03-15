@@ -827,8 +827,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		if s.ABI != obj.ABIInternal {
 			v.Fatalf("MOVOstorezero can be only used in ABIInternal functions")
 		}
-		if !(objabi.Regabi_enabled == 1 && base.Flag.ABIWrap) {
-			// zeroing X15 manually if wrappers are not used
+		if !objabi.Experiment.RegabiG {
+			// zero X15 manually
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 		}
 		p := s.Prog(v.Op.Asm())
@@ -921,8 +921,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		if s.ABI != obj.ABIInternal {
 			v.Fatalf("MOVOconst can be only used in ABIInternal functions")
 		}
-		if !(objabi.Regabi_enabled == 1 && base.Flag.ABIWrap) {
-			// zeroing X15 manually if wrappers are not used
+		if !objabi.Experiment.RegabiG {
+			// zero X15 manually
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 		}
 		off := duffStart(v.AuxInt)
@@ -1004,20 +1004,20 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// Closure pointer is DX.
 		ssagen.CheckLoweredGetClosurePtr(v)
 	case ssa.OpAMD64LoweredGetG:
-		if objabi.Regabi_enabled == 1 && base.Flag.ABIWrap {
+		if objabi.Experiment.RegabiG {
 			v.Fatalf("LoweredGetG should not appear in new ABI")
 		}
 		r := v.Reg()
 		getgFromTLS(s, r)
 	case ssa.OpAMD64CALLstatic:
-		if objabi.Regabi_enabled == 1 && s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
+		if objabi.Experiment.RegabiG && s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
 			// zeroing X15 when entering ABIInternal from ABI0
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}
 		s.Call(v)
-		if objabi.Regabi_enabled == 1 && s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
+		if objabi.Experiment.RegabiG && s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
 			// zeroing X15 when entering ABIInternal from ABI0
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 			// set G register from TLS
@@ -1304,7 +1304,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
 	case ssa.BlockRetJmp:
-		if objabi.Regabi_enabled == 1 && s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
+		if objabi.Experiment.RegabiG && s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
 			// zeroing X15 when entering ABIInternal from ABI0
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 			// set G register from TLS

@@ -460,7 +460,7 @@
 (IsInBounds idx len) => (SETB (CMPQ idx len))
 (IsSliceInBounds idx len) => (SETBE (CMPQ idx len))
 (NilCheck ...) => (LoweredNilCheck ...)
-(GetG mem) && !(objabi.Regabi_enabled == 1 && base.Flag.ABIWrap) => (LoweredGetG mem) // only lower in old ABI. in new ABI we have a G register.
+(GetG mem) && !objabi.Experiment.RegabiG => (LoweredGetG mem) // only lower in old ABI. in new ABI we have a G register.
 (GetClosurePtr ...) => (LoweredGetClosurePtr ...)
 (GetCallerPC ...) => (LoweredGetCallerPC ...)
 (GetCallerSP ...) => (LoweredGetCallerSP ...)

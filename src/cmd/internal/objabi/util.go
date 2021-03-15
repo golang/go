@@ -146,7 +146,28 @@ func init() {
 
 	// regabi is only supported on amd64.
 	if GOARCH != "amd64" {
-		Regabi_enabled = 0
+		Experiment.regabi = false
+		Experiment.RegabiWrappers = false
+		Experiment.RegabiG = false
+		Experiment.RegabiReflect = false
+		Experiment.RegabiDefer = false
+		Experiment.RegabiArgs = false
+	}
+	// Setting regabi sets working sub-experiments.
+	if Experiment.regabi {
+		Experiment.RegabiWrappers = true
+		Experiment.RegabiG = true
+		Experiment.RegabiReflect = true
+		// Not ready yet:
+		//Experiment.RegabiDefer = true
+		//Experiment.RegabiArgs = true
+	}
+	// Check regabi dependencies.
+	if Experiment.RegabiG && !Experiment.RegabiWrappers {
+		panic("GOEXPERIMENT regabig requires regabiwrappers")
+	}
+	if Experiment.RegabiArgs && !(Experiment.RegabiWrappers && Experiment.RegabiReflect && Experiment.RegabiDefer) {
+		panic("GOEXPERIMENT regabiargs requires regabiwrappers,regabireflect,regabidefer")
 	}
 
 	// Set GOEXPERIMENT to the parsed and canonicalized set of experiments.
@@ -186,8 +207,41 @@ var (
 	Fieldtrack_enabled        int
 	Preemptibleloops_enabled  int
 	Staticlockranking_enabled int
-	Regabi_enabled            int
 )
+
+// Experiment contains flags for GOEXPERIMENTs.
+//
+// TODO(austin): Move the package-level experiment flags into this.
+var Experiment ExpFlags
+
+type ExpFlags struct {
+	// regabi is split into several sub-experiments that can be
+	// enabled individually. GOEXPERIMENT=regabi implies the
+	// subset that are currently "working". Not all combinations work.
+	regabi bool
+	// RegabiWrappers enables ABI wrappers for calling between
+	// ABI0 and ABIInternal functions. Without this, the ABIs are
+	// assumed to be identical so cross-ABI calls are direct.
+	RegabiWrappers bool
+	// RegabiG enables dedicated G and zero registers in
+	// ABIInternal.
+	//
+	// Requires wrappers because it makes the ABIs incompatible.
+	RegabiG bool
+	// RegabiReflect enables the register-passing paths in
+	// reflection calls. This is also gated by intArgRegs in
+	// reflect and runtime (which are disabled by default) so it
+	// can be used in targeted tests.
+	RegabiReflect bool
+	// RegabiDefer enables desugaring defer and go calls
+	// into argument-less closures.
+	RegabiDefer bool
+	// RegabiArgs enables register arguments/results in all
+	// compiled Go functions.
+	//
+	// Requires wrappers, reflect, defer.
+	RegabiArgs bool
+}
 
 // Toolchain experiments.
 // These are controlled by the GOEXPERIMENT environment
@@ -199,7 +253,12 @@ var exper = []struct {
 	{"fieldtrack", &Fieldtrack_enabled},
 	{"preemptibleloops", &Preemptibleloops_enabled},
 	{"staticlockranking", &Staticlockranking_enabled},
-	{"regabi", &Regabi_enabled},
+	{"regabi", &Experiment.regabi},
+	{"regabiwrappers", &Experiment.RegabiWrappers},
+	{"regabig", &Experiment.RegabiG},
+	{"regabireflect", &Experiment.RegabiReflect},
+	{"regabidefer", &Experiment.RegabiDefer},
+	{"regabiargs", &Experiment.RegabiArgs},
 }
 
 var defaultExpstring string
