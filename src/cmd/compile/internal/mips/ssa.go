@@ -168,7 +168,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpMIPSMULD,
 		ssa.OpMIPSDIVF,
 		ssa.OpMIPSDIVD,
-		ssa.OpMIPSMUL:
+		ssa.OpMIPSMUL,
+		ssa.OpMIPSROTR:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
@@ -201,7 +202,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpMIPSSRLconst,
 		ssa.OpMIPSSRAconst,
 		ssa.OpMIPSSGTconst,
-		ssa.OpMIPSSGTUconst:
+		ssa.OpMIPSSGTUconst,
+		ssa.OpMIPSROTRconst:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt

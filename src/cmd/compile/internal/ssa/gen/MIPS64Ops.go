@@ -208,6 +208,8 @@ func init() {
 		{name: "SRLVconst", argLength: 1, reg: gp11, asm: "SRLV", aux: "Int64"}, // arg0 >> auxInt, unsigned
 		{name: "SRAV", argLength: 2, reg: gp21, asm: "SRAV"},                    // arg0 >> arg1, signed, shift amount is mod 64
 		{name: "SRAVconst", argLength: 1, reg: gp11, asm: "SRAV", aux: "Int64"}, // arg0 >> auxInt, signed
+		{name: "ROTR", argLength: 2, reg: gp21, asm: "ROTR"},                    // arg0 right rotate by (arg1 mod 32) bits
+		{name: "ROTRconst", argLength: 1, reg: gp11, asm: "ROTR", aux: "Int32"}, // arg0 right rotate by auxInt bits
 
 		// comparisons
 		{name: "SGT", argLength: 2, reg: gp21, asm: "SGT", typ: "Bool"},                      // 1 if arg0 > arg1 (signed), 0 otherwise

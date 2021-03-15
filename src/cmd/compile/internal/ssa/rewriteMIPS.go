@@ -5510,29 +5510,30 @@ func rewriteValueMIPS_OpRotateLeft32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (RotateLeft32 <t> x (MOVWconst [c]))
-	// result: (Or32 (Lsh32x32 <t> x (MOVWconst [c&31])) (Rsh32Ux32 <t> x (MOVWconst [-c&31])))
+	// match: (RotateLeft32 x (MOVWconst [c]))
+	// result: (ROTRconst x [-c&31])
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpMIPSMOVWconst {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
-		v.reset(OpOr32)
-		v0 := b.NewValue0(v.Pos, OpLsh32x32, t)
-		v1 := b.NewValue0(v.Pos, OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = int32ToAuxInt(c & 31)
-		v0.AddArg2(x, v1)
-		v2 := b.NewValue0(v.Pos, OpRsh32Ux32, t)
-		v3 := b.NewValue0(v.Pos, OpMIPSMOVWconst, typ.UInt32)
-		v3.AuxInt = int32ToAuxInt(-c & 31)
-		v2.AddArg2(x, v3)
-		v.AddArg2(v0, v2)
+		v.reset(OpMIPSROTRconst)
+		v.AuxInt = int32ToAuxInt(-c & 31)
+		v.AddArg(x)
 		return true
 	}
-	return false
+	// match: (RotateLeft32 x y)
+	// result: (ROTR x (NEG <y.Type> y))
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpMIPSROTR)
+		v0 := b.NewValue0(v.Pos, OpMIPSNEG, y.Type)
+		v0.AddArg(y)
+		v.AddArg2(x, v0)
+		return true
+	}
 }
 func rewriteValueMIPS_OpRotateLeft64(v *Value) bool {
 	v_1 := v.Args[1]
