@@ -45,7 +45,7 @@ func enqueueFunc(fn *ir.Func) {
 		ssagen.InitLSym(fn, false)
 		types.CalcSize(fn.Type()) // TODO register args; remove this once all is done by abiutils
 		a := ssagen.AbiForFunc(fn)
-		a.ABIAnalyze(fn.Type(), true) // will set parameter spill/home locations correctly
+		a.ABIAnalyze(fn.Type()) // will set parameter spill/home locations correctly
 		liveness.WriteFuncMap(fn)
 		return
 	}

@@ -405,17 +405,11 @@ func (lv *liveness) pointerMap(liveout bitvec.BitVec, vars []*ir.Name, args, loc
 		}
 		node := vars[i]
 		switch node.Class {
-		case ir.PPARAM, ir.PPARAMOUT:
-			if !node.IsOutputParamInRegisters() {
-				if node.FrameOffset() < 0 {
-					lv.f.Fatalf("Node %v has frameoffset %d\n", node.Sym().Name, node.FrameOffset())
-				}
-				typebits.Set(node.Type(), node.FrameOffset(), args)
-				break
-			}
-			fallthrough // PPARAMOUT in registers acts memory-allocates like an AUTO
 		case ir.PAUTO:
 			typebits.Set(node.Type(), node.FrameOffset()+lv.stkptrsize, locals)
+
+		case ir.PPARAM, ir.PPARAMOUT:
+			typebits.Set(node.Type(), node.FrameOffset(), args)
 		}
 	}
 }
@@ -1089,10 +1083,8 @@ func (lv *liveness) emit() (argsSym, liveSym *obj.LSym) {
 	for _, n := range lv.vars {
 		switch n.Class {
 		case ir.PPARAM, ir.PPARAMOUT:
-			if !n.IsOutputParamInRegisters() {
-				if maxArgNode == nil || n.FrameOffset() > maxArgNode.FrameOffset() {
-					maxArgNode = n
-				}
+			if maxArgNode == nil || n.FrameOffset() > maxArgNode.FrameOffset() {
+				maxArgNode = n
 			}
 		}
 	}
@@ -1290,7 +1282,6 @@ func isfat(t *types.Type) bool {
 	return false
 }
 
-// TODO THIS IS ALL WRONG AND NEEDS TO USE ABI.
 func WriteFuncMap(fn *ir.Func) {
 	if ir.FuncName(fn) == "_" || fn.Sym().Linkname != "" {
 		return
