@@ -82,7 +82,6 @@ type CmdFlags struct {
 	CompilingRuntime bool "flag:\"+\" help:\"compiling runtime\""
 
 	// Longer names
-	ABIWrap            bool         "help:\"enable generation of ABI wrappers\""
 	ABIWrapLimit       int          "help:\"emit at most N ABI wrappers (for debugging)\""
 	AsmHdr             string       "help:\"write assembly header to `file`\""
 	Bench              string       "help:\"append benchmark times to `file`\""
@@ -147,7 +146,6 @@ func ParseFlags() {
 	Flag.LowerP = &Ctxt.Pkgpath
 	Flag.LowerV = &Ctxt.Debugvlog
 
-	Flag.ABIWrap = objabi.Regabi_enabled != 0
 	Flag.Dwarf = objabi.GOARCH != "wasm"
 	Flag.DwarfBASEntries = &Ctxt.UseBASEntries
 	Flag.DwarfLocationLists = &Ctxt.Flag_locationlists

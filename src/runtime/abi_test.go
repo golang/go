@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build goexperiment.regabi
-//go:build goexperiment.regabi
+//go:build goexperiment.regabireflect
+// +build goexperiment.regabireflect
 
 // This file contains tests specific to making sure the register ABI
 // works in a bunch of contexts in the runtime.
