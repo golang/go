@@ -539,6 +539,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 
+			if p.Mark&LEAF != 0 && c.autosize < objabi.StackSmall {
+				// A leaf function with a small stack can be marked
+				// NOSPLIT, avoiding a stack check.
+				p.From.Sym.Set(obj.AttrNoSplit, true)
+			}
+
 			if !p.From.Sym.NoSplit() {
 				p = c.stacksplit(p, c.autosize) // emit split check
 			}
