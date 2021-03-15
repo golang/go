@@ -21,18 +21,23 @@ func envOr(key, value string) string {
 var (
 	defaultGOROOT string // set by linker
 
-	GOROOT       = envOr("GOROOT", defaultGOROOT)
-	GOARCH       = envOr("GOARCH", defaultGOARCH)
-	GOOS         = envOr("GOOS", defaultGOOS)
-	GOEXPERIMENT = envOr("GOEXPERIMENT", defaultGOEXPERIMENT)
-	GO386        = envOr("GO386", defaultGO386)
-	GOARM        = goarm()
-	GOMIPS       = gomips()
-	GOMIPS64     = gomips64()
-	GOPPC64      = goppc64()
-	GOWASM       = gowasm()
-	GO_LDSO      = defaultGO_LDSO
-	Version      = version
+	GOROOT   = envOr("GOROOT", defaultGOROOT)
+	GOARCH   = envOr("GOARCH", defaultGOARCH)
+	GOOS     = envOr("GOOS", defaultGOOS)
+	GO386    = envOr("GO386", defaultGO386)
+	GOARM    = goarm()
+	GOMIPS   = gomips()
+	GOMIPS64 = gomips64()
+	GOPPC64  = goppc64()
+	GOWASM   = gowasm()
+	GO_LDSO  = defaultGO_LDSO
+	Version  = version
+
+	// GOEXPERIMENT is a comma-separated list of enabled
+	// experiments. This is derived from the GOEXPERIMENT
+	// environment variable if set, or the value of GOEXPERIMENT
+	// when make.bash was run if not.
+	GOEXPERIMENT string // Set by package init
 )
 
 const (
@@ -125,7 +130,12 @@ func Getgoextlinkenabled() string {
 }
 
 func init() {
-	for _, f := range strings.Split(GOEXPERIMENT, ",") {
+	// Capture "default" experiments.
+	defaultExpstring = Expstring()
+
+	goexperiment := envOr("GOEXPERIMENT", defaultGOEXPERIMENT)
+
+	for _, f := range strings.Split(goexperiment, ",") {
 		if f != "" {
 			addexp(f)
 		}
@@ -135,6 +145,9 @@ func init() {
 	if GOARCH != "amd64" {
 		Regabi_enabled = 0
 	}
+
+	// Set GOEXPERIMENT to the parsed and canonicalized set of experiments.
+	GOEXPERIMENT = expList()
 }
 
 // Note: must agree with runtime.framepointer_enabled.
@@ -171,7 +184,6 @@ var (
 // Toolchain experiments.
 // These are controlled by the GOEXPERIMENT environment
 // variable recorded when the toolchain is built.
-// This list is also known to cmd/gc.
 var exper = []struct {
 	name string
 	val  *int
@@ -182,21 +194,29 @@ var exper = []struct {
 	{"regabi", &Regabi_enabled},
 }
 
-var defaultExpstring = Expstring()
+var defaultExpstring string
 
-func DefaultExpstring() string {
-	return defaultExpstring
-}
-
-func Expstring() string {
-	buf := "X"
+// expList returns the list of enabled GOEXPERIMENTS as a
+// commas-separated list.
+func expList() string {
+	buf := ""
 	for i := range exper {
 		if *exper[i].val != 0 {
 			buf += "," + exper[i].name
 		}
 	}
-	if buf == "X" {
-		buf += ",none"
+	if len(buf) == 0 {
+		return ""
 	}
-	return "X:" + buf[2:]
+	return buf[1:]
+}
+
+// Expstring returns the GOEXPERIMENT string that should appear in Go
+// version signatures. This always starts with "X:".
+func Expstring() string {
+	list := expList()
+	if list == "" {
+		return "X:none"
+	}
+	return "X:" + list
 }
