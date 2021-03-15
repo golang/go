@@ -61,7 +61,7 @@ func TestAllDependencies(t *testing.T) {
 				_, err := cmd.Output()
 				if err != nil {
 					t.Errorf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
-					t.Logf("(Run 'go mod vendor' in %s to ensure that dependecies have been vendored.)", m.Dir)
+					t.Logf("(Run 'go mod vendor' in %s to ensure that dependencies have been vendored.)", m.Dir)
 				}
 				return
 			}
@@ -179,7 +179,7 @@ func TestAllDependencies(t *testing.T) {
 			r.run(t, goBinCopy, "generate", `-run=^//go:generate bundle `, pkgs) // See issue 41409.
 			advice := "$ cd " + m.Dir + "\n" +
 				"$ go mod tidy                               # to remove extraneous dependencies\n" +
-				"$ go mod vendor                             # to vendor dependecies\n" +
+				"$ go mod vendor                             # to vendor dependencies\n" +
 				"$ go generate -run=bundle " + pkgs + "               # to regenerate bundled packages\n"
 			if m.Path == "std" {
 				r.run(t, goBinCopy, "generate", "syscall", "internal/syscall/...") // See issue 43440.
