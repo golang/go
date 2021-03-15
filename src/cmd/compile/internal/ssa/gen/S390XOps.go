@@ -381,7 +381,7 @@ func init() {
 		{name: "NOT", argLength: 1, reg: gp11, resultInArg0: true, clobberFlags: true},  // ^arg0
 		{name: "NOTW", argLength: 1, reg: gp11, resultInArg0: true, clobberFlags: true}, // ^arg0
 
-		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"}, // sqrt(arg0)
+		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"},   // sqrt(arg0)
 		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"}, // sqrt(arg0), float32
 
 		// Conditional register-register moves.
