@@ -11,7 +11,7 @@
 #define maxargs 16
 
 // void runtime·asmstdcall(void *c);
-TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·asmstdcall<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
 	// asmcgocall will put first argument into CX.
 	PUSHQ	CX			// save for later
 	MOVQ	libcall_fn(CX), AX
@@ -190,32 +190,32 @@ done:
 
 	RET
 
-TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·exceptiontramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
 	MOVQ	$runtime·exceptionhandler(SB), AX
 	JMP	sigtramp<>(SB)
 
-TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
+TEXT runtime·firstcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ	$runtime·firstcontinuehandler(SB), AX
 	JMP	sigtramp<>(SB)
 
-TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
+TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ	$runtime·lastcontinuehandler(SB), AX
 	JMP	sigtramp<>(SB)
 
-TEXT runtime·ctrlhandler(SB),NOSPLIT|NOFRAME,$8
+TEXT runtime·ctrlhandler<ABIInternal>(SB),NOSPLIT|NOFRAME,$8
 	MOVQ	CX, 16(SP)		// spill
 	MOVQ	$runtime·ctrlhandler1(SB), CX
 	MOVQ	CX, 0(SP)
-	CALL	runtime·externalthreadhandler(SB)
+	CALL	runtime·externalthreadhandler<ABIInternal>(SB)
 	RET
 
-TEXT runtime·profileloop(SB),NOSPLIT|NOFRAME,$8
+TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT|NOFRAME,$8
 	MOVQ	$runtime·profileloop1(SB), CX
 	MOVQ	CX, 0(SP)
-	CALL	runtime·externalthreadhandler(SB)
+	CALL	runtime·externalthreadhandler<ABIInternal>(SB)
 	RET
 
-TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
 	PUSHQ	BX
@@ -287,7 +287,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	ADDQ	$8, SP
 
 	// determine index into runtime·cbs table
-	MOVQ	$runtime·callbackasm(SB), DX
+	MOVQ	$runtime·callbackasm<ABIInternal>(SB), DX
 	SUBQ	DX, AX
 	MOVQ	$0, DX
 	MOVQ	$5, CX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
@@ -343,7 +343,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	RET
 
 // uint32 tstart_stdcall(M *newm);
-TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
+TEXT runtime·tstart_stdcall<ABIInternal>(SB),NOSPLIT,$0
 	// CX contains first arg newm
 	MOVQ	m_g0(CX), DX		// g
 
