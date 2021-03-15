@@ -135,9 +135,12 @@ func init() {
 
 	goexperiment := envOr("GOEXPERIMENT", defaultGOEXPERIMENT)
 
-	for _, f := range strings.Split(goexperiment, ",") {
-		if f != "" {
-			addexp(f)
+	// GOEXPERIMENT=none overrides all experiments enabled at dist time.
+	if goexperiment != "none" {
+		for _, f := range strings.Split(goexperiment, ",") {
+			if f != "" {
+				addexp(f)
+			}
 		}
 	}
 

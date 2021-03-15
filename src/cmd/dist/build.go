@@ -974,11 +974,6 @@ func matchtag(tag string) bool {
 		}
 		return !matchtag(tag[1:])
 	}
-	if os.Getenv("GOEXPERIMENT") == "regabi" && tag == "goexperiment.regabi" {
-		// TODO: maybe we can handle GOEXPERIMENT more generally.
-		// Or remove once we commit to regabi (#40724).
-		return true
-	}
 	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" ||
 		(goos == "android" && tag == "linux") ||
 		(goos == "illumos" && tag == "solaris") ||
@@ -1268,6 +1263,20 @@ func cmdbootstrap() {
 	// go tool may complain.
 	os.Setenv("GOPATH", pathf("%s/pkg/obj/gopath", goroot))
 
+	// Disable GOEXPERIMENT when building toolchain1 and
+	// go_bootstrap. We don't need any experiments for the
+	// bootstrap toolchain, and this lets us avoid duplicating the
+	// GOEXPERIMENT-related build logic from cmd/go here. If the
+	// bootstrap toolchain is < Go 1.17, it will ignore this
+	// anyway since GOEXPERIMENT is baked in; otherwise it will
+	// pick it up from the environment we set here. Once we're
+	// using toolchain1 with dist as the build system, we need to
+	// override this to keep the experiments assumed by the
+	// toolchain and by dist consistent. Once go_bootstrap takes
+	// over the build process, we'll set this back to the original
+	// GOEXPERIMENT.
+	os.Setenv("GOEXPERIMENT", "none")
+
 	if debug {
 		// cmd/buildid is used in debug mode.
 		toolchain = append(toolchain, "cmd/buildid")
@@ -1345,6 +1354,8 @@ func cmdbootstrap() {
 	}
 	xprintf("Building Go toolchain2 using go_bootstrap and Go toolchain1.\n")
 	os.Setenv("CC", compilerEnvLookup(defaultcc, goos, goarch))
+	// Now that cmd/go is in charge of the build process, enable GOEXPERIMENT.
+	os.Setenv("GOEXPERIMENT", goexperiment)
 	goInstall(goBootstrap, append([]string{"-i"}, toolchain...)...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
