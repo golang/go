@@ -15,7 +15,7 @@ import (
 
 var t p.T
 
-type I interface { M() }
+type I interface{ M() }
 
 func main() {
 	pl, err := plugin.Open("method2.so")
