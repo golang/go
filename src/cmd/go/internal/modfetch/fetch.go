@@ -24,7 +24,6 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
-	"cmd/go/internal/renameio"
 	"cmd/go/internal/robustio"
 	"cmd/go/internal/trace"
 
@@ -223,11 +222,10 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	// Clean up any remaining tempfiles from previous runs.
 	// This is only safe to do because the lock file ensures that their
 	// writers are no longer active.
-	for _, base := range []string{zipfile, zipfile + "hash"} {
-		if old, err := filepath.Glob(renameio.Pattern(base)); err == nil {
-			for _, path := range old {
-				os.Remove(path) // best effort
-			}
+	tmpPattern := filepath.Base(zipfile) + "*.tmp"
+	if old, err := filepath.Glob(filepath.Join(filepath.Dir(zipfile), tmpPattern)); err == nil {
+		for _, path := range old {
+			os.Remove(path) // best effort
 		}
 	}
 
@@ -242,7 +240,7 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	// contents of the file (by hashing it) before we commit it. Because the file
 	// is zip-compressed, we need an actual file — or at least an io.ReaderAt — to
 	// validate it: we can't just tee the stream as we write it.
-	f, err := os.CreateTemp(filepath.Dir(zipfile), filepath.Base(renameio.Pattern(zipfile)))
+	f, err := os.CreateTemp(filepath.Dir(zipfile), tmpPattern)
 	if err != nil {
 		return err
 	}
