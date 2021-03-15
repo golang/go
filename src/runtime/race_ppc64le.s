@@ -36,9 +36,9 @@
 // racecalladdr.
 //
 // The sequence used to get the race ctx:
-//    MOVD    runtime·tls_g(SB), R10	// offset to TLS
-//    MOVD    0(R13)(R10*1), g		// R13=TLS for this thread, g = R30
-//    MOVD    g_racectx(g), R3		// racectx == ThreadState
+//    MOVD    runtime·tls_g(SB), R10 // Address of TLS variable
+//    MOVD    0(R10), g              // g = R30
+//    MOVD    g_racectx(g), R3       // racectx == ThreadState
 
 // func runtime·RaceRead(addr uintptr)
 // Called from instrumented Go code
@@ -137,7 +137,7 @@ TEXT	runtime·racewriterangepc1(SB), NOSPLIT, $0-24
 // Otherwise, setup goroutine context and invoke racecall. Other arguments already set.
 TEXT	racecalladdr<>(SB), NOSPLIT, $0-0
 	MOVD    runtime·tls_g(SB), R10
-	MOVD	0(R13)(R10*1), g
+	MOVD	0(R10), g
 	MOVD	g_racectx(g), R3	// goroutine context
 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
 	MOVD	runtime·racearenastart(SB), R9
@@ -173,7 +173,7 @@ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
 // R11 = caller's return address
 TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 	MOVD    runtime·tls_g(SB), R10
-	MOVD    0(R13)(R10*1), g
+	MOVD    0(R10), g
 	MOVD    g_racectx(g), R3        // goroutine racectx aka *ThreadState
 	MOVD	R8, R4			// caller pc set by caller in R8
 	// void __tsan_func_enter(ThreadState *thr, void *pc);
@@ -185,7 +185,7 @@ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 // Called from Go instrumented code.
 TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
 	MOVD    runtime·tls_g(SB), R10
-	MOVD    0(R13)(R10*1), g
+	MOVD    0(R10), g
 	MOVD    g_racectx(g), R3        // goroutine racectx aka *ThreadState
 	// void __tsan_func_exit(ThreadState *thr);
 	MOVD	$__tsan_func_exit(SB), R8
@@ -380,7 +380,7 @@ racecallatomic_data:
 racecallatomic_ok:
 	// Addr is within the good range, call the atomic function.
 	MOVD    runtime·tls_g(SB), R10
-	MOVD    0(R13)(R10*1), g
+	MOVD    0(R10), g
 	MOVD    g_racectx(g), R3        // goroutine racectx aka *ThreadState
 	MOVD	R8, R5			// pc is the function called
 	MOVD	(R1), R4		// caller pc from stack
@@ -394,7 +394,7 @@ racecallatomic_ignore:
 	MOVD	R6, R17 // save the original arg list addr
 	MOVD	$__tsan_go_ignore_sync_begin(SB), R8 // func addr to call
 	MOVD    runtime·tls_g(SB), R10
-	MOVD    0(R13)(R10*1), g
+	MOVD    0(R10), g
 	MOVD    g_racectx(g), R3        // goroutine context
 	BL	racecall<>(SB)
 	MOVD	R15, R8	// restore the original function
@@ -402,7 +402,7 @@ racecallatomic_ignore:
 	// Call the atomic function.
 	// racecall will call LLVM race code which might clobber r30 (g)
 	MOVD	runtime·tls_g(SB), R10
-	MOVD	0(R13)(R10*1), g
+	MOVD	0(R10), g
 
 	MOVD	g_racectx(g), R3
 	MOVD	R8, R4		// pc being called same TODO as above
@@ -434,7 +434,7 @@ TEXT	racecall<>(SB), NOSPLIT, $0-0
 	MOVD	R10, 16(R1)	// C ABI
 	// Get info from the current goroutine
 	MOVD    runtime·tls_g(SB), R10	// g offset in TLS
-	MOVD    0(R13)(R10*1), g	// R13 = current TLS
+	MOVD    0(R10), g
 	MOVD	g_m(g), R7		// m for g
 	MOVD	R1, R16			// callee-saved, preserved across C call
 	MOVD	m_g0(R7), R10		// g0 for m
@@ -448,7 +448,7 @@ call:
 	XOR     R0, R0			// clear R0 on return from Clang
 	MOVD	R16, R1			// restore R1; R16 nonvol in Clang
 	MOVD    runtime·tls_g(SB), R10	// find correct g
-	MOVD    0(R13)(R10*1), g
+	MOVD    0(R10), g
 	MOVD	16(R1), R10		// LR was saved away, restore for return
 	MOVD	R10, LR
 	RET
@@ -469,7 +469,7 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT, $-8
 	// g0 TODO: Don't modify g here since R30 is nonvolatile
 	MOVD	g, R9
 	MOVD    runtime·tls_g(SB), R10
-	MOVD    0(R13)(R10*1), g
+	MOVD    0(R10), g
 	MOVD	g_m(g), R3
 	MOVD	m_p(R3), R3
 	MOVD	p_raceprocctx(R3), R3
@@ -527,7 +527,7 @@ rest:
 	MOVD	R4, FIXED_FRAME+8(R1)
 
 	MOVD    runtime·tls_g(SB), R10
-	MOVD    0(R13)(R10*1), g
+	MOVD    0(R10), g
 
 	MOVD	g_m(g), R7
 	MOVD	m_g0(R7), R8
@@ -540,7 +540,7 @@ rest:
 
 	// All registers are clobbered after Go code, reload.
 	MOVD    runtime·tls_g(SB), R10
-	MOVD    0(R13)(R10*1), g
+	MOVD    0(R10), g
 
 	MOVD	g_m(g), R7
 	MOVD	m_curg(R7), g // restore g = m->curg

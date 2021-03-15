@@ -229,8 +229,8 @@ var optab = []Optab{
 	{as: AMOVD, a1: C_LACON, a6: C_REG, type_: 26, size: 8},
 	{as: AMOVD, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},
 	{as: AMOVD, a1: C_LOREG, a6: C_REG, type_: 36, size: 8},
-	{as: AMOVD, a1: C_TLS_LE, a6: C_REG, type_: 79, size: 4},
-	{as: AMOVD, a1: C_TLS_IE, a6: C_REG, type_: 80, size: 8},
+	{as: AMOVD, a1: C_TLS_LE, a6: C_REG, type_: 79, size: 8},
+	{as: AMOVD, a1: C_TLS_IE, a6: C_REG, type_: 80, size: 12},
 	{as: AMOVD, a1: C_TOCADDR, a6: C_REG, type_: 95, size: 8},
 	{as: AMOVD, a1: C_SPR, a6: C_REG, type_: 66, size: 4},
 	{as: AMOVD, a1: C_REG, a6: C_ADDR, type_: 74, size: 8},
@@ -2500,18 +2500,6 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			if v != 0 {
 				c.ctxt.Diag("illegal indexed instruction\n%v", p)
 			}
-			if c.ctxt.Flag_shared && r == REG_R13 {
-				rel := obj.Addrel(c.cursym)
-				rel.Off = int32(c.pc)
-				rel.Siz = 4
-				// This (and the matching part in the load case
-				// below) are the only places in the ppc64 toolchain
-				// that knows the name of the tls variable. Possibly
-				// we could add some assembly syntax so that the name
-				// of the variable does not have to be assumed.
-				rel.Sym = c.ctxt.Lookup("runtime.tls_g")
-				rel.Type = objabi.R_POWER_TLS
-			}
 			o1 = AOP_RRR(c.opstorex(p.As), uint32(p.From.Reg), uint32(p.To.Index), uint32(r))
 		} else {
 			if int32(int16(v)) != v {
@@ -2535,13 +2523,6 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.From.Type == obj.TYPE_MEM && p.From.Index != 0 {
 			if v != 0 {
 				c.ctxt.Diag("illegal indexed instruction\n%v", p)
-			}
-			if c.ctxt.Flag_shared && r == REG_R13 {
-				rel := obj.Addrel(c.cursym)
-				rel.Off = int32(c.pc)
-				rel.Siz = 4
-				rel.Sym = c.ctxt.Lookup("runtime.tls_g")
-				rel.Type = objabi.R_POWER_TLS
 			}
 			o1 = AOP_RRR(c.oploadx(p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(r))
 		} else {
@@ -3511,10 +3492,11 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.From.Offset != 0 {
 			c.ctxt.Diag("invalid offset against tls var %v", p)
 		}
-		o1 = AOP_IRR(OP_ADDI, uint32(p.To.Reg), REGZERO, 0)
+		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R13, 0)
+		o2 = AOP_IRR(OP_ADDI, uint32(p.To.Reg), uint32(p.To.Reg), 0)
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
-		rel.Siz = 4
+		rel.Siz = 8
 		rel.Sym = p.From.Sym
 		rel.Type = objabi.R_POWER_TLS_LE
 
@@ -3524,11 +3506,17 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
 		o2 = AOP_IRR(c.opload(AMOVD), uint32(p.To.Reg), uint32(p.To.Reg), 0)
+		o3 = AOP_RRR(OP_ADD, uint32(p.To.Reg), uint32(p.To.Reg), REG_R13)
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 8
 		rel.Sym = p.From.Sym
 		rel.Type = objabi.R_POWER_TLS_IE
+		rel = obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc) + 8
+		rel.Siz = 4
+		rel.Sym = p.From.Sym
+		rel.Type = objabi.R_POWER_TLS
 
 	case 81:
 		v := c.vregoff(&p.To)
