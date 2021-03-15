@@ -447,7 +447,7 @@ func TestUDPReadSizeError(t *testing.T) {
 }
 
 func BenchmarkWriteToReadFromUDP(b *testing.B) {
-	conn, err := ListenUDP("udp4", new(UDPAddr))
+	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
 	if err != nil {
 		b.Fatal(err)
 	}
