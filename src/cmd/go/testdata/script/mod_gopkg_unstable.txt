@@ -12,7 +12,7 @@ go list
 
 env GOPROXY=direct
 env GOSUMDB=off
-go get gopkg.in/macaroon-bakery.v2-unstable/bakery
+go get -d gopkg.in/macaroon-bakery.v2-unstable/bakery
 go list -m all
 stdout 'gopkg.in/macaroon-bakery.v2-unstable v2.0.0-[0-9]+-[0-9a-f]+$'
 

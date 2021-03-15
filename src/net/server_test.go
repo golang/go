@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !js
 // +build !js
 
 package net
@@ -86,7 +87,7 @@ func TestTCPServer(t *testing.T) {
 			}
 			for i := 0; i < N; i++ {
 				ch := tpchs[i]
-				handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
+				handler := func(ls *localServer, ln Listener) { ls.transponder(ln, ch) }
 				if err := lss[i].buildup(handler); err != nil {
 					t.Fatal(err)
 				}
@@ -178,7 +179,7 @@ func TestUnixAndUnixpacketServer(t *testing.T) {
 		}
 		for i := 0; i < N; i++ {
 			ch := tpchs[i]
-			handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
+			handler := func(ls *localServer, ln Listener) { ls.transponder(ln, ch) }
 			if err := lss[i].buildup(handler); err != nil {
 				t.Fatal(err)
 			}

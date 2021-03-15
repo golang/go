@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !plan9 && !windows && !js
 // +build !plan9,!windows,!js
 
 package renameio
 
 import (
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -16,7 +16,7 @@ import (
 )
 
 func TestWriteFileModeAppliesUmask(t *testing.T) {
-	dir, err := ioutil.TempDir("", "renameio")
+	dir, err := os.MkdirTemp("", "renameio")
 	if err != nil {
 		t.Fatalf("Failed to create temporary directory: %v", err)
 	}

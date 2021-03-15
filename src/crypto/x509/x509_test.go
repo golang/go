@@ -1960,7 +1960,7 @@ func TestSystemCertPool(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(a, b) {
+	if !certPoolEqual(a, b) {
 		t.Fatal("two calls to SystemCertPool had different results")
 	}
 	if ok := b.AppendCertsFromPEM([]byte(`
@@ -2894,5 +2894,104 @@ func TestCreateCertificateBrokenSigner(t *testing.T) {
 		t.Fatal("expected CreateCertificate to fail with a broken signer")
 	} else if err.Error() != expectedErr {
 		t.Fatalf("CreateCertificate returned an unexpected error: got %q, want %q", err, expectedErr)
+	}
+}
+
+func TestCreateCertificateMD5(t *testing.T) {
+	template := &Certificate{
+		SerialNumber:       big.NewInt(10),
+		DNSNames:           []string{"example.com"},
+		SignatureAlgorithm: MD5WithRSA,
+	}
+	k, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatalf("failed to generate test key: %s", err)
+	}
+	_, err = CreateCertificate(rand.Reader, template, template, k.Public(), &brokenSigner{k.Public()})
+	if err != nil {
+		t.Fatalf("CreateCertificate failed when SignatureAlgorithm = MD5WithRSA: %s", err)
+	}
+}
+
+func (s *CertPool) mustCert(t *testing.T, n int) *Certificate {
+	c, err := s.lazyCerts[n].getCert()
+	if err != nil {
+		t.Fatalf("failed to load cert %d: %v", n, err)
+	}
+	return c
+}
+
+func allCerts(t *testing.T, p *CertPool) []*Certificate {
+	all := make([]*Certificate, p.len())
+	for i := range all {
+		all[i] = p.mustCert(t, i)
+	}
+	return all
+}
+
+// certPoolEqual reports whether a and b are equal, except for the
+// function pointers.
+func certPoolEqual(a, b *CertPool) bool {
+	if (a != nil) != (b != nil) {
+		return false
+	}
+	if a == nil {
+		return true
+	}
+	if !reflect.DeepEqual(a.byName, b.byName) ||
+		len(a.lazyCerts) != len(b.lazyCerts) {
+		return false
+	}
+	for i := range a.lazyCerts {
+		la, lb := a.lazyCerts[i], b.lazyCerts[i]
+		if !bytes.Equal(la.rawSubject, lb.rawSubject) {
+			return false
+		}
+		ca, err := la.getCert()
+		if err != nil {
+			panic(err)
+		}
+		cb, err := la.getCert()
+		if err != nil {
+			panic(err)
+		}
+		if !ca.Equal(cb) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func TestCertificateRequestRoundtripFields(t *testing.T) {
+	urlA, err := url.Parse("https://example.com/_")
+	if err != nil {
+		t.Fatal(err)
+	}
+	urlB, err := url.Parse("https://example.org/_")
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := &CertificateRequest{
+		DNSNames:       []string{"example.com", "example.org"},
+		EmailAddresses: []string{"a@example.com", "b@example.com"},
+		IPAddresses:    []net.IP{net.IPv4(192, 0, 2, 0), net.IPv6loopback},
+		URIs:           []*url.URL{urlA, urlB},
+	}
+	out := marshalAndParseCSR(t, in)
+
+	if !reflect.DeepEqual(in.DNSNames, out.DNSNames) {
+		t.Fatalf("Unexpected DNSNames: got %v, want %v", out.DNSNames, in.DNSNames)
+	}
+	if !reflect.DeepEqual(in.EmailAddresses, out.EmailAddresses) {
+		t.Fatalf("Unexpected EmailAddresses: got %v, want %v", out.EmailAddresses, in.EmailAddresses)
+	}
+	if len(in.IPAddresses) != len(out.IPAddresses) ||
+		!in.IPAddresses[0].Equal(out.IPAddresses[0]) ||
+		!in.IPAddresses[1].Equal(out.IPAddresses[1]) {
+		t.Fatalf("Unexpected IPAddresses: got %v, want %v", out.IPAddresses, in.IPAddresses)
+	}
+	if !reflect.DeepEqual(in.URIs, out.URIs) {
+		t.Fatalf("Unexpected URIs: got %v, want %v", out.URIs, in.URIs)
 	}
 }

@@ -7,7 +7,7 @@
 #include "textflag.h"
 
 // func testBEQZ(a int64) (r bool)
-TEXT ·testBEQZ(SB),NOSPLIT,$0-0
+TEXT ·testBEQZ(SB),NOSPLIT,$0-9
 	MOV	a+0(FP), X5
 	MOV	$1, X6
 	BEQZ	X5, b
@@ -16,8 +16,30 @@ b:
 	MOV	X6, r+8(FP)
 	RET
 
+// func testBGE(a, b int64) (r bool)
+TEXT ·testBGE(SB),NOSPLIT,$0-17
+	MOV	a+0(FP), X5
+	MOV	b+8(FP), X6
+	MOV	$1, X7
+	BGE	X5, X6, b
+	MOV	$0, X7
+b:
+	MOV	X7, r+16(FP)
+	RET
+
+// func testBGEU(a, b int64) (r bool)
+TEXT ·testBGEU(SB),NOSPLIT,$0-17
+	MOV	a+0(FP), X5
+	MOV	b+8(FP), X6
+	MOV	$1, X7
+	BGEU	X5, X6, b
+	MOV	$0, X7
+b:
+	MOV	X7, r+16(FP)
+	RET
+
 // func testBGEZ(a int64) (r bool)
-TEXT ·testBGEZ(SB),NOSPLIT,$0-0
+TEXT ·testBGEZ(SB),NOSPLIT,$0-9
 	MOV	a+0(FP), X5
 	MOV	$1, X6
 	BGEZ	X5, b
@@ -27,7 +49,7 @@ b:
 	RET
 
 // func testBGT(a, b int64) (r bool)
-TEXT ·testBGT(SB),NOSPLIT,$0-0
+TEXT ·testBGT(SB),NOSPLIT,$0-17
 	MOV	a+0(FP), X5
 	MOV	b+8(FP), X6
 	MOV	$1, X7
@@ -38,7 +60,7 @@ b:
 	RET
 
 // func testBGTU(a, b int64) (r bool)
-TEXT ·testBGTU(SB),NOSPLIT,$0-0
+TEXT ·testBGTU(SB),NOSPLIT,$0-17
 	MOV	a+0(FP), X5
 	MOV	b+8(FP), X6
 	MOV	$1, X7
@@ -49,7 +71,7 @@ b:
 	RET
 
 // func testBGTZ(a int64) (r bool)
-TEXT ·testBGTZ(SB),NOSPLIT,$0-0
+TEXT ·testBGTZ(SB),NOSPLIT,$0-9
 	MOV	a+0(FP), X5
 	MOV	$1, X6
 	BGTZ	X5, b
@@ -59,7 +81,7 @@ b:
 	RET
 
 // func testBLE(a, b int64) (r bool)
-TEXT ·testBLE(SB),NOSPLIT,$0-0
+TEXT ·testBLE(SB),NOSPLIT,$0-17
 	MOV	a+0(FP), X5
 	MOV	b+8(FP), X6
 	MOV	$1, X7
@@ -70,7 +92,7 @@ b:
 	RET
 
 // func testBLEU(a, b int64) (r bool)
-TEXT ·testBLEU(SB),NOSPLIT,$0-0
+TEXT ·testBLEU(SB),NOSPLIT,$0-17
 	MOV	a+0(FP), X5
 	MOV	b+8(FP), X6
 	MOV	$1, X7
@@ -81,7 +103,7 @@ b:
 	RET
 
 // func testBLEZ(a int64) (r bool)
-TEXT ·testBLEZ(SB),NOSPLIT,$0-0
+TEXT ·testBLEZ(SB),NOSPLIT,$0-9
 	MOV	a+0(FP), X5
 	MOV	$1, X6
 	BLEZ	X5, b
@@ -90,8 +112,30 @@ b:
 	MOV	X6, r+8(FP)
 	RET
 
+// func testBLT(a, b int64) (r bool)
+TEXT ·testBLT(SB),NOSPLIT,$0-17
+	MOV	a+0(FP), X5
+	MOV	b+8(FP), X6
+	MOV	$1, X7
+	BLT	X5, X6, b
+	MOV	$0, X7
+b:
+	MOV	X7, r+16(FP)
+	RET
+
+// func testBLTU(a, b int64) (r bool)
+TEXT ·testBLTU(SB),NOSPLIT,$0-17
+	MOV	a+0(FP), X5
+	MOV	b+8(FP), X6
+	MOV	$1, X7
+	BLTU	X5, X6, b
+	MOV	$0, X7
+b:
+	MOV	X7, r+16(FP)
+	RET
+
 // func testBLTZ(a int64) (r bool)
-TEXT ·testBLTZ(SB),NOSPLIT,$0-0
+TEXT ·testBLTZ(SB),NOSPLIT,$0-9
 	MOV	a+0(FP), X5
 	MOV	$1, X6
 	BLTZ	X5, b
@@ -101,7 +145,7 @@ b:
 	RET
 
 // func testBNEZ(a int64) (r bool)
-TEXT ·testBNEZ(SB),NOSPLIT,$0-0
+TEXT ·testBNEZ(SB),NOSPLIT,$0-9
 	MOV	a+0(FP), X5
 	MOV	$1, X6
 	BNEZ	X5, b

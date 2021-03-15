@@ -20,7 +20,7 @@ const (
 EOF
 
 while(<>){
-	if(/^([0-9]+)\s+STD\s+(NOLOCK\s+)?({ \S+\s+\*?(\w+).*)$/){
+	if(/^([0-9]+)\s+STD\s+(NOLOCK\s+)?(\{ \S+\s+\*?(\w+).*)$/){
 		my $num = $1;
 		my $proto = $3;
 		my $name = $4;

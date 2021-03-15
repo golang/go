@@ -42,7 +42,7 @@ const (
 	// opensslSentinel on the connection.
 	opensslSendSentinel
 
-	// opensslKeyUpdate causes OpenSSL to send send a key update message to the
+	// opensslKeyUpdate causes OpenSSL to send a key update message to the
 	// client and request one back.
 	opensslKeyUpdate
 )
@@ -1528,7 +1528,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
 					}
 					if c.DidResume {
 						return nil
-						// The SCTs and OCSP Responce are dropped on resumption.
+						// The SCTs and OCSP Response are dropped on resumption.
 						// See http://golang.org/issue/39075.
 					}
 					if len(c.OCSPResponse) == 0 {
@@ -1569,7 +1569,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
 					}
 					if c.DidResume {
 						return nil
-						// The SCTs and OCSP Responce are dropped on resumption.
+						// The SCTs and OCSP Response are dropped on resumption.
 						// See http://golang.org/issue/39075.
 					}
 					if len(c.OCSPResponse) == 0 {
@@ -1619,7 +1619,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
 					}
 					if c.DidResume {
 						return nil
-						// The SCTs and OCSP Responce are dropped on resumption.
+						// The SCTs and OCSP Response are dropped on resumption.
 						// See http://golang.org/issue/39075.
 					}
 					if len(c.OCSPResponse) == 0 {

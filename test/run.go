@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -58,7 +59,7 @@ var (
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime"}
+	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam"}
 
 	// ratec controls the max number of tests running at a time.
 	ratec chan bool
@@ -437,7 +438,7 @@ func (ctxt *context) match(name string) bool {
 		}
 	}
 
-	if name == ctxt.GOOS || name == ctxt.GOARCH {
+	if name == ctxt.GOOS || name == ctxt.GOARCH || name == "gc" {
 		return true
 	}
 
@@ -466,6 +467,8 @@ func goGcflagsIsEmpty() bool {
 	return "" == os.Getenv("GO_GCFLAGS")
 }
 
+var errTimeout = errors.New("command exceeded time limit")
+
 // run runs a test.
 func (t *test) run() {
 	start := time.Now()
@@ -488,7 +491,7 @@ func (t *test) run() {
 	// Execution recipe stops at first blank line.
 	pos := strings.Index(t.src, "\n\n")
 	if pos == -1 {
-		t.err = errors.New("double newline not found")
+		t.err = fmt.Errorf("double newline ending execution recipe not found in %s", t.goFileName())
 		return
 	}
 	action := t.src[:pos]
@@ -641,16 +644,18 @@ func (t *test) run() {
 				case err = <-done:
 					// ok
 				case <-tick.C:
+					cmd.Process.Signal(os.Interrupt)
+					time.Sleep(1 * time.Second)
 					cmd.Process.Kill()
-					err = <-done
-					// err = errors.New("Test timeout")
+					<-done
+					err = errTimeout
 				}
 				tick.Stop()
 			}
 		} else {
 			err = cmd.Run()
 		}
-		if err != nil {
+		if err != nil && err != errTimeout {
 			err = fmt.Errorf("%s\n%s", err, buf.Bytes())
 		}
 		return buf.Bytes(), err
@@ -720,11 +725,75 @@ func (t *test) run() {
 		// Fail if wantError is true and compilation was successful and vice versa.
 		// Match errors produced by gc against errors in comments.
 		// TODO(gri) remove need for -C (disable printing of columns in error messages)
-		cmdline := []string{goTool(), "tool", "compile", "-C", "-e", "-o", "a.o"}
+		cmdline := []string{goTool(), "tool", "compile", "-d=panic", "-C", "-e", "-o", "a.o"}
 		// No need to add -dynlink even if linkshared if we're just checking for errors...
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, long)
 		out, err := runcmd(cmdline...)
+		if wantError {
+			if err == nil {
+				t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
+				return
+			}
+			if err == errTimeout {
+				t.err = fmt.Errorf("compilation timed out")
+				return
+			}
+		} else {
+			if err != nil {
+				t.err = err
+				return
+			}
+		}
+		if *updateErrors {
+			t.updateErrors(string(out), long)
+		}
+		t.err = t.errorCheck(string(out), wantAuto, long, t.gofile)
+		if t.err != nil {
+			return // don't hide error if run below succeeds
+		}
+
+		// The following is temporary scaffolding to get types2 typechecker
+		// up and running against the existing test cases. The explicitly
+		// listed files don't pass yet, usually because the error messages
+		// are slightly different (this list is not complete). Any errorcheck
+		// tests that require output from analysis phases past initial type-
+		// checking are also excluded since these phases are not running yet.
+		// We can get rid of this code once types2 is fully plugged in.
+
+		// For now we're done when we can't handle the file or some of the flags.
+		// The first goal is to eliminate the excluded list; the second goal is to
+		// eliminate the flag list.
+
+		// Excluded files.
+		filename := strings.Replace(t.goFileName(), "\\", "/", -1) // goFileName() uses \ on Windows
+		if excluded[filename] {
+			if *verbose {
+				fmt.Printf("excl\t%s\n", filename)
+			}
+			return // cannot handle file yet
+		}
+
+		// Excluded flags.
+		for _, flag := range flags {
+			for _, pattern := range []string{
+				"-m",
+			} {
+				if strings.Contains(flag, pattern) {
+					if *verbose {
+						fmt.Printf("excl\t%s\t%s\n", filename, flags)
+					}
+					return // cannot handle flag
+				}
+			}
+		}
+
+		// Run errorcheck again with -G option (new typechecker).
+		cmdline = []string{goTool(), "tool", "compile", "-G=3", "-C", "-e", "-o", "a.o"}
+		// No need to add -dynlink even if linkshared if we're just checking for errors...
+		cmdline = append(cmdline, flags...)
+		cmdline = append(cmdline, long)
+		out, err = runcmd(cmdline...)
 		if wantError {
 			if err == nil {
 				t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
@@ -740,7 +809,6 @@ func (t *test) run() {
 			t.updateErrors(string(out), long)
 		}
 		t.err = t.errorCheck(string(out), wantAuto, long, t.gofile)
-		return
 
 	case "compile":
 		// Compile Go file.
@@ -762,6 +830,7 @@ func (t *test) run() {
 		}
 
 	case "errorcheckdir", "errorcheckandrundir":
+		flags = append(flags, "-d=panic")
 		// Compile and errorCheck all files in the directory as packages in lexicographic order.
 		// If errorcheckdir and wantError, compilation of the last package must fail.
 		// If errorcheckandrundir and wantError, compilation of the package prior the last must fail.
@@ -859,9 +928,7 @@ func (t *test) run() {
 					t.err = err
 					return
 				}
-				if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
-					t.err = fmt.Errorf("incorrect output\n%s", out)
-				}
+				t.checkExpectedOutput(out)
 			}
 		}
 
@@ -895,15 +962,14 @@ func (t *test) run() {
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
+		cmd = append(cmd, flags...)
 		cmd = append(cmd, ".")
 		out, err := runcmd(cmd...)
 		if err != nil {
 			t.err = err
 			return
 		}
-		if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
-			t.err = fmt.Errorf("incorrect output\n%s", out)
-		}
+		t.checkExpectedOutput(out)
 
 	case "build":
 		// Build Go file.
@@ -988,9 +1054,7 @@ func (t *test) run() {
 				t.err = err
 				break
 			}
-			if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
-				t.err = fmt.Errorf("incorrect output\n%s", out)
-			}
+			t.checkExpectedOutput(out)
 		}
 
 	case "buildrun":
@@ -1016,9 +1080,7 @@ func (t *test) run() {
 			return
 		}
 
-		if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
-			t.err = fmt.Errorf("incorrect output\n%s", out)
-		}
+		t.checkExpectedOutput(out)
 
 	case "run":
 		// Run Go file if no special go command flags are provided;
@@ -1061,9 +1123,7 @@ func (t *test) run() {
 			t.err = err
 			return
 		}
-		if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
-			t.err = fmt.Errorf("incorrect output\n%s", out)
-		}
+		t.checkExpectedOutput(out)
 
 	case "runoutput":
 		// Run Go file and write its output into temporary Go file.
@@ -1098,9 +1158,7 @@ func (t *test) run() {
 			t.err = err
 			return
 		}
-		if string(out) != t.expectedOutput() {
-			t.err = fmt.Errorf("incorrect output\n%s", out)
-		}
+		t.checkExpectedOutput(out)
 
 	case "errorcheckoutput":
 		// Run Go file and write its output into temporary Go file.
@@ -1122,7 +1180,7 @@ func (t *test) run() {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
-		cmdline := []string{goTool(), "tool", "compile", "-e", "-o", "a.o"}
+		cmdline := []string{goTool(), "tool", "compile", "-d=panic", "-e", "-o", "a.o"}
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, tfile)
 		out, err = runcmd(cmdline...)
@@ -1174,12 +1232,24 @@ func (t *test) makeTempDir() {
 	}
 }
 
-func (t *test) expectedOutput() string {
+// checkExpectedOutput compares the output from compiling and/or running with the contents
+// of the corresponding reference output file, if any (replace ".go" with ".out").
+// If they don't match, fail with an informative message.
+func (t *test) checkExpectedOutput(gotBytes []byte) {
+	got := string(gotBytes)
 	filename := filepath.Join(t.dir, t.gofile)
 	filename = filename[:len(filename)-len(".go")]
 	filename += ".out"
-	b, _ := ioutil.ReadFile(filename)
-	return string(b)
+	b, err := ioutil.ReadFile(filename)
+	// File is allowed to be missing (err != nil) in which case output should be empty.
+	got = strings.Replace(got, "\r\n", "\n", -1)
+	if got != string(b) {
+		if err == nil {
+			t.err = fmt.Errorf("output does not match expected in %s. Instead saw\n%s", filename, got)
+		} else {
+			t.err = fmt.Errorf("output should be empty when (optional) expected-output file %s is not present. Instead saw\n%s", filename, got)
+		}
+	}
 }
 
 func splitOutput(out string, wantAuto bool) []string {
@@ -1793,7 +1863,7 @@ func overlayDir(dstRoot, srcRoot string) error {
 		return err
 	}
 
-	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
+	return filepath.WalkDir(srcRoot, func(srcPath string, d fs.DirEntry, err error) error {
 		if err != nil || srcPath == srcRoot {
 			return err
 		}
@@ -1804,14 +1874,16 @@ func overlayDir(dstRoot, srcRoot string) error {
 		}
 		dstPath := filepath.Join(dstRoot, suffix)
 
-		perm := info.Mode() & os.ModePerm
-		if info.Mode()&os.ModeSymlink != 0 {
+		var info fs.FileInfo
+		if d.Type()&os.ModeSymlink != 0 {
 			info, err = os.Stat(srcPath)
-			if err != nil {
-				return err
-			}
-			perm = info.Mode() & os.ModePerm
+		} else {
+			info, err = d.Info()
 		}
+		if err != nil {
+			return err
+		}
+		perm := info.Mode() & os.ModePerm
 
 		// Always copy directories (don't symlink them).
 		// If we add a file in the overlay, we don't want to add it in the original.
@@ -1842,4 +1914,68 @@ func overlayDir(dstRoot, srcRoot string) error {
 		}
 		return err
 	})
+}
+
+// List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
+// Temporary scaffolding until we pass all the tests at which point this map can be removed.
+var excluded = map[string]bool{
+	"complit1.go":     true, // types2 reports extra errors
+	"const2.go":       true, // types2 not run after syntax errors
+	"ddd1.go":         true, // issue #42987
+	"directive.go":    true, // misplaced compiler directive checks
+	"float_lit3.go":   true, // types2 reports extra errors
+	"import1.go":      true, // types2 reports extra errors
+	"import5.go":      true, // issue #42988
+	"import6.go":      true, // issue #43109
+	"initializerr.go": true, // types2 reports extra errors
+	"linkname2.go":    true, // error reported by noder (not running for types2 errorcheck test)
+	"notinheap.go":    true, // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
+	"shift1.go":       true, // issue #42989
+	"typecheck.go":    true, // invalid function is not causing errors when called
+	"writebarrier.go": true, // correct diagnostics, but different lines (probably irgen's fault)
+
+	"fixedbugs/bug176.go":    true, // types2 reports all errors (pref: types2)
+	"fixedbugs/bug193.go":    true, // types2 bug: shift error not reported (fixed in go/types)
+	"fixedbugs/bug195.go":    true, // types2 reports slightly different (but correct) bugs
+	"fixedbugs/bug228.go":    true, // types2 not run after syntax errors
+	"fixedbugs/bug231.go":    true, // types2 bug? (same error reported twice)
+	"fixedbugs/bug255.go":    true, // types2 reports extra errors
+	"fixedbugs/bug351.go":    true, // types2 reports extra errors
+	"fixedbugs/bug374.go":    true, // types2 reports extra errors
+	"fixedbugs/bug385_32.go": true, // types2 doesn't produce missing error "type .* too large" (32-bit specific)
+	"fixedbugs/bug388.go":    true, // types2 not run due to syntax errors
+	"fixedbugs/bug412.go":    true, // types2 produces a follow-on error
+
+	"fixedbugs/issue11590.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue11610.go":  true, // types2 not run after syntax errors
+	"fixedbugs/issue11614.go":  true, // types2 reports an extra error
+	"fixedbugs/issue13415.go":  true, // declared but not used conflict
+	"fixedbugs/issue14520.go":  true, // missing import path error by types2
+	"fixedbugs/issue16428.go":  true, // types2 reports two instead of one error
+	"fixedbugs/issue17038.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue17645.go":  true, // multiple errors on same line
+	"fixedbugs/issue18331.go":  true, // missing error about misuse of //go:noescape (irgen needs code from noder)
+	"fixedbugs/issue18393.go":  true, // types2 not run after syntax errors
+	"fixedbugs/issue19012.go":  true, // multiple errors on same line
+	"fixedbugs/issue20233.go":  true, // types2 reports two instead of one error (pref: compiler)
+	"fixedbugs/issue20245.go":  true, // types2 reports two instead of one error (pref: compiler)
+	"fixedbugs/issue20250.go":  true, // correct diagnostics, but different lines (probably irgen's fault)
+	"fixedbugs/issue21979.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue23732.go":  true, // types2 reports different (but ok) line numbers
+	"fixedbugs/issue25958.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors
+	"fixedbugs/issue28268.go":  true, // types2 reports follow-on errors
+	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
+	"fixedbugs/issue41575.go":  true, // types2 reports alternative positions in separate error
+	"fixedbugs/issue42058a.go": true, // types2 doesn't report "channel element type too large"
+	"fixedbugs/issue42058b.go": true, // types2 doesn't report "channel element type too large"
+	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
+	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
+	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
+	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
+	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525c.go":  true, // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525d.go":  true, // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525e.go":  true, // types2 reports init cycle error on different line - ok otherwise
 }

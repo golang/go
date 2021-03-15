@@ -42,8 +42,8 @@ import (
 var re = lazyregexp.New
 
 var validCompilerFlags = []*lazyregexp.Regexp{
-	re(`-D([A-Za-z_].*)`),
-	re(`-U([A-Za-z_]*)`),
+	re(`-D([A-Za-z_][A-Za-z0-9_]*)(=[^@\-]*)?`),
+	re(`-U([A-Za-z_][A-Za-z0-9_]*)`),
 	re(`-F([^@\-].*)`),
 	re(`-I([^@\-].*)`),
 	re(`-O`),
@@ -51,8 +51,8 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-W`),
 	re(`-W([^@,]+)`), // -Wall but not -Wa,-foo.
 	re(`-Wa,-mbig-obj`),
-	re(`-Wp,-D([A-Za-z_].*)`),
-	re(`-Wp,-U([A-Za-z_]*)`),
+	re(`-Wp,-D([A-Za-z_][A-Za-z0-9_]*)(=[^@,\-]*)?`),
+	re(`-Wp,-U([A-Za-z_][A-Za-z0-9_]*)`),
 	re(`-ansi`),
 	re(`-f(no-)?asynchronous-unwind-tables`),
 	re(`-f(no-)?blocks`),
@@ -132,6 +132,7 @@ var validCompilerFlagsWithNextArg = []string{
 	"-U",
 	"-I",
 	"-framework",
+	"-include",
 	"-isysroot",
 	"-isystem",
 	"--sysroot",
@@ -178,7 +179,7 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-Wl,-berok`),
 	re(`-Wl,-Bstatic`),
 	re(`-Wl,-Bsymbolic-functions`),
-	re(`-WL,-O([^@,\-][^,]*)?`),
+	re(`-Wl,-O([^@,\-][^,]*)?`),
 	re(`-Wl,-d[ny]`),
 	re(`-Wl,--disable-new-dtags`),
 	re(`-Wl,-e[=,][a-zA-Z0-9]*`),

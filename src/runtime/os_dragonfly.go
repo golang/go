@@ -51,16 +51,20 @@ func sys_umtx_wakeup(addr *uint32, val int32) int32
 
 func osyield()
 
+//go:nosplit
+func osyield_no_g() {
+	osyield()
+}
+
 func kqueue() int32
 
 //go:noescape
 func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
-func closeonexec(fd int32)
-func setNonblock(fd int32)
 
 func pipe() (r, w int32, errno int32)
-
-const stackSystem = 0
+func pipe2(flags int32) (r, w int32, errno int32)
+func closeonexec(fd int32)
+func setNonblock(fd int32)
 
 // From DragonFly's <sys/sysctl.h>
 const (
@@ -201,6 +205,11 @@ func minit() {
 //go:nosplit
 func unminit() {
 	unminitSignals()
+}
+
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+func mdestroy(mp *m) {
 }
 
 func sigtramp()

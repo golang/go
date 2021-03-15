@@ -91,10 +91,10 @@ It is a comma-separated list of name=val pairs setting these named variables:
 		# bytes     memory allocated on the heap
 		# allocs    number of heap allocations
 
-	madvdontneed: setting madvdontneed=1 will use MADV_DONTNEED
-	instead of MADV_FREE on Linux when returning memory to the
-	kernel. This is less efficient, but causes RSS numbers to drop
-	more quickly.
+	madvdontneed: setting madvdontneed=0 will use MADV_FREE
+	instead of MADV_DONTNEED on Linux when returning memory to the
+	kernel. This is more efficient, but means RSS numbers will
+	drop only when the OS is under memory pressure.
 
 	memprofilerate: setting memprofilerate=X will update the value of runtime.MemProfileRate.
 	When set to 0 memory profiling is disabled.  Refer to the description of
@@ -109,8 +109,6 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	sbrk: setting sbrk=1 replaces the memory allocator and garbage collector
 	with a trivial allocator that obtains memory from the operating system and
 	never reclaims any memory.
-
-	scavenge: scavenge=1 enables debugging mode of heap scavenger.
 
 	scavtrace: setting scavtrace=1 causes the runtime to emit a single line to standard
 	error, roughly once per GC cycle, summarizing the amount of work done by the
@@ -229,6 +227,8 @@ func Callers(skip int, pc []uintptr) int {
 	return callers(skip, pc)
 }
 
+var defaultGOROOT string // set by cmd/link
+
 // GOROOT returns the root of the Go tree. It uses the
 // GOROOT environment variable, if set at process start,
 // or else the root used during the Go build.
@@ -237,7 +237,7 @@ func GOROOT() string {
 	if s != "" {
 		return s
 	}
-	return sys.DefaultGoroot
+	return defaultGOROOT
 }
 
 // Version returns the Go tree's version string.

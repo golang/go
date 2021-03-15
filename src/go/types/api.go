@@ -43,6 +43,15 @@ type Error struct {
 	Pos  token.Pos      // error position
 	Msg  string         // error message
 	Soft bool           // if set, error is "soft"
+
+	// go116code is a future API, unexported as the set of error codes is large
+	// and likely to change significantly during experimentation. Tools wishing
+	// to preview this feature may read go116code using reflection (see
+	// errorcodes_test.go), but beware that there is no guarantee of future
+	// compatibility.
+	go116code  errorCode
+	go116start token.Pos
+	go116end   token.Pos
 }
 
 // Error returns an error string formatted as follows:
@@ -92,6 +101,13 @@ type ImporterFrom interface {
 // A Config specifies the configuration for type checking.
 // The zero value for Config is a ready-to-use default configuration.
 type Config struct {
+	// GoVersion describes the accepted Go language version. The string
+	// must follow the format "go%d.%d" (e.g. "go1.12") or it must be
+	// empty; an empty string indicates the latest language version.
+	// If the format is invalid, invoking the type checker will cause a
+	// panic.
+	GoVersion string
+
 	// If IgnoreFuncBodies is set, function bodies are not
 	// type-checked.
 	IgnoreFuncBodies bool
@@ -167,6 +183,12 @@ type Info struct {
 	// only in the Defs map, and identifiers denoting packages in
 	// qualified identifiers are collected in the Uses map.
 	Types map[ast.Expr]TypeAndValue
+
+	// _Inferred maps calls of parameterized functions that use
+	// type inference to the _Inferred type arguments and signature
+	// of the function called. The recorded "call" expression may be
+	// an *ast.CallExpr (as in f(x)), or an *ast.IndexExpr (s in f[T]).
+	_Inferred map[ast.Expr]_Inferred
 
 	// Defs maps identifiers to the objects they define (including
 	// package names, dots "." of dot-imports, and blank "_" identifiers).
@@ -324,6 +346,13 @@ func (tv TypeAndValue) HasOk() bool {
 	return tv.mode == commaok || tv.mode == mapindex
 }
 
+// _Inferred reports the _Inferred type arguments and signature
+// for a parameterized function call that uses type inference.
+type _Inferred struct {
+	Targs []Type
+	Sig   *Signature
+}
+
 // An Initializer describes a package-level variable, or a list of variables in case
 // of a multi-valued initialization expression, and the corresponding initialization
 // expression.
@@ -370,7 +399,8 @@ func AssertableTo(V *Interface, T Type) bool {
 // AssignableTo reports whether a value of type V is assignable to a variable of type T.
 func AssignableTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
-	return x.assignableTo(nil, T, nil) // check not needed for non-constant x
+	ok, _ := x.assignableTo(nil, T, nil) // check not needed for non-constant x
+	return ok
 }
 
 // ConvertibleTo reports whether a value of type V is convertible to a value of type T.

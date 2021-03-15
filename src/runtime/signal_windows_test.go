@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package runtime_test
@@ -7,11 +8,11 @@ import (
 	"bytes"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -28,7 +29,7 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
 	testenv.MustHaveExecPath(t, "gcc")
 	testprog.Lock()
 	defer testprog.Unlock()
-	dir, err := ioutil.TempDir("", "go-build")
+	dir, err := os.MkdirTemp("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}
@@ -80,6 +81,69 @@ func sendCtrlBreak(pid int) error {
 	return nil
 }
 
+// TestCtrlHandler tests that Go can gracefully handle closing the console window.
+// See https://golang.org/issues/41884.
+func TestCtrlHandler(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	// build go program
+	exe := filepath.Join(t.TempDir(), "test.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "testdata/testwinsignal/main.go")
+	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build go exe: %v\n%s", err, out)
+	}
+
+	// run test program
+	cmd = exec.Command(exe)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	outPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatalf("Failed to create stdout pipe: %v", err)
+	}
+	outReader := bufio.NewReader(outPipe)
+
+	// in a new command window
+	const _CREATE_NEW_CONSOLE = 0x00000010
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: _CREATE_NEW_CONSOLE,
+		HideWindow:    true,
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("Start failed: %v", err)
+	}
+	defer func() {
+		cmd.Process.Kill()
+		cmd.Wait()
+	}()
+
+	// wait for child to be ready to receive signals
+	if line, err := outReader.ReadString('\n'); err != nil {
+		t.Fatalf("could not read stdout: %v", err)
+	} else if strings.TrimSpace(line) != "ready" {
+		t.Fatalf("unexpected message: %s", line)
+	}
+
+	// gracefully kill pid, this closes the command window
+	if err := exec.Command("taskkill.exe", "/pid", strconv.Itoa(cmd.Process.Pid)).Run(); err != nil {
+		t.Fatalf("failed to kill: %v", err)
+	}
+
+	// check child received, handled SIGTERM
+	if line, err := outReader.ReadString('\n'); err != nil {
+		t.Fatalf("could not read stdout: %v", err)
+	} else if expected, got := syscall.SIGTERM.String(), strings.TrimSpace(line); expected != got {
+		t.Fatalf("Expected '%s' got: %s", expected, got)
+	}
+
+	// check child exited gracefully, did not timeout
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("Program exited with error: %v\n%s", err, &stderr)
+	}
+}
+
 // TestLibraryCtrlHandler tests that Go DLL allows calling program to handle console control events.
 // See https://golang.org/issues/35965.
 func TestLibraryCtrlHandler(t *testing.T) {
@@ -93,7 +157,7 @@ func TestLibraryCtrlHandler(t *testing.T) {
 	testenv.MustHaveExecPath(t, "gcc")
 	testprog.Lock()
 	defer testprog.Unlock()
-	dir, err := ioutil.TempDir("", "go-build")
+	dir, err := os.MkdirTemp("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}

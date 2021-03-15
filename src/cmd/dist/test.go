@@ -217,6 +217,9 @@ func (t *tester) run() {
 		fmt.Println("\nFAILED")
 		xexit(1)
 	} else if incomplete[goos+"/"+goarch] {
+		// The test succeeded, but consider it as failed so we don't
+		// forget to remove the port from the incomplete map once the
+		// port is complete.
 		fmt.Println("\nFAILED (incomplete port)")
 		xexit(1)
 	} else if t.partial {
@@ -306,14 +309,24 @@ var (
 	benchMatches []string
 )
 
-func (t *tester) registerStdTest(pkg string) {
-	testName := "go_test:" + pkg
+func (t *tester) registerStdTest(pkg string, useG3 bool) {
+	heading := "Testing packages."
+	testPrefix := "go_test:"
+	gcflags := gogcflags
+	if useG3 {
+		heading = "Testing packages with -G=3."
+		testPrefix = "go_test_g3:"
+		gcflags += " -G=3"
+	}
+
+	testName := testPrefix + pkg
 	if t.runRx == nil || t.runRx.MatchString(testName) == t.runRxWant {
 		stdMatches = append(stdMatches, pkg)
 	}
+
 	t.tests = append(t.tests, distTest{
 		name:    testName,
-		heading: "Testing packages.",
+		heading: heading,
 		fn: func(dt *distTest) error {
 			if ranGoTest {
 				return nil
@@ -340,7 +353,7 @@ func (t *tester) registerStdTest(pkg string) {
 				"-short=" + short(),
 				t.tags(),
 				t.timeout(timeoutSec),
-				"-gcflags=all=" + gogcflags,
+				"-gcflags=all=" + gcflags,
 			}
 			if t.race {
 				args = append(args, "-race")
@@ -405,7 +418,10 @@ func (t *tester) registerTests() {
 	if len(t.runNames) > 0 {
 		for _, name := range t.runNames {
 			if strings.HasPrefix(name, "go_test:") {
-				t.registerStdTest(strings.TrimPrefix(name, "go_test:"))
+				t.registerStdTest(strings.TrimPrefix(name, "go_test:"), false)
+			}
+			if strings.HasPrefix(name, "go_test_g3:") {
+				t.registerStdTest(strings.TrimPrefix(name, "go_test_g3:"), true)
 			}
 			if strings.HasPrefix(name, "go_test_bench:") {
 				t.registerRaceBenchTest(strings.TrimPrefix(name, "go_test_bench:"))
@@ -428,8 +444,15 @@ func (t *tester) registerTests() {
 			fatalf("Error running go list std cmd: %v:\n%s", err, cmd.Stderr)
 		}
 		pkgs := strings.Fields(string(all))
+		if false {
+			// Disable -G=3 option for standard tests for now, since
+			// they are flaky on the builder.
+			for _, pkg := range pkgs {
+				t.registerStdTest(pkg, true /* -G=3 flag */)
+			}
+		}
 		for _, pkg := range pkgs {
-			t.registerStdTest(pkg)
+			t.registerStdTest(pkg, false)
 		}
 		if t.race {
 			for _, pkg := range pkgs {
@@ -463,13 +486,14 @@ func (t *tester) registerTests() {
 		})
 	}
 
-	// Test the ios build tag on darwin/amd64 for the iOS simulator.
-	if goos == "darwin" && goarch == "amd64" {
+	// Test ios/amd64 for the iOS simulator.
+	if goos == "darwin" && goarch == "amd64" && t.cgoEnabled {
 		t.tests = append(t.tests, distTest{
 			name:    "amd64ios",
-			heading: "ios tag on darwin/amd64",
+			heading: "GOOS=ios on darwin/amd64",
 			fn: func(dt *distTest) error {
-				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=ios", "-run=SystemRoots", "crypto/x509")
+				cmd := t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-run=SystemRoots", "crypto/x509")
+				cmd.Env = append(os.Environ(), "GOOS=ios", "CGO_ENABLED=1")
 				return nil
 			},
 		})
@@ -712,8 +736,9 @@ func (t *tester) registerTests() {
 		if gohostos == "linux" && goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", ".")
 		}
-		if mSanSupported(goos, goarch) {
-			t.registerHostTest("testsanitizers/msan", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
+		if goos == "linux" {
+			// because syscall.SysProcAttri struct used in misc/cgo/testsanitizers is only built on linux.
+			t.registerHostTest("testsanitizers", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
 		}
 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
 			t.registerHostTest("cgo_errors", "../misc/cgo/errors", "misc/cgo/errors", ".")
@@ -721,14 +746,6 @@ func (t *tester) registerTests() {
 		if gohostos == "linux" && t.extLink() {
 			t.registerTest("testsigfwd", "../misc/cgo/testsigfwd", "go", "run", ".")
 		}
-	}
-
-	// Doc tests only run on builders.
-	// They find problems approximately never.
-	if goos != "js" && goos != "android" && !t.iOS() && os.Getenv("GO_BUILDER_NAME") != "" {
-		t.registerTest("doc_progs", "../doc/progs", "go", "run", "run.go")
-		t.registerTest("wiki", "../doc/articles/wiki", t.goTest(), ".")
-		t.registerTest("codewalk", "../doc/codewalk", t.goTest(), "codewalk_test.go")
 	}
 
 	if goos != "android" && !t.iOS() {
@@ -949,7 +966,7 @@ func (t *tester) internalLink() bool {
 	// Internally linking cgo is incomplete on some architectures.
 	// https://golang.org/issue/10373
 	// https://golang.org/issue/14449
-	if goarch == "mips64" || goarch == "mips64le" || goarch == "mips" || goarch == "mipsle" {
+	if goarch == "mips64" || goarch == "mips64le" || goarch == "mips" || goarch == "mipsle" || goarch == "riscv64" {
 		return false
 	}
 	if goos == "aix" {
@@ -1017,7 +1034,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 	case "pie":
 		switch pair {
 		case "aix/ppc64",
-			"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
+			"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-riscv64", "linux-s390x",
 			"android-amd64", "android-arm", "android-arm64", "android-386":
 			return true
 		case "darwin-amd64", "darwin-arm64":
@@ -1078,7 +1095,12 @@ func (t *tester) cgoTest(dt *distTest) error {
 	cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
 	cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=auto")
 
-	if t.internalLink() {
+	// Skip internal linking cases on arm64 to support GCC-9.4 and above,
+	// only for linux, conservatively.
+	// See issue #39466.
+	skipInternalLink := goarch == "arm64" && goos == "linux"
+
+	if t.internalLink() && !skipInternalLink {
 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=internal")
 		cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=internal")
 	}
@@ -1086,7 +1108,6 @@ func (t *tester) cgoTest(dt *distTest) error {
 	pair := gohostos + "-" + goarch
 	switch pair {
 	case "darwin-amd64", "darwin-arm64",
-		"openbsd-386", "openbsd-amd64",
 		"windows-386", "windows-amd64":
 		// test linkmode=external, but __thread not supported, so skip testtls.
 		if !t.extLink() {
@@ -1108,8 +1129,9 @@ func (t *tester) cgoTest(dt *distTest) error {
 		"android-arm", "android-arm64",
 		"dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
-		"linux-386", "linux-amd64", "linux-arm", "linux-ppc64le", "linux-s390x",
-		"netbsd-386", "netbsd-amd64", "linux-arm64":
+		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-riscv64", "linux-s390x",
+		"netbsd-386", "netbsd-amd64",
+		"openbsd-386", "openbsd-amd64", "openbsd-arm", "openbsd-arm64", "openbsd-mips64":
 
 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
 		cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=external")
@@ -1154,7 +1176,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 
 			if t.supportedBuildmode("pie") {
 				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie")
-				if t.internalLink() && t.internalLinkPIE() {
+				if t.internalLink() && t.internalLinkPIE() && !skipInternalLink {
 					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie")
 				}
 				t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-buildmode=pie")
@@ -1435,7 +1457,6 @@ func (t *tester) testDirTest(dt *distTest, shard, shards int) error {
 
 // cgoPackages is the standard packages that use cgo.
 var cgoPackages = []string{
-	"crypto/x509",
 	"net",
 	"os/user",
 }
@@ -1501,6 +1522,7 @@ func (t *tester) makeGOROOTUnwritable() (undo func()) {
 	}
 	gocacheSubdir, _ := filepath.Rel(dir, gocache)
 
+	// Note: Can't use WalkDir here, because this has to compile with Go 1.4.
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if suffix := strings.TrimPrefix(path, dir+string(filepath.Separator)); suffix != "" {
 			if suffix == gocacheSubdir {
@@ -1610,19 +1632,10 @@ func raceDetectorSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
 		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64"
-	case "darwin", "freebsd", "netbsd", "windows":
-		return goarch == "amd64"
-	default:
-		return false
-	}
-}
-
-// mSanSupported is a copy of the function cmd/internal/sys.MSanSupported,
-// which can't be used here because cmd/dist has to be buildable by Go 1.4.
-func mSanSupported(goos, goarch string) bool {
-	switch goos {
-	case "linux":
+	case "darwin":
 		return goarch == "amd64" || goarch == "arm64"
+	case "freebsd", "netbsd", "openbsd", "windows":
+		return goarch == "amd64"
 	default:
 		return false
 	}

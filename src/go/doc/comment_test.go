@@ -154,6 +154,17 @@ A very long line of 46 char for line wrapping. */`,
 .   for line wrapping. */
 `,
 	},
+	{
+		in: `A line of 36 char for line wrapping.
+//Another line starting with //`,
+		out: []block{
+			{opPara, []string{"A line of 36 char for line wrapping.\n",
+				"//Another line starting with //"}},
+		},
+		text: `.   A line of 36 char for line wrapping.
+.   //Another line starting with //
+`,
+	},
 }
 
 func TestBlocks(t *testing.T) {

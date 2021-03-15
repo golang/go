@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net"
 	"net/textproto"
 	"net/url"
@@ -1467,7 +1468,13 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		return
 	}
 
-	if w.closeAfterReply && (!keepAlivesEnabled || !hasToken(cw.header.get("Connection"), "close")) {
+	// Only override the Connection header if it is not a successful
+	// protocol switch response and if KeepAlives are not enabled.
+	// See https://golang.org/issue/36381.
+	delConnectionHeader := w.closeAfterReply &&
+		(!keepAlivesEnabled || !hasToken(cw.header.get("Connection"), "close")) &&
+		!isProtocolSwitchResponse(w.status, header)
+	if delConnectionHeader {
 		delHeader("Connection")
 		if w.req.ProtoAtLeast(1, 1) {
 			setHeader.connection = "close"
@@ -2631,7 +2638,7 @@ type Server struct {
 	// value.
 	ConnContext func(ctx context.Context, c net.Conn) context.Context
 
-	inShutdown atomicBool // true when when server is in shutdown
+	inShutdown atomicBool // true when server is in shutdown
 
 	disableKeepAlives int32     // accessed atomically.
 	nextProtoOnce     sync.Once // guards setupHTTP2_* init
@@ -2691,14 +2698,14 @@ func (srv *Server) Close() error {
 	return err
 }
 
-// shutdownPollInterval is how often we poll for quiescence
-// during Server.Shutdown. This is lower during tests, to
-// speed up tests.
+// shutdownPollIntervalMax is the max polling interval when checking
+// quiescence during Server.Shutdown. Polling starts with a small
+// interval and backs off to the max.
 // Ideally we could find a solution that doesn't involve polling,
 // but which also doesn't have a high runtime cost (and doesn't
 // involve any contentious mutexes), but that is left as an
 // exercise for the reader.
-var shutdownPollInterval = 500 * time.Millisecond
+const shutdownPollIntervalMax = 500 * time.Millisecond
 
 // Shutdown gracefully shuts down the server without interrupting any
 // active connections. Shutdown works by first closing all open
@@ -2731,8 +2738,20 @@ func (srv *Server) Shutdown(ctx context.Context) error {
 	}
 	srv.mu.Unlock()
 
-	ticker := time.NewTicker(shutdownPollInterval)
-	defer ticker.Stop()
+	pollIntervalBase := time.Millisecond
+	nextPollInterval := func() time.Duration {
+		// Add 10% jitter.
+		interval := pollIntervalBase + time.Duration(rand.Intn(int(pollIntervalBase/10)))
+		// Double and clamp for next time.
+		pollIntervalBase *= 2
+		if pollIntervalBase > shutdownPollIntervalMax {
+			pollIntervalBase = shutdownPollIntervalMax
+		}
+		return interval
+	}
+
+	timer := time.NewTimer(nextPollInterval())
+	defer timer.Stop()
 	for {
 		if srv.closeIdleConns() && srv.numListeners() == 0 {
 			return lnerr
@@ -2740,7 +2759,8 @@ func (srv *Server) Shutdown(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-ticker.C:
+		case <-timer.C:
+			timer.Reset(nextPollInterval())
 		}
 	}
 }

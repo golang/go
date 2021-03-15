@@ -122,8 +122,6 @@ func rewriteValuegeneric(v *Value) bool {
 		return rewriteValuegeneric_OpEqSlice(v)
 	case OpIMake:
 		return rewriteValuegeneric_OpIMake(v)
-	case OpInterCall:
-		return rewriteValuegeneric_OpInterCall(v)
 	case OpInterLECall:
 		return rewriteValuegeneric_OpInterLECall(v)
 	case OpIsInBounds:
@@ -392,8 +390,8 @@ func rewriteValuegeneric(v *Value) bool {
 		return rewriteValuegeneric_OpSlicemask(v)
 	case OpSqrt:
 		return rewriteValuegeneric_OpSqrt(v)
-	case OpStaticCall:
-		return rewriteValuegeneric_OpStaticCall(v)
+	case OpStaticLECall:
+		return rewriteValuegeneric_OpStaticLECall(v)
 	case OpStore:
 		return rewriteValuegeneric_OpStore(v)
 	case OpStringLen:
@@ -4087,6 +4085,26 @@ func rewriteValuegeneric_OpCvt64Fto32F(v *Value) bool {
 		v.AuxInt = float32ToAuxInt(float32(c))
 		return true
 	}
+	// match: (Cvt64Fto32F sqrt0:(Sqrt (Cvt32Fto64F x)))
+	// cond: sqrt0.Uses==1
+	// result: (Sqrt32 x)
+	for {
+		sqrt0 := v_0
+		if sqrt0.Op != OpSqrt {
+			break
+		}
+		sqrt0_0 := sqrt0.Args[0]
+		if sqrt0_0.Op != OpCvt32Fto64F {
+			break
+		}
+		x := sqrt0_0.Args[0]
+		if !(sqrt0.Uses == 1) {
+			break
+		}
+		v.reset(OpSqrt32)
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpCvt64Fto64(v *Value) bool {
@@ -5205,6 +5223,66 @@ func rewriteValuegeneric_OpDiv64u(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
 		v0.AuxInt = int64ToAuxInt(63)
 		v.AddArg2(n, v0)
+		return true
+	}
+	// match: (Div64u x (Const64 [c]))
+	// cond: c > 0 && c <= 0xFFFF && umagicOK32(int32(c)) && config.RegSize == 4 && config.useHmul
+	// result: (Add64 (Add64 <typ.UInt64> (Add64 <typ.UInt64> (Lsh64x64 <typ.UInt64> (ZeroExt32to64 (Div32u <typ.UInt32> (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32]))) (Const32 <typ.UInt32> [int32(c)]))) (Const64 <typ.UInt64> [32])) (ZeroExt32to64 (Div32u <typ.UInt32> (Trunc64to32 <typ.UInt32> x) (Const32 <typ.UInt32> [int32(c)])))) (Mul64 <typ.UInt64> (ZeroExt32to64 <typ.UInt64> (Mod32u <typ.UInt32> (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32]))) (Const32 <typ.UInt32> [int32(c)]))) (Const64 <typ.UInt64> [int64((1<<32)/c)]))) (ZeroExt32to64 (Div32u <typ.UInt32> (Add32 <typ.UInt32> (Mod32u <typ.UInt32> (Trunc64to32 <typ.UInt32> x) (Const32 <typ.UInt32> [int32(c)])) (Mul32 <typ.UInt32> (Mod32u <typ.UInt32> (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32]))) (Const32 <typ.UInt32> [int32(c)])) (Const32 <typ.UInt32> [int32((1<<32)%c)]))) (Const32 <typ.UInt32> [int32(c)]))))
+	for {
+		x := v_0
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		if !(c > 0 && c <= 0xFFFF && umagicOK32(int32(c)) && config.RegSize == 4 && config.useHmul) {
+			break
+		}
+		v.reset(OpAdd64)
+		v0 := b.NewValue0(v.Pos, OpAdd64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpAdd64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpLsh64x64, typ.UInt64)
+		v3 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+		v4 := b.NewValue0(v.Pos, OpDiv32u, typ.UInt32)
+		v5 := b.NewValue0(v.Pos, OpTrunc64to32, typ.UInt32)
+		v6 := b.NewValue0(v.Pos, OpRsh64Ux64, typ.UInt64)
+		v7 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v7.AuxInt = int64ToAuxInt(32)
+		v6.AddArg2(x, v7)
+		v5.AddArg(v6)
+		v8 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v8.AuxInt = int32ToAuxInt(int32(c))
+		v4.AddArg2(v5, v8)
+		v3.AddArg(v4)
+		v2.AddArg2(v3, v7)
+		v9 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+		v10 := b.NewValue0(v.Pos, OpDiv32u, typ.UInt32)
+		v11 := b.NewValue0(v.Pos, OpTrunc64to32, typ.UInt32)
+		v11.AddArg(x)
+		v10.AddArg2(v11, v8)
+		v9.AddArg(v10)
+		v1.AddArg2(v2, v9)
+		v12 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v13 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+		v14 := b.NewValue0(v.Pos, OpMod32u, typ.UInt32)
+		v14.AddArg2(v5, v8)
+		v13.AddArg(v14)
+		v15 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v15.AuxInt = int64ToAuxInt(int64((1 << 32) / c))
+		v12.AddArg2(v13, v15)
+		v0.AddArg2(v1, v12)
+		v16 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+		v17 := b.NewValue0(v.Pos, OpDiv32u, typ.UInt32)
+		v18 := b.NewValue0(v.Pos, OpAdd32, typ.UInt32)
+		v19 := b.NewValue0(v.Pos, OpMod32u, typ.UInt32)
+		v19.AddArg2(v11, v8)
+		v20 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v21 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v21.AuxInt = int32ToAuxInt(int32((1 << 32) % c))
+		v20.AddArg2(v14, v21)
+		v18.AddArg2(v19, v20)
+		v17.AddArg2(v18, v8)
+		v16.AddArg(v17)
+		v.AddArg2(v0, v16)
 		return true
 	}
 	// match: (Div64u x (Const64 [c]))
@@ -8476,52 +8554,6 @@ func rewriteValuegeneric_OpIMake(v *Value) bool {
 		val := v_1.Args[0]
 		v.reset(OpIMake)
 		v.AddArg2(typ, val)
-		return true
-	}
-	return false
-}
-func rewriteValuegeneric_OpInterCall(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (InterCall [argsize] {auxCall} (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem)
-	// cond: devirt(v, auxCall, itab, off) != nil
-	// result: (StaticCall [int32(argsize)] {devirt(v, auxCall, itab, off)} mem)
-	for {
-		argsize := auxIntToInt32(v.AuxInt)
-		auxCall := auxToCall(v.Aux)
-		if v_0.Op != OpLoad {
-			break
-		}
-		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpOffPtr {
-			break
-		}
-		off := auxIntToInt64(v_0_0.AuxInt)
-		v_0_0_0 := v_0_0.Args[0]
-		if v_0_0_0.Op != OpITab {
-			break
-		}
-		v_0_0_0_0 := v_0_0_0.Args[0]
-		if v_0_0_0_0.Op != OpIMake {
-			break
-		}
-		v_0_0_0_0_0 := v_0_0_0_0.Args[0]
-		if v_0_0_0_0_0.Op != OpAddr {
-			break
-		}
-		itab := auxToSym(v_0_0_0_0_0.Aux)
-		v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
-		if v_0_0_0_0_0_0.Op != OpSB {
-			break
-		}
-		mem := v_1
-		if !(devirt(v, auxCall, itab, off) != nil) {
-			break
-		}
-		v.reset(OpStaticCall)
-		v.AuxInt = int32ToAuxInt(int32(argsize))
-		v.Aux = callToAux(devirt(v, auxCall, itab, off))
-		v.AddArg(mem)
 		return true
 	}
 	return false
@@ -13575,7 +13607,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [s] dst tmp1 midmem:(Move {t2} [s] tmp2 src _))
-	// cond: t1.Compare(t2) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
+	// cond: t1.Compare(t2) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && !isVolatile(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
 	// result: (Move {t1} [s] dst src midmem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
@@ -13589,7 +13621,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		t2 := auxToType(midmem.Aux)
 		src := midmem.Args[1]
 		tmp2 := midmem.Args[0]
-		if !(t1.Compare(t2) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))) {
+		if !(t1.Compare(t2) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && !isVolatile(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))) {
 			break
 		}
 		v.reset(OpMove)
@@ -13599,7 +13631,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [s] dst tmp1 midmem:(VarDef (Move {t2} [s] tmp2 src _)))
-	// cond: t1.Compare(t2) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
+	// cond: t1.Compare(t2) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && !isVolatile(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
 	// result: (Move {t1} [s] dst src midmem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
@@ -13617,7 +13649,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		t2 := auxToType(midmem_0.Aux)
 		src := midmem_0.Args[1]
 		tmp2 := midmem_0.Args[0]
-		if !(t1.Compare(t2) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))) {
+		if !(t1.Compare(t2) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && !isVolatile(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))) {
 			break
 		}
 		v.reset(OpMove)
@@ -16051,7 +16083,6 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	config := b.Func.Config
 	fe := b.Func.fe
 	// match: (NilCheck (GetG mem) mem)
 	// result: mem
@@ -16066,67 +16097,7 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
 		v.copyOf(mem)
 		return true
 	}
-	// match: (NilCheck (Load (OffPtr [c] (SP)) (StaticCall {sym} _)) _)
-	// cond: isSameCall(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")
-	// result: (Invalid)
-	for {
-		if v_0.Op != OpLoad {
-			break
-		}
-		_ = v_0.Args[1]
-		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpOffPtr {
-			break
-		}
-		c := auxIntToInt64(v_0_0.AuxInt)
-		v_0_0_0 := v_0_0.Args[0]
-		if v_0_0_0.Op != OpSP {
-			break
-		}
-		v_0_1 := v_0.Args[1]
-		if v_0_1.Op != OpStaticCall {
-			break
-		}
-		sym := auxToCall(v_0_1.Aux)
-		if !(isSameCall(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
-			break
-		}
-		v.reset(OpInvalid)
-		return true
-	}
-	// match: (NilCheck (OffPtr (Load (OffPtr [c] (SP)) (StaticCall {sym} _))) _)
-	// cond: isSameCall(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")
-	// result: (Invalid)
-	for {
-		if v_0.Op != OpOffPtr {
-			break
-		}
-		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpLoad {
-			break
-		}
-		_ = v_0_0.Args[1]
-		v_0_0_0 := v_0_0.Args[0]
-		if v_0_0_0.Op != OpOffPtr {
-			break
-		}
-		c := auxIntToInt64(v_0_0_0.AuxInt)
-		v_0_0_0_0 := v_0_0_0.Args[0]
-		if v_0_0_0_0.Op != OpSP {
-			break
-		}
-		v_0_0_1 := v_0_0.Args[1]
-		if v_0_0_1.Op != OpStaticCall {
-			break
-		}
-		sym := auxToCall(v_0_0_1.Aux)
-		if !(isSameCall(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
-			break
-		}
-		v.reset(OpInvalid)
-		return true
-	}
-	// match: (NilCheck (SelectN [0] call:(StaticLECall _ _)) (SelectN [1] call))
+	// match: (NilCheck (SelectN [0] call:(StaticLECall _ _)) _)
 	// cond: isSameCall(call.Aux, "runtime.newobject") && warnRule(fe.Debug_checknil(), v, "removed nil check")
 	// result: (Invalid)
 	for {
@@ -16134,13 +16105,13 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
 			break
 		}
 		call := v_0.Args[0]
-		if call.Op != OpStaticLECall || len(call.Args) != 2 || v_1.Op != OpSelectN || auxIntToInt64(v_1.AuxInt) != 1 || call != v_1.Args[0] || !(isSameCall(call.Aux, "runtime.newobject") && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
+		if call.Op != OpStaticLECall || len(call.Args) != 2 || !(isSameCall(call.Aux, "runtime.newobject") && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
 			break
 		}
 		v.reset(OpInvalid)
 		return true
 	}
-	// match: (NilCheck (OffPtr (SelectN [0] call:(StaticLECall _ _))) (SelectN [1] call))
+	// match: (NilCheck (OffPtr (SelectN [0] call:(StaticLECall _ _))) _)
 	// cond: isSameCall(call.Aux, "runtime.newobject") && warnRule(fe.Debug_checknil(), v, "removed nil check")
 	// result: (Invalid)
 	for {
@@ -16152,7 +16123,7 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
 			break
 		}
 		call := v_0_0.Args[0]
-		if call.Op != OpStaticLECall || len(call.Args) != 2 || v_1.Op != OpSelectN || auxIntToInt64(v_1.AuxInt) != 1 || call != v_1.Args[0] || !(isSameCall(call.Aux, "runtime.newobject") && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
+		if call.Op != OpStaticLECall || len(call.Args) != 2 || !(isSameCall(call.Aux, "runtime.newobject") && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
 			break
 		}
 		v.reset(OpInvalid)
@@ -20707,6 +20678,124 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	// match: (SelectN [0] (MakeResult a ___))
+	// result: a
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpMakeResult || len(v_0.Args) < 1 {
+			break
+		}
+		a := v_0.Args[0]
+		v.copyOf(a)
+		return true
+	}
+	// match: (SelectN [1] (MakeResult a b ___))
+	// result: b
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpMakeResult || len(v_0.Args) < 2 {
+			break
+		}
+		b := v_0.Args[1]
+		v.copyOf(b)
+		return true
+	}
+	// match: (SelectN [2] (MakeResult a b c ___))
+	// result: c
+	for {
+		if auxIntToInt64(v.AuxInt) != 2 || v_0.Op != OpMakeResult || len(v_0.Args) < 3 {
+			break
+		}
+		c := v_0.Args[2]
+		v.copyOf(c)
+		return true
+	}
+	// match: (SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem)))))
+	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)
+	// result: (Move {t.Elem()} [int64(sz)] dst src mem)
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		call := v_0
+		if call.Op != OpStaticCall || len(call.Args) != 1 {
+			break
+		}
+		sym := auxToCall(call.Aux)
+		s1 := call.Args[0]
+		if s1.Op != OpStore {
+			break
+		}
+		_ = s1.Args[2]
+		s1_1 := s1.Args[1]
+		if s1_1.Op != OpConst64 {
+			break
+		}
+		sz := auxIntToInt64(s1_1.AuxInt)
+		s2 := s1.Args[2]
+		if s2.Op != OpStore {
+			break
+		}
+		_ = s2.Args[2]
+		src := s2.Args[1]
+		s3 := s2.Args[2]
+		if s3.Op != OpStore {
+			break
+		}
+		t := auxToType(s3.Aux)
+		mem := s3.Args[2]
+		dst := s3.Args[1]
+		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = int64ToAuxInt(int64(sz))
+		v.Aux = typeToAux(t.Elem())
+		v.AddArg3(dst, src, mem)
+		return true
+	}
+	// match: (SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const32 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem)))))
+	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)
+	// result: (Move {t.Elem()} [int64(sz)] dst src mem)
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		call := v_0
+		if call.Op != OpStaticCall || len(call.Args) != 1 {
+			break
+		}
+		sym := auxToCall(call.Aux)
+		s1 := call.Args[0]
+		if s1.Op != OpStore {
+			break
+		}
+		_ = s1.Args[2]
+		s1_1 := s1.Args[1]
+		if s1_1.Op != OpConst32 {
+			break
+		}
+		sz := auxIntToInt32(s1_1.AuxInt)
+		s2 := s1.Args[2]
+		if s2.Op != OpStore {
+			break
+		}
+		_ = s2.Args[2]
+		src := s2.Args[1]
+		s3 := s2.Args[2]
+		if s3.Op != OpStore {
+			break
+		}
+		t := auxToType(s3.Aux)
+		mem := s3.Args[2]
+		dst := s3.Args[1]
+		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = int64ToAuxInt(int64(sz))
+		v.Aux = typeToAux(t.Elem())
+		v.AddArg3(dst, src, mem)
+		return true
+	}
 	// match: (SelectN [0] call:(StaticLECall {sym} dst src (Const64 [sz]) mem))
 	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
 	// result: (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
@@ -20763,6 +20852,44 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(int64(sz))
 		v.Aux = typeToAux(dst.Type.Elem())
 		v.AddArg3(dst, src, mem)
+		return true
+	}
+	// match: (SelectN [0] call:(StaticLECall {sym} a x))
+	// cond: needRaceCleanup(sym, call) && clobber(call)
+	// result: x
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		call := v_0
+		if call.Op != OpStaticLECall || len(call.Args) != 2 {
+			break
+		}
+		sym := auxToCall(call.Aux)
+		x := call.Args[1]
+		if !(needRaceCleanup(sym, call) && clobber(call)) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (SelectN [0] call:(StaticLECall {sym} x))
+	// cond: needRaceCleanup(sym, call) && clobber(call)
+	// result: x
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		call := v_0
+		if call.Op != OpStaticLECall || len(call.Args) != 1 {
+			break
+		}
+		sym := auxToCall(call.Aux)
+		x := call.Args[0]
+		if !(needRaceCleanup(sym, call) && clobber(call)) {
+			break
+		}
+		v.copyOf(x)
 		return true
 	}
 	return false
@@ -21215,94 +21342,40 @@ func rewriteValuegeneric_OpSqrt(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpStaticCall(v *Value) bool {
-	v_0 := v.Args[0]
+func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
-	// match: (StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem))))
-	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3)
-	// result: (Move {t.Elem()} [int64(sz)] dst src mem)
+	typ := &b.Func.Config.Types
+	// match: (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [1]) mem)
+	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon)
+	// result: (MakeResult (Eq8 (Load <typ.Int8> sptr mem) (Const8 <typ.Int8> [int8(read8(scon,0))])) mem)
 	for {
-		sym := auxToCall(v.Aux)
-		s1 := v_0
-		if s1.Op != OpStore {
+		if len(v.Args) != 4 {
 			break
 		}
-		_ = s1.Args[2]
-		s1_1 := s1.Args[1]
-		if s1_1.Op != OpConst64 {
+		callAux := auxToCall(v.Aux)
+		mem := v.Args[3]
+		sptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAddr {
 			break
 		}
-		sz := auxIntToInt64(s1_1.AuxInt)
-		s2 := s1.Args[2]
-		if s2.Op != OpStore {
+		scon := auxToSym(v_1.Aux)
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpSB {
 			break
 		}
-		_ = s2.Args[2]
-		src := s2.Args[1]
-		s3 := s2.Args[2]
-		if s3.Op != OpStore {
+		v_2 := v.Args[2]
+		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 1 || !(isSameCall(callAux, "runtime.memequal") && symIsRO(scon)) {
 			break
 		}
-		t := auxToType(s3.Aux)
-		mem := s3.Args[2]
-		dst := s3.Args[1]
-		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3)) {
-			break
-		}
-		v.reset(OpMove)
-		v.AuxInt = int64ToAuxInt(int64(sz))
-		v.Aux = typeToAux(t.Elem())
-		v.AddArg3(dst, src, mem)
-		return true
-	}
-	// match: (StaticCall {sym} s1:(Store _ (Const32 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem))))
-	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3)
-	// result: (Move {t.Elem()} [int64(sz)] dst src mem)
-	for {
-		sym := auxToCall(v.Aux)
-		s1 := v_0
-		if s1.Op != OpStore {
-			break
-		}
-		_ = s1.Args[2]
-		s1_1 := s1.Args[1]
-		if s1_1.Op != OpConst32 {
-			break
-		}
-		sz := auxIntToInt32(s1_1.AuxInt)
-		s2 := s1.Args[2]
-		if s2.Op != OpStore {
-			break
-		}
-		_ = s2.Args[2]
-		src := s2.Args[1]
-		s3 := s2.Args[2]
-		if s3.Op != OpStore {
-			break
-		}
-		t := auxToType(s3.Aux)
-		mem := s3.Args[2]
-		dst := s3.Args[1]
-		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3)) {
-			break
-		}
-		v.reset(OpMove)
-		v.AuxInt = int64ToAuxInt(int64(sz))
-		v.Aux = typeToAux(t.Elem())
-		v.AddArg3(dst, src, mem)
-		return true
-	}
-	// match: (StaticCall {sym} x)
-	// cond: needRaceCleanup(sym, v)
-	// result: x
-	for {
-		sym := auxToCall(v.Aux)
-		x := v_0
-		if !(needRaceCleanup(sym, v)) {
-			break
-		}
-		v.copyOf(x)
+		v.reset(OpMakeResult)
+		v0 := b.NewValue0(v.Pos, OpEq8, typ.Bool)
+		v1 := b.NewValue0(v.Pos, OpLoad, typ.Int8)
+		v1.AddArg2(sptr, mem)
+		v2 := b.NewValue0(v.Pos, OpConst8, typ.Int8)
+		v2.AuxInt = int8ToAuxInt(int8(read8(scon, 0)))
+		v0.AddArg2(v1, v2)
+		v.AddArg2(v0, mem)
 		return true
 	}
 	return false
@@ -21312,7 +21385,6 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	config := b.Func.Config
 	fe := b.Func.fe
 	// match: (Store {t1} p1 (Load <t2> p2 mem) mem)
 	// cond: isSamePtr(p1, p2) && t2.Size() == t1.Size()
@@ -21758,58 +21830,6 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		v.reset(OpStore)
 		v.Aux = typeToAux(e.Type)
 		v.AddArg3(dst, e, mem)
-		return true
-	}
-	// match: (Store (Load (OffPtr [c] (SP)) mem) x mem)
-	// cond: isConstZero(x) && mem.Op == OpStaticCall && isSameCall(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize
-	// result: mem
-	for {
-		if v_0.Op != OpLoad {
-			break
-		}
-		mem := v_0.Args[1]
-		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpOffPtr {
-			break
-		}
-		c := auxIntToInt64(v_0_0.AuxInt)
-		v_0_0_0 := v_0_0.Args[0]
-		if v_0_0_0.Op != OpSP {
-			break
-		}
-		x := v_1
-		if mem != v_2 || !(isConstZero(x) && mem.Op == OpStaticCall && isSameCall(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize) {
-			break
-		}
-		v.copyOf(mem)
-		return true
-	}
-	// match: (Store (OffPtr (Load (OffPtr [c] (SP)) mem)) x mem)
-	// cond: isConstZero(x) && mem.Op == OpStaticCall && isSameCall(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize
-	// result: mem
-	for {
-		if v_0.Op != OpOffPtr {
-			break
-		}
-		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpLoad {
-			break
-		}
-		mem := v_0_0.Args[1]
-		v_0_0_0 := v_0_0.Args[0]
-		if v_0_0_0.Op != OpOffPtr {
-			break
-		}
-		c := auxIntToInt64(v_0_0_0.AuxInt)
-		v_0_0_0_0 := v_0_0_0.Args[0]
-		if v_0_0_0_0.Op != OpSP {
-			break
-		}
-		x := v_1
-		if mem != v_2 || !(isConstZero(x) && mem.Op == OpStaticCall && isSameCall(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize) {
-			break
-		}
-		v.copyOf(mem)
 		return true
 	}
 	// match: (Store (SelectN [0] call:(StaticLECall _ _)) x mem:(SelectN [1] call))
@@ -24530,27 +24550,6 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	config := b.Func.Config
-	// match: (Zero (Load (OffPtr [c] (SP)) mem) mem)
-	// cond: mem.Op == OpStaticCall && isSameCall(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize
-	// result: mem
-	for {
-		if v_0.Op != OpLoad {
-			break
-		}
-		mem := v_0.Args[1]
-		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpOffPtr {
-			break
-		}
-		c := auxIntToInt64(v_0_0.AuxInt)
-		v_0_0_0 := v_0_0.Args[0]
-		if v_0_0_0.Op != OpSP || mem != v_1 || !(mem.Op == OpStaticCall && isSameCall(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize) {
-			break
-		}
-		v.copyOf(mem)
-		return true
-	}
 	// match: (Zero (SelectN [0] call:(StaticLECall _ _)) mem:(SelectN [1] call))
 	// cond: isSameCall(call.Aux, "runtime.newobject")
 	// result: mem

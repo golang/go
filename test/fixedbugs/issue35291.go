@@ -10,5 +10,5 @@ package p
 
 var s = []string{
 	1: "dup",
-	1: "dup", // ERROR "duplicate index in slice literal: 1"
+	1: "dup", // ERROR "duplicate index in slice literal: 1|duplicate value for index 1|duplicate index 1"
 }

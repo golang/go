@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 package main
@@ -15,8 +16,8 @@ import (
 	"fmt"
 	"go/format"
 	"io"
-	"io/ioutil"
 	"log"
+	"os"
 )
 
 var filename = flag.String("output", "palette.go", "output file name")
@@ -43,7 +44,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile(*filename, data, 0644)
+	err = os.WriteFile(*filename, data, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}

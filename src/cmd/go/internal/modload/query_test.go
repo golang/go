@@ -7,7 +7,6 @@ package modload
 import (
 	"context"
 	"internal/testenv"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -27,7 +26,7 @@ func TestMain(m *testing.M) {
 func testMain(m *testing.M) int {
 	cfg.GOPROXY = "direct"
 
-	dir, err := ioutil.TempDir("", "modload-test-")
+	dir, err := os.MkdirTemp("", "modload-test-")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -107,7 +106,7 @@ var queryTests = []struct {
 	{path: queryRepo, query: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
 	{path: queryRepo, query: "ed5ffdaa", vers: "v1.9.10-pre2.0.20191220134614-ed5ffdaa1f5e"},
 
-	// golang.org/issue/29262: The major version for for a module without a suffix
+	// golang.org/issue/29262: The major version for a module without a suffix
 	// should be based on the most recent tag (v1 as appropriate, not v0
 	// unconditionally).
 	{path: queryRepo, query: "42abcb6df8ee", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
@@ -123,7 +122,7 @@ var queryTests = []struct {
 	{path: queryRepo, query: "upgrade", allow: "NOMATCH", err: `no matching versions for query "upgrade"`},
 	{path: queryRepo, query: "upgrade", current: "v1.9.9", allow: "NOMATCH", err: `vcs-test.golang.org/git/querytest.git@v1.9.9: disallowed module version`},
 	{path: queryRepo, query: "upgrade", current: "v1.99.99", err: `vcs-test.golang.org/git/querytest.git@v1.99.99: invalid version: unknown revision v1.99.99`},
-	{path: queryRepo, query: "patch", current: "", vers: "v1.9.9"},
+	{path: queryRepo, query: "patch", current: "", err: `can't query version "patch" of module vcs-test.golang.org/git/querytest.git: no existing version is required`},
 	{path: queryRepo, query: "patch", current: "v0.1.0", vers: "v0.1.2"},
 	{path: queryRepo, query: "patch", current: "v1.9.0", vers: "v1.9.9"},
 	{path: queryRepo, query: "patch", current: "v1.9.10-pre1", vers: "v1.9.10-pre1"},

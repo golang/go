@@ -7,7 +7,10 @@
 // http://dwarfstd.org/doc/dwarf-2.0.0.pdf
 package dwarf
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"errors"
+)
 
 // Data represents the DWARF debugging information
 // loaded from an executable file (for example, an ELF or Mach-O executable).
@@ -26,6 +29,7 @@ type Data struct {
 	addr       []byte
 	lineStr    []byte
 	strOffsets []byte
+	rngLists   []byte
 
 	// parsed data
 	abbrevCache map[uint64]abbrevTable
@@ -35,6 +39,8 @@ type Data struct {
 	typeSigs    map[uint64]*typeUnit
 	unit        []unit
 }
+
+var errSegmentSelector = errors.New("non-zero segment_selector size not supported")
 
 // New returns a new Data object initialized from the given parameters.
 // Rather than calling this function directly, clients should typically use
@@ -108,6 +114,7 @@ func (d *Data) AddTypes(name string, types []byte) error {
 // so forth. This approach is used for new DWARF sections added in
 // DWARF 5 and later.
 func (d *Data) AddSection(name string, contents []byte) error {
+	var err error
 	switch name {
 	case ".debug_addr":
 		d.addr = contents
@@ -115,7 +122,9 @@ func (d *Data) AddSection(name string, contents []byte) error {
 		d.lineStr = contents
 	case ".debug_str_offsets":
 		d.strOffsets = contents
+	case ".debug_rnglists":
+		d.rngLists = contents
 	}
 	// Just ignore names that we don't yet support.
-	return nil
+	return err
 }

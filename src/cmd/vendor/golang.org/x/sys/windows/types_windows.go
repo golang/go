@@ -227,7 +227,7 @@ const (
 )
 
 const (
-	// filters for ReadDirectoryChangesW
+	// filters for ReadDirectoryChangesW and FindFirstChangeNotificationW
 	FILE_NOTIFY_CHANGE_FILE_NAME   = 0x001
 	FILE_NOTIFY_CHANGE_DIR_NAME    = 0x002
 	FILE_NOTIFY_CHANGE_ATTRIBUTES  = 0x004
@@ -249,24 +249,27 @@ const (
 
 const (
 	// wincrypt.h
-	PROV_RSA_FULL                    = 1
-	PROV_RSA_SIG                     = 2
-	PROV_DSS                         = 3
-	PROV_FORTEZZA                    = 4
-	PROV_MS_EXCHANGE                 = 5
-	PROV_SSL                         = 6
-	PROV_RSA_SCHANNEL                = 12
-	PROV_DSS_DH                      = 13
-	PROV_EC_ECDSA_SIG                = 14
-	PROV_EC_ECNRA_SIG                = 15
-	PROV_EC_ECDSA_FULL               = 16
-	PROV_EC_ECNRA_FULL               = 17
-	PROV_DH_SCHANNEL                 = 18
-	PROV_SPYRUS_LYNKS                = 20
-	PROV_RNG                         = 21
-	PROV_INTEL_SEC                   = 22
-	PROV_REPLACE_OWF                 = 23
-	PROV_RSA_AES                     = 24
+	/* certenrolld_begin -- PROV_RSA_*/
+	PROV_RSA_FULL      = 1
+	PROV_RSA_SIG       = 2
+	PROV_DSS           = 3
+	PROV_FORTEZZA      = 4
+	PROV_MS_EXCHANGE   = 5
+	PROV_SSL           = 6
+	PROV_RSA_SCHANNEL  = 12
+	PROV_DSS_DH        = 13
+	PROV_EC_ECDSA_SIG  = 14
+	PROV_EC_ECNRA_SIG  = 15
+	PROV_EC_ECDSA_FULL = 16
+	PROV_EC_ECNRA_FULL = 17
+	PROV_DH_SCHANNEL   = 18
+	PROV_SPYRUS_LYNKS  = 20
+	PROV_RNG           = 21
+	PROV_INTEL_SEC     = 22
+	PROV_REPLACE_OWF   = 23
+	PROV_RSA_AES       = 24
+
+	/* dwFlags definitions for CryptAcquireContext */
 	CRYPT_VERIFYCONTEXT              = 0xF0000000
 	CRYPT_NEWKEYSET                  = 0x00000008
 	CRYPT_DELETEKEYSET               = 0x00000010
@@ -274,6 +277,17 @@ const (
 	CRYPT_SILENT                     = 0x00000040
 	CRYPT_DEFAULT_CONTAINER_OPTIONAL = 0x00000080
 
+	/* Flags for PFXImportCertStore */
+	CRYPT_EXPORTABLE                   = 0x00000001
+	CRYPT_USER_PROTECTED               = 0x00000002
+	CRYPT_USER_KEYSET                  = 0x00001000
+	PKCS12_PREFER_CNG_KSP              = 0x00000100
+	PKCS12_ALWAYS_CNG_KSP              = 0x00000200
+	PKCS12_ALLOW_OVERWRITE_KEY         = 0x00004000
+	PKCS12_NO_PERSIST_KEY              = 0x00008000
+	PKCS12_INCLUDE_EXTENDED_PROPERTIES = 0x00000010
+
+	/* Default usage match type is AND with value zero */
 	USAGE_MATCH_TYPE_AND = 0
 	USAGE_MATCH_TYPE_OR  = 1
 
@@ -409,6 +423,71 @@ const (
 	CERT_CHAIN_POLICY_EV                = 8
 	CERT_CHAIN_POLICY_SSL_F12           = 9
 
+	/* Certificate Store close flags */
+	CERT_CLOSE_STORE_FORCE_FLAG = 0x00000001
+	CERT_CLOSE_STORE_CHECK_FLAG = 0x00000002
+
+	/* CryptQueryObject object type */
+	CERT_QUERY_OBJECT_FILE = 1
+	CERT_QUERY_OBJECT_BLOB = 2
+
+	/* CryptQueryObject content type flags */
+	CERT_QUERY_CONTENT_CERT                    = 1
+	CERT_QUERY_CONTENT_CTL                     = 2
+	CERT_QUERY_CONTENT_CRL                     = 3
+	CERT_QUERY_CONTENT_SERIALIZED_STORE        = 4
+	CERT_QUERY_CONTENT_SERIALIZED_CERT         = 5
+	CERT_QUERY_CONTENT_SERIALIZED_CTL          = 6
+	CERT_QUERY_CONTENT_SERIALIZED_CRL          = 7
+	CERT_QUERY_CONTENT_PKCS7_SIGNED            = 8
+	CERT_QUERY_CONTENT_PKCS7_UNSIGNED          = 9
+	CERT_QUERY_CONTENT_PKCS7_SIGNED_EMBED      = 10
+	CERT_QUERY_CONTENT_PKCS10                  = 11
+	CERT_QUERY_CONTENT_PFX                     = 12
+	CERT_QUERY_CONTENT_CERT_PAIR               = 13
+	CERT_QUERY_CONTENT_PFX_AND_LOAD            = 14
+	CERT_QUERY_CONTENT_FLAG_CERT               = (1 << CERT_QUERY_CONTENT_CERT)
+	CERT_QUERY_CONTENT_FLAG_CTL                = (1 << CERT_QUERY_CONTENT_CTL)
+	CERT_QUERY_CONTENT_FLAG_CRL                = (1 << CERT_QUERY_CONTENT_CRL)
+	CERT_QUERY_CONTENT_FLAG_SERIALIZED_STORE   = (1 << CERT_QUERY_CONTENT_SERIALIZED_STORE)
+	CERT_QUERY_CONTENT_FLAG_SERIALIZED_CERT    = (1 << CERT_QUERY_CONTENT_SERIALIZED_CERT)
+	CERT_QUERY_CONTENT_FLAG_SERIALIZED_CTL     = (1 << CERT_QUERY_CONTENT_SERIALIZED_CTL)
+	CERT_QUERY_CONTENT_FLAG_SERIALIZED_CRL     = (1 << CERT_QUERY_CONTENT_SERIALIZED_CRL)
+	CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED       = (1 << CERT_QUERY_CONTENT_PKCS7_SIGNED)
+	CERT_QUERY_CONTENT_FLAG_PKCS7_UNSIGNED     = (1 << CERT_QUERY_CONTENT_PKCS7_UNSIGNED)
+	CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED = (1 << CERT_QUERY_CONTENT_PKCS7_SIGNED_EMBED)
+	CERT_QUERY_CONTENT_FLAG_PKCS10             = (1 << CERT_QUERY_CONTENT_PKCS10)
+	CERT_QUERY_CONTENT_FLAG_PFX                = (1 << CERT_QUERY_CONTENT_PFX)
+	CERT_QUERY_CONTENT_FLAG_CERT_PAIR          = (1 << CERT_QUERY_CONTENT_CERT_PAIR)
+	CERT_QUERY_CONTENT_FLAG_PFX_AND_LOAD       = (1 << CERT_QUERY_CONTENT_PFX_AND_LOAD)
+	CERT_QUERY_CONTENT_FLAG_ALL                = (CERT_QUERY_CONTENT_FLAG_CERT | CERT_QUERY_CONTENT_FLAG_CTL | CERT_QUERY_CONTENT_FLAG_CRL | CERT_QUERY_CONTENT_FLAG_SERIALIZED_STORE | CERT_QUERY_CONTENT_FLAG_SERIALIZED_CERT | CERT_QUERY_CONTENT_FLAG_SERIALIZED_CTL | CERT_QUERY_CONTENT_FLAG_SERIALIZED_CRL | CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED | CERT_QUERY_CONTENT_FLAG_PKCS7_UNSIGNED | CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED | CERT_QUERY_CONTENT_FLAG_PKCS10 | CERT_QUERY_CONTENT_FLAG_PFX | CERT_QUERY_CONTENT_FLAG_CERT_PAIR)
+	CERT_QUERY_CONTENT_FLAG_ALL_ISSUER_CERT    = (CERT_QUERY_CONTENT_FLAG_CERT | CERT_QUERY_CONTENT_FLAG_SERIALIZED_STORE | CERT_QUERY_CONTENT_FLAG_SERIALIZED_CERT | CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED | CERT_QUERY_CONTENT_FLAG_PKCS7_UNSIGNED)
+
+	/* CryptQueryObject format type flags */
+	CERT_QUERY_FORMAT_BINARY                     = 1
+	CERT_QUERY_FORMAT_BASE64_ENCODED             = 2
+	CERT_QUERY_FORMAT_ASN_ASCII_HEX_ENCODED      = 3
+	CERT_QUERY_FORMAT_FLAG_BINARY                = (1 << CERT_QUERY_FORMAT_BINARY)
+	CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED        = (1 << CERT_QUERY_FORMAT_BASE64_ENCODED)
+	CERT_QUERY_FORMAT_FLAG_ASN_ASCII_HEX_ENCODED = (1 << CERT_QUERY_FORMAT_ASN_ASCII_HEX_ENCODED)
+	CERT_QUERY_FORMAT_FLAG_ALL                   = (CERT_QUERY_FORMAT_FLAG_BINARY | CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED | CERT_QUERY_FORMAT_FLAG_ASN_ASCII_HEX_ENCODED)
+
+	/* CertGetNameString name types */
+	CERT_NAME_EMAIL_TYPE            = 1
+	CERT_NAME_RDN_TYPE              = 2
+	CERT_NAME_ATTR_TYPE             = 3
+	CERT_NAME_SIMPLE_DISPLAY_TYPE   = 4
+	CERT_NAME_FRIENDLY_DISPLAY_TYPE = 5
+	CERT_NAME_DNS_TYPE              = 6
+	CERT_NAME_URL_TYPE              = 7
+	CERT_NAME_UPN_TYPE              = 8
+
+	/* CertGetNameString flags */
+	CERT_NAME_ISSUER_FLAG              = 0x1
+	CERT_NAME_DISABLE_IE4_UTF8_FLAG    = 0x10000
+	CERT_NAME_SEARCH_ALL_NAMES_FLAG    = 0x2
+	CERT_NAME_STR_ENABLE_PUNYCODE_FLAG = 0x00200000
+
 	/* AuthType values for SSLExtraCertChainPolicyPara struct */
 	AUTHTYPE_CLIENT = 1
 	AUTHTYPE_SERVER = 2
@@ -419,6 +498,22 @@ const (
 	SECURITY_FLAG_IGNORE_WRONG_USAGE       = 0x00000200
 	SECURITY_FLAG_IGNORE_CERT_CN_INVALID   = 0x00001000
 	SECURITY_FLAG_IGNORE_CERT_DATE_INVALID = 0x00002000
+
+	/* Flags for Crypt[Un]ProtectData */
+	CRYPTPROTECT_UI_FORBIDDEN      = 0x1
+	CRYPTPROTECT_LOCAL_MACHINE     = 0x4
+	CRYPTPROTECT_CRED_SYNC         = 0x8
+	CRYPTPROTECT_AUDIT             = 0x10
+	CRYPTPROTECT_NO_RECOVERY       = 0x20
+	CRYPTPROTECT_VERIFY_PROTECTION = 0x40
+	CRYPTPROTECT_CRED_REGENERATE   = 0x80
+
+	/* Flags for CryptProtectPromptStruct */
+	CRYPTPROTECT_PROMPT_ON_UNPROTECT   = 1
+	CRYPTPROTECT_PROMPT_ON_PROTECT     = 2
+	CRYPTPROTECT_PROMPT_RESERVED       = 4
+	CRYPTPROTECT_PROMPT_STRONG         = 8
+	CRYPTPROTECT_PROMPT_REQUIRE_STRONG = 16
 )
 
 const (
@@ -441,10 +536,58 @@ const (
 	REALTIME_PRIORITY_CLASS       = 0x00000100
 )
 
+/* wintrust.h constants for WinVerifyTrustEx */
+const (
+	WTD_UI_ALL    = 1
+	WTD_UI_NONE   = 2
+	WTD_UI_NOBAD  = 3
+	WTD_UI_NOGOOD = 4
+
+	WTD_REVOKE_NONE       = 0
+	WTD_REVOKE_WHOLECHAIN = 1
+
+	WTD_CHOICE_FILE    = 1
+	WTD_CHOICE_CATALOG = 2
+	WTD_CHOICE_BLOB    = 3
+	WTD_CHOICE_SIGNER  = 4
+	WTD_CHOICE_CERT    = 5
+
+	WTD_STATEACTION_IGNORE           = 0x00000000
+	WTD_STATEACTION_VERIFY           = 0x00000010
+	WTD_STATEACTION_CLOSE            = 0x00000002
+	WTD_STATEACTION_AUTO_CACHE       = 0x00000003
+	WTD_STATEACTION_AUTO_CACHE_FLUSH = 0x00000004
+
+	WTD_USE_IE4_TRUST_FLAG                  = 0x1
+	WTD_NO_IE4_CHAIN_FLAG                   = 0x2
+	WTD_NO_POLICY_USAGE_FLAG                = 0x4
+	WTD_REVOCATION_CHECK_NONE               = 0x10
+	WTD_REVOCATION_CHECK_END_CERT           = 0x20
+	WTD_REVOCATION_CHECK_CHAIN              = 0x40
+	WTD_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT = 0x80
+	WTD_SAFER_FLAG                          = 0x100
+	WTD_HASH_ONLY_FLAG                      = 0x200
+	WTD_USE_DEFAULT_OSVER_CHECK             = 0x400
+	WTD_LIFETIME_SIGNING_FLAG               = 0x800
+	WTD_CACHE_ONLY_URL_RETRIEVAL            = 0x1000
+	WTD_DISABLE_MD2_MD4                     = 0x2000
+	WTD_MOTW                                = 0x4000
+
+	WTD_UICONTEXT_EXECUTE = 0
+	WTD_UICONTEXT_INSTALL = 1
+)
+
 var (
 	OID_PKIX_KP_SERVER_AUTH = []byte("1.3.6.1.5.5.7.3.1\x00")
 	OID_SERVER_GATED_CRYPTO = []byte("1.3.6.1.4.1.311.10.3.3\x00")
 	OID_SGC_NETSCAPE        = []byte("2.16.840.1.113730.4.1\x00")
+
+	WINTRUST_ACTION_GENERIC_VERIFY_V2 = GUID{
+		Data1: 0xaac56b,
+		Data2: 0xcd44,
+		Data3: 0x11d0,
+		Data4: [8]byte{0x8c, 0xc2, 0x0, 0xc0, 0x4f, 0xc2, 0x95, 0xee},
+	}
 )
 
 // Pointer represents a pointer to an arbitrary Windows type.
@@ -1033,7 +1176,57 @@ type MibIfRow struct {
 }
 
 type CertInfo struct {
-	// Not implemented
+	Version              uint32
+	SerialNumber         CryptIntegerBlob
+	SignatureAlgorithm   CryptAlgorithmIdentifier
+	Issuer               CertNameBlob
+	NotBefore            Filetime
+	NotAfter             Filetime
+	Subject              CertNameBlob
+	SubjectPublicKeyInfo CertPublicKeyInfo
+	IssuerUniqueId       CryptBitBlob
+	SubjectUniqueId      CryptBitBlob
+	CountExtensions      uint32
+	Extensions           *CertExtension
+}
+
+type CertExtension struct {
+	ObjId    *byte
+	Critical int32
+	Value    CryptObjidBlob
+}
+
+type CryptAlgorithmIdentifier struct {
+	ObjId      *byte
+	Parameters CryptObjidBlob
+}
+
+type CertPublicKeyInfo struct {
+	Algorithm CryptAlgorithmIdentifier
+	PublicKey CryptBitBlob
+}
+
+type DataBlob struct {
+	Size uint32
+	Data *byte
+}
+type CryptIntegerBlob DataBlob
+type CryptUintBlob DataBlob
+type CryptObjidBlob DataBlob
+type CertNameBlob DataBlob
+type CertRdnValueBlob DataBlob
+type CertBlob DataBlob
+type CrlBlob DataBlob
+type CryptDataBlob DataBlob
+type CryptHashBlob DataBlob
+type CryptDigestBlob DataBlob
+type CryptDerBlob DataBlob
+type CryptAttrBlob DataBlob
+
+type CryptBitBlob struct {
+	Size       uint32
+	Data       *byte
+	UnusedBits uint32
 }
 
 type CertContext struct {
@@ -1137,6 +1330,66 @@ type CertChainPolicyStatus struct {
 	ChainIndex        uint32
 	ElementIndex      uint32
 	ExtraPolicyStatus Pointer
+}
+
+type CertPolicyInfo struct {
+	Identifier      *byte
+	CountQualifiers uint32
+	Qualifiers      *CertPolicyQualifierInfo
+}
+
+type CertPoliciesInfo struct {
+	Count       uint32
+	PolicyInfos *CertPolicyInfo
+}
+
+type CertPolicyQualifierInfo struct {
+	// Not implemented
+}
+
+type CertStrongSignPara struct {
+	Size                      uint32
+	InfoChoice                uint32
+	InfoOrSerializedInfoOrOID unsafe.Pointer
+}
+
+type CryptProtectPromptStruct struct {
+	Size        uint32
+	PromptFlags uint32
+	App         HWND
+	Prompt      *uint16
+}
+
+type WinTrustData struct {
+	Size                            uint32
+	PolicyCallbackData              uintptr
+	SIPClientData                   uintptr
+	UIChoice                        uint32
+	RevocationChecks                uint32
+	UnionChoice                     uint32
+	FileOrCatalogOrBlobOrSgnrOrCert unsafe.Pointer
+	StateAction                     uint32
+	StateData                       Handle
+	URLReference                    *uint16
+	ProvFlags                       uint32
+	UIContext                       uint32
+	SignatureSettings               *WinTrustSignatureSettings
+}
+
+type WinTrustFileInfo struct {
+	Size         uint32
+	FilePath     *uint16
+	File         Handle
+	KnownSubject *GUID
+}
+
+type WinTrustSignatureSettings struct {
+	Size             uint32
+	Index            uint32
+	Flags            uint32
+	SecondarySigs    uint32
+	VerifiedSigIndex uint32
+	CryptoPolicy     *CertStrongSignPara
 }
 
 const (
@@ -1771,4 +2024,70 @@ const (
 	MUI_LIP_LANGUAGE       = 0x04
 	MUI_LANGUAGE_INSTALLED = 0x20
 	MUI_LANGUAGE_LICENSED  = 0x40
+)
+
+// FILE_INFO_BY_HANDLE_CLASS constants for SetFileInformationByHandle/GetFileInformationByHandleEx
+const (
+	FileBasicInfo                  = 0
+	FileStandardInfo               = 1
+	FileNameInfo                   = 2
+	FileRenameInfo                 = 3
+	FileDispositionInfo            = 4
+	FileAllocationInfo             = 5
+	FileEndOfFileInfo              = 6
+	FileStreamInfo                 = 7
+	FileCompressionInfo            = 8
+	FileAttributeTagInfo           = 9
+	FileIdBothDirectoryInfo        = 10
+	FileIdBothDirectoryRestartInfo = 11
+	FileIoPriorityHintInfo         = 12
+	FileRemoteProtocolInfo         = 13
+	FileFullDirectoryInfo          = 14
+	FileFullDirectoryRestartInfo   = 15
+	FileStorageInfo                = 16
+	FileAlignmentInfo              = 17
+	FileIdInfo                     = 18
+	FileIdExtdDirectoryInfo        = 19
+	FileIdExtdDirectoryRestartInfo = 20
+	FileDispositionInfoEx          = 21
+	FileRenameInfoEx               = 22
+	FileCaseSensitiveInfo          = 23
+	FileNormalizedNameInfo         = 24
+)
+
+// LoadLibrary flags for determining from where to search for a DLL
+const (
+	DONT_RESOLVE_DLL_REFERENCES               = 0x1
+	LOAD_LIBRARY_AS_DATAFILE                  = 0x2
+	LOAD_WITH_ALTERED_SEARCH_PATH             = 0x8
+	LOAD_IGNORE_CODE_AUTHZ_LEVEL              = 0x10
+	LOAD_LIBRARY_AS_IMAGE_RESOURCE            = 0x20
+	LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE        = 0x40
+	LOAD_LIBRARY_REQUIRE_SIGNED_TARGET        = 0x80
+	LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR          = 0x100
+	LOAD_LIBRARY_SEARCH_APPLICATION_DIR       = 0x200
+	LOAD_LIBRARY_SEARCH_USER_DIRS             = 0x400
+	LOAD_LIBRARY_SEARCH_SYSTEM32              = 0x800
+	LOAD_LIBRARY_SEARCH_DEFAULT_DIRS          = 0x1000
+	LOAD_LIBRARY_SAFE_CURRENT_DIRS            = 0x00002000
+	LOAD_LIBRARY_SEARCH_SYSTEM32_NO_FORWARDER = 0x00004000
+	LOAD_LIBRARY_OS_INTEGRITY_CONTINUITY      = 0x00008000
+)
+
+// RegNotifyChangeKeyValue notifyFilter flags.
+const (
+	// REG_NOTIFY_CHANGE_NAME notifies the caller if a subkey is added or deleted.
+	REG_NOTIFY_CHANGE_NAME = 0x00000001
+
+	// REG_NOTIFY_CHANGE_ATTRIBUTES notifies the caller of changes to the attributes of the key, such as the security descriptor information.
+	REG_NOTIFY_CHANGE_ATTRIBUTES = 0x00000002
+
+	// REG_NOTIFY_CHANGE_LAST_SET notifies the caller of changes to a value of the key. This can include adding or deleting a value, or changing an existing value.
+	REG_NOTIFY_CHANGE_LAST_SET = 0x00000004
+
+	// REG_NOTIFY_CHANGE_SECURITY notifies the caller of changes to the security descriptor of the key.
+	REG_NOTIFY_CHANGE_SECURITY = 0x00000008
+
+	// REG_NOTIFY_THREAD_AGNOSTIC indicates that the lifetime of the registration must not be tied to the lifetime of the thread issuing the RegNotifyChangeKeyValue call. Note: This flag value is only supported in Windows 8 and later.
+	REG_NOTIFY_THREAD_AGNOSTIC = 0x10000000
 )

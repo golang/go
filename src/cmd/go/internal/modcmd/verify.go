@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"runtime"
 
@@ -32,6 +31,8 @@ modified since being downloaded. If all the modules are unmodified,
 verify prints "all modules verified." Otherwise it reports which
 modules have been changed and causes 'go mod' to exit with a
 non-zero status.
+
+See https://golang.org/ref/mod#go-mod-verify for more about 'go mod verify'.
 	`,
 	Run: runVerify,
 }
@@ -87,7 +88,7 @@ func verifyMod(mod module.Version) []error {
 		_, zipErr = os.Stat(zip)
 	}
 	dir, dirErr := modfetch.DownloadDir(mod)
-	data, err := ioutil.ReadFile(zip + "hash")
+	data, err := os.ReadFile(zip + "hash")
 	if err != nil {
 		if zipErr != nil && errors.Is(zipErr, fs.ErrNotExist) &&
 			dirErr != nil && errors.Is(dirErr, fs.ErrNotExist) {

@@ -851,53 +851,37 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	offset += t.length
 
 	// We deal with the structures defined in this package first.
-	switch fieldType {
-	case rawValueType:
-		result := RawValue{t.class, t.tag, t.isCompound, innerBytes, bytes[initOffset:offset]}
-		v.Set(reflect.ValueOf(result))
+	switch v := v.Addr().Interface().(type) {
+	case *RawValue:
+		*v = RawValue{t.class, t.tag, t.isCompound, innerBytes, bytes[initOffset:offset]}
 		return
-	case objectIdentifierType:
-		newSlice, err1 := parseObjectIdentifier(innerBytes)
-		v.Set(reflect.MakeSlice(v.Type(), len(newSlice), len(newSlice)))
-		if err1 == nil {
-			reflect.Copy(v, reflect.ValueOf(newSlice))
-		}
-		err = err1
+	case *ObjectIdentifier:
+		*v, err = parseObjectIdentifier(innerBytes)
 		return
-	case bitStringType:
-		bs, err1 := parseBitString(innerBytes)
-		if err1 == nil {
-			v.Set(reflect.ValueOf(bs))
-		}
-		err = err1
+	case *BitString:
+		*v, err = parseBitString(innerBytes)
 		return
-	case timeType:
-		var time time.Time
-		var err1 error
+	case *time.Time:
 		if universalTag == TagUTCTime {
-			time, err1 = parseUTCTime(innerBytes)
-		} else {
-			time, err1 = parseGeneralizedTime(innerBytes)
+			*v, err = parseUTCTime(innerBytes)
+			return
 		}
-		if err1 == nil {
-			v.Set(reflect.ValueOf(time))
-		}
-		err = err1
+		*v, err = parseGeneralizedTime(innerBytes)
 		return
-	case enumeratedType:
+	case *Enumerated:
 		parsedInt, err1 := parseInt32(innerBytes)
 		if err1 == nil {
-			v.SetInt(int64(parsedInt))
+			*v = Enumerated(parsedInt)
 		}
 		err = err1
 		return
-	case flagType:
-		v.SetBool(true)
+	case *Flag:
+		*v = true
 		return
-	case bigIntType:
+	case **big.Int:
 		parsedInt, err1 := parseBigInt(innerBytes)
 		if err1 == nil {
-			v.Set(reflect.ValueOf(parsedInt))
+			*v = parsedInt
 		}
 		err = err1
 		return
@@ -930,7 +914,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		structType := fieldType
 
 		for i := 0; i < structType.NumField(); i++ {
-			if structType.Field(i).PkgPath != "" {
+			if !structType.Field(i).IsExported() {
 				err = StructuralError{"struct contains unexported fields"}
 				return
 			}
@@ -1082,6 +1066,15 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //	optional    marks the field as ASN.1 OPTIONAL
 //	set         causes a SET, rather than a SEQUENCE type to be expected
 //	tag:x       specifies the ASN.1 tag number; implies ASN.1 CONTEXT SPECIFIC
+//
+// When decoding an ASN.1 value with an IMPLICIT tag into a string field,
+// Unmarshal will default to a PrintableString, which doesn't support
+// characters such as '@' and '&'. To force other encodings, use the following
+// tags:
+//
+//	ia5     causes strings to be unmarshaled as ASN.1 IA5String values
+//	numeric causes strings to be unmarshaled as ASN.1 NumericString values
+//	utf8    causes strings to be unmarshaled as ASN.1 UTF8String values
 //
 // If the type of the first field of a structure is RawContent then the raw
 // ASN1 contents of the struct will be stored in it.

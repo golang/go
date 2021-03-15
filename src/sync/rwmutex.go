@@ -35,6 +35,19 @@ type RWMutex struct {
 
 const rwmutexMaxReaders = 1 << 30
 
+// Happens-before relationships are indicated to the race detector via:
+// - Unlock  -> Lock:  readerSem
+// - Unlock  -> RLock: readerSem
+// - RUnlock -> Lock:  writerSem
+//
+// The methods below temporarily disable handling of race synchronization
+// events in order to provide the more precise model above to the race
+// detector.
+//
+// For example, atomic.AddInt32 in RLock should not appear to provide
+// acquire-release semantics, which would incorrectly synchronize racing
+// readers, thus potentially missing races.
+
 // RLock locks rw for reading.
 //
 // It should not be used for recursive read locking; a blocked Lock

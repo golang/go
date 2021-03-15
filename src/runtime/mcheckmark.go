@@ -34,6 +34,8 @@ var useCheckmark = false
 //
 // The world must be stopped.
 func startCheckmarks() {
+	assertWorldStopped()
+
 	// Clear all checkmarks.
 	for _, ai := range mheap_.allArenas {
 		arena := mheap_.arenas[ai.l1()][ai.l2()]
@@ -41,7 +43,7 @@ func startCheckmarks() {
 
 		if bitmap == nil {
 			// Allocate bitmap on first use.
-			bitmap = (*checkmarksMap)(persistentalloc(unsafe.Sizeof(*bitmap), 0, &memstats.gc_sys))
+			bitmap = (*checkmarksMap)(persistentalloc(unsafe.Sizeof(*bitmap), 0, &memstats.gcMiscSys))
 			if bitmap == nil {
 				throw("out of memory allocating checkmarks bitmap")
 			}

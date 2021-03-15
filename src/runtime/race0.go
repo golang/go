@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !race
 // +build !race
 
 // Dummy race detection API, used when not built with -race.
@@ -32,6 +33,8 @@ func raceacquireg(gp *g, addr unsafe.Pointer)                               { th
 func raceacquirectx(racectx uintptr, addr unsafe.Pointer)                   { throw("race") }
 func racerelease(addr unsafe.Pointer)                                       { throw("race") }
 func racereleaseg(gp *g, addr unsafe.Pointer)                               { throw("race") }
+func racereleaseacquire(addr unsafe.Pointer)                                { throw("race") }
+func racereleaseacquireg(gp *g, addr unsafe.Pointer)                        { throw("race") }
 func racereleasemerge(addr unsafe.Pointer)                                  { throw("race") }
 func racereleasemergeg(gp *g, addr unsafe.Pointer)                          { throw("race") }
 func racefingo()                                                            { throw("race") }

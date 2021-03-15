@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 // +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package syscall_test
@@ -11,7 +12,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -79,7 +79,7 @@ func TestFcntlFlock(t *testing.T) {
 	}
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "" {
 		// parent
-		tempDir, err := ioutil.TempDir("", "TestFcntlFlock")
+		tempDir, err := os.MkdirTemp("", "TestFcntlFlock")
 		if err != nil {
 			t.Fatalf("Failed to create temp dir: %v", err)
 		}
@@ -157,7 +157,7 @@ func TestPassFD(t *testing.T) {
 
 	}
 
-	tempDir, err := ioutil.TempDir("", "TestPassFD")
+	tempDir, err := os.MkdirTemp("", "TestPassFD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +257,7 @@ func passFDChild() {
 	// We make it in tempDir, which our parent will clean up.
 	flag.Parse()
 	tempDir := flag.Arg(0)
-	f, err := ioutil.TempFile(tempDir, "")
+	f, err := os.CreateTemp(tempDir, "")
 	if err != nil {
 		fmt.Printf("TempFile: %v", err)
 		return

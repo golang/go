@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !goexperiment.staticlockranking
 // +build !goexperiment.staticlockranking
 
 package runtime
@@ -45,4 +46,20 @@ func assertLockHeld(l *mutex) {
 
 //go:nosplit
 func assertRankHeld(r lockRank) {
+}
+
+//go:nosplit
+func worldStopped() {
+}
+
+//go:nosplit
+func worldStarted() {
+}
+
+//go:nosplit
+func assertWorldStopped() {
+}
+
+//go:nosplit
+func assertWorldStoppedOrLockHeld(l *mutex) {
 }

@@ -80,6 +80,11 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 		if !strings.HasPrefix(s.Name, "\"\".") {
 			continue
 		}
+		if s.ABIWrapper() {
+			// Don't create an args_stackmap symbol reference for an ABI
+			// wrapper function
+			continue
+		}
 		found := false
 		for p := s.Func().Text; p != nil; p = p.Link {
 			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == objabi.FUNCDATA_ArgsPointerMaps {
@@ -129,19 +134,28 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	}
 	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
 	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0)
+	s.Func().FuncFlag = toFuncFlag(flag)
 	s.Set(AttrOnList, true)
 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
 	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
 	s.Set(AttrReflectMethod, flag&REFLECTMETHOD != 0)
 	s.Set(AttrWrapper, flag&WRAPPER != 0)
+	s.Set(AttrABIWrapper, flag&ABIWRAPPER != 0)
 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
-	s.Set(AttrTopFrame, flag&TOPFRAME != 0)
 	s.Type = objabi.STEXT
 	ctxt.Text = append(ctxt.Text, s)
 
 	// Set up DWARF entries for s
 	ctxt.dwarfSym(s)
+}
+
+func toFuncFlag(flag int) objabi.FuncFlag {
+	var out objabi.FuncFlag
+	if flag&TOPFRAME != 0 {
+		out |= objabi.FuncFlag_TOPFRAME
+	}
+	return out
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
@@ -178,7 +192,7 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 // Prog generated.
 func (ctxt *Link) EmitEntryLiveness(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
 	pcdata := ctxt.EmitEntryStackMap(s, p, newprog)
-	pcdata = ctxt.EmitEntryRegMap(s, pcdata, newprog)
+	pcdata = ctxt.EmitEntryUnsafePoint(s, pcdata, newprog)
 	return pcdata
 }
 
@@ -195,13 +209,13 @@ func (ctxt *Link) EmitEntryStackMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
 	return pcdata
 }
 
-// Similar to EmitEntryLiveness, but just emit register map.
-func (ctxt *Link) EmitEntryRegMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
+// Similar to EmitEntryLiveness, but just emit unsafe point map.
+func (ctxt *Link) EmitEntryUnsafePoint(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
 	pcdata := Appendp(p, newprog)
 	pcdata.Pos = s.Func().Text.Pos
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
+	pcdata.From.Offset = objabi.PCDATA_UnsafePoint
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = -1
 
@@ -216,9 +230,9 @@ func (ctxt *Link) StartUnsafePoint(p *Prog, newprog ProgAlloc) *Prog {
 	pcdata := Appendp(p, newprog)
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
+	pcdata.From.Offset = objabi.PCDATA_UnsafePoint
 	pcdata.To.Type = TYPE_CONST
-	pcdata.To.Offset = objabi.PCDATA_RegMapUnsafe
+	pcdata.To.Offset = objabi.PCDATA_UnsafePointUnsafe
 
 	return pcdata
 }
@@ -231,7 +245,7 @@ func (ctxt *Link) EndUnsafePoint(p *Prog, newprog ProgAlloc, oldval int64) *Prog
 	pcdata := Appendp(p, newprog)
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
+	pcdata.From.Offset = objabi.PCDATA_UnsafePoint
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = oldval
 
@@ -257,11 +271,11 @@ func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint, is
 	prevPcdata := int64(-1) // entry PC data value
 	prevRestart := int64(0)
 	for p := prev.Link; p != nil; p, prev = p.Link, p {
-		if p.As == APCDATA && p.From.Offset == objabi.PCDATA_RegMapIndex {
+		if p.As == APCDATA && p.From.Offset == objabi.PCDATA_UnsafePoint {
 			prevPcdata = p.To.Offset
 			continue
 		}
-		if prevPcdata == objabi.PCDATA_RegMapUnsafe {
+		if prevPcdata == objabi.PCDATA_UnsafePointUnsafe {
 			continue // already unsafe
 		}
 		if isUnsafePoint(p) {
@@ -288,7 +302,7 @@ func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint, is
 			q := Appendp(prev, newprog)
 			q.As = APCDATA
 			q.From.Type = TYPE_CONST
-			q.From.Offset = objabi.PCDATA_RegMapIndex
+			q.From.Offset = objabi.PCDATA_UnsafePoint
 			q.To.Type = TYPE_CONST
 			q.To.Offset = val
 			q.Pc = p.Pc
@@ -305,7 +319,7 @@ func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint, is
 			p = Appendp(p, newprog)
 			p.As = APCDATA
 			p.From.Type = TYPE_CONST
-			p.From.Offset = objabi.PCDATA_RegMapIndex
+			p.From.Offset = objabi.PCDATA_UnsafePoint
 			p.To.Type = TYPE_CONST
 			p.To.Offset = prevPcdata
 			p.Pc = p.Link.Pc

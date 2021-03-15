@@ -228,7 +228,7 @@ func (v Value) Elem() Value {
 	switch k {
 	case Interface:
 		var eface interface{}
-		if isEmptyIface(v.typ) {
+		if v.typ.NumMethod() == 0 {
 			eface = *(*interface{})(v.ptr)
 		} else {
 			eface = (interface{})(*(*interface {
@@ -433,7 +433,7 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
 			return Value{dst, nil, flag(Interface)}
 		}
 		x := valueInterface(v)
-		if isEmptyIface(dst) {
+		if dst.NumMethod() == 0 {
 			*(*interface{})(target) = x
 		} else {
 			ifaceE2I(dst, x, target)

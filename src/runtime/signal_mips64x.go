@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
+//go:build (linux || openbsd) && (mips64 || mips64le)
+// +build linux openbsd
 // +build mips64 mips64le
 
 package runtime

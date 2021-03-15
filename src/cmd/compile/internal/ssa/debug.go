@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"encoding/hex"
@@ -24,7 +25,7 @@ type FuncDebug struct {
 	// Slots is all the slots used in the debug info, indexed by their SlotID.
 	Slots []LocalSlot
 	// The user variables, indexed by VarID.
-	Vars []GCNode
+	Vars []*ir.Name
 	// The slots that make up each variable, indexed by VarID.
 	VarSlots [][]SlotID
 	// The location list data, indexed by VarID. Must be processed by PutLocationList.
@@ -142,13 +143,13 @@ func (loc VarLoc) absent() bool {
 var BlockStart = &Value{
 	ID:  -10000,
 	Op:  OpInvalid,
-	Aux: "BlockStart",
+	Aux: StringToAux("BlockStart"),
 }
 
 var BlockEnd = &Value{
 	ID:  -20000,
 	Op:  OpInvalid,
-	Aux: "BlockEnd",
+	Aux: StringToAux("BlockEnd"),
 }
 
 // RegisterSet is a bitmap of registers, indexed by Register.num.
@@ -165,7 +166,7 @@ func (s *debugState) logf(msg string, args ...interface{}) {
 type debugState struct {
 	// See FuncDebug.
 	slots    []LocalSlot
-	vars     []GCNode
+	vars     []*ir.Name
 	varSlots [][]SlotID
 	lists    [][]byte
 
@@ -189,7 +190,7 @@ type debugState struct {
 	// The pending location list entry for each user variable, indexed by VarID.
 	pendingEntries []pendingEntry
 
-	varParts           map[GCNode][]SlotID
+	varParts           map[*ir.Name][]SlotID
 	blockDebug         []BlockDebug
 	pendingSlotLocs    []VarLoc
 	liveSlots          []liveSlot
@@ -346,7 +347,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
 	}
 
 	if state.varParts == nil {
-		state.varParts = make(map[GCNode][]SlotID)
+		state.varParts = make(map[*ir.Name][]SlotID)
 	} else {
 		for n := range state.varParts {
 			delete(state.varParts, n)
@@ -360,7 +361,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
 	state.vars = state.vars[:0]
 	for i, slot := range f.Names {
 		state.slots = append(state.slots, slot)
-		if slot.N.IsSynthetic() {
+		if ir.IsSynthetic(slot.N) {
 			continue
 		}
 
@@ -379,8 +380,8 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Op == OpVarDef || v.Op == OpVarKill {
-				n := v.Aux.(GCNode)
-				if n.IsSynthetic() {
+				n := v.Aux.(*ir.Name)
+				if ir.IsSynthetic(n) {
 					continue
 				}
 
@@ -425,7 +426,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
 	state.initializeCache(f, len(state.varParts), len(state.slots))
 
 	for i, slot := range f.Names {
-		if slot.N.IsSynthetic() {
+		if ir.IsSynthetic(slot.N) {
 			continue
 		}
 		for _, value := range f.NamedValues[slot] {
@@ -717,8 +718,8 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 
 	switch {
 	case v.Op == OpVarDef, v.Op == OpVarKill:
-		n := v.Aux.(GCNode)
-		if n.IsSynthetic() {
+		n := v.Aux.(*ir.Name)
+		if ir.IsSynthetic(n) {
 			break
 		}
 
@@ -900,10 +901,10 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 
 			if opcodeTable[v.Op].zeroWidth {
 				if changed {
-					if v.Op == OpArg || v.Op == OpPhi || v.Op.isLoweredGetClosurePtr() {
+					if hasAnyArgOp(v) || v.Op == OpPhi || v.Op.isLoweredGetClosurePtr() {
 						// These ranges begin at true beginning of block, not after first instruction
 						if zeroWidthPending {
-							b.Func.Fatalf("Unexpected op mixed with OpArg/OpPhi/OpLoweredGetClosurePtr at beginning of block %s in %s\n%s", b, b.Func.Name, b.Func)
+							panic(fmt.Errorf("Unexpected op '%s' mixed with OpArg/OpPhi/OpLoweredGetClosurePtr at beginning of block %s in %s\n%s", v.LongString(), b, b.Func.Name, b.Func))
 						}
 						apcChangedSize = len(state.changedVars.contents())
 						continue

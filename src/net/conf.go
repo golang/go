@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 // +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package net
@@ -201,11 +202,6 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		if c.goos == "solaris" {
 			// illumos defaults to "nis [NOTFOUND=return] files"
 			return fallbackOrder
-		}
-		if c.goos == "linux" {
-			// glibc says the default is "dns [!UNAVAIL=return] files"
-			// https://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html.
-			return hostLookupDNSFiles
 		}
 		return hostLookupFilesDNS
 	}

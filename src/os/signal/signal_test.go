@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 // +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package signal
@@ -12,7 +13,6 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"runtime"
@@ -304,7 +304,7 @@ func TestDetectNohup(t *testing.T) {
 		os.Remove("nohup.out")
 		out, err := exec.Command("/usr/bin/nohup", os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput()
 
-		data, _ := ioutil.ReadFile("nohup.out")
+		data, _ := os.ReadFile("nohup.out")
 		os.Remove("nohup.out")
 		if err != nil {
 			t.Errorf("ran test with -check_sighup_ignored under nohup and it failed: expected success.\nError: %v\nOutput:\n%s%s", err, out, data)
@@ -676,22 +676,68 @@ func TestTime(t *testing.T) {
 	<-done
 }
 
-func TestNotifyContext(t *testing.T) {
-	c, stop := NotifyContext(context.Background(), syscall.SIGINT)
-	defer stop()
+var (
+	checkNotifyContext = flag.Bool("check_notify_ctx", false, "if true, TestNotifyContext will fail if SIGINT is not received.")
+	ctxNotifyTimes     = flag.Int("ctx_notify_times", 1, "number of times a SIGINT signal should be received")
+)
 
-	if want, got := "signal.NotifyContext(context.Background, [interrupt])", fmt.Sprint(c); want != got {
-		t.Errorf("c.String() = %q, want %q", got, want)
+func TestNotifyContextNotifications(t *testing.T) {
+	if *checkNotifyContext {
+		ctx, _ := NotifyContext(context.Background(), syscall.SIGINT)
+		// We want to make sure not to be calling Stop() internally on NotifyContext() when processing a received signal.
+		// Being able to wait for a number of received system signals allows us to do so.
+		var wg sync.WaitGroup
+		n := *ctxNotifyTimes
+		wg.Add(n)
+		for i := 0; i < n; i++ {
+			go func() {
+				syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+		<-ctx.Done()
+		fmt.Print("received SIGINT")
+		// Sleep to give time to simultaneous signals to reach the process.
+		// These signals must be ignored given stop() is not called on this code.
+		// We want to guarantee a SIGINT doesn't cause a premature termination of the program.
+		time.Sleep(settleTime)
+		return
 	}
 
-	syscall.Kill(syscall.Getpid(), syscall.SIGINT)
-	select {
-	case <-c.Done():
-		if got := c.Err(); got != context.Canceled {
-			t.Errorf("c.Err() = %q, want %q", got, context.Canceled)
-		}
-	case <-time.After(time.Second):
-		t.Errorf("timed out waiting for context to be done after SIGINT")
+	t.Parallel()
+	testCases := []struct {
+		name string
+		n    int // number of times a SIGINT should be notified.
+	}{
+		{"once", 1},
+		{"multiple", 10},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var subTimeout time.Duration
+			if deadline, ok := t.Deadline(); ok {
+				subTimeout := time.Until(deadline)
+				subTimeout -= subTimeout / 10 // Leave 10% headroom for cleaning up subprocess.
+			}
+
+			args := []string{
+				"-test.v",
+				"-test.run=TestNotifyContextNotifications$",
+				"-check_notify_ctx",
+				fmt.Sprintf("-ctx_notify_times=%d", tc.n),
+			}
+			if subTimeout != 0 {
+				args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
+			}
+			out, err := exec.Command(os.Args[0], args...).CombinedOutput()
+			if err != nil {
+				t.Errorf("ran test with -check_notify_ctx_notification and it failed with %v.\nOutput:\n%s", err, out)
+			}
+			if want := []byte("received SIGINT"); !bytes.Contains(out, want) {
+				t.Errorf("got %q, wanted %q", out, want)
+			}
+		})
 	}
 }
 
@@ -766,34 +812,6 @@ func TestNotifyContextPrematureCancelParent(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Errorf("timed out waiting for parent context to be canceled")
-	}
-}
-
-func TestNotifyContextSimultaneousNotifications(t *testing.T) {
-	c, stop := NotifyContext(context.Background(), syscall.SIGINT)
-	defer stop()
-
-	if want, got := "signal.NotifyContext(context.Background, [interrupt])", fmt.Sprint(c); want != got {
-		t.Errorf("c.String() = %q, want %q", got, want)
-	}
-
-	var wg sync.WaitGroup
-	n := 10
-	wg.Add(n)
-	for i := 0; i < n; i++ {
-		go func() {
-			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
-			wg.Done()
-		}()
-	}
-	wg.Wait()
-	select {
-	case <-c.Done():
-		if got := c.Err(); got != context.Canceled {
-			t.Errorf("c.Err() = %q, want %q", got, context.Canceled)
-		}
-	case <-time.After(time.Second):
-		t.Errorf("expected context to be canceled")
 	}
 }
 

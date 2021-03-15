@@ -13,13 +13,13 @@ package main
 
 func f(x int, y uint) {
 	if true {
-		return "a" > 10 // ERROR "^too many arguments to return$" "."
+		return "a" > 10 // ERROR "^too many arguments to return$|return with value in function with no return|mismatched types"
 	}
-	return "gopher" == true, 10 // ERROR "^too many arguments to return$" "."
+	return "gopher" == true, 10 // ERROR "^too many arguments to return$|return with value in function with no return|mismatched types"
 }
 
 func main() {
-	f(2, 3 < "x", 10) // ERROR "^too many arguments in call to f$" "."
+	f(2, 3 < "x", 10) // ERROR "too many arguments|invalid operation|incompatible type"
 
-	f(10, 10, "a") // ERROR "too many arguments in call to f\n\thave \(number, number, string\)\n\twant \(int, uint\)"
+	f(10, 10, "a") // ERROR "too many arguments"
 }

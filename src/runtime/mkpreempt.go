@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 // mkpreempt generates the asyncPreempt functions for each
@@ -126,7 +127,8 @@ func header(arch string) {
 	}
 	fmt.Fprintf(out, "#include \"go_asm.h\"\n")
 	fmt.Fprintf(out, "#include \"textflag.h\"\n\n")
-	fmt.Fprintf(out, "TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0\n")
+	fmt.Fprintf(out, "// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.\n")
+	fmt.Fprintf(out, "TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0\n")
 }
 
 func p(f string, args ...interface{}) {
@@ -228,10 +230,14 @@ func genAMD64() {
 		if reg == "SP" || reg == "BP" {
 			continue
 		}
-		if strings.HasPrefix(reg, "X") {
-			l.add("MOVUPS", reg, 16)
-		} else {
+		if !strings.HasPrefix(reg, "X") {
 			l.add("MOVQ", reg, 8)
+		}
+	}
+	lSSE := layout{stack: l.stack, sp: "SP"}
+	for _, reg := range regNamesAMD64 {
+		if strings.HasPrefix(reg, "X") {
+			lSSE.add("MOVUPS", reg, 16)
 		}
 	}
 
@@ -242,9 +248,11 @@ func genAMD64() {
 	p("// Save flags before clobbering them")
 	p("PUSHFQ")
 	p("// obj doesn't understand ADD/SUB on SP, but does understand ADJSP")
-	p("ADJSP $%d", l.stack)
+	p("ADJSP $%d", lSSE.stack)
 	p("// But vet doesn't know ADJSP, so suppress vet stack checking")
 	p("NOP SP")
+
+	l.save()
 
 	// Apparently, the signal handling code path in darwin kernel leaves
 	// the upper bits of Y registers in a dirty state, which causes
@@ -257,10 +265,11 @@ func genAMD64() {
 	p("VZEROUPPER")
 	p("#endif")
 
-	l.save()
+	lSSE.save()
 	p("CALL ·asyncPreempt2(SB)")
+	lSSE.restore()
 	l.restore()
-	p("ADJSP $%d", -l.stack)
+	p("ADJSP $%d", -lSSE.stack)
 	p("POPFQ")
 	p("POPQ BP")
 	p("RET")
@@ -495,12 +504,12 @@ func genPPC64() {
 }
 
 func genRISCV64() {
-	// X0 (zero), X1 (LR), X2 (SP), X4 (g), X31 (TMP) are special.
+	// X0 (zero), X1 (LR), X2 (SP), X4 (TP), X27 (g), X31 (TMP) are special.
 	var l = layout{sp: "X2", stack: 8}
 
-	// Add integer registers (X3, X5-X30).
+	// Add integer registers (X3, X5-X26, X28-30).
 	for i := 3; i < 31; i++ {
-		if i == 4 {
+		if i == 4 || i == 27 {
 			continue
 		}
 		reg := fmt.Sprintf("X%d", i)

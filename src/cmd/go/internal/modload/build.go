@@ -75,7 +75,7 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 		return moduleInfo(ctx, m, fromBuildList, listRetracted)
 	}
 
-	for _, m := range LoadedModules() {
+	for _, m := range buildList {
 		if m.Path == path {
 			fromBuildList := true
 			return moduleInfo(ctx, m, fromBuildList, listRetracted)
@@ -113,7 +113,11 @@ func addVersions(ctx context.Context, m *modinfo.ModulePublic, listRetracted boo
 	if listRetracted {
 		allowed = CheckExclusions
 	}
-	m.Versions, _ = versions(ctx, m.Path, allowed)
+	var err error
+	m.Versions, err = versions(ctx, m.Path, allowed)
+	if err != nil && m.Error == nil {
+		m.Error = &modinfo.ModuleError{Err: err.Error()}
+	}
 }
 
 // addRetraction fills in m.Retracted if the module was retracted by its author.
@@ -123,13 +127,13 @@ func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
 		return
 	}
 
-	err := checkRetractions(ctx, module.Version{Path: m.Path, Version: m.Version})
-	var rerr *retractedError
+	err := CheckRetractions(ctx, module.Version{Path: m.Path, Version: m.Version})
+	var rerr *ModuleRetractedError
 	if errors.As(err, &rerr) {
-		if len(rerr.rationale) == 0 {
+		if len(rerr.Rationale) == 0 {
 			m.Retracted = []string{"retracted by module author"}
 		} else {
-			m.Retracted = rerr.rationale
+			m.Retracted = rerr.Rationale
 		}
 	} else if err != nil && m.Error == nil {
 		m.Error = &modinfo.ModuleError{Err: err.Error()}

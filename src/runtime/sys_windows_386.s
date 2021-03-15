@@ -66,11 +66,6 @@ TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	MOVL	AX, ret+0(FP)
 	RET
 
-TEXT runtime·setlasterror(SB),NOSPLIT,$0
-	MOVL	err+0(FP), AX
-	MOVL	AX, 0x34(FS)
-	RET
-
 // Called by Windows as a Vectored Exception Handler (VEH).
 // First argument is pointer to struct containing
 // exception record and context pointers.
@@ -99,7 +94,7 @@ TEXT sigtramp<>(SB),NOSPLIT,$0-0
 	JNE	2(PC)
 	CALL	runtime·badsignal2(SB)
 
-	// save g and SP in case of stack switch
+	// save g in case of stack switch
 	MOVL	DX, 32(SP)	// g
 	MOVL	SP, 36(SP)
 
@@ -113,13 +108,9 @@ TEXT sigtramp<>(SB),NOSPLIT,$0-0
 	get_tls(BP)
 	MOVL	BX, g(BP)
 	MOVL	(g_sched+gobuf_sp)(BX), DI
-	// make it look like mstart called us on g0, to stop traceback
-	SUBL	$4, DI
-	MOVL	$runtime·mstart(SB), 0(DI)
-	// traceback will think that we've done SUBL
-	// on this stack, so subtract them here to match.
-	// (we need room for sighandler arguments anyway).
+	// make room for sighandler arguments
 	// and re-save old SP for restoring later.
+	// (note that the 36(DI) here must match the 36(SP) above.)
 	SUBL	$40, DI
 	MOVL	SP, 36(DI)
 	MOVL	DI, SP
@@ -137,7 +128,7 @@ g0:
 	// switch back to original stack and g
 	// no-op if we never left.
 	MOVL	36(SP), SP
-	MOVL	32(SP), DX
+	MOVL	32(SP), DX	// note: different SP
 	get_tls(BP)
 	MOVL	DX, g(BP)
 
@@ -183,7 +174,7 @@ TEXT runtime·profileloop(SB),NOSPLIT,$0
 	ADDL	$12, SP
 	JMP	CX
 
-TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+TEXT runtime·externalthreadhandler(SB),NOSPLIT|TOPFRAME,$0
 	PUSHL	BP
 	MOVL	SP, BP
 	PUSHL	BX
@@ -239,7 +230,7 @@ GLOBL runtime·cbctxts(SB), NOPTR, $4
 TEXT runtime·callbackasm1(SB),NOSPLIT,$0
   	MOVL	0(SP), AX	// will use to find our callback context
 
-	// remove return address from stack, we are not returning there
+	// remove return address from stack, we are not returning to callbackasm, but to its caller.
 	ADDL	$4, SP
 
 	// address to callback parameters into CX
@@ -251,50 +242,35 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	PUSHL	BP
 	PUSHL	BX
 
-	// determine index into runtime·cbctxts table
+	// Go ABI requires DF flag to be cleared.
+	CLD
+
+	// determine index into runtime·cbs table
 	SUBL	$runtime·callbackasm(SB), AX
 	MOVL	$0, DX
 	MOVL	$5, BX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
 	DIVL	BX
+	SUBL	$1, AX	// subtract 1 because return PC is to the next slot
 
-	// find correspondent runtime·cbctxts table entry
-	MOVL	runtime·cbctxts(SB), BX
-	MOVL	-4(BX)(AX*4), BX
+	// Create a struct callbackArgs on our stack.
+	SUBL	$(12+callbackArgs__size), SP
+	MOVL	AX, (12+callbackArgs_index)(SP)		// callback index
+	MOVL	CX, (12+callbackArgs_args)(SP)		// address of args vector
+	MOVL	$0, (12+callbackArgs_result)(SP)	// result
+	LEAL	12(SP), AX	// AX = &callbackArgs{...}
 
-	// extract callback context
-	MOVL	wincallbackcontext_gobody(BX), AX
-	MOVL	wincallbackcontext_argsize(BX), DX
+	// Call cgocallback, which will call callbackWrap(frame).
+	MOVL	$0, 8(SP)	// context
+	MOVL	AX, 4(SP)	// frame (address of callbackArgs)
+	LEAL	·callbackWrap(SB), AX
+	MOVL	AX, 0(SP)	// PC of function to call
+	CALL	runtime·cgocallback(SB)
 
-	// preserve whatever's at the memory location that
-	// the callback will use to store the return value
-	PUSHL	0(CX)(DX*1)
-
-	// extend argsize by size of return value
-	ADDL	$4, DX
-
-	// remember how to restore stack on return
-	MOVL	wincallbackcontext_restorestack(BX), BX
-	PUSHL	BX
-
-	// call target Go function
-	PUSHL	DX			// argsize (including return value)
-	PUSHL	CX			// callback parameters
-	PUSHL	AX			// address of target Go function
-	CLD
-	CALL	runtime·cgocallback_gofunc(SB)
-	POPL	AX
-	POPL	CX
-	POPL	DX
-
-	// how to restore stack on return
-	POPL	BX
-
-	// return value into AX (as per Windows spec)
-	// and restore previously preserved value
-	MOVL	-4(CX)(DX*1), AX
-	POPL	-4(CX)(DX*1)
-
-	MOVL	BX, CX			// cannot use BX anymore
+	// Get callback result.
+	MOVL	(12+callbackArgs_result)(SP), AX
+	// Get popRet.
+	MOVL	(12+callbackArgs_retPop)(SP), CX	// Can't use a callee-save register
+	ADDL	$(12+callbackArgs__size), SP
 
 	// restore registers as required for windows callback
 	POPL	BX
@@ -362,60 +338,11 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
 	MOVL	CX, 0x14(FS)
 	RET
 
-// onosstack calls fn on OS stack.
-// func onosstack(fn unsafe.Pointer, arg uint32)
-TEXT runtime·onosstack(SB),NOSPLIT,$0
-	MOVL	fn+0(FP), AX		// to hide from 8l
-	MOVL	arg+4(FP), BX
-
-	// Execute call on m->g0 stack, in case we are not actually
-	// calling a system call wrapper, like when running under WINE.
-	get_tls(CX)
-	CMPL	CX, $0
-	JNE	3(PC)
-	// Not a Go-managed thread. Do not switch stack.
-	CALL	AX
-	RET
-
-	MOVL	g(CX), BP
-	MOVL	g_m(BP), BP
-
-	// leave pc/sp for cpu profiler
-	MOVL	(SP), SI
-	MOVL	SI, m_libcallpc(BP)
-	MOVL	g(CX), SI
-	MOVL	SI, m_libcallg(BP)
-	// sp must be the last, because once async cpu profiler finds
-	// all three values to be non-zero, it will use them
-	LEAL	fn+0(FP), SI
-	MOVL	SI, m_libcallsp(BP)
-
-	MOVL	m_g0(BP), SI
-	CMPL	g(CX), SI
-	JNE	switch
-	// executing on m->g0 already
-	CALL	AX
-	JMP	ret
-
-switch:
-	// Switch to m->g0 stack and back.
-	MOVL	(g_sched+gobuf_sp)(SI), SI
-	MOVL	SP, -4(SI)
-	LEAL	-4(SI), SP
-	CALL	AX
-	MOVL	0(SP), SP
-
-ret:
-	get_tls(CX)
-	MOVL	g(CX), BP
-	MOVL	g_m(BP), BP
-	MOVL	$0, m_libcallsp(BP)
-	RET
-
-// Runs on OS stack. duration (in 100ns units) is in BX.
-TEXT runtime·usleep2(SB),NOSPLIT,$20
-	// Want negative 100ns units.
-	NEGL	BX
+// Runs on OS stack.
+// duration (in -100ns units) is in dt+0(FP).
+// g may be nil.
+TEXT runtime·usleep2(SB),NOSPLIT,$20-4
+	MOVL	dt+0(FP), BX
 	MOVL	$-1, hi-4(SP)
 	MOVL	BX, lo-8(SP)
 	LEAL	lo-8(SP), BX
@@ -428,10 +355,11 @@ TEXT runtime·usleep2(SB),NOSPLIT,$20
 	MOVL	BP, SP
 	RET
 
-// Runs on OS stack. duration (in 100ns units) is in BX.
-TEXT runtime·usleep2HighRes(SB),NOSPLIT,$36
-	// Want negative 100ns units.
-	NEGL	BX
+// Runs on OS stack.
+// duration (in -100ns units) is in dt+0(FP).
+// g is valid.
+TEXT runtime·usleep2HighRes(SB),NOSPLIT,$36-4
+	MOVL	dt+0(FP), BX
 	MOVL	$-1, hi-4(SP)
 	MOVL	BX, lo-8(SP)
 

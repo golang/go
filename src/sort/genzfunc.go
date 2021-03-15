@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 // This program is run via "go generate" (via a directive in sort.go)
@@ -20,8 +21,8 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"log"
+	"os"
 	"regexp"
 )
 
@@ -92,7 +93,7 @@ func main() {
 	out.Write(src)
 
 	const target = "zfuncversion.go"
-	if err := ioutil.WriteFile(target, out.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(target, out.Bytes(), 0644); err != nil {
 		log.Fatal(err)
 	}
 }

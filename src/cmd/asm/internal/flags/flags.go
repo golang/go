@@ -20,6 +20,7 @@ var (
 	TrimPath         = flag.String("trimpath", "", "remove prefix from recorded source file paths")
 	Shared           = flag.Bool("shared", false, "generate code that can be linked into a shared library")
 	Dynlink          = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
+	Linkshared       = flag.Bool("linkshared", false, "generate code that will be linked against Go shared libraries")
 	AllErrors        = flag.Bool("e", false, "no limit on number of errors reported")
 	SymABIs          = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
 	Importpath       = flag.String("p", "", "set expected package import to path")
@@ -31,11 +32,13 @@ var (
 	D        MultiFlag
 	I        MultiFlag
 	PrintOut int
+	DebugV   bool
 )
 
 func init() {
 	flag.Var(&D, "D", "predefined symbol with optional simple value -D=identifier=value; can be set multiple times")
 	flag.Var(&I, "I", "include directory; can be set multiple times")
+	flag.BoolVar(&DebugV, "v", false, "print debug output")
 	objabi.AddVersionFlag() // -V
 	objabi.Flagcount("S", "print assembly and machine code", &PrintOut)
 }

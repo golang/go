@@ -664,7 +664,7 @@ func toValidName(name string) string {
 	if strings.HasPrefix(p, "/") {
 		p = p[len("/"):]
 	}
-	for strings.HasPrefix(name, "../") {
+	for strings.HasPrefix(p, "../") {
 		p = p[len("../"):]
 	}
 	return p
@@ -695,7 +695,7 @@ func fileEntryLess(x, y string) bool {
 }
 
 // Open opens the named file in the ZIP archive,
-// using the semantics of io.FS.Open:
+// using the semantics of fs.FS.Open:
 // paths are always slash separated, with no
 // leading / or ../ elements.
 func (r *Reader) Open(name string) (fs.File, error) {

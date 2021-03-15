@@ -6,6 +6,12 @@ package syscall
 
 import "unsafe"
 
+// archHonorsR2 captures the fact that r2 is honored by the
+// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
+// syscall(trap, ...).  Not all architectures define r2 in their
+// ABI. See "man syscall".
+const archHonorsR2 = true
+
 const _SYS_setgroups = SYS_SETGROUPS
 
 func EpollCreate(size int) (fd int, err error) {
@@ -35,11 +41,7 @@ func EpollCreate(size int) (fd int, err error) {
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
 //sys	Setfsgid(gid int) (err error)
 //sys	Setfsuid(uid int) (err error)
-//sysnb	Setregid(rgid int, egid int) (err error)
-//sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
-//sysnb	Setresuid(ruid int, euid int, suid int) (err error)
 //sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
-//sysnb	Setreuid(ruid int, euid int) (err error)
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
 
@@ -67,7 +69,6 @@ func Lstat(path string, stat *Stat_t) (err error) {
 //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
 //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
 //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error)
-//sysnb	setgroups(n int, list *_Gid_t) (err error)
 //sys	getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error)
 //sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error)
 //sysnb	socket(domain int, typ int, proto int) (fd int, err error)

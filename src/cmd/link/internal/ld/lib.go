@@ -49,11 +49,11 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
+	exec "internal/execabs"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -298,6 +298,11 @@ func (ctxt *Link) CanUsePlugins() bool {
 	return ctxt.canUsePlugins
 }
 
+// NeedCodeSign reports whether we need to code-sign the output binary.
+func (ctxt *Link) NeedCodeSign() bool {
+	return ctxt.IsDarwin() && ctxt.IsARM64()
+}
+
 var (
 	dynlib          []string
 	ldflag          []string
@@ -484,9 +489,15 @@ func (ctxt *Link) loadlib() {
 	case 0:
 		// nothing to do
 	case 1, 2:
-		flags = loader.FlagStrictDups
+		flags |= loader.FlagStrictDups
 	default:
 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
+	}
+	if !*flagAbiWrap || ctxt.linkShared {
+		// Use ABI aliases if ABI wrappers are not used.
+		// TODO: for now we still use ABI aliases in shared linkage, even if
+		// the wrapper is enabled.
+		flags |= loader.FlagUseABIAlias
 	}
 	elfsetstring1 := func(str string, off int) { elfsetstring(ctxt, 0, str, off) }
 	ctxt.loader = loader.NewLoader(flags, elfsetstring1, &ctxt.ErrorReporter.ErrorReporter)
@@ -778,6 +789,18 @@ func (ctxt *Link) linksetup() {
 			sb.SetType(sym.SDATA)
 			sb.SetSize(0)
 			sb.AddUint8(uint8(objabi.GOARM))
+		}
+
+		// Set runtime.disableMemoryProfiling bool if
+		// runtime.MemProfile is not retained in the binary after
+		// deadcode (and we're not dynamically linking).
+		memProfile := ctxt.loader.Lookup("runtime.MemProfile", sym.SymVerABIInternal)
+		if memProfile != 0 && !ctxt.loader.AttrReachable(memProfile) && !ctxt.DynlinkingGo() {
+			memProfSym := ctxt.loader.LookupOrCreateSym("runtime.disableMemoryProfiling", 0)
+			sb := ctxt.loader.MakeSymbolUpdater(memProfSym)
+			sb.SetType(sym.SDATA)
+			sb.SetSize(0)
+			sb.AddUint8(1) // true bool
 		}
 	} else {
 		// If OTOH the module does not contain the runtime package,
@@ -1268,6 +1291,7 @@ func (ctxt *Link) hostlink() {
 		}
 	case objabi.Hopenbsd:
 		argv = append(argv, "-Wl,-nopie")
+		argv = append(argv, "-pthread")
 	case objabi.Hwindows:
 		if windowsgui {
 			argv = append(argv, "-mwindows")
@@ -1320,9 +1344,6 @@ func (ctxt *Link) hostlink() {
 		case objabi.Hdarwin, objabi.Haix:
 		case objabi.Hwindows:
 			argv = addASLRargs(argv)
-			// Work around binutils limitation that strips relocation table for dynamicbase.
-			// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
-			argv = append(argv, "-Wl,--export-all-symbols")
 		default:
 			// ELF.
 			if ctxt.UseRelro() {
@@ -1334,8 +1355,6 @@ func (ctxt *Link) hostlink() {
 		if ctxt.HeadType == objabi.Hdarwin {
 			argv = append(argv, "-dynamiclib")
 		} else {
-			// ELF.
-			argv = append(argv, "-Wl,-Bsymbolic")
 			if ctxt.UseRelro() {
 				argv = append(argv, "-Wl,-z,relro")
 			}
@@ -1348,6 +1367,8 @@ func (ctxt *Link) hostlink() {
 				// Pass -z nodelete to mark the shared library as
 				// non-closeable: a dlclose will do nothing.
 				argv = append(argv, "-Wl,-z,nodelete")
+				// Only pass Bsymbolic on non-Windows.
+				argv = append(argv, "-Wl,-Bsymbolic")
 			}
 		}
 	case BuildModeShared:
@@ -1456,7 +1477,7 @@ func (ctxt *Link) hostlink() {
 	}
 
 	const compressDWARF = "-Wl,--compress-debug-sections=zlib-gnu"
-	if ctxt.compressDWARF && linkerFlagSupported(argv[0], altLinker, compressDWARF) {
+	if ctxt.compressDWARF && linkerFlagSupported(ctxt.Arch, argv[0], altLinker, compressDWARF) {
 		argv = append(argv, compressDWARF)
 	}
 
@@ -1546,7 +1567,7 @@ func (ctxt *Link) hostlink() {
 	if ctxt.BuildMode == BuildModeExe && !ctxt.linkShared && !(ctxt.IsDarwin() && ctxt.IsARM64()) {
 		// GCC uses -no-pie, clang uses -nopie.
 		for _, nopie := range []string{"-no-pie", "-nopie"} {
-			if linkerFlagSupported(argv[0], altLinker, nopie) {
+			if linkerFlagSupported(ctxt.Arch, argv[0], altLinker, nopie) {
 				argv = append(argv, nopie)
 				break
 			}
@@ -1558,10 +1579,22 @@ func (ctxt *Link) hostlink() {
 		checkStatic(p)
 	}
 	if ctxt.HeadType == objabi.Hwindows {
+		// Determine which linker we're using. Add in the extldflags in
+		// case used has specified "-fuse-ld=...".
+		cmd := exec.Command(*flagExtld, *flagExtldflags, "-Wl,--version")
+		usingLLD := false
+		if out, err := cmd.CombinedOutput(); err == nil {
+			if bytes.Contains(out, []byte("LLD ")) {
+				usingLLD = true
+			}
+		}
+
 		// use gcc linker script to work around gcc bug
 		// (see https://golang.org/issue/20183 for details).
-		p := writeGDBLinkerScript()
-		argv = append(argv, "-Wl,-T,"+p)
+		if !usingLLD {
+			p := writeGDBLinkerScript()
+			argv = append(argv, "-Wl,-T,"+p)
+		}
 		// libmingw32 and libmingwex have some inter-dependencies,
 		// so must use linker groups.
 		argv = append(argv, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")
@@ -1614,12 +1647,12 @@ func (ctxt *Link) hostlink() {
 
 	if combineDwarf {
 		dsym := filepath.Join(*flagTmpdir, "go.dwarf")
-		if out, err := exec.Command("dsymutil", "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
+		if out, err := exec.Command("xcrun", "dsymutil", "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
 			Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
 		}
 		// Remove STAB (symbolic debugging) symbols after we are done with them (by dsymutil).
 		// They contain temporary file paths and make the build not reproducible.
-		if out, err := exec.Command("strip", "-S", *flagOutfile).CombinedOutput(); err != nil {
+		if out, err := exec.Command("xcrun", "strip", "-S", *flagOutfile).CombinedOutput(); err != nil {
 			Exitf("%s: running strip failed: %v\n%s", os.Args[0], err, out)
 		}
 		// Skip combining if `dsymutil` didn't generate a file. See #11994.
@@ -1645,11 +1678,17 @@ func (ctxt *Link) hostlink() {
 			Exitf("%s: %v", os.Args[0], err)
 		}
 	}
+	if ctxt.NeedCodeSign() {
+		err := machoCodeSign(ctxt, *flagOutfile)
+		if err != nil {
+			Exitf("%s: code signing failed: %v", os.Args[0], err)
+		}
+	}
 }
 
 var createTrivialCOnce sync.Once
 
-func linkerFlagSupported(linker, altLinker, flag string) bool {
+func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
 	createTrivialCOnce.Do(func() {
 		src := filepath.Join(*flagTmpdir, "trivial.c")
 		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
@@ -1683,7 +1722,7 @@ func linkerFlagSupported(linker, altLinker, flag string) bool {
 		"-target",
 	}
 
-	var flags []string
+	flags := hostlinkArchArgs(arch)
 	keep := false
 	skip := false
 	extldflags := strings.Fields(*flagExtldflags)
@@ -1729,12 +1768,19 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
 	switch arch.Family {
 	case sys.I386:
 		return []string{"-m32"}
-	case sys.AMD64, sys.S390X:
+	case sys.AMD64:
+		if objabi.GOOS == "darwin" {
+			return []string{"-arch", "x86_64", "-m64"}
+		}
+		return []string{"-m64"}
+	case sys.S390X:
 		return []string{"-m64"}
 	case sys.ARM:
 		return []string{"-marm"}
 	case sys.ARM64:
-		// nothing needed
+		if objabi.GOOS == "darwin" {
+			return []string{"-arch", "arm64"}
+		}
 	case sys.MIPS64:
 		return []string{"-mabi=64"}
 	case sys.MIPS:
@@ -1770,12 +1816,12 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
 	if magic == 0x7f454c46 { // \x7F E L F
 		ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn, ehdr.flags)
+			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn, ehdr.Flags)
 			if err != nil {
 				Errorf(nil, "%v", err)
 				return
 			}
-			ehdr.flags = flags
+			ehdr.Flags = flags
 			ctxt.Textp = append(ctxt.Textp, textp...)
 		}
 		return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
@@ -1793,14 +1839,18 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 		return ldhostobj(ldmacho, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
-	if c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86 {
+	switch c1<<8 | c2 {
+	case 0x4c01, // 386
+		0x6486, // amd64
+		0xc401, // arm
+		0x64aa: // arm64
 		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			textp, rsrc, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
 			if err != nil {
 				Errorf(nil, "%v", err)
 				return
 			}
-			if rsrc != 0 {
+			if len(rsrc) != 0 {
 				setpersrc(ctxt, rsrc)
 			}
 			ctxt.Textp = append(ctxt.Textp, textp...)
@@ -2063,6 +2113,26 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		Errorf(nil, "cannot read symbols from shared library: %s", libpath)
 		return
 	}
+
+	// collect text symbol ABI versions.
+	symabi := make(map[string]int) // map (unmangled) symbol name to version
+	if *flagAbiWrap {
+		for _, elfsym := range syms {
+			if elf.ST_TYPE(elfsym.Info) != elf.STT_FUNC {
+				continue
+			}
+			// Demangle the name. Keep in sync with symtab.go:putelfsym.
+			if strings.HasSuffix(elfsym.Name, ".abiinternal") {
+				// ABIInternal symbol has mangled name, so the primary symbol is ABI0.
+				symabi[strings.TrimSuffix(elfsym.Name, ".abiinternal")] = 0
+			}
+			if strings.HasSuffix(elfsym.Name, ".abi0") {
+				// ABI0 symbol has mangled name, so the primary symbol is ABIInternal.
+				symabi[strings.TrimSuffix(elfsym.Name, ".abi0")] = sym.SymVerABIInternal
+			}
+		}
+	}
+
 	for _, elfsym := range syms {
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_NOTYPE || elf.ST_TYPE(elfsym.Info) == elf.STT_SECTION {
 			continue
@@ -2071,12 +2141,23 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		// Symbols whose names start with "type." are compiler
 		// generated, so make functions with that prefix internal.
 		ver := 0
+		symname := elfsym.Name // (unmangled) symbol name
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type.") {
 			ver = sym.SymVerABIInternal
+		} else if *flagAbiWrap && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
+			if strings.HasSuffix(elfsym.Name, ".abiinternal") {
+				ver = sym.SymVerABIInternal
+				symname = strings.TrimSuffix(elfsym.Name, ".abiinternal")
+			} else if strings.HasSuffix(elfsym.Name, ".abi0") {
+				ver = 0
+				symname = strings.TrimSuffix(elfsym.Name, ".abi0")
+			} else if abi, ok := symabi[elfsym.Name]; ok {
+				ver = abi
+			}
 		}
 
 		l := ctxt.loader
-		s := l.LookupOrCreateSym(elfsym.Name, ver)
+		s := l.LookupOrCreateSym(symname, ver)
 
 		// Because loadlib above loads all .a files before loading
 		// any shared libraries, any non-dynimport symbols we find
@@ -2101,6 +2182,10 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			}
 		}
 
+		if symname != elfsym.Name {
+			l.SetSymExtname(s, elfsym.Name)
+		}
+
 		// For function symbols, we don't know what ABI is
 		// available, so alias it under both ABIs.
 		//
@@ -2109,7 +2194,12 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		// mangle Go function names in the .so to include the
 		// ABI.
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
-			alias := ctxt.loader.LookupOrCreateSym(elfsym.Name, sym.SymVerABIInternal)
+			if *flagAbiWrap {
+				if _, ok := symabi[symname]; ok {
+					continue // only use alias for functions w/o ABI wrappers
+				}
+			}
+			alias := ctxt.loader.LookupOrCreateSym(symname, sym.SymVerABIInternal)
 			if l.SymType(alias) != 0 {
 				continue
 			}
@@ -2520,12 +2610,12 @@ func AddGotSym(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader.Sym,
 		if target.Arch.PtrSize == 8 {
 			rela := ldr.MakeSymbolUpdater(syms.Rela)
 			rela.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
-			rela.AddUint64(target.Arch, ELF64_R_INFO(uint32(ldr.SymDynid(s)), elfRelocTyp))
+			rela.AddUint64(target.Arch, elf.R_INFO(uint32(ldr.SymDynid(s)), elfRelocTyp))
 			rela.AddUint64(target.Arch, 0)
 		} else {
 			rel := ldr.MakeSymbolUpdater(syms.Rel)
 			rel.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
-			rel.AddUint32(target.Arch, ELF32_R_INFO(uint32(ldr.SymDynid(s)), elfRelocTyp))
+			rel.AddUint32(target.Arch, elf.R_INFO32(uint32(ldr.SymDynid(s)), elfRelocTyp))
 		}
 	} else if target.IsDarwin() {
 		leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT)

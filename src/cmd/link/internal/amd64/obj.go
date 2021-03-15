@@ -39,13 +39,8 @@ import (
 func Init() (*sys.Arch, ld.Arch) {
 	arch := sys.ArchAMD64
 
-	fa := funcAlign
-	if objabi.GOAMD64 == "alignedjumps" {
-		fa = 32
-	}
-
 	theArch := ld.Arch{
-		Funcalign:  fa,
+		Funcalign:  funcAlign,
 		Maxalign:   maxAlign,
 		Minalign:   minAlign,
 		Dwarfregsp: dwarfRegSP,

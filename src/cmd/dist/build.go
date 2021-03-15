@@ -39,6 +39,7 @@ var (
 	goextlinkenabled string
 	gogcflags        string // For running built compiler
 	goldflags        string
+	goexperiment     string
 	workdir          string
 	tooldir          string
 	oldgoos          string
@@ -111,9 +112,6 @@ func xinit() {
 		fatalf("$GOROOT must be set")
 	}
 	goroot = filepath.Clean(b)
-	if modRoot := findModuleRoot(goroot); modRoot != "" {
-		fatalf("found go.mod file in %s: $GOROOT must not be inside a module", modRoot)
-	}
 
 	b = os.Getenv("GOROOT_FINAL")
 	if b == "" {
@@ -197,6 +195,9 @@ func xinit() {
 		goextlinkenabled = b
 	}
 
+	goexperiment = os.Getenv("GOEXPERIMENT")
+	// TODO(mdempsky): Validate known experiments?
+
 	gogcflags = os.Getenv("BOOT_GO_GCFLAGS")
 	goldflags = os.Getenv("BOOT_GO_LDFLAGS")
 
@@ -241,6 +242,9 @@ func xinit() {
 	os.Setenv("LANGUAGE", "en_US.UTF8")
 
 	workdir = xworkdir()
+	if err := ioutil.WriteFile(pathf("%s/go.mod", workdir), []byte("module bootstrap"), 0666); err != nil {
+		fatalf("cannot write stub go.mod: %s", err)
+	}
 	xatexit(rmworkdir)
 
 	tooldir = pathf("%s/pkg/tool/%s_%s", goroot, gohostos, gohostarch)
@@ -834,18 +838,6 @@ func runInstall(pkg string, ch chan struct{}) {
 	goasmh := pathf("%s/go_asm.h", workdir)
 	if IsRuntimePackagePath(pkg) {
 		asmArgs = append(asmArgs, "-compiling-runtime")
-		if os.Getenv("GOEXPERIMENT") == "regabi" {
-			// In order to make it easier to port runtime assembly
-			// to the register ABI, we introduce a macro
-			// indicating the experiment is enabled.
-			//
-			// Note: a similar change also appears in
-			// cmd/go/internal/work/gc.go.
-			//
-			// TODO(austin): Remove this once we commit to the
-			// register ABI (#40724).
-			asmArgs = append(asmArgs, "-D=GOEXPERIMENT_REGABI=1")
-		}
 	}
 
 	// Collect symabis from assembly code.
@@ -981,6 +973,11 @@ func matchtag(tag string) bool {
 			return false
 		}
 		return !matchtag(tag[1:])
+	}
+	if os.Getenv("GOEXPERIMENT") == "regabi" && tag == "goexperiment.regabi" {
+		// TODO: maybe we can handle GOEXPERIMENT more generally.
+		// Or remove once we commit to regabi (#40724).
+		return true
 	}
 	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" ||
 		(goos == "android" && tag == "linux") ||
@@ -1500,11 +1497,11 @@ func goCmd(goBinary string, cmd string, args ...string) {
 		goCmd = append(goCmd, "-p=1")
 	}
 
-	run(goroot, ShowOutput|CheckExit, append(goCmd, args...)...)
+	run(workdir, ShowOutput|CheckExit, append(goCmd, args...)...)
 }
 
 func checkNotStale(goBinary string, targets ...string) {
-	out := run(goroot, CheckExit,
+	out := run(workdir, CheckExit,
 		append([]string{
 			goBinary,
 			"list", "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags,
@@ -1514,7 +1511,7 @@ func checkNotStale(goBinary string, targets ...string) {
 		os.Setenv("GODEBUG", "gocachehash=1")
 		for _, target := range []string{"runtime/internal/sys", "cmd/dist", "cmd/link"} {
 			if strings.Contains(out, "STALE "+target) {
-				run(goroot, ShowOutput|CheckExit, goBinary, "list", "-f={{.ImportPath}} {{.Stale}}", target)
+				run(workdir, ShowOutput|CheckExit, goBinary, "list", "-f={{.ImportPath}} {{.Stale}}", target)
 				break
 			}
 		}
@@ -1549,7 +1546,7 @@ var cgoEnabled = map[string]bool{
 	"linux/mipsle":    true,
 	"linux/mips64":    true,
 	"linux/mips64le":  true,
-	"linux/riscv64":   false, // Issue 36641
+	"linux/riscv64":   true,
 	"linux/s390x":     true,
 	"linux/sparc64":   true,
 	"android/386":     true,
@@ -1557,6 +1554,7 @@ var cgoEnabled = map[string]bool{
 	"android/arm":     true,
 	"android/arm64":   true,
 	"ios/arm64":       true,
+	"ios/amd64":       true,
 	"js/wasm":         false,
 	"netbsd/386":      true,
 	"netbsd/amd64":    true,
@@ -1566,6 +1564,7 @@ var cgoEnabled = map[string]bool{
 	"openbsd/amd64":   true,
 	"openbsd/arm":     true,
 	"openbsd/arm64":   true,
+	"openbsd/mips64":  false,
 	"plan9/386":       false,
 	"plan9/amd64":     false,
 	"plan9/arm":       false,
@@ -1573,6 +1572,7 @@ var cgoEnabled = map[string]bool{
 	"windows/386":     true,
 	"windows/amd64":   true,
 	"windows/arm":     false,
+	"windows/arm64":   false,
 }
 
 // List of platforms which are supported but not complete yet. These get
@@ -1605,20 +1605,6 @@ func checkCC() {
 			"To set a C compiler, set CC=the-compiler.\n"+
 			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc[""], err, outputHdr, output)
 	}
-}
-
-func findModuleRoot(dir string) (root string) {
-	for {
-		if fi, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
-			return dir
-		}
-		d := filepath.Dir(dir)
-		if d == dir {
-			break
-		}
-		dir = d
-	}
-	return ""
 }
 
 func defaulttarg() string {
@@ -1762,6 +1748,8 @@ func IsRuntimePackagePath(pkgpath string) bool {
 	case "reflect":
 		rval = true
 	case "syscall":
+		rval = true
+	case "crypto/x509/internal/macos": // libc function wrappers need to be ABIInternal
 		rval = true
 	default:
 		rval = strings.HasPrefix(pkgpath, "runtime/internal")

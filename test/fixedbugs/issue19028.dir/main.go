@@ -6,7 +6,7 @@ package main
 
 import (
         "reflect"
-        fake "./reflect" // 2nd package with name "reflect"
+        fake "./a" // 2nd package with name "reflect"
 )
 
 type T struct {

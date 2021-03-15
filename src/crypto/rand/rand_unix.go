@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || plan9 || solaris
 // +build aix darwin dragonfly freebsd linux netbsd openbsd plan9 solaris
 
 // Unix cryptographically secure pseudorandom number
@@ -46,6 +47,10 @@ type devReader struct {
 // altGetRandom if non-nil specifies an OS-specific function to get
 // urandom-style randomness.
 var altGetRandom func([]byte) (ok bool)
+
+func warnBlocked() {
+	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
+}
 
 func (r *devReader) Read(b []byte) (n int, err error) {
 	if atomic.CompareAndSwapInt32(&r.used, 0, 1) {

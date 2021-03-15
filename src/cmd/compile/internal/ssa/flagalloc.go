@@ -191,11 +191,6 @@ func flagalloc(f *Func) {
 		b.FlagsLiveAtEnd = end[b.ID] != nil
 	}
 
-	const go115flagallocdeadcode = true
-	if !go115flagallocdeadcode {
-		return
-	}
-
 	// Remove any now-dead values.
 	// The number of values to remove is likely small,
 	// and removing them requires processing all values in a block,

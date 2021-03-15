@@ -6,80 +6,113 @@
 
 package types
 
-import "sort"
+import (
+	"go/token"
+)
 
+// isNamed reports whether typ has a name.
+// isNamed may be called with types that are not fully set up.
 func isNamed(typ Type) bool {
-	if _, ok := typ.(*Basic); ok {
-		return ok
+	switch typ.(type) {
+	case *Basic, *Named, *_TypeParam, *instance:
+		return true
 	}
-	_, ok := typ.(*Named)
-	return ok
+	return false
 }
 
-func isBoolean(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsBoolean != 0
+// isGeneric reports whether a type is a generic, uninstantiated type (generic
+// signatures are not included).
+func isGeneric(typ Type) bool {
+	// A parameterized type is only instantiated if it doesn't have an instantiation already.
+	named, _ := typ.(*Named)
+	return named != nil && named.obj != nil && named.tparams != nil && named.targs == nil
 }
 
-func isInteger(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsInteger != 0
+func is(typ Type, what BasicInfo) bool {
+	switch t := optype(typ).(type) {
+	case *Basic:
+		return t.info&what != 0
+	case *_Sum:
+		return t.is(func(typ Type) bool { return is(typ, what) })
+	}
+	return false
 }
 
-func isUnsigned(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsUnsigned != 0
-}
+func isBoolean(typ Type) bool  { return is(typ, IsBoolean) }
+func isInteger(typ Type) bool  { return is(typ, IsInteger) }
+func isUnsigned(typ Type) bool { return is(typ, IsUnsigned) }
+func isFloat(typ Type) bool    { return is(typ, IsFloat) }
+func isComplex(typ Type) bool  { return is(typ, IsComplex) }
+func isNumeric(typ Type) bool  { return is(typ, IsNumeric) }
+func isString(typ Type) bool   { return is(typ, IsString) }
 
-func isFloat(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsFloat != 0
-}
+// Note that if typ is a type parameter, isInteger(typ) || isFloat(typ) does not
+// produce the expected result because a type list that contains both an integer
+// and a floating-point type is neither (all) integers, nor (all) floats.
+// Use isIntegerOrFloat instead.
+func isIntegerOrFloat(typ Type) bool { return is(typ, IsInteger|IsFloat) }
 
-func isComplex(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsComplex != 0
-}
+// isNumericOrString is the equivalent of isIntegerOrFloat for isNumeric(typ) || isString(typ).
+func isNumericOrString(typ Type) bool { return is(typ, IsNumeric|IsString) }
 
-func isNumeric(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsNumeric != 0
-}
-
-func isString(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsString != 0
-}
-
+// isTyped reports whether typ is typed; i.e., not an untyped
+// constant or boolean. isTyped may be called with types that
+// are not fully set up.
 func isTyped(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return !ok || t.info&IsUntyped == 0
+	// isTyped is called with types that are not fully
+	// set up. Must not call asBasic()!
+	// A *Named or *instance type is always typed, so
+	// we only need to check if we have a true *Basic
+	// type.
+	t, _ := typ.(*Basic)
+	return t == nil || t.info&IsUntyped == 0
 }
 
+// isUntyped(typ) is the same as !isTyped(typ).
 func isUntyped(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsUntyped != 0
+	return !isTyped(typ)
 }
 
-func isOrdered(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsOrdered != 0
-}
+func isOrdered(typ Type) bool { return is(typ, IsOrdered) }
 
 func isConstType(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsConstType != 0
+	// Type parameters are never const types.
+	t, _ := under(typ).(*Basic)
+	return t != nil && t.info&IsConstType != 0
 }
 
 // IsInterface reports whether typ is an interface type.
 func IsInterface(typ Type) bool {
-	_, ok := typ.Underlying().(*Interface)
-	return ok
+	return asInterface(typ) != nil
 }
 
 // Comparable reports whether values of type T are comparable.
 func Comparable(T Type) bool {
-	switch t := T.Underlying().(type) {
+	return comparable(T, nil)
+}
+
+func comparable(T Type, seen map[Type]bool) bool {
+	if seen[T] {
+		return true
+	}
+	if seen == nil {
+		seen = make(map[Type]bool)
+	}
+	seen[T] = true
+
+	// If T is a type parameter not constrained by any type
+	// list (i.e., it's underlying type is the top type),
+	// T is comparable if it has the == method. Otherwise,
+	// the underlying type "wins". For instance
+	//
+	//     interface{ comparable; type []byte }
+	//
+	// is not comparable because []byte is not comparable.
+	if t := asTypeParam(T); t != nil && optype(t) == theTop {
+		return t.Bound()._IsComparable()
+	}
+
+	switch t := optype(T).(type) {
 	case *Basic:
 		// assume invalid types to be comparable
 		// to avoid follow-up errors
@@ -88,24 +121,33 @@ func Comparable(T Type) bool {
 		return true
 	case *Struct:
 		for _, f := range t.fields {
-			if !Comparable(f.typ) {
+			if !comparable(f.typ, seen) {
 				return false
 			}
 		}
 		return true
 	case *Array:
-		return Comparable(t.elem)
+		return comparable(t.elem, seen)
+	case *_Sum:
+		pred := func(t Type) bool {
+			return comparable(t, seen)
+		}
+		return t.is(pred)
+	case *_TypeParam:
+		return t.Bound()._IsComparable()
 	}
 	return false
 }
 
 // hasNil reports whether a type includes the nil value.
 func hasNil(typ Type) bool {
-	switch t := typ.Underlying().(type) {
+	switch t := optype(typ).(type) {
 	case *Basic:
 		return t.kind == UnsafePointer
 	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
 		return true
+	case *_Sum:
+		return t.is(hasNil)
 	}
 	return false
 }
@@ -132,7 +174,12 @@ func (p *ifacePair) identical(q *ifacePair) bool {
 	return p.x == q.x && p.y == q.y || p.x == q.y && p.y == q.x
 }
 
+// For changes to this code the corresponding changes should be made to unifier.nify.
 func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+	// types must be expanded for comparison
+	x = expandf(x)
+	y = expandf(y)
+
 	if x == y {
 		return true
 	}
@@ -209,10 +256,36 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 		// and result values, corresponding parameter and result types are identical,
 		// and either both functions are variadic or neither is. Parameter and result
 		// names are not required to match.
+		// Generic functions must also have matching type parameter lists, but for the
+		// parameter names.
 		if y, ok := y.(*Signature); ok {
 			return x.variadic == y.variadic &&
+				check.identicalTParams(x.tparams, y.tparams, cmpTags, p) &&
 				check.identical0(x.params, y.params, cmpTags, p) &&
 				check.identical0(x.results, y.results, cmpTags, p)
+		}
+
+	case *_Sum:
+		// Two sum types are identical if they contain the same types.
+		// (Sum types always consist of at least two types. Also, the
+		// the set (list) of types in a sum type consists of unique
+		// types - each type appears exactly once. Thus, two sum types
+		// must contain the same number of types to have chance of
+		// being equal.
+		if y, ok := y.(*_Sum); ok && len(x.types) == len(y.types) {
+			// Every type in x.types must be in y.types.
+			// Quadratic algorithm, but probably good enough for now.
+			// TODO(gri) we need a fast quick type ID/hash for all types.
+		L:
+			for _, x := range x.types {
+				for _, y := range y.types {
+					if Identical(x, y) {
+						continue L // x is in y.types
+					}
+				}
+				return false // x is not in y.types
+			}
+			return true
 		}
 
 	case *Interface:
@@ -225,8 +298,8 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 			// that case, interfaces are expected to be complete and lazy completion
 			// here is not needed.
 			if check != nil {
-				check.completeInterface(x)
-				check.completeInterface(y)
+				check.completeInterface(token.NoPos, x)
+				check.completeInterface(token.NoPos, y)
 			}
 			a := x.allMethods
 			b := y.allMethods
@@ -261,8 +334,8 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 					p = p.prev
 				}
 				if debug {
-					assert(sort.IsSorted(byUniqueMethodName(a)))
-					assert(sort.IsSorted(byUniqueMethodName(b)))
+					assertSortedMethods(a)
+					assertSortedMethods(b)
 				}
 				for i, f := range a {
 					g := b[i]
@@ -291,16 +364,44 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 		// Two named types are identical if their type names originate
 		// in the same type declaration.
 		if y, ok := y.(*Named); ok {
+			// TODO(gri) Why is x == y not sufficient? And if it is,
+			//           we can just return false here because x == y
+			//           is caught in the very beginning of this function.
 			return x.obj == y.obj
 		}
 
+	case *_TypeParam:
+		// nothing to do (x and y being equal is caught in the very beginning of this function)
+
+	// case *instance:
+	//	unreachable since types are expanded
+
+	case *bottom, *top:
+		// Either both types are theBottom, or both are theTop in which
+		// case the initial x == y check will have caught them. Otherwise
+		// they are not identical.
+
 	case nil:
+		// avoid a crash in case of nil type
 
 	default:
 		unreachable()
 	}
 
 	return false
+}
+
+func (check *Checker) identicalTParams(x, y []*TypeName, cmpTags bool, p *ifacePair) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for i, x := range x {
+		y := y[i]
+		if !check.identical0(x.typ.(*_TypeParam).bound, y.typ.(*_TypeParam).bound, cmpTags, p) {
+			return false
+		}
+	}
+	return true
 }
 
 // Default returns the default "typed" type for an "untyped" type;

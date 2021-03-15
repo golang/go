@@ -13,7 +13,7 @@ import (
 	"go/printer"
 	"go/token"
 	"io/fs"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -127,7 +127,7 @@ func test(t *testing.T, mode Mode) {
 		// update golden file if necessary
 		golden := filepath.Join(dataDir, fmt.Sprintf("%s.%d.golden", pkg.Name, mode))
 		if *update {
-			err := ioutil.WriteFile(golden, got, 0644)
+			err := os.WriteFile(golden, got, 0644)
 			if err != nil {
 				t.Error(err)
 			}
@@ -135,7 +135,7 @@ func test(t *testing.T, mode Mode) {
 		}
 
 		// get golden file
-		want, err := ioutil.ReadFile(golden)
+		want, err := os.ReadFile(golden)
 		if err != nil {
 			t.Error(err)
 			continue

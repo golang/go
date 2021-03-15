@@ -132,6 +132,16 @@ func (fsys MapFS) Glob(pattern string) ([]string, error) {
 	return fs.Glob(fsOnly{fsys}, pattern)
 }
 
+type noSub struct {
+	MapFS
+}
+
+func (noSub) Sub() {} // not the fs.SubFS signature
+
+func (fsys MapFS) Sub(dir string) (fs.FS, error) {
+	return fs.Sub(noSub{fsys}, dir)
+}
+
 // A mapFileInfo implements fs.FileInfo and fs.DirEntry for a given map file.
 type mapFileInfo struct {
 	name string

@@ -7,7 +7,6 @@ package filepath_test
 import (
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	. "path/filepath"
 	"reflect"
@@ -75,8 +74,10 @@ var matchTests = []MatchTest{
 	{"[", "a", false, ErrBadPattern},
 	{"[^", "a", false, ErrBadPattern},
 	{"[^bc", "a", false, ErrBadPattern},
-	{"a[", "a", false, nil},
+	{"a[", "a", false, ErrBadPattern},
 	{"a[", "ab", false, ErrBadPattern},
+	{"a[", "x", false, ErrBadPattern},
+	{"a/b[", "x", false, ErrBadPattern},
 	{"*x", "xxx", true, nil},
 }
 
@@ -155,9 +156,11 @@ func TestGlob(t *testing.T) {
 }
 
 func TestGlobError(t *testing.T) {
-	_, err := Glob("[]")
-	if err == nil {
-		t.Error("expected error for bad pattern; got none")
+	bad := []string{`[]`, `nonexist/[]`}
+	for _, pattern := range bad {
+		if _, err := Glob(pattern); err != ErrBadPattern {
+			t.Errorf("Glob(%#q) returned err=%v, want ErrBadPattern", pattern, err)
+		}
 	}
 }
 
@@ -178,7 +181,7 @@ var globSymlinkTests = []struct {
 func TestGlobSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpDir, err := ioutil.TempDir("", "globsymlink")
+	tmpDir, err := os.MkdirTemp("", "globsymlink")
 	if err != nil {
 		t.Fatal("creating temp dir:", err)
 	}
@@ -264,7 +267,7 @@ func TestWindowsGlob(t *testing.T) {
 		t.Skipf("skipping windows specific test")
 	}
 
-	tmpDir, err := ioutil.TempDir("", "TestWindowsGlob")
+	tmpDir, err := os.MkdirTemp("", "TestWindowsGlob")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,7 +301,7 @@ func TestWindowsGlob(t *testing.T) {
 		}
 	}
 	for _, file := range files {
-		err := ioutil.WriteFile(Join(tmpDir, file), nil, 0666)
+		err := os.WriteFile(Join(tmpDir, file), nil, 0666)
 		if err != nil {
 			t.Fatal(err)
 		}

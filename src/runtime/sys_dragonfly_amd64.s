@@ -123,6 +123,24 @@ pipeok:
 	MOVL	$0, errno+8(FP)
 	RET
 
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT,$0-20
+	MOVL	$0, DI
+	// dragonfly expects flags as the 2nd argument
+	MOVL	flags+0(FP), SI
+	MOVL	$538, AX
+	SYSCALL
+	JCC	pipe2ok
+	MOVL	$-1,r+8(FP)
+	MOVL	$-1,w+12(FP)
+	MOVL	AX, errno+16(FP)
+	RET
+pipe2ok:
+	MOVL	AX, r+8(FP)
+	MOVL	DX, w+12(FP)
+	MOVL	$0, errno+16(FP)
+	RET
+
 TEXT runtime·write1(SB),NOSPLIT,$-8
 	MOVQ	fd+0(FP), DI		// arg 1 fd
 	MOVQ	p+8(FP), SI		// arg 2 buf

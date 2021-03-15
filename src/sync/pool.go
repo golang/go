@@ -152,8 +152,8 @@ func (p *Pool) Get() interface{} {
 
 func (p *Pool) getSlow(pid int) interface{} {
 	// See the comment in pin regarding ordering of the loads.
-	size := atomic.LoadUintptr(&p.localSize) // load-acquire
-	locals := p.local                        // load-consume
+	size := runtime_LoadAcquintptr(&p.localSize) // load-acquire
+	locals := p.local                            // load-consume
 	// Try to steal one element from other procs.
 	for i := 0; i < int(size); i++ {
 		l := indexLocal(locals, (pid+i+1)%int(size))
@@ -198,8 +198,8 @@ func (p *Pool) pin() (*poolLocal, int) {
 	// Since we've disabled preemption, GC cannot happen in between.
 	// Thus here we must observe local at least as large localSize.
 	// We can observe a newer/larger local, it is fine (we must observe its zero-initialized-ness).
-	s := atomic.LoadUintptr(&p.localSize) // load-acquire
-	l := p.local                          // load-consume
+	s := runtime_LoadAcquintptr(&p.localSize) // load-acquire
+	l := p.local                              // load-consume
 	if uintptr(pid) < s {
 		return indexLocal(l, pid), pid
 	}
@@ -226,7 +226,7 @@ func (p *Pool) pinSlow() (*poolLocal, int) {
 	size := runtime.GOMAXPROCS(0)
 	local := make([]poolLocal, size)
 	atomic.StorePointer(&p.local, unsafe.Pointer(&local[0])) // store-release
-	atomic.StoreUintptr(&p.localSize, uintptr(size))         // store-release
+	runtime_StoreReluintptr(&p.localSize, uintptr(size))     // store-release
 	return &local[pid], pid
 }
 
@@ -282,3 +282,13 @@ func indexLocal(l unsafe.Pointer, i int) *poolLocal {
 func runtime_registerPoolCleanup(cleanup func())
 func runtime_procPin() int
 func runtime_procUnpin()
+
+// The below are implemented in runtime/internal/atomic and the
+// compiler also knows to intrinsify the symbol we linkname into this
+// package.
+
+//go:linkname runtime_LoadAcquintptr runtime/internal/atomic.LoadAcquintptr
+func runtime_LoadAcquintptr(ptr *uintptr) uintptr
+
+//go:linkname runtime_StoreReluintptr runtime/internal/atomic.StoreReluintptr
+func runtime_StoreReluintptr(ptr *uintptr, val uintptr) uintptr

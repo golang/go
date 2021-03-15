@@ -6,7 +6,7 @@
 
 // Make sure we don't start marshaling (writing to the stack)
 // arguments until those arguments are evaluated and known
-// not to unconditinally panic. If they unconditionally panic,
+// not to unconditionally panic. If they unconditionally panic,
 // we write some args but never do the call. That messes up
 // the logic which decides how big the argout section needs to be.
 

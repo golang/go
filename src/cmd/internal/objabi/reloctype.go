@@ -50,11 +50,6 @@ const (
 	// R_ADDROFF resolves to a 32-bit offset from the beginning of the section
 	// holding the data being relocated to the referenced symbol.
 	R_ADDROFF
-	// R_WEAKADDROFF resolves just like R_ADDROFF but is a weak relocation.
-	// A weak relocation does not make the symbol it refers to reachable,
-	// and is only honored by the linker if the symbol is in some other way
-	// reachable.
-	R_WEAKADDROFF
 	R_SIZE
 	R_CALL
 	R_CALLARM
@@ -156,6 +151,9 @@ const (
 	// R_ARM64_LDST8 sets a LD/ST immediate value to bits [11:0] of a local address.
 	R_ARM64_LDST8
 
+	// R_ARM64_LDST16 sets a LD/ST immediate value to bits [11:1] of a local address.
+	R_ARM64_LDST16
+
 	// R_ARM64_LDST32 sets a LD/ST immediate value to bits [11:2] of a local address.
 	R_ARM64_LDST32
 
@@ -223,6 +221,14 @@ const (
 	// AUIPC + S-type instruction pair.
 	R_RISCV_PCREL_STYPE
 
+	// R_RISCV_TLS_IE_ITYPE resolves a 32-bit TLS initial-exec TOC offset
+	// address using an AUIPC + I-type instruction pair.
+	R_RISCV_TLS_IE_ITYPE
+
+	// R_RISCV_TLS_IE_STYPE resolves a 32-bit TLS initial-exec TOC offset
+	// address using an AUIPC + S-type instruction pair.
+	R_RISCV_TLS_IE_STYPE
+
 	// R_PCRELDBL relocates s390x 2-byte aligned PC-relative addresses.
 	// TODO(mundaym): remove once variants can be serialized - see issue 14218.
 	R_PCRELDBL
@@ -245,6 +251,14 @@ const (
 	// of a symbol. This isn't a real relocation, it can be placed in anywhere
 	// in a symbol and target any symbols.
 	R_XCOFFREF
+
+	// R_WEAK marks the relocation as a weak reference.
+	// A weak relocation does not make the symbol it refers to reachable,
+	// and is only honored by the linker if the symbol is in some other way
+	// reachable.
+	R_WEAK = -1 << 15
+
+	R_WEAKADDROFF = R_WEAK | R_ADDROFF
 )
 
 // IsDirectCall reports whether r is a relocation for a direct call.

@@ -63,6 +63,10 @@ stderr 'link.* -X=math.pi=3'
 go build -n -ldflags=-X=math.pi=3
 stderr 'link.* -X=math.pi=3'
 
+# cgo.a should not be a dependency of internally-linked go package
+go build -ldflags='-linkmode=external -linkmode=internal' -n prog.go
+! stderr 'packagefile .*runtime/cgo.a'
+
 -- z1/z.go --
 package z1
 import _ "y"

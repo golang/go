@@ -6,50 +6,6 @@ package runtime
 
 import "unsafe"
 
-// Call fn with arg as its argument. Return what fn returns.
-// fn is the raw pc value of the entry point of the desired function.
-// Switches to the system stack, if not already there.
-// Preserves the calling point as the location where a profiler traceback will begin.
-//go:nosplit
-func libcCall(fn, arg unsafe.Pointer) int32 {
-	// Leave caller's PC/SP/G around for traceback.
-	gp := getg()
-	var mp *m
-	if gp != nil {
-		mp = gp.m
-	}
-	if mp != nil && mp.libcallsp == 0 {
-		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc()
-		// sp must be the last, because once async cpu profiler finds
-		// all three values to be non-zero, it will use them
-		mp.libcallsp = getcallersp()
-	} else {
-		// Make sure we don't reset libcallsp. This makes
-		// libcCall reentrant; We remember the g/pc/sp for the
-		// first call on an M, until that libcCall instance
-		// returns.  Reentrance only matters for signals, as
-		// libc never calls back into Go.  The tricky case is
-		// where we call libcX from an M and record g/pc/sp.
-		// Before that call returns, a signal arrives on the
-		// same M and the signal handling code calls another
-		// libc function.  We don't want that second libcCall
-		// from within the handler to be recorded, and we
-		// don't want that call's completion to zero
-		// libcallsp.
-		// We don't need to set libcall* while we're in a sighandler
-		// (even if we're not currently in libc) because we block all
-		// signals while we're handling a signal. That includes the
-		// profile signal, which is the one that uses the libcall* info.
-		mp = nil
-	}
-	res := asmcgocall(fn, arg)
-	if mp != nil {
-		mp.libcallsp = 0
-	}
-	return res
-}
-
 // The X versions of syscall expect the libc call to return a 64-bit result.
 // Otherwise (the non-X version) expects a 32-bit result.
 // This distinction is required because an error is indicated by returning -1,
@@ -71,7 +27,7 @@ func syscall()
 //go:nosplit
 //go:cgo_unsafe_args
 func syscall_syscallX(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
-	entersyscallblock()
+	entersyscall()
 	libcCall(unsafe.Pointer(funcPC(syscallX)), unsafe.Pointer(&fn))
 	exitsyscall()
 	return
@@ -228,6 +184,13 @@ func madvise_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
+func mlock(addr unsafe.Pointer, n uintptr) {
+	libcCall(unsafe.Pointer(funcPC(mlock_trampoline)), unsafe.Pointer(&addr))
+}
+func mlock_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
 func read(fd int32, p unsafe.Pointer, n int32) int32 {
 	return libcCall(unsafe.Pointer(funcPC(read_trampoline)), unsafe.Pointer(&fd))
 }
@@ -263,6 +226,12 @@ func usleep(usec uint32) {
 	libcCall(unsafe.Pointer(funcPC(usleep_trampoline)), unsafe.Pointer(&usec))
 }
 func usleep_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func usleep_no_g(usec uint32) {
+	asmcgocall_no_g(unsafe.Pointer(funcPC(usleep_trampoline)), unsafe.Pointer(&usec))
+}
 
 //go:nosplit
 //go:cgo_unsafe_args
@@ -303,9 +272,9 @@ func nanotime_trampoline()
 //go:nosplit
 //go:cgo_unsafe_args
 func walltime1() (int64, int32) {
-	var t timeval
+	var t timespec
 	libcCall(unsafe.Pointer(funcPC(walltime_trampoline)), unsafe.Pointer(&t))
-	return int64(t.tv_sec), 1000 * t.tv_usec
+	return t.tv_sec, int32(t.tv_nsec)
 }
 func walltime_trampoline()
 
@@ -353,10 +322,17 @@ func setitimer_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32 {
+func sysctl(mib *uint32, miblen uint32, oldp *byte, oldlenp *uintptr, newp *byte, newlen uintptr) int32 {
 	return libcCall(unsafe.Pointer(funcPC(sysctl_trampoline)), unsafe.Pointer(&mib))
 }
 func sysctl_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func sysctlbyname(name *byte, oldp *byte, oldlenp *uintptr, newp *byte, newlen uintptr) int32 {
+	return libcCall(unsafe.Pointer(funcPC(sysctlbyname_trampoline)), unsafe.Pointer(&name))
+}
+func sysctlbyname_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
@@ -453,7 +429,7 @@ func setNonblock(fd int32) {
 //go:cgo_import_dynamic libc_pthread_create pthread_create "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_self pthread_self "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_kill pthread_kill "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_exit exit "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_exit _exit "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_raise raise "/usr/lib/libSystem.B.dylib"
 
 //go:cgo_import_dynamic libc_open open "/usr/lib/libSystem.B.dylib"
@@ -465,12 +441,13 @@ func setNonblock(fd int32) {
 //go:cgo_import_dynamic libc_mmap mmap "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_munmap munmap "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_madvise madvise "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_mlock mlock "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_error __error "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_usleep usleep "/usr/lib/libSystem.B.dylib"
 
 //go:cgo_import_dynamic libc_mach_timebase_info mach_timebase_info "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_mach_absolute_time mach_absolute_time "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_gettimeofday gettimeofday "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_clock_gettime clock_gettime "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_sigaction sigaction "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_sigmask pthread_sigmask "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_sigaltstack sigaltstack "/usr/lib/libSystem.B.dylib"
@@ -478,6 +455,7 @@ func setNonblock(fd int32) {
 //go:cgo_import_dynamic libc_kill kill "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_setitimer setitimer "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_sysctl sysctl "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_sysctlbyname sysctlbyname "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_fcntl fcntl "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_kqueue kqueue "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_kevent kevent "/usr/lib/libSystem.B.dylib"

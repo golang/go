@@ -1,4 +1,4 @@
-// +build !nacl,!js,!windows
+// +build !nacl,!js,!windows,gc
 // run
 
 // Copyright 2011 The Go Authors. All rights reserved.

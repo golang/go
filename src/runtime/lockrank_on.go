@@ -2,13 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build goexperiment.staticlockranking
 // +build goexperiment.staticlockranking
 
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"unsafe"
 )
+
+// worldIsStopped is accessed atomically to track world-stops. 1 == world
+// stopped.
+var worldIsStopped uint32
 
 // lockRankStruct is embedded in mutex
 type lockRankStruct struct {
@@ -17,19 +23,6 @@ type lockRankStruct struct {
 	// pad field to make sure lockRankStruct is a multiple of 8 bytes, even on
 	// 32-bit systems.
 	pad int
-}
-
-// init checks that the partial order in lockPartialOrder fits within the total
-// order determined by the order of the lockRank constants.
-func init() {
-	for rank, list := range lockPartialOrder {
-		for _, entry := range list {
-			if entry > lockRank(rank) {
-				println("lockPartial order row", lockRank(rank).String(), "entry", entry.String())
-				throw("lockPartialOrder table is inconsistent with total lock ranking order")
-			}
-		}
-	}
 }
 
 func lockInit(l *mutex, rank lockRank) {
@@ -59,12 +52,11 @@ func lockWithRank(l *mutex, rank lockRank) {
 		// rank recording for it, since print/println are used when
 		// printing out a lock ordering problem below.
 		//
-		// paniclk has an ordering problem, since it can be acquired
-		// during a panic with any other locks held (especially if the
-		// panic is because of a directed segv), and yet also allg is
-		// acquired after paniclk in tracebackothers()). This is a genuine
-		// problem, so for now we don't do lock rank recording for paniclk
-		// either.
+		// paniclk is only used for fatal throw/panic. Don't do lock
+		// ranking recording for it, since we throw after reporting a
+		// lock ordering problem. Additionally, paniclk may be taken
+		// after effectively any lock (anywhere we might panic), which
+		// the partial order doesn't cover.
 		lock2(l)
 		return
 	}
@@ -90,7 +82,8 @@ func lockWithRank(l *mutex, rank lockRank) {
 	})
 }
 
-//go:systemstack
+// nosplit to ensure it can be called in as many contexts as possible.
+//go:nosplit
 func printHeldLocks(gp *g) {
 	if gp.m.locksHeldLen == 0 {
 		println("<none>")
@@ -108,7 +101,7 @@ func printHeldLocks(gp *g) {
 //go:nosplit
 func acquireLockRank(rank lockRank) {
 	gp := getg()
-	// Log the new class.
+	// Log the new class. See comment on lockWithRank.
 	systemstack(func() {
 		i := gp.m.locksHeldLen
 		if i >= len(gp.m.locksHeld) {
@@ -213,7 +206,7 @@ func releaseLockRank(rank lockRank) {
 func lockWithRankMayAcquire(l *mutex, rank lockRank) {
 	gp := getg()
 	if gp.m.locksHeldLen == 0 {
-		// No possibilty of lock ordering problem if no other locks held
+		// No possibility of lock ordering problem if no other locks held
 		return
 	}
 
@@ -233,7 +226,8 @@ func lockWithRankMayAcquire(l *mutex, rank lockRank) {
 	})
 }
 
-//go:systemstack
+// nosplit to ensure it can be called in as many contexts as possible.
+//go:nosplit
 func checkLockHeld(gp *g, l *mutex) bool {
 	for i := gp.m.locksHeldLen - 1; i >= 0; i-- {
 		if gp.m.locksHeld[i].lockAddr == uintptr(unsafe.Pointer(l)) {
@@ -250,14 +244,18 @@ func checkLockHeld(gp *g, l *mutex) bool {
 func assertLockHeld(l *mutex) {
 	gp := getg()
 
+	held := checkLockHeld(gp, l)
+	if held {
+		return
+	}
+
+	// Crash from system stack to avoid splits that may cause
+	// additional issues.
 	systemstack(func() {
-		held := checkLockHeld(gp, l)
-		if !held {
-			printlock()
-			print("caller requires lock ", l, " (rank ", l.rank.String(), "), holding:\n")
-			printHeldLocks(gp)
-			throw("not holding required lock!")
-		}
+		printlock()
+		print("caller requires lock ", l, " (rank ", l.rank.String(), "), holding:\n")
+		printHeldLocks(gp)
+		throw("not holding required lock!")
 	})
 }
 
@@ -271,16 +269,102 @@ func assertLockHeld(l *mutex) {
 func assertRankHeld(r lockRank) {
 	gp := getg()
 
-	systemstack(func() {
-		for i := gp.m.locksHeldLen - 1; i >= 0; i-- {
-			if gp.m.locksHeld[i].rank == r {
-				return
-			}
+	for i := gp.m.locksHeldLen - 1; i >= 0; i-- {
+		if gp.m.locksHeld[i].rank == r {
+			return
 		}
+	}
 
+	// Crash from system stack to avoid splits that may cause
+	// additional issues.
+	systemstack(func() {
 		printlock()
 		print("caller requires lock with rank ", r.String(), "), holding:\n")
 		printHeldLocks(gp)
 		throw("not holding required lock!")
+	})
+}
+
+// worldStopped notes that the world is stopped.
+//
+// Caller must hold worldsema.
+//
+// nosplit to ensure it can be called in as many contexts as possible.
+//go:nosplit
+func worldStopped() {
+	if stopped := atomic.Xadd(&worldIsStopped, 1); stopped != 1 {
+		systemstack(func() {
+			print("world stop count=", stopped, "\n")
+			throw("recursive world stop")
+		})
+	}
+}
+
+// worldStarted that the world is starting.
+//
+// Caller must hold worldsema.
+//
+// nosplit to ensure it can be called in as many contexts as possible.
+//go:nosplit
+func worldStarted() {
+	if stopped := atomic.Xadd(&worldIsStopped, -1); stopped != 0 {
+		systemstack(func() {
+			print("world stop count=", stopped, "\n")
+			throw("released non-stopped world stop")
+		})
+	}
+}
+
+// nosplit to ensure it can be called in as many contexts as possible.
+//go:nosplit
+func checkWorldStopped() bool {
+	stopped := atomic.Load(&worldIsStopped)
+	if stopped > 1 {
+		systemstack(func() {
+			print("inconsistent world stop count=", stopped, "\n")
+			throw("inconsistent world stop count")
+		})
+	}
+
+	return stopped == 1
+}
+
+// assertWorldStopped throws if the world is not stopped. It does not check
+// which M stopped the world.
+//
+// nosplit to ensure it can be called in as many contexts as possible.
+//go:nosplit
+func assertWorldStopped() {
+	if checkWorldStopped() {
+		return
+	}
+
+	throw("world not stopped")
+}
+
+// assertWorldStoppedOrLockHeld throws if the world is not stopped and the
+// passed lock is not held.
+//
+// nosplit to ensure it can be called in as many contexts as possible.
+//go:nosplit
+func assertWorldStoppedOrLockHeld(l *mutex) {
+	if checkWorldStopped() {
+		return
+	}
+
+	gp := getg()
+	held := checkLockHeld(gp, l)
+	if held {
+		return
+	}
+
+	// Crash from system stack to avoid splits that may cause
+	// additional issues.
+	systemstack(func() {
+		printlock()
+		print("caller requires world stop or lock ", l, " (rank ", l.rank.String(), "), holding:\n")
+		println("<no world stop>")
+		printHeldLocks(gp)
+		throw("no world stop or required lock!")
 	})
 }

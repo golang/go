@@ -37,25 +37,36 @@ func AbsFile(dir, file, rewrites string) string {
 		abs = filepath.Join(dir, file)
 	}
 
-	start := 0
-	for i := 0; i <= len(rewrites); i++ {
-		if i == len(rewrites) || rewrites[i] == ';' {
-			if new, ok := applyRewrite(abs, rewrites[start:i]); ok {
-				abs = new
-				goto Rewritten
-			}
-			start = i + 1
-		}
-	}
-	if hasPathPrefix(abs, GOROOT) {
+	abs, rewritten := ApplyRewrites(abs, rewrites)
+	if !rewritten && hasPathPrefix(abs, GOROOT) {
 		abs = "$GOROOT" + abs[len(GOROOT):]
 	}
 
-Rewritten:
 	if abs == "" {
 		abs = "??"
 	}
 	return abs
+}
+
+// ApplyRewrites returns the filename for file in the given directory,
+// as rewritten by the rewrites argument.
+//
+// The rewrites argument is a ;-separated list of rewrites.
+// Each rewrite is of the form "prefix" or "prefix=>replace",
+// where prefix must match a leading sequence of path elements
+// and is either removed entirely or replaced by the replacement.
+func ApplyRewrites(file, rewrites string) (string, bool) {
+	start := 0
+	for i := 0; i <= len(rewrites); i++ {
+		if i == len(rewrites) || rewrites[i] == ';' {
+			if new, ok := applyRewrite(file, rewrites[start:i]); ok {
+				return new, true
+			}
+			start = i + 1
+		}
+	}
+
+	return file, false
 }
 
 // applyRewrite applies the rewrite to the path,

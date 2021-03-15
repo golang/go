@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !js
 // +build !js
 
 package net
@@ -393,7 +394,7 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 		}
 		defer ls.teardown()
 		ch := make(chan error, 1)
-		handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
+		handler := func(ls *localServer, ln Listener) { ls.transponder(ln, ch) }
 		if err := ls.buildup(handler); err != nil {
 			t.Fatal(err)
 		}

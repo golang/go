@@ -427,7 +427,7 @@ const (
 	lneSetDiscriminator = 4
 )
 
-// Line table directory directory and file name entry formats.
+// Line table directory and file name entry formats.
 // These are new in DWARF 5.
 const (
 	lnctPath           = 0x01
@@ -460,4 +460,16 @@ const (
 	utSkeleton     = 0x04
 	utSplitCompile = 0x05
 	utSplitType    = 0x06
+)
+
+// Opcodes for DWARFv5 debug_rnglists section.
+const (
+	rleEndOfList    = 0x0
+	rleBaseAddressx = 0x1
+	rleStartxEndx   = 0x2
+	rleStartxLength = 0x3
+	rleOffsetPair   = 0x4
+	rleBaseAddress  = 0x5
+	rleStartEnd     = 0x6
+	rleStartLength  = 0x7
 )

@@ -156,7 +156,7 @@ func (m *Match) MatchPackages() {
 
 			if !fi.IsDir() {
 				if fi.Mode()&fs.ModeSymlink != 0 && want {
-					if target, err := os.Stat(path); err == nil && target.IsDir() {
+					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
 					}
 				}
@@ -295,7 +295,7 @@ func (m *Match) MatchDirs() {
 
 		if !top && cfg.ModulesEnabled {
 			// Ignore other modules found in subdirectories.
-			if fi, err := os.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
+			if fi, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
 				return filepath.SkipDir
 			}
 		}
@@ -571,7 +571,6 @@ func IsRelativePath(pattern string) bool {
 // If so, InDir returns an equivalent path relative to dir.
 // If not, InDir returns an empty string.
 // InDir makes some effort to succeed even in the presence of symbolic links.
-// TODO(rsc): Replace internal/test.inDir with a call to this function for Go 1.12.
 func InDir(path, dir string) string {
 	if rel := inDirLex(path, dir); rel != "" {
 		return rel

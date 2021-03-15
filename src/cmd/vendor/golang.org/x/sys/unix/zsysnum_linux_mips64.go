@@ -346,7 +346,10 @@ const (
 	SYS_FSPICK                 = 5433
 	SYS_PIDFD_OPEN             = 5434
 	SYS_CLONE3                 = 5435
+	SYS_CLOSE_RANGE            = 5436
 	SYS_OPENAT2                = 5437
 	SYS_PIDFD_GETFD            = 5438
 	SYS_FACCESSAT2             = 5439
+	SYS_PROCESS_MADVISE        = 5440
+	SYS_EPOLL_PWAIT2           = 5441
 )

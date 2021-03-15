@@ -213,7 +213,7 @@ func RotateLeft64(n uint64) uint64 {
 	// arm64:"ROR"
 	// ppc64:"ROTL"
 	// ppc64le:"ROTL"
-	// s390x:"RLLG"
+	// s390x:"RISBGZ\t[$]0, [$]63, [$]37, "
 	// wasm:"I64Rotl"
 	return bits.RotateLeft64(n, 37)
 }

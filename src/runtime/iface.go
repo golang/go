@@ -31,17 +31,16 @@ func itabHashFunc(inter *interfacetype, typ *_type) uintptr {
 }
 
 func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
-	if inter.isEmpty() {
+	if len(inter.mhdr) == 0 {
 		throw("internal error - misuse of itab")
 	}
-	imethods := inter.methods()
 
 	// easy case
 	if typ.tflag&tflagUncommon == 0 {
 		if canfail {
 			return nil
 		}
-		name := inter.typ.nameOff(imethods[0].name)
+		name := inter.typ.nameOff(inter.mhdr[0].name)
 		panic(&TypeAssertionError{nil, typ, &inter.typ, name.name()})
 	}
 
@@ -64,7 +63,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	}
 
 	// Entry doesn't exist yet. Make a new entry & add it.
-	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(imethods)-1)*sys.PtrSize, 0, &memstats.other_sys))
+	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr)-1)*sys.PtrSize, 0, &memstats.other_sys))
 	m.inter = inter
 	m._type = typ
 	// The hash is used in type switches. However, compiler statically generates itab's
@@ -198,8 +197,7 @@ func (m *itab) init() string {
 	// and interface names are unique,
 	// so can iterate over both in lock step;
 	// the loop is O(ni+nt) not O(ni*nt).
-	imethods := inter.methods()
-	ni := len(imethods)
+	ni := len(inter.mhdr)
 	nt := int(x.mcount)
 	xmhdr := (*[1 << 16]method)(add(unsafe.Pointer(x), uintptr(x.moff)))[:nt:nt]
 	j := 0
@@ -207,7 +205,7 @@ func (m *itab) init() string {
 	var fun0 unsafe.Pointer
 imethods:
 	for k := 0; k < ni; k++ {
-		i := &imethods[k]
+		i := &inter.mhdr[k]
 		itype := inter.typ.typeOff(i.ityp)
 		name := inter.typ.nameOff(i.name)
 		iname := name.name()
@@ -449,23 +447,18 @@ func convI2I(inter *interfacetype, i iface) (r iface) {
 	return
 }
 
-func assertI2I(inter *interfacetype, i iface) (r iface) {
-	tab := i.tab
+func assertI2I(inter *interfacetype, tab *itab) *itab {
 	if tab == nil {
 		// explicit conversions require non-nil interface value.
 		panic(&TypeAssertionError{nil, nil, &inter.typ, ""})
 	}
 	if tab.inter == inter {
-		r.tab = tab
-		r.data = i.data
-		return
+		return tab
 	}
-	r.tab = getitab(inter, tab._type, false)
-	r.data = i.data
-	return
+	return getitab(inter, tab._type, false)
 }
 
-func assertI2I2(inter *interfacetype, i iface) (r iface, b bool) {
+func assertI2I2(inter *interfacetype, i iface) (r iface) {
 	tab := i.tab
 	if tab == nil {
 		return
@@ -478,22 +471,18 @@ func assertI2I2(inter *interfacetype, i iface) (r iface, b bool) {
 	}
 	r.tab = tab
 	r.data = i.data
-	b = true
 	return
 }
 
-func assertE2I(inter *interfacetype, e eface) (r iface) {
-	t := e._type
+func assertE2I(inter *interfacetype, t *_type) *itab {
 	if t == nil {
 		// explicit conversions require non-nil interface value.
 		panic(&TypeAssertionError{nil, nil, &inter.typ, ""})
 	}
-	r.tab = getitab(inter, t, false)
-	r.data = e.data
-	return
+	return getitab(inter, t, false)
 }
 
-func assertE2I2(inter *interfacetype, e eface) (r iface, b bool) {
+func assertE2I2(inter *interfacetype, e eface) (r iface) {
 	t := e._type
 	if t == nil {
 		return
@@ -504,18 +493,17 @@ func assertE2I2(inter *interfacetype, e eface) (r iface, b bool) {
 	}
 	r.tab = tab
 	r.data = e.data
-	b = true
 	return
 }
 
 //go:linkname reflect_ifaceE2I reflect.ifaceE2I
 func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
-	*dst = assertE2I(inter, e)
+	*dst = iface{assertE2I(inter, e._type), e.data}
 }
 
 //go:linkname reflectlite_ifaceE2I internal/reflectlite.ifaceE2I
 func reflectlite_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
-	*dst = assertE2I(inter, e)
+	*dst = iface{assertE2I(inter, e._type), e.data}
 }
 
 func iterate_itabs(fn func(*itab)) {

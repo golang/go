@@ -16,8 +16,8 @@ type T struct {
 
 type E struct{}
 
-func (T) b()  {} // ERROR "field and method named b"
-func (*T) E() {} // ERROR "field and method named E"
+func (T) b()  {} // ERROR "field and method named b|redeclares struct field name"
+func (*T) E() {} // ERROR "field and method named E|redeclares struct field name"
 
 func _() {
 	var x T

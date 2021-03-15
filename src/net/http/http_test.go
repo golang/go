@@ -13,12 +13,7 @@ import (
 	"os/exec"
 	"reflect"
 	"testing"
-	"time"
 )
-
-func init() {
-	shutdownPollInterval = 5 * time.Millisecond
-}
 
 func TestForeachHeaderElement(t *testing.T) {
 	tests := []struct {

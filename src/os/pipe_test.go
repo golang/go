@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Test broken pipes on Unix systems.
+//go:build !plan9 && !js
 // +build !plan9,!js
 
 package os_test
@@ -14,7 +15,6 @@ import (
 	"internal/testenv"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	osexec "os/exec"
 	"os/signal"
@@ -161,7 +161,7 @@ func testClosedPipeRace(t *testing.T, read bool) {
 		// Get the amount we have to write to overload a pipe
 		// with no reader.
 		limit = 131073
-		if b, err := ioutil.ReadFile("/proc/sys/fs/pipe-max-size"); err == nil {
+		if b, err := os.ReadFile("/proc/sys/fs/pipe-max-size"); err == nil {
 			if i, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil {
 				limit = i + 1
 			}

@@ -146,7 +146,7 @@ func TestReader(t *testing.T) {
 	for i := 0; i < len(texts)-1; i++ {
 		texts[i] = str + "\n"
 		all += texts[i]
-		str += string(rune(i)%26 + 'a')
+		str += string(rune(i%26 + 'a'))
 	}
 	texts[len(texts)-1] = all
 
@@ -530,6 +530,20 @@ func TestReadWriteRune(t *testing.T) {
 		nr, nbytes, err := r.ReadRune()
 		if nr != r1 || nbytes != size || err != nil {
 			t.Fatalf("ReadRune(0x%x) got 0x%x,%d not 0x%x,%d (err=%s)", r1, nr, nbytes, r1, size, err)
+		}
+	}
+}
+
+func TestWriteInvalidRune(t *testing.T) {
+	// Invalid runes, including negative ones, should be written as the
+	// replacement character.
+	for _, r := range []rune{-1, utf8.MaxRune + 1} {
+		var buf bytes.Buffer
+		w := NewWriter(&buf)
+		w.WriteRune(r)
+		w.Flush()
+		if s := buf.String(); s != "\uFFFD" {
+			t.Errorf("WriteRune(%d) wrote %q, not replacement character", r, s)
 		}
 	}
 }

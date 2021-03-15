@@ -222,7 +222,7 @@ stdout 'github.com/pierrec/lz4 v2.0.5\+incompatible'
 # not resolve to a pseudo-version with a different major version.
 cp go.mod.orig go.mod
 ! go get -d github.com/pierrec/lz4@v2.0.8
-stderr 'go get github.com/pierrec/lz4@v2.0.8: github.com/pierrec/lz4@v2.0.8: invalid version: module contains a go.mod file, so major version must be compatible: should be v0 or v1, not v2'
+stderr 'go get: github.com/pierrec/lz4@v2.0.8: invalid version: module contains a go.mod file, so major version must be compatible: should be v0 or v1, not v2'
 
 # An invalid +incompatible suffix for a canonical version should error out,
 # not resolve to a pseudo-version.

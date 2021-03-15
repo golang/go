@@ -6,7 +6,6 @@ package race_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -18,7 +17,7 @@ import (
 
 func TestNoRaceIOFile(t *testing.T) {
 	x := 0
-	path, _ := ioutil.TempDir("", "race_test")
+	path, _ := os.MkdirTemp("", "race_test")
 	fname := filepath.Join(path, "data")
 	go func() {
 		x = 42

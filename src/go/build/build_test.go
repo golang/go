@@ -8,7 +8,6 @@ import (
 	"flag"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -29,8 +28,9 @@ func TestMatch(t *testing.T) {
 	ctxt := Default
 	what := "default"
 	match := func(tag string, want map[string]bool) {
+		t.Helper()
 		m := make(map[string]bool)
-		if !ctxt.match(tag, m) {
+		if !ctxt.matchAuto(tag, m) {
 			t.Errorf("%s context should match %s, does not", what, tag)
 		}
 		if !reflect.DeepEqual(m, want) {
@@ -38,8 +38,9 @@ func TestMatch(t *testing.T) {
 		}
 	}
 	nomatch := func(tag string, want map[string]bool) {
+		t.Helper()
 		m := make(map[string]bool)
-		if ctxt.match(tag, m) {
+		if ctxt.matchAuto(tag, m) {
 			t.Errorf("%s context should NOT match %s, does", what, tag)
 		}
 		if !reflect.DeepEqual(m, want) {
@@ -58,7 +59,6 @@ func TestMatch(t *testing.T) {
 	nomatch(runtime.GOOS+","+runtime.GOARCH+",!foo", map[string]bool{runtime.GOOS: true, runtime.GOARCH: true, "foo": true})
 	match(runtime.GOOS+","+runtime.GOARCH+",!bar", map[string]bool{runtime.GOOS: true, runtime.GOARCH: true, "bar": true})
 	nomatch(runtime.GOOS+","+runtime.GOARCH+",bar", map[string]bool{runtime.GOOS: true, runtime.GOARCH: true, "bar": true})
-	nomatch("!", map[string]bool{})
 }
 
 func TestDotSlashImport(t *testing.T) {
@@ -154,6 +154,13 @@ var shouldBuildTests = []struct {
 		shouldBuild: true,
 	},
 	{
+		name: "Yes2",
+		content: "//go:build yes\n" +
+			"package main\n",
+		tags:        map[string]bool{"yes": true},
+		shouldBuild: true,
+	},
+	{
 		name: "Or",
 		content: "// +build no yes\n\n" +
 			"package main\n",
@@ -161,8 +168,22 @@ var shouldBuildTests = []struct {
 		shouldBuild: true,
 	},
 	{
+		name: "Or2",
+		content: "//go:build no || yes\n" +
+			"package main\n",
+		tags:        map[string]bool{"yes": true, "no": true},
+		shouldBuild: true,
+	},
+	{
 		name: "And",
 		content: "// +build no,yes\n\n" +
+			"package main\n",
+		tags:        map[string]bool{"yes": true, "no": true},
+		shouldBuild: false,
+	},
+	{
+		name: "And2",
+		content: "//go:build no && yes\n" +
 			"package main\n",
 		tags:        map[string]bool{"yes": true, "no": true},
 		shouldBuild: false,
@@ -178,11 +199,22 @@ var shouldBuildTests = []struct {
 		shouldBuild: false,
 	},
 	{
+		name: "Cgo2",
+		content: "//go:build cgo\n" +
+			"// Copyright The Go Authors.\n\n" +
+			"// This package implements parsing of tags like\n" +
+			"// +build tag1\n" +
+			"package build",
+		tags:        map[string]bool{"cgo": true},
+		shouldBuild: false,
+	},
+	{
 		name: "AfterPackage",
 		content: "// Copyright The Go Authors.\n\n" +
 			"package build\n\n" +
 			"// shouldBuild checks tags given by lines of the form\n" +
 			"// +build tag\n" +
+			"//go:build tag\n" +
 			"func shouldBuild(content []byte)\n",
 		tags:        map[string]bool{},
 		shouldBuild: true,
@@ -195,11 +227,25 @@ var shouldBuildTests = []struct {
 		shouldBuild: true,
 	},
 	{
+		name: "TooClose2",
+		content: "//go:build yes\n" +
+			"package main\n",
+		tags:        map[string]bool{"yes": true},
+		shouldBuild: true,
+	},
+	{
 		name: "TooCloseNo",
 		content: "// +build no\n" +
 			"package main\n",
 		tags:        map[string]bool{},
 		shouldBuild: true,
+	},
+	{
+		name: "TooCloseNo2",
+		content: "//go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{"no": true},
+		shouldBuild: false,
 	},
 	{
 		name: "BinaryOnly",
@@ -211,20 +257,21 @@ var shouldBuildTests = []struct {
 		shouldBuild: true,
 	},
 	{
+		name: "BinaryOnly2",
+		content: "//go:binary-only-package\n" +
+			"//go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{"no": true},
+		binaryOnly:  true,
+		shouldBuild: false,
+	},
+	{
 		name: "ValidGoBuild",
 		content: "// +build yes\n\n" +
 			"//go:build no\n" +
 			"package main\n",
-		tags:        map[string]bool{"yes": true},
-		shouldBuild: true,
-	},
-	{
-		name: "MissingBuild",
-		content: "//go:build no\n" +
-			"package main\n",
-		tags:        map[string]bool{},
+		tags:        map[string]bool{"no": true},
 		shouldBuild: false,
-		err:         errGoBuildWithoutBuild,
 	},
 	{
 		name: "MissingBuild2",
@@ -232,20 +279,8 @@ var shouldBuildTests = []struct {
 			"// +build yes\n\n" +
 			"//go:build no\n" +
 			"package main\n",
-		tags:        map[string]bool{},
+		tags:        map[string]bool{"no": true},
 		shouldBuild: false,
-		err:         errGoBuildWithoutBuild,
-	},
-	{
-		name: "MissingBuild2",
-		content: "/*\n" +
-			"// +build yes\n\n" +
-			"*/\n" +
-			"//go:build no\n" +
-			"package main\n",
-		tags:        map[string]bool{},
-		shouldBuild: false,
-		err:         errGoBuildWithoutBuild,
 	},
 	{
 		name: "Comment1",
@@ -263,9 +298,8 @@ var shouldBuildTests = []struct {
 			"*/\n\n" +
 			"//go:build no\n" +
 			"package main\n",
-		tags:        map[string]bool{},
+		tags:        map[string]bool{"no": true},
 		shouldBuild: false,
-		err:         errGoBuildWithoutBuild,
 	},
 	{
 		name: "Comment3",
@@ -274,9 +308,8 @@ var shouldBuildTests = []struct {
 			"*/\n\n" +
 			"//go:build no\n" +
 			"package main\n",
-		tags:        map[string]bool{},
+		tags:        map[string]bool{"no": true},
 		shouldBuild: false,
-		err:         errGoBuildWithoutBuild,
 	},
 	{
 		name: "Comment4",
@@ -290,9 +323,8 @@ var shouldBuildTests = []struct {
 		content: "/**/\n" +
 			"//go:build no\n" +
 			"package main\n",
-		tags:        map[string]bool{},
+		tags:        map[string]bool{"no": true},
 		shouldBuild: false,
-		err:         errGoBuildWithoutBuild,
 	},
 }
 
@@ -454,7 +486,7 @@ func TestImportDirNotExist(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
 	ctxt := Default
 
-	emptyDir, err := ioutil.TempDir("", t.Name())
+	emptyDir, err := os.MkdirTemp("", t.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -592,7 +624,7 @@ func TestImportPackageOutsideModule(t *testing.T) {
 
 	// Create a GOPATH in a temporary directory. We don't use testdata
 	// because it's in GOROOT, which interferes with the module heuristic.
-	gopath, err := ioutil.TempDir("", "gobuild-notmodule")
+	gopath, err := os.MkdirTemp("", "gobuild-notmodule")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -600,7 +632,7 @@ func TestImportPackageOutsideModule(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(gopath, "src/example.com/p"), 0777); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(gopath, "src/example.com/p/p.go"), []byte("package p"), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(gopath, "src/example.com/p/p.go"), []byte("package p"), 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -612,7 +644,7 @@ func TestImportPackageOutsideModule(t *testing.T) {
 	ctxt.GOPATH = gopath
 	ctxt.Dir = filepath.Join(gopath, "src/example.com/p")
 
-	want := "working directory is not part of a module"
+	want := "go.mod file not found in current directory or any parent directory"
 	if _, err := ctxt.Import("example.com/p", gopath, FindOnly); err == nil {
 		t.Fatal("importing package when no go.mod is present succeeded unexpectedly")
 	} else if errStr := err.Error(); !strings.Contains(errStr, want) {
@@ -656,12 +688,12 @@ func TestIssue23594(t *testing.T) {
 // Verifies golang.org/issue/34752.
 func TestMissingImportErrorRepetition(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // need 'go list' internally
-	tmp, err := ioutil.TempDir("", "")
+	tmp, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmp)
-	if err := ioutil.WriteFile(filepath.Join(tmp, "go.mod"), []byte("module m"), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(tmp, "go.mod"), []byte("module m"), 0666); err != nil {
 		t.Fatal(err)
 	}
 	defer os.Setenv("GO111MODULE", os.Getenv("GO111MODULE"))

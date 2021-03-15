@@ -4,6 +4,8 @@
 
 package runtime
 
+import "unsafe"
+
 // Called from compiled code; declared for vet; do NOT call from Go.
 func gcWriteBarrierCX()
 func gcWriteBarrierDX()
@@ -35,3 +37,6 @@ func retpolineR12()
 func retpolineR13()
 func retpolineR14()
 func retpolineR15()
+
+//go:noescape
+func asmcgocall_no_g(fn, arg unsafe.Pointer)

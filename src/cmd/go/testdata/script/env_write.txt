@@ -24,6 +24,10 @@ stdout GOARCH=
 stdout GOOS=
 stdout GOROOT=
 
+# go env ignores invalid flag in GOFLAGS environment variable
+env GOFLAGS='=true'
+go env
+
 # checking errors
 ! go env -w
 stderr 'go env -w: no KEY=VALUE arguments given'
@@ -65,6 +69,8 @@ go env -u GOPATH
 stderr 'unknown go command variable GODEBUG'
 ! go env -w GOEXE=.bat
 stderr 'GOEXE cannot be modified'
+! go env -w GOVERSION=customversion
+stderr 'GOVERSION cannot be modified'
 ! go env -w GOENV=/env
 stderr 'GOENV can only be set using the OS environment'
 
@@ -167,3 +173,9 @@ go env -w GOOS=linux GOARCH=mips
 env GOOS=windows
 ! go env -u GOOS
 stderr 'unsupported GOOS/GOARCH.*windows/mips$'
+
+# go env -w should reject relative paths in GOMODCACHE environment.
+! go env -w GOMODCACHE=~/test
+stderr 'go env -w: GOMODCACHE entry is relative; must be absolute path: "~/test"'
+! go env -w GOMODCACHE=./test
+stderr 'go env -w: GOMODCACHE entry is relative; must be absolute path: "./test"'

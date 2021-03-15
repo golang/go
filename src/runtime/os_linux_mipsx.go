@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build linux && (mips || mipsle)
 // +build linux
 // +build mips mipsle
 
@@ -42,6 +43,7 @@ func sigdelset(mask *sigset, i int) {
 	(*mask)[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
 }
 
+//go:nosplit
 func sigfillset(mask *[4]uint32) {
 	(*mask)[0], (*mask)[1], (*mask)[2], (*mask)[3] = ^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)
 }

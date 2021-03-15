@@ -32,7 +32,9 @@ package ppc64
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"cmd/internal/sys"
+	"log"
 )
 
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
@@ -672,6 +674,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			// save the link register and update the stack, since that code is
 			// called directly from C/C++ and can't clobber REGTMP (R31).
 			if autosize != 0 && c.cursym.Name != "runtime.racecallbackthunk" {
+				var prologueEnd *obj.Prog
 				// Save the link register and update the SP.  MOVDU is used unless
 				// the frame size is too large.  The link register must be saved
 				// even for non-empty leaf functions so that traceback works.
@@ -684,6 +687,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.From.Reg = REG_LR
 					q.To.Type = obj.TYPE_REG
 					q.To.Reg = REGTMP
+
+					prologueEnd = q
 
 					q = obj.Appendp(q, c.newprog)
 					q.As = AMOVDU
@@ -720,6 +725,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.To.Offset = int64(-autosize)
 					q.To.Reg = REGSP
 
+					prologueEnd = q
+
 					q = obj.Appendp(q, c.newprog)
 					q.As = AADD
 					q.Pos = p.Pos
@@ -730,8 +737,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.Spadj = +autosize
 
 					q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
-
 				}
+				prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)
 			} else if c.cursym.Func().Text.Mark&LEAF == 0 {
 				// A very few functions that do not return to their caller
 				// (e.g. gogo) are not identified as leaves but still have
@@ -976,6 +983,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.As = AMOVD
 				p.From.Type = obj.TYPE_MEM
 				p.From.Reg = REGSP
+			}
+		}
+
+		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 && p.As != ACMPU {
+			f := c.cursym.Func()
+			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
+				c.cursym.Func().FuncFlag |= objabi.FuncFlag_SPWRITE
+				if ctxt.Debugvlog || !ctxt.IsAsm {
+					ctxt.Logf("auto-SPWRITE: %s %v\n", c.cursym.Name, p)
+					if !ctxt.IsAsm {
+						ctxt.Diag("invalid auto-SPWRITE in non-assembly")
+						ctxt.DiagFlush()
+						log.Fatalf("bad SPWRITE")
+					}
+				}
 			}
 		}
 	}

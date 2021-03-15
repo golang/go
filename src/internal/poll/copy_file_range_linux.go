@@ -10,15 +10,61 @@ import (
 	"syscall"
 )
 
-var copyFileRangeSupported int32 = 1 // accessed atomically
+var copyFileRangeSupported int32 = -1 // accessed atomically
 
 const maxCopyFileRangeRound = 1 << 30
+
+func kernelVersion() (major int, minor int) {
+	var uname syscall.Utsname
+	if err := syscall.Uname(&uname); err != nil {
+		return
+	}
+
+	rl := uname.Release
+	var values [2]int
+	vi := 0
+	value := 0
+	for _, c := range rl {
+		if '0' <= c && c <= '9' {
+			value = (value * 10) + int(c-'0')
+		} else {
+			// Note that we're assuming N.N.N here.  If we see anything else we are likely to
+			// mis-parse it.
+			values[vi] = value
+			vi++
+			if vi >= len(values) {
+				break
+			}
+			value = 0
+		}
+	}
+	switch vi {
+	case 0:
+		return 0, 0
+	case 1:
+		return values[0], 0
+	case 2:
+		return values[0], values[1]
+	}
+	return
+}
 
 // CopyFileRange copies at most remain bytes of data from src to dst, using
 // the copy_file_range system call. dst and src must refer to regular files.
 func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err error) {
-	if atomic.LoadInt32(&copyFileRangeSupported) == 0 {
+	if supported := atomic.LoadInt32(&copyFileRangeSupported); supported == 0 {
 		return 0, false, nil
+	} else if supported == -1 {
+		major, minor := kernelVersion()
+		if major > 5 || (major == 5 && minor >= 3) {
+			atomic.StoreInt32(&copyFileRangeSupported, 1)
+		} else {
+			// copy_file_range(2) is broken in various ways on kernels older than 5.3,
+			// see issue #42400 and
+			// https://man7.org/linux/man-pages/man2/copy_file_range.2.html#VERSIONS
+			atomic.StoreInt32(&copyFileRangeSupported, 0)
+			return 0, false, nil
+		}
 	}
 	for remain > 0 {
 		max := remain
@@ -32,7 +78,7 @@ func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err
 			// Go supports Linux >= 2.6.33, so the system call
 			// may not be present.
 			//
-			// If we see ENOSYS, we have certainly not transfered
+			// If we see ENOSYS, we have certainly not transferred
 			// any data, so we can tell the caller that we
 			// couldn't handle the transfer and let them fall
 			// back to more generic code.
@@ -41,17 +87,20 @@ func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err
 			// use copy_file_range(2) again.
 			atomic.StoreInt32(&copyFileRangeSupported, 0)
 			return 0, false, nil
-		case syscall.EXDEV, syscall.EINVAL, syscall.EOPNOTSUPP, syscall.EPERM:
+		case syscall.EXDEV, syscall.EINVAL, syscall.EIO, syscall.EOPNOTSUPP, syscall.EPERM:
 			// Prior to Linux 5.3, it was not possible to
 			// copy_file_range across file systems. Similarly to
 			// the ENOSYS case above, if we see EXDEV, we have
-			// not transfered any data, and we can let the caller
+			// not transferred any data, and we can let the caller
 			// fall back to generic code.
 			//
 			// As for EINVAL, that is what we see if, for example,
 			// dst or src refer to a pipe rather than a regular
 			// file. This is another case where no data has been
-			// transfered, so we consider it unhandled.
+			// transferred, so we consider it unhandled.
+			//
+			// If src and dst are on CIFS, we can see EIO.
+			// See issue #42334.
 			//
 			// If the file is on NFS, we can see EOPNOTSUPP.
 			// See issue #40731.
@@ -63,7 +112,15 @@ func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err
 			return 0, false, nil
 		case nil:
 			if n == 0 {
-				// src is at EOF, which means we are done.
+				// If we did not read any bytes at all,
+				// then this file may be in a file system
+				// where copy_file_range silently fails.
+				// https://lore.kernel.org/linux-fsdevel/20210126233840.GG4626@dread.disaster.area/T/#m05753578c7f7882f6e9ffe01f981bc223edef2b0
+				if written == 0 {
+					return 0, false, nil
+				}
+				// Otherwise src is at EOF, which means
+				// we are done.
 				return written, true, nil
 			}
 			remain -= n

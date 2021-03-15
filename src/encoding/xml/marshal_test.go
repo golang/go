@@ -2283,6 +2283,30 @@ var encodeTokenTests = []struct {
 		}},
 	},
 	want: `<foo xmlns="space"><bar xmlns="space" xmlns:space="space" space:attr="value">`,
+}, {
+	desc: "reserved namespace prefix -- all lower case",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2001/xmlSchema-instance", "nil"}, "true"},
+		}},
+	},
+	want: `<foo xmlns:_xmlSchema-instance="http://www.w3.org/2001/xmlSchema-instance" _xmlSchema-instance:nil="true">`,
+}, {
+	desc: "reserved namespace prefix -- all upper case",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2001/XMLSchema-instance", "nil"}, "true"},
+		}},
+	},
+	want: `<foo xmlns:_XMLSchema-instance="http://www.w3.org/2001/XMLSchema-instance" _XMLSchema-instance:nil="true">`,
+}, {
+	desc: "reserved namespace prefix -- all mixed case",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2001/XmLSchema-instance", "nil"}, "true"},
+		}},
+	},
+	want: `<foo xmlns:_XmLSchema-instance="http://www.w3.org/2001/XmLSchema-instance" _XmLSchema-instance:nil="true">`,
 }}
 
 func TestEncodeToken(t *testing.T) {

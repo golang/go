@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 // +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package syscall_test
@@ -172,7 +173,9 @@ func TestForeground(t *testing.T) {
 		t.Skipf("Can't test Foreground. Couldn't open /dev/tty: %s", err)
 	}
 
-	fpgrp := 0
+	// This should really be pid_t, however _C_int (aka int32) is generally
+	// equivalent.
+	fpgrp := int32(0)
 
 	errno := syscall.Ioctl(tty.Fd(), syscall.TIOCGPGRP, uintptr(unsafe.Pointer(&fpgrp)))
 	if errno != 0 {

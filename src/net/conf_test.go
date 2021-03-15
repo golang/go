@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 // +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package net
@@ -170,8 +171,6 @@ func TestConfHostLookupOrder(t *testing.T) {
 			},
 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupDNSFiles}},
 		},
-		// glibc lacking an nsswitch.conf, per
-		// https://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html
 		{
 			name: "linux_no_nsswitch.conf",
 			c: &conf{
@@ -179,7 +178,16 @@ func TestConfHostLookupOrder(t *testing.T) {
 				nss:    &nssConf{err: fs.ErrNotExist},
 				resolv: defaultResolvConf,
 			},
-			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupDNSFiles}},
+			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupFilesDNS}},
+		},
+		{
+			name: "linux_empty_nsswitch.conf",
+			c: &conf{
+				goos:   "linux",
+				nss:    nssStr(""),
+				resolv: defaultResolvConf,
+			},
+			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupFilesDNS}},
 		},
 		{
 			name: "files_mdns_dns",

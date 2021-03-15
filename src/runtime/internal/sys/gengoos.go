@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 package main
@@ -9,8 +10,8 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -18,7 +19,7 @@ import (
 var gooses, goarches []string
 
 func main() {
-	data, err := ioutil.ReadFile("../../../go/build/syslist.go")
+	data, err := os.ReadFile("../../../go/build/syslist.go")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -68,7 +69,7 @@ func main() {
 			}
 			fmt.Fprintf(&buf, "const Goos%s = %d\n", strings.Title(goos), value)
 		}
-		err := ioutil.WriteFile("zgoos_"+target+".go", buf.Bytes(), 0666)
+		err := os.WriteFile("zgoos_"+target+".go", buf.Bytes(), 0666)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -90,7 +91,7 @@ func main() {
 			}
 			fmt.Fprintf(&buf, "const Goarch%s = %d\n", strings.Title(goarch), value)
 		}
-		err := ioutil.WriteFile("zgoarch_"+target+".go", buf.Bytes(), 0666)
+		err := os.WriteFile("zgoarch_"+target+".go", buf.Bytes(), 0666)
 		if err != nil {
 			log.Fatal(err)
 		}

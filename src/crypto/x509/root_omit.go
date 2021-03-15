@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ((darwin && arm64) || (darwin && amd64 && ios)) && x509omitbundledroots
 // +build darwin,arm64 darwin,amd64,ios
 // +build x509omitbundledroots
 
@@ -24,6 +25,3 @@ func loadSystemRoots() (*CertPool, error) {
 func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	return nil, nil
 }
-
-// loadSystemRootsWithCgo is not available on iOS.
-var loadSystemRootsWithCgo func() (*CertPool, error)

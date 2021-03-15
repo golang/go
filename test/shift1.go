@@ -73,8 +73,8 @@ func _() {
 	// non constants arguments trigger a different path
 	f2 := 1.2
 	s2 := "hi"
-	_ = f2 << 2 // ERROR "shift of type float64"
-	_ = s2 << 2 // ERROR "shift of type string"
+	_ = f2 << 2 // ERROR "shift of type float64|non-integer"
+	_ = s2 << 2 // ERROR "shift of type string|non-integer"
 }
 
 // shifts in comparisons w/ untyped operands

@@ -10,11 +10,10 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	exec "internal/execabs"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -189,7 +188,7 @@ func WorkDir(typ, name string) (dir, lockfile string, err error) {
 	}
 	defer unlock()
 
-	data, err := ioutil.ReadFile(dir + ".info")
+	data, err := os.ReadFile(dir + ".info")
 	info, err2 := os.Stat(dir)
 	if err == nil && err2 == nil && info.IsDir() {
 		// Info file and directory both already exist: reuse.
@@ -211,7 +210,7 @@ func WorkDir(typ, name string) (dir, lockfile string, err error) {
 	if err := os.MkdirAll(dir, 0777); err != nil {
 		return "", "", err
 	}
-	if err := ioutil.WriteFile(dir+".info", []byte(key), 0666); err != nil {
+	if err := os.WriteFile(dir+".info", []byte(key), 0666); err != nil {
 		os.RemoveAll(dir)
 		return "", "", err
 	}
@@ -264,6 +263,9 @@ func RunWithStdin(dir string, stdin io.Reader, cmdline ...interface{}) ([]byte, 
 	}
 
 	cmd := str.StringList(cmdline...)
+	if os.Getenv("TESTGOVCS") == "panic" {
+		panic(fmt.Sprintf("use of vcs: %v", cmd))
+	}
 	if cfg.BuildX {
 		text := new(strings.Builder)
 		if dir != "" {

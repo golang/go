@@ -313,7 +313,7 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
 
 			rela := ldr.MakeSymbolUpdater(syms.Rela)
 			rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
-			rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(targ)), uint32(elf.R_PPC64_ADDR64)))
+			rela.AddUint64(target.Arch, elf.R_INFO(uint32(ldr.SymDynid(targ)), uint32(elf.R_PPC64_ADDR64)))
 			rela.AddUint64(target.Arch, uint64(r.Add()))
 			su.SetRelocType(rIdx, objabi.ElfRelocOffset) // ignore during relocsym
 		}
@@ -656,13 +656,19 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 
 	relocs := ldr.Relocs(s)
 	r := relocs.At(ri)
-	t := ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
+	var t int64
+	// ldr.SymValue(rs) == 0 indicates a cross-package jump to a function that is not yet
+	// laid out. Conservatively use a trampoline. This should be rare, as we lay out packages
+	// in dependency order.
+	if ldr.SymValue(rs) != 0 {
+		t = ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
+	}
 	switch r.Type() {
 	case objabi.R_CALLPOWER:
 
 		// If branch offset is too far then create a trampoline.
 
-		if (ctxt.IsExternal() && ldr.SymSect(s) != ldr.SymSect(rs)) || (ctxt.IsInternal() && int64(int32(t<<6)>>6) != t) || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
+		if (ctxt.IsExternal() && ldr.SymSect(s) != ldr.SymSect(rs)) || (ctxt.IsInternal() && int64(int32(t<<6)>>6) != t) || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
 			var tramp loader.Sym
 			for i := 0; ; i++ {
 
@@ -749,7 +755,7 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 
 		// With external linking, the target address must be
 		// relocated using LO and HA
-		if ctxt.IsExternal() {
+		if ctxt.IsExternal() || ldr.SymValue(target) == 0 {
 			r, _ := tramp.AddRel(objabi.R_ADDRPOWER)
 			r.SetOff(0)
 			r.SetSiz(8) // generates 2 relocations: HA + LO
@@ -997,7 +1003,7 @@ func addpltsym(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym) {
 		plt.SetSize(plt.Size() + 8)
 
 		rela.AddAddrPlus(ctxt.Arch, plt.Sym(), int64(ldr.SymPlt(s)))
-		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_PPC64_JMP_SLOT)))
+		rela.AddUint64(ctxt.Arch, elf.R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_PPC64_JMP_SLOT)))
 		rela.AddUint64(ctxt.Arch, 0)
 	} else {
 		ctxt.Errorf(s, "addpltsym: unsupported binary format")
@@ -1033,8 +1039,11 @@ func ensureglinkresolver(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuilde
 	glink.AddUint32(ctxt.Arch, 0x7800f082) // srdi r0,r0,2
 
 	// r11 = address of the first byte of the PLT
-	glink.AddSymRef(ctxt.Arch, ctxt.PLT, 0, objabi.R_ADDRPOWER, 8)
-
+	r, _ := glink.AddRel(objabi.R_ADDRPOWER)
+	r.SetSym(ctxt.PLT)
+	r.SetSiz(8)
+	r.SetOff(int32(glink.Size()))
+	r.SetAdd(0)
 	glink.AddUint32(ctxt.Arch, 0x3d600000) // addis r11,0,.plt@ha
 	glink.AddUint32(ctxt.Arch, 0x396b0000) // addi r11,r11,.plt@l
 
@@ -1053,7 +1062,7 @@ func ensureglinkresolver(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuilde
 	// Add DT_PPC64_GLINK .dynamic entry, which points to 32 bytes
 	// before the first symbol resolver stub.
 	du := ldr.MakeSymbolUpdater(ctxt.Dynamic)
-	ld.Elfwritedynentsymplus(ctxt, du, ld.DT_PPC64_GLINK, glink.Sym(), glink.Size()-32)
+	ld.Elfwritedynentsymplus(ctxt, du, elf.DT_PPC64_GLINK, glink.Sym(), glink.Size()-32)
 
 	return glink
 }

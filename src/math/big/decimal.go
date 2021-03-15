@@ -166,18 +166,21 @@ func (x *decimal) String() string {
 	switch {
 	case x.exp <= 0:
 		// 0.00ddd
+		buf = make([]byte, 0, 2+(-x.exp)+len(x.mant))
 		buf = append(buf, "0."...)
 		buf = appendZeros(buf, -x.exp)
 		buf = append(buf, x.mant...)
 
 	case /* 0 < */ x.exp < len(x.mant):
 		// dd.ddd
+		buf = make([]byte, 0, 1+len(x.mant))
 		buf = append(buf, x.mant[:x.exp]...)
 		buf = append(buf, '.')
 		buf = append(buf, x.mant[x.exp:]...)
 
 	default: // len(x.mant) <= x.exp
 		// ddd00
+		buf = make([]byte, 0, x.exp)
 		buf = append(buf, x.mant...)
 		buf = appendZeros(buf, x.exp-len(x.mant))
 	}

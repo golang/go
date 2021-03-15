@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 // fastlog2Table contains log2 approximations for 5 binary digits.
@@ -12,9 +13,9 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
+	"os"
 )
 
 func main() {
@@ -36,7 +37,7 @@ func main() {
 	}
 	fmt.Fprintln(&buf, "}")
 
-	if err := ioutil.WriteFile("fastlog2table.go", buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile("fastlog2table.go", buf.Bytes(), 0644); err != nil {
 		log.Fatalln(err)
 	}
 }

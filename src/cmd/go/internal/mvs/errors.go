@@ -31,13 +31,15 @@ type buildListErrorElem struct {
 // occurred at a module found along the given path of requirements and/or
 // upgrades, which must be non-empty.
 //
-// The isUpgrade function reports whether a path step is due to an upgrade.
-// A nil isUpgrade function indicates that none of the path steps are due to upgrades.
-func NewBuildListError(err error, path []module.Version, isUpgrade func(from, to module.Version) bool) *BuildListError {
+// The isVersionChange function reports whether a path step is due to an
+// explicit upgrade or downgrade (as opposed to an existing requirement in a
+// go.mod file). A nil isVersionChange function indicates that none of the path
+// steps are due to explicit version changes.
+func NewBuildListError(err error, path []module.Version, isVersionChange func(from, to module.Version) bool) *BuildListError {
 	stack := make([]buildListErrorElem, 0, len(path))
 	for len(path) > 1 {
 		reason := "requires"
-		if isUpgrade != nil && isUpgrade(path[0], path[1]) {
+		if isVersionChange != nil && isVersionChange(path[0], path[1]) {
 			reason = "updating to"
 		}
 		stack = append(stack, buildListErrorElem{

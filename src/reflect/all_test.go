@@ -2900,6 +2900,7 @@ func TestFieldPkgPath(t *testing.T) {
 		index    []int
 		pkgPath  string
 		embedded bool
+		exported bool
 	}
 
 	checkPkgPath := func(name string, s []pkgpathTest) {
@@ -2911,25 +2912,61 @@ func TestFieldPkgPath(t *testing.T) {
 			if got, want := f.Anonymous, test.embedded; got != want {
 				t.Errorf("%s: Field(%d).Anonymous = %v, want %v", name, test.index, got, want)
 			}
+			if got, want := f.IsExported(), test.exported; got != want {
+				t.Errorf("%s: Field(%d).IsExported = %v, want %v", name, test.index, got, want)
+			}
 		}
 	}
 
 	checkPkgPath("testStruct", []pkgpathTest{
-		{[]int{0}, "", false},             // Exported
-		{[]int{1}, "reflect_test", false}, // unexported
-		{[]int{2}, "", true},              // OtherPkgFields
-		{[]int{2, 0}, "", false},          // OtherExported
-		{[]int{2, 1}, "reflect", false},   // otherUnexported
-		{[]int{3}, "reflect_test", true},  // int
-		{[]int{4}, "reflect_test", true},  // *x
+		{[]int{0}, "", false, true},              // Exported
+		{[]int{1}, "reflect_test", false, false}, // unexported
+		{[]int{2}, "", true, true},               // OtherPkgFields
+		{[]int{2, 0}, "", false, true},           // OtherExported
+		{[]int{2, 1}, "reflect", false, false},   // otherUnexported
+		{[]int{3}, "reflect_test", true, false},  // int
+		{[]int{4}, "reflect_test", true, false},  // *x
 	})
 
 	type localOtherPkgFields OtherPkgFields
 	typ = TypeOf(localOtherPkgFields{})
 	checkPkgPath("localOtherPkgFields", []pkgpathTest{
-		{[]int{0}, "", false},        // OtherExported
-		{[]int{1}, "reflect", false}, // otherUnexported
+		{[]int{0}, "", false, true},         // OtherExported
+		{[]int{1}, "reflect", false, false}, // otherUnexported
 	})
+}
+
+func TestMethodPkgPath(t *testing.T) {
+	type I interface {
+		x()
+		X()
+	}
+	typ := TypeOf((*interface {
+		I
+		y()
+		Y()
+	})(nil)).Elem()
+
+	tests := []struct {
+		name     string
+		pkgPath  string
+		exported bool
+	}{
+		{"X", "", true},
+		{"Y", "", true},
+		{"x", "reflect_test", false},
+		{"y", "reflect_test", false},
+	}
+
+	for _, test := range tests {
+		m, _ := typ.MethodByName(test.name)
+		if got, want := m.PkgPath, test.pkgPath; got != want {
+			t.Errorf("MethodByName(%q).PkgPath = %q, want %q", test.name, got, want)
+		}
+		if got, want := m.IsExported(), test.exported; got != want {
+			t.Errorf("MethodByName(%q).IsExported = %v, want %v", test.name, got, want)
+		}
+	}
 }
 
 func TestVariadicType(t *testing.T) {
@@ -2993,14 +3030,6 @@ func TestUnexportedMethods(t *testing.T) {
 	typ := TypeOf(unexpi)
 
 	if got := typ.NumMethod(); got != 0 {
-		t.Errorf("NumMethod=%d, want 0 satisfied methods", got)
-	}
-
-	var i unexpI
-	if got := TypeOf(&i).Elem().NumMethod(); got != 0 {
-		t.Errorf("NumMethod=%d, want 0 satisfied methods", got)
-	}
-	if got := ValueOf(&i).Elem().NumMethod(); got != 0 {
 		t.Errorf("NumMethod=%d, want 0 satisfied methods", got)
 	}
 }
@@ -3656,21 +3685,21 @@ func TestCallPanic(t *testing.T) {
 	v := ValueOf(T{i, i, i, i, T2{i, i}, i, i, T2{i, i}})
 	badCall(func() { call(v.Field(0).Method(0)) })          // .t0.W
 	badCall(func() { call(v.Field(0).Elem().Method(0)) })   // .t0.W
-	badMethod(func() { call(v.Field(0).Method(1)) })        // .t0.w
+	badCall(func() { call(v.Field(0).Method(1)) })          // .t0.w
 	badMethod(func() { call(v.Field(0).Elem().Method(2)) }) // .t0.w
 	ok(func() { call(v.Field(1).Method(0)) })               // .T1.Y
 	ok(func() { call(v.Field(1).Elem().Method(0)) })        // .T1.Y
-	badMethod(func() { call(v.Field(1).Method(1)) })        // .T1.y
+	badCall(func() { call(v.Field(1).Method(1)) })          // .T1.y
 	badMethod(func() { call(v.Field(1).Elem().Method(2)) }) // .T1.y
 
 	ok(func() { call(v.Field(2).Method(0)) })               // .NamedT0.W
 	ok(func() { call(v.Field(2).Elem().Method(0)) })        // .NamedT0.W
-	badMethod(func() { call(v.Field(2).Method(1)) })        // .NamedT0.w
+	badCall(func() { call(v.Field(2).Method(1)) })          // .NamedT0.w
 	badMethod(func() { call(v.Field(2).Elem().Method(2)) }) // .NamedT0.w
 
 	ok(func() { call(v.Field(3).Method(0)) })               // .NamedT1.Y
 	ok(func() { call(v.Field(3).Elem().Method(0)) })        // .NamedT1.Y
-	badMethod(func() { call(v.Field(3).Method(1)) })        // .NamedT1.y
+	badCall(func() { call(v.Field(3).Method(1)) })          // .NamedT1.y
 	badMethod(func() { call(v.Field(3).Elem().Method(3)) }) // .NamedT1.y
 
 	ok(func() { call(v.Field(4).Field(0).Method(0)) })             // .NamedT2.T1.Y
@@ -3680,7 +3709,7 @@ func TestCallPanic(t *testing.T) {
 
 	badCall(func() { call(v.Field(5).Method(0)) })          // .namedT0.W
 	badCall(func() { call(v.Field(5).Elem().Method(0)) })   // .namedT0.W
-	badMethod(func() { call(v.Field(5).Method(1)) })        // .namedT0.w
+	badCall(func() { call(v.Field(5).Method(1)) })          // .namedT0.w
 	badMethod(func() { call(v.Field(5).Elem().Method(2)) }) // .namedT0.w
 
 	badCall(func() { call(v.Field(6).Method(0)) })        // .namedT1.Y
@@ -4015,9 +4044,12 @@ var convertTests = []struct {
 	{V(int16(-3)), V(string("\uFFFD"))},
 	{V(int32(-4)), V(string("\uFFFD"))},
 	{V(int64(-5)), V(string("\uFFFD"))},
+	{V(int64(-1 << 32)), V(string("\uFFFD"))},
+	{V(int64(1 << 32)), V(string("\uFFFD"))},
 	{V(uint(0x110001)), V(string("\uFFFD"))},
 	{V(uint32(0x110002)), V(string("\uFFFD"))},
 	{V(uint64(0x110003)), V(string("\uFFFD"))},
+	{V(uint64(1 << 32)), V(string("\uFFFD"))},
 	{V(uintptr(0x110004)), V(string("\uFFFD"))},
 
 	// named string
@@ -7170,176 +7202,6 @@ func TestMapIterDelete1(t *testing.T) {
 	}
 	if len(got) != 1 {
 		t.Errorf("iterator returned wrong number of elements: got %d, want 1", len(got))
-	}
-}
-
-func TestStructTagLookup(t *testing.T) {
-	var tests = []struct {
-		tag           StructTag
-		key           string
-		expectedValue string
-		expectedOK    bool
-	}{
-		{
-			tag:           `json:"json_value_1"`,
-			key:           "json",
-			expectedValue: "json_value_1",
-			expectedOK:    true,
-		},
-		{
-			tag:           `json:"json_value_2" xml:"xml_value_2"`,
-			key:           "json",
-			expectedValue: "json_value_2",
-			expectedOK:    true,
-		},
-		{
-			tag:           `json:"json_value_3" xml:"xml_value_3"`,
-			key:           "xml",
-			expectedValue: "xml_value_3",
-			expectedOK:    true,
-		},
-		{
-			tag:           `bson json:"shared_value_4"`,
-			key:           "json",
-			expectedValue: "shared_value_4",
-			expectedOK:    true,
-		},
-		{
-			tag:           `bson json:"shared_value_5"`,
-			key:           "bson",
-			expectedValue: "shared_value_5",
-			expectedOK:    true,
-		},
-		{
-			tag:           `json bson xml form:"field_1,omitempty" other:"value_1"`,
-			key:           "xml",
-			expectedValue: "field_1,omitempty",
-			expectedOK:    true,
-		},
-		{
-			tag:           `json bson xml form:"field_2,omitempty" other:"value_2"`,
-			key:           "form",
-			expectedValue: "field_2,omitempty",
-			expectedOK:    true,
-		},
-		{
-			tag:           `json bson xml form:"field_3,omitempty" other:"value_3"`,
-			key:           "other",
-			expectedValue: "value_3",
-			expectedOK:    true,
-		},
-		{
-			tag:           `json    bson    xml    form:"field_4" other:"value_4"`,
-			key:           "json",
-			expectedValue: "field_4",
-			expectedOK:    true,
-		},
-		{
-			tag:           `json    bson    xml    form:"field_5" other:"value_5"`,
-			key:           "non_existing",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           `json "json_6"`,
-			key:           "json",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           `json:"json_7" bson "bson_7"`,
-			key:           "json",
-			expectedValue: "json_7",
-			expectedOK:    true,
-		},
-		{
-			tag:           `json:"json_8" xml "xml_8"`,
-			key:           "xml",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           `json    bson    xml    form "form_9" other:"value_9"`,
-			key:           "bson",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           `json bson xml form "form_10" other:"value_10"`,
-			key:           "other",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           `json bson xml form:"form_11" other "value_11"`,
-			key:           "json",
-			expectedValue: "form_11",
-			expectedOK:    true,
-		},
-		{
-			tag:           `tag1`,
-			key:           "tag1",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           `tag2 :"hello_2"`,
-			key:           "tag2",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           `tag3: "hello_3"`,
-			key:           "tag3",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           "json\x7fbson: \"hello_4\"",
-			key:           "json",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           "json\x7fbson: \"hello_5\"",
-			key:           "bson",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           "json bson:\x7f\"hello_6\"",
-			key:           "json",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           "json bson:\x7f\"hello_7\"",
-			key:           "bson",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           "json\x09bson:\"hello_8\"",
-			key:           "json",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           "a\x7fb json:\"val\"",
-			key:           "json",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-	}
-
-	for _, test := range tests {
-		v, ok := test.tag.Lookup(test.key)
-		if v != test.expectedValue {
-			t.Errorf("struct tag lookup failed, got %s, want %s", v, test.expectedValue)
-		}
-		if ok != test.expectedOK {
-			t.Errorf("struct tag lookup failed, got %t, want %t", ok, test.expectedOK)
-		}
 	}
 }
 

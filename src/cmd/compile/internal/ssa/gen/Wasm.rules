@@ -332,6 +332,8 @@
 (Abs ...) => (F64Abs ...)
 (Copysign ...) => (F64Copysign ...)
 
+(Sqrt32 ...) => (F32Sqrt ...)
+
 (Ctz64 ...) => (I64Ctz ...)
 (Ctz32 x) => (I64Ctz (I64Or x (I64Const [0x100000000])))
 (Ctz16 x) => (I64Ctz (I64Or x (I64Const [0x10000])))
@@ -399,6 +401,7 @@
 // folding offset into address
 (I64AddConst [off] (LoweredAddr {sym} [off2] base)) && isU32Bit(off+int64(off2)) =>
 	(LoweredAddr {sym} [int32(off)+off2] base)
+(I64AddConst [off] x:(SP)) && isU32Bit(off) => (LoweredAddr [int32(off)] x) // so it is rematerializeable
 
 // transforming readonly globals into constants
 (I64Load [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+int64(off2)) => (I64Const [int64(read64(sym, off+int64(off2), config.ctxt.Arch.ByteOrder))])

@@ -25,11 +25,20 @@
 
 // The race ctx, ThreadState *thr below, is passed in R0 and loaded in racecalladdr.
 
+// Darwin may return unaligned thread pointer. Align it. (See tls_arm64.s)
+// No-op on other OSes.
+#ifdef TLS_darwin
+#define TP_ALIGN	AND	$~7, R0
+#else
+#define TP_ALIGN
+#endif
+
+// Load g from TLS. (See tls_arm64.s)
 #define load_g \
 	MRS_TPIDR_R0 \
+	TP_ALIGN \
 	MOVD    runtime·tls_g(SB), R11 \
-	ADD     R11, R0 \
-	MOVD    0(R0), g
+	MOVD    (R0)(R11), g
 
 // func runtime·raceread(addr uintptr)
 // Called from instrumented code.
@@ -151,21 +160,13 @@ call:
 ret:
 	RET
 
-// func runtime·racefuncenterfp(fp uintptr)
-// Called from instrumented code.
-// Like racefuncenter but doesn't passes an arg, uses the caller pc
-// from the first slot on the stack
-TEXT	runtime·racefuncenterfp(SB), NOSPLIT, $0-0
-	MOVD	0(RSP), R9
-	JMP	racefuncenter<>(SB)
-
 // func runtime·racefuncenter(pc uintptr)
 // Called from instrumented code.
 TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
 	MOVD	callpc+0(FP), R9
 	JMP	racefuncenter<>(SB)
 
-// Common code for racefuncenter/racefuncenterfp
+// Common code for racefuncenter
 // R9 = caller's return address
 TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 	load_g
@@ -191,86 +192,86 @@ TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
 // R0, R1, R2 set in racecallatomic
 
 // Load
-TEXT	sync∕atomic·LoadInt32(SB), NOSPLIT, $0
+TEXT	sync∕atomic·LoadInt32(SB), NOSPLIT, $0-12
 	GO_ARGS
 	MOVD	$__tsan_go_atomic32_load(SB), R9
 	BL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·LoadInt64(SB), NOSPLIT, $0
+TEXT	sync∕atomic·LoadInt64(SB), NOSPLIT, $0-16
 	GO_ARGS
 	MOVD	$__tsan_go_atomic64_load(SB), R9
 	BL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·LoadUint32(SB), NOSPLIT, $0
+TEXT	sync∕atomic·LoadUint32(SB), NOSPLIT, $0-12
 	GO_ARGS
 	JMP	sync∕atomic·LoadInt32(SB)
 
-TEXT	sync∕atomic·LoadUint64(SB), NOSPLIT, $0
+TEXT	sync∕atomic·LoadUint64(SB), NOSPLIT, $0-16
 	GO_ARGS
 	JMP	sync∕atomic·LoadInt64(SB)
 
-TEXT	sync∕atomic·LoadUintptr(SB), NOSPLIT, $0
+TEXT	sync∕atomic·LoadUintptr(SB), NOSPLIT, $0-16
 	GO_ARGS
 	JMP	sync∕atomic·LoadInt64(SB)
 
-TEXT	sync∕atomic·LoadPointer(SB), NOSPLIT, $0
+TEXT	sync∕atomic·LoadPointer(SB), NOSPLIT, $0-16
 	GO_ARGS
 	JMP	sync∕atomic·LoadInt64(SB)
 
 // Store
-TEXT	sync∕atomic·StoreInt32(SB), NOSPLIT, $0
+TEXT	sync∕atomic·StoreInt32(SB), NOSPLIT, $0-12
 	GO_ARGS
 	MOVD	$__tsan_go_atomic32_store(SB), R9
 	BL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·StoreInt64(SB), NOSPLIT, $0
+TEXT	sync∕atomic·StoreInt64(SB), NOSPLIT, $0-16
 	GO_ARGS
 	MOVD	$__tsan_go_atomic64_store(SB), R9
 	BL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·StoreUint32(SB), NOSPLIT, $0
+TEXT	sync∕atomic·StoreUint32(SB), NOSPLIT, $0-12
 	GO_ARGS
 	JMP	sync∕atomic·StoreInt32(SB)
 
-TEXT	sync∕atomic·StoreUint64(SB), NOSPLIT, $0
+TEXT	sync∕atomic·StoreUint64(SB), NOSPLIT, $0-16
 	GO_ARGS
 	JMP	sync∕atomic·StoreInt64(SB)
 
-TEXT	sync∕atomic·StoreUintptr(SB), NOSPLIT, $0
+TEXT	sync∕atomic·StoreUintptr(SB), NOSPLIT, $0-16
 	GO_ARGS
 	JMP	sync∕atomic·StoreInt64(SB)
 
 // Swap
-TEXT	sync∕atomic·SwapInt32(SB), NOSPLIT, $0
+TEXT	sync∕atomic·SwapInt32(SB), NOSPLIT, $0-20
 	GO_ARGS
 	MOVD	$__tsan_go_atomic32_exchange(SB), R9
 	BL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·SwapInt64(SB), NOSPLIT, $0
+TEXT	sync∕atomic·SwapInt64(SB), NOSPLIT, $0-24
 	GO_ARGS
 	MOVD	$__tsan_go_atomic64_exchange(SB), R9
 	BL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·SwapUint32(SB), NOSPLIT, $0
+TEXT	sync∕atomic·SwapUint32(SB), NOSPLIT, $0-20
 	GO_ARGS
 	JMP	sync∕atomic·SwapInt32(SB)
 
-TEXT	sync∕atomic·SwapUint64(SB), NOSPLIT, $0
+TEXT	sync∕atomic·SwapUint64(SB), NOSPLIT, $0-24
 	GO_ARGS
 	JMP	sync∕atomic·SwapInt64(SB)
 
-TEXT	sync∕atomic·SwapUintptr(SB), NOSPLIT, $0
+TEXT	sync∕atomic·SwapUintptr(SB), NOSPLIT, $0-24
 	GO_ARGS
 	JMP	sync∕atomic·SwapInt64(SB)
 
 // Add
-TEXT	sync∕atomic·AddInt32(SB), NOSPLIT, $0
+TEXT	sync∕atomic·AddInt32(SB), NOSPLIT, $0-20
 	GO_ARGS
 	MOVD	$__tsan_go_atomic32_fetch_add(SB), R9
 	BL	racecallatomic<>(SB)
@@ -280,7 +281,7 @@ TEXT	sync∕atomic·AddInt32(SB), NOSPLIT, $0
 	MOVW	R0, ret+16(FP)
 	RET
 
-TEXT	sync∕atomic·AddInt64(SB), NOSPLIT, $0
+TEXT	sync∕atomic·AddInt64(SB), NOSPLIT, $0-24
 	GO_ARGS
 	MOVD	$__tsan_go_atomic64_fetch_add(SB), R9
 	BL	racecallatomic<>(SB)
@@ -290,40 +291,40 @@ TEXT	sync∕atomic·AddInt64(SB), NOSPLIT, $0
 	MOVD	R0, ret+16(FP)
 	RET
 
-TEXT	sync∕atomic·AddUint32(SB), NOSPLIT, $0
+TEXT	sync∕atomic·AddUint32(SB), NOSPLIT, $0-20
 	GO_ARGS
 	JMP	sync∕atomic·AddInt32(SB)
 
-TEXT	sync∕atomic·AddUint64(SB), NOSPLIT, $0
+TEXT	sync∕atomic·AddUint64(SB), NOSPLIT, $0-24
 	GO_ARGS
 	JMP	sync∕atomic·AddInt64(SB)
 
-TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0
+TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0-24
 	GO_ARGS
 	JMP	sync∕atomic·AddInt64(SB)
 
 // CompareAndSwap
-TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT, $0
+TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT, $0-17
 	GO_ARGS
 	MOVD	$__tsan_go_atomic32_compare_exchange(SB), R9
 	BL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·CompareAndSwapInt64(SB), NOSPLIT, $0
+TEXT	sync∕atomic·CompareAndSwapInt64(SB), NOSPLIT, $0-25
 	GO_ARGS
 	MOVD	$__tsan_go_atomic64_compare_exchange(SB), R9
 	BL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·CompareAndSwapUint32(SB), NOSPLIT, $0
+TEXT	sync∕atomic·CompareAndSwapUint32(SB), NOSPLIT, $0-17
 	GO_ARGS
 	JMP	sync∕atomic·CompareAndSwapInt32(SB)
 
-TEXT	sync∕atomic·CompareAndSwapUint64(SB), NOSPLIT, $0
+TEXT	sync∕atomic·CompareAndSwapUint64(SB), NOSPLIT, $0-25
 	GO_ARGS
 	JMP	sync∕atomic·CompareAndSwapInt64(SB)
 
-TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0
+TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0-25
 	GO_ARGS
 	JMP	sync∕atomic·CompareAndSwapInt64(SB)
 
@@ -423,7 +424,13 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0
 	// benefit from this fast path.
 	CBNZ	R0, rest
 	MOVD	g, R13
+#ifdef TLS_darwin
+	MOVD	R27, R12 // save R27 a.k.a. REGTMP (callee-save in C). load_g clobbers it
+#endif
 	load_g
+#ifdef TLS_darwin
+	MOVD	R12, R27
+#endif
 	MOVD	g_m(g), R0
 	MOVD	m_p(R0), R0
 	MOVD	p_raceprocctx(R0), R0
@@ -477,5 +484,7 @@ noswitch:
 	BL	runtime·racecallback(SB)
 	JMP	ret
 
+#ifndef TLSG_IS_VARIABLE
 // tls_g, g value for each thread in TLS
 GLOBL runtime·tls_g+0(SB), TLSBSS+DUPOK, $8
+#endif

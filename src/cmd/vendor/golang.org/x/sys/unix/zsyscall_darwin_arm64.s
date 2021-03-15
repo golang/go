@@ -60,8 +60,6 @@ TEXT ·libc_munlock_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_munlock(SB)
 TEXT ·libc_munlockall_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_munlockall(SB)
-TEXT ·libc_getattrlist_trampoline(SB),NOSPLIT,$0-0
-	JMP	libc_getattrlist(SB)
 TEXT ·libc_pipe_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_pipe(SB)
 TEXT ·libc_getxattr_trampoline(SB),NOSPLIT,$0-0
@@ -146,6 +144,8 @@ TEXT ·libc_fsync_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_fsync(SB)
 TEXT ·libc_ftruncate_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_ftruncate(SB)
+TEXT ·libc_getcwd_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_getcwd(SB)
 TEXT ·libc_getdtablesize_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_getdtablesize(SB)
 TEXT ·libc_getegid_trampoline(SB),NOSPLIT,$0-0
@@ -282,6 +282,8 @@ TEXT ·libc_getfsstat_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_getfsstat(SB)
 TEXT ·libc_lstat_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_lstat(SB)
+TEXT ·libc_ptrace_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_ptrace(SB)
 TEXT ·libc_stat_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_stat(SB)
 TEXT ·libc_statfs_trampoline(SB),NOSPLIT,$0-0

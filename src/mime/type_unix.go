@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris
 // +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
 
 package mime
@@ -20,6 +21,7 @@ var typeFiles = []string{
 	"/etc/mime.types",
 	"/etc/apache2/mime.types",
 	"/etc/apache/mime.types",
+	"/etc/httpd/conf/mime.types",
 }
 
 func loadMimeFile(filename string) {

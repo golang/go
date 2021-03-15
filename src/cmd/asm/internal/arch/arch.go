@@ -109,6 +109,10 @@ func archX86(linkArch *obj.LinkArch) *Arch {
 	register["SB"] = RSB
 	register["FP"] = RFP
 	register["PC"] = RPC
+	if linkArch == &x86.Linkamd64 {
+		// Alias g to R14
+		register["g"] = x86.REGG
+	}
 	// Register prefix not used on this architecture.
 
 	instructions := make(map[string]obj.As)
@@ -535,6 +539,9 @@ func archRISCV64() *Arch {
 
 	// Standard register names.
 	for i := riscv.REG_X0; i <= riscv.REG_X31; i++ {
+		if i == riscv.REG_G {
+			continue
+		}
 		name := fmt.Sprintf("X%d", i-riscv.REG_X0)
 		register[name] = int16(i)
 	}
@@ -571,7 +578,7 @@ func archRISCV64() *Arch {
 	register["S8"] = riscv.REG_S8
 	register["S9"] = riscv.REG_S9
 	register["S10"] = riscv.REG_S10
-	register["S11"] = riscv.REG_S11
+	// Skip S11 as it is the g register.
 	register["T3"] = riscv.REG_T3
 	register["T4"] = riscv.REG_T4
 	register["T5"] = riscv.REG_T5

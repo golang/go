@@ -61,7 +61,7 @@ func (p *Process) signal(sig Signal) error {
 		return syscall.EINVAL
 	}
 	if p.done() {
-		return errors.New("os: process already finished")
+		return ErrProcessDone
 	}
 	if sig == Kill {
 		err := terminateProcess(p.Pid, 1)

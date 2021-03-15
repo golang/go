@@ -43,9 +43,9 @@ func indexes() {
 	_ = a[:10:10]
 	_ = a[:11 /* ERROR "index .* out of bounds" */ :10]
 	_ = a[:10:11 /* ERROR "index .* out of bounds" */ ]
-	_ = a[10:0:10] /* ERROR "invalid slice indices" */
-	_ = a[0:10:0] /* ERROR "invalid slice indices" */
-	_ = a[10:0:0] /* ERROR "invalid slice indices" */
+	_ = a[10:0:10] /* ERROR swapped slice indices" */
+	_ = a[0:10:0] /* ERROR "swapped slice indices" */
+	_ = a[10:0:0] /* ERROR "swapped slice indices" */
 	_ = &a /* ERROR "cannot take address" */ [:10]
 
 	pa := &a
@@ -61,9 +61,9 @@ func indexes() {
 	_ = pa[:10:10]
 	_ = pa[:11 /* ERROR "index .* out of bounds" */ :10]
 	_ = pa[:10:11 /* ERROR "index .* out of bounds" */ ]
-	_ = pa[10:0:10] /* ERROR "invalid slice indices" */
-	_ = pa[0:10:0] /* ERROR "invalid slice indices" */
-	_ = pa[10:0:0] /* ERROR "invalid slice indices" */
+	_ = pa[10:0:10] /* ERROR "swapped slice indices" */
+	_ = pa[0:10:0] /* ERROR "swapped slice indices" */
+	_ = pa[10:0:0] /* ERROR "swapped slice indices" */
 	_ = &pa /* ERROR "cannot take address" */ [:10]
 
 	var b [0]int
@@ -81,20 +81,20 @@ func indexes() {
 	_ = s[: - /* ERROR "negative" */ 1]
 	_ = s[0]
 	_ = s[1:2]
-	_ = s[2:1] /* ERROR "invalid slice indices" */
+	_ = s[2:1] /* ERROR "swapped slice indices" */
 	_ = s[2:]
 	_ = s[: 1 /* ERROR "overflows" */ <<100]
 	_ = s[1 /* ERROR "overflows" */ <<100 :]
 	_ = s[1 /* ERROR "overflows" */ <<100 : 1 /* ERROR "overflows" */ <<100]
 	_ = s[: /* ERROR "2nd index required" */ :  /* ERROR "3rd index required" */ ]
 	_ = s[:10:10]
-	_ = s[10:0:10] /* ERROR "invalid slice indices" */
-	_ = s[0:10:0] /* ERROR "invalid slice indices" */
-	_ = s[10:0:0] /* ERROR "invalid slice indices" */
+	_ = s[10:0:10] /* ERROR "swapped slice indices" */
+	_ = s[0:10:0] /* ERROR "swapped slice indices" */
+	_ = s[10:0:0] /* ERROR "swapped slice indices" */
 	_ = &s /* ERROR "cannot take address" */ [:10]
 
 	var m map[string]int
-	_ = m[0 /* ERROR "cannot convert" */ ]
+	_ = m[0 /* ERROR "cannot use .* in map index" */ ]
 	_ = m /* ERROR "cannot slice" */ ["foo" : "bar"]
 	_ = m["foo"]
 	// ok is of type bool
@@ -102,6 +102,7 @@ func indexes() {
 	var ok mybool
 	_, ok = m["bar"]
 	_ = ok
+	_ = m[0 /* ERROR "cannot use 0" */ ] + "foo" // ERROR "cannot convert"
 
 	var t string
 	_ = t[- /* ERROR "negative" */ 1]
@@ -184,7 +185,7 @@ func struct_literals() {
 	_ = T1{aa /* ERROR "unknown field" */ : 0}
 	_ = T1{1 /* ERROR "invalid field name" */ : 0}
 	_ = T1{a: 0, s: "foo", u: 0, a /* ERROR "duplicate field" */: 10}
-	_ = T1{a: "foo" /* ERROR "cannot convert" */ }
+	_ = T1{a: "foo" /* ERROR "cannot use .* in struct literal" */ }
 	_ = T1{c /* ERROR "unknown field" */ : 0}
 	_ = T1{T0: { /* ERROR "missing type" */ }} // struct literal element type may not be elided
 	_ = T1{T0: T0{}}
@@ -195,7 +196,7 @@ func struct_literals() {
 	_ = T0{1, b /* ERROR "mixture" */ : 2, 3}
 	_ = T0{1, 2} /* ERROR "too few values" */
 	_ = T0{1, 2, 3, 4  /* ERROR "too many values" */ }
-	_ = T0{1, "foo" /* ERROR "cannot convert" */, 3.4  /* ERROR "truncated" */}
+	_ = T0{1, "foo" /* ERROR "cannot use .* in struct literal" */, 3.4  /* ERROR "cannot use .*\(truncated\)" */}
 
 	// invalid type
 	type P *struct{
@@ -235,7 +236,7 @@ func array_literals() {
 	_ = A1{5: 5, 6, 7, 4: 4, 1 /* ERROR "overflows" */ <<100: 4}
 	_ = A1{2.0}
 	_ = A1{2.1 /* ERROR "truncated" */ }
-	_ = A1{"foo" /* ERROR "cannot convert" */ }
+	_ = A1{"foo" /* ERROR "cannot use .* in array or slice literal" */ }
 
 	// indices must be integer constants
 	i := 1
@@ -301,7 +302,7 @@ func slice_literals() {
 	_ = S0{5: 5, 6, 7, 4: 4, 1 /* ERROR "overflows" */ <<100: 4}
 	_ = S0{2.0}
 	_ = S0{2.1 /* ERROR "truncated" */ }
-	_ = S0{"foo" /* ERROR "cannot convert" */ }
+	_ = S0{"foo" /* ERROR "cannot use .* in array or slice literal" */ }
 
 	// indices must be resolved correctly
 	const index1 = 1
@@ -354,8 +355,8 @@ func map_literals() {
 
 	_ = M0{}
 	_ = M0{1 /* ERROR "missing key" */ }
-	_ = M0{1 /* ERROR "cannot convert" */ : 2}
-	_ = M0{"foo": "bar" /* ERROR "cannot convert" */ }
+	_ = M0{1 /* ERROR "cannot use .* in map literal" */ : 2}
+	_ = M0{"foo": "bar" /* ERROR "cannot use .* in map literal" */ }
 	_ = M0{"foo": 1, "bar": 2, "foo" /* ERROR "duplicate key" */ : 3 }
 
 	_ = map[interface{}]int{2: 1, 2 /* ERROR "duplicate key" */ : 1}
@@ -491,26 +492,26 @@ func _calls() {
 	f1(0)
 	f1(x)
 	f1(10.0)
-	f1() /* ERROR "too few arguments" */
+	f1() /* ERROR "not enough arguments" */
 	f1(x, y /* ERROR "too many arguments" */ )
 	f1(s /* ERROR "cannot use .* in argument" */ )
 	f1(x ... /* ERROR "cannot use ..." */ )
 	f1(g0 /* ERROR "used as value" */ ())
 	f1(g1())
-	f1(g2 /* ERROR "cannot use g2" */ /* ERROR "too many arguments" */ ())
+	f1(g2 /* ERROR "too many arguments" */ ())
 
-	f2() /* ERROR "too few arguments" */
-	f2(3.14) /* ERROR "too few arguments" */
+	f2() /* ERROR "not enough arguments" */
+	f2(3.14) /* ERROR "not enough arguments" */
 	f2(3.14, "foo")
 	f2(x /* ERROR "cannot use .* in argument" */ , "foo")
 	f2(g0 /* ERROR "used as value" */ ())
-	f2(g1 /* ERROR "cannot use .* in argument" */ ()) /* ERROR "too few arguments" */
+	f2(g1()) /* ERROR "not enough arguments" */
 	f2(g2())
 
-	fs() /* ERROR "too few arguments" */
+	fs() /* ERROR "not enough arguments" */
 	fs(g0 /* ERROR "used as value" */ ())
 	fs(g1 /* ERROR "cannot use .* in argument" */ ())
-	fs(g2 /* ERROR "cannot use .* in argument" */ /* ERROR "too many arguments" */ ())
+	fs(g2 /* ERROR "too many arguments" */ ())
 	fs(gs())
 
 	fv()
@@ -518,7 +519,7 @@ func _calls() {
 	fv(s /* ERROR "cannot use .* in argument" */ )
 	fv(s...)
 	fv(x /* ERROR "cannot use" */ ...)
-	fv(1, s... /* ERROR "can only use ... with matching parameter" */ )
+	fv(1, s /* ERROR "too many arguments" */ ...)
 	fv(gs /* ERROR "cannot use .* in argument" */ ())
 	fv(gs /* ERROR "cannot use .* in argument" */ ()...)
 
@@ -527,7 +528,7 @@ func _calls() {
 	t.fm(1, 2.0, x)
 	t.fm(s /* ERROR "cannot use .* in argument" */ )
 	t.fm(g1())
-	t.fm(1, s... /* ERROR "can only use ... with matching parameter" */ )
+	t.fm(1, s /* ERROR "too many arguments" */ ...)
 	t.fm(gs /* ERROR "cannot use .* in argument" */ ())
 	t.fm(gs /* ERROR "cannot use .* in argument" */ ()...)
 
@@ -535,7 +536,7 @@ func _calls() {
 	T.fm(t, 1, 2.0, x)
 	T.fm(t, s /* ERROR "cannot use .* in argument" */ )
 	T.fm(t, g1())
-	T.fm(t, 1, s... /* ERROR "can only use ... with matching parameter" */ )
+	T.fm(t, 1, s /* ERROR "too many arguments" */ ...)
 	T.fm(t, gs /* ERROR "cannot use .* in argument" */ ())
 	T.fm(t, gs /* ERROR "cannot use .* in argument" */ ()...)
 
@@ -544,7 +545,7 @@ func _calls() {
 	i.fm(1, 2.0, x)
 	i.fm(s /* ERROR "cannot use .* in argument" */ )
 	i.fm(g1())
-	i.fm(1, s... /* ERROR "can only use ... with matching parameter" */ )
+	i.fm(1, s /* ERROR "too many arguments" */ ...)
 	i.fm(gs /* ERROR "cannot use .* in argument" */ ())
 	i.fm(gs /* ERROR "cannot use .* in argument" */ ()...)
 

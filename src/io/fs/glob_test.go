@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,6 +7,7 @@ package fs_test
 import (
 	. "io/fs"
 	"os"
+	"path"
 	"testing"
 )
 
@@ -16,6 +17,7 @@ var globTests = []struct {
 }{
 	{os.DirFS("."), "glob.go", "glob.go"},
 	{os.DirFS("."), "gl?b.go", "glob.go"},
+	{os.DirFS("."), `gl\ob.go`, "glob.go"},
 	{os.DirFS("."), "*", "glob.go"},
 	{os.DirFS(".."), "*/glob.go", "fs/glob.go"},
 }
@@ -31,7 +33,7 @@ func TestGlob(t *testing.T) {
 			t.Errorf("Glob(%#q) = %#v want %v", tt.pattern, matches, tt.result)
 		}
 	}
-	for _, pattern := range []string{"no_match", "../*/no_match"} {
+	for _, pattern := range []string{"no_match", "../*/no_match", `\*`} {
 		matches, err := Glob(os.DirFS("."), pattern)
 		if err != nil {
 			t.Errorf("Glob error for %q: %s", pattern, err)
@@ -44,9 +46,12 @@ func TestGlob(t *testing.T) {
 }
 
 func TestGlobError(t *testing.T) {
-	_, err := Glob(os.DirFS("."), "[]")
-	if err == nil {
-		t.Error("expected error for bad pattern; got none")
+	bad := []string{`[]`, `nonexist/[]`}
+	for _, pattern := range bad {
+		_, err := Glob(os.DirFS("."), pattern)
+		if err != path.ErrBadPattern {
+			t.Errorf("Glob(fs, %#q) returned err=%v, want path.ErrBadPattern", pattern, err)
+		}
 	}
 }
 

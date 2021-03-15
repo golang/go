@@ -69,7 +69,7 @@ a version on the left side is dropped.
 
 The -retract=version and -dropretract=version flags add and drop a
 retraction on the given version. The version may be a single version
-like "v1.2.3" or a closed interval like "[v1.1.0-v1.1.9]". Note that
+like "v1.2.3" or a closed interval like "[v1.1.0,v1.1.9]". Note that
 -retract=version is a no-op if that retraction already exists.
 
 The -require, -droprequire, -exclude, -dropexclude, -replace,
@@ -95,6 +95,7 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
 		Require []Require
 		Exclude []Module
 		Replace []Replace
+		Retract []Retract
 	}
 
 	type Require struct {
@@ -121,9 +122,7 @@ Note that this only describes the go.mod file itself, not other modules
 referred to indirectly. For the full set of modules available to a build,
 use 'go list -m -json all'.
 
-For example, a tool can obtain the go.mod as a data structure by
-parsing the output of 'go mod edit -json' and can then make changes
-by invoking 'go mod edit' with -require, -exclude, and so on.
+See https://golang.org/ref/mod#go-mod-edit for more about 'go mod edit'.
 	`,
 }
 

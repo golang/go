@@ -26,6 +26,7 @@ func MakePos(base *PosBase, line, col uint) Pos { return Pos{base, sat32(line), 
 // TODO(gri) IsKnown makes an assumption about linebase < 1.
 //           Maybe we should check for Base() != nil instead.
 
+func (pos Pos) Pos() Pos       { return pos }
 func (pos Pos) IsKnown() bool  { return pos.line > 0 }
 func (pos Pos) Base() *PosBase { return pos.base }
 func (pos Pos) Line() uint     { return uint(pos.line) }

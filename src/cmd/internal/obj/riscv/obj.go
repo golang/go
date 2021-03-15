@@ -25,6 +25,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"fmt"
+	"log"
 )
 
 func buildop(ctxt *obj.Link) {}
@@ -33,7 +34,7 @@ func buildop(ctxt *obj.Link) {}
 // lr is the link register to use for the JALR.
 // p must be a CALL, JMP or RET.
 func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *obj.Prog {
-	if p.As != obj.ACALL && p.As != obj.AJMP && p.As != obj.ARET {
+	if p.As != obj.ACALL && p.As != obj.AJMP && p.As != obj.ARET && p.As != obj.ADUFFZERO && p.As != obj.ADUFFCOPY {
 		ctxt.Diag("unexpected Prog in jalrToSym: %v", p)
 		return p
 	}
@@ -48,7 +49,7 @@ func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *ob
 
 	p.As = AAUIPC
 	p.Mark |= NEED_PCREL_ITYPE_RELOC
-	p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: to.Offset, Sym: to.Sym}}
+	p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: to.Offset, Sym: to.Sym})
 	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 	p.Reg = 0
 	p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
@@ -119,7 +120,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			switch p.To.Name {
 			case obj.NAME_NONE:
 				p.As = AJALR
-			case obj.NAME_EXTERN:
+			case obj.NAME_EXTERN, obj.NAME_STATIC:
 				// Handled in preprocess.
 			default:
 				ctxt.Diag("unsupported name %d for %v", p.To.Name, p)
@@ -234,7 +235,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 
 			p.As = AAUIPC
 			p.Mark |= NEED_PCREL_ITYPE_RELOC
-			p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym}}
+			p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym})
 			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 			p.Reg = 0
 			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: to.Reg}
@@ -252,19 +253,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 		switch p.To.Type {
 		case obj.TYPE_REG:
 			switch p.As {
-			case AMOV: // MOV Ra, Rb -> ADDI $0, Ra, Rb
-				p.As = AADDI
-				p.Reg = p.From.Reg
-				p.From = obj.Addr{Type: obj.TYPE_CONST}
-
-			case AMOVF: // MOVF Ra, Rb -> FSGNJS Ra, Ra, Rb
-				p.As = AFSGNJS
-				p.Reg = p.From.Reg
-
-			case AMOVD: // MOVD Ra, Rb -> FSGNJD Ra, Ra, Rb
-				p.As = AFSGNJD
-				p.Reg = p.From.Reg
-
+			case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
 			default:
 				ctxt.Diag("unsupported register-register move at %v", p)
 			}
@@ -279,7 +268,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 				p.As = movToStore(p.As)
 				p.To.Reg = addrToReg(p.To)
 
-			case obj.NAME_EXTERN:
+			case obj.NAME_EXTERN, obj.NAME_STATIC:
 				// AUIPC $off_hi, TMP
 				// S $off_lo, TMP, R
 				as := p.As
@@ -287,7 +276,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 
 				p.As = AAUIPC
 				p.Mark |= NEED_PCREL_STYPE_RELOC
-				p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym}}
+				p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym})
 				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 				p.Reg = 0
 				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
@@ -313,7 +302,10 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 		//   LUI top20bits(c), R
 		//   ADD bottom12bits(c), R, R
 		if p.As != AMOV {
-			ctxt.Diag("unsupported constant load at %v", p)
+			ctxt.Diag("%v: unsupported constant load", p)
+		}
+		if p.To.Type != obj.TYPE_REG {
+			ctxt.Diag("%v: constant load must target register", p)
 		}
 		off := p.From.Offset
 		to := p.To
@@ -352,7 +344,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 
 			p.As = AAUIPC
 			p.Mark |= NEED_PCREL_ITYPE_RELOC
-			p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym}}
+			p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym})
 			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 			p.Reg = 0
 			p.To = to
@@ -429,7 +421,7 @@ func containsCall(sym *obj.LSym) bool {
 	// CALLs are CALL or JAL(R) with link register LR.
 	for p := sym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
-		case obj.ACALL:
+		case obj.ACALL, obj.ADUFFZERO, obj.ADUFFCOPY:
 			return true
 		case AJAL, AJALR:
 			if p.From.Type == obj.TYPE_REG && p.From.Reg == REG_LR {
@@ -668,7 +660,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.From.Reg = REG_SP
 			}
 
-		case obj.ACALL:
+		case obj.ACALL, obj.ADUFFZERO, obj.ADUFFCOPY:
 			switch p.To.Type {
 			case obj.TYPE_MEM:
 				jalrToSym(ctxt, p, newprog, REG_LR)
@@ -678,7 +670,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			switch p.To.Type {
 			case obj.TYPE_MEM:
 				switch p.To.Name {
-				case obj.NAME_EXTERN:
+				case obj.NAME_EXTERN, obj.NAME_STATIC:
 					// JMP to symbol.
 					jalrToSym(ctxt, p, newprog, REG_ZERO)
 				}
@@ -726,6 +718,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			// Refine Spadjs account for adjustment via ADDI instruction.
 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_SP && p.From.Type == obj.TYPE_CONST {
 				p.Spadj = int32(-p.From.Offset)
+			}
+		}
+
+		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
+			f := cursym.Func()
+			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
+				f.FuncFlag |= objabi.FuncFlag_SPWRITE
+				if ctxt.Debugvlog || !ctxt.IsAsm {
+					ctxt.Logf("auto-SPWRITE: %s %v\n", cursym.Name, p)
+					if !ctxt.IsAsm {
+						ctxt.Diag("invalid auto-SPWRITE in non-assembly")
+						ctxt.DiagFlush()
+						log.Fatalf("bad SPWRITE")
+					}
+				}
 			}
 		}
 	}
@@ -1708,6 +1715,8 @@ var encodings = [ALAST & obj.AMask]encoding{
 	obj.APCDATA:   pseudoOpEncoding,
 	obj.ATEXT:     pseudoOpEncoding,
 	obj.ANOP:      pseudoOpEncoding,
+	obj.ADUFFZERO: pseudoOpEncoding,
+	obj.ADUFFCOPY: pseudoOpEncoding,
 }
 
 // encodingForAs returns the encoding for an obj.As.
@@ -1787,15 +1796,15 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		case ABGEZ:
 			ins.as, ins.rs1, ins.rs2 = ABGE, REG_ZERO, uint32(p.From.Reg)
 		case ABGT:
-			ins.as, ins.rs1, ins.rs2 = ABLT, uint32(p.Reg), uint32(p.From.Reg)
+			ins.as, ins.rs1, ins.rs2 = ABLT, uint32(p.From.Reg), uint32(p.Reg)
 		case ABGTU:
-			ins.as, ins.rs1, ins.rs2 = ABLTU, uint32(p.Reg), uint32(p.From.Reg)
+			ins.as, ins.rs1, ins.rs2 = ABLTU, uint32(p.From.Reg), uint32(p.Reg)
 		case ABGTZ:
 			ins.as, ins.rs1, ins.rs2 = ABLT, uint32(p.From.Reg), REG_ZERO
 		case ABLE:
-			ins.as, ins.rs1, ins.rs2 = ABGE, uint32(p.Reg), uint32(p.From.Reg)
+			ins.as, ins.rs1, ins.rs2 = ABGE, uint32(p.From.Reg), uint32(p.Reg)
 		case ABLEU:
-			ins.as, ins.rs1, ins.rs2 = ABGEU, uint32(p.Reg), uint32(p.From.Reg)
+			ins.as, ins.rs1, ins.rs2 = ABGEU, uint32(p.From.Reg), uint32(p.Reg)
 		case ABLEZ:
 			ins.as, ins.rs1, ins.rs2 = ABGE, uint32(p.From.Reg), REG_ZERO
 		case ABLTZ:
@@ -1804,6 +1813,44 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 			ins.as, ins.rs1, ins.rs2 = ABNE, REG_ZERO, uint32(p.From.Reg)
 		}
 		ins.imm = p.To.Offset
+
+	case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
+		// Handle register to register moves.
+		if p.From.Type != obj.TYPE_REG || p.To.Type != obj.TYPE_REG {
+			break
+		}
+		switch p.As {
+		case AMOV: // MOV Ra, Rb -> ADDI $0, Ra, Rb
+			ins.as, ins.rs1, ins.rs2, ins.imm = AADDI, uint32(p.From.Reg), obj.REG_NONE, 0
+		case AMOVW: // MOVW Ra, Rb -> ADDIW $0, Ra, Rb
+			ins.as, ins.rs1, ins.rs2, ins.imm = AADDIW, uint32(p.From.Reg), obj.REG_NONE, 0
+		case AMOVBU: // MOVBU Ra, Rb -> ANDI $255, Ra, Rb
+			ins.as, ins.rs1, ins.rs2, ins.imm = AANDI, uint32(p.From.Reg), obj.REG_NONE, 255
+		case AMOVF: // MOVF Ra, Rb -> FSGNJS Ra, Ra, Rb
+			ins.as, ins.rs1 = AFSGNJS, uint32(p.From.Reg)
+		case AMOVD: // MOVD Ra, Rb -> FSGNJD Ra, Ra, Rb
+			ins.as, ins.rs1 = AFSGNJD, uint32(p.From.Reg)
+		case AMOVB, AMOVH:
+			// Use SLLI/SRAI to extend.
+			ins.as, ins.rs1, ins.rs2 = ASLLI, uint32(p.From.Reg), obj.REG_NONE
+			if p.As == AMOVB {
+				ins.imm = 56
+			} else if p.As == AMOVH {
+				ins.imm = 48
+			}
+			ins2 := &instruction{as: ASRAI, rd: ins.rd, rs1: ins.rd, imm: ins.imm}
+			inss = append(inss, ins2)
+		case AMOVHU, AMOVWU:
+			// Use SLLI/SRLI to extend.
+			ins.as, ins.rs1, ins.rs2 = ASLLI, uint32(p.From.Reg), obj.REG_NONE
+			if p.As == AMOVHU {
+				ins.imm = 48
+			} else if p.As == AMOVWU {
+				ins.imm = 32
+			}
+			ins2 := &instruction{as: ASRLI, rd: ins.rd, rs1: ins.rd, imm: ins.imm}
+			inss = append(inss, ins2)
+		}
 
 	case ALW, ALWU, ALH, ALHU, ALB, ALBU, ALD, AFLW, AFLD:
 		if p.From.Type != obj.TYPE_MEM {
@@ -1859,13 +1906,13 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		} else {
 			ins.as = AFEQD
 		}
-		ins = &instruction{
+		ins2 := &instruction{
 			as:  AXORI, // [bit] xor 1 = not [bit]
 			rd:  ins.rd,
 			rs1: ins.rd,
 			imm: 1,
 		}
-		inss = append(inss, ins)
+		inss = append(inss, ins2)
 
 	case AFSQRTS, AFSQRTD:
 		// These instructions expect a zero (i.e. float register 0)
@@ -1957,6 +2004,13 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if addr.Sym == nil {
 				ctxt.Diag("AUIPC needing PC-relative reloc missing symbol")
 				break
+			}
+			if addr.Sym.Type == objabi.STLSBSS {
+				if rt == objabi.R_RISCV_PCREL_ITYPE {
+					rt = objabi.R_RISCV_TLS_IE_ITYPE
+				} else if rt == objabi.R_RISCV_PCREL_STYPE {
+					rt = objabi.R_RISCV_TLS_IE_STYPE
+				}
 			}
 
 			rel := obj.Addrel(cursym)

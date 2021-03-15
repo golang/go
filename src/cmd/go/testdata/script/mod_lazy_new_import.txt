@@ -32,7 +32,7 @@ cmp go.mod go.mod.old
 cp lazy.go.new lazy.go
 go list all
 go list -m all
-stdout '^example.com/c v0.1.0' # not v0.2.0 as would be be resolved by 'latest'
+stdout '^example.com/c v0.1.0' # not v0.2.0 as would be resolved by 'latest'
 cmp go.mod go.mod.old
 
 # TODO(#36460):

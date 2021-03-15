@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 // runtime·duffzero is a Duff's device for zeroing memory.
@@ -27,8 +28,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
+	"os"
 )
 
 func main() {
@@ -38,6 +39,7 @@ func main() {
 	gen("arm64", notags, zeroARM64, copyARM64)
 	gen("ppc64x", tagsPPC64x, zeroPPC64x, copyPPC64x)
 	gen("mips64x", tagsMIPS64x, zeroMIPS64x, copyMIPS64x)
+	gen("riscv64", notags, zeroRISCV64, copyRISCV64)
 }
 
 func gen(arch string, tags, zero, copy func(io.Writer)) {
@@ -53,7 +55,7 @@ func gen(arch string, tags, zero, copy func(io.Writer)) {
 	fmt.Fprintln(&buf)
 	copy(&buf)
 
-	if err := ioutil.WriteFile("duff_"+arch+".s", buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile("duff_"+arch+".s", buf.Bytes(), 0644); err != nil {
 		log.Fatalln(err)
 	}
 }
@@ -61,15 +63,15 @@ func gen(arch string, tags, zero, copy func(io.Writer)) {
 func notags(w io.Writer) { fmt.Fprintln(w) }
 
 func zeroAMD64(w io.Writer) {
-	// X0: zero
+	// X15: zero
 	// DI: ptr to memory to be zeroed
 	// DI is updated as a side effect.
-	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $0-0")
+	fmt.Fprintln(w, "TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT, $0-0")
 	for i := 0; i < 16; i++ {
-		fmt.Fprintln(w, "\tMOVUPS\tX0,(DI)")
-		fmt.Fprintln(w, "\tMOVUPS\tX0,16(DI)")
-		fmt.Fprintln(w, "\tMOVUPS\tX0,32(DI)")
-		fmt.Fprintln(w, "\tMOVUPS\tX0,48(DI)")
+		fmt.Fprintln(w, "\tMOVUPS\tX15,(DI)")
+		fmt.Fprintln(w, "\tMOVUPS\tX15,16(DI)")
+		fmt.Fprintln(w, "\tMOVUPS\tX15,32(DI)")
+		fmt.Fprintln(w, "\tMOVUPS\tX15,48(DI)")
 		fmt.Fprintln(w, "\tLEAQ\t64(DI),DI") // We use lea instead of add, to avoid clobbering flags
 		fmt.Fprintln(w)
 	}
@@ -83,7 +85,7 @@ func copyAMD64(w io.Writer) {
 	//
 	// This is equivalent to a sequence of MOVSQ but
 	// for some reason that is 3.5x slower than this code.
-	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT, $0-0")
+	fmt.Fprintln(w, "TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT, $0-0")
 	for i := 0; i < 64; i++ {
 		fmt.Fprintln(w, "\tMOVUPS\t(SI), X0")
 		fmt.Fprintln(w, "\tADDQ\t$16, SI")
@@ -223,6 +225,33 @@ func copyMIPS64x(w io.Writer) {
 		fmt.Fprintln(w, "\tADDV\t$8, R1")
 		fmt.Fprintln(w, "\tMOVV\tR23, (R2)")
 		fmt.Fprintln(w, "\tADDV\t$8, R2")
+		fmt.Fprintln(w)
+	}
+	fmt.Fprintln(w, "\tRET")
+}
+
+func zeroRISCV64(w io.Writer) {
+	// ZERO: always zero
+	// X10: ptr to memory to be zeroed
+	// X10 is updated as a side effect.
+	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
+	for i := 0; i < 128; i++ {
+		fmt.Fprintln(w, "\tMOV\tZERO, (X10)")
+		fmt.Fprintln(w, "\tADD\t$8, X10")
+	}
+	fmt.Fprintln(w, "\tRET")
+}
+
+func copyRISCV64(w io.Writer) {
+	// X10: ptr to source memory
+	// X11: ptr to destination memory
+	// X10 and X11 are updated as a side effect
+	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
+	for i := 0; i < 128; i++ {
+		fmt.Fprintln(w, "\tMOV\t(X10), X31")
+		fmt.Fprintln(w, "\tADD\t$8, X10")
+		fmt.Fprintln(w, "\tMOV\tX31, (X11)")
+		fmt.Fprintln(w, "\tADD\t$8, X11")
 		fmt.Fprintln(w)
 	}
 	fmt.Fprintln(w, "\tRET")

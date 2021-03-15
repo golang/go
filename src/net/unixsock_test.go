@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !js && !plan9 && !windows
 // +build !js,!plan9,!windows
 
 package net
@@ -9,7 +10,6 @@ package net
 import (
 	"bytes"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"runtime"
@@ -417,7 +417,7 @@ func TestUnixUnlink(t *testing.T) {
 		checkExists(t, "after Listen")
 		l.Close()
 		checkNotExists(t, "after Listener close")
-		if err := ioutil.WriteFile(name, []byte("hello world"), 0666); err != nil {
+		if err := os.WriteFile(name, []byte("hello world"), 0666); err != nil {
 			t.Fatalf("cannot recreate socket file: %v", err)
 		}
 		checkExists(t, "after writing temp file")

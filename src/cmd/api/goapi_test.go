@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -75,7 +74,7 @@ func TestGolden(t *testing.T) {
 			f.Close()
 		}
 
-		bs, err := ioutil.ReadFile(goldenFile)
+		bs, err := os.ReadFile(goldenFile)
 		if err != nil {
 			t.Fatalf("opening golden.txt for package %q: %v", fi.Name(), err)
 		}

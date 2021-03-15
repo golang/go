@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -52,7 +51,7 @@ func pkgPath(a *Action) string {
 	return ppath
 }
 
-func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
+func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
 	p := a.Package
 	objdir := a.Objdir
 	if archive != "" {
@@ -89,7 +88,11 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, s
 	extFiles := len(p.CgoFiles) + len(p.CFiles) + len(p.CXXFiles) + len(p.MFiles) + len(p.FFiles) + len(p.SFiles) + len(p.SysoFiles) + len(p.SwigFiles) + len(p.SwigCXXFiles)
 	if p.Standard {
 		switch p.ImportPath {
-		case "bytes", "internal/poll", "net", "os", "runtime/pprof", "runtime/trace", "sync", "syscall", "time":
+		case "bytes", "internal/poll", "net", "os":
+			fallthrough
+		case "runtime/metrics", "runtime/pprof", "runtime/trace":
+			fallthrough
+		case "sync", "syscall", "time":
 			extFiles++
 		}
 	}
@@ -126,12 +129,22 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, s
 		}
 	}
 
-	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), gcflags, gcargs, "-D", p.Internal.LocalPrefix}
+	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), gcflags, gcargs}
+	if p.Internal.LocalPrefix != "" {
+		// Workaround #43883.
+		args = append(args, "-D", p.Internal.LocalPrefix)
+	}
 	if importcfg != nil {
 		if err := b.writeFile(objdir+"importcfg", importcfg); err != nil {
 			return "", nil, err
 		}
 		args = append(args, "-importcfg", objdir+"importcfg")
+	}
+	if embedcfg != nil {
+		if err := b.writeFile(objdir+"embedcfg", embedcfg); err != nil {
+			return "", nil, err
+		}
+		args = append(args, "-embedcfg", objdir+"embedcfg")
 	}
 	if ofile == archive {
 		args = append(args, "-pack")
@@ -226,16 +239,19 @@ CheckFlags:
 	//   - it has no successor packages to compile (usually package main)
 	//   - all paths through the build graph pass through it
 	//   - critical path scheduling says it is high priority
-	// and in such a case, set c to runtime.NumCPU.
+	// and in such a case, set c to runtime.GOMAXPROCS(0).
+	// By default this is the same as runtime.NumCPU.
 	// We do this now when p==1.
+	// To limit parallelism, set GOMAXPROCS below numCPU; this may be useful
+	// on a low-memory builder, or if a deterministic build order is required.
+	c := runtime.GOMAXPROCS(0)
 	if cfg.BuildP == 1 {
-		// No process parallelism. Max out c.
-		return runtime.NumCPU()
+		// No process parallelism, do not cap compiler parallelism.
+		return c
 	}
-	// Some process parallelism. Set c to min(4, numcpu).
-	c := 4
-	if ncpu := runtime.NumCPU(); ncpu < c {
-		c = ncpu
+	// Some process parallelism. Set c to min(4, maxprocs).
+	if c > 4 {
+		c = 4
 	}
 	return c
 }
@@ -252,7 +268,7 @@ func (a *Action) trimpath() string {
 	if len(objdir) > 1 && objdir[len(objdir)-1] == filepath.Separator {
 		objdir = objdir[:len(objdir)-1]
 	}
-	rewrite := objdir + "=>"
+	rewrite := ""
 
 	rewriteDir := a.Package.Dir
 	if cfg.BuildTrimpath {
@@ -261,21 +277,54 @@ func (a *Action) trimpath() string {
 		} else {
 			rewriteDir = a.Package.ImportPath
 		}
-		rewrite += ";" + a.Package.Dir + "=>" + rewriteDir
+		rewrite += a.Package.Dir + "=>" + rewriteDir + ";"
 	}
 
 	// Add rewrites for overlays. The 'from' and 'to' paths in overlays don't need to have
 	// same basename, so go from the overlay contents file path (passed to the compiler)
 	// to the path the disk path would be rewritten to.
+
+	cgoFiles := make(map[string]bool)
+	for _, f := range a.Package.CgoFiles {
+		cgoFiles[f] = true
+	}
+
+	// TODO(matloob): Higher up in the stack, when the logic for deciding when to make copies
+	// of c/c++/m/f/hfiles is consolidated, use the same logic that Build uses to determine
+	// whether to create the copies in objdir to decide whether to rewrite objdir to the
+	// package directory here.
+	var overlayNonGoRewrites string // rewrites for non-go files
+	hasCgoOverlay := false
 	if fsys.OverlayFile != "" {
 		for _, filename := range a.Package.AllFiles() {
-			overlayPath, ok := fsys.OverlayPath(filepath.Join(a.Package.Dir, filename))
-			if !ok {
-				continue
+			path := filename
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(a.Package.Dir, path)
 			}
-			rewrite += ";" + overlayPath + "=>" + filepath.Join(rewriteDir, filename)
+			base := filepath.Base(path)
+			isGo := strings.HasSuffix(filename, ".go") || strings.HasSuffix(filename, ".s")
+			isCgo := cgoFiles[filename] || !isGo
+			overlayPath, isOverlay := fsys.OverlayPath(path)
+			if isCgo && isOverlay {
+				hasCgoOverlay = true
+			}
+			if !isCgo && isOverlay {
+				rewrite += overlayPath + "=>" + filepath.Join(rewriteDir, base) + ";"
+			} else if isCgo {
+				// Generate rewrites for non-Go files copied to files in objdir.
+				if filepath.Dir(path) == a.Package.Dir {
+					// This is a file copied to objdir.
+					overlayNonGoRewrites += filepath.Join(objdir, base) + "=>" + filepath.Join(rewriteDir, base) + ";"
+				}
+			} else {
+				// Non-overlay Go files are covered by the a.Package.Dir rewrite rule above.
+			}
 		}
 	}
+	if hasCgoOverlay {
+		rewrite += overlayNonGoRewrites
+	}
+	rewrite += objdir + "=>"
 
 	return rewrite
 }
@@ -294,18 +343,6 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
 	}
 	if objabi.IsRuntimePackagePath(pkgpath) {
 		args = append(args, "-compiling-runtime")
-		if objabi.Regabi_enabled != 0 {
-			// In order to make it easier to port runtime assembly
-			// to the register ABI, we introduce a macro
-			// indicating the experiment is enabled.
-			//
-			// Note: a similar change also appears in
-			// cmd/dist/build.go.
-			//
-			// TODO(austin): Remove this once we commit to the
-			// register ABI (#40724).
-			args = append(args, "-D=GOEXPERIMENT_REGABI=1")
-		}
 	}
 
 	if cfg.Goarch == "mips" || cfg.Goarch == "mipsle" {
@@ -327,9 +364,10 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 
 	var ofiles []string
 	for _, sfile := range sfiles {
+		overlayPath, _ := fsys.OverlayPath(mkAbs(p.Dir, sfile))
 		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
 		ofiles = append(ofiles, ofile)
-		args1 := append(args, "-o", ofile, mkAbs(p.Dir, sfile))
+		args1 := append(args, "-o", ofile, overlayPath)
 		if err := b.run(a, p.Dir, p.ImportPath, nil, args1...); err != nil {
 			return nil, err
 		}
@@ -345,7 +383,8 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
 			if p.ImportPath == "runtime/cgo" && strings.HasPrefix(sfile, "gcc_") {
 				continue
 			}
-			args = append(args, mkAbs(p.Dir, sfile))
+			op, _ := fsys.OverlayPath(mkAbs(p.Dir, sfile))
+			args = append(args, op)
 		}
 
 		// Supply an empty go_asm.h as if the compiler had been run.
@@ -381,11 +420,11 @@ func toolVerify(a *Action, b *Builder, p *load.Package, newTool string, ofile st
 	if err := b.run(a, p.Dir, p.ImportPath, nil, newArgs...); err != nil {
 		return err
 	}
-	data1, err := ioutil.ReadFile(ofile)
+	data1, err := os.ReadFile(ofile)
 	if err != nil {
 		return err
 	}
-	data2, err := ioutil.ReadFile(ofile + ".new")
+	data2, err := os.ReadFile(ofile + ".new")
 	if err != nil {
 		return err
 	}
@@ -535,7 +574,7 @@ func pluginPath(a *Action) string {
 	}
 	fmt.Fprintf(h, "build ID: %s\n", buildID)
 	for _, file := range str.StringList(p.GoFiles, p.CgoFiles, p.SFiles) {
-		data, err := ioutil.ReadFile(filepath.Join(p.Dir, file))
+		data, err := os.ReadFile(filepath.Join(p.Dir, file))
 		if err != nil {
 			base.Fatalf("go: %s", err)
 		}

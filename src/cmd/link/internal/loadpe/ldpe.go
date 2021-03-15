@@ -6,6 +6,7 @@
 package loadpe
 
 import (
+	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -114,6 +115,24 @@ const (
 	IMAGE_REL_THUMB_BRANCH24         = 0x0014
 	IMAGE_REL_THUMB_BLX23            = 0x0015
 	IMAGE_REL_ARM_PAIR               = 0x0016
+	IMAGE_REL_ARM64_ABSOLUTE         = 0x0000
+	IMAGE_REL_ARM64_ADDR32           = 0x0001
+	IMAGE_REL_ARM64_ADDR32NB         = 0x0002
+	IMAGE_REL_ARM64_BRANCH26         = 0x0003
+	IMAGE_REL_ARM64_PAGEBASE_REL21   = 0x0004
+	IMAGE_REL_ARM64_REL21            = 0x0005
+	IMAGE_REL_ARM64_PAGEOFFSET_12A   = 0x0006
+	IMAGE_REL_ARM64_PAGEOFFSET_12L   = 0x0007
+	IMAGE_REL_ARM64_SECREL           = 0x0008
+	IMAGE_REL_ARM64_SECREL_LOW12A    = 0x0009
+	IMAGE_REL_ARM64_SECREL_HIGH12A   = 0x000A
+	IMAGE_REL_ARM64_SECREL_LOW12L    = 0x000B
+	IMAGE_REL_ARM64_TOKEN            = 0x000C
+	IMAGE_REL_ARM64_SECTION          = 0x000D
+	IMAGE_REL_ARM64_ADDR64           = 0x000E
+	IMAGE_REL_ARM64_BRANCH19         = 0x000F
+	IMAGE_REL_ARM64_BRANCH14         = 0x0010
+	IMAGE_REL_ARM64_REL32            = 0x0011
 )
 
 // TODO(crawshaw): de-duplicate these symbols with cmd/internal/ld, ideally in debug/pe.
@@ -156,8 +175,9 @@ func makeUpdater(l *loader.Loader, bld *loader.SymbolBuilder, s loader.Sym) *loa
 
 // Load loads the PE file pn from input.
 // Symbols are written into syms, and a slice of the text symbols is returned.
-// If an .rsrc section is found, its symbol is returned as rsrc.
-func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []loader.Sym, rsrc loader.Sym, err error) {
+// If an .rsrc section or set of .rsrc$xx sections is found, its symbols are
+// returned as rsrc.
+func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []loader.Sym, rsrc []loader.Sym, err error) {
 	lookup := func(name string, version int) (*loader.SymbolBuilder, loader.Sym) {
 		s := l.LookupOrCreateSym(name, version)
 		sb := l.MakeSymbolUpdater(s)
@@ -175,7 +195,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 	// TODO: replace pe.NewFile with pe.Load (grep for "add Load function" in debug/pe for details)
 	f, err := pe.NewFile(sr)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, err
 	}
 	defer f.Close()
 
@@ -210,21 +230,21 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			bld.SetType(sym.STEXT)
 
 		default:
-			return nil, 0, fmt.Errorf("unexpected flags %#06x for PE section %s", sect.Characteristics, sect.Name)
+			return nil, nil, fmt.Errorf("unexpected flags %#06x for PE section %s", sect.Characteristics, sect.Name)
 		}
 
 		if bld.Type() != sym.SNOPTRBSS {
 			data, err := sect.Data()
 			if err != nil {
-				return nil, 0, err
+				return nil, nil, err
 			}
 			sectdata[sect] = data
 			bld.SetData(data)
 		}
 		bld.SetSize(int64(sect.Size))
 		sectsyms[sect] = s
-		if sect.Name == ".rsrc" {
-			rsrc = s
+		if sect.Name == ".rsrc" || strings.HasPrefix(sect.Name, ".rsrc$") {
+			rsrc = append(rsrc, s)
 		}
 	}
 
@@ -245,22 +265,23 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			continue
 		}
 
+		splitResources := strings.HasPrefix(rsect.Name, ".rsrc$")
 		sb := l.MakeSymbolUpdater(sectsyms[rsect])
 		for j, r := range rsect.Relocs {
 			if int(r.SymbolTableIndex) >= len(f.COFFSymbols) {
-				return nil, 0, fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
+				return nil, nil, fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
 			}
 			pesym := &f.COFFSymbols[r.SymbolTableIndex]
 			_, gosym, err := readpesym(l, arch, l.LookupOrCreateSym, f, pesym, sectsyms, localSymVersion)
 			if err != nil {
-				return nil, 0, err
+				return nil, nil, err
 			}
 			if gosym == 0 {
 				name, err := pesym.FullName(f.StringTable)
 				if err != nil {
 					name = string(pesym.Name[:])
 				}
-				return nil, 0, fmt.Errorf("reloc of invalid sym %s idx=%d type=%d", name, r.SymbolTableIndex, pesym.Type)
+				return nil, nil, fmt.Errorf("reloc of invalid sym %s idx=%d type=%d", name, r.SymbolTableIndex, pesym.Type)
 			}
 
 			rSym := gosym
@@ -270,11 +291,11 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			var rType objabi.RelocType
 			switch arch.Family {
 			default:
-				return nil, 0, fmt.Errorf("%s: unsupported arch %v", pn, arch.Family)
+				return nil, nil, fmt.Errorf("%s: unsupported arch %v", pn, arch.Family)
 			case sys.I386, sys.AMD64:
 				switch r.Type {
 				default:
-					return nil, 0, fmt.Errorf("%s: %v: unknown relocation type %v", pn, sectsyms[rsect], r.Type)
+					return nil, nil, fmt.Errorf("%s: %v: unknown relocation type %v", pn, sectsyms[rsect], r.Type)
 
 				case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
 					IMAGE_REL_AMD64_ADDR32, // R_X86_64_PC32
@@ -301,14 +322,14 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			case sys.ARM:
 				switch r.Type {
 				default:
-					return nil, 0, fmt.Errorf("%s: %v: unknown ARM relocation type %v", pn, sectsyms[rsect], r.Type)
+					return nil, nil, fmt.Errorf("%s: %v: unknown ARM relocation type %v", pn, sectsyms[rsect], r.Type)
 
 				case IMAGE_REL_ARM_SECREL:
 					rType = objabi.R_PCREL
 
 					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
 
-				case IMAGE_REL_ARM_ADDR32:
+				case IMAGE_REL_ARM_ADDR32, IMAGE_REL_ARM_ADDR32NB:
 					rType = objabi.R_ADDR
 
 					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
@@ -318,12 +339,24 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 
 					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
 				}
+
+			case sys.ARM64:
+				switch r.Type {
+				default:
+					return nil, nil, fmt.Errorf("%s: %v: unknown ARM64 relocation type %v", pn, sectsyms[rsect], r.Type)
+
+				case IMAGE_REL_ARM64_ADDR32, IMAGE_REL_ARM64_ADDR32NB:
+					rType = objabi.R_ADDR
+
+					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
+				}
 			}
 
 			// ld -r could generate multiple section symbols for the
 			// same section but with different values, we have to take
-			// that into account
-			if issect(pesym) {
+			// that into account, or in the case of split resources,
+			// the section and its symbols are split into two sections.
+			if issect(pesym) || splitResources {
 				rAdd += int64(pesym.Value)
 			}
 
@@ -345,7 +378,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 
 		name, err := pesym.FullName(f.StringTable)
 		if err != nil {
-			return nil, 0, err
+			return nil, nil, err
 		}
 		if name == "" {
 			continue
@@ -359,6 +392,20 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		if pesym.SectionNumber == IMAGE_SYM_DEBUG {
 			continue
 		}
+		if pesym.SectionNumber == IMAGE_SYM_ABSOLUTE && bytes.Equal(pesym.Name[:], []byte("@feat.00")) {
+			// Microsoft's linker looks at whether all input objects have an empty
+			// section called @feat.00. If all of them do, then it enables SEH;
+			// otherwise it doesn't enable that feature. So, since around the Windows
+			// XP SP2 era, most tools that make PE objects just tack on that section,
+			// so that it won't gimp Microsoft's linker logic. Go doesn't support SEH,
+			// so in theory, none of this really matters to us. But actually, if the
+			// linker tries to ingest an object with @feat.00 -- which are produced by
+			// LLVM's resource compiler, for example -- it chokes because of the
+			// IMAGE_SYM_ABSOLUTE section that it doesn't know how to deal with. Since
+			// @feat.00 is just a marking anyway, skip IMAGE_SYM_ABSOLUTE sections that
+			// are called @feat.00.
+			continue
+		}
 		var sect *pe.Section
 		if pesym.SectionNumber > 0 {
 			sect = f.Sections[pesym.SectionNumber-1]
@@ -369,7 +416,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 
 		bld, s, err := readpesym(l, arch, l.LookupOrCreateSym, f, pesym, sectsyms, localSymVersion)
 		if err != nil {
-			return nil, 0, err
+			return nil, nil, err
 		}
 
 		if pesym.SectionNumber == 0 { // extern
@@ -387,14 +434,14 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		} else if pesym.SectionNumber > 0 && int(pesym.SectionNumber) <= len(f.Sections) {
 			sect = f.Sections[pesym.SectionNumber-1]
 			if _, found := sectsyms[sect]; !found {
-				return nil, 0, fmt.Errorf("%s: %v: missing sect.sym", pn, s)
+				return nil, nil, fmt.Errorf("%s: %v: missing sect.sym", pn, s)
 			}
 		} else {
-			return nil, 0, fmt.Errorf("%s: %v: sectnum < 0!", pn, s)
+			return nil, nil, fmt.Errorf("%s: %v: sectnum < 0!", pn, s)
 		}
 
 		if sect == nil {
-			return nil, 0, nil
+			return nil, nil, nil
 		}
 
 		if l.OuterSym(s) != 0 {
@@ -403,7 +450,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			}
 			outerName := l.SymName(l.OuterSym(s))
 			sectName := l.SymName(sectsyms[sect])
-			return nil, 0, fmt.Errorf("%s: duplicate symbol reference: %s in both %s and %s", pn, l.SymName(s), outerName, sectName)
+			return nil, nil, fmt.Errorf("%s: duplicate symbol reference: %s in both %s and %s", pn, l.SymName(s), outerName, sectName)
 		}
 
 		bld = makeUpdater(l, bld, s)
@@ -414,7 +461,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		bld.SetSize(4)
 		if l.SymType(sectsym) == sym.STEXT {
 			if bld.External() && !bld.DuplicateOK() {
-				return nil, 0, fmt.Errorf("%s: duplicate symbol definition", l.SymName(s))
+				return nil, nil, fmt.Errorf("%s: duplicate symbol definition", l.SymName(s))
 			}
 			bld.SetExternal(true)
 		}
@@ -431,7 +478,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		if l.SymType(s) == sym.STEXT {
 			for ; s != 0; s = l.SubSym(s) {
 				if l.AttrOnList(s) {
-					return nil, 0, fmt.Errorf("symbol %s listed multiple times", l.SymName(s))
+					return nil, nil, fmt.Errorf("symbol %s listed multiple times", l.SymName(s))
 				}
 				l.SetAttrOnList(s, true)
 				textp = append(textp, s)

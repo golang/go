@@ -226,16 +226,25 @@ func (s *mspan) isFree(index uintptr) bool {
 	return *bytep&mask == 0
 }
 
+// divideByElemSize returns n/s.elemsize.
+// n must be within [0, s.npages*_PageSize),
+// or may be exactly s.npages*_PageSize
+// if s.elemsize is from sizeclasses.go.
+func (s *mspan) divideByElemSize(n uintptr) uintptr {
+	const doubleCheck = false
+
+	// See explanation in mksizeclasses.go's computeDivMagic.
+	q := uintptr((uint64(n) * uint64(s.divMul)) >> 32)
+
+	if doubleCheck && q != n/s.elemsize {
+		println(n, "/", s.elemsize, "should be", n/s.elemsize, "but got", q)
+		throw("bad magic division")
+	}
+	return q
+}
+
 func (s *mspan) objIndex(p uintptr) uintptr {
-	byteOffset := p - s.base()
-	if byteOffset == 0 {
-		return 0
-	}
-	if s.baseMask != 0 {
-		// s.baseMask is non-0, elemsize is a power of two, so shift by s.divShift
-		return byteOffset >> s.divShift
-	}
-	return uintptr(((uint64(byteOffset) >> s.divShift) * uint64(s.divMul)) >> s.divShift2)
+	return s.divideByElemSize(p - s.base())
 }
 
 func markBitsForAddr(p uintptr) markBits {
@@ -388,24 +397,9 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
 		}
 		return
 	}
-	// If this span holds object of a power of 2 size, just mask off the bits to
-	// the interior of the object. Otherwise use the size to get the base.
-	if s.baseMask != 0 {
-		// optimize for power of 2 sized objects.
-		base = s.base()
-		base = base + (p-base)&uintptr(s.baseMask)
-		objIndex = (base - s.base()) >> s.divShift
-		// base = p & s.baseMask is faster for small spans,
-		// but doesn't work for large spans.
-		// Overall, it's faster to use the more general computation above.
-	} else {
-		base = s.base()
-		if p-base >= s.elemsize {
-			// n := (p - base) / s.elemsize, using division by multiplication
-			objIndex = uintptr(p-base) >> s.divShift * uintptr(s.divMul) >> s.divShift2
-			base += objIndex * s.elemsize
-		}
-	}
+
+	objIndex = s.objIndex(p)
+	base = s.base() + objIndex*s.elemsize
 	return
 }
 
@@ -1868,12 +1862,12 @@ func materializeGCProg(ptrdata uintptr, prog *byte) *mspan {
 	bitmapBytes := divRoundUp(ptrdata, 8*sys.PtrSize)
 	// Compute the number of pages needed for bitmapBytes.
 	pages := divRoundUp(bitmapBytes, pageSize)
-	s := mheap_.allocManual(pages, &memstats.gc_sys)
+	s := mheap_.allocManual(pages, spanAllocPtrScalarBits)
 	runGCProg(addb(prog, 4), nil, (*byte)(unsafe.Pointer(s.startAddr)), 1)
 	return s
 }
 func dematerializeGCProg(s *mspan) {
-	mheap_.freeManual(s, &memstats.gc_sys)
+	mheap_.freeManual(s, spanAllocPtrScalarBits)
 }
 
 func dumpGCProg(p *byte) {

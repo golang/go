@@ -6,6 +6,12 @@ package syscall
 
 import "unsafe"
 
+// archHonorsR2 captures the fact that r2 is honored by the
+// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
+// syscall(trap, ...).  Not all architectures define r2 in their
+// ABI. See "man syscall". [EABI assumed.]
+const archHonorsR2 = true
+
 const _SYS_setgroups = SYS_SETGROUPS32
 
 func setTimespec(sec, nsec int64) Timespec {
@@ -63,7 +69,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
 //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
 //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error) = SYS_GETGROUPS32
-//sysnb	setgroups(n int, list *_Gid_t) (err error) = SYS_SETGROUPS32
 //sys	getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error)
 //sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error)
 //sysnb	socket(domain int, typ int, proto int) (fd int, err error)
@@ -94,10 +99,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
 //sys	Setfsgid(gid int) (err error) = SYS_SETFSGID32
 //sys	Setfsuid(uid int) (err error) = SYS_SETFSUID32
-//sysnb	Setregid(rgid int, egid int) (err error) = SYS_SETREGID32
-//sysnb	Setresgid(rgid int, egid int, sgid int) (err error) = SYS_SETRESGID32
-//sysnb	Setresuid(ruid int, euid int, suid int) (err error) = SYS_SETRESUID32
-//sysnb	Setreuid(ruid int, euid int) (err error) = SYS_SETREUID32
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
 //sys	Ustat(dev int, ubuf *Ustat_t) (err error)
@@ -235,6 +236,4 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint32(length)
 }
 
-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno) {
-	panic("not implemented")
-}
+func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)

@@ -7,29 +7,38 @@ package modload
 import (
 	"context"
 	"errors"
+	"os"
 	"sort"
 
 	"cmd/go/internal/modfetch"
-	"cmd/go/internal/mvs"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
 )
 
+// cmpVersion implements the comparison for versions in the module loader.
+//
+// It is consistent with semver.Compare except that as a special case,
+// the version "" is considered higher than all other versions.
+// The main module (also known as the target) has no version and must be chosen
+// over other versions of the same module in the module dependency graph.
+func cmpVersion(v1, v2 string) int {
+	if v2 == "" {
+		if v1 == "" {
+			return 0
+		}
+		return -1
+	}
+	if v1 == "" {
+		return 1
+	}
+	return semver.Compare(v1, v2)
+}
+
 // mvsReqs implements mvs.Reqs for module semantic versions,
 // with any exclusions or replacements applied internally.
 type mvsReqs struct {
 	buildList []module.Version
-}
-
-// Reqs returns the current module requirement graph.
-// Future calls to SetBuildList do not affect the operation
-// of the returned Reqs.
-func Reqs() mvs.Reqs {
-	r := &mvsReqs{
-		buildList: buildList,
-	}
-	return r
 }
 
 func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
@@ -57,7 +66,7 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
 // be chosen over other versions of the same module in the module dependency
 // graph.
 func (*mvsReqs) Max(v1, v2 string) string {
-	if v1 != "" && semver.Compare(v1, v2) == -1 {
+	if cmpVersion(v1, v2) < 0 {
 		return v2
 	}
 	return v1
@@ -74,7 +83,11 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string, 
 	// so there's no need for us to add extra caching here.
 	var versions []string
 	err := modfetch.TryProxies(func(proxy string) error {
-		allVersions, err := modfetch.Lookup(proxy, path).Versions("")
+		repo, err := lookupRepo(proxy, path)
+		if err != nil {
+			return err
+		}
+		allVersions, err := repo.Versions("")
 		if err != nil {
 			return err
 		}
@@ -92,12 +105,23 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string, 
 	return versions, err
 }
 
-// Previous returns the tagged version of m.Path immediately prior to
+// previousVersion returns the tagged version of m.Path immediately prior to
 // m.Version, or version "none" if no prior version is tagged.
-func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
+//
+// Since the version of Target is not found in the version list,
+// it has no previous version.
+func previousVersion(m module.Version) (module.Version, error) {
 	// TODO(golang.org/issue/38714): thread tracing context through MVS.
+
+	if m == Target {
+		return module.Version{Path: m.Path, Version: "none"}, nil
+	}
+
 	list, err := versions(context.TODO(), m.Path, CheckAllowed)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return module.Version{Path: m.Path, Version: "none"}, nil
+		}
 		return module.Version{}, err
 	}
 	i := sort.Search(len(list), func(i int) bool { return semver.Compare(list[i], m.Version) >= 0 })
@@ -107,18 +131,6 @@ func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
 	return module.Version{Path: m.Path, Version: "none"}, nil
 }
 
-// next returns the next version of m.Path after m.Version.
-// It is only used by the exclusion processing in the Required method,
-// not called directly by MVS.
-func (*mvsReqs) next(m module.Version) (module.Version, error) {
-	// TODO(golang.org/issue/38714): thread tracing context through MVS.
-	list, err := versions(context.TODO(), m.Path, CheckAllowed)
-	if err != nil {
-		return module.Version{}, err
-	}
-	i := sort.Search(len(list), func(i int) bool { return semver.Compare(list[i], m.Version) > 0 })
-	if i < len(list) {
-		return module.Version{Path: m.Path, Version: list[i]}, nil
-	}
-	return module.Version{Path: m.Path, Version: "none"}, nil
+func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
+	return previousVersion(m)
 }

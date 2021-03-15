@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !ios
 // +build !ios
 
 package x509
@@ -19,10 +20,6 @@ var debugDarwinRoots = strings.Contains(os.Getenv("GODEBUG"), "x509roots=1")
 func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	return nil, nil
 }
-
-// loadSystemRootsWithCgo is set in root_cgo_darwin_amd64.go when cgo is
-// available, and is only used for testing.
-var loadSystemRootsWithCgo func() (*CertPool, error)
 
 func loadSystemRoots() (*CertPool, error) {
 	var trustedRoots []*Certificate

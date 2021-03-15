@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 // Generate tables for small malloc size classes.
@@ -35,8 +36,9 @@ import (
 	"fmt"
 	"go/format"
 	"io"
-	"io/ioutil"
 	"log"
+	"math"
+	"math/bits"
 	"os"
 )
 
@@ -65,7 +67,7 @@ func main() {
 	if *stdout {
 		_, err = os.Stdout.Write(out)
 	} else {
-		err = ioutil.WriteFile("sizeclasses.go", out, 0666)
+		err = os.WriteFile("sizeclasses.go", out, 0666)
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -87,11 +89,6 @@ const (
 type class struct {
 	size   int // max size
 	npages int // number of pages
-
-	mul    int
-	shift  uint
-	shift2 uint
-	mask   int
 }
 
 func powerOfTwo(x int) bool {
@@ -168,9 +165,9 @@ func makeClasses() []class {
 	return classes
 }
 
-// computeDivMagic computes some magic constants to implement
-// the division required to compute object number from span offset.
-// n / c.size is implemented as n >> c.shift * c.mul >> c.shift2
+// computeDivMagic checks that the division required to compute object
+// index from span offset can be computed using 32-bit multiplication.
+// n / c.size is implemented as (n * (^uint32(0)/uint32(c.size) + 1)) >> 32
 // for all 0 <= n <= c.npages * pageSize
 func computeDivMagic(c *class) {
 	// divisor
@@ -182,68 +179,67 @@ func computeDivMagic(c *class) {
 	// maximum input value for which the formula needs to work.
 	max := c.npages * pageSize
 
+	// As reported in [1], if n and d are unsigned N-bit integers, we
+	// can compute n / d as ⌊n * c / 2^F⌋, where c is ⌈2^F / d⌉ and F is
+	// computed with:
+	//
+	// 	Algorithm 2: Algorithm to select the number of fractional bits
+	// 	and the scaled approximate reciprocal in the case of unsigned
+	// 	integers.
+	//
+	// 	if d is a power of two then
+	// 		Let F ← log₂(d) and c = 1.
+	// 	else
+	// 		Let F ← N + L where L is the smallest integer
+	// 		such that d ≤ (2^(N+L) mod d) + 2^L.
+	// 	end if
+	//
+	// [1] "Faster Remainder by Direct Computation: Applications to
+	// Compilers and Software Libraries" Daniel Lemire, Owen Kaser,
+	// Nathan Kurz arXiv:1902.01961
+	//
+	// To minimize the risk of introducing errors, we implement the
+	// algorithm exactly as stated, rather than trying to adapt it to
+	// fit typical Go idioms.
+	N := bits.Len(uint(max))
+	var F int
 	if powerOfTwo(d) {
-		// If the size is a power of two, heapBitsForObject can divide even faster by masking.
-		// Compute this mask.
-		if max >= 1<<16 {
-			panic("max too big for power of two size")
+		F = int(math.Log2(float64(d)))
+		if d != 1<<F {
+			panic("imprecise log2")
 		}
-		c.mask = 1<<16 - d
-	}
-
-	// Compute pre-shift by factoring power of 2 out of d.
-	for d%2 == 0 {
-		c.shift++
-		d >>= 1
-		max >>= 1
-	}
-
-	// Find the smallest k that works.
-	// A small k allows us to fit the math required into 32 bits
-	// so we can use 32-bit multiplies and shifts on 32-bit platforms.
-nextk:
-	for k := uint(0); ; k++ {
-		mul := (int(1)<<k + d - 1) / d //  ⌈2^k / d⌉
-
-		// Test to see if mul works.
-		for n := 0; n <= max; n++ {
-			if n*mul>>k != n/d {
-				continue nextk
+	} else {
+		for L := 0; ; L++ {
+			if d <= ((1<<(N+L))%d)+(1<<L) {
+				F = N + L
+				break
 			}
 		}
-		if mul >= 1<<16 {
-			panic("mul too big")
-		}
-		if uint64(mul)*uint64(max) >= 1<<32 {
-			panic("mul*max too big")
-		}
-		c.mul = mul
-		c.shift2 = k
-		break
 	}
 
-	// double-check.
+	// Also, noted in the paper, F is the smallest number of fractional
+	// bits required. We use 32 bits, because it works for all size
+	// classes and is fast on all CPU architectures that we support.
+	if F > 32 {
+		fmt.Printf("d=%d max=%d N=%d F=%d\n", c.size, max, N, F)
+		panic("size class requires more than 32 bits of precision")
+	}
+
+	// Brute force double-check with the exact computation that will be
+	// done by the runtime.
+	m := ^uint32(0)/uint32(c.size) + 1
 	for n := 0; n <= max; n++ {
-		if n*c.mul>>c.shift2 != n/d {
-			fmt.Printf("d=%d max=%d mul=%d shift2=%d n=%d\n", d, max, c.mul, c.shift2, n)
-			panic("bad multiply magic")
-		}
-		// Also check the exact computations that will be done by the runtime,
-		// for both 32 and 64 bit operations.
-		if uint32(n)*uint32(c.mul)>>uint8(c.shift2) != uint32(n/d) {
-			fmt.Printf("d=%d max=%d mul=%d shift2=%d n=%d\n", d, max, c.mul, c.shift2, n)
+		if uint32((uint64(n)*uint64(m))>>32) != uint32(n/c.size) {
+			fmt.Printf("d=%d max=%d m=%d n=%d\n", d, max, m, n)
 			panic("bad 32-bit multiply magic")
-		}
-		if uint64(n)*uint64(c.mul)>>uint8(c.shift2) != uint64(n/d) {
-			fmt.Printf("d=%d max=%d mul=%d shift2=%d n=%d\n", d, max, c.mul, c.shift2, n)
-			panic("bad 64-bit multiply magic")
 		}
 	}
 }
 
 func printComment(w io.Writer, classes []class) {
-	fmt.Fprintf(w, "// %-5s  %-9s  %-10s  %-7s  %-10s  %-9s\n", "class", "bytes/obj", "bytes/span", "objects", "tail waste", "max waste")
+	fmt.Fprintf(w, "// %-5s  %-9s  %-10s  %-7s  %-10s  %-9s  %-9s\n", "class", "bytes/obj", "bytes/span", "objects", "tail waste", "max waste", "min align")
 	prevSize := 0
+	var minAligns [pageShift + 1]int
 	for i, c := range classes {
 		if i == 0 {
 			continue
@@ -252,8 +248,32 @@ func printComment(w io.Writer, classes []class) {
 		objects := spanSize / c.size
 		tailWaste := spanSize - c.size*(spanSize/c.size)
 		maxWaste := float64((c.size-prevSize-1)*objects+tailWaste) / float64(spanSize)
+		alignBits := bits.TrailingZeros(uint(c.size))
+		if alignBits > pageShift {
+			// object alignment is capped at page alignment
+			alignBits = pageShift
+		}
+		for i := range minAligns {
+			if i > alignBits {
+				minAligns[i] = 0
+			} else if minAligns[i] == 0 {
+				minAligns[i] = c.size
+			}
+		}
 		prevSize = c.size
-		fmt.Fprintf(w, "// %5d  %9d  %10d  %7d  %10d  %8.2f%%\n", i, c.size, spanSize, objects, tailWaste, 100*maxWaste)
+		fmt.Fprintf(w, "// %5d  %9d  %10d  %7d  %10d  %8.2f%%  %9d\n", i, c.size, spanSize, objects, tailWaste, 100*maxWaste, 1<<alignBits)
+	}
+	fmt.Fprintf(w, "\n")
+
+	fmt.Fprintf(w, "// %-9s  %-4s  %-12s\n", "alignment", "bits", "min obj size")
+	for bits, size := range minAligns {
+		if size == 0 {
+			break
+		}
+		if bits+1 < len(minAligns) && size == minAligns[bits+1] {
+			continue
+		}
+		fmt.Fprintf(w, "// %9d  %4d  %12d\n", 1<<bits, bits, size)
 	}
 	fmt.Fprintf(w, "\n")
 }
@@ -280,15 +300,13 @@ func printClasses(w io.Writer, classes []class) {
 	}
 	fmt.Fprintln(w, "}")
 
-	fmt.Fprintln(w, "type divMagic struct {")
-	fmt.Fprintln(w, "  shift uint8")
-	fmt.Fprintln(w, "  shift2 uint8")
-	fmt.Fprintln(w, "  mul uint16")
-	fmt.Fprintln(w, "  baseMask uint16")
-	fmt.Fprintln(w, "}")
-	fmt.Fprint(w, "var class_to_divmagic = [_NumSizeClasses]divMagic {")
+	fmt.Fprint(w, "var class_to_divmagic = [_NumSizeClasses]uint32 {")
 	for _, c := range classes {
-		fmt.Fprintf(w, "{%d,%d,%d,%d},", c.shift, c.shift2, c.mul, c.mask)
+		if c.size == 0 {
+			fmt.Fprintf(w, "0,")
+			continue
+		}
+		fmt.Fprintf(w, "^uint32(0)/%d+1,", c.size)
 	}
 	fmt.Fprintln(w, "}")
 

@@ -25,7 +25,7 @@ package parser
 import (
 	"go/scanner"
 	"go/token"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -114,6 +114,7 @@ func expectedErrors(fset *token.FileSet, filename string, src []byte) map[token.
 // of found errors and reports discrepancies.
 //
 func compareErrors(t *testing.T, fset *token.FileSet, expected map[token.Pos]string, found scanner.ErrorList) {
+	t.Helper()
 	for _, error := range found {
 		// error.Pos is a token.Position, but we want
 		// a token.Pos so we can do a map lookup
@@ -149,7 +150,8 @@ func compareErrors(t *testing.T, fset *token.FileSet, expected map[token.Pos]str
 	}
 }
 
-func checkErrors(t *testing.T, filename string, input interface{}) {
+func checkErrors(t *testing.T, filename string, input interface{}, mode Mode, expectErrors bool) {
+	t.Helper()
 	src, err := readSource(filename, input)
 	if err != nil {
 		t.Error(err)
@@ -157,7 +159,7 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
 	}
 
 	fset := token.NewFileSet()
-	_, err = ParseFile(fset, filename, src, DeclarationErrors|AllErrors)
+	_, err = ParseFile(fset, filename, src, mode)
 	found, ok := err.(scanner.ErrorList)
 	if err != nil && !ok {
 		t.Error(err)
@@ -165,23 +167,30 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
 	}
 	found.RemoveMultiples()
 
-	// we are expecting the following errors
-	// (collect these after parsing a file so that it is found in the file set)
-	expected := expectedErrors(fset, filename, src)
+	expected := map[token.Pos]string{}
+	if expectErrors {
+		// we are expecting the following errors
+		// (collect these after parsing a file so that it is found in the file set)
+		expected = expectedErrors(fset, filename, src)
+	}
 
 	// verify errors returned by the parser
 	compareErrors(t, fset, expected, found)
 }
 
 func TestErrors(t *testing.T) {
-	list, err := ioutil.ReadDir(testdata)
+	list, err := os.ReadDir(testdata)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, fi := range list {
-		name := fi.Name()
-		if !fi.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".src") {
-			checkErrors(t, filepath.Join(testdata, name), nil)
+	for _, d := range list {
+		name := d.Name()
+		if !d.IsDir() && !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".src") || strings.HasSuffix(name, ".go2")) {
+			mode := DeclarationErrors | AllErrors
+			if strings.HasSuffix(name, ".go2") {
+				mode |= parseTypeParams
+			}
+			checkErrors(t, filepath.Join(testdata, name), nil, mode, true)
 		}
 	}
 }

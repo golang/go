@@ -2,7 +2,7 @@
 # the original module and its location, report an error with all three paths.
 # In particular, the "required as" path should be the original.
 # Verifies golang.org/issue/38220.
-! go list .
+! go mod download
 cmp stderr want
 
 -- go.mod --

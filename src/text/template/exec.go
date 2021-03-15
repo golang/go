@@ -373,6 +373,10 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		if val.IsNil() {
 			break
 		}
+		if val.Type().ChanDir() == reflect.SendDir {
+			s.errorf("range over send-only channel %v", val)
+			break
+		}
 		i := 0
 		for ; ; i++ {
 			elem, ok := val.Recv()
@@ -611,7 +615,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 		tField, ok := receiver.Type().FieldByName(fieldName)
 		if ok {
 			field := receiver.FieldByIndex(tField.Index)
-			if tField.PkgPath != "" { // field is unexported
+			if !tField.IsExported() {
 				s.errorf("%s is an unexported field of struct type %s", fieldName, typ)
 			}
 			// If it's a function, we must call it.
@@ -723,7 +727,7 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
 	// error to the caller.
 	if err != nil {
 		s.at(node)
-		s.errorf("error calling %s: %v", name, err)
+		s.errorf("error calling %s: %w", name, err)
 	}
 	if v.Type() == reflectValueType {
 		v = v.Interface().(reflect.Value)

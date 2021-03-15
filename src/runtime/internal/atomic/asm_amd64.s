@@ -136,6 +136,12 @@ TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
 TEXT runtime∕internal∕atomic·StoreRel(SB), NOSPLIT, $0-12
 	JMP	runtime∕internal∕atomic·Store(SB)
 
+TEXT runtime∕internal∕atomic·StoreRel64(SB), NOSPLIT, $0-16
+	JMP	runtime∕internal∕atomic·Store64(SB)
+
+TEXT runtime∕internal∕atomic·StoreReluintptr(SB), NOSPLIT, $0-16
+	JMP	runtime∕internal∕atomic·Store64(SB)
+
 TEXT runtime∕internal∕atomic·Store8(SB), NOSPLIT, $0-9
 	MOVQ	ptr+0(FP), BX
 	MOVB	val+8(FP), AX
@@ -162,4 +168,20 @@ TEXT runtime∕internal∕atomic·And8(SB), NOSPLIT, $0-9
 	MOVB	val+8(FP), BX
 	LOCK
 	ANDB	BX, (AX)
+	RET
+
+// func Or(addr *uint32, v uint32)
+TEXT runtime∕internal∕atomic·Or(SB), NOSPLIT, $0-12
+	MOVQ	ptr+0(FP), AX
+	MOVL	val+8(FP), BX
+	LOCK
+	ORL	BX, (AX)
+	RET
+
+// func And(addr *uint32, v uint32)
+TEXT runtime∕internal∕atomic·And(SB), NOSPLIT, $0-12
+	MOVQ	ptr+0(FP), AX
+	MOVL	val+8(FP), BX
+	LOCK
+	ANDL	BX, (AX)
 	RET

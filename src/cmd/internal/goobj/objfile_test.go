@@ -9,6 +9,11 @@ import (
 	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
+	"fmt"
+	"internal/testenv"
+	"io/ioutil"
+	"os"
+	"os/exec"
 	"testing"
 )
 
@@ -35,7 +40,7 @@ func TestReadWrite(t *testing.T) {
 	var r Reloc
 	r.SetOff(12)
 	r.SetSiz(4)
-	r.SetType(uint8(objabi.R_ADDR))
+	r.SetType(uint16(objabi.R_ADDR))
 	r.SetAdd(54321)
 	r.SetSym(SymRef{11, 22})
 	r.Write(w)
@@ -58,7 +63,7 @@ func TestReadWrite(t *testing.T) {
 	b = b[SymSize:]
 	var r2 Reloc
 	r2.fromBytes(b)
-	if r2.Off() != 12 || r2.Siz() != 4 || r2.Type() != uint8(objabi.R_ADDR) || r2.Add() != 54321 || r2.Sym() != (SymRef{11, 22}) {
+	if r2.Off() != 12 || r2.Siz() != 4 || r2.Type() != uint16(objabi.R_ADDR) || r2.Add() != 54321 || r2.Sym() != (SymRef{11, 22}) {
 		t.Errorf("read Reloc2 mismatch: got %v %v %v %v %v", r2.Off(), r2.Siz(), r2.Type(), r2.Add(), r2.Sym())
 	}
 
@@ -67,5 +72,62 @@ func TestReadWrite(t *testing.T) {
 	a2.fromBytes(b)
 	if a2.Type() != AuxFuncInfo || a2.Sym() != (SymRef{33, 44}) {
 		t.Errorf("read Aux2 mismatch: got %v %v", a2.Type(), a2.Sym())
+	}
+}
+
+var issue41621prolog = `
+package main
+var lines = []string{
+`
+
+var issue41621epilog = `
+}
+func getLines() []string {
+	return lines
+}
+func main() {
+	println(getLines())
+}
+`
+
+func TestIssue41621LargeNumberOfRelocations(t *testing.T) {
+	if testing.Short() || (objabi.GOARCH != "amd64") {
+		t.Skipf("Skipping large number of relocations test in short mode or on %s", objabi.GOARCH)
+	}
+	testenv.MustHaveGoBuild(t)
+
+	tmpdir, err := ioutil.TempDir("", "lotsofrelocs")
+	if err != nil {
+		t.Fatalf("can't create temp directory: %v\n", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	// Emit testcase.
+	var w bytes.Buffer
+	fmt.Fprintf(&w, issue41621prolog)
+	for i := 0; i < 1048576+13; i++ {
+		fmt.Fprintf(&w, "\t\"%d\",\n", i)
+	}
+	fmt.Fprintf(&w, issue41621epilog)
+	err = ioutil.WriteFile(tmpdir+"/large.go", w.Bytes(), 0666)
+	if err != nil {
+		t.Fatalf("can't write output: %v\n", err)
+	}
+
+	// Emit go.mod
+	w.Reset()
+	fmt.Fprintf(&w, "module issue41621\n\ngo 1.12\n")
+	err = ioutil.WriteFile(tmpdir+"/go.mod", w.Bytes(), 0666)
+	if err != nil {
+		t.Fatalf("can't write output: %v\n", err)
+	}
+	w.Reset()
+
+	// Build.
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "large")
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Build failed: %v, output: %s", err, out)
 	}
 }

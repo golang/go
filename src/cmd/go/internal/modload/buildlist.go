@@ -12,6 +12,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
+	"strings"
 
 	"golang.org/x/mod/module"
 )
@@ -27,6 +29,16 @@ import (
 //
 var buildList []module.Version
 
+// additionalExplicitRequirements is a list of modules paths for which
+// WriteGoMod should record explicit requirements, even if they would be
+// selected without those requirements. Each path must also appear in buildList.
+var additionalExplicitRequirements []string
+
+// capVersionSlice returns s with its cap reduced to its length.
+func capVersionSlice(s []module.Version) []module.Version {
+	return s[:len(s):len(s)]
+}
+
 // LoadAllModules loads and returns the list of modules matching the "all"
 // module pattern, starting with the Target module and in a deterministic
 // (stable) order, without loading any packages.
@@ -35,21 +47,12 @@ var buildList []module.Version
 // LoadAllModules need only be called if LoadPackages is not,
 // typically in commands that care about modules but no particular package.
 //
-// The caller must not modify the returned list.
+// The caller must not modify the returned list, but may append to it.
 func LoadAllModules(ctx context.Context) []module.Version {
-	InitMod(ctx)
+	LoadModFile(ctx)
 	ReloadBuildList()
 	WriteGoMod()
-	return buildList
-}
-
-// LoadedModules returns the list of module requirements loaded or set by a
-// previous call (typically LoadAllModules or LoadPackages), starting with the
-// Target module and in a deterministic (stable) order.
-//
-// The caller must not modify the returned list.
-func LoadedModules() []module.Version {
-	return buildList
+	return capVersionSlice(buildList)
 }
 
 // Selected returns the selected version of the module with the given path, or
@@ -67,22 +70,146 @@ func Selected(path string) (version string) {
 	return ""
 }
 
-// SetBuildList sets the module build list.
-// The caller is responsible for ensuring that the list is valid.
-// SetBuildList does not retain a reference to the original list.
-func SetBuildList(list []module.Version) {
-	buildList = append([]module.Version{}, list...)
+// EditBuildList edits the global build list by first adding every module in add
+// to the existing build list, then adjusting versions (and adding or removing
+// requirements as needed) until every module in mustSelect is selected at the
+// given version.
+//
+// (Note that the newly-added modules might not be selected in the resulting
+// build list: they could be lower than existing requirements or conflict with
+// versions in mustSelect.)
+//
+// If the versions listed in mustSelect are mutually incompatible (due to one of
+// the listed modules requiring a higher version of another), EditBuildList
+// returns a *ConstraintError and leaves the build list in its previous state.
+func EditBuildList(ctx context.Context, add, mustSelect []module.Version) (changed bool, err error) {
+	LoadModFile(ctx)
+
+	final, err := editBuildList(ctx, buildList, add, mustSelect)
+	if err != nil {
+		return false, err
+	}
+
+	selected := make(map[string]module.Version, len(final))
+	for _, m := range final {
+		selected[m.Path] = m
+	}
+	inconsistent := false
+	for _, m := range mustSelect {
+		s, ok := selected[m.Path]
+		if !ok && m.Version == "none" {
+			continue
+		}
+		if s.Version != m.Version {
+			inconsistent = true
+			break
+		}
+	}
+
+	if !inconsistent {
+		additionalExplicitRequirements = make([]string, 0, len(mustSelect))
+		for _, m := range mustSelect {
+			if m.Version != "none" {
+				additionalExplicitRequirements = append(additionalExplicitRequirements, m.Path)
+			}
+		}
+		changed := false
+		if !reflect.DeepEqual(buildList, final) {
+			buildList = final
+			changed = true
+		}
+		return changed, nil
+	}
+
+	// We overshot one or more of the modules in mustSelect, which means that
+	// Downgrade removed something in mustSelect because it conflicted with
+	// something else in mustSelect.
+	//
+	// Walk the requirement graph to find the conflict.
+	//
+	// TODO(bcmills): Ideally, mvs.Downgrade (or a replacement for it) would do
+	// this directly.
+
+	reqs := &mvsReqs{buildList: final}
+	reason := map[module.Version]module.Version{}
+	for _, m := range mustSelect {
+		reason[m] = m
+	}
+	queue := mustSelect[:len(mustSelect):len(mustSelect)]
+	for len(queue) > 0 {
+		var m module.Version
+		m, queue = queue[0], queue[1:]
+		required, err := reqs.Required(m)
+		if err != nil {
+			return false, err
+		}
+		for _, r := range required {
+			if _, ok := reason[r]; !ok {
+				reason[r] = reason[m]
+				queue = append(queue, r)
+			}
+		}
+	}
+
+	var conflicts []Conflict
+	for _, m := range mustSelect {
+		s, ok := selected[m.Path]
+		if !ok {
+			if m.Version != "none" {
+				panic(fmt.Sprintf("internal error: editBuildList lost %v", m))
+			}
+			continue
+		}
+		if s.Version != m.Version {
+			conflicts = append(conflicts, Conflict{
+				Source:     reason[s],
+				Dep:        s,
+				Constraint: m,
+			})
+		}
+	}
+
+	return false, &ConstraintError{
+		Conflicts: conflicts,
+	}
+}
+
+// A ConstraintError describes inconsistent constraints in EditBuildList
+type ConstraintError struct {
+	// Conflict lists the source of the conflict for each version in mustSelect
+	// that could not be selected due to the requirements of some other version in
+	// mustSelect.
+	Conflicts []Conflict
+}
+
+func (e *ConstraintError) Error() string {
+	b := new(strings.Builder)
+	b.WriteString("version constraints conflict:")
+	for _, c := range e.Conflicts {
+		fmt.Fprintf(b, "\n\t%v requires %v, but %v is requested", c.Source, c.Dep, c.Constraint)
+	}
+	return b.String()
+}
+
+// A Conflict documents that Source requires Dep, which conflicts with Constraint.
+// (That is, Dep has the same module path as Constraint but a higher version.)
+type Conflict struct {
+	Source     module.Version
+	Dep        module.Version
+	Constraint module.Version
 }
 
 // ReloadBuildList resets the state of loaded packages, then loads and returns
-// the build list set in SetBuildList.
+// the build list set by EditBuildList.
 func ReloadBuildList() []module.Version {
 	loaded = loadFromRoots(loaderParams{
-		tags:               imports.Tags(),
+		PackageOpts: PackageOpts{
+			Tags: imports.Tags(),
+		},
 		listRoots:          func() []string { return nil },
 		allClosesOverTests: index.allPatternClosesOverTests(), // but doesn't matter because the root list is empty.
 	})
-	return buildList
+	return capVersionSlice(buildList)
 }
 
 // TidyBuildList trims the build list to the minimal requirements needed to

@@ -48,6 +48,8 @@ For example:
 	# golang.org/x/text/encoding
 	(main module does not need package golang.org/x/text/encoding)
 	$
+
+See https://golang.org/ref/mod#go-mod-why for more about 'go mod why'.
 	`,
 }
 
@@ -66,10 +68,11 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 	modload.RootMode = modload.NeedRoot
 
 	loadOpts := modload.PackageOpts{
-		Tags:          imports.AnyTags(),
-		LoadTests:     !*whyVendor,
-		SilenceErrors: true,
-		UseVendorAll:  *whyVendor,
+		Tags:                     imports.AnyTags(),
+		VendorModulesInGOROOTSrc: true,
+		LoadTests:                !*whyVendor,
+		SilenceErrors:            true,
+		UseVendorAll:             *whyVendor,
 	}
 
 	if *whyM {

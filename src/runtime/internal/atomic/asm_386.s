@@ -189,6 +189,9 @@ TEXT ·Store(SB), NOSPLIT, $0-8
 TEXT ·StoreRel(SB), NOSPLIT, $0-8
 	JMP	·Store(SB)
 
+TEXT runtime∕internal∕atomic·StoreReluintptr(SB), NOSPLIT, $0-8
+	JMP	runtime∕internal∕atomic·Store(SB)
+
 // uint64 atomicload64(uint64 volatile* addr);
 TEXT ·Load64(SB), NOSPLIT, $0-12
 	NO_LOCAL_POINTERS
@@ -239,4 +242,20 @@ TEXT ·Store8(SB), NOSPLIT, $0-5
 	MOVL	ptr+0(FP), BX
 	MOVB	val+4(FP), AX
 	XCHGB	AX, 0(BX)
+	RET
+
+// func Or(addr *uint32, v uint32)
+TEXT ·Or(SB), NOSPLIT, $0-8
+	MOVL	ptr+0(FP), AX
+	MOVL	val+4(FP), BX
+	LOCK
+	ORL	BX, (AX)
+	RET
+
+// func And(addr *uint32, v uint32)
+TEXT ·And(SB), NOSPLIT, $0-8
+	MOVL	ptr+0(FP), AX
+	MOVL	val+4(FP), BX
+	LOCK
+	ANDL	BX, (AX)
 	RET

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 // This program generates example_test.go.
@@ -11,9 +12,9 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math/bits"
+	"os"
 )
 
 const header = `// Copyright 2017 The Go Authors. All rights reserved.
@@ -106,7 +107,7 @@ func main() {
 		}
 	}
 
-	if err := ioutil.WriteFile("example_test.go", w.Bytes(), 0666); err != nil {
+	if err := os.WriteFile("example_test.go", w.Bytes(), 0666); err != nil {
 		log.Fatal(err)
 	}
 }

@@ -6,6 +6,6 @@
 
 package a
 
-import "fmt"  // ERROR "imported and not used"
+import "fmt"  // GC_ERROR "imported and not used"
 
-const n = fmt // ERROR "fmt without selector"
+const n = fmt // ERROR "fmt without selector|unexpected reference to package|use of package fmt not in selector"

@@ -22,8 +22,8 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
+	"os"
 	"strings"
 	"time"
 )
@@ -111,6 +111,9 @@ func (timeoutError) Temporary() bool { return true }
 //
 // DialWithDialer interprets a nil configuration as equivalent to the zero
 // configuration; see the documentation of Config for the defaults.
+//
+// DialWithDialer uses context.Background internally; to specify the context,
+// use Dialer.DialContext with NetDialer set to the desired dialer.
 func DialWithDialer(dialer *net.Dialer, network, addr string, config *Config) (*Conn, error) {
 	return dial(context.Background(), dialer, network, addr, config)
 }
@@ -224,6 +227,9 @@ type Dialer struct {
 // handshake, returning the resulting TLS connection.
 //
 // The returned Conn, if any, will always be of type *Conn.
+//
+// Dial uses context.Background internally; to specify the context,
+// use DialContext.
 func (d *Dialer) Dial(network, addr string) (net.Conn, error) {
 	return d.DialContext(context.Background(), network, addr)
 }
@@ -259,11 +265,11 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 // form a certificate chain. On successful return, Certificate.Leaf will
 // be nil because the parsed form of the certificate is not retained.
 func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
-	certPEMBlock, err := ioutil.ReadFile(certFile)
+	certPEMBlock, err := os.ReadFile(certFile)
 	if err != nil {
 		return Certificate{}, err
 	}
-	keyPEMBlock, err := ioutil.ReadFile(keyFile)
+	keyPEMBlock, err := os.ReadFile(keyFile)
 	if err != nil {
 		return Certificate{}, err
 	}

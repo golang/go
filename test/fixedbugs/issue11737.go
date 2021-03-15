@@ -12,6 +12,6 @@ func f()
 
 func s(x interface{}) {
 	switch x {
-	case f: // ERROR "invalid case f \(type func\(\)\) in switch \(incomparable type\)"
+	case f: // ERROR "invalid case f \(type func\(\)\) in switch \(incomparable type\)|cannot compare"
 	}
 }

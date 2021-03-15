@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -170,7 +169,7 @@ func TestSharedLibName(t *testing.T) {
 	for _, data := range testData {
 		func() {
 			if data.rootedAt != "" {
-				tmpGopath, err := ioutil.TempDir("", "gopath")
+				tmpGopath, err := os.MkdirTemp("", "gopath")
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -238,7 +237,7 @@ func TestRespectSetgidDir(t *testing.T) {
 		return cmdBuf.WriteString(fmt.Sprint(a...))
 	}
 
-	setgiddir, err := ioutil.TempDir("", "SetGroupID")
+	setgiddir, err := os.MkdirTemp("", "SetGroupID")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,9 +257,9 @@ func TestRespectSetgidDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pkgfile, err := ioutil.TempFile("", "pkgfile")
+	pkgfile, err := os.CreateTemp("", "pkgfile")
 	if err != nil {
-		t.Fatalf("ioutil.TempFile(\"\", \"pkgfile\"): %v", err)
+		t.Fatalf("os.CreateTemp(\"\", \"pkgfile\"): %v", err)
 	}
 	defer os.Remove(pkgfile.Name())
 	defer pkgfile.Close()

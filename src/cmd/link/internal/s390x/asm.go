@@ -444,7 +444,7 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		rela.AddAddrPlus(target.Arch, got.Sym(), got.Size()-8)
 
 		sDynid := ldr.SymDynid(s)
-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(sDynid), uint32(elf.R_390_JMP_SLOT)))
+		rela.AddUint64(target.Arch, elf.R_INFO(uint32(sDynid), uint32(elf.R_390_JMP_SLOT)))
 		rela.AddUint64(target.Arch, 0)
 
 		ldr.SetPlt(s, int32(plt.Size()-32))

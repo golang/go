@@ -187,7 +187,7 @@ func stackpoolalloc(order uint8) gclinkptr {
 	lockWithRankMayAcquire(&mheap_.lock, lockRankMheap)
 	if s == nil {
 		// no free stacks. Allocate another span worth.
-		s = mheap_.allocManual(_StackCacheSize>>_PageShift, &memstats.stacks_inuse)
+		s = mheap_.allocManual(_StackCacheSize>>_PageShift, spanAllocStack)
 		if s == nil {
 			throw("out of memory")
 		}
@@ -251,7 +251,7 @@ func stackpoolfree(x gclinkptr, order uint8) {
 		stackpool[order].item.span.remove(s)
 		s.manualFreeList = 0
 		osStackFree(s)
-		mheap_.freeManual(s, &memstats.stacks_inuse)
+		mheap_.freeManual(s, spanAllocStack)
 	}
 }
 
@@ -396,7 +396,7 @@ func stackalloc(n uint32) stack {
 
 		if s == nil {
 			// Allocate a new stack from the heap.
-			s = mheap_.allocManual(npage, &memstats.stacks_inuse)
+			s = mheap_.allocManual(npage, spanAllocStack)
 			if s == nil {
 				throw("out of memory")
 			}
@@ -480,7 +480,7 @@ func stackfree(stk stack) {
 			// Free the stack immediately if we're
 			// sweeping.
 			osStackFree(s)
-			mheap_.freeManual(s, &memstats.stacks_inuse)
+			mheap_.freeManual(s, spanAllocStack)
 		} else {
 			// If the GC is running, we can't return a
 			// stack span to the heap because it could be
@@ -651,7 +651,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 
 	// Adjust saved base pointer if there is one.
 	// TODO what about arm64 frame pointer adjustment?
-	if sys.ArchFamily == sys.AMD64 && frame.argp-frame.varp == 2*sys.RegSize {
+	if sys.ArchFamily == sys.AMD64 && frame.argp-frame.varp == 2*sys.PtrSize {
 		if stackDebug >= 3 {
 			print("      saved bp\n")
 		}
@@ -1089,7 +1089,7 @@ func nilfunc() {
 }
 
 // adjust Gobuf as if it executed a call to fn
-// and then did an immediate gosave.
+// and then stopped before the first instruction in fn.
 func gostartcallfn(gobuf *gobuf, fv *funcval) {
 	var fn unsafe.Pointer
 	if fv != nil {
@@ -1193,7 +1193,7 @@ func freeStackSpans() {
 				list.remove(s)
 				s.manualFreeList = 0
 				osStackFree(s)
-				mheap_.freeManual(s, &memstats.stacks_inuse)
+				mheap_.freeManual(s, spanAllocStack)
 			}
 			s = next
 		}
@@ -1207,7 +1207,7 @@ func freeStackSpans() {
 			next := s.next
 			stackLarge.free[i].remove(s)
 			osStackFree(s)
-			mheap_.freeManual(s, &memstats.stacks_inuse)
+			mheap_.freeManual(s, spanAllocStack)
 			s = next
 		}
 	}
@@ -1245,7 +1245,7 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 	var minsize uintptr
 	switch sys.ArchFamily {
 	case sys.ARM64:
-		minsize = sys.SpAlign
+		minsize = sys.StackAlign
 	default:
 		minsize = sys.MinFrameSize
 	}

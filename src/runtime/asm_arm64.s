@@ -8,12 +8,25 @@
 #include "funcdata.h"
 #include "textflag.h"
 
-TEXT runtime·rt0_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// SP = stack; R0 = argc; R1 = argv
 
 	SUB	$32, RSP
 	MOVW	R0, 8(RSP) // argc
 	MOVD	R1, 16(RSP) // argv
+
+#ifdef TLS_darwin
+	// Initialize TLS.
+	MOVD	ZR, g // clear g, make sure it's not junk.
+	SUB	$32, RSP
+	MRS_TPIDR_R0
+	AND	$~7, R0
+	MOVD	R0, 16(RSP)             // arg2: TLS base
+	MOVD	$runtime·tls_g(SB), R2
+	MOVD	R2, 8(RSP)              // arg1: &tlsg
+	BL	·tlsinit(SB)
+	ADD	$32, RSP
+#endif
 
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
@@ -29,9 +42,9 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	MOVD	_cgo_init(SB), R12
 	CBZ	R12, nocgo
 
+#ifdef GOOS_android
 	MRS_TPIDR_R0			// load TLS base pointer
 	MOVD	R0, R3			// arg 3: TLS base pointer
-#ifdef TLSG_IS_VARIABLE
 	MOVD	$runtime·tls_g(SB), R2 	// arg 2: &tls_g
 #else
 	MOVD	$0, R2		        // arg 2: not used when using platform's TLS
@@ -59,6 +72,10 @@ nocgo:
 	MOVD	R0, g_m(g)
 
 	BL	runtime·check(SB)
+
+#ifdef GOOS_windows
+	BL	runtime·wintls(SB)
+#endif
 
 	MOVW	8(RSP), R0	// copy argc
 	MOVW	R0, -8(RSP)
@@ -96,35 +113,26 @@ TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
 TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
 	RET
 
+TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	BL	runtime·mstart0(SB)
+	RET // not reached
+
 /*
  *  go-routine
  */
 
-// void gosave(Gobuf*)
-// save state in Gobuf; setjmp
-TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
-	MOVD	buf+0(FP), R3
-	MOVD	RSP, R0
-	MOVD	R0, gobuf_sp(R3)
-	MOVD	R29, gobuf_bp(R3)
-	MOVD	LR, gobuf_pc(R3)
-	MOVD	g, gobuf_g(R3)
-	MOVD	ZR, gobuf_lr(R3)
-	MOVD	ZR, gobuf_ret(R3)
-	// Assert ctxt is zero. See func save.
-	MOVD	gobuf_ctxt(R3), R0
-	CBZ	R0, 2(PC)
-	CALL	runtime·badctxt(SB)
-	RET
-
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
-TEXT runtime·gogo(SB), NOSPLIT, $24-8
+TEXT runtime·gogo(SB), NOSPLIT|NOFRAME, $0-8
 	MOVD	buf+0(FP), R5
-	MOVD	gobuf_g(R5), g
+	MOVD	gobuf_g(R5), R6
+	MOVD	0(R6), R4	// make sure g != nil
+	B	gogo<>(SB)
+
+TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
+	MOVD	R6, g
 	BL	runtime·save_g(SB)
 
-	MOVD	0(g), R4	// make sure g is not nil
 	MOVD	gobuf_sp(R5), R0
 	MOVD	R0, RSP
 	MOVD	gobuf_bp(R5), R29
@@ -151,7 +159,6 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
 	MOVD	R29, (g_sched+gobuf_bp)(g)
 	MOVD	LR, (g_sched+gobuf_pc)(g)
 	MOVD	$0, (g_sched+gobuf_lr)(g)
-	MOVD	g, (g_sched+gobuf_g)(g)
 
 	// Switch to m->g0 & its stack, call fn.
 	MOVD	g, R3
@@ -209,24 +216,12 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 switch:
 	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
-	MOVD	$runtime·systemstack_switch(SB), R6
-	ADD	$8, R6	// get past prologue
-	MOVD	R6, (g_sched+gobuf_pc)(g)
-	MOVD	RSP, R0
-	MOVD	R0, (g_sched+gobuf_sp)(g)
-	MOVD	R29, (g_sched+gobuf_bp)(g)
-	MOVD	$0, (g_sched+gobuf_lr)(g)
-	MOVD	g, (g_sched+gobuf_g)(g)
+	BL	gosave_systemstack_switch<>(SB)
 
 	// switch to g0
 	MOVD	R5, g
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R3
-	// make it look like mstart called systemstack on g0, to stop traceback
-	SUB	$16, R3
-	AND	$~15, R3
-	MOVD	$runtime·mstart(SB), R4
-	MOVD	R4, 0(R3)
 	MOVD	R3, RSP
 	MOVD	(g_sched+gobuf_bp)(g), R29
 
@@ -316,7 +311,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	B runtime·morestack(SB)
 
 // reflectcall: call a function with the given argument list
-// func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
+// func call(stackArgsType *_type, f *FuncVal, stackArgs *byte, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs).
 // we don't have variable-sized frames, so we use a small number
 // of constant-sized-frame functions to encode a few bits of size in the pc.
 // Caution: ugly multiline assembly macros in your future!
@@ -329,8 +324,8 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	B	(R27)
 // Note: can't just "B NAME(SB)" - bad inlining results.
 
-TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
-	MOVWU argsize+24(FP), R16
+TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-48
+	MOVWU	frameSize+32(FP), R16
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
@@ -362,11 +357,11 @@ TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	B	(R0)
 
 #define CALLFN(NAME,MAXSIZE)			\
-TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
+TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
-	MOVD	arg+16(FP), R3;			\
-	MOVWU	argsize+24(FP), R4;		\
+	MOVD	stackArgs+16(FP), R3;			\
+	MOVWU	stackArgsSize+24(FP), R4;		\
 	ADD	$8, RSP, R5;			\
 	BIC	$0xf, R4, R6;			\
 	CBZ	R6, 6(PC);			\
@@ -392,10 +387,10 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	BL	(R0);				\
 	/* copy return values back */		\
-	MOVD	argtype+0(FP), R7;		\
-	MOVD	arg+16(FP), R3;			\
-	MOVWU	n+24(FP), R4;			\
-	MOVWU	retoffset+28(FP), R6;		\
+	MOVD	stackArgsType+0(FP), R7;		\
+	MOVD	stackArgs+16(FP), R3;			\
+	MOVWU	stackArgsSize+24(FP), R4;			\
+	MOVWU	stackRetOffset+28(FP), R6;		\
 	ADD	$8, RSP, R5;			\
 	ADD	R6, R5; 			\
 	ADD	R6, R3;				\
@@ -407,11 +402,12 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 // separate function so it can allocate stack space for the arguments
 // to reflectcallmove. It does not follow the Go ABI; it expects its
 // arguments in registers.
-TEXT callRet<>(SB), NOSPLIT, $40-0
+TEXT callRet<>(SB), NOSPLIT, $48-0
 	MOVD	R7, 8(RSP)
 	MOVD	R3, 16(RSP)
 	MOVD	R5, 24(RSP)
 	MOVD	R4, 32(RSP)
+	MOVD	$0, 40(RSP)
 	BL	runtime·reflectcallmove(SB)
 	RET
 
@@ -862,9 +858,15 @@ TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
 	MOVD	0(R26), R3
 	B	(R3)
 
-// Save state of caller into g->sched. Smashes R0.
-TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
-	MOVD	LR, (g_sched+gobuf_pc)(g)
+// Save state of caller into g->sched,
+// but using fake PC from systemstack_switch.
+// Must only be called from functions with no locals ($0)
+// or else unwinding from systemstack_switch is incorrect.
+// Smashes R0.
+TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+	MOVD	$runtime·systemstack_switch(SB), R0
+	ADD	$8, R0	// get past prologue
+	MOVD	R0, (g_sched+gobuf_pc)(g)
 	MOVD	RSP, R0
 	MOVD	R0, (g_sched+gobuf_sp)(g)
 	MOVD	R29, (g_sched+gobuf_bp)(g)
@@ -873,7 +875,18 @@ TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
 	// Assert ctxt is zero. See func save.
 	MOVD	(g_sched+gobuf_ctxt)(g), R0
 	CBZ	R0, 2(PC)
-	CALL	runtime·badctxt(SB)
+	CALL	runtime·abort(SB)
+	RET
+
+// func asmcgocall_no_g(fn, arg unsafe.Pointer)
+// Call fn(arg) aligned appropriately for the gcc ABI.
+// Called on a system stack, and there may be no g yet (during needm).
+TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
+	MOVD	fn+0(FP), R1
+	MOVD	arg+8(FP), R0
+	SUB	$16, RSP	// skip over saved frame pointer below RSP
+	BL	(R1)
+	ADD	$16, RSP	// skip over saved frame pointer below RSP
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32
@@ -900,8 +913,8 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	BEQ	nosave
 
 	// Switch to system stack.
-	MOVD	R0, R9	// gosave<> and save_g might clobber R0
-	BL	gosave<>(SB)
+	MOVD	R0, R9	// gosave_systemstack_switch<> and save_g might clobber R0
+	BL	gosave_systemstack_switch<>(SB)
 	MOVD	R3, g
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R0
@@ -954,36 +967,17 @@ nosave:
 	BL	(R1)
 	// Restore stack pointer.
 	MOVD	8(RSP), R2
-	MOVD	R2, RSP	
+	MOVD	R2, RSP
 	MOVD	R0, ret+16(FP)
 	RET
 
-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
-// Turn the fn into a Go func (by taking its address) and call
-// cgocallback_gofunc.
-TEXT runtime·cgocallback(SB),NOSPLIT,$40-32
-	MOVD	$fn+0(FP), R0
-	MOVD	R0, 8(RSP)
-	MOVD	frame+8(FP), R0
-	MOVD	R0, 16(RSP)
-	MOVD	framesize+16(FP), R0
-	MOVD	R0, 24(RSP)
-	MOVD	ctxt+24(FP), R0
-	MOVD	R0, 32(RSP)
-	MOVD	$runtime·cgocallback_gofunc(SB), R0
-	BL	(R0)
-	RET
-
-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
+// cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$24-32
+TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
 	// Load g from thread-local storage.
-	MOVB	runtime·iscgo(SB), R3
-	CBZ	R3, nocgo
 	BL	runtime·load_g(SB)
-nocgo:
 
 	// If g is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
@@ -1001,7 +995,7 @@ needm:
 	MOVD	$runtime·needm(SB), R0
 	BL	(R0)
 
-	// Set m->sched.sp = SP, so that if a panic happens
+	// Set m->g0->sched.sp = SP, so that if a panic happens
 	// during the function we are about to execute, it will
 	// have a valid SP to run on the g0 stack.
 	// The next few lines (after the havem label)
@@ -1037,16 +1031,11 @@ havem:
 	// save that information (m->curg->sched) so we can restore it.
 	// We can restore m->curg->sched.sp easily, because calling
 	// runtime.cgocallbackg leaves SP unchanged upon return.
-	// To save m->curg->sched.pc, we push it onto the stack.
-	// This has the added benefit that it looks to the traceback
-	// routine like cgocallbackg is going to return to that
-	// PC (because the frame we allocate below has the same
-	// size as cgocallback_gofunc's frame declared above)
-	// so that the traceback will seamlessly trace back into
-	// the earlier calls.
-	//
-	// In the new goroutine, -8(SP) is unused (where SP refers to
-	// m->curg's SP while we're setting it up, before we've adjusted it).
+	// To save m->curg->sched.pc, we push it onto the curg stack and
+	// open a frame the same size as cgocallback's g0 frame.
+	// Once we switch to the curg stack, the pushed PC will appear
+	// to be the return PC of cgocallback, so that the traceback
+	// will seamlessly trace back into the earlier calls.
 	MOVD	m_curg(R8), g
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
@@ -1054,10 +1043,15 @@ havem:
 	MOVD	R5, -48(R4)
 	MOVD	(g_sched+gobuf_bp)(g), R5
 	MOVD	R5, -56(R4)
-	MOVD	ctxt+24(FP), R0
-	MOVD	R0, -40(R4)
+	// Gather our arguments into registers.
+	MOVD	fn+0(FP), R1
+	MOVD	frame+8(FP), R2
+	MOVD	ctxt+16(FP), R3
 	MOVD	$-48(R4), R0 // maintain 16-byte SP alignment
-	MOVD	R0, RSP
+	MOVD	R0, RSP	// switch stack
+	MOVD	R1, 8(RSP)
+	MOVD	R2, 16(RSP)
+	MOVD	R3, 24(RSP)
 	BL	runtime·cgocallbackg(SB)
 
 	// Restore g->sched (== m->curg->sched) from saved values.
@@ -1119,6 +1113,9 @@ TEXT setg_gcc<>(SB),NOSPLIT,$8
 	MOVD	R27, savedR27-8(SP)
 	BL	runtime·save_g(SB)
 	MOVD	savedR27-8(SP), R27
+	RET
+
+TEXT runtime·emptyfunc(SB),0,$0-0
 	RET
 
 TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0

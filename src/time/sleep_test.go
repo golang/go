@@ -434,17 +434,29 @@ func TestReset(t *testing.T) {
 	t.Error(err)
 }
 
-// Test that sleeping for an interval so large it overflows does not
-// result in a short sleep duration.
+// Test that sleeping (via Sleep or Timer) for an interval so large it
+// overflows does not result in a short sleep duration. Nor does it interfere
+// with execution of other timers. If it does, timers in this or subsequent
+// tests may not fire.
 func TestOverflowSleep(t *testing.T) {
 	const big = Duration(int64(1<<63 - 1))
+
+	go func() {
+		Sleep(big)
+		// On failure, this may return after the test has completed, so
+		// we need to panic instead.
+		panic("big sleep returned")
+	}()
+
 	select {
 	case <-After(big):
 		t.Fatalf("big timeout fired")
 	case <-After(25 * Millisecond):
 		// OK
 	}
+
 	const neg = Duration(-1 << 63)
+	Sleep(neg) // Returns immediately.
 	select {
 	case <-After(neg):
 		// OK
@@ -473,13 +485,10 @@ func TestIssue5745(t *testing.T) {
 	t.Error("Should be unreachable.")
 }
 
-func TestOverflowRuntimeTimer(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping in short mode, see issue 6874")
-	}
+func TestOverflowPeriodRuntimeTimer(t *testing.T) {
 	// This may hang forever if timers are broken. See comment near
 	// the end of CheckRuntimeTimerOverflow in internal_test.go.
-	CheckRuntimeTimerOverflow()
+	CheckRuntimeTimerPeriodOverflow()
 }
 
 func checkZeroPanicString(t *testing.T) {
@@ -500,4 +509,207 @@ func TestZeroTimerStopPanics(t *testing.T) {
 	defer checkZeroPanicString(t)
 	var tr Timer
 	tr.Stop()
+}
+
+// Test that zero duration timers aren't missed by the scheduler. Regression test for issue 44868.
+func TestZeroTimer(t *testing.T) {
+	if testing.Short() {
+		t.Skip("-short")
+	}
+
+	for i := 0; i < 1000000; i++ {
+		s := Now()
+		ti := NewTimer(0)
+		<-ti.C
+		if diff := Since(s); diff > 2*Second {
+			t.Errorf("Expected time to get value from Timer channel in less than 2 sec, took %v", diff)
+		}
+	}
+}
+
+// Benchmark timer latency when the thread that creates the timer is busy with
+// other work and the timers must be serviced by other threads.
+// https://golang.org/issue/38860
+func BenchmarkParallelTimerLatency(b *testing.B) {
+	gmp := runtime.GOMAXPROCS(0)
+	if gmp < 2 || runtime.NumCPU() < gmp {
+		b.Skip("skipping with GOMAXPROCS < 2 or NumCPU < GOMAXPROCS")
+	}
+
+	// allocate memory now to avoid GC interference later.
+	timerCount := gmp - 1
+	stats := make([]struct {
+		sum   float64
+		max   Duration
+		count int64
+		_     [5]int64 // cache line padding
+	}, timerCount)
+
+	// Ensure the time to start new threads to service timers will not pollute
+	// the results.
+	warmupScheduler(gmp)
+
+	// Note that other than the AfterFunc calls this benchmark is measuring it
+	// avoids using any other timers. In particular, the main goroutine uses
+	// doWork to spin for some durations because up through Go 1.15 if all
+	// threads are idle sysmon could leave deep sleep when we wake.
+
+	// Ensure sysmon is in deep sleep.
+	doWork(30 * Millisecond)
+
+	b.ResetTimer()
+
+	const delay = Millisecond
+	var wg sync.WaitGroup
+	var count int32
+	for i := 0; i < b.N; i++ {
+		wg.Add(timerCount)
+		atomic.StoreInt32(&count, 0)
+		for j := 0; j < timerCount; j++ {
+			j := j
+			expectedWakeup := Now().Add(delay)
+			AfterFunc(delay, func() {
+				late := Since(expectedWakeup)
+				if late < 0 {
+					late = 0
+				}
+				stats[j].count++
+				stats[j].sum += float64(late.Nanoseconds())
+				if late > stats[j].max {
+					stats[j].max = late
+				}
+				atomic.AddInt32(&count, 1)
+				for atomic.LoadInt32(&count) < int32(timerCount) {
+					// spin until all timers fired
+				}
+				wg.Done()
+			})
+		}
+
+		for atomic.LoadInt32(&count) < int32(timerCount) {
+			// spin until all timers fired
+		}
+		wg.Wait()
+
+		// Spin for a bit to let the other scheduler threads go idle before the
+		// next round.
+		doWork(Millisecond)
+	}
+	var total float64
+	var samples float64
+	max := Duration(0)
+	for _, s := range stats {
+		if s.max > max {
+			max = s.max
+		}
+		total += s.sum
+		samples += float64(s.count)
+	}
+	b.ReportMetric(0, "ns/op")
+	b.ReportMetric(total/samples, "avg-late-ns")
+	b.ReportMetric(float64(max.Nanoseconds()), "max-late-ns")
+}
+
+// Benchmark timer latency with staggered wakeup times and varying CPU bound
+// workloads. https://golang.org/issue/38860
+func BenchmarkStaggeredTickerLatency(b *testing.B) {
+	gmp := runtime.GOMAXPROCS(0)
+	if gmp < 2 || runtime.NumCPU() < gmp {
+		b.Skip("skipping with GOMAXPROCS < 2 or NumCPU < GOMAXPROCS")
+	}
+
+	const delay = 3 * Millisecond
+
+	for _, dur := range []Duration{300 * Microsecond, 2 * Millisecond} {
+		b.Run(fmt.Sprintf("work-dur=%s", dur), func(b *testing.B) {
+			for tickersPerP := 1; tickersPerP < int(delay/dur)+1; tickersPerP++ {
+				tickerCount := gmp * tickersPerP
+				b.Run(fmt.Sprintf("tickers-per-P=%d", tickersPerP), func(b *testing.B) {
+					// allocate memory now to avoid GC interference later.
+					stats := make([]struct {
+						sum   float64
+						max   Duration
+						count int64
+						_     [5]int64 // cache line padding
+					}, tickerCount)
+
+					// Ensure the time to start new threads to service timers
+					// will not pollute the results.
+					warmupScheduler(gmp)
+
+					b.ResetTimer()
+
+					var wg sync.WaitGroup
+					wg.Add(tickerCount)
+					for j := 0; j < tickerCount; j++ {
+						j := j
+						doWork(delay / Duration(gmp))
+						expectedWakeup := Now().Add(delay)
+						ticker := NewTicker(delay)
+						go func(c int, ticker *Ticker, firstWake Time) {
+							defer ticker.Stop()
+
+							for ; c > 0; c-- {
+								<-ticker.C
+								late := Since(expectedWakeup)
+								if late < 0 {
+									late = 0
+								}
+								stats[j].count++
+								stats[j].sum += float64(late.Nanoseconds())
+								if late > stats[j].max {
+									stats[j].max = late
+								}
+								expectedWakeup = expectedWakeup.Add(delay)
+								doWork(dur)
+							}
+							wg.Done()
+						}(b.N, ticker, expectedWakeup)
+					}
+					wg.Wait()
+
+					var total float64
+					var samples float64
+					max := Duration(0)
+					for _, s := range stats {
+						if s.max > max {
+							max = s.max
+						}
+						total += s.sum
+						samples += float64(s.count)
+					}
+					b.ReportMetric(0, "ns/op")
+					b.ReportMetric(total/samples, "avg-late-ns")
+					b.ReportMetric(float64(max.Nanoseconds()), "max-late-ns")
+				})
+			}
+		})
+	}
+}
+
+// warmupScheduler ensures the scheduler has at least targetThreadCount threads
+// in its thread pool.
+func warmupScheduler(targetThreadCount int) {
+	var wg sync.WaitGroup
+	var count int32
+	for i := 0; i < targetThreadCount; i++ {
+		wg.Add(1)
+		go func() {
+			atomic.AddInt32(&count, 1)
+			for atomic.LoadInt32(&count) < int32(targetThreadCount) {
+				// spin until all threads started
+			}
+
+			// spin a bit more to ensure they are all running on separate CPUs.
+			doWork(Millisecond)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+}
+
+func doWork(dur Duration) {
+	start := Now()
+	for Since(start) < dur {
+	}
 }

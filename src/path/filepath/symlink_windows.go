@@ -68,7 +68,7 @@ func toNorm(path string, normBase func(string) (string, error)) (string, error) 
 	path = path[len(volume):]
 
 	// skip special cases
-	if path == "." || path == `\` {
+	if path == "" || path == "." || path == `\` {
 		return volume + path, nil
 	}
 

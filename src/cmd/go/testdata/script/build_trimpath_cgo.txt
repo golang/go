@@ -20,10 +20,38 @@ go build -trimpath -o hello.exe .
 go run ./list-dwarf hello.exe
 ! stdout gopath/src
 
+
+# Do the above, with the cgo (but not .c) sources in an overlay
+# Check that the source path appears when -trimpath is not used.
+mkdir $WORK/overlay
+cp hello.go $WORK/overlay/hello.go
+mkdir hello_overlay
+cp hello.c hello_overlay/hello.c
+go build -overlay overlay.json -o hello_overlay.exe ./hello_overlay
+grep -q gopath[/\\]src hello_overlay.exe
+! grep -q $WORK[/\\]overlay hello_overlay.exe
+go run ./list-dwarf hello_overlay.exe
+stdout gopath[/\\]src
+! stdout $WORK[/\\]overlay
+
+# Check that the source path does not appear when -trimpath is used.
+go build -overlay overlay.json -trimpath -o hello_overlay.exe ./hello_overlay
+! grep -q gopath[/\\]src hello_overlay.exe
+! grep -q $WORK[/\\]overlay hello_overlay.exe
+go run ./list-dwarf hello_overlay.exe
+! stdout gopath/src
+! stdout $WORK[/\\]overlay
+
 -- go.mod --
 module m
 
 go 1.14
+-- overlay.json --
+{
+	"Replace": {
+		"hello_overlay/hello.go": "../../overlay/hello.go"
+	}
+}
 -- hello.c --
 #include <stdio.h>
 

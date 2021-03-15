@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris
 // +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
 
 package os_test
 
 import (
 	"io"
-	"io/ioutil"
+	"os"
 	. "os"
 	"path/filepath"
 	"runtime"
@@ -190,7 +191,7 @@ func TestReaddirRemoveRace(t *testing.T) {
 	}
 	dir := newDir("TestReaddirRemoveRace", t)
 	defer RemoveAll(dir)
-	if err := ioutil.WriteFile(filepath.Join(dir, "some-file"), []byte("hello"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "some-file"), []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	d, err := Open(dir)

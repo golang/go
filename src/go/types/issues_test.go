@@ -12,6 +12,7 @@ import (
 	"go/ast"
 	"go/importer"
 	"go/parser"
+	"go/token"
 	"internal/testenv"
 	"sort"
 	"strings"
@@ -384,9 +385,9 @@ func TestIssue28005(t *testing.T) {
 			}
 		}
 		if obj == nil {
-			t.Fatal("interface not found")
+			t.Fatal("object X not found")
 		}
-		iface := obj.Type().Underlying().(*Interface) // I must be an interface
+		iface := obj.Type().Underlying().(*Interface) // object X must be an interface
 
 		// Each iface method m is embedded; and m's receiver base type name
 		// must match the method's name per the choice in the source file.
@@ -521,5 +522,52 @@ func TestIssue34921(t *testing.T) {
 			t.Errorf("%q failed to typecheck: %v", src, err)
 		}
 		pkg = res // res is imported by the next package in this test
+	}
+}
+
+func TestIssue43088(t *testing.T) {
+	// type T1 struct {
+	//         _ T2
+	// }
+	//
+	// type T2 struct {
+	//         _ struct {
+	//                 _ T2
+	//         }
+	// }
+	n1 := NewTypeName(token.NoPos, nil, "T1", nil)
+	T1 := NewNamed(n1, nil, nil)
+	n2 := NewTypeName(token.NoPos, nil, "T2", nil)
+	T2 := NewNamed(n2, nil, nil)
+	s1 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", T2, false)}, nil)
+	T1.SetUnderlying(s1)
+	s2 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", T2, false)}, nil)
+	s3 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", s2, false)}, nil)
+	T2.SetUnderlying(s3)
+
+	// These calls must terminate (no endless recursion).
+	Comparable(T1)
+	Comparable(T2)
+}
+
+func TestIssue44515(t *testing.T) {
+	typ := Unsafe.Scope().Lookup("Pointer").Type()
+
+	got := TypeString(typ, nil)
+	want := "unsafe.Pointer"
+	if got != want {
+		t.Errorf("got %q; want %q", got, want)
+	}
+
+	qf := func(pkg *Package) string {
+		if pkg == Unsafe {
+			return "foo"
+		}
+		return ""
+	}
+	got = TypeString(typ, qf)
+	want = "foo.Pointer"
+	if got != want {
+		t.Errorf("got %q; want %q", got, want)
 	}
 }

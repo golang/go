@@ -155,52 +155,52 @@ func ui32x8() {
 
 // Signed 64-bit comparison with unsigned 8-bit immediate.
 func si64xu8(x chan int64) {
-        // s390x:"CLGIJ\t[$]8, R[0-9]+, [$]128, "
-        for <-x == 128 {
-                dummy()
-        }
+	// s390x:"CLGIJ\t[$]8, R[0-9]+, [$]128, "
+	for <-x == 128 {
+		dummy()
+	}
 
-        // s390x:"CLGIJ\t[$]6, R[0-9]+, [$]255, "
-        for <-x != 255 {
-                dummy()
-        }
+	// s390x:"CLGIJ\t[$]6, R[0-9]+, [$]255, "
+	for <-x != 255 {
+		dummy()
+	}
 }
 
 // Signed 32-bit comparison with unsigned 8-bit immediate.
 func si32xu8(x chan int32) {
-        // s390x:"CLIJ\t[$]8, R[0-9]+, [$]255, "
-        for <-x == 255 {
-                dummy()
-        }
+	// s390x:"CLIJ\t[$]8, R[0-9]+, [$]255, "
+	for <-x == 255 {
+		dummy()
+	}
 
-        // s390x:"CLIJ\t[$]6, R[0-9]+, [$]128, "
-        for <-x != 128 {
-                dummy()
-        }
+	// s390x:"CLIJ\t[$]6, R[0-9]+, [$]128, "
+	for <-x != 128 {
+		dummy()
+	}
 }
 
 // Unsigned 64-bit comparison with signed 8-bit immediate.
 func ui64xu8(x chan uint64) {
-        // s390x:"CGIJ\t[$]8, R[0-9]+, [$]-1, "
-        for <-x == ^uint64(0) {
-                dummy()
-        }
+	// s390x:"CGIJ\t[$]8, R[0-9]+, [$]-1, "
+	for <-x == ^uint64(0) {
+		dummy()
+	}
 
-        // s390x:"CGIJ\t[$]6, R[0-9]+, [$]-128, "
-        for <-x != ^uint64(127) {
-                dummy()
-        }
+	// s390x:"CGIJ\t[$]6, R[0-9]+, [$]-128, "
+	for <-x != ^uint64(127) {
+		dummy()
+	}
 }
 
 // Unsigned 32-bit comparison with signed 8-bit immediate.
 func ui32xu8(x chan uint32) {
-        // s390x:"CIJ\t[$]8, R[0-9]+, [$]-128, "
-        for <-x == ^uint32(127) {
-                dummy()
-        }
+	// s390x:"CIJ\t[$]8, R[0-9]+, [$]-128, "
+	for <-x == ^uint32(127) {
+		dummy()
+	}
 
-        // s390x:"CIJ\t[$]6, R[0-9]+, [$]-1, "
-        for <-x != ^uint32(0) {
-                dummy()
-        }
+	// s390x:"CIJ\t[$]6, R[0-9]+, [$]-1, "
+	for <-x != ^uint32(0) {
+		dummy()
+	}
 }

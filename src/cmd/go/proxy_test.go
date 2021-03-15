@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -75,12 +74,12 @@ func StartProxy() {
 var modList []module.Version
 
 func readModList() {
-	infos, err := ioutil.ReadDir("testdata/mod")
+	files, err := os.ReadDir("testdata/mod")
 	if err != nil {
 		log.Fatal(err)
 	}
-	for _, info := range infos {
-		name := info.Name()
+	for _, f := range files {
+		name := f.Name()
 		if !strings.HasSuffix(name, ".txt") {
 			continue
 		}
@@ -363,7 +362,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 			var buf bytes.Buffer
 			z := zip.NewWriter(&buf)
 			for _, f := range a.Files {
-				if strings.HasPrefix(f.Name, ".") {
+				if f.Name == ".info" || f.Name == ".mod" || f.Name == ".zip" {
 					continue
 				}
 				var zipName string

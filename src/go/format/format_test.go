@@ -9,7 +9,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 )
@@ -38,7 +38,7 @@ func diff(t *testing.T, dst, src []byte) {
 }
 
 func TestNode(t *testing.T) {
-	src, err := ioutil.ReadFile(testfile)
+	src, err := os.ReadFile(testfile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestNodeNoModify(t *testing.T) {
 }
 
 func TestSource(t *testing.T) {
-	src, err := ioutil.ReadFile(testfile)
+	src, err := os.ReadFile(testfile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,6 +151,10 @@ var tests = []string{
 	// erroneous programs
 	"ERROR1 + 2 +",
 	"ERRORx :=  0",
+
+	// build comments
+	"// copyright\n\n//go:build x\n\npackage p\n",
+	"// copyright\n\n//go:build x\n// +build x\n\npackage p\n",
 }
 
 func String(s string) (string, error) {

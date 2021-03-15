@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 package main
@@ -257,13 +258,14 @@ var genericOps = []opData{
 	{name: "RotateLeft32", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
 	{name: "RotateLeft64", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
 
-	// Square root, float64 only.
+	// Square root.
 	// Special cases:
 	//   +∞  → +∞
 	//   ±0  → ±0 (sign preserved)
 	//   x<0 → NaN
 	//   NaN → NaN
-	{name: "Sqrt", argLength: 1}, // √arg0
+	{name: "Sqrt", argLength: 1},   // √arg0 (floating point, double precision)
+	{name: "Sqrt32", argLength: 1}, // √arg0 (floating point, single precision)
 
 	// Round to integer, float64 only.
 	// Special cases:
@@ -332,6 +334,11 @@ var genericOps = []opData{
 	{name: "InitMem", zeroWidth: true},                               // memory input to the function.
 	{name: "Arg", aux: "SymOff", symEffect: "Read", zeroWidth: true}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
 
+	// Like Arg, these are generic ops that survive lowering. AuxInt is a register index, and the actual output register for each index is defined by the architecture.
+	// AuxInt = integer argument index (not a register number). ABI-specified spill loc obtained from function
+	{name: "ArgIntReg", aux: "NameOffsetInt8", zeroWidth: true},   // argument to the function in an int reg.
+	{name: "ArgFloatReg", aux: "NameOffsetInt8", zeroWidth: true}, // argument to the function in a float reg.
+
 	// The address of a variable.  arg0 is the base pointer.
 	// If the variable is a global, the base pointer will be SB and
 	// the Aux field will be a *obj.LSym.
@@ -389,9 +396,28 @@ var genericOps = []opData{
 	// TODO(josharian): ClosureCall and InterCall should have Int32 aux
 	// to match StaticCall's 32 bit arg size limit.
 	// TODO(drchase,josharian): could the arg size limit be bundled into the rules for CallOff?
-	{name: "ClosureCall", argLength: 3, aux: "CallOff", call: true},    // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
-	{name: "StaticCall", argLength: 1, aux: "CallOff", call: true},     // call function aux.(*obj.LSym), arg0=memory.  auxint=arg size.  Returns memory.
-	{name: "InterCall", argLength: 2, aux: "CallOff", call: true},      // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
+
+	// Before lowering, LECalls receive their fixed inputs (first), memory (last),
+	// and a variable number of input values in the middle.
+	// They produce a variable number of result values.
+	// These values are not necessarily "SSA-able"; they can be too large,
+	// but in that case inputs are loaded immediately before with OpDereference,
+	// and outputs are stored immediately with OpStore.
+	//
+	// After call expansion, Calls have the same fixed-middle-memory arrangement of inputs,
+	// with the difference that the "middle" is only the register-resident inputs,
+	// and the non-register inputs are instead stored at ABI-defined offsets from SP
+	// (and the stores thread through the memory that is ultimately an input to the call).
+	// Outputs follow a similar pattern; register-resident outputs are the leading elements
+	// of a Result-typed output, with memory last, and any memory-resident outputs have been
+	// stored to ABI-defined locations.  Each non-memory input or output fits in a register.
+	//
+	// Subsequent architecture-specific lowering only changes the opcode.
+
+	{name: "ClosureCall", argLength: -1, aux: "CallOff", call: true}, // arg0=code pointer, arg1=context ptr, arg2..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "StaticCall", argLength: -1, aux: "CallOff", call: true},  // call function aux.(*obj.LSym), arg0..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "InterCall", argLength: -1, aux: "CallOff", call: true},   // interface call.  arg0=code pointer, arg1..argN-1 are register inputs, argN=memory, auxint=arg size.  Returns Result of register results, plus memory.
+
 	{name: "ClosureLECall", argLength: -1, aux: "CallOff", call: true}, // late-expanded closure call. arg0=code pointer, arg1=context ptr,  arg2..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
 	{name: "StaticLECall", argLength: -1, aux: "CallOff", call: true},  // late-expanded static call function aux.(*ssa.AuxCall.Fn). arg0..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
 	{name: "InterLECall", argLength: -1, aux: "CallOff", call: true},   // late-expanded interface call. arg0=code pointer, arg1..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
@@ -538,8 +564,9 @@ var genericOps = []opData{
 	// pseudo-ops for breaking Tuple
 	{name: "Select0", argLength: 1, zeroWidth: true},  // the first component of a tuple
 	{name: "Select1", argLength: 1, zeroWidth: true},  // the second component of a tuple
-	{name: "SelectN", argLength: 1, aux: "Int64"},     // arg0=tuple, auxint=field index.  Returns the auxint'th member.
-	{name: "SelectNAddr", argLength: 1, aux: "Int64"}, // arg0=tuple, auxint=field index.  Returns the address of auxint'th member. Used for un-SSA-able result types.
+	{name: "SelectN", argLength: 1, aux: "Int64"},     // arg0=result, auxint=field index.  Returns the auxint'th member.
+	{name: "SelectNAddr", argLength: 1, aux: "Int64"}, // arg0=result, auxint=field index.  Returns the address of auxint'th member. Used for un-SSA-able result types.
+	{name: "MakeResult", argLength: -1},               // arg0 .. are components of a "Result" (like the result from a Call). The last arg should be memory (like the result from a call).
 
 	// Atomic operations used for semantically inlining sync/atomic and
 	// runtime/internal/atomic. Atomic loads return a new memory so that
@@ -550,11 +577,13 @@ var genericOps = []opData{
 	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
 	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"},                                // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
 	{name: "AtomicLoadAcq32", argLength: 2, typ: "(UInt32,Mem)"},                               // Load from arg0.  arg1=memory.  Lock acquisition, returns loaded value and new memory.
+	{name: "AtomicLoadAcq64", argLength: 2, typ: "(UInt64,Mem)"},                               // Load from arg0.  arg1=memory.  Lock acquisition, returns loaded value and new memory.
 	{name: "AtomicStore8", argLength: 3, typ: "Mem", hasSideEffects: true},                     // Store arg1 to *arg0.  arg2=memory.  Returns memory.
 	{name: "AtomicStore32", argLength: 3, typ: "Mem", hasSideEffects: true},                    // Store arg1 to *arg0.  arg2=memory.  Returns memory.
 	{name: "AtomicStore64", argLength: 3, typ: "Mem", hasSideEffects: true},                    // Store arg1 to *arg0.  arg2=memory.  Returns memory.
 	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem", hasSideEffects: true},               // Store arg1 to *arg0.  arg2=memory.  Returns memory.
 	{name: "AtomicStoreRel32", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Lock release, returns memory.
+	{name: "AtomicStoreRel64", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Lock release, returns memory.
 	{name: "AtomicExchange32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},        // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
 	{name: "AtomicExchange64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},        // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
 	{name: "AtomicAdd32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},             // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
@@ -563,14 +592,24 @@ var genericOps = []opData{
 	{name: "AtomicCompareAndSwap64", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true},    // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
 	{name: "AtomicCompareAndSwapRel32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Lock release, reports whether store happens and new memory.
 	{name: "AtomicAnd8", argLength: 3, typ: "Mem", hasSideEffects: true},                       // *arg0 &= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicAnd32", argLength: 3, typ: "Mem", hasSideEffects: true},                      // *arg0 &= arg1.  arg2=memory.  Returns memory.
 	{name: "AtomicOr8", argLength: 3, typ: "Mem", hasSideEffects: true},                        // *arg0 |= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicOr32", argLength: 3, typ: "Mem", hasSideEffects: true},                       // *arg0 |= arg1.  arg2=memory.  Returns memory.
 
 	// Atomic operation variants
 	// These variants have the same semantics as above atomic operations.
 	// But they are used for generating more efficient code on certain modern machines, with run-time CPU feature detection.
 	// Currently, they are used on ARM64 only.
-	{name: "AtomicAdd32Variant", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true}, // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
-	{name: "AtomicAdd64Variant", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true}, // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicAdd32Variant", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicAdd64Variant", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicExchange32Variant", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicExchange64Variant", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicCompareAndSwap32Variant", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+	{name: "AtomicCompareAndSwap64Variant", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+	{name: "AtomicAnd8Variant", argLength: 3, typ: "Mem", hasSideEffects: true},                    // *arg0 &= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicAnd32Variant", argLength: 3, typ: "Mem", hasSideEffects: true},                   // *arg0 &= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicOr8Variant", argLength: 3, typ: "Mem", hasSideEffects: true},                     // *arg0 |= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicOr32Variant", argLength: 3, typ: "Mem", hasSideEffects: true},                    // *arg0 |= arg1.  arg2=memory.  Returns memory.
 
 	// Clobber experiment op
 	{name: "Clobber", argLength: 0, typ: "Void", aux: "SymOff", symEffect: "None"}, // write an invalid pointer value to the given pointer slot of a stack variable

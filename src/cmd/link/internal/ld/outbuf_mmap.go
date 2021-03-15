@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd
 // +build aix darwin dragonfly freebsd linux netbsd openbsd
 
 package ld
@@ -28,7 +29,7 @@ func (out *OutBuf) Mmap(filesize uint64) (err error) {
 		// Some file systems do not support fallocate. We ignore that error as linking
 		// can still take place, but you might SIGBUS when you write to the mmapped
 		// area.
-		if err.Error() != fallocateNotSupportedErr {
+		if err != syscall.ENOTSUP && err != syscall.EPERM && err != errNoFallocate {
 			return err
 		}
 	}

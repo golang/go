@@ -902,6 +902,28 @@ func TestExecError(t *testing.T) {
 	}
 }
 
+type CustomError struct{}
+
+func (*CustomError) Error() string { return "heyo !" }
+
+// Check that a custom error can be returned.
+func TestExecError_CustomError(t *testing.T) {
+	failingFunc := func() (string, error) {
+		return "", &CustomError{}
+	}
+	tmpl := Must(New("top").Funcs(FuncMap{
+		"err": failingFunc,
+	}).Parse("{{ err }}"))
+
+	var b bytes.Buffer
+	err := tmpl.Execute(&b, nil)
+
+	var e *CustomError
+	if !errors.As(err, &e) {
+		t.Fatalf("expected custom error; got %s", err)
+	}
+}
+
 func TestJSEscaping(t *testing.T) {
 	testCases := []struct {
 		in, exp string
@@ -1695,5 +1717,18 @@ func TestIssue31810(t *testing.T) {
 	}
 	if b.String() != "result" {
 		t.Errorf("%s got %q, expected %q", textCall, b.String(), "result")
+	}
+}
+
+// Issue 43065, range over send only channel
+func TestIssue43065(t *testing.T) {
+	var b bytes.Buffer
+	tmp := Must(New("").Parse(`{{range .}}{{end}}`))
+	ch := make(chan<- int)
+	err := tmp.Execute(&b, ch)
+	if err == nil {
+		t.Error("expected err got nil")
+	} else if !strings.Contains(err.Error(), "range over send-only channel") {
+		t.Errorf("%s", err)
 	}
 }

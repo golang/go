@@ -394,7 +394,7 @@ func machoUpdateDwarfHeader(r *loadCmdReader, compressedSects []*macho.Section, 
 	// We want the DWARF segment to be considered non-loadable, so
 	// force vmaddr and vmsize to zero. In addition, set the initial
 	// protection to zero so as to make the dynamic loader happy,
-	// since otherwise it may complain that that the vm size and file
+	// since otherwise it may complain that the vm size and file
 	// size don't match for the segment. See issues 21647 and 32673
 	// for more context. Also useful to refer to the Apple dynamic
 	// loader source, specifically ImageLoaderMachO::sniffLoadCommands

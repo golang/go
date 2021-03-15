@@ -285,13 +285,36 @@ type argVU struct {
 	m  string // message.
 }
 
+var argshlVUIn = []Word{1, 2, 4, 8, 16, 32, 64, 0, 0, 0}
+var argshlVUr0 = []Word{1, 2, 4, 8, 16, 32, 64}
+var argshlVUr1 = []Word{2, 4, 8, 16, 32, 64, 128}
+var argshlVUrWm1 = []Word{1 << (_W - 1), 0, 1, 2, 4, 8, 16}
+
 var argshlVU = []argVU{
 	// test cases for shlVU
 	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0}, 7, 0, 0, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "complete overlap of shlVU"},
 	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0}, 7, 0, 3, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "partial overlap by half of shlVU"},
 	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0, 0, 0, 0}, 7, 0, 6, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "partial overlap by 1 Word of shlVU"},
 	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0, 0, 0, 0, 0}, 7, 0, 7, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "no overlap of shlVU"},
+	// additional test cases with shift values of 0, 1 and (_W-1)
+	{argshlVUIn, 7, 0, 0, 0, argshlVUr0, 0, "complete overlap of shlVU and shift of 0"},
+	{argshlVUIn, 7, 0, 0, 1, argshlVUr1, 0, "complete overlap of shlVU and shift of 1"},
+	{argshlVUIn, 7, 0, 0, _W - 1, argshlVUrWm1, 32, "complete overlap of shlVU and shift of _W - 1"},
+	{argshlVUIn, 7, 0, 1, 0, argshlVUr0, 0, "partial overlap by 6 Words of shlVU and shift of 0"},
+	{argshlVUIn, 7, 0, 1, 1, argshlVUr1, 0, "partial overlap by 6 Words of shlVU and shift of 1"},
+	{argshlVUIn, 7, 0, 1, _W - 1, argshlVUrWm1, 32, "partial overlap by 6 Words of shlVU and shift of _W - 1"},
+	{argshlVUIn, 7, 0, 2, 0, argshlVUr0, 0, "partial overlap by 5 Words of shlVU and shift of 0"},
+	{argshlVUIn, 7, 0, 2, 1, argshlVUr1, 0, "partial overlap by 5 Words of shlVU and shift of 1"},
+	{argshlVUIn, 7, 0, 2, _W - 1, argshlVUrWm1, 32, "partial overlap by 5 Words of shlVU abd shift of _W - 1"},
+	{argshlVUIn, 7, 0, 3, 0, argshlVUr0, 0, "partial overlap by 4 Words of shlVU and shift of 0"},
+	{argshlVUIn, 7, 0, 3, 1, argshlVUr1, 0, "partial overlap by 4 Words of shlVU and shift of 1"},
+	{argshlVUIn, 7, 0, 3, _W - 1, argshlVUrWm1, 32, "partial overlap by 4 Words of shlVU and shift of _W - 1"},
 }
+
+var argshrVUIn = []Word{0, 0, 0, 1, 2, 4, 8, 16, 32, 64}
+var argshrVUr0 = []Word{1, 2, 4, 8, 16, 32, 64}
+var argshrVUr1 = []Word{0, 1, 2, 4, 8, 16, 32}
+var argshrVUrWm1 = []Word{4, 8, 16, 32, 64, 128, 0}
 
 var argshrVU = []argVU{
 	// test cases for shrVU
@@ -299,6 +322,19 @@ var argshrVU = []argVU{
 	{[]Word{0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 4, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "partial overlap by half of shrVU"},
 	{[]Word{0, 0, 0, 0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 7, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "partial overlap by 1 Word of shrVU"},
 	{[]Word{0, 0, 0, 0, 0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 8, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "no overlap of shrVU"},
+	// additional test cases with shift values of 0, 1 and (_W-1)
+	{argshrVUIn, 7, 3, 3, 0, argshrVUr0, 0, "complete overlap of shrVU and shift of 0"},
+	{argshrVUIn, 7, 3, 3, 1, argshrVUr1, 1 << (_W - 1), "complete overlap of shrVU and shift of 1"},
+	{argshrVUIn, 7, 3, 3, _W - 1, argshrVUrWm1, 2, "complete overlap of shrVU and shift of _W - 1"},
+	{argshrVUIn, 7, 3, 2, 0, argshrVUr0, 0, "partial overlap by 6 Words of shrVU and shift of 0"},
+	{argshrVUIn, 7, 3, 2, 1, argshrVUr1, 1 << (_W - 1), "partial overlap by 6 Words of shrVU and shift of 1"},
+	{argshrVUIn, 7, 3, 2, _W - 1, argshrVUrWm1, 2, "partial overlap by 6 Words of shrVU and shift of _W - 1"},
+	{argshrVUIn, 7, 3, 1, 0, argshrVUr0, 0, "partial overlap by 5 Words of shrVU and shift of 0"},
+	{argshrVUIn, 7, 3, 1, 1, argshrVUr1, 1 << (_W - 1), "partial overlap by 5 Words of shrVU and shift of 1"},
+	{argshrVUIn, 7, 3, 1, _W - 1, argshrVUrWm1, 2, "partial overlap by 5 Words of shrVU and shift of _W - 1"},
+	{argshrVUIn, 7, 3, 0, 0, argshrVUr0, 0, "partial overlap by 4 Words of shrVU and shift of 0"},
+	{argshrVUIn, 7, 3, 0, 1, argshrVUr1, 1 << (_W - 1), "partial overlap by 4 Words of shrVU and shift of 1"},
+	{argshrVUIn, 7, 3, 0, _W - 1, argshrVUrWm1, 2, "partial overlap by 4 Words of shrVU and shift of _W - 1"},
 }
 
 func testShiftFunc(t *testing.T, f func(z, x []Word, s uint) Word, a argVU) {
@@ -335,11 +371,24 @@ func TestIssue31084(t *testing.T) {
 	// compute 10^n via 5^n << n.
 	const n = 165
 	p := nat(nil).expNN(nat{5}, nat{n}, nil)
-	p = p.shl(p, uint(n))
+	p = p.shl(p, n)
 	got := string(p.utoa(10))
 	want := "1" + strings.Repeat("0", n)
 	if got != want {
-		t.Errorf("shl(%v, %v)\n\tgot %s; want %s\n", p, uint(n), got, want)
+		t.Errorf("shl(%v, %v)\n\tgot  %s\n\twant %s", p, n, got, want)
+	}
+}
+
+const issue42838Value = "159309191113245227702888039776771180559110455519261878607388585338616290151305816094308987472018268594098344692611135542392730712890625"
+
+func TestIssue42838(t *testing.T) {
+	const s = 192
+	z, _, _, _ := nat(nil).scan(strings.NewReader(issue42838Value), 0, false)
+	z = z.shl(z, s)
+	got := string(z.utoa(10))
+	want := "1" + strings.Repeat("0", s)
+	if got != want {
+		t.Errorf("shl(%v, %v)\n\tgot  %s\n\twant %s", z, s, got, want)
 	}
 }
 
@@ -619,6 +668,30 @@ func BenchmarkDivWVW(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				divWVW(z, 0, x, y)
 			}
+		})
+	}
+}
+
+func BenchmarkNonZeroShifts(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := rndV(n)
+		s := uint(rand.Int63n(_W-2)) + 1 // avoid 0 and over-large shifts
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
+			b.Run("shrVU", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					_ = shrVU(z, x, s)
+				}
+			})
+			b.Run("shlVU", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					_ = shlVU(z, x, s)
+				}
+			})
 		})
 	}
 }

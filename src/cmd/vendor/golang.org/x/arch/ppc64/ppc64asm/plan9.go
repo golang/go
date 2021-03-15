@@ -112,7 +112,7 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 	case STDCXCC, STWCXCC, STHCXCC, STBCXCC:
 		return op + " " + args[0] + ",(" + args[2] + ")(" + args[1] + ")"
 
-	case STXVX, STXVD2X, STXVW4X, STXSDX, STVX, STVXL, STVEBX, STVEHX, STVEWX, STXSIWX, STFDX, STFDUX, STFDPX, STFSX, STFSUX:
+	case STXVX, STXVD2X, STXVW4X, STXVH8X, STXVB16X, STXSDX, STVX, STVXL, STVEBX, STVEHX, STVEWX, STXSIWX, STFDX, STFDUX, STFDPX, STFSX, STFSUX:
 		return op + " " + args[0] + ",(" + args[2] + ")(" + args[1] + ")"
 
 	case STXV:
@@ -127,7 +127,7 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 		}
 		return op + " (" + args[2] + ")(" + args[1] + ")," + args[0]
 
-	case LXVX, LXVD2X, LXVW4X, LVX, LVXL, LVSR, LVSL, LVEBX, LVEHX, LVEWX, LXSDX, LXSIWAX:
+	case LXVX, LXVD2X, LXVW4X, LXVH8X, LXVB16X, LVX, LVXL, LVSR, LVSL, LVEBX, LVEHX, LVEWX, LXSDX, LXSIWAX:
 		return op + " (" + args[2] + ")(" + args[1] + ")," + args[0]
 
 	case LXV:
@@ -332,6 +332,7 @@ var plan9OpMap = map[Op]string{
 	DIVDUO:    "DIVDUV",
 	DIVDUOCC:  "DIVDUVCC",
 	ADDI:      "ADD",
+	MULLI:     "MULLD",
 	SRADI:     "SRAD",
 	SUBF:      "SUB",
 	STBCXCC:   "STBCCC",

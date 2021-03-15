@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !js
 // +build !js
 
 package net
@@ -13,7 +14,6 @@ import (
 	"internal/poll"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net/internal/socktest"
 	"os"
 	"runtime"
@@ -730,7 +730,7 @@ func TestFileError(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	f, err := ioutil.TempFile("", "go-nettest")
+	f, err := os.CreateTemp("", "go-nettest")
 	if err != nil {
 		t.Fatal(err)
 	}

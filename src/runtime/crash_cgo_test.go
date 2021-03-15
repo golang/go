@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build cgo
 // +build cgo
 
 package runtime_test
@@ -250,6 +251,24 @@ func TestCgoCrashTraceback(t *testing.T) {
 	for i := 1; i <= 3; i++ {
 		if !strings.Contains(got, fmt.Sprintf("cgo symbolizer:%d", i)) {
 			t.Errorf("missing cgo symbolizer:%d", i)
+		}
+	}
+}
+
+func TestCgoCrashTracebackGo(t *testing.T) {
+	t.Parallel()
+	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
+	case "darwin/amd64":
+	case "linux/amd64":
+	case "linux/ppc64le":
+	default:
+		t.Skipf("not yet supported on %s", platform)
+	}
+	got := runTestProg(t, "testprogcgo", "CrashTracebackGo")
+	for i := 1; i <= 3; i++ {
+		want := fmt.Sprintf("main.h%d", i)
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %s", want)
 		}
 	}
 }
@@ -595,6 +614,19 @@ func TestEINTR(t *testing.T) {
 
 	t.Parallel()
 	output := runTestProg(t, "testprogcgo", "EINTR")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
+
+// Issue #42207.
+func TestNeedmDeadlock(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("no signals on %s", runtime.GOOS)
+	}
+	output := runTestProg(t, "testprogcgo", "NeedmDeadlock")
 	want := "OK\n"
 	if output != want {
 		t.Fatalf("want %s, got %s\n", want, output)

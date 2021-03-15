@@ -24,6 +24,9 @@ func init() {
 	case "v2":
 		os.Stdout.WriteString(`.string	"go.l..u00e4ufer.Run"`)
 		os.Exit(0)
+	case "v3":
+		os.Stdout.WriteString(`.string	"go_0l_u00e4ufer.Run"`)
+		os.Exit(0)
 	case "error":
 		os.Stdout.WriteString(`unknown string`)
 		os.Exit(0)
@@ -44,6 +47,10 @@ func TestToSymbolFunc(t *testing.T) {
 		{
 			env:     "v2",
 			mangled: "p..u00e4..u4e16..U0001f703",
+		},
+		{
+			env:     "v3",
+			mangled: "p_u00e4_u4e16_U0001f703",
 		},
 		{
 			env:  "error",
@@ -75,14 +82,16 @@ func TestToSymbolFunc(t *testing.T) {
 }
 
 var symbolTests = []struct {
-	input, v1, v2 string
+	input, v1, v2, v3 string
 }{
 	{
 		"",
 		"",
 		"",
+		"",
 	},
 	{
+		"bytes",
 		"bytes",
 		"bytes",
 		"bytes",
@@ -91,16 +100,19 @@ var symbolTests = []struct {
 		"net/http",
 		"net_http",
 		"net..z2fhttp",
+		"net_1http",
 	},
 	{
 		"golang.org/x/net/http",
 		"golang_org_x_net_http",
 		"golang.x2eorg..z2fx..z2fnet..z2fhttp",
+		"golang_0org_1x_1net_1http",
 	},
 	{
 		"pä世.🜃",
 		"p____",
 		"p..u00e4..u4e16.x2e..U0001f703",
+		"p_u00e4_u4e16_0_U0001f703",
 	},
 }
 
@@ -116,6 +128,14 @@ func TestV2(t *testing.T) {
 	for _, test := range symbolTests {
 		if got, want := toSymbolV2(test.input), test.v2; got != want {
 			t.Errorf("toSymbolV2(%q) = %q, want %q", test.input, got, want)
+		}
+	}
+}
+
+func TestV3(t *testing.T) {
+	for _, test := range symbolTests {
+		if got, want := toSymbolV3(test.input), test.v3; got != want {
+			t.Errorf("toSymbolV3(%q) = %q, want %q", test.input, got, want)
 		}
 	}
 }

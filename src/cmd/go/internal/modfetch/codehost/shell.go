@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 // Interactive debugging shell for codehost.Repo implementations.
@@ -15,7 +16,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -124,7 +124,7 @@ func main() {
 			}
 
 			if f[3] != "-" {
-				if err := ioutil.WriteFile(f[3], data, 0666); err != nil {
+				if err := os.WriteFile(f[3], data, 0666); err != nil {
 					fmt.Fprintf(os.Stderr, "?%s\n", err)
 					continue
 				}

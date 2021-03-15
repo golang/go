@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 // +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package runtime
@@ -9,7 +10,6 @@ package runtime
 import "unsafe"
 
 var NonblockingPipe = nonblockingPipe
-var Pipe = pipe
 var SetNonblock = setNonblock
 var Closeonexec = closeonexec
 

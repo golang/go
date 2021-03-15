@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 /*
@@ -69,8 +70,8 @@ func main() {
 	flag.Parse()
 	fset := token.NewFileSet()
 	nheadings := 0
-	err := filepath.Walk(*root, func(path string, fi fs.FileInfo, err error) error {
-		if !fi.IsDir() {
+	err := filepath.WalkDir(*root, func(path string, info fs.DirEntry, err error) error {
+		if !info.IsDir() {
 			return nil
 		}
 		pkgs, err := parser.ParseDir(fset, path, isGoFile, parser.ParseComments)

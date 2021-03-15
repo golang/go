@@ -718,7 +718,7 @@ func (c *ctxtz) oplook(p *obj.Prog) *Optab {
 	p.From.Class = int8(c.aclass(&p.From) + 1)
 	p.To.Class = int8(c.aclass(&p.To) + 1)
 	for i := range p.RestArgs {
-		p.RestArgs[i].Class = int8(c.aclass(&p.RestArgs[i]) + 1)
+		p.RestArgs[i].Addr.Class = int8(c.aclass(&p.RestArgs[i].Addr) + 1)
 	}
 
 	// Mirrors the argument list in Optab.
@@ -3700,7 +3700,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		}
 
 	case 80: // sync
-		zRR(op_BCR, uint32(NotEqual), 0, asm)
+		zRR(op_BCR, 14, 0, asm) // fast-BCR-serialization
 
 	case 81: // float to fixed and fixed to float moves (no conversion)
 		switch p.As {

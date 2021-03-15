@@ -12,7 +12,6 @@ import (
 	"go/build"
 	"internal/cfg"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -29,18 +28,18 @@ var (
 	BuildA                 bool   // -a flag
 	BuildBuildmode         string // -buildmode flag
 	BuildContext           = defaultContext()
-	BuildMod               string             // -mod flag
-	BuildModExplicit       bool               // whether -mod was set explicitly
-	BuildModReason         string             // reason -mod was set, if set by default
-	BuildI                 bool               // -i flag
-	BuildLinkshared        bool               // -linkshared flag
-	BuildMSan              bool               // -msan flag
-	BuildN                 bool               // -n flag
-	BuildO                 string             // -o flag
-	BuildP                 = runtime.NumCPU() // -p flag
-	BuildPkgdir            string             // -pkgdir flag
-	BuildRace              bool               // -race flag
-	BuildToolexec          []string           // -toolexec flag
+	BuildMod               string                  // -mod flag
+	BuildModExplicit       bool                    // whether -mod was set explicitly
+	BuildModReason         string                  // reason -mod was set, if set by default
+	BuildI                 bool                    // -i flag
+	BuildLinkshared        bool                    // -linkshared flag
+	BuildMSan              bool                    // -msan flag
+	BuildN                 bool                    // -n flag
+	BuildO                 string                  // -o flag
+	BuildP                 = runtime.GOMAXPROCS(0) // -p flag
+	BuildPkgdir            string                  // -pkgdir flag
+	BuildRace              bool                    // -race flag
+	BuildToolexec          []string                // -toolexec flag
 	BuildToolchainName     string
 	BuildToolchainCompiler func() string
 	BuildToolchainLinker   func() string
@@ -51,8 +50,6 @@ var (
 
 	ModCacheRW bool   // -modcacherw flag
 	ModFile    string // -modfile flag
-
-	Insecure bool // -insecure flag
 
 	CmdName string // "build", "install", "list", "mod tidy", etc.
 
@@ -187,7 +184,7 @@ func initEnvCache() {
 	if file == "" {
 		return
 	}
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		return
 	}
@@ -255,12 +252,13 @@ var (
 	GOMODCACHE   = envOr("GOMODCACHE", gopathDir("pkg/mod"))
 
 	// Used in envcmd.MkEnv and build ID computations.
-	GOARM    = envOr("GOARM", fmt.Sprint(objabi.GOARM))
-	GO386    = envOr("GO386", objabi.GO386)
-	GOMIPS   = envOr("GOMIPS", objabi.GOMIPS)
-	GOMIPS64 = envOr("GOMIPS64", objabi.GOMIPS64)
-	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", objabi.GOPPC64))
-	GOWASM   = envOr("GOWASM", fmt.Sprint(objabi.GOWASM))
+	GOARM        = envOr("GOARM", fmt.Sprint(objabi.GOARM))
+	GO386        = envOr("GO386", objabi.GO386)
+	GOMIPS       = envOr("GOMIPS", objabi.GOMIPS)
+	GOMIPS64     = envOr("GOMIPS64", objabi.GOMIPS64)
+	GOPPC64      = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", objabi.GOPPC64))
+	GOWASM       = envOr("GOWASM", fmt.Sprint(objabi.GOWASM))
+	GOEXPERIMENT = envOr("GOEXPERIMENT", objabi.GOEXPERIMENT)
 
 	GOPROXY    = envOr("GOPROXY", "https://proxy.golang.org,direct")
 	GOSUMDB    = envOr("GOSUMDB", "sum.golang.org")
@@ -268,6 +266,7 @@ var (
 	GONOPROXY  = envOr("GONOPROXY", GOPRIVATE)
 	GONOSUMDB  = envOr("GONOSUMDB", GOPRIVATE)
 	GOINSECURE = Getenv("GOINSECURE")
+	GOVCS      = Getenv("GOVCS")
 )
 
 var SumdbDir = gopathDir("pkg/sumdb")

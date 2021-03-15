@@ -152,6 +152,9 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
 		}
 		// Type definition for (-id) follows.
 		dec.recvType(-id)
+		if dec.err != nil {
+			break
+		}
 		// When decoding an interface, after a type there may be a
 		// DelimitedValue still in the buffer. Skip its count.
 		// (Alternatively, the buffer is empty and the byte count

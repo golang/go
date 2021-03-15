@@ -10,8 +10,11 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"go/token"
 	"io"
 	"strconv"
+	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -22,6 +25,18 @@ type importReader struct {
 	err  error
 	eof  bool
 	nerr int
+	pos  token.Position
+}
+
+func newImportReader(name string, r io.Reader) *importReader {
+	return &importReader{
+		b: bufio.NewReader(r),
+		pos: token.Position{
+			Filename: name,
+			Line:     1,
+			Column:   1,
+		},
+	}
 }
 
 func isIdent(c byte) bool {
@@ -57,6 +72,39 @@ func (r *importReader) readByte() byte {
 			r.err = err
 		}
 		c = 0
+	}
+	return c
+}
+
+// readByteNoBuf is like readByte but doesn't buffer the byte.
+// It exhausts r.buf before reading from r.b.
+func (r *importReader) readByteNoBuf() byte {
+	var c byte
+	var err error
+	if len(r.buf) > 0 {
+		c = r.buf[0]
+		r.buf = r.buf[1:]
+	} else {
+		c, err = r.b.ReadByte()
+		if err == nil && c == 0 {
+			err = errNUL
+		}
+	}
+
+	if err != nil {
+		if err == io.EOF {
+			r.eof = true
+		} else if r.err == nil {
+			r.err = err
+		}
+		return 0
+	}
+	r.pos.Offset++
+	if c == '\n' {
+		r.pos.Line++
+		r.pos.Column = 1
+	} else {
+		r.pos.Column++
 	}
 	return c
 }
@@ -119,6 +167,109 @@ func (r *importReader) nextByte(skipSpace bool) byte {
 	c := r.peekByte(skipSpace)
 	r.peek = 0
 	return c
+}
+
+var goEmbed = []byte("go:embed")
+
+// findEmbed advances the input reader to the next //go:embed comment.
+// It reports whether it found a comment.
+// (Otherwise it found an error or EOF.)
+func (r *importReader) findEmbed(first bool) bool {
+	// The import block scan stopped after a non-space character,
+	// so the reader is not at the start of a line on the first call.
+	// After that, each //go:embed extraction leaves the reader
+	// at the end of a line.
+	startLine := !first
+	var c byte
+	for r.err == nil && !r.eof {
+		c = r.readByteNoBuf()
+	Reswitch:
+		switch c {
+		default:
+			startLine = false
+
+		case '\n':
+			startLine = true
+
+		case ' ', '\t':
+			// leave startLine alone
+
+		case '"':
+			startLine = false
+			for r.err == nil {
+				if r.eof {
+					r.syntaxError()
+				}
+				c = r.readByteNoBuf()
+				if c == '\\' {
+					r.readByteNoBuf()
+					if r.err != nil {
+						r.syntaxError()
+						return false
+					}
+					continue
+				}
+				if c == '"' {
+					c = r.readByteNoBuf()
+					goto Reswitch
+				}
+			}
+			goto Reswitch
+
+		case '`':
+			startLine = false
+			for r.err == nil {
+				if r.eof {
+					r.syntaxError()
+				}
+				c = r.readByteNoBuf()
+				if c == '`' {
+					c = r.readByteNoBuf()
+					goto Reswitch
+				}
+			}
+
+		case '/':
+			c = r.readByteNoBuf()
+			switch c {
+			default:
+				startLine = false
+				goto Reswitch
+
+			case '*':
+				var c1 byte
+				for (c != '*' || c1 != '/') && r.err == nil {
+					if r.eof {
+						r.syntaxError()
+					}
+					c, c1 = c1, r.readByteNoBuf()
+				}
+				startLine = false
+
+			case '/':
+				if startLine {
+					// Try to read this as a //go:embed comment.
+					for i := range goEmbed {
+						c = r.readByteNoBuf()
+						if c != goEmbed[i] {
+							goto SkipSlashSlash
+						}
+					}
+					c = r.readByteNoBuf()
+					if c == ' ' || c == '\t' {
+						// Found one!
+						return true
+					}
+				}
+			SkipSlashSlash:
+				for c != '\n' && r.err == nil && !r.eof {
+					c = r.readByteNoBuf()
+				}
+				startLine = true
+			}
+		}
+	}
+	return false
 }
 
 // readKeyword reads the given keyword from the input.
@@ -195,7 +346,7 @@ func (r *importReader) readImport() {
 // readComments is like io.ReadAll, except that it only reads the leading
 // block of comments in the file.
 func readComments(f io.Reader) ([]byte, error) {
-	r := &importReader{b: bufio.NewReader(f)}
+	r := newImportReader("", f)
 	r.peekByte(true)
 	if r.err == nil && !r.eof {
 		// Didn't reach EOF, so must have found a non-space byte. Remove it.
@@ -207,12 +358,12 @@ func readComments(f io.Reader) ([]byte, error) {
 // readGoInfo expects a Go file as input and reads the file up to and including the import section.
 // It records what it learned in *info.
 // If info.fset is non-nil, readGoInfo parses the file and sets info.parsed, info.parseErr,
-// and info.imports.
+// info.imports, info.embeds, and info.embedErr.
 //
 // It only returns an error if there are problems reading the file,
 // not for syntax errors in the file itself.
 func readGoInfo(f io.Reader, info *fileInfo) error {
-	r := &importReader{b: bufio.NewReader(f)}
+	r := newImportReader(info.name, f)
 
 	r.readKeyword("package")
 	r.readIdent()
@@ -260,6 +411,7 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
 		return nil
 	}
 
+	hasEmbed := false
 	for _, decl := range info.parsed.Decls {
 		d, ok := decl.(*ast.GenDecl)
 		if !ok {
@@ -275,6 +427,9 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
 			if err != nil {
 				return fmt.Errorf("parser returned invalid quoted string: <%s>", quoted)
 			}
+			if path == "embed" {
+				hasEmbed = true
+			}
 
 			doc := spec.Doc
 			if doc == nil && len(d.Specs) == 1 {
@@ -284,5 +439,108 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
 		}
 	}
 
+	// If the file imports "embed",
+	// we have to look for //go:embed comments
+	// in the remainder of the file.
+	// The compiler will enforce the mapping of comments to
+	// declared variables. We just need to know the patterns.
+	// If there were //go:embed comments earlier in the file
+	// (near the package statement or imports), the compiler
+	// will reject them. They can be (and have already been) ignored.
+	if hasEmbed {
+		var line []byte
+		for first := true; r.findEmbed(first); first = false {
+			line = line[:0]
+			pos := r.pos
+			for {
+				c := r.readByteNoBuf()
+				if c == '\n' || r.err != nil || r.eof {
+					break
+				}
+				line = append(line, c)
+			}
+			// Add args if line is well-formed.
+			// Ignore badly-formed lines - the compiler will report them when it finds them,
+			// and we can pretend they are not there to help go list succeed with what it knows.
+			embs, err := parseGoEmbed(string(line), pos)
+			if err == nil {
+				info.embeds = append(info.embeds, embs...)
+			}
+		}
+	}
+
 	return nil
+}
+
+// parseGoEmbed parses the text following "//go:embed" to extract the glob patterns.
+// It accepts unquoted space-separated patterns as well as double-quoted and back-quoted Go strings.
+// This is based on a similar function in cmd/compile/internal/gc/noder.go;
+// this version calculates position information as well.
+func parseGoEmbed(args string, pos token.Position) ([]fileEmbed, error) {
+	trimBytes := func(n int) {
+		pos.Offset += n
+		pos.Column += utf8.RuneCountInString(args[:n])
+		args = args[n:]
+	}
+	trimSpace := func() {
+		trim := strings.TrimLeftFunc(args, unicode.IsSpace)
+		trimBytes(len(args) - len(trim))
+	}
+
+	var list []fileEmbed
+	for trimSpace(); args != ""; trimSpace() {
+		var path string
+		pathPos := pos
+	Switch:
+		switch args[0] {
+		default:
+			i := len(args)
+			for j, c := range args {
+				if unicode.IsSpace(c) {
+					i = j
+					break
+				}
+			}
+			path = args[:i]
+			trimBytes(i)
+
+		case '`':
+			i := strings.Index(args[1:], "`")
+			if i < 0 {
+				return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args)
+			}
+			path = args[1 : 1+i]
+			trimBytes(1 + i + 1)
+
+		case '"':
+			i := 1
+			for ; i < len(args); i++ {
+				if args[i] == '\\' {
+					i++
+					continue
+				}
+				if args[i] == '"' {
+					q, err := strconv.Unquote(args[:i+1])
+					if err != nil {
+						return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args[:i+1])
+					}
+					path = q
+					trimBytes(i + 1)
+					break Switch
+				}
+			}
+			if i >= len(args) {
+				return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args)
+			}
+		}
+
+		if args != "" {
+			r, _ := utf8.DecodeRuneInString(args)
+			if !unicode.IsSpace(r) {
+				return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args)
+			}
+		}
+		list = append(list, fileEmbed{path, pathPos})
+	}
+	return list, nil
 }

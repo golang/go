@@ -14,6 +14,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"net"
 	"strings"
@@ -647,12 +648,12 @@ func (hs *clientHandshakeState) establishKeys() error {
 	clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
 		keysFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.hello.random, hs.serverHello.random, hs.suite.macLen, hs.suite.keyLen, hs.suite.ivLen)
 	var clientCipher, serverCipher interface{}
-	var clientHash, serverHash macFunction
+	var clientHash, serverHash hash.Hash
 	if hs.suite.cipher != nil {
 		clientCipher = hs.suite.cipher(clientKey, clientIV, false /* not for reading */)
-		clientHash = hs.suite.mac(c.vers, clientMAC)
+		clientHash = hs.suite.mac(clientMAC)
 		serverCipher = hs.suite.cipher(serverKey, serverIV, true /* for reading */)
-		serverHash = hs.suite.mac(c.vers, serverMAC)
+		serverHash = hs.suite.mac(serverMAC)
 	} else {
 		clientCipher = hs.suite.aead(clientKey, clientIV)
 		serverCipher = hs.suite.aead(serverKey, serverIV)
@@ -700,18 +701,18 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 		}
 	}
 
-	clientDidALPN := len(hs.hello.alpnProtocols) > 0
-	serverHasALPN := len(hs.serverHello.alpnProtocol) > 0
-
-	if !clientDidALPN && serverHasALPN {
-		c.sendAlert(alertHandshakeFailure)
-		return false, errors.New("tls: server advertised unrequested ALPN extension")
-	}
-
-	if serverHasALPN {
+	if hs.serverHello.alpnProtocol != "" {
+		if len(hs.hello.alpnProtocols) == 0 {
+			c.sendAlert(alertUnsupportedExtension)
+			return false, errors.New("tls: server advertised unrequested ALPN extension")
+		}
+		if mutualProtocol([]string{hs.serverHello.alpnProtocol}, hs.hello.alpnProtocols) == "" {
+			c.sendAlert(alertUnsupportedExtension)
+			return false, errors.New("tls: server selected unadvertised ALPN protocol")
+		}
 		c.clientProtocol = hs.serverHello.alpnProtocol
-		c.clientProtocolFallback = false
 	}
+
 	c.scts = hs.serverHello.scts
 
 	if !hs.serverResumedSession() {
@@ -967,20 +968,17 @@ func clientSessionCacheKey(serverAddr net.Addr, config *Config) string {
 	return serverAddr.String()
 }
 
-// mutualProtocol finds the mutual Next Protocol Negotiation or ALPN protocol
-// given list of possible protocols and a list of the preference order. The
-// first list must not be empty. It returns the resulting protocol and flag
-// indicating if the fallback case was reached.
-func mutualProtocol(protos, preferenceProtos []string) (string, bool) {
+// mutualProtocol finds the mutual ALPN protocol given list of possible
+// protocols and a list of the preference order.
+func mutualProtocol(protos, preferenceProtos []string) string {
 	for _, s := range preferenceProtos {
 		for _, c := range protos {
 			if s == c {
-				return s, false
+				return s
 			}
 		}
 	}
-
-	return protos[0], true
+	return ""
 }
 
 // hostnameInSNI converts name into an appropriate hostname for SNI.

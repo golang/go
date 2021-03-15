@@ -66,7 +66,7 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
         BinaryOnly    bool     // binary-only package (no longer supported)
         ForTest       string   // package is only for use in named test
         Export        string   // file containing export data (when using -export)
-        BuildID       string   // build ID of the export data (when using -export)
+        BuildID       string   // build ID of the compiled package (when using -export)
         Module        *Module  // info about package's containing module, if any (can be nil)
         Match         []string // command-line patterns matching this package
         DepOnly       bool     // package is only a dependency, not explicitly listed
@@ -88,6 +88,14 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
         SysoFiles       []string   // .syso object files to add to archive
         TestGoFiles     []string   // _test.go files in package
         XTestGoFiles    []string   // _test.go files outside package
+
+        // Embedded files
+        EmbedPatterns      []string // //go:embed patterns
+        EmbedFiles         []string // files matched by EmbedPatterns
+        TestEmbedPatterns  []string // //go:embed patterns in TestGoFiles
+        TestEmbedFiles     []string // files matched by TestEmbedPatterns
+        XTestEmbedPatterns []string // //go:embed patterns in XTestGoFiles
+        XTestEmbedFiles    []string // files matched by XTestEmbedPatterns
 
         // Cgo directives
         CgoCFLAGS    []string // cgo: flags for C compiler
@@ -300,7 +308,7 @@ For more about build flags, see 'go help build'.
 
 For more about specifying packages, see 'go help packages'.
 
-For more about modules, see 'go help modules'.
+For more about modules, see https://golang.org/ref/mod.
 	`,
 }
 
@@ -415,7 +423,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go list -m: not using modules")
 		}
 
-		modload.InitMod(ctx) // Parses go.mod and sets cfg.BuildMod.
+		modload.LoadModFile(ctx) // Parses go.mod and sets cfg.BuildMod.
 		if cfg.BuildMod == "vendor" {
 			const actionDisabledFormat = "go list -m: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
 
@@ -471,11 +479,18 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	load.IgnoreImports = *listFind
-	var pkgs []*load.Package
-	if *listE {
-		pkgs = load.PackagesAndErrors(ctx, args)
-	} else {
-		pkgs = load.Packages(ctx, args)
+	pkgs := load.PackagesAndErrors(ctx, args)
+	if !*listE {
+		w := 0
+		for _, pkg := range pkgs {
+			if pkg.Error != nil {
+				base.Errorf("%v", pkg.Error)
+				continue
+			}
+			pkgs[w] = pkg
+			w++
+		}
+		pkgs = pkgs[:w]
 		base.ExitIfErrors()
 	}
 

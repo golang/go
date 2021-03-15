@@ -21,33 +21,32 @@ func envOr(key, value string) string {
 var (
 	defaultGOROOT string // set by linker
 
-	GOROOT   = envOr("GOROOT", defaultGOROOT)
-	GOARCH   = envOr("GOARCH", defaultGOARCH)
-	GOOS     = envOr("GOOS", defaultGOOS)
-	GO386    = envOr("GO386", defaultGO386)
-	GOAMD64  = goamd64()
-	GOARM    = goarm()
-	GOMIPS   = gomips()
-	GOMIPS64 = gomips64()
-	GOPPC64  = goppc64()
-	GOWASM   = gowasm()
-	GO_LDSO  = defaultGO_LDSO
-	Version  = version
+	GOROOT       = envOr("GOROOT", defaultGOROOT)
+	GOARCH       = envOr("GOARCH", defaultGOARCH)
+	GOOS         = envOr("GOOS", defaultGOOS)
+	GOEXPERIMENT = envOr("GOEXPERIMENT", defaultGOEXPERIMENT)
+	GO386        = envOr("GO386", defaultGO386)
+	GOARM        = goarm()
+	GOMIPS       = gomips()
+	GOMIPS64     = gomips64()
+	GOPPC64      = goppc64()
+	GOWASM       = gowasm()
+	GO_LDSO      = defaultGO_LDSO
+	Version      = version
 )
 
 const (
 	ElfRelocOffset   = 256
-	MachoRelocOffset = 2048           // reserve enough space for ELF relocations
-	Go115AMD64       = "alignedjumps" // Should be "alignedjumps" or "normaljumps"; this replaces environment variable introduced in CL 219357.
+	MachoRelocOffset = 2048 // reserve enough space for ELF relocations
 )
 
-// TODO(1.16): assuming no issues in 1.15 release, remove this and related constant.
-func goamd64() string {
-	return Go115AMD64
-}
-
 func goarm() int {
-	switch v := envOr("GOARM", defaultGOARM); v {
+	def := defaultGOARM
+	if GOOS == "android" && GOARCH == "arm" {
+		// Android arm devices always support GOARM=7.
+		def = "7"
+	}
+	switch v := envOr("GOARM", def); v {
 	case "5":
 		return 5
 	case "6":
@@ -126,7 +125,7 @@ func Getgoextlinkenabled() string {
 }
 
 func init() {
-	for _, f := range strings.Split(goexperiment, ",") {
+	for _, f := range strings.Split(GOEXPERIMENT, ",") {
 		if f != "" {
 			addexp(f)
 		}
@@ -139,7 +138,7 @@ func init() {
 }
 
 // Note: must agree with runtime.framepointer_enabled.
-var Framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin" || GOOS == "ios")
+var Framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64"
 
 func addexp(s string) {
 	// Could do general integer parsing here, but the runtime copy doesn't yet.

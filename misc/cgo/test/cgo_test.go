@@ -76,6 +76,8 @@ func TestCheckConst(t *testing.T)            { testCheckConst(t) }
 func TestConst(t *testing.T)                 { testConst(t) }
 func TestCthread(t *testing.T)               { testCthread(t) }
 func TestEnum(t *testing.T)                  { testEnum(t) }
+func TestNamedEnum(t *testing.T)             { testNamedEnum(t) }
+func TestCastToEnum(t *testing.T)            { testCastToEnum(t) }
 func TestErrno(t *testing.T)                 { testErrno(t) }
 func TestFpVar(t *testing.T)                 { testFpVar(t) }
 func TestHelpers(t *testing.T)               { testHelpers(t) }

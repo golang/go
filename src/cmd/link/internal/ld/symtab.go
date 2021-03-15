@@ -34,6 +34,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
+	"debug/elf"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -53,10 +54,10 @@ func putelfstr(s string) int {
 	return off
 }
 
-func putelfsyment(out *OutBuf, off int, addr int64, size int64, info int, shndx int, other int) {
+func putelfsyment(out *OutBuf, off int, addr int64, size int64, info uint8, shndx elf.SectionIndex, other int) {
 	if elf64 {
 		out.Write32(uint32(off))
-		out.Write8(uint8(info))
+		out.Write8(info)
 		out.Write8(uint8(other))
 		out.Write16(uint16(shndx))
 		out.Write64(uint64(addr))
@@ -66,14 +67,14 @@ func putelfsyment(out *OutBuf, off int, addr int64, size int64, info int, shndx 
 		out.Write32(uint32(off))
 		out.Write32(uint32(addr))
 		out.Write32(uint32(size))
-		out.Write8(uint8(info))
+		out.Write8(info)
 		out.Write8(uint8(other))
 		out.Write16(uint16(shndx))
 		symSize += ELF32SYMSIZE
 	}
 }
 
-func putelfsym(ctxt *Link, x loader.Sym, typ int, curbind int) {
+func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 	ldr := ctxt.loader
 	addr := ldr.SymValue(x)
 	size := ldr.SymSize(x)
@@ -85,9 +86,9 @@ func putelfsym(ctxt *Link, x loader.Sym, typ int, curbind int) {
 	xot := ldr.SymType(xo)
 	xosect := ldr.SymSect(xo)
 
-	var elfshnum int
+	var elfshnum elf.SectionIndex
 	if xot == sym.SDYNIMPORT || xot == sym.SHOSTOBJ || xot == sym.SUNDEFEXT {
-		elfshnum = SHN_UNDEF
+		elfshnum = elf.SHN_UNDEF
 		size = 0
 	} else {
 		if xosect == nil {
@@ -101,11 +102,46 @@ func putelfsym(ctxt *Link, x loader.Sym, typ int, curbind int) {
 		elfshnum = xosect.Elfsect.(*ElfShdr).shnum
 	}
 
-	// One pass for each binding: STB_LOCAL, STB_GLOBAL,
-	// maybe one day STB_WEAK.
-	bind := STB_GLOBAL
+	sname := ldr.SymExtname(x)
+
+	// For functions with ABI wrappers, we have to make sure that we
+	// don't wind up with two elf symbol table entries with the same
+	// name (since this will generated an error from the external
+	// linker). In the CgoExportStatic case, we want the ABI0 symbol
+	// to have the primary symbol table entry (since it's going to be
+	// called from C), so we rename the ABIInternal symbol. In all
+	// other cases, we rename the ABI0 symbol, since we want
+	// cross-load-module calls to target ABIInternal.
+	//
+	// TODO: generalize this for non-ELF (put the rename code in the
+	// loader, and store the rename result in SymExtname).
+	//
+	// TODO: avoid the ldr.Lookup calls below by instead using an aux
+	// sym or marker relocation to associate the wrapper with the
+	// wrapped function.
+	//
+	if *flagAbiWrap {
+		if !ldr.IsExternal(x) && ldr.SymType(x) == sym.STEXT {
+			// First case
+			if ldr.SymVersion(x) == sym.SymVerABIInternal {
+				if s2 := ldr.Lookup(sname, sym.SymVerABI0); s2 != 0 && ldr.AttrCgoExportStatic(s2) && ldr.SymType(s2) == sym.STEXT {
+					sname = sname + ".abiinternal"
+				}
+			}
+			// Second case
+			if ldr.SymVersion(x) == sym.SymVerABI0 && !ldr.AttrCgoExportStatic(x) {
+				if s2 := ldr.Lookup(sname, sym.SymVerABIInternal); s2 != 0 && ldr.SymType(s2) == sym.STEXT {
+					sname = sname + ".abi0"
+				}
+			}
+		}
+	}
+
+	// One pass for each binding: elf.STB_LOCAL, elf.STB_GLOBAL,
+	// maybe one day elf.STB_WEAK.
+	bind := elf.STB_GLOBAL
 	if ldr.IsFileLocal(x) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
-		bind = STB_LOCAL
+		bind = elf.STB_LOCAL
 	}
 
 	// In external linking mode, we have to invoke gcc with -rdynamic
@@ -113,23 +149,23 @@ func putelfsym(ctxt *Link, x loader.Sym, typ int, curbind int) {
 	// To avoid filling the dynamic table with lots of unnecessary symbols,
 	// mark all Go symbols local (not global) in the final executable.
 	// But when we're dynamically linking, we need all those global symbols.
-	if !ctxt.DynlinkingGo() && ctxt.IsExternal() && !ldr.AttrCgoExportStatic(x) && elfshnum != SHN_UNDEF {
-		bind = STB_LOCAL
+	if !ctxt.DynlinkingGo() && ctxt.IsExternal() && !ldr.AttrCgoExportStatic(x) && elfshnum != elf.SHN_UNDEF {
+		bind = elf.STB_LOCAL
 	}
 
-	if ctxt.LinkMode == LinkExternal && elfshnum != SHN_UNDEF {
+	if ctxt.LinkMode == LinkExternal && elfshnum != elf.SHN_UNDEF {
 		addr -= int64(xosect.Vaddr)
 	}
-	other := STV_DEFAULT
+	other := int(elf.STV_DEFAULT)
 	if ldr.AttrVisibilityHidden(x) {
 		// TODO(mwhudson): We only set AttrVisibilityHidden in ldelf, i.e. when
 		// internally linking. But STV_HIDDEN visibility only matters in object
 		// files and shared libraries, and as we are a long way from implementing
 		// internal linking for shared libraries and only create object files when
 		// externally linking, I don't think this makes a lot of sense.
-		other = STV_HIDDEN
+		other = int(elf.STV_HIDDEN)
 	}
-	if ctxt.IsPPC64() && typ == STT_FUNC && ldr.AttrShared(x) && ldr.SymName(x) != "runtime.duffzero" && ldr.SymName(x) != "runtime.duffcopy" {
+	if ctxt.IsPPC64() && typ == elf.STT_FUNC && ldr.AttrShared(x) && ldr.SymName(x) != "runtime.duffzero" && ldr.SymName(x) != "runtime.duffcopy" {
 		// On ppc64 the top three bits of the st_other field indicate how
 		// many instructions separate the global and local entry points. In
 		// our case it is two instructions, indicated by the value 3.
@@ -139,8 +175,6 @@ func putelfsym(ctxt *Link, x loader.Sym, typ int, curbind int) {
 		other |= 3 << 5
 	}
 
-	sname := ldr.SymExtname(x)
-
 	// When dynamically linking, we create Symbols by reading the names from
 	// the symbol tables of the shared libraries and so the names need to
 	// match exactly. Tools like DTrace will have to wait for now.
@@ -149,7 +183,7 @@ func putelfsym(ctxt *Link, x loader.Sym, typ int, curbind int) {
 		sname = strings.Replace(sname, "·", ".", -1)
 	}
 
-	if ctxt.DynlinkingGo() && bind == STB_GLOBAL && curbind == STB_LOCAL && ldr.SymType(x) == sym.STEXT {
+	if ctxt.DynlinkingGo() && bind == elf.STB_GLOBAL && curbind == elf.STB_LOCAL && ldr.SymType(x) == sym.STEXT {
 		// When dynamically linking, we want references to functions defined
 		// in this module to always be to the function object, not to the
 		// PLT. We force this by writing an additional local symbol for every
@@ -158,7 +192,7 @@ func putelfsym(ctxt *Link, x loader.Sym, typ int, curbind int) {
 		// (*sym.Symbol).ElfsymForReloc). This is approximately equivalent to the
 		// ELF linker -Bsymbolic-functions option, but that is buggy on
 		// several platforms.
-		putelfsyment(ctxt.Out, putelfstr("local."+sname), addr, size, STB_LOCAL<<4|typ&0xf, elfshnum, other)
+		putelfsyment(ctxt.Out, putelfstr("local."+sname), addr, size, elf.ST_INFO(elf.STB_LOCAL, typ), elfshnum, other)
 		ldr.SetSymLocalElfSym(x, int32(ctxt.numelfsym))
 		ctxt.numelfsym++
 		return
@@ -166,23 +200,23 @@ func putelfsym(ctxt *Link, x loader.Sym, typ int, curbind int) {
 		return
 	}
 
-	putelfsyment(ctxt.Out, putelfstr(sname), addr, size, bind<<4|typ&0xf, elfshnum, other)
+	putelfsyment(ctxt.Out, putelfstr(sname), addr, size, elf.ST_INFO(bind, typ), elfshnum, other)
 	ldr.SetSymElfSym(x, int32(ctxt.numelfsym))
 	ctxt.numelfsym++
 }
 
-func putelfsectionsym(ctxt *Link, out *OutBuf, s loader.Sym, shndx int) {
-	putelfsyment(out, 0, 0, 0, STB_LOCAL<<4|STT_SECTION, shndx, 0)
+func putelfsectionsym(ctxt *Link, out *OutBuf, s loader.Sym, shndx elf.SectionIndex) {
+	putelfsyment(out, 0, 0, 0, elf.ST_INFO(elf.STB_LOCAL, elf.STT_SECTION), shndx, 0)
 	ctxt.loader.SetSymElfSym(s, int32(ctxt.numelfsym))
 	ctxt.numelfsym++
 }
 
-func genelfsym(ctxt *Link, elfbind int) {
+func genelfsym(ctxt *Link, elfbind elf.SymBind) {
 	ldr := ctxt.loader
 
 	// runtime.text marker symbol(s).
 	s := ldr.Lookup("runtime.text", 0)
-	putelfsym(ctxt, s, STT_FUNC, elfbind)
+	putelfsym(ctxt, s, elf.STT_FUNC, elfbind)
 	for k, sect := range Segtext.Sections[1:] {
 		n := k + 1
 		if sect.Name != ".text" || (ctxt.IsAIX() && ctxt.IsExternal()) {
@@ -196,18 +230,18 @@ func genelfsym(ctxt *Link, elfbind int) {
 		if ldr.SymType(s) != sym.STEXT {
 			panic("unexpected type for runtime.text symbol")
 		}
-		putelfsym(ctxt, s, STT_FUNC, elfbind)
+		putelfsym(ctxt, s, elf.STT_FUNC, elfbind)
 	}
 
 	// Text symbols.
 	for _, s := range ctxt.Textp {
-		putelfsym(ctxt, s, STT_FUNC, elfbind)
+		putelfsym(ctxt, s, elf.STT_FUNC, elfbind)
 	}
 
 	// runtime.etext marker symbol.
 	s = ldr.Lookup("runtime.etext", 0)
 	if ldr.SymType(s) == sym.STEXT {
-		putelfsym(ctxt, s, STT_FUNC, elfbind)
+		putelfsym(ctxt, s, elf.STT_FUNC, elfbind)
 	}
 
 	shouldBeInSymbolTable := func(s loader.Sym) bool {
@@ -236,12 +270,12 @@ func genelfsym(ctxt *Link, elfbind int) {
 		}
 		st := ldr.SymType(s)
 		if st >= sym.SELFRXSECT && st < sym.SXREF {
-			typ := STT_OBJECT
+			typ := elf.STT_OBJECT
 			if st == sym.STLSBSS {
 				if ctxt.IsInternal() {
 					continue
 				}
-				typ = STT_TLS
+				typ = elf.STT_TLS
 			}
 			if !shouldBeInSymbolTable(s) {
 				continue
@@ -250,7 +284,7 @@ func genelfsym(ctxt *Link, elfbind int) {
 			continue
 		}
 		if st == sym.SHOSTOBJ || st == sym.SDYNIMPORT || st == sym.SUNDEFEXT {
-			putelfsym(ctxt, s, int(ldr.SymElfType(s)), elfbind)
+			putelfsym(ctxt, s, ldr.SymElfType(s), elfbind)
 		}
 	}
 }
@@ -258,7 +292,7 @@ func genelfsym(ctxt *Link, elfbind int) {
 func asmElfSym(ctxt *Link) {
 
 	// the first symbol entry is reserved
-	putelfsyment(ctxt.Out, 0, 0, 0, STB_LOCAL<<4|STT_NOTYPE, 0, 0)
+	putelfsyment(ctxt.Out, 0, 0, 0, elf.ST_INFO(elf.STB_LOCAL, elf.STT_NOTYPE), 0, 0)
 
 	dwarfaddelfsectionsyms(ctxt)
 
@@ -266,12 +300,12 @@ func asmElfSym(ctxt *Link) {
 	// Avoid having the working directory inserted into the symbol table.
 	// It is added with a name to avoid problems with external linking
 	// encountered on some versions of Solaris. See issue #14957.
-	putelfsyment(ctxt.Out, putelfstr("go.go"), 0, 0, STB_LOCAL<<4|STT_FILE, SHN_ABS, 0)
+	putelfsyment(ctxt.Out, putelfstr("go.go"), 0, 0, elf.ST_INFO(elf.STB_LOCAL, elf.STT_FILE), elf.SHN_ABS, 0)
 	ctxt.numelfsym++
 
-	bindings := []int{STB_LOCAL, STB_GLOBAL}
+	bindings := []elf.SymBind{elf.STB_LOCAL, elf.STB_GLOBAL}
 	for _, elfbind := range bindings {
-		if elfbind == STB_GLOBAL {
+		if elfbind == elf.STB_GLOBAL {
 			elfglobalsymndx = ctxt.numelfsym
 		}
 		genelfsym(ctxt, elfbind)
@@ -482,6 +516,8 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 			symtype = s.Sym()
 			symtyperel = s.Sym()
 		}
+		setCarrierSym(sym.STYPE, symtype)
+		setCarrierSym(sym.STYPERELRO, symtyperel)
 	}
 
 	groupSym := func(name string, t sym.SymKind) loader.Sym {
@@ -489,6 +525,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		s.SetType(t)
 		s.SetSize(0)
 		s.SetLocal(true)
+		setCarrierSym(t, s.Sym())
 		return s.Sym()
 	}
 	var (
@@ -518,7 +555,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	nsym := loader.Sym(ldr.NSym())
 	symGroupType := make([]sym.SymKind, nsym)
 	for s := loader.Sym(1); s < nsym; s++ {
-		if !ctxt.IsExternal() && ldr.IsFileLocal(s) && !ldr.IsFromAssembly(s) {
+		if !ctxt.IsExternal() && ldr.IsFileLocal(s) && !ldr.IsFromAssembly(s) && ldr.SymPkg(s) != "" {
 			ldr.SetAttrNotInSymbolTable(s, true)
 		}
 		if !ldr.AttrReachable(s) || ldr.AttrSpecial(s) || (ldr.SymType(s) != sym.SRODATA && ldr.SymType(s) != sym.SGOFUNC) {
@@ -580,8 +617,12 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 			symGroupType[s] = sym.SGOFUNC
 			ldr.SetAttrNotInSymbolTable(s, true)
 			ldr.SetCarrierSym(s, symgofunc)
-			const align = 4
-			ldr.SetSymAlign(s, align)
+			align := int32(4)
+			if a := ldr.SymAlign(s); a < align {
+				ldr.SetSymAlign(s, align)
+			} else {
+				align = a
+			}
 			liveness += (ldr.SymSize(s) + int64(align) - 1) &^ (int64(align) - 1)
 		}
 	}
@@ -794,4 +835,24 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		lastmoduledatap.AddAddr(ctxt.Arch, moduledata.Sym())
 	}
 	return symGroupType
+}
+
+// CarrierSymByType tracks carrier symbols and their sizes.
+var CarrierSymByType [sym.SXREF]struct {
+	Sym  loader.Sym
+	Size int64
+}
+
+func setCarrierSym(typ sym.SymKind, s loader.Sym) {
+	if CarrierSymByType[typ].Sym != 0 {
+		panic(fmt.Sprintf("carrier symbol for type %v already set", typ))
+	}
+	CarrierSymByType[typ].Sym = s
+}
+
+func setCarrierSize(typ sym.SymKind, sz int64) {
+	if CarrierSymByType[typ].Size != 0 {
+		panic(fmt.Sprintf("carrier symbol size for type %v already set", typ))
+	}
+	CarrierSymByType[typ].Size = sz
 }

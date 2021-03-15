@@ -2,11 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !mips
-// +build !mipsle
-// +build !mips64
-// +build !mips64le
-// +build linux
+//go:build !mips && !mipsle && !mips64 && !mips64le && linux
+// +build !mips,!mipsle,!mips64,!mips64le,linux
 
 package runtime
 
@@ -45,7 +42,7 @@ var sigtable = [...]sigTabT{
 	/* 31 */ {_SigThrow, "SIGSYS: bad system call"},
 	/* 32 */ {_SigSetStack + _SigUnblock, "signal 32"}, /* SIGCANCEL; see issue 6997 */
 	/* 33 */ {_SigSetStack + _SigUnblock, "signal 33"}, /* SIGSETXID; see issues 3871, 9400, 12498 */
-	/* 34 */ {_SigNotify, "signal 34"},
+	/* 34 */ {_SigSetStack + _SigUnblock, "signal 34"}, /* musl SIGSYNCCALL; see issue 39343 */
 	/* 35 */ {_SigNotify, "signal 35"},
 	/* 36 */ {_SigNotify, "signal 36"},
 	/* 37 */ {_SigNotify, "signal 37"},

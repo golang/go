@@ -24,8 +24,8 @@ const (
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
 //go:nosplit
-func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
-	mSysStatInc(sysStat, n)
+func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
+	sysStat.add(int64(n))
 	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_COMMIT|_MEM_RESERVE, _PAGE_READWRITE))
 }
 
@@ -97,8 +97,8 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
 //go:nosplit
-func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
-	mSysStatDec(sysStat, n)
+func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+	sysStat.add(-int64(n))
 	r := stdcall3(_VirtualFree, uintptr(v), 0, _MEM_RELEASE)
 	if r == 0 {
 		print("runtime: VirtualFree of ", n, " bytes failed with errno=", getlasterror(), "\n")
@@ -124,6 +124,6 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_RESERVE, _PAGE_READWRITE))
 }
 
-func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
-	mSysStatInc(sysStat, n)
+func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+	sysStat.add(int64(n))
 }

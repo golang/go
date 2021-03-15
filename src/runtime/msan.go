@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build msan
 // +build msan
 
 package runtime
@@ -50,8 +51,12 @@ func msanmalloc(addr unsafe.Pointer, sz uintptr)
 //go:noescape
 func msanfree(addr unsafe.Pointer, sz uintptr)
 
-// These are called from msan_amd64.s
+//go:noescape
+func msanmove(dst, src unsafe.Pointer, sz uintptr)
+
+// These are called from msan_GOARCH.s
 //go:cgo_import_static __msan_read_go
 //go:cgo_import_static __msan_write_go
 //go:cgo_import_static __msan_malloc_go
 //go:cgo_import_static __msan_free_go
+//go:cgo_import_static __msan_memmove

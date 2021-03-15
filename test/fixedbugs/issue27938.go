@@ -1,4 +1,4 @@
-// errorcheck
+// errorcheck -d=panic
 
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -11,13 +11,13 @@
 package p
 
 type _ struct {
-	F sync.Mutex // ERROR "undefined: sync"
+	F sync.Mutex // ERROR "undefined: sync|expected package"
 }
 
 type _ struct {
-	sync.Mutex // ERROR "undefined: sync"
+	sync.Mutex // ERROR "undefined: sync|expected package"
 }
 
 type _ interface {
-	sync.Mutex // ERROR "undefined: sync"
+	sync.Mutex // ERROR "undefined: sync|expected package|expected signature or type name"
 }

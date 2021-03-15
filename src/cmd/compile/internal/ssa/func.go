@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/abi"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"crypto/sha1"
@@ -43,6 +44,10 @@ type Func struct {
 	DebugTest      bool           // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
 	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
 	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
+	ABI0           *abi.ABIConfig // A copy, for no-sync access
+	ABI1           *abi.ABIConfig // A copy, for no-sync access
+	ABISelf        *abi.ABIConfig // ABI for function being compiled
+	ABIDefault     *abi.ABIConfig // ABI for rtcall and other no-parsed-signature/pragma functions.
 
 	scheduled   bool  // Values in Blocks are in final order
 	laidout     bool  // Blocks are ordered
@@ -57,6 +62,11 @@ type Func struct {
 	// Names is a copy of NamedValues.Keys. We keep a separate list
 	// of keys to make iteration order deterministic.
 	Names []LocalSlot
+
+	// RegArgs is a slice of register-memory pairs that must be spilled and unspilled in the uncommon path of function entry.
+	RegArgs []ArgPair
+	// AuxCall describing parameters and results for this function.
+	OwnAux *AuxCall
 
 	// WBLoads is a list of Blocks that branch on the write
 	// barrier flag. Safe-points are disabled from the OpLoad that
@@ -377,13 +387,7 @@ func (b *Block) NewValue0I(pos src.XPos, op Op, t *types.Type, auxint int64) *Va
 }
 
 // NewValue returns a new value in the block with no arguments and an aux value.
-func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux interface{}) *Value {
-	if _, ok := aux.(int64); ok {
-		// Disallow int64 aux values. They should be in the auxint field instead.
-		// Maybe we want to allow this at some point, but for now we disallow it
-		// to prevent errors like using NewValue1A instead of NewValue1I.
-		b.Fatalf("aux field has int64 type op=%s type=%s aux=%v", op, t, aux)
-	}
+func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux Aux) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -392,7 +396,7 @@ func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux interface{}) 
 }
 
 // NewValue returns a new value in the block with no arguments and both an auxint and aux values.
-func (b *Block) NewValue0IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux interface{}) *Value {
+func (b *Block) NewValue0IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Aux = aux
@@ -421,7 +425,7 @@ func (b *Block) NewValue1I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
 }
 
 // NewValue1A returns a new value in the block with one argument and an aux value.
-func (b *Block) NewValue1A(pos src.XPos, op Op, t *types.Type, aux interface{}, arg *Value) *Value {
+func (b *Block) NewValue1A(pos src.XPos, op Op, t *types.Type, aux Aux, arg *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -432,7 +436,7 @@ func (b *Block) NewValue1A(pos src.XPos, op Op, t *types.Type, aux interface{}, 
 }
 
 // NewValue1IA returns a new value in the block with one argument and both an auxint and aux values.
-func (b *Block) NewValue1IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux interface{}, arg *Value) *Value {
+func (b *Block) NewValue1IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux, arg *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Aux = aux
@@ -455,7 +459,7 @@ func (b *Block) NewValue2(pos src.XPos, op Op, t *types.Type, arg0, arg1 *Value)
 }
 
 // NewValue2A returns a new value in the block with two arguments and one aux values.
-func (b *Block) NewValue2A(pos src.XPos, op Op, t *types.Type, aux interface{}, arg0, arg1 *Value) *Value {
+func (b *Block) NewValue2A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, arg1 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -480,7 +484,7 @@ func (b *Block) NewValue2I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
 }
 
 // NewValue2IA returns a new value in the block with two arguments and both an auxint and aux values.
-func (b *Block) NewValue2IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux interface{}, arg0, arg1 *Value) *Value {
+func (b *Block) NewValue2IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux, arg0, arg1 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Aux = aux
@@ -521,7 +525,7 @@ func (b *Block) NewValue3I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
 }
 
 // NewValue3A returns a new value in the block with three argument and an aux value.
-func (b *Block) NewValue3A(pos src.XPos, op Op, t *types.Type, aux interface{}, arg0, arg1, arg2 *Value) *Value {
+func (b *Block) NewValue3A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, arg1, arg2 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -547,7 +551,7 @@ func (b *Block) NewValue4(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2, 
 	return v
 }
 
-// NewValue4I returns a new value in the block with four arguments and and auxint value.
+// NewValue4I returns a new value in the block with four arguments and auxint value.
 func (b *Block) NewValue4I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1, arg2, arg3 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
@@ -633,7 +637,7 @@ func (f *Func) ConstNil(t *types.Type) *Value {
 }
 func (f *Func) ConstEmptyString(t *types.Type) *Value {
 	v := f.constVal(OpConstString, t, constEmptyStringMagic, false)
-	v.Aux = ""
+	v.Aux = StringToAux("")
 	return v
 }
 func (f *Func) ConstOffPtrSP(t *types.Type, c int64, sp *Value) *Value {
@@ -777,7 +781,7 @@ func DebugNameMatch(evname, name string) bool {
 }
 
 func (f *Func) spSb() (sp, sb *Value) {
-	initpos := f.Entry.Pos
+	initpos := src.NoXPos // These are originally created with no position in ssa.go; if they are optimized out then recreated, should be the same.
 	for _, v := range f.Entry.Values {
 		if v.Op == OpSB {
 			sb = v
@@ -786,14 +790,14 @@ func (f *Func) spSb() (sp, sb *Value) {
 			sp = v
 		}
 		if sb != nil && sp != nil {
-			break
+			return
 		}
 	}
 	if sb == nil {
-		sb = f.Entry.NewValue0(initpos, OpSB, f.Config.Types.Uintptr)
+		sb = f.Entry.NewValue0(initpos.WithNotStmt(), OpSB, f.Config.Types.Uintptr)
 	}
 	if sp == nil {
-		sp = f.Entry.NewValue0(initpos, OpSP, f.Config.Types.Uintptr)
+		sp = f.Entry.NewValue0(initpos.WithNotStmt(), OpSP, f.Config.Types.Uintptr)
 	}
 	return
 }

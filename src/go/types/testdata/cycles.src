@@ -65,7 +65,7 @@ type (
 	I6 interface{ I5 }
 
 	// maps
-	M0 map[M0 /* ERROR invalid map key */ ]M0
+	M0 map[M0 /* ERROR incomparable map key */ ]M0
 
 	// channels
 	C0 chan C0
@@ -114,7 +114,7 @@ func _() {
 		i0 /* ERROR cycle */ interface{ i0 }
 
 		// maps
-		m0 map[m0 /* ERROR invalid map key */ ]m0
+		m0 map[m0 /* ERROR incomparable map key */ ]m0
 
 		// channels
 		c0 chan c0
@@ -123,10 +123,10 @@ func _() {
 
 // test cases for issue 6667
 
-type A [10]map[A /* ERROR invalid map key */ ]bool
+type A [10]map[A /* ERROR incomparable map key */ ]bool
 
 type S struct {
-	m map[S /* ERROR invalid map key */ ]bool
+	m map[S /* ERROR incomparable map key */ ]bool
 }
 
 // test cases for issue 7236

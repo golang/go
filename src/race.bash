@@ -9,14 +9,13 @@
 set -e
 
 function usage {
-	echo 'race detector is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64 and darwin/amd64' 1>&2
+	echo 'race detector is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, openbsd/amd64, darwin/amd64, and darwin/arm64' 1>&2
 	exit 1
 }
 
 case $(uname) in
 "Darwin")
-	# why Apple? why?
-	if sysctl machdep.cpu.extfeatures | grep -qv EM64T; then
+	if [ $(uname -m) != "x86_64" ] && [ $(uname -m) != "arm64" ]; then
 		usage
 	fi
 	;;
@@ -31,6 +30,11 @@ case $(uname) in
 	fi
 	;;
 "NetBSD")
+	if [ $(uname -m) != "amd64" ]; then
+		usage
+	fi
+	;;
+"OpenBSD")
 	if [ $(uname -m) != "amd64" ]; then
 		usage
 	fi

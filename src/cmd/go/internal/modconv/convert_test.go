@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -37,7 +36,7 @@ func testMain(m *testing.M) int {
 		return 0
 	}
 
-	dir, err := ioutil.TempDir("", "modconv-test-")
+	dir, err := os.MkdirTemp("", "modconv-test-")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -167,7 +166,7 @@ func TestConvertLegacyConfig(t *testing.T) {
 
 			for name := range Converters {
 				file := filepath.Join(dir, name)
-				data, err := ioutil.ReadFile(file)
+				data, err := os.ReadFile(file)
 				if err == nil {
 					f := new(modfile.File)
 					f.AddModuleStmt(tt.path)

@@ -10,8 +10,8 @@ import (
 	"unicode/utf8"
 )
 
-// A Reader implements the io.Reader, io.ReaderAt, io.Seeker, io.WriterTo,
-// io.ByteScanner, and io.RuneScanner interfaces by reading
+// A Reader implements the io.Reader, io.ReaderAt, io.ByteReader, io.ByteScanner,
+// io.RuneReader, io.RuneScanner, io.Seeker, and io.WriterTo interfaces by reading
 // from a string.
 // The zero value for Reader operates like a Reader of an empty string.
 type Reader struct {
@@ -35,6 +35,7 @@ func (r *Reader) Len() int {
 // to any other method.
 func (r *Reader) Size() int64 { return int64(len(r.s)) }
 
+// Read implements the io.Reader interface.
 func (r *Reader) Read(b []byte) (n int, err error) {
 	if r.i >= int64(len(r.s)) {
 		return 0, io.EOF
@@ -45,6 +46,7 @@ func (r *Reader) Read(b []byte) (n int, err error) {
 	return
 }
 
+// ReadAt implements the io.ReaderAt interface.
 func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
 	// cannot modify state - see io.ReaderAt
 	if off < 0 {
@@ -60,6 +62,7 @@ func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
 	return
 }
 
+// ReadByte implements the io.ByteReader interface.
 func (r *Reader) ReadByte() (byte, error) {
 	r.prevRune = -1
 	if r.i >= int64(len(r.s)) {
@@ -70,6 +73,7 @@ func (r *Reader) ReadByte() (byte, error) {
 	return b, nil
 }
 
+// UnreadByte implements the io.ByteScanner interface.
 func (r *Reader) UnreadByte() error {
 	if r.i <= 0 {
 		return errors.New("strings.Reader.UnreadByte: at beginning of string")
@@ -79,6 +83,7 @@ func (r *Reader) UnreadByte() error {
 	return nil
 }
 
+// ReadRune implements the io.RuneReader interface.
 func (r *Reader) ReadRune() (ch rune, size int, err error) {
 	if r.i >= int64(len(r.s)) {
 		r.prevRune = -1
@@ -94,6 +99,7 @@ func (r *Reader) ReadRune() (ch rune, size int, err error) {
 	return
 }
 
+// UnreadRune implements the io.RuneScanner interface.
 func (r *Reader) UnreadRune() error {
 	if r.i <= 0 {
 		return errors.New("strings.Reader.UnreadRune: at beginning of string")

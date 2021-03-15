@@ -7,7 +7,6 @@ package signal
 import (
 	"bytes"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -57,7 +56,7 @@ func main() {
 	}
 }
 `
-	tmp, err := ioutil.TempDir("", "TestCtrlBreak")
+	tmp, err := os.MkdirTemp("", "TestCtrlBreak")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
 	}

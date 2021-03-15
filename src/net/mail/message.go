@@ -112,11 +112,25 @@ func ParseDate(date string) (time.Time, error) {
 	if ind := strings.IndexAny(p.s, "+-"); ind != -1 && len(p.s) >= ind+5 {
 		date = p.s[:ind+5]
 		p.s = p.s[ind+5:]
-	} else if ind := strings.Index(p.s, "T"); ind != -1 && len(p.s) >= ind+1 {
-		// The last letter T of the obsolete time zone is checked when no standard time zone is found.
-		// If T is misplaced, the date to parse is garbage.
-		date = p.s[:ind+1]
-		p.s = p.s[ind+1:]
+	} else {
+		ind := strings.Index(p.s, "T")
+		if ind == 0 {
+			// In this case we have the following date formats:
+			// * Thu, 20 Nov 1997 09:55:06 MDT
+			// * Thu, 20 Nov 1997 09:55:06 MDT (MDT)
+			// * Thu, 20 Nov 1997 09:55:06 MDT (This comment)
+			ind = strings.Index(p.s[1:], "T")
+			if ind != -1 {
+				ind++
+			}
+		}
+
+		if ind != -1 && len(p.s) >= ind+5 {
+			// The last letter T of the obsolete time zone is checked when no standard time zone is found.
+			// If T is misplaced, the date to parse is garbage.
+			date = p.s[:ind+1]
+			p.s = p.s[ind+1:]
+		}
 	}
 	if !p.skipCFWS() {
 		return time.Time{}, errors.New("mail: misformatted parenthetical comment")

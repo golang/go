@@ -7,6 +7,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -111,7 +112,7 @@ func (s *stackAllocState) init(f *Func, spillLive [][]ID) {
 		for _, v := range b.Values {
 			s.values[v.ID].typ = v.Type
 			s.values[v.ID].needSlot = !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && f.getHome(v.ID) == nil && !v.rematerializeable() && !v.OnWasmStack
-			s.values[v.ID].isArg = v.Op == OpArg
+			s.values[v.ID].isArg = hasAnyArgOp(v)
 			if f.pass.debug > stackDebug && s.values[v.ID].needSlot {
 				fmt.Printf("%s needs a stack slot\n", v)
 			}
@@ -150,14 +151,29 @@ func (s *stackAllocState) stackalloc() {
 
 	// Allocate args to their assigned locations.
 	for _, v := range f.Entry.Values {
-		if v.Op != OpArg {
+		if !hasAnyArgOp(v) {
 			continue
 		}
-		loc := LocalSlot{N: v.Aux.(GCNode), Type: v.Type, Off: v.AuxInt}
-		if f.pass.debug > stackDebug {
-			fmt.Printf("stackalloc %s to %s\n", v, loc)
+		if v.Aux == nil {
+			f.Fatalf("%s has nil Aux\n", v.LongString())
 		}
-		f.setHome(v, loc)
+		if v.Op == OpArg {
+			loc := LocalSlot{N: v.Aux.(*ir.Name), Type: v.Type, Off: v.AuxInt}
+			if f.pass.debug > stackDebug {
+				fmt.Printf("stackalloc OpArg %s to %s\n", v, loc)
+			}
+			f.setHome(v, loc)
+			continue
+		}
+
+		nameOff := v.Aux.(*AuxNameOffset)
+		loc := LocalSlot{N: nameOff.Name, Type: v.Type, Off: nameOff.Offset}
+		if f.pass.debug > stackDebug {
+			fmt.Printf("stackalloc Op%s %s to %s\n", v.Op, v, loc)
+		}
+		// register args already allocated to registers, but need to know the stack allocation for later
+		reg := f.getHome(v.ID).(*Register)
+		f.RegArgs = append(f.RegArgs, ArgPair{reg: reg, mem: loc})
 	}
 
 	// For each type, we keep track of all the stack slots we
@@ -194,7 +210,7 @@ func (s *stackAllocState) stackalloc() {
 				s.nNotNeed++
 				continue
 			}
-			if v.Op == OpArg {
+			if hasAnyArgOp(v) {
 				s.nArgSlot++
 				continue // already picked
 			}
@@ -381,7 +397,7 @@ func (s *stackAllocState) buildInterferenceGraph() {
 				for _, id := range live.contents() {
 					// Note: args can have different types and still interfere
 					// (with each other or with other values). See issue 23522.
-					if s.values[v.ID].typ.Compare(s.values[id].typ) == types.CMPeq || v.Op == OpArg || s.values[id].isArg {
+					if s.values[v.ID].typ.Compare(s.values[id].typ) == types.CMPeq || hasAnyArgOp(v) || s.values[id].isArg {
 						s.interfere[v.ID] = append(s.interfere[v.ID], id)
 						s.interfere[id] = append(s.interfere[id], v.ID)
 					}
@@ -392,13 +408,15 @@ func (s *stackAllocState) buildInterferenceGraph() {
 					live.add(a.ID)
 				}
 			}
-			if v.Op == OpArg && s.values[v.ID].needSlot {
+			if hasAnyArgOp(v) && s.values[v.ID].needSlot {
 				// OpArg is an input argument which is pre-spilled.
 				// We add back v.ID here because we want this value
 				// to appear live even before this point. Being live
 				// all the way to the start of the entry block prevents other
 				// values from being allocated to the same slot and clobbering
 				// the input value before we have a chance to load it.
+
+				// TODO(register args) this is apparently not wrong for register args -- is it necessary?
 				live.add(v.ID)
 			}
 		}
@@ -414,4 +432,8 @@ func (s *stackAllocState) buildInterferenceGraph() {
 			}
 		}
 	}
+}
+
+func hasAnyArgOp(v *Value) bool {
+	return v.Op == OpArg || v.Op == OpArgIntReg || v.Op == OpArgFloatReg
 }

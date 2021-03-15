@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
@@ -32,15 +31,15 @@ type ImportMissingError struct {
 	Module   module.Version
 	QueryErr error
 
-	// inAll indicates whether Path is in the "all" package pattern,
-	// and thus would be added by 'go mod tidy'.
-	inAll bool
-
 	// isStd indicates whether we would expect to find the package in the standard
 	// library. This is normally true for all dotless import paths, but replace
 	// directives can cause us to treat the replaced paths as also being in
 	// modules.
 	isStd bool
+
+	// replaced the highest replaced version of the module where the replacement
+	// contains the package. replaced is only set if the replacement is unused.
+	replaced module.Version
 
 	// newMissingVersion is set to a newer version of Module if one is present
 	// in the build list. When set, we can't automatically upgrade.
@@ -52,22 +51,26 @@ func (e *ImportMissingError) Error() string {
 		if e.isStd {
 			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
 		}
-		if e.QueryErr != nil {
+		if e.QueryErr != nil && e.QueryErr != ErrNoModRoot {
 			return fmt.Sprintf("cannot find module providing package %s: %v", e.Path, e.QueryErr)
 		}
-		if cfg.BuildMod == "mod" {
+		if cfg.BuildMod == "mod" || (cfg.BuildMod == "readonly" && allowMissingModuleImports) {
 			return "cannot find module providing package " + e.Path
 		}
 
-		suggestion := ""
-		if !HasModRoot() {
-			suggestion = ": working directory is not part of a module"
-		} else if e.inAll {
-			suggestion = "; try 'go mod tidy' to add it"
-		} else {
-			suggestion = fmt.Sprintf("; try 'go get -d %s' to add it", e.Path)
+		if e.replaced.Path != "" {
+			suggestArg := e.replaced.Path
+			if !modfetch.IsZeroPseudoVersion(e.replaced.Version) {
+				suggestArg = e.replaced.String()
+			}
+			return fmt.Sprintf("module %s provides package %s and is replaced but not required; to add it:\n\tgo get %s", e.replaced.Path, e.Path, suggestArg)
 		}
-		return fmt.Sprintf("no required module provides package %s%s", e.Path, suggestion)
+
+		message := fmt.Sprintf("no required module provides package %s", e.Path)
+		if e.QueryErr != nil {
+			return fmt.Sprintf("%s: %v", message, e.QueryErr)
+		}
+		return fmt.Sprintf("%s; to add it:\n\tgo get %s", message, e.Path)
 	}
 
 	if e.newMissingVersion != "" {
@@ -124,6 +127,64 @@ func (e *AmbiguousImportError) Error() string {
 	return buf.String()
 }
 
+// ImportMissingSumError is reported in readonly mode when we need to check
+// if a module contains a package, but we don't have a sum for its .zip file.
+// We might need sums for multiple modules to verify the package is unique.
+//
+// TODO(#43653): consolidate multiple errors of this type into a single error
+// that suggests a 'go get' command for root packages that transtively import
+// packages from modules with missing sums. load.CheckPackageErrors would be
+// a good place to consolidate errors, but we'll need to attach the import
+// stack here.
+type ImportMissingSumError struct {
+	importPath                string
+	found                     bool
+	mods                      []module.Version
+	importer, importerVersion string // optional, but used for additional context
+	importerIsTest            bool
+}
+
+func (e *ImportMissingSumError) Error() string {
+	var importParen string
+	if e.importer != "" {
+		importParen = fmt.Sprintf(" (imported by %s)", e.importer)
+	}
+	var message string
+	if e.found {
+		message = fmt.Sprintf("missing go.sum entry needed to verify package %s%s is provided by exactly one module", e.importPath, importParen)
+	} else {
+		message = fmt.Sprintf("missing go.sum entry for module providing package %s%s", e.importPath, importParen)
+	}
+	var hint string
+	if e.importer == "" {
+		// Importing package is unknown, or the missing package was named on the
+		// command line. Recommend 'go mod download' for the modules that could
+		// provide the package, since that shouldn't change go.mod.
+		args := make([]string, len(e.mods))
+		for i, mod := range e.mods {
+			args[i] = mod.Path
+		}
+		hint = fmt.Sprintf("; to add:\n\tgo mod download %s", strings.Join(args, " "))
+	} else {
+		// Importing package is known (common case). Recommend 'go get' on the
+		// current version of the importing package.
+		tFlag := ""
+		if e.importerIsTest {
+			tFlag = " -t"
+		}
+		version := ""
+		if e.importerVersion != "" {
+			version = "@" + e.importerVersion
+		}
+		hint = fmt.Sprintf("; to add:\n\tgo get%s %s%s", tFlag, e.importer, version)
+	}
+	return message + hint
+}
+
+func (e *ImportMissingSumError) ImportPath() string {
+	return e.importPath
+}
+
 type invalidImportError struct {
 	importPath string
 	err        error
@@ -152,9 +213,9 @@ func (e *invalidImportError) Unwrap() error {
 // importFromBuildList can return an empty directory string, for fake packages
 // like "C" and "unsafe".
 //
-// If the package cannot be found in the current build list,
+// If the package cannot be found in buildList,
 // importFromBuildList returns an *ImportMissingError.
-func importFromBuildList(ctx context.Context, path string) (m module.Version, dir string, err error) {
+func importFromBuildList(ctx context.Context, path string, buildList []module.Version) (m module.Version, dir string, err error) {
 	if strings.Contains(path, "@") {
 		return module.Version{}, "", fmt.Errorf("import path should not have @version")
 	}
@@ -208,13 +269,24 @@ func importFromBuildList(ctx context.Context, path string) (m module.Version, di
 	// Check each module on the build list.
 	var dirs []string
 	var mods []module.Version
+	var sumErrMods []module.Version
 	for _, m := range buildList {
 		if !maybeInModule(path, m.Path) {
 			// Avoid possibly downloading irrelevant modules.
 			continue
 		}
-		root, isLocal, err := fetch(ctx, m)
+		needSum := true
+		root, isLocal, err := fetch(ctx, m, needSum)
 		if err != nil {
+			if sumErr := (*sumMissingError)(nil); errors.As(err, &sumErr) {
+				// We are missing a sum needed to fetch a module in the build list.
+				// We can't verify that the package is unique, and we may not find
+				// the package at all. Keep checking other modules to decide which
+				// error to report. Multiple sums may be missing if we need to look in
+				// multiple nested modules to resolve the import.
+				sumErrMods = append(sumErrMods, m)
+				continue
+			}
 			// Report fetch error.
 			// Note that we don't know for sure this module is necessary,
 			// but it certainly _could_ provide the package, and even if we
@@ -230,14 +302,25 @@ func importFromBuildList(ctx context.Context, path string) (m module.Version, di
 			dirs = append(dirs, dir)
 		}
 	}
+	if len(mods) > 1 {
+		return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: dirs, Modules: mods}
+	}
+	if len(sumErrMods) > 0 {
+		return module.Version{}, "", &ImportMissingSumError{
+			importPath: path,
+			mods:       sumErrMods,
+			found:      len(mods) > 0,
+		}
+	}
 	if len(mods) == 1 {
 		return mods[0], dirs[0], nil
 	}
-	if len(mods) > 0 {
-		return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: dirs, Modules: mods}
-	}
 
-	return module.Version{}, "", &ImportMissingError{Path: path, isStd: pathIsStd}
+	var queryErr error
+	if !HasModRoot() {
+		queryErr = ErrNoModRoot
+	}
+	return module.Version{}, "", &ImportMissingError{Path: path, QueryErr: queryErr, isStd: pathIsStd}
 }
 
 // queryImport attempts to locate a module that can be added to the current
@@ -246,37 +329,6 @@ func importFromBuildList(ctx context.Context, path string) (m module.Version, di
 // Unlike QueryPattern, queryImport prefers to add a replaced version of a
 // module *before* checking the proxies for a version to add.
 func queryImport(ctx context.Context, path string) (module.Version, error) {
-	pathIsStd := search.IsStandardImportPath(path)
-
-	if cfg.BuildMod == "readonly" {
-		if pathIsStd {
-			// If the package would be in the standard library and none of the
-			// available replacement modules could concievably provide it, report it
-			// as a missing standard-library package instead of complaining that
-			// module lookups are disabled.
-			maybeReplaced := false
-			if index != nil {
-				for p := range index.highestReplaced {
-					if maybeInModule(path, p) {
-						maybeReplaced = true
-						break
-					}
-				}
-			}
-			if !maybeReplaced {
-				return module.Version{}, &ImportMissingError{Path: path, isStd: true}
-			}
-		}
-
-		var queryErr error
-		if cfg.BuildModExplicit {
-			queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
-		} else if cfg.BuildModReason != "" {
-			queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
-		}
-		return module.Version{}, &ImportMissingError{Path: path, QueryErr: queryErr}
-	}
-
 	// To avoid spurious remote fetches, try the latest replacement for each
 	// module (golang.org/issue/26241).
 	if index != nil {
@@ -292,9 +344,9 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 				// used from within some other module, the user will be able to upgrade
 				// the requirement to any real version they choose.
 				if _, pathMajor, ok := module.SplitPathVersion(mp); ok && len(pathMajor) > 0 {
-					mv = modfetch.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
+					mv = modfetch.ZeroPseudoVersion(pathMajor[1:])
 				} else {
-					mv = modfetch.PseudoVersion("v0", "", time.Time{}, "000000000000")
+					mv = modfetch.ZeroPseudoVersion("v0")
 				}
 			}
 			mods = append(mods, module.Version{Path: mp, Version: mv})
@@ -306,20 +358,26 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 			return len(mods[i].Path) > len(mods[j].Path)
 		})
 		for _, m := range mods {
-			root, isLocal, err := fetch(ctx, m)
+			needSum := true
+			root, isLocal, err := fetch(ctx, m, needSum)
 			if err != nil {
-				// Report fetch error as above.
+				if sumErr := (*sumMissingError)(nil); errors.As(err, &sumErr) {
+					return module.Version{}, &ImportMissingSumError{importPath: path}
+				}
 				return module.Version{}, err
 			}
 			if _, ok, err := dirInModule(path, m.Path, root, isLocal); err != nil {
 				return m, err
 			} else if ok {
+				if cfg.BuildMod == "readonly" {
+					return module.Version{}, &ImportMissingError{Path: path, replaced: m}
+				}
 				return m, nil
 			}
 		}
 		if len(mods) > 0 && module.CheckPath(path) != nil {
 			// The package path is not valid to fetch remotely,
-			// so it can only exist if in a replaced module,
+			// so it can only exist in a replaced module,
 			// and we know from the above loop that it is not.
 			return module.Version{}, &PackageNotInModuleError{
 				Mod:         mods[0],
@@ -330,7 +388,7 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 		}
 	}
 
-	if pathIsStd {
+	if search.IsStandardImportPath(path) {
 		// This package isn't in the standard library, isn't in any module already
 		// in the build list, and isn't in any other module that the user has
 		// shimmed in via a "replace" directive.
@@ -341,12 +399,25 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 		return module.Version{}, &ImportMissingError{Path: path, isStd: true}
 	}
 
+	if cfg.BuildMod == "readonly" && !allowMissingModuleImports {
+		// In readonly mode, we can't write go.mod, so we shouldn't try to look up
+		// the module. If readonly mode was enabled explicitly, include that in
+		// the error message.
+		var queryErr error
+		if cfg.BuildModExplicit {
+			queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+		} else if cfg.BuildModReason != "" {
+			queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
+		}
+		return module.Version{}, &ImportMissingError{Path: path, QueryErr: queryErr}
+	}
+
 	// Look up module containing the package, for addition to the build list.
 	// Goal is to determine the module, download it to dir,
 	// and return m, dir, ImpportMissingError.
 	fmt.Fprintf(os.Stderr, "go: finding module for package %s\n", path)
 
-	candidates, err := QueryPattern(ctx, path, "latest", Selected, CheckAllowed)
+	candidates, err := QueryPackages(ctx, path, "latest", Selected, CheckAllowed)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			// Return "cannot find module providing package […]" instead of whatever
@@ -440,7 +511,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	if isLocal {
 		for d := dir; d != mdir && len(d) > len(mdir); {
 			haveGoMod := haveGoModCache.Do(d, func() interface{} {
-				fi, err := os.Stat(filepath.Join(d, "go.mod"))
+				fi, err := fsys.Stat(filepath.Join(d, "go.mod"))
 				return err == nil && !fi.IsDir()
 			}).(bool)
 
@@ -473,9 +544,14 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 // fetch downloads the given module (or its replacement)
 // and returns its location.
 //
+// needSum indicates whether the module may be downloaded in readonly mode
+// without a go.sum entry. It should only be false for modules fetched
+// speculatively (for example, for incompatible version filtering). The sum
+// will still be verified normally.
+//
 // The isLocal return value reports whether the replacement,
 // if any, is local to the filesystem.
-func fetch(ctx context.Context, mod module.Version) (dir string, isLocal bool, err error) {
+func fetch(ctx context.Context, mod module.Version, needSum bool) (dir string, isLocal bool, err error) {
 	if mod == Target {
 		return ModRoot(), true, nil
 	}
@@ -489,7 +565,7 @@ func fetch(ctx context.Context, mod module.Version) (dir string, isLocal bool, e
 			// dirInModule does not report errors for missing modules,
 			// so if we don't report the error now, later failures will be
 			// very mysterious.
-			if _, err := os.Stat(dir); err != nil {
+			if _, err := fsys.Stat(dir); err != nil {
 				if os.IsNotExist(err) {
 					// Semantically the module version itself “exists” — we just don't
 					// have its source code. Remove the equivalence to os.ErrNotExist,
@@ -505,6 +581,18 @@ func fetch(ctx context.Context, mod module.Version) (dir string, isLocal bool, e
 		mod = r
 	}
 
+	if HasModRoot() && cfg.BuildMod == "readonly" && needSum && !modfetch.HaveSum(mod) {
+		return "", false, module.VersionError(mod, &sumMissingError{})
+	}
+
 	dir, err = modfetch.Download(ctx, mod)
 	return dir, false, err
+}
+
+type sumMissingError struct {
+	suggestion string
+}
+
+func (e *sumMissingError) Error() string {
+	return "missing go.sum entry" + e.suggestion
 }

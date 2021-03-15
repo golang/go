@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 /*
 Input to cgo.
 
-GOARCH=amd64 go tool cgo -cdefs defs_openbsd.go >defs_openbsd_amd64.h
-GOARCH=386 go tool cgo -cdefs defs_openbsd.go >defs_openbsd_386.h
+GOARCH=amd64 go tool cgo -godefs defs_openbsd.go
+GOARCH=386 go tool cgo -godefs defs_openbsd.go
+GOARCH=arm go tool cgo -godefs defs_openbsd.go
+GOARCH=arm64 go tool cgo -godefs defs_openbsd.go
+GOARCH=mips64 go tool cgo -godefs defs_openbsd.go
 */
 
 package runtime
@@ -21,6 +25,7 @@ package runtime
 #include <sys/unistd.h>
 #include <sys/signal.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <signal.h>
 */
 import "C"
@@ -49,6 +54,13 @@ const (
 	SA_SIGINFO = C.SA_SIGINFO
 	SA_RESTART = C.SA_RESTART
 	SA_ONSTACK = C.SA_ONSTACK
+
+	PTHREAD_CREATE_DETACHED = C.PTHREAD_CREATE_DETACHED
+
+	F_SETFD    = C.F_SETFD
+	F_GETFL    = C.F_GETFL
+	F_SETFL    = C.F_SETFL
+	FD_CLOEXEC = C.FD_CLOEXEC
 
 	SIGHUP    = C.SIGHUP
 	SIGINT    = C.SIGINT
@@ -125,3 +137,10 @@ type Timeval C.struct_timeval
 type Itimerval C.struct_itimerval
 
 type KeventT C.struct_kevent
+
+type Pthread C.pthread_t
+type PthreadAttr C.pthread_attr_t
+type PthreadCond C.pthread_cond_t
+type PthreadCondAttr C.pthread_condattr_t
+type PthreadMutex C.pthread_mutex_t
+type PthreadMutexAttr C.pthread_mutexattr_t

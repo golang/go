@@ -629,6 +629,22 @@ func trans3(a, b []int, i int) {
 	_ = b[i] // ERROR "Proved IsInBounds$"
 }
 
+func trans4(b []byte, x int) {
+	// Issue #42603: slice len/cap transitive relations.
+	switch x {
+	case 0:
+		if len(b) < 20 {
+			return
+		}
+		_ = b[:2] // ERROR "Proved IsSliceInBounds$"
+	case 1:
+		if len(b) < 40 {
+			return
+		}
+		_ = b[:2] // ERROR "Proved IsSliceInBounds$"
+	}
+}
+
 // Derived from nat.cmp
 func natcmp(x, y []uint) (r int) {
 	m := len(x)
@@ -670,8 +686,7 @@ func oforuntil(b []int) {
 	i := 0
 	if len(b) > i {
 	top:
-		// TODO: remove the todo of next line once we complete the following optimization of CL 244579
-		// println(b[i]) // todo: ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
+		println(b[i]) // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
 		i++
 		if i < len(b) {
 			goto top
@@ -721,8 +736,7 @@ func range1(b []int) {
 // range2 elements are larger, so they use the general form of a range loop.
 func range2(b [][32]int) {
 	for i, v := range b {
-		// TODO: remove the todo of next line once we complete the following optimization of CL 244579
-		b[i][0] = v[0] + 1 // todo: ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
+		b[i][0] = v[0] + 1 // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
 		if i < len(b) {    // ERROR "Proved Less64$"
 			println("x")
 		}
@@ -999,7 +1013,7 @@ func sh64noopt(n int64) int64 {
 // opt, an earlier pass, has already replaced it.
 // The fix for this issue allows prove to zero a right shift that was added as
 // part of the less-than-optimal reqwrite. That change by prove then allows
-// lateopt to clean up all the unneccesary parts of the original division
+// lateopt to clean up all the unnecessary parts of the original division
 // replacement. See issue #36159.
 func divShiftClean(n int) int {
 	if n < 0 {

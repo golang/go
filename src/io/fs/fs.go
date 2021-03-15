@@ -10,14 +10,14 @@ package fs
 import (
 	"internal/oserror"
 	"time"
+	"unicode/utf8"
 )
 
 // An FS provides access to a hierarchical file system.
 //
 // The FS interface is the minimum implementation required of the file system.
 // A file system may implement additional interfaces,
-// such as fsutil.ReadFileFS, to provide additional or optimized functionality.
-// See io/fsutil for details.
+// such as ReadFileFS, to provide additional or optimized functionality.
 type FS interface {
 	// Open opens the named file.
 	//
@@ -33,14 +33,22 @@ type FS interface {
 
 // ValidPath reports whether the given path name
 // is valid for use in a call to Open.
-// Path names passed to open are unrooted, slash-separated
-// sequences of path elements, like “x/y/z”.
-// Path names must not contain a “.” or “..” or empty element,
-// except for the special case that the root directory is named “.”.
 //
-// Paths are slash-separated on all systems, even Windows.
-// Backslashes must not appear in path names.
+// Path names passed to open are UTF-8-encoded,
+// unrooted, slash-separated sequences of path elements, like “x/y/z”.
+// Path names must not contain an element that is “.” or “..” or the empty string,
+// except for the special case that the root directory is named “.”.
+// Paths must not start or end with a slash: “/x” and “x/” are invalid.
+//
+// Note that paths are slash-separated on all systems, even Windows.
+// Paths containing other characters such as backslash and colon
+// are accepted as valid, but those characters must never be
+// interpreted by an FS implementation as path element separators.
 func ValidPath(name string) bool {
+	if !utf8.ValidString(name) {
+		return false
+	}
+
 	if name == "." {
 		// special case
 		return true
@@ -50,9 +58,6 @@ func ValidPath(name string) bool {
 	for {
 		i := 0
 		for i < len(name) && name[i] != '/' {
-			if name[i] == '\\' {
-				return false
-			}
 			i++
 		}
 		elem := name[:i]
@@ -68,8 +73,8 @@ func ValidPath(name string) bool {
 
 // A File provides access to a single file.
 // The File interface is the minimum implementation required of the file.
-// A file may implement additional interfaces, such as
-// ReadDirFile, ReaderAt, or Seeker, to provide additional or optimized functionality.
+// Directory files should also implement ReadDirFile.
+// A file may implement io.ReaderAt or io.Seeker as optimizations.
 type File interface {
 	Stat() (FileInfo, error)
 	Read([]byte) (int, error)

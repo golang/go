@@ -13,6 +13,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"sync/atomic"
 	"time"
@@ -213,7 +214,7 @@ func (hs *serverHandshakeState) processClientHello() error {
 	}
 
 	if len(hs.clientHello.alpnProtocols) > 0 {
-		if selectedProto, fallback := mutualProtocol(hs.clientHello.alpnProtocols, c.config.NextProtos); !fallback {
+		if selectedProto := mutualProtocol(hs.clientHello.alpnProtocols, c.config.NextProtos); selectedProto != "" {
 			hs.hello.alpnProtocol = selectedProto
 			c.clientProtocol = selectedProto
 		}
@@ -298,9 +299,23 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
 	if c.config.PreferServerCipherSuites {
 		preferenceList = c.config.cipherSuites()
 		supportedList = hs.clientHello.cipherSuites
+
+		// If the client does not seem to have hardware support for AES-GCM,
+		// and the application did not specify a cipher suite preference order,
+		// prefer other AEAD ciphers even if we prioritized AES-GCM ciphers
+		// by default.
+		if c.config.CipherSuites == nil && !aesgcmPreferred(hs.clientHello.cipherSuites) {
+			preferenceList = deprioritizeAES(preferenceList)
+		}
 	} else {
 		preferenceList = hs.clientHello.cipherSuites
 		supportedList = c.config.cipherSuites()
+
+		// If we don't have hardware support for AES-GCM, prefer other AEAD
+		// ciphers even if the client prioritized AES-GCM.
+		if !hasAESGCMHardwareSupport {
+			preferenceList = deprioritizeAES(preferenceList)
+		}
 	}
 
 	hs.suite = selectCipherSuite(preferenceList, supportedList, hs.cipherSuiteOk)
@@ -641,13 +656,13 @@ func (hs *serverHandshakeState) establishKeys() error {
 		keysFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.clientHello.random, hs.hello.random, hs.suite.macLen, hs.suite.keyLen, hs.suite.ivLen)
 
 	var clientCipher, serverCipher interface{}
-	var clientHash, serverHash macFunction
+	var clientHash, serverHash hash.Hash
 
 	if hs.suite.aead == nil {
 		clientCipher = hs.suite.cipher(clientKey, clientIV, true /* for reading */)
-		clientHash = hs.suite.mac(c.vers, clientMAC)
+		clientHash = hs.suite.mac(clientMAC)
 		serverCipher = hs.suite.cipher(serverKey, serverIV, false /* not for reading */)
-		serverHash = hs.suite.mac(c.vers, serverMAC)
+		serverHash = hs.suite.mac(serverMAC)
 	} else {
 		clientCipher = hs.suite.aead(clientKey, clientIV)
 		serverCipher = hs.suite.aead(serverKey, serverIV)

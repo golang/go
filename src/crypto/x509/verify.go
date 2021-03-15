@@ -187,6 +187,8 @@ func (se SystemRootsError) Error() string {
 	return msg
 }
 
+func (se SystemRootsError) Unwrap() error { return se.Err }
+
 // errNotParsed is returned when a certificate without ASN.1 contents is
 // verified. Platform-specific verification needs the ASN.1 contents.
 var errNotParsed = errors.New("x509: missing ASN.1 contents; use ParseCertificate")
@@ -759,11 +761,13 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 	if len(c.Raw) == 0 {
 		return nil, errNotParsed
 	}
-	if opts.Intermediates != nil {
-		for _, intermediate := range opts.Intermediates.certs {
-			if len(intermediate.Raw) == 0 {
-				return nil, errNotParsed
-			}
+	for i := 0; i < opts.Intermediates.len(); i++ {
+		c, err := opts.Intermediates.cert(i)
+		if err != nil {
+			return nil, fmt.Errorf("crypto/x509: error fetching intermediate: %w", err)
+		}
+		if len(c.Raw) == 0 {
+			return nil, errNotParsed
 		}
 	}
 
@@ -889,11 +893,11 @@ func (c *Certificate) buildChains(cache map[*Certificate][][]*Certificate, curre
 		}
 	}
 
-	for _, rootNum := range opts.Roots.findPotentialParents(c) {
-		considerCandidate(rootCertificate, opts.Roots.certs[rootNum])
+	for _, root := range opts.Roots.findPotentialParents(c) {
+		considerCandidate(rootCertificate, root)
 	}
-	for _, intermediateNum := range opts.Intermediates.findPotentialParents(c) {
-		considerCandidate(intermediateCertificate, opts.Intermediates.certs[intermediateNum])
+	for _, intermediate := range opts.Intermediates.findPotentialParents(c) {
+		considerCandidate(intermediateCertificate, intermediate)
 	}
 
 	if len(chains) > 0 {

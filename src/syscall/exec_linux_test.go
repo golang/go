@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build linux
 // +build linux
 
 package syscall_test
@@ -11,7 +12,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/user"
@@ -65,7 +65,7 @@ func skipNoUserNamespaces(t *testing.T) {
 func skipUnprivilegedUserClone(t *testing.T) {
 	// Skip the test if the sysctl that prevents unprivileged user
 	// from creating user namespaces is enabled.
-	data, errRead := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
+	data, errRead := os.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
 	if errRead != nil || len(data) < 1 || data[0] == '0' {
 		t.Skip("kernel prohibits user namespace in unprivileged process")
 	}
@@ -98,7 +98,7 @@ func checkUserNS(t *testing.T) {
 	// On Centos 7 make sure they set the kernel parameter user_namespace=1
 	// See issue 16283 and 20796.
 	if _, err := os.Stat("/sys/module/user_namespace/parameters/enable"); err == nil {
-		buf, _ := ioutil.ReadFile("/sys/module/user_namespace/parameters/enabled")
+		buf, _ := os.ReadFile("/sys/module/user_namespace/parameters/enabled")
 		if !strings.HasPrefix(string(buf), "Y") {
 			t.Skip("kernel doesn't support user namespaces")
 		}
@@ -106,7 +106,7 @@ func checkUserNS(t *testing.T) {
 
 	// On Centos 7.5+, user namespaces are disabled if user.max_user_namespaces = 0
 	if _, err := os.Stat("/proc/sys/user/max_user_namespaces"); err == nil {
-		buf, errRead := ioutil.ReadFile("/proc/sys/user/max_user_namespaces")
+		buf, errRead := os.ReadFile("/proc/sys/user/max_user_namespaces")
 		if errRead == nil && buf[0] == '0' {
 			t.Skip("kernel doesn't support user namespaces")
 		}
@@ -226,7 +226,7 @@ func TestUnshare(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	orig, err := ioutil.ReadFile(path)
+	orig, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -349,7 +349,7 @@ func TestUnshareMountNameSpace(t *testing.T) {
 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
 	}
 
-	d, err := ioutil.TempDir("", "unshare")
+	d, err := os.MkdirTemp("", "unshare")
 	if err != nil {
 		t.Fatalf("tempdir: %v", err)
 	}
@@ -391,7 +391,7 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
 	}
 
-	d, err := ioutil.TempDir("", "unshare")
+	d, err := os.MkdirTemp("", "unshare")
 	if err != nil {
 		t.Fatalf("tempdir: %v", err)
 	}
@@ -599,7 +599,7 @@ func testAmbientCaps(t *testing.T, userns bool) {
 	}
 
 	// Copy the test binary to a temporary location which is readable by nobody.
-	f, err := ioutil.TempFile("", "gotest")
+	f, err := os.CreateTemp("", "gotest")
 	if err != nil {
 		t.Fatal(err)
 	}

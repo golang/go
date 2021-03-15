@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 // +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package runtime
@@ -336,7 +337,7 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
 	atomic.Xadd(&gp.m.preemptGen, 1)
 	atomic.Store(&gp.m.signalPending, 0)
 
-	if GOOS == "darwin" {
+	if GOOS == "darwin" || GOOS == "ios" {
 		atomic.Xadd(&pendingPreemptSignals, -1)
 	}
 }
@@ -350,25 +351,14 @@ const preemptMSupported = true
 // safe-point, it will preempt the goroutine. It always atomically
 // increments mp.preemptGen after handling a preemption request.
 func preemptM(mp *m) {
-	if (GOOS == "darwin" || GOOS == "ios") && GOARCH == "arm64" && !iscgo {
-		// On darwin, we use libc calls, and cgo is required on ARM64
-		// so we have TLS set up to save/restore G during C calls. If cgo is
-		// absent, we cannot save/restore G in TLS, and if a signal is
-		// received during C execution we cannot get the G. Therefore don't
-		// send signals.
-		// This can only happen in the go_bootstrap program (otherwise cgo is
-		// required).
-		return
-	}
-
 	// On Darwin, don't try to preempt threads during exec.
 	// Issue #41702.
-	if GOOS == "darwin" {
+	if GOOS == "darwin" || GOOS == "ios" {
 		execLock.rlock()
 	}
 
 	if atomic.Cas(&mp.signalPending, 0, 1) {
-		if GOOS == "darwin" {
+		if GOOS == "darwin" || GOOS == "ios" {
 			atomic.Xadd(&pendingPreemptSignals, 1)
 		}
 
@@ -380,7 +370,7 @@ func preemptM(mp *m) {
 		signalM(mp, sigPreempt)
 	}
 
-	if GOOS == "darwin" {
+	if GOOS == "darwin" || GOOS == "ios" {
 		execLock.runlock()
 	}
 }
@@ -443,7 +433,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 			// no non-Go signal handler for sigPreempt.
 			// The default behavior for sigPreempt is to ignore
 			// the signal, so badsignal will be a no-op anyway.
-			if GOOS == "darwin" {
+			if GOOS == "darwin" || GOOS == "ios" {
 				atomic.Xadd(&pendingPreemptSignals, -1)
 			}
 			return
@@ -486,6 +476,14 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
 		return false
 	}
 
+	var st stackt
+	sigaltstack(nil, &st)
+	stsp := uintptr(unsafe.Pointer(st.ss_sp))
+	if st.ss_flags&_SS_DISABLE == 0 && sp >= stsp && sp < stsp+st.ss_size {
+		setGsignalStack(&st, gsigStack)
+		return true
+	}
+
 	if sp >= mp.g0.stack.lo && sp < mp.g0.stack.hi {
 		// The signal was delivered on the g0 stack.
 		// This can happen when linked with C code
@@ -494,29 +492,25 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
 		// the signal handler directly when C code,
 		// including C code called via cgo, calls a
 		// TSAN-intercepted function such as malloc.
+		//
+		// We check this condition last as g0.stack.lo
+		// may be not very accurate (see mstart).
 		st := stackt{ss_size: mp.g0.stack.hi - mp.g0.stack.lo}
 		setSignalstackSP(&st, mp.g0.stack.lo)
 		setGsignalStack(&st, gsigStack)
 		return true
 	}
 
-	var st stackt
-	sigaltstack(nil, &st)
+	// sp is not within gsignal stack, g0 stack, or sigaltstack. Bad.
+	setg(nil)
+	needm()
 	if st.ss_flags&_SS_DISABLE != 0 {
-		setg(nil)
-		needm(0)
 		noSignalStack(sig)
-		dropm()
-	}
-	stsp := uintptr(unsafe.Pointer(st.ss_sp))
-	if sp < stsp || sp >= stsp+st.ss_size {
-		setg(nil)
-		needm(0)
+	} else {
 		sigNotOnStack(sig)
-		dropm()
 	}
-	setGsignalStack(&st, gsigStack)
-	return true
+	dropm()
+	return false
 }
 
 // crashing is the number of m's we have waited for when implementing
@@ -951,7 +945,7 @@ func badsignal(sig uintptr, c *sigctxt) {
 		exit(2)
 		*(*uintptr)(unsafe.Pointer(uintptr(123))) = 2
 	}
-	needm(0)
+	needm()
 	if !sigsend(uint32(sig)) {
 		// A foreign thread received the signal sig, and the
 		// Go code does not want to handle it.
@@ -1031,15 +1025,15 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 	return true
 }
 
-// msigsave saves the current thread's signal mask into mp.sigmask.
+// sigsave saves the current thread's signal mask into *p.
 // This is used to preserve the non-Go signal mask when a non-Go
 // thread calls a Go function.
 // This is nosplit and nowritebarrierrec because it is called by needm
 // which may be called on a non-Go thread with no g available.
 //go:nosplit
 //go:nowritebarrierrec
-func msigsave(mp *m) {
-	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
+func sigsave(p *sigset) {
+	sigprocmask(_SIG_SETMASK, nil, p)
 }
 
 // msigrestore sets the current thread's signal mask to sigmask.
@@ -1053,15 +1047,26 @@ func msigrestore(sigmask sigset) {
 	sigprocmask(_SIG_SETMASK, &sigmask, nil)
 }
 
-// sigblock blocks all signals in the current thread's signal mask.
+// sigsetAllExiting is used by sigblock(true) when a thread is
+// exiting. sigset_all is defined in OS specific code, and per GOOS
+// behavior may override this default for sigsetAllExiting: see
+// osinit().
+var sigsetAllExiting = sigset_all
+
+// sigblock blocks signals in the current thread's signal mask.
 // This is used to block signals while setting up and tearing down g
-// when a non-Go thread calls a Go function.
-// The OS-specific code is expected to define sigset_all.
+// when a non-Go thread calls a Go function. When a thread is exiting
+// we use the sigsetAllExiting value, otherwise the OS specific
+// definition of sigset_all is used.
 // This is nosplit and nowritebarrierrec because it is called by needm
 // which may be called on a non-Go thread with no g available.
 //go:nosplit
 //go:nowritebarrierrec
-func sigblock() {
+func sigblock(exiting bool) {
+	if exiting {
+		sigprocmask(_SIG_SETMASK, &sigsetAllExiting, nil)
+		return
+	}
 	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
 }
 
@@ -1111,7 +1116,7 @@ func minitSignalStack() {
 // thread's signal mask. When this is called all signals have been
 // blocked for the thread.  This starts with m.sigmask, which was set
 // either from initSigmask for a newly created thread or by calling
-// msigsave if this is a non-Go thread calling a Go function. It
+// sigsave if this is a non-Go thread calling a Go function. It
 // removes all essential signals from the mask, thus causing those
 // signals to not be blocked. Then it sets the thread's signal mask.
 // After this is called the thread can receive signals.

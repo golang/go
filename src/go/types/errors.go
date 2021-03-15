@@ -89,6 +89,21 @@ func (check *Checker) err(err error) {
 		return
 	}
 
+	if isInternal {
+		e.Msg = stripAnnotations(e.Msg)
+		if check.errpos != nil {
+			// If we have an internal error and the errpos override is set, use it to
+			// augment our error positioning.
+			// TODO(rFindley) we may also want to augment the error message and refer
+			// to the position (pos) in the original expression.
+			span := spanOf(check.errpos)
+			e.Pos = span.pos
+			e.go116start = span.start
+			e.go116end = span.end
+		}
+		err = e
+	}
+
 	if check.firstErr == nil {
 		check.firstErr = err
 	}
@@ -110,41 +125,121 @@ func (check *Checker) err(err error) {
 	f(err)
 }
 
-func (check *Checker) error(pos token.Pos, msg string) {
-	check.err(Error{Fset: check.fset, Pos: pos, Msg: msg})
-}
-
-// newErrorf creates a new Error, but does not handle it.
-func (check *Checker) newErrorf(pos token.Pos, format string, args ...interface{}) error {
+func (check *Checker) newError(at positioner, code errorCode, soft bool, msg string) error {
+	span := spanOf(at)
 	return Error{
-		Fset: check.fset,
-		Pos:  pos,
-		Msg:  check.sprintf(format, args...),
-		Soft: false,
+		Fset:       check.fset,
+		Pos:        span.pos,
+		Msg:        msg,
+		Soft:       soft,
+		go116code:  code,
+		go116start: span.start,
+		go116end:   span.end,
 	}
 }
 
-func (check *Checker) errorf(pos token.Pos, format string, args ...interface{}) {
-	check.error(pos, check.sprintf(format, args...))
+// newErrorf creates a new Error, but does not handle it.
+func (check *Checker) newErrorf(at positioner, code errorCode, soft bool, format string, args ...interface{}) error {
+	msg := check.sprintf(format, args...)
+	return check.newError(at, code, soft, msg)
 }
 
-func (check *Checker) softErrorf(pos token.Pos, format string, args ...interface{}) {
-	check.err(Error{
-		Fset: check.fset,
-		Pos:  pos,
-		Msg:  check.sprintf(format, args...),
-		Soft: true,
-	})
+func (check *Checker) error(at positioner, code errorCode, msg string) {
+	check.err(check.newError(at, code, false, msg))
 }
 
-func (check *Checker) invalidAST(pos token.Pos, format string, args ...interface{}) {
-	check.errorf(pos, "invalid AST: "+format, args...)
+func (check *Checker) errorf(at positioner, code errorCode, format string, args ...interface{}) {
+	check.error(at, code, check.sprintf(format, args...))
 }
 
-func (check *Checker) invalidArg(pos token.Pos, format string, args ...interface{}) {
-	check.errorf(pos, "invalid argument: "+format, args...)
+func (check *Checker) softErrorf(at positioner, code errorCode, format string, args ...interface{}) {
+	check.err(check.newErrorf(at, code, true, format, args...))
 }
 
-func (check *Checker) invalidOp(pos token.Pos, format string, args ...interface{}) {
-	check.errorf(pos, "invalid operation: "+format, args...)
+func (check *Checker) invalidAST(at positioner, format string, args ...interface{}) {
+	check.errorf(at, 0, "invalid AST: "+format, args...)
+}
+
+func (check *Checker) invalidArg(at positioner, code errorCode, format string, args ...interface{}) {
+	check.errorf(at, code, "invalid argument: "+format, args...)
+}
+
+func (check *Checker) invalidOp(at positioner, code errorCode, format string, args ...interface{}) {
+	check.errorf(at, code, "invalid operation: "+format, args...)
+}
+
+// The positioner interface is used to extract the position of type-checker
+// errors.
+type positioner interface {
+	Pos() token.Pos
+}
+
+// posSpan holds a position range along with a highlighted position within that
+// range. This is used for positioning errors, with pos by convention being the
+// first position in the source where the error is known to exist, and start
+// and end defining the full span of syntax being considered when the error was
+// detected. Invariant: start <= pos < end || start == pos == end.
+type posSpan struct {
+	start, pos, end token.Pos
+}
+
+func (e posSpan) Pos() token.Pos {
+	return e.pos
+}
+
+// inNode creates a posSpan for the given node.
+// Invariant: node.Pos() <= pos < node.End() (node.End() is the position of the
+// first byte after node within the source).
+func inNode(node ast.Node, pos token.Pos) posSpan {
+	start, end := node.Pos(), node.End()
+	if debug {
+		assert(start <= pos && pos < end)
+	}
+	return posSpan{start, pos, end}
+}
+
+// atPos wraps a token.Pos to implement the positioner interface.
+type atPos token.Pos
+
+func (s atPos) Pos() token.Pos {
+	return token.Pos(s)
+}
+
+// spanOf extracts an error span from the given positioner. By default this is
+// the trivial span starting and ending at pos, but this span is expanded when
+// the argument naturally corresponds to a span of source code.
+func spanOf(at positioner) posSpan {
+	switch x := at.(type) {
+	case nil:
+		panic("internal error: nil")
+	case posSpan:
+		return x
+	case ast.Node:
+		pos := x.Pos()
+		return posSpan{pos, pos, x.End()}
+	case *operand:
+		if x.expr != nil {
+			pos := x.Pos()
+			return posSpan{pos, pos, x.expr.End()}
+		}
+		return posSpan{token.NoPos, token.NoPos, token.NoPos}
+	default:
+		pos := at.Pos()
+		return posSpan{pos, pos, pos}
+	}
+}
+
+// stripAnnotations removes internal (type) annotations from s.
+func stripAnnotations(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		// strip #'s and subscript digits
+		if r != instanceMarker && !('₀' <= r && r < '₀'+10) { // '₀' == U+2080
+			b.WriteRune(r)
+		}
+	}
+	if b.Len() < len(s) {
+		return b.String()
+	}
+	return s
 }

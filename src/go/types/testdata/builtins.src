@@ -25,19 +25,19 @@ func append1() {
 	_ = append(s, b)
 	_ = append(s, x /* ERROR cannot use x */ )
 	_ = append(s, s /* ERROR cannot use s */ )
-	_ = append(s... /* ERROR can only use ... with matching parameter */ )
-	_ = append(s, b, s... /* ERROR can only use ... with matching parameter */ )
+	_ = append(s...) /* ERROR not enough arguments */
+	_ = append(s, b, s /* ERROR too many arguments */ ...)
 	_ = append(s, 1, 2, 3)
 	_ = append(s, 1, 2, 3, x /* ERROR cannot use x */ , 5, 6, 6)
-	_ = append(s, 1, 2, s... /* ERROR can only use ... with matching parameter */ )
+	_ = append(s, 1, 2 /* ERROR too many arguments */, s...)
 	_ = append([]interface{}(nil), 1, 2, "foo", x, 3.1425, false)
 
 	type S []byte
 	type T string
 	var t T
-	_ = append(s, "foo" /* ERROR cannot convert */ )
+	_ = append(s, "foo" /* ERROR cannot use .* in argument to append */ )
 	_ = append(s, "foo"...)
-	_ = append(S(s), "foo" /* ERROR cannot convert */ )
+	_ = append(S(s), "foo" /* ERROR cannot use .* in argument to append */ )
 	_ = append(S(s), "foo"...)
 	_ = append(s, t /* ERROR cannot use t */ )
 	_ = append(s, t...)
@@ -283,7 +283,7 @@ func delete1() {
 	delete() // ERROR not enough arguments
 	delete(1) // ERROR not enough arguments
 	delete(1, 2, 3) // ERROR too many arguments
-	delete(m, 0 /* ERROR not assignable */)
+	delete(m, 0 /* ERROR cannot use */)
 	delete(m, s)
 	_ = delete /* ERROR used as value */ (m, s)
 
@@ -514,7 +514,7 @@ func panic1() {
 	panic("foo")
 	panic(false)
 	panic(1<<10)
-	panic(1 /* ERROR overflows */ <<1000)
+	panic(1 << /* ERROR constant shift overflow */ 1000)
 	_ = panic /* ERROR used as value */ (0)
 
 	var s []byte
@@ -538,7 +538,7 @@ func print1() {
 	print(2.718281828)
 	print(false)
 	print(1<<10)
-	print(1 /* ERROR overflows */ <<1000)
+	print(1 << /* ERROR constant shift overflow */ 1000)
 	println(nil /* ERROR untyped nil */ )
 
 	var s []int
@@ -564,7 +564,7 @@ func println1() {
 	println(2.718281828)
 	println(false)
 	println(1<<10)
-	println(1 /* ERROR overflows */ <<1000)
+	println(1 << /* ERROR constant shift overflow */ 1000)
 	println(nil /* ERROR untyped nil */ )
 
 	var s []int
@@ -695,7 +695,7 @@ func Alignof1() {
 	_ = unsafe.Alignof(42)
 	_ = unsafe.Alignof(new(struct{}))
 	_ = unsafe.Alignof(1<<10)
-	_ = unsafe.Alignof(1 /* ERROR overflows */ <<1000)
+	_ = unsafe.Alignof(1 << /* ERROR constant shift overflow */ 1000)
 	_ = unsafe.Alignof(nil /* ERROR "untyped nil */ )
 	unsafe /* ERROR not used */ .Alignof(x)
 
@@ -783,7 +783,7 @@ func Sizeof1() {
 	_ = unsafe.Sizeof(42)
 	_ = unsafe.Sizeof(new(complex128))
 	_ = unsafe.Sizeof(1<<10)
-	_ = unsafe.Sizeof(1 /* ERROR overflows */ <<1000)
+	_ = unsafe.Sizeof(1 << /* ERROR constant shift overflow */ 1000)
 	_ = unsafe.Sizeof(nil /* ERROR untyped nil */ )
 	unsafe /* ERROR not used */ .Sizeof(x)
 

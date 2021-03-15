@@ -104,7 +104,7 @@
 // If b3 is the primary predecessor of b2, then we use x3 in b2 and
 // add a x4:CX->BX copy at the end of b4.
 // But the definition of x3 doesn't dominate b2.  We should really
-// insert a dummy phi at the start of b2 (x5=phi(x3,x4):BX) to keep
+// insert an extra phi at the start of b2 (x5=phi(x3,x4):BX) to keep
 // SSA form. For now, we ignore this problem as remaining in strict
 // SSA form isn't needed after regalloc. We'll just leave the use
 // of x3 not dominated by the definition of x3, and the CX->BX copy
@@ -114,6 +114,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -149,6 +150,14 @@ func regalloc(f *Func) {
 type register uint8
 
 const noRegister register = 255
+
+// For bulk initializing
+var noRegisters [32]register = [32]register{
+	noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister,
+	noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister,
+	noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister,
+	noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister,
+}
 
 // A regMask encodes a set of machine registers.
 // TODO: regMask -> regSet?
@@ -760,6 +769,9 @@ func (s *regAllocState) advanceUses(v *Value) {
 // current instruction.
 func (s *regAllocState) liveAfterCurrentInstruction(v *Value) bool {
 	u := s.values[v.ID].uses
+	if u == nil {
+		panic(fmt.Errorf("u is nil, v = %s, s.values[v.ID] = %v", v.LongString(), s.values[v.ID]))
+	}
 	d := u.dist
 	for u != nil && u.dist == d {
 		u = u.next
@@ -782,9 +794,9 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
 		return 0
 	}
 	if t.IsFloat() || t == types.TypeInt128 {
-		if t.Etype == types.TFLOAT32 && s.f.Config.fp32RegMask != 0 {
+		if t.Kind() == types.TFLOAT32 && s.f.Config.fp32RegMask != 0 {
 			m = s.f.Config.fp32RegMask
-		} else if t.Etype == types.TFLOAT64 && s.f.Config.fp64RegMask != 0 {
+		} else if t.Kind() == types.TFLOAT64 && s.f.Config.fp64RegMask != 0 {
 			m = s.f.Config.fp64RegMask
 		} else {
 			m = s.f.Config.fpRegMask
@@ -796,13 +808,30 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
 }
 
 // regspec returns the regInfo for operation op.
-func (s *regAllocState) regspec(op Op) regInfo {
+func (s *regAllocState) regspec(v *Value) regInfo {
+	op := v.Op
 	if op == OpConvert {
 		// OpConvert is a generic op, so it doesn't have a
 		// register set in the static table. It can use any
 		// allocatable integer register.
 		m := s.allocatable & s.f.Config.gpRegMask
 		return regInfo{inputs: []inputInfo{{regs: m}}, outputs: []outputInfo{{regs: m}}}
+	}
+	if op == OpArgIntReg {
+		reg := v.Block.Func.Config.intParamRegs[v.AuxInt8()]
+		return regInfo{outputs: []outputInfo{{regs: 1 << uint(reg)}}}
+	}
+	if op == OpArgFloatReg {
+		reg := v.Block.Func.Config.floatParamRegs[v.AuxInt8()]
+		return regInfo{outputs: []outputInfo{{regs: 1 << uint(reg)}}}
+	}
+	if op.IsCall() {
+		if ac, ok := v.Aux.(*AuxCall); ok && ac.reg != nil {
+			return *ac.Reg(&opcodeTable[op].reg, s.f.Config)
+		}
+	}
+	if op == OpMakeResult && s.f.OwnAux.reg != nil {
+		return *s.f.OwnAux.ResultReg(s.f.Config)
 	}
 	return opcodeTable[op].reg
 }
@@ -1012,8 +1041,8 @@ func (s *regAllocState) regalloc(f *Func) {
 			// Copy phi ops into new schedule.
 			b.Values = append(b.Values, phis...)
 
-			// Third pass - pick registers for phis whose inputs
-			// were not in a register.
+			// Third pass - pick registers for phis whose input
+			// was not in a register in the primary predecessor.
 			for i, v := range phis {
 				if !s.values[v.ID].needReg {
 					continue
@@ -1022,6 +1051,24 @@ func (s *regAllocState) regalloc(f *Func) {
 					continue
 				}
 				m := s.compatRegs(v.Type) &^ phiUsed &^ s.used
+				// If one of the other inputs of v is in a register, and the register is available,
+				// select this register, which can save some unnecessary copies.
+				for i, pe := range b.Preds {
+					if int32(i) == idx {
+						continue
+					}
+					ri := noRegister
+					for _, er := range s.endRegs[pe.b.ID] {
+						if er.v == s.orig[v.Args[i].ID] {
+							ri = er.r
+							break
+						}
+					}
+					if ri != noRegister && m>>ri&1 != 0 {
+						m = regMask(1) << ri
+						break
+					}
+				}
 				if m != 0 {
 					r := pickReg(m)
 					phiRegs[i] = r
@@ -1119,7 +1166,19 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 				rp, ok := s.f.getHome(v.ID).(*Register)
 				if !ok {
-					continue
+					// If v is not assigned a register, pick a register assigned to one of v's inputs.
+					// Hopefully v will get assigned that register later.
+					// If the inputs have allocated register information, add it to desired,
+					// which may reduce spill or copy operations when the register is available.
+					for _, a := range v.Args {
+						rp, ok = s.f.getHome(a.ID).(*Register)
+						if ok {
+							break
+						}
+					}
+					if !ok {
+						continue
+					}
 				}
 				desired.add(v.Args[pidx].ID, register(rp.num))
 			}
@@ -1129,7 +1188,7 @@ func (s *regAllocState) regalloc(f *Func) {
 		for i := len(oldSched) - 1; i >= 0; i-- {
 			v := oldSched[i]
 			prefs := desired.remove(v.ID)
-			regspec := s.regspec(v.Op)
+			regspec := s.regspec(v)
 			desired.clobber(regspec.clobbers)
 			for _, j := range regspec.inputs {
 				if countRegs(j.regs) != 1 {
@@ -1159,7 +1218,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			if s.f.pass.debug > regDebug {
 				fmt.Printf("  processing %s\n", v.LongString())
 			}
-			regspec := s.regspec(v.Op)
+			regspec := s.regspec(v)
 			if v.Op == OpPhi {
 				f.Fatalf("phi %s not at start of block", v)
 			}
@@ -1177,13 +1236,17 @@ func (s *regAllocState) regalloc(f *Func) {
 				s.sb = v.ID
 				continue
 			}
-			if v.Op == OpSelect0 || v.Op == OpSelect1 {
+			if v.Op == OpSelect0 || v.Op == OpSelect1 || v.Op == OpSelectN {
 				if s.values[v.ID].needReg {
-					var i = 0
-					if v.Op == OpSelect1 {
-						i = 1
+					if v.Op == OpSelectN {
+						s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocResults)[int(v.AuxInt)].(*Register).num), v, v)
+					} else {
+						var i = 0
+						if v.Op == OpSelect1 {
+							i = 1
+						}
+						s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocPair)[i].(*Register).num), v, v)
 					}
-					s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocPair)[i].(*Register).num), v, v)
 				}
 				b.Values = append(b.Values, v)
 				s.advanceUses(v)
@@ -1218,7 +1281,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					// This forces later liveness analysis to make the
 					// value live at this point.
 					v.SetArg(0, s.makeSpill(a, b))
-				} else if _, ok := a.Aux.(GCNode); ok && vi.rematerializeable {
+				} else if _, ok := a.Aux.(*ir.Name); ok && vi.rematerializeable {
 					// Rematerializeable value with a gc.Node. This is the address of
 					// a stack object (e.g. an LEAQ). Keep the object live.
 					// Change it to VarLive, which is what plive expects for locals.
@@ -1403,7 +1466,8 @@ func (s *regAllocState) regalloc(f *Func) {
 
 			// Pick registers for outputs.
 			{
-				outRegs := [2]register{noRegister, noRegister}
+				outRegs := noRegisters // TODO if this is costly, hoist and clear incrementally below.
+				maxOutIdx := -1
 				var used regMask
 				for _, out := range regspec.outputs {
 					mask := out.regs & s.allocatable &^ used
@@ -1449,6 +1513,9 @@ func (s *regAllocState) regalloc(f *Func) {
 						mask &^= desired.avoid
 					}
 					r := s.allocReg(mask, v)
+					if out.idx > maxOutIdx {
+						maxOutIdx = out.idx
+					}
 					outRegs[out.idx] = r
 					used |= regMask(1) << r
 					s.tmpused |= regMask(1) << r
@@ -1464,6 +1531,15 @@ func (s *regAllocState) regalloc(f *Func) {
 					}
 					s.f.setHome(v, outLocs)
 					// Note that subsequent SelectX instructions will do the assignReg calls.
+				} else if v.Type.IsResults() {
+					// preallocate outLocs to the right size, which is maxOutIdx+1
+					outLocs := make(LocResults, maxOutIdx+1, maxOutIdx+1)
+					for i := 0; i <= maxOutIdx; i++ {
+						if r := outRegs[i]; r != noRegister {
+							outLocs[i] = &s.registers[r]
+						}
+					}
+					s.f.setHome(v, outLocs)
 				} else {
 					if r := outRegs[0]; r != noRegister {
 						s.assignReg(r, v, v)
@@ -1552,6 +1628,19 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 				v := s.orig[vid]
 				m := s.compatRegs(v.Type) &^ s.used
+				// Used desired register if available.
+			outerloop:
+				for _, e := range desired.entries {
+					if e.ID != v.ID {
+						continue
+					}
+					for _, r := range e.regs {
+						if r != noRegister && m>>r&1 != 0 {
+							m = regMask(1) << r
+							break outerloop
+						}
+					}
+				}
 				if m&^desired.avoid != 0 {
 					m &^= desired.avoid
 				}
@@ -1613,7 +1702,9 @@ func (s *regAllocState) regalloc(f *Func) {
 				// we'll rematerialize during the merge.
 				continue
 			}
-			//fmt.Printf("live-at-end spill for %s at %s\n", s.orig[e.ID], b)
+			if s.f.pass.debug > regDebug {
+				fmt.Printf("live-at-end spill for %s at %s\n", s.orig[e.ID], b)
+			}
 			spill := s.makeSpill(s.orig[e.ID], b)
 			s.spillLive[b.ID] = append(s.spillLive[b.ID], spill.ID)
 		}
@@ -1721,6 +1812,9 @@ func (s *regAllocState) placeSpills() {
 		// put the spill of v.  At the start "best" is the best place
 		// we have found so far.
 		// TODO: find a way to make this O(1) without arbitrary cutoffs.
+		if v == nil {
+			panic(fmt.Errorf("nil v, s.orig[%d], vi = %v, spill = %s", i, vi, spill.LongString()))
+		}
 		best := v.Block
 		bestArg := v
 		var bestDepth int16
@@ -2391,7 +2485,7 @@ func (s *regAllocState) computeLive() {
 					// desired registers back though phi nodes.
 					continue
 				}
-				regspec := s.regspec(v.Op)
+				regspec := s.regspec(v)
 				// Cancel desired registers if they get clobbered.
 				desired.clobber(regspec.clobbers)
 				// Update desired registers if there are any fixed register inputs.
@@ -2484,7 +2578,7 @@ func (s *regAllocState) computeLive() {
 		for _, b := range f.Blocks {
 			fmt.Printf("  %s:", b)
 			for _, x := range s.live[b.ID] {
-				fmt.Printf(" v%d", x.ID)
+				fmt.Printf(" v%d(%d)", x.ID, x.dist)
 				for _, e := range s.desired[b.ID].entries {
 					if e.ID != x.ID {
 						continue

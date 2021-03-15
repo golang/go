@@ -7,7 +7,6 @@ package imports
 import (
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -28,13 +27,13 @@ func ScanDir(dir string, tags map[string]bool) ([]string, []string, error) {
 		// If the directory entry is a symlink, stat it to obtain the info for the
 		// link target instead of the link itself.
 		if info.Mode()&fs.ModeSymlink != 0 {
-			info, err = os.Stat(filepath.Join(dir, name))
+			info, err = fsys.Stat(filepath.Join(dir, name))
 			if err != nil {
 				continue // Ignore broken symlinks.
 			}
 		}
 
-		if info.Mode().IsRegular() && !strings.HasPrefix(name, "_") && strings.HasSuffix(name, ".go") && MatchFile(name, tags) {
+		if info.Mode().IsRegular() && !strings.HasPrefix(name, "_") && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") && MatchFile(name, tags) {
 			files = append(files, filepath.Join(dir, name))
 		}
 	}

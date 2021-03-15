@@ -814,7 +814,11 @@ func pathJoin(dirname, filename string) string {
 		// Drives are the same. Ignore drive on filename.
 	}
 	if !(strings.HasSuffix(dirname, "/") || strings.HasSuffix(dirname, `\`)) && dirname != "" {
-		dirname += `\`
+		sep := `\`
+		if strings.HasPrefix(dirname, "/") {
+			sep = `/`
+		}
+		dirname += sep
 	}
 	return drive + dirname + filename
 }

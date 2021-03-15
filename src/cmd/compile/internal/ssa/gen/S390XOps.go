@@ -330,26 +330,27 @@ func init() {
 		{name: "LTDBR", argLength: 1, reg: fp1flags, asm: "LTDBR", typ: "Flags"}, // arg0 compare to 0, f64
 		{name: "LTEBR", argLength: 1, reg: fp1flags, asm: "LTEBR", typ: "Flags"}, // arg0 compare to 0, f32
 
-		{name: "SLD", argLength: 2, reg: sh21, asm: "SLD"},                   // arg0 << arg1, shift amount is mod 64
-		{name: "SLW", argLength: 2, reg: sh21, asm: "SLW"},                   // arg0 << arg1, shift amount is mod 32
-		{name: "SLDconst", argLength: 1, reg: gp11, asm: "SLD", aux: "Int8"}, // arg0 << auxint, shift amount 0-63
-		{name: "SLWconst", argLength: 1, reg: gp11, asm: "SLW", aux: "Int8"}, // arg0 << auxint, shift amount 0-31
+		{name: "SLD", argLength: 2, reg: sh21, asm: "SLD"},                    // arg0 << arg1, shift amount is mod 64
+		{name: "SLW", argLength: 2, reg: sh21, asm: "SLW"},                    // arg0 << arg1, shift amount is mod 64
+		{name: "SLDconst", argLength: 1, reg: gp11, asm: "SLD", aux: "UInt8"}, // arg0 << auxint, shift amount 0-63
+		{name: "SLWconst", argLength: 1, reg: gp11, asm: "SLW", aux: "UInt8"}, // arg0 << auxint, shift amount 0-31
 
-		{name: "SRD", argLength: 2, reg: sh21, asm: "SRD"},                   // unsigned arg0 >> arg1, shift amount is mod 64
-		{name: "SRW", argLength: 2, reg: sh21, asm: "SRW"},                   // unsigned uint32(arg0) >> arg1, shift amount is mod 32
-		{name: "SRDconst", argLength: 1, reg: gp11, asm: "SRD", aux: "Int8"}, // unsigned arg0 >> auxint, shift amount 0-63
-		{name: "SRWconst", argLength: 1, reg: gp11, asm: "SRW", aux: "Int8"}, // unsigned uint32(arg0) >> auxint, shift amount 0-31
+		{name: "SRD", argLength: 2, reg: sh21, asm: "SRD"},                    // unsigned arg0 >> arg1, shift amount is mod 64
+		{name: "SRW", argLength: 2, reg: sh21, asm: "SRW"},                    // unsigned uint32(arg0) >> arg1, shift amount is mod 64
+		{name: "SRDconst", argLength: 1, reg: gp11, asm: "SRD", aux: "UInt8"}, // unsigned arg0 >> auxint, shift amount 0-63
+		{name: "SRWconst", argLength: 1, reg: gp11, asm: "SRW", aux: "UInt8"}, // unsigned uint32(arg0) >> auxint, shift amount 0-31
 
 		// Arithmetic shifts clobber flags.
-		{name: "SRAD", argLength: 2, reg: sh21, asm: "SRAD", clobberFlags: true},                   // signed arg0 >> arg1, shift amount is mod 64
-		{name: "SRAW", argLength: 2, reg: sh21, asm: "SRAW", clobberFlags: true},                   // signed int32(arg0) >> arg1, shift amount is mod 32
-		{name: "SRADconst", argLength: 1, reg: gp11, asm: "SRAD", aux: "Int8", clobberFlags: true}, // signed arg0 >> auxint, shift amount 0-63
-		{name: "SRAWconst", argLength: 1, reg: gp11, asm: "SRAW", aux: "Int8", clobberFlags: true}, // signed int32(arg0) >> auxint, shift amount 0-31
+		{name: "SRAD", argLength: 2, reg: sh21, asm: "SRAD", clobberFlags: true},                    // signed arg0 >> arg1, shift amount is mod 64
+		{name: "SRAW", argLength: 2, reg: sh21, asm: "SRAW", clobberFlags: true},                    // signed int32(arg0) >> arg1, shift amount is mod 64
+		{name: "SRADconst", argLength: 1, reg: gp11, asm: "SRAD", aux: "UInt8", clobberFlags: true}, // signed arg0 >> auxint, shift amount 0-63
+		{name: "SRAWconst", argLength: 1, reg: gp11, asm: "SRAW", aux: "UInt8", clobberFlags: true}, // signed int32(arg0) >> auxint, shift amount 0-31
 
-		{name: "RLLG", argLength: 2, reg: sh21, asm: "RLLG"},                   // arg0 rotate left arg1, rotate amount 0-63
-		{name: "RLL", argLength: 2, reg: sh21, asm: "RLL"},                     // arg0 rotate left arg1, rotate amount 0-31
-		{name: "RLLGconst", argLength: 1, reg: gp11, asm: "RLLG", aux: "Int8"}, // arg0 rotate left auxint, rotate amount 0-63
-		{name: "RLLconst", argLength: 1, reg: gp11, asm: "RLL", aux: "Int8"},   // arg0 rotate left auxint, rotate amount 0-31
+		// Rotate instructions.
+		// Note: no RLLGconst - use RISBGZ instead.
+		{name: "RLLG", argLength: 2, reg: sh21, asm: "RLLG"},                  // arg0 rotate left arg1, rotate amount 0-63
+		{name: "RLL", argLength: 2, reg: sh21, asm: "RLL"},                    // arg0 rotate left arg1, rotate amount 0-31
+		{name: "RLLconst", argLength: 1, reg: gp11, asm: "RLL", aux: "UInt8"}, // arg0 rotate left auxint, rotate amount 0-31
 
 		// Rotate then (and|or|xor|insert) selected bits instructions.
 		//
@@ -371,6 +372,7 @@ func init() {
 		// +-------------+-------+-----+--------+-----------------------+-----------------------+-----------------------+
 		//
 		{name: "RXSBG", argLength: 2, reg: gp21, asm: "RXSBG", resultInArg0: true, aux: "S390XRotateParams", clobberFlags: true}, // rotate then xor selected bits
+		{name: "RISBGZ", argLength: 1, reg: gp11, asm: "RISBGZ", aux: "S390XRotateParams", clobberFlags: true},                   // rotate then insert selected bits [into zero]
 
 		// unary ops
 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG", clobberFlags: true},   // -arg0
@@ -380,6 +382,7 @@ func init() {
 		{name: "NOTW", argLength: 1, reg: gp11, resultInArg0: true, clobberFlags: true}, // ^arg0
 
 		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"}, // sqrt(arg0)
+		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"}, // sqrt(arg0), float32
 
 		// Conditional register-register moves.
 		// The aux for these values is an s390x.CCMask value representing the condition code mask.
@@ -547,8 +550,10 @@ func init() {
 		// Atomic bitwise operations.
 		// Note: 'floor' operations round the pointer down to the nearest word boundary
 		// which reflects how they are used in the runtime.
-		{name: "LAOfloor", argLength: 3, reg: gpstorelab, asm: "LAO", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *(floor(arg0, 4)) |= arg1. arg2 = mem.
+		{name: "LAN", argLength: 3, reg: gpstore, asm: "LAN", typ: "Mem", clobberFlags: true, hasSideEffects: true},         // *arg0 &= arg1. arg2 = mem.
 		{name: "LANfloor", argLength: 3, reg: gpstorelab, asm: "LAN", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *(floor(arg0, 4)) &= arg1. arg2 = mem.
+		{name: "LAO", argLength: 3, reg: gpstore, asm: "LAO", typ: "Mem", clobberFlags: true, hasSideEffects: true},         // *arg0 |= arg1. arg2 = mem.
+		{name: "LAOfloor", argLength: 3, reg: gpstorelab, asm: "LAO", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *(floor(arg0, 4)) |= arg1. arg2 = mem.
 
 		// Compare and swap.
 		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.

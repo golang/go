@@ -15,5 +15,6 @@ func TestSetgid(t *testing.T) {
 	}
 	testSetgid(t)
 }
+func Test1435(t *testing.T)    { test1435(t) }
 func Test6997(t *testing.T)    { test6997(t) }
 func TestBuildID(t *testing.T) { testBuildID(t) }

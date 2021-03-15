@@ -34,6 +34,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"log"
 )
 
 var progedit_tlsfallback *obj.LSym
@@ -487,6 +488,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			// If there are instructions following
 			// this ARET, they come from a branch
 			// with the same stackframe, so no spadj.
+
 			if p.To.Sym != nil { // retjmp
 				p.To.Reg = REGLINK
 				q2 = obj.Appendp(p, newprog)
@@ -494,6 +496,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q2.To.Type = obj.TYPE_BRANCH
 				q2.To.Sym = p.To.Sym
 				p.To.Sym = nil
+				p.To.Name = obj.NAME_NONE
 				p = q2
 			}
 
@@ -609,6 +612,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.As = AMOVW
 				p.From.Type = obj.TYPE_MEM
 				p.From.Reg = REGSP
+			}
+		}
+
+		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
+			f := c.cursym.Func()
+			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
+				c.cursym.Func().FuncFlag |= objabi.FuncFlag_SPWRITE
+				if ctxt.Debugvlog || !ctxt.IsAsm {
+					ctxt.Logf("auto-SPWRITE: %s %v\n", c.cursym.Name, p)
+					if !ctxt.IsAsm {
+						ctxt.Diag("invalid auto-SPWRITE in non-assembly")
+						ctxt.DiagFlush()
+						log.Fatalf("bad SPWRITE")
+					}
+				}
 			}
 		}
 	}

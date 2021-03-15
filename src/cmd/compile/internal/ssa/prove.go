@@ -778,7 +778,14 @@ func prove(f *Func) {
 				if ft.lens == nil {
 					ft.lens = map[ID]*Value{}
 				}
-				ft.lens[v.Args[0].ID] = v
+				// Set all len Values for the same slice as equal in the poset.
+				// The poset handles transitive relations, so Values related to
+				// any OpSliceLen for this slice will be correctly related to others.
+				if l, ok := ft.lens[v.Args[0].ID]; ok {
+					ft.update(b, v, l, signed, eq)
+				} else {
+					ft.lens[v.Args[0].ID] = v
+				}
 				ft.update(b, v, ft.zero, signed, gt|eq)
 				if v.Args[0].Op == OpSliceMake {
 					if lensVars == nil {
@@ -790,7 +797,12 @@ func prove(f *Func) {
 				if ft.caps == nil {
 					ft.caps = map[ID]*Value{}
 				}
-				ft.caps[v.Args[0].ID] = v
+				// Same as case OpSliceLen above, but for slice cap.
+				if c, ok := ft.caps[v.Args[0].ID]; ok {
+					ft.update(b, v, c, signed, eq)
+				} else {
+					ft.caps[v.Args[0].ID] = v
+				}
 				ft.update(b, v, ft.zero, signed, gt|eq)
 				if v.Args[0].Op == OpSliceMake {
 					if lensVars == nil {
@@ -1082,7 +1094,7 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
 			return nil
 		}
 		pred, child := b.Preds[1].b, b
-		for ; pred != nil; pred = uniquePred(pred) {
+		for ; pred != nil; pred, child = uniquePred(pred), pred {
 			if pred.Kind != BlockIf {
 				continue
 			}

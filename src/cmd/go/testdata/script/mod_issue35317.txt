@@ -5,4 +5,4 @@ env GO111MODULE=on
 [short] skip
 
 go mod init example.com
-go get golang.org/x/text@v0.3.0 golang.org/x/internal@v0.1.0 golang.org/x/exp@none
+go get -d golang.org/x/text@v0.3.0 golang.org/x/internal@v0.1.0 golang.org/x/exp@none

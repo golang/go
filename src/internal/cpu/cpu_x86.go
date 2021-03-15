@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build 386 || amd64
 // +build 386 amd64
 
 package cpu
@@ -75,12 +76,21 @@ func doinit() {
 	X86.HasSSE3 = isSet(ecx1, cpuid_SSE3)
 	X86.HasPCLMULQDQ = isSet(ecx1, cpuid_PCLMULQDQ)
 	X86.HasSSSE3 = isSet(ecx1, cpuid_SSSE3)
-	X86.HasFMA = isSet(ecx1, cpuid_FMA)
 	X86.HasSSE41 = isSet(ecx1, cpuid_SSE41)
 	X86.HasSSE42 = isSet(ecx1, cpuid_SSE42)
 	X86.HasPOPCNT = isSet(ecx1, cpuid_POPCNT)
 	X86.HasAES = isSet(ecx1, cpuid_AES)
+
+	// OSXSAVE can be false when using older Operating Systems
+	// or when explicitly disabled on newer Operating Systems by
+	// e.g. setting the xsavedisable boot option on Windows 10.
 	X86.HasOSXSAVE = isSet(ecx1, cpuid_OSXSAVE)
+
+	// The FMA instruction set extension only has VEX prefixed instructions.
+	// VEX prefixed instructions require OSXSAVE to be enabled.
+	// See Intel 64 and IA-32 Architecture Software Developer’s Manual Volume 2
+	// Section 2.4 "AVX and SSE Instruction Exception Specification"
+	X86.HasFMA = isSet(ecx1, cpuid_FMA) && X86.HasOSXSAVE
 
 	osSupportsAVX := false
 	// For XGETBV, OSXSAVE bit is required and sufficient.

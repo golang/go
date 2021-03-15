@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build nethttpomithttp2
 // +build nethttpomithttp2
 
 package http
@@ -45,7 +46,7 @@ type http2clientConnPool struct {
 	conns map[string][]struct{}
 }
 
-func http2configureTransport(*Transport) (*http2Transport, error) { panic(noHTTP2) }
+func http2configureTransports(*Transport) (*http2Transport, error) { panic(noHTTP2) }
 
 func http2isNoCachedConnError(err error) bool {
 	_, ok := err.(interface{ IsHTTP2NoCachedConnError() })

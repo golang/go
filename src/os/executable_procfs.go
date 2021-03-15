@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux netbsd dragonfly js,wasm
+//go:build linux || netbsd || (js && wasm)
+// +build linux netbsd js,wasm
 
 package os
 
@@ -23,8 +24,6 @@ var executablePath, executablePathErr = func() (string, error) {
 		procfn = "/proc/self/exe"
 	case "netbsd":
 		procfn = "/proc/curproc/exe"
-	case "dragonfly":
-		procfn = "/proc/curproc/file"
 	}
 	return Readlink(procfn)
 }()

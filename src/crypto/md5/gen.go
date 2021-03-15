@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 // This program generates md5block.go
@@ -15,8 +16,8 @@ import (
 	"bytes"
 	"flag"
 	"go/format"
-	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 	"text/template"
 )
@@ -37,7 +38,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile(*filename, data, 0644)
+	err = os.WriteFile(*filename, data, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}

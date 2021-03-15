@@ -1,4 +1,4 @@
-// errorcheck
+// errorcheck -d=panic
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -11,10 +11,10 @@
 
 package p
 
-type F func(b T)  // ERROR "T is not a type"
+type F func(b T) // ERROR "T .*is not a type|expected type"
 
 func T(fn F) {
-    func() {
-        fn(nil)  // If Decldepth is not initialized properly, typecheckclosure() Fatals here.
-    }()
+	func() {
+		fn(nil) // If Decldepth is not initialized properly, typecheckclosure() Fatals here.
+	}()
 }

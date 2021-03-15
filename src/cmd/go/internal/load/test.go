@@ -105,6 +105,7 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
 	var ptestErr, pxtestErr *PackageError
 	var imports, ximports []*Package
 	var stk ImportStack
+	var testEmbed, xtestEmbed map[string][]string
 	stk.Push(p.ImportPath + " (test)")
 	rawTestImports := str.StringList(p.TestImports)
 	for i, path := range p.TestImports {
@@ -122,7 +123,18 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
 		p.TestImports[i] = p1.ImportPath
 		imports = append(imports, p1)
 	}
+	var err error
+	p.TestEmbedFiles, testEmbed, err = resolveEmbed(p.Dir, p.TestEmbedPatterns)
+	if err != nil && ptestErr == nil {
+		ptestErr = &PackageError{
+			ImportStack: stk.Copy(),
+			Err:         err,
+		}
+		embedErr := err.(*EmbedError)
+		ptestErr.setPos(p.Internal.Build.TestEmbedPatternPos[embedErr.Pattern])
+	}
 	stk.Pop()
+
 	stk.Push(p.ImportPath + "_test")
 	pxtestNeedsPtest := false
 	rawXTestImports := str.StringList(p.XTestImports)
@@ -134,6 +146,15 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
 			ximports = append(ximports, p1)
 		}
 		p.XTestImports[i] = p1.ImportPath
+	}
+	p.XTestEmbedFiles, xtestEmbed, err = resolveEmbed(p.Dir, p.XTestEmbedPatterns)
+	if err != nil && pxtestErr == nil {
+		pxtestErr = &PackageError{
+			ImportStack: stk.Copy(),
+			Err:         err,
+		}
+		embedErr := err.(*EmbedError)
+		pxtestErr.setPos(p.Internal.Build.XTestEmbedPatternPos[embedErr.Pattern])
 	}
 	stk.Pop()
 
@@ -174,6 +195,14 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
 			m[k] = append(m[k], v...)
 		}
 		ptest.Internal.Build.ImportPos = m
+		if testEmbed == nil && len(p.Internal.Embed) > 0 {
+			testEmbed = map[string][]string{}
+		}
+		for k, v := range p.Internal.Embed {
+			testEmbed[k] = v
+		}
+		ptest.Internal.Embed = testEmbed
+		ptest.EmbedFiles = str.StringList(p.EmbedFiles, p.TestEmbedFiles)
 		ptest.collectDeps()
 	} else {
 		ptest = p
@@ -193,6 +222,7 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
 				ForTest:    p.ImportPath,
 				Module:     p.Module,
 				Error:      pxtestErr,
+				EmbedFiles: p.XTestEmbedFiles,
 			},
 			Internal: PackageInternal{
 				LocalPrefix: p.Internal.LocalPrefix,
@@ -206,6 +236,7 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
 				Gcflags:    p.Internal.Gcflags,
 				Ldflags:    p.Internal.Ldflags,
 				Gccgoflags: p.Internal.Gccgoflags,
+				Embed:      xtestEmbed,
 			},
 		}
 		if pxtestNeedsPtest {

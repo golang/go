@@ -10,21 +10,26 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/modload"
 	"context"
-	"os"
-	"strings"
 )
 
 var cmdInit = &base.Command{
 	UsageLine: "go mod init [module]",
 	Short:     "initialize new module in current directory",
 	Long: `
-Init initializes and writes a new go.mod to the current directory,
-in effect creating a new module rooted at the current directory.
-The file go.mod must not already exist.
-If possible, init will guess the module path from import comments
-(see 'go help importpath') or from version control configuration.
-To override this guess, supply the module path as an argument.
-	`,
+Init initializes and writes a new go.mod file in the current directory, in
+effect creating a new module rooted at the current directory. The go.mod file
+must not already exist.
+
+Init accepts one optional argument, the module path for the new module. If the
+module path argument is omitted, init will attempt to infer the module path
+using import comments in .go files, vendoring tool configuration files (like
+Gopkg.lock), and the current directory (if in GOPATH).
+
+If a configuration file for a vendoring tool is present, init will attempt to
+import module requirements from it.
+
+See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
+`,
 	Run: runInit,
 }
 
@@ -33,21 +38,14 @@ func init() {
 }
 
 func runInit(ctx context.Context, cmd *base.Command, args []string) {
-	modload.CmdModInit = true
 	if len(args) > 1 {
 		base.Fatalf("go mod init: too many arguments")
 	}
+	var modPath string
 	if len(args) == 1 {
-		modload.CmdModModule = args[0]
+		modPath = args[0]
 	}
+
 	modload.ForceUseModules = true
-	modFilePath := modload.ModFilePath()
-	if _, err := os.Stat(modFilePath); err == nil {
-		base.Fatalf("go mod init: go.mod already exists")
-	}
-	if strings.Contains(modload.CmdModModule, "@") {
-		base.Fatalf("go mod init: module path must not contain '@'")
-	}
-	modload.InitMod(ctx) // does all the hard work
-	modload.WriteGoMod()
+	modload.CreateModFile(ctx, modPath) // does all the hard work
 }

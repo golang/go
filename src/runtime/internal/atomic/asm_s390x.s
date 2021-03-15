@@ -174,8 +174,8 @@ TEXT ·Xchguintptr(SB), NOSPLIT, $0-24
 
 // func Or8(addr *uint8, v uint8)
 TEXT ·Or8(SB), NOSPLIT, $0-9
-	MOVD    ptr+0(FP), R3
-	MOVBZ   val+8(FP), R4
+	MOVD	ptr+0(FP), R3
+	MOVBZ	val+8(FP), R4
 	// We don't have atomic operations that work on individual bytes so we
 	// need to align addr down to a word boundary and create a mask
 	// containing v to OR with the entire word atomically.
@@ -188,8 +188,8 @@ TEXT ·Or8(SB), NOSPLIT, $0-9
 
 // func And8(addr *uint8, v uint8)
 TEXT ·And8(SB), NOSPLIT, $0-9
-	MOVD    ptr+0(FP), R3
-	MOVBZ   val+8(FP), R4
+	MOVD	ptr+0(FP), R3
+	MOVBZ	val+8(FP), R4
 	// We don't have atomic operations that work on individual bytes so we
 	// need to align addr down to a word boundary and create a mask
 	// containing v to AND with the entire word atomically.
@@ -198,5 +198,19 @@ TEXT ·And8(SB), NOSPLIT, $0-9
 	RXSBG	$59, $60, $3, R3, R5 // R5 = 24 - ((addr % 4) * 8) = ((addr & 3) << 3) ^ (3 << 3)
 	ANDW	$~3, R3              // R3 = floor(addr, 4) = addr &^ 3
 	RLL	R5, R4, R4           // R4 = rotl(R4, R5)
+	LAN	R4, R6, 0(R3)        // R6 = *R3; *R3 &= R4; (atomic)
+	RET
+
+// func Or(addr *uint32, v uint32)
+TEXT ·Or(SB), NOSPLIT, $0-12
+	MOVD	ptr+0(FP), R3
+	MOVW	val+8(FP), R4
+	LAO	R4, R6, 0(R3)        // R6 = *R3; *R3 |= R4; (atomic)
+	RET
+
+// func And(addr *uint32, v uint32)
+TEXT ·And(SB), NOSPLIT, $0-12
+	MOVD	ptr+0(FP), R3
+	MOVW	val+8(FP), R4
 	LAN	R4, R6, 0(R3)        // R6 = *R3; *R3 &= R4; (atomic)
 	RET

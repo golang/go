@@ -236,6 +236,7 @@ func init() {
 		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS"},                                // -arg0, float32
 		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},                                // -arg0, float64
 		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"},                              // sqrt(arg0), float64
+		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                              // sqrt(arg0), float32
 		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},                                    // byte reverse, 64-bit
 		{name: "REVW", argLength: 1, reg: gp11, asm: "REVW"},                                  // byte reverse, 32-bit
 		{name: "REV16W", argLength: 1, reg: gp11, asm: "REV16W"},                              // byte reverse in each 16-bit halfword, 32-bit
@@ -379,11 +380,13 @@ func init() {
 		{name: "FMOVDloadidx", argLength: 3, reg: fp2load, asm: "FMOVD", typ: "Float64"}, // load 64-bit float from arg0 + arg1, arg2=mem.
 
 		// shifted register indexed load
-		{name: "MOVHloadidx2", argLength: 3, reg: gp2load, asm: "MOVH", typ: "Int16"},    // load 16-bit half-word from arg0 + arg1*2, sign-extended to 64-bit, arg2=mem.
-		{name: "MOVHUloadidx2", argLength: 3, reg: gp2load, asm: "MOVHU", typ: "UInt16"}, // load 16-bit half-word from arg0 + arg1*2, zero-extended to 64-bit, arg2=mem.
-		{name: "MOVWloadidx4", argLength: 3, reg: gp2load, asm: "MOVW", typ: "Int32"},    // load 32-bit word from arg0 + arg1*4, sign-extended to 64-bit, arg2=mem.
-		{name: "MOVWUloadidx4", argLength: 3, reg: gp2load, asm: "MOVWU", typ: "UInt32"}, // load 32-bit word from arg0 + arg1*4, zero-extended to 64-bit, arg2=mem.
-		{name: "MOVDloadidx8", argLength: 3, reg: gp2load, asm: "MOVD", typ: "UInt64"},   // load 64-bit double-word from arg0 + arg1*8, arg2 = mem.
+		{name: "MOVHloadidx2", argLength: 3, reg: gp2load, asm: "MOVH", typ: "Int16"},     // load 16-bit half-word from arg0 + arg1*2, sign-extended to 64-bit, arg2=mem.
+		{name: "MOVHUloadidx2", argLength: 3, reg: gp2load, asm: "MOVHU", typ: "UInt16"},  // load 16-bit half-word from arg0 + arg1*2, zero-extended to 64-bit, arg2=mem.
+		{name: "MOVWloadidx4", argLength: 3, reg: gp2load, asm: "MOVW", typ: "Int32"},     // load 32-bit word from arg0 + arg1*4, sign-extended to 64-bit, arg2=mem.
+		{name: "MOVWUloadidx4", argLength: 3, reg: gp2load, asm: "MOVWU", typ: "UInt32"},  // load 32-bit word from arg0 + arg1*4, zero-extended to 64-bit, arg2=mem.
+		{name: "MOVDloadidx8", argLength: 3, reg: gp2load, asm: "MOVD", typ: "UInt64"},    // load 64-bit double-word from arg0 + arg1*8, arg2 = mem.
+		{name: "FMOVSloadidx4", argLength: 3, reg: fp2load, asm: "FMOVS", typ: "Float32"}, // load 32-bit float from arg0 + arg1*4, arg2 = mem.
+		{name: "FMOVDloadidx8", argLength: 3, reg: fp2load, asm: "FMOVD", typ: "Float64"}, // load 64-bit float from arg0 + arg1*8, arg2 = mem.
 
 		{name: "MOVBstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVB", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store 1 byte of arg1 to arg0 + auxInt + aux.  arg2=mem.
 		{name: "MOVHstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVH", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store 2 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
@@ -402,9 +405,11 @@ func init() {
 		{name: "FMOVDstoreidx", argLength: 4, reg: fpstore2, asm: "FMOVD", typ: "Mem"}, // store 64-bit float of arg2 to arg0 + arg1, arg3=mem.
 
 		// shifted register indexed store
-		{name: "MOVHstoreidx2", argLength: 4, reg: gpstore2, asm: "MOVH", typ: "Mem"}, // store 2 bytes of arg2 to arg0 + arg1*2, arg3 = mem.
-		{name: "MOVWstoreidx4", argLength: 4, reg: gpstore2, asm: "MOVW", typ: "Mem"}, // store 4 bytes of arg2 to arg0 + arg1*4, arg3 = mem.
-		{name: "MOVDstoreidx8", argLength: 4, reg: gpstore2, asm: "MOVD", typ: "Mem"}, // store 8 bytes of arg2 to arg0 + arg1*8, arg3 = mem.
+		{name: "MOVHstoreidx2", argLength: 4, reg: gpstore2, asm: "MOVH", typ: "Mem"},   // store 2 bytes of arg2 to arg0 + arg1*2, arg3 = mem.
+		{name: "MOVWstoreidx4", argLength: 4, reg: gpstore2, asm: "MOVW", typ: "Mem"},   // store 4 bytes of arg2 to arg0 + arg1*4, arg3 = mem.
+		{name: "MOVDstoreidx8", argLength: 4, reg: gpstore2, asm: "MOVD", typ: "Mem"},   // store 8 bytes of arg2 to arg0 + arg1*8, arg3 = mem.
+		{name: "FMOVSstoreidx4", argLength: 4, reg: fpstore2, asm: "FMOVS", typ: "Mem"}, // store 32-bit float of arg2 to arg0 + arg1*4, arg3=mem.
+		{name: "FMOVDstoreidx8", argLength: 4, reg: fpstore2, asm: "FMOVD", typ: "Mem"}, // store 64-bit float of arg2 to arg0 + arg1*8, arg3=mem.
 
 		{name: "MOVBstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVB", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 1 byte of zero to arg0 + auxInt + aux.  arg1=mem.
 		{name: "MOVHstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVH", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 2 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
@@ -478,20 +483,24 @@ func init() {
 		// pseudo-ops
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil.  arg1=mem.
 
-		{name: "Equal", argLength: 1, reg: readflags},         // bool, true flags encode x==y false otherwise.
-		{name: "NotEqual", argLength: 1, reg: readflags},      // bool, true flags encode x!=y false otherwise.
-		{name: "LessThan", argLength: 1, reg: readflags},      // bool, true flags encode signed x<y false otherwise.
-		{name: "LessEqual", argLength: 1, reg: readflags},     // bool, true flags encode signed x<=y false otherwise.
-		{name: "GreaterThan", argLength: 1, reg: readflags},   // bool, true flags encode signed x>y false otherwise.
-		{name: "GreaterEqual", argLength: 1, reg: readflags},  // bool, true flags encode signed x>=y false otherwise.
-		{name: "LessThanU", argLength: 1, reg: readflags},     // bool, true flags encode unsigned x<y false otherwise.
-		{name: "LessEqualU", argLength: 1, reg: readflags},    // bool, true flags encode unsigned x<=y false otherwise.
-		{name: "GreaterThanU", argLength: 1, reg: readflags},  // bool, true flags encode unsigned x>y false otherwise.
-		{name: "GreaterEqualU", argLength: 1, reg: readflags}, // bool, true flags encode unsigned x>=y false otherwise.
-		{name: "LessThanF", argLength: 1, reg: readflags},     // bool, true flags encode floating-point x<y false otherwise.
-		{name: "LessEqualF", argLength: 1, reg: readflags},    // bool, true flags encode floating-point x<=y false otherwise.
-		{name: "GreaterThanF", argLength: 1, reg: readflags},  // bool, true flags encode floating-point x>y false otherwise.
-		{name: "GreaterEqualF", argLength: 1, reg: readflags}, // bool, true flags encode floating-point x>=y false otherwise.
+		{name: "Equal", argLength: 1, reg: readflags},            // bool, true flags encode x==y false otherwise.
+		{name: "NotEqual", argLength: 1, reg: readflags},         // bool, true flags encode x!=y false otherwise.
+		{name: "LessThan", argLength: 1, reg: readflags},         // bool, true flags encode signed x<y false otherwise.
+		{name: "LessEqual", argLength: 1, reg: readflags},        // bool, true flags encode signed x<=y false otherwise.
+		{name: "GreaterThan", argLength: 1, reg: readflags},      // bool, true flags encode signed x>y false otherwise.
+		{name: "GreaterEqual", argLength: 1, reg: readflags},     // bool, true flags encode signed x>=y false otherwise.
+		{name: "LessThanU", argLength: 1, reg: readflags},        // bool, true flags encode unsigned x<y false otherwise.
+		{name: "LessEqualU", argLength: 1, reg: readflags},       // bool, true flags encode unsigned x<=y false otherwise.
+		{name: "GreaterThanU", argLength: 1, reg: readflags},     // bool, true flags encode unsigned x>y false otherwise.
+		{name: "GreaterEqualU", argLength: 1, reg: readflags},    // bool, true flags encode unsigned x>=y false otherwise.
+		{name: "LessThanF", argLength: 1, reg: readflags},        // bool, true flags encode floating-point x<y false otherwise.
+		{name: "LessEqualF", argLength: 1, reg: readflags},       // bool, true flags encode floating-point x<=y false otherwise.
+		{name: "GreaterThanF", argLength: 1, reg: readflags},     // bool, true flags encode floating-point x>y false otherwise.
+		{name: "GreaterEqualF", argLength: 1, reg: readflags},    // bool, true flags encode floating-point x>=y false otherwise.
+		{name: "NotLessThanF", argLength: 1, reg: readflags},     // bool, true flags encode floating-point x>=y || x is unordered with y, false otherwise.
+		{name: "NotLessEqualF", argLength: 1, reg: readflags},    // bool, true flags encode floating-point x>y || x is unordered with y, false otherwise.
+		{name: "NotGreaterThanF", argLength: 1, reg: readflags},  // bool, true flags encode floating-point x<=y || x is unordered with y, false otherwise.
+		{name: "NotGreaterEqualF", argLength: 1, reg: readflags}, // bool, true flags encode floating-point x<y || x is unordered with y, false otherwise.
 		// duffzero
 		// arg0 = address of memory to zero
 		// arg1 = mem
@@ -621,6 +630,12 @@ func init() {
 		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 
+		// atomic exchange variant.
+		// store arg1 to arg0. arg2=mem. returns <old content of *arg0, memory>. auxint must be zero.
+		// SWPALD	Rarg1, (Rarg0), Rout
+		{name: "LoweredAtomicExchange64Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicExchange32Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+
 		// atomic add.
 		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
 		// LDAXR	(Rarg0), Rout
@@ -654,14 +669,45 @@ func init() {
 		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 
+		// atomic compare and swap variant.
+		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory. auxint must be zero.
+		// if *arg0 == arg1 {
+		//   *arg0 = arg2
+		//   return (true, memory)
+		// } else {
+		//   return (false, memory)
+		// }
+		// MOV  	Rarg1, Rtmp
+		// CASAL	Rtmp, (Rarg0), Rarg2
+		// CMP  	Rarg1, Rtmp
+		// CSET 	EQ, Rout
+		{name: "LoweredAtomicCas64Variant", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicCas32Variant", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+
 		// atomic and/or.
 		// *arg0 &= (|=) arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
-		// LDAXRB	(Rarg0), Rout
+		// LDAXR	(Rarg0), Rout
 		// AND/OR	Rarg1, Rout
-		// STLXRB	Rout, (Rarg0), Rtmp
+		// STLXR	Rout, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -3(PC)
 		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "AND", typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicAnd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "AND", typ: "(UInt32,Mem)", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 		{name: "LoweredAtomicOr8", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "ORR", typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicOr32", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "ORR", typ: "(UInt32,Mem)", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+
+		// atomic and/or variant.
+		// *arg0 &= (|=) arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
+		//   AND:
+		// MNV       Rarg1, Rtemp
+		// LDANDALB  Rtemp, (Rarg0), Rout
+		// AND       Rarg1, Rout
+		//   OR:
+		// LDORALB  Rarg1, (Rarg0), Rout
+		// ORR       Rarg1, Rout
+		{name: "LoweredAtomicAnd8Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicAnd32Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, typ: "(UInt32,Mem)", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicOr8Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicOr32Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, typ: "(UInt32,Mem)", faultOnNilArg0: true, hasSideEffects: true},
 
 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
 		// It saves all GP registers if necessary,

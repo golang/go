@@ -11,7 +11,7 @@ import (
 // Don't split the stack as this method may be invoked without a valid G, which
 // prevents us from allocating more stack.
 //go:nosplit
-func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
 	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
 	if err != 0 {
 		if err == _EACCES {
@@ -24,7 +24,7 @@ func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
 		}
 		return nil
 	}
-	mSysStatInc(sysStat, n)
+	sysStat.add(int64(n))
 	return p
 }
 
@@ -41,8 +41,8 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
 //go:nosplit
-func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
-	mSysStatDec(sysStat, n)
+func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+	sysStat.add(-int64(n))
 	munmap(v, n)
 
 }
@@ -59,8 +59,8 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	return p
 }
 
-func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
-	mSysStatInc(sysStat, n)
+func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+	sysStat.add(int64(n))
 
 	// AIX does not allow mapping a range that is already mapped.
 	// So, call mprotect to change permissions.

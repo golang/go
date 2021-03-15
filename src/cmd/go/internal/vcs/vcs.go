@@ -8,13 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	exec "internal/execabs"
 	"internal/lazyregexp"
 	"internal/singleflight"
 	"io/fs"
 	"log"
 	urlpkg "net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -22,7 +22,11 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/search"
+	"cmd/go/internal/str"
 	"cmd/go/internal/web"
+
+	"golang.org/x/mod/module"
 )
 
 // A vcsCmd describes how to use a version control system
@@ -536,7 +540,7 @@ func (v *Cmd) TagSync(dir, tag string) error {
 // A vcsPath describes how to convert an import path into a
 // version control system and repository name.
 type vcsPath struct {
-	prefix         string                              // prefix this description applies to
+	pathPrefix     string                              // prefix this description applies to
 	regexp         *lazyregexp.Regexp                  // compiled pattern for import path
 	repo           string                              // repository to use (expand with match of re)
 	vcs            string                              // version control system to use (expand with match of re)
@@ -591,10 +595,144 @@ func FromDir(dir, srcRoot string) (vcs *Cmd, root string, err error) {
 	}
 
 	if vcsRet != nil {
+		if err := checkGOVCS(vcsRet, rootRet); err != nil {
+			return nil, "", err
+		}
 		return vcsRet, rootRet, nil
 	}
 
 	return nil, "", fmt.Errorf("directory %q is not using a known version control system", origDir)
+}
+
+// A govcsRule is a single GOVCS rule like private:hg|svn.
+type govcsRule struct {
+	pattern string
+	allowed []string
+}
+
+// A govcsConfig is a full GOVCS configuration.
+type govcsConfig []govcsRule
+
+func parseGOVCS(s string) (govcsConfig, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, nil
+	}
+	var cfg govcsConfig
+	have := make(map[string]string)
+	for _, item := range strings.Split(s, ",") {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			return nil, fmt.Errorf("empty entry in GOVCS")
+		}
+		i := strings.Index(item, ":")
+		if i < 0 {
+			return nil, fmt.Errorf("malformed entry in GOVCS (missing colon): %q", item)
+		}
+		pattern, list := strings.TrimSpace(item[:i]), strings.TrimSpace(item[i+1:])
+		if pattern == "" {
+			return nil, fmt.Errorf("empty pattern in GOVCS: %q", item)
+		}
+		if list == "" {
+			return nil, fmt.Errorf("empty VCS list in GOVCS: %q", item)
+		}
+		if search.IsRelativePath(pattern) {
+			return nil, fmt.Errorf("relative pattern not allowed in GOVCS: %q", pattern)
+		}
+		if old := have[pattern]; old != "" {
+			return nil, fmt.Errorf("unreachable pattern in GOVCS: %q after %q", item, old)
+		}
+		have[pattern] = item
+		allowed := strings.Split(list, "|")
+		for i, a := range allowed {
+			a = strings.TrimSpace(a)
+			if a == "" {
+				return nil, fmt.Errorf("empty VCS name in GOVCS: %q", item)
+			}
+			allowed[i] = a
+		}
+		cfg = append(cfg, govcsRule{pattern, allowed})
+	}
+	return cfg, nil
+}
+
+func (c *govcsConfig) allow(path string, private bool, vcs string) bool {
+	for _, rule := range *c {
+		match := false
+		switch rule.pattern {
+		case "private":
+			match = private
+		case "public":
+			match = !private
+		default:
+			// Note: rule.pattern is known to be comma-free,
+			// so MatchPrefixPatterns is only matching a single pattern for us.
+			match = module.MatchPrefixPatterns(rule.pattern, path)
+		}
+		if !match {
+			continue
+		}
+		for _, allow := range rule.allowed {
+			if allow == vcs || allow == "all" {
+				return true
+			}
+		}
+		return false
+	}
+
+	// By default, nothing is allowed.
+	return false
+}
+
+var (
+	govcs     govcsConfig
+	govcsErr  error
+	govcsOnce sync.Once
+)
+
+// defaultGOVCS is the default setting for GOVCS.
+// Setting GOVCS adds entries ahead of these but does not remove them.
+// (They are appended to the parsed GOVCS setting.)
+//
+// The rationale behind allowing only Git and Mercurial is that
+// these two systems have had the most attention to issues
+// of being run as clients of untrusted servers. In contrast,
+// Bazaar, Fossil, and Subversion have primarily been used
+// in trusted, authenticated environments and are not as well
+// scrutinized as attack surfaces.
+//
+// See golang.org/issue/41730 for details.
+var defaultGOVCS = govcsConfig{
+	{"private", []string{"all"}},
+	{"public", []string{"git", "hg"}},
+}
+
+func checkGOVCS(vcs *Cmd, root string) error {
+	if vcs == vcsMod {
+		// Direct module (proxy protocol) fetches don't
+		// involve an external version control system
+		// and are always allowed.
+		return nil
+	}
+
+	govcsOnce.Do(func() {
+		govcs, govcsErr = parseGOVCS(os.Getenv("GOVCS"))
+		govcs = append(govcs, defaultGOVCS...)
+	})
+	if govcsErr != nil {
+		return govcsErr
+	}
+
+	private := module.MatchPrefixPatterns(cfg.GOPRIVATE, root)
+	if !govcs.allow(root, private, vcs.Cmd) {
+		what := "public"
+		if private {
+			what = "private"
+		}
+		return fmt.Errorf("GOVCS disallows using %s for %s %s; see 'go help vcs'", vcs.Cmd, what, root)
+	}
+
+	return nil
 }
 
 // CheckNested checks for an incorrectly-nested VCS-inside-VCS
@@ -689,6 +827,20 @@ var errUnknownSite = errors.New("dynamic lookup required to find mapping")
 // repoRootFromVCSPaths attempts to map importPath to a repoRoot
 // using the mappings defined in vcsPaths.
 func repoRootFromVCSPaths(importPath string, security web.SecurityMode, vcsPaths []*vcsPath) (*RepoRoot, error) {
+	if str.HasPathPrefix(importPath, "example.net") {
+		// TODO(rsc): This should not be necessary, but it's required to keep
+		// tests like ../../testdata/script/mod_get_extra.txt from using the network.
+		// That script has everything it needs in the replacement set, but it is still
+		// doing network calls.
+		return nil, fmt.Errorf("no modules on example.net")
+	}
+	if importPath == "rsc.io" {
+		// This special case allows tests like ../../testdata/script/govcs.txt
+		// to avoid making any network calls. The module lookup for a path
+		// like rsc.io/nonexist.svn/foo needs to not make a network call for
+		// a lookup on rsc.io.
+		return nil, fmt.Errorf("rsc.io is not a module")
+	}
 	// A common error is to use https://packagepath because that's what
 	// hg and git require. Diagnose this helpfully.
 	if prefix := httpPrefix(importPath); prefix != "" {
@@ -697,20 +849,20 @@ func repoRootFromVCSPaths(importPath string, security web.SecurityMode, vcsPaths
 		return nil, fmt.Errorf("%q not allowed in import path", prefix+"//")
 	}
 	for _, srv := range vcsPaths {
-		if !strings.HasPrefix(importPath, srv.prefix) {
+		if !str.HasPathPrefix(importPath, srv.pathPrefix) {
 			continue
 		}
 		m := srv.regexp.FindStringSubmatch(importPath)
 		if m == nil {
-			if srv.prefix != "" {
-				return nil, importErrorf(importPath, "invalid %s import path %q", srv.prefix, importPath)
+			if srv.pathPrefix != "" {
+				return nil, importErrorf(importPath, "invalid %s import path %q", srv.pathPrefix, importPath)
 			}
 			continue
 		}
 
 		// Build map of named subexpression matches for expand.
 		match := map[string]string{
-			"prefix": srv.prefix,
+			"prefix": srv.pathPrefix + "/",
 			"import": importPath,
 		}
 		for i, name := range srv.regexp.SubexpNames() {
@@ -732,6 +884,9 @@ func repoRootFromVCSPaths(importPath string, security web.SecurityMode, vcsPaths
 		vcs := vcsByCmd(match["vcs"])
 		if vcs == nil {
 			return nil, fmt.Errorf("unknown version control system %q", match["vcs"])
+		}
+		if err := checkGOVCS(vcs, match["root"]); err != nil {
+			return nil, err
 		}
 		var repoURL string
 		if !srv.schemelessRepo {
@@ -857,6 +1012,10 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 		}
 	}
 
+	if err := checkGOVCS(vcs, mmi.Prefix); err != nil {
+		return nil, err
+	}
+
 	rr := &RepoRoot{
 		Repo:     mmi.RepoRoot,
 		Root:     mmi.Prefix,
@@ -954,18 +1113,6 @@ type metaImport struct {
 	Prefix, VCS, RepoRoot string
 }
 
-// pathPrefix reports whether sub is a prefix of s,
-// only considering entire path components.
-func pathPrefix(s, sub string) bool {
-	// strings.HasPrefix is necessary but not sufficient.
-	if !strings.HasPrefix(s, sub) {
-		return false
-	}
-	// The remainder after the prefix must either be empty or start with a slash.
-	rem := s[len(sub):]
-	return rem == "" || rem[0] == '/'
-}
-
 // A ImportMismatchError is returned where metaImport/s are present
 // but none match our import path.
 type ImportMismatchError struct {
@@ -989,7 +1136,7 @@ func matchGoImport(imports []metaImport, importPath string) (metaImport, error) 
 
 	errImportMismatch := ImportMismatchError{importPath: importPath}
 	for i, im := range imports {
-		if !pathPrefix(importPath, im.Prefix) {
+		if !str.HasPathPrefix(importPath, im.Prefix) {
 			errImportMismatch.mismatches = append(errImportMismatch.mismatches, im.Prefix)
 			continue
 		}
@@ -1029,54 +1176,54 @@ func expand(match map[string]string, s string) string {
 // and import paths referring to a fully-qualified importPath
 // containing a VCS type (foo.com/repo.git/dir)
 var vcsPaths = []*vcsPath{
-	// Github
+	// GitHub
 	{
-		prefix: "github.com/",
-		regexp: lazyregexp.New(`^(?P<root>github\.com/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`),
-		vcs:    "git",
-		repo:   "https://{root}",
-		check:  noVCSSuffix,
+		pathPrefix: "github.com",
+		regexp:     lazyregexp.New(`^(?P<root>github\.com/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`),
+		vcs:        "git",
+		repo:       "https://{root}",
+		check:      noVCSSuffix,
 	},
 
 	// Bitbucket
 	{
-		prefix: "bitbucket.org/",
-		regexp: lazyregexp.New(`^(?P<root>bitbucket\.org/(?P<bitname>[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`),
-		repo:   "https://{root}",
-		check:  bitbucketVCS,
+		pathPrefix: "bitbucket.org",
+		regexp:     lazyregexp.New(`^(?P<root>bitbucket\.org/(?P<bitname>[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`),
+		repo:       "https://{root}",
+		check:      bitbucketVCS,
 	},
 
 	// IBM DevOps Services (JazzHub)
 	{
-		prefix: "hub.jazz.net/git/",
-		regexp: lazyregexp.New(`^(?P<root>hub\.jazz\.net/git/[a-z0-9]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`),
-		vcs:    "git",
-		repo:   "https://{root}",
-		check:  noVCSSuffix,
+		pathPrefix: "hub.jazz.net/git",
+		regexp:     lazyregexp.New(`^(?P<root>hub\.jazz\.net/git/[a-z0-9]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`),
+		vcs:        "git",
+		repo:       "https://{root}",
+		check:      noVCSSuffix,
 	},
 
 	// Git at Apache
 	{
-		prefix: "git.apache.org/",
-		regexp: lazyregexp.New(`^(?P<root>git\.apache\.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`),
-		vcs:    "git",
-		repo:   "https://{root}",
+		pathPrefix: "git.apache.org",
+		regexp:     lazyregexp.New(`^(?P<root>git\.apache\.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`),
+		vcs:        "git",
+		repo:       "https://{root}",
 	},
 
 	// Git at OpenStack
 	{
-		prefix: "git.openstack.org/",
-		regexp: lazyregexp.New(`^(?P<root>git\.openstack\.org/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(\.git)?(/[A-Za-z0-9_.\-]+)*$`),
-		vcs:    "git",
-		repo:   "https://{root}",
+		pathPrefix: "git.openstack.org",
+		regexp:     lazyregexp.New(`^(?P<root>git\.openstack\.org/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(\.git)?(/[A-Za-z0-9_.\-]+)*$`),
+		vcs:        "git",
+		repo:       "https://{root}",
 	},
 
 	// chiselapp.com for fossil
 	{
-		prefix: "chiselapp.com/",
-		regexp: lazyregexp.New(`^(?P<root>chiselapp\.com/user/[A-Za-z0-9]+/repository/[A-Za-z0-9_.\-]+)$`),
-		vcs:    "fossil",
-		repo:   "https://{root}",
+		pathPrefix: "chiselapp.com",
+		regexp:     lazyregexp.New(`^(?P<root>chiselapp\.com/user/[A-Za-z0-9]+/repository/[A-Za-z0-9_.\-]+)$`),
+		vcs:        "fossil",
+		repo:       "https://{root}",
 	},
 
 	// General syntax for any server.
@@ -1094,11 +1241,11 @@ var vcsPaths = []*vcsPath{
 var vcsPathsAfterDynamic = []*vcsPath{
 	// Launchpad. See golang.org/issue/11436.
 	{
-		prefix: "launchpad.net/",
-		regexp: lazyregexp.New(`^(?P<root>launchpad\.net/((?P<project>[A-Za-z0-9_.\-]+)(?P<series>/[A-Za-z0-9_.\-]+)?|~[A-Za-z0-9_.\-]+/(\+junk|[A-Za-z0-9_.\-]+)/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`),
-		vcs:    "bzr",
-		repo:   "https://{root}",
-		check:  launchpadVCS,
+		pathPrefix: "launchpad.net",
+		regexp:     lazyregexp.New(`^(?P<root>launchpad\.net/((?P<project>[A-Za-z0-9_.\-]+)(?P<series>/[A-Za-z0-9_.\-]+)?|~[A-Za-z0-9_.\-]+/(\+junk|[A-Za-z0-9_.\-]+)/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`),
+		vcs:        "bzr",
+		repo:       "https://{root}",
+		check:      launchpadVCS,
 	},
 }
 

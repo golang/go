@@ -5,6 +5,7 @@
 // If you change the build tags here, see
 // internal/syscall/unix/fcntl_linux_32bit.go.
 
+//go:build (linux && 386) || (linux && arm) || (linux && mips) || (linux && mipsle)
 // +build linux,386 linux,arm linux,mips linux,mipsle
 
 package syscall

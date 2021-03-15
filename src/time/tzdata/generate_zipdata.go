@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 // This program generates zipdata.go from $GOROOT/lib/time/zoneinfo.zip.
@@ -10,7 +11,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 )
@@ -40,7 +40,7 @@ const zipdata = `
 
 func main() {
 	// We should be run in the $GOROOT/src/time/tzdata directory.
-	data, err := ioutil.ReadFile("../../../lib/time/zoneinfo.zip")
+	data, err := os.ReadFile("../../../lib/time/zoneinfo.zip")
 	if err != nil {
 		die("cannot find zoneinfo.zip file: %v", err)
 	}

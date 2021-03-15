@@ -13,14 +13,13 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
-	"cmd/go/internal/renameio"
+	"cmd/go/internal/lockedfile"
 )
 
 // An ActionID is a cache action key, the hash of a complete description of a
@@ -239,7 +238,7 @@ func (c *Cache) GetBytes(id ActionID) ([]byte, Entry, error) {
 	if err != nil {
 		return nil, entry, err
 	}
-	data, _ := ioutil.ReadFile(c.OutputFile(entry.OutputID))
+	data, _ := os.ReadFile(c.OutputFile(entry.OutputID))
 	if sha256.Sum256(data) != entry.OutputID {
 		return nil, entry, &entryNotFoundError{Err: errors.New("bad checksum")}
 	}
@@ -295,10 +294,17 @@ func (c *Cache) Trim() {
 	// We maintain in dir/trim.txt the time of the last completed cache trim.
 	// If the cache has been trimmed recently enough, do nothing.
 	// This is the common case.
-	data, _ := renameio.ReadFile(filepath.Join(c.dir, "trim.txt"))
-	t, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
-	if err == nil && now.Sub(time.Unix(t, 0)) < trimInterval {
-		return
+	// If the trim file is corrupt, detected if the file can't be parsed, or the
+	// trim time is too far in the future, attempt the trim anyway. It's possible that
+	// the cache was full when the corruption happened. Attempting a trim on
+	// an empty cache is cheap, so there wouldn't be a big performance hit in that case.
+	if data, err := lockedfile.Read(filepath.Join(c.dir, "trim.txt")); err == nil {
+		if t, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64); err == nil {
+			lastTrim := time.Unix(t, 0)
+			if d := now.Sub(lastTrim); d < trimInterval && d > -mtimeInterval {
+				return
+			}
+		}
 	}
 
 	// Trim each of the 256 subdirectories.
@@ -312,7 +318,11 @@ func (c *Cache) Trim() {
 
 	// Ignore errors from here: if we don't write the complete timestamp, the
 	// cache will appear older than it is, and we'll trim it again next time.
-	renameio.WriteFile(filepath.Join(c.dir, "trim.txt"), []byte(fmt.Sprintf("%d", now.Unix())), 0666)
+	var b bytes.Buffer
+	fmt.Fprintf(&b, "%d", now.Unix())
+	if err := lockedfile.Write(filepath.Join(c.dir, "trim.txt"), &b, 0666); err != nil {
+		return
+	}
 }
 
 // trimSubdir trims a single cache subdirectory.
@@ -378,7 +388,7 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify
 		// Truncate the file only *after* writing it.
 		// (This should be a no-op, but truncate just in case of previous corruption.)
 		//
-		// This differs from ioutil.WriteFile, which truncates to 0 *before* writing
+		// This differs from os.WriteFile, which truncates to 0 *before* writing
 		// via os.O_TRUNC. Truncating only after writing ensures that a second write
 		// of the same content to the same file is idempotent, and does not — even
 		// temporarily! — undo the effect of the first write.

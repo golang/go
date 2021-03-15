@@ -275,7 +275,8 @@ func (b *Buffer) WriteByte(c byte) error {
 // included to match bufio.Writer's WriteRune. The buffer is grown as needed;
 // if it becomes too large, WriteRune will panic with ErrTooLarge.
 func (b *Buffer) WriteRune(r rune) (n int, err error) {
-	if r < utf8.RuneSelf {
+	// Compare as uint32 to correctly handle negative runes.
+	if uint32(r) < utf8.RuneSelf {
 		b.WriteByte(byte(r))
 		return 1, nil
 	}
@@ -386,7 +387,7 @@ var errUnreadByte = errors.New("bytes.Buffer: UnreadByte: previous operation was
 
 // UnreadByte unreads the last byte returned by the most recent successful
 // read operation that read at least one byte. If a write has happened since
-// the last read, if the last read returned an error, or if the read read zero
+// the last read, if the last read returned an error, or if the read reads zero
 // bytes, UnreadByte returns an error.
 func (b *Buffer) UnreadByte() error {
 	if b.lastRead == opInvalid {

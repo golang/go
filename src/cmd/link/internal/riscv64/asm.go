@@ -38,7 +38,8 @@ func genSymsLate(ctxt *ld.Link, ldr *loader.Loader) {
 		relocs := ldr.Relocs(s)
 		for ri := 0; ri < relocs.Count(); ri++ {
 			r := relocs.At(ri)
-			if r.Type() != objabi.R_RISCV_PCREL_ITYPE && r.Type() != objabi.R_RISCV_PCREL_STYPE {
+			if r.Type() != objabi.R_RISCV_PCREL_ITYPE && r.Type() != objabi.R_RISCV_PCREL_STYPE &&
+				r.Type() != objabi.R_RISCV_TLS_IE_ITYPE && r.Type() != objabi.R_RISCV_TLS_IE_STYPE {
 				continue
 			}
 			if r.Off() == 0 && ldr.SymType(s) == sym.STEXT {
@@ -100,7 +101,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		// TODO(jsing): Consider generating elf.R_RISCV_CALL instead of a
 		// HI20/LO12_I pair.
 
-	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE:
+	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE_ITYPE, objabi.R_RISCV_TLS_IE_STYPE:
 		// Find the text symbol for the AUIPC instruction targeted
 		// by this relocation.
 		relocs := ldr.Relocs(s)
@@ -126,6 +127,10 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 			hiRel, loRel = elf.R_RISCV_PCREL_HI20, elf.R_RISCV_PCREL_LO12_I
 		case objabi.R_RISCV_PCREL_STYPE:
 			hiRel, loRel = elf.R_RISCV_PCREL_HI20, elf.R_RISCV_PCREL_LO12_S
+		case objabi.R_RISCV_TLS_IE_ITYPE:
+			hiRel, loRel = elf.R_RISCV_TLS_GOT_HI20, elf.R_RISCV_PCREL_LO12_I
+		case objabi.R_RISCV_TLS_IE_STYPE:
+			hiRel, loRel = elf.R_RISCV_TLS_GOT_HI20, elf.R_RISCV_PCREL_LO12_S
 		}
 		out.Write64(uint64(sectoff))
 		out.Write64(uint64(hiRel) | uint64(elfsym)<<32)
@@ -156,7 +161,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		case objabi.R_CALLRISCV:
 			return val, 0, true
 
-		case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE:
+		case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE_ITYPE, objabi.R_RISCV_TLS_IE_STYPE:
 			return val, 2, true
 		}
 
@@ -169,6 +174,16 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	case objabi.R_CALLRISCV:
 		// Nothing to do.
 		return val, 0, true
+
+	case objabi.R_RISCV_TLS_IE_ITYPE, objabi.R_RISCV_TLS_IE_STYPE:
+		// TLS relocations are not currently handled for internal linking.
+		// For now, TLS is only used when cgo is in use and cgo currently
+		// requires external linking. However, we need to accept these
+		// relocations so that code containing TLS variables will link,
+		// even when they're not being used. For now, replace these
+		// instructions with EBREAK to detect accidental use.
+		const ebreakIns = 0x00100073
+		return ebreakIns<<32 | ebreakIns, 0, true
 
 	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE:
 		pc := ldr.SymValue(s) + int64(r.Off())
@@ -222,7 +237,7 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant
 
 func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (loader.ExtReloc, bool) {
 	switch r.Type() {
-	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE:
+	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE_ITYPE, objabi.R_RISCV_TLS_IE_STYPE:
 		return ld.ExtrelocViaOuterSym(ldr, r, s), true
 	}
 	return loader.ExtReloc{}, false

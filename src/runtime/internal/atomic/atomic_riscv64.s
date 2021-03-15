@@ -150,6 +150,12 @@ TEXT ·Xaddint64(SB),NOSPLIT,$0-24
 TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-12
 	JMP	·Load(SB)
 
+TEXT ·LoadAcq64(SB),NOSPLIT|NOFRAME,$0-16
+	JMP	·Load64(SB)
+
+TEXT ·LoadAcquintptr(SB),NOSPLIT|NOFRAME,$0-16
+	JMP	·Load64(SB)
+
 // func Loadp(ptr unsafe.Pointer) unsafe.Pointer
 TEXT ·Loadp(SB),NOSPLIT,$0-16
 	JMP	·Load64(SB)
@@ -160,6 +166,12 @@ TEXT ·StorepNoWB(SB), NOSPLIT, $0-16
 
 TEXT ·StoreRel(SB), NOSPLIT, $0-12
 	JMP	·Store(SB)
+
+TEXT ·StoreRel64(SB), NOSPLIT, $0-16
+	JMP	·Store64(SB)
+
+TEXT ·StoreReluintptr(SB), NOSPLIT, $0-16
+	JMP	·Store64(SB)
 
 // func Xchg(ptr *uint32, new uint32) uint32
 TEXT ·Xchg(SB), NOSPLIT, $0-20
@@ -228,5 +240,19 @@ TEXT ·Or8(SB), NOSPLIT, $0-9
 	AND	$-4, A0
 	SLL	$3, A2
 	SLL	A2, A1
+	AMOORW	A1, (A0), ZERO
+	RET
+
+// func And(ptr *uint32, val uint32)
+TEXT ·And(SB), NOSPLIT, $0-12
+	MOV	ptr+0(FP), A0
+	MOVW	val+8(FP), A1
+	AMOANDW	A1, (A0), ZERO
+	RET
+
+// func Or(ptr *uint32, val uint32)
+TEXT ·Or(SB), NOSPLIT, $0-12
+	MOV	ptr+0(FP), A0
+	MOVW	val+8(FP), A1
 	AMOORW	A1, (A0), ZERO
 	RET

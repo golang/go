@@ -11,7 +11,10 @@
 
 package syscall
 
-import "unsafe"
+import (
+	"internal/itoa"
+	"unsafe"
+)
 
 func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)
 
@@ -225,7 +228,7 @@ func Futimesat(dirfd int, path string, tv []Timeval) (err error) {
 func Futimes(fd int, tv []Timeval) (err error) {
 	// Believe it or not, this is the best we can do on Linux
 	// (and is what glibc does).
-	return Utimes("/proc/self/fd/"+itoa(fd), tv)
+	return Utimes("/proc/self/fd/"+itoa.Itoa(fd), tv)
 }
 
 const ImplementsGetwd = true
@@ -271,16 +274,37 @@ func Getgroups() (gids []int, err error) {
 	return
 }
 
+var cgo_libc_setgroups unsafe.Pointer // non-nil if cgo linked.
+
 func Setgroups(gids []int) (err error) {
-	if len(gids) == 0 {
-		return setgroups(0, nil)
+	n := uintptr(len(gids))
+	if n == 0 {
+		if cgo_libc_setgroups == nil {
+			if _, _, e1 := AllThreadsSyscall(_SYS_setgroups, 0, 0, 0); e1 != 0 {
+				err = errnoErr(e1)
+			}
+			return
+		}
+		if ret := cgocaller(cgo_libc_setgroups, 0, 0); ret != 0 {
+			err = errnoErr(Errno(ret))
+		}
+		return
 	}
 
 	a := make([]_Gid_t, len(gids))
 	for i, v := range gids {
 		a[i] = _Gid_t(v)
 	}
-	return setgroups(len(a), &a[0])
+	if cgo_libc_setgroups == nil {
+		if _, _, e1 := AllThreadsSyscall(_SYS_setgroups, n, uintptr(unsafe.Pointer(&a[0])), 0); e1 != 0 {
+			err = errnoErr(e1)
+		}
+		return
+	}
+	if ret := cgocaller(cgo_libc_setgroups, n, uintptr(unsafe.Pointer(&a[0]))); ret != 0 {
+		err = errnoErr(Errno(ret))
+	}
+	return
 }
 
 type WaitStatus uint32
@@ -957,17 +981,227 @@ func Getpgrp() (pid int) {
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tv *Timeval) (err error)
 
-// issue 1435.
-// On linux Setuid and Setgid only affects the current thread, not the process.
-// This does not match what most callers expect so we must return an error
-// here rather than letting the caller think that the call succeeded.
+// allThreadsCaller holds the input and output state for performing a
+// allThreadsSyscall that needs to synchronize all OS thread state. Linux
+// generally does not always support this natively, so we have to
+// manipulate the runtime to fix things up.
+type allThreadsCaller struct {
+	// arguments
+	trap, a1, a2, a3, a4, a5, a6 uintptr
 
-func Setuid(uid int) (err error) {
-	return EOPNOTSUPP
+	// return values (only set by 0th invocation)
+	r1, r2 uintptr
+
+	// err is the error code
+	err Errno
 }
 
+// doSyscall is a callback for executing a syscall on the current m
+// (OS thread).
+//go:nosplit
+//go:norace
+func (pc *allThreadsCaller) doSyscall(initial bool) bool {
+	r1, r2, err := RawSyscall(pc.trap, pc.a1, pc.a2, pc.a3)
+	if initial {
+		pc.r1 = r1
+		pc.r2 = r2
+		pc.err = err
+	} else if pc.r1 != r1 || (archHonorsR2 && pc.r2 != r2) || pc.err != err {
+		print("trap:", pc.trap, ", a123=[", pc.a1, ",", pc.a2, ",", pc.a3, "]\n")
+		print("results: got {r1=", r1, ",r2=", r2, ",err=", err, "}, want {r1=", pc.r1, ",r2=", pc.r2, ",r3=", pc.err, "}\n")
+		panic("AllThreadsSyscall results differ between threads; runtime corrupted")
+	}
+	return err == 0
+}
+
+// doSyscall6 is a callback for executing a syscall6 on the current m
+// (OS thread).
+//go:nosplit
+//go:norace
+func (pc *allThreadsCaller) doSyscall6(initial bool) bool {
+	r1, r2, err := RawSyscall6(pc.trap, pc.a1, pc.a2, pc.a3, pc.a4, pc.a5, pc.a6)
+	if initial {
+		pc.r1 = r1
+		pc.r2 = r2
+		pc.err = err
+	} else if pc.r1 != r1 || (archHonorsR2 && pc.r2 != r2) || pc.err != err {
+		print("trap:", pc.trap, ", a123456=[", pc.a1, ",", pc.a2, ",", pc.a3, ",", pc.a4, ",", pc.a5, ",", pc.a6, "]\n")
+		print("results: got {r1=", r1, ",r2=", r2, ",err=", err, "}, want {r1=", pc.r1, ",r2=", pc.r2, ",r3=", pc.err, "}\n")
+		panic("AllThreadsSyscall6 results differ between threads; runtime corrupted")
+	}
+	return err == 0
+}
+
+// Provided by runtime.syscall_runtime_doAllThreadsSyscall which
+// serializes the world and invokes the fn on each OS thread (what the
+// runtime refers to as m's). Once this function returns, all threads
+// are in sync.
+func runtime_doAllThreadsSyscall(fn func(bool) bool)
+
+// AllThreadsSyscall performs a syscall on each OS thread of the Go
+// runtime. It first invokes the syscall on one thread. Should that
+// invocation fail, it returns immediately with the error status.
+// Otherwise, it invokes the syscall on all of the remaining threads
+// in parallel. It will terminate the program if it observes any
+// invoked syscall's return value differs from that of the first
+// invocation.
+//
+// AllThreadsSyscall is intended for emulating simultaneous
+// process-wide state changes that require consistently modifying
+// per-thread state of the Go runtime.
+//
+// AllThreadsSyscall is unaware of any threads that are launched
+// explicitly by cgo linked code, so the function always returns
+// ENOTSUP in binaries that use cgo.
+//go:uintptrescapes
+func AllThreadsSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
+	if cgo_libc_setegid != nil {
+		return minus1, minus1, ENOTSUP
+	}
+	pc := &allThreadsCaller{
+		trap: trap,
+		a1:   a1,
+		a2:   a2,
+		a3:   a3,
+	}
+	runtime_doAllThreadsSyscall(pc.doSyscall)
+	r1 = pc.r1
+	r2 = pc.r2
+	err = pc.err
+	return
+}
+
+// AllThreadsSyscall6 is like AllThreadsSyscall, but extended to six
+// arguments.
+//go:uintptrescapes
+func AllThreadsSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) {
+	if cgo_libc_setegid != nil {
+		return minus1, minus1, ENOTSUP
+	}
+	pc := &allThreadsCaller{
+		trap: trap,
+		a1:   a1,
+		a2:   a2,
+		a3:   a3,
+		a4:   a4,
+		a5:   a5,
+		a6:   a6,
+	}
+	runtime_doAllThreadsSyscall(pc.doSyscall6)
+	r1 = pc.r1
+	r2 = pc.r2
+	err = pc.err
+	return
+}
+
+// linked by runtime.cgocall.go
+//go:uintptrescapes
+func cgocaller(unsafe.Pointer, ...uintptr) uintptr
+
+var cgo_libc_setegid unsafe.Pointer // non-nil if cgo linked.
+
+const minus1 = ^uintptr(0)
+
+func Setegid(egid int) (err error) {
+	if cgo_libc_setegid == nil {
+		if _, _, e1 := AllThreadsSyscall(SYS_SETRESGID, minus1, uintptr(egid), minus1); e1 != 0 {
+			err = errnoErr(e1)
+		}
+	} else if ret := cgocaller(cgo_libc_setegid, uintptr(egid)); ret != 0 {
+		err = errnoErr(Errno(ret))
+	}
+	return
+}
+
+var cgo_libc_seteuid unsafe.Pointer // non-nil if cgo linked.
+
+func Seteuid(euid int) (err error) {
+	if cgo_libc_seteuid == nil {
+		if _, _, e1 := AllThreadsSyscall(SYS_SETRESUID, minus1, uintptr(euid), minus1); e1 != 0 {
+			err = errnoErr(e1)
+		}
+	} else if ret := cgocaller(cgo_libc_seteuid, uintptr(euid)); ret != 0 {
+		err = errnoErr(Errno(ret))
+	}
+	return
+}
+
+var cgo_libc_setgid unsafe.Pointer // non-nil if cgo linked.
+
 func Setgid(gid int) (err error) {
-	return EOPNOTSUPP
+	if cgo_libc_setgid == nil {
+		if _, _, e1 := AllThreadsSyscall(sys_SETGID, uintptr(gid), 0, 0); e1 != 0 {
+			err = errnoErr(e1)
+		}
+	} else if ret := cgocaller(cgo_libc_setgid, uintptr(gid)); ret != 0 {
+		err = errnoErr(Errno(ret))
+	}
+	return
+}
+
+var cgo_libc_setregid unsafe.Pointer // non-nil if cgo linked.
+
+func Setregid(rgid, egid int) (err error) {
+	if cgo_libc_setregid == nil {
+		if _, _, e1 := AllThreadsSyscall(sys_SETREGID, uintptr(rgid), uintptr(egid), 0); e1 != 0 {
+			err = errnoErr(e1)
+		}
+	} else if ret := cgocaller(cgo_libc_setregid, uintptr(rgid), uintptr(egid)); ret != 0 {
+		err = errnoErr(Errno(ret))
+	}
+	return
+}
+
+var cgo_libc_setresgid unsafe.Pointer // non-nil if cgo linked.
+
+func Setresgid(rgid, egid, sgid int) (err error) {
+	if cgo_libc_setresgid == nil {
+		if _, _, e1 := AllThreadsSyscall(sys_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid)); e1 != 0 {
+			err = errnoErr(e1)
+		}
+	} else if ret := cgocaller(cgo_libc_setresgid, uintptr(rgid), uintptr(egid), uintptr(sgid)); ret != 0 {
+		err = errnoErr(Errno(ret))
+	}
+	return
+}
+
+var cgo_libc_setresuid unsafe.Pointer // non-nil if cgo linked.
+
+func Setresuid(ruid, euid, suid int) (err error) {
+	if cgo_libc_setresuid == nil {
+		if _, _, e1 := AllThreadsSyscall(sys_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid)); e1 != 0 {
+			err = errnoErr(e1)
+		}
+	} else if ret := cgocaller(cgo_libc_setresuid, uintptr(ruid), uintptr(euid), uintptr(suid)); ret != 0 {
+		err = errnoErr(Errno(ret))
+	}
+	return
+}
+
+var cgo_libc_setreuid unsafe.Pointer // non-nil if cgo linked.
+
+func Setreuid(ruid, euid int) (err error) {
+	if cgo_libc_setreuid == nil {
+		if _, _, e1 := AllThreadsSyscall(sys_SETREUID, uintptr(ruid), uintptr(euid), 0); e1 != 0 {
+			err = errnoErr(e1)
+		}
+	} else if ret := cgocaller(cgo_libc_setreuid, uintptr(ruid), uintptr(euid)); ret != 0 {
+		err = errnoErr(Errno(ret))
+	}
+	return
+}
+
+var cgo_libc_setuid unsafe.Pointer // non-nil if cgo linked.
+
+func Setuid(uid int) (err error) {
+	if cgo_libc_setuid == nil {
+		if _, _, e1 := AllThreadsSyscall(sys_SETUID, uintptr(uid), 0, 0); e1 != 0 {
+			err = errnoErr(e1)
+		}
+	} else if ret := cgocaller(cgo_libc_setuid, uintptr(uid)); ret != 0 {
+		err = errnoErr(Errno(ret))
+	}
+	return
 }
 
 //sys	Setpriority(which int, who int, prio int) (err error)

@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,10 +28,8 @@ import (
 )
 
 func cacheDir(path string) (string, error) {
-	if cfg.GOMODCACHE == "" {
-		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
-		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
-		return "", fmt.Errorf("internal error: cfg.GOMODCACHE not set")
+	if err := checkCacheDir(); err != nil {
+		return "", err
 	}
 	enc, err := module.EscapePath(path)
 	if err != nil {
@@ -65,10 +62,8 @@ func CachePath(m module.Version, suffix string) (string, error) {
 // along with the directory if the directory does not exist or if the directory
 // is not completely populated.
 func DownloadDir(m module.Version) (string, error) {
-	if cfg.GOMODCACHE == "" {
-		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
-		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
-		return "", fmt.Errorf("internal error: cfg.GOMODCACHE not set")
+	if err := checkCacheDir(); err != nil {
+		return "", err
 	}
 	enc, err := module.EscapePath(m.Path)
 	if err != nil {
@@ -85,6 +80,7 @@ func DownloadDir(m module.Version) (string, error) {
 		return "", err
 	}
 
+	// Check whether the directory itself exists.
 	dir := filepath.Join(cfg.GOMODCACHE, enc+"@"+encVer)
 	if fi, err := os.Stat(dir); os.IsNotExist(err) {
 		return dir, err
@@ -93,6 +89,9 @@ func DownloadDir(m module.Version) (string, error) {
 	} else if !fi.IsDir() {
 		return dir, &DownloadDirPartialError{dir, errors.New("not a directory")}
 	}
+
+	// Check if a .partial file exists. This is created at the beginning of
+	// a download and removed after the zip is extracted.
 	partialPath, err := CachePath(m, "partial")
 	if err != nil {
 		return dir, err
@@ -100,6 +99,21 @@ func DownloadDir(m module.Version) (string, error) {
 	if _, err := os.Stat(partialPath); err == nil {
 		return dir, &DownloadDirPartialError{dir, errors.New("not completely extracted")}
 	} else if !os.IsNotExist(err) {
+		return dir, err
+	}
+
+	// Check if a .ziphash file exists. It should be created before the
+	// zip is extracted, but if it was deleted (by another program?), we need
+	// to re-calculate it. Note that checkMod will repopulate the ziphash
+	// file if it doesn't exist, but if the module is excluded by checks
+	// through GONOSUMDB or GOPRIVATE, that check and repopulation won't happen.
+	ziphashPath, err := CachePath(m, "ziphash")
+	if err != nil {
+		return dir, err
+	}
+	if _, err := os.Stat(ziphashPath); os.IsNotExist(err) {
+		return dir, &DownloadDirPartialError{dir, errors.New("ziphash file is missing")}
+	} else if err != nil {
 		return dir, err
 	}
 	return dir, nil
@@ -130,15 +144,13 @@ func lockVersion(mod module.Version) (unlock func(), err error) {
 	return lockedfile.MutexAt(path).Lock()
 }
 
-// SideLock locks a file within the module cache that that previously guarded
+// SideLock locks a file within the module cache that previously guarded
 // edits to files outside the cache, such as go.sum and go.mod files in the
 // user's working directory.
 // If err is nil, the caller MUST eventually call the unlock function.
 func SideLock() (unlock func(), err error) {
-	if cfg.GOMODCACHE == "" {
-		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
-		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
-		base.Fatalf("go: internal error: cfg.GOMODCACHE not set")
+	if err := checkCacheDir(); err != nil {
+		base.Fatalf("go: %v", err)
 	}
 
 	path := filepath.Join(cfg.GOMODCACHE, "cache", "lock")
@@ -316,7 +328,7 @@ func InfoFile(path, version string) (string, error) {
 	}
 
 	// Stat should have populated the disk cache for us.
-	file, _, err := readDiskStat(path, version)
+	file, err := CachePath(module.Version{Path: path, Version: version}, "info")
 	if err != nil {
 		return "", err
 	}
@@ -368,7 +380,7 @@ func GoModFile(path, version string) (string, error) {
 		return "", err
 	}
 	// GoMod should have populated the disk cache for us.
-	file, _, err := readDiskGoMod(path, version)
+	file, err := CachePath(module.Version{Path: path, Version: version}, "mod")
 	if err != nil {
 		return "", err
 	}
@@ -483,7 +495,7 @@ func readDiskStatByHash(path, rev string) (file string, info *RevInfo, err error
 	for _, name := range names {
 		if strings.HasSuffix(name, suffix) {
 			v := strings.TrimSuffix(name, ".info")
-			if IsPseudoVersion(v) && semver.Max(maxVersion, v) == v {
+			if IsPseudoVersion(v) && semver.Compare(v, maxVersion) > 0 {
 				maxVersion = v
 				file, info, err = readDiskStat(path, strings.TrimSuffix(name, ".info"))
 			}
@@ -580,27 +592,34 @@ func writeDiskCache(file string, data []byte) error {
 
 // rewriteVersionList rewrites the version list in dir
 // after a new *.mod file has been written.
-func rewriteVersionList(dir string) {
+func rewriteVersionList(dir string) (err error) {
 	if filepath.Base(dir) != "@v" {
 		base.Fatalf("go: internal error: misuse of rewriteVersionList")
 	}
 
 	listFile := filepath.Join(dir, "list")
 
-	// We use a separate lockfile here instead of locking listFile itself because
-	// we want to use Rename to write the file atomically. The list may be read by
-	// a GOPROXY HTTP server, and if we crash midway through a rewrite (or if the
-	// HTTP server ignores our locking and serves the file midway through a
-	// rewrite) it's better to serve a stale list than a truncated one.
-	unlock, err := lockedfile.MutexAt(listFile + ".lock").Lock()
+	// Lock listfile when writing to it to try to avoid corruption to the file.
+	// Under rare circumstances, for instance, if the system loses power in the
+	// middle of a write it is possible for corrupt data to be written. This is
+	// not a problem for the go command itself, but may be an issue if the the
+	// cache is being served by a GOPROXY HTTP server. This will be corrected
+	// the next time a new version of the module is fetched and the file is rewritten.
+	// TODO(matloob): golang.org/issue/43313 covers adding a go mod verify
+	// command that removes module versions that fail checksums. It should also
+	// remove list files that are detected to be corrupt.
+	f, err := lockedfile.Edit(listFile)
 	if err != nil {
-		base.Fatalf("go: can't lock version list lockfile: %v", err)
+		return err
 	}
-	defer unlock()
-
-	infos, err := ioutil.ReadDir(dir)
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
+	infos, err := os.ReadDir(dir)
 	if err != nil {
-		return
+		return err
 	}
 	var list []string
 	for _, info := range infos {
@@ -625,12 +644,40 @@ func rewriteVersionList(dir string) {
 		buf.WriteString(v)
 		buf.WriteString("\n")
 	}
-	old, _ := renameio.ReadFile(listFile)
-	if bytes.Equal(buf.Bytes(), old) {
-		return
+	if fi, err := f.Stat(); err == nil && int(fi.Size()) == buf.Len() {
+		old := make([]byte, buf.Len()+1)
+		if n, err := f.ReadAt(old, 0); err == io.EOF && n == buf.Len() && bytes.Equal(buf.Bytes(), old) {
+			return nil // No edit needed.
+		}
+	}
+	// Remove existing contents, so that when we truncate to the actual size it will zero-fill,
+	// and we will be able to detect (some) incomplete writes as files containing trailing NUL bytes.
+	if err := f.Truncate(0); err != nil {
+		return err
+	}
+	// Reserve the final size and zero-fill.
+	if err := f.Truncate(int64(buf.Len())); err != nil {
+		return err
+	}
+	// Write the actual contents. If this fails partway through,
+	// the remainder of the file should remain as zeroes.
+	if _, err := f.Write(buf.Bytes()); err != nil {
+		f.Truncate(0)
+		return err
 	}
 
-	if err := renameio.WriteFile(listFile, buf.Bytes(), 0666); err != nil {
-		base.Fatalf("go: failed to write version list: %v", err)
+	return nil
+}
+
+func checkCacheDir() error {
+	if cfg.GOMODCACHE == "" {
+		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
+		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
+		return fmt.Errorf("internal error: cfg.GOMODCACHE not set")
 	}
+
+	if !filepath.IsAbs(cfg.GOMODCACHE) {
+		return fmt.Errorf("GOMODCACHE entry is relative; must be absolute path: %q.\n", cfg.GOMODCACHE)
+	}
+	return nil
 }

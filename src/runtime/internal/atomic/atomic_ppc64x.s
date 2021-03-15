@@ -6,6 +6,15 @@
 
 #include "textflag.h"
 
+
+// For more details about how various memory models are
+// enforced on POWER, the following paper provides more
+// details about how they enforce C/C++ like models. This
+// gives context about why the strange looking code
+// sequences below work.
+//
+// http://www.rdrop.com/users/paulmck/scalability/paper/N2745r.2011.03.04a.html
+
 // uint32 runtime∕internal∕atomic·Load(uint32 volatile* ptr)
 TEXT ·Load(SB),NOSPLIT|NOFRAME,$-8-12
 	MOVD	ptr+0(FP), R3
@@ -56,5 +65,16 @@ TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$-8-12
 	MOVWZ  0(R3), R3
 	CMPW   R3, R3, CR7
 	BC     4, 30, 1(PC) // bne- cr7, 0x4
+	ISYNC
 	MOVW   R3, ret+8(FP)
+	RET
+
+// uint64 runtime∕internal∕atomic·LoadAcq64(uint64 volatile* ptr)
+TEXT ·LoadAcq64(SB),NOSPLIT|NOFRAME,$-8-16
+	MOVD   ptr+0(FP), R3
+	MOVD   0(R3), R3
+	CMP    R3, R3, CR7
+	BC     4, 30, 1(PC) // bne- cr7, 0x4
+	ISYNC
+	MOVD   R3, ret+8(FP)
 	RET

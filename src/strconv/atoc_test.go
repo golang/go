@@ -198,5 +198,32 @@ func TestParseComplex(t *testing.T) {
 		if !(cmplx.IsNaN(test.out) && cmplx.IsNaN(got)) && got != test.out {
 			t.Fatalf("ParseComplex(%q, 128) = %v, %v; want %v, %v", test.in, got, err, test.out, test.err)
 		}
+
+		if complex128(complex64(test.out)) == test.out {
+			got, err := ParseComplex(test.in, 64)
+			if !reflect.DeepEqual(err, test.err) {
+				t.Fatalf("ParseComplex(%q, 64) = %v, %v; want %v, %v", test.in, got, err, test.out, test.err)
+			}
+			got64 := complex64(got)
+			if complex128(got64) != test.out {
+				t.Fatalf("ParseComplex(%q, 64) = %v, %v; want %v, %v", test.in, got, err, test.out, test.err)
+			}
+		}
+	}
+}
+
+// Issue 42297: allow ParseComplex(s, not_32_or_64) for legacy reasons
+func TestParseComplexIncorrectBitSize(t *testing.T) {
+	const s = "1.5e308+1.0e307i"
+	const want = 1.5e308 + 1.0e307i
+
+	for _, bitSize := range []int{0, 10, 100, 256} {
+		c, err := ParseComplex(s, bitSize)
+		if err != nil {
+			t.Fatalf("ParseComplex(%q, %d) gave error %s", s, bitSize, err)
+		}
+		if c != want {
+			t.Fatalf("ParseComplex(%q, %d) = %g (expected %g)", s, bitSize, c, want)
+		}
 	}
 }

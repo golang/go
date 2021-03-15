@@ -39,31 +39,34 @@ func initOptions() {
 
 func archInit() {
 	switch runtime.GOOS {
-	case "android", "darwin", "ios", "netbsd":
-		// Android and iOS don't seem to allow reading these registers.
-		//
-		// NetBSD:
-		// ID_AA64ISAR0_EL1 is a privileged register and cannot be read from EL0.
-		// It can be read via sysctl(3). Example for future implementers:
-		// https://nxr.netbsd.org/xref/src/usr.sbin/cpuctl/arch/aarch64.c
-		//
-		// Fake the minimal features expected by
-		// TestARM64minimalFeatures.
-		ARM64.HasASIMD = true
-		ARM64.HasFP = true
-	case "linux":
+	case "freebsd":
+		readARM64Registers()
+	case "linux", "netbsd":
 		doinit()
 	default:
-		readARM64Registers()
+		// Most platforms don't seem to allow reading these registers.
+		//
+		// OpenBSD:
+		// See https://golang.org/issue/31746
+		setMinimalFeatures()
 	}
+}
+
+// setMinimalFeatures fakes the minimal ARM64 features expected by
+// TestARM64minimalFeatures.
+func setMinimalFeatures() {
+	ARM64.HasASIMD = true
+	ARM64.HasFP = true
 }
 
 func readARM64Registers() {
 	Initialized = true
 
-	// ID_AA64ISAR0_EL1
-	isar0 := getisar0()
+	parseARM64SystemRegisters(getisar0(), getisar1(), getpfr0())
+}
 
+func parseARM64SystemRegisters(isar0, isar1, pfr0 uint64) {
+	// ID_AA64ISAR0_EL1
 	switch extractBits(isar0, 4, 7) {
 	case 1:
 		ARM64.HasAES = true
@@ -121,8 +124,6 @@ func readARM64Registers() {
 	}
 
 	// ID_AA64ISAR1_EL1
-	isar1 := getisar1()
-
 	switch extractBits(isar1, 0, 3) {
 	case 1:
 		ARM64.HasDCPOP = true
@@ -144,8 +145,6 @@ func readARM64Registers() {
 	}
 
 	// ID_AA64PFR0_EL1
-	pfr0 := getpfr0()
-
 	switch extractBits(pfr0, 16, 19) {
 	case 0:
 		ARM64.HasFP = true

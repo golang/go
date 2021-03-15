@@ -14,11 +14,11 @@ func G() (int, int, int) {
 }
 
 func F() {
-	a, b := G()	// ERROR "assignment mismatch"
-	a, b = G()	// ERROR "assignment mismatch"
+	a, b := G()	// ERROR "mismatch|cannot initialize"
+	a, b = G()	// ERROR "mismatch|cannot assign"
 	_, _ = a, b
 }
 
 func H() (int, int) {
-	return G()	// ERROR "too many|mismatch"
+	return G()	// ERROR "too many|mismatch|wrong number"
 }

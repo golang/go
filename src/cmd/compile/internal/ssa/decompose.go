@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/types"
+	"sort"
 )
 
 // decompose converts phi ops on compound builtin types into phi
@@ -23,7 +24,7 @@ func decomposeBuiltIn(f *Func) {
 	}
 
 	// Decompose other values
-	// Note: deadcode is false because we need to keep the original
+	// Note: Leave dead values because we need to keep the original
 	// values around so the name component resolution below can still work.
 	applyRewrite(f, rewriteBlockdec, rewriteValuedec, leaveDeadValues)
 	if f.Config.RegSize == 4 {
@@ -31,77 +32,79 @@ func decomposeBuiltIn(f *Func) {
 	}
 
 	// Split up named values into their components.
+	// accumulate old names for aggregates (that are decomposed) in toDelete for efficient bulk deletion,
+	// accumulate new LocalSlots in newNames for addition after the iteration.  This decomposition is for
+	// builtin types with leaf components, and thus there is no need to reprocess the newly create LocalSlots.
+	var toDelete []namedVal
 	var newNames []LocalSlot
-	for _, name := range f.Names {
+	for i, name := range f.Names {
 		t := name.Type
 		switch {
 		case t.IsInteger() && t.Size() > f.Config.RegSize:
 			hiName, loName := f.fe.SplitInt64(name)
 			newNames = append(newNames, hiName, loName)
-			for _, v := range f.NamedValues[name] {
+			for j, v := range f.NamedValues[name] {
 				if v.Op != OpInt64Make {
 					continue
 				}
 				f.NamedValues[hiName] = append(f.NamedValues[hiName], v.Args[0])
 				f.NamedValues[loName] = append(f.NamedValues[loName], v.Args[1])
+				toDelete = append(toDelete, namedVal{i, j})
 			}
-			delete(f.NamedValues, name)
 		case t.IsComplex():
 			rName, iName := f.fe.SplitComplex(name)
 			newNames = append(newNames, rName, iName)
-			for _, v := range f.NamedValues[name] {
+			for j, v := range f.NamedValues[name] {
 				if v.Op != OpComplexMake {
 					continue
 				}
 				f.NamedValues[rName] = append(f.NamedValues[rName], v.Args[0])
 				f.NamedValues[iName] = append(f.NamedValues[iName], v.Args[1])
-
+				toDelete = append(toDelete, namedVal{i, j})
 			}
-			delete(f.NamedValues, name)
 		case t.IsString():
 			ptrName, lenName := f.fe.SplitString(name)
 			newNames = append(newNames, ptrName, lenName)
-			for _, v := range f.NamedValues[name] {
+			for j, v := range f.NamedValues[name] {
 				if v.Op != OpStringMake {
 					continue
 				}
 				f.NamedValues[ptrName] = append(f.NamedValues[ptrName], v.Args[0])
 				f.NamedValues[lenName] = append(f.NamedValues[lenName], v.Args[1])
+				toDelete = append(toDelete, namedVal{i, j})
 			}
-			delete(f.NamedValues, name)
 		case t.IsSlice():
 			ptrName, lenName, capName := f.fe.SplitSlice(name)
 			newNames = append(newNames, ptrName, lenName, capName)
-			for _, v := range f.NamedValues[name] {
+			for j, v := range f.NamedValues[name] {
 				if v.Op != OpSliceMake {
 					continue
 				}
 				f.NamedValues[ptrName] = append(f.NamedValues[ptrName], v.Args[0])
 				f.NamedValues[lenName] = append(f.NamedValues[lenName], v.Args[1])
 				f.NamedValues[capName] = append(f.NamedValues[capName], v.Args[2])
+				toDelete = append(toDelete, namedVal{i, j})
 			}
-			delete(f.NamedValues, name)
 		case t.IsInterface():
 			typeName, dataName := f.fe.SplitInterface(name)
 			newNames = append(newNames, typeName, dataName)
-			for _, v := range f.NamedValues[name] {
+			for j, v := range f.NamedValues[name] {
 				if v.Op != OpIMake {
 					continue
 				}
 				f.NamedValues[typeName] = append(f.NamedValues[typeName], v.Args[0])
 				f.NamedValues[dataName] = append(f.NamedValues[dataName], v.Args[1])
+				toDelete = append(toDelete, namedVal{i, j})
 			}
-			delete(f.NamedValues, name)
 		case t.IsFloat():
 			// floats are never decomposed, even ones bigger than RegSize
-			newNames = append(newNames, name)
 		case t.Size() > f.Config.RegSize:
 			f.Fatalf("undecomposed named type %s %v", name, t)
-		default:
-			newNames = append(newNames, name)
 		}
 	}
-	f.Names = newNames
+
+	deleteNamedVals(f, toDelete)
+	f.Names = append(f.Names, newNames...)
 }
 
 func decomposeBuiltInPhi(v *Value) {
@@ -216,10 +219,6 @@ func decomposeInterfacePhi(v *Value) {
 	v.AddArg(data)
 }
 
-func decomposeArgs(f *Func) {
-	applyRewrite(f, rewriteBlockdecArgs, rewriteValuedecArgs, removeDeadValues)
-}
-
 func decomposeUser(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
@@ -263,14 +262,20 @@ func decomposeUserArrayInto(f *Func, name LocalSlot, slots []LocalSlot) []LocalS
 		f.Fatalf("array not of size 1")
 	}
 	elemName := f.fe.SplitArray(name)
+	var keep []*Value
 	for _, v := range f.NamedValues[name] {
 		if v.Op != OpArrayMake1 {
+			keep = append(keep, v)
 			continue
 		}
 		f.NamedValues[elemName] = append(f.NamedValues[elemName], v.Args[0])
 	}
-	// delete the name for the array as a whole
-	delete(f.NamedValues, name)
+	if len(keep) == 0 {
+		// delete the name for the array as a whole
+		delete(f.NamedValues, name)
+	} else {
+		f.NamedValues[name] = keep
+	}
 
 	if t.Elem().IsArray() {
 		return decomposeUserArrayInto(f, elemName, slots)
@@ -300,17 +305,23 @@ func decomposeUserStructInto(f *Func, name LocalSlot, slots []LocalSlot) []Local
 	}
 
 	makeOp := StructMakeOp(n)
+	var keep []*Value
 	// create named values for each struct field
 	for _, v := range f.NamedValues[name] {
 		if v.Op != makeOp {
+			keep = append(keep, v)
 			continue
 		}
 		for i := 0; i < len(fnames); i++ {
 			f.NamedValues[fnames[i]] = append(f.NamedValues[fnames[i]], v.Args[i])
 		}
 	}
-	// remove the name of the struct as a whole
-	delete(f.NamedValues, name)
+	if len(keep) == 0 {
+		// delete the name for the struct as a whole
+		delete(f.NamedValues, name)
+	} else {
+		f.NamedValues[name] = keep
+	}
 
 	// now that this f.NamedValues contains values for the struct
 	// fields, recurse into nested structs
@@ -399,4 +410,36 @@ func StructMakeOp(nf int) Op {
 		return OpStructMake4
 	}
 	panic("too many fields in an SSAable struct")
+}
+
+type namedVal struct {
+	locIndex, valIndex int // f.NamedValues[f.Names[locIndex]][valIndex] = key
+}
+
+// deleteNamedVals removes particular values with debugger names from f's naming data structures
+func deleteNamedVals(f *Func, toDelete []namedVal) {
+	// Arrange to delete from larger indices to smaller, to ensure swap-with-end deletion does not invalid pending indices.
+	sort.Slice(toDelete, func(i, j int) bool {
+		if toDelete[i].locIndex != toDelete[j].locIndex {
+			return toDelete[i].locIndex > toDelete[j].locIndex
+		}
+		return toDelete[i].valIndex > toDelete[j].valIndex
+
+	})
+
+	// Get rid of obsolete names
+	for _, d := range toDelete {
+		loc := f.Names[d.locIndex]
+		vals := f.NamedValues[loc]
+		l := len(vals) - 1
+		if l > 0 {
+			vals[d.valIndex] = vals[l]
+			f.NamedValues[loc] = vals[:l]
+		} else {
+			delete(f.NamedValues, loc)
+			l = len(f.Names) - 1
+			f.Names[d.locIndex] = f.Names[l]
+			f.Names = f.Names[:l]
+		}
+	}
 }

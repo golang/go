@@ -76,6 +76,12 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
 	return v + incDecimal(patch) + "-0." + segment + build
 }
 
+// ZeroPseudoVersion returns a pseudo-version with a zero timestamp and
+// revision, which may be used as a placeholder.
+func ZeroPseudoVersion(major string) string {
+	return PseudoVersion(major, "", time.Time{}, "000000000000")
+}
+
 // incDecimal returns the decimal string incremented by 1.
 func incDecimal(decimal string) string {
 	// Scan right to left turning 9s to 0s until you find a digit to increment.
@@ -118,6 +124,12 @@ func decDecimal(decimal string) string {
 // IsPseudoVersion reports whether v is a pseudo-version.
 func IsPseudoVersion(v string) bool {
 	return strings.Count(v, "-") >= 2 && semver.IsValid(v) && pseudoVersionRE.MatchString(v)
+}
+
+// IsZeroPseudoVersion returns whether v is a pseudo-version with a zero base,
+// timestamp, and revision, as returned by ZeroPseudoVersion.
+func IsZeroPseudoVersion(v string) bool {
+	return v == ZeroPseudoVersion(semver.Major(v))
 }
 
 // PseudoVersionTime returns the time stamp of the pseudo-version v.

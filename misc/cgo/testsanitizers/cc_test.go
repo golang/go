@@ -440,3 +440,14 @@ func hangProneCmd(name string, arg ...string) *exec.Cmd {
 	}
 	return cmd
 }
+
+// mSanSupported is a copy of the function cmd/internal/sys.MSanSupported,
+// because the internal pacakage can't be used here.
+func mSanSupported(goos, goarch string) bool {
+	switch goos {
+	case "linux":
+		return goarch == "amd64" || goarch == "arm64"
+	default:
+		return false
+	}
+}

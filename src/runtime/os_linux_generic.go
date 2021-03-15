@@ -2,13 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !mips
-// +build !mipsle
-// +build !mips64
-// +build !mips64le
-// +build !s390x
-// +build !ppc64
-// +build linux
+//go:build !mips && !mipsle && !mips64 && !mips64le && !s390x && !ppc64 && linux
+// +build !mips,!mipsle,!mips64,!mips64le,!s390x,!ppc64,linux
 
 package runtime
 
@@ -38,6 +33,7 @@ func sigdelset(mask *sigset, i int) {
 	(*mask)[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
 }
 
+//go:nosplit
 func sigfillset(mask *uint64) {
 	*mask = ^uint64(0)
 }
