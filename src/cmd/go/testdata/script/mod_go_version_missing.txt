@@ -1,0 +1,97 @@
+cp go.mod go.mod.orig
+
+# With -mod=readonly, we should not update the go version in use.
+#
+# We started adding the go version automatically in Go 1.12, so a module without
+# one encountered in the wild (such as in the module cache) should assume Go
+# 1.11 semantics.
+
+# For Go 1.11 modules, 'all' should include dependencies of tests.
+# (They are pruned out as of Go 1.16.)
+
+go list -mod=readonly all
+stdout '^example.com/dep$'
+stdout '^example.com/testdep$'
+cp stdout list-1.txt
+cmp go.mod go.mod.orig
+
+# For Go 1.11 modules, automatic vendoring should not take effect.
+# (That behavior was added in Go 1.14.)
+
+go list all  # should default to -mod=readonly, not -mod=vendor.
+cmp stdout list-1.txt
+
+# When we set -mod=mod, the go version should be updated immediately,
+# narrowing the "all" pattern reported by that command.
+
+go list -mod=mod all
+! stdout '^example.com/testdep$'
+cp stdout list-2.txt
+cmpenv go.mod go.mod.want
+
+go list -mod=mod all
+cmp stdout list-2.txt
+
+# The updated version should have been written back to go.mod, so
+# automatic vendoring should come into effect (and fail).
+! go list all
+stderr '^go: inconsistent vendoring'
+
+cp go.mod.orig go.mod
+
+# In readonly or vendor mode (not -mod=mod), the inferred Go version is 1.11.
+# For Go 1.11 modules, Go 1.13 features should not be enabled.
+
+! go build -mod=readonly .
+stderr '^# example\.com/m\n\.[/\\]m\.go:5:11: underscores in numeric literals requires go1\.13 or later \(-lang was set to go1\.11; check go\.mod\)$'
+cmp go.mod go.mod.orig
+
+
+-- go.mod --
+module example.com/m
+
+require example.com/dep v0.1.0
+
+replace (
+	example.com/dep v0.1.0 => ./dep
+	example.com/testdep v0.1.0 => ./testdep
+)
+-- go.mod.want --
+module example.com/m
+
+go $goversion
+
+require example.com/dep v0.1.0
+
+replace (
+	example.com/dep v0.1.0 => ./dep
+	example.com/testdep v0.1.0 => ./testdep
+)
+-- vendor/example.com/dep/dep.go --
+package dep
+import _ "example.com/bananas"
+-- vendor/modules.txt --
+HAHAHA this is broken.
+
+-- m.go --
+package m
+
+import _ "example.com/dep"
+
+const x = 1_000
+
+-- dep/go.mod --
+module example.com/dep
+
+require example.com/testdep v0.1.0
+-- dep/dep.go --
+package dep
+-- dep/dep_test.go --
+package dep_test
+
+import _ "example.com/testdep"
+
+-- testdep/go.mod --
+module example.com/testdep
+-- testdep/testdep.go --
+package testdep

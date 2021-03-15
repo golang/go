@@ -169,6 +169,8 @@ go build -n -o ignore ./stdonly/stdonly.go
 # 'go build' should succeed for standard-library packages.
 go build -n fmt
 
+# 'go build' should use the latest version of the Go language.
+go build ./newgo/newgo.go
 
 # 'go doc' without arguments implicitly operates on the current directory, and should fail.
 # TODO(golang.org/issue/32027): currently, it succeeds.
@@ -331,3 +333,15 @@ func Test(t *testing.T) {
 	fmt.Println("stdonly was tested")
 }
 
+-- newgo/newgo.go --
+// Package newgo requires Go 1.14 or newer.
+package newgo
+
+import "io"
+
+const C = 299_792_458
+
+type ReadWriteCloser interface {
+	io.ReadCloser
+	io.WriteCloser
+}
