@@ -1473,11 +1473,11 @@ func TestTimeIsDST(t *testing.T) {
 
 	tzWithDST, err := LoadLocation("Australia/Sydney")
 	if err != nil {
-		t.Error("could not load tz 'Australia/Sydney'")
+		t.Fatalf("could not load tz 'Australia/Sydney': %v", err)
 	}
 	tzWithoutDST, err := LoadLocation("Australia/Brisbane")
 	if err != nil {
-		t.Error("could not load tz 'Australia/Sydney'")
+		t.Fatalf("could not load tz 'Australia/Brisbane': %v", err)
 	}
 	tzFixed := FixedZone("FIXED_TIME", 12345)
 
@@ -1498,7 +1498,7 @@ func TestTimeIsDST(t *testing.T) {
 	for i, tt := range tests {
 		got := tt.time.IsDST()
 		if got != tt.want {
-			t.Errorf("#%d:: (%#v).IsDST()=%t, want %v", i, tt.time.Format(RFC3339), got, tt.want)
+			t.Errorf("#%d:: (%#v).IsDST()=%t, want %t", i, tt.time.Format(RFC3339), got, tt.want)
 		}
 	}
 }
