@@ -326,38 +326,3 @@ func TestTzsetRule(t *testing.T) {
 		}
 	}
 }
-
-func TestIsDST(t *testing.T) {
-	time.ForceZipFileForTesting(true)
-	defer time.ForceZipFileForTesting(false)
-
-	tzWithDST, err := time.LoadLocation("Australia/Sydney")
-	if err != nil {
-		t.Error("could not load tz 'Australia/Sydney'")
-	}
-	tzWithoutDST, err := time.LoadLocation("Australia/Brisbane")
-	if err != nil {
-		t.Error("could not load tz 'Australia/Sydney'")
-	}
-	tzFixed := time.FixedZone("FIXED_TIME", 12345)
-
-	for _, test := range []struct {
-		loc   *time.Location
-		t     time.Time
-		isDST bool
-	}{
-		{time.UTC, time.Date(2009, 6, 1, 12, 0, 0, 0, time.UTC), false},
-		{time.UTC, time.Date(2009, 1, 1, 12, 0, 0, 0, time.UTC), false},
-		{tzWithDST, time.Date(2009, 6, 1, 12, 0, 0, 0, time.UTC), true},
-		{tzWithDST, time.Date(2009, 1, 1, 12, 0, 0, 0, time.UTC), false},
-		{tzWithoutDST, time.Date(2009, 6, 1, 12, 0, 0, 0, time.UTC), false},
-		{tzWithoutDST, time.Date(2009, 1, 1, 12, 0, 0, 0, time.UTC), false},
-		{tzFixed, time.Date(2009, 6, 1, 12, 0, 0, 0, time.UTC), false},
-		{tzFixed, time.Date(2009, 1, 1, 12, 0, 0, 0, time.UTC), false},
-	} {
-		isDST := test.loc.IsDST(test.t)
-		if isDST != test.isDST {
-			t.Errorf("(%#v).IsDST(%#v) = %#v, want %#v", test.loc, test.t, isDST, test.isDST)
-		}
-	}
-}

@@ -100,13 +100,6 @@ func (l *Location) String() string {
 	return l.get().name
 }
 
-// IsDST returns a boolean flag for a given Time that indicates if the Time is in a DST zone for the Location
-func (l *Location) IsDST(t Time) bool {
-	sec := t.Unix()
-	_, _, _, _, isDST := l.lookup(sec)
-	return isDST
-}
-
 // FixedZone returns a Location that always uses
 // the given zone name and offset (seconds east of UTC).
 func FixedZone(name string, offset int) *Location {

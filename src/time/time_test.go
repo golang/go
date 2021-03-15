@@ -1465,3 +1465,40 @@ func TestConcurrentTimerResetStop(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+// Issue 42102: time: add Time.IsDST() bool method
+func TestTimeIsDST(t *testing.T) {
+	ForceZipFileForTesting(true)
+	defer ForceZipFileForTesting(false)
+
+	tzWithDST, err := LoadLocation("Australia/Sydney")
+	if err != nil {
+		t.Error("could not load tz 'Australia/Sydney'")
+	}
+	tzWithoutDST, err := LoadLocation("Australia/Brisbane")
+	if err != nil {
+		t.Error("could not load tz 'Australia/Sydney'")
+	}
+	tzFixed := FixedZone("FIXED_TIME", 12345)
+
+	tests := [...]struct {
+		time   Time
+		want bool
+	}{
+		0: {Date(2009, 6, 1, 12, 0, 0, 0, UTC), false},
+		1: {Date(2009, 1, 1, 12, 0, 0, 0, UTC), false},
+		2: {Date(2009, 6, 1, 12, 0, 0, 0, tzWithDST), true},
+		3: {Date(2009, 1, 1, 12, 0, 0, 0, tzWithDST), false},
+		4: {Date(2009, 6, 1, 12, 0, 0, 0, tzWithoutDST), false},
+		5: {Date(2009, 1, 1, 12, 0, 0, 0, tzWithoutDST), false},
+		6: {Date(2009, 6, 1, 12, 0, 0, 0, tzFixed), false},
+		7: {Date(2009, 1, 1, 12, 0, 0, 0, tzFixed), false},
+	}
+
+	for i, tt := range tests {
+		got := tt.time.IsDST()
+		if got != tt.want {
+			t.Errorf("#%d:: (%#v).IsDST()=%t, want %v", i, tt.time, got, tt.want)
+		}
+	}
+}
