@@ -1786,7 +1786,7 @@ func (s *snapshot) buildBuiltinPackage(ctx context.Context, goFiles []string) er
 // BuildGoplsMod generates a go.mod file for all modules in the workspace. It
 // bypasses any existing gopls.mod.
 func BuildGoplsMod(ctx context.Context, root span.URI, s source.Snapshot) (*modfile.File, error) {
-	allModules, err := findModules(ctx, root, pathExcludedByFilterFunc(s.View().Options()), 0)
+	allModules, err := findModules(root, pathExcludedByFilterFunc(s.View().Options()), 0)
 	if err != nil {
 		return nil, err
 	}

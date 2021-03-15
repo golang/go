@@ -368,15 +368,15 @@ func (s *loggingFramer) printBuffers(testname string, w io.Writer) {
 }
 
 func singletonServer(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
-	return lsprpc.NewStreamServer(cache.New(ctx, hooks.Options), false)
+	return lsprpc.NewStreamServer(cache.New(hooks.Options), false)
 }
 
-func experimentalWorkspaceModule(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
+func experimentalWorkspaceModule(_ context.Context, t *testing.T) jsonrpc2.StreamServer {
 	options := func(o *source.Options) {
 		hooks.Options(o)
 		o.ExperimentalWorkspaceModule = true
 	}
-	return lsprpc.NewStreamServer(cache.New(ctx, options), false)
+	return lsprpc.NewStreamServer(cache.New(options), false)
 }
 
 func (r *Runner) forwardedServer(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
@@ -392,7 +392,7 @@ func (r *Runner) getTestServer() *servertest.TCPServer {
 	if r.ts == nil {
 		ctx := context.Background()
 		ctx = debug.WithInstance(ctx, "", "off")
-		ss := lsprpc.NewStreamServer(cache.New(ctx, hooks.Options), false)
+		ss := lsprpc.NewStreamServer(cache.New(hooks.Options), false)
 		r.ts = servertest.NewTCPServer(ctx, ss, nil)
 	}
 	return r.ts

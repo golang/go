@@ -5,7 +5,6 @@
 package cache
 
 import (
-	"context"
 	"fmt"
 	"go/scanner"
 	"go/token"
@@ -25,9 +24,9 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func goPackagesErrorDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, e packages.Error) ([]*source.Diagnostic, error) {
-	if msg, spn, ok := parseGoListImportCycleError(ctx, snapshot, e, pkg); ok {
-		rng, err := spanToRange(snapshot, pkg, spn)
+func goPackagesErrorDiagnostics(snapshot *snapshot, pkg *pkg, e packages.Error) ([]*source.Diagnostic, error) {
+	if msg, spn, ok := parseGoListImportCycleError(snapshot, e, pkg); ok {
+		rng, err := spanToRange(pkg, spn)
 		if err != nil {
 			return nil, err
 		}
@@ -44,7 +43,7 @@ func goPackagesErrorDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pk
 	if e.Pos == "" {
 		spn = parseGoListError(e.Msg, pkg.m.config.Dir)
 		// We may not have been able to parse a valid span. Apply the errors to all files.
-		if _, err := spanToRange(snapshot, pkg, spn); err != nil {
+		if _, err := spanToRange(pkg, spn); err != nil {
 			var diags []*source.Diagnostic
 			for _, cgf := range pkg.compiledGoFiles {
 				diags = append(diags, &source.Diagnostic{
@@ -60,7 +59,7 @@ func goPackagesErrorDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pk
 		spn = span.ParseInDir(e.Pos, pkg.m.config.Dir)
 	}
 
-	rng, err := spanToRange(snapshot, pkg, spn)
+	rng, err := spanToRange(pkg, spn)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +72,7 @@ func goPackagesErrorDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pk
 	}}, nil
 }
 
-func parseErrorDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, errList scanner.ErrorList) ([]*source.Diagnostic, error) {
+func parseErrorDiagnostics(snapshot *snapshot, pkg *pkg, errList scanner.ErrorList) ([]*source.Diagnostic, error) {
 	// The first parser error is likely the root cause of the problem.
 	if errList.Len() <= 0 {
 		return nil, errors.Errorf("no errors in %v", errList)
@@ -88,7 +87,7 @@ func parseErrorDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, er
 	if err != nil {
 		return nil, err
 	}
-	rng, err := spanToRange(snapshot, pkg, spn)
+	rng, err := spanToRange(pkg, spn)
 	if err != nil {
 		return nil, err
 	}
@@ -103,12 +102,12 @@ func parseErrorDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, er
 
 var importErrorRe = regexp.MustCompile(`could not import ([^\s]+)`)
 
-func typeErrorDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, e extendedError) ([]*source.Diagnostic, error) {
+func typeErrorDiagnostics(snapshot *snapshot, pkg *pkg, e extendedError) ([]*source.Diagnostic, error) {
 	code, spn, err := typeErrorData(snapshot.FileSet(), pkg, e.primary)
 	if err != nil {
 		return nil, err
 	}
-	rng, err := spanToRange(snapshot, pkg, spn)
+	rng, err := spanToRange(pkg, spn)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +128,7 @@ func typeErrorDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, e e
 		if err != nil {
 			return nil, err
 		}
-		rng, err := spanToRange(snapshot, pkg, secondarySpan)
+		rng, err := spanToRange(pkg, secondarySpan)
 		if err != nil {
 			return nil, err
 		}
@@ -166,7 +165,7 @@ func goGetQuickFixes(snapshot *snapshot, uri span.URI, pkg string) ([]source.Sug
 	return []source.SuggestedFix{source.SuggestedFixFromCommand(cmd, protocol.QuickFix)}, nil
 }
 
-func analysisDiagnosticDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, a *analysis.Analyzer, e *analysis.Diagnostic) ([]*source.Diagnostic, error) {
+func analysisDiagnosticDiagnostics(snapshot *snapshot, pkg *pkg, a *analysis.Analyzer, e *analysis.Diagnostic) ([]*source.Diagnostic, error) {
 	var srcAnalyzer *source.Analyzer
 	// Find the analyzer that generated this diagnostic.
 	for _, sa := range source.EnabledAnalyzers(snapshot) {
@@ -180,7 +179,7 @@ func analysisDiagnosticDiagnostics(ctx context.Context, snapshot *snapshot, pkg 
 	if err != nil {
 		return nil, err
 	}
-	rng, err := spanToRange(snapshot, pkg, spn)
+	rng, err := spanToRange(pkg, spn)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +204,7 @@ func analysisDiagnosticDiagnostics(ctx context.Context, snapshot *snapshot, pkg 
 			fixes = append(fixes, source.SuggestedFixFromCommand(cmd, kind))
 		}
 	}
-	related, err := relatedInformation(snapshot, pkg, e)
+	related, err := relatedInformation(pkg, snapshot.FileSet(), e)
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +256,7 @@ func suggestedAnalysisFixes(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnos
 			if err != nil {
 				return nil, err
 			}
-			rng, err := spanToRange(snapshot, pkg, spn)
+			rng, err := spanToRange(pkg, spn)
 			if err != nil {
 				return nil, err
 			}
@@ -278,14 +277,14 @@ func suggestedAnalysisFixes(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnos
 	return fixes, nil
 }
 
-func relatedInformation(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnostic) ([]source.RelatedInformation, error) {
+func relatedInformation(pkg *pkg, fset *token.FileSet, diag *analysis.Diagnostic) ([]source.RelatedInformation, error) {
 	var out []source.RelatedInformation
 	for _, related := range diag.Related {
-		spn, err := span.NewRange(snapshot.view.session.cache.fset, related.Pos, related.End).Span()
+		spn, err := span.NewRange(fset, related.Pos, related.End).Span()
 		if err != nil {
 			return nil, err
 		}
-		rng, err := spanToRange(snapshot, pkg, spn)
+		rng, err := spanToRange(pkg, spn)
 		if err != nil {
 			return nil, err
 		}
@@ -325,7 +324,7 @@ func parsedGoSpan(pgf *source.ParsedGoFile, start, end token.Pos) (span.Span, er
 
 // spanToRange converts a span.Span to a protocol.Range,
 // assuming that the span belongs to the package whose diagnostics are being computed.
-func spanToRange(snapshot *snapshot, pkg *pkg, spn span.Span) (protocol.Range, error) {
+func spanToRange(pkg *pkg, spn span.Span) (protocol.Range, error) {
 	pgf, err := pkg.File(spn.URI())
 	if err != nil {
 		return protocol.Range{}, err
@@ -350,7 +349,7 @@ func parseGoListError(input, wd string) span.Span {
 	return span.ParseInDir(input[:msgIndex], wd)
 }
 
-func parseGoListImportCycleError(ctx context.Context, snapshot *snapshot, e packages.Error, pkg *pkg) (string, span.Span, bool) {
+func parseGoListImportCycleError(snapshot *snapshot, e packages.Error, pkg *pkg) (string, span.Span, bool) {
 	re := regexp.MustCompile(`(.*): import stack: \[(.+)\]`)
 	matches := re.FindStringSubmatch(strings.TrimSpace(e.Msg))
 	if len(matches) < 3 {

@@ -29,7 +29,7 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func New(ctx context.Context, options func(*source.Options)) *Cache {
+func New(options func(*source.Options)) *Cache {
 	index := atomic.AddInt64(&cacheIndex, 1)
 	c := &Cache{
 		id:          strconv.FormatInt(index, 10),
@@ -270,7 +270,7 @@ func astCost(f *ast.File) int64 {
 		return 0
 	}
 	var count int64
-	ast.Inspect(f, func(n ast.Node) bool {
+	ast.Inspect(f, func(_ ast.Node) bool {
 		count += 32 // nodes are pretty small.
 		return true
 	})

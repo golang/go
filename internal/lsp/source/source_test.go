@@ -47,7 +47,7 @@ type runner struct {
 func testSource(t *testing.T, datum *tests.Data) {
 	ctx := tests.Context(t)
 
-	cache := cache.New(ctx, nil)
+	cache := cache.New(nil)
 	session := cache.NewSession(ctx)
 	options := source.DefaultOptions().Clone()
 	tests.DefaultOptions(options)

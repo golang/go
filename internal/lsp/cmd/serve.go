@@ -86,7 +86,7 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 			lsprpc.RemoteLogfile(s.RemoteLogfile),
 		)
 	} else {
-		ss = lsprpc.NewStreamServer(cache.New(ctx, s.app.options), isDaemon)
+		ss = lsprpc.NewStreamServer(cache.New(s.app.options), isDaemon)
 	}
 
 	var network, addr string

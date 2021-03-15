@@ -108,7 +108,7 @@ func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, excl
 	}
 	// Otherwise, in all other modes, search for all of the go.mod files in the
 	// workspace.
-	knownModFiles, err := findModules(ctx, root, excludePath, 0)
+	knownModFiles, err := findModules(root, excludePath, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +305,7 @@ func (w *workspace) invalidate(ctx context.Context, changes map[span.URI]*fileCh
 				result.moduleSource = fileSystemWorkspace
 				// The parsed gopls.mod is no longer valid.
 				result.mod = nil
-				knownModFiles, err := findModules(ctx, w.root, w.excludePath, 0)
+				knownModFiles, err := findModules(w.root, w.excludePath, 0)
 				if err != nil {
 					result.knownModFiles = nil
 					result.activeModFiles = nil
@@ -463,7 +463,7 @@ const fileLimit = 1000000
 // searching stops once modLimit modules have been found.
 //
 // TODO(rfindley): consider overlays.
-func findModules(ctx context.Context, root span.URI, excludePath func(string) bool, modLimit int) (map[span.URI]struct{}, error) {
+func findModules(root span.URI, excludePath func(string) bool, modLimit int) (map[span.URI]struct{}, error) {
 	// Walk the view's folder to find all modules in the view.
 	modFiles := make(map[span.URI]struct{})
 	searched := 0

@@ -81,7 +81,7 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 	if err != nil {
 		return nil, err
 	}
-	importHash, err := hashImports(ctx, workspacePkgs)
+	importHash, err := hashImports(workspacePkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 		}
 		// Compare the original and tidied go.mod files to compute errors and
 		// suggested fixes.
-		diagnostics, err := modTidyDiagnostics(ctx, snapshot, pm, ideal, workspacePkgs)
+		diagnostics, err := modTidyDiagnostics(snapshot, pm, ideal, workspacePkgs)
 		if err != nil {
 			return &modTidyData{err: err}
 		}
@@ -167,7 +167,7 @@ func (s *snapshot) uriToModDecl(ctx context.Context, uri span.URI) (protocol.Ran
 	return rangeFromPositions(pmf.Mapper, pmf.File.Module.Syntax.Start, pmf.File.Module.Syntax.End)
 }
 
-func hashImports(ctx context.Context, wsPackages []source.Package) (string, error) {
+func hashImports(wsPackages []source.Package) (string, error) {
 	results := make(map[string]bool)
 	var imports []string
 	for _, pkg := range wsPackages {
@@ -188,7 +188,7 @@ func hashImports(ctx context.Context, wsPackages []source.Package) (string, erro
 // modTidyDiagnostics computes the differences between the original and tidied
 // go.mod files to produce diagnostic and suggested fixes. Some diagnostics
 // may appear on the Go files that import packages from missing modules.
-func modTidyDiagnostics(ctx context.Context, snapshot source.Snapshot, pm *source.ParsedModule, ideal *modfile.File, workspacePkgs []source.Package) (diagnostics []*source.Diagnostic, err error) {
+func modTidyDiagnostics(snapshot source.Snapshot, pm *source.ParsedModule, ideal *modfile.File, workspacePkgs []source.Package) (diagnostics []*source.Diagnostic, err error) {
 	// First, determine which modules are unused and which are missing from the
 	// original go.mod file.
 	var (
@@ -224,7 +224,7 @@ func modTidyDiagnostics(ctx context.Context, snapshot source.Snapshot, pm *sourc
 	// statements in the Go files in which the dependencies are used.
 	missingModuleFixes := map[*modfile.Require][]source.SuggestedFix{}
 	for _, req := range missing {
-		srcDiag, err := missingModuleDiagnostic(snapshot, pm, req)
+		srcDiag, err := missingModuleDiagnostic(pm, req)
 		if err != nil {
 			return nil, err
 		}
@@ -311,7 +311,7 @@ func modTidyDiagnostics(ctx context.Context, snapshot source.Snapshot, pm *sourc
 	// Finally, add errors for any unused dependencies.
 	onlyDiagnostic := len(diagnostics) == 0 && len(unused) == 1
 	for _, req := range unused {
-		srcErr, err := unusedDiagnostic(pm.Mapper, req, onlyDiagnostic, snapshot.View().Options().ComputeEdits)
+		srcErr, err := unusedDiagnostic(pm.Mapper, req, onlyDiagnostic)
 		if err != nil {
 			return nil, err
 		}
@@ -321,7 +321,7 @@ func modTidyDiagnostics(ctx context.Context, snapshot source.Snapshot, pm *sourc
 }
 
 // unusedDiagnostic returns a source.Diagnostic for an unused require.
-func unusedDiagnostic(m *protocol.ColumnMapper, req *modfile.Require, onlyDiagnostic bool, computeEdits diff.ComputeEdits) (*source.Diagnostic, error) {
+func unusedDiagnostic(m *protocol.ColumnMapper, req *modfile.Require, onlyDiagnostic bool) (*source.Diagnostic, error) {
 	rng, err := rangeFromPositions(m, req.Syntax.Start, req.Syntax.End)
 	if err != nil {
 		return nil, err
@@ -388,7 +388,7 @@ func directnessDiagnostic(m *protocol.ColumnMapper, req *modfile.Require, comput
 	}, nil
 }
 
-func missingModuleDiagnostic(snapshot source.Snapshot, pm *source.ParsedModule, req *modfile.Require) (*source.Diagnostic, error) {
+func missingModuleDiagnostic(pm *source.ParsedModule, req *modfile.Require) (*source.Diagnostic, error) {
 	var rng protocol.Range
 	// Default to the start of the file if there is no module declaration.
 	if pm.File != nil && pm.File.Module != nil && pm.File.Module.Syntax != nil {

@@ -351,7 +351,7 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 	}
 
 	for _, diag := range diagnostics {
-		srcDiags, err := analysisDiagnosticDiagnostics(ctx, snapshot, pkg, analyzer, diag)
+		srcDiags, err := analysisDiagnosticDiagnostics(snapshot, pkg, analyzer, diag)
 		if err != nil {
 			event.Error(ctx, "unable to compute analysis error position", err, tag.Category.Of(diag.Category), tag.Package.Of(pkg.ID()))
 			continue
