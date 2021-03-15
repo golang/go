@@ -971,3 +971,4 @@ func asTypeParam(t Type) *TypeParam {
 func AsPointer(t Type) *Pointer     { return asPointer(t) }
 func AsNamed(t Type) *Named         { return asNamed(t) }
 func AsSignature(t Type) *Signature { return asSignature(t) }
+func AsInterface(t Type) *Interface { return asInterface(t) }
