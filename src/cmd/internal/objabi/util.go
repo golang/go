@@ -157,17 +157,22 @@ func init() {
 var Framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64"
 
 func addexp(s string) {
-	// Could do general integer parsing here, but the runtime copy doesn't yet.
-	v := 1
+	// Could do general integer parsing here, but the runtime.haveexperiment doesn't yet.
+	v, vb := 1, true
 	name := s
 	if len(name) > 2 && name[:2] == "no" {
-		v = 0
+		v, vb = 0, false
 		name = name[2:]
 	}
 	for i := 0; i < len(exper); i++ {
 		if exper[i].name == name {
-			if exper[i].val != nil {
-				*exper[i].val = v
+			switch val := exper[i].val.(type) {
+			case *int:
+				*val = v
+			case *bool:
+				*val = vb
+			default:
+				panic("bad GOEXPERIMENT type for " + s)
 			}
 			return
 		}
@@ -189,7 +194,7 @@ var (
 // variable recorded when the toolchain is built.
 var exper = []struct {
 	name string
-	val  *int
+	val  interface{} // Must be *int or *bool
 }{
 	{"fieldtrack", &Fieldtrack_enabled},
 	{"preemptibleloops", &Preemptibleloops_enabled},
@@ -204,8 +209,15 @@ var defaultExpstring string
 func expList() string {
 	buf := ""
 	for i := range exper {
-		if *exper[i].val != 0 {
-			buf += "," + exper[i].name
+		switch val := exper[i].val.(type) {
+		case *int:
+			if *val != 0 {
+				buf += "," + exper[i].name
+			}
+		case *bool:
+			if *val {
+				buf += "," + exper[i].name
+			}
 		}
 	}
 	if len(buf) == 0 {
