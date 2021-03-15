@@ -461,9 +461,11 @@ func (subst *subster) list(l []ir.Node) []ir.Node {
 }
 
 // tstruct substitutes type params in types of the fields of a structure type. For
-// each field, if Nname is set, tstruct also translates the Nname using subst.vars, if
-// Nname is in subst.vars.
-func (subst *subster) tstruct(t *types.Type) *types.Type {
+// each field, if Nname is set, tstruct also translates the Nname using
+// subst.vars, if Nname is in subst.vars. To always force the creation of a new
+// (top-level) struct, regardless of whether anything changed with the types or
+// names of the struct's fields, set force to true.
+func (subst *subster) tstruct(t *types.Type, force bool) *types.Type {
 	if t.NumFields() == 0 {
 		if t.HasTParam() {
 			// For an empty struct, we need to return a new type,
@@ -474,6 +476,9 @@ func (subst *subster) tstruct(t *types.Type) *types.Type {
 		return t
 	}
 	var newfields []*types.Field
+	if force {
+		newfields = make([]*types.Field, t.NumFields())
+	}
 	for i, f := range t.Fields().Slice() {
 		t2 := subst.typ(f.Type)
 		if (t2 != f.Type || f.Nname != nil) && newfields == nil {
@@ -650,19 +655,32 @@ func (subst *subster) typ(t *types.Type) *types.Type {
 		}
 
 	case types.TSTRUCT:
-		newt = subst.tstruct(t)
+		newt = subst.tstruct(t, false)
 		if newt == t {
 			newt = nil
 		}
 
 	case types.TFUNC:
-		newrecvs := subst.tstruct(t.Recvs())
-		newparams := subst.tstruct(t.Params())
-		newresults := subst.tstruct(t.Results())
+		newrecvs := subst.tstruct(t.Recvs(), false)
+		newparams := subst.tstruct(t.Params(), false)
+		newresults := subst.tstruct(t.Results(), false)
 		if newrecvs != t.Recvs() || newparams != t.Params() || newresults != t.Results() {
+			// If any types have changed, then the all the fields of
+			// of recv, params, and results must be copied, because they have
+			// offset fields that are dependent, and so must have an
+			// independent copy for each new signature.
 			var newrecv *types.Field
 			if newrecvs.NumFields() > 0 {
+				if newrecvs == t.Recvs() {
+					newrecvs = subst.tstruct(t.Recvs(), true)
+				}
 				newrecv = newrecvs.Field(0)
+			}
+			if newparams == t.Params() {
+				newparams = subst.tstruct(t.Params(), true)
+			}
+			if newresults == t.Results() {
+				newresults = subst.tstruct(t.Results(), true)
 			}
 			newt = types.NewSignature(t.Pkg(), newrecv, t.TParams().FieldSlice(), newparams.FieldSlice(), newresults.FieldSlice())
 		}
@@ -671,6 +689,13 @@ func (subst *subster) typ(t *types.Type) *types.Type {
 		newt = subst.tinter(t)
 		if newt == t {
 			newt = nil
+		}
+
+	case types.TMAP:
+		newkey := subst.typ(t.Key())
+		newval := subst.typ(t.Elem())
+		if newkey != t.Key() || newval != t.Elem() {
+			newt = types.NewMap(newkey, newval)
 		}
 
 	case types.TCHAN:
@@ -684,8 +709,6 @@ func (subst *subster) typ(t *types.Type) *types.Type {
 				types.CheckSize(newt)
 			}
 		}
-
-		// TODO: case TMAP
 	}
 	if newt == nil {
 		// Even though there were typeparams in the type, there may be no
