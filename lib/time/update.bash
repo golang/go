@@ -74,7 +74,7 @@ function start-the-build() {
   make -C ${TIME_ZONE_CODE_PATH} CFLAGS=-DSTD_INSPIRED AWK=awk TZDIR=${ZONE_INFO_DIRECTORY_PATH} posix_only
   if [ ! -f "${ZONE_INFO_ZIP_PATH}" ]; then
     zip –r ${ZONE_INFO_ZIP_PATH} ${ZONE_INFO_DIRECTORY_PATH}
-    go generate time/tzdata
+    go generate time/tzdata ${ZONE_INFO_ZIP_PATH}
   fi
   if [ -d "${WORK_DIRECTORY_PATH}" ]; then
     rm -rm ${WORK_DIRECTORY_PATH}
