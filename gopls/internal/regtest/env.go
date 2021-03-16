@@ -282,8 +282,9 @@ func (e *Env) Await(expectations ...Expectation) {
 		e.mu.Unlock()
 		return
 	case Unmeetable:
+		failure := fmt.Sprintf("unmeetable expectations:\n%s\nstate:\n%v", summary, e.state)
 		e.mu.Unlock()
-		e.T.Fatalf("unmeetable expectations:\n%s\nstate:\n%v", summary, e.state)
+		e.T.Fatal(failure)
 	}
 	cond := &condition{
 		expectations: expectations,
