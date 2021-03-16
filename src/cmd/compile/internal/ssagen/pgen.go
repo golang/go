@@ -202,7 +202,7 @@ func StackOffset(slot ssa.LocalSlot) int32 {
 		if base.Ctxt.FixedFrameSize() == 0 {
 			off -= int64(types.PtrSize)
 		}
-		if objabi.Framepointer_enabled {
+		if objabi.FramePointerEnabled {
 			off -= int64(types.PtrSize)
 		}
 	}
@@ -215,7 +215,7 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*obj.LSym]struct{}) {
 	if fnsym == nil {
 		return
 	}
-	if objabi.Fieldtrack_enabled == 0 || len(tracked) == 0 {
+	if !objabi.Experiment.FieldTrack || len(tracked) == 0 {
 		return
 	}
 

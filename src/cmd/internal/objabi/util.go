@@ -174,8 +174,14 @@ func init() {
 	GOEXPERIMENT = expList()
 }
 
+// FramePointerEnabled enables the use of platform conventions for
+// saving frame pointers.
+//
+// This used to be an experiment, but now it's always enabled on
+// platforms that support it.
+//
 // Note: must agree with runtime.framepointer_enabled.
-var Framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64"
+var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
 
 func addexp(s string) {
 	// Could do general integer parsing here, but the runtime.haveexperiment doesn't yet.
@@ -203,18 +209,14 @@ func addexp(s string) {
 	os.Exit(2)
 }
 
-var (
-	Fieldtrack_enabled        int
-	Preemptibleloops_enabled  int
-	Staticlockranking_enabled int
-)
-
 // Experiment contains flags for GOEXPERIMENTs.
-//
-// TODO(austin): Move the package-level experiment flags into this.
-var Experiment ExpFlags
+var Experiment = ExpFlags{}
 
 type ExpFlags struct {
+	FieldTrack        bool
+	PreemptibleLoops  bool
+	StaticLockRanking bool
+
 	// regabi is split into several sub-experiments that can be
 	// enabled individually. GOEXPERIMENT=regabi implies the
 	// subset that are currently "working". Not all combinations work.
@@ -250,9 +252,9 @@ var exper = []struct {
 	name string
 	val  interface{} // Must be *int or *bool
 }{
-	{"fieldtrack", &Fieldtrack_enabled},
-	{"preemptibleloops", &Preemptibleloops_enabled},
-	{"staticlockranking", &Staticlockranking_enabled},
+	{"fieldtrack", &Experiment.FieldTrack},
+	{"preemptibleloops", &Experiment.PreemptibleLoops},
+	{"staticlockranking", &Experiment.StaticLockRanking},
 	{"regabi", &Experiment.regabi},
 	{"regabiwrappers", &Experiment.RegabiWrappers},
 	{"regabig", &Experiment.RegabiG},
