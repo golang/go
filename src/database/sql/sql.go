@@ -342,7 +342,7 @@ func (n NullTime) Value() (driver.Value, error) {
 type Scanner interface {
 	// Scan assigns a value from a database driver.
 	//
-	// The src value will be of one of the following types:
+	// The src value will be one of the following types:
 	//
 	//    int64
 	//    float64
