@@ -681,3 +681,9 @@
 (GTZ (MOVVconst [c]) yes no) && c <= 0 => (First no yes)
 (GEZ (MOVVconst [c]) yes no) && c >= 0 => (First yes no)
 (GEZ (MOVVconst [c]) yes no) && c <  0 => (First no yes)
+
+// fold readonly sym load
+(MOVBload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read8(sym, int64(off)))])
+(MOVHload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVVload  [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read64(sym, int64(off), config.ctxt.Arch.ByteOrder))])
