@@ -13,14 +13,10 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-
-	"cmd/internal/objabi"
 )
 
 // Debug holds the parsed debugging configuration values.
-var Debug = DebugFlags{
-	Fieldtrack: &objabi.Fieldtrack_enabled,
-}
+var Debug DebugFlags
 
 // DebugFlags defines the debugging configuration values (see var Debug).
 // Each struct field is a different value, named for the lower-case of the field name.
@@ -38,7 +34,6 @@ type DebugFlags struct {
 	DumpPtrs             int    `help:"show Node pointers values in dump output"`
 	DwarfInl             int    `help:"print information about DWARF inlined function creation"`
 	Export               int    `help:"print export data"`
-	Fieldtrack           *int   `help:"enable field tracking"`
 	GCProg               int    `help:"print dump of GC programs"`
 	InlFuncsWithClosures int    `help:"allow functions with closures to be inlined"`
 	Libfuzzer            int    `help:"enable coverage instrumentation for libfuzzer"`
@@ -86,8 +81,6 @@ func init() {
 			panic(fmt.Sprintf("base.Debug.%s has invalid type %v (must be int or string)", f.Name, f.Type))
 		case *int, *string:
 			// ok
-		case **int:
-			ptr = *ptr.(**int) // record the *int itself
 		}
 		debugTab = append(debugTab, debugField{name, help, ptr})
 	}

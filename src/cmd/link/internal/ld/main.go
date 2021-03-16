@@ -251,7 +251,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	bench.Start("dostrdata")
 	ctxt.dostrdata()
-	if objabi.Fieldtrack_enabled != 0 {
+	if objabi.Experiment.FieldTrack {
 		bench.Start("fieldtrack")
 		fieldtrack(ctxt.Arch, ctxt.loader)
 	}

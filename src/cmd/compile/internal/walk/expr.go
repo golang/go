@@ -931,7 +931,7 @@ func usemethod(n *ir.CallExpr) {
 }
 
 func usefield(n *ir.SelectorExpr) {
-	if objabi.Fieldtrack_enabled == 0 {
+	if !objabi.Experiment.FieldTrack {
 		return
 	}
 

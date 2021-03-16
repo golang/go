@@ -223,7 +223,7 @@ CheckFlags:
 	}
 
 	// TODO: Test and delete these conditions.
-	if objabi.Fieldtrack_enabled != 0 || objabi.Preemptibleloops_enabled != 0 {
+	if objabi.Experiment.FieldTrack || objabi.Experiment.PreemptibleLoops {
 		canDashC = false
 	}
 

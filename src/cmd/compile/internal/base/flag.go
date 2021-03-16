@@ -339,7 +339,7 @@ func concurrentBackendAllowed() bool {
 		return false
 	}
 	// TODO: Test and delete this condition.
-	if objabi.Fieldtrack_enabled != 0 {
+	if objabi.Experiment.FieldTrack {
 		return false
 	}
 	// TODO: fix races and enable the following flags

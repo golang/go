@@ -278,7 +278,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 		if base.Ctxt.FixedFrameSize() == 0 {
 			offs -= int64(types.PtrSize)
 		}
-		if objabi.Framepointer_enabled {
+		if objabi.FramePointerEnabled {
 			offs -= int64(types.PtrSize)
 		}
 
