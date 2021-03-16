@@ -1654,6 +1654,8 @@ const (
 	OpMIPSSRLconst
 	OpMIPSSRA
 	OpMIPSSRAconst
+	OpMIPSROTR
+	OpMIPSROTRconst
 	OpMIPSCLZ
 	OpMIPSSGT
 	OpMIPSSGTconst
@@ -1765,6 +1767,8 @@ const (
 	OpMIPS64SRLVconst
 	OpMIPS64SRAV
 	OpMIPS64SRAVconst
+	OpMIPS64ROTR
+	OpMIPS64ROTRconst
 	OpMIPS64SGT
 	OpMIPS64SGTconst
 	OpMIPS64SGTU
@@ -22075,6 +22079,34 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "ROTR",
+		argLen: 2,
+		asm:    mips.AROTR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 469762046}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
+				{1, 469762046}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
+			},
+			outputs: []outputInfo{
+				{0, 335544318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
+			},
+		},
+	},
+	{
+		name:    "ROTRconst",
+		auxType: auxInt32,
+		argLen:  1,
+		asm:     mips.AROTR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 469762046}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
+			},
+			outputs: []outputInfo{
+				{0, 335544318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
+			},
+		},
+	},
+	{
 		name:   "CLZ",
 		argLen: 1,
 		asm:    mips.ACLZ,
@@ -23557,6 +23589,34 @@ var opcodeTable = [...]opInfo{
 		auxType: auxInt64,
 		argLen:  1,
 		asm:     mips.ASRAV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 234881022}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
+			},
+			outputs: []outputInfo{
+				{0, 167772158}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
+			},
+		},
+	},
+	{
+		name:   "ROTR",
+		argLen: 2,
+		asm:    mips.AROTR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 234881022}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
+				{1, 234881022}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
+			},
+			outputs: []outputInfo{
+				{0, 167772158}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
+			},
+		},
+	},
+	{
+		name:    "ROTRconst",
+		auxType: auxInt32,
+		argLen:  1,
+		asm:     mips.AROTR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 234881022}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31

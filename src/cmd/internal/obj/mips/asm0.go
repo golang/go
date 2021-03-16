@@ -107,6 +107,11 @@ var optab = []Optab{
 	{ASLLV, C_REG, C_REG, C_REG, 9, 4, 0, sys.MIPS64, 0},
 	{ACLO, C_REG, C_NONE, C_REG, 9, 4, 0, 0, 0},
 
+	{AROTR, C_REG, C_NONE, C_REG, 9, 4, 0, 0, 0},
+	{AROTR, C_REG, C_REG, C_REG, 9, 4, 0, 0, 0},
+	{AROTR, C_SCON, C_REG, C_REG, 16, 4, 0, 0, 0},
+	{AROTR, C_SCON, C_NONE, C_REG, 16, 4, 0, 0, 0},
+
 	{AADDF, C_FREG, C_NONE, C_FREG, 32, 4, 0, 0, 0},
 	{AADDF, C_FREG, C_REG, C_FREG, 32, 4, 0, 0, 0},
 	{ACMPEQF, C_FREG, C_REG, C_NONE, 32, 4, 0, 0, 0},
@@ -1079,6 +1084,7 @@ func buildop(ctxt *obj.Link) {
 			ANEGW,
 			ANEGV,
 			AWORD,
+			AROTR,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AUNDEF,
@@ -1730,6 +1736,8 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return OP(0, 4)
 	case ASRL:
 		return OP(0, 6)
+	case AROTR:
+		return OP(0, 6) | (1 << 6)
 	case ASRA:
 		return OP(0, 7)
 	case ASLLV:
@@ -1914,6 +1922,8 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return OP(0, 0)
 	case ASRL:
 		return OP(0, 2)
+	case AROTR:
+		return OP(0, 2) | (1 << 21)
 	case ASRA:
 		return OP(0, 3)
 	case AADDV:

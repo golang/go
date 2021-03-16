@@ -192,6 +192,9 @@ func init() {
 		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                    // arg0 >> arg1, signed, shift amount is mod 32
 		{name: "SRAconst", argLength: 1, reg: gp11, asm: "SRA", aux: "Int32"}, // arg0 >> auxInt, signed, shift amount must be 0 through 31 inclusive
 
+		{name: "ROTR", argLength: 2, reg: gp21, asm: "ROTR"},                    // arg0 right rotate by (arg1 mod 32) bits
+		{name: "ROTRconst", argLength: 1, reg: gp11, asm: "ROTR", aux: "Int32"}, // arg0 right rotate by auxInt bits
+
 		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},
 
 		// comparisons
