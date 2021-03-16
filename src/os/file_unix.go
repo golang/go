@@ -247,6 +247,7 @@ func (file *file) close() error {
 	}
 	if file.dirinfo != nil {
 		file.dirinfo.close()
+		file.dirinfo = nil
 	}
 	var err error
 	if e := file.pfd.Close(); e != nil {
