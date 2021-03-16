@@ -353,10 +353,12 @@ func (s *state) emitOpenDeferInfo() {
 			numArgs++
 		}
 		off = dvarint(x, off, int64(numArgs))
+		argAdjust := 0 // presence of receiver offsets the parameter count.
 		if r.rcvrNode != nil {
 			off = dvarint(x, off, -okOffset(r.rcvrNode.FrameOffset()))
 			off = dvarint(x, off, s.config.PtrSize)
 			off = dvarint(x, off, 0) // This is okay because defer records use ABI0 (for now)
+			argAdjust++
 		}
 
 		// TODO(register args) assume abi0 for this?
@@ -366,7 +368,7 @@ func (s *state) emitOpenDeferInfo() {
 			f := getParam(r.n, j)
 			off = dvarint(x, off, -okOffset(arg.FrameOffset()))
 			off = dvarint(x, off, f.Type.Size())
-			off = dvarint(x, off, okOffset(pri.InParam(j).FrameOffset(pri))-ab.LocalsOffset()) // defer does not want the fixed frame adjustment
+			off = dvarint(x, off, okOffset(pri.InParam(j+argAdjust).FrameOffset(pri))-ab.LocalsOffset()) // defer does not want the fixed frame adjustment
 		}
 	}
 }
@@ -4925,7 +4927,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		callABI = s.f.ABI0
 	}
 
-	params := callABI.ABIAnalyze(n.X.Type(), false /* Do not set (register) nNames from caller side -- can cause races. */ )
+	params := callABI.ABIAnalyze(n.X.Type(), false /* Do not set (register) nNames from caller side -- can cause races. */)
 	types.CalcSize(fn.Type())
 	stksize := params.ArgWidth() // includes receiver, args, and results
 
