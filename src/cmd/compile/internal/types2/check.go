@@ -335,7 +335,9 @@ func (check *Checker) recordTypeAndValue(x syntax.Expr, mode operandMode, typ Ty
 	}
 	if mode == constant_ {
 		assert(val != nil)
-		assert(typ == Typ[Invalid] || isConstType(typ))
+		// We check is(typ, IsConstType) here as constant expressions may be
+		// recorded as type parameters.
+		assert(typ == Typ[Invalid] || is(typ, IsConstType))
 	}
 	if m := check.Types; m != nil {
 		m[x] = TypeAndValue{mode, typ, val}
