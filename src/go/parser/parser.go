@@ -181,7 +181,10 @@ func (p *parser) tryResolve(x ast.Expr, collectUnresolved bool) {
 	if ident == nil {
 		return
 	}
-	assert(ident.Obj == nil, fmt.Sprintf("identifier %s already declared or resolved", ident.Name))
+	// Don't use assert here, to avoid needless formatting of the message below.
+	if ident.Obj != nil {
+		panic(fmt.Sprintf("identifier %s already declared or resolved", ident.Name))
+	}
 	if ident.Name == "_" {
 		return
 	}
