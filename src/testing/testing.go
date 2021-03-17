@@ -509,6 +509,7 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 			}
 			return prevFrame
 		}
+		// If more helper PCs have been added since we last did the conversion
 		if c.helperNames == nil {
 			c.helperNames = make(map[string]struct{})
 			for pc := range c.helperPCs {
