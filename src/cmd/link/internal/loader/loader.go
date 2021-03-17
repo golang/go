@@ -2208,7 +2208,7 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 		pkg := r.Pkg(i)
 		objidx, ok := l.objByPkg[pkg]
 		if !ok {
-			log.Fatalf("reference of nonexisted package %s, from %v", pkg, r.unit.Lib)
+			log.Fatalf("%v: reference to nonexistent package %s", r.unit.Lib, pkg)
 		}
 		r.pkg[i] = objidx
 	}
