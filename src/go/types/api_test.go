@@ -341,6 +341,9 @@ func TestTypesInfo(t *testing.T) {
 
 		// instantiated types must be sanitized
 		{genericPkg + `g0; type t[P any] int; var x struct{ f t[int] }; var _ = x.f`, `x.f`, `generic_g0.t[int]`},
+
+		// issue 45096
+		{genericPkg + `issue45096; func _[T interface{ type int8, int16, int32  }](x T) { _ = x < 0 }`, `0`, `T₁`},
 	}
 
 	for _, test := range tests {
