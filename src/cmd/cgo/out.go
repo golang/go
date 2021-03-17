@@ -168,6 +168,11 @@ func (p *Package) writeDefs() {
 			if *gccgo {
 				fmt.Fprintf(fc, "extern byte *%s;\n", n.C)
 			} else {
+				// Only emit the following symbols if they are not for
+				// a function pointer variable. The function symbol is already defined
+				// and redefining it here as such will break compilation when
+				// used in conjunction with link time optimization in external
+				// linkers.
 				if n.Kind != "fpvar" {
 					fmt.Fprintf(fm, "extern char %s[];\n", n.C)
 					fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
