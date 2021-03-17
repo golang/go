@@ -1242,6 +1242,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = x86.REG_SP
 		ssagen.AddAux(&p.To, v)
 		p.To.Offset += 4
+	case ssa.OpClobberReg:
+		x := uint64(0xdeaddeaddeaddead)
+		p := s.Prog(x86.AMOVQ)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(x)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	default:
 		v.Fatalf("genValue not implemented: %s", v.LongString())
 	}

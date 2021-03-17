@@ -844,7 +844,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		bne.To.SetTarget(cs)
 	case ssa.OpS390XSYNC:
 		s.Prog(s390x.ASYNC)
-	case ssa.OpClobber:
+	case ssa.OpClobber, ssa.OpClobberReg:
 		// TODO: implement for clobberdead experiment. Nop is ok for now.
 	default:
 		v.Fatalf("genValue not implemented: %s", v.LongString())

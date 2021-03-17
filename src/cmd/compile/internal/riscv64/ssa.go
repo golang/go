@@ -629,6 +629,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Sym = ir.Syms.Duffcopy
 		p.To.Offset = v.AuxInt
 
+	case ssa.OpClobber, ssa.OpClobberReg:
+		// TODO: implement for clobberdead experiment. Nop is ok for now.
+
 	default:
 		v.Fatalf("Unhandled op %v", v.Op)
 	}

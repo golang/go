@@ -832,6 +832,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = x86.REG_SP
 		ssagen.AddAux(&p.To, v)
+	case ssa.OpClobberReg:
+		// TODO: implement for clobberdead experiment. Nop is ok for now.
 	default:
 		v.Fatalf("genValue not implemented: %s", v.LongString())
 	}

@@ -434,7 +434,7 @@ TEXT runtime·fcntl_trampoline<ABIInternal>(SB),NOSPLIT,$0
 // mstart_stub is the first function executed on a new thread started by pthread_create.
 // It just does some low-level setup and then calls mstart.
 // Note: called with the C calling convention.
-TEXT runtime·mstart_stub(SB),NOSPLIT,$0
+TEXT runtime·mstart_stub<ABIInternal>(SB),NOSPLIT,$0
 	// DI points to the m.
 	// We are already on m's g0 stack.
 

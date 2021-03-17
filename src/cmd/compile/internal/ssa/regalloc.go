@@ -114,6 +114,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/objabi"
@@ -301,6 +302,9 @@ type regAllocState struct {
 
 	// blockOrder[b.ID] corresponds to the index of block b in visitOrder.
 	blockOrder []int32
+
+	// whether to insert instructions that clobber dead registers at call sites
+	doClobber bool
 }
 
 type endReg struct {
@@ -336,6 +340,17 @@ func (s *regAllocState) freeReg(r register) {
 func (s *regAllocState) freeRegs(m regMask) {
 	for m&s.used != 0 {
 		s.freeReg(pickReg(m & s.used))
+	}
+}
+
+// clobberRegs inserts instructions that clobber registers listed in m.
+func (s *regAllocState) clobberRegs(m regMask) {
+	m &= s.allocatable & s.f.Config.gpRegMask // only integer register can contain pointers, only clobber them
+	for m != 0 {
+		r := pickReg(m)
+		m &^= 1 << r
+		x := s.curBlock.NewValue0(src.NoXPos, OpClobberReg, types.TypeVoid)
+		s.f.setHome(x, &s.registers[r])
 	}
 }
 
@@ -699,6 +714,14 @@ func (s *regAllocState) init(f *Func) {
 				}
 			}
 		}
+	}
+
+	// The clobberdeadreg experiment inserts code to clobber dead registers
+	// at call sites.
+	// Ignore huge functions to avoid doing too much work.
+	if base.Flag.ClobberDeadReg && len(s.f.Blocks) <= 10000 {
+		// TODO: honor GOCLOBBERDEADHASH, or maybe GOSSAHASH.
+		s.doClobber = true
 	}
 }
 
@@ -1314,6 +1337,9 @@ func (s *regAllocState) regalloc(f *Func) {
 			}
 			if len(regspec.inputs) == 0 && len(regspec.outputs) == 0 {
 				// No register allocation required (or none specified yet)
+				if s.doClobber && v.Op.IsCall() {
+					s.clobberRegs(regspec.clobbers)
+				}
 				s.freeRegs(regspec.clobbers)
 				b.Values = append(b.Values, v)
 				s.advanceUses(v)
@@ -1475,6 +1501,11 @@ func (s *regAllocState) regalloc(f *Func) {
 			}
 
 			// Dump any registers which will be clobbered
+			if s.doClobber && v.Op.IsCall() {
+				// clobber registers that are marked as clobber in regmask, but
+				// don't clobber inputs.
+				s.clobberRegs(regspec.clobbers &^ s.tmpused &^ s.nospill)
+			}
 			s.freeRegs(regspec.clobbers)
 			s.tmpused |= regspec.clobbers
 
