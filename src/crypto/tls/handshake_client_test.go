@@ -6,7 +6,6 @@ package tls
 
 import (
 	"bytes"
-	"context"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
@@ -21,7 +20,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -2511,39 +2509,5 @@ func testResumptionKeepsOCSPAndSCT(t *testing.T, ver uint16) {
 	if !reflect.DeepEqual(ccs.SignedCertificateTimestamps, serverConfig.Certificates[0].SignedCertificateTimestamps) {
 		t.Errorf("client ConnectionState contained unexpected SignedCertificateTimestamps after resumption: wanted %v, got %v",
 			serverConfig.Certificates[0].SignedCertificateTimestamps, ccs.SignedCertificateTimestamps)
-	}
-}
-
-func TestClientHandshakeContextCancellation(t *testing.T) {
-	c, s := localPipe(t)
-	serverConfig := testConfig.Clone()
-	serverErr := make(chan error, 1)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		defer close(serverErr)
-		defer s.Close()
-		conn := Server(s, serverConfig)
-		_, err := conn.readClientHello(ctx)
-		cancel()
-		serverErr <- err
-	}()
-	cli := Client(c, testConfig)
-	err := cli.HandshakeContext(ctx)
-	if err == nil {
-		t.Fatal("Client handshake did not error when the context was canceled")
-	}
-	if err != context.Canceled {
-		t.Errorf("Unexpected client handshake error: %v", err)
-	}
-	if err := <-serverErr; err != nil {
-		t.Errorf("Unexpected server error: %v", err)
-	}
-	if runtime.GOARCH == "wasm" {
-		t.Skip("conn.Close does not error as expected when called multiple times on WASM")
-	}
-	err = cli.Close()
-	if err == nil {
-		t.Error("Client connection was not closed when the context was canceled")
 	}
 }
