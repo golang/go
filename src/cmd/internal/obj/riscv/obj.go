@@ -151,6 +151,15 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	case ASBREAK:
 		// SBREAK is the old name for EBREAK.
 		p.As = AEBREAK
+
+	case AMOV:
+		// Put >32-bit constants in memory and load them.
+		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == 0 && int64(int32(p.From.Offset)) != p.From.Offset {
+			p.From.Type = obj.TYPE_MEM
+			p.From.Sym = ctxt.Int64Sym(p.From.Offset)
+			p.From.Name = obj.NAME_EXTERN
+			p.From.Offset = 0
+		}
 	}
 }
 
