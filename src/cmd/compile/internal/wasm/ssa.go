@@ -190,6 +190,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(storeOp(v.Type))
 		ssagen.AddrAuto(&p.To, v)
 
+	case ssa.OpClobber, ssa.OpClobberReg:
+		// TODO: implement for clobberdead experiment. Nop is ok for now.
+
 	default:
 		if v.Type.IsMemory() {
 			return

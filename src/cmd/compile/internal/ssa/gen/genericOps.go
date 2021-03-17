@@ -613,6 +613,7 @@ var genericOps = []opData{
 
 	// Clobber experiment op
 	{name: "Clobber", argLength: 0, typ: "Void", aux: "SymOff", symEffect: "None"}, // write an invalid pointer value to the given pointer slot of a stack variable
+	{name: "ClobberReg", argLength: 0, typ: "Void"},                                // clobber a register
 }
 
 //     kind          controls        successors   implicit exit

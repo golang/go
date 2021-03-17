@@ -2921,6 +2921,7 @@ const (
 	OpAtomicOr8Variant
 	OpAtomicOr32Variant
 	OpClobber
+	OpClobberReg
 )
 
 var opcodeTable = [...]opInfo{
@@ -36372,6 +36373,11 @@ var opcodeTable = [...]opInfo{
 		argLen:    0,
 		symEffect: SymNone,
 		generic:   true,
+	},
+	{
+		name:    "ClobberReg",
+		argLen:  0,
+		generic: true,
 	},
 }
 
