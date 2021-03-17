@@ -1885,3 +1885,30 @@ package main
 		)
 	})
 }
+
+// Tests golang/go#45075, a panic in fillreturns breaks diagnostics.
+func TestFillReturnsPanic(t *testing.T) {
+	// At tip, the panic no longer reproduces.
+	testenv.SkipAfterGo1Point(t, 16)
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.16
+-- main.go --
+package main
+
+
+func foo() int {
+	return x, nil
+}
+
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		env.Await(
+			env.DiagnosticAtRegexpWithMessage("main.go", `return x`, "wrong number of return values"),
+			LogMatching(protocol.Error, `.*analysis fillreturns.*panicked.*`, 2),
+		)
+	})
+}

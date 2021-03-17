@@ -212,7 +212,6 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			event.Log(ctx, fmt.Sprintf("analysis panicked: %s", r), tag.Package.Of(pkg.ID()))
 			data.err = errors.Errorf("analysis %s for package %s panicked: %v", analyzer.Name, pkg.PkgPath(), r)
 		}
 	}()
@@ -408,7 +407,8 @@ func (s *snapshot) DiagnosePackage(ctx context.Context, spkg source.Package) (ma
 		var err error
 		errorAnalyzerDiag, err = s.Analyze(ctx, pkg.ID(), analyzers)
 		if err != nil {
-			return nil, err
+			// Keep going: analysis failures should not block diagnostics.
+			event.Error(ctx, "type error analysis failed", err, tag.Package.Of(pkg.ID()))
 		}
 	}
 	diags := map[span.URI][]*source.Diagnostic{}
