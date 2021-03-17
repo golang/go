@@ -628,7 +628,7 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 
 		for _, t := range unpack(types) {
 			x := *x // make a copy; convertUntypedInternal modifies x
-			check.convertUntypedInternal(&x, t)
+			check.convertUntypedInternal(&x, t, false)
 			if x.mode == invalid {
 				goto Error
 			}
@@ -639,7 +639,7 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 		return
 	}
 
-	check.convertUntypedInternal(x, target)
+	check.convertUntypedInternal(x, target, true)
 	return
 
 Error:
@@ -649,7 +649,7 @@ Error:
 }
 
 // convertUntypedInternal should only be called by convertUntyped.
-func (check *Checker) convertUntypedInternal(x *operand, target Type) {
+func (check *Checker) convertUntypedInternal(x *operand, target Type, update bool) {
 	assert(isTyped(target))
 
 	if x.isNil() {
@@ -669,7 +669,9 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
 				return
 			}
 			// expression value may have been rounded - update if needed
-			check.updateExprVal(x.expr, x.val)
+			if update {
+				check.updateExprVal(x.expr, x.val)
+			}
 		} else {
 			// Non-constant untyped values may appear as the
 			// result of comparisons (untyped bool), intermediate
@@ -694,7 +696,7 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
 		}
 	case *Sum:
 		t.is(func(t Type) bool {
-			check.convertUntypedInternal(x, t)
+			check.convertUntypedInternal(x, t, false)
 			return x.mode != invalid
 		})
 	case *Interface:
@@ -712,7 +714,9 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
 
 OK:
 	x.typ = target
-	check.updateExprType(x.expr, target, true)
+	if update {
+		check.updateExprType(x.expr, target, true)
+	}
 	return
 
 Error:
