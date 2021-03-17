@@ -171,6 +171,7 @@ func init() {
 	}
 
 	// Set GOEXPERIMENT to the parsed and canonicalized set of experiments.
+	// This format must be parseable by runtime.haveexperiment.
 	GOEXPERIMENT = expList()
 }
 
@@ -184,7 +185,7 @@ func init() {
 var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
 
 func addexp(s string) {
-	// Could do general integer parsing here, but the runtime.haveexperiment doesn't yet.
+	// We could do general integer parsing here, but there's no need yet.
 	v, vb := 1, true
 	name := s
 	if len(name) > 2 && name[:2] == "no" {
