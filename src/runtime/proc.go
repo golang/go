@@ -6027,6 +6027,9 @@ func setMaxThreads(in int) (out int) {
 }
 
 func haveexperiment(name string) bool {
+	// GOEXPERIMENT is a comma-separated list of enabled
+	// experiments. It's not the raw environment variable, but a
+	// pre-processed list from cmd/internal/objabi.
 	x := sys.GOEXPERIMENT
 	for x != "" {
 		xname := ""
@@ -6038,9 +6041,6 @@ func haveexperiment(name string) bool {
 		}
 		if xname == name {
 			return true
-		}
-		if len(xname) > 2 && xname[:2] == "no" && xname[2:] == name {
-			return false
 		}
 	}
 	return false
