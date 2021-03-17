@@ -5,13 +5,21 @@
 package lsp
 
 import (
+	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	errors "golang.org/x/xerrors"
 )
 
 func TestDebouncer(t *testing.T) {
 	t.Parallel()
+
+	const evtWait = 30 * time.Millisecond
+	const initialDelay = 100 * time.Millisecond
+
 	type event struct {
 		key       string
 		order     uint64
@@ -58,30 +66,69 @@ func TestDebouncer(t *testing.T) {
 		test := test
 		t.Run(test.label, func(t *testing.T) {
 			t.Parallel()
-			d := newDebouncer()
-			var wg sync.WaitGroup
-			for i, e := range test.events {
-				wg.Add(1)
-				go func(e *event) {
-					d.debounce(e.key, e.order, 500*time.Millisecond, func() {
-						e.fired = true
-					})
-					wg.Done()
-				}(e)
-				// For a bit more fidelity, sleep to try to make things actually
-				// execute in order. This doesn't have to be perfect, but could be done
-				// properly using fake timers.
-				if i < len(test.events)-1 {
-					time.Sleep(10 * time.Millisecond)
+
+			try := func(delay time.Duration) (bool, error) {
+				d := newDebouncer()
+				var wg sync.WaitGroup
+				valid := true
+				for i, e := range test.events {
+					wg.Add(1)
+					start := time.Now()
+					go func(e *event) {
+						if time.Since(start) > evtWait {
+							// Due to slow scheduling this event is likely to have fired out
+							// of order, so mark this attempt as invalid.
+							valid = false
+						}
+						d.debounce(e.key, e.order, delay, func() {
+							e.fired = true
+						})
+						wg.Done()
+					}(e)
+					// For a bit more fidelity, sleep to try to make things actually
+					// execute in order. This shouldn't have to be perfect: as long as we
+					// don't have extreme pauses the test should still pass.
+					if i < len(test.events)-1 {
+						time.Sleep(evtWait)
+					}
 				}
+				wg.Wait()
+				var errs []string
+				for _, event := range test.events {
+					if event.fired != event.wantFired {
+						msg := fmt.Sprintf("(key: %q, order: %d): fired = %t, want %t",
+							event.key, event.order, event.fired, event.wantFired)
+						errs = append(errs, msg)
+					}
+				}
+				var err error
+				if len(errs) > 0 {
+					err = errors.New(strings.Join(errs, "\n"))
+				}
+				// If the test took less than maxwait, no event before the
+				return valid, err
 			}
-			wg.Wait()
-			for _, event := range test.events {
-				if event.fired != event.wantFired {
-					t.Errorf("(key: %q, order: %d): fired = %t, want %t",
-						event.key, event.order, event.fired, event.wantFired)
-				}
+
+			if err := retryInvalid(100*time.Millisecond, try); err != nil {
+				t.Error(err)
 			}
 		})
 	}
+}
+
+// retryInvalid runs the try func up to three times with exponential back-off
+// in its duration argument, starting with the provided initial duration. Calls
+// to try are retried if their first result indicates that they may be invalid,
+// and their second result is a non-nil error.
+func retryInvalid(initial time.Duration, try func(time.Duration) (valid bool, err error)) (err error) {
+	delay := initial
+	for attempts := 3; attempts > 0; attempts-- {
+		var valid bool
+		valid, err = try(delay)
+		if err == nil || valid {
+			return err
+		}
+		delay += delay
+	}
+	return err
 }
