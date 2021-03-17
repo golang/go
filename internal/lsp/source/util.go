@@ -350,6 +350,9 @@ func Qualifier(f *ast.File, pkg *types.Package, info *types.Info) types.Qualifie
 			return ""
 		}
 		if name, ok := imports[p]; ok {
+			if name == "." {
+				return ""
+			}
 			return name
 		}
 		return p.Name()
