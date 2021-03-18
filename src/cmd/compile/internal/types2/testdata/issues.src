@@ -354,10 +354,10 @@ func issue26234c() {
 
 func issue35895() {
 	// T is defined in this package, don't qualify its name with the package name.
-	var _ T = 0 // ERROR cannot convert 0 \(untyped int constant\) to T
+	var _ T = 0 // ERROR cannot use 0 \(untyped int constant\) as T
 
 	// There is only one package with name syntax imported, only use the (global) package name in error messages.
-	var _ *syn.File = 0 // ERROR cannot convert 0 \(untyped int constant\) to \*syntax.File
+	var _ *syn.File = 0 // ERROR cannot use 0 \(untyped int constant\) as \*syntax.File
 
 	// Because both t1 and t2 have the same global package name (template),
 	// qualify packages with full path name in this case.

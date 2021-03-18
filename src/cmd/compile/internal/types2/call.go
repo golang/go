@@ -426,7 +426,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
 
 	// check arguments
 	for i, a := range args {
-		check.assignment(a, sigParams.vars[i].typ, "argument")
+		check.assignment(a, sigParams.vars[i].typ, check.sprintf("argument to %s", call.Fun))
 	}
 
 	return

@@ -95,23 +95,25 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// spec: "As a special case, append also accepts a first argument assignable
 		// to type []byte with a second argument of string type followed by ... .
 		// This form appends the bytes of the string.
-		if nargs == 2 && call.HasDots && x.assignableTo(check, NewSlice(universeByte), nil) {
-			arg(x, 1)
-			if x.mode == invalid {
-				return
-			}
-			if isString(x.typ) {
-				if check.Types != nil {
-					sig := makeSig(S, S, x.typ)
-					sig.variadic = true
-					check.recordBuiltinType(call.Fun, sig)
+		if nargs == 2 && call.HasDots {
+			if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
+				arg(x, 1)
+				if x.mode == invalid {
+					return
 				}
-				x.mode = value
-				x.typ = S
-				break
+				if isString(x.typ) {
+					if check.Types != nil {
+						sig := makeSig(S, S, x.typ)
+						sig.variadic = true
+						check.recordBuiltinType(call.Fun, sig)
+					}
+					x.mode = value
+					x.typ = S
+					break
+				}
+				alist = append(alist, *x)
+				// fallthrough
 			}
-			alist = append(alist, *x)
-			// fallthrough
 		}
 
 		// check general case by creating custom signature
