@@ -147,11 +147,14 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			if len(d.SuggestedFixes) == 0 {
 				continue
 			}
-			kind := protocol.QuickFix
-			if d.Analyzer != nil && d.Analyzer.ActionKind != "" {
-				kind = d.Analyzer.ActionKind
+			var isFix bool
+			for _, fix := range d.SuggestedFixes {
+				if fix.ActionKind == protocol.QuickFix || fix.ActionKind == protocol.SourceFixAll {
+					isFix = true
+					break
+				}
 			}
-			if kind == protocol.QuickFix || kind == protocol.SourceFixAll {
+			if isFix {
 				fixDiags = append(fixDiags, d)
 			} else {
 				nonFixDiags = append(nonFixDiags, d)
@@ -356,25 +359,13 @@ func codeActionsMatchingDiagnostics(ctx context.Context, snapshot source.Snapsho
 func codeActionsForDiagnostic(ctx context.Context, snapshot source.Snapshot, sd *source.Diagnostic, pd *protocol.Diagnostic) ([]protocol.CodeAction, error) {
 	var actions []protocol.CodeAction
 	for _, fix := range sd.SuggestedFixes {
-		action := protocol.CodeAction{
-			Title:   fix.Title,
-			Kind:    protocol.QuickFix,
-			Edit:    protocol.WorkspaceEdit{},
-			Command: fix.Command,
-		}
-		if pd != nil {
-			action.Diagnostics = []protocol.Diagnostic{*pd}
-		}
-		if sd.Analyzer != nil && sd.Analyzer.ActionKind != "" {
-			action.Kind = sd.Analyzer.ActionKind
-		}
-
+		var changes []protocol.TextDocumentEdit
 		for uri, edits := range fix.Edits {
 			fh, err := snapshot.GetVersionedFile(ctx, uri)
 			if err != nil {
 				return nil, err
 			}
-			action.Edit.DocumentChanges = append(action.Edit.DocumentChanges, protocol.TextDocumentEdit{
+			changes = append(changes, protocol.TextDocumentEdit{
 				TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
 					Version: fh.Version(),
 					TextDocumentIdentifier: protocol.TextDocumentIdentifier{
@@ -383,6 +374,17 @@ func codeActionsForDiagnostic(ctx context.Context, snapshot source.Snapshot, sd 
 				},
 				Edits: edits,
 			})
+		}
+		action := protocol.CodeAction{
+			Title: fix.Title,
+			Kind:  fix.ActionKind,
+			Edit: protocol.WorkspaceEdit{
+				DocumentChanges: changes,
+			},
+			Command: fix.Command,
+		}
+		if pd != nil {
+			action.Diagnostics = []protocol.Diagnostic{*pd}
 		}
 		actions = append(actions, action)
 	}

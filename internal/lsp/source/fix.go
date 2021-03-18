@@ -42,10 +42,11 @@ var suggestedFixes = map[string]SuggestedFixFunc{
 	ExtractFunction: extractFunction,
 }
 
-func SuggestedFixFromCommand(cmd protocol.Command) SuggestedFix {
+func SuggestedFixFromCommand(cmd protocol.Command, kind protocol.CodeActionKind) SuggestedFix {
 	return SuggestedFix{
-		Title:   cmd.Title,
-		Command: &cmd,
+		Title:      cmd.Title,
+		Command:    &cmd,
+		ActionKind: kind,
 	}
 }
 

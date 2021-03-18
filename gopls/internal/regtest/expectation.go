@@ -582,8 +582,9 @@ func NoDiagnosticWithMessage(name, msg string) DiagnosticExpectation {
 	return DiagnosticExpectation{path: name, message: msg, present: false}
 }
 
-// GoSum asserts that a "go.sum is out of sync" diagnostic for the given module
-// (as formatted in a go.mod file, e.g. "example.com v1.0.0") is present.
+// GoSumDiagnostic asserts that a "go.sum is out of sync" diagnostic for the
+// given module (as formatted in a go.mod file, e.g. "example.com v1.0.0") is
+// present.
 func (e *Env) GoSumDiagnostic(name, module string) Expectation {
 	e.T.Helper()
 	// In 1.16, go.sum diagnostics should appear on the relevant module. Earlier

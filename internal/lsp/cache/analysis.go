@@ -423,6 +423,7 @@ func (s *snapshot) DiagnosePackage(ctx context.Context, spkg source.Package) (ma
 				clone := *diag
 				clone.SuggestedFixes = eaDiag.SuggestedFixes
 				clone.Tags = eaDiag.Tags
+				clone.Analyzer = eaDiag.Analyzer
 				diag = &clone
 			}
 		}

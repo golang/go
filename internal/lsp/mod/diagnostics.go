@@ -81,7 +81,7 @@ func DiagnosticsForMod(ctx context.Context, snapshot source.Snapshot, fh source.
 			Severity:       protocol.SeverityInformation,
 			Source:         source.UpgradeNotification,
 			Message:        fmt.Sprintf("%v can be upgraded", req.Mod.Path),
-			SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd)},
+			SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd, protocol.QuickFix)},
 		})
 	}
 

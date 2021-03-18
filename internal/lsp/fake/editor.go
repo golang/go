@@ -1039,7 +1039,7 @@ func (e *Editor) References(ctx context.Context, path string, pos Pos) ([]protoc
 }
 
 // CodeAction executes a codeAction request on the server.
-func (e *Editor) CodeAction(ctx context.Context, path string, rng *protocol.Range) ([]protocol.CodeAction, error) {
+func (e *Editor) CodeAction(ctx context.Context, path string, rng *protocol.Range, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
 	if e.Server == nil {
 		return nil, nil
 	}
@@ -1051,6 +1051,9 @@ func (e *Editor) CodeAction(ctx context.Context, path string, rng *protocol.Rang
 	}
 	params := &protocol.CodeActionParams{
 		TextDocument: e.textDocumentIdentifier(path),
+		Context: protocol.CodeActionContext{
+			Diagnostics: diagnostics,
+		},
 	}
 	if rng != nil {
 		params.Range = *rng

@@ -163,7 +163,7 @@ func goGetQuickFixes(snapshot *snapshot, uri span.URI, pkg string) ([]source.Sug
 	if err != nil {
 		return nil, err
 	}
-	return []source.SuggestedFix{source.SuggestedFixFromCommand(cmd)}, nil
+	return []source.SuggestedFix{source.SuggestedFixFromCommand(cmd, protocol.QuickFix)}, nil
 }
 
 func analysisDiagnosticDiagnostics(ctx context.Context, snapshot *snapshot, pkg *pkg, a *analysis.Analyzer, e *analysis.Diagnostic) ([]*source.Diagnostic, error) {
@@ -184,7 +184,11 @@ func analysisDiagnosticDiagnostics(ctx context.Context, snapshot *snapshot, pkg 
 	if err != nil {
 		return nil, err
 	}
-	fixes, err := suggestedAnalysisFixes(snapshot, pkg, e)
+	kinds := srcAnalyzer.ActionKind
+	if len(srcAnalyzer.ActionKind) == 0 {
+		kinds = append(kinds, protocol.QuickFix)
+	}
+	fixes, err := suggestedAnalysisFixes(snapshot, pkg, e, kinds)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +201,9 @@ func analysisDiagnosticDiagnostics(ctx context.Context, snapshot *snapshot, pkg 
 		if err != nil {
 			return nil, err
 		}
-		fixes = append(fixes, source.SuggestedFixFromCommand(cmd))
+		for _, kind := range kinds {
+			fixes = append(fixes, source.SuggestedFixFromCommand(cmd, kind))
+		}
 	}
 	related, err := relatedInformation(snapshot, pkg, e)
 	if err != nil {
@@ -242,7 +248,7 @@ func typesCodeHref(snapshot *snapshot, code typesinternal.ErrorCode) string {
 	return fmt.Sprintf("https://%s/golang.org/x/tools/internal/typesinternal#%s", target, code.String())
 }
 
-func suggestedAnalysisFixes(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnostic) ([]source.SuggestedFix, error) {
+func suggestedAnalysisFixes(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnostic, kinds []protocol.CodeActionKind) ([]source.SuggestedFix, error) {
 	var fixes []source.SuggestedFix
 	for _, fix := range diag.SuggestedFixes {
 		edits := make(map[span.URI][]protocol.TextEdit)
@@ -260,10 +266,14 @@ func suggestedAnalysisFixes(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnos
 				NewText: string(e.NewText),
 			})
 		}
-		fixes = append(fixes, source.SuggestedFix{
-			Title: fix.Message,
-			Edits: edits,
-		})
+		for _, kind := range kinds {
+			fixes = append(fixes, source.SuggestedFix{
+				Title:      fix.Message,
+				Edits:      edits,
+				ActionKind: kind,
+			})
+		}
+
 	}
 	return fixes, nil
 }

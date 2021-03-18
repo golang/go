@@ -74,7 +74,7 @@ func main() {
 	Run(t, "", func(t *testing.T, env *Env) {
 		env.CreateBuffer("main.go", vim1)
 		env.OrganizeImports("main.go")
-		actions := env.CodeAction("main.go")
+		actions := env.CodeAction("main.go", nil)
 		if len(actions) > 0 {
 			got := env.Editor.BufferText("main.go")
 			t.Errorf("unexpected actions %#v", actions)
@@ -107,7 +107,7 @@ func main() {
 	Run(t, "", func(t *testing.T, env *Env) {
 		env.CreateBuffer("main.go", vim2)
 		env.OrganizeImports("main.go")
-		actions := env.CodeAction("main.go")
+		actions := env.CodeAction("main.go", nil)
 		if len(actions) > 0 {
 			t.Errorf("unexpected actions %#v", actions)
 		}

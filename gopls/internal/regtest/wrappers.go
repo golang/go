@@ -388,9 +388,9 @@ func (e *Env) AcceptCompletion(path string, pos fake.Pos, item protocol.Completi
 
 // CodeAction calls testDocument/codeAction for the given path, and calls
 // t.Fatal if there are errors.
-func (e *Env) CodeAction(path string) []protocol.CodeAction {
+func (e *Env) CodeAction(path string, diagnostics []protocol.Diagnostic) []protocol.CodeAction {
 	e.T.Helper()
-	actions, err := e.Editor.CodeAction(e.Ctx, path, nil)
+	actions, err := e.Editor.CodeAction(e.Ctx, path, nil, diagnostics)
 	if err != nil {
 		e.T.Fatal(err)
 	}

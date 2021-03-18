@@ -358,7 +358,7 @@ func (s *snapshot) goCommandDiagnostic(pm *source.ParsedModule, spn span.Span, g
 			Source:   source.ListError,
 			Message: `Inconsistent vendoring detected. Please re-run "go mod vendor".
 See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
-			SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd)},
+			SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd, protocol.QuickFix)},
 		}, nil
 
 	case strings.Contains(goCmdError, "updates to go.sum needed"), strings.Contains(goCmdError, "missing go.sum entry"):
@@ -385,8 +385,8 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 			Source:   source.ListError,
 			Message:  msg,
 			SuggestedFixes: []source.SuggestedFix{
-				source.SuggestedFixFromCommand(tidyCmd),
-				source.SuggestedFixFromCommand(updateCmd),
+				source.SuggestedFixFromCommand(tidyCmd, protocol.QuickFix),
+				source.SuggestedFixFromCommand(updateCmd, protocol.QuickFix),
 			},
 		}, nil
 	case strings.Contains(goCmdError, "disabled by GOPROXY=off") && innermost != nil:
@@ -405,7 +405,7 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 			Severity:       protocol.SeverityError,
 			Message:        fmt.Sprintf("%v@%v has not been downloaded", innermost.Path, innermost.Version),
 			Source:         source.ListError,
-			SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd)},
+			SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd, protocol.QuickFix)},
 		}, nil
 	default:
 		return &source.Diagnostic{

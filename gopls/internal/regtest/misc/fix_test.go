@@ -81,6 +81,25 @@ func Foo() error {
 			env.DiagnosticAtRegexpWithMessage("main.go", `return`, "wrong number of return values"),
 			ReadDiagnostics("main.go", &d),
 		))
+		codeActions := env.CodeAction("main.go", d.Diagnostics)
+		if len(codeActions) != 2 {
+			t.Fatalf("expected 2 code actions, got %v", len(codeActions))
+		}
+		var foundQuickFix, foundFixAll bool
+		for _, a := range codeActions {
+			if a.Kind == protocol.QuickFix {
+				foundQuickFix = true
+			}
+			if a.Kind == protocol.SourceFixAll {
+				foundFixAll = true
+			}
+		}
+		if !foundQuickFix {
+			t.Fatalf("expected quickfix code action, got none")
+		}
+		if !foundFixAll {
+			t.Fatalf("expected fixall code action, got none")
+		}
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
 		env.Await(EmptyDiagnostics("main.go"))
 	})

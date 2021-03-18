@@ -12,9 +12,10 @@ import (
 )
 
 type SuggestedFix struct {
-	Title   string
-	Edits   map[span.URI][]protocol.TextEdit
-	Command *protocol.Command
+	Title      string
+	Edits      map[span.URI][]protocol.TextEdit
+	Command    *protocol.Command
+	ActionKind protocol.CodeActionKind
 }
 
 type RelatedInformation struct {

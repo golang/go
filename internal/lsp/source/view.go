@@ -531,7 +531,7 @@ type Analyzer struct {
 
 	// ActionKind is the kind of code action this analyzer produces. If
 	// unspecified the type defaults to quickfix.
-	ActionKind protocol.CodeActionKind
+	ActionKind []protocol.CodeActionKind
 }
 
 func (a Analyzer) IsEnabled(view View) bool {

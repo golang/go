@@ -341,7 +341,7 @@ func unusedDiagnostic(m *protocol.ColumnMapper, req *modfile.Require, onlyDiagno
 		Severity:       protocol.SeverityWarning,
 		Source:         source.ModTidyError,
 		Message:        fmt.Sprintf("%s is not used in this module", req.Mod.Path),
-		SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd)},
+		SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd, protocol.QuickFix)},
 	}, nil
 }
 
@@ -383,6 +383,7 @@ func directnessDiagnostic(m *protocol.ColumnMapper, req *modfile.Require, comput
 			Edits: map[span.URI][]protocol.TextEdit{
 				m.URI: edits,
 			},
+			ActionKind: protocol.QuickFix,
 		}},
 	}, nil
 }
@@ -413,7 +414,7 @@ func missingModuleDiagnostic(snapshot source.Snapshot, pm *source.ParsedModule, 
 		Severity:       protocol.SeverityError,
 		Source:         source.ModTidyError,
 		Message:        fmt.Sprintf("%s is not in your go.mod file", req.Mod.Path),
-		SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd)},
+		SuggestedFixes: []source.SuggestedFix{source.SuggestedFixFromCommand(cmd, protocol.QuickFix)},
 	}, nil
 }
 

@@ -1080,7 +1080,7 @@ func typeErrorAnalyzers() map[string]*Analyzer {
 	return map[string]*Analyzer{
 		fillreturns.Analyzer.Name: {
 			Analyzer:   fillreturns.Analyzer,
-			ActionKind: protocol.SourceFixAll,
+			ActionKind: []protocol.CodeActionKind{protocol.SourceFixAll, protocol.QuickFix},
 			Enabled:    true,
 		},
 		nonewvars.Analyzer.Name: {
@@ -1105,7 +1105,7 @@ func convenienceAnalyzers() map[string]*Analyzer {
 			Analyzer:   fillstruct.Analyzer,
 			Fix:        FillStruct,
 			Enabled:    true,
-			ActionKind: protocol.RefactorRewrite,
+			ActionKind: []protocol.CodeActionKind{protocol.RefactorRewrite},
 		},
 	}
 }
@@ -1150,9 +1150,21 @@ func defaultAnalyzers() map[string]*Analyzer {
 		unusedwrite.Analyzer.Name:      {Analyzer: unusedwrite.Analyzer, Enabled: false},
 
 		// gofmt -s suite:
-		simplifycompositelit.Analyzer.Name: {Analyzer: simplifycompositelit.Analyzer, Enabled: true, ActionKind: protocol.SourceFixAll},
-		simplifyrange.Analyzer.Name:        {Analyzer: simplifyrange.Analyzer, Enabled: true, ActionKind: protocol.SourceFixAll},
-		simplifyslice.Analyzer.Name:        {Analyzer: simplifyslice.Analyzer, Enabled: true, ActionKind: protocol.SourceFixAll},
+		simplifycompositelit.Analyzer.Name: {
+			Analyzer:   simplifycompositelit.Analyzer,
+			Enabled:    true,
+			ActionKind: []protocol.CodeActionKind{protocol.SourceFixAll, protocol.QuickFix},
+		},
+		simplifyrange.Analyzer.Name: {
+			Analyzer:   simplifyrange.Analyzer,
+			Enabled:    true,
+			ActionKind: []protocol.CodeActionKind{protocol.SourceFixAll, protocol.QuickFix},
+		},
+		simplifyslice.Analyzer.Name: {
+			Analyzer:   simplifyslice.Analyzer,
+			Enabled:    true,
+			ActionKind: []protocol.CodeActionKind{protocol.SourceFixAll, protocol.QuickFix},
+		},
 	}
 }
 
