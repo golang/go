@@ -518,3 +518,11 @@ wall:
 useQPC:
 	JMP	runtime·nowQPC(SB)
 	RET
+
+// func osSetupTLS(mp *m)
+// Setup TLS. for use by needm on Windows.
+TEXT runtime·osSetupTLS(SB),NOSPLIT,$0-8
+	MOVQ	mp+0(FP), AX
+	LEAQ	m_tls(AX), DI
+	CALL	runtime·settls(SB)
+	RET

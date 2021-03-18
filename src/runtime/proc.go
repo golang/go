@@ -1883,6 +1883,10 @@ func needm() {
 	// Store the original signal mask for use by minit.
 	mp.sigmask = sigmask
 
+	// Install TLS on some platforms (previously setg
+	// would do this if necessary).
+	osSetupTLS(mp)
+
 	// Install g (= m->g0) and set the stack bounds
 	// to match the current stack. We don't actually know
 	// how big the stack is, like we don't know how big any
