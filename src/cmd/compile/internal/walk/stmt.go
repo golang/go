@@ -233,6 +233,24 @@ func walkIf(n *ir.IfStmt) ir.Node {
 	return n
 }
 
+// Rewrite
+//	go builtin(x, y, z)
+// into
+//	go func(a1, a2, a3) {
+//		builtin(a1, a2, a3)
+//	}(x, y, z)
+// for print, println, and delete.
+//
+// Rewrite
+//	go f(x, y, uintptr(unsafe.Pointer(z)))
+// into
+//	go func(a1, a2, a3) {
+//		f(a1, a2, uintptr(a3))
+//	}(x, y, unsafe.Pointer(z))
+// for function contains unsafe-uintptr arguments.
+
+var wrapCall_prgen int
+
 // The result of wrapCall MUST be assigned back to n, e.g.
 // 	n.Left = wrapCall(n.Left, init)
 func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
