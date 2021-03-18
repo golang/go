@@ -16,6 +16,7 @@ type Number interface {
 }
 
 type MySlice []int
+type MyFloatSlice []float64
 
 type _SliceOf[E any] interface {
 	type []E
@@ -25,6 +26,15 @@ func _DoubleElems[S _SliceOf[E], E Number](s S) S {
 	r := make(S, len(s))
 	for i, v := range s {
 		r[i] = v + v
+	}
+	return r
+}
+
+// Test use of untyped constant in an expression with a generically-typed parameter
+func _DoubleElems2[S _SliceOf[E], E Number](s S) S {
+	r := make(S, len(s))
+	for i, v := range s {
+		r[i] = v * 2
 	}
 	return r
 }
@@ -46,5 +56,17 @@ func main() {
 	got = _DoubleElems(arg)
 	if !reflect.DeepEqual(got, want) {
                 panic(fmt.Sprintf("got %s, want %s", got, want))
+	}
+
+	farg := MyFloatSlice{1.2, 2.0, 3.5}
+	fwant := MyFloatSlice{2.4, 4.0, 7.0}
+	fgot := _DoubleElems(farg)
+	if !reflect.DeepEqual(fgot, fwant) {
+                panic(fmt.Sprintf("got %s, want %s", fgot, fwant))
+	}
+
+	fgot = _DoubleElems2(farg)
+	if !reflect.DeepEqual(fgot, fwant) {
+                panic(fmt.Sprintf("got %s, want %s", fgot, fwant))
 	}
 }
