@@ -367,7 +367,24 @@ func (subst *subster) node(n ir.Node) ir.Node {
 		}
 		ir.EditChildren(m, edit)
 
-		if x.Op() == ir.OXDOT {
+		switch x.Op() {
+		case ir.OLITERAL:
+			t := m.Type()
+			if t != x.Type() {
+				// types2 will give us a constant with a type T,
+				// if an untyped constant is used with another
+				// operand of type T (in a provably correct way).
+				// When we substitute in the type args during
+				// stenciling, we now know the real type of the
+				// constant. We may then need to change the
+				// BasicLit.val to be the correct type (e.g.
+				// convert an int64Val constant to a floatVal
+				// constant).
+				m.SetType(types.UntypedInt) // use any untyped type for DefaultLit to work
+				m = typecheck.DefaultLit(m, t)
+			}
+
+		case ir.OXDOT:
 			// A method value/call via a type param will have been left as an
 			// OXDOT. When we see this during stenciling, finish the
 			// typechecking, now that we have the instantiated receiver type.
@@ -377,8 +394,8 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			m.SetTypecheck(0)
 			// m will transform to an OCALLPART
 			typecheck.Expr(m)
-		}
-		if x.Op() == ir.OCALL {
+
+		case ir.OCALL:
 			call := m.(*ir.CallExpr)
 			if call.X.Op() == ir.OTYPE {
 				// Do typechecking on a conversion, now that we
@@ -419,9 +436,8 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// instantiation to be called.
 				base.FatalfAt(call.Pos(), "Expecting OCALLPART or OTYPE or OFUNCINST or builtin with CALL")
 			}
-		}
 
-		if x.Op() == ir.OCLOSURE {
+		case ir.OCLOSURE:
 			x := x.(*ir.ClosureExpr)
 			// Need to save/duplicate x.Func.Nname,
 			// x.Func.Nname.Ntype, x.Func.Dcl, x.Func.ClosureVars, and
