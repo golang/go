@@ -513,7 +513,7 @@ func (t *test) run() {
 		return
 	}
 
-	var args, flags []string
+	var args, flags, runenv []string
 	var tim int
 	wantError := false
 	wantAuto := false
@@ -572,6 +572,9 @@ func (t *test) run() {
 			if err != nil {
 				t.err = fmt.Errorf("need number of seconds for -t timeout, got %s instead", args[0])
 			}
+		case "-goexperiment": // set GOEXPERIMENT environment
+			args = args[1:]
+			runenv = append(runenv, "GOEXPERIMENT="+args[0])
 
 		default:
 			flags = append(flags, args[0])
@@ -628,6 +631,7 @@ func (t *test) run() {
 		if tempDirIsGOPATH {
 			cmd.Env = append(cmd.Env, "GOPATH="+t.tempDir)
 		}
+		cmd.Env = append(cmd.Env, runenv...)
 
 		var err error
 
