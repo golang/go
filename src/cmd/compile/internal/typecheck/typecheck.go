@@ -297,7 +297,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 
 	// Skip typecheck if already done.
 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
-	if n.Typecheck() == 1 {
+	if n.Typecheck() == 1 || n.Typecheck() == 3 {
 		switch n.Op() {
 		case ir.ONAME, ir.OTYPE, ir.OLITERAL, ir.OPACK:
 			break
@@ -1640,7 +1640,7 @@ func checkassignto(src *types.Type, dst ir.Node) {
 		return
 	}
 
-	if op, why := assignop(src, dst.Type()); op == ir.OXXX {
+	if op, why := Assignop(src, dst.Type()); op == ir.OXXX {
 		base.Errorf("cannot assign %v to %L in multiple assignment%s", src, dst, why)
 		return
 	}

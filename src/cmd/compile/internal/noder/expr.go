@@ -64,7 +64,7 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
 	}
 
 	n := g.expr0(typ, expr)
-	if n.Typecheck() != 1 {
+	if n.Typecheck() != 1 && n.Typecheck() != 3 {
 		base.FatalfAt(g.pos(expr), "missed typecheck: %+v", n)
 	}
 	if !g.match(n.Type(), typ, tv.HasOk()) {
@@ -161,7 +161,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 		return g.selectorExpr(pos, typ, expr)
 
 	case *syntax.SliceExpr:
-		return Slice(pos, g.expr(expr.X), g.expr(expr.Index[0]), g.expr(expr.Index[1]), g.expr(expr.Index[2]))
+		return Slice(pos, g.typ(typ), g.expr(expr.X), g.expr(expr.Index[0]), g.expr(expr.Index[1]), g.expr(expr.Index[2]))
 
 	case *syntax.Operation:
 		if expr.Y == nil {
@@ -171,7 +171,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 		case ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
 			return Compare(pos, g.typ(typ), op, g.expr(expr.X), g.expr(expr.Y))
 		default:
-			return Binary(pos, op, g.expr(expr.X), g.expr(expr.Y))
+			return Binary(pos, op, g.typ(typ), g.expr(expr.X), g.expr(expr.Y))
 		}
 
 	default:

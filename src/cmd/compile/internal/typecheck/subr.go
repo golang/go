@@ -317,7 +317,7 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
 		return n
 	}
 
-	op, why := assignop(n.Type(), t)
+	op, why := Assignop(n.Type(), t)
 	if op == ir.OXXX {
 		base.Errorf("cannot use %L as type %v in %s%s", n, t, context(), why)
 		op = ir.OCONV
@@ -333,7 +333,7 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
 // If so, return op code to use in conversion.
 // If not, return OXXX. In this case, the string return parameter may
 // hold a reason why. In all other cases, it'll be the empty string.
-func assignop(src, dst *types.Type) (ir.Op, string) {
+func Assignop(src, dst *types.Type) (ir.Op, string) {
 	if src == dst {
 		return ir.OCONVNOP, ""
 	}
@@ -483,7 +483,7 @@ func convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 	}
 
 	// 1. src can be assigned to dst.
-	op, why := assignop(src, dst)
+	op, why := Assignop(src, dst)
 	if op != ir.OXXX {
 		return op, why
 	}

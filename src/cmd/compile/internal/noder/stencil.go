@@ -367,6 +367,23 @@ func (subst *subster) node(n ir.Node) ir.Node {
 		}
 		ir.EditChildren(m, edit)
 
+		if x.Typecheck() == 3 {
+			// These are nodes whose transforms were delayed until
+			// their instantiated type was known.
+			if typecheck.IsCmp(x.Op()) {
+				transformCompare(m.(*ir.BinaryExpr))
+				m.SetTypecheck(1)
+			} else if x.Op() == ir.OSLICE || x.Op() == ir.OSLICE3 {
+				transformSlice(m.(*ir.SliceExpr))
+				m.SetTypecheck(1)
+			} else if x.Op() == ir.OADD {
+				m = transformAdd(m.(*ir.BinaryExpr))
+				m.SetTypecheck(1)
+			} else {
+				base.Fatalf("Unexpected node with Typecheck() == 3")
+			}
+		}
+
 		switch x.Op() {
 		case ir.OLITERAL:
 			t := m.Type()
