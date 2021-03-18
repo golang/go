@@ -363,3 +363,9 @@ func issue35895() {
 	// qualify packages with full path name in this case.
 	var _ t1.Template = t2 /* ERROR cannot use .* \(value of type "html/template".Template\) as "text/template".Template */ .Template{}
 }
+
+func issue42989(s uint) {
+	var m map[int]string
+	delete(m, 1<<s)
+	delete(m, 1.<<s)
+}
