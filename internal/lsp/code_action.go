@@ -138,19 +138,6 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			return nil, err
 		}
 		fileDiags := append(pkgDiagnostics[uri], analysisDiags[uri]...)
-		modURI := snapshot.GoModForFile(fh.URI())
-		if modURI != "" {
-			modFH, err := snapshot.GetVersionedFile(ctx, modURI)
-			if err != nil {
-				return nil, err
-			}
-			modDiags, err := mod.DiagnosticsForMod(ctx, snapshot, modFH)
-			if err != nil && !source.IsNonFatalGoModError(err) {
-				// Not a fatal error.
-				event.Error(ctx, "module suggested fixes failed", err, tag.Directory.Of(snapshot.View().Folder()))
-			}
-			fileDiags = append(fileDiags, modDiags...)
-		}
 
 		// Split diagnostics into fixes, which must match incoming diagnostics,
 		// and non-fixes, which must match the requested range. Build actions
