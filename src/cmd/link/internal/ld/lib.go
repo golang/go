@@ -2416,7 +2416,7 @@ func (sc *stkChk) print(ch *chain, limit int) {
 	ctxt := sc.ctxt
 	var name string
 	if ch.sym != 0 {
-		name = ldr.SymName(ch.sym)
+		name = fmt.Sprintf("%s<%d>", ldr.SymName(ch.sym), ldr.SymVersion(ch.sym))
 		if ldr.IsNoSplit(ch.sym) {
 			name += " (nosplit)"
 		}
