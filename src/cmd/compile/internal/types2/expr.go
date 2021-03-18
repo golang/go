@@ -145,11 +145,11 @@ func opName(e *syntax.Operation) string {
 	return ""
 }
 
-// Entries must be "" or end with a space.
 var op2str1 = [...]string{
 	syntax.Xor: "bitwise complement",
 }
 
+// This is only used for operations that may cause overflow.
 var op2str2 = [...]string{
 	syntax.Add: "addition",
 	syntax.Sub: "subtraction",
@@ -410,11 +410,51 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
 	return false
 }
 
-// representable checks that a constant operand is representable in the given basic type.
+// An errorCode is a (constant) value uniquely identifing a specific error.
+type errorCode int
+
+// The following error codes are "borrowed" from go/types which codes for
+// all errors. Here we list the few codes currently needed by the various
+// conversion checking functions.
+// Eventually we will switch to reporting codes for all errors, using a
+// an error code table shared between types2 and go/types.
+const (
+	_ = errorCode(iota)
+	_TruncatedFloat
+	_NumericOverflow
+	_InvalidConstVal
+	_InvalidUntypedConversion
+
+	// The following error codes are only returned by operand.assignableTo
+	// and none of its callers use the error. Still, we keep returning the
+	// error codes to make the transition to reporting error codes all the
+	// time easier in the future.
+	_IncompatibleAssign
+	_InvalidIfaceAssign
+	_InvalidChanAssign
+)
+
+// representable checks that a constant operand is representable in the given
+// basic type.
 func (check *Checker) representable(x *operand, typ *Basic) {
+	v, code := check.representation(x, typ)
+	if code != 0 {
+		check.invalidConversion(code, x, typ)
+		x.mode = invalid
+		return
+	}
+	assert(v != nil)
+	x.val = v
+}
+
+// representation returns the representation of the constant operand x as the
+// basic type typ.
+//
+// If no such representation is possible, it returns a non-zero error code.
+func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, errorCode) {
 	assert(x.mode == constant_)
-	if !representableConst(x.val, check, typ, &x.val) {
-		var msg string
+	v := x.val
+	if !representableConst(x.val, check, typ, &v) {
 		if isNumeric(x.typ) && isNumeric(typ) {
 			// numeric conversion : error msg
 			//
@@ -424,16 +464,25 @@ func (check *Checker) representable(x *operand, typ *Basic) {
 			// float   -> float   : overflows
 			//
 			if !isInteger(x.typ) && isInteger(typ) {
-				msg = "%s truncated to %s"
+				return nil, _TruncatedFloat
 			} else {
-				msg = "%s overflows %s"
+				return nil, _NumericOverflow
 			}
-		} else {
-			msg = "cannot convert %s to %s"
 		}
-		check.errorf(x, msg, x, typ)
-		x.mode = invalid
+		return nil, _InvalidConstVal
 	}
+	return v, 0
+}
+
+func (check *Checker) invalidConversion(code errorCode, x *operand, target Type) {
+	msg := "cannot convert %s to %s"
+	switch code {
+	case _TruncatedFloat:
+		msg = "%s truncated to %s"
+	case _NumericOverflow:
+		msg = "%s overflows %s"
+	}
+	check.errorf(x, msg, x, target)
 }
 
 // updateExprType updates the type of x to typ and invokes itself
@@ -592,13 +641,33 @@ func (check *Checker) updateExprVal(x syntax.Expr, val constant.Value) {
 
 // convertUntyped attempts to set the type of an untyped value to the target type.
 func (check *Checker) convertUntyped(x *operand, target Type) {
-	target = expand(target)
-	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
+	newType, val, code := check.implicitTypeAndValue(x, target)
+	if code != 0 {
+		check.invalidConversion(code, x, target.Underlying())
+		x.mode = invalid
 		return
 	}
+	if val != nil {
+		x.val = val
+		check.updateExprVal(x.expr, val)
+	}
+	if newType != x.typ {
+		x.typ = newType
+		check.updateExprType(x.expr, newType, false)
+	}
+}
 
-	// TODO(gri) Sloppy code - clean up. This function is central
-	//           to assignment and expression checking.
+// implicitTypeAndValue returns the implicit type of x when used in a context
+// where the target type is expected. If no such implicit conversion is
+// possible, it returns a nil Type and non-zero error code.
+//
+// If x is a constant operand, the returned constant.Value will be the
+// representation of x in this context.
+func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, constant.Value, errorCode) {
+	target = expand(target)
+	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
+		return x.typ, nil, 0
+	}
 
 	if isUntyped(target) {
 		// both x and target are untyped
@@ -606,129 +675,84 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 		tkind := target.(*Basic).kind
 		if isNumeric(x.typ) && isNumeric(target) {
 			if xkind < tkind {
-				x.typ = target
-				check.updateExprType(x.expr, target, false)
+				return target, nil, 0
 			}
 		} else if xkind != tkind {
-			goto Error
+			return nil, nil, _InvalidUntypedConversion
 		}
-		return
+		return x.typ, nil, 0
 	}
-
-	// In case of a type parameter, conversion must succeed against
-	// all types enumerated by the type parameter bound.
-	// TODO(gri) We should not need this because we have the code
-	// for Sum types in convertUntypedInternal. But at least one
-	// test fails. Investigate.
-	if t := asTypeParam(target); t != nil {
-		types := t.Bound().allTypes
-		if types == nil {
-			goto Error
-		}
-
-		for _, t := range unpack(types) {
-			x := *x // make a copy; convertUntypedInternal modifies x
-			check.convertUntypedInternal(&x, t, false)
-			if x.mode == invalid {
-				goto Error
-			}
-		}
-
-		x.typ = target
-		check.updateExprType(x.expr, target, true)
-		return
-	}
-
-	check.convertUntypedInternal(x, target, true)
-	return
-
-Error:
-	// TODO(gri) better error message (explain cause)
-	check.errorf(x, "cannot convert %s to %s", x, target)
-	x.mode = invalid
-}
-
-// convertUntypedInternal should only be called by convertUntyped.
-func (check *Checker) convertUntypedInternal(x *operand, target Type, update bool) {
-	assert(isTyped(target))
 
 	if x.isNil() {
 		assert(isUntyped(x.typ))
 		if hasNil(target) {
-			goto OK
+			return target, nil, 0
 		}
-		goto Error
+		return nil, nil, _InvalidUntypedConversion
 	}
 
-	// typed target
 	switch t := optype(target).(type) {
 	case *Basic:
 		if x.mode == constant_ {
-			check.representable(x, t)
-			if x.mode == invalid {
-				return
+			v, code := check.representation(x, t)
+			if code != 0 {
+				return nil, nil, code
 			}
-			// expression value may have been rounded - update if needed
-			if update {
-				check.updateExprVal(x.expr, x.val)
+			return target, v, code
+		}
+		// Non-constant untyped values may appear as the
+		// result of comparisons (untyped bool), intermediate
+		// (delayed-checked) rhs operands of shifts, and as
+		// the value nil.
+		switch x.typ.(*Basic).kind {
+		case UntypedBool:
+			if !isBoolean(target) {
+				return nil, nil, _InvalidUntypedConversion
 			}
-		} else {
-			// Non-constant untyped values may appear as the
-			// result of comparisons (untyped bool), intermediate
-			// (delayed-checked) rhs operands of shifts, and as
-			// the value nil. Nil was handled upfront.
-			switch x.typ.(*Basic).kind {
-			case UntypedBool:
-				if !isBoolean(target) {
-					goto Error
-				}
-			case UntypedInt, UntypedRune, UntypedFloat, UntypedComplex:
-				if !isNumeric(target) {
-					goto Error
-				}
-			case UntypedString:
-				// Non-constant untyped string values are not
-				// permitted by the spec and should not occur.
-				unreachable()
-			default:
-				goto Error
+		case UntypedInt, UntypedRune, UntypedFloat, UntypedComplex:
+			if !isNumeric(target) {
+				return nil, nil, _InvalidUntypedConversion
 			}
+		case UntypedString:
+			// Non-constant untyped string values are not permitted by the spec and
+			// should not occur during normal typechecking passes, but this path is
+			// reachable via the AssignableTo API.
+			if !isString(target) {
+				return nil, nil, _InvalidUntypedConversion
+			}
+		default:
+			return nil, nil, _InvalidUntypedConversion
 		}
 	case *Sum:
-		t.is(func(t Type) bool {
-			check.convertUntypedInternal(x, t, false)
-			return x.mode != invalid
+		ok := t.is(func(t Type) bool {
+			target, _, _ := check.implicitTypeAndValue(x, t)
+			return target != nil
 		})
+		if !ok {
+			return nil, nil, _InvalidUntypedConversion
+		}
 	case *Interface:
-		// Update operand types to the default type rather then the target
+		// Update operand types to the default type rather than the target
 		// (interface) type: values must have concrete dynamic types.
 		// Untyped nil was handled upfront.
 		check.completeInterface(nopos, t)
 		if !t.Empty() {
-			goto Error // cannot assign untyped values to non-empty interfaces
+			return nil, nil, _InvalidUntypedConversion // cannot assign untyped values to non-empty interfaces
 		}
-		target = Default(x.typ)
+		return Default(x.typ), nil, 0 // default type for nil is nil
 	default:
-		goto Error
+		return nil, nil, _InvalidUntypedConversion
 	}
-
-OK:
-	x.typ = target
-	if update {
-		check.updateExprType(x.expr, target, true)
-	}
-	return
-
-Error:
-	check.errorf(x, "cannot convert %s to %s", x, target)
-	x.mode = invalid
+	return target, nil, 0
 }
 
 func (check *Checker) comparison(x, y *operand, op syntax.Operator) {
 	// spec: "In any comparison, the first operand must be assignable
 	// to the type of the second operand, or vice versa."
 	err := ""
-	if x.assignableTo(check, y.typ, nil) || y.assignableTo(check, x.typ, nil) {
+	xok, _ := x.assignableTo(check, y.typ, nil)
+	yok, _ := y.assignableTo(check, x.typ, nil)
+	if xok || yok {
 		defined := false
 		switch op {
 		case syntax.Eql, syntax.Neq:

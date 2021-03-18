@@ -33,8 +33,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		// spec: "If an untyped constant is assigned to a variable of interface
 		// type or the blank identifier, the constant is first converted to type
 		// bool, rune, int, float64, complex128 or string respectively, depending
-		// on whether the value is a boolean, rune, integer, floating-point, complex,
-		// or string constant."
+		// on whether the value is a boolean, rune, integer, floating-point,
+		// complex, or string constant."
 		if x.isNil() {
 			if T == nil {
 				check.errorf(x, "use of untyped nil in %s", context)
@@ -44,9 +44,26 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		} else if T == nil || IsInterface(T) {
 			target = Default(x.typ)
 		}
-		check.convertUntyped(x, target)
-		if x.mode == invalid {
+		newType, val, code := check.implicitTypeAndValue(x, target)
+		if code != 0 {
+			msg := check.sprintf("cannot use %s as %s value in %s", x, target, context)
+			switch code {
+			case _TruncatedFloat:
+				msg += " (truncated)"
+			case _NumericOverflow:
+				msg += " (overflows)"
+			}
+			check.error(x, msg)
+			x.mode = invalid
 			return
+		}
+		if val != nil {
+			x.val = val
+			check.updateExprVal(x.expr, val)
+		}
+		if newType != x.typ {
+			x.typ = newType
+			check.updateExprType(x.expr, newType, false)
 		}
 	}
 	// x.typ is typed
@@ -63,7 +80,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		return
 	}
 
-	if reason := ""; !x.assignableTo(check, T, &reason) {
+	reason := ""
+	if ok, _ := x.assignableTo(check, T, &reason); !ok {
 		if check.conf.CompilerErrorMessages {
 			check.errorf(x, "incompatible type: cannot use %s as %s value", x, T)
 		} else {
