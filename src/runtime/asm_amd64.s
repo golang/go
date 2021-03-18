@@ -796,7 +796,18 @@ TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	MOVQ	BX, savedm-8(SP)	// saved copy of oldm
 	JMP	havem
 needm:
-	MOVQ    $runtime·needm(SB), AX
+	// On some platforms (Windows) we cannot call needm through
+	// an ABI wrapper because there's no TLS set up, and the ABI
+	// wrapper will try to restore the G register (R14) from TLS.
+	// Clear X15 because Go expects it and we're not calling
+	// through a wrapper, but otherwise avoid setting the G
+	// register in the wrapper and call needm directly. It
+	// takes no arguments and doesn't return any values so
+	// there's no need to handle that. Clear R14 so that there's
+	// a bad value in there, in case needm tries to use it.
+	XORPS	X15, X15
+	XORQ    R14, R14
+	MOVQ	$runtime·needm<ABIInternal>(SB), AX
 	CALL	AX
 	MOVQ	$0, savedm-8(SP) // dropm on return
 	get_tls(CX)
@@ -890,9 +901,17 @@ havem:
 	// for the duration of the call. Since the call is over, return it with dropm.
 	MOVQ	savedm-8(SP), BX
 	CMPQ	BX, $0
-	JNE 3(PC)
+	JNE	done
 	MOVQ	$runtime·dropm(SB), AX
 	CALL	AX
+#ifdef GOOS_windows
+	// We need to clear the TLS pointer in case the next
+	// thread that comes into Go tries to reuse that space
+	// but uses the same M.
+	XORQ	DI, DI
+	CALL	runtime·settls(SB)
+#endif
+done:
 
 	// Done!
 	RET
@@ -901,16 +920,6 @@ havem:
 // set g. for use by needm.
 TEXT runtime·setg(SB), NOSPLIT, $0-8
 	MOVQ	gg+0(FP), BX
-#ifdef GOOS_windows
-	CMPQ	BX, $0
-	JNE	settls
-	MOVQ	$0, 0x28(GS)
-	RET
-settls:
-	MOVQ	g_m(BX), AX
-	LEAQ	m_tls(AX), AX
-	MOVQ	AX, 0x28(GS)
-#endif
 	get_tls(CX)
 	MOVQ	BX, g(CX)
 	RET
