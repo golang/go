@@ -30,7 +30,6 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
 	}
 	switch {
 	case tv.IsBuiltin():
-		// TODO(mdempsky): Handle in CallExpr?
 		return g.use(expr.(*syntax.Name))
 	case tv.IsType():
 		return ir.TypeNode(g.typ(tv.Type))
@@ -82,8 +81,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 		if _, isNil := g.info.Uses[expr].(*types2.Nil); isNil {
 			return Nil(pos, g.typ(typ))
 		}
-		// TODO(mdempsky): Remove dependency on typecheck.Expr.
-		return typecheck.Expr(g.use(expr))
+		return g.use(expr)
 
 	case *syntax.CompositeLit:
 		return g.compLit(typ, expr)
@@ -157,8 +155,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 		// Qualified identifier.
 		if name, ok := expr.X.(*syntax.Name); ok {
 			if _, ok := g.info.Uses[name].(*types2.PkgName); ok {
-				// TODO(mdempsky): Remove dependency on typecheck.Expr.
-				return typecheck.Expr(g.use(expr.Sel))
+				return g.use(expr.Sel)
 			}
 		}
 		return g.selectorExpr(pos, typ, expr)
