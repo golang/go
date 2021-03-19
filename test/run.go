@@ -1939,7 +1939,6 @@ var excluded = map[string]bool{
 	"writebarrier.go": true, // correct diagnostics, but different lines (probably irgen's fault)
 
 	"fixedbugs/bug176.go":    true, // types2 reports all errors (pref: types2)
-	"fixedbugs/bug193.go":    true, // types2 bug: shift error not reported (fixed in go/types)
 	"fixedbugs/bug195.go":    true, // types2 reports slightly different (but correct) bugs
 	"fixedbugs/bug228.go":    true, // types2 not run after syntax errors
 	"fixedbugs/bug231.go":    true, // types2 bug? (same error reported twice)
