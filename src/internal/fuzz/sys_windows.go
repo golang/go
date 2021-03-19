@@ -135,6 +135,7 @@ func getWorkerComm() (comm workerComm, err error) {
 }
 
 func isInterruptError(err error) bool {
-	// TODO(jayconrod): implement
+	// On Windows, we can't tell whether the process was interrupted by the error
+	// returned by Wait. It looks like an ExitError with status 1.
 	return false
 }
