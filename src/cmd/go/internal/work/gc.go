@@ -70,7 +70,15 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 			// as of Go 1.12, so any module that still lacks such a directive must
 			// either have been authored before then, or have a hand-edited go.mod
 			// file that hasn't been updated by cmd/go since that edit.
-			v = "1.11"
+			//
+			// Unfortunately, through at least Go 1.16 we didn't add versions to
+			// vendor/modules.txt. So this could also be a vendored 1.16 dependency.
+			//
+			// Fortunately, there were no breaking changes to the language between Go
+			// 1.11 and 1.16, so if we assume Go 1.16 semantics we will not introduce
+			// any spurious errors — we will only mask errors, and not particularly
+			// important ones at that.
+			v = "1.16"
 		}
 		if allowedVersion(v) {
 			gcargs = append(gcargs, "-lang=go"+v)

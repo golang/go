@@ -67,6 +67,18 @@ Do not send CLs removing the interior tags from such phrases.
   Go 1.12</a>.)
 </p>
 
+<p><!-- golang.org/issue/44976 -->
+  If a module dependency lacks an explicit <code>go.mod</code> file, or
+  its <code>go.mod</code> file does not contain
+  a <a href="/doc/modules/gomod-ref#go"><code>go</code> directive</a>,
+  the <code>go</code> command now assumes <code>go 1.16</code> for that
+  dependency instead of the current release. (Dependencies developed in GOPATH
+  mode may lack a <code>go.mod</code> file, and
+  the <code>vendor/modules.txt</code> has to date never recorded
+  the <code>go</code> versions indicated by dependencies' <code>go.mod</code>
+  files.)
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p>

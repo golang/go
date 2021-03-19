@@ -405,9 +405,38 @@ func LoadModFile(ctx context.Context) {
 		readVendorList()
 		checkVendorConsistency()
 	}
-	if index.goVersionV == "" && cfg.BuildMod == "mod" {
-		addGoStmt()
-		WriteGoMod()
+	if index.goVersionV == "" {
+		// The main module necessarily has a go.mod file, and that file lacks a
+		// 'go' directive. The 'go' command has been adding that directive
+		// automatically since Go 1.12, so this module either dates to Go 1.11 or
+		// has been erroneously hand-edited.
+		//
+		// If we are able to modify the go.mod file, we will add a 'go' directive
+		// to at least make the situation explicit going forward.
+		if cfg.BuildMod == "mod" {
+			// TODO(#44976): If we implicitly upgrade to the latest Go version once
+			// lazy loading is implemented, we could accidentally prune out
+			// dependencies from what was formerly a Go 1.11 module, resulting in
+			// downgrades (if only lower requirements on that module remain) and/or
+			// upgrades (if no requirement remains and we end up re-resolving to
+			// latest).
+			//
+			// We should probably instead load the dependencies using Go 1.11
+			// semantics to ensure that we capture everything that is relevant, or
+			// perhaps error out and let the user tell us which version they intend.
+			//
+			// If we are running 'go mod tidy' in particular, we will have enough
+			// information to upgrade the 'go' version after loading is complete.
+			addGoStmt(latestGoVersion())
+			WriteGoMod()
+		} else {
+			// Reproducibility requires that if we change the semantics of a module,
+			// we write some explicit change to its go.mod file. We cannot write to
+			// the go.mod file (because we are in readonly or vendor mode), so we must
+			// not change its semantics either. The go.mod file looks as if it were
+			// created by Go 1.11, so assume Go 1.11 semantics.
+			rawGoVersion.Store(Target, "1.11")
+		}
 	}
 }
 
@@ -442,7 +471,7 @@ func CreateModFile(ctx context.Context, modPath string) {
 	modFile = new(modfile.File)
 	modFile.AddModuleStmt(modPath)
 	initTarget(modFile.Module.Mod)
-	addGoStmt() // Add the go directive before converted module requirements.
+	addGoStmt(latestGoVersion()) // Add the go directive before converted module requirements.
 
 	convertedFrom, err := convertLegacyConfig(modPath)
 	if convertedFrom != "" {
@@ -680,11 +709,10 @@ func convertLegacyConfig(modPath string) (from string, err error) {
 // addGoStmt adds a go directive to the go.mod file if it does not already
 // include one. The 'go' version added, if any, is the latest version supported
 // by this toolchain.
-func addGoStmt() {
+func addGoStmt(v string) {
 	if modFile.Go != nil && modFile.Go.Version != "" {
 		return
 	}
-	v := latestGoVersion()
 	if err := modFile.AddGoStmt(v); err != nil {
 		base.Fatalf("go: internal error: %v", err)
 	}
@@ -692,7 +720,7 @@ func addGoStmt() {
 }
 
 // latestGoVersion returns the latest version of the Go language supported by
-// this toolchain.
+// this toolchain, like "1.17".
 func latestGoVersion() string {
 	tags := build.Default.ReleaseTags
 	version := tags[len(tags)-1]
