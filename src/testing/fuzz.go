@@ -362,7 +362,7 @@ func (f *F) Fuzz(ff interface{}) {
 		if err != nil {
 			f.result = FuzzResult{Error: err}
 			f.Fail()
-			fmt.Fprintf(f.w, "%v", err)
+			fmt.Fprintf(f.w, "%v\n", err)
 			if crashErr, ok := err.(fuzzCrashError); ok {
 				crashName := crashErr.CrashName()
 				fmt.Fprintf(f.w, "Crash written to %s\n", filepath.Join("testdata/corpus", f.name, crashName))
