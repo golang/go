@@ -23,39 +23,46 @@ FLAGS2="-newexport=1"
 echo
 echo
 echo "1a) clean build using $FLAGS1"
-(export GO_GCFLAGS="$FLAGS1"; sh make.bash)
+(
+	export GO_GCFLAGS="$FLAGS1"
+	sh make.bash
+)
 
 echo
 echo
 echo "1b) save go build output for all packages"
-for pkg in `go list std`; do
+for pkg in $(go list std); do
 	echo $pkg
 	DIR=$GOROOT/src/$pkg
-	go build -gcflags "$FLAGS1 -S" -o /dev/null $pkg &> $DIR/old.txt
+	go build -gcflags "$FLAGS1 -S" -o /dev/null $pkg &>$DIR/old.txt
 done
 
 echo
 echo
 echo "2a) clean build using $FLAGS2"
-(export GO_GCFLAGS="$FLAGS2"; sh make.bash)
+(
+	export GO_GCFLAGS="$FLAGS2"
+	sh make.bash
+)
 
 echo
 echo
 echo "2b) save go build output for all packages"
-for pkg in `go list std`; do
+for pkg in $(go list std); do
 	echo $pkg
 	DIR=$GOROOT/src/$pkg
-	go build -gcflags "$FLAGS2 -S" -o /dev/null $pkg &> $DIR/new.txt
+	go build -gcflags "$FLAGS2 -S" -o /dev/null $pkg &>$DIR/new.txt
 done
 
 echo
 echo
 echo "3) compare assembly files"
-for pkg in `go list std`; do
+for pkg in $(go list std); do
 	DIR=$GOROOT/src/$pkg
 
-	if cmp $DIR/old.txt $DIR/new.txt &> /dev/null
-	then rm $DIR/old.txt $DIR/new.txt
-	else echo "==> $DIR"
+	if cmp $DIR/old.txt $DIR/new.txt &>/dev/null; then
+		rm $DIR/old.txt $DIR/new.txt
+	else
+		echo "==> $DIR"
 	fi
 done

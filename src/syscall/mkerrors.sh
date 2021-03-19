@@ -262,7 +262,7 @@ ccflags="$@"
 	# The gcc command line prints all the #defines
 	# it encounters while processing the input
 	echo "${!indirect} $includes" | $CC -x c - -E -dM $ccflags |
-	awk '
+		awk '
 		$1 != "#define" || $2 ~ /\(/ || $3 == "" {next}
 
 		$2 ~ /^E([ABCD]X|[BIS]P|[SD]I|S|FL)$/ {next}  # 386 registers
@@ -333,16 +333,16 @@ ccflags="$@"
 # Pull out the error names for later.
 errors=$(
 	echo '#include <errno.h>' | $CC -x c - -E -dM $ccflags |
-	awk '$1=="#define" && $2 ~ /^E[A-Z0-9_]+$/ { print $2 }' |
-	sort
+		awk '$1=="#define" && $2 ~ /^E[A-Z0-9_]+$/ { print $2 }' |
+		sort
 )
 
 # Pull out the signal names for later.
 signals=$(
 	echo '#include <signal.h>' | $CC -x c - -E -dM $ccflags |
-	awk '$1=="#define" && $2 ~ /^SIG[A-Z0-9]+$/ { print $2 }' |
-	egrep -v '(SIGSTKSIZE|SIGSTKSZ|SIGRT)' |
-	sort
+		awk '$1=="#define" && $2 ~ /^SIG[A-Z0-9]+$/ { print $2 }' |
+		egrep -v '(SIGSTKSIZE|SIGSTKSZ|SIGRT)' |
+		sort
 )
 
 # Again, writing regexps to a file.
@@ -387,8 +387,7 @@ enum { A = 'A', Z = 'Z', a = 'a', z = 'z' }; // avoid need for single quotes bel
 
 int errors[] = {
 "
-	for i in $errors
-	do
+	for i in $errors; do
 		echo -E '	'$i,
 	done
 
@@ -397,8 +396,7 @@ int errors[] = {
 
 int signals[] = {
 "
-	for i in $signals
-	do
+	for i in $signals; do
 		echo -E '	'$i,
 	done
 
@@ -432,7 +430,7 @@ main(void)
 		printf("\t%d: \"%s\",\n", e, buf);
 	}
 	printf("}\n\n");
-	
+
 	printf("\n\n// Signal table\n");
 	printf("var signals = [...]string {\n");
 	qsort(signals, nelem(signals), sizeof signals[0], intcmp);

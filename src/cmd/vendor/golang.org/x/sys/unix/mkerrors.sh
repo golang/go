@@ -409,7 +409,6 @@ includes_SunOS='
 #include <netinet/ip_mroute.h>
 '
 
-
 includes='
 #include <sys/types.h>
 #include <sys/file.h>
@@ -444,7 +443,7 @@ ccflags="$@"
 	# The gcc command line prints all the #defines
 	# it encounters while processing the input
 	echo "${!indirect} $includes" | $CC -x c - -E -dM $ccflags |
-	awk '
+		awk '
 		$1 != "#define" || $2 ~ /\(/ || $3 == "" {next}
 
 		$2 ~ /^E([ABCD]X|[BIS]P|[SD]I|S|FL)$/ {next}  # 386 registers
@@ -603,16 +602,16 @@ ccflags="$@"
 # Pull out the error names for later.
 errors=$(
 	echo '#include <errno.h>' | $CC -x c - -E -dM $ccflags |
-	awk '$1=="#define" && $2 ~ /^E[A-Z0-9_]+$/ { print $2 }' |
-	sort
+		awk '$1=="#define" && $2 ~ /^E[A-Z0-9_]+$/ { print $2 }' |
+		sort
 )
 
 # Pull out the signal names for later.
 signals=$(
 	echo '#include <signal.h>' | $CC -x c - -E -dM $ccflags |
-	awk '$1=="#define" && $2 ~ /^SIG[A-Z0-9]+$/ { print $2 }' |
-	egrep -v '(SIGSTKSIZE|SIGSTKSZ|SIGRT|SIGMAX64)' |
-	sort
+		awk '$1=="#define" && $2 ~ /^SIG[A-Z0-9]+$/ { print $2 }' |
+		egrep -v '(SIGSTKSIZE|SIGSTKSZ|SIGRT|SIGMAX64)' |
+		sort
 )
 
 # Again, writing regexps to a file.
@@ -665,8 +664,7 @@ struct tuple {
 
 struct tuple errors[] = {
 "
-	for i in $errors
-	do
+	for i in $errors; do
 		echo -E '	{'$i', "'$i'" },'
 	done
 
@@ -675,8 +673,7 @@ struct tuple errors[] = {
 
 struct tuple signals[] = {
 "
-	for i in $signals
-	do
+	for i in $signals; do
 		echo -E '	{'$i', "'$i'" },'
 	done
 

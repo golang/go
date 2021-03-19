@@ -22,11 +22,11 @@ if [ ! -f ../bin/go ]; then
 fi
 
 eval $(../bin/go env)
-export GOROOT   # The api test requires GOROOT to be set, so set it to match ../bin/go.
+export GOROOT # The api test requires GOROOT to be set, so set it to match ../bin/go.
 export GOPATH=/nonexist-gopath
 
-unset CDPATH	# in case user has it set
-export GOBIN=$GOROOT/bin  # Issue 14340
+unset CDPATH             # in case user has it set
+export GOBIN=$GOROOT/bin # Issue 14340
 unset GOFLAGS
 unset GO111MODULE
 
@@ -49,7 +49,7 @@ ulimit -c 0
 [ "$(ulimit -H -d)" = "unlimited" ] || ulimit -S -d $(ulimit -H -d)
 
 # Thread count limit on NetBSD 7.
-if ulimit -T &> /dev/null; then
+if ulimit -T &>/dev/null; then
 	[ "$(ulimit -H -T)" = "unlimited" ] || ulimit -S -T $(ulimit -H -T)
 fi
 

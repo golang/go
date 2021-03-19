@@ -8,7 +8,7 @@
 
 set -e
 
-function usage {
+function usage() {
 	echo 'race detector is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, openbsd/amd64, darwin/amd64, and darwin/arm64' 1>&2
 	exit 1
 }

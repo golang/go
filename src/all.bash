@@ -12,4 +12,4 @@ OLDPATH="$PATH"
 . ./make.bash "$@" --no-banner
 bash run.bash --no-rebuild
 PATH="$OLDPATH"
-$GOTOOLDIR/dist banner  # print build info
+$GOTOOLDIR/dist banner # print build info

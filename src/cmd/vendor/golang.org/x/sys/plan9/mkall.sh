@@ -87,9 +87,8 @@ run="sh"
 
 case "$1" in
 -syscalls)
-	for i in zsyscall*go
-	do
-		sed 1q $i | sed 's;^// ;;' | sh > _$i && gofmt < _$i > $i
+	for i in zsyscall*go; do
+		sed 1q $i | sed 's;^// ;;' | sh >_$i && gofmt <_$i >$i
 		rm _$i
 	done
 	exit 0
@@ -97,14 +96,16 @@ case "$1" in
 -n)
 	run="cat"
 	shift
+	;;
 esac
 
 case "$#" in
-0)
-	;;
+0) ;;
+
 *)
 	echo 'usage: mkall.sh [-n]' 1>&2
 	exit 2
+	;;
 esac
 
 case "$GOOSARCH" in

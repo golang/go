@@ -57,8 +57,7 @@ non_linux_targets() {
 targets="$(linux_targets) $(non_linux_targets)"
 
 failed=false
-for target in $targets
-do
+for target in $targets; do
 	echo ""
 	echo "### Building $target"
 	export GOOS=$(echo $target | sed 's/-.*//')

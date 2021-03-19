@@ -88,11 +88,10 @@ run="sh"
 
 case "$1" in
 -syscalls)
-	for i in zsyscall*go
-	do
+	for i in zsyscall*go; do
 		# Run the command line that appears in the first line
 		# of the generated file to regenerate it.
-		sed 1q $i | sed 's;^// ;;' | sh > _$i && gofmt < _$i > $i
+		sed 1q $i | sed 's;^// ;;' | sh >_$i && gofmt <_$i >$i
 		rm _$i
 	done
 	exit 0
@@ -100,14 +99,16 @@ case "$1" in
 -n)
 	run="cat"
 	shift
+	;;
 esac
 
 case "$#" in
-0)
-	;;
+0) ;;
+
 *)
 	echo 'usage: mkall.sh [-n]' 1>&2
 	exit 2
+	;;
 esac
 
 GOOSARCH_in=syscall_$GOOSARCH.go
@@ -360,18 +361,18 @@ esac
 (
 	if [ -n "$mkerrors" ]; then echo "$mkerrors |gofmt >$zerrors"; fi
 	syscall_goos="syscall_$GOOS.go"
- 	case "$GOOS" in
+	case "$GOOS" in
 	darwin | dragonfly | freebsd | netbsd | openbsd)
 		syscall_goos="syscall_bsd.go $syscall_goos"
- 		;;
- 	esac
+		;;
+	esac
 	if [ -n "$mksyscall" ]; then echo "$mksyscall -tags $GOOS,$GOARCH $syscall_goos $GOOSARCH_in |gofmt >zsyscall_$GOOSARCH.go"; fi
 	if [ -n "$mksysctl" ]; then echo "$mksysctl |gofmt >$zsysctl"; fi
 	if [ -n "$mksysnum" ]; then echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"; fi
 	if [ -n "$mktypes" ]; then
 		# ztypes_$GOOSARCH.go could be erased before "go run mkpost.go" is called.
 		# Therefore, "go run" tries to recompile syscall package but ztypes is empty and it fails.
-		echo "$mktypes types_$GOOS.go |go run mkpost.go >ztypes_$GOOSARCH.go.NEW && mv ztypes_$GOOSARCH.go.NEW ztypes_$GOOSARCH.go";
+		echo "$mktypes types_$GOOS.go |go run mkpost.go >ztypes_$GOOSARCH.go.NEW && mv ztypes_$GOOSARCH.go.NEW ztypes_$GOOSARCH.go"
 	fi
 	if [ -n "$mkasm" ]; then echo "$mkasm $GOOS $GOARCH"; fi
 ) | $run

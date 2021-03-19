@@ -106,7 +106,7 @@ if [ "$BOOTSTRAP_FORMAT" = "mintgz" ]; then
 	find . -type l -exec rm {} \;
 
 	echo "Writing ${OUTGZ} ..."
-	tar cf - . | gzip -9 > ../$OUTGZ
+	tar cf - . | gzip -9 >../$OUTGZ
 	cd ..
 	ls -l "$(pwd)/$OUTGZ"
 	exit 0

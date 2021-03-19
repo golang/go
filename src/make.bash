@@ -104,10 +104,9 @@ fi
 # Test for bad SELinux.
 # On Fedora 16 the selinux filesystem is mounted at /sys/fs/selinux,
 # so loop through the possible selinux mount points.
-for se_mount in /selinux /sys/fs/selinux
-do
+for se_mount in /selinux /sys/fs/selinux; do
 	if [ -d $se_mount -a -f $se_mount/booleans/allow_execstack -a -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled; then
-		if ! cat $se_mount/booleans/allow_execstack | grep -c '^1 1$' >> /dev/null ; then
+		if ! cat $se_mount/booleans/allow_execstack | grep -c '^1 1$' >>/dev/null; then
 			echo "WARNING: the default SELinux policy on, at least, Fedora 12 breaks "
 			echo "Go. You can enable the features that Go needs via the following "
 			echo "command (as root):"
@@ -154,14 +153,16 @@ fi
 
 export GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
 export GOROOT="$(cd .. && pwd)"
-IFS=$'\n'; for go_exe in $(type -ap go); do
+IFS=$'\n'
+for go_exe in $(type -ap go); do
 	if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
 		goroot=$(GOROOT='' GOOS='' GOARCH='' "$go_exe" env GOROOT)
 		if [ "$goroot" != "$GOROOT" ]; then
 			GOROOT_BOOTSTRAP=$goroot
 		fi
 	fi
-done; unset IFS
+done
+unset IFS
 if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
 	echo "ERROR: Cannot find $GOROOT_BOOTSTRAP/bin/go." >&2
 	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2
