@@ -162,7 +162,7 @@ type ScopeID int32
 
 const (
 	funcDupok         = 1 << iota // duplicate definitions ok
-	funcWrapper                   // is method wrapper
+	funcWrapper                   // hide frame from users (elide in tracebacks, don't count as a frame for recover())
 	funcNeedctxt                  // function uses context register (has closure variables)
 	funcReflectMethod             // function calls reflect.Type.Method or MethodByName
 	// true if closure inside a function; false if a simple function or a
