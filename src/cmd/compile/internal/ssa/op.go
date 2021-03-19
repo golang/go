@@ -112,7 +112,6 @@ func (a *AuxNameOffset) String() string {
 type AuxCall struct {
 	// TODO(register args) this information is largely redundant with ../abi information, needs cleanup once new ABI is in place.
 	Fn      *obj.LSym
-	args    []Param // Includes receiver for method calls.  Does NOT include hidden closure pointer.
 	results []Param
 	reg     *regInfo                // regInfo for this call // TODO for now nil means ignore
 	abiInfo *abi.ABIParamResultInfo // TODO remove fields above redundant with this information.
@@ -285,17 +284,6 @@ func (a *AuxCall) String() string {
 		fn = fmt.Sprintf("AuxCall{%v", a.Fn)
 	}
 
-	if len(a.args) == 0 {
-		fn += "()"
-	} else {
-		s := "("
-		for _, arg := range a.args {
-			fn += fmt.Sprintf("%s[%v,%v]", s, arg.Type, arg.Offset)
-			s = ","
-		}
-		fn += ")"
-	}
-
 	if len(a.results) > 0 { // usual is zero or one; only some RT calls have more than one.
 		if len(a.results) == 1 {
 			fn += fmt.Sprintf("[%v,%v]", a.results[0].Type, a.results[0].Offset)
@@ -323,7 +311,7 @@ func ACParamsToTypes(ps []Param) (ts []*types.Type) {
 }
 
 // StaticAuxCall returns an AuxCall for a static call.
-func StaticAuxCall(sym *obj.LSym, args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
+func StaticAuxCall(sym *obj.LSym, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
 	if paramResultInfo == nil {
 		panic(fmt.Errorf("Nil paramResultInfo, sym=%v", sym))
 	}
@@ -331,7 +319,7 @@ func StaticAuxCall(sym *obj.LSym, args []Param, results []Param, paramResultInfo
 	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
 		reg = &regInfo{}
 	}
-	return &AuxCall{Fn: sym, args: args, results: results, abiInfo: paramResultInfo, reg: reg}
+	return &AuxCall{Fn: sym, results: results, abiInfo: paramResultInfo, reg: reg}
 }
 
 // InterfaceAuxCall returns an AuxCall for an interface call.
@@ -340,7 +328,7 @@ func InterfaceAuxCall(args []Param, results []Param, paramResultInfo *abi.ABIPar
 	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
 		reg = &regInfo{}
 	}
-	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo, reg: reg}
+	return &AuxCall{Fn: nil, results: results, abiInfo: paramResultInfo, reg: reg}
 }
 
 // ClosureAuxCall returns an AuxCall for a closure call.
@@ -349,7 +337,7 @@ func ClosureAuxCall(args []Param, results []Param, paramResultInfo *abi.ABIParam
 	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
 		reg = &regInfo{}
 	}
-	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo, reg: reg}
+	return &AuxCall{Fn: nil, results: results, abiInfo: paramResultInfo, reg: reg}
 }
 
 func (*AuxCall) CanBeAnSSAAux() {}
@@ -361,7 +349,7 @@ func OwnAuxCall(fn *obj.LSym, args []Param, results []Param, paramResultInfo *ab
 	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
 		reg = &regInfo{}
 	}
-	return &AuxCall{Fn: fn, args: args, results: results, abiInfo: paramResultInfo, reg: reg}
+	return &AuxCall{Fn: fn, results: results, abiInfo: paramResultInfo, reg: reg}
 }
 
 const (
