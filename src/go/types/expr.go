@@ -805,20 +805,6 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 		return
 	}
 
-	var yval constant.Value
-	if y.mode == constant_ {
-		// rhs must be an integer value
-		// (Either it was of an integer type already, or it was
-		// untyped and successfully converted to a uint above.)
-		yval = constant.ToInt(y.val)
-		assert(yval.Kind() == constant.Int)
-		if constant.Sign(yval) < 0 {
-			check.invalidOp(y, _InvalidShiftCount, "negative shift count %s", y)
-			x.mode = invalid
-			return
-		}
-	}
-
 	if x.mode == constant_ {
 		if y.mode == constant_ {
 			// if either x or y has an unknown value, the result is unknown
@@ -832,7 +818,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 			}
 			// rhs must be within reasonable bounds in constant shifts
 			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see issue #44057)
-			s, ok := constant.Uint64Val(yval)
+			s, ok := constant.Uint64Val(y.val)
 			if !ok || s > shiftBound {
 				check.invalidOp(y, _InvalidShiftCount, "invalid shift count %s", y)
 				x.mode = invalid
