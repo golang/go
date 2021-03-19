@@ -1258,7 +1258,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	t = &T{
 		common: common{
 			barrier: make(chan bool),
-			signal:  make(chan bool),
+			signal:  make(chan bool, 1),
 			name:    testName,
 			parent:  &t.common,
 			level:   t.level + 1,
@@ -1539,7 +1539,7 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
 			ctx.deadline = deadline
 			t := &T{
 				common: common{
-					signal:  make(chan bool),
+					signal:  make(chan bool, 1),
 					barrier: make(chan bool),
 					w:       os.Stdout,
 				},
@@ -1552,11 +1552,12 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
 				for _, test := range tests {
 					t.Run(test.Name, test.F)
 				}
-				// Run catching the signal rather than the tRunner as a separate
-				// goroutine to avoid adding a goroutine during the sequential
-				// phase as this pollutes the stacktrace output when aborting.
-				go func() { <-t.signal }()
 			})
+			select {
+			case <-t.signal:
+			default:
+				panic("internal error: tRunner exited without sending on t.signal")
+			}
 			ok = ok && !t.Failed()
 			ran = ran || t.ran
 		}
