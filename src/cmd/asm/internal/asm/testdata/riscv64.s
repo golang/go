@@ -285,8 +285,8 @@ start:
 	MOV	$2048, X5				// b71200009b820280
 	MOV	$-2049, X5				// b7f2ffff9b82f27f
 
-	// Converted to load of symbol.
-	MOV	$4294967296, X5				// 97020000
+	// Converted to load of symbol (AUIPC + LD)
+	MOV	$4294967296, X5				// 9702000083b20200
 
 	MOV	(X5), X6				// 03b30200
 	MOV	4(X5), X6				// 03b34200
