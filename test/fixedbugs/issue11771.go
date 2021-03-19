@@ -12,7 +12,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -25,7 +24,7 @@ func main() {
 		return
 	}
 
-	dir, err := ioutil.TempDir("", "go-issue11771")
+	dir, err := os.MkdirTemp("", "go-issue11771")
 	if err != nil {
 		log.Fatalf("creating temp dir: %v\n", err)
 	}
@@ -48,7 +47,7 @@ func x() {
 }
 `)
 
-	if err := ioutil.WriteFile(filepath.Join(dir, "x.go"), buf.Bytes(), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "x.go"), buf.Bytes(), 0666); err != nil {
 		log.Fatal(err)
 	}
 

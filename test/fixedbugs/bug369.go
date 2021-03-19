@@ -11,7 +11,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,7 +20,7 @@ func main() {
 	err := os.Chdir(filepath.Join(".", "fixedbugs", "bug369.dir"))
 	check(err)
 
-	tmpDir, err := ioutil.TempDir("", "bug369")
+	tmpDir, err := os.MkdirTemp("", "bug369")
 	check(err)
 	defer os.RemoveAll(tmpDir)
 

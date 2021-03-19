@@ -14,7 +14,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -34,14 +33,14 @@ func main() {
 `
 
 func main() {
-	dir, err := ioutil.TempDir("", "21576")
+	dir, err := os.MkdirTemp("", "21576")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer os.RemoveAll(dir)
 
 	file := filepath.Join(dir, "main.go")
-	if err := ioutil.WriteFile(file, []byte(prog), 0655); err != nil {
+	if err := os.WriteFile(file, []byte(prog), 0655); err != nil {
 		log.Fatalf("Write error %v", err)
 	}
 

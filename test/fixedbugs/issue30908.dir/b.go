@@ -5,7 +5,7 @@
 package b
 
 import (
-	"io/ioutil"
+	"os"
 
 	"./a"
 )
@@ -27,7 +27,7 @@ func ReadValues(data []byte) (vals map[string]interface{}, err error) {
 // of the output param.
 func CallReadValues(filename string) (map[string]interface{}, error) {
 	defer func() { G++ }()
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return map[string]interface{}{}, err
 	}

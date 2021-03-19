@@ -11,7 +11,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -35,7 +34,7 @@ func main() {
 `
 
 func main() {
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -70,7 +69,7 @@ func main() {
 		b := bytes.Buffer{}
 		fmt.Fprintf(&b, fn, tc.Type, tc.Input)
 
-		err = ioutil.WriteFile(tmpFile, b.Bytes(), 0644)
+		err = os.WriteFile(tmpFile, b.Bytes(), 0644)
 		if err != nil {
 			log.Fatal(err)
 		}

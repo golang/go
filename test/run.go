@@ -15,7 +15,6 @@ import (
 	"hash/fnv"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -313,8 +312,8 @@ func (t *test) goDirName() string {
 	return filepath.Join(t.dir, strings.Replace(t.gofile, ".go", ".dir", -1))
 }
 
-func goDirFiles(longdir string) (filter []os.FileInfo, err error) {
-	files, dirErr := ioutil.ReadDir(longdir)
+func goDirFiles(longdir string) (filter []os.DirEntry, err error) {
+	files, dirErr := os.ReadDir(longdir)
 	if dirErr != nil {
 		return nil, dirErr
 	}
@@ -329,7 +328,7 @@ func goDirFiles(longdir string) (filter []os.FileInfo, err error) {
 var packageRE = regexp.MustCompile(`(?m)^package ([\p{Lu}\p{Ll}\w]+)`)
 
 func getPackageNameFromSource(fn string) (string, error) {
-	data, err := ioutil.ReadFile(fn)
+	data, err := os.ReadFile(fn)
 	if err != nil {
 		return "", err
 	}
@@ -477,7 +476,7 @@ func (t *test) run() {
 		close(t.donec)
 	}()
 
-	srcBytes, err := ioutil.ReadFile(t.goFileName())
+	srcBytes, err := os.ReadFile(t.goFileName())
 	if err != nil {
 		t.err = err
 		return
@@ -600,7 +599,7 @@ func (t *test) run() {
 		defer os.RemoveAll(t.tempDir)
 	}
 
-	err = ioutil.WriteFile(filepath.Join(t.tempDir, t.gofile), srcBytes, 0644)
+	err = os.WriteFile(filepath.Join(t.tempDir, t.gofile), srcBytes, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -957,7 +956,7 @@ func (t *test) run() {
 		}
 
 		modFile := fmt.Sprintf("module %s\ngo 1.14\n", modName)
-		if err := ioutil.WriteFile(filepath.Join(gopathSrcDir, "go.mod"), []byte(modFile), 0666); err != nil {
+		if err := os.WriteFile(filepath.Join(gopathSrcDir, "go.mod"), []byte(modFile), 0666); err != nil {
 			t.err = err
 			return
 		}
@@ -986,7 +985,7 @@ func (t *test) run() {
 		// Build an executable from all the .go and .s files in a subdirectory.
 		// Run it and verify its output in the buildrundir case.
 		longdir := filepath.Join(cwd, t.goDirName())
-		files, dirErr := ioutil.ReadDir(longdir)
+		files, dirErr := os.ReadDir(longdir)
 		if dirErr != nil {
 			t.err = dirErr
 			break
@@ -1004,7 +1003,7 @@ func (t *test) run() {
 		}
 		if len(asms) > 0 {
 			emptyHdrFile := filepath.Join(t.tempDir, "go_asm.h")
-			if err := ioutil.WriteFile(emptyHdrFile, nil, 0666); err != nil {
+			if err := os.WriteFile(emptyHdrFile, nil, 0666); err != nil {
 				t.err = fmt.Errorf("write empty go_asm.h: %s", err)
 				return
 			}
@@ -1148,7 +1147,7 @@ func (t *test) run() {
 			return
 		}
 		tfile := filepath.Join(t.tempDir, "tmp__.go")
-		if err := ioutil.WriteFile(tfile, out, 0666); err != nil {
+		if err := os.WriteFile(tfile, out, 0666); err != nil {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
@@ -1179,7 +1178,7 @@ func (t *test) run() {
 			return
 		}
 		tfile := filepath.Join(t.tempDir, "tmp__.go")
-		err = ioutil.WriteFile(tfile, out, 0666)
+		err = os.WriteFile(tfile, out, 0666)
 		if err != nil {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
@@ -1227,7 +1226,7 @@ func (t *test) String() string {
 
 func (t *test) makeTempDir() {
 	var err error
-	t.tempDir, err = ioutil.TempDir("", "")
+	t.tempDir, err = os.MkdirTemp("", "")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -1244,7 +1243,7 @@ func (t *test) checkExpectedOutput(gotBytes []byte) {
 	filename := filepath.Join(t.dir, t.gofile)
 	filename = filename[:len(filename)-len(".go")]
 	filename += ".out"
-	b, err := ioutil.ReadFile(filename)
+	b, err := os.ReadFile(filename)
 	// File is allowed to be missing (err != nil) in which case output should be empty.
 	got = strings.Replace(got, "\r\n", "\n", -1)
 	if got != string(b) {
@@ -1366,7 +1365,7 @@ func (t *test) errorCheck(outStr string, wantAuto bool, fullshort ...string) (er
 func (t *test) updateErrors(out, file string) {
 	base := path.Base(file)
 	// Read in source file.
-	src, err := ioutil.ReadFile(file)
+	src, err := os.ReadFile(file)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1423,7 +1422,7 @@ func (t *test) updateErrors(out, file string) {
 		}
 	}
 	// Write new file.
-	err = ioutil.WriteFile(file, []byte(strings.Join(lines, "\n")), 0640)
+	err = os.WriteFile(file, []byte(strings.Join(lines, "\n")), 0640)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1482,7 +1481,7 @@ var (
 func (t *test) wantedErrors(file, short string) (errs []wantedError) {
 	cache := make(map[string]*regexp.Regexp)
 
-	src, _ := ioutil.ReadFile(file)
+	src, _ := os.ReadFile(file)
 	for i, line := range strings.Split(string(src), "\n") {
 		lineNum := i + 1
 		if strings.Contains(line, "////") {
@@ -1625,7 +1624,7 @@ func (t *test) wantedAsmOpcodes(fn string) asmChecks {
 	ops := make(asmChecks)
 
 	comment := ""
-	src, _ := ioutil.ReadFile(fn)
+	src, _ := os.ReadFile(fn)
 	for i, line := range strings.Split(string(src), "\n") {
 		matches := rxAsmComment.FindStringSubmatch(line)
 		code, cmt := matches[1], matches[2]

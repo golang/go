@@ -14,7 +14,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -23,7 +22,7 @@ import (
 
 func main() {
 	// create source
-	f, err := ioutil.TempFile("", "issue13268-")
+	f, err := os.CreateTemp("", "issue13268-")
 	if err != nil {
 		log.Fatalf("could not create source file: %v", err)
 	}

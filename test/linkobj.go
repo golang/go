@@ -11,7 +11,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -21,7 +20,7 @@ import (
 var pwd, tmpdir string
 
 func main() {
-	dir, err := ioutil.TempDir("", "go-test-linkobj-")
+	dir, err := os.MkdirTemp("", "go-test-linkobj-")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -122,18 +121,18 @@ func runFail(args ...string) string {
 }
 
 func cp(src, dst string) {
-	data, err := ioutil.ReadFile(src)
+	data, err := os.ReadFile(src)
 	if err != nil {
 		fatalf("%v", err)
 	}
-	err = ioutil.WriteFile(dst, data, 0666)
+	err = os.WriteFile(dst, data, 0666)
 	if err != nil {
 		fatalf("%v", err)
 	}
 }
 
 func writeFile(name, data string) {
-	err := ioutil.WriteFile(name, []byte(data), 0666)
+	err := os.WriteFile(name, []byte(data), 0666)
 	if err != nil {
 		fatalf("%v", err)
 	}

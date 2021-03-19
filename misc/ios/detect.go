@@ -16,7 +16,6 @@ import (
 	"bytes"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -38,7 +37,7 @@ func main() {
 	fmt.Println("# will be overwritten when running Go programs.")
 	for _, mp := range mps {
 		fmt.Println()
-		f, err := ioutil.TempFile("", "go_ios_detect_")
+		f, err := os.CreateTemp("", "go_ios_detect_")
 		check(err)
 		fname := f.Name()
 		defer os.Remove(fname)

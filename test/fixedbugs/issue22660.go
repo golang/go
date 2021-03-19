@@ -10,7 +10,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -19,7 +18,7 @@ import (
 )
 
 func main() {
-	f, err := ioutil.TempFile("", "issue22660.go")
+	f, err := os.CreateTemp("", "issue22660.go")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -31,7 +30,7 @@ func main() {
 	var src bytes.Buffer
 	fmt.Fprintf(&src, "//line %s:1\n", filepath.Join(path, "foo.go"))
 
-	if err := ioutil.WriteFile(f.Name(), src.Bytes(), 0660); err != nil {
+	if err := os.WriteFile(f.Name(), src.Bytes(), 0660); err != nil {
 		log.Fatal(err)
 	}
 

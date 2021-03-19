@@ -18,14 +18,13 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
 )
 
 func main() {
-	tmpDir, err := ioutil.TempDir("", "issue36437")
+	tmpDir, err := os.MkdirTemp("", "issue36437")
 	if err != nil {
 		panic(err)
 	}

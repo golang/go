@@ -11,7 +11,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -63,7 +62,7 @@ func main() {
 		return
 	}
 
-	dir, err := ioutil.TempDir("", "const7_")
+	dir, err := os.MkdirTemp("", "const7_")
 	if err != nil {
 		log.Fatalf("creating temp dir: %v\n", err)
 	}

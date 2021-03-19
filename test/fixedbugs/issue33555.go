@@ -11,7 +11,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -56,14 +55,14 @@ func test() error {
 	}
 	fmt.Fprintf(&buf, fnlast, count)
 
-	dir, err := ioutil.TempDir("", "issue33555")
+	dir, err := os.MkdirTemp("", "issue33555")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(dir)
 
 	fn := filepath.Join(dir, "x.go")
-	if err := ioutil.WriteFile(fn, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(fn, buf.Bytes(), 0644); err != nil {
 		return err
 	}
 
