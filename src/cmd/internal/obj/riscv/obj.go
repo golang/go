@@ -227,32 +227,15 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 	}
 
 	switch p.From.Type {
-	case obj.TYPE_MEM: // MOV c(Rs), Rd -> L $c, Rs, Rd
+	case obj.TYPE_MEM:
 		switch p.From.Name {
 		case obj.NAME_AUTO, obj.NAME_PARAM, obj.NAME_NONE:
 			if p.To.Type != obj.TYPE_REG {
-				ctxt.Diag("unsupported load at %v", p)
+				ctxt.Diag("unsupported load for %v", p)
 			}
-			p.As = movToLoad(p.As)
-			p.From.Reg = addrToReg(p.From)
 
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
-			// AUIPC $off_hi, R
-			// L $off_lo, R
-			as := p.As
-			to := p.To
-
-			p.As = AAUIPC
 			p.Mark |= NEED_PCREL_ITYPE_RELOC
-			p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym})
-			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
-			p.Reg = 0
-			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: to.Reg}
-			p = obj.Appendp(p, newprog)
-
-			p.As = movToLoad(as)
-			p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: to.Reg, Offset: 0}
-			p.To = to
 
 		default:
 			ctxt.Diag("unsupported name %d for %v", p.From.Name, p)
@@ -1749,22 +1732,25 @@ func instructionForProg(p *obj.Prog) *instruction {
 	return ins
 }
 
-func instructionsForLoad(p *obj.Prog) []*instruction {
+// instructionsForLoad returns the machine instructions for a load. The load
+// instruction is specified by as and the base/source register is specified
+// by rs, instead of the obj.Prog.
+func instructionsForLoad(p *obj.Prog, as obj.As, rs int16) []*instruction {
 	if p.From.Type != obj.TYPE_MEM {
 		p.Ctxt.Diag("%v requires memory for source", p)
 		return nil
 	}
 
-	switch p.As {
+	switch as {
 	case ALD, ALB, ALH, ALW, ALBU, ALHU, ALWU, AFLW, AFLD:
 	default:
-		p.Ctxt.Diag("%v: unknown load instruction %v", p, p.As)
+		p.Ctxt.Diag("%v: unknown load instruction %v", p, as)
 		return nil
 	}
 
 	// <load> $imm, REG, TO (load $imm+(REG), TO)
 	ins := instructionForProg(p)
-	ins.rs1, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
+	ins.as, ins.rs1, ins.rs2 = as, uint32(rs), obj.REG_NONE
 	ins.imm = p.From.Offset
 
 	low, high, err := Split32BitImmediate(ins.imm)
@@ -1887,6 +1873,21 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			inss = append(inss, ins2)
 		}
 
+	case p.From.Type == obj.TYPE_MEM && p.To.Type == obj.TYPE_REG:
+		// Memory to register loads.
+		switch p.From.Name {
+		case obj.NAME_AUTO, obj.NAME_PARAM, obj.NAME_NONE:
+			// MOV c(Rs), Rd -> L $c, Rs, Rd
+			inss = instructionsForLoad(p, movToLoad(p.As), addrToReg(p.From))
+
+		case obj.NAME_EXTERN, obj.NAME_STATIC:
+			// AUIPC $off_hi, Rd
+			// L $off_lo, Rd, Rd
+			insAUIPC := &instruction{as: AAUIPC, rd: ins.rd}
+			ins.as, ins.rs1, ins.rs2, ins.imm = movToLoad(p.As), ins.rd, obj.REG_NONE, 0
+			inss = []*instruction{insAUIPC, ins}
+		}
+
 	default:
 		// If we get here with a MOV pseudo-instruction it is going to
 		// remain unhandled. For now we trust rewriteMOV to catch these.
@@ -1943,7 +1944,7 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		return instructionsForMOV(p)
 
 	case ALW, ALWU, ALH, ALHU, ALB, ALBU, ALD, AFLW, AFLD:
-		return instructionsForLoad(p)
+		return instructionsForLoad(p, ins.as, p.From.Reg)
 
 	case ASW, ASH, ASB, ASD, AFSW, AFSD:
 		return instructionsForStore(p)
@@ -2073,22 +2074,28 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				rel.Add = p.To.Offset
 				rel.Type = objabi.R_CALLRISCV
 			}
-		case AAUIPC:
+
+		case AAUIPC, AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
+			var addr *obj.Addr
 			var rt objabi.RelocType
 			if p.Mark&NEED_PCREL_ITYPE_RELOC == NEED_PCREL_ITYPE_RELOC {
 				rt = objabi.R_RISCV_PCREL_ITYPE
+				addr = &p.From
 			} else if p.Mark&NEED_PCREL_STYPE_RELOC == NEED_PCREL_STYPE_RELOC {
 				rt = objabi.R_RISCV_PCREL_STYPE
+				addr = &p.To
 			} else {
 				break
 			}
-			if p.Link == nil {
-				ctxt.Diag("AUIPC needing PC-relative reloc missing following instruction")
-				break
+			if p.As == AAUIPC {
+				if p.Link == nil {
+					ctxt.Diag("AUIPC needing PC-relative reloc missing following instruction")
+					break
+				}
+				addr = &p.RestArgs[0].Addr
 			}
-			addr := p.RestArgs[0]
 			if addr.Sym == nil {
-				ctxt.Diag("AUIPC needing PC-relative reloc missing symbol")
+				ctxt.Diag("PC-relative relocation missing symbol")
 				break
 			}
 			if addr.Sym.Type == objabi.STLSBSS {
