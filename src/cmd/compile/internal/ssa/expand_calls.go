@@ -1058,14 +1058,14 @@ func expandCalls(f *Func) {
 			for j, a := range v.Args[:len(v.Args)-1] {
 				i := int64(j)
 				auxType := aux.TypeOfResult(i)
-				auxBase := b.NewValue2A(v.Pos, OpLocalAddr, types.NewPtr(auxType), aux.results[i].Name, x.sp, mem)
+				auxBase := b.NewValue2A(v.Pos, OpLocalAddr, types.NewPtr(auxType), aux.NameOfResult(i), x.sp, mem)
 				auxOffset := int64(0)
 				auxSize := aux.SizeOfResult(i)
 				aRegs := aux.RegsOfResult(int64(j))
 				if len(aRegs) == 0 && a.Op == OpDereference {
 					// Avoid a self-move, and if one is detected try to remove the already-inserted VarDef for the assignment that won't happen.
 					if dAddr, dMem := a.Args[0], a.Args[1]; dAddr.Op == OpLocalAddr && dAddr.Args[0].Op == OpSP &&
-						dAddr.Args[1] == dMem && dAddr.Aux == aux.results[i].Name {
+						dAddr.Args[1] == dMem && dAddr.Aux == aux.NameOfResult(i) {
 						if dMem.Op == OpVarDef && dMem.Aux == dAddr.Aux {
 							dMem.copyOf(dMem.MemoryArg()) // elide the VarDef
 						}
@@ -1075,7 +1075,7 @@ func expandCalls(f *Func) {
 				} else {
 					if a.Op == OpLoad && a.Args[0].Op == OpLocalAddr {
 						addr := a.Args[0] // This is a self-move. // TODO(register args) do what here for registers?
-						if addr.MemoryArg() == a.MemoryArg() && addr.Aux == aux.results[i].Name {
+						if addr.MemoryArg() == a.MemoryArg() && addr.Aux == aux.NameOfResult(i) {
 							continue
 						}
 					}
