@@ -88,11 +88,11 @@ func Comparable(T Type) bool {
 }
 
 func comparable(T Type, seen map[Type]bool) bool {
-	if seen[T] {
-		return true
-	}
 	if seen == nil {
 		seen = make(map[Type]bool)
+	}
+	if seen[T] {
+		return true
 	}
 	seen[T] = true
 
