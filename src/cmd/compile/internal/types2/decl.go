@@ -688,6 +688,7 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeNa
 	// Declare type parameters up-front, with empty interface as type bound.
 	// The scope of type parameters starts at the beginning of the type parameter
 	// list (so we can have mutually recursive parameterized interfaces).
+	tparams = make([]*TypeName, 0, len(list))
 	for _, f := range list {
 		tparams = check.declareTypeParam(tparams, f.Name)
 	}
