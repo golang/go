@@ -55,6 +55,26 @@ func (ph *packageHandle) packageKey() packageKey {
 	}
 }
 
+func (ph *packageHandle) imports(ctx context.Context, s source.Snapshot) (result []string) {
+	for _, pgh := range ph.goFiles {
+		f, err := s.ParseGo(ctx, pgh.file, source.ParseHeader)
+		if err != nil {
+			continue
+		}
+		seen := map[string]struct{}{}
+		for _, impSpec := range f.File.Imports {
+			imp := strings.Trim(impSpec.Path.Value, `"`)
+			if _, ok := seen[imp]; !ok {
+				seen[imp] = struct{}{}
+				result = append(result, imp)
+			}
+		}
+	}
+
+	sort.Strings(result)
+	return result
+}
+
 // packageData contains the data produced by type-checking a package.
 type packageData struct {
 	pkg *pkg
