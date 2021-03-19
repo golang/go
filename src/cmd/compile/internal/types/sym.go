@@ -32,7 +32,7 @@ type Sym struct {
 	Pkg  *Pkg
 	Name string // object name
 
-	// saved and restored by dcopy
+	// saved and restored by Pushdcl/Popdcl
 	Def        Object   // definition: ONAME OTYPE OPACK or OLITERAL
 	Block      int32    // blocknumber to catch redeclaration
 	Lastlineno src.XPos // last declaration for diagnostic
