@@ -573,7 +573,7 @@ TEXT runtime·wintls(SB),NOSPLIT,$0
 ok:
 
 	// Save offset from R18 into tls_g.
-	LSL	$3, R1
-	ADD	$TEB_TlsSlots, R1
-	MOVD	R1, runtime·tls_g(SB)
+	LSL	$3, R0
+	ADD	$TEB_TlsSlots, R0
+	MOVD	R0, runtime·tls_g(SB)
 	RET
