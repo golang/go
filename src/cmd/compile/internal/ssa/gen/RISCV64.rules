@@ -607,9 +607,9 @@
 (MOVDstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVDstorezero [off] {sym} ptr mem)
 
 // Avoid sign/zero extension for consts.
-(MOVBreg  (MOVDconst [c])) => (MOVDconst [int64(c)])
-(MOVHreg  (MOVDconst [c])) => (MOVDconst [int64(c)])
-(MOVWreg  (MOVDconst [c])) => (MOVDconst [int64(c)])
+(MOVBreg  (MOVDconst [c])) => (MOVDconst [int64(int8(c))])
+(MOVHreg  (MOVDconst [c])) => (MOVDconst [int64(int16(c))])
+(MOVWreg  (MOVDconst [c])) => (MOVDconst [int64(int32(c))])
 (MOVBUreg (MOVDconst [c])) => (MOVDconst [int64(uint8(c))])
 (MOVHUreg (MOVDconst [c])) => (MOVDconst [int64(uint16(c))])
 (MOVWUreg (MOVDconst [c])) => (MOVDconst [int64(uint32(c))])
