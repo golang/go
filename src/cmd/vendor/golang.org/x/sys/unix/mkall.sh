@@ -23,10 +23,11 @@ cmd=""
 
 case "$1" in
 -syscalls)
-	for i in zsyscall*go; do
+	for i in zsyscall*go
+	do
 		# Run the command line that appears in the first line
 		# of the generated file to regenerate it.
-		sed 1q $i | sed 's;^// ;;' | sh >_$i && gofmt <_$i >$i
+		sed 1q $i | sed 's;^// ;;' | sh > _$i && gofmt < _$i > $i
 		rm _$i
 	done
 	exit 0
@@ -35,16 +36,14 @@ case "$1" in
 	run="cat"
 	cmd="echo"
 	shift
-	;;
 esac
 
 case "$#" in
-0) ;;
-
+0)
+	;;
 *)
 	echo 'usage: mkall.sh [-n]' 1>&2
 	exit 2
-	;;
 esac
 
 if [[ "$GOOS" = "linux" ]]; then
@@ -197,7 +196,7 @@ solaris_amd64)
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 illumos_amd64)
-	mksyscall="go run mksyscall_solaris.go"
+        mksyscall="go run mksyscall_solaris.go"
 	mkerrors=
 	mksysnum=
 	mktypes=
@@ -221,22 +220,21 @@ esac
 		if [ -n "$mksyscall" ]; then
 			if [ "$GOOSARCH" == "aix_ppc64" ]; then
 				# aix/ppc64 script generates files instead of writing to stdin.
-				echo "$mksyscall -tags $GOOS,$GOARCH $syscall_goos $GOOSARCH_in && gofmt -w zsyscall_$GOOSARCH.go && gofmt -w zsyscall_"$GOOSARCH"_gccgo.go && gofmt -w zsyscall_"$GOOSARCH"_gc.go "
+				echo "$mksyscall -tags $GOOS,$GOARCH $syscall_goos $GOOSARCH_in && gofmt -w zsyscall_$GOOSARCH.go && gofmt -w zsyscall_"$GOOSARCH"_gccgo.go && gofmt -w zsyscall_"$GOOSARCH"_gc.go " ;
 			elif [ "$GOOS" == "darwin" ]; then
-				# 1.12 and later, syscalls via libSystem
-				echo "$mksyscall -tags $GOOS,$GOARCH,go1.12 $syscall_goos $GOOSARCH_in |gofmt >zsyscall_$GOOSARCH.go"
+			        # 1.12 and later, syscalls via libSystem
+				echo "$mksyscall -tags $GOOS,$GOARCH,go1.12 $syscall_goos $GOOSARCH_in |gofmt >zsyscall_$GOOSARCH.go";
 				# 1.13 and later, syscalls via libSystem (including syscallPtr)
-				echo "$mksyscall -tags $GOOS,$GOARCH,go1.13 syscall_darwin.1_13.go |gofmt >zsyscall_$GOOSARCH.1_13.go"
+				echo "$mksyscall -tags $GOOS,$GOARCH,go1.13 syscall_darwin.1_13.go |gofmt >zsyscall_$GOOSARCH.1_13.go";
 			elif [ "$GOOS" == "illumos" ]; then
-				# illumos code generation requires a --illumos switch
-				echo "$mksyscall -illumos -tags illumos,$GOARCH syscall_illumos.go |gofmt > zsyscall_illumos_$GOARCH.go"
-				# illumos implies solaris, so solaris code generation is also required
-				echo "$mksyscall -tags solaris,$GOARCH syscall_solaris.go syscall_solaris_$GOARCH.go |gofmt >zsyscall_solaris_$GOARCH.go"
+			        # illumos code generation requires a --illumos switch
+			        echo "$mksyscall -illumos -tags illumos,$GOARCH syscall_illumos.go |gofmt > zsyscall_illumos_$GOARCH.go";
+			        # illumos implies solaris, so solaris code generation is also required
+				echo "$mksyscall -tags solaris,$GOARCH syscall_solaris.go syscall_solaris_$GOARCH.go |gofmt >zsyscall_solaris_$GOARCH.go";
 			else
-				echo "$mksyscall -tags $GOOS,$GOARCH $syscall_goos $GOOSARCH_in |gofmt >zsyscall_$GOOSARCH.go"
+				echo "$mksyscall -tags $GOOS,$GOARCH $syscall_goos $GOOSARCH_in |gofmt >zsyscall_$GOOSARCH.go";
 			fi
 		fi
-		;;
 	esac
 	if [ -n "$mksysctl" ]; then echo "$mksysctl |gofmt >$zsysctl"; fi
 	if [ -n "$mksysnum" ]; then echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"; fi
