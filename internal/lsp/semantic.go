@@ -394,11 +394,15 @@ func (e *encoded) ident(x *ast.Ident) {
 		// nothing to map it to
 	case *types.Nil:
 		// nil is a predeclared identifier
-		e.token(x.Pos(), len("nil"), tokVariable, []string{"readonly"})
+		e.token(x.Pos(), len("nil"), tokVariable, []string{"readonly", "defaultLibrary"})
 	case *types.PkgName:
 		e.token(x.Pos(), len(x.Name), tokNamespace, nil)
 	case *types.TypeName:
-		e.token(x.Pos(), len(x.String()), tokType, nil)
+		var mods []string
+		if _, ok := y.Type().(*types.Basic); ok {
+			mods = []string{"defaultLibrary"}
+		}
+		e.token(x.Pos(), len(x.String()), tokType, mods)
 	case *types.Var:
 		e.token(x.Pos(), len(x.Name), tokVariable, nil)
 	default:

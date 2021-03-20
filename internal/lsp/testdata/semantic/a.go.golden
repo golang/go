@@ -11,12 +11,12 @@
 
 /*⇒3,keyword,[]*/var (
 	/*⇒1,variable,[definition]*/a           = /*⇒3,namespace,[]*/fmt./*⇒5,function,[]*/Print
-	/*⇒1,variable,[definition]*/b  []/*⇒6,type,[]*/string = []/*⇒6,type,[]*/string{/*⇒5,string,[]*/"foo"}
-	/*⇒2,variable,[definition]*/c1 /*⇒4,keyword,[]*/chan /*⇒3,type,[]*/int
-	/*⇒2,variable,[definition]*/c2 <-/*⇒4,keyword,[]*/chan /*⇒3,type,[]*/int
-	/*⇒2,variable,[definition]*/c3 = /*⇒4,function,[defaultLibrary]*/make([]/*⇒4,keyword,[]*/chan<- /*⇒3,type,[]*/int)
+	/*⇒1,variable,[definition]*/b  []/*⇒6,type,[defaultLibrary]*/string = []/*⇒6,type,[defaultLibrary]*/string{/*⇒5,string,[]*/"foo"}
+	/*⇒2,variable,[definition]*/c1 /*⇒4,keyword,[]*/chan /*⇒3,type,[defaultLibrary]*/int
+	/*⇒2,variable,[definition]*/c2 <-/*⇒4,keyword,[]*/chan /*⇒3,type,[defaultLibrary]*/int
+	/*⇒2,variable,[definition]*/c3 = /*⇒4,function,[defaultLibrary]*/make([]/*⇒4,keyword,[]*/chan<- /*⇒3,type,[defaultLibrary]*/int)
 	/*⇒1,variable,[definition]*/b  = /*⇒1,type,[]*/A{/*⇒1,variable,[]*/X: /*⇒2,number,[]*/23}
-	/*⇒1,variable,[definition]*/m  /*⇒3,keyword,[]*/map[/*⇒4,type,[]*/bool][/*⇒1,number,[]*/3]/*⇒1,operator,[]*/*/*⇒7,type,[]*/float64
+	/*⇒1,variable,[definition]*/m  /*⇒3,keyword,[]*/map[/*⇒4,type,[defaultLibrary]*/bool][/*⇒1,number,[]*/3]/*⇒1,operator,[]*/*/*⇒7,type,[defaultLibrary]*/float64
 )
 
 /*⇒5,keyword,[]*/const (
@@ -27,17 +27,17 @@
 )
 
 /*⇒4,keyword,[]*/type /*⇒1,type,[definition]*/A /*⇒6,keyword,[]*/struct {
-	/*⇒1,type,[definition]*/X /*⇒3,type,[]*/int /*⇒6,comment,[]*/`foof`
+	/*⇒1,type,[definition]*/X /*⇒3,type,[defaultLibrary]*/int /*⇒6,comment,[]*/`foof`
 }
 /*⇒4,keyword,[]*/type /*⇒1,type,[definition]*/B /*⇒9,keyword,[]*/interface {
 	/*⇒1,type,[]*/A
-	/*⇒3,member,[definition]*/sad(/*⇒3,type,[]*/int) /*⇒4,type,[]*/bool
+	/*⇒3,member,[definition]*/sad(/*⇒3,type,[defaultLibrary]*/int) /*⇒4,type,[defaultLibrary]*/bool
 }
 
-/*⇒4,keyword,[]*/type /*⇒1,type,[definition]*/F /*⇒3,type,[]*/int
+/*⇒4,keyword,[]*/type /*⇒1,type,[definition]*/F /*⇒3,type,[defaultLibrary]*/int
 
-/*⇒4,keyword,[]*/func (/*⇒1,variable,[]*/a /*⇒1,operator,[]*/*/*⇒1,type,[]*/A) /*⇒1,member,[definition]*/f() /*⇒4,type,[]*/bool {
-	/*⇒3,keyword,[]*/var /*⇒1,variable,[definition]*/z /*⇒6,type,[]*/string
+/*⇒4,keyword,[]*/func (/*⇒1,variable,[]*/a /*⇒1,operator,[]*/*/*⇒1,type,[]*/A) /*⇒1,member,[definition]*/f() /*⇒4,type,[defaultLibrary]*/bool {
+	/*⇒3,keyword,[]*/var /*⇒1,variable,[definition]*/z /*⇒6,type,[defaultLibrary]*/string
 	/*⇒1,variable,[definition]*/x /*⇒2,operator,[]*/:= /*⇒5,string,[]*/"foo"
 	/*⇒1,variable,[]*/a(/*⇒1,variable,[definition]*/x)
 	/*⇒1,variable,[definition]*/y /*⇒2,operator,[]*/:= /*⇒5,string,[]*/"bar" /*⇒1,operator,[]*/+ /*⇒1,variable,[]*/x
@@ -50,7 +50,7 @@
 	/*⇒7,keyword,[]*/default:
 	}
 	/*⇒3,keyword,[]*/for /*⇒1,variable,[definition]*/k, /*⇒1,variable,[definition]*/v := /*⇒5,keyword,[]*/range /*⇒1,variable,[]*/m {
-		/*⇒6,keyword,[]*/return (/*⇒1,operator,[]*/!/*⇒1,variable,[]*/k) /*⇒2,operator,[]*/&& /*⇒1,variable,[]*/v[/*⇒1,number,[]*/0] /*⇒2,operator,[]*/== /*⇒3,variable,[readonly]*/nil
+		/*⇒6,keyword,[]*/return (/*⇒1,operator,[]*/!/*⇒1,variable,[]*/k) /*⇒2,operator,[]*/&& /*⇒1,variable,[]*/v[/*⇒1,number,[]*/0] /*⇒2,operator,[]*/== /*⇒3,variable,[readonly defaultLibrary]*/nil
 	}
 	/*⇒2,variable,[]*/c2 /*⇒2,operator,[]*/<- /*⇒1,type,[]*/A./*⇒1,variable,[definition]*/X
 	/*⇒1,variable,[definition]*/w /*⇒2,operator,[]*/:= /*⇒1,variable,[]*/b[/*⇒1,number,[]*/4:]
