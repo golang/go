@@ -786,10 +786,12 @@ func (t *Transport) CancelRequest(req *Request) {
 // Cancel an in-flight request, recording the error value.
 // Returns whether the request was canceled.
 func (t *Transport) cancelRequest(key cancelKey, err error) bool {
+	// This function must not return until the cancel func has completed.
+	// See: https://golang.org/issue/34658
 	t.reqMu.Lock()
+	defer t.reqMu.Unlock()
 	cancel := t.reqCanceler[key]
 	delete(t.reqCanceler, key)
-	t.reqMu.Unlock()
 	if cancel != nil {
 		cancel(err)
 	}
