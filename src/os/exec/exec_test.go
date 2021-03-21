@@ -1052,41 +1052,18 @@ func TestContextCancel(t *testing.T) {
 	defer cancel()
 	c := helperCommandContext(t, ctx, "cat")
 
-	r, w, err := os.Pipe()
+	stdin, err := c.StdinPipe()
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.Stdin = r
-
-	stdout, err := c.StdoutPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	readDone := make(chan struct{})
-	go func() {
-		defer close(readDone)
-		var a [1024]byte
-		for {
-			n, err := stdout.Read(a[:])
-			if err != nil {
-				if err != io.EOF {
-					t.Errorf("unexpected read error: %v", err)
-				}
-				return
-			}
-			t.Logf("%s", a[:n])
-		}
-	}()
+	defer stdin.Close()
 
 	if err := c.Start(); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := r.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := io.WriteString(w, "echo"); err != nil {
+	// At this point the process is alive. Ensure it by sending data to stdin.
+	if _, err := io.WriteString(stdin, "echo"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1096,7 +1073,7 @@ func TestContextCancel(t *testing.T) {
 	// should now fail.  Give the process a little while to die.
 	start := time.Now()
 	for {
-		if _, err := io.WriteString(w, "echo"); err != nil {
+		if _, err := io.WriteString(stdin, "echo"); err != nil {
 			break
 		}
 		if time.Since(start) > time.Minute {
@@ -1104,11 +1081,6 @@ func TestContextCancel(t *testing.T) {
 		}
 		time.Sleep(time.Millisecond)
 	}
-
-	if err := w.Close(); err != nil {
-		t.Errorf("error closing write end of pipe: %v", err)
-	}
-	<-readDone
 
 	if err := c.Wait(); err == nil {
 		t.Error("program unexpectedly exited successfully")
