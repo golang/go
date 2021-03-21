@@ -18,6 +18,10 @@ The `go2go` tool will look for `.go2` files using the environment variable `GO2P
 You can find some useful packages that you might want to experiment with by
 setting `GO2PATH=$GOROOT/src/cmd/go2go/testdata/go2path`.
 
+You can specify build tags, so that imports properly work during translation,
+by using the `-tags` option, e.g. `go tool go2go run -tags=appengine x.go2`.
+The `-tags` option is available for all the `go2go` sub-commands.
+
 If you find bugs in the updated type checker or in the translation
 tool, they should be filed in the [standard Go issue
 tracker](https://golang.org/issue).

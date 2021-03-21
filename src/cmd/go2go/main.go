@@ -26,6 +26,26 @@ var cmds = map[string]bool{
 	"translate": true,
 }
 
+// tagsFlag is the implementation of the -tags flag.
+type tagsFlag []string
+
+var buildTags tagsFlag
+
+func (v *tagsFlag) Set(s string) error {
+	// Split on commas, ignore empty strings.
+	*v = []string{}
+	for _, s := range strings.Split(s, ",") {
+		if s != "" {
+			*v = append(*v, s)
+		}
+	}
+	return nil
+}
+
+func (v *tagsFlag) String() string {
+	return "<TagsFlag>"
+}
+
 func main() {
 	flag.Usage = usage
 	flag.Parse()
@@ -38,6 +58,13 @@ func main() {
 	if !cmds[args[0]] {
 		usage()
 	}
+	cmd := args[0]
+
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.Var((*tagsFlag)(&buildTags), "tags", "tag,list")
+	fs.Parse(args[1:])
+
+	args = fs.Args()
 
 	importerTmpdir, err := ioutil.TempDir("", "go2go")
 	if err != nil {
@@ -47,30 +74,44 @@ func main() {
 
 	importer := go2go.NewImporter(importerTmpdir)
 
+	if len(buildTags) > 0 {
+		importer.SetTags(buildTags)
+	}
+
 	var rundir string
-	if args[0] == "run" {
-		tmpdir := copyToTmpdir(args[1:])
+	if cmd == "run" {
+		tmpdir := copyToTmpdir(args)
 		defer os.RemoveAll(tmpdir)
 		translate(importer, tmpdir)
 		nargs := []string{"run"}
-		for _, arg := range args[1:] {
+		for _, arg := range args {
 			base := filepath.Base(arg)
 			f := strings.TrimSuffix(base, ".go2") + ".go"
 			nargs = append(nargs, f)
 		}
 		args = nargs
 		rundir = tmpdir
-	} else if args[0] == "translate" && isGo2Files(args[1:]...) {
-		for _, arg := range args[1:] {
+	} else if cmd == "translate" && isGo2Files(args...) {
+		for _, arg := range args {
 			translateFile(importer, arg)
 		}
 	} else {
-		for _, dir := range expandPackages(args[1:]) {
+		for _, dir := range expandPackages(args) {
 			translate(importer, dir)
 		}
 	}
 
-	if args[0] != "translate" {
+	if cmd != "translate" {
+		if len(buildTags) > 0 {
+			args = append([]string{
+				fmt.Sprintf("-tags=%s", strings.Join(buildTags, ",")),
+			}, args...)
+		}
+
+		args = append([]string{
+			cmd,
+		}, args...)
+
 		cmd := exec.Command(gotool, args...)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout

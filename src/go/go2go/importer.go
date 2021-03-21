@@ -5,6 +5,7 @@
 package go2go
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -17,10 +18,12 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 // Importer implements the types.ImporterFrom interface.
@@ -58,6 +61,9 @@ type Importer struct {
 	// since it doesn't deal with import information,
 	// but Importer is a useful common location to store the data.
 	instantiations map[*types.Package]*instantiations
+
+	// build tags
+	tags map[string]bool
 }
 
 var _ types.ImporterFrom = &Importer{}
@@ -81,6 +87,13 @@ func NewImporter(tmpdir string) *Importer {
 		idToFunc:        make(map[types.Object]*ast.FuncDecl),
 		idToTypeSpec:    make(map[types.Object]*ast.TypeSpec),
 		instantiations:  make(map[*types.Package]*instantiations),
+		tags:            make(map[string]bool),
+	}
+}
+
+func (imp *Importer) SetTags(tags []string) {
+	for _, tag := range tags {
+		imp.tags[tag] = true
 	}
 }
 
@@ -217,7 +230,11 @@ func (imp *Importer) importGo1Package(importPath, dir string, mode types.ImportM
 
 	fset := token.NewFileSet()
 	filter := func(fi os.FileInfo) bool {
-		return !strings.HasSuffix(fi.Name(), "_test.go")
+		name := fi.Name()
+		if strings.HasSuffix(name, "_test.go") {
+			return false
+		}
+		return imp.shouldInclude(path.Join(pdir, name))
 	}
 	pkgs, err := parser.ParseDir(fset, pdir, filter, 0)
 	if err != nil {
@@ -411,4 +428,146 @@ func (imp *Importer) gatherTransitiveImports(path string, m map[string]bool) []s
 	}
 	sort.Strings(r)
 	return r
+}
+
+var slashslash = []byte("//")
+
+// shouldInclude reports whether it is okay to use this file,
+// The rule is that in the file's leading run of // comments
+// and blank lines, which must be followed by a blank line
+// (to avoid including a Go package clause doc comment),
+// lines beginning with '// +build' are taken as build directives.
+//
+// The file is accepted only if each such line lists something
+// matching the file. For example:
+//
+//	// +build windows linux
+//
+// marks the file as applicable only on Windows and Linux.
+//
+// If tags["*"] is true, then ShouldBuild will consider every
+// build tag except "ignore" to be both true and false for
+// the purpose of satisfying build tags, in order to estimate
+// (conservatively) whether a file could ever possibly be used
+// in any build.
+//
+// This code was copied from the go command internals.
+func (imp *Importer) shouldInclude(path string) bool {
+	content, err := ioutil.ReadFile(path)
+	if err != nil {
+		return false
+	}
+
+	// Pass 1. Identify leading run of // comments and blank lines,
+	// which must be followed by a blank line.
+	end := 0
+	p := content
+	for len(p) > 0 {
+		line := p
+		if i := bytes.IndexByte(line, '\n'); i >= 0 {
+			line, p = line[:i], p[i+1:]
+		} else {
+			p = p[len(p):]
+		}
+
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 { // Blank line
+			end = len(content) - len(p)
+			continue
+		}
+		if !bytes.HasPrefix(line, slashslash) { // Not comment line
+			break
+		}
+	}
+	content = content[:end]
+
+	// Pass 2.  Process each line in the run.
+	p = content
+	allok := true
+	for len(p) > 0 {
+		line := p
+		if i := bytes.IndexByte(line, '\n'); i >= 0 {
+			line, p = line[:i], p[i+1:]
+		} else {
+			p = p[len(p):]
+		}
+		line = bytes.TrimSpace(line)
+		if !bytes.HasPrefix(line, slashslash) {
+			continue
+		}
+		line = bytes.TrimSpace(line[len(slashslash):])
+		if len(line) > 0 && line[0] == '+' {
+			// Looks like a comment +line.
+			f := strings.Fields(string(line))
+			if f[0] == "+build" {
+				ok := false
+				for _, tok := range f[1:] {
+					if matchTags(tok, imp.tags) {
+						ok = true
+					}
+				}
+				if !ok {
+					allok = false
+				}
+			}
+		}
+	}
+
+	return allok
+}
+
+// matchTags reports whether the name is one of:
+//
+//	tag (if tags[tag] is true)
+//	!tag (if tags[tag] is false)
+//	a comma-separated list of any of these
+//
+func matchTags(name string, tags map[string]bool) bool {
+	if name == "" {
+		return false
+	}
+	if i := strings.Index(name, ","); i >= 0 {
+		// comma-separated list
+		ok1 := matchTags(name[:i], tags)
+		ok2 := matchTags(name[i+1:], tags)
+		return ok1 && ok2
+	}
+	if strings.HasPrefix(name, "!!") { // bad syntax, reject always
+		return false
+	}
+	if strings.HasPrefix(name, "!") { // negation
+		return len(name) > 1 && matchTag(name[1:], tags, false)
+	}
+	return matchTag(name, tags, true)
+}
+
+// matchTag reports whether the tag name is valid and satisfied by tags[name]==want.
+func matchTag(name string, tags map[string]bool, want bool) bool {
+	// Tags must be letters, digits, underscores or dots.
+	// Unlike in Go identifiers, all digits are fine (e.g., "386").
+	for _, c := range name {
+		if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' && c != '.' {
+			return false
+		}
+	}
+
+	if tags["*"] && name != "" && name != "ignore" {
+		// Special case for gathering all possible imports:
+		// if we put * in the tags map then all tags
+		// except "ignore" are considered both present and not
+		// (so we return true no matter how 'want' is set).
+		return true
+	}
+
+	have := tags[name]
+	if name == "linux" {
+		have = have || tags["android"]
+	}
+	if name == "solaris" {
+		have = have || tags["illumos"]
+	}
+	if name == "darwin" {
+		have = have || tags["ios"]
+	}
+	return have == want
 }

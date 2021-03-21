@@ -321,3 +321,70 @@ func TestTransitiveGo1(t *testing.T) {
 		t.Fatalf(`error running "go2go build": %v`, err)
 	}
 }
+
+func TestBuildWithTags(t *testing.T) {
+	t.Parallel()
+	buildGo2go(t)
+
+	gopath := t.TempDir()
+	testFiles{
+		{
+			"a/a.go2",
+			`package a; func ident[T any](v T) T { return v }; func F1(s string) string { return ident(s) }`,
+		},
+		{
+			"b/b_appengine.go",
+			`// +build appengine
+
+package b; import "a"; func F2(s string) string { return a.F1(s) + " App Engine!" }`,
+		},
+		{
+			"b/b.go",
+			`// +build !appengine
+
+package b; import "a"; func F2(s string) string { return a.F1(s) + " World!" }`,
+		},
+		{
+			"c/c.go2",
+			`package main; import ("fmt"; "b"); func main() { fmt.Println(b.F2("Hello")) }`,
+		},
+	}.create(t, gopath)
+
+	t.Log("go2go build")
+	cmd := exec.Command(testGo2go, "build", "-tags=appengine", "c")
+	cmd.Dir = gopath
+	cmd.Env = append(os.Environ(),
+		"GO2PATH="+gopath,
+	)
+	out, err := cmd.CombinedOutput()
+	if len(out) > 0 {
+		t.Logf("%s", out)
+	}
+	if err != nil {
+		t.Fatalf(`error running "go2go build": %v`, err)
+	}
+
+	runHelloInC(t, gopath)
+}
+
+func runHelloInC(t *testing.T, dir string) {
+	cmdName := "./c"
+	if runtime.GOOS == "windows" {
+		cmdName += ".exe"
+	}
+	cmd := exec.Command(cmdName)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	t.Log("./c")
+	if len(out) > 0 {
+		t.Logf("%s", out)
+	}
+	if err != nil {
+		t.Fatalf("error running c: %v", err)
+	}
+	got := strings.Split(strings.TrimSpace(string(out)), "\n")[0]
+	want := "Hello App Engine!"
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("c output %v, want %v", got, want)
+	}
+}
