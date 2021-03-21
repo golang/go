@@ -1124,6 +1124,9 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
 // MaxBytesReader prevents clients from accidentally or maliciously
 // sending a large request and wasting server resources.
 func MaxBytesReader(w ResponseWriter, r io.ReadCloser, n int64) io.ReadCloser {
+	if n < 0 { // Treat negative limits as equivalent to 0.
+		n = 0
+	}
 	return &maxBytesReader{w: w, r: r, n: n}
 }
 
