@@ -1099,7 +1099,7 @@ func TestContextCancel(t *testing.T) {
 		if _, err := io.WriteString(w, "echo"); err != nil {
 			break
 		}
-		if time.Since(start) > time.Second {
+		if time.Since(start) > time.Minute {
 			t.Fatal("canceling context did not stop program")
 		}
 		time.Sleep(time.Millisecond)
