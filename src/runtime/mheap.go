@@ -1854,9 +1854,37 @@ func setprofilebucket(p unsafe.Pointer, b *bucket) {
 	}
 }
 
-// Do whatever cleanup needs to be done to deallocate s. It has
-// already been unlinked from the mspan specials list.
-func freespecial(s *special, p unsafe.Pointer, size uintptr) {
+// specialsIter helps iterate over specials lists.
+type specialsIter struct {
+	pprev **special
+	s     *special
+}
+
+func newSpecialsIter(span *mspan) specialsIter {
+	return specialsIter{&span.specials, span.specials}
+}
+
+func (i *specialsIter) valid() bool {
+	return i.s != nil
+}
+
+func (i *specialsIter) next() {
+	i.pprev = &i.s.next
+	i.s = *i.pprev
+}
+
+// unlinkAndNext removes the current special from the list and moves
+// the iterator to the next special. It returns the unlinked special.
+func (i *specialsIter) unlinkAndNext() *special {
+	cur := i.s
+	i.s = cur.next
+	*i.pprev = i.s
+	return cur
+}
+
+// freeSpecial performs any cleanup on special s and deallocates it.
+// s must already be unlinked from the specials list.
+func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
 	switch s.kind {
 	case _KindSpecialFinalizer:
 		sf := (*specialfinalizer)(unsafe.Pointer(s))

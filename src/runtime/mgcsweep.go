@@ -356,11 +356,10 @@ func (s *mspan) sweep(preserve bool) bool {
 	//    If such object is not marked, we need to queue all finalizers at once.
 	// Both 1 and 2 are possible at the same time.
 	hadSpecials := s.specials != nil
-	specialp := &s.specials
-	special := *specialp
-	for special != nil {
+	siter := newSpecialsIter(s)
+	for siter.valid() {
 		// A finalizer can be set for an inner byte of an object, find object beginning.
-		objIndex := uintptr(special.offset) / size
+		objIndex := uintptr(siter.s.offset) / size
 		p := s.base() + objIndex*size
 		mbits := s.markBitsForIndex(objIndex)
 		if !mbits.isMarked() {
@@ -368,7 +367,7 @@ func (s *mspan) sweep(preserve bool) bool {
 			// Pass 1: see if it has at least one finalizer.
 			hasFin := false
 			endOffset := p - s.base() + size
-			for tmp := special; tmp != nil && uintptr(tmp.offset) < endOffset; tmp = tmp.next {
+			for tmp := siter.s; tmp != nil && uintptr(tmp.offset) < endOffset; tmp = tmp.next {
 				if tmp.kind == _KindSpecialFinalizer {
 					// Stop freeing of object if it has a finalizer.
 					mbits.setMarkedNonAtomic()
@@ -377,27 +376,23 @@ func (s *mspan) sweep(preserve bool) bool {
 				}
 			}
 			// Pass 2: queue all finalizers _or_ handle profile record.
-			for special != nil && uintptr(special.offset) < endOffset {
+			for siter.valid() && uintptr(siter.s.offset) < endOffset {
 				// Find the exact byte for which the special was setup
 				// (as opposed to object beginning).
+				special := siter.s
 				p := s.base() + uintptr(special.offset)
 				if special.kind == _KindSpecialFinalizer || !hasFin {
-					// Splice out special record.
-					y := special
-					special = special.next
-					*specialp = special
-					freespecial(y, unsafe.Pointer(p), size)
+					siter.unlinkAndNext()
+					freeSpecial(special, unsafe.Pointer(p), size)
 				} else {
 					// This is profile record, but the object has finalizers (so kept alive).
 					// Keep special record.
-					specialp = &special.next
-					special = *specialp
+					siter.next()
 				}
 			}
 		} else {
 			// object is still live: keep special record
-			specialp = &special.next
-			special = *specialp
+			siter.next()
 		}
 	}
 	if hadSpecials && s.specials == nil {
