@@ -22253,12 +22253,12 @@ func rewriteValueARM64_OpConst8(v *Value) bool {
 	}
 }
 func rewriteValueARM64_OpConstBool(v *Value) bool {
-	// match: (ConstBool [b])
-	// result: (MOVDconst [b2i(b)])
+	// match: (ConstBool [t])
+	// result: (MOVDconst [b2i(t)])
 	for {
-		b := auxIntToBool(v.AuxInt)
+		t := auxIntToBool(v.AuxInt)
 		v.reset(OpARM64MOVDconst)
-		v.AuxInt = int64ToAuxInt(b2i(b))
+		v.AuxInt = int64ToAuxInt(b2i(t))
 		return true
 	}
 }

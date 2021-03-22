@@ -768,7 +768,7 @@
 	=> mem
 
 // Collapse OffPtr
-(OffPtr (OffPtr p [b]) [a]) => (OffPtr p [a+b])
+(OffPtr (OffPtr p [y]) [x]) => (OffPtr p [x+y])
 (OffPtr p [0]) && v.Type.Compare(p.Type) == types.CMPeq => p
 
 // indexing operations
@@ -847,7 +847,7 @@
             f0 mem))))
 
 // Putting struct{*byte} and similar into direct interfaces.
-(IMake typ (StructMake1 val)) => (IMake typ val)
+(IMake _typ (StructMake1 val)) => (IMake _typ val)
 (StructSelect [0] (IData x)) => (IData x)
 
 // un-SSAable values use mem->mem copies
@@ -869,7 +869,7 @@
 (Store dst (ArrayMake1 e) mem) => (Store {e.Type} dst e mem)
 
 // Putting [1]*byte and similar into direct interfaces.
-(IMake typ (ArrayMake1 val)) => (IMake typ val)
+(IMake _typ (ArrayMake1 val)) => (IMake _typ val)
 (ArraySelect [0] (IData x)) => (IData x)
 
 // string ops
@@ -1974,9 +1974,9 @@
 (Sqrt (Const64F [c])) && !math.IsNaN(math.Sqrt(c)) => (Const64F [math.Sqrt(c)])
 
 // for rewriting results of some late-expanded rewrites (below)
-(SelectN [0] (MakeResult a ___)) => a
-(SelectN [1] (MakeResult a b ___)) => b
-(SelectN [2] (MakeResult a b c ___)) => c
+(SelectN [0] (MakeResult x ___)) => x
+(SelectN [1] (MakeResult x y ___)) => y
+(SelectN [2] (MakeResult x y z ___)) => z
 
 // for late-expanded calls, recognize newobject and remove zeroing and nilchecks
 (Zero (SelectN [0] call:(StaticLECall _ _)) mem:(SelectN [1] call))
@@ -2013,18 +2013,18 @@
 // Evaluate constant address comparisons.
 (EqPtr  x x) => (ConstBool [true])
 (NeqPtr x x) => (ConstBool [false])
-(EqPtr  (Addr {a} _) (Addr {b} _)) => (ConstBool [a == b])
-(EqPtr  (Addr {a} _) (OffPtr [o] (Addr {b} _))) => (ConstBool [a == b && o == 0])
-(EqPtr  (OffPtr [o1] (Addr {a} _)) (OffPtr [o2] (Addr {b} _))) => (ConstBool [a == b && o1 == o2])
-(NeqPtr (Addr {a} _) (Addr {b} _)) => (ConstBool [a != b])
-(NeqPtr (Addr {a} _) (OffPtr [o] (Addr {b} _))) => (ConstBool [a != b || o != 0])
-(NeqPtr (OffPtr [o1] (Addr {a} _)) (OffPtr [o2] (Addr {b} _))) => (ConstBool [a != b || o1 != o2])
-(EqPtr  (LocalAddr {a} _ _) (LocalAddr {b} _ _)) => (ConstBool [a == b])
-(EqPtr  (LocalAddr {a} _ _) (OffPtr [o] (LocalAddr {b} _ _))) => (ConstBool [a == b && o == 0])
-(EqPtr  (OffPtr [o1] (LocalAddr {a} _ _)) (OffPtr [o2] (LocalAddr {b} _ _))) => (ConstBool [a == b && o1 == o2])
-(NeqPtr (LocalAddr {a} _ _) (LocalAddr {b} _ _)) => (ConstBool [a != b])
-(NeqPtr (LocalAddr {a} _ _) (OffPtr [o] (LocalAddr {b} _ _))) => (ConstBool [a != b || o != 0])
-(NeqPtr (OffPtr [o1] (LocalAddr {a} _ _)) (OffPtr [o2] (LocalAddr {b} _ _))) => (ConstBool [a != b || o1 != o2])
+(EqPtr  (Addr {x} _) (Addr {y} _)) => (ConstBool [x == y])
+(EqPtr  (Addr {x} _) (OffPtr [o] (Addr {y} _))) => (ConstBool [x == y && o == 0])
+(EqPtr  (OffPtr [o1] (Addr {x} _)) (OffPtr [o2] (Addr {y} _))) => (ConstBool [x == y && o1 == o2])
+(NeqPtr (Addr {x} _) (Addr {y} _)) => (ConstBool [x != y])
+(NeqPtr (Addr {x} _) (OffPtr [o] (Addr {y} _))) => (ConstBool [x != y || o != 0])
+(NeqPtr (OffPtr [o1] (Addr {x} _)) (OffPtr [o2] (Addr {y} _))) => (ConstBool [x != y || o1 != o2])
+(EqPtr  (LocalAddr {x} _ _) (LocalAddr {y} _ _)) => (ConstBool [x == y])
+(EqPtr  (LocalAddr {x} _ _) (OffPtr [o] (LocalAddr {y} _ _))) => (ConstBool [x == y && o == 0])
+(EqPtr  (OffPtr [o1] (LocalAddr {x} _ _)) (OffPtr [o2] (LocalAddr {y} _ _))) => (ConstBool [x == y && o1 == o2])
+(NeqPtr (LocalAddr {x} _ _) (LocalAddr {y} _ _)) => (ConstBool [x != y])
+(NeqPtr (LocalAddr {x} _ _) (OffPtr [o] (LocalAddr {y} _ _))) => (ConstBool [x != y || o != 0])
+(NeqPtr (OffPtr [o1] (LocalAddr {x} _ _)) (OffPtr [o2] (LocalAddr {y} _ _))) => (ConstBool [x != y || o1 != o2])
 (EqPtr  (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) => (ConstBool [o1 == 0])
 (NeqPtr (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) => (ConstBool [o1 != 0])
 (EqPtr  (OffPtr [o1] p1) (OffPtr [o2] p2)) && isSamePtr(p1, p2) => (ConstBool [o1 == o2])

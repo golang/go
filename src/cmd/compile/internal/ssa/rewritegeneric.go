@@ -8152,32 +8152,32 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 		v.AuxInt = boolToAuxInt(true)
 		return true
 	}
-	// match: (EqPtr (Addr {a} _) (Addr {b} _))
-	// result: (ConstBool [a == b])
+	// match: (EqPtr (Addr {x} _) (Addr {y} _))
+	// result: (ConstBool [x == y])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpAddr {
 				continue
 			}
-			a := auxToSym(v_0.Aux)
+			x := auxToSym(v_0.Aux)
 			if v_1.Op != OpAddr {
 				continue
 			}
-			b := auxToSym(v_1.Aux)
+			y := auxToSym(v_1.Aux)
 			v.reset(OpConstBool)
-			v.AuxInt = boolToAuxInt(a == b)
+			v.AuxInt = boolToAuxInt(x == y)
 			return true
 		}
 		break
 	}
-	// match: (EqPtr (Addr {a} _) (OffPtr [o] (Addr {b} _)))
-	// result: (ConstBool [a == b && o == 0])
+	// match: (EqPtr (Addr {x} _) (OffPtr [o] (Addr {y} _)))
+	// result: (ConstBool [x == y && o == 0])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpAddr {
 				continue
 			}
-			a := auxToSym(v_0.Aux)
+			x := auxToSym(v_0.Aux)
 			if v_1.Op != OpOffPtr {
 				continue
 			}
@@ -8186,15 +8186,15 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			if v_1_0.Op != OpAddr {
 				continue
 			}
-			b := auxToSym(v_1_0.Aux)
+			y := auxToSym(v_1_0.Aux)
 			v.reset(OpConstBool)
-			v.AuxInt = boolToAuxInt(a == b && o == 0)
+			v.AuxInt = boolToAuxInt(x == y && o == 0)
 			return true
 		}
 		break
 	}
-	// match: (EqPtr (OffPtr [o1] (Addr {a} _)) (OffPtr [o2] (Addr {b} _)))
-	// result: (ConstBool [a == b && o1 == o2])
+	// match: (EqPtr (OffPtr [o1] (Addr {x} _)) (OffPtr [o2] (Addr {y} _)))
+	// result: (ConstBool [x == y && o1 == o2])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpOffPtr {
@@ -8205,7 +8205,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			if v_0_0.Op != OpAddr {
 				continue
 			}
-			a := auxToSym(v_0_0.Aux)
+			x := auxToSym(v_0_0.Aux)
 			if v_1.Op != OpOffPtr {
 				continue
 			}
@@ -8214,39 +8214,39 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			if v_1_0.Op != OpAddr {
 				continue
 			}
-			b := auxToSym(v_1_0.Aux)
+			y := auxToSym(v_1_0.Aux)
 			v.reset(OpConstBool)
-			v.AuxInt = boolToAuxInt(a == b && o1 == o2)
+			v.AuxInt = boolToAuxInt(x == y && o1 == o2)
 			return true
 		}
 		break
 	}
-	// match: (EqPtr (LocalAddr {a} _ _) (LocalAddr {b} _ _))
-	// result: (ConstBool [a == b])
+	// match: (EqPtr (LocalAddr {x} _ _) (LocalAddr {y} _ _))
+	// result: (ConstBool [x == y])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpLocalAddr {
 				continue
 			}
-			a := auxToSym(v_0.Aux)
+			x := auxToSym(v_0.Aux)
 			if v_1.Op != OpLocalAddr {
 				continue
 			}
-			b := auxToSym(v_1.Aux)
+			y := auxToSym(v_1.Aux)
 			v.reset(OpConstBool)
-			v.AuxInt = boolToAuxInt(a == b)
+			v.AuxInt = boolToAuxInt(x == y)
 			return true
 		}
 		break
 	}
-	// match: (EqPtr (LocalAddr {a} _ _) (OffPtr [o] (LocalAddr {b} _ _)))
-	// result: (ConstBool [a == b && o == 0])
+	// match: (EqPtr (LocalAddr {x} _ _) (OffPtr [o] (LocalAddr {y} _ _)))
+	// result: (ConstBool [x == y && o == 0])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpLocalAddr {
 				continue
 			}
-			a := auxToSym(v_0.Aux)
+			x := auxToSym(v_0.Aux)
 			if v_1.Op != OpOffPtr {
 				continue
 			}
@@ -8255,15 +8255,15 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			if v_1_0.Op != OpLocalAddr {
 				continue
 			}
-			b := auxToSym(v_1_0.Aux)
+			y := auxToSym(v_1_0.Aux)
 			v.reset(OpConstBool)
-			v.AuxInt = boolToAuxInt(a == b && o == 0)
+			v.AuxInt = boolToAuxInt(x == y && o == 0)
 			return true
 		}
 		break
 	}
-	// match: (EqPtr (OffPtr [o1] (LocalAddr {a} _ _)) (OffPtr [o2] (LocalAddr {b} _ _)))
-	// result: (ConstBool [a == b && o1 == o2])
+	// match: (EqPtr (OffPtr [o1] (LocalAddr {x} _ _)) (OffPtr [o2] (LocalAddr {y} _ _)))
+	// result: (ConstBool [x == y && o1 == o2])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpOffPtr {
@@ -8274,7 +8274,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			if v_0_0.Op != OpLocalAddr {
 				continue
 			}
-			a := auxToSym(v_0_0.Aux)
+			x := auxToSym(v_0_0.Aux)
 			if v_1.Op != OpOffPtr {
 				continue
 			}
@@ -8283,9 +8283,9 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			if v_1_0.Op != OpLocalAddr {
 				continue
 			}
-			b := auxToSym(v_1_0.Aux)
+			y := auxToSym(v_1_0.Aux)
 			v.reset(OpConstBool)
-			v.AuxInt = boolToAuxInt(a == b && o1 == o2)
+			v.AuxInt = boolToAuxInt(x == y && o1 == o2)
 			return true
 		}
 		break
@@ -8532,28 +8532,28 @@ func rewriteValuegeneric_OpEqSlice(v *Value) bool {
 func rewriteValuegeneric_OpIMake(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (IMake typ (StructMake1 val))
-	// result: (IMake typ val)
+	// match: (IMake _typ (StructMake1 val))
+	// result: (IMake _typ val)
 	for {
-		typ := v_0
+		_typ := v_0
 		if v_1.Op != OpStructMake1 {
 			break
 		}
 		val := v_1.Args[0]
 		v.reset(OpIMake)
-		v.AddArg2(typ, val)
+		v.AddArg2(_typ, val)
 		return true
 	}
-	// match: (IMake typ (ArrayMake1 val))
-	// result: (IMake typ val)
+	// match: (IMake _typ (ArrayMake1 val))
+	// result: (IMake _typ val)
 	for {
-		typ := v_0
+		_typ := v_0
 		if v_1.Op != OpArrayMake1 {
 			break
 		}
 		val := v_1.Args[0]
 		v.reset(OpIMake)
-		v.AddArg2(typ, val)
+		v.AddArg2(_typ, val)
 		return true
 	}
 	return false
@@ -15710,32 +15710,32 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 		v.AuxInt = boolToAuxInt(false)
 		return true
 	}
-	// match: (NeqPtr (Addr {a} _) (Addr {b} _))
-	// result: (ConstBool [a != b])
+	// match: (NeqPtr (Addr {x} _) (Addr {y} _))
+	// result: (ConstBool [x != y])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpAddr {
 				continue
 			}
-			a := auxToSym(v_0.Aux)
+			x := auxToSym(v_0.Aux)
 			if v_1.Op != OpAddr {
 				continue
 			}
-			b := auxToSym(v_1.Aux)
+			y := auxToSym(v_1.Aux)
 			v.reset(OpConstBool)
-			v.AuxInt = boolToAuxInt(a != b)
+			v.AuxInt = boolToAuxInt(x != y)
 			return true
 		}
 		break
 	}
-	// match: (NeqPtr (Addr {a} _) (OffPtr [o] (Addr {b} _)))
-	// result: (ConstBool [a != b || o != 0])
+	// match: (NeqPtr (Addr {x} _) (OffPtr [o] (Addr {y} _)))
+	// result: (ConstBool [x != y || o != 0])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpAddr {
 				continue
 			}
-			a := auxToSym(v_0.Aux)
+			x := auxToSym(v_0.Aux)
 			if v_1.Op != OpOffPtr {
 				continue
 			}
@@ -15744,15 +15744,15 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			if v_1_0.Op != OpAddr {
 				continue
 			}
-			b := auxToSym(v_1_0.Aux)
+			y := auxToSym(v_1_0.Aux)
 			v.reset(OpConstBool)
-			v.AuxInt = boolToAuxInt(a != b || o != 0)
+			v.AuxInt = boolToAuxInt(x != y || o != 0)
 			return true
 		}
 		break
 	}
-	// match: (NeqPtr (OffPtr [o1] (Addr {a} _)) (OffPtr [o2] (Addr {b} _)))
-	// result: (ConstBool [a != b || o1 != o2])
+	// match: (NeqPtr (OffPtr [o1] (Addr {x} _)) (OffPtr [o2] (Addr {y} _)))
+	// result: (ConstBool [x != y || o1 != o2])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpOffPtr {
@@ -15763,7 +15763,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			if v_0_0.Op != OpAddr {
 				continue
 			}
-			a := auxToSym(v_0_0.Aux)
+			x := auxToSym(v_0_0.Aux)
 			if v_1.Op != OpOffPtr {
 				continue
 			}
@@ -15772,39 +15772,39 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			if v_1_0.Op != OpAddr {
 				continue
 			}
-			b := auxToSym(v_1_0.Aux)
+			y := auxToSym(v_1_0.Aux)
 			v.reset(OpConstBool)
-			v.AuxInt = boolToAuxInt(a != b || o1 != o2)
+			v.AuxInt = boolToAuxInt(x != y || o1 != o2)
 			return true
 		}
 		break
 	}
-	// match: (NeqPtr (LocalAddr {a} _ _) (LocalAddr {b} _ _))
-	// result: (ConstBool [a != b])
+	// match: (NeqPtr (LocalAddr {x} _ _) (LocalAddr {y} _ _))
+	// result: (ConstBool [x != y])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpLocalAddr {
 				continue
 			}
-			a := auxToSym(v_0.Aux)
+			x := auxToSym(v_0.Aux)
 			if v_1.Op != OpLocalAddr {
 				continue
 			}
-			b := auxToSym(v_1.Aux)
+			y := auxToSym(v_1.Aux)
 			v.reset(OpConstBool)
-			v.AuxInt = boolToAuxInt(a != b)
+			v.AuxInt = boolToAuxInt(x != y)
 			return true
 		}
 		break
 	}
-	// match: (NeqPtr (LocalAddr {a} _ _) (OffPtr [o] (LocalAddr {b} _ _)))
-	// result: (ConstBool [a != b || o != 0])
+	// match: (NeqPtr (LocalAddr {x} _ _) (OffPtr [o] (LocalAddr {y} _ _)))
+	// result: (ConstBool [x != y || o != 0])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpLocalAddr {
 				continue
 			}
-			a := auxToSym(v_0.Aux)
+			x := auxToSym(v_0.Aux)
 			if v_1.Op != OpOffPtr {
 				continue
 			}
@@ -15813,15 +15813,15 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			if v_1_0.Op != OpLocalAddr {
 				continue
 			}
-			b := auxToSym(v_1_0.Aux)
+			y := auxToSym(v_1_0.Aux)
 			v.reset(OpConstBool)
-			v.AuxInt = boolToAuxInt(a != b || o != 0)
+			v.AuxInt = boolToAuxInt(x != y || o != 0)
 			return true
 		}
 		break
 	}
-	// match: (NeqPtr (OffPtr [o1] (LocalAddr {a} _ _)) (OffPtr [o2] (LocalAddr {b} _ _)))
-	// result: (ConstBool [a != b || o1 != o2])
+	// match: (NeqPtr (OffPtr [o1] (LocalAddr {x} _ _)) (OffPtr [o2] (LocalAddr {y} _ _)))
+	// result: (ConstBool [x != y || o1 != o2])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpOffPtr {
@@ -15832,7 +15832,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			if v_0_0.Op != OpLocalAddr {
 				continue
 			}
-			a := auxToSym(v_0_0.Aux)
+			x := auxToSym(v_0_0.Aux)
 			if v_1.Op != OpOffPtr {
 				continue
 			}
@@ -15841,9 +15841,9 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			if v_1_0.Op != OpLocalAddr {
 				continue
 			}
-			b := auxToSym(v_1_0.Aux)
+			y := auxToSym(v_1_0.Aux)
 			v.reset(OpConstBool)
-			v.AuxInt = boolToAuxInt(a != b || o1 != o2)
+			v.AuxInt = boolToAuxInt(x != y || o1 != o2)
 			return true
 		}
 		break
@@ -16532,17 +16532,17 @@ func rewriteValuegeneric_OpNot(v *Value) bool {
 }
 func rewriteValuegeneric_OpOffPtr(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (OffPtr (OffPtr p [b]) [a])
-	// result: (OffPtr p [a+b])
+	// match: (OffPtr (OffPtr p [y]) [x])
+	// result: (OffPtr p [x+y])
 	for {
-		a := auxIntToInt64(v.AuxInt)
+		x := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpOffPtr {
 			break
 		}
-		b := auxIntToInt64(v_0.AuxInt)
+		y := auxIntToInt64(v_0.AuxInt)
 		p := v_0.Args[0]
 		v.reset(OpOffPtr)
-		v.AuxInt = int64ToAuxInt(a + b)
+		v.AuxInt = int64ToAuxInt(x + y)
 		v.AddArg(p)
 		return true
 	}
@@ -20678,34 +20678,34 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
-	// match: (SelectN [0] (MakeResult a ___))
-	// result: a
+	// match: (SelectN [0] (MakeResult x ___))
+	// result: x
 	for {
 		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpMakeResult || len(v_0.Args) < 1 {
 			break
 		}
-		a := v_0.Args[0]
-		v.copyOf(a)
+		x := v_0.Args[0]
+		v.copyOf(x)
 		return true
 	}
-	// match: (SelectN [1] (MakeResult a b ___))
-	// result: b
+	// match: (SelectN [1] (MakeResult x y ___))
+	// result: y
 	for {
 		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpMakeResult || len(v_0.Args) < 2 {
 			break
 		}
-		b := v_0.Args[1]
-		v.copyOf(b)
+		y := v_0.Args[1]
+		v.copyOf(y)
 		return true
 	}
-	// match: (SelectN [2] (MakeResult a b c ___))
-	// result: c
+	// match: (SelectN [2] (MakeResult x y z ___))
+	// result: z
 	for {
 		if auxIntToInt64(v.AuxInt) != 2 || v_0.Op != OpMakeResult || len(v_0.Args) < 3 {
 			break
 		}
-		c := v_0.Args[2]
-		v.copyOf(c)
+		z := v_0.Args[2]
+		v.copyOf(z)
 		return true
 	}
 	// match: (SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem)))))

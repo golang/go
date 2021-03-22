@@ -134,7 +134,7 @@
 (Const(64|32|16|8) [val]) => (MOVVconst [int64(val)])
 (Const(32|64)F [val]) => (MOV(F|D)const [float64(val)])
 (ConstNil) => (MOVVconst [0])
-(ConstBool [b]) => (MOVVconst [int64(b2i(b))])
+(ConstBool [t]) => (MOVVconst [int64(b2i(t))])
 
 (Slicemask <t> x) => (SRAVconst (NEGV <t> x) [63])
 
