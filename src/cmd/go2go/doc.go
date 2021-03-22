@@ -7,7 +7,7 @@
 //
 // Usage:
 //
-//	go2go [options] <command> [arguments]
+//	go2go [options] <command> [go2go flags] [arguments]
 //
 // Commands:
 //
@@ -24,6 +24,13 @@
 // for each colon-separated component in GO2PATH. If not found in GO2PATH,
 // imports will be looked up in the usual way. If an import includes
 // .go2 files, they will be translated into .go files.
+//
+// The go2go flags are shared by the build, run, test, and translate commands:
+//
+//	-tags tag,list
+//		a comma-separated list of build tags to consider satisfied during the
+//		build. For more information about build tags, see the description of
+//		build constraints in the documentation for the go/build package.
 //
 // There is a sample GO2PATH in cmd/go2go/testdata/go2path. It provides
 // several packages that serve as examples of using generics, and may
