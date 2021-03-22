@@ -198,7 +198,7 @@
 (Const(64|32|16|8) [val]) => (MOVDconst [int64(val)])
 (Const(32F|64F) [val]) => (FMOV(S|D)const [float64(val)])
 (ConstNil) => (MOVDconst [0])
-(ConstBool [b]) => (MOVDconst [b2i(b)])
+(ConstBool [t]) => (MOVDconst [b2i(t)])
 
 (Slicemask <t> x) => (SRAconst (NEG <t> x) [63])
 

@@ -428,7 +428,7 @@
 (Const(64|32|16|8) [val]) => (MOVDconst [int64(val)])
 (Const(32|64)F ...) => (FMOV(S|D)const ...)
 (ConstNil) => (MOVDconst [0])
-(ConstBool [b]) => (MOVDconst [b2i(b)])
+(ConstBool [t]) => (MOVDconst [b2i(t)])
 
 // Lowering calls
 (StaticCall ...) => (CALLstatic ...)

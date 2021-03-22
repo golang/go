@@ -144,7 +144,7 @@
 (Const(32|16|8) [val]) => (MOVWconst [int32(val)])
 (Const(32|64)F ...) => (MOV(F|D)const ...)
 (ConstNil) => (MOVWconst [0])
-(ConstBool [b]) => (MOVWconst [b2i32(b)])
+(ConstBool [t]) => (MOVWconst [b2i32(t)])
 
 // truncations
 // Because we ignore high parts of registers, truncates are just copies.

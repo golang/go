@@ -872,12 +872,12 @@ func rewriteValueMIPS_OpConst8(v *Value) bool {
 	}
 }
 func rewriteValueMIPS_OpConstBool(v *Value) bool {
-	// match: (ConstBool [b])
-	// result: (MOVWconst [b2i32(b)])
+	// match: (ConstBool [t])
+	// result: (MOVWconst [b2i32(t)])
 	for {
-		b := auxIntToBool(v.AuxInt)
+		t := auxIntToBool(v.AuxInt)
 		v.reset(OpMIPSMOVWconst)
-		v.AuxInt = int32ToAuxInt(b2i32(b))
+		v.AuxInt = int32ToAuxInt(b2i32(t))
 		return true
 	}
 }
