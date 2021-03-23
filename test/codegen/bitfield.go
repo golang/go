@@ -264,3 +264,14 @@ func rev16w(c uint32) (uint32, uint32, uint32) {
 	b3 := ((c & 0xff00ff00) >> 8) ^ ((c & 0x00ff00ff) << 8)
 	return b1, b2, b3
 }
+
+func shift(x uint32, y uint16, z uint8) uint64 {
+	// arm64:-`MOVWU`,-`LSR\t[$]32`
+	a := uint64(x) >> 32
+	// arm64:-`MOVHU
+	b := uint64(y) >> 16
+	// arm64:-`MOVBU`
+	c := uint64(z) >> 8
+	// arm64:`MOVD\tZR`,-`ADD\tR[0-9]+>>16`,-`ADD\tR[0-9]+>>8`,
+	return a + b + c
+}
