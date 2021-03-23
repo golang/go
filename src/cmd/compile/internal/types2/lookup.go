@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -141,7 +140,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 
 				// continue with underlying type, but only if it's not a type parameter
 				// TODO(gri) is this what we want to do for type parameters? (spec question)
-				typ = under(named)
+				typ = named.under()
 				if asTypeParam(typ) != nil {
 					continue
 				}
