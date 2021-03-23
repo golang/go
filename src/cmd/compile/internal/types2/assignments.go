@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -131,6 +130,8 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
+		// Note: This was reverted in go/types (https://golang.org/cl/292751).
+		// TODO(gri): decide what to do (also affects test/run.go exclusion list)
 		lhs.used = true // avoid follow-on "declared but not used" errors
 		return nil
 	}
