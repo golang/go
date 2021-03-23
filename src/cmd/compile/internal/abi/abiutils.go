@@ -225,27 +225,16 @@ func appendParamOffsets(offsets []int64, at int64, t *types.Type) ([]int64, int6
 	return offsets, at
 }
 
-// SpillOffset returns the offset *within the spill area* for the parameter that "a" describes.
-// Registers will be spilled here; if a memory home is needed (for a pointer method e.g.)
-// then that will be the address.
-// This will panic if "a" describes a stack-allocated parameter.
-func (a *ABIParamAssignment) SpillOffset() int32 {
-	if len(a.Registers) == 0 {
-		panic("Stack-allocated parameters have no spill offset")
-	}
-	return a.offset
-}
-
 // FrameOffset returns the frame-pointer-relative location that a function
 // would spill its input or output parameter to, if such a spill slot exists.
+// If there is none defined (e.g., register-allocated outputs) it panics.
 // For register-allocated inputs that is their spill offset reserved for morestack;
 // for stack-allocated inputs and outputs, that is their location on the stack.
-// For register-allocated outputs, there is no defined spill area, so return -1.
 // (In a future version of the ABI, register-resident inputs may lose their defined
 // spill area to help reduce stack sizes.)
 func (a *ABIParamAssignment) FrameOffset(i *ABIParamResultInfo) int64 {
 	if a.offset == -1 {
-		return -1
+		panic("Function parameter has no ABI-defined frame-pointer offset")
 	}
 	if len(a.Registers) == 0 { // passed on stack
 		return int64(a.offset) - i.config.LocalsOffset()
