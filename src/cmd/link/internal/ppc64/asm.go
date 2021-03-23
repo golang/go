@@ -121,16 +121,21 @@ func genplt(ctxt *ld.Link, ldr *loader.Loader) {
 			// Update the relocation to use the call stub
 			r.SetSym(stub.Sym())
 
-			// make sure the data is writeable
-			if ldr.AttrReadOnly(s) {
-				panic("can't write to read-only sym data")
-			}
+			// Make the symbol writeable so we can fixup toc.
+			su := ldr.MakeSymbolUpdater(s)
+			su.MakeWritable()
+			p := su.Data()
 
-			// Restore TOC after bl. The compiler put a
-			// nop here for us to overwrite.
-			sp := ldr.Data(s)
+			// Check for toc restore slot (a nop), and replace with toc restore.
+			var nop uint32
+			if len(p) >= int(r.Off()+8) {
+				nop = ctxt.Arch.ByteOrder.Uint32(p[r.Off()+4:])
+			}
+			if nop != 0x60000000 {
+				ldr.Errorf(s, "Symbol %s is missing toc restoration slot at offset %d", ldr.SymName(s), r.Off()+4)
+			}
 			const o1 = 0xe8410018 // ld r2,24(r1)
-			ctxt.Arch.ByteOrder.PutUint32(sp[r.Off()+4:], o1)
+			ctxt.Arch.ByteOrder.PutUint32(p[r.Off()+4:], o1)
 		}
 	}
 	// Put call stubs at the beginning (instead of the end).
