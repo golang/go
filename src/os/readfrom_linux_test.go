@@ -361,3 +361,35 @@ func (h *copyFileRangeHook) install() {
 func (h *copyFileRangeHook) uninstall() {
 	*PollCopyFileRangeP = h.original
 }
+
+// On some kernels copy_file_range fails on files in /proc.
+func TestProcCopy(t *testing.T) {
+	const cmdlineFile = "/proc/self/cmdline"
+	cmdline, err := ioutil.ReadFile(cmdlineFile)
+	if err != nil {
+		t.Skipf("can't read /proc file: %v", err)
+	}
+	in, err := Open(cmdlineFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer in.Close()
+	outFile := filepath.Join(t.TempDir(), "cmdline")
+	out, err := Create(outFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		t.Fatal(err)
+	}
+	if err := out.Close(); err != nil {
+		t.Fatal(err)
+	}
+	copy, err := ioutil.ReadFile(outFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(cmdline, copy) {
+		t.Errorf("copy of %q got %q want %q\n", cmdlineFile, copy, cmdline)
+	}
+}

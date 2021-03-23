@@ -47,6 +47,7 @@ func runVendor(cmd *base.Command, args []string) {
 	if len(args) != 0 {
 		base.Fatalf("go mod vendor: vendor takes no arguments")
 	}
+	modload.SilenceMissingStdImports = true
 	pkgs := modload.LoadVendor()
 
 	vdir := filepath.Join(modload.ModRoot(), "vendor")

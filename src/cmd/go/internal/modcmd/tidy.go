@@ -42,6 +42,7 @@ func runTidy(cmd *base.Command, args []string) {
 		base.Fatalf("go mod tidy: no arguments allowed")
 	}
 
+	modload.SilenceMissingStdImports = true
 	modload.LoadALL()
 	modload.TidyBuildList()
 	modTidyGoSum() // updates memory copy; WriteGoMod on next line flushes it out

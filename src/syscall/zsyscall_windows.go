@@ -539,7 +539,7 @@ func GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, err error) {
 	return
 }
 
-func CreateIoCompletionPort(filehandle Handle, cphandle Handle, key uint32, threadcnt uint32) (handle Handle, err error) {
+func createIoCompletionPort(filehandle Handle, cphandle Handle, key uintptr, threadcnt uint32) (handle Handle, err error) {
 	r0, _, e1 := Syscall6(procCreateIoCompletionPort.Addr(), 4, uintptr(filehandle), uintptr(cphandle), uintptr(key), uintptr(threadcnt), 0, 0)
 	handle = Handle(r0)
 	if handle == 0 {
@@ -552,7 +552,7 @@ func CreateIoCompletionPort(filehandle Handle, cphandle Handle, key uint32, thre
 	return
 }
 
-func GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (err error) {
+func getQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uintptr, overlapped **Overlapped, timeout uint32) (err error) {
 	r1, _, e1 := Syscall6(procGetQueuedCompletionStatus.Addr(), 5, uintptr(cphandle), uintptr(unsafe.Pointer(qty)), uintptr(unsafe.Pointer(key)), uintptr(unsafe.Pointer(overlapped)), uintptr(timeout), 0)
 	if r1 == 0 {
 		if e1 != 0 {
@@ -564,7 +564,7 @@ func GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uint32, overla
 	return
 }
 
-func PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uint32, overlapped *Overlapped) (err error) {
+func postQueuedCompletionStatus(cphandle Handle, qty uint32, key uintptr, overlapped *Overlapped) (err error) {
 	r1, _, e1 := Syscall6(procPostQueuedCompletionStatus.Addr(), 4, uintptr(cphandle), uintptr(qty), uintptr(key), uintptr(unsafe.Pointer(overlapped)), 0, 0)
 	if r1 == 0 {
 		if e1 != 0 {
