@@ -672,22 +672,25 @@ func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *
 		pre.preloadImports(ctx, bp.Imports, bp)
 	}
 	if bp == nil {
+		p := &Package{
+			PackagePublic: PackagePublic{
+				ImportPath: path,
+				Incomplete: true,
+			},
+		}
 		if importErr, ok := err.(ImportPathError); !ok || importErr.ImportPath() != path {
-			// Only add path to the error's import stack if it's not already present on the error.
+			// Only add path to the error's import stack if it's not already present
+			// in the error.
+			//
+			// TODO(bcmills): setLoadPackageDataError itself has a similar Push / Pop
+			// sequence that empirically doesn't trigger for these errors, guarded by
+			// a somewhat complex condition. Figure out how to generalize that
+			// condition and eliminate the explicit calls here.
 			stk.Push(path)
 			defer stk.Pop()
 		}
-		// TODO(bcmills): Why are we constructing Error inline here instead of
-		// calling setLoadPackageDataError?
-		return &Package{
-			PackagePublic: PackagePublic{
-				ImportPath: path,
-				Error: &PackageError{
-					ImportStack: stk.Copy(),
-					Err:         err,
-				},
-			},
-		}
+		p.setLoadPackageDataError(err, path, stk, nil)
+		return p
 	}
 
 	importPath := bp.ImportPath
