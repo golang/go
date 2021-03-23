@@ -488,7 +488,7 @@ func numOpenFDsAndroid(t *testing.T) (n int, lsof []byte) {
 }
 
 func TestExtraFilesFDShuffle(t *testing.T) {
-	t.Skip("flaky test; see https://golang.org/issue/5780")
+	testenv.SkipFlaky(t, 5780)
 	switch runtime.GOOS {
 	case "windows":
 		t.Skip("no operating system support; skipping")
