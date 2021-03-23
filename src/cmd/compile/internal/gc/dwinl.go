@@ -243,7 +243,8 @@ func makePreinlineDclMap(fnsym *obj.LSym) map[varPos]int {
 			DeclCol:  pos.Col(),
 		}
 		if _, found := m[vp]; found {
-			Fatalf("child dcl collision on symbol %s within %v\n", n.Sym.Name, fnsym.Name)
+			// We can see collisions (variables with the same name/file/line/col) in obfuscated or machine-generated code -- see issue 44378 for an example. Skip duplicates in such cases, since it is unlikely that a human will be debugging such code.
+			continue
 		}
 		m[vp] = i
 	}

@@ -59,9 +59,9 @@ rm $GOPATH/bin
 env GO111MODULE=on
 go mod download rsc.io/fortune@v1.0.0
 ! go install $GOPATH/pkg/mod/rsc.io/fortune@v1.0.0
-stderr '^go: cannot find main module; see ''go help modules''$'
+stderr '^go: go\.mod file not found in current directory or any parent directory; see ''go help modules''$'
 ! go install ../pkg/mod/rsc.io/fortune@v1.0.0
-stderr '^go: cannot find main module; see ''go help modules''$'
+stderr '^go: go\.mod file not found in current directory or any parent directory; see ''go help modules''$'
 mkdir tmp
 cd tmp
 go mod init tmp

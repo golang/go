@@ -1053,18 +1053,26 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 		}
 	}
 
+	// We can delay declaring+initializing result parameters if:
+	// (1) there's exactly one "return" statement in the inlined function;
+	// (2) it's not an empty return statement (#44355); and
+	// (3) the result parameters aren't named.
+	delayretvars := true
+
 	nreturns := 0
 	inspectList(asNodes(fn.Func.Inl.Body), func(n *Node) bool {
 		if n != nil && n.Op == ORETURN {
 			nreturns++
+			if n.List.Len() == 0 {
+				delayretvars = false // empty return statement (case 2)
+			}
 		}
 		return true
 	})
 
-	// We can delay declaring+initializing result parameters if:
-	// (1) there's only one "return" statement in the inlined
-	// function, and (2) the result parameters aren't named.
-	delayretvars := nreturns == 1
+	if nreturns != 1 {
+		delayretvars = false // not exactly one return statement (case 1)
+	}
 
 	// temporaries for return values.
 	var retvars []*Node
@@ -1074,7 +1082,7 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 			m = inlvar(n)
 			m = typecheck(m, ctxExpr)
 			inlvars[n] = m
-			delayretvars = false // found a named result parameter
+			delayretvars = false // found a named result parameter (case 3)
 		} else {
 			// anonymous return values, synthesize names for use in assignment that replaces return
 			m = retvar(t, i)

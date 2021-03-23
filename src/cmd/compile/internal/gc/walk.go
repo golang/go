@@ -3927,15 +3927,22 @@ func wrapCall(n *Node, init *Nodes) *Node {
 		}
 	}
 
+	wrapArgs := n.List.Slice()
+	// If there's a receiver argument, it needs to be passed through the wrapper too.
+	if n.Op == OCALLMETH || n.Op == OCALLINTER {
+		recv := n.Left.Left
+		wrapArgs = append([]*Node{recv}, wrapArgs...)
+	}
+
 	// origArgs keeps track of what argument is uintptr-unsafe/unsafe-uintptr conversion.
-	origArgs := make([]*Node, n.List.Len())
+	origArgs := make([]*Node, len(wrapArgs))
 	t := nod(OTFUNC, nil, nil)
-	for i, arg := range n.List.Slice() {
+	for i, arg := range wrapArgs {
 		s := lookupN("a", i)
 		if !isBuiltinCall && arg.Op == OCONVNOP && arg.Type.IsUintptr() && arg.Left.Type.IsUnsafePtr() {
 			origArgs[i] = arg
 			arg = arg.Left
-			n.List.SetIndex(i, arg)
+			wrapArgs[i] = arg
 		}
 		t.List.Append(symfield(s, arg.Type))
 	}
@@ -3952,6 +3959,12 @@ func wrapCall(n *Node, init *Nodes) *Node {
 		arg := nod(origArg.Op, args[i], nil)
 		arg.Type = origArg.Type
 		args[i] = arg
+	}
+	if n.Op == OCALLMETH || n.Op == OCALLINTER {
+		// Move wrapped receiver argument back to its appropriate place.
+		recv := typecheck(args[0], ctxExpr)
+		n.Left.Left = recv
+		args = args[1:]
 	}
 	call := nod(n.Op, nil, nil)
 	if !isBuiltinCall {
@@ -3970,7 +3983,7 @@ func wrapCall(n *Node, init *Nodes) *Node {
 
 	call = nod(OCALL, nil, nil)
 	call.Left = fn.Func.Nname
-	call.List.Set(n.List.Slice())
+	call.List.Set(wrapArgs)
 	call = typecheck(call, ctxStmt)
 	call = walkexpr(call, init)
 	return call

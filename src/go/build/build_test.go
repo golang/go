@@ -612,7 +612,7 @@ func TestImportPackageOutsideModule(t *testing.T) {
 	ctxt.GOPATH = gopath
 	ctxt.Dir = filepath.Join(gopath, "src/example.com/p")
 
-	want := "working directory is not part of a module"
+	want := "go.mod file not found in current directory or any parent directory"
 	if _, err := ctxt.Import("example.com/p", gopath, FindOnly); err == nil {
 		t.Fatal("importing package when no go.mod is present succeeded unexpectedly")
 	} else if errStr := err.Error(); !strings.Contains(errStr, want) {
