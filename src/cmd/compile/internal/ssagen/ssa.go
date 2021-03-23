@@ -521,7 +521,6 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 
 	// Generate addresses of local declarations
 	s.decladdrs = map[*ir.Name]*ssa.Value{}
-	var results []ssa.Param
 	for _, n := range fn.Dcl {
 		switch n.Class {
 		case ir.PPARAM:
@@ -529,41 +528,12 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type()), n, s.sp, s.startmem)
 		case ir.PPARAMOUT:
 			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type()), n, s.sp, s.startmem)
-			results = append(results, ssa.Param{Name: n})
 		case ir.PAUTO:
 			// processed at each use, to prevent Addr coming
 			// before the decl.
 		default:
 			s.Fatalf("local variable with class %v unimplemented", n.Class)
 		}
-	}
-
-	// TODO: figure out why base.Ctxt.FixedFrameSize() is not added to these offsets here (compare to calls).
-	// The input half is ignored unless a register ABI is used.
-	var args []ssa.Param
-	for _, p := range params.InParams() {
-		r := p.Registers
-		var o int32
-		if len(r) == 0 {
-			o = p.Offset()
-		} else {
-			o = p.SpillOffset() + int32(params.SpillAreaOffset())
-		}
-		args = append(args, ssa.Param{Type: p.Type, Offset: o, Reg: r})
-	}
-
-	// For now, need the ir.Name attached to these, so update those already created.
-	for i, p := range params.OutParams() {
-		r := p.Registers
-		var o int32
-		if len(r) == 0 {
-			o = p.Offset()
-		} else {
-			o = types.BADWIDTH
-		}
-		results[i].Type = p.Type
-		results[i].Offset = o
-		results[i].Reg = r
 	}
 
 	s.f.OwnAux = ssa.OwnAuxCall(fn.LSym, params)
@@ -5497,8 +5467,6 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	s.prevCall = nil
 	// Write args to the stack
 	off := base.Ctxt.FixedFrameSize()
-	var ACArgs []ssa.Param
-	var ACResults []ssa.Param
 	var callArgs []*ssa.Value
 	var callArgTypes []*types.Type
 
@@ -5506,7 +5474,6 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 		t := arg.Type
 		off = types.Rnd(off, t.Alignment())
 		size := t.Size()
-		ACArgs = append(ACArgs, ssa.Param{Type: t, Offset: int32(off)})
 		callArgs = append(callArgs, arg)
 		callArgTypes = append(callArgTypes, t)
 		off += size
@@ -5517,7 +5484,6 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	offR := off
 	for _, t := range results {
 		offR = types.Rnd(offR, t.Alignment())
-		ACResults = append(ACResults, ssa.Param{Type: t, Offset: int32(offR)})
 		offR += t.Size()
 	}
 
@@ -5527,7 +5493,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	callArgs = append(callArgs, s.mem())
 	call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 	call.AddArgs(callArgs...)
-	s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
+	s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(results)), call)
 
 	if !returns {
 		// Finish block

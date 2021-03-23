@@ -92,13 +92,6 @@ func (r *regInfo) String() string {
 
 type auxType int8
 
-type Param struct {
-	Type   *types.Type
-	Offset int32 // Offset of Param if not in a register, spill offset if it is in a register input, types.BADWIDTH if it is a register output.
-	Reg    []abi.RegIndex
-	Name   *ir.Name // For OwnAux, need to prepend stores with Vardefs
-}
-
 type AuxNameOffset struct {
 	Name   *ir.Name
 	Offset int64
@@ -198,7 +191,7 @@ func (a *AuxCall) ArgWidth() int64 {
 	return a.abiInfo.ArgWidth()
 }
 
-// OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
+// ParamAssignmentForResult returns the ABI Parameter assignment for result which (indexed 0, 1, etc).
 func (a *AuxCall) ParamAssignmentForResult(which int64) *abi.ABIParamAssignment {
 	return a.abiInfo.OutParam(int(which))
 }
@@ -290,16 +283,6 @@ func (a *AuxCall) String() string {
 	// TODO how much of the ABI should be printed?
 
 	return fn + "}"
-}
-
-// ACParamsToTypes translates a slice of Param into a slice of *types.Type
-// This is a helper call for ssagen/ssa.go.
-// TODO remove this, as part of replacing fields of AuxCall with abi.ABIParamResultInfo.
-func ACParamsToTypes(ps []Param) (ts []*types.Type) {
-	for _, p := range ps {
-		ts = append(ts, p.Type)
-	}
-	return
 }
 
 // StaticAuxCall returns an AuxCall for a static call.

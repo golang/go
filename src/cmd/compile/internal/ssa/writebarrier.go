@@ -486,14 +486,12 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 	// put arguments on stack
 	off := config.ctxt.FixedFrameSize()
 
-	var ACArgs []Param
 	var argTypes []*types.Type
 	if typ != nil { // for typedmemmove
 		taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
 		off = round(off, taddr.Type.Alignment())
 		arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
 		mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, taddr, mem)
-		ACArgs = append(ACArgs, Param{Type: b.Func.Config.Types.Uintptr, Offset: int32(off)})
 		argTypes = append(argTypes, b.Func.Config.Types.Uintptr)
 		off += taddr.Type.Size()
 	}
@@ -501,7 +499,6 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 	off = round(off, ptr.Type.Alignment())
 	arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
 	mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, ptr, mem)
-	ACArgs = append(ACArgs, Param{Type: ptr.Type, Offset: int32(off)})
 	argTypes = append(argTypes, ptr.Type)
 	off += ptr.Type.Size()
 
@@ -509,7 +506,6 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 		off = round(off, val.Type.Alignment())
 		arg = b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
 		mem = b.NewValue3A(pos, OpStore, types.TypeMem, val.Type, arg, val, mem)
-		ACArgs = append(ACArgs, Param{Type: val.Type, Offset: int32(off)})
 		argTypes = append(argTypes, val.Type)
 		off += val.Type.Size()
 	}
