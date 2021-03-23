@@ -4,6 +4,8 @@
 
 @echo off
 
+REGEDIT /S go.reg
+
 if exist ..\bin\go.exe goto ok
 echo Must run run.bat from Go src directory after installing cmd/go.
 goto fail
