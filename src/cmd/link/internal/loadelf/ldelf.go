@@ -755,7 +755,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			}
 
 			rType := objabi.ElfRelocOffset + objabi.RelocType(relocType)
-			rSize, err := relSize(arch, pn, uint32(relocType))
+			rSize, addendSize, err := relSize(arch, pn, uint32(relocType))
 			if err != nil {
 				return nil, 0, err
 			}
@@ -772,10 +772,10 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				}
 			}
 
-			if rSize == 2 {
+			if addendSize == 2 {
 				rAdd = int64(int16(rAdd))
 			}
-			if rSize == 4 {
+			if addendSize == 4 {
 				rAdd = int64(int32(rAdd))
 			}
 
@@ -947,7 +947,10 @@ func readelfsym(newSym, lookup func(string, int) loader.Sym, l *loader.Loader, a
 	return nil
 }
 
-func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, error) {
+// Return the size of the relocated field, and the size of the addend as the first
+// and second values. Note, the addend may be larger than the relocation field in
+// some cases when a relocated value is split across multiple relocations.
+func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 	// TODO(mdempsky): Replace this with a struct-valued switch statement
 	// once golang.org/issue/15164 is fixed or found to not impair cmd/link
 	// performance.
@@ -966,7 +969,7 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, error) {
 
 	switch uint32(arch.Family) | elftype<<16 {
 	default:
-		return 0, fmt.Errorf("%s: unknown relocation type %d; compiled without -fpic?", pn, elftype)
+		return 0, 0, fmt.Errorf("%s: unknown relocation type %d; compiled without -fpic?", pn, elftype)
 
 	case MIPS | uint32(elf.R_MIPS_HI16)<<16,
 		MIPS | uint32(elf.R_MIPS_LO16)<<16,
@@ -990,26 +993,18 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, error) {
 		MIPS64 | uint32(elf.R_MIPS_GPREL32)<<16,
 		MIPS64 | uint32(elf.R_MIPS_64)<<16,
 		MIPS64 | uint32(elf.R_MIPS_GOT_DISP)<<16:
-		return 4, nil
+		return 4, 4, nil
 
 	case S390X | uint32(elf.R_390_8)<<16:
-		return 1, nil
+		return 1, 1, nil
 
 	case PPC64 | uint32(elf.R_PPC64_TOC16)<<16,
-		PPC64 | uint32(elf.R_PPC64_TOC16_LO)<<16,
-		PPC64 | uint32(elf.R_PPC64_TOC16_HI)<<16,
-		PPC64 | uint32(elf.R_PPC64_TOC16_HA)<<16,
-		PPC64 | uint32(elf.R_PPC64_TOC16_DS)<<16,
-		PPC64 | uint32(elf.R_PPC64_TOC16_LO_DS)<<16,
-		PPC64 | uint32(elf.R_PPC64_REL16_LO)<<16,
-		PPC64 | uint32(elf.R_PPC64_REL16_HI)<<16,
-		PPC64 | uint32(elf.R_PPC64_REL16_HA)<<16,
 		S390X | uint32(elf.R_390_16)<<16,
 		S390X | uint32(elf.R_390_GOT16)<<16,
 		S390X | uint32(elf.R_390_PC16)<<16,
 		S390X | uint32(elf.R_390_PC16DBL)<<16,
 		S390X | uint32(elf.R_390_PLT16DBL)<<16:
-		return 2, nil
+		return 2, 2, nil
 
 	case ARM | uint32(elf.R_ARM_ABS32)<<16,
 		ARM | uint32(elf.R_ARM_GOT32)<<16,
@@ -1057,7 +1052,7 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, error) {
 		S390X | uint32(elf.R_390_PLT32DBL)<<16,
 		S390X | uint32(elf.R_390_GOTPCDBL)<<16,
 		S390X | uint32(elf.R_390_GOTENT)<<16:
-		return 4, nil
+		return 4, 4, nil
 
 	case AMD64 | uint32(elf.R_X86_64_64)<<16,
 		AMD64 | uint32(elf.R_X86_64_PC64)<<16,
@@ -1072,11 +1067,11 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, error) {
 		S390X | uint32(elf.R_390_PC64)<<16,
 		S390X | uint32(elf.R_390_GOT64)<<16,
 		S390X | uint32(elf.R_390_PLT64)<<16:
-		return 8, nil
+		return 8, 8, nil
 
 	case RISCV64 | uint32(elf.R_RISCV_RVC_BRANCH)<<16,
 		RISCV64 | uint32(elf.R_RISCV_RVC_JUMP)<<16:
-		return 2, nil
+		return 2, 2, nil
 
 	case RISCV64 | uint32(elf.R_RISCV_32)<<16,
 		RISCV64 | uint32(elf.R_RISCV_BRANCH)<<16,
@@ -1088,12 +1083,22 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, error) {
 		RISCV64 | uint32(elf.R_RISCV_PCREL_LO12_I)<<16,
 		RISCV64 | uint32(elf.R_RISCV_PCREL_LO12_S)<<16,
 		RISCV64 | uint32(elf.R_RISCV_RELAX)<<16:
-		return 4, nil
+		return 4, 4, nil
 
 	case RISCV64 | uint32(elf.R_RISCV_64)<<16,
 		RISCV64 | uint32(elf.R_RISCV_CALL)<<16,
 		RISCV64 | uint32(elf.R_RISCV_CALL_PLT)<<16:
-		return 8, nil
+		return 8, 8, nil
+
+	case PPC64 | uint32(elf.R_PPC64_TOC16_LO)<<16,
+		PPC64 | uint32(elf.R_PPC64_TOC16_HI)<<16,
+		PPC64 | uint32(elf.R_PPC64_TOC16_HA)<<16,
+		PPC64 | uint32(elf.R_PPC64_TOC16_DS)<<16,
+		PPC64 | uint32(elf.R_PPC64_TOC16_LO_DS)<<16,
+		PPC64 | uint32(elf.R_PPC64_REL16_LO)<<16,
+		PPC64 | uint32(elf.R_PPC64_REL16_HI)<<16,
+		PPC64 | uint32(elf.R_PPC64_REL16_HA)<<16:
+		return 2, 4, nil
 	}
 }
 
