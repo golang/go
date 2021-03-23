@@ -27,15 +27,6 @@ func (g *irgen) stmts(stmts []syntax.Stmt) []ir.Node {
 }
 
 func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
-	// TODO(mdempsky): Remove dependency on typecheck.
-	n := g.stmt0(stmt)
-	if n != nil {
-		n.SetTypecheck(1)
-	}
-	return n
-}
-
-func (g *irgen) stmt0(stmt syntax.Stmt) ir.Node {
 	switch stmt := stmt.(type) {
 	case nil, *syntax.EmptyStmt:
 		return nil
@@ -51,35 +42,75 @@ func (g *irgen) stmt0(stmt syntax.Stmt) ir.Node {
 		return x
 	case *syntax.SendStmt:
 		n := ir.NewSendStmt(g.pos(stmt), g.expr(stmt.Chan), g.expr(stmt.Value))
-		// Need to do the AssignConv() in tcSend().
-		return typecheck.Stmt(n)
+		transformSend(n)
+		n.SetTypecheck(1)
+		return n
 	case *syntax.DeclStmt:
 		return ir.NewBlockStmt(g.pos(stmt), g.decls(stmt.DeclList))
 
 	case *syntax.AssignStmt:
 		if stmt.Op != 0 && stmt.Op != syntax.Def {
 			op := g.op(stmt.Op, binOps[:])
-			// May need to insert ConvExpr nodes on the args in tcArith
+			var n *ir.AssignOpStmt
 			if stmt.Rhs == nil {
-				return typecheck.Stmt(IncDec(g.pos(stmt), op, g.expr(stmt.Lhs)))
+				n = IncDec(g.pos(stmt), op, g.expr(stmt.Lhs))
+			} else {
+				n = ir.NewAssignOpStmt(g.pos(stmt), op, g.expr(stmt.Lhs), g.expr(stmt.Rhs))
 			}
-			return typecheck.Stmt(ir.NewAssignOpStmt(g.pos(stmt), op, g.expr(stmt.Lhs), g.expr(stmt.Rhs)))
+			if n.X.Typecheck() == 3 {
+				n.SetTypecheck(3)
+				return n
+			}
+			transformAsOp(n)
+			n.SetTypecheck(1)
+			return n
 		}
 
 		names, lhs := g.assignList(stmt.Lhs, stmt.Op == syntax.Def)
 		rhs := g.exprList(stmt.Rhs)
 
+		// We must delay transforming the assign statement if any of the
+		// lhs or rhs nodes are also delayed, since transformAssign needs
+		// to know the types of the left and right sides in various cases.
+		delay := false
+		for _, e := range lhs {
+			if e.Typecheck() == 3 {
+				delay = true
+				break
+			}
+		}
+		for _, e := range rhs {
+			if e.Typecheck() == 3 {
+				delay = true
+				break
+			}
+		}
+
 		if len(lhs) == 1 && len(rhs) == 1 {
 			n := ir.NewAssignStmt(g.pos(stmt), lhs[0], rhs[0])
 			n.Def = initDefn(n, names)
-			// Need to set Assigned in checkassign for maps
-			return typecheck.Stmt(n)
+
+			if delay {
+				n.SetTypecheck(3)
+				return n
+			}
+
+			lhs, rhs := []ir.Node{n.X}, []ir.Node{n.Y}
+			transformAssign(n, lhs, rhs)
+			n.X, n.Y = lhs[0], rhs[0]
+			n.SetTypecheck(1)
+			return n
 		}
 
 		n := ir.NewAssignListStmt(g.pos(stmt), ir.OAS2, lhs, rhs)
 		n.Def = initDefn(n, names)
-		// Need to do tcAssignList().
-		return typecheck.Stmt(n)
+		if delay {
+			n.SetTypecheck(3)
+			return n
+		}
+		transformAssign(n, n.Lhs, n.Rhs)
+		n.SetTypecheck(1)
+		return n
 
 	case *syntax.BranchStmt:
 		return ir.NewBranchStmt(g.pos(stmt), g.tokOp(int(stmt.Tok), branchOps[:]), g.name(stmt.Label))
@@ -87,16 +118,18 @@ func (g *irgen) stmt0(stmt syntax.Stmt) ir.Node {
 		return ir.NewGoDeferStmt(g.pos(stmt), g.tokOp(int(stmt.Tok), callOps[:]), g.expr(stmt.Call))
 	case *syntax.ReturnStmt:
 		n := ir.NewReturnStmt(g.pos(stmt), g.exprList(stmt.Results))
-		// Need to do typecheckaste() for multiple return values
-		return typecheck.Stmt(n)
+		transformReturn(n)
+		n.SetTypecheck(1)
+		return n
 	case *syntax.IfStmt:
 		return g.ifStmt(stmt)
 	case *syntax.ForStmt:
 		return g.forStmt(stmt)
 	case *syntax.SelectStmt:
 		n := g.selectStmt(stmt)
-		// Need to convert assignments to OSELRECV2 in tcSelect()
-		return typecheck.Stmt(n)
+		transformSelect(n.(*ir.SelectStmt))
+		n.SetTypecheck(1)
+		return n
 	case *syntax.SwitchStmt:
 		return g.switchStmt(stmt)
 
