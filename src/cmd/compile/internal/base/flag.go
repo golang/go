@@ -161,6 +161,8 @@ func ParseFlags() {
 	Flag.WB = true
 	Debug.InlFuncsWithClosures = 1
 
+	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
+
 	Flag.Cfg.ImportMap = make(map[string]string)
 
 	objabi.AddVersionFlag() // -V
@@ -216,7 +218,9 @@ func ParseFlags() {
 	}
 	if Flag.Race || Flag.MSan {
 		// -race and -msan imply -d=checkptr for now.
-		Debug.Checkptr = 1
+		if Debug.Checkptr == -1 { // if not set explicitly
+			Debug.Checkptr = 1
+		}
 	}
 
 	if Flag.CompilingRuntime && Flag.N != 0 {
@@ -235,6 +239,10 @@ func ParseFlags() {
 
 		// Fuzzing the runtime isn't interesting either.
 		Debug.Libfuzzer = 0
+	}
+
+	if Debug.Checkptr == -1 { // if not set explicitly
+		Debug.Checkptr = 0
 	}
 
 	// set via a -d flag
