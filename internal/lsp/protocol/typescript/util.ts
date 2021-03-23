@@ -58,7 +58,7 @@ export function git(): string {
 // Produce a header for Go output files
 export function computeHeader(pkgDoc: boolean): string {
   let lastMod = 0;
-  let lastDate: Date;
+  let lastDate = new Date();
   for (const f of fnames) {
     const st = fs.statSync(f);
     if (st.mtimeMs > lastMod) {
@@ -90,6 +90,7 @@ export function computeHeader(pkgDoc: boolean): string {
 export function goName(s: string): string {
   let ans = s;
   if (s.charAt(0) == '_') {
+    // in the end, none of these are emitted.
     ans = 'Inner' + s.substring(1);
   }
   else { ans = s.substring(0, 1).toUpperCase() + s.substring(1); }
@@ -100,8 +101,7 @@ export function goName(s: string): string {
 
 // Generate JSON tag for a struct field
 export function JSON(n: ts.PropertySignature): string {
-  const json = `\`json:"${n.name.getText()}${
-    n.questionToken != undefined ? ',omitempty' : ''}"\``;
+  const json = `\`json:"${n.name.getText()}${n.questionToken !== undefined ? ',omitempty' : ''}"\``;
   return json;
 }
 
@@ -149,18 +149,19 @@ export function printAST(program: ts.Program) {
   }
   pra('\n');
   for (const key of Object.keys(seenThings).sort()) {
-    pra(`${key}: ${seenThings[key]} \n`);
+    pra(`${key}: ${seenThings.get(key)} \n`);
   }
 }
 
 // Used in printing the AST
 let seenThings = new Map<string, number>();
 function seenAdd(x: string) {
-  seenThings[x] = (seenThings[x] === undefined ? 1 : seenThings[x] + 1);
+  const u = seenThings.get(x);
+  seenThings.set(x, u === undefined ? 1 : u + 1);
 }
 
 // eslint-disable-next-line no-unused-vars
-function describe(node: ts.Node, pr: (s: string) => any) {
+function describe(node: ts.Node, pr: (_: string) => any) {
   if (node === undefined) {
     return;
   }
@@ -191,7 +192,8 @@ function describe(node: ts.Node, pr: (s: string) => any) {
 
 
 // For debugging, say where an AST node is in a file
-export function loc(node: ts.Node): string {
+export function loc(node: ts.Node | undefined): string {
+  if (!node) throw new Error('loc called with undefined (cannot happen!)');
   const sf = node.getSourceFile();
   const start = node.getStart();
   const x = sf.getLineAndCharacterOfPosition(start);
@@ -200,9 +202,9 @@ export function loc(node: ts.Node): string {
   let fn = sf.fileName;
   const n = fn.search(/-node./);
   fn = fn.substring(n + 6);
-  return `${fn} ${x.line + 1}: ${x.character + 1} (${y.line + 1}: ${
-    y.character + 1})`;
+  return `${fn} ${x.line + 1}: ${x.character + 1} (${y.line + 1}: ${y.character + 1})`;
 }
+
 // --- various string stuff
 
 // return a string of the kinds of the immediate descendants
@@ -217,15 +219,14 @@ function kinds(n: ts.Node): string {
 // What kind of AST node is it? This would just be typescript's
 // SyntaxKind[n.kind] except that the default names for some nodes
 // are misleading
-export function strKind(n: ts.Node): string {
+export function strKind(n: ts.Node | undefined): string {
   if (n == null || n == undefined) {
     return 'null';
   }
-   return kindToStr(n.kind);
+  return kindToStr(n.kind);
 }
 
-export function kindToStr(k: ts.SyntaxKind): string {
-  if (k === undefined) return 'unDefined';
+function kindToStr(k: ts.SyntaxKind): string {
   const x = ts.SyntaxKind[k];
   // some of these have two names
   switch (x) {

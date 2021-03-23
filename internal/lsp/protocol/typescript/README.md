@@ -16,7 +16,7 @@ If you want to reproduce the existing files you need to be on a branch with the 
 
 Code is generated and normalized by
 
-`tsc code.ts && node code.js && gofmt -w ts*.go`
+`tsc && node code.js && gofmt -w ts*.go`
 
 (`code.ts` imports `util.ts`.) This generates 3 files in the current directory, `tsprotocol.go`
 containing type definitions, and `tsserver.go`, `tsclient.go` containing API stubs.
