@@ -11,6 +11,7 @@ import (
 const (
 	SymVerABI0        = 0
 	SymVerABIInternal = 1
+	SymVerABICount    = 2  // Number of internal ABIs
 	SymVerStatic      = 10 // Minimum version used by static (file-local) syms
 )
 
