@@ -168,7 +168,7 @@ func appendParamTypes(rts []*types.Type, t *types.Type) []*types.Type {
 		typ := t.Kind()
 		switch typ {
 		case types.TARRAY:
-			for i := int64(0); i < t.Size(); i++ { // 0 gets no registers, plus future-proofing.
+			for i := int64(0); i < t.NumElem(); i++ { // 0 gets no registers, plus future-proofing.
 				rts = appendParamTypes(rts, t.Elem())
 			}
 		case types.TSTRUCT:
