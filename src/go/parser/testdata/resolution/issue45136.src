@@ -12,17 +12,15 @@ func _ /* =@blank */ () {
 	var foo /* =@foo */ = "foo"
 	obj /* @obj */ ["foo"]
 	obj /* @obj */ .run()
-
-	// TODO(#45136): the next two statements are missing objects.
-	obj{
+	obj /* @obj */ {
 		name: foo /* @foo */,
 	}
-	obj{
+	obj /* @obj */ {
 		name: "bar",
 	}.run()
 
-	var _ /* @=blank4 */ = File{key: obj /* @obj */{}}
-	var _ /* @=blank3 */ = File{obj{}}
+	var _ /* @=blank4 */ = File{key: obj /* @obj */ {}}
+	var _ /* @=blank3 */ = File{obj /* @obj */ {}}
 
 	[]obj /* @obj */ {foo /* @foo */}
 	x /* =@x1 */ := obj /* @obj */{}
