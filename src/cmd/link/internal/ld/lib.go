@@ -149,16 +149,9 @@ func (ctxt *Link) setArchSyms() {
 	if ctxt.IsPPC64() {
 		ctxt.mkArchSym("TOC", 0, &ctxt.TOC)
 
-		// NB: note the +2 below for DotTOC2 compared to the +1 for
-		// DocTOC. This is because loadlibfull() creates an additional
-		// syms version during conversion of loader.Sym symbols to
-		// *sym.Symbol symbols. Symbols that are assigned this final
-		// version are not going to have TOC references, so it should
-		// be ok for them to inherit an invalid .TOC. symbol.
-		// TODO: revisit the +2, now that loadlibfull is gone.
-		ctxt.DotTOC = make([]loader.Sym, ctxt.MaxVersion()+2)
+		ctxt.DotTOC = make([]loader.Sym, ctxt.MaxVersion()+1)
 		for i := 0; i <= ctxt.MaxVersion(); i++ {
-			if i >= 2 && i < sym.SymVerStatic { // these versions are not used currently
+			if i >= sym.SymVerABICount && i < sym.SymVerStatic { // these versions are not used currently
 				continue
 			}
 			ctxt.mkArchSymVec(".TOC.", i, ctxt.DotTOC)
