@@ -67,31 +67,6 @@ func Assert(pos src.XPos, x ir.Node, typ *types.Type) ir.Node {
 	return typed(typ, ir.NewTypeAssertExpr(pos, x, nil))
 }
 
-// transformAdd transforms an addition operation (currently just addition of
-// strings). Equivalent to the "binary operators" case in typecheck.typecheck1.
-func transformAdd(n *ir.BinaryExpr) ir.Node {
-	l := n.X
-	if l.Type().IsString() {
-		var add *ir.AddStringExpr
-		if l.Op() == ir.OADDSTR {
-			add = l.(*ir.AddStringExpr)
-			add.SetPos(n.Pos())
-		} else {
-			add = ir.NewAddStringExpr(n.Pos(), []ir.Node{l})
-		}
-		r := n.Y
-		if r.Op() == ir.OADDSTR {
-			r := r.(*ir.AddStringExpr)
-			add.List.Append(r.List.Take()...)
-		} else {
-			add.List.Append(r)
-		}
-		add.SetType(l.Type())
-		return add
-	}
-	return n
-}
-
 func Binary(pos src.XPos, op ir.Op, typ *types.Type, x, y ir.Node) ir.Node {
 	switch op {
 	case ir.OANDAND, ir.OOROR:
@@ -124,7 +99,9 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 			// the type.
 			return typed(typ, n)
 		}
-		return typecheck.Expr(n)
+		n1 := transformConvCall(n)
+		n1.SetTypecheck(1)
+		return n1
 	}
 
 	if fun, ok := fun.(*ir.Name); ok && fun.BuiltinOp != 0 {
@@ -181,6 +158,11 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 		}
 	}
 
+	n.Use = ir.CallUseExpr
+	if fun.Type().NumResults() == 0 {
+		n.Use = ir.CallUseStmt
+	}
+
 	if fun.Op() == ir.OXDOT {
 		if !fun.(*ir.SelectorExpr).X.Type().HasTParam() {
 			base.FatalfAt(pos, "Expecting type param receiver in %v", fun)
@@ -192,61 +174,16 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 		return n
 	}
 	if fun.Op() != ir.OFUNCINST {
-		// If no type params, do normal typechecking, since we're
-		// still missing some things done by tcCall (mainly
-		// typecheckaste/assignconvfn - implementing assignability of args
-		// to params).  This will convert OCALL to OCALLFUNC.
-		typecheck.Call(n)
+		// If no type params, do the normal call transformations. This
+		// will convert OCALL to OCALLFUNC.
+		transformCall(n)
+		typed(typ, n)
 		return n
 	}
 
 	// Leave the op as OCALL, which indicates the call still needs typechecking.
-	n.Use = ir.CallUseExpr
-	if fun.Type().NumResults() == 0 {
-		n.Use = ir.CallUseStmt
-	}
 	typed(typ, n)
 	return n
-}
-
-// transformCompare transforms a compare operation (currently just equals/not
-// equals). Equivalent to the "comparison operators" case in
-// typecheck.typecheck1, including tcArith.
-func transformCompare(n *ir.BinaryExpr) {
-	if (n.Op() == ir.OEQ || n.Op() == ir.ONE) && !types.Identical(n.X.Type(), n.Y.Type()) {
-		// Comparison is okay as long as one side is assignable to the
-		// other. The only allowed case where the conversion is not CONVNOP is
-		// "concrete == interface". In that case, check comparability of
-		// the concrete type. The conversion allocates, so only do it if
-		// the concrete type is huge.
-		l, r := n.X, n.Y
-		lt, rt := l.Type(), r.Type()
-		converted := false
-		if rt.Kind() != types.TBLANK {
-			aop, _ := typecheck.Assignop(lt, rt)
-			if aop != ir.OXXX {
-				types.CalcSize(lt)
-				if rt.IsInterface() == lt.IsInterface() || lt.Width >= 1<<16 {
-					l = ir.NewConvExpr(base.Pos, aop, rt, l)
-					l.SetTypecheck(1)
-				}
-
-				converted = true
-			}
-		}
-
-		if !converted && lt.Kind() != types.TBLANK {
-			aop, _ := typecheck.Assignop(rt, lt)
-			if aop != ir.OXXX {
-				types.CalcSize(rt)
-				if rt.IsInterface() == lt.IsInterface() || rt.Width >= 1<<16 {
-					r = ir.NewConvExpr(base.Pos, aop, lt, r)
-					r.SetTypecheck(1)
-				}
-			}
-		}
-		n.X, n.Y = l, r
-	}
 }
 
 func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) ir.Node {
@@ -330,38 +267,16 @@ func method(typ *types.Type, index int) *types.Field {
 
 func Index(pos src.XPos, typ *types.Type, x, index ir.Node) ir.Node {
 	n := ir.NewIndexExpr(pos, x, index)
-	// TODO(danscales): Temporary fix. Need to separate out the
-	// transformations done by the old typechecker (in tcIndex()), to be
-	// called here or after stenciling.
-	if x.Type().HasTParam() && x.Type().Kind() != types.TMAP &&
-		x.Type().Kind() != types.TSLICE && x.Type().Kind() != types.TARRAY {
-		// Old typechecker will complain if arg is not obviously a slice/array/map.
-		typed(typ, n)
+	if x.Type().HasTParam() {
+		// transformIndex needs to know exact type
+		n.SetType(typ)
+		n.SetTypecheck(3)
 		return n
 	}
-	return typecheck.Expr(n)
-}
-
-// transformSlice transforms a slice operation.  Equivalent to typecheck.tcSlice.
-func transformSlice(n *ir.SliceExpr) {
-	l := n.X
-	if l.Type().IsArray() {
-		addr := typecheck.NodAddr(n.X)
-		addr.SetImplicit(true)
-		typed(types.NewPtr(n.X.Type()), addr)
-		n.X = addr
-		l = addr
-	}
-	t := l.Type()
-	if t.IsString() {
-		n.SetOp(ir.OSLICESTR)
-	} else if t.IsPtr() && t.Elem().IsArray() {
-		if n.Op().IsSlice3() {
-			n.SetOp(ir.OSLICE3ARR)
-		} else {
-			n.SetOp(ir.OSLICEARR)
-		}
-	}
+	typed(typ, n)
+	// transformIndex will modify n.Type() for OINDEXMAP.
+	transformIndex(n)
+	return n
 }
 
 func Slice(pos src.XPos, typ *types.Type, x, low, high, max ir.Node) ir.Node {
@@ -399,7 +314,7 @@ func Unary(pos src.XPos, op ir.Op, x ir.Node) ir.Node {
 
 var one = constant.MakeInt64(1)
 
-func IncDec(pos src.XPos, op ir.Op, x ir.Node) ir.Node {
-	x = typecheck.AssignExpr(x)
+func IncDec(pos src.XPos, op ir.Op, x ir.Node) *ir.AssignOpStmt {
+	assert(x.Type() != nil)
 	return ir.NewAssignOpStmt(pos, op, x, typecheck.DefaultLit(ir.NewBasicLit(pos, one), x.Type()))
 }

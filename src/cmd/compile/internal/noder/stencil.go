@@ -95,10 +95,9 @@ func (g *irgen) stencil() {
 				copy(withRecv[1:], call.Args)
 				call.Args = withRecv
 			}
-			// Do the typechecking of the Call now, which changes OCALL
+			// Transform the Call now, which changes OCALL
 			// to OCALLFUNC and does typecheckaste/assignconvfn.
-			call.SetTypecheck(0)
-			typecheck.Call(call)
+			transformCall(call)
 			modified = true
 		})
 
@@ -372,16 +371,36 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			// their instantiated type was known.
 			if typecheck.IsCmp(x.Op()) {
 				transformCompare(m.(*ir.BinaryExpr))
-				m.SetTypecheck(1)
-			} else if x.Op() == ir.OSLICE || x.Op() == ir.OSLICE3 {
-				transformSlice(m.(*ir.SliceExpr))
-				m.SetTypecheck(1)
-			} else if x.Op() == ir.OADD {
-				m = transformAdd(m.(*ir.BinaryExpr))
-				m.SetTypecheck(1)
 			} else {
-				base.Fatalf("Unexpected node with Typecheck() == 3")
+				switch x.Op() {
+				case ir.OSLICE:
+				case ir.OSLICE3:
+					transformSlice(m.(*ir.SliceExpr))
+
+				case ir.OADD:
+					m = transformAdd(m.(*ir.BinaryExpr))
+
+				case ir.OINDEX:
+					transformIndex(m.(*ir.IndexExpr))
+
+				case ir.OAS2:
+					as2 := m.(*ir.AssignListStmt)
+					transformAssign(as2, as2.Lhs, as2.Rhs)
+
+				case ir.OAS:
+					as := m.(*ir.AssignStmt)
+					lhs, rhs := []ir.Node{as.X}, []ir.Node{as.Y}
+					transformAssign(as, lhs, rhs)
+
+				case ir.OASOP:
+					as := m.(*ir.AssignOpStmt)
+					transformCheckAssign(as, as.X)
+
+				default:
+					base.Fatalf("Unexpected node with Typecheck() == 3")
+				}
 			}
+			m.SetTypecheck(1)
 		}
 
 		switch x.Op() {
@@ -415,26 +434,25 @@ func (subst *subster) node(n ir.Node) ir.Node {
 		case ir.OCALL:
 			call := m.(*ir.CallExpr)
 			if call.X.Op() == ir.OTYPE {
-				// Do typechecking on a conversion, now that we
-				// know the type argument.
-				m.SetTypecheck(0)
-				m = typecheck.Expr(m)
+				// Transform the conversion, now that we know the
+				// type argument.
+				m = transformConvCall(m.(*ir.CallExpr))
+				m.SetTypecheck(1)
 			} else if call.X.Op() == ir.OCALLPART {
-				// Redo the typechecking, now that we know the method
-				// value is being called.
+				// Redo the typechecking of OXDOT, now that we
+				// know the method value is being called. Then
+				// transform the call.
 				call.X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
 				call.X.SetTypecheck(0)
 				call.X.SetType(nil)
 				typecheck.Callee(call.X)
-				call.SetTypecheck(0)
-				typecheck.Call(call)
+				transformCall(call)
 			} else if call.X.Op() == ir.ODOT || call.X.Op() == ir.ODOTPTR {
 				// An OXDOT for a generic receiver was resolved to
 				// an access to a field which has a function
-				// value. Typecheck the call to that function, now
+				// value. Transform the call to that function, now
 				// that the OXDOT was resolved.
-				call.SetTypecheck(0)
-				typecheck.Call(call)
+				transformCall(call)
 			} else if name := call.X.Name(); name != nil {
 				switch name.BuiltinOp {
 				case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OLEN, ir.OCAP, ir.OAPPEND:
