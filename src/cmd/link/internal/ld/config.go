@@ -195,8 +195,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 
 	// Internally linking cgo is incomplete on some architectures.
 	// https://golang.org/issue/14449
-	// https://golang.org/issue/21961
-	if iscgo && ctxt.Arch.InFamily(sys.MIPS64, sys.MIPS, sys.PPC64, sys.RISCV64) {
+	if iscgo && ctxt.Arch.InFamily(sys.MIPS64, sys.MIPS, sys.RISCV64) {
 		return true, buildcfg.GOARCH + " does not support internal cgo"
 	}
 	if iscgo && (buildcfg.GOOS == "android" || buildcfg.GOOS == "dragonfly") {
@@ -209,12 +208,9 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		// windows/arm64 internal linking is not implemented.
 		return true, buildcfg.GOOS + "/" + buildcfg.GOARCH + " does not support internal cgo"
 	}
-
-	// When the race flag is set, the LLVM tsan relocatable file is linked
-	// into the final binary, which means external linking is required because
-	// internal linking does not support it.
-	if *flagRace && ctxt.Arch.InFamily(sys.PPC64) {
-		return true, "race on " + buildcfg.GOARCH
+	if iscgo && ctxt.Arch == sys.ArchPPC64 {
+		// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
+		return true, buildcfg.GOOS + " does not support internal cgo"
 	}
 
 	// Some build modes require work the internal linker cannot do (yet).
