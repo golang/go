@@ -1,0 +1,6 @@
+REGEDIT4
+
+[HKEY_CLASSES_ROOT\.go]
+
+[HKEY_CLASSES_ROOT\.go\ShellNew]
+"FileName"=""
