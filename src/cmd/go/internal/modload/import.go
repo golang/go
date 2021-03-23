@@ -60,7 +60,7 @@ func (e *ImportMissingError) Error() string {
 
 		if e.replaced.Path != "" {
 			suggestArg := e.replaced.Path
-			if !modfetch.IsZeroPseudoVersion(e.replaced.Version) {
+			if !module.IsZeroPseudoVersion(e.replaced.Version) {
 				suggestArg = e.replaced.String()
 			}
 			return fmt.Sprintf("module %s provides package %s and is replaced but not required; to add it:\n\tgo get %s", e.replaced.Path, e.Path, suggestArg)
@@ -344,9 +344,9 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 				// used from within some other module, the user will be able to upgrade
 				// the requirement to any real version they choose.
 				if _, pathMajor, ok := module.SplitPathVersion(mp); ok && len(pathMajor) > 0 {
-					mv = modfetch.ZeroPseudoVersion(pathMajor[1:])
+					mv = module.ZeroPseudoVersion(pathMajor[1:])
 				} else {
-					mv = modfetch.ZeroPseudoVersion("v0")
+					mv = module.ZeroPseudoVersion("v0")
 				}
 			}
 			mods = append(mods, module.Version{Path: mp, Version: mv})

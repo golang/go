@@ -497,7 +497,7 @@ func readDiskStatByHash(path, rev string) (file string, info *RevInfo, err error
 	for _, name := range names {
 		if strings.HasSuffix(name, suffix) {
 			v := strings.TrimSuffix(name, ".info")
-			if IsPseudoVersion(v) && semver.Compare(v, maxVersion) > 0 {
+			if module.IsPseudoVersion(v) && semver.Compare(v, maxVersion) > 0 {
 				maxVersion = v
 				file, info, err = readDiskStat(path, strings.TrimSuffix(name, ".info"))
 			}
@@ -674,7 +674,7 @@ func rewriteVersionList(dir string) (err error) {
 			}
 		}
 	}
-	SortVersions(list)
+	semver.Sort(list)
 
 	var buf bytes.Buffer
 	for _, v := range list {
