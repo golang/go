@@ -137,12 +137,12 @@ func (p *parser) declare(decl, data interface{}, scope *ast.Scope, kind ast.ObjK
 	}
 }
 
-func (p *parser) shortVarDecl(decl *ast.AssignStmt, list []ast.Expr) {
+func (p *parser) shortVarDecl(decl *ast.AssignStmt) {
 	// Go spec: A short variable declaration may redeclare variables
 	// provided they were originally declared in the same block with
 	// the same type, and at least one of the non-blank variables is new.
 	n := 0 // number of new variables
-	for _, x := range list {
+	for _, x := range decl.Lhs {
 		if ident, isIdent := x.(*ast.Ident); isIdent {
 			assert(ident.Obj == nil, "identifier already declared or resolved")
 			obj := ast.NewObj(ast.Var, ident.Name)
@@ -161,7 +161,7 @@ func (p *parser) shortVarDecl(decl *ast.AssignStmt, list []ast.Expr) {
 		}
 	}
 	if n == 0 && p.mode&DeclarationErrors != 0 {
-		p.error(list[0].Pos(), "no new variables on left side of :=")
+		p.error(decl.Lhs[0].Pos(), "no new variables on left side of :=")
 	}
 }
 
@@ -1987,7 +1987,7 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
 		}
 		as := &ast.AssignStmt{Lhs: x, TokPos: pos, Tok: tok, Rhs: y}
 		if tok == token.DEFINE {
-			p.shortVarDecl(as, x)
+			p.shortVarDecl(as)
 		}
 		return as, isRange
 	}
@@ -2382,7 +2382,7 @@ func (p *parser) parseCommClause() *ast.CommClause {
 				rhs := p.parseRhs()
 				as := &ast.AssignStmt{Lhs: lhs, TokPos: pos, Tok: tok, Rhs: []ast.Expr{rhs}}
 				if tok == token.DEFINE {
-					p.shortVarDecl(as, lhs)
+					p.shortVarDecl(as)
 				}
 				comm = as
 			} else {
