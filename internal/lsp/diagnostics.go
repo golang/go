@@ -285,15 +285,25 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 		if err != nil {
 			event.Error(ctx, "warning: gc details", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
 		}
-		for id, diags := range gcReports {
-			fh := snapshot.FindFile(id.URI)
-			// Don't publish gc details for unsaved buffers, since the underlying
-			// logic operates on the file on disk.
-			if fh == nil || !fh.Saved() {
-				continue
+		s.gcOptimizationDetailsMu.Lock()
+		_, enableGCDetails := s.gcOptimizationDetails[pkg.ID()]
+
+		// NOTE(golang/go#44826): hold the gcOptimizationDetails lock, and re-check
+		// whether gc optimization details are enabled, while storing gc_details
+		// results. This ensures that the toggling of GC details and clearing of
+		// diagnostics does not race with storing the results here.
+		if enableGCDetails {
+			for id, diags := range gcReports {
+				fh := snapshot.FindFile(id.URI)
+				// Don't publish gc details for unsaved buffers, since the underlying
+				// logic operates on the file on disk.
+				if fh == nil || !fh.Saved() {
+					continue
+				}
+				s.storeDiagnostics(snapshot, id.URI, gcDetailsSource, diags)
 			}
-			s.storeDiagnostics(snapshot, id.URI, gcDetailsSource, diags)
 		}
+		s.gcOptimizationDetailsMu.Unlock()
 	}
 }
 
