@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -22,8 +21,6 @@
 // Type inference computes the type (Type) of every expression (syntax.Expr)
 // and checks for compliance with the language specification.
 // Use Info.Types[expr].Type for the results of type inference.
-//
-// For a tutorial, see https://golang.org/s/types-tutorial.
 //
 package types2
 
