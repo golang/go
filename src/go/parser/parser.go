@@ -1804,6 +1804,11 @@ func (p *parser) parsePrimaryExpr(lhs bool) (x ast.Expr) {
 				p.error(t.Pos(), "cannot parenthesize type in composite literal")
 				// already progressed, no need to advance
 			}
+			if lhs {
+				// An error has already been reported above, but try to resolve the 'T'
+				// in (T){...} anyway.
+				p.resolve(t)
+			}
 			x = p.parseLiteralValue(x)
 		default:
 			return
