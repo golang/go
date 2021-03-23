@@ -940,32 +940,51 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 	}
 	base.ExitIfErrors() // TODO(bcmills): Is this actually needed?
 
+	rs := ld.requirements
+
 	// Compute directly referenced dependency modules.
 	direct := make(map[string]bool)
 	for _, pkg := range ld.pkgs {
-		if pkg.mod == Target {
-			for _, dep := range pkg.imports {
-				if dep.mod.Path != "" && dep.mod.Path != Target.Path && index != nil {
-					_, explicit := index.require[dep.mod]
-					if allowWriteGoMod && cfg.BuildMod == "readonly" && !explicit {
-						// TODO(#40775): attach error to package instead of using
-						// base.Errorf. Ideally, 'go list' should not fail because of this,
-						// but today, LoadPackages calls WriteGoMod unconditionally, which
-						// would fail with a less clear message.
-						base.Errorf("go: %[1]s: package %[2]s imported from implicitly required module; to add missing requirements, run:\n\tgo get %[2]s@%[3]s", pkg.path, dep.path, dep.mod.Version)
+		if pkg.mod != Target {
+			continue
+		}
+		for _, dep := range pkg.imports {
+			if dep.mod.Path == "" || dep.mod.Path == Target.Path {
+				continue
+			}
+
+			if pkg.err == nil && cfg.BuildMod != "mod" {
+				if v, ok := rs.rootSelected(dep.mod.Path); !ok || v != dep.mod.Version {
+					// dep.mod is not an explicit dependency, but needs to be.
+					// Because we are not in "mod" mod, we will not be able to update it.
+					// Instead, mark the importing package with an error.
+					//
+					// TODO(#41688): The resulting error message fails to include the file
+					// position of the erroneous import (because that information is not
+					// tracked by the module loader). Figure out how to plumb the import
+					// position through.
+					pkg.err = &DirectImportFromImplicitDependencyError{
+						ImporterPath: pkg.path,
+						ImportedPath: dep.path,
+						Module:       dep.mod,
 					}
-					direct[dep.mod.Path] = true
+					// cfg.BuildMod does not allow us to change dep.mod to be a direct
+					// dependency, so don't mark it as such.
+					continue
 				}
 			}
+
+			// dep is a package directly imported by a package or test in the main
+			// module and loaded from some other module (not the standard library).
+			// Mark its module as a direct dependency.
+			direct[dep.mod.Path] = true
 		}
 	}
-	base.ExitIfErrors()
 
 	// If we didn't scan all of the imports from the main module, or didn't use
 	// imports.AnyTags, then we didn't necessarily load every package that
 	// contributes “direct” imports — so we can't safely mark existing
 	// direct dependencies in ld.requirements as indirect-only. Propagate them as direct.
-	rs := ld.requirements
 	if !ld.loadedDirect() {
 		for mPath := range rs.direct {
 			direct[mPath] = true

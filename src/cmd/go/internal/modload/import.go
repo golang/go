@@ -128,6 +128,23 @@ func (e *AmbiguousImportError) Error() string {
 	return buf.String()
 }
 
+// A DirectImportFromImplicitDependencyError indicates a package directly
+// imported by a package or test in the main module that is satisfied by a
+// dependency that is not explicit in the main module's go.mod file.
+type DirectImportFromImplicitDependencyError struct {
+	ImporterPath string
+	ImportedPath string
+	Module       module.Version
+}
+
+func (e *DirectImportFromImplicitDependencyError) Error() string {
+	return fmt.Sprintf("package %s imports %s from implicitly required module; to add missing requirements, run:\n\tgo get %s@%s", e.ImporterPath, e.ImportedPath, e.Module.Path, e.Module.Version)
+}
+
+func (e *DirectImportFromImplicitDependencyError) ImportPath() string {
+	return e.ImporterPath
+}
+
 // ImportMissingSumError is reported in readonly mode when we need to check
 // if a module contains a package, but we don't have a sum for its .zip file.
 // We might need sums for multiple modules to verify the package is unique.

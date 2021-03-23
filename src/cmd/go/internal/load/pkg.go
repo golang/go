@@ -29,6 +29,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/imports"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/par"
@@ -478,6 +479,7 @@ var (
 	_ ImportPathError = (*importError)(nil)
 	_ ImportPathError = (*modload.ImportMissingError)(nil)
 	_ ImportPathError = (*modload.ImportMissingSumError)(nil)
+	_ ImportPathError = (*modload.DirectImportFromImplicitDependencyError)(nil)
 )
 
 type importError struct {
@@ -675,6 +677,8 @@ func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *
 			stk.Push(path)
 			defer stk.Pop()
 		}
+		// TODO(bcmills): Why are we constructing Error inline here instead of
+		// calling setLoadPackageDataError?
 		return &Package{
 			PackagePublic: PackagePublic{
 				ImportPath: path,
@@ -838,6 +842,27 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 			if data.p.Root == "" && cfg.ModulesEnabled {
 				if info := modload.PackageModuleInfo(ctx, path); info != nil {
 					data.p.Root = info.Dir
+				}
+			}
+			if r.err != nil {
+				if data.err != nil {
+					// ImportDir gave us one error, and the module loader gave us another.
+					// We arbitrarily choose to keep the error from ImportDir because
+					// that's what our tests already expect, and it seems to provide a bit
+					// more detail in most cases.
+				} else if errors.Is(r.err, imports.ErrNoGo) {
+					// ImportDir said there were files in the package, but the module
+					// loader said there weren't. Which one is right?
+					// Without this special-case hack, the TestScript/test_vet case fails
+					// on the vetfail/p1 package (added in CL 83955).
+					// Apparently, imports.ShouldBuild biases toward rejecting files
+					// with invalid build constraints, whereas ImportDir biases toward
+					// accepting them.
+					//
+					// TODO(#41410: Figure out how this actually ought to work and fix
+					// this mess.
+				} else {
+					data.err = r.err
 				}
 			}
 		} else if r.err != nil {
