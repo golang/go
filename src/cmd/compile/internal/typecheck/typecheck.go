@@ -1058,7 +1058,11 @@ func needTwoArgs(n *ir.CallExpr) (ir.Node, ir.Node, bool) {
 	return n.Args[0], n.Args[1], true
 }
 
-func lookdot1(errnode ir.Node, s *types.Sym, t *types.Type, fs *types.Fields, dostrcmp int) *types.Field {
+// Lookdot1 looks up the specified method s in the list fs of methods, returning
+// the matching field or nil. If dostrcmp is 0, it matches the symbols. If
+// dostrcmp is 1, it matches by name exactly. If dostrcmp is 2, it matches names
+// with case folding.
+func Lookdot1(errnode ir.Node, s *types.Sym, t *types.Type, fs *types.Fields, dostrcmp int) *types.Field {
 	var r *types.Field
 	for _, f := range fs.Slice() {
 		if dostrcmp != 0 && f.Sym.Name == s.Name {
@@ -1123,9 +1127,9 @@ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
 	}
 
 	s := n.Sel
-	m := lookdot1(n, s, t, ms, 0)
+	m := Lookdot1(n, s, t, ms, 0)
 	if m == nil {
-		if lookdot1(n, s, t, ms, 1) != nil {
+		if Lookdot1(n, s, t, ms, 1) != nil {
 			base.Errorf("%v undefined (cannot refer to unexported method %v)", n, s)
 		} else if _, ambig := dotpath(s, t, nil, false); ambig {
 			base.Errorf("%v undefined (ambiguous selector)", n) // method or field
@@ -1155,20 +1159,26 @@ func derefall(t *types.Type) *types.Type {
 	return t
 }
 
-func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
+// Lookdot looks up field or method n.Sel in the type t and returns the matching
+// field. It transforms the op of node n to ODOTINTER or ODOTMETH, if appropriate.
+// It also may add a StarExpr node to n.X as needed for access to non-pointer
+// methods. If dostrcmp is 0, it matches the field/method with the exact symbol
+// as n.Sel (appropriate for exported fields). If dostrcmp is 1, it matches by name
+// exactly. If dostrcmp is 2, it matches names with case folding.
+func Lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 	s := n.Sel
 
 	types.CalcSize(t)
 	var f1 *types.Field
 	if t.IsStruct() || t.IsInterface() {
-		f1 = lookdot1(n, s, t, t.Fields(), dostrcmp)
+		f1 = Lookdot1(n, s, t, t.Fields(), dostrcmp)
 	}
 
 	var f2 *types.Field
 	if n.X.Type() == t || n.X.Type().Sym() == nil {
 		mt := types.ReceiverBaseType(t)
 		if mt != nil {
-			f2 = lookdot1(n, s, mt, mt.Methods(), dostrcmp)
+			f2 = Lookdot1(n, s, mt, mt.Methods(), dostrcmp)
 		}
 	}
 
@@ -1181,7 +1191,7 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 			base.Errorf("%v is both field and method", n.Sel)
 		}
 		if f1.Offset == types.BADWIDTH {
-			base.Fatalf("lookdot badwidth t=%v, f1=%v@%p", t, f1, f1)
+			base.Fatalf("Lookdot badwidth t=%v, f1=%v@%p", t, f1, f1)
 		}
 		n.Selection = f1
 		n.SetType(f1.Type)

@@ -369,12 +369,12 @@ func (subst *subster) node(n ir.Node) ir.Node {
 		if x.Typecheck() == 3 {
 			// These are nodes whose transforms were delayed until
 			// their instantiated type was known.
+			m.SetTypecheck(1)
 			if typecheck.IsCmp(x.Op()) {
 				transformCompare(m.(*ir.BinaryExpr))
 			} else {
 				switch x.Op() {
-				case ir.OSLICE:
-				case ir.OSLICE3:
+				case ir.OSLICE, ir.OSLICE3:
 					transformSlice(m.(*ir.SliceExpr))
 
 				case ir.OADD:
@@ -400,7 +400,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
 					base.Fatalf("Unexpected node with Typecheck() == 3")
 				}
 			}
-			m.SetTypecheck(1)
 		}
 
 		switch x.Op() {
@@ -421,15 +420,18 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			}
 
 		case ir.OXDOT:
-			// A method value/call via a type param will have been left as an
-			// OXDOT. When we see this during stenciling, finish the
-			// typechecking, now that we have the instantiated receiver type.
-			// We need to do this now, since the access/selection to the
-			// method for the real type is very different from the selection
-			// for the type param.
-			m.SetTypecheck(0)
-			// m will transform to an OCALLPART
-			typecheck.Expr(m)
+			// A method value/call via a type param will have been
+			// left as an OXDOT. When we see this during stenciling,
+			// finish the transformation, now that we have the
+			// instantiated receiver type. We need to do this now,
+			// since the access/selection to the method for the real
+			// type is very different from the selection for the type
+			// param. m will be transformed to an OCALLPART node. It
+			// will be transformed to an ODOTMETH or ODOTINTER node if
+			// we find in the OCALL case below that the method value
+			// is actually called.
+			transformDot(m.(*ir.SelectorExpr), false)
+			m.SetTypecheck(1)
 
 		case ir.OCALL:
 			call := m.(*ir.CallExpr)
@@ -437,15 +439,12 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// Transform the conversion, now that we know the
 				// type argument.
 				m = transformConvCall(m.(*ir.CallExpr))
-				m.SetTypecheck(1)
 			} else if call.X.Op() == ir.OCALLPART {
-				// Redo the typechecking of OXDOT, now that we
+				// Redo the transformation of OXDOT, now that we
 				// know the method value is being called. Then
 				// transform the call.
 				call.X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
-				call.X.SetTypecheck(0)
-				call.X.SetType(nil)
-				typecheck.Callee(call.X)
+				transformDot(call.X.(*ir.SelectorExpr), true)
 				transformCall(call)
 			} else if call.X.Op() == ir.ODOT || call.X.Op() == ir.ODOTPTR {
 				// An OXDOT for a generic receiver was resolved to
@@ -456,11 +455,9 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			} else if name := call.X.Name(); name != nil {
 				switch name.BuiltinOp {
 				case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OLEN, ir.OCAP, ir.OAPPEND:
-					// Call old typechecker (to do any
-					// transformations) now that we know the
-					// type of the args.
-					m.SetTypecheck(0)
-					m = typecheck.Expr(m)
+					// Transform these builtins now that we
+					// know the type of the args.
+					m = transformBuiltin(call)
 				default:
 					base.FatalfAt(call.Pos(), "Unexpected builtin op")
 				}

@@ -11,6 +11,10 @@
 //    - Setting the actual type of existing nodes (already done based on
 //      type info from types2)
 //    - Dealing with untyped constants (which types2 has already resolved)
+//
+// Each of the transformation functions requires that node passed in has its type
+// and typecheck flag set. If the transformation function replaces or adds new
+// nodes, it will set the type and typecheck flag for those new nodes.
 
 package noder
 
@@ -19,6 +23,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"fmt"
 	"go/constant"
 )
 
@@ -27,6 +32,7 @@ import (
 // transformAdd transforms an addition operation (currently just addition of
 // strings). Corresponds to the "binary operators" case in typecheck.typecheck1.
 func transformAdd(n *ir.BinaryExpr) ir.Node {
+	assert(n.Type() != nil && n.Typecheck() == 1)
 	l := n.X
 	if l.Type().IsString() {
 		var add *ir.AddStringExpr
@@ -43,7 +49,7 @@ func transformAdd(n *ir.BinaryExpr) ir.Node {
 		} else {
 			add.List.Append(r)
 		}
-		add.SetType(l.Type())
+		typed(l.Type(), add)
 		return add
 	}
 	return n
@@ -74,7 +80,6 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
 func transformConv(n *ir.ConvExpr) ir.Node {
 	t := n.X.Type()
 	op, _ := typecheck.Convertop(n.X.Op() == ir.OLITERAL, t, n.Type())
-	assert(op != ir.OXXX)
 	n.SetOp(op)
 	switch n.Op() {
 	case ir.OCONVNOP:
@@ -103,15 +108,18 @@ func transformConv(n *ir.ConvExpr) ir.Node {
 // transformConvCall transforms a conversion call. Corresponds to the OTYPE part of
 // typecheck.tcCall.
 func transformConvCall(n *ir.CallExpr) ir.Node {
+	assert(n.Type() != nil && n.Typecheck() == 1)
 	arg := n.Args[0]
 	n1 := ir.NewConvExpr(n.Pos(), ir.OCONV, nil, arg)
-	n1.SetType(n.X.Type())
+	typed(n.X.Type(), n1)
 	return transformConv(n1)
 }
 
 // transformCall transforms a normal function/method call. Corresponds to last half
 // (non-conversion, non-builtin part) of typecheck.tcCall.
 func transformCall(n *ir.CallExpr) {
+	// n.Type() can be nil for calls with no return value
+	assert(n.Typecheck() == 1)
 	transformArgs(n)
 	l := n.X
 	t := l.Type()
@@ -160,6 +168,7 @@ func transformCall(n *ir.CallExpr) {
 // equals). Corresponds to the "comparison operators" case in
 // typecheck.typecheck1, including tcArith.
 func transformCompare(n *ir.BinaryExpr) {
+	assert(n.Type() != nil && n.Typecheck() == 1)
 	if (n.Op() == ir.OEQ || n.Op() == ir.ONE) && !types.Identical(n.X.Type(), n.Y.Type()) {
 		// Comparison is okay as long as one side is assignable to the
 		// other. The only allowed case where the conversion is not CONVNOP is
@@ -214,6 +223,7 @@ func implicitstar(n ir.Node) ir.Node {
 
 // transformIndex transforms an index operation.  Corresponds to typecheck.tcIndex.
 func transformIndex(n *ir.IndexExpr) {
+	assert(n.Type() != nil && n.Typecheck() == 1)
 	n.X = implicitstar(n.X)
 	l := n.X
 	t := l.Type()
@@ -230,6 +240,7 @@ func transformIndex(n *ir.IndexExpr) {
 
 // transformSlice transforms a slice operation.  Corresponds to typecheck.tcSlice.
 func transformSlice(n *ir.SliceExpr) {
+	assert(n.Type() != nil && n.Typecheck() == 1)
 	l := n.X
 	if l.Type().IsArray() {
 		addr := typecheck.NodAddr(n.X)
@@ -520,4 +531,280 @@ func transformSelect(sel *ir.SelectStmt) {
 // typecheck1.
 func transformAsOp(n *ir.AssignOpStmt) {
 	transformCheckAssign(n, n.X)
+}
+
+// transformDot transforms an OXDOT (or ODOT) or ODOT, ODOTPTR, ODOTMETH,
+// ODOTINTER, or OCALLPART, as appropriate. It adds in extra nodes as needed to
+// access embedded fields. Corresponds to typecheck.tcDot.
+func transformDot(n *ir.SelectorExpr, isCall bool) ir.Node {
+	assert(n.Type() != nil && n.Typecheck() == 1)
+	if n.Op() == ir.OXDOT {
+		n = typecheck.AddImplicitDots(n)
+		n.SetOp(ir.ODOT)
+	}
+
+	t := n.X.Type()
+
+	if n.X.Op() == ir.OTYPE {
+		return transformMethodExpr(n)
+	}
+
+	if t.IsPtr() && !t.Elem().IsInterface() {
+		t = t.Elem()
+		n.SetOp(ir.ODOTPTR)
+	}
+
+	f := typecheck.Lookdot(n, t, 0)
+	assert(f != nil)
+
+	if (n.Op() == ir.ODOTINTER || n.Op() == ir.ODOTMETH) && !isCall {
+		n.SetOp(ir.OCALLPART)
+		n.SetType(typecheck.MethodValueWrapper(n).Type())
+	}
+	return n
+}
+
+// Corresponds to typecheck.typecheckMethodExpr.
+func transformMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
+	t := n.X.Type()
+
+	// Compute the method set for t.
+	var ms *types.Fields
+	if t.IsInterface() {
+		ms = t.Fields()
+	} else {
+		mt := types.ReceiverBaseType(t)
+		typecheck.CalcMethods(mt)
+		ms = mt.AllMethods()
+
+		// The method expression T.m requires a wrapper when T
+		// is different from m's declared receiver type. We
+		// normally generate these wrappers while writing out
+		// runtime type descriptors, which is always done for
+		// types declared at package scope. However, we need
+		// to make sure to generate wrappers for anonymous
+		// receiver types too.
+		if mt.Sym() == nil {
+			typecheck.NeedRuntimeType(t)
+		}
+	}
+
+	s := n.Sel
+	m := typecheck.Lookdot1(n, s, t, ms, 0)
+	assert(m != nil)
+
+	n.SetOp(ir.OMETHEXPR)
+	n.Selection = m
+	n.SetType(typecheck.NewMethodType(m.Type, n.X.Type()))
+	return n
+}
+
+// Corresponds to typecheck.tcAppend.
+func transformAppend(n *ir.CallExpr) ir.Node {
+	transformArgs(n)
+	args := n.Args
+	t := args[0].Type()
+	assert(t.IsSlice())
+
+	if n.IsDDD {
+		if t.Elem().IsKind(types.TUINT8) && args[1].Type().IsString() {
+			return n
+		}
+
+		args[1] = assignconvfn(args[1], t.Underlying())
+		return n
+	}
+
+	as := args[1:]
+	for i, n := range as {
+		assert(n.Type() != nil)
+		as[i] = assignconvfn(n, t.Elem())
+	}
+	return n
+}
+
+// Corresponds to typecheck.tcComplex.
+func transformComplex(n *ir.BinaryExpr) ir.Node {
+	l := n.X
+	r := n.Y
+
+	assert(types.Identical(l.Type(), r.Type()))
+
+	var t *types.Type
+	switch l.Type().Kind() {
+	case types.TFLOAT32:
+		t = types.Types[types.TCOMPLEX64]
+	case types.TFLOAT64:
+		t = types.Types[types.TCOMPLEX128]
+	default:
+		panic(fmt.Sprintf("transformComplex: unexpected type %v", l.Type()))
+	}
+
+	// Must set the type here for generics, because this can't be determined
+	// by substitution of the generic types.
+	typed(t, n)
+	return n
+}
+
+// Corresponds to typecheck.tcDelete.
+func transformDelete(n *ir.CallExpr) ir.Node {
+	transformArgs(n)
+	args := n.Args
+	assert(len(args) == 2)
+
+	l := args[0]
+	r := args[1]
+
+	args[1] = assignconvfn(r, l.Type().Key())
+	return n
+}
+
+// Corresponds to typecheck.tcMake.
+func transformMake(n *ir.CallExpr) ir.Node {
+	args := n.Args
+
+	n.Args = nil
+	l := args[0]
+	t := l.Type()
+	assert(t != nil)
+
+	i := 1
+	var nn ir.Node
+	switch t.Kind() {
+	case types.TSLICE:
+		l = args[i]
+		i++
+		var r ir.Node
+		if i < len(args) {
+			r = args[i]
+			i++
+		}
+		nn = ir.NewMakeExpr(n.Pos(), ir.OMAKESLICE, l, r)
+
+	case types.TMAP:
+		if i < len(args) {
+			l = args[i]
+			i++
+		} else {
+			l = ir.NewInt(0)
+		}
+		nn = ir.NewMakeExpr(n.Pos(), ir.OMAKEMAP, l, nil)
+		nn.SetEsc(n.Esc())
+
+	case types.TCHAN:
+		l = nil
+		if i < len(args) {
+			l = args[i]
+			i++
+		} else {
+			l = ir.NewInt(0)
+		}
+		nn = ir.NewMakeExpr(n.Pos(), ir.OMAKECHAN, l, nil)
+	default:
+		panic(fmt.Sprintf("transformMake: unexpected type %v", t))
+	}
+
+	assert(i == len(args))
+	typed(n.Type(), nn)
+	return nn
+}
+
+// Corresponds to typecheck.tcPanic.
+func transformPanic(n *ir.UnaryExpr) ir.Node {
+	n.X = assignconvfn(n.X, types.Types[types.TINTER])
+	return n
+}
+
+// Corresponds to typecheck.tcPrint.
+func transformPrint(n *ir.CallExpr) ir.Node {
+	transformArgs(n)
+	return n
+}
+
+// Corresponds to typecheck.tcRealImag.
+func transformRealImag(n *ir.UnaryExpr) ir.Node {
+	l := n.X
+	var t *types.Type
+
+	// Determine result type.
+	switch l.Type().Kind() {
+	case types.TCOMPLEX64:
+		t = types.Types[types.TFLOAT32]
+	case types.TCOMPLEX128:
+		t = types.Types[types.TFLOAT64]
+	default:
+		panic(fmt.Sprintf("transformRealImag: unexpected type %v", l.Type()))
+	}
+
+	// Must set the type here for generics, because this can't be determined
+	// by substitution of the generic types.
+	typed(t, n)
+	return n
+}
+
+// Corresponds to typecheck.tcLenCap.
+func transformLenCap(n *ir.UnaryExpr) ir.Node {
+	n.X = implicitstar(n.X)
+	return n
+}
+
+// Corresponds to Builtin part of tcCall.
+func transformBuiltin(n *ir.CallExpr) ir.Node {
+	// n.Type() can be nil for builtins with no return value
+	assert(n.Typecheck() == 1)
+	fun := n.X.(*ir.Name)
+	op := fun.BuiltinOp
+
+	switch op {
+	case ir.OAPPEND, ir.ODELETE, ir.OMAKE, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
+		n.SetOp(op)
+		n.X = nil
+		switch op {
+		case ir.OAPPEND:
+			return transformAppend(n)
+		case ir.ODELETE:
+			return transformDelete(n)
+		case ir.OMAKE:
+			return transformMake(n)
+		case ir.OPRINT, ir.OPRINTN:
+			return transformPrint(n)
+		case ir.ORECOVER:
+			// nothing more to do
+			return n
+		}
+
+	case ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL:
+		transformArgs(n)
+		fallthrough
+
+	case ir.ONEW, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+		u := ir.NewUnaryExpr(n.Pos(), op, n.Args[0])
+		u1 := typed(n.Type(), ir.InitExpr(n.Init(), u)) // typecheckargs can add to old.Init
+		switch op {
+		case ir.OCAP, ir.OLEN:
+			return transformLenCap(u1.(*ir.UnaryExpr))
+		case ir.OREAL, ir.OIMAG:
+			return transformRealImag(u1.(*ir.UnaryExpr))
+		case ir.OPANIC:
+			return transformPanic(u1.(*ir.UnaryExpr))
+		case ir.OCLOSE, ir.ONEW, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+			// nothing more to do
+			return u1
+		}
+
+	case ir.OCOMPLEX, ir.OCOPY:
+		transformArgs(n)
+		b := ir.NewBinaryExpr(n.Pos(), op, n.Args[0], n.Args[1])
+		n1 := typed(n.Type(), ir.InitExpr(n.Init(), b))
+		if op == ir.OCOPY {
+			// nothing more to do
+			return n1
+		}
+		return transformComplex(n1.(*ir.BinaryExpr))
+
+	default:
+		panic(fmt.Sprintf("transformBuiltin: unexpected op %v", op))
+	}
+
+	return n
 }

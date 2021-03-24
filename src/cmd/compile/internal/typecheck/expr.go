@@ -366,9 +366,9 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 				}
 				l := l.(*ir.StructKeyExpr)
 
-				f := lookdot1(nil, l.Field, t, t.Fields(), 0)
+				f := Lookdot1(nil, l.Field, t, t.Fields(), 0)
 				if f == nil {
-					if ci := lookdot1(nil, l.Field, t, t.Fields(), 2); ci != nil { // Case-insensitive lookup.
+					if ci := Lookdot1(nil, l.Field, t, t.Fields(), 2); ci != nil { // Case-insensitive lookup.
 						if visible(ci.Sym) {
 							base.Errorf("unknown field '%v' in struct literal of type %v (but does have %v)", l.Field, t, ci.Sym)
 						} else if nonexported(l.Field) && l.Field.Name == ci.Sym.Name { // Ensure exactness before the suggestion.
@@ -496,7 +496,7 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 		return n
 	}
 
-	if lookdot(n, t, 0) == nil {
+	if Lookdot(n, t, 0) == nil {
 		// Legitimate field or method lookup failed, try to explain the error
 		switch {
 		case t.IsEmptyInterface():
@@ -506,12 +506,12 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 			// Pointer to interface is almost always a mistake.
 			base.Errorf("%v undefined (type %v is pointer to interface, not interface)", n, n.X.Type())
 
-		case lookdot(n, t, 1) != nil:
+		case Lookdot(n, t, 1) != nil:
 			// Field or method matches by name, but it is not exported.
 			base.Errorf("%v undefined (cannot refer to unexported field or method %v)", n, n.Sel)
 
 		default:
-			if mt := lookdot(n, t, 2); mt != nil && visible(mt.Sym) { // Case-insensitive lookup.
+			if mt := Lookdot(n, t, 2); mt != nil && visible(mt.Sym) { // Case-insensitive lookup.
 				base.Errorf("%v undefined (type %v has no field or method %v, but does have %v)", n, n.X.Type(), n.Sel, mt.Sym)
 			} else {
 				base.Errorf("%v undefined (type %v has no field or method %v)", n, n.X.Type(), n.Sel)
