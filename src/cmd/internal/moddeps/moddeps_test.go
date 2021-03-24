@@ -163,8 +163,8 @@ func TestAllDependencies(t *testing.T) {
 				Env: append(os.Environ(),
 					// Set GOROOT.
 					"GOROOT="+gorootCopyDir,
-					// Explicitly clear PWD and GOROOT_FINAL so that GOROOT=gorootCopyDir is definitely used.
-					"PWD=",
+					// Explicitly override PWD and clear GOROOT_FINAL so that GOROOT=gorootCopyDir is definitely used.
+					"PWD="+filepath.Join(gorootCopyDir, rel),
 					"GOROOT_FINAL=",
 					// Add GOROOTcopy/bin and bundleDir to front of PATH.
 					"PATH="+filepath.Join(gorootCopyDir, "bin")+string(filepath.ListSeparator)+
