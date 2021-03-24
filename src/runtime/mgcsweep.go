@@ -385,14 +385,22 @@ func (s *mspan) sweep(preserve bool) bool {
 					siter.unlinkAndNext()
 					freeSpecial(special, unsafe.Pointer(p), size)
 				} else {
-					// This is profile record, but the object has finalizers (so kept alive).
-					// Keep special record.
+					// The object has finalizers, so we're keeping it alive.
+					// All other specials only apply when an object is freed,
+					// so just keep the special record.
 					siter.next()
 				}
 			}
 		} else {
-			// object is still live: keep special record
-			siter.next()
+			// object is still live
+			if siter.s.kind == _KindSpecialReachable {
+				special := siter.unlinkAndNext()
+				(*specialReachable)(unsafe.Pointer(special)).reachable = true
+				freeSpecial(special, unsafe.Pointer(p), size)
+			} else {
+				// keep special record
+				siter.next()
+			}
 		}
 	}
 	if hadSpecials && s.specials == nil {

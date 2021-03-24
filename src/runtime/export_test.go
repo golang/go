@@ -1244,3 +1244,24 @@ func FinalizerGAsleep() bool {
 	unlock(&finlock)
 	return result
 }
+
+// For GCTestMoveStackOnNextCall, it's important not to introduce an
+// extra layer of call, since then there's a return before the "real"
+// next call.
+var GCTestMoveStackOnNextCall = gcTestMoveStackOnNextCall
+
+// For GCTestIsReachable, it's important that we do this as a call so
+// escape analysis can see through it.
+func GCTestIsReachable(ptrs ...unsafe.Pointer) (mask uint64) {
+	return gcTestIsReachable(ptrs...)
+}
+
+// For GCTestPointerClass, it's important that we do this as a call so
+// escape analysis can see through it.
+//
+// This is nosplit because gcTestPointerClass is.
+//
+//go:nosplit
+func GCTestPointerClass(p unsafe.Pointer) string {
+	return gcTestPointerClass(p)
+}
