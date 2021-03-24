@@ -2360,6 +2360,11 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 	case ir.OCFUNC:
 		n := n.(*ir.UnaryExpr)
 		aux := n.X.(*ir.Name).Linksym()
+		// OCFUNC is used to build function values, which must
+		// always reference ABIInternal entry points.
+		if aux.ABI() != obj.ABIInternal {
+			s.Fatalf("expected ABIInternal: %v", aux.ABI())
+		}
 		return s.entryNewValue1A(ssa.OpAddr, n.Type(), aux, s.sb)
 	case ir.ONAME:
 		n := n.(*ir.Name)

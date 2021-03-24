@@ -292,7 +292,13 @@ func WriteFuncSyms() {
 	for _, nam := range funcsyms {
 		s := nam.Sym()
 		sf := s.Pkg.Lookup(ir.FuncSymName(s)).Linksym()
-		objw.SymPtr(sf, 0, s.Linksym(), 0)
+		// Function values must always reference ABIInternal
+		// entry points.
+		target := s.Linksym()
+		if target.ABI() != obj.ABIInternal {
+			base.Fatalf("expected ABIInternal: %v has %v", target, target.ABI())
+		}
+		objw.SymPtr(sf, 0, target, 0)
 		objw.Global(sf, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
 	}
 }
