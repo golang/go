@@ -143,7 +143,7 @@ func InitLSym(f *ir.Func, hasBody bool) {
 	if f.LSym != nil && objabi.Experiment.RegabiWrappers {
 		return
 	}
-	staticdata.NeedFuncSym(f.Sym())
+	staticdata.NeedFuncSym(f)
 	selectLSym(f, hasBody)
 	if hasBody {
 		setupTextLSym(f, 0)
