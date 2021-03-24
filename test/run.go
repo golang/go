@@ -56,6 +56,7 @@ func defaultAllCodeGen() bool {
 
 var (
 	goos, goarch string
+	cgoEnabled   bool
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
@@ -82,6 +83,10 @@ func main() {
 
 	goos = getenv("GOOS", runtime.GOOS)
 	goarch = getenv("GOARCH", runtime.GOARCH)
+	cgoEnv, err := exec.Command(goTool(), "env", "CGO_ENABLED").Output()
+	if err == nil {
+		cgoEnabled, _ = strconv.ParseBool(strings.TrimSpace(string(cgoEnv)))
+	}
 
 	findExecCmd()
 
@@ -367,9 +372,10 @@ func goDirPackages(longdir string, singlefilepkgs bool) ([][]string, error) {
 }
 
 type context struct {
-	GOOS     string
-	GOARCH   string
-	noOptEnv bool
+	GOOS       string
+	GOARCH     string
+	cgoEnabled bool
+	noOptEnv   bool
 }
 
 // shouldTest looks for build tags in a source file and returns
@@ -391,9 +397,10 @@ func shouldTest(src string, goos, goarch string) (ok bool, whyNot string) {
 		}
 		gcFlags := os.Getenv("GO_GCFLAGS")
 		ctxt := &context{
-			GOOS:     goos,
-			GOARCH:   goarch,
-			noOptEnv: strings.Contains(gcFlags, "-N") || strings.Contains(gcFlags, "-l"),
+			GOOS:       goos,
+			GOARCH:     goarch,
+			cgoEnabled: cgoEnabled,
+			noOptEnv:   strings.Contains(gcFlags, "-N") || strings.Contains(gcFlags, "-l"),
 		}
 
 		words := strings.Fields(line)
@@ -446,6 +453,10 @@ func (ctxt *context) match(name string) bool {
 				return true
 			}
 		}
+	}
+
+	if name == "cgo" && ctxt.cgoEnabled {
+		return true
 	}
 
 	if name == ctxt.GOOS || name == ctxt.GOARCH || name == "gc" {
