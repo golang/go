@@ -39,7 +39,11 @@ func TestResolution(t *testing.T) {
 			fset := token.NewFileSet()
 			path := filepath.Join(dir, fi.Name())
 			src := readFile(path) // panics on failure
-			file, err := ParseFile(fset, path, src, 0)
+			var mode Mode
+			if strings.HasSuffix(path, ".go2") {
+				mode = parseTypeParams
+			}
+			file, err := ParseFile(fset, path, src, mode)
 			if err != nil {
 				t.Fatal(err)
 			}

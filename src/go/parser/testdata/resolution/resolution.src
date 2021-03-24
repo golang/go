@@ -19,7 +19,9 @@ const (
 	labelOk // =@labelOk
 )
 
-func _ /* =@blankFunc */ () {
+type T /* =@T */ int
+
+func _ /* =@blankFunc */ (count /* =@count */ T /* @T */) {
 	x /* =@x1 */ := c /* @cdecl */{}
 	switch x /* =@x2 */ := x /* @x1 */; x /* =@x3 */ := x /* @x2 */.(type) {
 	case c /* @cdecl */:
