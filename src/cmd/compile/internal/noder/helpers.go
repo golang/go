@@ -81,8 +81,8 @@ func Binary(pos src.XPos, op ir.Op, typ *types.Type, x, y ir.Node) ir.Node {
 			n.SetTypecheck(3)
 			return n
 		}
-		n1 := transformAdd(n)
-		return typed(typ, n1)
+		typed(typ, n)
+		return transformAdd(n)
 	default:
 		return typed(x.Type(), ir.NewBinaryExpr(pos, op, x, y))
 	}
@@ -99,9 +99,8 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 			// the type.
 			return typed(typ, n)
 		}
-		n1 := transformConvCall(n)
-		n1.SetTypecheck(1)
-		return n1
+		typed(typ, n)
+		return transformConvCall(n)
 	}
 
 	if fun, ok := fun.(*ir.Name); ok && fun.BuiltinOp != 0 {
@@ -133,12 +132,8 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 			}
 		}
 
-		switch fun.BuiltinOp {
-		case ir.OCLOSE, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN:
-			return typecheck.Stmt(n)
-		default:
-			return typecheck.Expr(n)
-		}
+		typed(typ, n)
+		return transformBuiltin(n)
 	}
 
 	// Add information, now that we know that fun is actually being called.
@@ -176,8 +171,8 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 	if fun.Op() != ir.OFUNCINST {
 		// If no type params, do the normal call transformations. This
 		// will convert OCALL to OCALLFUNC.
-		transformCall(n)
 		typed(typ, n)
+		transformCall(n)
 		return n
 	}
 
@@ -195,8 +190,9 @@ func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) ir.Node {
 		n.SetTypecheck(3)
 		return n
 	}
+	typed(typ, n)
 	transformCompare(n)
-	return typed(typ, n)
+	return n
 }
 
 func Deref(pos src.XPos, x ir.Node) *ir.StarExpr {
@@ -291,8 +287,9 @@ func Slice(pos src.XPos, typ *types.Type, x, low, high, max ir.Node) ir.Node {
 		n.SetTypecheck(3)
 		return n
 	}
+	typed(typ, n)
 	transformSlice(n)
-	return typed(typ, n)
+	return n
 }
 
 func Unary(pos src.XPos, op ir.Op, x ir.Node) ir.Node {
