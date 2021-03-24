@@ -196,7 +196,6 @@ var optab = []Optab{
 
 	{as: AMOVBU, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
 	{as: AMOVBU, a1: C_SOREG, a6: C_REG, type_: 9, size: 8},
-	{as: AMOVBU, a1: C_ZOREG, a2: C_REG, a6: C_REG, type_: 9, size: 8},
 
 	{as: AMOVBZU, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
 	{as: AMOVBZU, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},
