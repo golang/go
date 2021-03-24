@@ -116,6 +116,9 @@ func Walk(v Visitor, node Node) {
 		Walk(v, n.X)
 		Walk(v, n.Index)
 
+	case *ListExpr:
+		walkExprList(v, n.ElemList)
+
 	case *SliceExpr:
 		Walk(v, n.X)
 		if n.Low != nil {
