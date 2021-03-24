@@ -209,12 +209,15 @@ func InitConfig() {
 	ir.Syms.SigPanic = typecheck.LookupRuntimeFunc("sigpanic")
 }
 
-// AbiForFunc returns the ABI for a function, used to figure out arg/result mapping for rtcall and bodyless functions.
-// This follows policy for GOEXPERIMENT=regabi, //go:registerparams, and currently defined ABIInternal.
-// Policy is subject to change....
+// AbiForBodylessFuncStackMap returns the ABI for a bodyless function's stack map.
+// This is not necessarily the ABI used to call it.
+// Currently (1.17 dev) such a stack map is always ABI0;
+// any ABI wrapper that is present is nosplit, hence a precise
+// stack map is not needed there (the parameters survive only long
+// enough to call the wrapped assembly function).
 // This always returns a freshly copied ABI.
-func AbiForFunc(fn *ir.Func) *abi.ABIConfig {
-	return abiForFunc(fn, ssaConfig.ABI0, ssaConfig.ABI1).Copy() // No idea what races will result, be safe
+func AbiForBodylessFuncStackMap(fn *ir.Func) *abi.ABIConfig {
+	return ssaConfig.ABI0.Copy() // No idea what races will result, be safe
 }
 
 // TODO (NLT 2021-04-15) This must be changed to a name that cannot match; it may be helpful to other register ABI work to keep the trigger-logic
@@ -4839,24 +4842,24 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 	var codeptr *ssa.Value // ptr to target code (if dynamic)
 	var rcvr *ssa.Value    // receiver to set
 	fn := n.X
-	var ACArgs []*types.Type    // AuxCall args
-	var ACResults []*types.Type // AuxCall results
-	var callArgs []*ssa.Value   // For late-expansion, the args themselves (not stored, args to the call instead).
-	inRegisters := false
+	var ACArgs []*types.Type       // AuxCall args
+	var ACResults []*types.Type    // AuxCall results
+	var callArgs []*ssa.Value      // For late-expansion, the args themselves (not stored, args to the call instead).
+	inRegistersForTesting := false // If a call uses register ABI for one of the testing reasons, pragma, magic types, magic names
 
 	var magicFnNameSym *types.Sym
 	if fn.Name() != nil {
 		magicFnNameSym = fn.Name().Sym()
 		ss := magicFnNameSym.Name
 		if strings.HasSuffix(ss, magicNameDotSuffix) {
-			inRegisters = true
+			inRegistersForTesting = true
 		}
 	}
 	if magicFnNameSym == nil && n.Op() == ir.OCALLINTER {
 		magicFnNameSym = fn.(*ir.SelectorExpr).Sym()
 		ss := magicFnNameSym.Name
 		if strings.HasSuffix(ss, magicNameDotSuffix[1:]) {
-			inRegisters = true
+			inRegistersForTesting = true
 		}
 	}
 
@@ -4872,7 +4875,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			// TODO(register args) remove after register abi is working
 			inRegistersImported := fn.Pragma()&ir.RegisterParams != 0
 			inRegistersSamePackage := fn.Func != nil && fn.Func.Pragma&ir.RegisterParams != 0
-			inRegisters = inRegisters || inRegistersImported || inRegistersSamePackage
+			inRegistersForTesting = inRegistersForTesting || inRegistersImported || inRegistersSamePackage
 			break
 		}
 		closure = s.expr(fn)
@@ -4898,13 +4901,13 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 	}
 
 	if regAbiForFuncType(n.X.Type().FuncType()) {
-		// fmt.Printf("Saw magic last type in call %v\n", n)
-		inRegisters = true
+		// Magic last type in input args to call
+		inRegistersForTesting = true
 	}
 
-	callABI := s.f.ABI1
-	if !inRegisters {
-		callABI = s.f.ABI0
+	callABI := s.f.ABIDefault
+	if inRegistersForTesting {
+		callABI = s.f.ABI1
 	}
 
 	params := callABI.ABIAnalyze(n.X.Type(), false /* Do not set (register) nNames from caller side -- can cause races. */)
