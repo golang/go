@@ -21,29 +21,6 @@ import (
 	"cmd/internal/objabi"
 )
 
-// useNewABIWrapGen returns TRUE if the compiler should generate an
-// ABI wrapper for the function 'f'.
-func useABIWrapGen(f *ir.Func) bool {
-	if !objabi.Experiment.RegabiWrappers {
-		return false
-	}
-
-	// Support limit option for bisecting.
-	if base.Flag.ABIWrapLimit == 1 {
-		return false
-	}
-	if base.Flag.ABIWrapLimit < 1 {
-		return true
-	}
-	base.Flag.ABIWrapLimit--
-	if base.Debug.ABIWrap != 0 && base.Flag.ABIWrapLimit == 1 {
-		fmt.Fprintf(os.Stderr, "=-= limit reached after new wrapper for %s\n",
-			f.LSym.Name)
-	}
-
-	return true
-}
-
 // symabiDefs and symabiRefs record the defined and referenced ABIs of
 // symbols required by non-Go code. These are keyed by link symbol
 // name, where the local package prefix is always `"".`
@@ -199,7 +176,7 @@ func selectLSym(f *ir.Func, hasBody bool) {
 		}
 
 		if needABIWrapper {
-			if !useABIWrapGen(f) {
+			if !objabi.Experiment.RegabiWrappers {
 				// Fallback: use alias instead. FIXME.
 
 				// These LSyms have the same name as the
