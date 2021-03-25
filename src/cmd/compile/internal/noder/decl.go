@@ -211,11 +211,24 @@ func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
 			} else if ir.CurFunc == nil {
 				name.Defn = as
 			}
-			out.Append(typecheck.Stmt(as))
+			lhs := []ir.Node{as.X}
+			rhs := []ir.Node{}
+			if as.Y != nil {
+				rhs = []ir.Node{as.Y}
+			}
+			transformAssign(as, lhs, rhs)
+			as.X = lhs[0]
+			if as.Y != nil {
+				as.Y = rhs[0]
+			}
+			as.SetTypecheck(1)
+			out.Append(as)
 		}
 	}
 	if as2 != nil {
-		out.Append(typecheck.Stmt(as2))
+		transformAssign(as2, as2.Lhs, as2.Rhs)
+		as2.SetTypecheck(1)
+		out.Append(as2)
 	}
 }
 

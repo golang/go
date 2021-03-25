@@ -18,10 +18,6 @@ import (
 //
 // TODO(mdempsky): Move into their own package so they can be easily
 // reused by iimport and frontend optimizations.
-//
-// TODO(mdempsky): Update to consistently return already typechecked
-// results, rather than leaving the caller responsible for using
-// typecheck.Expr or typecheck.Stmt.
 
 type ImplicitNode interface {
 	ir.Node
