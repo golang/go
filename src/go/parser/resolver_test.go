@@ -86,7 +86,8 @@ func TestResolution(t *testing.T) {
 func declsFromParser(file *ast.File) map[token.Pos]token.Pos {
 	objmap := map[token.Pos]token.Pos{}
 	ast.Inspect(file, func(node ast.Node) bool {
-		if ident, _ := node.(*ast.Ident); ident != nil && ident.Obj != nil {
+		// Ignore blank identifiers to reduce noise.
+		if ident, _ := node.(*ast.Ident); ident != nil && ident.Obj != nil && ident.Name != "_" {
 			objmap[ident.Pos()] = ident.Obj.Pos()
 		}
 		return true
