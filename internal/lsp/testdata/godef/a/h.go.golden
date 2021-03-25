@@ -1,0 +1,136 @@
+-- nestedNumber-hover --
+```go
+field number int64
+```
+
+nested number
+-- nestedString-hover --
+```go
+field str string
+```
+
+nested string
+-- nestedMap-hover --
+```go
+field m map[string]float64
+```
+
+nested map
+-- structA-hover --
+```go
+field a int
+```
+
+a field
+-- structB-hover --
+```go
+field b struct{c int}
+```
+
+b nested struct
+-- structC-hover --
+```go
+field c int
+```
+
+c field of nested struct
+-- arrD-hover --
+```go
+field d int
+```
+
+d field
+-- arrE-hover --
+```go
+field e struct{f int}
+```
+
+e nested struct
+-- arrF-hover --
+```go
+field f int
+```
+
+f field of nested struct
+-- complexH-hover --
+```go
+field h int
+```
+
+h field
+-- complexI-hover --
+```go
+field i struct{j int}
+```
+
+i nested struct
+-- complexJ-hover --
+```go
+field j int
+```
+
+j field of nested struct
+-- mapStructKeyX-hover --
+```go
+field x []string
+```
+
+X key field
+-- mapStructKeyY-hover --
+```go
+field y string
+```
+-- mapStructValueX-hover --
+```go
+field x string
+```
+
+X value field
+-- openMethod-hover --
+```go
+func (interface).open() error
+```
+
+open method comment
+-- testDescription-hover --
+```go
+field desc string
+```
+
+test description
+-- testInput-hover --
+```go
+field in map[string][]struct{key string; value interface{}}
+```
+
+test input
+-- testInputKey-hover --
+```go
+field key string
+```
+
+test key
+-- testInputValue-hover --
+```go
+field value interface{}
+```
+
+test value
+-- testResultValue-hover --
+```go
+field value int
+```
+
+expected test value
+-- returnX-hover --
+```go
+field x int
+```
+
+X coord
+-- returnY-hover --
+```go
+field y int
+```
+
+Y coord
