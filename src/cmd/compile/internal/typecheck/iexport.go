@@ -1055,7 +1055,11 @@ func (w *exportWriter) funcExt(n *ir.Name) {
 	w.linkname(n.Sym())
 	w.symIdx(n.Sym())
 
-	// TODO(register args) remove after register abi is working.
+	// Record definition ABI so cross-ABI calls can be direct.
+	// This is important for the performance of calling some
+	// common functions implemented in assembly (e.g., bytealg).
+	w.uint64(uint64(n.Func.ABI))
+
 	w.uint64(uint64(n.Func.Pragma))
 
 	// Escape analysis.

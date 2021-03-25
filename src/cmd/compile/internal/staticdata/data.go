@@ -269,13 +269,23 @@ func NeedFuncSym(fn *ir.Func) {
 		// funcsymsmu, like in FuncSym.
 		base.Fatalf("NeedFuncSym must be called in serial")
 	}
+	if fn.ABI != obj.ABIInternal && objabi.Experiment.RegabiWrappers {
+		// Function values must always reference ABIInternal
+		// entry points, so it doesn't make sense to create a
+		// funcsym for other ABIs.
+		//
+		// (If we're using ABI aliases, it doesn't matter.)
+		base.Fatalf("expected ABIInternal: %v has %v", fn.Nname, fn.ABI)
+	}
+	if ir.IsBlank(fn.Nname) {
+		// Blank functions aren't unique, so we can't make a
+		// funcsym for them.
+		base.Fatalf("NeedFuncSym called for _")
+	}
 	if !base.Ctxt.Flag_dynlink {
 		return
 	}
 	s := fn.Nname.Sym()
-	if s.IsBlank() {
-		return
-	}
 	if base.Flag.CompilingRuntime && (s.Name == "getg" || s.Name == "getclosureptr" || s.Name == "getcallerpc" || s.Name == "getcallersp") {
 		// runtime.getg(), getclosureptr(), getcallerpc(), and
 		// getcallersp() are not real functions and so do not

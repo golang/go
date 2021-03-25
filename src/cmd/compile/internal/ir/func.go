@@ -93,7 +93,7 @@ type Func struct {
 
 	FieldTrack map[*obj.LSym]struct{}
 	DebugInfo  interface{}
-	LSym       *obj.LSym
+	LSym       *obj.LSym // Linker object in this function's native ABI (Func.ABI)
 
 	Inl *Inline
 
@@ -109,7 +109,22 @@ type Func struct {
 
 	Pragma PragmaFlag // go:xxx function annotations
 
-	flags      bitset16
+	flags bitset16
+
+	// ABI is a function's "definition" ABI. This is the ABI that
+	// this function's generated code is expecting to be called by.
+	//
+	// For most functions, this will be obj.ABIInternal. It may be
+	// a different ABI for functions defined in assembly or ABI wrappers.
+	//
+	// This is included in the export data and tracked across packages.
+	ABI obj.ABI
+	// ABIRefs is the set of ABIs by which this function is referenced.
+	// For ABIs other than this function's definition ABI, the
+	// compiler generates ABI wrapper functions. This is only tracked
+	// within a package.
+	ABIRefs obj.ABISet
+
 	NumDefers  int32 // number of defer calls in the function
 	NumReturns int32 // number of explicit returns in the function
 
@@ -124,6 +139,9 @@ func NewFunc(pos src.XPos) *Func {
 	f.pos = pos
 	f.op = ODCLFUNC
 	f.Iota = -1
+	// Most functions are ABIInternal. The importer or symabis
+	// pass may override this.
+	f.ABI = obj.ABIInternal
 	return f
 }
 
@@ -163,6 +181,7 @@ type ScopeID int32
 const (
 	funcDupok         = 1 << iota // duplicate definitions ok
 	funcWrapper                   // hide frame from users (elide in tracebacks, don't count as a frame for recover())
+	funcABIWrapper                // is an ABI wrapper (also set flagWrapper)
 	funcNeedctxt                  // function uses context register (has closure variables)
 	funcReflectMethod             // function calls reflect.Type.Method or MethodByName
 	// true if closure inside a function; false if a simple function or a
@@ -184,6 +203,7 @@ type SymAndPos struct {
 
 func (f *Func) Dupok() bool                    { return f.flags&funcDupok != 0 }
 func (f *Func) Wrapper() bool                  { return f.flags&funcWrapper != 0 }
+func (f *Func) ABIWrapper() bool               { return f.flags&funcABIWrapper != 0 }
 func (f *Func) Needctxt() bool                 { return f.flags&funcNeedctxt != 0 }
 func (f *Func) ReflectMethod() bool            { return f.flags&funcReflectMethod != 0 }
 func (f *Func) IsHiddenClosure() bool          { return f.flags&funcIsHiddenClosure != 0 }
@@ -197,6 +217,7 @@ func (f *Func) ClosureCalled() bool            { return f.flags&funcClosureCalle
 
 func (f *Func) SetDupok(b bool)                    { f.flags.set(funcDupok, b) }
 func (f *Func) SetWrapper(b bool)                  { f.flags.set(funcWrapper, b) }
+func (f *Func) SetABIWrapper(b bool)               { f.flags.set(funcABIWrapper, b) }
 func (f *Func) SetNeedctxt(b bool)                 { f.flags.set(funcNeedctxt, b) }
 func (f *Func) SetReflectMethod(b bool)            { f.flags.set(funcReflectMethod, b) }
 func (f *Func) SetIsHiddenClosure(b bool)          { f.flags.set(funcIsHiddenClosure, b) }

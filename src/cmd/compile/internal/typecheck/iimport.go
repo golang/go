@@ -694,7 +694,8 @@ func (r *importReader) funcExt(n *ir.Name) {
 	r.linkname(n.Sym())
 	r.symIdx(n.Sym())
 
-	// TODO(register args) remove after register abi is working
+	n.Func.ABI = obj.ABI(r.uint64())
+
 	n.SetPragma(ir.PragmaFlag(r.uint64()))
 
 	// Escape analysis.
