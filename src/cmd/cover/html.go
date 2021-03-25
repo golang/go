@@ -15,13 +15,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/tools/cover"
 )
 
 // htmlOutput reads the profile data from profile and generates an HTML
 // coverage report, writing it to outfile. If outfile is empty,
 // it writes the report to a temporary file and opens it in a web browser.
 func htmlOutput(profile, outfile string) error {
-	profiles, err := ParseProfiles(profile)
+	profiles, err := cover.ParseProfiles(profile)
 	if err != nil {
 		return err
 	}
@@ -92,7 +94,7 @@ func htmlOutput(profile, outfile string) error {
 // percentCovered returns, as a percentage, the fraction of the statements in
 // the profile covered by the test run.
 // In effect, it reports the coverage of a given source file.
-func percentCovered(p *Profile) float64 {
+func percentCovered(p *cover.Profile) float64 {
 	var total, covered int64
 	for _, b := range p.Blocks {
 		total += int64(b.NumStmt)
@@ -108,7 +110,7 @@ func percentCovered(p *Profile) float64 {
 
 // htmlGen generates an HTML coverage report with the provided filename,
 // source code, and tokens, and writes it to the given Writer.
-func htmlGen(w io.Writer, src []byte, boundaries []Boundary) error {
+func htmlGen(w io.Writer, src []byte, boundaries []cover.Boundary) error {
 	dst := bufio.NewWriter(w)
 	for i := range src {
 		for len(boundaries) > 0 && boundaries[0].Offset == i {
