@@ -27,7 +27,6 @@ golang.org/x/arch/x86/x86asm
 ## explicit
 golang.org/x/crypto/ed25519
 golang.org/x/crypto/ed25519/internal/edwards25519
-golang.org/x/crypto/ssh/terminal
 # golang.org/x/mod v0.4.3-0.20210323215154-1cc8812c1740
 ## explicit
 golang.org/x/mod/internal/lazyregexp
