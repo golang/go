@@ -15,7 +15,6 @@ import (
 )
 
 func (g *irgen) expr(expr syntax.Expr) ir.Node {
-	// TODO(mdempsky): Change callers to not call on nil?
 	if expr == nil {
 		return nil
 	}
