@@ -45,7 +45,7 @@ const (
 	symUniq
 	symSiggen // type symbol has been generated
 	symAsm    // on asmlist, for writing to -asmhdr
-	symFunc   // function symbol; uses internal ABI
+	symFunc   // function symbol
 )
 
 func (sym *Sym) OnExportList() bool { return sym.flags&symOnExportList != 0 }

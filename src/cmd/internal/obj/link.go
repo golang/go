@@ -603,6 +603,48 @@ func ParseABI(abistr string) (ABI, bool) {
 	}
 }
 
+// ABISet is a bit set of ABI values.
+type ABISet uint8
+
+const (
+	// ABISetCallable is the set of all ABIs any function could
+	// potentially be called using.
+	ABISetCallable ABISet = (1 << ABI0) | (1 << ABIInternal)
+)
+
+// Ensure ABISet is big enough to hold all ABIs.
+var _ ABISet = 1 << (ABICount - 1)
+
+func ABISetOf(abi ABI) ABISet {
+	return 1 << abi
+}
+
+func (a *ABISet) Set(abi ABI, value bool) {
+	if value {
+		*a |= 1 << abi
+	} else {
+		*a &^= 1 << abi
+	}
+}
+
+func (a *ABISet) Get(abi ABI) bool {
+	return (*a>>abi)&1 != 0
+}
+
+func (a ABISet) String() string {
+	s := "{"
+	for i := ABI(0); a != 0; i++ {
+		if a&(1<<i) != 0 {
+			if s != "{" {
+				s += ","
+			}
+			s += i.String()
+			a &^= 1 << i
+		}
+	}
+	return s + "}"
+}
+
 // Attribute is a set of symbol attributes.
 type Attribute uint32
 

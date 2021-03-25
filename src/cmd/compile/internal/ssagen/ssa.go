@@ -1687,7 +1687,7 @@ func (s *state) stmt(n ir.Node) {
 		n := n.(*ir.TailCallStmt)
 		b := s.exit()
 		b.Kind = ssa.BlockRetJmp // override BlockRet
-		b.Aux = callTargetLSym(n.Target, s.curfn.LSym)
+		b.Aux = callTargetLSym(n.Target)
 
 	case ir.OCONTINUE, ir.OBREAK:
 		n := n.(*ir.BranchStmt)
@@ -5031,7 +5031,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			aux := ssa.InterfaceAuxCall(params)
 			call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
 		case callee != nil:
-			aux := ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), params)
+			aux := ssa.StaticAuxCall(callTargetLSym(callee), params)
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 		default:
 			s.Fatalf("bad call type %v %v", n.Op(), n)
@@ -7378,44 +7378,17 @@ func clobberBase(n ir.Node) ir.Node {
 	return n
 }
 
-// callTargetLSym determines the correct LSym for 'callee' when called
-// from function 'caller'. There are a couple of different scenarios
-// to contend with here:
-//
-// 1. if 'caller' is an ABI wrapper, then we always want to use the
-//    LSym from the Func for the callee.
-//
-// 2. if 'caller' is not an ABI wrapper, then we looked at the callee
-//    to see if it corresponds to a "known" ABI0 symbol (e.g. assembly
-//    routine defined in the current package); if so, we want the call to
-//    directly target the ABI0 symbol (effectively bypassing the
-//    ABIInternal->ABI0 wrapper for 'callee').
-//
-// 3. in all other cases, want the regular ABIInternal linksym
-//
-func callTargetLSym(callee *ir.Name, callerLSym *obj.LSym) *obj.LSym {
-	lsym := callee.Linksym()
-	if !objabi.Experiment.RegabiWrappers {
-		return lsym
-	}
-	fn := callee.Func
-	if fn == nil {
-		return lsym
+// callTargetLSym returns the correct LSym to call 'callee' using its ABI.
+func callTargetLSym(callee *ir.Name) *obj.LSym {
+	if callee.Func == nil {
+		// TODO(austin): This happens in a few cases of
+		// compiler-generated functions. These are all
+		// ABIInternal. It would be better if callee.Func was
+		// never nil and we didn't need this case.
+		return callee.Linksym()
 	}
 
-	// check for case 1 above
-	if callerLSym.ABIWrapper() {
-		if nlsym := fn.LSym; nlsym != nil {
-			lsym = nlsym
-		}
-	} else {
-		// check for case 2 above
-		defABI, hasDefABI := symabiDefs[lsym.Name]
-		if hasDefABI && defABI == obj.ABI0 {
-			lsym = callee.LinksymABI(obj.ABI0)
-		}
-	}
-	return lsym
+	return callee.LinksymABI(callee.Func.ABI)
 }
 
 func min8(a, b int8) int8 {

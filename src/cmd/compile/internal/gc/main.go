@@ -139,8 +139,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	types.ParseLangFlag()
 
+	symABIs := ssagen.NewSymABIs(base.Ctxt.Pkgpath)
 	if base.Flag.SymABIs != "" {
-		ssagen.ReadSymABIs(base.Flag.SymABIs, base.Ctxt.Pkgpath)
+		symABIs.ReadSymABIs(base.Flag.SymABIs)
 	}
 
 	if base.Compiling(base.NoInstrumentPkgs) {
@@ -187,7 +188,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	noder.LoadPackage(flag.Args())
 
 	dwarfgen.RecordPackageName()
-	ssagen.CgoSymABIs()
 
 	// Build init task.
 	if initTask := pkginit.Task(); initTask != nil {
@@ -232,6 +232,10 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		}
 	}
 	ir.CurFunc = nil
+
+	// Generate ABI wrappers. Must happen before escape analysis
+	// and doesn't benefit from dead-coding or inlining.
+	symABIs.GenABIWrappers()
 
 	// Escape analysis.
 	// Required for moving heap allocations onto stack,
