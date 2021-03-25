@@ -263,7 +263,7 @@ func (r *Reader) readRecord(dst []string) ([]string, error) {
 		return nil, errInvalidDelim
 	}
 
-	// Read line (automatically skipping past empty lines and any comments).
+	// Read line. Automatically skip comments. Skip empty lines unless InterpretBlankLines is set.
 	var line, fullLine []byte
 	var errRead error
 	for errRead == nil {
