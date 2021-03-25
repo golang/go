@@ -940,6 +940,34 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 	}
 	base.ExitIfErrors() // TODO(bcmills): Is this actually needed?
 
+	if err := ld.updateRequirements(ctx); err != nil {
+		base.Fatalf("go: %v", err)
+	}
+
+	if go117LazyTODO {
+		// Promoting a root can pull in previously-irrelevant requirements,
+		// changing the build list. Iterate until the roots are stable.
+	}
+
+	return ld
+}
+
+// updateRequirements ensures that ld.requirements is consistent with
+// the information gained from ld.pkgs.
+//
+// In particular:
+//
+// 	- Modules that provide packages directly imported from the main module are
+// 	  marked as direct, and are promoted to explicit roots. If a needed root
+// 	  cannot be promoted due to -mod=readonly or -mod=vendor, the importing
+// 	  package is marked with an error.
+//
+// 	- If ld scanned the "all" pattern independent of build constraints, it is
+// 	  guaranteed to have seen every direct import. Module dependencies that did
+// 	  not provide any directly-imported package are then marked as indirect.
+//
+// 	- Root dependencies are updated to their selected versions.
+func (ld *loader) updateRequirements(ctx context.Context) error {
 	rs := ld.requirements
 
 	// Compute directly referenced dependency modules.
@@ -956,11 +984,11 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			if pkg.err == nil && cfg.BuildMod != "mod" {
 				if v, ok := rs.rootSelected(dep.mod.Path); !ok || v != dep.mod.Version {
 					// dep.mod is not an explicit dependency, but needs to be.
-					// Because we are not in "mod" mod, we will not be able to update it.
+					// Because we are not in "mod" mode, we will not be able to update it.
 					// Instead, mark the importing package with an error.
 					//
 					// TODO(#41688): The resulting error message fails to include the file
-					// position of the erroneous import (because that information is not
+					// position of the import statement (because that information is not
 					// tracked by the module loader). Figure out how to plumb the import
 					// position through.
 					pkg.err = &DirectImportFromImplicitDependencyError{
@@ -983,32 +1011,20 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 
 	// If we didn't scan all of the imports from the main module, or didn't use
 	// imports.AnyTags, then we didn't necessarily load every package that
-	// contributes “direct” imports — so we can't safely mark existing
-	// direct dependencies in ld.requirements as indirect-only. Propagate them as direct.
-	if !ld.loadedDirect() {
+	// contributes “direct” imports — so we can't safely mark existing direct
+	// dependencies in ld.requirements as indirect-only. Propagate them as direct.
+	loadedDirect := ld.allPatternIsRoot && reflect.DeepEqual(ld.Tags, imports.AnyTags())
+	if !loadedDirect {
 		for mPath := range rs.direct {
 			direct[mPath] = true
 		}
 	}
 
-	var err error
-	ld.requirements, err = updateRoots(ctx, direct, ld.pkgs, ld.requirements)
-	if err != nil {
-		base.Errorf("go: %v", err)
+	rs, err := updateRoots(ctx, direct, ld.pkgs, rs)
+	if err == nil {
+		ld.requirements = rs
 	}
-
-	if go117LazyTODO {
-		// Promoting a root can pull in previously-irrelevant requirements,
-		// changing the build list. Iterate until the roots are stable.
-	}
-
-	return ld
-}
-
-// loadedDirect reports whether ld loaded all of the packages that are directly
-// imported by any package or test in the main module.
-func (ld *loader) loadedDirect() bool {
-	return ld.allPatternIsRoot && reflect.DeepEqual(ld.Tags, imports.AnyTags())
+	return err
 }
 
 // resolveMissingImports returns a set of modules that could be added as
