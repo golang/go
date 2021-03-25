@@ -732,6 +732,13 @@ func (o *orderState) stmt(n ir.Node) {
 		t := o.markTemp()
 		o.init(n.Call)
 		o.call(n.Call)
+		if n.Call.Op() == ir.ORECOVER {
+			// Special handling of "defer recover()". We need to evaluate the FP
+			// argument before wrapping.
+			var init ir.Nodes
+			n.Call = walkRecover(n.Call.(*ir.CallExpr), &init)
+			o.stmtList(init)
+		}
 		if objabi.Experiment.RegabiDefer {
 			o.wrapGoDefer(n)
 		}
@@ -1481,7 +1488,7 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 		callArgs = []ir.Node{x.X}
 		mkNewCall = func(pos src.XPos, op ir.Op, fun ir.Node, args []ir.Node) ir.Node {
 			if len(args) != 1 {
-				panic("internal error, expecting single arg to close")
+				panic("internal error, expecting single arg")
 			}
 			return ir.Node(ir.NewUnaryExpr(pos, op, args[0]))
 		}
@@ -1497,11 +1504,17 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 		panic("unhandled op")
 	}
 
-	// No need to wrap if called func has no args. However in the case
-	// of "defer func() { ... }()" we need to protect against the
-	// possibility of directClosureCall rewriting things so that the
-	// call does have arguments.
-	if len(callArgs) == 0 {
+	// No need to wrap if called func has no args and no receiver.
+	// However in the case of "defer func() { ... }()" we need to
+	// protect against the possibility of directClosureCall rewriting
+	// things so that the call does have arguments.
+	//
+	// Do wrap method calls (OCALLMETH, OCALLINTER), because it has
+	// a receiver.
+	//
+	// Also do wrap builtin functions, because they may be expanded to
+	// calls with arguments (e.g. ORECOVER).
+	if len(callArgs) == 0 && call.Op() == ir.OCALLFUNC {
 		if c, ok := call.(*ir.CallExpr); ok && callX != nil && callX.Op() == ir.OCLOSURE {
 			cloFunc := callX.(*ir.ClosureExpr).Func
 			cloFunc.SetClosureCalled(false)
