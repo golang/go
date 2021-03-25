@@ -651,6 +651,17 @@ func (dir dirFS) Open(name string) (fs.File, error) {
 	return f, nil
 }
 
+func (dir dirFS) Stat(name string) (fs.FileInfo, error) {
+	if !fs.ValidPath(name) || runtime.GOOS == "windows" && containsAny(name, `\:`) {
+		return nil, &PathError{Op: "stat", Path: name, Err: ErrInvalid}
+	}
+	f, err := Stat(string(dir) + "/" + name)
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
+}
+
 // ReadFile reads the named file and returns the contents.
 // A successful call returns err == nil, not err == EOF.
 // Because ReadFile reads the whole file, it does not treat an EOF from Read
