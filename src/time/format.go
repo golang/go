@@ -477,6 +477,60 @@ func (t Time) String() string {
 	return s
 }
 
+// GoString implements fmt.GoStringer and formats t to be printed in Go source
+// code.
+func (t Time) GoString() string {
+	buf := []byte("time.Date(")
+	buf = appendInt(buf, t.Year(), 0)
+	month := t.Month()
+	if January <= month && month <= December {
+		buf = append(buf, ", time."...)
+		buf = append(buf, t.Month().String()...)
+	} else {
+		// It's difficult to construct a time.Time with a date outside the
+		// standard range but we might as well try to handle the case.
+		buf = appendInt(buf, int(month), 0)
+	}
+	buf = append(buf, ", "...)
+	buf = appendInt(buf, t.Day(), 0)
+	buf = append(buf, ", "...)
+	buf = appendInt(buf, t.Hour(), 0)
+	buf = append(buf, ", "...)
+	buf = appendInt(buf, t.Minute(), 0)
+	buf = append(buf, ", "...)
+	buf = appendInt(buf, t.Second(), 0)
+	buf = append(buf, ", "...)
+	buf = appendInt(buf, t.Nanosecond(), 0)
+	buf = append(buf, ", "...)
+	switch loc := t.Location(); loc {
+	case UTC, nil:
+		buf = append(buf, "time.UTC"...)
+	case Local:
+		buf = append(buf, "time.Local"...)
+	default:
+		// there are several options for how we could display this, none of
+		// which are great:
+		//
+		// - use Location(loc.name), which is not technically valid syntax
+		// - use LoadLocation(loc.name), which will cause a syntax error when
+		// embedded and also would require us to escape the string without
+		// importing fmt or strconv
+		// - try to use FixedZone, which would also require escaping the name
+		// and would represent e.g. "America/Los_Angeles" daylight saving time
+		// shifts inaccurately
+		// - use the pointer format, which is no worse than you'd get with the
+		// old fmt.Sprintf("%#v", t) format.
+		//
+		// Of these, Location(loc.name) is the least disruptive. This is an edge
+		// case we hope not to hit too often.
+		buf = append(buf, `time.Location(`...)
+		buf = append(buf, []byte(quote(loc.name))...)
+		buf = append(buf, `)`...)
+	}
+	buf = append(buf, ')')
+	return string(buf)
+}
+
 // Format returns a textual representation of the time value formatted
 // according to layout, which defines the format by showing how the reference
 // time, defined to be
@@ -688,14 +742,33 @@ type ParseError struct {
 	Message    string
 }
 
+// These are borrowed from unicode/utf8 and strconv and replicate behavior in
+// that package, since we can't take a dependency on either.
+const runeSelf = 0x80
+const lowerhex = "0123456789abcdef"
+
 func quote(s string) string {
-	buf := make([]byte, 0, len(s)+2) // +2 for surrounding quotes
-	buf = append(buf, '"')
-	for _, c := range s {
-		if c == '"' || c == '\\' {
-			buf = append(buf, '\\')
+	buf := make([]byte, 1, len(s)+2) // slice will be at least len(s) + quotes
+	buf[0] = '"'
+	for i, c := range s {
+		if c >= runeSelf || c < ' ' {
+			// This means you are asking us to parse a time.Duration or
+			// time.Location with unprintable or non-ASCII characters in it.
+			// We don't expect to hit this case very often. We could try to
+			// reproduce strconv.Quote's behavior with full fidelity but
+			// given how rarely we expect to hit these edge cases, speed and
+			// conciseness are better.
+			for j := 0; j < len(string(c)) && j < len(s); j++ {
+				buf = append(buf, `\x`...)
+				buf = append(buf, lowerhex[s[i+j]>>4])
+				buf = append(buf, lowerhex[s[i+j]&0xF])
+			}
+		} else {
+			if c == '"' || c == '\\' {
+				buf = append(buf, '\\')
+			}
+			buf = append(buf, string(c)...)
 		}
-		buf = append(buf, string(c)...)
 	}
 	buf = append(buf, '"')
 	return string(buf)

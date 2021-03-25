@@ -129,6 +129,31 @@ func TestFormat(t *testing.T) {
 	}
 }
 
+var goStringTests = []struct {
+	in   Time
+	want string
+}{
+	{Date(2009, February, 5, 5, 0, 57, 12345600, UTC),
+		"time.Date(2009, time.February, 5, 5, 0, 57, 12345600, time.UTC)"},
+	{Date(2009, February, 5, 5, 0, 57, 12345600, Local),
+		"time.Date(2009, time.February, 5, 5, 0, 57, 12345600, time.Local)"},
+	{Date(2009, February, 5, 5, 0, 57, 12345600, FixedZone("Europe/Berlin", 3*60*60)),
+		`time.Date(2009, time.February, 5, 5, 0, 57, 12345600, time.Location("Europe/Berlin"))`,
+	},
+	{Date(2009, February, 5, 5, 0, 57, 12345600, FixedZone("Non-ASCII character ⏰", 3*60*60)),
+		`time.Date(2009, time.February, 5, 5, 0, 57, 12345600, time.Location("Non-ASCII character \xe2\x8f\xb0"))`,
+	},
+}
+
+func TestGoString(t *testing.T) {
+	// The numeric time represents Thu Feb  4 21:00:57.012345600 PST 2009
+	for _, tt := range goStringTests {
+		if tt.in.GoString() != tt.want {
+			t.Errorf("GoString (%q): got %q want %q", tt.in, tt.in.GoString(), tt.want)
+		}
+	}
+}
+
 // issue 12440.
 func TestFormatSingleDigits(t *testing.T) {
 	time := Date(2001, 2, 3, 4, 5, 6, 700000000, UTC)
@@ -796,10 +821,13 @@ func TestQuote(t *testing.T) {
 		{`abc"xyz"`, `"abc\"xyz\""`},
 		{"", `""`},
 		{"abc", `"abc"`},
+		{`☺`, `"\xe2\x98\xba"`},
+		{`☺ hello ☺ hello`, `"\xe2\x98\xba hello \xe2\x98\xba hello"`},
+		{"\x04", `"\x04"`},
 	}
 	for _, tt := range tests {
 		if q := Quote(tt.s); q != tt.want {
-			t.Errorf("Quote(%q) = %q, want %q", tt.s, q, tt.want)
+			t.Errorf("Quote(%q) = got %q, want %q", tt.s, q, tt.want)
 		}
 	}
 
