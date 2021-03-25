@@ -405,7 +405,7 @@ func (conf *Config) Check(path string, files []*syntax.File, info *Info) (*Packa
 
 // AssertableTo reports whether a value of type V can be asserted to have type T.
 func AssertableTo(V *Interface, T Type) bool {
-	m, _ := (*Checker)(nil).assertableTo(V, T, false)
+	m, _ := (*Checker)(nil).assertableTo(V, T)
 	return m == nil
 }
 
