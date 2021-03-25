@@ -1458,8 +1458,9 @@ var wrapGoDefer_prgen int
 func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	call := n.Call
 
-	var callX ir.Node      // thing being called
-	var callArgs []ir.Node // call arguments
+	var callX ir.Node        // thing being called
+	var callArgs []ir.Node   // call arguments
+	var keepAlive []*ir.Name // KeepAlive list from call, if present
 
 	// A helper to recreate the call within the closure.
 	var mkNewCall func(pos src.XPos, op ir.Op, fun ir.Node, args []ir.Node) ir.Node
@@ -1470,6 +1471,7 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	case *ir.CallExpr:
 		callX = x.X
 		callArgs = x.Args
+		keepAlive = x.KeepAlive
 		mkNewCall = func(pos src.XPos, op ir.Op, fun ir.Node, args []ir.Node) ir.Node {
 			newcall := ir.NewCallExpr(pos, op, fun, args)
 			newcall.IsDDD = x.IsDDD
@@ -1540,21 +1542,49 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 		return argCopy
 	}
 
-	unsafeArgs := make([]*ir.Name, len(callArgs))
-	origArgs := callArgs
+	// getUnsafeArg looks for an unsafe.Pointer arg that has been
+	// previously captured into the call's keepalive list, returning
+	// the name node for it if found.
+	getUnsafeArg := func(arg ir.Node) *ir.Name {
+		// Look for uintptr(unsafe.Pointer(name))
+		if arg.Op() != ir.OCONVNOP {
+			return nil
+		}
+		if !arg.Type().IsUintptr() {
+			return nil
+		}
+		if !arg.(*ir.ConvExpr).X.Type().IsUnsafePtr() {
+			return nil
+		}
+		arg = arg.(*ir.ConvExpr).X
+		argname, ok := arg.(*ir.Name)
+		if !ok {
+			return nil
+		}
+		for i := range keepAlive {
+			if argname == keepAlive[i] {
+				return argname
+			}
+		}
+		return nil
+	}
 
 	// Copy the arguments to the function into temps.
-	pos := n.Pos()
-	outerfn := ir.CurFunc
+	//
+	// For calls with uintptr(unsafe.Pointer(...)) args that are being
+	// kept alive (see code in (*orderState).call that does this), use
+	// the existing arg copy instead of creating a new copy.
+	unsafeArgs := make([]*ir.Name, len(callArgs))
+	origArgs := callArgs
 	var newNames []*ir.Name
 	for i := range callArgs {
 		arg := callArgs[i]
 		var argname *ir.Name
-		if arg.Op() == ir.OCONVNOP && arg.Type().IsUintptr() && arg.(*ir.ConvExpr).X.Type().IsUnsafePtr() {
-			// No need for copy here; orderState.call() above has already inserted one.
-			arg = arg.(*ir.ConvExpr).X
-			argname = arg.(*ir.Name)
-			unsafeArgs[i] = argname
+		unsafeArgName := getUnsafeArg(arg)
+		if unsafeArgName != nil {
+			// arg has been copied already, use keepalive copy
+			argname = unsafeArgName
+			unsafeArgs[i] = unsafeArgName
 		} else {
 			argname = mkArgCopy(arg)
 		}
@@ -1589,6 +1619,7 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	var noFuncArgs []*ir.Field
 	noargst := ir.NewFuncType(base.Pos, nil, noFuncArgs, nil)
 	wrapGoDefer_prgen++
+	outerfn := ir.CurFunc
 	wrapname := fmt.Sprintf("%v·dwrap·%d", outerfn, wrapGoDefer_prgen)
 	sym := types.LocalPkg.Lookup(wrapname)
 	fn := typecheck.DeclFunc(sym, noargst)
@@ -1622,7 +1653,7 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	if methSelectorExpr != nil {
 		methSelectorExpr.X = capName(callX.Pos(), fn, methSelectorExpr.X.(*ir.Name))
 	}
-	ir.FinishCaptureNames(pos, outerfn, fn)
+	ir.FinishCaptureNames(n.Pos(), outerfn, fn)
 
 	// This flags a builtin as opposed to a regular call.
 	irregular := (call.Op() != ir.OCALLFUNC &&
@@ -1650,7 +1681,7 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
 
 	// Create closure expr
-	clo := ir.NewClosureExpr(pos, fn)
+	clo := ir.NewClosureExpr(n.Pos(), fn)
 	fn.OClosure = clo
 	clo.SetType(fn.Type())
 
@@ -1672,7 +1703,7 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	}
 
 	// Create new top level call to closure over argless function.
-	topcall := ir.NewCallExpr(pos, ir.OCALL, clo, []ir.Node{})
+	topcall := ir.NewCallExpr(n.Pos(), ir.OCALL, clo, []ir.Node{})
 	typecheck.Call(topcall)
 
 	// Tag the call to insure that directClosureCall doesn't undo our work.
