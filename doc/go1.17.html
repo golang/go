@@ -205,6 +205,15 @@ that can be used to pass values between C and Go safely. See
   </p>
 </dl><!-- net/http -->
 
+<dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+  <dd>
+    <p><!-- CL 260858 -->
+    time.Time now has a <a href="/pkg/time/#Time.GoString">GoString</a>
+    method that will return a more useful value for times when printed with
+    the <code>"%#v"</code> format specifier in the fmt package.
+    </p>
+  </dd>
+</dl><!-- time -->
 <p>
   TODO: complete this section
 </p>
