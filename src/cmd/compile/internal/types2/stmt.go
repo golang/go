@@ -265,7 +265,7 @@ L:
 	}
 }
 
-func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []syntax.Expr, seen map[Type]syntax.Pos, strict bool) (T Type) {
+func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []syntax.Expr, seen map[Type]syntax.Pos) (T Type) {
 L:
 	for _, e := range types {
 		T = check.typOrNil(e)
@@ -293,7 +293,7 @@ L:
 		}
 		seen[T] = e.Pos()
 		if T != nil {
-			check.typeAssertion(e.Pos(), x, xtyp, T, strict)
+			check.typeAssertion(e.Pos(), x, xtyp, T)
 		}
 	}
 	return
@@ -708,7 +708,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 		}
 		// Check each type in this type switch case.
 		cases := unpackExpr(clause.Cases)
-		T := check.caseTypes(&x, xtyp, cases, seen, false)
+		T := check.caseTypes(&x, xtyp, cases, seen)
 		check.openScopeUntil(clause, end, "case")
 		// If lhs exists, declare a corresponding variable in the case-local scope.
 		if lhs != nil {

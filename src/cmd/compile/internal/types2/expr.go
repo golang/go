@@ -1790,7 +1790,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		if T == Typ[Invalid] {
 			goto Error
 		}
-		check.typeAssertion(posFor(x), x, xtyp, T, false)
+		check.typeAssertion(posFor(x), x, xtyp, T)
 		x.mode = commaok
 		x.typ = T
 
@@ -1916,8 +1916,8 @@ func keyVal(x constant.Value) interface{} {
 }
 
 // typeAssertion checks that x.(T) is legal; xtyp must be the type of x.
-func (check *Checker) typeAssertion(pos syntax.Pos, x *operand, xtyp *Interface, T Type, strict bool) {
-	method, wrongType := check.assertableTo(xtyp, T, strict)
+func (check *Checker) typeAssertion(pos syntax.Pos, x *operand, xtyp *Interface, T Type) {
+	method, wrongType := check.assertableTo(xtyp, T)
 	if method == nil {
 		return
 	}
