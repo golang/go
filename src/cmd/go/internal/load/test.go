@@ -21,6 +21,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 )
@@ -578,7 +579,13 @@ type testFunc struct {
 var testFileSet = token.NewFileSet()
 
 func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
-	f, err := parser.ParseFile(testFileSet, filename, nil, parser.ParseComments)
+	// Pass in the overlaid source if we have an overlay for this file.
+	src, err := fsys.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	f, err := parser.ParseFile(testFileSet, filename, src, parser.ParseComments)
 	if err != nil {
 		return err
 	}
