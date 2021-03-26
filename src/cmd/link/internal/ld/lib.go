@@ -1475,8 +1475,9 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, "-Wl,-bE:"+fileName)
 	}
 
-	if strings.Contains(argv[0], "clang") {
-		argv = append(argv, "-Qunused-arguments")
+	const unusedArguments = "-Qunused-arguments"
+	if linkerFlagSupported(ctxt.Arch, argv[0], altLinker, unusedArguments) {
+		argv = append(argv, unusedArguments)
 	}
 
 	const compressDWARF = "-Wl,--compress-debug-sections=zlib-gnu"
