@@ -441,128 +441,57 @@ func editRequirements(ctx context.Context, rs *Requirements, add, mustSelect []m
 		return nil, false, err
 	}
 
-	selected := make(map[string]module.Version, len(final))
+	if !reflect.DeepEqual(final, buildList) {
+		changed = true
+	} else if len(mustSelect) == 0 {
+		// No change to the build list and no explicit roots to promote, so we're done.
+		return rs, false, nil
+	}
+
+	var rootPaths []string
+	for _, m := range mustSelect {
+		if m.Version != "none" && m.Path != Target.Path {
+			rootPaths = append(rootPaths, m.Path)
+		}
+	}
+	for _, m := range final[1:] {
+		if v, ok := rs.rootSelected(m.Path); ok && (v == m.Version || rs.direct[m.Path]) {
+			// m.Path was formerly a root, and either its version hasn't changed or
+			// we believe that it provides a package directly imported by a package
+			// or test in the main module. For now we'll assume that it is still
+			// relevant. If we actually load all of the packages and tests in the
+			// main module (which we are not doing here), we can revise the explicit
+			// roots at that point.
+			rootPaths = append(rootPaths, m.Path)
+		}
+	}
+
+	if go117LazyTODO {
+		// mvs.Req is not lazy, and in a lazily-loaded module we don't want
+		// to minimize the roots anyway. (Instead, we want to retain explicit
+		// root paths so that they remain explicit: only 'go mod tidy' should
+		// remove roots.)
+	}
+
+	min, err := mvs.Req(Target, rootPaths, &mvsReqs{buildList: final})
+	if err != nil {
+		return nil, false, err
+	}
+
+	// A module that is not even in the build list necessarily cannot provide
+	// any imported packages. Mark as direct only the direct modules that are
+	// still in the build list.
+	//
+	// TODO(bcmills): Would it make more sense to leave the direct map as-is
+	// but allow it to refer to modules that are no longer in the build list?
+	// That might complicate updateRoots, but it may be cleaner in other ways.
+	direct := make(map[string]bool, len(rs.direct))
 	for _, m := range final {
-		selected[m.Path] = m
-	}
-	inconsistent := false
-	for _, m := range mustSelect {
-		s, ok := selected[m.Path]
-		if !ok && m.Version == "none" {
-			continue
-		}
-		if s.Version != m.Version {
-			inconsistent = true
-			break
+		if rs.direct[m.Path] {
+			direct[m.Path] = true
 		}
 	}
-
-	if !inconsistent {
-		changed := false
-		if !reflect.DeepEqual(final, buildList) {
-			changed = true
-		} else if len(mustSelect) == 0 {
-			// No change to the build list and no explicit roots to promote, so we're done.
-			return rs, false, nil
-		}
-
-		var rootPaths []string
-		for _, m := range mustSelect {
-			if m.Version != "none" && m.Path != Target.Path {
-				rootPaths = append(rootPaths, m.Path)
-			}
-		}
-		for _, m := range final[1:] {
-			if v, ok := rs.rootSelected(m.Path); ok && (v == m.Version || rs.direct[m.Path]) {
-				// m.Path was formerly a root, and either its version hasn't changed or
-				// we believe that it provides a package directly imported by a package
-				// or test in the main module. For now we'll assume that it is still
-				// relevant. If we actually load all of the packages and tests in the
-				// main module (which we are not doing here), we can revise the explicit
-				// roots at that point.
-				rootPaths = append(rootPaths, m.Path)
-			}
-		}
-
-		if go117LazyTODO {
-			// mvs.Req is not lazy, and in a lazily-loaded module we don't want
-			// to minimize the roots anyway. (Instead, we want to retain explicit
-			// root paths so that they remain explicit: only 'go mod tidy' should
-			// remove roots.)
-		}
-
-		min, err := mvs.Req(Target, rootPaths, &mvsReqs{buildList: final})
-		if err != nil {
-			return nil, false, err
-		}
-
-		// A module that is not even in the build list necessarily cannot provide
-		// any imported packages. Mark as direct only the direct modules that are
-		// still in the build list.
-		//
-		// TODO(bcmills): Would it make more sense to leave the direct map as-is
-		// but allow it to refer to modules that are no longer in the build list?
-		// That might complicate updateRoots, but it may be cleaner in other ways.
-		direct := make(map[string]bool, len(rs.direct))
-		for _, m := range final {
-			if rs.direct[m.Path] {
-				direct[m.Path] = true
-			}
-		}
-		return newRequirements(min, direct), changed, nil
-	}
-
-	// We overshot one or more of the modules in mustSelect, which means that
-	// Downgrade removed something in mustSelect because it conflicted with
-	// something else in mustSelect.
-	//
-	// Walk the requirement graph to find the conflict.
-	//
-	// TODO(bcmills): Ideally, mvs.Downgrade (or a replacement for it) would do
-	// this directly.
-
-	reqs := &mvsReqs{buildList: final}
-	reason := map[module.Version]module.Version{}
-	for _, m := range mustSelect {
-		reason[m] = m
-	}
-	queue := mustSelect[:len(mustSelect):len(mustSelect)]
-	for len(queue) > 0 {
-		var m module.Version
-		m, queue = queue[0], queue[1:]
-		required, err := reqs.Required(m)
-		if err != nil {
-			return nil, false, err
-		}
-		for _, r := range required {
-			if _, ok := reason[r]; !ok {
-				reason[r] = reason[m]
-				queue = append(queue, r)
-			}
-		}
-	}
-
-	var conflicts []Conflict
-	for _, m := range mustSelect {
-		s, ok := selected[m.Path]
-		if !ok {
-			if m.Version != "none" {
-				panic(fmt.Sprintf("internal error: editBuildList lost %v", m))
-			}
-			continue
-		}
-		if s.Version != m.Version {
-			conflicts = append(conflicts, Conflict{
-				Source:     reason[s],
-				Dep:        s,
-				Constraint: m,
-			})
-		}
-	}
-
-	return nil, false, &ConstraintError{
-		Conflicts: conflicts,
-	}
+	return newRequirements(min, direct), changed, nil
 }
 
 // A ConstraintError describes inconsistent constraints in EditBuildList
