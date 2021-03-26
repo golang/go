@@ -69,8 +69,7 @@ import (
 
 func Test(t *testing.T) {}
 -- update-main-expected --
-go get: example.com/badchain/c@v1.0.0 updating to
-	example.com/badchain/c@v1.1.0: parsing go.mod:
+go get: example.com/badchain/c@v1.1.0: parsing go.mod:
 	module declares its path as: badchain.example.com/c
 	        but was required as: example.com/badchain/c
 -- update-a-expected --
