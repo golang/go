@@ -23,12 +23,9 @@ func TestIdleTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	listener = jsonrpc2.NewIdleListener(100*time.Millisecond, listener)
 	defer listener.Close()
-
-	server, err := jsonrpc2.Serve(ctx, listener, jsonrpc2.ConnectionOptions{},
-		jsonrpc2.ServeOptions{
-			IdleTimeout: 100 * time.Millisecond,
-		})
+	server, err := jsonrpc2.Serve(ctx, listener, jsonrpc2.ConnectionOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,10 +116,9 @@ func TestServe(t *testing.T) {
 }
 
 func newFake(ctx context.Context, l jsonrpc2.Listener) (*jsonrpc2.Connection, func(context.Context), error) {
+	l = jsonrpc2.NewIdleListener(100*time.Millisecond, l)
 	server, err := jsonrpc2.Serve(ctx, l, jsonrpc2.ConnectionOptions{
 		Handler: fakeHandler{},
-	}, jsonrpc2.ServeOptions{
-		IdleTimeout: 100 * time.Millisecond,
 	})
 	if err != nil {
 		return nil, nil, err

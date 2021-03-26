@@ -130,7 +130,7 @@ func testConnection(t *testing.T, framer jsonrpc2.Framer) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server, err := jsonrpc2.Serve(ctx, listener, binder{framer, nil}, jsonrpc2.ServeOptions{})
+	server, err := jsonrpc2.Serve(ctx, listener, binder{framer, nil})
 	if err != nil {
 		t.Fatal(err)
 	}
