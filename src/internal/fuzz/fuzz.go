@@ -178,6 +178,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 	statTicker := time.NewTicker(3 * time.Second)
 	defer statTicker.Stop()
 	defer c.logStats()
+	crashWritten := false
 
 	for {
 		select {
@@ -195,8 +196,12 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 
 			if result.crasherMsg != "" {
 				// Found a crasher. Write it to testdata and return it.
+				if crashWritten {
+					break
+				}
 				fileName, err := writeToCorpus(result.entry.Data, opts.CorpusDir)
 				if err == nil {
+					crashWritten = true
 					err = &crashError{
 						name: filepath.Base(fileName),
 						err:  errors.New(result.crasherMsg),
