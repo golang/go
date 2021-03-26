@@ -16,8 +16,7 @@ import (
 
 // editBuildList returns an edited version of initial such that:
 //
-// 	1. Each module version in mustSelect is selected, unless it is upgraded
-// 	   by the transitive requirements of another version in mustSelect.
+// 	1. Each module version in mustSelect is selected.
 //
 // 	2. Each module version in tryUpgrade is upgraded toward the indicated
 // 	   version as far as can be done without violating (1).
@@ -66,12 +65,26 @@ func editBuildList(ctx context.Context, initial, tryUpgrade, mustSelect []module
 
 	limiter := newVersionLimiter(max)
 
-	// Force the selected versions in mustSelect, even if they conflict.
-	//
-	// TODO(bcmills): Instead of forcing these versions, record conflicts
-	// so that the caller doesn't have to recompute them.
+	var conflicts []Conflict
 	for _, m := range mustSelect {
+		dq := limiter.check(m)
+		switch {
+		case dq.err != nil:
+			return nil, err
+		case dq.conflict != module.Version{}:
+			conflicts = append(conflicts, Conflict{
+				Source: m,
+				Dep:    dq.conflict,
+				Constraint: module.Version{
+					Path:    dq.conflict.Path,
+					Version: limiter.max[dq.conflict.Path],
+				},
+			})
+		}
 		limiter.selected[m.Path] = m.Version
+	}
+	if len(conflicts) > 0 {
+		return nil, &ConstraintError{Conflicts: conflicts}
 	}
 
 	// For each module, we want to get as close as we can to either the upgrade
@@ -145,24 +158,37 @@ type versionLimiter struct {
 	// version, so paths at version "none" are omitted.
 	selected map[string]string
 
-	// disqualified maps each encountered version to either true (if that version
-	// is known to be disqualified due to a conflict with a max version) or false
-	// (if that version is not known to be disqualified, either because it is ok
-	// or because we are currently traversing a cycle that includes it).
-	disqualified map[module.Version]bool
+	// dqReason records whether and why each each encountered version is
+	// disqualified.
+	dqReason map[module.Version]dqState
 
-	// requiredBy maps each not-yet-disqualified module version to the versions
+	// requiring maps each not-yet-disqualified module version to the versions
 	// that directly require it. If that version becomes disqualified, the
 	// disqualification will be propagated to all of the versions in the list.
-	requiredBy map[module.Version][]module.Version
+	requiring map[module.Version][]module.Version
+}
+
+// A dqState indicates whether and why a module version is “disqualified” from
+// being used in a way that would incorporate its requirements.
+//
+// The zero dqState indicates that the module version is not known to be
+// disqualified, either because it is ok or because we are currently traversing
+// a cycle that includes it.
+type dqState struct {
+	err      error          // if non-nil, disqualified because the requirements of the module could not be read
+	conflict module.Version // disqualified because the module (transitively) requires dep, which exceeds the maximum version constraint for its path
+}
+
+func (dq dqState) isDisqualified() bool {
+	return dq != dqState{}
 }
 
 func newVersionLimiter(max map[string]string) *versionLimiter {
 	return &versionLimiter{
-		selected:     map[string]string{Target.Path: Target.Version},
-		max:          max,
-		disqualified: map[module.Version]bool{Target: false},
-		requiredBy:   map[module.Version][]module.Version{},
+		selected:  map[string]string{Target.Path: Target.Version},
+		max:       max,
+		dqReason:  map[module.Version]dqState{},
+		requiring: map[module.Version][]module.Version{},
 	}
 }
 
@@ -179,7 +205,7 @@ func (l *versionLimiter) upgradeToward(ctx context.Context, m module.Version) er
 		selected = "none"
 	}
 
-	if l.isDisqualified(m) {
+	if l.check(m).isDisqualified() {
 		candidates, err := versions(ctx, m.Path, CheckAllowed)
 		if err != nil {
 			// This is likely a transient error reaching the repository,
@@ -196,7 +222,7 @@ func (l *versionLimiter) upgradeToward(ctx context.Context, m module.Version) er
 		})
 		candidates = candidates[:i]
 
-		for l.isDisqualified(m) {
+		for l.check(m).isDisqualified() {
 			n := len(candidates)
 			if n == 0 || cmpVersion(selected, candidates[n-1]) >= 0 {
 				// We couldn't find a suitable candidate above the already-selected version.
@@ -211,23 +237,22 @@ func (l *versionLimiter) upgradeToward(ctx context.Context, m module.Version) er
 	return nil
 }
 
-// isDisqualified reports whether m (or its transitive dependencies) would
-// violate l's maximum version limits if added to the module requirement graph.
-func (l *versionLimiter) isDisqualified(m module.Version) bool {
+// check determines whether m (or its transitive dependencies) would violate l's
+// maximum version limits if added to the module requirement graph.
+func (l *versionLimiter) check(m module.Version) dqState {
 	if m.Version == "none" || m == Target {
 		// version "none" has no requirements, and the dependencies of Target are
 		// tautological.
-		return false
+		return dqState{}
 	}
 
-	if dq, seen := l.disqualified[m]; seen {
+	if dq, seen := l.dqReason[m]; seen {
 		return dq
 	}
-	l.disqualified[m] = false
+	l.dqReason[m] = dqState{}
 
 	if max, ok := l.max[m.Path]; ok && cmpVersion(m.Version, max) > 0 {
-		l.disqualify(m)
-		return true
+		return l.disqualify(m, dqState{conflict: m})
 	}
 
 	summary, err := goModSummary(m)
@@ -242,14 +267,12 @@ func (l *versionLimiter) isDisqualified(m module.Version) bool {
 		// TODO(golang.org/issue/31730, golang.org/issue/30134): if the error
 		// is transient (we couldn't download go.mod), return the error from
 		// Downgrade. Currently, we can't tell what kind of error it is.
-		l.disqualify(m)
-		return true
+		return l.disqualify(m, dqState{err: err})
 	}
 
 	for _, r := range summary.require {
-		if l.isDisqualified(r) {
-			l.disqualify(m)
-			return true
+		if dq := l.check(r); dq.isDisqualified() {
+			return l.disqualify(m, dq)
 		}
 
 		// r and its dependencies are (perhaps provisionally) ok.
@@ -258,24 +281,25 @@ func (l *versionLimiter) isDisqualified(m module.Version) bool {
 		// checked a portion of the requirement graph so far, and r (and thus m) may
 		// yet be disqualified by some path we have not yet visited. Remember this edge
 		// so that we can disqualify m and its dependents if that occurs.
-		l.requiredBy[r] = append(l.requiredBy[r], m)
+		l.requiring[r] = append(l.requiring[r], m)
 	}
 
-	return false
+	return dqState{}
 }
 
 // disqualify records that m (or one of its transitive dependencies)
 // violates l's maximum version limits.
-func (l *versionLimiter) disqualify(m module.Version) {
-	if l.disqualified[m] {
-		return
+func (l *versionLimiter) disqualify(m module.Version, dq dqState) dqState {
+	if dq := l.dqReason[m]; dq.isDisqualified() {
+		return dq
 	}
-	l.disqualified[m] = true
+	l.dqReason[m] = dq
 
-	for _, p := range l.requiredBy[m] {
-		l.disqualify(p)
+	for _, p := range l.requiring[m] {
+		l.disqualify(p, dqState{conflict: m})
 	}
 	// Now that we have disqualified the modules that depend on m, we can forget
 	// about them — we won't need to disqualify them again.
-	delete(l.requiredBy, m)
+	delete(l.requiring, m)
+	return dq
 }
