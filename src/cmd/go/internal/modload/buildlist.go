@@ -12,7 +12,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -453,71 +452,6 @@ func EditBuildList(ctx context.Context, add, mustSelect []module.Version) (chang
 	}
 	commitRequirements(ctx, rs)
 	return changed, err
-}
-
-func editRequirements(ctx context.Context, rs *Requirements, add, mustSelect []module.Version) (edited *Requirements, changed bool, err error) {
-	mg, err := rs.Graph(ctx)
-	if err != nil {
-		return nil, false, err
-	}
-	buildList := mg.BuildList()
-
-	final, err := editBuildList(ctx, buildList, add, mustSelect)
-	if err != nil {
-		return nil, false, err
-	}
-
-	if !reflect.DeepEqual(final, buildList) {
-		changed = true
-	} else if len(mustSelect) == 0 {
-		// No change to the build list and no explicit roots to promote, so we're done.
-		return rs, false, nil
-	}
-
-	var rootPaths []string
-	for _, m := range mustSelect {
-		if m.Version != "none" && m.Path != Target.Path {
-			rootPaths = append(rootPaths, m.Path)
-		}
-	}
-	for _, m := range final[1:] {
-		if v, ok := rs.rootSelected(m.Path); ok && (v == m.Version || rs.direct[m.Path]) {
-			// m.Path was formerly a root, and either its version hasn't changed or
-			// we believe that it provides a package directly imported by a package
-			// or test in the main module. For now we'll assume that it is still
-			// relevant. If we actually load all of the packages and tests in the
-			// main module (which we are not doing here), we can revise the explicit
-			// roots at that point.
-			rootPaths = append(rootPaths, m.Path)
-		}
-	}
-
-	if go117LazyTODO {
-		// mvs.Req is not lazy, and in a lazily-loaded module we don't want
-		// to minimize the roots anyway. (Instead, we want to retain explicit
-		// root paths so that they remain explicit: only 'go mod tidy' should
-		// remove roots.)
-	}
-
-	min, err := mvs.Req(Target, rootPaths, &mvsReqs{roots: final[1:]})
-	if err != nil {
-		return nil, false, err
-	}
-
-	// A module that is not even in the build list necessarily cannot provide
-	// any imported packages. Mark as direct only the direct modules that are
-	// still in the build list.
-	//
-	// TODO(bcmills): Would it make more sense to leave the direct map as-is
-	// but allow it to refer to modules that are no longer in the build list?
-	// That might complicate updateRoots, but it may be cleaner in other ways.
-	direct := make(map[string]bool, len(rs.direct))
-	for _, m := range final {
-		if rs.direct[m.Path] {
-			direct[m.Path] = true
-		}
-	}
-	return newRequirements(rs.depth, min, direct), changed, nil
 }
 
 // A ConstraintError describes inconsistent constraints in EditBuildList
