@@ -2538,7 +2538,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 			for i, list := range lists {
 				for _, s := range list {
 					sym := Sym(s)
-					if l.attrReachable.Has(sym) && !assignedToUnit.Has(sym) {
+					if !assignedToUnit.Has(sym) {
 						textp = append(textp, sym)
 						unit := l.SymUnit(sym)
 						if unit != nil {
