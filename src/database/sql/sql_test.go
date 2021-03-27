@@ -338,13 +338,8 @@ func TestQueryContext(t *testing.T) {
 		index++
 	}
 
-	switch err := ctx.Err(); err {
-	case nil:
-		t.Fatalf("context err = nil; want context.Canceled")
-	default:
+	if err := ctx.Err(); err != context.Cancelled {
 		t.Fatalf("context err = %v; want context.Canceled", err)
-	case context.Canceled:
-		// expected context.Canceled
 	}
 
 	want := []row{

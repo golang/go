@@ -2170,7 +2170,7 @@ func (tx *Tx) Commit() error {
 		if atomic.LoadInt32(&tx.done) == 1 {
 			return ErrTxDone
 		}
-		return tx.ctx.Err()
+		return err
 	}
 
 	if !atomic.CompareAndSwapInt32(&tx.done, 0, 1) {

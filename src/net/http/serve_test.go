@@ -4794,8 +4794,10 @@ func testServerRequestContextCancel_ServeHTTPDone(t *testing.T, h2 bool) {
 	ctxc := make(chan context.Context, 1)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ctx := r.Context()
-		if ctx.Err() != nil {
+		select {
+		case <-ctx.Done():
 			t.Error("should not be Done in ServeHTTP")
+		default:
 		}
 		ctxc <- ctx
 	}))
@@ -4806,7 +4808,9 @@ func testServerRequestContextCancel_ServeHTTPDone(t *testing.T, h2 bool) {
 	}
 	res.Body.Close()
 	ctx := <-ctxc
-	if ctx.Err() != nil {
+	select {
+	case <-ctx.Done():
+	default:
 		t.Error("context should be done after ServeHTTP completes")
 	}
 }
@@ -5846,8 +5850,8 @@ func TestServerHijackGetsBackgroundByte(t *testing.T) {
 			t.Errorf("Peek = %q, %v; want foo, nil", peek, err)
 		}
 
-		if r.Context().Err() != nil {
-			t.Error("context unexpectedly canceled")
+		if err := r.Context().Err(); err != nil {
+			t.Errorf("context unexpectedly expired: %v", err)
 		}
 	}))
 	defer ts.Close()
