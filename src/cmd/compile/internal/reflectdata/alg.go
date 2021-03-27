@@ -287,6 +287,7 @@ func hashfor(t *types.Type) ir.Node {
 		sym = TypeSymPrefix(".hash", t)
 	}
 
+	// TODO(austin): This creates an ir.Name with a nil Func.
 	n := typecheck.NewName(sym)
 	ir.MarkFunc(n)
 	n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
@@ -775,6 +776,7 @@ func memrun(t *types.Type, start int) (size int64, next int) {
 func hashmem(t *types.Type) ir.Node {
 	sym := ir.Pkgs.Runtime.Lookup("memhash")
 
+	// TODO(austin): This creates an ir.Name with a nil Func.
 	n := typecheck.NewName(sym)
 	ir.MarkFunc(n)
 	n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{

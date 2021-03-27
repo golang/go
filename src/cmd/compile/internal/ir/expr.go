@@ -528,6 +528,13 @@ func (n *SelectorExpr) FuncName() *Name {
 	fn := NewNameAt(n.Selection.Pos, MethodSym(n.X.Type(), n.Sel))
 	fn.Class = PFUNC
 	fn.SetType(n.Type())
+	if n.Selection.Nname != nil {
+		// TODO(austin): Nname is nil for interface method
+		// expressions (I.M), so we can't attach a Func to
+		// those here. reflectdata.methodWrapper generates the
+		// Func.
+		fn.Func = n.Selection.Nname.(*Name).Func
+	}
 	return fn
 }
 
