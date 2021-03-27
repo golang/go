@@ -1741,6 +1741,9 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 		typecheck.NewFuncParams(method.Type.Params(), true),
 		typecheck.NewFuncParams(method.Type.Results(), false))
 
+	// TODO(austin): SelectorExpr may have created one or more
+	// ir.Names for these already with a nil Func field. We should
+	// consolidate these and always attach a Func to the Name.
 	fn := typecheck.DeclFunc(newnam, tfn)
 	fn.SetDupok(true)
 

@@ -41,7 +41,7 @@ type Name struct {
 	pragma    PragmaFlag // int16
 	flags     bitset16
 	sym       *types.Sym
-	Func      *Func
+	Func      *Func // TODO(austin): nil for I.M, eqFor, hashfor, and hashmem
 	Offset_   int64
 	val       constant.Value
 	Opt       interface{} // for use by escape analysis
