@@ -52,7 +52,7 @@ path and heading into a -run argument:
 
 ```bash
 cd /path/to/tools
-go test ./internal/lsp -v -run TestLSP/Modules/SuggestedFix/bar_11_21
+go test ./internal/lsp/... -v -run TestLSP/Modules/SuggestedFix/bar_11_21
 ```
 
 ## Resetting marker tests

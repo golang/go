@@ -451,6 +451,15 @@ func (e *encoded) definitionFor(x *ast.Ident) (tokenType, []string) {
 		case *ast.InterfaceType:
 			return tokMember, mods
 		case *ast.TypeSpec:
+			// GenDecl/Typespec/FuncType/FieldList/Field/Ident
+			// (type A func(b uint64)) (err error)
+			// b and err should not be tokType, but tokVaraible
+			// and in GenDecl/TpeSpec/StructType/FieldList/Field/Ident
+			// (type A struct{b uint64})
+			fldm := e.stack[len(e.stack)-2]
+			if _, ok := fldm.(*ast.Field); ok {
+				return tokVariable, mods
+			}
 			return tokType, mods
 		}
 	}
