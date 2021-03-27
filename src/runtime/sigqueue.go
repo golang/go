@@ -119,7 +119,7 @@ Send:
 			}
 		case sigFixup:
 			// nothing to do - we need to wait for sigIdle.
-			osyield()
+			mDoFixupAndOSYield()
 		}
 	}
 

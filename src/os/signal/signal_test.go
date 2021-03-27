@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"runtime/trace"
 	"strconv"
 	"sync"
 	"syscall"
@@ -852,4 +853,45 @@ func TestNotifyContextStringer(t *testing.T) {
 	if got := fmt.Sprint(c); got != want {
 		t.Errorf("c.String() = %q, want %q", got, want)
 	}
+}
+
+// #44193 test signal handling while stopping and starting the world.
+func TestSignalTrace(t *testing.T) {
+	done := make(chan struct{})
+	quit := make(chan struct{})
+	c := make(chan os.Signal, 1)
+	Notify(c, syscall.SIGHUP)
+
+	// Source and sink for signals busy loop unsynchronized with
+	// trace starts and stops. We are ultimately validating that
+	// signals and runtime.(stop|start)TheWorldGC are compatible.
+	go func() {
+		defer close(done)
+		defer Stop(c)
+		pid := syscall.Getpid()
+		for {
+			select {
+			case <-quit:
+				return
+			default:
+				syscall.Kill(pid, syscall.SIGHUP)
+			}
+			waitSig(t, c, syscall.SIGHUP)
+		}
+	}()
+
+	for i := 0; i < 100; i++ {
+		buf := new(bytes.Buffer)
+		if err := trace.Start(buf); err != nil {
+			t.Fatalf("[%d] failed to start tracing: %v", i, err)
+		}
+		time.After(1 * time.Microsecond)
+		trace.Stop()
+		size := buf.Len()
+		if size == 0 {
+			t.Fatalf("[%d] trace is empty", i)
+		}
+	}
+	close(quit)
+	<-done
 }

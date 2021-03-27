@@ -1338,6 +1338,9 @@ func mPark() {
 	g := getg()
 	for {
 		notesleep(&g.m.park)
+		// Note, because of signal handling by this parked m,
+		// a preemptive mDoFixup() may actually occur via
+		// mDoFixupAndOSYield(). (See golang.org/issue/44193)
 		noteclear(&g.m.park)
 		if !mDoFixup() {
 			return
@@ -1571,6 +1574,22 @@ func syscall_runtime_doAllThreadsSyscall(fn func(bool) bool) {
 	for atomic.Load(&sched.sysmonStarting) != 0 {
 		osyield()
 	}
+
+	// We don't want this thread to handle signals for the
+	// duration of this critical section. The underlying issue
+	// being that this locked coordinating m is the one monitoring
+	// for fn() execution by all the other m's of the runtime,
+	// while no regular go code execution is permitted (the world
+	// is stopped). If this present m were to get distracted to
+	// run signal handling code, and find itself waiting for a
+	// second thread to execute go code before being able to
+	// return from that signal handling, a deadlock will result.
+	// (See golang.org/issue/44193.)
+	lockOSThread()
+	var sigmask sigset
+	sigsave(&sigmask)
+	sigblock(false)
+
 	stopTheWorldGC("doAllThreadsSyscall")
 	if atomic.Load(&newmHandoff.haveTemplateThread) != 0 {
 		// Ensure that there are no in-flight thread
@@ -1622,6 +1641,7 @@ func syscall_runtime_doAllThreadsSyscall(fn func(bool) bool) {
 			// the possibility of racing with mp.
 			lock(&mp.mFixup.lock)
 			mp.mFixup.fn = fn
+			atomic.Store(&mp.mFixup.used, 1)
 			if mp.doesPark {
 				// For non-service threads this will
 				// cause the wakeup to be short lived
@@ -1638,9 +1658,7 @@ func syscall_runtime_doAllThreadsSyscall(fn func(bool) bool) {
 				if mp.procid == tid {
 					continue
 				}
-				lock(&mp.mFixup.lock)
-				done = done && (mp.mFixup.fn == nil)
-				unlock(&mp.mFixup.lock)
+				done = atomic.Load(&mp.mFixup.used) == 0
 			}
 			if done {
 				break
@@ -1667,6 +1685,8 @@ func syscall_runtime_doAllThreadsSyscall(fn func(bool) bool) {
 		unlock(&mFixupRace.lock)
 	}
 	startTheWorldGC()
+	msigrestore(sigmask)
+	unlockOSThread()
 }
 
 // runSafePointFn runs the safe point function, if any, for this P.
@@ -2157,9 +2177,21 @@ var mFixupRace struct {
 // mDoFixup runs any outstanding fixup function for the running m.
 // Returns true if a fixup was outstanding and actually executed.
 //
+// Note: to avoid deadlocks, and the need for the fixup function
+// itself to be async safe, signals are blocked for the working m
+// while it holds the mFixup lock. (See golang.org/issue/44193)
+//
 //go:nosplit
 func mDoFixup() bool {
 	_g_ := getg()
+	if used := atomic.Load(&_g_.m.mFixup.used); used == 0 {
+		return false
+	}
+
+	// slow path - if fixup fn is used, block signals and lock.
+	var sigmask sigset
+	sigsave(&sigmask)
+	sigblock(false)
 	lock(&_g_.m.mFixup.lock)
 	fn := _g_.m.mFixup.fn
 	if fn != nil {
@@ -2176,7 +2208,6 @@ func mDoFixup() bool {
 			// is more obviously safe.
 			throw("GC must be disabled to protect validity of fn value")
 		}
-		*(*uintptr)(unsafe.Pointer(&_g_.m.mFixup.fn)) = 0
 		if _g_.racectx != 0 || !raceenabled {
 			fn(false)
 		} else {
@@ -2191,9 +2222,22 @@ func mDoFixup() bool {
 			_g_.racectx = 0
 			unlock(&mFixupRace.lock)
 		}
+		*(*uintptr)(unsafe.Pointer(&_g_.m.mFixup.fn)) = 0
+		atomic.Store(&_g_.m.mFixup.used, 0)
 	}
 	unlock(&_g_.m.mFixup.lock)
+	msigrestore(sigmask)
 	return fn != nil
+}
+
+// mDoFixupAndOSYield is called when an m is unable to send a signal
+// because the allThreadsSyscall mechanism is in progress. That is, an
+// mPark() has been interrupted with this signal handler so we need to
+// ensure the fixup is executed from this context.
+//go:nosplit
+func mDoFixupAndOSYield() {
+	mDoFixup()
+	osyield()
 }
 
 // templateThread is a thread in a known-good state that exists solely
