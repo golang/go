@@ -1946,36 +1946,28 @@ func TestAESCipherReordering13(t *testing.T) {
 	}
 }
 
+// TestServerHandshakeContextCancellation tests that cancelling
+// the context given to the server side conn.HandshakeContext
+// interrupts the in-progress handshake.
 func TestServerHandshakeContextCancellation(t *testing.T) {
 	c, s := localPipe(t)
-	clientConfig := testConfig.Clone()
-	clientErr := make(chan error, 1)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	unblockClient := make(chan struct{})
+	defer close(unblockClient)
 	go func() {
-		defer close(clientErr)
-		defer c.Close()
-		clientHello := &clientHelloMsg{
-			vers:               VersionTLS10,
-			random:             make([]byte, 32),
-			cipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
-			compressionMethods: []uint8{compressionNone},
-		}
-		cli := Client(c, clientConfig)
-		_, err := cli.writeRecord(recordTypeHandshake, clientHello.marshal())
 		cancel()
-		clientErr <- err
+		<-unblockClient
+		_ = c.Close()
 	}()
 	conn := Server(s, testConfig)
+	// Initiates server side handshake, which will block until a client hello is read
+	// unless the cancellation works.
 	err := conn.HandshakeContext(ctx)
 	if err == nil {
 		t.Fatal("Server handshake did not error when the context was canceled")
 	}
 	if err != context.Canceled {
 		t.Errorf("Unexpected server handshake error: %v", err)
-	}
-	if err := <-clientErr; err != nil {
-		t.Errorf("Unexpected client error: %v", err)
 	}
 	if runtime.GOARCH == "wasm" {
 		t.Skip("conn.Close does not error as expected when called multiple times on WASM")
