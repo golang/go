@@ -31,6 +31,14 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 	if !ok {
 		return 0, nil, false
 	}
+	if fi, err := f.Stat(); err == nil {
+		if pos, err := f.Seek(0, io.SeekCurrent); err == nil {
+			siz := fi.Size() - pos
+			if remain > siz {
+				remain = siz
+			}
+		}
+	}
 
 	sc, err := f.SyscallConn()
 	if err != nil {
