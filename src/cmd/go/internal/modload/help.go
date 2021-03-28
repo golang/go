@@ -46,7 +46,7 @@ marking the root of the main (current) module.
 The go.mod file format is described in detail at
 https://golang.org/ref/mod#go-mod-file.
 
-To create a new go.mod file, use 'go help init'. For details see
+To create a new go.mod file, use 'go mod init'. For details see
 'go help mod init' or https://golang.org/ref/mod#go-mod-init.
 
 To add missing module requirements or remove unneeded requirements,
