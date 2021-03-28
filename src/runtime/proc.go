@@ -5316,7 +5316,7 @@ func preemptall() bool {
 
 // Tell the goroutine running on processor P to stop.
 // This function is purely best-effort. It can incorrectly fail to inform the
-// goroutine. It can send inform the wrong goroutine. Even if it informs the
+// goroutine. It can inform the wrong goroutine. Even if it informs the
 // correct goroutine, that goroutine might ignore the request if it is
 // simultaneously executing newstack.
 // No lock needs to be held.
@@ -5336,7 +5336,7 @@ func preemptone(_p_ *p) bool {
 
 	gp.preempt = true
 
-	// Every call in a go routine checks for stack overflow by
+	// Every call in a goroutine checks for stack overflow by
 	// comparing the current stack pointer to gp->stackguard0.
 	// Setting gp->stackguard0 to StackPreempt folds
 	// preemption into the normal stack overflow check.
@@ -6186,7 +6186,7 @@ var inittrace tracestat
 
 type tracestat struct {
 	active bool   // init tracing activation status
-	id     int64  // init go routine id
+	id     int64  // init goroutine id
 	allocs uint64 // heap allocations
 	bytes  uint64 // heap allocated bytes
 }
@@ -6218,7 +6218,7 @@ func doInit(t *initTask) {
 
 		if inittrace.active {
 			start = nanotime()
-			// Load stats non-atomically since tracinit is updated only by this init go routine.
+			// Load stats non-atomically since tracinit is updated only by this init goroutine.
 			before = inittrace
 		}
 
