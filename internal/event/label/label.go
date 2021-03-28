@@ -96,6 +96,8 @@ func Of64(k Key, v uint64) Label { return Label{key: k, packed: v} }
 // access should be done with the From method of the key.
 func (t Label) Unpack64() uint64 { return t.packed }
 
+type stringptr unsafe.Pointer
+
 // OfString creates a new label from a key and a string.
 // This method is for implementing new key types, label creation should
 // normally be done with the Of method of the key.
@@ -104,7 +106,7 @@ func OfString(k Key, v string) Label {
 	return Label{
 		key:     k,
 		packed:  uint64(hdr.Len),
-		untyped: unsafe.Pointer(hdr.Data),
+		untyped: stringptr(hdr.Data),
 	}
 }
 
@@ -115,9 +117,9 @@ func OfString(k Key, v string) Label {
 func (t Label) UnpackString() string {
 	var v string
 	hdr := (*reflect.StringHeader)(unsafe.Pointer(&v))
-	hdr.Data = uintptr(t.untyped.(unsafe.Pointer))
+	hdr.Data = uintptr(t.untyped.(stringptr))
 	hdr.Len = int(t.packed)
-	return *(*string)(unsafe.Pointer(hdr))
+	return v
 }
 
 // Valid returns true if the Label is a valid one (it has a key).
