@@ -483,38 +483,56 @@ func (f *Func) computeZeroMap() map[ID]ZeroRegion {
 func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Value) *Value {
 	config := b.Func.Config
 
+	var wbargs []*Value
+	// TODO (register args) this is a bit of a hack.
+	inRegs := b.Func.ABIDefault == b.Func.ABI1 && len(config.intParamRegs) >= 3
+
 	// put arguments on stack
 	off := config.ctxt.FixedFrameSize()
 
 	var argTypes []*types.Type
 	if typ != nil { // for typedmemmove
 		taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
-		off = round(off, taddr.Type.Alignment())
-		arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
-		mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, taddr, mem)
 		argTypes = append(argTypes, b.Func.Config.Types.Uintptr)
-		off += taddr.Type.Size()
+		if inRegs {
+			wbargs = append(wbargs, taddr)
+		} else {
+			off = round(off, taddr.Type.Alignment())
+			arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
+			mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, taddr, mem)
+			off += taddr.Type.Size()
+		}
 	}
 
-	off = round(off, ptr.Type.Alignment())
-	arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
-	mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, ptr, mem)
 	argTypes = append(argTypes, ptr.Type)
-	off += ptr.Type.Size()
+	if inRegs {
+		wbargs = append(wbargs, ptr)
+	} else {
+		off = round(off, ptr.Type.Alignment())
+		arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
+		mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, ptr, mem)
+		off += ptr.Type.Size()
+	}
 
 	if val != nil {
-		off = round(off, val.Type.Alignment())
-		arg = b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
-		mem = b.NewValue3A(pos, OpStore, types.TypeMem, val.Type, arg, val, mem)
 		argTypes = append(argTypes, val.Type)
-		off += val.Type.Size()
+		if inRegs {
+			wbargs = append(wbargs, val)
+		} else {
+			off = round(off, val.Type.Alignment())
+			arg := b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
+			mem = b.NewValue3A(pos, OpStore, types.TypeMem, val.Type, arg, val, mem)
+			off += val.Type.Size()
+		}
 	}
 	off = round(off, config.PtrSize)
+	wbargs = append(wbargs, mem)
 
 	// issue call
-	mem = b.NewValue1A(pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(fn, b.Func.ABIDefault.ABIAnalyzeTypes(nil, argTypes, nil)), mem)
-	mem.AuxInt = off - config.ctxt.FixedFrameSize()
-	return b.NewValue1I(pos, OpSelectN, types.TypeMem, 0, mem)
+	call := b.NewValue0A(pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(fn, b.Func.ABIDefault.ABIAnalyzeTypes(nil, argTypes, nil)))
+	call.AddArgs(wbargs...)
+	call.AuxInt = off - config.ctxt.FixedFrameSize()
+	return b.NewValue1I(pos, OpSelectN, types.TypeMem, 0, call)
 }
 
 // round to a multiple of r, r is a power of 2
