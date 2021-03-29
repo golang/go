@@ -1504,7 +1504,7 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 		panic("unhandled op")
 	}
 
-	// No need to wrap if called func has no args and no receiver.
+	// No need to wrap if called func has no args, no receiver, and no results.
 	// However in the case of "defer func() { ... }()" we need to
 	// protect against the possibility of directClosureCall rewriting
 	// things so that the call does have arguments.
@@ -1514,7 +1514,10 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	//
 	// Also do wrap builtin functions, because they may be expanded to
 	// calls with arguments (e.g. ORECOVER).
-	if len(callArgs) == 0 && call.Op() == ir.OCALLFUNC {
+	//
+	// TODO: maybe not wrap if the called function has no arguments and
+	// only in-register results?
+	if len(callArgs) == 0 && call.Op() == ir.OCALLFUNC && callX.Type().NumResults() == 0 {
 		if c, ok := call.(*ir.CallExpr); ok && callX != nil && callX.Op() == ir.OCLOSURE {
 			cloFunc := callX.(*ir.ClosureExpr).Func
 			cloFunc.SetClosureCalled(false)
