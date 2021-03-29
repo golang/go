@@ -231,7 +231,6 @@ const (
 	REG_SPECIAL = REG_CR0
 
 	REG_SPR0 = obj.RBasePPC64 + 1024 // first of 1024 registers
-	REG_DCR0 = obj.RBasePPC64 + 2048 // first of 1024 registers
 
 	REG_XER = REG_SPR0 + 1
 	REG_LR  = REG_SPR0 + 8

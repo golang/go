@@ -828,10 +828,6 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 
 			return C_SPR
 		}
-
-		if REG_DCR0 <= a.Reg && a.Reg <= REG_DCR0+1023 {
-			return C_SPR
-		}
 		if a.Reg == REG_FPSCR {
 			return C_FPSCR
 		}
@@ -3341,25 +3337,17 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 = OP_MTFSFI | (uint32(p.To.Reg)&15)<<23 | (uint32(c.regoff(&p.From))&31)<<12
 
-	case 66: /* mov spr,r1; mov r1,spr, also dcr */
+	case 66: /* mov spr,r1; mov r1,spr */
 		var r int
 		var v int32
 		if REG_R0 <= p.From.Reg && p.From.Reg <= REG_R31 {
 			r = int(p.From.Reg)
 			v = int32(p.To.Reg)
-			if REG_DCR0 <= v && v <= REG_DCR0+1023 {
-				o1 = OPVCC(31, 451, 0, 0) /* mtdcr */
-			} else {
-				o1 = OPVCC(31, 467, 0, 0) /* mtspr */
-			}
+			o1 = OPVCC(31, 467, 0, 0) /* mtspr */
 		} else {
 			r = int(p.To.Reg)
 			v = int32(p.From.Reg)
-			if REG_DCR0 <= v && v <= REG_DCR0+1023 {
-				o1 = OPVCC(31, 323, 0, 0) /* mfdcr */
-			} else {
-				o1 = OPVCC(31, 339, 0, 0) /* mfspr */
-			}
+			o1 = OPVCC(31, 339, 0, 0) /* mfspr */
 		}
 
 		o1 = AOP_RRR(o1, uint32(r), 0, 0) | (uint32(v)&0x1f)<<16 | ((uint32(v)>>5)&0x1f)<<11
