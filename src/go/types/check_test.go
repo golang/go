@@ -34,7 +34,6 @@ import (
 	"go/scanner"
 	"go/token"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -332,7 +331,7 @@ func testDir(t *testing.T, dir string) {
 		// if fi is a directory, its files make up a single package
 		var filenames []string
 		if fi.IsDir() {
-			fis, err := ioutil.ReadDir(path)
+			fis, err := os.ReadDir(path)
 			if err != nil {
 				t.Error(err)
 				continue
