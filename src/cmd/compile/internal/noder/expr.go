@@ -164,7 +164,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 
 	case *syntax.Operation:
 		if expr.Y == nil {
-			return Unary(pos, g.op(expr.Op, unOps[:]), g.expr(expr.X))
+			return Unary(pos, g.typ(typ), g.op(expr.Op, unOps[:]), g.expr(expr.X))
 		}
 		switch op := g.op(expr.Op, binOps[:]); op {
 		case ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
@@ -236,7 +236,7 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 
 			if havePtr != wantPtr {
 				if havePtr {
-					x = Implicit(Deref(pos, x))
+					x = Implicit(Deref(pos, x.Type().Elem(), x))
 				} else {
 					x = Implicit(Addr(pos, x))
 				}

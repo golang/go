@@ -42,6 +42,12 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 		return x
 	case *syntax.SendStmt:
 		n := ir.NewSendStmt(g.pos(stmt), g.expr(stmt.Chan), g.expr(stmt.Value))
+		if n.Chan.Type().HasTParam() || n.Value.Type().HasTParam() {
+			// Delay transforming the send if the channel or value
+			// have a type param.
+			n.SetTypecheck(3)
+			return n
+		}
 		transformSend(n)
 		n.SetTypecheck(1)
 		return n
@@ -118,6 +124,14 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 		return ir.NewGoDeferStmt(g.pos(stmt), g.tokOp(int(stmt.Tok), callOps[:]), g.expr(stmt.Call))
 	case *syntax.ReturnStmt:
 		n := ir.NewReturnStmt(g.pos(stmt), g.exprList(stmt.Results))
+		for _, e := range n.Results {
+			if e.Type().HasTParam() {
+				// Delay transforming the return statement if any of the
+				// return values have a type param.
+				n.SetTypecheck(3)
+				return n
+			}
+		}
 		transformReturn(n)
 		n.SetTypecheck(1)
 		return n

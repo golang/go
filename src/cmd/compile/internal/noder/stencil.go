@@ -270,6 +270,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []ir.No
 	newf.Nname.Func = newf
 	newf.Nname.Defn = newf
 	newsym.Def = newf.Nname
+	ir.CurFunc = newf
 
 	assert(len(tparams) == len(targs))
 
@@ -286,7 +287,6 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []ir.No
 	for i, n := range gf.Dcl {
 		newf.Dcl[i] = subst.node(n).(*ir.Name)
 	}
-	newf.Body = subst.list(gf.Body)
 
 	// Ugly: we have to insert the Name nodes of the parameters/results into
 	// the function type. The current function type has no Nname fields set,
@@ -305,6 +305,11 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []ir.No
 	newf.Nname.SetTypecheck(1)
 	// TODO(danscales) - remove later, but avoid confusion for now.
 	newf.Pragma = ir.Noinline
+
+	// Make sure name/type of newf is set before substituting the body.
+	newf.Body = subst.list(gf.Body)
+	ir.CurFunc = nil
+
 	return newf
 }
 
@@ -396,6 +401,12 @@ func (subst *subster) node(n ir.Node) ir.Node {
 					as := m.(*ir.AssignOpStmt)
 					transformCheckAssign(as, as.X)
 
+				case ir.ORETURN:
+					transformReturn(m.(*ir.ReturnStmt))
+
+				case ir.OSEND:
+					transformSend(m.(*ir.SendStmt))
+
 				default:
 					base.Fatalf("Unexpected node with Typecheck() == 3")
 				}
@@ -435,38 +446,55 @@ func (subst *subster) node(n ir.Node) ir.Node {
 
 		case ir.OCALL:
 			call := m.(*ir.CallExpr)
-			if call.X.Op() == ir.OTYPE {
+			switch call.X.Op() {
+			case ir.OTYPE:
 				// Transform the conversion, now that we know the
 				// type argument.
 				m = transformConvCall(m.(*ir.CallExpr))
-			} else if call.X.Op() == ir.OCALLPART {
+
+			case ir.OCALLPART:
 				// Redo the transformation of OXDOT, now that we
 				// know the method value is being called. Then
 				// transform the call.
 				call.X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
 				transformDot(call.X.(*ir.SelectorExpr), true)
 				transformCall(call)
-			} else if call.X.Op() == ir.ODOT || call.X.Op() == ir.ODOTPTR {
+
+			case ir.ODOT, ir.ODOTPTR:
 				// An OXDOT for a generic receiver was resolved to
 				// an access to a field which has a function
 				// value. Transform the call to that function, now
 				// that the OXDOT was resolved.
 				transformCall(call)
-			} else if name := call.X.Name(); name != nil {
-				switch name.BuiltinOp {
-				case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OLEN, ir.OCAP, ir.OAPPEND:
-					// Transform these builtins now that we
-					// know the type of the args.
-					m = transformBuiltin(call)
-				default:
-					base.FatalfAt(call.Pos(), "Unexpected builtin op")
+
+			case ir.ONAME:
+				name := call.X.Name()
+				if name.BuiltinOp != ir.OXXX {
+					switch name.BuiltinOp {
+					case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OLEN, ir.OCAP, ir.OAPPEND:
+						// Transform these builtins now that we
+						// know the type of the args.
+						m = transformBuiltin(call)
+					default:
+						base.FatalfAt(call.Pos(), "Unexpected builtin op")
+					}
+				} else {
+					// This is the case of a function value that was a
+					// type parameter (implied to be a function via a
+					// structural constraint) which is now resolved.
+					transformCall(call)
 				}
 
-			} else if call.X.Op() != ir.OFUNCINST {
-				// A call with an OFUNCINST will get typechecked
+			case ir.OCLOSURE:
+				transformCall(call)
+
+			case ir.OFUNCINST:
+				// A call with an OFUNCINST will get transformed
 				// in stencil() once we have created & attached the
 				// instantiation to be called.
-				base.FatalfAt(call.Pos(), "Expecting OCALLPART or OTYPE or OFUNCINST or builtin with CALL")
+
+			default:
+				base.FatalfAt(call.Pos(), fmt.Sprintf("Unexpected op with CALL during stenciling: %v", call.X.Op()))
 			}
 
 		case ir.OCLOSURE:
@@ -491,17 +519,22 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			newfn.OClosure = m.(*ir.ClosureExpr)
 
 			saveNewf := subst.newf
+			ir.CurFunc = newfn
 			subst.newf = newfn
 			newfn.Dcl = subst.namelist(oldfn.Dcl)
 			newfn.ClosureVars = subst.namelist(oldfn.ClosureVars)
-			newfn.Body = subst.list(oldfn.Body)
-			subst.newf = saveNewf
 
 			// Set Ntype for now to be compatible with later parts of compiler
 			newfn.Nname.Ntype = subst.node(oldfn.Nname.Ntype).(ir.Ntype)
 			typed(subst.typ(oldfn.Nname.Type()), newfn.Nname)
 			typed(newfn.Nname.Type(), m)
 			newfn.SetTypecheck(1)
+
+			// Make sure type of closure function is set before doing body.
+			newfn.Body = subst.list(oldfn.Body)
+			subst.newf = saveNewf
+			ir.CurFunc = saveNewf
+
 			subst.g.target.Decls = append(subst.g.target.Decls, newfn)
 		}
 		return m

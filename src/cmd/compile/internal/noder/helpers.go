@@ -149,9 +149,13 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 		}
 	}
 
-	n.Use = ir.CallUseExpr
-	if fun.Type().NumResults() == 0 {
-		n.Use = ir.CallUseStmt
+	if fun.Type().HasTParam() {
+		// If the fun arg is or has a type param, don't do any extra
+		// transformations, since we may not have needed properties yet
+		// (e.g. number of return values, etc). The type param is probably
+		// described by a structural constraint that requires it to be a
+		// certain function type, etc., but we don't want to analyze that.
+		return typed(typ, n)
 	}
 
 	if fun.Op() == ir.OXDOT {
@@ -191,9 +195,9 @@ func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) ir.Node {
 	return n
 }
 
-func Deref(pos src.XPos, x ir.Node) *ir.StarExpr {
+func Deref(pos src.XPos, typ *types.Type, x ir.Node) *ir.StarExpr {
 	n := ir.NewStarExpr(pos, x)
-	typed(x.Type().Elem(), n)
+	typed(typ, n)
 	return n
 }
 
@@ -288,17 +292,22 @@ func Slice(pos src.XPos, typ *types.Type, x, low, high, max ir.Node) ir.Node {
 	return n
 }
 
-func Unary(pos src.XPos, op ir.Op, x ir.Node) ir.Node {
+func Unary(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node) ir.Node {
 	switch op {
 	case ir.OADDR:
 		return Addr(pos, x)
 	case ir.ODEREF:
-		return Deref(pos, x)
+		return Deref(pos, typ, x)
 	}
 
-	typ := x.Type()
 	if op == ir.ORECV {
-		typ = typ.Elem()
+		if typ.IsFuncArgStruct() && typ.NumFields() == 2 {
+			// Remove the second boolean type (if provided by type2),
+			// since that works better with the rest of the compiler
+			// (which will add it back in later).
+			assert(typ.Field(1).Type.Kind() == types.TBOOL)
+			typ = typ.Field(0).Type
+		}
 	}
 	return typed(typ, ir.NewUnaryExpr(pos, op, x))
 }
