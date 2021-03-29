@@ -6231,7 +6231,7 @@ func doInit(t *initTask) {
 
 		if inittrace.active {
 			end := nanotime()
-			// Load stats non-atomically since tracinit is updated only by this init go routine.
+			// Load stats non-atomically since tracinit is updated only by this init goroutine.
 			after := inittrace
 
 			pkg := funcpkgpath(findfunc(funcPC(firstFunc)))
