@@ -1602,6 +1602,17 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 			n := callX.(*ir.SelectorExpr)
 			n.X = mkArgCopy(n.X)
 			methSelectorExpr = n
+			if callX.Op() == ir.ODOTINTER {
+				// Currently for "defer i.M()" if i is nil it panics at the
+				// point of defer statement, not when deferred function is called.
+				// (I think there is an issue discussing what is the intended
+				// behavior but I cannot find it.)
+				// We need to do the nil check outside of the wrapper.
+				tab := typecheck.Expr(ir.NewUnaryExpr(base.Pos, ir.OITAB, n.X))
+				c := ir.NewUnaryExpr(n.Pos(), ir.OCHECKNIL, tab)
+				c.SetTypecheck(1)
+				o.append(c)
+			}
 		case !(callX.Op() == ir.ONAME && callX.(*ir.Name).Class == ir.PFUNC):
 			// Deal with "defer returnsafunc()(x, y)" (for
 			// example) by copying the callee expression.
