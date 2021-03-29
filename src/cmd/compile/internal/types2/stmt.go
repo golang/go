@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -265,7 +264,7 @@ L:
 	}
 }
 
-func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []syntax.Expr, seen map[Type]syntax.Pos) (T Type) {
+func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []syntax.Expr, seen map[Type]syntax.Expr) (T Type) {
 L:
 	for _, e := range types {
 		T = check.typOrNil(e)
@@ -277,7 +276,7 @@ L:
 		}
 		// look for duplicate types
 		// (quadratic algorithm, but type switches tend to be reasonably small)
-		for t, pos := range seen {
+		for t, other := range seen {
 			if T == nil && t == nil || T != nil && t != nil && check.identical(T, t) {
 				// talk about "case" rather than "type" because of nil case
 				Ts := "nil"
@@ -286,12 +285,12 @@ L:
 				}
 				var err error_
 				err.errorf(e, "duplicate case %s in type switch", Ts)
-				err.errorf(pos, "previous case")
+				err.errorf(other, "previous case")
 				check.report(&err)
 				continue L
 			}
 		}
-		seen[T] = e.Pos()
+		seen[T] = e
 		if T != nil {
 			check.typeAssertion(e.Pos(), x, xtyp, T)
 		}
@@ -409,11 +408,6 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		check.binary(&x, nil, lhs[0], rhs[0], s.Op)
 		check.assignVar(lhs[0], &x)
 
-	// case *syntax.GoStmt:
-	// 	check.suspendedCall("go", s.Call)
-
-	// case *syntax.DeferStmt:
-	// 	check.suspendedCall("defer", s.Call)
 	case *syntax.CallStmt:
 		// TODO(gri) get rid of this conversion to string
 		kind := "go"
@@ -686,6 +680,10 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	if x.mode == invalid {
 		return
 	}
+	// Caution: We're not using asInterface here because we don't want
+	//          to switch on a suitably constrained type parameter (for
+	//          now).
+	// TODO(gri) Need to revisit this.
 	xtyp, _ := under(x.typ).(*Interface)
 	if xtyp == nil {
 		check.errorf(&x, "%s is not an interface type", &x)
@@ -695,8 +693,8 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 
 	check.multipleSwitchDefaults(s.Body)
 
-	var lhsVars []*Var                // list of implicitly declared lhs variables
-	seen := make(map[Type]syntax.Pos) // map of seen types to positions
+	var lhsVars []*Var                 // list of implicitly declared lhs variables
+	seen := make(map[Type]syntax.Expr) // map of seen types to positions
 	for i, clause := range s.Body {
 		if clause == nil {
 			check.error(s, invalidAST+"incorrect type switch case")
@@ -739,6 +737,9 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	}
 
 	// If lhs exists, we must have at least one lhs variable that was used.
+	// (We can't use check.usage because that only looks at one scope; and
+	// we don't want to use the same variable for all scopes and change the
+	// variable type underfoot.)
 	if lhs != nil {
 		var used bool
 		for _, v := range lhsVars {
