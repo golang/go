@@ -207,10 +207,10 @@ func posFor(at poser) syntax.Pos {
 	switch x := at.(type) {
 	case *operand:
 		if x.expr != nil {
-			return startPos(x.expr)
+			return syntax.StartPos(x.expr)
 		}
 	case syntax.Node:
-		return startPos(x)
+		return syntax.StartPos(x)
 	}
 	return at.Pos()
 }

@@ -11,7 +11,7 @@ import (
 // labels checks correct label use in body.
 func (check *Checker) labels(body *syntax.BlockStmt) {
 	// set of all labels in this body
-	all := NewScope(nil, body.Pos(), endPos(body), "label")
+	all := NewScope(nil, body.Pos(), syntax.EndPos(body), "label")
 
 	fwdJumps := check.blockBranches(all, nil, nil, body.List)
 

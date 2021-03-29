@@ -96,7 +96,7 @@ func (check *Checker) overflow(x *operand) {
 	// If the corresponding expression is an operation, use the
 	// operator position rather than the start of the expression
 	// as error position.
-	pos := startPos(x.expr)
+	pos := syntax.StartPos(x.expr)
 	what := "" // operator description, if any
 	if op, _ := x.expr.(*syntax.Operation); op != nil {
 		pos = op.Pos()

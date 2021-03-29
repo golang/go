@@ -16,13 +16,13 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 	if check.conf.Trace {
 		check.trace(body.Pos(), "--- %s: %s", name, sig)
 		defer func() {
-			check.trace(endPos(body), "--- <end>")
+			check.trace(syntax.EndPos(body), "--- <end>")
 		}()
 	}
 
 	// set function scope extent
 	sig.scope.pos = body.Pos()
-	sig.scope.end = endPos(body)
+	sig.scope.end = syntax.EndPos(body)
 
 	// save/restore current context and setup function context
 	// (and use 0 indentation at function start)
@@ -154,7 +154,7 @@ func (check *Checker) multipleSelectDefaults(list []*syntax.CommClause) {
 }
 
 func (check *Checker) openScope(node syntax.Node, comment string) {
-	check.openScopeUntil(node, endPos(node), comment)
+	check.openScopeUntil(node, syntax.EndPos(node), comment)
 }
 
 func (check *Checker) openScopeUntil(node syntax.Node, end syntax.Pos, comment string) {
@@ -723,7 +723,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 			// "at the end of the TypeSwitchCase" in #16794 instead?
 			scopePos := clause.Pos() // for default clause (len(List) == 0)
 			if n := len(cases); n > 0 {
-				scopePos = endPos(cases[n-1])
+				scopePos = syntax.EndPos(cases[n-1])
 			}
 			check.declare(check.scope, nil, obj, scopePos)
 			check.recordImplicit(clause, obj)
@@ -840,7 +840,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 
 		// declare variables
 		if len(vars) > 0 {
-			scopePos := endPos(rclause.X) // TODO(gri) should this just be s.Body.Pos (spec clarification)?
+			scopePos := syntax.EndPos(rclause.X) // TODO(gri) should this just be s.Body.Pos (spec clarification)?
 			for _, obj := range vars {
 				// spec: "The scope of a constant or variable identifier declared inside
 				// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
