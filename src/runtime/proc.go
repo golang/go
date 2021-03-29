@@ -1258,7 +1258,7 @@ func mStackIsSystemAllocated() bool {
 }
 
 // mstart is the entry-point for new Ms.
-// It is written in assembly, marked TOPFRAME, and calls mstart0.
+// It is written in assembly, uses ABI0, is marked TOPFRAME, and calls mstart0.
 func mstart()
 
 // mstart0 is the Go entry-point for new Ms.

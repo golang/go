@@ -166,8 +166,8 @@ func init() {
 	if Experiment.RegabiG && !Experiment.RegabiWrappers {
 		panic("GOEXPERIMENT regabig requires regabiwrappers")
 	}
-	if Experiment.RegabiArgs && !(Experiment.RegabiWrappers && Experiment.RegabiReflect && Experiment.RegabiDefer) {
-		panic("GOEXPERIMENT regabiargs requires regabiwrappers,regabireflect,regabidefer")
+	if Experiment.RegabiArgs && !(Experiment.RegabiWrappers && Experiment.RegabiG && Experiment.RegabiReflect && Experiment.RegabiDefer) {
+		panic("GOEXPERIMENT regabiargs requires regabiwrappers,regabig,regabireflect,regabidefer")
 	}
 
 	// Set GOEXPERIMENT to the parsed and canonicalized set of experiments.
@@ -242,7 +242,11 @@ type ExpFlags struct {
 	// RegabiArgs enables register arguments/results in all
 	// compiled Go functions.
 	//
-	// Requires wrappers, reflect, defer.
+	// Requires wrappers (to do ABI translation), g (because
+	// runtime assembly that's been ported to ABIInternal uses the
+	// G register), reflect (so reflection calls use registers),
+	// and defer (because the runtime doesn't support passing
+	// register arguments to defer/go).
 	RegabiArgs bool
 }
 

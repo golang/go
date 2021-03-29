@@ -76,6 +76,10 @@ nog:
 	MOVD	$0, R0  // crash (not reached)
 	MOVD	R0, (R8)
 
+TEXT ·netbsdMstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	·netbsdMstart0(SB)
+	RET // not reached
+
 TEXT runtime·osyield(SB),NOSPLIT,$0
 	SVC	$SYS_sched_yield
 	RET

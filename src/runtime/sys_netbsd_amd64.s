@@ -70,13 +70,17 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
 	MOVQ	R9, g(CX)
 	CALL	runtime·stackcheck(SB)
 
-	// Call fn
+	// Call fn. This is an ABI0 PC.
 	CALL	R12
 
 	// It shouldn't return. If it does, exit.
 	MOVL	$SYS__lwp_exit, AX
 	SYSCALL
 	JMP	-3(PC)			// keep exiting
+
+TEXT ·netbsdMstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	·netbsdMstart0(SB)
+	RET // not reached
 
 TEXT runtime·osyield(SB),NOSPLIT,$0
 	MOVL	$SYS_sched_yield, AX
