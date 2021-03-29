@@ -62,3 +62,61 @@ func _[T interface{ type func(string) int }](f T) int {
 func _[V any, T interface { type map[string]V }](p T) V {
 	return p["test"]
 }
+
+
+// Testing partial and full type inference, including the case where the types can
+// be inferred without needing the types of the function arguments.
+
+func f0[A any, B interface{type C}, C interface{type D}, D interface{type A}](a A, b B, c C, d D)
+func _() {
+        f := f0[string]
+        f("a", "b", "c", "d")
+        f0("a", "b", "c", "d")
+}
+
+func f1[A any, B interface{type A}](a A, b B)
+func _() {
+        f := f1[int]
+        f(int(0), int(0))
+        f1(int(0), int(0))
+        f(0, 0)
+        f1(0, 0)
+}
+
+func f2[A any, B interface{type []A}](a A, b B)
+func _() {
+	f := f2[byte]
+	f(byte(0), []byte{})
+	f2(byte(0), []byte{})
+	f(0, []byte{})
+	// f2(0, []byte{}) - this one doesn't work
+}
+
+func f3[A any, B interface{type C}, C interface{type *A}](a A, b B, c C)
+func _() {
+	f := f3[int]
+	var x int
+	f(x, &x, &x)
+	f3(x, &x, &x)
+}
+
+func f4[A any, B interface{type []C}, C interface{type *A}](a A, b B, c C)
+func _() {
+	f := f4[int]
+	var x int
+	f(x, []*int{}, &x)
+	f4(x, []*int{}, &x)
+}
+
+func f5[A interface{type struct{b B; c C}}, B any, C interface{type *B}](x B) A
+func _() {
+	x := f5(1.2)
+	var _ float64 = x.b
+	var _ float64 = *x.c
+}
+
+func f6[A any, B interface{type struct{f []A}}](B) A
+func _() {
+	x := f6(struct{f []string}{})
+	var _ string = x
+}
