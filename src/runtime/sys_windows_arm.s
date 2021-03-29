@@ -157,7 +157,7 @@ g0:
 	MOVW	R2, 4(R13)	// Move arg0 (ExceptionRecord) into position
 	MOVW	R3, 8(R13)	// Move arg1 (ContextRecord) into position
 	MOVW	R5, 12(R13)	// Move arg2 (original g) into position
-	BL	(R7)		// Call the go routine
+	BL	(R7)		// Call the goroutine
 	MOVW	16(R13), R4	// Fetch return value from stack
 
 	// Save system stack pointer for sigresume setup below.
