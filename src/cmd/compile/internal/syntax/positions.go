@@ -1,16 +1,13 @@
-// UNREVIEWED
-// Copyright 2012 The Go Authors. All rights reserved.
+// Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // This file implements helper functions for scope position computations.
 
-package types2
+package syntax
 
-import "cmd/compile/internal/syntax"
-
-// startPos returns the start position of n.
-func startPos(n syntax.Node) syntax.Pos {
+// StartPos returns the start position of n.
+func StartPos(n Node) Pos {
 	// Cases for nodes which don't need a correction are commented out.
 	for m := n; ; {
 		switch n := m.(type) {
@@ -18,95 +15,95 @@ func startPos(n syntax.Node) syntax.Pos {
 			panic("internal error: nil")
 
 		// packages
-		case *syntax.File:
+		case *File:
 			// file block starts at the beginning of the file
-			return syntax.MakePos(n.Pos().Base(), 1, 1)
+			return MakePos(n.Pos().Base(), 1, 1)
 
 		// declarations
-		// case *syntax.ImportDecl:
-		// case *syntax.ConstDecl:
-		// case *syntax.TypeDecl:
-		// case *syntax.VarDecl:
-		// case *syntax.FuncDecl:
+		// case *ImportDecl:
+		// case *ConstDecl:
+		// case *TypeDecl:
+		// case *VarDecl:
+		// case *FuncDecl:
 
 		// expressions
-		// case *syntax.BadExpr:
-		// case *syntax.Name:
-		// case *syntax.BasicLit:
-		case *syntax.CompositeLit:
+		// case *BadExpr:
+		// case *Name:
+		// case *BasicLit:
+		case *CompositeLit:
 			if n.Type != nil {
 				m = n.Type
 				continue
 			}
 			return n.Pos()
-		// case *syntax.KeyValueExpr:
-		// case *syntax.FuncLit:
-		// case *syntax.ParenExpr:
-		case *syntax.SelectorExpr:
+		// case *KeyValueExpr:
+		// case *FuncLit:
+		// case *ParenExpr:
+		case *SelectorExpr:
 			m = n.X
-		case *syntax.IndexExpr:
+		case *IndexExpr:
 			m = n.X
-		// case *syntax.SliceExpr:
-		case *syntax.AssertExpr:
+		// case *SliceExpr:
+		case *AssertExpr:
 			m = n.X
-		case *syntax.TypeSwitchGuard:
+		case *TypeSwitchGuard:
 			if n.Lhs != nil {
 				m = n.Lhs
 				continue
 			}
 			m = n.X
-		case *syntax.Operation:
+		case *Operation:
 			if n.Y != nil {
 				m = n.X
 				continue
 			}
 			return n.Pos()
-		case *syntax.CallExpr:
+		case *CallExpr:
 			m = n.Fun
-		case *syntax.ListExpr:
+		case *ListExpr:
 			if len(n.ElemList) > 0 {
 				m = n.ElemList[0]
 				continue
 			}
 			return n.Pos()
 		// types
-		// case *syntax.ArrayType:
-		// case *syntax.SliceType:
-		// case *syntax.DotsType:
-		// case *syntax.StructType:
-		// case *syntax.Field:
-		// case *syntax.InterfaceType:
-		// case *syntax.FuncType:
-		// case *syntax.MapType:
-		// case *syntax.ChanType:
+		// case *ArrayType:
+		// case *SliceType:
+		// case *DotsType:
+		// case *StructType:
+		// case *Field:
+		// case *InterfaceType:
+		// case *FuncType:
+		// case *MapType:
+		// case *ChanType:
 
 		// statements
-		// case *syntax.EmptyStmt:
-		// case *syntax.LabeledStmt:
-		// case *syntax.BlockStmt:
-		// case *syntax.ExprStmt:
-		case *syntax.SendStmt:
+		// case *EmptyStmt:
+		// case *LabeledStmt:
+		// case *BlockStmt:
+		// case *ExprStmt:
+		case *SendStmt:
 			m = n.Chan
-		// case *syntax.DeclStmt:
-		case *syntax.AssignStmt:
+		// case *DeclStmt:
+		case *AssignStmt:
 			m = n.Lhs
-		// case *syntax.BranchStmt:
-		// case *syntax.CallStmt:
-		// case *syntax.ReturnStmt:
-		// case *syntax.IfStmt:
-		// case *syntax.ForStmt:
-		// case *syntax.SwitchStmt:
-		// case *syntax.SelectStmt:
+		// case *BranchStmt:
+		// case *CallStmt:
+		// case *ReturnStmt:
+		// case *IfStmt:
+		// case *ForStmt:
+		// case *SwitchStmt:
+		// case *SelectStmt:
 
 		// helper nodes
-		case *syntax.RangeClause:
+		case *RangeClause:
 			if n.Lhs != nil {
 				m = n.Lhs
 				continue
 			}
 			m = n.X
-		// case *syntax.CaseClause:
-		// case *syntax.CommClause:
+		// case *CaseClause:
+		// case *CommClause:
 
 		default:
 			return n.Pos()
@@ -114,30 +111,29 @@ func startPos(n syntax.Node) syntax.Pos {
 	}
 }
 
-// endPos returns the approximate end position of n in the source.
-// For some nodes (*syntax.Name, *syntax.BasicLit) it returns
-// the position immediately following the node; for others
-// (*syntax.BlockStmt, *syntax.SwitchStmt, etc.) it returns
-// the position of the closing '}'; and for some (*syntax.ParenExpr)
+// EndPos returns the approximate end position of n in the source.
+// For some nodes (*Name, *BasicLit) it returns the position immediately
+// following the node; for others (*BlockStmt, *SwitchStmt, etc.) it
+// returns the position of the closing '}'; and for some (*ParenExpr)
 // the returned position is the end position of the last enclosed
 // expression.
-// Thus, endPos should not be used for exact demarcation of the
+// Thus, EndPos should not be used for exact demarcation of the
 // end of a node in the source; it is mostly useful to determine
 // scope ranges where there is some leeway.
-func endPos(n syntax.Node) syntax.Pos {
+func EndPos(n Node) Pos {
 	for m := n; ; {
 		switch n := m.(type) {
 		case nil:
 			panic("internal error: nil")
 
 		// packages
-		case *syntax.File:
+		case *File:
 			return n.EOF
 
 		// declarations
-		case *syntax.ImportDecl:
+		case *ImportDecl:
 			m = n.Path
-		case *syntax.ConstDecl:
+		case *ConstDecl:
 			if n.Values != nil {
 				m = n.Values
 				continue
@@ -151,9 +147,9 @@ func endPos(n syntax.Node) syntax.Pos {
 				continue
 			}
 			return n.Pos()
-		case *syntax.TypeDecl:
+		case *TypeDecl:
 			m = n.Type
-		case *syntax.VarDecl:
+		case *VarDecl:
 			if n.Values != nil {
 				m = n.Values
 				continue
@@ -167,7 +163,7 @@ func endPos(n syntax.Node) syntax.Pos {
 				continue
 			}
 			return n.Pos()
-		case *syntax.FuncDecl:
+		case *FuncDecl:
 			if n.Body != nil {
 				m = n.Body
 				continue
@@ -175,27 +171,27 @@ func endPos(n syntax.Node) syntax.Pos {
 			m = n.Type
 
 		// expressions
-		case *syntax.BadExpr:
+		case *BadExpr:
 			return n.Pos()
-		case *syntax.Name:
+		case *Name:
 			p := n.Pos()
-			return syntax.MakePos(p.Base(), p.Line(), p.Col()+uint(len(n.Value)))
-		case *syntax.BasicLit:
+			return MakePos(p.Base(), p.Line(), p.Col()+uint(len(n.Value)))
+		case *BasicLit:
 			p := n.Pos()
-			return syntax.MakePos(p.Base(), p.Line(), p.Col()+uint(len(n.Value)))
-		case *syntax.CompositeLit:
+			return MakePos(p.Base(), p.Line(), p.Col()+uint(len(n.Value)))
+		case *CompositeLit:
 			return n.Rbrace
-		case *syntax.KeyValueExpr:
+		case *KeyValueExpr:
 			m = n.Value
-		case *syntax.FuncLit:
+		case *FuncLit:
 			m = n.Body
-		case *syntax.ParenExpr:
+		case *ParenExpr:
 			m = n.X
-		case *syntax.SelectorExpr:
+		case *SelectorExpr:
 			m = n.Sel
-		case *syntax.IndexExpr:
+		case *IndexExpr:
 			m = n.Index
-		case *syntax.SliceExpr:
+		case *SliceExpr:
 			for i := len(n.Index) - 1; i >= 0; i-- {
 				if x := n.Index[i]; x != nil {
 					m = x
@@ -203,23 +199,23 @@ func endPos(n syntax.Node) syntax.Pos {
 				}
 			}
 			m = n.X
-		case *syntax.AssertExpr:
+		case *AssertExpr:
 			m = n.Type
-		case *syntax.TypeSwitchGuard:
+		case *TypeSwitchGuard:
 			m = n.X
-		case *syntax.Operation:
+		case *Operation:
 			if n.Y != nil {
 				m = n.Y
 				continue
 			}
 			m = n.X
-		case *syntax.CallExpr:
+		case *CallExpr:
 			if l := lastExpr(n.ArgList); l != nil {
 				m = l
 				continue
 			}
 			m = n.Fun
-		case *syntax.ListExpr:
+		case *ListExpr:
 			if l := lastExpr(n.ElemList); l != nil {
 				m = l
 				continue
@@ -227,32 +223,32 @@ func endPos(n syntax.Node) syntax.Pos {
 			return n.Pos()
 
 		// types
-		case *syntax.ArrayType:
+		case *ArrayType:
 			m = n.Elem
-		case *syntax.SliceType:
+		case *SliceType:
 			m = n.Elem
-		case *syntax.DotsType:
+		case *DotsType:
 			m = n.Elem
-		case *syntax.StructType:
+		case *StructType:
 			if l := lastField(n.FieldList); l != nil {
 				m = l
 				continue
 			}
 			return n.Pos()
 			// TODO(gri) need to take TagList into account
-		case *syntax.Field:
+		case *Field:
 			if n.Type != nil {
 				m = n.Type
 				continue
 			}
 			m = n.Name
-		case *syntax.InterfaceType:
+		case *InterfaceType:
 			if l := lastField(n.MethodList); l != nil {
 				m = l
 				continue
 			}
 			return n.Pos()
-		case *syntax.FuncType:
+		case *FuncType:
 			if l := lastField(n.ResultList); l != nil {
 				m = l
 				continue
@@ -262,71 +258,71 @@ func endPos(n syntax.Node) syntax.Pos {
 				continue
 			}
 			return n.Pos()
-		case *syntax.MapType:
+		case *MapType:
 			m = n.Value
-		case *syntax.ChanType:
+		case *ChanType:
 			m = n.Elem
 
 		// statements
-		case *syntax.EmptyStmt:
+		case *EmptyStmt:
 			return n.Pos()
-		case *syntax.LabeledStmt:
+		case *LabeledStmt:
 			m = n.Stmt
-		case *syntax.BlockStmt:
+		case *BlockStmt:
 			return n.Rbrace
-		case *syntax.ExprStmt:
+		case *ExprStmt:
 			m = n.X
-		case *syntax.SendStmt:
+		case *SendStmt:
 			m = n.Value
-		case *syntax.DeclStmt:
+		case *DeclStmt:
 			if l := lastDecl(n.DeclList); l != nil {
 				m = l
 				continue
 			}
 			return n.Pos()
-		case *syntax.AssignStmt:
+		case *AssignStmt:
 			m = n.Rhs
 			if m == nil {
-				p := endPos(n.Lhs)
-				return syntax.MakePos(p.Base(), p.Line(), p.Col()+2)
+				p := EndPos(n.Lhs)
+				return MakePos(p.Base(), p.Line(), p.Col()+2)
 			}
-		case *syntax.BranchStmt:
+		case *BranchStmt:
 			if n.Label != nil {
 				m = n.Label
 				continue
 			}
 			return n.Pos()
-		case *syntax.CallStmt:
+		case *CallStmt:
 			m = n.Call
-		case *syntax.ReturnStmt:
+		case *ReturnStmt:
 			if n.Results != nil {
 				m = n.Results
 				continue
 			}
 			return n.Pos()
-		case *syntax.IfStmt:
+		case *IfStmt:
 			if n.Else != nil {
 				m = n.Else
 				continue
 			}
 			m = n.Then
-		case *syntax.ForStmt:
+		case *ForStmt:
 			m = n.Body
-		case *syntax.SwitchStmt:
+		case *SwitchStmt:
 			return n.Rbrace
-		case *syntax.SelectStmt:
+		case *SelectStmt:
 			return n.Rbrace
 
 		// helper nodes
-		case *syntax.RangeClause:
+		case *RangeClause:
 			m = n.X
-		case *syntax.CaseClause:
+		case *CaseClause:
 			if l := lastStmt(n.Body); l != nil {
 				m = l
 				continue
 			}
 			return n.Colon
-		case *syntax.CommClause:
+		case *CommClause:
 			if l := lastStmt(n.Body); l != nil {
 				m = l
 				continue
@@ -339,28 +335,28 @@ func endPos(n syntax.Node) syntax.Pos {
 	}
 }
 
-func lastDecl(list []syntax.Decl) syntax.Decl {
+func lastDecl(list []Decl) Decl {
 	if l := len(list); l > 0 {
 		return list[l-1]
 	}
 	return nil
 }
 
-func lastExpr(list []syntax.Expr) syntax.Expr {
+func lastExpr(list []Expr) Expr {
 	if l := len(list); l > 0 {
 		return list[l-1]
 	}
 	return nil
 }
 
-func lastStmt(list []syntax.Stmt) syntax.Stmt {
+func lastStmt(list []Stmt) Stmt {
 	if l := len(list); l > 0 {
 		return list[l-1]
 	}
 	return nil
 }
 
-func lastField(list []*syntax.Field) *syntax.Field {
+func lastField(list []*Field) *Field {
 	if l := len(list); l > 0 {
 		return list[l-1]
 	}
