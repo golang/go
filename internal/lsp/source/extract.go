@@ -276,6 +276,10 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 		if _, ok := seenVars[v.obj]; ok {
 			continue
 		}
+		if v.obj.Name() == "_" {
+			// The blank identifier is always a local variable
+			continue
+		}
 		typ := analysisinternal.TypeExpr(fset, file, pkg, v.obj.Type())
 		if typ == nil {
 			return nil, fmt.Errorf("nil AST expression for type: %v", v.obj.Name())

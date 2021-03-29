@@ -1,0 +1,20 @@
+-- functionextraction_extract_issue_44813_6_2 --
+package extract
+
+import "fmt"
+
+func main() {
+	x := fn0() //@mark(exEn9, "}")
+	//@extractfunc(exSt9, exEn9)
+	fmt.Printf("%x\n", x)
+}
+
+func fn0() []rune {
+	x := []rune{}
+	s := "HELLO"
+	for _, c := range s {
+		x = append(x, c)
+	}
+	return x
+}
+
