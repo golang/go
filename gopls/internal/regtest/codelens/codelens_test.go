@@ -275,9 +275,6 @@ func Foo() {
 }
 
 func TestGCDetails(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Flaky test -- see golang.org/issue/44099")
-	}
 	testenv.NeedsGo1Point(t, 15)
 	if runtime.GOOS == "android" {
 		t.Skipf("the gc details code lens doesn't work on Android")
