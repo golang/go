@@ -177,6 +177,10 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
 	MOVW R8, (R8)
 	RET
 
+TEXT ·netbsdMstart(SB),NOSPLIT|TOPFRAME,$0
+	BL ·netbsdMstart0(SB)
+	RET // not reached
+
 TEXT runtime·usleep(SB),NOSPLIT,$16
 	MOVW usec+0(FP), R0
 	CALL runtime·usplitR0(SB)

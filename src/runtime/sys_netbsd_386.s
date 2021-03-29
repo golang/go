@@ -376,6 +376,10 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
 	MOVL	$0x1234, 0x1005
 	RET
 
+TEXT ·netbsdMstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	·netbsdMstart0(SB)
+	RET // not reached
+
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVL	$SYS___sigaltstack14, AX
 	MOVL	new+0(FP), BX

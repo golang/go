@@ -320,7 +320,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	// Call cgocallback, which will call callbackWrap(frame).
 	MOVQ	$0, 16(SP)	// context
 	MOVQ	AX, 8(SP)	// frame (address of callbackArgs)
-	LEAQ	·callbackWrap(SB), BX
+	LEAQ	·callbackWrap<ABIInternal>(SB), BX	// cgocallback takes an ABIInternal entry-point
 	MOVQ	BX, 0(SP)	// PC of function value to call (callbackWrap)
 	CALL	·cgocallback(SB)
 	// Get callback result.

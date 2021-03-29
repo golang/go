@@ -652,7 +652,7 @@ nog1:
 	CALL	runtime·stackcheck(SB)
 
 nog2:
-	// Call fn
+	// Call fn. This is the PC of an ABI0 function.
 	CALL	R12
 
 	// It shouldn't return. If it does, exit that thread.

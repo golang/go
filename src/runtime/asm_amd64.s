@@ -285,6 +285,34 @@ TEXT gogo<>(SB), NOSPLIT, $0
 // Switch to m->g0's stack, call fn(g).
 // Fn must never return. It should gogo(&g->sched)
 // to keep running g.
+#ifdef GOEXPERIMENT_REGABI_ARGS
+TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT, $0-8
+	MOVQ	AX, DX	// DX = fn
+
+	// save state in g->sched
+	MOVQ	0(SP), BX	// caller's PC
+	MOVQ	BX, (g_sched+gobuf_pc)(R14)
+	LEAQ	fn+0(FP), BX	// caller's SP
+	MOVQ	BX, (g_sched+gobuf_sp)(R14)
+	MOVQ	BP, (g_sched+gobuf_bp)(R14)
+
+	// switch to m->g0 & its stack, call fn
+	MOVQ	g_m(R14), BX
+	MOVQ	m_g0(BX), SI	// SI = g.m.g0
+	CMPQ	SI, R14	// if g == m->g0 call badmcall
+	JNE	goodm
+	JMP	runtime·badmcall(SB)
+goodm:
+	MOVQ	R14, AX		// AX (and arg 0) = g
+	MOVQ	SI, R14		// g = g.m.g0
+	get_tls(CX)		// Set G in TLS
+	MOVQ	R14, g(CX)
+	MOVQ	(g_sched+gobuf_sp)(R14), SP	// sp = g0.sched.sp
+	MOVQ	0(DX), R12
+	CALL	R12		// fn(g)
+	JMP	runtime·badmcall2(SB)
+	RET
+#else
 TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	MOVQ	fn+0(FP), DI
 
@@ -315,6 +343,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	MOVQ	$runtime·badmcall2(SB), AX
 	JMP	AX
 	RET
+#endif
 
 // systemstack_switch is a dummy routine that systemstack leaves at the bottom
 // of the G stack. We need to distinguish the routine that
