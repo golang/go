@@ -94,16 +94,12 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 	case *syntax.CallExpr:
 		fun := g.expr(expr.Fun)
 
-		// The key for the Inferred map is usually the expr.
-		key := syntax.Expr(expr)
-		if _, ok := expr.Fun.(*syntax.IndexExpr); ok {
-			// If the Fun is an IndexExpr, then this may be a
-			// partial type inference case. In this case, we look up
-			// the IndexExpr in the Inferred map.
-			// TODO(gri): should types2 always record the callExpr as the key?
-			key = syntax.Expr(expr.Fun)
-		}
-		if inferred, ok := g.info.Inferred[key]; ok && len(inferred.Targs) > 0 {
+		// The key for the Inferred map is the CallExpr (if inferring
+		// types required the function arguments) or the IndexExpr below
+		// (if types could be inferred without the function arguments).
+		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.Targs) > 0 {
+			// This is the case where inferring types required the
+			// types of the function arguments.
 			targs := make([]ir.Node, len(inferred.Targs))
 			for i, targ := range inferred.Targs {
 				targs[i] = ir.TypeNode(g.typ(targ))
@@ -126,7 +122,16 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 
 	case *syntax.IndexExpr:
 		var targs []ir.Node
-		if _, ok := expr.Index.(*syntax.ListExpr); ok {
+
+		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.Targs) > 0 {
+			// This is the partial type inference case where the types
+			// can be inferred from other type arguments without using
+			// the types of the function arguments.
+			targs = make([]ir.Node, len(inferred.Targs))
+			for i, targ := range inferred.Targs {
+				targs[i] = ir.TypeNode(g.typ(targ))
+			}
+		} else if _, ok := expr.Index.(*syntax.ListExpr); ok {
 			targs = g.exprList(expr.Index)
 		} else {
 			index := g.expr(expr.Index)
@@ -137,12 +142,13 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 			// This is generic function instantiation with a single type
 			targs = []ir.Node{index}
 		}
-		// This is a generic function instantiation (e.g. min[int])
+		// This is a generic function instantiation (e.g. min[int]).
+		// Generic type instantiation is handled in the type
+		// section of expr() above (using g.typ).
 		x := g.expr(expr.X)
 		if x.Op() != ir.ONAME || x.Type().Kind() != types.TFUNC {
 			panic("Incorrect argument for generic func instantiation")
 		}
-		// This could also be an OTYPEINST once we can handle those examples.
 		n := ir.NewInstExpr(pos, ir.OFUNCINST, x, targs)
 		typed(g.typ(typ), n)
 		return n
