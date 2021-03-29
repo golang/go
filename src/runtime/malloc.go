@@ -933,7 +933,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 
 		if inittrace.active && inittrace.id == getg().goid {
-			// Init functions are executed sequentially in a single Go routine.
+			// Init functions are executed sequentially in a single goroutine.
 			inittrace.allocs += 1
 		}
 	}
@@ -1137,7 +1137,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 
 		if inittrace.active && inittrace.id == getg().goid {
-			// Init functions are executed sequentially in a single Go routine.
+			// Init functions are executed sequentially in a single goroutine.
 			inittrace.bytes += uint64(size)
 		}
 	}
