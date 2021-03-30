@@ -1942,6 +1942,22 @@ func BenchmarkCall(b *testing.B) {
 	})
 }
 
+type myint int64
+
+func (i *myint) inc() {
+	*i = *i + 1
+}
+
+func BenchmarkCallMethod(b *testing.B) {
+	b.ReportAllocs()
+	z := new(myint)
+
+	v := ValueOf(z.inc)
+	for i := 0; i < b.N; i++ {
+		v.Call(nil)
+	}
+}
+
 func BenchmarkCallArgCopy(b *testing.B) {
 	byteArray := func(n int) Value {
 		return Zero(ArrayOf(n, TypeOf(byte(0))))
