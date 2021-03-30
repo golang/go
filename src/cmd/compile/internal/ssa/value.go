@@ -139,6 +139,9 @@ func (v *Value) AuxArm64BitField() arm64BitField {
 
 // long form print.  v# = opcode <type> [aux] args [: reg] (names)
 func (v *Value) LongString() string {
+	if v == nil {
+		return "<NIL VALUE>"
+	}
 	s := fmt.Sprintf("v%d = %s", v.ID, v.Op)
 	s += " <" + v.Type.String() + ">"
 	s += v.auxString()
