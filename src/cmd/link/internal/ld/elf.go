@@ -1682,13 +1682,18 @@ func asmbElf(ctxt *Link) {
 
 	var pph *ElfPhdr
 	var pnote *ElfPhdr
+	getpnote := func() *ElfPhdr {
+		if pnote == nil {
+			pnote = newElfPhdr()
+			pnote.Type = elf.PT_NOTE
+			pnote.Flags = elf.PF_R
+		}
+		return pnote
+	}
 	if *flagRace && ctxt.IsNetbsd() {
 		sh := elfshname(".note.netbsd.pax")
 		resoff -= int64(elfnetbsdpax(sh, uint64(startva), uint64(resoff)))
-		pnote = newElfPhdr()
-		pnote.Type = elf.PT_NOTE
-		pnote.Flags = elf.PF_R
-		phsh(pnote, sh)
+		phsh(getpnote(), sh)
 	}
 	if ctxt.LinkMode == LinkExternal {
 		/* skip program headers */
@@ -1787,7 +1792,6 @@ func asmbElf(ctxt *Link) {
 		phsh(ph, sh)
 	}
 
-	pnote = nil
 	if ctxt.HeadType == objabi.Hnetbsd || ctxt.HeadType == objabi.Hopenbsd {
 		var sh *ElfShdr
 		switch ctxt.HeadType {
@@ -1799,34 +1803,23 @@ func asmbElf(ctxt *Link) {
 			sh = elfshname(".note.openbsd.ident")
 			resoff -= int64(elfopenbsdsig(sh, uint64(startva), uint64(resoff)))
 		}
-
-		pnote = newElfPhdr()
-		pnote.Type = elf.PT_NOTE
-		pnote.Flags = elf.PF_R
-		phsh(pnote, sh)
+		// netbsd and openbsd require ident in an independent segment.
+		pnotei := newElfPhdr()
+		pnotei.Type = elf.PT_NOTE
+		pnotei.Flags = elf.PF_R
+		phsh(pnotei, sh)
 	}
 
 	if len(buildinfo) > 0 {
 		sh := elfshname(".note.gnu.build-id")
 		resoff -= int64(elfbuildinfo(sh, uint64(startva), uint64(resoff)))
-
-		if pnote == nil {
-			pnote = newElfPhdr()
-			pnote.Type = elf.PT_NOTE
-			pnote.Flags = elf.PF_R
-		}
-
-		phsh(pnote, sh)
+		phsh(getpnote(), sh)
 	}
 
 	if *flagBuildid != "" {
 		sh := elfshname(".note.go.buildid")
 		resoff -= int64(elfgobuildid(sh, uint64(startva), uint64(resoff)))
-
-		pnote := newElfPhdr()
-		pnote.Type = elf.PT_NOTE
-		pnote.Flags = elf.PF_R
-		phsh(pnote, sh)
+		phsh(getpnote(), sh)
 	}
 
 	// Additions to the reserved area must be above this line.
