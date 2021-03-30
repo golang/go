@@ -1378,6 +1378,11 @@ func expandCalls(f *Func) {
 // rewriteArgToMemOrRegs converts OpArg v in-place into the register version of v,
 // if that is appropriate.
 func (x *expandState) rewriteArgToMemOrRegs(v *Value) *Value {
+	if x.debug {
+		x.indent(3)
+		defer x.indent(-3)
+		x.Printf("rewriteArgToMemOrRegs(%s)\n", v.LongString())
+	}
 	pa := x.prAssignForArg(v)
 	switch len(pa.Registers) {
 	case 0:
@@ -1387,14 +1392,25 @@ func (x *expandState) rewriteArgToMemOrRegs(v *Value) *Value {
 				pa.Offset(), frameOff, v.LongString()))
 		}
 	case 1:
+		t := v.Type
+		key := selKey{v, 0, t.Width, t}
+		w := x.commonArgs[key]
+		if w != nil {
+			v.copyOf(w)
+			break
+		}
 		r := pa.Registers[0]
 		var i int64
 		v.Op, i = ArgOpAndRegisterFor(r, x.f.ABISelf)
 		v.Aux = &AuxNameOffset{v.Aux.(*ir.Name), 0}
 		v.AuxInt = i
+		x.commonArgs[key] = v
 
 	default:
 		panic(badVal("Saw unexpanded OpArg", v))
+	}
+	if x.debug {
+		x.Printf("-->%s\n", v.LongString())
 	}
 	return v
 }
