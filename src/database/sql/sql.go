@@ -291,7 +291,7 @@ func (n NullFloat64) Value() (driver.Value, error) {
 // it can be used as a scan destination, similar to NullString.
 type NullUint64 struct {
 	Uint64 uint64
-	Valid  bool // Valid is true if Int64 is not NULL
+	Valid  bool // Valid is true if Uint64 is not NULL
 }
 
 // Scan implements the Scanner interface.
