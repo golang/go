@@ -85,6 +85,7 @@ func TestReflectValueCallABI(t *testing.T) {
 		passStruct13,
 		pass2Struct1,
 		passEmptyStruct,
+		passStruct10AndSmall,
 	} {
 		fn := reflect.ValueOf(fn)
 		t.Run(runtime.FuncForPC(fn.Pointer()).Name(), func(t *testing.T) {
@@ -336,6 +337,14 @@ func pass2Struct1(a, b Struct1) (x, y Struct1) {
 //go:registerparams
 //go:noinline
 func passEmptyStruct(a int, b struct{}, c float64) (int, struct{}, float64) {
+	return a, b, c
+}
+
+// This test case forces a large argument to the stack followed by more
+// in-register arguments.
+//go:registerparams
+//go:noinline
+func passStruct10AndSmall(a Struct10, b byte, c uint) (Struct10, byte, uint) {
 	return a, b, c
 }
 

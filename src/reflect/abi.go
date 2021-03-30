@@ -121,6 +121,7 @@ func (a *abiSeq) stepsForValue(i int) []abiStep {
 // If the value was stack-assigned, returns the single
 // abiStep describing that translation, and nil otherwise.
 func (a *abiSeq) addArg(t *rtype) *abiStep {
+	// We'll always be adding a new value, so do that first.
 	pStart := len(a.steps)
 	a.valueStart = append(a.valueStart, pStart)
 	if t.size == 0 {
@@ -141,8 +142,13 @@ func (a *abiSeq) addArg(t *rtype) *abiStep {
 		a.stackBytes = align(a.stackBytes, uintptr(t.align))
 		return nil
 	}
+	// Hold a copy of "a" so that we can roll back if
+	// register assignment fails.
+	aOld := *a
 	if !a.regAssign(t, 0) {
-		a.steps = a.steps[:pStart]
+		// Register assignment failed. Roll back any changes
+		// and stack-assign.
+		*a = aOld
 		a.stackAssign(t.size, uintptr(t.align))
 		return &a.steps[len(a.steps)-1]
 	}
