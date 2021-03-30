@@ -378,8 +378,9 @@ func (v Value) call(op string, in []Value) []Value {
 
 	isSlice := op == "CallSlice"
 	n := t.NumIn()
+	isVariadic := t.IsVariadic()
 	if isSlice {
-		if !t.IsVariadic() {
+		if !isVariadic {
 			panic("reflect: CallSlice of non-variadic function")
 		}
 		if len(in) < n {
@@ -389,13 +390,13 @@ func (v Value) call(op string, in []Value) []Value {
 			panic("reflect: CallSlice with too many input arguments")
 		}
 	} else {
-		if t.IsVariadic() {
+		if isVariadic {
 			n--
 		}
 		if len(in) < n {
 			panic("reflect: Call with too few input arguments")
 		}
-		if !t.IsVariadic() && len(in) > n {
+		if !isVariadic && len(in) > n {
 			panic("reflect: Call with too many input arguments")
 		}
 	}
@@ -409,7 +410,7 @@ func (v Value) call(op string, in []Value) []Value {
 			panic("reflect: " + op + " using " + xt.String() + " as type " + targ.String())
 		}
 	}
-	if !isSlice && t.IsVariadic() {
+	if !isSlice && isVariadic {
 		// prepare slice for remaining values
 		m := len(in) - n
 		slice := MakeSlice(t.In(n), m, m)
