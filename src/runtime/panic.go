@@ -228,6 +228,11 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 		throw("defer on system stack")
 	}
 
+	if experimentRegabiDefer && siz != 0 {
+		// TODO: Make deferproc just take a func().
+		throw("defer with non-empty frame")
+	}
+
 	// the arguments of fn are in a perilous state. The stack map
 	// for deferproc does not describe them. So we can't let garbage
 	// collection or stack copying trigger until we've copied them out
@@ -279,6 +284,9 @@ func deferprocStack(d *_defer) {
 	if gp.m.curg != gp {
 		// go code on the system stack can't defer
 		throw("defer on system stack")
+	}
+	if experimentRegabiDefer && d.siz != 0 {
+		throw("defer with non-empty frame")
 	}
 	// siz and fn are already set.
 	// The other fields are junk on entry to deferprocStack and
@@ -824,6 +832,9 @@ func runOpenDeferFrame(gp *g, d *_defer) bool {
 		argWidth, fd = readvarintUnsafe(fd)
 		closureOffset, fd = readvarintUnsafe(fd)
 		nArgs, fd = readvarintUnsafe(fd)
+		if experimentRegabiDefer && argWidth != 0 {
+			throw("defer with non-empty frame")
+		}
 		if deferBits&(1<<i) == 0 {
 			for j := uint32(0); j < nArgs; j++ {
 				_, fd = readvarintUnsafe(fd)
