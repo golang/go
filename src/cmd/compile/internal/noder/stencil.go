@@ -862,11 +862,9 @@ func (subst *subster) typ(t *types.Type) *types.Type {
 // on the corresponding in/out parameters in dcl. It depends on the in and out
 // parameters being in order in dcl.
 func (subst *subster) fields(class ir.Class, oldfields []*types.Field, dcl []*ir.Name) []*types.Field {
-	newfields := make([]*types.Field, len(oldfields))
-	var i int
-
 	// Find the starting index in dcl of declarations of the class (either
 	// PPARAM or PPARAMOUT).
+	var i int
 	for i = range dcl {
 		if dcl[i].Class == class {
 			break
@@ -876,11 +874,18 @@ func (subst *subster) fields(class ir.Class, oldfields []*types.Field, dcl []*ir
 	// Create newfields nodes that are copies of the oldfields nodes, but
 	// with substitution for any type params, and with Nname set to be the node in
 	// Dcl for the corresponding PPARAM or PPARAMOUT.
+	newfields := make([]*types.Field, len(oldfields))
 	for j := range oldfields {
 		newfields[j] = oldfields[j].Copy()
 		newfields[j].Type = subst.typ(oldfields[j].Type)
-		newfields[j].Nname = dcl[i]
-		i++
+		// A param field will be missing from dcl if its name is
+		// unspecified or specified as "_". So, we compare the dcl sym
+		// with the field sym. If they don't match, this dcl (if there is
+		// one left) must apply to a later field.
+		if i < len(dcl) && dcl[i].Sym() == oldfields[j].Sym {
+			newfields[j].Nname = dcl[i]
+			i++
+		}
 	}
 	return newfields
 }
