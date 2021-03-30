@@ -143,11 +143,6 @@ func transformCall(n *ir.CallExpr) {
 	}
 
 	typecheckaste(ir.OCALL, n.X, n.IsDDD, t.Params(), n.Args)
-	if t.NumResults() == 0 {
-		n.Use = ir.CallUseStmt
-		return
-	}
-	n.Use = ir.CallUseExpr
 	if t.NumResults() == 1 {
 		n.SetType(l.Type().Results().Field(0).Type)
 

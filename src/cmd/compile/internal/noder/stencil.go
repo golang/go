@@ -303,8 +303,6 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []ir.No
 	ir.MarkFunc(newf.Nname)
 	newf.SetTypecheck(1)
 	newf.Nname.SetTypecheck(1)
-	// TODO(danscales) - remove later, but avoid confusion for now.
-	newf.Pragma = ir.Noinline
 
 	// Make sure name/type of newf is set before substituting the body.
 	newf.Body = subst.list(gf.Body)
