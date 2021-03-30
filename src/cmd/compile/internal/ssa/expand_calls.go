@@ -1114,6 +1114,9 @@ func expandCalls(f *Func) {
 		for _, v := range b.Values {
 			if v.Op == OpStore {
 				t := v.Aux.(*types.Type)
+				if t.IsPtrShaped() { // Everything already fits, and this ensures pointer type properties aren't discarded (e.g, notinheap)
+					continue
+				}
 				source := v.Args[1]
 				tSrc := source.Type
 				iAEATt := x.isAlreadyExpandedAggregateType(t)
@@ -1422,7 +1425,7 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 	if x.debug {
 		x.indent(3)
 		defer x.indent(-3)
-		x.Printf("newArgToMemOrRegs(base=%s; toReplace=%s; t=%s; memOff=%d; regOff=%d)\n", baseArg.String(), toReplace.LongString(), t, offset, regOffset)
+		x.Printf("newArgToMemOrRegs(base=%s; toReplace=%s; t=%s; memOff=%d; regOff=%d)\n", baseArg.String(), toReplace.LongString(), t.String(), offset, regOffset)
 	}
 	key := selKey{baseArg, offset, t.Width, t}
 	w := x.commonArgs[key]
