@@ -323,6 +323,12 @@ func typeToObject(typ types.Type) types.Object {
 		return typ.Obj()
 	case *types.Pointer:
 		return typeToObject(typ.Elem())
+	case *types.Array:
+		return typeToObject(typ.Elem())
+	case *types.Slice:
+		return typeToObject(typ.Elem())
+	case *types.Chan:
+		return typeToObject(typ.Elem())
 	default:
 		return nil
 	}
