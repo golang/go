@@ -257,12 +257,12 @@ func TestClientRedirects(t *testing.T) {
 		t.Fatalf("Get error: %v", err)
 	}
 	res.Body.Close()
-	finalUrl := res.Request.URL.String()
+	finalURL := res.Request.URL.String()
 	if e, g := "<nil>", fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with custom client, expected error %q, got %q", e, g)
 	}
-	if !strings.HasSuffix(finalUrl, "/?n=15") {
-		t.Errorf("expected final url to end in /?n=15; got url %q", finalUrl)
+	if !strings.HasSuffix(finalURL, "/?n=15") {
+		t.Errorf("expected final url to end in /?n=15; got url %q", finalURL)
 	}
 	if e, g := 15, len(lastVia); e != g {
 		t.Errorf("expected lastVia to have contained %d elements; got %d", e, g)
