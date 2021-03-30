@@ -1115,8 +1115,11 @@ func (s *snapshot) awaitLoadedAllErrors(ctx context.Context) *source.CriticalErr
 	// TODO(rstambler): Should we be more careful about returning the
 	// initialization error? Is it possible for the initialization error to be
 	// corrected without a successful reinitialization?
-	if s.initializedErr != nil {
-		return s.initializedErr
+	s.mu.Lock()
+	initializedErr := s.initializedErr
+	s.mu.Unlock()
+	if initializedErr != nil {
+		return initializedErr
 	}
 
 	if ctx.Err() != nil {

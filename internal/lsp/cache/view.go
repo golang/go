@@ -527,76 +527,83 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 		return
 	}
 	s.initializeOnce.Do(func() {
-		defer func() {
-			s.initializeOnce = nil
-			if firstAttempt {
-				close(s.view.initialWorkspaceLoad)
-			}
-		}()
-
-		// If we have multiple modules, we need to load them by paths.
-		var scopes []interface{}
-		var modDiagnostics []*source.Diagnostic
-		addError := func(uri span.URI, err error) {
-			modDiagnostics = append(modDiagnostics, &source.Diagnostic{
-				URI:      uri,
-				Severity: protocol.SeverityError,
-				Source:   source.ListError,
-				Message:  err.Error(),
-			})
-		}
-		if len(s.workspace.getActiveModFiles()) > 0 {
-			for modURI := range s.workspace.getActiveModFiles() {
-				fh, err := s.GetFile(ctx, modURI)
-				if err != nil {
-					addError(modURI, err)
-					continue
-				}
-				parsed, err := s.ParseMod(ctx, fh)
-				if err != nil {
-					addError(modURI, err)
-					continue
-				}
-				if parsed.File == nil || parsed.File.Module == nil {
-					addError(modURI, fmt.Errorf("no module path for %s", modURI))
-					continue
-				}
-				path := parsed.File.Module.Mod.Path
-				scopes = append(scopes, moduleLoadScope(path))
-			}
-		} else {
-			scopes = append(scopes, viewLoadScope("LOAD_VIEW"))
-		}
-		var err error
-		if len(scopes) > 0 {
-			err = s.load(ctx, firstAttempt, append(scopes, packagePath("builtin"))...)
-		}
-		if ctx.Err() != nil {
-			return
-		}
-		if err != nil {
-			event.Error(ctx, "initial workspace load failed", err)
-			extractedDiags, _ := s.extractGoCommandErrors(ctx, err.Error())
-			s.initializedErr = &source.CriticalError{
-				MainError: err,
-				DiagList:  append(modDiagnostics, extractedDiags...),
-			}
-		} else if len(modDiagnostics) == 1 {
-			s.initializedErr = &source.CriticalError{
-				MainError: fmt.Errorf(modDiagnostics[0].Message),
-				DiagList:  modDiagnostics,
-			}
-		} else if len(modDiagnostics) > 1 {
-			s.initializedErr = &source.CriticalError{
-				MainError: fmt.Errorf("error loading module names"),
-				DiagList:  modDiagnostics,
-			}
-		} else {
-			// Clear out the initialization error, in case it had been set
-			// previously.
-			s.initializedErr = nil
-		}
+		s.loadWorkspace(ctx, firstAttempt)
 	})
+}
+
+func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) {
+	defer func() {
+		s.initializeOnce = nil
+		if firstAttempt {
+			close(s.view.initialWorkspaceLoad)
+		}
+	}()
+
+	// If we have multiple modules, we need to load them by paths.
+	var scopes []interface{}
+	var modDiagnostics []*source.Diagnostic
+	addError := func(uri span.URI, err error) {
+		modDiagnostics = append(modDiagnostics, &source.Diagnostic{
+			URI:      uri,
+			Severity: protocol.SeverityError,
+			Source:   source.ListError,
+			Message:  err.Error(),
+		})
+	}
+	if len(s.workspace.getActiveModFiles()) > 0 {
+		for modURI := range s.workspace.getActiveModFiles() {
+			fh, err := s.GetFile(ctx, modURI)
+			if err != nil {
+				addError(modURI, err)
+				continue
+			}
+			parsed, err := s.ParseMod(ctx, fh)
+			if err != nil {
+				addError(modURI, err)
+				continue
+			}
+			if parsed.File == nil || parsed.File.Module == nil {
+				addError(modURI, fmt.Errorf("no module path for %s", modURI))
+				continue
+			}
+			path := parsed.File.Module.Mod.Path
+			scopes = append(scopes, moduleLoadScope(path))
+		}
+	} else {
+		scopes = append(scopes, viewLoadScope("LOAD_VIEW"))
+	}
+	var err error
+	if len(scopes) > 0 {
+		err = s.load(ctx, firstAttempt, append(scopes, packagePath("builtin"))...)
+	}
+	if ctx.Err() != nil {
+		return
+	}
+
+	var criticalErr *source.CriticalError
+	if err != nil {
+		event.Error(ctx, "initial workspace load failed", err)
+		extractedDiags, _ := s.extractGoCommandErrors(ctx, err.Error())
+		criticalErr = &source.CriticalError{
+			MainError: err,
+			DiagList:  append(modDiagnostics, extractedDiags...),
+		}
+	} else if len(modDiagnostics) == 1 {
+		criticalErr = &source.CriticalError{
+			MainError: fmt.Errorf(modDiagnostics[0].Message),
+			DiagList:  modDiagnostics,
+		}
+	} else if len(modDiagnostics) > 1 {
+		criticalErr = &source.CriticalError{
+			MainError: fmt.Errorf("error loading module names"),
+			DiagList:  modDiagnostics,
+		}
+	}
+
+	// Lock the snapshot when setting the initialized error.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.initializedErr = criticalErr
 }
 
 // invalidateContent invalidates the content of a Go file,
