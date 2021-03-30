@@ -75,6 +75,7 @@ var funcIDs = map[string]FuncID{
 	"deferreturn":       FuncID_wrapper,
 	"runOpenDeferFrame": FuncID_wrapper,
 	"reflectcallSave":   FuncID_wrapper,
+	"deferCallSave":     FuncID_wrapper,
 }
 
 // Get the function ID for the named function in the named file.
