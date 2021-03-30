@@ -67,14 +67,14 @@ func _[V any, T interface { type map[string]V }](p T) V {
 // Testing partial and full type inference, including the case where the types can
 // be inferred without needing the types of the function arguments.
 
-func f0[A any, B interface{type C}, C interface{type D}, D interface{type A}](a A, b B, c C, d D)
+func f0[A any, B interface{type C}, C interface{type D}, D interface{type A}](A, B, C, D)
 func _() {
         f := f0[string]
         f("a", "b", "c", "d")
         f0("a", "b", "c", "d")
 }
 
-func f1[A any, B interface{type A}](a A, b B)
+func f1[A any, B interface{type A}](A, B)
 func _() {
         f := f1[int]
         f(int(0), int(0))
@@ -83,7 +83,7 @@ func _() {
         f1(0, 0)
 }
 
-func f2[A any, B interface{type []A}](a A, b B)
+func f2[A any, B interface{type []A}](_ A, _ B)
 func _() {
 	f := f2[byte]
 	f(byte(0), []byte{})
@@ -92,7 +92,7 @@ func _() {
 	// f2(0, []byte{}) - this one doesn't work
 }
 
-func f3[A any, B interface{type C}, C interface{type *A}](a A, b B, c C)
+func f3[A any, B interface{type C}, C interface{type *A}](a A, _ B, c C)
 func _() {
 	f := f3[int]
 	var x int
@@ -100,7 +100,7 @@ func _() {
 	f3(x, &x, &x)
 }
 
-func f4[A any, B interface{type []C}, C interface{type *A}](a A, b B, c C)
+func f4[A any, B interface{type []C}, C interface{type *A}](_ A, _ B, c C)
 func _() {
 	f := f4[int]
 	var x int
