@@ -87,6 +87,9 @@ func Binary(pos src.XPos, op ir.Op, typ *types.Type, x, y ir.Node) ir.Node {
 func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool) ir.Node {
 	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
 	n.IsDDD = dots
+	// n.Use will be changed to ir.CallUseStmt in g.stmt() if this call is
+	// just a statement (any return values are ignored).
+	n.Use = ir.CallUseExpr
 
 	if fun.Op() == ir.OTYPE {
 		// Actually a type conversion, not a function call.
