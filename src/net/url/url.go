@@ -488,8 +488,8 @@ func Parse(rawURL string) (*URL, error) {
 	return url, nil
 }
 
-// ParseRequestURI parses rawURL into a URL structure. It assumes that
-// rawURL was received in an HTTP request, so the rawURL is interpreted
+// ParseRequestURI parses a raw URL into a URL structure. It assumes that
+// URL was received in an HTTP request, so the rawURL is interpreted
 // only as an absolute URI or an absolute path.
 // The string rawURL is assumed not to have a #fragment suffix.
 // (Web browsers strip #fragment before sending the URL to a web server.)
@@ -501,7 +501,7 @@ func ParseRequestURI(rawURL string) (*URL, error) {
 	return url, nil
 }
 
-// parse parses a URL from a string in one of two contexts. If
+// parse parses a raw URL from a string in one of two contexts. If
 // viaRequest is true, the URL is assumed to have arrived via an HTTP request,
 // in which case only absolute URLs or path-absolute relative URLs are allowed.
 // If viaRequest is false, all forms of relative URLs are allowed.
