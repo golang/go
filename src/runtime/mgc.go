@@ -158,12 +158,12 @@ func gcinit() {
 	mheap_.sweepDrained = 1
 
 	// Set a reasonable initial GC trigger.
-	memstats.triggerRatio = 7 / 8.0
+	gcController.triggerRatio = 7 / 8.0
 
-	// Fake a heap_marked value so it looks like a trigger at
-	// heapMinimum is the appropriate growth from heap_marked.
+	// Fake a heapMarked value so it looks like a trigger at
+	// heapMinimum is the appropriate growth from heapMarked.
 	// This will go into computing the initial GC goal.
-	memstats.heap_marked = uint64(float64(heapMinimum) / (1 + memstats.triggerRatio))
+	gcController.heapMarked = uint64(float64(heapMinimum) / (1 + gcController.triggerRatio))
 
 	// Set gcPercent from the environment. This will also compute
 	// and set the GC trigger and goal.
@@ -370,7 +370,7 @@ var work struct {
 	// program started if debug.gctrace > 0.
 	totaltime int64
 
-	// initialHeapLive is the value of memstats.heap_live at the
+	// initialHeapLive is the value of gcController.heapLive at the
 	// beginning of this GC cycle.
 	initialHeapLive uint64
 
@@ -551,11 +551,11 @@ func (t gcTrigger) test() bool {
 	}
 	switch t.kind {
 	case gcTriggerHeap:
-		// Non-atomic access to heap_live for performance. If
+		// Non-atomic access to gcController.heapLive for performance. If
 		// we are going to trigger on this, this thread just
-		// atomically wrote heap_live anyway and we'll see our
+		// atomically wrote gcController.heapLive anyway and we'll see our
 		// own write.
-		return memstats.heap_live >= memstats.gc_trigger
+		return gcController.heapLive >= gcController.trigger
 	case gcTriggerTime:
 		if gcPercent < 0 {
 			return false
@@ -651,7 +651,7 @@ func gcStart(trigger gcTrigger) {
 		// so it can't be more than ncpu, even if GOMAXPROCS is.
 		work.stwprocs = ncpu
 	}
-	work.heap0 = atomic.Load64(&memstats.heap_live)
+	work.heap0 = atomic.Load64(&gcController.heapLive)
 	work.pauseNS = 0
 	work.mode = mode
 
@@ -915,7 +915,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	// Start marktermination (write barrier remains enabled for now).
 	setGCPhase(_GCmarktermination)
 
-	work.heap1 = memstats.heap_live
+	work.heap1 = gcController.heapLive
 	startTime := nanotime()
 
 	mp := acquirem()
@@ -1432,25 +1432,25 @@ func gcMark(start_time int64) {
 	}
 
 	// Update the marked heap stat.
-	memstats.heap_marked = work.bytesMarked
+	gcController.heapMarked = work.bytesMarked
 
 	// Flush scanAlloc from each mcache since we're about to modify
-	// heap_scan directly. If we were to flush this later, then scanAlloc
+	// heapScan directly. If we were to flush this later, then scanAlloc
 	// might have incorrect information.
 	for _, p := range allp {
 		c := p.mcache
 		if c == nil {
 			continue
 		}
-		memstats.heap_scan += uint64(c.scanAlloc)
+		gcController.heapScan += uint64(c.scanAlloc)
 		c.scanAlloc = 0
 	}
 
 	// Update other GC heap size stats. This must happen after
 	// cachestats (which flushes local statistics to these) and
-	// flushallmcaches (which modifies heap_live).
-	memstats.heap_live = work.bytesMarked
-	memstats.heap_scan = uint64(gcController.scanWork)
+	// flushallmcaches (which modifies gcController.heapLive).
+	gcController.heapLive = work.bytesMarked
+	gcController.heapScan = uint64(gcController.scanWork)
 
 	if trace.enabled {
 		traceHeapAlloc()
@@ -1543,7 +1543,7 @@ func gcResetMarkState() {
 	}
 
 	work.bytesMarked = 0
-	work.initialHeapLive = atomic.Load64(&memstats.heap_live)
+	work.initialHeapLive = atomic.Load64(&gcController.heapLive)
 }
 
 // Hooks for other packages
