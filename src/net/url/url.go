@@ -466,9 +466,9 @@ func split(s string, sep byte, cutc bool) (string, string) {
 	return s[:i], s[i:]
 }
 
-// Parse parses rawURL into a URL structure.
+// Parse parses a raw URL into a URL structure.
 //
-// The rawURL may be relative (a path, without a host) or absolute
+// The URL may be relative (a path, without a host) or absolute
 // (starting with a scheme). Trying to parse a hostname and path
 // without a scheme is invalid but may not necessarily return an
 // error, due to parsing ambiguities.
