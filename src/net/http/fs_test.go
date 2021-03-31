@@ -1265,16 +1265,18 @@ func TestFileServerNotDirError(t *testing.T) {
 			if err == nil {
 				t.Fatal("err == nil; want != nil")
 			}
-			if !os.IsNotExist(err) {
-				t.Errorf("err = %v; os.IsNotExist(err) = %v; want true", err, os.IsNotExist(err))
+			if !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("err = %v; errors.Is(err, fs.ErrNotExist) = %v; want true", err,
+					errors.Is(err, fs.ErrNotExist))
 			}
 
 			_, err = dir.Open("/index.html/not-a-dir/not-a-file")
 			if err == nil {
 				t.Fatal("err == nil; want != nil")
 			}
-			if !os.IsNotExist(err) {
-				t.Errorf("err = %v; os.IsNotExist(err) = %v; want true", err, os.IsNotExist(err))
+			if !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("err = %v; errors.Is(err, fs.ErrNotExist) = %v; want true", err,
+					errors.Is(err, fs.ErrNotExist))
 			}
 		})
 	}
