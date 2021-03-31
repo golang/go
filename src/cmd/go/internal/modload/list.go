@@ -20,27 +20,36 @@ import (
 	"golang.org/x/mod/module"
 )
 
+type ListMode int
+
+const (
+	ListU ListMode = 1 << iota
+	ListRetracted
+	ListVersions
+	ListRetractedVersions
+)
+
 // ListModules returns a description of the modules matching args, if known,
 // along with any error preventing additional matches from being identified.
 //
 // The returned slice can be nonempty even if the error is non-nil.
-func ListModules(ctx context.Context, args []string, listU, listVersions, listRetracted bool) ([]*modinfo.ModulePublic, error) {
-	rs, mods, err := listModules(ctx, LoadModFile(ctx), args, listVersions, listRetracted)
+func ListModules(ctx context.Context, args []string, mode ListMode) ([]*modinfo.ModulePublic, error) {
+	rs, mods, err := listModules(ctx, LoadModFile(ctx), args, mode)
 
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
-	if listU || listVersions || listRetracted {
+	if mode != 0 {
 		for _, m := range mods {
 			add := func(m *modinfo.ModulePublic) {
 				sem <- token{}
 				go func() {
-					if listU {
+					if mode&ListU != 0 {
 						addUpdate(ctx, m)
 					}
-					if listVersions {
-						addVersions(ctx, m, listRetracted)
+					if mode&ListVersions != 0 {
+						addVersions(ctx, m, mode&ListRetractedVersions != 0)
 					}
-					if listRetracted || listU {
+					if mode&ListRetracted != 0 {
 						addRetraction(ctx, m)
 					}
 					<-sem
@@ -64,7 +73,7 @@ func ListModules(ctx context.Context, args []string, listU, listVersions, listRe
 	return mods, err
 }
 
-func listModules(ctx context.Context, rs *Requirements, args []string, listVersions, listRetracted bool) (_ *Requirements, mods []*modinfo.ModulePublic, mgErr error) {
+func listModules(ctx context.Context, rs *Requirements, args []string, mode ListMode) (_ *Requirements, mods []*modinfo.ModulePublic, mgErr error) {
 	var mg *ModuleGraph
 	if go117LazyTODO {
 		// Pull the args-loop below into another (new) loop.
@@ -78,7 +87,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, listVersi
 	}
 
 	if len(args) == 0 {
-		return rs, []*modinfo.ModulePublic{moduleInfo(ctx, rs, Target, listRetracted)}, mgErr
+		return rs, []*modinfo.ModulePublic{moduleInfo(ctx, rs, Target, mode)}, mgErr
 	}
 
 	matchedModule := map[module.Version]bool{}
@@ -93,7 +102,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, listVersi
 			if arg == "all" || strings.Contains(arg, "...") {
 				base.Fatalf("go: cannot match %q: %v", arg, ErrNoModRoot)
 			}
-			if !listVersions && !strings.Contains(arg, "@") {
+			if mode&ListVersions == 0 && !strings.Contains(arg, "@") {
 				base.Fatalf("go: cannot match %q without -versions or an explicit version: %v", arg, ErrNoModRoot)
 			}
 		}
@@ -112,7 +121,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, listVersi
 			}
 
 			allowed := CheckAllowed
-			if IsRevisionQuery(vers) || listRetracted {
+			if IsRevisionQuery(vers) || mode&ListRetracted != 0 {
 				// Allow excluded and retracted versions if the user asked for a
 				// specific revision or used 'go list -retracted'.
 				allowed = nil
@@ -131,7 +140,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, listVersi
 			// *Requirements instead.
 			var noRS *Requirements
 
-			mod := moduleInfo(ctx, noRS, module.Version{Path: path, Version: info.Version}, listRetracted)
+			mod := moduleInfo(ctx, noRS, module.Version{Path: path, Version: info.Version}, mode)
 			mods = append(mods, mod)
 			continue
 		}
@@ -153,7 +162,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, listVersi
 				continue
 			}
 			if v != "none" {
-				mods = append(mods, moduleInfo(ctx, rs, module.Version{Path: arg, Version: v}, listRetracted))
+				mods = append(mods, moduleInfo(ctx, rs, module.Version{Path: arg, Version: v}, mode))
 			} else if cfg.BuildMod == "vendor" {
 				// In vendor mode, we can't determine whether a missing module is “a
 				// known dependency” because the module graph is incomplete.
@@ -162,7 +171,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, listVersi
 					Path:  arg,
 					Error: modinfoError(arg, "", errors.New("can't resolve module using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)")),
 				})
-			} else if listVersions {
+			} else if mode&ListVersions != 0 {
 				// Don't make the user provide an explicit '@latest' when they're
 				// explicitly asking what the available versions are. Instead, return a
 				// module with version "none", to which we can add the requested list.
@@ -182,7 +191,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, listVersi
 				matched = true
 				if !matchedModule[m] {
 					matchedModule[m] = true
-					mods = append(mods, moduleInfo(ctx, rs, m, listRetracted))
+					mods = append(mods, moduleInfo(ctx, rs, m, mode))
 				}
 			}
 		}

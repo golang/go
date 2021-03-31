@@ -132,12 +132,9 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	var mods []*moduleJSON
-	listU := false
-	listVersions := false
-	listRetractions := false
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
-	infos, infosErr := modload.ListModules(ctx, args, listU, listVersions, listRetractions)
+	infos, infosErr := modload.ListModules(ctx, args, 0)
 	for _, info := range infos {
 		if info.Replace != nil {
 			info = info.Replace
