@@ -348,7 +348,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		if *listM {
 			*listFmt = "{{.String}}"
 			if *listVersions {
-				*listFmt = `{{.Path}}{{range .Versions}} {{.}}{{end}}`
+				*listFmt = `{{.Path}}{{range .Versions}} {{.}}{{end}}{{if .Deprecated}} (deprecated){{end}}`
 			}
 		} else {
 			*listFmt = "{{.ImportPath}}"
@@ -453,7 +453,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 
 		var mode modload.ListMode
 		if *listU {
-			mode |= modload.ListU | modload.ListRetracted
+			mode |= modload.ListU | modload.ListRetracted | modload.ListDeprecated
 		}
 		if *listRetracted {
 			mode |= modload.ListRetracted

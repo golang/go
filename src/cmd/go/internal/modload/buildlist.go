@@ -191,6 +191,12 @@ func (rs *Requirements) Graph(ctx context.Context) (*ModuleGraph, error) {
 	return cached.mg, cached.err
 }
 
+// IsDirect returns whether the given module provides a package directly
+// imported by a package or test in the main module.
+func (rs *Requirements) IsDirect(path string) bool {
+	return rs.direct[path]
+}
+
 // A ModuleGraph represents the complete graph of module dependencies
 // of a main module.
 //

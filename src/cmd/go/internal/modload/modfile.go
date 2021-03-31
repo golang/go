@@ -232,6 +232,42 @@ func ShortMessage(message, emptyDefault string) string {
 	return message
 }
 
+// CheckDeprecation returns a deprecation message from the go.mod file of the
+// latest version of the given module. Deprecation messages are comments
+// before or on the same line as the module directives that start with
+// "Deprecated:" and run until the end of the paragraph.
+//
+// CheckDeprecation returns an error if the message can't be loaded.
+// CheckDeprecation returns "", nil if there is no deprecation message.
+func CheckDeprecation(ctx context.Context, m module.Version) (deprecation string, err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("loading deprecation for %s: %w", m.Path, err)
+		}
+	}()
+
+	if m.Version == "" {
+		// Main module, standard library, or file replacement module.
+		// Don't look up deprecation.
+		return "", nil
+	}
+	if repl := Replacement(module.Version{Path: m.Path}); repl.Path != "" {
+		// All versions of the module were replaced.
+		// We'll look up deprecation separately for the replacement.
+		return "", nil
+	}
+
+	latest, err := queryLatestVersionIgnoringRetractions(ctx, m.Path)
+	if err != nil {
+		return "", err
+	}
+	summary, err := rawGoModSummary(latest)
+	if err != nil {
+		return "", err
+	}
+	return summary.deprecated, nil
+}
+
 // Replacement returns the replacement for mod, if any, from go.mod.
 // If there is no replacement for mod, Replacement returns
 // a module.Version with Path == "".
@@ -419,6 +455,7 @@ type modFileSummary struct {
 	goVersionV string // GoVersion with "v" prefix
 	require    []module.Version
 	retract    []retraction
+	deprecated string
 }
 
 // A retraction consists of a retracted version interval and rationale.
@@ -597,6 +634,7 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 
 		if f.Module != nil {
 			summary.module = f.Module.Mod
+			summary.deprecated = f.Module.Deprecated
 		}
 		if f.Go != nil && f.Go.Version != "" {
 			rawGoVersion.LoadOrStore(m, f.Go.Version)

@@ -1135,7 +1135,7 @@
 //
 // 	type Module struct {
 // 		Path string
-// 		Version string
+// 		Deprecated string
 // 	}
 //
 // 	type GoMod struct {
