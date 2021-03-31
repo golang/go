@@ -55,9 +55,12 @@ type HoverInformation struct {
 	source  interface{}
 	comment *ast.CommentGroup
 
-	// isTypeName reports whether the identifier is a type name. In such cases,
-	// the hover has the prefix "type ".
-	isType bool
+	// typeName contains the identifier name when the identifier is a type declaration.
+	// If it is not empty, the hover will have the prefix "type <typeName> ".
+	typeName string
+	// isTypeAlias indicates whether the identifier is a type alias declaration.
+	// If it is true, the hover will have the prefix "type <typeName> = ".
+	isTypeAlias bool
 }
 
 func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position protocol.Position) (*protocol.Hover, error) {
@@ -107,8 +110,12 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverInformation,
 			return nil, err
 		}
 		h.Signature = b.String()
-		if h.isType {
-			h.Signature = "type " + h.Signature
+		if h.typeName != "" {
+			prefix := "type " + h.typeName + " "
+			if h.isTypeAlias {
+				prefix += "= "
+			}
+			h.Signature = prefix + h.Signature
 		}
 	case types.Object:
 		// If the variable is implicitly declared in a type switch, we need to
@@ -290,7 +297,6 @@ func HoverInfo(ctx context.Context, s Snapshot, pkg Package, obj types.Object, n
 			if err != nil {
 				return nil, err
 			}
-			_, info.isType = obj.(*types.TypeName)
 		}
 	case *ast.TypeSpec:
 		if obj.Parent() == types.Universe {
@@ -394,12 +400,19 @@ func formatGenDecl(node *ast.GenDecl, obj types.Object, typ types.Type) (*HoverI
 	// Handle types.
 	switch spec := spec.(type) {
 	case *ast.TypeSpec:
-		if len(node.Specs) > 1 {
-			// If multiple types are declared in the same block.
-			return &HoverInformation{source: spec.Type, comment: spec.Doc}, nil
-		} else {
-			return &HoverInformation{source: spec, comment: node.Doc}, nil
+		comment := spec.Doc
+		if comment == nil {
+			comment = node.Doc
 		}
+		if comment == nil {
+			comment = spec.Comment
+		}
+		return &HoverInformation{
+			source:      spec.Type,
+			comment:     comment,
+			typeName:    spec.Name.Name,
+			isTypeAlias: spec.Assign.IsValid(),
+		}, nil
 	case *ast.ValueSpec:
 		return &HoverInformation{source: spec, comment: spec.Doc}, nil
 	case *ast.ImportSpec:

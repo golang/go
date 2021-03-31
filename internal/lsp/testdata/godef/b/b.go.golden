@@ -82,11 +82,12 @@ package a ("golang.org/x/tools/internal/lsp/godef/a")
 [`a` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls)
 -- AString-definition --
 godef/a/a.go:26:6-7: defined here as ```go
-type A string //@mark(AString, "A")
-
+type A string
 ```
 
 [`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#A)
+
+\@mark\(AString, \"A\"\)
 -- AString-definition-json --
 {
 	"span": {
@@ -102,16 +103,17 @@ type A string //@mark(AString, "A")
 			"offset": 453
 		}
 	},
-	"description": "```go\ntype A string //@mark(AString, \"A\")\n\n```\n\n[`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#A)"
+	"description": "```go\ntype A string\n```\n\n[`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#A)\n\n\\@mark\\(AString, \\\"A\\\"\\)"
 }
 
 -- AString-hover --
 ```go
-type A string //@mark(AString, "A")
-
+type A string
 ```
 
 [`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#A)
+
+\@mark\(AString, \"A\"\)
 -- AStuff-definition --
 godef/a/a.go:28:6-12: defined here as ```go
 func a.AStuff()
@@ -358,9 +360,10 @@ field F2 int
 \@mark\(S2F2, \"F2\"\)
 -- aAlias-definition --
 godef/b/b.go:25:6-12: defined here as ```go
-type aAlias = a.A //@mark(aAlias, "aAlias")
-
+type aAlias = a.A
 ```
+
+\@mark\(aAlias, \"aAlias\"\)
 -- aAlias-definition-json --
 {
 	"span": {
@@ -376,14 +379,15 @@ type aAlias = a.A //@mark(aAlias, "aAlias")
 			"offset": 527
 		}
 	},
-	"description": "```go\ntype aAlias = a.A //@mark(aAlias, \"aAlias\")\n\n```"
+	"description": "```go\ntype aAlias = a.A\n```\n\n\\@mark\\(aAlias, \\\"aAlias\\\"\\)"
 }
 
 -- aAlias-hover --
 ```go
-type aAlias = a.A //@mark(aAlias, "aAlias")
-
+type aAlias = a.A
 ```
+
+\@mark\(aAlias, \"aAlias\"\)
 -- bX-definition --
 godef/b/b.go:57:7-8: defined here as ```go
 const X untyped int = 0

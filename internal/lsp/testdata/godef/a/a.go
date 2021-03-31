@@ -72,3 +72,34 @@ type I interface {
 type J interface {
 	Hello() //@mark(AHello, "Hello")
 }
+
+func _() {
+	// 1st type declaration block
+	type (
+		a struct { //@mark(declBlockA, "a"),hover("a", declBlockA)
+			x string
+		}
+	)
+
+	// 2nd type declaration block
+	type (
+		// b has a comment
+		b struct{} //@mark(declBlockB, "b"),hover("b", declBlockB)
+	)
+
+	// 3rd type declaration block
+	type (
+		// c is a struct
+		c struct { //@mark(declBlockC, "c"),hover("c", declBlockC)
+			f string
+		}
+
+		d string //@mark(declBlockD, "d"),hover("d", declBlockD)
+	)
+
+	type (
+		e struct { //@mark(declBlockE, "e"),hover("e", declBlockE)
+			f float64
+		} // e has a comment
+	)
+}
