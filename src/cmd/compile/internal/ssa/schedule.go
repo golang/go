@@ -137,7 +137,14 @@ func schedule(f *Func) {
 			case v.Op == OpVarDef:
 				// We want all the vardefs next.
 				score[v.ID] = ScoreVarDef
-			case v.Op == OpArg || v.Op == OpArgIntReg || v.Op == OpArgFloatReg:
+			case v.Op == OpArgIntReg || v.Op == OpArgFloatReg:
+				// In-register args must be scheduled as early as possible to ensure that the
+				// context register is not stomped. They should only appear in the entry block.
+				if b != f.Entry {
+					f.Fatalf("%s appeared outside of entry block, b=%s", v.Op, b.String())
+				}
+				score[v.ID] = ScorePhi
+			case v.Op == OpArg:
 				// We want all the args as early as possible, for better debugging.
 				score[v.ID] = ScoreArg
 			case v.Type.IsMemory():
