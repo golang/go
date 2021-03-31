@@ -451,7 +451,20 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			}
 		}
 
-		mods, err := modload.ListModules(ctx, args, *listU, *listVersions, *listRetracted)
+		var mode modload.ListMode
+		if *listU {
+			mode |= modload.ListU | modload.ListRetracted
+		}
+		if *listRetracted {
+			mode |= modload.ListRetracted
+		}
+		if *listVersions {
+			mode |= modload.ListVersions
+			if *listRetracted {
+				mode |= modload.ListRetractedVersions
+			}
+		}
+		mods, err := modload.ListModules(ctx, args, mode)
 		if !*listE {
 			for _, m := range mods {
 				if m.Error != nil {
@@ -686,9 +699,11 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 
 		if len(args) > 0 {
-			listU := false
-			listVersions := false
-			rmods, err := modload.ListModules(ctx, args, listU, listVersions, *listRetracted)
+			var mode modload.ListMode
+			if *listRetracted {
+				mode |= modload.ListRetracted
+			}
+			rmods, err := modload.ListModules(ctx, args, mode)
 			if err != nil && !*listE {
 				base.Errorf("go list -retracted: %v", err)
 			}

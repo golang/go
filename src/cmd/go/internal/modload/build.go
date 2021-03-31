@@ -60,8 +60,7 @@ func PackageModuleInfo(ctx context.Context, pkgpath string) *modinfo.ModulePubli
 	}
 
 	rs := LoadModFile(ctx)
-	listRetracted := false
-	return moduleInfo(ctx, rs, m, listRetracted)
+	return moduleInfo(ctx, rs, m, 0)
 }
 
 func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
@@ -69,10 +68,9 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 		return nil
 	}
 
-	listRetracted := false
 	if i := strings.Index(path, "@"); i >= 0 {
 		m := module.Version{Path: path[:i], Version: path[i+1:]}
-		return moduleInfo(ctx, nil, m, listRetracted)
+		return moduleInfo(ctx, nil, m, 0)
 	}
 
 	rs := LoadModFile(ctx)
@@ -101,7 +99,7 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 		}
 	}
 
-	return moduleInfo(ctx, rs, module.Version{Path: path, Version: v}, listRetracted)
+	return moduleInfo(ctx, rs, module.Version{Path: path, Version: v}, 0)
 }
 
 // addUpdate fills in m.Update if an updated version is available.
@@ -157,7 +155,7 @@ func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
 // moduleInfo returns information about module m, loaded from the requirements
 // in rs (which may be nil to indicate that m was not loaded from a requirement
 // graph).
-func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, listRetracted bool) *modinfo.ModulePublic {
+func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode ListMode) *modinfo.ModulePublic {
 	if m == Target {
 		info := &modinfo.ModulePublic{
 			Path:    m.Path,
@@ -226,7 +224,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, listRet
 				}
 			}
 
-			if listRetracted {
+			if mode&ListRetracted != 0 {
 				addRetraction(ctx, m)
 			}
 		}
