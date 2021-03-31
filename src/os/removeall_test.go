@@ -156,6 +156,25 @@ func TestRemoveAllLarge(t *testing.T) {
 	}
 }
 
+// chdir changes the current working directory to the named directory,
+// and then restore the original working directory at the end of the test.
+func chdir(t *testing.T, dir string) {
+	olddir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir %s: %v", dir, err)
+	}
+
+	t.Cleanup(func() {
+		if err := os.Chdir(olddir); err != nil {
+			t.Errorf("chdir to original working directory %s: %v", olddir, err)
+			os.Exit(1)
+		}
+	})
+}
+
 func TestRemoveAllLongPath(t *testing.T) {
 	switch runtime.GOOS {
 	case "aix", "darwin", "ios", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "illumos", "solaris":
@@ -164,21 +183,12 @@ func TestRemoveAllLongPath(t *testing.T) {
 		t.Skip("skipping for not implemented platforms")
 	}
 
-	prevDir, err := Getwd()
-	if err != nil {
-		t.Fatalf("Could not get wd: %s", err)
-	}
-
 	startPath, err := os.MkdirTemp("", "TestRemoveAllLongPath-")
 	if err != nil {
 		t.Fatalf("Could not create TempDir: %s", err)
 	}
 	defer RemoveAll(startPath)
-
-	err = Chdir(startPath)
-	if err != nil {
-		t.Fatalf("Could not chdir %s: %s", startPath, err)
-	}
+	chdir(t, startPath)
 
 	// Removing paths with over 4096 chars commonly fails
 	for i := 0; i < 41; i++ {
@@ -193,11 +203,6 @@ func TestRemoveAllLongPath(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Could not chdir %s: %s", name, err)
 		}
-	}
-
-	err = Chdir(prevDir)
-	if err != nil {
-		t.Fatalf("Could not chdir %s: %s", prevDir, err)
 	}
 
 	err = RemoveAll(startPath)

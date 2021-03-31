@@ -410,6 +410,25 @@ func mark(d fs.DirEntry, err error, errors *[]error, clear bool) error {
 	return nil
 }
 
+// chdir changes the current working directory to the named directory,
+// and then restore the original working directory at the end of the test.
+func chdir(t *testing.T, dir string) {
+	olddir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd %s: %v", dir, err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir %s: %v", dir, err)
+	}
+
+	t.Cleanup(func() {
+		if err := os.Chdir(olddir); err != nil {
+			t.Errorf("restore original working directory %s: %v", olddir, err)
+			os.Exit(1)
+		}
+	})
+}
+
 func chtmpdir(t *testing.T) (restore func()) {
 	oldwd, err := os.Getwd()
 	if err != nil {
@@ -1496,16 +1515,7 @@ func TestEvalSymlinksAboveRootChdir(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
-
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(wd)
-
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatal(err)
-	}
+	chdir(t, tmpDir)
 
 	subdir := filepath.Join("a", "b")
 	if err := os.MkdirAll(subdir, 0777); err != nil {
