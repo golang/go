@@ -1144,7 +1144,7 @@ func traceGoSysBlock(pp *p) {
 }
 
 func traceHeapAlloc() {
-	traceEvent(traceEvHeapAlloc, -1, memstats.heap_live)
+	traceEvent(traceEvHeapAlloc, -1, gcController.heapLive)
 }
 
 func traceNextGC() {

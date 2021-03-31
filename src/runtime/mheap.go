@@ -86,14 +86,14 @@ type mheap struct {
 
 	// Proportional sweep
 	//
-	// These parameters represent a linear function from heap_live
+	// These parameters represent a linear function from gcController.heapLive
 	// to page sweep count. The proportional sweep system works to
 	// stay in the black by keeping the current page sweep count
-	// above this line at the current heap_live.
+	// above this line at the current gcController.heapLive.
 	//
 	// The line has slope sweepPagesPerByte and passes through a
 	// basis point at (sweepHeapLiveBasis, pagesSweptBasis). At
-	// any given time, the system is at (memstats.heap_live,
+	// any given time, the system is at (gcController.heapLive,
 	// pagesSwept) in this space.
 	//
 	// It's important that the line pass through a point we
@@ -105,7 +105,7 @@ type mheap struct {
 	pagesInUse         uint64  // pages of spans in stats mSpanInUse; updated atomically
 	pagesSwept         uint64  // pages swept this cycle; updated atomically
 	pagesSweptBasis    uint64  // pagesSwept to use as the origin of the sweep ratio; updated atomically
-	sweepHeapLiveBasis uint64  // value of heap_live to use as the origin of sweep ratio; written with lock, read without
+	sweepHeapLiveBasis uint64  // value of gcController.heapLive to use as the origin of sweep ratio; written with lock, read without
 	sweepPagesPerByte  float64 // proportional sweep ratio; written with lock, read without
 	// TODO(austin): pagesInUse should be a uintptr, but the 386
 	// compiler can't 8-byte align fields.
