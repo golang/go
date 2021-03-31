@@ -2347,6 +2347,9 @@ func fmtNSAsMS(buf []byte, ns uint64) []byte {
 // if any other work appears after this call (such as returning).
 // Typically the following call should be marked go:noinline so it
 // performs a stack check.
+//
+// In rare cases this may not cause the stack to move, specifically if
+// there's a preemption between this call and the next.
 func gcTestMoveStackOnNextCall() {
 	gp := getg()
 	gp.stackguard0 = getcallersp()
