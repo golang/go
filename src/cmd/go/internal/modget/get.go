@@ -354,7 +354,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 			pkgPatterns = append(pkgPatterns, q.pattern)
 		}
 	}
-	r.checkPackagesAndRetractions(ctx, pkgPatterns)
+	r.checkPackageProblems(ctx, pkgPatterns)
 
 	// We've already downloaded modules (and identified direct and indirect
 	// dependencies) by loading packages in findAndUpgradeImports.
@@ -1463,25 +1463,31 @@ func (r *resolver) chooseArbitrarily(cs pathSet) (isPackage bool, m module.Versi
 	return false, cs.mod
 }
 
-// checkPackagesAndRetractions reloads packages for the given patterns and
-// reports missing and ambiguous package errors. It also reports loads and
-// reports retractions for resolved modules and modules needed to build
-// named packages.
+// checkPackageProblems reloads packages for the given patterns and reports
+// missing and ambiguous package errors. It also reports retractions and
+// deprecations for resolved modules and modules needed to build named packages.
 //
 // We skip missing-package errors earlier in the process, since we want to
 // resolve pathSets ourselves, but at that point, we don't have enough context
 // to log the package-import chains leading to each error.
-func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns []string) {
+func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []string) {
 	defer base.ExitIfErrors()
 
-	// Build a list of modules to load retractions for. Start with versions
-	// selected based on command line queries.
-	//
-	// This is a subset of the build list. If the main module has a lot of
-	// dependencies, loading retractions for the entire build list would be slow.
-	relevantMods := make(map[module.Version]struct{})
+	// Gather information about modules we might want to load retractions and
+	// deprecations for. Loading this metadata requires at least one version
+	// lookup per module, and we don't want to load information that's neither
+	// relevant nor actionable.
+	type modFlags int
+	const (
+		resolved modFlags = 1 << iota // version resolved by 'go get'
+		named                         // explicitly named on command line or provides a named package
+		hasPkg                        // needed to build named packages
+		direct                        // provides a direct dependency of the main module
+	)
+	relevantMods := make(map[module.Version]modFlags)
 	for path, reason := range r.resolvedVersion {
-		relevantMods[module.Version{Path: path, Version: reason.version}] = struct{}{}
+		m := module.Version{Path: path, Version: reason.version}
+		relevantMods[m] |= resolved
 	}
 
 	// Reload packages, reporting errors for missing and ambiguous imports.
@@ -1518,44 +1524,89 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns 
 				base.SetExitStatus(1)
 				if ambiguousErr := (*modload.AmbiguousImportError)(nil); errors.As(err, &ambiguousErr) {
 					for _, m := range ambiguousErr.Modules {
-						relevantMods[m] = struct{}{}
+						relevantMods[m] |= hasPkg
 					}
 				}
 			}
 			if m := modload.PackageModule(pkg); m.Path != "" {
-				relevantMods[m] = struct{}{}
+				relevantMods[m] |= hasPkg
+			}
+		}
+		for _, match := range matches {
+			for _, pkg := range match.Pkgs {
+				m := modload.PackageModule(pkg)
+				relevantMods[m] |= named
 			}
 		}
 	}
 
-	// Load and report retractions.
-	type retraction struct {
-		m   module.Version
-		err error
-	}
-	retractions := make([]retraction, 0, len(relevantMods))
+	reqs := modload.LoadModFile(ctx)
 	for m := range relevantMods {
-		retractions = append(retractions, retraction{m: m})
+		if reqs.IsDirect(m.Path) {
+			relevantMods[m] |= direct
+		}
 	}
-	sort.Slice(retractions, func(i, j int) bool {
-		return retractions[i].m.Path < retractions[j].m.Path
-	})
-	for i := 0; i < len(retractions); i++ {
+
+	// Load retractions for modules mentioned on the command line and modules
+	// needed to build named packages. We care about retractions of indirect
+	// dependencies, since we might be able to upgrade away from them.
+	type modMessage struct {
+		m       module.Version
+		message string
+	}
+	retractions := make([]modMessage, 0, len(relevantMods))
+	for m, flags := range relevantMods {
+		if flags&(resolved|named|hasPkg) != 0 {
+			retractions = append(retractions, modMessage{m: m})
+		}
+	}
+	sort.Slice(retractions, func(i, j int) bool { return retractions[i].m.Path < retractions[j].m.Path })
+	for i := range retractions {
 		i := i
 		r.work.Add(func() {
 			err := modload.CheckRetractions(ctx, retractions[i].m)
 			if retractErr := (*modload.ModuleRetractedError)(nil); errors.As(err, &retractErr) {
-				retractions[i].err = err
+				retractions[i].message = err.Error()
 			}
 		})
 	}
+
+	// Load deprecations for modules mentioned on the command line. Only load
+	// deprecations for indirect dependencies if they're also direct dependencies
+	// of the main module. Deprecations of purely indirect dependencies are
+	// not actionable.
+	deprecations := make([]modMessage, 0, len(relevantMods))
+	for m, flags := range relevantMods {
+		if flags&(resolved|named) != 0 || flags&(hasPkg|direct) == hasPkg|direct {
+			deprecations = append(deprecations, modMessage{m: m})
+		}
+	}
+	sort.Slice(deprecations, func(i, j int) bool { return deprecations[i].m.Path < deprecations[j].m.Path })
+	for i := range deprecations {
+		i := i
+		r.work.Add(func() {
+			deprecation, err := modload.CheckDeprecation(ctx, deprecations[i].m)
+			if err != nil || deprecation == "" {
+				return
+			}
+			deprecations[i].message = modload.ShortMessage(deprecation, "")
+		})
+	}
+
 	<-r.work.Idle()
+
+	// Report deprecations, then retractions.
+	for _, mm := range deprecations {
+		if mm.message != "" {
+			fmt.Fprintf(os.Stderr, "go: warning: module %s is deprecated: %s\n", mm.m.Path, mm.message)
+		}
+	}
 	var retractPath string
-	for _, r := range retractions {
-		if r.err != nil {
-			fmt.Fprintf(os.Stderr, "go: warning: %v\n", r.err)
+	for _, mm := range retractions {
+		if mm.message != "" {
+			fmt.Fprintf(os.Stderr, "go: warning: %v\n", mm.message)
 			if retractPath == "" {
-				retractPath = r.m.Path
+				retractPath = mm.m.Path
 			} else {
 				retractPath = "<module>"
 			}

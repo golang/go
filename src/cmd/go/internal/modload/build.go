@@ -112,8 +112,8 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 	info, err := Query(ctx, m.Path, "upgrade", m.Version, CheckAllowed)
 	var noVersionErr *NoMatchingVersionError
 	if errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
-		// Ignore "not found" and "no matching version" errors. This usually means
-		// the user is offline or the proxy doesn't have a matching version.
+		// Ignore "not found" and "no matching version" errors.
+		// This means the proxy has no matching version or no versions at all.
 		//
 		// We should report other errors though. An attacker that controls the
 		// network shouldn't be able to hide versions by interfering with
@@ -163,9 +163,8 @@ func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
 	var noVersionErr *NoMatchingVersionError
 	var retractErr *ModuleRetractedError
 	if err == nil || errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
-		// Ignore "not found" and "no matching version" errors. This usually means
-		// the user is offline or the proxy doesn't have a go.mod file that could
-		// contain retractions.
+		// Ignore "not found" and "no matching version" errors.
+		// This means the proxy has no matching version or no versions at all.
 		//
 		// We should report other errors though. An attacker that controls the
 		// network shouldn't be able to hide versions by interfering with
@@ -182,6 +181,31 @@ func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
 	} else if m.Error == nil {
 		m.Error = &modinfo.ModuleError{Err: err.Error()}
 	}
+}
+
+// addDeprecation fills in m.Deprecated if the module was deprecated by its
+// author. m.Error is set if there's an error loading deprecation information.
+func addDeprecation(ctx context.Context, m *modinfo.ModulePublic) {
+	deprecation, err := CheckDeprecation(ctx, module.Version{Path: m.Path, Version: m.Version})
+	var noVersionErr *NoMatchingVersionError
+	if errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
+		// Ignore "not found" and "no matching version" errors.
+		// This means the proxy has no matching version or no versions at all.
+		//
+		// We should report other errors though. An attacker that controls the
+		// network shouldn't be able to hide versions by interfering with
+		// the HTTPS connection. An attacker that controls the proxy may still
+		// hide versions, since the "list" and "latest" endpoints are not
+		// authenticated.
+		return
+	}
+	if err != nil {
+		if m.Error == nil {
+			m.Error = &modinfo.ModuleError{Err: err.Error()}
+		}
+		return
+	}
+	m.Deprecated = deprecation
 }
 
 // moduleInfo returns information about module m, loaded from the requirements

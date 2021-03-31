@@ -46,6 +46,10 @@ cmpenv stdout $WORK/go.mod.json
 go mod edit -json $WORK/go.mod.retractrationale
 cmp stdout $WORK/go.mod.retractrationale.json
 
+# go mod edit -json (deprecation)
+go mod edit -json $WORK/go.mod.deprecation
+cmp stdout $WORK/go.mod.deprecation.json
+
 # go mod edit -json (empty mod file)
 go mod edit -json $WORK/go.mod.empty
 cmp stdout $WORK/go.mod.empty.json
@@ -289,6 +293,20 @@ retract (
 			"Rationale": "c"
 		}
 	]
+}
+-- $WORK/go.mod.deprecation --
+// Deprecated: and the new one is not ready yet
+module m
+-- $WORK/go.mod.deprecation.json --
+{
+	"Module": {
+		"Path": "m",
+		"Deprecated": "and the new one is not ready yet"
+	},
+	"Require": null,
+	"Exclude": null,
+	"Replace": null,
+	"Retract": null
 }
 -- $WORK/go.mod.empty --
 -- $WORK/go.mod.empty.json --

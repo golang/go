@@ -86,7 +86,7 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
 
 	type Module struct {
 		Path string
-		Version string
+		Deprecated string
 	}
 
 	type GoMod struct {
@@ -450,12 +450,17 @@ func flagDropRetract(arg string) {
 
 // fileJSON is the -json output data structure.
 type fileJSON struct {
-	Module  module.Version
+	Module  editModuleJSON
 	Go      string `json:",omitempty"`
 	Require []requireJSON
 	Exclude []module.Version
 	Replace []replaceJSON
 	Retract []retractJSON
+}
+
+type editModuleJSON struct {
+	Path       string
+	Deprecated string `json:",omitempty"`
 }
 
 type requireJSON struct {
@@ -479,7 +484,10 @@ type retractJSON struct {
 func editPrintJSON(modFile *modfile.File) {
 	var f fileJSON
 	if modFile.Module != nil {
-		f.Module = modFile.Module.Mod
+		f.Module = editModuleJSON{
+			Path:       modFile.Module.Mod.Path,
+			Deprecated: modFile.Module.Deprecated,
+		}
 	}
 	if modFile.Go != nil {
 		f.Go = modFile.Go.Version
