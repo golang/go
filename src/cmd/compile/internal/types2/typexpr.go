@@ -671,7 +671,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, targs []syntax.Expr, def *
 	// determine argument positions (for error reporting)
 	typ.poslist = make([]syntax.Pos, len(targs))
 	for i, arg := range targs {
-		typ.poslist[i] = arg.Pos()
+		typ.poslist[i] = syntax.StartPos(arg)
 	}
 
 	// make sure we check instantiation works at least once

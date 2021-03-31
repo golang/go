@@ -15,39 +15,29 @@ import (
 // funcInst type-checks a function instantiaton inst and returns the result in x.
 // The operand x must be the evaluation of inst.X and its type must be a signature.
 func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
-	args, ok := check.exprOrTypeList(unpackExpr(inst.Index))
-	if !ok {
+	xlist := unpackExpr(inst.Index)
+	targs := check.typeList(xlist)
+	if targs == nil {
 		x.mode = invalid
 		x.expr = inst
 		return
 	}
-	if len(args) > 0 && args[0].mode != typexpr {
-		check.errorf(args[0], "%s is not a type", args[0])
-		ok = false
-	}
+	assert(len(targs) == len(xlist))
 
 	// check number of type arguments
-	n := len(args)
+	n := len(targs)
 	sig := x.typ.(*Signature)
 	if !check.conf.InferFromConstraints && n != len(sig.tparams) || n > len(sig.tparams) {
-		check.errorf(args[n-1], "got %d type arguments but want %d", n, len(sig.tparams))
+		check.errorf(xlist[n-1], "got %d type arguments but want %d", n, len(sig.tparams))
 		x.mode = invalid
 		x.expr = inst
 		return
 	}
 
-	// collect types
-	targs := make([]Type, n)
+	// determine argument positions (for error reporting)
 	poslist := make([]syntax.Pos, n)
-	for i, a := range args {
-		if a.mode != typexpr {
-			// error was reported earlier
-			x.mode = invalid
-			x.expr = inst
-			return
-		}
-		targs[i] = a.typ
-		poslist[i] = a.Pos()
+	for i, x := range xlist {
+		poslist[i] = syntax.StartPos(x)
 	}
 
 	// if we don't have enough type arguments, use constraint type inference
@@ -82,14 +72,6 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 	assert(n == len(sig.tparams))
 
 	// instantiate function signature
-	for i, typ := range targs {
-		// some positions may be missing if types are inferred
-		var pos syntax.Pos
-		if i < len(poslist) {
-			pos = poslist[i]
-		}
-		check.ordinaryType(pos, typ)
-	}
 	res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
 	assert(res.tparams == nil) // signature is not generic anymore
 	if inferred {
