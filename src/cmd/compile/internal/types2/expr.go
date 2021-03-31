@@ -1954,12 +1954,6 @@ func (check *Checker) multiExpr(x *operand, e syntax.Expr) {
 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
 }
 
-// multiExprOrType is like multiExpr but the result may also be a type.
-func (check *Checker) multiExprOrType(x *operand, e syntax.Expr) {
-	check.rawExpr(x, e, nil)
-	check.exclude(x, 1<<novalue|1<<builtin)
-}
-
 // exprWithHint typechecks expression e and initializes x with the expression value;
 // hint is the type of a composite literal element.
 // If an error occurred, x.mode is set to invalid.
