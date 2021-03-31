@@ -161,13 +161,13 @@ func gcinit() {
 	memstats.triggerRatio = 7 / 8.0
 
 	// Fake a heap_marked value so it looks like a trigger at
-	// heapminimum is the appropriate growth from heap_marked.
+	// heapMinimum is the appropriate growth from heap_marked.
 	// This will go into computing the initial GC goal.
-	memstats.heap_marked = uint64(float64(heapminimum) / (1 + memstats.triggerRatio))
+	memstats.heap_marked = uint64(float64(heapMinimum) / (1 + memstats.triggerRatio))
 
-	// Set gcpercent from the environment. This will also compute
+	// Set gcPercent from the environment. This will also compute
 	// and set the GC trigger and goal.
-	_ = setGCPercent(readgogc())
+	_ = setGCPercent(readGOGC())
 
 	work.startSema = 1
 	work.markDoneSema = 1
@@ -557,7 +557,7 @@ func (t gcTrigger) test() bool {
 		// own write.
 		return memstats.heap_live >= memstats.gc_trigger
 	case gcTriggerTime:
-		if gcpercent < 0 {
+		if gcPercent < 0 {
 			return false
 		}
 		lastgc := int64(atomic.Load64(&memstats.last_gc_nanotime))
