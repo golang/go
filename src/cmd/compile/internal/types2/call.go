@@ -146,13 +146,7 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
 		}
 
 		// evaluate arguments
-		args, ok := check.exprOrTypeList(call.ArgList)
-		if !ok {
-			x.mode = invalid
-			x.expr = call
-			return expression
-		}
-
+		args, _ := check.exprList(call.ArgList, false)
 		sig = check.arguments(call, sig, args)
 
 		// determine result
@@ -181,60 +175,6 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
 
 		return statement
 	}
-}
-
-// exprOrTypeList returns a list of operands and reports an error if the
-// list contains a mix of values and types (ignoring invalid operands).
-// TODO(gri) Now we can split this into exprList and typeList.
-func (check *Checker) exprOrTypeList(elist []syntax.Expr) (xlist []*operand, ok bool) {
-	ok = true
-
-	switch len(elist) {
-	case 0:
-		// nothing to do
-
-	case 1:
-		// single (possibly comma-ok) value or type, or function returning multiple values
-		e := elist[0]
-		var x operand
-		check.multiExprOrType(&x, e)
-		if t, ok := x.typ.(*Tuple); ok && x.mode != invalid && x.mode != typexpr {
-			// multiple values
-			xlist = make([]*operand, t.Len())
-			for i, v := range t.vars {
-				xlist[i] = &operand{mode: value, expr: e, typ: v.typ}
-			}
-			break
-		}
-
-		check.instantiatedOperand(&x)
-
-		// exactly one (possibly invalid or comma-ok) value or type
-		xlist = []*operand{&x}
-
-	default:
-		// multiple (possibly invalid) values or types
-		xlist = make([]*operand, len(elist))
-		ntypes := 0
-		for i, e := range elist {
-			var x operand
-			check.exprOrType(&x, e)
-			xlist[i] = &x
-			switch x.mode {
-			case invalid:
-				ntypes = len(xlist) // make 'if' condition fail below (no additional error in this case)
-			case typexpr:
-				ntypes++
-				check.instantiatedOperand(&x)
-			}
-		}
-		if 0 < ntypes && ntypes < len(xlist) {
-			check.error(xlist[0], "mix of value and type expressions")
-			ok = false
-		}
-	}
-
-	return
 }
 
 func (check *Checker) exprList(elist []syntax.Expr, allowCommaOk bool) (xlist []*operand, commaOk bool) {
