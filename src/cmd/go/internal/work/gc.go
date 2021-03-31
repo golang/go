@@ -89,7 +89,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	}
 	compilingRuntime := p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal"))
 	// The runtime package imports a couple of general internal packages.
-	if p.Standard && (p.ImportPath == "internal/cpu" || p.ImportPath == "internal/bytealg") {
+	if p.Standard && (p.ImportPath == "internal/cpu" || p.ImportPath == "internal/bytealg" || p.ImportPath == "internal/abi") {
 		compilingRuntime = true
 	}
 	if compilingRuntime {
