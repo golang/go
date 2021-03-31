@@ -47,8 +47,9 @@ type File struct {
 
 // A Module is the module statement.
 type Module struct {
-	Mod    module.Version
-	Syntax *Line
+	Mod        module.Version
+	Deprecated string
+	Syntax     *Line
 }
 
 // A Go is the go statement.
@@ -131,8 +132,15 @@ var dontFixRetract VersionFixer = func(_, vers string) (string, error) {
 	return vers, nil
 }
 
-// Parse parses the data, reported in errors as being from file,
-// into a File struct. It applies fix, if non-nil, to canonicalize all module versions found.
+// Parse parses and returns a go.mod file.
+//
+// file is the name of the file, used in positions and errors.
+//
+// data is the content of the file.
+//
+// fix is an optional function that canonicalizes module versions.
+// If fix is nil, all module versions must be canonical (module.CanonicalVersion
+// must return the same string).
 func Parse(file string, data []byte, fix VersionFixer) (*File, error) {
 	return parseToFile(file, data, fix, true)
 }
@@ -271,7 +279,11 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
 			errorf("repeated module statement")
 			return
 		}
-		f.Module = &Module{Syntax: line}
+		deprecated := parseDeprecation(block, line)
+		f.Module = &Module{
+			Syntax:     line,
+			Deprecated: deprecated,
+		}
 		if len(args) != 1 {
 			errorf("usage: module module/path")
 			return
@@ -385,7 +397,7 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
 		})
 
 	case "retract":
-		rationale := parseRetractRationale(block, line)
+		rationale := parseDirectiveComment(block, line)
 		vi, err := parseVersionInterval(verb, "", &args, dontFixRetract)
 		if err != nil {
 			if strict {
@@ -612,10 +624,29 @@ func parseString(s *string) (string, error) {
 	return t, nil
 }
 
-// parseRetractRationale extracts the rationale for a retract directive from the
-// surrounding comments. If the line does not have comments and is part of a
-// block that does have comments, the block's comments are used.
-func parseRetractRationale(block *LineBlock, line *Line) string {
+var deprecatedRE = lazyregexp.New(`(?s)(?:^|\n\n)Deprecated: *(.*?)(?:$|\n\n)`)
+
+// parseDeprecation extracts the text of comments on a "module" directive and
+// extracts a deprecation message from that.
+//
+// A deprecation message is contained in a paragraph within a block of comments
+// that starts with "Deprecated:" (case sensitive). The message runs until the
+// end of the paragraph and does not include the "Deprecated:" prefix. If the
+// comment block has multiple paragraphs that start with "Deprecated:",
+// parseDeprecation returns the message from the first.
+func parseDeprecation(block *LineBlock, line *Line) string {
+	text := parseDirectiveComment(block, line)
+	m := deprecatedRE.FindStringSubmatch(text)
+	if m == nil {
+		return ""
+	}
+	return m[1]
+}
+
+// parseDirectiveComment extracts the text of comments on a directive.
+// If the directive's line does not have comments and is part of a block that
+// does have comments, the block's comments are used.
+func parseDirectiveComment(block *LineBlock, line *Line) string {
 	comments := line.Comment()
 	if block != nil && len(comments.Before) == 0 && len(comments.Suffix) == 0 {
 		comments = block.Comment()
