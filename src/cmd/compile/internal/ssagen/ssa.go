@@ -225,13 +225,26 @@ const magicNameDotSuffix = ".MagicMethodNameForTestingRegisterABI"
 const magicLastTypeName = "MagicLastTypeNameForTestingRegisterABI"
 
 // abiForFunc implements ABI policy for a function, but does not return a copy of the ABI.
-// Passing a nil function returns ABIInternal.
+// Passing a nil function returns the default ABI based on experiment configuration.
 func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
-	a := abi1
-	if !regabiEnabledForAllCompilation() {
-		a = abi0
+	if objabi.Experiment.RegabiArgs {
+		// Select the ABI based on the function's defining ABI.
+		if fn == nil {
+			return abi1
+		}
+		switch fn.ABI {
+		case obj.ABI0:
+			return abi0
+		case obj.ABIInternal:
+			// TODO(austin): Clean up the nomenclature here.
+			// It's not clear that "abi1" is ABIInternal.
+			return abi1
+		}
+		base.Fatalf("function %v has unknown ABI %v", fn, fn.ABI)
+		panic("not reachable")
 	}
 
+	a := abi0
 	if fn != nil {
 		name := ir.FuncName(fn)
 		magicName := strings.HasSuffix(name, magicNameDotSuffix)
@@ -261,10 +274,6 @@ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
 func regAbiForFuncType(ft *types.Func) bool {
 	np := ft.Params.NumFields()
 	return np > 0 && strings.Contains(ft.Params.FieldType(np-1).String(), magicLastTypeName)
-}
-
-func regabiEnabledForAllCompilation() bool {
-	return objabi.Experiment.RegabiArgs
 }
 
 // getParam returns the Field of ith param of node n (which is a
