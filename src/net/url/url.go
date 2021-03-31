@@ -466,9 +466,9 @@ func split(s string, sep byte, cutc bool) (string, string) {
 	return s[:i], s[i:]
 }
 
-// Parse parses a raw URL into a URL structure.
+// Parse parses a raw url into a URL structure.
 //
-// The URL may be relative (a path, without a host) or absolute
+// The url may be relative (a path, without a host) or absolute
 // (starting with a scheme). Trying to parse a hostname and path
 // without a scheme is invalid but may not necessarily return an
 // error, due to parsing ambiguities.
@@ -488,10 +488,10 @@ func Parse(rawURL string) (*URL, error) {
 	return url, nil
 }
 
-// ParseRequestURI parses a raw URL into a URL structure. It assumes that
-// URL was received in an HTTP request, so the rawURL is interpreted
+// ParseRequestURI parses a raw url into a URL structure. It assumes that
+// url was received in an HTTP request, so the url is interpreted
 // only as an absolute URI or an absolute path.
-// The string rawURL is assumed not to have a #fragment suffix.
+// The string url is assumed not to have a #fragment suffix.
 // (Web browsers strip #fragment before sending the URL to a web server.)
 func ParseRequestURI(rawURL string) (*URL, error) {
 	url, err := parse(rawURL, true)
@@ -501,7 +501,7 @@ func ParseRequestURI(rawURL string) (*URL, error) {
 	return url, nil
 }
 
-// parse parses a raw URL from a string in one of two contexts. If
+// parse parses a URL from a string in one of two contexts. If
 // viaRequest is true, the URL is assumed to have arrived via an HTTP request,
 // in which case only absolute URLs or path-absolute relative URLs are allowed.
 // If viaRequest is false, all forms of relative URLs are allowed.
