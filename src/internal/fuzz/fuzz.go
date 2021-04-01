@@ -51,7 +51,6 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
 		parallel = runtime.GOMAXPROCS(0)
 	}
 
-	sharedMemSize := 100 << 20 // 100 MB
 	// Make sure all of the seed corpus has marshalled data.
 	for i := range seed {
 		if seed[i].Data == nil {
@@ -85,7 +84,7 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
 	errC := make(chan error)
 
 	newWorker := func() (*worker, error) {
-		mem, err := sharedMemTempFile(sharedMemSize)
+		mem, err := sharedMemTempFile(workerSharedMemSize)
 		if err != nil {
 			return nil, err
 		}

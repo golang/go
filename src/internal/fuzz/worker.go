@@ -31,6 +31,10 @@ const (
 	// This distinguishes internal errors from uncontrolled panics and other crashes.
 	// Keep in sync with internal/fuzz.workerExitCode.
 	workerExitCode = 70
+
+	// workerSharedMemSize is the maximum size of the shared memory file used to
+	// communicate with workers. This limits the size of fuzz inputs.
+	workerSharedMemSize = 100 << 20 // 100 MB
 )
 
 // worker manages a worker process running a test binary. The worker object
@@ -508,7 +512,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
 			// real heuristic once we have one.
 			return fuzzResponse{Interesting: true}
 		default:
-			vals = ws.m.mutate(vals, cap(mem.valueRef()))
+			ws.m.mutate(vals, cap(mem.valueRef()))
 			writeToMem(vals, mem)
 			if err := ws.fuzzFn(CorpusEntry{Values: vals}); err != nil {
 				if minErr := ws.minimize(ctx, vals, mem); minErr != nil {
