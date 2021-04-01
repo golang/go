@@ -153,6 +153,7 @@ func gcinit() {
 	if unsafe.Sizeof(workbuf{}) != _WorkbufSize {
 		throw("size of Workbuf is suboptimal")
 	}
+	gcController.heapMinimum = defaultHeapMinimum
 
 	// No sweep on the first cycle.
 	mheap_.sweepDrained = 1
@@ -163,7 +164,7 @@ func gcinit() {
 	// Fake a heapMarked value so it looks like a trigger at
 	// heapMinimum is the appropriate growth from heapMarked.
 	// This will go into computing the initial GC goal.
-	gcController.heapMarked = uint64(float64(heapMinimum) / (1 + gcController.triggerRatio))
+	gcController.heapMarked = uint64(float64(gcController.heapMinimum) / (1 + gcController.triggerRatio))
 
 	// Set gcPercent from the environment. This will also compute
 	// and set the GC trigger and goal.
@@ -557,7 +558,7 @@ func (t gcTrigger) test() bool {
 		// own write.
 		return gcController.heapLive >= gcController.trigger
 	case gcTriggerTime:
-		if gcPercent < 0 {
+		if gcController.gcPercent < 0 {
 			return false
 		}
 		lastgc := int64(atomic.Load64(&memstats.last_gc_nanotime))
