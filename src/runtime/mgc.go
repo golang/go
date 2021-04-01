@@ -113,8 +113,8 @@
 // Next GC is after we've allocated an extra amount of memory proportional to
 // the amount already in use. The proportion is controlled by GOGC environment variable
 // (100 by default). If GOGC=100 and we're using 4M, we'll GC again when we get to 8M
-// (this mark is tracked in next_gc variable). This keeps the GC cost in linear
-// proportion to the allocation cost. Adjusting GOGC just changes the linear constant
+// (this mark is tracked in gcController.heapGoal variable). This keeps the GC cost in
+// linear proportion to the allocation cost. Adjusting GOGC just changes the linear constant
 // (and also the amount of extra memory used).
 
 // Oblets
@@ -669,7 +669,7 @@ func gcStart(trigger gcTrigger) {
 	work.cycles++
 
 	gcController.startCycle()
-	work.heapGoal = memstats.next_gc
+	work.heapGoal = gcController.heapGoal
 
 	// In STW mode, disable scheduling of user Gs. This may also
 	// disable scheduling of this goroutine, so it may block as
@@ -972,8 +972,8 @@ func gcMarkTermination(nextTriggerRatio float64) {
 		throw("gc done but gcphase != _GCoff")
 	}
 
-	// Record next_gc and heap_inuse for scavenger.
-	memstats.last_next_gc = memstats.next_gc
+	// Record heapGoal and heap_inuse for scavenger.
+	gcController.lastHeapGoal = gcController.heapGoal
 	memstats.last_heap_inuse = memstats.heap_inuse
 
 	// Update GC trigger and pacing for the next cycle.

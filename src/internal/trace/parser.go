@@ -1042,8 +1042,8 @@ const (
 	EvGoSysBlock        = 30 // syscall blocks [timestamp]
 	EvGoWaiting         = 31 // denotes that goroutine is blocked when tracing starts [timestamp, goroutine id]
 	EvGoInSyscall       = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
-	EvHeapAlloc         = 33 // memstats.heap_live change [timestamp, heap_alloc]
-	EvNextGC            = 34 // memstats.next_gc change [timestamp, next_gc]
+	EvHeapAlloc         = 33 // gcController.heapLive change [timestamp, heap live bytes]
+	EvHeapGoal          = 34 // gcController.heapGoal change [timestamp, heap goal bytes]
 	EvTimerGoroutine    = 35 // denotes timer goroutine [timer goroutine id]
 	EvFutileWakeup      = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
 	EvString            = 37 // string dictionary entry [ID, length, string]
@@ -1102,7 +1102,7 @@ var EventDescriptions = [EvCount]struct {
 	EvGoWaiting:         {"GoWaiting", 1005, false, []string{"g"}, nil},
 	EvGoInSyscall:       {"GoInSyscall", 1005, false, []string{"g"}, nil},
 	EvHeapAlloc:         {"HeapAlloc", 1005, false, []string{"mem"}, nil},
-	EvNextGC:            {"NextGC", 1005, false, []string{"mem"}, nil},
+	EvHeapGoal:          {"HeapGoal", 1005, false, []string{"mem"}, nil},
 	EvTimerGoroutine:    {"TimerGoroutine", 1005, false, []string{"g"}, nil}, // in 1.5 format it was {"g", "unused"}
 	EvFutileWakeup:      {"FutileWakeup", 1005, false, []string{}, nil},
 	EvString:            {"String", 1007, false, []string{}, nil},
