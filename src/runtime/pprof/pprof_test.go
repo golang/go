@@ -276,7 +276,8 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
 
 	broken := false
 	switch runtime.GOOS {
-	case "ios", "dragonfly", "netbsd", "illumos", "solaris":
+	// See https://golang.org/issue/45170 for AIX.
+	case "ios", "dragonfly", "netbsd", "illumos", "solaris", "aix":
 		broken = true
 	case "openbsd":
 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
