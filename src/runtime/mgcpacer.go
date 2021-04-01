@@ -606,7 +606,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 	return gp
 }
 
-// gcSetTriggerRatio sets the trigger ratio and updates everything
+// commit sets the trigger ratio and updates everything
 // derived from it: the absolute trigger, the heap goal, mark pacing,
 // and sweep pacing.
 //
@@ -617,7 +617,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 // gcController.heapLive. These must be up to date.
 //
 // mheap_.lock must be held or the world must be stopped.
-func gcSetTriggerRatio(triggerRatio float64) {
+func (c *gcControllerState) commit(triggerRatio float64) {
 	assertWorldStoppedOrLockHeld(&mheap_.lock)
 
 	// Compute the next GC goal, which is when the allocated heap
@@ -625,7 +625,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 	// cycle.
 	goal := ^uint64(0)
 	if gcPercent >= 0 {
-		goal = gcController.heapMarked + gcController.heapMarked*uint64(gcPercent)/100
+		goal = c.heapMarked + c.heapMarked*uint64(gcPercent)/100
 	}
 
 	// Set the trigger ratio, capped to reasonable bounds.
@@ -663,7 +663,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 		// certainly undesirable.
 		triggerRatio = 0
 	}
-	gcController.triggerRatio = triggerRatio
+	c.triggerRatio = triggerRatio
 
 	// Compute the absolute GC trigger from the trigger ratio.
 	//
@@ -671,7 +671,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 	// grown by the trigger ratio over the marked heap size.
 	trigger := ^uint64(0)
 	if gcPercent >= 0 {
-		trigger = uint64(float64(gcController.heapMarked) * (1 + triggerRatio))
+		trigger = uint64(float64(c.heapMarked) * (1 + triggerRatio))
 		// Don't trigger below the minimum heap size.
 		minTrigger := heapMinimum
 		if !isSweepDone() {
@@ -680,7 +680,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 			// that concurrent sweep has some heap growth
 			// in which to perform sweeping before we
 			// start the next GC cycle.
-			sweepMin := atomic.Load64(&gcController.heapLive) + sweepMinHeapDistance
+			sweepMin := atomic.Load64(&c.heapLive) + sweepMinHeapDistance
 			if sweepMin > minTrigger {
 				minTrigger = sweepMin
 			}
@@ -689,7 +689,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 			trigger = minTrigger
 		}
 		if int64(trigger) < 0 {
-			print("runtime: next_gc=", memstats.next_gc, " heapMarked=", gcController.heapMarked, " gcController.heapLive=", gcController.heapLive, " initialHeapLive=", work.initialHeapLive, "triggerRatio=", triggerRatio, " minTrigger=", minTrigger, "\n")
+			print("runtime: next_gc=", memstats.next_gc, " heapMarked=", c.heapMarked, " gcController.heapLive=", c.heapLive, " initialHeapLive=", work.initialHeapLive, "triggerRatio=", triggerRatio, " minTrigger=", minTrigger, "\n")
 			throw("trigger underflow")
 		}
 		if trigger > goal {
@@ -701,7 +701,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 	}
 
 	// Commit to the trigger and goal.
-	gcController.trigger = trigger
+	c.trigger = trigger
 	atomic.Store64(&memstats.next_gc, goal)
 	if trace.enabled {
 		traceNextGC()
@@ -709,7 +709,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 
 	// Update mark pacing.
 	if gcphase != _GCoff {
-		gcController.revise()
+		c.revise()
 	}
 
 	// Update sweep pacing.
@@ -721,7 +721,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 		// trigger. Compute the ratio of in-use pages to sweep
 		// per byte allocated, accounting for the fact that
 		// some might already be swept.
-		heapLiveBasis := atomic.Load64(&gcController.heapLive)
+		heapLiveBasis := atomic.Load64(&c.heapLive)
 		heapDistance := int64(trigger) - int64(heapLiveBasis)
 		// Add a little margin so rounding errors and
 		// concurrent sweep are less likely to leave pages
@@ -781,7 +781,7 @@ func setGCPercent(in int32) (out int32) {
 		gcPercent = in
 		heapMinimum = defaultHeapMinimum * uint64(gcPercent) / 100
 		// Update pacing in response to gcPercent change.
-		gcSetTriggerRatio(gcController.triggerRatio)
+		gcController.commit(gcController.triggerRatio)
 		unlock(&mheap_.lock)
 	})
 

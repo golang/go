@@ -982,7 +982,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	memstats.last_heap_inuse = memstats.heap_inuse
 
 	// Update GC trigger and pacing for the next cycle.
-	gcSetTriggerRatio(nextTriggerRatio)
+	gcController.commit(nextTriggerRatio)
 
 	// Update timing memstats
 	now := nanotime()
