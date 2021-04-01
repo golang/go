@@ -589,6 +589,14 @@ func (x *expandState) decomposeArg(pos src.XPos, b *Block, source, mem *Value, t
 			if w == nil {
 				w = x.newArgToMemOrRegs(source, w, off, i, rt, pos)
 			}
+			if t.IsPtrShaped() {
+				// Preserve the original store type. This ensures pointer type
+				// properties aren't discarded (e.g, notinheap).
+				if rt.Width != t.Width || len(pa.Registers) != 1 || i != loadRegOffset {
+					b.Func.Fatalf("incompatible store type %v and %v, i=%d", t, rt, i)
+				}
+				rt = t
+			}
 			mem = x.storeArgOrLoad(pos, b, w, mem, rt, storeOffset+off, i, storeRc.next(rt))
 		}
 		return mem
@@ -1114,9 +1122,6 @@ func expandCalls(f *Func) {
 		for _, v := range b.Values {
 			if v.Op == OpStore {
 				t := v.Aux.(*types.Type)
-				if t.IsPtrShaped() { // Everything already fits, and this ensures pointer type properties aren't discarded (e.g, notinheap)
-					continue
-				}
 				source := v.Args[1]
 				tSrc := source.Type
 				iAEATt := x.isAlreadyExpandedAggregateType(t)
