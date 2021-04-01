@@ -423,4 +423,4 @@ func sigpanic0()
 // everywhere.
 //
 // Protected by finlock.
-var intArgRegs = 0 // abi.IntArgRegs
+var intArgRegs = abi.IntArgRegs * experimentRegabiArgs
