@@ -243,6 +243,21 @@ type gcControllerState struct {
 	_ cpu.CacheLinePad
 }
 
+func (c *gcControllerState) init(gcPercent int32) {
+	c.heapMinimum = defaultHeapMinimum
+
+	// Set a reasonable initial GC trigger.
+	c.triggerRatio = 7 / 8.0
+
+	// Fake a heapMarked value so it looks like a trigger at
+	// heapMinimum is the appropriate growth from heapMarked.
+	// This will go into computing the initial GC goal.
+	c.heapMarked = uint64(float64(c.heapMinimum) / (1 + c.triggerRatio))
+
+	// This will also compute and set the GC trigger and goal.
+	_ = setGCPercent(gcPercent)
+}
+
 // startCycle resets the GC controller's state and computes estimates
 // for a new GC cycle. The caller must hold worldsema and the world
 // must be stopped.
