@@ -242,6 +242,23 @@ func moveStackCheck(t *testing.T, new *int, old uintptr) bool {
 	return true
 }
 
+func TestGCTestMoveStackRepeatedly(t *testing.T) {
+	// Move the stack repeatedly to make sure we're not doubling
+	// it each time.
+	for i := 0; i < 100; i++ {
+		runtime.GCTestMoveStackOnNextCall()
+		moveStack1(false)
+	}
+}
+
+//go:noinline
+func moveStack1(x bool) {
+	// Make sure this function doesn't get auto-nosplit.
+	if x {
+		println("x")
+	}
+}
+
 func TestGCTestIsReachable(t *testing.T) {
 	var all, half []unsafe.Pointer
 	var want uint64
