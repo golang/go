@@ -471,7 +471,7 @@ func (c *gcControllerState) endCycle(userForced bool) float64 {
 	// growth if we had the desired CPU utilization). The
 	// difference between this estimate and the GOGC-based goal
 	// heap growth is the error.
-	goalGrowthRatio := gcEffectiveGrowthRatio()
+	goalGrowthRatio := c.effectiveGrowthRatio()
 	actualGrowthRatio := float64(c.heapLive)/float64(c.heapMarked) - 1
 	assistDuration := nanotime() - c.markStartTime
 
@@ -779,7 +779,7 @@ func (c *gcControllerState) commit(triggerRatio float64) {
 	gcPaceScavenger()
 }
 
-// gcEffectiveGrowthRatio returns the current effective heap growth
+// effectiveGrowthRatio returns the current effective heap growth
 // ratio (GOGC/100) based on heapMarked from the previous GC and
 // heapGoal for the current GC.
 //
@@ -788,10 +788,10 @@ func (c *gcControllerState) commit(triggerRatio float64) {
 // heapMinimum, this can be higher than gcPercent/100.
 //
 // mheap_.lock must be held or the world must be stopped.
-func gcEffectiveGrowthRatio() float64 {
+func (c *gcControllerState) effectiveGrowthRatio() float64 {
 	assertWorldStoppedOrLockHeld(&mheap_.lock)
 
-	egogc := float64(atomic.Load64(&gcController.heapGoal)-gcController.heapMarked) / float64(gcController.heapMarked)
+	egogc := float64(atomic.Load64(&c.heapGoal)-c.heapMarked) / float64(c.heapMarked)
 	if egogc < 0 {
 		// Shouldn't happen, but just in case.
 		egogc = 0
