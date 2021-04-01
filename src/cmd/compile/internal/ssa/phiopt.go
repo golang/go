@@ -213,7 +213,7 @@ func phiopt(f *Func) {
 				ei := b.Preds[1].i
 				sb0 := pb1.Succs[1-ei].b
 				if sdom.IsAncestorEq(sb0, pb0) {
-					convertPhi(pb1, v, ei-1)
+					convertPhi(pb1, v, 1-ei)
 					break
 				}
 			} else {
