@@ -49,25 +49,6 @@ const (
 	defaultHeapMinimum = 4 << 20
 )
 
-var (
-	// heapMinimum is the minimum heap size at which to trigger GC.
-	// For small heaps, this overrides the usual GOGC*live set rule.
-	//
-	// When there is a very small live set but a lot of allocation, simply
-	// collecting when the heap reaches GOGC*live results in many GC
-	// cycles and high total per-GC overhead. This minimum amortizes this
-	// per-GC overhead while keeping the heap reasonably small.
-	//
-	// During initialization this is set to 4MB*GOGC/100. In the case of
-	// GOGC==0, this will set heapMinimum to 0, resulting in constant
-	// collection even when the heap size is small, which is useful for
-	// debugging.
-	heapMinimum uint64 = defaultHeapMinimum
-
-	// Initialized from $GOGC.  GOGC=off means no GC.
-	gcPercent int32
-)
-
 func init() {
 	if offset := unsafe.Offsetof(gcController.heapLive); offset%8 != 0 {
 		println(offset)
@@ -91,6 +72,25 @@ func init() {
 var gcController gcControllerState
 
 type gcControllerState struct {
+	// Initialized from $GOGC. GOGC=off means no GC.
+	gcPercent int32
+
+	_ uint32 // padding so following 64-bit values are 8-byte aligned
+
+	// heapMinimum is the minimum heap size at which to trigger GC.
+	// For small heaps, this overrides the usual GOGC*live set rule.
+	//
+	// When there is a very small live set but a lot of allocation, simply
+	// collecting when the heap reaches GOGC*live results in many GC
+	// cycles and high total per-GC overhead. This minimum amortizes this
+	// per-GC overhead while keeping the heap reasonably small.
+	//
+	// During initialization this is set to 4MB*GOGC/100. In the case of
+	// GOGC==0, this will set heapMinimum to 0, resulting in constant
+	// collection even when the heap size is small, which is useful for
+	// debugging.
+	heapMinimum uint64
+
 	// triggerRatio is the heap growth ratio that triggers marking.
 	//
 	// E.g., if this is 0.6, then GC should start when the live
@@ -337,7 +337,7 @@ func (c *gcControllerState) startCycle() {
 // is when assists are enabled and the necessary statistics are
 // available).
 func (c *gcControllerState) revise() {
-	gcPercent := gcPercent
+	gcPercent := c.gcPercent
 	if gcPercent < 0 {
 		// If GC is disabled but we're running a forced GC,
 		// act like GOGC is huge for the below calculations.
@@ -624,13 +624,13 @@ func (c *gcControllerState) commit(triggerRatio float64) {
 	// has grown by GOGC/100 over the heap marked by the last
 	// cycle.
 	goal := ^uint64(0)
-	if gcPercent >= 0 {
-		goal = c.heapMarked + c.heapMarked*uint64(gcPercent)/100
+	if c.gcPercent >= 0 {
+		goal = c.heapMarked + c.heapMarked*uint64(c.gcPercent)/100
 	}
 
 	// Set the trigger ratio, capped to reasonable bounds.
-	if gcPercent >= 0 {
-		scalingFactor := float64(gcPercent) / 100
+	if c.gcPercent >= 0 {
+		scalingFactor := float64(c.gcPercent) / 100
 		// Ensure there's always a little margin so that the
 		// mutator assist ratio isn't infinity.
 		maxTriggerRatio := 0.95 * scalingFactor
@@ -670,10 +670,10 @@ func (c *gcControllerState) commit(triggerRatio float64) {
 	// We trigger the next GC cycle when the allocated heap has
 	// grown by the trigger ratio over the marked heap size.
 	trigger := ^uint64(0)
-	if gcPercent >= 0 {
+	if c.gcPercent >= 0 {
 		trigger = uint64(float64(c.heapMarked) * (1 + triggerRatio))
 		// Don't trigger below the minimum heap size.
-		minTrigger := heapMinimum
+		minTrigger := c.heapMinimum
 		if !isSweepDone() {
 			// Concurrent sweep happens in the heap growth
 			// from gcController.heapLive to trigger, so ensure
@@ -774,12 +774,12 @@ func setGCPercent(in int32) (out int32) {
 	// Run on the system stack since we grab the heap lock.
 	systemstack(func() {
 		lock(&mheap_.lock)
-		out = gcPercent
+		out = gcController.gcPercent
 		if in < 0 {
 			in = -1
 		}
-		gcPercent = in
-		heapMinimum = defaultHeapMinimum * uint64(gcPercent) / 100
+		gcController.gcPercent = in
+		gcController.heapMinimum = defaultHeapMinimum * uint64(gcController.gcPercent) / 100
 		// Update pacing in response to gcPercent change.
 		gcController.commit(gcController.triggerRatio)
 		unlock(&mheap_.lock)
