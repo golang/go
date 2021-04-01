@@ -4,6 +4,7 @@
 package ssa
 
 import "math"
+import "cmd/internal/obj"
 import "cmd/internal/objabi"
 import "cmd/compile/internal/types"
 
@@ -30465,11 +30466,11 @@ func rewriteValueAMD64_OpFloor(v *Value) bool {
 func rewriteValueAMD64_OpGetG(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (GetG mem)
-	// cond: !objabi.Experiment.RegabiG
+	// cond: !(objabi.Experiment.RegabiG && v.Block.Func.OwnAux.Fn.ABI() == obj.ABIInternal)
 	// result: (LoweredGetG mem)
 	for {
 		mem := v_0
-		if !(!objabi.Experiment.RegabiG) {
+		if !(!(objabi.Experiment.RegabiG && v.Block.Func.OwnAux.Fn.ABI() == obj.ABIInternal)) {
 			break
 		}
 		v.reset(OpAMD64LoweredGetG)

@@ -146,6 +146,13 @@ func (s *SymABIs) GenABIWrappers() {
 			fn.ABI = defABI
 		}
 
+		if fn.Pragma&ir.CgoUnsafeArgs != 0 {
+			// CgoUnsafeArgs indicates the function (or its callee) uses
+			// offsets to dispatch arguments, which currently using ABI0
+			// frame layout. Pin it to ABI0.
+			fn.ABI = obj.ABI0
+		}
+
 		// Apply references.
 		if abis, ok := s.refs[symName]; ok {
 			fn.ABIRefs |= abis
