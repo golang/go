@@ -898,7 +898,7 @@ top:
 	// endCycle depends on all gcWork cache stats being flushed.
 	// The termination algorithm above ensured that up to
 	// allocations since the ragged barrier.
-	nextTriggerRatio := gcController.endCycle()
+	nextTriggerRatio := gcController.endCycle(work.userForced)
 
 	// Perform mark termination. This will restart the world.
 	gcMarkTermination(nextTriggerRatio)

@@ -444,8 +444,10 @@ func (c *gcControllerState) revise() {
 }
 
 // endCycle computes the trigger ratio for the next cycle.
-func (c *gcControllerState) endCycle() float64 {
-	if work.userForced {
+// userForced indicates whether the current GC cycle was forced
+// by the application.
+func (c *gcControllerState) endCycle(userForced bool) float64 {
+	if userForced {
 		// Forced GC means this cycle didn't start at the
 		// trigger, so where it finished isn't good
 		// information about how to adjust the trigger.
