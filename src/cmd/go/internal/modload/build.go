@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"internal/goroot"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -108,7 +109,26 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 		return
 	}
 
-	if info, err := Query(ctx, m.Path, "upgrade", m.Version, CheckAllowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
+	info, err := Query(ctx, m.Path, "upgrade", m.Version, CheckAllowed)
+	var noVersionErr *NoMatchingVersionError
+	if errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
+		// Ignore "not found" and "no matching version" errors. This usually means
+		// the user is offline or the proxy doesn't have a matching version.
+		//
+		// We should report other errors though. An attacker that controls the
+		// network shouldn't be able to hide versions by interfering with
+		// the HTTPS connection. An attacker that controls the proxy may still
+		// hide versions, since the "list" and "latest" endpoints are not
+		// authenticated.
+		return
+	} else if err != nil {
+		if m.Error == nil {
+			m.Error = &modinfo.ModuleError{Err: err.Error()}
+		}
+		return
+	}
+
+	if semver.Compare(info.Version, m.Version) > 0 {
 		m.Update = &modinfo.ModulePublic{
 			Path:    m.Path,
 			Version: info.Version,
@@ -140,14 +160,26 @@ func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
 	}
 
 	err := CheckRetractions(ctx, module.Version{Path: m.Path, Version: m.Version})
-	var rerr *ModuleRetractedError
-	if errors.As(err, &rerr) {
-		if len(rerr.Rationale) == 0 {
+	var noVersionErr *NoMatchingVersionError
+	var retractErr *ModuleRetractedError
+	if err == nil || errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
+		// Ignore "not found" and "no matching version" errors. This usually means
+		// the user is offline or the proxy doesn't have a go.mod file that could
+		// contain retractions.
+		//
+		// We should report other errors though. An attacker that controls the
+		// network shouldn't be able to hide versions by interfering with
+		// the HTTPS connection. An attacker that controls the proxy may still
+		// hide versions, since the "list" and "latest" endpoints are not
+		// authenticated.
+		return
+	} else if errors.As(err, &retractErr) {
+		if len(retractErr.Rationale) == 0 {
 			m.Retracted = []string{"retracted by module author"}
 		} else {
-			m.Retracted = rerr.Rationale
+			m.Retracted = retractErr.Rationale
 		}
-	} else if err != nil && m.Error == nil {
+	} else if m.Error == nil {
 		m.Error = &modinfo.ModuleError{Err: err.Error()}
 	}
 }
