@@ -364,7 +364,7 @@ func (a *sysStatsAggregate) compute() {
 	a.buckHashSys = memstats.buckhash_sys.load()
 	a.gcMiscSys = memstats.gcMiscSys.load()
 	a.otherSys = memstats.other_sys.load()
-	a.heapGoal = atomic.Load64(&memstats.next_gc)
+	a.heapGoal = atomic.Load64(&gcController.heapGoal)
 	a.gcCyclesDone = uint64(memstats.numgc)
 	a.gcCyclesForced = uint64(memstats.numforcedgc)
 

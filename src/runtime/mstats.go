@@ -62,12 +62,6 @@ type mstats struct {
 
 	// Statistics about the garbage collector.
 
-	// next_gc is the goal gcController.heapLive for when next GC ends.
-	// Set to ^uint64(0) if disabled.
-	//
-	// Read and written atomically, unless the world is stopped.
-	next_gc uint64
-
 	// Protected by mheap or stopping the world during GC.
 	last_gc_unix    uint64 // last gc (in unix time)
 	pause_total_ns  uint64
@@ -93,7 +87,6 @@ type mstats struct {
 
 	last_gc_nanotime uint64 // last gc (monotonic time)
 	tinyallocs       uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
-	last_next_gc     uint64 // next_gc for the previous GC
 	last_heap_inuse  uint64 // heap_inuse at mark termination of the previous GC
 
 	// heapStats is a set of statistics
@@ -460,7 +453,7 @@ func readmemstats_m(stats *MemStats) {
 	// at a more granular level in the runtime.
 	stats.GCSys = memstats.gcMiscSys.load() + memstats.gcWorkBufInUse + memstats.gcProgPtrScalarBitsInUse
 	stats.OtherSys = memstats.other_sys.load()
-	stats.NextGC = memstats.next_gc
+	stats.NextGC = gcController.heapGoal
 	stats.LastGC = memstats.last_gc_unix
 	stats.PauseTotalNs = memstats.pause_total_ns
 	stats.PauseNs = memstats.pause_ns
