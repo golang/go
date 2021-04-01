@@ -132,6 +132,10 @@ const (
 	// Stored into g->stackguard0 to cause split stack check failure.
 	// Must be greater than any real sp.
 	stackFork = uintptrMask & -1234
+
+	// Force a stack movement. Used for debugging.
+	// 0xfffffeed in hex.
+	stackForceMove = uintptrMask & -275
 )
 
 // Global pool of spans that have free stacks.
@@ -1054,9 +1058,16 @@ func newstack() {
 	// recheck the bounds on return.)
 	if f := findfunc(gp.sched.pc); f.valid() {
 		max := uintptr(funcMaxSPDelta(f))
-		for newsize-oldsize < max+_StackGuard {
+		for newsize-gp.sched.sp < max+_StackGuard {
 			newsize *= 2
 		}
+	}
+
+	if gp.stackguard0 == stackForceMove {
+		// Forced stack movement used for debugging.
+		// Don't double the stack (or we may quickly run out
+		// if this is done repeatedly).
+		newsize = oldsize
 	}
 
 	if newsize > maxstacksize || newsize > maxstackceiling {

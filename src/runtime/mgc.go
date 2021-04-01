@@ -2352,7 +2352,7 @@ func fmtNSAsMS(buf []byte, ns uint64) []byte {
 // there's a preemption between this call and the next.
 func gcTestMoveStackOnNextCall() {
 	gp := getg()
-	gp.stackguard0 = getcallersp()
+	gp.stackguard0 = stackForceMove
 }
 
 // gcTestIsReachable performs a GC and returns a bit set where bit i
