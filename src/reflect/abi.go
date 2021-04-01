@@ -28,9 +28,9 @@ import (
 // commented out there should be the actual values once
 // we're ready to use the register ABI everywhere.
 var (
-	intArgRegs   = 0          // abi.IntArgRegs
-	floatArgRegs = 0          // abi.FloatArgRegs
-	floatRegSize = uintptr(0) // uintptr(abi.EffectiveFloatRegSize)
+	intArgRegs   = abi.IntArgRegs * experimentRegabiArgs
+	floatArgRegs = abi.FloatArgRegs * experimentRegabiArgs
+	floatRegSize = uintptr(abi.EffectiveFloatRegSize * experimentRegabiArgs)
 )
 
 // abiStep represents an ABI "instruction." Each instruction
