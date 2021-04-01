@@ -1190,22 +1190,22 @@ func canpanic(gp *g) bool {
 	// Note also that g->m can change at preemption, so m can go stale
 	// if this function ever makes a function call.
 	_g_ := getg()
-	_m_ := _g_.m
+	mp := _g_.m
 
 	// Is it okay for gp to panic instead of crashing the program?
 	// Yes, as long as it is running Go code, not runtime code,
 	// and not stuck in a system call.
-	if gp == nil || gp != _m_.curg {
+	if gp == nil || gp != mp.curg {
 		return false
 	}
-	if _m_.locks != 0 || _m_.mallocing != 0 || _m_.throwing != 0 || _m_.preemptoff != "" || _m_.dying != 0 {
+	if mp.locks != 0 || mp.mallocing != 0 || mp.throwing != 0 || mp.preemptoff != "" || mp.dying != 0 {
 		return false
 	}
 	status := readgstatus(gp)
 	if status&^_Gscan != _Grunning || gp.syscallsp != 0 {
 		return false
 	}
-	if GOOS == "windows" && _m_.libcallsp != 0 {
+	if GOOS == "windows" && mp.libcallsp != 0 {
 		return false
 	}
 	return true
