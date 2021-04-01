@@ -255,7 +255,7 @@ func (c *gcControllerState) init(gcPercent int32) {
 	c.heapMarked = uint64(float64(c.heapMinimum) / (1 + c.triggerRatio))
 
 	// This will also compute and set the GC trigger and goal.
-	_ = setGCPercent(gcPercent)
+	c.setGCPercent(gcPercent)
 }
 
 // startCycle resets the GC controller's state and computes estimates
@@ -784,19 +784,31 @@ func gcEffectiveGrowthRatio() float64 {
 	return egogc
 }
 
+// setGCPercent updates gcPercent and all related pacer state.
+// Returns the old value of gcPercent.
+//
+// The world must be stopped, or mheap_.lock must be held.
+func (c *gcControllerState) setGCPercent(in int32) int32 {
+	assertWorldStoppedOrLockHeld(&mheap_.lock)
+
+	out := c.gcPercent
+	if in < 0 {
+		in = -1
+	}
+	c.gcPercent = in
+	c.heapMinimum = defaultHeapMinimum * uint64(c.gcPercent) / 100
+	// Update pacing in response to gcPercent change.
+	c.commit(c.triggerRatio)
+
+	return out
+}
+
 //go:linkname setGCPercent runtime/debug.setGCPercent
 func setGCPercent(in int32) (out int32) {
 	// Run on the system stack since we grab the heap lock.
 	systemstack(func() {
 		lock(&mheap_.lock)
-		out = gcController.gcPercent
-		if in < 0 {
-			in = -1
-		}
-		gcController.gcPercent = in
-		gcController.heapMinimum = defaultHeapMinimum * uint64(gcController.gcPercent) / 100
-		// Update pacing in response to gcPercent change.
-		gcController.commit(gcController.triggerRatio)
+		out = gcController.setGCPercent(in)
 		unlock(&mheap_.lock)
 	})
 
