@@ -876,7 +876,7 @@ func (c *common) Helper() {
 	}
 }
 
-// Cleanup registers a function to be called when the test and all its
+// Cleanup registers a function to be called when the test (or subtest) and all its
 // subtests complete. Cleanup functions will be called in last added,
 // first called order.
 func (c *common) Cleanup(f func()) {
