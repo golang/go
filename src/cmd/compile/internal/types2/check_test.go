@@ -129,7 +129,6 @@ func checkFiles(t *testing.T, filenames []string, goVersion string, colDelta uin
 	var conf Config
 	conf.GoVersion = goVersion
 	conf.AcceptMethodTypeParams = true
-	conf.InferFromConstraints = true
 	// special case for importC.src
 	if len(filenames) == 1 && strings.HasSuffix(filenames[0], "importC.src") {
 		conf.FakeImportC = true

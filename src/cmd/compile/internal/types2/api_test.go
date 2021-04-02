@@ -66,7 +66,6 @@ func mayTypecheck(t *testing.T, path, source string, info *Info) (string, error)
 	}
 	conf := Config{
 		AcceptMethodTypeParams: true,
-		InferFromConstraints:   true,
 		Error:                  func(err error) {},
 		Importer:               defaultImporter(),
 	}
