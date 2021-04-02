@@ -125,3 +125,14 @@ func (f *subFS) Glob(pattern string) ([]string, error) {
 	}
 	return list, f.fixErr(err)
 }
+
+func (f *subFS) Sub(dir string) (FS, error) {
+	if dir == "." {
+		return f, nil
+	}
+	full, err := f.fullName("sub", dir)
+	if err != nil {
+		return nil, err
+	}
+	return &subFS{f.fsys, full}, nil
+}
