@@ -110,10 +110,6 @@ type Config struct {
 	// If AcceptMethodTypeParams is set, methods may have type parameters.
 	AcceptMethodTypeParams bool
 
-	// If InferFromConstraints is set, constraint type inference is used
-	// if some function type arguments are missing.
-	InferFromConstraints bool
-
 	// If FakeImportC is set, `import "C"` (for packages requiring Cgo)
 	// declares an empty "C" package and errors are omitted for qualified
 	// identifiers referring to package C (which won't find an object).

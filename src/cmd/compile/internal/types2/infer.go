@@ -11,6 +11,8 @@ import (
 	"cmd/compile/internal/syntax"
 )
 
+const useConstraintTypeInference = true
+
 // infer attempts to infer the complete set of type arguments for generic function instantiation/call
 // based on the given type parameters tparams, type arguments targs, function parameters params, and
 // function arguments args, if any. There must be at least one type parameter, no more type arguments
@@ -56,7 +58,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeName, targs []Type, p
 	// and types inferred via constraint type inference take precedence over types
 	// inferred from function arguments.
 	// If we have type arguments, see how far we get with constraint type inference.
-	if len(targs) > 0 && check.conf.InferFromConstraints {
+	if len(targs) > 0 && useConstraintTypeInference {
 		var index int
 		targs, index = check.inferB(tparams, targs, report)
 		if targs == nil || index < 0 {
@@ -171,7 +173,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeName, targs []Type, p
 	// See how far we get with constraint type inference.
 	// Note that even if we don't have any type arguments, constraint type inference
 	// may produce results for constraints that explicitly specify a type.
-	if check.conf.InferFromConstraints {
+	if useConstraintTypeInference {
 		targs, index = check.inferB(tparams, targs, report)
 		if targs == nil || index < 0 {
 			return targs
@@ -219,7 +221,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeName, targs []Type, p
 	}
 
 	// Again, follow up with constraint type inference.
-	if check.conf.InferFromConstraints {
+	if useConstraintTypeInference {
 		targs, index = check.inferB(tparams, targs, report)
 		if targs == nil || index < 0 {
 			return targs
