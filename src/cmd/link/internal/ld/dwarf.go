@@ -2290,12 +2290,6 @@ func getDwsectCUSize(sname string, pkgname string) uint64 {
 	return dwsectCUSize[sname+"."+pkgname]
 }
 
-func saveDwsectCUSize(sname string, pkgname string, size uint64) {
-	dwsectCUSizeMu.Lock()
-	defer dwsectCUSizeMu.Unlock()
-	dwsectCUSize[sname+"."+pkgname] = size
-}
-
 func addDwsectCUSize(sname string, pkgname string, size uint64) {
 	dwsectCUSizeMu.Lock()
 	defer dwsectCUSizeMu.Unlock()
