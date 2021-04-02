@@ -1749,6 +1749,13 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	// so events don't leak into the wrong cycle.
 	mProf_NextCycle()
 
+	// There may be stale spans in mcaches that need to be swept.
+	// Those aren't tracked in any sweep lists, so we need to
+	// count them against sweep completion until we ensure all
+	// those spans have been forced out.
+	sl := newSweepLocker()
+	sl.blockCompletion()
+
 	systemstack(func() { startTheWorldWithSema(true) })
 
 	// Flush the heap profile so we can start a new cycle next GC.
@@ -1772,6 +1779,9 @@ func gcMarkTermination(nextTriggerRatio float64) {
 			_p_.mcache.prepareForSweep()
 		})
 	})
+	// Now that we've swept stale spans in mcaches, they don't
+	// count against unswept spans.
+	sl.dispose()
 
 	// Print gctrace before dropping worldsema. As soon as we drop
 	// worldsema another cycle could start and smash the stats
@@ -2389,11 +2399,6 @@ func gcTestIsReachable(ptrs ...unsafe.Pointer) (mask uint64) {
 	semrelease(&gcsema)
 
 	// Force a full GC and sweep.
-	GC()
-
-	// TODO(austin): Work around issue #45315. One GC() can return
-	// without finishing the sweep. Do a second to force the sweep
-	// through.
 	GC()
 
 	// Process specials.
