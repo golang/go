@@ -1576,11 +1576,8 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
 	RET
 
 // The top-most function running on a goroutine
-// returns to goexit+PCQuantum. Defined as ABIInternal
-// so as to make it identifiable to traceback (this
-// function it used as a sentinel; traceback wants to
-// see the func PC, not a wrapper PC).
-TEXT runtime·goexit<ABIInternal>(SB),NOSPLIT|TOPFRAME,$0-0
+// returns to goexit+PCQuantum.
+TEXT runtime·goexit(SB),NOSPLIT|TOPFRAME,$0-0
 	BYTE	$0x90	// NOP
 	CALL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
