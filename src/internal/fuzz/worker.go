@@ -140,8 +140,8 @@ func (w *worker) coordinate(ctx context.Context) error {
 
 		case input := <-w.coordinator.inputC:
 			// Received input from coordinator.
-			args := fuzzArgs{Duration: workerFuzzDuration}
-			value, resp, err := w.client.fuzz(ctx, input.Data, args)
+			args := fuzzArgs{Count: input.countRequested, Duration: workerFuzzDuration}
+			value, resp, err := w.client.fuzz(ctx, input.entry.Data, args)
 			if err != nil {
 				// Error communicating with worker.
 				w.stop()
@@ -169,25 +169,26 @@ func (w *worker) coordinate(ctx context.Context) error {
 				value := mem.valueCopy()
 				w.memMu <- mem
 				message := fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
-				crasher := crasherEntry{
-					CorpusEntry: CorpusEntry{Data: value},
-					errMsg:      message,
+				w.coordinator.resultC <- fuzzResult{
+					entry:      CorpusEntry{Data: value},
+					crasherMsg: message,
 				}
-				w.coordinator.crasherC <- crasher
 				return w.waitErr
-			} else if resp.Crashed {
-				// The worker found a crasher. Inform the coordinator.
-				crasher := crasherEntry{
-					CorpusEntry: CorpusEntry{Data: value},
-					errMsg:      resp.Err,
-				}
-				w.coordinator.crasherC <- crasher
-			} else if resp.Interesting {
-				// Inform the coordinator that fuzzing found something
-				// interesting (i.e. new coverage).
-				w.coordinator.interestingC <- CorpusEntry{Data: value}
 			}
-			// TODO(jayconrod,katiehockman): gather statistics.
+
+			result := fuzzResult{
+				countRequested: input.countRequested,
+				count:          resp.Count,
+				duration:       resp.Duration,
+			}
+			if resp.Crashed {
+				result.entry = CorpusEntry{Data: value}
+				result.crasherMsg = resp.Err
+			} else if resp.Interesting {
+				result.entry = CorpusEntry{Data: value}
+				result.isInteresting = true
+			}
+			w.coordinator.resultC <- result
 		}
 	}
 }
@@ -338,7 +339,7 @@ func (w *worker) stop() error {
 
 			case nil:
 				// Still waiting. Print a message to let the user know why.
-				fmt.Fprintf(os.Stderr, "go: waiting for fuzzing process to terminate...\n")
+				fmt.Fprintf(w.coordinator.log, "waiting for fuzzing process to terminate...\n")
 			}
 		}
 	}
@@ -374,11 +375,23 @@ type call struct {
 // fuzzArgs contains arguments to workerServer.fuzz. The value to fuzz is
 // passed in shared memory.
 type fuzzArgs struct {
+	// Duration is the time to spend fuzzing, not including starting or
+	// cleaning up.
 	Duration time.Duration
+
+	// Count is the number of values to test, without spending more time
+	// than Duration.
+	Count int64
 }
 
 // fuzzResponse contains results from workerServer.fuzz.
 type fuzzResponse struct {
+	// Duration is the time spent fuzzing, not including starting or cleaning up.
+	Duration time.Duration
+
+	// Count is the number of values tested.
+	Count int64
+
 	// Interesting indicates the value in shared memory may be interesting to
 	// the coordinator (for example, because it expanded coverage).
 	Interesting bool
@@ -492,7 +505,10 @@ func (ws *workerServer) serve(ctx context.Context) error {
 // fuzz runs the test function on random variations of a given input value for
 // a given amount of time. fuzz returns early if it finds an input that crashes
 // the fuzz function or an input that expands coverage.
-func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
+func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzResponse) {
+	start := time.Now()
+	defer func() { resp.Duration = time.Since(start) }()
+
 	fuzzCtx, cancel := context.WithTimeout(ctx, args.Duration)
 	defer cancel()
 	mem := <-ws.memMu
@@ -502,13 +518,17 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
 	if err != nil {
 		panic(err)
 	}
+
 	for {
 		select {
 		case <-fuzzCtx.Done():
 			// TODO(jayconrod,katiehockman): this value is not interesting. Use a
 			// real heuristic once we have one.
-			return fuzzResponse{Interesting: true}
+			resp.Interesting = true
+			return resp
+
 		default:
+			resp.Count++
 			ws.m.mutate(vals, cap(mem.valueRef()))
 			writeToMem(vals, mem)
 			if err := ws.fuzzFn(CorpusEntry{Values: vals}); err != nil {
@@ -520,7 +540,18 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
 					// Minimization found a different error, so use that one.
 					err = minErr
 				}
-				return fuzzResponse{Crashed: true, Err: err.Error()}
+				resp.Crashed = true
+				resp.Err = err.Error()
+				if resp.Err == "" {
+					resp.Err = "fuzz function failed with no output"
+				}
+				return resp
+			}
+			if args.Count > 0 && resp.Count == args.Count {
+				// TODO(jayconrod,katiehockman): this value is not interesting. Use a
+				// real heuristic once we have one.
+				resp.Interesting = true
+				return resp
 			}
 			// TODO(jayconrod,katiehockman): return early if we find an
 			// interesting value.

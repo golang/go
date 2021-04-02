@@ -13,7 +13,7 @@
 go test
 
 # Running the fuzzer should find a crashing input quickly.
-! go test -fuzz=FuzzWithBug -fuzztime=5s
+! go test -fuzz=FuzzWithBug -fuzztime=100x
 stdout 'testdata[/\\]corpus[/\\]FuzzWithBug[/\\]'
 stdout 'this input caused a crash!'
 go run check_testdata.go FuzzWithBug
@@ -23,42 +23,42 @@ go run check_testdata.go FuzzWithBug
 ! go test
 
 # Running the fuzzer should find a crashing input quickly for fuzzing two types.
-! go test -run=FuzzWithTwoTypes -fuzz=FuzzWithTwoTypes -fuzztime=5s
+! go test -run=FuzzWithTwoTypes -fuzz=FuzzWithTwoTypes -fuzztime=100x
 stdout 'testdata[/\\]corpus[/\\]FuzzWithTwoTypes[/\\]'
 stdout 'these inputs caused a crash!'
 go run check_testdata.go FuzzWithTwoTypes
 
 # Running the fuzzer should find a crashing input quickly for an integer
-! go test -run=FuzzInt -fuzz=FuzzInt -fuzztime=5s
+! go test -run=FuzzInt -fuzz=FuzzInt -fuzztime=100x
 stdout 'testdata[/\\]corpus[/\\]FuzzInt[/\\]'
 stdout 'this input caused a crash!'
 go run check_testdata.go FuzzInt
 
-! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=5s
+! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=100x
 stdout 'testdata[/\\]corpus[/\\]FuzzWithNilPanic[/\\]'
 stdout 'runtime.Goexit'
 go run check_testdata.go FuzzWithNilPanic
 
-! go test -run=FuzzWithFail -fuzz=FuzzWithFail -fuzztime=5s
+! go test -run=FuzzWithFail -fuzz=FuzzWithFail -fuzztime=100x
 stdout 'testdata[/\\]corpus[/\\]FuzzWithFail[/\\]'
 go run check_testdata.go FuzzWithFail
 
-! go test -run=FuzzWithLogFail -fuzz=FuzzWithLogFail -fuzztime=5s
+! go test -run=FuzzWithLogFail -fuzz=FuzzWithLogFail -fuzztime=100x
 stdout 'testdata[/\\]corpus[/\\]FuzzWithLogFail[/\\]'
 stdout 'logged something'
 go run check_testdata.go FuzzWithLogFail
 
-! go test -run=FuzzWithErrorf -fuzz=FuzzWithErrorf -fuzztime=5s
+! go test -run=FuzzWithErrorf -fuzz=FuzzWithErrorf -fuzztime=100x
 stdout 'testdata[/\\]corpus[/\\]FuzzWithErrorf[/\\]'
 stdout 'errorf was called here'
 go run check_testdata.go FuzzWithErrorf
 
-! go test -run=FuzzWithFatalf -fuzz=FuzzWithFatalf -fuzztime=5s
+! go test -run=FuzzWithFatalf -fuzz=FuzzWithFatalf -fuzztime=100x
 stdout 'testdata[/\\]corpus[/\\]FuzzWithFatalf[/\\]'
 stdout 'fatalf was called here'
 go run check_testdata.go FuzzWithFatalf
 
-! go test -run=FuzzWithBadExit -fuzz=FuzzWithBadExit -fuzztime=5s
+! go test -run=FuzzWithBadExit -fuzz=FuzzWithBadExit -fuzztime=100x
 stdout 'testdata[/\\]corpus[/\\]FuzzWithBadExit[/\\]'
 stdout 'unexpectedly'
 go run check_testdata.go FuzzWithBadExit
