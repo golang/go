@@ -550,7 +550,7 @@ TEXT ·unspillArgs<ABIInternal>(SB),NOSPLIT,$0-0
 	JMP	AX
 // Note: can't just "JMP NAME(SB)" - bad inlining results.
 
-TEXT ·reflectcall<ABIInternal>(SB), NOSPLIT, $0-48
+TEXT ·reflectcall(SB), NOSPLIT, $0-48
 	MOVLQZX frameSize+32(FP), CX
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
