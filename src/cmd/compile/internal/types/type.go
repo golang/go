@@ -368,8 +368,7 @@ func (t *Type) StructType() *Struct {
 
 // Interface contains Type fields specific to interface types.
 type Interface struct {
-	Fields Fields
-	pkg    *Pkg
+	pkg *Pkg
 }
 
 // Ptr contains Type fields specific to pointer types.
@@ -922,40 +921,49 @@ func (t *Type) IsFuncArgStruct() bool {
 	return t.kind == TSTRUCT && t.Extra.(*Struct).Funarg != FunargNone
 }
 
+// Methods returns a pointer to the base methods (excluding embedding) for type t.
+// These can either be concrete methods (for non-interface types) or interface
+// methods (for interface types).
 func (t *Type) Methods() *Fields {
-	// TODO(mdempsky): Validate t?
 	return &t.methods
 }
 
+// AllMethods returns a pointer to all the methods (including embedding) for type t.
+// For an interface type, this is the set of methods that are typically iterated over.
 func (t *Type) AllMethods() *Fields {
-	// TODO(mdempsky): Validate t?
+	if t.kind == TINTER {
+		// Calculate the full method set of an interface type on the fly
+		// now, if not done yet.
+		CalcSize(t)
+	}
 	return &t.allMethods
 }
 
-func (t *Type) Fields() *Fields {
-	switch t.kind {
-	case TSTRUCT:
-		return &t.Extra.(*Struct).fields
-	case TINTER:
-		CalcSize(t)
-		return &t.Extra.(*Interface).Fields
-	}
-	base.Fatalf("Fields: type %v does not have fields", t)
-	return nil
+// SetAllMethods sets the set of all methods (including embedding) for type t.
+// Use this method instead of t.AllMethods().Set(), which might call CalcSize() on
+// an uninitialized interface type.
+func (t *Type) SetAllMethods(fs []*Field) {
+	t.allMethods.Set(fs)
 }
 
-// Field returns the i'th field/method of struct/interface type t.
+// Fields returns the fields of struct type t.
+func (t *Type) Fields() *Fields {
+	t.wantEtype(TSTRUCT)
+	return &t.Extra.(*Struct).fields
+}
+
+// Field returns the i'th field of struct type t.
 func (t *Type) Field(i int) *Field {
 	return t.Fields().Slice()[i]
 }
 
-// FieldSlice returns a slice of containing all fields/methods of
-// struct/interface type t.
+// FieldSlice returns a slice of containing all fields of
+// a struct type t.
 func (t *Type) FieldSlice() []*Field {
 	return t.Fields().Slice()
 }
 
-// SetFields sets struct/interface type t's fields/methods to fields.
+// SetFields sets struct type t's fields to fields.
 func (t *Type) SetFields(fields []*Field) {
 	// If we've calculated the width of t before,
 	// then some other type such as a function signature
@@ -981,6 +989,7 @@ func (t *Type) SetFields(fields []*Field) {
 	t.Fields().Set(fields)
 }
 
+// SetInterface sets the base methods of an interface type t.
 func (t *Type) SetInterface(methods []*Field) {
 	t.wantEtype(TINTER)
 	t.Methods().Set(methods)
@@ -1231,8 +1240,8 @@ func (t *Type) cmp(x *Type) Cmp {
 		return CMPeq
 
 	case TINTER:
-		tfs := t.FieldSlice()
-		xfs := x.FieldSlice()
+		tfs := t.AllMethods().Slice()
+		xfs := x.AllMethods().Slice()
 		for i := 0; i < len(tfs) && i < len(xfs); i++ {
 			t1, x1 := tfs[i], xfs[i]
 			if c := t1.Sym.cmpsym(x1.Sym); c != CMPeq {
@@ -1420,7 +1429,7 @@ func (t *Type) IsInterface() bool {
 
 // IsEmptyInterface reports whether t is an empty interface type.
 func (t *Type) IsEmptyInterface() bool {
-	return t.IsInterface() && t.NumFields() == 0
+	return t.IsInterface() && t.AllMethods().Len() == 0
 }
 
 // IsScalar reports whether 't' is a scalar Go type, e.g.

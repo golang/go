@@ -364,7 +364,7 @@ func methods(t *types.Type) []*typeSig {
 // imethods returns the methods of the interface type t, sorted by name.
 func imethods(t *types.Type) []*typeSig {
 	var methods []*typeSig
-	for _, f := range t.Fields().Slice() {
+	for _, f := range t.AllMethods().Slice() {
 		if f.Type.Kind() != types.TFUNC || f.Sym == nil {
 			continue
 		}
