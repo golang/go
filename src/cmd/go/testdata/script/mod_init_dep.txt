@@ -1,10 +1,6 @@
 env GO111MODULE=on
 env GOFLAGS=-mod=mod
 
-# modconv uses git directly to examine what old 'go get' would
-[!net] skip
-[!exec:git] skip
-
 # go mod init should populate go.mod from Gopkg.lock
 go mod init x
 stderr 'copying requirements from Gopkg.lock'
