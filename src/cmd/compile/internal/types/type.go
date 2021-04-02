@@ -1643,7 +1643,10 @@ var (
 	TypeResultMem = newResults([]*Type{TypeMem})
 )
 
-// NewNamed returns a new named type for the given type name. obj should be an ir.Name.
+// NewNamed returns a new named type for the given type name. obj should be an
+// ir.Name. The new type is incomplete, and the underlying type should be set
+// later via SetUnderlying(). References to the type are maintained until the type
+// is filled in, so those references can be updated when the type is complete.
 func NewNamed(obj Object) *Type {
 	t := New(TFORW)
 	t.sym = obj.Sym()
@@ -1659,7 +1662,8 @@ func (t *Type) Obj() Object {
 	return nil
 }
 
-// SetUnderlying sets the underlying type.
+// SetUnderlying sets the underlying type. SetUnderlying automatically updates any
+// types that were waiting for this type to be completed.
 func (t *Type) SetUnderlying(underlying *Type) {
 	if underlying.kind == TFORW {
 		// This type isn't computed yet; when it is, update n.
