@@ -1021,6 +1021,12 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		sub = ASUBL
 	}
 
+	tmp := int16(REG_AX) // use AX for 32-bit
+	if ctxt.Arch.Family == sys.AMD64 {
+		// Avoid register parameters.
+		tmp = int16(REGENTRYTMP0)
+	}
+
 	var q1 *obj.Prog
 	if framesize <= objabi.StackSmall {
 		// small stack: SP <= stackguard
@@ -1043,11 +1049,6 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		// unnecessarily. See issue #35470.
 		p = ctxt.StartUnsafePoint(p, newprog)
 	} else if framesize <= objabi.StackBig {
-		tmp := int16(REG_AX) // use AX for 32-bit
-		if ctxt.Arch.Family == sys.AMD64 {
-			// for 64-bit, stay away from register ABI parameter registers, even w/o GOEXPERIMENT=regabi
-			tmp = int16(REGENTRYTMP0)
-		}
 		// large stack: SP-framesize <= stackguard-StackSmall
 		//	LEAQ -xxx(SP), tmp
 		//	CMPQ tmp, stackguard
@@ -1073,77 +1074,51 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 
 		p = ctxt.StartUnsafePoint(p, newprog) // see the comment above
 	} else {
-		tmp1 := int16(REG_SI)
-		tmp2 := int16(REG_AX)
-		if ctxt.Arch.Family == sys.AMD64 {
-			tmp1 = int16(REGENTRYTMP0) // register ABI uses REG_SI and REG_AX for parameters.
-			tmp2 = int16(REGENTRYTMP1)
-		}
-		// Such a large stack we need to protect against wraparound.
-		// If SP is close to zero:
-		//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
-		// The +StackGuard on both sides is required to keep the left side positive:
-		// SP is allowed to be slightly below stackguard. See stack.h.
+		// Such a large stack we need to protect against underflow.
+		// The runtime guarantees SP > objabi.StackBig, but
+		// framesize is large enough that SP-framesize may
+		// underflow, causing a direct comparison with the
+		// stack guard to incorrectly succeed. We explicitly
+		// guard against underflow.
 		//
-		// Preemption sets stackguard to StackPreempt, a very large value.
-		// That breaks the math above, so we have to check for that explicitly.
-		//	MOVQ	stackguard, tmp1
-		//	CMPQ	SI, $StackPreempt
-		//	JEQ	label-of-call-to-morestack
-		//	LEAQ	StackGuard(SP), tmp2
-		//	SUBQ	tmp1, tmp2
-		//	CMPQ	tmp2, $(framesize+(StackGuard-StackSmall))
+		//	MOVQ	SP, tmp
+		//	SUBQ	$(framesize - StackSmall), tmp
+		//	// If subtraction wrapped (carry set), morestack.
+		//	JCS	label-of-call-to-morestack
+		//	CMPQ	tmp, stackguard
 
 		p = obj.Appendp(p, newprog)
 
 		p.As = mov
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = rg
-		p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
-		if cursym.CFunc() {
-			p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
-		}
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_SP
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = tmp1
+		p.To.Reg = tmp
 
 		p = ctxt.StartUnsafePoint(p, newprog) // see the comment above
 
 		p = obj.Appendp(p, newprog)
-		p.As = cmp
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = tmp1
-		p.To.Type = obj.TYPE_CONST
-		p.To.Offset = objabi.StackPreempt
-		if ctxt.Arch.Family == sys.I386 {
-			p.To.Offset = int64(uint32(objabi.StackPreempt & (1<<32 - 1)))
-		}
+		p.As = sub
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(framesize) - objabi.StackSmall
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = tmp
 
 		p = obj.Appendp(p, newprog)
-		p.As = AJEQ
+		p.As = AJCS
 		p.To.Type = obj.TYPE_BRANCH
 		q1 = p
 
 		p = obj.Appendp(p, newprog)
-		p.As = lea
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = REG_SP
-		p.From.Offset = int64(objabi.StackGuard)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = tmp2
-
-		p = obj.Appendp(p, newprog)
-		p.As = sub
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = tmp1
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = tmp2
-
-		p = obj.Appendp(p, newprog)
 		p.As = cmp
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = tmp2
-		p.To.Type = obj.TYPE_CONST
-		p.To.Offset = int64(framesize) + (int64(objabi.StackGuard) - objabi.StackSmall)
+		p.From.Reg = tmp
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = rg
+		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
+		if cursym.CFunc() {
+			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
+		}
 	}
 
 	// common

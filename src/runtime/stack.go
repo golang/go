@@ -92,6 +92,10 @@ const (
 
 	// The stack guard is a pointer this many bytes above the
 	// bottom of the stack.
+	//
+	// The guard leaves enough room for one _StackSmall frame plus
+	// a _StackLimit chain of NOSPLIT calls plus _StackSystem
+	// bytes for the OS.
 	_StackGuard = 928*sys.StackGuardMultiplier + _StackSystem
 
 	// After a stack split check the SP is allowed to be this
@@ -123,15 +127,16 @@ const (
 const (
 	uintptrMask = 1<<(8*sys.PtrSize) - 1
 
+	// The values below can be stored to g.stackguard0 to force
+	// the next stack check to fail.
+	// These are all larger than any real SP.
+
 	// Goroutine preemption request.
-	// Stored into g->stackguard0 to cause split stack check failure.
-	// Must be greater than any real sp.
 	// 0xfffffade in hex.
 	stackPreempt = uintptrMask & -1314
 
-	// Thread is forking.
-	// Stored into g->stackguard0 to cause split stack check failure.
-	// Must be greater than any real sp.
+	// Thread is forking. Causes a split stack check failure.
+	// 0xfffffb2e in hex.
 	stackFork = uintptrMask & -1234
 
 	// Force a stack movement. Used for debugging.
