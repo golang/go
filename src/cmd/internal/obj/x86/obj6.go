@@ -1046,7 +1046,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		tmp := int16(REG_AX) // use AX for 32-bit
 		if ctxt.Arch.Family == sys.AMD64 {
 			// for 64-bit, stay away from register ABI parameter registers, even w/o GOEXPERIMENT=regabi
-			tmp = int16(REG_R13)
+			tmp = int16(REGENTRYTMP0)
 		}
 		// large stack: SP-framesize <= stackguard-StackSmall
 		//	LEAQ -xxx(SP), tmp
@@ -1076,8 +1076,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		tmp1 := int16(REG_SI)
 		tmp2 := int16(REG_AX)
 		if ctxt.Arch.Family == sys.AMD64 {
-			tmp1 = int16(REG_R13) // register ABI uses REG_SI and REG_AX for parameters.
-			tmp2 = int16(REG_R12)
+			tmp1 = int16(REGENTRYTMP0) // register ABI uses REG_SI and REG_AX for parameters.
+			tmp2 = int16(REGENTRYTMP1)
 		}
 		// Such a large stack we need to protect against wraparound.
 		// If SP is close to zero:
