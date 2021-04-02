@@ -568,7 +568,7 @@ func transformMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
 	// Compute the method set for t.
 	var ms *types.Fields
 	if t.IsInterface() {
-		ms = t.Fields()
+		ms = t.AllMethods()
 	} else {
 		mt := types.ReceiverBaseType(t)
 		typecheck.CalcMethods(mt)

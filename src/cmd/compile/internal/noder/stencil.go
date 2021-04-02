@@ -625,9 +625,9 @@ func (subst *subster) tinter(t *types.Type) *types.Type {
 	for i, f := range t.Methods().Slice() {
 		t2 := subst.typ(f.Type)
 		if (t2 != f.Type || f.Nname != nil) && newfields == nil {
-			newfields = make([]*types.Field, t.NumFields())
+			newfields = make([]*types.Field, t.Methods().Len())
 			for j := 0; j < i; j++ {
-				newfields[j] = t.Methods().Slice()[j]
+				newfields[j] = t.Methods().Index(j)
 			}
 		}
 		if newfields != nil {

@@ -259,7 +259,7 @@ func dot(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node, selection *types.Fi
 // TODO(mdempsky): Move to package types.
 func method(typ *types.Type, index int) *types.Field {
 	if typ.IsInterface() {
-		return typ.Field(index)
+		return typ.AllMethods().Index(index)
 	}
 	return types.ReceiverBaseType(typ).Methods().Index(index)
 }

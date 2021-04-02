@@ -1103,7 +1103,7 @@ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
 	// Compute the method set for t.
 	var ms *types.Fields
 	if t.IsInterface() {
-		ms = t.Fields()
+		ms = t.AllMethods()
 	} else {
 		mt := types.ReceiverBaseType(t)
 		if mt == nil {
@@ -1170,8 +1170,10 @@ func Lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 
 	types.CalcSize(t)
 	var f1 *types.Field
-	if t.IsStruct() || t.IsInterface() {
+	if t.IsStruct() {
 		f1 = Lookdot1(n, s, t, t.Fields(), dostrcmp)
+	} else if t.IsInterface() {
+		f1 = Lookdot1(n, s, t, t.AllMethods(), dostrcmp)
 	}
 
 	var f2 *types.Field

@@ -119,7 +119,7 @@ func expandiface(t *Type) {
 		// Embedded interface: duplicate all methods
 		// (including broken ones, if any) and add to t's
 		// method set.
-		for _, t1 := range m.Type.Fields().Slice() {
+		for _, t1 := range m.Type.AllMethods().Slice() {
 			// Use m.Pos rather than t1.Pos to preserve embedding position.
 			f := NewField(m.Pos, t1.Sym, t1.Type)
 			addMethod(f, false)
@@ -135,9 +135,7 @@ func expandiface(t *Type) {
 		m.Offset = int64(i) * int64(PtrSize)
 	}
 
-	// Access fields directly to avoid recursively calling CalcSize
-	// within Type.Fields().
-	t.Extra.(*Interface).Fields.Set(methods)
+	t.SetAllMethods(methods)
 }
 
 func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
