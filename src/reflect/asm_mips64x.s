@@ -29,7 +29,7 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$40
 // See the comment on the declaration of methodValueCall in makefunc.go
 // for more details.
 // No arg size here; runtime pulls arg map out of the func value.
-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
+TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$40
 	NO_LOCAL_POINTERS
 	MOVV	REGCTXT, 8(R29)
 	MOVV	$argframe+0(FP), R1
