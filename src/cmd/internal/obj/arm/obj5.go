@@ -680,57 +680,37 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.From.Reg = REG_R1
 		p.Reg = REG_R2
 	} else {
-		// Such a large stack we need to protect against wraparound
-		// if SP is close to zero.
-		//	SP-stackguard+StackGuard < framesize + (StackGuard-StackSmall)
-		// The +StackGuard on both sides is required to keep the left side positive:
-		// SP is allowed to be slightly below stackguard. See stack.h.
-		//	CMP     $StackPreempt, R1
-		//	MOVW.NE $StackGuard(SP), R2
-		//	SUB.NE  R1, R2
-		//	MOVW.NE $(framesize+(StackGuard-StackSmall)), R3
-		//	CMP.NE  R3, R2
-		p = obj.Appendp(p, c.newprog)
-
-		p.As = ACMP
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(uint32(objabi.StackPreempt & (1<<32 - 1)))
-		p.Reg = REG_R1
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = AMOVW
-		p.From.Type = obj.TYPE_ADDR
-		p.From.Reg = REGSP
-		p.From.Offset = int64(objabi.StackGuard)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R2
-		p.Scond = C_SCOND_NE
+		// Such a large stack we need to protect against underflow.
+		// The runtime guarantees SP > objabi.StackBig, but
+		// framesize is large enough that SP-framesize may
+		// underflow, causing a direct comparison with the
+		// stack guard to incorrectly succeed. We explicitly
+		// guard against underflow.
+		//
+		//	// Try subtracting from SP and check for underflow.
+		//	// If this underflows, it sets C to 0.
+		//	SUB.S $(framesize-StackSmall), SP, R2
+		//	// If C is 1 (unsigned >=), compare with guard.
+		//	CMP.HS stackguard, R2
 
 		p = obj.Appendp(p, c.newprog)
 		p.As = ASUB
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R1
+		p.Scond = C_SBIT
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(framesize) - objabi.StackSmall
+		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
-		p.Scond = C_SCOND_NE
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = AMOVW
-		p.From.Type = obj.TYPE_ADDR
-		p.From.Offset = int64(framesize) + (int64(objabi.StackGuard) - objabi.StackSmall)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R3
-		p.Scond = C_SCOND_NE
 
 		p = obj.Appendp(p, c.newprog)
 		p.As = ACMP
+		p.Scond = C_SCOND_HS
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R3
+		p.From.Reg = REG_R1
 		p.Reg = REG_R2
-		p.Scond = C_SCOND_NE
 	}
 
-	// BLS call-to-morestack
+	// BLS call-to-morestack (C is 0 or Z is 1)
 	bls := obj.Appendp(p, c.newprog)
 	bls.As = ABLS
 	bls.To.Type = obj.TYPE_BRANCH
