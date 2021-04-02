@@ -287,10 +287,11 @@ func NeedFuncSym(fn *ir.Func) {
 		return
 	}
 	s := fn.Nname.Sym()
-	if base.Flag.CompilingRuntime && (s.Name == "getg" || s.Name == "getclosureptr" || s.Name == "getcallerpc" || s.Name == "getcallersp") {
-		// runtime.getg(), getclosureptr(), getcallerpc(), and
-		// getcallersp() are not real functions and so do not
-		// get funcsyms.
+	if base.Flag.CompilingRuntime && (s.Name == "getg" || s.Name == "getclosureptr" || s.Name == "getcallerpc" || s.Name == "getcallersp") ||
+		(base.Ctxt.Pkgpath == "internal/abi" && (s.Name == "FuncPCABI0" || s.Name == "FuncPCABIInternal")) {
+		// runtime.getg(), getclosureptr(), getcallerpc(), getcallersp(),
+		// and internal/abi.FuncPCABIxxx() are not real functions and so
+		// do not get funcsyms.
 		return
 	}
 	funcsyms = append(funcsyms, fn.Nname)

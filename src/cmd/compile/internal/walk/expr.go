@@ -497,6 +497,43 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		directClosureCall(n)
 	}
 
+	if isFuncPCIntrinsic(n) {
+		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function, rewrite
+		// it to the address of the function of the ABI fn is defined.
+		name := n.X.(*ir.Name).Sym().Name
+		arg := n.Args[0]
+		var wantABI obj.ABI
+		switch name {
+		case "FuncPCABI0":
+			wantABI = obj.ABI0
+		case "FuncPCABIInternal":
+			wantABI = obj.ABIInternal
+		}
+		if isIfaceOfFunc(arg) {
+			fn := arg.(*ir.ConvExpr).X.(*ir.Name)
+			abi := fn.Func.ABI
+			if abi != wantABI {
+				base.ErrorfAt(n.Pos(), "internal/abi.%s expects an %v function, %s is defined as %v", name, wantABI, fn.Sym().Name, abi)
+			}
+			var e ir.Node = ir.NewLinksymExpr(n.Pos(), fn.Sym().LinksymABI(abi), types.Types[types.TUINTPTR])
+			e = ir.NewAddrExpr(n.Pos(), e)
+			e.SetType(types.Types[types.TUINTPTR].PtrTo())
+			e = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, n.Type(), e)
+			return e
+		}
+		// fn is not a defined function. It must be ABIInternal.
+		// Read the address from func value, i.e. *(*uintptr)(idata(fn)).
+		if wantABI != obj.ABIInternal {
+			base.ErrorfAt(n.Pos(), "internal/abi.%s does not accept func expression, which is ABIInternal", name)
+		}
+		arg = walkExpr(arg, init)
+		var e ir.Node = ir.NewUnaryExpr(n.Pos(), ir.OIDATA, arg)
+		e.SetType(n.Type().PtrTo())
+		e = ir.NewStarExpr(n.Pos(), e)
+		e.SetType(n.Type())
+		return e
+	}
+
 	walkCall1(n, init)
 	return n
 }
