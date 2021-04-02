@@ -16,15 +16,61 @@ exec ./fuzz.test$GOEXE -test.timeout=10ms -test.fuzz=FuzzFast -test.fuzztime=5s 
 # Timeout should not cause inputs to be written as crashers.
 ! exists testdata/corpus
 
+# When we use fuzztime with an "x" suffix, it runs a specific number of times.
+# This fuzz function creates a file with a unique name ($pid.$count) on each run.
+# We count the files to find the number of runs.
+mkdir count
+go test -fuzz=FuzzCount -fuzztime=1000x
+go run count_files.go
+stdout '^1000$'
+
 -- go.mod --
 module fuzz
 
 go 1.16
--- fuzz_test.go --
+-- fuzz_fast_test.go --
 package fuzz_test
 
 import "testing"
 
 func FuzzFast(f *testing.F) {
 	f.Fuzz(func (*testing.T, []byte) {})
+}
+-- fuzz_count_test.go --
+package fuzz
+
+import (
+	"fmt"
+	"os"
+	"testing"
+)
+
+func FuzzCount(f *testing.F) {
+	pid := os.Getpid()
+	n := 0
+	f.Fuzz(func(t *testing.T, _ []byte) {
+		name := fmt.Sprintf("count/%v.%d", pid, n)
+		if err := os.WriteFile(name, nil, 0666); err != nil {
+			t.Fatal(err)
+		}
+		n++
+	})
+}
+-- count_files.go --
+// +build ignore
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func main() {
+	dir, err := os.ReadDir("count")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	fmt.Println(len(dir))
 }

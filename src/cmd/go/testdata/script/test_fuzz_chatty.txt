@@ -35,7 +35,7 @@ stdout 'all good here'
 ! stdout FAIL
 
 # Fuzz successful chatty fuzz target that includes a separate unit test.
-go test -v chatty_with_test_fuzz_test.go -fuzz=Fuzz -fuzztime=1s
+go test -v chatty_with_test_fuzz_test.go -fuzz=Fuzz -fuzztime=1x
 stdout ok
 stdout PASS
 ! stdout FAIL

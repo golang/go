@@ -10,7 +10,7 @@ exists $GOCACHE
 ! exists $GOCACHE/fuzz
 
 # Fuzzing should write interesting values to the cache.
-go test -fuzz=FuzzY -fuzztime=5s .
+go test -fuzz=FuzzY -fuzztime=100x .
 go run ./contains_files $GOCACHE/fuzz/example.com/y/FuzzY
 
 # 'go clean -cache' should not delete the fuzz cache.

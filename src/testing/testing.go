@@ -1326,7 +1326,7 @@ func (f matchStringOnly) ImportPath() string                          { return "
 func (f matchStringOnly) StartTestLog(io.Writer)                      {}
 func (f matchStringOnly) StopTestLog() error                          { return errMain }
 func (f matchStringOnly) SetPanicOnExit0(bool)                        {}
-func (f matchStringOnly) CoordinateFuzzing(time.Duration, int, []corpusEntry, []reflect.Type, string, string) error {
+func (f matchStringOnly) CoordinateFuzzing(time.Duration, int64, int, []corpusEntry, []reflect.Type, string, string) error {
 	return errMain
 }
 func (f matchStringOnly) RunFuzzWorker(func(corpusEntry) error) error { return errMain }
@@ -1375,7 +1375,7 @@ type testDeps interface {
 	StartTestLog(io.Writer)
 	StopTestLog() error
 	WriteProfileTo(string, io.Writer, int) error
-	CoordinateFuzzing(time.Duration, int, []corpusEntry, []reflect.Type, string, string) error
+	CoordinateFuzzing(time.Duration, int64, int, []corpusEntry, []reflect.Type, string, string) error
 	RunFuzzWorker(func(corpusEntry) error) error
 	ReadCorpus(string, []reflect.Type) ([]corpusEntry, error)
 }
@@ -1413,12 +1413,6 @@ func (m *M) Run() (code int) {
 
 	if *parallel < 1 {
 		fmt.Fprintln(os.Stderr, "testing: -parallel can only be given a positive integer")
-		flag.Usage()
-		m.exitCode = 2
-		return
-	}
-	if *fuzzDuration < 0 {
-		fmt.Fprintln(os.Stderr, "testing: -fuzztime can only be given a positive duration, or zero to run indefinitely")
 		flag.Usage()
 		m.exitCode = 2
 		return

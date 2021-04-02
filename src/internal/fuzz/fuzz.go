@@ -12,6 +12,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -28,8 +29,13 @@ import (
 // with the same arguments as the coordinator, except with the -test.fuzzworker
 // flag prepended to the argument list.
 //
+// log is a writer for logging progress messages and warnings.
+//
 // timeout is the amount of wall clock time to spend fuzzing after the corpus
 // has loaded.
+//
+// count is the number of random values to generate and test. If 0,
+// CoordinateFuzzing will run until ctx is canceled.
 //
 // parallel is the number of worker processes to run in parallel. If parallel
 // is 0, CoordinateFuzzing will run GOMAXPROCS workers.
@@ -47,30 +53,21 @@ import (
 //
 // If a crash occurs, the function will return an error containing information
 // about the crash, which can be reported to the user.
-func CoordinateFuzzing(ctx context.Context, timeout time.Duration, parallel int, seed []CorpusEntry, types []reflect.Type, corpusDir, cacheDir string) (err error) {
+func CoordinateFuzzing(ctx context.Context, log io.Writer, timeout time.Duration, count int64, parallel int, seed []CorpusEntry, types []reflect.Type, corpusDir, cacheDir string) (err error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	if parallel == 0 {
 		parallel = runtime.GOMAXPROCS(0)
 	}
-
-	// Make sure all of the seed corpus has marshalled data.
-	for i := range seed {
-		if seed[i].Data == nil {
-			seed[i].Data = marshalCorpusFile(seed[i].Values...)
-		}
+	if count > 0 && int64(parallel) > count {
+		// Don't start more workers than we need.
+		parallel = int(count)
 	}
-	corpus, err := readCache(seed, types, cacheDir)
+
+	c, err := newCoordinator(log, count, parallel, seed, types, cacheDir)
 	if err != nil {
 		return err
-	}
-	if len(corpus.entries) == 0 {
-		var vals []interface{}
-		for _, t := range types {
-			vals = append(vals, zeroValue(t))
-		}
-		corpus.entries = append(corpus.entries, CorpusEntry{Data: marshalCorpusFile(vals...), Values: vals})
 	}
 
 	if timeout > 0 {
@@ -84,13 +81,6 @@ func CoordinateFuzzing(ctx context.Context, timeout time.Duration, parallel int,
 	binPath := os.Args[0]
 	args := append([]string{"-test.fuzzworker"}, os.Args[1:]...)
 	env := os.Environ() // same as self
-
-	c := &coordinator{
-		inputC:       make(chan CorpusEntry),
-		interestingC: make(chan CorpusEntry),
-		crasherC:     make(chan crasherEntry),
-	}
-	errC := make(chan error)
 
 	// newWorker creates a worker but doesn't start it yet.
 	newWorker := func() (*worker, error) {
@@ -114,6 +104,7 @@ func CoordinateFuzzing(ctx context.Context, timeout time.Duration, parallel int,
 	fuzzCtx, cancelWorkers := context.WithCancel(ctx)
 	defer cancelWorkers()
 	doneC := ctx.Done()
+	inputC := c.inputC
 
 	// stop is called when a worker encounters a fatal error.
 	var fuzzErr error
@@ -134,9 +125,11 @@ func CoordinateFuzzing(ctx context.Context, timeout time.Duration, parallel int,
 		stopping = true
 		cancelWorkers()
 		doneC = nil
+		inputC = nil
 	}
 
 	// Start workers.
+	errC := make(chan error)
 	workers := make([]*worker, parallel)
 	for i := range workers {
 		var err error
@@ -161,7 +154,14 @@ func CoordinateFuzzing(ctx context.Context, timeout time.Duration, parallel int,
 	// Do not return until all workers have terminated. We avoid a deadlock by
 	// receiving messages from workers even after ctx is cancelled.
 	activeWorkers := len(workers)
-	i := 0
+	input, ok := c.nextInput()
+	if !ok {
+		panic("no input")
+	}
+	statTicker := time.NewTicker(3 * time.Second)
+	defer statTicker.Stop()
+	defer c.logStats()
+
 	for {
 		select {
 		case <-doneC:
@@ -169,32 +169,48 @@ func CoordinateFuzzing(ctx context.Context, timeout time.Duration, parallel int,
 			// stop sets doneC to nil so we don't busy wait here.
 			stop(ctx.Err())
 
-		case crasher := <-c.crasherC:
-			// A worker found a crasher. Write it to testdata and return it.
-			fileName, err := writeToCorpus(crasher.Data, corpusDir)
-			if err == nil {
-				err = &crashError{
-					name: filepath.Base(fileName),
-					err:  errors.New(crasher.errMsg),
+		case result := <-c.resultC:
+			// Received response from worker.
+			c.updateStats(result)
+			if c.countRequested > 0 && c.count >= c.countRequested {
+				stop(nil)
+			}
+
+			if result.crasherMsg != "" {
+				// Found a crasher. Write it to testdata and return it.
+				fileName, err := writeToCorpus(result.entry.Data, corpusDir)
+				if err == nil {
+					err = &crashError{
+						name: filepath.Base(fileName),
+						err:  errors.New(result.crasherMsg),
+					}
+				}
+				// TODO(jayconrod,katiehockman): if -keepfuzzing, report the error to
+				// the user and restart the crashed worker.
+				stop(err)
+			} else if result.isInteresting {
+				// Found an interesting value that expanded coverage.
+				// This is not a crasher, but we should minimize it, add it to the
+				// on-disk corpus, and prioritize it for future fuzzing.
+				// TODO(jayconrod, katiehockman): Prioritize fuzzing these values which
+				// expanded coverage.
+				// TODO(jayconrod, katiehockman): Don't write a value that's already
+				// in the corpus.
+				c.corpus.entries = append(c.corpus.entries, result.entry)
+				if cacheDir != "" {
+					if _, err := writeToCorpus(result.entry.Data, cacheDir); err != nil {
+						stop(err)
+					}
 				}
 			}
-			// TODO(jayconrod,katiehockman): if -keepfuzzing, report the error to
-			// the user and restart the crashed worker.
-			stop(err)
 
-		case entry := <-c.interestingC:
-			// Some interesting input arrived from a worker.
-			// This is not a crasher, but something interesting that should
-			// be added to the on disk corpus and prioritized for future
-			// workers to fuzz.
-			// TODO(jayconrod, katiehockman): Prioritize fuzzing these values which
-			// expanded coverage.
-			// TODO(jayconrod, katiehockman): Don't write a value that's already
-			// in the corpus.
-			corpus.entries = append(corpus.entries, entry)
-			if cacheDir != "" {
-				if _, err := writeToCorpus(entry.Data, cacheDir); err != nil {
-					stop(err)
+			if inputC == nil && !stopping {
+				// inputC was disabled earlier because we hit the limit on the number
+				// of inputs to fuzz (nextInput returned false).
+				// Workers can do less work than requested though, so we might be
+				// below the limit now. Call nextInput again and re-enable inputC if so.
+				if input, ok = c.nextInput(); ok {
+					inputC = c.inputC
 				}
 			}
 
@@ -206,11 +222,14 @@ func CoordinateFuzzing(ctx context.Context, timeout time.Duration, parallel int,
 				return fuzzErr
 			}
 
-		case c.inputC <- corpus.entries[i]:
+		case inputC <- input:
 			// Send the next input to any worker.
-			// TODO(jayconrod,katiehockman): need a scheduling algorithm that chooses
-			// which corpus value to send next (or generates something new).
-			i = (i + 1) % len(corpus.entries)
+			if input, ok = c.nextInput(); !ok {
+				inputC = nil
+			}
+
+		case <-statTicker.C:
+			c.logStats()
 		}
 	}
 
@@ -261,27 +280,153 @@ type CorpusEntry = struct {
 	Values []interface{}
 }
 
-type crasherEntry struct {
-	CorpusEntry
-	errMsg string
+type fuzzInput struct {
+	// entry is the value to test initially. The worker will randomly mutate
+	// values from this starting point.
+	entry CorpusEntry
+
+	// countRequested is the number of values to test. If non-zero, the worker
+	// will stop after testing this many values, if it hasn't already stopped.
+	countRequested int64
+}
+
+type fuzzResult struct {
+	// entry is an interesting value or a crasher.
+	entry CorpusEntry
+
+	// crasherMsg is an error message from a crash. It's "" if no crash was found.
+	crasherMsg string
+
+	// isInteresting is true if the worker found new coverage. We should minimize
+	// the value, cache it, and prioritize it for further fuzzing.
+	isInteresting bool
+
+	// countRequested is the number of values the coordinator asked the worker
+	// to test. 0 if there was no limit.
+	countRequested int64
+
+	// count is the number of values the worker actually tested.
+	count int64
+
+	// duration is the time the worker spent testing inputs.
+	duration time.Duration
 }
 
 // coordinator holds channels that workers can use to communicate with
 // the coordinator.
 type coordinator struct {
+	// log is a writer for logging progress messages and warnings.
+	log io.Writer
+
+	// startTime is the time we started the workers after loading the corpus.
+	// Used for logging.
+	startTime time.Time
+
 	// inputC is sent values to fuzz by the coordinator. Any worker may receive
 	// values from this channel.
-	inputC chan CorpusEntry
+	inputC chan fuzzInput
 
-	// interestingC is sent interesting values by the worker, which is received
-	// by the coordinator. Values are usually interesting because they
-	// increase coverage.
-	interestingC chan CorpusEntry
+	// resultC is sent results of fuzzing by workers. The coordinator
+	// receives these. Multiple types of messages are allowed.
+	resultC chan fuzzResult
 
-	// crasherC is sent values that crashed the code being fuzzed. These values
-	// should be saved in the corpus, and we may want to stop fuzzing after
-	// receiving one.
-	crasherC chan crasherEntry
+	// parallel is the number of worker processes.
+	parallel int64
+
+	// countRequested is the number of values the client asked to be tested.
+	// If countRequested is 0, there is no limit.
+	countRequested int64
+
+	// count is the number of values fuzzed so far.
+	count int64
+
+	// duration is the time spent fuzzing inside workers, not counting time
+	// starting up or tearing down.
+	duration time.Duration
+
+	// countWaiting is the number of values the coordinator is currently waiting
+	// for workers to fuzz.
+	countWaiting int64
+
+	// corpus is a set of interesting values, including the seed corpus and
+	// generated values that workers reported as interesting.
+	corpus corpus
+
+	// corpusIndex is the next value to send to workers.
+	// TODO(jayconrod,katiehockman): need a scheduling algorithm that chooses
+	// which corpus value to send next (or generates something new).
+	corpusIndex int
+}
+
+func newCoordinator(w io.Writer, countRequested int64, parallel int, seed []CorpusEntry, types []reflect.Type, cacheDir string) (*coordinator, error) {
+	// Make sure all of the seed corpus has marshalled data.
+	for i := range seed {
+		if seed[i].Data == nil {
+			seed[i].Data = marshalCorpusFile(seed[i].Values...)
+		}
+	}
+	corpus, err := readCache(seed, types, cacheDir)
+	if err != nil {
+		return nil, err
+	}
+	if len(corpus.entries) == 0 {
+		var vals []interface{}
+		for _, t := range types {
+			vals = append(vals, zeroValue(t))
+		}
+		corpus.entries = append(corpus.entries, CorpusEntry{Data: marshalCorpusFile(vals...), Values: vals})
+	}
+	c := &coordinator{
+		log:            w,
+		startTime:      time.Now(),
+		inputC:         make(chan fuzzInput),
+		resultC:        make(chan fuzzResult),
+		countRequested: countRequested,
+		parallel:       int64(parallel),
+		corpus:         corpus,
+	}
+
+	return c, nil
+}
+
+func (c *coordinator) updateStats(result fuzzResult) {
+	// Adjust total stats.
+	c.count += result.count
+	c.countWaiting -= result.countRequested
+	c.duration += result.duration
+}
+
+func (c *coordinator) logStats() {
+	elapsed := time.Since(c.startTime)
+	rate := float64(c.count) / elapsed.Seconds()
+	fmt.Fprintf(c.log, "elapsed: %.1fs, execs: %d (%.0f/sec), workers: %d\n", elapsed.Seconds(), c.count, rate, c.parallel)
+}
+
+// nextInput returns the next value that should be sent to workers.
+// If the number of executions is limited, the returned value includes
+// a limit for one worker. If there are no executions left, nextInput returns
+// a zero value and false.
+func (c *coordinator) nextInput() (fuzzInput, bool) {
+	if c.countRequested > 0 && c.count+c.countWaiting >= c.countRequested {
+		// Workers already testing all requested inputs.
+		return fuzzInput{}, false
+	}
+
+	e := c.corpus.entries[c.corpusIndex]
+	c.corpusIndex = (c.corpusIndex + 1) % (len(c.corpus.entries))
+	var n int64
+	if c.countRequested > 0 {
+		n = c.countRequested / int64(c.parallel)
+		if c.countRequested%int64(c.parallel) > 0 {
+			n++
+		}
+		remaining := c.countRequested - c.count - c.countWaiting
+		if n > remaining {
+			n = remaining
+		}
+		c.countWaiting += n
+	}
+	return fuzzInput{entry: e, countRequested: n}, true
 }
 
 // readCache creates a combined corpus from seed values and values in the cache
