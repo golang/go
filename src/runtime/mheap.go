@@ -817,7 +817,7 @@ func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
 
 	n0 := n
 	var nFreed uintptr
-	sg := h.sweepgen
+	sl := newSweepLocker()
 	for n > 0 {
 		ai := arenas[pageIdx/pagesPerArena]
 		ha := h.arenas[ai.l1()][ai.l2()]
@@ -842,7 +842,7 @@ func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
 			for j := uint(0); j < 8; j++ {
 				if inUseUnmarked&(1<<j) != 0 {
 					s := ha.spans[arenaPage+uint(i)*8+j]
-					if atomic.Load(&s.sweepgen) == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
+					if s, ok := sl.tryAcquire(s); ok {
 						npages := s.npages
 						unlock(&h.lock)
 						if s.sweep(false) {
@@ -863,6 +863,7 @@ func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
 		pageIdx += uintptr(len(inUse) * 8)
 		n -= uintptr(len(inUse) * 8)
 	}
+	sl.dispose()
 	if trace.enabled {
 		unlock(&h.lock)
 		// Account for pages scanned but not reclaimed.
