@@ -233,19 +233,9 @@ func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
 			return false
 		}
 	case Struct:
-		if t.size == 0 {
-			// There's nothing to assign, so don't modify
-			// a.steps but succeed so the caller doesn't
-			// try to stack-assign this value.
-			return true
-		}
 		st := (*structType)(unsafe.Pointer(t))
 		for i := range st.fields {
 			f := &st.fields[i]
-			if f.typ.Size() == 0 {
-				// Ignore zero-sized fields.
-				continue
-			}
 			if !a.regAssign(f.typ, offset+f.offset()) {
 				return false
 			}

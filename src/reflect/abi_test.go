@@ -300,6 +300,8 @@ var abiCallTestCases = []interface{}{
 	passStruct11,
 	passStruct12,
 	passStruct13,
+	passStruct14,
+	passStruct15,
 	pass2Struct1,
 	passEmptyStruct,
 	passStruct10AndSmall,
@@ -523,6 +525,18 @@ func passStruct13(a Struct13) Struct13 {
 
 //go:registerparams
 //go:noinline
+func passStruct14(a Struct14) Struct14 {
+	return a
+}
+
+//go:registerparams
+//go:noinline
+func passStruct15(a Struct15) Struct15 {
+	return a
+}
+
+//go:registerparams
+//go:noinline
 func pass2Struct1(a, b Struct1) (x, y Struct1) {
 	return a, b
 }
@@ -581,6 +595,8 @@ var abiMakeFuncTestCases = []interface{}{
 	callArgsStruct11,
 	callArgsStruct12,
 	callArgsStruct13,
+	callArgsStruct14,
+	callArgsStruct15,
 	callArgs2Struct1,
 	callArgsEmptyStruct,
 }
@@ -803,6 +819,18 @@ func callArgsStruct13(f func(Struct13, MagicLastTypeNameForTestingRegisterABI) S
 
 //go:registerparams
 //go:noinline
+func callArgsStruct14(f func(Struct14, MagicLastTypeNameForTestingRegisterABI) Struct14, a0 Struct14) Struct14 {
+	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
+}
+
+//go:registerparams
+//go:noinline
+func callArgsStruct15(f func(Struct15, MagicLastTypeNameForTestingRegisterABI) Struct15, a0 Struct15) Struct15 {
+	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
+}
+
+//go:registerparams
+//go:noinline
 func callArgs2Struct1(f func(Struct1, Struct1, MagicLastTypeNameForTestingRegisterABI) (Struct1, Struct1), a0, a1 Struct1) (r0, r1 Struct1) {
 	return f(a0, a1, MagicLastTypeNameForTestingRegisterABI{})
 }
@@ -902,6 +930,25 @@ type Struct13 struct {
 	A int
 	X struct{}
 	B int
+}
+
+// Struct14 tests a non-zero-sized (and otherwise register-assignable)
+// struct with a field that is a non-zero length array with zero-sized members.
+type Struct14 struct {
+	A uintptr
+	X [3]struct{}
+	B float64
+}
+
+// Struct15 tests a non-zero-sized (and otherwise register-assignable)
+// struct with a struct field that is zero-sized but contains a
+// non-zero length array with zero-sized members.
+type Struct15 struct {
+	A uintptr
+	X struct {
+		Y [3]struct{}
+	}
+	B float64
 }
 
 const genValueRandSeed = 0
