@@ -470,6 +470,8 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 
 	s.hasOpenDefers = base.Flag.N == 0 && s.hasdefer && !s.curfn.OpenCodedDeferDisallowed()
 	switch {
+	case base.Debug.NoOpenDefer != 0:
+		s.hasOpenDefers = false
 	case s.hasOpenDefers && (base.Ctxt.Flag_shared || base.Ctxt.Flag_dynlink) && base.Ctxt.Arch.Name == "386":
 		// Don't support open-coded defers for 386 ONLY when using shared
 		// libraries, because there is extra code (added by rewriteToUseGot())
