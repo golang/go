@@ -12,12 +12,13 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 )
 
 func main() {
-	f, err := os.CreateTemp("", "sinit-*.o")
+	f, err := ioutil.TempFile("", "sinit-*.o")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

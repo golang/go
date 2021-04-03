@@ -9,6 +9,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,7 +20,7 @@ func main() {
 	err := os.Chdir(filepath.Join("fixedbugs", "issue9355.dir"))
 	check(err)
 
-	f, err := os.CreateTemp("", "issue9355-*.o")
+	f, err := ioutil.TempFile("", "issue9355-*.o")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

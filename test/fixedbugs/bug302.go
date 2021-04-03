@@ -9,6 +9,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,7 +20,7 @@ var tmpDir string
 func main() {
 	fb, err := filepath.Abs("fixedbugs")
 	if err == nil {
-		tmpDir, err = os.MkdirTemp("", "bug302")
+		tmpDir, err = ioutil.TempDir("", "bug302")
 	}
 	if err != nil {
 		fmt.Println(err)

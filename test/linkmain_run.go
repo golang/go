@@ -11,6 +11,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -51,7 +52,7 @@ func runFail(cmdline ...string) {
 
 func main() {
 	var err error
-	tmpDir, err = os.MkdirTemp("", "")
+	tmpDir, err = ioutil.TempDir("", "")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

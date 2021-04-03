@@ -14,6 +14,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -22,7 +23,7 @@ import (
 )
 
 func main() {
-	tmpdir, err := os.MkdirTemp("", "issue26411")
+	tmpdir, err := ioutil.TempDir("", "issue26411")
 	if err != nil {
 		log.Fatalf("Failed to create temporary directory: %v", err)
 	}
@@ -70,7 +71,7 @@ bar            :
 
 	for i, test := range tests {
 		filename := filepath.Join(tmpdir, fmt.Sprintf("%d.go", i))
-		if err := os.WriteFile(filename, []byte(test.code), 0644); err != nil {
+		if err := ioutil.WriteFile(filename, []byte(test.code), 0644); err != nil {
 			log.Printf("#%d: failed to create file %s", i, filename)
 			continue
 		}

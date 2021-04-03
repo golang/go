@@ -10,6 +10,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -200,7 +201,7 @@ func main() {
 		goarch = runtime.GOARCH
 	}
 
-	dir, err := os.MkdirTemp("", "go-test-nosplit")
+	dir, err := ioutil.TempDir("", "go-test-nosplit")
 	if err != nil {
 		bug()
 		fmt.Printf("creating temp dir: %v\n", err)
@@ -209,7 +210,7 @@ func main() {
 	defer os.RemoveAll(dir)
 	os.Setenv("GOPATH", filepath.Join(dir, "_gopath"))
 
-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module go-test-nosplit\n"), 0666); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module go-test-nosplit\n"), 0666); err != nil {
 		log.Panic(err)
 	}
 
@@ -350,10 +351,10 @@ TestCases:
 			fmt.Printf("-- asm.s --\n%s", buf.String())
 		}
 
-		if err := os.WriteFile(filepath.Join(dir, "asm.s"), buf.Bytes(), 0666); err != nil {
+		if err := ioutil.WriteFile(filepath.Join(dir, "asm.s"), buf.Bytes(), 0666); err != nil {
 			log.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(dir, "main.go"), gobuf.Bytes(), 0666); err != nil {
+		if err := ioutil.WriteFile(filepath.Join(dir, "main.go"), gobuf.Bytes(), 0666); err != nil {
 			log.Fatal(err)
 		}
 

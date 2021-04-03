@@ -12,6 +12,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -49,7 +50,7 @@ func main() {
 }
 
 func enforceBatchStrictCRLF(path string) {
-	b, err := os.ReadFile(path)
+	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Fatalln(err)
 	}

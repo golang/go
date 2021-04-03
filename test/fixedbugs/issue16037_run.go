@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -52,13 +53,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	dir, err := os.MkdirTemp("", "issue16037-")
+	dir, err := ioutil.TempDir("", "issue16037-")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer os.RemoveAll(dir)
 	path := filepath.Join(dir, "ridiculous_number_of_fields.go")
-	if err := os.WriteFile(path, buf.Bytes(), 0664); err != nil {
+	if err := ioutil.WriteFile(path, buf.Bytes(), 0664); err != nil {
 		log.Fatal(err)
 	}
 

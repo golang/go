@@ -10,6 +10,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -35,7 +36,7 @@ var tests = []struct {
 }
 
 func main() {
-	f, err := os.CreateTemp("", "issue22662b.go")
+	f, err := ioutil.TempFile("", "issue22662b.go")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -43,7 +44,7 @@ func main() {
 	defer os.Remove(f.Name())
 
 	for _, test := range tests {
-		if err := os.WriteFile(f.Name(), []byte(test.src), 0660); err != nil {
+		if err := ioutil.WriteFile(f.Name(), []byte(test.src), 0660); err != nil {
 			log.Fatal(err)
 		}
 

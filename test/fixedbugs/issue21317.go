@@ -13,6 +13,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -20,7 +21,7 @@ import (
 )
 
 func main() {
-	f, err := os.CreateTemp("", "issue21317.go")
+	f, err := ioutil.TempFile("", "issue21317.go")
 	if err != nil {
 		log.Fatal(err)
 	}
