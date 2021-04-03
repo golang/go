@@ -13,10 +13,6 @@ const (
 	StackSmall  = 128
 )
 
-const (
-	StackPreempt = -1314 // 0xfff...fade
-)
-
 // Initialize StackGuard and StackLimit according to target system.
 var StackGuard = 928*stackGuardMultiplier() + StackSystem
 var StackLimit = StackGuard - StackSystem - StackSmall
