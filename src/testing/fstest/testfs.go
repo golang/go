@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"path"
 	"reflect"
 	"sort"
@@ -514,7 +513,7 @@ func (t *fsTester) checkFile(file string) {
 		return
 	}
 
-	data, err := ioutil.ReadAll(f)
+	data, err := io.ReadAll(f)
 	if err != nil {
 		f.Close()
 		t.errorf("%s: Open+ReadAll: %v", file, err)

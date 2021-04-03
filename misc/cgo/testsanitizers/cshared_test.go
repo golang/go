@@ -6,7 +6,7 @@ package sanitizers_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 )
@@ -64,7 +64,7 @@ func TestShared(t *testing.T) {
 			mustRun(t, config.goCmd("build", "-buildmode=c-shared", "-o", lib, srcPath(tc.src)))
 
 			cSrc := dir.Join("main.c")
-			if err := ioutil.WriteFile(cSrc, cMain, 0600); err != nil {
+			if err := os.WriteFile(cSrc, cMain, 0600); err != nil {
 				t.Fatalf("failed to write C source file: %v", err)
 			}
 

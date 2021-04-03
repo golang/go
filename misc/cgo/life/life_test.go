@@ -6,7 +6,6 @@ package life_test
 
 import (
 	"bytes"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -21,7 +20,7 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) int {
-	GOPATH, err := ioutil.TempDir("", "cgolife")
+	GOPATH, err := os.MkdirTemp("", "cgolife")
 	if err != nil {
 		log.Panic(err)
 	}
@@ -38,7 +37,7 @@ func testMain(m *testing.M) int {
 		log.Panic(err)
 	}
 	os.Setenv("PWD", modRoot)
-	if err := ioutil.WriteFile("go.mod", []byte("module cgolife\n"), 0666); err != nil {
+	if err := os.WriteFile("go.mod", []byte("module cgolife\n"), 0666); err != nil {
 		log.Panic(err)
 	}
 

@@ -6,7 +6,6 @@ package syscall_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -106,7 +105,7 @@ func TestChangingProcessParent(t *testing.T) {
 	if err != nil {
 		t.Errorf("child failed: %v: %v", err, string(childOutput))
 	}
-	childOutput, err = ioutil.ReadFile(childDumpPath)
+	childOutput, err = os.ReadFile(childDumpPath)
 	if err != nil {
 		t.Fatalf("reading child output failed: %v", err)
 	}
