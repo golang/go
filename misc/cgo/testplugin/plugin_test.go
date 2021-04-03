@@ -9,7 +9,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -35,7 +34,7 @@ func testMain(m *testing.M) int {
 	// Copy testdata into GOPATH/src/testplugin, along with a go.mod file
 	// declaring the same path.
 
-	GOPATH, err := ioutil.TempDir("", "plugin_test")
+	GOPATH, err := os.MkdirTemp("", "plugin_test")
 	if err != nil {
 		log.Panic(err)
 	}
@@ -50,7 +49,7 @@ func testMain(m *testing.M) int {
 		if err := overlayDir(dstRoot, srcRoot); err != nil {
 			log.Panic(err)
 		}
-		if err := ioutil.WriteFile(filepath.Join(dstRoot, "go.mod"), []byte("module testplugin\n"), 0666); err != nil {
+		if err := os.WriteFile(filepath.Join(dstRoot, "go.mod"), []byte("module testplugin\n"), 0666); err != nil {
 			log.Panic(err)
 		}
 	}
@@ -72,11 +71,11 @@ func testMain(m *testing.M) int {
 
 	goCmd(nil, "build", "-buildmode=plugin", "./plugin1")
 	goCmd(nil, "build", "-buildmode=plugin", "./plugin2")
-	so, err := ioutil.ReadFile("plugin2.so")
+	so, err := os.ReadFile("plugin2.so")
 	if err != nil {
 		log.Panic(err)
 	}
-	if err := ioutil.WriteFile("plugin2-dup.so", so, 0444); err != nil {
+	if err := os.WriteFile("plugin2-dup.so", so, 0444); err != nil {
 		log.Panic(err)
 	}
 
