@@ -200,14 +200,10 @@ func (s *snapshot) config(ctx context.Context, inv *gocommand.Invocation) *packa
 	verboseOutput := s.view.options.VerboseOutput
 	s.view.optionsMu.Unlock()
 
-	// Forcibly disable GOPACKAGESDRIVER. It's incompatible with the
-	// packagesinternal APIs we use, and we really only support the go command
-	// anyway.
-	env := append(append([]string{}, inv.Env...), "GOPACKAGESDRIVER=off")
 	cfg := &packages.Config{
 		Context:    ctx,
 		Dir:        inv.WorkingDir,
-		Env:        env,
+		Env:        inv.Env,
 		BuildFlags: inv.BuildFlags,
 		Mode: packages.NeedName |
 			packages.NeedFiles |
