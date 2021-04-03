@@ -1022,7 +1022,10 @@ func machosymtab(ctxt *Link) {
 		symstr.AddUint8('_')
 
 		// replace "·" as ".", because DTrace cannot handle it.
-		symstr.Addstring(strings.Replace(ldr.SymExtname(s), "·", ".", -1))
+		name := strings.Replace(ldr.SymExtname(s), "·", ".", -1)
+
+		name = mangleABIName(ldr, s, name)
+		symstr.Addstring(name)
 
 		if t := ldr.SymType(s); t == sym.SDYNIMPORT || t == sym.SHOSTOBJ || t == sym.SUNDEFEXT {
 			symtab.AddUint8(0x01)                             // type N_EXT, external symbol
