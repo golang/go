@@ -39,6 +39,7 @@ type DebugFlags struct {
 	Libfuzzer            int    `help:"enable coverage instrumentation for libfuzzer"`
 	LocationLists        int    `help:"print information about DWARF location list creation"`
 	Nil                  int    `help:"print information about nil checks"`
+	NoOpenDefer          int    `help:"disable open-coded defers"`
 	PCTab                string `help:"print named pc-value table"`
 	Panic                int    `help:"show all compiler panics"`
 	Slice                int    `help:"print information about slice compilation"`
