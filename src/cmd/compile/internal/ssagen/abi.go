@@ -289,13 +289,6 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 
 	fn.SetABIWrapper(true)
 	fn.SetDupok(true)
-	// Set this as a wrapper so it doesn't appear in tracebacks.
-	// Having both ABIWrapper and Wrapper set suppresses obj's
-	// usual panic+recover handling for wrappers; that's okay
-	// because we're never going to defer a wrapper for a function
-	// that then recovers, so that's would just be unnecessary
-	// code in the ABI wrapper.
-	fn.SetWrapper(true)
 
 	// ABI0-to-ABIInternal wrappers will be mainly loading params from
 	// stack into registers (and/or storing stack locations back to

@@ -136,7 +136,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 		ctxt.Diag("symbol %s listed multiple times", s.Name)
 	}
 	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
-	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0)
+	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
 	s.Func().FuncFlag = toFuncFlag(flag)
 	s.Set(AttrOnList, true)
 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
