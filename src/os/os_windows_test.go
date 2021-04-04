@@ -29,6 +29,25 @@ import (
 // For TestRawConnReadWrite.
 type syscallDescriptor = syscall.Handle
 
+// chdir changes the current working directory to the named directory,
+// and then restore the original working directory at the end of the test.
+func chdir(t *testing.T, dir string) {
+	olddir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir %s: %v", dir, err)
+	}
+
+	t.Cleanup(func() {
+		if err := os.Chdir(olddir); err != nil {
+			t.Errorf("chdir to original working directory %s: %v", olddir, err)
+			os.Exit(1)
+		}
+	})
+}
+
 func TestSameWindowsFile(t *testing.T) {
 	temp, err := os.MkdirTemp("", "TestSameWindowsFile")
 	if err != nil {
