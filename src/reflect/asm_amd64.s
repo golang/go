@@ -43,7 +43,7 @@ TEXT ·makeFuncStub<ABIInternal>(SB),(NOSPLIT|WRAPPER),$312
 	MOVQ	AX, 16(SP)
 	LEAQ	LOCAL_REGARGS(SP), AX
 	MOVQ	AX, 24(SP)
-	CALL	·callReflect<ABIInternal>(SB)
+	CALL	·callReflect(SB)
 	LEAQ	LOCAL_REGARGS(SP), R12
 	CALL	runtime·unspillArgs<ABIInternal>(SB)
 	RET
@@ -71,7 +71,7 @@ TEXT ·methodValueCall<ABIInternal>(SB),(NOSPLIT|WRAPPER),$312
 	MOVQ	AX, 16(SP)
 	LEAQ	LOCAL_REGARGS(SP), AX
 	MOVQ	AX, 24(SP)
-	CALL	·callMethod<ABIInternal>(SB)
+	CALL	·callMethod(SB)
 	LEAQ	LOCAL_REGARGS(SP), R12
 	CALL	runtime·unspillArgs<ABIInternal>(SB)
 	RET
