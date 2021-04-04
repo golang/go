@@ -297,6 +297,25 @@ func walkStringToRunes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 // It also reports whether the function expects the data by address.
 // Not all names are possible. For example, we never generate convE2E or convE2I.
 func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
+	// With register-based ABI, float32 and uint32 are passed in different
+	// registers, so we cannot use convT32 for float32.
+	// isFloatLike returns whether t is a float-like type (float32, float64,
+	// single-element array/struct with a float-like element), for which
+	// the argument is passed in a floating point register under register-
+	// based ABI.
+	var isFloatLike func(t *types.Type) bool
+	isFloatLike = func(t *types.Type) bool {
+		switch t.Kind() {
+		case types.TFLOAT32, types.TFLOAT64:
+			return true
+		case types.TARRAY:
+			return t.NumElem() == 1 && isFloatLike(t.Elem())
+		case types.TSTRUCT:
+			return t.NumFields() == 1 && isFloatLike(t.Field(0).Type)
+		}
+		return false
+	}
+
 	tkind := to.Tie()
 	switch from.Tie() {
 	case 'I':
@@ -307,8 +326,12 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
 		switch {
 		case from.Size() == 2 && from.Align == 2:
 			return "convT16", false
+		case from.Size() == 4 && isFloatLike(from):
+			return "convT32F", false
 		case from.Size() == 4 && from.Align == 4 && !from.HasPointers():
 			return "convT32", false
+		case from.Size() == 8 && isFloatLike(from):
+			return "convT64F", false
 		case from.Size() == 8 && from.Align == types.Types[types.TUINT64].Align && !from.HasPointers():
 			return "convT64", false
 		}
