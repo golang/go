@@ -153,6 +153,9 @@ func (a *AuxCall) Reg(i *regInfo, c *Config) *regInfo {
 func (a *AuxCall) ABI() *abi.ABIConfig {
 	return a.abiInfo.Config()
 }
+func (a *AuxCall) ABIInfo() *abi.ABIParamResultInfo {
+	return a.abiInfo
+}
 func (a *AuxCall) ResultReg(c *Config) *regInfo {
 	if a.abiInfo.OutRegistersUsed() == 0 {
 		return a.reg
@@ -171,6 +174,8 @@ func (a *AuxCall) ResultReg(c *Config) *regInfo {
 	return a.reg
 }
 
+// For ABI register index r, returns the (dense) register number used in
+// SSA backend.
 func archRegForAbiReg(r abi.RegIndex, c *Config) uint8 {
 	var m int8
 	if int(r) < len(c.intParamRegs) {
@@ -179,6 +184,13 @@ func archRegForAbiReg(r abi.RegIndex, c *Config) uint8 {
 		m = c.floatParamRegs[int(r)-len(c.intParamRegs)]
 	}
 	return uint8(m)
+}
+
+// For ABI register index r, returns the register number used in the obj
+// package (assembler).
+func ObjRegForAbiReg(r abi.RegIndex, c *Config) int16 {
+	m := archRegForAbiReg(r, c)
+	return c.registers[m].objNum
 }
 
 // ArgWidth returns the amount of stack needed for all the inputs

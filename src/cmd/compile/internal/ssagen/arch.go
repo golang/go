@@ -39,4 +39,9 @@ type ArchInfo struct {
 	// SSAGenBlock emits end-of-block Progs. SSAGenValue should be called
 	// for all values in the block before SSAGenBlock.
 	SSAGenBlock func(s *State, b, next *ssa.Block)
+
+	// LoadRegResults emits instructions that loads register-assigned results
+	// into registers. They are already in memory (PPARAMOUT nodes).
+	// Used in open-coded defer return path.
+	LoadRegResults func(s *State, f *ssa.Func)
 }
