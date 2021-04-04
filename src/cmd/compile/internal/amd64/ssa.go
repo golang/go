@@ -1348,3 +1348,19 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 		b.Fatalf("branch not implemented: %s", b.LongString())
 	}
 }
+
+func loadRegResults(s *ssagen.State, f *ssa.Func) {
+	for _, o := range f.OwnAux.ABIInfo().OutParams() {
+		n := o.Name.(*ir.Name)
+		rts, offs := o.RegisterTypesAndOffsets()
+		for i := range o.Registers {
+			p := s.Prog(loadByType(rts[i]))
+			p.From.Type = obj.TYPE_MEM
+			p.From.Name = obj.NAME_AUTO
+			p.From.Sym = n.Linksym()
+			p.From.Offset = n.FrameOffset() + offs[i]
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ssa.ObjRegForAbiReg(o.Registers[i], f.Config)
+		}
+	}
+}
