@@ -353,7 +353,7 @@ func geneq(t *types.Type) *obj.LSym {
 			return closure
 		}
 		if memequalvarlen == nil {
-			memequalvarlen = typecheck.LookupRuntimeVar("memequal_varlen") // asm func
+			memequalvarlen = typecheck.LookupRuntimeFunc("memequal_varlen")
 		}
 		ot := 0
 		ot = objw.SymPtr(closure, ot, memequalvarlen, 0)
