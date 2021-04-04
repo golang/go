@@ -645,7 +645,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	var regg int16
-	if !p.From.Sym.NoSplit() || (p.From.Sym.Wrapper() && !p.From.Sym.ABIWrapper()) {
+	if !p.From.Sym.NoSplit() || p.From.Sym.Wrapper() {
 		if ctxt.Arch.Family == sys.AMD64 && objabi.Experiment.RegabiG && cursym.ABI() == obj.ABIInternal {
 			regg = REGG // use the g register directly in ABIInternal
 		} else {
@@ -713,7 +713,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.To.Reg = REG_BP
 	}
 
-	if cursym.Func().Text.From.Sym.Wrapper() && !cursym.Func().Text.From.Sym.ABIWrapper() {
+	if cursym.Func().Text.From.Sym.Wrapper() {
 		// if g._panic != nil && g._panic.argp == FP {
 		//   g._panic.argp = bottom-of-frame
 		// }
