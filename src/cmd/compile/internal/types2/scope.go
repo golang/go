@@ -81,7 +81,7 @@ func (s *Scope) Lookup(name string) Object {
 // whose scope is the scope of the package that exported them.
 func (s *Scope) LookupParent(name string, pos syntax.Pos) (*Scope, Object) {
 	for ; s != nil; s = s.parent {
-		if obj := s.elems[name]; obj != nil && (!pos.IsKnown() || cmpPos(obj.scopePos(), pos) <= 0) {
+		if obj := s.elems[name]; obj != nil && (!pos.IsKnown() || obj.scopePos().Cmp(pos) <= 0) {
 			return s, obj
 		}
 	}
@@ -153,7 +153,7 @@ func (s *Scope) End() syntax.Pos { return s.end }
 // The result is guaranteed to be valid only if the type-checked
 // AST has complete position information.
 func (s *Scope) Contains(pos syntax.Pos) bool {
-	return cmpPos(s.pos, pos) <= 0 && cmpPos(pos, s.end) < 0
+	return s.pos.Cmp(pos) <= 0 && pos.Cmp(s.end) < 0
 }
 
 // Innermost returns the innermost (child) scope containing
