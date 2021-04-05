@@ -137,14 +137,9 @@ func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed []fu
 	// Fuzzing may be interrupted with a timeout or if the user presses ^C.
 	// In either case, we'll stop worker processes gracefully and save
 	// crashers and interesting values.
-	ctx, cancel := context.WithCancel(context.Background())
-	if timeout > 0 {
-		ctx, cancel = context.WithTimeout(ctx, timeout)
-	}
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
-	defer stop()
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
-	err = fuzz.CoordinateFuzzing(ctx, parallel, seed, types, corpusDir, cacheDir)
+	err = fuzz.CoordinateFuzzing(ctx, timeout, parallel, seed, types, corpusDir, cacheDir)
 	if err == ctx.Err() {
 		return nil
 	}
@@ -158,9 +153,7 @@ func (TestDeps) RunFuzzWorker(fn func(fuzz.CorpusEntry) error) error {
 	// If the worker is interrupted, return quickly and without error.
 	// If only the coordinator process is interrupted, it tells each worker
 	// process to stop by closing its "fuzz_in" pipe.
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
-	defer stop()
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 	err := fuzz.RunFuzzWorker(ctx, fn)
 	if err == ctx.Err() {
