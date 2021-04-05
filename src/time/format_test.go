@@ -563,6 +563,10 @@ var parseErrorTests = []ParseErrorTest{
 	// invalid or mismatched day-of-year
 	{"Jan _2 002 2006", "Feb  4 034 2006", "day-of-year does not match day"},
 	{"Jan _2 002 2006", "Feb  4 004 2006", "day-of-year does not match month"},
+
+	// issue 45391.
+	{`"2006-01-02T15:04:05Z07:00"`, "0", `parsing time "0" as "\"2006-01-02T15:04:05Z07:00\"": cannot parse "0" as "\""`},
+	{RFC3339, "\"", `parsing time "\"" as "2006-01-02T15:04:05Z07:00": cannot parse "\"" as "2006"`},
 }
 
 func TestParseErrors(t *testing.T) {
@@ -781,4 +785,22 @@ func TestParseYday(t *testing.T) {
 			t.Errorf("got year %d yearday %d, want %d %d", tm.Year(), tm.YearDay(), 2020, i)
 		}
 	}
+}
+
+// Issue 45391.
+func TestQuote(t *testing.T) {
+	tests := []struct {
+		s, want string
+	}{
+		{`"`, `"\""`},
+		{`abc"xyz"`, `"abc\"xyz\""`},
+		{"", `""`},
+		{"abc", `"abc"`},
+	}
+	for _, tt := range tests {
+		if q := Quote(tt.s); q != tt.want {
+			t.Errorf("Quote(%q) = %q, want %q", tt.s, q, tt.want)
+		}
+	}
+
 }
