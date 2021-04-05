@@ -58,6 +58,7 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.
 	const (
 		r13 = 1 << iota // if R13 is already zeroed.
 		x15             // if X15 is already zeroed. Note: in new ABI, X15 is always zero.
+		rax             // if RAX is already zeroed.
 	)
 
 	if cnt == 0 {
@@ -116,9 +117,12 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.
 		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_R12, 0, obj.TYPE_REG, x86.REG_DI, 0)
 
 	} else {
-		if *state&r13 == 0 {
-			p = pp.Append(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_R13, 0)
-			*state |= r13
+		// Note: here we have to use RAX since it is an implicit input
+		// for the REPSTOSQ below. This is going to be problematic when
+		// regabi is in effect; this will be fixed in a forthcoming CL.
+		if *state&rax == 0 {
+			p = pp.Append(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)
+			*state |= rax
 		}
 
 		p = pp.Append(p, x86.AMOVQ, obj.TYPE_CONST, 0, cnt/int64(types.RegSize), obj.TYPE_REG, x86.REG_CX, 0)
