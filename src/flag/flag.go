@@ -508,31 +508,33 @@ func UnquoteUsage(flag *Flag) (name string, usage string) {
 // documentation for the global function PrintDefaults for more information.
 func (f *FlagSet) PrintDefaults() {
 	f.VisitAll(func(flag *Flag) {
-		s := fmt.Sprintf("  -%s", flag.Name) // Two spaces before -; see next two comments.
+		var b strings.Builder
+		b.WriteString("  ") // Two spaces before -; see next two comments.
+		b.WriteString(flag.Name)
 		name, usage := UnquoteUsage(flag)
 		if len(name) > 0 {
-			s += " " + name
+			b.WriteString(" " + name)
 		}
 		// Boolean flags of one ASCII letter are so common we
 		// treat them specially, putting their usage on the same line.
-		if len(s) <= 4 { // space, space, '-', 'x'.
-			s += "\t"
+		if b.Len() <= 4 { // space, space, '-', 'x'.
+			b.WriteString("\t")
 		} else {
 			// Four spaces before the tab triggers good alignment
 			// for both 4- and 8-space tab stops.
-			s += "\n    \t"
+			b.WriteString("\n    \t")
 		}
-		s += strings.ReplaceAll(usage, "\n", "\n    \t")
+		b.WriteString(strings.ReplaceAll(usage, "\n", "\n    \t"))
 
 		if !isZeroValue(flag, flag.DefValue) {
 			if _, ok := flag.Value.(*stringValue); ok {
 				// put quotes on the value
-				s += fmt.Sprintf(" (default %q)", flag.DefValue)
+				b.WriteString(fmt.Sprintf(" (default %q)", flag.DefValue))
 			} else {
-				s += fmt.Sprintf(" (default %v)", flag.DefValue)
+				b.WriteString(fmt.Sprintf(" (default %v)", flag.DefValue))
 			}
 		}
-		fmt.Fprint(f.Output(), s, "\n")
+		fmt.Fprint(f.Output(), b.String(), "\n")
 	})
 }
 
