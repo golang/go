@@ -509,7 +509,7 @@ func UnquoteUsage(flag *Flag) (name string, usage string) {
 func (f *FlagSet) PrintDefaults() {
 	f.VisitAll(func(flag *Flag) {
 		var b strings.Builder
-		b.WriteString("  ") // Two spaces before -; see next two comments.
+		b.WriteString("  -") // Two spaces before -; see next two comments.
 		b.WriteString(flag.Name)
 		name, usage := UnquoteUsage(flag)
 		if len(name) > 0 {
