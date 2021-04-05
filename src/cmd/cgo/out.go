@@ -168,12 +168,13 @@ func (p *Package) writeDefs() {
 			if *gccgo {
 				fmt.Fprintf(fc, "extern byte *%s;\n", n.C)
 			} else {
-				// Only emit the following symbols if they are not for
-				// a function pointer variable. The function symbol is already defined
-				// and redefining it here as such will break compilation when
-				// used in conjunction with link time optimization in external
-				// linkers.
-				if n.Kind != "fpvar" {
+				// We must ensure the executable cgo is creating here has a
+				// reference to all symbols Go code is referring
+				// to -- because otherwise the system linker might decline
+				// to add DT_NEEDED entries for the library that has the symbol definition.
+				if n.Kind == "fpvar" {
+					fmt.Fprintf(fm, "extern void %s();\n", n.C)
+				} else {
 					fmt.Fprintf(fm, "extern char %s[];\n", n.C)
 					fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
 				}
@@ -1035,7 +1036,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		fmt.Fprintf(fgo2, "//go:cgo_export_static _cgoexp%s_%s\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgo2, "func _cgoexp%s_%s(a *%s) {\n", cPrefix, exp.ExpName, gotype)
 
-		fmt.Fprintf(fm, "void _cgoexp%s_%s(void* p){};\n", cPrefix, exp.ExpName)
+		fmt.Fprintf(fm, "void _cgoexp%s_%s(void* p){}\n", cPrefix, exp.ExpName)
 
 		if gccResult != "void" {
 			// Write results back to frame.
