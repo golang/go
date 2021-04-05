@@ -1803,7 +1803,7 @@ func (s *state) stmt(n ir.Node) {
 				b.AddEdgeTo(bCond)
 				// It can happen that bIncr ends in a block containing only VARKILL,
 				// and that muddles the debugging experience.
-				if n.Op() != ir.OFORUNTIL && b.Pos == src.NoXPos {
+				if b.Pos == src.NoXPos {
 					b.Pos = bCond.Pos
 				}
 			}
