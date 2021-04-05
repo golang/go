@@ -24,6 +24,7 @@ type FuncID uint8
 // Note: this list must match the list in runtime/symtab.go.
 const (
 	FuncID_normal FuncID = iota // not a special function
+	FuncID_abort
 	FuncID_asmcgocall
 	FuncID_asyncPreempt
 	FuncID_cgocallback
@@ -49,6 +50,7 @@ const (
 )
 
 var funcIDs = map[string]FuncID{
+	"abort":                 FuncID_abort,
 	"asmcgocall":            FuncID_asmcgocall,
 	"asyncPreempt":          FuncID_asyncPreempt,
 	"cgocallback":           FuncID_cgocallback,
