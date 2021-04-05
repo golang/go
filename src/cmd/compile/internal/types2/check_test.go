@@ -128,7 +128,6 @@ func checkFiles(t *testing.T, filenames []string, goVersion string, colDelta uin
 	// typecheck and collect typechecker errors
 	var conf Config
 	conf.GoVersion = goVersion
-	conf.AcceptMethodTypeParams = true
 	// special case for importC.src
 	if len(filenames) == 1 && strings.HasSuffix(filenames[0], "importC.src") {
 		conf.FakeImportC = true
