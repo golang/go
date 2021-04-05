@@ -1094,3 +1094,17 @@ func (e *Editor) DocumentLink(ctx context.Context, path string) ([]protocol.Docu
 	params.TextDocument.URI = e.sandbox.Workdir.URI(path)
 	return e.Server.DocumentLink(ctx, params)
 }
+
+func (e *Editor) DocumentHighlight(ctx context.Context, path string, pos Pos) ([]protocol.DocumentHighlight, error) {
+	if e.Server == nil {
+		return nil, nil
+	}
+	if err := e.checkBufferPosition(path, pos); err != nil {
+		return nil, err
+	}
+	params := &protocol.DocumentHighlightParams{}
+	params.TextDocument.URI = e.sandbox.Workdir.URI(path)
+	params.Position = pos.ToProtocolPosition()
+
+	return e.Server.DocumentHighlight(ctx, params)
+}

@@ -230,6 +230,15 @@ func (e *Env) DocumentLink(name string) []protocol.DocumentLink {
 	return links
 }
 
+func (e *Env) DocumentHighlight(name string, pos fake.Pos) []protocol.DocumentHighlight {
+	e.T.Helper()
+	highlights, err := e.Editor.DocumentHighlight(e.Ctx, name, pos)
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	return highlights
+}
+
 func checkIsFatal(t *testing.T, err error) {
 	t.Helper()
 	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrClosedPipe) {
