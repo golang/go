@@ -175,17 +175,17 @@ func excluded(tname string) bool {
 func maybePrint(m result) {
 	switch m.Action {
 	case "pass", "fail", "skip":
-		fmt.Printf("%s %s %.3f", m.Action, m.Test, m.Elapsed)
+		fmt.Printf("%s %s %.3f\n", m.Action, m.Test, m.Elapsed)
 	case "run":
 		if *verbose > 2 {
-			fmt.Printf("%s %s %.3f", m.Action, m.Test, m.Elapsed)
+			fmt.Printf("%s %s %.3f\n", m.Action, m.Test, m.Elapsed)
 		}
 	case "output":
 		if *verbose > 3 {
-			fmt.Printf("%s %s %q %.3f", m.Action, m.Test, m.Output, m.Elapsed)
+			fmt.Printf("%s %s %q %.3f\n", m.Action, m.Test, m.Output, m.Elapsed)
 		}
 	default:
-		log.Fatalf("unknown action %s", m.Action)
+		log.Fatalf("unknown action %s\n", m.Action)
 	}
 }
 
@@ -224,16 +224,7 @@ func checkCwd() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// we expect gopls and internal/lsp as subdirectories
-	_, err = os.Stat("gopls")
-	if err != nil {
-		log.Fatalf("expected a gopls directory, %v", err)
-	}
-	_, err = os.Stat("internal/lsp")
-	if err != nil {
-		log.Fatalf("expected to see internal/lsp, %v", err)
-	}
-	// and we expect to be a the root of golang.org/x/tools
+	// we expect to be a the root of golang.org/x/tools
 	cmd := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "golang.org/x/tools")
 	buf, err := cmd.Output()
 	buf = bytes.Trim(buf, "\n \t") // remove \n at end
@@ -241,7 +232,16 @@ func checkCwd() {
 		log.Fatal(err)
 	}
 	if string(buf) != dir {
-		log.Fatalf("got %q, wanted %q", dir, string(buf))
+		log.Fatalf("wrong directory: in %q, should be in %q", dir, string(buf))
+	}
+	// and we expect gopls and internal/lsp as subdirectories
+	_, err = os.Stat("gopls")
+	if err != nil {
+		log.Fatalf("expected a gopls directory, %v", err)
+	}
+	_, err = os.Stat("internal/lsp")
+	if err != nil {
+		log.Fatalf("expected to see internal/lsp, %v", err)
 	}
 }
 
