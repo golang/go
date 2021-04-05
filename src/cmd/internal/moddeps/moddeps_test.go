@@ -422,6 +422,12 @@ func findGorootModules(t *testing.T) []gorootModule {
 				// running time of this test anyway.)
 				return filepath.SkipDir
 			}
+			if strings.HasPrefix(info.Name(), "_") || strings.HasPrefix(info.Name(), ".") {
+				// _ and . prefixed directories can be used for internal modules
+				// without a vendor directory that don't contribute to the build
+				// but might be used for example as code generators.
+				return filepath.SkipDir
+			}
 			if info.IsDir() || info.Name() != "go.mod" {
 				return nil
 			}

@@ -306,6 +306,13 @@ func (w *walker) walk(dir string) {
 		return
 	}
 
+	// skip submodules, which might not be vendored
+	for _, f := range files {
+		if f.Name() == "go.mod" {
+			return
+		}
+	}
+
 	// apply pkgh to the files in directory dir
 	// but ignore files directly under $GOROOT/src (might be temporary test files).
 	if dir != filepath.Join(runtime.GOROOT(), "src") {

@@ -392,6 +392,8 @@ var depsRules = `
 	< crypto
 	< crypto/subtle
 	< crypto/internal/subtle
+	< crypto/ed25519/internal/edwards25519/field
+	< crypto/ed25519/internal/edwards25519
 	< crypto/cipher
 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
 	  crypto/sha1, crypto/sha256, crypto/sha512
@@ -403,7 +405,6 @@ var depsRules = `
 	CRYPTO, FMT, math/big
 	< crypto/rand
 	< crypto/internal/randutil
-	< crypto/ed25519/internal/edwards25519
 	< crypto/ed25519
 	< encoding/asn1
 	< golang.org/x/crypto/cryptobyte/asn1
