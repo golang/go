@@ -509,8 +509,7 @@ func UnquoteUsage(flag *Flag) (name string, usage string) {
 func (f *FlagSet) PrintDefaults() {
 	f.VisitAll(func(flag *Flag) {
 		var b strings.Builder
-		b.WriteString("  -") // Two spaces before -; see next two comments.
-		b.WriteString(flag.Name)
+		fmt.Fprintf(&b, "  -%s", flag.Name) // Two spaces before -; see next two comments.
 		name, usage := UnquoteUsage(flag)
 		if len(name) > 0 {
 			b.WriteString(" ")
@@ -530,9 +529,9 @@ func (f *FlagSet) PrintDefaults() {
 		if !isZeroValue(flag, flag.DefValue) {
 			if _, ok := flag.Value.(*stringValue); ok {
 				// put quotes on the value
-				b.WriteString(fmt.Sprintf(" (default %q)", flag.DefValue))
+				fmt.Fprintf(&b, " (default %q)", flag.DefValue)
 			} else {
-				b.WriteString(fmt.Sprintf(" (default %v)", flag.DefValue))
+				fmt.Fprintf(&b, " (default %v)", flag.DefValue)
 			}
 		}
 		fmt.Fprint(f.Output(), b.String(), "\n")
