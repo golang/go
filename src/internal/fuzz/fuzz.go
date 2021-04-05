@@ -18,6 +18,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"time"
 )
 
 // CoordinateFuzzing creates several worker processes and communicates with
@@ -26,6 +27,9 @@ import (
 // same environment variables as the coordinator process. Workers also run
 // with the same arguments as the coordinator, except with the -test.fuzzworker
 // flag prepended to the argument list.
+//
+// timeout is the amount of wall clock time to spend fuzzing after the corpus
+// has loaded.
 //
 // parallel is the number of worker processes to run in parallel. If parallel
 // is 0, CoordinateFuzzing will run GOMAXPROCS workers.
@@ -43,7 +47,7 @@ import (
 //
 // If a crash occurs, the function will return an error containing information
 // about the crash, which can be reported to the user.
-func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, types []reflect.Type, corpusDir, cacheDir string) (err error) {
+func CoordinateFuzzing(ctx context.Context, timeout time.Duration, parallel int, seed []CorpusEntry, types []reflect.Type, corpusDir, cacheDir string) (err error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -67,6 +71,12 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
 			vals = append(vals, zeroValue(t))
 		}
 		corpus.entries = append(corpus.entries, CorpusEntry{Data: marshalCorpusFile(vals...), Values: vals})
+	}
+
+	if timeout > 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
 	}
 
 	// TODO(jayconrod): do we want to support fuzzing different binaries?
