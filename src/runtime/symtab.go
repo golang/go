@@ -310,6 +310,7 @@ type funcID uint8
 
 const (
 	funcID_normal funcID = iota // not a special function
+	funcID_abort
 	funcID_asmcgocall
 	funcID_asyncPreempt
 	funcID_cgocallback
@@ -669,6 +670,12 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
 	return file, int(line32)
 }
 
+// findmoduledatap looks up the moduledata for a PC.
+//
+// It is nosplit because it's part of the isgoexception
+// implementation.
+//
+//go:nosplit
 func findmoduledatap(pc uintptr) *moduledata {
 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
 		if datap.minpc <= pc && pc < datap.maxpc {
@@ -691,6 +698,12 @@ func (f funcInfo) _Func() *Func {
 	return (*Func)(unsafe.Pointer(f._func))
 }
 
+// findfunc looks up function metadata for a PC.
+//
+// It is nosplit because it's part of the isgoexception
+// implementation.
+//
+//go:nosplit
 func findfunc(pc uintptr) funcInfo {
 	datap := findmoduledatap(pc)
 	if datap == nil {
