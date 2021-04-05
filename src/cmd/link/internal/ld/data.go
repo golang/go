@@ -2298,12 +2298,23 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 		}
 
 		if va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(ldr, s, isTramp) > textSizelimit {
+			// Align the next text section to the worst case function alignment likely
+			// to be encountered when processing function symbols. The start address
+			// is rounded against the final alignment of the text section later on in
+			// (*Link).address. This may happen due to usage of PCALIGN directives
+			// larger than Funcalign, or usage of ISA 3.1 prefixed instructions
+			// (see ISA 3.1 Book I 1.9).
+			const ppc64maxFuncalign = 64
+			va = uint64(Rnd(int64(va), ppc64maxFuncalign))
+
 			// Set the length for the previous text section
 			sect.Length = va - sect.Vaddr
 
 			// Create new section, set the starting Vaddr
 			sect = addsection(ctxt.loader, ctxt.Arch, &Segtext, ".text", 05)
+
 			sect.Vaddr = va
+			sect.Align = ppc64maxFuncalign
 			ldr.SetSymSect(s, sect)
 
 			// Create a symbol for the start of the secondary text sections
@@ -2316,6 +2327,7 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 				ntext.SetType(sym.STEXT)
 				ntext.SetSize(int64(MINFUNC))
 				ntext.SetOnList(true)
+				ntext.SetAlign(ppc64maxFuncalign)
 				ctxt.tramps = append(ctxt.tramps, ntext.Sym())
 
 				ntext.SetValue(int64(va))

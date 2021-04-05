@@ -28,8 +28,11 @@ const (
 	// Total amount of space to reserve at the start of the file
 	// for File Header, Auxiliary Header, and Section Headers.
 	// May waste some.
-	XCOFFHDRRESERVE       = FILHSZ_64 + AOUTHSZ_EXEC64 + SCNHSZ_64*23
-	XCOFFSECTALIGN  int64 = 32 // base on dump -o
+	XCOFFHDRRESERVE = FILHSZ_64 + AOUTHSZ_EXEC64 + SCNHSZ_64*23
+
+	// base on dump -o, then rounded from 32B to 64B to
+	// match worst case elf text section alignment on ppc64.
+	XCOFFSECTALIGN int64 = 64
 
 	// XCOFF binaries should normally have all its sections position-independent.
 	// However, this is not yet possible for .text because of some R_ADDR relocations
@@ -555,11 +558,12 @@ func Xcoffinit(ctxt *Link) {
 
 // type records C_FILE information needed for genasmsym in XCOFF.
 type xcoffSymSrcFile struct {
-	name       string
-	file       *XcoffSymEnt64   // Symbol of this C_FILE
-	csectAux   *XcoffAuxCSect64 // Symbol for the current .csect
-	csectSymNb uint64           // Symbol number for the current .csect
-	csectSize  int64
+	name         string
+	file         *XcoffSymEnt64   // Symbol of this C_FILE
+	csectAux     *XcoffAuxCSect64 // Symbol for the current .csect
+	csectSymNb   uint64           // Symbol number for the current .csect
+	csectVAStart int64
+	csectVAEnd   int64
 }
 
 var (
@@ -746,7 +750,8 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 	f.addSymbol(aux)
 
 	currSymSrcFile.csectAux = aux
-	currSymSrcFile.csectSize = 0
+	currSymSrcFile.csectVAStart = int64(firstEntry)
+	currSymSrcFile.csectVAEnd = int64(firstEntry)
 }
 
 // Update values for the previous package.
@@ -768,8 +773,9 @@ func (f *xcoffFile) updatePreviousFile(ctxt *Link, last bool) {
 
 	// update csect scnlen in this auxiliary entry
 	aux := currSymSrcFile.csectAux
-	aux.Xscnlenlo = uint32(currSymSrcFile.csectSize & 0xFFFFFFFF)
-	aux.Xscnlenhi = uint32(currSymSrcFile.csectSize >> 32)
+	csectSize := currSymSrcFile.csectVAEnd - currSymSrcFile.csectVAStart
+	aux.Xscnlenlo = uint32(csectSize & 0xFFFFFFFF)
+	aux.Xscnlenhi = uint32(csectSize >> 32)
 }
 
 // Write symbol representing a .text function.
@@ -832,8 +838,13 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x loader.Sym) []xcoffSym {
 	ldr.SetSymDynid(x, int32(xfile.symbolCount))
 	syms = append(syms, s)
 
-	// Update current csect size
-	currSymSrcFile.csectSize += ldr.SymSize(x)
+	// Keep track of the section size by tracking the VA range. Individual
+	// alignment differences may introduce a few extra bytes of padding
+	// which are not fully accounted for by ldr.SymSize(x).
+	sv := ldr.SymValue(x) + ldr.SymSize(x)
+	if currSymSrcFile.csectVAEnd < sv {
+		currSymSrcFile.csectVAEnd = sv
+	}
 
 	// create auxiliary entries
 	a2 := &XcoffAuxFcn64{
@@ -1549,7 +1560,7 @@ func (f *xcoffFile) writeFileHeader(ctxt *Link) {
 		f.xahdr.Otoc = uint64(ldr.SymValue(toc))
 		f.xahdr.Osntoc = f.getXCOFFscnum(ldr.SymSect(toc))
 
-		f.xahdr.Oalgntext = int16(logBase2(int(Funcalign)))
+		f.xahdr.Oalgntext = int16(logBase2(int(XCOFFSECTALIGN)))
 		f.xahdr.Oalgndata = 0x5
 
 		binary.Write(ctxt.Out, binary.BigEndian, &f.xfhdr)
