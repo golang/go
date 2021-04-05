@@ -317,6 +317,15 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 		}
 	}
 	switch selector.Op {
+	case OpArgIntReg, OpArgFloatReg:
+		if leafType == selector.Type { // OpIData leads us here, sometimes.
+			leaf.copyOf(selector)
+		} else {
+			x.f.Fatalf("Unexpected %s type, selector=%s, leaf=%s\n", selector.Op.String(), selector.LongString(), leaf.LongString())
+		}
+		if x.debug {
+			x.Printf("---%s, break\n", selector.Op.String())
+		}
 	case OpArg:
 		if !x.isAlreadyExpandedAggregateType(selector.Type) {
 			if leafType == selector.Type { // OpIData leads us here, sometimes.
