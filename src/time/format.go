@@ -689,7 +689,16 @@ type ParseError struct {
 }
 
 func quote(s string) string {
-	return "\"" + s + "\""
+	buf := make([]byte, 0, len(s)+2) // +2 for surrounding quotes
+	buf = append(buf, '"')
+	for _, c := range s {
+		if c == '"' || c == '\\' {
+			buf = append(buf, '\\')
+		}
+		buf = append(buf, string(c)...)
+	}
+	buf = append(buf, '"')
+	return string(buf)
 }
 
 // Error returns the string representation of a ParseError.
