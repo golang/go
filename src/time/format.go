@@ -106,6 +106,7 @@ const (
 	stdHour                  = iota + stdNeedClock // "15"
 	stdHour12                                      // "3"
 	stdZeroHour12                                  // "03"
+	stdHourEmoji                                   // "🕒"
 	stdMinute                                      // "4"
 	stdZeroMinute                                  // "04"
 	stdSecond                                      // "5"
@@ -211,6 +212,11 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
 
 		case '3':
 			return layout[0:i], stdHour12, layout[i+1:]
+
+		case int("🕒"[0]):
+			if len(layout) >= i+3 && layout[i+1] == "🕒"[1] && layout[i+2] == "🕒"[2] && layout[i+3] == "🕒"[3] {
+				return layout[0:i], stdHourEmoji, layout[i+4:]
+			}
 
 		case '4':
 			return layout[0:i], stdMinute, layout[i+1:]
@@ -602,6 +608,16 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 				hr = 12
 			}
 			b = appendInt(b, hr, 2)
+		case stdHourEmoji:
+			em := '🕐'
+			if min >= 30 {
+				em = '🕜'
+			}
+			em = em - 1 + rune(hour%12)
+			if (hour % 12) == 0 {
+				em += 12
+			}
+			b = append(b, string(em)...)
 		case stdMinute:
 			b = appendInt(b, min, 0)
 		case stdZeroMinute:
