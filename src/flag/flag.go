@@ -513,7 +513,8 @@ func (f *FlagSet) PrintDefaults() {
 		b.WriteString(flag.Name)
 		name, usage := UnquoteUsage(flag)
 		if len(name) > 0 {
-			b.WriteString(" " + name)
+			b.WriteString(" ")
+			b.WriteString(name)
 		}
 		// Boolean flags of one ASCII letter are so common we
 		// treat them specially, putting their usage on the same line.
