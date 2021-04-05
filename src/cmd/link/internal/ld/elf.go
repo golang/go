@@ -2194,6 +2194,12 @@ elfobj:
 	if a > elfreserve {
 		Errorf(nil, "ELFRESERVE too small: %d > %d with %d text sections", a, elfreserve, numtext)
 	}
+
+	// Verify the amount of space allocated for the elf header is sufficient.  The file offsets are
+	// already computed in layout, so we could spill into another section.
+	if a > int64(HEADR) {
+		Errorf(nil, "HEADR too small: %d > %d with %d text sections", a, HEADR, numtext)
+	}
 }
 
 func elfadddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym) {
