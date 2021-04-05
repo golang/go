@@ -31,11 +31,6 @@ const debug = false // leave on during development
 //
 const forceStrict = false
 
-// If methodTypeParamsOk is set, type parameters are
-// permitted in method declarations (in interfaces, too).
-// Generalization and experimental feature.
-const methodTypeParamsOk = true
-
 // exprInfo stores information about an untyped expression.
 type exprInfo struct {
 	isLhs bool // expression is lhs operand of a shift with delayed type-check

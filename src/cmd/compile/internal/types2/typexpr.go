@@ -15,6 +15,9 @@ import (
 	"strings"
 )
 
+// Disabled by default, but enabled when running tests (via types_test.go).
+var acceptMethodTypeParams bool
+
 // ident type-checks identifier e and initializes x with the value or type of e.
 // If an error occurred, x.mode is set to invalid.
 // For the meaning of def, see Checker.definedType, below.
@@ -336,7 +339,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 		// Always type-check method type parameters but complain if they are not enabled.
 		// (A separate check is needed when type-checking interface method signatures because
 		// they don't have a receiver specification.)
-		if recvPar != nil && !check.conf.AcceptMethodTypeParams {
+		if recvPar != nil && !acceptMethodTypeParams {
 			check.error(ftyp, "methods cannot have type parameters")
 		}
 	}
@@ -848,7 +851,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 			// Always type-check method type parameters but complain if they are not enabled.
 			// (This extra check is needed here because interface method signatures don't have
 			// a receiver specification.)
-			if sig.tparams != nil && !check.conf.AcceptMethodTypeParams {
+			if sig.tparams != nil && !acceptMethodTypeParams {
 				check.error(f.Type, "methods cannot have type parameters")
 			}
 

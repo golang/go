@@ -65,9 +65,8 @@ func mayTypecheck(t *testing.T, path, source string, info *Info) (string, error)
 		t.Fatalf("%s: unable to parse: %s", path, err)
 	}
 	conf := Config{
-		AcceptMethodTypeParams: true,
-		Error:                  func(err error) {},
-		Importer:               defaultImporter(),
+		Error:    func(err error) {},
+		Importer: defaultImporter(),
 	}
 	pkg, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, info)
 	return pkg.Name(), err
