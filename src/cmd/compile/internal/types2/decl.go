@@ -383,45 +383,12 @@ func (check *Checker) cycleError(cycle []Object) {
 	check.report(&err)
 }
 
-// TODO(gri) This functionality should probably be with the Pos implementation.
-func cmpPos(p, q syntax.Pos) int {
-	// TODO(gri) is RelFilename correct here?
-	pname := p.RelFilename()
-	qname := q.RelFilename()
-	switch {
-	case pname < qname:
-		return -1
-	case pname > qname:
-		return +1
-	}
-
-	pline := p.Line()
-	qline := q.Line()
-	switch {
-	case pline < qline:
-		return -1
-	case pline > qline:
-		return +1
-	}
-
-	pcol := p.Col()
-	qcol := q.Col()
-	switch {
-	case pcol < qcol:
-		return -1
-	case pcol > qcol:
-		return +1
-	}
-
-	return 0
-}
-
 // firstInSrc reports the index of the object with the "smallest"
 // source position in path. path must not be empty.
 func firstInSrc(path []Object) int {
 	fst, pos := 0, path[0].Pos()
 	for i, t := range path[1:] {
-		if cmpPos(t.Pos(), pos) < 0 {
+		if t.Pos().Cmp(pos) < 0 {
 			fst, pos = i+1, t.Pos()
 		}
 	}
