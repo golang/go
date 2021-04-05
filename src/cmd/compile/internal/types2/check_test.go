@@ -32,6 +32,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 
@@ -150,6 +151,13 @@ func checkFiles(t *testing.T, filenames []string, goVersion string, colDelta uin
 		return
 	}
 
+	// sort errlist in source order
+	sort.Slice(errlist, func(i, j int) bool {
+		pi := unpackError(errlist[i]).Pos
+		pj := unpackError(errlist[j]).Pos
+		return pi.Cmp(pj) < 0
+	})
+
 	// collect expected errors
 	errmap := make(map[string]map[uint][]syntax.Error)
 	for _, filename := range filenames {
@@ -165,7 +173,6 @@ func checkFiles(t *testing.T, filenames []string, goVersion string, colDelta uin
 	}
 
 	// match against found errors
-	// TODO(gri) sort err list to avoid mismatched when having multiple errors
 	for _, err := range errlist {
 		got := unpackError(err)
 
@@ -205,9 +212,8 @@ func checkFiles(t *testing.T, filenames []string, goVersion string, colDelta uin
 
 		// eliminate from list
 		if n := len(list) - 1; n > 0 {
-			// not the last entry - swap in last element and shorten list by 1
-			// TODO(gri) avoid changing the order of entries
-			list[index] = list[n]
+			// not the last entry - slide entries down (don't reorder)
+			copy(list[index:], list[index+1:])
 			filemap[line] = list[:n]
 		} else {
 			// last entry - remove list from filemap
