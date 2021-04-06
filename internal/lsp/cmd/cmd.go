@@ -504,13 +504,9 @@ func (c *connection) AddFile(ctx context.Context, uri span.URI) *cmdFile {
 	return file
 }
 
-func (c *connection) semanticTokens(ctx context.Context, file span.URI) (*protocol.SemanticTokens, error) {
-	p := &protocol.SemanticTokensParams{
-		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.URIFromSpanURI(file),
-		},
-	}
-	resp, err := c.Server.SemanticTokensFull(ctx, p)
+func (c *connection) semanticTokens(ctx context.Context, p *protocol.SemanticTokensRangeParams) (*protocol.SemanticTokens, error) {
+	// use range to avoid limits on full
+	resp, err := c.Server.SemanticTokensRange(ctx, p)
 	if err != nil {
 		return nil, err
 	}

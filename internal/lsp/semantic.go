@@ -22,6 +22,8 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
+const maxFullFileSize int = 100000 // reject full semantic token requests for large files
+
 func (s *Server) semanticTokensFull(ctx context.Context, p *protocol.SemanticTokensParams) (*protocol.SemanticTokens, error) {
 	ret, err := s.computeSemanticTokens(ctx, p.TextDocument, nil)
 	return ret, err
@@ -67,6 +69,11 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 	}
 	if pgf.ParseErr != nil {
 		return nil, pgf.ParseErr
+	}
+	if rng == nil && len(pgf.Src) > maxFullFileSize {
+		err := fmt.Errorf("semantic tokens: file %s too large for full (%d>%d)",
+			td.URI.SpanURI().Filename(), len(pgf.Src), maxFullFileSize)
+		return nil, err
 	}
 	e := &encoded{
 		ctx:      ctx,
@@ -491,7 +498,7 @@ func (e *encoded) init() error {
 	}
 	span, err := e.pgf.Mapper.RangeSpan(*e.rng)
 	if err != nil {
-		return errors.Errorf("range span error for %s", e.pgf.File.Name)
+		return errors.Errorf("range span (%v) error for %s", err, e.pgf.File.Name)
 	}
 	e.end = e.start + token.Pos(span.End().Offset())
 	e.start += token.Pos(span.Start().Offset())

@@ -94,13 +94,24 @@ func (c *semtok) Run(ctx context.Context, args ...string) error {
 		return file.err
 	}
 
-	resp, err := conn.semanticTokens(ctx, uri)
+	buf, err := ioutil.ReadFile(args[0])
 	if err != nil {
 		return err
 	}
-	buf, err := ioutil.ReadFile(args[0])
+	lines := bytes.Split(buf, []byte{'\n'})
+	p := &protocol.SemanticTokensRangeParams{
+		TextDocument: protocol.TextDocumentIdentifier{
+			URI: protocol.URIFromSpanURI(uri),
+		},
+		Range: protocol.Range{Start: protocol.Position{Line: 0, Character: 0},
+			End: protocol.Position{
+				Line:      uint32(len(lines) - 1),
+				Character: uint32(len(lines[len(lines)-1]))},
+		},
+	}
+	resp, err := conn.semanticTokens(ctx, p)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, args[0], buf, 0)
