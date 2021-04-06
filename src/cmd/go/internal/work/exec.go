@@ -277,8 +277,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		key, val := cfg.GetArchEnv()
 		fmt.Fprintf(h, "%s=%s\n", key, val)
 
-		if objabi.GOEXPERIMENT != "" {
-			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", objabi.GOEXPERIMENT)
+		if goexperiment := objabi.GOEXPERIMENT(); goexperiment != "" {
+			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", goexperiment)
 		}
 
 		// TODO(rsc): Convince compiler team not to add more magic environment variables,
@@ -1251,8 +1251,8 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 		key, val := cfg.GetArchEnv()
 		fmt.Fprintf(h, "%s=%s\n", key, val)
 
-		if objabi.GOEXPERIMENT != "" {
-			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", objabi.GOEXPERIMENT)
+		if goexperiment := objabi.GOEXPERIMENT(); goexperiment != "" {
+			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", goexperiment)
 		}
 
 		// The linker writes source file paths that say GOROOT_FINAL, but
