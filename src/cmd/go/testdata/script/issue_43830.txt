@@ -4,6 +4,8 @@
 [!exec:gcc] skip 'skipping test without gcc present'
 
 env CGO_CFLAGS='-flto -ffat-lto-objects'
+env CC='gcc'
+
 go build main.go add.go
 
 -- main.go --
