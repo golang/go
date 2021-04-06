@@ -175,7 +175,7 @@ func gcinit() {
 	}
 
 	// No sweep on the first cycle.
-	mheap_.sweepdone = 1
+	mheap_.sweepDrained = 1
 
 	// Set a reasonable initial GC trigger.
 	memstats.triggerRatio = 7 / 8.0
@@ -1187,7 +1187,7 @@ func GC() {
 	// First, wait for sweeping to finish. (We know there are no
 	// more spans on the sweep queue, but we may be concurrently
 	// sweeping spans, so we have to wait.)
-	for atomic.Load(&work.cycles) == n+1 && atomic.Load(&mheap_.sweepers) != 0 {
+	for atomic.Load(&work.cycles) == n+1 && !isSweepDone() {
 		Gosched()
 	}
 
@@ -2192,7 +2192,7 @@ func gcSweep(mode gcMode) {
 
 	lock(&mheap_.lock)
 	mheap_.sweepgen += 2
-	mheap_.sweepdone = 0
+	mheap_.sweepDrained = 0
 	mheap_.pagesSwept = 0
 	mheap_.sweepArenas = mheap_.allArenas
 	mheap_.reclaimIndex = 0
