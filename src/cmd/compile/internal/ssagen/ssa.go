@@ -558,6 +558,11 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 				v := s.newValue0A(ssa.OpArg, n.Type(), n)
 				s.vars[n] = v
 				s.addNamedValue(n, v) // This helps with debugging information, not needed for compilation itself.
+				// TODO(register args) Make liveness more fine-grained to that partial spilling is okay.
+				paramAssignment := ssa.ParamAssignmentForArgName(s.f, n)
+				if len(paramAssignment.Registers) > 1 && n.Type().HasPointers() { // 1 cannot be partially live
+					s.storeParameterRegsToStack(s.f.ABISelf, paramAssignment, n, s.decladdrs[n], true)
+				}
 			} else { // address was taken AND/OR too large for SSA
 				paramAssignment := ssa.ParamAssignmentForArgName(s.f, n)
 				if len(paramAssignment.Registers) > 0 {
@@ -567,9 +572,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 					} else { // Too big for SSA.
 						// Brute force, and early, do a bunch of stores from registers
 						// TODO fix the nasty storeArgOrLoad recursion in ssa/expand_calls.go so this Just Works with store of a big Arg.
-						abi := s.f.ABISelf
-						addr := s.decladdrs[n]
-						s.storeParameterRegsToStack(abi, paramAssignment, n, addr)
+						s.storeParameterRegsToStack(s.f.ABISelf, paramAssignment, n, s.decladdrs[n], false)
 					}
 				}
 			}
@@ -645,9 +648,12 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	return s.f
 }
 
-func (s *state) storeParameterRegsToStack(abi *abi.ABIConfig, paramAssignment *abi.ABIParamAssignment, n *ir.Name, addr *ssa.Value) {
+func (s *state) storeParameterRegsToStack(abi *abi.ABIConfig, paramAssignment *abi.ABIParamAssignment, n *ir.Name, addr *ssa.Value, pointersOnly bool) {
 	typs, offs := paramAssignment.RegisterTypesAndOffsets()
 	for i, t := range typs {
+		if pointersOnly && !t.IsPtrShaped() {
+			continue
+		}
 		r := paramAssignment.Registers[i]
 		o := offs[i]
 		op, reg := ssa.ArgOpAndRegisterFor(r, abi)
