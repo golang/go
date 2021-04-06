@@ -149,6 +149,15 @@ var exprTests = [][2]string{
 	dup("<-chan E"),
 	dup("chan<- E"),
 
+	// new interfaces
+	dup("interface{int}"),
+	dup("interface{~int}"),
+	dup("interface{~int}"),
+	dup("interface{int | string}"),
+	dup("interface{~int | ~string; float64; m()}"),
+	dup("interface{type a, b, c; ~int | ~string; float64; m()}"),
+	dup("interface{~T[int, string] | string}"),
+
 	// non-type expressions
 	dup("(x)"),
 	dup("x.f"),
