@@ -12,7 +12,6 @@ import (
 	"context"
 	"fmt"
 	"internal/profile"
-	"internal/race"
 	"internal/testenv"
 	"io"
 	"math/big"
@@ -586,18 +585,6 @@ func stackContainsAll(spec string, count uintptr, stk []*profile.Location, label
 }
 
 func TestMorestack(t *testing.T) {
-	if runtime.GOOS == "darwin" && race.Enabled {
-		// For whatever reason, using the race detector on macOS keeps us
-		// from finding the newstack/growstack calls in the profile.
-		// Not worth worrying about.
-		// https://build.golang.org/log/280d387327806e17c8aabeb38b9503dbbd942ed1
-		t.Skip("skipping on darwin race detector")
-	}
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
-		// For whatever reason, darwin/arm64 also doesn't work.
-		// https://build.golang.org/log/c45e82cc25f152642e6fb90d882ef5a8cd130ce5
-		t.Skip("skipping on darwin/arm64")
-	}
 	testCPUProfile(t, stackContainsAll, []string{"runtime.newstack,runtime/pprof.growstack"}, avoidFunctions(), func(duration time.Duration) {
 		t := time.After(duration)
 		c := make(chan bool)
@@ -617,17 +604,20 @@ func TestMorestack(t *testing.T) {
 
 //go:noinline
 func growstack1() {
-	growstack()
+	growstack(10)
 }
 
 //go:noinline
-func growstack() {
-	var buf [8 << 10]byte
+func growstack(n int) {
+	var buf [8 << 16]byte
 	use(buf)
+	if n > 0 {
+		growstack(n - 1)
+	}
 }
 
 //go:noinline
-func use(x [8 << 10]byte) {}
+func use(x [8 << 16]byte) {}
 
 func TestBlockProfile(t *testing.T) {
 	type TestCase struct {
