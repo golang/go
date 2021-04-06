@@ -18,7 +18,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 )
 
 func BuildInit() {
@@ -53,7 +52,7 @@ func BuildInit() {
 	// used for compiling alternative files for the experiment. This allows
 	// changes for the experiment, like extra struct fields in the runtime,
 	// without affecting the base non-experiment code at all.
-	for _, expt := range strings.Split(objabi.GOEXPERIMENT, ",") {
+	for _, expt := range objabi.EnabledExperiments() {
 		cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "goexperiment."+expt)
 	}
 }
