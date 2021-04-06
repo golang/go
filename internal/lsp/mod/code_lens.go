@@ -50,7 +50,7 @@ func upgradeLenses(ctx context.Context, snapshot source.Snapshot, fh source.File
 	upgradeTransitive, err := command.NewUpgradeDependencyCommand("Upgrade transitive dependencies", command.DependencyArgs{
 		URI:        uri,
 		AddRequire: false,
-		GoCmdArgs:  []string{"-u", "all"},
+		GoCmdArgs:  []string{"-d", "-u", "-t", "./..."},
 	})
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func upgradeLenses(ctx context.Context, snapshot source.Snapshot, fh source.File
 	upgradeDirect, err := command.NewUpgradeDependencyCommand("Upgrade direct dependencies", command.DependencyArgs{
 		URI:        uri,
 		AddRequire: false,
-		GoCmdArgs:  requires,
+		GoCmdArgs:  append([]string{"-d"}, requires...),
 	})
 	if err != nil {
 		return nil, err
