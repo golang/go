@@ -171,7 +171,6 @@ func init() {
 	}
 
 	// Set GOEXPERIMENT to the parsed and canonicalized set of experiments.
-	// This format must be parseable by runtime.haveexperiment.
 	GOEXPERIMENT = expList()
 }
 

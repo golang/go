@@ -532,7 +532,7 @@ func dumpparams() {
 	dumpint(uint64(arenaStart))
 	dumpint(uint64(arenaEnd))
 	dumpstr(sys.GOARCH)
-	dumpstr(sys.GOEXPERIMENT)
+	dumpstr(buildVersion)
 	dumpint(uint64(ncpu))
 }
 
