@@ -1570,6 +1570,14 @@
 (CSEL [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => y
 (CSEL0 [cc] x flag) && ccARM64Eval(cc, flag) > 0 => x
 (CSEL0 [cc] _ flag) && ccARM64Eval(cc, flag) < 0 => (MOVDconst [0])
+(CSNEG [cc] x _ flag) && ccARM64Eval(cc, flag) > 0 => x
+(CSNEG [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => (NEG y)
+(CSINV [cc] x _ flag) && ccARM64Eval(cc, flag) > 0 => x
+(CSINV [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => (Not y)
+(CSINC [cc] x _ flag) && ccARM64Eval(cc, flag) > 0 => x
+(CSINC [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => (ADDconst [1] y)
+(CSETM [cc] flag) && ccARM64Eval(cc, flag) > 0 => (MOVDconst [-1])
+(CSETM [cc] flag) && ccARM64Eval(cc, flag) < 0 => (MOVDconst [0])
 
 // absorb flags back into boolean CSEL
 (CSEL [cc] x y (CMPWconst [0] boolval)) && cc == OpARM64NotEqual && flagArg(boolval) != nil =>
