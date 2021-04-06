@@ -223,10 +223,7 @@ func (d *mapDir) Read(b []byte) (int, error) {
 
 func (d *mapDir) ReadDir(count int) ([]fs.DirEntry, error) {
 	n := len(d.entry) - d.offset
-	if n == 0 {
-		if count <= 0 {
-			return nil, nil
-		}
+	if n == 0 && count > 0 {
 		return nil, io.EOF
 	}
 	if count > 0 && n > count {
