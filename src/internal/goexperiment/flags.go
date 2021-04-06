@@ -75,3 +75,8 @@ type Flags struct {
 	// register arguments to defer/go).
 	RegabiArgs bool
 }
+
+// BaselineFlags specifies the experiment flags that are enabled by
+// default in the current toolchain. This is, in effect, the "control"
+// configuration and any variation from this is an experiment.
+var BaselineFlags = Flags{}

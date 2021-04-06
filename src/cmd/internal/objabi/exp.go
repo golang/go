@@ -20,8 +20,6 @@ import (
 // was built with.)
 var Experiment goexperiment.Flags
 
-var defaultExpstring string // Set by package init
-
 // FramePointerEnabled enables the use of platform conventions for
 // saving frame pointers.
 //
@@ -32,13 +30,15 @@ var defaultExpstring string // Set by package init
 var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
 
 func init() {
-	// Capture "default" experiments.
-	defaultExpstring = Expstring()
+	// Start with the baseline configuration.
+	Experiment = goexperiment.BaselineFlags
 
-	goexperiment := envOr("GOEXPERIMENT", defaultGOEXPERIMENT)
+	// Pick up any changes to the baseline configuration from the
+	// GOEXPERIMENT environment. This can be set at make.bash time
+	// and overridden at build time.
+	env := envOr("GOEXPERIMENT", defaultGOEXPERIMENT)
 
-	// GOEXPERIMENT=none overrides all experiments enabled at dist time.
-	if goexperiment != "none" {
+	if env != "" {
 		// Create a map of known experiment names.
 		names := make(map[string]reflect.Value)
 		rv := reflect.ValueOf(&Experiment).Elem()
@@ -49,8 +49,14 @@ func init() {
 		}
 
 		// Parse names.
-		for _, f := range strings.Split(goexperiment, ",") {
+		for _, f := range strings.Split(env, ",") {
 			if f == "" {
+				continue
+			}
+			if f == "none" {
+				// GOEXPERIMENT=none restores the baseline configuration.
+				// (This is useful for overriding make.bash-time settings.)
+				Experiment = goexperiment.BaselineFlags
 				continue
 			}
 			val := true
@@ -93,40 +99,45 @@ func init() {
 	}
 }
 
-// expList returns the list of enabled GOEXPERIMENTs names.
-func expList(flags *goexperiment.Flags) []string {
+// expList returns the list of lower-cased experiment names for
+// experiments that differ from base. base may be nil to indicate no
+// experiments.
+func expList(exp, base *goexperiment.Flags) []string {
 	var list []string
-	rv := reflect.ValueOf(&Experiment).Elem()
+	rv := reflect.ValueOf(exp).Elem()
+	var rBase reflect.Value
+	if base != nil {
+		rBase = reflect.ValueOf(base).Elem()
+	}
 	rt := rv.Type()
 	for i := 0; i < rt.NumField(); i++ {
+		name := strings.ToLower(rt.Field(i).Name)
 		val := rv.Field(i).Bool()
-		if val {
-			field := rt.Field(i)
-			list = append(list, strings.ToLower(field.Name))
+		baseVal := false
+		if base != nil {
+			baseVal = rBase.Field(i).Bool()
+		}
+		if val != baseVal {
+			if val {
+				list = append(list, name)
+			} else {
+				list = append(list, "no"+name)
+			}
 		}
 	}
 	return list
 }
 
-// Expstring returns the GOEXPERIMENT string that should appear in Go
-// version signatures. This always starts with "X:".
-func Expstring() string {
-	list := expList(&Experiment)
-	if len(list) == 0 {
-		return "X:none"
-	}
-	return "X:" + strings.Join(list, ",")
-}
-
-// GOEXPERIMENT returns a comma-separated list of enabled experiments.
-// This is derived from the GOEXPERIMENT environment variable if set,
-// or the value of GOEXPERIMENT when make.bash was run if not.
+// GOEXPERIMENT is a comma-separated list of enabled or disabled
+// experiments that differ from the baseline experiment configuration.
+// GOEXPERIMENT is exactly what a user would set on the command line
+// to get the set of enabled experiments.
 func GOEXPERIMENT() string {
-	return strings.Join(expList(&Experiment), ",")
+	return strings.Join(expList(&Experiment, &goexperiment.BaselineFlags), ",")
 }
 
 // EnabledExperiments returns a list of enabled experiments, as
 // lower-cased experiment names.
 func EnabledExperiments() []string {
-	return expList(&Experiment)
+	return expList(&Experiment, nil)
 }
