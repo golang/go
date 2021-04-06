@@ -17,10 +17,11 @@
 // - Build tag goexperiment.x is set if experiment x (lower case) is
 // enabled.
 //
+// - For each experiment x (in camel case), this package contains a
+// boolean constant x and an integer constant xInt.
+//
 // - In runtime assembly, the macro GOEXPERIMENT_x is defined if
 // experiment x (lower case) is enabled.
-//
-// - TODO(austin): More to come.
 //
 // In the toolchain, the set of experiments enabled for the current
 // build should be accessed via objabi.Experiment.
@@ -29,11 +30,15 @@
 // go doc internal/experiment.Flags.
 package goexperiment
 
+//go:generate go run mkconsts.go
+
 // Flags is the set of experiments that can be enabled or disabled in
 // the current toolchain.
 //
 // When specified in the GOEXPERIMENT environment variable or as build
 // tags, experiments use the strings.ToLower of their field name.
+//
+// If you change this struct definition, run "go generate".
 type Flags struct {
 	FieldTrack        bool
 	PreemptibleLoops  bool

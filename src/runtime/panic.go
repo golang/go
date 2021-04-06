@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -228,7 +229,7 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 		throw("defer on system stack")
 	}
 
-	if experimentRegabiDefer && siz != 0 {
+	if goexperiment.RegabiDefer && siz != 0 {
 		// TODO: Make deferproc just take a func().
 		throw("defer with non-empty frame")
 	}
@@ -285,7 +286,7 @@ func deferprocStack(d *_defer) {
 		// go code on the system stack can't defer
 		throw("defer on system stack")
 	}
-	if experimentRegabiDefer && d.siz != 0 {
+	if goexperiment.RegabiDefer && d.siz != 0 {
 		throw("defer with non-empty frame")
 	}
 	// siz and fn are already set.
@@ -387,8 +388,8 @@ func deferArgs(d *_defer) unsafe.Pointer {
 // that experiment, we should change the type of d.fn.
 //go:nosplit
 func deferFunc(d *_defer) func() {
-	if !experimentRegabiDefer {
-		throw("requires experimentRegabiDefer")
+	if !goexperiment.RegabiDefer {
+		throw("requires GOEXPERIMENT=regabidefer")
 	}
 	var fn func()
 	*(**funcval)(unsafe.Pointer(&fn)) = d.fn
@@ -648,7 +649,7 @@ func Goexit() {
 				addOneOpenDeferFrame(gp, 0, nil)
 			}
 		} else {
-			if experimentRegabiDefer {
+			if goexperiment.RegabiDefer {
 				// Save the pc/sp in deferCallSave(), so we can "recover" back to this
 				// loop if necessary.
 				deferCallSave(&p, deferFunc(d))
@@ -850,7 +851,7 @@ func runOpenDeferFrame(gp *g, d *_defer) bool {
 		argWidth, fd = readvarintUnsafe(fd)
 		closureOffset, fd = readvarintUnsafe(fd)
 		nArgs, fd = readvarintUnsafe(fd)
-		if experimentRegabiDefer && argWidth != 0 {
+		if goexperiment.RegabiDefer && argWidth != 0 {
 			throw("defer with non-empty frame")
 		}
 		if deferBits&(1<<i) == 0 {
@@ -878,7 +879,7 @@ func runOpenDeferFrame(gp *g, d *_defer) bool {
 		deferBits = deferBits &^ (1 << i)
 		*(*uint8)(unsafe.Pointer(d.varp - uintptr(deferBitsOffset))) = deferBits
 		p := d._panic
-		if experimentRegabiDefer {
+		if goexperiment.RegabiDefer {
 			deferCallSave(p, deferFunc(d))
 		} else {
 			reflectcallSave(p, unsafe.Pointer(closure), deferArgs, argWidth)
@@ -906,8 +907,8 @@ func runOpenDeferFrame(gp *g, d *_defer) bool {
 // This is marked as a wrapper by the compiler so it doesn't appear in
 // tracebacks.
 func reflectcallSave(p *_panic, fn, arg unsafe.Pointer, argsize uint32) {
-	if experimentRegabiDefer {
-		throw("not allowed with experimentRegabiDefer")
+	if goexperiment.RegabiDefer {
+		throw("not allowed with GOEXPERIMENT=regabidefer")
 	}
 	if p != nil {
 		p.argp = unsafe.Pointer(getargp(0))
@@ -932,8 +933,8 @@ func reflectcallSave(p *_panic, fn, arg unsafe.Pointer, argsize uint32) {
 // This is marked as a wrapper by the compiler so it doesn't appear in
 // tracebacks.
 func deferCallSave(p *_panic, fn func()) {
-	if !experimentRegabiDefer {
-		throw("only allowed with experimentRegabiDefer")
+	if !goexperiment.RegabiDefer {
+		throw("only allowed with GOEXPERIMENT=regabidefer")
 	}
 	if p != nil {
 		p.argp = unsafe.Pointer(getargp(0))
@@ -1035,7 +1036,7 @@ func gopanic(e interface{}) {
 		} else {
 			p.argp = unsafe.Pointer(getargp(0))
 
-			if experimentRegabiDefer {
+			if goexperiment.RegabiDefer {
 				fn := deferFunc(d)
 				fn()
 			} else {
