@@ -128,5 +128,5 @@ func Getgoextlinkenabled() string {
 // or link object files that are incompatible with each other. This
 // string always starts with "go object ".
 func HeaderString() string {
-	return fmt.Sprintf("go object %s %s %s %s\n", GOOS, GOARCH, Version, Expstring())
+	return fmt.Sprintf("go object %s %s %s X:%s\n", GOOS, GOARCH, Version, strings.Join(EnabledExperiments(), ","))
 }

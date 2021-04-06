@@ -165,7 +165,7 @@ func (ts *testScript) setup() {
 		"GOCACHE=" + testGOCACHE,
 		"GODEBUG=" + os.Getenv("GODEBUG"),
 		"GOEXE=" + cfg.ExeSuffix,
-		"GOEXPSTRING=" + objabi.Expstring()[2:],
+		"GOEXPERIMENT=" + objabi.GOEXPERIMENT(),
 		"GOOS=" + runtime.GOOS,
 		"GOPATH=" + filepath.Join(ts.workdir, "gopath"),
 		"GOPROXY=" + proxyURL,

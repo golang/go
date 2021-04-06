@@ -91,16 +91,12 @@ func (versionFlag) Set(s string) error {
 	name = name[strings.LastIndex(name, `\`)+1:]
 	name = strings.TrimSuffix(name, ".exe")
 
-	// If there's an active experiment, include that,
-	// to distinguish go1.10.2 with an experiment
-	// from go1.10.2 without an experiment.
-	p := Expstring()
-	if p == defaultExpstring {
-		p = ""
-	}
-	sep := ""
-	if p != "" {
-		sep = " "
+	p := ""
+
+	// If the enabled experiments differ from the defaults,
+	// include that difference.
+	if goexperiment := GOEXPERIMENT(); goexperiment != "" {
+		p = " X:" + goexperiment
 	}
 
 	// The go command invokes -V=full to get a unique identifier
@@ -114,7 +110,7 @@ func (versionFlag) Set(s string) error {
 		}
 	}
 
-	fmt.Printf("%s version %s%s%s\n", name, Version, sep, p)
+	fmt.Printf("%s version %s%s\n", name, Version, p)
 	os.Exit(0)
 	return nil
 }
