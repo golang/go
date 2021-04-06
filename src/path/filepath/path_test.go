@@ -477,11 +477,7 @@ func testWalk(t *testing.T, walk func(string, fs.WalkDirFunc) error, errVisit in
 		defer restore()
 	}
 
-	tmpDir, err := os.MkdirTemp("", "TestWalk")
-	if err != nil {
-		t.Fatal("creating temp dir:", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	origDir, err := os.Getwd()
 	if err != nil {
@@ -581,11 +577,7 @@ func touch(t *testing.T, name string) {
 }
 
 func TestWalkSkipDirOnFile(t *testing.T) {
-	td, err := os.MkdirTemp("", "walktest")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(td)
+	td := t.TempDir()
 
 	if err := os.MkdirAll(filepath.Join(td, "dir"), 0755); err != nil {
 		t.Fatal(err)
@@ -609,7 +601,7 @@ func TestWalkSkipDirOnFile(t *testing.T) {
 	check := func(t *testing.T, walk func(root string) error, root string) {
 		t.Helper()
 		sawFoo2 = false
-		err = walk(root)
+		err := walk(root)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -631,11 +623,7 @@ func TestWalkSkipDirOnFile(t *testing.T) {
 }
 
 func TestWalkFileError(t *testing.T) {
-	td, err := os.MkdirTemp("", "walktest")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(td)
+	td := t.TempDir()
 
 	touch(t, filepath.Join(td, "foo"))
 	touch(t, filepath.Join(td, "bar"))
@@ -656,7 +644,7 @@ func TestWalkFileError(t *testing.T) {
 		return os.Lstat(path)
 	}
 	got := map[string]error{}
-	err = filepath.Walk(td, func(path string, fi fs.FileInfo, err error) error {
+	err := filepath.Walk(td, func(path string, fi fs.FileInfo, err error) error {
 		rel, _ := filepath.Rel(td, path)
 		got[filepath.ToSlash(rel)] = err
 		return nil
@@ -910,14 +898,11 @@ func testEvalSymlinksAfterChdir(t *testing.T, wd, path, want string) {
 func TestEvalSymlinks(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpDir, err := os.MkdirTemp("", "evalsymlink")
-	if err != nil {
-		t.Fatal("creating temp dir:", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// /tmp may itself be a symlink! Avoid the confusion, although
 	// it means trusting the thing we're testing.
+	var err error
 	tmpDir, err = filepath.EvalSymlinks(tmpDir)
 	if err != nil {
 		t.Fatal("eval symlink for tmp dir:", err)
@@ -996,14 +981,10 @@ func TestEvalSymlinksIsNotExist(t *testing.T) {
 func TestIssue13582(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpDir, err := os.MkdirTemp("", "issue13582")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	dir := filepath.Join(tmpDir, "dir")
-	err = os.Mkdir(dir, 0755)
+	err := os.Mkdir(dir, 0755)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1083,12 +1064,7 @@ var absTests = []string{
 }
 
 func TestAbs(t *testing.T) {
-	root, err := os.MkdirTemp("", "TestAbs")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(root)
-
+	root := t.TempDir()
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatal("getwd failed: ", err)
@@ -1154,11 +1130,7 @@ func TestAbs(t *testing.T) {
 // We test it separately from all other absTests because the empty string is not
 // a valid path, so it can't be used with os.Stat.
 func TestAbsEmptyString(t *testing.T) {
-	root, err := os.MkdirTemp("", "TestAbsEmptyString")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(root)
+	root := t.TempDir()
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -1376,11 +1348,7 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
 }
 
 func testWalkSymlink(t *testing.T, mklink func(target, link string) error) {
-	tmpdir, err := os.MkdirTemp("", "testWalkSymlink")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -1426,14 +1394,10 @@ func TestWalkSymlink(t *testing.T) {
 }
 
 func TestIssue29372(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "TestIssue29372")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	path := filepath.Join(tmpDir, "file.txt")
-	err = os.WriteFile(path, nil, 0644)
+	err := os.WriteFile(path, nil, 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1462,11 +1426,7 @@ func TestEvalSymlinksAboveRoot(t *testing.T) {
 
 	t.Parallel()
 
-	tmpDir, err := os.MkdirTemp("", "TestEvalSymlinksAboveRoot")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	evalTmpDir, err := filepath.EvalSymlinks(tmpDir)
 	if err != nil {
