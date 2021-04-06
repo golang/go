@@ -12,8 +12,6 @@ import (
 	"unsafe"
 )
 
-var buildVersion = sys.TheVersion
-
 // set using cmd/go/internal/modload.ModInfoProg
 var modinfo string
 

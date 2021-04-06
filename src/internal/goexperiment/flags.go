@@ -26,6 +26,9 @@
 // In the toolchain, the set of experiments enabled for the current
 // build should be accessed via objabi.Experiment.
 //
+// The set of experiments is included in the output of runtime.Version()
+// and "go version <binary>" if it differs from the default experiments.
+//
 // For the set of experiments supported by the current toolchain, see
 // go doc internal/experiment.Flags.
 package goexperiment
