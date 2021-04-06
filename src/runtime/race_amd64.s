@@ -44,7 +44,11 @@
 // Defined as ABIInternal so as to avoid introducing a wrapper,
 // which would render runtime.getcallerpc ineffective.
 TEXT	runtime·raceread<ABIInternal>(SB), NOSPLIT, $0-8
+#ifdef GOEXPERIMENT_REGABI_ARGS
+	MOVQ	AX, RARG1
+#else
 	MOVQ	addr+0(FP), RARG1
+#endif
 	MOVQ	(SP), RARG2
 	// void __tsan_read(ThreadState *thr, void *addr, void *pc);
 	MOVQ	$__tsan_read(SB), AX
@@ -70,7 +74,11 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
 // Defined as ABIInternal so as to avoid introducing a wrapper,
 // which would render runtime.getcallerpc ineffective.
 TEXT	runtime·racewrite<ABIInternal>(SB), NOSPLIT, $0-8
+#ifdef GOEXPERIMENT_REGABI_ARGS
+	MOVQ	AX, RARG1
+#else
 	MOVQ	addr+0(FP), RARG1
+#endif
 	MOVQ	(SP), RARG2
 	// void __tsan_write(ThreadState *thr, void *addr, void *pc);
 	MOVQ	$__tsan_write(SB), AX
@@ -121,8 +129,13 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
 // Defined as ABIInternal so as to avoid introducing a wrapper,
 // which would render runtime.getcallerpc ineffective.
 TEXT	runtime·racewriterange<ABIInternal>(SB), NOSPLIT, $0-16
+#ifdef GOEXPERIMENT_REGABI_ARGS
+	MOVQ	AX, RARG1
+	MOVQ	BX, RARG2
+#else
 	MOVQ	addr+0(FP), RARG1
 	MOVQ	size+8(FP), RARG2
+#endif
 	MOVQ	(SP), RARG3
 	// void __tsan_write_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVQ	$__tsan_write_range(SB), AX
