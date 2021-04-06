@@ -52,5 +52,3 @@ const MinFrameSize = _MinFrameSize
 // StackAlign is the required alignment of the SP register.
 // The stack must be at least word aligned, but some architectures require more.
 const StackAlign = _StackAlign
-
-var GOEXPERIMENT string // set by cmd/link

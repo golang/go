@@ -5,7 +5,6 @@
 package runtime
 
 import (
-	"internal/bytealg"
 	"internal/cpu"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
@@ -6037,26 +6036,6 @@ func setMaxThreads(in int) (out int) {
 	checkmcount()
 	unlock(&sched.lock)
 	return
-}
-
-func haveexperiment(name string) bool {
-	// GOEXPERIMENT is a comma-separated list of enabled
-	// experiments. It's not the raw environment variable, but a
-	// pre-processed list from cmd/internal/objabi.
-	x := sys.GOEXPERIMENT
-	for x != "" {
-		xname := ""
-		i := bytealg.IndexByteString(x, ',')
-		if i < 0 {
-			xname, x = x, ""
-		} else {
-			xname, x = x[:i], x[i+1:]
-		}
-		if xname == name {
-			return true
-		}
-	}
-	return false
 }
 
 //go:nosplit
