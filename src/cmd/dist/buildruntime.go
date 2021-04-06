@@ -19,7 +19,6 @@ import (
 //
 //	package sys
 //
-//	const TheVersion = <version>
 //	const StackGuardMultiplier = <multiplier value>
 //
 func mkzversion(dir, file string) {
@@ -28,7 +27,6 @@ func mkzversion(dir, file string) {
 	fmt.Fprintln(&buf)
 	fmt.Fprintf(&buf, "package sys\n")
 	fmt.Fprintln(&buf)
-	fmt.Fprintf(&buf, "const TheVersion = `%s`\n", findgoversion())
 	fmt.Fprintf(&buf, "const StackGuardMultiplierDefault = %d\n", stackGuardMultiplierDefault())
 
 	writefile(buf.String(), file, writeSkipSame)
