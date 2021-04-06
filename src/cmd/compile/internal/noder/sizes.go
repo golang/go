@@ -115,10 +115,10 @@ func (s *gcSizes) Sizeof(T types2.Type) int64 {
 		}
 		offsets := s.Offsetsof(fields)
 
-		// gc: The last field of a struct is not allowed to
+		// gc: The last field of a non-zero-sized struct is not allowed to
 		// have size 0.
 		last := s.Sizeof(fields[n-1].Type())
-		if last == 0 {
+		if last == 0 && offsets[n-1] > 0 {
 			last = 1
 		}
 
