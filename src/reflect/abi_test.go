@@ -22,23 +22,7 @@ func TestMethodValueCallABI(t *testing.T) {
 	// Enable register-based reflect.Call and ensure we don't
 	// use potentially incorrect cached versions by clearing
 	// the cache before we start and after we're done.
-	var oldRegs struct {
-		ints, floats int
-		floatSize    uintptr
-	}
-	oldRegs.ints = *reflect.IntArgRegs
-	oldRegs.floats = *reflect.FloatArgRegs
-	oldRegs.floatSize = *reflect.FloatRegSize
-	*reflect.IntArgRegs = abi.IntArgRegs
-	*reflect.FloatArgRegs = abi.FloatArgRegs
-	*reflect.FloatRegSize = uintptr(abi.EffectiveFloatRegSize)
-	reflect.ClearLayoutCache()
-	defer func() {
-		*reflect.IntArgRegs = oldRegs.ints
-		*reflect.FloatArgRegs = oldRegs.floats
-		*reflect.FloatRegSize = oldRegs.floatSize
-		reflect.ClearLayoutCache()
-	}()
+	defer reflect.SetArgRegs(reflect.SetArgRegs(abi.IntArgRegs, abi.FloatArgRegs, abi.EffectiveFloatRegSize))
 
 	// This test is simple. Calling a method value involves
 	// pretty much just plumbing whatever arguments in whichever
@@ -129,23 +113,7 @@ func TestReflectCallABI(t *testing.T) {
 	// Enable register-based reflect.Call and ensure we don't
 	// use potentially incorrect cached versions by clearing
 	// the cache before we start and after we're done.
-	var oldRegs struct {
-		ints, floats int
-		floatSize    uintptr
-	}
-	oldRegs.ints = *reflect.IntArgRegs
-	oldRegs.floats = *reflect.FloatArgRegs
-	oldRegs.floatSize = *reflect.FloatRegSize
-	*reflect.IntArgRegs = abi.IntArgRegs
-	*reflect.FloatArgRegs = abi.FloatArgRegs
-	*reflect.FloatRegSize = uintptr(abi.EffectiveFloatRegSize)
-	reflect.ClearLayoutCache()
-	defer func() {
-		*reflect.IntArgRegs = oldRegs.ints
-		*reflect.FloatArgRegs = oldRegs.floats
-		*reflect.FloatRegSize = oldRegs.floatSize
-		reflect.ClearLayoutCache()
-	}()
+	defer reflect.SetArgRegs(reflect.SetArgRegs(abi.IntArgRegs, abi.FloatArgRegs, abi.EffectiveFloatRegSize))
 
 	// Execute the functions defined below which all have the
 	// same form and perform the same function: pass all arguments
@@ -182,23 +150,7 @@ func TestReflectMakeFuncCallABI(t *testing.T) {
 	// Enable register-based reflect.MakeFunc and ensure we don't
 	// use potentially incorrect cached versions by clearing
 	// the cache before we start and after we're done.
-	var oldRegs struct {
-		ints, floats int
-		floatSize    uintptr
-	}
-	oldRegs.ints = *reflect.IntArgRegs
-	oldRegs.floats = *reflect.FloatArgRegs
-	oldRegs.floatSize = *reflect.FloatRegSize
-	*reflect.IntArgRegs = abi.IntArgRegs
-	*reflect.FloatArgRegs = abi.FloatArgRegs
-	*reflect.FloatRegSize = uintptr(abi.EffectiveFloatRegSize)
-	reflect.ClearLayoutCache()
-	defer func() {
-		*reflect.IntArgRegs = oldRegs.ints
-		*reflect.FloatArgRegs = oldRegs.floats
-		*reflect.FloatRegSize = oldRegs.floatSize
-		reflect.ClearLayoutCache()
-	}()
+	defer reflect.SetArgRegs(reflect.SetArgRegs(abi.IntArgRegs, abi.FloatArgRegs, abi.EffectiveFloatRegSize))
 
 	// Execute the functions defined below which all have the
 	// same form and perform the same function: pass all arguments
