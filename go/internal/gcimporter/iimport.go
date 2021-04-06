@@ -473,6 +473,14 @@ func (r *importReader) mpfloat(b *types.Basic) constant.Value {
 	switch {
 	case exp > 0:
 		x = constant.Shift(x, token.SHL, uint(exp))
+		// Ensure that the imported Kind is Float, else this constant may run into
+		// bitsize limits on overlarge integers. Eventually we can instead adopt
+		// the approach of CL 288632, but that CL relies on go/constant APIs that
+		// were introduced in go1.13.
+		//
+		// TODO(rFindley): sync the logic here with tip Go once we no longer
+		// support go1.12.
+		x = constant.ToFloat(x)
 	case exp < 0:
 		d := constant.Shift(constant.MakeInt64(1), token.SHL, uint(-exp))
 		x = constant.BinaryOp(x, token.QUO, d)
