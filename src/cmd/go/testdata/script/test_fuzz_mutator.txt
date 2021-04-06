@@ -19,15 +19,15 @@ go run check_logs.go fuzz fuzz.worker
 stdout FAIL
 stdout 'mutator found enough unique mutations'
 
-# Test that minimization is working.
-! go test -fuzz=FuzzMinimizer -run=FuzzMinimizer -parallel=1 -fuzztime=5s minimizer_test.go
-! stdout ok
-# TODO(jayconrod,katiehockman): Once logging is fixed, add this test in.
-# stdout 'got the minimum size!'
+# Test that minimization is working for recoverable errors.
+! go test -v -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -parallel=1 -fuzztime=10s minimizer_test.go
+! stdout '^ok'
+stdout 'got the minimum size!'
+stdout 'contains a letter'
 stdout FAIL
 
 # Test that re-running the minimized value causes a crash.
-! go test -run=FuzzMinimizer minimizer_test.go
+! go test -run=FuzzMinimizerRecoverable minimizer_test.go
 
 -- go.mod --
 module m
@@ -85,7 +85,7 @@ import (
 	"testing"
 )
 
-func FuzzMinimizer(f *testing.F) {
+func FuzzMinimizerRecoverable(f *testing.F) {
 	f.Fuzz(func(t *testing.T, b []byte) {
 		if len(b) < 100 {
 			// Make sure that b is large enough that it can be minimized
