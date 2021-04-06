@@ -459,7 +459,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 
 		n := ir.NewConvExpr(n.Pos(), ir.OCONV, nil, arg)
 		n.SetType(l.Type())
-		return typecheck1(n, top)
+		return tcConv(n)
 	}
 
 	typecheckargs(n)
