@@ -653,7 +653,19 @@ func (f *Func) Frontend() Frontend                                  { return f.f
 func (f *Func) Warnl(pos src.XPos, msg string, args ...interface{}) { f.fe.Warnl(pos, msg, args...) }
 func (f *Func) Logf(msg string, args ...interface{})                { f.fe.Logf(msg, args...) }
 func (f *Func) Log() bool                                           { return f.fe.Log() }
-func (f *Func) Fatalf(msg string, args ...interface{})              { f.fe.Fatalf(f.Entry.Pos, msg, args...) }
+
+func (f *Func) Fatalf(msg string, args ...interface{}) {
+	stats := "crashed"
+	if f.Log() {
+		f.Logf("  pass %s end %s\n", f.pass.name, stats)
+		printFunc(f)
+	}
+	if f.HTMLWriter != nil {
+		f.HTMLWriter.WritePhase(f.pass.name, fmt.Sprintf("%s <span class=\"stats\">%s</span>", f.pass.name, stats))
+		f.HTMLWriter.flushPhases()
+	}
+	f.fe.Fatalf(f.Entry.Pos, msg, args...)
+}
 
 // postorder returns the reachable blocks in f in a postorder traversal.
 func (f *Func) postorder() []*Block {
