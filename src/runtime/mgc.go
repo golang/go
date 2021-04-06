@@ -2391,6 +2391,11 @@ func gcTestIsReachable(ptrs ...unsafe.Pointer) (mask uint64) {
 	// Force a full GC and sweep.
 	GC()
 
+	// TODO(austin): Work around issue #45315. One GC() can return
+	// without finishing the sweep. Do a second to force the sweep
+	// through.
+	GC()
+
 	// Process specials.
 	for i, s := range specials {
 		if !s.done {
