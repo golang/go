@@ -515,9 +515,12 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
 			ws.m.mutate(vals, cap(mem.valueRef()))
 			writeToMem(vals, mem)
 			if err := ws.fuzzFn(CorpusEntry{Values: vals}); err != nil {
-				if minErr := ws.minimize(ctx, vals, mem); minErr != nil {
+				// TODO(jayconrod,katiehockman): consider making the maximum minimization
+				// time customizable with a go command flag.
+				minCtx, minCancel := context.WithTimeout(ctx, time.Minute)
+				defer minCancel()
+				if minErr := ws.minimize(minCtx, vals, mem); minErr != nil {
 					// Minimization found a different error, so use that one.
-					writeToMem(vals, mem)
 					err = minErr
 				}
 				return fuzzResponse{Crashed: true, Err: err.Error()}
@@ -528,22 +531,20 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
 	}
 }
 
-// minimizeInput applies a series of minimizing transformations on the provided
+// minimize applies a series of minimizing transformations on the provided
 // vals, ensuring that each minimization still causes an error in fuzzFn. Before
 // every call to fuzzFn, it marshals the new vals and writes it to the provided
 // mem just in case an unrecoverable error occurs. It runs for a maximum of one
 // minute, and returns the last error it found.
-func (ws *workerServer) minimize(ctx context.Context, vals []interface{}, mem *sharedMem) error {
-	// TODO(jayconrod,katiehockman): consider making the maximum minimization
-	// time customizable with a go command flag.
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
-	defer cancel()
-	var retErr error
+func (ws *workerServer) minimize(ctx context.Context, vals []interface{}, mem *sharedMem) (retErr error) {
+	// Make sure the last crashing value is written to mem.
+	defer writeToMem(vals, mem)
 
 	// tryMinimized will run the fuzz function for the values in vals at the
 	// time the function is called. If err is nil, then the minimization was
 	// unsuccessful, since we expect an error to still occur.
 	tryMinimized := func(i int, prevVal interface{}) error {
+		writeToMem(vals, mem) // write to mem in case a non-recoverable crash occurs
 		err := ws.fuzzFn(CorpusEntry{Values: vals})
 		if err == nil {
 			// The fuzz function succeeded, so return the value at index i back
@@ -565,11 +566,11 @@ func (ws *workerServer) minimize(ctx context.Context, vals []interface{}, mem *s
 			// First, try to cut the tail.
 			for n := 1024; n != 0; n /= 2 {
 				for len(v) > n {
-					if ctx.Done() != nil {
+					if ctx.Err() != nil {
 						return retErr
 					}
 					vals[valI] = v[:len(v)-n]
-					if tryMinimized(valI, v) != nil {
+					if tryMinimized(valI, v) == nil {
 						break
 					}
 					// Set v to the new value to continue iterating.
@@ -580,14 +581,14 @@ func (ws *workerServer) minimize(ctx context.Context, vals []interface{}, mem *s
 			// Then, try to remove each individual byte.
 			tmp := make([]byte, len(v))
 			for i := 0; i < len(v)-1; i++ {
-				if ctx.Done() != nil {
+				if ctx.Err() != nil {
 					return retErr
 				}
 				candidate := tmp[:len(v)-1]
 				copy(candidate[:i], v[:i])
 				copy(candidate[i:], v[i+1:])
 				vals[valI] = candidate
-				if tryMinimized(valI, v) != nil {
+				if tryMinimized(valI, v) == nil {
 					continue
 				}
 				// Update v to delete the value at index i.
@@ -602,13 +603,13 @@ func (ws *workerServer) minimize(ctx context.Context, vals []interface{}, mem *s
 			for i := 0; i < len(v)-1; i++ {
 				copy(tmp, v[:i])
 				for j := len(v); j > i+1; j-- {
-					if ctx.Done() != nil {
+					if ctx.Err() != nil {
 						return retErr
 					}
 					candidate := tmp[:len(v)-j+i]
 					copy(candidate[i:], v[j:])
 					vals[valI] = candidate
-					if tryMinimized(valI, v) != nil {
+					if tryMinimized(valI, v) == nil {
 						continue
 					}
 					// Update v and reset the loop with the new length.
