@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -500,21 +501,23 @@ func (c *RegAmounts) regString(r RegIndex) string {
 // ToString method renders an ABIParamAssignment in human-readable
 // form, suitable for debugging or unit testing.
 func (ri *ABIParamAssignment) ToString(config *ABIConfig, extra bool) string {
-	regs := "R{"
-	offname := "spilloffset" // offset is for spill for register(s)
+	var b strings.Builder
+	b.WriteString("R{")
+	offName := "spilloffset" // offset is for spill for register(s)
 	if len(ri.Registers) == 0 {
-		offname = "offset" // offset is for memory arg
+		offName = "offset" // offset is for memory arg
 	}
 	for _, r := range ri.Registers {
-		regs += " " + config.regAmounts.regString(r)
+		b.WriteString(" " + config.regAmounts.regString(r))
 		if extra {
-			regs += fmt.Sprintf("(%d)", r)
+			fmt.Fprintf(&b, "(%d)", r)
 		}
 	}
 	if extra {
-		regs += fmt.Sprintf(" | #I=%d, #F=%d", config.regAmounts.intRegs, config.regAmounts.floatRegs)
+		fmt.Fprintf(&b, " | #I=%d, #F=%d", config.regAmounts.intRegs, config.regAmounts.floatRegs)
 	}
-	return fmt.Sprintf("%s } %s: %d typ: %v", regs, offname, ri.offset, ri.Type)
+	fmt.Fprintf(&b, " } %s: %d typ: %v", offName, ri.offset, ri.Type)
+	return b.String()
 }
 
 // String method renders an ABIParamResultInfo in human-readable
