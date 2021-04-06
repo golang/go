@@ -62,11 +62,12 @@ const (
 type mheap struct {
 	// lock must only be acquired on the system stack, otherwise a g
 	// could self-deadlock if its stack grows with the lock held.
-	lock      mutex
-	pages     pageAlloc // page allocation data structure
-	sweepgen  uint32    // sweep generation, see comment in mspan; written during STW
-	sweepdone uint32    // all spans are swept
-	sweepers  uint32    // number of active sweepone calls
+	lock  mutex
+	pages pageAlloc // page allocation data structure
+
+	sweepgen     uint32 // sweep generation, see comment in mspan; written during STW
+	sweepDrained uint32 // all spans are swept or are being swept
+	sweepers     uint32 // number of active sweepone calls
 
 	// allspans is a slice of all mspans ever created. Each mspan
 	// appears exactly once.
@@ -904,7 +905,7 @@ func (h *mheap) alloc(npages uintptr, spanclass spanClass, needzero bool) *mspan
 	systemstack(func() {
 		// To prevent excessive heap growth, before allocating n pages
 		// we need to sweep and reclaim at least n pages.
-		if h.sweepdone == 0 {
+		if !isSweepDone() {
 			h.reclaim(npages)
 		}
 		s = h.allocSpan(npages, spanAllocHeap, spanclass)

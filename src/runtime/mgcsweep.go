@@ -238,7 +238,7 @@ func (l *sweepLocker) dispose() {
 	// Decrement the number of active sweepers and if this is the
 	// last one, mark sweep as complete.
 	l.blocking = false
-	if atomic.Xadd(&mheap_.sweepers, -1) == 0 && atomic.Load(&mheap_.sweepdone) != 0 {
+	if atomic.Xadd(&mheap_.sweepers, -1) == 0 && atomic.Load(&mheap_.sweepDrained) != 0 {
 		l.sweepIsDone()
 	}
 }
@@ -257,7 +257,7 @@ func sweepone() uintptr {
 	// increment locks to ensure that the goroutine is not preempted
 	// in the middle of sweep thus leaving the span in an inconsistent state for next GC
 	_g_.m.locks++
-	if atomic.Load(&mheap_.sweepdone) != 0 {
+	if atomic.Load(&mheap_.sweepDrained) != 0 {
 		_g_.m.locks--
 		return ^uintptr(0)
 	}
@@ -271,7 +271,7 @@ func sweepone() uintptr {
 	for {
 		s := mheap_.nextSpanForSweep()
 		if s == nil {
-			noMoreWork = atomic.Cas(&mheap_.sweepdone, 0, 1)
+			noMoreWork = atomic.Cas(&mheap_.sweepDrained, 0, 1)
 			break
 		}
 		if state := s.state.get(); state != mSpanInUse {
@@ -335,14 +335,17 @@ func sweepone() uintptr {
 	return npages
 }
 
-// isSweepDone reports whether all spans are swept or currently being swept.
+// isSweepDone reports whether all spans are swept.
 //
 // Note that this condition may transition from false to true at any
 // time as the sweeper runs. It may transition from true to false if a
 // GC runs; to prevent that the caller must be non-preemptible or must
 // somehow block GC progress.
 func isSweepDone() bool {
-	return mheap_.sweepdone != 0
+	// Check that all spans have at least begun sweeping and there
+	// are no active sweepers. If both are true, then all spans
+	// have finished sweeping.
+	return atomic.Load(&mheap_.sweepDrained) != 0 && atomic.Load(&mheap_.sweepers) == 0
 }
 
 // Returns only when span s has been swept.
