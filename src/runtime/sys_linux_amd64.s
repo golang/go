@@ -215,7 +215,7 @@ TEXT runtime·walltime1(SB),NOSPLIT,$16-12
 
 	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
 
-#ifdef GOEXPERIMENT_REGABI_G
+#ifdef GOEXPERIMENT_regabig
 	MOVQ	g_m(R14), BX // BX unchanged by C code.
 #else
 	get_tls(CX)
@@ -236,7 +236,7 @@ TEXT runtime·walltime1(SB),NOSPLIT,$16-12
 	MOVQ	CX, m_vdsoPC(BX)
 	MOVQ	DX, m_vdsoSP(BX)
 
-#ifdef GOEXPERIMENT_REGABI_G
+#ifdef GOEXPERIMENT_regabig
 	CMPQ	R14, m_curg(BX)	// Only switch if on curg.
 #else
 	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
@@ -283,7 +283,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 
 	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
 
-#ifdef GOEXPERIMENT_REGABI_G
+#ifdef GOEXPERIMENT_regabig
 	MOVQ	g_m(R14), BX // BX unchanged by C code.
 #else
 	get_tls(CX)
@@ -304,7 +304,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 	MOVQ	CX, m_vdsoPC(BX)
 	MOVQ	DX, m_vdsoSP(BX)
 
-#ifdef GOEXPERIMENT_REGABI_G
+#ifdef GOEXPERIMENT_regabig
 	CMPQ	R14, m_curg(BX)	// Only switch if on curg.
 #else
 	CMPQ	AX, m_curg(BX)	// Only switch if on curg.

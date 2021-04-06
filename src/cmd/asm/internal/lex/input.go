@@ -57,19 +57,19 @@ func predefine(defines flags.MultiFlag) map[string]*Macro {
 			}
 		}
 		if objabi.Experiment.RegabiWrappers {
-			set("GOEXPERIMENT_REGABI_WRAPPERS")
+			set("GOEXPERIMENT_regabiwrappers")
 		}
 		if objabi.Experiment.RegabiG {
-			set("GOEXPERIMENT_REGABI_G")
+			set("GOEXPERIMENT_regabig")
 		}
 		if objabi.Experiment.RegabiReflect {
-			set("GOEXPERIMENT_REGABI_REFLECT")
+			set("GOEXPERIMENT_regabireflect")
 		}
 		if objabi.Experiment.RegabiDefer {
-			set("GOEXPERIMENT_REGABI_DEFER")
+			set("GOEXPERIMENT_regabidefer")
 		}
 		if objabi.Experiment.RegabiArgs {
-			set("GOEXPERIMENT_REGABI_ARGS")
+			set("GOEXPERIMENT_regabiargs")
 		}
 	}
 
