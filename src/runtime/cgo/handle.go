@@ -9,50 +9,56 @@ import (
 	"sync/atomic"
 )
 
-// Handle provides a safe representation of Go values to pass between
-// Go and C. The zero value of a handle is not a valid handle, and thus
-// is safe to use as a sentinel in C APIs.
+// Handle provides a way to pass values that contain Go pointers
+// (pointers to memory allocated by Go) between Go and C without
+// breaking the cgo pointer passing rules. A Handle is an integer
+// value that can represent any Go value. A Handle can be passed
+// through C and back to Go, and Go code can use the Handle to
+// retrieve the original Go value.
 //
 // The underlying type of Handle is guaranteed to fit in an integer type
-// that is large enough to hold the bit pattern of any pointer.
+// that is large enough to hold the bit pattern of any pointer. The zero
+// value of a Handle is not valid, and thus is safe to use as a sentinel
+// in C APIs.
+//
 // For instance, on the Go side:
 //
-// 	package main
+//	package main
 //
-// 	/*
-// 	#include <stdint.h> // for uintptr_t
+//	/*
+//	#include <stdint.h> // for uintptr_t
 //
-// 	extern void MyGoPrint(uintptr_t handle);
-// 	void myprint(uintptr_t handle);
-// 	*/
-// 	import "C"
-// 	import "runtime/cgo"
+//	extern void MyGoPrint(uintptr_t handle);
+//	void myprint(uintptr_t handle);
+//	*/
+//	import "C"
+//	import "runtime/cgo"
 //
-// 	//export MyGoPrint
-// 	func MyGoPrint(handle C.uintptr_t) {
-// 		h := cgo.Handle(handle)
-// 		val := h.Value().(int)
-// 		println(val)
-// 		h.Delete()
-// 	}
+//	//export MyGoPrint
+//	func MyGoPrint(handle C.uintptr_t) {
+//		h := cgo.Handle(handle)
+//		val := h.Value().(string)
+//		println(val)
+//		h.Delete()
+//	}
 //
-// 	func main() {
-// 		val := 42
-// 		C.myprint(C.uintptr_t(cgo.NewHandle(val)))
-// 		// Output: 42
-// 	}
+//	func main() {
+//		val := "hello Go"
+//		C.myprint(C.uintptr_t(cgo.NewHandle(val)))
+//		// Output: hello Go
+//	}
 //
 // and on the C side:
 //
-// 	#include <stdint.h> // for uintptr_t
+//	#include <stdint.h> // for uintptr_t
 //
-// 	// A Go function
-// 	extern void MyGoPrint(uintptr_t handle);
+//	// A Go function
+//	extern void MyGoPrint(uintptr_t handle);
 //
-// 	// A C function
-// 	void myprint(uintptr_t handle) {
-// 	    MyGoPrint(handle);
-// 	}
+//	// A C function
+//	void myprint(uintptr_t handle) {
+//	    MyGoPrint(handle);
+//	}
 type Handle uintptr
 
 // NewHandle returns a handle for a given value.
