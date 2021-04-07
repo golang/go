@@ -218,8 +218,15 @@ func (s *stackAllocState) stackalloc() {
 			// If this is a named value, try to use the name as
 			// the spill location.
 			var name LocalSlot
+			interfere := false
 			if v.Op == OpStoreReg {
-				name = names[v.Args[0].ID]
+				a := v.Args[0]
+				name = names[a.ID]
+				if name.N == nil && (a.Op == OpArgIntReg || a.Op == OpArgFloatReg) {
+					// Try harder to spill to the abi-provided spill slot, even if the names are messed up.
+					nameOff := a.Aux.(*AuxNameOffset)
+					name = LocalSlot{N: nameOff.Name, Type: v.Type, Off: nameOff.Offset}
+				}
 			} else {
 				name = names[v.ID]
 			}
@@ -230,6 +237,7 @@ func (s *stackAllocState) stackalloc() {
 						// A variable can interfere with itself.
 						// It is rare, but it can happen.
 						s.nSelfInterfere++
+						interfere = true
 						goto noname
 					}
 				}
@@ -271,7 +279,11 @@ func (s *stackAllocState) stackalloc() {
 			// Use the stack variable at that index for v.
 			loc := locs[i]
 			if f.pass.debug > stackDebug {
-				fmt.Printf("stackalloc %s to %s\n", v, loc)
+				reason := "noname"
+				if interfere {
+					reason = "interfere"
+				}
+				fmt.Printf("stackalloc (%s) %s to %s\n", reason, v, loc)
 			}
 			f.setHome(v, loc)
 			slots[v.ID] = i
