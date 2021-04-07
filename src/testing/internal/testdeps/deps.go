@@ -139,7 +139,16 @@ func (TestDeps) CoordinateFuzzing(timeout time.Duration, count int64, parallel i
 	// crashers and interesting values.
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
-	err = fuzz.CoordinateFuzzing(ctx, os.Stderr, timeout, count, parallel, seed, types, corpusDir, cacheDir)
+	err = fuzz.CoordinateFuzzing(ctx, fuzz.CoordinateFuzzingOpts{
+		Log:       os.Stderr,
+		Timeout:   timeout,
+		Count:     count,
+		Parallel:  parallel,
+		Seed:      seed,
+		Types:     types,
+		CorpusDir: corpusDir,
+		CacheDir:  cacheDir,
+	})
 	if err == ctx.Err() {
 		return nil
 	}

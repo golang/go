@@ -341,7 +341,7 @@ func (w *worker) stop() error {
 
 			case nil:
 				// Still waiting. Print a message to let the user know why.
-				fmt.Fprintf(w.coordinator.log, "waiting for fuzzing process to terminate...\n")
+				fmt.Fprintf(w.coordinator.opts.Log, "waiting for fuzzing process to terminate...\n")
 			}
 		}
 	}
