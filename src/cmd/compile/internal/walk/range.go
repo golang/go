@@ -168,7 +168,9 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 
 		hit := nrange.Prealloc
 		th := hit.Type()
-		keysym := th.Field(0).Sym  // depends on layout of iterator struct.  See reflect.go:MapIterType
+		// depends on layout of iterator struct.
+		// See cmd/compile/internal/reflectdata/reflect.go:MapIterType
+		keysym := th.Field(0).Sym  
 		elemsym := th.Field(1).Sym // ditto
 
 		fn := typecheck.LookupRuntime("mapiterinit")
