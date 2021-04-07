@@ -61,18 +61,24 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
 		base.Fatalf("stringtoarraylit %v", n)
 	}
 
-	var l []ir.Node
+	var list []ir.Node
 	i := 0
+	eltType := n.Type().Elem()
 	for _, r := range ir.StringVal(n.X) {
-		l = append(l, ir.NewKeyExpr(base.Pos, ir.NewInt(int64(i)), ir.NewInt(int64(r))))
+		elt := ir.NewKeyExpr(base.Pos, ir.NewInt(int64(i)), ir.NewInt(int64(r)))
+		// Change from untyped int to the actual element type determined
+		// by types2.  No need to change elt.Key, since the array indexes
+		// are just used for setting up the element ordering.
+		elt.Value.SetType(eltType)
+		list = append(list, elt)
 		i++
 	}
 
 	nn := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(n.Type()), nil)
-	nn.List = l
+	nn.List = list
+	typed(n.Type(), nn)
 	// Need to transform the OCOMPLIT.
-	// TODO(danscales): update this when we have written transformCompLit()
-	return typecheck.Expr(nn)
+	return transformCompLit(nn)
 }
 
 // transformConv transforms an OCONV node as needed, based on the types involved,
@@ -225,7 +231,7 @@ func transformIndex(n *ir.IndexExpr) {
 	l := n.X
 	t := l.Type()
 	if t.Kind() == types.TMAP {
-		n.Index = typecheck.AssignConv(n.Index, t.Key(), "map index")
+		n.Index = assignconvfn(n.Index, t.Key())
 		n.SetOp(ir.OINDEXMAP)
 		// Set type to just the map value, not (value, bool). This is
 		// different from types2, but fits the later stages of the
@@ -801,6 +807,154 @@ func transformBuiltin(n *ir.CallExpr) ir.Node {
 
 	default:
 		panic(fmt.Sprintf("transformBuiltin: unexpected op %v", op))
+	}
+
+	return n
+}
+
+func hasKeys(l ir.Nodes) bool {
+	for _, n := range l {
+		if n.Op() == ir.OKEY || n.Op() == ir.OSTRUCTKEY {
+			return true
+		}
+	}
+	return false
+}
+
+// transformArrayLit runs assignconvfn on each array element and returns the
+// length of the slice/array that is needed to hold all the array keys/indexes
+// (one more than the highest index). Corresponds to typecheck.typecheckarraylit.
+func transformArrayLit(elemType *types.Type, bound int64, elts []ir.Node) int64 {
+	var key, length int64
+	for i, elt := range elts {
+		ir.SetPos(elt)
+		r := elts[i]
+		var kv *ir.KeyExpr
+		if elt.Op() == ir.OKEY {
+			elt := elt.(*ir.KeyExpr)
+			key = typecheck.IndexConst(elt.Key)
+			assert(key >= 0)
+			kv = elt
+			r = elt.Value
+		}
+
+		r = assignconvfn(r, elemType)
+		if kv != nil {
+			kv.Value = r
+		} else {
+			elts[i] = r
+		}
+
+		key++
+		if key > length {
+			length = key
+		}
+	}
+
+	return length
+}
+
+// transformCompLit transforms n to an OARRAYLIT, OSLICELIT, OMAPLIT, or
+// OSTRUCTLIT node, with any needed conversions. Corresponds to
+// typecheck.tcCompLit.
+func transformCompLit(n *ir.CompLitExpr) (res ir.Node) {
+	assert(n.Type() != nil && n.Typecheck() == 1)
+	lno := base.Pos
+	defer func() {
+		base.Pos = lno
+	}()
+
+	// Save original node (including n.Right)
+	n.SetOrig(ir.Copy(n))
+
+	ir.SetPos(n)
+
+	t := n.Type()
+
+	switch t.Kind() {
+	default:
+		base.Fatalf("transformCompLit %v", t.Kind())
+
+	case types.TARRAY:
+		transformArrayLit(t.Elem(), t.NumElem(), n.List)
+		n.SetOp(ir.OARRAYLIT)
+
+	case types.TSLICE:
+		length := transformArrayLit(t.Elem(), -1, n.List)
+		n.SetOp(ir.OSLICELIT)
+		n.Len = length
+
+	case types.TMAP:
+		for _, l := range n.List {
+			ir.SetPos(l)
+			assert(l.Op() == ir.OKEY)
+			l := l.(*ir.KeyExpr)
+
+			r := l.Key
+			l.Key = assignconvfn(r, t.Key())
+
+			r = l.Value
+			l.Value = assignconvfn(r, t.Elem())
+		}
+
+		n.SetOp(ir.OMAPLIT)
+
+	case types.TSTRUCT:
+		// Need valid field offsets for Xoffset below.
+		types.CalcSize(t)
+
+		if len(n.List) != 0 && !hasKeys(n.List) {
+			// simple list of values
+			ls := n.List
+			for i, n1 := range ls {
+				ir.SetPos(n1)
+
+				f := t.Field(i)
+				n1 = assignconvfn(n1, f.Type)
+				sk := ir.NewStructKeyExpr(base.Pos, f.Sym, n1)
+				sk.Offset = f.Offset
+				ls[i] = sk
+			}
+			assert(len(ls) >= t.NumFields())
+		} else {
+			// keyed list
+			ls := n.List
+			for i, l := range ls {
+				ir.SetPos(l)
+
+				if l.Op() == ir.OKEY {
+					kv := l.(*ir.KeyExpr)
+					key := kv.Key
+
+					// Sym might have resolved to name in other top-level
+					// package, because of import dot. Redirect to correct sym
+					// before we do the lookup.
+					s := key.Sym()
+					if id, ok := key.(*ir.Ident); ok && typecheck.DotImportRefs[id] != nil {
+						s = typecheck.Lookup(s.Name)
+					}
+
+					// An OXDOT uses the Sym field to hold
+					// the field to the right of the dot,
+					// so s will be non-nil, but an OXDOT
+					// is never a valid struct literal key.
+					assert(!(s == nil || s.Pkg != types.LocalPkg || key.Op() == ir.OXDOT || s.IsBlank()))
+
+					l = ir.NewStructKeyExpr(l.Pos(), s, kv.Value)
+					ls[i] = l
+				}
+
+				assert(l.Op() == ir.OSTRUCTKEY)
+				l := l.(*ir.StructKeyExpr)
+
+				f := typecheck.Lookdot1(nil, l.Field, t, t.Fields(), 0)
+				l.Offset = f.Offset
+
+				l.Value = assignconvfn(l.Value, f.Type)
+			}
+		}
+
+		n.SetOp(ir.OSTRUCTLIT)
 	}
 
 	return n
