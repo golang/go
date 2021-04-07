@@ -388,7 +388,7 @@ func LoadModFile(ctx context.Context) *Requirements {
 		Target = module.Version{Path: "command-line-arguments"}
 		targetPrefix = "command-line-arguments"
 		rawGoVersion.Store(Target, latestGoVersion())
-		commitRequirements(ctx, newRequirements(nil, nil))
+		commitRequirements(ctx, newRequirements(index.depth(), nil, nil))
 		return requirements
 	}
 
@@ -664,7 +664,7 @@ func requirementsFromModFile(ctx context.Context, f *modfile.File) *Requirements
 		}
 	}
 	module.Sort(roots)
-	rs := newRequirements(roots, direct)
+	rs := newRequirements(index.depth(), roots, direct)
 
 	// If any module path appears more than once in the roots, we know that the
 	// go.mod file needs to be updated even though we have not yet loaded any
@@ -672,7 +672,7 @@ func requirementsFromModFile(ctx context.Context, f *modfile.File) *Requirements
 	for _, n := range mPathCount {
 		if n > 1 {
 			var err error
-			rs, err = updateRoots(ctx, rs.direct, nil, rs)
+			rs, err = updateRoots(ctx, rs.depth, rs.direct, nil, rs)
 			if err != nil {
 				base.Fatalf("go: %v", err)
 			}
