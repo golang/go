@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http/internal/ascii"
 	"net/url"
 	"reflect"
 	"sort"
@@ -547,7 +548,10 @@ func urlErrorOp(method string) string {
 	if method == "" {
 		return "Get"
 	}
-	return method[:1] + strings.ToLower(method[1:])
+	if lowerMethod, ok := ascii.ToLower(method); ok {
+		return method[:1] + lowerMethod[1:]
+	}
+	return method
 }
 
 // Do sends an HTTP request and returns an HTTP response, following
