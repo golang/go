@@ -85,11 +85,7 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 
 	t.Parallel()
 
-	dir, err := os.MkdirTemp("", "go-build")
-	if err != nil {
-		t.Fatalf("failed to create temp directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(crashDumpsAllThreadsSource), 0666); err != nil {
 		t.Fatalf("failed to create Go file: %v", err)
