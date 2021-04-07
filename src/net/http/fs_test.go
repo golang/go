@@ -378,11 +378,7 @@ func mustRemoveAll(dir string) {
 
 func TestFileServerImplicitLeadingSlash(t *testing.T) {
 	defer afterTest(t)
-	tempDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("TempDir: %v", err)
-	}
-	defer mustRemoveAll(tempDir)
+	tempDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(tempDir, "foo.txt"), []byte("Hello world"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
