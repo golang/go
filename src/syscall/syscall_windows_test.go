@@ -12,11 +12,7 @@ import (
 )
 
 func TestWin32finddata(t *testing.T) {
-	dir, err := os.MkdirTemp("", "go-build")
-	if err != nil {
-		t.Fatalf("failed to create temp directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	path := filepath.Join(dir, "long_name.and_extension")
 	f, err := os.Create(path)
