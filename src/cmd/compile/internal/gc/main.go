@@ -49,8 +49,9 @@ func hidePanic() {
 }
 
 // Main parses flags and Go source files specified in the command-line
-// arguments, type-checks the parsed Go package, compiles functions to machine
-// code, and finally writes the compiled package definition to disk.
+// arguments, type-checks the parsed Go package, SSA optimizations,
+// convert from SSA form to machine code, and finally writes the compiled
+// package definition to disk.
 func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("fe", "init")
 
