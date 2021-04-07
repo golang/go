@@ -5,6 +5,7 @@
 package objabi
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -120,4 +121,12 @@ func gowasm() (f gowasmFeatures) {
 
 func Getgoextlinkenabled() string {
 	return envOr("GO_EXTLINK_ENABLED", defaultGO_EXTLINK_ENABLED)
+}
+
+// HeaderString returns the toolchain configuration string written in
+// Go object headers. This string ensures we don't attempt to import
+// or link object files that are incompatible with each other. This
+// string always starts with "go object ".
+func HeaderString() string {
+	return fmt.Sprintf("go object %s %s %s %s\n", GOOS, GOARCH, Version, Expstring())
 }
