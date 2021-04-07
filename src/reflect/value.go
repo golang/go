@@ -592,7 +592,7 @@ func (v Value) call(op string, in []Value) []Value {
 					print("kind=", steps[0].kind, ", type=", tv.String(), "\n")
 					panic("mismatch between ABI description and types")
 				}
-				ret[i] = Value{tv.common(), regArgs.Ptrs[steps[0].ireg], flag(t.Kind())}
+				ret[i] = Value{tv.common(), regArgs.Ptrs[steps[0].ireg], flag(tv.Kind())}
 				continue
 			}
 
