@@ -243,9 +243,9 @@ func importfile(decl *syntax.ImportDecl) *types.Pkg {
 		base.Errorf("import %s: not a go object file: %s", file, p)
 		base.ErrorExit()
 	}
-	q := fmt.Sprintf("%s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
-	if p[10:] != q {
-		base.Errorf("import %s: object is [%s] expected [%s]", file, p[10:], q)
+	q := objabi.HeaderString()
+	if p != q {
+		base.Errorf("import %s: object is [%s] expected [%s]", file, p, q)
 		base.ErrorExit()
 	}
 
