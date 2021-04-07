@@ -14,6 +14,7 @@ import (
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 )
 
@@ -316,6 +317,14 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
 		return false
 	}
 
+	// Helper to determine whether a given type (when passed to a
+	// function) will fit into a single integer register, assuming
+	// that the reg abi is in effect. This is somewhat ad-hoc, there
+	// may be a cleaner way to do this.
+	fitsInSingleIntReg := func(t *types.Type) bool {
+		return from.IsScalar() || types.IsDirectIface(from)
+	}
+
 	tkind := to.Tie()
 	switch from.Tie() {
 	case 'I':
@@ -332,7 +341,7 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
 			return "convT32", false
 		case from.Size() == 8 && isFloatLike(from):
 			return "convT64F", false
-		case from.Size() == 8 && from.Align == types.Types[types.TUINT64].Align && !from.HasPointers():
+		case from.Size() == 8 && from.Align == types.Types[types.TUINT64].Align && !from.HasPointers() && (!objabi.Experiment.RegabiArgs || fitsInSingleIntReg(from)):
 			return "convT64", false
 		}
 		if sc := from.SoleComponent(); sc != nil {
