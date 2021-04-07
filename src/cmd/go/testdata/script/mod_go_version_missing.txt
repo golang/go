@@ -1,50 +1,48 @@
 cp go.mod go.mod.orig
 
-# With -mod=readonly, we should not update the go version in use.
-#
-# We started adding the go version automatically in Go 1.12, so a module without
-# one encountered in the wild (such as in the module cache) should assume Go
-# 1.11 semantics.
+# For modules whose go.mod file does not include a 'go' directive,
+# we assume the language and dependency semantics of Go 1.16,
+# but do not trigger “automatic vendoring” mode (-mod=vendor),
+# which was added in Go 1.14 and was not triggered
+# under the same conditions in Go 1.16 (which would instead
+# default to -mod=readonly when no 'go' directive is present).
 
-# For Go 1.11 modules, 'all' should include dependencies of tests.
-# (They are pruned out as of Go 1.16.)
+# For Go 1.16 modules, 'all' should prune out dependencies of tests,
+# even if the 'go' directive is missing.
 
 go list -mod=readonly all
 stdout '^example.com/dep$'
-stdout '^example.com/testdep$'
+! stdout '^example.com/testdep$'
 cp stdout list-1.txt
 cmp go.mod go.mod.orig
 
-# For Go 1.11 modules, automatic vendoring should not take effect.
-# (That behavior was added in Go 1.14.)
+# We should only default to -mod=vendor if the 'go' directive is explicit in the
+# go.mod file. Otherwise, we don't actually know whether the module was written
+# against Go 1.11 or 1.16. We would have to update the go.mod file to clarify,
+# and as of Go 1.16 we don't update the go.mod file by default.
+#
+# If we set -mod=vendor explicitly, we shouldn't apply the Go 1.14
+# consistency check, because — again — we don't know whether we're in a 1.11
+# module or a bad-script-edited 1.16 module.
 
-go list all  # should default to -mod=readonly, not -mod=vendor.
-cmp stdout list-1.txt
+! go list -mod=vendor all
+! stderr '^go: inconsistent vendoring'
+stderr 'cannot find package "\." in:\n\t.*[/\\]vendor[/\\]example.com[/\\]badedit$'
 
 # When we set -mod=mod, the go version should be updated immediately,
-# narrowing the "all" pattern reported by that command.
+# to Go 1.16 (not the current version).
 
 go list -mod=mod all
 ! stdout '^example.com/testdep$'
-cp stdout list-2.txt
-cmpenv go.mod go.mod.want
+cmp stdout list-1.txt
+cmp go.mod go.mod.want
 
-go list -mod=mod all
-cmp stdout list-2.txt
-
-# The updated version should have been written back to go.mod, so
-# automatic vendoring should come into effect (and fail).
+# The updated version should have been written back to go.mod, so now the 'go'
+# directive is explicit. -mod=vendor should trigger by default, and the stronger
+# Go 1.14 consistency check should apply.
 ! go list all
 stderr '^go: inconsistent vendoring'
-
-cp go.mod.orig go.mod
-
-# In readonly or vendor mode (not -mod=mod), the inferred Go version is 1.11.
-# For Go 1.11 modules, Go 1.13 features should not be enabled.
-
-! go build -mod=readonly .
-stderr '^# example\.com/m\n\.[/\\]m\.go:5:11: underscores in numeric literals requires go1\.13 or later \(-lang was set to go1\.11; check go\.mod\)$'
-cmp go.mod go.mod.orig
+! stderr badedit
 
 
 -- go.mod --
@@ -59,7 +57,7 @@ replace (
 -- go.mod.want --
 module example.com/m
 
-go $goversion
+go 1.16
 
 require example.com/dep v0.1.0
 
@@ -69,7 +67,7 @@ replace (
 )
 -- vendor/example.com/dep/dep.go --
 package dep
-import _ "example.com/bananas"
+import _ "example.com/badedit"
 -- vendor/modules.txt --
 HAHAHA this is broken.
 

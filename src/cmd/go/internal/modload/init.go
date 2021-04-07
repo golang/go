@@ -431,30 +431,22 @@ func LoadModFile(ctx context.Context) *Requirements {
 		// automatically since Go 1.12, so this module either dates to Go 1.11 or
 		// has been erroneously hand-edited.
 		//
+		// The semantics of the go.mod file are more-or-less the same from Go 1.11
+		// through Go 1.16, changing at 1.17 for lazy loading. So even though a
+		// go.mod file without a 'go' directive is theoretically a Go 1.11 file,
+		// scripts may assume that it ends up as a Go 1.16 module. We can't go
+		// higher than that, because we don't know which semantics the user intends.
+		//
+		// (Note that 'go mod init' always adds the latest version, so scripts that
+		// use 'go mod init' will result in current-version modules instead of Go
+		// 1.16 modules.)
+		//
 		// If we are able to modify the go.mod file, we will add a 'go' directive
 		// to at least make the situation explicit going forward.
 		if cfg.BuildMod == "mod" {
-			// TODO(#44976): If we implicitly upgrade to the latest Go version once
-			// lazy loading is implemented, we could accidentally prune out
-			// dependencies from what was formerly a Go 1.11 module, resulting in
-			// downgrades (if only lower requirements on that module remain) and/or
-			// upgrades (if no requirement remains and we end up re-resolving to
-			// latest).
-			//
-			// We should probably instead load the dependencies using Go 1.11
-			// semantics to ensure that we capture everything that is relevant, or
-			// perhaps error out and let the user tell us which version they intend.
-			//
-			// If we are running 'go mod tidy' in particular, we will have enough
-			// information to upgrade the 'go' version after loading is complete.
-			addGoStmt(latestGoVersion())
+			addGoStmt("1.16")
 		} else {
-			// Reproducibility requires that if we change the semantics of a module,
-			// we write some explicit change to its go.mod file. We cannot write to
-			// the go.mod file (because we are in readonly or vendor mode), so we must
-			// not change its semantics either. The go.mod file looks as if it were
-			// created by Go 1.11, so assume Go 1.11 semantics.
-			rawGoVersion.Store(Target, "1.11")
+			rawGoVersion.Store(Target, "1.16")
 		}
 	}
 
