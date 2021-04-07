@@ -537,7 +537,7 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
 		return path.Join(m.Path, filepath.ToSlash(sub)), true
 	}
 
-	if go117LazyTODO {
+	if rs.depth == lazy {
 		for _, m := range rs.rootModules {
 			if v, _ := rs.rootSelected(m.Path); v != m.Version {
 				continue // m is a root, but we have a higher root for the same path.
@@ -550,9 +550,9 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
 		}
 	}
 
-	// None of the roots contained dir, or we're in eager mode and have already
-	// loaded the full module graph. Either way, check the full graph to see if
-	// the directory is a non-root dependency.
+	// None of the roots contained dir, or we're in eager mode and want to load
+	// the full module graph more aggressively. Either way, check the full graph
+	// to see if the directory is a non-root dependency.
 	//
 	// If the roots are not consistent with the full module graph, the selected
 	// versions of root modules may differ from what we already checked above.
@@ -1020,7 +1020,7 @@ func (ld *loader) updateRequirements(ctx context.Context) error {
 		}
 	}
 
-	rs, err := updateRoots(ctx, direct, ld.pkgs, rs)
+	rs, err := updateRoots(ctx, rs.depth, direct, ld.pkgs, rs)
 	if err == nil {
 		ld.requirements = rs
 	}

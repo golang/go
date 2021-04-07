@@ -80,7 +80,7 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 		v  string
 		ok bool
 	)
-	if go117LazyTODO {
+	if rs.depth == lazy {
 		v, ok = rs.rootSelected(path)
 	}
 	if !ok {
