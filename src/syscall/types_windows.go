@@ -490,6 +490,22 @@ type StartupInfo struct {
 	StdErr        Handle
 }
 
+type _PROC_THREAD_ATTRIBUTE_LIST struct {
+	_ [1]byte
+}
+
+const (
+	_PROC_THREAD_ATTRIBUTE_PARENT_PROCESS = 0x00020000
+	_PROC_THREAD_ATTRIBUTE_HANDLE_LIST    = 0x00020002
+)
+
+type _STARTUPINFOEXW struct {
+	StartupInfo
+	ProcThreadAttributeList *_PROC_THREAD_ATTRIBUTE_LIST
+}
+
+const _EXTENDED_STARTUPINFO_PRESENT = 0x00080000
+
 type ProcessInformation struct {
 	Process   Handle
 	Thread    Handle

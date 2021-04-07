@@ -12,6 +12,7 @@ package cgotest
 
 import (
 	"runtime"
+	"runtime/cgo"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -556,6 +557,17 @@ func useIssue31891B(c *C.Issue31891B) {}
 
 func test31891(t *testing.T) {
 	C.callIssue31891()
+}
+
+// issue 37033, check if cgo.Handle works properly
+
+var issue37033 = 42
+
+//export GoFunc37033
+func GoFunc37033(handle C.uintptr_t) {
+	h := cgo.Handle(handle)
+	ch := h.Value().(chan int)
+	ch <- issue37033
 }
 
 // issue 38408

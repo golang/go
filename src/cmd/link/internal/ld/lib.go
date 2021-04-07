@@ -118,6 +118,8 @@ type ArchSyms struct {
 	Dynamic loader.Sym
 	DynSym  loader.Sym
 	DynStr  loader.Sym
+
+	unreachableMethod loader.Sym
 }
 
 // mkArchSym is a helper for setArchSyms, to set up a special symbol.
@@ -142,6 +144,7 @@ func (ctxt *Link) setArchSyms() {
 	ctxt.mkArchSym(".dynamic", 0, &ctxt.Dynamic)
 	ctxt.mkArchSym(".dynsym", 0, &ctxt.DynSym)
 	ctxt.mkArchSym(".dynstr", 0, &ctxt.DynStr)
+	ctxt.mkArchSym("runtime.unreachableMethod", sym.SymVerABIInternal, &ctxt.unreachableMethod)
 
 	if ctxt.IsPPC64() {
 		ctxt.mkArchSym("TOC", 0, &ctxt.TOC)
@@ -223,7 +226,7 @@ type Arch struct {
 	// to-be-relocated data item (from sym.P). Return is an updated
 	// offset value.
 	Archrelocvariant func(target *Target, ldr *loader.Loader, rel loader.Reloc,
-		rv sym.RelocVariant, sym loader.Sym, offset int64) (relocatedOffset int64)
+		rv sym.RelocVariant, sym loader.Sym, offset int64, data []byte) (relocatedOffset int64)
 
 	// Generate a trampoline for a call from s to rs if necessary. ri is
 	// index of the relocation.
@@ -493,7 +496,7 @@ func (ctxt *Link) loadlib() {
 	default:
 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
 	}
-	if !*flagAbiWrap || ctxt.linkShared {
+	if !objabi.Experiment.RegabiWrappers || ctxt.linkShared {
 		// Use ABI aliases if ABI wrappers are not used.
 		// TODO: for now we still use ABI aliases in shared linkage, even if
 		// the wrapper is enabled.
@@ -553,7 +556,12 @@ func (ctxt *Link) loadlib() {
 			if ctxt.BuildMode == BuildModeShared || ctxt.linkShared {
 				Exitf("cannot implicitly include runtime/cgo in a shared library")
 			}
-			loadobjfile(ctxt, lib)
+			for ; i < len(ctxt.Library); i++ {
+				lib := ctxt.Library[i]
+				if lib.Shlib == "" {
+					loadobjfile(ctxt, lib)
+				}
+			}
 		}
 	}
 
@@ -789,6 +797,18 @@ func (ctxt *Link) linksetup() {
 			sb.SetType(sym.SDATA)
 			sb.SetSize(0)
 			sb.AddUint8(uint8(objabi.GOARM))
+		}
+
+		// Set runtime.disableMemoryProfiling bool if
+		// runtime.MemProfile is not retained in the binary after
+		// deadcode (and we're not dynamically linking).
+		memProfile := ctxt.loader.Lookup("runtime.MemProfile", sym.SymVerABIInternal)
+		if memProfile != 0 && !ctxt.loader.AttrReachable(memProfile) && !ctxt.DynlinkingGo() {
+			memProfSym := ctxt.loader.LookupOrCreateSym("runtime.disableMemoryProfiling", 0)
+			sb := ctxt.loader.MakeSymbolUpdater(memProfSym)
+			sb.SetType(sym.SDATA)
+			sb.SetSize(0)
+			sb.AddUint8(1) // true bool
 		}
 	} else {
 		// If OTOH the module does not contain the runtime package,
@@ -1460,8 +1480,9 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, "-Wl,-bE:"+fileName)
 	}
 
-	if strings.Contains(argv[0], "clang") {
-		argv = append(argv, "-Qunused-arguments")
+	const unusedArguments = "-Qunused-arguments"
+	if linkerFlagSupported(ctxt.Arch, argv[0], altLinker, unusedArguments) {
+		argv = append(argv, unusedArguments)
 	}
 
 	const compressDWARF = "-Wl,--compress-debug-sections=zlib-gnu"
@@ -1827,7 +1848,11 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 		return ldhostobj(ldmacho, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
-	if /* x86 */ c1 == 0x4c && c2 == 0x01 || /* x86_64 */ c1 == 0x64 && c2 == 0x86 || /* armv7 */ c1 == 0xc4 && c2 == 0x01 {
+	switch c1<<8 | c2 {
+	case 0x4c01, // 386
+		0x6486, // amd64
+		0xc401, // arm
+		0x64aa: // arm64
 		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			textp, rsrc, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
 			if err != nil {
@@ -2100,7 +2125,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 
 	// collect text symbol ABI versions.
 	symabi := make(map[string]int) // map (unmangled) symbol name to version
-	if *flagAbiWrap {
+	if objabi.Experiment.RegabiWrappers {
 		for _, elfsym := range syms {
 			if elf.ST_TYPE(elfsym.Info) != elf.STT_FUNC {
 				continue
@@ -2128,7 +2153,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		symname := elfsym.Name // (unmangled) symbol name
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type.") {
 			ver = sym.SymVerABIInternal
-		} else if *flagAbiWrap && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
+		} else if objabi.Experiment.RegabiWrappers && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
 			if strings.HasSuffix(elfsym.Name, ".abiinternal") {
 				ver = sym.SymVerABIInternal
 				symname = strings.TrimSuffix(elfsym.Name, ".abiinternal")
@@ -2178,7 +2203,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		// mangle Go function names in the .so to include the
 		// ABI.
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
-			if *flagAbiWrap {
+			if objabi.Experiment.RegabiWrappers {
 				if _, ok := symabi[symname]; ok {
 					continue // only use alias for functions w/o ABI wrappers
 				}
@@ -2400,7 +2425,7 @@ func (sc *stkChk) print(ch *chain, limit int) {
 	ctxt := sc.ctxt
 	var name string
 	if ch.sym != 0 {
-		name = ldr.SymName(ch.sym)
+		name = fmt.Sprintf("%s<%d>", ldr.SymName(ch.sym), ldr.SymVersion(ch.sym))
 		if ldr.IsNoSplit(ch.sym) {
 			name += " (nosplit)"
 		}

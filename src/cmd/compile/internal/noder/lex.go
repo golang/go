@@ -44,7 +44,7 @@ func pragmaFlag(verb string) ir.PragmaFlag {
 	case "go:build":
 		return ir.GoBuildPragma
 	case "go:nointerface":
-		if objabi.Fieldtrack_enabled != 0 {
+		if objabi.Experiment.FieldTrack {
 			return ir.Nointerface
 		}
 	case "go:noescape":

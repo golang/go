@@ -5306,7 +5306,7 @@ bad:
 		}
 	}
 
-	ctxt.Diag("invalid instruction: %v", p)
+	ctxt.Diag("%s: invalid instruction: %v", cursym.Name, p)
 }
 
 // byteswapreg returns a byte-addressable register (AX, BX, CX, DX)

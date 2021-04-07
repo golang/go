@@ -102,7 +102,9 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 		name := funcname(funcInfo)
 		if inldata := funcdata(funcInfo, _FUNCDATA_InlTree); inldata != nil {
 			inltree := (*[1 << 20]inlinedCall)(inldata)
-			ix := pcdatavalue(funcInfo, _PCDATA_InlTreeIndex, pc, nil)
+			// Non-strict as cgoTraceback may have added bogus PCs
+			// with a valid funcInfo but invalid PCDATA.
+			ix := pcdatavalue1(funcInfo, _PCDATA_InlTreeIndex, pc, nil, false)
 			if ix >= 0 {
 				// Note: entry is not modified. It always refers to a real frame, not an inlined one.
 				f = nil
@@ -308,6 +310,7 @@ type funcID uint8
 
 const (
 	funcID_normal funcID = iota // not a special function
+	funcID_abort
 	funcID_asmcgocall
 	funcID_asyncPreempt
 	funcID_cgocallback
@@ -667,6 +670,12 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
 	return file, int(line32)
 }
 
+// findmoduledatap looks up the moduledata for a PC.
+//
+// It is nosplit because it's part of the isgoexception
+// implementation.
+//
+//go:nosplit
 func findmoduledatap(pc uintptr) *moduledata {
 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
 		if datap.minpc <= pc && pc < datap.maxpc {
@@ -689,6 +698,12 @@ func (f funcInfo) _Func() *Func {
 	return (*Func)(unsafe.Pointer(f._func))
 }
 
+// findfunc looks up function metadata for a PC.
+//
+// It is nosplit because it's part of the isgoexception
+// implementation.
+//
+//go:nosplit
 func findfunc(pc uintptr) funcInfo {
 	datap := findmoduledatap(pc)
 	if datap == nil {

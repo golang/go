@@ -51,22 +51,6 @@ func (s *Selection) Kind() SelectionKind { return s.kind }
 // Recv returns the type of x in x.f.
 func (s *Selection) Recv() Type { return s.recv }
 
-// Work-around for bug where a (*instance) shows up in a final type.
-// TODO(gri):  fix this bug.
-func (s *Selection) TArgs() []Type {
-	r := s.recv
-	if p := asPointer(r); p != nil {
-		r = p.Elem()
-	}
-	if n := asNamed(r); n != nil {
-		return n.TArgs()
-	}
-	// The base type (after skipping any pointer) must be a Named type. The
-	// bug is that sometimes it can be an instance type (which is supposed to
-	// be an internal type only).
-	return r.(*instance).targs
-}
-
 // Obj returns the object denoted by x.f; a *Var for
 // a field selection, and a *Func in all other cases.
 func (s *Selection) Obj() Object { return s.obj }

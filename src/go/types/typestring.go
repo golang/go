@@ -158,7 +158,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		buf.WriteString("func")
 		writeSignature(buf, t, qf, visited)
 
-	case *Sum:
+	case *_Sum:
 		for i, t := range t.types {
 			if i > 0 {
 				buf.WriteString(", ")
@@ -279,7 +279,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 			writeTParamList(buf, t.tparams, qf, visited)
 		}
 
-	case *TypeParam:
+	case *_TypeParam:
 		s := "?"
 		if t.obj != nil {
 			s = t.obj.name
@@ -321,7 +321,7 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited 
 	for i, p := range list {
 		// TODO(rFindley) support 'any' sugar here.
 		var b Type = &emptyInterface
-		if t, _ := p.typ.(*TypeParam); t != nil && t.bound != nil {
+		if t, _ := p.typ.(*_TypeParam); t != nil && t.bound != nil {
 			b = t.bound
 		}
 		if i > 0 {
@@ -334,7 +334,7 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited 
 		}
 		prev = b
 
-		if t, _ := p.typ.(*TypeParam); t != nil {
+		if t, _ := p.typ.(*_TypeParam); t != nil {
 			writeType(buf, t, qf, visited)
 		} else {
 			buf.WriteString(p.name)

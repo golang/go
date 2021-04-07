@@ -157,8 +157,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		return mkcall("gopanic", nil, init, n.X)
 
 	case ir.ORECOVER:
-		n := n.(*ir.CallExpr)
-		return mkcall("gorecover", n.Type(), init, typecheck.NodAddr(ir.RegFP))
+		return walkRecover(n.(*ir.CallExpr), init)
 
 	case ir.OCFUNC:
 		return n
@@ -924,7 +923,7 @@ func usemethod(n *ir.CallExpr) {
 }
 
 func usefield(n *ir.SelectorExpr) {
-	if objabi.Fieldtrack_enabled == 0 {
+	if !objabi.Experiment.FieldTrack {
 		return
 	}
 

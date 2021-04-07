@@ -90,7 +90,7 @@ func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string,
 
 func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []IPAddr, err error) {
 	if r.preferGo() {
-		return r.goLookupIP(ctx, host)
+		return r.goLookupIP(ctx, network, host)
 	}
 	order := systemConf().hostLookupOrder(r, host)
 	if order == hostLookupCgo {
@@ -100,7 +100,7 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
 		// cgo not available (or netgo); fall back to Go's DNS resolver
 		order = hostLookupFilesDNS
 	}
-	ips, _, err := r.goLookupIPCNAMEOrder(ctx, host, order)
+	ips, _, err := r.goLookupIPCNAMEOrder(ctx, network, host, order)
 	return ips, err
 }
 

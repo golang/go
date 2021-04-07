@@ -1837,7 +1837,7 @@ func (c *conn) serve(ctx context.Context) {
 		if d := c.server.WriteTimeout; d != 0 {
 			c.rwc.SetWriteDeadline(time.Now().Add(d))
 		}
-		if err := tlsConn.Handshake(); err != nil {
+		if err := tlsConn.HandshakeContext(ctx); err != nil {
 			// If the handshake failed due to the client not speaking
 			// TLS, assume they're speaking plaintext HTTP and write a
 			// 400 response on the TLS conn's underlying net.Conn.
@@ -2638,7 +2638,7 @@ type Server struct {
 	// value.
 	ConnContext func(ctx context.Context, c net.Conn) context.Context
 
-	inShutdown atomicBool // true when when server is in shutdown
+	inShutdown atomicBool // true when server is in shutdown
 
 	disableKeepAlives int32     // accessed atomically.
 	nextProtoOnce     sync.Once // guards setupHTTP2_* init

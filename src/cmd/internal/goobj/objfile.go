@@ -33,7 +33,7 @@ import (
 // New object file format.
 //
 //    Header struct {
-//       Magic       [...]byte   // "\x00go116ld"
+//       Magic       [...]byte   // "\x00go117ld"
 //       Fingerprint [8]byte
 //       Flags       uint32
 //       Offsets     [...]uint32 // byte offset of each block below
@@ -89,7 +89,7 @@ import (
 //    Relocs [...]struct {
 //       Off  int32
 //       Size uint8
-//       Type uint8
+//       Type uint16
 //       Add  int64
 //       Sym  symRef
 //    }
@@ -219,7 +219,7 @@ type Header struct {
 	Offsets     [NBlk]uint32
 }
 
-const Magic = "\x00go116ld"
+const Magic = "\x00go117ld"
 
 func (h *Header) Write(w *Writer) {
 	w.RawString(h.Magic)
@@ -373,32 +373,32 @@ const HashSize = sha1.Size
 // Reloc struct {
 //    Off  int32
 //    Siz  uint8
-//    Type uint8
+//    Type uint16
 //    Add  int64
 //    Sym  SymRef
 // }
 type Reloc [RelocSize]byte
 
-const RelocSize = 4 + 1 + 1 + 8 + 8
+const RelocSize = 4 + 1 + 2 + 8 + 8
 
-func (r *Reloc) Off() int32  { return int32(binary.LittleEndian.Uint32(r[:])) }
-func (r *Reloc) Siz() uint8  { return r[4] }
-func (r *Reloc) Type() uint8 { return r[5] }
-func (r *Reloc) Add() int64  { return int64(binary.LittleEndian.Uint64(r[6:])) }
+func (r *Reloc) Off() int32   { return int32(binary.LittleEndian.Uint32(r[:])) }
+func (r *Reloc) Siz() uint8   { return r[4] }
+func (r *Reloc) Type() uint16 { return binary.LittleEndian.Uint16(r[5:]) }
+func (r *Reloc) Add() int64   { return int64(binary.LittleEndian.Uint64(r[7:])) }
 func (r *Reloc) Sym() SymRef {
-	return SymRef{binary.LittleEndian.Uint32(r[14:]), binary.LittleEndian.Uint32(r[18:])}
+	return SymRef{binary.LittleEndian.Uint32(r[15:]), binary.LittleEndian.Uint32(r[19:])}
 }
 
-func (r *Reloc) SetOff(x int32)  { binary.LittleEndian.PutUint32(r[:], uint32(x)) }
-func (r *Reloc) SetSiz(x uint8)  { r[4] = x }
-func (r *Reloc) SetType(x uint8) { r[5] = x }
-func (r *Reloc) SetAdd(x int64)  { binary.LittleEndian.PutUint64(r[6:], uint64(x)) }
+func (r *Reloc) SetOff(x int32)   { binary.LittleEndian.PutUint32(r[:], uint32(x)) }
+func (r *Reloc) SetSiz(x uint8)   { r[4] = x }
+func (r *Reloc) SetType(x uint16) { binary.LittleEndian.PutUint16(r[5:], x) }
+func (r *Reloc) SetAdd(x int64)   { binary.LittleEndian.PutUint64(r[7:], uint64(x)) }
 func (r *Reloc) SetSym(x SymRef) {
-	binary.LittleEndian.PutUint32(r[14:], x.PkgIdx)
-	binary.LittleEndian.PutUint32(r[18:], x.SymIdx)
+	binary.LittleEndian.PutUint32(r[15:], x.PkgIdx)
+	binary.LittleEndian.PutUint32(r[19:], x.SymIdx)
 }
 
-func (r *Reloc) Set(off int32, size uint8, typ uint8, add int64, sym SymRef) {
+func (r *Reloc) Set(off int32, size uint8, typ uint16, add int64, sym SymRef) {
 	r.SetOff(off)
 	r.SetSiz(size)
 	r.SetType(typ)

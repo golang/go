@@ -29,7 +29,11 @@ import (
 // module-module "all" pattern no longer closes over the dependencies of
 // tests outside of the main module.
 const narrowAllVersionV = "v1.16"
-const go116EnableNarrowAll = true
+
+// go1117LazyTODO is a constant that exists only until lazy loading is
+// implemented. Its use indicates a condition that will need to change if the
+// main module is lazy.
+const go117LazyTODO = false
 
 var modFile *modfile.File
 
@@ -88,76 +92,53 @@ func (e *excludedError) Is(err error) bool { return err == ErrDisallowed }
 
 // CheckRetractions returns an error if module m has been retracted by
 // its author.
-func CheckRetractions(ctx context.Context, m module.Version) error {
+func CheckRetractions(ctx context.Context, m module.Version) (err error) {
+	defer func() {
+		if retractErr := (*ModuleRetractedError)(nil); err == nil || errors.As(err, &retractErr) {
+			return
+		}
+		// Attribute the error to the version being checked, not the version from
+		// which the retractions were to be loaded.
+		if mErr := (*module.ModuleError)(nil); errors.As(err, &mErr) {
+			err = mErr.Err
+		}
+		err = &retractionLoadingError{m: m, err: err}
+	}()
+
 	if m.Version == "" {
 		// Main module, standard library, or file replacement module.
 		// Cannot be retracted.
 		return nil
 	}
-
-	// Look up retraction information from the latest available version of
-	// the module. Cache retraction information so we don't parse the go.mod
-	// file repeatedly.
-	type entry struct {
-		retract []retraction
-		err     error
+	if repl := Replacement(module.Version{Path: m.Path}); repl.Path != "" {
+		// All versions of the module were replaced.
+		// Don't load retractions, since we'd just load the replacement.
+		return nil
 	}
-	path := m.Path
-	e := retractCache.Do(path, func() (v interface{}) {
-		ctx, span := trace.StartSpan(ctx, "checkRetractions "+path)
-		defer span.Done()
 
-		if repl := Replacement(module.Version{Path: m.Path}); repl.Path != "" {
-			// All versions of the module were replaced with a local directory.
-			// Don't load retractions.
-			return &entry{nil, nil}
-		}
-
-		// Find the latest version of the module.
-		// Ignore exclusions from the main module's go.mod.
-		const ignoreSelected = ""
-		var allowAll AllowedFunc
-		rev, err := Query(ctx, path, "latest", ignoreSelected, allowAll)
-		if err != nil {
-			return &entry{nil, err}
-		}
-
-		// Load go.mod for that version.
-		// If the version is replaced, we'll load retractions from the replacement.
-		//
-		// If there's an error loading the go.mod, we'll return it here.
-		// These errors should generally be ignored by callers of checkRetractions,
-		// since they happen frequently when we're offline. These errors are not
-		// equivalent to ErrDisallowed, so they may be distinguished from
-		// retraction errors.
-		//
-		// We load the raw file here: the go.mod file may have a different module
-		// path that we expect if the module or its repository was renamed.
-		// We still want to apply retractions to other aliases of the module.
-		rm := module.Version{Path: path, Version: rev.Version}
-		if repl := Replacement(rm); repl.Path != "" {
-			rm = repl
-		}
-		summary, err := rawGoModSummary(rm)
-		if err != nil {
-			return &entry{nil, err}
-		}
-		return &entry{summary.retract, nil}
-	}).(*entry)
-
-	if err := e.err; err != nil {
-		// Attribute the error to the version being checked, not the version from
-		// which the retractions were to be loaded.
-		var mErr *module.ModuleError
-		if errors.As(err, &mErr) {
-			err = mErr.Err
-		}
-		return &retractionLoadingError{m: m, err: err}
+	// Find the latest available version of the module, and load its go.mod. If
+	// the latest version is replaced, we'll load the replacement.
+	//
+	// If there's an error loading the go.mod, we'll return it here. These errors
+	// should generally be ignored by callers since they happen frequently when
+	// we're offline. These errors are not equivalent to ErrDisallowed, so they
+	// may be distinguished from retraction errors.
+	//
+	// We load the raw file here: the go.mod file may have a different module
+	// path that we expect if the module or its repository was renamed.
+	// We still want to apply retractions to other aliases of the module.
+	rm, err := queryLatestVersionIgnoringRetractions(ctx, m.Path)
+	if err != nil {
+		return err
+	}
+	summary, err := rawGoModSummary(rm)
+	if err != nil {
+		return err
 	}
 
 	var rationale []string
 	isRetracted := false
-	for _, r := range e.retract {
+	for _, r := range summary.retract {
 		if semver.Compare(r.Low, m.Version) <= 0 && semver.Compare(m.Version, r.High) <= 0 {
 			isRetracted = true
 			if r.Rationale != "" {
@@ -171,8 +152,6 @@ func CheckRetractions(ctx context.Context, m module.Version) error {
 	return nil
 }
 
-var retractCache par.Cache
-
 type ModuleRetractedError struct {
 	Rationale []string
 }
@@ -182,7 +161,7 @@ func (e *ModuleRetractedError) Error() string {
 	if len(e.Rationale) > 0 {
 		// This is meant to be a short error printed on a terminal, so just
 		// print the first rationale.
-		msg += ": " + ShortRetractionRationale(e.Rationale[0])
+		msg += ": " + ShortMessage(e.Rationale[0], "retracted by module author")
 	}
 	return msg
 }
@@ -204,28 +183,31 @@ func (e *retractionLoadingError) Unwrap() error {
 	return e.err
 }
 
-// ShortRetractionRationale returns a retraction rationale string that is safe
-// to print in a terminal. It returns hard-coded strings if the rationale
-// is empty, too long, or contains non-printable characters.
-func ShortRetractionRationale(rationale string) string {
-	const maxRationaleBytes = 500
-	if i := strings.Index(rationale, "\n"); i >= 0 {
-		rationale = rationale[:i]
+// ShortMessage returns a string from go.mod (for example, a retraction
+// rationale or deprecation message) that is safe to print in a terminal.
+//
+// If the given string is empty, ShortMessage returns the given default. If the
+// given string is too long or contains non-printable characters, ShortMessage
+// returns a hard-coded string.
+func ShortMessage(message, emptyDefault string) string {
+	const maxLen = 500
+	if i := strings.Index(message, "\n"); i >= 0 {
+		message = message[:i]
 	}
-	rationale = strings.TrimSpace(rationale)
-	if rationale == "" {
-		return "retracted by module author"
+	message = strings.TrimSpace(message)
+	if message == "" {
+		return emptyDefault
 	}
-	if len(rationale) > maxRationaleBytes {
-		return "(rationale omitted: too long)"
+	if len(message) > maxLen {
+		return "(message omitted: too long)"
 	}
-	for _, r := range rationale {
+	for _, r := range message {
 		if !unicode.IsGraphic(r) && !unicode.IsSpace(r) {
-			return "(rationale omitted: contains non-printable characters)"
+			return "(message omitted: contains non-printable characters)"
 		}
 	}
 	// NOTE: the go.mod parser rejects invalid UTF-8, so we don't check that here.
-	return rationale
+	return message
 }
 
 // Replacement returns the replacement for mod, if any, from go.mod.
@@ -243,6 +225,15 @@ func Replacement(mod module.Version) module.Version {
 	return module.Version{}
 }
 
+// resolveReplacement returns the module actually used to load the source code
+// for m: either m itself, or the replacement for m (iff m is replaced).
+func resolveReplacement(m module.Version) module.Version {
+	if r := Replacement(m); r.Path != "" {
+		return r
+	}
+	return m
+}
+
 // indexModFile rebuilds the index of modFile.
 // If modFile has been changed since it was first read,
 // modFile.Cleanup must be called before indexModFile.
@@ -257,10 +248,13 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
 	}
 
 	i.goVersionV = ""
-	if modFile.Go != nil {
+	if modFile.Go == nil {
+		rawGoVersion.Store(Target, "")
+	} else {
 		// We're going to use the semver package to compare Go versions, so go ahead
 		// and add the "v" prefix it expects once instead of every time.
 		i.goVersionV = "v" + modFile.Go.Version
+		rawGoVersion.Store(Target, modFile.Go.Version)
 	}
 
 	i.require = make(map[module.Version]requireMeta, len(modFile.Require))
@@ -297,9 +291,6 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
 // (Otherwise — as in Go 1.16+ — the "all" pattern includes only the packages
 // transitively *imported by* the packages and tests in the main module.)
 func (i *modFileIndex) allPatternClosesOverTests() bool {
-	if !go116EnableNarrowAll {
-		return true
-	}
 	if i != nil && semver.Compare(i.goVersionV, narrowAllVersionV) < 0 {
 		// The module explicitly predates the change in "all" for lazy loading, so
 		// continue to use the older interpretation. (If i == nil, we not in any
@@ -442,10 +433,7 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 		return summary, nil
 	}
 
-	actual := Replacement(m)
-	if actual.Path == "" {
-		actual = m
-	}
+	actual := resolveReplacement(m)
 	if HasModRoot() && cfg.BuildMod == "readonly" && actual.Version != "" {
 		key := module.Version{Path: actual.Path, Version: actual.Version + "/go.mod"}
 		if !modfetch.HaveSum(key) {
@@ -589,3 +577,47 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 }
 
 var rawGoModSummaryCache par.Cache // module.Version → rawGoModSummary result
+
+// queryLatestVersionIgnoringRetractions looks up the latest version of the
+// module with the given path without considering retracted or excluded
+// versions.
+//
+// If all versions of the module are replaced,
+// queryLatestVersionIgnoringRetractions returns the replacement without making
+// a query.
+//
+// If the queried latest version is replaced,
+// queryLatestVersionIgnoringRetractions returns the replacement.
+func queryLatestVersionIgnoringRetractions(ctx context.Context, path string) (latest module.Version, err error) {
+	type entry struct {
+		latest module.Version
+		err    error
+	}
+	e := latestVersionIgnoringRetractionsCache.Do(path, func() interface{} {
+		ctx, span := trace.StartSpan(ctx, "queryLatestVersionIgnoringRetractions "+path)
+		defer span.Done()
+
+		if repl := Replacement(module.Version{Path: path}); repl.Path != "" {
+			// All versions of the module were replaced.
+			// No need to query.
+			return &entry{latest: repl}
+		}
+
+		// Find the latest version of the module.
+		// Ignore exclusions from the main module's go.mod.
+		const ignoreSelected = ""
+		var allowAll AllowedFunc
+		rev, err := Query(ctx, path, "latest", ignoreSelected, allowAll)
+		if err != nil {
+			return &entry{err: err}
+		}
+		latest := module.Version{Path: path, Version: rev.Version}
+		if repl := resolveReplacement(latest); repl.Path != "" {
+			latest = repl
+		}
+		return &entry{latest: latest}
+	}).(*entry)
+	return e.latest, e.err
+}
+
+var latestVersionIgnoringRetractionsCache par.Cache // path → queryLatestVersionIgnoringRetractions result

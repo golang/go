@@ -22,21 +22,21 @@ type substMap struct {
 	// TODO(gri) rewrite that code, get rid of this field, and make this
 	//           struct just the map (proj)
 	targs []Type
-	proj  map[*TypeParam]Type
+	proj  map[*_TypeParam]Type
 }
 
 // makeSubstMap creates a new substitution map mapping tpars[i] to targs[i].
 // If targs[i] is nil, tpars[i] is not substituted.
 func makeSubstMap(tpars []*TypeName, targs []Type) *substMap {
 	assert(len(tpars) == len(targs))
-	proj := make(map[*TypeParam]Type, len(tpars))
+	proj := make(map[*_TypeParam]Type, len(tpars))
 	for i, tpar := range tpars {
 		// We must expand type arguments otherwise *instance
 		// types end up as components in composite types.
 		// TODO(gri) explain why this causes problems, if it does
 		targ := expand(targs[i]) // possibly nil
 		targs[i] = targ
-		proj[tpar.typ.(*TypeParam)] = targ
+		proj[tpar.typ.(*_TypeParam)] = targ
 	}
 	return &substMap{targs, proj}
 }
@@ -49,7 +49,7 @@ func (m *substMap) empty() bool {
 	return len(m.proj) == 0
 }
 
-func (m *substMap) lookup(tpar *TypeParam) Type {
+func (m *substMap) lookup(tpar *_TypeParam) Type {
 	if t := m.proj[tpar]; t != nil {
 		return t
 	}
@@ -121,7 +121,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 
 	// check bounds
 	for i, tname := range tparams {
-		tpar := tname.typ.(*TypeParam)
+		tpar := tname.typ.(*_TypeParam)
 		iface := tpar.Bound()
 		if iface.Empty() {
 			continue // no type bound
@@ -222,7 +222,7 @@ func (check *Checker) subst(pos token.Pos, typ Type, smap *substMap) Type {
 	switch t := typ.(type) {
 	case *Basic:
 		return typ // nothing to do
-	case *TypeParam:
+	case *_TypeParam:
 		return smap.lookup(t)
 	}
 
@@ -293,13 +293,13 @@ func (subst *subster) typ(typ Type) Type {
 			}
 		}
 
-	case *Sum:
+	case *_Sum:
 		types, copied := subst.typeList(t.types)
 		if copied {
 			// Don't do it manually, with a Sum literal: the new
 			// types list may not be unique and NewSum may remove
 			// duplicates.
-			return NewSum(types)
+			return _NewSum(types)
 		}
 
 	case *Interface:
@@ -389,7 +389,7 @@ func (subst *subster) typ(typ Type) Type {
 
 		// create a new named type and populate caches to avoid endless recursion
 		tname := NewTypeName(subst.pos, t.obj.pkg, t.obj.name, nil)
-		named := subst.check.NewNamed(tname, t.underlying, t.methods) // method signatures are updated lazily
+		named := subst.check.newNamed(tname, t.underlying, t.methods) // method signatures are updated lazily
 		named.tparams = t.tparams                                     // new type is still parameterized
 		named.targs = newTargs
 		subst.check.typMap[h] = named
@@ -402,7 +402,7 @@ func (subst *subster) typ(typ Type) Type {
 
 		return named
 
-	case *TypeParam:
+	case *_TypeParam:
 		return subst.smap.lookup(t)
 
 	case *instance:

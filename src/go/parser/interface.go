@@ -55,8 +55,14 @@ const (
 	Trace                                          // print a trace of parsed productions
 	DeclarationErrors                              // report declaration errors
 	SpuriousErrors                                 // same as AllErrors, for backward-compatibility
-	ParseTypeParams                                // Placeholder. Will control the parsing of type parameters.
 	AllErrors         = SpuriousErrors             // report all errors (not just the first 10 on different lines)
+
+	// parseTypeParams controls the parsing of type parameters. Must be
+	// kept in sync with:
+	//  go/printer/printer_test.go
+	//  go/types/check_test.go
+	//  cmd/gofmt/gofmt.go
+	parseTypeParams = 1 << 30
 )
 
 // ParseFile parses the source code of a single Go source file and returns
@@ -209,15 +215,7 @@ func ParseExprFrom(fset *token.FileSet, filename string, src interface{}, mode M
 
 	// parse expr
 	p.init(fset, filename, text, mode)
-	// Set up pkg-level scopes to avoid nil-pointer errors.
-	// This is not needed for a correct expression x as the
-	// parser will be ok with a nil topScope, but be cautious
-	// in case of an erroneous x.
-	p.openScope()
-	p.pkgScope = p.topScope
 	expr = p.parseRhsOrType()
-	p.closeScope()
-	assert(p.topScope == nil, "unbalanced scopes")
 
 	// If a semicolon was inserted, consume it;
 	// report an error if there's more tokens.

@@ -357,6 +357,10 @@ func convT32(val uint32) (x unsafe.Pointer) {
 	return
 }
 
+func convT32F(val float32) (x unsafe.Pointer) {
+	return convT32(*(*uint32)(unsafe.Pointer(&val)))
+}
+
 func convT64(val uint64) (x unsafe.Pointer) {
 	if val < uint64(len(staticuint64s)) {
 		x = unsafe.Pointer(&staticuint64s[val])
@@ -365,6 +369,10 @@ func convT64(val uint64) (x unsafe.Pointer) {
 		*(*uint64)(x) = val
 	}
 	return
+}
+
+func convT64F(val float64) (x unsafe.Pointer) {
+	return convT64(*(*uint64)(unsafe.Pointer(&val)))
 }
 
 func convTstring(val string) (x unsafe.Pointer) {
@@ -552,4 +560,11 @@ var staticuint64s = [...]uint64{
 	0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
 	0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff,
+}
+
+// The linker redirects a reference of a method that it determined
+// unreachable to a reference to this function, so it will throw if
+// ever called.
+func unreachableMethod() {
+	throw("unreachable method called. linker bug?")
 }

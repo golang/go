@@ -779,7 +779,8 @@ func removeZone(host string) string {
 }
 
 // ParseHTTPVersion parses an HTTP version string.
-// "HTTP/1.0" returns (1, 0, true).
+// "HTTP/1.0" returns (1, 0, true). Note that strings without
+// a minor version, such as "HTTP/2", are not valid.
 func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
 	const Big = 1000000 // arbitrary upper bound
 	switch vers {
@@ -823,7 +824,7 @@ func validMethod(method string) bool {
 	return len(method) > 0 && strings.IndexFunc(method, isNotToken) == -1
 }
 
-// NewRequest wraps NewRequestWithContext using the background context.
+// NewRequest wraps NewRequestWithContext using context.Background.
 func NewRequest(method, url string, body io.Reader) (*Request, error) {
 	return NewRequestWithContext(context.Background(), method, url, body)
 }
@@ -1123,6 +1124,9 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
 // MaxBytesReader prevents clients from accidentally or maliciously
 // sending a large request and wasting server resources.
 func MaxBytesReader(w ResponseWriter, r io.ReadCloser, n int64) io.ReadCloser {
+	if n < 0 { // Treat negative limits as equivalent to 0.
+		n = 0
+	}
 	return &maxBytesReader{w: w, r: r, n: n}
 }
 

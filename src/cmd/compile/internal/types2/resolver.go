@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -92,14 +91,14 @@ func (check *Checker) declarePkgObj(ident *syntax.Name, obj Object, d *declInfo)
 	// spec: "A package-scope or file-scope identifier with name init
 	// may only be declared to be a function with this (func()) signature."
 	if ident.Value == "init" {
-		check.errorf(ident, "cannot declare init - must be func")
+		check.error(ident, "cannot declare init - must be func")
 		return
 	}
 
 	// spec: "The main package must have package name main and declare
 	// a function main that takes no arguments and returns no value."
 	if ident.Value == "main" && check.pkg.name == "main" {
-		check.errorf(ident, "cannot declare main - must be func")
+		check.error(ident, "cannot declare main - must be func")
 		return
 	}
 
@@ -217,7 +216,7 @@ func (check *Checker) collectObjects() {
 		// but there is no corresponding package object.
 		check.recordDef(file.PkgName, nil)
 
-		fileScope := NewScope(check.pkg.scope, startPos(file), endPos(file), check.filename(fileNo))
+		fileScope := NewScope(check.pkg.scope, syntax.StartPos(file), syntax.EndPos(file), check.filename(fileNo))
 		fileScopes = append(fileScopes, fileScope)
 		check.recordScope(file, fileScope)
 
@@ -256,13 +255,13 @@ func (check *Checker) collectObjects() {
 					name = s.LocalPkgName.Value
 					if path == "C" {
 						// match cmd/compile (not prescribed by spec)
-						check.errorf(s.LocalPkgName, `cannot rename import "C"`)
+						check.error(s.LocalPkgName, `cannot rename import "C"`)
 						continue
 					}
 				}
 
 				if name == "init" {
-					check.errorf(s.LocalPkgName, "cannot import package as init - init must be a func")
+					check.error(s.LocalPkgName, "cannot import package as init - init must be a func")
 					continue
 				}
 
@@ -305,8 +304,10 @@ func (check *Checker) collectObjects() {
 							// the object may be imported into more than one file scope
 							// concurrently. See issue #32154.)
 							if alt := fileScope.Insert(obj); alt != nil {
-								check.errorf(s.LocalPkgName, "%s redeclared in this block", obj.Name())
-								check.reportAltDecl(alt)
+								var err error_
+								err.errorf(s.LocalPkgName, "%s redeclared in this block", obj.Name())
+								err.recordAltDecl(alt)
+								check.report(&err)
 							} else {
 								check.dotImportMap[dotImportKey{fileScope, obj}] = pkgName
 							}
@@ -426,8 +427,8 @@ func (check *Checker) collectObjects() {
 					// method
 					// d.Recv != nil
 					if !methodTypeParamsOk && len(d.TParamList) != 0 {
-						//check.invalidASTf(d.TParamList.Pos(), "method must have no type parameters")
-						check.invalidASTf(d, "method must have no type parameters")
+						//check.error(d.TParamList.Pos(), invalidAST + "method must have no type parameters")
+						check.error(d, invalidAST+"method must have no type parameters")
 					}
 					ptr, recv, _ := check.unpackRecv(d.Recv.Type, false)
 					// (Methods with invalid receiver cannot be associated to a type, and
@@ -447,7 +448,7 @@ func (check *Checker) collectObjects() {
 				obj.setOrder(uint32(len(check.objMap)))
 
 			default:
-				check.invalidASTf(s, "unknown syntax.Decl node %T", s)
+				check.errorf(s, invalidAST+"unknown syntax.Decl node %T", s)
 			}
 		}
 	}
@@ -456,14 +457,16 @@ func (check *Checker) collectObjects() {
 	for _, scope := range fileScopes {
 		for _, obj := range scope.elems {
 			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
+				var err error_
 				if pkg, ok := obj.(*PkgName); ok {
-					check.errorf(alt, "%s already declared through import of %s", alt.Name(), pkg.Imported())
-					check.reportAltDecl(pkg)
+					err.errorf(alt, "%s already declared through import of %s", alt.Name(), pkg.Imported())
+					err.recordAltDecl(pkg)
 				} else {
-					check.errorf(alt, "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
-					// TODO(gri) dot-imported objects don't have a position; reportAltDecl won't print anything
-					check.reportAltDecl(obj)
+					err.errorf(alt, "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
+					// TODO(gri) dot-imported objects don't have a position; recordAltDecl won't print anything
+					err.recordAltDecl(obj)
 				}
+				check.report(&err)
 			}
 		}
 	}
@@ -526,7 +529,7 @@ L: // unpack receiver type
 				case *syntax.BadExpr:
 					// ignore - error already reported by parser
 				case nil:
-					check.invalidASTf(ptyp, "parameterized receiver contains nil parameters")
+					check.error(ptyp, invalidAST+"parameterized receiver contains nil parameters")
 				default:
 					check.errorf(arg, "receiver type parameter %s must be an identifier", arg)
 				}

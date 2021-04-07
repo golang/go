@@ -233,6 +233,24 @@ func walkIf(n *ir.IfStmt) ir.Node {
 	return n
 }
 
+// Rewrite
+//	go builtin(x, y, z)
+// into
+//	go func(a1, a2, a3) {
+//		builtin(a1, a2, a3)
+//	}(x, y, z)
+// for print, println, and delete.
+//
+// Rewrite
+//	go f(x, y, uintptr(unsafe.Pointer(z)))
+// into
+//	go func(a1, a2, a3) {
+//		f(a1, a2, uintptr(a3))
+//	}(x, y, unsafe.Pointer(z))
+// for function contains unsafe-uintptr arguments.
+
+var wrapCall_prgen int
+
 // The result of wrapCall MUST be assigned back to n, e.g.
 // 	n.Left = wrapCall(n.Left, init)
 func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
@@ -245,12 +263,7 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 
 	// Turn f(a, b, []T{c, d, e}...) back into f(a, b, c, d, e).
 	if !isBuiltinCall && n.IsDDD {
-		last := len(n.Args) - 1
-		if va := n.Args[last]; va.Op() == ir.OSLICELIT {
-			va := va.(*ir.CompLitExpr)
-			n.Args = append(n.Args[:last], va.List...)
-			n.IsDDD = false
-		}
+		undoVariadic(n)
 	}
 
 	wrapArgs := n.Args
@@ -306,4 +319,23 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 
 	call = ir.NewCallExpr(base.Pos, ir.OCALL, fn.Nname, wrapArgs)
 	return walkExpr(typecheck.Stmt(call), init)
+}
+
+// undoVariadic turns a call to a variadic function of the form
+//
+//      f(a, b, []T{c, d, e}...)
+//
+// back into
+//
+//      f(a, b, c, d, e)
+//
+func undoVariadic(call *ir.CallExpr) {
+	if call.IsDDD {
+		last := len(call.Args) - 1
+		if va := call.Args[last]; va.Op() == ir.OSLICELIT {
+			va := va.(*ir.CompLitExpr)
+			call.Args = append(call.Args[:last], va.List...)
+			call.IsDDD = false
+		}
+	}
 }

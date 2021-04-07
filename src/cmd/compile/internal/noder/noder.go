@@ -46,8 +46,8 @@ func LoadPackage(filenames []string) {
 		noders[i] = &p
 
 		filename := filename
+		sem <- struct{}{}
 		go func() {
-			sem <- struct{}{}
 			defer func() { <-sem }()
 			defer close(p.err)
 			fbase := syntax.NewFileBase(filename)
@@ -67,6 +67,9 @@ func LoadPackage(filenames []string) {
 	for _, p := range noders {
 		for e := range p.err {
 			p.errorAt(e.Pos, "%s", e.Msg)
+		}
+		if p.file == nil {
+			base.ErrorExit()
 		}
 		lines += p.file.EOF.Line()
 	}
@@ -686,7 +689,7 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		if expr.Kind == syntax.RuneLit {
 			n.SetType(types.UntypedRune)
 		}
-		n.SetDiag(expr.Bad) // avoid follow-on errors if there was a syntax error
+		n.SetDiag(expr.Bad || n.Val().Kind() == constant.Unknown) // avoid follow-on errors if there was a syntax error
 		return n
 	case *syntax.CompositeLit:
 		n := ir.NewCompLitExpr(p.pos(expr), ir.OCOMPLIT, p.typeExpr(expr.Type), nil)

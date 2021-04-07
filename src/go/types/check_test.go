@@ -34,7 +34,6 @@ import (
 	"go/scanner"
 	"go/token"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -43,6 +42,10 @@ import (
 
 	. "go/types"
 )
+
+// parseTypeParams tells go/parser to parse type parameters. Must be kept in
+// sync with go/parser/interface.go.
+const parseTypeParams parser.Mode = 1 << 30
 
 var (
 	haltOnError = flag.Bool("halt", false, "halt on error")
@@ -210,7 +213,7 @@ func checkFiles(t *testing.T, goVersion string, filenames []string, srcs [][]byt
 
 	mode := parser.AllErrors
 	if strings.HasSuffix(filenames[0], ".go2") {
-		mode |= parser.ParseTypeParams
+		mode |= parseTypeParams
 	}
 
 	// parse files and collect parser errors
@@ -328,7 +331,7 @@ func testDir(t *testing.T, dir string) {
 		// if fi is a directory, its files make up a single package
 		var filenames []string
 		if fi.IsDir() {
-			fis, err := ioutil.ReadDir(path)
+			fis, err := os.ReadDir(path)
 			if err != nil {
 				t.Error(err)
 				continue

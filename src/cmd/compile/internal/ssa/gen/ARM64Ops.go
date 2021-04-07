@@ -236,8 +236,10 @@ func init() {
 		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS"},                                // -arg0, float32
 		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},                                // -arg0, float64
 		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"},                              // sqrt(arg0), float64
+		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                              // sqrt(arg0), float32
 		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},                                    // byte reverse, 64-bit
 		{name: "REVW", argLength: 1, reg: gp11, asm: "REVW"},                                  // byte reverse, 32-bit
+		{name: "REV16", argLength: 1, reg: gp11, asm: "REV16"},                                // byte reverse in each 16-bit halfword, 64-bit
 		{name: "REV16W", argLength: 1, reg: gp11, asm: "REV16W"},                              // byte reverse in each 16-bit halfword, 32-bit
 		{name: "RBIT", argLength: 1, reg: gp11, asm: "RBIT"},                                  // bit reverse, 64-bit
 		{name: "RBITW", argLength: 1, reg: gp11, asm: "RBITW"},                                // bit reverse, 32-bit
@@ -471,8 +473,12 @@ func init() {
 
 		// conditional instructions; auxint is
 		// one of the arm64 comparison pseudo-ops (LessThan, LessThanU, etc.)
-		{name: "CSEL", argLength: 3, reg: gp2flags1, asm: "CSEL", aux: "CCop"},  // auxint(flags) ? arg0 : arg1
-		{name: "CSEL0", argLength: 2, reg: gp1flags1, asm: "CSEL", aux: "CCop"}, // auxint(flags) ? arg0 : 0
+		{name: "CSEL", argLength: 3, reg: gp2flags1, asm: "CSEL", aux: "CCop"},   // auxint(flags) ? arg0 : arg1
+		{name: "CSEL0", argLength: 2, reg: gp1flags1, asm: "CSEL", aux: "CCop"},  // auxint(flags) ? arg0 : 0
+		{name: "CSINC", argLength: 3, reg: gp2flags1, asm: "CSINC", aux: "CCop"}, // auxint(flags) ? arg0 : arg1 + 1
+		{name: "CSINV", argLength: 3, reg: gp2flags1, asm: "CSINV", aux: "CCop"}, // auxint(flags) ? arg0 : ^arg1
+		{name: "CSNEG", argLength: 3, reg: gp2flags1, asm: "CSNEG", aux: "CCop"}, // auxint(flags) ? arg0 : -arg1
+		{name: "CSETM", argLength: 1, reg: readflags, asm: "CSETM", aux: "CCop"}, // auxint(flags) ? -1 : 0
 
 		// function calls
 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                               // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
@@ -506,13 +512,14 @@ func init() {
 		// auxint = offset into duffzero code to start executing
 		// returns mem
 		// R20 changed as side effect
+		// R16 and R17 may be clobbered by linker trampoline.
 		{
 			name:      "DUFFZERO",
 			aux:       "Int64",
 			argLength: 2,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R20")},
-				clobbers: buildReg("R20 R30"),
+				clobbers: buildReg("R16 R17 R20 R30"),
 			},
 			faultOnNilArg0: true,
 			unsafePoint:    true, // FP maintenance around DUFFZERO can be clobbered by interrupts
@@ -546,13 +553,14 @@ func init() {
 		// auxint = offset into duffcopy code to start executing
 		// returns mem
 		// R20, R21 changed as side effect
+		// R16 and R17 may be clobbered by linker trampoline.
 		{
 			name:      "DUFFCOPY",
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R21"), buildReg("R20")},
-				clobbers: buildReg("R20 R21 R26 R30"),
+				clobbers: buildReg("R16 R17 R20 R21 R26 R30"),
 			},
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
@@ -711,7 +719,8 @@ func init() {
 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
 		// It saves all GP registers if necessary,
 		// but clobbers R30 (LR) because it's a call.
-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R30")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+		// R16 and R17 may be clobbered by linker trampoline.
+		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R16 R17 R30")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
 
 		// There are three of these functions so that they can have three different register inputs.
 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the

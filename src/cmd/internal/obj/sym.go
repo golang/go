@@ -57,7 +57,7 @@ func Linknew(arch *LinkArch) *Link {
 	return ctxt
 }
 
-// LookupDerived looks up or creates the symbol with name name derived from symbol s.
+// LookupDerived looks up or creates the symbol with name derived from symbol s.
 // The resulting symbol will be static iff s is.
 func (ctxt *Link) LookupDerived(s *LSym, name string) *LSym {
 	if s.Static() {

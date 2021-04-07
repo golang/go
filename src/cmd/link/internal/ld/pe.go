@@ -694,6 +694,8 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 			name = "_" + name
 		}
 
+		name = mangleABIName(ldr, s, name)
+
 		var peSymType uint16
 		if ctxt.IsExternal() {
 			peSymType = IMAGE_SYM_TYPE_NULL

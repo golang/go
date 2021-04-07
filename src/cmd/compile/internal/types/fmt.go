@@ -318,7 +318,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 	}
 
 	// Unless the 'L' flag was specified, if the type has a name, just print that name.
-	if verb != 'L' && t.Sym() != nil && t != Types[t.Kind()] && t.Kind() != TTYPEPARAM {
+	if verb != 'L' && t.Sym() != nil && t != Types[t.Kind()] {
 		switch mode {
 		case fmtTypeID, fmtTypeIDName:
 			if verb == 'S' {
@@ -442,7 +442,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			break
 		}
 		b.WriteString("interface {")
-		for i, f := range t.Fields().Slice() {
+		for i, f := range t.AllMethods().Slice() {
 			if i != 0 {
 				b.WriteByte(';')
 			}
@@ -462,7 +462,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			}
 			tconv2(b, f.Type, 'S', mode, visited)
 		}
-		if t.NumFields() != 0 {
+		if t.AllMethods().Len() != 0 {
 			b.WriteByte(' ')
 		}
 		b.WriteByte('}')

@@ -6,9 +6,6 @@ package types
 
 type errorCode int
 
-// TODO(rFindley): ensure that existing error codes do not change in the
-//                 dev.typeparams branch.
-
 // This file defines the error codes that can be produced during type-checking.
 // Collectively, these codes provide an identifier that may be used to
 // implement special handling for certain types of errors.
@@ -162,7 +159,7 @@ const (
 	_UntypedNil
 
 	// _WrongAssignCount occurs when the number of values on the right-hand side
-	// of an assignment or or initialization expression does not match the number
+	// of an assignment or initialization expression does not match the number
 	// of variables on the left-hand side.
 	//
 	// Example:

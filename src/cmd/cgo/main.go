@@ -20,6 +20,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -301,6 +302,14 @@ func main() {
 	}
 
 	p := newPackage(args[:i])
+
+	// We need a C compiler to be available. Check this.
+	gccName := p.gccBaseCmd()[0]
+	_, err := exec.LookPath(gccName)
+	if err != nil {
+		fatalf("C compiler %q not found: %v", gccName, err)
+		os.Exit(2)
+	}
 
 	// Record CGO_LDFLAGS from the environment for external linking.
 	if ldflags := os.Getenv("CGO_LDFLAGS"); ldflags != "" {

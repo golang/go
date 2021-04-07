@@ -390,6 +390,8 @@ const (
 	AREM
 	AREMU
 	ARFE
+	AROTR
+	AROTRV
 	ASC
 	ASCV
 	ASGT

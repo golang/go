@@ -26,18 +26,15 @@ cp go.mod go.mod.orig
 go mod tidy
 cmp go.mod.orig go.mod
 
+# When we downgrade d.2 to d.1, no dependency on e should be added
+# because nothing else in the module or import graph requires it.
 go get -d example.net/d@v0.1.0
 
 go list -m all
 stdout '^example.net/b v0.2.1-0.20210219000000-000000000000 '
 stdout '^example.net/c v0.1.0 '
 stdout '^example.net/d v0.1.0 '
-
-	# BUG: A dependency on e is added even though nothing requires it.
-stdout '^example.net/e '
-
-go mod why -m example.net/e
-stdout '^\(main module does not need module example.net/e\)'
+! stdout '^example.net/e '
 
 -- go.mod --
 module example.net/a

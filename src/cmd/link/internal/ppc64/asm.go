@@ -121,16 +121,21 @@ func genplt(ctxt *ld.Link, ldr *loader.Loader) {
 			// Update the relocation to use the call stub
 			r.SetSym(stub.Sym())
 
-			// make sure the data is writeable
-			if ldr.AttrReadOnly(s) {
-				panic("can't write to read-only sym data")
-			}
+			// Make the symbol writeable so we can fixup toc.
+			su := ldr.MakeSymbolUpdater(s)
+			su.MakeWritable()
+			p := su.Data()
 
-			// Restore TOC after bl. The compiler put a
-			// nop here for us to overwrite.
-			sp := ldr.Data(s)
+			// Check for toc restore slot (a nop), and replace with toc restore.
+			var nop uint32
+			if len(p) >= int(r.Off()+8) {
+				nop = ctxt.Arch.ByteOrder.Uint32(p[r.Off()+4:])
+			}
+			if nop != 0x60000000 {
+				ldr.Errorf(s, "Symbol %s is missing toc restoration slot at offset %d", ldr.SymName(s), r.Off()+4)
+			}
 			const o1 = 0xe8410018 // ld r2,24(r1)
-			ctxt.Arch.ByteOrder.PutUint32(sp[r.Off()+4:], o1)
+			ctxt.Arch.ByteOrder.PutUint32(p[r.Off()+4:], o1)
 		}
 	}
 	// Put call stubs at the beginning (instead of the end).
@@ -859,7 +864,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	return val, nExtReloc, false
 }
 
-func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv sym.RelocVariant, s loader.Sym, t int64) (relocatedOffset int64) {
+func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv sym.RelocVariant, s loader.Sym, t int64, p []byte) (relocatedOffset int64) {
 	rs := ldr.ResolveABIAlias(r.Sym())
 	switch rv & sym.RV_TYPE_MASK {
 	default:
@@ -875,9 +880,10 @@ func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv 
 			// overflow depends on the instruction
 			var o1 uint32
 			if target.IsBigEndian() {
-				o1 = binary.BigEndian.Uint32(ldr.Data(s)[r.Off()-2:])
+				o1 = binary.BigEndian.Uint32(p[r.Off()-2:])
+
 			} else {
-				o1 = binary.LittleEndian.Uint32(ldr.Data(s)[r.Off():])
+				o1 = binary.LittleEndian.Uint32(p[r.Off():])
 			}
 			switch o1 >> 26 {
 			case 24, // ori
@@ -909,9 +915,9 @@ func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv 
 			// overflow depends on the instruction
 			var o1 uint32
 			if target.IsBigEndian() {
-				o1 = binary.BigEndian.Uint32(ldr.Data(s)[r.Off()-2:])
+				o1 = binary.BigEndian.Uint32(p[r.Off()-2:])
 			} else {
-				o1 = binary.LittleEndian.Uint32(ldr.Data(s)[r.Off():])
+				o1 = binary.LittleEndian.Uint32(p[r.Off():])
 			}
 			switch o1 >> 26 {
 			case 25, // oris
@@ -933,9 +939,9 @@ func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv 
 	case sym.RV_POWER_DS:
 		var o1 uint32
 		if target.IsBigEndian() {
-			o1 = uint32(binary.BigEndian.Uint16(ldr.Data(s)[r.Off():]))
+			o1 = uint32(binary.BigEndian.Uint16(p[r.Off():]))
 		} else {
-			o1 = uint32(binary.LittleEndian.Uint16(ldr.Data(s)[r.Off():]))
+			o1 = uint32(binary.LittleEndian.Uint16(p[r.Off():]))
 		}
 		if t&3 != 0 {
 			ldr.Errorf(s, "relocation for %s+%d is not aligned: %d", ldr.SymName(rs), r.Off(), t)
@@ -1039,8 +1045,11 @@ func ensureglinkresolver(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuilde
 	glink.AddUint32(ctxt.Arch, 0x7800f082) // srdi r0,r0,2
 
 	// r11 = address of the first byte of the PLT
-	glink.AddSymRef(ctxt.Arch, ctxt.PLT, 0, objabi.R_ADDRPOWER, 8)
-
+	r, _ := glink.AddRel(objabi.R_ADDRPOWER)
+	r.SetSym(ctxt.PLT)
+	r.SetSiz(8)
+	r.SetOff(int32(glink.Size()))
+	r.SetAdd(0)
 	glink.AddUint32(ctxt.Arch, 0x3d600000) // addis r11,0,.plt@ha
 	glink.AddUint32(ctxt.Arch, 0x396b0000) // addi r11,r11,.plt@l
 

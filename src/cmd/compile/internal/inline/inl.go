@@ -354,7 +354,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		return true
 
 	case ir.OCLOSURE:
-		if base.Debug.InlFuncsWithClosures == 0 || base.Flag.G > 0 {
+		if base.Debug.InlFuncsWithClosures == 0 {
 			v.reason = "not inlining functions with closures"
 			return true
 		}

@@ -275,7 +275,11 @@ func Rel(basepath, targpath string) (string, error) {
 	targ = targ[len(targVol):]
 	if base == "." {
 		base = ""
+	} else if base == "" && volumeNameLen(baseVol) > 2 /* isUNC */ {
+		// Treat any targetpath matching `\\host\share` basepath as absolute path.
+		base = string(Separator)
 	}
+
 	// Can't use IsAbs - `\a` and `a` are both relative in Windows.
 	baseSlashed := len(base) > 0 && base[0] == Separator
 	targSlashed := len(targ) > 0 && targ[0] == Separator

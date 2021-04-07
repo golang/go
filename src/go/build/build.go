@@ -188,6 +188,7 @@ func (ctxt *Context) readDir(path string) ([]fs.FileInfo, error) {
 	if f := ctxt.ReadDir; f != nil {
 		return f(path)
 	}
+	// TODO: use os.ReadDir
 	return ioutil.ReadDir(path)
 }
 

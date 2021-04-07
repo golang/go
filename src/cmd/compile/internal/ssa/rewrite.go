@@ -27,7 +27,7 @@ const (
 	removeDeadValues                 = true
 )
 
-// deadcode indicates that rewrite should try to remove any values that become dead.
+// deadcode indicates whether rewrite should try to remove any values that become dead.
 func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValueChoice) {
 	// repeat rewrites until we find no more rewrites
 	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
@@ -765,7 +765,7 @@ func devirt(v *Value, aux Aux, sym Sym, offset int64) *AuxCall {
 		return nil
 	}
 	va := aux.(*AuxCall)
-	return StaticAuxCall(lsym, va.args, va.results, va.abiInfo)
+	return StaticAuxCall(lsym, va.abiInfo)
 }
 
 // de-virtualize an InterLECall
@@ -795,8 +795,6 @@ func devirtLECall(v *Value, sym *obj.LSym) *Value {
 	v.Op = OpStaticLECall
 	auxcall := v.Aux.(*AuxCall)
 	auxcall.Fn = sym
-	// TODO(register args) this should not be necessary when fully transition to the new register ABI.
-	auxcall.abiInfo = v.Block.Func.ABIDefault.ABIAnalyzeTypes(nil, ACParamsToTypes(auxcall.args), ACParamsToTypes(auxcall.results))
 	v.RemoveArg(0)
 	return v
 }
@@ -1416,7 +1414,7 @@ func isPPC64WordRotateMask(v64 int64) bool {
 	return (v&vp == 0 || vn&vpn == 0) && v != 0
 }
 
-// Compress mask and and shift into single value of the form
+// Compress mask and shift into single value of the form
 // me | mb<<8 | rotate<<16 | nbits<<24 where me and mb can
 // be used to regenerate the input mask.
 func encodePPC64RotateMask(rotate, mask, nbits int64) int64 {
@@ -1614,18 +1612,18 @@ func needRaceCleanup(sym *AuxCall, v *Value) bool {
 	if !f.Config.Race {
 		return false
 	}
-	if !isSameCall(sym, "runtime.racefuncenter") && !isSameCall(sym, "runtime.racefuncenterfp") && !isSameCall(sym, "runtime.racefuncexit") {
+	if !isSameCall(sym, "runtime.racefuncenter") && !isSameCall(sym, "runtime.racefuncexit") {
 		return false
 	}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			switch v.Op {
 			case OpStaticCall, OpStaticLECall:
-				// Check for racefuncenter/racefuncenterfp will encounter racefuncexit and vice versa.
+				// Check for racefuncenter will encounter racefuncexit and vice versa.
 				// Allow calls to panic*
 				s := v.Aux.(*AuxCall).Fn.String()
 				switch s {
-				case "runtime.racefuncenter", "runtime.racefuncenterfp", "runtime.racefuncexit",
+				case "runtime.racefuncenter", "runtime.racefuncexit",
 					"runtime.panicdivide", "runtime.panicwrap",
 					"runtime.panicshift":
 					continue

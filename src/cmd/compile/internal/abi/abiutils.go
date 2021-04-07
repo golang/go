@@ -5,6 +5,7 @@
 package abi
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -52,12 +53,12 @@ func (a *ABIParamResultInfo) OutRegistersUsed() int {
 	return a.outRegistersUsed
 }
 
-func (a *ABIParamResultInfo) InParam(i int) ABIParamAssignment {
-	return a.inparams[i]
+func (a *ABIParamResultInfo) InParam(i int) *ABIParamAssignment {
+	return &a.inparams[i]
 }
 
-func (a *ABIParamResultInfo) OutParam(i int) ABIParamAssignment {
-	return a.outparams[i]
+func (a *ABIParamResultInfo) OutParam(i int) *ABIParamAssignment {
+	return &a.outparams[i]
 }
 
 func (a *ABIParamResultInfo) SpillAreaOffset() int64 {
@@ -66,6 +67,14 @@ func (a *ABIParamResultInfo) SpillAreaOffset() int64 {
 
 func (a *ABIParamResultInfo) SpillAreaSize() int64 {
 	return a.spillAreaSize
+}
+
+// ArgWidth returns the amount of stack needed for all the inputs
+// and outputs of a function or method, including ABI-defined parameter
+// slots and ABI-defined spill slots for register-resident parameters.
+// The name is inherited from (*Type).ArgWidth(), which it replaces.
+func (a *ABIParamResultInfo) ArgWidth() int64 {
+	return a.spillAreaSize + a.offsetToSpillArea - a.config.LocalsOffset()
 }
 
 // RegIndex stores the index into the set of machine registers used by
@@ -100,15 +109,142 @@ func (a *ABIParamAssignment) Offset() int32 {
 	return a.offset
 }
 
-// SpillOffset returns the offset *within the spill area* for the parameter that "a" describes.
-// Registers will be spilled here; if a memory home is needed (for a pointer method e.g.)
-// then that will be the address.
-// This will panic if "a" describes a stack-allocated parameter.
-func (a *ABIParamAssignment) SpillOffset() int32 {
-	if len(a.Registers) == 0 {
-		panic("Stack-allocated parameters have no spill offset")
+// RegisterTypes returns a slice of the types of the registers
+// corresponding to a slice of parameters.  The returned slice
+// has capacity for one more, likely a memory type.
+func RegisterTypes(apa []ABIParamAssignment) []*types.Type {
+	rcount := 0
+	for _, pa := range apa {
+		rcount += len(pa.Registers)
 	}
-	return a.offset
+	if rcount == 0 {
+		// Note that this catches top-level struct{} and [0]Foo, which are stack allocated.
+		return make([]*types.Type, 0, 1)
+	}
+	rts := make([]*types.Type, 0, rcount+1)
+	for _, pa := range apa {
+		if len(pa.Registers) == 0 {
+			continue
+		}
+		rts = appendParamTypes(rts, pa.Type)
+	}
+	return rts
+}
+
+func (pa *ABIParamAssignment) RegisterTypesAndOffsets() ([]*types.Type, []int64) {
+	l := len(pa.Registers)
+	if l == 0 {
+		return nil, nil
+	}
+	typs := make([]*types.Type, 0, l)
+	offs := make([]int64, 0, l)
+	offs, _ = appendParamOffsets(offs, 0, pa.Type)
+	return appendParamTypes(typs, pa.Type), offs
+}
+
+func appendParamTypes(rts []*types.Type, t *types.Type) []*types.Type {
+	w := t.Width
+	if w == 0 {
+		return rts
+	}
+	if t.IsScalar() || t.IsPtrShaped() {
+		if t.IsComplex() {
+			c := types.FloatForComplex(t)
+			return append(rts, c, c)
+		} else {
+			if int(t.Size()) <= types.RegSize {
+				return append(rts, t)
+			}
+			// assume 64bit int on 32-bit machine
+			// TODO endianness? Should high-order (sign bits) word come first?
+			if t.IsSigned() {
+				rts = append(rts, types.Types[types.TINT32])
+			} else {
+				rts = append(rts, types.Types[types.TUINT32])
+			}
+			return append(rts, types.Types[types.TUINT32])
+		}
+	} else {
+		typ := t.Kind()
+		switch typ {
+		case types.TARRAY:
+			for i := int64(0); i < t.NumElem(); i++ { // 0 gets no registers, plus future-proofing.
+				rts = appendParamTypes(rts, t.Elem())
+			}
+		case types.TSTRUCT:
+			for _, f := range t.FieldSlice() {
+				if f.Type.Size() > 0 { // embedded zero-width types receive no registers
+					rts = appendParamTypes(rts, f.Type)
+				}
+			}
+		case types.TSLICE:
+			return appendParamTypes(rts, synthSlice)
+		case types.TSTRING:
+			return appendParamTypes(rts, synthString)
+		case types.TINTER:
+			return appendParamTypes(rts, synthIface)
+		}
+	}
+	return rts
+}
+
+// appendParamOffsets appends the offset(s) of type t, starting from "at",
+// to input offsets, and returns the longer slice and the next unused offset.
+func appendParamOffsets(offsets []int64, at int64, t *types.Type) ([]int64, int64) {
+	at = align(at, t)
+	w := t.Width
+	if w == 0 {
+		return offsets, at
+	}
+	if t.IsScalar() || t.IsPtrShaped() {
+		if t.IsComplex() || int(t.Width) > types.RegSize { // complex and *int64 on 32-bit
+			s := w / 2
+			return append(offsets, at, at+s), at + w
+		} else {
+			return append(offsets, at), at + w
+		}
+	} else {
+		typ := t.Kind()
+		switch typ {
+		case types.TARRAY:
+			for i := int64(0); i < t.NumElem(); i++ {
+				offsets, at = appendParamOffsets(offsets, at, t.Elem())
+			}
+		case types.TSTRUCT:
+			for i, f := range t.FieldSlice() {
+				offsets, at = appendParamOffsets(offsets, at, f.Type)
+				if f.Type.Width == 0 && i == t.NumFields()-1 {
+					at++ // last field has zero width
+				}
+			}
+			at = align(at, t) // type size is rounded up to its alignment
+		case types.TSLICE:
+			return appendParamOffsets(offsets, at, synthSlice)
+		case types.TSTRING:
+			return appendParamOffsets(offsets, at, synthString)
+		case types.TINTER:
+			return appendParamOffsets(offsets, at, synthIface)
+		}
+	}
+	return offsets, at
+}
+
+// FrameOffset returns the frame-pointer-relative location that a function
+// would spill its input or output parameter to, if such a spill slot exists.
+// If there is none defined (e.g., register-allocated outputs) it panics.
+// For register-allocated inputs that is their spill offset reserved for morestack;
+// for stack-allocated inputs and outputs, that is their location on the stack.
+// (In a future version of the ABI, register-resident inputs may lose their defined
+// spill area to help reduce stack sizes.)
+func (a *ABIParamAssignment) FrameOffset(i *ABIParamResultInfo) int64 {
+	if a.offset == -1 {
+		panic("Function parameter has no ABI-defined frame-pointer offset")
+	}
+	if len(a.Registers) == 0 { // passed on stack
+		return int64(a.offset) - i.config.LocalsOffset()
+	}
+	// spill area for registers
+	return int64(a.offset) + i.SpillAreaOffset() - i.config.LocalsOffset()
 }
 
 // RegAmounts holds a specified number of integer/float registers.
@@ -121,14 +257,15 @@ type RegAmounts struct {
 // by the ABI rules for parameter passing and result returning.
 type ABIConfig struct {
 	// Do we need anything more than this?
+	offsetForLocals  int64 // e.g., obj.(*Link).FixedFrameSize() -- extra linkage information on some architectures.
 	regAmounts       RegAmounts
 	regsForTypeCache map[*types.Type]int
 }
 
 // NewABIConfig returns a new ABI configuration for an architecture with
 // iRegsCount integer/pointer registers and fRegsCount floating point registers.
-func NewABIConfig(iRegsCount, fRegsCount int) *ABIConfig {
-	return &ABIConfig{regAmounts: RegAmounts{iRegsCount, fRegsCount}, regsForTypeCache: make(map[*types.Type]int)}
+func NewABIConfig(iRegsCount, fRegsCount int, offsetForLocals int64) *ABIConfig {
+	return &ABIConfig{offsetForLocals: offsetForLocals, regAmounts: RegAmounts{iRegsCount, fRegsCount}, regsForTypeCache: make(map[*types.Type]int)}
 }
 
 // Copy returns a copy of an ABIConfig for use in a function's compilation so that access to the cache does not need to be protected with a mutex.
@@ -136,6 +273,20 @@ func (a *ABIConfig) Copy() *ABIConfig {
 	b := *a
 	b.regsForTypeCache = make(map[*types.Type]int)
 	return &b
+}
+
+// LocalsOffset returns the architecture-dependent offset from SP for args and results.
+// In theory this is only used for debugging; it ought to already be incorporated into
+// results from the ABI-related methods
+func (a *ABIConfig) LocalsOffset() int64 {
+	return a.offsetForLocals
+}
+
+// FloatIndexFor translates r into an index in the floating point parameter
+// registers.  If the result is negative, the input index was actually for the
+// integer parameter registers.
+func (a *ABIConfig) FloatIndexFor(r RegIndex) int64 {
+	return int64(r) - int64(a.regAmounts.intRegs)
 }
 
 // NumParamRegs returns the number of parameter registers used for a given type,
@@ -190,7 +341,8 @@ func (a *ABIParamResultInfo) preAllocateParams(hasRcvr bool, nIns, nOuts int) {
 func (config *ABIConfig) ABIAnalyzeTypes(rcvr *types.Type, ins, outs []*types.Type) *ABIParamResultInfo {
 	setup()
 	s := assignState{
-		rTotal: config.regAmounts,
+		stackOffset: config.offsetForLocals,
+		rTotal:      config.regAmounts,
 	}
 	result := &ABIParamResultInfo{config: config}
 	result.preAllocateParams(rcvr != nil, len(ins), len(outs))
@@ -223,22 +375,22 @@ func (config *ABIConfig) ABIAnalyzeTypes(rcvr *types.Type, ins, outs []*types.Ty
 	return result
 }
 
-// ABIAnalyze takes a function type 't' and an ABI rules description
+// ABIAnalyzeFuncType takes a function type 'ft' and an ABI rules description
 // 'config' and analyzes the function to determine how its parameters
 // and results will be passed (in registers or on the stack), returning
 // an ABIParamResultInfo object that holds the results of the analysis.
-func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
+func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Func) *ABIParamResultInfo {
 	setup()
 	s := assignState{
-		rTotal: config.regAmounts,
+		stackOffset: config.offsetForLocals,
+		rTotal:      config.regAmounts,
 	}
 	result := &ABIParamResultInfo{config: config}
-	ft := t.FuncType()
-	result.preAllocateParams(t.NumRecvs() != 0, ft.Params.NumFields(), ft.Results.NumFields())
+	result.preAllocateParams(ft.Receiver != nil, ft.Params.NumFields(), ft.Results.NumFields())
 
 	// Receiver
 	// TODO(register args) ? seems like "struct" and "fields" is not right anymore for describing function parameters
-	if t.NumRecvs() != 0 {
+	if ft.Receiver != nil && ft.Receiver.NumFields() != 0 {
 		r := ft.Receiver.FieldSlice()[0]
 		result.inparams = append(result.inparams,
 			s.assignParamOrReturn(r.Type, r.Nname, false))
@@ -264,8 +416,71 @@ func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
 	result.offsetToSpillArea = alignTo(s.stackOffset, types.RegSize)
 	result.spillAreaSize = alignTo(s.spillOffset, types.RegSize)
 	result.outRegistersUsed = s.rUsed.intRegs + s.rUsed.floatRegs
-
 	return result
+}
+
+// ABIAnalyze returns the same result as ABIAnalyzeFuncType, but also
+// updates the offsets of all the receiver, input, and output fields.
+// If setNname is true, it also sets the FrameOffset of the Nname for
+// the field(s); this is for use when compiling a function and figuring out
+// spill locations.  Doing this for callers can cause races for register
+// outputs because their frame location transitions from BOGUS_FUNARG_OFFSET
+// to zero to an as-if-AUTO offset that has no use for callers.
+func (config *ABIConfig) ABIAnalyze(t *types.Type, setNname bool) *ABIParamResultInfo {
+	ft := t.FuncType()
+	result := config.ABIAnalyzeFuncType(ft)
+	// Fill in the frame offsets for receiver, inputs, results
+	k := 0
+	if t.NumRecvs() != 0 {
+		config.updateOffset(result, ft.Receiver.FieldSlice()[0], result.inparams[0], false, setNname)
+		k++
+	}
+	for i, f := range ft.Params.FieldSlice() {
+		config.updateOffset(result, f, result.inparams[k+i], false, setNname)
+	}
+	for i, f := range ft.Results.FieldSlice() {
+		config.updateOffset(result, f, result.outparams[i], true, setNname)
+	}
+	return result
+}
+
+// parameterUpdateMu protects the Offset field of function/method parameters (a subset of structure Fields)
+var parameterUpdateMu sync.Mutex
+
+// FieldOffsetOf returns a concurency-safe version of f.Offset
+func FieldOffsetOf(f *types.Field) int64 {
+	parameterUpdateMu.Lock()
+	defer parameterUpdateMu.Unlock()
+	return f.Offset
+}
+
+func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field, a ABIParamAssignment, isReturn, setNname bool) {
+	// Everything except return values in registers has either a frame home (if not in a register) or a frame spill location.
+	if !isReturn || len(a.Registers) == 0 {
+		// The type frame offset DOES NOT show effects of minimum frame size.
+		// Getting this wrong breaks stackmaps, see liveness/plive.go:WriteFuncMap and typebits/typebits.go:Set
+		parameterUpdateMu.Lock()
+		defer parameterUpdateMu.Unlock()
+		off := a.FrameOffset(result)
+		fOffset := f.Offset
+		if fOffset == types.BOGUS_FUNARG_OFFSET {
+			// Set the Offset the first time. After that, we may recompute it, but it should never change.
+			f.Offset = off
+			if f.Nname != nil {
+				// always set it in this case.
+				f.Nname.(*ir.Name).SetFrameOffset(off)
+				f.Nname.(*ir.Name).SetIsOutputParamInRegisters(false)
+			}
+		} else if fOffset != off {
+			panic(fmt.Errorf("Offset changed from %d to %d", fOffset, off))
+		}
+	} else {
+		if setNname && f.Nname != nil {
+			fname := f.Nname.(*ir.Name)
+			fname.SetIsOutputParamInRegisters(true)
+			fname.SetFrameOffset(0)
+		}
+	}
 }
 
 //......................................................................
@@ -282,9 +497,9 @@ func (c *RegAmounts) regString(r RegIndex) string {
 	return fmt.Sprintf("<?>%d", r)
 }
 
-// toString method renders an ABIParamAssignment in human-readable
+// ToString method renders an ABIParamAssignment in human-readable
 // form, suitable for debugging or unit testing.
-func (ri *ABIParamAssignment) toString(config *ABIConfig) string {
+func (ri *ABIParamAssignment) ToString(config *ABIConfig, extra bool) string {
 	regs := "R{"
 	offname := "spilloffset" // offset is for spill for register(s)
 	if len(ri.Registers) == 0 {
@@ -292,19 +507,25 @@ func (ri *ABIParamAssignment) toString(config *ABIConfig) string {
 	}
 	for _, r := range ri.Registers {
 		regs += " " + config.regAmounts.regString(r)
+		if extra {
+			regs += fmt.Sprintf("(%d)", r)
+		}
+	}
+	if extra {
+		regs += fmt.Sprintf(" | #I=%d, #F=%d", config.regAmounts.intRegs, config.regAmounts.floatRegs)
 	}
 	return fmt.Sprintf("%s } %s: %d typ: %v", regs, offname, ri.offset, ri.Type)
 }
 
-// toString method renders an ABIParamResultInfo in human-readable
+// String method renders an ABIParamResultInfo in human-readable
 // form, suitable for debugging or unit testing.
 func (ri *ABIParamResultInfo) String() string {
 	res := ""
 	for k, p := range ri.inparams {
-		res += fmt.Sprintf("IN %d: %s\n", k, p.toString(ri.config))
+		res += fmt.Sprintf("IN %d: %s\n", k, p.ToString(ri.config, false))
 	}
 	for k, r := range ri.outparams {
-		res += fmt.Sprintf("OUT %d: %s\n", k, r.toString(ri.config))
+		res += fmt.Sprintf("OUT %d: %s\n", k, r.ToString(ri.config, false))
 	}
 	res += fmt.Sprintf("offsetToSpillArea: %d spillAreaSize: %d",
 		ri.offsetToSpillArea, ri.spillAreaSize)
@@ -342,25 +563,54 @@ func (state *assignState) stackSlot(t *types.Type) int64 {
 	return rv
 }
 
-// allocateRegs returns a set of register indices for a parameter or result
+// allocateRegs returns an ordered list of register indices for a parameter or result
 // that we've just determined to be register-assignable. The number of registers
 // needed is assumed to be stored in state.pUsed.
-func (state *assignState) allocateRegs() []RegIndex {
-	regs := []RegIndex{}
-
-	// integer
-	for r := state.rUsed.intRegs; r < state.rUsed.intRegs+state.pUsed.intRegs; r++ {
-		regs = append(regs, RegIndex(r))
+func (state *assignState) allocateRegs(regs []RegIndex, t *types.Type) []RegIndex {
+	if t.Width == 0 {
+		return regs
 	}
-	state.rUsed.intRegs += state.pUsed.intRegs
-
-	// floating
-	for r := state.rUsed.floatRegs; r < state.rUsed.floatRegs+state.pUsed.floatRegs; r++ {
-		regs = append(regs, RegIndex(r+state.rTotal.intRegs))
+	ri := state.rUsed.intRegs
+	rf := state.rUsed.floatRegs
+	if t.IsScalar() || t.IsPtrShaped() {
+		if t.IsComplex() {
+			regs = append(regs, RegIndex(rf+state.rTotal.intRegs), RegIndex(rf+1+state.rTotal.intRegs))
+			rf += 2
+		} else if t.IsFloat() {
+			regs = append(regs, RegIndex(rf+state.rTotal.intRegs))
+			rf += 1
+		} else {
+			n := (int(t.Size()) + types.RegSize - 1) / types.RegSize
+			for i := 0; i < n; i++ { // looking ahead to really big integers
+				regs = append(regs, RegIndex(ri))
+				ri += 1
+			}
+		}
+		state.rUsed.intRegs = ri
+		state.rUsed.floatRegs = rf
+		return regs
+	} else {
+		typ := t.Kind()
+		switch typ {
+		case types.TARRAY:
+			for i := int64(0); i < t.NumElem(); i++ {
+				regs = state.allocateRegs(regs, t.Elem())
+			}
+			return regs
+		case types.TSTRUCT:
+			for _, f := range t.FieldSlice() {
+				regs = state.allocateRegs(regs, f.Type)
+			}
+			return regs
+		case types.TSLICE:
+			return state.allocateRegs(regs, synthSlice)
+		case types.TSTRING:
+			return state.allocateRegs(regs, synthString)
+		case types.TINTER:
+			return state.allocateRegs(regs, synthIface)
+		}
 	}
-	state.rUsed.floatRegs += state.pUsed.floatRegs
-
-	return regs
+	panic(fmt.Errorf("Was not expecting type %s", t))
 }
 
 // regAllocate creates a register ABIParamAssignment object for a param
@@ -376,7 +626,7 @@ func (state *assignState) regAllocate(t *types.Type, name types.Object, isReturn
 	return ABIParamAssignment{
 		Type:      t,
 		Name:      name,
-		Registers: state.allocateRegs(),
+		Registers: state.allocateRegs([]RegIndex{}, t),
 		offset:    int32(spillLoc),
 	}
 }

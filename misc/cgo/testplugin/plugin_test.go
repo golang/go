@@ -9,7 +9,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -35,7 +34,7 @@ func testMain(m *testing.M) int {
 	// Copy testdata into GOPATH/src/testplugin, along with a go.mod file
 	// declaring the same path.
 
-	GOPATH, err := ioutil.TempDir("", "plugin_test")
+	GOPATH, err := os.MkdirTemp("", "plugin_test")
 	if err != nil {
 		log.Panic(err)
 	}
@@ -50,7 +49,7 @@ func testMain(m *testing.M) int {
 		if err := overlayDir(dstRoot, srcRoot); err != nil {
 			log.Panic(err)
 		}
-		if err := ioutil.WriteFile(filepath.Join(dstRoot, "go.mod"), []byte("module testplugin\n"), 0666); err != nil {
+		if err := os.WriteFile(filepath.Join(dstRoot, "go.mod"), []byte("module testplugin\n"), 0666); err != nil {
 			log.Panic(err)
 		}
 	}
@@ -72,11 +71,11 @@ func testMain(m *testing.M) int {
 
 	goCmd(nil, "build", "-buildmode=plugin", "./plugin1")
 	goCmd(nil, "build", "-buildmode=plugin", "./plugin2")
-	so, err := ioutil.ReadFile("plugin2.so")
+	so, err := os.ReadFile("plugin2.so")
 	if err != nil {
 		log.Panic(err)
 	}
-	if err := ioutil.WriteFile("plugin2-dup.so", so, 0444); err != nil {
+	if err := os.WriteFile("plugin2-dup.so", so, 0444); err != nil {
 		log.Panic(err)
 	}
 
@@ -201,12 +200,18 @@ func TestMethod(t *testing.T) {
 	// Exported symbol's method must be live.
 	goCmd(t, "build", "-buildmode=plugin", "-o", "plugin.so", "./method/plugin.go")
 	goCmd(t, "build", "-o", "method.exe", "./method/main.go")
+	run(t, "./method.exe")
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "./method.exe")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, out)
-	}
+func TestMethod2(t *testing.T) {
+	goCmd(t, "build", "-buildmode=plugin", "-o", "method2.so", "./method2/plugin.go")
+	goCmd(t, "build", "-o", "method2.exe", "./method2/main.go")
+	run(t, "./method2.exe")
+}
+
+func TestIssue44956(t *testing.T) {
+	goCmd(t, "build", "-buildmode=plugin", "-o", "issue44956p1.so", "./issue44956/plugin1.go")
+	goCmd(t, "build", "-buildmode=plugin", "-o", "issue44956p2.so", "./issue44956/plugin2.go")
+	goCmd(t, "build", "-o", "issue44956.exe", "./issue44956/main.go")
+	run(t, "./issue44956.exe")
 }

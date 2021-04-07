@@ -480,10 +480,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		sc := v.AuxValAndOff()
-		p.From.Offset = sc.Val()
+		p.From.Offset = sc.Val64()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
-		ssagen.AddAux2(&p.To, v, sc.Off())
+		ssagen.AddAux2(&p.To, v, sc.Off64())
 	case ssa.OpS390XMOVBreg, ssa.OpS390XMOVHreg, ssa.OpS390XMOVWreg,
 		ssa.OpS390XMOVBZreg, ssa.OpS390XMOVHZreg, ssa.OpS390XMOVWZreg,
 		ssa.OpS390XLDGR, ssa.OpS390XLGDR,
@@ -499,10 +499,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		sc := v.AuxValAndOff()
-		p.From.Offset = sc.Val()
+		p.From.Offset = sc.Val64()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
-		ssagen.AddAux2(&p.To, v, sc.Off())
+		ssagen.AddAux2(&p.To, v, sc.Off64())
 	case ssa.OpCopy:
 		if v.Type.IsMemory() {
 			return
@@ -586,7 +586,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpS390XFSQRT:
+	case ssa.OpS390XFSQRTS, ssa.OpS390XFSQRT:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
@@ -618,15 +618,15 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		vo := v.AuxValAndOff()
 		p := s.Prog(s390x.AMVC)
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = vo.Val()
+		p.From.Offset = vo.Val64()
 		p.SetFrom3(obj.Addr{
 			Type:   obj.TYPE_MEM,
 			Reg:    v.Args[1].Reg(),
-			Offset: vo.Off(),
+			Offset: vo.Off64(),
 		})
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
-		p.To.Offset = vo.Off()
+		p.To.Offset = vo.Off64()
 	case ssa.OpS390XSTMG2, ssa.OpS390XSTMG3, ssa.OpS390XSTMG4,
 		ssa.OpS390XSTM2, ssa.OpS390XSTM3, ssa.OpS390XSTM4:
 		for i := 2; i < len(v.Args)-1; i++ {
@@ -844,7 +844,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		bne.To.SetTarget(cs)
 	case ssa.OpS390XSYNC:
 		s.Prog(s390x.ASYNC)
-	case ssa.OpClobber:
+	case ssa.OpClobber, ssa.OpClobberReg:
 		// TODO: implement for clobberdead experiment. Nop is ok for now.
 	default:
 		v.Fatalf("genValue not implemented: %s", v.LongString())

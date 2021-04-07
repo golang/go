@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -16,39 +15,29 @@ import (
 // funcInst type-checks a function instantiaton inst and returns the result in x.
 // The operand x must be the evaluation of inst.X and its type must be a signature.
 func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
-	args, ok := check.exprOrTypeList(unpackExpr(inst.Index))
-	if !ok {
+	xlist := unpackExpr(inst.Index)
+	targs := check.typeList(xlist)
+	if targs == nil {
 		x.mode = invalid
 		x.expr = inst
 		return
 	}
-	if len(args) > 0 && args[0].mode != typexpr {
-		check.errorf(args[0], "%s is not a type", args[0])
-		ok = false
-	}
+	assert(len(targs) == len(xlist))
 
 	// check number of type arguments
-	n := len(args)
+	n := len(targs)
 	sig := x.typ.(*Signature)
 	if !check.conf.InferFromConstraints && n != len(sig.tparams) || n > len(sig.tparams) {
-		check.errorf(args[n-1], "got %d type arguments but want %d", n, len(sig.tparams))
+		check.errorf(xlist[n-1], "got %d type arguments but want %d", n, len(sig.tparams))
 		x.mode = invalid
 		x.expr = inst
 		return
 	}
 
-	// collect types
-	targs := make([]Type, n)
+	// determine argument positions (for error reporting)
 	poslist := make([]syntax.Pos, n)
-	for i, a := range args {
-		if a.mode != typexpr {
-			// error was reported earlier
-			x.mode = invalid
-			x.expr = inst
-			return
-		}
-		targs[i] = a.typ
-		poslist[i] = a.Pos()
+	for i, x := range xlist {
+		poslist[i] = syntax.StartPos(x)
 	}
 
 	// if we don't have enough type arguments, use constraint type inference
@@ -71,7 +60,7 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 			x.expr = inst
 			return
 		}
-		// all type arguments were inferred sucessfully
+		// all type arguments were inferred successfully
 		if debug {
 			for _, targ := range targs {
 				assert(targ != nil)
@@ -83,14 +72,6 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 	assert(n == len(sig.tparams))
 
 	// instantiate function signature
-	for i, typ := range targs {
-		// some positions may be missing if types are inferred
-		var pos syntax.Pos
-		if i < len(poslist) {
-			pos = poslist[i]
-		}
-		check.ordinaryType(pos, typ)
-	}
 	res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
 	assert(res.tparams == nil) // signature is not generic anymore
 	if inferred {
@@ -158,20 +139,14 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
 
 		sig := asSignature(x.typ)
 		if sig == nil {
-			check.invalidOpf(x, "cannot call non-function %s", x)
+			check.errorf(x, invalidOp+"cannot call non-function %s", x)
 			x.mode = invalid
 			x.expr = call
 			return statement
 		}
 
 		// evaluate arguments
-		args, ok := check.exprOrTypeList(call.ArgList)
-		if !ok {
-			x.mode = invalid
-			x.expr = call
-			return expression
-		}
-
+		args, _ := check.exprList(call.ArgList, false)
 		sig = check.arguments(call, sig, args)
 
 		// determine result
@@ -200,60 +175,6 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
 
 		return statement
 	}
-}
-
-// exprOrTypeList returns a list of operands and reports an error if the
-// list contains a mix of values and types (ignoring invalid operands).
-// TODO(gri) Now we can split this into exprList and typeList.
-func (check *Checker) exprOrTypeList(elist []syntax.Expr) (xlist []*operand, ok bool) {
-	ok = true
-
-	switch len(elist) {
-	case 0:
-		// nothing to do
-
-	case 1:
-		// single (possibly comma-ok) value or type, or function returning multiple values
-		e := elist[0]
-		var x operand
-		check.multiExprOrType(&x, e)
-		if t, ok := x.typ.(*Tuple); ok && x.mode != invalid && x.mode != typexpr {
-			// multiple values
-			xlist = make([]*operand, t.Len())
-			for i, v := range t.vars {
-				xlist[i] = &operand{mode: value, expr: e, typ: v.typ}
-			}
-			break
-		}
-
-		check.instantiatedOperand(&x)
-
-		// exactly one (possibly invalid or comma-ok) value or type
-		xlist = []*operand{&x}
-
-	default:
-		// multiple (possibly invalid) values or types
-		xlist = make([]*operand, len(elist))
-		ntypes := 0
-		for i, e := range elist {
-			var x operand
-			check.exprOrType(&x, e)
-			xlist[i] = &x
-			switch x.mode {
-			case invalid:
-				ntypes = len(xlist) // make 'if' condition fail below (no additional error in this case)
-			case typexpr:
-				ntypes++
-				check.instantiatedOperand(&x)
-			}
-		}
-		if 0 < ntypes && ntypes < len(xlist) {
-			check.errorf(xlist[0], "mix of value and type expressions")
-			ok = false
-		}
-	}
-
-	return
 }
 
 func (check *Checker) exprList(elist []syntax.Expr, allowCommaOk bool) (xlist []*operand, commaOk bool) {
@@ -324,8 +245,8 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
 	ddd := call.HasDots
 
 	// set up parameters
-	sig_params := sig.params // adjusted for variadic functions (may be nil for empty parameter lists!)
-	adjusted := false        // indicates if sig_params is different from t.params
+	sigParams := sig.params // adjusted for variadic functions (may be nil for empty parameter lists!)
+	adjusted := false       // indicates if sigParams is different from t.params
 	if sig.variadic {
 		if ddd {
 			// variadic_func(a, b, c...)
@@ -348,7 +269,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
 				for len(vars) < nargs {
 					vars = append(vars, NewParam(last.pos, last.pkg, last.name, typ))
 				}
-				sig_params = NewTuple(vars...) // possibly nil!
+				sigParams = NewTuple(vars...) // possibly nil!
 				adjusted = true
 				npars = nargs
 			} else {
@@ -380,7 +301,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
 	if len(sig.tparams) > 0 {
 		// TODO(gri) provide position information for targs so we can feed
 		//           it to the instantiate call for better error reporting
-		targs, failed := check.infer(sig.tparams, sig_params, args)
+		targs, failed := check.infer(sig.tparams, sigParams, args)
 		if targs == nil {
 			return // error already reported
 		}
@@ -402,7 +323,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
 				return
 			}
 		}
-		// all type arguments were inferred sucessfully
+		// all type arguments were inferred successfully
 		if debug {
 			for _, targ := range targs {
 				assert(targ != nil)
@@ -419,15 +340,15 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
 		// need to compute it from the adjusted list; otherwise we can
 		// simply use the result signature's parameter list.
 		if adjusted {
-			sig_params = check.subst(call.Pos(), sig_params, makeSubstMap(sig.tparams, targs)).(*Tuple)
+			sigParams = check.subst(call.Pos(), sigParams, makeSubstMap(sig.tparams, targs)).(*Tuple)
 		} else {
-			sig_params = rsig.params
+			sigParams = rsig.params
 		}
 	}
 
 	// check arguments
 	for i, a := range args {
-		check.assignment(a, sig_params.vars[i].typ, "argument")
+		check.assignment(a, sigParams.vars[i].typ, check.sprintf("argument to %s", call.Fun))
 	}
 
 	return
@@ -597,34 +518,44 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 	if m, _ := obj.(*Func); m != nil {
 		// check.dump("### found method %s", m)
 		check.objDecl(m, nil)
-		// If m has a parameterized receiver type, infer the type parameter
-		// values from the actual receiver provided and then substitute the
-		// type parameters in the signature accordingly.
+		// If m has a parameterized receiver type, infer the type arguments from
+		// the actual receiver provided and then substitute the type parameters in
+		// the signature accordingly.
 		// TODO(gri) factor this code out
 		sig := m.typ.(*Signature)
 		if len(sig.rparams) > 0 {
-			//check.dump("### recv typ = %s", x.typ)
+			// For inference to work, we must use the receiver type
+			// matching the receiver in the actual method declaration.
+			// If the method is embedded, the matching receiver is the
+			// embedded struct or interface that declared the method.
+			// Traverse the embedding to find that type (issue #44688).
+			recv := x.typ
+			for i := 0; i < len(index)-1; i++ {
+				// The embedded type is either a struct or a pointer to
+				// a struct except for the last one (which we don't need).
+				recv = asStruct(derefStructPtr(recv)).Field(index[i]).typ
+			}
+			//check.dump("### recv = %s", recv)
 			//check.dump("### method = %s rparams = %s tparams = %s", m, sig.rparams, sig.tparams)
 			// The method may have a pointer receiver, but the actually provided receiver
 			// may be a (hopefully addressable) non-pointer value, or vice versa. Here we
 			// only care about inferring receiver type parameters; to make the inference
 			// work, match up pointer-ness of receiver and argument.
-			arg := x
-			if ptrRecv := isPointer(sig.recv.typ); ptrRecv != isPointer(arg.typ) {
-				copy := *arg
+			if ptrRecv := isPointer(sig.recv.typ); ptrRecv != isPointer(recv) {
 				if ptrRecv {
-					copy.typ = NewPointer(arg.typ)
+					recv = NewPointer(recv)
 				} else {
-					copy.typ = arg.typ.(*Pointer).base
+					recv = recv.(*Pointer).base
 				}
-				arg = &copy
 			}
-			targs, failed := check.infer(sig.rparams, NewTuple(sig.recv), []*operand{arg})
+			arg := operand{mode: variable, expr: x.expr, typ: recv}
+			targs, failed := check.infer(sig.rparams, NewTuple(sig.recv), []*operand{&arg})
 			//check.dump("### inferred targs = %s", targs)
 			if failed >= 0 {
 				// We may reach here if there were other errors (see issue #40056).
 				// check.infer will report a follow-up error.
-				// TODO(gri) avoid the follow-up error or provide better explanation.
+				// TODO(gri) avoid the follow-up error as it is confusing
+				//           (there's no inference in the source code)
 				goto Error
 			}
 			// Don't modify m. Instead - for now - make a copy of m and use that instead.

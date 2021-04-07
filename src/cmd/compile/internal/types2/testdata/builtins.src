@@ -35,9 +35,9 @@ func append1() {
 	type S []byte
 	type T string
 	var t T
-	_ = append(s, "foo" /* ERROR cannot convert */ )
+	_ = append(s, "foo" /* ERROR cannot use .* in argument to append */ )
 	_ = append(s, "foo"...)
-	_ = append(S(s), "foo" /* ERROR cannot convert */ )
+	_ = append(S(s), "foo" /* ERROR cannot use .* in argument to append */ )
 	_ = append(S(s), "foo"...)
 	_ = append(s, t /* ERROR cannot use t */ )
 	_ = append(s, t...)
@@ -283,7 +283,7 @@ func delete1() {
 	delete() // ERROR not enough arguments
 	delete(1) // ERROR not enough arguments
 	delete(1, 2, 3) // ERROR too many arguments
-	delete(m, 0 /* ERROR cannot convert */)
+	delete(m, 0 /* ERROR cannot use */)
 	delete(m, s)
 	_ = delete /* ERROR used as value */ (m, s)
 

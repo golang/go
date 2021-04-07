@@ -7,6 +7,7 @@ package runtime_test
 import (
 	"bytes"
 	"fmt"
+	"internal/abi"
 	"internal/syscall/windows/sysdll"
 	"internal/testenv"
 	"io"
@@ -390,6 +391,103 @@ var cbFuncs = []cbFunc{
 	}},
 }
 
+//go:registerparams
+func sum2(i1, i2 uintptr) uintptr {
+	return i1 + i2
+}
+
+//go:registerparams
+func sum3(i1, i2, i3 uintptr) uintptr {
+	return i1 + i2 + i3
+}
+
+//go:registerparams
+func sum4(i1, i2, i3, i4 uintptr) uintptr {
+	return i1 + i2 + i3 + i4
+}
+
+//go:registerparams
+func sum5(i1, i2, i3, i4, i5 uintptr) uintptr {
+	return i1 + i2 + i3 + i4 + i5
+}
+
+//go:registerparams
+func sum6(i1, i2, i3, i4, i5, i6 uintptr) uintptr {
+	return i1 + i2 + i3 + i4 + i5 + i6
+}
+
+//go:registerparams
+func sum7(i1, i2, i3, i4, i5, i6, i7 uintptr) uintptr {
+	return i1 + i2 + i3 + i4 + i5 + i6 + i7
+}
+
+//go:registerparams
+func sum8(i1, i2, i3, i4, i5, i6, i7, i8 uintptr) uintptr {
+	return i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8
+}
+
+//go:registerparams
+func sum9(i1, i2, i3, i4, i5, i6, i7, i8, i9 uintptr) uintptr {
+	return i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9
+}
+
+//go:registerparams
+func sum10(i1, i2, i3, i4, i5, i6, i7, i8, i9, i10 uintptr) uintptr {
+	return i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9 + i10
+}
+
+//go:registerparams
+func sum9uint8(i1, i2, i3, i4, i5, i6, i7, i8, i9 uint8) uintptr {
+	return uintptr(i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9)
+}
+
+//go:registerparams
+func sum9uint16(i1, i2, i3, i4, i5, i6, i7, i8, i9 uint16) uintptr {
+	return uintptr(i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9)
+}
+
+//go:registerparams
+func sum9int8(i1, i2, i3, i4, i5, i6, i7, i8, i9 int8) uintptr {
+	return uintptr(i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9)
+}
+
+//go:registerparams
+func sum5mix(i1 int8, i2 int16, i3 int32, i4, i5 uintptr) uintptr {
+	return uintptr(i1) + uintptr(i2) + uintptr(i3) + i4 + i5
+}
+
+//go:registerparams
+func sum5andPair(i1, i2, i3, i4, i5 uint8Pair) uintptr {
+	return uintptr(i1.x + i1.y + i2.x + i2.y + i3.x + i3.y + i4.x + i4.y + i5.x + i5.y)
+}
+
+// TODO(register args): Remove this once we switch to using the register
+// calling convention by default, since this is redundant with the existing
+// tests.
+var cbFuncsRegABI = []cbFunc{
+	{sum2},
+	{sum3},
+	{sum4},
+	{sum5},
+	{sum6},
+	{sum7},
+	{sum8},
+	{sum9},
+	{sum10},
+	{sum9uint8},
+	{sum9uint16},
+	{sum9int8},
+	{sum5mix},
+	{sum5andPair},
+}
+
+func getCallbackTestFuncs() []cbFunc {
+	if regs := runtime.SetIntArgRegs(-1); regs > 0 {
+		return cbFuncsRegABI
+	}
+	return cbFuncs
+}
+
 type cbDLL struct {
 	name      string
 	buildArgs func(out, src string) []string
@@ -406,7 +504,7 @@ func (d *cbDLL) makeSrc(t *testing.T, path string) {
 #include <stdint.h>
 typedef struct { uint8_t x, y; } uint8Pair_t;
 `)
-	for _, cbf := range cbFuncs {
+	for _, cbf := range getCallbackTestFuncs() {
 		cbf.cSrc(f, false)
 		cbf.cSrc(f, true)
 	}
@@ -451,12 +549,15 @@ func TestStdcallAndCDeclCallbacks(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
+	oldRegs := runtime.SetIntArgRegs(abi.IntArgRegs)
+	defer runtime.SetIntArgRegs(oldRegs)
+
 	for _, dll := range cbDLLs {
 		t.Run(dll.name, func(t *testing.T) {
 			dllPath := dll.build(t, tmp)
 			dll := syscall.MustLoadDLL(dllPath)
 			defer dll.Release()
-			for _, cbf := range cbFuncs {
+			for _, cbf := range getCallbackTestFuncs() {
 				t.Run(cbf.cName(false), func(t *testing.T) {
 					stdcall := syscall.NewCallback(cbf.goFunc)
 					cbf.testOne(t, dll, false, stdcall)

@@ -16,7 +16,7 @@ env GO111MODULE=auto
 cd m
 cp go.mod go.mod.orig
 ! go list -m all
-stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; to add it:\n\tgo mod download example.com/cmd$'
+stderr '^go list -m: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; to add it:\n\tgo mod download example.com/cmd$'
 go install example.com/cmd/a@latest
 cmp go.mod go.mod.orig
 exists $GOPATH/bin/a$GOEXE
@@ -59,9 +59,9 @@ rm $GOPATH/bin
 env GO111MODULE=on
 go mod download rsc.io/fortune@v1.0.0
 ! go install $GOPATH/pkg/mod/rsc.io/fortune@v1.0.0
-stderr '^go: cannot find main module; see ''go help modules''$'
+stderr '^go: go\.mod file not found in current directory or any parent directory; see ''go help modules''$'
 ! go install ../pkg/mod/rsc.io/fortune@v1.0.0
-stderr '^go: cannot find main module; see ''go help modules''$'
+stderr '^go: go\.mod file not found in current directory or any parent directory; see ''go help modules''$'
 mkdir tmp
 cd tmp
 go mod init tmp

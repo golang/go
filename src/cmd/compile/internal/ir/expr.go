@@ -157,12 +157,13 @@ const (
 type CallExpr struct {
 	miniExpr
 	origNode
-	X         Node
-	Args      Nodes
-	KeepAlive []*Name // vars to be kept alive until call returns
-	IsDDD     bool
-	Use       CallUse
-	NoInline  bool
+	X               Node
+	Args            Nodes
+	KeepAlive       []*Name // vars to be kept alive until call returns
+	IsDDD           bool
+	Use             CallUse
+	NoInline        bool
+	PreserveClosure bool // disable directClosureCall for this call
 }
 
 func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
@@ -447,14 +448,14 @@ func (n *ParenExpr) SetOTYPE(t *types.Type) {
 	t.SetNod(n)
 }
 
-// A ResultExpr represents a direct access to a result slot on the stack frame.
+// A ResultExpr represents a direct access to a result.
 type ResultExpr struct {
 	miniExpr
-	Offset int64
+	Index int64 // index of the result expr.
 }
 
-func NewResultExpr(pos src.XPos, typ *types.Type, offset int64) *ResultExpr {
-	n := &ResultExpr{Offset: offset}
+func NewResultExpr(pos src.XPos, typ *types.Type, index int64) *ResultExpr {
+	n := &ResultExpr{Index: index}
 	n.pos = pos
 	n.op = ORESULT
 	n.typ = typ
@@ -527,6 +528,13 @@ func (n *SelectorExpr) FuncName() *Name {
 	fn := NewNameAt(n.Selection.Pos, MethodSym(n.X.Type(), n.Sel))
 	fn.Class = PFUNC
 	fn.SetType(n.Type())
+	if n.Selection.Nname != nil {
+		// TODO(austin): Nname is nil for interface method
+		// expressions (I.M), so we can't attach a Func to
+		// those here. reflectdata.methodWrapper generates the
+		// Func.
+		fn.Func = n.Selection.Nname.(*Name).Func
+	}
 	return fn
 }
 
@@ -740,6 +748,13 @@ func IsAddressable(n Node) bool {
 	case ODEREF, ODOTPTR:
 		return true
 
+	case OXDOT:
+		// TODO(danscales): remove this case as we remove calls to the old
+		// typechecker in (*irgen).funcBody().
+		if base.Flag.G == 0 {
+			return false
+		}
+		fallthrough
 	case ODOT:
 		n := n.(*SelectorExpr)
 		return IsAddressable(n.X)

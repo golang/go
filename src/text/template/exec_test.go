@@ -902,6 +902,28 @@ func TestExecError(t *testing.T) {
 	}
 }
 
+type CustomError struct{}
+
+func (*CustomError) Error() string { return "heyo !" }
+
+// Check that a custom error can be returned.
+func TestExecError_CustomError(t *testing.T) {
+	failingFunc := func() (string, error) {
+		return "", &CustomError{}
+	}
+	tmpl := Must(New("top").Funcs(FuncMap{
+		"err": failingFunc,
+	}).Parse("{{ err }}"))
+
+	var b bytes.Buffer
+	err := tmpl.Execute(&b, nil)
+
+	var e *CustomError
+	if !errors.As(err, &e) {
+		t.Fatalf("expected custom error; got %s", err)
+	}
+}
+
 func TestJSEscaping(t *testing.T) {
 	testCases := []struct {
 		in, exp string

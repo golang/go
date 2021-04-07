@@ -111,13 +111,13 @@ func _() {
 const (
 	_ byte = 255 + iota
 	/* some gap */
-	_ // ERROR overflows byte
+	_ // ERROR overflows
 	/* some gap */
-	/* some gap */ _ /* ERROR overflows byte */; _ /* ERROR overflows byte */
+	/* some gap */ _ /* ERROR overflows */; _ /* ERROR overflows */
 	/* some gap */
 	_ = 255 + iota
-	_ = byte /* ERROR overflows byte */ (255) + iota
-	_ /* ERROR overflows byte */
+	_ = byte /* ERROR overflows */ (255) + iota
+	_ /* ERROR overflows */
 )
 
 // Test cases from issue.

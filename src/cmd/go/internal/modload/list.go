@@ -20,23 +20,36 @@ import (
 	"golang.org/x/mod/module"
 )
 
-func ListModules(ctx context.Context, args []string, listU, listVersions, listRetracted bool) []*modinfo.ModulePublic {
-	mods := listModules(ctx, args, listVersions, listRetracted)
+type ListMode int
+
+const (
+	ListU ListMode = 1 << iota
+	ListRetracted
+	ListVersions
+	ListRetractedVersions
+)
+
+// ListModules returns a description of the modules matching args, if known,
+// along with any error preventing additional matches from being identified.
+//
+// The returned slice can be nonempty even if the error is non-nil.
+func ListModules(ctx context.Context, args []string, mode ListMode) ([]*modinfo.ModulePublic, error) {
+	rs, mods, err := listModules(ctx, LoadModFile(ctx), args, mode)
 
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
-	if listU || listVersions || listRetracted {
+	if mode != 0 {
 		for _, m := range mods {
 			add := func(m *modinfo.ModulePublic) {
 				sem <- token{}
 				go func() {
-					if listU {
+					if mode&ListU != 0 {
 						addUpdate(ctx, m)
 					}
-					if listVersions {
-						addVersions(ctx, m, listRetracted)
+					if mode&ListVersions != 0 {
+						addVersions(ctx, m, mode&ListRetractedVersions != 0)
 					}
-					if listRetracted || listU {
+					if mode&ListRetracted != 0 {
 						addRetraction(ctx, m)
 					}
 					<-sem
@@ -54,17 +67,30 @@ func ListModules(ctx context.Context, args []string, listU, listVersions, listRe
 		sem <- token{}
 	}
 
-	return mods
+	if err == nil {
+		commitRequirements(ctx, rs)
+	}
+	return mods, err
 }
 
-func listModules(ctx context.Context, args []string, listVersions, listRetracted bool) []*modinfo.ModulePublic {
-	LoadAllModules(ctx)
-	if len(args) == 0 {
-		return []*modinfo.ModulePublic{moduleInfo(ctx, buildList[0], true, listRetracted)}
+func listModules(ctx context.Context, rs *Requirements, args []string, mode ListMode) (_ *Requirements, mods []*modinfo.ModulePublic, mgErr error) {
+	var mg *ModuleGraph
+	if go117LazyTODO {
+		// Pull the args-loop below into another (new) loop.
+		// If the main module is lazy, try it once with mg == nil, and then load mg
+		// and try again.
+	} else {
+		// TODO(#41297): Don't bother loading or expanding the graph if all
+		// arguments are explicit version queries (including if no arguments are
+		// present at all).
+		rs, mg, mgErr = expandGraph(ctx, rs)
 	}
 
-	var mods []*modinfo.ModulePublic
-	matchedBuildList := make([]bool, len(buildList))
+	if len(args) == 0 {
+		return rs, []*modinfo.ModulePublic{moduleInfo(ctx, rs, Target, mode)}, mgErr
+	}
+
+	matchedModule := map[module.Version]bool{}
 	for _, arg := range args {
 		if strings.Contains(arg, `\`) {
 			base.Fatalf("go: module paths never use backslash")
@@ -72,22 +98,30 @@ func listModules(ctx context.Context, args []string, listVersions, listRetracted
 		if search.IsRelativePath(arg) {
 			base.Fatalf("go: cannot use relative path %s to specify module", arg)
 		}
-		if !HasModRoot() && (arg == "all" || strings.Contains(arg, "...")) {
-			base.Fatalf("go: cannot match %q: working directory is not part of a module", arg)
+		if !HasModRoot() {
+			if arg == "all" || strings.Contains(arg, "...") {
+				base.Fatalf("go: cannot match %q: %v", arg, ErrNoModRoot)
+			}
+			if mode&ListVersions == 0 && !strings.Contains(arg, "@") {
+				base.Fatalf("go: cannot match %q without -versions or an explicit version: %v", arg, ErrNoModRoot)
+			}
 		}
 		if i := strings.Index(arg, "@"); i >= 0 {
 			path := arg[:i]
 			vers := arg[i+1:]
-			var current string
-			for _, m := range buildList {
-				if m.Path == path {
-					current = m.Version
-					break
+
+			current := mg.Selected(path)
+			if current == "none" && mgErr != nil {
+				if vers == "upgrade" || vers == "patch" {
+					// The module graph is incomplete, so we don't know what version we're
+					// actually upgrading from.
+					// mgErr is already set, so just skip this module.
+					continue
 				}
 			}
 
 			allowed := CheckAllowed
-			if IsRevisionQuery(vers) || listRetracted {
+			if IsRevisionQuery(vers) || mode&ListRetracted != 0 {
 				// Allow excluded and retracted versions if the user asked for a
 				// specific revision or used 'go list -retracted'.
 				allowed = nil
@@ -101,75 +135,72 @@ func listModules(ctx context.Context, args []string, listVersions, listRetracted
 				})
 				continue
 			}
-			mod := moduleInfo(ctx, module.Version{Path: path, Version: info.Version}, false, listRetracted)
+
+			// Indicate that m was resolved from outside of rs by passing a nil
+			// *Requirements instead.
+			var noRS *Requirements
+
+			mod := moduleInfo(ctx, noRS, module.Version{Path: path, Version: info.Version}, mode)
 			mods = append(mods, mod)
 			continue
 		}
 
+		if go117LazyTODO {
+			ModRoot() // Unversioned paths require that we be inside a module.
+		}
+
 		// Module path or pattern.
 		var match func(string) bool
-		var literal bool
 		if arg == "all" {
 			match = func(string) bool { return true }
 		} else if strings.Contains(arg, "...") {
 			match = search.MatchPattern(arg)
 		} else {
-			match = func(p string) bool { return arg == p }
-			literal = true
-		}
-		matched := false
-		for i, m := range buildList {
-			if i == 0 && !HasModRoot() {
-				// The root module doesn't actually exist: omit it.
+			v := mg.Selected(arg)
+			if v == "none" && mgErr != nil {
+				// mgErr is already set, so just skip this module.
 				continue
 			}
+			if v != "none" {
+				mods = append(mods, moduleInfo(ctx, rs, module.Version{Path: arg, Version: v}, mode))
+			} else if cfg.BuildMod == "vendor" {
+				// In vendor mode, we can't determine whether a missing module is “a
+				// known dependency” because the module graph is incomplete.
+				// Give a more explicit error message.
+				mods = append(mods, &modinfo.ModulePublic{
+					Path:  arg,
+					Error: modinfoError(arg, "", errors.New("can't resolve module using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)")),
+				})
+			} else if mode&ListVersions != 0 {
+				// Don't make the user provide an explicit '@latest' when they're
+				// explicitly asking what the available versions are. Instead, return a
+				// module with version "none", to which we can add the requested list.
+				mods = append(mods, &modinfo.ModulePublic{Path: arg})
+			} else {
+				mods = append(mods, &modinfo.ModulePublic{
+					Path:  arg,
+					Error: modinfoError(arg, "", errors.New("not a known dependency")),
+				})
+			}
+			continue
+		}
+
+		matched := false
+		for _, m := range mg.BuildList() {
 			if match(m.Path) {
 				matched = true
-				if !matchedBuildList[i] {
-					matchedBuildList[i] = true
-					mods = append(mods, moduleInfo(ctx, m, true, listRetracted))
+				if !matchedModule[m] {
+					matchedModule[m] = true
+					mods = append(mods, moduleInfo(ctx, rs, m, mode))
 				}
 			}
 		}
 		if !matched {
-			if literal {
-				if listVersions {
-					// Don't make the user provide an explicit '@latest' when they're
-					// explicitly asking what the available versions are.
-					// Instead, resolve the module, even if it isn't an existing dependency.
-					info, err := Query(ctx, arg, "latest", "", nil)
-					if err == nil {
-						mod := moduleInfo(ctx, module.Version{Path: arg, Version: info.Version}, false, listRetracted)
-						mods = append(mods, mod)
-					} else {
-						mods = append(mods, &modinfo.ModulePublic{
-							Path:  arg,
-							Error: modinfoError(arg, "", err),
-						})
-					}
-					continue
-				}
-				if cfg.BuildMod == "vendor" {
-					// In vendor mode, we can't determine whether a missing module is “a
-					// known dependency” because the module graph is incomplete.
-					// Give a more explicit error message.
-					mods = append(mods, &modinfo.ModulePublic{
-						Path:  arg,
-						Error: modinfoError(arg, "", errors.New("can't resolve module using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)")),
-					})
-				} else {
-					mods = append(mods, &modinfo.ModulePublic{
-						Path:  arg,
-						Error: modinfoError(arg, "", errors.New("not a known dependency")),
-					})
-				}
-			} else {
-				fmt.Fprintf(os.Stderr, "warning: pattern %q matched no module dependencies\n", arg)
-			}
+			fmt.Fprintf(os.Stderr, "warning: pattern %q matched no module dependencies\n", arg)
 		}
 	}
 
-	return mods
+	return rs, mods, mgErr
 }
 
 // modinfoError wraps an error to create an error message in

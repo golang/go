@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -40,10 +39,10 @@ func (t T1[[ /* ERROR must be an identifier */ ]int]) m2() {}
 // and usually should be avoided. There are some notable exceptions; e.g.,
 // sometimes it makes sense to use the identifier "copy" which happens to
 // also be the name of a predeclared built-in function.
-func (t T1[int]) m3() { var _ int = 42 /* ERROR cannot convert 42 .* to int */ }
+func (t T1[int]) m3() { var _ int = 42 /* ERROR cannot use 42 .* as int */ }
 
 // The names of the type parameters used in a parameterized receiver
-// type don't have to match the type parameter names in the the declaration
+// type don't have to match the type parameter names in the declaration
 // of the type used for the receiver. In our example, even though T1 is
 // declared with type parameter named A, methods using that receiver type
 // are free to use their own name for that type parameter. That is, the

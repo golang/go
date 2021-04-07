@@ -12,6 +12,9 @@ import (
 )
 
 func TestFixLongPath(t *testing.T) {
+	if os.CanUseLongPaths {
+		return
+	}
 	// 248 is long enough to trigger the longer-than-248 checks in
 	// fixLongPath, but short enough not to make a path component
 	// longer than 255, which is illegal on Windows. (which
@@ -43,6 +46,26 @@ func TestFixLongPath(t *testing.T) {
 			got = strings.ReplaceAll(got, veryLong, "long")
 			t.Errorf("fixLongPath(%q) = %q; want %q", test.in, got, test.want)
 		}
+	}
+}
+
+func TestMkdirAllLongPath(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "TestMkdirAllLongPath")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	path := tmpDir
+	for i := 0; i < 100; i++ {
+		path += `\another-path-component`
+	}
+	err = os.MkdirAll(path, 0777)
+	if err != nil {
+		t.Fatalf("MkdirAll(%q) failed; %v", path, err)
+	}
+	err = os.RemoveAll(tmpDir)
+	if err != nil {
+		t.Fatalf("RemoveAll(%q) failed; %v", tmpDir, err)
 	}
 }
 

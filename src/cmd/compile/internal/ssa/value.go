@@ -78,7 +78,7 @@ func (v *Value) String() string {
 }
 
 func (v *Value) AuxInt8() int8 {
-	if opcodeTable[v.Op].auxType != auxInt8 {
+	if opcodeTable[v.Op].auxType != auxInt8 && opcodeTable[v.Op].auxType != auxNameOffsetInt8 {
 		v.Fatalf("op %s doesn't have an int8 aux field", v.Op)
 	}
 	return int8(v.AuxInt)
@@ -139,6 +139,9 @@ func (v *Value) AuxArm64BitField() arm64BitField {
 
 // long form print.  v# = opcode <type> [aux] args [: reg] (names)
 func (v *Value) LongString() string {
+	if v == nil {
+		return "<NIL VALUE>"
+	}
 	s := fmt.Sprintf("v%d = %s", v.ID, v.Op)
 	s += " <" + v.Type.String() + ">"
 	s += v.auxString()
@@ -198,12 +201,12 @@ func (v *Value) auxString() string {
 		if v.Aux != nil {
 			return fmt.Sprintf(" {%v}", v.Aux)
 		}
-	case auxSymOff, auxCallOff, auxTypSize:
+	case auxSymOff, auxCallOff, auxTypSize, auxNameOffsetInt8:
 		s := ""
 		if v.Aux != nil {
 			s = fmt.Sprintf(" {%v}", v.Aux)
 		}
-		if v.AuxInt != 0 {
+		if v.AuxInt != 0 || opcodeTable[v.Op].auxType == auxNameOffsetInt8 {
 			s += fmt.Sprintf(" [%v]", v.AuxInt)
 		}
 		return s
@@ -499,7 +502,7 @@ func (v *Value) removeable() bool {
 		return false
 	}
 	if v.Type.IsMemory() {
-		// All memory ops aren't needed here, but we do need
+		// We don't need to preserve all memory ops, but we do need
 		// to keep calls at least (because they might have
 		// synchronization operations we can't see).
 		return false
@@ -517,9 +520,13 @@ func (*Value) CanBeAnSSAAux() {}
 // AutoVar returns a *Name and int64 representing the auto variable and offset within it
 // where v should be spilled.
 func AutoVar(v *Value) (*ir.Name, int64) {
-	loc := v.Block.Func.RegAlloc[v.ID].(LocalSlot)
-	if v.Type.Size() > loc.Type.Size() {
-		v.Fatalf("spill/restore type %s doesn't fit in slot type %s", v.Type, loc.Type)
+	if loc, ok := v.Block.Func.RegAlloc[v.ID].(LocalSlot); ok {
+		if v.Type.Size() > loc.Type.Size() {
+			v.Fatalf("spill/restore type %s doesn't fit in slot type %s", v.Type, loc.Type)
+		}
+		return loc.N, loc.Off
 	}
-	return loc.N, loc.Off
+	// Assume it is a register, return its spill slot, which needs to be live
+	nameOff := v.Aux.(*AuxNameOffset)
+	return nameOff.Name, nameOff.Offset
 }

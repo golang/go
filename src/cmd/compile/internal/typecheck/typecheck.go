@@ -297,7 +297,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 
 	// Skip typecheck if already done.
 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
-	if n.Typecheck() == 1 {
+	if n.Typecheck() == 1 || n.Typecheck() == 3 {
 		switch n.Op() {
 		case ir.ONAME, ir.OTYPE, ir.OLITERAL, ir.OPACK:
 			break
@@ -433,8 +433,8 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	case top&ctxType == 0 && n.Op() == ir.OTYPE && t != nil:
 		if !n.Type().Broke() {
 			base.Errorf("type %v is not an expression", n.Type())
+			n.SetDiag(true)
 		}
-		n.SetType(nil)
 
 	case top&(ctxStmt|ctxExpr) == ctxStmt && !isStmt && t != nil:
 		if !n.Diag() {
@@ -446,7 +446,11 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	case top&(ctxType|ctxExpr) == ctxType && n.Op() != ir.OTYPE && n.Op() != ir.ONONAME && (t != nil || n.Op() == ir.ONAME):
 		base.Errorf("%v is not a type", n)
 		if t != nil {
-			n.SetType(nil)
+			if n.Op() == ir.ONAME {
+				t.SetBroke(true)
+			} else {
+				n.SetType(nil)
+			}
 		}
 
 	}
@@ -482,7 +486,9 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.OLITERAL:
 		if n.Sym() == nil && n.Type() == nil {
-			base.Fatalf("literal missing type: %v", n)
+			if !n.Diag() {
+				base.Fatalf("literal missing type: %v", n)
+			}
 		}
 		return n
 
@@ -528,7 +534,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OPACK:
 		n := n.(*ir.PkgName)
 		base.Errorf("use of package %v without selector", n.Sym())
-		n.SetType(nil)
+		n.SetDiag(true)
 		return n
 
 	// types (ODEREF is with exprs)
@@ -876,7 +882,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OTYPESW:
 		n := n.(*ir.TypeSwitchGuard)
 		base.Errorf("use of .(type) outside type switch")
-		n.SetType(nil)
+		n.SetDiag(true)
 		return n
 
 	case ir.ODCLFUNC:
@@ -1052,7 +1058,11 @@ func needTwoArgs(n *ir.CallExpr) (ir.Node, ir.Node, bool) {
 	return n.Args[0], n.Args[1], true
 }
 
-func lookdot1(errnode ir.Node, s *types.Sym, t *types.Type, fs *types.Fields, dostrcmp int) *types.Field {
+// Lookdot1 looks up the specified method s in the list fs of methods, returning
+// the matching field or nil. If dostrcmp is 0, it matches the symbols. If
+// dostrcmp is 1, it matches by name exactly. If dostrcmp is 2, it matches names
+// with case folding.
+func Lookdot1(errnode ir.Node, s *types.Sym, t *types.Type, fs *types.Fields, dostrcmp int) *types.Field {
 	var r *types.Field
 	for _, f := range fs.Slice() {
 		if dostrcmp != 0 && f.Sym.Name == s.Name {
@@ -1093,7 +1103,7 @@ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
 	// Compute the method set for t.
 	var ms *types.Fields
 	if t.IsInterface() {
-		ms = t.Fields()
+		ms = t.AllMethods()
 	} else {
 		mt := types.ReceiverBaseType(t)
 		if mt == nil {
@@ -1117,9 +1127,9 @@ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
 	}
 
 	s := n.Sel
-	m := lookdot1(n, s, t, ms, 0)
+	m := Lookdot1(n, s, t, ms, 0)
 	if m == nil {
-		if lookdot1(n, s, t, ms, 1) != nil {
+		if Lookdot1(n, s, t, ms, 1) != nil {
 			base.Errorf("%v undefined (cannot refer to unexported method %v)", n, s)
 		} else if _, ambig := dotpath(s, t, nil, false); ambig {
 			base.Errorf("%v undefined (ambiguous selector)", n) // method or field
@@ -1149,20 +1159,28 @@ func derefall(t *types.Type) *types.Type {
 	return t
 }
 
-func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
+// Lookdot looks up field or method n.Sel in the type t and returns the matching
+// field. It transforms the op of node n to ODOTINTER or ODOTMETH, if appropriate.
+// It also may add a StarExpr node to n.X as needed for access to non-pointer
+// methods. If dostrcmp is 0, it matches the field/method with the exact symbol
+// as n.Sel (appropriate for exported fields). If dostrcmp is 1, it matches by name
+// exactly. If dostrcmp is 2, it matches names with case folding.
+func Lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 	s := n.Sel
 
 	types.CalcSize(t)
 	var f1 *types.Field
-	if t.IsStruct() || t.IsInterface() {
-		f1 = lookdot1(n, s, t, t.Fields(), dostrcmp)
+	if t.IsStruct() {
+		f1 = Lookdot1(n, s, t, t.Fields(), dostrcmp)
+	} else if t.IsInterface() {
+		f1 = Lookdot1(n, s, t, t.AllMethods(), dostrcmp)
 	}
 
 	var f2 *types.Field
 	if n.X.Type() == t || n.X.Type().Sym() == nil {
 		mt := types.ReceiverBaseType(t)
 		if mt != nil {
-			f2 = lookdot1(n, s, mt, mt.Methods(), dostrcmp)
+			f2 = Lookdot1(n, s, mt, mt.Methods(), dostrcmp)
 		}
 	}
 
@@ -1175,7 +1193,7 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 			base.Errorf("%v is both field and method", n.Sel)
 		}
 		if f1.Offset == types.BADWIDTH {
-			base.Fatalf("lookdot badwidth %v %p", f1, f1)
+			base.Fatalf("Lookdot badwidth t=%v, f1=%v@%p", t, f1, f1)
 		}
 		n.Selection = f1
 		n.SetType(f1.Type)
@@ -1612,6 +1630,10 @@ func checkassign(stmt ir.Node, n ir.Node) {
 		return
 	}
 
+	defer n.SetType(nil)
+	if n.Diag() {
+		return
+	}
 	switch {
 	case n.Op() == ir.ODOT && n.(*ir.SelectorExpr).X.Op() == ir.OINDEXMAP:
 		base.Errorf("cannot assign to struct field %v in map", n)
@@ -1622,13 +1644,6 @@ func checkassign(stmt ir.Node, n ir.Node) {
 	default:
 		base.Errorf("cannot assign to %v", n)
 	}
-	n.SetType(nil)
-}
-
-func checkassignlist(stmt ir.Node, l ir.Nodes) {
-	for _, n := range l {
-		checkassign(stmt, n)
-	}
 }
 
 func checkassignto(src *types.Type, dst ir.Node) {
@@ -1637,7 +1652,7 @@ func checkassignto(src *types.Type, dst ir.Node) {
 		return
 	}
 
-	if op, why := assignop(src, dst.Type()); op == ir.OXXX {
+	if op, why := Assignop(src, dst.Type()); op == ir.OXXX {
 		base.Errorf("cannot assign %v to %L in multiple assignment%s", src, dst, why)
 		return
 	}
@@ -2107,7 +2122,7 @@ func CheckUnused(fn *ir.Func) {
 
 // CheckReturn makes sure that fn terminates appropriately.
 func CheckReturn(fn *ir.Func) {
-	if fn.Type().NumResults() != 0 && len(fn.Body) != 0 {
+	if fn.Type() != nil && fn.Type().NumResults() != 0 && len(fn.Body) != 0 {
 		markBreak(fn)
 		if !isTermNodes(fn.Body) {
 			base.ErrorfAt(fn.Endlineno, "missing return at end of function")

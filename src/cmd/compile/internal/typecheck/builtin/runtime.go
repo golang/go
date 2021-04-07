@@ -6,6 +6,7 @@
 // to update builtin.go. This is not done automatically
 // to avoid depending on having a working compiler binary.
 
+//go:build ignore
 // +build ignore
 
 package runtime
@@ -88,7 +89,9 @@ func convI2I(typ *byte, elem any) (ret any)
 // These return only a data pointer.
 func convT16(val any) unsafe.Pointer     // val must be uint16-like (same size and alignment as a uint16)
 func convT32(val any) unsafe.Pointer     // val must be uint32-like (same size and alignment as a uint32)
+func convT32F(val any) unsafe.Pointer    // val must be float32-like
 func convT64(val any) unsafe.Pointer     // val must be uint64-like (same size and alignment as a uint64 and contains no pointers)
+func convT64F(val any) unsafe.Pointer    // val must be float64-like
 func convTstring(val any) unsafe.Pointer // val must be a string
 func convTslice(val any) unsafe.Pointer  // val must be a slice
 
@@ -224,9 +227,11 @@ func uint32tofloat64(uint32) float64
 
 func complex128div(num complex128, den complex128) (quo complex128)
 
+func getcallerpc() uintptr
+func getcallersp() uintptr
+
 // race detection
 func racefuncenter(uintptr)
-func racefuncenterfp()
 func racefuncexit()
 func raceread(uintptr)
 func racewrite(uintptr)

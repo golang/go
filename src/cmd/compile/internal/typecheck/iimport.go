@@ -63,7 +63,7 @@ func expandDecl(n ir.Node) ir.Node {
 
 func ImportBody(fn *ir.Func) {
 	if fn.Inl.Body != nil {
-		return
+		base.Fatalf("%v already has inline body", fn)
 	}
 
 	r := importReaderFor(fn.Nname.Sym(), inlineImporter)
@@ -466,6 +466,21 @@ func (r *importReader) ident(selector bool) *types.Sym {
 func (r *importReader) localIdent() *types.Sym { return r.ident(false) }
 func (r *importReader) selector() *types.Sym   { return r.ident(true) }
 
+func (r *importReader) exoticSelector() *types.Sym {
+	name := r.string()
+	if name == "" {
+		return nil
+	}
+	pkg := r.currPkg
+	if types.IsExported(name) {
+		pkg = types.LocalPkg
+	}
+	if r.uint64() != 0 {
+		pkg = r.pkg()
+	}
+	return pkg.Lookup(name)
+}
+
 func (r *importReader) qualifiedIdent() *ir.Ident {
 	name := r.string()
 	pkg := r.pkg()
@@ -508,6 +523,12 @@ func (p *iimporter) typAt(off uint64) *types.Type {
 			base.Fatalf("predeclared type missing from cache: %d", off)
 		}
 		t = p.newReader(off-predeclReserved, nil).typ1()
+		// Ensure size is calculated for imported types. Since CL 283313, the compiler
+		// does not compile the function immediately when it sees them. Instead, funtions
+		// are pushed to compile queue, then draining from the queue for compiling.
+		// During this process, the size calculation is disabled, so it is not safe for
+		// calculating size during SSA generation anymore. See issue #44732.
+		types.CheckSize(t)
 		p.typCache[off] = t
 	}
 	return t
@@ -673,7 +694,8 @@ func (r *importReader) funcExt(n *ir.Name) {
 	r.linkname(n.Sym())
 	r.symIdx(n.Sym())
 
-	// TODO(register args) remove after register abi is working
+	n.Func.ABI = obj.ABI(r.uint64())
+
 	n.SetPragma(ir.PragmaFlag(r.uint64()))
 
 	// Escape analysis.
@@ -747,7 +769,7 @@ func (r *importReader) doInline(fn *ir.Func) {
 		base.Fatalf("%v already has inline body", fn)
 	}
 
-	//fmt.Printf("Importing %v\n", n)
+	//fmt.Printf("Importing %s\n", fn.Nname.Sym().Name)
 	r.funcBody(fn)
 
 	importlist = append(importlist, fn)
@@ -992,6 +1014,11 @@ func (r *importReader) node() ir.Node {
 		r.funcBody(fn)
 		fn.Dcl = fn.Inl.Dcl
 		fn.Body = fn.Inl.Body
+		if len(fn.Body) == 0 {
+			// An empty closure must be represented as a single empty
+			// block statement, else it will be dropped.
+			fn.Body = []ir.Node{ir.NewBlockStmt(src.NoXPos, nil)}
+		}
 		fn.Inl = nil
 
 		ir.FinishCaptureNames(pos, r.curfn, fn)
@@ -1027,7 +1054,7 @@ func (r *importReader) node() ir.Node {
 
 	case ir.OXDOT:
 		// see parser.new_dotname
-		return ir.NewSelectorExpr(r.pos(), ir.OXDOT, r.expr(), r.selector())
+		return ir.NewSelectorExpr(r.pos(), ir.OXDOT, r.expr(), r.exoticSelector())
 
 	// case ODOTTYPE, ODOTTYPE2:
 	// 	unreachable - mapped to case ODOTTYPE below by exporter
@@ -1217,6 +1244,9 @@ func (r *importReader) node() ir.Node {
 }
 
 func (r *importReader) op() ir.Op {
+	if debug && r.uint64() != magic {
+		base.Fatalf("import stream has desynchronized")
+	}
 	return ir.Op(r.uint64())
 }
 

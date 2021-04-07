@@ -95,7 +95,7 @@ func (versionFlag) Set(s string) error {
 	// to distinguish go1.10.2 with an experiment
 	// from go1.10.2 without an experiment.
 	p := Expstring()
-	if p == DefaultExpstring() {
+	if p == defaultExpstring {
 		p = ""
 	}
 	sep := ""

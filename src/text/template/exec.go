@@ -727,7 +727,7 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
 	// error to the caller.
 	if err != nil {
 		s.at(node)
-		s.errorf("error calling %s: %v", name, err)
+		s.errorf("error calling %s: %w", name, err)
 	}
 	if v.Type() == reflectValueType {
 		v = v.Interface().(reflect.Value)

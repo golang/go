@@ -51,30 +51,14 @@ type Reloc struct {
 	*goobj.Reloc
 	r *oReader
 	l *Loader
-
-	// External reloc types may not fit into a uint8 which the Go object file uses.
-	// Store it here, instead of in the byte of goobj.Reloc.
-	// For Go symbols this will always be zero.
-	// goobj.Reloc.Type() + typ is always the right type, for both Go and external
-	// symbols.
-	typ objabi.RelocType
 }
 
-func (rel Reloc) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc.Type()) + rel.typ }
-func (rel Reloc) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc.Sym()) }
-func (rel Reloc) SetSym(s Sym)           { rel.Reloc.SetSym(goobj.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
-func (rel Reloc) IsMarker() bool         { return rel.Siz() == 0 }
-
-func (rel Reloc) SetType(t objabi.RelocType) {
-	if t != objabi.RelocType(uint8(t)) {
-		panic("SetType: type doesn't fit into Reloc")
-	}
-	rel.Reloc.SetType(uint8(t))
-	if rel.typ != 0 {
-		// should use SymbolBuilder.SetRelocType
-		panic("wrong method to set reloc type")
-	}
-}
+func (rel Reloc) Type() objabi.RelocType     { return objabi.RelocType(rel.Reloc.Type()) &^ objabi.R_WEAK }
+func (rel Reloc) Weak() bool                 { return objabi.RelocType(rel.Reloc.Type())&objabi.R_WEAK != 0 }
+func (rel Reloc) SetType(t objabi.RelocType) { rel.Reloc.SetType(uint16(t)) }
+func (rel Reloc) Sym() Sym                   { return rel.l.resolve(rel.r, rel.Reloc.Sym()) }
+func (rel Reloc) SetSym(s Sym)               { rel.Reloc.SetSym(goobj.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
+func (rel Reloc) IsMarker() bool             { return rel.Siz() == 0 }
 
 // Aux holds a "handle" to access an aux symbol record from an
 // object file.
@@ -307,15 +291,14 @@ type elfsetstringFunc func(str string, off int)
 // extSymPayload holds the payload (data + relocations) for linker-synthesized
 // external symbols (note that symbol value is stored in a separate slice).
 type extSymPayload struct {
-	name     string // TODO: would this be better as offset into str table?
-	size     int64
-	ver      int
-	kind     sym.SymKind
-	objidx   uint32 // index of original object if sym made by cloneToExternal
-	relocs   []goobj.Reloc
-	reltypes []objabi.RelocType // relocation types
-	data     []byte
-	auxs     []goobj.Aux
+	name   string // TODO: would this be better as offset into str table?
+	size   int64
+	ver    int
+	kind   sym.SymKind
+	objidx uint32 // index of original object if sym made by cloneToExternal
+	relocs []goobj.Reloc
+	data   []byte
+	auxs   []goobj.Aux
 }
 
 const (
@@ -1833,10 +1816,9 @@ func (relocs *Relocs) Count() int { return len(relocs.rs) }
 // At returns the j-th reloc for a global symbol.
 func (relocs *Relocs) At(j int) Reloc {
 	if relocs.l.isExtReader(relocs.r) {
-		pp := relocs.l.payloads[relocs.li]
-		return Reloc{&relocs.rs[j], relocs.r, relocs.l, pp.reltypes[j]}
+		return Reloc{&relocs.rs[j], relocs.r, relocs.l}
 	}
-	return Reloc{&relocs.rs[j], relocs.r, relocs.l, 0}
+	return Reloc{&relocs.rs[j], relocs.r, relocs.l}
 }
 
 // Relocs returns a Relocs object for the given global sym.
@@ -2226,7 +2208,7 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 		pkg := r.Pkg(i)
 		objidx, ok := l.objByPkg[pkg]
 		if !ok {
-			log.Fatalf("reference of nonexisted package %s, from %v", pkg, r.unit.Lib)
+			log.Fatalf("%v: reference to nonexistent package %s", r.unit.Lib, pkg)
 		}
 		r.pkg[i] = objidx
 	}
@@ -2337,13 +2319,11 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 		// Copy relocations
 		relocs := l.Relocs(symIdx)
 		pp.relocs = make([]goobj.Reloc, relocs.Count())
-		pp.reltypes = make([]objabi.RelocType, relocs.Count())
 		for i := range pp.relocs {
 			// Copy the relocs slice.
 			// Convert local reference to global reference.
 			rel := relocs.At(i)
-			pp.relocs[i].Set(rel.Off(), rel.Siz(), 0, rel.Add(), goobj.SymRef{PkgIdx: 0, SymIdx: uint32(rel.Sym())})
-			pp.reltypes[i] = rel.Type()
+			pp.relocs[i].Set(rel.Off(), rel.Siz(), uint16(rel.Type()), rel.Add(), goobj.SymRef{PkgIdx: 0, SymIdx: uint32(rel.Sym())})
 		}
 
 		// Copy data
@@ -2558,7 +2538,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 			for i, list := range lists {
 				for _, s := range list {
 					sym := Sym(s)
-					if l.attrReachable.Has(sym) && !assignedToUnit.Has(sym) {
+					if !assignedToUnit.Has(sym) {
 						textp = append(textp, sym)
 						unit := l.SymUnit(sym)
 						if unit != nil {

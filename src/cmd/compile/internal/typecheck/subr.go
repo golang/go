@@ -221,7 +221,7 @@ func CalcMethods(t *types.Type) {
 
 	ms = append(ms, t.Methods().Slice()...)
 	sort.Sort(types.MethodsByName(ms))
-	t.AllMethods().Set(ms)
+	t.SetAllMethods(ms)
 }
 
 // adddot1 returns the number of fields or methods named s at depth d in Type t.
@@ -257,7 +257,13 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase 
 		return c, false
 	}
 
-	for _, f := range u.Fields().Slice() {
+	var fields *types.Fields
+	if u.IsStruct() {
+		fields = u.Fields()
+	} else {
+		fields = u.AllMethods()
+	}
+	for _, f := range fields.Slice() {
 		if f.Embedded == 0 || f.Sym == nil {
 			continue
 		}
@@ -317,7 +323,7 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
 		return n
 	}
 
-	op, why := assignop(n.Type(), t)
+	op, why := Assignop(n.Type(), t)
 	if op == ir.OXXX {
 		base.Errorf("cannot use %L as type %v in %s%s", n, t, context(), why)
 		op = ir.OCONV
@@ -333,7 +339,7 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
 // If so, return op code to use in conversion.
 // If not, return OXXX. In this case, the string return parameter may
 // hold a reason why. In all other cases, it'll be the empty string.
-func assignop(src, dst *types.Type) (ir.Op, string) {
+func Assignop(src, dst *types.Type) (ir.Op, string) {
 	if src == dst {
 		return ir.OCONVNOP, ""
 	}
@@ -460,7 +466,7 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
 // If not, return OXXX. In this case, the string return parameter may
 // hold a reason why. In all other cases, it'll be the empty string.
 // srcConstant indicates whether the value of type src is a constant.
-func convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
+func Convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 	if src == dst {
 		return ir.OCONVNOP, ""
 	}
@@ -483,7 +489,7 @@ func convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 	}
 
 	// 1. src can be assigned to dst.
-	op, why := assignop(src, dst)
+	op, why := Assignop(src, dst)
 	if op != ir.OXXX {
 		return op, why
 	}
@@ -619,7 +625,7 @@ func expand0(t *types.Type) {
 	}
 
 	if u.IsInterface() {
-		for _, f := range u.Fields().Slice() {
+		for _, f := range u.AllMethods().Slice() {
 			if f.Sym.Uniq() {
 				continue
 			}
@@ -658,7 +664,13 @@ func expand1(t *types.Type, top bool) {
 	}
 
 	if u.IsStruct() || u.IsInterface() {
-		for _, f := range u.Fields().Slice() {
+		var fields *types.Fields
+		if u.IsStruct() {
+			fields = u.Fields()
+		} else {
+			fields = u.AllMethods()
+		}
+		for _, f := range fields.Slice() {
 			if f.Embedded == 0 {
 				continue
 			}
@@ -708,8 +720,8 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 
 	if t.IsInterface() {
 		i := 0
-		tms := t.Fields().Slice()
-		for _, im := range iface.Fields().Slice() {
+		tms := t.AllMethods().Slice()
+		for _, im := range iface.AllMethods().Slice() {
 			for i < len(tms) && tms[i].Sym != im.Sym {
 				i++
 			}
@@ -738,7 +750,7 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 		tms = t.AllMethods().Slice()
 	}
 	i := 0
-	for _, im := range iface.Fields().Slice() {
+	for _, im := range iface.AllMethods().Slice() {
 		if im.Broke() {
 			continue
 		}
@@ -806,7 +818,13 @@ func lookdot0(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) 
 
 	c := 0
 	if u.IsStruct() || u.IsInterface() {
-		for _, f := range u.Fields().Slice() {
+		var fields *types.Fields
+		if u.IsStruct() {
+			fields = u.Fields()
+		} else {
+			fields = u.AllMethods()
+		}
+		for _, f := range fields.Slice() {
 			if f.Sym == s || (ignorecase && f.IsMethod() && strings.EqualFold(f.Sym.Name, s.Name)) {
 				if save != nil {
 					*save = f

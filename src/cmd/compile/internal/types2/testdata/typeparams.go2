@@ -37,7 +37,7 @@ var _ = reverse /* ERROR cannot use generic function reverse */
 var _ = reverse[int, float32 /* ERROR got 2 type arguments */ ] ([]int{1, 2, 3})
 var _ = reverse[int]([ /* ERROR cannot use */ ]float32{1, 2, 3})
 var f = reverse[chan int]
-var _ = f(0 /* ERROR cannot convert 0 .* to \[\]chan int */ )
+var _ = f(0 /* ERROR cannot use 0 .* as \[\]chan int */ )
 
 func swap[A, B any](a A, b B) (B, A) { return b, a }
 
@@ -310,7 +310,7 @@ func (_ R1[A, B]) _[A /* ERROR redeclared */ any](B)
 func _() {
         var r R1[int, string]
         r.m1[rune](42, "foo", 'a')
-        r.m1[rune](42, "foo", 1.2 /* ERROR truncated to rune */)
+        r.m1[rune](42, "foo", 1.2 /* ERROR cannot use .* as rune .* \(truncated\) */)
         r.m1(42, "foo", 1.2) // using type inference
         var _ float64 = r.m1(42, "foo", 1.2)
 }

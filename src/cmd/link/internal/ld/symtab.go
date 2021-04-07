@@ -31,6 +31,7 @@
 package ld
 
 import (
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
@@ -103,44 +104,14 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 	}
 
 	sname := ldr.SymExtname(x)
-
-	// For functions with ABI wrappers, we have to make sure that we
-	// don't wind up with two elf symbol table entries with the same
-	// name (since this will generated an error from the external
-	// linker). In the CgoExportStatic case, we want the ABI0 symbol
-	// to have the primary symbol table entry (since it's going to be
-	// called from C), so we rename the ABIInternal symbol. In all
-	// other cases, we rename the ABI0 symbol, since we want
-	// cross-load-module calls to target ABIInternal.
-	//
-	// TODO: generalize this for non-ELF (put the rename code in the
-	// loader, and store the rename result in SymExtname).
-	//
-	// TODO: avoid the ldr.Lookup calls below by instead using an aux
-	// sym or marker relocation to associate the wrapper with the
-	// wrapped function.
-	//
-	if *flagAbiWrap {
-		if !ldr.IsExternal(x) && ldr.SymType(x) == sym.STEXT {
-			// First case
-			if ldr.SymVersion(x) == sym.SymVerABIInternal {
-				if s2 := ldr.Lookup(sname, sym.SymVerABI0); s2 != 0 && ldr.AttrCgoExportStatic(s2) && ldr.SymType(s2) == sym.STEXT {
-					sname = sname + ".abiinternal"
-				}
-			}
-			// Second case
-			if ldr.SymVersion(x) == sym.SymVerABI0 && !ldr.AttrCgoExportStatic(x) {
-				if s2 := ldr.Lookup(sname, sym.SymVerABIInternal); s2 != 0 && ldr.SymType(s2) == sym.STEXT {
-					sname = sname + ".abi0"
-				}
-			}
-		}
-	}
+	sname = mangleABIName(ldr, x, sname)
 
 	// One pass for each binding: elf.STB_LOCAL, elf.STB_GLOBAL,
 	// maybe one day elf.STB_WEAK.
 	bind := elf.STB_GLOBAL
-	if ldr.IsFileLocal(x) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
+	if ldr.IsFileLocal(x) && !isStaticTmp(sname) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
+		// Static tmp is package local, but a package can be shared among multiple DSOs.
+		// They need to have a single view of the static tmp that are writable.
 		bind = elf.STB_LOCAL
 	}
 
@@ -855,4 +826,45 @@ func setCarrierSize(typ sym.SymKind, sz int64) {
 		panic(fmt.Sprintf("carrier symbol size for type %v already set", typ))
 	}
 	CarrierSymByType[typ].Size = sz
+}
+
+func isStaticTmp(name string) bool {
+	return strings.Contains(name, "."+obj.StaticNamePref)
+}
+
+// Mangle function name with ABI information.
+func mangleABIName(ldr *loader.Loader, x loader.Sym, name string) string {
+	// For functions with ABI wrappers, we have to make sure that we
+	// don't wind up with two elf symbol table entries with the same
+	// name (since this will generated an error from the external
+	// linker). In the CgoExportStatic case, we want the ABI0 symbol
+	// to have the primary symbol table entry (since it's going to be
+	// called from C), so we rename the ABIInternal symbol. In all
+	// other cases, we rename the ABI0 symbol, since we want
+	// cross-load-module calls to target ABIInternal.
+	//
+	// TODO: this is currently only used on ELF and PE. Other platforms?
+	//
+	// TODO: avoid the ldr.Lookup calls below by instead using an aux
+	// sym or marker relocation to associate the wrapper with the
+	// wrapped function.
+	//
+	if !objabi.Experiment.RegabiWrappers {
+		return name
+	}
+	if !ldr.IsExternal(x) && ldr.SymType(x) == sym.STEXT {
+		// First case
+		if ldr.SymVersion(x) == sym.SymVerABIInternal {
+			if s2 := ldr.Lookup(name, sym.SymVerABI0); s2 != 0 && ldr.AttrCgoExportStatic(s2) && ldr.SymType(s2) == sym.STEXT {
+				name = name + ".abiinternal"
+			}
+		}
+		// Second case
+		if ldr.SymVersion(x) == sym.SymVerABI0 && !ldr.AttrCgoExportStatic(x) {
+			if s2 := ldr.Lookup(name, sym.SymVerABIInternal); s2 != 0 && ldr.SymType(s2) == sym.STEXT {
+				name = name + ".abi0"
+			}
+		}
+	}
+	return name
 }

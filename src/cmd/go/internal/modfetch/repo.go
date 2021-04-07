@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"sort"
 	"strconv"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 	web "cmd/go/internal/web"
 
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 const traceRepo = false // trace all repo actions, for debugging
@@ -35,7 +33,7 @@ type Repo interface {
 	// Pseudo-versions are not included.
 	//
 	// Versions should be returned sorted in semver order
-	// (implementations can use SortVersions).
+	// (implementations can use semver.Sort).
 	//
 	// Versions returns a non-nil error only if there was a problem
 	// fetching the list of versions: it may return an empty list
@@ -267,7 +265,7 @@ var (
 func lookupDirect(path string) (Repo, error) {
 	security := web.SecureOnly
 
-	if allowInsecure(path) {
+	if module.MatchPrefixPatterns(cfg.GOINSECURE, path) {
 		security = web.Insecure
 	}
 	rr, err := vcs.RepoRootForImportPath(path, vcs.PreferMod, security)
@@ -312,7 +310,7 @@ func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
 	// version control system, we ignore meta tags about modules
 	// and use only direct source control entries (get.IgnoreMod).
 	security := web.SecureOnly
-	if allowInsecure(path) {
+	if module.MatchPrefixPatterns(cfg.GOINSECURE, path) {
 		security = web.Insecure
 	}
 	rr, err := vcs.RepoRootForImportPath(path, vcs.IgnoreMod, security)
@@ -344,16 +342,6 @@ func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
 		return nil, nil, err
 	}
 	return repo, info, nil
-}
-
-func SortVersions(list []string) {
-	sort.Slice(list, func(i, j int) bool {
-		cmp := semver.Compare(list[i], list[j])
-		if cmp != 0 {
-			return cmp < 0
-		}
-		return list[i] < list[j]
-	})
 }
 
 // A loggingRepo is a wrapper around an underlying Repo

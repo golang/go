@@ -1,0 +1,24 @@
+// Copyright 2021 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package resolution
+
+type List /* =@List */ [E /* =@E */ any] []E // @E
+
+type Pair /* =@Pair */ [L /* =@L */, R /* =@R */ any] struct {
+	Left /* =@Left */ L // @L
+	Right /* =@Right */ R // @R
+}
+
+var _ /* =@blank */ = Pair /* @Pair */ [int, string]{}
+
+type Addable /* =@Addable */ interface {
+	type int64, float64
+}
+
+// TODO (#45221): resolve references to T in the signature below.
+func Add /* =@AddDecl */[T /* =@T */ Addable /* @Addable */](l /* =@l */, r /* =@r */ T) T {
+	var t /* =@t */ T /* @T */
+	return l /* @l */ + r /* @r */ + t /* @t */
+}

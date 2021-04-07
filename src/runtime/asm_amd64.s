@@ -285,6 +285,34 @@ TEXT gogo<>(SB), NOSPLIT, $0
 // Switch to m->g0's stack, call fn(g).
 // Fn must never return. It should gogo(&g->sched)
 // to keep running g.
+#ifdef GOEXPERIMENT_REGABI_ARGS
+TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT, $0-8
+	MOVQ	AX, DX	// DX = fn
+
+	// save state in g->sched
+	MOVQ	0(SP), BX	// caller's PC
+	MOVQ	BX, (g_sched+gobuf_pc)(R14)
+	LEAQ	fn+0(FP), BX	// caller's SP
+	MOVQ	BX, (g_sched+gobuf_sp)(R14)
+	MOVQ	BP, (g_sched+gobuf_bp)(R14)
+
+	// switch to m->g0 & its stack, call fn
+	MOVQ	g_m(R14), BX
+	MOVQ	m_g0(BX), SI	// SI = g.m.g0
+	CMPQ	SI, R14	// if g == m->g0 call badmcall
+	JNE	goodm
+	JMP	runtime·badmcall(SB)
+goodm:
+	MOVQ	R14, AX		// AX (and arg 0) = g
+	MOVQ	SI, R14		// g = g.m.g0
+	get_tls(CX)		// Set G in TLS
+	MOVQ	R14, g(CX)
+	MOVQ	(g_sched+gobuf_sp)(R14), SP	// sp = g0.sched.sp
+	MOVQ	0(DX), R12
+	CALL	R12		// fn(g)
+	JMP	runtime·badmcall2(SB)
+	RET
+#else
 TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	MOVQ	fn+0(FP), DI
 
@@ -315,6 +343,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	MOVQ	$runtime·badmcall2(SB), AX
 	JMP	AX
 	RET
+#endif
 
 // systemstack_switch is a dummy routine that systemstack leaves at the bottom
 // of the G stack. We need to distinguish the routine that
@@ -442,12 +471,9 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
 	MOVL	$0, DX
 	JMP	runtime·morestack(SB)
 
-// REFLECTCALL_USE_REGABI is not defined. It must be defined in conjunction with the
-// register constants in the internal/abi package.
-
-#ifdef REFLECTCALL_USE_REGABI
+#ifdef GOEXPERIMENT_REGABI_REFLECT
 // spillArgs stores return values from registers to a *internal/abi.RegArgs in R12.
-TEXT spillArgs<>(SB),NOSPLIT,$0-0
+TEXT ·spillArgs<ABIInternal>(SB),NOSPLIT,$0-0
 	MOVQ AX, 0(R12)
 	MOVQ BX, 8(R12)
 	MOVQ CX, 16(R12)
@@ -475,7 +501,7 @@ TEXT spillArgs<>(SB),NOSPLIT,$0-0
 	RET
 
 // unspillArgs loads args into registers from a *internal/abi.RegArgs in R12.
-TEXT unspillArgs<>(SB),NOSPLIT,$0-0
+TEXT ·unspillArgs<ABIInternal>(SB),NOSPLIT,$0-0
 	MOVQ 0(R12), AX
 	MOVQ 8(R12), BX
 	MOVQ 16(R12), CX
@@ -503,11 +529,11 @@ TEXT unspillArgs<>(SB),NOSPLIT,$0-0
 	RET
 #else
 // spillArgs stores return values from registers to a pointer in R12.
-TEXT spillArgs<>(SB),NOSPLIT,$0-0
+TEXT ·spillArgs<ABIInternal>(SB),NOSPLIT,$0-0
 	RET
 
 // unspillArgs loads args into registers from a pointer in R12.
-TEXT unspillArgs<>(SB),NOSPLIT,$0-0
+TEXT ·unspillArgs<ABIInternal>(SB),NOSPLIT,$0-0
 	RET
 #endif
 
@@ -524,7 +550,7 @@ TEXT unspillArgs<>(SB),NOSPLIT,$0-0
 	JMP	AX
 // Note: can't just "JMP NAME(SB)" - bad inlining results.
 
-TEXT ·reflectcall<ABIInternal>(SB), NOSPLIT, $0-48
+TEXT ·reflectcall(SB), NOSPLIT, $0-48
 	MOVLQZX frameSize+32(FP), CX
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
@@ -566,7 +592,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 	REP;MOVSB;				\
 	/* set up argument registers */		\
 	MOVQ    regArgs+40(FP), R12;		\
-	CALL    unspillArgs<>(SB);		\
+	CALL    ·unspillArgs<ABIInternal>(SB);		\
 	/* call function */			\
 	MOVQ	f+8(FP), DX;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
@@ -574,7 +600,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 	CALL	R12;				\
 	/* copy register return values back */		\
 	MOVQ    regArgs+40(FP), R12;		\
-	CALL    spillArgs<>(SB);		\
+	CALL    ·spillArgs<ABIInternal>(SB);		\
 	MOVLQZX	stackArgsSize+24(FP), CX;		\
 	MOVLQZX	stackRetOffset+28(FP), BX;		\
 	MOVQ	stackArgs+16(FP), DI;		\
@@ -663,7 +689,7 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
 // or else unwinding from systemstack_switch is incorrect.
 // Smashes R9.
 TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
-#ifndef GOEXPERIMENT_REGABI
+#ifndef GOEXPERIMENT_REGABI_G
 	get_tls(R14)
 	MOVQ	g(R14), R14
 #endif
@@ -799,7 +825,18 @@ TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	MOVQ	BX, savedm-8(SP)	// saved copy of oldm
 	JMP	havem
 needm:
-	MOVQ    $runtime·needm(SB), AX
+	// On some platforms (Windows) we cannot call needm through
+	// an ABI wrapper because there's no TLS set up, and the ABI
+	// wrapper will try to restore the G register (R14) from TLS.
+	// Clear X15 because Go expects it and we're not calling
+	// through a wrapper, but otherwise avoid setting the G
+	// register in the wrapper and call needm directly. It
+	// takes no arguments and doesn't return any values so
+	// there's no need to handle that. Clear R14 so that there's
+	// a bad value in there, in case needm tries to use it.
+	XORPS	X15, X15
+	XORQ    R14, R14
+	MOVQ	$runtime·needm<ABIInternal>(SB), AX
 	CALL	AX
 	MOVQ	$0, savedm-8(SP) // dropm on return
 	get_tls(CX)
@@ -893,9 +930,17 @@ havem:
 	// for the duration of the call. Since the call is over, return it with dropm.
 	MOVQ	savedm-8(SP), BX
 	CMPQ	BX, $0
-	JNE 3(PC)
+	JNE	done
 	MOVQ	$runtime·dropm(SB), AX
 	CALL	AX
+#ifdef GOOS_windows
+	// We need to clear the TLS pointer in case the next
+	// thread that comes into Go tries to reuse that space
+	// but uses the same M.
+	XORQ	DI, DI
+	CALL	runtime·settls(SB)
+#endif
+done:
 
 	// Done!
 	RET
@@ -904,16 +949,6 @@ havem:
 // set g. for use by needm.
 TEXT runtime·setg(SB), NOSPLIT, $0-8
 	MOVQ	gg+0(FP), BX
-#ifdef GOOS_windows
-	CMPQ	BX, $0
-	JNE	settls
-	MOVQ	$0, 0x28(GS)
-	RET
-settls:
-	MOVQ	g_m(BX), AX
-	LEAQ	m_tls(AX), AX
-	MOVQ	AX, 0x28(GS)
-#endif
 	get_tls(CX)
 	MOVQ	BX, g(CX)
 	RET
@@ -1464,7 +1499,7 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 // signals. It is quite painful to set X15 in the signal context,
 // so we do it here.
 TEXT ·sigpanic0<ABIInternal>(SB),NOSPLIT,$0-0
-#ifdef GOEXPERIMENT_REGABI
+#ifdef GOEXPERIMENT_REGABI_G
 	get_tls(R14)
 	MOVQ	g(R14), R14
 	XORPS	X15, X15
@@ -1486,7 +1521,7 @@ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
 	MOVQ	R13, 104(SP)
 	// TODO: Consider passing g.m.p in as an argument so they can be shared
 	// across a sequence of write barriers.
-#ifdef GOEXPERIMENT_REGABI
+#ifdef GOEXPERIMENT_REGABI_G
 	MOVQ	g_m(R14), R13
 #else
 	get_tls(R13)

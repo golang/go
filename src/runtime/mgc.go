@@ -207,17 +207,22 @@ func readgogc() int32 {
 	return 100
 }
 
+// Temporary in order to enable register ABI work.
+// TODO(register args): convert back to local chan in gcenabled, passed to "go" stmts.
+var gcenable_setup chan int
+
 // gcenable is called after the bulk of the runtime initialization,
 // just before we're about to start letting user code run.
 // It kicks off the background sweeper goroutine, the background
 // scavenger goroutine, and enables GC.
 func gcenable() {
 	// Kick off sweeping and scavenging.
-	c := make(chan int, 2)
-	go bgsweep(c)
-	go bgscavenge(c)
-	<-c
-	<-c
+	gcenable_setup = make(chan int, 2)
+	go bgsweep()
+	go bgscavenge()
+	<-gcenable_setup
+	<-gcenable_setup
+	gcenable_setup = nil
 	memstats.enablegc = true // now that runtime is initialized, GC is okay
 }
 
@@ -754,8 +759,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 				return false
 			}
 
-			// TODO: having atomic.Casint64 would be more pleasant.
-			if atomic.Cas64((*uint64)(unsafe.Pointer(ptr)), uint64(v), uint64(v-1)) {
+			if atomic.Casint64(ptr, v, v-1) {
 				return true
 			}
 		}
@@ -2229,14 +2233,12 @@ func gcSweep(mode gcMode) {
 //
 //go:systemstack
 func gcResetMarkState() {
-	// This may be called during a concurrent phase, so make sure
+	// This may be called during a concurrent phase, so lock to make sure
 	// allgs doesn't change.
-	lock(&allglock)
-	for _, gp := range allgs {
+	forEachG(func(gp *g) {
 		gp.gcscandone = false // set to true in gcphasework
 		gp.gcAssistBytes = 0
-	}
-	unlock(&allglock)
+	})
 
 	// Clear page marks. This is just 1MB per 64GB of heap, so the
 	// time here is pretty trivial.
@@ -2335,4 +2337,108 @@ func fmtNSAsMS(buf []byte, ns uint64) []byte {
 		dec--
 	}
 	return itoaDiv(buf, x, dec)
+}
+
+// Helpers for testing GC.
+
+// gcTestMoveStackOnNextCall causes the stack to be moved on a call
+// immediately following the call to this. It may not work correctly
+// if any other work appears after this call (such as returning).
+// Typically the following call should be marked go:noinline so it
+// performs a stack check.
+//
+// In rare cases this may not cause the stack to move, specifically if
+// there's a preemption between this call and the next.
+func gcTestMoveStackOnNextCall() {
+	gp := getg()
+	gp.stackguard0 = stackForceMove
+}
+
+// gcTestIsReachable performs a GC and returns a bit set where bit i
+// is set if ptrs[i] is reachable.
+func gcTestIsReachable(ptrs ...unsafe.Pointer) (mask uint64) {
+	// This takes the pointers as unsafe.Pointers in order to keep
+	// them live long enough for us to attach specials. After
+	// that, we drop our references to them.
+
+	if len(ptrs) > 64 {
+		panic("too many pointers for uint64 mask")
+	}
+
+	// Block GC while we attach specials and drop our references
+	// to ptrs. Otherwise, if a GC is in progress, it could mark
+	// them reachable via this function before we have a chance to
+	// drop them.
+	semacquire(&gcsema)
+
+	// Create reachability specials for ptrs.
+	specials := make([]*specialReachable, len(ptrs))
+	for i, p := range ptrs {
+		lock(&mheap_.speciallock)
+		s := (*specialReachable)(mheap_.specialReachableAlloc.alloc())
+		unlock(&mheap_.speciallock)
+		s.special.kind = _KindSpecialReachable
+		if !addspecial(p, &s.special) {
+			throw("already have a reachable special (duplicate pointer?)")
+		}
+		specials[i] = s
+		// Make sure we don't retain ptrs.
+		ptrs[i] = nil
+	}
+
+	semrelease(&gcsema)
+
+	// Force a full GC and sweep.
+	GC()
+
+	// TODO(austin): Work around issue #45315. One GC() can return
+	// without finishing the sweep. Do a second to force the sweep
+	// through.
+	GC()
+
+	// Process specials.
+	for i, s := range specials {
+		if !s.done {
+			printlock()
+			println("runtime: object", i, "was not swept")
+			throw("IsReachable failed")
+		}
+		if s.reachable {
+			mask |= 1 << i
+		}
+		lock(&mheap_.speciallock)
+		mheap_.specialReachableAlloc.free(unsafe.Pointer(s))
+		unlock(&mheap_.speciallock)
+	}
+
+	return mask
+}
+
+// gcTestPointerClass returns the category of what p points to, one of:
+// "heap", "stack", "data", "bss", "other". This is useful for checking
+// that a test is doing what it's intended to do.
+//
+// This is nosplit simply to avoid extra pointer shuffling that may
+// complicate a test.
+//
+//go:nosplit
+func gcTestPointerClass(p unsafe.Pointer) string {
+	p2 := uintptr(noescape(p))
+	gp := getg()
+	if gp.stack.lo <= p2 && p2 < gp.stack.hi {
+		return "stack"
+	}
+	if base, _, _ := findObject(p2, 0, 0); base != 0 {
+		return "heap"
+	}
+	for _, datap := range activeModules() {
+		if datap.data <= p2 && p2 < datap.edata || datap.noptrdata <= p2 && p2 < datap.enoptrdata {
+			return "data"
+		}
+		if datap.bss <= p2 && p2 < datap.ebss || datap.noptrbss <= p2 && p2 <= datap.enoptrbss {
+			return "bss"
+		}
+	}
+	KeepAlive(p)
+	return "other"
 }

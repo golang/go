@@ -282,8 +282,9 @@ downgrade A B1: A B1
 # And C1 requires B2.hidden, and B2.hidden also meets our requirements:
 # it is compatible with D1 and a strict downgrade from B3.
 #
-# BUG(?): B2.hidden does not require E1, so there is no need for E1
-# to appear in the final build list. Nonetheless, there it is.
+# Since neither the initial nor the final build list includes B1,
+# and the nothing in the final downgraded build list requires E at all,
+# no dependency on E1 (required by only B1) should be introduced.
 #
 name: downhiddenartifact
 A: B3 C2
@@ -298,7 +299,7 @@ D2:
 build A1: A1 B3 D2
 downgrade A1 D1: A1 B1 D1 E1
 build A: A B3 C2 D2
-downgrade A D1: A B2.hidden C1 D1 E1
+downgrade A D1: A B2.hidden C1 D1
 
 # Both B3 and C3 require D2.
 # If we downgrade D to D1, then in isolation B3 would downgrade to B1,

@@ -442,6 +442,9 @@ func basicAuth(username, password string) string {
 //
 // To make a request with custom headers, use NewRequest and
 // DefaultClient.Do.
+//
+// To make a request with a specified context.Context, use NewRequestWithContext
+// and DefaultClient.Do.
 func Get(url string) (resp *Response, err error) {
 	return DefaultClient.Get(url)
 }
@@ -466,6 +469,9 @@ func Get(url string) (resp *Response, err error) {
 // Caller should close resp.Body when done reading from it.
 //
 // To make a request with custom headers, use NewRequest and Client.Do.
+//
+// To make a request with a specified context.Context, use NewRequestWithContext
+// and Client.Do.
 func (c *Client) Get(url string) (resp *Response, err error) {
 	req, err := NewRequest("GET", url, nil)
 	if err != nil {
@@ -821,6 +827,9 @@ func defaultCheckRedirect(req *Request, via []*Request) error {
 //
 // See the Client.Do method documentation for details on how redirects
 // are handled.
+//
+// To make a request with a specified context.Context, use NewRequestWithContext
+// and DefaultClient.Do.
 func Post(url, contentType string, body io.Reader) (resp *Response, err error) {
 	return DefaultClient.Post(url, contentType, body)
 }
@@ -833,6 +842,9 @@ func Post(url, contentType string, body io.Reader) (resp *Response, err error) {
 // request.
 //
 // To set custom headers, use NewRequest and Client.Do.
+//
+// To make a request with a specified context.Context, use NewRequestWithContext
+// and Client.Do.
 //
 // See the Client.Do method documentation for details on how redirects
 // are handled.
@@ -858,6 +870,9 @@ func (c *Client) Post(url, contentType string, body io.Reader) (resp *Response, 
 //
 // See the Client.Do method documentation for details on how redirects
 // are handled.
+//
+// To make a request with a specified context.Context, use NewRequestWithContext
+// and DefaultClient.Do.
 func PostForm(url string, data url.Values) (resp *Response, err error) {
 	return DefaultClient.PostForm(url, data)
 }
@@ -873,6 +888,9 @@ func PostForm(url string, data url.Values) (resp *Response, err error) {
 //
 // See the Client.Do method documentation for details on how redirects
 // are handled.
+//
+// To make a request with a specified context.Context, use NewRequestWithContext
+// and Client.Do.
 func (c *Client) PostForm(url string, data url.Values) (resp *Response, err error) {
 	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
 }
@@ -888,6 +906,9 @@ func (c *Client) PostForm(url string, data url.Values) (resp *Response, err erro
 //    308 (Permanent Redirect)
 //
 // Head is a wrapper around DefaultClient.Head
+//
+// To make a request with a specified context.Context, use NewRequestWithContext
+// and DefaultClient.Do.
 func Head(url string) (resp *Response, err error) {
 	return DefaultClient.Head(url)
 }
@@ -901,6 +922,9 @@ func Head(url string) (resp *Response, err error) {
 //    303 (See Other)
 //    307 (Temporary Redirect)
 //    308 (Permanent Redirect)
+//
+// To make a request with a specified context.Context, use NewRequestWithContext
+// and Client.Do.
 func (c *Client) Head(url string) (resp *Response, err error) {
 	req, err := NewRequest("HEAD", url, nil)
 	if err != nil {

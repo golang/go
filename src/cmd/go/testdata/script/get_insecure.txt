@@ -12,10 +12,12 @@ env GO111MODULE=off
 # GOPATH: Try go get -d of HTTP-only repo (should fail).
 ! go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
 
-# GOPATH: Try again with -insecure (should succeed).
-go get -d -insecure insecure.go-get-issue-15410.appspot.com/pkg/p
+# GOPATH: Try again with GOINSECURE (should succeed).
+env GOINSECURE=insecure.go-get-issue-15410.appspot.com
+go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
 
-# GOPATH: Try updating without -insecure (should fail).
+# GOPATH: Try updating without GOINSECURE (should fail).
+env GOINSECURE=''
 ! go get -d -u -f insecure.go-get-issue-15410.appspot.com/pkg/p
 
 # Modules: Set up
@@ -29,10 +31,14 @@ env GOPROXY=''
 # Modules: Try go get -d of HTTP-only repo (should fail).
 ! go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
 
-# Modules: Try again with -insecure (should succeed).
-go get -d -insecure insecure.go-get-issue-15410.appspot.com/pkg/p
+# Modules: Try again with GOINSECURE (should succeed).
+env GOINSECURE=insecure.go-get-issue-15410.appspot.com
+env GONOSUMDB=insecure.go-get-issue-15410.appspot.com
+go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
 
-# Modules: Try updating without -insecure (should fail).
+# Modules: Try updating without GOINSECURE (should fail).
+env GOINSECURE=''
+env GONOSUMDB=''
 ! go get -d -u -f insecure.go-get-issue-15410.appspot.com/pkg/p
 
 go list -m ...

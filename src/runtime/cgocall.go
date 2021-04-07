@@ -195,7 +195,7 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	return errno
 }
 
-// Call from C back to Go.
+// Call from C back to Go. fn must point to an ABIInternal Go entry-point.
 //go:nosplit
 func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	gp := getg()

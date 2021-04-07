@@ -8,7 +8,6 @@ package work
 
 import (
 	"bytes"
-	"cmd/go/internal/fsys"
 	"context"
 	"encoding/json"
 	"errors"
@@ -31,10 +30,12 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
+	"cmd/internal/objabi"
 )
 
 // actionList returns the list of actions in the dag rooted at root
@@ -275,6 +276,10 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		// GOARM, GOMIPS, etc.
 		key, val := cfg.GetArchEnv()
 		fmt.Fprintf(h, "%s=%s\n", key, val)
+
+		if objabi.GOEXPERIMENT != "" {
+			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", objabi.GOEXPERIMENT)
+		}
 
 		// TODO(rsc): Convince compiler team not to add more magic environment variables,
 		// or perhaps restrict the environment variables passed to subprocesses.
@@ -1245,6 +1250,10 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 		// GOARM, GOMIPS, etc.
 		key, val := cfg.GetArchEnv()
 		fmt.Fprintf(h, "%s=%s\n", key, val)
+
+		if objabi.GOEXPERIMENT != "" {
+			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", objabi.GOEXPERIMENT)
+		}
 
 		// The linker writes source file paths that say GOROOT_FINAL, but
 		// only if -trimpath is not specified (see ld() in gc.go).

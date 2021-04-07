@@ -37,6 +37,14 @@ func directClosureCall(n *ir.CallExpr) {
 		return // leave for walkClosure to handle
 	}
 
+	// If wrapGoDefer() in the order phase has flagged this call,
+	// avoid eliminating the closure even if there is a direct call to
+	// (the closure is needed to simplify the register ABI). See
+	// wrapGoDefer for more details.
+	if n.PreserveClosure {
+		return
+	}
+
 	// We are going to insert captured variables before input args.
 	var params []*types.Field
 	var decls []*ir.Name

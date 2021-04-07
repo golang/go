@@ -29,6 +29,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/imports"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/par"
@@ -478,6 +479,7 @@ var (
 	_ ImportPathError = (*importError)(nil)
 	_ ImportPathError = (*modload.ImportMissingError)(nil)
 	_ ImportPathError = (*modload.ImportMissingSumError)(nil)
+	_ ImportPathError = (*modload.DirectImportFromImplicitDependencyError)(nil)
 )
 
 type importError struct {
@@ -665,25 +667,30 @@ func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *
 		parentRoot = parent.Root
 		parentIsStd = parent.Standard
 	}
-	bp, loaded, err := loadPackageData(path, parentPath, srcDir, parentRoot, parentIsStd, mode)
+	bp, loaded, err := loadPackageData(ctx, path, parentPath, srcDir, parentRoot, parentIsStd, mode)
 	if loaded && pre != nil && !IgnoreImports {
-		pre.preloadImports(bp.Imports, bp)
+		pre.preloadImports(ctx, bp.Imports, bp)
 	}
 	if bp == nil {
+		p := &Package{
+			PackagePublic: PackagePublic{
+				ImportPath: path,
+				Incomplete: true,
+			},
+		}
 		if importErr, ok := err.(ImportPathError); !ok || importErr.ImportPath() != path {
-			// Only add path to the error's import stack if it's not already present on the error.
+			// Only add path to the error's import stack if it's not already present
+			// in the error.
+			//
+			// TODO(bcmills): setLoadPackageDataError itself has a similar Push / Pop
+			// sequence that empirically doesn't trigger for these errors, guarded by
+			// a somewhat complex condition. Figure out how to generalize that
+			// condition and eliminate the explicit calls here.
 			stk.Push(path)
 			defer stk.Pop()
 		}
-		return &Package{
-			PackagePublic: PackagePublic{
-				ImportPath: path,
-				Error: &PackageError{
-					ImportStack: stk.Copy(),
-					Err:         err,
-				},
-			},
-		}
+		p.setLoadPackageDataError(err, path, stk, nil)
+		return p
 	}
 
 	importPath := bp.ImportPath
@@ -714,7 +721,7 @@ func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *
 	}
 
 	// Checked on every import because the rules depend on the code doing the importing.
-	if perr := disallowInternal(srcDir, parent, parentPath, p, stk); perr != p {
+	if perr := disallowInternal(ctx, srcDir, parent, parentPath, p, stk); perr != p {
 		perr.Error.setPos(importPos)
 		return perr
 	}
@@ -763,7 +770,7 @@ func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *
 //
 // loadPackageData returns a boolean, loaded, which is true if this is the
 // first time the package was loaded. Callers may preload imports in this case.
-func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd bool, mode int) (bp *build.Package, loaded bool, err error) {
+func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoot string, parentIsStd bool, mode int) (bp *build.Package, loaded bool, err error) {
 	if path == "" {
 		panic("loadPackageData called with empty package path")
 	}
@@ -836,8 +843,29 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
 			}
 			data.p, data.err = cfg.BuildContext.ImportDir(r.dir, buildMode)
 			if data.p.Root == "" && cfg.ModulesEnabled {
-				if info := modload.PackageModuleInfo(path); info != nil {
+				if info := modload.PackageModuleInfo(ctx, path); info != nil {
 					data.p.Root = info.Dir
+				}
+			}
+			if r.err != nil {
+				if data.err != nil {
+					// ImportDir gave us one error, and the module loader gave us another.
+					// We arbitrarily choose to keep the error from ImportDir because
+					// that's what our tests already expect, and it seems to provide a bit
+					// more detail in most cases.
+				} else if errors.Is(r.err, imports.ErrNoGo) {
+					// ImportDir said there were files in the package, but the module
+					// loader said there weren't. Which one is right?
+					// Without this special-case hack, the TestScript/test_vet case fails
+					// on the vetfail/p1 package (added in CL 83955).
+					// Apparently, imports.ShouldBuild biases toward rejecting files
+					// with invalid build constraints, whereas ImportDir biases toward
+					// accepting them.
+					//
+					// TODO(#41410: Figure out how this actually ought to work and fix
+					// this mess.
+				} else {
+					data.err = r.err
 				}
 			}
 		} else if r.err != nil {
@@ -950,7 +978,7 @@ func newPreload() *preload {
 // preloadMatches loads data for package paths matched by patterns.
 // When preloadMatches returns, some packages may not be loaded yet, but
 // loadPackageData and loadImport are always safe to call.
-func (pre *preload) preloadMatches(matches []*search.Match) {
+func (pre *preload) preloadMatches(ctx context.Context, matches []*search.Match) {
 	for _, m := range matches {
 		for _, pkg := range m.Pkgs {
 			select {
@@ -959,10 +987,10 @@ func (pre *preload) preloadMatches(matches []*search.Match) {
 			case pre.sema <- struct{}{}:
 				go func(pkg string) {
 					mode := 0 // don't use vendoring or module import resolution
-					bp, loaded, err := loadPackageData(pkg, "", base.Cwd, "", false, mode)
+					bp, loaded, err := loadPackageData(ctx, pkg, "", base.Cwd, "", false, mode)
 					<-pre.sema
 					if bp != nil && loaded && err == nil && !IgnoreImports {
-						pre.preloadImports(bp.Imports, bp)
+						pre.preloadImports(ctx, bp.Imports, bp)
 					}
 				}(pkg)
 			}
@@ -973,7 +1001,7 @@ func (pre *preload) preloadMatches(matches []*search.Match) {
 // preloadImports queues a list of imports for preloading.
 // When preloadImports returns, some packages may not be loaded yet,
 // but loadPackageData and loadImport are always safe to call.
-func (pre *preload) preloadImports(imports []string, parent *build.Package) {
+func (pre *preload) preloadImports(ctx context.Context, imports []string, parent *build.Package) {
 	parentIsStd := parent.Goroot && parent.ImportPath != "" && search.IsStandardImportPath(parent.ImportPath)
 	for _, path := range imports {
 		if path == "C" || path == "unsafe" {
@@ -984,10 +1012,10 @@ func (pre *preload) preloadImports(imports []string, parent *build.Package) {
 			return
 		case pre.sema <- struct{}{}:
 			go func(path string) {
-				bp, loaded, err := loadPackageData(path, parent.ImportPath, parent.Dir, parent.Root, parentIsStd, ResolveImport)
+				bp, loaded, err := loadPackageData(ctx, path, parent.ImportPath, parent.Dir, parent.Root, parentIsStd, ResolveImport)
 				<-pre.sema
 				if bp != nil && loaded && err == nil && !IgnoreImports {
-					pre.preloadImports(bp.Imports, bp)
+					pre.preloadImports(ctx, bp.Imports, bp)
 				}
 			}(path)
 		}
@@ -1323,6 +1351,11 @@ func reusePackage(p *Package, stk *ImportStack) *Package {
 				Err:           errors.New("import cycle not allowed"),
 				IsImportCycle: true,
 			}
+		} else if !p.Error.IsImportCycle {
+			// If the error is already set, but it does not indicate that
+			// we are in an import cycle, set IsImportCycle so that we don't
+			// end up stuck in a loop down the road.
+			p.Error.IsImportCycle = true
 		}
 		p.Incomplete = true
 	}
@@ -1338,7 +1371,7 @@ func reusePackage(p *Package, stk *ImportStack) *Package {
 // is allowed to import p.
 // If the import is allowed, disallowInternal returns the original package p.
 // If not, it returns a new package containing just an appropriate error.
-func disallowInternal(srcDir string, importer *Package, importerPath string, p *Package, stk *ImportStack) *Package {
+func disallowInternal(ctx context.Context, srcDir string, importer *Package, importerPath string, p *Package, stk *ImportStack) *Package {
 	// golang.org/s/go14internal:
 	// An import of a path containing the element “internal”
 	// is disallowed if the importing code is outside the tree
@@ -1410,7 +1443,7 @@ func disallowInternal(srcDir string, importer *Package, importerPath string, p *
 			// directory containing them.
 			// If the directory is outside the main module, this will resolve to ".",
 			// which is not a prefix of any valid module.
-			importerPath = modload.DirImportPath(importer.Dir)
+			importerPath = modload.DirImportPath(ctx, importer.Dir)
 		}
 		parentOfInternal := p.ImportPath[:i]
 		if str.HasPathPrefix(importerPath, parentOfInternal) {
@@ -1913,7 +1946,7 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 		if p.Internal.CmdlineFiles {
 			mainPath = "command-line-arguments"
 		}
-		p.Module = modload.PackageModuleInfo(mainPath)
+		p.Module = modload.PackageModuleInfo(ctx, mainPath)
 		if p.Name == "main" && len(p.DepsErrors) == 0 {
 			p.Internal.BuildInfo = modload.PackageBuildInfo(mainPath, p.Deps)
 		}
@@ -2400,7 +2433,7 @@ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
 
 	pre := newPreload()
 	defer pre.flush()
-	pre.preloadMatches(matches)
+	pre.preloadMatches(ctx, matches)
 
 	for _, m := range matches {
 		for _, pkg := range m.Pkgs {

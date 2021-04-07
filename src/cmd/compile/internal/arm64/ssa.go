@@ -893,6 +893,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64FMOVSgpfp,
 		ssa.OpARM64FNEGS,
 		ssa.OpARM64FNEGD,
+		ssa.OpARM64FSQRTS,
 		ssa.OpARM64FSQRTD,
 		ssa.OpARM64FCVTZSSW,
 		ssa.OpARM64FCVTZSDW,
@@ -914,6 +915,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64FCVTDS,
 		ssa.OpARM64REV,
 		ssa.OpARM64REVW,
+		ssa.OpARM64REV16,
 		ssa.OpARM64REV16W,
 		ssa.OpARM64RBIT,
 		ssa.OpARM64RBITW,
@@ -953,6 +955,20 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = condBits[ssa.Op(v.AuxInt)]
 		p.Reg = v.Args[0].Reg()
 		p.SetFrom3Reg(r1)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssa.OpARM64CSINC, ssa.OpARM64CSINV, ssa.OpARM64CSNEG:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
+		p.From.Reg = condBits[ssa.Op(v.AuxInt)]
+		p.Reg = v.Args[0].Reg()
+		p.SetFrom3Reg(v.Args[1].Reg())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssa.OpARM64CSETM:
+		p := s.Prog(arm64.ACSETM)
+		p.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
+		p.From.Reg = condBits[ssa.Op(v.AuxInt)]
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpARM64DUFFZERO:
@@ -1085,7 +1101,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		v.Fatalf("FlagConstant op should never make it to codegen %v", v.LongString())
 	case ssa.OpARM64InvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
-	case ssa.OpClobber:
+	case ssa.OpClobber, ssa.OpClobberReg:
 		// TODO: implement for clobberdead experiment. Nop is ok for now.
 	default:
 		v.Fatalf("genValue not implemented: %s", v.LongString())

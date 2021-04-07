@@ -317,7 +317,7 @@ const (
 	// the "mac" section.
 	ClassMacPtr
 
-	// ClassMacPtr represents values that are an int64 offset into
+	// ClassRangeListPtr represents values that are an int64 offset into
 	// the "rangelist" section.
 	ClassRangeListPtr
 
@@ -355,7 +355,7 @@ const (
 	// into the "loclists" section.
 	ClassLocList
 
-	// ClassRngList represents values that are an int64 offset
+	// ClassRngList represents values that are a uint64 offset
 	// from the base of the "rnglists" section.
 	ClassRngList
 
@@ -462,6 +462,35 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 			b.err = b1.err
 		}
 		return val
+	}
+
+	resolveRnglistx := func(rnglistsBase, off uint64) uint64 {
+		is64, _ := b.format.dwarf64()
+		if is64 {
+			off *= 8
+		} else {
+			off *= 4
+		}
+		off += rnglistsBase
+		if uint64(int(off)) != off {
+			b.error("DW_FORM_rnglistx offset out of range")
+		}
+
+		b1 := makeBuf(b.dwarf, b.format, "rnglists", 0, b.dwarf.rngLists)
+		b1.skip(int(off))
+		if is64 {
+			off = b1.uint64()
+		} else {
+			off = uint64(b1.uint32())
+		}
+		if b1.err != nil {
+			b.err = b1.err
+			return 0
+		}
+		if uint64(int(off)) != off {
+			b.error("DW_FORM_rnglistx indirect offset out of range")
+		}
+		return rnglistsBase + off
 	}
 
 	for i := range e.Field {
@@ -709,7 +738,21 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 
 		// rnglist
 		case formRnglistx:
-			val = b.uint()
+			off := b.uint()
+
+			// We have to adjust by the rnglists_base of
+			// the compilation unit. This won't work if
+			// the program uses Reader.Seek to skip over
+			// the unit. Not much we can do about that.
+			var rnglistsBase int64
+			if cu != nil {
+				rnglistsBase, _ = cu.Val(AttrRnglistsBase).(int64)
+			} else if a.tag == TagCompileUnit {
+				delay = append(delay, delayed{i, off, formRnglistx})
+				break
+			}
+
+			val = resolveRnglistx(uint64(rnglistsBase), off)
 		}
 
 		e.Field[i].Val = val
@@ -731,6 +774,12 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 		case formStrx:
 			strBase, _ := e.Val(AttrStrOffsetsBase).(int64)
 			e.Field[del.idx].Val = resolveStrx(uint64(strBase), del.off)
+			if b.err != nil {
+				return nil
+			}
+		case formRnglistx:
+			rnglistsBase, _ := e.Val(AttrRnglistsBase).(int64)
+			e.Field[del.idx].Val = resolveRnglistx(uint64(rnglistsBase), del.off)
 			if b.err != nil {
 				return nil
 			}
@@ -993,8 +1042,15 @@ func (d *Data) Ranges(e *Entry) ([][2]uint64, error) {
 			return d.dwarf5Ranges(u, cu, base, ranges, ret)
 
 		case ClassRngList:
-			// TODO: support DW_FORM_rnglistx
-			return ret, nil
+			rnglist, ok := field.Val.(uint64)
+			if !ok {
+				return ret, nil
+			}
+			cu, base, err := d.baseAddressForEntry(e)
+			if err != nil {
+				return nil, err
+			}
+			return d.dwarf5Ranges(u, cu, base, int64(rnglist), ret)
 
 		default:
 			return ret, nil

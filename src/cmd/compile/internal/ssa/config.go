@@ -6,7 +6,6 @@ package ssa
 
 import (
 	"cmd/compile/internal/abi"
-	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -204,7 +203,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.floatParamRegs = paramFloatRegAMD64
 		c.FPReg = framepointerRegAMD64
 		c.LinkReg = linkRegAMD64
-		c.hasGReg = base.Flag.ABIWrap
+		c.hasGReg = objabi.Experiment.RegabiG
 	case "386":
 		c.PtrSize = 4
 		c.RegSize = 4
@@ -333,8 +332,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 	c.useSSE = true
 	c.UseFMA = true
 
-	c.ABI0 = abi.NewABIConfig(0, 0)
-	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs))
+	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.FixedFrameSize())
+	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.FixedFrameSize())
 
 	// On Plan 9, floating point operations are not allowed in note handler.
 	if objabi.GOOS == "plan9" {

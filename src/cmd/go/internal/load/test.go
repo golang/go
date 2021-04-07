@@ -21,6 +21,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 )
@@ -100,7 +101,7 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
 	defer pre.flush()
 	allImports := append([]string{}, p.TestImports...)
 	allImports = append(allImports, p.XTestImports...)
-	pre.preloadImports(allImports, p.Internal.Build)
+	pre.preloadImports(ctx, allImports, p.Internal.Build)
 
 	var ptestErr, pxtestErr *PackageError
 	var imports, ximports []*Package
@@ -290,10 +291,12 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
 			seen[p1] = true
 		}
 		for _, p1 := range cover.Pkgs {
-			if !seen[p1] {
-				seen[p1] = true
-				pmain.Internal.Imports = append(pmain.Internal.Imports, p1)
+			if seen[p1] {
+				// Don't add duplicate imports.
+				continue
 			}
+			seen[p1] = true
+			pmain.Internal.Imports = append(pmain.Internal.Imports, p1)
 		}
 	}
 
@@ -576,7 +579,13 @@ type testFunc struct {
 var testFileSet = token.NewFileSet()
 
 func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
-	f, err := parser.ParseFile(testFileSet, filename, nil, parser.ParseComments)
+	// Pass in the overlaid source if we have an overlay for this file.
+	src, err := fsys.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	f, err := parser.ParseFile(testFileSet, filename, src, parser.ParseComments)
 	if err != nil {
 		return err
 	}
