@@ -22,6 +22,42 @@ import (
 	"time"
 )
 
+// CoordinateFuzzingOpts is a set of arguments for CoordinateFuzzing.
+// The zero value is valid for each field unless specified otherwise.
+type CoordinateFuzzingOpts struct {
+	// Log is a writer for logging progress messages and warnings.
+	// If nil, io.Discard will be used instead.
+	Log io.Writer
+
+	// Timeout is the amount of wall clock time to spend fuzzing after the corpus
+	// has loaded. If zero, there will be no time limit.
+	Timeout time.Duration
+
+	// Count is the number of random values to generate and test. If zero,
+	// there will be no limit on the number of generated values.
+	Count int64
+
+	// parallel is the number of worker processes to run in parallel. If zero,
+	// CoordinateFuzzing will run GOMAXPROCS workers.
+	Parallel int
+
+	// Seed is a list of seed values added by the fuzz target with testing.F.Add
+	// and in testdata.
+	Seed []CorpusEntry
+
+	// Types is the list of types which make up a corpus entry.
+	// Types must be set and must match values in Seed.
+	Types []reflect.Type
+
+	// CorpusDir is a directory where files containing values that crash the
+	// code being tested may be written. CorpusDir must be set.
+	CorpusDir string
+
+	// CacheDir is a directory containing additional "interesting" values.
+	// The fuzzer may derive new values from these, and may write new values here.
+	CacheDir string
+}
+
 // CoordinateFuzzing creates several worker processes and communicates with
 // them to test random inputs that could trigger crashes and expose bugs.
 // The worker processes run the same binary in the same directory with the
@@ -29,50 +65,31 @@ import (
 // with the same arguments as the coordinator, except with the -test.fuzzworker
 // flag prepended to the argument list.
 //
-// log is a writer for logging progress messages and warnings.
-//
-// timeout is the amount of wall clock time to spend fuzzing after the corpus
-// has loaded.
-//
-// count is the number of random values to generate and test. If 0,
-// CoordinateFuzzing will run until ctx is canceled.
-//
-// parallel is the number of worker processes to run in parallel. If parallel
-// is 0, CoordinateFuzzing will run GOMAXPROCS workers.
-//
-// seed is a list of seed values added by the fuzz target with testing.F.Add and
-// in testdata.
-//
-// types is the list of types which make up a corpus entry.
-//
-// corpusDir is a directory where files containing values that crash the
-// code being tested may be written.
-//
-// cacheDir is a directory containing additional "interesting" values.
-// The fuzzer may derive new values from these, and may write new values here.
-//
 // If a crash occurs, the function will return an error containing information
 // about the crash, which can be reported to the user.
-func CoordinateFuzzing(ctx context.Context, log io.Writer, timeout time.Duration, count int64, parallel int, seed []CorpusEntry, types []reflect.Type, corpusDir, cacheDir string) (err error) {
+func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if parallel == 0 {
-		parallel = runtime.GOMAXPROCS(0)
+	if opts.Log == nil {
+		opts.Log = io.Discard
 	}
-	if count > 0 && int64(parallel) > count {
+	if opts.Parallel == 0 {
+		opts.Parallel = runtime.GOMAXPROCS(0)
+	}
+	if opts.Count > 0 && int64(opts.Parallel) > opts.Count {
 		// Don't start more workers than we need.
-		parallel = int(count)
+		opts.Parallel = int(opts.Count)
 	}
 
-	c, err := newCoordinator(log, count, parallel, seed, types, cacheDir)
+	c, err := newCoordinator(opts)
 	if err != nil {
 		return err
 	}
 
-	if timeout > 0 {
+	if opts.Timeout > 0 {
 		var cancel func()
-		ctx, cancel = context.WithTimeout(ctx, timeout)
+		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
 		defer cancel()
 	}
 
@@ -130,7 +147,7 @@ func CoordinateFuzzing(ctx context.Context, log io.Writer, timeout time.Duration
 
 	// Start workers.
 	errC := make(chan error)
-	workers := make([]*worker, parallel)
+	workers := make([]*worker, opts.Parallel)
 	for i := range workers {
 		var err error
 		workers[i], err = newWorker()
@@ -172,13 +189,13 @@ func CoordinateFuzzing(ctx context.Context, log io.Writer, timeout time.Duration
 		case result := <-c.resultC:
 			// Received response from worker.
 			c.updateStats(result)
-			if c.countRequested > 0 && c.count >= c.countRequested {
+			if c.opts.Count > 0 && c.count >= c.opts.Count {
 				stop(nil)
 			}
 
 			if result.crasherMsg != "" {
 				// Found a crasher. Write it to testdata and return it.
-				fileName, err := writeToCorpus(result.entry.Data, corpusDir)
+				fileName, err := writeToCorpus(result.entry.Data, opts.CorpusDir)
 				if err == nil {
 					err = &crashError{
 						name: filepath.Base(fileName),
@@ -197,8 +214,8 @@ func CoordinateFuzzing(ctx context.Context, log io.Writer, timeout time.Duration
 				// TODO(jayconrod, katiehockman): Don't write a value that's already
 				// in the corpus.
 				c.corpus.entries = append(c.corpus.entries, result.entry)
-				if cacheDir != "" {
-					if _, err := writeToCorpus(result.entry.Data, cacheDir); err != nil {
+				if opts.CacheDir != "" {
+					if _, err := writeToCorpus(result.entry.Data, opts.CacheDir); err != nil {
 						stop(err)
 					}
 				}
@@ -233,8 +250,8 @@ func CoordinateFuzzing(ctx context.Context, log io.Writer, timeout time.Duration
 		}
 	}
 
-	// TODO(jayconrod,katiehockman): if a crasher can't be written to corpusDir,
-	// write to cacheDir instead.
+	// TODO(jayconrod,katiehockman): if a crasher can't be written to the corpus,
+	// write to the cache instead.
 }
 
 // crashError wraps a crasher written to the seed corpus. It saves the name
@@ -315,8 +332,7 @@ type fuzzResult struct {
 // coordinator holds channels that workers can use to communicate with
 // the coordinator.
 type coordinator struct {
-	// log is a writer for logging progress messages and warnings.
-	log io.Writer
+	opts CoordinateFuzzingOpts
 
 	// startTime is the time we started the workers after loading the corpus.
 	// Used for logging.
@@ -329,13 +345,6 @@ type coordinator struct {
 	// resultC is sent results of fuzzing by workers. The coordinator
 	// receives these. Multiple types of messages are allowed.
 	resultC chan fuzzResult
-
-	// parallel is the number of worker processes.
-	parallel int64
-
-	// countRequested is the number of values the client asked to be tested.
-	// If countRequested is 0, there is no limit.
-	countRequested int64
 
 	// count is the number of values fuzzed so far.
 	count int64
@@ -358,32 +367,30 @@ type coordinator struct {
 	corpusIndex int
 }
 
-func newCoordinator(w io.Writer, countRequested int64, parallel int, seed []CorpusEntry, types []reflect.Type, cacheDir string) (*coordinator, error) {
+func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
 	// Make sure all of the seed corpus has marshalled data.
-	for i := range seed {
-		if seed[i].Data == nil {
-			seed[i].Data = marshalCorpusFile(seed[i].Values...)
+	for i := range opts.Seed {
+		if opts.Seed[i].Data == nil {
+			opts.Seed[i].Data = marshalCorpusFile(opts.Seed[i].Values...)
 		}
 	}
-	corpus, err := readCache(seed, types, cacheDir)
+	corpus, err := readCache(opts.Seed, opts.Types, opts.CacheDir)
 	if err != nil {
 		return nil, err
 	}
 	if len(corpus.entries) == 0 {
 		var vals []interface{}
-		for _, t := range types {
+		for _, t := range opts.Types {
 			vals = append(vals, zeroValue(t))
 		}
 		corpus.entries = append(corpus.entries, CorpusEntry{Data: marshalCorpusFile(vals...), Values: vals})
 	}
 	c := &coordinator{
-		log:            w,
-		startTime:      time.Now(),
-		inputC:         make(chan fuzzInput),
-		resultC:        make(chan fuzzResult),
-		countRequested: countRequested,
-		parallel:       int64(parallel),
-		corpus:         corpus,
+		opts:      opts,
+		startTime: time.Now(),
+		inputC:    make(chan fuzzInput),
+		resultC:   make(chan fuzzResult),
+		corpus:    corpus,
 	}
 
 	return c, nil
@@ -399,7 +406,7 @@ func (c *coordinator) updateStats(result fuzzResult) {
 func (c *coordinator) logStats() {
 	elapsed := time.Since(c.startTime)
 	rate := float64(c.count) / elapsed.Seconds()
-	fmt.Fprintf(c.log, "elapsed: %.1fs, execs: %d (%.0f/sec), workers: %d\n", elapsed.Seconds(), c.count, rate, c.parallel)
+	fmt.Fprintf(c.opts.Log, "elapsed: %.1fs, execs: %d (%.0f/sec), workers: %d\n", elapsed.Seconds(), c.count, rate, c.opts.Parallel)
 }
 
 // nextInput returns the next value that should be sent to workers.
@@ -407,7 +414,7 @@ func (c *coordinator) logStats() {
 // a limit for one worker. If there are no executions left, nextInput returns
 // a zero value and false.
 func (c *coordinator) nextInput() (fuzzInput, bool) {
-	if c.countRequested > 0 && c.count+c.countWaiting >= c.countRequested {
+	if c.opts.Count > 0 && c.count+c.countWaiting >= c.opts.Count {
 		// Workers already testing all requested inputs.
 		return fuzzInput{}, false
 	}
@@ -415,12 +422,12 @@ func (c *coordinator) nextInput() (fuzzInput, bool) {
 	e := c.corpus.entries[c.corpusIndex]
 	c.corpusIndex = (c.corpusIndex + 1) % (len(c.corpus.entries))
 	var n int64
-	if c.countRequested > 0 {
-		n = c.countRequested / int64(c.parallel)
-		if c.countRequested%int64(c.parallel) > 0 {
+	if c.opts.Count > 0 {
+		n = c.opts.Count / int64(c.opts.Parallel)
+		if c.opts.Count%int64(c.opts.Parallel) > 0 {
 			n++
 		}
-		remaining := c.countRequested - c.count - c.countWaiting
+		remaining := c.opts.Count - c.count - c.countWaiting
 		if n > remaining {
 			n = remaining
 		}
