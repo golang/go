@@ -28,6 +28,12 @@ stdout 'testdata[/\\]corpus[/\\]FuzzWithTwoTypes[/\\]'
 stdout 'these inputs caused a crash!'
 go run check_testdata.go FuzzWithTwoTypes
 
+# Running the fuzzer should find a crashing input quickly for an integer
+! go test -run=FuzzInt -fuzz=FuzzInt -fuzztime=5s
+stdout 'testdata[/\\]corpus[/\\]FuzzInt[/\\]'
+stdout 'this input caused a crash!'
+go run check_testdata.go FuzzInt
+
 ! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=5s
 stdout 'testdata[/\\]corpus[/\\]FuzzWithNilPanic[/\\]'
 stdout 'runtime.Goexit'
@@ -128,6 +134,14 @@ func FuzzWithTwoTypes(f *testing.F) {
 	f.Fuzz(func(t *testing.T, a, b []byte) {
 		if len(a) > 0 && len(b) > 0 {
 			panic("these inputs caused a crash!")
+		}
+	})
+}
+
+func FuzzInt(f *testing.F) {
+	f.Fuzz(func(t *testing.T, a int) {
+		if 200 > a && a < 250 {
+			panic("this input caused a crash!")
 		}
 	})
 }
