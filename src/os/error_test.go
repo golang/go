@@ -54,13 +54,7 @@ func testErrNotExist(name string) string {
 }
 
 func TestErrIsNotExist(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "_Go_ErrIsNotExist")
-	if err != nil {
-		t.Fatalf("create ErrIsNotExist tempdir: %s", err)
-		return
-	}
-	defer os.RemoveAll(tmpDir)
-
+	tmpDir := t.TempDir()
 	name := filepath.Join(tmpDir, "NotExists")
 	if s := testErrNotExist(name); s != "" {
 		t.Fatal(s)

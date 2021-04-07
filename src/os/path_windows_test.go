@@ -50,31 +50,21 @@ func TestFixLongPath(t *testing.T) {
 }
 
 func TestMkdirAllLongPath(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "TestMkdirAllLongPath")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 	path := tmpDir
 	for i := 0; i < 100; i++ {
 		path += `\another-path-component`
 	}
-	err = os.MkdirAll(path, 0777)
-	if err != nil {
+	if err := os.MkdirAll(path, 0777); err != nil {
 		t.Fatalf("MkdirAll(%q) failed; %v", path, err)
 	}
-	err = os.RemoveAll(tmpDir)
-	if err != nil {
+	if err := os.RemoveAll(tmpDir); err != nil {
 		t.Fatalf("RemoveAll(%q) failed; %v", tmpDir, err)
 	}
 }
 
 func TestMkdirAllExtendedLength(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "TestMkdirAllExtendedLength")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	const prefix = `\\?\`
 	if len(tmpDir) < 4 || tmpDir[:4] != prefix {
@@ -85,14 +75,12 @@ func TestMkdirAllExtendedLength(t *testing.T) {
 		tmpDir = prefix + fullPath
 	}
 	path := tmpDir + `\dir\`
-	err = os.MkdirAll(path, 0777)
-	if err != nil {
+	if err := os.MkdirAll(path, 0777); err != nil {
 		t.Fatalf("MkdirAll(%q) failed: %v", path, err)
 	}
 
 	path = path + `.\dir2`
-	err = os.MkdirAll(path, 0777)
-	if err == nil {
+	if err := os.MkdirAll(path, 0777); err == nil {
 		t.Fatalf("MkdirAll(%q) should have failed, but did not", path)
 	}
 }
