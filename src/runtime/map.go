@@ -113,7 +113,7 @@ func isEmpty(x uint8) bool {
 
 // A header for a Go map.
 type hmap struct {
-	// Note: the format of the hmap is also encoded in cmd/compile/internal/gc/reflect.go.
+	// Note: the format of the hmap is also encoded in cmd/compile/internal/reflectdata/reflect.go.
 	// Make sure this stays in sync with the compiler's definition.
 	count     int // # live cells == size of map.  Must be first (used by len() builtin)
 	flags     uint8
@@ -159,11 +159,11 @@ type bmap struct {
 }
 
 // A hash iteration structure.
-// If you modify hiter, also change cmd/compile/internal/gc/reflect.go to indicate
+// If you modify hiter, also change cmd/compile/internal/reflectdata/reflect.go to indicate
 // the layout of this structure.
 type hiter struct {
-	key         unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/compile/internal/gc/range.go).
-	elem        unsafe.Pointer // Must be in second position (see cmd/compile/internal/gc/range.go).
+	key         unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/compile/internal/walk/range.go).
+	elem        unsafe.Pointer // Must be in second position (see cmd/compile/internal/walk/range.go).
 	t           *maptype
 	h           *hmap
 	buckets     unsafe.Pointer // bucket ptr at hash_iter initialization time
@@ -810,7 +810,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	}
 
 	if unsafe.Sizeof(hiter{})/sys.PtrSize != 12 {
-		throw("hash_iter size incorrect") // see cmd/compile/internal/gc/reflect.go
+		throw("hash_iter size incorrect") // see cmd/compile/internal/reflectdata/reflect.go
 	}
 	it.t = t
 	it.h = h
