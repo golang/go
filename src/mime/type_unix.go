@@ -97,7 +97,7 @@ func initMimeUnix() {
 }
 
 func initMimeForTests() map[string]string {
-	mimeGlobs = []string{"testdata/test.types.globs2"}
+	mimeGlobs = []string{""}
 	typeFiles = []string{"testdata/test.types"}
 	return map[string]string{
 		".T1":  "application/test",

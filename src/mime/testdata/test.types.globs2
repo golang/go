@@ -4,5 +4,5 @@
 
 
 # mime package test for globs2
-50:application/test:*.t1
-50:text/test:*.t2
+50:document/test:*.t3
+50:example/test:*.t4

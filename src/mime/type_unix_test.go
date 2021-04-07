@@ -8,20 +8,22 @@ import (
 	"testing"
 )
 
-func initMimeUnixTest() {
+func initMimeUnixTest(t *testing.T) {
 	err := loadMimeGlobsFile("testdata/test.types.globs2")
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	loadMimeFile("testdata/test.types")
 }
 
 func TestTypeByExtensionUNIX(t *testing.T) {
-	initMimeUnixTest()
+	initMimeUnixTest(t)
 	typeTests := map[string]string{
 		".T1":  "application/test",
 		".t2":  "text/test; charset=utf-8",
+		".t3":  "document/test",
+		".t4":  "example/test",
 		".png": "image/png",
 	}
 
