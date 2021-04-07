@@ -306,12 +306,7 @@ var lookPathTests = []lookPathTest{
 }
 
 func TestLookPath(t *testing.T) {
-	tmp, err := os.MkdirTemp("", "TestLookPath")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmp)
-
+	tmp := t.TempDir()
 	printpathExe := buildPrintPathExe(t, tmp)
 
 	// Run all tests.
@@ -508,12 +503,7 @@ var commandTests = []commandTest{
 }
 
 func TestCommand(t *testing.T) {
-	tmp, err := os.MkdirTemp("", "TestCommand")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmp)
-
+	tmp := t.TempDir()
 	printpathExe := buildPrintPathExe(t, tmp)
 
 	// Run all tests.
