@@ -7,6 +7,7 @@ package fuzz
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 	"reflect"
 	"unsafe"
 )
@@ -75,9 +76,51 @@ func (m *mutator) mutate(vals []interface{}, maxBytes int) {
 		}
 		m.mutateBytes(&v)
 		vals[i] = v
+	case int8:
+		vals[i] = int8(m.mutateInt(int64(v), math.MaxInt8))
+	case int16:
+		vals[i] = int16(m.mutateInt(int64(v), math.MaxInt16))
+	case int32:
+		vals[i] = int32(m.mutateInt(int64(v), math.MaxInt32))
+	case int64:
+		vals[i] = m.mutateInt(v, int64(maxInt))
+	case int:
+		vals[i] = int(m.mutateInt(int64(v), int64(maxInt)))
 	default:
 		panic(fmt.Sprintf("type not supported for mutating: %T", vals[i]))
 	}
+}
+
+func (m *mutator) mutateInt(v, maxValue int64) int64 {
+	numIters := 1 + m.r.exp2()
+	var max int64
+	for iter := 0; iter < numIters; iter++ {
+		switch m.rand(2) {
+		case 0:
+			// Add a random number
+			if v >= maxValue {
+				continue
+			}
+			max = 100
+			if v > 0 && maxValue-v < max {
+				// Don't let v exceed maxValue
+				max = maxValue - v
+			}
+			v += int64(m.rand(int(max)))
+		case 1:
+			// Subtract a random number
+			if v <= -maxValue {
+				continue
+			}
+			max = 100
+			if v < 0 && maxValue+v < max {
+				// Don't let v drop below -maxValue
+				max = maxValue + v
+			}
+			v -= int64(m.rand(int(max)))
+		}
+	}
+	return v
 }
 
 func (m *mutator) mutateBytes(ptrB *[]byte) {
@@ -265,6 +308,11 @@ var (
 	interesting8  = []int8{-128, -1, 0, 1, 16, 32, 64, 100, 127}
 	interesting16 = []int16{-32768, -129, 128, 255, 256, 512, 1000, 1024, 4096, 32767}
 	interesting32 = []int32{-2147483648, -100663046, -32769, 32768, 65535, 65536, 100663045, 2147483647}
+)
+
+const (
+	maxUint = ^uint(0)
+	maxInt  = maxUint >> 1
 )
 
 func init() {
