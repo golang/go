@@ -2841,44 +2841,46 @@ top:
 		if int32(atomic.Xadd(&sched.nmspinning, -1)) < 0 {
 			throw("findrunnable: negative nmspinning")
 		}
-	}
 
-	// Check all runqueues once again.
-	_p_ = checkRunqsNoP(allpSnapshot, idlepMaskSnapshot)
-	if _p_ != nil {
-		acquirep(_p_)
-		if wasSpinning {
+		// Note the for correctness, only the last M transitioning from
+		// spinning to non-spinning must perform these rechecks to
+		// ensure no missed work. We are performing it on every M that
+		// transitions as a conservative change to monitor effects on
+		// latency. See golang.org/issue/43997.
+
+		// Check all runqueues once again.
+		_p_ = checkRunqsNoP(allpSnapshot, idlepMaskSnapshot)
+		if _p_ != nil {
+			acquirep(_p_)
 			_g_.m.spinning = true
 			atomic.Xadd(&sched.nmspinning, 1)
+			goto top
 		}
-		goto top
-	}
 
-	// Check for idle-priority GC work again.
-	_p_, gp = checkIdleGCNoP()
-	if _p_ != nil {
-		acquirep(_p_)
-		if wasSpinning {
+		// Check for idle-priority GC work again.
+		_p_, gp = checkIdleGCNoP()
+		if _p_ != nil {
+			acquirep(_p_)
 			_g_.m.spinning = true
 			atomic.Xadd(&sched.nmspinning, 1)
+
+			// Run the idle worker.
+			_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
+			casgstatus(gp, _Gwaiting, _Grunnable)
+			if trace.enabled {
+				traceGoUnpark(gp, 0)
+			}
+			return gp, false
 		}
 
-		// Run the idle worker.
-		_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
-		casgstatus(gp, _Gwaiting, _Grunnable)
-		if trace.enabled {
-			traceGoUnpark(gp, 0)
-		}
-		return gp, false
+		// Finally, check for timer creation or expiry concurrently with
+		// transitioning from spinning to non-spinning.
+		//
+		// Note that we cannot use checkTimers here because it calls
+		// adjusttimers which may need to allocate memory, and that isn't
+		// allowed when we don't have an active P.
+		pollUntil = checkTimersNoP(allpSnapshot, timerpMaskSnapshot, pollUntil)
 	}
-
-	// Finally, check for timer creation or expiry concurrently with
-	// transitioning from spinning to non-spinning.
-	//
-	// Note that we cannot use checkTimers here because it calls
-	// adjusttimers which may need to allocate memory, and that isn't
-	// allowed when we don't have an active P.
-	pollUntil = checkTimersNoP(allpSnapshot, timerpMaskSnapshot, pollUntil)
 
 	// Poll network until next timer.
 	if netpollinited() && (atomic.Load(&netpollWaiters) > 0 || pollUntil != 0) && atomic.Xchg64(&sched.lastpoll, 0) != 0 {
