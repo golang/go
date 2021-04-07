@@ -617,11 +617,7 @@ func TestReaddirNValues(t *testing.T) {
 	if testing.Short() {
 		t.Skip("test.short; skipping")
 	}
-	dir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("TempDir: %v", err)
-	}
-	defer RemoveAll(dir)
+	dir := t.TempDir()
 	for i := 1; i <= 105; i++ {
 		f, err := Create(filepath.Join(dir, fmt.Sprintf("%d", i)))
 		if err != nil {
@@ -716,11 +712,7 @@ func TestReaddirStatFailures(t *testing.T) {
 		// testing it wouldn't work.
 		t.Skipf("skipping test on %v", runtime.GOOS)
 	}
-	dir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("TempDir: %v", err)
-	}
-	defer RemoveAll(dir)
+	dir := t.TempDir()
 	touch(t, filepath.Join(dir, "good1"))
 	touch(t, filepath.Join(dir, "x")) // will disappear or have an error
 	touch(t, filepath.Join(dir, "good2"))
@@ -1949,22 +1941,16 @@ func TestAppend(t *testing.T) {
 
 func TestStatDirWithTrailingSlash(t *testing.T) {
 	// Create new temporary directory and arrange to clean it up.
-	path, err := os.MkdirTemp("", "_TestStatDirWithSlash_")
-	if err != nil {
-		t.Fatalf("TempDir: %s", err)
-	}
-	defer RemoveAll(path)
+	path := t.TempDir()
 
 	// Stat of path should succeed.
-	_, err = Stat(path)
-	if err != nil {
+	if _, err := Stat(path); err != nil {
 		t.Fatalf("stat %s failed: %s", path, err)
 	}
 
 	// Stat of path+"/" should succeed too.
 	path += "/"
-	_, err = Stat(path)
-	if err != nil {
+	if _, err := Stat(path); err != nil {
 		t.Fatalf("stat %s failed: %s", path, err)
 	}
 }
@@ -2091,12 +2077,7 @@ func TestLargeWriteToConsole(t *testing.T) {
 func TestStatDirModeExec(t *testing.T) {
 	const mode = 0111
 
-	path, err := os.MkdirTemp("", "go-build")
-	if err != nil {
-		t.Fatalf("Failed to create temp directory: %v", err)
-	}
-	defer RemoveAll(path)
-
+	path := t.TempDir()
 	if err := Chmod(path, 0777); err != nil {
 		t.Fatalf("Chmod %q 0777: %v", path, err)
 	}
@@ -2160,12 +2141,7 @@ func TestStatStdin(t *testing.T) {
 func TestStatRelativeSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpdir, err := os.MkdirTemp("", "TestStatRelativeSymlink")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(tmpdir)
-
+	tmpdir := t.TempDir()
 	target := filepath.Join(tmpdir, "target")
 	f, err := Create(target)
 	if err != nil {
