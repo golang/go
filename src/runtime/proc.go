@@ -2799,86 +2799,42 @@ top:
 		}
 	}
 
-	// check all runqueues once again
-	for id, _p_ := range allpSnapshot {
-		if !idlepMaskSnapshot.read(uint32(id)) && !runqempty(_p_) {
-			lock(&sched.lock)
-			_p_ = pidleget()
-			unlock(&sched.lock)
-			if _p_ != nil {
-				acquirep(_p_)
-				if wasSpinning {
-					_g_.m.spinning = true
-					atomic.Xadd(&sched.nmspinning, 1)
-				}
-				goto top
-			}
-			break
+	// Check all runqueues once again.
+	_p_ = checkRunqsNoP(allpSnapshot, idlepMaskSnapshot)
+	if _p_ != nil {
+		acquirep(_p_)
+		if wasSpinning {
+			_g_.m.spinning = true
+			atomic.Xadd(&sched.nmspinning, 1)
 		}
+		goto top
 	}
 
 	// Similar to above, check for timer creation or expiry concurrently with
 	// transitioning from spinning to non-spinning. Note that we cannot use
 	// checkTimers here because it calls adjusttimers which may need to allocate
 	// memory, and that isn't allowed when we don't have an active P.
-	for id, _p_ := range allpSnapshot {
-		if timerpMaskSnapshot.read(uint32(id)) {
-			w := nobarrierWakeTime(_p_)
-			if w != 0 && (pollUntil == 0 || w < pollUntil) {
-				pollUntil = w
-			}
+	pollUntil = checkTimersNoP(allpSnapshot, timerpMaskSnapshot, pollUntil)
+
+	// Finally, check for idle-priority GC work.
+	_p_, gp = checkIdleGCNoP()
+	if _p_ != nil {
+		acquirep(_p_)
+		if wasSpinning {
+			_g_.m.spinning = true
+			atomic.Xadd(&sched.nmspinning, 1)
 		}
+
+		// Run the idle worker.
+		_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
+		casgstatus(gp, _Gwaiting, _Grunnable)
+		if trace.enabled {
+			traceGoUnpark(gp, 0)
+		}
+		return gp, false
 	}
 
-	// Check for idle-priority GC work again.
-	//
-	// N.B. Since we have no P, gcBlackenEnabled may change at any time; we
-	// must check again after acquiring a P.
-	if atomic.Load(&gcBlackenEnabled) != 0 && gcMarkWorkAvailable(nil) {
-		// Work is available; we can start an idle GC worker only if
-		// there is an available P and available worker G.
-		//
-		// We can attempt to acquire these in either order. Workers are
-		// almost always available (see comment in findRunnableGCWorker
-		// for the one case there may be none). Since we're slightly
-		// less likely to find a P, check for that first.
-		lock(&sched.lock)
-		var node *gcBgMarkWorkerNode
-		_p_ = pidleget()
-		if _p_ != nil {
-			// Now that we own a P, gcBlackenEnabled can't change
-			// (as it requires STW).
-			if gcBlackenEnabled != 0 {
-				node = (*gcBgMarkWorkerNode)(gcBgMarkWorkerPool.pop())
-				if node == nil {
-					pidleput(_p_)
-					_p_ = nil
-				}
-			} else {
-				pidleput(_p_)
-				_p_ = nil
-			}
-		}
-		unlock(&sched.lock)
-		if _p_ != nil {
-			acquirep(_p_)
-			if wasSpinning {
-				_g_.m.spinning = true
-				atomic.Xadd(&sched.nmspinning, 1)
-			}
-
-			// Run the idle worker.
-			_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
-			gp := node.gp.ptr()
-			casgstatus(gp, _Gwaiting, _Grunnable)
-			if trace.enabled {
-				traceGoUnpark(gp, 0)
-			}
-			return gp, false
-		}
-	}
-
-	// poll network
+	// Poll network until next timer.
 	if netpollinited() && (atomic.Load(&netpollWaiters) > 0 || pollUntil != 0) && atomic.Xchg64(&sched.lastpoll, 0) != 0 {
 		atomic.Store64(&sched.pollUntil, uint64(pollUntil))
 		if _g_.m.p != 0 {
@@ -3036,6 +2992,93 @@ func stealWork(now int64) (gp *g, inheritTime bool, rnow, pollUntil int64, newWo
 	// made some goroutine ready that we missed. Indicate the next timer to
 	// wait for.
 	return nil, false, now, pollUntil, ranTimer
+}
+
+// Check all Ps for a runnable G to steal.
+//
+// On entry we have no P. If a G is available to steal and a P is available,
+// the P is returned which the caller should acquire and attempt to steal the
+// work to.
+func checkRunqsNoP(allpSnapshot []*p, idlepMaskSnapshot pMask) *p {
+	for id, p2 := range allpSnapshot {
+		if !idlepMaskSnapshot.read(uint32(id)) && !runqempty(p2) {
+			lock(&sched.lock)
+			pp := pidleget()
+			unlock(&sched.lock)
+			if pp != nil {
+				return pp
+			}
+
+			// Can't get a P, don't bother checking remaining Ps.
+			break
+		}
+	}
+
+	return nil
+}
+
+// Check all Ps for a timer expiring sooner than pollUntil.
+//
+// Returns updated pollUntil value.
+func checkTimersNoP(allpSnapshot []*p, timerpMaskSnapshot pMask, pollUntil int64) int64 {
+	for id, p2 := range allpSnapshot {
+		if timerpMaskSnapshot.read(uint32(id)) {
+			w := nobarrierWakeTime(p2)
+			if w != 0 && (pollUntil == 0 || w < pollUntil) {
+				pollUntil = w
+			}
+		}
+	}
+
+	return pollUntil
+}
+
+// Check for idle-priority GC, without a P on entry.
+//
+// If some GC work, a P, and a worker G are all available, the P and G will be
+// returned. The returned P has not been wired yet.
+func checkIdleGCNoP() (*p, *g) {
+	// N.B. Since we have no P, gcBlackenEnabled may change at any time; we
+	// must check again after acquiring a P.
+	if atomic.Load(&gcBlackenEnabled) == 0 {
+		return nil, nil
+	}
+	if !gcMarkWorkAvailable(nil) {
+		return nil, nil
+	}
+
+	// Work is available; we can start an idle GC worker only if
+	// there is an available P and available worker G.
+	//
+	// We can attempt to acquire these in either order. Workers are
+	// almost always available (see comment in findRunnableGCWorker
+	// for the one case there may be none). Since we're slightly
+	// less likely to find a P, check for that first.
+	lock(&sched.lock)
+	pp := pidleget()
+	unlock(&sched.lock)
+	if pp == nil {
+		return nil, nil
+	}
+
+	// Now that we own a P, gcBlackenEnabled can't change
+	// (as it requires STW).
+	if gcBlackenEnabled == 0 {
+		lock(&sched.lock)
+		pidleput(pp)
+		unlock(&sched.lock)
+		return nil, nil
+	}
+
+	node := (*gcBgMarkWorkerNode)(gcBgMarkWorkerPool.pop())
+	if node == nil {
+		lock(&sched.lock)
+		pidleput(pp)
+		unlock(&sched.lock)
+		return nil, nil
+	}
+
+	return pp, node.gp.ptr()
 }
 
 // wakeNetPoller wakes up the thread sleeping in the network poller if it isn't
