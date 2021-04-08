@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -17,5 +16,8 @@ func f[V interface{}, A, B Box[V]]() {}
 
 func _() {
 	f[int, Optional[int], Optional[int]]()
-	f[int, Optional[int], Optional /* ERROR does not satisfy Box */ [string]]()
+	_ = f[int, Optional[int], Optional /* ERROR does not satisfy Box */ [string]]
+	// TODO(gri) Provide better position information here.
+	//           See TODO in call.go, Checker.arguments.
+	f[int, Optional[int], Optional[string]]( /* ERROR does not satisfy Box */ )
 }

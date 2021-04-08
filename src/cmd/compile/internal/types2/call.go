@@ -67,9 +67,14 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 }
 
 func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+	var inst *syntax.IndexExpr // function instantiation, if any
 	if iexpr, _ := call.Fun.(*syntax.IndexExpr); iexpr != nil {
 		if check.indexExpr(x, iexpr) {
-			check.funcInst(x, iexpr)
+			// Delay function instantiation to argument checking,
+			// where we combine type and value arguments for type
+			// inference.
+			assert(x.mode == value)
+			inst = iexpr
 		}
 		x.expr = iexpr
 		check.record(x)
@@ -137,9 +142,33 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		return statement
 	}
 
+	// evaluate type arguments, if any
+	var targs []Type
+	if inst != nil {
+		xlist := unpackExpr(inst.Index)
+		targs = check.typeList(xlist)
+		if targs == nil {
+			check.use(call.ArgList...)
+			x.mode = invalid
+			x.expr = call
+			return statement
+		}
+		assert(len(targs) == len(xlist))
+
+		// check number of type arguments (got) vs number of type parameters (want)
+		got, want := len(targs), len(sig.tparams)
+		if got > want {
+			check.errorf(xlist[want], "got %d type arguments but want %d", got, want)
+			check.use(call.ArgList...)
+			x.mode = invalid
+			x.expr = call
+			return statement
+		}
+	}
+
 	// evaluate arguments
 	args, _ := check.exprList(call.ArgList, false)
-	sig = check.arguments(call, sig, args)
+	sig = check.arguments(call, sig, targs, args)
 
 	// determine result
 	switch sig.results.Len() {
@@ -208,7 +237,7 @@ func (check *Checker) exprList(elist []syntax.Expr, allowCommaOk bool) (xlist []
 	return
 }
 
-func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*operand) (rsig *Signature) {
+func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []Type, args []*operand) (rsig *Signature) {
 	rsig = sig
 
 	// TODO(gri) try to eliminate this extra verification loop
@@ -292,7 +321,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
 	if len(sig.tparams) > 0 {
 		// TODO(gri) provide position information for targs so we can feed
 		//           it to the instantiate call for better error reporting
-		targs := check.infer(call.Pos(), sig.tparams, nil, sigParams, args, true)
+		targs = check.infer(call.Pos(), sig.tparams, targs, sigParams, args, true)
 		if targs == nil {
 			return // error already reported
 		}
