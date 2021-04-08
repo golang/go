@@ -173,24 +173,25 @@ func (c *registerCursor) hasRegs() bool {
 }
 
 type expandState struct {
-	f               *Func
-	abi1            *abi.ABIConfig
-	debug           bool
-	canSSAType      func(*types.Type) bool
-	regSize         int64
-	sp              *Value
-	typs            *Types
-	ptrSize         int64
-	hiOffset        int64
-	lowOffset       int64
-	hiRo            Abi1RO
-	loRo            Abi1RO
-	namedSelects    map[*Value][]namedVal
-	sdom            SparseTree
-	commonSelectors map[selKey]*Value // used to de-dupe selectors
-	commonArgs      map[selKey]*Value // used to de-dupe OpArg/OpArgIntReg/OpArgFloatReg
-	memForCall      map[ID]*Value     // For a call, need to know the unique selector that gets the mem.
-	indentLevel     int               // Indentation for debugging recursion
+	f                  *Func
+	abi1               *abi.ABIConfig
+	debug              bool
+	canSSAType         func(*types.Type) bool
+	regSize            int64
+	sp                 *Value
+	typs               *Types
+	ptrSize            int64
+	hiOffset           int64
+	lowOffset          int64
+	hiRo               Abi1RO
+	loRo               Abi1RO
+	namedSelects       map[*Value][]namedVal
+	sdom               SparseTree
+	commonSelectors    map[selKey]*Value // used to de-dupe selectors
+	commonArgs         map[selKey]*Value // used to de-dupe OpArg/OpArgIntReg/OpArgFloatReg
+	memForCall         map[ID]*Value     // For a call, need to know the unique selector that gets the mem.
+	transformedSelects map[ID]bool       // OpSelectN after rewriting, either created or renumbered.
+	indentLevel        int               // Indentation for debugging recursion
 }
 
 // intPairTypes returns the pair of 32-bit int types needed to encode a 64-bit integer type on a target
@@ -393,10 +394,17 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 		call0 := call
 		aux := call.Aux.(*AuxCall)
 		which := selector.AuxInt
+		if x.transformedSelects[selector.ID] {
+			// This is a minor hack.  Either this select has had its operand adjusted (mem) or
+			// it is some other intermediate node that was rewritten to reference a register (not a generic arg).
+			// This can occur with chains of selection/indexing from single field/element aggregates.
+			leaf.copyOf(selector)
+			break
+		}
 		if which == aux.NResults() { // mem is after the results.
 			// rewrite v as a Copy of call -- the replacement call will produce a mem.
 			if leaf != selector {
-				panic("Unexpected selector of memory")
+				panic(fmt.Errorf("Unexpected selector of memory, selector=%s, call=%s, leaf=%s", selector.LongString(), call.LongString(), leaf.LongString()))
 			}
 			if aux.abiInfo == nil {
 				panic(badVal("aux.abiInfo nil for call", call))
@@ -404,6 +412,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 			if existing := x.memForCall[call.ID]; existing == nil {
 				selector.AuxInt = int64(aux.abiInfo.OutRegistersUsed())
 				x.memForCall[call.ID] = selector
+				x.transformedSelects[selector.ID] = true // operand adjusted
 			} else {
 				selector.copyOf(existing)
 			}
@@ -421,6 +430,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 					call = mem
 				} else {
 					mem = call.Block.NewValue1I(call.Pos.WithNotStmt(), OpSelectN, types.TypeMem, int64(aux.abiInfo.OutRegistersUsed()), call)
+					x.transformedSelects[mem.ID] = true // select uses post-expansion indexing
 					x.memForCall[call.ID] = mem
 					call = mem
 				}
@@ -436,8 +446,10 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 						leaf.SetArgs1(call0)
 						leaf.Type = leafType
 						leaf.AuxInt = reg
+						x.transformedSelects[leaf.ID] = true // leaf, rewritten to use post-expansion indexing.
 					} else {
 						w := call.Block.NewValue1I(leaf.Pos, OpSelectN, leafType, reg, call0)
+						x.transformedSelects[w.ID] = true // select, using post-expansion indexing.
 						leaf.copyOf(w)
 					}
 				} else {
@@ -1026,18 +1038,19 @@ func expandCalls(f *Func) {
 	// memory output as their input.
 	sp, _ := f.spSb()
 	x := &expandState{
-		f:            f,
-		abi1:         f.ABI1,
-		debug:        f.pass.debug > 0,
-		canSSAType:   f.fe.CanSSA,
-		regSize:      f.Config.RegSize,
-		sp:           sp,
-		typs:         &f.Config.Types,
-		ptrSize:      f.Config.PtrSize,
-		namedSelects: make(map[*Value][]namedVal),
-		sdom:         f.Sdom(),
-		commonArgs:   make(map[selKey]*Value),
-		memForCall:   make(map[ID]*Value),
+		f:                  f,
+		abi1:               f.ABI1,
+		debug:              f.pass.debug > 0,
+		canSSAType:         f.fe.CanSSA,
+		regSize:            f.Config.RegSize,
+		sp:                 sp,
+		typs:               &f.Config.Types,
+		ptrSize:            f.Config.PtrSize,
+		namedSelects:       make(map[*Value][]namedVal),
+		sdom:               f.Sdom(),
+		commonArgs:         make(map[selKey]*Value),
+		memForCall:         make(map[ID]*Value),
+		transformedSelects: make(map[ID]bool),
 	}
 
 	// For 32-bit, need to deal with decomposition of 64-bit integers, which depends on endianness.
