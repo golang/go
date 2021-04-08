@@ -213,8 +213,11 @@ type BuildOptions struct {
 	// The path prefix can be empty, so an initial `-` excludes everything.
 	//
 	// Examples:
+	//
 	// Exclude node_modules: `-node_modules`
+	//
 	// Include only project_a: `-` (exclude everything), `+project_a`
+	//
 	// Include only project_a, but not node_modules inside it: `-`, `+project_a`, `-project_a/node_modules`
 	DirectoryFilters []string
 
@@ -747,7 +750,7 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 				result.errorf("invalid filter %q, must start with + or -", filter)
 				return result
 			}
-			filters = append(filters, filepath.FromSlash(filter))
+			filters = append(filters, strings.TrimRight(filepath.FromSlash(filter), "/"))
 		}
 		o.DirectoryFilters = filters
 	case "completionDocumentation":

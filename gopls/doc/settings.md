@@ -63,8 +63,11 @@ the last filter that applies to a path controls whether it is included.
 The path prefix can be empty, so an initial `-` excludes everything.
 
 Examples:
+
 Exclude node_modules: `-node_modules`
+
 Include only project_a: `-` (exclude everything), `+project_a`
+
 Include only project_a, but not node_modules inside it: `-`, `+project_a`, `-project_a/node_modules`
 
 Default: `[]`.
