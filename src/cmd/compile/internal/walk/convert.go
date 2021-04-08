@@ -312,11 +312,6 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
 		case types.TARRAY:
 			return t.NumElem() == 1 && isFloatLike(t.Elem())
 		case types.TSTRUCT:
-			// allow for the possibility that we have a series of
-			// leading fields that are zero size before a float field.
-			// in addition, if we find a float field, it needs to be
-			// the last item in the struct (a trailing zero length
-			// field would introduce padding).
 			fsl := t.FieldSlice()
 			for idx, f := range fsl {
 				if f.Type.Width == 0 {
@@ -332,14 +327,6 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
 		return false
 	}
 
-	// Helper to determine whether a given type (when passed to a
-	// function) will fit into a single integer register, assuming
-	// that the reg abi is in effect. This is somewhat ad-hoc, there
-	// may be a cleaner way to do this.
-	fitsInSingleIntReg := func(t *types.Type) bool {
-		return from.IsScalar() || types.IsDirectIface(from)
-	}
-
 	tkind := to.Tie()
 	switch from.Tie() {
 	case 'I':
@@ -352,11 +339,11 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
 			return "convT16", false
 		case from.Size() == 4 && isFloatLike(from):
 			return "convT32F", false
-		case from.Size() == 4 && from.Align == 4 && !from.HasPointers():
+		case from.Size() == 4 && from.Align == 4 && !from.HasPointers() && (!objabi.Experiment.RegabiArgs || from.NumComponents(types.CountBlankFields) == 1):
 			return "convT32", false
 		case from.Size() == 8 && isFloatLike(from):
 			return "convT64F", false
-		case from.Size() == 8 && from.Align == types.Types[types.TUINT64].Align && !from.HasPointers() && (!objabi.Experiment.RegabiArgs || fitsInSingleIntReg(from)):
+		case from.Size() == 8 && from.Align == types.Types[types.TUINT64].Align && !from.HasPointers() && (!objabi.Experiment.RegabiArgs || from.NumComponents(types.CountBlankFields) == 1):
 			return "convT64", false
 		}
 		if sc := from.SoleComponent(); sc != nil {
