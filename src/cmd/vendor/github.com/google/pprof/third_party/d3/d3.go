@@ -3995,7 +3995,7 @@ function create(node, id, self) {
       }
 
       // Cancel any pre-empted transitions. No interrupt event is dispatched
-      // because the cancelled transitions never started. Note that this also
+      // because the canceled transitions never started. Note that this also
       // removes this transition from the pending list!
       else if (+i < id) {
         o.state = ENDED;

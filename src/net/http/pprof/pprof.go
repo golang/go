@@ -287,7 +287,7 @@ func (name handler) serveDeltaProfile(w http.ResponseWriter, r *http.Request, p 
 		err := r.Context().Err()
 		if err == context.DeadlineExceeded {
 			serveError(w, http.StatusRequestTimeout, err.Error())
-		} else { // TODO: what's a good status code for cancelled requests? 400?
+		} else { // TODO: what's a good status code for canceled requests? 400?
 			serveError(w, http.StatusInternalServerError, err.Error())
 		}
 		return
