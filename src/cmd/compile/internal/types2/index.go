@@ -11,14 +11,18 @@ import (
 	"go/constant"
 )
 
-func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) {
+// If e is a valid function instantiation, indexExpr returns true.
+// In that case x represents the uninstantiated function value and
+// it is the caller's responsibility to instantiate the function.
+func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst bool) {
 	check.exprOrType(x, e.X)
-	if x.mode == invalid {
+
+	switch x.mode {
+	case invalid:
 		check.use(e.Index)
 		return
-	}
 
-	if x.mode == typexpr {
+	case typexpr:
 		// type instantiation
 		x.mode = invalid
 		x.typ = check.varType(e)
@@ -26,13 +30,11 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) {
 			x.mode = typexpr
 		}
 		return
-	}
 
-	if x.mode == value {
+	case value:
 		if sig := asSignature(x.typ); sig != nil && len(sig.tparams) > 0 {
 			// function instantiation
-			check.funcInst(x, e)
-			return
+			return true
 		}
 	}
 
@@ -194,6 +196,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) {
 	}
 
 	check.index(index, length)
+	return
 }
 
 func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
