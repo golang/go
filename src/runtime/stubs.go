@@ -394,8 +394,10 @@ func duffcopy()
 // Called from linker-generated .initarray; declared for go vet; do NOT call from Go.
 func addmoduledata()
 
-// Injected by the signal handler for panicking signals. On many platforms it just
-// jumps to sigpanic.
+// Injected by the signal handler for panicking signals.
+// Initializes any registers that have fixed meaning at calls but
+// are scratch in bodies and calls sigpanic.
+// On many platforms it just jumps to sigpanic.
 func sigpanic0()
 
 // intArgRegs is used by the various register assignment
