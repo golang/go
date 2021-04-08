@@ -109,6 +109,9 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
 //go:noescape
 func memmove(to, from unsafe.Pointer, n uintptr)
 
+// Outside assembly calls memmove. Make sure it has ABI wrappers.
+//go:linkname memmove
+
 //go:linkname reflect_memmove reflect.memmove
 func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
 	memmove(to, from, n)
