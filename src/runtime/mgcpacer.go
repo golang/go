@@ -769,8 +769,6 @@ func (c *gcControllerState) commit(triggerRatio float64) {
 			mheap_.pagesSweptBasis.Store(pagesSwept)
 		}
 	}
-
-	gcPaceScavenger()
 }
 
 // effectiveGrowthRatio returns the current effective heap growth
@@ -796,6 +794,8 @@ func (c *gcControllerState) effectiveGrowthRatio() float64 {
 // setGCPercent updates gcPercent and all related pacer state.
 // Returns the old value of gcPercent.
 //
+// Calls gcControllerState.commit.
+//
 // The world must be stopped, or mheap_.lock must be held.
 func (c *gcControllerState) setGCPercent(in int32) int32 {
 	assertWorldStoppedOrLockHeld(&mheap_.lock)
@@ -819,6 +819,7 @@ func setGCPercent(in int32) (out int32) {
 	systemstack(func() {
 		lock(&mheap_.lock)
 		out = gcController.setGCPercent(in)
+		gcPaceScavenger(gcController.heapGoal, gcController.lastHeapGoal)
 		unlock(&mheap_.lock)
 	})
 
