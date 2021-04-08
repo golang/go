@@ -1,0 +1,2 @@
+// runindir -goexperiment regabi,regabiargs
+
