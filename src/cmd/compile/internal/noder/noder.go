@@ -46,8 +46,8 @@ func LoadPackage(filenames []string) {
 		noders[i] = &p
 
 		filename := filename
-		sem <- struct{}{}
 		go func() {
+			sem <- struct{}{}
 			defer func() { <-sem }()
 			defer close(p.err)
 			fbase := syntax.NewFileBase(filename)
