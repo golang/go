@@ -1874,68 +1874,138 @@ TEXT runtime·debugCallPanicked(SB),NOSPLIT,$16-16
 // The tail call makes these stubs disappear in backtraces.
 // Defined as ABIInternal since they do not use the stack-based Go ABI.
 TEXT runtime·panicIndex<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	CX, BX
+#else
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
+#endif
 	JMP	runtime·goPanicIndex<ABIInternal>(SB)
 TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	CX, BX
+#else
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
+#endif
 	JMP	runtime·goPanicIndexU<ABIInternal>(SB)
 TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	CX, AX
+	MOVQ	DX, BX
+#else
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
+#endif
 	JMP	runtime·goPanicSliceAlen<ABIInternal>(SB)
 TEXT runtime·panicSliceAlenU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	CX, AX
+	MOVQ	DX, BX
+#else
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
+#endif
 	JMP	runtime·goPanicSliceAlenU<ABIInternal>(SB)
 TEXT runtime·panicSliceAcap<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	CX, AX
+	MOVQ	DX, BX
+#else
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
+#endif
 	JMP	runtime·goPanicSliceAcap<ABIInternal>(SB)
 TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	CX, AX
+	MOVQ	DX, BX
+#else
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
+#endif
 	JMP	runtime·goPanicSliceAcapU<ABIInternal>(SB)
 TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	CX, BX
+#else
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
+#endif
 	JMP	runtime·goPanicSliceB<ABIInternal>(SB)
 TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	CX, BX
+#else
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
+#endif
 	JMP	runtime·goPanicSliceBU<ABIInternal>(SB)
 TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	DX, AX
+#else
 	MOVQ	DX, x+0(FP)
 	MOVQ	BX, y+8(FP)
+#endif
 	JMP	runtime·goPanicSlice3Alen<ABIInternal>(SB)
 TEXT runtime·panicSlice3AlenU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	DX, AX
+#else
 	MOVQ	DX, x+0(FP)
 	MOVQ	BX, y+8(FP)
+#endif
 	JMP	runtime·goPanicSlice3AlenU<ABIInternal>(SB)
 TEXT runtime·panicSlice3Acap<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	DX, AX
+#else
 	MOVQ	DX, x+0(FP)
 	MOVQ	BX, y+8(FP)
+#endif
 	JMP	runtime·goPanicSlice3Acap<ABIInternal>(SB)
 TEXT runtime·panicSlice3AcapU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	DX, AX
+#else
 	MOVQ	DX, x+0(FP)
 	MOVQ	BX, y+8(FP)
+#endif
 	JMP	runtime·goPanicSlice3AcapU<ABIInternal>(SB)
 TEXT runtime·panicSlice3B<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	CX, AX
+	MOVQ	DX, BX
+#else
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
+#endif
 	JMP	runtime·goPanicSlice3B<ABIInternal>(SB)
 TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	CX, AX
+	MOVQ	DX, BX
+#else
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
+#endif
 	JMP	runtime·goPanicSlice3BU<ABIInternal>(SB)
 TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	CX, BX
+#else
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
+#endif
 	JMP	runtime·goPanicSlice3C<ABIInternal>(SB)
 TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	CX, BX
+#else
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
+#endif
 	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
 
 #ifdef GOOS_android
