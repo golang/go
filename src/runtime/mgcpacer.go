@@ -73,6 +73,10 @@ var gcController gcControllerState
 
 type gcControllerState struct {
 	// Initialized from $GOGC. GOGC=off means no GC.
+	//
+	// Updated atomically with mheap_.lock held or during a STW.
+	// Safe to read atomically at any time, or non-atomically with
+	// mheap_.lock or STW.
 	gcPercent int32
 
 	_ uint32 // padding so following 64-bit values are 8-byte aligned
@@ -355,7 +359,7 @@ func (c *gcControllerState) startCycle() {
 // is when assists are enabled and the necessary statistics are
 // available).
 func (c *gcControllerState) revise() {
-	gcPercent := c.gcPercent
+	gcPercent := atomic.Loadint32(&c.gcPercent)
 	if gcPercent < 0 {
 		// If GC is disabled but we're running a forced GC,
 		// act like GOGC is huge for the below calculations.
@@ -800,7 +804,8 @@ func (c *gcControllerState) setGCPercent(in int32) int32 {
 	if in < 0 {
 		in = -1
 	}
-	c.gcPercent = in
+	// Write it atomically so readers like revise() can read it safely.
+	atomic.Storeint32(&c.gcPercent, in)
 	c.heapMinimum = defaultHeapMinimum * uint64(c.gcPercent) / 100
 	// Update pacing in response to gcPercent change.
 	c.commit(c.triggerRatio)
