@@ -195,6 +195,33 @@ func TestSplitList(t *testing.T) {
 	}
 }
 
+type JoinListTest struct {
+	list []string
+	result string
+}
+
+var joinlisttests = []JoinListTest{
+	{[]string{"", "x" + string(lsep) + "y"}, "x" + string(lsep) + "y"},
+	{[]string{"x" + string(lsep) + "y", "z"}, "x" + string(lsep) + "y" + string(lsep) + "z"},
+}
+
+var winjoinlisttests = []JoinListTest{
+	{[]string{`c:\go;c:\rsc`, `c:\brad`}, `c:\go;c:\rsc;c:\brad`},
+	{[]string{`c:\go;c:\rsc`, `"c:\x;y"`}, `c:\go;c:\rsc;"c:\x;y"`},
+}
+
+func TestJoinList(t *testing.T) {
+	tests := joinlisttests
+	if runtime.GOOS == "windows" {
+		tests = append(tests, winjoinlisttests...)
+	}
+	for _, test := range tests {
+		if s := filepath.JoinList(test.list...); s != test.result {
+			t.Errorf("JoinList(%#q) = %#q, want %#q", test.list, s, test.result)
+		}
+	}
+}
+
 type SplitTest struct {
 	path, dir, file string
 }

@@ -180,6 +180,26 @@ func FromSlash(path string) string {
 	return strings.ReplaceAll(path, "/", string(Separator))
 }
 
+// JoinList joins any number of paths into a path list, separating them with an
+// OS-specific ListSeparator, usually found in PATH or GOPATH environment
+// variables. Empty elements are ignored. If the argument list is empty or all
+// its elements are empty, JoinList returns an empty string. On Windows, paths
+// containing embedded separator are assumed to already be quoted.
+func JoinList(elem ...string) string {
+	var (
+		b []byte
+		n int
+	)
+	for _, s := range elem {
+		if s == "" { continue }
+		if n > 0 {
+			b = append(b, ListSeparator)
+		}
+		b, n = append(b, s...), n + 1
+	}
+	return string(b)
+}
+
 // SplitList splits a list of paths joined by the OS-specific ListSeparator,
 // usually found in PATH or GOPATH environment variables.
 // Unlike strings.Split, SplitList returns an empty slice when passed an empty
