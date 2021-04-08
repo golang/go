@@ -401,16 +401,16 @@ without corrupting arguments or results.
 
 Special-purpose registers are as follows:
 
-| Register | Call meaning | Body meaning |
+| Register | Call meaning | Return meaning | Body meaning |
 | --- | --- | --- |
-| RSP | Stack pointer | Fixed |
-| RBP | Frame pointer | Fixed |
-| RDX | Closure context pointer | Scratch |
-| R12 | None | Scratch |
-| R13 | None | Scratch |
-| R14 | Current goroutine | Scratch |
-| R15 | GOT reference temporary | Fixed if dynlink |
-| X15 | Zero value | Fixed |
+| RSP | Stack pointer | Same | Same |
+| RBP | Frame pointer | Same | Same |
+| RDX | Closure context pointer | Scratch | Scratch |
+| R12 | Scratch | Scratch | Scratch |
+| R13 | Scratch | Scratch | Scratch |
+| R14 | Current goroutine | Same | Scratch |
+| R15 | GOT reference temporary if dynlink | Same | Same |
+| X15 | Zero value | Same | Scratch |
 
 *Rationale*: These register meanings are compatible with Go’s
 stack-based calling convention except for R14 and X15, which will have
@@ -427,6 +427,10 @@ single-byte registers available to be a net win.
 *Rationale*: We designate X15 as a fixed zero register because
 functions often have to bulk zero their stack frames, and this is more
 efficient with a designated zero register.
+
+*Implementation note*: Registers with fixed meaning at calls but not
+in function bodies must be initialized by "injected" calls such as
+signal-based panics.
 
 #### Stack layout
 
