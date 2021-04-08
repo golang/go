@@ -64,13 +64,13 @@ var x86Need = []string{ // for both 386 and AMD64
 }
 
 var amd64GnuNeed = []string{
-	"movq",
+	"jmp",
 	"callq",
 	"cmpb",
 }
 
 var i386GnuNeed = []string{
-	"mov",
+	"jmp",
 	"call",
 	"cmp",
 }
