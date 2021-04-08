@@ -158,6 +158,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		dwarf.EnableLogging(base.Debug.DwarfInl != 0)
 	}
 	if base.Debug.SoftFloat != 0 {
+		if objabi.Experiment.RegabiArgs {
+			log.Fatalf("softfloat mode with GOEXPERIMENT=regabiargs not implemented ")
+		}
 		ssagen.Arch.SoftFloat = true
 	}
 
