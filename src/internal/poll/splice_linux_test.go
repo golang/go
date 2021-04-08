@@ -6,6 +6,7 @@ package poll_test
 
 import (
 	"internal/poll"
+	"internal/syscall/unix"
 	"runtime"
 	"syscall"
 	"testing"
@@ -16,8 +17,8 @@ import (
 func checkPipes(fds []int) bool {
 	for _, fd := range fds {
 		// Check if each pipe fd has been closed.
-		err := syscall.FcntlFlock(uintptr(fd), syscall.F_GETFD, nil)
-		if err == nil {
+		_, _, errno := syscall.Syscall(unix.FcntlSyscall, uintptr(fd), syscall.F_GETPIPE_SZ, 0)
+		if errno == 0 {
 			return false
 		}
 	}
@@ -37,8 +38,8 @@ func TestSplicePipePool(t *testing.T) {
 		if err != nil {
 			t.Skip("failed to create pipe, skip this test")
 		}
-		prfd, pwfd := poll.GetPipeFds(p)
-		fds = append(fds, prfd, pwfd)
+		_, pwfd := poll.GetPipeFds(p)
+		fds = append(fds, pwfd)
 		ps = append(ps, p)
 	}
 	for _, p = range ps {
@@ -46,19 +47,28 @@ func TestSplicePipePool(t *testing.T) {
 	}
 	ps = nil
 
-	var ok bool
-	// Trigger garbage collection to free the pipes in sync.Pool and check whether or not
-	// those pipe buffers have been closed as we expected.
-	for i := 0; i < 5; i++ {
+	// Exploit the timeout of "go test" as a timer for the subsequent verification.
+	timeout := 5 * time.Minute
+	if deadline, ok := t.Deadline(); ok {
+		timeout = deadline.Sub(time.Now())
+		timeout -= timeout / 10 // Leave 10% headroom for cleanup.
+	}
+	expiredTime := time.NewTimer(timeout)
+	defer expiredTime.Stop()
+
+	// Trigger garbage collection repeatedly, waiting for all pipes in sync.Pool
+	// to either be deallocated and closed, or to time out.
+	for {
 		runtime.GC()
-		time.Sleep(time.Duration(i*100+10) * time.Millisecond)
-		if ok = checkPipes(fds); ok {
+		time.Sleep(10 * time.Millisecond)
+		if checkPipes(fds) {
 			break
 		}
-	}
-
-	if !ok {
-		t.Fatal("at least one pipe is still open")
+		select {
+		case <-expiredTime.C:
+			t.Fatal("at least one pipe is still open")
+		default:
+		}
 	}
 }
 
