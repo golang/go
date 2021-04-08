@@ -1015,7 +1015,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
 			if x.debug {
 				x.Printf("...marking %v unused\n", a.LongString())
 			}
-			a.reset(OpInvalid)
+			a.invalidateRecursively()
 		}
 	}
 
@@ -1140,7 +1140,7 @@ func expandCalls(f *Func) {
 					if x.debug {
 						x.Printf("...marking %v unused\n", a.LongString())
 					}
-					a.reset(OpInvalid)
+					a.invalidateRecursively()
 				}
 			}
 			if x.debug {
@@ -1343,6 +1343,9 @@ func expandCalls(f *Func) {
 		if dupe == nil {
 			x.commonSelectors[sk] = v
 		} else if x.sdom.IsAncestorEq(dupe.Block, v.Block) {
+			if x.debug {
+				x.Printf("Duplicate, make %s copy of %s\n", v, dupe)
+			}
 			v.copyOf(dupe)
 		} else {
 			// Because values are processed in dominator order, the old common[s] will never dominate after a miss is seen.
@@ -1361,7 +1364,7 @@ func expandCalls(f *Func) {
 			x.Printf("allOrdered[%d] = b%d, %s, uses=%d\n", i, b.ID, v.LongString(), v.Uses)
 		}
 		if v.Uses == 0 {
-			v.reset(OpInvalid)
+			v.invalidateRecursively()
 			continue
 		}
 		if v.Op == OpCopy {
@@ -1456,7 +1459,7 @@ func expandCalls(f *Func) {
 				v.SetArg(i, aa)
 				for a.Uses == 0 {
 					b := a.Args[0]
-					a.reset(OpInvalid)
+					a.invalidateRecursively()
 					a = b
 				}
 			}
