@@ -446,7 +446,6 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 	typesinternal.SetUsesCgo(cfg)
 
 	check := types.NewChecker(cfg, fset, pkg.types, pkg.typesInfo)
-
 	// Type checking errors are handled via the config, so ignore them here.
 	_ = check.Files(files)
 	// If the context was cancelled, we may have returned a ton of transient
@@ -454,6 +453,8 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
+
+	trimTypesInfo(files, pkg.typesInfo)
 
 	// We don't care about a package's errors unless we have parsed it in full.
 	if mode != source.ParseFull {
@@ -795,3 +796,33 @@ func isValidImport(pkgPath, importPkgPath packagePath) bool {
 type importerFunc func(path string) (*types.Package, error)
 
 func (f importerFunc) Import(path string) (*types.Package, error) { return f(path) }
+
+func trimTypesInfo(files []*ast.File, info *types.Info) {
+	for _, file := range files {
+		ast.Inspect(file, func(n ast.Node) bool {
+			if n == nil {
+				return false
+			}
+			cl, ok := n.(*ast.CompositeLit)
+			if !ok {
+				return true
+			}
+
+			// types.Info.Types for long slice/array literals are particularly
+			// expensive. Try to clear them out.
+			if _, ok := cl.Type.(*ast.ArrayType); !ok {
+				return true
+			}
+
+			for _, elt := range cl.Elts {
+				// Only delete information for basic literals; other elements,
+				// like constants and function calls, could still be relevant.
+				if _, ok := elt.(*ast.BasicLit); ok {
+					delete(info.Types, elt)
+				}
+			}
+
+			return true
+		})
+	}
+}
