@@ -6,7 +6,7 @@
 # but has no /@latest (410) because the go.mod at the tip of the default
 # branch has a different major version suffix.
 env testproxy=$GOPROXY
-env GOPROXY=file://$WORK/proxy
+env GOPROXY=file:///$WORK/proxy
 env GOSUMDB=off
 
 # If the proxy does not return a list of versions (404/410)
