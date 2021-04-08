@@ -178,16 +178,13 @@ type Type struct {
 
 	flags bitset8
 
-	// For defined (named) generic types, the list of type params (in order)
-	// of this type that need to be instantiated. For fully-instantiated
-	// generic types, this is the targs used to instantiate them (which are
-	// used when generating the corresponding instantiated methods). rparams
-	// is only set for named types that are generic or are fully-instantiated
-	// from a generic type.
-
-	// TODO(danscales): for space reasons, should probably be a pointer to a
-	// slice, possibly change the name of this field.
-	rparams []*Type
+	// For defined (named) generic types, a pointer to the list of type params
+	// (in order) of this type that need to be instantiated. For
+	// fully-instantiated generic types, this is the targs used to instantiate
+	// them (which are used when generating the corresponding instantiated
+	// methods). rparams is only set for named types that are generic or are
+	// fully-instantiated from a generic type, and is otherwise set to nil.
+	rparams *[]*Type
 }
 
 func (*Type) CanBeAnSSAAux() {}
@@ -244,11 +241,17 @@ func (t *Type) Pos() src.XPos {
 }
 
 func (t *Type) RParams() []*Type {
-	return t.rparams
+	if t.rparams == nil {
+		return nil
+	}
+	return *t.rparams
 }
 
 func (t *Type) SetRParams(rparams []*Type) {
-	t.rparams = rparams
+	if len(rparams) == 0 {
+		base.Fatalf("Setting nil or zero-length rparams")
+	}
+	t.rparams = &rparams
 	if t.HasTParam() {
 		return
 	}

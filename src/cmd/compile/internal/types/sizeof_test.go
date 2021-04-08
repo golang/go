@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
 		_64bit uintptr     // size on 64bit platforms
 	}{
 		{Sym{}, 44, 72},
-		{Type{}, 68, 120},
+		{Type{}, 60, 104},
 		{Map{}, 20, 40},
 		{Forward{}, 20, 32},
 		{Func{}, 28, 48},

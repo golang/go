@@ -285,7 +285,6 @@ const (
 	//   Left is nil if there is no type-switch variable
 	OTYPESW
 	OFUNCINST // instantiation of a generic function
-	OTYPEINST // instantiation of a generic type
 
 	// types
 	OTCHAN   // chan int
