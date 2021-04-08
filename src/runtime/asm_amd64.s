@@ -1011,34 +1011,62 @@ done:
 
 // func memhash(p unsafe.Pointer, h, s uintptr) uintptr
 // hash function using AES hardware instructions
-TEXT runtime·memhash(SB),NOSPLIT,$0-32
+TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT,$0-32
+#ifdef GOEXPERIMENT_regabiargs
+	// AX = ptr to data
+	// BX = seed
+	// CX = size
+#endif
 	CMPB	runtime·useAeshash(SB), $0
 	JEQ	noaes
+#ifndef GOEXPERIMENT_regabiargs
 	MOVQ	p+0(FP), AX	// ptr to data
 	MOVQ	s+16(FP), CX	// size
 	LEAQ	ret+24(FP), DX
+#endif
 	JMP	aeshashbody<>(SB)
 noaes:
-	JMP	runtime·memhashFallback(SB)
+	JMP	runtime·memhashFallback<ABIInternal>(SB)
 
 // func strhash(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·strhash(SB),NOSPLIT,$0-24
+TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT,$0-24
+#ifdef GOEXPERIMENT_regabiargs
+	// AX = ptr to string struct
+	// BX = seed
+#endif
 	CMPB	runtime·useAeshash(SB), $0
 	JEQ	noaes
+#ifndef GOEXPERIMENT_regabiargs
 	MOVQ	p+0(FP), AX	// ptr to string struct
+#endif
 	MOVQ	8(AX), CX	// length of string
 	MOVQ	(AX), AX	// string data
+#ifndef GOEXPERIMENT_regabiargs
 	LEAQ	ret+16(FP), DX
+#endif
 	JMP	aeshashbody<>(SB)
 noaes:
-	JMP	runtime·strhashFallback(SB)
+	JMP	runtime·strhashFallback<ABIInternal>(SB)
 
 // AX: data
+#ifdef GOEXPERIMENT_regabiargs
+// BX: hash seed
+#else
+// h+8(FP): hash seed
+#endif
 // CX: length
+#ifdef GOEXPERIMENT_regabiargs
+// At return: AX = return value
+#else
 // DX: address to put return value
+#endif
 TEXT aeshashbody<>(SB),NOSPLIT,$0-0
 	// Fill an SSE register with our seeds.
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	BX, X0				// 64 bits of per-table hash seed
+#else
 	MOVQ	h+8(FP), X0			// 64 bits of per-table hash seed
+#endif
 	PINSRW	$4, CX, X0			// 16 bits of length
 	PSHUFHW $0, X0, X0			// repeat length 4 times total
 	MOVO	X0, X1				// save unscrambled seed
@@ -1075,7 +1103,11 @@ final1:
 	AESENC	X1, X1	// scramble combo 3 times
 	AESENC	X1, X1
 	AESENC	X1, X1
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	X1, AX	// return X1
+#else
 	MOVQ	X1, (DX)
+#endif
 	RET
 
 endofpage:
@@ -1091,7 +1123,11 @@ endofpage:
 aes0:
 	// Return scrambled input seed
 	AESENC	X0, X0
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	X0, AX	// return X0
+#else
 	MOVQ	X0, (DX)
+#endif
 	RET
 
 aes16:
@@ -1121,7 +1157,11 @@ aes17to32:
 
 	// combine results
 	PXOR	X3, X2
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	X2, AX	// return X2
+#else
 	MOVQ	X2, (DX)
+#endif
 	RET
 
 aes33to64:
@@ -1163,7 +1203,11 @@ aes33to64:
 	PXOR	X6, X4
 	PXOR	X7, X5
 	PXOR	X5, X4
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	X4, AX	// return X4
+#else
 	MOVQ	X4, (DX)
+#endif
 	RET
 
 aes65to128:
@@ -1245,7 +1289,15 @@ aes65to128:
 	PXOR	X10, X8
 	PXOR	X11, X9
 	PXOR	X9, X8
+#ifdef GOEXPERIMENT_regabig
+	// X15 must be zero on return
+	PXOR	X15, X15
+#endif
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	X8, AX	// return X8
+#else
 	MOVQ	X8, (DX)
+#endif
 	RET
 
 aes129plus:
@@ -1361,38 +1413,73 @@ aesloop:
 	PXOR	X10, X8
 	PXOR	X11, X9
 	PXOR	X9, X8
+#ifdef GOEXPERIMENT_regabig
+	// X15 must be zero on return
+	PXOR	X15, X15
+#endif
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	X8, AX	// return X8
+#else
 	MOVQ	X8, (DX)
+#endif
 	RET
 
 // func memhash32(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·memhash32(SB),NOSPLIT,$0-24
+// ABIInternal for performance.
+TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT,$0-24
+#ifdef GOEXPERIMENT_regabiargs
+	// AX = ptr to data
+	// BX = seed
+#endif
 	CMPB	runtime·useAeshash(SB), $0
 	JEQ	noaes
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	BX, X0	// X0 = seed
+#else
 	MOVQ	p+0(FP), AX	// ptr to data
 	MOVQ	h+8(FP), X0	// seed
+#endif
 	PINSRD	$2, (AX), X0	// data
 	AESENC	runtime·aeskeysched+0(SB), X0
 	AESENC	runtime·aeskeysched+16(SB), X0
 	AESENC	runtime·aeskeysched+32(SB), X0
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	X0, AX	// return X0
+#else
 	MOVQ	X0, ret+16(FP)
+#endif
 	RET
 noaes:
-	JMP	runtime·memhash32Fallback(SB)
+	JMP	runtime·memhash32Fallback<ABIInternal>(SB)
 
 // func memhash64(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·memhash64(SB),NOSPLIT,$0-24
+// ABIInternal for performance.
+TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT,$0-24
+#ifdef GOEXPERIMENT_regabiargs
+	// AX = ptr to data
+	// BX = seed
+#else
+#endif
 	CMPB	runtime·useAeshash(SB), $0
 	JEQ	noaes
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	BX, X0	// X0 = seed
+#else
 	MOVQ	p+0(FP), AX	// ptr to data
 	MOVQ	h+8(FP), X0	// seed
+#endif
 	PINSRQ	$1, (AX), X0	// data
 	AESENC	runtime·aeskeysched+0(SB), X0
 	AESENC	runtime·aeskeysched+16(SB), X0
 	AESENC	runtime·aeskeysched+32(SB), X0
+#ifdef GOEXPERIMENT_regabiargs
+	MOVQ	X0, AX	// return X0
+#else
 	MOVQ	X0, ret+16(FP)
+#endif
 	RET
 noaes:
-	JMP	runtime·memhash64Fallback(SB)
+	JMP	runtime·memhash64Fallback<ABIInternal>(SB)
 
 // simple mask to get rid of data in the high part of the register.
 DATA masks<>+0x00(SB)/8, $0x0000000000000000
