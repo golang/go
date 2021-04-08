@@ -312,7 +312,22 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
 		case types.TARRAY:
 			return t.NumElem() == 1 && isFloatLike(t.Elem())
 		case types.TSTRUCT:
-			return t.NumFields() == 1 && isFloatLike(t.Field(0).Type)
+			// allow for the possibility that we have a series of
+			// leading fields that are zero size before a float field.
+			// in addition, if we find a float field, it needs to be
+			// the last item in the struct (a trailing zero length
+			// field would introduce padding).
+			fsl := t.FieldSlice()
+			for idx, f := range fsl {
+				if f.Type.Width == 0 {
+					continue
+				}
+				if isFloatLike(f.Type) && idx == len(fsl)-1 {
+					return true
+				}
+				return false
+			}
+			return false
 		}
 		return false
 	}
