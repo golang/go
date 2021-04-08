@@ -2810,13 +2810,7 @@ top:
 		goto top
 	}
 
-	// Similar to above, check for timer creation or expiry concurrently with
-	// transitioning from spinning to non-spinning. Note that we cannot use
-	// checkTimers here because it calls adjusttimers which may need to allocate
-	// memory, and that isn't allowed when we don't have an active P.
-	pollUntil = checkTimersNoP(allpSnapshot, timerpMaskSnapshot, pollUntil)
-
-	// Finally, check for idle-priority GC work.
+	// Check for idle-priority GC work again.
 	_p_, gp = checkIdleGCNoP()
 	if _p_ != nil {
 		acquirep(_p_)
@@ -2833,6 +2827,14 @@ top:
 		}
 		return gp, false
 	}
+
+	// Finally, check for timer creation or expiry concurrently with
+	// transitioning from spinning to non-spinning.
+	//
+	// Note that we cannot use checkTimers here because it calls
+	// adjusttimers which may need to allocate memory, and that isn't
+	// allowed when we don't have an active P.
+	pollUntil = checkTimersNoP(allpSnapshot, timerpMaskSnapshot, pollUntil)
 
 	// Poll network until next timer.
 	if netpollinited() && (atomic.Load(&netpollWaiters) > 0 || pollUntil != 0) && atomic.Xchg64(&sched.lastpoll, 0) != 0 {
