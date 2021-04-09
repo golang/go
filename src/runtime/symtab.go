@@ -185,7 +185,9 @@ func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr {
 	var cache pcvalueCache
 	inltree := (*[1 << 20]inlinedCall)(inldata)
 	for {
-		ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, &cache)
+		// Non-strict as cgoTraceback may have added bogus PCs
+		// with a valid funcInfo but invalid PCDATA.
+		ix := pcdatavalue1(f, _PCDATA_InlTreeIndex, tracepc, &cache, false)
 		if ix < 0 {
 			break
 		}
