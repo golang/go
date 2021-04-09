@@ -1,5 +1,6 @@
 // build -goexperiment regabi,regabiargs
 
+// +build !windows
 //go:build !windows
 
 // Copyright 2021 The Go Authors. All rights reserved.
