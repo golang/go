@@ -181,14 +181,14 @@ func parseCorpusValue(line []byte) (interface{}, error) {
 		}
 		return parseUint(val, typ)
 	case "float32":
-		if kind != token.FLOAT {
-			return nil, fmt.Errorf("float literal required for float32 type")
+		if kind != token.FLOAT && kind != token.INT {
+			return nil, fmt.Errorf("float or integer literal required for float32 type")
 		}
 		v, err := strconv.ParseFloat(val, 32)
 		return float32(v), err
 	case "float64":
-		if kind != token.FLOAT {
-			return nil, fmt.Errorf("float literal required for float64 type")
+		if kind != token.FLOAT && kind != token.INT {
+			return nil, fmt.Errorf("float or integer literal required for float64 type")
 		}
 		return strconv.ParseFloat(val, 64)
 	default:
