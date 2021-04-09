@@ -49,7 +49,7 @@ func editBuildList(ctx context.Context, initial, tryUpgrade, mustSelect []module
 	// percieves as “downgrades” will not also result in upgrades.
 	max := make(map[string]string)
 	maxes, err := mvs.Upgrade(Target, &mvsReqs{
-		buildList: append(capVersionSlice(initial), mustSelect...),
+		roots: append(capVersionSlice(initial[1:]), mustSelect...),
 	}, tryUpgrade...)
 	if err != nil {
 		return nil, err
@@ -108,12 +108,12 @@ func editBuildList(ctx context.Context, initial, tryUpgrade, mustSelect []module
 	// another. The lower version may require extraneous dependencies that aren't
 	// actually relevant, so we need to compute the actual selected versions.
 	adjusted := make([]module.Version, 0, len(maxes))
-	for _, m := range maxes {
+	for _, m := range maxes[1:] {
 		if v, ok := limiter.selected[m.Path]; ok {
 			adjusted = append(adjusted, module.Version{Path: m.Path, Version: v})
 		}
 	}
-	consistent, err := mvs.BuildList(Target, &mvsReqs{buildList: adjusted})
+	consistent, err := mvs.BuildList(Target, &mvsReqs{roots: adjusted})
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func editBuildList(ctx context.Context, initial, tryUpgrade, mustSelect []module
 	// the actually-selected versions in order to eliminate extraneous
 	// dependencies from lower-than-selected ones.
 	compacted := consistent[:0]
-	for _, m := range consistent {
+	for _, m := range consistent[1:] {
 		if _, ok := limiter.selected[m.Path]; ok {
 			// The fact that the limiter has a version for m.Path indicates that we
 			// care about retaining that path, even if the version was upgraded for
@@ -131,7 +131,7 @@ func editBuildList(ctx context.Context, initial, tryUpgrade, mustSelect []module
 		}
 	}
 
-	return mvs.BuildList(Target, &mvsReqs{buildList: compacted})
+	return mvs.BuildList(Target, &mvsReqs{roots: compacted})
 }
 
 // A versionLimiter tracks the versions that may be selected for each module
