@@ -105,6 +105,7 @@ func newRequirements(depth modDepth, rootModules []module.Version, direct map[st
 	}
 
 	rs := &Requirements{
+		depth:          depth,
 		rootModules:    rootModules,
 		maxRootVersion: make(map[string]string, len(rootModules)),
 		direct:         direct,
