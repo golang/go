@@ -9,12 +9,13 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"sync"
 
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
 )
 
@@ -203,19 +204,83 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 }
 
 func (s *Server) didModifyFiles(ctx context.Context, modifications []source.FileModification, cause ModificationSource) error {
-	// diagnosticWG tracks outstanding diagnostic work as a result of this file
-	// modification.
-	var diagnosticWG sync.WaitGroup
+	diagnoseDone := make(chan struct{})
 	if s.session.Options().VerboseWorkDoneProgress {
 		work := s.progress.Start(ctx, DiagnosticWorkTitle(cause), "Calculating file diagnostics...", nil, nil)
 		defer func() {
 			go func() {
-				diagnosticWG.Wait()
+				<-diagnoseDone
 				work.End("Done.")
 			}()
 		}()
 	}
 
+	onDisk := cause == FromDidChangeWatchedFiles
+	delay := s.session.Options().ExperimentalWatchedFileDelay
+	s.fileChangeMu.Lock()
+	defer s.fileChangeMu.Unlock()
+	if !onDisk || delay == 0 {
+		// No delay: process the modifications immediately.
+		return s.processModifications(ctx, modifications, onDisk, diagnoseDone)
+	}
+	// Debounce and batch up pending modifications from watched files.
+	pending := &pendingModificationSet{
+		diagnoseDone: diagnoseDone,
+		changes:      modifications,
+	}
+	// Invariant: changes appended to s.pendingOnDiskChanges are eventually
+	// handled in the order they arrive. This guarantee is only partially
+	// enforced here. Specifically:
+	//  1. s.fileChangesMu ensures that the append below happens in the order
+	//     notifications were received, so that the changes within each batch are
+	//     ordered properly.
+	//  2. The debounced func below holds s.fileChangesMu while processing all
+	//     changes in s.pendingOnDiskChanges, ensuring that no batches are
+	//     processed out of order.
+	//  3. Session.ExpandModificationsToDirectories and Session.DidModifyFiles
+	//     process changes in order.
+	s.pendingOnDiskChanges = append(s.pendingOnDiskChanges, pending)
+	ctx = xcontext.Detach(ctx)
+	delayed := func() {
+		s.fileChangeMu.Lock()
+		var allChanges []source.FileModification
+		// For accurate progress notifications, we must notify all goroutines
+		// waiting for the diagnose pass following a didChangeWatchedFiles
+		// notification. This is necessary for regtest assertions.
+		var dones []chan struct{}
+		for _, pending := range s.pendingOnDiskChanges {
+			allChanges = append(allChanges, pending.changes...)
+			dones = append(dones, pending.diagnoseDone)
+		}
+
+		allDone := make(chan struct{})
+		if err := s.processModifications(ctx, allChanges, onDisk, allDone); err != nil {
+			event.Error(ctx, "processing delayed file changes", err)
+		}
+		s.pendingOnDiskChanges = nil
+		s.fileChangeMu.Unlock()
+		<-allDone
+		for _, done := range dones {
+			close(done)
+		}
+	}
+	go s.watchedFileDebouncer.debounce("", 0, delay, delayed)
+	return nil
+}
+
+// processModifications update server state to reflect file changes, and
+// triggers diagnostics to run asynchronously. The diagnoseDone channel will be
+// closed once diagnostics complete.
+func (s *Server) processModifications(ctx context.Context, modifications []source.FileModification, onDisk bool, diagnoseDone chan struct{}) error {
+	s.stateMu.Lock()
+	if s.state >= serverShutDown {
+		// This state check does not prevent races below, and exists only to
+		// produce a better error message. The actual race to the cache should be
+		// guarded by Session.viewMu.
+		s.stateMu.Unlock()
+		return errors.New("server is shut down")
+	}
+	s.stateMu.Unlock()
 	// If the set of changes included directories, expand those directories
 	// to their files.
 	modifications = s.session.ExpandModificationsToDirectories(ctx, modifications)
@@ -225,19 +290,12 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 		return err
 	}
 
-	for snapshot, uris := range snapshots {
-		diagnosticWG.Add(1)
-		go func(snapshot source.Snapshot, uris []span.URI) {
-			defer diagnosticWG.Done()
-			s.diagnoseSnapshot(snapshot, uris, cause == FromDidChangeWatchedFiles)
-		}(snapshot, uris)
-	}
-
 	go func() {
-		diagnosticWG.Wait()
+		s.diagnoseSnapshots(snapshots, onDisk)
 		for _, release := range releases {
 			release()
 		}
+		close(diagnoseDone)
 	}()
 
 	// After any file modifications, we need to update our watched files,

@@ -384,6 +384,15 @@ type DiagnosticOptions struct {
 	//
 	// This option must be set to a valid duration string, for example `"250ms"`.
 	ExperimentalDiagnosticsDelay time.Duration `status:"experimental"`
+
+	// ExperimentalWatchedFileDelay controls the amount of time that gopls waits
+	// for additional workspace/didChangeWatchedFiles notifications to arrive,
+	// before processing all such notifications in a single batch. This is
+	// intended for use by LSP clients that don't support their own batching of
+	// file system notifications.
+	//
+	// This option must be set to a valid duration string, for example `"100ms"`.
+	ExperimentalWatchedFileDelay time.Duration `status:"experimental"`
 }
 
 type NavigationOptions struct {
@@ -732,6 +741,7 @@ func (o *Options) EnableAllExperiments() {
 	o.ExperimentalPostfixCompletions = true
 	o.ExperimentalTemplateSupport = true
 	o.ExperimentalUseInvalidMetadata = true
+	o.ExperimentalWatchedFileDelay = 50 * time.Millisecond
 }
 
 func (o *Options) enableAllExperimentMaps() {
@@ -921,6 +931,9 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 
 	case "experimentalDiagnosticsDelay":
 		result.setDuration(&o.ExperimentalDiagnosticsDelay)
+
+	case "experimentalWatchedFileDelay":
+		result.setDuration(&o.ExperimentalWatchedFileDelay)
 
 	case "experimentalPackageCacheKey":
 		result.setBool(&o.ExperimentalPackageCacheKey)

@@ -21,35 +21,53 @@ func TestGenerateProgress(t *testing.T) {
 module fake.test
 
 go 1.14
--- lib/generate.go --
+-- generate.go --
 // +build ignore
 
 package main
 
-import "io/ioutil"
+import (
+	"io/ioutil"
+	"os"
+)
 
 func main() {
-	ioutil.WriteFile("generated.go", []byte("package lib\n\nconst answer = 42"), 0644)
-}
--- lib/lib.go --
-package lib
-
-func GetAnswer() int {
-	return answer
+	ioutil.WriteFile("generated.go", []byte("package " + os.Args[1] + "\n\nconst Answer = 21"), 0644)
 }
 
-//go:generate go run generate.go
+-- lib1/lib.go --
+package lib1
+
+//go:generate go run ../generate.go lib1
+
+-- lib2/lib.go --
+package lib2
+
+//go:generate go run ../generate.go lib2
+
+-- main.go --
+package main
+
+import (
+	"fake.test/lib1"
+	"fake.test/lib2"
+)
+
+func main() {
+	println(lib1.Answer + lib2.Answer)
+}
 `
 
 	Run(t, generatedWorkspace, func(t *testing.T, env *Env) {
 		env.Await(
-			env.DiagnosticAtRegexp("lib/lib.go", "answer"),
+			env.DiagnosticAtRegexp("main.go", "lib1.(Answer)"),
 		)
-		env.RunGenerate("./lib")
+		env.RunGenerate("./lib1")
+		env.RunGenerate("./lib2")
 		env.Await(
 			OnceMet(
 				env.DoneWithChangeWatchedFiles(),
-				EmptyDiagnostics("lib/lib.go")),
+				EmptyDiagnostics("main.go")),
 		)
 	})
 }

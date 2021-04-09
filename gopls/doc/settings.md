@@ -321,6 +321,20 @@ This option must be set to a valid duration string, for example `"250ms"`.
 
 Default: `"250ms"`.
 
+##### **experimentalWatchedFileDelay** *time.Duration*
+
+**This setting is experimental and may be deleted.**
+
+experimentalWatchedFileDelay controls the amount of time that gopls waits
+for additional workspace/didChangeWatchedFiles notifications to arrive,
+before processing all such notifications in a single batch. This is
+intended for use by LSP clients that don't support their own batching of
+file system notifications.
+
+This option must be set to a valid duration string, for example `"100ms"`.
+
+Default: `"0s"`.
+
 #### Documentation
 
 ##### **hoverKind** *enum*

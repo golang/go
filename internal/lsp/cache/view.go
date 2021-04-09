@@ -654,16 +654,16 @@ func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*file
 	// Detach the context so that content invalidation cannot be canceled.
 	ctx = xcontext.Detach(ctx)
 
+	// This should be the only time we hold the view's snapshot lock for any period of time.
+	v.snapshotMu.Lock()
+	defer v.snapshotMu.Unlock()
+
 	// Cancel all still-running previous requests, since they would be
 	// operating on stale data.
 	v.snapshot.cancel()
 
 	// Do not clone a snapshot until its view has finished initializing.
 	v.snapshot.AwaitInitialized(ctx)
-
-	// This should be the only time we hold the view's snapshot lock for any period of time.
-	v.snapshotMu.Lock()
-	defer v.snapshotMu.Unlock()
 
 	oldSnapshot := v.snapshot
 

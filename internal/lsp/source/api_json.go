@@ -640,6 +640,19 @@ var GeneratedAPIJSON = &APIJSON{
 				Hierarchy:  "ui.diagnostic",
 			},
 			{
+				Name: "experimentalWatchedFileDelay",
+				Type: "time.Duration",
+				Doc:  "experimentalWatchedFileDelay controls the amount of time that gopls waits\nfor additional workspace/didChangeWatchedFiles notifications to arrive,\nbefore processing all such notifications in a single batch. This is\nintended for use by LSP clients that don't support their own batching of\nfile system notifications.\n\nThis option must be set to a valid duration string, for example `\"100ms\"`.\n",
+				EnumKeys: EnumKeys{
+					ValueType: "",
+					Keys:      nil,
+				},
+				EnumValues: nil,
+				Default:    "\"0s\"",
+				Status:     "experimental",
+				Hierarchy:  "ui.diagnostic",
+			},
+			{
 				Name: "codelenses",
 				Type: "map[string]bool",
 				Doc:  "codelenses overrides the enabled/disabled state of code lenses. See the\n\"Code Lenses\" section of the\n[Settings page](https://github.com/golang/tools/blob/master/gopls/doc/settings.md)\nfor the list of supported lenses.\n\nExample Usage:\n\n```json5\n\"gopls\": {\n...\n  \"codelens\": {\n    \"generate\": false,  // Don't show the `go generate` lens.\n    \"gc_details\": true  // Show a code lens toggling the display of gc's choices.\n  }\n...\n}\n```\n",
