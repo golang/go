@@ -72,6 +72,13 @@ string("extra")
 		},
 		{
 			in: `go test fuzz v1
+float64(0)
+float32(0)
+`,
+			ok: true, // will be an integer literal since there is no decimal
+		},
+		{
+			in: `go test fuzz v1
 int(-23)
 int8(-2)
 int64(2342425)
