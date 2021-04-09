@@ -360,8 +360,6 @@ func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {
 	typ := g.typ(typ2)
 	fn.Nname.Func = fn
 	fn.Nname.Defn = fn
-	// Set Ntype for now to be compatible with later parts of compile, remove later.
-	fn.Nname.Ntype = ir.TypeNode(typ)
 	typed(typ, fn.Nname)
 	fn.SetTypecheck(1)
 
