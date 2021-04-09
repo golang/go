@@ -1357,7 +1357,7 @@ func gcMarkWorkAvailable(p *p) bool {
 // gcMark runs the mark (or, for concurrent GC, mark termination)
 // All gcWork caches must be empty.
 // STW is in effect at this point.
-func gcMark(start_time int64) {
+func gcMark(startTime int64) {
 	if debug.allocfreetrace > 0 {
 		tracegc()
 	}
@@ -1365,7 +1365,7 @@ func gcMark(start_time int64) {
 	if gcphase != _GCmarktermination {
 		throw("in gcMark expecting to see gcphase as _GCmarktermination")
 	}
-	work.tstart = start_time
+	work.tstart = startTime
 
 	// Check that there's no marking work remaining.
 	if work.full != 0 || work.markrootNext < work.markrootJobs {
