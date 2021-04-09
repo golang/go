@@ -1457,7 +1457,6 @@ func WriteFuncMap(fn *ir.Func, abiInfo *abi.ABIParamResultInfo) {
 	if ir.FuncName(fn) == "_" || fn.Sym().Linkname != "" {
 		return
 	}
-	types.CalcSize(fn.Type())
 	nptr := int(abiInfo.ArgWidth() / int64(types.PtrSize))
 	bv := bitvec.New(int32(nptr) * 2)
 

@@ -5,6 +5,7 @@
 package abi
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
@@ -104,7 +105,7 @@ type ABIParamAssignment struct {
 // This will panic if "a" describes a register-allocated parameter.
 func (a *ABIParamAssignment) Offset() int32 {
 	if len(a.Registers) > 0 {
-		panic("Register allocated parameters have no offset")
+		base.Fatalf("register allocated parameters have no offset")
 	}
 	return a.offset
 }
@@ -238,7 +239,7 @@ func appendParamOffsets(offsets []int64, at int64, t *types.Type) ([]int64, int6
 // spill area to help reduce stack sizes.)
 func (a *ABIParamAssignment) FrameOffset(i *ABIParamResultInfo) int64 {
 	if a.offset == -1 {
-		panic("Function parameter has no ABI-defined frame-pointer offset")
+		base.Fatalf("function parameter has no ABI-defined frame-pointer offset")
 	}
 	if len(a.Registers) == 0 { // passed on stack
 		return int64(a.offset) - i.config.LocalsOffset()
@@ -429,6 +430,7 @@ func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Func) *ABIParamResultInfo 
 func (config *ABIConfig) ABIAnalyze(t *types.Type, setNname bool) *ABIParamResultInfo {
 	ft := t.FuncType()
 	result := config.ABIAnalyzeFuncType(ft)
+
 	// Fill in the frame offsets for receiver, inputs, results
 	k := 0
 	if t.NumRecvs() != 0 {
@@ -472,7 +474,7 @@ func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field
 				f.Nname.(*ir.Name).SetIsOutputParamInRegisters(false)
 			}
 		} else if fOffset != off {
-			panic(fmt.Errorf("Offset changed from %d to %d", fOffset, off))
+			base.Fatalf("offset for %s at %s changed from %d to %d", f.Sym.Name, base.FmtPos(f.Pos), fOffset, off)
 		}
 	} else {
 		if setNname && f.Nname != nil {
@@ -610,7 +612,8 @@ func (state *assignState) allocateRegs(regs []RegIndex, t *types.Type) []RegInde
 			return state.allocateRegs(regs, synthIface)
 		}
 	}
-	panic(fmt.Errorf("Was not expecting type %s", t))
+	base.Fatalf("was not expecting type %s", t)
+	panic("unreachable")
 }
 
 // regAllocate creates a register ABIParamAssignment object for a param
@@ -765,7 +768,8 @@ func (state *assignState) regassign(pt *types.Type) bool {
 	case types.TINTER:
 		return state.regassignStruct(synthIface)
 	default:
-		panic("not expected")
+		base.Fatalf("not expected")
+		panic("unreachable")
 	}
 }
 
@@ -776,7 +780,8 @@ func (state *assignState) regassign(pt *types.Type) bool {
 func (state *assignState) assignParamOrReturn(pt *types.Type, n types.Object, isReturn bool) ABIParamAssignment {
 	state.pUsed = RegAmounts{}
 	if pt.Width == types.BADWIDTH {
-		panic("should never happen")
+		base.Fatalf("should never happen")
+		panic("unreachable")
 	} else if pt.Width == 0 {
 		return state.stackAllocate(pt, n)
 	} else if state.regassign(pt) {
