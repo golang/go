@@ -656,7 +656,7 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 	db.SetMaxOpenConns(max)
 
 	// First saturate the connection pool.
-	// Then start new requests for a connection that is cancelled after it is requested.
+	// Then start new requests for a connection that is canceled after it is requested.
 
 	state = 1
 	for i := 0; i < max; i++ {
@@ -2784,7 +2784,7 @@ func TestTxCannotCommitAfterRollback(t *testing.T) {
 	// 3. Check if 2.A has committed in Tx (pass) or outside of Tx (fail).
 	sendQuery := make(chan struct{})
 	// The Tx status is returned through the row results, ensure
-	// that the rows results are not cancelled.
+	// that the rows results are not canceled.
 	bypassRowsAwaitDone = true
 	hookTxGrabConn = func() {
 		cancel()
