@@ -147,9 +147,6 @@ func (g *irgen) objFinish(name *ir.Name, class ir.Class, typ *types.Type) {
 		sym.SetFunc(true)
 	}
 
-	// We already know name's type, but typecheck is really eager to try
-	// recomputing it later. This appears to prevent that at least.
-	name.Ntype = ir.TypeNode(typ)
 	name.SetTypecheck(1)
 	name.SetWalkdef(1)
 

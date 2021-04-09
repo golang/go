@@ -298,7 +298,6 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []ir.No
 		subst.fields(ir.PPARAM, append(oldt.Recvs().FieldSlice(), oldt.Params().FieldSlice()...), newf.Dcl),
 		subst.fields(ir.PPARAMOUT, oldt.Results().FieldSlice(), newf.Dcl))
 
-	newf.Nname.Ntype = ir.TypeNode(newt)
 	newf.Nname.SetType(newt)
 	ir.MarkFunc(newf.Nname)
 	newf.SetTypecheck(1)
@@ -497,8 +496,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 
 		case ir.OCLOSURE:
 			x := x.(*ir.ClosureExpr)
-			// Need to save/duplicate x.Func.Nname,
-			// x.Func.Nname.Ntype, x.Func.Dcl, x.Func.ClosureVars, and
+			// Need to duplicate x.Func.Nname, x.Func.Dcl, x.Func.ClosureVars, and
 			// x.Func.Body.
 			oldfn := x.Func
 			newfn := ir.NewFunc(oldfn.Pos())
@@ -522,8 +520,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			newfn.Dcl = subst.namelist(oldfn.Dcl)
 			newfn.ClosureVars = subst.namelist(oldfn.ClosureVars)
 
-			// Set Ntype for now to be compatible with later parts of compiler
-			newfn.Nname.Ntype = subst.node(oldfn.Nname.Ntype).(ir.Ntype)
 			typed(subst.typ(oldfn.Nname.Type()), newfn.Nname)
 			typed(newfn.Nname.Type(), m)
 			newfn.SetTypecheck(1)
