@@ -54,9 +54,10 @@ func parseExperiments() goexperiment.Flags {
 				continue
 			}
 			if f == "none" {
-				// GOEXPERIMENT=none restores the baseline configuration.
-				// (This is useful for overriding make.bash-time settings.)
-				flags = goexperiment.BaselineFlags
+				// GOEXPERIMENT=none disables all experiment flags.
+				// This is used by cmd/dist, which doesn't know how
+				// to build with any experiment flags.
+				flags = goexperiment.Flags{}
 				continue
 			}
 			val := true
