@@ -438,7 +438,7 @@ func basicKind(v reflect.Value) (kind, error) {
 
 // isNil returns true if v is the zero reflect.Value, or nil of its type.
 func isNil(v reflect.Value) bool {
-	if v == zero {
+	if !v.IsValid() {
 		return true
 	}
 	switch v.Kind() {
