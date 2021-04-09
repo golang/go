@@ -357,10 +357,6 @@ func convT32(val uint32) (x unsafe.Pointer) {
 	return
 }
 
-func convT32F(val float32) (x unsafe.Pointer) {
-	return convT32(*(*uint32)(unsafe.Pointer(&val)))
-}
-
 func convT64(val uint64) (x unsafe.Pointer) {
 	if val < uint64(len(staticuint64s)) {
 		x = unsafe.Pointer(&staticuint64s[val])
@@ -369,10 +365,6 @@ func convT64(val uint64) (x unsafe.Pointer) {
 		*(*uint64)(x) = val
 	}
 	return
-}
-
-func convT64F(val float64) (x unsafe.Pointer) {
-	return convT64(*(*uint64)(unsafe.Pointer(&val)))
 }
 
 func convTstring(val string) (x unsafe.Pointer) {
