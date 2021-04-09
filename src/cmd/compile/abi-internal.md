@@ -408,7 +408,7 @@ Special-purpose registers are as follows:
 | RDX | Closure context pointer | Scratch | Scratch |
 | R12 | Scratch | Scratch | Scratch |
 | R13 | Scratch | Scratch | Scratch |
-| R14 | Current goroutine | Same | Scratch |
+| R14 | Current goroutine | Same | Same |
 | R15 | GOT reference temporary if dynlink | Same | Same |
 | X15 | Zero value | Same | Scratch |
 
@@ -423,6 +423,13 @@ that requires an additional REX byte.
 While this adds one byte to every function prologue, it is hardly ever
 accessed outside the function prologue and we expect making more
 single-byte registers available to be a net win.
+
+*Rationale*: We could allow R14 (the current goroutine pointer) to be
+a scratch register in function bodies because it can always be
+restored from TLS on amd64.
+However, we designate it as a fixed register for simplicity and for
+consistency with other architectures that may not have a copy of the
+current goroutine pointer in TLS.
 
 *Rationale*: We designate X15 as a fixed zero register because
 functions often have to bulk zero their stack frames, and this is more
