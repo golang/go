@@ -1989,7 +1989,7 @@ func TestServerHandshakeContextCancellation(t *testing.T) {
 // TestHandshakeContextHierarchy tests whether the contexts
 // available to GetClientCertificate and GetCertificate are
 // derived from the context provided to HandshakeContext, and
-// that those contexts are cancelled after HandshakeContext has
+// that those contexts are canceled after HandshakeContext has
 // returned.
 func TestHandshakeContextHierarchy(t *testing.T) {
 	c, s := localPipe(t)
@@ -2024,7 +2024,7 @@ func TestHandshakeContextHierarchy(t *testing.T) {
 		select {
 		case <-innerCtx.Done():
 		default:
-			t.Errorf("GetClientCertificate context was not cancelled after HandshakeContext returned.")
+			t.Errorf("GetClientCertificate context was not canceled after HandshakeContext returned.")
 		}
 	}()
 	var innerCtx context.Context
@@ -2048,7 +2048,7 @@ func TestHandshakeContextHierarchy(t *testing.T) {
 	select {
 	case <-innerCtx.Done():
 	default:
-		t.Errorf("GetCertificate context was not cancelled after HandshakeContext returned.")
+		t.Errorf("GetCertificate context was not canceled after HandshakeContext returned.")
 	}
 	if err := <-clientErr; err != nil {
 		t.Errorf("Unexpected client error: %v", err)

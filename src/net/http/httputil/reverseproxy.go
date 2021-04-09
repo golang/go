@@ -562,7 +562,7 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 
 	backConnCloseCh := make(chan bool)
 	go func() {
-		// Ensure that the cancelation of a request closes the backend.
+		// Ensure that the cancellation of a request closes the backend.
 		// See issue https://golang.org/issue/35559.
 		select {
 		case <-req.Context().Done():
