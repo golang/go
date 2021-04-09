@@ -4020,12 +4020,6 @@ func malg(stacksize int32) *g {
 //
 //go:nosplit
 func newproc(siz int32, fn *funcval) {
-	if goexperiment.RegabiDefer && siz != 0 {
-		// TODO: When we commit to GOEXPERIMENT=regabidefer,
-		// rewrite newproc's comment, since it will no longer
-		// have a funny stack layout or need to be nosplit.
-		throw("go with non-empty frame")
-	}
 	argp := add(unsafe.Pointer(&fn), sys.PtrSize)
 	gp := getg()
 	pc := getcallerpc()
@@ -4051,6 +4045,14 @@ func newproc(siz int32, fn *funcval) {
 //
 //go:systemstack
 func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerpc uintptr) *g {
+	if goexperiment.RegabiDefer && narg != 0 {
+		// TODO: When we commit to GOEXPERIMENT=regabidefer,
+		// rewrite the comments for newproc and newproc1.
+		// newproc will no longer have a funny stack layout or
+		// need to be nosplit.
+		throw("go with non-empty frame")
+	}
+
 	_g_ := getg()
 
 	if fn == nil {

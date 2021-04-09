@@ -9,8 +9,12 @@
 // spends all of its time in the race runtime, which isn't a safe
 // point.
 
-//go:build amd64 && linux && !race
-// +build amd64,linux,!race
+// TODO(register args): We skip this under GOEXPERIMENT=regabidefer
+// because debugCallWrap passes a non-empty frame to newproc1,
+// triggering a panic.
+
+//go:build amd64 && linux && !race && !goexperiment.regabidefer
+// +build amd64,linux,!race,!goexperiment.regabidefer
 
 package runtime_test
 
