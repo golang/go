@@ -2702,9 +2702,14 @@ func New(typ Type) Value {
 		panic("reflect: New(nil)")
 	}
 	t := typ.(*rtype)
+	pt := t.ptrTo()
+	if ifaceIndir(pt) {
+		// This is a pointer to a go:notinheap type.
+		panic("reflect: New of type that may not be allocated in heap (possibly undefined cgo C type)")
+	}
 	ptr := unsafe_New(t)
 	fl := flag(Ptr)
-	return Value{t.ptrTo(), ptr, fl}
+	return Value{pt, ptr, fl}
 }
 
 // NewAt returns a Value representing a pointer to a value of the
