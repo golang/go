@@ -32,11 +32,11 @@ import (
 // the top of the stack and increasing in size.
 // Non-autos sort on offset.
 func cmpstackvarlt(a, b *ir.Name) bool {
-	if (a.Class == ir.PAUTO) != (b.Class == ir.PAUTO) {
-		return b.Class == ir.PAUTO
+	if needAlloc(a) != needAlloc(b) {
+		return needAlloc(b)
 	}
 
-	if a.Class != ir.PAUTO {
+	if !needAlloc(a) {
 		return a.FrameOffset() < b.FrameOffset()
 	}
 
@@ -70,6 +70,13 @@ func (s byStackVar) Len() int           { return len(s) }
 func (s byStackVar) Less(i, j int) bool { return cmpstackvarlt(s[i], s[j]) }
 func (s byStackVar) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
+// needAlloc reports whether n is within the current frame, for which we need to
+// allocate space. In particular, it excludes arguments and results, which are in
+// the callers frame.
+func needAlloc(n *ir.Name) bool {
+	return n.Class == ir.PAUTO || n.Class == ir.PPARAMOUT && n.IsOutputParamInRegisters()
+}
+
 func (s *ssafn) AllocFrame(f *ssa.Func) {
 	s.stksize = 0
 	s.stkptrsize = 0
@@ -77,7 +84,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 
 	// Mark the PAUTO's unused.
 	for _, ln := range fn.Dcl {
-		if ln.Class == ir.PAUTO {
+		if needAlloc(ln) {
 			ln.SetUsed(false)
 		}
 	}
@@ -92,7 +99,14 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		for _, v := range b.Values {
 			if n, ok := v.Aux.(*ir.Name); ok {
 				switch n.Class {
-				case ir.PPARAM, ir.PPARAMOUT, ir.PAUTO:
+				case ir.PPARAMOUT:
+					if n.IsOutputParamInRegisters() && v.Op == ssa.OpVarDef {
+						// ignore VarDef, look for "real" uses.
+						// TODO: maybe do this for PAUTO as well?
+						continue
+					}
+					fallthrough
+				case ir.PPARAM, ir.PAUTO:
 					n.SetUsed(true)
 				}
 			}
@@ -106,7 +120,6 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	for i, n := range fn.Dcl {
 		if n.Op() != ir.ONAME || n.Class != ir.PAUTO && !(n.Class == ir.PPARAMOUT && n.IsOutputParamInRegisters()) {
 			// i.e., stack assign if AUTO, or if PARAMOUT in registers (which has no predefined spill locations)
-			// TODO figure out when we don't need to spill output params.
 			continue
 		}
 		if !n.Used() {
