@@ -55,7 +55,7 @@ func min(a, b int) int {
 func (m *mutator) mutate(vals []interface{}, maxBytes int) {
 	// TODO(katiehockman): pull some of these functions into helper methods and
 	// test that each case is working as expected.
-	// TODO(katiehockman): perform more types of mutations.
+	// TODO(katiehockman): perform more types of mutations for []byte.
 
 	// maxPerVal will represent the maximum number of bytes that each value be
 	// allowed after mutating, giving an equal amount of capacity to each line.
@@ -65,8 +65,48 @@ func (m *mutator) mutate(vals []interface{}, maxBytes int) {
 	// Pick a random value to mutate.
 	// TODO: consider mutating more than one value at a time.
 	i := m.rand(len(vals))
-	// TODO(katiehockman): support mutating other types
 	switch v := vals[i].(type) {
+	case int:
+		vals[i] = int(m.mutateInt(int64(v), maxInt))
+	case int8:
+		vals[i] = int8(m.mutateInt(int64(v), math.MaxInt8))
+	case int16:
+		vals[i] = int16(m.mutateInt(int64(v), math.MaxInt16))
+	case int64:
+		vals[i] = m.mutateInt(v, maxInt)
+	case uint:
+		vals[i] = uint(m.mutateUInt(uint64(v), maxUint))
+	case uint16:
+		vals[i] = uint16(m.mutateUInt(uint64(v), math.MaxUint16))
+	case uint32:
+		vals[i] = uint32(m.mutateUInt(uint64(v), math.MaxUint32))
+	case uint64:
+		vals[i] = m.mutateUInt(uint64(v), maxUint)
+	case float32:
+		vals[i] = float32(m.mutateFloat(float64(v), math.MaxFloat32))
+	case float64:
+		vals[i] = m.mutateFloat(v, math.MaxFloat64)
+	case bool:
+		if m.rand(2) == 1 {
+			vals[i] = !v // 50% chance of flipping the bool
+		}
+	case rune: // int32
+		vals[i] = rune(m.mutateInt(int64(v), math.MaxInt32))
+	case byte: // uint8
+		vals[i] = byte(m.mutateUInt(uint64(v), math.MaxUint8))
+	case string:
+		// TODO(jayconrod,katiehockman): Keep a []byte somewhere (maybe in
+		// mutator) that we mutate repeatedly to avoid re-allocating the data
+		// every time.
+		if len(v) > maxPerVal {
+			panic(fmt.Sprintf("cannot mutate bytes of length %d", len(v)))
+		}
+		b := []byte(v)
+		if cap(b) < maxPerVal {
+			b = append(make([]byte, 0, maxPerVal), b...)
+		}
+		m.mutateBytes(&b)
+		vals[i] = string(b)
 	case []byte:
 		if len(v) > maxPerVal {
 			panic(fmt.Sprintf("cannot mutate bytes of length %d", len(v)))
@@ -76,16 +116,6 @@ func (m *mutator) mutate(vals []interface{}, maxBytes int) {
 		}
 		m.mutateBytes(&v)
 		vals[i] = v
-	case int8:
-		vals[i] = int8(m.mutateInt(int64(v), math.MaxInt8))
-	case int16:
-		vals[i] = int16(m.mutateInt(int64(v), math.MaxInt16))
-	case int32:
-		vals[i] = int32(m.mutateInt(int64(v), math.MaxInt32))
-	case int64:
-		vals[i] = m.mutateInt(v, int64(maxInt))
-	case int:
-		vals[i] = int(m.mutateInt(int64(v), int64(maxInt)))
 	default:
 		panic(fmt.Sprintf("type not supported for mutating: %T", vals[i]))
 	}
@@ -95,10 +125,78 @@ func (m *mutator) mutateInt(v, maxValue int64) int64 {
 	numIters := 1 + m.r.exp2()
 	var max int64
 	for iter := 0; iter < numIters; iter++ {
+		max = 100
 		switch m.rand(2) {
 		case 0:
 			// Add a random number
 			if v >= maxValue {
+				iter--
+				continue
+			}
+			if v > 0 && maxValue-v < max {
+				// Don't let v exceed maxValue
+				max = maxValue - v
+			}
+			v += int64(1 + m.rand(int(max)))
+		case 1:
+			// Subtract a random number
+			if v <= -maxValue {
+				iter--
+				continue
+			}
+			if v < 0 && maxValue+v < max {
+				// Don't let v drop below -maxValue
+				max = maxValue + v
+			}
+			v -= int64(1 + m.rand(int(max)))
+		}
+	}
+	return v
+}
+
+func (m *mutator) mutateUInt(v, maxValue uint64) uint64 {
+	numIters := 1 + m.r.exp2()
+	var max uint64
+	for iter := 0; iter < numIters; iter++ {
+		max = 100
+		switch m.rand(2) {
+		case 0:
+			// Add a random number
+			if v >= maxValue {
+				iter--
+				continue
+			}
+			if v > 0 && maxValue-v < max {
+				// Don't let v exceed maxValue
+				max = maxValue - v
+			}
+
+			v += uint64(1 + m.rand(int(max)))
+		case 1:
+			// Subtract a random number
+			if v <= 0 {
+				iter--
+				continue
+			}
+			if v < max {
+				// Don't let v drop below 0
+				max = v
+			}
+			v -= uint64(1 + m.rand(int(max)))
+		}
+	}
+	return v
+}
+
+func (m *mutator) mutateFloat(v, maxValue float64) float64 {
+	numIters := 1 + m.r.exp2()
+	var max float64
+	for iter := 0; iter < numIters; iter++ {
+		switch m.rand(4) {
+		case 0:
+			// Add a random number
+			if v >= maxValue {
+				iter--
 				continue
 			}
 			max = 100
@@ -106,10 +204,11 @@ func (m *mutator) mutateInt(v, maxValue int64) int64 {
 				// Don't let v exceed maxValue
 				max = maxValue - v
 			}
-			v += int64(m.rand(int(max)))
+			v += float64(1 + m.rand(int(max)))
 		case 1:
 			// Subtract a random number
 			if v <= -maxValue {
+				iter--
 				continue
 			}
 			max = 100
@@ -117,7 +216,27 @@ func (m *mutator) mutateInt(v, maxValue int64) int64 {
 				// Don't let v drop below -maxValue
 				max = maxValue + v
 			}
-			v -= int64(m.rand(int(max)))
+			v -= float64(1 + m.rand(int(max)))
+		case 2:
+			// Multiply by a random number
+			absV := math.Abs(v)
+			if v == 0 || absV >= maxValue {
+				iter--
+				continue
+			}
+			max = 10
+			if maxValue/absV < max {
+				// Don't let v go beyond the minimum or maximum value
+				max = maxValue / absV
+			}
+			v *= float64(1 + m.rand(int(max)))
+		case 3:
+			// Divide by a random number
+			if v == 0 {
+				iter--
+				continue
+			}
+			v /= float64(1 + m.rand(10))
 		}
 	}
 	return v
@@ -311,8 +430,8 @@ var (
 )
 
 const (
-	maxUint = ^uint(0)
-	maxInt  = maxUint >> 1
+	maxUint = uint64(^uint(0))
+	maxInt  = int64(maxUint >> 1)
 )
 
 func init() {
