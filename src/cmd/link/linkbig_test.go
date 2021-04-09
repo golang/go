@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io/ioutil"
-	"os"
 	"os/exec"
 	"testing"
 )
@@ -28,6 +27,10 @@ func TestLargeText(t *testing.T) {
 	var w bytes.Buffer
 	const FN = 4
 	tmpdir := t.TempDir()
+
+	if err := ioutil.WriteFile(tmpdir+"/go.mod", []byte("module big_test\n"), 0666); err != nil {
+		t.Fatal(err)
+	}
 
 	// Generate the scenario where the total amount of text exceeds the
 	// limit for the jmp/call instruction, on RISC architectures like ppc64le,
@@ -80,26 +83,28 @@ func TestLargeText(t *testing.T) {
 	}
 
 	// Build and run with internal linking.
-	os.Chdir(tmpdir)
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "bigtext")
+	cmd.Dir = tmpdir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Build failed for big text program with internal linking: %v, output: %s", err, out)
 	}
-	cmd = exec.Command(tmpdir + "/bigtext")
+	cmd = exec.Command("./bigtext")
+	cmd.Dir = tmpdir
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Program built with internal linking failed to run with err %v, output: %s", err, out)
 	}
 
 	// Build and run with external linking
-	os.Chdir(tmpdir)
 	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", "bigtext", "-ldflags", "'-linkmode=external'")
+	cmd.Dir = tmpdir
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Build failed for big text program with external linking: %v, output: %s", err, out)
 	}
-	cmd = exec.Command(tmpdir + "/bigtext")
+	cmd = exec.Command("./bigtext")
+	cmd.Dir = tmpdir
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Program built with external linking failed to run with err %v, output: %s", err, out)
