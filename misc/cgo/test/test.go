@@ -912,6 +912,9 @@ void cFunc37033(uintptr_t handle) { GoFunc37033(handle); }
 enum Enum40494 { X_40494 };
 union Union40494 { int x; };
 void issue40494(enum Enum40494 e, union Union40494* up) {}
+
+// Issue 45451, bad handling of go:notinheap types.
+typedef struct issue45451Undefined issue45451;
 */
 import "C"
 
@@ -2265,4 +2268,20 @@ var issue39877 *C.void = nil
 
 func Issue40494() {
 	C.issue40494(C.enum_Enum40494(C.X_40494), (*C.union_Union40494)(nil))
+}
+
+// Issue 45451.
+func test45451(t *testing.T) {
+	var u *C.issue45451
+	typ := reflect.ValueOf(u).Type().Elem()
+
+	// The type is undefined in C so allocating it should panic.
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic")
+		}
+	}()
+
+	_ = reflect.New(typ)
+	t.Errorf("reflect.New(%v) should have panicked", typ)
 }
