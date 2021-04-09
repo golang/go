@@ -22,18 +22,6 @@ go run check_testdata.go FuzzWithBug
 # the target, and should fail when run without fuzzing.
 ! go test
 
-# Running the fuzzer should find a crashing input quickly for fuzzing two types.
-! go test -run=FuzzWithTwoTypes -fuzz=FuzzWithTwoTypes -fuzztime=100x
-stdout 'testdata[/\\]corpus[/\\]FuzzWithTwoTypes[/\\]'
-stdout 'these inputs caused a crash!'
-go run check_testdata.go FuzzWithTwoTypes
-
-# Running the fuzzer should find a crashing input quickly for an integer
-! go test -run=FuzzInt -fuzz=FuzzInt -fuzztime=100x
-stdout 'testdata[/\\]corpus[/\\]FuzzInt[/\\]'
-stdout 'this input caused a crash!'
-go run check_testdata.go FuzzInt
-
 ! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=100x
 stdout 'testdata[/\\]corpus[/\\]FuzzWithNilPanic[/\\]'
 stdout 'runtime.Goexit'
@@ -62,6 +50,53 @@ go run check_testdata.go FuzzWithFatalf
 stdout 'testdata[/\\]corpus[/\\]FuzzWithBadExit[/\\]'
 stdout 'unexpectedly'
 go run check_testdata.go FuzzWithBadExit
+
+# Running the fuzzer should find a crashing input quickly for fuzzing two types.
+! go test -run=FuzzWithTwoTypes -fuzz=FuzzWithTwoTypes -fuzztime=100x
+stdout 'testdata[/\\]corpus[/\\]FuzzWithTwoTypes[/\\]'
+stdout 'these inputs caused a crash!'
+go run check_testdata.go FuzzWithTwoTypes
+
+# Running the fuzzer should find a crashing input quickly for an integer.
+! go test -run=FuzzInt -fuzz=FuzzInt -fuzztime=100x
+stdout 'testdata[/\\]corpus[/\\]FuzzInt[/\\]'
+stdout 'this input caused a crash!'
+go run check_testdata.go FuzzInt
+
+! go test -run=FuzzUint -fuzz=FuzzUint -fuzztime=100x
+stdout 'testdata[/\\]corpus[/\\]FuzzUint[/\\]'
+stdout 'this input caused a crash!'
+go run check_testdata.go FuzzUint
+
+# Running the fuzzer should find a crashing input quickly for a bool.
+! go test -run=FuzzBool -fuzz=FuzzBool -fuzztime=100x
+stdout 'testdata[/\\]corpus[/\\]FuzzBool[/\\]'
+stdout 'this input caused a crash!'
+go run check_testdata.go FuzzBool
+
+# Running the fuzzer should find a crashing input quickly for a float.
+! go test -run=FuzzFloat -fuzz=FuzzFloat -fuzztime=100x
+stdout 'testdata[/\\]corpus[/\\]FuzzFloat[/\\]'
+stdout 'this input caused a crash!'
+go run check_testdata.go FuzzFloat
+
+# Running the fuzzer should find a crashing input quickly for a byte.
+! go test -run=FuzzByte -fuzz=FuzzByte -fuzztime=100x
+stdout 'testdata[/\\]corpus[/\\]FuzzByte[/\\]'
+stdout 'this input caused a crash!'
+go run check_testdata.go FuzzByte
+
+# Running the fuzzer should find a crashing input quickly for a rune.
+! go test -run=FuzzRune -fuzz=FuzzRune -fuzztime=100x
+stdout 'testdata[/\\]corpus[/\\]FuzzRune[/\\]'
+stdout 'this input caused a crash!'
+go run check_testdata.go FuzzRune
+
+# Running the fuzzer should find a crashing input quickly for a string.
+! go test -run=FuzzString -fuzz=FuzzString -fuzztime=100x
+stdout 'testdata[/\\]corpus[/\\]FuzzString[/\\]'
+stdout 'this input caused a crash!'
+go run check_testdata.go FuzzString
 
 -- go.mod --
 module m
@@ -130,6 +165,15 @@ func FuzzWithFatalf(f *testing.F) {
 	})
 }
 
+func FuzzWithBadExit(f *testing.F) {
+	f.Add([]byte("aa"))
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if string(b) != "aa" {
+			os.Exit(1)
+		}
+	})
+}
+
 func FuzzWithTwoTypes(f *testing.F) {
 	f.Fuzz(func(t *testing.T, a, b []byte) {
 		if len(a) > 0 && len(b) > 0 {
@@ -140,17 +184,57 @@ func FuzzWithTwoTypes(f *testing.F) {
 
 func FuzzInt(f *testing.F) {
 	f.Fuzz(func(t *testing.T, a int) {
-		if 200 > a && a < 250 {
+		if a > 200 && a < 250 {
 			panic("this input caused a crash!")
 		}
 	})
 }
 
-func FuzzWithBadExit(f *testing.F) {
-	f.Add([]byte("aa"))
-	f.Fuzz(func(t *testing.T, b []byte) {
-		if string(b) != "aa" {
-			os.Exit(1)
+func FuzzUint(f *testing.F) {
+	f.Fuzz(func(t *testing.T, a uint) {
+		if a > 200 && a < 250 {
+			panic("this input caused a crash!")
+		}
+	})
+}
+
+func FuzzBool(f *testing.F) {
+	f.Fuzz(func(t *testing.T, a bool) {
+		if a {
+			panic("this input caused a crash!")
+		}
+	})
+}
+
+func FuzzFloat(f *testing.F) {
+	f.Fuzz(func(t *testing.T, a float64) {
+		if a != float64(int64(a)) {
+			// It has a decimal, so it was mutated by division
+			panic("this input caused a crash!")
+		}
+	})
+}
+
+func FuzzByte(f *testing.F) {
+	f.Fuzz(func(t *testing.T, a byte) {
+		if a > 50 {
+			panic("this input caused a crash!")
+		}
+	})
+}
+
+func FuzzRune(f *testing.F) {
+	f.Fuzz(func(t *testing.T, a rune) {
+		if a > 50 {
+			panic("this input caused a crash!")
+		}
+	})
+}
+
+func FuzzString(f *testing.F) {
+	f.Fuzz(func(t *testing.T, a string) {
+		if a != "" {
+			panic("this input caused a crash!")
 		}
 	})
 }
