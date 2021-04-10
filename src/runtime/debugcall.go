@@ -16,7 +16,7 @@ const (
 	debugCallUnsafePoint = "call not at safe point"
 )
 
-func debugCallV1()
+func debugCallV2()
 func debugCallPanicked(val interface{})
 
 // debugCallCheck checks whether it is safe to inject a debugger
@@ -96,7 +96,7 @@ func debugCallCheck(pc uintptr) string {
 // function at PC dispatch.
 //
 // This must be deeply nosplit because there are untyped values on the
-// stack from debugCallV1.
+// stack from debugCallV2.
 //
 //go:nosplit
 func debugCallWrap(dispatch uintptr) {
@@ -108,14 +108,16 @@ func debugCallWrap(dispatch uintptr) {
 	// Create a new goroutine to execute the call on. Run this on
 	// the system stack to avoid growing our stack.
 	systemstack(func() {
-		var args struct {
-			dispatch uintptr
-			callingG *g
-		}
-		args.dispatch = dispatch
-		args.callingG = gp
+		// TODO(mknyszek): It would be nice to wrap these arguments in an allocated
+		// closure and start the goroutine with that closure, but the compiler disallows
+		// implicit closure allocation in the runtime.
 		fn := debugCallWrap1
-		newg := newproc1(*(**funcval)(unsafe.Pointer(&fn)), unsafe.Pointer(&args), int32(unsafe.Sizeof(args)), gp, callerpc)
+		newg := newproc1(*(**funcval)(unsafe.Pointer(&fn)), nil, 0, gp, callerpc)
+		args := &debugCallWrapArgs{
+			dispatch: dispatch,
+			callingG: gp,
+		}
+		newg.param = unsafe.Pointer(args)
 
 		// If the current G is locked, then transfer that
 		// locked-ness to the new goroutine.
@@ -185,9 +187,19 @@ func debugCallWrap(dispatch uintptr) {
 	gp.asyncSafePoint = false
 }
 
+type debugCallWrapArgs struct {
+	dispatch uintptr
+	callingG *g
+}
+
 // debugCallWrap1 is the continuation of debugCallWrap on the callee
 // goroutine.
-func debugCallWrap1(dispatch uintptr, callingG *g) {
+func debugCallWrap1() {
+	gp := getg()
+	args := (*debugCallWrapArgs)(gp.param)
+	dispatch, callingG := args.dispatch, args.callingG
+	gp.param = nil
+
 	// Dispatch call and trap panics.
 	debugCallWrap2(dispatch)
 

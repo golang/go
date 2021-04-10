@@ -872,7 +872,7 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 	}
 
 	isAsyncPreempt := frame.fn.valid() && frame.fn.funcID == funcID_asyncPreempt
-	isDebugCall := frame.fn.valid() && frame.fn.funcID == funcID_debugCallV1
+	isDebugCall := frame.fn.valid() && frame.fn.funcID == funcID_debugCallV2
 	if state.conservative || isAsyncPreempt || isDebugCall {
 		if debugScanConservative {
 			println("conservatively scanning function", funcname(frame.fn), "at PC", hex(frame.continpc))

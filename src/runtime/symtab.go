@@ -316,7 +316,7 @@ const (
 	funcID_asmcgocall
 	funcID_asyncPreempt
 	funcID_cgocallback
-	funcID_debugCallV1
+	funcID_debugCallV2
 	funcID_gcBgMarkWorker
 	funcID_goexit
 	funcID_gogo
