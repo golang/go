@@ -78,6 +78,10 @@ func ListModules(ctx context.Context, args []string, mode ListMode) ([]*modinfo.
 }
 
 func listModules(ctx context.Context, rs *Requirements, args []string, mode ListMode) (_ *Requirements, mods []*modinfo.ModulePublic, mgErr error) {
+	if len(args) == 0 {
+		return rs, []*modinfo.ModulePublic{moduleInfo(ctx, rs, Target, mode)}, nil
+	}
+
 	var mg *ModuleGraph
 	if go117LazyTODO {
 		// Pull the args-loop below into another (new) loop.
@@ -88,10 +92,6 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 		// arguments are explicit version queries (including if no arguments are
 		// present at all).
 		rs, mg, mgErr = expandGraph(ctx, rs)
-	}
-
-	if len(args) == 0 {
-		return rs, []*modinfo.ModulePublic{moduleInfo(ctx, rs, Target, mode)}, mgErr
 	}
 
 	matchedModule := map[module.Version]bool{}
@@ -147,10 +147,6 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 			mod := moduleInfo(ctx, noRS, module.Version{Path: path, Version: info.Version}, mode)
 			mods = append(mods, mod)
 			continue
-		}
-
-		if go117LazyTODO {
-			ModRoot() // Unversioned paths require that we be inside a module.
 		}
 
 		// Module path or pattern.

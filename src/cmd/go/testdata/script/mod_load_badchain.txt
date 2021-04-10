@@ -22,7 +22,7 @@ cmp go.mod go.mod.orig
 
 # Update manually. Listing modules should produce an error.
 go mod edit -require=example.com/badchain/a@v1.1.0
-! go list -m
+! go list -m all
 cmp stderr list-expected
 
 # Try listing a package that imports a package
