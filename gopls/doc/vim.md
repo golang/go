@@ -164,7 +164,7 @@ a helper function in Lua:
 lua <<EOF
   -- …
 
-  function goimports(timeoutms)
+  function goimports(timeout_ms)
     local context = { source = { organizeImports = true } }
     vim.validate { context = { context, "t", true } }
 
