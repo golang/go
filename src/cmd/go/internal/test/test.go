@@ -1273,6 +1273,10 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 		c.saveOutput(a)
 	} else {
 		base.SetExitStatus(1)
+		if exitErr := (*exec.ExitError)(nil); errors.As(err, &exitErr) {
+			base.SetExitStatus(exitErr.ExitCode())
+		}
+
 		// If there was test output, assume we don't need to print the exit status.
 		// Buf there's no test output, do print the exit status.
 		if len(out) == 0 {
