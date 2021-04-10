@@ -4,16 +4,13 @@
 go mod init m
 go mod edit -require=rsc.io/quote@v1.5.1
 
-# 'go list' currently loads the whole build list, even when listing only
-# non-dependencies.
-#
-# TODO(#41297): Thes should not be errors.
+go list -m -mod=readonly rsc.io/quote@latest
+stdout '^rsc\.io/quote v1\.5\.2$'
+! stderr .
 
-! go list -m -mod=readonly rsc.io/quote@latest
-stderr '^go list -m: rsc\.io/quote@v1\.5\.1: missing go\.sum entry; to add it:\n\tgo mod download rsc\.io/quote$'
-
-! go list -m -mod=readonly -versions rsc.io/quote
-stderr '^go list -m: rsc\.io/quote@v1\.5\.1: missing go\.sum entry; to add it:\n\tgo mod download rsc\.io/quote$'
+go list -m -mod=readonly -versions rsc.io/quote
+stdout 'rsc\.io/quote v1\.0\.0 .* v1\.5\.3-pre1$'
+! stderr .
 
 # Incidentally fetching the required version of a module records its checksum,
 # just because it happens to be in the build list, and recording the checksum
@@ -21,8 +18,8 @@ stderr '^go list -m: rsc\.io/quote@v1\.5\.1: missing go\.sum entry; to add it:\n
 #
 # TODO(#41297): This should not be an error.
 ! go list -m -mod=readonly rsc.io/quote@<v1.5.2
-stderr '^go list -m: rsc\.io/quote@v1\.5\.1: missing go\.sum entry; to add it:\n\tgo mod download rsc\.io/quote$'
-! stderr '^go: updates to go.sum needed, disabled by -mod=readonly$'
+stderr '^go: updates to go.sum needed, disabled by -mod=readonly$'
+! stderr 'missing go.sum entry'
 
 # Attempting to list the versions of a module that is not a root dependency
 # causes the build list to be resolved (so that the selected version can *also*
