@@ -28,7 +28,7 @@ const (
 	FuncID_asmcgocall
 	FuncID_asyncPreempt
 	FuncID_cgocallback
-	FuncID_debugCallV1
+	FuncID_debugCallV2
 	FuncID_gcBgMarkWorker
 	FuncID_goexit
 	FuncID_gogo
@@ -53,7 +53,7 @@ var funcIDs = map[string]FuncID{
 	"asmcgocall":       FuncID_asmcgocall,
 	"asyncPreempt":     FuncID_asyncPreempt,
 	"cgocallback":      FuncID_cgocallback,
-	"debugCallV1":      FuncID_debugCallV1,
+	"debugCallV2":      FuncID_debugCallV2,
 	"gcBgMarkWorker":   FuncID_gcBgMarkWorker,
 	"go":               FuncID_rt0_go,
 	"goexit":           FuncID_goexit,
