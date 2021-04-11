@@ -257,7 +257,7 @@ func suggestedAnalysisFixes(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnos
 	for _, fix := range diag.SuggestedFixes {
 		edits := make(map[span.URI][]protocol.TextEdit)
 		for _, e := range fix.TextEdits {
-			spn, err := span.NewRange(snapshot.view.session.cache.fset, e.Pos, e.End).Span()
+			spn, err := span.NewRange(snapshot.FileSet(), e.Pos, e.End).Span()
 			if err != nil {
 				return nil, err
 			}
@@ -373,7 +373,7 @@ func parseGoListImportCycleError(snapshot *snapshot, e packages.Error, pkg *pkg)
 		// Search file imports for the import that is causing the import cycle.
 		for _, imp := range cgf.File.Imports {
 			if imp.Path.Value == circImp {
-				spn, err := span.NewRange(snapshot.view.session.cache.fset, imp.Pos(), imp.End()).Span()
+				spn, err := span.NewRange(snapshot.FileSet(), imp.Pos(), imp.End()).Span()
 				if err != nil {
 					return msg, span.Span{}, false
 				}

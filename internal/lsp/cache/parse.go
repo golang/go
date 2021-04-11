@@ -59,7 +59,7 @@ func (s *snapshot) parseGoHandle(ctx context.Context, fh source.FileHandle, mode
 	}
 	parseHandle := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
 		snapshot := arg.(*snapshot)
-		return parseGo(ctx, snapshot.view.session.cache.fset, fh, mode)
+		return parseGo(ctx, snapshot.FileSet(), fh, mode)
 	}, nil)
 
 	pgh := &parseGoHandle{
