@@ -13,7 +13,7 @@ import (
 	"syscall"
 )
 
-// Probe probes IPv4, IPv6 and IPv4-mapped IPv6 communication
+// probe probes IPv4, IPv6 and IPv4-mapped IPv6 communication
 // capabilities.
 //
 // Plan 9 uses IPv6 natively, see ip(3).
