@@ -248,19 +248,13 @@ func (s *Session) createView(ctx context.Context, name string, folder, tempWorks
 	snapshot := v.snapshot
 	release := snapshot.generation.Acquire(initCtx)
 	go func() {
+		defer release()
 		snapshot.initialize(initCtx, true)
-		if v.tempWorkspace != "" {
-			var err error
-			var wsdir span.URI
-			wsdir, err = snapshot.getWorkspaceDir(initCtx)
-			if err == nil {
-				err = copyWorkspace(v.tempWorkspace, wsdir)
-			}
-			if err != nil {
-				event.Error(ctx, "copying workspace dir", err)
-			}
+		// Ensure that the view workspace is written at least once following
+		// initialization.
+		if err := v.updateWorkspace(initCtx); err != nil {
+			event.Error(ctx, "copying workspace dir", err)
 		}
-		release()
 	}()
 	return v, snapshot, snapshot.generation.Acquire(ctx), nil
 }
