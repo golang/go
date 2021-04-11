@@ -7,6 +7,7 @@ package ld
 import (
 	"bytes"
 	"cmd/internal/codesign"
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
@@ -535,12 +536,31 @@ func (ctxt *Link) domacho() {
 		sb.AddUint8(0)
 	}
 
-	// Do not export C symbols dynamically in plugins, as runtime C symbols like crosscall2
-	// are in pclntab and end up pointing at the host binary, breaking unwinding.
-	// See Issue #18190.
+	// Un-export runtime symbols from plugins. Since the runtime
+	// is included in both the main binary and each plugin, these
+	// symbols appear in both images. If we leave them exported in
+	// the plugin, then the dynamic linker will resolve
+	// relocations to these functions in the plugin's functab to
+	// point to the main image, causing the runtime to think the
+	// plugin's functab is corrupted. By unexporting them, these
+	// become static references, which are resolved to the
+	// plugin's text.
+	//
+	// It would be better to omit the runtime from plugins. (Using
+	// relative PCs in the functab instead of relocations would
+	// also address this.)
+	//
+	// See issue #18190.
 	if ctxt.BuildMode == BuildModePlugin {
 		for _, name := range []string{"_cgo_topofstack", "__cgo_topofstack", "_cgo_panic", "crosscall2"} {
-			s := ctxt.loader.Lookup(name, 0)
+			// Most of these are data symbols or C
+			// symbols, so they have symbol version 0.
+			ver := 0
+			// _cgo_panic is a Go function, so it uses ABIInternal.
+			if name == "_cgo_panic" {
+				ver = sym.ABIToVersion(obj.ABIInternal)
+			}
+			s := ctxt.loader.Lookup(name, ver)
 			if s != 0 {
 				ctxt.loader.SetAttrCgoExportDynamic(s, false)
 			}
