@@ -558,11 +558,6 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 				v := s.newValue0A(ssa.OpArg, n.Type(), n)
 				s.vars[n] = v
 				s.addNamedValue(n, v) // This helps with debugging information, not needed for compilation itself.
-				// TODO(register args) Make liveness more fine-grained to that partial spilling is okay.
-				paramAssignment := ssa.ParamAssignmentForArgName(s.f, n)
-				if len(paramAssignment.Registers) > 1 && n.Type().HasPointers() { // 1 cannot be partially live
-					s.storeParameterRegsToStack(s.f.ABISelf, paramAssignment, n, s.decladdrs[n], true)
-				}
 			} else { // address was taken AND/OR too large for SSA
 				paramAssignment := ssa.ParamAssignmentForArgName(s.f, n)
 				if len(paramAssignment.Registers) > 0 {
@@ -6440,6 +6435,10 @@ type State struct {
 	// liveness analysis.
 	livenessMap liveness.Map
 
+	// partLiveArgs includes arguments that may be partially live, for which we
+	// need to generate instructions that spill the argument registers.
+	partLiveArgs map[*ir.Name]bool
+
 	// lineRunStart records the beginning of the current run of instructions
 	// within a single block sharing the same line number
 	// Used to move statement marks to the beginning of such runs.
@@ -6525,7 +6524,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 
 	e := f.Frontend().(*ssafn)
 
-	s.livenessMap = liveness.Compute(e.curfn, f, e.stkptrsize, pp)
+	s.livenessMap, s.partLiveArgs = liveness.Compute(e.curfn, f, e.stkptrsize, pp)
 
 	openDeferInfo := e.curfn.LSym.Func().OpenCodedDeferInfo
 	if openDeferInfo != nil {
@@ -6867,10 +6866,60 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
 	pp.Text.To.Val = int32(types.Rnd(f.OwnAux.ArgWidth(), int64(types.RegSize)))
 	pp.Text.To.Offset = frame
 
+	p := pp.Text
+
+	// Insert code to spill argument registers if the named slot may be partially
+	// live. That is, the named slot is considered live by liveness analysis,
+	// (because a part of it is live), but we may not spill all parts into the
+	// slot. This can only happen with aggregate-typed arguments that are SSA-able
+	// and not address-taken (for non-SSA-able or address-taken arguments we always
+	// spill upfront).
+	// TODO(register args) Make liveness more fine-grained to that partial spilling is okay.
+	if objabi.Experiment.RegabiArgs {
+		// First, see if it is already spilled before it may be live. Look for a spill
+		// in the entry block up to the first safepoint.
+		type nameOff struct {
+			n   *ir.Name
+			off int64
+		}
+		partLiveArgsSpilled := make(map[nameOff]bool)
+		for _, v := range f.Entry.Values {
+			if v.Op.IsCall() {
+				break
+			}
+			if v.Op != ssa.OpStoreReg || v.Args[0].Op != ssa.OpArgIntReg {
+				continue
+			}
+			n, off := ssa.AutoVar(v)
+			if n.Class != ir.PPARAM || n.Addrtaken() || !TypeOK(n.Type()) || !s.partLiveArgs[n] {
+				continue
+			}
+			partLiveArgsSpilled[nameOff{n, off}] = true
+		}
+
+		// Then, insert code to spill registers if not already.
+		for _, a := range f.OwnAux.ABIInfo().InParams() {
+			n, ok := a.Name.(*ir.Name)
+			if !ok || n.Addrtaken() || !TypeOK(n.Type()) || !s.partLiveArgs[n] || len(a.Registers) <= 1 {
+				continue
+			}
+			rts, offs := a.RegisterTypesAndOffsets()
+			for i := range a.Registers {
+				if !rts[i].HasPointers() {
+					continue
+				}
+				if partLiveArgsSpilled[nameOff{n, offs[i]}] {
+					continue // already spilled
+				}
+				reg := ssa.ObjRegForAbiReg(a.Registers[i], f.Config)
+				p = Arch.SpillArgReg(pp, p, f, rts[i], reg, n, offs[i])
+			}
+		}
+	}
+
 	// Insert code to zero ambiguously live variables so that the
 	// garbage collector only sees initialized values when it
 	// looks for pointers.
-	p := pp.Text
 	var lo, hi int64
 
 	// Opaque state for backend to use. Current backends use it to

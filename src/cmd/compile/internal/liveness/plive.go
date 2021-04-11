@@ -141,6 +141,11 @@ type liveness struct {
 
 	cache progeffectscache
 
+	// partLiveArgs includes input arguments (PPARAM) that may
+	// be partially live. That is, it is considered live because
+	// a part of it is used, but we may not initialize all parts.
+	partLiveArgs map[*ir.Name]bool
+
 	doClobber bool // Whether to clobber dead stack slots in this function.
 }
 
@@ -268,6 +273,12 @@ func (lv *liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 		}
 	}
 
+	if n.Class == ir.PPARAM && !n.Addrtaken() && n.Type().Width > int64(types.PtrSize) {
+		// Only aggregate-typed arguments that are not address-taken can be
+		// partially live.
+		lv.partLiveArgs[n] = true
+	}
+
 	var effect liveEffect
 	// Read is a read, obviously.
 	//
@@ -393,6 +404,8 @@ func newliveness(fn *ir.Func, f *ssa.Func, vars []*ir.Name, idx map[*ir.Name]int
 	lv.livenessMap.reset()
 
 	lv.markUnsafePoints()
+
+	lv.partLiveArgs = make(map[*ir.Name]bool)
 
 	lv.enableClobber()
 
@@ -1310,8 +1323,9 @@ func (lv *liveness) emit() (argsSym, liveSym *obj.LSym) {
 // Entry pointer for Compute analysis. Solves for the Compute of
 // pointer variables in the function and emits a runtime data
 // structure read by the garbage collector.
-// Returns a map from GC safe points to their corresponding stack map index.
-func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs) Map {
+// Returns a map from GC safe points to their corresponding stack map index,
+// and a map that contains all input parameters that may be partially live.
+func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs) (Map, map[*ir.Name]bool) {
 	// Construct the global liveness state.
 	vars, idx := getvariables(curfn)
 	lv := newliveness(curfn, f, vars, idx, stkptrsize)
@@ -1373,7 +1387,7 @@ func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs) Map 
 		p.To.Sym = x
 	}
 
-	return lv.livenessMap
+	return lv.livenessMap, lv.partLiveArgs
 }
 
 func (lv *liveness) emitStackObjects() *obj.LSym {
