@@ -971,6 +971,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 
 	// Update GC trigger and pacing for the next cycle.
 	gcController.commit(nextTriggerRatio)
+	gcPaceSweeper(gcController.trigger)
 	gcPaceScavenger(gcController.heapGoal, gcController.lastHeapGoal)
 
 	// Update timing memstats
