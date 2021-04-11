@@ -268,13 +268,14 @@ func (c *gcControllerState) init(gcPercent int32) {
 // startCycle resets the GC controller's state and computes estimates
 // for a new GC cycle. The caller must hold worldsema and the world
 // must be stopped.
-func (c *gcControllerState) startCycle() {
+func (c *gcControllerState) startCycle(markStartTime int64) {
 	c.scanWork = 0
 	c.bgScanCredit = 0
 	c.assistTime = 0
 	c.dedicatedMarkTime = 0
 	c.fractionalMarkTime = 0
 	c.idleMarkTime = 0
+	c.markStartTime = markStartTime
 
 	// Ensure that the heap goal is at least a little larger than
 	// the current live heap size. This may not be the case if GC
@@ -441,6 +442,10 @@ func (c *gcControllerState) revise() {
 // userForced indicates whether the current GC cycle was forced
 // by the application.
 func (c *gcControllerState) endCycle(userForced bool) float64 {
+	// Record last heap goal for the scavenger.
+	// We'll be updating the heap goal soon.
+	gcController.lastHeapGoal = gcController.heapGoal
+
 	if userForced {
 		// Forced GC means this cycle didn't start at the
 		// trigger, so where it finished isn't good
@@ -628,6 +633,40 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		traceGoUnpark(gp, 0)
 	}
 	return gp
+}
+
+// resetLive sets up the controller state for the next mark phase after the end
+// of the previous one. Must be called after endCycle and before commit, before
+// the world is started.
+//
+// The world must be stopped.
+func (c *gcControllerState) resetLive(bytesMarked uint64) {
+	c.heapMarked = bytesMarked
+	c.heapLive = bytesMarked
+	c.heapScan = uint64(c.scanWork)
+
+	// heapLive was updated, so emit a trace event.
+	if trace.enabled {
+		traceHeapAlloc()
+	}
+}
+
+// logWorkTime updates mark work accounting in the controller by a duration of
+// work in nanoseconds.
+//
+// Safe to execute at any time.
+func (c *gcControllerState) logWorkTime(mode gcMarkWorkerMode, duration int64) {
+	switch mode {
+	case gcMarkWorkerDedicatedMode:
+		atomic.Xaddint64(&c.dedicatedMarkTime, duration)
+		atomic.Xaddint64(&c.dedicatedMarkWorkersNeeded, 1)
+	case gcMarkWorkerFractionalMode:
+		atomic.Xaddint64(&c.fractionalMarkTime, duration)
+	case gcMarkWorkerIdleMode:
+		atomic.Xaddint64(&c.idleMarkTime, duration)
+	default:
+		throw("logWorkTime: unknown mark worker mode")
+	}
 }
 
 // commit sets the trigger ratio and updates everything

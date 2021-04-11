@@ -661,7 +661,9 @@ func gcStart(trigger gcTrigger) {
 
 	work.cycles++
 
-	gcController.startCycle()
+	// Assists and workers can start the moment we start
+	// the world.
+	gcController.startCycle(now)
 	work.heapGoal = gcController.heapGoal
 
 	// In STW mode, disable scheduling of user Gs. This may also
@@ -703,10 +705,6 @@ func gcStart(trigger gcTrigger) {
 	// put back-pressure on fast allocating
 	// mutators.
 	atomic.Store(&gcBlackenEnabled, 1)
-
-	// Assists and workers can start the moment we start
-	// the world.
-	gcController.markStartTime = now
 
 	// In STW mode, we could block the instant systemstack
 	// returns, so make sure we're not preemptible.
@@ -965,8 +963,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 		throw("gc done but gcphase != _GCoff")
 	}
 
-	// Record heapGoal and heap_inuse for scavenger.
-	gcController.lastHeapGoal = gcController.heapGoal
+	// Record heap_inuse for scavenger.
 	memstats.last_heap_inuse = memstats.heap_inuse
 
 	// Update GC trigger and pacing for the next cycle.
@@ -1291,15 +1288,9 @@ func gcBgMarkWorker() {
 
 		// Account for time.
 		duration := nanotime() - startTime
-		switch pp.gcMarkWorkerMode {
-		case gcMarkWorkerDedicatedMode:
-			atomic.Xaddint64(&gcController.dedicatedMarkTime, duration)
-			atomic.Xaddint64(&gcController.dedicatedMarkWorkersNeeded, 1)
-		case gcMarkWorkerFractionalMode:
-			atomic.Xaddint64(&gcController.fractionalMarkTime, duration)
+		gcController.logWorkTime(pp.gcMarkWorkerMode, duration)
+		if pp.gcMarkWorkerMode == gcMarkWorkerFractionalMode {
 			atomic.Xaddint64(&pp.gcFractionalMarkTime, duration)
-		case gcMarkWorkerIdleMode:
-			atomic.Xaddint64(&gcController.idleMarkTime, duration)
 		}
 
 		// Was this the last worker and did we run out
@@ -1419,30 +1410,22 @@ func gcMark(startTime int64) {
 		gcw.dispose()
 	}
 
-	// Update the marked heap stat.
-	gcController.heapMarked = work.bytesMarked
-
 	// Flush scanAlloc from each mcache since we're about to modify
 	// heapScan directly. If we were to flush this later, then scanAlloc
 	// might have incorrect information.
+	//
+	// Note that it's not important to retain this information; we know
+	// exactly what heapScan is at this point via scanWork.
 	for _, p := range allp {
 		c := p.mcache
 		if c == nil {
 			continue
 		}
-		gcController.heapScan += uint64(c.scanAlloc)
 		c.scanAlloc = 0
 	}
 
-	// Update other GC heap size stats. This must happen after
-	// cachestats (which flushes local statistics to these) and
-	// flushallmcaches (which modifies gcController.heapLive).
-	gcController.heapLive = work.bytesMarked
-	gcController.heapScan = uint64(gcController.scanWork)
-
-	if trace.enabled {
-		traceHeapAlloc()
-	}
+	// Reset controller state.
+	gcController.resetLive(work.bytesMarked)
 }
 
 // gcSweep must be called on the system stack because it acquires the heap
