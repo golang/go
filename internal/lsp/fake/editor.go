@@ -256,9 +256,7 @@ func (e *Editor) configuration() map[string]interface{} {
 		config["importShortcut"] = e.Config.ImportShortcut
 	}
 
-	// TODO(rFindley): change to the new settings name once it is no longer
-	// designated experimental.
-	config["experimentalDiagnosticsDelay"] = "10ms"
+	config["diagnosticsDelay"] = "10ms"
 
 	// ExperimentalWorkspaceModule is only set as a mode, not a configuration.
 	return config

@@ -308,11 +308,11 @@ Can contain any of:
 
 Default: `{"bounds":true,"escape":true,"inline":true,"nil":true}`.
 
-##### **experimentalDiagnosticsDelay** *time.Duration*
+##### **diagnosticsDelay** *time.Duration*
 
-**This setting is experimental and may be deleted.**
+**This is an advanced setting and should not be configured by most `gopls` users.**
 
-experimentalDiagnosticsDelay controls the amount of time that gopls waits
+diagnosticsDelay controls the amount of time that gopls waits
 after the most recent file modification before computing deep diagnostics.
 Simple diagnostics (parsing and type-checking) are always run immediately
 on recently modified packages.

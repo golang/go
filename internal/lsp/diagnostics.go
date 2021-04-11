@@ -108,9 +108,9 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.U
 	ctx, done := event.Start(ctx, "Server.diagnoseSnapshot", tag.Snapshot.Of(snapshot.ID()))
 	defer done()
 
-	delay := snapshot.View().Options().ExperimentalDiagnosticsDelay
+	delay := snapshot.View().Options().DiagnosticsDelay
 	if delay > 0 {
-		// Experimental 2-phase diagnostics.
+		// 2-phase diagnostics.
 		//
 		// The first phase just parses and checks packages that have been
 		// affected by file modifications (no analysis).
