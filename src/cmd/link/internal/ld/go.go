@@ -101,29 +101,6 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 		return
 	}
 
-	// Find cgo_export symbols. They are roots in the deadcode pass.
-	for _, f := range directives {
-		switch f[0] {
-		case "cgo_export_static", "cgo_export_dynamic":
-			if len(f) < 2 || len(f) > 3 {
-				continue
-			}
-			local := f[1]
-			switch ctxt.BuildMode {
-			case BuildModeCShared, BuildModeCArchive, BuildModePlugin:
-				if local == "main" {
-					continue
-				}
-			}
-			local = expandpkg(local, pkg)
-			if f[0] == "cgo_export_static" {
-				ctxt.cgo_export_static[local] = true
-			} else {
-				ctxt.cgo_export_dynamic[local] = true
-			}
-		}
-	}
-
 	// Record the directives. We'll process them later after Symbols are created.
 	ctxt.cgodata = append(ctxt.cgodata, cgodata{file, pkg, directives})
 }
@@ -254,11 +231,16 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 				return
 			}
 
+			// Mark exported symbols and also add them to
+			// the lists used for roots in the deadcode pass.
 			if f[0] == "cgo_export_static" {
 				l.SetAttrCgoExportStatic(s, true)
+				ctxt.cgo_export_static[local] = true
 			} else {
 				l.SetAttrCgoExportDynamic(s, true)
+				ctxt.cgo_export_dynamic[local] = true
 			}
+
 			continue
 
 		case "cgo_dynamic_linker":
