@@ -541,10 +541,8 @@ func freedeferfn() {
 // modifying the caller's frame in order to reuse the frame to call the deferred
 // function.
 //
-// The single argument isn't actually used - it just has its address
-// taken so it can be matched against pending defers.
 //go:nosplit
-func deferreturn(arg0 uintptr) {
+func deferreturn() {
 	gp := getg()
 	d := gp._defer
 	if d == nil {
@@ -570,13 +568,14 @@ func deferreturn(arg0 uintptr) {
 	// nosplit because the garbage collector won't know the form
 	// of the arguments until the jmpdefer can flip the PC over to
 	// fn.
+	argp := getcallersp() + sys.MinFrameSize
 	switch d.siz {
 	case 0:
 		// Do nothing.
 	case sys.PtrSize:
-		*(*uintptr)(unsafe.Pointer(&arg0)) = *(*uintptr)(deferArgs(d))
+		*(*uintptr)(unsafe.Pointer(argp)) = *(*uintptr)(deferArgs(d))
 	default:
-		memmove(unsafe.Pointer(&arg0), deferArgs(d), uintptr(d.siz))
+		memmove(unsafe.Pointer(argp), deferArgs(d), uintptr(d.siz))
 	}
 	fn := d.fn
 	d.fn = nil
@@ -588,7 +587,7 @@ func deferreturn(arg0 uintptr) {
 	// stack, because the stack trace can be incorrect in that case - see
 	// issue #8153).
 	_ = fn.fn
-	jmpdefer(fn, uintptr(unsafe.Pointer(&arg0)))
+	jmpdefer(fn, argp)
 }
 
 // Goexit terminates the goroutine that calls it. No other goroutine is affected.
@@ -911,7 +910,7 @@ func reflectcallSave(p *_panic, fn, arg unsafe.Pointer, argsize uint32) {
 		throw("not allowed with GOEXPERIMENT=regabidefer")
 	}
 	if p != nil {
-		p.argp = unsafe.Pointer(getargp(0))
+		p.argp = unsafe.Pointer(getargp())
 		p.pc = getcallerpc()
 		p.sp = unsafe.Pointer(getcallersp())
 	}
@@ -937,7 +936,7 @@ func deferCallSave(p *_panic, fn func()) {
 		throw("only allowed with GOEXPERIMENT=regabidefer")
 	}
 	if p != nil {
-		p.argp = unsafe.Pointer(getargp(0))
+		p.argp = unsafe.Pointer(getargp())
 		p.pc = getcallerpc()
 		p.sp = unsafe.Pointer(getcallersp())
 	}
@@ -1034,7 +1033,7 @@ func gopanic(e interface{}) {
 				addOneOpenDeferFrame(gp, 0, nil)
 			}
 		} else {
-			p.argp = unsafe.Pointer(getargp(0))
+			p.argp = unsafe.Pointer(getargp())
 
 			if goexperiment.RegabiDefer {
 				fn := deferFunc(d)
@@ -1146,9 +1145,8 @@ func gopanic(e interface{}) {
 // writes outgoing function call arguments.
 //go:nosplit
 //go:noinline
-func getargp(x int) uintptr {
-	// x is an argument mainly so that we can return its address.
-	return uintptr(noescape(unsafe.Pointer(&x)))
+func getargp() uintptr {
+	return getcallersp() + sys.MinFrameSize
 }
 
 // The implementation of the predeclared function recover.
