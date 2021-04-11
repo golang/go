@@ -132,9 +132,9 @@ func (ip IP) IsLoopback() bool {
 // RFC 1918 (IPv4 addresses) and RFC 4193 (IPv6 addresses).
 func (ip IP) IsPrivate() bool {
 	if ip4 := ip.To4(); ip4 != nil {
-		// Following RFC 4193, Section 3. Local IPv6 Unicast Addresses which says:
+		// Following RFC 1918, Section 3. Private Address Space which says:
 		//   The Internet Assigned Numbers Authority (IANA) has reserved the
-		//   following three blocks of the IPv4 address space for private internets:
+		//   following three blocks of the IP address space for private internets:
 		//     10.0.0.0        -   10.255.255.255  (10/8 prefix)
 		//     172.16.0.0      -   172.31.255.255  (172.16/12 prefix)
 		//     192.168.0.0     -   192.168.255.255 (192.168/16 prefix)
@@ -142,10 +142,8 @@ func (ip IP) IsPrivate() bool {
 			(ip4[0] == 172 && ip4[1]&0xf0 == 16) ||
 			(ip4[0] == 192 && ip4[1] == 168)
 	}
-	// Following RFC 4193, Section 3. Private Address Space which says:
-	//   The Internet Assigned Numbers Authority (IANA) has reserved the
-	//   following block of the IPv6 address space for local internets:
-	//     FC00::  -  FDFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF (FC00::/7 prefix)
+	// Following RFC 4193, Section 8. IANA Considerations which says:
+	//   The IANA has assigned the FC00::/7 prefix to "Unique Local Unicast".
 	return len(ip) == IPv6len && ip[0]&0xfe == 0xfc
 }
 
