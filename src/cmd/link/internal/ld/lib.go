@@ -681,7 +681,7 @@ func (ctxt *Link) loadcgodirectives() {
 	l := ctxt.loader
 	hostObjSyms := make(map[loader.Sym]struct{})
 	for _, d := range ctxt.cgodata {
-		setCgoAttr(ctxt, ctxt.loader.LookupOrCreateSym, d.file, d.pkg, d.directives, hostObjSyms)
+		setCgoAttr(ctxt, d.file, d.pkg, d.directives, hostObjSyms)
 	}
 	ctxt.cgodata = nil
 

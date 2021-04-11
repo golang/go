@@ -130,7 +130,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 
 // Set symbol attributes or flags based on cgo directives.
 // Any newly discovered HOSTOBJ syms are added to 'hostObjSyms'.
-func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pkg string, directives [][]string, hostObjSyms map[loader.Sym]struct{}) {
+func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, hostObjSyms map[loader.Sym]struct{}) {
 	l := ctxt.loader
 	for _, f := range directives {
 		switch f[0] {
@@ -173,7 +173,7 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pk
 			if i := strings.Index(remote, "#"); i >= 0 {
 				remote, q = remote[:i], remote[i+1:]
 			}
-			s := lookup(local, 0)
+			s := l.LookupOrCreateSym(local, 0)
 			st := l.SymType(s)
 			if st == 0 || st == sym.SXREF || st == sym.SBSS || st == sym.SNOPTRBSS || st == sym.SHOSTOBJ {
 				l.SetSymDynimplib(s, lib)
@@ -199,7 +199,7 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pk
 			}
 			local := f[1]
 
-			s := lookup(local, 0)
+			s := l.LookupOrCreateSym(local, 0)
 			su := l.MakeSymbolUpdater(s)
 			su.SetType(sym.SHOSTOBJ)
 			su.SetSize(0)
@@ -222,7 +222,7 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pk
 			// functions. Link.loadlib will resolve any
 			// ABI aliases we find here (since we may not
 			// yet know it's an alias).
-			s := lookup(local, 0)
+			s := l.LookupOrCreateSym(local, 0)
 
 			if l.SymType(s) == sym.SHOSTOBJ {
 				hostObjSyms[s] = struct{}{}
@@ -230,7 +230,7 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pk
 
 			switch ctxt.BuildMode {
 			case BuildModeCShared, BuildModeCArchive, BuildModePlugin:
-				if s == lookup("main", 0) {
+				if s == l.Lookup("main", 0) {
 					continue
 				}
 			}
