@@ -859,13 +859,13 @@ func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
 		if p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpSP {
 			return true
 		}
-		return p2.Op == OpArg && p1.Args[0].Op == OpSP
-	case OpArg:
+		return (p2.Op == OpArg || p2.Op == OpArgIntReg) && p1.Args[0].Op == OpSP
+	case OpArg, OpArgIntReg:
 		if p2.Op == OpSP || p2.Op == OpLocalAddr {
 			return true
 		}
 	case OpSP:
-		return p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpArg || p2.Op == OpSP
+		return p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpArg || p2.Op == OpArgIntReg || p2.Op == OpSP
 	}
 	return false
 }

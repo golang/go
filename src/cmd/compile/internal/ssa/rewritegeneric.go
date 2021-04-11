@@ -20796,6 +20796,64 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		v.AddArg3(dst, src, mem)
 		return true
 	}
+	// match: (SelectN [0] call:(StaticCall {sym} dst src (Const64 [sz]) mem))
+	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
+	// result: (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		call := v_0
+		if call.Op != OpStaticCall || len(call.Args) != 4 {
+			break
+		}
+		sym := auxToCall(call.Aux)
+		mem := call.Args[3]
+		dst := call.Args[0]
+		src := call.Args[1]
+		call_2 := call.Args[2]
+		if call_2.Op != OpConst64 {
+			break
+		}
+		sz := auxIntToInt64(call_2.AuxInt)
+		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = int64ToAuxInt(int64(sz))
+		v.Aux = typeToAux(dst.Type.Elem())
+		v.AddArg3(dst, src, mem)
+		return true
+	}
+	// match: (SelectN [0] call:(StaticCall {sym} dst src (Const32 [sz]) mem))
+	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
+	// result: (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		call := v_0
+		if call.Op != OpStaticCall || len(call.Args) != 4 {
+			break
+		}
+		sym := auxToCall(call.Aux)
+		mem := call.Args[3]
+		dst := call.Args[0]
+		src := call.Args[1]
+		call_2 := call.Args[2]
+		if call_2.Op != OpConst32 {
+			break
+		}
+		sz := auxIntToInt32(call_2.AuxInt)
+		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = int64ToAuxInt(int64(sz))
+		v.Aux = typeToAux(dst.Type.Elem())
+		v.AddArg3(dst, src, mem)
+		return true
+	}
 	// match: (SelectN [0] call:(StaticLECall {sym} dst src (Const64 [sz]) mem))
 	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
 	// result: (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
