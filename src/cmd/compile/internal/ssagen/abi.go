@@ -108,12 +108,20 @@ func (s *SymABIs) ReadSymABIs(file string) {
 // GenABIWrappers applies ABI information to Funcs and generates ABI
 // wrapper functions where necessary.
 func (s *SymABIs) GenABIWrappers() {
-	// The linker expects an ABI0 wrapper for all cgo-exported
-	// functions.
-	for _, prag := range typecheck.Target.CgoPragmas {
+	// For cgo exported symbols, we tell the linker to export the
+	// definition ABI to C. That also means that we don't want to
+	// create ABI wrappers even if there's a linkname.
+	//
+	// TODO(austin): Maybe we want to create the ABI wrappers, but
+	// ensure the linker exports the right ABI definition under
+	// the unmangled name?
+	cgoExports := make(map[string][]*[]string)
+	for i, prag := range typecheck.Target.CgoPragmas {
 		switch prag[0] {
 		case "cgo_export_static", "cgo_export_dynamic":
-			s.refs[s.canonicalize(prag[1])] |= obj.ABISetOf(obj.ABI0)
+			symName := s.canonicalize(prag[1])
+			pprag := &typecheck.Target.CgoPragmas[i]
+			cgoExports[symName] = append(cgoExports[symName], pprag)
 		}
 	}
 
@@ -153,6 +161,27 @@ func (s *SymABIs) GenABIWrappers() {
 			fn.ABI = obj.ABI0
 		}
 
+		// If cgo-exported, add the definition ABI to the cgo
+		// pragmas.
+		cgoExport := cgoExports[symName]
+		for _, pprag := range cgoExport {
+			// The export pragmas have the form:
+			//
+			//   cgo_export_* <local> [<remote>]
+			//
+			// If <remote> is omitted, it's the same as
+			// <local>.
+			//
+			// Expand to
+			//
+			//   cgo_export_* <local> <remote> <ABI>
+			if len(*pprag) == 2 {
+				*pprag = append(*pprag, (*pprag)[1])
+			}
+			// Add the ABI argument.
+			*pprag = append(*pprag, fn.ABI.String())
+		}
+
 		// Apply references.
 		if abis, ok := s.refs[symName]; ok {
 			fn.ABIRefs |= abis
@@ -169,9 +198,19 @@ func (s *SymABIs) GenABIWrappers() {
 		// it's defined in this package since other packages
 		// may "pull" symbols using linkname and we don't want
 		// to create duplicate ABI wrappers.
+		//
+		// However, if it's given a linkname for exporting to
+		// C, then we don't make ABI wrappers because the cgo
+		// tool wants the original definition.
 		hasBody := len(fn.Body) != 0
-		if sym.Linkname != "" && (hasBody || hasDefABI) {
+		if sym.Linkname != "" && (hasBody || hasDefABI) && len(cgoExport) == 0 {
 			fn.ABIRefs |= obj.ABISetCallable
+		}
+
+		// Double check that cgo-exported symbols don't get
+		// any wrappers.
+		if len(cgoExport) > 0 && fn.ABIRefs&^obj.ABISetOf(fn.ABI) != 0 {
+			base.Fatalf("cgo exported function %s cannot have ABI wrappers", fn)
 		}
 
 		if !objabi.Experiment.RegabiWrappers {

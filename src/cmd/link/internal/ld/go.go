@@ -9,6 +9,7 @@ package ld
 import (
 	"bytes"
 	"cmd/internal/bio"
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
@@ -184,7 +185,7 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 			continue
 
 		case "cgo_export_static", "cgo_export_dynamic":
-			if len(f) < 2 || len(f) > 3 {
+			if len(f) < 2 || len(f) > 4 {
 				break
 			}
 			local := f[1]
@@ -193,13 +194,20 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 				remote = f[2]
 			}
 			local = expandpkg(local, pkg)
+			// The compiler adds a fourth argument giving
+			// the definition ABI of function symbols.
+			abi := obj.ABI0
+			if len(f) > 3 {
+				var ok bool
+				abi, ok = obj.ParseABI(f[3])
+				if !ok {
+					fmt.Fprintf(os.Stderr, "%s: bad ABI in cgo_export directive %s\n", os.Args[0], f)
+					nerrors++
+					return
+				}
+			}
 
-			// The compiler arranges for an ABI0 wrapper
-			// to be available for all cgo-exported
-			// functions. Link.loadlib will resolve any
-			// ABI aliases we find here (since we may not
-			// yet know it's an alias).
-			s := l.LookupOrCreateSym(local, 0)
+			s := l.LookupOrCreateSym(local, sym.ABIToVersion(abi))
 
 			if l.SymType(s) == sym.SHOSTOBJ {
 				hostObjSyms[s] = struct{}{}
@@ -238,6 +246,14 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 					// Static cgo exports appear
 					// in the exported symbol table.
 					ctxt.dynexp = append(ctxt.dynexp, s)
+				}
+				if ctxt.LinkMode == LinkInternal {
+					// For internal linking, we're
+					// responsible for resolving
+					// relocations from host objects.
+					// Record the right Go symbol
+					// version to use.
+					l.AddCgoExport(s)
 				}
 				l.SetAttrCgoExportStatic(s, true)
 			} else {
@@ -435,16 +451,6 @@ func (ctxt *Link) addexport() {
 		// Consistency check.
 		if !ctxt.loader.AttrReachable(s) {
 			panic("dynexp entry not reachable")
-		}
-
-		// Resolve ABI aliases in the list of cgo-exported functions.
-		// This is necessary because we load the ABI0 symbol for all
-		// cgo exports.
-		if ctxt.loader.SymType(s) == sym.SABIALIAS {
-			t := ctxt.loader.ResolveABIAlias(s)
-			ctxt.loader.CopyAttributes(s, t)
-			ctxt.loader.SetSymExtname(t, ctxt.loader.SymExtname(s))
-			s = t
 		}
 
 		Adddynsym(ctxt.loader, &ctxt.Target, &ctxt.ArchSyms, s)

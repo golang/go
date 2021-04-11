@@ -257,6 +257,9 @@ type Loader struct {
 	// the symbol that triggered the marking of symbol K as live.
 	Reachparent []Sym
 
+	// CgoExports records cgo-exported symbols by SymName.
+	CgoExports map[string]Sym
+
 	flags uint32
 
 	hasUnknownPkgPath bool // if any Go object has unknown package path
@@ -512,6 +515,36 @@ func (l *Loader) LookupOrCreateSym(name string, ver int) Sym {
 		l.symsByName[ver][name] = i
 	}
 	return i
+}
+
+// AddCgoExport records a cgo-exported symbol in l.CgoExports.
+// This table is used to identify the correct Go symbol ABI to use
+// to resolve references from host objects (which don't have ABIs).
+func (l *Loader) AddCgoExport(s Sym) {
+	if l.CgoExports == nil {
+		l.CgoExports = make(map[string]Sym)
+	}
+	l.CgoExports[l.SymName(s)] = s
+}
+
+// LookupOrCreateCgoExport is like LookupOrCreateSym, but if ver
+// indicates a global symbol, it uses the CgoExport table to determine
+// the appropriate symbol version (ABI) to use. ver must be either 0
+// or a static symbol version.
+func (l *Loader) LookupOrCreateCgoExport(name string, ver int) Sym {
+	if ver >= sym.SymVerStatic {
+		return l.LookupOrCreateSym(name, ver)
+	}
+	if ver != 0 {
+		panic("ver must be 0 or a static version")
+	}
+	// Look for a cgo-exported symbol from Go.
+	if s, ok := l.CgoExports[name]; ok {
+		return s
+	}
+	// Otherwise, this must just be a symbol in the host object.
+	// Create a version 0 symbol for it.
+	return l.LookupOrCreateSym(name, 0)
 }
 
 func (l *Loader) IsExternal(i Sym) bool {
