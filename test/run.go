@@ -446,6 +446,18 @@ func (ctxt *context) match(name string) bool {
 	}
 
 	exp := os.Getenv("GOEXPERIMENT")
+	if exp == "" {
+		// If GOEXPERIMENT environment variable is unset, get the default value
+		// that is baked into the toolchain.
+		cmd := exec.Command(goTool(), "tool", "compile", "-V")
+		out, err := cmd.CombinedOutput()
+		if err == nil {
+			i := bytes.Index(out, []byte("X:"))
+			if i != -1 {
+				exp = string(out[i+2:])
+			}
+		}
+	}
 	if exp != "" {
 		experiments := strings.Split(exp, ",")
 		for _, e := range experiments {
