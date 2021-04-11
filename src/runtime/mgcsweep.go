@@ -830,3 +830,46 @@ func clobberfree(x unsafe.Pointer, size uintptr) {
 		*(*uint32)(add(x, i)) = 0xdeadbeef
 	}
 }
+
+// gcPaceSweeper updates the sweeper's pacing parameters.
+//
+// Must be called whenever the GC's pacing is updated.
+//
+// The world must be stopped, or mheap_.lock must be held.
+func gcPaceSweeper(trigger uint64) {
+	assertWorldStoppedOrLockHeld(&mheap_.lock)
+
+	// Update sweep pacing.
+	if isSweepDone() {
+		mheap_.sweepPagesPerByte = 0
+	} else {
+		// Concurrent sweep needs to sweep all of the in-use
+		// pages by the time the allocated heap reaches the GC
+		// trigger. Compute the ratio of in-use pages to sweep
+		// per byte allocated, accounting for the fact that
+		// some might already be swept.
+		heapLiveBasis := atomic.Load64(&gcController.heapLive)
+		heapDistance := int64(trigger) - int64(heapLiveBasis)
+		// Add a little margin so rounding errors and
+		// concurrent sweep are less likely to leave pages
+		// unswept when GC starts.
+		heapDistance -= 1024 * 1024
+		if heapDistance < _PageSize {
+			// Avoid setting the sweep ratio extremely high
+			heapDistance = _PageSize
+		}
+		pagesSwept := mheap_.pagesSwept.Load()
+		pagesInUse := mheap_.pagesInUse.Load()
+		sweepDistancePages := int64(pagesInUse) - int64(pagesSwept)
+		if sweepDistancePages <= 0 {
+			mheap_.sweepPagesPerByte = 0
+		} else {
+			mheap_.sweepPagesPerByte = float64(sweepDistancePages) / float64(heapDistance)
+			mheap_.sweepHeapLiveBasis = heapLiveBasis
+			// Write pagesSweptBasis last, since this
+			// signals concurrent sweeps to recompute
+			// their debt.
+			mheap_.pagesSweptBasis.Store(pagesSwept)
+		}
+	}
+}
