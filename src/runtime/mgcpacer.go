@@ -669,6 +669,23 @@ func (c *gcControllerState) logWorkTime(mode gcMarkWorkerMode, duration int64) {
 	}
 }
 
+func (c *gcControllerState) update(dHeapLive, dHeapScan int64) {
+	if dHeapLive != 0 {
+		atomic.Xadd64(&gcController.heapLive, dHeapLive)
+		if trace.enabled {
+			// gcController.heapLive changed.
+			traceHeapAlloc()
+		}
+	}
+	if dHeapScan != 0 {
+		atomic.Xadd64(&gcController.heapScan, dHeapScan)
+	}
+	if gcBlackenEnabled != 0 {
+		// gcController.heapLive and heapScan changed.
+		c.revise()
+	}
+}
+
 // commit sets the trigger ratio and updates everything
 // derived from it: the absolute trigger, the heap goal, mark pacing,
 // and sweep pacing.
