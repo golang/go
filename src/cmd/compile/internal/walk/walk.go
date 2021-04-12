@@ -14,7 +14,6 @@ import (
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -158,12 +157,16 @@ func chanfn(name string, n int, t *types.Type) ir.Node {
 	return fn
 }
 
-func mapfn(name string, t *types.Type) ir.Node {
+func mapfn(name string, t *types.Type, isfat bool) ir.Node {
 	if !t.IsMap() {
 		base.Fatalf("mapfn %v", t)
 	}
 	fn := typecheck.LookupRuntime(name)
-	fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key(), t.Elem())
+	if mapfast(t) == mapslow || isfat {
+		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key(), t.Elem())
+	} else {
+		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Elem())
+	}
 	return fn
 }
 
@@ -172,7 +175,11 @@ func mapfndel(name string, t *types.Type) ir.Node {
 		base.Fatalf("mapfn %v", t)
 	}
 	fn := typecheck.LookupRuntime(name)
-	fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key())
+	if mapfast(t) == mapslow {
+		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key())
+	} else {
+		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
+	}
 	return fn
 }
 
@@ -204,13 +211,6 @@ func mapfast(t *types.Type) int {
 	}
 	switch reflectdata.AlgType(t.Key()) {
 	case types.AMEM32:
-		if objabi.Experiment.RegabiArgs && t.Key().NumComponents(types.CountBlankFields) != 1 {
-			// If key has multiple components, under register ABI it will
-			// be passed differently than uint32.
-			// TODO: maybe unsafe-case to uint32. But needs to make the type
-			// checker happy.
-			return mapslow
-		}
 		if !t.Key().HasPointers() {
 			return mapfast32
 		}
@@ -219,10 +219,6 @@ func mapfast(t *types.Type) int {
 		}
 		base.Fatalf("small pointer %v", t.Key())
 	case types.AMEM64:
-		if objabi.Experiment.RegabiArgs && t.Key().NumComponents(types.CountBlankFields) != 1 {
-			// See above.
-			return mapslow
-		}
 		if !t.Key().HasPointers() {
 			return mapfast64
 		}

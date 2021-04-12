@@ -197,11 +197,7 @@ func walkGoDefer(n *ir.GoDeferStmt) ir.Node {
 
 	case ir.ODELETE:
 		call := call.(*ir.CallExpr)
-		if mapfast(call.Args[0].Type()) == mapslow {
-			n.Call = wrapCall(call, &init)
-		} else {
-			n.Call = walkExpr(call, &init)
-		}
+		n.Call = wrapCall(call, &init)
 
 	case ir.OCOPY:
 		call := call.(*ir.BinaryExpr)
