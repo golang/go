@@ -83,7 +83,7 @@ func main() {
 		tmpdir := copyToTmpdir(args)
 		defer os.RemoveAll(tmpdir)
 		translate(importer, tmpdir)
-		nargs := []string{"run"}
+		var nargs []string
 		for _, arg := range args {
 			base := filepath.Base(arg)
 			f := strings.TrimSuffix(base, ".go2") + ".go"
