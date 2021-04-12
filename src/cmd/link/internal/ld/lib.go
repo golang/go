@@ -56,7 +56,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
 	"sync"
 )
@@ -508,9 +507,6 @@ func (ctxt *Link) loadlib() {
 		return ctxt.loader.SymName(s)
 	}
 
-	ctxt.cgo_export_static = make(map[string]bool)
-	ctxt.cgo_export_dynamic = make(map[string]bool)
-
 	// ctxt.Library grows during the loop, so not a range loop.
 	i := 0
 	for ; i < len(ctxt.Library); i++ {
@@ -636,43 +632,6 @@ func (ctxt *Link) loadlib() {
 	importcycles()
 
 	strictDupMsgCount = ctxt.loader.NStrictDupMsgs()
-}
-
-// setupdynexp constructs ctxt.dynexp, a list of loader.Sym.
-func setupdynexp(ctxt *Link) {
-	dynexpMap := ctxt.cgo_export_dynamic
-	if ctxt.LinkMode == LinkExternal {
-		dynexpMap = ctxt.cgo_export_static
-	}
-	d := make([]loader.Sym, 0, len(dynexpMap))
-	for exp := range dynexpMap {
-		s := ctxt.loader.LookupOrCreateSym(exp, 0)
-		d = append(d, s)
-		// sanity check
-		if !ctxt.loader.AttrReachable(s) {
-			panic("dynexp entry not reachable")
-		}
-	}
-	sort.Slice(d, func(i, j int) bool {
-		return ctxt.loader.SymName(d[i]) < ctxt.loader.SymName(d[j])
-	})
-
-	// Resolve ABI aliases in the list of cgo-exported functions.
-	// This is necessary because we load the ABI0 symbol for all
-	// cgo exports.
-	for i, s := range d {
-		if ctxt.loader.SymType(s) != sym.SABIALIAS {
-			continue
-		}
-		t := ctxt.loader.ResolveABIAlias(s)
-		ctxt.loader.CopyAttributes(s, t)
-		ctxt.loader.SetSymExtname(t, ctxt.loader.SymExtname(s))
-		d[i] = t
-	}
-	ctxt.dynexp = d
-
-	ctxt.cgo_export_static = nil
-	ctxt.cgo_export_dynamic = nil
 }
 
 // loadcgodirectives reads the previously discovered cgo directives, creating
