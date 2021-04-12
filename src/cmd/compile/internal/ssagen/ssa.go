@@ -7097,14 +7097,25 @@ func CheckLoweredPhi(v *ssa.Value) {
 	}
 }
 
-// CheckLoweredGetClosurePtr checks that v is the first instruction in the function's entry block.
+// CheckLoweredGetClosurePtr checks that v is the first instruction in the function's entry block,
+// except for incoming in-register arguments.
 // The output of LoweredGetClosurePtr is generally hardwired to the correct register.
 // That register contains the closure pointer on closure entry.
 func CheckLoweredGetClosurePtr(v *ssa.Value) {
 	entry := v.Block.Func.Entry
-	// TODO register args: not all the register-producing ops can come first.
-	if entry != v.Block || entry.Values[0] != v {
+	if entry != v.Block {
 		base.Fatalf("in %s, badly placed LoweredGetClosurePtr: %v %v", v.Block.Func.Name, v.Block, v)
+	}
+	for _, w := range entry.Values {
+		if w == v {
+			break
+		}
+		switch w.Op {
+		case ssa.OpArgIntReg, ssa.OpArgFloatReg:
+			// okay
+		default:
+			base.Fatalf("in %s, badly placed LoweredGetClosurePtr: %v %v", v.Block.Func.Name, v.Block, v)
+		}
 	}
 }
 
