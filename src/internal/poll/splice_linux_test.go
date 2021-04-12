@@ -75,13 +75,19 @@ func TestSplicePipePool(t *testing.T) {
 func BenchmarkSplicePipe(b *testing.B) {
 	b.Run("SplicePipeWithPool", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p, _, _ := poll.GetPipe()
+			p, _, err := poll.GetPipe()
+			if err != nil {
+				continue
+			}
 			poll.PutPipe(p)
 		}
 	})
 	b.Run("SplicePipeWithoutPool", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			p := poll.NewPipe()
+			if p == nil {
+				b.Skip("newPipe returned nil")
+			}
 			poll.DestroyPipe(p)
 		}
 	})
@@ -90,7 +96,10 @@ func BenchmarkSplicePipe(b *testing.B) {
 func BenchmarkSplicePipePoolParallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			p, _, _ := poll.GetPipe()
+			p, _, err := poll.GetPipe()
+			if err != nil {
+				continue
+			}
 			poll.PutPipe(p)
 		}
 	})
@@ -100,6 +109,9 @@ func BenchmarkSplicePipeNativeParallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			p := poll.NewPipe()
+			if p == nil {
+				b.Skip("newPipe returned nil")
+			}
 			poll.DestroyPipe(p)
 		}
 	})
