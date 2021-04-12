@@ -47,6 +47,10 @@ const (
 
 	// defaultHeapMinimum is the value of heapMinimum for GOGC==100.
 	defaultHeapMinimum = 4 << 20
+
+	// scannableStackSizeSlack is the bytes of stack space allocated or freed
+	// that can accumulate on a P before updating gcController.stackSize.
+	scannableStackSizeSlack = 8 << 10
 )
 
 func init() {
@@ -166,6 +170,18 @@ type gcControllerState struct {
 	// Read and written atomically or with the world stopped.
 	heapScan uint64
 
+	// stackScan is a snapshot of scannableStackSize taken at each GC
+	// STW pause and is used in pacing decisions.
+	//
+	// Updated only while the world is stopped.
+	stackScan uint64
+
+	// scannableStackSize is the amount of allocated goroutine stack space in
+	// use by goroutines.
+	//
+	// Read and updated atomically.
+	scannableStackSize uint64
+
 	// heapMarked is the number of bytes marked by the previous
 	// GC. After mark termination, heapLive == heapMarked, but
 	// unlike heapLive, heapMarked does not change until the
@@ -276,6 +292,7 @@ func (c *gcControllerState) startCycle(markStartTime int64) {
 	c.fractionalMarkTime = 0
 	c.idleMarkTime = 0
 	c.markStartTime = markStartTime
+	c.stackScan = atomic.Load64(&c.scannableStackSize)
 
 	// Ensure that the heap goal is at least a little larger than
 	// the current live heap size. This may not be the case if GC
@@ -683,6 +700,18 @@ func (c *gcControllerState) update(dHeapLive, dHeapScan int64) {
 	if gcBlackenEnabled != 0 {
 		// gcController.heapLive and heapScan changed.
 		c.revise()
+	}
+}
+
+func (c *gcControllerState) addScannableStack(pp *p, amount int64) {
+	if pp == nil {
+		atomic.Xadd64(&c.scannableStackSize, amount)
+		return
+	}
+	pp.scannableStackSizeDelta += amount
+	if pp.scannableStackSizeDelta >= scannableStackSizeSlack || pp.scannableStackSizeDelta <= -scannableStackSizeSlack {
+		atomic.Xadd64(&c.scannableStackSize, pp.scannableStackSizeDelta)
+		pp.scannableStackSizeDelta = 0
 	}
 }
 
