@@ -234,11 +234,19 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 			// Mark exported symbols and also add them to
 			// the lists used for roots in the deadcode pass.
 			if f[0] == "cgo_export_static" {
+				if ctxt.LinkMode == LinkExternal && !l.AttrCgoExportStatic(s) {
+					// Static cgo exports appear
+					// in the exported symbol table.
+					ctxt.dynexp = append(ctxt.dynexp, s)
+				}
 				l.SetAttrCgoExportStatic(s, true)
-				ctxt.cgo_export_static[local] = true
 			} else {
+				if ctxt.LinkMode == LinkInternal && !l.AttrCgoExportDynamic(s) {
+					// Dynamic cgo exports appear
+					// in the exported symbol table.
+					ctxt.dynexp = append(ctxt.dynexp, s)
+				}
 				l.SetAttrCgoExportDynamic(s, true)
-				ctxt.cgo_export_dynamic[local] = true
 			}
 
 			continue
@@ -422,9 +430,26 @@ func (ctxt *Link) addexport() {
 		return
 	}
 
-	for _, exp := range ctxt.dynexp {
-		Adddynsym(ctxt.loader, &ctxt.Target, &ctxt.ArchSyms, exp)
+	// Add dynamic symbols.
+	for _, s := range ctxt.dynexp {
+		// Consistency check.
+		if !ctxt.loader.AttrReachable(s) {
+			panic("dynexp entry not reachable")
+		}
+
+		// Resolve ABI aliases in the list of cgo-exported functions.
+		// This is necessary because we load the ABI0 symbol for all
+		// cgo exports.
+		if ctxt.loader.SymType(s) == sym.SABIALIAS {
+			t := ctxt.loader.ResolveABIAlias(s)
+			ctxt.loader.CopyAttributes(s, t)
+			ctxt.loader.SetSymExtname(t, ctxt.loader.SymExtname(s))
+			s = t
+		}
+
+		Adddynsym(ctxt.loader, &ctxt.Target, &ctxt.ArchSyms, s)
 	}
+
 	for _, lib := range dedupLibraries(ctxt, dynlib) {
 		adddynlib(ctxt, lib)
 	}

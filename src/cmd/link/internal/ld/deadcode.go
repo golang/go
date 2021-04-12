@@ -88,14 +88,6 @@ func (d *deadcodePass) init() {
 		}
 	}
 
-	dynexpMap := d.ctxt.cgo_export_dynamic
-	if d.ctxt.LinkMode == LinkExternal {
-		dynexpMap = d.ctxt.cgo_export_static
-	}
-	for exp := range dynexpMap {
-		names = append(names, exp)
-	}
-
 	if d.ctxt.Debugvlog > 1 {
 		d.ctxt.Logf("deadcode start names: %v\n", names)
 	}
@@ -105,6 +97,14 @@ func (d *deadcodePass) init() {
 		d.mark(d.ldr.Lookup(name, 0), 0)
 		// Also mark any Go functions (internal ABI).
 		d.mark(d.ldr.Lookup(name, sym.SymVerABIInternal), 0)
+	}
+
+	// All dynamic exports are roots.
+	for _, s := range d.ctxt.dynexp {
+		if d.ctxt.Debugvlog > 1 {
+			d.ctxt.Logf("deadcode start dynexp: %s<%d>\n", d.ldr.SymName(s), d.ldr.SymVersion(s))
+		}
+		d.mark(s, 0)
 	}
 }
 

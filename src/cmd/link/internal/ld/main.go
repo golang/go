@@ -294,7 +294,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("textbuildid")
 	ctxt.textbuildid()
 	bench.Start("addexport")
-	setupdynexp(ctxt)
 	ctxt.setArchSyms()
 	ctxt.addexport()
 	bench.Start("Gentext")
