@@ -14,6 +14,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/cache"
+	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -104,6 +106,12 @@ type Forwarder struct {
 
 	// configuration for the auto-started gopls remote.
 	remoteConfig remoteConfig
+
+	mu sync.Mutex
+	// Hold on to the server connection so that we can redo the handshake if any
+	// information changes.
+	serverConn jsonrpc2.Conn
+	serverID   string
 }
 
 type remoteConfig struct {
@@ -209,41 +217,20 @@ func (f *Forwarder) ServeStream(ctx context.Context, clientConn jsonrpc2.Conn) e
 		protocol.Handlers(
 			protocol.ClientHandler(client,
 				jsonrpc2.MethodNotFound)))
+
 	// Don't run the clientConn yet, so that we can complete the handshake before
 	// processing any client messages.
 
 	// Do a handshake with the server instance to exchange debug information.
 	index := atomic.AddInt64(&serverIndex, 1)
-	serverID := strconv.FormatInt(index, 10)
-	var (
-		hreq = handshakeRequest{
-			ServerID:  serverID,
-			GoplsPath: f.goplsPath,
-		}
-		hresp handshakeResponse
-	)
-	if di := debug.GetInstance(ctx); di != nil {
-		hreq.Logfile = di.Logfile
-		hreq.DebugAddr = di.ListenedDebugAddress
-	}
-	if err := protocol.Call(ctx, serverConn, handshakeMethod, hreq, &hresp); err != nil {
-		// TODO(rfindley): at some point in the future we should return an error
-		// here.  Handshakes have become functional in nature.
-		event.Error(ctx, "forwarder: gopls handshake failed", err)
-	}
-	if hresp.GoplsPath != f.goplsPath {
-		event.Error(ctx, "", fmt.Errorf("forwarder: gopls path mismatch: forwarder is %q, remote is %q", f.goplsPath, hresp.GoplsPath))
-	}
-	event.Log(ctx, "New server",
-		tag.NewServer.Of(serverID),
-		tag.Logfile.Of(hresp.Logfile),
-		tag.DebugAddress.Of(hresp.DebugAddr),
-		tag.GoplsPath.Of(hresp.GoplsPath),
-		tag.ClientID.Of(hresp.SessionID),
-	)
+	f.mu.Lock()
+	f.serverConn = serverConn
+	f.serverID = strconv.FormatInt(index, 10)
+	f.mu.Unlock()
+	f.handshake(ctx)
 	clientConn.Go(ctx,
 		protocol.Handlers(
-			forwarderHandler(
+			f.handler(
 				protocol.ServerHandler(server,
 					jsonrpc2.MethodNotFound))))
 
@@ -262,6 +249,35 @@ func (f *Forwarder) ServeStream(ctx context.Context, clientConn jsonrpc2.Conn) e
 	}
 	event.Log(ctx, fmt.Sprintf("forwarder: exited with error: %v", err))
 	return err
+}
+
+func (f *Forwarder) handshake(ctx context.Context) {
+	var (
+		hreq = handshakeRequest{
+			ServerID:  f.serverID,
+			GoplsPath: f.goplsPath,
+		}
+		hresp handshakeResponse
+	)
+	if di := debug.GetInstance(ctx); di != nil {
+		hreq.Logfile = di.Logfile
+		hreq.DebugAddr = di.ListenedDebugAddress()
+	}
+	if err := protocol.Call(ctx, f.serverConn, handshakeMethod, hreq, &hresp); err != nil {
+		// TODO(rfindley): at some point in the future we should return an error
+		// here.  Handshakes have become functional in nature.
+		event.Error(ctx, "forwarder: gopls handshake failed", err)
+	}
+	if hresp.GoplsPath != f.goplsPath {
+		event.Error(ctx, "", fmt.Errorf("forwarder: gopls path mismatch: forwarder is %q, remote is %q", f.goplsPath, hresp.GoplsPath))
+	}
+	event.Log(ctx, "New server",
+		tag.NewServer.Of(f.serverID),
+		tag.Logfile.Of(hresp.Logfile),
+		tag.DebugAddress.Of(hresp.DebugAddr),
+		tag.GoplsPath.Of(hresp.GoplsPath),
+		tag.ClientID.Of(hresp.SessionID),
+	)
 }
 
 func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
@@ -365,24 +381,39 @@ func connectToRemote(ctx context.Context, inNetwork, inAddr, goplsPath string, r
 	return nil, errors.Errorf("dialing remote: %w", err)
 }
 
-// forwarderHandler intercepts 'exit' messages to prevent the shared gopls
-// instance from exiting. In the future it may also intercept 'shutdown' to
-// provide more graceful shutdown of the client connection.
-func forwarderHandler(handler jsonrpc2.Handler) jsonrpc2.Handler {
+// handler intercepts messages to the daemon to enrich them with local
+// information.
+func (f *Forwarder) handler(handler jsonrpc2.Handler) jsonrpc2.Handler {
 	return func(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2.Request) error {
+		// Intercept certain messages to add special handling.
+		switch r.Method() {
+		case "initialize":
+			if newr, err := addGoEnvToInitializeRequest(ctx, r); err == nil {
+				r = newr
+			} else {
+				log.Printf("unable to add local env to initialize request: %v", err)
+			}
+		case "workspace/executeCommand":
+			var params protocol.ExecuteCommandParams
+			if err := json.Unmarshal(r.Params(), &params); err == nil {
+				if params.Command == command.StartDebugging.ID() {
+					var args command.DebuggingArgs
+					if err := command.UnmarshalArgs(params.Arguments, &args); err == nil {
+						reply = f.replyWithDebugAddress(ctx, reply, args)
+					} else {
+						event.Error(ctx, "unmarshaling debugging args", err)
+					}
+				}
+			} else {
+				event.Error(ctx, "intercepting executeCommand request", err)
+			}
+		}
 		// The gopls workspace environment defaults to the process environment in
 		// which gopls daemon was started. To avoid discrepancies in Go environment
 		// between the editor and daemon, inject any unset variables in `go env`
 		// into the options sent by initialize.
 		//
 		// See also golang.org/issue/37830.
-		if r.Method() == "initialize" {
-			if newr, err := addGoEnvToInitializeRequest(ctx, r); err == nil {
-				r = newr
-			} else {
-				log.Printf("unable to add local env to initialize request: %v", err)
-			}
-		}
 		return handler(ctx, reply, r)
 	}
 }
@@ -450,6 +481,45 @@ func getGoEnv(ctx context.Context, env map[string]interface{}) (map[string]strin
 		return nil, err
 	}
 	return envmap, nil
+}
+
+func (f *Forwarder) replyWithDebugAddress(outerCtx context.Context, r jsonrpc2.Replier, args command.DebuggingArgs) jsonrpc2.Replier {
+	di := debug.GetInstance(outerCtx)
+	if di == nil {
+		event.Log(outerCtx, "no debug instance to start")
+		return r
+	}
+	return func(ctx context.Context, result interface{}, outerErr error) error {
+		if outerErr != nil {
+			return r(ctx, result, outerErr)
+		}
+		// Enrich the result with our own debugging information. Since we're an
+		// intermediary, the jsonrpc2 package has deserialized the result into
+		// maps, by default. Re-do the unmarshalling.
+		raw, err := json.Marshal(result)
+		if err != nil {
+			event.Error(outerCtx, "marshaling intermediate command result", err)
+			return r(ctx, result, err)
+		}
+		var modified command.DebuggingResult
+		if err := json.Unmarshal(raw, &modified); err != nil {
+			event.Error(outerCtx, "unmarshaling intermediate command result", err)
+			return r(ctx, result, err)
+		}
+		addr := args.Addr
+		if addr == "" {
+			addr = "localhost:0"
+		}
+		addr, err = di.Serve(outerCtx, addr)
+		if err != nil {
+			event.Error(outerCtx, "starting debug server", err)
+			return r(ctx, result, outerErr)
+		}
+		urls := []string{"http://" + addr}
+		modified.URLs = append(urls, modified.URLs...)
+		go f.handshake(ctx)
+		return r(ctx, modified, nil)
+	}
 }
 
 // A handshakeRequest identifies a client to the LSP server.
@@ -535,10 +605,10 @@ func handshaker(session *cache.Session, goplsPath string, logHandshakes bool, ha
 			}
 			if di := debug.GetInstance(ctx); di != nil {
 				resp.Logfile = di.Logfile
-				resp.DebugAddr = di.ListenedDebugAddress
+				resp.DebugAddr = di.ListenedDebugAddress()
 			}
-
 			return reply(ctx, resp, nil)
+
 		case sessionsMethod:
 			resp := ServerState{
 				GoplsPath:       goplsPath,
@@ -546,7 +616,7 @@ func handshaker(session *cache.Session, goplsPath string, logHandshakes bool, ha
 			}
 			if di := debug.GetInstance(ctx); di != nil {
 				resp.Logfile = di.Logfile
-				resp.DebugAddr = di.ListenedDebugAddress
+				resp.DebugAddr = di.ListenedDebugAddress()
 				for _, c := range di.State.Clients() {
 					resp.Clients = append(resp.Clients, ClientSession{
 						SessionID: c.Session.ID(),

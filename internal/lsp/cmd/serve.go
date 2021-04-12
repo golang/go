@@ -73,9 +73,8 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 		}
 		defer closeLog()
 		di.ServerAddress = s.Address
-		di.DebugAddress = s.Debug
-		di.Serve(ctx)
 		di.MonitorMemory(ctx)
+		di.Serve(ctx, s.Debug)
 	}
 	var ss jsonrpc2.StreamServer
 	if s.app.Remote != "" {

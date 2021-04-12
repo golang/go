@@ -199,6 +199,32 @@ Args:
 }
 ```
 
+### ****
+Identifier: `gopls.start_debugging`
+
+
+
+Args:
+
+```
+{
+	// Optional: the address (including port) for the debug server to listen on.
+	// If not provided, the debug server will bind to "localhost:0", and the
+	// full debug URL will be contained in the result.
+	// 
+	// If there is more than one gopls instance along the serving path (i.e. you
+	// are using a daemon), each gopls instance will attempt to start debugging.
+	// If Addr specifies a port, only the daemon will be able to bind to that
+	// port, and each intermediate gopls instance will fail to start debugging.
+	// For this reason it is recommended not to specify a port (or equivalently,
+	// to specify ":0").
+	// 
+	// If the server was already debugging this field has no effect, and the
+	// result will contain the previously configured debug URL(s).
+	"Addr": string,
+}
+```
+
 ### **Run test(s) (legacy)**
 Identifier: `gopls.test`
 

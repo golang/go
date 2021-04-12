@@ -20,6 +20,7 @@ import (
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/command"
+	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -693,5 +694,22 @@ func (c *commandHandler) WorkspaceMetadata(ctx context.Context) (command.Workspa
 			ModuleDir: view.TempWorkspace().Filename(),
 		})
 	}
+	return result, nil
+}
+
+func (c *commandHandler) StartDebugging(ctx context.Context, args command.DebuggingArgs) (result command.DebuggingResult, _ error) {
+	addr := args.Addr
+	if addr == "" {
+		addr = "localhost:0"
+	}
+	di := debug.GetInstance(ctx)
+	if di == nil {
+		return result, errors.New("internal error: server has no debugging instance")
+	}
+	listenedAddr, err := di.Serve(ctx, addr)
+	if err != nil {
+		return result, errors.Errorf("starting debug server: %w", err)
+	}
+	result.URLs = []string{"http://" + listenedAddr}
 	return result, nil
 }

@@ -100,7 +100,7 @@ func (i *Instance) PrintServerInfo(ctx context.Context, w io.Writer) {
 		fmt.Fprintf(w, "LogFile: %s\n", i.Logfile)
 		fmt.Fprintf(w, "Working directory: %s\n", i.Workdir)
 		fmt.Fprintf(w, "Address: %s\n", i.ServerAddress)
-		fmt.Fprintf(w, "Debug address: %s\n", i.DebugAddress)
+		fmt.Fprintf(w, "Debug address: %s\n", i.DebugAddress())
 	})
 	PrintVersionInfo(ctx, w, true, HTML)
 	section(w, HTML, "Command Line", func() {

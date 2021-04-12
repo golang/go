@@ -790,6 +790,12 @@ var GeneratedAPIJSON = &APIJSON{
 			ArgDoc:  "{\n\t// The test file containing the tests to run.\n\t\"URI\": string,\n\t// Specific test names to run, e.g. TestFoo.\n\t\"Tests\": []string,\n\t// Specific benchmarks to run, e.g. BenchmarkFoo.\n\t\"Benchmarks\": []string,\n}",
 		},
 		{
+			Command: "gopls.start_debugging",
+			Title:   "",
+			Doc:     "",
+			ArgDoc:  "{\n\t// Optional: the address (including port) for the debug server to listen on.\n\t// If not provided, the debug server will bind to \"localhost:0\", and the\n\t// full debug URL will be contained in the result.\n\t// \n\t// If there is more than one gopls instance along the serving path (i.e. you\n\t// are using a daemon), each gopls instance will attempt to start debugging.\n\t// If Addr specifies a port, only the daemon will be able to bind to that\n\t// port, and each intermediate gopls instance will fail to start debugging.\n\t// For this reason it is recommended not to specify a port (or equivalently,\n\t// to specify \":0\").\n\t// \n\t// If the server was already debugging this field has no effect, and the\n\t// result will contain the previously configured debug URL(s).\n\t\"Addr\": string,\n}",
+		},
+		{
 			Command: "gopls.test",
 			Title:   "Run test(s) (legacy)",
 			Doc:     "Runs `go test` for a specific set of test or benchmark functions.",

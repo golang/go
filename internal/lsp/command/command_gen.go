@@ -31,6 +31,7 @@ const (
 	RegenerateCgo     Command = "regenerate_cgo"
 	RemoveDependency  Command = "remove_dependency"
 	RunTests          Command = "run_tests"
+	StartDebugging    Command = "start_debugging"
 	Test              Command = "test"
 	Tidy              Command = "tidy"
 	ToggleGCDetails   Command = "toggle_gc_details"
@@ -53,6 +54,7 @@ var Commands = []Command{
 	RegenerateCgo,
 	RemoveDependency,
 	RunTests,
+	StartDebugging,
 	Test,
 	Tidy,
 	ToggleGCDetails,
@@ -136,6 +138,12 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 			return nil, err
 		}
 		return nil, s.RunTests(ctx, a0)
+	case "gopls.start_debugging":
+		var a0 DebuggingArgs
+		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
+			return nil, err
+		}
+		return s.StartDebugging(ctx, a0)
 	case "gopls.test":
 		var a0 protocol.DocumentURI
 		var a1 []string
@@ -320,6 +328,18 @@ func NewRunTestsCommand(title string, a0 RunTestsArgs) (protocol.Command, error)
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.run_tests",
+		Arguments: args,
+	}, nil
+}
+
+func NewStartDebuggingCommand(title string, a0 DebuggingArgs) (protocol.Command, error) {
+	args, err := MarshalArgs(a0)
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.start_debugging",
 		Arguments: args,
 	}, nil
 }

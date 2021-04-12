@@ -120,6 +120,8 @@ type Interface interface {
 	AddImport(context.Context, AddImportArgs) (AddImportResult, error)
 
 	WorkspaceMetadata(context.Context) (WorkspaceMetadataResult, error)
+
+	StartDebugging(context.Context, DebuggingArgs) (DebuggingResult, error)
 }
 
 type RunTestsArgs struct {
@@ -219,4 +221,35 @@ type WorkspaceMetadataResult struct {
 type Workspace struct {
 	Name      string
 	ModuleDir string
+}
+
+type DebuggingArgs struct {
+	// Optional: the address (including port) for the debug server to listen on.
+	// If not provided, the debug server will bind to "localhost:0", and the
+	// full debug URL will be contained in the result.
+	//
+	// If there is more than one gopls instance along the serving path (i.e. you
+	// are using a daemon), each gopls instance will attempt to start debugging.
+	// If Addr specifies a port, only the daemon will be able to bind to that
+	// port, and each intermediate gopls instance will fail to start debugging.
+	// For this reason it is recommended not to specify a port (or equivalently,
+	// to specify ":0").
+	//
+	// If the server was already debugging this field has no effect, and the
+	// result will contain the previously configured debug URL(s).
+	Addr string
+}
+
+type DebuggingResult struct {
+	// The URLs to use to access the debug servers, for all gopls instances in
+	// the serving path. For the common case of a single gopls instance (i.e. no
+	// daemon), this will be exactly one address.
+	//
+	// In the case of one or more gopls instances forwarding the LSP to a daemon,
+	// URLs will contain debug addresses for each server in the serving path, in
+	// serving order. The daemon debug address will be the last entry in the
+	// slice. If any intermediate gopls instance fails to start debugging, no
+	// error will be returned but the debug URL for that server in the URLs slice
+	// will be empty.
+	URLs []string
 }

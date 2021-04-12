@@ -261,8 +261,7 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 			ctx = debug.WithInstance(ctx, "", "off")
 			if config.debugAddr != "" {
 				di := debug.GetInstance(ctx)
-				di.DebugAddress = config.debugAddr
-				di.Serve(ctx)
+				di.Serve(ctx, config.debugAddr)
 				di.MonitorMemory(ctx)
 			}
 
