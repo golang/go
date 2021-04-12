@@ -93,7 +93,11 @@ FindCall:
 		comment *ast.CommentGroup
 	)
 	if obj != nil {
-		node, err := objToDecl(ctx, snapshot, pkg, obj)
+		declPkg, err := FindPackageFromPos(ctx, snapshot, obj.Pos())
+		if err != nil {
+			return nil, 0, err
+		}
+		node, err := snapshot.PosToDecl(ctx, declPkg, obj.Pos())
 		if err != nil {
 			return nil, 0, err
 		}

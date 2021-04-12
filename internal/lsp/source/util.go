@@ -274,20 +274,19 @@ func CompareDiagnostic(a, b *Diagnostic) int {
 	return 1
 }
 
-// FindPosInPackage finds the parsed file for a position in a given search
+// FindPackageFromPos finds the parsed file for a position in a given search
 // package.
-func FindPosInPackage(snapshot Snapshot, searchpkg Package, pos token.Pos) (*ParsedGoFile, Package, error) {
+func FindPackageFromPos(ctx context.Context, snapshot Snapshot, pos token.Pos) (Package, error) {
 	tok := snapshot.FileSet().File(pos)
 	if tok == nil {
-		return nil, nil, errors.Errorf("no file for pos in package %s", searchpkg.ID())
+		return nil, errors.Errorf("no file for pos %v", pos)
 	}
 	uri := span.URIFromPath(tok.Name())
-
-	pgf, pkg, err := findFileInDeps(searchpkg, uri)
+	pkgs, err := snapshot.PackagesForFile(ctx, uri, TypecheckWorkspace)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return pgf, pkg, nil
+	return pkgs[0], nil
 }
 
 // findFileInDeps finds uri in pkg or its dependencies.

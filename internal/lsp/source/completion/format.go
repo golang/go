@@ -213,27 +213,16 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 	}
 	uri := span.URIFromPath(pos.Filename)
 
-	// Find the source file of the candidate, starting from a package
-	// that should have it in its dependencies.
-	searchPkg := c.pkg
-	if cand.imp != nil && cand.imp.pkg != nil {
-		searchPkg = cand.imp.pkg
-	}
-
-	pgf, pkg, err := source.FindPosInPackage(c.snapshot, searchPkg, obj.Pos())
+	// Find the source file of the candidate.
+	pkg, err := source.FindPackageFromPos(ctx, c.snapshot, obj.Pos())
 	if err != nil {
 		return item, nil
 	}
 
-	posToDecl, err := c.snapshot.PosToDecl(ctx, pgf)
+	decl, err := c.snapshot.PosToDecl(ctx, pkg, obj.Pos())
 	if err != nil {
 		return CompletionItem{}, err
 	}
-	decl := posToDecl[obj.Pos()]
-	if decl == nil {
-		return item, nil
-	}
-
 	hover, err := source.HoverInfo(ctx, c.snapshot, pkg, obj, decl)
 	if err != nil {
 		event.Error(ctx, "failed to find Hover", err, tag.URI.Of(uri))

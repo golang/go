@@ -262,7 +262,11 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *a
 	}
 	result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 
-	if result.Declaration.node, err = objToDecl(ctx, snapshot, pkg, result.Declaration.obj); err != nil {
+	declPkg, err := FindPackageFromPos(ctx, snapshot, result.Declaration.obj.Pos())
+	if err != nil {
+		return nil, nil
+	}
+	if result.Declaration.node, err = snapshot.PosToDecl(ctx, declPkg, result.Declaration.obj.Pos()); err != nil {
 		return nil, err
 	}
 	typ := pkg.GetTypesInfo().TypeOf(result.ident)
@@ -361,18 +365,6 @@ func typeToObject(typ types.Type) types.Object {
 
 func hasErrorType(obj types.Object) bool {
 	return types.IsInterface(obj.Type()) && obj.Pkg() == nil && obj.Name() == "error"
-}
-
-func objToDecl(ctx context.Context, snapshot Snapshot, srcPkg Package, obj types.Object) (ast.Decl, error) {
-	pgf, _, err := FindPosInPackage(snapshot, srcPkg, obj.Pos())
-	if err != nil {
-		return nil, err
-	}
-	posToDecl, err := snapshot.PosToDecl(ctx, pgf)
-	if err != nil {
-		return nil, err
-	}
-	return posToDecl[obj.Pos()], nil
 }
 
 // importSpec handles positions inside of an *ast.ImportSpec.

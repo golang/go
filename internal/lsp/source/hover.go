@@ -19,7 +19,6 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
 )
 
@@ -320,21 +319,12 @@ func HoverInfo(ctx context.Context, s Snapshot, pkg Package, obj types.Object, n
 				break
 			}
 
-			f := s.FileSet().File(obj.Pos())
-			if f == nil {
-				break
-			}
-
-			pgf, err := pkg.File(span.URIFromPath(f.Name()))
-			if err != nil {
-				return nil, err
-			}
-			posToField, err := s.PosToField(ctx, pgf)
+			field, err := s.PosToField(ctx, pkg, obj.Pos())
 			if err != nil {
 				return nil, err
 			}
 
-			if field := posToField[obj.Pos()]; field != nil {
+			if field != nil {
 				comment := field.Doc
 				if comment.Text() == "" {
 					comment = field.Comment

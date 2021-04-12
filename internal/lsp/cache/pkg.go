@@ -6,6 +6,7 @@ package cache
 
 import (
 	"go/ast"
+	"go/scanner"
 	"go/types"
 
 	"golang.org/x/mod/module"
@@ -16,19 +17,19 @@ import (
 
 // pkg contains the type information needed by the source package.
 type pkg struct {
-	m                    *metadata
-	mode                 source.ParseMode
-	goFiles              []*source.ParsedGoFile
-	compiledGoFiles      []*source.ParsedGoFile
-	diagnostics          []*source.Diagnostic
-	imports              map[packagePath]*pkg
-	version              *module.Version
-	typeErrors           []types.Error
-	types                *types.Package
-	typesInfo            *types.Info
-	typesSizes           types.Sizes
-	hasListOrParseErrors bool
-	hasTypeErrors        bool
+	m               *metadata
+	mode            source.ParseMode
+	goFiles         []*source.ParsedGoFile
+	compiledGoFiles []*source.ParsedGoFile
+	diagnostics     []*source.Diagnostic
+	imports         map[packagePath]*pkg
+	version         *module.Version
+	parseErrors     []scanner.ErrorList
+	typeErrors      []types.Error
+	types           *types.Package
+	typesInfo       *types.Info
+	typesSizes      types.Sizes
+	hasFixedFiles   bool
 }
 
 // Declare explicit types for package paths, names, and IDs to ensure that we
@@ -146,9 +147,9 @@ func (p *pkg) Version() *module.Version {
 }
 
 func (p *pkg) HasListOrParseErrors() bool {
-	return p.hasListOrParseErrors
+	return len(p.m.errors) != 0 || len(p.parseErrors) != 0
 }
 
 func (p *pkg) HasTypeErrors() bool {
-	return p.hasTypeErrors
+	return len(p.typeErrors) != 0
 }

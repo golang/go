@@ -1394,7 +1394,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 			continue
 		}
 		newGen.Inherit(v.handle)
-		newGen.Inherit(v.astCacheHandle)
 		result.goFiles[k] = v
 	}
 

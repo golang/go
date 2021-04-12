@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
-	"go/scanner"
 	"go/types"
 	"path"
 	"path/filepath"
@@ -303,26 +302,34 @@ func (s *snapshot) parseGoHandles(ctx context.Context, files []span.URI, mode so
 }
 
 func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source.ParseMode, deps map[packagePath]*packageHandle) (*pkg, error) {
-	ctx, done := event.Start(ctx, "cache.importer.typeCheck", tag.Package.Of(string(m.id)))
-	defer done()
+	var pkg *pkg
+	var err error
 
-	fset := snapshot.view.session.cache.fset
-	pkg := &pkg{
-		m:               m,
-		mode:            mode,
-		goFiles:         make([]*source.ParsedGoFile, len(m.goFiles)),
-		compiledGoFiles: make([]*source.ParsedGoFile, len(m.compiledGoFiles)),
-		imports:         make(map[packagePath]*pkg),
-		typesSizes:      m.typesSizes,
-		typesInfo: &types.Info{
-			Types:      make(map[ast.Expr]types.TypeAndValue),
-			Defs:       make(map[*ast.Ident]types.Object),
-			Uses:       make(map[*ast.Ident]types.Object),
-			Implicits:  make(map[ast.Node]types.Object),
-			Selections: make(map[*ast.SelectorExpr]*types.Selection),
-			Scopes:     make(map[ast.Node]*types.Scope),
-		},
+	var filter *unexportedFilter
+	if mode == source.ParseExported {
+		filter = &unexportedFilter{uses: map[string]bool{}}
 	}
+	pkg, err = doTypeCheck(ctx, snapshot, m, mode, deps, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	if mode == source.ParseExported {
+		// The AST filtering is a little buggy and may remove things it
+		// shouldn't. If we only got undeclared name errors, try one more
+		// time keeping those names.
+		missing, unexpected := filter.ProcessErrors(pkg.typeErrors)
+		if len(unexpected) == 0 && len(missing) != 0 {
+			event.Log(ctx, fmt.Sprintf("discovered missing identifiers: %v", missing), tag.Package.Of(string(m.id)))
+			pkg, err = doTypeCheck(ctx, snapshot, m, mode, deps, filter)
+			missing, unexpected = filter.ProcessErrors(pkg.typeErrors)
+		}
+		if len(unexpected) != 0 || len(missing) != 0 {
+			event.Log(ctx, fmt.Sprintf("falling back to safe trimming due to type errors: %v or still-missing identifiers: %v", unexpected, missing), tag.Package.Of(string(m.id)))
+			pkg, err = doTypeCheck(ctx, snapshot, m, mode, deps, nil)
+		}
+	}
+
 	// If this is a replaced module in the workspace, the version is
 	// meaningless, and we don't want clients to access it.
 	if m.module != nil {
@@ -335,157 +342,19 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 			Version: version,
 		}
 	}
-	var (
-		files        = make([]*ast.File, len(m.compiledGoFiles))
-		parseErrors  = make([]scanner.ErrorList, len(m.compiledGoFiles))
-		actualErrors = make([]error, len(m.compiledGoFiles))
-		wg           sync.WaitGroup
-
-		mu             sync.Mutex
-		haveFixedFiles bool
-	)
-	for i, cgf := range m.compiledGoFiles {
-		wg.Add(1)
-		go func(i int, cgf span.URI) {
-			defer wg.Done()
-			fh, err := snapshot.GetFile(ctx, cgf)
-			if err != nil {
-				actualErrors[i] = err
-				return
-			}
-			pgh := snapshot.parseGoHandle(ctx, fh, mode)
-			pgf, fixed, err := snapshot.parseGo(ctx, pgh)
-			if err != nil {
-				actualErrors[i] = err
-				return
-			}
-			pkg.compiledGoFiles[i] = pgf
-			files[i], parseErrors[i], actualErrors[i] = pgf.File, pgf.ParseErr, err
-
-			// If we have fixed parse errors in any of the files, we should hide type
-			// errors, as they may be completely nonsensical.
-			mu.Lock()
-			haveFixedFiles = haveFixedFiles || fixed
-			mu.Unlock()
-		}(i, cgf)
-	}
-	for i, gf := range m.goFiles {
-		wg.Add(1)
-		// We need to parse the non-compiled go files, but we don't care about their errors.
-		go func(i int, gf span.URI) {
-			defer wg.Done()
-			fh, err := snapshot.GetFile(ctx, gf)
-			if err != nil {
-				return
-			}
-			pgf, _ := snapshot.ParseGo(ctx, fh, mode)
-			pkg.goFiles[i] = pgf
-		}(i, gf)
-	}
-	wg.Wait()
-	for _, err := range actualErrors {
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	var i int
-	for _, e := range parseErrors {
-		if e != nil {
-			parseErrors[i] = e
-			i++
-		}
-	}
-	parseErrors = parseErrors[:i]
-
-	i = 0
-	for _, f := range files {
-		if f != nil {
-			files[i] = f
-			i++
-		}
-	}
-	files = files[:i]
-
-	// Use the default type information for the unsafe package.
-	if pkg.m.pkgPath == "unsafe" {
-		pkg.types = types.Unsafe
-		// Don't type check Unsafe: it's unnecessary, and doing so exposes a data
-		// race to Unsafe.completed.
-		return pkg, nil
-	} else if len(files) == 0 { // not the unsafe package, no parsed files
-		// Try to attach error messages to the file as much as possible.
-		var found bool
-		for _, e := range m.errors {
-			srcDiags, err := goPackagesErrorDiagnostics(snapshot, pkg, e)
-			if err != nil {
-				continue
-			}
-			found = true
-			pkg.diagnostics = append(pkg.diagnostics, srcDiags...)
-		}
-		if found {
-			return pkg, nil
-		}
-		return nil, errors.Errorf("no parsed files for package %s, expected: %v, errors: %v", pkg.m.pkgPath, pkg.compiledGoFiles, m.errors)
-	} else {
-		pkg.types = types.NewPackage(string(m.pkgPath), string(m.name))
-	}
-
-	var typeErrors []types.Error
-	cfg := &types.Config{
-		Error: func(e error) {
-			typeErrors = append(typeErrors, e.(types.Error))
-		},
-		Importer: importerFunc(func(pkgPath string) (*types.Package, error) {
-			// If the context was cancelled, we should abort.
-			if ctx.Err() != nil {
-				return nil, ctx.Err()
-			}
-			dep := resolveImportPath(pkgPath, pkg, deps)
-			if dep == nil {
-				return nil, snapshot.missingPkgError(pkgPath)
-			}
-			if !isValidImport(m.pkgPath, dep.m.pkgPath) {
-				return nil, errors.Errorf("invalid use of internal package %s", pkgPath)
-			}
-			depPkg, err := dep.check(ctx, snapshot)
-			if err != nil {
-				return nil, err
-			}
-			pkg.imports[depPkg.m.pkgPath] = depPkg
-			return depPkg.types, nil
-		}),
-	}
-	// We want to type check cgo code if go/types supports it.
-	// We passed typecheckCgo to go/packages when we Loaded.
-	typesinternal.SetUsesCgo(cfg)
-
-	check := types.NewChecker(cfg, fset, pkg.types, pkg.typesInfo)
-
-	// Type checking errors are handled via the config, so ignore them here.
-	_ = check.Files(files)
-	// If the context was cancelled, we may have returned a ton of transient
-	// errors to the type checker. Swallow them.
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
 
 	// We don't care about a package's errors unless we have parsed it in full.
 	if mode != source.ParseFull {
 		return pkg, nil
 	}
 
-	if len(m.errors) != 0 {
-		pkg.hasListOrParseErrors = true
-		for _, e := range m.errors {
-			diags, err := goPackagesErrorDiagnostics(snapshot, pkg, e)
-			if err != nil {
-				event.Error(ctx, "unable to compute positions for list errors", err, tag.Package.Of(pkg.ID()))
-				continue
-			}
-			pkg.diagnostics = append(pkg.diagnostics, diags...)
+	for _, e := range m.errors {
+		diags, err := goPackagesErrorDiagnostics(snapshot, pkg, e)
+		if err != nil {
+			event.Error(ctx, "unable to compute positions for list errors", err, tag.Package.Of(pkg.ID()))
+			continue
 		}
+		pkg.diagnostics = append(pkg.diagnostics, diags...)
 	}
 
 	// Our heuristic for whether to show type checking errors is:
@@ -501,27 +370,25 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 	// Track URIs with parse errors so that we can suppress type errors for these
 	// files.
 	unparseable := map[span.URI]bool{}
-	if len(parseErrors) != 0 {
-		pkg.hasListOrParseErrors = true
-		for _, e := range parseErrors {
-			diags, err := parseErrorDiagnostics(snapshot, pkg, e)
-			if err != nil {
-				event.Error(ctx, "unable to compute positions for parse errors", err, tag.Package.Of(pkg.ID()))
-				continue
-			}
-			for _, diag := range diags {
-				unparseable[diag.URI] = true
-				pkg.diagnostics = append(pkg.diagnostics, diag)
-			}
+	for _, e := range pkg.parseErrors {
+		diags, err := parseErrorDiagnostics(snapshot, pkg, e)
+		if err != nil {
+			event.Error(ctx, "unable to compute positions for parse errors", err, tag.Package.Of(pkg.ID()))
+			continue
+		}
+		for _, diag := range diags {
+			unparseable[diag.URI] = true
+			pkg.diagnostics = append(pkg.diagnostics, diag)
 		}
 	}
 
-	if haveFixedFiles {
+	if pkg.hasFixedFiles {
 		return pkg, nil
 	}
 
-	for _, e := range expandErrors(typeErrors, snapshot.View().Options().RelatedInformationSupported) {
-		pkg.hasTypeErrors = true
+	unexpanded := pkg.typeErrors
+	pkg.typeErrors = nil
+	for _, e := range expandErrors(unexpanded, snapshot.View().Options().RelatedInformationSupported) {
 		diags, err := typeErrorDiagnostics(snapshot, pkg, e)
 		if err != nil {
 			event.Error(ctx, "unable to compute positions for type errors", err, tag.Package.Of(pkg.ID()))
@@ -545,6 +412,172 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 	pkg.diagnostics = append(pkg.diagnostics, depsErrors...)
 
 	return pkg, nil
+}
+
+func doTypeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source.ParseMode, deps map[packagePath]*packageHandle, astFilter *unexportedFilter) (*pkg, error) {
+	ctx, done := event.Start(ctx, "cache.typeCheck", tag.Package.Of(string(m.id)))
+	defer done()
+
+	pkg := &pkg{
+		m:       m,
+		mode:    mode,
+		imports: make(map[packagePath]*pkg),
+		types:   types.NewPackage(string(m.pkgPath), string(m.name)),
+		typesInfo: &types.Info{
+			Types:      make(map[ast.Expr]types.TypeAndValue),
+			Defs:       make(map[*ast.Ident]types.Object),
+			Uses:       make(map[*ast.Ident]types.Object),
+			Implicits:  make(map[ast.Node]types.Object),
+			Selections: make(map[*ast.SelectorExpr]*types.Selection),
+			Scopes:     make(map[ast.Node]*types.Scope),
+		},
+		typesSizes: m.typesSizes,
+	}
+
+	for _, gf := range pkg.m.goFiles {
+		// In the presence of line directives, we may need to report errors in
+		// non-compiled Go files, so we need to register them on the package.
+		// However, we only need to really parse them in ParseFull mode, when
+		// the user might actually be looking at the file.
+		fh, err := snapshot.GetFile(ctx, gf)
+		if err != nil {
+			return nil, err
+		}
+		goMode := source.ParseFull
+		if mode != source.ParseFull {
+			goMode = source.ParseHeader
+		}
+		pgf, err := snapshot.ParseGo(ctx, fh, goMode)
+		if err != nil {
+			return nil, err
+		}
+		pkg.goFiles = append(pkg.goFiles, pgf)
+	}
+
+	if err := parseCompiledGoFiles(ctx, snapshot, mode, pkg, astFilter); err != nil {
+		return nil, err
+	}
+
+	// Use the default type information for the unsafe package.
+	if m.pkgPath == "unsafe" {
+		// Don't type check Unsafe: it's unnecessary, and doing so exposes a data
+		// race to Unsafe.completed.
+		pkg.types = types.Unsafe
+		return pkg, nil
+	}
+
+	if len(m.compiledGoFiles) == 0 {
+		// No files most likely means go/packages failed. Try to attach error
+		// messages to the file as much as possible.
+		var found bool
+		for _, e := range m.errors {
+			srcDiags, err := goPackagesErrorDiagnostics(snapshot, pkg, e)
+			if err != nil {
+				continue
+			}
+			found = true
+			pkg.diagnostics = append(pkg.diagnostics, srcDiags...)
+		}
+		if found {
+			return pkg, nil
+		}
+		return nil, errors.Errorf("no parsed files for package %s, expected: %v, errors: %v", pkg.m.pkgPath, pkg.compiledGoFiles, m.errors)
+	}
+
+	cfg := &types.Config{
+		Error: func(e error) {
+			pkg.typeErrors = append(pkg.typeErrors, e.(types.Error))
+		},
+		Importer: importerFunc(func(pkgPath string) (*types.Package, error) {
+			// If the context was cancelled, we should abort.
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			dep := resolveImportPath(pkgPath, pkg, deps)
+			if dep == nil {
+				return nil, snapshot.missingPkgError(pkgPath)
+			}
+			if !isValidImport(m.pkgPath, dep.m.pkgPath) {
+				return nil, errors.Errorf("invalid use of internal package %s", pkgPath)
+			}
+			depPkg, err := dep.check(ctx, snapshot)
+			if err != nil {
+				return nil, err
+			}
+			pkg.imports[depPkg.m.pkgPath] = depPkg
+			return depPkg.types, nil
+		}),
+	}
+
+	if mode != source.ParseFull {
+		cfg.DisableUnusedImportCheck = true
+		cfg.IgnoreFuncBodies = true
+	}
+
+	// We want to type check cgo code if go/types supports it.
+	// We passed typecheckCgo to go/packages when we Loaded.
+	typesinternal.SetUsesCgo(cfg)
+
+	check := types.NewChecker(cfg, snapshot.FileSet(), pkg.types, pkg.typesInfo)
+
+	var files []*ast.File
+	for _, cgf := range pkg.compiledGoFiles {
+		files = append(files, cgf.File)
+	}
+	// Type checking errors are handled via the config, so ignore them here.
+	_ = check.Files(files)
+	// If the context was cancelled, we may have returned a ton of transient
+	// errors to the type checker. Swallow them.
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return pkg, nil
+}
+
+func parseCompiledGoFiles(ctx context.Context, snapshot *snapshot, mode source.ParseMode, pkg *pkg, astFilter *unexportedFilter) error {
+	for _, cgf := range pkg.m.compiledGoFiles {
+		fh, err := snapshot.GetFile(ctx, cgf)
+		if err != nil {
+			return err
+		}
+
+		var pgf *source.ParsedGoFile
+		var fixed bool
+		// Only parse Full through the cache -- we need to own Exported ASTs
+		// to prune them.
+		if mode == source.ParseFull {
+			pgh := snapshot.parseGoHandle(ctx, fh, mode)
+			pgf, fixed, err = snapshot.parseGo(ctx, pgh)
+		} else {
+			d := parseGo(ctx, snapshot.FileSet(), fh, mode)
+			pgf, fixed, err = d.parsed, d.fixed, d.err
+		}
+		if err != nil {
+			return err
+		}
+		pkg.compiledGoFiles = append(pkg.compiledGoFiles, pgf)
+		if pgf.ParseErr != nil {
+			pkg.parseErrors = append(pkg.parseErrors, pgf.ParseErr)
+		}
+		// If we have fixed parse errors in any of the files, we should hide type
+		// errors, as they may be completely nonsensical.
+		pkg.hasFixedFiles = pkg.hasFixedFiles || fixed
+	}
+	if mode != source.ParseExported {
+		return nil
+	}
+	if astFilter != nil {
+		var files []*ast.File
+		for _, cgf := range pkg.compiledGoFiles {
+			files = append(files, cgf.File)
+		}
+		astFilter.Filter(files)
+	} else {
+		for _, cgf := range pkg.compiledGoFiles {
+			trimAST(cgf.File)
+		}
+	}
+	return nil
 }
 
 func (s *snapshot) depsErrors(ctx context.Context, pkg *pkg) ([]*source.Diagnostic, error) {

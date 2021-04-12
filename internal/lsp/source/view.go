@@ -80,12 +80,12 @@ type Snapshot interface {
 	// to quickly find corresponding *ast.Field node given a *types.Var.
 	// We must refer to the AST to render type aliases properly when
 	// formatting signatures and other types.
-	PosToField(ctx context.Context, pgf *ParsedGoFile) (map[token.Pos]*ast.Field, error)
+	PosToField(ctx context.Context, pkg Package, pos token.Pos) (*ast.Field, error)
 
 	// PosToDecl maps certain objects' positions to their surrounding
 	// ast.Decl. This mapping is used when building the documentation
 	// string for the objects.
-	PosToDecl(ctx context.Context, pgf *ParsedGoFile) (map[token.Pos]ast.Decl, error)
+	PosToDecl(ctx context.Context, pkg Package, pos token.Pos) (ast.Decl, error)
 
 	// DiagnosePackage returns basic diagnostics, including list, parse, and type errors
 	// for pkg, grouped by file.
@@ -419,10 +419,9 @@ const (
 	// This is the mode used when attempting to examine the package graph structure.
 	ParseHeader ParseMode = iota
 
-	// ParseExported specifies that the public symbols are needed, but things like
-	// private symbols and function bodies are not.
-	// This mode is used for things where a package is being consumed only as a
-	// dependency.
+	// ParseExported specifies that the package is used only as a dependency,
+	// and only its exported declarations are needed. More may be included if
+	// necessary to avoid type errors.
 	ParseExported
 
 	// ParseFull specifies the full AST is needed.

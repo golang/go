@@ -403,7 +403,7 @@ func (s *snapshot) DiagnosePackage(ctx context.Context, spkg source.Package) (ma
 		analyzers = append(analyzers, a)
 	}
 	var errorAnalyzerDiag []*source.Diagnostic
-	if pkg.hasTypeErrors {
+	if pkg.HasTypeErrors() {
 		var err error
 		errorAnalyzerDiag, err = s.Analyze(ctx, pkg.ID(), analyzers)
 		if err != nil {

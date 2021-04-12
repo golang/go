@@ -219,12 +219,12 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signa
 // To do this, it looks in the AST of the file in which the object is declared.
 // On any errors, it always fallbacks back to types.TypeString.
 func FormatVarType(ctx context.Context, snapshot Snapshot, srcpkg Package, obj *types.Var, qf types.Qualifier) string {
-	pgf, pkg, err := FindPosInPackage(snapshot, srcpkg, obj.Pos())
+	pkg, err := FindPackageFromPos(ctx, snapshot, obj.Pos())
 	if err != nil {
 		return types.TypeString(obj.Type(), qf)
 	}
 
-	expr, err := varType(ctx, snapshot, pgf, obj)
+	expr, err := varType(ctx, snapshot, pkg, obj)
 	if err != nil {
 		return types.TypeString(obj.Type(), qf)
 	}
@@ -244,12 +244,11 @@ func FormatVarType(ctx context.Context, snapshot Snapshot, srcpkg Package, obj *
 }
 
 // varType returns the type expression for a *types.Var.
-func varType(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile, obj *types.Var) (ast.Expr, error) {
-	posToField, err := snapshot.PosToField(ctx, pgf)
+func varType(ctx context.Context, snapshot Snapshot, pkg Package, obj *types.Var) (ast.Expr, error) {
+	field, err := snapshot.PosToField(ctx, pkg, obj.Pos())
 	if err != nil {
 		return nil, err
 	}
-	field := posToField[obj.Pos()]
 	if field == nil {
 		return nil, fmt.Errorf("no declaration for object %s", obj.Name())
 	}
