@@ -169,9 +169,10 @@ func newPoolPipe() interface{} {
 	// Discard the error which occurred during the creation of pipe buffer,
 	// redirecting the data transmission to the conventional way utilizing read() + write() as a fallback.
 	p := newPipe()
-	if p != nil {
-		runtime.SetFinalizer(p, destroyPipe)
+	if p == nil {
+		return nil
 	}
+	runtime.SetFinalizer(p, destroyPipe)
 	return p
 }
 
