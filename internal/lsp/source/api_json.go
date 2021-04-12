@@ -45,6 +45,28 @@ var GeneratedAPIJSON = &APIJSON{
 				Hierarchy:  "build",
 			},
 			{
+				Name: "memoryMode",
+				Type: "enum",
+				Doc:  "memoryMode controls the tradeoff `gopls` makes between memory usage and\ncorrectness.\n\nValues other than `Normal` are untested and may break in surprising ways.\n",
+				EnumKeys: EnumKeys{
+					ValueType: "",
+					Keys:      nil,
+				},
+				EnumValues: []EnumValue{
+					{
+						Value: "\"DegradeClosed\"",
+						Doc:   "`\"DegradeClosed\"`: In DegradeClosed mode, `gopls` will collect less information about\npackages without open files. As a result, features like Find\nReferences and Rename will miss results in such packages.\n",
+					},
+					{
+						Value: "\"Normal\"",
+						Doc:   "",
+					},
+				},
+				Default:   "\"Normal\"",
+				Status:    "experimental",
+				Hierarchy: "build",
+			},
+			{
 				Name: "expandWorkspaceToModule",
 				Type: "bool",
 				Doc:  "expandWorkspaceToModule instructs `gopls` to adjust the scope of the\nworkspace to find the best available module root. `gopls` first looks for\na go.mod file in any parent directory of the workspace folder, expanding\nthe scope to that directory if it exists. If no viable parent directory is\nfound, gopls will check if there is exactly one child directory containing\na go.mod file, narrowing the scope to that directory if it exists.\n",

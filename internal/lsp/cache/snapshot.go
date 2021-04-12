@@ -963,12 +963,12 @@ func isCommandLineArguments(s string) bool {
 	return strings.Contains(s, "command-line-arguments")
 }
 
-func (s *snapshot) isWorkspacePackage(id packageID) (packagePath, bool) {
+func (s *snapshot) isWorkspacePackage(id packageID) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	scope, ok := s.workspacePackages[id]
-	return scope, ok
+	_, ok := s.workspacePackages[id]
+	return ok
 }
 
 func (s *snapshot) FindFile(uri span.URI) source.VersionedFileHandle {

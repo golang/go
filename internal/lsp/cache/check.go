@@ -187,11 +187,27 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 }
 
 func (s *snapshot) workspaceParseMode(id packageID) source.ParseMode {
-	if _, ws := s.isWorkspacePackage(id); ws {
-		return source.ParseFull
-	} else {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ws := s.workspacePackages[id]
+	if !ws {
 		return source.ParseExported
 	}
+	if s.view.Options().MemoryMode == source.ModeNormal {
+		return source.ParseFull
+	}
+
+	// Degraded mode. Check for open files.
+	m, ok := s.metadata[id]
+	if !ok {
+		return source.ParseExported
+	}
+	for _, cgf := range m.compiledGoFiles {
+		if s.isOpenLocked(cgf) {
+			return source.ParseFull
+		}
+	}
+	return source.ParseExported
 }
 
 func checkPackageKey(id packageID, pghs []*parseGoHandle, cfg *packages.Config, deps []packageHandleKey, mode source.ParseMode, experimentalKey bool) packageHandleKey {
@@ -547,7 +563,7 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *pkg) ([]*source.Diagnost
 		}
 
 		directImporter := depsError.ImportStack[directImporterIdx]
-		if _, ok := s.isWorkspacePackage(packageID(directImporter)); ok {
+		if s.isWorkspacePackage(packageID(directImporter)) {
 			continue
 		}
 		relevantErrors = append(relevantErrors, depsError)
@@ -582,7 +598,7 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *pkg) ([]*source.Diagnost
 	for _, depErr := range relevantErrors {
 		for i := len(depErr.ImportStack) - 1; i >= 0; i-- {
 			item := depErr.ImportStack[i]
-			if _, ok := s.isWorkspacePackage(packageID(item)); ok {
+			if s.isWorkspacePackage(packageID(item)) {
 				break
 			}
 

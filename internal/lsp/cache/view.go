@@ -254,6 +254,9 @@ func minorOptionsChange(a, b *source.Options) bool {
 	if !reflect.DeepEqual(a.DirectoryFilters, b.DirectoryFilters) {
 		return false
 	}
+	if a.MemoryMode != b.MemoryMode {
+		return false
+	}
 	aBuildFlags := make([]string, len(a.BuildFlags))
 	bBuildFlags := make([]string, len(b.BuildFlags))
 	copy(aBuildFlags, a.BuildFlags)

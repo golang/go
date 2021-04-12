@@ -107,6 +107,7 @@ func DefaultOptions() *Options {
 				BuildOptions: BuildOptions{
 					ExpandWorkspaceToModule:     true,
 					ExperimentalPackageCacheKey: true,
+					MemoryMode:                  ModeNormal,
 				},
 				UIOptions: UIOptions{
 					DiagnosticOptions: DiagnosticOptions{
@@ -220,6 +221,12 @@ type BuildOptions struct {
 	//
 	// Include only project_a, but not node_modules inside it: `-`, `+project_a`, `-project_a/node_modules`
 	DirectoryFilters []string
+
+	// MemoryMode controls the tradeoff `gopls` makes between memory usage and
+	// correctness.
+	//
+	// Values other than `Normal` are untested and may break in surprising ways.
+	MemoryMode MemoryMode `status:"experimental"`
 
 	// ExpandWorkspaceToModule instructs `gopls` to adjust the scope of the
 	// workspace to find the best available module root. `gopls` first looks for
@@ -550,6 +557,16 @@ const (
 	Structured HoverKind = "Structured"
 )
 
+type MemoryMode string
+
+const (
+	ModeNormal MemoryMode = "Normal"
+	// In DegradeClosed mode, `gopls` will collect less information about
+	// packages without open files. As a result, features like Find
+	// References and Rename will miss results in such packages.
+	ModeDegradeClosed MemoryMode = "DegradeClosed"
+)
+
 type OptionResults []OptionResult
 
 type OptionResult struct {
@@ -753,6 +770,13 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 			filters = append(filters, strings.TrimRight(filepath.FromSlash(filter), "/"))
 		}
 		o.DirectoryFilters = filters
+	case "memoryMode":
+		if s, ok := result.asOneOf(
+			string(ModeNormal),
+			string(ModeDegradeClosed),
+		); ok {
+			o.MemoryMode = MemoryMode(s)
+		}
 	case "completionDocumentation":
 		result.setBool(&o.CompletionDocumentation)
 	case "usePlaceholders":
