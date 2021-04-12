@@ -264,23 +264,23 @@ func bitcompl32(a, b uint32) (n uint32) {
 
 // check direct operation on memory with constant and shifted constant sources
 func bitOpOnMem(a []uint32, b, c, d uint32) {
-	// amd64:`ANDL\s[$]200,\s\([A-Z]+\)`
+	// amd64:`ANDL\s[$]200,\s\([A-Z][A-Z0-9]+\)`
 	a[0] &= 200
-	// amd64:`ORL\s[$]220,\s4\([A-Z]+\)`
+	// amd64:`ORL\s[$]220,\s4\([A-Z][A-Z0-9]+\)`
 	a[1] |= 220
-	// amd64:`XORL\s[$]240,\s8\([A-Z]+\)`
+	// amd64:`XORL\s[$]240,\s8\([A-Z][A-Z0-9]+\)`
 	a[2] ^= 240
-	// amd64:`BTRL\s[$]15,\s12\([A-Z]+\)`,-`ANDL`
+	// amd64:`BTRL\s[$]15,\s12\([A-Z][A-Z0-9]+\)`,-`ANDL`
 	a[3] &= 0xffff7fff
-	// amd64:`BTSL\s[$]14,\s16\([A-Z]+\)`,-`ORL`
+	// amd64:`BTSL\s[$]14,\s16\([A-Z][A-Z0-9]+\)`,-`ORL`
 	a[4] |= 0x4000
-	// amd64:`BTCL\s[$]13,\s20\([A-Z]+\)`,-`XORL`
+	// amd64:`BTCL\s[$]13,\s20\([A-Z][A-Z0-9]+\)`,-`XORL`
 	a[5] ^= 0x2000
-	// amd64:`BTRL\s[A-Z]+,\s24\([A-Z]+\)`
+	// amd64:`BTRL\s[A-Z][A-Z0-9]+,\s24\([A-Z][A-Z0-9]+\)`
 	a[6] &^= 1 << (b & 31)
-	// amd64:`BTSL\s[A-Z]+,\s28\([A-Z]+\)`
+	// amd64:`BTSL\s[A-Z][A-Z0-9]+,\s28\([A-Z][A-Z0-9]+\)`
 	a[7] |= 1 << (c & 31)
-	// amd64:`BTCL\s[A-Z]+,\s32\([A-Z]+\)`
+	// amd64:`BTCL\s[A-Z][A-Z0-9]+,\s32\([A-Z][A-Z0-9]+\)`
 	a[8] ^= 1 << (d & 31)
 }
 
