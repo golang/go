@@ -85,17 +85,22 @@ The -json flag prints the final go.mod file in JSON format instead of
 writing it back to go.mod. The JSON output corresponds to these Go types:
 
 	type Module struct {
-		Path string
-		Deprecated string
+		Path    string
+		Version string
 	}
 
 	type GoMod struct {
-		Module  Module
+		Module  ModPath
 		Go      string
 		Require []Require
 		Exclude []Module
 		Replace []Replace
 		Retract []Retract
+	}
+
+	type ModPath struct {
+		Path       string
+		Deprecated string
 	}
 
 	type Require struct {
