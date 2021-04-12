@@ -42,7 +42,7 @@ func TestCommand(t *testing.T) {
 			executable += ".exe"
 		}
 		if err := os.WriteFile(filepath.Join(tmpDir, executable), []byte{1, 2, 3}, 0111); err != nil {
-			t.Fatalf("ioutil.WriteFile failed: %s", err)
+			t.Fatalf("os.WriteFile failed: %s", err)
 		}
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -77,7 +77,7 @@ func TestLookPath(t *testing.T) {
 		executable += ".exe"
 	}
 	if err := os.WriteFile(filepath.Join(tmpDir, executable), []byte{1, 2, 3}, 0111); err != nil {
-		t.Fatalf("ioutil.WriteFile failed: %s", err)
+		t.Fatalf("os.WriteFile failed: %s", err)
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
