@@ -852,6 +852,11 @@ func copystack(gp *g, newsize uintptr) {
 		throw("nil stackbase")
 	}
 	used := old.hi - gp.sched.sp
+	// Add just the difference to gcController.addScannableStack.
+	// g0 stacks never move, so this will never account for them.
+	// It's also fine if we have no P, addScannableStack can deal with
+	// that case.
+	gcController.addScannableStack(getg().m.p.ptr(), int64(newsize)-int64(old.hi-old.lo))
 
 	// allocate new stack
 	new := stackalloc(uint32(newsize))
