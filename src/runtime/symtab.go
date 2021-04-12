@@ -529,8 +529,11 @@ func modulesinit() {
 		}
 		*modules = append(*modules, md)
 		if md.gcdatamask == (bitvector{}) {
-			md.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(md.gcdata)), md.edata-md.data)
-			md.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(md.gcbss)), md.ebss-md.bss)
+			scanDataSize := md.edata - md.data
+			md.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(md.gcdata)), scanDataSize)
+			scanBSSSize := md.ebss - md.bss
+			md.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(md.gcbss)), scanBSSSize)
+			gcController.addGlobals(int64(scanDataSize + scanBSSSize))
 		}
 	}
 
