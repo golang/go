@@ -160,13 +160,13 @@ func toFloat32(u32 uint32) float32 {
 // are evaluated at compile-time
 
 func constantCheck64() bool {
-	// amd64:"MOVB\t[$]0",-"FCMP",-"MOVB\t[$]1"
+	// amd64:"(MOVB\t[$]0)|(XORL\t[A-Z][A-Z0-9]+, [A-Z][A-Z0-9]+)",-"FCMP",-"MOVB\t[$]1"
 	// s390x:"MOV(B|BZ|D)\t[$]0,",-"FCMPU",-"MOV(B|BZ|D)\t[$]1,"
 	return 0.5 == float64(uint32(1)) || 1.5 > float64(uint64(1<<63))
 }
 
 func constantCheck32() bool {
-	// amd64:"MOVB\t[$]1",-"FCMP",-"MOVB\t[$]0"
+	// amd64:"MOV(B|L)\t[$]1",-"FCMP",-"MOV(B|L)\t[$]0"
 	// s390x:"MOV(B|BZ|D)\t[$]1,",-"FCMPU",-"MOV(B|BZ|D)\t[$]0,"
 	return float32(0.5) <= float32(int64(1)) && float32(1.5) >= float32(int32(-1<<31))
 }

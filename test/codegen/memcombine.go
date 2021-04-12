@@ -306,16 +306,16 @@ func load_be_byte8_uint64_idx8(s []byte, idx int) uint64 {
 
 // Check load combining across function calls.
 
-func fcall_byte(a, b byte) (byte, byte) {
-	return fcall_byte(fcall_byte(a, b)) // amd64:`MOVW`
+func fcall_byte(a [2]byte) [2]byte {
+	return fcall_byte(fcall_byte(a)) // amd64:`MOVW`
 }
 
-func fcall_uint16(a, b uint16) (uint16, uint16) {
-	return fcall_uint16(fcall_uint16(a, b)) // amd64:`MOVL`
+func fcall_uint16(a [2]uint16) [2]uint16 {
+	return fcall_uint16(fcall_uint16(a)) // amd64:`MOVL`
 }
 
-func fcall_uint32(a, b uint32) (uint32, uint32) {
-	return fcall_uint32(fcall_uint32(a, b)) // amd64:`MOVQ`
+func fcall_uint32(a [2]uint32) [2]uint32 {
+	return fcall_uint32(fcall_uint32(a)) // amd64:`MOVQ`
 }
 
 // We want to merge load+op in the first function, but not in the

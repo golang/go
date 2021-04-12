@@ -19,14 +19,14 @@ func F(a, b, c int, d S) {
 	// amd64:`MOVQ\t\$-2401018187971961171, R8`, `MOVQ\t\$-2401018187971961171, R9`, `MOVQ\t\$-2401018187971961171, R10`
 	// amd64:`MOVQ\t\$-2401018187971961171, R11`, `MOVQ\t\$-2401018187971961171, R12`, `MOVQ\t\$-2401018187971961171, R13`
 	// amd64:-`MOVQ\t\$-2401018187971961171, BP` // frame pointer is not clobbered
-	StackArgsCall(a, b, c, d)
+	StackArgsCall([10]int{a, b, c})
 	// amd64:`MOVQ\t\$-2401018187971961171, R12`, `MOVQ\t\$-2401018187971961171, R13`, `MOVQ\t\$-2401018187971961171, DX`
 	// amd64:-`MOVQ\t\$-2401018187971961171, AX`, -`MOVQ\t\$-2401018187971961171, R11` // register args are not clobbered
 	RegArgsCall(a, b, c, d)
 }
 
 //go:noinline
-func StackArgsCall(int, int, int, S) {}
+func StackArgsCall([10]int) {}
 
 //go:noinline
 //go:registerparams
