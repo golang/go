@@ -306,8 +306,7 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
 		if kt.Align < nt.Align {
 			base.Fatalf("mapKeyTemp: key type is not sufficiently aligned, kt=%v nt=%v", kt, nt)
 		}
-		clear := base.Flag.Cfg.Instrumenting // clear tmp if instrumenting, as it may be live at an inserted race call
-		tmp := o.newTemp(kt, clear)
+		tmp := o.newTemp(kt, true)
 		// *(*nt)(&tmp) = n
 		var e ir.Node = typecheck.NodAddr(tmp)
 		e = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, nt.PtrTo(), e)
