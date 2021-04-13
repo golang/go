@@ -299,10 +299,6 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$runtime·lastcontinuehandler<ABIInternal>(SB), R1
 	B	sigtramp<>(SB)
 
-TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$runtime·profileloop1(SB), R1
-	B	runtime·externalthreadhandler<ABIInternal>(SB)
-
 // externalthreadhander called with R0 = uint32 arg, R1 = Go function f.
 // Need to call f(arg), which returns a uint32, and return it in R0.
 TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|TOPFRAME,$96-0

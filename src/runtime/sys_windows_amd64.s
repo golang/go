@@ -202,12 +202,6 @@ TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ	$runtime·lastcontinuehandler(SB), AX
 	JMP	sigtramp<>(SB)
 
-TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT|NOFRAME,$8
-	MOVQ	$runtime·profileloop1(SB), CX
-	MOVQ	CX, 0(SP)
-	CALL	runtime·externalthreadhandler<ABIInternal>(SB)
-	RET
-
 TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	PUSHQ	BP
 	MOVQ	SP, BP

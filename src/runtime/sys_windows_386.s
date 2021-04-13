@@ -156,15 +156,6 @@ TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT,$0-0
 	MOVL	$runtime·lastcontinuehandler(SB), AX
 	JMP	sigtramp<>(SB)
 
-// Called by OS using stdcall ABI: uint32 profileloop(void*).
-TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT,$0
-	PUSHL	$runtime·profileloop1(SB)
-	NOP	SP	// tell vet SP changed - stop checking offsets
-	CALL	runtime·externalthreadhandler(SB)
-	MOVL	4(SP), CX
-	ADDL	$12, SP
-	JMP	CX
-
 TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|TOPFRAME,$0
 	PUSHL	BP
 	MOVL	SP, BP
