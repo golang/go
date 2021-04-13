@@ -1591,17 +1591,10 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.exoticSelector(n.Sel)
 		if go117ExportTypes {
 			w.exoticType(n.Type())
-			if n.Op() == ir.ODOT || n.Op() == ir.ODOTPTR || n.Op() == ir.ODOTINTER || n.Op() == ir.OMETHEXPR {
+			if n.Op() == ir.ODOT || n.Op() == ir.ODOTPTR || n.Op() == ir.ODOTINTER {
 				w.exoticParam(n.Selection)
-				if n.Op() == ir.OMETHEXPR {
-					name := ir.MethodExprName(n)
-					w.bool(name != nil)
-					if name != nil {
-						w.exoticType(name.Type())
-					}
-				}
 			}
-			// n.Selection is not required for ODOTMETH and OCALLPART. It will
+			// n.Selection is not required for OMETHEXPR, ODOTMETH, and OCALLPART. It will
 			// be reconstructed during import.
 		}
 
