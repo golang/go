@@ -159,8 +159,6 @@ func TestPassFD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Socketpair: %v", err)
 	}
-	defer syscall.Close(fds[0])
-	defer syscall.Close(fds[1])
 	writeFile := os.NewFile(uintptr(fds[0]), "child-writes")
 	readFile := os.NewFile(uintptr(fds[1]), "parent-reads")
 	defer writeFile.Close()
