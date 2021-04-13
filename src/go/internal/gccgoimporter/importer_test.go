@@ -149,21 +149,11 @@ func TestObjImporter(t *testing.T) {
 	}
 	t.Logf("gccgo version %d.%d", major, minor)
 
-	tmpdir, err := os.MkdirTemp("", "TestObjImporter")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
+	tmpdir := t.TempDir()
 	initmap := make(map[*types.Package]InitData)
 	imp := GetImporter([]string{tmpdir}, initmap)
 
-	artmpdir, err := os.MkdirTemp("", "TestObjImporter")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(artmpdir)
-
+	artmpdir := t.TempDir()
 	arinitmap := make(map[*types.Package]InitData)
 	arimp := GetImporter([]string{artmpdir}, arinitmap)
 
