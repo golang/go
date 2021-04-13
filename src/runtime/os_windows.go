@@ -1198,9 +1198,6 @@ func ctrlHandler(_type uint32) uintptr {
 	return 0
 }
 
-// in sys_windows_386.s and sys_windows_amd64.s
-func profileloop()
-
 // called from zcallback_windows_*.s to sys_windows_*.s
 func callbackasm1()
 
@@ -1233,13 +1230,18 @@ func gFromSP(mp *m, sp uintptr) *g {
 	return nil
 }
 
-func profileloop1(param uintptr) uint32 {
+func profileLoop() {
 	stdcall2(_SetThreadPriority, currentThread, _THREAD_PRIORITY_HIGHEST)
 
 	for {
 		stdcall2(_WaitForSingleObject, profiletimer, _INFINITE)
 		first := (*m)(atomic.Loadp(unsafe.Pointer(&allm)))
 		for mp := first; mp != nil; mp = mp.alllink {
+			if mp == getg().m {
+				// Don't profile ourselves.
+				continue
+			}
+
 			lock(&mp.threadLock)
 			// Do not profile threads blocked on Notes,
 			// this includes idle worker threads,
@@ -1251,8 +1253,8 @@ func profileloop1(param uintptr) uint32 {
 			// Acquire our own handle to the thread.
 			var thread uintptr
 			if stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS) == 0 {
-				print("runtime.profileloop1: duplicatehandle failed; errno=", getlasterror(), "\n")
-				throw("runtime.profileloop1: duplicatehandle failed")
+				print("runtime: duplicatehandle failed; errno=", getlasterror(), "\n")
+				throw("duplicatehandle failed")
 			}
 			unlock(&mp.threadLock)
 
@@ -1280,9 +1282,7 @@ func setProcessCPUProfiler(hz int32) {
 	if profiletimer == 0 {
 		timer := stdcall3(_CreateWaitableTimerA, 0, 0, 0)
 		atomic.Storeuintptr(&profiletimer, timer)
-		thread := stdcall6(_CreateThread, 0, 0, funcPC(profileloop), 0, 0, 0)
-		stdcall2(_SetThreadPriority, thread, _THREAD_PRIORITY_HIGHEST)
-		stdcall1(_CloseHandle, thread)
+		newm(profileLoop, nil, -1)
 	}
 }
 
