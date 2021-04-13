@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/goexperiment"
 	"math"
 	"math/rand"
 	. "runtime"
@@ -34,9 +35,73 @@ func TestGcPacer(t *testing.T) {
 			checker: func(t *testing.T, c []gcCycleResult) {
 				n := len(c)
 				if n >= 25 {
+					if goexperiment.PacerRedesign {
+						// For the pacer redesign, assert something even stronger: at this alloc/scan rate,
+						// it should be extremely close to the goal utilization.
+						assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, GCGoalUtilization, 0.005)
+					}
+
 					// Make sure the pacer settles into a non-degenerate state in at least 25 GC cycles.
 					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[n-2].gcUtilization, 0.005)
 					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.95, 1.05)
+				}
+			},
+		},
+		{
+			// Same as the steady-state case, but lots of stacks to scan relative to the heap size.
+			name:          "SteadyBigStacks",
+			gcPercent:     100,
+			globalsBytes:  32 << 10,
+			nCores:        8,
+			allocRate:     constant(132.0),
+			scanRate:      constant(1024.0),
+			growthRate:    constant(2.0).sum(ramp(-1.0, 12)),
+			scannableFrac: constant(1.0),
+			stackBytes:    constant(2048).sum(ramp(128<<20, 8)),
+			length:        50,
+			checker: func(t *testing.T, c []gcCycleResult) {
+				// Check the same conditions as the steady-state case, except the old pacer can't
+				// really handle this well, so don't check the goal ratio for it.
+				n := len(c)
+				if n >= 25 {
+					if goexperiment.PacerRedesign {
+						// For the pacer redesign, assert something even stronger: at this alloc/scan rate,
+						// it should be extremely close to the goal utilization.
+						assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, GCGoalUtilization, 0.005)
+						assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.95, 1.05)
+					}
+
+					// Make sure the pacer settles into a non-degenerate state in at least 25 GC cycles.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[n-2].gcUtilization, 0.005)
+				}
+			},
+		},
+		{
+			// Same as the steady-state case, but lots of globals to scan relative to the heap size.
+			name:          "SteadyBigGlobals",
+			gcPercent:     100,
+			globalsBytes:  128 << 20,
+			nCores:        8,
+			allocRate:     constant(132.0),
+			scanRate:      constant(1024.0),
+			growthRate:    constant(2.0).sum(ramp(-1.0, 12)),
+			scannableFrac: constant(1.0),
+			stackBytes:    constant(8192),
+			length:        50,
+			checker: func(t *testing.T, c []gcCycleResult) {
+				// Check the same conditions as the steady-state case, except the old pacer can't
+				// really handle this well, so don't check the goal ratio for it.
+				n := len(c)
+				if n >= 25 {
+					if goexperiment.PacerRedesign {
+						// For the pacer redesign, assert something even stronger: at this alloc/scan rate,
+						// it should be extremely close to the goal utilization.
+						assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, GCGoalUtilization, 0.005)
+						assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.95, 1.05)
+					}
+
+					// Make sure the pacer settles into a non-degenerate state in at least 25 GC cycles.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[n-2].gcUtilization, 0.005)
 				}
 			},
 		},
@@ -107,6 +172,47 @@ func TestGcPacer(t *testing.T) {
 			},
 		},
 		{
+			// Tests the pacer for a high GOGC value with a large heap growth happening
+			// in the middle. The purpose of the large heap growth is to check if GC
+			// utilization ends up sensitive
+			name:          "HighGOGC",
+			gcPercent:     1500,
+			globalsBytes:  32 << 10,
+			nCores:        8,
+			allocRate:     random(7, 0x53).offset(165),
+			scanRate:      constant(1024.0),
+			growthRate:    constant(2.0).sum(ramp(-1.0, 12), random(0.01, 0x1), unit(14).delay(25)),
+			scannableFrac: constant(1.0),
+			stackBytes:    constant(8192),
+			length:        50,
+			checker: func(t *testing.T, c []gcCycleResult) {
+				n := len(c)
+				if goexperiment.PacerRedesign && n > 12 {
+					if n == 26 {
+						// In the 26th cycle there's a heap growth. Overshoot is expected to maintain
+						// a stable utilization, but we should *never* overshoot more than GOGC of
+						// the next cycle.
+						assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.90, 15)
+					} else {
+						// Give a wider goal range here. With such a high GOGC value we're going to be
+						// forced to undershoot.
+						//
+						// TODO(mknyszek): Instead of placing a 0.95 limit on the trigger, make the limit
+						// based on absolute bytes, that's based somewhat in how the minimum heap size
+						// is determined.
+						assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.90, 1.05)
+					}
+
+					// Ensure utilization remains stable despite a growth in live heap size
+					// at GC #25. This test fails prior to the GC pacer redesign.
+					//
+					// Because GOGC is so large, we should also be really close to the goal utilization.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, GCGoalUtilization, GCGoalUtilization+0.03)
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[n-2].gcUtilization, 0.03)
+				}
+			},
+		},
+		{
 			// This test makes sure that in the face of a varying (in this case, oscillating) allocation
 			// rate, the pacer does a reasonably good job of staying abreast of the changes.
 			name:          "OscAlloc",
@@ -126,7 +232,12 @@ func TestGcPacer(t *testing.T) {
 					// 1. Utilization isn't varying _too_ much, and
 					// 2. The pacer is mostly keeping up with the goal.
 					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.95, 1.05)
-					assertInRange(t, "GC utilization", c[n-1].gcUtilization, 0.25, 0.4)
+					if goexperiment.PacerRedesign {
+						assertInRange(t, "GC utilization", c[n-1].gcUtilization, 0.25, 0.3)
+					} else {
+						// The old pacer is messier here, and needs a lot more tolerance.
+						assertInRange(t, "GC utilization", c[n-1].gcUtilization, 0.25, 0.4)
+					}
 				}
 			},
 		},
@@ -149,7 +260,12 @@ func TestGcPacer(t *testing.T) {
 					// 1. Utilization isn't varying _too_ much, and
 					// 2. The pacer is mostly keeping up with the goal.
 					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.95, 1.05)
-					assertInRange(t, "GC utilization", c[n-1].gcUtilization, 0.25, 0.4)
+					if goexperiment.PacerRedesign {
+						assertInRange(t, "GC utilization", c[n-1].gcUtilization, 0.25, 0.3)
+					} else {
+						// The old pacer is messier here, and needs a lot more tolerance.
+						assertInRange(t, "GC utilization", c[n-1].gcUtilization, 0.25, 0.4)
+					}
 				}
 			},
 		},
@@ -177,7 +293,12 @@ func TestGcPacer(t *testing.T) {
 					// Unlike the other tests, GC utilization here will vary more and tend higher.
 					// Just make sure it's not going too crazy.
 					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[n-2].gcUtilization, 0.05)
-					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[11].gcUtilization, 0.07)
+					if goexperiment.PacerRedesign {
+						assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[11].gcUtilization, 0.05)
+					} else {
+						// The old pacer is messier here, and needs a little more tolerance.
+						assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[11].gcUtilization, 0.07)
+					}
 				}
 			},
 		},
