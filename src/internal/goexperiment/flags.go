@@ -83,4 +83,10 @@ type Flags struct {
 	// Requires wrappers (to do ABI translation), and reflect (so
 	// reflection calls use registers).
 	RegabiArgs bool
+
+	// PacerRedesign enables the new GC pacer in the runtime.
+	//
+	// Details regarding the new pacer may be found at
+	// https://golang.org/design/44167-gc-pacer-redesign
+	PacerRedesign bool
 }
