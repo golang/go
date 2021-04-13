@@ -561,7 +561,11 @@ func moduledataverify1(datap *moduledata) {
 	// Check that the pclntab's format is valid.
 	hdr := datap.pcHeader
 	if hdr.magic != 0xfffffffa || hdr.pad1 != 0 || hdr.pad2 != 0 || hdr.minLC != sys.PCQuantum || hdr.ptrSize != sys.PtrSize {
-		println("runtime: function symbol table header:", hex(hdr.magic), hex(hdr.pad1), hex(hdr.pad2), hex(hdr.minLC), hex(hdr.ptrSize))
+		print("runtime: function symbol table header:", hex(hdr.magic), hex(hdr.pad1), hex(hdr.pad2), hex(hdr.minLC), hex(hdr.ptrSize))
+		if datap.pluginpath != "" {
+			print(", plugin:", datap.pluginpath)
+		}
+		println()
 		throw("invalid function symbol table\n")
 	}
 
@@ -576,7 +580,11 @@ func moduledataverify1(datap *moduledata) {
 			if i+1 < nftab {
 				f2name = funcname(f2)
 			}
-			println("function symbol table not sorted by program counter:", hex(datap.ftab[i].entry), funcname(f1), ">", hex(datap.ftab[i+1].entry), f2name)
+			print("function symbol table not sorted by program counter:", hex(datap.ftab[i].entry), funcname(f1), ">", hex(datap.ftab[i+1].entry), f2name)
+			if datap.pluginpath != "" {
+				print(", plugin:", datap.pluginpath)
+			}
+			println()
 			for j := 0; j <= i; j++ {
 				print("\t", hex(datap.ftab[j].entry), " ", funcname(funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[j].funcoff])), datap}), "\n")
 			}
