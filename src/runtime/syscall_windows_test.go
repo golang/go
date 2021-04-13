@@ -744,6 +744,51 @@ uintptr_t cfunc(callback f, uintptr_t n) {
 	}
 }
 
+func TestSyscall18(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("skipping test: gcc is missing")
+	}
+	if runtime.GOARCH != "amd64" {
+		t.Skipf("skipping test: GOARCH=%s", runtime.GOARCH)
+	}
+
+	const src = `
+#include <stdint.h>
+#include <windows.h>
+
+int cfunc(	int a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int a9,
+			int a10, int a11, int a12, int a13, int a14, int a15, int a16, int a17, int a18) {
+	return 1;
+}
+`
+	tmpdir := t.TempDir()
+
+	srcname := "mydll.c"
+	err := os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outname := "mydll.dll"
+	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", outname, srcname)
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build dll: %v - %v", err, string(out))
+	}
+	dllpath := filepath.Join(tmpdir, outname)
+
+	dll := syscall.MustLoadDLL(dllpath)
+	defer dll.Release()
+
+	proc := dll.MustFindProc("cfunc")
+
+	// proc.Call() will call Syscall18() internally.
+	r, _, err := proc.Call(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18)
+	if r != 1 {
+		t.Errorf("got %d want 1 (err=%v)", r, err)
+	}
+}
+
 func TestFloatArgs(t *testing.T) {
 	if _, err := exec.LookPath("gcc"); err != nil {
 		t.Skip("skipping test: gcc is missing")
