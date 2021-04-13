@@ -199,7 +199,10 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	if iscgo && ctxt.Arch.InFamily(sys.MIPS64, sys.MIPS, sys.PPC64, sys.RISCV64) {
 		return true, objabi.GOARCH + " does not support internal cgo"
 	}
-	if iscgo && objabi.GOOS == "android" {
+	if iscgo && (objabi.GOOS == "android" || objabi.GOOS == "dragonfly") {
+		// It seems that on Dragonfly thread local storage is
+		// set up by the dynamic linker, so internal cgo linking
+		// doesn't work. Test case is "go test runtime/cgo".
 		return true, objabi.GOOS + " does not support internal cgo"
 	}
 
