@@ -14,7 +14,10 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"reflect"
 	. "reflect"
+	example1 "reflect/internal/example1"
+	example2 "reflect/internal/example2"
 	"runtime"
 	"sort"
 	"strconv"
@@ -7230,4 +7233,10 @@ func iterateToString(it *MapIter) string {
 	}
 	sort.Strings(got)
 	return "[" + strings.Join(got, ", ") + "]"
+}
+
+func TestConvertibleTo(t *testing.T) {
+	t1 := reflect.ValueOf(example1.MyStruct{}).Type()
+	t2 := reflect.ValueOf(example2.MyStruct{}).Type()
+	t1.ConvertibleTo(t2)
 }
