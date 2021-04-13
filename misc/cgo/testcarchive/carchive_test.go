@@ -775,7 +775,7 @@ func TestSIGPROF(t *testing.T) {
 // tool with -buildmode=c-archive, it passes -shared to the compiler,
 // so we override that. The go tool doesn't work this way, but Bazel
 // will likely do it in the future. And it ought to work. This test
-// was added because at one time it did not work on PPC GNU/Linux.
+// was added because at one time it did not work on PPC Linux.
 func TestCompileWithoutShared(t *testing.T) {
 	// For simplicity, reuse the signal forwarding test.
 	checkSignalForwardingTest(t)

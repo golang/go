@@ -174,7 +174,7 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 		// with the netpoll system. That can happen for
 		// a file descriptor that is not supported by
 		// epoll/kqueue; for example, disk files on
-		// GNU/Linux systems. We assume that any real error
+		// Linux systems. We assume that any real error
 		// will show up in later I/O.
 	} else if pollable {
 		// We successfully registered with netpoll, so put
