@@ -6638,15 +6638,15 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 				inlMarksByPos[pos] = append(inlMarksByPos[pos], p)
 
 			default:
+				// Special case for first line in function; move it to the start (which cannot be a register-valued instruction)
+				if firstPos != src.NoXPos && v.Op != ssa.OpArgIntReg && v.Op != ssa.OpArgFloatReg && v.Op != ssa.OpLoadReg && v.Op != ssa.OpStoreReg {
+					s.SetPos(firstPos)
+					firstPos = src.NoXPos
+				}
 				// Attach this safe point to the next
 				// instruction.
 				s.pp.NextLive = s.livenessMap.Get(v)
 
-				// Special case for first line in function; move it to the start.
-				if firstPos != src.NoXPos {
-					s.SetPos(firstPos)
-					firstPos = src.NoXPos
-				}
 				// let the backend handle it
 				Arch.SSAGenValue(&s, v)
 			}
