@@ -5,6 +5,7 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
+#include "cgo/abi_amd64.h"
 
 // maxargs should be divisible by 2, as Windows stack
 // must be kept 16-byte aligned on syscall entry.
@@ -111,18 +112,10 @@ TEXT runtime·getlasterror(SB),NOSPLIT,$0
 TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0-0
 	// CX: PEXCEPTION_POINTERS ExceptionInfo
 
-	// DI SI BP BX R12 R13 R14 R15 registers and DF flag are preserved
-	// as required by windows callback convention.
-	PUSHFQ
-	SUBQ	$112, SP
-	MOVQ	DI, 80(SP)
-	MOVQ	SI, 72(SP)
-	MOVQ	BP, 64(SP)
-	MOVQ	BX, 56(SP)
-	MOVQ	R12, 48(SP)
-	MOVQ	R13, 40(SP)
-	MOVQ	R14, 32(SP)
-	MOVQ	R15, 88(SP)
+	// Switch from the host ABI to the Go ABI.
+	PUSH_REGS_HOST_TO_ABI0()
+	// Make stack space for the rest of the function.
+	ADJSP	$48
 
 	MOVQ	AX, R15	// save handler address
 
@@ -138,8 +131,8 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0-0
 	CALL	runtime·badsignal2(SB)
 
 	// save g and SP in case of stack switch
-	MOVQ	DX, 96(SP) // g
-	MOVQ	SP, 104(SP)
+	MOVQ	DX, 32(SP) // g
+	MOVQ	SP, 40(SP)
 
 	// do we need to switch to the g0 stack?
 	MOVQ	g_m(DX), BX
@@ -153,9 +146,11 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ	(g_sched+gobuf_sp)(BX), DI
 	// make room for sighandler arguments
 	// and re-save old SP for restoring later.
-	// (note that the 104(DI) here must match the 104(SP) above.)
-	SUBQ	$120, DI
-	MOVQ	SP, 104(DI)
+	// Adjust g0 stack by the space we're using and
+	// save SP at the same place on the g0 stack.
+	// The 32(DI) here must match the 32(SP) above.
+	SUBQ	$(REGS_HOST_TO_ABI0_STACK + 48), DI
+	MOVQ	SP, 40(DI)
 	MOVQ	DI, SP
 
 g0:
@@ -170,23 +165,14 @@ g0:
 
 	// switch back to original stack and g
 	// no-op if we never left.
-	MOVQ	104(SP), SP
-	MOVQ	96(SP), DX
+	MOVQ	40(SP), SP
+	MOVQ	32(SP), DX
 	get_tls(BP)
 	MOVQ	DX, g(BP)
 
 done:
-	// restore registers as required for windows callback
-	MOVQ	88(SP), R15
-	MOVQ	32(SP), R14
-	MOVQ	40(SP), R13
-	MOVQ	48(SP), R12
-	MOVQ	56(SP), BX
-	MOVQ	64(SP), BP
-	MOVQ	72(SP), SI
-	MOVQ	80(SP), DI
-	ADDQ	$112, SP
-	POPFQ
+	ADJSP	$-48
+	POP_REGS_HOST_TO_ABI0()
 
 	RET
 
@@ -230,21 +216,8 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	DIVL	CX
 	SUBQ	$1, AX	// subtract 1 because return PC is to the next slot
 
-	// DI SI BP BX R12 R13 R14 R15 registers and DF flag are preserved
-	// as required by windows callback convention.
-	PUSHFQ
-	SUBQ	$64, SP
-	MOVQ	DI, 56(SP)
-	MOVQ	SI, 48(SP)
-	MOVQ	BP, 40(SP)
-	MOVQ	BX, 32(SP)
-	MOVQ	R12, 24(SP)
-	MOVQ	R13, 16(SP)
-	MOVQ	R14, 8(SP)
-	MOVQ	R15, 0(SP)
-
-	// Go ABI requires DF flag to be cleared.
-	CLD
+	// Switch from the host ABI to the Go ABI.
+	PUSH_REGS_HOST_TO_ABI0()
 
 	// Create a struct callbackArgs on our stack to be passed as
 	// the "frame" to cgocallback and on to callbackWrap.
@@ -263,23 +236,16 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	MOVQ	(24+callbackArgs_result)(SP), AX
 	ADDQ	$(24+callbackArgs__size), SP
 
-	// restore registers as required for windows callback
-	MOVQ	0(SP), R15
-	MOVQ	8(SP), R14
-	MOVQ	16(SP), R13
-	MOVQ	24(SP), R12
-	MOVQ	32(SP), BX
-	MOVQ	40(SP), BP
-	MOVQ	48(SP), SI
-	MOVQ	56(SP), DI
-	ADDQ	$64, SP
-	POPFQ
+	POP_REGS_HOST_TO_ABI0()
 
 	// The return value was placed in AX above.
 	RET
 
 // uint32 tstart_stdcall(M *newm);
 TEXT runtime·tstart_stdcall<ABIInternal>(SB),NOSPLIT,$0
+	// Switch from the host ABI to the Go ABI.
+	PUSH_REGS_HOST_TO_ABI0()
+
 	// CX contains first arg newm
 	MOVQ	m_g0(CX), DX		// g
 
@@ -298,11 +264,10 @@ TEXT runtime·tstart_stdcall<ABIInternal>(SB),NOSPLIT,$0
 	MOVQ	CX, g_m(DX)
 	MOVQ	DX, g(SI)
 
-	// Someday the convention will be D is always cleared.
-	CLD
-
 	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
 	CALL	runtime·mstart(SB)
+
+	POP_REGS_HOST_TO_ABI0()
 
 	XORL	AX, AX			// return 0 == success
 	RET
