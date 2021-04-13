@@ -182,12 +182,19 @@ type Type struct {
 	flags bitset8
 
 	// For defined (named) generic types, a pointer to the list of type params
-	// (in order) of this type that need to be instantiated. For
-	// fully-instantiated generic types, this is the targs used to instantiate
-	// them (which are used when generating the corresponding instantiated
-	// methods). rparams is only set for named types that are generic or are
-	// fully-instantiated from a generic type, and is otherwise set to nil.
+	// (in order) of this type that need to be instantiated. For instantiated
+	// generic types, this is the targs used to instantiate them. These targs
+	// may be typeparams (for re-instantiated types such as Value[T2]) or
+	// concrete types (for fully instantiated types such as Value[int]).
+	// rparams is only set for named types that are generic or are fully
+	// instantiated from a generic type, and is otherwise set to nil.
+	// TODO(danscales): choose a better name.
 	rparams *[]*Type
+
+	// For an instantiated generic type, the symbol for the base generic type.
+	// This backpointer is useful, because the base type is the type that has
+	// the method bodies.
+	OrigSym *Sym
 }
 
 func (*Type) CanBeAnSSAAux() {}
@@ -213,7 +220,9 @@ func (t *Type) SetBroke(b bool)      { t.flags.set(typeBroke, b) }
 func (t *Type) SetNoalg(b bool)      { t.flags.set(typeNoalg, b) }
 func (t *Type) SetDeferwidth(b bool) { t.flags.set(typeDeferwidth, b) }
 func (t *Type) SetRecur(b bool)      { t.flags.set(typeRecur, b) }
-func (t *Type) SetHasTParam(b bool)  { t.flags.set(typeHasTParam, b) }
+
+// Generic types should never have alg functions.
+func (t *Type) SetHasTParam(b bool) { t.flags.set(typeHasTParam, b); t.flags.set(typeNoalg, b) }
 
 // Kind returns the kind of type t.
 func (t *Type) Kind() Kind { return t.kind }

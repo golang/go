@@ -8,12 +8,10 @@
 package noder
 
 import (
-	"bytes"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
-	"cmd/internal/src"
 	"fmt"
 	"strings"
 )
@@ -160,9 +158,14 @@ func (g *irgen) stencil() {
 func (g *irgen) instantiateMethods() {
 	for i := 0; i < len(g.instTypeList); i++ {
 		typ := g.instTypeList[i]
-		// Get the base generic type by looking up the symbol of the
-		// generic (uninstantiated) name.
-		baseSym := typ.Sym().Pkg.Lookup(genericTypeName(typ.Sym()))
+		// Mark runtime type as needed, since this ensures that the
+		// compiler puts out the needed DWARF symbols, when this
+		// instantiated type has a different package from the local
+		// package.
+		typecheck.NeedRuntimeType(typ)
+		// Lookup the method on the base generic type, since methods may
+		// not be set on imported instantiated types.
+		baseSym := typ.OrigSym
 		baseType := baseSym.Def.(*ir.Name).Type()
 		for j, m := range typ.Methods().Slice() {
 			name := m.Nname.(*ir.Name)
@@ -199,12 +202,24 @@ func (g *irgen) getInstantiationForNode(inst *ir.InstExpr) *ir.Func {
 // with the type arguments targs. If the instantiated function is not already
 // cached, then it calls genericSubst to create the new instantiation.
 func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth bool) *ir.Func {
+	if nameNode.Func.Body == nil && nameNode.Func.Inl != nil {
+		// If there is no body yet but Func.Inl exists, then we can can
+		// import the whole generic body.
+		assert(nameNode.Func.Inl.Cost == 1 && nameNode.Sym().Pkg != types.LocalPkg)
+		typecheck.ImportBody(nameNode.Func)
+		assert(nameNode.Func.Inl.Body != nil)
+		nameNode.Func.Body = nameNode.Func.Inl.Body
+		nameNode.Func.Dcl = nameNode.Func.Inl.Dcl
+	}
 	sym := typecheck.MakeInstName(nameNode.Sym(), targs, isMeth)
 	st := g.target.Stencils[sym]
 	if st == nil {
 		// If instantiation doesn't exist yet, create it and add
 		// to the list of decls.
 		st = g.genericSubst(sym, nameNode, targs, isMeth)
+		// This ensures that the linker drops duplicates of this instantiation.
+		// All just works!
+		st.SetDupok(true)
 		g.target.Stencils[sym] = st
 		g.target.Decls = append(g.target.Decls, st)
 		if base.Flag.W > 1 {
@@ -626,21 +641,6 @@ func (subst *subster) tinter(t *types.Type) *types.Type {
 	return t
 }
 
-// instTypeName creates a name for an instantiated type, based on the name of the
-// generic type and the type args
-func instTypeName(name string, targs []*types.Type) string {
-	b := bytes.NewBufferString(name)
-	b.WriteByte('[')
-	for i, targ := range targs {
-		if i > 0 {
-			b.WriteByte(',')
-		}
-		b.WriteString(targ.String())
-	}
-	b.WriteByte(']')
-	return b.String()
-}
-
 // typ computes the type obtained by substituting any type parameter in t with the
 // corresponding type argument in subst. If t contains no type parameters, the
 // result is t; otherwise the result is a new type. It deals with recursive types
@@ -696,7 +696,7 @@ func (subst *subster) typ(t *types.Type) *types.Type {
 		// already seen this type during this substitution or other
 		// definitions/substitutions.
 		genName := genericTypeName(t.Sym())
-		newsym = t.Sym().Pkg.Lookup(instTypeName(genName, neededTargs))
+		newsym = t.Sym().Pkg.Lookup(typecheck.InstTypeName(genName, neededTargs))
 		if newsym.Def != nil {
 			// We've already created this instantiated defined type.
 			return newsym.Def.Type()
@@ -705,9 +705,13 @@ func (subst *subster) typ(t *types.Type) *types.Type {
 		// In order to deal with recursive generic types, create a TFORW
 		// type initially and set the Def field of its sym, so it can be
 		// found if this type appears recursively within the type.
-		forw = newIncompleteNamedType(t.Pos(), newsym)
+		forw = typecheck.NewIncompleteNamedType(t.Pos(), newsym)
 		//println("Creating new type by sub", newsym.Name, forw.HasTParam())
 		forw.SetRParams(neededTargs)
+		// Copy the OrigSym from the re-instantiated type (which is the sym of
+		// the base generic type).
+		assert(t.OrigSym != nil)
+		forw.OrigSym = t.OrigSym
 	}
 
 	var newt *types.Type
@@ -865,11 +869,14 @@ func (subst *subster) fields(class ir.Class, oldfields []*types.Field, dcl []*ir
 	for j := range oldfields {
 		newfields[j] = oldfields[j].Copy()
 		newfields[j].Type = subst.typ(oldfields[j].Type)
-		// A param field will be missing from dcl if its name is
+		// A PPARAM field will be missing from dcl if its name is
 		// unspecified or specified as "_". So, we compare the dcl sym
-		// with the field sym. If they don't match, this dcl (if there is
-		// one left) must apply to a later field.
-		if i < len(dcl) && dcl[i].Sym() == oldfields[j].Sym {
+		// with the field sym (or sym of the field's Nname node). (Unnamed
+		// results still have a name like ~r2 in their Nname node.) If
+		// they don't match, this dcl (if there is one left) must apply to
+		// a later field.
+		if i < len(dcl) && (dcl[i].Sym() == oldfields[j].Sym ||
+			(oldfields[j].Nname != nil && dcl[i].Sym() == oldfields[j].Nname.Sym())) {
 			newfields[j].Nname = dcl[i]
 			i++
 		}
@@ -883,14 +890,4 @@ func deref(t *types.Type) *types.Type {
 		return t.Elem()
 	}
 	return t
-}
-
-// newIncompleteNamedType returns a TFORW type t with name specified by sym, such
-// that t.nod and sym.Def are set correctly.
-func newIncompleteNamedType(pos src.XPos, sym *types.Sym) *types.Type {
-	name := ir.NewDeclNameAt(pos, ir.OTYPE, sym)
-	forw := types.NewNamed(name)
-	name.SetType(forw)
-	sym.Def = name
-	return forw
 }

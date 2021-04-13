@@ -57,6 +57,8 @@ const (
 	signatureType
 	structType
 	interfaceType
+	typeParamType
+	instType
 )
 
 const io_SeekCurrent = 1 // io.SeekCurrent (not defined in Go 1.4)
@@ -292,15 +294,20 @@ func (r *importReader) obj(name string) {
 		r.declare(types2.NewConst(pos, r.currPkg, name, typ, val))
 
 	case 'F':
+		tparams := r.tparamList()
 		sig := r.signature(nil)
+		sig.SetTParams(tparams)
 
 		r.declare(types2.NewFunc(pos, r.currPkg, name, sig))
 
 	case 'T':
+		tparams := r.tparamList()
+
 		// Types can be recursive. We need to setup a stub
 		// declaration before recursing.
 		obj := types2.NewTypeName(pos, r.currPkg, name, nil)
 		named := types2.NewNamed(obj, nil, nil)
+		named.SetTParams(tparams)
 		r.declare(obj)
 
 		underlying := r.p.typAt(r.uint64(), named).Underlying()
@@ -312,6 +319,18 @@ func (r *importReader) obj(name string) {
 				mname := r.ident()
 				recv := r.param()
 				msig := r.signature(recv)
+
+				// If the receiver has any targs, set those as the
+				// rparams of the method (since those are the
+				// typeparams being used in the method sig/body).
+				targs := baseType(msig.Recv().Type()).TArgs()
+				if len(targs) > 0 {
+					rparams := make([]*types2.TypeName, len(targs))
+					for i, targ := range targs {
+						rparams[i] = types2.AsTypeParam(targ).Obj()
+					}
+					msig.SetRParams(rparams)
+				}
 
 				named.AddMethod(types2.NewFunc(mpos, r.currPkg, mname, msig))
 			}
@@ -571,6 +590,49 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
 		typ := types2.NewInterfaceType(methods, embeddeds)
 		r.p.interfaceList = append(r.p.interfaceList, typ)
 		return typ
+
+	case typeParamType:
+		r.currPkg = r.pkg()
+		pos := r.pos()
+		name := r.string()
+
+		// Extract the subscript value from the type param name. We export
+		// and import the subscript value, so that all type params have
+		// unique names.
+		sub := uint64(0)
+		startsub := -1
+		for i, r := range name {
+			if '₀' <= r && r < '₀'+10 {
+				if startsub == -1 {
+					startsub = i
+				}
+				sub = sub*10 + uint64(r-'₀')
+			}
+		}
+		if startsub >= 0 {
+			name = name[:startsub]
+		}
+		index := int(r.int64())
+		bound := r.typ()
+		tn := types2.NewTypeName(pos, r.currPkg, name, nil)
+		t := (*types2.Checker)(nil).NewTypeParam(tn, index, bound)
+		if sub >= 0 {
+			t.SetId(sub)
+		}
+		return t
+
+	case instType:
+		pos := r.pos()
+		len := r.uint64()
+		targs := make([]types2.Type, len)
+		for i := range targs {
+			targs[i] = r.typ()
+		}
+		baseType := r.typ()
+		// The imported instantiated type doesn't include any methods, so
+		// we must always use the methods of the base (orig) type.
+		t := types2.Instantiate(pos, baseType, targs)
+		return t
 	}
 }
 
@@ -583,6 +645,19 @@ func (r *importReader) signature(recv *types2.Var) *types2.Signature {
 	results := r.paramList()
 	variadic := params.Len() > 0 && r.bool()
 	return types2.NewSignature(recv, params, results, variadic)
+}
+
+func (r *importReader) tparamList() []*types2.TypeName {
+	n := r.uint64()
+	if n == 0 {
+		return nil
+	}
+	xs := make([]*types2.TypeName, n)
+	for i := range xs {
+		typ := r.typ()
+		xs[i] = types2.AsTypeParam(typ).Obj()
+	}
+	return xs
 }
 
 func (r *importReader) paramList() *types2.Tuple {
@@ -626,4 +701,14 @@ func (r *importReader) byte() byte {
 		errorf("declReader.ReadByte: %v", err)
 	}
 	return x
+}
+
+func baseType(typ types2.Type) *types2.Named {
+	// pointer receivers are never types2.Named types
+	if p, _ := typ.(*types2.Pointer); p != nil {
+		typ = p.Elem()
+	}
+	// receiver base types are always (possibly generic) types2.Named types
+	n, _ := typ.(*types2.Named)
+	return n
 }

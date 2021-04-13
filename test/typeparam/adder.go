@@ -14,16 +14,16 @@ type AddType interface {
 	type int, int64, string
 }
 
-// _Add can add numbers or strings
-func _Add[T AddType](a, b T) T {
+// Add can add numbers or strings
+func Add[T AddType](a, b T) T {
 	return a + b
 }
 
 func main() {
-	if got, want := _Add(5, 3), 8; got != want {
+	if got, want := Add(5, 3), 8; got != want {
 		panic(fmt.Sprintf("got %d, want %d", got, want))
 	}
-	if got, want := _Add("ab", "cd"), "abcd"; got != want {
+	if got, want := Add("ab", "cd"), "abcd"; got != want {
 		panic(fmt.Sprintf("got %d, want %d", got, want))
 	}
 }

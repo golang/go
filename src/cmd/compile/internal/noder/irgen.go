@@ -185,9 +185,9 @@ Outer:
 	// Create any needed stencils of generic functions
 	g.stencil()
 
-	// For now, remove all generic functions from g.target.Decl, since they
-	// have been used for stenciling, but don't compile. TODO: We will
-	// eventually export any exportable generic functions.
+	// Remove all generic functions from g.target.Decl, since they have been
+	// used for stenciling, but don't compile. Generic functions will already
+	// have been marked for export as appropriate.
 	j := 0
 	for i, decl := range g.target.Decls {
 		if decl.Op() != ir.ODCLFUNC || !decl.Type().HasTParam() {

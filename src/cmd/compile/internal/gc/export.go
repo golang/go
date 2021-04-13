@@ -25,11 +25,6 @@ func exportf(bout *bio.Writer, format string, args ...interface{}) {
 func dumpexport(bout *bio.Writer) {
 	p := &exporter{marked: make(map[*types.Type]bool)}
 	for _, n := range typecheck.Target.Exports {
-		// Must catch it here rather than Export(), because the type can be
-		// not fully set (still TFORW) when Export() is called.
-		if n.Type() != nil && n.Type().HasTParam() {
-			base.Fatalf("Cannot (yet) export a generic type: %v", n)
-		}
 		p.markObject(n)
 	}
 
@@ -103,6 +98,11 @@ func (p *exporter) markType(t *types.Type) {
 		return
 	}
 	p.marked[t] = true
+	if t.HasTParam() {
+		// Don't deal with any generic types or their methods, since we
+		// will only be inlining actual instantiations, not generic methods.
+		return
+	}
 
 	// If this is a named type, mark all of its associated
 	// methods. Skip interface types because t.Methods contains
@@ -152,6 +152,8 @@ func (p *exporter) markType(t *types.Type) {
 		}
 
 	case types.TINTER:
+		// TODO(danscales) - will have to deal with the types in interface
+		// elements here when implemented in types2 and represented in types1.
 		for _, f := range t.AllMethods().Slice() {
 			if types.IsExported(f.Sym.Name) {
 				p.markType(f.Type)

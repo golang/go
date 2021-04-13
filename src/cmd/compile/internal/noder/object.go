@@ -49,6 +49,11 @@ func (g *irgen) obj(obj types2.Object) *ir.Name {
 	// For imported objects, we use iimport directly instead of mapping
 	// the types2 representation.
 	if obj.Pkg() != g.self {
+		if sig, ok := obj.Type().(*types2.Signature); ok && sig.Recv() != nil {
+			// We can't import a method by name - must import the type
+			// and access the method from it.
+			base.FatalfAt(g.pos(obj), "tried to import a method directly")
+		}
 		sym := g.sym(obj)
 		if sym.Def != nil {
 			return sym.Def.(*ir.Name)
@@ -165,9 +170,8 @@ func (g *irgen) objFinish(name *ir.Name, class ir.Class, typ *types.Type) {
 			break // methods are exported with their receiver type
 		}
 		if types.IsExported(sym.Name) {
-			if name.Class == ir.PFUNC && name.Type().NumTParams() > 0 {
-				base.FatalfAt(name.Pos(), "Cannot export a generic function (yet): %v", name)
-			}
+			// Generic functions can be marked for export here, even
+			// though they will not be compiled until instantiated.
 			typecheck.Export(name)
 		}
 		if base.Flag.AsmHdr != "" && !name.Sym().Asm() {

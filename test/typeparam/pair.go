@@ -24,6 +24,7 @@ func main() {
 	if got, want := unsafe.Sizeof(p.f2), uintptr(8); got != want {
 		panic(fmt.Sprintf("unexpected f2 size == %d, want %d", got, want))
 	}
+
 	type mypair struct { f1 int32; f2 int64 }
 	mp := mypair(p)
 	if mp.f1 != 1 || mp.f2 != 2 {

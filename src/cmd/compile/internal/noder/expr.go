@@ -264,8 +264,12 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 				// instantiated for this method call.
 				// selinfo.Recv() is the instantiated type
 				recvType2 = recvType2Base
-				// method is the generic method associated with the gen type
-				method := g.obj(types2.AsNamed(recvType2).Method(last))
+				recvTypeSym := g.pkg(method2.Pkg()).Lookup(recvType2.(*types2.Named).Obj().Name())
+				recvType := recvTypeSym.Def.(*ir.Name).Type()
+				// method is the generic method associated with
+				// the base generic type. The instantiated type may not
+				// have method bodies filled in, if it was imported.
+				method := recvType.Methods().Index(last).Nname.(*ir.Name)
 				n = ir.NewSelectorExpr(pos, ir.OCALLPART, x, typecheck.Lookup(expr.Sel.Value))
 				n.(*ir.SelectorExpr).Selection = types.NewField(pos, method.Sym(), method.Type())
 				n.(*ir.SelectorExpr).Selection.Nname = method

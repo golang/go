@@ -55,6 +55,8 @@ const (
 	signatureType
 	structType
 	interfaceType
+	typeParamType
+	instType
 )
 
 // iImportData imports a package from the serialized package data
@@ -271,11 +273,21 @@ func (r *importReader) obj(name string) {
 		r.declare(types.NewConst(pos, r.currPkg, name, typ, val))
 
 	case 'F':
+		numTparams := r.uint64()
+		if numTparams > 0 {
+			errorf("unexpected tparam")
+			return
+		}
 		sig := r.signature(nil)
 
 		r.declare(types.NewFunc(pos, r.currPkg, name, sig))
 
 	case 'T':
+		numTparams := r.uint64()
+		if numTparams > 0 {
+			errorf("unexpected tparam")
+		}
+
 		// Types can be recursive. We need to setup a stub
 		// declaration before recursing.
 		obj := types.NewTypeName(pos, r.currPkg, name, nil)
@@ -548,6 +560,14 @@ func (r *importReader) doType(base *types.Named) types.Type {
 		typ := types.NewInterfaceType(methods, embeddeds)
 		r.p.interfaceList = append(r.p.interfaceList, typ)
 		return typ
+
+	case typeParamType:
+		errorf("do not handle tparams yet")
+		return nil
+
+	case instType:
+		errorf("do not handle instantiated types yet")
+		return nil
 	}
 }
 
