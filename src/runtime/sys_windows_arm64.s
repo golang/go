@@ -299,10 +299,6 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$runtime·lastcontinuehandler<ABIInternal>(SB), R1
 	B	sigtramp<>(SB)
 
-TEXT runtime·ctrlhandler<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$runtime·ctrlhandler1(SB), R1
-	B	runtime·externalthreadhandler<ABIInternal>(SB)
-
 TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$runtime·profileloop1(SB), R1
 	B	runtime·externalthreadhandler<ABIInternal>(SB)

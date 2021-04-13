@@ -149,9 +149,6 @@ var (
 // to start new os thread.
 func tstart_stdcall(newm *m)
 
-// Called by OS using stdcall ABI.
-func ctrlhandler()
-
 // Init-time helper
 func wintls()
 
@@ -557,8 +554,6 @@ func osinit() {
 
 	initExceptionHandler()
 
-	stdcall2(_SetConsoleCtrlHandler, funcPC(ctrlhandler), 1)
-
 	initHighResTimer()
 	timeBeginPeriodRetValue = osRelax(false)
 
@@ -685,8 +680,12 @@ func goenvs() {
 
 	stdcall1(_FreeEnvironmentStringsW, uintptr(strings))
 
-	// We call this all the way here, late in init, so that malloc works
-	// for the callback function this generates.
+	// We call these all the way here, late in init, so that malloc works
+	// for the callback functions these generate.
+	var fn interface{} = ctrlHandler
+	ctrlHandlerPC := compileCallback(*efaceOf(&fn), true)
+	stdcall2(_SetConsoleCtrlHandler, ctrlHandlerPC, 1)
+
 	monitorSuspendResume()
 }
 
@@ -1176,7 +1175,7 @@ func usleep(us uint32) {
 	})
 }
 
-func ctrlhandler1(_type uint32) uint32 {
+func ctrlHandler(_type uint32) uintptr {
 	var s uint32
 
 	switch _type {
