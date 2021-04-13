@@ -8,7 +8,7 @@
 
 // maxargs should be divisible by 2, as Windows stack
 // must be kept 16-byte aligned on syscall entry.
-#define maxargs 16
+#define maxargs 18
 
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
