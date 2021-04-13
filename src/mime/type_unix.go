@@ -49,7 +49,15 @@ func loadMimeGlobsFile(filename string) error {
 			continue
 		}
 
-		setExtensionType(fields[2][1:], fields[1])
+		extension := fields[2][1:]
+		if _, ok := mimeTypes.Load(extension); ok {
+			// We've already seen this extension.
+			// The file is in weight order, so we keep
+			// the first entry that we see.
+			continue
+		}
+
+		setExtensionType(extension, fields[1])
 	}
 	if err := scanner.Err(); err != nil {
 		panic(err)
