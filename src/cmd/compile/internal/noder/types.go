@@ -68,8 +68,10 @@ func instTypeName2(name string, targs []types2.Type) string {
 		if i > 0 {
 			b.WriteByte(',')
 		}
+		// Include package names for all types, including typeparams, to
+		// make sure type arguments are uniquely specified.
 		tname := types2.TypeString(targ,
-			func(*types2.Package) string { return "" })
+			func(pkg *types2.Package) string { return pkg.Name() })
 		if strings.Index(tname, ", ") >= 0 {
 			// types2.TypeString puts spaces after a comma in a type
 			// list, but we don't want spaces in our actual type names
@@ -120,7 +122,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 			// which may set HasTParam) before translating the
 			// underlying type itself, so we handle recursion
 			// correctly, including via method signatures.
-			ntyp := newIncompleteNamedType(g.pos(typ.Obj().Pos()), s)
+			ntyp := typecheck.NewIncompleteNamedType(g.pos(typ.Obj().Pos()), s)
 			g.typs[typ] = ntyp
 
 			// If ntyp still has type params, then we must be
@@ -143,6 +145,8 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 
 			ntyp.SetUnderlying(g.typ1(typ.Underlying()))
 			g.fillinMethods(typ, ntyp)
+			// Save the symbol for the base generic type.
+			ntyp.OrigSym = g.pkg(typ.Obj().Pkg()).Lookup(typ.Obj().Name())
 			return ntyp
 		}
 		obj := g.obj(typ.Obj())
@@ -206,8 +210,19 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 	case *types2.TypeParam:
 		// Save the name of the type parameter in the sym of the type.
 		// Include the types2 subscript in the sym name
-		sym := g.pkg(typ.Obj().Pkg()).Lookup(types2.TypeString(typ, func(*types2.Package) string { return "" }))
+		pkg := g.tpkg(typ)
+		sym := pkg.Lookup(types2.TypeString(typ, func(*types2.Package) string { return "" }))
+		if sym.Def != nil {
+			// Make sure we use the same type param type for the same
+			// name, whether it is created during types1-import or
+			// this types2-to-types1 translation.
+			return sym.Def.Type()
+		}
 		tp := types.NewTypeParam(sym, typ.Index())
+		nname := ir.NewDeclNameAt(g.pos(typ.Obj().Pos()), ir.OTYPE, sym)
+		sym.Def = nname
+		nname.SetType(tp)
+		tp.SetNod(nname)
 		// Set g.typs[typ] in case the bound methods reference typ.
 		g.typs[typ] = tp
 
@@ -248,11 +263,19 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 		methods := make([]*types.Field, typ.NumMethods())
 		for i := range methods {
 			m := typ.Method(i)
-			meth := g.obj(m)
 			recvType := types2.AsSignature(m.Type()).Recv().Type()
 			ptr := types2.AsPointer(recvType)
 			if ptr != nil {
 				recvType = ptr.Elem()
+			}
+			var meth *ir.Name
+			if m.Pkg() != g.self {
+				// Imported methods cannot be loaded by name (what
+				// g.obj() does) - they must be loaded via their
+				// type.
+				meth = g.obj(recvType.(*types2.Named).Obj()).Type().Methods().Index(i).Nname.(*ir.Name)
+			} else {
+				meth = g.obj(m)
 			}
 			if recvType != types2.Type(typ) {
 				// Unfortunately, meth is the type of the method of the
@@ -343,7 +366,7 @@ func (g *irgen) selector(obj types2.Object) *types.Sym {
 	return pkg.Lookup(name)
 }
 
-// tpkg returns the package that a function, interface, or struct type
+// tpkg returns the package that a function, interface, struct, or typeparam type
 // expression appeared in.
 //
 // Caveat: For the degenerate types "func()", "interface{}", and
@@ -373,6 +396,8 @@ func (g *irgen) tpkg(typ types2.Type) *types.Pkg {
 			if typ.NumExplicitMethods() > 0 {
 				return typ.ExplicitMethod(0)
 			}
+		case *types2.TypeParam:
+			return typ.Obj()
 		}
 		return nil
 	}

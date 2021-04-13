@@ -887,7 +887,7 @@ func TypesOf(x []ir.Node) []*types.Type {
 }
 
 // MakeInstName makes the unique name for a stenciled generic function or method,
-// based on the name of the function fy=nsym and the targs. It replaces any
+// based on the name of the function fnsym and the targs. It replaces any
 // existing bracket type list in the name. makeInstName asserts that fnsym has
 // brackets in its name if and only if hasBrackets is true.
 // TODO(danscales): remove the assertions and the hasBrackets argument later.
@@ -914,6 +914,12 @@ func MakeInstName(fnsym *types.Sym, targs []*types.Type, hasBrackets bool) *type
 		if i > 0 {
 			b.WriteString(",")
 		}
+		// WriteString() does not include the package name for the local
+		// package, but we want it for uniqueness.
+		if targ.Sym() != nil && targ.Sym().Pkg == types.LocalPkg {
+			b.WriteString(targ.Sym().Pkg.Name)
+			b.WriteByte('.')
+		}
 		b.WriteString(targ.String())
 	}
 	b.WriteString("]")
@@ -922,7 +928,7 @@ func MakeInstName(fnsym *types.Sym, targs []*types.Type, hasBrackets bool) *type
 		assert(i2 >= 0)
 		b.WriteString(name[i+i2+1:])
 	}
-	return Lookup(b.String())
+	return fnsym.Pkg.Lookup(b.String())
 }
 
 // For catching problems as we add more features

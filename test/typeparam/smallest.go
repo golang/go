@@ -17,7 +17,7 @@ type Ordered interface {
 		string
 }
 
-func smallest[T Ordered](s []T) T {
+func Smallest[T Ordered](s []T) T {
 	r := s[0] // panics if slice is empty
 	for _, v := range s[1:] {
 		if v < r {
@@ -32,11 +32,11 @@ func main() {
 	vec2 := []string{"abc", "def", "aaa"}
 
 	want1 := 1.2
-	if got := smallest(vec1); got != want1 {
+	if got := Smallest(vec1); got != want1 {
 		panic(fmt.Sprintf("got %d, want %d", got, want1))
 	}
 	want2 := "aaa"
-	if got := smallest(vec2); got != want2 {
+	if got := Smallest(vec2); got != want2 {
 		panic(fmt.Sprintf("got %d, want %d", got, want2))
 	}
 }

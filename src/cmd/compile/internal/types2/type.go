@@ -250,6 +250,9 @@ func (s *Signature) RParams() []*TypeName { return s.rparams }
 // SetTParams sets the type parameters of signature s.
 func (s *Signature) SetTParams(tparams []*TypeName) { s.tparams = tparams }
 
+// SetRParams sets the receiver type params of signature s.
+func (s *Signature) SetRParams(rparams []*TypeName) { s.rparams = rparams }
+
 // Params returns the parameters of signature s, or nil.
 func (s *Signature) Params() *Tuple { return s.params }
 
@@ -771,6 +774,12 @@ func (t *TypeParam) Index() int {
 	return t.index
 }
 
+// SetId sets the unique id of a type param. Should only be used for type params
+// in imported generic types.
+func (t *TypeParam) SetId(id uint64) {
+	t.id = id
+}
+
 func (t *TypeParam) Bound() *Interface {
 	iface := asInterface(t.bound)
 	// use the type bound position if we have one
@@ -1002,3 +1011,4 @@ func AsPointer(t Type) *Pointer     { return asPointer(t) }
 func AsNamed(t Type) *Named         { return asNamed(t) }
 func AsSignature(t Type) *Signature { return asSignature(t) }
 func AsInterface(t Type) *Interface { return asInterface(t) }
+func AsTypeParam(t Type) *TypeParam { return asTypeParam(t) }

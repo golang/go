@@ -8,6 +8,7 @@
 package typecheck
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"go/constant"
@@ -313,13 +314,16 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		return n
 
 	case 'F':
-		typ := r.signature(nil)
+		tparams := r.tparamList()
+		typ := r.signature(nil, tparams)
 
 		n := importfunc(r.p.ipkg, pos, sym, typ)
 		r.funcExt(n)
 		return n
 
 	case 'T':
+		rparams := r.typeList()
+
 		// Types can be recursive. We need to setup a stub
 		// declaration before recursing.
 		n := importtype(r.p.ipkg, pos, sym)
@@ -332,6 +336,10 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		t.SetUnderlying(underlying)
 		types.ResumeCheckSize()
 
+		if rparams != nil {
+			t.SetRParams(rparams)
+		}
+
 		if underlying.IsInterface() {
 			r.typeExt(t)
 			return n
@@ -342,7 +350,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 			mpos := r.pos()
 			msym := r.selector()
 			recv := r.param()
-			mtyp := r.signature(recv)
+			mtyp := r.signature(recv, nil)
 
 			// MethodSym already marked m.Sym as a function.
 			m := ir.NewNameAt(mpos, ir.MethodSym(recv.Type, msym))
@@ -680,7 +688,7 @@ func (r *importReader) typ1() *types.Type {
 
 	case signatureType:
 		r.setPkg()
-		return r.signature(nil)
+		return r.signature(nil, nil)
 
 	case structType:
 		r.setPkg()
@@ -718,7 +726,7 @@ func (r *importReader) typ1() *types.Type {
 		for i := range methods {
 			pos := r.pos()
 			sym := r.selector()
-			typ := r.signature(fakeRecvField())
+			typ := r.signature(fakeRecvField(), nil)
 
 			methods[i] = types.NewField(pos, sym, typ)
 		}
@@ -728,6 +736,40 @@ func (r *importReader) typ1() *types.Type {
 		// Ensure we expand the interface in the frontend (#25055).
 		types.CheckSize(t)
 		return t
+
+	case typeParamType:
+		r.setPkg()
+		pos := r.pos()
+		name := r.string()
+		sym := r.currPkg.Lookup(name)
+		index := int(r.int64())
+		bound := r.typ()
+		if sym.Def != nil {
+			// Make sure we use the same type param type for the same
+			// name, whether it is created during types1-import or
+			// this types2-to-types1 translation.
+			return sym.Def.Type()
+		}
+		t := types.NewTypeParam(sym, index)
+		// Nname needed to save the pos.
+		nname := ir.NewDeclNameAt(pos, ir.OTYPE, sym)
+		sym.Def = nname
+		nname.SetType(t)
+		t.SetNod(nname)
+
+		t.SetBound(bound)
+		return t
+
+	case instType:
+		pos := r.pos()
+		len := r.uint64()
+		targs := make([]*types.Type, len)
+		for i := range targs {
+			targs[i] = r.typ()
+		}
+		baseType := r.typ()
+		t := Instantiate(pos, baseType, targs)
+		return t
 	}
 }
 
@@ -735,13 +777,38 @@ func (r *importReader) kind() itag {
 	return itag(r.uint64())
 }
 
-func (r *importReader) signature(recv *types.Field) *types.Type {
+func (r *importReader) signature(recv *types.Field, tparams []*types.Field) *types.Type {
 	params := r.paramList()
 	results := r.paramList()
 	if n := len(params); n > 0 {
 		params[n-1].SetIsDDD(r.bool())
 	}
-	return types.NewSignature(r.currPkg, recv, nil, params, results)
+	return types.NewSignature(r.currPkg, recv, tparams, params, results)
+}
+
+func (r *importReader) typeList() []*types.Type {
+	n := r.uint64()
+	if n == 0 {
+		return nil
+	}
+	ts := make([]*types.Type, n)
+	for i := range ts {
+		ts[i] = r.typ()
+	}
+	return ts
+}
+
+func (r *importReader) tparamList() []*types.Field {
+	n := r.uint64()
+	if n == 0 {
+		return nil
+	}
+	fs := make([]*types.Field, n)
+	for i := range fs {
+		typ := r.typ()
+		fs[i] = types.NewField(typ.Pos(), typ.Sym(), typ)
+	}
+	return fs
 }
 
 func (r *importReader) paramList() []*types.Field {
@@ -809,7 +876,9 @@ func (r *importReader) funcExt(n *ir.Name) {
 
 	n.Func.ABI = obj.ABI(r.uint64())
 
-	n.SetPragma(ir.PragmaFlag(r.uint64()))
+	// Make sure //go:noinline pragma is imported (so stenciled functions have
+	// same noinline status as the corresponding generic function.)
+	n.Func.Pragma = ir.PragmaFlag(r.uint64())
 
 	// Escape analysis.
 	for _, fs := range &types.RecvsParams {
@@ -1117,7 +1186,7 @@ func (r *importReader) node() ir.Node {
 	case ir.OCLOSURE:
 		//println("Importing CLOSURE")
 		pos := r.pos()
-		typ := r.signature(nil)
+		typ := r.signature(nil, nil)
 
 		// All the remaining code below is similar to (*noder).funcLit(), but
 		// with Dcls and ClosureVars lists already set up
@@ -1202,35 +1271,32 @@ func (r *importReader) node() ir.Node {
 	// case OSTRUCTKEY:
 	//	unreachable - handled in case OSTRUCTLIT by elemList
 
-	case ir.OXDOT:
-		// see parser.new_dotname
-		if go117ExportTypes {
-			base.Fatalf("shouldn't encounter XDOT in new importer")
-		}
-		return ir.NewSelectorExpr(r.pos(), ir.OXDOT, r.expr(), r.exoticSelector())
-
-	case ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
-		if !go117ExportTypes {
-			// unreachable - mapped to case OXDOT by exporter
+	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
+		// For !go117ExportTypes,  we should only see OXDOT.
+		// For go117ExportTypes, we usually see all the other ops, but can see
+		// OXDOT for generic functions.
+		if op != ir.OXDOT && !go117ExportTypes {
 			goto error
 		}
 		pos := r.pos()
 		expr := r.expr()
 		sel := r.exoticSelector()
 		n := ir.NewSelectorExpr(pos, op, expr, sel)
-		n.SetType(r.exoticType())
-		switch op {
-		case ir.ODOT, ir.ODOTPTR, ir.ODOTINTER:
-			n.Selection = r.exoticField()
-		case ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
-			// These require a Lookup to link to the correct declaration.
-			rcvrType := expr.Type()
-			typ := n.Type()
-			n.Selection = Lookdot(n, rcvrType, 1)
-			if op == ir.OCALLPART || op == ir.OMETHEXPR {
-				// Lookdot clobbers the opcode and type, undo that.
-				n.SetOp(op)
-				n.SetType(typ)
+		if go117ExportTypes {
+			n.SetType(r.exoticType())
+			switch op {
+			case ir.ODOT, ir.ODOTPTR, ir.ODOTINTER:
+				n.Selection = r.exoticField()
+			case ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
+				// These require a Lookup to link to the correct declaration.
+				rcvrType := expr.Type()
+				typ := n.Type()
+				n.Selection = Lookdot(n, rcvrType, 1)
+				if op == ir.OCALLPART || op == ir.OMETHEXPR {
+					// Lookdot clobbers the opcode and type, undo that.
+					n.SetOp(op)
+					n.SetType(typ)
+				}
 			}
 		}
 		return n
@@ -1543,4 +1609,64 @@ func builtinCall(pos src.XPos, op ir.Op) *ir.CallExpr {
 		base.Fatalf("builtinCall should not be invoked when types are included in inport/export")
 	}
 	return ir.NewCallExpr(pos, ir.OCALL, ir.NewIdent(base.Pos, types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
+}
+
+// InstTypeName creates a name for an instantiated type, based on the name of the
+// generic type and the type args.
+func InstTypeName(name string, targs []*types.Type) string {
+	b := bytes.NewBufferString(name)
+	b.WriteByte('[')
+	for i, targ := range targs {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		// WriteString() does not include the package name for the local
+		// package, but we want it to make sure type arguments (including
+		// type params) are uniquely specified.
+		if targ.Sym() != nil && targ.Sym().Pkg == types.LocalPkg {
+			b.WriteString(targ.Sym().Pkg.Name)
+			b.WriteByte('.')
+		}
+		b.WriteString(targ.String())
+	}
+	b.WriteByte(']')
+	return b.String()
+}
+
+// NewIncompleteNamedType returns a TFORW type t with name specified by sym, such
+// that t.nod and sym.Def are set correctly.
+func NewIncompleteNamedType(pos src.XPos, sym *types.Sym) *types.Type {
+	name := ir.NewDeclNameAt(pos, ir.OTYPE, sym)
+	forw := types.NewNamed(name)
+	name.SetType(forw)
+	sym.Def = name
+	return forw
+}
+
+// Instantiate creates a new named type which is the instantiation of the base
+// named generic type, with the specified type args.
+func Instantiate(pos src.XPos, baseType *types.Type, targs []*types.Type) *types.Type {
+	baseSym := baseType.Sym()
+	if strings.Index(baseSym.Name, "[") >= 0 {
+		base.Fatalf("arg to Instantiate is not a base generic type")
+	}
+	name := InstTypeName(baseSym.Name, targs)
+	instSym := baseSym.Pkg.Lookup(name)
+	if instSym.Def != nil {
+		return instSym.Def.Type()
+	}
+
+	t := NewIncompleteNamedType(baseType.Pos(), instSym)
+	t.SetRParams(targs)
+	// baseType may not yet be complete (since we are in the middle of
+	// importing it), but its underlying type will be updated when baseType's
+	// underlying type is finished.
+	t.SetUnderlying(baseType.Underlying())
+
+	// As with types2, the methods are the generic method signatures (without
+	// substitution).
+	t.Methods().Set(baseType.Methods().Slice())
+	t.OrigSym = baseSym
+
+	return t
 }
