@@ -776,8 +776,8 @@ func returnRecursiveZip() (r io.ReaderAt, size int64) {
 //		"archive/zip"
 //		"bytes"
 //		"io"
-//		"io/ioutil"
 //		"log"
+//		"os"
 //	)
 //
 //	type zeros struct{}
