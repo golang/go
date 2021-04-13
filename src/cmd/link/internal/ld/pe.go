@@ -947,8 +947,8 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	// calls that may need more stack than we think.
 	//
 	// The default stack reserve size directly affects only the main
-	// thread, ctrlhandler thread, and profileloop thread. For
-	// these, it must be greater than the stack size assumed by
+	// thread and threads that enter in externalthreadhandler.
+	// For this, it must be greater than the stack size assumed by
 	// externalthreadhandler.
 	//
 	// For other threads, the runtime explicitly asks the kernel
