@@ -912,7 +912,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		if autoffset != deltasp {
-			ctxt.Diag("unbalanced PUSH/POP")
+			ctxt.Diag("%s: unbalanced PUSH/POP", cursym)
 		}
 
 		if autoffset != 0 {
