@@ -486,11 +486,7 @@ func TestImportDirNotExist(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
 	ctxt := Default
 
-	emptyDir, err := os.MkdirTemp("", t.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(emptyDir)
+	emptyDir := t.TempDir()
 
 	ctxt.GOPATH = emptyDir
 	ctxt.Dir = emptyDir
@@ -624,11 +620,7 @@ func TestImportPackageOutsideModule(t *testing.T) {
 
 	// Create a GOPATH in a temporary directory. We don't use testdata
 	// because it's in GOROOT, which interferes with the module heuristic.
-	gopath, err := os.MkdirTemp("", "gobuild-notmodule")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(gopath)
+	gopath := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(gopath, "src/example.com/p"), 0777); err != nil {
 		t.Fatal(err)
 	}
@@ -688,11 +680,7 @@ func TestIssue23594(t *testing.T) {
 // Verifies golang.org/issue/34752.
 func TestMissingImportErrorRepetition(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // need 'go list' internally
-	tmp, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 	if err := os.WriteFile(filepath.Join(tmp, "go.mod"), []byte("module m"), 0666); err != nil {
 		t.Fatal(err)
 	}
@@ -707,7 +695,7 @@ func TestMissingImportErrorRepetition(t *testing.T) {
 	ctxt.Dir = tmp
 
 	pkgPath := "example.com/hello"
-	_, err = ctxt.Import(pkgPath, tmp, FindOnly)
+	_, err := ctxt.Import(pkgPath, tmp, FindOnly)
 	if err == nil {
 		t.Fatal("unexpected success")
 	}
