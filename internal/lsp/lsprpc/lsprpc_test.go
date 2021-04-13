@@ -323,3 +323,24 @@ func TestEnvForwarding(t *testing.T) {
 		t.Errorf("GONOPROXY environment variable was overwritten")
 	}
 }
+
+func TestListenParsing(t *testing.T) {
+	tests := []struct {
+		input, wantNetwork, wantAddr string
+	}{
+		{"127.0.0.1:0", "tcp", "127.0.0.1:0"},
+		{"unix;/tmp/sock", "unix", "/tmp/sock"},
+		{"auto", "auto", ""},
+		{"auto;foo", "auto", "foo"},
+	}
+
+	for _, test := range tests {
+		gotNetwork, gotAddr := ParseAddr(test.input)
+		if gotNetwork != test.wantNetwork {
+			t.Errorf("network = %q, want %q", gotNetwork, test.wantNetwork)
+		}
+		if gotAddr != test.wantAddr {
+			t.Errorf("addr = %q, want %q", gotAddr, test.wantAddr)
+		}
+	}
+}

@@ -14,6 +14,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -179,7 +180,23 @@ func NewForwarder(network, addr string, opts ...RemoteOption) *Forwarder {
 }
 
 // QueryServerState queries the server state of the current server.
-func QueryServerState(ctx context.Context, network, address string) (*ServerState, error) {
+func QueryServerState(ctx context.Context, addr string) (*ServerState, error) {
+	serverConn, err := dialRemote(ctx, addr)
+	if err != nil {
+		return nil, err
+	}
+	var state ServerState
+	if err := protocol.Call(ctx, serverConn, sessionsMethod, nil, &state); err != nil {
+		return nil, errors.Errorf("querying server state: %w", err)
+	}
+	return &state, nil
+}
+
+// dialRemote is used for making calls into the gopls daemon. addr should be a
+// URL, possibly on the synthetic 'auto' network (e.g. tcp://..., unix://...,
+// or auto://...).
+func dialRemote(ctx context.Context, addr string) (jsonrpc2.Conn, error) {
+	network, address := ParseAddr(addr)
 	if network == AutoNetwork {
 		gp, err := os.Executable()
 		if err != nil {
@@ -193,11 +210,23 @@ func QueryServerState(ctx context.Context, network, address string) (*ServerStat
 	}
 	serverConn := jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn))
 	serverConn.Go(ctx, jsonrpc2.MethodNotFound)
-	var state ServerState
-	if err := protocol.Call(ctx, serverConn, sessionsMethod, nil, &state); err != nil {
-		return nil, errors.Errorf("querying server state: %w", err)
+	return serverConn, nil
+}
+
+func ExecuteCommand(ctx context.Context, addr string, id string, request, result interface{}) error {
+	serverConn, err := dialRemote(ctx, addr)
+	if err != nil {
+		return err
 	}
-	return &state, nil
+	args, err := command.MarshalArgs(request)
+	if err != nil {
+		return err
+	}
+	params := protocol.ExecuteCommandParams{
+		Command:   id,
+		Arguments: args,
+	}
+	return protocol.Call(ctx, serverConn, "workspace/executeCommand", params, result)
 }
 
 // ServeStream dials the forwarder remote and binds the remote to serve the LSP
@@ -284,7 +313,7 @@ func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
 	return connectToRemote(ctx, f.network, f.addr, f.goplsPath, f.remoteConfig)
 }
 
-func ConnectToRemote(ctx context.Context, network, addr string, opts ...RemoteOption) (net.Conn, error) {
+func ConnectToRemote(ctx context.Context, addr string, opts ...RemoteOption) (net.Conn, error) {
 	rcfg := defaultRemoteConfig()
 	for _, opt := range opts {
 		opt.set(&rcfg)
@@ -295,7 +324,8 @@ func ConnectToRemote(ctx context.Context, network, addr string, opts ...RemoteOp
 	if err != nil {
 		return nil, fmt.Errorf("unable to resolve gopls path: %v", err)
 	}
-	return connectToRemote(ctx, network, addr, goplsPath, rcfg)
+	network, address := ParseAddr(addr)
+	return connectToRemote(ctx, network, address, goplsPath, rcfg)
 }
 
 func connectToRemote(ctx context.Context, inNetwork, inAddr, goplsPath string, rcfg remoteConfig) (net.Conn, error) {
@@ -636,4 +666,19 @@ func sendError(ctx context.Context, reply jsonrpc2.Replier, err error) {
 	if err := reply(ctx, nil, err); err != nil {
 		event.Error(ctx, "", err)
 	}
+}
+
+// ParseAddr parses the address of a gopls remote.
+// TODO(rFindley): further document this syntax, and allow URI-style remote
+// addresses such as "auto://...".
+func ParseAddr(listen string) (network string, address string) {
+	// Allow passing just -remote=auto, as a shorthand for using automatic remote
+	// resolution.
+	if listen == AutoNetwork {
+		return AutoNetwork, ""
+	}
+	if parts := strings.SplitN(listen, ";", 2); len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	return "tcp", listen
 }
