@@ -386,7 +386,6 @@ const (
 )
 
 // in sys_windows_386.s and sys_windows_amd64.s:
-func externalthreadhandler()
 func getlasterror() uint32
 
 // When loading DLLs, we prefer to use LoadLibraryEx with
