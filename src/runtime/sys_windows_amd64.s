@@ -202,57 +202,6 @@ TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ	$runtime·lastcontinuehandler(SB), AX
 	JMP	sigtramp<>(SB)
 
-TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
-	PUSHQ	BP
-	MOVQ	SP, BP
-	PUSHQ	BX
-	PUSHQ	SI
-	PUSHQ	DI
-	PUSHQ	0x28(GS)
-	MOVQ	SP, DX
-
-	// setup dummy m, g
-	SUBQ	$m__size, SP		// space for M
-	MOVQ	SP, 0(SP)
-	MOVQ	$m__size, 8(SP)
-	CALL	runtime·memclrNoHeapPointers(SB)	// smashes AX,BX,CX, maybe BP
-
-	LEAQ	m_tls(SP), CX
-	MOVQ	CX, 0x28(GS)
-	MOVQ	SP, BX
-	SUBQ	$g__size, SP		// space for G
-	MOVQ	SP, g(CX)
-	MOVQ	SP, m_g0(BX)
-
-	MOVQ	SP, 0(SP)
-	MOVQ	$g__size, 8(SP)
-	CALL	runtime·memclrNoHeapPointers(SB)	// smashes AX,BX,CX, maybe BP
-	LEAQ	g__size(SP), BX
-	MOVQ	BX, g_m(SP)
-
-	LEAQ	-32768(SP), CX		// must be less than SizeOfStackReserve set by linker
-	MOVQ	CX, (g_stack+stack_lo)(SP)
-	ADDQ	$const__StackGuard, CX
-	MOVQ	CX, g_stackguard0(SP)
-	MOVQ	CX, g_stackguard1(SP)
-	MOVQ	DX, (g_stack+stack_hi)(SP)
-
-	PUSHQ	AX			// room for return value
-	PUSHQ	32(BP)			// arg for handler
-	CALL	16(BP)
-	POPQ	CX
-	POPQ	AX			// pass return value to Windows in AX
-
-	get_tls(CX)
-	MOVQ	g(CX), CX
-	MOVQ	(g_stack+stack_hi)(CX), SP
-	POPQ	0x28(GS)
-	POPQ	DI
-	POPQ	SI
-	POPQ	BX
-	POPQ	BP
-	RET
-
 GLOBL runtime·cbctxts(SB), NOPTR, $8
 
 TEXT runtime·callbackasm1(SB),NOSPLIT,$0
