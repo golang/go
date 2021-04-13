@@ -1347,6 +1347,14 @@ func isADDWop(op obj.As) bool {
 	return false
 }
 
+func isADDSop(op obj.As) bool {
+	switch op {
+	case AADDS, AADDSW, ASUBS, ASUBSW:
+		return true
+	}
+	return false
+}
+
 func isRegShiftOrExt(a *obj.Addr) bool {
 	return (a.Index-obj.RBaseARM64)&REG_EXT != 0 || (a.Index-obj.RBaseARM64)&REG_LSL != 0
 }
@@ -3215,6 +3223,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(rf&31) << 16) | (uint32(r&31) << 5) | uint32(rt&31)
 
 	case 2: /* add/sub $(uimm12|uimm24)[,R],R; cmp $(uimm12|uimm24),R */
+		if p.To.Reg == REG_RSP && isADDSop(p.As) {
+			c.ctxt.Diag("illegal destination register: %v\n", p)
+		}
 		o1 = c.opirr(p, p.As)
 
 		rt := int(p.To.Reg)
@@ -3396,6 +3407,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o4 = os[3]
 
 	case 13: /* addop $vcon, [R], R (64 bit literal); cmp $lcon,R -> addop $lcon,R, ZR */
+		if p.To.Reg == REG_RSP && isADDSop(p.As) {
+			c.ctxt.Diag("illegal destination register: %v\n", p)
+		}
 		o := uint32(0)
 		num := uint8(0)
 		cls := oclass(&p.From)
@@ -3659,6 +3673,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (REGZERO & 31 << 5) | uint32(rt&31)
 
 	case 27: /* op Rm<<n[,Rn],Rd (extended register) */
+		if p.To.Reg == REG_RSP && isADDSop(p.As) {
+			c.ctxt.Diag("illegal destination register: %v\n", p)
+		}
 		if (p.From.Reg-obj.RBaseARM64)&REG_EXT != 0 {
 			amount := (p.From.Reg >> 5) & 7
 			if amount > 4 {
@@ -4274,6 +4291,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 62: /* op $movcon, [R], R -> mov $movcon, REGTMP + op REGTMP, [R], R */
 		if p.Reg == REGTMP {
 			c.ctxt.Diag("cannot use REGTMP as source: %v\n", p)
+		}
+		if p.To.Reg == REG_RSP && isADDSop(p.As) {
+			c.ctxt.Diag("illegal destination register: %v\n", p)
 		}
 		if isADDWop(p.As) || isANDWop(p.As) {
 			o1 = c.omovconst(AMOVW, p, &p.From, REGTMP)
