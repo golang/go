@@ -1478,6 +1478,31 @@ func expandCalls(f *Func) {
 			}
 		}
 	}
+
+	// Rewriting can attach lines to values that are unlikely to survive code generation, so move them to a use.
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			for _, a := range v.Args {
+				if a.Pos.IsStmt() != src.PosIsStmt {
+					continue
+				}
+				if a.Type.IsMemory() {
+					continue
+				}
+				if a.Pos.Line() != v.Pos.Line() {
+					continue
+				}
+				if !a.Pos.SameFile(v.Pos) {
+					continue
+				}
+				switch a.Op {
+				case OpArgIntReg, OpArgFloatReg, OpSelectN:
+					v.Pos = v.Pos.WithIsStmt()
+					a.Pos = a.Pos.WithDefaultStmt()
+				}
+			}
+		}
+	}
 }
 
 // rewriteArgToMemOrRegs converts OpArg v in-place into the register version of v,
