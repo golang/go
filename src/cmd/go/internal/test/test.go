@@ -272,6 +272,13 @@ control the execution of any test:
 	    the Go tree can run a sanity check but not spend time running
 	    exhaustive tests.
 
+	-shuffle off,on,N
+		Randomize the execution order of tests and benchmarks.
+		It is off by default. If -shuffle is set to on, then it will seed
+		the randomizer using the system clock. If -shuffle is set to an
+		integer N, then N will be used as the seed value. In both cases,
+		the seed will be reported for reproducibility.
+
 	-timeout d
 	    If a test binary runs longer than duration d, panic.
 	    If d is 0, the timeout is disabled.
@@ -480,6 +487,7 @@ var (
 	testList         string                            // -list flag
 	testO            string                            // -o flag
 	testOutputDir    = base.Cwd                        // -outputdir flag
+	testShuffle      shuffleFlag                       // -shuffle flag
 	testTimeout      time.Duration                     // -timeout flag
 	testV            bool                              // -v flag
 	testVet          = vetFlag{flags: defaultVetFlags} // -vet flag
