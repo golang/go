@@ -374,3 +374,40 @@ type S struct {
 		}
 	})
 }
+
+func TestCompletion_Issue45510(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- main.go --
+package main
+
+func _() {
+	type a *a
+	var aaaa1, aaaa2 a
+	var _ a = aaaa
+
+	type b a
+	var bbbb1, bbbb2 b
+	var _ b = bbbb
+}
+`
+
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+
+		completions := env.Completion("main.go", env.RegexpSearch("main.go", `var _ a = aaaa()`))
+		diff := compareCompletionResults([]string{"aaaa1", "aaaa2"}, completions.Items)
+		if diff != "" {
+			t.Fatal(diff)
+		}
+
+		completions = env.Completion("main.go", env.RegexpSearch("main.go", `var _ b = bbbb()`))
+		diff = compareCompletionResults([]string{"bbbb1", "bbbb2"}, completions.Items)
+		if diff != "" {
+			t.Fatal(diff)
+		}
+	})
+}
