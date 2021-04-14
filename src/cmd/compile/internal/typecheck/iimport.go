@@ -121,8 +121,14 @@ func ReadImports(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintT
 	ird := &intReader{in, pkg}
 
 	version := ird.uint64()
-	if version != iexportVersion {
-		base.Errorf("import %q: unknown export format version %d", pkg.Path, version)
+	switch version {
+	case iexportVersionCurrent, iexportVersionPosCol, iexportVersionGo1_11:
+	default:
+		if version > iexportVersionGenerics {
+			base.Errorf("import %q: unstable export format version %d, just recompile", pkg.Path, version)
+		} else {
+			base.Errorf("import %q: unknown export format version %d", pkg.Path, version)
+		}
 		base.ErrorExit()
 	}
 
@@ -143,7 +149,8 @@ func ReadImports(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintT
 	in.MustSeek(int64(sLen+dLen), os.SEEK_CUR)
 
 	p := &iimporter{
-		ipkg: pkg,
+		exportVersion: version,
+		ipkg:          pkg,
 
 		pkgCache:     map[uint64]*types.Pkg{},
 		posBaseCache: map[uint64]*src.PosBase{},
@@ -212,7 +219,8 @@ func ReadImports(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintT
 }
 
 type iimporter struct {
-	ipkg *types.Pkg
+	exportVersion uint64
+	ipkg          *types.Pkg
 
 	pkgCache     map[uint64]*types.Pkg
 	posBaseCache map[uint64]*src.PosBase
@@ -314,7 +322,10 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		return n
 
 	case 'F':
-		tparams := r.tparamList()
+		var tparams []*types.Field
+		if r.p.exportVersion >= iexportVersionGenerics {
+			tparams = r.tparamList()
+		}
 		typ := r.signature(nil, tparams)
 
 		n := importfunc(r.p.ipkg, pos, sym, typ)
@@ -322,7 +333,10 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		return n
 
 	case 'T':
-		rparams := r.typeList()
+		var rparams []*types.Type
+		if r.p.exportVersion >= iexportVersionGenerics {
+			rparams = r.typeList()
+		}
 
 		// Types can be recursive. We need to setup a stub
 		// declaration before recursing.
@@ -738,6 +752,9 @@ func (r *importReader) typ1() *types.Type {
 		return t
 
 	case typeParamType:
+		if r.p.exportVersion < iexportVersionGenerics {
+			base.Fatalf("unexpected type param type")
+		}
 		r.setPkg()
 		pos := r.pos()
 		name := r.string()
@@ -761,6 +778,9 @@ func (r *importReader) typ1() *types.Type {
 		return t
 
 	case instType:
+		if r.p.exportVersion < iexportVersionGenerics {
+			base.Fatalf("unexpected instantiation type")
+		}
 		pos := r.pos()
 		len := r.uint64()
 		targs := make([]*types.Type, len)

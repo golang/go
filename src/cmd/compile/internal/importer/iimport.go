@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -42,6 +41,16 @@ func (r *intReader) uint64() uint64 {
 	return i
 }
 
+// Keep this in sync with constants in iexport.go.
+const (
+	iexportVersionGo1_11   = 0
+	iexportVersionPosCol   = 1
+	iexportVersionGenerics = 2
+
+	// Start of the unstable series of versions, remove "+ n" before release.
+	iexportVersionCurrent = iexportVersionGenerics + 1
+)
+
 const predeclReserved = 32
 
 type itag uint64
@@ -68,7 +77,7 @@ const io_SeekCurrent = 1 // io.SeekCurrent (not defined in Go 1.4)
 // If the export data version is not recognized or the format is otherwise
 // compromised, an error is returned.
 func iImportData(imports map[string]*types2.Package, data []byte, path string) (_ int, pkg *types2.Package, err error) {
-	const currentVersion = 1
+	const currentVersion = iexportVersionCurrent
 	version := int64(-1)
 	defer func() {
 		if e := recover(); e != nil {
@@ -84,9 +93,13 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
 
 	version = int64(r.uint64())
 	switch version {
-	case currentVersion, 0:
+	case currentVersion, iexportVersionPosCol, iexportVersionGo1_11:
 	default:
-		errorf("unknown iexport format version %d", version)
+		if version > iexportVersionGenerics {
+			errorf("unstable iexport format version %d, just rebuild compiler and std library", version)
+		} else {
+			errorf("unknown iexport format version %d", version)
+		}
 	}
 
 	sLen := int64(r.uint64())
@@ -98,8 +111,9 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
 	r.Seek(sLen+dLen, io_SeekCurrent)
 
 	p := iimporter{
-		ipath:   path,
-		version: int(version),
+		exportVersion: version,
+		ipath:         path,
+		version:       int(version),
 
 		stringData:   stringData,
 		stringCache:  make(map[uint64]string),
@@ -178,8 +192,9 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
 }
 
 type iimporter struct {
-	ipath   string
-	version int
+	exportVersion int64
+	ipath         string
+	version       int
 
 	stringData   []byte
 	stringCache  map[uint64]string
@@ -294,14 +309,20 @@ func (r *importReader) obj(name string) {
 		r.declare(types2.NewConst(pos, r.currPkg, name, typ, val))
 
 	case 'F':
-		tparams := r.tparamList()
+		var tparams []*types2.TypeName
+		if r.p.exportVersion >= iexportVersionGenerics {
+			tparams = r.tparamList()
+		}
 		sig := r.signature(nil)
 		sig.SetTParams(tparams)
 
 		r.declare(types2.NewFunc(pos, r.currPkg, name, sig))
 
 	case 'T':
-		tparams := r.tparamList()
+		var tparams []*types2.TypeName
+		if r.p.exportVersion >= iexportVersionGenerics {
+			tparams = r.tparamList()
+		}
 
 		// Types can be recursive. We need to setup a stub
 		// declaration before recursing.
@@ -592,6 +613,9 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
 		return typ
 
 	case typeParamType:
+		if r.p.exportVersion < iexportVersionGenerics {
+			errorf("unexpected type param type")
+		}
 		r.currPkg = r.pkg()
 		pos := r.pos()
 		name := r.string()
@@ -622,6 +646,9 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
 		return t
 
 	case instType:
+		if r.p.exportVersion < iexportVersionGenerics {
+			errorf("unexpected instantiation type")
+		}
 		pos := r.pos()
 		len := r.uint64()
 		targs := make([]types2.Type, len)
