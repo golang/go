@@ -335,7 +335,7 @@ TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
 TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	B	runtime·armPublicationBarrier(SB)
 
-// never called (cgo not supported)
+// never called (this is a GOARM=7 platform)
 TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$0xabcd, R0
 	MOVW	R0, (R0)
