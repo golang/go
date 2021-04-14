@@ -33,8 +33,8 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 		t.Fatalf("go list: %v\n%s", err, out)
 	}
 	if string(out) != "false\n" {
-		if os.Getenv("GOROOT_FINAL_OLD") != "" {
-			t.Skip("cmd/link is stale, but $GOROOT_FINAL_OLD is set")
+		if strings.HasPrefix(testenv.Builder(), "darwin-") {
+			t.Skipf("cmd/link is spuriously stale on Darwin builders - see #33598")
 		}
 		t.Fatalf("cmd/link is stale - run go install cmd/link")
 	}

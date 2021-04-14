@@ -71,27 +71,30 @@ func concatstring5(buf *tmpBuf, a [5]string) string {
 	return concatstrings(buf, a[:])
 }
 
+// slicebytetostring converts a byte slice to a string.
+// It is inserted by the compiler into generated code.
+// ptr is a pointer to the first element of the slice;
+// n is the length of the slice.
 // Buf is a fixed-size buffer for the result,
 // it is not nil if the result does not escape.
-func slicebytetostring(buf *tmpBuf, b []byte) (str string) {
-	l := len(b)
-	if l == 0 {
+func slicebytetostring(buf *tmpBuf, ptr *byte, n int) (str string) {
+	if n == 0 {
 		// Turns out to be a relatively common case.
 		// Consider that you want to parse out data between parens in "foo()bar",
 		// you find the indices and convert the subslice to string.
 		return ""
 	}
 	if raceenabled {
-		racereadrangepc(unsafe.Pointer(&b[0]),
-			uintptr(l),
+		racereadrangepc(unsafe.Pointer(ptr),
+			uintptr(n),
 			getcallerpc(),
 			funcPC(slicebytetostring))
 	}
 	if msanenabled {
-		msanread(unsafe.Pointer(&b[0]), uintptr(l))
+		msanread(unsafe.Pointer(ptr), uintptr(n))
 	}
-	if l == 1 {
-		p := unsafe.Pointer(&staticuint64s[b[0]])
+	if n == 1 {
+		p := unsafe.Pointer(&staticuint64s[*ptr])
 		if sys.BigEndian {
 			p = add(p, 7)
 		}
@@ -101,14 +104,14 @@ func slicebytetostring(buf *tmpBuf, b []byte) (str string) {
 	}
 
 	var p unsafe.Pointer
-	if buf != nil && len(b) <= len(buf) {
+	if buf != nil && n <= len(buf) {
 		p = unsafe.Pointer(buf)
 	} else {
-		p = mallocgc(uintptr(len(b)), nil, false)
+		p = mallocgc(uintptr(n), nil, false)
 	}
 	stringStructOf(&str).str = p
-	stringStructOf(&str).len = len(b)
-	memmove(p, (*(*slice)(unsafe.Pointer(&b))).array, uintptr(len(b)))
+	stringStructOf(&str).len = n
+	memmove(p, unsafe.Pointer(ptr), uintptr(n))
 	return
 }
 
@@ -123,7 +126,7 @@ func stringDataOnStack(s string) bool {
 func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
 	if buf != nil && l <= len(buf) {
 		b = buf[:l]
-		s = slicebytetostringtmp(b)
+		s = slicebytetostringtmp(&b[0], len(b))
 	} else {
 		s, b = rawstring(l)
 	}
@@ -144,17 +147,19 @@ func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
 //   where k is []byte, T1 to Tn is a nesting of struct and array literals.
 // - Used for "<"+string(b)+">" concatenation where b is []byte.
 // - Used for string(b)=="foo" comparison where b is []byte.
-func slicebytetostringtmp(b []byte) string {
-	if raceenabled && len(b) > 0 {
-		racereadrangepc(unsafe.Pointer(&b[0]),
-			uintptr(len(b)),
+func slicebytetostringtmp(ptr *byte, n int) (str string) {
+	if raceenabled && n > 0 {
+		racereadrangepc(unsafe.Pointer(ptr),
+			uintptr(n),
 			getcallerpc(),
 			funcPC(slicebytetostringtmp))
 	}
-	if msanenabled && len(b) > 0 {
-		msanread(unsafe.Pointer(&b[0]), uintptr(len(b)))
+	if msanenabled && n > 0 {
+		msanread(unsafe.Pointer(ptr), uintptr(n))
 	}
-	return *(*string)(unsafe.Pointer(&b))
+	stringStructOf(&str).str = unsafe.Pointer(ptr)
+	stringStructOf(&str).len = n
+	return
 }
 
 func stringtoslicebyte(buf *tmpBuf, s string) []byte {
@@ -239,7 +244,7 @@ func intstring(buf *[4]byte, v int64) (s string) {
 	var b []byte
 	if buf != nil {
 		b = buf[:]
-		s = slicebytetostringtmp(b)
+		s = slicebytetostringtmp(&b[0], len(b))
 	} else {
 		s, b = rawstring(4)
 	}

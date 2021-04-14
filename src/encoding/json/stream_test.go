@@ -144,14 +144,15 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
 		},
 		{
 			"stringOption", stringOption,
-			`{"bar":"\"\u003chtml\u003efoobar\u003c/html\u003e\""}`,
+			`{"bar":"\"\\u003chtml\\u003efoobar\\u003c/html\\u003e\""}`,
 			`{"bar":"\"<html>foobar</html>\""}`,
 		},
 	} {
 		var buf bytes.Buffer
 		enc := NewEncoder(&buf)
 		if err := enc.Encode(tt.v); err != nil {
-			t.Fatalf("Encode(%s): %s", tt.name, err)
+			t.Errorf("Encode(%s): %s", tt.name, err)
+			continue
 		}
 		if got := strings.TrimSpace(buf.String()); got != tt.wantEscape {
 			t.Errorf("Encode(%s) = %#q, want %#q", tt.name, got, tt.wantEscape)
@@ -159,7 +160,8 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
 		buf.Reset()
 		enc.SetEscapeHTML(false)
 		if err := enc.Encode(tt.v); err != nil {
-			t.Fatalf("SetEscapeHTML(false) Encode(%s): %s", tt.name, err)
+			t.Errorf("SetEscapeHTML(false) Encode(%s): %s", tt.name, err)
+			continue
 		}
 		if got := strings.TrimSpace(buf.String()); got != tt.want {
 			t.Errorf("SetEscapeHTML(false) Encode(%s) = %#q, want %#q",

@@ -175,37 +175,19 @@
 			const storeValue = (addr, v) => {
 				const nanHead = 0x7FF80000;
 
-				if (typeof v === "number") {
+				if (typeof v === "number" && v !== 0) {
 					if (isNaN(v)) {
 						this.mem.setUint32(addr + 4, nanHead, true);
 						this.mem.setUint32(addr, 0, true);
-						return;
-					}
-					if (v === 0) {
-						this.mem.setUint32(addr + 4, nanHead, true);
-						this.mem.setUint32(addr, 1, true);
 						return;
 					}
 					this.mem.setFloat64(addr, v, true);
 					return;
 				}
 
-				switch (v) {
-					case undefined:
-						this.mem.setFloat64(addr, 0, true);
-						return;
-					case null:
-						this.mem.setUint32(addr + 4, nanHead, true);
-						this.mem.setUint32(addr, 2, true);
-						return;
-					case true:
-						this.mem.setUint32(addr + 4, nanHead, true);
-						this.mem.setUint32(addr, 3, true);
-						return;
-					case false:
-						this.mem.setUint32(addr + 4, nanHead, true);
-						this.mem.setUint32(addr, 4, true);
-						return;
+				if (v === undefined) {
+					this.mem.setFloat64(addr, 0, true);
+					return;
 				}
 
 				let id = this._ids.get(v);
@@ -219,8 +201,13 @@
 					this._ids.set(v, id);
 				}
 				this._goRefCounts[id]++;
-				let typeFlag = 1;
+				let typeFlag = 0;
 				switch (typeof v) {
+					case "object":
+						if (v !== null) {
+							typeFlag = 1;
+						}
+						break;
 					case "string":
 						typeFlag = 2;
 						break;
@@ -493,10 +480,17 @@
 				global,
 				this,
 			];
-			this._goRefCounts = []; // number of references that Go has to a JS value, indexed by reference id
-			this._ids = new Map();  // mapping from JS values to reference ids
-			this._idPool = [];      // unused ids that have been garbage collected
-			this.exited = false;    // whether the Go program has exited
+			this._goRefCounts = new Array(this._values.length).fill(Infinity); // number of references that Go has to a JS value, indexed by reference id
+			this._ids = new Map([ // mapping from JS values to reference ids
+				[0, 1],
+				[null, 2],
+				[true, 3],
+				[false, 4],
+				[global, 5],
+				[this, 6],
+			]);
+			this._idPool = [];   // unused ids that have been garbage collected
+			this.exited = false; // whether the Go program has exited
 
 			// Pass command line arguments and environment variables to WebAssembly by writing them to the linear memory.
 			let offset = 4096;

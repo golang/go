@@ -446,7 +446,7 @@ CALLFN(·call1073741824, 1073741824)
 // func goexit(neverCallThisFunction)
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.
-TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
+TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
 	MOV	ZERO, ZERO	// NOP
 	JMP	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit

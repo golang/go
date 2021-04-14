@@ -91,8 +91,8 @@ func (c *pageCache) flush(s *pageAlloc) {
 	}
 	// Since this is a lot like a free, we need to make sure
 	// we update the searchAddr just like free does.
-	if s.compareSearchAddrTo(c.base) < 0 {
-		s.searchAddr = c.base
+	if b := (offAddr{c.base}); b.lessThan(s.searchAddr) {
+		s.searchAddr = b
 	}
 	s.update(c.base, pageCachePages, false, false)
 	*c = pageCache{}
@@ -106,15 +106,15 @@ func (c *pageCache) flush(s *pageAlloc) {
 func (s *pageAlloc) allocToCache() pageCache {
 	// If the searchAddr refers to a region which has a higher address than
 	// any known chunk, then we know we're out of memory.
-	if chunkIndex(s.searchAddr) >= s.end {
+	if chunkIndex(s.searchAddr.addr()) >= s.end {
 		return pageCache{}
 	}
 	c := pageCache{}
-	ci := chunkIndex(s.searchAddr) // chunk index
+	ci := chunkIndex(s.searchAddr.addr()) // chunk index
 	if s.summary[len(s.summary)-1][ci] != 0 {
 		// Fast path: there's free pages at or near the searchAddr address.
 		chunk := s.chunkOf(ci)
-		j, _ := chunk.find(1, chunkPageIndex(s.searchAddr))
+		j, _ := chunk.find(1, chunkPageIndex(s.searchAddr.addr()))
 		if j == ^uint(0) {
 			throw("bad summary data")
 		}
@@ -148,9 +148,14 @@ func (s *pageAlloc) allocToCache() pageCache {
 	// Update as an allocation, but note that it's not contiguous.
 	s.update(c.base, pageCachePages, false, true)
 
-	// We're always searching for the first free page, and we always know the
-	// up to pageCache size bits will be allocated, so we can always move the
-	// searchAddr past the cache.
-	s.searchAddr = c.base + pageSize*pageCachePages
+	// Set the search address to the last page represented by the cache.
+	// Since all of the pages in this block are going to the cache, and we
+	// searched for the first free page, we can confidently start at the
+	// next page.
+	//
+	// However, s.searchAddr is not allowed to point into unmapped heap memory
+	// unless it is maxSearchAddr, so make it the last page as opposed to
+	// the page after.
+	s.searchAddr = offAddr{c.base + pageSize*(pageCachePages-1)}
 	return c
 }

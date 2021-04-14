@@ -10,9 +10,9 @@ package main
 
 import (
 	"fmt"
+	exec "internal/execabs"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"

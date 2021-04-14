@@ -557,11 +557,17 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 	}
 
 dwarfLoop:
-	for _, sect := range Segdwarf.Sections {
+	for i := 0; i < len(Segdwarf.Sections); i++ {
+		sect := Segdwarf.Sections[i]
+		si := dwarfp[i]
+		if si.secSym() != sect.Sym ||
+			si.secSym().Sect != sect {
+			panic("inconsistency between dwarfp and Segdwarf")
+		}
 		for _, pesect := range f.sections {
 			if sect.Name == pesect.name {
 				pesect.emitRelocations(ctxt.Out, func() int {
-					return relocsect(sect, dwarfp, sect.Vaddr)
+					return relocsect(sect, si.syms, sect.Vaddr)
 				})
 				continue dwarfLoop
 			}
@@ -640,7 +646,7 @@ func (f *peFile) mapToPESection(s *sym.Symbol, linkmode LinkMode) (pesectidx int
 // writeSymbols writes all COFF symbol table records.
 func (f *peFile) writeSymbols(ctxt *Link) {
 
-	put := func(ctxt *Link, s *sym.Symbol, name string, type_ SymbolType, addr int64, gotype *sym.Symbol) {
+	put := func(ctxt *Link, s *sym.Symbol, name string, type_ SymbolType, addr int64) {
 		if s == nil {
 			return
 		}
@@ -1124,7 +1130,7 @@ func addimports(ctxt *Link, datsect *peSection) {
 		for m := d.ms; m != nil; m = m.next {
 			m.off = uint64(pefile.nextSectOffset) + uint64(ctxt.Out.Offset()) - uint64(startoff)
 			ctxt.Out.Write16(0) // hint
-			strput(ctxt.Out, ldr.SymExtname(m.s))
+			strput(ctxt.Out, ldr.Syms[m.s].Extname())
 		}
 	}
 
@@ -1464,6 +1470,7 @@ func setpersrc(ctxt *Link, sym loader.Sym) {
 	}
 
 	rsrcsym = sym
+	ctxt.loader.SetAttrReachable(rsrcsym, true)
 }
 
 func addpersrc(ctxt *Link) {
@@ -1471,18 +1478,18 @@ func addpersrc(ctxt *Link) {
 		return
 	}
 
-	data := ctxt.loader.Data(rsrcsym)
+	rsrc := ctxt.loader.Syms[rsrcsym]
+	data := rsrc.P
 	size := len(data)
 	h := pefile.addSection(".rsrc", size, size)
 	h.characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA
 	h.checkOffset(ctxt.Out.Offset())
 
 	// relocation
-	relocs := ctxt.loader.Relocs(rsrcsym)
-	for i := 0; i < relocs.Count(); i++ {
-		r := relocs.At2(i)
-		p := data[r.Off():]
-		val := uint32(int64(h.virtualAddress) + r.Add())
+	for ri := range rsrc.R {
+		r := &rsrc.R[ri]
+		p := data[r.Off:]
+		val := uint32(int64(h.virtualAddress) + r.Add)
 
 		// 32-bit little-endian
 		p[0] = byte(val)
@@ -1506,6 +1513,18 @@ func Asmbpe(ctxt *Link) {
 	default:
 		Exitf("unknown PE architecture: %v", ctxt.Arch.Family)
 	case sys.AMD64, sys.I386, sys.ARM:
+	}
+
+	if rsrcsym != 0 {
+		// The resource symbol may have been copied to the mmap'd
+		// output buffer. If so, certain conditions can cause that
+		// mmap'd output buffer to be munmap'd before we get a chance
+		// to use it. To avoid any issues we copy the data to the heap
+		// when the resource symbol exists.
+		rsrc := ctxt.loader.Syms[rsrcsym]
+		data := make([]byte, len(rsrc.P))
+		copy(data, rsrc.P)
+		rsrc.P = data
 	}
 
 	t := pefile.addSection(".text", int(Segtext.Length), int(Segtext.Length))

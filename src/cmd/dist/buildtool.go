@@ -97,6 +97,7 @@ var bootstrapDirs = []string{
 	"debug/pe",
 	"internal/goversion",
 	"internal/race",
+	"internal/unsafeheader",
 	"internal/xcoff",
 	"math/big",
 	"math/bits",
@@ -114,7 +115,10 @@ var ignorePrefixes = []string{
 // These must not be copied into the bootstrap build directory.
 var ignoreSuffixes = []string{
 	"_arm64.s",
+	"_arm64_test.s",
 	"_arm64.go",
+	"_riscv64.s",
+	"_riscv64.go",
 	"_wasm.s",
 	"_wasm.go",
 }
@@ -298,8 +302,10 @@ func bootstrapFixImports(srcFile string) string {
 			continue
 		}
 		if strings.HasPrefix(line, `import "`) || strings.HasPrefix(line, `import . "`) ||
-			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"")) {
+			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"") || strings.HasPrefix(line, "\texec \"")) {
 			line = strings.Replace(line, `"cmd/`, `"bootstrap/cmd/`, -1)
+			// During bootstrap, must use plain os/exec.
+			line = strings.Replace(line, `exec "internal/execabs"`, `"os/exec"`, -1)
 			for _, dir := range bootstrapDirs {
 				if strings.HasPrefix(dir, "cmd/") {
 					continue

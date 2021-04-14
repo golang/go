@@ -38,7 +38,15 @@ var testWork = flag.Bool("testwork", false, "if true, log and do not delete the 
 
 // run runs a command and calls t.Errorf if it fails.
 func run(t *testing.T, msg string, args ...string) {
+	runWithEnv(t, msg, nil, args...)
+}
+
+// runWithEnv runs a command under the given environment and calls t.Errorf if it fails.
+func runWithEnv(t *testing.T, msg string, env []string, args ...string) {
 	c := exec.Command(args[0], args[1:]...)
+	if len(env) != 0 {
+		c.Env = append(os.Environ(), env...)
+	}
 	if output, err := c.CombinedOutput(); err != nil {
 		t.Errorf("executing %s (%s) failed %s:\n%s", strings.Join(args, " "), msg, err, output)
 	}
@@ -454,6 +462,7 @@ func TestTrivialExecutable(t *testing.T) {
 	run(t, "trivial executable", "../../bin/trivial")
 	AssertIsLinkedTo(t, "../../bin/trivial", soname)
 	AssertHasRPath(t, "../../bin/trivial", gorootInstallDir)
+	checkSize(t, "../../bin/trivial", 100000) // it is 19K on linux/amd64, 100K should be enough
 }
 
 // Build a trivial program in PIE mode that links against the shared runtime and check it runs.
@@ -462,6 +471,18 @@ func TestTrivialExecutablePIE(t *testing.T) {
 	run(t, "trivial executable", "./trivial.pie")
 	AssertIsLinkedTo(t, "./trivial.pie", soname)
 	AssertHasRPath(t, "./trivial.pie", gorootInstallDir)
+	checkSize(t, "./trivial.pie", 100000) // it is 19K on linux/amd64, 100K should be enough
+}
+
+// Check that the file size does not exceed a limit.
+func checkSize(t *testing.T, f string, limit int64) {
+	fi, err := os.Stat(f)
+	if err != nil {
+		t.Fatalf("stat failed: %v", err)
+	}
+	if sz := fi.Size(); sz > limit {
+		t.Errorf("file too large: got %d, want <= %d", sz, limit)
+	}
 }
 
 // Build a division test program and check it runs.
@@ -1027,4 +1048,18 @@ func TestGeneratedMethod(t *testing.T) {
 func TestGeneratedHash(t *testing.T) {
 	goCmd(nil, "install", "-buildmode=shared", "-linkshared", "./issue30768/issue30768lib")
 	goCmd(nil, "test", "-linkshared", "./issue30768")
+}
+
+// Test that packages can be added not in dependency order (here a depends on b, and a adds
+// before b). This could happen with e.g. go build -buildmode=shared std. See issue 39777.
+func TestPackageOrder(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue39777/a", "./issue39777/b")
+}
+
+// Test that GC data are generated correctly by the linker when it needs a type defined in
+// a shared library. See issue 39927.
+func TestGCData(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./gcdata/p")
+	goCmd(t, "build", "-linkshared", "./gcdata/main")
+	runWithEnv(t, "running gcdata/main", []string{"GODEBUG=clobberfree=1"}, "./main")
 }

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"cmd/internal/objabi"
 	"cmd/link/internal/ld"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"io"
 	"regexp"
@@ -38,7 +39,7 @@ const (
 // funcValueOffset is the offset between the PC_F value of a function and the index of the function in WebAssembly
 const funcValueOffset = 0x1000 // TODO(neelance): make function addresses play nice with heap addresses
 
-func gentext(ctxt *ld.Link) {
+func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 }
 
 type wasmFunc struct {
@@ -70,7 +71,7 @@ var wasmFuncTypes = map[string]*wasmFuncType{
 	"memchr":                 {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // s, c, len -> index
 }
 
-func assignAddress(ctxt *ld.Link, sect *sym.Section, n int, s *sym.Symbol, va uint64, isTramp bool) (*sym.Section, int, uint64) {
+func assignAddress(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, va uint64, isTramp bool) (*sym.Section, int, uint64) {
 	// WebAssembly functions do not live in the same address space as the linear memory.
 	// Instead, WebAssembly automatically assigns indices. Imported functions (section "import")
 	// have indices 0 to n. They are followed by native functions (sections "function" and "code")
@@ -85,13 +86,36 @@ func assignAddress(ctxt *ld.Link, sect *sym.Section, n int, s *sym.Symbol, va ui
 	// The field "s.Value" corresponds to the concept of PC at runtime.
 	// However, there is no PC register, only PC_F and PC_B. PC_F denotes the function,
 	// PC_B the resume point inside of that function. The entry of the function has PC_B = 0.
-	s.Sect = sect
-	s.Value = int64(funcValueOffset+va/ld.MINFUNC) << 16 // va starts at zero
+	ldr.SetSymSect(s, sect)
+	ldr.SetSymValue(s, int64(funcValueOffset+va/ld.MINFUNC)<<16) // va starts at zero
 	va += uint64(ld.MINFUNC)
 	return sect, n, va
 }
 
-func asmb(ctxt *ld.Link) {} // dummy
+type wasmDataSect struct {
+	sect *sym.Section
+	data []byte
+}
+
+var dataSects []wasmDataSect
+
+func asmb(ctxt *ld.Link, ldr *loader.Loader) {
+	sections := []*sym.Section{
+		ldr.SymSect(ldr.Lookup("runtime.rodata", 0)),
+		ldr.SymSect(ldr.Lookup("runtime.typelink", 0)),
+		ldr.SymSect(ldr.Lookup("runtime.itablink", 0)),
+		ldr.SymSect(ldr.Lookup("runtime.symtab", 0)),
+		ldr.SymSect(ldr.Lookup("runtime.pclntab", 0)),
+		ldr.SymSect(ldr.Lookup("runtime.noptrdata", 0)),
+		ldr.SymSect(ldr.Lookup("runtime.data", 0)),
+	}
+
+	dataSects = make([]wasmDataSect, len(sections))
+	for i, sect := range sections {
+		data := ld.DatblkBytes(ctxt, int64(sect.Vaddr), int64(sect.Length))
+		dataSects[i] = wasmDataSect{sect, data}
+	}
+}
 
 // asmb writes the final WebAssembly module binary.
 // Spec: https://webassembly.github.io/spec/core/binary/modules.html
@@ -186,8 +210,6 @@ func asmb2(ctxt *ld.Link) {
 	if !*ld.FlagS {
 		writeNameSec(ctxt, len(hostImports), fns)
 	}
-
-	ctxt.Out.Flush()
 }
 
 func lookupType(sig *wasmFuncType, types *[]*wasmFuncType) uint32 {
@@ -397,16 +419,6 @@ func writeCodeSec(ctxt *ld.Link, fns []*wasmFunc) {
 func writeDataSec(ctxt *ld.Link) {
 	sizeOffset := writeSecHeader(ctxt, sectionData)
 
-	sections := []*sym.Section{
-		ctxt.Syms.Lookup("runtime.rodata", 0).Sect,
-		ctxt.Syms.Lookup("runtime.typelink", 0).Sect,
-		ctxt.Syms.Lookup("runtime.itablink", 0).Sect,
-		ctxt.Syms.Lookup("runtime.symtab", 0).Sect,
-		ctxt.Syms.Lookup("runtime.pclntab", 0).Sect,
-		ctxt.Syms.Lookup("runtime.noptrdata", 0).Sect,
-		ctxt.Syms.Lookup("runtime.data", 0).Sect,
-	}
-
 	type dataSegment struct {
 		offset int32
 		data   []byte
@@ -421,9 +433,9 @@ func writeDataSec(ctxt *ld.Link) {
 	const maxNumSegments = 100000
 
 	var segments []*dataSegment
-	for secIndex, sec := range sections {
-		data := ld.DatblkBytes(ctxt, int64(sec.Vaddr), int64(sec.Length))
-		offset := int32(sec.Vaddr)
+	for secIndex, ds := range dataSects {
+		data := ds.data
+		offset := int32(ds.sect.Vaddr)
 
 		// skip leading zeroes
 		for len(data) > 0 && data[0] == 0 {
@@ -434,7 +446,7 @@ func writeDataSec(ctxt *ld.Link) {
 		for len(data) > 0 {
 			dataLen := int32(len(data))
 			var segmentEnd, zeroEnd int32
-			if len(segments)+(len(sections)-secIndex) == maxNumSegments {
+			if len(segments)+(len(dataSects)-secIndex) == maxNumSegments {
 				segmentEnd = dataLen
 				zeroEnd = dataLen
 			} else {

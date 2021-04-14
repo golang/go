@@ -256,6 +256,17 @@ func (b *Block) resetWithControl2(kind BlockKind, v, w *Value) {
 	w.Uses++
 }
 
+// truncateValues truncates b.Values at the ith element, zeroing subsequent elements.
+// The values in b.Values after i must already have had their args reset,
+// to maintain correct value uses counts.
+func (b *Block) truncateValues(i int) {
+	tail := b.Values[i:]
+	for j := range tail {
+		tail[j] = nil
+	}
+	b.Values = b.Values[:i]
+}
+
 // AddEdgeTo adds an edge from block b to block c. Used during building of the
 // SSA graph; do not use on an already-completed SSA graph.
 func (b *Block) AddEdgeTo(c *Block) {
@@ -336,9 +347,9 @@ func (b *Block) LackingPos() bool {
 
 func (b *Block) AuxIntString() string {
 	switch b.Kind.AuxIntType() {
-	case "Int8":
+	case "int8":
 		return fmt.Sprintf("%v", int8(b.AuxInt))
-	case "UInt8":
+	case "uint8":
 		return fmt.Sprintf("%v", uint8(b.AuxInt))
 	default: // type specified but not implemented - print as int64
 		return fmt.Sprintf("%v", b.AuxInt)

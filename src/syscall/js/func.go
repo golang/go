@@ -39,7 +39,7 @@ type Func struct {
 // immediate deadlock. Therefore a blocking function should explicitly start a
 // new goroutine.
 //
-// Func.Release must be called to free up resources when the function will not be used any more.
+// Func.Release must be called to free up resources when the function will not be invoked any more.
 func FuncOf(fn func(this Value, args []Value) interface{}) Func {
 	funcsMu.Lock()
 	id := nextFuncID
@@ -54,6 +54,7 @@ func FuncOf(fn func(this Value, args []Value) interface{}) Func {
 
 // Release frees up resources allocated for the function.
 // The function must not be invoked after calling Release.
+// It is allowed to call Release while the function is still running.
 func (c Func) Release() {
 	funcsMu.Lock()
 	delete(funcs, c.id)

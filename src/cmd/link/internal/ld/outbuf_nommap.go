@@ -6,10 +6,10 @@
 
 package ld
 
-import "errors"
+func (out *OutBuf) Mmap(filesize uint64) error {
+	// We need space to put all the symbols before we apply relocations.
+	out.heap = make([]byte, filesize)
+	return nil
+}
 
-var errNotSupported = errors.New("mmap not supported")
-
-func (out *OutBuf) Mmap(filesize uint64) error { return errNotSupported }
-func (out *OutBuf) Munmap()                    { panic("unreachable") }
-func (out *OutBuf) Msync() error               { panic("unreachable") }
+func (out *OutBuf) munmap() { panic("unreachable") }

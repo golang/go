@@ -10,10 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
+	exec "internal/execabs"
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -73,10 +73,10 @@ As part of building a test binary, go test runs go vet on the package
 and its test source files to identify significant problems. If go vet
 finds any problems, go test reports those and does not run the test
 binary. Only a high-confidence subset of the default go vet checks are
-used. That subset is: 'atomic', 'bool', 'buildtags', 'nilfunc', and
-'printf'. You can see the documentation for these and other vet tests
-via "go doc cmd/vet". To disable the running of go vet, use the
--vet=off flag.
+used. That subset is: 'atomic', 'bool', 'buildtags', 'errorsas',
+'ifaceassert', 'nilfunc', 'printf', and 'stringintconv'. You can see
+the documentation for these and other vet tests via "go doc cmd/vet".
+To disable the running of go vet, use the -vet=off flag.
 
 All test output and summary lines are printed to the go command's
 standard output, even if the test printed them to its own standard
@@ -487,6 +487,8 @@ var (
 	pkgArgs  []string
 	pkgs     []*load.Package
 
+	testHelp bool // -help option passed to test via -args
+
 	testKillTimeout = 100 * 365 * 24 * time.Hour // backup alarm; defaults to about a century if no timeout is set
 	testCacheExpire time.Time                    // ignore cached test results before this time
 
@@ -532,7 +534,7 @@ func testNeedBinary() bool {
 
 // testShowPass reports whether the output for a passing test should be shown.
 func testShowPass() bool {
-	return testV || (testList != "")
+	return testV || (testList != "") || testHelp
 }
 
 var defaultVetFlags = []string{
@@ -548,12 +550,14 @@ var defaultVetFlags = []string{
 	// "-copylocks",
 	"-errorsas",
 	// "-httpresponse",
+	"-ifaceassert",
 	// "-lostcancel",
 	// "-methods",
 	"-nilfunc",
 	"-printf",
 	// "-rangeloops",
 	// "-shift",
+	"-stringintconv",
 	// "-structtags",
 	// "-tests",
 	// "-unreachable",
@@ -1075,9 +1079,13 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 	}
 
 	var stdout io.Writer = os.Stdout
+	var err error
 	if testJSON {
 		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
-		defer json.Close()
+		defer func() {
+			json.Exited(err)
+			json.Close()
+		}()
 		stdout = json
 	}
 
@@ -1181,7 +1189,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 	}
 
 	t0 := time.Now()
-	err := cmd.Start()
+	err = cmd.Start()
 
 	// This is a last-ditch deadline to detect and
 	// stop wedged test binaries, to keep the builders

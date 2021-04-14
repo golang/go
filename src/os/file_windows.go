@@ -330,8 +330,18 @@ func Symlink(oldname, newname string) error {
 
 	// need the exact location of the oldname when it's relative to determine if it's a directory
 	destpath := oldname
-	if !isAbs(oldname) {
-		destpath = dirname(newname) + `\` + oldname
+	if v := volumeName(oldname); v == "" {
+		if len(oldname) > 0 && IsPathSeparator(oldname[0]) {
+			// oldname is relative to the volume containing newname.
+			if v = volumeName(newname); v != "" {
+				// Prepend the volume explicitly, because it may be different from the
+				// volume of the current working directory.
+				destpath = v + oldname
+			}
+		} else {
+			// oldname is relative to newname.
+			destpath = dirname(newname) + `\` + oldname
+		}
 	}
 
 	fi, err := Stat(destpath)

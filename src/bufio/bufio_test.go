@@ -535,6 +535,23 @@ func TestReadWriteRune(t *testing.T) {
 	}
 }
 
+func TestReadStringAllocs(t *testing.T) {
+	r := strings.NewReader("       foo       foo        42        42        42        42        42        42        42        42       4.2       4.2       4.2       4.2\n")
+	buf := NewReader(r)
+	allocs := testing.AllocsPerRun(100, func() {
+		r.Seek(0, io.SeekStart)
+		buf.Reset(r)
+
+		_, err := buf.ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	if allocs != 1 {
+		t.Errorf("Unexpected number of allocations, got %f, want 1", allocs)
+	}
+}
+
 func TestWriter(t *testing.T) {
 	var data [8192]byte
 
@@ -1640,6 +1657,21 @@ func BenchmarkReaderWriteToOptimal(b *testing.B) {
 		}
 		if n != bufSize {
 			b.Fatalf("n = %d; want %d", n, bufSize)
+		}
+	}
+}
+
+func BenchmarkReaderReadString(b *testing.B) {
+	r := strings.NewReader("       foo       foo        42        42        42        42        42        42        42        42       4.2       4.2       4.2       4.2\n")
+	buf := NewReader(r)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		r.Seek(0, io.SeekStart)
+		buf.Reset(r)
+
+		_, err := buf.ReadString('\n')
+		if err != nil {
+			b.Fatal(err)
 		}
 	}
 }

@@ -4,16 +4,16 @@
 
 package crc32
 
+import "internal/cpu"
+
 const (
 	vxMinLen    = 64
 	vxAlignMask = 15 // align to 16 bytes
 )
 
-// hasVectorFacility reports whether the machine has the z/Architecture
+// hasVX reports whether the machine has the z/Architecture
 // vector facility installed and enabled.
-func hasVectorFacility() bool
-
-var hasVX = hasVectorFacility()
+var hasVX = cpu.S390X.HasVX
 
 // vectorizedCastagnoli implements CRC32 using vector instructions.
 // It is defined in crc32_s390x.s.

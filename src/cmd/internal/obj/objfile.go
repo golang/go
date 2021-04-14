@@ -13,6 +13,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"fmt"
+	"io"
 	"log"
 	"path/filepath"
 	"sort"
@@ -97,8 +98,9 @@ func WriteObjFile(ctxt *Link, bout *bio.Writer, pkgpath string) {
 	w.wr.WriteByte(1)
 
 	// Autolib
-	for _, pkg := range ctxt.Imports {
-		w.writeString(pkg)
+	for _, p := range ctxt.Imports {
+		w.writeString(p.Pkg)
+		// This object format ignores p.Fingerprint.
 	}
 	w.writeString("")
 
@@ -262,13 +264,13 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 	fmt.Fprintf(ctxt.Bso, "\n")
 	if s.Type == objabi.STEXT {
 		for p := s.Func.Text; p != nil; p = p.Link {
-			var s string
+			fmt.Fprintf(ctxt.Bso, "\t%#04x ", uint(int(p.Pc)))
 			if ctxt.Debugasm > 1 {
-				s = p.String()
+				io.WriteString(ctxt.Bso, p.String())
 			} else {
-				s = p.InnermostString()
+				p.InnermostString(ctxt.Bso)
 			}
-			fmt.Fprintf(ctxt.Bso, "\t%#04x %s\n", uint(int(p.Pc)), s)
+			fmt.Fprintln(ctxt.Bso)
 		}
 	}
 	for i := 0; i < len(s.P); i += 16 {
@@ -283,11 +285,11 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 		fmt.Fprintf(ctxt.Bso, "  ")
 		for j = i; j < i+16 && j < len(s.P); j++ {
 			c := int(s.P[j])
+			b := byte('.')
 			if ' ' <= c && c <= 0x7e {
-				fmt.Fprintf(ctxt.Bso, "%c", c)
-			} else {
-				fmt.Fprintf(ctxt.Bso, ".")
+				b = byte(c)
 			}
+			ctxt.Bso.WriteByte(b)
 		}
 
 		fmt.Fprintf(ctxt.Bso, "\n")
@@ -785,6 +787,14 @@ func (ft *DwarfFixupTable) SetPrecursorFunc(s *LSym, fn interface{}) {
 	absfn.Set(AttrDuplicateOK, true)
 	absfn.Type = objabi.SDWARFINFO
 	ft.ctxt.Data = append(ft.ctxt.Data, absfn)
+
+	// In the case of "late" inlining (inlines that happen during
+	// wrapper generation as opposed to the main inlining phase) it's
+	// possible that we didn't cache the abstract function sym for the
+	// text symbol -- do so now if needed. See issue 38068.
+	if s.Func != nil && s.Func.dwarfAbsFnSym == nil {
+		s.Func.dwarfAbsFnSym = absfn
+	}
 
 	ft.precursor[s] = fnState{precursor: fn, absfn: absfn}
 }

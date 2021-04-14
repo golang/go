@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Module file parser.
-// This is a simplified copy of Google's buildifier parser.
-
 package modfile
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -323,18 +321,17 @@ func (x *RParen) Span() (start, end Position) {
 // An input represents a single input file being parsed.
 type input struct {
 	// Lexing state.
-	filename  string    // name of input file, for errors
-	complete  []byte    // entire input
-	remaining []byte    // remaining input
-	token     []byte    // token being scanned
-	lastToken string    // most recently returned token, for error messages
-	pos       Position  // current input position
-	comments  []Comment // accumulated comments
-	endRule   int       // position of end of current rule
+	filename   string    // name of input file, for errors
+	complete   []byte    // entire input
+	remaining  []byte    // remaining input
+	tokenStart []byte    // token being scanned to end of input
+	token      token     // next token to be returned by lex, peek
+	pos        Position  // current input position
+	comments   []Comment // accumulated comments
 
 	// Parser state.
-	file       *FileSyntax // returned top-level syntax tree
-	parseError error       // error encountered during parsing
+	file        *FileSyntax // returned top-level syntax tree
+	parseErrors ErrorList   // errors encountered during parsing
 
 	// Comment assignment state.
 	pre  []Expr // all expressions, in preorder traversal
@@ -352,25 +349,32 @@ func newInput(filename string, data []byte) *input {
 
 // parse parses the input file.
 func parse(file string, data []byte) (f *FileSyntax, err error) {
-	in := newInput(file, data)
 	// The parser panics for both routine errors like syntax errors
 	// and for programmer bugs like array index errors.
 	// Turn both into error returns. Catching bug panics is
 	// especially important when processing many files.
+	in := newInput(file, data)
 	defer func() {
-		if e := recover(); e != nil {
-			if e == in.parseError {
-				err = in.parseError
-			} else {
-				err = fmt.Errorf("%s:%d:%d: internal error: %v", in.filename, in.pos.Line, in.pos.LineRune, e)
-			}
+		if e := recover(); e != nil && e != &in.parseErrors {
+			in.parseErrors = append(in.parseErrors, Error{
+				Filename: in.filename,
+				Pos:      in.pos,
+				Err:      fmt.Errorf("internal error: %v", e),
+			})
+		}
+		if err == nil && len(in.parseErrors) > 0 {
+			err = in.parseErrors
 		}
 	}()
 
+	// Prime the lexer by reading in the first token. It will be available
+	// in the next peek() or lex() call.
+	in.readToken()
+
 	// Invoke the parser.
 	in.parseFile()
-	if in.parseError != nil {
-		return nil, in.parseError
+	if len(in.parseErrors) > 0 {
+		return nil, in.parseErrors
 	}
 	in.file.Name = in.filename
 
@@ -381,14 +385,14 @@ func parse(file string, data []byte) (f *FileSyntax, err error) {
 }
 
 // Error is called to report an error.
-// The reason s is often "syntax error".
 // Error does not return: it panics.
 func (in *input) Error(s string) {
-	if s == "syntax error" && in.lastToken != "" {
-		s += " near " + in.lastToken
-	}
-	in.parseError = fmt.Errorf("%s:%d:%d: %v", in.filename, in.pos.Line, in.pos.LineRune, s)
-	panic(in.parseError)
+	in.parseErrors = append(in.parseErrors, Error{
+		Filename: in.filename,
+		Pos:      in.pos,
+		Err:      errors.New(s),
+	})
+	panic(&in.parseErrors)
 }
 
 // eof reports whether the input has reached end of file.
@@ -434,46 +438,68 @@ func (in *input) readRune() int {
 	return int(r)
 }
 
-type symType struct {
+type token struct {
+	kind   tokenKind
 	pos    Position
 	endPos Position
 	text   string
 }
 
+type tokenKind int
+
+const (
+	_EOF tokenKind = -(iota + 1)
+	_EOLCOMMENT
+	_IDENT
+	_STRING
+	_COMMENT
+
+	// newlines and punctuation tokens are allowed as ASCII codes.
+)
+
+func (k tokenKind) isComment() bool {
+	return k == _COMMENT || k == _EOLCOMMENT
+}
+
+// isEOL returns whether a token terminates a line.
+func (k tokenKind) isEOL() bool {
+	return k == _EOF || k == _EOLCOMMENT || k == '\n'
+}
+
 // startToken marks the beginning of the next input token.
-// It must be followed by a call to endToken, once the token has
+// It must be followed by a call to endToken, once the token's text has
 // been consumed using readRune.
-func (in *input) startToken(sym *symType) {
-	in.token = in.remaining
-	sym.text = ""
-	sym.pos = in.pos
+func (in *input) startToken() {
+	in.tokenStart = in.remaining
+	in.token.text = ""
+	in.token.pos = in.pos
 }
 
 // endToken marks the end of an input token.
-// It records the actual token string in sym.text if the caller
-// has not done that already.
-func (in *input) endToken(sym *symType) {
-	if sym.text == "" {
-		tok := string(in.token[:len(in.token)-len(in.remaining)])
-		sym.text = tok
-		in.lastToken = sym.text
-	}
-	sym.endPos = in.pos
+// It records the actual token string in tok.text.
+func (in *input) endToken(kind tokenKind) {
+	in.token.kind = kind
+	text := string(in.tokenStart[:len(in.tokenStart)-len(in.remaining)])
+	in.token.text = text
+	in.token.endPos = in.pos
+}
+
+// peek returns the kind of the the next token returned by lex.
+func (in *input) peek() tokenKind {
+	return in.token.kind
 }
 
 // lex is called from the parser to obtain the next input token.
-// It returns the token value (either a rune like '+' or a symbolic token _FOR)
-// and sets val to the data associated with the token.
-// For all our input tokens, the associated data is
-// val.Pos (the position where the token begins)
-// and val.Token (the input string corresponding to the token).
-func (in *input) lex(sym *symType) int {
+func (in *input) lex() token {
+	tok := in.token
+	in.readToken()
+	return tok
+}
+
+// readToken lexes the next token from the text and stores it in in.token.
+func (in *input) readToken() {
 	// Skip past spaces, stopping at non-space or EOF.
-	countNL := 0 // number of newlines we've skipped past
 	for !in.eof() {
-		// Skip over spaces. Count newlines so we can give the parser
-		// information about where top-level blank lines are,
-		// for top-level comment assignment.
 		c := in.peekRune()
 		if c == ' ' || c == '\t' || c == '\r' {
 			in.readRune()
@@ -482,7 +508,7 @@ func (in *input) lex(sym *symType) int {
 
 		// Comment runs to end of line.
 		if in.peekPrefix("//") {
-			in.startToken(sym)
+			in.startToken()
 
 			// Is this comment the only thing on its line?
 			// Find the last \n before this // and see if it's all
@@ -495,30 +521,23 @@ func (in *input) lex(sym *symType) int {
 			// Consume comment.
 			for len(in.remaining) > 0 && in.readRune() != '\n' {
 			}
-			in.endToken(sym)
-
-			sym.text = strings.TrimRight(sym.text, "\n")
-			in.lastToken = "comment"
 
 			// If we are at top level (not in a statement), hand the comment to
 			// the parser as a _COMMENT token. The grammar is written
 			// to handle top-level comments itself.
 			if !suffix {
-				// Not in a statement. Tell parser about top-level comment.
-				return _COMMENT
+				in.endToken(_COMMENT)
+				return
 			}
 
 			// Otherwise, save comment for later attachment to syntax tree.
-			if countNL > 1 {
-				in.comments = append(in.comments, Comment{sym.pos, "", false})
-			}
-			in.comments = append(in.comments, Comment{sym.pos, sym.text, suffix})
-			countNL = 1
-			return _EOL
+			in.endToken(_EOLCOMMENT)
+			in.comments = append(in.comments, Comment{in.token.pos, in.token.text, suffix})
+			return
 		}
 
 		if in.peekPrefix("/*") {
-			in.Error(fmt.Sprintf("mod files must use // comments (not /* */ comments)"))
+			in.Error("mod files must use // comments (not /* */ comments)")
 		}
 
 		// Found non-space non-comment.
@@ -526,35 +545,27 @@ func (in *input) lex(sym *symType) int {
 	}
 
 	// Found the beginning of the next token.
-	in.startToken(sym)
-	defer in.endToken(sym)
+	in.startToken()
 
 	// End of file.
 	if in.eof() {
-		in.lastToken = "EOF"
-		return _EOF
+		in.endToken(_EOF)
+		return
 	}
 
 	// Punctuation tokens.
 	switch c := in.peekRune(); c {
-	case '\n':
+	case '\n', '(', ')', '[', ']', '{', '}', ',':
 		in.readRune()
-		return c
-
-	case '(':
-		in.readRune()
-		return c
-
-	case ')':
-		in.readRune()
-		return c
+		in.endToken(tokenKind(c))
+		return
 
 	case '"', '`': // quoted string
 		quote := c
 		in.readRune()
 		for {
 			if in.eof() {
-				in.pos = sym.pos
+				in.pos = in.token.pos
 				in.Error("unexpected EOF in string")
 			}
 			if in.peekRune() == '\n' {
@@ -566,14 +577,14 @@ func (in *input) lex(sym *symType) int {
 			}
 			if c == '\\' && quote != '`' {
 				if in.eof() {
-					in.pos = sym.pos
+					in.pos = in.token.pos
 					in.Error("unexpected EOF in string")
 				}
 				in.readRune()
 			}
 		}
-		in.endToken(sym)
-		return _STRING
+		in.endToken(_STRING)
+		return
 	}
 
 	// Checked all punctuation. Must be identifier token.
@@ -587,17 +598,23 @@ func (in *input) lex(sym *symType) int {
 			break
 		}
 		if in.peekPrefix("/*") {
-			in.Error(fmt.Sprintf("mod files must use // comments (not /* */ comments)"))
+			in.Error("mod files must use // comments (not /* */ comments)")
 		}
 		in.readRune()
 	}
-	return _IDENT
+	in.endToken(_IDENT)
 }
 
 // isIdent reports whether c is an identifier rune.
-// We treat nearly all runes as identifier runes.
+// We treat most printable runes as identifier runes, except for a handful of
+// ASCII punctuation characters.
 func isIdent(c int) bool {
-	return c != 0 && !unicode.IsSpace(rune(c))
+	switch r := rune(c); r {
+	case ' ', '(', ')', '[', ']', '{', '}', ',':
+		return false
+	default:
+		return !unicode.IsSpace(r) && unicode.IsPrint(r)
+	}
 }
 
 // Comment assignment.
@@ -668,7 +685,7 @@ func (in *input) assignComments() {
 	for _, x := range in.pre {
 		start, _ := x.Span()
 		if debug {
-			fmt.Printf("pre %T :%d:%d #%d\n", x, start.Line, start.LineRune, start.Byte)
+			fmt.Fprintf(os.Stderr, "pre %T :%d:%d #%d\n", x, start.Line, start.LineRune, start.Byte)
 		}
 		xcom := x.Comment()
 		for len(line) > 0 && start.Byte >= line[0].Start.Byte {
@@ -695,7 +712,7 @@ func (in *input) assignComments() {
 
 		start, end := x.Span()
 		if debug {
-			fmt.Printf("post %T :%d:%d #%d :%d:%d #%d\n", x, start.Line, start.LineRune, start.Byte, end.Line, end.LineRune, end.Byte)
+			fmt.Fprintf(os.Stderr, "post %T :%d:%d #%d :%d:%d #%d\n", x, start.Line, start.LineRune, start.Byte, end.Line, end.LineRune, end.Byte)
 		}
 
 		// Do not assign suffix comments to end of line block or whole file.
@@ -745,29 +762,29 @@ func reverseComments(list []Comment) {
 
 func (in *input) parseFile() {
 	in.file = new(FileSyntax)
-	var sym symType
 	var cb *CommentBlock
 	for {
-		tok := in.lex(&sym)
-		switch tok {
+		switch in.peek() {
 		case '\n':
+			in.lex()
 			if cb != nil {
 				in.file.Stmt = append(in.file.Stmt, cb)
 				cb = nil
 			}
 		case _COMMENT:
+			tok := in.lex()
 			if cb == nil {
-				cb = &CommentBlock{Start: sym.pos}
+				cb = &CommentBlock{Start: tok.pos}
 			}
 			com := cb.Comment()
-			com.Before = append(com.Before, Comment{Start: sym.pos, Token: sym.text})
+			com.Before = append(com.Before, Comment{Start: tok.pos, Token: tok.text})
 		case _EOF:
 			if cb != nil {
 				in.file.Stmt = append(in.file.Stmt, cb)
 			}
 			return
 		default:
-			in.parseStmt(&sym)
+			in.parseStmt()
 			if cb != nil {
 				in.file.Stmt[len(in.file.Stmt)-1].Comment().Before = cb.Before
 				cb = nil
@@ -776,60 +793,88 @@ func (in *input) parseFile() {
 	}
 }
 
-func (in *input) parseStmt(sym *symType) {
-	start := sym.pos
-	end := sym.endPos
-	token := []string{sym.text}
+func (in *input) parseStmt() {
+	tok := in.lex()
+	start := tok.pos
+	end := tok.endPos
+	tokens := []string{tok.text}
 	for {
-		tok := in.lex(sym)
-		switch tok {
-		case '\n', _EOF, _EOL:
+		tok := in.lex()
+		switch {
+		case tok.kind.isEOL():
 			in.file.Stmt = append(in.file.Stmt, &Line{
 				Start: start,
-				Token: token,
+				Token: tokens,
 				End:   end,
 			})
 			return
-		case '(':
-			in.file.Stmt = append(in.file.Stmt, in.parseLineBlock(start, token, sym))
-			return
+
+		case tok.kind == '(':
+			if next := in.peek(); next.isEOL() {
+				// Start of block: no more tokens on this line.
+				in.file.Stmt = append(in.file.Stmt, in.parseLineBlock(start, tokens, tok))
+				return
+			} else if next == ')' {
+				rparen := in.lex()
+				if in.peek().isEOL() {
+					// Empty block.
+					in.lex()
+					in.file.Stmt = append(in.file.Stmt, &LineBlock{
+						Start:  start,
+						Token:  tokens,
+						LParen: LParen{Pos: tok.pos},
+						RParen: RParen{Pos: rparen.pos},
+					})
+					return
+				}
+				// '( )' in the middle of the line, not a block.
+				tokens = append(tokens, tok.text, rparen.text)
+			} else {
+				// '(' in the middle of the line, not a block.
+				tokens = append(tokens, tok.text)
+			}
+
 		default:
-			token = append(token, sym.text)
-			end = sym.endPos
+			tokens = append(tokens, tok.text)
+			end = tok.endPos
 		}
 	}
 }
 
-func (in *input) parseLineBlock(start Position, token []string, sym *symType) *LineBlock {
+func (in *input) parseLineBlock(start Position, token []string, lparen token) *LineBlock {
 	x := &LineBlock{
 		Start:  start,
 		Token:  token,
-		LParen: LParen{Pos: sym.pos},
+		LParen: LParen{Pos: lparen.pos},
 	}
 	var comments []Comment
 	for {
-		tok := in.lex(sym)
-		switch tok {
-		case _EOL:
-			// ignore
+		switch in.peek() {
+		case _EOLCOMMENT:
+			// Suffix comment, will be attached later by assignComments.
+			in.lex()
 		case '\n':
+			// Blank line. Add an empty comment to preserve it.
+			in.lex()
 			if len(comments) == 0 && len(x.Line) > 0 || len(comments) > 0 && comments[len(comments)-1].Token != "" {
 				comments = append(comments, Comment{})
 			}
 		case _COMMENT:
-			comments = append(comments, Comment{Start: sym.pos, Token: sym.text})
+			tok := in.lex()
+			comments = append(comments, Comment{Start: tok.pos, Token: tok.text})
 		case _EOF:
 			in.Error(fmt.Sprintf("syntax error (unterminated block started at %s:%d:%d)", in.filename, x.Start.Line, x.Start.LineRune))
 		case ')':
+			rparen := in.lex()
 			x.RParen.Before = comments
-			x.RParen.Pos = sym.pos
-			tok = in.lex(sym)
-			if tok != '\n' && tok != _EOF && tok != _EOL {
+			x.RParen.Pos = rparen.pos
+			if !in.peek().isEOL() {
 				in.Error("syntax error (expected newline after closing paren)")
 			}
+			in.lex()
 			return x
 		default:
-			l := in.parseLine(sym)
+			l := in.parseLine()
 			x.Line = append(x.Line, l)
 			l.Comment().Before = comments
 			comments = nil
@@ -837,34 +882,28 @@ func (in *input) parseLineBlock(start Position, token []string, sym *symType) *L
 	}
 }
 
-func (in *input) parseLine(sym *symType) *Line {
-	start := sym.pos
-	end := sym.endPos
-	token := []string{sym.text}
+func (in *input) parseLine() *Line {
+	tok := in.lex()
+	if tok.kind.isEOL() {
+		in.Error("internal parse error: parseLine at end of line")
+	}
+	start := tok.pos
+	end := tok.endPos
+	tokens := []string{tok.text}
 	for {
-		tok := in.lex(sym)
-		switch tok {
-		case '\n', _EOF, _EOL:
+		tok := in.lex()
+		if tok.kind.isEOL() {
 			return &Line{
 				Start:   start,
-				Token:   token,
+				Token:   tokens,
 				End:     end,
 				InBlock: true,
 			}
-		default:
-			token = append(token, sym.text)
-			end = sym.endPos
 		}
+		tokens = append(tokens, tok.text)
+		end = tok.endPos
 	}
 }
-
-const (
-	_EOF = -(1 + iota)
-	_EOL
-	_IDENT
-	_STRING
-	_COMMENT
-)
 
 var (
 	slashSlash = []byte("//")

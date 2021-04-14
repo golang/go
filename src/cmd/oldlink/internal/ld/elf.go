@@ -849,6 +849,25 @@ func elfwritenetbsdsig(out *OutBuf) int {
 	return int(sh.size)
 }
 
+// The race detector can't handle ASLR (address space layout randomization).
+// ASLR is on by default for NetBSD, so we turn the ASLR off eplicitly
+// using a magic elf Note when building race binaries.
+
+func elfnetbsdpax(sh *ElfShdr, startva uint64, resoff uint64) int {
+	n := int(Rnd(4, 4) + Rnd(4, 4))
+	return elfnote(sh, startva, resoff, n)
+}
+
+func elfwritenetbsdpax(out *OutBuf) int {
+	sh := elfwritenotehdr(out, ".note.netbsd.pax", 4 /* length of PaX\x00 */, 4 /* length of flags */, 0x03 /* PaX type */)
+	if sh == nil {
+		return 0
+	}
+	out.Write([]byte("PaX\x00"))
+	out.Write32(0x20) // 0x20 = Force disable ASLR
+	return int(sh.size)
+}
+
 // OpenBSD Signature
 const (
 	ELF_NOTE_OPENBSD_NAMESZ  = 8
@@ -1451,6 +1470,9 @@ func (ctxt *Link) doelf() {
 	}
 	if ctxt.HeadType == objabi.Hnetbsd {
 		Addstring(shstrtab, ".note.netbsd.ident")
+		if *flagRace {
+			Addstring(shstrtab, ".note.netbsd.pax")
+		}
 	}
 	if ctxt.HeadType == objabi.Hopenbsd {
 		Addstring(shstrtab, ".note.openbsd.ident")
@@ -1788,6 +1810,14 @@ func Asmbelf(ctxt *Link, symo int64) {
 
 	var pph *ElfPhdr
 	var pnote *ElfPhdr
+	if *flagRace && ctxt.HeadType == objabi.Hnetbsd {
+		sh := elfshname(".note.netbsd.pax")
+		resoff -= int64(elfnetbsdpax(sh, uint64(startva), uint64(resoff)))
+		pnote = newElfPhdr()
+		pnote.type_ = PT_NOTE
+		pnote.flags = PF_R
+		phsh(pnote, sh)
+	}
 	if ctxt.LinkMode == LinkExternal {
 		/* skip program headers */
 		eh.phoff = 0
@@ -2264,6 +2294,9 @@ elfobj:
 		if *flagBuildid != "" {
 			a += int64(elfwritegobuildid(ctxt.Out))
 		}
+	}
+	if *flagRace && ctxt.HeadType == objabi.Hnetbsd {
+		a += int64(elfwritenetbsdpax(ctxt.Out))
 	}
 
 	if a > elfreserve {

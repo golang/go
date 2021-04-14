@@ -59,7 +59,7 @@ func mpreinit(mp *m) {
 }
 
 //go:nosplit
-func msigsave(mp *m) {
+func sigsave(p *sigset) {
 }
 
 //go:nosplit

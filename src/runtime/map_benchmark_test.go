@@ -513,3 +513,22 @@ func BenchmarkMapInterfacePtr(b *testing.B) {
 		BoolSink = m[key]
 	}
 }
+
+var (
+	hintLessThan8    = 7
+	hintGreaterThan8 = 32
+)
+
+func BenchmarkNewEmptyMapHintLessThan8(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = make(map[int]int, hintLessThan8)
+	}
+}
+
+func BenchmarkNewEmptyMapHintGreaterThan8(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = make(map[int]int, hintGreaterThan8)
+	}
+}

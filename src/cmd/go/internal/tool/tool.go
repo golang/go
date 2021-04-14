@@ -7,8 +7,8 @@ package tool
 
 import (
 	"fmt"
+	exec "internal/execabs"
 	"os"
-	"os/exec"
 	"sort"
 	"strings"
 

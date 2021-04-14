@@ -1,5 +1,5 @@
 // Inferno utils/5l/obj.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/obj.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/5l/obj.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -98,15 +98,6 @@ func archinit(ctxt *ld.Link) {
 		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 0x10000
-		}
-
-	case objabi.Hdarwin: /* apple MACH */
-		ld.HEADR = ld.INITIAL_MACHO_HEADR
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
-		}
-		if *ld.FlagRound == -1 {
-			*ld.FlagRound = 4096
 		}
 
 	case objabi.Hwindows: /* PE executable */

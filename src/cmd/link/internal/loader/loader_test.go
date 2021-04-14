@@ -27,9 +27,16 @@ func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
 	return s
 }
 
-func TestAddMaterializedSymbol(t *testing.T) {
+func mkLoader() *Loader {
 	edummy := func(s *sym.Symbol, str string, off int) {}
-	ldr := NewLoader(0, edummy)
+	er := ErrorReporter{}
+	ldr := NewLoader(0, edummy, &er)
+	er.ldr = ldr
+	return ldr
+}
+
+func TestAddMaterializedSymbol(t *testing.T) {
+	ldr := mkLoader()
 	dummyOreader := oReader{version: -1, syms: make([]Sym, 100)}
 	or := &dummyOreader
 
@@ -229,8 +236,7 @@ func sameRelocSlice(s1 *Relocs, s2 []Reloc) bool {
 type addFunc func(l *Loader, s Sym, s2 Sym) Sym
 
 func TestAddDataMethods(t *testing.T) {
-	edummy := func(s *sym.Symbol, str string, off int) {}
-	ldr := NewLoader(0, edummy)
+	ldr := mkLoader()
 	dummyOreader := oReader{version: -1, syms: make([]Sym, 100)}
 	or := &dummyOreader
 
@@ -352,8 +358,7 @@ func TestAddDataMethods(t *testing.T) {
 }
 
 func TestOuterSub(t *testing.T) {
-	edummy := func(s *sym.Symbol, str string, off int) {}
-	ldr := NewLoader(0, edummy)
+	ldr := mkLoader()
 	dummyOreader := oReader{version: -1, syms: make([]Sym, 100)}
 	or := &dummyOreader
 

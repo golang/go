@@ -8,9 +8,7 @@ export IPHONEOS_DEPLOYMENT_TARGET=5.1
 # cmd/cgo doesn't support llvm-gcc-4.2, so we have to use clang.
 CLANG=`xcrun --sdk $SDK --find clang`
 
-if [ "$GOARCH" == "arm" ]; then
-	CLANGARCH="armv7"
-elif [ "$GOARCH" == "arm64" ]; then
+if [ "$GOARCH" == "arm64" ]; then
 	CLANGARCH="arm64"
 else
 	echo "unknown GOARCH=$GOARCH" >&2

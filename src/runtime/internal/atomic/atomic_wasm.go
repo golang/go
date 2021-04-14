@@ -153,14 +153,11 @@ func Store64(ptr *uint64, val uint64) {
 	*ptr = val
 }
 
-//go:notinheap
-type noWB struct{}
-
-//go:noinline
-//go:nosplit
-func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer) {
-	*(**noWB)(ptr) = (*noWB)(val)
-}
+// StorepNoWB performs *ptr = val atomically and without a write
+// barrier.
+//
+// NO go:noescape annotation; see atomic_pointer.go.
+func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
 
 //go:nosplit
 //go:noinline

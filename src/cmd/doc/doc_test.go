@@ -36,8 +36,8 @@ func TestMain(m *testing.M) {
 }
 
 func maybeSkip(t *testing.T) {
-	if runtime.GOOS == "darwin" && strings.HasPrefix(runtime.GOARCH, "arm") {
-		t.Skip("darwin/arm does not have a full file tree")
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+		t.Skip("darwin/arm64 does not have a full file tree")
 	}
 }
 
@@ -997,6 +997,25 @@ func TestDotSlashLookup(t *testing.T) {
 	output := b.String()
 	if !strings.HasPrefix(output, want) {
 		t.Fatalf("wrong package: %.*q...", len(want), output)
+	}
+}
+
+// Test that we don't print spurious package clauses
+// when there should be no output at all. Issue 37969.
+func TestNoPackageClauseWhenNoMatch(t *testing.T) {
+	maybeSkip(t)
+	var b bytes.Buffer
+	var flagSet flag.FlagSet
+	err := do(&b, &flagSet, []string{"template.ZZZ"})
+	// Expect an error.
+	if err == nil {
+		t.Error("expect an error for template.zzz")
+	}
+	// And the output should not contain any package clauses.
+	const dontWant = `package template // import `
+	output := b.String()
+	if strings.Contains(output, dontWant) {
+		t.Fatalf("improper package clause printed:\n%s", output)
 	}
 }
 

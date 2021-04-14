@@ -117,19 +117,30 @@ type Extension struct {
 }
 
 // Name represents an X.509 distinguished name. This only includes the common
-// elements of a DN. When parsing, all elements are stored in Names and
-// non-standard elements can be extracted from there. When marshaling, elements
-// in ExtraNames are appended and override other values with the same OID.
+// elements of a DN. Note that Name is only an approximation of the X.509
+// structure. If an accurate representation is needed, asn1.Unmarshal the raw
+// subject or issuer as an RDNSequence.
 type Name struct {
 	Country, Organization, OrganizationalUnit []string
 	Locality, Province                        []string
 	StreetAddress, PostalCode                 []string
 	SerialNumber, CommonName                  string
 
-	Names      []AttributeTypeAndValue
+	// Names contains all parsed attributes. When parsing distinguished names,
+	// this can be used to extract non-standard attributes that are not parsed
+	// by this package. When marshaling to RDNSequences, the Names field is
+	// ignored, see ExtraNames.
+	Names []AttributeTypeAndValue
+
+	// ExtraNames contains attributes to be copied, raw, into any marshaled
+	// distinguished names. Values override any attributes with the same OID.
+	// The ExtraNames field is not populated when parsing, see Names.
 	ExtraNames []AttributeTypeAndValue
 }
 
+// FillFromRDNSequence populates n from the provided RDNSequence.
+// Multi-entry RDNs are flattened, all entries are added to the
+// relevant n fields, and the grouping is not preserved.
 func (n *Name) FillFromRDNSequence(rdns *RDNSequence) {
 	for _, rdn := range *rdns {
 		if len(rdn) == 0 {
@@ -200,6 +211,18 @@ func (n Name) appendRDNs(in RDNSequence, values []string, oid asn1.ObjectIdentif
 	return append(in, s)
 }
 
+// ToRDNSequence converts n into a single RDNSequence. The following
+// attributes are encoded as multi-value RDNs:
+//
+//  - Country
+//  - Organization
+//  - OrganizationalUnit
+//  - Locality
+//  - Province
+//  - StreetAddress
+//  - PostalCode
+//
+// Each ExtraNames entry is encoded as an individual RDN.
 func (n Name) ToRDNSequence() (ret RDNSequence) {
 	ret = n.appendRDNs(ret, n.Country, oidCountry)
 	ret = n.appendRDNs(ret, n.Province, oidProvince)
@@ -224,7 +247,26 @@ func (n Name) ToRDNSequence() (ret RDNSequence) {
 // String returns the string form of n, roughly following
 // the RFC 2253 Distinguished Names syntax.
 func (n Name) String() string {
-	return n.ToRDNSequence().String()
+	var rdns RDNSequence
+	// If there are no ExtraNames, surface the parsed value (all entries in
+	// Names) instead.
+	if n.ExtraNames == nil {
+		for _, atv := range n.Names {
+			t := atv.Type
+			if len(t) == 4 && t[0] == 2 && t[1] == 5 && t[2] == 4 {
+				switch t[3] {
+				case 3, 5, 6, 7, 8, 9, 10, 11, 17:
+					// These attributes were already parsed into named fields.
+					continue
+				}
+			}
+			// Place non-standard parsed values at the beginning of the sequence
+			// so they will be at the end of the string. See Issue 39924.
+			rdns = append(rdns, []AttributeTypeAndValue{atv})
+		}
+	}
+	rdns = append(rdns, n.ToRDNSequence()...)
+	return rdns.String()
 }
 
 // oidInAttributeTypeAndValue reports whether a type with the given OID exists

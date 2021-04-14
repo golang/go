@@ -171,6 +171,14 @@ func proxyList() ([]proxySpec, error) {
 				fallBackOnError: fallBackOnError,
 			})
 		}
+
+		if len(proxyOnce.list) == 0 ||
+			len(proxyOnce.list) == 1 && proxyOnce.list[0].url == "noproxy" {
+			// There were no proxies, other than the implicit "noproxy" added when
+			// GONOPROXY is set. This can happen if GOPROXY is a non-empty string
+			// like "," or " ".
+			proxyOnce.err = fmt.Errorf("GOPROXY list is not the empty string, but contains no entries")
+		}
 	})
 
 	return proxyOnce.list, proxyOnce.err
@@ -191,13 +199,17 @@ func TryProxies(f func(proxy string) error) error {
 		return err
 	}
 	if len(proxies) == 0 {
-		return f("off")
+		panic("GOPROXY list is empty")
 	}
 
 	// We try to report the most helpful error to the user. "direct" and "noproxy"
 	// errors are best, followed by proxy errors other than ErrNotExist, followed
-	// by ErrNotExist. Note that errProxyOff, errNoproxy, and errUseProxy are
-	// equivalent to ErrNotExist.
+	// by ErrNotExist.
+	//
+	// Note that errProxyOff, errNoproxy, and errUseProxy are equivalent to
+	// ErrNotExist. errUseProxy should only be returned if "noproxy" is the only
+	// proxy. errNoproxy should never be returned, since there should always be a
+	// more useful error from "noproxy" first.
 	const (
 		notExistRank = iota
 		proxyRank
@@ -212,7 +224,7 @@ func TryProxies(f func(proxy string) error) error {
 		}
 		isNotExistErr := errors.Is(err, os.ErrNotExist)
 
-		if proxy.url == "direct" || proxy.url == "noproxy" {
+		if proxy.url == "direct" || (proxy.url == "noproxy" && err != errUseProxy) {
 			bestErr = err
 			bestErrRank = directRank
 		} else if bestErrRank <= proxyRank && !isNotExistErr {
@@ -244,12 +256,12 @@ func newProxyRepo(baseURL, path string) (Repo, error) {
 		// ok
 	case "file":
 		if *base != (url.URL{Scheme: base.Scheme, Path: base.Path, RawPath: base.RawPath}) {
-			return nil, fmt.Errorf("invalid file:// proxy URL with non-path elements: %s", web.Redacted(base))
+			return nil, fmt.Errorf("invalid file:// proxy URL with non-path elements: %s", base.Redacted())
 		}
 	case "":
-		return nil, fmt.Errorf("invalid proxy URL missing scheme: %s", web.Redacted(base))
+		return nil, fmt.Errorf("invalid proxy URL missing scheme: %s", base.Redacted())
 	default:
-		return nil, fmt.Errorf("invalid proxy URL scheme (must be https, http, file): %s", web.Redacted(base))
+		return nil, fmt.Errorf("invalid proxy URL scheme (must be https, http, file): %s", base.Redacted())
 	}
 
 	enc, err := module.EscapePath(path)

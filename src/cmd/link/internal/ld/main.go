@@ -1,5 +1,5 @@
 // Inferno utils/6l/obj.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/obj.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -32,10 +32,10 @@ package ld
 
 import (
 	"bufio"
+	"cmd/internal/goobj2"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/benchmark"
-	"cmd/link/internal/sym"
 	"flag"
 	"log"
 	"os"
@@ -75,7 +75,7 @@ var (
 	flagExtldflags = flag.String("extldflags", "", "pass `flags` to external linker")
 	flagExtar      = flag.String("extar", "", "archive program for buildmode=c-archive")
 
-	flagA           = flag.Bool("a", false, "disassemble output")
+	flagA           = flag.Bool("a", false, "no-op (deprecated)")
 	FlagC           = flag.Bool("c", false, "dump call graph")
 	FlagD           = flag.Bool("d", false, "disable dynamic executable")
 	flagF           = flag.Bool("f", false, "ignore version mismatch")
@@ -155,10 +155,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 			usage()
 		}
 	}
-
-	if objabi.Fieldtrack_enabled != 0 {
-		ctxt.Reachparent = make(map[*sym.Symbol]*sym.Symbol)
+	if ctxt.HeadType == objabi.Hunknown {
+		ctxt.HeadType.Set(objabi.GOOS)
 	}
+
 	checkStrictDups = *FlagStrictDups
 
 	startProfile()
@@ -194,11 +194,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	bench.Start("libinit")
 	libinit(ctxt) // creates outfile
-
-	if ctxt.HeadType == objabi.Hunknown {
-		ctxt.HeadType.Set(objabi.GOOS)
-	}
-
 	bench.Start("computeTLSOffset")
 	ctxt.computeTLSOffset()
 	bench.Start("Archinit")
@@ -212,6 +207,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 		ctxt.Logf("HEADER = -H%d -T0x%x -R0x%x\n", ctxt.HeadType, uint64(*FlagTextAddr), uint32(*FlagRound))
 	}
 
+	zerofp := goobj2.FingerprintType{}
 	switch ctxt.BuildMode {
 	case BuildModeShared:
 		for i := 0; i < flag.NArg(); i++ {
@@ -225,12 +221,12 @@ func Main(arch *sys.Arch, theArch Arch) {
 			}
 			pkglistfornote = append(pkglistfornote, pkgpath...)
 			pkglistfornote = append(pkglistfornote, '\n')
-			addlibpath(ctxt, "command line", "command line", file, pkgpath, "")
+			addlibpath(ctxt, "command line", "command line", file, pkgpath, "", zerofp)
 		}
 	case BuildModePlugin:
-		addlibpath(ctxt, "command line", "command line", flag.Arg(0), *flagPluginPath, "")
+		addlibpath(ctxt, "command line", "command line", flag.Arg(0), *flagPluginPath, "", zerofp)
 	default:
-		addlibpath(ctxt, "command line", "command line", flag.Arg(0), "main", "")
+		addlibpath(ctxt, "command line", "command line", flag.Arg(0), "main", "", zerofp)
 	}
 	bench.Start("loadlib")
 	ctxt.loadlib()
@@ -285,26 +281,25 @@ func Main(arch *sys.Arch, theArch Arch) {
 	setupdynexp(ctxt)
 	ctxt.setArchSyms(BeforeLoadlibFull)
 	ctxt.addexport()
-
-	bench.Start("loadlibfull")
-	ctxt.loadlibfull() // XXX do it here for now
-
 	bench.Start("Gentext")
-	thearch.Gentext(ctxt) // trampolines, call stubs, etc.
+	thearch.Gentext2(ctxt, ctxt.loader) // trampolines, call stubs, etc.
+
 	bench.Start("textaddress")
 	ctxt.textaddress()
-	bench.Start("pclntab")
-	ctxt.pclntab()
-	bench.Start("findfunctab")
-	ctxt.findfunctab()
 	bench.Start("typelink")
 	ctxt.typelink()
-	bench.Start("symtab")
-	ctxt.symtab()
 	bench.Start("buildinfo")
 	ctxt.buildinfo()
+	bench.Start("pclntab")
+	container := ctxt.pclntab()
+	bench.Start("findfunctab")
+	ctxt.findfunctab(container)
+	bench.Start("dwarfGenerateDebugSyms")
+	dwarfGenerateDebugSyms(ctxt)
+	bench.Start("symtab")
+	symGroupType := ctxt.symtab()
 	bench.Start("dodata")
-	ctxt.dodata()
+	ctxt.dodata2(symGroupType)
 	bench.Start("address")
 	order := ctxt.address()
 	bench.Start("dwarfcompress")
@@ -318,39 +313,50 @@ func Main(arch *sys.Arch, theArch Arch) {
 	// for which we have computed the size and offset, in a
 	// mmap'd region. The second part writes more content, for
 	// which we don't know the size.
-	var outputMmapped bool
 	if ctxt.Arch.Family != sys.Wasm {
 		// Don't mmap if we're building for Wasm. Wasm file
 		// layout is very different so filesize is meaningless.
-		err := ctxt.Out.Mmap(filesize)
-		outputMmapped = err == nil
+		if err := ctxt.Out.Mmap(filesize); err != nil {
+			panic(err)
+		}
 	}
-	if outputMmapped {
-		// Asmb will redirect symbols to the output file mmap, and relocations
-		// will be applied directly there.
-		bench.Start("Asmb")
-		thearch.Asmb(ctxt)
+	// Asmb will redirect symbols to the output file mmap, and relocations
+	// will be applied directly there.
+	bench.Start("Asmb")
+	ctxt.loader.InitOutData()
+	thearch.Asmb(ctxt, ctxt.loader)
+
+	newreloc := ctxt.IsAMD64() || ctxt.Is386() || ctxt.IsWasm()
+	if newreloc {
 		bench.Start("reloc")
 		ctxt.reloc()
-		bench.Start("Munmap")
-		ctxt.Out.Munmap()
+		bench.Start("loadlibfull")
+		// We don't need relocations at this point.
+		// An exception is internal linking on Windows, see pe.go:addPEBaseRelocSym
+		// Wasm is another exception, where it applies text relocations in Asmb2.
+		needReloc := (ctxt.IsWindows() && ctxt.IsInternal()) || ctxt.IsWasm()
+		// On AMD64 ELF, we directly use the loader's ExtRelocs, so we don't
+		// need conversion. Otherwise we do.
+		needExtReloc := ctxt.IsExternal() && !(ctxt.IsAMD64() && ctxt.IsELF)
+		ctxt.loadlibfull(symGroupType, needReloc, needExtReloc) // XXX do it here for now
 	} else {
-		// If we don't mmap, we need to apply relocations before
-		// writing out.
+		bench.Start("loadlibfull")
+		ctxt.loadlibfull(symGroupType, true, false) // XXX do it here for now
 		bench.Start("reloc")
-		ctxt.reloc()
-		bench.Start("Asmb")
-		thearch.Asmb(ctxt)
+		ctxt.reloc2()
 	}
 	bench.Start("Asmb2")
 	thearch.Asmb2(ctxt)
+
+	bench.Start("Munmap")
+	ctxt.Out.Close() // Close handles Munmapping if necessary.
 
 	bench.Start("undef")
 	ctxt.undef()
 	bench.Start("hostlink")
 	ctxt.hostlink()
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%d symbols\n", len(ctxt.Syms.Allsym))
+		ctxt.Logf("%d symbols, %d reachable\n", len(ctxt.loader.Syms), ctxt.loader.NReachableSym())
 		ctxt.Logf("%d liveness data\n", liveness)
 	}
 	bench.Start("Flush")

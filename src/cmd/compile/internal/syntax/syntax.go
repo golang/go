@@ -33,15 +33,24 @@ var _ error = Error{} // verify that Error implements error
 // An ErrorHandler is called for each error encountered reading a .go file.
 type ErrorHandler func(err error)
 
-// A Pragma value is a set of flags that augment a function or
-// type declaration. Callers may assign meaning to the flags as
-// appropriate.
-type Pragma uint16
+// A Pragma value augments a package, import, const, func, type, or var declaration.
+// Its meaning is entirely up to the PragmaHandler,
+// except that nil is used to mean “no pragma seen.”
+type Pragma interface{}
 
-// A PragmaHandler is used to process //go: directives as
-// they're scanned. The returned Pragma value will be unioned into the
-// next FuncDecl node.
-type PragmaHandler func(pos Pos, text string) Pragma
+// A PragmaHandler is used to process //go: directives while scanning.
+// It is passed the current pragma value, which starts out being nil,
+// and it returns an updated pragma value.
+// The text is the directive, with the "//" prefix stripped.
+// The current pragma is saved at each package, import, const, func, type, or var
+// declaration, into the File, ImportDecl, ConstDecl, FuncDecl, TypeDecl, or VarDecl node.
+//
+// If text is the empty string, the pragma is being returned
+// to the handler unused, meaning it appeared before a non-declaration.
+// The handler may wish to report an error. In this case, pos is the
+// current parser position, not the position of the pragma itself.
+// Blank specifies whether the line is blank before the pragma.
+type PragmaHandler func(pos Pos, blank bool, text string, current Pragma) Pragma
 
 // Parse parses a single Go source file from src and returns the corresponding
 // syntax tree. If there are errors, Parse will return the first error found,

@@ -68,7 +68,10 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
 			iovecs[i] = syscall.Iovec{}
 		}
 		if err != nil {
-			if err.(syscall.Errno) == syscall.EAGAIN {
+			if err == syscall.EINTR {
+				continue
+			}
+			if err == syscall.EAGAIN {
 				if err = fd.pd.waitWrite(fd.isFile); err == nil {
 					continue
 				}

@@ -33,6 +33,7 @@ package arm64
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 	"math"
 )
@@ -467,73 +468,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	/*
 	 * find leaf subroutines
-	 * strip NOPs
-	 * expand RET
 	 */
-	q := (*obj.Prog)(nil)
-	var q1 *obj.Prog
 	for p := c.cursym.Func.Text; p != nil; p = p.Link {
 		switch p.As {
 		case obj.ATEXT:
 			p.Mark |= LEAF
 
-		case obj.ARET:
-			break
-
-		case obj.ANOP:
-			if p.Link != nil {
-				q1 = p.Link
-				q.Link = q1 /* q is non-nop */
-				q1.Mark |= p.Mark
-			}
-			continue
-
 		case ABL,
 			obj.ADUFFZERO,
 			obj.ADUFFCOPY:
 			c.cursym.Func.Text.Mark &^= LEAF
-			fallthrough
-
-		case ACBNZ,
-			ACBZ,
-			ACBNZW,
-			ACBZW,
-			ATBZ,
-			ATBNZ,
-			AB,
-			ABEQ,
-			ABNE,
-			ABCS,
-			ABHS,
-			ABCC,
-			ABLO,
-			ABMI,
-			ABPL,
-			ABVS,
-			ABVC,
-			ABHI,
-			ABLS,
-			ABGE,
-			ABLT,
-			ABGT,
-			ABLE,
-			AADR, /* strange */
-			AADRP:
-			q1 = p.Pcond
-
-			if q1 != nil {
-				for q1.As == obj.ANOP {
-					q1 = q1.Link
-					p.Pcond = q1
-				}
-			}
-
-			break
 		}
-
-		q = p
 	}
 
+	var q *obj.Prog
+	var q1 *obj.Prog
 	var retjmp *obj.LSym
 	for p := c.cursym.Func.Text; p != nil; p = p.Link {
 		o := p.As
@@ -593,6 +542,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p = c.stacksplit(p, c.autosize) // emit split check
 			}
 
+			var prologueEnd *obj.Prog
+
 			aoffset := c.autosize
 			if aoffset > 0xF0 {
 				aoffset = 0xF0
@@ -618,6 +569,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REGTMP
+
+				prologueEnd = q
 
 				q = obj.Appendp(q, c.newprog)
 				q.Pos = p.Pos
@@ -662,7 +615,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q1.To.Offset = int64(-aoffset)
 				q1.To.Reg = REGSP
 				q1.Spadj = aoffset
+
+				prologueEnd = q1
 			}
+
+			prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)
 
 			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
 				q1 = obj.Appendp(q1, c.newprog)

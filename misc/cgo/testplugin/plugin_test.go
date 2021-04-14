@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) int {
-	// Copy testdata into GOPATH/src/testarchive, along with a go.mod file
+	// Copy testdata into GOPATH/src/testplugin, along with a go.mod file
 	// declaring the same path.
 
 	GOPATH, err := ioutil.TempDir("", "plugin_test")

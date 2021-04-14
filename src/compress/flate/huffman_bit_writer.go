@@ -634,6 +634,7 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte) {
 	w.literalFreq[endBlockMarker] = 1
 
 	const numLiterals = endBlockMarker + 1
+	w.offsetFreq[0] = 1
 	const numOffsets = 1
 
 	w.literalEncoding.generate(w.literalFreq, 15)

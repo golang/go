@@ -170,6 +170,15 @@ Diagnostic is defined as:
 The optional Category field is a short identifier that classifies the
 kind of message when an analysis produces several kinds of diagnostic.
 
+Many analyses want to associate diagnostics with a severity level.
+Because Diagnostic does not have a severity level field, an Analyzer's
+diagnostics effectively all have the same severity level. To separate which
+diagnostics are high severity and which are low severity, expose multiple
+Analyzers instead. Analyzers should also be separated when their
+diagnostics belong in different groups, or could be tagged differently
+before being shown to the end user. Analyzers should document their severity
+level to help downstream tools surface diagnostics properly.
+
 Most Analyzers inspect typed Go syntax trees, but a few, such as asmdecl
 and buildtag, inspect the raw text of Go source files or even non-Go
 files such as assembly. To report a diagnostic against a line of a

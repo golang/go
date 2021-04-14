@@ -112,10 +112,9 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	} else {
 		fd, e = syscall.Open(name, flag)
 		if IsNotExist(e) && create {
-			var e1 error
-			fd, e1 = syscall.Create(name, flag, syscallMode(perm))
-			if e1 == nil {
-				e = nil
+			fd, e = syscall.Create(name, flag, syscallMode(perm))
+			if e != nil {
+				return nil, &PathError{"create", name, e}
 			}
 		}
 	}
@@ -234,10 +233,10 @@ func (f *File) Sync() error {
 	var buf [syscall.STATFIXLEN]byte
 	n, err := d.Marshal(buf[:])
 	if err != nil {
-		return NewSyscallError("fsync", err)
+		return &PathError{"sync", f.name, err}
 	}
 	if err = syscall.Fwstat(f.fd, buf[:n]); err != nil {
-		return NewSyscallError("fsync", err)
+		return &PathError{"sync", f.name, err}
 	}
 	return nil
 }

@@ -65,7 +65,7 @@ func TestDecryptPKCS1v15(t *testing.T) {
 		for i, test := range decryptPKCS1v15Tests {
 			out, err := decryptFunc(decodeBase64(test.in))
 			if err != nil {
-				t.Errorf("#%d error decrypting", i)
+				t.Errorf("#%d error decrypting: %v", i, err)
 			}
 			want := []byte(test.out)
 			if !bytes.Equal(out, want) {

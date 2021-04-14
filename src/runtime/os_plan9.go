@@ -167,7 +167,7 @@ func mpreinit(mp *m) {
 	mp.errstr = (*byte)(mallocgc(_ERRMAX, nil, true))
 }
 
-func msigsave(mp *m) {
+func sigsave(p *sigset) {
 }
 
 func msigrestore(sigmask sigset) {
@@ -293,7 +293,6 @@ func osinit() {
 	ncpu = getproccount()
 	physPageSize = getPageSize()
 	getg().m.procid = getpid()
-	notify(unsafe.Pointer(funcPC(sigtramp)))
 }
 
 //go:nosplit
@@ -307,10 +306,10 @@ func getRandomData(r []byte) {
 	extendRandom(r, 0)
 }
 
-func goenvs() {
-}
-
 func initsig(preinit bool) {
+	if !preinit {
+		notify(unsafe.Pointer(funcPC(sigtramp)))
+	}
 }
 
 //go:nosplit

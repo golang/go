@@ -1,5 +1,5 @@
 // Derived from Inferno utils/6l/l.h and related files.
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/l.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -34,8 +34,6 @@ type Symbols struct {
 	// Symbol lookup based on name and indexed by version.
 	versions int
 
-	Allsym []*Symbol
-
 	// Provided by the loader
 
 	// Look up the symbol with the given name and version, creating the
@@ -45,17 +43,11 @@ type Symbols struct {
 	// Look up the symbol with the given name and version, returning nil
 	// if it is not found.
 	ROLookup func(name string, v int) *Symbol
-
-	// Create a symbol with the given name and version. The new symbol
-	// is not added to the lookup table and is not dedup'd with existing
-	// symbols (if any).
-	Newsym func(name string, v int) *Symbol
 }
 
 func NewSymbols() *Symbols {
 	return &Symbols{
 		versions: SymVerStatic,
-		Allsym:   make([]*Symbol, 0, 100000),
 	}
 }
 

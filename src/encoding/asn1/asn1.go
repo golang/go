@@ -313,6 +313,12 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error) 
 		}
 		ret64 <<= 7
 		b := bytes[offset]
+		// integers should be minimally encoded, so the leading octet should
+		// never be 0x80
+		if shifted == 0 && b == 0x80 {
+			err = SyntaxError{"integer is not minimally encoded"}
+			return
+		}
 		ret64 |= int64(b & 0x7f)
 		offset++
 		if b&0x80 == 0 {
@@ -1030,6 +1036,12 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 // and uses the reflect package to fill in an arbitrary value pointed at by val.
 // Because Unmarshal uses the reflect package, the structs
 // being written to must use upper case field names.
+//
+// After parsing b, any bytes that were leftover and not used to fill
+// val will be returned in rest. When parsing a SEQUENCE into a struct,
+// any trailing elements of the SEQUENCE that do not have matching
+// fields in val will not be included in rest, as these are considered
+// valid elements of the SEQUENCE and not trailing data.
 //
 // An ASN.1 INTEGER can be written to an int, int32, int64,
 // or *big.Int (from the math/big package).

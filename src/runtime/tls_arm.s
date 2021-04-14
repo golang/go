@@ -17,12 +17,9 @@
 // Note: both functions will clobber R0 and R11 and
 // can be called from 5c ABI code.
 
-// On android and darwin, runtime.tls_g is a normal variable.
+// On android, runtime.tls_g is a normal variable.
 // TLS offset is computed in x_cgo_inittls.
 #ifdef GOOS_android
-#define TLSG_IS_VARIABLE
-#endif
-#ifdef GOOS_darwin
 #define TLSG_IS_VARIABLE
 #endif
 

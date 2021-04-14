@@ -130,7 +130,7 @@ func fastrandn(n uint32) uint32 {
 //go:linkname sync_fastrand sync.fastrand
 func sync_fastrand() uint32 { return fastrand() }
 
-// in asm_*.s
+// in internal/bytealg/equal_*.s
 //go:noescape
 func memequal(a, b unsafe.Pointer, size uintptr) bool
 

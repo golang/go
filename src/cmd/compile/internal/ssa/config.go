@@ -135,7 +135,7 @@ type Frontend interface {
 	Logger
 
 	// StringData returns a symbol pointing to the given string's contents.
-	StringData(string) interface{} // returns *gc.Sym
+	StringData(string) *obj.LSym
 
 	// Auto returns a Node for an auto variable of the given type.
 	// The SSA compiler uses this function to allocate space for spills.

@@ -168,7 +168,7 @@ func gcBackendConcurrency(gcflags []string) int {
 CheckFlags:
 	for _, flag := range gcflags {
 		// Concurrent compilation is presumed incompatible with any gcflags,
-		// except for a small whitelist of commonly used flags.
+		// except for known commonly used flags.
 		// If the user knows better, they can manually add their own -c to the gcflags.
 		switch flag {
 		case "-N", "-l", "-S", "-B", "-C", "-I":
@@ -223,6 +223,10 @@ CheckFlags:
 // trimpath returns the -trimpath argument to use
 // when compiling the action.
 func (a *Action) trimpath() string {
+	// Keep in sync with Builder.ccompile
+	// The trimmed paths are a little different, but we need to trim in the
+	// same situations.
+
 	// Strip the object directory entirely.
 	objdir := a.Objdir
 	if len(objdir) > 1 && objdir[len(objdir)-1] == filepath.Separator {

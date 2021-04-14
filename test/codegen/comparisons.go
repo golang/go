@@ -248,3 +248,162 @@ func CmpLogicalToZero(a, b, c uint32, d, e uint64) uint64 {
 	}
 	return 0
 }
+
+// The following CmpToZero_ex* check that cmp|cmn with bmi|bpl are generated for
+// 'comparing to zero' expressions
+
+// var + const
+// 'x-const' might be canonicalized to 'x+(-const)', so we check both
+// CMN and CMP for subtraction expressions to make the pattern robust.
+func CmpToZero_ex1(a int64, e int32) int {
+	// arm64:`CMN`,-`ADD`,`(BMI|BPL)`
+	if a+3 < 0 {
+		return 1
+	}
+
+	// arm64:`CMN`,-`ADD`,`BEQ`,`(BMI|BPL)`
+	if a+5 <= 0 {
+		return 1
+	}
+
+	// arm64:`CMN`,-`ADD`,`(BMI|BPL)`
+	if a+13 >= 0 {
+		return 2
+	}
+
+	// arm64:`CMP|CMN`,-`(ADD|SUB)`,`(BMI|BPL)`
+	if a-7 < 0 {
+		return 3
+	}
+
+	// arm64:`CMP|CMN`,-`(ADD|SUB)`,`(BMI|BPL)`
+	if a-11 >= 0 {
+		return 4
+	}
+
+	// arm64:`CMP|CMN`,-`(ADD|SUB)`,`BEQ`,`(BMI|BPL)`
+	if a-19 > 0 {
+		return 4
+	}
+
+	// arm64:`CMNW`,-`ADDW`,`(BMI|BPL)`
+	// arm:`CMN`,-`ADD`,`(BMI|BPL)`
+	if e+3 < 0 {
+		return 5
+	}
+
+	// arm64:`CMNW`,-`ADDW`,`(BMI|BPL)`
+	// arm:`CMN`,-`ADD`,`(BMI|BPL)`
+	if e+13 >= 0 {
+		return 6
+	}
+
+	// arm64:`CMPW|CMNW`,`(BMI|BPL)`
+	// arm:`CMP|CMN`, -`(ADD|SUB)`, `(BMI|BPL)`
+	if e-7 < 0 {
+		return 7
+	}
+
+	// arm64:`CMPW|CMNW`,`(BMI|BPL)`
+	// arm:`CMP|CMN`, -`(ADD|SUB)`, `(BMI|BPL)`
+	if e-11 >= 0 {
+		return 8
+	}
+
+	return 0
+}
+
+// var + var
+// TODO: optimize 'var - var'
+func CmpToZero_ex2(a, b, c int64, e, f, g int32) int {
+	// arm64:`CMN`,-`ADD`,`(BMI|BPL)`
+	if a+b < 0 {
+		return 1
+	}
+
+	// arm64:`CMN`,-`ADD`,`BEQ`,`(BMI|BPL)`
+	if a+c <= 0 {
+		return 1
+	}
+
+	// arm64:`CMN`,-`ADD`,`(BMI|BPL)`
+	if b+c >= 0 {
+		return 2
+	}
+
+	// arm64:`CMNW`,-`ADDW`,`(BMI|BPL)`
+	// arm:`CMN`,-`ADD`,`(BMI|BPL)`
+	if e+f < 0 {
+		return 5
+	}
+
+	// arm64:`CMNW`,-`ADDW`,`(BMI|BPL)`
+	// arm:`CMN`,-`ADD`,`(BMI|BPL)`
+	if f+g >= 0 {
+		return 6
+	}
+	return 0
+}
+
+// var + var*var
+func CmpToZero_ex3(a, b, c, d int64, e, f, g, h int32) int {
+	// arm64:`CMN`,-`MADD`,`MUL`,`(BMI|BPL)`
+	if a+b*c < 0 {
+		return 1
+	}
+
+	// arm64:`CMN`,-`MADD`,`MUL`,`(BMI|BPL)`
+	if b+c*d >= 0 {
+		return 2
+	}
+
+	// arm64:`CMNW`,-`MADDW`,`MULW`,`BEQ`,`(BMI|BPL)`
+	// arm:`CMN`,-`MULA`,`MUL`,`BEQ`,`(BMI|BPL)`
+	if e+f*g > 0 {
+		return 5
+	}
+
+	// arm64:`CMNW`,-`MADDW`,`MULW`,`BEQ`,`(BMI|BPL)`
+	// arm:`CMN`,-`MULA`,`MUL`,`BEQ`,`(BMI|BPL)`
+	if f+g*h <= 0 {
+		return 6
+	}
+	return 0
+}
+
+// var - var*var
+func CmpToZero_ex4(a, b, c, d int64, e, f, g, h int32) int {
+	// arm64:`CMP`,-`MSUB`,`MUL`,`BEQ`,`(BMI|BPL)`
+	if a-b*c > 0 {
+		return 1
+	}
+
+	// arm64:`CMP`,-`MSUB`,`MUL`,`(BMI|BPL)`
+	if b-c*d >= 0 {
+		return 2
+	}
+
+	// arm64:`CMPW`,-`MSUBW`,`MULW`,`(BMI|BPL)`
+	if e-f*g < 0 {
+		return 5
+	}
+
+	// arm64:`CMPW`,-`MSUBW`,`MULW`,`(BMI|BPL)`
+	if f-g*h >= 0 {
+		return 6
+	}
+	return 0
+}
+
+func CmpToZero_ex5(e, f int32, u uint32) int {
+	// arm:`CMN`,-`ADD`,`BEQ`,`(BMI|BPL)`
+	if e+f<<1 > 0 {
+		return 1
+	}
+
+	// arm:`CMP`,-`SUB`,`(BMI|BPL)`
+	if f-int32(u>>2) >= 0 {
+		return 2
+	}
+	return 0
+}

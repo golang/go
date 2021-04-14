@@ -446,6 +446,19 @@ func TestAddressParsing(t *testing.T) {
 			},
 		},
 		{
+			` , joe@where.test,,John <jdoe@one.test>,,`,
+			[]*Address{
+				{
+					Name:    "",
+					Address: "joe@where.test",
+				},
+				{
+					Name:    "John",
+					Address: "jdoe@one.test",
+				},
+			},
+		},
+		{
 			`Group1: <addr1@example.com>;, Group 2: addr2@example.com;, John <addr3@example.com>`,
 			[]*Address{
 				{
@@ -1065,5 +1078,24 @@ func TestAddressFormattingAndParsing(t *testing.T) {
 		if parsed.Address != test.Address {
 			t.Errorf("test #%d: Parsed address = %q; want %q", i, parsed.Address, test.Address)
 		}
+	}
+}
+
+func TestEmptyAddress(t *testing.T) {
+	parsed, err := ParseAddress("")
+	if parsed != nil || err == nil {
+		t.Errorf(`ParseAddress("") = %v, %v, want nil, error`, parsed, err)
+	}
+	list, err := ParseAddressList("")
+	if len(list) > 0 || err == nil {
+		t.Errorf(`ParseAddressList("") = %v, %v, want nil, error`, list, err)
+	}
+	list, err = ParseAddressList(",")
+	if len(list) > 0 || err == nil {
+		t.Errorf(`ParseAddressList("") = %v, %v, want nil, error`, list, err)
+	}
+	list, err = ParseAddressList("a@b c@d")
+	if len(list) > 0 || err == nil {
+		t.Errorf(`ParseAddressList("") = %v, %v, want nil, error`, list, err)
 	}
 }

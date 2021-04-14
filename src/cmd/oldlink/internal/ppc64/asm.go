@@ -1,5 +1,5 @@
 // Inferno utils/5l/asm.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/asm.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/5l/asm.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -667,7 +667,8 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 				// target is at some offset within the function.  Calls to duff+8 and duff+256 must appear as
 				// distinct trampolines.
 
-				name := r.Sym.Name
+				oName := r.Sym.Name
+				name := oName
 				if r.Add == 0 {
 					name = name + fmt.Sprintf("-tramp%d", i)
 				} else {
@@ -677,6 +678,9 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 				// Look up the trampoline in case it already exists
 
 				tramp = ctxt.Syms.Lookup(name, int(r.Sym.Version))
+				if oName == "runtime.deferreturn" {
+					tramp.Attr.Set(sym.AttrDeferReturnTramp, true)
+				}
 				if tramp.Value == 0 {
 					break
 				}

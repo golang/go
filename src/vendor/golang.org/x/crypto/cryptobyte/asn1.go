@@ -81,7 +81,7 @@ func (b *Builder) AddASN1BigInt(n *big.Int) {
 			for i := range bytes {
 				bytes[i] ^= 0xff
 			}
-			if bytes[0]&0x80 == 0 {
+			if len(bytes) == 0 || bytes[0]&0x80 == 0 {
 				c.add(0xff)
 			}
 			c.add(bytes...)
@@ -230,12 +230,12 @@ func (b *Builder) AddASN1(tag asn1.Tag, f BuilderContinuation) {
 
 // String
 
-// ReadASN1Boolean decodes an ASN.1 INTEGER and converts it to a boolean
+// ReadASN1Boolean decodes an ASN.1 BOOLEAN and converts it to a boolean
 // representation into out and advances. It reports whether the read
 // was successful.
 func (s *String) ReadASN1Boolean(out *bool) bool {
 	var bytes String
-	if !s.ReadASN1(&bytes, asn1.INTEGER) || len(bytes) != 1 {
+	if !s.ReadASN1(&bytes, asn1.BOOLEAN) || len(bytes) != 1 {
 		return false
 	}
 

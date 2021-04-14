@@ -36,7 +36,7 @@ func findGorootModules(t *testing.T) []gorootModule {
 			if err != nil {
 				return err
 			}
-			if info.Name() == "vendor" || info.Name() == "testdata" {
+			if info.IsDir() && (info.Name() == "vendor" || info.Name() == "testdata") {
 				return filepath.SkipDir
 			}
 			if path == filepath.Join(runtime.GOROOT(), "pkg") {

@@ -99,7 +99,7 @@ TEXT runtime·wasmTruncS(SB), NOSPLIT, $0-0
 	End
 
 	Get R0
-	F64Const $9223372036854775807.
+	F64Const $0x7ffffffffffffc00p0 // Maximum truncated representation of 0x7fffffffffffffff
 	F64Gt
 	If
 		I64Const $0x8000000000000000
@@ -107,7 +107,7 @@ TEXT runtime·wasmTruncS(SB), NOSPLIT, $0-0
 	End
 
 	Get R0
-	F64Const $-9223372036854775808.
+	F64Const $-0x7ffffffffffffc00p0 // Minimum truncated representation of -0x8000000000000000
 	F64Lt
 	If
 		I64Const $0x8000000000000000
@@ -128,7 +128,7 @@ TEXT runtime·wasmTruncU(SB), NOSPLIT, $0-0
 	End
 
 	Get R0
-	F64Const $18446744073709551615.
+	F64Const $0xfffffffffffff800p0 // Maximum truncated representation of 0xffffffffffffffff
 	F64Gt
 	If
 		I64Const $0x8000000000000000

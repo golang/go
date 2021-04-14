@@ -90,7 +90,7 @@ func (d *DummyAuto) IsAutoTmp() bool {
 	return true
 }
 
-func (DummyFrontend) StringData(s string) interface{} {
+func (DummyFrontend) StringData(s string) *obj.LSym {
 	return nil
 }
 func (DummyFrontend) Auto(pos src.XPos, t *types.Type) GCNode {

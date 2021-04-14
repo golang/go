@@ -1,5 +1,5 @@
 // Inferno utils/5l/asm.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/asm.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/5l/asm.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -328,87 +328,7 @@ func elfsetupplt(ctxt *ld.Link) {
 }
 
 func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, sectoff int64) bool {
-	var v uint32
-
-	rs := r.Xsym
-
-	if r.Type == objabi.R_PCREL {
-		if rs.Type == sym.SHOSTOBJ {
-			ld.Errorf(s, "pc-relative relocation of external symbol is not supported")
-			return false
-		}
-		if r.Siz != 4 {
-			return false
-		}
-
-		// emit a pair of "scattered" relocations that
-		// resolve to the difference of section addresses of
-		// the symbol and the instruction
-		// this value is added to the field being relocated
-		o1 := uint32(sectoff)
-		o1 |= 1 << 31 // scattered bit
-		o1 |= ld.MACHO_ARM_RELOC_SECTDIFF << 24
-		o1 |= 2 << 28 // size = 4
-
-		o2 := uint32(0)
-		o2 |= 1 << 31 // scattered bit
-		o2 |= ld.MACHO_ARM_RELOC_PAIR << 24
-		o2 |= 2 << 28 // size = 4
-
-		out.Write32(o1)
-		out.Write32(uint32(ld.Symaddr(rs)))
-		out.Write32(o2)
-		out.Write32(uint32(s.Value + int64(r.Off)))
-		return true
-	}
-
-	if rs.Type == sym.SHOSTOBJ || r.Type == objabi.R_CALLARM {
-		if rs.Dynid < 0 {
-			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, sym.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
-			return false
-		}
-
-		v = uint32(rs.Dynid)
-		v |= 1 << 27 // external relocation
-	} else {
-		v = uint32(rs.Sect.Extnum)
-		if v == 0 {
-			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, sym.RelocName(arch, r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
-			return false
-		}
-	}
-
-	switch r.Type {
-	default:
-		return false
-
-	case objabi.R_ADDR:
-		v |= ld.MACHO_GENERIC_RELOC_VANILLA << 28
-
-	case objabi.R_CALLARM:
-		v |= 1 << 24 // pc-relative bit
-		v |= ld.MACHO_ARM_RELOC_BR24 << 28
-	}
-
-	switch r.Siz {
-	default:
-		return false
-	case 1:
-		v |= 0 << 25
-
-	case 2:
-		v |= 1 << 25
-
-	case 4:
-		v |= 2 << 25
-
-	case 8:
-		v |= 3 << 25
-	}
-
-	out.Write32(uint32(sectoff))
-	out.Write32(v)
-	return true
+	return false
 }
 
 func pereloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, sectoff int64) bool {
@@ -470,8 +390,12 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 			offset := (signext24(r.Add&0xffffff) + 2) * 4
 			var tramp *sym.Symbol
 			for i := 0; ; i++ {
-				name := r.Sym.Name + fmt.Sprintf("%+d-tramp%d", offset, i)
+				oName := r.Sym.Name
+				name := oName + fmt.Sprintf("%+d-tramp%d", offset, i)
 				tramp = ctxt.Syms.Lookup(name, int(r.Sym.Version))
+				if oName == "runtime.deferreturn" {
+					tramp.Attr.Set(sym.AttrDeferReturnTramp, true)
+				}
 				if tramp.Type == sym.SDYNIMPORT {
 					// don't reuse trampoline defined in other module
 					continue
@@ -617,15 +541,6 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
-
-			// ld64 for arm seems to want the symbol table to contain offset
-			// into the section rather than pseudo virtual address that contains
-			// the section load address.
-			// we need to compensate that by removing the instruction's address
-			// from addend.
-			if ctxt.HeadType == objabi.Hdarwin {
-				r.Xadd -= ld.Symaddr(s) + int64(r.Off)
-			}
 
 			if r.Xadd/4 > 0x7fffff || r.Xadd/4 < -0x800000 {
 				ld.Errorf(s, "direct call too far %d", r.Xadd/4)
@@ -789,11 +704,6 @@ func asmb(ctxt *ld.Link) {
 }
 
 func asmb2(ctxt *ld.Link) {
-	machlink := uint32(0)
-	if ctxt.HeadType == objabi.Hdarwin {
-		machlink = uint32(ld.Domacholink(ctxt))
-	}
-
 	/* output symbol table */
 	ld.Symsize = 0
 
@@ -810,9 +720,6 @@ func asmb2(ctxt *ld.Link) {
 
 		case objabi.Hplan9:
 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
-
-		case objabi.Hdarwin:
-			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
 
 		case objabi.Hwindows:
 			symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
@@ -845,11 +752,6 @@ func asmb2(ctxt *ld.Link) {
 
 		case objabi.Hwindows:
 			// Do nothing
-
-		case objabi.Hdarwin:
-			if ctxt.LinkMode == ld.LinkExternal {
-				ld.Machoemitreloc(ctxt)
-			}
 		}
 	}
 
@@ -871,9 +773,6 @@ func asmb2(ctxt *ld.Link) {
 		objabi.Hnetbsd,
 		objabi.Hopenbsd:
 		ld.Asmbelf(ctxt, int64(symo))
-
-	case objabi.Hdarwin:
-		ld.Asmbmacho(ctxt)
 
 	case objabi.Hwindows:
 		ld.Asmbpe(ctxt)

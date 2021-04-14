@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package rsa implements RSA encryption as specified in PKCS#1 and RFC 8017.
+// Package rsa implements RSA encryption as specified in PKCS #1 and RFC 8017.
 //
 // RSA is a single, fundamental operation that is used in this package to
 // implement either public-key encryption or public-key signatures.
 //
-// The original specification for encryption and signatures with RSA is PKCS#1
+// The original specification for encryption and signatures with RSA is PKCS #1
 // and the terms "RSA encryption" and "RSA signatures" by default refer to
-// PKCS#1 version 1.5. However, that specification has flaws and new designs
+// PKCS #1 version 1.5. However, that specification has flaws and new designs
 // should use version 2, usually called by just OAEP and PSS, where
 // possible.
 //
@@ -35,6 +35,11 @@ import (
 	"crypto/internal/randutil"
 )
 
+import (
+	"crypto/internal/boring"
+	"unsafe"
+)
+
 var bigZero = big.NewInt(0)
 var bigOne = big.NewInt(1)
 
@@ -42,7 +47,12 @@ var bigOne = big.NewInt(1)
 type PublicKey struct {
 	N *big.Int // modulus
 	E int      // public exponent
+
+	boring unsafe.Pointer
 }
+
+// Any methods implemented on PublicKey might need to also be implemented on
+// PrivateKey, as the latter embeds the former and will expose its methods.
 
 // Size returns the modulus size in bytes. Raw signatures and ciphertexts
 // for or by this public key will have the same size.
@@ -102,6 +112,8 @@ type PrivateKey struct {
 	// Precomputed contains precomputed values that speed up private
 	// operations, if available.
 	Precomputed PrecomputedValues
+
+	boring unsafe.Pointer
 }
 
 // Public returns the public key corresponding to priv.
@@ -109,8 +121,29 @@ func (priv *PrivateKey) Public() crypto.PublicKey {
 	return &priv.PublicKey
 }
 
+// Equal reports whether priv and x have equivalent values. It ignores
+// Precomputed values.
+func (priv *PrivateKey) Equal(x crypto.PrivateKey) bool {
+	xx, ok := x.(*PrivateKey)
+	if !ok {
+		return false
+	}
+	if !priv.PublicKey.Equal(&xx.PublicKey) || priv.D.Cmp(xx.D) != 0 {
+		return false
+	}
+	if len(priv.Primes) != len(xx.Primes) {
+		return false
+	}
+	for i := range priv.Primes {
+		if priv.Primes[i].Cmp(xx.Primes[i]) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // Sign signs digest with priv, reading randomness from rand. If opts is a
-// *PSSOptions then the PSS algorithm will be used, otherwise PKCS#1 v1.5 will
+// *PSSOptions then the PSS algorithm will be used, otherwise PKCS #1 v1.5 will
 // be used. digest must be the result of hashing the input message using
 // opts.HashFunc().
 //
@@ -126,7 +159,7 @@ func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOp
 }
 
 // Decrypt decrypts ciphertext with priv. If opts is nil or of type
-// *PKCS1v15DecryptOptions then PKCS#1 v1.5 decryption is performed. Otherwise
+// *PKCS1v15DecryptOptions then PKCS #1 v1.5 decryption is performed. Otherwise
 // opts must have type *OAEPOptions and OAEP decryption is done.
 func (priv *PrivateKey) Decrypt(rand io.Reader, ciphertext []byte, opts crypto.DecrypterOpts) (plaintext []byte, err error) {
 	if opts == nil {
@@ -162,7 +195,7 @@ type PrecomputedValues struct {
 
 	// CRTValues is used for the 3rd and subsequent primes. Due to a
 	// historical accident, the CRT for the first two primes is handled
-	// differently in PKCS#1 and interoperability is sufficiently
+	// differently in PKCS #1 and interoperability is sufficiently
 	// important that we mirror this.
 	CRTValues []CRTValue
 }
@@ -231,6 +264,32 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 // [2] http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
 func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
 	randutil.MaybeReadByte(random)
+
+	if boring.Enabled && random == boring.RandReader && nprimes == 2 && (bits == 2048 || bits == 3072) {
+		N, E, D, P, Q, Dp, Dq, Qinv, err := boring.GenerateKeyRSA(bits)
+		if err != nil {
+			return nil, err
+		}
+		e64 := E.Int64()
+		if !E.IsInt64() || int64(int(e64)) != e64 {
+			return nil, errors.New("crypto/rsa: generated key exponent too large")
+		}
+		key := &PrivateKey{
+			PublicKey: PublicKey{
+				N: N,
+				E: int(e64),
+			},
+			D:      D,
+			Primes: []*big.Int{P, Q},
+			Precomputed: PrecomputedValues{
+				Dp:        Dp,
+				Dq:        Dq,
+				Qinv:      Qinv,
+				CRTValues: make([]CRTValue, 0), // non-nil, to match Precompute
+			},
+		}
+		return key, nil
+	}
 
 	priv := new(PrivateKey)
 	priv.E = 65537
@@ -336,7 +395,7 @@ func incCounter(c *[4]byte) {
 }
 
 // mgf1XOR XORs the bytes in out with a mask generated using the MGF1 function
-// specified in PKCS#1 v2.1.
+// specified in PKCS #1 v2.1.
 func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
 	var counter [4]byte
 	var digest []byte
@@ -361,6 +420,7 @@ func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
 var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA public key size")
 
 func encrypt(c *big.Int, pub *PublicKey, m *big.Int) *big.Int {
+	boring.Unreachable()
 	e := big.NewInt(int64(pub.E))
 	c.Exp(m, e, pub.N)
 	return c
@@ -393,6 +453,15 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 		return nil, ErrMessageTooLong
 	}
 
+	if boring.Enabled && random == boring.RandReader {
+		bkey, err := boringPublicKey(pub)
+		if err != nil {
+			return nil, err
+		}
+		return boring.EncryptRSAOAEP(hash, bkey, msg, label)
+	}
+	boring.UnreachableExceptTests()
+
 	hash.Write(label)
 	lHash := hash.Sum(nil)
 	hash.Reset()
@@ -413,19 +482,21 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 	mgf1XOR(db, hash, seed)
 	mgf1XOR(seed, hash, db)
 
+	if boring.Enabled {
+		var bkey *boring.PublicKeyRSA
+		bkey, err = boringPublicKey(pub)
+		if err != nil {
+			return nil, err
+		}
+		return boring.EncryptRSANoPadding(bkey, em)
+	}
+
 	m := new(big.Int)
 	m.SetBytes(em)
 	c := encrypt(new(big.Int), pub, m)
-	out := c.Bytes()
 
-	if len(out) < k {
-		// If the output is too small, we need to left-pad with zeros.
-		t := make([]byte, k)
-		copy(t[k-len(out):], out)
-		out = t
-	}
-
-	return out, nil
+	out := make([]byte, k)
+	return c.FillBytes(out), nil
 }
 
 // ErrDecryption represents a failure to decrypt a message.
@@ -470,6 +541,9 @@ func (priv *PrivateKey) Precompute() {
 // decrypt performs an RSA decryption, resulting in a plaintext integer. If a
 // random source is given, RSA blinding is used.
 func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err error) {
+	if len(priv.Primes) <= 2 {
+		boring.Unreachable()
+	}
 	// TODO(agl): can we get away with reusing blinds?
 	if c.Cmp(priv.N) > 0 {
 		err = ErrDecryption
@@ -586,6 +660,17 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 		return nil, ErrDecryption
 	}
 
+	if boring.Enabled {
+		bkey, err := boringPrivateKey(priv)
+		if err != nil {
+			return nil, err
+		}
+		out, err := boring.DecryptRSAOAEP(hash, bkey, ciphertext, label)
+		if err != nil {
+			return nil, ErrDecryption
+		}
+		return out, nil
+	}
 	c := new(big.Int).SetBytes(ciphertext)
 
 	m, err := decrypt(random, priv, c)
@@ -597,12 +682,9 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 	lHash := hash.Sum(nil)
 	hash.Reset()
 
-	// Converting the plaintext number to bytes will strip any
-	// leading zeros so we may have to left pad. We do this unconditionally
-	// to avoid leaking timing information. (Although we still probably
-	// leak the number of leading zeros. It's not clear that we can do
-	// anything about this.)
-	em := leftPad(m.Bytes(), k)
+	// We probably leak the number of leading zeros.
+	// It's not clear that we can do anything about this.
+	em := m.FillBytes(make([]byte, k))
 
 	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0)
 
@@ -642,16 +724,4 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 	}
 
 	return rest[index+1:], nil
-}
-
-// leftPad returns a new slice of length size. The contents of input are right
-// aligned in the new slice.
-func leftPad(input []byte, size int) (out []byte) {
-	n := len(input)
-	if n > size {
-		n = size
-	}
-	out = make([]byte, size)
-	copy(out[len(out)-n:], input)
-	return
 }

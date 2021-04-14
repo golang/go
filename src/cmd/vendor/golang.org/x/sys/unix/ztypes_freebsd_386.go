@@ -128,9 +128,9 @@ type Statfs_t struct {
 	Owner       uint32
 	Fsid        Fsid
 	Charspare   [80]int8
-	Fstypename  [16]int8
-	Mntfromname [1024]int8
-	Mntonname   [1024]int8
+	Fstypename  [16]byte
+	Mntfromname [1024]byte
+	Mntonname   [1024]byte
 }
 
 type statfs_freebsd11_t struct {
@@ -153,9 +153,9 @@ type statfs_freebsd11_t struct {
 	Owner       uint32
 	Fsid        Fsid
 	Charspare   [80]int8
-	Fstypename  [16]int8
-	Mntfromname [88]int8
-	Mntonname   [88]int8
+	Fstypename  [16]byte
+	Mntfromname [88]byte
+	Mntonname   [88]byte
 }
 
 type Flock_t struct {
@@ -375,15 +375,15 @@ type PtraceLwpInfoStruct struct {
 }
 
 type __Siginfo struct {
-	Signo    int32
-	Errno    int32
-	Code     int32
-	Pid      int32
-	Uid      uint32
-	Status   int32
-	Addr     *byte
-	Value    [4]byte
-	X_reason [32]byte
+	Signo  int32
+	Errno  int32
+	Code   int32
+	Pid    int32
+	Uid    uint32
+	Status int32
+	Addr   *byte
+	Value  [4]byte
+	_      [32]byte
 }
 
 type Sigset_t struct {
@@ -458,7 +458,7 @@ type ifMsghdr struct {
 	Addrs   int32
 	Flags   int32
 	Index   uint16
-	_       [2]byte
+	_       uint16
 	Data    ifData
 }
 
@@ -469,7 +469,6 @@ type IfMsghdr struct {
 	Addrs   int32
 	Flags   int32
 	Index   uint16
-	_       [2]byte
 	Data    IfData
 }
 
@@ -536,7 +535,7 @@ type IfaMsghdr struct {
 	Addrs   int32
 	Flags   int32
 	Index   uint16
-	_       [2]byte
+	_       uint16
 	Metric  int32
 }
 
@@ -547,7 +546,7 @@ type IfmaMsghdr struct {
 	Addrs   int32
 	Flags   int32
 	Index   uint16
-	_       [2]byte
+	_       uint16
 }
 
 type IfAnnounceMsghdr struct {
@@ -564,7 +563,7 @@ type RtMsghdr struct {
 	Version uint8
 	Type    uint8
 	Index   uint16
-	_       [2]byte
+	_       uint16
 	Flags   int32
 	Addrs   int32
 	Pid     int32

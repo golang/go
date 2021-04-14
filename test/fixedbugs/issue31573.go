@@ -9,7 +9,7 @@ package p
 func f(...*int) {} // ERROR "can inline f$"
 
 func g() {
-	defer f()                   // ERROR "... argument does not escape$"
+	defer f()
 	defer f(new(int))           // ERROR "... argument does not escape$" "new\(int\) does not escape$"
 	defer f(new(int), new(int)) // ERROR "... argument does not escape$" "new\(int\) does not escape$"
 
@@ -18,7 +18,7 @@ func g() {
 	defer f([]*int{new(int)}...)           // ERROR "\[\]\*int literal does not escape$" "new\(int\) does not escape$"
 	defer f([]*int{new(int), new(int)}...) // ERROR "\[\]\*int literal does not escape$" "new\(int\) does not escape$"
 
-	go f()                   // ERROR "... argument escapes to heap$"
+	go f()
 	go f(new(int))           // ERROR "... argument escapes to heap$" "new\(int\) escapes to heap$"
 	go f(new(int), new(int)) // ERROR "... argument escapes to heap$" "new\(int\) escapes to heap$"
 
@@ -28,7 +28,7 @@ func g() {
 	go f([]*int{new(int), new(int)}...) // ERROR "\[\]\*int literal escapes to heap$" "new\(int\) escapes to heap$"
 
 	for {
-		defer f()                   // ERROR "... argument escapes to heap$"
+		defer f()
 		defer f(new(int))           // ERROR "... argument escapes to heap$" "new\(int\) escapes to heap$"
 		defer f(new(int), new(int)) // ERROR "... argument escapes to heap$" "new\(int\) escapes to heap$"
 
@@ -37,7 +37,7 @@ func g() {
 		defer f([]*int{new(int)}...)           // ERROR "\[\]\*int literal escapes to heap$" "new\(int\) escapes to heap$"
 		defer f([]*int{new(int), new(int)}...) // ERROR "\[\]\*int literal escapes to heap$" "new\(int\) escapes to heap$"
 
-		go f()                   // ERROR "... argument escapes to heap$"
+		go f()
 		go f(new(int))           // ERROR "... argument escapes to heap$" "new\(int\) escapes to heap$"
 		go f(new(int), new(int)) // ERROR "... argument escapes to heap$" "new\(int\) escapes to heap$"
 

@@ -623,6 +623,62 @@ func TestShrinkStackDuringBlockedSend(t *testing.T) {
 	<-done
 }
 
+func TestNoShrinkStackWhileParking(t *testing.T) {
+	// The goal of this test is to trigger a "racy sudog adjustment"
+	// throw. Basically, there's a window between when a goroutine
+	// becomes available for preemption for stack scanning (and thus,
+	// stack shrinking) but before the goroutine has fully parked on a
+	// channel. See issue 40641 for more details on the problem.
+	//
+	// The way we try to induce this failure is to set up two
+	// goroutines: a sender and a reciever that communicate across
+	// a channel. We try to set up a situation where the sender
+	// grows its stack temporarily then *fully* blocks on a channel
+	// often. Meanwhile a GC is triggered so that we try to get a
+	// mark worker to shrink the sender's stack and race with the
+	// sender parking.
+	//
+	// Unfortunately the race window here is so small that we
+	// either need a ridiculous number of iterations, or we add
+	// "usleep(1000)" to park_m, just before the unlockf call.
+	const n = 10
+	send := func(c chan<- int, done chan struct{}) {
+		for i := 0; i < n; i++ {
+			c <- i
+			// Use lots of stack briefly so that
+			// the GC is going to want to shrink us
+			// when it scans us. Make sure not to
+			// do any function calls otherwise
+			// in order to avoid us shrinking ourselves
+			// when we're preempted.
+			stackGrowthRecursive(20)
+		}
+		done <- struct{}{}
+	}
+	recv := func(c <-chan int, done chan struct{}) {
+		for i := 0; i < n; i++ {
+			// Sleep here so that the sender always
+			// fully blocks.
+			time.Sleep(10 * time.Microsecond)
+			<-c
+		}
+		done <- struct{}{}
+	}
+	for i := 0; i < n*20; i++ {
+		c := make(chan int)
+		done := make(chan struct{})
+		go recv(c, done)
+		go send(c, done)
+		// Wait a little bit before triggering
+		// the GC to make sure the sender and
+		// reciever have gotten into their groove.
+		time.Sleep(50 * time.Microsecond)
+		runtime.GC()
+		<-done
+		<-done
+	}
+}
+
 func TestSelectDuplicateChannel(t *testing.T) {
 	// This test makes sure we can queue a G on
 	// the same channel multiple times.

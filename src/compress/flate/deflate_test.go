@@ -11,6 +11,7 @@ import (
 	"internal/testenv"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"reflect"
 	"runtime/debug"
 	"sync"
@@ -512,33 +513,57 @@ func TestWriterReset(t *testing.T) {
 			t.Errorf("level %d Writer not reset after Reset", level)
 		}
 	}
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriter(w, NoCompression) })
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriter(w, DefaultCompression) })
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriter(w, BestCompression) })
-	dict := []byte("we are the world")
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriterDict(w, NoCompression, dict) })
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriterDict(w, DefaultCompression, dict) })
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriterDict(w, BestCompression, dict) })
+
+	levels := []int{0, 1, 2, 5, 9}
+	for _, level := range levels {
+		t.Run(fmt.Sprint(level), func(t *testing.T) {
+			testResetOutput(t, level, nil)
+		})
+	}
+
+	t.Run("dict", func(t *testing.T) {
+		for _, level := range levels {
+			t.Run(fmt.Sprint(level), func(t *testing.T) {
+				testResetOutput(t, level, nil)
+			})
+		}
+	})
 }
 
-func testResetOutput(t *testing.T, newWriter func(w io.Writer) (*Writer, error)) {
+func testResetOutput(t *testing.T, level int, dict []byte) {
+	writeData := func(w *Writer) {
+		msg := []byte("now is the time for all good gophers")
+		w.Write(msg)
+		w.Flush()
+
+		hello := []byte("hello world")
+		for i := 0; i < 1024; i++ {
+			w.Write(hello)
+		}
+
+		fill := bytes.Repeat([]byte("x"), 65000)
+		w.Write(fill)
+	}
+
 	buf := new(bytes.Buffer)
-	w, err := newWriter(buf)
+	var w *Writer
+	var err error
+	if dict == nil {
+		w, err = NewWriter(buf, level)
+	} else {
+		w, err = NewWriterDict(buf, level, dict)
+	}
 	if err != nil {
 		t.Fatalf("NewWriter: %v", err)
 	}
-	b := []byte("hello world")
-	for i := 0; i < 1024; i++ {
-		w.Write(b)
-	}
+
+	writeData(w)
 	w.Close()
 	out1 := buf.Bytes()
 
 	buf2 := new(bytes.Buffer)
 	w.Reset(buf2)
-	for i := 0; i < 1024; i++ {
-		w.Write(b)
-	}
+	writeData(w)
 	w.Close()
 	out2 := buf2.Bytes()
 
@@ -869,6 +894,62 @@ func TestBestSpeedMaxMatchOffset(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestBestSpeedShiftOffsets(t *testing.T) {
+	// Test if shiftoffsets properly preserves matches and resets out-of-range matches
+	// seen in https://github.com/golang/go/issues/4142
+	enc := newDeflateFast()
+
+	// testData may not generate internal matches.
+	testData := make([]byte, 32)
+	rng := rand.New(rand.NewSource(0))
+	for i := range testData {
+		testData[i] = byte(rng.Uint32())
+	}
+
+	// Encode the testdata with clean state.
+	// Second part should pick up matches from the first block.
+	wantFirstTokens := len(enc.encode(nil, testData))
+	wantSecondTokens := len(enc.encode(nil, testData))
+
+	if wantFirstTokens <= wantSecondTokens {
+		t.Fatalf("test needs matches between inputs to be generated")
+	}
+	// Forward the current indicator to before wraparound.
+	enc.cur = bufferReset - int32(len(testData))
+
+	// Part 1 before wrap, should match clean state.
+	got := len(enc.encode(nil, testData))
+	if wantFirstTokens != got {
+		t.Errorf("got %d, want %d tokens", got, wantFirstTokens)
+	}
+
+	// Verify we are about to wrap.
+	if enc.cur != bufferReset {
+		t.Errorf("got %d, want e.cur to be at bufferReset (%d)", enc.cur, bufferReset)
+	}
+
+	// Part 2 should match clean state as well even if wrapped.
+	got = len(enc.encode(nil, testData))
+	if wantSecondTokens != got {
+		t.Errorf("got %d, want %d token", got, wantSecondTokens)
+	}
+
+	// Verify that we wrapped.
+	if enc.cur >= bufferReset {
+		t.Errorf("want e.cur to be < bufferReset (%d), got %d", bufferReset, enc.cur)
+	}
+
+	// Forward the current buffer, leaving the matches at the bottom.
+	enc.cur = bufferReset
+	enc.shiftOffsets()
+
+	// Ensure that no matches were picked up.
+	got = len(enc.encode(nil, testData))
+	if wantFirstTokens != got {
+		t.Errorf("got %d, want %d tokens", got, wantFirstTokens)
 	}
 }
 

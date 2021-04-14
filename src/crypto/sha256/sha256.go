@@ -13,6 +13,8 @@ import (
 	"hash"
 )
 
+import "crypto/internal/boring"
+
 func init() {
 	crypto.RegisterHash(crypto.SHA224, New224)
 	crypto.RegisterHash(crypto.SHA256, New)
@@ -159,6 +161,9 @@ func (d *digest) Reset() {
 // encoding.BinaryUnmarshaler to marshal and unmarshal the internal
 // state of the hash.
 func New() hash.Hash {
+	if boring.Enabled {
+		return boring.NewSHA256()
+	}
 	d := new(digest)
 	d.Reset()
 	return d
@@ -166,6 +171,9 @@ func New() hash.Hash {
 
 // New224 returns a new hash.Hash computing the SHA224 checksum.
 func New224() hash.Hash {
+	if boring.Enabled {
+		return boring.NewSHA224()
+	}
 	d := new(digest)
 	d.is224 = true
 	d.Reset()
@@ -182,6 +190,7 @@ func (d *digest) Size() int {
 func (d *digest) BlockSize() int { return BlockSize }
 
 func (d *digest) Write(p []byte) (nn int, err error) {
+	boring.Unreachable()
 	nn = len(p)
 	d.len += uint64(nn)
 	if d.nx > 0 {
@@ -205,6 +214,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 }
 
 func (d *digest) Sum(in []byte) []byte {
+	boring.Unreachable()
 	// Make a copy of d so that caller can keep writing and summing.
 	d0 := *d
 	hash := d0.checkSum()
@@ -252,6 +262,13 @@ func (d *digest) checkSum() [Size]byte {
 
 // Sum256 returns the SHA256 checksum of the data.
 func Sum256(data []byte) [Size]byte {
+	if boring.Enabled {
+		h := New()
+		h.Write(data)
+		var ret [Size]byte
+		h.Sum(ret[:0])
+		return ret
+	}
 	var d digest
 	d.Reset()
 	d.Write(data)
@@ -260,6 +277,13 @@ func Sum256(data []byte) [Size]byte {
 
 // Sum224 returns the SHA224 checksum of the data.
 func Sum224(data []byte) (sum224 [Size224]byte) {
+	if boring.Enabled {
+		h := New224()
+		h.Write(data)
+		var ret [Size224]byte
+		h.Sum(ret[:0])
+		return ret
+	}
 	var d digest
 	d.is224 = true
 	d.Reset()

@@ -6,9 +6,9 @@ package work
 
 import (
 	"fmt"
+	exec "internal/execabs"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 

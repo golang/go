@@ -1386,8 +1386,7 @@ func (t *Tm) M() { // ERROR "t does not escape$"
 func foo141() {
 	var f func()
 
-	// BAD: new(Tm) should not escape
-	t := new(Tm) // ERROR "new\(Tm\) escapes to heap$"
+	t := new(Tm) // ERROR "new\(Tm\) does not escape$"
 	f = t.M      // ERROR "t.M does not escape$"
 	_ = f
 }

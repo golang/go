@@ -427,7 +427,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	/*
 	 * find leaf subroutines
-	 * strip NOPs
 	 * expand RET
 	 * expand BECOME pseudo
 	 */
@@ -557,10 +556,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			q = p
 			q1 = p.Pcond
 			if q1 != nil {
-				for q1.As == obj.ANOP {
-					q1 = q1.Link
-					p.Pcond = q1
-				}
+				// NOPs are not removed due to #40689.
 
 				if q1.Mark&LEAF == 0 {
 					q1.Mark |= LABEL
@@ -587,9 +583,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			continue
 
 		case obj.ANOP:
-			q1 = p.Link
-			q.Link = q1 /* q is non-nop */
-			q1.Mark |= p.Mark
+			// NOPs are not removed due to
+			// #40689
 			continue
 
 		default:

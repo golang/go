@@ -58,8 +58,11 @@ func (pos Position) String() string {
 // larger, representation.
 //
 // The Pos value for a given file is a number in the range [base, base+size],
-// where base and size are specified when adding the file to the file set via
-// AddFile.
+// where base and size are specified when a file is added to the file set.
+// The difference between a Pos value and the corresponding file base
+// corresponds to the byte offset of that position (represented by the Pos value)
+// from the beginning of the file. Thus, the file base offset is the Pos value
+// representing the first byte in the file.
 //
 // To create the Pos value for a specific source offset (measured in bytes),
 // first add the respective file to the current file set using FileSet.AddFile
@@ -363,6 +366,22 @@ func (f *File) Position(p Pos) (pos Position) {
 // A FileSet represents a set of source files.
 // Methods of file sets are synchronized; multiple goroutines
 // may invoke them concurrently.
+//
+// The byte offsets for each file in a file set are mapped into
+// distinct (integer) intervals, one interval [base, base+size]
+// per file. Base represents the first byte in the file, and size
+// is the corresponding file size. A Pos value is a value in such
+// an interval. By determining the interval a Pos value belongs
+// to, the file, its file base, and thus the byte offset (position)
+// the Pos value is representing can be computed.
+//
+// When adding a new file, a file base must be provided. That can
+// be any integer value that is past the end of any interval of any
+// file already in the file set. For convenience, FileSet.Base provides
+// such a value, which is simply the end of the Pos interval of the most
+// recently added file, plus one. Unless there is a need to extend an
+// interval later, using the FileSet.Base should be used as argument
+// for FileSet.AddFile.
 //
 type FileSet struct {
 	mutex sync.RWMutex // protects the file set

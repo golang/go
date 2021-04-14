@@ -340,6 +340,7 @@ func osStackRemap(s *mspan, flags int32) {
 	}
 }
 
+//go:nosplit
 func raise(sig uint32) {
 	thrkill(getthrid(), int(sig))
 }

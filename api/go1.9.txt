@@ -7,6 +7,7 @@ pkg crypto, const BLAKE2b_512 Hash
 pkg crypto, const BLAKE2s_256 = 16
 pkg crypto, const BLAKE2s_256 Hash
 pkg crypto/x509, type Certificate struct, ExcludedDNSDomains []string
+pkg crypto/x509, type VerifyOptions struct, IsBoring func(*Certificate) bool
 pkg database/sql, method (*Conn) BeginTx(context.Context, *TxOptions) (*Tx, error)
 pkg database/sql, method (*Conn) Close() error
 pkg database/sql, method (*Conn) ExecContext(context.Context, string, ...interface{}) (Result, error)

@@ -6,7 +6,7 @@ env GOPATH=$WORK/tmp/testdata
 cd $WORK
 
 # Check output of go list to ensure no duplicates
-go list xtestonly ./testdata/src/xtestonly/...
+go list xtestonly ./tmp/testdata/src/xtestonly/...
 cmp stdout $WORK/gopath/src/wantstdout
 
 -- wantstdout --

@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -84,7 +85,12 @@ func instrumentInit() {
 	modeFlag := "-" + mode
 
 	if !cfg.BuildContext.CgoEnabled {
-		fmt.Fprintf(os.Stderr, "go %s: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0], modeFlag)
+		if runtime.GOOS != cfg.Goos || runtime.GOARCH != cfg.Goarch {
+			fmt.Fprintf(os.Stderr, "go %s: %s requires cgo\n", flag.Args()[0], modeFlag)
+		} else {
+			fmt.Fprintf(os.Stderr, "go %s: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0], modeFlag)
+		}
+
 		base.SetExitStatus(2)
 		base.Exit()
 	}
@@ -117,7 +123,7 @@ func buildModeInit() {
 			switch cfg.Goos {
 			case "darwin":
 				switch cfg.Goarch {
-				case "arm", "arm64":
+				case "arm64":
 					codegenArg = "-shared"
 				}
 
@@ -149,9 +155,11 @@ func buildModeInit() {
 		case "android":
 			codegenArg = "-shared"
 			ldBuildmode = "pie"
+		case "windows":
+			ldBuildmode = "pie"
 		case "darwin":
 			switch cfg.Goarch {
-			case "arm", "arm64":
+			case "arm64":
 				codegenArg = "-shared"
 			}
 			fallthrough
@@ -246,34 +254,18 @@ func buildModeInit() {
 	case "":
 		// ok
 	case "readonly", "vendor", "mod":
-		if !cfg.ModulesEnabled && !inGOFLAGS("-mod") {
+		if !cfg.ModulesEnabled && !base.InGOFLAGS("-mod") {
 			base.Fatalf("build flag -mod=%s only valid when using modules", cfg.BuildMod)
 		}
 	default:
 		base.Fatalf("-mod=%s not supported (can be '', 'mod', 'readonly', or 'vendor')", cfg.BuildMod)
 	}
 	if !cfg.ModulesEnabled {
-		if cfg.ModCacheRW && !inGOFLAGS("-modcacherw") {
+		if cfg.ModCacheRW && !base.InGOFLAGS("-modcacherw") {
 			base.Fatalf("build flag -modcacherw only valid when using modules")
 		}
-		if cfg.ModFile != "" && !inGOFLAGS("-mod") {
+		if cfg.ModFile != "" && !base.InGOFLAGS("-mod") {
 			base.Fatalf("build flag -modfile only valid when using modules")
 		}
 	}
-}
-
-func inGOFLAGS(flag string) bool {
-	for _, goflag := range base.GOFLAGS() {
-		name := goflag
-		if strings.HasPrefix(name, "--") {
-			name = name[1:]
-		}
-		if i := strings.Index(name, "="); i >= 0 {
-			name = name[:i]
-		}
-		if name == flag {
-			return true
-		}
-	}
-	return false
 }

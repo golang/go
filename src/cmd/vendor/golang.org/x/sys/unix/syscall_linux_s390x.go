@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-//sys	Dup2(oldfd int, newfd int) (err error)
+//sys	dup2(oldfd int, newfd int) (err error)
 //sysnb	EpollCreate(size int) (fd int, err error)
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64

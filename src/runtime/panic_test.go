@@ -11,7 +11,7 @@ import (
 
 // Test that panics print out the underlying value
 // when the underlying kind is directly printable.
-// Issue: https://golang/go/issues/37531
+// Issue: https://golang.org/issues/37531
 func TestPanicWithDirectlyPrintableCustomTypes(t *testing.T) {
 	tests := []struct {
 		name            string

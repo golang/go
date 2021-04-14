@@ -274,6 +274,9 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	ADDW	$0x60060, R2                        // ADDW	$393312, R2                     // 4280011142804111
 	CMPW	$0x60060, R2                        // CMPW	$393312, R2                     // 1b0c8052db00a0725f001b6b
 
+	// TODO: this could have better encoding
+	ANDW	$-1, R10 // 1b0080124a011b0a
+
 	AND	$8, R0, RSP // 1f007d92
 	ORR	$8, R0, RSP // 1f007db2
 	EOR	$8, R0, RSP // 1f007dd2

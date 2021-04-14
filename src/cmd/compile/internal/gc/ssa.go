@@ -394,7 +394,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 		// For this value, AuxInt is initialized to zero by default
 		startDeferBits := s.entryNewValue0(ssa.OpConst8, types.Types[TUINT8])
 		s.vars[&deferBitsVar] = startDeferBits
-		s.deferBitsAddr = s.addr(deferBitsTemp, false)
+		s.deferBitsAddr = s.addr(deferBitsTemp)
 		s.store(types.Types[TUINT8], s.deferBitsAddr, startDeferBits)
 		// Make sure that the deferBits stack slot is kept alive (for use
 		// by panics) and stores to deferBits are not eliminated, even if
@@ -1246,7 +1246,7 @@ func (s *state) stmt(n *Node) {
 			if rhs == nil {
 				r = nil // Signal assign to use OpZero.
 			} else {
-				r = s.addr(rhs, false)
+				r = s.addr(rhs)
 			}
 		} else {
 			if rhs == nil {
@@ -1742,9 +1742,6 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OLT, TFLOAT64}: ssa.OpLess64F,
 	opAndType{OLT, TFLOAT32}: ssa.OpLess32F,
 
-	opAndType{OGT, TFLOAT64}: ssa.OpGreater64F,
-	opAndType{OGT, TFLOAT32}: ssa.OpGreater32F,
-
 	opAndType{OLE, TINT8}:    ssa.OpLeq8,
 	opAndType{OLE, TUINT8}:   ssa.OpLeq8U,
 	opAndType{OLE, TINT16}:   ssa.OpLeq16,
@@ -1755,9 +1752,6 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OLE, TUINT64}:  ssa.OpLeq64U,
 	opAndType{OLE, TFLOAT64}: ssa.OpLeq64F,
 	opAndType{OLE, TFLOAT32}: ssa.OpLeq32F,
-
-	opAndType{OGE, TFLOAT64}: ssa.OpGeq64F,
-	opAndType{OGE, TFLOAT32}: ssa.OpGeq32F,
 }
 
 func (s *state) concreteEtype(t *types.Type) types.EType {
@@ -2014,10 +2008,10 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if s.canSSA(n) {
 			return s.variable(n, n.Type)
 		}
-		addr := s.addr(n, false)
+		addr := s.addr(n)
 		return s.load(n.Type, addr)
 	case OCLOSUREVAR:
-		addr := s.addr(n, false)
+		addr := s.addr(n)
 		return s.load(n.Type, addr)
 	case OLITERAL:
 		switch u := n.Val().U.(type) {
@@ -2345,11 +2339,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 				s.Fatalf("ordered complex compare %v", n.Op)
 			}
 		}
-		if n.Left.Type.IsFloat() {
-			return s.newValueOrSfCall2(s.ssaOp(n.Op, n.Left.Type), types.Types[TBOOL], a, b)
-		}
 
-		// Integer: convert OGE and OGT into OLE and OLT.
+		// Convert OGE and OGT into OLE and OLT.
 		op := n.Op
 		switch op {
 		case OGE:
@@ -2357,6 +2348,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 		case OGT:
 			op, a, b = OLT, b, a
 		}
+		if n.Left.Type.IsFloat() {
+			// float comparison
+			return s.newValueOrSfCall2(s.ssaOp(op, n.Left.Type), types.Types[TBOOL], a, b)
+		}
+		// integer comparison
 		return s.newValue2(s.ssaOp(op, n.Left.Type), types.Types[TBOOL], a, b)
 	case OMUL:
 		a := s.expr(n.Left)
@@ -2546,14 +2542,14 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.expr(n.Left)
 
 	case OADDR:
-		return s.addr(n.Left, n.Bounded())
+		return s.addr(n.Left)
 
 	case ORESULT:
 		addr := s.constOffPtrSP(types.NewPtr(n.Type), n.Xoffset)
 		return s.load(n.Type, addr)
 
 	case ODEREF:
-		p := s.exprPtr(n.Left, false, n.Pos)
+		p := s.exprPtr(n.Left, n.Bounded(), n.Pos)
 		return s.load(n.Type, p)
 
 	case ODOT:
@@ -2571,14 +2567,14 @@ func (s *state) expr(n *Node) *ssa.Value {
 		// prevents false memory dependencies in race/msan
 		// instrumentation.
 		if islvalue(n) && !s.canSSA(n) {
-			p := s.addr(n, false)
+			p := s.addr(n)
 			return s.load(n.Type, p)
 		}
 		v := s.expr(n.Left)
 		return s.newValue1I(ssa.OpStructSelect, n.Type, int64(fieldIdx(n)), v)
 
 	case ODOTPTR:
-		p := s.exprPtr(n.Left, false, n.Pos)
+		p := s.exprPtr(n.Left, n.Bounded(), n.Pos)
 		p = s.newValue1I(ssa.OpOffPtr, types.NewPtr(n.Type), n.Xoffset, p)
 		return s.load(n.Type, p)
 
@@ -2604,7 +2600,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			}
 			return s.load(types.Types[TUINT8], ptr)
 		case n.Left.Type.IsSlice():
-			p := s.addr(n, false)
+			p := s.addr(n)
 			return s.load(n.Left.Type.Elem(), p)
 		case n.Left.Type.IsArray():
 			if canSSAType(n.Left.Type) {
@@ -2624,7 +2620,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 				s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded()) // checks i == 0
 				return s.newValue1I(ssa.OpArraySelect, n.Type, 0, a)
 			}
-			p := s.addr(n, false)
+			p := s.addr(n)
 			return s.load(n.Left.Type.Elem(), p)
 		default:
 			s.Fatalf("bad type for index %v", n.Left.Type)
@@ -2790,7 +2786,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 
 	var slice, addr *ssa.Value
 	if inplace {
-		addr = s.addr(sn, false)
+		addr = s.addr(sn)
 		slice = s.load(n.Type, addr)
 	} else {
 		slice = s.expr(sn)
@@ -2834,7 +2830,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 			// Tell liveness we're about to build a new slice
 			s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, sn, s.mem())
 		}
-		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, int64(slice_cap), addr)
+		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, sliceCapOffset, addr)
 		s.store(types.Types[TINT], capaddr, r[2])
 		s.store(pt, addr, r[0])
 		// load the value we just stored to avoid having to spill it
@@ -2855,7 +2851,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 	if inplace {
 		l = s.variable(&lenVar, types.Types[TINT]) // generates phi for len
 		nl = s.newValue2(s.ssaOp(OADD, types.Types[TINT]), types.Types[TINT], l, s.constInt(types.Types[TINT], nargs))
-		lenaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, int64(slice_nel), addr)
+		lenaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, sliceLenOffset, addr)
 		s.store(types.Types[TINT], lenaddr, nl)
 	}
 
@@ -2871,7 +2867,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 		if canSSAType(n.Type) {
 			args = append(args, argRec{v: s.expr(n), store: true})
 		} else {
-			v := s.addr(n, false)
+			v := s.addr(n)
 			args = append(args, argRec{v: v})
 		}
 	}
@@ -3042,7 +3038,7 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) 
 	}
 
 	// Left is not ssa-able. Compute its address.
-	addr := s.addr(left, false)
+	addr := s.addr(left)
 	if isReflectHeaderDataField(left) {
 		// Package unsafe's documentation says storing pointers into
 		// reflect.SliceHeader and reflect.StringHeader's Data fields
@@ -3158,18 +3154,14 @@ func softfloatInit() {
 		ssa.OpDiv32F: sfRtCallDef{sysfunc("fdiv32"), TFLOAT32},
 		ssa.OpDiv64F: sfRtCallDef{sysfunc("fdiv64"), TFLOAT64},
 
-		ssa.OpEq64F:      sfRtCallDef{sysfunc("feq64"), TBOOL},
-		ssa.OpEq32F:      sfRtCallDef{sysfunc("feq32"), TBOOL},
-		ssa.OpNeq64F:     sfRtCallDef{sysfunc("feq64"), TBOOL},
-		ssa.OpNeq32F:     sfRtCallDef{sysfunc("feq32"), TBOOL},
-		ssa.OpLess64F:    sfRtCallDef{sysfunc("fgt64"), TBOOL},
-		ssa.OpLess32F:    sfRtCallDef{sysfunc("fgt32"), TBOOL},
-		ssa.OpGreater64F: sfRtCallDef{sysfunc("fgt64"), TBOOL},
-		ssa.OpGreater32F: sfRtCallDef{sysfunc("fgt32"), TBOOL},
-		ssa.OpLeq64F:     sfRtCallDef{sysfunc("fge64"), TBOOL},
-		ssa.OpLeq32F:     sfRtCallDef{sysfunc("fge32"), TBOOL},
-		ssa.OpGeq64F:     sfRtCallDef{sysfunc("fge64"), TBOOL},
-		ssa.OpGeq32F:     sfRtCallDef{sysfunc("fge32"), TBOOL},
+		ssa.OpEq64F:   sfRtCallDef{sysfunc("feq64"), TBOOL},
+		ssa.OpEq32F:   sfRtCallDef{sysfunc("feq32"), TBOOL},
+		ssa.OpNeq64F:  sfRtCallDef{sysfunc("feq64"), TBOOL},
+		ssa.OpNeq32F:  sfRtCallDef{sysfunc("feq32"), TBOOL},
+		ssa.OpLess64F: sfRtCallDef{sysfunc("fgt64"), TBOOL},
+		ssa.OpLess32F: sfRtCallDef{sysfunc("fgt32"), TBOOL},
+		ssa.OpLeq64F:  sfRtCallDef{sysfunc("fge64"), TBOOL},
+		ssa.OpLeq32F:  sfRtCallDef{sysfunc("fge32"), TBOOL},
 
 		ssa.OpCvt32to32F:  sfRtCallDef{sysfunc("fint32to32"), TFLOAT32},
 		ssa.OpCvt32Fto32:  sfRtCallDef{sysfunc("f32toint32"), TINT32},
@@ -3285,10 +3277,7 @@ func init() {
 				// Compiler frontend optimizations emit OBYTES2STRTMP nodes
 				// for the backend instead of slicebytetostringtmp calls
 				// when not instrumenting.
-				slice := args[0]
-				ptr := s.newValue1(ssa.OpSlicePtr, s.f.Config.Types.BytePtr, slice)
-				len := s.newValue1(ssa.OpSliceLen, types.Types[TINT], slice)
-				return s.newValue2(ssa.OpStringMake, n.Type, ptr, len)
+				return s.newValue2(ssa.OpStringMake, n.Type, args[0], args[1])
 			},
 			all...)
 	}
@@ -3547,7 +3536,7 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpSqrt, types.Types[TFLOAT64], args[0])
 		},
-		sys.I386, sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.S390X, sys.Wasm)
+		sys.I386, sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X, sys.Wasm)
 	addF("math", "Trunc",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpTrunc, types.Types[TFLOAT64], args[0])
@@ -4217,7 +4206,7 @@ func (s *state) openDeferSave(n *Node, t *types.Type, val *ssa.Value) *ssa.Value
 		s.vars[&memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, argTemp, s.mem(), false)
 		addrArgTemp = s.newValue2Apos(ssa.OpLocalAddr, types.NewPtr(argTemp.Type), argTemp, s.sp, s.mem(), false)
 	}
-	if types.Haspointers(t) {
+	if t.HasPointers() {
 		// Since we may use this argTemp during exit depending on the
 		// deferBits, we must define it unconditionally on entry.
 		// Therefore, we must make sure it is zeroed out in the entry
@@ -4226,7 +4215,7 @@ func (s *state) openDeferSave(n *Node, t *types.Type, val *ssa.Value) *ssa.Value
 		argTemp.Name.SetNeedzero(true)
 	}
 	if !canSSA {
-		a := s.addr(n, false)
+		a := s.addr(n)
 		s.move(t, addrArgTemp, a)
 		return addrArgTemp
 	}
@@ -4319,22 +4308,16 @@ func (s *state) openDeferExit() {
 			s.vars[&memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, r.closureNode, s.mem(), false)
 		}
 		if r.rcvrNode != nil {
-			if types.Haspointers(r.rcvrNode.Type) {
+			if r.rcvrNode.Type.HasPointers() {
 				s.vars[&memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, r.rcvrNode, s.mem(), false)
 			}
 		}
 		for _, argNode := range r.argNodes {
-			if types.Haspointers(argNode.Type) {
+			if argNode.Type.HasPointers() {
 				s.vars[&memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, argNode, s.mem(), false)
 			}
 		}
 
-		if i == len(s.openDefers)-1 {
-			// Record the call of the first defer. This will be used
-			// to set liveness info for the deferreturn (which is also
-			// used for any location that causes a runtime panic)
-			s.f.LastDeferExit = call
-		}
 		s.endBlock()
 		s.startBlock(bEnd)
 	}
@@ -4398,7 +4381,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		d := tempAt(n.Pos, s.curfn, t)
 
 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, d, s.mem())
-		addr := s.addr(d, false)
+		addr := s.addr(d)
 
 		// Must match reflect.go:deferstruct and src/runtime/runtime2.go:_defer.
 		// 0: siz
@@ -4589,9 +4572,7 @@ func etypesign(e types.EType) int8 {
 
 // addr converts the address of the expression n to SSA, adds it to s and returns the SSA result.
 // The value that the returned Value represents is guaranteed to be non-nil.
-// If bounded is true then this address does not require a nil check for its operand
-// even if that would otherwise be implied.
-func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+func (s *state) addr(n *Node) *ssa.Value {
 	if n.Op != ONAME {
 		s.pushLine(n.Pos)
 		defer s.popLine()
@@ -4644,25 +4625,25 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			p := s.newValue1(ssa.OpSlicePtr, t, a)
 			return s.newValue2(ssa.OpPtrIndex, t, p, i)
 		} else { // array
-			a := s.addr(n.Left, bounded)
+			a := s.addr(n.Left)
 			i := s.expr(n.Right)
 			len := s.constInt(types.Types[TINT], n.Left.Type.NumElem())
 			i = s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded())
 			return s.newValue2(ssa.OpPtrIndex, types.NewPtr(n.Left.Type.Elem()), a, i)
 		}
 	case ODEREF:
-		return s.exprPtr(n.Left, bounded, n.Pos)
+		return s.exprPtr(n.Left, n.Bounded(), n.Pos)
 	case ODOT:
-		p := s.addr(n.Left, bounded)
+		p := s.addr(n.Left)
 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset, p)
 	case ODOTPTR:
-		p := s.exprPtr(n.Left, bounded, n.Pos)
+		p := s.exprPtr(n.Left, n.Bounded(), n.Pos)
 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset, p)
 	case OCLOSUREVAR:
 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset,
 			s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr))
 	case OCONVNOP:
-		addr := s.addr(n.Left, bounded)
+		addr := s.addr(n.Left)
 		return s.newValue1(ssa.OpCopy, t, addr) // ensure that addr has the right type
 	case OCALLFUNC, OCALLINTER, OCALLMETH:
 		return s.call(n, callNormal)
@@ -4972,7 +4953,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 func (s *state) storeType(t *types.Type, left, right *ssa.Value, skip skipMask, leftIsStmt bool) {
 	s.instrument(t, left, true)
 
-	if skip == 0 && (!types.Haspointers(t) || ssa.IsStackAddr(left)) {
+	if skip == 0 && (!t.HasPointers() || ssa.IsStackAddr(left)) {
 		// Known to not have write barrier. Store the whole type.
 		s.vars[&memVar] = s.newValue3Apos(ssa.OpStore, types.TypeMem, t, left, right, s.mem(), leftIsStmt)
 		return
@@ -4984,7 +4965,7 @@ func (s *state) storeType(t *types.Type, left, right *ssa.Value, skip skipMask, 
 	// TODO: if the writebarrier pass knows how to reorder stores,
 	// we can do a single store here as long as skip==0.
 	s.storeTypeScalars(t, left, right, skip)
-	if skip&skipPtr == 0 && types.Haspointers(t) {
+	if skip&skipPtr == 0 && t.HasPointers() {
 		s.storeTypePtrs(t, left, right)
 	}
 }
@@ -4995,7 +4976,10 @@ func (s *state) storeTypeScalars(t *types.Type, left, right *ssa.Value, skip ski
 	case t.IsBoolean() || t.IsInteger() || t.IsFloat() || t.IsComplex():
 		s.store(t, left, right)
 	case t.IsPtrShaped():
-		// no scalar fields.
+		if t.IsPtr() && t.Elem().NotInHeap() {
+			s.store(t, left, right) // see issue 42032
+		}
+		// otherwise, no scalar fields.
 	case t.IsString():
 		if skip&skipLen != 0 {
 			return
@@ -5039,6 +5023,9 @@ func (s *state) storeTypeScalars(t *types.Type, left, right *ssa.Value, skip ski
 func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 	switch {
 	case t.IsPtrShaped():
+		if t.IsPtr() && t.Elem().NotInHeap() {
+			break // see issue 42032
+		}
 		s.store(t, left, right)
 	case t.IsString():
 		ptr := s.newValue1(ssa.OpStringPtr, s.f.Config.Types.BytePtr, right)
@@ -5056,7 +5043,7 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 		n := t.NumFields()
 		for i := 0; i < n; i++ {
 			ft := t.FieldType(i)
-			if !types.Haspointers(ft) {
+			if !ft.HasPointers() {
 				continue
 			}
 			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
@@ -5087,7 +5074,7 @@ func (s *state) storeArgWithBase(n *Node, t *types.Type, base *ssa.Value, off in
 	}
 
 	if !canSSAType(t) {
-		a := s.addr(n, false)
+		a := s.addr(n)
 		s.move(t, addr, a)
 		return
 	}
@@ -5641,7 +5628,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 		// TODO: get rid of some of these temporaries.
 		tmp = tempAt(n.Pos, s.curfn, n.Type)
 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, tmp, s.mem())
-		addr = s.addr(tmp, false)
+		addr = s.addr(tmp)
 	}
 
 	cond := s.newValue2(ssa.OpEqPtr, types.Types[TBOOL], itab, targetITab)
@@ -5820,11 +5807,6 @@ type SSAGenState struct {
 
 	// wasm: The number of values on the WebAssembly stack. This is only used as a safeguard.
 	OnWasmStackSkipped int
-
-	// Liveness index for the first function call in the final defer exit code
-	// path that we generated. All defer functions and args should be live at
-	// this point. This will be used to set the liveness for the deferreturn.
-	lastDeferLiveness LivenessIndex
 }
 
 // Prog appends a new Prog.
@@ -6023,8 +6005,8 @@ func genssa(f *ssa.Func, pp *Progs) {
 		// for an empty block this will be used for its control
 		// instruction. We won't use the actual liveness map on a
 		// control instruction. Just mark it something that is
-		// preemptible.
-		s.pp.nextLive = LivenessIndex{-1, -1}
+		// preemptible, unless this function is "all unsafe".
+		s.pp.nextLive = LivenessIndex{-1, -1, allUnsafe(f)}
 
 		// Emit values in block
 		thearch.SSAMarkMoves(&s, b)
@@ -6068,12 +6050,6 @@ func genssa(f *ssa.Func, pp *Progs) {
 				// Attach this safe point to the next
 				// instruction.
 				s.pp.nextLive = s.livenessMap.Get(v)
-
-				// Remember the liveness index of the first defer call of
-				// the last defer exit
-				if v.Block.Func.LastDeferExit != nil && v == v.Block.Func.LastDeferExit {
-					s.lastDeferLiveness = s.pp.nextLive
-				}
 
 				// Special case for first line in function; move it to the start.
 				if firstPos != src.NoXPos {
@@ -6135,7 +6111,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		// When doing open-coded defers, generate a disconnected call to
 		// deferreturn and a return. This will be used to during panic
 		// recovery to unwind the stack and return back to the runtime.
-		s.pp.nextLive = s.lastDeferLiveness
+		s.pp.nextLive = s.livenessMap.deferreturn
 		gencallret(pp, Deferreturn)
 	}
 
@@ -6326,49 +6302,40 @@ func defframe(s *SSAGenState, e *ssafn) {
 	thearch.ZeroRange(pp, p, frame+lo, hi-lo, &state)
 }
 
-type FloatingEQNEJump struct {
+// For generating consecutive jump instructions to model a specific branching
+type IndexJump struct {
 	Jump  obj.As
 	Index int
 }
 
-func (s *SSAGenState) oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump) {
-	p := s.Prog(jumps.Jump)
-	p.To.Type = obj.TYPE_BRANCH
+func (s *SSAGenState) oneJump(b *ssa.Block, jump *IndexJump) {
+	p := s.Br(jump.Jump, b.Succs[jump.Index].Block())
 	p.Pos = b.Pos
-	to := jumps.Index
-	s.Branches = append(s.Branches, Branch{p, b.Succs[to].Block()})
 }
 
-func (s *SSAGenState) FPJump(b, next *ssa.Block, jumps *[2][2]FloatingEQNEJump) {
+// CombJump generates combinational instructions (2 at present) for a block jump,
+// thereby the behaviour of non-standard condition codes could be simulated
+func (s *SSAGenState) CombJump(b, next *ssa.Block, jumps *[2][2]IndexJump) {
 	switch next {
 	case b.Succs[0].Block():
-		s.oneFPJump(b, &jumps[0][0])
-		s.oneFPJump(b, &jumps[0][1])
+		s.oneJump(b, &jumps[0][0])
+		s.oneJump(b, &jumps[0][1])
 	case b.Succs[1].Block():
-		s.oneFPJump(b, &jumps[1][0])
-		s.oneFPJump(b, &jumps[1][1])
+		s.oneJump(b, &jumps[1][0])
+		s.oneJump(b, &jumps[1][1])
 	default:
-		s.oneFPJump(b, &jumps[1][0])
-		s.oneFPJump(b, &jumps[1][1])
-		q := s.Prog(obj.AJMP)
+		var q *obj.Prog
+		if b.Likely != ssa.BranchUnlikely {
+			s.oneJump(b, &jumps[1][0])
+			s.oneJump(b, &jumps[1][1])
+			q = s.Br(obj.AJMP, b.Succs[1].Block())
+		} else {
+			s.oneJump(b, &jumps[0][0])
+			s.oneJump(b, &jumps[0][1])
+			q = s.Br(obj.AJMP, b.Succs[0].Block())
+		}
 		q.Pos = b.Pos
-		q.To.Type = obj.TYPE_BRANCH
-		s.Branches = append(s.Branches, Branch{q, b.Succs[1].Block()})
 	}
-}
-
-func AuxOffset(v *ssa.Value) (offset int64) {
-	if v.Aux == nil {
-		return 0
-	}
-	n, ok := v.Aux.(*Node)
-	if !ok {
-		v.Fatalf("bad aux type in %s\n", v.LongString())
-	}
-	if n.Class() == PAUTO {
-		return n.Xoffset
-	}
-	return 0
 }
 
 // AddAux adds the offset in the aux fields (AuxInt and Aux) of v to a.
@@ -6598,10 +6565,8 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
 // since it emits PCDATA for the stack map at the call (calls are safe points).
 func (s *SSAGenState) PrepareCall(v *ssa.Value) {
 	idx := s.livenessMap.Get(v)
-	if !idx.Valid() {
-		// typedmemclr and typedmemmove are write barriers and
-		// deeply non-preemptible. They are unsafe points and
-		// hence should not have liveness maps.
+	if !idx.StackMapValid() {
+		// See Liveness.hasStackMap.
 		if sym, _ := v.Aux.(*obj.LSym); !(sym == typedmemclr || sym == typedmemmove) {
 			Fatalf("missing stack map index for %v", v.LongString())
 		}
@@ -6669,21 +6634,21 @@ func fieldIdx(n *Node) int {
 // It also exports a bunch of compiler services for the ssa backend.
 type ssafn struct {
 	curfn        *Node
-	strings      map[string]interface{} // map from constant string to data symbols
-	scratchFpMem *Node                  // temp for floating point register / memory moves on some architectures
-	stksize      int64                  // stack size for current frame
-	stkptrsize   int64                  // prefix of stack containing pointers
-	log          bool                   // print ssa debug to the stdout
+	strings      map[string]*obj.LSym // map from constant string to data symbols
+	scratchFpMem *Node                // temp for floating point register / memory moves on some architectures
+	stksize      int64                // stack size for current frame
+	stkptrsize   int64                // prefix of stack containing pointers
+	log          bool                 // print ssa debug to the stdout
 }
 
-// StringData returns a symbol (a *types.Sym wrapped in an interface) which
+// StringData returns a symbol which
 // is the data component of a global string constant containing s.
-func (e *ssafn) StringData(s string) interface{} {
+func (e *ssafn) StringData(s string) *obj.LSym {
 	if aux, ok := e.strings[s]; ok {
 		return aux
 	}
 	if e.strings == nil {
-		e.strings = make(map[string]interface{})
+		e.strings = make(map[string]*obj.LSym)
 	}
 	data := stringsym(e.curfn.Pos, s)
 	e.strings[s] = data

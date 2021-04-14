@@ -289,9 +289,9 @@ func mpreinit(mp *m) {
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
-	// The alternate signal stack is buggy on arm and arm64.
+	// The alternate signal stack is buggy on arm64.
 	// The signal handler handles it directly.
-	if GOARCH != "arm" && GOARCH != "arm64" {
+	if GOARCH != "arm64" {
 		minitSignalStack()
 	}
 	minitSignalMask()
@@ -301,9 +301,9 @@ func minit() {
 // Called from dropm to undo the effect of an minit.
 //go:nosplit
 func unminit() {
-	// The alternate signal stack is buggy on arm and arm64.
+	// The alternate signal stack is buggy on arm64.
 	// See minit.
-	if GOARCH != "arm" && GOARCH != "arm64" {
+	if GOARCH != "arm64" {
 		unminitSignals()
 	}
 }

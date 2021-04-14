@@ -8,6 +8,7 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -26,6 +27,8 @@ const (
 	mapindex                     // operand is a map index expression (acts like a variable on lhs, commaok on rhs of an assignment)
 	value                        // operand is a computed value
 	commaok                      // like value, but operand may be used in a comma,ok expression
+	commaerr                     // like commaok, but second value is error, not boolean
+	cgofunc                      // operand is a cgo function
 )
 
 var operandModeString = [...]string{
@@ -38,6 +41,8 @@ var operandModeString = [...]string{
 	mapindex:  "map index expression",
 	value:     "value",
 	commaok:   "comma, ok expression",
+	commaerr:  "comma, error expression",
+	cgofunc:   "cgo function",
 }
 
 // An operand represents an intermediate value during type checking.
@@ -92,6 +97,12 @@ func (x *operand) pos() token.Pos {
 //
 // commaok    <expr> (<untyped kind> <mode>                    )
 // commaok    <expr> (               <mode>       of type <typ>)
+//
+// commaerr   <expr> (<untyped kind> <mode>                    )
+// commaerr   <expr> (               <mode>       of type <typ>)
+//
+// cgofunc    <expr> (<untyped kind> <mode>                    )
+// cgofunc    <expr> (               <mode>       of type <typ>)
 //
 func operandString(x *operand, qf Qualifier) string {
 	var buf bytes.Buffer
@@ -252,10 +263,15 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 
 	// T is an interface type and x implements T
 	if Ti, ok := Tu.(*Interface); ok {
-		if m, wrongType := check.missingMethod(x.typ, Ti, true); m != nil /* Implements(x.typ, Ti) */ {
+		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
 			if reason != nil {
-				if wrongType {
-					*reason = "wrong type for method " + m.Name()
+				if wrongType != nil {
+					if check.identical(m.typ, wrongType.typ) {
+						*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
+					} else {
+						*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
+					}
+
 				} else {
 					*reason = "missing method " + m.Name()
 				}

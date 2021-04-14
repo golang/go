@@ -9,9 +9,9 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"html"
+	exec "internal/execabs"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -143,6 +143,7 @@ pre {
     float: left;
     overflow: hidden;
     text-align: right;
+    margin-top: 7px;
 }
 
 .lines div {

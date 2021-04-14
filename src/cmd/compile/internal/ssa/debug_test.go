@@ -49,11 +49,11 @@ var gogcflags = os.Getenv("GO_GCFLAGS")
 // optimizedLibs usually means "not running in a noopt test builder".
 var optimizedLibs = (!strings.Contains(gogcflags, "-N") && !strings.Contains(gogcflags, "-l"))
 
-// TestNexting go-builds a file, then uses a debugger (default gdb, optionally delve)
+// TestNexting go-builds a file, then uses a debugger (default delve, optionally gdb)
 // to next through the generated executable, recording each line landed at, and
 // then compares those lines with reference file(s).
 // Flag -u updates the reference file(s).
-// Flag -d changes the debugger to delve (and uses delve-specific reference files)
+// Flag -g changes the debugger to gdb (and uses gdb-specific reference files)
 // Flag -v is ever-so-slightly verbose.
 // Flag -n is for dry-run, and prints the shell and first debug commands.
 //
@@ -83,9 +83,9 @@ var optimizedLibs = (!strings.Contains(gogcflags, "-N") && !strings.Contains(gog
 // to indicate normalization of Strings, (hex) addresses, and numbers.
 // "O" is an explicit indication that we expect it to be optimized out.
 // For example:
-/*
-	if len(os.Args) > 1 { //gdb-dbg=(hist/A,cannedInput/A) //dlv-dbg=(hist/A,cannedInput/A)
-*/
+//
+// 	if len(os.Args) > 1 { //gdb-dbg=(hist/A,cannedInput/A) //dlv-dbg=(hist/A,cannedInput/A)
+//
 // TODO: not implemented for Delve yet, but this is the plan
 //
 // After a compiler change that causes a difference in the debug behavior, check
@@ -93,8 +93,10 @@ var optimizedLibs = (!strings.Contains(gogcflags, "-N") && !strings.Contains(gog
 // go test debug_test.go -args -u
 // (for Delve)
 // go test debug_test.go -args -u -d
-
+//
 func TestNexting(t *testing.T) {
+	testenv.SkipFlaky(t, 37404)
+
 	skipReasons := "" // Many possible skip reasons, list all that apply
 	if testing.Short() {
 		skipReasons = "not run in short mode; "
@@ -108,7 +110,13 @@ func TestNexting(t *testing.T) {
 		// Various architectures tend to differ slightly sometimes, and keeping them
 		// all in sync is a pain for people who don't have them all at hand,
 		// so limit testing to amd64 (for now)
-		skipReasons += "not run when testing gdb (-g) unless forced (-f) or linux-amd64"
+		skipReasons += "not run when testing gdb (-g) unless forced (-f) or linux-amd64; "
+	}
+
+	if !*useGdb && !*force && testenv.Builder() == "linux-386-longtest" {
+		// The latest version of Delve does support linux/386. However, the version currently
+		// installed in the linux-386-longtest builder does not. See golang.org/issue/39309.
+		skipReasons += "not run when testing delve on linux-386-longtest builder unless forced (-f); "
 	}
 
 	if *useGdb {

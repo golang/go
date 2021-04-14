@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-# For testing darwin/arm{,64} on iOS.
+# For testing darwin/arm64 on iOS.
 
 set -e
 ulimit -c 0 # no core files
@@ -20,12 +20,9 @@ if [ "$GOOS" != "darwin" ]; then
 	echo "iostest.bash requires GOOS=darwin, got GOOS=$GOOS" 1>&2
 	exit 1
 fi
-if [ "$GOARCH" != "arm" ] && [ "$GOARCH" != "arm64" ]; then
-	echo "iostest.bash requires GOARCH=arm or GOARCH=arm64, got GOARCH=$GOARCH" 1>&2
+if [ "$GOARCH" != "arm64" ]; then
+	echo "iostest.bash requires GOARCH=arm64, got GOARCH=$GOARCH" 1>&2
 	exit 1
-fi
-if [ "$GOARCH" = "arm" ]; then
-	export GOARM=7
 fi
 
 if [ "$1" = "-restart" ]; then

@@ -108,7 +108,7 @@ const (
 // GODEBUG=gocacheverify=1.
 var verify = false
 
-var errVerifyMode = errors.New("gocachverify=1")
+var errVerifyMode = errors.New("gocacheverify=1")
 
 // DebugTest is set when GODEBUG=gocachetest=1 is in the environment.
 var DebugTest = false

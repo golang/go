@@ -119,15 +119,16 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		if sect.Type != xcoff.STYP_TEXT && sect.Type != xcoff.STYP_DATA {
 			continue
 		}
-		rs := make([]loader.Reloc, sect.Nreloc)
-		for i, rx := range sect.Relocs {
-			r := &rs[i]
-
-			r.Sym = l.LookupOrCreateSym(rx.Symbol.Name, 0)
+		sb := l.MakeSymbolUpdater(sect.sym)
+		for _, rx := range sect.Relocs {
+			rSym := l.LookupOrCreateSym(rx.Symbol.Name, 0)
 			if uint64(int32(rx.VirtualAddress)) != rx.VirtualAddress {
 				return errorf("virtual address of a relocation is too big: 0x%x", rx.VirtualAddress)
 			}
-			r.Off = int32(rx.VirtualAddress)
+			rOff := int32(rx.VirtualAddress)
+			var rSize uint8
+			var rType objabi.RelocType
+			var rAdd int64
 			switch rx.Type {
 			default:
 				return errorf("section %s: unknown relocation of type 0x%x", sect.Name, rx.Type)
@@ -137,19 +138,21 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 				if rx.Length != 64 {
 					return errorf("section %s: relocation R_POS has length different from 64: %d", sect.Name, rx.Length)
 				}
-				r.Size = 8
-				r.Type = objabi.R_CONST
-				r.Add = int64(rx.Symbol.Value)
+				rSize = 8
+				rType = objabi.R_CONST
+				rAdd = int64(rx.Symbol.Value)
 
 			case xcoff.R_RBR:
-				r.Size = 4
-				r.Type = objabi.R_CALLPOWER
-				r.Add = 0 //
-
+				rSize = 4
+				rType = objabi.R_CALLPOWER
+				rAdd = 0
 			}
+			r, _ := sb.AddRel(rType)
+			r.SetOff(rOff)
+			r.SetSiz(rSize)
+			r.SetSym(rSym)
+			r.SetAdd(rAdd)
 		}
-		bld := l.MakeSymbolUpdater(sect.sym)
-		bld.SetRelocs(rs[:sect.Nreloc])
 	}
 	return textp, nil
 

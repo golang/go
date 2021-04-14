@@ -349,7 +349,7 @@ func (i *IdentifierNode) Copy() Node {
 	return NewIdentifier(i.Ident).SetTree(i.tr).SetPos(i.Pos)
 }
 
-// AssignNode holds a list of variable names, possibly with chained field
+// VariableNode holds a list of variable names, possibly with chained field
 // accesses. The dollar sign is part of the (first) name.
 type VariableNode struct {
 	NodeType
