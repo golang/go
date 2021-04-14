@@ -37,13 +37,7 @@ func TestLookPathUnixEmptyPath(t *testing.T) {
 		t.Fatal("Close failed: ", err)
 	}
 
-	pathenv := os.Getenv("PATH")
-	defer os.Setenv("PATH", pathenv)
-
-	err = os.Setenv("PATH", "")
-	if err != nil {
-		t.Fatal("Setenv failed: ", err)
-	}
+	t.Setenv("PATH", "")
 
 	path, err := LookPath("exec_me")
 	if err == nil {
