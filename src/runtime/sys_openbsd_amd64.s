@@ -11,6 +11,7 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
+#include "cgo/abi_amd64.h"
 
 #define CLOCK_MONOTONIC	$3
 
@@ -25,39 +26,22 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$0
 	// DI points to the m.
 	// We are already on m's g0 stack.
 
-	// Save callee-save registers.
-	SUBQ	$48, SP
-	MOVQ	BX, 0(SP)
-	MOVQ	BP, 8(SP)
-	MOVQ	R12, 16(SP)
-	MOVQ	R13, 24(SP)
-	MOVQ	R14, 32(SP)
-	MOVQ	R15, 40(SP)
+	// Transition from C ABI to Go ABI.
+	PUSH_REGS_HOST_TO_ABI0()
 
 	// Load g and save to TLS entry.
 	// See cmd/link/internal/ld/sym.go:computeTLSOffset.
 	MOVQ	m_g0(DI), DX // g
 	MOVQ	DX, -8(FS)
 
-	// Someday the convention will be D is always cleared.
-	CLD
-
 	CALL	runtime·mstart(SB)
 
-	// Restore callee-save registers.
-	MOVQ	0(SP), BX
-	MOVQ	8(SP), BP
-	MOVQ	16(SP), R12
-	MOVQ	24(SP), R13
-	MOVQ	32(SP), R14
-	MOVQ	40(SP), R15
+	POP_REGS_HOST_TO_ABI0()
 
 	// Go is all done with this OS thread.
 	// Tell pthread everything is ok (we never join with this thread, so
 	// the value here doesn't really matter).
 	XORL	AX, AX
-
-	ADDQ	$48, SP
 	RET
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
@@ -73,28 +57,21 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	POPQ	BP
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$72
-	// Save callee-saved C registers, since the caller may be a C signal handler.
-	MOVQ	BX,  bx-8(SP)
-	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
-	MOVQ	R12, r12-24(SP)
-	MOVQ	R13, r13-32(SP)
-	MOVQ	R14, r14-40(SP)
-	MOVQ	R15, r15-48(SP)
-	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
-	// modify them.
+// Called using C ABI.
+TEXT runtime·sigtramp<ABIInternal>(SB),NOSPLIT,$0
+	// Transition from C ABI to Go ABI.
+	PUSH_REGS_HOST_TO_ABI0()
 
-	MOVQ	DX, ctx-56(SP)
-	MOVQ	SI, info-64(SP)
-	MOVQ	DI, signum-72(SP)
-	CALL	runtime·sigtrampgo(SB)
+	// Call into the Go signal handler
+	NOP	SP		// disable vet stack checking
+        ADJSP   $24
+	MOVQ	DI, 0(SP)	// sig
+	MOVQ	SI, 8(SP)	// info
+	MOVQ	DX, 16(SP)	// ctx
+	CALL	·sigtrampgo(SB)
+	ADJSP	$-24
 
-	MOVQ	r15-48(SP), R15
-	MOVQ	r14-40(SP), R14
-	MOVQ	r13-32(SP), R13
-	MOVQ	r12-24(SP), R12
-	MOVQ	bp-16(SP),  BP
-	MOVQ	bx-8(SP),   BX
+        POP_REGS_HOST_TO_ABI0()
 	RET
 
 //

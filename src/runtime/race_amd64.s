@@ -8,6 +8,7 @@
 #include "go_tls.h"
 #include "funcdata.h"
 #include "textflag.h"
+#include "cgo/abi_amd64.h"
 
 // The following thunks allow calling the gcc-compiled race runtime directly
 // from Go code without going all the way through cgo.
@@ -441,7 +442,7 @@ call:
 // See racecallback for command codes.
 // Defined as ABIInternal so as to avoid introducing a wrapper,
 // because its address is passed to C via funcPC.
-TEXT	runtime·racecallbackthunk<ABIInternal>(SB), NOSPLIT, $56-8
+TEXT	runtime·racecallbackthunk<ABIInternal>(SB), NOSPLIT, $0-0
 	// Handle command raceGetProcCmd (0) here.
 	// First, code below assumes that we are on curg, while raceGetProcCmd
 	// can be executed on g0. Second, it is called frequently, so will
@@ -457,16 +458,8 @@ TEXT	runtime·racecallbackthunk<ABIInternal>(SB), NOSPLIT, $56-8
 	RET
 
 rest:
-	// Save callee-saved registers (Go code won't respect that).
-	// This is superset of darwin/linux/windows registers.
-	PUSHQ	BX
-	PUSHQ	BP
-	PUSHQ	DI
-	PUSHQ	SI
-	PUSHQ	R12
-	PUSHQ	R13
-	PUSHQ	R14
-	PUSHQ	R15
+	// Transition from C ABI to Go ABI.
+	PUSH_REGS_HOST_TO_ABI0()
 	// Set g = g0.
 	get_tls(R12)
 	MOVQ	g(R12), R14
@@ -488,15 +481,7 @@ rest:
 	MOVQ	m_curg(R13), R14
 	MOVQ	R14, g(R12)	// g = m->curg
 ret:
-	// Restore callee-saved registers.
-	POPQ	R15
-	POPQ	R14
-	POPQ	R13
-	POPQ	R12
-	POPQ	SI
-	POPQ	DI
-	POPQ	BP
-	POPQ	BX
+	POP_REGS_HOST_TO_ABI0()
 	RET
 
 noswitch:
