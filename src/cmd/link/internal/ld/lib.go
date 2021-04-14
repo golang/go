@@ -1868,7 +1868,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 			return nil
 		}
 
-		Errorf(nil, "%s: not an object file", pn)
+		Errorf(nil, "%s: not an object file: @%d %02x%02x%02x%02x", pn, start, c1, c2, c3, c4)
 		return nil
 	}
 
