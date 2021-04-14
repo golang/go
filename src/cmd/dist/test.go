@@ -976,6 +976,9 @@ func (t *tester) internalLink() bool {
 	if goos == "ios" {
 		return false
 	}
+	if goos == "windows" && goarch == "arm64" {
+		return false
+	}
 	// Internally linking cgo is incomplete on some architectures.
 	// https://golang.org/issue/10373
 	// https://golang.org/issue/14449
@@ -1108,8 +1111,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 	cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
 	cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=auto")
 
-	// Skip internal linking cases on arm64 to support GCC-9.4 and above,
-	// only for linux, conservatively.
+	// Skip internal linking cases on linux/arm64 to support GCC-9.4 and above.
 	// See issue #39466.
 	skipInternalLink := goarch == "arm64" && goos == "linux"
 
