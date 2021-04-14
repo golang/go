@@ -79,8 +79,8 @@ type cachedGraph struct {
 //
 // It is always non-nil if the main module's go.mod file has been loaded.
 //
-// This variable should only be read from the LoadModFile function,
-// and should only be written in the writeGoMod function.
+// This variable should only be read from the loadModFile function, and should
+// only be written in the loadModFile and commitRequirements functions.
 // All other functions that need or produce a *Requirements should
 // accept and/or return an explicit parameter.
 var requirements *Requirements
@@ -538,14 +538,9 @@ type Conflict struct {
 	Constraint module.Version
 }
 
-// TidyBuildList trims the build list to the minimal requirements needed to
-// retain the same versions of all packages from the preceding call to
-// LoadPackages.
-func TidyBuildList(ctx context.Context) {
-	if loaded == nil {
-		panic("internal error: TidyBuildList called when no packages have been loaded")
-	}
-
+// tidyBuildList trims the build list to the minimal requirements needed to
+// retain the same versions of all packages loaded by ld.
+func tidyBuildList(ctx context.Context, ld *loader, initialRS *Requirements) *Requirements {
 	if go117LazyTODO {
 		// Tidy needs to maintain the lazy-loading invariants for lazy modules.
 		// The implementation for eager modules should be factored out into a function.
@@ -557,7 +552,7 @@ func TidyBuildList(ctx context.Context) {
 		// changed after loading packages.
 	}
 
-	tidy, err := updateRoots(ctx, depth, loaded.requirements.direct, loaded.pkgs, nil)
+	tidy, err := updateRoots(ctx, depth, ld.requirements.direct, ld.pkgs, nil)
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
@@ -565,7 +560,7 @@ func TidyBuildList(ctx context.Context) {
 	if cfg.BuildV {
 		mg, _ := tidy.Graph(ctx)
 
-		for _, m := range LoadModFile(ctx).rootModules {
+		for _, m := range initialRS.rootModules {
 			if mg.Selected(m.Path) == "none" {
 				fmt.Fprintf(os.Stderr, "unused %s\n", m.Path)
 			} else if go117LazyTODO {
@@ -575,7 +570,7 @@ func TidyBuildList(ctx context.Context) {
 		}
 	}
 
-	commitRequirements(ctx, tidy)
+	return tidy
 }
 
 // updateRoots returns a set of root requirements that includes the selected
