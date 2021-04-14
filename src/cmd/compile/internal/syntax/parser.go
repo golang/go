@@ -1836,7 +1836,7 @@ func (p *parser) paramDeclOrNil(name *Name) *Field {
 		t.Elem = p.typeOrNil()
 		if t.Elem == nil {
 			t.Elem = p.badExpr()
-			p.syntaxError("final argument in variadic function missing type")
+			p.syntaxError("... is missing type")
 		}
 		f.Type = t
 		return f
