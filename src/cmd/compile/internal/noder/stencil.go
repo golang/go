@@ -270,6 +270,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []ir.No
 	gf := nameNode.Func
 	// Pos of the instantiated function is same as the generic function
 	newf := ir.NewFunc(gf.Pos())
+	newf.Pragma = gf.Pragma // copy over pragmas from generic function to stenciled implementation.
 	newf.Nname = ir.NewNameAt(gf.Pos(), newsym)
 	newf.Nname.Func = newf
 	newf.Nname.Defn = newf
