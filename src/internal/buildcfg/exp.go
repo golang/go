@@ -30,6 +30,7 @@ var experimentBaseline = goexperiment.Flags{
 	RegabiG:        regabiSupported,
 	RegabiReflect:  regabiSupported,
 	RegabiDefer:    regabiSupported,
+	RegabiArgs:     regabiSupported,
 }
 
 // FramePointerEnabled enables the use of platform conventions for
