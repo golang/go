@@ -309,6 +309,11 @@ type ChardataEmptyTest struct {
 	Contents *string `xml:",chardata"`
 }
 
+type PointerAnonFields struct {
+	*MyInt
+	*NamedType
+}
+
 type MyMarshalerTest struct {
 }
 
@@ -887,6 +892,18 @@ var marshalTests = []struct {
 			`<FieldA>A.A</FieldA>` +
 			`<FieldE>A.D.E</FieldE>` +
 			`</EmbedA>`,
+	},
+
+	// Anonymous struct pointer field which is nil
+	{
+		Value:     &EmbedB{},
+		ExpectXML: `<EmbedB><FieldB></FieldB></EmbedB>`,
+	},
+
+	// Other kinds of nil anonymous fields
+	{
+		Value:     &PointerAnonFields{},
+		ExpectXML: `<PointerAnonFields></PointerAnonFields>`,
 	},
 
 	// Test that name casing matters

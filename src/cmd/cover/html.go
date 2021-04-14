@@ -172,6 +172,27 @@ type templateData struct {
 	Set   bool
 }
 
+// PackageName returns a name for the package being shown.
+// It does this by choosing the penultimate element of the path
+// name, so foo.bar/baz/foo.go chooses 'baz'. This is cheap
+// and easy, avoids parsing the Go file, and gets a better answer
+// for package main. It returns the empty string if there is
+// a problem.
+func (td templateData) PackageName() string {
+	if len(td.Files) == 0 {
+		return ""
+	}
+	fileName := td.Files[0].Name
+	elems := strings.Split(fileName, "/") // Package path is always slash-separated.
+	// Return the penultimate non-empty element.
+	for i := len(elems) - 2; i >= 0; i-- {
+		if elems[i] != "" {
+			return elems[i]
+		}
+	}
+	return ""
+}
+
 type templateFile struct {
 	Name     string
 	Body     template.HTML
@@ -183,6 +204,7 @@ const tmplHTML = `
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>{{$pkg := .PackageName}}{{if $pkg}}{{$pkg}}: {{end}}Go Coverage Report</title>
 		<style>
 			body {
 				background: black;

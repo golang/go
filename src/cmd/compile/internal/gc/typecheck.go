@@ -471,10 +471,10 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 		}
 		if l.Type.NotInHeap() {
-			yyerror("go:notinheap map key not allowed")
+			yyerror("incomplete (or unallocatable) map key not allowed")
 		}
 		if r.Type.NotInHeap() {
-			yyerror("go:notinheap map value not allowed")
+			yyerror("incomplete (or unallocatable) map value not allowed")
 		}
 
 		setTypeNode(n, types.NewMap(l.Type, r.Type))
@@ -491,7 +491,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 		}
 		if l.Type.NotInHeap() {
-			yyerror("chan of go:notinheap type not allowed")
+			yyerror("chan of incomplete (or unallocatable) type not allowed")
 		}
 
 		setTypeNode(n, types.NewChan(l.Type, n.TChanDir()))
@@ -1148,6 +1148,49 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 		n.List.SetFirst(l)
 		n.List.SetSecond(c)
+
+	case OMAKESLICECOPY:
+		// Errors here are Fatalf instead of yyerror because only the compiler
+		// can construct an OMAKESLICECOPY node.
+		// Components used in OMAKESCLICECOPY that are supplied by parsed source code
+		// have already been typechecked in OMAKE and OCOPY earlier.
+		ok |= ctxExpr
+
+		t := n.Type
+
+		if t == nil {
+			Fatalf("no type specified for OMAKESLICECOPY")
+		}
+
+		if !t.IsSlice() {
+			Fatalf("invalid type %v for OMAKESLICECOPY", n.Type)
+		}
+
+		if n.Left == nil {
+			Fatalf("missing len argument for OMAKESLICECOPY")
+		}
+
+		if n.Right == nil {
+			Fatalf("missing slice argument to copy for OMAKESLICECOPY")
+		}
+
+		n.Left = typecheck(n.Left, ctxExpr)
+		n.Right = typecheck(n.Right, ctxExpr)
+
+		n.Left = defaultlit(n.Left, types.Types[TINT])
+
+		if !n.Left.Type.IsInteger() && n.Type.Etype != TIDEAL {
+			yyerror("non-integer len argument in OMAKESLICECOPY")
+		}
+
+		if Isconst(n.Left, CTINT) {
+			if n.Left.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
+				Fatalf("len for OMAKESLICECOPY too large")
+			}
+			if n.Left.Int64() < 0 {
+				Fatalf("len for OMAKESLICECOPY must be non-negative")
+			}
+		}
 
 	case OSLICE, OSLICE3:
 		ok |= ctxExpr
@@ -2025,12 +2068,6 @@ func typecheck1(n *Node, top int) (res *Node) {
 		ok |= ctxStmt
 		n.Left = typecheck(n.Left, ctxType)
 		checkwidth(n.Left.Type)
-		if n.Left.Type != nil && n.Left.Type.NotInHeap() && n.Left.Name.Param.Pragma&NotInHeap == 0 {
-			// The type contains go:notinheap types, so it
-			// must be marked as such (alternatively, we
-			// could silently propagate go:notinheap).
-			yyerror("type %v must be go:notinheap", n.Left.Type)
-		}
 	}
 
 	t := n.Type
@@ -2465,7 +2502,7 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 				n.Left = nod(OADDR, n.Left, nil)
 				n.Left.SetImplicit(true)
 				n.Left = typecheck(n.Left, ctxType|ctxExpr)
-			} else if tt.IsPtr() && !rcvr.IsPtr() && types.Identical(tt.Elem(), rcvr) {
+			} else if tt.IsPtr() && (!rcvr.IsPtr() || rcvr.IsPtr() && rcvr.Elem().NotInHeap()) && types.Identical(tt.Elem(), rcvr) {
 				n.Left = nod(ODEREF, n.Left, nil)
 				n.Left.SetImplicit(true)
 				n.Left = typecheck(n.Left, ctxType|ctxExpr)
@@ -2924,6 +2961,8 @@ func typecheckcomplit(n *Node) (res *Node) {
 					if ci := lookdot1(nil, l.Sym, t, t.Fields(), 2); ci != nil { // Case-insensitive lookup.
 						if visible(ci.Sym) {
 							yyerror("unknown field '%v' in struct literal of type %v (but does have %v)", l.Sym, t, ci.Sym)
+						} else if nonexported(l.Sym) && l.Sym.Name == ci.Sym.Name { // Ensure exactness before the suggestion.
+							yyerror("cannot refer to unexported field '%v' in struct literal of type %v", l.Sym, t)
 						} else {
 							yyerror("unknown field '%v' in struct literal of type %v", l.Sym, t)
 						}
@@ -3025,6 +3064,11 @@ func typecheckarraylit(elemType *types.Type, bound int64, elts []*Node, ctx stri
 // visible reports whether sym is exported or locally defined.
 func visible(sym *types.Sym) bool {
 	return sym != nil && (types.IsExported(sym.Name) || sym.Pkg == localpkg)
+}
+
+// nonexported reports whether sym is an unexported field.
+func nonexported(sym *types.Sym) bool {
+	return sym != nil && !types.IsExported(sym.Name)
 }
 
 // lvalue etc

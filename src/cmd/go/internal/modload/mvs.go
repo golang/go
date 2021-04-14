@@ -7,7 +7,6 @@ package modload
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,6 +14,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/par"
@@ -108,7 +108,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 				dir = filepath.Join(ModRoot(), dir)
 			}
 			gomod := filepath.Join(dir, "go.mod")
-			data, err := ioutil.ReadFile(gomod)
+			data, err := lockedfile.Read(gomod)
 			if err != nil {
 				return nil, fmt.Errorf("parsing %s: %v", base.ShortPath(gomod), err)
 			}
@@ -157,6 +157,12 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 	return r.modFileToList(f), nil
 }
 
+// Max returns the maximum of v1 and v2 according to semver.Compare.
+//
+// As a special case, the version "" is considered higher than all other
+// versions. The main module (also known as the target) has no version and must
+// be chosen over other versions of the same module in the module dependency
+// graph.
 func (*mvsReqs) Max(v1, v2 string) string {
 	if v1 != "" && semver.Compare(v1, v2) == -1 {
 		return v2

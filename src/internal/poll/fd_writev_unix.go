@@ -12,9 +12,18 @@ import (
 )
 
 func writev(fd int, iovecs []syscall.Iovec) (uintptr, error) {
-	r, _, e := syscall.Syscall(syscall.SYS_WRITEV, uintptr(fd), uintptr(unsafe.Pointer(&iovecs[0])), uintptr(len(iovecs)))
+	var (
+		r uintptr
+		e syscall.Errno
+	)
+	for {
+		r, _, e = syscall.Syscall(syscall.SYS_WRITEV, uintptr(fd), uintptr(unsafe.Pointer(&iovecs[0])), uintptr(len(iovecs)))
+		if e != syscall.EINTR {
+			break
+		}
+	}
 	if e != 0 {
-		return r, syscall.Errno(e)
+		return r, e
 	}
 	return r, nil
 }

@@ -31,7 +31,7 @@ type Call struct {
 	Args          interface{} // The argument to the function (*struct).
 	Reply         interface{} // The reply from the function (*struct).
 	Error         error       // After completion, the error status.
-	Done          chan *Call  // Strobes when call is complete.
+	Done          chan *Call  // Receives *Call when Go is complete.
 }
 
 // Client represents an RPC Client.

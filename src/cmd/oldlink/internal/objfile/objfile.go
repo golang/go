@@ -19,6 +19,7 @@ import (
 	"cmd/internal/sys"
 	"cmd/oldlink/internal/sym"
 	"fmt"
+	"internal/unsafeheader"
 	"io"
 	"log"
 	"os"
@@ -410,16 +411,16 @@ overwrite:
 			}
 			fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.lib, dup, dup.Unit.Lib, reason)
 
-			// For the moment, whitelist DWARF subprogram DIEs for
+			// For the moment, allow DWARF subprogram DIEs for
 			// auto-generated wrapper functions. What seems to happen
 			// here is that we get different line numbers on formal
 			// params; I am guessing that the pos is being inherited
 			// from the spot where the wrapper is needed.
-			whitelist := (strings.HasPrefix(dup.Name, "go.info.go.interface") ||
+			allowed := (strings.HasPrefix(dup.Name, "go.info.go.interface") ||
 				strings.HasPrefix(dup.Name, "go.info.go.builtin") ||
 				strings.HasPrefix(dup.Name, "go.isstmt.go.builtin") ||
 				strings.HasPrefix(dup.Name, "go.debuglines"))
-			if !whitelist {
+			if !allowed {
 				r.strictDupMsgs++
 			}
 		}
@@ -595,17 +596,16 @@ func (r *objReader) readData() []byte {
 	return p
 }
 
-type stringHeader struct {
-	str unsafe.Pointer
-	len int
-}
-
 func mkROString(rodata []byte) string {
 	if len(rodata) == 0 {
 		return ""
 	}
-	ss := stringHeader{str: unsafe.Pointer(&rodata[0]), len: len(rodata)}
-	s := *(*string)(unsafe.Pointer(&ss))
+
+	var s string
+	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+	hdr.Data = unsafe.Pointer(&rodata[0])
+	hdr.Len = len(rodata)
+
 	return s
 }
 

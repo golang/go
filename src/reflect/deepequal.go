@@ -37,7 +37,17 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
 	// and it's safe and valid to get Value's internal pointer.
 	hard := func(v1, v2 Value) bool {
 		switch v1.Kind() {
-		case Map, Slice, Ptr, Interface:
+		case Ptr:
+			if v1.typ.ptrdata == 0 {
+				// go:notinheap pointers can't be cyclic.
+				// At least, all of our current uses of go:notinheap have
+				// that property. The runtime ones aren't cyclic (and we don't use
+				// DeepEqual on them anyway), and the cgo-generated ones are
+				// all empty structs.
+				return false
+			}
+			fallthrough
+		case Map, Slice, Interface:
 			// Nil pointers cannot be cyclic. Avoid putting them in the visited map.
 			return !v1.IsNil() && !v2.IsNil()
 		}
@@ -45,8 +55,20 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
 	}
 
 	if hard(v1, v2) {
-		addr1 := v1.ptr
-		addr2 := v2.ptr
+		// For a Ptr or Map value, we need to check flagIndir,
+		// which we do by calling the pointer method.
+		// For Slice or Interface, flagIndir is always set,
+		// and using v.ptr suffices.
+		ptrval := func(v Value) unsafe.Pointer {
+			switch v.Kind() {
+			case Ptr, Map:
+				return v.pointer()
+			default:
+				return v.ptr
+			}
+		}
+		addr1 := ptrval(v1)
+		addr2 := ptrval(v2)
 		if uintptr(addr1) > uintptr(addr2) {
 			// Canonicalize order to reduce number of entries in visited.
 			// Assumes non-moving garbage collector.

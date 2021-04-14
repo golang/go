@@ -174,6 +174,25 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Request for $GOPROXY/redirect/<count>/... goes to redirects.
+	if strings.HasPrefix(path, "redirect/") {
+		path = path[len("redirect/"):]
+		if j := strings.Index(path, "/"); j >= 0 {
+			count, err := strconv.Atoi(path[:j])
+			if err != nil {
+				return
+			}
+
+			// The last redirect.
+			if count <= 1 {
+				http.Redirect(w, r, fmt.Sprintf("/mod/%s", path[j+1:]), 302)
+				return
+			}
+			http.Redirect(w, r, fmt.Sprintf("/mod/redirect/%d/%s", count-1, path[j+1:]), 302)
+			return
+		}
+	}
+
 	// Request for $GOPROXY/sumdb/<name>/supported
 	// is checking whether it's OK to access sumdb via the proxy.
 	if path == "sumdb/"+testSumDBName+"/supported" {

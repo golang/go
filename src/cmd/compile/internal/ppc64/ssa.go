@@ -571,7 +571,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpPPC64ROTL, ssa.OpPPC64ROTLW,
 		ssa.OpPPC64MULHD, ssa.OpPPC64MULHW, ssa.OpPPC64MULHDU, ssa.OpPPC64MULHWU,
 		ssa.OpPPC64FMUL, ssa.OpPPC64FMULS, ssa.OpPPC64FDIV, ssa.OpPPC64FDIVS, ssa.OpPPC64FCPSGN,
-		ssa.OpPPC64AND, ssa.OpPPC64OR, ssa.OpPPC64ANDN, ssa.OpPPC64ORN, ssa.OpPPC64NOR, ssa.OpPPC64XOR, ssa.OpPPC64EQV:
+		ssa.OpPPC64AND, ssa.OpPPC64OR, ssa.OpPPC64ANDN, ssa.OpPPC64ORN, ssa.OpPPC64NOR, ssa.OpPPC64XOR, ssa.OpPPC64EQV,
+		ssa.OpPPC64MODUD, ssa.OpPPC64MODSD, ssa.OpPPC64MODUW, ssa.OpPPC64MODSW:
 		r := v.Reg()
 		r1 := v.Args[0].Reg()
 		r2 := v.Args[1].Reg()
@@ -654,15 +655,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpPPC64ANDCCconst:
 		p := s.Prog(v.Op.Asm())
 		p.Reg = v.Args[0].Reg()
-
-		if v.Aux != nil {
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = gc.AuxOffset(v)
-		} else {
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = v.AuxInt
-		}
-
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = ppc64.REGTMP // discard result
 

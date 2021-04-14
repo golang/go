@@ -16,7 +16,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sort"
 	"strings"
 )
 
@@ -246,9 +245,8 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			continue
 		}
 
-		rs := make([]loader.Reloc, rsect.NumberOfRelocations)
+		sb := l.MakeSymbolUpdater(sectsyms[rsect])
 		for j, r := range rsect.Relocs {
-			rp := &rs[j]
 			if int(r.SymbolTableIndex) >= len(f.COFFSymbols) {
 				return nil, 0, fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
 			}
@@ -265,9 +263,11 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 				return nil, 0, fmt.Errorf("reloc of invalid sym %s idx=%d type=%d", name, r.SymbolTableIndex, pesym.Type)
 			}
 
-			rp.Sym = gosym
-			rp.Size = 4
-			rp.Off = int32(r.VirtualAddress)
+			rSym := gosym
+			rSize := uint8(4)
+			rOff := int32(r.VirtualAddress)
+			var rAdd int64
+			var rType objabi.RelocType
 			switch arch.Family {
 			default:
 				return nil, 0, fmt.Errorf("%s: unsupported arch %v", pn, arch.Family)
@@ -279,23 +279,23 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 				case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
 					IMAGE_REL_AMD64_ADDR32, // R_X86_64_PC32
 					IMAGE_REL_AMD64_ADDR32NB:
-					rp.Type = objabi.R_PCREL
+					rType = objabi.R_PCREL
 
-					rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
+					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
 
 				case IMAGE_REL_I386_DIR32NB, IMAGE_REL_I386_DIR32:
-					rp.Type = objabi.R_ADDR
+					rType = objabi.R_ADDR
 
 					// load addend from image
-					rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
+					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
 
 				case IMAGE_REL_AMD64_ADDR64: // R_X86_64_64
-					rp.Size = 8
+					rSize = 8
 
-					rp.Type = objabi.R_ADDR
+					rType = objabi.R_ADDR
 
 					// load addend from image
-					rp.Add = int64(binary.LittleEndian.Uint64(sectdata[rsect][rp.Off:]))
+					rAdd = int64(binary.LittleEndian.Uint64(sectdata[rsect][rOff:]))
 				}
 
 			case sys.ARM:
@@ -304,19 +304,19 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 					return nil, 0, fmt.Errorf("%s: %v: unknown ARM relocation type %v", pn, sectsyms[rsect], r.Type)
 
 				case IMAGE_REL_ARM_SECREL:
-					rp.Type = objabi.R_PCREL
+					rType = objabi.R_PCREL
 
-					rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
+					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
 
 				case IMAGE_REL_ARM_ADDR32:
-					rp.Type = objabi.R_ADDR
+					rType = objabi.R_ADDR
 
-					rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
+					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
 
 				case IMAGE_REL_ARM_BRANCH24:
-					rp.Type = objabi.R_CALLARM
+					rType = objabi.R_CALLARM
 
-					rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
+					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
 				}
 			}
 
@@ -324,14 +324,17 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			// same section but with different values, we have to take
 			// that into account
 			if issect(pesym) {
-				rp.Add += int64(pesym.Value)
+				rAdd += int64(pesym.Value)
 			}
+
+			rel, _ := sb.AddRel(rType)
+			rel.SetOff(rOff)
+			rel.SetSiz(rSize)
+			rel.SetSym(rSym)
+			rel.SetAdd(rAdd)
 		}
 
-		sort.Sort(loader.RelocByOff(rs[:rsect.NumberOfRelocations]))
-
-		bld := l.MakeSymbolUpdater(sectsyms[rsect])
-		bld.SetRelocs(rs[:rsect.NumberOfRelocations])
+		sb.SortRelocs()
 	}
 
 	// enter sub-symbols into symbol table.

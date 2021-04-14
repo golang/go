@@ -34,6 +34,7 @@ Scripts also have access to these other environment variables:
 	GOPATH=$WORK/gopath
 	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
 	GOROOT=<actual GOROOT>
+	GOROOT_FINAL=<actual GOROOT_FINAL>
 	TESTGO_GOROOT=<GOROOT used to build cmd/go, for use in tests that may change GOROOT>
 	HOME=/no-home
 	PATH=<actual PATH>
@@ -138,8 +139,9 @@ The commands are:
   output and standard error of the previous command is cleared, but the output
   of the background process is buffered — and checking of its exit status is
   delayed — until the next call to 'wait', 'skip', or 'stop' or the end of the
-  test. At the end of the test, any remaining background processes are
-  terminated using os.Interrupt (if supported) or os.Kill.
+  test. If any background processes remain at the end of the test, they
+  are terminated using os.Interrupt (if supported) or os.Kill and the test
+  must not depend upon their exit status.
 
 - [!] exists [-readonly] [-exec] file...
   Each of the listed files or directories must (or must not) exist.

@@ -114,6 +114,15 @@ var ARM struct {
 	_           CacheLinePad
 }
 
+// MIPS64X contains the supported CPU features of the current mips64/mips64le
+// platforms. If the current platform is not mips64/mips64le or the current
+// operating system is not Linux then all feature flags are false.
+var MIPS64X struct {
+	_      CacheLinePad
+	HasMSA bool // MIPS SIMD architecture
+	_      CacheLinePad
+}
+
 // PPC64 contains the supported CPU features of the current ppc64/ppc64le platforms.
 // If the current platform is not ppc64/ppc64le then all feature flags are false.
 //

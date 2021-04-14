@@ -26,6 +26,9 @@ import (
 	"sync"
 )
 
+// TODO: capitalize these types, so that we can more easily tell variable names
+// apart from type names, and avoid awkward func parameters like "arch arch".
+
 type arch struct {
 	name            string
 	pkg             string // obj package to import for this arch.
@@ -71,7 +74,7 @@ type opData struct {
 type blockData struct {
 	name     string // the suffix for this block ("EQ", "LT", etc.)
 	controls int    // the number of control values this type of block requires
-	auxint   string // the type of the AuxInt value, if any
+	aux      string // the type of the Aux/AuxInt value, if any
 }
 
 type regInfo struct {
@@ -226,10 +229,10 @@ func genOp() {
 	fmt.Fprintln(w, "switch k {")
 	for _, a := range archs {
 		for _, b := range a.blocks {
-			if b.auxint == "" {
+			if b.auxIntType() == "invalid" {
 				continue
 			}
-			fmt.Fprintf(w, "case Block%s%s: return \"%s\"\n", a.Name(), b.name, b.auxint)
+			fmt.Fprintf(w, "case Block%s%s: return \"%s\"\n", a.Name(), b.name, b.auxIntType())
 		}
 	}
 	fmt.Fprintln(w, "}")

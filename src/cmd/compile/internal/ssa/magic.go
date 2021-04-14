@@ -96,6 +96,13 @@ func umagicOK(n uint, c int64) bool {
 	return d&(d-1) != 0
 }
 
+// umagicOKn reports whether we should strength reduce an unsigned n-bit divide by c.
+// We can strength reduce when c != 0 and c is not a power of two.
+func umagicOK8(c int8) bool   { return c&(c-1) != 0 }
+func umagicOK16(c int16) bool { return c&(c-1) != 0 }
+func umagicOK32(c int32) bool { return c&(c-1) != 0 }
+func umagicOK64(c int64) bool { return c&(c-1) != 0 }
+
 type umagicData struct {
 	s int64  // ⎡log2(c)⎤
 	m uint64 // ⎡2^(n+s)/c⎤ - 2^n
@@ -122,6 +129,11 @@ func umagic(n uint, c int64) umagicData {
 	m := M.Uint64()
 	return umagicData{s: int64(s), m: m}
 }
+
+func umagic8(c int8) umagicData   { return umagic(8, int64(c)) }
+func umagic16(c int16) umagicData { return umagic(16, int64(c)) }
+func umagic32(c int32) umagicData { return umagic(32, int64(c)) }
+func umagic64(c int64) umagicData { return umagic(64, c) }
 
 // For signed division, we use a similar strategy.
 // First, we enforce a positive c.
@@ -157,6 +169,12 @@ func smagicOK(n uint, c int64) bool {
 	return c&(c-1) != 0
 }
 
+// smagicOKn reports whether we should strength reduce an signed n-bit divide by c.
+func smagicOK8(c int8) bool   { return smagicOK(8, int64(c)) }
+func smagicOK16(c int16) bool { return smagicOK(16, int64(c)) }
+func smagicOK32(c int32) bool { return smagicOK(32, int64(c)) }
+func smagicOK64(c int64) bool { return smagicOK(64, c) }
+
 type smagicData struct {
 	s int64  // ⎡log2(c)⎤-1
 	m uint64 // ⎡2^(n+s)/c⎤
@@ -183,6 +201,11 @@ func smagic(n uint, c int64) smagicData {
 	m := M.Uint64()
 	return smagicData{s: int64(s), m: m}
 }
+
+func smagic8(c int8) smagicData   { return smagic(8, int64(c)) }
+func smagic16(c int16) smagicData { return smagic(16, int64(c)) }
+func smagic32(c int32) smagicData { return smagic(32, int64(c)) }
+func smagic64(c int64) smagicData { return smagic(64, c) }
 
 // Divisibility x%c == 0 can be checked more efficiently than directly computing
 // the modulus x%c and comparing against 0.
@@ -242,7 +265,7 @@ func smagic(n uint, c int64) smagicData {
 //
 // Where d0*2^k was replaced by c on the right hand side.
 
-// uivisibleOK reports whether we should strength reduce a n-bit dividisibilty check by c.
+// udivisibleOK reports whether we should strength reduce an unsigned n-bit divisibilty check by c.
 func udivisibleOK(n uint, c int64) bool {
 	// Convert from ConstX auxint values to the real uint64 constant they represent.
 	d := uint64(c) << (64 - n) >> (64 - n)
@@ -251,6 +274,11 @@ func udivisibleOK(n uint, c int64) bool {
 	// Don't use for powers of 2.
 	return d&(d-1) != 0
 }
+
+func udivisibleOK8(c int8) bool   { return udivisibleOK(8, int64(c)) }
+func udivisibleOK16(c int16) bool { return udivisibleOK(16, int64(c)) }
+func udivisibleOK32(c int32) bool { return udivisibleOK(32, int64(c)) }
+func udivisibleOK64(c int64) bool { return udivisibleOK(64, c) }
 
 type udivisibleData struct {
 	k   int64  // trailingZeros(c)
@@ -285,6 +313,11 @@ func udivisible(n uint, c int64) udivisibleData {
 		max: max,
 	}
 }
+
+func udivisible8(c int8) udivisibleData   { return udivisible(8, int64(c)) }
+func udivisible16(c int16) udivisibleData { return udivisible(16, int64(c)) }
+func udivisible32(c int32) udivisibleData { return udivisible(32, int64(c)) }
+func udivisible64(c int64) udivisibleData { return udivisible(64, c) }
 
 // For signed integers, a similar method follows.
 //
@@ -334,7 +367,7 @@ func udivisible(n uint, c int64) udivisibleData {
 // Note that the calculation is performed using unsigned integers.
 // Since a' can have n-1 bits, 2a' may have n bits and there is no risk of overflow.
 
-// sdivisibleOK reports whether we should strength reduce a n-bit dividisibilty check by c.
+// sdivisibleOK reports whether we should strength reduce a signed n-bit divisibilty check by c.
 func sdivisibleOK(n uint, c int64) bool {
 	if c < 0 {
 		// Doesn't work for negative c.
@@ -344,6 +377,11 @@ func sdivisibleOK(n uint, c int64) bool {
 	// Don't use it for powers of 2.
 	return c&(c-1) != 0
 }
+
+func sdivisibleOK8(c int8) bool   { return sdivisibleOK(8, int64(c)) }
+func sdivisibleOK16(c int16) bool { return sdivisibleOK(16, int64(c)) }
+func sdivisibleOK32(c int32) bool { return sdivisibleOK(32, int64(c)) }
+func sdivisibleOK64(c int64) bool { return sdivisibleOK(64, c) }
 
 type sdivisibleData struct {
 	k   int64  // trailingZeros(c)
@@ -379,3 +417,8 @@ func sdivisible(n uint, c int64) sdivisibleData {
 		max: max,
 	}
 }
+
+func sdivisible8(c int8) sdivisibleData   { return sdivisible(8, int64(c)) }
+func sdivisible16(c int16) sdivisibleData { return sdivisible(16, int64(c)) }
+func sdivisible32(c int32) sdivisibleData { return sdivisible(32, int64(c)) }
+func sdivisible64(c int64) sdivisibleData { return sdivisible(64, c) }

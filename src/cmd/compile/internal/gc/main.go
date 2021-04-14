@@ -14,6 +14,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
 	"cmd/internal/dwarf"
+	"cmd/internal/goobj2"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -1254,15 +1255,6 @@ func importfile(f *Val) *types.Pkg {
 		}
 	}
 
-	// assume files move (get installed) so don't record the full path
-	if packageFile != nil {
-		// If using a packageFile map, assume path_ can be recorded directly.
-		Ctxt.AddImport(path_)
-	} else {
-		// For file "/Users/foo/go/pkg/darwin_amd64/math.a" record "math.a".
-		Ctxt.AddImport(file[len(file)-len(path_)-len(".a"):])
-	}
-
 	// In the importfile, if we find:
 	// $$\n  (textual format): not supported anymore
 	// $$B\n (binary format) : import directly, then feed the lexer a dummy statement
@@ -1287,6 +1279,7 @@ func importfile(f *Val) *types.Pkg {
 		c, _ = imp.ReadByte()
 	}
 
+	var fingerprint goobj2.FingerprintType
 	switch c {
 	case '\n':
 		yyerror("cannot import %s: old export format no longer supported (recompile library)", path_)
@@ -1310,11 +1303,20 @@ func importfile(f *Val) *types.Pkg {
 			yyerror("import %s: unexpected package format byte: %v", file, c)
 			errorexit()
 		}
-		iimport(importpkg, imp)
+		fingerprint = iimport(importpkg, imp)
 
 	default:
 		yyerror("no import in %q", path_)
 		errorexit()
+	}
+
+	// assume files move (get installed) so don't record the full path
+	if packageFile != nil {
+		// If using a packageFile map, assume path_ can be recorded directly.
+		Ctxt.AddImport(path_, fingerprint)
+	} else {
+		// For file "/Users/foo/go/pkg/darwin_amd64/math.a" record "math.a".
+		Ctxt.AddImport(file[len(file)-len(path_)-len(".a"):], fingerprint)
 	}
 
 	if importpkg.Height >= myheight {

@@ -20,7 +20,7 @@ func TestNoRaceSelect1(t *testing.T) {
 		x = 1
 		// At least two channels are needed because
 		// otherwise the compiler optimizes select out.
-		// See comment in runtime/select.go:^func selectgoImpl.
+		// See comment in runtime/select.go:^func selectgo.
 		select {
 		case c <- true:
 		case c1 <- true:

@@ -1,6 +1,6 @@
 // Derived from Inferno utils/6l/obj.c and utils/6l/span.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/span.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/obj.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/span.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -34,6 +34,7 @@ package obj
 import (
 	"cmd/internal/goobj2"
 	"cmd/internal/objabi"
+	"crypto/md5"
 	"fmt"
 	"log"
 	"math"
@@ -241,6 +242,15 @@ func (ctxt *Link) NumberSyms(asm bool) {
 		ctxt.pkgIdx[pkg] = ipkg
 		ipkg++
 	})
+
+	// Compute a fingerprint of the indices, for exporting.
+	if !asm {
+		h := md5.New()
+		for _, s := range ctxt.defs {
+			h.Write([]byte(s.Name))
+		}
+		copy(ctxt.Fingerprint[:], h.Sum(nil)[:])
+	}
 }
 
 // Returns whether s is a non-package symbol, which needs to be referenced

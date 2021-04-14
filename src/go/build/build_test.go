@@ -5,6 +5,7 @@
 package build
 
 import (
+	"flag"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -15,6 +16,14 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if goTool, err := testenv.GoTool(); err == nil {
+		os.Setenv("PATH", filepath.Dir(goTool)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	}
+	os.Exit(m.Run())
+}
 
 func TestMatch(t *testing.T) {
 	ctxt := Default
@@ -111,11 +120,8 @@ func TestMultiplePackageImport(t *testing.T) {
 }
 
 func TestLocalDirectory(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
-		}
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+		t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
 	}
 
 	cwd, err := os.Getwd()
@@ -244,11 +250,8 @@ func TestMatchFile(t *testing.T) {
 }
 
 func TestImportCmd(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
-		}
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+		t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
 	}
 
 	p, err := Import("cmd/internal/objfile", "", 0)

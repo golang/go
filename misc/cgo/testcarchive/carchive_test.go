@@ -134,7 +134,7 @@ func testMain(m *testing.M) int {
 	} else {
 		switch GOOS {
 		case "darwin":
-			if GOARCH == "arm" || GOARCH == "arm64" {
+			if GOARCH == "arm64" {
 				libbase += "_shared"
 			}
 		case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris", "illumos":
@@ -305,7 +305,7 @@ func TestEarlySignalHandler(t *testing.T) {
 	switch GOOS {
 	case "darwin":
 		switch GOARCH {
-		case "arm", "arm64":
+		case "arm64":
 			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", GOOS, GOARCH)
 		}
 	case "windows":
@@ -487,7 +487,7 @@ func checkSignalForwardingTest(t *testing.T) {
 	switch GOOS {
 	case "darwin":
 		switch GOARCH {
-		case "arm", "arm64":
+		case "arm64":
 			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", GOOS, GOARCH)
 		}
 	case "windows":
@@ -603,7 +603,7 @@ func TestExtar(t *testing.T) {
 	if runtime.Compiler == "gccgo" {
 		t.Skip("skipping -extar test when using gccgo")
 	}
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
 		t.Skip("shell scripts are not executable on iOS hosts")
 	}
 

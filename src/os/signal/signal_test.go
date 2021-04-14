@@ -25,16 +25,45 @@ import (
 // settleTime is an upper bound on how long we expect signals to take to be
 // delivered. Lower values make the test faster, but also flakier — especially
 // on heavily loaded systems.
-const settleTime = 100 * time.Millisecond
+//
+// The current value is set based on flakes observed in the Go builders.
+var settleTime = 100 * time.Millisecond
+
+func init() {
+	if testenv.Builder() == "solaris-amd64-oraclerel" {
+		// The solaris-amd64-oraclerel builder has been observed to time out in
+		// TestNohup even with a 250ms settle time.
+		//
+		// Use a much longer settle time on that builder to try to suss out whether
+		// the test is flaky due to builder slowness (which may mean we need a
+		// longer GO_TEST_TIMEOUT_SCALE) or due to a dropped signal (which may
+		// instead need a test-skip and upstream bug filed against the Solaris
+		// kernel).
+		//
+		// This constant is chosen so as to make the test as generous as possible
+		// while still reliably completing within 3 minutes in non-short mode.
+		//
+		// See https://golang.org/issue/33174.
+		settleTime = 11 * time.Second
+	} else if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
+		if scale, err := strconv.Atoi(s); err == nil {
+			settleTime *= time.Duration(scale)
+		}
+	}
+}
 
 func waitSig(t *testing.T, c <-chan os.Signal, sig os.Signal) {
+	t.Helper()
 	waitSig1(t, c, sig, false)
 }
 func waitSigAll(t *testing.T, c <-chan os.Signal, sig os.Signal) {
+	t.Helper()
 	waitSig1(t, c, sig, true)
 }
 
 func waitSig1(t *testing.T, c <-chan os.Signal, sig os.Signal, all bool) {
+	t.Helper()
+
 	// Sleep multiple times to give the kernel more tries to
 	// deliver the signal.
 	start := time.Now()
@@ -58,7 +87,7 @@ func waitSig1(t *testing.T, c <-chan os.Signal, sig os.Signal, all bool) {
 			timer.Reset(settleTime / 10)
 		}
 	}
-	t.Fatalf("timeout waiting for %v", sig)
+	t.Fatalf("timeout after %v waiting for %v", settleTime, sig)
 }
 
 // quiesce waits until we can be reasonably confident that all pending signals

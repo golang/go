@@ -10,6 +10,7 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
 	"fmt"
+	"sort"
 )
 
 // SymbolBuilder is a helper designed to help with the construction
@@ -88,6 +89,7 @@ func (sb *SymbolBuilder) Dynimpvers() string     { return sb.l.SymDynimpvers(sb.
 func (sb *SymbolBuilder) SubSym() Sym            { return sb.l.SubSym(sb.symIdx) }
 func (sb *SymbolBuilder) GoType() Sym            { return sb.l.SymGoType(sb.symIdx) }
 func (sb *SymbolBuilder) VisibilityHidden() bool { return sb.l.AttrVisibilityHidden(sb.symIdx) }
+func (sb *SymbolBuilder) Sect() *sym.Section     { return sb.l.SymSect(sb.symIdx) }
 
 // Setters for symbol properties.
 
@@ -105,13 +107,14 @@ func (sb *SymbolBuilder) SetDynimpvers(value string) { sb.l.SetSymDynimpvers(sb.
 func (sb *SymbolBuilder) SetPlt(value int32)         { sb.l.SetPlt(sb.symIdx, value) }
 func (sb *SymbolBuilder) SetGot(value int32)         { sb.l.SetGot(sb.symIdx, value) }
 func (sb *SymbolBuilder) SetSpecial(value bool)      { sb.l.SetAttrSpecial(sb.symIdx, value) }
+func (sb *SymbolBuilder) SetLocal(value bool)        { sb.l.SetAttrLocal(sb.symIdx, value) }
 func (sb *SymbolBuilder) SetVisibilityHidden(value bool) {
 	sb.l.SetAttrVisibilityHidden(sb.symIdx, value)
 }
-
 func (sb *SymbolBuilder) SetNotInSymbolTable(value bool) {
 	sb.l.SetAttrNotInSymbolTable(sb.symIdx, value)
 }
+func (sb *SymbolBuilder) SetSect(sect *sym.Section) { sb.l.SetSymSect(sb.symIdx, sect) }
 
 func (sb *SymbolBuilder) AddBytes(data []byte) {
 	sb.setReachable()
@@ -129,7 +132,7 @@ func (sb *SymbolBuilder) Relocs() Relocs {
 func (sb *SymbolBuilder) SetRelocs(rslice []Reloc) {
 	n := len(rslice)
 	if cap(sb.relocs) < n {
-		sb.relocs = make([]goobj2.Reloc2, n)
+		sb.relocs = make([]goobj2.Reloc, n)
 		sb.reltypes = make([]objabi.RelocType, n)
 	} else {
 		sb.relocs = sb.relocs[:n]
@@ -140,12 +143,65 @@ func (sb *SymbolBuilder) SetRelocs(rslice []Reloc) {
 	}
 }
 
-func (sb *SymbolBuilder) AddReloc(r Reloc) {
+// SetRelocType sets the type of the 'i'-th relocation on this sym to 't'
+func (sb *SymbolBuilder) SetRelocType(i int, t objabi.RelocType) {
+	sb.relocs[i].SetType(0)
+	sb.reltypes[i] = t
+}
+
+// SetRelocSym sets the target sym of the 'i'-th relocation on this sym to 's'
+func (sb *SymbolBuilder) SetRelocSym(i int, tgt Sym) {
+	sb.relocs[i].SetSym(goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(tgt)})
+}
+
+// SetRelocAdd sets the addend of the 'i'-th relocation on this sym to 'a'
+func (sb *SymbolBuilder) SetRelocAdd(i int, a int64) {
+	sb.relocs[i].SetAdd(a)
+}
+
+// Add n relocations, return a handle to the relocations.
+func (sb *SymbolBuilder) AddRelocs(n int) Relocs {
+	sb.relocs = append(sb.relocs, make([]goobj2.Reloc, n)...)
+	sb.reltypes = append(sb.reltypes, make([]objabi.RelocType, n)...)
+	return sb.l.Relocs(sb.symIdx)
+}
+
+// Add a relocation with given type, return its handle and index
+// (to set other fields).
+func (sb *SymbolBuilder) AddRel(typ objabi.RelocType) (Reloc2, int) {
+	j := len(sb.relocs)
+	sb.relocs = append(sb.relocs, goobj2.Reloc{})
+	sb.reltypes = append(sb.reltypes, typ)
+	relocs := sb.Relocs()
+	return relocs.At2(j), j
+}
+
+// Sort relocations by offset.
+func (sb *SymbolBuilder) SortRelocs() {
+	sort.Sort((*relocsByOff)(sb.extSymPayload))
+}
+
+// Implement sort.Interface
+type relocsByOff extSymPayload
+
+func (p *relocsByOff) Len() int           { return len(p.relocs) }
+func (p *relocsByOff) Less(i, j int) bool { return p.relocs[i].Off() < p.relocs[j].Off() }
+func (p *relocsByOff) Swap(i, j int) {
+	p.relocs[i], p.relocs[j] = p.relocs[j], p.relocs[i]
+	p.reltypes[i], p.reltypes[j] = p.reltypes[j], p.reltypes[i]
+}
+
+// AddReloc appends the specified reloc to the symbols list of
+// relocations. Return value is the index of the newly created
+// reloc.
+func (sb *SymbolBuilder) AddReloc(r Reloc) uint32 {
 	// Populate a goobj2.Reloc from external reloc record.
-	var b goobj2.Reloc2
+	rval := uint32(len(sb.relocs))
+	var b goobj2.Reloc
 	b.Set(r.Off, r.Size, 0, r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
 	sb.relocs = append(sb.relocs, b)
 	sb.reltypes = append(sb.reltypes, r.Type)
+	return rval
 }
 
 // Update the j-th relocation in place.
@@ -276,6 +332,29 @@ func (sb *SymbolBuilder) SetUint(arch *sys.Arch, r int64, v uint64) int64 {
 	return sb.setUintXX(arch, r, v, int64(arch.PtrSize))
 }
 
+func (sb *SymbolBuilder) SetAddrPlus(arch *sys.Arch, off int64, tgt Sym, add int64) int64 {
+	if sb.Type() == 0 {
+		sb.SetType(sym.SDATA)
+	}
+	sb.setReachable()
+	if off+int64(arch.PtrSize) > sb.size {
+		sb.size = off + int64(arch.PtrSize)
+		sb.Grow(sb.size)
+	}
+	var r Reloc
+	r.Sym = tgt
+	r.Off = int32(off)
+	r.Size = uint8(arch.PtrSize)
+	r.Type = objabi.R_ADDR
+	r.Add = add
+	sb.AddReloc(r)
+	return off + int64(r.Size)
+}
+
+func (sb *SymbolBuilder) SetAddr(arch *sys.Arch, off int64, tgt Sym) int64 {
+	return sb.SetAddrPlus(arch, off, tgt, 0)
+}
+
 func (sb *SymbolBuilder) Addstring(str string) int64 {
 	sb.setReachable()
 	if sb.kind == 0 {
@@ -346,4 +425,32 @@ func (sb *SymbolBuilder) AddCURelativeAddrPlus(arch *sys.Arch, tgt Sym, add int6
 func (sb *SymbolBuilder) AddSize(arch *sys.Arch, tgt Sym) int64 {
 	sb.setReachable()
 	return sb.addSymRef(tgt, 0, objabi.R_SIZE, arch.PtrSize)
+}
+
+// GenAddAddrPlusFunc returns a function to be called when capturing
+// a function symbol's address. In later stages of the link (when
+// address assignment is done) when doing internal linking and
+// targeting an executable, we can just emit the address of a function
+// directly instead of generating a relocation. Clients can call
+// this function (setting 'internalExec' based on build mode and target)
+// and then invoke the returned function in roughly the same way that
+// loader.*SymbolBuilder.AddAddrPlus would be used.
+func GenAddAddrPlusFunc(internalExec bool) func(s *SymbolBuilder, arch *sys.Arch, tgt Sym, add int64) int64 {
+	if internalExec {
+		return func(s *SymbolBuilder, arch *sys.Arch, tgt Sym, add int64) int64 {
+			if v := s.l.SymValue(tgt); v != 0 {
+				return s.AddUint(arch, uint64(v+add))
+			}
+			return s.AddAddrPlus(arch, tgt, add)
+		}
+	} else {
+		return (*SymbolBuilder).AddAddrPlus
+	}
+}
+
+func (sb *SymbolBuilder) MakeWritable() {
+	if sb.ReadOnly() {
+		sb.data = append([]byte(nil), sb.data...)
+		sb.l.SetAttrReadOnly(sb.symIdx, false)
+	}
 }

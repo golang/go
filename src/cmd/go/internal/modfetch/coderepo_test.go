@@ -44,7 +44,7 @@ func testMain(m *testing.M) int {
 	}
 	defer os.RemoveAll(dir)
 
-	codehost.WorkRoot = dir
+	cfg.GOMODCACHE = dir
 	return m.Run()
 }
 
@@ -654,11 +654,6 @@ var codeRepoVersionsTests = []struct {
 		vcs:      "mod",
 		path:     "swtch.com/testmod",
 		versions: []string{"v1.0.0", "v1.1.1"},
-	},
-	{
-		vcs:      "git",
-		path:     "gopkg.in/russross/blackfriday.v2",
-		versions: []string{"v2.0.0", "v2.0.1"},
 	},
 	{
 		vcs:      "git",

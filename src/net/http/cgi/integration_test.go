@@ -16,7 +16,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -52,7 +54,7 @@ func TestHostingOurselves(t *testing.T) {
 	}
 	replay := runCgiTest(t, h, "GET /test.go?foo=bar&a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
 
-	if expected, got := "text/html; charset=utf-8", replay.Header().Get("Content-Type"); got != expected {
+	if expected, got := "text/plain; charset=utf-8", replay.Header().Get("Content-Type"); got != expected {
 		t.Errorf("got a Content-Type of %q; expected %q", got, expected)
 	}
 	if expected, got := "X-Test-Value", replay.Header().Get("X-Test-Header"); got != expected {
@@ -152,6 +154,51 @@ func TestChildOnlyHeaders(t *testing.T) {
 	}
 }
 
+func TestChildContentType(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	h := &Handler{
+		Path: os.Args[0],
+		Root: "/test.go",
+		Args: []string{"-test.run=TestBeChildCGIProcess"},
+	}
+	var tests = []struct {
+		name   string
+		body   string
+		wantCT string
+	}{
+		{
+			name:   "no body",
+			wantCT: "text/plain; charset=utf-8",
+		},
+		{
+			name:   "html",
+			body:   "<html><head><title>test page</title></head><body>This is a body</body></html>",
+			wantCT: "text/html; charset=utf-8",
+		},
+		{
+			name:   "text",
+			body:   strings.Repeat("gopher", 86),
+			wantCT: "text/plain; charset=utf-8",
+		},
+		{
+			name:   "jpg",
+			body:   "\xFF\xD8\xFF" + strings.Repeat("B", 1024),
+			wantCT: "image/jpeg",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectedMap := map[string]string{"_body": tt.body}
+			req := fmt.Sprintf("GET /test.go?exact-body=%s HTTP/1.0\nHost: example.com\n\n", url.QueryEscape(tt.body))
+			replay := runCgiTest(t, h, req, expectedMap)
+			if got := replay.Header().Get("Content-Type"); got != tt.wantCT {
+				t.Errorf("got a Content-Type of %q; expected it to start with %q", got, tt.wantCT)
+			}
+		})
+	}
+}
+
 // golang.org/issue/7198
 func Test500WithNoHeaders(t *testing.T)     { want500Test(t, "/immediate-disconnect") }
 func Test500WithNoContentType(t *testing.T) { want500Test(t, "/no-content-type") }
@@ -201,6 +248,10 @@ func TestBeChildCGIProcess(t *testing.T) {
 		rw.Header().Set("X-Test-Header", "X-Test-Value")
 		req.ParseForm()
 		if req.FormValue("no-body") == "1" {
+			return
+		}
+		if eb, ok := req.Form["exact-body"]; ok {
+			io.WriteString(rw, eb[0])
 			return
 		}
 		if req.FormValue("write-forever") == "1" {

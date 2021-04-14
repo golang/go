@@ -93,3 +93,20 @@ func TestError(t *testing.T) {
 		t.Error("Error should not be nil")
 	}
 }
+
+var benchmarkWriteData = [][]string{
+	{"abc", "def", "12356", "1234567890987654311234432141542132"},
+	{"abc", "def", "12356", "1234567890987654311234432141542132"},
+	{"abc", "def", "12356", "1234567890987654311234432141542132"},
+}
+
+func BenchmarkWrite(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		w := NewWriter(&bytes.Buffer{})
+		err := w.WriteAll(benchmarkWriteData)
+		if err != nil {
+			b.Fatal(err)
+		}
+		w.Flush()
+	}
+}

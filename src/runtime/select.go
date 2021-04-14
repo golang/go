@@ -7,6 +7,7 @@ package runtime
 // This file contains the implementation of Go select statements.
 
 import (
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -77,7 +78,20 @@ func selunlock(scases []scase, lockorder []uint16) {
 func selparkcommit(gp *g, _ unsafe.Pointer) bool {
 	// There are unlocked sudogs that point into gp's stack. Stack
 	// copying must lock the channels of those sudogs.
+	// Set activeStackChans here instead of before we try parking
+	// because we could self-deadlock in stack growth on a
+	// channel lock.
 	gp.activeStackChans = true
+	// Mark that it's safe for stack shrinking to occur now,
+	// because any thread acquiring this G's stack for shrinking
+	// is guaranteed to observe activeStackChans after this store.
+	atomic.Store8(&gp.parkingOnChan, 0)
+	// Make sure we unlock after setting activeStackChans and
+	// unsetting parkingOnChan. The moment we unlock any of the
+	// channel locks we risk gp getting readied by a channel operation
+	// and so gp could continue running before everything before the
+	// unlock is visible (even to gp itself).
+
 	// This must not access gp's stack (see gopark). In
 	// particular, it must not access the *hselect. That's okay,
 	// because by the time this is called, gp.waiting has all
@@ -316,6 +330,11 @@ loop:
 
 	// wait for someone to wake us up
 	gp.param = nil
+	// Signal to anyone trying to shrink our stack that we're about
+	// to park on a channel. The window between when this G's status
+	// changes and when we set gp.activeStackChans is not safe for
+	// stack shrinking.
+	atomic.Store8(&gp.parkingOnChan, 1)
 	gopark(selparkcommit, nil, waitReasonSelect, traceEvGoBlockSelect, 1)
 	gp.activeStackChans = false
 

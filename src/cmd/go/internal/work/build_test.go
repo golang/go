@@ -222,7 +222,7 @@ func pkgImportPath(pkgpath string) *load.Package {
 func TestRespectSetgidDir(t *testing.T) {
 	switch runtime.GOOS {
 	case "darwin":
-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+		if runtime.GOARCH == "arm64" {
 			t.Skip("can't set SetGID bit with chmod on iOS")
 		}
 	case "windows", "plan9":

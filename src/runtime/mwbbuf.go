@@ -296,6 +296,13 @@ func wbBufFlush1(_p_ *p) {
 			continue
 		}
 		mbits.setMarked()
+
+		// Mark span.
+		arena, pageIdx, pageMask := pageIndexOf(span.base())
+		if arena.pageMarks[pageIdx]&pageMask == 0 {
+			atomic.Or8(&arena.pageMarks[pageIdx], pageMask)
+		}
+
 		if span.spanclass.noscan() {
 			gcw.bytesMarked += uint64(span.elemsize)
 			continue

@@ -15,9 +15,8 @@ func zcse(f *Func) {
 	vals := make(map[vkey]*Value)
 
 	for _, b := range f.Blocks {
-		for i := 0; i < len(b.Values); {
+		for i := 0; i < len(b.Values); i++ {
 			v := b.Values[i]
-			next := true
 			if opcodeTable[v.Op].argLen == 0 {
 				key := vkey{v.Op, keyFor(v), v.Aux, v.Type}
 				if vals[key] == nil {
@@ -33,13 +32,9 @@ func zcse(f *Func) {
 						b.Values[last] = nil
 						b.Values = b.Values[:last]
 
-						// process b.Values[i] again
-						next = false
+						i-- // process b.Values[i] again
 					}
 				}
-			}
-			if next {
-				i++
 			}
 		}
 	}

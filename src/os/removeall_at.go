@@ -9,7 +9,6 @@ package os
 import (
 	"internal/syscall/unix"
 	"io"
-	"runtime"
 	"syscall"
 )
 
@@ -178,7 +177,7 @@ func openFdAt(dirfd int, name string) (*File, error) {
 		}
 
 		// See comment in openFileNolog.
-		if runtime.GOOS == "darwin" && e == syscall.EINTR {
+		if e == syscall.EINTR {
 			continue
 		}
 

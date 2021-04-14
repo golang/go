@@ -59,6 +59,7 @@ func init() {
 		version.CmdVersion,
 		vet.CmdVet,
 
+		help.HelpBuildConstraint,
 		help.HelpBuildmode,
 		help.HelpC,
 		help.HelpCache,

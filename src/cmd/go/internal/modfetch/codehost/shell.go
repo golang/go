@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch/codehost"
 )
 
@@ -29,7 +30,7 @@ func usage() {
 }
 
 func main() {
-	codehost.WorkRoot = "/tmp/vcswork"
+	cfg.GOMODCACHE = "/tmp/vcswork"
 	log.SetFlags(0)
 	log.SetPrefix("shell: ")
 	flag.Usage = usage

@@ -88,7 +88,7 @@ func (r *Reader) readLineSlice() ([]byte, error) {
 // The first call to ReadContinuedLine will return "Line 1 continued..."
 // and the second will return "Line 2".
 //
-// A line consisting of only white space is never continued.
+// Empty lines are never continued.
 //
 func (r *Reader) ReadContinuedLine() (string, error) {
 	line, err := r.readContinuedLineSlice(noValidation)

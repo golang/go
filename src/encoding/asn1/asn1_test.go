@@ -1129,3 +1129,15 @@ func TestBMPString(t *testing.T) {
 		}
 	}
 }
+
+func TestNonMinimalEncodedOID(t *testing.T) {
+	h, err := hex.DecodeString("060a2a80864886f70d01010b")
+	if err != nil {
+		t.Fatalf("failed to decode from hex string: %s", err)
+	}
+	var oid ObjectIdentifier
+	_, err = Unmarshal(h, &oid)
+	if err == nil {
+		t.Fatalf("accepted non-minimally encoded oid")
+	}
+}

@@ -2,13 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris plan9
 
 // Unix environment variables.
 
 package syscall
 
-import "sync"
+import (
+	"runtime"
+	"sync"
+)
 
 var (
 	// envOnce guards initialization by copyenv, which populates env.
@@ -100,9 +103,12 @@ func Setenv(key, value string) error {
 			return EINVAL
 		}
 	}
-	for i := 0; i < len(value); i++ {
-		if value[i] == 0 {
-			return EINVAL
+	// On Plan 9, null is used as a separator, eg in $path.
+	if runtime.GOOS != "plan9" {
+		for i := 0; i < len(value); i++ {
+			if value[i] == 0 {
+				return EINVAL
+			}
 		}
 	}
 

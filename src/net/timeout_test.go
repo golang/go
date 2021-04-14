@@ -7,12 +7,13 @@
 package net
 
 import (
+	"errors"
 	"fmt"
-	"internal/poll"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"net/internal/socktest"
+	"os"
 	"runtime"
 	"sync"
 	"testing"
@@ -148,9 +149,9 @@ var acceptTimeoutTests = []struct {
 }{
 	// Tests that accept deadlines in the past work, even if
 	// there's incoming connections available.
-	{-5 * time.Second, [2]error{poll.ErrTimeout, poll.ErrTimeout}},
+	{-5 * time.Second, [2]error{os.ErrDeadlineExceeded, os.ErrDeadlineExceeded}},
 
-	{50 * time.Millisecond, [2]error{nil, poll.ErrTimeout}},
+	{50 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
 }
 
 func TestAcceptTimeout(t *testing.T) {
@@ -194,7 +195,7 @@ func TestAcceptTimeout(t *testing.T) {
 					if perr := parseAcceptError(err); perr != nil {
 						t.Errorf("#%d/%d: %v", i, j, perr)
 					}
-					if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+					if !isDeadlineExceeded(err) {
 						t.Fatalf("#%d/%d: %v", i, j, err)
 					}
 				}
@@ -250,7 +251,7 @@ func TestAcceptTimeoutMustReturn(t *testing.T) {
 		if perr := parseAcceptError(err); perr != nil {
 			t.Error(perr)
 		}
-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+		if !isDeadlineExceeded(err) {
 			t.Fatal(err)
 		}
 	}
@@ -302,9 +303,9 @@ var readTimeoutTests = []struct {
 }{
 	// Tests that read deadlines work, even if there's data ready
 	// to be read.
-	{-5 * time.Second, [2]error{poll.ErrTimeout, poll.ErrTimeout}},
+	{-5 * time.Second, [2]error{os.ErrDeadlineExceeded, os.ErrDeadlineExceeded}},
 
-	{50 * time.Millisecond, [2]error{nil, poll.ErrTimeout}},
+	{50 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
 }
 
 func TestReadTimeout(t *testing.T) {
@@ -344,7 +345,7 @@ func TestReadTimeout(t *testing.T) {
 					if perr := parseReadError(err); perr != nil {
 						t.Errorf("#%d/%d: %v", i, j, perr)
 					}
-					if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+					if !isDeadlineExceeded(err) {
 						t.Fatalf("#%d/%d: %v", i, j, err)
 					}
 				}
@@ -423,9 +424,9 @@ var readFromTimeoutTests = []struct {
 }{
 	// Tests that read deadlines work, even if there's data ready
 	// to be read.
-	{-5 * time.Second, [2]error{poll.ErrTimeout, poll.ErrTimeout}},
+	{-5 * time.Second, [2]error{os.ErrDeadlineExceeded, os.ErrDeadlineExceeded}},
 
-	{50 * time.Millisecond, [2]error{nil, poll.ErrTimeout}},
+	{50 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
 }
 
 func TestReadFromTimeout(t *testing.T) {
@@ -468,7 +469,7 @@ func TestReadFromTimeout(t *testing.T) {
 					if perr := parseReadError(err); perr != nil {
 						t.Errorf("#%d/%d: %v", i, j, perr)
 					}
-					if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+					if !isDeadlineExceeded(err) {
 						t.Fatalf("#%d/%d: %v", i, j, err)
 					}
 				}
@@ -491,9 +492,9 @@ var writeTimeoutTests = []struct {
 }{
 	// Tests that write deadlines work, even if there's buffer
 	// space available to write.
-	{-5 * time.Second, [2]error{poll.ErrTimeout, poll.ErrTimeout}},
+	{-5 * time.Second, [2]error{os.ErrDeadlineExceeded, os.ErrDeadlineExceeded}},
 
-	{10 * time.Millisecond, [2]error{nil, poll.ErrTimeout}},
+	{10 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
 }
 
 func TestWriteTimeout(t *testing.T) {
@@ -522,7 +523,7 @@ func TestWriteTimeout(t *testing.T) {
 					if perr := parseWriteError(err); perr != nil {
 						t.Errorf("#%d/%d: %v", i, j, perr)
 					}
-					if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+					if !isDeadlineExceeded(err) {
 						t.Fatalf("#%d/%d: %v", i, j, err)
 					}
 				}
@@ -605,9 +606,9 @@ var writeToTimeoutTests = []struct {
 }{
 	// Tests that write deadlines work, even if there's buffer
 	// space available to write.
-	{-5 * time.Second, [2]error{poll.ErrTimeout, poll.ErrTimeout}},
+	{-5 * time.Second, [2]error{os.ErrDeadlineExceeded, os.ErrDeadlineExceeded}},
 
-	{10 * time.Millisecond, [2]error{nil, poll.ErrTimeout}},
+	{10 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
 }
 
 func TestWriteToTimeout(t *testing.T) {
@@ -641,7 +642,7 @@ func TestWriteToTimeout(t *testing.T) {
 					if perr := parseWriteError(err); perr != nil {
 						t.Errorf("#%d/%d: %v", i, j, perr)
 					}
-					if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+					if !isDeadlineExceeded(err) {
 						t.Fatalf("#%d/%d: %v", i, j, err)
 					}
 				}
@@ -685,7 +686,7 @@ func TestReadTimeoutFluctuation(t *testing.T) {
 		if perr := parseReadError(err); perr != nil {
 			t.Error(perr)
 		}
-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+		if !isDeadlineExceeded(err) {
 			t.Fatal(err)
 		}
 	}
@@ -718,7 +719,7 @@ func TestReadFromTimeoutFluctuation(t *testing.T) {
 		if perr := parseReadError(err); perr != nil {
 			t.Error(perr)
 		}
-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+		if !isDeadlineExceeded(err) {
 			t.Fatal(err)
 		}
 	}
@@ -745,7 +746,7 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 	defer c.Close()
 
 	d := time.Second
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+	if iOS() {
 		d = 3 * time.Second // see golang.org/issue/10775
 	}
 	max := time.NewTimer(d)
@@ -760,7 +761,7 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 		if perr := parseWriteError(err); perr != nil {
 			t.Error(perr)
 		}
-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+		if !isDeadlineExceeded(err) {
 			t.Fatal(err)
 		}
 	}
@@ -1072,4 +1073,21 @@ func TestConcurrentSetDeadline(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
+}
+
+// isDeadlineExceeded reports whether err is or wraps os.ErrDeadlineExceeded.
+// We also check that the error implements net.Error, and that the
+// Timeout method returns true.
+func isDeadlineExceeded(err error) bool {
+	nerr, ok := err.(Error)
+	if !ok {
+		return false
+	}
+	if !nerr.Timeout() {
+		return false
+	}
+	if !errors.Is(err, os.ErrDeadlineExceeded) {
+		return false
+	}
+	return true
 }

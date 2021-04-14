@@ -19,7 +19,7 @@
 // command runs the test in the current directory and writes the trace
 // file (trace.out).
 //
-//    go test -trace=test.out
+//    go test -trace=trace.out
 //
 // This runtime/trace package provides APIs to add equivalent tracing
 // support to a standalone program. See the Example that demonstrates

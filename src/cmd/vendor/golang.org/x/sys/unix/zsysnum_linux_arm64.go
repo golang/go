@@ -298,4 +298,6 @@ const (
 	SYS_FSPICK                 = 433
 	SYS_PIDFD_OPEN             = 434
 	SYS_CLONE3                 = 435
+	SYS_OPENAT2                = 437
+	SYS_PIDFD_GETFD            = 438
 )

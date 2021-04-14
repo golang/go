@@ -33,15 +33,8 @@ type Func struct {
 	Blocks []*Block    // unordered set of all basic blocks (note: not indexable by ID)
 	Entry  *Block      // the entry basic block
 
-	// If we are using open-coded defers, this is the first call to a deferred
-	// function in the final defer exit sequence that we generated. This call
-	// should be after all defer statements, and will have all args, etc. of
-	// all defer calls as live. The liveness info of this call will be used
-	// for the deferreturn/ret segment generated for functions with open-coded
-	// defers.
-	LastDeferExit *Value
-	bid           idAlloc // block ID allocator
-	vid           idAlloc // value ID allocator
+	bid idAlloc // block ID allocator
+	vid idAlloc // value ID allocator
 
 	// Given an environment variable used for debug hash match,
 	// what file (if any) receives the yes/no logging?

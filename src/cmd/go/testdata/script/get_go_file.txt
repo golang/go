@@ -1,0 +1,60 @@
+# Tests Issue #38478
+# Tests that go get in GOPATH mode returns a specific error if the argument
+# ends with '.go', and either has no slash or refers to an existing file.
+
+env GO111MODULE=off
+
+# argument doesn't have .go suffix
+go get test
+
+# argument has .go suffix, is a file and exists
+! go get test.go
+stderr 'go get test.go: arguments must be package or module paths'
+
+# argument has .go suffix, doesn't exist and has no slashes
+! go get test_missing.go
+stderr 'go get test_missing.go: arguments must be package or module paths'
+
+# argument has .go suffix, is a file and exists in sub-directory
+! go get test/test.go
+stderr 'go get: test/test.go exists as a file, but ''go get'' requires package arguments'
+
+# argument has .go suffix, doesn't exist and has slashes
+! go get test/test_missing.go
+! stderr 'arguments must be package or module paths'
+! stderr 'exists as a file, but ''go get'' requires package arguments'
+
+# argument has .go suffix, is a symlink and exists
+[symlink] symlink test_sym.go -> test.go
+[symlink] ! go get test_sym.go
+[symlink] stderr 'go get test_sym.go: arguments must be package or module paths'
+[symlink] rm test_sym.go
+
+# argument has .go suffix, is a symlink and exists in sub-directory
+[symlink] symlink test/test_sym.go -> test.go
+[symlink] ! go get test/test_sym.go
+[symlink] stderr 'go get: test/test_sym.go exists as a file, but ''go get'' requires package arguments'
+[symlink] rm test_sym.go
+
+# argument has .go suffix, is a directory and exists
+mkdir test_dir.go
+! go get test_dir.go
+stderr 'go get test_dir.go: arguments must be package or module paths'
+rm test_dir.go
+
+# argument has .go suffix, is a directory and exists in sub-directory
+mkdir test/test_dir.go
+! go get test/test_dir.go
+! stderr 'arguments must be package or module paths'
+! stderr 'exists as a file, but ''go get'' requires package arguments'
+rm test/test_dir.go
+
+
+-- test.go --
+package main
+func main() {println("test")}
+
+
+-- test/test.go --
+package main
+func main() {println("test")}

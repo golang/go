@@ -124,7 +124,7 @@ freebsd_arm)
 freebsd_arm64)
 	mkerrors="$mkerrors -m64"
 	mksysnum="go run mksysnum.go 'https://svn.freebsd.org/base/stable/11/sys/kern/syscalls.master'"
-	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
 	;;
 netbsd_386)
 	mkerrors="$mkerrors -m32"
@@ -190,6 +190,12 @@ solaris_amd64)
 	mksysnum=
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
+illumos_amd64)
+        mksyscall="go run mksyscall_solaris.go"
+	mkerrors=
+	mksysnum=
+	mktypes=
+	;;
 *)
 	echo 'unrecognized $GOOS_$GOARCH: ' "$GOOSARCH" 1>&2
 	exit 1
@@ -217,6 +223,11 @@ esac
 				echo "$mksyscall -tags $GOOS,$GOARCH,go1.12 $syscall_goos $GOOSARCH_in |gofmt >zsyscall_$GOOSARCH.go";
 				# 1.13 and later, syscalls via libSystem (including syscallPtr)
 				echo "$mksyscall -tags $GOOS,$GOARCH,go1.13 syscall_darwin.1_13.go |gofmt >zsyscall_$GOOSARCH.1_13.go";
+			elif [ "$GOOS" == "illumos" ]; then
+			        # illumos code generation requires a --illumos switch
+			        echo "$mksyscall -illumos -tags illumos,$GOARCH syscall_illumos.go |gofmt > zsyscall_illumos_$GOARCH.go";
+			        # illumos implies solaris, so solaris code generation is also required
+				echo "$mksyscall -tags solaris,$GOARCH syscall_solaris.go syscall_solaris_$GOARCH.go |gofmt >zsyscall_solaris_$GOARCH.go";
 			else
 				echo "$mksyscall -tags $GOOS,$GOARCH $syscall_goos $GOOSARCH_in |gofmt >zsyscall_$GOOSARCH.go";
 			fi

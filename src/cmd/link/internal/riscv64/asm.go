@@ -16,7 +16,7 @@ import (
 	"sync"
 )
 
-func gentext(ctxt *ld.Link) {
+func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 }
 
 func adddynrela(target *ld.Target, syms *ld.ArchSyms, rel *sym.Symbol, s *sym.Symbol, r *sym.Reloc) {
@@ -98,7 +98,7 @@ func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym
 	return -1
 }
 
-func asmb(ctxt *ld.Link) {
+func asmb(ctxt *ld.Link, _ *loader.Loader) {
 	if ctxt.IsELF {
 		ld.Asmbelfsetup()
 	}
@@ -142,7 +142,6 @@ func asmb2(ctxt *ld.Link) {
 		ctxt.Out.SeekSet(int64(symo))
 
 		ld.Asmelfsym(ctxt)
-		ctxt.Out.Flush()
 		ctxt.Out.Write(ld.Elfstrdat)
 
 		if ctxt.LinkMode == ld.LinkExternal {
@@ -157,7 +156,6 @@ func asmb2(ctxt *ld.Link) {
 	default:
 		ld.Errorf(nil, "unsupported operating system")
 	}
-	ctxt.Out.Flush()
 
 	if *ld.FlagC {
 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)

@@ -19,5 +19,8 @@ var v6 = B{}
 // Test that S is fully defined
 var v7 = S{}
 
+// Test that #define'd type is fully defined
+var _ = issue38649{X: 0}
+
 func main() {
 }

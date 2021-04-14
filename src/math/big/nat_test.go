@@ -786,3 +786,21 @@ func TestNatDiv(t *testing.T) {
 		}
 	}
 }
+
+// TestIssue37499 triggers the edge case of divBasic where
+// the inaccurate estimate of the first word's quotient
+// happens at the very beginning of the loop.
+func TestIssue37499(t *testing.T) {
+	// Choose u and v such that v is slightly larger than u >> N.
+	// This tricks divBasic into choosing 1 as the first word
+	// of the quotient. This works in both 32-bit and 64-bit settings.
+	u := natFromString("0x2b6c385a05be027f5c22005b63c42a1165b79ff510e1706b39f8489c1d28e57bb5ba4ef9fd9387a3e344402c0a453381")
+	v := natFromString("0x2b6c385a05be027f5c22005b63c42a1165b79ff510e1706c")
+
+	q := nat(nil).make(8)
+	q.divBasic(u, v)
+	q = q.norm()
+	if s := string(q.utoa(16)); s != "fffffffffffffffffffffffffffffffffffffffffffffffb" {
+		t.Fatalf("incorrect quotient: %s", s)
+	}
+}

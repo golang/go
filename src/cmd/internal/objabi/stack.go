@@ -18,7 +18,7 @@ const (
 )
 
 // Initialize StackGuard and StackLimit according to target system.
-var StackGuard = 896*stackGuardMultiplier() + StackSystem
+var StackGuard = 928*stackGuardMultiplier() + StackSystem
 var StackLimit = StackGuard - StackSystem - StackSmall
 
 // stackGuardMultiplier returns a multiplier to apply to the default

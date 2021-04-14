@@ -89,6 +89,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	ADDW	R1, R2, R3            // b9f81032
 	ADDW	$8192, R1             // a71a2000
 	ADDW	$8192, R1, R2         // ec21200000d8
+	ADDE	R1, R2                // b9880021
 	SUB	R3, R4                // b9090043
 	SUB	R3, R4, R5            // b9e93054
 	SUB	$8192, R3             // a73be000
@@ -183,6 +184,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	ADDW	4095(R7), R8          // 5a807fff
 	ADDW	-1(R1), R2            // e3201fffff5a
 	ADDW	4096(R3), R4          // e3403000015a
+	ADDE	4096(R3), R4          // e34030000188
+	ADDE	4096(R3)(R2*1), R4    // e34230000188
+	ADDE	524288(R3)(R4*1), R5  // c0a10008000041aa4000e35a30000088
 	MULLD	(R1)(R2*1), R3        // e3321000000c
 	MULLW	(R3)(R4*1), R5        // 71543000
 	MULLW	4096(R3), R4          // e34030000151
@@ -259,6 +263,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	NC	$8, (R15), n-8(SP)       // d407f010f000
 	OC	$8, (R15), n-8(SP)       // d607f010f000
 	MVC	$8, (R15), n-8(SP)       // d207f010f000
+	MVCIN	$8, (R15), n-8(SP)       // e807f010f000
 	CLC	$8, (R15), n-8(SP)       // d507f000f010
 	XC	$256, -8(R15), -8(R15)   // b90400afc2a8fffffff8d7ffa000a000
 	MVC	$256, 8192(R1), 8192(R2) // b90400a2c2a800002000b90400b1c2b800002000d2ffa000b000

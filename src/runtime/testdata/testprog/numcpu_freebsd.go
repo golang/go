@@ -85,7 +85,13 @@ func getList() ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fail to execute '%s': %s", cmdline, err)
 	}
-	pos := bytes.IndexRune(output, ':')
+	pos := bytes.IndexRune(output, '\n')
+	if pos == -1 {
+		return nil, fmt.Errorf("invalid output from '%s', '\\n' not found: %s", cmdline, output)
+	}
+	output = output[0:pos]
+
+	pos = bytes.IndexRune(output, ':')
 	if pos == -1 {
 		return nil, fmt.Errorf("invalid output from '%s', ':' not found: %s", cmdline, output)
 	}

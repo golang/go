@@ -6,6 +6,7 @@ package image
 
 import (
 	"image/color"
+	"math/bits"
 	"strconv"
 )
 
@@ -271,4 +272,38 @@ func Rect(x0, y0, x1, y1 int) Rectangle {
 		y0, y1 = y1, y0
 	}
 	return Rectangle{Point{x0, y0}, Point{x1, y1}}
+}
+
+// mul3NonNeg returns (x * y * z), unless at least one argument is negative or
+// if the computation overflows the int type, in which case it returns -1.
+func mul3NonNeg(x int, y int, z int) int {
+	if (x < 0) || (y < 0) || (z < 0) {
+		return -1
+	}
+	hi, lo := bits.Mul64(uint64(x), uint64(y))
+	if hi != 0 {
+		return -1
+	}
+	hi, lo = bits.Mul64(lo, uint64(z))
+	if hi != 0 {
+		return -1
+	}
+	a := int(lo)
+	if (a < 0) || (uint64(a) != lo) {
+		return -1
+	}
+	return a
+}
+
+// add2NonNeg returns (x + y), unless at least one argument is negative or if
+// the computation overflows the int type, in which case it returns -1.
+func add2NonNeg(x int, y int) int {
+	if (x < 0) || (y < 0) {
+		return -1
+	}
+	a := x + y
+	if a < 0 {
+		return -1
+	}
+	return a
 }

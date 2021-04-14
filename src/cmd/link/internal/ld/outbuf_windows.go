@@ -31,20 +31,19 @@ func (out *OutBuf) Mmap(filesize uint64) error {
 	return nil
 }
 
-func (out *OutBuf) Munmap() {
+func (out *OutBuf) munmap() {
 	if out.buf == nil {
 		return
 	}
-	err := syscall.UnmapViewOfFile(uintptr(unsafe.Pointer(&out.buf[0])))
+	// Apparently unmapping without flush may cause ACCESS_DENIED error
+	// (see issue 38440).
+	err := syscall.FlushViewOfFile(uintptr(unsafe.Pointer(&out.buf[0])), 0)
+	if err != nil {
+		Exitf("FlushViewOfFile failed: %v", err)
+	}
+	err = syscall.UnmapViewOfFile(uintptr(unsafe.Pointer(&out.buf[0])))
 	out.buf = nil
 	if err != nil {
 		Exitf("UnmapViewOfFile failed: %v", err)
 	}
-}
-
-func (out *OutBuf) Msync() error {
-	if out.buf == nil {
-		return nil
-	}
-	return syscall.FlushViewOfFile(uintptr(unsafe.Pointer(&out.buf[0])), 0)
 }

@@ -44,7 +44,7 @@ func lookupFullNameServer(servername, username string) (string, error) {
 	}
 	defer syscall.NetApiBufferFree(p)
 	i := (*syscall.UserInfo10)(unsafe.Pointer(p))
-	return windows.UTF16PtrToString(i.FullName, 1024), nil
+	return windows.UTF16PtrToString(i.FullName), nil
 }
 
 func lookupFullName(domain, username, domainAndUser string) (string, error) {
@@ -167,7 +167,7 @@ func listGroupsForUsernameAndDomain(username, domain string) ([]string, error) {
 		if entry.Name == nil {
 			continue
 		}
-		sid, err := lookupGroupName(windows.UTF16PtrToString(entry.Name, 1024))
+		sid, err := lookupGroupName(windows.UTF16PtrToString(entry.Name))
 		if err != nil {
 			return nil, err
 		}

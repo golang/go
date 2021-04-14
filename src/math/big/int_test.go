@@ -1840,3 +1840,57 @@ func BenchmarkDiv(b *testing.B) {
 		})
 	}
 }
+
+func TestFillBytes(t *testing.T) {
+	checkResult := func(t *testing.T, buf []byte, want *Int) {
+		t.Helper()
+		got := new(Int).SetBytes(buf)
+		if got.CmpAbs(want) != 0 {
+			t.Errorf("got 0x%x, want 0x%x: %x", got, want, buf)
+		}
+	}
+	panics := func(f func()) (panic bool) {
+		defer func() { panic = recover() != nil }()
+		f()
+		return
+	}
+
+	for _, n := range []string{
+		"0",
+		"1000",
+		"0xffffffff",
+		"-0xffffffff",
+		"0xffffffffffffffff",
+		"0x10000000000000000",
+		"0xabababababababababababababababababababababababababa",
+		"0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+	} {
+		t.Run(n, func(t *testing.T) {
+			t.Logf(n)
+			x, ok := new(Int).SetString(n, 0)
+			if !ok {
+				panic("invalid test entry")
+			}
+
+			// Perfectly sized buffer.
+			byteLen := (x.BitLen() + 7) / 8
+			buf := make([]byte, byteLen)
+			checkResult(t, x.FillBytes(buf), x)
+
+			// Way larger, checking all bytes get zeroed.
+			buf = make([]byte, 100)
+			for i := range buf {
+				buf[i] = 0xff
+			}
+			checkResult(t, x.FillBytes(buf), x)
+
+			// Too small.
+			if byteLen > 0 {
+				buf = make([]byte, byteLen-1)
+				if !panics(func() { x.FillBytes(buf) }) {
+					t.Errorf("expected panic for small buffer and value %x", x)
+				}
+			}
+		})
+	}
+}

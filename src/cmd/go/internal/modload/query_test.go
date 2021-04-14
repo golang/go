@@ -15,8 +15,6 @@ import (
 	"testing"
 
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/modfetch"
-	"cmd/go/internal/modfetch/codehost"
 
 	"golang.org/x/mod/module"
 )
@@ -36,8 +34,7 @@ func testMain(m *testing.M) int {
 
 	os.Setenv("GOPATH", dir)
 	cfg.BuildContext.GOPATH = dir
-	modfetch.PkgMod = filepath.Join(dir, "pkg/mod")
-	codehost.WorkRoot = filepath.Join(dir, "codework")
+	cfg.GOMODCACHE = filepath.Join(dir, "pkg/mod")
 	return m.Run()
 }
 

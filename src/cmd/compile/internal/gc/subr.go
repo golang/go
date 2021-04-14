@@ -60,9 +60,15 @@ func adderrorname(n *Node) {
 }
 
 func adderr(pos src.XPos, format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	// Only add the position if know the position.
+	// See issue golang.org/issue/11361.
+	if pos.IsKnown() {
+		msg = fmt.Sprintf("%v: %s", linestr(pos), msg)
+	}
 	errors = append(errors, Error{
 		pos: pos,
-		msg: fmt.Sprintf("%v: %s\n", linestr(pos), fmt.Sprintf(format, args...)),
+		msg: msg + "\n",
 	})
 }
 
@@ -376,7 +382,13 @@ func newnamel(pos src.XPos, s *types.Sym) *Node {
 // nodSym makes a Node with Op op and with the Left field set to left
 // and the Sym field set to sym. This is for ODOT and friends.
 func nodSym(op Op, left *Node, sym *types.Sym) *Node {
-	n := nod(op, left, nil)
+	return nodlSym(lineno, op, left, sym)
+}
+
+// nodlSym makes a Node with position Pos, with Op op, and with the Left field set to left
+// and the Sym field set to sym. This is for ODOT and friends.
+func nodlSym(pos src.XPos, op Op, left *Node, sym *types.Sym) *Node {
+	n := nodl(pos, op, left, nil)
 	n.Sym = sym
 	return n
 }
@@ -684,14 +696,14 @@ func convertop(srcConstant bool, src, dst *types.Type, why *string) Op {
 	// (a) Disallow (*T) to (*U) where T is go:notinheap but U isn't.
 	if src.IsPtr() && dst.IsPtr() && dst.Elem().NotInHeap() && !src.Elem().NotInHeap() {
 		if why != nil {
-			*why = fmt.Sprintf(":\n\t%v is go:notinheap, but %v is not", dst.Elem(), src.Elem())
+			*why = fmt.Sprintf(":\n\t%v is incomplete (or unallocatable), but %v is not", dst.Elem(), src.Elem())
 		}
 		return OXXX
 	}
 	// (b) Disallow string to []T where T is go:notinheap.
 	if src.IsString() && dst.IsSlice() && dst.Elem().NotInHeap() && (dst.Elem().Etype == types.Bytetype.Etype || dst.Elem().Etype == types.Runetype.Etype) {
 		if why != nil {
-			*why = fmt.Sprintf(":\n\t%v is go:notinheap", dst.Elem())
+			*why = fmt.Sprintf(":\n\t%v is incomplete (or unallocatable)", dst.Elem())
 		}
 		return OXXX
 	}
@@ -921,6 +933,21 @@ func (o Op) IsSlice3() bool {
 	}
 	Fatalf("IsSlice3 op %v", o)
 	return false
+}
+
+// slicePtrLen extracts the pointer and length from a slice.
+// This constructs two nodes referring to n, so n must be a cheapexpr.
+func (n *Node) slicePtrLen() (ptr, len *Node) {
+	var init Nodes
+	c := cheapexpr(n, &init)
+	if c != n || init.Len() != 0 {
+		Fatalf("slicePtrLen not cheap: %v", n)
+	}
+	ptr = nod(OSPTR, n, nil)
+	ptr.Type = n.Type.Elem().PtrTo()
+	len = nod(OLEN, n, nil)
+	len.Type = types.Types[TINT]
+	return ptr, len
 }
 
 // labeledControl returns the control flow Node (for, switch, select)
@@ -1849,8 +1876,10 @@ func isdirectiface(t *types.Type) bool {
 	}
 
 	switch t.Etype {
-	case TPTR,
-		TCHAN,
+	case TPTR:
+		// Pointers to notinheap types must be stored indirectly. See issue 42076.
+		return !t.Elem().NotInHeap()
+	case TCHAN,
 		TMAP,
 		TFUNC,
 		TUNSAFEPTR:
@@ -1881,18 +1910,21 @@ func itabType(itab *Node) *Node {
 // ifaceData loads the data field from an interface.
 // The concrete type must be known to have type t.
 // It follows the pointer if !isdirectiface(t).
-func ifaceData(n *Node, t *types.Type) *Node {
-	ptr := nodSym(OIDATA, n, nil)
+func ifaceData(pos src.XPos, n *Node, t *types.Type) *Node {
+	if t.IsInterface() {
+		Fatalf("ifaceData interface: %v", t)
+	}
+	ptr := nodlSym(pos, OIDATA, n, nil)
 	if isdirectiface(t) {
 		ptr.Type = t
 		ptr.SetTypecheck(1)
 		return ptr
 	}
 	ptr.Type = types.NewPtr(t)
-	ptr.SetBounded(true)
 	ptr.SetTypecheck(1)
-	ind := nod(ODEREF, ptr, nil)
+	ind := nodl(pos, ODEREF, ptr, nil)
 	ind.Type = t
 	ind.SetTypecheck(1)
+	ind.SetBounded(true)
 	return ind
 }

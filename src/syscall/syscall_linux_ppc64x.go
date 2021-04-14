@@ -7,10 +7,7 @@
 
 package syscall
 
-const (
-	_SYS_dup       = SYS_DUP2
-	_SYS_setgroups = SYS_SETGROUPS
-)
+const _SYS_setgroups = SYS_SETGROUPS
 
 //sys	Dup2(oldfd int, newfd int) (err error)
 //sysnb	EpollCreate(size int) (fd int, err error)

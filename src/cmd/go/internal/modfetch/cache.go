@@ -26,17 +26,17 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-var PkgMod string // $GOPATH/pkg/mod; set by package modload
-
 func cacheDir(path string) (string, error) {
-	if PkgMod == "" {
-		return "", fmt.Errorf("internal error: modfetch.PkgMod not set")
+	if cfg.GOMODCACHE == "" {
+		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
+		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
+		return "", fmt.Errorf("internal error: cfg.GOMODCACHE not set")
 	}
 	enc, err := module.EscapePath(path)
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(PkgMod, "cache/download", enc, "/@v"), nil
+	return filepath.Join(cfg.GOMODCACHE, "cache/download", enc, "/@v"), nil
 }
 
 func CachePath(m module.Version, suffix string) (string, error) {
@@ -63,8 +63,10 @@ func CachePath(m module.Version, suffix string) (string, error) {
 // along with the directory if the directory does not exist or if the directory
 // is not completely populated.
 func DownloadDir(m module.Version) (string, error) {
-	if PkgMod == "" {
-		return "", fmt.Errorf("internal error: modfetch.PkgMod not set")
+	if cfg.GOMODCACHE == "" {
+		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
+		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
+		return "", fmt.Errorf("internal error: cfg.GOMODCACHE not set")
 	}
 	enc, err := module.EscapePath(m.Path)
 	if err != nil {
@@ -81,7 +83,7 @@ func DownloadDir(m module.Version) (string, error) {
 		return "", err
 	}
 
-	dir := filepath.Join(PkgMod, enc+"@"+encVer)
+	dir := filepath.Join(cfg.GOMODCACHE, enc+"@"+encVer)
 	if fi, err := os.Stat(dir); os.IsNotExist(err) {
 		return dir, err
 	} else if err != nil {
@@ -131,11 +133,13 @@ func lockVersion(mod module.Version) (unlock func(), err error) {
 // user's working directory.
 // If err is nil, the caller MUST eventually call the unlock function.
 func SideLock() (unlock func(), err error) {
-	if PkgMod == "" {
-		base.Fatalf("go: internal error: modfetch.PkgMod not set")
+	if cfg.GOMODCACHE == "" {
+		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
+		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
+		base.Fatalf("go: internal error: cfg.GOMODCACHE not set")
 	}
 
-	path := filepath.Join(PkgMod, "cache", "lock")
+	path := filepath.Join(cfg.GOMODCACHE, "cache", "lock")
 	if err := os.MkdirAll(filepath.Dir(path), 0777); err != nil {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
@@ -456,7 +460,7 @@ func readDiskStat(path, rev string) (file string, info *RevInfo, err error) {
 // just to find out about a commit we already know about
 // (and have cached under its pseudo-version).
 func readDiskStatByHash(path, rev string) (file string, info *RevInfo, err error) {
-	if PkgMod == "" {
+	if cfg.GOMODCACHE == "" {
 		// Do not download to current directory.
 		return "", nil, errNotCached
 	}

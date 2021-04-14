@@ -1278,6 +1278,22 @@ const (
 	SourcePos                  // emit //line directives to preserve original source positions
 )
 
+// The mode below is not included in printer's public API because
+// editing code text is deemed out of scope. Because this mode is
+// unexported, it's also possible to modify or remove it based on
+// the evolving needs of go/format and cmd/gofmt without breaking
+// users. See discussion in CL 240683.
+const (
+	// normalizeNumbers means to canonicalize number
+	// literal prefixes and exponents while printing.
+	//
+	// This value is known in and used by go/format and cmd/gofmt.
+	// It is currently more convenient and performant for those
+	// packages to apply number normalization during printing,
+	// rather than by modifying the AST in advance.
+	normalizeNumbers Mode = 1 << 30
+)
+
 // A Config node controls the output of Fprint.
 type Config struct {
 	Mode     Mode // default: 0

@@ -555,3 +555,61 @@ func findTrace(text, top string) []string {
 	}
 	return nil
 }
+
+func TestSegv(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("no signals on %s", runtime.GOOS)
+	}
+
+	for _, test := range []string{"Segv", "SegvInCgo"} {
+		t.Run(test, func(t *testing.T) {
+			t.Parallel()
+			got := runTestProg(t, "testprogcgo", test)
+			t.Log(got)
+			if !strings.Contains(got, "SIGSEGV") {
+				t.Errorf("expected crash from signal")
+			}
+		})
+	}
+}
+
+// TestEINTR tests that we handle EINTR correctly.
+// See issue #20400 and friends.
+func TestEINTR(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("no EINTR on %s", runtime.GOOS)
+	case "linux":
+		if runtime.GOARCH == "386" {
+			// On linux-386 the Go signal handler sets
+			// a restorer function that is not preserved
+			// by the C sigaction call in the test,
+			// causing the signal handler to crash when
+			// returning the normal code. The test is not
+			// architecture-specific, so just skip on 386
+			// rather than doing a complicated workaround.
+			t.Skip("skipping on linux-386; C sigaction does not preserve Go restorer")
+		}
+	}
+
+	t.Parallel()
+	output := runTestProg(t, "testprogcgo", "EINTR")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
+
+// Issue #42207.
+func TestNeedmDeadlock(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("no signals on %s", runtime.GOOS)
+	}
+	output := runTestProg(t, "testprogcgo", "NeedmDeadlock")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}

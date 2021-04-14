@@ -187,7 +187,7 @@ func TestLinuxDeathSignal(t *testing.T) {
 	}
 
 	cmd := exec.Command(tmpBinary)
-	cmd.Env = []string{"GO_DEATHSIG_PARENT=1"}
+	cmd.Env = append(os.Environ(), "GO_DEATHSIG_PARENT=1")
 	chldStdin, err := cmd.StdinPipe()
 	if err != nil {
 		t.Fatalf("failed to create new stdin pipe: %v", err)
@@ -225,7 +225,10 @@ func TestLinuxDeathSignal(t *testing.T) {
 
 func deathSignalParent() {
 	cmd := exec.Command(os.Args[0])
-	cmd.Env = []string{"GO_DEATHSIG_CHILD=1"}
+	cmd.Env = append(os.Environ(),
+		"GO_DEATHSIG_PARENT=",
+		"GO_DEATHSIG_CHILD=1",
+	)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	attrs := syscall.SysProcAttr{
@@ -356,7 +359,7 @@ func TestSyscallNoError(t *testing.T) {
 	}
 
 	cmd := exec.Command(tmpBinary)
-	cmd.Env = []string{"GO_SYSCALL_NOERROR=1"}
+	cmd.Env = append(os.Environ(), "GO_SYSCALL_NOERROR=1")
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {

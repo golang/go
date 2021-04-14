@@ -188,7 +188,7 @@ func execIO(o *operation, submit func(o *operation) error) (int, error) {
 	// IO is interrupted by "close" or "timeout"
 	netpollErr := err
 	switch netpollErr {
-	case ErrNetClosing, ErrFileClosing, ErrTimeout:
+	case ErrNetClosing, ErrFileClosing, ErrDeadlineExceeded:
 		// will deal with those.
 	default:
 		panic("unexpected runtime.netpoll error: " + netpollErr.Error())

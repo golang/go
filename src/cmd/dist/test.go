@@ -178,15 +178,6 @@ func (t *tester) run() {
 		return
 	}
 
-	// We must unset GOROOT_FINAL before tests, because runtime/debug requires
-	// correct access to source code, so if we have GOROOT_FINAL in effect,
-	// at least runtime/debug test will fail.
-	// If GOROOT_FINAL was set before, then now all the commands will appear stale.
-	// Nothing we can do about that other than not checking them below.
-	// (We call checkNotStale but only with "std" not "cmd".)
-	os.Setenv("GOROOT_FINAL_OLD", os.Getenv("GOROOT_FINAL")) // for cmd/link test
-	os.Unsetenv("GOROOT_FINAL")
-
 	for _, name := range t.runNames {
 		if !t.isRegisteredTestName(name) {
 			fatalf("unknown test %q", name)
@@ -454,6 +445,29 @@ func (t *tester) registerTests() {
 			heading: "os/user with tag osusergo",
 			fn: func(dt *distTest) error {
 				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=osusergo", "os/user")
+				return nil
+			},
+		})
+	}
+
+	if t.iOS() && !t.compileOnly {
+		t.tests = append(t.tests, distTest{
+			name:    "x509omitbundledroots",
+			heading: "crypto/x509 without bundled roots",
+			fn: func(dt *distTest) error {
+				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=x509omitbundledroots", "-run=OmitBundledRoots", "crypto/x509")
+				return nil
+			},
+		})
+	}
+
+	// Test the ios build tag on darwin/amd64 for the iOS simulator.
+	if goos == "darwin" && !t.iOS() {
+		t.tests = append(t.tests, distTest{
+			name:    "amd64ios",
+			heading: "ios tag on darwin/amd64",
+			fn: func(dt *distTest) error {
+				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=ios", "-run=SystemRoots", "crypto/x509")
 				return nil
 			},
 		})
@@ -887,7 +901,7 @@ func (t *tester) addCmd(dt *distTest, dir string, cmdline ...interface{}) *exec.
 }
 
 func (t *tester) iOS() bool {
-	return goos == "darwin" && (goarch == "arm" || goarch == "arm64")
+	return goos == "darwin" && goarch == "arm64"
 }
 
 func (t *tester) out(v string) {
@@ -902,7 +916,7 @@ func (t *tester) extLink() bool {
 	switch pair {
 	case "aix-ppc64",
 		"android-arm", "android-arm64",
-		"darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
+		"darwin-amd64", "darwin-arm64",
 		"dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
 		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-mips64", "linux-mips64le", "linux-mips", "linux-mipsle", "linux-s390x",
@@ -927,7 +941,7 @@ func (t *tester) internalLink() bool {
 	if goos == "android" {
 		return false
 	}
-	if goos == "darwin" && (goarch == "arm" || goarch == "arm64") {
+	if t.iOS() {
 		return false
 	}
 	// Internally linking cgo is incomplete on some architectures.
@@ -963,7 +977,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		}
 		switch pair {
 		case "aix-ppc64",
-			"darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
+			"darwin-amd64", "darwin-arm64",
 			"linux-amd64", "linux-386", "linux-ppc64le", "linux-s390x",
 			"freebsd-amd64",
 			"windows-amd64", "windows-386":
@@ -973,7 +987,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 	case "c-shared":
 		switch pair {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
-			"darwin-amd64", "darwin-386",
+			"darwin-amd64",
 			"freebsd-amd64",
 			"android-arm", "android-arm64", "android-386",
 			"windows-amd64", "windows-386":
@@ -1069,7 +1083,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 
 	pair := gohostos + "-" + goarch
 	switch pair {
-	case "darwin-386", "darwin-amd64",
+	case "darwin-amd64",
 		"openbsd-386", "openbsd-amd64",
 		"windows-386", "windows-amd64":
 		// test linkmode=external, but __thread not supported, so skip testtls.

@@ -73,12 +73,12 @@ func Errorf(s *sym.Symbol, format string, args ...interface{}) {
 // Logging an error means that on exit cmd/link will delete any
 // output file and return a non-zero error code.
 func (ctxt *Link) Errorf(s loader.Sym, format string, args ...interface{}) {
-	if s != 0 && ctxt.loader != nil {
-		sn := ctxt.loader.SymName(s)
-		format = sn + ": " + format
-	} else {
-		format = fmt.Sprintf("sym %d: %s", s, format)
+	if ctxt.loader != nil {
+		ctxt.loader.Errorf(s, format, args...)
+		return
 	}
+	// Note: this is not expected to happen very often.
+	format = fmt.Sprintf("sym %d: %s", s, format)
 	format += "\n"
 	fmt.Fprintf(os.Stderr, format, args...)
 	afterErrorAction()

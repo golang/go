@@ -9,12 +9,12 @@ package main
 import (
 	"bufio"
 	"fmt"
+	exec "internal/execabs"
 	"internal/trace"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"

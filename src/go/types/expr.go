@@ -1566,14 +1566,17 @@ func (check *Checker) typeAssertion(pos token.Pos, x *operand, xtyp *Interface, 
 	if method == nil {
 		return
 	}
-
 	var msg string
-	if wrongType {
-		msg = "wrong type for method"
+	if wrongType != nil {
+		if check.identical(method.typ, wrongType.typ) {
+			msg = fmt.Sprintf("missing method %s (%s has pointer receiver)", method.name, method.name)
+		} else {
+			msg = fmt.Sprintf("wrong type for method %s (have %s, want %s)", method.name, wrongType.typ, method.typ)
+		}
 	} else {
-		msg = "missing method"
+		msg = "missing method " + method.name
 	}
-	check.errorf(pos, "%s cannot have dynamic type %s (%s %s)", x, T, msg, method.name)
+	check.errorf(pos, "%s cannot have dynamic type %s (%s)", x, T, msg)
 }
 
 func (check *Checker) singleValue(x *operand) {

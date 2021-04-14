@@ -657,7 +657,6 @@ func TestEncodeWrappedImage(t *testing.T) {
 }
 
 func BenchmarkEncode(b *testing.B) {
-	bo := image.Rect(0, 0, 640, 480)
 	rnd := rand.New(rand.NewSource(123))
 
 	// Restrict to a 256-color paletted image to avoid quantization path.
@@ -671,10 +670,8 @@ func BenchmarkEncode(b *testing.B) {
 		}
 	}
 	img := image.NewPaletted(image.Rect(0, 0, 640, 480), palette)
-	for y := bo.Min.Y; y < bo.Max.Y; y++ {
-		for x := bo.Min.X; x < bo.Max.X; x++ {
-			img.Set(x, y, palette[rnd.Intn(256)])
-		}
+	for i := range img.Pix {
+		img.Pix[i] = uint8(rnd.Intn(256))
 	}
 
 	b.SetBytes(640 * 480 * 4)

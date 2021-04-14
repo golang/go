@@ -447,9 +447,24 @@ func (z *Int) SetBytes(buf []byte) *Int {
 }
 
 // Bytes returns the absolute value of x as a big-endian byte slice.
+//
+// To use a fixed length slice, or a preallocated one, use FillBytes.
 func (x *Int) Bytes() []byte {
 	buf := make([]byte, len(x.abs)*_S)
 	return buf[x.abs.bytes(buf):]
+}
+
+// FillBytes sets buf to the absolute value of x, storing it as a zero-extended
+// big-endian byte slice, and returns buf.
+//
+// If the absolute value of x doesn't fit in buf, FillBytes will panic.
+func (x *Int) FillBytes(buf []byte) []byte {
+	// Clear whole buffer. (This gets optimized into a memclr.)
+	for i := range buf {
+		buf[i] = 0
+	}
+	x.abs.bytes(buf)
+	return buf
 }
 
 // BitLen returns the length of the absolute value of x in bits.
@@ -465,8 +480,8 @@ func (x *Int) TrailingZeroBits() uint {
 }
 
 // Exp sets z = x**y mod |m| (i.e. the sign of m is ignored), and returns z.
-// If m == nil or m == 0, z = x**y unless y <= 0 then z = 1. If m > 0, y < 0,
-// and x and n are not relatively prime, z is unchanged and nil is returned.
+// If m == nil or m == 0, z = x**y unless y <= 0 then z = 1. If m != 0, y < 0,
+// and x and m are not relatively prime, z is unchanged and nil is returned.
 //
 // Modular exponentiation of inputs of a particular size is not a
 // cryptographically constant-time operation.

@@ -25,12 +25,6 @@ TEXT ·Atan(SB),NOSPLIT,$0
 TEXT ·Atanh(SB),NOSPLIT,$0
 	JMP ·atanh(SB)
 
-TEXT ·Min(SB),NOSPLIT,$0
-	JMP ·min(SB)
-
-TEXT ·Max(SB),NOSPLIT,$0
-	JMP ·max(SB)
-
 TEXT ·Erf(SB),NOSPLIT,$0
 	JMP ·erf(SB)
 

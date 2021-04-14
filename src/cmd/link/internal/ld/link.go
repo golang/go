@@ -1,5 +1,5 @@
 // Derived from Inferno utils/6l/l.h and related files.
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/l.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -66,24 +66,20 @@ type Link struct {
 
 	compressDWARF bool
 
-	Tlsg2        loader.Sym
 	Libdir       []string
 	Library      []*sym.Library
 	LibraryByPkg map[string]*sym.Library
 	Shlibs       []Shlib
 	Textp        []*sym.Symbol
 	Textp2       []loader.Sym
-	Filesyms     []*sym.Symbol
+	NumFilesyms  int
 	Moduledata   *sym.Symbol
 	Moduledata2  loader.Sym
 
 	PackageFile  map[string]string
 	PackageShlib map[string]string
 
-	tramps []*sym.Symbol // trampolines
-
-	// Used to implement field tracking.
-	Reachparent map[*sym.Symbol]*sym.Symbol
+	tramps []loader.Sym // trampolines
 
 	compUnits []*sym.CompilationUnit // DWARF compilation units
 	runtimeCU *sym.CompilationUnit   // One of the runtime CUs, the last one seen.
@@ -95,7 +91,12 @@ type Link struct {
 	cgo_export_dynamic map[string]bool
 
 	datap   []*sym.Symbol
+	datap2  []loader.Sym
 	dynexp2 []loader.Sym
+
+	// Elf symtab variables.
+	numelfsym int // starts at 0, 1 is reserved
+	elfbind   int
 }
 
 type cgodata struct {
@@ -128,11 +129,11 @@ func (ctxt *Link) Logf(format string, args ...interface{}) {
 
 func addImports(ctxt *Link, l *sym.Library, pn string) {
 	pkg := objabi.PathToPrefix(l.Pkg)
-	for _, importStr := range l.ImportStrings {
-		lib := addlib(ctxt, pkg, pn, importStr)
+	for _, imp := range l.Autolib {
+		lib := addlib(ctxt, pkg, pn, imp.Pkg, imp.Fingerprint)
 		if lib != nil {
 			l.Imports = append(l.Imports, lib)
 		}
 	}
-	l.ImportStrings = nil
+	l.Autolib = nil
 }

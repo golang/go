@@ -27,7 +27,7 @@ import (
 // exponentiation is larger than the modulus. (Otherwise it could be
 // decrypted with a square-root.)
 //
-// In these designs, when using PKCS#1 v1.5, it's vitally important to
+// In these designs, when using PKCS #1 v1.5, it's vitally important to
 // avoid disclosing whether the received RSA message was well-formed
 // (that is, whether the result of decrypting is a correctly padded
 // message) because this leaks secret information.

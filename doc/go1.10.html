@@ -30,7 +30,7 @@ adds <a href="#test">caching of successful test results</a>,
 runs <a href="#test-vet">vet automatically during tests</a>,
 and
 permits <a href="#cgo">passing string values directly between Go and C using cgo</a>.
-A new <a href="#cgo">compiler option whitelist</a> may cause
+A new <a href="#cgo">hard-coded set of safe compiler options</a> may cause
 unexpected <a href="https://golang.org/s/invalidflag"><code>invalid
 flag</code></a> errors in code that built successfully with older
 releases.
@@ -267,7 +267,7 @@ and the <a href="/cmd/test2json/">test2json documentation</a>.
 
 <p>
 Options specified by cgo using <code>#cgo CFLAGS</code> and the like
-are now checked against a whitelist of permitted options.
+are now checked against a list of permitted options.
 This closes a security hole in which a downloaded package uses
 compiler options like
 <span style="white-space: nowrap"><code>-fplugin</code></span>

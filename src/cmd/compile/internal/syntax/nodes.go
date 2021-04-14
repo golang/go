@@ -34,6 +34,7 @@ func (*node) aNode()     {}
 
 // package PkgName; DeclList[0], DeclList[1], ...
 type File struct {
+	Pragma   Pragma
 	PkgName  *Name
 	DeclList []Decl
 	Lines    uint
@@ -52,9 +53,10 @@ type (
 	//              Path
 	// LocalPkgName Path
 	ImportDecl struct {
+		Group        *Group // nil means not part of a group
+		Pragma       Pragma
 		LocalPkgName *Name // including "."; nil means no rename present
 		Path         *BasicLit
-		Group        *Group // nil means not part of a group
 		decl
 	}
 
@@ -62,20 +64,21 @@ type (
 	// NameList      = Values
 	// NameList Type = Values
 	ConstDecl struct {
-		NameList []*Name
-		Type     Expr   // nil means no type
-		Values   Expr   // nil means no values
 		Group    *Group // nil means not part of a group
+		Pragma   Pragma
+		NameList []*Name
+		Type     Expr // nil means no type
+		Values   Expr // nil means no values
 		decl
 	}
 
 	// Name Type
 	TypeDecl struct {
+		Group  *Group // nil means not part of a group
+		Pragma Pragma
 		Name   *Name
 		Alias  bool
 		Type   Expr
-		Group  *Group // nil means not part of a group
-		Pragma Pragma
 		decl
 	}
 
@@ -83,10 +86,11 @@ type (
 	// NameList Type = Values
 	// NameList      = Values
 	VarDecl struct {
-		NameList []*Name
-		Type     Expr   // nil means no type
-		Values   Expr   // nil means no values
 		Group    *Group // nil means not part of a group
+		Pragma   Pragma
+		NameList []*Name
+		Type     Expr // nil means no type
+		Values   Expr // nil means no values
 		decl
 	}
 
@@ -95,12 +99,11 @@ type (
 	// func Receiver Name Type { Body }
 	// func Receiver Name Type
 	FuncDecl struct {
-		Attr   map[string]bool // go:attr map
-		Recv   *Field          // nil means regular function
+		Pragma Pragma
+		Recv   *Field // nil means regular function
 		Name   *Name
 		Type   *FuncType
 		Body   *BlockStmt // nil means no body (forward declaration)
-		Pragma Pragma     // TODO(mdempsky): Cleaner solution.
 		decl
 	}
 )

@@ -42,6 +42,10 @@ type serverHandshakeStateTLS13 struct {
 func (hs *serverHandshakeStateTLS13) handshake() error {
 	c := hs.c
 
+	if needFIPS() {
+		return errors.New("tls: internal error: TLS 1.3 reached in FIPS mode")
+	}
+
 	// For an overview of the TLS 1.3 handshake, see RFC 8446, Section 2.
 	if err := hs.processClientHello(); err != nil {
 		return err
@@ -306,6 +310,7 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 			return errors.New("tls: invalid PSK binder")
 		}
 
+		c.didResume = true
 		if err := c.processCertsFromClient(sessionState.certificate); err != nil {
 			return err
 		}
@@ -313,7 +318,6 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 		hs.hello.selectedIdentityPresent = true
 		hs.hello.selectedIdentity = uint16(i)
 		hs.usingPSK = true
-		c.didResume = true
 		return nil
 	}
 
@@ -584,7 +588,7 @@ func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
 		certReq := new(certificateRequestMsgTLS13)
 		certReq.ocspStapling = true
 		certReq.scts = true
-		certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+		certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
 		if c.config.ClientCAs != nil {
 			certReq.certificateAuthorities = c.config.ClientCAs.Subjects()
 		}
@@ -753,6 +757,14 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
 	c := hs.c
 
 	if !hs.requestClientCert() {
+		// Make sure the connection is still being verified whether or not
+		// the server requested a client certificate.
+		if c.config.VerifyConnection != nil {
+			if err := c.config.VerifyConnection(c.connectionStateLocked()); err != nil {
+				c.sendAlert(alertBadCertificate)
+				return err
+			}
+		}
 		return nil
 	}
 
@@ -775,6 +787,13 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
 		return err
 	}
 
+	if c.config.VerifyConnection != nil {
+		if err := c.config.VerifyConnection(c.connectionStateLocked()); err != nil {
+			c.sendAlert(alertBadCertificate)
+			return err
+		}
+	}
+
 	if len(certMsg.certificate.Certificate) != 0 {
 		msg, err = c.readHandshake()
 		if err != nil {
@@ -788,7 +807,7 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
 		}
 
 		// See RFC 8446, Section 4.4.3.
-		if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms) {
+		if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms()) {
 			c.sendAlert(alertIllegalParameter)
 			return errors.New("tls: client certificate used with invalid signature algorithm")
 		}

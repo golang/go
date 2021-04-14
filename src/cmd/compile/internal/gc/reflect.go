@@ -119,7 +119,7 @@ func bmap(t *types.Type) *types.Type {
 	// the type of the overflow field to uintptr in this case.
 	// See comment on hmap.overflow in runtime/map.go.
 	otyp := types.NewPtr(bucket)
-	if !types.Haspointers(elemtype) && !types.Haspointers(keytype) {
+	if !elemtype.HasPointers() && !keytype.HasPointers() {
 		otyp = types.Types[TUINTPTR]
 	}
 	overflow := makefield("overflow", otyp)
@@ -754,7 +754,7 @@ var kinds = []int{
 // typeptrdata returns the length in bytes of the prefix of t
 // containing pointer data. Anything after this offset is scalar data.
 func typeptrdata(t *types.Type) int64 {
-	if !types.Haspointers(t) {
+	if !t.HasPointers() {
 		return 0
 	}
 
@@ -788,7 +788,7 @@ func typeptrdata(t *types.Type) int64 {
 		// Find the last field that has pointers.
 		var lastPtrField *types.Field
 		for _, t1 := range t.Fields().Slice() {
-			if types.Haspointers(t1.Type) {
+			if t1.Type.HasPointers() {
 				lastPtrField = t1
 			}
 		}
@@ -1343,6 +1343,33 @@ func dtypesym(t *types.Type) *obj.LSym {
 	// for security, only the exported fields.
 	case TSTRUCT:
 		fields := t.Fields().Slice()
+
+		// omitFieldForAwfulBoringCryptoKludge reports whether
+		// the field t should be omitted from the reflect data.
+		// In the crypto/... packages we omit an unexported field
+		// named "boring", to keep from breaking client code that
+		// expects rsa.PublicKey etc to have only public fields.
+		// As the name suggests, this is an awful kludge, but it is
+		// limited to the dev.boringcrypto branch and avoids
+		// much more invasive effects elsewhere.
+		omitFieldForAwfulBoringCryptoKludge := func(t *types.Field) bool {
+			if t.Sym == nil || t.Sym.Name != "boring" || t.Sym.Pkg == nil {
+				return false
+			}
+			path := t.Sym.Pkg.Path
+			if t.Sym.Pkg == localpkg {
+				path = myimportpath
+			}
+			return strings.HasPrefix(path, "crypto/")
+		}
+		newFields := fields[:0:0]
+		for _, t1 := range fields {
+			if !omitFieldForAwfulBoringCryptoKludge(t1) {
+				newFields = append(newFields, t1)
+			}
+		}
+		fields = newFields
+
 		for _, t1 := range fields {
 			dtypesym(t1.Type)
 		}
@@ -1726,7 +1753,7 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
 	for i := range ptrmask {
 		ptrmask[i] = 0
 	}
-	if !types.Haspointers(t) {
+	if !t.HasPointers() {
 		return
 	}
 
@@ -1795,7 +1822,7 @@ func (p *GCProg) end() {
 
 func (p *GCProg) emit(t *types.Type, offset int64) {
 	dowidth(t)
-	if !types.Haspointers(t) {
+	if !t.HasPointers() {
 		return
 	}
 	if t.Width == int64(Widthptr) {

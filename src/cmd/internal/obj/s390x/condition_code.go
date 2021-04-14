@@ -50,6 +50,12 @@ const (
 
 	// 4-bit mask
 	Always CCMask = Equal | Less | Greater | Unordered
+
+	// useful aliases
+	Carry    CCMask = GreaterOrUnordered
+	NoCarry  CCMask = LessOrEqual
+	Borrow   CCMask = NoCarry
+	NoBorrow CCMask = Carry
 )
 
 // Inverse returns the complement of the condition code mask.

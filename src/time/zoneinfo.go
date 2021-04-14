@@ -21,6 +21,13 @@ type Location struct {
 	zone []zone
 	tx   []zoneTrans
 
+	// The tzdata information can be followed by a string that describes
+	// how to handle DST transitions not recorded in zoneTrans.
+	// The format is the TZ environment variable without a colon; see
+	// https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html.
+	// Example string, for America/Los_Angeles: PST8PDT,M3.2.0,M11.1.0
+	extend string
+
 	// Most lookups will be for the current time.
 	// To avoid the binary search through tx, keep a
 	// static one-element cache that gives the correct
@@ -167,6 +174,15 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64)
 	offset = zone.offset
 	start = tx[lo].when
 	// end = maintained during the search
+
+	// If we're at the end of the known zone transitions,
+	// try the extend string.
+	if lo == len(tx)-1 && l.extend != "" {
+		if ename, eoffset, estart, eend, ok := tzset(l.extend, end, sec); ok {
+			return ename, eoffset, estart, eend
+		}
+	}
+
 	return
 }
 
@@ -220,6 +236,338 @@ func (l *Location) firstZoneUsed() bool {
 		}
 	}
 	return false
+}
+
+// tzset takes a timezone string like the one found in the TZ environment
+// variable, the end of the last time zone transition expressed as seconds
+// since January 1, 1970 00:00:00 UTC, and a time expressed the same way.
+// We call this a tzset string since in C the function tzset reads TZ.
+// The return values are as for lookup, plus ok which reports whether the
+// parse succeeded.
+func tzset(s string, initEnd, sec int64) (name string, offset int, start, end int64, ok bool) {
+	var (
+		stdName, dstName     string
+		stdOffset, dstOffset int
+	)
+
+	stdName, s, ok = tzsetName(s)
+	if ok {
+		stdOffset, s, ok = tzsetOffset(s)
+	}
+	if !ok {
+		return "", 0, 0, 0, false
+	}
+
+	// The numbers in the tzset string are added to local time to get UTC,
+	// but our offsets are added to UTC to get local time,
+	// so we negate the number we see here.
+	stdOffset = -stdOffset
+
+	if len(s) == 0 || s[0] == ',' {
+		// No daylight savings time.
+		return stdName, stdOffset, initEnd, omega, true
+	}
+
+	dstName, s, ok = tzsetName(s)
+	if ok {
+		if len(s) == 0 || s[0] == ',' {
+			dstOffset = stdOffset + secondsPerHour
+		} else {
+			dstOffset, s, ok = tzsetOffset(s)
+			dstOffset = -dstOffset // as with stdOffset, above
+		}
+	}
+	if !ok {
+		return "", 0, 0, 0, false
+	}
+
+	if len(s) == 0 {
+		// Default DST rules per tzcode.
+		s = ",M3.2.0,M11.1.0"
+	}
+	// The TZ definition does not mention ';' here but tzcode accepts it.
+	if s[0] != ',' && s[0] != ';' {
+		return "", 0, 0, 0, false
+	}
+	s = s[1:]
+
+	var startRule, endRule rule
+	startRule, s, ok = tzsetRule(s)
+	if !ok || len(s) == 0 || s[0] != ',' {
+		return "", 0, 0, 0, false
+	}
+	s = s[1:]
+	endRule, s, ok = tzsetRule(s)
+	if !ok || len(s) > 0 {
+		return "", 0, 0, 0, false
+	}
+
+	year, _, _, yday := absDate(uint64(sec+unixToInternal+internalToAbsolute), false)
+
+	ysec := int64(yday*secondsPerDay) + sec%secondsPerDay
+
+	// Compute start of year in seconds since Unix epoch.
+	d := daysSinceEpoch(year)
+	abs := int64(d * secondsPerDay)
+	abs += absoluteToInternal + internalToUnix
+
+	startSec := int64(tzruleTime(year, startRule, stdOffset))
+	endSec := int64(tzruleTime(year, endRule, dstOffset))
+	if endSec < startSec {
+		startSec, endSec = endSec, startSec
+		stdName, dstName = dstName, stdName
+		stdOffset, dstOffset = dstOffset, stdOffset
+	}
+
+	// The start and end values that we return are accurate
+	// close to a daylight savings transition, but are otherwise
+	// just the start and end of the year. That suffices for
+	// the only caller that cares, which is Date.
+	if ysec < startSec {
+		return stdName, stdOffset, abs, startSec + abs, true
+	} else if ysec >= endSec {
+		return stdName, stdOffset, endSec + abs, abs + 365*secondsPerDay, true
+	} else {
+		return dstName, dstOffset, startSec + abs, endSec + abs, true
+	}
+}
+
+// tzsetName returns the timezone name at the start of the tzset string s,
+// and the remainder of s, and reports whether the parsing is OK.
+func tzsetName(s string) (string, string, bool) {
+	if len(s) == 0 {
+		return "", "", false
+	}
+	if s[0] != '<' {
+		for i, r := range s {
+			switch r {
+			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ',', '-', '+':
+				if i < 3 {
+					return "", "", false
+				}
+				return s[:i], s[i:], true
+			}
+		}
+		if len(s) < 3 {
+			return "", "", false
+		}
+		return s, "", true
+	} else {
+		for i, r := range s {
+			if r == '>' {
+				return s[1:i], s[i+1:], true
+			}
+		}
+		return "", "", false
+	}
+}
+
+// tzsetOffset returns the timezone offset at the start of the tzset string s,
+// and the remainder of s, and reports whether the parsing is OK.
+// The timezone offset is returned as a number of seconds.
+func tzsetOffset(s string) (offset int, rest string, ok bool) {
+	if len(s) == 0 {
+		return 0, "", false
+	}
+	neg := false
+	if s[0] == '+' {
+		s = s[1:]
+	} else if s[0] == '-' {
+		s = s[1:]
+		neg = true
+	}
+
+	var hours int
+	hours, s, ok = tzsetNum(s, 0, 24)
+	if !ok {
+		return 0, "", false
+	}
+	off := hours * secondsPerHour
+	if len(s) == 0 || s[0] != ':' {
+		if neg {
+			off = -off
+		}
+		return off, s, true
+	}
+
+	var mins int
+	mins, s, ok = tzsetNum(s[1:], 0, 59)
+	if !ok {
+		return 0, "", false
+	}
+	off += mins * secondsPerMinute
+	if len(s) == 0 || s[0] != ':' {
+		if neg {
+			off = -off
+		}
+		return off, s, true
+	}
+
+	var secs int
+	secs, s, ok = tzsetNum(s[1:], 0, 59)
+	if !ok {
+		return 0, "", false
+	}
+	off += secs
+
+	if neg {
+		off = -off
+	}
+	return off, s, true
+}
+
+// ruleKind is the kinds of rules that can be seen in a tzset string.
+type ruleKind int
+
+const (
+	ruleJulian ruleKind = iota
+	ruleDOY
+	ruleMonthWeekDay
+)
+
+// rule is a rule read from a tzset string.
+type rule struct {
+	kind ruleKind
+	day  int
+	week int
+	mon  int
+	time int // transition time
+}
+
+// tzsetRule parses a rule from a tzset string.
+// It returns the rule, and the remainder of the string, and reports success.
+func tzsetRule(s string) (rule, string, bool) {
+	var r rule
+	if len(s) == 0 {
+		return rule{}, "", false
+	}
+	ok := false
+	if s[0] == 'J' {
+		var jday int
+		jday, s, ok = tzsetNum(s[1:], 1, 365)
+		if !ok {
+			return rule{}, "", false
+		}
+		r.kind = ruleJulian
+		r.day = jday
+	} else if s[0] == 'M' {
+		var mon int
+		mon, s, ok = tzsetNum(s[1:], 1, 12)
+		if !ok || len(s) == 0 || s[0] != '.' {
+			return rule{}, "", false
+
+		}
+		var week int
+		week, s, ok = tzsetNum(s[1:], 1, 5)
+		if !ok || len(s) == 0 || s[0] != '.' {
+			return rule{}, "", false
+		}
+		var day int
+		day, s, ok = tzsetNum(s[1:], 0, 6)
+		if !ok {
+			return rule{}, "", false
+		}
+		r.kind = ruleMonthWeekDay
+		r.day = day
+		r.week = week
+		r.mon = mon
+	} else {
+		var day int
+		day, s, ok = tzsetNum(s, 0, 365)
+		if !ok {
+			return rule{}, "", false
+		}
+		r.kind = ruleDOY
+		r.day = day
+	}
+
+	if len(s) == 0 || s[0] != '/' {
+		r.time = 2 * secondsPerHour // 2am is the default
+		return r, s, true
+	}
+
+	offset, s, ok := tzsetOffset(s[1:])
+	if !ok || offset < 0 {
+		return rule{}, "", false
+	}
+	r.time = offset
+
+	return r, s, true
+}
+
+// tzsetNum parses a number from a tzset string.
+// It returns the number, and the remainder of the string, and reports success.
+// The number must be between min and max.
+func tzsetNum(s string, min, max int) (num int, rest string, ok bool) {
+	if len(s) == 0 {
+		return 0, "", false
+	}
+	num = 0
+	for i, r := range s {
+		if r < '0' || r > '9' {
+			if i == 0 || num < min {
+				return 0, "", false
+			}
+			return num, s[i:], true
+		}
+		num *= 10
+		num += int(r) - '0'
+		if num > max {
+			return 0, "", false
+		}
+	}
+	if num < min {
+		return 0, "", false
+	}
+	return num, "", true
+}
+
+// tzruleTime takes a year, a rule, and a timezone offset,
+// and returns the number of seconds since the start of the year
+// that the rule takes effect.
+func tzruleTime(year int, r rule, off int) int {
+	var s int
+	switch r.kind {
+	case ruleJulian:
+		s = (r.day - 1) * secondsPerDay
+		if isLeap(year) && r.day >= 60 {
+			s += secondsPerDay
+		}
+	case ruleDOY:
+		s = r.day * secondsPerDay
+	case ruleMonthWeekDay:
+		// Zeller's Congruence.
+		m1 := (r.mon+9)%12 + 1
+		yy0 := year
+		if r.mon <= 2 {
+			yy0--
+		}
+		yy1 := yy0 / 100
+		yy2 := yy0 % 100
+		dow := ((26*m1-2)/10 + 1 + yy2 + yy2/4 + yy1/4 - 2*yy1) % 7
+		if dow < 0 {
+			dow += 7
+		}
+		// Now dow is the day-of-week of the first day of r.mon.
+		// Get the day-of-month of the first "dow" day.
+		d := r.day - dow
+		if d < 0 {
+			d += 7
+		}
+		for i := 1; i < r.week; i++ {
+			if d+7 >= daysIn(Month(r.mon), year) {
+				break
+			}
+			d += 7
+		}
+		d += int(daysBefore[r.mon-1])
+		if isLeap(year) && r.mon > 2 {
+			d++
+		}
+		s = d * secondsPerDay
+	}
+
+	return s + r.time - off
 }
 
 // lookupName returns information about the time zone with

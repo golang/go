@@ -6,9 +6,9 @@ package race_test
 
 import (
 	"bytes"
-	"crypto/sha1"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"os"
 	"runtime"
@@ -1924,7 +1924,7 @@ func TestRaceIssue5567(t *testing.T) {
 			err = nil
 		}
 	}()
-	h := sha1.New()
+	h := crc32.New(crc32.MakeTable(0x12345678))
 	for b := range in {
 		h.Write(b)
 	}

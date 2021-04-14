@@ -22,21 +22,30 @@ func TestEqual(t *testing.T) {
 	if !public.Equal(crypto.Signer(private).Public().(*rsa.PublicKey)) {
 		t.Errorf("private.Public() is not Equal to public: %q", public)
 	}
+	if !private.Equal(private) {
+		t.Errorf("private key is not equal to itself: %v", private)
+	}
 
-	enc, err := x509.MarshalPKIXPublicKey(public)
+	enc, err := x509.MarshalPKCS8PrivateKey(private)
 	if err != nil {
 		t.Fatal(err)
 	}
-	decoded, err := x509.ParsePKIXPublicKey(enc)
+	decoded, err := x509.ParsePKCS8PrivateKey(enc)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !public.Equal(decoded) {
+	if !public.Equal(decoded.(crypto.Signer).Public()) {
 		t.Errorf("public key is not equal to itself after decoding: %v", public)
+	}
+	if !private.Equal(decoded) {
+		t.Errorf("private key is not equal to itself after decoding: %v", private)
 	}
 
 	other, _ := rsa.GenerateKey(rand.Reader, 512)
-	if public.Equal(other) {
+	if public.Equal(other.Public()) {
 		t.Errorf("different public keys are Equal")
+	}
+	if private.Equal(other) {
+		t.Errorf("different private keys are Equal")
 	}
 }

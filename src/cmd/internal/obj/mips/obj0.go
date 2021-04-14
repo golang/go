@@ -158,19 +158,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	/*
 	 * find leaf subroutines
-	 * strip NOPs
 	 * expand RET
 	 * expand BECOME pseudo
 	 */
 
-	var q *obj.Prog
-	var q1 *obj.Prog
 	for p := c.cursym.Func.Text; p != nil; p = p.Link {
 		switch p.As {
 		/* too hard, just leave alone */
 		case obj.ATEXT:
-			q = p
-
 			p.Mark |= LABEL | LEAF | SYNC
 			if p.Link != nil {
 				p.Link.Mark |= LABEL
@@ -179,7 +174,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		/* too hard, just leave alone */
 		case AMOVW,
 			AMOVV:
-			q = p
 			if p.To.Type == obj.TYPE_REG && p.To.Reg >= REG_SPECIAL {
 				p.Mark |= LABEL | SYNC
 				break
@@ -195,11 +189,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			ATLBWI,
 			ATLBP,
 			ATLBR:
-			q = p
 			p.Mark |= LABEL | SYNC
 
 		case ANOR:
-			q = p
 			if p.To.Type == obj.TYPE_REG {
 				if p.To.Reg == REGZERO {
 					p.Mark |= LABEL | SYNC
@@ -235,8 +227,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			} else {
 				p.Mark |= BRANCH
 			}
-			q = p
-			q1 = p.Pcond
+			q1 := p.Pcond
 			if q1 != nil {
 				for q1.As == obj.ANOP {
 					q1 = q1.Link
@@ -254,24 +245,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if q1 != nil {
 				q1.Mark |= LABEL
 			}
-			continue
 
 		case ARET:
-			q = p
 			if p.Link != nil {
 				p.Link.Mark |= LABEL
 			}
-			continue
-
-		case obj.ANOP:
-			q1 = p.Link
-			q.Link = q1 /* q is non-nop */
-			q1.Mark |= p.Mark
-			continue
-
-		default:
-			q = p
-			continue
 		}
 	}
 
@@ -284,6 +262,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		mov = AMOVW
 	}
 
+	var q *obj.Prog
+	var q1 *obj.Prog
 	autosize := int32(0)
 	var p1 *obj.Prog
 	var p2 *obj.Prog

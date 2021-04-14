@@ -425,6 +425,16 @@ type response struct {
 	wants10KeepAlive bool               // HTTP/1.0 w/ Connection "keep-alive"
 	wantsClose       bool               // HTTP request has Connection "close"
 
+	// canWriteContinue is a boolean value accessed as an atomic int32
+	// that says whether or not a 100 Continue header can be written
+	// to the connection.
+	// writeContinueMu must be held while writing the header.
+	// These two fields together synchronize the body reader
+	// (the expectContinueReader, which wants to write 100 Continue)
+	// against the main writer.
+	canWriteContinue atomicBool
+	writeContinueMu  sync.Mutex
+
 	w  *bufio.Writer // buffers output in chunks to chunkWriter
 	cw chunkWriter
 
@@ -515,6 +525,7 @@ type atomicBool int32
 
 func (b *atomicBool) isSet() bool { return atomic.LoadInt32((*int32)(b)) != 0 }
 func (b *atomicBool) setTrue()    { atomic.StoreInt32((*int32)(b), 1) }
+func (b *atomicBool) setFalse()   { atomic.StoreInt32((*int32)(b), 0) }
 
 // declareTrailer is called for each Trailer header when the
 // response header is written. It notes that a header will need to be
@@ -629,6 +640,7 @@ func (srv *Server) newConn(rwc net.Conn) *conn {
 }
 
 type readResult struct {
+	_   incomparable
 	n   int
 	err error
 	b   byte // byte read, if n == 1
@@ -877,21 +889,27 @@ type expectContinueReader struct {
 	resp       *response
 	readCloser io.ReadCloser
 	closed     bool
-	sawEOF     bool
+	sawEOF     atomicBool
 }
 
 func (ecr *expectContinueReader) Read(p []byte) (n int, err error) {
 	if ecr.closed {
 		return 0, ErrBodyReadAfterClose
 	}
-	if !ecr.resp.wroteContinue && !ecr.resp.conn.hijacked() {
-		ecr.resp.wroteContinue = true
-		ecr.resp.conn.bufw.WriteString("HTTP/1.1 100 Continue\r\n\r\n")
-		ecr.resp.conn.bufw.Flush()
+	w := ecr.resp
+	if !w.wroteContinue && w.canWriteContinue.isSet() && !w.conn.hijacked() {
+		w.wroteContinue = true
+		w.writeContinueMu.Lock()
+		if w.canWriteContinue.isSet() {
+			w.conn.bufw.WriteString("HTTP/1.1 100 Continue\r\n\r\n")
+			w.conn.bufw.Flush()
+			w.canWriteContinue.setFalse()
+		}
+		w.writeContinueMu.Unlock()
 	}
 	n, err = ecr.readCloser.Read(p)
 	if err == io.EOF {
-		ecr.sawEOF = true
+		ecr.sawEOF.setTrue()
 	}
 	return
 }
@@ -1310,7 +1328,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// because we don't know if the next bytes on the wire will be
 	// the body-following-the-timer or the subsequent request.
 	// See Issue 11549.
-	if ecr, ok := w.req.Body.(*expectContinueReader); ok && !ecr.sawEOF {
+	if ecr, ok := w.req.Body.(*expectContinueReader); ok && !ecr.sawEOF.isSet() {
 		w.closeAfterReply = true
 	}
 
@@ -1560,6 +1578,17 @@ func (w *response) write(lenData int, dataB []byte, dataS string) (n int, err er
 		}
 		return 0, ErrHijacked
 	}
+
+	if w.canWriteContinue.isSet() {
+		// Body reader wants to write 100 Continue but hasn't yet.
+		// Tell it not to. The store must be done while holding the lock
+		// because the lock makes sure that there is not an active write
+		// this very moment.
+		w.writeContinueMu.Lock()
+		w.canWriteContinue.setFalse()
+		w.writeContinueMu.Unlock()
+	}
+
 	if !w.wroteHeader {
 		w.WriteHeader(StatusOK)
 	}
@@ -1697,9 +1726,9 @@ func (c *conn) closeWriteAndWait() {
 	time.Sleep(rstAvoidanceDelay)
 }
 
-// validNextProto reports whether the proto is not a blacklisted ALPN
-// protocol name. Empty and built-in protocol types are blacklisted
-// and can't be overridden with alternate implementations.
+// validNextProto reports whether the proto is a valid ALPN protocol name.
+// Everything is valid except the empty string and built-in protocol types,
+// so that those can't be overridden with alternate implementations.
 func validNextProto(proto string) bool {
 	switch proto {
 	case "", "http/1.1", "http/1.0":
@@ -1871,6 +1900,7 @@ func (c *conn) serve(ctx context.Context) {
 			if req.ProtoAtLeast(1, 1) && req.ContentLength != 0 {
 				// Wrap the Body reader with one that replies on the connection
 				req.Body = &expectContinueReader{readCloser: req.Body, resp: w}
+				w.canWriteContinue.setTrue()
 			}
 		} else if req.Header.get("Expect") != "" {
 			w.sendExpectationFailed()
@@ -2680,7 +2710,7 @@ func (srv *Server) Shutdown(ctx context.Context) error {
 	ticker := time.NewTicker(shutdownPollInterval)
 	defer ticker.Stop()
 	for {
-		if srv.closeIdleConns() {
+		if srv.closeIdleConns() && srv.numListeners() == 0 {
 			return lnerr
 		}
 		select {
@@ -2700,6 +2730,12 @@ func (srv *Server) RegisterOnShutdown(f func()) {
 	srv.mu.Lock()
 	srv.onShutdown = append(srv.onShutdown, f)
 	srv.mu.Unlock()
+}
+
+func (s *Server) numListeners() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.listeners)
 }
 
 // closeIdleConns closes all idle connections and reports whether the
@@ -2734,7 +2770,6 @@ func (s *Server) closeListenersLocked() error {
 		if cerr := (*ln).Close(); cerr != nil && err == nil {
 			err = cerr
 		}
-		delete(s.listeners, ln)
 	}
 	return err
 }

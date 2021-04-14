@@ -98,7 +98,7 @@ func findProcess(pid int) (p *Process, err error) {
 }
 
 func init() {
-	cmd := windows.UTF16PtrToString(syscall.GetCommandLine(), 0xffff)
+	cmd := windows.UTF16PtrToString(syscall.GetCommandLine())
 	if len(cmd) == 0 {
 		arg0, _ := Executable()
 		Args = []string{arg0}

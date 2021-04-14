@@ -14,7 +14,6 @@ import (
 	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
-	"sort"
 )
 
 /*
@@ -477,11 +476,6 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		if e != binary.LittleEndian || m.cputype != LdMachoCpuAmd64 {
 			return errorf("mach-o object but not amd64")
 		}
-
-	case sys.I386:
-		if e != binary.LittleEndian || m.cputype != LdMachoCpu386 {
-			return errorf("mach-o object but not 386")
-		}
 	}
 
 	m.cmd = make([]ldMachoCmd, ncmd)
@@ -705,100 +699,28 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		if sect.rel == nil {
 			continue
 		}
-		r := make([]loader.Reloc, sect.nreloc)
-		rpi := 0
-	Reloc:
+
+		sb := l.MakeSymbolUpdater(sect.sym)
 		for j := uint32(0); j < sect.nreloc; j++ {
-			rp := &r[rpi]
+			var (
+				rOff  int32
+				rSize uint8
+				rAdd  int64
+				rType objabi.RelocType
+				rSym  loader.Sym
+			)
 			rel := &sect.rel[j]
 			if rel.scattered != 0 {
-				if arch.Family != sys.I386 {
-					// mach-o only uses scattered relocation on 32-bit platforms
-					return errorf("%v: unexpected scattered relocation", s)
-				}
-
-				// on 386, rewrite scattered 4/1 relocation and some
-				// scattered 2/1 relocation into the pseudo-pc-relative
-				// reference that it is.
-				// assume that the second in the pair is in this section
-				// and use that as the pc-relative base.
-				if j+1 >= sect.nreloc {
-					return errorf("unsupported scattered relocation %d", int(rel.type_))
-				}
-
-				if sect.rel[j+1].scattered == 0 || sect.rel[j+1].type_ != 1 || (rel.type_ != 4 && rel.type_ != 2) || uint64(sect.rel[j+1].value) < sect.addr || uint64(sect.rel[j+1].value) >= sect.addr+sect.size {
-					return errorf("unsupported scattered relocation %d/%d", int(rel.type_), int(sect.rel[j+1].type_))
-				}
-
-				rp.Size = rel.length
-				rp.Off = int32(rel.addr)
-
-				// NOTE(rsc): I haven't worked out why (really when)
-				// we should ignore the addend on a
-				// scattered relocation, but it seems that the
-				// common case is we ignore it.
-				// It's likely that this is not strictly correct
-				// and that the math should look something
-				// like the non-scattered case below.
-				rp.Add = 0
-
-				// want to make it pc-relative aka relative to rp->off+4
-				// but the scatter asks for relative to off = sect->rel[j+1].value - sect->addr.
-				// adjust rp->add accordingly.
-				rp.Type = objabi.R_PCREL
-
-				rp.Add += int64(uint64(int64(rp.Off)+4) - (uint64(sect.rel[j+1].value) - sect.addr))
-
-				// now consider the desired symbol.
-				// find the section where it lives.
-				for k := 0; uint32(k) < c.seg.nsect; k++ {
-					ks := &c.seg.sect[k]
-					if ks.addr <= uint64(rel.value) && uint64(rel.value) < ks.addr+ks.size {
-						if ks.sym != 0 {
-							rp.Sym = ks.sym
-							rp.Add += int64(uint64(rel.value) - ks.addr)
-						} else if ks.segname == "__IMPORT" && ks.name == "__pointers" {
-							// handle reference to __IMPORT/__pointers.
-							// how much worse can this get?
-							// why are we supporting 386 on the mac anyway?
-							rp.Type = objabi.MachoRelocOffset + MACHO_FAKE_GOTPCREL
-
-							// figure out which pointer this is a reference to.
-							k = int(uint64(ks.res1) + (uint64(rel.value)-ks.addr)/4)
-
-							// load indirect table for __pointers
-							// fetch symbol number
-							if dsymtab == nil || k < 0 || uint32(k) >= dsymtab.nindirectsyms || dsymtab.indir == nil {
-								return errorf("invalid scattered relocation: indirect symbol reference out of range")
-							}
-
-							k = int(dsymtab.indir[k])
-							if k < 0 || uint32(k) >= symtab.nsym {
-								return errorf("invalid scattered relocation: symbol reference out of range")
-							}
-
-							rp.Sym = symtab.sym[k].sym
-						} else {
-							return errorf("unsupported scattered relocation: reference to %s/%s", ks.segname, ks.name)
-						}
-
-						rpi++
-
-						// skip #1 of 2 rel; continue skips #2 of 2.
-						j++
-
-						continue Reloc
-					}
-				}
-
-				return errorf("unsupported scattered relocation: invalid address %#x", rel.addr)
+				// mach-o only uses scattered relocation on 32-bit platforms,
+				// which are no longer supported.
+				return errorf("%v: unexpected scattered relocation", s)
 			}
 
-			rp.Size = rel.length
-			rp.Type = objabi.MachoRelocOffset + (objabi.RelocType(rel.type_) << 1) + objabi.RelocType(rel.pcrel)
-			rp.Off = int32(rel.addr)
+			rSize = rel.length
+			rType = objabi.MachoRelocOffset + (objabi.RelocType(rel.type_) << 1) + objabi.RelocType(rel.pcrel)
+			rOff = int32(rel.addr)
 
-			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).
+			// Handle X86_64_RELOC_SIGNED referencing a section (rel.extrn == 0).
 			p := l.Data(s)
 			if arch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_SIGNED {
 				// Calculate the addend as the offset into the section.
@@ -818,55 +740,43 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				// [For future reference, see Darwin's /usr/include/mach-o/x86_64/reloc.h]
 				secaddr := c.seg.sect[rel.symnum-1].addr
 
-				rp.Add = int64(uint64(int64(int32(e.Uint32(p[rp.Off:])))+int64(rp.Off)+4) - secaddr)
+				rAdd = int64(uint64(int64(int32(e.Uint32(p[rOff:])))+int64(rOff)+4) - secaddr)
 			} else {
-				rp.Add = int64(int32(e.Uint32(p[rp.Off:])))
+				rAdd = int64(int32(e.Uint32(p[rOff:])))
 			}
 
 			// An unsigned internal relocation has a value offset
 			// by the section address.
 			if arch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_UNSIGNED {
 				secaddr := c.seg.sect[rel.symnum-1].addr
-				rp.Add -= int64(secaddr)
+				rAdd -= int64(secaddr)
 			}
 
-			// For i386 Mach-O PC-relative, the addend is written such that
-			// it *is* the PC being subtracted. Use that to make
-			// it match our version of PC-relative.
-			if rel.pcrel != 0 && arch.Family == sys.I386 {
-				rp.Add += int64(rp.Off) + int64(rp.Size)
-			}
 			if rel.extrn == 0 {
 				if rel.symnum < 1 || rel.symnum > c.seg.nsect {
 					return errorf("invalid relocation: section reference out of range %d vs %d", rel.symnum, c.seg.nsect)
 				}
 
-				rp.Sym = c.seg.sect[rel.symnum-1].sym
-				if rp.Sym == 0 {
+				rSym = c.seg.sect[rel.symnum-1].sym
+				if rSym == 0 {
 					return errorf("invalid relocation: %s", c.seg.sect[rel.symnum-1].name)
-				}
-
-				// References to symbols in other sections
-				// include that information in the addend.
-				// We only care about the delta from the
-				// section base.
-				if arch.Family == sys.I386 {
-					rp.Add -= int64(c.seg.sect[rel.symnum-1].addr)
 				}
 			} else {
 				if rel.symnum >= symtab.nsym {
 					return errorf("invalid relocation: symbol reference out of range")
 				}
 
-				rp.Sym = symtab.sym[rel.symnum].sym
+				rSym = symtab.sym[rel.symnum].sym
 			}
 
-			rpi++
+			r, _ := sb.AddRel(rType)
+			r.SetOff(rOff)
+			r.SetSiz(rSize)
+			r.SetSym(rSym)
+			r.SetAdd(rAdd)
 		}
 
-		sort.Sort(loader.RelocByOff(r[:rpi]))
-		sb := l.MakeSymbolUpdater(sect.sym)
-		sb.SetRelocs(r[:rpi])
+		sb.SortRelocs()
 	}
 
 	return textp, nil

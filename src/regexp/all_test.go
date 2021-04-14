@@ -418,24 +418,32 @@ func TestLiteralPrefix(t *testing.T) {
 	}
 }
 
-type subexpCase struct {
-	input string
-	num   int
-	names []string
+type subexpIndex struct {
+	name  string
+	index int
 }
 
+type subexpCase struct {
+	input   string
+	num     int
+	names   []string
+	indices []subexpIndex
+}
+
+var emptySubexpIndices = []subexpIndex{{"", -1}, {"missing", -1}}
+
 var subexpCases = []subexpCase{
-	{``, 0, nil},
-	{`.*`, 0, nil},
-	{`abba`, 0, nil},
-	{`ab(b)a`, 1, []string{"", ""}},
-	{`ab(.*)a`, 1, []string{"", ""}},
-	{`(.*)ab(.*)a`, 2, []string{"", "", ""}},
-	{`(.*)(ab)(.*)a`, 3, []string{"", "", "", ""}},
-	{`(.*)((a)b)(.*)a`, 4, []string{"", "", "", "", ""}},
-	{`(.*)(\(ab)(.*)a`, 3, []string{"", "", "", ""}},
-	{`(.*)(\(a\)b)(.*)a`, 3, []string{"", "", "", ""}},
-	{`(?P<foo>.*)(?P<bar>(a)b)(?P<foo>.*)a`, 4, []string{"", "foo", "bar", "", "foo"}},
+	{``, 0, nil, emptySubexpIndices},
+	{`.*`, 0, nil, emptySubexpIndices},
+	{`abba`, 0, nil, emptySubexpIndices},
+	{`ab(b)a`, 1, []string{"", ""}, emptySubexpIndices},
+	{`ab(.*)a`, 1, []string{"", ""}, emptySubexpIndices},
+	{`(.*)ab(.*)a`, 2, []string{"", "", ""}, emptySubexpIndices},
+	{`(.*)(ab)(.*)a`, 3, []string{"", "", "", ""}, emptySubexpIndices},
+	{`(.*)((a)b)(.*)a`, 4, []string{"", "", "", "", ""}, emptySubexpIndices},
+	{`(.*)(\(ab)(.*)a`, 3, []string{"", "", "", ""}, emptySubexpIndices},
+	{`(.*)(\(a\)b)(.*)a`, 3, []string{"", "", "", ""}, emptySubexpIndices},
+	{`(?P<foo>.*)(?P<bar>(a)b)(?P<foo>.*)a`, 4, []string{"", "foo", "bar", "", "foo"}, []subexpIndex{{"", -1}, {"missing", -1}, {"foo", 1}, {"bar", 2}}},
 }
 
 func TestSubexp(t *testing.T) {
@@ -456,6 +464,12 @@ func TestSubexp(t *testing.T) {
 				if names[i] != c.names[i] {
 					t.Errorf("%q: SubexpNames[%d] = %q, want %q", c.input, i, names[i], c.names[i])
 				}
+			}
+		}
+		for _, subexp := range c.indices {
+			index := re.SubexpIndex(subexp.name)
+			if index != subexp.index {
+				t.Errorf("%q: SubexpIndex(%q) = %d, want %d", c.input, subexp.name, index, subexp.index)
 			}
 		}
 	}

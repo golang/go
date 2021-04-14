@@ -1,0 +1,104 @@
+#!/bin/bash
+# Copyright 2017 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+# build.release builds and publishes a new Go+BoringCrypto release.
+# After running this script, the change to the RELEASES file should be
+# sent out for review and committed to the repository (but the release
+# is already done, so there's not much to review).
+
+set -e
+
+case "$#" in
+0)
+	rev=HEAD;;
+1)
+	rev="$1";;
+*)
+	echo 'usage: build.release [git-rev]' >&2
+	exit 2
+esac
+
+# Determine commit to use.
+commit=$(git rev-parse "$rev" | awk '{print substr($1, 1, 12)}')
+if [ "$commit" = "" ]; then
+	echo 'cannot find commit in git history' >&2
+	exit 2
+fi
+
+# Determine base Go release from tags.
+base=$(git log --decorate=short --oneline "$rev" | grep 'tag: go' | sed 1q | sed 's/[),].*//; s/.*tag: //')
+if [ "$base" = "" ]; then
+	echo "cannot find go release tag in git history for $rev" >&2
+	exit 2
+fi
+
+# Determine boring crypto version from file.
+boring=$(git show "$commit:misc/boring/VERSION")
+if [ "$boring" = "" ]; then
+	echo "missing BORINGVERSION file in $commit" >&2
+	exit 2
+fi
+
+# Make sure we're not redefining a published release.
+version="${base}b${boring}"
+if grep "^$version " RELEASES >/dev/null; then
+	echo "found $version in RELEASES - not rereleasing" >&2
+	exit 2
+fi
+
+# Show what's going on, while the release builds.
+# Good time for user to type ^C if something is wrong.
+echo >&2
+echo "building $version from $commit" >&2
+echo >&2
+git log -n1 "$commit" >&2
+echo >&2
+
+# Build the release tool in a temporary directory.
+dir=$(mktemp -d)
+trap "rm -rf $dir" EXIT
+export GO111MODULE=on
+export GOBIN="$dir"
+(cd "$dir"; go get golang.org/x/build/cmd/release)
+
+# Build the release.
+sha() {
+    if hash sha256sum 2>/dev/null; then
+        sha256sum "$@"
+    else
+        shasum -a 256 "$@"
+    fi
+}
+shortgo=$(echo "$base" | perl -pe 's/(go\d+\.\d+)(\.\d+|rc\d+)/$1/')
+$dir/release -target linux-amd64 -rev "$commit" -version "$version"
+$dir/release -target src -rev "$commit" -version "$version"
+output="$version.linux-amd64.tar.gz"
+ls -l "$output"
+sha256=$(sha "$output" | awk '{print $1}')
+outputsrc="$version.src.tar.gz"
+ls -l "$outputsrc"
+sha256src=$(sha "$outputsrc" | awk '{print $1}')
+
+trap "rm -f /tmp/go.release.$$ /tmp/go.nm.$$" EXIT
+tar -xzf "$output" -O go/bin/go >/tmp/go.release.$$
+go tool nm /tmp/go.release.$$ >/tmp/go.nm.$$
+if ! grep crypto/internal/boring/sig.BoringCrypto /tmp/go.nm.$$ >/dev/null; then
+	echo 'built release but did NOT find sig.BoringCrypto in go command!' >&2
+	exit 2
+fi
+if egrep 'crypto/sha256\.\(\*digest\)' /tmp/go.nm.$$ >/dev/null; then
+	echo 'built release but DID find sha256.(*digest) in go command unexpectedly!' >&2
+	exit 2
+fi
+
+# Publish the release.
+gsutil cp "$output" gs://go-boringcrypto/
+url="https://go-boringcrypto.storage.googleapis.com/$output"
+gsutil cp "$outputsrc" gs://go-boringcrypto/
+urlsrc="https://go-boringcrypto.storage.googleapis.com/$outputsrc"
+
+# Record that it was published.
+echo "$version $commit linux-amd64 $url $sha256" >>RELEASES
+echo "$version $commit src $urlsrc $sha256src" >>RELEASES

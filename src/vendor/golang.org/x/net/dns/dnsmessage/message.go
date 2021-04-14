@@ -14,7 +14,6 @@ package dnsmessage
 
 import (
 	"errors"
-	"fmt"
 )
 
 // Message formats
@@ -2141,7 +2140,7 @@ func unpackResourceBody(msg []byte, off int, hdr ResourceHeader) (ResourceBody, 
 		return nil, off, &nestedError{name + " record", err}
 	}
 	if r == nil {
-		return nil, off, fmt.Errorf("invalid resource type: %d", hdr.Type)
+		return nil, off, errors.New("invalid resource type: " + hdr.Type.String())
 	}
 	return r, off + int(hdr.Length), nil
 }

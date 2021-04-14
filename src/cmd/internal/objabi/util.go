@@ -25,6 +25,7 @@ var (
 	GOARCH   = envOr("GOARCH", defaultGOARCH)
 	GOOS     = envOr("GOOS", defaultGOOS)
 	GO386    = envOr("GO386", defaultGO386)
+	GOAMD64  = goamd64()
 	GOARM    = goarm()
 	GOMIPS   = gomips()
 	GOMIPS64 = gomips64()
@@ -36,8 +37,14 @@ var (
 
 const (
 	ElfRelocOffset   = 256
-	MachoRelocOffset = 2048 // reserve enough space for ELF relocations
+	MachoRelocOffset = 2048           // reserve enough space for ELF relocations
+	Go115AMD64       = "alignedjumps" // Should be "alignedjumps" or "normaljumps"; this replaces environment variable introduced in CL 219357.
 )
+
+// TODO(1.16): assuming no issues in 1.15 release, remove this and related constant.
+func goamd64() string {
+	return Go115AMD64
+}
 
 func goarm() int {
 	switch v := envOr("GOARM", defaultGOARM); v {
@@ -127,7 +134,7 @@ func init() {
 }
 
 func Framepointer_enabled(goos, goarch string) bool {
-	return framepointer_enabled != 0 && (goarch == "amd64" || goarch == "arm64" && goos == "linux")
+	return framepointer_enabled != 0 && (goarch == "amd64" || goarch == "arm64" && (goos == "linux" || goos == "darwin"))
 }
 
 func addexp(s string) {
@@ -152,9 +159,10 @@ func addexp(s string) {
 }
 
 var (
-	framepointer_enabled     int = 1
-	Fieldtrack_enabled       int
-	Preemptibleloops_enabled int
+	framepointer_enabled      int = 1
+	Fieldtrack_enabled        int
+	Preemptibleloops_enabled  int
+	Staticlockranking_enabled int
 )
 
 // Toolchain experiments.
@@ -168,6 +176,7 @@ var exper = []struct {
 	{"fieldtrack", &Fieldtrack_enabled},
 	{"framepointer", &framepointer_enabled},
 	{"preemptibleloops", &Preemptibleloops_enabled},
+	{"staticlockranking", &Staticlockranking_enabled},
 }
 
 var defaultExpstring = Expstring()

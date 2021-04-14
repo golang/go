@@ -28,12 +28,6 @@ func main() {
 	sink = make(T, 1.0)
 	sink = make(T, float32(1.0)) // ERROR "non-integer size argument in make.*"
 	sink = make(T, float64(1.0)) // ERROR "non-integer size argument in make.*"
-	sink = make(T, 1.0)
-	sink = make(T, float32(1.0)) // ERROR "non-integer size argument in make.*"
-	sink = make(T, float64(1.0)) // ERROR "non-integer size argument in make.*"
-	sink = make(T, 1+0i)
-	sink = make(T, complex64(1+0i))  // ERROR "non-integer size argument in make.*"
-	sink = make(T, complex128(1+0i)) // ERROR "non-integer size argument in make.*"
 	sink = make(T, 1+0i)
 	sink = make(T, complex64(1+0i))  // ERROR "non-integer size argument in make.*"
 	sink = make(T, complex128(1+0i)) // ERROR "non-integer size argument in make.*"

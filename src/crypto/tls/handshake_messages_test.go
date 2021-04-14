@@ -147,10 +147,10 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		}
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms
+		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms()
 	}
 	for i := 0; i < rand.Intn(5); i++ {
 		m.alpnProtocols = append(m.alpnProtocols, randomString(rand.Intn(20)+1, rand))
@@ -308,11 +308,10 @@ func (*sessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 	s := &sessionState{}
 	s.vers = uint16(rand.Intn(10000))
 	s.cipherSuite = uint16(rand.Intn(10000))
-	s.masterSecret = randomBytes(rand.Intn(100), rand)
-	numCerts := rand.Intn(20)
-	s.certificates = make([][]byte, numCerts)
-	for i := 0; i < numCerts; i++ {
-		s.certificates[i] = randomBytes(rand.Intn(10)+1, rand)
+	s.masterSecret = randomBytes(rand.Intn(100)+1, rand)
+	s.createdAt = uint64(rand.Int63())
+	for i := 0; i < rand.Intn(20); i++ {
+		s.certificates = append(s.certificates, randomBytes(rand.Intn(500)+1, rand))
 	}
 	return reflect.ValueOf(s)
 }
@@ -370,10 +369,10 @@ func (*certificateRequestMsgTLS13) Generate(rand *rand.Rand, size int) reflect.V
 		m.scts = true
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms
+		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms()
 	}
 	if rand.Intn(10) > 5 {
 		m.certificateAuthorities = make([][]byte, 3)

@@ -36,7 +36,42 @@ var (
 	ReadFile               = readFile
 	LoadTzinfo             = loadTzinfo
 	NextStdChunk           = nextStdChunk
+	Tzset                  = tzset
+	TzsetName              = tzsetName
+	TzsetOffset            = tzsetOffset
 )
+
+func LoadFromEmbeddedTZData(zone string) (string, error) {
+	return loadFromEmbeddedTZData(zone)
+}
+
+type RuleKind int
+
+const (
+	RuleJulian       = RuleKind(ruleJulian)
+	RuleDOY          = RuleKind(ruleDOY)
+	RuleMonthWeekDay = RuleKind(ruleMonthWeekDay)
+)
+
+type Rule struct {
+	Kind RuleKind
+	Day  int
+	Week int
+	Mon  int
+	Time int
+}
+
+func TzsetRule(s string) (Rule, string, bool) {
+	r, rs, ok := tzsetRule(s)
+	rr := Rule{
+		Kind: RuleKind(r.kind),
+		Day:  r.day,
+		Week: r.week,
+		Mon:  r.mon,
+		Time: r.time,
+	}
+	return rr, rs, ok
+}
 
 // StdChunkNames maps from nextStdChunk results to the matched strings.
 var StdChunkNames = map[int]string{

@@ -5,10 +5,12 @@
 package asn1
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
+	"sort"
 	"time"
 	"unicode/utf8"
 )
@@ -75,6 +77,48 @@ func (m multiEncoder) Encode(dst []byte) {
 	for _, e := range m {
 		e.Encode(dst[off:])
 		off += e.Len()
+	}
+}
+
+type setEncoder []encoder
+
+func (s setEncoder) Len() int {
+	var size int
+	for _, e := range s {
+		size += e.Len()
+	}
+	return size
+}
+
+func (s setEncoder) Encode(dst []byte) {
+	// Per X690 Section 11.6: The encodings of the component values of a
+	// set-of value shall appear in ascending order, the encodings being
+	// compared as octet strings with the shorter components being padded
+	// at their trailing end with 0-octets.
+	//
+	// First we encode each element to its TLV encoding and then use
+	// octetSort to get the ordering expected by X690 DER rules before
+	// writing the sorted encodings out to dst.
+	l := make([][]byte, len(s))
+	for i, e := range s {
+		l[i] = make([]byte, e.Len())
+		e.Encode(l[i])
+	}
+
+	sort.Slice(l, func(i, j int) bool {
+		// Since we are using bytes.Compare to compare TLV encodings we
+		// don't need to right pad s[i] and s[j] to the same length as
+		// suggested in X690. If len(s[i]) < len(s[j]) the length octet of
+		// s[i], which is the first determining byte, will inherently be
+		// smaller than the length octet of s[j]. This lets us skip the
+		// padding step.
+		return bytes.Compare(l[i], l[j]) < 0
+	})
+
+	var off int
+	for _, b := range l {
+		copy(dst[off:], b)
+		off += len(b)
 	}
 }
 
@@ -511,6 +555,9 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
 				}
 			}
 
+			if params.set {
+				return setEncoder(m), nil
+			}
 			return multiEncoder(m), nil
 		}
 	case reflect.String:
@@ -616,6 +663,15 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 			return nil, StructuralError{"non sequence tagged as set"}
 		}
 		tag = TagSet
+	}
+
+	// makeField can be called for a slice that should be treated as a SET
+	// but doesn't have params.set set, for instance when using a slice
+	// with the SET type name suffix. In this case getUniversalType returns
+	// TagSet, but makeBody doesn't know about that so will treat the slice
+	// as a sequence. To work around this we set params.set.
+	if tag == TagSet && !params.set {
+		params.set = true
 	}
 
 	t := new(taggedEncoder)

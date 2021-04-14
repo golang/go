@@ -202,3 +202,31 @@ func TestLoadSystemCertsLoadColonSeparatedDirs(t *testing.T) {
 		t.Fatalf("Mismatched certPools\nGot:\n%s\n\nWant:\n%s", g, w)
 	}
 }
+
+func TestReadUniqueDirectoryEntries(t *testing.T) {
+	tmp := t.TempDir()
+	temp := func(base string) string { return filepath.Join(tmp, base) }
+	if f, err := os.Create(temp("file")); err != nil {
+		t.Fatal(err)
+	} else {
+		f.Close()
+	}
+	if err := os.Symlink("target-in", temp("link-in")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../target-out", temp("link-out")); err != nil {
+		t.Fatal(err)
+	}
+	got, err := readUniqueDirectoryEntries(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotNames := []string{}
+	for _, fi := range got {
+		gotNames = append(gotNames, fi.Name())
+	}
+	wantNames := []string{"file", "link-out"}
+	if !reflect.DeepEqual(gotNames, wantNames) {
+		t.Errorf("got %q; want %q", gotNames, wantNames)
+	}
+}

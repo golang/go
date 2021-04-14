@@ -12,8 +12,9 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"errors"
-	"golang.org/x/crypto/cryptobyte"
 	"io"
+
+	"golang.org/x/crypto/cryptobyte"
 )
 
 // sessionState contains the information that is serialized into a session
@@ -21,88 +22,56 @@ import (
 type sessionState struct {
 	vers         uint16
 	cipherSuite  uint16
-	masterSecret []byte
-	certificates [][]byte
+	createdAt    uint64
+	masterSecret []byte // opaque master_secret<1..2^16-1>;
+	// struct { opaque certificate<1..2^24-1> } Certificate;
+	certificates [][]byte // Certificate certificate_list<0..2^24-1>;
+
 	// usedOldKey is true if the ticket from which this session came from
 	// was encrypted with an older key and thus should be refreshed.
 	usedOldKey bool
 }
 
-func (s *sessionState) marshal() []byte {
-	length := 2 + 2 + 2 + len(s.masterSecret) + 2
-	for _, cert := range s.certificates {
-		length += 4 + len(cert)
-	}
-
-	ret := make([]byte, length)
-	x := ret
-	x[0] = byte(s.vers >> 8)
-	x[1] = byte(s.vers)
-	x[2] = byte(s.cipherSuite >> 8)
-	x[3] = byte(s.cipherSuite)
-	x[4] = byte(len(s.masterSecret) >> 8)
-	x[5] = byte(len(s.masterSecret))
-	x = x[6:]
-	copy(x, s.masterSecret)
-	x = x[len(s.masterSecret):]
-
-	x[0] = byte(len(s.certificates) >> 8)
-	x[1] = byte(len(s.certificates))
-	x = x[2:]
-
-	for _, cert := range s.certificates {
-		x[0] = byte(len(cert) >> 24)
-		x[1] = byte(len(cert) >> 16)
-		x[2] = byte(len(cert) >> 8)
-		x[3] = byte(len(cert))
-		copy(x[4:], cert)
-		x = x[4+len(cert):]
-	}
-
-	return ret
+func (m *sessionState) marshal() []byte {
+	var b cryptobyte.Builder
+	b.AddUint16(m.vers)
+	b.AddUint16(m.cipherSuite)
+	addUint64(&b, m.createdAt)
+	b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+		b.AddBytes(m.masterSecret)
+	})
+	b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
+		for _, cert := range m.certificates {
+			b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
+				b.AddBytes(cert)
+			})
+		}
+	})
+	return b.BytesOrPanic()
 }
 
-func (s *sessionState) unmarshal(data []byte) bool {
-	if len(data) < 8 {
+func (m *sessionState) unmarshal(data []byte) bool {
+	*m = sessionState{usedOldKey: m.usedOldKey}
+	s := cryptobyte.String(data)
+	if ok := s.ReadUint16(&m.vers) &&
+		s.ReadUint16(&m.cipherSuite) &&
+		readUint64(&s, &m.createdAt) &&
+		readUint16LengthPrefixed(&s, &m.masterSecret) &&
+		len(m.masterSecret) != 0; !ok {
 		return false
 	}
-
-	s.vers = uint16(data[0])<<8 | uint16(data[1])
-	s.cipherSuite = uint16(data[2])<<8 | uint16(data[3])
-	masterSecretLen := int(data[4])<<8 | int(data[5])
-	data = data[6:]
-	if len(data) < masterSecretLen {
+	var certList cryptobyte.String
+	if !s.ReadUint24LengthPrefixed(&certList) {
 		return false
 	}
-
-	s.masterSecret = data[:masterSecretLen]
-	data = data[masterSecretLen:]
-
-	if len(data) < 2 {
-		return false
+	for !certList.Empty() {
+		var cert []byte
+		if !readUint24LengthPrefixed(&certList, &cert) {
+			return false
+		}
+		m.certificates = append(m.certificates, cert)
 	}
-
-	numCerts := int(data[0])<<8 | int(data[1])
-	data = data[2:]
-
-	s.certificates = make([][]byte, numCerts)
-	for i := range s.certificates {
-		if len(data) < 4 {
-			return false
-		}
-		certLen := int(data[0])<<24 | int(data[1])<<16 | int(data[2])<<8 | int(data[3])
-		data = data[4:]
-		if certLen < 0 {
-			return false
-		}
-		if len(data) < certLen {
-			return false
-		}
-		s.certificates[i] = data[:certLen]
-		data = data[certLen:]
-	}
-
-	return len(data) == 0
+	return s.Empty()
 }
 
 // sessionStateTLS13 is the content of a TLS 1.3 session ticket. Its first
@@ -148,6 +117,10 @@ func (m *sessionStateTLS13) unmarshal(data []byte) bool {
 }
 
 func (c *Conn) encryptTicket(state []byte) ([]byte, error) {
+	if len(c.ticketKeys) == 0 {
+		return nil, errors.New("tls: internal error: session ticket keys unavailable")
+	}
+
 	encrypted := make([]byte, ticketKeyNameLen+aes.BlockSize+len(state)+sha256.Size)
 	keyName := encrypted[:ticketKeyNameLen]
 	iv := encrypted[ticketKeyNameLen : ticketKeyNameLen+aes.BlockSize]
@@ -156,7 +129,7 @@ func (c *Conn) encryptTicket(state []byte) ([]byte, error) {
 	if _, err := io.ReadFull(c.config.rand(), iv); err != nil {
 		return nil, err
 	}
-	key := c.config.ticketKeys()[0]
+	key := c.ticketKeys[0]
 	copy(keyName, key.keyName[:])
 	block, err := aes.NewCipher(key.aesKey[:])
 	if err != nil {
@@ -181,19 +154,17 @@ func (c *Conn) decryptTicket(encrypted []byte) (plaintext []byte, usedOldKey boo
 	macBytes := encrypted[len(encrypted)-sha256.Size:]
 	ciphertext := encrypted[ticketKeyNameLen+aes.BlockSize : len(encrypted)-sha256.Size]
 
-	keys := c.config.ticketKeys()
 	keyIndex := -1
-	for i, candidateKey := range keys {
+	for i, candidateKey := range c.ticketKeys {
 		if bytes.Equal(keyName, candidateKey.keyName[:]) {
 			keyIndex = i
 			break
 		}
 	}
-
 	if keyIndex == -1 {
 		return nil, false
 	}
-	key := &keys[keyIndex]
+	key := &c.ticketKeys[keyIndex]
 
 	mac := hmac.New(sha256.New, key.hmacKey[:])
 	mac.Write(encrypted[:len(encrypted)-sha256.Size])

@@ -227,19 +227,26 @@ func IndexAny(s []byte, chars string) int {
 			continue
 		}
 		r, width = utf8.DecodeRune(s[i:])
-		if r == utf8.RuneError {
-			for _, r = range chars {
-				if r == utf8.RuneError {
+		if r != utf8.RuneError {
+			// r is 2 to 4 bytes
+			if len(chars) == width {
+				if chars == string(r) {
 					return i
 				}
+				continue
 			}
-			continue
+			// Use bytealg.IndexString for performance if available.
+			if bytealg.MaxLen >= width {
+				if bytealg.IndexString(chars, string(r)) >= 0 {
+					return i
+				}
+				continue
+			}
 		}
-		// r is 2 to 4 bytes. Using strings.Index is more reasonable, but as the bytes
-		// package should not import the strings package, use bytealg.IndexString
-		// instead. And this does not seem to lose much performance.
-		if chars == string(r) || bytealg.IndexString(chars, string(r)) >= 0 {
-			return i
+		for _, ch := range chars {
+			if r == ch {
+				return i
+			}
 		}
 	}
 	return -1
@@ -304,19 +311,26 @@ func LastIndexAny(s []byte, chars string) int {
 		}
 		r, size := utf8.DecodeLastRune(s[:i])
 		i -= size
-		if r == utf8.RuneError {
-			for _, r = range chars {
-				if r == utf8.RuneError {
+		if r != utf8.RuneError {
+			// r is 2 to 4 bytes
+			if len(chars) == size {
+				if chars == string(r) {
 					return i
 				}
+				continue
 			}
-			continue
+			// Use bytealg.IndexString for performance if available.
+			if bytealg.MaxLen >= size {
+				if bytealg.IndexString(chars, string(r)) >= 0 {
+					return i
+				}
+				continue
+			}
 		}
-		// r is 2 to 4 bytes. Using strings.Index is more reasonable, but as the bytes
-		// package should not import the strings package, use bytealg.IndexString
-		// instead. And this does not seem to lose much performance.
-		if chars == string(r) || bytealg.IndexString(chars, string(r)) >= 0 {
-			return i
+		for _, ch := range chars {
+			if r == ch {
+				return i
+			}
 		}
 	}
 	return -1
@@ -445,8 +459,9 @@ func Fields(s []byte) [][]byte {
 // It splits the slice s at each run of code points c satisfying f(c) and
 // returns a slice of subslices of s. If all code points in s satisfy f(c), or
 // len(s) == 0, an empty slice is returned.
-// FieldsFunc makes no guarantees about the order in which it calls f(c).
-// If f does not return consistent results for a given c, FieldsFunc may crash.
+//
+// FieldsFunc makes no guarantees about the order in which it calls f(c)
+// and assumes that f always returns the same value for a given c.
 func FieldsFunc(s []byte, f func(rune) bool) [][]byte {
 	// A span is used to record a slice of s of the form s[start:end].
 	// The start index is inclusive and the end index is exclusive.
@@ -457,8 +472,10 @@ func FieldsFunc(s []byte, f func(rune) bool) [][]byte {
 	spans := make([]span, 0, 32)
 
 	// Find the field start and end indices.
-	wasField := false
-	fromIndex := 0
+	// Doing this in a separate pass (rather than slicing the string s
+	// and collecting the result substrings right away) is significantly
+	// more efficient, possibly due to cache effects.
+	start := -1 // valid span start if >= 0
 	for i := 0; i < len(s); {
 		size := 1
 		r := rune(s[i])
@@ -466,22 +483,21 @@ func FieldsFunc(s []byte, f func(rune) bool) [][]byte {
 			r, size = utf8.DecodeRune(s[i:])
 		}
 		if f(r) {
-			if wasField {
-				spans = append(spans, span{start: fromIndex, end: i})
-				wasField = false
+			if start >= 0 {
+				spans = append(spans, span{start, i})
+				start = -1
 			}
 		} else {
-			if !wasField {
-				fromIndex = i
-				wasField = true
+			if start < 0 {
+				start = i
 			}
 		}
 		i += size
 	}
 
 	// Last field might end at EOF.
-	if wasField {
-		spans = append(spans, span{fromIndex, len(s)})
+	if start >= 0 {
+		spans = append(spans, span{start, len(s)})
 	}
 
 	// Create subslices from recorded field indices.

@@ -287,8 +287,8 @@ var optab = []Optab{
 	{AADD, C_BITCON, C_RSP, C_NONE, C_RSP, 62, 8, 0, 0, 0},
 	{AADD, C_BITCON, C_NONE, C_NONE, C_RSP, 62, 8, 0, 0, 0},
 	{ACMP, C_BITCON, C_RSP, C_NONE, C_NONE, 62, 8, 0, 0, 0},
-	{AADD, C_ADDCON2, C_RSP, C_NONE, C_RSP, 48, 8, 0, 0, 0},
-	{AADD, C_ADDCON2, C_NONE, C_NONE, C_RSP, 48, 8, 0, 0, 0},
+	{AADD, C_ADDCON2, C_RSP, C_NONE, C_RSP, 48, 8, 0, NOTUSETMP, 0},
+	{AADD, C_ADDCON2, C_NONE, C_NONE, C_RSP, 48, 8, 0, NOTUSETMP, 0},
 	{AADD, C_MOVCON2, C_RSP, C_NONE, C_RSP, 13, 12, 0, 0, 0},
 	{AADD, C_MOVCON2, C_NONE, C_NONE, C_RSP, 13, 12, 0, 0, 0},
 	{AADD, C_MOVCON3, C_RSP, C_NONE, C_RSP, 13, 16, 0, 0, 0},
@@ -460,7 +460,6 @@ var optab = []Optab{
 	{AFCVTZSD, C_FREG, C_NONE, C_NONE, C_REG, 29, 4, 0, 0, 0},
 	{ASCVTFD, C_REG, C_NONE, C_NONE, C_FREG, 29, 4, 0, 0, 0},
 	{AFCVTSD, C_FREG, C_NONE, C_NONE, C_FREG, 29, 4, 0, 0, 0},
-	{AVCNT, C_ARNG, C_NONE, C_NONE, C_ARNG, 29, 4, 0, 0, 0},
 	{AVMOV, C_ELEM, C_NONE, C_NONE, C_REG, 73, 4, 0, 0, 0},
 	{AVMOV, C_ELEM, C_NONE, C_NONE, C_ELEM, 92, 4, 0, 0, 0},
 	{AVMOV, C_ELEM, C_NONE, C_NONE, C_VREG, 80, 4, 0, 0, 0},
@@ -838,6 +837,9 @@ var optab = []Optab{
 	{obj.APCDATA, C_VCON, C_NONE, C_NONE, C_VCON, 0, 0, 0, 0, 0},
 	{obj.AFUNCDATA, C_VCON, C_NONE, C_NONE, C_ADDR, 0, 0, 0, 0, 0},
 	{obj.ANOP, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
+	{obj.ANOP, C_LCON, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0}, // nop variants, see #40689
+	{obj.ANOP, C_REG, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
+	{obj.ANOP, C_VREG, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
 	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0}, // same as AB/ABL
 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0}, // same as AB/ABL
 	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},  // align code
@@ -1072,16 +1074,29 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// We use REGTMP as a scratch register during call injection,
 	// so instruction sequences that use REGTMP are unsafe to
 	// preempt asynchronously.
-	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint)
+	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint, c.isRestartable)
 }
 
-// Return whether p is an unsafe point.
+// isUnsafePoint returns whether p is an unsafe point.
 func (c *ctxt7) isUnsafePoint(p *obj.Prog) bool {
-	if p.From.Reg == REGTMP || p.To.Reg == REGTMP || p.Reg == REGTMP {
-		return true
+	// If p explicitly uses REGTMP, it's unsafe to preempt, because the
+	// preemption sequence clobbers REGTMP.
+	return p.From.Reg == REGTMP || p.To.Reg == REGTMP || p.Reg == REGTMP
+}
+
+// isRestartable returns whether p is a multi-instruction sequence that,
+// if preempted, can be restarted.
+func (c *ctxt7) isRestartable(p *obj.Prog) bool {
+	if c.isUnsafePoint(p) {
+		return false
 	}
-	// Most of the multi-instruction sequence uses REGTMP, except
-	// ones marked safe.
+	// If p is a multi-instruction sequence with uses REGTMP inserted by
+	// the assembler in order to materialize a large constant/offset, we
+	// can restart p (at the start of the instruction sequence), recompute
+	// the content of REGTMP, upon async preemption. Currently, all cases
+	// of assembler-inserted REGTMP fall into this category.
+	// If p doesn't use REGTMP, it can be simply preempted, so we don't
+	// mark it.
 	o := c.oplook(p)
 	return o.size > 4 && o.flag&NOTUSETMP == 0
 }
@@ -1626,12 +1641,12 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
 	}
 	if isaddcon(int64(v)) {
 		if v <= 0xFFF {
-			if isbitcon(uint64(v)) {
+			if isbitcon(uint64(a.Offset)) {
 				return C_ABCON0
 			}
 			return C_ADDCON0
 		}
-		if isbitcon(uint64(v)) {
+		if isbitcon(uint64(a.Offset)) {
 			return C_ABCON
 		}
 		if movcon(int64(v)) >= 0 {
@@ -1645,7 +1660,7 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
 
 	t := movcon(int64(v))
 	if t >= 0 {
-		if isbitcon(uint64(v)) {
+		if isbitcon(uint64(a.Offset)) {
 			return C_MBCON
 		}
 		return C_MOVCON
@@ -1653,13 +1668,13 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
 
 	t = movcon(int64(^v))
 	if t >= 0 {
-		if isbitcon(uint64(v)) {
+		if isbitcon(uint64(a.Offset)) {
 			return C_MBCON
 		}
 		return C_MOVCON
 	}
 
-	if isbitcon(uint64(v)) {
+	if isbitcon(uint64(a.Offset)) {
 		return C_BITCON
 	}
 
@@ -2760,6 +2775,7 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AVSRI, t)
 
 		case AVREV32:
+			oprangeset(AVCNT, t)
 			oprangeset(AVRBIT, t)
 			oprangeset(AVREV64, t)
 			oprangeset(AVREV16, t)
@@ -3831,6 +3847,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= fields | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
 
 	case 48: /* ADD $C_ADDCON2, Rm, Rd */
+		// NOTE: this case does not use REGTMP. If it ever does,
+		// remove the NOTUSETMP flag in optab.
 		op := c.opirr(p, p.As)
 		if op&Sbit != 0 {
 			c.ctxt.Diag("can not break addition/subtraction when S bit is set", p)
@@ -4508,7 +4526,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("invalid arrangement: %v\n", p)
 		}
 
-		if (p.As == AVMOV || p.As == AVRBIT) && (af != ARNG_16B && af != ARNG_8B) {
+		if (p.As == AVMOV || p.As == AVRBIT || p.As == AVCNT) && (af != ARNG_16B && af != ARNG_8B) {
 			c.ctxt.Diag("invalid arrangement: %v", p)
 		}
 

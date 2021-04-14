@@ -91,7 +91,7 @@ second:
 		return nil
 	}
 	switch err := nestedErr.(type) {
-	case *AddrError, addrinfoErrno, *DNSError, InvalidAddrError, *ParseError, *poll.TimeoutError, UnknownNetworkError:
+	case *AddrError, addrinfoErrno, *timeoutError, *DNSError, InvalidAddrError, *ParseError, *poll.DeadlineExceededError, UnknownNetworkError:
 		return nil
 	case *os.SyscallError:
 		nestedErr = err.Err
@@ -436,7 +436,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case poll.ErrNetClosing, poll.ErrTimeout, poll.ErrNotPollable:
+	case poll.ErrNetClosing, errTimeout, poll.ErrNotPollable, os.ErrDeadlineExceeded:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
@@ -471,14 +471,14 @@ second:
 		return nil
 	}
 	switch err := nestedErr.(type) {
-	case *AddrError, addrinfoErrno, *DNSError, InvalidAddrError, *ParseError, *poll.TimeoutError, UnknownNetworkError:
+	case *AddrError, addrinfoErrno, *timeoutError, *DNSError, InvalidAddrError, *ParseError, *poll.DeadlineExceededError, UnknownNetworkError:
 		return nil
 	case *os.SyscallError:
 		nestedErr = err.Err
 		goto third
 	}
 	switch nestedErr {
-	case errCanceled, poll.ErrNetClosing, errMissingAddress, poll.ErrTimeout, ErrWriteToConnected, io.ErrUnexpectedEOF:
+	case errCanceled, poll.ErrNetClosing, errMissingAddress, errTimeout, os.ErrDeadlineExceeded, ErrWriteToConnected, io.ErrUnexpectedEOF:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
@@ -627,7 +627,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case poll.ErrNetClosing, poll.ErrTimeout, poll.ErrNotPollable:
+	case poll.ErrNetClosing, errTimeout, poll.ErrNotPollable, os.ErrDeadlineExceeded:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
