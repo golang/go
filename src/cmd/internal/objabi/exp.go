@@ -20,6 +20,11 @@ import (
 // was built with.)
 var Experiment goexperiment.Flags = parseExperiments()
 
+// experimentBaseline specifies the experiment flags that are enabled by
+// default in the current toolchain. This is, in effect, the "control"
+// configuration and any variation from this is an experiment.
+var experimentBaseline goexperiment.Flags
+
 // FramePointerEnabled enables the use of platform conventions for
 // saving frame pointers.
 //
@@ -31,7 +36,7 @@ var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
 
 func parseExperiments() goexperiment.Flags {
 	// Start with the statically enabled set of experiments.
-	flags := goexperiment.BaselineFlags
+	flags := experimentBaseline
 
 	// Pick up any changes to the baseline configuration from the
 	// GOEXPERIMENT environment. This can be set at make.bash time
@@ -135,7 +140,7 @@ func expList(exp, base *goexperiment.Flags) []string {
 // GOEXPERIMENT is exactly what a user would set on the command line
 // to get the set of enabled experiments.
 func GOEXPERIMENT() string {
-	return strings.Join(expList(&Experiment, &goexperiment.BaselineFlags), ",")
+	return strings.Join(expList(&Experiment, &experimentBaseline), ",")
 }
 
 // EnabledExperiments returns a list of enabled experiments, as
