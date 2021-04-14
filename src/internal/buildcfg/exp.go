@@ -20,10 +20,14 @@ import (
 // was built with.)
 var Experiment goexperiment.Flags = parseExperiments()
 
+var regabiSupported = GOARCH == "amd64" && (GOOS == "linux" || GOOS == "darwin" || GOOS == "windows")
+
 // experimentBaseline specifies the experiment flags that are enabled by
 // default in the current toolchain. This is, in effect, the "control"
 // configuration and any variation from this is an experiment.
-var experimentBaseline = goexperiment.Flags{}
+var experimentBaseline = goexperiment.Flags{
+	RegabiWrappers: regabiSupported,
+}
 
 // FramePointerEnabled enables the use of platform conventions for
 // saving frame pointers.
