@@ -40,8 +40,9 @@ type Hash struct {
 //
 // We strip any GOEXPERIMENTs the go tool was built with from this
 // version string on the assumption that they shouldn't affect go tool
-// execution. This also allows bootstrapping to converge faster
-// because dist builds go_bootstrap without any experiments.
+// execution. This allows bootstrapping to converge faster: dist builds
+// go_bootstrap without any experiments, so by stripping experiments
+// go_bootstrap and the final go binary will use the same salt.
 var hashSalt = []byte(stripExperiment(runtime.Version()))
 
 // stripExperiment strips any GOEXPERIMENT configuration from the Go
