@@ -7,6 +7,10 @@
 
 package ast
 
+import (
+	"fmt"
+)
+
 func walkFuncTypeParams(v Visitor, n *FuncType) {
 	if n.TParams != nil {
 		Walk(v, n.TParams)
@@ -20,9 +24,11 @@ func walkTypeSpecParams(v Visitor, n *TypeSpec) {
 }
 
 func walkOtherNodes(v Visitor, n Node) {
-	if e, ok := n.(*ast.ListExpr); ok {
+	if e, ok := n.(*ListExpr); ok {
 		if e != nil {
-			Walk(v, e)
+			for _, elem := range e.ElemList {
+				Walk(v, elem)
+			}
 		}
 	} else {
 		panic(fmt.Sprintf("ast.Walk: unexpected node type %T", n))
