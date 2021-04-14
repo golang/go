@@ -1,0 +1,8 @@
+# Regression test for golang.org/issue/35317:
+# 'go get' with multiple module-only arguments was racy.
+
+env GO111MODULE=on
+[short] skip
+
+go mod init example.com
+go get -d golang.org/x/text@v0.3.0 golang.org/x/internal@v0.1.0 golang.org/x/exp@none

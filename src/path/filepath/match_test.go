@@ -5,10 +5,13 @@
 package filepath_test
 
 import (
-	"io/ioutil"
+	"fmt"
+	"internal/testenv"
 	"os"
 	. "path/filepath"
+	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -71,8 +74,10 @@ var matchTests = []MatchTest{
 	{"[", "a", false, ErrBadPattern},
 	{"[^", "a", false, ErrBadPattern},
 	{"[^bc", "a", false, ErrBadPattern},
-	{"a[", "a", false, nil},
+	{"a[", "a", false, ErrBadPattern},
 	{"a[", "ab", false, ErrBadPattern},
+	{"a[", "x", false, ErrBadPattern},
+	{"a/b[", "x", false, ErrBadPattern},
 	{"*x", "xxx", true, nil},
 }
 
@@ -88,7 +93,7 @@ func TestMatch(t *testing.T) {
 		pattern := tt.pattern
 		s := tt.s
 		if runtime.GOOS == "windows" {
-			if strings.Index(pattern, "\\") >= 0 {
+			if strings.Contains(pattern, "\\") {
 				// no escape allowed on windows.
 				continue
 			}
@@ -102,7 +107,7 @@ func TestMatch(t *testing.T) {
 	}
 }
 
-// contains returns true if vector contains the string s.
+// contains reports whether vector contains the string s.
 func contains(vector []string, s string) bool {
 	for _, elem := range vector {
 		if elem == s {
@@ -151,10 +156,18 @@ func TestGlob(t *testing.T) {
 }
 
 func TestGlobError(t *testing.T) {
-	_, err := Glob("[7]")
-	if err != nil {
-		t.Error("expected error for bad pattern; got none")
+	bad := []string{`[]`, `nonexist/[]`}
+	for _, pattern := range bad {
+		if _, err := Glob(pattern); err != ErrBadPattern {
+			t.Errorf("Glob(%#q) returned err=%v, want ErrBadPattern", pattern, err)
+		}
 	}
+}
+
+func TestGlobUNC(t *testing.T) {
+	// Just make sure this runs without crashing for now.
+	// See issue 15879.
+	Glob(`\\?\C:\*`)
 }
 
 var globSymlinkTests = []struct {
@@ -166,17 +179,9 @@ var globSymlinkTests = []struct {
 }
 
 func TestGlobSymlink(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl", "plan9":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	case "windows":
-		if !supportsSymlinks {
-			t.Skipf("skipping on %s", runtime.GOOS)
-		}
+	testenv.MustHaveSymlink(t)
 
-	}
-
-	tmpDir, err := ioutil.TempDir("", "globsymlink")
+	tmpDir, err := os.MkdirTemp("", "globsymlink")
 	if err != nil {
 		t.Fatal("creating temp dir:", err)
 	}
@@ -207,5 +212,181 @@ func TestGlobSymlink(t *testing.T) {
 		if !contains(matches, dest) {
 			t.Errorf("Glob(%#q) = %#v want %v", dest, matches, dest)
 		}
+	}
+}
+
+type globTest struct {
+	pattern string
+	matches []string
+}
+
+func (test *globTest) buildWant(root string) []string {
+	want := make([]string, 0)
+	for _, m := range test.matches {
+		want = append(want, root+FromSlash(m))
+	}
+	sort.Strings(want)
+	return want
+}
+
+func (test *globTest) globAbs(root, rootPattern string) error {
+	p := FromSlash(rootPattern + `\` + test.pattern)
+	have, err := Glob(p)
+	if err != nil {
+		return err
+	}
+	sort.Strings(have)
+	want := test.buildWant(root + `\`)
+	if strings.Join(want, "_") == strings.Join(have, "_") {
+		return nil
+	}
+	return fmt.Errorf("Glob(%q) returns %q, but %q expected", p, have, want)
+}
+
+func (test *globTest) globRel(root string) error {
+	p := root + FromSlash(test.pattern)
+	have, err := Glob(p)
+	if err != nil {
+		return err
+	}
+	sort.Strings(have)
+	want := test.buildWant(root)
+	if strings.Join(want, "_") == strings.Join(have, "_") {
+		return nil
+	}
+	// try also matching version without root prefix
+	wantWithNoRoot := test.buildWant("")
+	if strings.Join(wantWithNoRoot, "_") == strings.Join(have, "_") {
+		return nil
+	}
+	return fmt.Errorf("Glob(%q) returns %q, but %q expected", p, have, want)
+}
+
+func TestWindowsGlob(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skipf("skipping windows specific test")
+	}
+
+	tmpDir, err := os.MkdirTemp("", "TestWindowsGlob")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// /tmp may itself be a symlink
+	tmpDir, err = EvalSymlinks(tmpDir)
+	if err != nil {
+		t.Fatal("eval symlink for tmp dir:", err)
+	}
+
+	if len(tmpDir) < 3 {
+		t.Fatalf("tmpDir path %q is too short", tmpDir)
+	}
+	if tmpDir[1] != ':' {
+		t.Fatalf("tmpDir path %q must have drive letter in it", tmpDir)
+	}
+
+	dirs := []string{
+		"a",
+		"b",
+		"dir/d/bin",
+	}
+	files := []string{
+		"dir/d/bin/git.exe",
+	}
+	for _, dir := range dirs {
+		err := os.MkdirAll(Join(tmpDir, dir), 0777)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, file := range files {
+		err := os.WriteFile(Join(tmpDir, file), nil, 0666)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tests := []globTest{
+		{"a", []string{"a"}},
+		{"b", []string{"b"}},
+		{"c", []string{}},
+		{"*", []string{"a", "b", "dir"}},
+		{"d*", []string{"dir"}},
+		{"*i*", []string{"dir"}},
+		{"*r", []string{"dir"}},
+		{"?ir", []string{"dir"}},
+		{"?r", []string{}},
+		{"d*/*/bin/git.exe", []string{"dir/d/bin/git.exe"}},
+	}
+
+	// test absolute paths
+	for _, test := range tests {
+		var p string
+		err = test.globAbs(tmpDir, tmpDir)
+		if err != nil {
+			t.Error(err)
+		}
+		// test C:\*Documents and Settings\...
+		p = tmpDir
+		p = strings.Replace(p, `:\`, `:\*`, 1)
+		err = test.globAbs(tmpDir, p)
+		if err != nil {
+			t.Error(err)
+		}
+		// test C:\Documents and Settings*\...
+		p = tmpDir
+		p = strings.Replace(p, `:\`, `:`, 1)
+		p = strings.Replace(p, `\`, `*\`, 1)
+		p = strings.Replace(p, `:`, `:\`, 1)
+		err = test.globAbs(tmpDir, p)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	// test relative paths
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.Chdir(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err := os.Chdir(wd)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+	for _, test := range tests {
+		err := test.globRel("")
+		if err != nil {
+			t.Error(err)
+		}
+		err = test.globRel(`.\`)
+		if err != nil {
+			t.Error(err)
+		}
+		err = test.globRel(tmpDir[:2]) // C:
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestNonWindowsGlobEscape(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skipf("skipping non-windows specific test")
+	}
+	pattern := `\match.go`
+	want := []string{"match.go"}
+	matches, err := Glob(pattern)
+	if err != nil {
+		t.Fatalf("Glob error for %q: %s", pattern, err)
+	}
+	if !reflect.DeepEqual(matches, want) {
+		t.Fatalf("Glob(%#q) = %v want %v", pattern, matches, want)
 	}
 }

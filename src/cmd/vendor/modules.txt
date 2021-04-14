@@ -1,0 +1,91 @@
+# github.com/google/pprof v0.0.0-20201203190320-1bf35d6f28c2
+## explicit
+github.com/google/pprof/driver
+github.com/google/pprof/internal/binutils
+github.com/google/pprof/internal/driver
+github.com/google/pprof/internal/elfexec
+github.com/google/pprof/internal/graph
+github.com/google/pprof/internal/measurement
+github.com/google/pprof/internal/plugin
+github.com/google/pprof/internal/report
+github.com/google/pprof/internal/symbolizer
+github.com/google/pprof/internal/symbolz
+github.com/google/pprof/internal/transport
+github.com/google/pprof/profile
+github.com/google/pprof/third_party/d3
+github.com/google/pprof/third_party/d3flamegraph
+github.com/google/pprof/third_party/svgpan
+# github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639
+github.com/ianlancetaylor/demangle
+# golang.org/x/arch v0.0.0-20201008161808-52c3e6f60cff
+## explicit
+golang.org/x/arch/arm/armasm
+golang.org/x/arch/arm64/arm64asm
+golang.org/x/arch/ppc64/ppc64asm
+golang.org/x/arch/x86/x86asm
+# golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
+## explicit
+golang.org/x/crypto/ed25519
+golang.org/x/crypto/ed25519/internal/edwards25519
+golang.org/x/crypto/ssh/terminal
+# golang.org/x/mod v0.4.1
+## explicit
+golang.org/x/mod/internal/lazyregexp
+golang.org/x/mod/modfile
+golang.org/x/mod/module
+golang.org/x/mod/semver
+golang.org/x/mod/sumdb
+golang.org/x/mod/sumdb/dirhash
+golang.org/x/mod/sumdb/note
+golang.org/x/mod/sumdb/tlog
+golang.org/x/mod/zip
+# golang.org/x/sys v0.0.0-20201204225414-ed752295db88
+## explicit
+golang.org/x/sys/internal/unsafeheader
+golang.org/x/sys/unix
+golang.org/x/sys/windows
+# golang.org/x/tools v0.0.0-20210107193943-4ed967dd8eff
+## explicit
+golang.org/x/tools/go/analysis
+golang.org/x/tools/go/analysis/internal/analysisflags
+golang.org/x/tools/go/analysis/internal/facts
+golang.org/x/tools/go/analysis/passes/asmdecl
+golang.org/x/tools/go/analysis/passes/assign
+golang.org/x/tools/go/analysis/passes/atomic
+golang.org/x/tools/go/analysis/passes/bools
+golang.org/x/tools/go/analysis/passes/buildtag
+golang.org/x/tools/go/analysis/passes/cgocall
+golang.org/x/tools/go/analysis/passes/composite
+golang.org/x/tools/go/analysis/passes/copylock
+golang.org/x/tools/go/analysis/passes/ctrlflow
+golang.org/x/tools/go/analysis/passes/errorsas
+golang.org/x/tools/go/analysis/passes/framepointer
+golang.org/x/tools/go/analysis/passes/httpresponse
+golang.org/x/tools/go/analysis/passes/ifaceassert
+golang.org/x/tools/go/analysis/passes/inspect
+golang.org/x/tools/go/analysis/passes/internal/analysisutil
+golang.org/x/tools/go/analysis/passes/loopclosure
+golang.org/x/tools/go/analysis/passes/lostcancel
+golang.org/x/tools/go/analysis/passes/nilfunc
+golang.org/x/tools/go/analysis/passes/printf
+golang.org/x/tools/go/analysis/passes/shift
+golang.org/x/tools/go/analysis/passes/stdmethods
+golang.org/x/tools/go/analysis/passes/stringintconv
+golang.org/x/tools/go/analysis/passes/structtag
+golang.org/x/tools/go/analysis/passes/testinggoroutine
+golang.org/x/tools/go/analysis/passes/tests
+golang.org/x/tools/go/analysis/passes/unmarshal
+golang.org/x/tools/go/analysis/passes/unreachable
+golang.org/x/tools/go/analysis/passes/unsafeptr
+golang.org/x/tools/go/analysis/passes/unusedresult
+golang.org/x/tools/go/analysis/unitchecker
+golang.org/x/tools/go/ast/astutil
+golang.org/x/tools/go/ast/inspector
+golang.org/x/tools/go/cfg
+golang.org/x/tools/go/types/objectpath
+golang.org/x/tools/go/types/typeutil
+golang.org/x/tools/internal/analysisinternal
+golang.org/x/tools/internal/lsp/fuzzy
+# golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
+golang.org/x/xerrors
+golang.org/x/xerrors/internal

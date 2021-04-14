@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -12,11 +12,11 @@ var fastabytes = makefasta()
 
 func makefasta() []byte {
 	var n int = 25e6
-	if runtime.GOARCH == "arm" {
+	if runtime.GOARCH == "arm" || runtime.GOARCH == "mips" || runtime.GOARCH == "mips64" {
 		// TODO(dfc) remove this limitation after precise gc.
-		// A value of 25e6 consumes 465mb of heap on 32bit 
-		// platforms, which is too much for most ARM systems. 
-		// A value of 25e5 produces a memory layout that 
+		// A value of 25e6 consumes 465mb of heap on 32bit
+		// platforms, which is too much for some systems.
+		// A value of 25e5 produces a memory layout that
 		// confuses the gc on 32bit platforms. So 25e4 it is.
 		n = 25e4
 	}

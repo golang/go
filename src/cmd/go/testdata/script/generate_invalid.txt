@@ -1,0 +1,203 @@
+[short] skip
+
+# Install an echo command because Windows doesn't have it.
+env GOBIN=$WORK/tmp/bin
+go install echo.go
+env PATH=$GOBIN${:}$PATH
+
+# Test go generate for directory with no go files
+go generate ./nogo
+! stdout 'Fail'
+
+# Test go generate for package where all .go files are excluded by build
+# constraints
+go generate -v ./excluded
+! stdout 'Fail'
+! stderr 'go' # -v shouldn't list any files
+
+# Test go generate for "package" with no package clause in any file
+go generate ./nopkg
+stdout 'Success a'
+! stdout 'Fail'
+
+# Test go generate for package with inconsistent package clauses
+# $GOPACKAGE should depend on each file's package clause
+go generate ./inconsistent
+stdout 'Success a'
+stdout 'Success b'
+stdout -count=2 'Success c'
+! stdout 'Fail'
+
+# Test go generate for syntax errors before and after package clauses
+go generate ./syntax
+stdout 'Success a'
+stdout 'Success b'
+! stdout 'Fail'
+
+# Test go generate for files importing non-existent packages
+go generate ./importerr
+stdout 'Success a'
+stdout 'Success b'
+stdout 'Success c'
+
+-- echo.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"strings"
+)
+
+func main() {
+	fmt.Println(strings.Join(os.Args[1:], " "))
+	fmt.Println()
+}
+
+-- go.mod --
+module m
+
+go 1.16
+-- nogo/foo.txt --
+Text file in a directory without go files.
+Go generate should ignore this directory.
+//go:generate echo Fail nogo
+
+-- excluded/a.go --
+// Include a build tag that go generate should exclude.
+// Go generate should ignore this file.
+
+// +build a
+
+//go:generate echo Fail a
+
+package excluded
+
+-- excluded/b.go --
+// Include a build tag that go generate should exclude.
+// Go generate should ignore this file.
+
+//go:generate echo Fail b
+
+// +build b
+
+package excluded
+
+
+-- nopkg/a.go --
+// Go file with package clause after comment.
+// Go generate should process this file.
+
+/* Pre-comment */ package nopkg
+//go:generate echo Success a
+
+-- nopkg/b.go --
+// Go file with commented package clause.
+// Go generate should ignore this file.
+
+//package nopkg
+
+//go:generate echo Fail b
+
+-- nopkg/c.go --
+// Go file with package clause inside multiline comment.
+// Go generate should ignore this file.
+
+/*
+package nopkg
+*/
+
+//go:generate echo Fail c
+
+-- nopkg/d.go --
+// Go file with package clause inside raw string literal.
+// Go generate should ignore this file.
+
+const foo = `
+package nopkg
+`
+//go:generate echo Fail d
+
+-- nopkg/e.go --
+// Go file without package clause.
+// Go generate should ignore this file.
+
+//go:generate echo Fail e
+
+-- inconsistent/a.go --
+// Valid go file with inconsistent package name.
+// Go generate should process this file with GOPACKAGE=a
+
+package a
+//go:generate echo Success $GOPACKAGE
+
+-- inconsistent/b.go --
+// Valid go file with inconsistent package name.
+// Go generate should process this file with GOPACKAGE=b
+
+//go:generate echo Success $GOPACKAGE
+package b
+
+-- inconsistent/c.go --
+// Go file with two package clauses.
+// Go generate should process this file with GOPACKAGE=c
+
+//go:generate echo Success $GOPACKAGE
+package c
+// Invalid package clause, should be ignored:
+package cinvalid
+//go:generate echo Success $GOPACKAGE
+
+-- inconsistent/d.go --
+// Go file with invalid package name.
+// Go generate should ignore this file.
+
+package +d+
+//go:generate echo Fail $GOPACKAGE
+
+-- syntax/a.go --
+// Go file with syntax error after package clause.
+// Go generate should process this file.
+
+package syntax
+123
+//go:generate echo Success a
+
+-- syntax/b.go --
+// Go file with syntax error after package clause.
+// Go generate should process this file.
+
+package syntax; 123
+//go:generate echo Success b
+
+-- syntax/c.go --
+// Go file with syntax error before package clause.
+// Go generate should ignore this file.
+
+foo
+package syntax
+//go:generate echo Fail c
+
+-- importerr/a.go --
+// Go file which imports non-existing package.
+// Go generate should process this file.
+
+package importerr
+//go:generate echo Success a
+import "foo"
+
+-- importerr/b.go --
+// Go file which imports non-existing package.
+// Go generate should process this file.
+
+//go:generate echo Success b
+package importerr
+import "bar"
+
+-- importerr/c.go --
+// Go file which imports non-existing package.
+// Go generate should process this file.
+
+package importerr
+import "moo"
+//go:generate echo Success c

@@ -819,6 +819,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
 			Section: 0x0,
 			Value:   0x0,
 			Size:    0x18C,
+			Version: "GLIBC_2.2.5",
+			Library: "libc.so.6",
 		},
 		Symbol{
 			Name:    "__libc_start_main",
@@ -827,6 +829,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
 			Section: 0x0,
 			Value:   0x0,
 			Size:    0x1C2,
+			Version: "GLIBC_2.2.5",
+			Library: "libc.so.6",
 		},
 	},
 	"testdata/go-relocation-test-clang-x86.obj": {},

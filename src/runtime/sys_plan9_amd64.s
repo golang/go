@@ -6,10 +6,6 @@
 #include "go_tls.h"
 #include "textflag.h"
 
-// setldt(int entry, int address, int limit)
-TEXT runtime·setldt(SB),NOSPLIT,$0
-	RET
-
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVQ	$14, BP
 	SYSCALL
@@ -51,7 +47,7 @@ TEXT runtime·seek(SB),NOSPLIT,$32
 	MOVQ	$-1, ret+24(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$0
+TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVQ	$4, BP
 	SYSCALL
 	MOVL	AX, ret+8(FP)
@@ -65,7 +61,7 @@ TEXT runtime·exits(SB),NOSPLIT,$0
 TEXT runtime·brk_(SB),NOSPLIT,$0
 	MOVQ	$24, BP
 	SYSCALL
-	MOVQ	AX, ret+8(FP)
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·sleep(SB),NOSPLIT,$0
@@ -92,9 +88,9 @@ TEXT runtime·nsec(SB),NOSPLIT,$0
 	MOVQ	AX, ret+8(FP)
 	RET
 
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB),NOSPLIT,$8-12
-	CALL	runtime·nanotime(SB)
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB),NOSPLIT,$8-12
+	CALL	runtime·nanotime1(SB)
 	MOVQ	0(SP), AX
 
 	// generated code for
@@ -123,7 +119,7 @@ TEXT runtime·noted(SB),NOSPLIT,$0
 	SYSCALL
 	MOVL	AX, ret+8(FP)
 	RET
-	
+
 TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
 	MOVQ	$38, BP
 	SYSCALL
@@ -136,7 +132,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
+TEXT runtime·tstart_plan9(SB),NOSPLIT,$8
 	MOVQ	newm+0(FP), CX
 	MOVQ	m_g0(CX), DX
 
@@ -160,8 +156,10 @@ TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
 	CALL	runtime·mstart(SB)
 
-	MOVQ	$0x1234, 0x1234		// not reached
-	RET
+	// Exit the thread.
+	MOVQ	$0, 0(SP)
+	CALL	runtime·exits(SB)
+	JMP	0(PC)
 
 // This is needed by asm_amd64.s
 TEXT runtime·settls(SB),NOSPLIT,$0
@@ -179,8 +177,8 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	RET
 
 	// save args
-	MOVQ	ureg+8(SP), CX
-	MOVQ	note+16(SP), DX
+	MOVQ	ureg+0(FP), CX
+	MOVQ	note+8(FP), DX
 
 	// change stack
 	MOVQ	g_m(BX), BX
@@ -243,7 +241,7 @@ TEXT runtime·errstr(SB),NOSPLIT,$16-16
 	get_tls(AX)
 	MOVQ	g(AX), BX
 	MOVQ	g_m(BX), BX
-	MOVQ	m_errstr(BX), CX
+	MOVQ	(m_mOS+mOS_errstr)(BX), CX
 	MOVQ	CX, 0(SP)
 	MOVQ	$ERRMAX, 8(SP)
 	CALL	errstr<>(SB)

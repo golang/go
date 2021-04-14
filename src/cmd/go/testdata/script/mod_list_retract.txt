@@ -1,0 +1,108 @@
+# 'go list -mod=vendor -retracted' reports an error.
+go mod vendor
+! go list -m -retracted -mod=vendor
+stderr '^go list -retracted cannot be used when vendoring is enabled$'
+rm vendor
+
+# 'go list -retracted' reports an error in GOPATH mode.
+env GO111MODULE=off
+! go list -retracted
+stderr '^go list -retracted can only be used in module-aware mode$'
+env GO111MODULE=
+
+# 'go list pkg' does not show retraction.
+go list -f '{{with .Module}}{{with .Retracted}}retracted{{end}}{{end}}' example.com/retract
+! stdout .
+
+# 'go list -retracted pkg' shows retraction.
+go list -retracted -f '{{with .Module}}{{with .Retracted}}retracted{{end}}{{end}}' example.com/retract
+stdout retracted
+
+# 'go list -m' does not show retraction.
+go list -m -f '{{with .Retracted}}retracted{{end}}' example.com/retract
+! stdout .
+
+# 'go list -m -retracted' shows retraction.
+go list -m -retracted -f '{{with .Retracted}}retracted{{end}}' example.com/retract
+
+# 'go list -m mod@version' does not show retraction.
+go list -m -f '{{with .Retracted}}retracted{{end}}' example.com/retract@v1.0.0-unused
+! stdout .
+
+# 'go list -m -retracted mod@version' shows an error if the go.mod that should
+# contain the retractions is not available.
+! go list -m -retracted example.com/retract/missingmod@v1.0.0
+stderr '^go list -m: loading module retractions for example.com/retract/missingmod@v1.0.0: .*404 Not Found$'
+go list -e -m -retracted -f '{{.Error.Err}}' example.com/retract/missingmod@v1.0.0
+stdout '^loading module retractions for example.com/retract/missingmod@v1.0.0: .*404 Not Found$'
+
+# 'go list -m -retracted mod@version' shows retractions.
+go list -m -retracted example.com/retract@v1.0.0-unused
+stdout '^example.com/retract v1.0.0-unused \(retracted\)$'
+go list -m -retracted -f '{{with .Retracted}}retracted{{end}}' example.com/retract@v1.0.0-unused
+stdout retracted
+
+# 'go list -m mod@latest' selects a previous release version, not self-retracted latest.
+go list -m -f '{{.Version}}{{with .Retracted}} retracted{{end}}' example.com/retract/self/prev@latest
+stdout '^v1.1.0$'
+
+# 'go list -m -retracted mod@latest' selects the self-retracted latest version.
+go list -m -retracted -f '{{.Version}}{{with .Retracted}} retracted{{end}}' example.com/retract/self/prev@latest
+stdout '^v1.9.0 retracted$'
+
+# 'go list -m mod@latest' selects a pre-release version if all release versions are retracted.
+go list -m -f '{{.Version}}{{with .Retracted}} retracted{{end}}' example.com/retract/self/prerelease@latest
+stdout '^v1.9.1-pre$'
+
+# 'go list -m -retracted mod@latest' selects the self-retracted latest version.
+go list -m -retracted -f '{{.Version}}{{with .Retracted}} retracted{{end}}' example.com/retract/self/prerelease@latest
+stdout '^v1.9.0 retracted$'
+
+# 'go list -m mod@latest' selects a pseudo-version if all versions are retracted.
+# TODO(golang.org/issue/24031): the proxy does not expose the pseudo-version,
+# even if all release versions are retracted.
+go list -m -e -f '{{.Error.Err}}' example.com/retract/self/pseudo@latest
+stdout '^module example.com/retract/self/pseudo: no matching versions for query "latest"$'
+
+# 'go list -m mod@latest' reports an error if all versions are retracted.
+go list -m -e -f '{{.Error.Err}}' example.com/retract/self/all@latest
+stdout '^module example.com/retract/self/all: no matching versions for query "latest"$'
+
+# 'go list -m mod@<v1.10' selects a previous release version, not self-retracted latest.
+# The @latest query is not special with respect to retractions.
+go list -m -f '{{.Version}}{{with .Retracted}} retracted{{end}}' example.com/retract/self/prev@<v1.10
+stdout '^v1.1.0$'
+
+# 'go list -m -versions' hides retracted versions.
+go list -m -versions example.com/retract
+stdout '^example.com/retract v1.0.0-good v1.1.0$'
+
+# 'go list -m -retracted -versions' shows retracted versions.
+go list -m -retracted -versions example.com/retract
+stdout '^example.com/retract v1.0.0-bad v1.0.0-good v1.0.0-unused v1.1.0$'
+
+# 'go list -m -u -versions' loads retractions and does not show retracted versions.
+go list -m -u -versions example.com/retract
+stdout '^example.com/retract v1.0.0-good v1.1.0$'
+go list -m -u -versions -f '{{with .Retracted}}retracted{{end}}' example.com/retract
+stdout retracted
+
+# 'go list -m -u' shows retraction.
+go list -m -u -f '{{with .Retracted}}retracted{{end}}' example.com/retract
+stdout retracted
+
+# 'go list -m -u' does not suggest an update to a self-retracted latest version.
+go list -m -u -f '{{with .Update}}{{.Version}}{{with .Retracted}} retracted{{end}}{{end}}' example.com/retract/self/prev@v1.0.0-bad
+stdout '^v1.1.0$'
+
+-- go.mod --
+module example.com/use
+
+go 1.15
+
+require example.com/retract v1.0.0-bad
+
+-- use.go --
+package use
+
+import _ "example.com/retract"

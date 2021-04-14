@@ -21,6 +21,15 @@ import (
 	_ "image/jpeg"
 )
 
+func Example_decodeConfig() {
+	reader := base64.NewDecoder(base64.StdEncoding, strings.NewReader(data))
+	config, format, err := image.DecodeConfig(reader)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Width:", config.Width, "Height:", config.Height, "Format:", format)
+}
+
 func Example() {
 	// Decode the JPEG data. If reading from file, create a reader with
 	//
@@ -61,22 +70,22 @@ func Example() {
 	}
 	// Output:
 	// bin               red  green   blue  alpha
-	// 0x0000-0x0fff:    353    759   7228      0
-	// 0x1000-0x1fff:    629   2944   1036      0
-	// 0x2000-0x2fff:   1075   2319    984      0
-	// 0x3000-0x3fff:    838   2291    988      0
-	// 0x4000-0x4fff:    540   1302    542      0
-	// 0x5000-0x5fff:    319    971    263      0
-	// 0x6000-0x6fff:    316    377    178      0
-	// 0x7000-0x7fff:    581    280    216      0
-	// 0x8000-0x8fff:   3457    228    274      0
-	// 0x9000-0x9fff:   2294    237    334      0
-	// 0xa000-0xafff:    938    283    370      0
-	// 0xb000-0xbfff:    322    338    401      0
-	// 0xc000-0xcfff:    229    386    295      0
-	// 0xd000-0xdfff:    263    416    281      0
-	// 0xe000-0xefff:    538    433    312      0
-	// 0xf000-0xffff:   2758   1886   1748  15450
+	// 0x0000-0x0fff:    364    790   7242      0
+	// 0x1000-0x1fff:    645   2967   1039      0
+	// 0x2000-0x2fff:   1072   2299    979      0
+	// 0x3000-0x3fff:    820   2266    980      0
+	// 0x4000-0x4fff:    537   1305    541      0
+	// 0x5000-0x5fff:    319    962    261      0
+	// 0x6000-0x6fff:    322    375    177      0
+	// 0x7000-0x7fff:    601    279    214      0
+	// 0x8000-0x8fff:   3478    227    273      0
+	// 0x9000-0x9fff:   2260    234    329      0
+	// 0xa000-0xafff:    921    282    373      0
+	// 0xb000-0xbfff:    321    335    397      0
+	// 0xc000-0xcfff:    229    388    298      0
+	// 0xd000-0xdfff:    260    414    277      0
+	// 0xe000-0xefff:    516    428    298      0
+	// 0xf000-0xffff:   2785   1899   1772  15450
 }
 
 const data = `

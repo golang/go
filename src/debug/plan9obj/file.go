@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -274,7 +274,7 @@ func newTable(symtab []byte, ptrsz int) ([]Sym, error) {
 		ts.Value = s.value
 		switch s.typ {
 		default:
-			ts.Name = string(s.name[:])
+			ts.Name = string(s.name)
 		case 'z', 'Z':
 			for i := 0; i < len(s.name); i += 2 {
 				eltIdx := binary.BigEndian.Uint16(s.name[i : i+2])

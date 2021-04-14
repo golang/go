@@ -1,11 +1,10 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package runtime_test
 
 import (
-	"io/ioutil"
 	"os"
 	"reflect"
 	"syscall"
@@ -16,8 +15,9 @@ import (
 // TestMemmoveOverflow maps 3GB of memory and calls memmove on
 // the corresponding slice.
 func TestMemmoveOverflow(t *testing.T) {
+	t.Parallel()
 	// Create a temporary file.
-	tmp, err := ioutil.TempFile("", "go-memmovetest")
+	tmp, err := os.CreateTemp("", "go-memmovetest")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func TestMemmoveOverflow(t *testing.T) {
 		_, _, errno := syscall.Syscall6(syscall.SYS_MMAP,
 			base+off, 65536, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED|syscall.MAP_FIXED, tmp.Fd(), 0)
 		if errno != 0 {
-			t.Fatalf("could not map a page at requested 0x%x: %s", base+off, errno)
+			t.Skipf("could not map a page at requested 0x%x: %s", base+off, errno)
 		}
 		defer syscall.Syscall(syscall.SYS_MUNMAP, base+off, 65536, 0)
 	}

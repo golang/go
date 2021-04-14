@@ -13,6 +13,7 @@ import (
 func TestNoRaceMutex(t *testing.T) {
 	var mu sync.Mutex
 	var x int16 = 0
+	_ = x
 	ch := make(chan bool, 2)
 	go func() {
 		mu.Lock()
@@ -33,6 +34,7 @@ func TestNoRaceMutex(t *testing.T) {
 func TestRaceMutex(t *testing.T) {
 	var mu sync.Mutex
 	var x int16 = 0
+	_ = x
 	ch := make(chan bool, 2)
 	go func() {
 		x = 1
@@ -54,6 +56,7 @@ func TestRaceMutex2(t *testing.T) {
 	var mu1 sync.Mutex
 	var mu2 sync.Mutex
 	var x int8 = 0
+	_ = x
 	ch := make(chan bool, 2)
 	go func() {
 		mu1.Lock()
@@ -74,6 +77,7 @@ func TestRaceMutex2(t *testing.T) {
 func TestNoRaceMutexPureHappensBefore(t *testing.T) {
 	var mu sync.Mutex
 	var x int16 = 0
+	_ = x
 	ch := make(chan bool, 2)
 	go func() {
 		x = 1
@@ -96,6 +100,7 @@ func TestNoRaceMutexSemaphore(t *testing.T) {
 	var mu sync.Mutex
 	ch := make(chan bool, 2)
 	x := 0
+	_ = x
 	mu.Lock()
 	go func() {
 		x = 1

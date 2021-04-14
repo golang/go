@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package syscall
 
 import (
+	"internal/oserror"
+	"internal/race"
+	"internal/unsafeheader"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -19,15 +22,24 @@ var (
 )
 
 const (
-	darwin64Bit    = runtime.GOOS == "darwin" && sizeofPtr == 8
-	dragonfly64Bit = runtime.GOOS == "dragonfly" && sizeofPtr == 8
-	netbsd32Bit    = runtime.GOOS == "netbsd" && sizeofPtr == 4
+	darwin64Bit = (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && sizeofPtr == 8
+	netbsd32Bit = runtime.GOOS == "netbsd" && sizeofPtr == 4
 )
 
 func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+
+// clen returns the index of the first NULL byte in n or len(n) if n contains no NULL byte.
+func clen(n []byte) int {
+	for i := 0; i < len(n); i++ {
+		if n[i] == 0 {
+			return i
+		}
+	}
+	return len(n)
+}
 
 // Mmap manager, for use by operating system-specific implementations.
 
@@ -49,15 +61,12 @@ func (m *mmapper) Mmap(fd int, offset int64, length int, prot int, flags int) (d
 		return nil, errno
 	}
 
-	// Slice memory layout
-	var sl = struct {
-		addr uintptr
-		len  int
-		cap  int
-	}{addr, length, length}
-
-	// Use unsafe to turn sl into a []byte.
-	b := *(*[]byte)(unsafe.Pointer(&sl))
+	// Use unsafe to turn addr into a []byte.
+	var b []byte
+	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&b))
+	hdr.Data = unsafe.Pointer(addr)
+	hdr.Cap = length
+	hdr.Len = length
 
 	// Register mapping in m and return it.
 	p := &b[cap(b)-1]
@@ -90,12 +99,18 @@ func (m *mmapper) Munmap(data []byte) (err error) {
 }
 
 // An Errno is an unsigned number describing an error condition.
-// It implements the error interface.  The zero Errno is by convention
+// It implements the error interface. The zero Errno is by convention
 // a non-error, so code to convert from Errno to error should use:
 //	err = nil
 //	if errno != 0 {
 //		err = errno
 //	}
+//
+// Errno values can be tested against error values from the os package
+// using errors.Is. For example:
+//
+//	_, _, err := syscall.Syscall(...)
+//	if errors.Is(err, fs.ErrNotExist) ...
 type Errno uintptr
 
 func (e Errno) Error() string {
@@ -108,12 +123,48 @@ func (e Errno) Error() string {
 	return "errno " + itoa(int(e))
 }
 
+func (e Errno) Is(target error) bool {
+	switch target {
+	case oserror.ErrPermission:
+		return e == EACCES || e == EPERM
+	case oserror.ErrExist:
+		return e == EEXIST || e == ENOTEMPTY
+	case oserror.ErrNotExist:
+		return e == ENOENT
+	}
+	return false
+}
+
 func (e Errno) Temporary() bool {
-	return e == EINTR || e == EMFILE || e == ECONNRESET || e == ECONNABORTED || e.Timeout()
+	return e == EINTR || e == EMFILE || e == ENFILE || e.Timeout()
 }
 
 func (e Errno) Timeout() bool {
 	return e == EAGAIN || e == EWOULDBLOCK || e == ETIMEDOUT
+}
+
+// Do the interface allocations only once for common
+// Errno values.
+var (
+	errEAGAIN error = EAGAIN
+	errEINVAL error = EINVAL
+	errENOENT error = ENOENT
+)
+
+// errnoErr returns common boxed Errno values, to prevent
+// allocations at runtime.
+func errnoErr(e Errno) error {
+	switch e {
+	case 0:
+		return nil
+	case EAGAIN:
+		return errEAGAIN
+	case EINVAL:
+		return errEINVAL
+	case ENOENT:
+		return errENOENT
+	}
+	return e
 }
 
 // A Signal is a number describing a process signal.
@@ -134,24 +185,37 @@ func (s Signal) String() string {
 
 func Read(fd int, p []byte) (n int, err error) {
 	n, err = read(fd, p)
-	if raceenabled {
+	if race.Enabled {
 		if n > 0 {
-			raceWriteRange(unsafe.Pointer(&p[0]), n)
+			race.WriteRange(unsafe.Pointer(&p[0]), n)
 		}
 		if err == nil {
-			raceAcquire(unsafe.Pointer(&ioSync))
+			race.Acquire(unsafe.Pointer(&ioSync))
 		}
+	}
+	if msanenabled && n > 0 {
+		msanWrite(unsafe.Pointer(&p[0]), n)
 	}
 	return
 }
 
 func Write(fd int, p []byte) (n int, err error) {
-	if raceenabled {
-		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	if race.Enabled {
+		race.ReleaseMerge(unsafe.Pointer(&ioSync))
 	}
-	n, err = write(fd, p)
-	if raceenabled && n > 0 {
-		raceReadRange(unsafe.Pointer(&p[0]), n)
+	if faketime && (fd == 1 || fd == 2) {
+		n = faketimeWrite(fd, p)
+		if n < 0 {
+			n, err = 0, errnoErr(Errno(-n))
+		}
+	} else {
+		n, err = write(fd, p)
+	}
+	if race.Enabled && n > 0 {
+		race.ReadRange(unsafe.Pointer(&p[0]), n)
+	}
+	if msanenabled && n > 0 {
+		msanRead(unsafe.Pointer(&p[0]), n)
 	}
 	return
 }
@@ -264,7 +328,11 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (err error) {
 }
 
 func SetsockoptString(fd, level, opt int, s string) (err error) {
-	return setsockopt(fd, level, opt, unsafe.Pointer(&[]byte(s)[0]), uintptr(len(s)))
+	var p unsafe.Pointer
+	if len(s) > 0 {
+		p = unsafe.Pointer(&[]byte(s)[0])
+	}
+	return setsockopt(fd, level, opt, p, uintptr(len(s)))
 }
 
 func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (err error) {
@@ -290,8 +358,8 @@ func Socketpair(domain, typ, proto int) (fd [2]int, err error) {
 }
 
 func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
-	if raceenabled {
-		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	if race.Enabled {
+		race.ReleaseMerge(unsafe.Pointer(&ioSync))
 	}
 	return sendfile(outfd, infd, offset, count)
 }

@@ -1,0 +1,40 @@
+[short] skip
+
+go test flag_test.go -v -args -v=7 # Two distinct -v flags
+go test -v flag_test.go -args -v=7 # Two distinct -v flags
+
+# Using a custom flag mixed with regular 'go test' flags should be OK.
+go test -count=1 -custom -args -v=7
+
+# However, it should be an error to use custom flags when -i or -c are used,
+# since we know for sure that no test binary will run at all.
+! go test -i -custom
+stderr '^go test: unknown flag -custom cannot be used with -i$'
+! go test -c -custom
+stderr '^go test: unknown flag -custom cannot be used with -c$'
+
+# The same should apply even if -c or -i come after a custom flag.
+! go test -custom -c
+stderr '^go test: unknown flag -custom cannot be used with -c$'
+
+-- go.mod --
+module m
+-- flag_test.go --
+package flag_test
+
+import (
+	"flag"
+	"log"
+	"testing"
+)
+
+var v = flag.Int("v", 0, "v flag")
+
+var custom = flag.Bool("custom", false, "")
+
+// Run this as go test pkg -v=7
+func TestVFlagIsSet(t *testing.T) {
+	if *v != 7 {
+		log.Fatal("v flag not set")
+	}
+}

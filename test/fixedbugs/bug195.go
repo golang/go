@@ -6,22 +6,22 @@
 
 package main
 
-type I1 interface { I2 }	// ERROR "interface"
+type I1 interface{ I2 } // ERROR "interface"
 type I2 int
 
-type I3 interface { int }	// ERROR "interface"
+type I3 interface{ int } // ERROR "interface"
 
 type S struct {
-	x interface{ S }	// ERROR "interface"
+	x interface{ S } // ERROR "interface"
 }
-type I4 interface {
-	I4	// ERROR "interface"
+type I4 interface { // GC_ERROR "invalid recursive type I4\n\tLINE: I4 refers to\n\tLINE: I4$"
+	I4 // GCCGO_ERROR "interface"
 }
 
-type I5 interface {
-	I6	// GCCGO_ERROR "interface"
+type I5 interface { // GC_ERROR "invalid recursive type I5\n\tLINE: I5 refers to\n\tLINE+4: I6 refers to\n\tLINE: I5$"
+	I6
 }
 
 type I6 interface {
-	I5	// ERROR "interface"
+	I5 // GCCGO_ERROR "interface"
 }

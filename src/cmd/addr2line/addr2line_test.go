@@ -7,7 +7,7 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"io/ioutil"
+	"internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,7 +17,7 @@ import (
 )
 
 func loadSyms(t *testing.T) map[string]string {
-	cmd := exec.Command("go", "tool", "nm", os.Args[0])
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "nm", os.Args[0])
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool nm %v: %v\n%s", os.Args[0], err, string(out))
@@ -51,15 +51,9 @@ func runAddr2Line(t *testing.T, exepath, addr string) (funcname, path, lineno st
 	funcname = f[0]
 	pathAndLineNo := f[1]
 	f = strings.Split(pathAndLineNo, ":")
-	if runtime.GOOS == "windows" {
-		switch len(f) {
-		case 2:
-			return funcname, f[0], f[1]
-		case 3:
-			return funcname, f[0] + ":" + f[1], f[2]
-		default:
-			t.Fatalf("no line number found in %q", pathAndLineNo)
-		}
+	if runtime.GOOS == "windows" && len(f) == 3 {
+		// Reattach drive letter.
+		f = []string{f[0] + ":" + f[1], f[2]}
 	}
 	if len(f) != 2 {
 		t.Fatalf("no line number found in %q", pathAndLineNo)
@@ -78,35 +72,59 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
 	if err != nil {
 		t.Fatalf("Stat failed: %v", err)
 	}
+
+	// Debug paths are stored slash-separated, so convert to system-native.
+	srcPath = filepath.FromSlash(srcPath)
 	fi2, err := os.Stat(srcPath)
+
+	// If GOROOT_FINAL is set and srcPath is not the file we expect, perhaps
+	// srcPath has had GOROOT_FINAL substituted for GOROOT and GOROOT hasn't been
+	// moved to its final location yet. If so, try the original location instead.
+	if gorootFinal := os.Getenv("GOROOT_FINAL"); gorootFinal != "" &&
+		(os.IsNotExist(err) || (err == nil && !os.SameFile(fi1, fi2))) {
+		// srcPath is clean, but GOROOT_FINAL itself might not be.
+		// (See https://golang.org/issue/41447.)
+		gorootFinal = filepath.Clean(gorootFinal)
+
+		if strings.HasPrefix(srcPath, gorootFinal) {
+			fi2, err = os.Stat(runtime.GOROOT() + strings.TrimPrefix(srcPath, gorootFinal))
+		}
+	}
+
 	if err != nil {
 		t.Fatalf("Stat failed: %v", err)
 	}
 	if !os.SameFile(fi1, fi2) {
 		t.Fatalf("addr2line_test.go and %s are not same file", srcPath)
 	}
-	if srcLineNo != "94" {
-		t.Fatalf("line number = %v; want 94", srcLineNo)
+	if srcLineNo != "106" {
+		t.Fatalf("line number = %v; want 106", srcLineNo)
 	}
 }
 
-// This is line 93. The test depends on that.
+// This is line 106. The test depends on that.
 func TestAddr2Line(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl", "android":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	}
+	testenv.MustHaveGoBuild(t)
 
-	syms := loadSyms(t)
-
-	tmpDir, err := ioutil.TempDir("", "TestAddr2Line")
+	tmpDir, err := os.MkdirTemp("", "TestAddr2Line")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	exepath := filepath.Join(tmpDir, "testaddr2line.exe")
-	out, err := exec.Command("go", "build", "-o", exepath, "cmd/addr2line").CombinedOutput()
+	// Build copy of test binary with debug symbols,
+	// since the one running now may not have them.
+	exepath := filepath.Join(tmpDir, "testaddr2line_test.exe")
+	out, err := exec.Command(testenv.GoToolPath(t), "test", "-c", "-o", exepath, "cmd/addr2line").CombinedOutput()
+	if err != nil {
+		t.Fatalf("go test -c -o %v cmd/addr2line: %v\n%s", exepath, err, string(out))
+	}
+	os.Args[0] = exepath
+
+	syms := loadSyms(t)
+
+	exepath = filepath.Join(tmpDir, "testaddr2line.exe")
+	out, err = exec.Command(testenv.GoToolPath(t), "build", "-o", exepath, "cmd/addr2line").CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build -o %v cmd/addr2line: %v\n%s", exepath, err, string(out))
 	}

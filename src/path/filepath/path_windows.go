@@ -13,8 +13,34 @@ func isSlash(c uint8) bool {
 	return c == '\\' || c == '/'
 }
 
-// IsAbs returns true if the path is absolute.
+// reservedNames lists reserved Windows names. Search for PRN in
+// https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file
+// for details.
+var reservedNames = []string{
+	"CON", "PRN", "AUX", "NUL",
+	"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+	"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+}
+
+// isReservedName returns true, if path is Windows reserved name.
+// See reservedNames for the full list.
+func isReservedName(path string) bool {
+	if len(path) == 0 {
+		return false
+	}
+	for _, reserved := range reservedNames {
+		if strings.EqualFold(path, reserved) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsAbs reports whether the path is absolute.
 func IsAbs(path string) (b bool) {
+	if isReservedName(path) {
+		return true
+	}
 	l := volumeNameLen(path)
 	if l == 0 {
 		return false
@@ -37,7 +63,7 @@ func volumeNameLen(path string) int {
 	if path[1] == ':' && ('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') {
 		return 2
 	}
-	// is it UNC
+	// is it UNC? https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
 	if l := len(path); l >= 5 && isSlash(path[0]) && isSlash(path[1]) &&
 		!isSlash(path[2]) && path[2] != '.' {
 		// first, leading `\\` and next shouldn't be `\`. its server name.
@@ -65,6 +91,9 @@ func volumeNameLen(path string) int {
 }
 
 // HasPrefix exists for historical compatibility and should not be used.
+//
+// Deprecated: HasPrefix does not respect path boundaries and
+// does not ignore case when required.
 func HasPrefix(p, prefix string) bool {
 	if strings.HasPrefix(p, prefix) {
 		return true
@@ -97,16 +126,24 @@ func splitList(path string) []string {
 
 	// Remove quotes.
 	for i, s := range list {
-		if strings.Contains(s, `"`) {
-			list[i] = strings.Replace(s, `"`, ``, -1)
-		}
+		list[i] = strings.ReplaceAll(s, `"`, ``)
 	}
 
 	return list
 }
 
 func abs(path string) (string, error) {
-	return syscall.FullPath(path)
+	if path == "" {
+		// syscall.FullPath returns an error on empty path, because it's not a valid path.
+		// To implement Abs behavior of returning working directory on empty string input,
+		// special-case empty path by changing it to "." path. See golang.org/issue/24441.
+		path = "."
+	}
+	fullPath, err := syscall.FullPath(path)
+	if err != nil {
+		return "", err
+	}
+	return Clean(fullPath), nil
 }
 
 func join(elem []string) string {
@@ -120,6 +157,18 @@ func join(elem []string) string {
 
 // joinNonEmpty is like join, but it assumes that the first element is non-empty.
 func joinNonEmpty(elem []string) string {
+	if len(elem[0]) == 2 && elem[0][1] == ':' {
+		// First element is drive letter without terminating slash.
+		// Keep path relative to current directory on that drive.
+		// Skip empty elements.
+		i := 1
+		for ; i < len(elem); i++ {
+			if elem[i] != "" {
+				break
+			}
+		}
+		return Clean(elem[0] + strings.Join(elem[i:], string(Separator)))
+	}
 	// The following logic prevents Join from inadvertently creating a
 	// UNC path on Windows. Unless the first element is a UNC path, Join
 	// shouldn't create a UNC path. See golang.org/issue/9167.
@@ -141,7 +190,11 @@ func joinNonEmpty(elem []string) string {
 	return head + string(Separator) + tail
 }
 
-// isUNC returns true if path is a UNC path.
+// isUNC reports whether path is a UNC path.
 func isUNC(path string) bool {
 	return volumeNameLen(path) > 2
+}
+
+func sameWord(a, b string) bool {
+	return strings.EqualFold(a, b)
 }

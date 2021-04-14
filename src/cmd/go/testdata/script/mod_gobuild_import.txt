@@ -1,0 +1,133 @@
+[short] skip
+
+# go/build's Import should find modules by invoking the go command
+
+go build -o $WORK ./testimport ./testfindonly
+
+# GO111MODULE=off
+env GO111MODULE=off
+! exec $WORK/testimport$GOEXE gobuild.example.com/x/y/z/w .
+
+# GO111MODULE=auto in GOPATH/src
+env GO111MODULE=auto
+exec $WORK/testimport$GOEXE gobuild.example.com/x/y/z/w .
+
+# GO111MODULE=auto outside GOPATH/src
+cd $GOPATH/other
+env GO111MODULE=auto
+exec $WORK/testimport$GOEXE other/x/y/z/w .
+stdout w2.go
+
+! exec $WORK/testimport$GOEXE gobuild.example.com/x/y/z/w .
+stderr 'no required module provides package gobuild.example.com/x/y/z/w; to add it:\n\tgo get gobuild.example.com/x/y/z/w'
+
+cd z
+exec $WORK/testimport$GOEXE other/x/y/z/w .
+stdout w2.go
+
+# GO111MODULE=on outside GOPATH/src
+env GO111MODULE=
+exec $WORK/testimport$GOEXE other/x/y/z/w .
+stdout w2.go
+env GO111MODULE=on
+exec $WORK/testimport$GOEXE other/x/y/z/w .
+stdout w2.go
+
+# GO111MODULE=on in GOPATH/src
+cd $GOPATH/src
+env GO111MODULE=
+exec $WORK/testimport$GOEXE gobuild.example.com/x/y/z/w .
+stdout w1.go
+env GO111MODULE=on
+exec $WORK/testimport$GOEXE gobuild.example.com/x/y/z/w .
+stdout w1.go
+cd w
+exec $WORK/testimport$GOEXE gobuild.example.com/x/y/z/w ..
+stdout w1.go
+
+# go/build's Import in FindOnly mode should find directories by invoking the go command
+#
+# Calling build.Import in build.FindOnly mode on an import path of a Go package
+# that produces errors when loading (e.g., due to build constraints not matching
+# the current build context) should return the package directory and nil error.
+
+# Issue 31603: Import with non-empty srcDir should work.
+env GO111MODULE=on
+exec $WORK/testfindonly$GOEXE gobuild.example.com/x/y/z/i $WORK
+! stdout 'build constraints'
+stdout '^dir=\$WORK.+i err=<nil>$'
+
+# Issue 37153: Import with empty srcDir should work.
+env GO111MODULE=on
+exec $WORK/testfindonly$GOEXE gobuild.example.com/x/y/z/i ''
+! stdout 'build constraints'
+stdout '^dir=\$WORK.+i err=<nil>$'
+
+-- go.mod --
+module gobuild.example.com/x/y/z
+
+-- z.go --
+package z
+
+-- w/w1.go --
+package w
+
+-- i/i.go --
+// +build i
+
+package i
+
+-- testimport/x.go --
+package main
+
+import (
+	"fmt"
+	"go/build"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	// build.Import should support relative and absolute source dir paths.
+	path := os.Args[1]
+	srcDir := os.Args[2]
+	p1, err := build.Import(path, srcDir, 0)
+	if err != nil {
+		log.Fatal(err)
+	}
+	absSrcDir, err := filepath.Abs(srcDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	p2, err := build.Import(path, absSrcDir, 0)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if p1.Dir != p2.Dir {
+		log.Fatalf("different packages loaded with relative and absolute paths:\n\t%s\n\t%s", p1.Dir, p2.Dir)
+	}
+
+	fmt.Printf("%s\n%s\n", p1.Dir, strings.Join(p1.GoFiles, " "))
+}
+
+-- testfindonly/x.go --
+package main
+
+import (
+	"fmt"
+	"go/build"
+	"os"
+)
+
+func main() {
+	p, err := build.Import(os.Args[1], os.Args[2], build.FindOnly)
+	fmt.Printf("dir=%s err=%v\n", p.Dir, err)
+}
+
+-- $GOPATH/other/go.mod --
+module other/x/y
+
+-- $GOPATH/other/z/w/w2.go --
+package w

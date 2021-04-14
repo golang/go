@@ -23,6 +23,7 @@ var a2 = S { Y: 3, Z: 2, Y: 3 } // ERROR "duplicate"
 var a3 = T { S{}, 2, 3, 4, 5, 6 }	// ERROR "convert|too many"
 var a4 = [5]byte{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }	// ERROR "index|too many"
 var a5 = []byte { x: 2 }	// ERROR "index"
+var a6 = []byte{1: 1, 2: 2, 1: 3}	// ERROR "duplicate"
 
 var ok1 = S { }	// should be ok
 var ok2 = T { S: ok1 }	// should be ok

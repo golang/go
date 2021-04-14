@@ -1,6 +1,6 @@
 // errorcheck
 
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -16,5 +16,5 @@ func (T) foo() {}
 func main() {
 	av := T{}
 	pav := &av
-	(**T).foo(&pav) // ERROR "no method foo|requires named type or pointer to named"
+	(**T).foo(&pav) // ERROR "no method .*foo|requires named type or pointer to named"
 }

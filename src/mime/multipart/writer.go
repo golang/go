@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/textproto"
+	"sort"
 	"strings"
 )
 
@@ -39,22 +40,28 @@ func (w *Writer) Boundary() string {
 // boundary separator with an explicit value.
 //
 // SetBoundary must be called before any parts are created, may only
-// contain certain ASCII characters, and must be 1-69 bytes long.
+// contain certain ASCII characters, and must be non-empty and
+// at most 70 bytes long.
 func (w *Writer) SetBoundary(boundary string) error {
 	if w.lastpart != nil {
 		return errors.New("mime: SetBoundary called after write")
 	}
 	// rfc2046#section-5.1.1
-	if len(boundary) < 1 || len(boundary) > 69 {
+	if len(boundary) < 1 || len(boundary) > 70 {
 		return errors.New("mime: invalid boundary length")
 	}
-	for _, b := range boundary {
+	end := len(boundary) - 1
+	for i, b := range boundary {
 		if 'A' <= b && b <= 'Z' || 'a' <= b && b <= 'z' || '0' <= b && b <= '9' {
 			continue
 		}
 		switch b {
 		case '\'', '(', ')', '+', '_', ',', '-', '.', '/', ':', '=', '?':
 			continue
+		case ' ':
+			if i != end {
+				continue
+			}
 		}
 		return errors.New("mime: invalid boundary character")
 	}
@@ -65,7 +72,13 @@ func (w *Writer) SetBoundary(boundary string) error {
 // FormDataContentType returns the Content-Type for an HTTP
 // multipart/form-data with this Writer's Boundary.
 func (w *Writer) FormDataContentType() string {
-	return "multipart/form-data; boundary=" + w.boundary
+	b := w.boundary
+	// We must quote the boundary if it contains any of the
+	// tspecials characters defined by RFC 2045, or space.
+	if strings.ContainsAny(b, `()<>@,;:\"/[]?= `) {
+		b = `"` + b + `"`
+	}
+	return "multipart/form-data; boundary=" + b
 }
 
 func randomBoundary() string {
@@ -93,10 +106,14 @@ func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
 	} else {
 		fmt.Fprintf(&b, "--%s\r\n", w.boundary)
 	}
-	// TODO(bradfitz): move this to textproto.MimeHeader.Write(w), have it sort
-	// and clean, like http.Header.Write(w) does.
-	for k, vv := range header {
-		for _, v := range vv {
+
+	keys := make([]string, 0, len(header))
+	for k := range header {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		for _, v := range header[k] {
 			fmt.Fprintf(&b, "%s: %s\r\n", k, v)
 		}
 	}

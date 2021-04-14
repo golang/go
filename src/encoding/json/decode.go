@@ -8,35 +8,43 @@
 package json
 
 import (
-	"bytes"
 	"encoding"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"reflect"
-	"runtime"
 	"strconv"
+	"strings"
 	"unicode"
 	"unicode/utf16"
 	"unicode/utf8"
 )
 
 // Unmarshal parses the JSON-encoded data and stores the result
-// in the value pointed to by v.
+// in the value pointed to by v. If v is nil or not a pointer,
+// Unmarshal returns an InvalidUnmarshalError.
 //
 // Unmarshal uses the inverse of the encodings that
 // Marshal uses, allocating maps, slices, and pointers as necessary,
 // with the following additional rules:
 //
 // To unmarshal JSON into a pointer, Unmarshal first handles the case of
-// the JSON being the JSON literal null.  In that case, Unmarshal sets
-// the pointer to nil.  Otherwise, Unmarshal unmarshals the JSON into
-// the value pointed at by the pointer.  If the pointer is nil, Unmarshal
+// the JSON being the JSON literal null. In that case, Unmarshal sets
+// the pointer to nil. Otherwise, Unmarshal unmarshals the JSON into
+// the value pointed at by the pointer. If the pointer is nil, Unmarshal
 // allocates a new value for it to point to.
+//
+// To unmarshal JSON into a value implementing the Unmarshaler interface,
+// Unmarshal calls that value's UnmarshalJSON method, including
+// when the input is a JSON null.
+// Otherwise, if the value implements encoding.TextUnmarshaler
+// and the input is a JSON quoted string, Unmarshal calls that value's
+// UnmarshalText method with the unquoted form of the string.
 //
 // To unmarshal JSON into a struct, Unmarshal matches incoming object
 // keys to the keys used by Marshal (either the struct field name or its tag),
-// preferring an exact match but also accepting a case-insensitive match.
+// preferring an exact match but also accepting a case-insensitive match. By
+// default, object keys which don't have a corresponding struct field are
+// ignored (see Decoder.DisallowUnknownFields for an alternative).
 //
 // To unmarshal JSON into an interface value,
 // Unmarshal stores one of these in the interface value:
@@ -48,11 +56,32 @@ import (
 //	map[string]interface{}, for JSON objects
 //	nil for JSON null
 //
+// To unmarshal a JSON array into a slice, Unmarshal resets the slice length
+// to zero and then appends each element to the slice.
+// As a special case, to unmarshal an empty JSON array into a slice,
+// Unmarshal replaces the slice with a new empty slice.
+//
+// To unmarshal a JSON array into a Go array, Unmarshal decodes
+// JSON array elements into corresponding Go array elements.
+// If the Go array is smaller than the JSON array,
+// the additional JSON array elements are discarded.
+// If the JSON array is smaller than the Go array,
+// the additional Go array elements are set to zero values.
+//
+// To unmarshal a JSON object into a map, Unmarshal first establishes a map to
+// use. If the map is nil, Unmarshal allocates a new map. Otherwise Unmarshal
+// reuses the existing map, keeping existing entries. Unmarshal then stores
+// key-value pairs from the JSON object into the map. The map's key type must
+// either be any string type, an integer, implement json.Unmarshaler, or
+// implement encoding.TextUnmarshaler.
+//
 // If a JSON value is not appropriate for a given target type,
 // or if a JSON number overflows the target type, Unmarshal
-// skips that field and completes the unmarshalling as best it can.
+// skips that field and completes the unmarshaling as best it can.
 // If no more serious errors are encountered, Unmarshal returns
-// an UnmarshalTypeError describing the earliest such error.
+// an UnmarshalTypeError describing the earliest such error. In any
+// case, it's not guaranteed that all the remaining fields following
+// the problematic one will be unmarshaled into the target object.
 //
 // The JSON null value unmarshals into an interface, map, pointer, or slice
 // by setting that Go value to nil. Because null is often used in JSON to mean
@@ -78,11 +107,14 @@ func Unmarshal(data []byte, v interface{}) error {
 	return d.unmarshal(v)
 }
 
-// Unmarshaler is the interface implemented by objects
+// Unmarshaler is the interface implemented by types
 // that can unmarshal a JSON description of themselves.
 // The input can be assumed to be a valid encoding of
 // a JSON value. UnmarshalJSON must copy the JSON data
 // if it wishes to retain the data after returning.
+//
+// By convention, to approximate the behavior of Unmarshal itself,
+// Unmarshalers implement UnmarshalJSON([]byte("null")) as a no-op.
 type Unmarshaler interface {
 	UnmarshalJSON([]byte) error
 }
@@ -93,15 +125,21 @@ type UnmarshalTypeError struct {
 	Value  string       // description of JSON value - "bool", "array", "number -5"
 	Type   reflect.Type // type of Go value it could not be assigned to
 	Offset int64        // error occurred after reading Offset bytes
+	Struct string       // name of the struct type containing the field
+	Field  string       // the full path from root node to the field
 }
 
 func (e *UnmarshalTypeError) Error() string {
+	if e.Struct != "" || e.Field != "" {
+		return "json: cannot unmarshal " + e.Value + " into Go struct field " + e.Struct + "." + e.Field + " of type " + e.Type.String()
+	}
 	return "json: cannot unmarshal " + e.Value + " into Go value of type " + e.Type.String()
 }
 
 // An UnmarshalFieldError describes a JSON object key that
 // led to an unexported (and therefore unwritable) struct field.
-// (No longer used; kept for compatibility.)
+//
+// Deprecated: No longer used; kept for compatibility.
 type UnmarshalFieldError struct {
 	Key   string
 	Type  reflect.Type
@@ -129,25 +167,20 @@ func (e *InvalidUnmarshalError) Error() string {
 	return "json: Unmarshal(nil " + e.Type.String() + ")"
 }
 
-func (d *decodeState) unmarshal(v interface{}) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			if _, ok := r.(runtime.Error); ok {
-				panic(r)
-			}
-			err = r.(error)
-		}
-	}()
-
+func (d *decodeState) unmarshal(v interface{}) error {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
 		return &InvalidUnmarshalError{reflect.TypeOf(v)}
 	}
 
 	d.scan.reset()
+	d.scanWhile(scanSkipSpace)
 	// We decode rv not rv.Elem because the Unmarshaler interface
 	// test must be applied at the top level of the value.
-	d.value(rv)
+	err := d.value(rv)
+	if err != nil {
+		return d.addErrorContext(err)
+	}
 	return d.savedError
 }
 
@@ -169,128 +202,191 @@ func (n Number) Int64() (int64, error) {
 
 // decodeState represents the state while decoding a JSON value.
 type decodeState struct {
-	data       []byte
-	off        int // read offset in data
-	scan       scanner
-	nextscan   scanner // for calls to nextValue
-	savedError error
-	useNumber  bool
+	data         []byte
+	off          int // next read offset in data
+	opcode       int // last read result
+	scan         scanner
+	errorContext struct { // provides context for type errors
+		Struct     reflect.Type
+		FieldStack []string
+	}
+	savedError            error
+	useNumber             bool
+	disallowUnknownFields bool
 }
 
-// errPhase is used for errors that should not happen unless
-// there is a bug in the JSON decoder or something is editing
-// the data slice while the decoder executes.
-var errPhase = errors.New("JSON decoder out of sync - data changing underfoot?")
+// readIndex returns the position of the last byte read.
+func (d *decodeState) readIndex() int {
+	return d.off - 1
+}
+
+// phasePanicMsg is used as a panic message when we end up with something that
+// shouldn't happen. It can indicate a bug in the JSON decoder, or that
+// something is editing the data slice while the decoder executes.
+const phasePanicMsg = "JSON decoder out of sync - data changing underfoot?"
 
 func (d *decodeState) init(data []byte) *decodeState {
 	d.data = data
 	d.off = 0
 	d.savedError = nil
-	return d
-}
+	d.errorContext.Struct = nil
 
-// error aborts the decoding by panicking with err.
-func (d *decodeState) error(err error) {
-	panic(err)
+	// Reuse the allocated space for the FieldStack slice.
+	d.errorContext.FieldStack = d.errorContext.FieldStack[:0]
+	return d
 }
 
 // saveError saves the first err it is called with,
 // for reporting at the end of the unmarshal.
 func (d *decodeState) saveError(err error) {
 	if d.savedError == nil {
-		d.savedError = err
+		d.savedError = d.addErrorContext(err)
 	}
 }
 
-// next cuts off and returns the next full JSON value in d.data[d.off:].
-// The next value is known to be an object or array, not a literal.
-func (d *decodeState) next() []byte {
-	c := d.data[d.off]
-	item, rest, err := nextValue(d.data[d.off:], &d.nextscan)
-	if err != nil {
-		d.error(err)
+// addErrorContext returns a new error enhanced with information from d.errorContext
+func (d *decodeState) addErrorContext(err error) error {
+	if d.errorContext.Struct != nil || len(d.errorContext.FieldStack) > 0 {
+		switch err := err.(type) {
+		case *UnmarshalTypeError:
+			err.Struct = d.errorContext.Struct.Name()
+			err.Field = strings.Join(d.errorContext.FieldStack, ".")
+			return err
+		}
 	}
-	d.off = len(d.data) - len(rest)
+	return err
+}
 
-	// Our scanner has seen the opening brace/bracket
-	// and thinks we're still in the middle of the object.
-	// invent a closing brace/bracket to get it out.
-	if c == '{' {
-		d.scan.step(&d.scan, '}')
+// skip scans to the end of what was started.
+func (d *decodeState) skip() {
+	s, data, i := &d.scan, d.data, d.off
+	depth := len(s.parseState)
+	for {
+		op := s.step(s, data[i])
+		i++
+		if len(s.parseState) < depth {
+			d.off = i
+			d.opcode = op
+			return
+		}
+	}
+}
+
+// scanNext processes the byte at d.data[d.off].
+func (d *decodeState) scanNext() {
+	if d.off < len(d.data) {
+		d.opcode = d.scan.step(&d.scan, d.data[d.off])
+		d.off++
 	} else {
-		d.scan.step(&d.scan, ']')
+		d.opcode = d.scan.eof()
+		d.off = len(d.data) + 1 // mark processed EOF with len+1
 	}
-
-	return item
 }
 
 // scanWhile processes bytes in d.data[d.off:] until it
 // receives a scan code not equal to op.
-// It updates d.off and returns the new scan code.
-func (d *decodeState) scanWhile(op int) int {
-	var newOp int
-	for {
-		if d.off >= len(d.data) {
-			newOp = d.scan.eof()
-			d.off = len(d.data) + 1 // mark processed EOF with len+1
-		} else {
-			c := int(d.data[d.off])
-			d.off++
-			newOp = d.scan.step(&d.scan, c)
-		}
+func (d *decodeState) scanWhile(op int) {
+	s, data, i := &d.scan, d.data, d.off
+	for i < len(data) {
+		newOp := s.step(s, data[i])
+		i++
 		if newOp != op {
-			break
+			d.opcode = newOp
+			d.off = i
+			return
 		}
 	}
-	return newOp
+
+	d.off = len(data) + 1 // mark processed EOF with len+1
+	d.opcode = d.scan.eof()
 }
 
-// value decodes a JSON value from d.data[d.off:] into the value.
-// it updates d.off to point past the decoded value.
-func (d *decodeState) value(v reflect.Value) {
-	if !v.IsValid() {
-		_, rest, err := nextValue(d.data[d.off:], &d.nextscan)
-		if err != nil {
-			d.error(err)
+// rescanLiteral is similar to scanWhile(scanContinue), but it specialises the
+// common case where we're decoding a literal. The decoder scans the input
+// twice, once for syntax errors and to check the length of the value, and the
+// second to perform the decoding.
+//
+// Only in the second step do we use decodeState to tokenize literals, so we
+// know there aren't any syntax errors. We can take advantage of that knowledge,
+// and scan a literal's bytes much more quickly.
+func (d *decodeState) rescanLiteral() {
+	data, i := d.data, d.off
+Switch:
+	switch data[i-1] {
+	case '"': // string
+		for ; i < len(data); i++ {
+			switch data[i] {
+			case '\\':
+				i++ // escaped char
+			case '"':
+				i++ // tokenize the closing quote too
+				break Switch
+			}
 		}
-		d.off = len(d.data) - len(rest)
-
-		// d.scan thinks we're still at the beginning of the item.
-		// Feed in an empty string - the shortest, simplest value -
-		// so that it knows we got to the end of the value.
-		if d.scan.redo {
-			// rewind.
-			d.scan.redo = false
-			d.scan.step = stateBeginValue
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-': // number
+		for ; i < len(data); i++ {
+			switch data[i] {
+			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+				'.', 'e', 'E', '+', '-':
+			default:
+				break Switch
+			}
 		}
-		d.scan.step(&d.scan, '"')
-		d.scan.step(&d.scan, '"')
-
-		n := len(d.scan.parseState)
-		if n > 0 && d.scan.parseState[n-1] == parseObjectKey {
-			// d.scan thinks we just read an object key; finish the object
-			d.scan.step(&d.scan, ':')
-			d.scan.step(&d.scan, '"')
-			d.scan.step(&d.scan, '"')
-			d.scan.step(&d.scan, '}')
-		}
-
-		return
+	case 't': // true
+		i += len("rue")
+	case 'f': // false
+		i += len("alse")
+	case 'n': // null
+		i += len("ull")
 	}
+	if i < len(data) {
+		d.opcode = stateEndValue(&d.scan, data[i])
+	} else {
+		d.opcode = scanEnd
+	}
+	d.off = i + 1
+}
 
-	switch op := d.scanWhile(scanSkipSpace); op {
+// value consumes a JSON value from d.data[d.off-1:], decoding into v, and
+// reads the following byte ahead. If v is invalid, the value is discarded.
+// The first byte of the value has been read already.
+func (d *decodeState) value(v reflect.Value) error {
+	switch d.opcode {
 	default:
-		d.error(errPhase)
+		panic(phasePanicMsg)
 
 	case scanBeginArray:
-		d.array(v)
+		if v.IsValid() {
+			if err := d.array(v); err != nil {
+				return err
+			}
+		} else {
+			d.skip()
+		}
+		d.scanNext()
 
 	case scanBeginObject:
-		d.object(v)
+		if v.IsValid() {
+			if err := d.object(v); err != nil {
+				return err
+			}
+		} else {
+			d.skip()
+		}
+		d.scanNext()
 
 	case scanBeginLiteral:
-		d.literal(v)
+		// All bytes inside literal return scanContinue op code.
+		start := d.readIndex()
+		d.rescanLiteral()
+
+		if v.IsValid() {
+			if err := d.literalStore(d.data[start:d.readIndex()], v, false); err != nil {
+				return err
+			}
+		}
 	}
+	return nil
 }
 
 type unquotedValue struct{}
@@ -300,18 +396,17 @@ type unquotedValue struct{}
 // If it finds anything other than a quoted string literal or null,
 // valueQuoted returns unquotedValue{}.
 func (d *decodeState) valueQuoted() interface{} {
-	switch op := d.scanWhile(scanSkipSpace); op {
+	switch d.opcode {
 	default:
-		d.error(errPhase)
+		panic(phasePanicMsg)
 
-	case scanBeginArray:
-		d.array(reflect.Value{})
-
-	case scanBeginObject:
-		d.object(reflect.Value{})
+	case scanBeginArray, scanBeginObject:
+		d.skip()
+		d.scanNext()
 
 	case scanBeginLiteral:
-		switch v := d.literalInterface().(type) {
+		v := d.literalInterface()
+		switch v.(type) {
 		case nil, string:
 			return v
 		}
@@ -321,13 +416,29 @@ func (d *decodeState) valueQuoted() interface{} {
 
 // indirect walks down v allocating pointers as needed,
 // until it gets to a non-pointer.
-// if it encounters an Unmarshaler, indirect stops and returns that.
-// if decodingNull is true, indirect stops at the last pointer so it can be set to nil.
-func (d *decodeState) indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnmarshaler, reflect.Value) {
+// If it encounters an Unmarshaler, indirect stops and returns that.
+// If decodingNull is true, indirect stops at the first settable pointer so it
+// can be set to nil.
+func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnmarshaler, reflect.Value) {
+	// Issue #24153 indicates that it is generally not a guaranteed property
+	// that you may round-trip a reflect.Value by calling Value.Addr().Elem()
+	// and expect the value to still be settable for values derived from
+	// unexported embedded struct fields.
+	//
+	// The logic below effectively does this when it first addresses the value
+	// (to satisfy possible pointer methods) and continues to dereference
+	// subsequent pointers as necessary.
+	//
+	// After the first round-trip, we set v back to the original value to
+	// preserve the original RW flags contained in reflect.Value.
+	v0 := v
+	haveAddr := false
+
 	// If v is a named type and is addressable,
 	// start with its address, so that if the type has pointer methods,
 	// we find them.
 	if v.Kind() != reflect.Ptr && v.Type().Name() != "" && v.CanAddr() {
+		haveAddr = true
 		v = v.Addr()
 	}
 	for {
@@ -336,6 +447,7 @@ func (d *decodeState) indirect(v reflect.Value, decodingNull bool) (Unmarshaler,
 		if v.Kind() == reflect.Interface && !v.IsNil() {
 			e := v.Elem()
 			if e.Kind() == reflect.Ptr && !e.IsNil() && (!decodingNull || e.Elem().Kind() == reflect.Ptr) {
+				haveAddr = false
 				v = e
 				continue
 			}
@@ -345,78 +457,84 @@ func (d *decodeState) indirect(v reflect.Value, decodingNull bool) (Unmarshaler,
 			break
 		}
 
-		if v.Elem().Kind() != reflect.Ptr && decodingNull && v.CanSet() {
+		if decodingNull && v.CanSet() {
+			break
+		}
+
+		// Prevent infinite loop if v is an interface pointing to its own address:
+		//     var v interface{}
+		//     v = &v
+		if v.Elem().Kind() == reflect.Interface && v.Elem().Elem() == v {
+			v = v.Elem()
 			break
 		}
 		if v.IsNil() {
 			v.Set(reflect.New(v.Type().Elem()))
 		}
-		if v.Type().NumMethod() > 0 {
+		if v.Type().NumMethod() > 0 && v.CanInterface() {
 			if u, ok := v.Interface().(Unmarshaler); ok {
 				return u, nil, reflect.Value{}
 			}
-			if u, ok := v.Interface().(encoding.TextUnmarshaler); ok {
-				return nil, u, reflect.Value{}
+			if !decodingNull {
+				if u, ok := v.Interface().(encoding.TextUnmarshaler); ok {
+					return nil, u, reflect.Value{}
+				}
 			}
 		}
-		v = v.Elem()
+
+		if haveAddr {
+			v = v0 // restore original value after round-trip Value.Addr().Elem()
+			haveAddr = false
+		} else {
+			v = v.Elem()
+		}
 	}
 	return nil, nil, v
 }
 
-// array consumes an array from d.data[d.off-1:], decoding into the value v.
-// the first byte of the array ('[') has been read already.
-func (d *decodeState) array(v reflect.Value) {
+// array consumes an array from d.data[d.off-1:], decoding into v.
+// The first byte of the array ('[') has been read already.
+func (d *decodeState) array(v reflect.Value) error {
 	// Check for unmarshaler.
-	u, ut, pv := d.indirect(v, false)
+	u, ut, pv := indirect(v, false)
 	if u != nil {
-		d.off--
-		err := u.UnmarshalJSON(d.next())
-		if err != nil {
-			d.error(err)
-		}
-		return
+		start := d.readIndex()
+		d.skip()
+		return u.UnmarshalJSON(d.data[start:d.off])
 	}
 	if ut != nil {
-		d.saveError(&UnmarshalTypeError{"array", v.Type(), int64(d.off)})
-		d.off--
-		d.next()
-		return
+		d.saveError(&UnmarshalTypeError{Value: "array", Type: v.Type(), Offset: int64(d.off)})
+		d.skip()
+		return nil
 	}
-
 	v = pv
 
 	// Check type of target.
 	switch v.Kind() {
 	case reflect.Interface:
 		if v.NumMethod() == 0 {
-			// Decoding into nil interface?  Switch to non-reflect code.
-			v.Set(reflect.ValueOf(d.arrayInterface()))
-			return
+			// Decoding into nil interface? Switch to non-reflect code.
+			ai := d.arrayInterface()
+			v.Set(reflect.ValueOf(ai))
+			return nil
 		}
 		// Otherwise it's invalid.
 		fallthrough
 	default:
-		d.saveError(&UnmarshalTypeError{"array", v.Type(), int64(d.off)})
-		d.off--
-		d.next()
-		return
-	case reflect.Array:
-	case reflect.Slice:
+		d.saveError(&UnmarshalTypeError{Value: "array", Type: v.Type(), Offset: int64(d.off)})
+		d.skip()
+		return nil
+	case reflect.Array, reflect.Slice:
 		break
 	}
 
 	i := 0
 	for {
 		// Look ahead for ] - can only happen on first iteration.
-		op := d.scanWhile(scanSkipSpace)
-		if op == scanEndArray {
+		d.scanWhile(scanSkipSpace)
+		if d.opcode == scanEndArray {
 			break
 		}
-
-		// Back up so d.value can have the byte we just read.
-		d.off--
-		d.scan.undo(op)
 
 		// Get element of array, growing if necessary.
 		if v.Kind() == reflect.Slice {
@@ -437,26 +555,32 @@ func (d *decodeState) array(v reflect.Value) {
 
 		if i < v.Len() {
 			// Decode into element.
-			d.value(v.Index(i))
+			if err := d.value(v.Index(i)); err != nil {
+				return err
+			}
 		} else {
 			// Ran out of fixed array: skip.
-			d.value(reflect.Value{})
+			if err := d.value(reflect.Value{}); err != nil {
+				return err
+			}
 		}
 		i++
 
 		// Next token must be , or ].
-		op = d.scanWhile(scanSkipSpace)
-		if op == scanEndArray {
+		if d.opcode == scanSkipSpace {
+			d.scanWhile(scanSkipSpace)
+		}
+		if d.opcode == scanEndArray {
 			break
 		}
-		if op != scanArrayValue {
-			d.error(errPhase)
+		if d.opcode != scanArrayValue {
+			panic(phasePanicMsg)
 		}
 	}
 
 	if i < v.Len() {
 		if v.Kind() == reflect.Array {
-			// Array.  Zero the rest.
+			// Array. Zero the rest.
 			z := reflect.Zero(v.Type().Elem())
 			for ; i < v.Len(); i++ {
 				v.Index(i).Set(z)
@@ -468,80 +592,91 @@ func (d *decodeState) array(v reflect.Value) {
 	if i == 0 && v.Kind() == reflect.Slice {
 		v.Set(reflect.MakeSlice(v.Type(), 0, 0))
 	}
+	return nil
 }
 
 var nullLiteral = []byte("null")
+var textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 
-// object consumes an object from d.data[d.off-1:], decoding into the value v.
-// the first byte ('{') of the object has been read already.
-func (d *decodeState) object(v reflect.Value) {
+// object consumes an object from d.data[d.off-1:], decoding into v.
+// The first byte ('{') of the object has been read already.
+func (d *decodeState) object(v reflect.Value) error {
 	// Check for unmarshaler.
-	u, ut, pv := d.indirect(v, false)
+	u, ut, pv := indirect(v, false)
 	if u != nil {
-		d.off--
-		err := u.UnmarshalJSON(d.next())
-		if err != nil {
-			d.error(err)
-		}
-		return
+		start := d.readIndex()
+		d.skip()
+		return u.UnmarshalJSON(d.data[start:d.off])
 	}
 	if ut != nil {
-		d.saveError(&UnmarshalTypeError{"object", v.Type(), int64(d.off)})
-		d.off--
-		d.next() // skip over { } in input
-		return
+		d.saveError(&UnmarshalTypeError{Value: "object", Type: v.Type(), Offset: int64(d.off)})
+		d.skip()
+		return nil
 	}
 	v = pv
+	t := v.Type()
 
-	// Decoding into nil interface?  Switch to non-reflect code.
+	// Decoding into nil interface? Switch to non-reflect code.
 	if v.Kind() == reflect.Interface && v.NumMethod() == 0 {
-		v.Set(reflect.ValueOf(d.objectInterface()))
-		return
+		oi := d.objectInterface()
+		v.Set(reflect.ValueOf(oi))
+		return nil
 	}
 
-	// Check type of target: struct or map[string]T
+	var fields structFields
+
+	// Check type of target:
+	//   struct or
+	//   map[T1]T2 where T1 is string, an integer type,
+	//             or an encoding.TextUnmarshaler
 	switch v.Kind() {
 	case reflect.Map:
-		// map must have string kind
-		t := v.Type()
-		if t.Key().Kind() != reflect.String {
-			d.saveError(&UnmarshalTypeError{"object", v.Type(), int64(d.off)})
-			d.off--
-			d.next() // skip over { } in input
-			return
+		// Map key must either have string kind, have an integer kind,
+		// or be an encoding.TextUnmarshaler.
+		switch t.Key().Kind() {
+		case reflect.String,
+			reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		default:
+			if !reflect.PtrTo(t.Key()).Implements(textUnmarshalerType) {
+				d.saveError(&UnmarshalTypeError{Value: "object", Type: t, Offset: int64(d.off)})
+				d.skip()
+				return nil
+			}
 		}
 		if v.IsNil() {
 			v.Set(reflect.MakeMap(t))
 		}
 	case reflect.Struct:
-
+		fields = cachedTypeFields(t)
+		// ok
 	default:
-		d.saveError(&UnmarshalTypeError{"object", v.Type(), int64(d.off)})
-		d.off--
-		d.next() // skip over { } in input
-		return
+		d.saveError(&UnmarshalTypeError{Value: "object", Type: t, Offset: int64(d.off)})
+		d.skip()
+		return nil
 	}
 
 	var mapElem reflect.Value
+	origErrorContext := d.errorContext
 
 	for {
 		// Read opening " of string key or closing }.
-		op := d.scanWhile(scanSkipSpace)
-		if op == scanEndObject {
+		d.scanWhile(scanSkipSpace)
+		if d.opcode == scanEndObject {
 			// closing } - can only happen on first iteration.
 			break
 		}
-		if op != scanBeginLiteral {
-			d.error(errPhase)
+		if d.opcode != scanBeginLiteral {
+			panic(phasePanicMsg)
 		}
 
 		// Read key.
-		start := d.off - 1
-		op = d.scanWhile(scanContinue)
-		item := d.data[start : d.off-1]
+		start := d.readIndex()
+		d.rescanLiteral()
+		item := d.data[start:d.readIndex()]
 		key, ok := unquoteBytes(item)
 		if !ok {
-			d.error(errPhase)
+			panic(phasePanicMsg)
 		}
 
 		// Figure out field corresponding to key.
@@ -549,7 +684,7 @@ func (d *decodeState) object(v reflect.Value) {
 		destring := false // whether the value is wrapped in a string to be decoded first
 
 		if v.Kind() == reflect.Map {
-			elemType := v.Type().Elem()
+			elemType := t.Elem()
 			if !mapElem.IsValid() {
 				mapElem = reflect.New(elemType).Elem()
 			} else {
@@ -558,15 +693,18 @@ func (d *decodeState) object(v reflect.Value) {
 			subv = mapElem
 		} else {
 			var f *field
-			fields := cachedTypeFields(v.Type())
-			for i := range fields {
-				ff := &fields[i]
-				if bytes.Equal(ff.nameBytes, key) {
-					f = ff
-					break
-				}
-				if f == nil && ff.equalFold(ff.nameBytes, key) {
-					f = ff
+			if i, ok := fields.nameIndex[string(key)]; ok {
+				// Found an exact name match.
+				f = &fields.list[i]
+			} else {
+				// Fall back to the expensive case-insensitive
+				// linear search.
+				for i := range fields.list {
+					ff := &fields.list[i]
+					if ff.equalFold(ff.nameBytes, key) {
+						f = ff
+						break
+					}
 				}
 			}
 			if f != nil {
@@ -575,68 +713,118 @@ func (d *decodeState) object(v reflect.Value) {
 				for _, i := range f.index {
 					if subv.Kind() == reflect.Ptr {
 						if subv.IsNil() {
+							// If a struct embeds a pointer to an unexported type,
+							// it is not possible to set a newly allocated value
+							// since the field is unexported.
+							//
+							// See https://golang.org/issue/21357
+							if !subv.CanSet() {
+								d.saveError(fmt.Errorf("json: cannot set embedded pointer to unexported struct: %v", subv.Type().Elem()))
+								// Invalidate subv to ensure d.value(subv) skips over
+								// the JSON value without assigning it to subv.
+								subv = reflect.Value{}
+								destring = false
+								break
+							}
 							subv.Set(reflect.New(subv.Type().Elem()))
 						}
 						subv = subv.Elem()
 					}
 					subv = subv.Field(i)
 				}
+				d.errorContext.FieldStack = append(d.errorContext.FieldStack, f.name)
+				d.errorContext.Struct = t
+			} else if d.disallowUnknownFields {
+				d.saveError(fmt.Errorf("json: unknown field %q", key))
 			}
 		}
 
 		// Read : before value.
-		if op == scanSkipSpace {
-			op = d.scanWhile(scanSkipSpace)
+		if d.opcode == scanSkipSpace {
+			d.scanWhile(scanSkipSpace)
 		}
-		if op != scanObjectKey {
-			d.error(errPhase)
+		if d.opcode != scanObjectKey {
+			panic(phasePanicMsg)
 		}
+		d.scanWhile(scanSkipSpace)
 
-		// Read value.
 		if destring {
 			switch qv := d.valueQuoted().(type) {
 			case nil:
-				d.literalStore(nullLiteral, subv, false)
+				if err := d.literalStore(nullLiteral, subv, false); err != nil {
+					return err
+				}
 			case string:
-				d.literalStore([]byte(qv), subv, true)
+				if err := d.literalStore([]byte(qv), subv, true); err != nil {
+					return err
+				}
 			default:
 				d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal unquoted value into %v", subv.Type()))
 			}
 		} else {
-			d.value(subv)
+			if err := d.value(subv); err != nil {
+				return err
+			}
 		}
 
 		// Write value back to map;
 		// if using struct, subv points into struct already.
 		if v.Kind() == reflect.Map {
-			kv := reflect.ValueOf(key).Convert(v.Type().Key())
-			v.SetMapIndex(kv, subv)
+			kt := t.Key()
+			var kv reflect.Value
+			switch {
+			case reflect.PtrTo(kt).Implements(textUnmarshalerType):
+				kv = reflect.New(kt)
+				if err := d.literalStore(item, kv, true); err != nil {
+					return err
+				}
+				kv = kv.Elem()
+			case kt.Kind() == reflect.String:
+				kv = reflect.ValueOf(key).Convert(kt)
+			default:
+				switch kt.Kind() {
+				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+					s := string(key)
+					n, err := strconv.ParseInt(s, 10, 64)
+					if err != nil || reflect.Zero(kt).OverflowInt(n) {
+						d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: kt, Offset: int64(start + 1)})
+						break
+					}
+					kv = reflect.ValueOf(n).Convert(kt)
+				case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+					s := string(key)
+					n, err := strconv.ParseUint(s, 10, 64)
+					if err != nil || reflect.Zero(kt).OverflowUint(n) {
+						d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: kt, Offset: int64(start + 1)})
+						break
+					}
+					kv = reflect.ValueOf(n).Convert(kt)
+				default:
+					panic("json: Unexpected key type") // should never occur
+				}
+			}
+			if kv.IsValid() {
+				v.SetMapIndex(kv, subv)
+			}
 		}
 
 		// Next token must be , or }.
-		op = d.scanWhile(scanSkipSpace)
-		if op == scanEndObject {
+		if d.opcode == scanSkipSpace {
+			d.scanWhile(scanSkipSpace)
+		}
+		// Reset errorContext to its original state.
+		// Keep the same underlying array for FieldStack, to reuse the
+		// space and avoid unnecessary allocs.
+		d.errorContext.FieldStack = d.errorContext.FieldStack[:len(origErrorContext.FieldStack)]
+		d.errorContext.Struct = origErrorContext.Struct
+		if d.opcode == scanEndObject {
 			break
 		}
-		if op != scanObjectValue {
-			d.error(errPhase)
+		if d.opcode != scanObjectValue {
+			panic(phasePanicMsg)
 		}
 	}
-}
-
-// literal consumes a literal from d.data[d.off-1:], decoding into the value v.
-// The first byte of the literal has been read already
-// (that's how the caller knows it's a literal).
-func (d *decodeState) literal(v reflect.Value) {
-	// All bytes inside literal return scanContinue op code.
-	start := d.off - 1
-	op := d.scanWhile(scanContinue)
-
-	// Scan read one byte too far; back up.
-	d.off--
-	d.scan.undo(op)
-
-	d.literalStore(d.data[start:d.off], v, false)
+	return nil
 }
 
 // convertNumber converts the number literal s to a float64 or a Number
@@ -647,7 +835,7 @@ func (d *decodeState) convertNumber(s string) (interface{}, error) {
 	}
 	f, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		return nil, &UnmarshalTypeError{"number " + s, reflect.TypeOf(0.0), int64(d.off)}
+		return nil, &UnmarshalTypeError{Value: "number " + s, Type: reflect.TypeOf(0.0), Offset: int64(d.off)}
 	}
 	return f, nil
 }
@@ -659,62 +847,73 @@ var numberType = reflect.TypeOf(Number(""))
 // fromQuoted indicates whether this literal came from unwrapping a
 // string from the ",string" struct tag option. this is used only to
 // produce more helpful error messages.
-func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool) {
+func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool) error {
 	// Check for unmarshaler.
 	if len(item) == 0 {
 		//Empty string given
 		d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
-		return
+		return nil
 	}
-	wantptr := item[0] == 'n' // null
-	u, ut, pv := d.indirect(v, wantptr)
+	isNull := item[0] == 'n' // null
+	u, ut, pv := indirect(v, isNull)
 	if u != nil {
-		err := u.UnmarshalJSON(item)
-		if err != nil {
-			d.error(err)
-		}
-		return
+		return u.UnmarshalJSON(item)
 	}
 	if ut != nil {
 		if item[0] != '"' {
 			if fromQuoted {
 				d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
-			} else {
-				d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.off)})
+				return nil
 			}
+			val := "number"
+			switch item[0] {
+			case 'n':
+				val = "null"
+			case 't', 'f':
+				val = "bool"
+			}
+			d.saveError(&UnmarshalTypeError{Value: val, Type: v.Type(), Offset: int64(d.readIndex())})
+			return nil
 		}
 		s, ok := unquoteBytes(item)
 		if !ok {
 			if fromQuoted {
-				d.error(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
-			} else {
-				d.error(errPhase)
+				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
 			}
+			panic(phasePanicMsg)
 		}
-		err := ut.UnmarshalText(s)
-		if err != nil {
-			d.error(err)
-		}
-		return
+		return ut.UnmarshalText(s)
 	}
 
 	v = pv
 
 	switch c := item[0]; c {
 	case 'n': // null
+		// The main parser checks that only true and false can reach here,
+		// but if this was a quoted string input, it could be anything.
+		if fromQuoted && string(item) != "null" {
+			d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
+			break
+		}
 		switch v.Kind() {
 		case reflect.Interface, reflect.Ptr, reflect.Map, reflect.Slice:
 			v.Set(reflect.Zero(v.Type()))
 			// otherwise, ignore null for primitives/string
 		}
 	case 't', 'f': // true, false
-		value := c == 't'
+		value := item[0] == 't'
+		// The main parser checks that only true and false can reach here,
+		// but if this was a quoted string input, it could be anything.
+		if fromQuoted && string(item) != "true" && string(item) != "false" {
+			d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
+			break
+		}
 		switch v.Kind() {
 		default:
 			if fromQuoted {
 				d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
 			} else {
-				d.saveError(&UnmarshalTypeError{"bool", v.Type(), int64(d.off)})
+				d.saveError(&UnmarshalTypeError{Value: "bool", Type: v.Type(), Offset: int64(d.readIndex())})
 			}
 		case reflect.Bool:
 			v.SetBool(value)
@@ -722,7 +921,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			if v.NumMethod() == 0 {
 				v.Set(reflect.ValueOf(value))
 			} else {
-				d.saveError(&UnmarshalTypeError{"bool", v.Type(), int64(d.off)})
+				d.saveError(&UnmarshalTypeError{Value: "bool", Type: v.Type(), Offset: int64(d.readIndex())})
 			}
 		}
 
@@ -730,17 +929,16 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		s, ok := unquoteBytes(item)
 		if !ok {
 			if fromQuoted {
-				d.error(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
-			} else {
-				d.error(errPhase)
+				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
 			}
+			panic(phasePanicMsg)
 		}
 		switch v.Kind() {
 		default:
-			d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.off)})
+			d.saveError(&UnmarshalTypeError{Value: "string", Type: v.Type(), Offset: int64(d.readIndex())})
 		case reflect.Slice:
-			if v.Type() != byteSliceType {
-				d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.off)})
+			if v.Type().Elem().Kind() != reflect.Uint8 {
+				d.saveError(&UnmarshalTypeError{Value: "string", Type: v.Type(), Offset: int64(d.readIndex())})
 				break
 			}
 			b := make([]byte, base64.StdEncoding.DecodedLen(len(s)))
@@ -749,37 +947,40 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 				d.saveError(err)
 				break
 			}
-			v.Set(reflect.ValueOf(b[0:n]))
+			v.SetBytes(b[:n])
 		case reflect.String:
+			if v.Type() == numberType && !isValidNumber(string(s)) {
+				return fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", item)
+			}
 			v.SetString(string(s))
 		case reflect.Interface:
 			if v.NumMethod() == 0 {
 				v.Set(reflect.ValueOf(string(s)))
 			} else {
-				d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.off)})
+				d.saveError(&UnmarshalTypeError{Value: "string", Type: v.Type(), Offset: int64(d.readIndex())})
 			}
 		}
 
 	default: // number
 		if c != '-' && (c < '0' || c > '9') {
 			if fromQuoted {
-				d.error(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
-			} else {
-				d.error(errPhase)
+				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
 			}
+			panic(phasePanicMsg)
 		}
 		s := string(item)
 		switch v.Kind() {
 		default:
 			if v.Kind() == reflect.String && v.Type() == numberType {
+				// s must be a valid number, because it's
+				// already been tokenized.
 				v.SetString(s)
 				break
 			}
 			if fromQuoted {
-				d.error(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
-			} else {
-				d.error(&UnmarshalTypeError{"number", v.Type(), int64(d.off)})
+				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
 			}
+			d.saveError(&UnmarshalTypeError{Value: "number", Type: v.Type(), Offset: int64(d.readIndex())})
 		case reflect.Interface:
 			n, err := d.convertNumber(s)
 			if err != nil {
@@ -787,7 +988,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 				break
 			}
 			if v.NumMethod() != 0 {
-				d.saveError(&UnmarshalTypeError{"number", v.Type(), int64(d.off)})
+				d.saveError(&UnmarshalTypeError{Value: "number", Type: v.Type(), Offset: int64(d.readIndex())})
 				break
 			}
 			v.Set(reflect.ValueOf(n))
@@ -795,7 +996,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			n, err := strconv.ParseInt(s, 10, 64)
 			if err != nil || v.OverflowInt(n) {
-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type(), int64(d.off)})
+				d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: v.Type(), Offset: int64(d.readIndex())})
 				break
 			}
 			v.SetInt(n)
@@ -803,7 +1004,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 			n, err := strconv.ParseUint(s, 10, 64)
 			if err != nil || v.OverflowUint(n) {
-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type(), int64(d.off)})
+				d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: v.Type(), Offset: int64(d.readIndex())})
 				break
 			}
 			v.SetUint(n)
@@ -811,31 +1012,34 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		case reflect.Float32, reflect.Float64:
 			n, err := strconv.ParseFloat(s, v.Type().Bits())
 			if err != nil || v.OverflowFloat(n) {
-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type(), int64(d.off)})
+				d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: v.Type(), Offset: int64(d.readIndex())})
 				break
 			}
 			v.SetFloat(n)
 		}
 	}
+	return nil
 }
 
 // The xxxInterface routines build up a value to be stored
-// in an empty interface.  They are not strictly necessary,
+// in an empty interface. They are not strictly necessary,
 // but they avoid the weight of reflection in this common case.
 
 // valueInterface is like value but returns interface{}
-func (d *decodeState) valueInterface() interface{} {
-	switch d.scanWhile(scanSkipSpace) {
+func (d *decodeState) valueInterface() (val interface{}) {
+	switch d.opcode {
 	default:
-		d.error(errPhase)
-		panic("unreachable")
+		panic(phasePanicMsg)
 	case scanBeginArray:
-		return d.arrayInterface()
+		val = d.arrayInterface()
+		d.scanNext()
 	case scanBeginObject:
-		return d.objectInterface()
+		val = d.objectInterface()
+		d.scanNext()
 	case scanBeginLiteral:
-		return d.literalInterface()
+		val = d.literalInterface()
 	}
+	return
 }
 
 // arrayInterface is like array but returns []interface{}.
@@ -843,24 +1047,22 @@ func (d *decodeState) arrayInterface() []interface{} {
 	var v = make([]interface{}, 0)
 	for {
 		// Look ahead for ] - can only happen on first iteration.
-		op := d.scanWhile(scanSkipSpace)
-		if op == scanEndArray {
+		d.scanWhile(scanSkipSpace)
+		if d.opcode == scanEndArray {
 			break
 		}
-
-		// Back up so d.value can have the byte we just read.
-		d.off--
-		d.scan.undo(op)
 
 		v = append(v, d.valueInterface())
 
 		// Next token must be , or ].
-		op = d.scanWhile(scanSkipSpace)
-		if op == scanEndArray {
+		if d.opcode == scanSkipSpace {
+			d.scanWhile(scanSkipSpace)
+		}
+		if d.opcode == scanEndArray {
 			break
 		}
-		if op != scanArrayValue {
-			d.error(errPhase)
+		if d.opcode != scanArrayValue {
+			panic(phasePanicMsg)
 		}
 	}
 	return v
@@ -871,57 +1073,59 @@ func (d *decodeState) objectInterface() map[string]interface{} {
 	m := make(map[string]interface{})
 	for {
 		// Read opening " of string key or closing }.
-		op := d.scanWhile(scanSkipSpace)
-		if op == scanEndObject {
+		d.scanWhile(scanSkipSpace)
+		if d.opcode == scanEndObject {
 			// closing } - can only happen on first iteration.
 			break
 		}
-		if op != scanBeginLiteral {
-			d.error(errPhase)
+		if d.opcode != scanBeginLiteral {
+			panic(phasePanicMsg)
 		}
 
 		// Read string key.
-		start := d.off - 1
-		op = d.scanWhile(scanContinue)
-		item := d.data[start : d.off-1]
+		start := d.readIndex()
+		d.rescanLiteral()
+		item := d.data[start:d.readIndex()]
 		key, ok := unquote(item)
 		if !ok {
-			d.error(errPhase)
+			panic(phasePanicMsg)
 		}
 
 		// Read : before value.
-		if op == scanSkipSpace {
-			op = d.scanWhile(scanSkipSpace)
+		if d.opcode == scanSkipSpace {
+			d.scanWhile(scanSkipSpace)
 		}
-		if op != scanObjectKey {
-			d.error(errPhase)
+		if d.opcode != scanObjectKey {
+			panic(phasePanicMsg)
 		}
+		d.scanWhile(scanSkipSpace)
 
 		// Read value.
 		m[key] = d.valueInterface()
 
 		// Next token must be , or }.
-		op = d.scanWhile(scanSkipSpace)
-		if op == scanEndObject {
+		if d.opcode == scanSkipSpace {
+			d.scanWhile(scanSkipSpace)
+		}
+		if d.opcode == scanEndObject {
 			break
 		}
-		if op != scanObjectValue {
-			d.error(errPhase)
+		if d.opcode != scanObjectValue {
+			panic(phasePanicMsg)
 		}
 	}
 	return m
 }
 
-// literalInterface is like literal but returns an interface value.
+// literalInterface consumes and returns a literal from d.data[d.off-1:] and
+// it reads the following byte ahead. The first byte of the literal has been
+// read already (that's how the caller knows it's a literal).
 func (d *decodeState) literalInterface() interface{} {
 	// All bytes inside literal return scanContinue op code.
-	start := d.off - 1
-	op := d.scanWhile(scanContinue)
+	start := d.readIndex()
+	d.rescanLiteral()
 
-	// Scan read one byte too far; back up.
-	d.off--
-	d.scan.undo(op)
-	item := d.data[start:d.off]
+	item := d.data[start:d.readIndex()]
 
 	switch c := item[0]; c {
 	case 'n': // null
@@ -933,13 +1137,13 @@ func (d *decodeState) literalInterface() interface{} {
 	case '"': // string
 		s, ok := unquote(item)
 		if !ok {
-			d.error(errPhase)
+			panic(phasePanicMsg)
 		}
 		return s
 
 	default: // number
 		if c != '-' && (c < '0' || c > '9') {
-			d.error(errPhase)
+			panic(phasePanicMsg)
 		}
 		n, err := d.convertNumber(string(item))
 		if err != nil {
@@ -955,11 +1159,21 @@ func getu4(s []byte) rune {
 	if len(s) < 6 || s[0] != '\\' || s[1] != 'u' {
 		return -1
 	}
-	r, err := strconv.ParseUint(string(s[2:6]), 16, 64)
-	if err != nil {
-		return -1
+	var r rune
+	for _, c := range s[2:6] {
+		switch {
+		case '0' <= c && c <= '9':
+			c = c - '0'
+		case 'a' <= c && c <= 'f':
+			c = c - 'a' + 10
+		case 'A' <= c && c <= 'F':
+			c = c - 'A' + 10
+		default:
+			return -1
+		}
+		r = r*16 + rune(c)
 	}
-	return rune(r)
+	return r
 }
 
 // unquote converts a quoted JSON string literal s into an actual string t.
@@ -1002,7 +1216,7 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
 	b := make([]byte, len(s)+2*utf8.UTFMax)
 	w := copy(b, s[0:r])
 	for r < len(s) {
-		// Out of room?  Can only happen if s is full of
+		// Out of room? Can only happen if s is full of
 		// malformed UTF-8 and we're replacing each
 		// byte with RuneError.
 		if w >= len(b)-2*utf8.UTFMax {

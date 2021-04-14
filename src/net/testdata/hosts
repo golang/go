@@ -5,8 +5,7 @@
 127.1.1.1	thor
 # aliases
 127.1.1.2	ullr ullrhost
+fe80::1%lo0	localhost
 # Bogus entries that must be ignored.
 123.123.123	loki
 321.321.321.321
-# TODO(yvesj): Should we be able to parse this? From a Darwin system.
-fe80::1%lo0	localhost

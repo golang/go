@@ -14,6 +14,7 @@ import (
 
 func TestNoRaceAtomicAddInt64(t *testing.T) {
 	var x1, x2 int8
+	_ = x1 + x2
 	var s int64
 	ch := make(chan bool, 2)
 	go func() {
@@ -36,6 +37,7 @@ func TestNoRaceAtomicAddInt64(t *testing.T) {
 
 func TestRaceAtomicAddInt64(t *testing.T) {
 	var x1, x2 int8
+	_ = x1 + x2
 	var s int64
 	ch := make(chan bool, 2)
 	go func() {
@@ -58,6 +60,7 @@ func TestRaceAtomicAddInt64(t *testing.T) {
 
 func TestNoRaceAtomicAddInt32(t *testing.T) {
 	var x1, x2 int8
+	_ = x1 + x2
 	var s int32
 	ch := make(chan bool, 2)
 	go func() {
@@ -80,6 +83,7 @@ func TestNoRaceAtomicAddInt32(t *testing.T) {
 
 func TestNoRaceAtomicLoadAddInt32(t *testing.T) {
 	var x int64
+	_ = x
 	var s int32
 	go func() {
 		x = 2
@@ -93,6 +97,7 @@ func TestNoRaceAtomicLoadAddInt32(t *testing.T) {
 
 func TestNoRaceAtomicLoadStoreInt32(t *testing.T) {
 	var x int64
+	_ = x
 	var s int32
 	go func() {
 		x = 2
@@ -106,6 +111,7 @@ func TestNoRaceAtomicLoadStoreInt32(t *testing.T) {
 
 func TestNoRaceAtomicStoreCASInt32(t *testing.T) {
 	var x int64
+	_ = x
 	var s int32
 	go func() {
 		x = 2
@@ -119,6 +125,7 @@ func TestNoRaceAtomicStoreCASInt32(t *testing.T) {
 
 func TestNoRaceAtomicCASLoadInt32(t *testing.T) {
 	var x int64
+	_ = x
 	var s int32
 	go func() {
 		x = 2
@@ -134,6 +141,7 @@ func TestNoRaceAtomicCASLoadInt32(t *testing.T) {
 
 func TestNoRaceAtomicCASCASInt32(t *testing.T) {
 	var x int64
+	_ = x
 	var s int32
 	go func() {
 		x = 2
@@ -149,6 +157,7 @@ func TestNoRaceAtomicCASCASInt32(t *testing.T) {
 
 func TestNoRaceAtomicCASCASInt32_2(t *testing.T) {
 	var x1, x2 int8
+	_ = x1 + x2
 	var s int32
 	ch := make(chan bool, 2)
 	go func() {
@@ -171,6 +180,7 @@ func TestNoRaceAtomicCASCASInt32_2(t *testing.T) {
 
 func TestNoRaceAtomicLoadInt64(t *testing.T) {
 	var x int32
+	_ = x
 	var s int64
 	go func() {
 		x = 2
@@ -184,6 +194,7 @@ func TestNoRaceAtomicLoadInt64(t *testing.T) {
 
 func TestNoRaceAtomicCASCASUInt64(t *testing.T) {
 	var x int64
+	_ = x
 	var s uint64
 	go func() {
 		x = 2
@@ -199,6 +210,7 @@ func TestNoRaceAtomicCASCASUInt64(t *testing.T) {
 
 func TestNoRaceAtomicLoadStorePointer(t *testing.T) {
 	var x int64
+	_ = x
 	var s unsafe.Pointer
 	var y int = 2
 	var p unsafe.Pointer = unsafe.Pointer(&y)
@@ -214,6 +226,7 @@ func TestNoRaceAtomicLoadStorePointer(t *testing.T) {
 
 func TestNoRaceAtomicStoreCASUint64(t *testing.T) {
 	var x int64
+	_ = x
 	var s uint64
 	go func() {
 		x = 2
@@ -285,4 +298,28 @@ func TestNoRaceAtomicCrash(t *testing.T) {
 		}
 	}()
 	atomic.AddInt32(nilptr, 1)
+}
+
+func TestNoRaceDeferAtomicStore(t *testing.T) {
+	// Test that when an atomic function is deferred directly, the
+	// GC scans it correctly. See issue 42599.
+	type foo struct {
+		bar int64
+	}
+
+	var doFork func(f *foo, depth int)
+	doFork = func(f *foo, depth int) {
+		atomic.StoreInt64(&f.bar, 1)
+		defer atomic.StoreInt64(&f.bar, 0)
+		if depth > 0 {
+			for i := 0; i < 2; i++ {
+				f2 := &foo{}
+				go doFork(f2, depth-1)
+			}
+		}
+		runtime.GC()
+	}
+
+	f := &foo{}
+	doFork(f, 11)
 }

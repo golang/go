@@ -50,10 +50,10 @@ package syscall
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <linux/icmpv6.h>
+#include <poll.h>
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
-#include <ustat.h>
 #include <utime.h>
 
 enum {
@@ -77,8 +77,8 @@ struct sockaddr_any {
 // copied from /usr/include/linux/un.h
 struct my_sockaddr_un {
 	sa_family_t sun_family;
-#if defined(__ARM_EABI__) || defined(__powerpc64__)
-	// on ARM and PPC char is by default unsigned
+#if defined(__ARM_EABI__) || defined(__powerpc64__) || defined(__riscv__) || defined(__s390x__)
+	// on ARM, PPC, RISC-V, and s390x char is by default unsigned
 	signed char sun_path[108];
 #else
 	char sun_path[108];
@@ -87,22 +87,51 @@ struct my_sockaddr_un {
 
 #ifdef __ARM_EABI__
 typedef struct user_regs PtraceRegs;
+#elif defined(__aarch64__)
+typedef struct user_pt_regs PtraceRegs;
 #elif defined(__powerpc64__)
 typedef struct pt_regs PtraceRegs;
+#elif defined(__mips__)
+typedef struct user PtraceRegs;
+#elif defined(__s390x__)
+typedef struct _user_regs_struct PtraceRegs;
 #else
 typedef struct user_regs_struct PtraceRegs;
+#endif
+
+#if defined(__s390x__)
+typedef struct _user_psw_struct ptracePsw;
+typedef struct _user_fpregs_struct ptraceFpregs;
+typedef struct _user_per_struct ptracePer;
+#else
+typedef struct {} ptracePsw;
+typedef struct {} ptraceFpregs;
+typedef struct {} ptracePer;
 #endif
 
 // The real epoll_event is a union, and godefs doesn't handle it well.
 struct my_epoll_event {
 	uint32_t events;
-#ifdef __ARM_EABI__
+#if defined(__ARM_EABI__) || defined(__aarch64__) || (defined(__mips__) && _MIPS_SIM == _ABIO32)
 	// padding is not specified in linux/eventpoll.h but added to conform to the
 	// alignment requirements of EABI
 	int32_t padFd;
 #endif
+#if defined(__powerpc64__) || defined(__s390x__) || (defined(__riscv_xlen) && __riscv_xlen == 64) \
+		|| (defined(__mips__) && _MIPS_SIM == _MIPS_SIM_ABI64)
+	int32_t _padFd;
+#endif
 	int32_t fd;
 	int32_t pad;
+};
+
+// ustat is deprecated and glibc 2.28 removed ustat.h. Provide the type here for
+// backwards compatibility. Copied from /usr/include/bits/ustat.h
+struct ustat {
+	__daddr_t f_tfree;
+	__ino_t f_tinode;
+	char f_fname[6];
+	char f_fpack[6];
 };
 
 */
@@ -363,6 +392,13 @@ const SizeofInotifyEvent = C.sizeof_struct_inotify_event
 // Register structures
 type PtraceRegs C.PtraceRegs
 
+// Structures contained in PtraceRegs on s390x (exported by post.go)
+type ptracePsw C.ptracePsw
+
+type ptraceFpregs C.ptraceFpregs
+
+type ptracePer C.ptracePer
+
 // Misc
 
 type FdSet C.fd_set
@@ -376,8 +412,13 @@ type Ustat_t C.struct_ustat
 type EpollEvent C.struct_my_epoll_event
 
 const (
-	_AT_FDCWD = C.AT_FDCWD
+	_AT_FDCWD            = C.AT_FDCWD
+	_AT_REMOVEDIR        = C.AT_REMOVEDIR
+	_AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
+	_AT_EACCESS          = C.AT_EACCESS
 )
+
+type pollFd C.struct_pollfd
 
 // Terminal handling
 

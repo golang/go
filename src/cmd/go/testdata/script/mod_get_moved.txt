@@ -1,0 +1,40 @@
+env GO111MODULE=on
+[short] skip
+
+# A 'go get' that worked at a previous version should continue to work at that version,
+# even if the package was subsequently moved into a submodule.
+go mod init example.com/foo
+go get -d example.com/split/subpkg@v1.0.0
+go list -m all
+stdout 'example.com/split v1.0.0'
+
+# A 'go get' that simultaneously upgrades away conflicting package defitions is not ambiguous.
+go get -d example.com/split/subpkg@v1.1.0
+
+# A 'go get' without an upgrade should find the package.
+rm go.mod
+go mod init example.com/foo
+go get -d example.com/split/subpkg
+go list -m all
+stdout 'example.com/split/subpkg v1.1.0'
+
+
+# A 'go get' that worked at a previous version should continue to work at that version,
+# even if the package was subsequently moved into a parent module.
+rm go.mod
+go mod init example.com/foo
+go get -d example.com/join/subpkg@v1.0.0
+go list -m all
+stdout 'example.com/join/subpkg v1.0.0'
+
+# A 'go get' that simultaneously upgrades away conflicting package definitions is not ambiguous.
+# (A wildcard pattern applies to both packages and modules,
+# because we define wildcard matching to apply after version resolution.)
+go get -d example.com/join/subpkg/...@v1.1.0
+
+# A 'go get' without an upgrade should find the package.
+rm go.mod
+go mod init example.com/foo
+go get -d example.com/join/subpkg@v1.1.0
+go list -m all
+stdout 'example.com/join v1.1.0'

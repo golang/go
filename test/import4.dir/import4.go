@@ -18,7 +18,7 @@ import X "math"	// ERROR "imported and not used.*math"
 import . "bufio"	// ERROR "imported and not used.*bufio"
 
 // again, package without anything in it
-import "./empty"	// GC_ERROR "imported and not used.*empty"
-import Z "./empty"	// GC_ERROR "imported and not used.*empty"
+import "./empty"	// ERROR "imported and not used.*empty"
+import Z "./empty"	// ERROR "imported and not used.*empty"
 import . "./empty"	// ERROR "imported and not used.*empty"
 

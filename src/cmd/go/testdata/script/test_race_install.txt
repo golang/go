@@ -1,0 +1,18 @@
+[!race] skip
+[short] skip
+
+mkdir $WORKDIR/tmp/pkg
+go install -race -pkgdir=$WORKDIR/tmp/pkg std
+
+# Make sure go test -i -race doesn't rebuild cached packages
+go test -race -pkgdir=$WORKDIR/tmp/pkg -i -v empty/pkg
+cmp stderr stderr.txt
+
+-- go.mod --
+module empty
+
+go 1.16
+-- pkg/pkg.go --
+package p
+-- stderr.txt --
+go test: -i flag is deprecated

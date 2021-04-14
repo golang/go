@@ -1,11 +1,15 @@
 // run
 
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // Test that the implementation catches nil ptr indirection
 // in a large address space.
+
+// +build !aix
+// +build !darwin !arm64
+// Address space starts at 1<<32 on AIX and on darwin/arm64, so dummy is too far.
 
 package main
 

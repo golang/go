@@ -1,10 +1,11 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package net
 
 import (
+	"internal/poll"
 	"io"
 	"os"
 	"syscall"
@@ -17,10 +18,8 @@ import (
 // non-EOF error.
 //
 // if handled == false, sendFile performed no work.
-//
-// Note that sendfile for windows does not suppport >2GB file.
 func sendFile(fd *netFD, r io.Reader) (written int64, err error, handled bool) {
-	var n int64 = 0 // by default, copy until EOF
+	var n int64 = 0 // by default, copy until EOF.
 
 	lr, ok := r.(*io.LimitedReader)
 	if ok {
@@ -29,27 +28,20 @@ func sendFile(fd *netFD, r io.Reader) (written int64, err error, handled bool) {
 			return 0, nil, true
 		}
 	}
+
 	f, ok := r.(*os.File)
 	if !ok {
 		return 0, nil, false
 	}
 
-	if err := fd.writeLock(); err != nil {
-		return 0, err, true
-	}
-	defer fd.writeUnlock()
-
-	o := &fd.wop
-	o.qty = uint32(n)
-	o.handle = syscall.Handle(f.Fd())
-	done, err := wsrv.ExecIO(o, "TransmitFile", func(o *operation) error {
-		return syscall.TransmitFile(o.fd.sysfd, o.handle, o.qty, 0, &o.o, nil, syscall.TF_WRITE_BEHIND)
-	})
+	written, err = poll.SendFile(&fd.pfd, syscall.Handle(f.Fd()), n)
 	if err != nil {
-		return 0, err, false
+		err = wrapSyscallError("transmitfile", err)
 	}
-	if lr != nil {
-		lr.N -= int64(done)
-	}
-	return int64(done), nil, true
+
+	// If any byte was copied, regardless of any error
+	// encountered mid-way, handled must be set to true.
+	handled = written > 0
+
+	return
 }

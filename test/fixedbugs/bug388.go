@@ -1,9 +1,6 @@
-// skip
-// TODO(rsc): Reenable. See issue 9968.
-
 // errorcheck
 
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -12,12 +9,12 @@
 package main
 import "runtime"
 
-func foo(runtime.UintType, i int) {  // ERROR "cannot declare name runtime.UintType|named/anonymous mix|undefined identifier"
+func foo(runtime.UintType, i int) {  // ERROR "cannot declare name runtime.UintType|mixed named and unnamed|undefined identifier"
 	println(i, runtime.UintType) // GCCGO_ERROR "undefined identifier"
 }
 
 func bar(i int) {
-	runtime.UintType := i       // ERROR "cannot declare name runtime.UintType|non-name on left side|undefined identifier"
+	runtime.UintType := i       // ERROR "non-name runtime.UintType|non-name on left side|undefined identifier"
 	println(runtime.UintType)	// GCCGO_ERROR "invalid use of type|undefined identifier"
 }
 

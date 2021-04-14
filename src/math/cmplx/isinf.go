@@ -6,7 +6,7 @@ package cmplx
 
 import "math"
 
-// IsInf returns true if either real(x) or imag(x) is an infinity.
+// IsInf reports whether either real(x) or imag(x) is an infinity.
 func IsInf(x complex128) bool {
 	if math.IsInf(real(x), 0) || math.IsInf(imag(x), 0) {
 		return true

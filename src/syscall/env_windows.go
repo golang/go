@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -16,19 +16,17 @@ func Getenv(key string) (value string, found bool) {
 	if err != nil {
 		return "", false
 	}
-	b := make([]uint16, 100)
-	n, e := GetEnvironmentVariable(keyp, &b[0], uint32(len(b)))
-	if n == 0 && e == ERROR_ENVVAR_NOT_FOUND {
-		return "", false
-	}
-	if n > uint32(len(b)) {
-		b = make([]uint16, n)
-		n, e = GetEnvironmentVariable(keyp, &b[0], uint32(len(b)))
-		if n > uint32(len(b)) {
-			n = 0
+	n := uint32(100)
+	for {
+		b := make([]uint16, n)
+		n, err = GetEnvironmentVariable(keyp, &b[0], uint32(len(b)))
+		if n == 0 && err == ERROR_ENVVAR_NOT_FOUND {
+			return "", false
+		}
+		if n <= uint32(len(b)) {
+			return string(utf16.Decode(b[:n])), true
 		}
 	}
-	return string(utf16.Decode(b[0:n])), true
 }
 
 func Setenv(key, value string) error {
@@ -59,10 +57,10 @@ func Clearenv() {
 	for _, s := range Environ() {
 		// Environment variables can begin with =
 		// so start looking for the separator = at j=1.
-		// http://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
+		// https://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
 		for j := 1; j < len(s); j++ {
 			if s[j] == '=' {
-				Setenv(s[0:j], "")
+				Unsetenv(s[0:j])
 				break
 			}
 		}

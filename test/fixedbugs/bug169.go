@@ -5,6 +5,6 @@
 // license that can be found in the LICENSE file.
 
 package main
-var x = ''';		// ERROR "char"
+var x = ''';		// ERROR "char|rune"
 
 

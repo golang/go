@@ -73,30 +73,31 @@ func idct(src *block) {
 	// Horizontal 1-D IDCT.
 	for y := 0; y < 8; y++ {
 		y8 := y * 8
+		s := src[y8 : y8+8 : y8+8] // Small cap improves performance, see https://golang.org/issue/27857
 		// If all the AC components are zero, then the IDCT is trivial.
-		if src[y8+1] == 0 && src[y8+2] == 0 && src[y8+3] == 0 &&
-			src[y8+4] == 0 && src[y8+5] == 0 && src[y8+6] == 0 && src[y8+7] == 0 {
-			dc := src[y8+0] << 3
-			src[y8+0] = dc
-			src[y8+1] = dc
-			src[y8+2] = dc
-			src[y8+3] = dc
-			src[y8+4] = dc
-			src[y8+5] = dc
-			src[y8+6] = dc
-			src[y8+7] = dc
+		if s[1] == 0 && s[2] == 0 && s[3] == 0 &&
+			s[4] == 0 && s[5] == 0 && s[6] == 0 && s[7] == 0 {
+			dc := s[0] << 3
+			s[0] = dc
+			s[1] = dc
+			s[2] = dc
+			s[3] = dc
+			s[4] = dc
+			s[5] = dc
+			s[6] = dc
+			s[7] = dc
 			continue
 		}
 
 		// Prescale.
-		x0 := (src[y8+0] << 11) + 128
-		x1 := src[y8+4] << 11
-		x2 := src[y8+6]
-		x3 := src[y8+2]
-		x4 := src[y8+1]
-		x5 := src[y8+7]
-		x6 := src[y8+5]
-		x7 := src[y8+3]
+		x0 := (s[0] << 11) + 128
+		x1 := s[4] << 11
+		x2 := s[6]
+		x3 := s[2]
+		x4 := s[1]
+		x5 := s[7]
+		x6 := s[5]
+		x7 := s[3]
 
 		// Stage 1.
 		x8 := w7 * (x4 + x5)
@@ -126,14 +127,14 @@ func idct(src *block) {
 		x4 = (r2*(x4-x5) + 128) >> 8
 
 		// Stage 4.
-		src[y8+0] = (x7 + x1) >> 8
-		src[y8+1] = (x3 + x2) >> 8
-		src[y8+2] = (x0 + x4) >> 8
-		src[y8+3] = (x8 + x6) >> 8
-		src[y8+4] = (x8 - x6) >> 8
-		src[y8+5] = (x0 - x4) >> 8
-		src[y8+6] = (x3 - x2) >> 8
-		src[y8+7] = (x7 - x1) >> 8
+		s[0] = (x7 + x1) >> 8
+		s[1] = (x3 + x2) >> 8
+		s[2] = (x0 + x4) >> 8
+		s[3] = (x8 + x6) >> 8
+		s[4] = (x8 - x6) >> 8
+		s[5] = (x0 - x4) >> 8
+		s[6] = (x3 - x2) >> 8
+		s[7] = (x7 - x1) >> 8
 	}
 
 	// Vertical 1-D IDCT.
@@ -141,16 +142,17 @@ func idct(src *block) {
 		// Similar to the horizontal 1-D IDCT case, if all the AC components are zero, then the IDCT is trivial.
 		// However, after performing the horizontal 1-D IDCT, there are typically non-zero AC components, so
 		// we do not bother to check for the all-zero case.
+		s := src[x : x+57 : x+57] // Small cap improves performance, see https://golang.org/issue/27857
 
 		// Prescale.
-		y0 := (src[8*0+x] << 8) + 8192
-		y1 := src[8*4+x] << 8
-		y2 := src[8*6+x]
-		y3 := src[8*2+x]
-		y4 := src[8*1+x]
-		y5 := src[8*7+x]
-		y6 := src[8*5+x]
-		y7 := src[8*3+x]
+		y0 := (s[8*0] << 8) + 8192
+		y1 := s[8*4] << 8
+		y2 := s[8*6]
+		y3 := s[8*2]
+		y4 := s[8*1]
+		y5 := s[8*7]
+		y6 := s[8*5]
+		y7 := s[8*3]
 
 		// Stage 1.
 		y8 := w7*(y4+y5) + 4
@@ -180,13 +182,13 @@ func idct(src *block) {
 		y4 = (r2*(y4-y5) + 128) >> 8
 
 		// Stage 4.
-		src[8*0+x] = (y7 + y1) >> 14
-		src[8*1+x] = (y3 + y2) >> 14
-		src[8*2+x] = (y0 + y4) >> 14
-		src[8*3+x] = (y8 + y6) >> 14
-		src[8*4+x] = (y8 - y6) >> 14
-		src[8*5+x] = (y0 - y4) >> 14
-		src[8*6+x] = (y3 - y2) >> 14
-		src[8*7+x] = (y7 - y1) >> 14
+		s[8*0] = (y7 + y1) >> 14
+		s[8*1] = (y3 + y2) >> 14
+		s[8*2] = (y0 + y4) >> 14
+		s[8*3] = (y8 + y6) >> 14
+		s[8*4] = (y8 - y6) >> 14
+		s[8*5] = (y0 - y4) >> 14
+		s[8*6] = (y3 - y2) >> 14
+		s[8*7] = (y7 - y1) >> 14
 	}
 }

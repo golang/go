@@ -252,7 +252,7 @@ func _(
        y T,
 ) {}
 
-// Example from issue 2597.
+// Example from issue #2597.
 func ManageStatus0(
 	in <-chan *Status,
 	req <-chan Request,
@@ -267,5 +267,25 @@ func ManageStatus1(
 	TargetHistorySize int,
 ) {
 }
-    
+
+// Example from issue #9064.
+func (y *y) xerrors() error {
+	_ = "xerror.test" //TODO-
+	_ = []byte(`
+foo bar foo bar foo bar
+`) //TODO-
+}
+
+func _() {
+	_ = "abc" // foo
+	_ = `abc_0123456789_` // foo
+}
+
+func _() {
+	_ = "abc" // foo
+	_ = `abc
+0123456789
+` // foo
+}
+
 // There should be exactly one linebreak after this comment.

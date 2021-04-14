@@ -5,51 +5,15 @@
 package big
 
 import (
+	"fmt"
+	"internal/testenv"
+	"math/bits"
 	"math/rand"
+	"strings"
 	"testing"
 )
 
-type funWW func(x, y, c Word) (z1, z0 Word)
-type argWW struct {
-	x, y, c, z1, z0 Word
-}
-
-var sumWW = []argWW{
-	{0, 0, 0, 0, 0},
-	{0, 1, 0, 0, 1},
-	{0, 0, 1, 0, 1},
-	{0, 1, 1, 0, 2},
-	{12345, 67890, 0, 0, 80235},
-	{12345, 67890, 1, 0, 80236},
-	{_M, 1, 0, 1, 0},
-	{_M, 0, 1, 1, 0},
-	{_M, 1, 1, 1, 1},
-	{_M, _M, 0, 1, _M - 1},
-	{_M, _M, 1, 1, _M},
-}
-
-func testFunWW(t *testing.T, msg string, f funWW, a argWW) {
-	z1, z0 := f(a.x, a.y, a.c)
-	if z1 != a.z1 || z0 != a.z0 {
-		t.Errorf("%s%+v\n\tgot z1:z0 = %#x:%#x; want %#x:%#x", msg, a, z1, z0, a.z1, a.z0)
-	}
-}
-
-func TestFunWW(t *testing.T) {
-	for _, a := range sumWW {
-		arg := a
-		testFunWW(t, "addWW_g", addWW_g, arg)
-
-		arg = argWW{a.y, a.x, a.c, a.z1, a.z0}
-		testFunWW(t, "addWW_g symmetric", addWW_g, arg)
-
-		arg = argWW{a.z0, a.x, a.c, a.z1, a.y}
-		testFunWW(t, "subWW_g", subWW_g, arg)
-
-		arg = argWW{a.z0, a.y, a.c, a.z1, a.x}
-		testFunWW(t, "subWW_g symmetric", subWW_g, arg)
-	}
-}
+var isRaceBuilder = strings.HasSuffix(testenv.Builder(), "-race")
 
 type funVV func(z, x, y []Word) (c Word)
 type argVV struct {
@@ -118,27 +82,41 @@ func rndV(n int) []Word {
 	return v
 }
 
-func benchmarkFunVV(b *testing.B, f funVV, n int) {
-	x := rndV(n)
-	y := rndV(n)
-	z := make([]Word, n)
-	b.SetBytes(int64(n * _W))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		f(z, x, y)
+var benchSizes = []int{1, 2, 3, 4, 5, 1e1, 1e2, 1e3, 1e4, 1e5}
+
+func BenchmarkAddVV(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := rndV(n)
+		y := rndV(n)
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
+			for i := 0; i < b.N; i++ {
+				addVV(z, x, y)
+			}
+		})
 	}
 }
 
-func BenchmarkAddVV_1(b *testing.B)   { benchmarkFunVV(b, addVV, 1) }
-func BenchmarkAddVV_2(b *testing.B)   { benchmarkFunVV(b, addVV, 2) }
-func BenchmarkAddVV_3(b *testing.B)   { benchmarkFunVV(b, addVV, 3) }
-func BenchmarkAddVV_4(b *testing.B)   { benchmarkFunVV(b, addVV, 4) }
-func BenchmarkAddVV_5(b *testing.B)   { benchmarkFunVV(b, addVV, 5) }
-func BenchmarkAddVV_1e1(b *testing.B) { benchmarkFunVV(b, addVV, 1e1) }
-func BenchmarkAddVV_1e2(b *testing.B) { benchmarkFunVV(b, addVV, 1e2) }
-func BenchmarkAddVV_1e3(b *testing.B) { benchmarkFunVV(b, addVV, 1e3) }
-func BenchmarkAddVV_1e4(b *testing.B) { benchmarkFunVV(b, addVV, 1e4) }
-func BenchmarkAddVV_1e5(b *testing.B) { benchmarkFunVV(b, addVV, 1e5) }
+func BenchmarkSubVV(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := rndV(n)
+		y := rndV(n)
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
+			for i := 0; i < b.N; i++ {
+				subVV(z, x, y)
+			}
+		})
+	}
+}
 
 type funVW func(z, x []Word, y Word) (c Word)
 type argVW struct {
@@ -155,21 +133,7 @@ var sumVW = []argVW{
 	{nat{1}, nat{1}, 0, 0},
 	{nat{0}, nat{_M}, 1, 1},
 	{nat{0, 0, 0, 0}, nat{_M, _M, _M, _M}, 1, 1},
-}
-
-var prodVW = []argVW{
-	{},
-	{nat{0}, nat{0}, 0, 0},
-	{nat{0}, nat{_M}, 0, 0},
-	{nat{0}, nat{0}, _M, 0},
-	{nat{1}, nat{1}, 1, 0},
-	{nat{22793}, nat{991}, 23, 0},
-	{nat{0, 0, 0, 22793}, nat{0, 0, 0, 991}, 23, 0},
-	{nat{0, 0, 0, 0}, nat{7893475, 7395495, 798547395, 68943}, 0, 0},
-	{nat{0, 0, 0, 0}, nat{0, 0, 0, 0}, 894375984, 0},
-	{nat{_M << 1 & _M}, nat{_M}, 1 << 1, _M >> (_W - 1)},
-	{nat{_M << 7 & _M}, nat{_M}, 1 << 7, _M >> (_W - 7)},
-	{nat{_M << 7 & _M, _M, _M, _M}, nat{_M, _M, _M, _M}, 1 << 7, _M >> (_W - 7)},
+	{nat{585}, nat{314}, 271, 0},
 }
 
 var lshVW = []argVW{
@@ -216,6 +180,23 @@ func testFunVW(t *testing.T, msg string, f funVW, a argVW) {
 	}
 }
 
+func testFunVWext(t *testing.T, msg string, f funVW, f_g funVW, a argVW) {
+	// using the result of addVW_g/subVW_g as golden
+	z_g := make(nat, len(a.z))
+	c_g := f_g(z_g, a.x, a.y)
+	c := f(a.z, a.x, a.y)
+
+	for i, zi := range a.z {
+		if zi != z_g[i] {
+			t.Errorf("%s\n\tgot z[%d] = %#x; want %#x", msg, i, zi, z_g[i])
+			break
+		}
+	}
+	if c != c_g {
+		t.Errorf("%s\n\tgot c = %#x; want %#x", msg, c, c_g)
+	}
+}
+
 func makeFunVW(f func(z, x []Word, s uint) (c Word)) funVW {
 	return func(z, x []Word, s Word) (c Word) {
 		return f(z, x, uint(s))
@@ -250,27 +231,236 @@ func TestFunVW(t *testing.T) {
 	}
 }
 
-func benchmarkFunVW(b *testing.B, f funVW, n int) {
-	x := rndV(n)
-	y := rndW()
-	z := make([]Word, n)
-	b.SetBytes(int64(n * _S))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		f(z, x, y)
+// Construct a vector comprising the same word, usually '0' or 'maximum uint'
+func makeWordVec(e Word, n int) []Word {
+	v := make([]Word, n)
+	for i := range v {
+		v[i] = e
+	}
+	return v
+}
+
+// Extended testing to addVW and subVW using various kinds of input data.
+// We utilize the results of addVW_g and subVW_g as golden reference to check
+// correctness.
+func TestFunVWExt(t *testing.T) {
+	// 32 is the current threshold that triggers an optimized version of
+	// calculation for large-sized vector, ensure we have sizes around it tested.
+	var vwSizes = []int{0, 1, 3, 4, 5, 8, 9, 23, 31, 32, 33, 34, 35, 36, 50, 120}
+	for _, n := range vwSizes {
+		// vector of random numbers, using the result of addVW_g/subVW_g as golden
+		x := rndV(n)
+		y := rndW()
+		z := make(nat, n)
+		arg := argVW{z, x, y, 0}
+		testFunVWext(t, "addVW, random inputs", addVW, addVW_g, arg)
+		testFunVWext(t, "subVW, random inputs", subVW, subVW_g, arg)
+
+		// vector of random numbers, but make 'x' and 'z' share storage
+		arg = argVW{x, x, y, 0}
+		testFunVWext(t, "addVW, random inputs, sharing storage", addVW, addVW_g, arg)
+		testFunVWext(t, "subVW, random inputs, sharing storage", subVW, subVW_g, arg)
+
+		// vector of maximum uint, to force carry flag set in each 'add'
+		y = ^Word(0)
+		x = makeWordVec(y, n)
+		arg = argVW{z, x, y, 0}
+		testFunVWext(t, "addVW, vector of max uint", addVW, addVW_g, arg)
+
+		// vector of '0', to force carry flag set in each 'sub'
+		x = makeWordVec(0, n)
+		arg = argVW{z, x, 1, 0}
+		testFunVWext(t, "subVW, vector of zero", subVW, subVW_g, arg)
 	}
 }
 
-func BenchmarkAddVW_1(b *testing.B)   { benchmarkFunVW(b, addVW, 1) }
-func BenchmarkAddVW_2(b *testing.B)   { benchmarkFunVW(b, addVW, 2) }
-func BenchmarkAddVW_3(b *testing.B)   { benchmarkFunVW(b, addVW, 3) }
-func BenchmarkAddVW_4(b *testing.B)   { benchmarkFunVW(b, addVW, 4) }
-func BenchmarkAddVW_5(b *testing.B)   { benchmarkFunVW(b, addVW, 5) }
-func BenchmarkAddVW_1e1(b *testing.B) { benchmarkFunVW(b, addVW, 1e1) }
-func BenchmarkAddVW_1e2(b *testing.B) { benchmarkFunVW(b, addVW, 1e2) }
-func BenchmarkAddVW_1e3(b *testing.B) { benchmarkFunVW(b, addVW, 1e3) }
-func BenchmarkAddVW_1e4(b *testing.B) { benchmarkFunVW(b, addVW, 1e4) }
-func BenchmarkAddVW_1e5(b *testing.B) { benchmarkFunVW(b, addVW, 1e5) }
+type argVU struct {
+	d  []Word // d is a Word slice, the input parameters x and z come from this array.
+	l  uint   // l is the length of the input parameters x and z.
+	xp uint   // xp is the starting position of the input parameter x, x := d[xp:xp+l].
+	zp uint   // zp is the starting position of the input parameter z, z := d[zp:zp+l].
+	s  uint   // s is the shift number.
+	r  []Word // r is the expected output result z.
+	c  Word   // c is the expected return value.
+	m  string // message.
+}
+
+var argshlVUIn = []Word{1, 2, 4, 8, 16, 32, 64, 0, 0, 0}
+var argshlVUr0 = []Word{1, 2, 4, 8, 16, 32, 64}
+var argshlVUr1 = []Word{2, 4, 8, 16, 32, 64, 128}
+var argshlVUrWm1 = []Word{1 << (_W - 1), 0, 1, 2, 4, 8, 16}
+
+var argshlVU = []argVU{
+	// test cases for shlVU
+	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0}, 7, 0, 0, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "complete overlap of shlVU"},
+	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0}, 7, 0, 3, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "partial overlap by half of shlVU"},
+	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0, 0, 0, 0}, 7, 0, 6, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "partial overlap by 1 Word of shlVU"},
+	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0, 0, 0, 0, 0}, 7, 0, 7, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "no overlap of shlVU"},
+	// additional test cases with shift values of 0, 1 and (_W-1)
+	{argshlVUIn, 7, 0, 0, 0, argshlVUr0, 0, "complete overlap of shlVU and shift of 0"},
+	{argshlVUIn, 7, 0, 0, 1, argshlVUr1, 0, "complete overlap of shlVU and shift of 1"},
+	{argshlVUIn, 7, 0, 0, _W - 1, argshlVUrWm1, 32, "complete overlap of shlVU and shift of _W - 1"},
+	{argshlVUIn, 7, 0, 1, 0, argshlVUr0, 0, "partial overlap by 6 Words of shlVU and shift of 0"},
+	{argshlVUIn, 7, 0, 1, 1, argshlVUr1, 0, "partial overlap by 6 Words of shlVU and shift of 1"},
+	{argshlVUIn, 7, 0, 1, _W - 1, argshlVUrWm1, 32, "partial overlap by 6 Words of shlVU and shift of _W - 1"},
+	{argshlVUIn, 7, 0, 2, 0, argshlVUr0, 0, "partial overlap by 5 Words of shlVU and shift of 0"},
+	{argshlVUIn, 7, 0, 2, 1, argshlVUr1, 0, "partial overlap by 5 Words of shlVU and shift of 1"},
+	{argshlVUIn, 7, 0, 2, _W - 1, argshlVUrWm1, 32, "partial overlap by 5 Words of shlVU abd shift of _W - 1"},
+	{argshlVUIn, 7, 0, 3, 0, argshlVUr0, 0, "partial overlap by 4 Words of shlVU and shift of 0"},
+	{argshlVUIn, 7, 0, 3, 1, argshlVUr1, 0, "partial overlap by 4 Words of shlVU and shift of 1"},
+	{argshlVUIn, 7, 0, 3, _W - 1, argshlVUrWm1, 32, "partial overlap by 4 Words of shlVU and shift of _W - 1"},
+}
+
+var argshrVUIn = []Word{0, 0, 0, 1, 2, 4, 8, 16, 32, 64}
+var argshrVUr0 = []Word{1, 2, 4, 8, 16, 32, 64}
+var argshrVUr1 = []Word{0, 1, 2, 4, 8, 16, 32}
+var argshrVUrWm1 = []Word{4, 8, 16, 32, 64, 128, 0}
+
+var argshrVU = []argVU{
+	// test cases for shrVU
+	{[]Word{0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 1, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "complete overlap of shrVU"},
+	{[]Word{0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 4, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "partial overlap by half of shrVU"},
+	{[]Word{0, 0, 0, 0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 7, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "partial overlap by 1 Word of shrVU"},
+	{[]Word{0, 0, 0, 0, 0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 8, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "no overlap of shrVU"},
+	// additional test cases with shift values of 0, 1 and (_W-1)
+	{argshrVUIn, 7, 3, 3, 0, argshrVUr0, 0, "complete overlap of shrVU and shift of 0"},
+	{argshrVUIn, 7, 3, 3, 1, argshrVUr1, 1 << (_W - 1), "complete overlap of shrVU and shift of 1"},
+	{argshrVUIn, 7, 3, 3, _W - 1, argshrVUrWm1, 2, "complete overlap of shrVU and shift of _W - 1"},
+	{argshrVUIn, 7, 3, 2, 0, argshrVUr0, 0, "partial overlap by 6 Words of shrVU and shift of 0"},
+	{argshrVUIn, 7, 3, 2, 1, argshrVUr1, 1 << (_W - 1), "partial overlap by 6 Words of shrVU and shift of 1"},
+	{argshrVUIn, 7, 3, 2, _W - 1, argshrVUrWm1, 2, "partial overlap by 6 Words of shrVU and shift of _W - 1"},
+	{argshrVUIn, 7, 3, 1, 0, argshrVUr0, 0, "partial overlap by 5 Words of shrVU and shift of 0"},
+	{argshrVUIn, 7, 3, 1, 1, argshrVUr1, 1 << (_W - 1), "partial overlap by 5 Words of shrVU and shift of 1"},
+	{argshrVUIn, 7, 3, 1, _W - 1, argshrVUrWm1, 2, "partial overlap by 5 Words of shrVU and shift of _W - 1"},
+	{argshrVUIn, 7, 3, 0, 0, argshrVUr0, 0, "partial overlap by 4 Words of shrVU and shift of 0"},
+	{argshrVUIn, 7, 3, 0, 1, argshrVUr1, 1 << (_W - 1), "partial overlap by 4 Words of shrVU and shift of 1"},
+	{argshrVUIn, 7, 3, 0, _W - 1, argshrVUrWm1, 2, "partial overlap by 4 Words of shrVU and shift of _W - 1"},
+}
+
+func testShiftFunc(t *testing.T, f func(z, x []Word, s uint) Word, a argVU) {
+	// work on copy of a.d to preserve the original data.
+	b := make([]Word, len(a.d))
+	copy(b, a.d)
+	z := b[a.zp : a.zp+a.l]
+	x := b[a.xp : a.xp+a.l]
+	c := f(z, x, a.s)
+	for i, zi := range z {
+		if zi != a.r[i] {
+			t.Errorf("d := %v, %s(d[%d:%d], d[%d:%d], %d)\n\tgot z[%d] = %#x; want %#x", a.d, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, i, zi, a.r[i])
+			break
+		}
+	}
+	if c != a.c {
+		t.Errorf("d := %v, %s(d[%d:%d], d[%d:%d], %d)\n\tgot c = %#x; want %#x", a.d, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, c, a.c)
+	}
+}
+
+func TestShiftOverlap(t *testing.T) {
+	for _, a := range argshlVU {
+		arg := a
+		testShiftFunc(t, shlVU, arg)
+	}
+
+	for _, a := range argshrVU {
+		arg := a
+		testShiftFunc(t, shrVU, arg)
+	}
+}
+
+func TestIssue31084(t *testing.T) {
+	// compute 10^n via 5^n << n.
+	const n = 165
+	p := nat(nil).expNN(nat{5}, nat{n}, nil)
+	p = p.shl(p, n)
+	got := string(p.utoa(10))
+	want := "1" + strings.Repeat("0", n)
+	if got != want {
+		t.Errorf("shl(%v, %v)\n\tgot  %s\n\twant %s", p, n, got, want)
+	}
+}
+
+const issue42838Value = "159309191113245227702888039776771180559110455519261878607388585338616290151305816094308987472018268594098344692611135542392730712890625"
+
+func TestIssue42838(t *testing.T) {
+	const s = 192
+	z, _, _, _ := nat(nil).scan(strings.NewReader(issue42838Value), 0, false)
+	z = z.shl(z, s)
+	got := string(z.utoa(10))
+	want := "1" + strings.Repeat("0", s)
+	if got != want {
+		t.Errorf("shl(%v, %v)\n\tgot  %s\n\twant %s", z, s, got, want)
+	}
+}
+
+func BenchmarkAddVW(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := rndV(n)
+		y := rndW()
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _S))
+			for i := 0; i < b.N; i++ {
+				addVW(z, x, y)
+			}
+		})
+	}
+}
+
+// Benchmarking addVW using vector of maximum uint to force carry flag set
+func BenchmarkAddVWext(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		y := ^Word(0)
+		x := makeWordVec(y, n)
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _S))
+			for i := 0; i < b.N; i++ {
+				addVW(z, x, y)
+			}
+		})
+	}
+}
+
+func BenchmarkSubVW(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := rndV(n)
+		y := rndW()
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _S))
+			for i := 0; i < b.N; i++ {
+				subVW(z, x, y)
+			}
+		})
+	}
+}
+
+// Benchmarking subVW using vector of zero to force carry flag set
+func BenchmarkSubVWext(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := makeWordVec(0, n)
+		y := Word(1)
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _S))
+			for i := 0; i < b.N; i++ {
+				subVW(z, x, y)
+			}
+		})
+	}
+}
 
 type funVWW func(z, x []Word, y, r Word) (c Word)
 type argVWW struct {
@@ -353,7 +543,6 @@ func TestFunVWW(t *testing.T) {
 
 		if a.y != 0 && a.r < a.y {
 			arg := argWVW{a.x, a.c, a.z, a.y, a.r}
-			testFunWVW(t, "divWVW_g", divWVW_g, arg)
 			testFunWVW(t, "divWVW", divWVW, arg)
 		}
 	}
@@ -396,61 +585,89 @@ func TestMulAddWWW(t *testing.T) {
 	}
 }
 
-func benchmarkAddMulVVW(b *testing.B, n int) {
-	x := rndV(n)
-	y := rndW()
-	z := make([]Word, n)
-	b.SetBytes(int64(n * _W))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		addMulVVW(z, x, y)
-	}
+var divWWTests = []struct {
+	x1, x0, y Word
+	q, r      Word
+}{
+	{_M >> 1, 0, _M, _M >> 1, _M >> 1},
+	{_M - (1 << (_W - 2)), _M, 3 << (_W - 2), _M, _M - (1 << (_W - 2))},
 }
 
-func BenchmarkAddMulVVW_1(b *testing.B)   { benchmarkAddMulVVW(b, 1) }
-func BenchmarkAddMulVVW_2(b *testing.B)   { benchmarkAddMulVVW(b, 2) }
-func BenchmarkAddMulVVW_3(b *testing.B)   { benchmarkAddMulVVW(b, 3) }
-func BenchmarkAddMulVVW_4(b *testing.B)   { benchmarkAddMulVVW(b, 4) }
-func BenchmarkAddMulVVW_5(b *testing.B)   { benchmarkAddMulVVW(b, 5) }
-func BenchmarkAddMulVVW_1e1(b *testing.B) { benchmarkAddMulVVW(b, 1e1) }
-func BenchmarkAddMulVVW_1e2(b *testing.B) { benchmarkAddMulVVW(b, 1e2) }
-func BenchmarkAddMulVVW_1e3(b *testing.B) { benchmarkAddMulVVW(b, 1e3) }
-func BenchmarkAddMulVVW_1e4(b *testing.B) { benchmarkAddMulVVW(b, 1e4) }
-func BenchmarkAddMulVVW_1e5(b *testing.B) { benchmarkAddMulVVW(b, 1e5) }
+const testsNumber = 1 << 16
 
-func testWordBitLen(t *testing.T, fname string, f func(Word) int) {
-	for i := 0; i <= _W; i++ {
-		x := Word(1) << uint(i-1) // i == 0 => x == 0
-		n := f(x)
-		if n != i {
-			t.Errorf("got %d; want %d for %s(%#x)", n, i, fname, x)
+func TestDivWW(t *testing.T) {
+	i := 0
+	for i, test := range divWWTests {
+		rec := reciprocalWord(test.y)
+		q, r := divWW(test.x1, test.x0, test.y, rec)
+		if q != test.q || r != test.r {
+			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, q, r, test.q, test.r)
+		}
+	}
+	//random tests
+	for ; i < testsNumber; i++ {
+		x1 := rndW()
+		x0 := rndW()
+		y := rndW()
+		if x1 >= y {
+			continue
+		}
+		rec := reciprocalWord(y)
+		qGot, rGot := divWW(x1, x0, y, rec)
+		qWant, rWant := bits.Div(uint(x1), uint(x0), uint(y))
+		if uint(qGot) != qWant || uint(rGot) != rWant {
+			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, qGot, rGot, qWant, rWant)
 		}
 	}
 }
 
-func TestWordBitLen(t *testing.T) {
-	testWordBitLen(t, "bitLen", bitLen)
-	testWordBitLen(t, "bitLen_g", bitLen_g)
-}
-
-// runs b.N iterations of bitLen called on a Word containing (1 << nbits)-1.
-func benchmarkBitLenN(b *testing.B, nbits uint) {
-	testword := Word((uint64(1) << nbits) - 1)
-	for i := 0; i < b.N; i++ {
-		bitLen(testword)
+func BenchmarkMulAddVWW(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		z := make([]Word, n+1)
+		x := rndV(n)
+		y := rndW()
+		r := rndW()
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
+			for i := 0; i < b.N; i++ {
+				mulAddVWW(z, x, y, r)
+			}
+		})
 	}
 }
 
-// Individual bitLen tests.  Numbers chosen to examine both sides
-// of powers-of-two boundaries.
-func BenchmarkBitLen0(b *testing.B)  { benchmarkBitLenN(b, 0) }
-func BenchmarkBitLen1(b *testing.B)  { benchmarkBitLenN(b, 1) }
-func BenchmarkBitLen2(b *testing.B)  { benchmarkBitLenN(b, 2) }
-func BenchmarkBitLen3(b *testing.B)  { benchmarkBitLenN(b, 3) }
-func BenchmarkBitLen4(b *testing.B)  { benchmarkBitLenN(b, 4) }
-func BenchmarkBitLen5(b *testing.B)  { benchmarkBitLenN(b, 5) }
-func BenchmarkBitLen8(b *testing.B)  { benchmarkBitLenN(b, 8) }
-func BenchmarkBitLen9(b *testing.B)  { benchmarkBitLenN(b, 9) }
-func BenchmarkBitLen16(b *testing.B) { benchmarkBitLenN(b, 16) }
-func BenchmarkBitLen17(b *testing.B) { benchmarkBitLenN(b, 17) }
-func BenchmarkBitLen31(b *testing.B) { benchmarkBitLenN(b, 31) }
+func BenchmarkAddMulVVW(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := rndV(n)
+		y := rndW()
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
+			for i := 0; i < b.N; i++ {
+				addMulVVW(z, x, y)
+			}
+		})
+	}
+}
+func BenchmarkDivWVW(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := rndV(n)
+		y := rndW()
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
+			for i := 0; i < b.N; i++ {
+				divWVW(z, 0, x, y)
+			}
+		})
+	}
+}

@@ -122,7 +122,7 @@ func TestTd(t *testing.T) {
 }
 
 // Test vectors are from FIPS 197:
-//	http://www.csrc.nist.gov/publications/fips/fips197/fips-197.pdf
+//	https://csrc.nist.gov/publications/fips/fips197/fips-197.pdf
 
 // Appendix A of FIPS 197: Key expansion examples
 type KeyTest struct {
@@ -231,12 +231,10 @@ L:
 				continue L
 			}
 		}
-		if dec != nil {
-			for j, v := range dec {
-				if v != tt.dec[j] {
-					t.Errorf("key %d: dec[%d] = %#x, want %#x", i, j, v, tt.dec[j])
-					continue L
-				}
+		for j, v := range dec {
+			if v != tt.dec[j] {
+				t.Errorf("key %d: dec[%d] = %#x, want %#x", i, j, v, tt.dec[j])
+				continue L
 			}
 		}
 	}
@@ -278,42 +276,6 @@ var encryptTests = []CryptTest{
 		[]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff},
 		[]byte{0x8e, 0xa2, 0xb7, 0xca, 0x51, 0x67, 0x45, 0xbf, 0xea, 0xfc, 0x49, 0x90, 0x4b, 0x49, 0x60, 0x89},
 	},
-}
-
-// Test encryptBlock against FIPS 197 examples.
-func TestEncryptBlock(t *testing.T) {
-	for i, tt := range encryptTests {
-		n := len(tt.key) + 28
-		enc := make([]uint32, n)
-		dec := make([]uint32, n)
-		expandKey(tt.key, enc, dec)
-		out := make([]byte, len(tt.in))
-		encryptBlock(enc, out, tt.in)
-		for j, v := range out {
-			if v != tt.out[j] {
-				t.Errorf("encryptBlock %d: out[%d] = %#x, want %#x", i, j, v, tt.out[j])
-				break
-			}
-		}
-	}
-}
-
-// Test decryptBlock against FIPS 197 examples.
-func TestDecryptBlock(t *testing.T) {
-	for i, tt := range encryptTests {
-		n := len(tt.key) + 28
-		enc := make([]uint32, n)
-		dec := make([]uint32, n)
-		expandKey(tt.key, enc, dec)
-		plain := make([]byte, len(tt.in))
-		decryptBlock(dec, plain, tt.out)
-		for j, v := range plain {
-			if v != tt.in[j] {
-				t.Errorf("decryptBlock %d: plain[%d] = %#x, want %#x", i, j, v, tt.in[j])
-				break
-			}
-		}
-	}
 }
 
 // Test Cipher Encrypt method against FIPS 197 examples.

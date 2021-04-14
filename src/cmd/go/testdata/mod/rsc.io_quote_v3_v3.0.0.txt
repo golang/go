@@ -1,0 +1,45 @@
+rsc.io/quote/v3@v3.0.0
+
+-- .mod --
+module rsc.io/quote/v3
+
+require rsc.io/sampler v1.3.0
+
+-- .info --
+{"Version":"v3.0.0","Name":"d88915d7e77ed0fd35d0a022a2f244e2202fd8c8","Short":"d88915d7e77e","Time":"2018-07-09T15:34:46Z"}
+-- go.mod --
+module rsc.io/quote/v3
+
+require rsc.io/sampler v1.3.0
+
+-- quote.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package quote collects pithy sayings.
+package quote // import "rsc.io/quote"
+
+import "rsc.io/sampler"
+
+// Hello returns a greeting.
+func HelloV3() string {
+	return sampler.Hello()
+}
+
+// Glass returns a useful phrase for world travelers.
+func GlassV3() string {
+	// See http://www.oocities.org/nodotus/hbglass.html.
+	return "I can eat glass and it doesn't hurt me."
+}
+
+// Go returns a Go proverb.
+func GoV3() string {
+	return "Don't communicate by sharing memory, share memory by communicating."
+}
+
+// Opt returns an optimization truth.
+func OptV3() string {
+	// Wisdom from ken.
+	return "If a program is too slow, it must have a loop."
+}

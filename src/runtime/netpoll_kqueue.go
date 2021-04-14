@@ -8,31 +8,52 @@ package runtime
 
 // Integrated network poller (kqueue-based implementation).
 
-import "unsafe"
-
-func kqueue() int32
-
-//go:noescape
-func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
-func closeonexec(fd int32)
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 var (
-	kq             int32 = -1
-	netpolllasterr int32
+	kq int32 = -1
+
+	netpollBreakRd, netpollBreakWr uintptr // for netpollBreak
+
+	netpollWakeSig uint32 // used to avoid duplicate calls of netpollBreak
 )
 
 func netpollinit() {
 	kq = kqueue()
 	if kq < 0 {
-		println("netpollinit: kqueue failed with", -kq)
-		throw("netpollinit: kqueue failed")
+		println("runtime: kqueue failed with", -kq)
+		throw("runtime: netpollinit failed")
 	}
 	closeonexec(kq)
+	r, w, errno := nonblockingPipe()
+	if errno != 0 {
+		println("runtime: pipe failed with", -errno)
+		throw("runtime: pipe failed")
+	}
+	ev := keventt{
+		filter: _EVFILT_READ,
+		flags:  _EV_ADD,
+	}
+	*(*uintptr)(unsafe.Pointer(&ev.ident)) = uintptr(r)
+	n := kevent(kq, &ev, 1, nil, 0, nil)
+	if n < 0 {
+		println("runtime: kevent failed with", -n)
+		throw("runtime: kevent failed")
+	}
+	netpollBreakRd = uintptr(r)
+	netpollBreakWr = uintptr(w)
+}
+
+func netpollIsPollDescriptor(fd uintptr) bool {
+	return fd == uintptr(kq) || fd == netpollBreakRd || fd == netpollBreakWr
 }
 
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	// Arm both EVFILT_READ and EVFILT_WRITE in edge-triggered mode (EV_CLEAR)
-	// for the whole fd lifetime.  The notifications are automatically unregistered
+	// for the whole fd lifetime. The notifications are automatically unregistered
 	// when fd is closed.
 	var ev [2]keventt
 	*(*uintptr)(unsafe.Pointer(&ev[0].ident)) = fd
@@ -57,45 +78,113 @@ func netpollclose(fd uintptr) int32 {
 }
 
 func netpollarm(pd *pollDesc, mode int) {
-	throw("unused")
+	throw("runtime: unused")
 }
 
-// Polls for ready network connections.
+// netpollBreak interrupts a kevent.
+func netpollBreak() {
+	if atomic.Cas(&netpollWakeSig, 0, 1) {
+		for {
+			var b byte
+			n := write(netpollBreakWr, unsafe.Pointer(&b), 1)
+			if n == 1 || n == -_EAGAIN {
+				break
+			}
+			if n == -_EINTR {
+				continue
+			}
+			println("runtime: netpollBreak write failed with", -n)
+			throw("runtime: netpollBreak write failed")
+		}
+	}
+}
+
+// netpoll checks for ready network connections.
 // Returns list of goroutines that become runnable.
-func netpoll(block bool) (gp *g) {
+// delay < 0: blocks indefinitely
+// delay == 0: does not block, just polls
+// delay > 0: block for up to that many nanoseconds
+func netpoll(delay int64) gList {
 	if kq == -1 {
-		return
+		return gList{}
 	}
 	var tp *timespec
 	var ts timespec
-	if !block {
+	if delay < 0 {
+		tp = nil
+	} else if delay == 0 {
+		tp = &ts
+	} else {
+		ts.setNsec(delay)
+		if ts.tv_sec > 1e6 {
+			// Darwin returns EINVAL if the sleep time is too long.
+			ts.tv_sec = 1e6
+		}
 		tp = &ts
 	}
 	var events [64]keventt
 retry:
 	n := kevent(kq, nil, 0, &events[0], int32(len(events)), tp)
 	if n < 0 {
-		if n != -_EINTR && n != netpolllasterr {
-			netpolllasterr = n
+		if n != -_EINTR {
 			println("runtime: kevent on fd", kq, "failed with", -n)
+			throw("runtime: netpoll failed")
+		}
+		// If a timed sleep was interrupted, just return to
+		// recalculate how long we should sleep now.
+		if delay > 0 {
+			return gList{}
 		}
 		goto retry
 	}
+	var toRun gList
 	for i := 0; i < int(n); i++ {
 		ev := &events[i]
-		var mode int32
-		if ev.filter == _EVFILT_READ {
-			mode += 'r'
+
+		if uintptr(ev.ident) == netpollBreakRd {
+			if ev.filter != _EVFILT_READ {
+				println("runtime: netpoll: break fd ready for", ev.filter)
+				throw("runtime: netpoll: break fd ready for something unexpected")
+			}
+			if delay != 0 {
+				// netpollBreak could be picked up by a
+				// nonblocking poll. Only read the byte
+				// if blocking.
+				var tmp [16]byte
+				read(int32(netpollBreakRd), noescape(unsafe.Pointer(&tmp[0])), int32(len(tmp)))
+				atomic.Store(&netpollWakeSig, 0)
+			}
+			continue
 		}
-		if ev.filter == _EVFILT_WRITE {
+
+		var mode int32
+		switch ev.filter {
+		case _EVFILT_READ:
+			mode += 'r'
+
+			// On some systems when the read end of a pipe
+			// is closed the write end will not get a
+			// _EVFILT_WRITE event, but will get a
+			// _EVFILT_READ event with EV_EOF set.
+			// Note that setting 'w' here just means that we
+			// will wake up a goroutine waiting to write;
+			// that goroutine will try the write again,
+			// and the appropriate thing will happen based
+			// on what that write returns (success, EPIPE, EAGAIN).
+			if ev.flags&_EV_EOF != 0 {
+				mode += 'w'
+			}
+		case _EVFILT_WRITE:
 			mode += 'w'
 		}
 		if mode != 0 {
-			netpollready((**g)(noescape(unsafe.Pointer(&gp))), (*pollDesc)(unsafe.Pointer(ev.udata)), mode)
+			pd := (*pollDesc)(unsafe.Pointer(ev.udata))
+			pd.everr = false
+			if ev.flags == _EV_ERROR {
+				pd.everr = true
+			}
+			netpollready(&toRun, pd, mode)
 		}
 	}
-	if block && gp == nil {
-		goto retry
-	}
-	return gp
+	return toRun
 }

@@ -4,30 +4,35 @@
 
 // +build !plan9
 
+#include "go_asm.h"
 #include "textflag.h"
 
 // NOTE: Windows externalthreadhandler expects memclr to preserve DX.
 
-// void runtime·memclr(void*, uintptr)
-TEXT runtime·memclr(SB), NOSPLIT, $0-8
+// See memclrNoHeapPointers Go doc for important implementation constraints.
+
+// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-8
 	MOVL	ptr+0(FP), DI
 	MOVL	n+4(FP), BX
 	XORL	AX, AX
 
 	// MOVOU seems always faster than REP STOSL.
 tail:
+	// BSR+branch table make almost all memmove/memclr benchmarks worse. Not worth doing.
 	TESTL	BX, BX
 	JEQ	_0
 	CMPL	BX, $2
 	JBE	_1or2
 	CMPL	BX, $4
-	JBE	_3or4
+	JB	_3
+	JE	_4
 	CMPL	BX, $8
 	JBE	_5through8
 	CMPL	BX, $16
 	JBE	_9through16
-	TESTL	$0x4000000, runtime·cpuid_edx(SB) // check for sse2
-	JEQ	nosse2
+	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
+	JNE	nosse2
 	PXOR	X0, X0
 	CMPL	BX, $32
 	JBE	_17through32
@@ -37,7 +42,6 @@ tail:
 	JBE	_65through128
 	CMPL	BX, $256
 	JBE	_129through256
-	// TODO: use branch table and BSR to make this just a single dispatch
 
 loop:
 	MOVOU	X0, 0(DI)
@@ -68,9 +72,13 @@ _1or2:
 	RET
 _0:
 	RET
-_3or4:
+_3:
 	MOVW	AX, (DI)
-	MOVW	AX, -2(DI)(BX*1)
+	MOVB	AX, 2(DI)
+	RET
+_4:
+	// We need a separate case for 4 to make sure we clear pointers atomically.
+	MOVL	AX, (DI)
 	RET
 _5through8:
 	MOVL	AX, (DI)

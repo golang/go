@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 //
 // The algorithm is detailed in FIPS 180-4:
 //
-//  http://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
+//  https://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
 //
 // Wt = Mt; for 0 <= t <= 15
 // Wt = SIGMA1(Wt-2) + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 63
@@ -141,7 +141,7 @@
 	MSGSCHEDULE1(index); \
 	SHA256ROUND(index, const, a, b, c, d, e, f, g, h)
 
-TEXT ·block(SB),0,$296-12
+TEXT ·block(SB),0,$296-16
 	MOVL	p_base+4(FP), SI
 	MOVL	p_len+8(FP), DX
 	SHRL	$6, DX

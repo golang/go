@@ -12,15 +12,15 @@ import (
 	"go/ast"
 	"go/parser"
 	"io"
-	"io/ioutil"
 	"log"
+	"os"
 	"testing"
 )
 
 var testfile *ast.File
 
 func testprint(out io.Writer, file *ast.File) {
-	if err := (&Config{TabIndent | UseSpaces, 8, 0}).Fprint(out, fset, file); err != nil {
+	if err := (&Config{TabIndent | UseSpaces | normalizeNumbers, 8, 0}).Fprint(out, fset, file); err != nil {
 		log.Fatalf("print error: %s", err)
 	}
 }
@@ -29,7 +29,7 @@ func testprint(out io.Writer, file *ast.File) {
 func initialize() {
 	const filename = "testdata/parser.go"
 
-	src, err := ioutil.ReadFile(filename)
+	src, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
@@ -53,6 +53,6 @@ func BenchmarkPrint(b *testing.B) {
 		initialize()
 	}
 	for i := 0; i < b.N; i++ {
-		testprint(ioutil.Discard, testfile)
+		testprint(io.Discard, testfile)
 	}
 }

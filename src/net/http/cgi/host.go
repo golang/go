@@ -10,7 +10,7 @@
 //
 // Note that using CGI means starting a new process to handle each
 // request, which is typically less efficient than using a
-// long-running server.  This package is intended primarily for
+// long-running server. This package is intended primarily for
 // compatibility with existing systems.
 package cgi
 
@@ -21,6 +21,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/textproto"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,20 +29,29 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"golang.org/x/net/http/httpguts"
 )
 
 var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
 
-var osDefaultInheritEnv = map[string][]string{
-	"darwin":  {"DYLD_LIBRARY_PATH"},
-	"freebsd": {"LD_LIBRARY_PATH"},
-	"hpux":    {"LD_LIBRARY_PATH", "SHLIB_PATH"},
-	"irix":    {"LD_LIBRARY_PATH", "LD_LIBRARYN32_PATH", "LD_LIBRARY64_PATH"},
-	"linux":   {"LD_LIBRARY_PATH"},
-	"openbsd": {"LD_LIBRARY_PATH"},
-	"solaris": {"LD_LIBRARY_PATH", "LD_LIBRARY_PATH_32", "LD_LIBRARY_PATH_64"},
-	"windows": {"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"},
-}
+var osDefaultInheritEnv = func() []string {
+	switch runtime.GOOS {
+	case "darwin", "ios":
+		return []string{"DYLD_LIBRARY_PATH"}
+	case "linux", "freebsd", "netbsd", "openbsd":
+		return []string{"LD_LIBRARY_PATH"}
+	case "hpux":
+		return []string{"LD_LIBRARY_PATH", "SHLIB_PATH"}
+	case "irix":
+		return []string{"LD_LIBRARY_PATH", "LD_LIBRARYN32_PATH", "LD_LIBRARY64_PATH"}
+	case "illumos", "solaris":
+		return []string{"LD_LIBRARY_PATH", "LD_LIBRARY_PATH_32", "LD_LIBRARY_PATH_64"}
+	case "windows":
+		return []string{"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"}
+	}
+	return nil
+}()
 
 // Handler runs an executable in a subprocess with a CGI environment.
 type Handler struct {
@@ -58,6 +68,7 @@ type Handler struct {
 	InheritEnv []string    // environment variables to inherit from host, as "key"
 	Logger     *log.Logger // optional log for errors or nil to use log.Print
 	Args       []string    // optional arguments to pass to child process
+	Stderr     io.Writer   // optional stderr for the child process; nil means os.Stderr
 
 	// PathLocationHandler specifies the root http Handler that
 	// should handle internal redirects when the CGI process
@@ -70,6 +81,13 @@ type Handler struct {
 	PathLocationHandler http.Handler
 }
 
+func (h *Handler) stderr() io.Writer {
+	if h.Stderr != nil {
+		return h.Stderr
+	}
+	return os.Stderr
+}
+
 // removeLeadingDuplicates remove leading duplicate in environments.
 // It's possible to override environment like following.
 //    cgi.Handler{
@@ -77,15 +95,15 @@ type Handler struct {
 //      Env: []string{"SCRIPT_FILENAME=foo.php"},
 //    }
 func removeLeadingDuplicates(env []string) (ret []string) {
-	n := len(env)
-	for i := 0; i < n; i++ {
-		e := env[i]
-		s := strings.SplitN(e, "=", 2)[0]
+	for i, e := range env {
 		found := false
-		for j := i + 1; j < n; j++ {
-			if s == strings.SplitN(env[j], "=", 2)[0] {
-				found = true
-				break
+		if eq := strings.IndexByte(e, '='); eq != -1 {
+			keq := e[:eq+1] // "key="
+			for _, e2 := range env[i+1:] {
+				if strings.HasPrefix(e2, keq) {
+					found = true
+					break
+				}
 			}
 		}
 		if !found {
@@ -145,6 +163,10 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	for k, v := range req.Header {
 		k = strings.Map(upperCaseAndUnderscore, k)
+		if k == "PROXY" {
+			// See Issue 16405
+			continue
+		}
 		joinStr := ", "
 		if k == "COOKIE" {
 			joinStr = "; "
@@ -159,10 +181,6 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		env = append(env, "CONTENT_TYPE="+ctype)
 	}
 
-	if h.Env != nil {
-		env = append(env, h.Env...)
-	}
-
 	envPath := os.Getenv("PATH")
 	if envPath == "" {
 		envPath = "/bin:/usr/bin:/usr/ucb:/usr/bsd:/usr/local/bin"
@@ -175,10 +193,14 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	for _, e := range osDefaultInheritEnv[runtime.GOOS] {
+	for _, e := range osDefaultInheritEnv {
 		if v := os.Getenv(e); v != "" {
 			env = append(env, e+"="+v)
 		}
+	}
+
+	if h.Env != nil {
+		env = append(env, h.Env...)
 	}
 
 	env = removeLeadingDuplicates(env)
@@ -204,7 +226,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		Args:   append([]string{h.Path}, h.Args...),
 		Dir:    cwd,
 		Env:    env,
-		Stderr: os.Stderr, // for now
+		Stderr: h.stderr(),
 	}
 	if req.ContentLength != 0 {
 		cmd.Stdin = req.Body
@@ -257,8 +279,11 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			continue
 		}
 		header, val := parts[0], parts[1]
-		header = strings.TrimSpace(header)
-		val = strings.TrimSpace(val)
+		if !httpguts.ValidHeaderFieldName(header) {
+			h.printf("cgi: invalid header name: %q", header)
+			continue
+		}
+		val = textproto.TrimString(val)
 		switch {
 		case header == "Status":
 			if len(val) < 3 {

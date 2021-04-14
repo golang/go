@@ -1,3 +1,7 @@
+// Copyright 2014 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package runtime
 
 // Constants
@@ -5,15 +9,22 @@ const (
 	_EINTR  = 0x4
 	_ENOMEM = 0xc
 	_EAGAIN = 0xb
+	_ENOSYS = 0x26
 
-	_PROT_NONE      = 0
-	_PROT_READ      = 0x1
-	_PROT_WRITE     = 0x2
-	_PROT_EXEC      = 0x4
-	_MAP_ANON       = 0x20
-	_MAP_PRIVATE    = 0x2
-	_MAP_FIXED      = 0x10
-	_MADV_DONTNEED  = 0x4
+	_PROT_NONE  = 0
+	_PROT_READ  = 0x1
+	_PROT_WRITE = 0x2
+	_PROT_EXEC  = 0x4
+
+	_MAP_ANON    = 0x20
+	_MAP_PRIVATE = 0x2
+	_MAP_FIXED   = 0x10
+
+	_MADV_DONTNEED   = 0x4
+	_MADV_FREE       = 0x8
+	_MADV_HUGEPAGE   = 0xe
+	_MADV_NOHUGEPAGE = 0xf
+
 	_SA_RESTART     = 0x10000000
 	_SA_ONSTACK     = 0x8000000
 	_SA_RESTORER    = 0 // unused on ARM
@@ -65,6 +76,7 @@ const (
 	_ITIMER_PROF    = 0x2
 	_ITIMER_VIRTUAL = 0x1
 	_O_RDONLY       = 0
+	_O_NONBLOCK     = 0x800
 	_O_CLOEXEC      = 0x80000
 
 	_EPOLLIN       = 0x1
@@ -79,7 +91,6 @@ const (
 	_EPOLL_CTL_MOD = 0x3
 
 	_AF_UNIX    = 0x1
-	_F_SETFL    = 0x4
 	_SOCK_DGRAM = 0x2
 )
 
@@ -88,15 +99,12 @@ type timespec struct {
 	tv_nsec int32
 }
 
-func (ts *timespec) set_sec(x int64) {
-	ts.tv_sec = int32(x)
+//go:nosplit
+func (ts *timespec) setNsec(ns int64) {
+	ts.tv_sec = timediv(ns, 1e9, &ts.tv_nsec)
 }
 
-func (ts *timespec) set_nsec(x int32) {
-	ts.tv_nsec = x
-}
-
-type sigaltstackt struct {
+type stackt struct {
 	ss_sp    *byte
 	ss_flags int32
 	ss_size  uintptr
@@ -129,7 +137,7 @@ type sigcontext struct {
 type ucontext struct {
 	uc_flags    uint32
 	uc_link     *ucontext
-	uc_stack    sigaltstackt
+	uc_stack    stackt
 	uc_mcontext sigcontext
 	uc_sigmask  uint32
 	__unused    [31]int32

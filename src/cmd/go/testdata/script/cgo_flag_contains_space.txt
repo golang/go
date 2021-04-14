@@ -1,0 +1,16 @@
+[short] skip
+[!cgo] skip
+
+env GOCACHE=$WORK/gocache  # Looking for compile flags, so need a clean cache.
+go build -x -n main.go
+stderr '"-I[^"]+c flags"' # find quoted c flags
+! stderr '"-I[^"]+c flags".*"-I[^"]+c flags"' # don't find too many quoted c flags per line
+stderr '"-L[^"]+ld flags"' # find quoted ld flags
+! stderr '"-L[^"]+c flags".*"-L[^"]+c flags"' # don't find too many quoted ld flags per line
+
+-- main.go --
+package main
+// #cgo CFLAGS: -I"c flags"
+// #cgo LDFLAGS: -L"ld flags"
+import "C"
+func main() {}

@@ -13,14 +13,14 @@ import (
 	"testing"
 )
 
-// An version of bytes.Buffer without ReadFrom and WriteTo
+// A version of bytes.Buffer without ReadFrom and WriteTo
 type Buffer struct {
 	bytes.Buffer
 	ReaderFrom // conflicts with and hides bytes.Buffer's ReaderFrom.
 	WriterTo   // conflicts with and hides bytes.Buffer's WriterTo.
 }
 
-// Simple tests, primarily to verify the ReadFrom and WriteTo callouts inside Copy and CopyN.
+// Simple tests, primarily to verify the ReadFrom and WriteTo callouts inside Copy, CopyBuffer and CopyN.
 
 func TestCopy(t *testing.T) {
 	rb := new(Buffer)
@@ -29,6 +29,41 @@ func TestCopy(t *testing.T) {
 	Copy(wb, rb)
 	if wb.String() != "hello, world." {
 		t.Errorf("Copy did not work properly")
+	}
+}
+
+func TestCopyNegative(t *testing.T) {
+	rb := new(Buffer)
+	wb := new(Buffer)
+	rb.WriteString("hello")
+	Copy(wb, &LimitedReader{R: rb, N: -1})
+	if wb.String() != "" {
+		t.Errorf("Copy on LimitedReader with N<0 copied data")
+	}
+
+	CopyN(wb, rb, -1)
+	if wb.String() != "" {
+		t.Errorf("CopyN with N<0 copied data")
+	}
+}
+
+func TestCopyBuffer(t *testing.T) {
+	rb := new(Buffer)
+	wb := new(Buffer)
+	rb.WriteString("hello, world.")
+	CopyBuffer(wb, rb, make([]byte, 1)) // Tiny buffer to keep it honest.
+	if wb.String() != "hello, world." {
+		t.Errorf("CopyBuffer did not work properly")
+	}
+}
+
+func TestCopyBufferNil(t *testing.T) {
+	rb := new(Buffer)
+	wb := new(Buffer)
+	rb.WriteString("hello, world.")
+	CopyBuffer(wb, rb, nil) // Should allocate a buffer.
+	if wb.String() != "hello, world." {
+		t.Errorf("CopyBuffer did not work properly")
 	}
 }
 
@@ -78,6 +113,34 @@ func TestCopyPriority(t *testing.T) {
 	}
 }
 
+type zeroErrReader struct {
+	err error
+}
+
+func (r zeroErrReader) Read(p []byte) (int, error) {
+	return copy(p, []byte{0}), r.err
+}
+
+type errWriter struct {
+	err error
+}
+
+func (w errWriter) Write([]byte) (int, error) {
+	return 0, w.err
+}
+
+// In case a Read results in an error with non-zero bytes read, and
+// the subsequent Write also results in an error, the error from Write
+// is returned, as it is the one that prevented progressing further.
+func TestCopyReadErrWriteErr(t *testing.T) {
+	er, ew := errors.New("readError"), errors.New("writeError")
+	r, w := zeroErrReader{err: er}, errWriter{err: ew}
+	n, err := Copy(w, r)
+	if n != 0 || err != ew {
+		t.Errorf("Copy(zeroErrReader, errWriter) = %d, %v; want 0, writeError", n, err)
+	}
+}
+
 func TestCopyN(t *testing.T) {
 	rb := new(Buffer)
 	wb := new(Buffer)
@@ -105,6 +168,30 @@ func TestCopyNWriteTo(t *testing.T) {
 	CopyN(wb, rb, 5)
 	if wb.String() != "hello" {
 		t.Errorf("CopyN did not work properly")
+	}
+}
+
+func BenchmarkCopyNSmall(b *testing.B) {
+	bs := bytes.Repeat([]byte{0}, 512+1)
+	rd := bytes.NewReader(bs)
+	buf := new(Buffer)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		CopyN(buf, rd, 512)
+		rd.Reset(bs)
+	}
+}
+
+func BenchmarkCopyNLarge(b *testing.B) {
+	bs := bytes.Repeat([]byte{0}, (32*1024)+1)
+	rd := bytes.NewReader(bs)
+	buf := new(Buffer)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		CopyN(buf, rd, 32*1024)
+		rd.Reset(bs)
 	}
 }
 
@@ -197,6 +284,9 @@ func testReadAtLeast(t *testing.T, rb ReadWriter) {
 	n, err := ReadAtLeast(rb, buf, 2)
 	if err != nil {
 		t.Error(err)
+	}
+	if n != 2 {
+		t.Errorf("expected to have read 2 bytes, got %v", n)
 	}
 	n, err = ReadAtLeast(rb, buf, 4)
 	if err != ErrShortBuffer {
@@ -299,7 +389,7 @@ func TestSectionReader_Seek(t *testing.T) {
 	br := bytes.NewReader([]byte("foo"))
 	sr := NewSectionReader(br, 0, int64(len("foo")))
 
-	for whence := 0; whence <= 2; whence++ {
+	for _, whence := range []int{SeekStart, SeekCurrent, SeekEnd} {
 		for offset := int64(-3); offset <= 4; offset++ {
 			brOff, brErr := br.Seek(offset, whence)
 			srOff, srErr := sr.Seek(offset, whence)
@@ -311,7 +401,7 @@ func TestSectionReader_Seek(t *testing.T) {
 	}
 
 	// And verify we can just seek past the end and get an EOF
-	got, err := sr.Seek(100, 0)
+	got, err := sr.Seek(100, SeekStart)
 	if err != nil || got != 100 {
 		t.Errorf("Seek = %v, %v; want 100, nil", got, err)
 	}
@@ -337,5 +427,33 @@ func TestSectionReader_Size(t *testing.T) {
 		if got := sr.Size(); got != tt.want {
 			t.Errorf("Size = %v; want %v", got, tt.want)
 		}
+	}
+}
+
+// largeWriter returns an invalid count that is larger than the number
+// of bytes provided (issue 39978).
+type largeWriter struct {
+	err error
+}
+
+func (w largeWriter) Write(p []byte) (int, error) {
+	return len(p) + 1, w.err
+}
+
+func TestCopyLargeWriter(t *testing.T) {
+	want := ErrInvalidWrite
+	rb := new(Buffer)
+	wb := largeWriter{}
+	rb.WriteString("hello, world.")
+	if _, err := Copy(wb, rb); err != want {
+		t.Errorf("Copy error: got %v, want %v", err, want)
+	}
+
+	want = errors.New("largeWriterError")
+	rb = new(Buffer)
+	wb = largeWriter{err: want}
+	rb.WriteString("hello, world.")
+	if _, err := Copy(wb, rb); err != want {
+		t.Errorf("Copy error: got %v, want %v", err, want)
 	}
 }

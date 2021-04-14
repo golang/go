@@ -1,6 +1,8 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs types_netbsd.go
 
+// +build arm,netbsd
+
 package syscall
 
 const (
@@ -101,6 +103,10 @@ type Dirent struct {
 type Fsid struct {
 	X__fsid_val [2]int32
 }
+
+const (
+	pathMax = 0x400
+)
 
 type RawSockaddrInet4 struct {
 	Len    uint8
@@ -375,6 +381,10 @@ type BpfTimeval struct {
 	Usec int32
 }
 
+const (
+	_AT_FDCWD = -0x64
+)
+
 type Termios struct {
 	Iflag  uint32
 	Oflag  uint32
@@ -396,4 +406,8 @@ type Sysctlnode struct {
 	X_sysctl_func   [8]byte
 	X_sysctl_parent [8]byte
 	X_sysctl_desc   [8]byte
+}
+
+type sigset struct {
+	X__bits [4]uint32
 }

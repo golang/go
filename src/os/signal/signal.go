@@ -2,18 +2,31 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package signal implements access to incoming signals.
 package signal
 
 import (
+	"context"
 	"os"
 	"sync"
 )
 
 var handlers struct {
 	sync.Mutex
-	m   map[chan<- os.Signal]*handler
+	// Map a channel to the signals that should be sent to it.
+	m map[chan<- os.Signal]*handler
+	// Map a signal to the number of channels receiving it.
 	ref [numSig]int64
+	// Map channels to signals while the channel is being stopped.
+	// Not a map because entries live here only very briefly.
+	// We need a separate container because we need m to correspond to ref
+	// at all times, and we also need to keep track of the *handler
+	// value for a channel being stopped. See the Stop function.
+	stopping []stopping
+}
+
+type stopping struct {
+	c chan<- os.Signal
+	h *handler
 }
 
 type handler struct {
@@ -74,13 +87,28 @@ func Ignore(sig ...os.Signal) {
 	cancel(sig, ignoreSignal)
 }
 
+// Ignored reports whether sig is currently ignored.
+func Ignored(sig os.Signal) bool {
+	sn := signum(sig)
+	return sn >= 0 && signalIgnored(sn)
+}
+
+var (
+	// watchSignalLoopOnce guards calling the conditionally
+	// initialized watchSignalLoop. If watchSignalLoop is non-nil,
+	// it will be run in a goroutine lazily once Notify is invoked.
+	// See Issue 21576.
+	watchSignalLoopOnce sync.Once
+	watchSignalLoop     func()
+)
+
 // Notify causes package signal to relay incoming signals to c.
 // If no signals are provided, all incoming signals will be relayed to c.
 // Otherwise, just the provided signals will.
 //
 // Package signal will not block sending to c: the caller must ensure
 // that c has sufficient buffer space to keep up with the expected
-// signal rate.  For a channel used for notification of just one signal value,
+// signal rate. For a channel used for notification of just one signal value,
 // a buffer of size 1 is sufficient.
 //
 // It is allowed to call Notify multiple times with the same channel:
@@ -115,6 +143,14 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
 			h.set(n)
 			if handlers.ref[n] == 0 {
 				enableSignal(n)
+
+				// The runtime requires that we enable a
+				// signal before starting the watcher.
+				watchSignalLoopOnce.Do(func() {
+					if watchSignalLoop != nil {
+						go watchSignalLoop()
+					}
+				})
 			}
 			handlers.ref[n]++
 		}
@@ -143,10 +179,10 @@ func Reset(sig ...os.Signal) {
 // When Stop returns, it is guaranteed that c will receive no more signals.
 func Stop(c chan<- os.Signal) {
 	handlers.Lock()
-	defer handlers.Unlock()
 
 	h := handlers.m[c]
 	if h == nil {
+		handlers.Unlock()
 		return
 	}
 	delete(handlers.m, c)
@@ -159,7 +195,39 @@ func Stop(c chan<- os.Signal) {
 			}
 		}
 	}
+
+	// Signals will no longer be delivered to the channel.
+	// We want to avoid a race for a signal such as SIGINT:
+	// it should be either delivered to the channel,
+	// or the program should take the default action (that is, exit).
+	// To avoid the possibility that the signal is delivered,
+	// and the signal handler invoked, and then Stop deregisters
+	// the channel before the process function below has a chance
+	// to send it on the channel, put the channel on a list of
+	// channels being stopped and wait for signal delivery to
+	// quiesce before fully removing it.
+
+	handlers.stopping = append(handlers.stopping, stopping{c, h})
+
+	handlers.Unlock()
+
+	signalWaitUntilIdle()
+
+	handlers.Lock()
+
+	for i, s := range handlers.stopping {
+		if s.c == c {
+			handlers.stopping = append(handlers.stopping[:i], handlers.stopping[i+1:]...)
+			break
+		}
+	}
+
+	handlers.Unlock()
 }
+
+// Wait until there are no more signals waiting to be delivered.
+// Defined by the runtime package.
+func signalWaitUntilIdle()
 
 func process(sig os.Signal) {
 	n := signum(sig)
@@ -179,4 +247,88 @@ func process(sig os.Signal) {
 			}
 		}
 	}
+
+	// Avoid the race mentioned in Stop.
+	for _, d := range handlers.stopping {
+		if d.h.want(n) {
+			select {
+			case d.c <- sig:
+			default:
+			}
+		}
+	}
+}
+
+// NotifyContext returns a copy of the parent context that is marked done
+// (its Done channel is closed) when one of the listed signals arrives,
+// when the returned stop function is called, or when the parent context's
+// Done channel is closed, whichever happens first.
+//
+// The stop function unregisters the signal behavior, which, like signal.Reset,
+// may restore the default behavior for a given signal. For example, the default
+// behavior of a Go program receiving os.Interrupt is to exit. Calling
+// NotifyContext(parent, os.Interrupt) will change the behavior to cancel
+// the returned context. Future interrupts received will not trigger the default
+// (exit) behavior until the returned stop function is called.
+//
+// The stop function releases resources associated with it, so code should
+// call stop as soon as the operations running in this Context complete and
+// signals no longer need to be diverted to the context.
+func NotifyContext(parent context.Context, signals ...os.Signal) (ctx context.Context, stop context.CancelFunc) {
+	ctx, cancel := context.WithCancel(parent)
+	c := &signalCtx{
+		Context: ctx,
+		cancel:  cancel,
+		signals: signals,
+	}
+	c.ch = make(chan os.Signal, 1)
+	Notify(c.ch, c.signals...)
+	if ctx.Err() == nil {
+		go func() {
+			select {
+			case <-c.ch:
+				c.cancel()
+			case <-c.Done():
+			}
+		}()
+	}
+	return c, c.stop
+}
+
+type signalCtx struct {
+	context.Context
+
+	cancel  context.CancelFunc
+	signals []os.Signal
+	ch      chan os.Signal
+}
+
+func (c *signalCtx) stop() {
+	c.cancel()
+	Stop(c.ch)
+}
+
+type stringer interface {
+	String() string
+}
+
+func (c *signalCtx) String() string {
+	var buf []byte
+	// We know that the type of c.Context is context.cancelCtx, and we know that the
+	// String method of cancelCtx returns a string that ends with ".WithCancel".
+	name := c.Context.(stringer).String()
+	name = name[:len(name)-len(".WithCancel")]
+	buf = append(buf, "signal.NotifyContext("+name...)
+	if len(c.signals) != 0 {
+		buf = append(buf, ", ["...)
+		for i, s := range c.signals {
+			buf = append(buf, s.String()...)
+			if i != len(c.signals)-1 {
+				buf = append(buf, ' ')
+			}
+		}
+		buf = append(buf, ']')
+	}
+	buf = append(buf, ')')
+	return string(buf)
 }

@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,6 +8,9 @@ import (
 	. "debug/dwarf"
 	"debug/elf"
 	"debug/macho"
+	"debug/pe"
+	"fmt"
+	"strconv"
 	"testing"
 )
 
@@ -34,7 +37,7 @@ var typedefTests = map[string]string{
 }
 
 // As Apple converts gcc to a clang-based front end
-// they keep breaking the DWARF output.  This map lists the
+// they keep breaking the DWARF output. This map lists the
 // conversion from real answer to Apple answer.
 var machoBug = map[string]string{
 	"func(*char, ...) void":                                 "func(*char) void",
@@ -56,6 +59,19 @@ func elfData(t *testing.T, name string) *Data {
 
 func machoData(t *testing.T, name string) *Data {
 	f, err := macho.Open(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
+func peData(t *testing.T, name string) *Data {
+	f, err := pe.Open(name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,6 +133,98 @@ func testTypedefs(t *testing.T, d *Data, kind string) {
 	for k := range typedefTests {
 		if !seen[k] {
 			t.Errorf("missing %s", k)
+		}
+	}
+}
+
+func TestTypedefCycle(t *testing.T) {
+	// See issue #13039: reading a typedef cycle starting from a
+	// different place than the size needed to be computed from
+	// used to crash.
+	//
+	// cycle.elf built with GCC 4.8.4:
+	//    gcc -g -c -o cycle.elf cycle.c
+	d := elfData(t, "testdata/cycle.elf")
+	r := d.Reader()
+	offsets := []Offset{}
+	for {
+		e, err := r.Next()
+		if err != nil {
+			t.Fatal("r.Next:", err)
+		}
+		if e == nil {
+			break
+		}
+		switch e.Tag {
+		case TagBaseType, TagTypedef, TagPointerType, TagStructType:
+			offsets = append(offsets, e.Offset)
+		}
+	}
+
+	// Parse each type with a fresh type cache.
+	for _, offset := range offsets {
+		d := elfData(t, "testdata/cycle.elf")
+		_, err := d.Type(offset)
+		if err != nil {
+			t.Fatalf("d.Type(0x%x): %s", offset, err)
+		}
+	}
+}
+
+var unsupportedTypeTests = []string{
+	// varname:typename:string:size
+	"culprit::(unsupported type ReferenceType):8",
+	"pdm::(unsupported type PtrToMemberType):-1",
+}
+
+func TestUnsupportedTypes(t *testing.T) {
+	// Issue 29601:
+	// When reading DWARF from C++ load modules, we can encounter
+	// oddball type DIEs. These will be returned as "UnsupportedType"
+	// objects; check to make sure this works properly.
+	d := elfData(t, "testdata/cppunsuptypes.elf")
+	r := d.Reader()
+	seen := make(map[string]bool)
+	for {
+		e, err := r.Next()
+		if err != nil {
+			t.Fatal("r.Next:", err)
+		}
+		if e == nil {
+			break
+		}
+		if e.Tag == TagVariable {
+			vname, _ := e.Val(AttrName).(string)
+			tAttr := e.Val(AttrType)
+			typOff, ok := tAttr.(Offset)
+			if !ok {
+				t.Errorf("variable at offset %v has no type", e.Offset)
+				continue
+			}
+			typ, err := d.Type(typOff)
+			if err != nil {
+				t.Errorf("err in type decode: %v\n", err)
+				continue
+			}
+			unsup, isok := typ.(*UnsupportedType)
+			if !isok {
+				continue
+			}
+			tag := vname + ":" + unsup.Name + ":" + unsup.String() +
+				":" + strconv.FormatInt(unsup.Size(), 10)
+			seen[tag] = true
+		}
+	}
+	dumpseen := false
+	for _, v := range unsupportedTypeTests {
+		if !seen[v] {
+			t.Errorf("missing %s", v)
+			dumpseen = true
+		}
+	}
+	if dumpseen {
+		for k := range seen {
+			fmt.Printf("seen: %s\n", k)
 		}
 	}
 }

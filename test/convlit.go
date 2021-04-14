@@ -9,6 +9,8 @@
 
 package main
 
+import "unsafe"
+
 // explicit conversion of constants
 var x1 = string(1)
 var x2 string = string(1)
@@ -18,11 +20,16 @@ var x5 = "a" + string(1)
 var x6 = int(1e100)      // ERROR "overflow"
 var x7 = float32(1e1000) // ERROR "overflow"
 
+// unsafe.Pointer can only convert to/from uintptr
+var _ = string(unsafe.Pointer(uintptr(65)))  // ERROR "convert|conversion"
+var _ = float64(unsafe.Pointer(uintptr(65))) // ERROR "convert|conversion"
+var _ = int(unsafe.Pointer(uintptr(65)))     // ERROR "convert|conversion"
+
 // implicit conversions merit scrutiny
 var s string
 var bad1 string = 1  // ERROR "conver|incompatible|invalid|cannot"
-var bad2 = s + 1     // ERROR "conver|incompatible|invalid"
-var bad3 = s + 'a'   // ERROR "conver|incompatible|invalid"
+var bad2 = s + 1     // ERROR "conver|incompatible|invalid|cannot"
+var bad3 = s + 'a'   // ERROR "conver|incompatible|invalid|cannot"
 var bad4 = "a" + 1   // ERROR "literals|incompatible|convert|invalid"
 var bad5 = "a" + 'a' // ERROR "literals|incompatible|convert|invalid"
 

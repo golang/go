@@ -7,9 +7,10 @@ package main
 import (
 	"bytes"
 	"flag"
-	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"text/scanner"
@@ -91,7 +92,7 @@ func runTest(t *testing.T, in, out string) {
 		return
 	}
 
-	expected, err := ioutil.ReadFile(out)
+	expected, err := os.ReadFile(out)
 	if err != nil {
 		t.Error(err)
 		return
@@ -100,7 +101,7 @@ func runTest(t *testing.T, in, out string) {
 	if got := buf.Bytes(); !bytes.Equal(got, expected) {
 		if *update {
 			if in != out {
-				if err := ioutil.WriteFile(out, got, 0666); err != nil {
+				if err := os.WriteFile(out, got, 0666); err != nil {
 					t.Error(err)
 				}
 				return
@@ -110,11 +111,11 @@ func runTest(t *testing.T, in, out string) {
 		}
 
 		t.Errorf("(gofmt %s) != %s (see %s.gofmt)", in, out, in)
-		d, err := diff(expected, got)
+		d, err := diffWithReplaceTempFile(expected, got, in)
 		if err == nil {
 			t.Errorf("%s", d)
 		}
-		if err := ioutil.WriteFile(in+".gofmt", got, 0666); err != nil {
+		if err := os.WriteFile(in+".gofmt", got, 0666); err != nil {
 			t.Error(err)
 		}
 	}
@@ -155,19 +156,98 @@ func TestCRLF(t *testing.T) {
 	const input = "testdata/crlf.input"   // must contain CR/LF's
 	const golden = "testdata/crlf.golden" // must not contain any CR's
 
-	data, err := ioutil.ReadFile(input)
+	data, err := os.ReadFile(input)
 	if err != nil {
 		t.Error(err)
 	}
-	if bytes.Index(data, []byte("\r\n")) < 0 {
+	if !bytes.Contains(data, []byte("\r\n")) {
 		t.Errorf("%s contains no CR/LF's", input)
 	}
 
-	data, err = ioutil.ReadFile(golden)
+	data, err = os.ReadFile(golden)
 	if err != nil {
 		t.Error(err)
 	}
-	if bytes.Index(data, []byte("\r")) >= 0 {
+	if bytes.Contains(data, []byte("\r")) {
 		t.Errorf("%s contains CR's", golden)
+	}
+}
+
+func TestBackupFile(t *testing.T) {
+	dir, err := os.MkdirTemp("", "gofmt_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	name, err := backupFile(filepath.Join(dir, "foo.go"), []byte("  package main"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("Created: %s", name)
+}
+
+func TestDiff(t *testing.T) {
+	if _, err := exec.LookPath("diff"); err != nil {
+		t.Skipf("skip test on %s: diff command is required", runtime.GOOS)
+	}
+	in := []byte("first\nsecond\n")
+	out := []byte("first\nthird\n")
+	filename := "difftest.txt"
+	b, err := diffWithReplaceTempFile(in, out, filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if runtime.GOOS == "windows" {
+		b = bytes.ReplaceAll(b, []byte{'\r', '\n'}, []byte{'\n'})
+	}
+
+	bs := bytes.SplitN(b, []byte{'\n'}, 3)
+	line0, line1 := bs[0], bs[1]
+
+	if prefix := "--- difftest.txt.orig"; !bytes.HasPrefix(line0, []byte(prefix)) {
+		t.Errorf("diff: first line should start with `%s`\ngot: %s", prefix, line0)
+	}
+
+	if prefix := "+++ difftest.txt"; !bytes.HasPrefix(line1, []byte(prefix)) {
+		t.Errorf("diff: second line should start with `%s`\ngot: %s", prefix, line1)
+	}
+
+	want := `@@ -1,2 +1,2 @@
+ first
+-second
++third
+`
+
+	if got := string(bs[2]); got != want {
+		t.Errorf("diff: got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestReplaceTempFilename(t *testing.T) {
+	diff := []byte(`--- /tmp/tmpfile1	2017-02-08 00:53:26.175105619 +0900
++++ /tmp/tmpfile2	2017-02-08 00:53:38.415151275 +0900
+@@ -1,2 +1,2 @@
+ first
+-second
++third
+`)
+	want := []byte(`--- path/to/file.go.orig	2017-02-08 00:53:26.175105619 +0900
++++ path/to/file.go	2017-02-08 00:53:38.415151275 +0900
+@@ -1,2 +1,2 @@
+ first
+-second
++third
+`)
+	// Check path in diff output is always slash regardless of the
+	// os.PathSeparator (`/` or `\`).
+	sep := string(os.PathSeparator)
+	filename := strings.Join([]string{"path", "to", "file.go"}, sep)
+	got, err := replaceTempFilename(diff, filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("os.PathSeparator='%s': replacedDiff:\ngot:\n%s\nwant:\n%s", sep, got, want)
 	}
 }

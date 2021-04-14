@@ -8,9 +8,9 @@ import (
 	"compress/flate"
 	"errors"
 	"fmt"
-	"hash"
 	"hash/crc32"
 	"io"
+	"time"
 )
 
 // These constants are copied from the flate package, so that code that imports
@@ -20,18 +20,19 @@ const (
 	BestSpeed          = flate.BestSpeed
 	BestCompression    = flate.BestCompression
 	DefaultCompression = flate.DefaultCompression
+	HuffmanOnly        = flate.HuffmanOnly
 )
 
 // A Writer is an io.WriteCloser.
 // Writes to a Writer are compressed and written to w.
 type Writer struct {
-	Header
+	Header      // written at first call to Write, Flush, or Close
 	w           io.Writer
 	level       int
 	wroteHeader bool
 	compressor  *flate.Writer
-	digest      hash.Hash32
-	size        uint32
+	digest      uint32 // CRC-32, IEEE polynomial (section 8)
+	size        uint32 // Uncompressed size (section 2.3.1)
 	closed      bool
 	buf         [10]byte
 	err         error
@@ -40,14 +41,11 @@ type Writer struct {
 // NewWriter returns a new Writer.
 // Writes to the returned writer are compressed and written to w.
 //
-// It is the caller's responsibility to call Close on the WriteCloser when done.
+// It is the caller's responsibility to call Close on the Writer when done.
 // Writes may be buffered and not flushed until Close.
 //
 // Callers that wish to set the fields in Writer.Header must do so before
-// the first call to Write or Close. The Comment and Name header fields are
-// UTF-8 strings in Go, but the underlying format requires NUL-terminated ISO
-// 8859-1 (Latin-1). NUL or non-Latin-1 runes in those strings will lead to an
-// error on Write.
+// the first call to Write, Flush, or Close.
 func NewWriter(w io.Writer) *Writer {
 	z, _ := NewWriterLevel(w, DefaultCompression)
 	return z
@@ -56,11 +54,11 @@ func NewWriter(w io.Writer) *Writer {
 // NewWriterLevel is like NewWriter but specifies the compression level instead
 // of assuming DefaultCompression.
 //
-// The compression level can be DefaultCompression, NoCompression, or any
-// integer value between BestSpeed and BestCompression inclusive. The error
-// returned will be nil if the level is valid.
+// The compression level can be DefaultCompression, NoCompression, HuffmanOnly
+// or any integer value between BestSpeed and BestCompression inclusive.
+// The error returned will be nil if the level is valid.
 func NewWriterLevel(w io.Writer, level int) (*Writer, error) {
-	if level < DefaultCompression || level > BestCompression {
+	if level < HuffmanOnly || level > BestCompression {
 		return nil, fmt.Errorf("gzip: invalid compression level: %d", level)
 	}
 	z := new(Writer)
@@ -69,12 +67,6 @@ func NewWriterLevel(w io.Writer, level int) (*Writer, error) {
 }
 
 func (z *Writer) init(w io.Writer, level int) {
-	digest := z.digest
-	if digest != nil {
-		digest.Reset()
-	} else {
-		digest = crc32.NewIEEE()
-	}
 	compressor := z.compressor
 	if compressor != nil {
 		compressor.Reset(w)
@@ -85,7 +77,6 @@ func (z *Writer) init(w io.Writer, level int) {
 		},
 		w:          w,
 		level:      level,
-		digest:     digest,
 		compressor: compressor,
 	}
 }
@@ -98,26 +89,13 @@ func (z *Writer) Reset(w io.Writer) {
 	z.init(w, z.level)
 }
 
-// GZIP (RFC 1952) is little-endian, unlike ZLIB (RFC 1950).
-func put2(p []byte, v uint16) {
-	p[0] = uint8(v >> 0)
-	p[1] = uint8(v >> 8)
-}
-
-func put4(p []byte, v uint32) {
-	p[0] = uint8(v >> 0)
-	p[1] = uint8(v >> 8)
-	p[2] = uint8(v >> 16)
-	p[3] = uint8(v >> 24)
-}
-
 // writeBytes writes a length-prefixed byte slice to z.w.
 func (z *Writer) writeBytes(b []byte) error {
 	if len(b) > 0xffff {
 		return errors.New("gzip.Write: Extra data is too large")
 	}
-	put2(z.buf[0:2], uint16(len(b)))
-	_, err := z.w.Write(z.buf[0:2])
+	le.PutUint16(z.buf[:2], uint16(len(b)))
+	_, err := z.w.Write(z.buf[:2])
 	if err != nil {
 		return err
 	}
@@ -152,7 +130,7 @@ func (z *Writer) writeString(s string) (err error) {
 	}
 	// GZIP strings are NUL-terminated.
 	z.buf[0] = 0
-	_, err = z.w.Write(z.buf[0:1])
+	_, err = z.w.Write(z.buf[:1])
 	return err
 }
 
@@ -166,10 +144,7 @@ func (z *Writer) Write(p []byte) (int, error) {
 	// Write the GZIP header lazily.
 	if !z.wroteHeader {
 		z.wroteHeader = true
-		z.buf[0] = gzipID1
-		z.buf[1] = gzipID2
-		z.buf[2] = gzipDeflate
-		z.buf[3] = 0
+		z.buf = [10]byte{0: gzipID1, 1: gzipID2, 2: gzipDeflate}
 		if z.Extra != nil {
 			z.buf[3] |= 0x04
 		}
@@ -179,35 +154,37 @@ func (z *Writer) Write(p []byte) (int, error) {
 		if z.Comment != "" {
 			z.buf[3] |= 0x10
 		}
-		put4(z.buf[4:8], uint32(z.ModTime.Unix()))
+		if z.ModTime.After(time.Unix(0, 0)) {
+			// Section 2.3.1, the zero value for MTIME means that the
+			// modified time is not set.
+			le.PutUint32(z.buf[4:8], uint32(z.ModTime.Unix()))
+		}
 		if z.level == BestCompression {
 			z.buf[8] = 2
 		} else if z.level == BestSpeed {
 			z.buf[8] = 4
-		} else {
-			z.buf[8] = 0
 		}
 		z.buf[9] = z.OS
-		n, z.err = z.w.Write(z.buf[0:10])
+		_, z.err = z.w.Write(z.buf[:10])
 		if z.err != nil {
-			return n, z.err
+			return 0, z.err
 		}
 		if z.Extra != nil {
 			z.err = z.writeBytes(z.Extra)
 			if z.err != nil {
-				return n, z.err
+				return 0, z.err
 			}
 		}
 		if z.Name != "" {
 			z.err = z.writeString(z.Name)
 			if z.err != nil {
-				return n, z.err
+				return 0, z.err
 			}
 		}
 		if z.Comment != "" {
 			z.err = z.writeString(z.Comment)
 			if z.err != nil {
-				return n, z.err
+				return 0, z.err
 			}
 		}
 		if z.compressor == nil {
@@ -215,7 +192,7 @@ func (z *Writer) Write(p []byte) (int, error) {
 		}
 	}
 	z.size += uint32(len(p))
-	z.digest.Write(p)
+	z.digest = crc32.Update(z.digest, crc32.IEEETable, p)
 	n, z.err = z.compressor.Write(p)
 	return n, z.err
 }
@@ -245,8 +222,9 @@ func (z *Writer) Flush() error {
 	return z.err
 }
 
-// Close closes the Writer, flushing any unwritten data to the underlying
-// io.Writer, but does not close the underlying io.Writer.
+// Close closes the Writer by flushing any unwritten data to the underlying
+// io.Writer and writing the GZIP footer.
+// It does not close the underlying io.Writer.
 func (z *Writer) Close() error {
 	if z.err != nil {
 		return z.err
@@ -265,8 +243,8 @@ func (z *Writer) Close() error {
 	if z.err != nil {
 		return z.err
 	}
-	put4(z.buf[0:4], z.digest.Sum32())
-	put4(z.buf[4:8], z.size)
-	_, z.err = z.w.Write(z.buf[0:8])
+	le.PutUint32(z.buf[:4], z.digest)
+	le.PutUint32(z.buf[4:8], z.size)
+	_, z.err = z.w.Write(z.buf[:8])
 	return z.err
 }

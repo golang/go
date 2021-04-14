@@ -1,0 +1,28 @@
+example.com/cmd contains main packages.
+
+-- .info --
+{"Version":"v1.0.0-newerself"}
+-- .mod --
+module example.com/cmd
+
+go 1.16
+
+require example.com/cmd v1.0.0
+-- go.mod --
+module example.com/cmd
+
+go 1.16
+
+require example.com/cmd v1.0.0
+-- a/a.go --
+package main
+
+func main() {}
+-- b/b.go --
+package main
+
+func main() {}
+-- err/err.go --
+package err
+
+var X = DoesNotCompile

@@ -1,0 +1,32 @@
+# Relative imports in go test -i
+env GO111MODULE=off # relative import not supported in module mode
+
+# Run tests outside GOPATH.
+env GOPATH=$WORK/tmp
+
+# Check that it's safe to pass -i (which installs dependencies in $GOPATH/pkg) to go test.
+! stale runtime # don't let test -i overwrite runtime
+go test -i ./testimport
+
+-- testimport/p.go --
+package p
+
+func F() int { return 1 }
+-- testimport/p1/p1.go --
+package p1
+
+func F() int { return 1 }
+-- testimport/p_test.go --
+package p
+
+import (
+	"./p1"
+
+	"testing"
+)
+
+func TestF(t *testing.T) {
+	if F() != p1.F() {
+		t.Fatal(F())
+	}
+}

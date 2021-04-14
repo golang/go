@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -53,15 +52,12 @@ func (s *S) Recv(nul *struct{}, reply *R) error {
 }
 
 func TestGobError(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/8908")
-	}
 	defer func() {
 		err := recover()
 		if err == nil {
 			t.Fatal("no error")
 		}
-		if !strings.Contains("reading body EOF", err.(error).Error()) {
+		if !strings.Contains(err.(error).Error(), "reading body EOF") {
 			t.Fatal("expected `reading body EOF', got", err)
 		}
 	}()

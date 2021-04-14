@@ -1,6 +1,4 @@
-// +build api_tool
-
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -11,14 +9,34 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	for _, c := range contexts {
+		c.Compiler = build.Default.Compiler
+	}
+
+	// Warm up the import cache in parallel.
+	var wg sync.WaitGroup
+	for _, context := range contexts {
+		context := context
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
+		}()
+	}
+	wg.Wait()
+
+	os.Exit(m.Run())
+}
 
 var (
 	updateGolden = flag.Bool("updategolden", false, "update golden files")
@@ -38,9 +56,11 @@ func TestGolden(t *testing.T) {
 			continue
 		}
 
-		goldenFile := filepath.Join("testdata", "src", fi.Name(), "golden.txt")
+		// TODO(gri) remove extra pkg directory eventually
+		goldenFile := filepath.Join("testdata", "src", "pkg", fi.Name(), "golden.txt")
 		w := NewWalker(nil, "testdata/src/pkg")
-		w.export(w.Import(fi.Name()))
+		pkg, _ := w.Import(fi.Name())
+		w.export(pkg)
 
 		if *updateGolden {
 			os.Remove(goldenFile)
@@ -54,7 +74,7 @@ func TestGolden(t *testing.T) {
 			f.Close()
 		}
 
-		bs, err := ioutil.ReadFile(goldenFile)
+		bs, err := os.ReadFile(goldenFile)
 		if err != nil {
 			t.Fatalf("opening golden.txt for package %q: %v", fi.Name(), err)
 		}
@@ -115,11 +135,10 @@ func TestCompareAPI(t *testing.T) {
 			out:       "",
 		},
 		{
-			// http://golang.org/issue/4303
+			// https://golang.org/issue/4303
 			name: "contexts reconverging",
 			required: []string{
 				"A",
-				"pkg syscall (darwin-386), type RawSockaddrInet6 struct",
 				"pkg syscall (darwin-amd64), type RawSockaddrInet6 struct",
 			},
 			features: []string{
@@ -132,7 +151,7 @@ func TestCompareAPI(t *testing.T) {
 	}
 	for _, tt := range tests {
 		buf := new(bytes.Buffer)
-		gotok := compareAPI(buf, tt.features, tt.required, tt.optional, tt.exception)
+		gotok := compareAPI(buf, tt.features, tt.required, tt.optional, tt.exception, true)
 		if gotok != tt.ok {
 			t.Errorf("%s: ok = %v; want %v", tt.name, gotok, tt.ok)
 		}
@@ -163,26 +182,49 @@ func TestSkipInternal(t *testing.T) {
 }
 
 func BenchmarkAll(b *testing.B) {
-	stds, err := exec.Command("go", "list", "std").Output()
-	if err != nil {
-		b.Fatal(err)
-	}
-	b.ResetTimer()
-	pkgNames := strings.Fields(string(stds))
-
-	for _, c := range contexts {
-		c.Compiler = build.Default.Compiler
-	}
-
 	for i := 0; i < b.N; i++ {
 		for _, context := range contexts {
 			w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
-			for _, name := range pkgNames {
-				if name != "unsafe" && !strings.HasPrefix(name, "cmd/") {
-					w.export(w.Import(name))
-				}
+			for _, name := range w.stdPackages {
+				pkg, _ := w.Import(name)
+				w.export(pkg)
 			}
 			w.Features()
+		}
+	}
+}
+
+func TestIssue21181(t *testing.T) {
+	for _, context := range contexts {
+		w := NewWalker(context, "testdata/src/issue21181")
+		pkg, err := w.Import("p")
+		if err != nil {
+			t.Fatalf("%s: (%s-%s) %s %v", err, context.GOOS, context.GOARCH,
+				pkg.Name(), w.imported)
+		}
+		w.export(pkg)
+	}
+}
+
+func TestIssue29837(t *testing.T) {
+	for _, context := range contexts {
+		w := NewWalker(context, "testdata/src/issue29837")
+		_, err := w.Import("p")
+		if _, nogo := err.(*build.NoGoError); !nogo {
+			t.Errorf("expected *build.NoGoError, got %T", err)
+		}
+	}
+}
+
+func TestIssue41358(t *testing.T) {
+	context := new(build.Context)
+	*context = build.Default
+	context.Dir = filepath.Join(context.GOROOT, "src")
+
+	w := NewWalker(context, context.Dir)
+	for _, pkg := range w.stdPackages {
+		if strings.HasPrefix(pkg, "vendor/") || strings.HasPrefix(pkg, "golang.org/x/") {
+			t.Fatalf("stdPackages contains unexpected package %s", pkg)
 		}
 	}
 }

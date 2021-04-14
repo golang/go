@@ -15,9 +15,13 @@ const (
 	_DUPLICATE_SAME_ACCESS   = 0x2
 	_THREAD_PRIORITY_HIGHEST = 0x2
 
-	_SIGINT           = 0x2
-	_CTRL_C_EVENT     = 0x0
-	_CTRL_BREAK_EVENT = 0x1
+	_SIGINT              = 0x2
+	_SIGTERM             = 0xF
+	_CTRL_C_EVENT        = 0x0
+	_CTRL_BREAK_EVENT    = 0x1
+	_CTRL_CLOSE_EVENT    = 0x2
+	_CTRL_LOGOFF_EVENT   = 0x5
+	_CTRL_SHUTDOWN_EVENT = 0x6
 
 	_CONTEXT_CONTROL = 0x10001
 	_CONTEXT_FULL    = 0x10007
@@ -104,12 +108,42 @@ type context struct {
 func (c *context) ip() uintptr { return uintptr(c.eip) }
 func (c *context) sp() uintptr { return uintptr(c.esp) }
 
-func (c *context) setip(x uintptr) { c.eip = uint32(x) }
-func (c *context) setsp(x uintptr) { c.esp = uint32(x) }
+// 386 does not have link register, so this returns 0.
+func (c *context) lr() uintptr      { return 0 }
+func (c *context) set_lr(x uintptr) {}
+
+func (c *context) set_ip(x uintptr) { c.eip = uint32(x) }
+func (c *context) set_sp(x uintptr) { c.esp = uint32(x) }
+
+func dumpregs(r *context) {
+	print("eax     ", hex(r.eax), "\n")
+	print("ebx     ", hex(r.ebx), "\n")
+	print("ecx     ", hex(r.ecx), "\n")
+	print("edx     ", hex(r.edx), "\n")
+	print("edi     ", hex(r.edi), "\n")
+	print("esi     ", hex(r.esi), "\n")
+	print("ebp     ", hex(r.ebp), "\n")
+	print("esp     ", hex(r.esp), "\n")
+	print("eip     ", hex(r.eip), "\n")
+	print("eflags  ", hex(r.eflags), "\n")
+	print("cs      ", hex(r.segcs), "\n")
+	print("fs      ", hex(r.segfs), "\n")
+	print("gs      ", hex(r.seggs), "\n")
+}
 
 type overlapped struct {
 	internal     uint32
 	internalhigh uint32
 	anon0        [8]byte
 	hevent       *byte
+}
+
+type memoryBasicInformation struct {
+	baseAddress       uintptr
+	allocationBase    uintptr
+	allocationProtect uint32
+	regionSize        uintptr
+	state             uint32
+	protect           uint32
+	type_             uint32
 }

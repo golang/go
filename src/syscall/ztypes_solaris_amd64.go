@@ -1,6 +1,8 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs types_solaris.go
 
+// +build amd64,solaris
+
 package syscall
 
 const (
@@ -9,6 +11,7 @@ const (
 	sizeofInt      = 0x4
 	sizeofLong     = 0x8
 	sizeofLongLong = 0x8
+	PathMax        = 0x400
 )
 
 type (
@@ -57,6 +60,8 @@ type Rlimit struct {
 	Max uint64
 }
 
+type _Pid_t int32
+
 type _Gid_t uint32
 
 const (
@@ -74,6 +79,8 @@ const (
 	S_IRUSR  = 0x100
 	S_IWUSR  = 0x80
 	S_IXUSR  = 0x40
+	S_IRWXG  = 0x38
+	S_IRWXO  = 0x7
 )
 
 type Stat_t struct {
@@ -354,6 +361,10 @@ type BpfHdr struct {
 	Hdrlen    uint16
 	Pad_cgo_0 [2]byte
 }
+
+const (
+	_AT_FDCWD = 0xffd19553
+)
 
 type Termios struct {
 	Iflag     uint32

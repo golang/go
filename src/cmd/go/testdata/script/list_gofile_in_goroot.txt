@@ -1,0 +1,76 @@
+# Return an error if the user tries to list a go source file directly in $GOROOT/src.
+# Tests golang.org/issue/36587
+
+env GOROOT=$WORK/goroot
+env GOPATH=$WORK/gopath
+
+go env GOROOT
+stdout $WORK[/\\]goroot
+
+# switch to GOROOT/src
+cd $GOROOT/src
+
+# In module mode, 'go list ./...' should not treat .go files in GOROOT/src as an
+# importable package, since that directory has no valid import path.
+env GO111MODULE=on
+go list ...
+stdout -count=1 '^.+$'
+stdout '^fmt$'
+! stdout foo
+
+go list ./...
+stdout -count=1 '^.+$'
+stdout '^fmt$'
+! stdout foo
+
+go list std
+stdout -count=1 '^.+$'
+stdout '^fmt$'
+
+! go list .
+stderr '^GOROOT/src is not an importable package$'
+
+# In GOPATH mode, 'go list ./...' should synthesize a legacy GOPATH-mode path —
+# not a standard-library or empty path — for the errant package.
+env GO111MODULE=off
+go list ./...
+stdout -count=2 '^.+$' # Both 'fmt' and GOROOT/src should be listed.
+stdout '^fmt$'
+[!windows] stdout ^_$WORK/goroot/src$
+[windows] stdout goroot/src$ # On windows the ":" in the volume name is mangled
+
+go list ...
+! stdout goroot/src
+
+go list std
+! stdout goroot/src
+
+go list .
+[!windows] stdout ^_$WORK/goroot/src$
+[windows] stdout goroot/src$
+
+# switch to GOPATH/src
+cd $GOPATH/src
+
+# GO111MODULE=off,GOPATH
+env GO111MODULE=off
+go list ./...
+[!windows] stdout ^_$WORK/gopath/src$
+[windows] stdout gopath/src$
+
+go list all
+! stdout gopath/src
+
+-- $WORK/goroot/src/go.mod --
+module std
+
+go 1.14
+-- $WORK/goroot/src/foo.go --
+package foo
+-- $WORK/goroot/src/fmt/fmt.go --
+package fmt
+-- $WORK/goroot/src/cmd/README --
+This directory must exist in order for the 'cmd' pattern to have something to
+match against.
+-- $GOPATH/src/foo.go --
+package foo

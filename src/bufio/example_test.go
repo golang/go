@@ -31,6 +31,19 @@ func ExampleScanner_lines() {
 	}
 }
 
+// Return the most recent call to Scan as a []byte.
+func ExampleScanner_Bytes() {
+	scanner := bufio.NewScanner(strings.NewReader("gopher"))
+	for scanner.Scan() {
+		fmt.Println(len(scanner.Bytes()) == 6)
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "shouldn't see an error scanning a string")
+	}
+	// Output:
+	// true
+}
+
 // Use a Scanner to implement a simple word-count utility by scanning the
 // input as a sequence of space-delimited tokens.
 func ExampleScanner_words() {
@@ -79,4 +92,36 @@ func ExampleScanner_custom() {
 	// 1234
 	// 5678
 	// Invalid input: strconv.ParseInt: parsing "1234567901234567890": value out of range
+}
+
+// Use a Scanner with a custom split function to parse a comma-separated
+// list with an empty final value.
+func ExampleScanner_emptyFinalToken() {
+	// Comma-separated list; last entry is empty.
+	const input = "1,2,3,4,"
+	scanner := bufio.NewScanner(strings.NewReader(input))
+	// Define a split function that separates on commas.
+	onComma := func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+		for i := 0; i < len(data); i++ {
+			if data[i] == ',' {
+				return i + 1, data[:i], nil
+			}
+		}
+		if !atEOF {
+			return 0, nil, nil
+		}
+		// There is one final token to be delivered, which may be the empty string.
+		// Returning bufio.ErrFinalToken here tells Scan there are no more tokens after this
+		// but does not trigger an error to be returned from Scan itself.
+		return 0, data, bufio.ErrFinalToken
+	}
+	scanner.Split(onComma)
+	// Scan.
+	for scanner.Scan() {
+		fmt.Printf("%q ", scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "reading input:", err)
+	}
+	// Output: "1" "2" "3" "4" ""
 }

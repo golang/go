@@ -171,9 +171,6 @@ func adjChunks() (*objtype, *objtype) {
 
 // Make sure an empty slice on the stack doesn't pin the next object in memory.
 func TestEmptySlice(t *testing.T) {
-	if true { // disable until bug 7564 is fixed.
-		return
-	}
 	x, y := adjChunks()
 
 	// the pointer inside xs points to y.
@@ -244,3 +241,24 @@ var (
 	Foo2 = &Object2{}
 	Foo1 = &Object1{}
 )
+
+func TestDeferKeepAlive(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+
+	// See issue 21402.
+	t.Parallel()
+	type T *int // needs to be a pointer base type to avoid tinyalloc and its never-finalized behavior.
+	x := new(T)
+	finRun := false
+	runtime.SetFinalizer(x, func(x *T) {
+		finRun = true
+	})
+	defer runtime.KeepAlive(x)
+	runtime.GC()
+	time.Sleep(time.Second)
+	if finRun {
+		t.Errorf("finalizer ran prematurely")
+	}
+}

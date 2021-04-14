@@ -23,6 +23,10 @@ print "X-CGI-Pid: $$\r\n";
 print "X-Test-Header: X-Test-Value\r\n";
 print "\r\n";
 
+if ($params->{"writestderr"}) {
+    print STDERR "Hello, stderr!\n";
+}
+
 if ($params->{"bigresponse"}) {
     # 17 MB, for OS X: golang.org/issue/4958
     for (1..(17 * 1024)) {

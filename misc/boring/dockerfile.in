@@ -1,0 +1,31 @@
+# Template for Dockerfile, used in build.docker script.
+# Based on https://github.com/docker-library/golang/blob/7e3d99a803/1.13/buster/Dockerfile
+FROM buildpack-deps:buster-scm
+
+# gcc for cgo
+RUN apt-get update && apt-get install -y --no-install-recommends \
+		g++ \
+		gcc \
+		libc6-dev \
+		make \
+		pkg-config \
+	&& rm -rf /var/lib/apt/lists/*
+
+ENV GOLANG_VERSION VVV
+
+RUN set -eux; \
+	\
+	url="UUU"; \
+	wget -O go.tgz "$url"; \
+	echo "SSS go.tgz" | sha256sum -c -; \
+	tar -C /usr/local -xzf go.tgz; \
+	rm go.tgz; \
+	\
+	export PATH="/usr/local/go/bin:$PATH"; \
+	go version
+
+ENV GOPATH /go
+ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
+
+RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+WORKDIR $GOPATH

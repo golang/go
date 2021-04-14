@@ -8,7 +8,6 @@
 Input to cgo.
 
 GOARCH=amd64 go tool cgo -cdefs defs_dragonfly.go >defs_dragonfly_amd64.h
-GOARCH=386 go tool cgo -cdefs defs_dragonfly.go >defs_dragonfly_386.h
 */
 
 package runtime
@@ -104,13 +103,13 @@ const (
 	EV_DELETE    = C.EV_DELETE
 	EV_CLEAR     = C.EV_CLEAR
 	EV_ERROR     = C.EV_ERROR
+	EV_EOF       = C.EV_EOF
 	EVFILT_READ  = C.EVFILT_READ
 	EVFILT_WRITE = C.EVFILT_WRITE
 )
 
 type Rtprio C.struct_rtprio
 type Lwpparams C.struct_lwp_params
-type SigaltstackT C.struct_sigaltstack
 type Sigset C.struct___sigset
 type StackT C.stack_t
 

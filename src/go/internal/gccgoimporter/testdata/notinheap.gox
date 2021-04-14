@@ -1,0 +1,7 @@
+v3;
+package notinheap
+pkgpath notinheap
+init notinheap ~notinheap
+types 3 2 30 18
+type 1 "S" notinheap <type 2>
+type 2 struct { }

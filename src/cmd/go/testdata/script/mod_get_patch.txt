@@ -1,0 +1,130 @@
+# This test examines the behavior of 'go get …@patch'
+# See also mod_upgrade_patch.txt (focused on "-u=patch" specifically)
+# and mod_get_patchmod.txt (focused on module/package ambiguities).
+
+cp go.mod go.mod.orig
+
+# example.net/b@patch refers to the patch for the version of b that was selected
+# at the start of 'go get', not the version after applying other changes.
+
+! go get -d example.net/a@v0.2.0 example.net/b@patch
+stderr '^go get: example.net/a@v0.2.0 requires example.net/b@v0.2.0, not example.net/b@patch \(v0.1.1\)$'
+cmp go.mod go.mod.orig
+
+
+# -u=patch changes the default version for other arguments to '@patch',
+# but they continue to be resolved against the originally-selected version,
+# not the updated one.
+#
+# TODO(#42360): Reconsider the change in defaults.
+
+! go get -d -u=patch example.net/a@v0.2.0 example.net/b
+stderr '^go get: example.net/a@v0.2.0 requires example.net/b@v0.2.0, not example.net/b@patch \(v0.1.1\)$'
+cmp go.mod go.mod.orig
+
+
+# -u=patch refers to the patches for the selected versions of dependencies *after*
+# applying other version changes, not the versions that were selected at the start.
+# However, it should not patch versions determined by explicit arguments.
+
+go get -d -u=patch example.net/a@v0.2.0
+go list -m all
+stdout '^example.net/a v0.2.0 '
+stdout '^example.net/b v0.2.1 '
+
+
+# "-u=patch all" should be equivalent to "all@patch", and should fail if the
+# patched versions result in a higher-than-patch upgrade.
+
+cp go.mod.orig go.mod
+! go get -u=patch all
+stderr '^go get: example.net/a@v0.1.1 \(matching all@patch\) requires example.net/b@v0.2.0, not example.net/b@v0.1.1 \(matching all@patch\)$'
+cmp go.mod go.mod.orig
+
+
+# On the other hand, "-u=patch ./..." should patch-upgrade dependencies until
+# they reach a fixed point, even if that results in higher-than-patch upgrades.
+
+go get -u=patch ./...
+go list -m all
+stdout '^example.net/a v0.1.1 '
+stdout '^example.net/b v0.2.1 '
+
+
+-- go.mod --
+module example
+
+go 1.16
+
+require (
+	example.net/a v0.1.0
+	example.net/b v0.1.0  // indirect
+)
+
+replace (
+	example.net/a v0.1.0 => ./a10
+	example.net/a v0.1.1 => ./a11
+	example.net/a v0.2.0 => ./a20
+	example.net/a v0.2.1 => ./a21
+	example.net/b v0.1.0 => ./b
+	example.net/b v0.1.1 => ./b
+	example.net/b v0.2.0 => ./b
+	example.net/b v0.2.1 => ./b
+	example.net/b v0.3.0 => ./b
+	example.net/b v0.3.1 => ./b
+)
+-- example.go --
+package example
+
+import _ "example.net/a"
+
+-- a10/go.mod --
+module example.net/a
+
+go 1.16
+
+require example.net/b v0.1.0
+-- a10/a.go --
+package a
+
+import _ "example.net/b"
+
+-- a11/go.mod --
+module example.net/a
+
+go 1.16
+
+require example.net/b v0.2.0  // upgraded
+-- a11/a.go --
+package a
+
+import _ "example.net/b"
+
+-- a20/go.mod --
+module example.net/a
+
+go 1.16
+
+require example.net/b v0.2.0
+-- a20/a.go --
+package a
+
+import _ "example.net/b"
+
+-- a21/go.mod --
+module example.net/a
+
+go 1.16
+
+require example.net/b v0.2.0  // not upgraded
+-- a21/a.go --
+package a
+
+import _ "example.net/b"
+
+-- b/go.mod --
+module example.net/b
+
+go 1.16
+-- b/b.go --
+package b

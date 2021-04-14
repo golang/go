@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -20,6 +20,14 @@ func (ti *testInterface) setBroadcast(suffix int) error {
 		Path: xname,
 		Args: []string{"ip", "link", "add", ti.name, "type", "dummy"},
 	})
+	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
+		Path: xname,
+		Args: []string{"ip", "address", "add", ti.local, "peer", ti.remote, "dev", ti.name},
+	})
+	ti.teardownCmds = append(ti.teardownCmds, &exec.Cmd{
+		Path: xname,
+		Args: []string{"ip", "address", "del", ti.local, "peer", ti.remote, "dev", ti.name},
+	})
 	ti.teardownCmds = append(ti.teardownCmds, &exec.Cmd{
 		Path: xname,
 		Args: []string{"ip", "link", "delete", ti.name, "type", "dummy"},
@@ -27,29 +35,52 @@ func (ti *testInterface) setBroadcast(suffix int) error {
 	return nil
 }
 
-func (ti *testInterface) setPointToPoint(suffix int, local, remote string) error {
+func (ti *testInterface) setLinkLocal(suffix int) error {
 	ti.name = fmt.Sprintf("gotest%d", suffix)
-	ti.local = local
-	ti.remote = remote
 	xname, err := exec.LookPath("ip")
 	if err != nil {
 		return err
 	}
 	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
 		Path: xname,
-		Args: []string{"ip", "tunnel", "add", ti.name, "mode", "gre", "local", local, "remote", remote},
+		Args: []string{"ip", "link", "add", ti.name, "type", "dummy"},
+	})
+	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
+		Path: xname,
+		Args: []string{"ip", "address", "add", ti.local, "dev", ti.name},
 	})
 	ti.teardownCmds = append(ti.teardownCmds, &exec.Cmd{
 		Path: xname,
-		Args: []string{"ip", "tunnel", "del", ti.name, "mode", "gre", "local", local, "remote", remote},
+		Args: []string{"ip", "address", "del", ti.local, "dev", ti.name},
 	})
-	xname, err = exec.LookPath("ifconfig")
+	ti.teardownCmds = append(ti.teardownCmds, &exec.Cmd{
+		Path: xname,
+		Args: []string{"ip", "link", "delete", ti.name, "type", "dummy"},
+	})
+	return nil
+}
+
+func (ti *testInterface) setPointToPoint(suffix int) error {
+	ti.name = fmt.Sprintf("gotest%d", suffix)
+	xname, err := exec.LookPath("ip")
 	if err != nil {
 		return err
 	}
 	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
 		Path: xname,
-		Args: []string{"ifconfig", ti.name, "inet", local, "dstaddr", remote},
+		Args: []string{"ip", "tunnel", "add", ti.name, "mode", "gre", "local", ti.local, "remote", ti.remote},
+	})
+	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
+		Path: xname,
+		Args: []string{"ip", "address", "add", ti.local, "peer", ti.remote, "dev", ti.name},
+	})
+	ti.teardownCmds = append(ti.teardownCmds, &exec.Cmd{
+		Path: xname,
+		Args: []string{"ip", "address", "del", ti.local, "peer", ti.remote, "dev", ti.name},
+	})
+	ti.teardownCmds = append(ti.teardownCmds, &exec.Cmd{
+		Path: xname,
+		Args: []string{"ip", "tunnel", "del", ti.name, "mode", "gre", "local", ti.local, "remote", ti.remote},
 	})
 	return nil
 }
@@ -78,7 +109,7 @@ var (
 func TestParseProcNet(t *testing.T) {
 	defer func() {
 		if p := recover(); p != nil {
-			t.Fatalf("parseProcNetIGMP or parseProtNetIGMP6 panicked: %v", p)
+			t.Fatalf("panicked: %v", p)
 		}
 	}()
 
@@ -88,7 +119,7 @@ func TestParseProcNet(t *testing.T) {
 		ifmat4 = append(ifmat4, ifmat...)
 	}
 	if len(ifmat4) != numOfTestIPv4MCAddrs {
-		t.Fatalf("parseProcNetIGMP returns %v addresses, expected %v", len(ifmat4), numOfTestIPv4MCAddrs)
+		t.Fatalf("got %d; want %d", len(ifmat4), numOfTestIPv4MCAddrs)
 	}
 
 	var ifmat6 []Addr
@@ -97,6 +128,6 @@ func TestParseProcNet(t *testing.T) {
 		ifmat6 = append(ifmat6, ifmat...)
 	}
 	if len(ifmat6) != numOfTestIPv6MCAddrs {
-		t.Fatalf("parseProcNetIGMP6 returns %v addresses, expected %v", len(ifmat6), numOfTestIPv6MCAddrs)
+		t.Fatalf("got %d; want %d", len(ifmat6), numOfTestIPv6MCAddrs)
 	}
 }

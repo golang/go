@@ -6,8 +6,3 @@ package bytes
 
 // Export func for testing
 var IndexBytePortable = indexBytePortable
-var EqualPortable = equalPortable
-
-func (b *Buffer) Cap() int {
-	return cap(b.buf)
-}

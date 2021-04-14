@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"log"
@@ -15,47 +16,98 @@ import (
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 
+	"cmd/internal/bio"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 )
 
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("asm: ")
 
-	GOARCH := obj.Getgoarch()
+	GOARCH := objabi.GOARCH
 
 	architecture := arch.Set(GOARCH)
 	if architecture == nil {
-		log.Fatalf("asm: unrecognized architecture %s", GOARCH)
+		log.Fatalf("unrecognized architecture %s", GOARCH)
 	}
 
-	flags.Parse(architecture.Thechar)
+	flags.Parse()
+
+	ctxt := obj.Linknew(architecture.LinkArch)
+	ctxt.Debugasm = flags.PrintOut
+	ctxt.Flag_dynlink = *flags.Dynlink
+	ctxt.Flag_linkshared = *flags.Linkshared
+	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
+	ctxt.IsAsm = true
+	ctxt.Pkgpath = *flags.Importpath
+	switch *flags.Spectre {
+	default:
+		log.Printf("unknown setting -spectre=%s", *flags.Spectre)
+		os.Exit(2)
+	case "":
+		// nothing
+	case "index":
+		// known to compiler; ignore here so people can use
+		// the same list with -gcflags=-spectre=LIST and -asmflags=-spectrre=LIST
+	case "all", "ret":
+		ctxt.Retpoline = true
+	}
+
+	ctxt.Bso = bufio.NewWriter(os.Stdout)
+	defer ctxt.Bso.Flush()
+
+	architecture.Init(ctxt)
 
 	// Create object file, write header.
-	fd, err := os.Create(*flags.OutputFile)
+	buf, err := bio.Create(*flags.OutputFile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	ctxt := obj.Linknew(architecture.LinkArch)
-	if *flags.PrintOut {
-		ctxt.Debugasm = 1
-	}
-	ctxt.Bso = obj.Binitw(os.Stdout)
-	defer obj.Bflush(ctxt.Bso)
-	ctxt.Diag = log.Fatalf
-	output := obj.Binitw(fd)
-	fmt.Fprintf(output, "go object %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion())
-	fmt.Fprintf(output, "!\n")
+	defer buf.Close()
 
-	lexer := lex.NewLexer(flag.Arg(0), ctxt)
-	parser := asm.NewParser(ctxt, architecture, lexer)
-	pList := obj.Linknewplist(ctxt)
-	var ok bool
-	pList.Firstpc, ok = parser.Parse()
-	if !ok {
-		log.Fatalf("asm: assembly of %s failed", flag.Arg(0))
+	if !*flags.SymABIs {
+		fmt.Fprintf(buf, "go object %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version)
+		fmt.Fprintf(buf, "!\n")
+	}
+
+	var ok, diag bool
+	var failedFile string
+	for _, f := range flag.Args() {
+		lexer := lex.NewLexer(f)
+		parser := asm.NewParser(ctxt, architecture, lexer,
+			*flags.CompilingRuntime)
+		ctxt.DiagFunc = func(format string, args ...interface{}) {
+			diag = true
+			log.Printf(format, args...)
+		}
+		if *flags.SymABIs {
+			ok = parser.ParseSymABIs(buf)
+		} else {
+			pList := new(obj.Plist)
+			pList.Firstpc, ok = parser.Parse()
+			// reports errors to parser.Errorf
+			if ok {
+				obj.Flushplist(ctxt, pList, nil, *flags.Importpath)
+			}
+		}
+		if !ok {
+			failedFile = f
+			break
+		}
+	}
+	if ok && !*flags.SymABIs {
+		ctxt.NumberSyms()
+		obj.WriteObjFile(ctxt, buf)
+	}
+	if !ok || diag {
+		if failedFile != "" {
+			log.Printf("assembly of %s failed", failedFile)
+		} else {
+			log.Print("assembly failed")
+		}
+		buf.Close()
+		os.Remove(*flags.OutputFile)
 		os.Exit(1)
 	}
-	obj.Writeobjdirect(ctxt, output)
-	obj.Bflush(output)
 }

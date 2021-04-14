@@ -68,7 +68,7 @@ var (
 	c3 float64 = float64(Big) * Big // ERROR "overflow"
 	c4         = Big * Big          // ERROR "overflow"
 	c5         = Big / 0            // ERROR "division by zero"
-	c6         = 1000 % 1e3         // ERROR "floating-point % operation|expected integer type"
+	c6         = 1000 % 1e3         // ERROR "invalid operation|expected integer type"
 )
 
 func f(int)
@@ -90,5 +90,5 @@ func main() {
 const ptr = nil // ERROR "const.*nil"
 const _ = string([]byte(nil)) // ERROR "is not a? ?constant"
 const _ = uintptr(unsafe.Pointer((*int)(nil))) // ERROR "is not a? ?constant"
-const _ = unsafe.Pointer((*int)(nil)) // ERROR "cannot be nil|invalid constant type"
-const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type"
+const _ = unsafe.Pointer((*int)(nil)) // ERROR "cannot be nil|invalid constant type|is not a constant"
+const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type|is not a constant"

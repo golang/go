@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
 
 package filepath
 
 import "strings"
 
-// IsAbs returns true if the path is absolute.
+// IsAbs reports whether the path is absolute.
 func IsAbs(path string) bool {
 	return strings.HasPrefix(path, "/")
 }
@@ -20,6 +20,9 @@ func volumeNameLen(path string) int {
 }
 
 // HasPrefix exists for historical compatibility and should not be used.
+//
+// Deprecated: HasPrefix does not respect path boundaries and
+// does not ignore case when required.
 func HasPrefix(p, prefix string) bool {
 	return strings.HasPrefix(p, prefix)
 }
@@ -43,4 +46,8 @@ func join(elem []string) string {
 		}
 	}
 	return ""
+}
+
+func sameWord(a, b string) bool {
+	return a == b
 }

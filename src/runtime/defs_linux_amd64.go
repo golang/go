@@ -7,6 +7,7 @@ const (
 	_EINTR  = 0x4
 	_EAGAIN = 0xb
 	_ENOMEM = 0xc
+	_ENOSYS = 0x26
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1
@@ -17,7 +18,10 @@ const (
 	_MAP_PRIVATE = 0x2
 	_MAP_FIXED   = 0x10
 
-	_MADV_DONTNEED = 0x4
+	_MADV_DONTNEED   = 0x4
+	_MADV_FREE       = 0x8
+	_MADV_HUGEPAGE   = 0xe
+	_MADV_NOHUGEPAGE = 0xf
 
 	_SA_RESTART  = 0x10000000
 	_SA_ONSTACK  = 0x8000000
@@ -85,6 +89,9 @@ const (
 	_EPOLL_CTL_ADD = 0x1
 	_EPOLL_CTL_DEL = 0x2
 	_EPOLL_CTL_MOD = 0x3
+
+	_AF_UNIX    = 0x1
+	_SOCK_DGRAM = 0x2
 )
 
 type timespec struct {
@@ -92,12 +99,10 @@ type timespec struct {
 	tv_nsec int64
 }
 
-func (ts *timespec) set_sec(x int64) {
-	ts.tv_sec = x
-}
-
-func (ts *timespec) set_nsec(x int32) {
-	ts.tv_nsec = int64(x)
+//go:nosplit
+func (ts *timespec) setNsec(ns int64) {
+	ts.tv_sec = ns / 1e9
+	ts.tv_nsec = ns % 1e9
 }
 
 type timeval struct {
@@ -138,8 +143,9 @@ type epollevent struct {
 // cgo -cdefs defs_linux.go defs1_linux.go
 
 const (
-	_O_RDONLY  = 0x0
-	_O_CLOEXEC = 0x80000
+	_O_RDONLY   = 0x0
+	_O_NONBLOCK = 0x800
+	_O_CLOEXEC  = 0x80000
 )
 
 type usigset struct {
@@ -199,7 +205,7 @@ type fpreg1 struct {
 	exponent    uint16
 }
 
-type sigaltstackt struct {
+type stackt struct {
 	ss_sp     *byte
 	ss_flags  int32
 	pad_cgo_0 [4]byte
@@ -215,7 +221,7 @@ type mcontext struct {
 type ucontext struct {
 	uc_flags     uint64
 	uc_link      *ucontext
-	uc_stack     sigaltstackt
+	uc_stack     stackt
 	uc_mcontext  mcontext
 	uc_sigmask   usigset
 	__fpregs_mem fpstate
@@ -250,4 +256,9 @@ type sigcontext struct {
 	cr2         uint64
 	fpstate     *fpstate1
 	__reserved1 [8]uint64
+}
+
+type sockaddr_un struct {
+	family uint16
+	path   [108]byte
 }

@@ -9,6 +9,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"io"
@@ -51,14 +52,25 @@ var decryptPKCS1v15Tests = []DecryptPKCS1v15Test{
 }
 
 func TestDecryptPKCS1v15(t *testing.T) {
-	for i, test := range decryptPKCS1v15Tests {
-		out, err := DecryptPKCS1v15(nil, rsaPrivateKey, decodeBase64(test.in))
-		if err != nil {
-			t.Errorf("#%d error decrypting", i)
-		}
-		want := []byte(test.out)
-		if !bytes.Equal(out, want) {
-			t.Errorf("#%d got:%#v want:%#v", i, out, want)
+	decryptionFuncs := []func([]byte) ([]byte, error){
+		func(ciphertext []byte) (plaintext []byte, err error) {
+			return DecryptPKCS1v15(nil, rsaPrivateKey, ciphertext)
+		},
+		func(ciphertext []byte) (plaintext []byte, err error) {
+			return rsaPrivateKey.Decrypt(nil, ciphertext, nil)
+		},
+	}
+
+	for _, decryptFunc := range decryptionFuncs {
+		for i, test := range decryptPKCS1v15Tests {
+			out, err := decryptFunc(decodeBase64(test.in))
+			if err != nil {
+				t.Errorf("#%d error decrypting: %v", i, err)
+			}
+			want := []byte(test.out)
+			if !bytes.Equal(out, want) {
+				t.Errorf("#%d got:%#v want:%#v", i, out, want)
+			}
 		}
 	}
 }
@@ -134,6 +146,22 @@ func TestEncryptPKCS1v15SessionKey(t *testing.T) {
 		want := []byte(test.out)
 		if !bytes.Equal(key, want) {
 			t.Errorf("#%d got:%#v want:%#v", i, key, want)
+		}
+	}
+}
+
+func TestEncryptPKCS1v15DecrypterSessionKey(t *testing.T) {
+	for i, test := range decryptPKCS1v15SessionKeyTests {
+		plaintext, err := rsaPrivateKey.Decrypt(rand.Reader, decodeBase64(test.in), &PKCS1v15DecryptOptions{SessionKeyLen: 4})
+		if err != nil {
+			t.Fatalf("#%d: error decrypting: %s", i, err)
+		}
+		if len(plaintext) != 4 {
+			t.Fatalf("#%d: incorrect length plaintext: got %d, want 4", i, len(plaintext))
+		}
+
+		if test.out != "FAIL" && !bytes.Equal(plaintext, []byte(test.out)) {
+			t.Errorf("#%d: incorrect plaintext: got %x, want %x", i, plaintext, test.out)
 		}
 	}
 }
@@ -247,8 +275,8 @@ func TestShortSessionKey(t *testing.T) {
 	}
 }
 
-// In order to generate new test vectors you'll need the PEM form of this key:
-// -----BEGIN RSA PRIVATE KEY-----
+// In order to generate new test vectors you'll need the PEM form of this key (and s/TESTING/PRIVATE/):
+// -----BEGIN RSA TESTING KEY-----
 // MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0
 // fd7Ai2KW5ToIwzFofvJcS/STa6HA5gQenRUCAwEAAQJBAIq9amn00aS0h/CrjXqu
 // /ThglAXJmZhOMPVn4eiu7/ROixi9sex436MaVeMqSNf7Ex9a8fRNfWss7Sqd9eWu
@@ -256,7 +284,7 @@ func TestShortSessionKey(t *testing.T) {
 // EO+ZJ79TJKN5yiGBRsv5yvx5UiHxajEXAiAhAol5N4EUyq6I9w1rYdhPMGpLfk7A
 // IU2snfRJ6Nq2CQIgFrPsWRCkV+gOYcajD17rEqmuLrdIRexpg8N1DOSXoJ8CIGlS
 // tAboUGBxTDq3ZroNism3DaMIbKPyYrAqhKov1h5V
-// -----END RSA PRIVATE KEY-----
+// -----END RSA TESTING KEY-----
 
 var rsaPrivateKey = &PrivateKey{
 	PublicKey: PublicKey{
@@ -268,4 +296,21 @@ var rsaPrivateKey = &PrivateKey{
 		fromBase10("98920366548084643601728869055592650835572950932266967461790948584315647051443"),
 		fromBase10("94560208308847015747498523884063394671606671904944666360068158221458669711639"),
 	},
+}
+
+func TestShortPKCS1v15Signature(t *testing.T) {
+	pub := &PublicKey{
+		E: 65537,
+		N: fromBase10("8272693557323587081220342447407965471608219912416565371060697606400726784709760494166080686904546560026343451112103559482851304715739629410219358933351333"),
+	}
+	sig, err := hex.DecodeString("193a310d0dcf64094c6e3a00c8219b80ded70535473acff72c08e1222974bb24a93a535b1dc4c59fc0e65775df7ba2007dd20e9193f4c4025a18a7070aee93")
+	if err != nil {
+		t.Fatalf("failed to decode signature: %s", err)
+	}
+
+	h := sha256.Sum256([]byte("hello"))
+	err = VerifyPKCS1v15(pub, crypto.SHA256, h[:], sig)
+	if err == nil {
+		t.Fatal("VerifyPKCS1v15 accepted a truncated signature")
+	}
 }
