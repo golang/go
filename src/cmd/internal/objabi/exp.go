@@ -108,8 +108,9 @@ func parseExperiments() goexperiment.Flags {
 
 // expList returns the list of lower-cased experiment names for
 // experiments that differ from base. base may be nil to indicate no
-// experiments.
-func expList(exp, base *goexperiment.Flags) []string {
+// experiments. If all is true, then include all experiment flags,
+// regardless of base.
+func expList(exp, base *goexperiment.Flags, all bool) []string {
 	var list []string
 	rv := reflect.ValueOf(exp).Elem()
 	var rBase reflect.Value
@@ -124,7 +125,7 @@ func expList(exp, base *goexperiment.Flags) []string {
 		if base != nil {
 			baseVal = rBase.Field(i).Bool()
 		}
-		if val != baseVal {
+		if all || val != baseVal {
 			if val {
 				list = append(list, name)
 			} else {
@@ -140,11 +141,11 @@ func expList(exp, base *goexperiment.Flags) []string {
 // GOEXPERIMENT is exactly what a user would set on the command line
 // to get the set of enabled experiments.
 func GOEXPERIMENT() string {
-	return strings.Join(expList(&Experiment, &experimentBaseline), ",")
+	return strings.Join(expList(&Experiment, &experimentBaseline, false), ",")
 }
 
 // EnabledExperiments returns a list of enabled experiments, as
 // lower-cased experiment names.
 func EnabledExperiments() []string {
-	return expList(&Experiment, nil)
+	return expList(&Experiment, nil, false)
 }

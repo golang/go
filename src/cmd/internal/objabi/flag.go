@@ -93,10 +93,16 @@ func (versionFlag) Set(s string) error {
 
 	p := ""
 
-	// If the enabled experiments differ from the defaults,
-	// include that difference.
-	if goexperiment := GOEXPERIMENT(); goexperiment != "" {
-		p = " X:" + goexperiment
+	if s == "goexperiment" {
+		// test/run.go uses this to discover the full set of
+		// experiment tags. Report everything.
+		p = " X:" + strings.Join(expList(&Experiment, nil, true), ",")
+	} else {
+		// If the enabled experiments differ from the defaults,
+		// include that difference.
+		if goexperiment := GOEXPERIMENT(); goexperiment != "" {
+			p = " X:" + goexperiment
+		}
 	}
 
 	// The go command invokes -V=full to get a unique identifier

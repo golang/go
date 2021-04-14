@@ -376,6 +376,7 @@ type context struct {
 	GOARCH     string
 	cgoEnabled bool
 	noOptEnv   bool
+	expTags    map[string]bool // Set lazily
 }
 
 // shouldTest looks for build tags in a source file and returns
@@ -445,26 +446,28 @@ func (ctxt *context) match(name string) bool {
 		}
 	}
 
-	exp := os.Getenv("GOEXPERIMENT")
-	if exp == "" {
-		// If GOEXPERIMENT environment variable is unset, get the default value
-		// that is baked into the toolchain.
-		cmd := exec.Command(goTool(), "tool", "compile", "-V")
-		out, err := cmd.CombinedOutput()
-		if err == nil {
+	if strings.HasPrefix(name, "goexperiment.") {
+		// Query goexperiment tags from the toolchain.
+		if ctxt.expTags == nil {
+			ctxt.expTags = make(map[string]bool)
+			cmd := exec.Command(goTool(), "tool", "compile", "-V=goexperiment")
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				log.Fatalf("failed to get GOEXPERIMENT configuration:\n%s", out)
+			}
 			i := bytes.Index(out, []byte("X:"))
 			if i != -1 {
-				exp = string(out[i+2:])
+				for _, exp := range strings.Split(string(out[i+2:]), ",") {
+					v := true
+					if strings.HasPrefix(exp, "no") {
+						v, exp = false, exp[2:]
+					}
+					ctxt.expTags["goexperiment."+exp] = v
+				}
 			}
 		}
-	}
-	if exp != "" {
-		experiments := strings.Split(exp, ",")
-		for _, e := range experiments {
-			if name == "goexperiment."+e {
-				return true
-			}
-		}
+
+		return ctxt.expTags[name]
 	}
 
 	if name == "cgo" && ctxt.cgoEnabled {
