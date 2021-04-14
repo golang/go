@@ -590,6 +590,7 @@ func (state *pclntab) generateFunctab(ctxt *Link, funcs []loader.Sym, inlSyms ma
 	if !useSymValue {
 		// Generate relocations for funcdata when externally linking.
 		state.writeFuncData(ctxt, sb, funcs, inlSyms, startLocations, setAddr, setUintNOP)
+		sb.SortRelocs()
 	}
 }
 
