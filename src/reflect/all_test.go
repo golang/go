@@ -14,10 +14,9 @@ import (
 	"math"
 	"math/rand"
 	"os"
-	"reflect"
 	. "reflect"
-	example1 "reflect/internal/example1"
-	example2 "reflect/internal/example2"
+	"reflect/internal/example1"
+	"reflect/internal/example2"
 	"runtime"
 	"sort"
 	"strconv"
@@ -7236,9 +7235,30 @@ func iterateToString(it *MapIter) string {
 }
 
 func TestConvertibleTo(t *testing.T) {
-	t1 := reflect.ValueOf(example1.MyStruct{}).Type()
-	t2 := reflect.ValueOf(example2.MyStruct{}).Type()
+	t1 := ValueOf(example1.MyStruct{}).Type()
+	t2 := ValueOf(example2.MyStruct{}).Type()
 	if !t1.ConvertibleTo(t2) {
-		t.Errorf("(%s).ConvertibleTo(%s) = false, want true", t1, t2)
+		t.Fatalf("(%s).ConvertibleTo(%s) = false, want true", t1, t2)
+	}
+
+	v1 := example1.MyStruct{
+		Name: "hello",
+		MyStruct: &example1.MyStruct{
+			Name: "world",
+		},
+		MyStructs: []example1.MyStruct{
+			{Name: "hello world 1"},
+			{Name: "hello world 2"},
+		},
+	}
+
+	v2, ok := ValueOf(v1).Convert(t2).Interface().(example2.MyStruct)
+
+	if !ok {
+		t.Fatalf("(%s).Convert(%s) failed", t1, t2)
+	}
+
+	if fmt.Sprintf("%+v", v2) != fmt.Sprintf("%+v", v1) {
+		t.Fatalf("(%s).Convert(%s) got %+v, expecting %+v", t1, t2, v2, v1)
 	}
 }

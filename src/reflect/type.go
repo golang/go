@@ -1681,11 +1681,11 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool, compared map[cacheKe
 			}
 
 			ckey := cacheKey{Struct, tf.typ, tf.typ, 0}
-			if _, ok := compared[ckey]; ok {
+			if compared[ckey] {
 				continue
-			} else {
-				compared[ckey] = true
 			}
+			compared[ckey] = true
+
 			if !haveIdenticalType(tf.typ, vf.typ, cmpTags, compared) {
 				return false
 			}
