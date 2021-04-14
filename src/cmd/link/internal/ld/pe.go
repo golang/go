@@ -534,12 +534,12 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 				break
 			}
 		}
-		eaddr := int32(sect.Vaddr + sect.Length)
+		eaddr := int64(sect.Vaddr + sect.Length)
 		for _, s := range syms {
 			if !ldr.AttrReachable(s) {
 				continue
 			}
-			if ldr.SymValue(s) >= int64(eaddr) {
+			if ldr.SymValue(s) >= eaddr {
 				break
 			}
 			// Compute external relocations on the go, and pass to PEreloc1
@@ -559,7 +559,7 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 					ctxt.Errorf(s, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type(), ldr.SymName(r.Sym()), ldr.SymName(rr.Xsym), ldr.SymType(r.Sym()))
 				}
 				if !thearch.PEreloc1(ctxt.Arch, ctxt.Out, ldr, s, rr, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-base)) {
-					ctxt.Errorf(s, "unsupported obj reloc %d/%d to %s", r.Type(), r.Siz(), ldr.SymName(r.Sym()))
+					ctxt.Errorf(s, "unsupported obj reloc %v/%d to %s", r.Type(), r.Siz(), ldr.SymName(r.Sym()))
 				}
 			}
 		}
