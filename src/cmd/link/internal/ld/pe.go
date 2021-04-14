@@ -607,6 +607,10 @@ dwarfLoop:
 		Errorf(nil, "emitRelocations: could not find %q section", sect.Name)
 	}
 
+	if f.ctorsSect == nil {
+		return
+	}
+
 	f.ctorsSect.emitRelocations(ctxt.Out, func() int {
 		dottext := ldr.Lookup(".text", 0)
 		ctxt.Out.Write32(0)
