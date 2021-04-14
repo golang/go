@@ -41,6 +41,9 @@ package goexperiment
 // When specified in the GOEXPERIMENT environment variable or as build
 // tags, experiments use the strings.ToLower of their field name.
 //
+// For the baseline experimental configuration, see
+// objabi.experimentBaseline.
+//
 // If you change this struct definition, run "go generate".
 type Flags struct {
 	FieldTrack        bool
@@ -78,8 +81,3 @@ type Flags struct {
 	// register arguments to defer/go).
 	RegabiArgs bool
 }
-
-// BaselineFlags specifies the experiment flags that are enabled by
-// default in the current toolchain. This is, in effect, the "control"
-// configuration and any variation from this is an experiment.
-var BaselineFlags = Flags{}
