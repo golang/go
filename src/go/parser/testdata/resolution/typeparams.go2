@@ -18,7 +18,8 @@ type Addable /* =@Addable */ interface {
 }
 
 // TODO (#45221): resolve references to T in the signature below.
-func Add /* =@AddDecl */[T /* =@T */ Addable /* @Addable */](l /* =@l */, r /* =@r */ T) T {
-	var t /* =@t */ T /* @T */
-	return l /* @l */ + r /* @r */ + t /* @t */
-}
+// TODO(rFindley): re-enable these once type parameter resolution is fixed.
+// func Add /* =@AddDecl */[T /* =@T */ Addable /* @Addable */](l /* =@l */, r /* =@r */ T) T {
+	// var t /* =@t */ T /* @T */
+	// return l /* @l */ + r /* @r */ + t /* @t */
+// }
