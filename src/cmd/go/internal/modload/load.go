@@ -138,6 +138,11 @@ type PackageOpts struct {
 	// If nil, treated as equivalent to imports.Tags().
 	Tags map[string]bool
 
+	// Tidy, if true, requests that the build list and go.sum file be reduced to
+	// the minimial dependencies needed to reproducibly reload the requested
+	// packages.
+	Tidy bool
+
 	// VendorModulesInGOROOTSrc indicates that if we are within a module in
 	// GOROOT/src, packages in the module's vendor directory should be resolved as
 	// actual module dependencies (instead of standard-library packages).
@@ -202,8 +207,6 @@ type PackageOpts struct {
 // LoadPackages identifies the set of packages matching the given patterns and
 // loads the packages in the import graph rooted at that set.
 func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (matches []*search.Match, loadedPackages []string) {
-	rs := LoadModFile(ctx)
-
 	if opts.Tags == nil {
 		opts.Tags = imports.Tags()
 	}
@@ -218,7 +221,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		}
 	}
 
-	updateMatches := func(ld *loader) {
+	updateMatches := func(rs *Requirements, ld *loader) {
 		for _, m := range matches {
 			switch {
 			case m.IsLocal():
@@ -293,15 +296,17 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		}
 	}
 
+	initialRS, _ := loadModFile(ctx) // Ignore needCommit — we're going to commit at the end regardless.
+
 	ld := loadFromRoots(ctx, loaderParams{
 		PackageOpts:  opts,
-		requirements: rs,
+		requirements: initialRS,
 
 		allClosesOverTests: index.allPatternClosesOverTests() && !opts.UseVendorAll,
 		allPatternIsRoot:   allPatternIsRoot,
 
-		listRoots: func() (roots []string) {
-			updateMatches(nil)
+		listRoots: func(rs *Requirements) (roots []string) {
+			updateMatches(rs, nil)
 			for _, m := range matches {
 				roots = append(roots, m.Pkgs...)
 			}
@@ -310,7 +315,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 	})
 
 	// One last pass to finalize wildcards.
-	updateMatches(ld)
+	updateMatches(ld.requirements, ld)
 
 	// Report errors, if any.
 	checkMultiplePaths(ld.requirements)
@@ -363,6 +368,11 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 
 	if !opts.SilenceUnmatchedWarnings {
 		search.WarnUnmatched(matches)
+	}
+
+	if ld.Tidy {
+		ld.requirements = tidyBuildList(ctx, ld, initialRS)
+		modfetch.TrimGoSum(keepSums(ctx, ld, ld.requirements, loadedZipSumsOnly))
 	}
 
 	// Success! Update go.mod (if needed) and return the results.
@@ -588,7 +598,7 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
 		},
 		requirements:       rs,
 		allClosesOverTests: index.allPatternClosesOverTests(),
-		listRoots: func() (roots []string) {
+		listRoots: func(*Requirements) (roots []string) {
 			roots = append(roots, imports...)
 			roots = append(roots, testImports...)
 			return roots
@@ -747,7 +757,7 @@ type loaderParams struct {
 	allClosesOverTests bool // Does the "all" pattern include the transitive closure of tests of packages in "all"?
 	allPatternIsRoot   bool // Is the "all" pattern an additional root?
 
-	listRoots func() []string
+	listRoots func(rs *Requirements) []string
 }
 
 func (ld *loader) reset() {
@@ -876,7 +886,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		// Note: the returned roots can change on each iteration,
 		// since the expansion of package patterns depends on the
 		// build list we're using.
-		rootPkgs := ld.listRoots()
+		rootPkgs := ld.listRoots(ld.requirements)
 
 		if go117LazyTODO {
 			// Before we start loading transitive imports of packages, locate all of

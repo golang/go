@@ -365,8 +365,8 @@ var errGoModDirty error = goModDirtyError{}
 // build list from its go.mod file.
 //
 // LoadModFile may make changes in memory, like adding a go directive and
-// ensuring requirements are consistent. WriteGoMod should be called later to
-// write changes out to disk or report errors in readonly mode.
+// ensuring requirements are consistent, and will write those changes back to
+// disk unless DisallowWriteGoMod is in effect.
 //
 // As a side-effect, LoadModFile may change cfg.BuildMod to "vendor" if
 // -mod wasn't set explicitly and automatic vendoring should be enabled.
@@ -379,8 +379,22 @@ var errGoModDirty error = goModDirtyError{}
 // it for global consistency. Most callers outside of the modload package should
 // use LoadModGraph instead.
 func LoadModFile(ctx context.Context) *Requirements {
+	rs, needCommit := loadModFile(ctx)
+	if needCommit {
+		commitRequirements(ctx, rs)
+	}
+	return rs
+}
+
+// loadModFile is like LoadModFile, but does not implicitly commit the
+// requirements back to disk after fixing inconsistencies.
+//
+// If needCommit is true, after the caller makes any other needed changes to the
+// returned requirements they should invoke commitRequirements to fix any
+// inconsistencies that may be present in the on-disk go.mod file.
+func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 	if requirements != nil {
-		return requirements
+		return requirements, false
 	}
 
 	Init()
@@ -388,8 +402,8 @@ func LoadModFile(ctx context.Context) *Requirements {
 		Target = module.Version{Path: "command-line-arguments"}
 		targetPrefix = "command-line-arguments"
 		rawGoVersion.Store(Target, latestGoVersion())
-		commitRequirements(ctx, newRequirements(index.depth(), nil, nil))
-		return requirements
+		requirements = newRequirements(index.depth(), nil, nil)
+		return requirements, false
 	}
 
 	gomod := ModFilePath()
@@ -418,7 +432,7 @@ func LoadModFile(ctx context.Context) *Requirements {
 	}
 
 	setDefaultBuildMod() // possibly enable automatic vendoring
-	rs := requirementsFromModFile(ctx, f)
+	rs = requirementsFromModFile(ctx, f)
 
 	if cfg.BuildMod == "vendor" {
 		readVendorList()
@@ -450,9 +464,8 @@ func LoadModFile(ctx context.Context) *Requirements {
 		}
 	}
 
-	// Fix up roots if inconsistent.
-	commitRequirements(ctx, rs)
-	return requirements
+	requirements = rs
+	return requirements, true
 }
 
 // CreateModFile initializes a new module by creating a go.mod file.
@@ -1135,9 +1148,4 @@ const (
 // file is stored in the go.sum file.
 func modkey(m module.Version) module.Version {
 	return module.Version{Path: m.Path, Version: m.Version + "/go.mod"}
-}
-
-func TrimGoSum(ctx context.Context) {
-	rs := LoadModFile(ctx)
-	modfetch.TrimGoSum(keepSums(ctx, loaded, rs, loadedZipSumsOnly))
 }
