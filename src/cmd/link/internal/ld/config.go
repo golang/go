@@ -205,6 +205,10 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		// doesn't work. Test case is "go test runtime/cgo".
 		return true, buildcfg.GOOS + " does not support internal cgo"
 	}
+	if iscgo && buildcfg.GOOS == "windows" && buildcfg.GOARCH == "arm64" {
+		// windows/arm64 internal linking is not implemented.
+		return true, buildcfg.GOOS + "/" + buildcfg.GOARCH + " does not support internal cgo"
+	}
 
 	// When the race flag is set, the LLVM tsan relocatable file is linked
 	// into the final binary, which means external linking is required because
