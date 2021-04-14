@@ -354,7 +354,7 @@ func (goModDirtyError) Error() string {
 		return fmt.Sprintf("updates to go.mod needed, disabled by -mod=%v; to update it:\n\tgo mod tidy", cfg.BuildMod)
 	}
 	if cfg.BuildModReason != "" {
-		return fmt.Sprintf("updates to go.mod needed, disabled by -mod=%s\n\t(%s)\n\tto update it:\n\t", cfg.BuildMod, cfg.BuildModReason)
+		return fmt.Sprintf("updates to go.mod needed, disabled by -mod=%s\n\t(%s)\n\tto update it:\n\tgo mod tidy", cfg.BuildMod, cfg.BuildModReason)
 	}
 	return "updates to go.mod needed; to update it:\n\tgo mod tidy"
 }
