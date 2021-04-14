@@ -524,7 +524,6 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 		if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
 			return 0
 		}
-		nrelocs := 0
 		sect.Reloff = uint64(ctxt.Out.Offset())
 		for i, s := range syms {
 			if !ldr.AttrReachable(s) {
@@ -562,11 +561,11 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 				if !thearch.PEreloc1(ctxt.Arch, ctxt.Out, ldr, s, rr, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-base)) {
 					ctxt.Errorf(s, "unsupported obj reloc %d/%d to %s", r.Type(), r.Siz(), ldr.SymName(r.Sym()))
 				}
-				nrelocs++
 			}
 		}
 		sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
-		return nrelocs
+		const relocLen = 4 + 4 + 2
+		return int(sect.Rellen / relocLen)
 	}
 
 	sects := []struct {
