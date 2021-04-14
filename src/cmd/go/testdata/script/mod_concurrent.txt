@@ -1,0 +1,32 @@
+env GO111MODULE=on
+
+# Concurrent builds should succeed, even if they need to download modules.
+go get -d ./x ./y
+go build ./x &
+go build ./y
+wait
+
+# Concurrent builds should update go.sum to the union of the hashes for the
+# modules they read.
+cmp go.sum go.sum.want
+
+-- go.mod --
+module golang.org/issue/26794
+
+require (
+	golang.org/x/text v0.3.0
+	rsc.io/sampler v1.0.0
+)
+-- x/x.go --
+package x
+
+import _ "golang.org/x/text/language"
+-- y/y.go --
+package y
+
+import _ "rsc.io/sampler"
+-- go.sum.want --
+golang.org/x/text v0.3.0 h1:ivTorhoiROmZ1mcs15mO2czVF0uy0tnezXpBVNzgrmA=
+golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+rsc.io/sampler v1.0.0 h1:SRJnjyQ07sAtq6G4RcfJEmz8JxqLyj3PoGXG2VhbDWo=
+rsc.io/sampler v1.0.0/go.mod h1:cqxpM3ZVz9VtirqxZPmrWzkQ+UkiNiGtkrN+B+i8kx8=

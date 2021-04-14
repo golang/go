@@ -20,6 +20,16 @@ type valueConverterTest struct {
 var now = time.Now()
 var answer int64 = 42
 
+type (
+	i  int64
+	f  float64
+	b  bool
+	bs []byte
+	s  string
+	t  time.Time
+	is []int
+)
+
 var valueConverterTests = []valueConverterTest{
 	{Bool, "true", true, ""},
 	{Bool, "True", true, ""},
@@ -41,6 +51,13 @@ var valueConverterTests = []valueConverterTest{
 	{DefaultParameterConverter, (*int64)(nil), nil, ""},
 	{DefaultParameterConverter, &answer, answer, ""},
 	{DefaultParameterConverter, &now, now, ""},
+	{DefaultParameterConverter, i(9), int64(9), ""},
+	{DefaultParameterConverter, f(0.1), float64(0.1), ""},
+	{DefaultParameterConverter, b(true), true, ""},
+	{DefaultParameterConverter, bs{1}, []byte{1}, ""},
+	{DefaultParameterConverter, s("a"), "a", ""},
+	{DefaultParameterConverter, is{1}, nil, "unsupported type driver.is, a slice of int"},
+	{DefaultParameterConverter, dec{exponent: -6}, dec{exponent: -6}, ""},
 }
 
 func TestValueConverters(t *testing.T) {
@@ -62,4 +79,17 @@ func TestValueConverters(t *testing.T) {
 				i, tt.c, tt.in, tt.in, out, out, tt.out, tt.out)
 		}
 	}
+}
+
+type dec struct {
+	form        byte
+	neg         bool
+	coefficient [16]byte
+	exponent    int32
+}
+
+func (d dec) Decompose(buf []byte) (form byte, negative bool, coefficient []byte, exponent int32) {
+	coef := make([]byte, 16)
+	copy(coef, d.coefficient[:])
+	return d.form, d.neg, coef, d.exponent
 }

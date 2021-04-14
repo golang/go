@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -53,16 +53,16 @@ func PutUvarint(buf []byte, x uint64) int {
 // number of bytes read (> 0). If an error occurred, the value is 0
 // and the number of bytes n is <= 0 meaning:
 //
-//	n == 0: buf too small
-//	n  < 0: value larger than 64 bits (overflow)
-//              and -n is the number of bytes read
+// 	n == 0: buf too small
+// 	n  < 0: value larger than 64 bits (overflow)
+// 	        and -n is the number of bytes read
 //
 func Uvarint(buf []byte) (uint64, int) {
 	var x uint64
 	var s uint
 	for i, b := range buf {
 		if b < 0x80 {
-			if i > 9 || i == 9 && b > 1 {
+			if i >= MaxVarintLen64 || i == MaxVarintLen64-1 && b > 1 {
 				return 0, -(i + 1) // overflow
 			}
 			return x | uint64(b)<<s, i + 1
@@ -87,9 +87,9 @@ func PutVarint(buf []byte, x int64) int {
 // number of bytes read (> 0). If an error occurred, the value is 0
 // and the number of bytes n is <= 0 with the following meaning:
 //
-//	n == 0: buf too small
-//	n  < 0: value larger than 64 bits (overflow)
-//              and -n is the number of bytes read
+// 	n == 0: buf too small
+// 	n  < 0: value larger than 64 bits (overflow)
+// 	        and -n is the number of bytes read
 //
 func Varint(buf []byte) (int64, int) {
 	ux, n := Uvarint(buf) // ok to continue in presence of error
@@ -106,13 +106,13 @@ var overflow = errors.New("binary: varint overflows a 64-bit integer")
 func ReadUvarint(r io.ByteReader) (uint64, error) {
 	var x uint64
 	var s uint
-	for i := 0; ; i++ {
+	for i := 0; i < MaxVarintLen64; i++ {
 		b, err := r.ReadByte()
 		if err != nil {
 			return x, err
 		}
 		if b < 0x80 {
-			if i > 9 || i == 9 && b > 1 {
+			if i == MaxVarintLen64-1 && b > 1 {
 				return x, overflow
 			}
 			return x | uint64(b)<<s, nil
@@ -120,6 +120,7 @@ func ReadUvarint(r io.ByteReader) (uint64, error) {
 		x |= uint64(b&0x7f) << s
 		s += 7
 	}
+	return x, overflow
 }
 
 // ReadVarint reads an encoded signed integer from r and returns it as an int64.

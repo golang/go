@@ -1,0 +1,1220 @@
+<!--{
+	"Title": "Go 1.16 Release Notes",
+	"Path":  "/doc/go1.16"
+}-->
+
+<!--
+NOTE: In this document and others in this directory, the convention is to
+set fixed-width phrases with non-fixed-width spaces, as in
+<code>hello</code> <code>world</code>.
+Do not send CLs removing the interior tags from such phrases.
+-->
+
+<style>
+  main ul li { margin: 0.5em 0; }
+</style>
+
+<h2 id="introduction">Introduction to Go 1.16</h2>
+
+<p>
+  The latest Go release, version 1.16, arrives six months after <a href="/doc/go1.15">Go 1.15</a>.
+  Most of its changes are in the implementation of the toolchain, runtime, and libraries.
+  As always, the release maintains the Go 1 <a href="/doc/go1compat.html">promise of compatibility</a>.
+  We expect almost all Go programs to continue to compile and run as before.
+</p>
+
+<h2 id="language">Changes to the language</h2>
+
+<p>
+  There are no changes to the language.
+</p>
+
+<h2 id="ports">Ports</h2>
+
+<h3 id="darwin">Darwin and iOS</h3>
+
+<p><!-- golang.org/issue/38485, golang.org/issue/41385, CL 266373, more CLs -->
+  Go 1.16 adds support of 64-bit ARM architecture on macOS (also known as
+  Apple Silicon) with <code>GOOS=darwin</code>, <code>GOARCH=arm64</code>.
+  Like the <code>darwin/amd64</code> port, the <code>darwin/arm64</code>
+  port supports cgo, internal and external linking, <code>c-archive</code>,
+  <code>c-shared</code>, and <code>pie</code> build modes, and the race
+  detector.
+</p>
+
+<p><!-- CL 254740 -->
+  The iOS port, which was previously <code>darwin/arm64</code>, has
+  been renamed to <code>ios/arm64</code>. <code>GOOS=ios</code>
+  implies the
+  <code>darwin</code> build tag, just as <code>GOOS=android</code>
+  implies the <code>linux</code> build tag. This change should be
+  transparent to anyone using gomobile to build iOS apps.
+</p>
+
+<p><!-- golang.org/issue/42100, CL 263798 -->
+  Go 1.16 adds an <code>ios/amd64</code> port, which targets the iOS
+  simulator running on AMD64-based macOS. Previously this was
+  unofficially supported through <code>darwin/amd64</code> with
+  the <code>ios</code> build tag set. See also
+  <a href="/misc/ios/README"><code>misc/ios/README</code></a> for
+  details about how to build programs for iOS and iOS simulator.
+</p>
+
+<p><!-- golang.org/issue/23011 -->
+  Go 1.16 is the last release that will run on macOS 10.12 Sierra.
+  Go 1.17 will require macOS 10.13 High Sierra or later.
+</p>
+
+<h3 id="netbsd">NetBSD</h3>
+
+<p><!-- golang.org/issue/30824 -->
+  Go now supports the 64-bit ARM architecture on NetBSD (the
+  <code>netbsd/arm64</code> port).
+</p>
+
+<h3 id="openbsd">OpenBSD</h3>
+
+<p><!-- golang.org/issue/40995 -->
+  Go now supports the MIPS64 architecture on OpenBSD
+  (the <code>openbsd/mips64</code> port). This port does not yet
+  support cgo.
+</p>
+
+<p><!-- golang.org/issue/36435, many CLs -->
+  On the 64-bit x86 and 64-bit ARM architectures on OpenBSD (the
+  <code>openbsd/amd64</code> and <code>openbsd/arm64</code> ports), system
+  calls are now made through <code>libc</code>, instead of directly using
+  the <code>SYSCALL</code>/<code>SVC</code> instruction. This ensures
+  forward-compatibility with future versions of OpenBSD. In particular,
+  OpenBSD 6.9 onwards will require system calls to be made through
+  <code>libc</code> for non-static Go binaries.
+</p>
+
+<h3 id="386">386</h3>
+
+<p><!-- golang.org/issue/40255, golang.org/issue/41848, CL 258957, and CL 260017 -->
+  As <a href="go1.15#386">announced</a> in the Go 1.15 release notes,
+  Go 1.16 drops support for x87 mode compilation (<code>GO386=387</code>).
+  Support for non-SSE2 processors is now available using soft float
+  mode (<code>GO386=softfloat</code>).
+  Users running on non-SSE2 processors should replace <code>GO386=387</code>
+  with <code>GO386=softfloat</code>.
+</p>
+
+<h3 id="riscv">RISC-V</h3>
+
+<p><!-- golang.org/issue/36641, CL 267317 -->
+  The <code>linux/riscv64</code> port now supports cgo and
+  <code>-buildmode=pie</code>. This release also includes performance
+  optimizations and code generation improvements for RISC-V.
+</p>
+
+<h2 id="tools">Tools</h2>
+
+<h3 id="go-command">Go command</h3>
+
+<h4 id="modules">Modules</h4>
+
+<p><!-- golang.org/issue/41330 -->
+  Module-aware mode is enabled by default, regardless of whether a
+  <code>go.mod</code> file is present in the current working directory or a
+  parent directory. More precisely, the <code>GO111MODULE</code> environment
+  variable now defaults to <code>on</code>. To switch to the previous behavior,
+  set <code>GO111MODULE</code> to <code>auto</code>.
+</p>
+
+<p><!-- golang.org/issue/40728 -->
+  Build commands like <code>go</code> <code>build</code> and <code>go</code>
+  <code>test</code> no longer modify <code>go.mod</code> and <code>go.sum</code>
+  by default. Instead, they report an error if a module requirement or checksum
+  needs to be added or updated (as if the <code>-mod=readonly</code> flag were
+  used). Module requirements and sums may be adjusted with <code>go</code>
+  <code>mod</code> <code>tidy</code> or <code>go</code> <code>get</code>.
+</p>
+
+<p><!-- golang.org/issue/40276 -->
+  <code>go</code> <code>install</code> now accepts arguments with
+  version suffixes (for example, <code>go</code> <code>install</code>
+  <code>example.com/cmd@v1.0.0</code>). This causes <code>go</code>
+  <code>install</code> to build and install packages in module-aware mode,
+  ignoring the <code>go.mod</code> file in the current directory or any parent
+  directory, if there is one. This is useful for installing executables without
+  affecting the dependencies of the main module.
+</p>
+
+<p><!-- golang.org/issue/40276 -->
+  <code>go</code> <code>install</code>, with or without a version suffix (as
+  described above), is now the recommended way to build and install packages in
+  module mode. <code>go</code> <code>get</code> should be used with the
+  <code>-d</code> flag to adjust the current module's dependencies without
+  building packages, and use of <code>go</code> <code>get</code> to build and
+  install packages is deprecated. In a future release, the <code>-d</code> flag
+  will always be enabled.
+</p>
+
+<p><!-- golang.org/issue/24031 -->
+  <code>retract</code> directives may now be used in a <code>go.mod</code> file
+  to indicate that certain published versions of the module should not be used
+  by other modules. A module author may retract a version after a severe problem
+  is discovered or if the version was published unintentionally.
+</p>
+
+<p><!-- golang.org/issue/26603 -->
+  The <code>go</code> <code>mod</code> <code>vendor</code>
+  and <code>go</code> <code>mod</code> <code>tidy</code> subcommands now accept
+  the <code>-e</code> flag, which instructs them to proceed despite errors in
+  resolving missing packages.
+</p>
+
+<p><!-- golang.org/issue/36465 -->
+  The <code>go</code> command now ignores requirements on module versions
+  excluded by <code>exclude</code> directives in the main module. Previously,
+  the <code>go</code> command used the next version higher than an excluded
+  version, but that version could change over time, resulting in
+  non-reproducible builds.
+</p>
+
+<p><!-- golang.org/issue/43052, golang.org/issue/43985 -->
+  In module mode, the <code>go</code> command now disallows import paths that
+  include non-ASCII characters or path elements with a leading dot character
+  (<code>.</code>). Module paths with these characters were already disallowed
+  (see <a href="/ref/mod#go-mod-file-ident">Module paths and versions</a>),
+  so this change affects only paths within module subdirectories.
+</p>
+
+<h4 id="embed">Embedding Files</h4>
+
+<p>
+  The <code>go</code> command now supports including
+  static files and file trees as part of the final executable,
+  using the new <code>//go:embed</code> directive.
+  See the documentation for the new
+  <a href="/pkg/embed/"><code>embed</code></a>
+  package for details.
+</p>
+
+<h4 id="go-test"><code>go</code> <code>test</code></h4>
+
+<p><!-- golang.org/issue/29062 -->
+  When using <code>go</code> <code>test</code>, a test that
+  calls <code>os.Exit(0)</code> during execution of a test function
+  will now be considered to fail.
+  This will help catch cases in which a test calls code that calls
+  <code>os.Exit(0)</code> and thereby stops running all future tests.
+  If a <code>TestMain</code> function calls <code>os.Exit(0)</code>
+  that is still considered to be a passing test.
+</p>
+
+<p><!-- golang.org/issue/39484 -->
+  <code>go</code> <code>test</code> reports an error when the <code>-c</code>
+  or <code>-i</code> flags are used together with unknown flags. Normally,
+  unknown flags are passed to tests, but when <code>-c</code> or <code>-i</code>
+  are used, tests are not run.
+</p>
+
+<h4 id="go-get"><code>go</code> <code>get</code></h4>
+
+<p><!-- golang.org/issue/37519 -->
+  The <code>go</code> <code>get</code> <code>-insecure</code> flag is
+  deprecated and will be removed in a future version. This flag permits
+  fetching from repositories and resolving custom domains using insecure
+  schemes such as HTTP, and also bypasses module sum validation using the
+  checksum database. To permit the use of insecure schemes, use the
+  <code>GOINSECURE</code> environment variable instead. To bypass module
+  sum validation, use <code>GOPRIVATE</code> or <code>GONOSUMDB</code>.
+  See <code>go</code> <code>help</code> <code>environment</code> for details.
+</p>
+
+<p><!-- golang.org/cl/263267 -->
+  <code>go</code> <code>get</code> <code>example.com/mod@patch</code> now
+  requires that some version of <code>example.com/mod</code> already be
+  required by the main module.
+  (However, <code>go</code> <code>get</code> <code>-u=patch</code> continues
+  to patch even newly-added dependencies.)
+</p>
+
+<h4 id="govcs"><code>GOVCS</code> environment variable</h4>
+
+<p><!-- golang.org/issue/266420 -->
+  <code>GOVCS</code> is a new environment variable that limits which version
+  control tools the <code>go</code> command may use to download source code.
+  This mitigates security issues with tools that are typically used in trusted,
+  authenticated environments. By default, <code>git</code> and <code>hg</code>
+  may be used to download code from any repository. <code>svn</code>,
+  <code>bzr</code>, and <code>fossil</code> may only be used to download code
+  from repositories with module paths or package paths matching patterns in
+  the <code>GOPRIVATE</code> environment variable. See
+  <a href="/cmd/go/#hdr-Controlling_version_control_with_GOVCS"><code>go</code>
+  <code>help</code> <code>vcs</code></a> for details.
+</p>
+
+<h4 id="all-pattern">The <code>all</code> pattern</h4>
+
+<p><!-- golang.org/cl/240623 -->
+  When the main module's <code>go.mod</code> file
+  declares <code>go</code> <code>1.16</code> or higher, the <code>all</code>
+  package pattern now matches only those packages that are transitively imported
+  by a package or test found in the main module. (Packages imported by <em>tests
+  of</em> packages imported by the main module are no longer included.) This is
+  the same set of packages retained
+  by <code>go</code> <code>mod</code> <code>vendor</code> since Go 1.11.
+</p>
+
+<h4 id="toolexec">The <code>-toolexec</code> build flag</h4>
+
+<p><!-- golang.org/cl/263357 -->
+  When the <code>-toolexec</code> build flag is specified to use a program when
+  invoking toolchain programs like compile or asm, the environment variable
+  <code>TOOLEXEC_IMPORTPATH</code> is now set to the import path of the package
+  being built.
+</p>
+
+<h4 id="i-flag">The <code>-i</code> build flag</h4>
+
+<p><!-- golang.org/issue/41696 -->
+  The <code>-i</code> flag accepted by <code>go</code> <code>build</code>,
+  <code>go</code> <code>install</code>, and <code>go</code> <code>test</code> is
+  now deprecated. The <code>-i</code> flag instructs the <code>go</code> command
+  to install packages imported by packages named on the command line. Since
+  the build cache was introduced in Go 1.10, the <code>-i</code> flag no longer
+  has a significant effect on build times, and it causes errors when the install
+  directory is not writable.
+</p>
+
+<h4 id="list-buildid">The <code>list</code> command</h4>
+
+<p><!-- golang.org/cl/263542 -->
+  When the <code>-export</code> flag is specified, the <code>BuildID</code>
+  field is now set to the build ID of the compiled package. This is equivalent
+  to running <code>go</code> <code>tool</code> <code>buildid</code> on
+  <code>go</code> <code>list</code> <code>-exported</code> <code>-f</code> <code>{{.Export}}</code>,
+  but without the extra step.
+</p>
+
+<h4 id="overlay-flag">The <code>-overlay</code> flag</h4>
+
+<p><!-- golang.org/issue/39958 -->
+  The <code>-overlay</code> flag specifies a JSON configuration file containing
+  a set of file path replacements. The <code>-overlay</code> flag may be used
+  with all build commands and <code>go</code> <code>mod</code> subcommands.
+  It is primarily intended to be used by editor tooling such as gopls to
+  understand the effects of unsaved changes to source files.  The config file
+  maps actual file paths to replacement file paths and the <code>go</code>
+  command and its builds will run as if the actual file paths exist with the
+  contents given by the replacement file paths, or don't exist if the replacement
+  file paths are empty.
+</p>
+
+<h3 id="cgo">Cgo</h3>
+
+<p><!-- CL 252378 -->
+  The <a href="/cmd/cgo">cgo</a> tool will no longer try to translate
+  C struct bitfields into Go struct fields, even if their size can be
+  represented in Go. The order in which C bitfields appear in memory
+  is implementation dependent, so in some cases the cgo tool produced
+  results that were silently incorrect.
+</p>
+
+<h3 id="vet">Vet</h3>
+
+<h4 id="vet-testing-T">New warning for invalid testing.T use in
+goroutines</h4>
+
+<p><!-- CL 235677 -->
+  The vet tool now warns about invalid calls to the <code>testing.T</code>
+  method <code>Fatal</code> from within a goroutine created during the test.
+  This also warns on calls to <code>Fatalf</code>, <code>FailNow</code>, and
+  <code>Skip{,f,Now}</code> methods on <code>testing.T</code> tests or
+  <code>testing.B</code> benchmarks.
+</p>
+
+<p>
+  Calls to these methods stop the execution of the created goroutine and not
+  the <code>Test*</code> or <code>Benchmark*</code> function. So these are
+  <a href="/pkg/testing/#T.FailNow">required</a> to be called by the goroutine
+  running the test or benchmark function. For example:
+</p>
+
+<pre>
+func TestFoo(t *testing.T) {
+    go func() {
+        if condition() {
+            t.Fatal("oops") // This exits the inner func instead of TestFoo.
+        }
+        ...
+    }()
+}
+</pre>
+
+<p>
+  Code calling <code>t.Fatal</code> (or a similar method) from a created
+  goroutine should be rewritten to signal the test failure using
+  <code>t.Error</code> and exit the goroutine early using an alternative
+  method, such as using a <code>return</code> statement. The previous example
+  could be rewritten as:
+</p>
+
+<pre>
+func TestFoo(t *testing.T) {
+    go func() {
+        if condition() {
+            t.Error("oops")
+            return
+        }
+        ...
+    }()
+}
+</pre>
+
+<h4 id="vet-frame-pointer">New warning for frame pointer</h4>
+
+<p><!-- CL 248686, CL 276372 -->
+  The vet tool now warns about amd64 assembly that clobbers the BP
+  register (the frame pointer) without saving and restoring it,
+  contrary to the calling convention. Code that doesn't preserve the
+  BP register must be modified to either not use BP at all or preserve
+  BP by saving and restoring it. An easy way to preserve BP is to set
+  the frame size to a nonzero value, which causes the generated
+  prologue and epilogue to preserve the BP register for you.
+  See <a href="https://golang.org/cl/248260">CL 248260</a> for example
+  fixes.
+</p>
+
+<h4 id="vet-asn1-unmarshal">New warning for asn1.Unmarshal</h4>
+
+<p><!-- CL 243397 -->
+  The vet tool now warns about incorrectly passing a non-pointer or nil argument to
+  <a href="/pkg/encoding/asn1/#Unmarshal"><code>asn1.Unmarshal</code></a>.
+  This is like the existing checks for
+  <a href="/pkg/encoding/json/#Unmarshal"><code>encoding/json.Unmarshal</code></a>
+  and <a href="/pkg/encoding/xml/#Unmarshal"><code>encoding/xml.Unmarshal</code></a>.
+</p>
+
+<h2 id="runtime">Runtime</h2>
+
+<p>
+  The new <a href="/pkg/runtime/metrics/"><code>runtime/metrics</code></a> package
+  introduces a stable interface for reading
+  implementation-defined metrics from the Go runtime.
+  It supersedes existing functions like
+  <a href="/pkg/runtime/#ReadMemStats"><code>runtime.ReadMemStats</code></a>
+  and
+  <a href="/pkg/runtime/debug/#GCStats"><code>debug.GCStats</code></a>
+  and is significantly more general and efficient.
+  See the package documentation for more details.
+</p>
+
+<p><!-- CL 254659 -->
+  Setting the <code>GODEBUG</code> environment variable
+  to <code>inittrace=1</code> now causes the runtime to emit a single
+  line to standard error for each package <code>init</code>,
+  summarizing its execution time and memory allocation. This trace can
+  be used to find bottlenecks or regressions in Go startup
+  performance.
+  The <a href="/pkg/runtime/#hdr-Environment_Variables"><code>GODEBUG</code>
+  documentation</a> describes the format.
+</p>
+
+<p><!-- CL 267100 -->
+  On Linux, the runtime now defaults to releasing memory to the
+  operating system promptly (using <code>MADV_DONTNEED</code>), rather
+  than lazily when the operating system is under memory pressure
+  (using <code>MADV_FREE</code>). This means process-level memory
+  statistics like RSS will more accurately reflect the amount of
+  physical memory being used by Go processes. Systems that are
+  currently using <code>GODEBUG=madvdontneed=1</code> to improve
+  memory monitoring behavior no longer need to set this environment
+  variable.
+</p>
+
+<p><!-- CL 220419, CL 271987 -->
+  Go 1.16 fixes a discrepancy between the race detector and
+  the <a href="/ref/mem">Go memory model</a>. The race detector now
+  more precisely follows the channel synchronization rules of the
+  memory model. As a result, the detector may now report races it
+  previously missed.
+</p>
+
+<h2 id="compiler">Compiler</h2>
+
+<p><!-- CL 256459, CL 264837, CL 266203, CL 256460 -->
+  The compiler can now inline functions with
+  non-labeled <code>for</code> loops, method values, and type
+  switches. The inliner can also detect more indirect calls where
+  inlining is possible.
+</p>
+
+<h2 id="linker">Linker</h2>
+
+<p><!-- CL 248197 -->
+  This release includes additional improvements to the Go linker,
+  reducing linker resource usage (both time and memory) and improving
+  code robustness/maintainability. These changes form the second half
+  of a two-release project to
+  <a href="https://golang.org/s/better-linker">modernize the Go
+  linker</a>.
+</p>
+
+<p>
+  The linker changes in 1.16 extend the 1.15 improvements to all
+  supported architecture/OS combinations (the 1.15 performance improvements
+  were primarily focused on <code>ELF</code>-based OSes and
+  <code>amd64</code> architectures).  For a representative set of
+  large Go programs, linking is 20-25% faster than 1.15 and requires
+  5-15% less memory on average for <code>linux/amd64</code>, with larger
+  improvements for other architectures and OSes. Most binaries are
+  also smaller as a result of more aggressive symbol pruning.
+</p>
+
+<p><!-- CL 255259 -->
+  On Windows, <code>go build -buildmode=c-shared</code> now generates Windows
+  ASLR DLLs by default. ASLR can be disabled with <code>--ldflags=-aslr=false</code>.
+</p>
+
+<h2 id="library">Core library</h2>
+
+<h3 id="library-embed">Embedded Files</h3>
+
+<p>
+  The new <a href="/pkg/embed/"><code>embed</code></a> package
+  provides access to files embedded in the program during compilation
+  using the new <a href="#embed"><code>//go:embed</code> directive</a>.
+</p>
+
+<h3 id="fs">File Systems</h3>
+
+<p>
+  The new <a href="/pkg/io/fs/"><code>io/fs</code></a> package
+  defines the <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a> interface,
+  an abstraction for read-only trees of files.
+  The standard library packages have been adapted to make use
+  of the interface as appropriate.
+</p>
+
+<p>
+  On the producer side of the interface,
+  the new <a href="/pkg/embed/#FS"><code>embed.FS</code></a> type
+  implements <code>fs.FS</code>, as does
+  <a href="/pkg/archive/zip/#Reader"><code>zip.Reader</code></a>.
+  The new <a href="/pkg/os/#DirFS"><code>os.DirFS</code></a> function
+  provides an implementation of <code>fs.FS</code> backed by a tree
+  of operating system files.
+</p>
+
+<p>
+  On the consumer side,
+  the new <a href="/pkg/net/http/#FS"><code>http.FS</code></a>
+  function converts an <code>fs.FS</code> to an
+  <a href="/pkg/net/http/#FileSystem"><code>http.FileSystem</code></a>.
+  Also, the <a href="/pkg/html/template/"><code>html/template</code></a>
+  and <a href="/pkg/text/template/"><code>text/template</code></a>
+  packages’ <a href="/pkg/html/template/#ParseFS"><code>ParseFS</code></a>
+  functions and methods read templates from an <code>fs.FS</code>.
+</p>
+
+<p>
+  For testing code that implements <code>fs.FS</code>,
+  the new <a href="/pkg/testing/fstest/"><code>testing/fstest</code></a>
+  package provides a <a href="/pkg/testing/fstest/#TestFS"><code>TestFS</code></a>
+  function that checks for and reports common mistakes.
+  It also provides a simple in-memory file system implementation,
+  <a href="/pkg/testing/fstest/#MapFS"><code>MapFS</code></a>,
+  which can be useful for testing code that accepts <code>fs.FS</code>
+  implementations.
+</p>
+
+<h3 id="ioutil">Deprecation of io/ioutil</h3>
+
+<p>
+  The <a href="/pkg/io/ioutil/"><code>io/ioutil</code></a> package has
+  turned out to be a poorly defined and hard to understand collection
+  of things. All functionality provided by the package has been moved
+  to other packages. The <code>io/ioutil</code> package remains and
+  will continue to work as before, but we encourage new code to use
+  the new definitions in the <a href="/pkg/io/"><code>io</code></a> and
+  <a href="/pkg/os/"><code>os</code></a> packages.
+
+  Here is a list of the new locations of the names exported
+  by <code>io/ioutil</code>:
+  <ul>
+    <li><a href="/pkg/io/ioutil/#Discard"><code>Discard</code></a>
+      => <a href="/pkg/io/#Discard"><code>io.Discard</code></a></li>
+    <li><a href="/pkg/io/ioutil/#NopCloser"><code>NopCloser</code></a>
+      => <a href="/pkg/io/#NopCloser"><code>io.NopCloser</code></a></li>
+    <li><a href="/pkg/io/ioutil/#ReadAll"><code>ReadAll</code></a>
+      => <a href="/pkg/io/#ReadAll"><code>io.ReadAll</code></a></li>
+    <li><a href="/pkg/io/ioutil/#ReadDir"><code>ReadDir</code></a>
+      => <a href="/pkg/os/#ReadDir"><code>os.ReadDir</code></a>
+      (note: returns a slice of
+      <a href="/pkg/os/#DirEntry"><code>os.DirEntry</code></a>
+      rather than a slice of
+      <a href="/pkg/fs/#FileInfo"><code>fs.FileInfo</code></a>)
+    </li>
+    <li><a href="/pkg/io/ioutil/#ReadFile"><code>ReadFile</code></a>
+      => <a href="/pkg/os/#ReadFile"><code>os.ReadFile</code></a></li>
+    <li><a href="/pkg/io/ioutil/#TempDir"><code>TempDir</code></a>
+      => <a href="/pkg/os/#MkdirTemp"><code>os.MkdirTemp</code></a></li>
+    <li><a href="/pkg/io/ioutil/#TempFile"><code>TempFile</code></a>
+      => <a href="/pkg/os/#CreateTemp"><code>os.CreateTemp</code></a></li>
+    <li><a href="/pkg/io/ioutil/#WriteFile"><code>WriteFile</code></a>
+      => <a href="/pkg/os/#WriteFile"><code>os.WriteFile</code></a></li>
+  </ul>
+</p>
+
+<!-- okay-after-beta1
+  TODO: decide if any additional changes are worth factoring out from
+  "Minor changes to the library" and highlighting in "Core library"
+-->
+
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<p>
+  As always, there are various minor changes and updates to the library,
+  made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
+  in mind.
+</p>
+
+<dl id="archive/zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
+  <dd>
+    <p><!-- CL 243937 -->
+      The new <a href="/pkg/archive/zip/#Reader.Open"><code>Reader.Open</code></a>
+      method implements the <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a>
+      interface.
+    </p>
+  </dd>
+</dl>
+
+<dl id="crypto/dsa"><dt><a href="/pkg/crypto/dsa/">crypto/dsa</a></dt>
+  <dd>
+    <p><!-- CL 257939 -->
+      The <a href="/pkg/crypto/dsa/"><code>crypto/dsa</code></a> package is now deprecated.
+      See <a href="https://golang.org/issue/40337">issue #40337</a>.
+    </p>
+  </dd>
+</dl><!-- crypto/dsa -->
+
+<dl id="crypto/hmac"><dt><a href="/pkg/crypto/hmac/">crypto/hmac</a></dt>
+  <dd>
+    <p><!-- CL 261960 -->
+      <a href="/pkg/crypto/hmac/#New"><code>New</code></a> will now panic if
+      separate calls to the hash generation function fail to return new values.
+      Previously, the behavior was undefined and invalid outputs were sometimes
+      generated.
+    </p>
+  </dd>
+</dl><!-- crypto/hmac -->
+
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 256897 -->
+      I/O operations on closing or closed TLS connections can now be detected
+      using the new <a href="/pkg/net/#ErrClosed"><code>net.ErrClosed</code></a>
+      error. A typical use would be <code>errors.Is(err, net.ErrClosed)</code>.
+    </p>
+
+    <p><!-- CL 266037 -->
+      A default write deadline is now set in
+      <a href="/pkg/crypto/tls/#Conn.Close"><code>Conn.Close</code></a>
+      before sending the "close notify" alert, in order to prevent blocking
+      indefinitely.
+    </p>
+
+    <p><!-- CL 239748 -->
+      Clients now return a handshake error if the server selects
+      <a href="/pkg/crypto/tls/#ConnectionState.NegotiatedProtocol">
+      an ALPN protocol</a> that was not in
+      <a href="/pkg/crypto/tls/#Config.NextProtos">
+      the list advertised by the client</a>.
+    </p>
+
+    <p><!-- CL 262857 -->
+      Servers will now prefer other available AEAD cipher suites (such as ChaCha20Poly1305)
+      over AES-GCM cipher suites if either the client or server doesn't have AES hardware
+      support, unless both <a href="/pkg/crypto/tls/#Config.PreferServerCipherSuites">
+      <code>Config.PreferServerCipherSuites</code></a>
+      and <a href="/pkg/crypto/tls/#Config.CipherSuites"><code>Config.CipherSuites</code></a>
+      are set. The client is assumed not to have AES hardware support if it does
+      not signal a preference for AES-GCM cipher suites.
+    </p>
+
+    <p><!-- CL 246637 -->
+      <a href="/pkg/crypto/tls/#Config.Clone"><code>Config.Clone</code></a> now
+      returns nil if the receiver is nil, rather than panicking.
+    </p>
+  </dd>
+</dl><!-- crypto/tls -->
+
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p>
+      The <code>GODEBUG=x509ignoreCN=0</code> flag will be removed in Go 1.17.
+      It enables the legacy behavior of treating the <code>CommonName</code>
+      field on X.509 certificates as a host name when no Subject Alternative
+      Names are present.
+    </p>
+
+    <p><!-- CL 235078 -->
+      <a href="/pkg/crypto/x509/#ParseCertificate"><code>ParseCertificate</code></a> and
+      <a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
+      now enforce string encoding restrictions for the <code>DNSNames</code>,
+      <code>EmailAddresses</code>, and <code>URIs</code> fields. These fields
+      can only contain strings with characters within the ASCII range.
+    </p>
+
+    <p><!-- CL 259697 -->
+      <a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
+      now verifies the generated certificate's signature using the signer's
+      public key. If the signature is invalid, an error is returned, instead of
+      a malformed certificate.
+    </p>
+
+    <p><!-- CL 257939 -->
+      DSA signature verification is no longer supported. Note that DSA signature
+      generation was never supported.
+      See <a href="https://golang.org/issue/40337">issue #40337</a>.
+    </p>
+
+    <p><!-- CL 257257 -->
+      On Windows, <a href="/pkg/crypto/x509/#Certificate.Verify"><code>Certificate.Verify</code></a>
+      will now return all certificate chains that are built by the platform
+      certificate verifier, instead of just the highest ranked chain.
+    </p>
+
+    <p><!-- CL 262343 -->
+      The new <a href="/pkg/crypto/x509/#SystemRootsError.Unwrap"><code>SystemRootsError.Unwrap</code></a>
+      method allows accessing the <a href="/pkg/crypto/x509/#SystemRootsError.Err"><code>Err</code></a>
+      field through the <a href="/pkg/errors"><code>errors</code></a> package functions.
+    </p>
+
+    <p><!-- CL 230025 -->
+      On Unix systems, the <code>crypto/x509</code> package is now more
+      efficient in how it stores its copy of the system cert pool.
+      Programs that use only a small number of roots will use around a
+      half megabyte less memory.
+    </p>
+
+  </dd>
+</dl><!-- crypto/x509 -->
+
+<dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
+  <dd>
+    <p><!-- CL 255138 -->
+      More <a href="/pkg/debug/elf/#DT_NULL"><code>DT</code></a>
+      and <a href="/pkg/debug/elf/#PT_NULL"><code>PT</code></a>
+      constants have been added.
+    </p>
+  </dd>
+</dl><!-- debug/elf -->
+
+<dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1">encoding/asn1</a></dt>
+  <dd>
+    <p><!-- CL 255881 -->
+      <a href="/pkg/encoding/asn1/#Unmarshal"><code>Unmarshal</code></a> and
+      <a href="/pkg/encoding/asn1/#UnmarshalWithParams"><code>UnmarshalWithParams</code></a>
+      now return an error instead of panicking when the argument is not
+      a pointer or is nil. This change matches the behavior of other
+      encoding packages such as <a href="/pkg/encoding/json"><code>encoding/json</code></a>.
+    </p>
+  </dd>
+</dl>
+
+<dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
+  <dd>
+    <p><!-- CL 234818 -->
+      The <code>json</code> struct field tags understood by
+      <a href="/pkg/encoding/json/#Marshal"><code>Marshal</code></a>,
+      <a href="/pkg/encoding/json/#Unmarshal"><code>Unmarshal</code></a>,
+      and related functionality now permit semicolon characters within
+      a JSON object name for a Go struct field.
+    </p>
+  </dd>
+</dl><!-- encoding/json -->
+
+<dl id="encoding/xml"><dt><a href="/pkg/encoding/xml/">encoding/xml</a></dt>
+  <dd>
+    <p><!-- CL 264024 -->
+      The encoder has always taken care to avoid using namespace prefixes
+      beginning with <code>xml</code>, which are reserved by the XML
+      specification.
+      Now, following the specification more closely, that check is
+      case-insensitive, so that prefixes beginning
+      with <code>XML</code>, <code>XmL</code>, and so on are also
+      avoided.
+    </p>
+  </dd>
+</dl><!-- encoding/xml -->
+
+<dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
+  <dd>
+    <p><!-- CL 240014 -->
+      The new <a href="/pkg/flag/#Func"><code>Func</code></a> function
+      allows registering a flag implemented by calling a function,
+      as a lighter-weight alternative to implementing the
+      <a href="/pkg/flag/#Value"><code>Value</code></a> interface.
+    </p>
+  </dd>
+</dl><!-- flag -->
+
+<dl id="go/build"><dt><a href="/pkg/go/build/">go/build</a></dt>
+  <dd>
+    <p><!-- CL 243941, CL 283636 -->
+      The <a href="/pkg/go/build/#Package"><code>Package</code></a>
+      struct has new fields that report information
+      about <code>//go:embed</code> directives in the package:
+      <a href="/pkg/go/build/#Package.EmbedPatterns"><code>EmbedPatterns</code></a>,
+      <a href="/pkg/go/build/#Package.EmbedPatternPos"><code>EmbedPatternPos</code></a>,
+      <a href="/pkg/go/build/#Package.TestEmbedPatterns"><code>TestEmbedPatterns</code></a>,
+      <a href="/pkg/go/build/#Package.TestEmbedPatternPos"><code>TestEmbedPatternPos</code></a>,
+      <a href="/pkg/go/build/#Package.XTestEmbedPatterns"><code>XTestEmbedPatterns</code></a>,
+      <a href="/pkg/go/build/#Package.XTestEmbedPatternPos"><code>XTestEmbedPatternPos</code></a>.
+    </p>
+
+    <p><!-- CL 240551 -->
+      The <a href="/pkg/go/build/#Package"><code>Package</code></a> field
+      <a href="/pkg/go/build/#Package.IgnoredGoFiles"><code>IgnoredGoFiles</code></a>
+      will no longer include files that start with "_" or ".",
+      as those files are always ignored.
+      <code>IgnoredGoFiles</code> is for files ignored because of
+      build constraints.
+    </p>
+
+    <p><!-- CL 240551 -->
+      The new <a href="/pkg/go/build/#Package"><code>Package</code></a>
+      field <a href="/pkg/go/build/#Package.IgnoredOtherFiles"><code>IgnoredOtherFiles</code></a>
+      has a list of non-Go files ignored because of build constraints.
+    </p>
+  </dd>
+</dl><!-- go/build -->
+
+<dl id="go/build/constraint"><dt><a href="/pkg/go/build/constraint/">go/build/constraint</a></dt>
+  <dd>
+    <p><!-- CL 240604 -->
+      The new
+      <a href="/pkg/go/build/constraint/"><code>go/build/constraint</code></a>
+      package parses build constraint lines, both the original
+      <code>// +build</code> syntax and the <code>//go:build</code>
+      syntax that will be introduced in Go 1.17.
+      This package exists so that tools built with Go 1.16 will be able
+      to process Go 1.17 source code.
+      See <a href="https://golang.org/design/draft-gobuild">https://golang.org/design/draft-gobuild</a>
+      for details about the build constraint syntaxes and the planned
+      transition to the <code>//go:build</code> syntax.
+      Note that <code>//go:build</code> lines are <b>not</b> supported
+      in Go 1.16 and should not be introduced into Go programs yet.
+    </p>
+  </dd>
+</dl><!-- go/build/constraint -->
+
+<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- CL 243938 -->
+      The new <a href="/pkg/html/template/#ParseFS"><code>template.ParseFS</code></a>
+      function and <a href="/pkg/html/template/#Template.ParseFS"><code>template.Template.ParseFS</code></a>
+      method are like <a href="/pkg/html/template/#ParseGlob"><code>template.ParseGlob</code></a>
+      and <a href="/pkg/html/template/#Template.ParseGlob"><code>template.Template.ParseGlob</code></a>,
+      but read the templates from an <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a>.
+    </p>
+  </dd>
+</dl><!-- html/template -->
+
+<dl id="io"><dt><a href="/pkg/io/">io</a></dt>
+  <dd>
+    <p><!-- CL 261577 -->
+      The package now defines a
+      <a href="/pkg/io/#ReadSeekCloser"><code>ReadSeekCloser</code></a> interface.
+    </p>
+
+    <p><!-- CL 263141 -->
+      The package now defines
+      <a href="/pkg/io/#Discard"><code>Discard</code></a>,
+      <a href="/pkg/io/#NopCloser"><code>NopCloser</code></a>, and
+      <a href="/pkg/io/#ReadAll"><code>ReadAll</code></a>,
+      to be used instead of the same names in the
+      <a href="/pkg/io/ioutil/"><code>io/ioutil</code></a> package.
+    </p>
+  </dd>
+</dl><!-- io -->
+
+<dl id="log"><dt><a href="/pkg/log/">log</a></dt>
+  <dd>
+    <p><!-- CL 264460 -->
+      The new <a href="/pkg/log/#Default"><code>Default</code></a> function
+      provides access to the default <a href="/pkg/log/#Logger"><code>Logger</code></a>.
+    </p>
+  </dd>
+</dl><!-- log -->
+
+<dl id="log/syslog"><dt><a href="/pkg/log/syslog/">log/syslog</a></dt>
+  <dd>
+    <p><!-- CL 264297 -->
+      The <a href="/pkg/log/syslog/#Writer"><code>Writer</code></a>
+      now uses the local message format
+      (omitting the host name and using a shorter time stamp)
+      when logging to custom Unix domain sockets,
+      matching the format already used for the default log socket.
+    </p>
+  </dd>
+</dl><!-- log/syslog -->
+
+<dl id="mime/multipart"><dt><a href="/pkg/mime/multipart/">mime/multipart</a></dt>
+  <dd>
+    <p><!-- CL 247477 -->
+      The <a href="/pkg/mime/multipart/#Reader"><code>Reader</code></a>'s
+      <a href="/pkg/mime/multipart/#Reader.ReadForm"><code>ReadForm</code></a>
+      method no longer rejects form data
+      when passed the maximum int64 value as a limit.
+    </p>
+  </dd>
+</dl><!-- mime/multipart -->
+
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- CL 250357 -->
+      The case of I/O on a closed network connection, or I/O on a network
+      connection that is closed before any of the I/O completes, can now
+      be detected using the new <a href="/pkg/net/#ErrClosed"><code>ErrClosed</code></a>
+      error. A typical use would be <code>errors.Is(err, net.ErrClosed)</code>.
+      In earlier releases the only way to reliably detect this case was to
+      match the string returned by the <code>Error</code> method
+      with <code>"use of closed network connection"</code>.
+    </p>
+
+    <p><!-- CL 255898 -->
+      In previous Go releases the default TCP listener backlog size on Linux systems,
+      set by <code>/proc/sys/net/core/somaxconn</code>, was limited to a maximum of <code>65535</code>.
+      On Linux kernel version 4.1 and above, the maximum is now <code>4294967295</code>.
+    </p>
+
+    <p><!-- CL 238629 -->
+      On Linux, host name lookups no longer use DNS before checking
+      <code>/etc/hosts</code> when <code>/etc/nsswitch.conf</code>
+      is missing; this is common on musl-based systems and makes
+      Go programs match the behavior of C programs on those systems.
+    </p>
+  </dd>
+</dl><!-- net -->
+
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+    <p><!-- CL 233637 -->
+      In the <a href="/pkg/net/http/"><code>net/http</code></a> package, the
+      behavior of <a href="/pkg/net/http/#StripPrefix"><code>StripPrefix</code></a>
+      has been changed to strip the prefix from the request URL's
+      <code>RawPath</code> field in addition to its <code>Path</code> field.
+      In past releases, only the <code>Path</code> field was trimmed, and so if the
+      request URL contained any escaped characters the URL would be modified to
+      have mismatched <code>Path</code> and <code>RawPath</code> fields.
+      In Go 1.16, <code>StripPrefix</code> trims both fields.
+      If there are escaped characters in the prefix part of the request URL the
+      handler serves a 404 instead of its previous behavior of invoking the
+      underlying handler with a mismatched <code>Path</code>/<code>RawPath</code> pair.
+    </p>
+
+    <p><!-- CL 252497 -->
+      The <a href="/pkg/net/http/"><code>net/http</code></a> package now rejects HTTP range requests
+      of the form <code>"Range": "bytes=--N"</code> where <code>"-N"</code> is a negative suffix length, for
+      example <code>"Range": "bytes=--2"</code>. It now replies with a <code>416 "Range Not Satisfiable"</code> response.
+    </p>
+
+    <p><!-- CL 256498, golang.org/issue/36990 -->
+      Cookies set with <a href="/pkg/net/http/#SameSiteDefaultMode"><code>SameSiteDefaultMode</code></a>
+      now behave according to the current spec (no attribute is set) instead of
+      generating a SameSite key without a value.
+    </p>
+
+    <p><!-- CL 250039 -->
+      The <a href="/pkg/net/http/#Client"><code>Client</code></a> now sends
+      an explicit <code>Content-Length:</code> <code>0</code>
+      header in <code>PATCH</code> requests with empty bodies,
+      matching the existing behavior of <code>POST</code> and <code>PUT</code>.
+    </p>
+
+    <p><!-- CL 249440 -->
+      The <a href="/pkg/net/http/#ProxyFromEnvironment"><code>ProxyFromEnvironment</code></a>
+      function no longer returns the setting of the <code>HTTP_PROXY</code>
+      environment variable for <code>https://</code> URLs when
+      <code>HTTPS_PROXY</code> is unset.
+    </p>
+
+    <p><!-- 259917 -->
+      The <a href="/pkg/net/http/#Transport"><code>Transport</code></a>
+      type has a new field
+      <a href="/pkg/net/http/#Transport.GetProxyConnectHeader"><code>GetProxyConnectHeader</code></a>
+      which may be set to a function that returns headers to send to a
+      proxy during a <code>CONNECT</code> request.
+      In effect <code>GetProxyConnectHeader</code> is a dynamic
+      version of the existing field
+      <a href="/pkg/net/http/#Transport.ProxyConnectHeader"><code>ProxyConnectHeader</code></a>;
+      if <code>GetProxyConnectHeader</code> is not <code>nil</code>,
+      then <code>ProxyConnectHeader</code> is ignored.
+    </p>
+
+    <p><!-- CL 243939 -->
+      The new <a href="/pkg/net/http/#FS"><code>http.FS</code></a>
+      function converts an <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a>
+      to an <a href="/pkg/net/http/#FileSystem"><code>http.FileSystem</code></a>.
+    </p>
+  </dd>
+</dl><!-- net/http -->
+
+<dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
+  <dd>
+    <p><!-- CL 260637 -->
+      <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a>
+      now flushes buffered data more aggressively when proxying
+      streamed responses with unknown body lengths.
+    </p>
+  </dd>
+</dl><!-- net/http/httputil -->
+
+<dl id="net/smtp"><dt><a href="/pkg/net/smtp/">net/smtp</a></dt>
+  <dd>
+    <p><!-- CL 247257 -->
+      The <a href="/pkg/net/smtp/#Client"><code>Client</code></a>'s
+      <a href="/pkg/net/smtp/#Client.Mail"><code>Mail</code></a>
+      method now sends the <code>SMTPUTF8</code> directive to
+      servers that support it, signaling that addresses are encoded in UTF-8.
+    </p>
+  </dd>
+</dl><!-- net/smtp -->
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- CL 242998 -->
+      <a href="/pkg/os/#Process.Signal"><code>Process.Signal</code></a> now
+      returns <a href="/pkg/os/#ErrProcessDone"><code>ErrProcessDone</code></a>
+      instead of the unexported <code>errFinished</code> when the process has
+      already finished.
+    </p>
+
+    <p><!-- CL 261540 -->
+      The package defines a new type
+      <a href="/pkg/os/#DirEntry"><code>DirEntry</code></a>
+      as an alias for <a href="/pkg/io/fs/#DirEntry"><code>fs.DirEntry</code></a>.
+      The new <a href="/pkg/os/#ReadDir"><code>ReadDir</code></a>
+      function and the new
+      <a href="/pkg/os/#File.ReadDir"><code>File.ReadDir</code></a>
+      method can be used to read the contents of a directory into a
+      slice of <a href="/pkg/os/#DirEntry"><code>DirEntry</code></a>.
+      The <a href="/pkg/os/#File.Readdir"><code>File.Readdir</code></a>
+      method (note the lower case <code>d</code> in <code>dir</code>)
+      still exists, returning a slice of
+      <a href="/pkg/os/#FileInfo"><code>FileInfo</code></a>, but for
+      most programs it will be more efficient to switch to
+      <a href="/pkg/os/#File.ReadDir"><code>File.ReadDir</code></a>.
+    </p>
+
+    <p><!-- CL 263141 -->
+      The package now defines
+      <a href="/pkg/os/#CreateTemp"><code>CreateTemp</code></a>,
+      <a href="/pkg/os/#MkdirTemp"><code>MkdirTemp</code></a>,
+      <a href="/pkg/os/#ReadFile"><code>ReadFile</code></a>, and
+      <a href="/pkg/os/#WriteFile"><code>WriteFile</code></a>,
+      to be used instead of functions defined in the
+      <a href="/pkg/io/ioutil/"><code>io/ioutil</code></a> package.
+    </p>
+
+    <p><!-- CL 243906 -->
+      The types <a href="/pkg/os/#FileInfo"><code>FileInfo</code></a>,
+      <a href="/pkg/os/#FileMode"><code>FileMode</code></a>, and
+      <a href="/pkg/os/#PathError"><code>PathError</code></a>
+      are now aliases for types of the same name in the
+      <a href="/pkg/io/fs/"><code>io/fs</code></a> package.
+      Function signatures in the <a href="/pkg/os/"><code>os</code></a>
+      package have been updated to refer to the names in the
+      <a href="/pkg/io/fs/"><code>io/fs</code></a> package.
+      This should not affect any existing code.
+    </p>
+
+    <p><!-- CL 243911 -->
+      The new <a href="/pkg/os/#DirFS"><code>DirFS</code></a> function
+      provides an implementation of
+      <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a> backed by a tree
+      of operating system files.
+    </p>
+  </dd>
+</dl><!-- os -->
+
+<dl id="os/signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
+  <dd>
+    <p><!-- CL 219640 -->
+      The new
+      <a href="/pkg/os/signal/#NotifyContext"><code>NotifyContext</code></a>
+      function allows creating contexts that are canceled upon arrival of
+      specific signals.
+    </p>
+  </dd>
+</dl><!-- os/signal -->
+
+<dl id="path"><dt><a href="/pkg/path/">path</a></dt>
+  <dd>
+    <p><!-- CL 264397, golang.org/issues/28614 -->
+      The <a href="/pkg/path/#Match"><code>Match</code></a> function now
+      returns an error if the unmatched part of the pattern has a
+      syntax error. Previously, the function returned early on a failed
+      match, and thus did not report any later syntax error in the
+      pattern.
+    </p>
+  </dd>
+</dl><!-- path -->
+
+<dl id="path/filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
+  <dd>
+    <p><!-- CL 267887 -->
+      The new function
+      <a href="/pkg/path/filepath/#WalkDir"><code>WalkDir</code></a>
+      is similar to
+      <a href="/pkg/path/filepath/#Walk"><code>Walk</code></a>,
+      but is typically more efficient.
+      The function passed to <code>WalkDir</code> receives a
+      <a href="/pkg/io/fs/#DirEntry"><code>fs.DirEntry</code></a>
+      instead of a
+      <a href="/pkg/io/fs/#FileInfo"><code>fs.FileInfo</code></a>.
+      (To clarify for those who recall the <code>Walk</code> function
+      as taking an <a href="/pkg/os/#FileInfo"><code>os.FileInfo</code></a>,
+      <code>os.FileInfo</code> is now an alias for <code>fs.FileInfo</code>.)
+    </p>
+
+    <p><!-- CL 264397, golang.org/issues/28614 -->
+      The <a href="/pkg/path/filepath#Match"><code>Match</code></a> and
+      <a href="/pkg/path/filepath#Glob"><code>Glob</code></a> functions now
+      return an error if the unmatched part of the pattern has a
+      syntax error. Previously, the functions returned early on a failed
+      match, and thus did not report any later syntax error in the
+      pattern.
+    </p>
+  </dd>
+</dl><!-- path/filepath -->
+
+<dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
+  <dd>
+    <p><!-- CL 249677 -->
+      The <a href="/pkg/runtime#Error"><code>runtime.Error</code></a> values
+      used when <code>SetPanicOnFault</code> is enabled may now have an
+      <code>Addr</code> method. If that method exists, it returns the memory
+      address that triggered the fault.
+    </p>
+  </dd>
+</dl><!-- runtime/debug -->
+
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+  <dd>
+    <p><!-- CL 260858 -->
+      <a href="/pkg/strconv/#ParseFloat"><code>ParseFloat</code></a> now uses
+      the <a
+      href="https://nigeltao.github.io/blog/2020/eisel-lemire.html">Eisel-Lemire
+      algorithm</a>, improving performance by up to a factor of 2. This can
+      also speed up decoding textual formats like <a
+      href="/pkg/encoding/json/"><code>encoding/json</code></a>.
+    </p>
+  </dd>
+</dl><!-- strconv -->
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- CL 263271 -->
+      <a href="/pkg/syscall/?GOOS=windows#NewCallback"><code>NewCallback</code></a>
+      and
+      <a href="/pkg/syscall/?GOOS=windows#NewCallbackCDecl"><code>NewCallbackCDecl</code></a>
+      now correctly support callback functions with multiple
+      sub-<code>uintptr</code>-sized arguments in a row. This may
+      require changing uses of these functions to eliminate manual
+      padding between small arguments.
+    </p>
+
+    <p><!-- CL 261917 -->
+      <a href="/pkg/syscall/?GOOS=windows#SysProcAttr"><code>SysProcAttr</code></a> on Windows has a new <code>NoInheritHandles</code> field that disables inheriting handles when creating a new process.
+    </p>
+
+    <p><!-- CL 269761, golang.org/issue/42584 -->
+      <a href="/pkg/syscall/?GOOS=windows#DLLError"><code>DLLError</code></a> on Windows now has an <code>Unwrap</code> method for unwrapping its underlying error.
+    </p>
+
+    <p><!-- CL 210639 -->
+      On Linux,
+      <a href="/pkg/syscall/#Setgid"><code>Setgid</code></a>,
+      <a href="/pkg/syscall/#Setuid"><code>Setuid</code></a>,
+      and related calls are now implemented.
+      Previously, they returned an <code>syscall.EOPNOTSUPP</code> error.
+    </p>
+
+    <p><!-- CL 210639 -->
+      On Linux, the new functions
+      <a href="/pkg/syscall/#AllThreadsSyscall"><code>AllThreadsSyscall</code></a>
+      and <a href="/pkg/syscall/#AllThreadsSyscall6"><code>AllThreadsSyscall6</code></a>
+      may be used to make a system call on all Go threads in the process.
+      These functions may only be used by programs that do not use cgo;
+      if a program uses cgo, they will always return
+      <a href="/pkg/syscall/#ENOTSUP"><code>syscall.ENOTSUP</code></a>.
+    </p>
+  </dd>
+</dl><!-- syscall -->
+
+<dl id="testing/iotest"><dt><a href="/pkg/testing/iotest/">testing/iotest</a></dt>
+  <dd>
+    <p><!-- CL 199501 -->
+      The new
+      <a href="/pkg/testing/iotest/#ErrReader"><code>ErrReader</code></a>
+      function returns an
+      <a href="/pkg/io/#Reader"><code>io.Reader</code></a> that always
+      returns an error.
+    </p>
+
+    <p><!-- CL 243909 -->
+      The new
+      <a href="/pkg/testing/iotest/#TestReader"><code>TestReader</code></a>
+      function tests that an <a href="/pkg/io/#Reader"><code>io.Reader</code></a>
+      behaves correctly.
+    </p>
+  </dd>
+</dl><!-- testing/iotest -->
+
+<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+  <dd>
+    <p><!-- CL 254257, golang.org/issue/29770 -->
+      Newlines characters are now allowed inside action delimiters,
+      permitting actions to span multiple lines.
+    </p>
+
+    <p><!-- CL 243938 -->
+      The new <a href="/pkg/text/template/#ParseFS"><code>template.ParseFS</code></a>
+      function and <a href="/pkg/text/template/#Template.ParseFS"><code>template.Template.ParseFS</code></a>
+      method are like <a href="/pkg/text/template/#ParseGlob"><code>template.ParseGlob</code></a>
+      and <a href="/pkg/text/template/#Template.ParseGlob"><code>template.Template.ParseGlob</code></a>,
+      but read the templates from an <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a>.
+    </p>
+  </dd>
+</dl><!-- text/template -->
+
+<dl id="text/template/parse"><dt><a href="/pkg/text/template/parse/">text/template/parse</a></dt>
+  <dd>
+    <p><!-- CL 229398, golang.org/issue/34652 -->
+      A new <a href="/pkg/text/template/parse/#CommentNode"><code>CommentNode</code></a>
+      was added to the parse tree. The <a href="/pkg/text/template/parse/#Mode"><code>Mode</code></a>
+      field in the <code>parse.Tree</code> enables access to it.
+    </p>
+  </dd>
+</dl><!-- text/template/parse -->
+
+<dl id="time/tzdata"><dt><a href="/pkg/time/tzdata/">time/tzdata</a></dt>
+  <dd>
+    <p><!-- CL 261877 -->
+      The slim timezone data format is now used for the timezone database in
+      <code>$GOROOT/lib/time/zoneinfo.zip</code> and the embedded copy in this
+      package. This reduces the size of the timezone database by about 350 KB.
+    </p>
+  </dd>
+</dl><!-- time/tzdata -->
+
+<dl id="unicode"><dt><a href="/pkg/unicode/">unicode</a></dt>
+  <dd>
+    <p><!-- CL 248765 -->
+      The <a href="/pkg/unicode/"><code>unicode</code></a> package and associated
+      support throughout the system has been upgraded from Unicode 12.0.0 to
+      <a href="https://www.unicode.org/versions/Unicode13.0.0/">Unicode 13.0.0</a>,
+      which adds 5,930 new characters, including four new scripts, and 55 new emoji.
+      Unicode 13.0.0 also designates plane 3 (U+30000-U+3FFFF) as the tertiary
+      ideographic plane.
+    </p>
+  </dd>
+</dl><!-- unicode -->

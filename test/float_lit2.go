@@ -2,7 +2,7 @@
 
 // Check conversion of constant to float32/float64 near min/max boundaries.
 
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -13,12 +13,12 @@ import (
 	"math"
 )
 
-// The largest exact float32 is f₁ = (1+(1-2²³))×2¹²⁷ = (1-2²⁴)×2¹²⁸ = 2¹²⁸ - 2¹⁰⁴.
+// The largest exact float32 is f₁ = (1+1-1/2²³)×2¹²⁷ = (2-2⁻²³)×2¹²⁷ = 2¹²⁸ - 2¹⁰⁴.
 // The next float32 would be f₂ = (1+1)×2¹²⁷ = 1×2¹²⁸, except that exponent is out of range.
 // Float32 conversion rounds to the nearest float32, rounding to even mantissa:
 // between f₁ and f₂, values closer to f₁ round to f₁ and values closer to f₂ are rejected as out of range.
 // f₁ is an odd mantissa, so the halfway point (f₁+f₂)/2 rounds to f₂ and is rejected.
-// The halfway point is (f₁+f₂)/2 = 2¹²⁸ - 2¹⁰⁵.
+// The halfway point is (f₁+f₂)/2 = 2¹²⁸ - 2¹⁰³.
 //
 // The same is true of float64, with different constants: s/24/53/ and s/128/1024/.
 

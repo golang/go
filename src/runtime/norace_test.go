@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The file contains tests that can not run under race detector for some reason.
+// The file contains tests that cannot run under race detector for some reason.
 // +build !race
 
 package runtime_test
@@ -34,12 +34,12 @@ func benchmarkSyscall(b *testing.B, work, excess int) {
 	b.RunParallel(func(pb *testing.PB) {
 		foo := 42
 		for pb.Next() {
-			runtime.Entersyscall(0)
+			runtime.Entersyscall()
 			for i := 0; i < work; i++ {
 				foo *= 2
 				foo /= 2
 			}
-			runtime.Exitsyscall(0)
+			runtime.Exitsyscall()
 		}
 		_ = foo
 	})

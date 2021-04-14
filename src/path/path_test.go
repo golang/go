@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package path
+package path_test
 
 import (
+	. "path"
 	"runtime"
 	"testing"
 )
@@ -135,16 +136,10 @@ var jointests = []JoinTest{
 	{[]string{"", ""}, ""},
 }
 
-// join takes a []string and passes it to Join.
-func join(elem []string, args ...string) string {
-	args = elem
-	return Join(args...)
-}
-
 func TestJoin(t *testing.T) {
 	for _, test := range jointests {
-		if p := join(test.elem); p != test.path {
-			t.Errorf("join(%q) = %q, want %q", test.elem, p, test.path)
+		if p := Join(test.elem...); p != test.path {
+			t.Errorf("Join(%q) = %q, want %q", test.elem, p, test.path)
 		}
 	}
 }

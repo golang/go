@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,9 +7,11 @@
 package objfile
 
 import (
+	"debug/dwarf"
 	"debug/plan9obj"
+	"errors"
 	"fmt"
-	"os"
+	"io"
 	"sort"
 )
 
@@ -26,7 +28,7 @@ type plan9File struct {
 	plan9 *plan9obj.File
 }
 
-func openPlan9(r *os.File) (rawFile, error) {
+func openPlan9(r io.ReaderAt) (rawFile, error) {
 	f, err := plan9obj.NewFile(r)
 	if err != nil {
 		return nil, err
@@ -57,7 +59,7 @@ func (f *plan9File) symbols() ([]Sym, error) {
 		if !validSymType[s.Type] {
 			continue
 		}
-		sym := Sym{Addr: s.Value, Name: s.Name, Code: rune(s.Type)}
+		sym := Sym{Addr: s.Value, Name: s.Name, Code: s.Type}
 		i := sort.Search(len(addrs), func(x int) bool { return addrs[x] > s.Value })
 		if i < len(addrs) {
 			sym.Size = int64(addrs[i] - s.Value)
@@ -143,4 +145,12 @@ func (f *plan9File) goarch() string {
 		return "arm"
 	}
 	return ""
+}
+
+func (f *plan9File) loadAddress() (uint64, error) {
+	return 0, fmt.Errorf("unknown load address")
+}
+
+func (f *plan9File) dwarf() (*dwarf.Data, error) {
+	return nil, errors.New("no DWARF data in Plan 9 file")
 }

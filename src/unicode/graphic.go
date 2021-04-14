@@ -45,7 +45,7 @@ func IsGraphic(r rune) bool {
 // IsPrint reports whether the rune is defined as printable by Go. Such
 // characters include letters, marks, numbers, punctuation, symbols, and the
 // ASCII space character, from categories L, M, N, P, S and the ASCII space
-// character.  This categorization is the same as IsGraphic except that the
+// character. This categorization is the same as IsGraphic except that the
 // only spacing character is ASCII space, U+0020.
 func IsPrint(r rune) bool {
 	if uint32(r) <= MaxLatin1 {

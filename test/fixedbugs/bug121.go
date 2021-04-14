@@ -1,6 +1,3 @@
-// skip
-// TODO(rsc): Reenable. See issue 9968.
-
 // errorcheck
 
 // Copyright 2009 The Go Authors. All rights reserved.
@@ -18,4 +15,3 @@ type I interface {
 type J interface {
 	h T;  // ERROR "syntax|signature"
 }
-

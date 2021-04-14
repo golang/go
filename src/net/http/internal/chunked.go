@@ -35,16 +35,17 @@ func NewChunkedReader(r io.Reader) io.Reader {
 }
 
 type chunkedReader struct {
-	r   *bufio.Reader
-	n   uint64 // unread bytes in chunk
-	err error
-	buf [2]byte
+	r        *bufio.Reader
+	n        uint64 // unread bytes in chunk
+	err      error
+	buf      [2]byte
+	checkEnd bool // whether need to check for \r\n chunk footer
 }
 
 func (cr *chunkedReader) beginChunk() {
 	// chunk-size CRLF
 	var line []byte
-	line, cr.err = readLine(cr.r)
+	line, cr.err = readChunkLine(cr.r)
 	if cr.err != nil {
 		return
 	}
@@ -68,6 +69,21 @@ func (cr *chunkedReader) chunkHeaderAvailable() bool {
 
 func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
 	for cr.err == nil {
+		if cr.checkEnd {
+			if n > 0 && cr.r.Buffered() < 2 {
+				// We have some data. Return early (per the io.Reader
+				// contract) instead of potentially blocking while
+				// reading more.
+				break
+			}
+			if _, cr.err = io.ReadFull(cr.r, cr.buf[:2]); cr.err == nil {
+				if string(cr.buf[:]) != "\r\n" {
+					cr.err = errors.New("malformed chunked encoding")
+					break
+				}
+			}
+			cr.checkEnd = false
+		}
 		if cr.n == 0 {
 			if n > 0 && !cr.chunkHeaderAvailable() {
 				// We've read enough. Don't potentially block
@@ -92,11 +108,7 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
 		// If we're at the end of a chunk, read the next two
 		// bytes to verify they are "\r\n".
 		if cr.n == 0 && cr.err == nil {
-			if _, cr.err = io.ReadFull(cr.r, cr.buf[:2]); cr.err == nil {
-				if cr.buf[0] != '\r' || cr.buf[1] != '\n' {
-					cr.err = errors.New("malformed chunked encoding")
-				}
-			}
+			cr.checkEnd = true
 		}
 	}
 	return n, cr.err
@@ -104,10 +116,11 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
 
 // Read a line of bytes (up to \n) from b.
 // Give up if the line exceeds maxLineLength.
-// The returned bytes are a pointer into storage in
-// the bufio, so they are only valid until the next bufio read.
-func readLine(b *bufio.Reader) (p []byte, err error) {
-	if p, err = b.ReadSlice('\n'); err != nil {
+// The returned bytes are owned by the bufio.Reader
+// so they are only valid until the next bufio read.
+func readChunkLine(b *bufio.Reader) ([]byte, error) {
+	p, err := b.ReadSlice('\n')
+	if err != nil {
 		// We always know when EOF is coming.
 		// If the caller asked for a line, there should be a line.
 		if err == io.EOF {
@@ -120,7 +133,12 @@ func readLine(b *bufio.Reader) (p []byte, err error) {
 	if len(p) >= maxLineLength {
 		return nil, ErrLineTooLong
 	}
-	return trimTrailingWhitespace(p), nil
+	p = trimTrailingWhitespace(p)
+	p, err = removeChunkExtension(p)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 func trimTrailingWhitespace(b []byte) []byte {
@@ -134,9 +152,28 @@ func isASCIISpace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
 }
 
+// removeChunkExtension removes any chunk-extension from p.
+// For example,
+//     "0" => "0"
+//     "0;token" => "0"
+//     "0;token=val" => "0"
+//     `0;token="quoted string"` => "0"
+func removeChunkExtension(p []byte) ([]byte, error) {
+	semi := bytes.IndexByte(p, ';')
+	if semi == -1 {
+		return p, nil
+	}
+	// TODO: care about exact syntax of chunk extensions? We're
+	// ignoring and stripping them anyway. For now just never
+	// return an error.
+	return p[:semi], nil
+}
+
 // NewChunkedWriter returns a new chunkedWriter that translates writes into HTTP
 // "chunked" format before writing them to w. Closing the returned chunkedWriter
-// sends the final 0-length chunk that marks the end of the stream.
+// sends the final 0-length chunk that marks the end of the stream but does
+// not send the final CRLF that appears after trailers; trailers and the last
+// CRLF must be written separately.
 //
 // NewChunkedWriter is not needed by normal applications. The http
 // package adds chunking automatically if handlers don't set a
@@ -173,8 +210,12 @@ func (cw *chunkedWriter) Write(data []byte) (n int, err error) {
 		err = io.ErrShortWrite
 		return
 	}
-	_, err = io.WriteString(cw.Wire, "\r\n")
-
+	if _, err = io.WriteString(cw.Wire, "\r\n"); err != nil {
+		return
+	}
+	if bw, ok := cw.Wire.(*FlushAfterChunkWriter); ok {
+		err = bw.Flush()
+	}
 	return
 }
 
@@ -183,9 +224,17 @@ func (cw *chunkedWriter) Close() error {
 	return err
 }
 
+// FlushAfterChunkWriter signals from the caller of NewChunkedWriter
+// that each chunk should be followed by a flush. It is used by the
+// http.Transport code to keep the buffering behavior for headers and
+// trailers, but flush out chunks aggressively in the middle for
+// request bodies which may be generated slowly. See Issue 6574.
+type FlushAfterChunkWriter struct {
+	*bufio.Writer
+}
+
 func parseHexUint(v []byte) (n uint64, err error) {
-	for _, b := range v {
-		n <<= 4
+	for i, b := range v {
 		switch {
 		case '0' <= b && b <= '9':
 			b = b - '0'
@@ -196,6 +245,10 @@ func parseHexUint(v []byte) (n uint64, err error) {
 		default:
 			return 0, errors.New("invalid byte in chunk length")
 		}
+		if i == 16 {
+			return 0, errors.New("http chunk length too large")
+		}
+		n <<= 4
 		n |= uint64(b)
 	}
 	return

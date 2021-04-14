@@ -1,0 +1,6 @@
+{"Action":"output","Output":"# This file ends in an early EOF to trigger the Benchmark prefix test,\n"}
+{"Action":"output","Output":"# which only happens when a benchmark prefix is seen ahead of the \\n.\n"}
+{"Action":"output","Output":"# Normally that's due to the benchmark running and the \\n coming later,\n"}
+{"Action":"output","Output":"# but to avoid questions of timing, we just use a file with no \\n at all.\n"}
+{"Action":"output","Output":"BenchmarkFoo   \t"}
+{"Action":"output","Output":"10000 early EOF"}

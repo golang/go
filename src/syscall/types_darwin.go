@@ -123,6 +123,12 @@ type Fsid C.struct_fsid
 
 type Dirent C.struct_dirent
 
+// File system limits
+
+const (
+	pathMax = C.PATH_MAX
+)
+
 // Sockets
 
 type RawSockaddrInet4 C.struct_sockaddr_in
@@ -237,6 +243,12 @@ type BpfProgram C.struct_bpf_program
 type BpfInsn C.struct_bpf_insn
 
 type BpfHdr C.struct_bpf_hdr
+
+// Misc
+
+const (
+	_AT_FDCWD = C.AT_FDCWD
+)
 
 // Terminal handling
 

@@ -1,0 +1,22 @@
+[!net] skip
+[!exec:git] skip
+env GO111MODULE=off
+
+cd $GOPATH
+
+go get github.com/clsung/go-vendor-issue-14613
+go build -o $WORK/a.out -i github.com/clsung/go-vendor-issue-14613
+
+# test folder should work
+go test -i github.com/clsung/go-vendor-issue-14613
+go test github.com/clsung/go-vendor-issue-14613
+
+# test with specified _test.go should work too
+cd $GOPATH/src
+go test -i github.com/clsung/go-vendor-issue-14613/vendor_test.go
+go test github.com/clsung/go-vendor-issue-14613/vendor_test.go
+
+# test with imported and not used
+go test -i github.com/clsung/go-vendor-issue-14613/vendor/mylibtesttest/myapp/myapp_test.go
+! go test github.com/clsung/go-vendor-issue-14613/vendor/mylibtesttest/myapp/myapp_test.go
+stderr 'imported and not used:'

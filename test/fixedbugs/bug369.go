@@ -1,7 +1,7 @@
-// +build !nacl,!windows
+// +build !nacl,!js,!windows,gc
 // run
 
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -11,29 +11,29 @@ package main
 
 import (
 	"fmt"
-	"go/build"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
 
 func main() {
-	a, err := build.ArchChar(build.Default.GOARCH)
+	err := os.Chdir(filepath.Join(".", "fixedbugs", "bug369.dir"))
 	check(err)
 
-	err = os.Chdir(filepath.Join(".", "fixedbugs", "bug369.dir"))
+	tmpDir, err := ioutil.TempDir("", "bug369")
 	check(err)
+	defer os.RemoveAll(tmpDir)
 
-	run("go", "tool", a+"g", "-N", "-o", "slow."+a, "pkg.go")
-	run("go", "tool", a+"g", "-o", "fast."+a, "pkg.go")
-	run("go", "tool", a+"g", "-o", "main."+a, "main.go")
-	run("go", "tool", a+"l", "-o", "a.exe", "main."+a)
-	run("." + string(filepath.Separator) + "a.exe")
+	tmp := func(name string) string {
+		return filepath.Join(tmpDir, name)
+	}
 
-	os.Remove("slow." + a)
-	os.Remove("fast." + a)
-	os.Remove("main." + a)
-	os.Remove("a.exe")
+	run("go", "tool", "compile", "-N", "-o", tmp("slow.o"), "pkg.go")
+	run("go", "tool", "compile", "-o", tmp("fast.o"), "pkg.go")
+	run("go", "tool", "compile", "-D", tmpDir, "-o", tmp("main.o"), "main.go")
+	run("go", "tool", "link", "-o", tmp("a.exe"), tmp("main.o"))
+	run(tmp("a.exe"))
 }
 
 func run(name string, args ...string) {

@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,28 +6,46 @@
 
 package os
 
-import "syscall"
+import (
+	"internal/testlog"
+	"syscall"
+)
 
 // Expand replaces ${var} or $var in the string based on the mapping function.
 // For example, os.ExpandEnv(s) is equivalent to os.Expand(s, os.Getenv).
 func Expand(s string, mapping func(string) string) string {
-	buf := make([]byte, 0, 2*len(s))
+	var buf []byte
 	// ${} is all ASCII, so bytes are fine for this operation.
 	i := 0
 	for j := 0; j < len(s); j++ {
 		if s[j] == '$' && j+1 < len(s) {
+			if buf == nil {
+				buf = make([]byte, 0, 2*len(s))
+			}
 			buf = append(buf, s[i:j]...)
 			name, w := getShellName(s[j+1:])
-			buf = append(buf, mapping(name)...)
+			if name == "" && w > 0 {
+				// Encountered invalid syntax; eat the
+				// characters.
+			} else if name == "" {
+				// Valid syntax, but $ was not followed by a
+				// name. Leave the dollar character untouched.
+				buf = append(buf, s[j])
+			} else {
+				buf = append(buf, mapping(name)...)
+			}
 			j += w
 			i = j + 1
 		}
+	}
+	if buf == nil {
+		return s
 	}
 	return string(buf) + s[i:]
 }
 
 // ExpandEnv replaces ${var} or $var in the string according to the values
-// of the current environment variables.  References to undefined
+// of the current environment variables. References to undefined
 // variables are replaced by the empty string.
 func ExpandEnv(s string) string {
 	return Expand(s, Getenv)
@@ -37,7 +55,7 @@ func ExpandEnv(s string) string {
 // shell variable such as $*.
 func isShellSpecialVar(c uint8) bool {
 	switch c {
-	case '*', '#', '$', '@', '!', '?', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+	case '*', '#', '$', '@', '!', '?', '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		return true
 	}
 	return false
@@ -49,7 +67,7 @@ func isAlphaNum(c uint8) bool {
 }
 
 // getShellName returns the name that begins the string and the number of bytes
-// consumed to extract it.  If the name is enclosed in {}, it's part of a ${}
+// consumed to extract it. If the name is enclosed in {}, it's part of a ${}
 // expansion and two more bytes are needed than the length of the name.
 func getShellName(s string) (string, int) {
 	switch {
@@ -60,10 +78,13 @@ func getShellName(s string) (string, int) {
 		// Scan to closing brace
 		for i := 1; i < len(s); i++ {
 			if s[i] == '}' {
+				if i == 1 {
+					return "", 2 // Bad syntax; eat "${}"
+				}
 				return s[1:i], i + 1
 			}
 		}
-		return "", 1 // Bad syntax; just eat the brace.
+		return "", 1 // Bad syntax; eat "${"
 	case isShellSpecialVar(s[0]):
 		return s[0:1], 1
 	}
@@ -76,9 +97,21 @@ func getShellName(s string) (string, int) {
 
 // Getenv retrieves the value of the environment variable named by the key.
 // It returns the value, which will be empty if the variable is not present.
+// To distinguish between an empty value and an unset value, use LookupEnv.
 func Getenv(key string) string {
+	testlog.Getenv(key)
 	v, _ := syscall.Getenv(key)
 	return v
+}
+
+// LookupEnv retrieves the value of the environment variable named
+// by the key. If the variable is present in the environment the
+// value (which may be empty) is returned and the boolean is true.
+// Otherwise the returned value will be empty and the boolean will
+// be false.
+func LookupEnv(key string) (string, bool) {
+	testlog.Getenv(key)
+	return syscall.Getenv(key)
 }
 
 // Setenv sets the value of the environment variable named by the key.

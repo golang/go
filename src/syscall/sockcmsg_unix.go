@@ -1,25 +1,16 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 // Socket control messages
 
 package syscall
 
-import "unsafe"
-
-// Round the length of a raw sockaddr up to align it properly.
-func cmsgAlignOf(salen int) int {
-	salign := sizeofPtr
-	// NOTE: It seems like 64-bit Darwin and DragonFly BSD kernels
-	// still require 32-bit aligned access to network subsystem.
-	if darwin64Bit || dragonfly64Bit {
-		salign = 4
-	}
-	return (salen + salign - 1) & ^(salign - 1)
-}
+import (
+	"unsafe"
+)
 
 // CmsgLen returns the value to store in the Len field of the Cmsghdr
 // structure, taking into account any necessary alignment.
@@ -33,8 +24,8 @@ func CmsgSpace(datalen int) int {
 	return cmsgAlignOf(SizeofCmsghdr) + cmsgAlignOf(datalen)
 }
 
-func cmsgData(h *Cmsghdr) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(unsafe.Pointer(h)) + uintptr(cmsgAlignOf(SizeofCmsghdr)))
+func (h *Cmsghdr) data(offset uintptr) unsafe.Pointer {
+	return unsafe.Pointer(uintptr(unsafe.Pointer(h)) + uintptr(cmsgAlignOf(SizeofCmsghdr)) + offset)
 }
 
 // SocketControlMessage represents a socket control message.
@@ -62,7 +53,7 @@ func ParseSocketControlMessage(b []byte) ([]SocketControlMessage, error) {
 
 func socketControlMessageHeaderAndData(b []byte) (*Cmsghdr, []byte, error) {
 	h := (*Cmsghdr)(unsafe.Pointer(&b[0]))
-	if h.Len < SizeofCmsghdr || int(h.Len) > len(b) {
+	if h.Len < SizeofCmsghdr || uint64(h.Len) > uint64(len(b)) {
 		return nil, nil, EINVAL
 	}
 	return h, b[cmsgAlignOf(SizeofCmsghdr):h.Len], nil
@@ -77,10 +68,8 @@ func UnixRights(fds ...int) []byte {
 	h.Level = SOL_SOCKET
 	h.Type = SCM_RIGHTS
 	h.SetLen(CmsgLen(datalen))
-	data := uintptr(cmsgData(h))
-	for _, fd := range fds {
-		*(*int32)(unsafe.Pointer(data)) = int32(fd)
-		data += 4
+	for i, fd := range fds {
+		*(*int32)(h.data(4 * uintptr(i))) = int32(fd)
 	}
 	return b
 }

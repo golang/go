@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -127,5 +127,6 @@ ASCII character classes:
   [[:word:]]     word characters (== [0-9A-Za-z_])
   [[:xdigit:]]   hex digit (== [0-9A-Fa-f])
 
+Unicode character classes are those in unicode.Categories and unicode.Scripts.
 */
 package syntax

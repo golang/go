@@ -1,0 +1,66 @@
+env GO111MODULE=on
+
+# Before vendoring, we expect to see the original directory.
+go list -f '{{with .Module}}{{.Version}}{{end}} {{.Dir}}' rsc.io/quote/v3
+stdout 'v3.0.0'
+stdout '.*[/\\]not-rsc.io[/\\]quote[/\\]v3'
+
+# Since all dependencies are replaced, 'go mod vendor' should not
+# have to download anything from the network.
+go mod vendor
+! stderr 'downloading'
+! stderr 'finding'
+
+# After vendoring, we expect to see the replacement in the vendor directory,
+# without attempting to look up the non-replaced version.
+cmp vendor/rsc.io/quote/v3/quote.go local/not-rsc.io/quote/v3/quote.go
+
+go list -mod=vendor -f '{{with .Module}}{{.Version}}{{end}} {{.Dir}}' rsc.io/quote/v3
+stdout 'v3.0.0'
+stdout '.*[/\\]vendor[/\\]rsc.io[/\\]quote[/\\]v3'
+! stderr 'finding'
+! stderr 'lookup disabled'
+
+# 'go list' should provide the original replacement directory as the module's
+# replacement path.
+go list -mod=vendor -f '{{with .Module}}{{with .Replace}}{{.Path}}{{end}}{{end}}' rsc.io/quote/v3
+stdout '.*[/\\]not-rsc.io[/\\]quote[/\\]v3'
+
+# The same module can't be used as two different paths.
+cd multiple-paths
+! go mod vendor
+stderr 'rsc.io/quote/v3@v3.0.0 used for two different module paths \(not-rsc.io/quote/v3 and rsc.io/quote/v3\)'
+
+-- go.mod --
+module example.com/replace
+
+require rsc.io/quote/v3 v3.0.0
+replace rsc.io/quote/v3 => ./local/not-rsc.io/quote/v3
+
+-- imports.go --
+package replace
+
+import _ "rsc.io/quote/v3"
+
+-- local/not-rsc.io/quote/v3/go.mod --
+module not-rsc.io/quote/v3
+
+-- local/not-rsc.io/quote/v3/quote.go --
+package quote
+
+-- multiple-paths/main.go --
+package main
+import (
+	"fmt"
+	"rsc.io/quote/v3"
+)
+func main() {
+	fmt.Println(quote.GoV3())
+}
+-- multiple-paths/go.mod --
+module quoter
+require (
+	rsc.io/quote/v3 v3.0.0
+	not-rsc.io/quote/v3 v3.0.0
+)
+replace not-rsc.io/quote/v3 => rsc.io/quote/v3 v3.0.0

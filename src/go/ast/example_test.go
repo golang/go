@@ -44,7 +44,7 @@ var X = f(3.14)*2 + c
 		return true
 	})
 
-	// output:
+	// Output:
 	// src.go:2:9:	p
 	// src.go:3:7:	c
 	// src.go:3:11:	1.0
@@ -75,7 +75,7 @@ func main() {
 	// Print the AST.
 	ast.Print(fset, f)
 
-	// output:
+	// Output:
 	//      0  *ast.File {
 	//      1  .  Package: 2:1
 	//      2  .  Name: *ast.Ident {
@@ -151,7 +151,7 @@ package main
 const hello = "Hello, World!" // line comment 1
 
 // This comment is associated with the foo variable.
-var foo = hello // line comment 2 
+var foo = hello // line comment 2
 
 // This comment is associated with the main function.
 func main() {
@@ -172,7 +172,13 @@ func main() {
 	cmap := ast.NewCommentMap(fset, f, f.Comments)
 
 	// Remove the first variable declaration from the list of declarations.
-	f.Decls = removeFirstVarDecl(f.Decls)
+	for i, decl := range f.Decls {
+		if gen, ok := decl.(*ast.GenDecl); ok && gen.Tok == token.VAR {
+			copy(f.Decls[i:], f.Decls[i+1:])
+			f.Decls = f.Decls[:len(f.Decls)-1]
+			break
+		}
+	}
 
 	// Use the comment map to filter comments that don't belong anymore
 	// (the comments associated with the variable declaration), and create
@@ -186,7 +192,7 @@ func main() {
 	}
 	fmt.Printf("%s", buf.Bytes())
 
-	// output:
+	// Output:
 	// // This is the package comment.
 	// package main
 	//
@@ -197,14 +203,4 @@ func main() {
 	// func main() {
 	// 	fmt.Println(hello) // line comment 3
 	// }
-}
-
-func removeFirstVarDecl(list []ast.Decl) []ast.Decl {
-	for i, decl := range list {
-		if gen, ok := decl.(*ast.GenDecl); ok && gen.Tok == token.VAR {
-			copy(list[i:], list[i+1:])
-			return list[:len(list)-1]
-		}
-	}
-	panic("variable declaration not found")
 }

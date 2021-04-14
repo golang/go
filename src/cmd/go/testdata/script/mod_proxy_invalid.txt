@@ -1,0 +1,8 @@
+env GO111MODULE=on
+env GOPROXY=$GOPROXY/invalid
+
+! go list -m rsc.io/quote@latest
+stderr '^go list -m: module rsc.io/quote: invalid response from proxy "'$GOPROXY'": invalid character ''i'' looking for beginning of value$'
+
+! go list -m rsc.io/quote@1.5.2
+stderr '^go list -m: rsc.io/quote@1.5.2: invalid version: invalid response from proxy "'$GOPROXY'": invalid character ''i'' looking for beginning of value$'

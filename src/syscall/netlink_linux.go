@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -50,7 +50,7 @@ func newNetlinkRouteRequest(proto, seq, family int) []byte {
 // NetlinkRIB returns routing information base, as known as RIB, which
 // consists of network facility information, states and parameters.
 func NetlinkRIB(proto, family int) ([]byte, error) {
-	s, err := Socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE)
+	s, err := cloexecSocket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE)
 	if err != nil {
 		return nil, err
 	}
@@ -129,10 +129,11 @@ func ParseNetlinkMessage(b []byte) ([]NetlinkMessage, error) {
 
 func netlinkMessageHeaderAndData(b []byte) (*NlMsghdr, []byte, int, error) {
 	h := (*NlMsghdr)(unsafe.Pointer(&b[0]))
-	if int(h.Len) < NLMSG_HDRLEN || int(h.Len) > len(b) {
+	l := nlmAlignOf(int(h.Len))
+	if int(h.Len) < NLMSG_HDRLEN || l > len(b) {
 		return nil, nil, 0, EINVAL
 	}
-	return h, b[NLMSG_HDRLEN:], nlmAlignOf(int(h.Len)), nil
+	return h, b[NLMSG_HDRLEN:], l, nil
 }
 
 // NetlinkRouteAttr represents a netlink route attribute.

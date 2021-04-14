@@ -1,0 +1,396 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file contains rules to decompose [u]int64 types on 32-bit
+// architectures. These rules work together with the decomposeBuiltIn
+// pass which handles phis of these typ.
+
+(Int64Hi (Int64Make hi _)) => hi
+(Int64Lo (Int64Make _ lo)) => lo
+
+(Load <t> ptr mem) && is64BitInt(t) && !config.BigEndian && t.IsSigned() =>
+	(Int64Make
+		(Load <typ.Int32> (OffPtr <typ.Int32Ptr> [4] ptr) mem)
+		(Load <typ.UInt32> ptr mem))
+
+(Load <t> ptr mem) && is64BitInt(t) && !config.BigEndian && !t.IsSigned() =>
+	(Int64Make
+		(Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem)
+		(Load <typ.UInt32> ptr mem))
+
+(Load <t> ptr mem) && is64BitInt(t) && config.BigEndian && t.IsSigned() =>
+	(Int64Make
+		(Load <typ.Int32> ptr mem)
+		(Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem))
+
+(Load <t> ptr mem) && is64BitInt(t) && config.BigEndian && !t.IsSigned() =>
+	(Int64Make
+		(Load <typ.UInt32> ptr mem)
+		(Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem))
+
+(Store {t} dst (Int64Make hi lo) mem) && t.Size() == 8 && !config.BigEndian =>
+	(Store {hi.Type}
+		(OffPtr <hi.Type.PtrTo()> [4] dst)
+		hi
+		(Store {lo.Type} dst lo mem))
+
+(Store {t} dst (Int64Make hi lo) mem) && t.Size() == 8 && config.BigEndian =>
+	(Store {lo.Type}
+		(OffPtr <lo.Type.PtrTo()> [4] dst)
+		lo
+		(Store {hi.Type} dst hi mem))
+
+// These are not enabled during decomposeBuiltin if late call expansion, but they are always enabled for softFloat
+(Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin") =>
+  (Int64Make
+    (Arg <typ.Int32> {n} [off+4])
+    (Arg <typ.UInt32> {n} [off]))
+(Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin")  =>
+  (Int64Make
+    (Arg <typ.UInt32> {n} [off+4])
+    (Arg <typ.UInt32> {n} [off]))
+
+(Arg {n} [off]) && is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin") =>
+  (Int64Make
+    (Arg <typ.Int32> {n} [off])
+    (Arg <typ.UInt32> {n} [off+4]))
+(Arg {n} [off]) && is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin") =>
+  (Int64Make
+    (Arg <typ.UInt32> {n} [off])
+    (Arg <typ.UInt32> {n} [off+4]))
+
+(Add64 x y) =>
+	(Int64Make
+		(Add32withcarry <typ.Int32>
+			(Int64Hi x)
+			(Int64Hi y)
+			(Select1 <types.TypeFlags> (Add32carry (Int64Lo x) (Int64Lo y))))
+		(Select0 <typ.UInt32> (Add32carry (Int64Lo x) (Int64Lo y))))
+
+(Sub64 x y) =>
+	(Int64Make
+		(Sub32withcarry <typ.Int32>
+			(Int64Hi x)
+			(Int64Hi y)
+			(Select1 <types.TypeFlags> (Sub32carry (Int64Lo x) (Int64Lo y))))
+		(Select0 <typ.UInt32> (Sub32carry (Int64Lo x) (Int64Lo y))))
+
+(Mul64 x y) =>
+	(Int64Make
+		(Add32 <typ.UInt32>
+			(Mul32 <typ.UInt32> (Int64Lo x) (Int64Hi y))
+			(Add32 <typ.UInt32>
+				(Mul32 <typ.UInt32> (Int64Hi x) (Int64Lo y))
+				(Select0 <typ.UInt32> (Mul32uhilo (Int64Lo x) (Int64Lo y)))))
+		(Select1 <typ.UInt32> (Mul32uhilo (Int64Lo x) (Int64Lo y))))
+
+(And64 x y) =>
+	(Int64Make
+		(And32 <typ.UInt32> (Int64Hi x) (Int64Hi y))
+		(And32 <typ.UInt32> (Int64Lo x) (Int64Lo y)))
+
+(Or64 x y) =>
+	(Int64Make
+		(Or32 <typ.UInt32> (Int64Hi x) (Int64Hi y))
+		(Or32 <typ.UInt32> (Int64Lo x) (Int64Lo y)))
+
+(Xor64 x y) =>
+	(Int64Make
+		(Xor32 <typ.UInt32> (Int64Hi x) (Int64Hi y))
+		(Xor32 <typ.UInt32> (Int64Lo x) (Int64Lo y)))
+
+(Neg64 <t> x) => (Sub64 (Const64 <t> [0]) x)
+
+(Com64 x) =>
+	(Int64Make
+		(Com32 <typ.UInt32> (Int64Hi x))
+		(Com32 <typ.UInt32> (Int64Lo x)))
+
+// Sadly, just because we know that x is non-zero,
+// we don't know whether either component is,
+// so just treat Ctz64NonZero the same as Ctz64.
+(Ctz64NonZero ...) => (Ctz64 ...)
+
+(Ctz64 x) =>
+	(Add32 <typ.UInt32>
+		(Ctz32 <typ.UInt32> (Int64Lo x))
+		(And32 <typ.UInt32>
+			(Com32 <typ.UInt32> (Zeromask (Int64Lo x)))
+			(Ctz32 <typ.UInt32> (Int64Hi x))))
+
+(BitLen64 x) =>
+	(Add32 <typ.Int>
+		(BitLen32 <typ.Int> (Int64Hi x))
+		(BitLen32 <typ.Int>
+			(Or32 <typ.UInt32>
+				(Int64Lo x)
+				(Zeromask (Int64Hi x)))))
+
+(Bswap64 x) =>
+	(Int64Make
+		(Bswap32 <typ.UInt32> (Int64Lo x))
+		(Bswap32 <typ.UInt32> (Int64Hi x)))
+
+(SignExt32to64 x) => (Int64Make (Signmask x) x)
+(SignExt16to64 x) => (SignExt32to64 (SignExt16to32 x))
+(SignExt8to64 x) => (SignExt32to64 (SignExt8to32 x))
+
+(ZeroExt32to64 x) => (Int64Make (Const32 <typ.UInt32> [0]) x)
+(ZeroExt16to64 x) => (ZeroExt32to64 (ZeroExt16to32 x))
+(ZeroExt8to64 x) => (ZeroExt32to64 (ZeroExt8to32 x))
+
+(Trunc64to32 (Int64Make _ lo)) => lo
+(Trunc64to16 (Int64Make _ lo)) => (Trunc32to16 lo)
+(Trunc64to8 (Int64Make _ lo)) => (Trunc32to8 lo)
+// Most general
+(Trunc64to32 x) => (Int64Lo x)
+(Trunc64to16 x) => (Trunc32to16 (Int64Lo x))
+(Trunc64to8 x) => (Trunc32to8 (Int64Lo x))
+
+(Lsh32x64 _ (Int64Make (Const32 [c]) _)) && c != 0 => (Const32 [0])
+(Rsh32x64 x (Int64Make (Const32 [c]) _)) && c != 0 => (Signmask x)
+(Rsh32Ux64 _ (Int64Make (Const32 [c]) _)) && c != 0 => (Const32 [0])
+(Lsh16x64 _ (Int64Make (Const32 [c]) _)) && c != 0 => (Const32 [0])
+(Rsh16x64 x (Int64Make (Const32 [c]) _)) && c != 0 => (Signmask (SignExt16to32 x))
+(Rsh16Ux64 _ (Int64Make (Const32 [c]) _)) && c != 0 => (Const32 [0])
+(Lsh8x64 _ (Int64Make (Const32 [c]) _)) && c != 0 => (Const32 [0])
+(Rsh8x64 x (Int64Make (Const32 [c]) _)) && c != 0 => (Signmask (SignExt8to32 x))
+(Rsh8Ux64 _ (Int64Make (Const32 [c]) _)) && c != 0 => (Const32 [0])
+
+(Lsh32x64 [c] x (Int64Make (Const32 [0]) lo)) => (Lsh32x32 [c] x lo)
+(Rsh32x64 [c] x (Int64Make (Const32 [0]) lo)) => (Rsh32x32 [c] x lo)
+(Rsh32Ux64 [c] x (Int64Make (Const32 [0]) lo)) => (Rsh32Ux32 [c] x lo)
+(Lsh16x64 [c] x (Int64Make (Const32 [0]) lo)) => (Lsh16x32 [c] x lo)
+(Rsh16x64 [c] x (Int64Make (Const32 [0]) lo)) => (Rsh16x32 [c] x lo)
+(Rsh16Ux64 [c] x (Int64Make (Const32 [0]) lo)) => (Rsh16Ux32 [c] x lo)
+(Lsh8x64 [c] x (Int64Make (Const32 [0]) lo)) => (Lsh8x32 [c] x lo)
+(Rsh8x64 [c] x (Int64Make (Const32 [0]) lo)) => (Rsh8x32 [c] x lo)
+(Rsh8Ux64 [c] x (Int64Make (Const32 [0]) lo)) => (Rsh8Ux32 [c] x lo)
+
+(Lsh64x64 _ (Int64Make (Const32 [c]) _)) && c != 0 => (Const64 [0])
+(Rsh64x64 x (Int64Make (Const32 [c]) _)) && c != 0 => (Int64Make (Signmask (Int64Hi x)) (Signmask (Int64Hi x)))
+(Rsh64Ux64 _ (Int64Make (Const32 [c]) _)) && c != 0 => (Const64 [0])
+
+(Lsh64x64 [c] x (Int64Make (Const32 [0]) lo)) => (Lsh64x32 [c] x lo)
+(Rsh64x64 [c] x (Int64Make (Const32 [0]) lo)) => (Rsh64x32 [c] x lo)
+(Rsh64Ux64 [c] x (Int64Make (Const32 [0]) lo)) => (Rsh64Ux32 [c] x lo)
+
+// turn x64 non-constant shifts to x32 shifts
+// if high 32-bit of the shift is nonzero, make a huge shift
+(Lsh64x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+       (Lsh64x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+(Rsh64x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+       (Rsh64x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+(Rsh64Ux64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+       (Rsh64Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+(Lsh32x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+       (Lsh32x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+(Rsh32x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+       (Rsh32x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+(Rsh32Ux64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+       (Rsh32Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+(Lsh16x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+       (Lsh16x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+(Rsh16x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+       (Rsh16x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+(Rsh16Ux64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+       (Rsh16Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+(Lsh8x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+       (Lsh8x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+(Rsh8x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+       (Rsh8x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+(Rsh8Ux64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+       (Rsh8Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+
+// Most general
+(Lsh64x64 x y)  => (Lsh64x32  x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Rsh64x64 x y)  => (Rsh64x32  x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Rsh64Ux64 x y) => (Rsh64Ux32 x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Lsh32x64 x y)  => (Lsh32x32  x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Rsh32x64 x y)  => (Rsh32x32  x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Rsh32Ux64 x y) => (Rsh32Ux32 x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Lsh16x64 x y)  => (Lsh16x32  x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Rsh16x64 x y)  => (Rsh16x32  x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Rsh16Ux64 x y) => (Rsh16Ux32 x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Lsh8x64 x y)   => (Lsh8x32   x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Rsh8x64 x y)   => (Rsh8x32   x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Rsh8Ux64 x y)  => (Rsh8Ux32  x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+
+// Clean up constants a little
+(Or32 <typ.UInt32> (Zeromask (Const32 [c])) y) && c == 0 => y
+(Or32 <typ.UInt32> (Zeromask (Const32 [c])) y) && c != 0 => (Const32 <typ.UInt32> [-1])
+
+// 64x left shift
+// result.hi = hi<<s | lo>>(32-s) | lo<<(s-32) // >> is unsigned, large shifts result 0
+// result.lo = lo<<s
+(Lsh64x32 x s) =>
+	(Int64Make
+		(Or32 <typ.UInt32>
+			(Or32 <typ.UInt32>
+				(Lsh32x32 <typ.UInt32> (Int64Hi x) s)
+				(Rsh32Ux32 <typ.UInt32>
+					(Int64Lo x)
+					(Sub32 <typ.UInt32> (Const32 <typ.UInt32> [32]) s)))
+			(Lsh32x32 <typ.UInt32>
+				(Int64Lo x)
+				(Sub32 <typ.UInt32> s (Const32 <typ.UInt32> [32]))))
+		(Lsh32x32 <typ.UInt32> (Int64Lo x) s))
+(Lsh64x16 x s) =>
+	(Int64Make
+		(Or32 <typ.UInt32>
+			(Or32 <typ.UInt32>
+				(Lsh32x16 <typ.UInt32> (Int64Hi x) s)
+				(Rsh32Ux16 <typ.UInt32>
+					(Int64Lo x)
+					(Sub16 <typ.UInt16> (Const16 <typ.UInt16> [32]) s)))
+			(Lsh32x16 <typ.UInt32>
+				(Int64Lo x)
+				(Sub16 <typ.UInt16> s (Const16 <typ.UInt16> [32]))))
+		(Lsh32x16 <typ.UInt32> (Int64Lo x) s))
+(Lsh64x8 x s) =>
+	(Int64Make
+		(Or32 <typ.UInt32>
+			(Or32 <typ.UInt32>
+				(Lsh32x8 <typ.UInt32> (Int64Hi x) s)
+				(Rsh32Ux8 <typ.UInt32>
+					(Int64Lo x)
+					(Sub8 <typ.UInt8> (Const8 <typ.UInt8> [32]) s)))
+			(Lsh32x8 <typ.UInt32>
+				(Int64Lo x)
+				(Sub8 <typ.UInt8> s (Const8 <typ.UInt8> [32]))))
+		(Lsh32x8 <typ.UInt32> (Int64Lo x) s))
+
+// 64x unsigned right shift
+// result.hi = hi>>s
+// result.lo = lo>>s | hi<<(32-s) | hi>>(s-32) // >> is unsigned, large shifts result 0
+(Rsh64Ux32 x s) =>
+	(Int64Make
+		(Rsh32Ux32 <typ.UInt32> (Int64Hi x) s)
+		(Or32 <typ.UInt32>
+			(Or32 <typ.UInt32>
+				(Rsh32Ux32 <typ.UInt32> (Int64Lo x) s)
+				(Lsh32x32 <typ.UInt32>
+					(Int64Hi x)
+					(Sub32 <typ.UInt32> (Const32 <typ.UInt32> [32]) s)))
+			(Rsh32Ux32 <typ.UInt32>
+				(Int64Hi x)
+				(Sub32 <typ.UInt32> s (Const32 <typ.UInt32> [32])))))
+(Rsh64Ux16 x s) =>
+	(Int64Make
+		(Rsh32Ux16 <typ.UInt32> (Int64Hi x) s)
+		(Or32 <typ.UInt32>
+			(Or32 <typ.UInt32>
+				(Rsh32Ux16 <typ.UInt32> (Int64Lo x) s)
+				(Lsh32x16 <typ.UInt32>
+					(Int64Hi x)
+					(Sub16 <typ.UInt16> (Const16 <typ.UInt16> [32]) s)))
+			(Rsh32Ux16 <typ.UInt32>
+				(Int64Hi x)
+				(Sub16 <typ.UInt16> s (Const16 <typ.UInt16> [32])))))
+(Rsh64Ux8 x s) =>
+	(Int64Make
+		(Rsh32Ux8 <typ.UInt32> (Int64Hi x) s)
+		(Or32 <typ.UInt32>
+			(Or32 <typ.UInt32>
+				(Rsh32Ux8 <typ.UInt32> (Int64Lo x) s)
+				(Lsh32x8 <typ.UInt32>
+					(Int64Hi x)
+					(Sub8 <typ.UInt8> (Const8 <typ.UInt8> [32]) s)))
+			(Rsh32Ux8 <typ.UInt32>
+				(Int64Hi x)
+				(Sub8 <typ.UInt8> s (Const8 <typ.UInt8> [32])))))
+
+// 64x signed right shift
+// result.hi = hi>>s
+// result.lo = lo>>s | hi<<(32-s) | (hi>>(s-32))&zeromask(s>>5) // hi>>(s-32) is signed, large shifts result 0/-1
+(Rsh64x32 x s) =>
+	(Int64Make
+		(Rsh32x32 <typ.UInt32> (Int64Hi x) s)
+		(Or32 <typ.UInt32>
+			(Or32 <typ.UInt32>
+				(Rsh32Ux32 <typ.UInt32> (Int64Lo x) s)
+				(Lsh32x32 <typ.UInt32>
+					(Int64Hi x)
+					(Sub32 <typ.UInt32> (Const32 <typ.UInt32> [32]) s)))
+			(And32 <typ.UInt32>
+				(Rsh32x32 <typ.UInt32>
+					(Int64Hi x)
+					(Sub32 <typ.UInt32> s (Const32 <typ.UInt32> [32])))
+				(Zeromask
+					(Rsh32Ux32 <typ.UInt32> s (Const32 <typ.UInt32> [5]))))))
+(Rsh64x16 x s) =>
+	(Int64Make
+		(Rsh32x16 <typ.UInt32> (Int64Hi x) s)
+		(Or32 <typ.UInt32>
+			(Or32 <typ.UInt32>
+				(Rsh32Ux16 <typ.UInt32> (Int64Lo x) s)
+				(Lsh32x16 <typ.UInt32>
+					(Int64Hi x)
+					(Sub16 <typ.UInt16> (Const16 <typ.UInt16> [32]) s)))
+			(And32 <typ.UInt32>
+				(Rsh32x16 <typ.UInt32>
+					(Int64Hi x)
+					(Sub16 <typ.UInt16> s (Const16 <typ.UInt16> [32])))
+				(Zeromask
+					(ZeroExt16to32
+						(Rsh16Ux32 <typ.UInt16> s (Const32 <typ.UInt32> [5])))))))
+(Rsh64x8 x s) =>
+	(Int64Make
+		(Rsh32x8 <typ.UInt32> (Int64Hi x) s)
+		(Or32 <typ.UInt32>
+			(Or32 <typ.UInt32>
+				(Rsh32Ux8 <typ.UInt32> (Int64Lo x) s)
+				(Lsh32x8 <typ.UInt32>
+					(Int64Hi x)
+					(Sub8 <typ.UInt8> (Const8 <typ.UInt8> [32]) s)))
+			(And32 <typ.UInt32>
+				(Rsh32x8 <typ.UInt32>
+					(Int64Hi x)
+					(Sub8 <typ.UInt8> s (Const8 <typ.UInt8> [32])))
+				(Zeromask
+					(ZeroExt8to32
+						(Rsh8Ux32 <typ.UInt8> s (Const32 <typ.UInt32> [5])))))))
+
+(Const64 <t> [c]) && t.IsSigned() =>
+	(Int64Make (Const32 <typ.Int32> [int32(c>>32)]) (Const32 <typ.UInt32> [int32(c)]))
+(Const64 <t> [c]) && !t.IsSigned() =>
+	(Int64Make (Const32 <typ.UInt32> [int32(c>>32)]) (Const32 <typ.UInt32> [int32(c)]))
+
+(Eq64 x y) =>
+	(AndB
+		(Eq32 (Int64Hi x) (Int64Hi y))
+		(Eq32 (Int64Lo x) (Int64Lo y)))
+
+(Neq64 x y) =>
+	(OrB
+		(Neq32 (Int64Hi x) (Int64Hi y))
+		(Neq32 (Int64Lo x) (Int64Lo y)))
+
+(Less64U x y) =>
+	(OrB
+		(Less32U (Int64Hi x) (Int64Hi y))
+		(AndB
+			(Eq32 (Int64Hi x) (Int64Hi y))
+			(Less32U (Int64Lo x) (Int64Lo y))))
+
+(Leq64U x y) =>
+	(OrB
+		(Less32U (Int64Hi x) (Int64Hi y))
+		(AndB
+			(Eq32 (Int64Hi x) (Int64Hi y))
+			(Leq32U (Int64Lo x) (Int64Lo y))))
+
+(Less64 x y) =>
+	(OrB
+		(Less32 (Int64Hi x) (Int64Hi y))
+		(AndB
+			(Eq32 (Int64Hi x) (Int64Hi y))
+			(Less32U (Int64Lo x) (Int64Lo y))))
+
+(Leq64 x y) =>
+	(OrB
+		(Less32 (Int64Hi x) (Int64Hi y))
+		(AndB
+			(Eq32 (Int64Hi x) (Int64Hi y))
+			(Leq32U (Int64Lo x) (Int64Lo y))))

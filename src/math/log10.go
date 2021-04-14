@@ -18,5 +18,10 @@ func Log2(x float64) float64
 
 func log2(x float64) float64 {
 	frac, exp := Frexp(x)
+	// Make sure exact powers of two give an exact answer.
+	// Don't depend on Log(0.5)*(1/Ln2)+exp being exactly exp-1.
+	if frac == 0.5 {
+		return float64(exp - 1)
+	}
 	return Log(frac)*(1/Ln2) + float64(exp)
 }

@@ -1,0 +1,79 @@
+# When there is no rationale, 'go get' should print a hard-coded message.
+go get -d example.com/retract/rationale@v1.0.0-empty
+stderr '^go: warning: example.com/retract/rationale@v1.0.0-empty: retracted by module author$'
+
+# 'go list' should print the same hard-coded message.
+go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale
+stdout '^\[retracted by module author\]$'
+
+
+# When there is a multi-line message, 'go get' should print the first line.
+go get -d example.com/retract/rationale@v1.0.0-multiline1
+stderr '^go: warning: example.com/retract/rationale@v1.0.0-multiline1: retracted by module author: short description$'
+! stderr 'detail'
+
+# 'go list' should show the full message.
+go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale
+cmp stdout multiline
+
+# 'go get' output should be the same whether the retraction appears at top-level
+# or in a block.
+go get -d example.com/retract/rationale@v1.0.0-multiline2
+stderr '^go: warning: example.com/retract/rationale@v1.0.0-multiline2: retracted by module author: short description$'
+! stderr 'detail'
+
+# Same for 'go list'.
+go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale
+cmp stdout multiline
+
+
+# 'go get' should omit long messages.
+go get -d example.com/retract/rationale@v1.0.0-long
+stderr '^go: warning: example.com/retract/rationale@v1.0.0-long: retracted by module author: \(rationale omitted: too long\)'
+
+# 'go list' should show the full message.
+go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale
+stdout '^\[lo{500}ng\]$'
+
+
+# 'go get' should omit messages with unprintable characters.
+go get -d example.com/retract/rationale@v1.0.0-unprintable
+stderr '^go: warning: example.com/retract/rationale@v1.0.0-unprintable: retracted by module author: \(rationale omitted: contains non-printable characters\)'
+
+# 'go list' should show the full message.
+go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale
+stdout '^\[Ends with a BEL character. Beep!\x07\]$'
+
+
+# When there is a comment on a block, but not on individual retractions within
+# the block, the rationale should come from the block comment.
+go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale@v1.0.0-block
+stdout '^\[block comment\]$'
+go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale@v1.0.0-blockwithcomment
+stdout '^\[inner comment\]$'
+
+
+# When a version is covered by multiple retractions, all retractions should
+# be reported in the order they appear in the file.
+go list -m -retracted -f '{{range .Retracted}}{{.}},{{end}}' example.com/retract/rationale@v1.0.0-order
+stdout '^degenerate range,single version,$'
+go list -m -retracted -f '{{range .Retracted}}{{.}},{{end}}' example.com/retract/rationale@v1.0.1-order
+stdout '^single version,degenerate range,$'
+
+# 'go get' will only report the first retraction to avoid being too verbose.
+go get -d example.com/retract/rationale@v1.0.0-order
+stderr '^go: warning: example.com/retract/rationale@v1.0.0-order: retracted by module author: degenerate range$'
+go get -d example.com/retract/rationale@v1.0.1-order
+stderr '^go: warning: example.com/retract/rationale@v1.0.1-order: retracted by module author: single version$'
+
+-- go.mod --
+module m
+
+go 1.14
+
+-- multiline --
+[short description
+more
+
+detail
+suffix]

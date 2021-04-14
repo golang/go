@@ -15,8 +15,14 @@ package syscall
 
 /*
 #define KERNEL
+// These defines ensure that builds done on newer versions of Solaris are
+// backwards-compatible with older versions of Solaris and
+// OpenSolaris-based derivatives.
+#define __USE_SUNOS_SOCKETS__          // msghdr
+#define __USE_LEGACY_PROTOTYPES__      // iovec
 #include <dirent.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <signal.h>
 #include <termios.h>
 #include <stdio.h>
@@ -69,6 +75,7 @@ const (
 	sizeofInt      = C.sizeof_int
 	sizeofLong     = C.sizeof_long
 	sizeofLongLong = C.sizeof_longlong
+	PathMax        = C.PATH_MAX
 )
 
 // Basic types
@@ -94,6 +101,8 @@ type Rusage C.struct_rusage
 
 type Rlimit C.struct_rlimit
 
+type _Pid_t C.pid_t
+
 type _Gid_t C.gid_t
 
 // Files
@@ -113,6 +122,8 @@ const ( // Directory mode bits
 	S_IRUSR  = C.S_IRUSR
 	S_IWUSR  = C.S_IWUSR
 	S_IXUSR  = C.S_IXUSR
+	S_IRWXG  = C.S_IRWXG
+	S_IRWXO  = C.S_IRWXO
 )
 
 type Stat_t C.struct_stat
@@ -216,6 +227,12 @@ type BpfInsn C.struct_bpf_insn
 type BpfTimeval C.struct_bpf_timeval
 
 type BpfHdr C.struct_bpf_hdr
+
+// Misc
+
+const (
+	_AT_FDCWD = C.AT_FDCWD
+)
 
 // Terminal handling
 

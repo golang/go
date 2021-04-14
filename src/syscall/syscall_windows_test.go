@@ -5,7 +5,6 @@
 package syscall_test
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -13,7 +12,7 @@ import (
 )
 
 func TestWin32finddata(t *testing.T) {
-	dir, err := ioutil.TempDir("", "go-build")
+	dir, err := os.MkdirTemp("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}
@@ -69,4 +68,10 @@ func ExampleLoadLibrary() {
 	minor := uint8(r >> 8)
 	build := uint16(r >> 16)
 	print("windows version ", major, ".", minor, " (Build ", build, ")\n")
+}
+
+func TestTOKEN_ALL_ACCESS(t *testing.T) {
+	if syscall.TOKEN_ALL_ACCESS != 0xF01FF {
+		t.Errorf("TOKEN_ALL_ACCESS = %x, want 0xF01FF", syscall.TOKEN_ALL_ACCESS)
+	}
 }

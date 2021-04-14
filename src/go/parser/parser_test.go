@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"os"
+	"io/fs"
 	"strings"
 	"testing"
 )
@@ -40,7 +40,23 @@ func nameFilter(filename string) bool {
 	return false
 }
 
-func dirFilter(f os.FileInfo) bool { return nameFilter(f.Name()) }
+func dirFilter(f fs.FileInfo) bool { return nameFilter(f.Name()) }
+
+func TestParseFile(t *testing.T) {
+	src := "package p\nvar _=s[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]"
+	_, err := ParseFile(token.NewFileSet(), "", src, 0)
+	if err == nil {
+		t.Errorf("ParseFile(%s) succeeded unexpectedly", src)
+	}
+}
+
+func TestParseExprFrom(t *testing.T) {
+	src := "s[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]"
+	_, err := ParseExprFrom(token.NewFileSet(), "", src, 0)
+	if err == nil {
+		t.Errorf("ParseExprFrom(%s) succeeded unexpectedly", src)
+	}
+}
 
 func TestParseDir(t *testing.T) {
 	path := "."
@@ -63,6 +79,14 @@ func TestParseDir(t *testing.T) {
 		if !nameFilter(filename) {
 			t.Errorf("unexpected package file: %s", filename)
 		}
+	}
+}
+
+func TestIssue42951(t *testing.T) {
+	path := "./testdata/issue42951"
+	_, err := ParseDir(token.NewFileSet(), path, nil, 0)
+	if err != nil {
+		t.Errorf("ParseDir(%s): %v", path, err)
 	}
 }
 
@@ -92,8 +116,15 @@ func TestParseExpr(t *testing.T) {
 
 	// an invalid expression
 	src = "a + *"
-	if _, err := ParseExpr(src); err == nil {
+	x, err = ParseExpr(src)
+	if err == nil {
 		t.Errorf("ParseExpr(%q): got no error", src)
+	}
+	if x == nil {
+		t.Errorf("ParseExpr(%q): got no (partial) result", src)
+	}
+	if _, ok := x.(*ast.BinaryExpr); !ok {
+		t.Errorf("ParseExpr(%q): got %T, want *ast.BinaryExpr", src, x)
 	}
 
 	// a valid expression followed by extra tokens is invalid
@@ -443,5 +474,106 @@ type T struct {
 	checkFieldComments(t, f, "T.F2", "// F2 lead// comment", "// F2 line comment")
 	if getField(f, "T.f3") != nil {
 		t.Error("not expected to find T.f3")
+	}
+}
+
+// TestIssue9979 verifies that empty statements are contained within their enclosing blocks.
+func TestIssue9979(t *testing.T) {
+	for _, src := range []string{
+		"package p; func f() {;}",
+		"package p; func f() {L:}",
+		"package p; func f() {L:;}",
+		"package p; func f() {L:\n}",
+		"package p; func f() {L:\n;}",
+		"package p; func f() { ; }",
+		"package p; func f() { L: }",
+		"package p; func f() { L: ; }",
+		"package p; func f() { L: \n}",
+		"package p; func f() { L: \n; }",
+	} {
+		fset := token.NewFileSet()
+		f, err := ParseFile(fset, "", src, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var pos, end token.Pos
+		ast.Inspect(f, func(x ast.Node) bool {
+			switch s := x.(type) {
+			case *ast.BlockStmt:
+				pos, end = s.Pos()+1, s.End()-1 // exclude "{", "}"
+			case *ast.LabeledStmt:
+				pos, end = s.Pos()+2, s.End() // exclude "L:"
+			case *ast.EmptyStmt:
+				// check containment
+				if s.Pos() < pos || s.End() > end {
+					t.Errorf("%s: %T[%d, %d] not inside [%d, %d]", src, s, s.Pos(), s.End(), pos, end)
+				}
+				// check semicolon
+				offs := fset.Position(s.Pos()).Offset
+				if ch := src[offs]; ch != ';' != s.Implicit {
+					want := "want ';'"
+					if s.Implicit {
+						want = "but ';' is implicit"
+					}
+					t.Errorf("%s: found %q at offset %d; %s", src, ch, offs, want)
+				}
+			}
+			return true
+		})
+	}
+}
+
+// TestIncompleteSelection ensures that an incomplete selector
+// expression is parsed as a (blank) *ast.SelectorExpr, not a
+// *ast.BadExpr.
+func TestIncompleteSelection(t *testing.T) {
+	for _, src := range []string{
+		"package p; var _ = fmt.",             // at EOF
+		"package p; var _ = fmt.\ntype X int", // not at EOF
+	} {
+		fset := token.NewFileSet()
+		f, err := ParseFile(fset, "", src, 0)
+		if err == nil {
+			t.Errorf("ParseFile(%s) succeeded unexpectedly", src)
+			continue
+		}
+
+		const wantErr = "expected selector or type assertion"
+		if !strings.Contains(err.Error(), wantErr) {
+			t.Errorf("ParseFile returned wrong error %q, want %q", err, wantErr)
+		}
+
+		var sel *ast.SelectorExpr
+		ast.Inspect(f, func(n ast.Node) bool {
+			if n, ok := n.(*ast.SelectorExpr); ok {
+				sel = n
+			}
+			return true
+		})
+		if sel == nil {
+			t.Error("found no *ast.SelectorExpr")
+			continue
+		}
+		const wantSel = "&{fmt _}"
+		if fmt.Sprint(sel) != wantSel {
+			t.Errorf("found selector %s, want %s", sel, wantSel)
+			continue
+		}
+	}
+}
+
+func TestLastLineComment(t *testing.T) {
+	const src = `package main
+type x int // comment
+`
+	fset := token.NewFileSet()
+	f, err := ParseFile(fset, "", src, ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+	comment := f.Decls[0].(*ast.GenDecl).Specs[0].(*ast.TypeSpec).Comment.List[0].Text
+	if comment != "// comment" {
+		t.Errorf("got %q, want %q", comment, "// comment")
 	}
 }

@@ -1,0 +1,10 @@
+env GO111MODULE=on
+
+[!net] skip
+
+env GOPROXY=https://proxy.golang.org,direct
+env GOSUMDB=off
+
+go get -x -v -d golang.org/x/tools/cmd/goimports
+stderr '# get https://proxy.golang.org/golang.org/x/tools/@v/list'
+! stderr '# get https://golang.org'

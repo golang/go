@@ -11,7 +11,6 @@ import (
 	"go/token"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 	"text/tabwriter"
 	"unicode"
@@ -56,19 +55,21 @@ type printer struct {
 	fset *token.FileSet
 
 	// Current state
-	output      []byte       // raw printer result
-	indent      int          // current indentation
-	mode        pmode        // current printer mode
-	impliedSemi bool         // if set, a linebreak implies a semicolon
-	lastTok     token.Token  // last token printed (token.ILLEGAL if it's whitespace)
-	prevOpen    token.Token  // previous non-brace "open" token (, [, or token.ILLEGAL
-	wsbuf       []whiteSpace // delayed white space
+	output       []byte       // raw printer result
+	indent       int          // current indentation
+	level        int          // level == 0: outside composite literal; level > 0: inside composite literal
+	mode         pmode        // current printer mode
+	endAlignment bool         // if set, terminate alignment immediately
+	impliedSemi  bool         // if set, a linebreak implies a semicolon
+	lastTok      token.Token  // last token printed (token.ILLEGAL if it's whitespace)
+	prevOpen     token.Token  // previous non-brace "open" token (, [, or token.ILLEGAL
+	wsbuf        []whiteSpace // delayed white space
 
 	// Positions
 	// The out position differs from the pos position when the result
 	// formatting differs from the source formatting (in the amount of
 	// white space). If there's a difference and SourcePos is set in
-	// ConfigMode, //line comments are used in the output to restore
+	// ConfigMode, //line directives are used in the output to restore
 	// original source positions for a reader.
 	pos     token.Position // current position in AST (source) space
 	out     token.Position // current position in output space
@@ -144,7 +145,7 @@ func (p *printer) nextComment() {
 	p.commentOffset = infinity
 }
 
-// commentBefore returns true iff the current comment group occurs
+// commentBefore reports whether the current comment group occurs
 // before the next position in the source code and printing it does
 // not introduce implicit semicolons.
 //
@@ -191,30 +192,31 @@ func (p *printer) linesFrom(line int) int {
 
 func (p *printer) posFor(pos token.Pos) token.Position {
 	// not used frequently enough to cache entire token.Position
-	return p.fset.Position(pos)
+	return p.fset.PositionFor(pos, false /* absolute position */)
 }
 
 func (p *printer) lineFor(pos token.Pos) int {
 	if pos != p.cachedPos {
 		p.cachedPos = pos
-		p.cachedLine = p.fset.Position(pos).Line
+		p.cachedLine = p.fset.PositionFor(pos, false /* absolute position */).Line
 	}
 	return p.cachedLine
 }
 
-// atLineBegin emits a //line comment if necessary and prints indentation.
-func (p *printer) atLineBegin(pos token.Position) {
-	// write a //line comment if necessary
-	if p.Config.Mode&SourcePos != 0 && pos.IsValid() && (p.out.Line != pos.Line || p.out.Filename != pos.Filename) {
+// writeLineDirective writes a //line directive if necessary.
+func (p *printer) writeLineDirective(pos token.Position) {
+	if pos.IsValid() && (p.out.Line != pos.Line || p.out.Filename != pos.Filename) {
 		p.output = append(p.output, tabwriter.Escape) // protect '\n' in //line from tabwriter interpretation
 		p.output = append(p.output, fmt.Sprintf("//line %s:%d\n", pos.Filename, pos.Line)...)
 		p.output = append(p.output, tabwriter.Escape)
-		// p.out must match the //line comment
+		// p.out must match the //line directive
 		p.out.Filename = pos.Filename
 		p.out.Line = pos.Line
 	}
+}
 
-	// write indentation
+// writeIndent writes indentation.
+func (p *printer) writeIndent() {
 	// use "hard" htabs - indentation columns
 	// must not be discarded by the tabwriter
 	n := p.Config.Indent + p.indent // include base indentation
@@ -229,9 +231,25 @@ func (p *printer) atLineBegin(pos token.Position) {
 }
 
 // writeByte writes ch n times to p.output and updates p.pos.
+// Only used to write formatting (white space) characters.
 func (p *printer) writeByte(ch byte, n int) {
+	if p.endAlignment {
+		// Ignore any alignment control character;
+		// and at the end of the line, break with
+		// a formfeed to indicate termination of
+		// existing columns.
+		switch ch {
+		case '\t', '\v':
+			ch = ' '
+		case '\n', '\f':
+			ch = '\f'
+			p.endAlignment = false
+		}
+	}
+
 	if p.out.Column == 1 {
-		p.atLineBegin(p.pos)
+		// no need to write line directives before white space
+		p.writeIndent()
 	}
 
 	for i := 0; i < n; i++ {
@@ -264,13 +282,16 @@ func (p *printer) writeByte(ch byte, n int) {
 //
 func (p *printer) writeString(pos token.Position, s string, isLit bool) {
 	if p.out.Column == 1 {
-		p.atLineBegin(pos)
+		if p.Config.Mode&SourcePos != 0 {
+			p.writeLineDirective(pos)
+		}
+		p.writeIndent()
 	}
 
 	if pos.IsValid() {
 		// update p.pos (if pos is invalid, continue with existing p.pos)
 		// Note: Must do this after handling line beginnings because
-		// atLineBegin updates p.pos if there's indentation, but p.pos
+		// writeIndent updates p.pos if there's indentation, but p.pos
 		// is the position of s.
 		p.pos = pos
 	}
@@ -292,10 +313,15 @@ func (p *printer) writeString(pos token.Position, s string, isLit bool) {
 	nlines := 0
 	var li int // index of last newline; valid if nlines > 0
 	for i := 0; i < len(s); i++ {
-		// Go tokens cannot contain '\f' - no need to look for it
-		if s[i] == '\n' {
+		// Raw string literals may contain any character except back quote (`).
+		if ch := s[i]; ch == '\n' || ch == '\f' {
+			// account for line break
 			nlines++
 			li = i
+			// A line break inside a literal will break whatever column
+			// formatting is in place; ignore any further alignment through
+			// the end of the line.
+			p.endAlignment = true
 		}
 	}
 	p.pos.Offset += len(s)
@@ -324,7 +350,7 @@ func (p *printer) writeString(pos token.Position, s string, isLit bool) {
 // after all pending comments, prev is the previous comment in
 // a group of comments (or nil), and tok is the next token.
 //
-func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *ast.Comment, tok token.Token) {
+func (p *printer) writeCommentPrefix(pos, next token.Position, prev *ast.Comment, tok token.Token) {
 	if len(p.output) == 0 {
 		// the comment is the first item to be printed - don't write any whitespace
 		return
@@ -615,24 +641,10 @@ func (p *printer) writeComment(comment *ast.Comment) {
 
 	const linePrefix = "//line "
 	if strings.HasPrefix(text, linePrefix) && (!pos.IsValid() || pos.Column == 1) {
-		// possibly a line directive
-		ldir := strings.TrimSpace(text[len(linePrefix):])
-		if i := strings.LastIndex(ldir, ":"); i >= 0 {
-			if line, err := strconv.Atoi(ldir[i+1:]); err == nil && line > 0 {
-				// The line directive we are about to print changed
-				// the Filename and Line number used for subsequent
-				// tokens. We have to update our AST-space position
-				// accordingly and suspend indentation temporarily.
-				indent := p.indent
-				p.indent = 0
-				defer func() {
-					p.pos.Filename = ldir[:i]
-					p.pos.Line = line
-					p.pos.Column = 1
-					p.indent = indent
-				}()
-			}
-		}
+		// Possibly a //-style line directive.
+		// Suspend indentation temporarily to keep line directive valid.
+		defer func(indent int) { p.indent = indent }(p.indent)
+		p.indent = 0
 	}
 
 	// shortcut common case of //-style comments
@@ -712,6 +724,16 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) (wroteNewline, dropped
 	return
 }
 
+// containsLinebreak reports whether the whitespace buffer contains any line breaks.
+func (p *printer) containsLinebreak() bool {
+	for _, ch := range p.wsbuf {
+		if ch == newline || ch == formfeed {
+			return true
+		}
+	}
+	return false
+}
+
 // intersperseComments consumes all comments that appear before the next token
 // tok and prints it together with the buffered whitespace (i.e., the whitespace
 // that needs to be written before the next token). A heuristic is used to mix
@@ -722,7 +744,7 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
 	var last *ast.Comment
 	for p.commentBefore(next) {
 		for _, c := range p.comment.List {
-			p.writeCommentPrefix(p.posFor(c.Pos()), next, last, c, tok)
+			p.writeCommentPrefix(p.posFor(c.Pos()), next, last, tok)
 			p.writeComment(c)
 			last = c
 		}
@@ -730,23 +752,35 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
 	}
 
 	if last != nil {
-		// if the last comment is a /*-style comment and the next item
+		// If the last comment is a /*-style comment and the next item
 		// follows on the same line but is not a comma, and not a "closing"
 		// token immediately following its corresponding "opening" token,
-		// add an extra blank for separation unless explicitly disabled
+		// add an extra separator unless explicitly disabled. Use a blank
+		// as separator unless we have pending linebreaks, they are not
+		// disabled, and we are outside a composite literal, in which case
+		// we want a linebreak (issue 15137).
+		// TODO(gri) This has become overly complicated. We should be able
+		// to track whether we're inside an expression or statement and
+		// use that information to decide more directly.
+		needsLinebreak := false
 		if p.mode&noExtraBlank == 0 &&
 			last.Text[1] == '*' && p.lineFor(last.Pos()) == next.Line &&
 			tok != token.COMMA &&
 			(tok != token.RPAREN || p.prevOpen == token.LPAREN) &&
 			(tok != token.RBRACK || p.prevOpen == token.LBRACK) {
-			p.writeByte(' ', 1)
+			if p.containsLinebreak() && p.mode&noExtraLinebreak == 0 && p.level == 0 {
+				needsLinebreak = true
+			} else {
+				p.writeByte(' ', 1)
+			}
 		}
-		// ensure that there is a line break after a //-style comment,
-		// before a closing '}' unless explicitly disabled, or at eof
-		needsLinebreak :=
-			last.Text[1] == '/' ||
-				tok == token.RBRACE && p.mode&noExtraLinebreak == 0 ||
-				tok == token.EOF
+		// Ensure that there is a line break after a //-style comment,
+		// before EOF, and before a closing '}' unless explicitly disabled.
+		if last.Text[1] == '/' ||
+			tok == token.EOF ||
+			tok == token.RBRACE && p.mode&noExtraLinebreak == 0 {
+			needsLinebreak = true
+		}
 		return p.writeCommentSuffix(needsLinebreak)
 	}
 
@@ -1014,6 +1048,28 @@ func getDoc(n ast.Node) *ast.CommentGroup {
 	return nil
 }
 
+func getLastComment(n ast.Node) *ast.CommentGroup {
+	switch n := n.(type) {
+	case *ast.Field:
+		return n.Comment
+	case *ast.ImportSpec:
+		return n.Comment
+	case *ast.ValueSpec:
+		return n.Comment
+	case *ast.TypeSpec:
+		return n.Comment
+	case *ast.GenDecl:
+		if len(n.Specs) > 0 {
+			return getLastComment(n.Specs[len(n.Specs)-1])
+		}
+	case *ast.File:
+		if len(n.Comments) > 0 {
+			return n.Comments[len(n.Comments)-1]
+		}
+	}
+	return nil
+}
+
 func (p *printer) printNode(node interface{}) error {
 	// unpack *CommentedNode, if any
 	var comments []*ast.CommentGroup
@@ -1036,6 +1092,11 @@ func (p *printer) printNode(node interface{}) error {
 		// of the comment appearance in the source code)
 		if doc := getDoc(n); doc != nil {
 			beg = doc.Pos()
+		}
+		if com := getLastComment(n); com != nil {
+			if e := com.End(); e > end {
+				end = e
+			}
 		}
 		// token.Pos values are global offsets, we can
 		// compare them directly
@@ -1178,7 +1239,9 @@ func (p *trimmer) Write(data []byte) (n int, err error) {
 			case '\n', '\f':
 				_, err = p.output.Write(data[m:n])
 				p.resetSpace()
-				_, err = p.output.Write(aNewline)
+				if err == nil {
+					_, err = p.output.Write(aNewline)
+				}
 			case tabwriter.Escape:
 				_, err = p.output.Write(data[m:n])
 				p.state = inEscape
@@ -1212,7 +1275,23 @@ const (
 	RawFormat Mode = 1 << iota // do not use a tabwriter; if set, UseSpaces is ignored
 	TabIndent                  // use tabs for indentation independent of UseSpaces
 	UseSpaces                  // use spaces instead of tabs for alignment
-	SourcePos                  // emit //line comments to preserve original source positions
+	SourcePos                  // emit //line directives to preserve original source positions
+)
+
+// The mode below is not included in printer's public API because
+// editing code text is deemed out of scope. Because this mode is
+// unexported, it's also possible to modify or remove it based on
+// the evolving needs of go/format and cmd/gofmt without breaking
+// users. See discussion in CL 240683.
+const (
+	// normalizeNumbers means to canonicalize number
+	// literal prefixes and exponents while printing.
+	//
+	// This value is known in and used by go/format and cmd/gofmt.
+	// It is currently more convenient and performant for those
+	// packages to apply number normalization during printing,
+	// rather than by modifying the AST in advance.
+	normalizeNumbers Mode = 1 << 30
 )
 
 // A Config node controls the output of Fprint.
@@ -1290,6 +1369,8 @@ func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{
 
 // Fprint "pretty-prints" an AST node to output.
 // It calls Config.Fprint with default settings.
+// Note that gofmt uses tabs for indentation but spaces for alignment;
+// use format.Node (package go/format) for output that matches gofmt.
 //
 func Fprint(output io.Writer, fset *token.FileSet, node interface{}) error {
 	return (&Config{Tabwidth: 8}).Fprint(output, fset, node)

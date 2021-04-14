@@ -1,0 +1,89 @@
+# Test to ensure runtime/debug.ReadBuildInfo parses
+# the modinfo embedded in a binary by the go tool
+# when module is enabled.
+env GO111MODULE=on
+
+cd x
+go mod edit -require=rsc.io/quote@v1.5.2
+go mod edit -replace=rsc.io/quote@v1.5.2=rsc.io/quote@v1.0.0
+go mod tidy # populate go.sum
+
+# Build a binary and ensure that it can output its own debug info.
+# The debug info should be accessible before main starts (golang.org/issue/29628).
+go build
+exec ./x$GOEXE
+stderr 'mod\s+x\s+\(devel\)'
+stderr 'dep\s+rsc.io/quote\s+v1.5.2\s+'
+stderr '=>\s+rsc.io/quote\s+v1.0.0\s+h1:'
+stderr 'Hello, world.'
+
+[short] skip
+
+# Build a binary that accesses its debug info by reading the binary directly
+# (rather than through debug.ReadBuildInfo).
+# The debug info should still be present (golang.org/issue/28753).
+cd unused
+go build
+exec ./unused$GOEXE
+
+-- x/go.mod --
+module x
+
+-- x/lib/lib.go --
+// Package lib accesses runtime/debug.modinfo before package main's init
+// functions have run.
+package lib
+
+import "runtime/debug"
+
+func init() {
+	m, ok := debug.ReadBuildInfo()
+	if !ok {
+		panic("failed debug.ReadBuildInfo")
+	}
+	println("mod", m.Main.Path, m.Main.Version)
+	for _, d := range m.Deps {
+		println("dep", d.Path, d.Version, d.Sum)
+		if r := d.Replace; r != nil {
+			println("=>", r.Path, r.Version, r.Sum)
+		}
+	}
+}
+
+-- x/main.go --
+package main
+
+import (
+	"rsc.io/quote"
+	_ "x/lib"
+)
+
+func main() {
+	println(quote.Hello())
+}
+
+-- x/unused/main.go --
+// The unused binary does not access runtime/debug.modinfo.
+package main
+
+import (
+	"bytes"
+	"encoding/hex"
+	"log"
+	"os"
+
+	_ "rsc.io/quote"
+)
+
+func main() {
+	b, err := os.ReadFile(os.Args[0])
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	infoStart, _ := hex.DecodeString("3077af0c9274080241e1c107e6d618e6")
+	if !bytes.Contains(b, infoStart) {
+		log.Fatal("infoStart not found in binary")
+	}
+	log.Println("ok")
+}

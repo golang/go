@@ -1,0 +1,40 @@
+env GO111MODULE=on
+
+# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
+# However, we should suggest 'go mod init' if we can find an alternate config file.
+cd $WORK/test/x
+! go list .
+stderr 'found .git/config in .*[/\\]test'
+stderr '\s*cd \.\. && go mod init'
+
+# The command we suggested should succeed.
+cd ..
+go mod init
+go list -m all
+stdout '^m$'
+
+# We should not suggest creating a go.mod file in $GOROOT, even though there may be a .git/config there.
+cd $GOROOT
+! go list .
+! stderr 'go mod init'
+
+# We should also not suggest creating a go.mod file in $GOROOT if its own
+# .git/config has been stripped away and we find one in a parent directory.
+# (https://golang.org/issue/34191)
+env GOROOT=$WORK/parent/goroot
+cd $GOROOT
+! go list .
+! stderr 'go mod init'
+
+cd $GOROOT/doc
+! go list .
+! stderr 'go mod init'
+
+-- $WORK/test/.git/config --
+-- $WORK/test/x/x.go --
+package x // import "m/x"
+-- $WORK/parent/.git/config --
+-- $WORK/parent/goroot/README --
+This directory isn't really a GOROOT, but let's pretend that it is.
+-- $WORK/parent/goroot/doc/README --
+This is a subdirectory of our fake GOROOT.

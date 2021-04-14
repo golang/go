@@ -1,0 +1,27 @@
+# Test that "go list" succeeds when given a directory in a replacement
+# module within the module cache.
+# Verifies golang.org/issue/29548
+
+# Populate go.sum and download dependencies.
+go get -d
+
+# Ensure v1.5.2 is also in the cache so we can list it.
+go mod download rsc.io/quote@v1.5.2
+
+! go list $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+stderr '^directory ..[/\\]pkg[/\\]mod[/\\]rsc.io[/\\]quote@v1.5.2 outside available modules$'
+
+go list $GOPATH/pkg/mod/rsc.io/quote@v1.5.1
+stdout 'rsc.io/quote'
+
+-- go.mod --
+module example.com/quoter
+
+require rsc.io/quote v1.5.2
+
+replace rsc.io/quote => rsc.io/quote v1.5.1
+
+-- use.go --
+package use
+
+import _ "rsc.io/quote"

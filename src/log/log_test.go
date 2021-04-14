@@ -8,16 +8,19 @@ package log
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
+	"time"
 )
 
 const (
 	Rdate         = `[0-9][0-9][0-9][0-9]/[0-9][0-9]/[0-9][0-9]`
 	Rtime         = `[0-9][0-9]:[0-9][0-9]:[0-9][0-9]`
 	Rmicroseconds = `\.[0-9][0-9][0-9][0-9][0-9][0-9]`
-	Rline         = `(54|56):` // must update if the calls to l.Printf / l.Print below move
+	Rline         = `(60|62):` // must update if the calls to l.Printf / l.Print below move
 	Rlongfile     = `.*/[A-Za-z0-9_\-]+\.go:` + Rline
 	Rshortfile    = `[A-Za-z0-9_\-]+\.go:` + Rline
 )
@@ -34,6 +37,7 @@ var tests = []tester{
 	{0, "XXX", "XXX"},
 	{Ldate, "", Rdate + " "},
 	{Ltime, "", Rtime + " "},
+	{Ltime | Lmsgprefix, "XXX", Rtime + " XXX"},
 	{Ltime | Lmicroseconds, "", Rtime + Rmicroseconds + " "},
 	{Lmicroseconds, "", Rtime + Rmicroseconds + " "}, // microsec implies time
 	{Llongfile, "", Rlongfile + " "},
@@ -42,6 +46,8 @@ var tests = []tester{
 	// everything at once:
 	{Ldate | Ltime | Lmicroseconds | Llongfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rlongfile + " "},
 	{Ldate | Ltime | Lmicroseconds | Lshortfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rshortfile + " "},
+	{Ldate | Ltime | Lmicroseconds | Llongfile | Lmsgprefix, "XXX", Rdate + " " + Rtime + Rmicroseconds + " " + Rlongfile + " XXX"},
+	{Ldate | Ltime | Lmicroseconds | Lshortfile | Lmsgprefix, "XXX", Rdate + " " + Rtime + Rmicroseconds + " " + Rshortfile + " XXX"},
 }
 
 // Test using Println("hello", 23, "world") or using Printf("hello %d world", 23)
@@ -58,14 +64,20 @@ func testPrint(t *testing.T, flag int, prefix string, pattern string, useFormat 
 	line := buf.String()
 	line = line[0 : len(line)-1]
 	pattern = "^" + pattern + "hello 23 world$"
-	matched, err4 := regexp.MatchString(pattern, line)
-	if err4 != nil {
-		t.Fatal("pattern did not compile:", err4)
+	matched, err := regexp.MatchString(pattern, line)
+	if err != nil {
+		t.Fatal("pattern did not compile:", err)
 	}
 	if !matched {
 		t.Errorf("log output should match %q is %q", pattern, line)
 	}
 	SetOutput(os.Stderr)
+}
+
+func TestDefault(t *testing.T) {
+	if got := Default(); got != std {
+		t.Errorf("Default [%p] should be std [%p]", got, std)
+	}
 }
 
 func TestAll(t *testing.T) {
@@ -82,6 +94,17 @@ func TestOutput(t *testing.T) {
 	l.Println(testString)
 	if expect := testString + "\n"; b.String() != expect {
 		t.Errorf("log output should match %q is %q", expect, b.String())
+	}
+}
+
+func TestOutputRace(t *testing.T) {
+	var b bytes.Buffer
+	l := New(&b, "", 0)
+	for i := 0; i < 100; i++ {
+		go func() {
+			l.SetFlags(0)
+		}()
+		l.Output(0, "")
 	}
 }
 
@@ -118,6 +141,44 @@ func TestFlagAndPrefixSetting(t *testing.T) {
 	}
 }
 
+func TestUTCFlag(t *testing.T) {
+	var b bytes.Buffer
+	l := New(&b, "Test:", LstdFlags)
+	l.SetFlags(Ldate | Ltime | LUTC)
+	// Verify a log message looks right in the right time zone. Quantize to the second only.
+	now := time.Now().UTC()
+	l.Print("hello")
+	want := fmt.Sprintf("Test:%d/%.2d/%.2d %.2d:%.2d:%.2d hello\n",
+		now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())
+	got := b.String()
+	if got == want {
+		return
+	}
+	// It's possible we crossed a second boundary between getting now and logging,
+	// so add a second and try again. This should very nearly always work.
+	now = now.Add(time.Second)
+	want = fmt.Sprintf("Test:%d/%.2d/%.2d %.2d:%.2d:%.2d hello\n",
+		now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())
+	if got == want {
+		return
+	}
+	t.Errorf("got %q; want %q", got, want)
+}
+
+func TestEmptyPrintCreatesLine(t *testing.T) {
+	var b bytes.Buffer
+	l := New(&b, "Header:", LstdFlags)
+	l.Print()
+	l.Println("non-empty")
+	output := b.String()
+	if n := strings.Count(output, "Header"); n != 2 {
+		t.Errorf("expected 2 headers, got %d", n)
+	}
+	if n := strings.Count(output, "\n"); n != 2 {
+		t.Errorf("expected 2 lines, got %d", n)
+	}
+}
+
 func BenchmarkItoa(b *testing.B) {
 	dst := make([]byte, 0, 64)
 	for i := 0; i < b.N; i++ {
@@ -136,6 +197,16 @@ func BenchmarkPrintln(b *testing.B) {
 	const testString = "test"
 	var buf bytes.Buffer
 	l := New(&buf, "", LstdFlags)
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		l.Println(testString)
+	}
+}
+
+func BenchmarkPrintlnNoFlags(b *testing.B) {
+	const testString = "test"
+	var buf bytes.Buffer
+	l := New(&buf, "", 0)
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		l.Println(testString)

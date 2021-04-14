@@ -14,16 +14,29 @@ package io
 
 import (
 	"errors"
+	"sync"
+)
+
+// Seek whence values.
+const (
+	SeekStart   = 0 // seek relative to the origin of the file
+	SeekCurrent = 1 // seek relative to the current offset
+	SeekEnd     = 2 // seek relative to the end
 )
 
 // ErrShortWrite means that a write accepted fewer bytes than requested
 // but failed to return an explicit error.
 var ErrShortWrite = errors.New("short write")
 
+// errInvalidWrite means that a write returned an impossible count.
+var errInvalidWrite = errors.New("invalid write result")
+
 // ErrShortBuffer means that a read required a longer buffer than was provided.
 var ErrShortBuffer = errors.New("short buffer")
 
 // EOF is the error returned by Read when no more input is available.
+// (Read must return EOF itself, not an error wrapping EOF,
+// because callers will test for EOF using ==.)
 // Functions should return EOF only to signal a graceful end of input.
 // If the EOF occurs unexpectedly in a structured data stream,
 // the appropriate error is either ErrUnexpectedEOF or some other error
@@ -34,30 +47,30 @@ var EOF = errors.New("EOF")
 // middle of reading a fixed-size block or data structure.
 var ErrUnexpectedEOF = errors.New("unexpected EOF")
 
-// ErrNoProgress is returned by some clients of an io.Reader when
+// ErrNoProgress is returned by some clients of an Reader when
 // many calls to Read have failed to return any data or error,
-// usually the sign of a broken io.Reader implementation.
+// usually the sign of a broken Reader implementation.
 var ErrNoProgress = errors.New("multiple Read calls return no data or error")
 
 // Reader is the interface that wraps the basic Read method.
 //
-// Read reads up to len(p) bytes into p.  It returns the number of bytes
-// read (0 <= n <= len(p)) and any error encountered.  Even if Read
+// Read reads up to len(p) bytes into p. It returns the number of bytes
+// read (0 <= n <= len(p)) and any error encountered. Even if Read
 // returns n < len(p), it may use all of p as scratch space during the call.
 // If some data is available but not len(p) bytes, Read conventionally
 // returns what is available instead of waiting for more.
 //
 // When Read encounters an error or end-of-file condition after
 // successfully reading n > 0 bytes, it returns the number of
-// bytes read.  It may return the (non-nil) error from the same call
+// bytes read. It may return the (non-nil) error from the same call
 // or return the error (and n == 0) from a subsequent call.
 // An instance of this general case is that a Reader returning
 // a non-zero number of bytes at the end of the input stream may
-// return either err == EOF or err == nil.  The next Read should
-// return 0, EOF regardless.
+// return either err == EOF or err == nil. The next Read should
+// return 0, EOF.
 //
 // Callers should always process the n > 0 bytes returned before
-// considering the error err.  Doing so correctly handles I/O errors
+// considering the error err. Doing so correctly handles I/O errors
 // that happen after reading some bytes and also both of the
 // allowed EOF behaviors.
 //
@@ -95,14 +108,16 @@ type Closer interface {
 // Seeker is the interface that wraps the basic Seek method.
 //
 // Seek sets the offset for the next Read or Write to offset,
-// interpreted according to whence: 0 means relative to the origin of
-// the file, 1 means relative to the current offset, and 2 means
-// relative to the end.  Seek returns the new offset and an error, if
-// any.
+// interpreted according to whence:
+// SeekStart means relative to the start of the file,
+// SeekCurrent means relative to the current offset, and
+// SeekEnd means relative to the end.
+// Seek returns the new offset relative to the start of the
+// file and an error, if any.
 //
-// Seeking to a negative offset is an error. Seeking to any positive
-// offset is legal, but the behavior of subsequent I/O operations on
-// the underlying object is implementation-dependent.
+// Seeking to an offset before the start of the file is an error.
+// Seeking to any positive offset is legal, but the behavior of subsequent
+// I/O operations on the underlying object is implementation-dependent.
 type Seeker interface {
 	Seek(offset int64, whence int) (int64, error)
 }
@@ -138,6 +153,14 @@ type ReadSeeker interface {
 	Seeker
 }
 
+// ReadSeekCloser is the interface that groups the basic Read, Seek and Close
+// methods.
+type ReadSeekCloser interface {
+	Reader
+	Seeker
+	Closer
+}
+
 // WriteSeeker is the interface that groups the basic Write and Seek methods.
 type WriteSeeker interface {
 	Writer
@@ -155,7 +178,7 @@ type ReadWriteSeeker interface {
 //
 // ReadFrom reads data from r until EOF or error.
 // The return value n is the number of bytes read.
-// Any error except io.EOF encountered during the read is also returned.
+// Any error except EOF encountered during the read is also returned.
 //
 // The Copy function uses ReaderFrom if available.
 type ReaderFrom interface {
@@ -176,15 +199,15 @@ type WriterTo interface {
 // ReaderAt is the interface that wraps the basic ReadAt method.
 //
 // ReadAt reads len(p) bytes into p starting at offset off in the
-// underlying input source.  It returns the number of bytes
+// underlying input source. It returns the number of bytes
 // read (0 <= n <= len(p)) and any error encountered.
 //
 // When ReadAt returns n < len(p), it returns a non-nil error
-// explaining why more bytes were not returned.  In this respect,
+// explaining why more bytes were not returned. In this respect,
 // ReadAt is stricter than Read.
 //
 // Even if ReadAt returns n < len(p), it may use all of p as scratch
-// space during the call.  If some data is available but not len(p) bytes,
+// space during the call. If some data is available but not len(p) bytes,
 // ReadAt blocks until either all the data is available or an error occurs.
 // In this respect ReadAt is different from Read.
 //
@@ -206,7 +229,7 @@ type ReaderAt interface {
 // WriterAt is the interface that wraps the basic WriteAt method.
 //
 // WriteAt writes len(p) bytes from p to the underlying data stream
-// at offset off.  It returns the number of bytes written from p (0 <= n <= len(p))
+// at offset off. It returns the number of bytes written from p (0 <= n <= len(p))
 // and any error encountered that caused the write to stop early.
 // WriteAt must return a non-nil error if it returns n < len(p).
 //
@@ -224,10 +247,15 @@ type WriterAt interface {
 
 // ByteReader is the interface that wraps the ReadByte method.
 //
-// ReadByte reads and returns the next byte from the input.
-// If no byte is available, err will be set.
+// ReadByte reads and returns the next byte from the input or
+// any error encountered. If ReadByte returns an error, no input
+// byte was consumed, and the returned byte value is undefined.
+//
+// ReadByte provides an efficient interface for byte-at-time
+// processing. A Reader that does not implement  ByteReader
+// can be wrapped using bufio.NewReader to add this method.
 type ByteReader interface {
-	ReadByte() (c byte, err error)
+	ReadByte() (byte, error)
 }
 
 // ByteScanner is the interface that adds the UnreadByte method to the
@@ -268,15 +296,16 @@ type RuneScanner interface {
 	UnreadRune() error
 }
 
-// stringWriter is the interface that wraps the WriteString method.
-type stringWriter interface {
+// StringWriter is the interface that wraps the WriteString method.
+type StringWriter interface {
 	WriteString(s string) (n int, err error)
 }
 
-// WriteString writes the contents of the string s to w, which accepts an array of bytes.
-// If w already implements a WriteString method, it is invoked directly.
+// WriteString writes the contents of the string s to w, which accepts a slice of bytes.
+// If w implements StringWriter, its WriteString method is invoked directly.
+// Otherwise, w.Write is called exactly once.
 func WriteString(w Writer, s string) (n int, err error) {
-	if sw, ok := w.(stringWriter); ok {
+	if sw, ok := w.(StringWriter); ok {
 		return sw.WriteString(s)
 	}
 	return w.Write([]byte(s))
@@ -289,6 +318,7 @@ func WriteString(w Writer, s string) (n int, err error) {
 // ReadAtLeast returns ErrUnexpectedEOF.
 // If min is greater than the length of buf, ReadAtLeast returns ErrShortBuffer.
 // On return, n >= min if and only if err == nil.
+// If r returns an error having read at least min bytes, the error is dropped.
 func ReadAtLeast(r Reader, buf []byte, min int) (n int, err error) {
 	if len(buf) < min {
 		return 0, ErrShortBuffer
@@ -312,6 +342,7 @@ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err error) {
 // If an EOF happens after reading some but not all the bytes,
 // ReadFull returns ErrUnexpectedEOF.
 // On return, n == len(buf) if and only if err == nil.
+// If r returns an error having read at least len(buf) bytes, the error is dropped.
 func ReadFull(r Reader, buf []byte) (n int, err error) {
 	return ReadAtLeast(r, buf, len(buf))
 }
@@ -336,7 +367,7 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
 }
 
 // Copy copies from src to dst until either EOF is reached
-// on src or an error occurs.  It returns the number of bytes
+// on src or an error occurs. It returns the number of bytes
 // copied and the first error encountered while copying, if any.
 //
 // A successful Copy returns err == nil, not err == EOF.
@@ -348,6 +379,26 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
 // Otherwise, if dst implements the ReaderFrom interface,
 // the copy is implemented by calling dst.ReadFrom(src).
 func Copy(dst Writer, src Reader) (written int64, err error) {
+	return copyBuffer(dst, src, nil)
+}
+
+// CopyBuffer is identical to Copy except that it stages through the
+// provided buffer (if one is required) rather than allocating a
+// temporary one. If buf is nil, one is allocated; otherwise if it has
+// zero length, CopyBuffer panics.
+//
+// If either src implements WriterTo or dst implements ReaderFrom,
+// buf will not be used to perform the copy.
+func CopyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
+	if buf != nil && len(buf) == 0 {
+		panic("empty buffer in CopyBuffer")
+	}
+	return copyBuffer(dst, src, buf)
+}
+
+// copyBuffer is the actual implementation of Copy and CopyBuffer.
+// if buf is nil, one is allocated.
+func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 	// If the reader has a WriteTo method, use it to do the copy.
 	// Avoids an allocation and a copy.
 	if wt, ok := src.(WriterTo); ok {
@@ -357,14 +408,28 @@ func Copy(dst Writer, src Reader) (written int64, err error) {
 	if rt, ok := dst.(ReaderFrom); ok {
 		return rt.ReadFrom(src)
 	}
-	buf := make([]byte, 32*1024)
+	if buf == nil {
+		size := 32 * 1024
+		if l, ok := src.(*LimitedReader); ok && int64(size) > l.N {
+			if l.N < 1 {
+				size = 1
+			} else {
+				size = int(l.N)
+			}
+		}
+		buf = make([]byte, size)
+	}
 	for {
 		nr, er := src.Read(buf)
 		if nr > 0 {
 			nw, ew := dst.Write(buf[0:nr])
-			if nw > 0 {
-				written += int64(nw)
+			if nw < 0 || nr < nw {
+				nw = 0
+				if ew == nil {
+					ew = errInvalidWrite
+				}
 			}
+			written += int64(nw)
 			if ew != nil {
 				err = ew
 				break
@@ -374,11 +439,10 @@ func Copy(dst Writer, src Reader) (written int64, err error) {
 				break
 			}
 		}
-		if er == EOF {
-			break
-		}
 		if er != nil {
-			err = er
+			if er != EOF {
+				err = er
+			}
 			break
 		}
 	}
@@ -393,6 +457,7 @@ func LimitReader(r Reader, n int64) Reader { return &LimitedReader{r, n} }
 // A LimitedReader reads from R but limits the amount of
 // data returned to just N bytes. Each call to Read
 // updates N to reflect the new amount remaining.
+// Read returns EOF when N <= 0 or when the underlying R returns EOF.
 type LimitedReader struct {
 	R Reader // underlying reader
 	N int64  // max bytes remaining
@@ -444,11 +509,11 @@ func (s *SectionReader) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
 	default:
 		return 0, errWhence
-	case 0:
+	case SeekStart:
 		offset += s.base
-	case 1:
+	case SeekCurrent:
 		offset += s.off
-	case 2:
+	case SeekEnd:
 		offset += s.limit
 	}
 	if offset < s.base {
@@ -479,7 +544,7 @@ func (s *SectionReader) Size() int64 { return s.limit - s.base }
 
 // TeeReader returns a Reader that writes to w what it reads from r.
 // All reads from r performed through it are matched with
-// corresponding writes to w.  There is no internal buffering -
+// corresponding writes to w. There is no internal buffering -
 // the write must complete before the read completes.
 // Any error encountered while writing is reported as a read error.
 func TeeReader(r Reader, w Writer) Reader {
@@ -499,4 +564,79 @@ func (t *teeReader) Read(p []byte) (n int, err error) {
 		}
 	}
 	return
+}
+
+// Discard is an Writer on which all Write calls succeed
+// without doing anything.
+var Discard Writer = discard{}
+
+type discard struct{}
+
+// discard implements ReaderFrom as an optimization so Copy to
+// io.Discard can avoid doing unnecessary work.
+var _ ReaderFrom = discard{}
+
+func (discard) Write(p []byte) (int, error) {
+	return len(p), nil
+}
+
+func (discard) WriteString(s string) (int, error) {
+	return len(s), nil
+}
+
+var blackHolePool = sync.Pool{
+	New: func() interface{} {
+		b := make([]byte, 8192)
+		return &b
+	},
+}
+
+func (discard) ReadFrom(r Reader) (n int64, err error) {
+	bufp := blackHolePool.Get().(*[]byte)
+	readSize := 0
+	for {
+		readSize, err = r.Read(*bufp)
+		n += int64(readSize)
+		if err != nil {
+			blackHolePool.Put(bufp)
+			if err == EOF {
+				return n, nil
+			}
+			return
+		}
+	}
+}
+
+// NopCloser returns a ReadCloser with a no-op Close method wrapping
+// the provided Reader r.
+func NopCloser(r Reader) ReadCloser {
+	return nopCloser{r}
+}
+
+type nopCloser struct {
+	Reader
+}
+
+func (nopCloser) Close() error { return nil }
+
+// ReadAll reads from r until an error or EOF and returns the data it read.
+// A successful call returns err == nil, not err == EOF. Because ReadAll is
+// defined to read from src until EOF, it does not treat an EOF from Read
+// as an error to be reported.
+func ReadAll(r Reader) ([]byte, error) {
+	b := make([]byte, 0, 512)
+	for {
+		if len(b) == cap(b) {
+			// Add more capacity (let append pick how much).
+			b = append(b, 0)[:len(b)]
+		}
+		n, err := r.Read(b[len(b):cap(b)])
+		b = b[:len(b)+n]
+		if err != nil {
+			if err == EOF {
+				err = nil
+			}
+			return b, err
+		}
+	}
 }

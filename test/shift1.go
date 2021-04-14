@@ -1,6 +1,6 @@
 // errorcheck
 
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -18,13 +18,13 @@ func h(x float64) int     { return 0 }
 var (
 	s uint    = 33
 	u         = 1.0 << s // ERROR "invalid operation|shift of non-integer operand"
-	v float32 = 1 << s   // ERROR "invalid" "as type float32"
+	v float32 = 1 << s   // ERROR "invalid"
 )
 
 // non-constant shift expressions
 var (
-	e1       = g(2.0 << s) // ERROR "invalid|shift of non-integer operand" "as type interface"
-	f1       = h(2 << s)   // ERROR "invalid" "as type float64"
+	e1       = g(2.0 << s) // ERROR "invalid|shift of non-integer operand"
+	f1       = h(2 << s)   // ERROR "invalid"
 	g1 int64 = 1.1 << s    // ERROR "truncated"
 )
 
@@ -66,8 +66,15 @@ func _() {
 		u2         = 1<<s != 1.0 // ERROR "non-integer|float64"
 		v  float32 = 1 << s      // ERROR "non-integer|float32"
 		w  int64   = 1.0 << 33   // 1.0<<33 is a constant shift expression
+
 		_, _, _, _, _, _, _, _, _, _ = j, k, m, n, o, u, u1, u2, v, w
 	)
+
+	// non constants arguments trigger a different path
+	f2 := 1.2
+	s2 := "hi"
+	_ = f2 << 2 // ERROR "shift of type float64|non-integer"
+	_ = s2 << 2 // ERROR "shift of type string|non-integer"
 }
 
 // shifts in comparisons w/ untyped operands
@@ -146,8 +153,7 @@ func _() {
 	var a []int
 	_ = a[1<<s]
 	_ = a[1.]
-	// For now, the spec disallows these. We may revisit past Go 1.1.
-	_ = a[1.<<s]  // ERROR "integer|shift of type float64"
+	_ = a[1.<<s]
 	_ = a[1.1<<s] // ERROR "integer|shift of type float64"
 
 	_ = make([]int, 1)

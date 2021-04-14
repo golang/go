@@ -4,17 +4,6 @@
 
 #include "textflag.h"
 
-// func hasAsm() bool
-// returns whether AES-NI is supported
-TEXT ·hasAsm(SB),NOSPLIT,$0
-	XORQ AX, AX
-	INCL AX
-	CPUID
-	SHRQ $25, CX
-	ANDQ $1, CX
-	MOVB CX, ret+0(FP)
-	RET
-
 // func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 TEXT ·encryptBlockAsm(SB),NOSPLIT,$0
 	MOVQ nr+0(FP), CX
@@ -217,8 +206,6 @@ Lexp_dec_loop:
 	MOVUPS X0, 16(DX)
 	RET
 
-#define PSHUFD_X0_X0_ BYTE $0x66; BYTE $0x0f; BYTE $0x70; BYTE $0xc0
-#define PSHUFD_X1_X1_ BYTE $0x66; BYTE $0x0f; BYTE $0x70; BYTE $0xc9
 TEXT _expand_key_128<>(SB),NOSPLIT,$0
 	PSHUFD $0xff, X1, X1
 	SHUFPS $0x10, X0, X4
@@ -230,8 +217,6 @@ TEXT _expand_key_128<>(SB),NOSPLIT,$0
 	ADDQ $16, BX
 	RET
 
-#define PSLLDQ_X5_ BYTE $0x66; BYTE $0x0f; BYTE $0x73; BYTE $0xfd
-#define PSHUFD_X0_X3_ BYTE $0x66; BYTE $0x0f; BYTE $0x70; BYTE $0xd8
 TEXT _expand_key_192a<>(SB),NOSPLIT,$0
 	PSHUFD $0x55, X1, X1
 	SHUFPS $0x10, X0, X4
@@ -242,7 +227,7 @@ TEXT _expand_key_192a<>(SB),NOSPLIT,$0
 
 	MOVAPS X2, X5
 	MOVAPS X2, X6
-	PSLLDQ_X5_; BYTE $0x4
+	PSLLDQ $0x4, X5
 	PSHUFD $0xff, X0, X3
 	PXOR X3, X2
 	PXOR X5, X2
@@ -264,7 +249,7 @@ TEXT _expand_key_192b<>(SB),NOSPLIT,$0
 	PXOR X1, X0
 
 	MOVAPS X2, X5
-	PSLLDQ_X5_; BYTE $0x4
+	PSLLDQ $0x4, X5
 	PSHUFD $0xff, X0, X3
 	PXOR X3, X2
 	PXOR X5, X2

@@ -12,6 +12,8 @@
 
 package cipher
 
+import "crypto/internal/subtle"
+
 type ctr struct {
 	b       Block
 	ctr     []byte
@@ -21,9 +23,19 @@ type ctr struct {
 
 const streamBufferSize = 512
 
+// ctrAble is an interface implemented by ciphers that have a specific optimized
+// implementation of CTR, like crypto/aes. NewCTR will check for this interface
+// and return the specific Stream if found.
+type ctrAble interface {
+	NewCTR(iv []byte) Stream
+}
+
 // NewCTR returns a Stream which encrypts/decrypts using the given Block in
 // counter mode. The length of iv must be the same as the Block's block size.
 func NewCTR(block Block, iv []byte) Stream {
+	if ctr, ok := block.(ctrAble); ok {
+		return ctr.NewCTR(iv)
+	}
 	if len(iv) != block.BlockSize() {
 		panic("cipher.NewCTR: IV length must equal block size")
 	}
@@ -41,13 +53,10 @@ func NewCTR(block Block, iv []byte) Stream {
 
 func (x *ctr) refill() {
 	remain := len(x.out) - x.outUsed
-	if remain > x.outUsed {
-		return
-	}
 	copy(x.out, x.out[x.outUsed:])
 	x.out = x.out[:cap(x.out)]
 	bs := x.b.BlockSize()
-	for remain < len(x.out)-bs {
+	for remain <= len(x.out)-bs {
 		x.b.Encrypt(x.out[remain:], x.ctr)
 		remain += bs
 
@@ -64,6 +73,12 @@ func (x *ctr) refill() {
 }
 
 func (x *ctr) XORKeyStream(dst, src []byte) {
+	if len(dst) < len(src) {
+		panic("crypto/cipher: output smaller than input")
+	}
+	if subtle.InexactOverlap(dst[:len(src)], src) {
+		panic("crypto/cipher: invalid buffer overlap")
+	}
 	for len(src) > 0 {
 		if x.outUsed >= len(x.out)-x.b.BlockSize() {
 			x.refill()

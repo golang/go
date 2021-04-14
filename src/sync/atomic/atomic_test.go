@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -30,7 +30,7 @@ const (
 	magic64 = 0xdeddeadbeefbeef
 )
 
-// Do the 64-bit functions panic?  If so, don't bother testing.
+// Do the 64-bit functions panic? If so, don't bother testing.
 var test64err = func() (err interface{}) {
 	defer func() {
 		err = recover()
@@ -153,6 +153,21 @@ func TestSwapUintptr(t *testing.T) {
 	}
 }
 
+var global [1024]byte
+
+func testPointers() []unsafe.Pointer {
+	var pointers []unsafe.Pointer
+	// globals
+	for i := 0; i < 10; i++ {
+		pointers = append(pointers, unsafe.Pointer(&global[1<<i-1]))
+	}
+	// heap
+	pointers = append(pointers, unsafe.Pointer(new(byte)))
+	// nil
+	pointers = append(pointers, nil)
+	return pointers
+}
+
 func TestSwapPointer(t *testing.T) {
 	var x struct {
 		before uintptr
@@ -163,13 +178,14 @@ func TestSwapPointer(t *testing.T) {
 	magicptr := uintptr(m)
 	x.before = magicptr
 	x.after = magicptr
-	var j uintptr
-	for delta := uintptr(1 << 16); delta+delta > delta; delta += delta {
-		k := SwapPointer(&x.i, unsafe.Pointer(delta))
-		if uintptr(x.i) != delta || uintptr(k) != j {
-			t.Fatalf("delta=%d i=%d j=%d k=%d", delta, x.i, j, k)
+	var j unsafe.Pointer
+
+	for _, p := range testPointers() {
+		k := SwapPointer(&x.i, p)
+		if x.i != p || k != j {
+			t.Fatalf("p=%p i=%p j=%p k=%p", p, x.i, j, k)
 		}
-		j = delta
+		j = p
 	}
 	if x.before != magicptr || x.after != magicptr {
 		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
@@ -456,20 +472,20 @@ func TestCompareAndSwapPointer(t *testing.T) {
 	magicptr := uintptr(m)
 	x.before = magicptr
 	x.after = magicptr
-	for val := uintptr(1 << 16); val+val > val; val += val {
-		x.i = unsafe.Pointer(val)
-		if !CompareAndSwapPointer(&x.i, unsafe.Pointer(val), unsafe.Pointer(val+1)) {
-			t.Fatalf("should have swapped %#x %#x", val, val+1)
+	q := unsafe.Pointer(new(byte))
+	for _, p := range testPointers() {
+		x.i = p
+		if !CompareAndSwapPointer(&x.i, p, q) {
+			t.Fatalf("should have swapped %p %p", p, q)
 		}
-		if x.i != unsafe.Pointer(val+1) {
-			t.Fatalf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
+		if x.i != q {
+			t.Fatalf("wrong x.i after swap: x.i=%p want %p", x.i, q)
 		}
-		x.i = unsafe.Pointer(val + 1)
-		if CompareAndSwapPointer(&x.i, unsafe.Pointer(val), unsafe.Pointer(val+2)) {
-			t.Fatalf("should not have swapped %#x %#x", val, val+2)
+		if CompareAndSwapPointer(&x.i, p, nil) {
+			t.Fatalf("should not have swapped %p nil", p)
 		}
-		if x.i != unsafe.Pointer(val+1) {
-			t.Fatalf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
+		if x.i != q {
+			t.Fatalf("wrong x.i after swap: x.i=%p want %p", x.i, q)
 		}
 	}
 	if x.before != magicptr || x.after != magicptr {
@@ -595,12 +611,12 @@ func TestLoadPointer(t *testing.T) {
 	magicptr := uintptr(m)
 	x.before = magicptr
 	x.after = magicptr
-	for delta := uintptr(1 << 16); delta+delta > delta; delta += delta {
+	for _, p := range testPointers() {
+		x.i = p
 		k := LoadPointer(&x.i)
-		if k != x.i {
-			t.Fatalf("delta=%d i=%d k=%d", delta, x.i, k)
+		if k != p {
+			t.Fatalf("p=%x k=%x", p, k)
 		}
-		x.i = unsafe.Pointer(uintptr(x.i) + delta)
 	}
 	if x.before != magicptr || x.after != magicptr {
 		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
@@ -730,13 +746,11 @@ func TestStorePointer(t *testing.T) {
 	magicptr := uintptr(m)
 	x.before = magicptr
 	x.after = magicptr
-	v := unsafe.Pointer(uintptr(0))
-	for delta := uintptr(1 << 16); delta+delta > delta; delta += delta {
-		StorePointer(&x.i, unsafe.Pointer(v))
-		if x.i != v {
-			t.Fatalf("delta=%d i=%d v=%d", delta, x.i, v)
+	for _, p := range testPointers() {
+		StorePointer(&x.i, p)
+		if x.i != p {
+			t.Fatalf("x.i=%p p=%p", x.i, p)
 		}
-		v = unsafe.Pointer(uintptr(v) + delta)
 	}
 	if x.before != magicptr || x.after != magicptr {
 		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
@@ -747,7 +761,7 @@ func TestStorePointer(t *testing.T) {
 // (Is the function atomic?)
 //
 // For each function, we write a "hammer" function that repeatedly
-// uses the atomic operation to add 1 to a value.  After running
+// uses the atomic operation to add 1 to a value. After running
 // multiple hammers in parallel, check that we end with the correct
 // total.
 // Swap can't add 1, so it uses a different scheme.
@@ -772,10 +786,8 @@ func init() {
 	if uintptr(v) != 0 {
 		// 64-bit system; clear uintptr tests
 		delete(hammer32, "SwapUintptr")
-		delete(hammer32, "SwapPointer")
 		delete(hammer32, "AddUintptr")
 		delete(hammer32, "CompareAndSwapUintptr")
-		delete(hammer32, "CompareAndSwapPointer")
 	}
 }
 
@@ -923,10 +935,8 @@ func init() {
 	if uintptr(v) == 0 {
 		// 32-bit system; clear uintptr tests
 		delete(hammer64, "SwapUintptr")
-		delete(hammer64, "SwapPointer")
 		delete(hammer64, "AddUintptr")
 		delete(hammer64, "CompareAndSwapUintptr")
-		delete(hammer64, "CompareAndSwapPointer")
 	}
 }
 
@@ -953,16 +963,20 @@ func hammerSwapUint64(addr *uint64, count int) {
 	}
 }
 
+const arch32 = unsafe.Sizeof(uintptr(0)) == 4
+
 func hammerSwapUintptr64(uaddr *uint64, count int) {
 	// only safe when uintptr is 64-bit.
 	// not called on 32-bit systems.
-	addr := (*uintptr)(unsafe.Pointer(uaddr))
-	seed := int(uintptr(unsafe.Pointer(&count)))
-	for i := 0; i < count; i++ {
-		new := uintptr(seed+i)<<32 | uintptr(seed+i)<<32>>32
-		old := SwapUintptr(addr, new)
-		if old>>32 != old<<32>>32 {
-			panic(fmt.Sprintf("SwapUintptr is not atomic: %v", old))
+	if !arch32 {
+		addr := (*uintptr)(unsafe.Pointer(uaddr))
+		seed := int(uintptr(unsafe.Pointer(&count)))
+		for i := 0; i < count; i++ {
+			new := uintptr(seed+i)<<32 | uintptr(seed+i)<<32>>32
+			old := SwapUintptr(addr, new)
+			if old>>32 != old<<32>>32 {
+				panic(fmt.Sprintf("SwapUintptr is not atomic: %v", old))
+			}
 		}
 	}
 }
@@ -1116,8 +1130,6 @@ func hammerStoreLoadUint64(t *testing.T, paddr unsafe.Pointer) {
 
 func hammerStoreLoadUintptr(t *testing.T, paddr unsafe.Pointer) {
 	addr := (*uintptr)(paddr)
-	var test64 uint64 = 1 << 50
-	arch32 := uintptr(test64) == 0
 	v := LoadUintptr(addr)
 	new := v
 	if arch32 {
@@ -1142,10 +1154,11 @@ func hammerStoreLoadUintptr(t *testing.T, paddr unsafe.Pointer) {
 	StoreUintptr(addr, new)
 }
 
+//go:nocheckptr
+// This code is just testing that LoadPointer/StorePointer operate
+// atomically; it's not actually calculating pointers.
 func hammerStoreLoadPointer(t *testing.T, paddr unsafe.Pointer) {
 	addr := (*unsafe.Pointer)(paddr)
-	var test64 uint64 = 1 << 50
-	arch32 := uintptr(test64) == 0
 	v := uintptr(LoadPointer(addr))
 	new := v
 	if arch32 {
@@ -1226,10 +1239,12 @@ func TestStoreLoadSeqCst32(t *testing.T) {
 				}
 				his := LoadInt32(&ack[he][i%3])
 				if (my != i && my != i-1) || (his != i && his != i-1) {
-					t.Fatalf("invalid values: %d/%d (%d)", my, his, i)
+					t.Errorf("invalid values: %d/%d (%d)", my, his, i)
+					break
 				}
 				if my != i && his != i {
-					t.Fatalf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
+					t.Errorf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
+					break
 				}
 				StoreInt32(&ack[me][(i-1)%3], -1)
 			}
@@ -1269,10 +1284,12 @@ func TestStoreLoadSeqCst64(t *testing.T) {
 				}
 				his := LoadInt64(&ack[he][i%3])
 				if (my != i && my != i-1) || (his != i && his != i-1) {
-					t.Fatalf("invalid values: %d/%d (%d)", my, his, i)
+					t.Errorf("invalid values: %d/%d (%d)", my, his, i)
+					break
 				}
 				if my != i && his != i {
-					t.Fatalf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
+					t.Errorf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
+					break
 				}
 				StoreInt64(&ack[me][(i-1)%3], -1)
 			}
@@ -1317,7 +1334,8 @@ func TestStoreLoadRelAcq32(t *testing.T) {
 					d1 := X.data1
 					d2 := X.data2
 					if d1 != i || d2 != float32(i) {
-						t.Fatalf("incorrect data: %d/%g (%d)", d1, d2, i)
+						t.Errorf("incorrect data: %d/%g (%d)", d1, d2, i)
+						break
 					}
 				}
 			}
@@ -1365,7 +1383,8 @@ func TestStoreLoadRelAcq64(t *testing.T) {
 					d1 := X.data1
 					d2 := X.data2
 					if d1 != i || d2 != float64(i) {
-						t.Fatalf("incorrect data: %d/%g (%d)", d1, d2, i)
+						t.Errorf("incorrect data: %d/%g (%d)", d1, d2, i)
+						break
 					}
 				}
 			}
@@ -1378,8 +1397,15 @@ func TestStoreLoadRelAcq64(t *testing.T) {
 
 func shouldPanic(t *testing.T, name string, f func()) {
 	defer func() {
-		if recover() == nil {
+		// Check that all GC maps are sane.
+		runtime.GC()
+
+		err := recover()
+		want := "unaligned 64-bit atomic operation"
+		if err == nil {
 			t.Errorf("%s did not panic", name)
+		} else if s, _ := err.(string); s != want {
+			t.Errorf("%s: wanted panic %q, got %q", name, want, err)
 		}
 	}()
 	f()
@@ -1389,7 +1415,7 @@ func TestUnaligned64(t *testing.T) {
 	// Unaligned 64-bit atomics on 32-bit systems are
 	// a continual source of pain. Test that on 32-bit systems they crash
 	// instead of failing silently.
-	if unsafe.Sizeof(int(0)) != 4 {
+	if !arch32 {
 		t.Skip("test only runs on 32-bit systems")
 	}
 
@@ -1403,9 +1429,6 @@ func TestUnaligned64(t *testing.T) {
 }
 
 func TestNilDeref(t *testing.T) {
-	if p := runtime.GOOS + "/" + runtime.GOARCH; p == "freebsd/arm" || p == "netbsd/arm" {
-		t.Skipf("issue 7338: skipping test on %q", p)
-	}
 	funcs := [...]func(){
 		func() { CompareAndSwapInt32(nil, 0, 0) },
 		func() { CompareAndSwapInt64(nil, 0, 0) },

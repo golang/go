@@ -17,14 +17,14 @@ import (
 // which must be held when changing the condition and
 // when calling the Wait method.
 //
-// A Cond can be created as part of other structures.
 // A Cond must not be copied after first use.
 type Cond struct {
+	noCopy noCopy
+
 	// L is held while observing or changing the condition
 	L Locker
 
-	sema    syncSema
-	waiters uint32 // number of waiters
+	notify  notifyList
 	checker copyChecker
 }
 
@@ -34,13 +34,13 @@ func NewCond(l Locker) *Cond {
 }
 
 // Wait atomically unlocks c.L and suspends execution
-// of the calling goroutine.  After later resuming execution,
-// Wait locks c.L before returning.  Unlike in other systems,
+// of the calling goroutine. After later resuming execution,
+// Wait locks c.L before returning. Unlike in other systems,
 // Wait cannot return unless awoken by Broadcast or Signal.
 //
 // Because c.L is not locked when Wait first resumes, the caller
 // typically cannot assume that the condition is true when
-// Wait returns.  Instead, the caller should Wait in a loop:
+// Wait returns. Instead, the caller should Wait in a loop:
 //
 //    c.L.Lock()
 //    for !condition() {
@@ -51,15 +51,9 @@ func NewCond(l Locker) *Cond {
 //
 func (c *Cond) Wait() {
 	c.checker.check()
-	if raceenabled {
-		raceDisable()
-	}
-	atomic.AddUint32(&c.waiters, 1)
-	if raceenabled {
-		raceEnable()
-	}
+	t := runtime_notifyListAdd(&c.notify)
 	c.L.Unlock()
-	runtime_Syncsemacquire(&c.sema)
+	runtime_notifyListWait(&c.notify, t)
 	c.L.Lock()
 }
 
@@ -68,7 +62,8 @@ func (c *Cond) Wait() {
 // It is allowed but not required for the caller to hold c.L
 // during the call.
 func (c *Cond) Signal() {
-	c.signalImpl(false)
+	c.checker.check()
+	runtime_notifyListNotifyOne(&c.notify)
 }
 
 // Broadcast wakes all goroutines waiting on c.
@@ -76,34 +71,8 @@ func (c *Cond) Signal() {
 // It is allowed but not required for the caller to hold c.L
 // during the call.
 func (c *Cond) Broadcast() {
-	c.signalImpl(true)
-}
-
-func (c *Cond) signalImpl(all bool) {
 	c.checker.check()
-	if raceenabled {
-		raceDisable()
-	}
-	for {
-		old := atomic.LoadUint32(&c.waiters)
-		if old == 0 {
-			if raceenabled {
-				raceEnable()
-			}
-			return
-		}
-		new := old - 1
-		if all {
-			new = 0
-		}
-		if atomic.CompareAndSwapUint32(&c.waiters, old, new) {
-			if raceenabled {
-				raceEnable()
-			}
-			runtime_Syncsemrelease(&c.sema, old-new)
-			return
-		}
-	}
+	runtime_notifyListNotifyAll(&c.notify)
 }
 
 // copyChecker holds back pointer to itself to detect object copying.
@@ -116,3 +85,14 @@ func (c *copyChecker) check() {
 		panic("sync.Cond is copied")
 	}
 }
+
+// noCopy may be embedded into structs which must not be copied
+// after the first use.
+//
+// See https://golang.org/issues/8005#issuecomment-190753527
+// for details.
+type noCopy struct{}
+
+// Lock is a no-op used by -copylocks checker from `go vet`.
+func (*noCopy) Lock()   {}
+func (*noCopy) Unlock() {}

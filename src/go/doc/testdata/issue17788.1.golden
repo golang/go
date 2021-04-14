@@ -1,0 +1,8 @@
+// 
+PACKAGE issue17788
+
+IMPORTPATH
+	testdata/issue17788
+
+FILENAMES
+	testdata/issue17788.go

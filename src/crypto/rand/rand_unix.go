@@ -1,8 +1,8 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd plan9 solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd plan9 solaris
 
 // Unix cryptographically secure pseudorandom number
 // generator.
@@ -13,12 +13,16 @@ import (
 	"bufio"
 	"crypto/aes"
 	"crypto/cipher"
+	"encoding/binary"
 	"io"
 	"os"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 )
+
+import "crypto/internal/boring"
 
 const urandomDevice = "/dev/urandom"
 
@@ -26,6 +30,10 @@ const urandomDevice = "/dev/urandom"
 // This is sufficient on Linux, OS X, and FreeBSD.
 
 func init() {
+	if boring.Enabled {
+		Reader = boring.RandReader
+		return
+	}
 	if runtime.GOOS == "plan9" {
 		Reader = newReader(nil)
 	} else {
@@ -38,13 +46,25 @@ type devReader struct {
 	name string
 	f    io.Reader
 	mu   sync.Mutex
+	used int32 // atomic; whether this devReader has been used
 }
 
 // altGetRandom if non-nil specifies an OS-specific function to get
 // urandom-style randomness.
 var altGetRandom func([]byte) (ok bool)
 
+func warnBlocked() {
+	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
+}
+
 func (r *devReader) Read(b []byte) (n int, err error) {
+	boring.Unreachable()
+	if atomic.CompareAndSwapInt32(&r.used, 0, 1) {
+		// First use of randomness. Start timer to warn about
+		// being blocked on entropy not being available.
+		t := time.AfterFunc(60*time.Second, warnBlocked)
+		defer t.Stop()
+	}
 	if altGetRandom != nil && r.name == urandomDevice && altGetRandom(b) {
 		return len(b), nil
 	}
@@ -84,7 +104,7 @@ func (hr hideAgainReader) Read(p []byte) (n int, err error) {
 // systems without a reliable /dev/urandom.
 
 // newReader returns a new pseudorandom generator that
-// seeds itself by reading from entropy.  If entropy == nil,
+// seeds itself by reading from entropy. If entropy == nil,
 // the generator seeds itself by reading from the system's
 // random number generator, typically /dev/random.
 // The Read method on the returned reader always returns
@@ -108,6 +128,7 @@ type reader struct {
 }
 
 func (r *reader) Read(b []byte) (n int, err error) {
+	boring.Unreachable()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	n = len(b)
@@ -137,14 +158,7 @@ func (r *reader) Read(b []byte) (n int, err error) {
 		// dst = encrypt(t^seed)
 		// seed = encrypt(t^dst)
 		ns := time.Now().UnixNano()
-		r.time[0] = byte(ns >> 56)
-		r.time[1] = byte(ns >> 48)
-		r.time[2] = byte(ns >> 40)
-		r.time[3] = byte(ns >> 32)
-		r.time[4] = byte(ns >> 24)
-		r.time[5] = byte(ns >> 16)
-		r.time[6] = byte(ns >> 8)
-		r.time[7] = byte(ns)
+		binary.BigEndian.PutUint64(r.time[:], uint64(ns))
 		r.cipher.Encrypt(r.time[0:], r.time[0:])
 		for i := 0; i < aes.BlockSize; i++ {
 			r.dst[i] = r.time[i] ^ r.seed[i]

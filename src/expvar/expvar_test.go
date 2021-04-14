@@ -6,29 +6,43 @@ package expvar
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http/httptest"
+	"reflect"
 	"runtime"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
 // RemoveAll removes all exported variables.
 // This is for tests only.
 func RemoveAll() {
-	mutex.Lock()
-	defer mutex.Unlock()
-	vars = make(map[string]Var)
+	varKeysMu.Lock()
+	defer varKeysMu.Unlock()
+	for _, k := range varKeys {
+		vars.Delete(k)
+	}
 	varKeys = nil
+}
+
+func TestNil(t *testing.T) {
+	RemoveAll()
+	val := Get("missing")
+	if val != nil {
+		t.Errorf("got %v, want nil", val)
+	}
 }
 
 func TestInt(t *testing.T) {
 	RemoveAll()
 	reqs := NewInt("requests")
-	if reqs.i != 0 {
-		t.Errorf("reqs.i = %v, want 0", reqs.i)
+	if i := reqs.Value(); i != 0 {
+		t.Errorf("reqs.Value() = %v, want 0", i)
 	}
 	if reqs != Get("requests").(*Int) {
 		t.Errorf("Get() failed.")
@@ -36,8 +50,8 @@ func TestInt(t *testing.T) {
 
 	reqs.Add(1)
 	reqs.Add(3)
-	if reqs.i != 4 {
-		t.Errorf("reqs.i = %v, want 4", reqs.i)
+	if i := reqs.Value(); i != 4 {
+		t.Errorf("reqs.Value() = %v, want 4", i)
 	}
 
 	if s := reqs.String(); s != "4" {
@@ -45,8 +59,8 @@ func TestInt(t *testing.T) {
 	}
 
 	reqs.Set(-2)
-	if reqs.i != -2 {
-		t.Errorf("reqs.i = %v, want -2", reqs.i)
+	if i := reqs.Value(); i != -2 {
+		t.Errorf("reqs.Value() = %v, want -2", i)
 	}
 }
 
@@ -82,8 +96,8 @@ func TestFloat(t *testing.T) {
 
 	reqs.Add(1.5)
 	reqs.Add(1.25)
-	if reqs.f != 2.75 {
-		t.Errorf("reqs.f = %v, want 2.75", reqs.f)
+	if v := reqs.Value(); v != 2.75 {
+		t.Errorf("reqs.Value() = %v, want 2.75", v)
 	}
 
 	if s := reqs.String(); s != "2.75" {
@@ -91,8 +105,8 @@ func TestFloat(t *testing.T) {
 	}
 
 	reqs.Add(-2)
-	if reqs.f != 0.75 {
-		t.Errorf("reqs.f = %v, want 0.75", reqs.f)
+	if v := reqs.Value(); v != 0.75 {
+		t.Errorf("reqs.Value() = %v, want 0.75", v)
 	}
 }
 
@@ -119,17 +133,22 @@ func BenchmarkFloatSet(b *testing.B) {
 func TestString(t *testing.T) {
 	RemoveAll()
 	name := NewString("my-name")
-	if name.s != "" {
-		t.Errorf("name.s = %q, want \"\"", name.s)
+	if s := name.Value(); s != "" {
+		t.Errorf(`NewString("my-name").Value() = %q, want ""`, s)
 	}
 
 	name.Set("Mike")
-	if name.s != "Mike" {
-		t.Errorf("name.s = %q, want \"Mike\"", name.s)
+	if s, want := name.String(), `"Mike"`; s != want {
+		t.Errorf(`after name.Set("Mike"), name.String() = %q, want %q`, s, want)
+	}
+	if s, want := name.Value(), "Mike"; s != want {
+		t.Errorf(`after name.Set("Mike"), name.Value() = %q, want %q`, s, want)
 	}
 
-	if s := name.String(); s != "\"Mike\"" {
-		t.Errorf("reqs.String() = %q, want \"\"Mike\"\"", s)
+	// Make sure we produce safe JSON output.
+	name.Set("<")
+	if s, want := name.String(), "\"\\u003c\""; s != want {
+		t.Errorf(`after name.Set("<"), name.String() = %q, want %q`, s, want)
 	}
 }
 
@@ -143,6 +162,65 @@ func BenchmarkStringSet(b *testing.B) {
 	})
 }
 
+func TestMapInit(t *testing.T) {
+	RemoveAll()
+	colors := NewMap("bike-shed-colors")
+	colors.Add("red", 1)
+	colors.Add("blue", 1)
+	colors.Add("chartreuse", 1)
+
+	n := 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 3 {
+		t.Errorf("after three Add calls with distinct keys, Do should invoke f 3 times; got %v", n)
+	}
+
+	colors.Init()
+
+	n = 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 0 {
+		t.Errorf("after Init, Do should invoke f 0 times; got %v", n)
+	}
+}
+
+func TestMapDelete(t *testing.T) {
+	RemoveAll()
+	colors := NewMap("bike-shed-colors")
+
+	colors.Add("red", 1)
+	colors.Add("red", 2)
+	colors.Add("blue", 4)
+
+	n := 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 2 {
+		t.Errorf("after two Add calls with distinct keys, Do should invoke f 2 times; got %v", n)
+	}
+
+	colors.Delete("red")
+	n = 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 1 {
+		t.Errorf("removed red, Do should invoke f 1 times; got %v", n)
+	}
+
+	colors.Delete("notfound")
+	n = 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 1 {
+		t.Errorf("attempted to remove notfound, Do should invoke f 1 times; got %v", n)
+	}
+
+	colors.Delete("blue")
+	colors.Delete("blue")
+	n = 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 0 {
+		t.Errorf("all keys removed, Do should invoke f 0 times; got %v", n)
+	}
+}
+
 func TestMapCounter(t *testing.T) {
 	RemoveAll()
 	colors := NewMap("bike-shed-colors")
@@ -151,14 +229,14 @@ func TestMapCounter(t *testing.T) {
 	colors.Add("red", 2)
 	colors.Add("blue", 4)
 	colors.AddFloat(`green "midori"`, 4.125)
-	if x := colors.m["red"].(*Int).i; x != 3 {
+	if x := colors.Get("red").(*Int).Value(); x != 3 {
 		t.Errorf("colors.m[\"red\"] = %v, want 3", x)
 	}
-	if x := colors.m["blue"].(*Int).i; x != 4 {
+	if x := colors.Get("blue").(*Int).Value(); x != 4 {
 		t.Errorf("colors.m[\"blue\"] = %v, want 4", x)
 	}
-	if x := colors.m[`green "midori"`].(*Float).f; x != 4.125 {
-		t.Errorf("colors.m[`green \"midori\"] = %v, want 3.14", x)
+	if x := colors.Get(`green "midori"`).(*Float).Value(); x != 4.125 {
+		t.Errorf("colors.m[`green \"midori\"] = %v, want 4.125", x)
 	}
 
 	// colors.String() should be '{"red":3, "blue":4}',
@@ -195,24 +273,156 @@ func BenchmarkMapSet(b *testing.B) {
 	})
 }
 
-func BenchmarkMapAddSame(b *testing.B) {
+func BenchmarkMapSetDifferent(b *testing.B) {
+	procKeys := make([][]string, runtime.GOMAXPROCS(0))
+	for i := range procKeys {
+		keys := make([]string, 4)
+		for j := range keys {
+			keys[j] = fmt.Sprint(i, j)
+		}
+		procKeys[i] = keys
+	}
+
+	m := new(Map).Init()
+	v := new(Int)
+	b.ResetTimer()
+
+	var n int32
+	b.RunParallel(func(pb *testing.PB) {
+		i := int(atomic.AddInt32(&n, 1)-1) % len(procKeys)
+		keys := procKeys[i]
+
+		for pb.Next() {
+			for _, k := range keys {
+				m.Set(k, v)
+			}
+		}
+	})
+}
+
+// BenchmarkMapSetDifferentRandom simulates such a case where the concerned
+// keys of Map.Set are generated dynamically and as a result insertion is
+// out of order and the number of the keys may be large.
+func BenchmarkMapSetDifferentRandom(b *testing.B) {
+	keys := make([]string, 100)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("%x", sha1.Sum([]byte(fmt.Sprint(i))))
+	}
+
+	v := new(Int)
+	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		m := new(Map).Init()
-		m.Add("red", 1)
-		m.Add("red", 1)
-		m.Add("red", 1)
-		m.Add("red", 1)
+		for _, k := range keys {
+			m.Set(k, v)
+		}
 	}
 }
 
+func BenchmarkMapSetString(b *testing.B) {
+	m := new(Map).Init()
+
+	v := new(String)
+	v.Set("Hello, !")
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			m.Set("red", v)
+		}
+	})
+}
+
+func BenchmarkMapAddSame(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			m := new(Map).Init()
+			m.Add("red", 1)
+			m.Add("red", 1)
+			m.Add("red", 1)
+			m.Add("red", 1)
+		}
+	})
+}
+
 func BenchmarkMapAddDifferent(b *testing.B) {
+	procKeys := make([][]string, runtime.GOMAXPROCS(0))
+	for i := range procKeys {
+		keys := make([]string, 4)
+		for j := range keys {
+			keys[j] = fmt.Sprint(i, j)
+		}
+		procKeys[i] = keys
+	}
+
+	b.ResetTimer()
+
+	var n int32
+	b.RunParallel(func(pb *testing.PB) {
+		i := int(atomic.AddInt32(&n, 1)-1) % len(procKeys)
+		keys := procKeys[i]
+
+		for pb.Next() {
+			m := new(Map).Init()
+			for _, k := range keys {
+				m.Add(k, 1)
+			}
+		}
+	})
+}
+
+// BenchmarkMapAddDifferentRandom simulates such a case where that the concerned
+// keys of Map.Add are generated dynamically and as a result insertion is out of
+// order and the number of the keys may be large.
+func BenchmarkMapAddDifferentRandom(b *testing.B) {
+	keys := make([]string, 100)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("%x", sha1.Sum([]byte(fmt.Sprint(i))))
+	}
+
+	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		m := new(Map).Init()
-		m.Add("red", 1)
-		m.Add("blue", 1)
-		m.Add("green", 1)
-		m.Add("yellow", 1)
+		for _, k := range keys {
+			m.Add(k, 1)
+		}
 	}
+}
+
+func BenchmarkMapAddSameSteadyState(b *testing.B) {
+	m := new(Map).Init()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			m.Add("red", 1)
+		}
+	})
+}
+
+func BenchmarkMapAddDifferentSteadyState(b *testing.B) {
+	procKeys := make([][]string, runtime.GOMAXPROCS(0))
+	for i := range procKeys {
+		keys := make([]string, 4)
+		for j := range keys {
+			keys[j] = fmt.Sprint(i, j)
+		}
+		procKeys[i] = keys
+	}
+
+	m := new(Map).Init()
+	b.ResetTimer()
+
+	var n int32
+	b.RunParallel(func(pb *testing.PB) {
+		i := int(atomic.AddInt32(&n, 1)-1) % len(procKeys)
+		keys := procKeys[i]
+
+		for pb.Next() {
+			for _, k := range keys {
+				m.Add(k, 1)
+			}
+		}
+	})
 }
 
 func TestFunc(t *testing.T) {
@@ -221,6 +431,9 @@ func TestFunc(t *testing.T) {
 	f := Func(func() interface{} { return x })
 	if s, exp := f.String(), `["a","b"]`; s != exp {
 		t.Errorf(`f.String() = %q, want %q`, s, exp)
+	}
+	if v := f.Value(); !reflect.DeepEqual(v, x) {
+		t.Errorf(`f.Value() = %q, want %q`, v, x)
 	}
 
 	x = 17
@@ -276,12 +489,13 @@ func BenchmarkRealworldExpvarUsage(b *testing.B) {
 		b.Fatalf("Listen failed: %v", err)
 	}
 	defer ln.Close()
-	done := make(chan bool)
+	done := make(chan bool, 1)
 	go func() {
 		for p := 0; p < P; p++ {
 			s, err := ln.Accept()
 			if err != nil {
 				b.Errorf("Accept failed: %v", err)
+				done <- false
 				return
 			}
 			servers[p] = s
@@ -291,11 +505,14 @@ func BenchmarkRealworldExpvarUsage(b *testing.B) {
 	for p := 0; p < P; p++ {
 		c, err := net.Dial("tcp", ln.Addr().String())
 		if err != nil {
+			<-done
 			b.Fatalf("Dial failed: %v", err)
 		}
 		clients[p] = c
 	}
-	<-done
+	if !<-done {
+		b.FailNow()
+	}
 
 	b.StartTimer()
 

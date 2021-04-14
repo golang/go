@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
 
 package os
 
@@ -17,9 +17,34 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 	if p.Pid == -1 {
 		return nil, syscall.EINVAL
 	}
-	var status syscall.WaitStatus
-	var rusage syscall.Rusage
-	pid1, e := syscall.Wait4(p.Pid, &status, 0, &rusage)
+
+	// If we can block until Wait4 will succeed immediately, do so.
+	ready, err := p.blockUntilWaitable()
+	if err != nil {
+		return nil, err
+	}
+	if ready {
+		// Mark the process done now, before the call to Wait4,
+		// so that Process.signal will not send a signal.
+		p.setDone()
+		// Acquire a write lock on sigMu to wait for any
+		// active call to the signal method to complete.
+		p.sigMu.Lock()
+		p.sigMu.Unlock()
+	}
+
+	var (
+		status syscall.WaitStatus
+		rusage syscall.Rusage
+		pid1   int
+		e      error
+	)
+	for {
+		pid1, e = syscall.Wait4(p.Pid, &status, 0, &rusage)
+		if e != syscall.EINTR {
+			break
+		}
+	}
 	if e != nil {
 		return nil, NewSyscallError("wait", e)
 	}
@@ -34,8 +59,6 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 	return ps, nil
 }
 
-var errFinished = errors.New("os: process already finished")
-
 func (p *Process) signal(sig Signal) error {
 	if p.Pid == -1 {
 		return errors.New("os: process already released")
@@ -43,8 +66,10 @@ func (p *Process) signal(sig Signal) error {
 	if p.Pid == 0 {
 		return errors.New("os: process not initialized")
 	}
+	p.sigMu.RLock()
+	defer p.sigMu.RUnlock()
 	if p.done() {
-		return errFinished
+		return ErrProcessDone
 	}
 	s, ok := sig.(syscall.Signal)
 	if !ok {
@@ -52,7 +77,7 @@ func (p *Process) signal(sig Signal) error {
 	}
 	if e := syscall.Kill(p.Pid, s); e != nil {
 		if e == syscall.ESRCH {
-			return errFinished
+			return ErrProcessDone
 		}
 		return e
 	}

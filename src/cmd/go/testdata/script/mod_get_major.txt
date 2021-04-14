@@ -1,0 +1,23 @@
+[!net] skip
+[!exec:git] skip
+
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+
+# golang.org/issue/34383: if a module path ends in a major-version suffix,
+# ensure that 'direct' mode can resolve the package to a module.
+
+go get -d vcs-test.golang.org/git/v3pkg.git/v3@v3.0.0
+
+go list -m vcs-test.golang.org/git/v3pkg.git/v3
+stdout '^vcs-test.golang.org/git/v3pkg.git/v3 v3.0.0$'
+
+go get -d vcs-test.golang.org/git/empty-v2-without-v1.git/v2@v2.0.0
+
+go list -m vcs-test.golang.org/git/empty-v2-without-v1.git/v2
+stdout '^vcs-test.golang.org/git/empty-v2-without-v1.git/v2 v2.0.0$'
+
+-- go.mod --
+module example.com
+go 1.13

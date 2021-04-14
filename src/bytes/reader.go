@@ -14,6 +14,7 @@ import (
 // io.ByteScanner, and io.RuneScanner interfaces by reading from
 // a byte slice.
 // Unlike a Buffer, a Reader is read-only and supports seeking.
+// The zero value for Reader operates like a Reader of an empty slice.
 type Reader struct {
 	s        []byte
 	i        int64 // current reading index
@@ -29,10 +30,14 @@ func (r *Reader) Len() int {
 	return int(int64(len(r.s)) - r.i)
 }
 
+// Size returns the original length of the underlying byte slice.
+// Size is the number of bytes available for reading via ReadAt.
+// The returned value is always the same and is not affected by calls
+// to any other method.
+func (r *Reader) Size() int64 { return int64(len(r.s)) }
+
+// Read implements the io.Reader interface.
 func (r *Reader) Read(b []byte) (n int, err error) {
-	if len(b) == 0 {
-		return 0, nil
-	}
 	if r.i >= int64(len(r.s)) {
 		return 0, io.EOF
 	}
@@ -42,6 +47,7 @@ func (r *Reader) Read(b []byte) (n int, err error) {
 	return
 }
 
+// ReadAt implements the io.ReaderAt interface.
 func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
 	// cannot modify state - see io.ReaderAt
 	if off < 0 {
@@ -57,25 +63,28 @@ func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
 	return
 }
 
-func (r *Reader) ReadByte() (b byte, err error) {
+// ReadByte implements the io.ByteReader interface.
+func (r *Reader) ReadByte() (byte, error) {
 	r.prevRune = -1
 	if r.i >= int64(len(r.s)) {
 		return 0, io.EOF
 	}
-	b = r.s[r.i]
+	b := r.s[r.i]
 	r.i++
-	return
+	return b, nil
 }
 
+// UnreadByte complements ReadByte in implementing the io.ByteScanner interface.
 func (r *Reader) UnreadByte() error {
-	r.prevRune = -1
 	if r.i <= 0 {
 		return errors.New("bytes.Reader.UnreadByte: at beginning of slice")
 	}
+	r.prevRune = -1
 	r.i--
 	return nil
 }
 
+// ReadRune implements the io.RuneReader interface.
 func (r *Reader) ReadRune() (ch rune, size int, err error) {
 	if r.i >= int64(len(r.s)) {
 		r.prevRune = -1
@@ -91,7 +100,11 @@ func (r *Reader) ReadRune() (ch rune, size int, err error) {
 	return
 }
 
+// UnreadRune complements ReadRune in implementing the io.RuneScanner interface.
 func (r *Reader) UnreadRune() error {
+	if r.i <= 0 {
+		return errors.New("bytes.Reader.UnreadRune: at beginning of slice")
+	}
 	if r.prevRune < 0 {
 		return errors.New("bytes.Reader.UnreadRune: previous operation was not ReadRune")
 	}
@@ -105,11 +118,11 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
 	r.prevRune = -1
 	var abs int64
 	switch whence {
-	case 0:
+	case io.SeekStart:
 		abs = offset
-	case 1:
-		abs = int64(r.i) + offset
-	case 2:
+	case io.SeekCurrent:
+		abs = r.i + offset
+	case io.SeekEnd:
 		abs = int64(len(r.s)) + offset
 	default:
 		return 0, errors.New("bytes.Reader.Seek: invalid whence")
@@ -139,6 +152,9 @@ func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
 	}
 	return
 }
+
+// Reset resets the Reader to be reading from b.
+func (r *Reader) Reset(b []byte) { *r = Reader{b, 0, -1} }
 
 // NewReader returns a new Reader reading from b.
 func NewReader(b []byte) *Reader { return &Reader{b, 0, -1} }

@@ -1,0 +1,13 @@
+# Zip files with unexpected file names inside should be rejected.
+env GO111MODULE=on
+
+! go get -d rsc.io/badzip
+stderr 'zip for rsc.io/badzip@v1.0.0 has unexpected file rsc.io/badzip@v1.0.0.txt'
+! grep rsc.io/badzip go.mod
+
+go mod edit -require rsc.io/badzip@v1.0.0
+! go build -mod=mod rsc.io/badzip
+stderr 'zip for rsc.io/badzip@v1.0.0 has unexpected file rsc.io/badzip@v1.0.0.txt'
+
+-- go.mod --
+module m

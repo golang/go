@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package exec
+// Use an external test to avoid os/exec -> internal/testenv -> os/exec
+// circular dependency.
+
+package exec_test
 
 import (
 	"fmt"
+	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -63,7 +67,7 @@ type lookPathTest struct {
 }
 
 func (test lookPathTest) runProg(t *testing.T, env []string, args ...string) (string, error) {
-	cmd := Command(args[0], args[1:]...)
+	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = env
 	cmd.Dir = test.rootDir
 	args[0] = filepath.Base(args[0])
@@ -107,17 +111,17 @@ func createEnv(dir, PATH, PATHEXT string) []string {
 	env := os.Environ()
 	env = updateEnv(env, "PATHEXT", PATHEXT)
 	// Add dir in front of every directory in the PATH.
-	dirs := splitList(PATH)
+	dirs := filepath.SplitList(PATH)
 	for i := range dirs {
 		dirs[i] = filepath.Join(dir, dirs[i])
 	}
 	path := strings.Join(dirs, ";")
-	env = updateEnv(env, "PATH", path)
+	env = updateEnv(env, "PATH", os.Getenv("SystemRoot")+"/System32;"+path)
 	return env
 }
 
 // createFiles copies srcPath file into multiply files.
-// It uses dir as preifx for all destination files.
+// It uses dir as prefix for all destination files.
 func createFiles(t *testing.T, dir string, files []string, srcPath string) {
 	for _, f := range files {
 		installProg(t, filepath.Join(dir, f), srcPath)
@@ -302,7 +306,7 @@ var lookPathTests = []lookPathTest{
 }
 
 func TestLookPath(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "TestLookPath")
+	tmp, err := os.MkdirTemp("", "TestLookPath")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
 	}
@@ -346,7 +350,7 @@ func (test commandTest) isSuccess(rootDir, output string, err error) error {
 }
 
 func (test commandTest) runOne(rootDir string, env []string, dir, arg0 string) error {
-	cmd := Command(os.Args[0], "-test.run=TestHelperProcess", "--", "exec", dir, arg0)
+	cmd := exec.Command(os.Args[0], "-test.run=TestHelperProcess", "--", "exec", dir, arg0)
 	cmd.Dir = rootDir
 	cmd.Env = env
 	output, err := cmd.CombinedOutput()
@@ -422,7 +426,7 @@ var commandTests = []commandTest{
 	},
 	// tests commands, like `a.exe`, with c.Dir set
 	{
-		// should not find a.exe in p, becasue LookPath(`a.exe`) will fail
+		// should not find a.exe in p, because LookPath(`a.exe`) will fail
 		files: []string{`p\a.exe`},
 		dir:   `p`,
 		arg0:  `a.exe`,
@@ -431,7 +435,7 @@ var commandTests = []commandTest{
 	},
 	{
 		// LookPath(`a.exe`) will find `.\a.exe`, but prefixing that with
-		// dir `p\a.exe` will refer to not existant file
+		// dir `p\a.exe` will refer to a non-existent file
 		files: []string{`a.exe`, `p\not_important_file`},
 		dir:   `p`,
 		arg0:  `a.exe`,
@@ -440,7 +444,7 @@ var commandTests = []commandTest{
 	},
 	{
 		// like above, but making test succeed by installing file
-		// in refered destination (so LookPath(`a.exe`) will still
+		// in referred destination (so LookPath(`a.exe`) will still
 		// find `.\a.exe`, but we successfully execute `p\a.exe`)
 		files: []string{`a.exe`, `p\a.exe`},
 		dir:   `p`,
@@ -499,7 +503,7 @@ var commandTests = []commandTest{
 }
 
 func TestCommand(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "TestCommand")
+	tmp, err := os.MkdirTemp("", "TestCommand")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
 	}
@@ -524,7 +528,7 @@ func TestCommand(t *testing.T) {
 func buildPrintPathExe(t *testing.T, dir string) string {
 	const name = "printpath"
 	srcname := name + ".go"
-	err := ioutil.WriteFile(filepath.Join(dir, srcname), []byte(printpathSrc), 0644)
+	err := os.WriteFile(filepath.Join(dir, srcname), []byte(printpathSrc), 0644)
 	if err != nil {
 		t.Fatalf("failed to create source: %v", err)
 	}
@@ -532,7 +536,7 @@ func buildPrintPathExe(t *testing.T, dir string) string {
 		t.Fatalf("failed to execute template: %v", err)
 	}
 	outname := name + ".exe"
-	cmd := Command("go", "build", "-o", outname, srcname)
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", outname, srcname)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {

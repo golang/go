@@ -290,7 +290,7 @@ func (p *parser) consumeCommentGroup() (comments *ast.CommentGroup, endline int)
 
 // Advance to the next non-comment token. In the process, collect
 // any comment groups encountered, and remember the last lead and
-// and line comments.
+// line comments.
 //
 // A lead comment is a comment group that starts and ends in a
 // line without any other tokens and that is followed by a non-comment
@@ -1165,7 +1165,7 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 	return x
 }
 
-// isTypeName returns true iff x is a (qualified) TypeName.
+// isTypeName reports whether x is a (qualified) TypeName.
 func isTypeName(x ast.Expr) bool {
 	switch t := x.(type) {
 	case *ast.BadExpr:
@@ -1179,7 +1179,7 @@ func isTypeName(x ast.Expr) bool {
 	return true
 }
 
-// isLiteralType returns true iff x is a legal composite literal type.
+// isLiteralType reports whether x is a legal composite literal type.
 func isLiteralType(x ast.Expr) bool {
 	switch t := x.(type) {
 	case *ast.BadExpr:

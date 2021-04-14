@@ -1,0 +1,43 @@
+cp go.mod go.mod.orig
+
+# getting a specific version of a module along with a pattern
+# not yet present in that module should report the version mismatch
+# rather than a "matched no packages" warning.
+
+! go get -d example.net/pkgadded@v1.1.0 example.net/pkgadded/subpkg/...
+stderr '^go get: example.net/pkgadded@v1.1.0 conflicts with example.net/pkgadded/subpkg/...@upgrade \(v1.2.0\)$'
+! stderr 'matched no packages'
+cmp go.mod.orig go.mod
+
+
+# A wildcard pattern should match the pattern with that path.
+
+go get -d example.net/pkgadded/...@v1.0.0
+go list -m all
+stdout '^example.net/pkgadded v1.0.0'
+cp go.mod.orig go.mod
+
+
+# If we need to resolve a transitive dependency of a package,
+# and another argument constrains away the version that provides that
+# package, then 'go get' should fail with a useful error message.
+
+! go get -d example.net/pkgadded@v1.0.0 .
+stderr '^example.com/m imports\n\texample.net/pkgadded/subpkg: cannot find module providing package example.net/pkgadded/subpkg$'
+! stderr 'example.net/pkgadded v1\.2\.0'
+cmp go.mod.orig go.mod
+
+go get -d example.net/pkgadded@v1.0.0
+! go list -deps -mod=readonly .
+stderr '^m.go:3:8: cannot find module providing package example\.net/pkgadded/subpkg: '
+
+-- go.mod --
+module example.com/m
+
+go 1.16
+
+require example.net/pkgadded v1.2.0
+-- m.go --
+package m
+
+import _ "example.net/pkgadded/subpkg"

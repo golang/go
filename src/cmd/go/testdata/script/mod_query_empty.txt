@@ -1,0 +1,73 @@
+env GO111MODULE=on
+env GOSUMDB=off
+
+go mod download example.com/join@v1.1.0
+
+# If the proxy serves a bogus result for the @latest version,
+# reading that version should cause 'go get' to fail.
+env GOPROXY=file:///$WORK/badproxy
+cp go.mod.orig go.mod
+! go get -d example.com/join/subpkg
+stderr 'go get: example.com/join/subpkg@v0.0.0-20190624000000-123456abcdef: .*'
+
+# If @v/list is empty, the 'go' command should still try to resolve
+# other module paths.
+env GOPROXY=file:///$WORK/emptysub
+cp go.mod.orig go.mod
+go get -d example.com/join/subpkg
+go list -m example.com/join/...
+! stdout 'example.com/join/subpkg'
+stdout 'example.com/join v1.1.0'
+
+# If @v/list includes a version that the proxy does not actually serve,
+# that version is treated as nonexistent.
+env GOPROXY=file:///$WORK/notfound
+cp go.mod.orig go.mod
+go get -d example.com/join/subpkg
+go list -m example.com/join/...
+! stdout 'example.com/join/subpkg'
+stdout 'example.com/join v1.1.0'
+
+# If the proxy provides an empty @v/list but rejects @latest with
+# some other explicit error (for example, a "permission denied" error),
+# that error should be reported to the user (and override a successful
+# result for other possible module paths).
+#
+# Depending on how the specific platform enforces permissions, the 'go get' may
+# fail either due to the intended permission error or due to a parse error.
+# We accept either failure message.
+env GOPROXY=file:///$WORK/gatekeeper
+chmod 0000 $WORK/gatekeeper/example.com/join/subpkg/@latest
+cp go.mod.orig go.mod
+! go get -d example.com/join/subpkg
+stderr 'go get: module example.com/join/subpkg: (invalid response from proxy ".+": invalid character .+|reading file://.*/gatekeeper/example.com/join/subpkg/@latest: .+)'
+
+-- go.mod.orig --
+module example.com/othermodule
+go 1.13
+-- $WORK/badproxy/example.com/join/subpkg/@v/list --
+v0.0.0-20190624000000-123456abcdef
+-- $WORK/badproxy/example.com/join/subpkg/@v/v0.0.0-20190624000000-123456abcdef.info --
+This file is not valid JSON.
+-- $WORK/badproxy/example.com/join/@v/list --
+v1.1.0
+-- $WORK/badproxy/example.com/join/@v/v1.1.0.info --
+{"Version": "v1.1.0"}
+-- $WORK/emptysub/example.com/join/subpkg/@v/list --
+-- $WORK/emptysub/example.com/join/@v/list --
+v1.1.0
+-- $WORK/emptysub/example.com/join/@v/v1.1.0.info --
+{"Version": "v1.1.0"}
+-- $WORK/notfound/example.com/join/subpkg/@v/list --
+v1.0.0-does-not-exist
+-- $WORK/notfound/example.com/join/@v/list --
+v1.1.0
+-- $WORK/notfound/example.com/join/@v/v1.1.0.info --
+{"Version": "v1.1.0"}
+-- $WORK/gatekeeper/example.com/join/subpkg/@v/list --
+-- $WORK/gatekeeper/example.com/join/subpkg/@latest --
+ERROR: Latest version is forbidden.
+-- $WORK/gatekeeper/example.com/join/@v/list --
+v1.1.0
+-- $WORK/gatekeeper/example.com/join/@v/v1.1.0.info --
+{"Version": "v1.1.0"}

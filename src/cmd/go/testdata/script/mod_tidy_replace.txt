@@ -1,0 +1,138 @@
+env GO111MODULE=on
+env GOFLAGS=-mod=mod
+[short] skip
+
+# golang.org/issue/30166: 'go mod tidy' should not crash if a replaced module is
+# involved in a cycle.
+cd cycle
+env GOTRACEBACK=off
+go mod tidy
+cd ..
+
+# From inside the module, 'go list -m all' should NOT include transitive
+# requirements of modules that have been replaced.
+go list -m all
+stdout 'rsc.io/quote/v3 v3.0.0'
+! stdout 'rsc.io/sampler'
+! stdout 'golang.org/x/text'
+
+# From outside the module, 'go list -m all' should include them.
+cd outside
+go list -m all
+stdout 'rsc.io/quote/v3 v3.0.0'
+stdout 'rsc.io/sampler v1.3.0'
+stdout 'golang.org/x/text'
+cd ..
+
+# 'go list all' should add indirect requirements to satisfy the packages
+# imported from replacement modules.
+! grep 'rsc.io/sampler' go.mod
+! grep 'golang.org/x/text' go.mod
+go list all
+grep 'rsc.io/sampler' go.mod
+grep 'golang.org/x/text' go.mod
+
+# 'go get' and 'go mod tidy' should follow the requirements of the replacements,
+# not the originals, even if that results in a set of versions that are
+# misleading or redundant without those replacements.
+go get -d rsc.io/sampler@v1.2.0
+go mod tidy
+go list -m all
+stdout 'rsc.io/quote/v3 v3.0.0'
+stdout 'rsc.io/sampler v1.2.0'
+stdout 'golang.org/x/text'
+
+# The requirements seen from outside may be higher (or lower)
+# than those seen from within the module.
+grep 'rsc.io/sampler v1.2.0' go.mod
+cd outside
+go list -m all
+stdout 'rsc.io/sampler v1.3.0'
+cd ..
+
+# The same module can't be used as two different paths.
+cd multiple-paths
+! go mod tidy
+stderr 'rsc.io/quote/v3@v3.0.0 used for two different module paths \(not-rsc.io/quote/v3 and rsc.io/quote/v3\)'
+
+-- go.mod --
+module example.com/tidy
+
+require rsc.io/quote/v3 v3.0.0
+replace rsc.io/quote/v3 => ./not-rsc.io/quote/v3
+
+-- imports.go --
+package tidy
+
+import _ "rsc.io/quote/v3"
+
+-- outside/go.mod --
+module example.com/tidy/outside
+
+require example.com/tidy v0.0.0
+replace example.com/tidy => ./..
+
+-- not-rsc.io/quote/v3/go.mod --
+module not-rsc.io/quote/v3
+
+// No requirements specified!
+
+-- not-rsc.io/quote/v3/quote.go --
+package quote
+
+import (
+	_ "rsc.io/sampler"
+	_ "golang.org/x/text/language"
+)
+
+-- cycle/go.mod --
+module golang.org/issue/30166
+
+require (
+	golang.org/issue/30166/a v0.0.0
+	golang.org/issue/30166/b v0.0.0
+)
+
+replace (
+	golang.org/issue/30166/a => ./a
+	golang.org/issue/30166/b => ./b
+)
+-- cycle/cycle.go --
+package cycle
+
+import (
+	_ "golang.org/issue/30166/a"
+	_ "golang.org/issue/30166/b"
+)
+-- cycle/a/a.go --
+package a
+-- cycle/a/go.mod --
+module golang.org/issue/30166/a
+
+require golang.org/issue/30166/b v0.0.0
+-- cycle/b/b.go --
+package b
+-- cycle/b/go.mod --
+module golang.org/issue/30166/b
+
+require golang.org/issue/30166/a v0.0.0
+-- multiple-paths/main.go --
+package main
+
+import (
+	"fmt"
+	"rsc.io/quote/v3"
+)
+
+func main() {
+	fmt.Println(quote.GoV3())
+}
+-- multiple-paths/go.mod --
+module quoter
+
+require (
+	rsc.io/quote/v3 v3.0.0
+	not-rsc.io/quote/v3 v3.0.0
+)
+
+replace not-rsc.io/quote/v3 => rsc.io/quote/v3 v3.0.0

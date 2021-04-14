@@ -10,7 +10,7 @@ package math
 
 // The original C code and the long comment below are
 // from FreeBSD's /usr/src/lib/msun/src/e_lgamma_r.c and
-// came with this notice.  The go code is a simplified
+// came with this notice. The go code is a simplified
 // version of the original C.
 //
 // ====================================================
@@ -103,7 +103,7 @@ var _lgamA = [...]float64{
 	4.48640949618915160150e-05, // 0x3F07858E90A45837
 }
 var _lgamR = [...]float64{
-	1.0, // placeholder
+	1.0,                        // placeholder
 	1.39200533467621045958e+00, // 0x3FF645A762C4AB74
 	7.21935547567138069525e-01, // 0x3FE71A1893D3DCDC
 	1.71933865632803078993e-01, // 0x3FC601EDCCFBDF27

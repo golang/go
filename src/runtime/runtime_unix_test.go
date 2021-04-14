@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 // We need a fast system call to provoke the race,
 // and Close(-1) is nearly universally fast.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd plan9
+// +build aix darwin dragonfly freebsd linux netbsd openbsd plan9
 
 package runtime_test
 
@@ -42,7 +42,7 @@ func TestGoroutineProfile(t *testing.T) {
 	if testing.Short() {
 		max = 100
 	}
-	stk := make([]runtime.StackRecord, 100)
+	stk := make([]runtime.StackRecord, 128)
 	for n := 0; n < max; n++ {
 		_, ok := runtime.GoroutineProfile(stk)
 		if !ok {

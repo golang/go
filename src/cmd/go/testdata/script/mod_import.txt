@@ -1,0 +1,18 @@
+env GO111MODULE=on
+
+# latest rsc.io/quote should be v1.5.2 not v1.5.3-pre1
+go get -d
+go list -m all
+stdout 'rsc.io/quote v1.5.2'
+
+# but v1.5.3-pre1 should be a known version
+go list -m -versions rsc.io/quote
+stdout '^rsc.io/quote v1.0.0 v1.1.0 v1.2.0 v1.2.1 v1.3.0 v1.4.0 v1.5.0 v1.5.1 v1.5.2 v1.5.3-pre1$'
+
+-- go.mod --
+module x
+
+-- x.go --
+package x
+import _ "rsc.io/quote"
+

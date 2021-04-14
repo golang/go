@@ -1,0 +1,27 @@
+env GO111MODULE=off
+
+# gccgo does not have standard packages.
+[gccgo] skip
+
+# fmt should have no rewritten imports.
+# The import from a/b should map c/d to a's vendor directory.
+go list -f '{{.ImportPath}}: {{.ImportMap}}' fmt a/b
+stdout 'fmt: map\[\]'
+stdout 'a/b: map\[c/d:a/vendor/c/d\]'
+
+# flag [fmt.test] should import fmt [fmt.test] as fmt
+# fmt.test should import testing [fmt.test] as testing
+# fmt.test should not import a modified os
+go list -deps -test -f '{{.ImportPath}} MAP: {{.ImportMap}}{{"\n"}}{{.ImportPath}} IMPORT: {{.Imports}}' fmt
+stdout '^flag \[fmt\.test\] MAP: map\[fmt:fmt \[fmt\.test\]\]'
+stdout '^fmt\.test MAP: map\[(.* )?testing:testing \[fmt\.test\]'
+! stdout '^fmt\.test MAP: map\[(.* )?os:'
+stdout '^fmt\.test IMPORT: \[fmt \[fmt\.test\] fmt_test \[fmt\.test\] os reflect testing \[fmt\.test\] testing/internal/testdeps \[fmt\.test\]\]'
+
+
+-- a/b/b.go --
+package b
+
+import _ "c/d"
+-- a/vendor/c/d/d.go --
+package d

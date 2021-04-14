@@ -1,0 +1,19 @@
+env GO111MODULE=off
+
+! go fmt does-not-exist
+
+go fmt -n exclude
+stdout 'exclude[/\\]x\.go'
+stdout 'exclude[/\\]x_linux\.go'
+
+-- exclude/empty/x.txt --
+-- exclude/ignore/_x.go --
+package x
+-- exclude/x.go --
+// +build linux,!linux
+
+package x
+-- exclude/x_linux.go --
+// +build windows
+
+package x

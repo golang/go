@@ -1,0 +1,27 @@
+patch.example.com/direct v1.0.1
+written by hand
+
+-- .mod --
+module patch.example.com/direct
+
+require (
+	patch.example.com/indirect v1.0.0
+	patch.example.com/depofdirectpatch v1.0.0
+)
+-- .info --
+{"Version":"v1.0.1"}
+-- go.mod --
+module patch.example.com/direct
+
+require (
+	patch.example.com/indirect v1.0.0
+	patch.example.com/depofdirectpatch v1.0.0
+)
+-- direct.go --
+package direct
+
+import _ "patch.example.com/indirect"
+-- usedepofdirectpatch/unused.go --
+package usedepofdirectpatch
+
+import _ "patch.example.com/depofdirectpatch"

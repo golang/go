@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -18,5 +18,11 @@ func TestRead(t *testing.T) {
 	}
 	if Fclose(f) != 0 {
 		t.Error("fclose failed")
+	}
+}
+
+func TestF(t *testing.T) {
+	if x := F(); x != 1 {
+		t.Fatalf("x = %d, want 1", x)
 	}
 }

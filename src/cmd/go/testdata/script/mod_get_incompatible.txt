@@ -1,0 +1,26 @@
+env GO111MODULE=on
+
+go get -d x
+go list -m all
+stdout 'rsc.io/breaker v2.0.0\+incompatible'
+
+cp go.mod2 go.mod
+go get -d rsc.io/breaker@7307b30
+go list -m all
+stdout 'rsc.io/breaker v2.0.0\+incompatible'
+
+go get -d rsc.io/breaker@v2.0.0
+go list -m all
+stdout 'rsc.io/breaker v2.0.0\+incompatible'
+
+-- go.mod --
+module x
+
+-- go.mod2 --
+module x
+require rsc.io/breaker v1.0.0
+
+-- x.go --
+package x
+import "rsc.io/breaker"
+var _ = breaker.XX

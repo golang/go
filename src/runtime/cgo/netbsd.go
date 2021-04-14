@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -14,6 +14,8 @@ import _ "unsafe" // for go:linkname
 
 //go:linkname _environ environ
 //go:linkname _progname __progname
+//go:linkname ___ps_strings __ps_strings
 
 var _environ uintptr
 var _progname uintptr
+var ___ps_strings uintptr

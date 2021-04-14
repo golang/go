@@ -1,0 +1,41 @@
+env GO111MODULE=on
+
+# initial standalone module should use no downloaded modules
+go list -deps -f {{.Dir}}
+! stdout 'pkg[\\/]mod'
+
+# v2 import should use a downloaded module
+# both without an explicit go.mod entry ...
+cp tmp/use_v2.go x.go
+go get -d .
+go list -deps -f {{.Dir}}
+stdout 'pkg[\\/]mod[\\/]rsc.io[\\/]quote[\\/]v2@v2.0.1$'
+
+# ... and with one ...
+cp tmp/use_v2.mod go.mod
+go list -deps -f {{.Dir}}
+stdout 'pkg[\\/]mod[\\/]rsc.io[\\/]quote[\\/]v2@v2.0.1$'
+
+# ... and even if there is a v2 module in a subdirectory.
+mkdir v2
+cp x.go v2/x.go
+cp tmp/v2.mod v2/go.mod
+go list -deps -f {{.Dir}}
+stdout 'pkg[\\/]mod[\\/]rsc.io[\\/]quote[\\/]v2@v2.0.1$'
+
+-- go.mod --
+module rsc.io/quote
+
+-- x.go --
+package quote
+
+-- tmp/use_v2.go --
+package quote
+import _ "rsc.io/quote/v2"
+
+-- tmp/use_v2.mod --
+module rsc.io/quote
+require rsc.io/quote/v2 v2.0.1
+
+-- tmp/v2.mod --
+package rsc.io/quote/v2

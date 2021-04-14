@@ -1,0 +1,18 @@
+env GO111MODULE=off
+
+! go test x y
+stdout ^FAIL\s+x
+stdout ^ok\s+y
+stdout (?-m)FAIL\n$
+
+-- x/x_test.go --
+package x
+
+import "testing"
+
+func TestNothingJustFail(t *testing.T) {
+    t.Fail()
+}
+
+-- y/y_test.go --
+package y

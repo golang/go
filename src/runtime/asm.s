@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -11,9 +11,3 @@
 DATA runtime·no_pointers_stackmap+0x00(SB)/4, $2
 DATA runtime·no_pointers_stackmap+0x04(SB)/4, $0
 GLOBL runtime·no_pointers_stackmap(SB),RODATA, $8
-
-TEXT runtime·nop(SB),NOSPLIT,$0-0
-	RET
-
-GLOBL runtime·mheap_(SB), NOPTR, $0
-GLOBL runtime·memstats(SB), NOPTR, $0
