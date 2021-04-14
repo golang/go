@@ -10,43 +10,25 @@
 // Saves C callee-saved registers and calls cgocallback with three arguments.
 // fn is the PC of a func(a unsafe.Pointer) function.
 // This signature is known to SWIG, so we can't change it.
-#ifndef GOOS_windows
-TEXT crosscall2(SB),NOSPLIT,$0x50-0 /* keeps stack pointer 32-byte aligned */
-	MOVQ	BX, 0x18(SP)
-	MOVQ	R12, 0x28(SP)
-	MOVQ	R13, 0x30(SP)
-	MOVQ	R14, 0x38(SP)
-	MOVQ	R15, 0x40(SP)
-
-	MOVQ	DI, 0x0(SP)	/* fn */
-	MOVQ	SI, 0x8(SP)	/* arg */
-	// Skip n in DX.
-	MOVQ	CX, 0x10(SP)	/* ctxt */
-
-	CALL	runtime·cgocallback(SB)
-
-	MOVQ	0x18(SP), BX
-	MOVQ	0x28(SP), R12
-	MOVQ	0x30(SP), R13
-	MOVQ	0x38(SP), R14
-	MOVQ	0x40(SP), R15
-
-	RET
-
-#else
 TEXT crosscall2(SB),NOSPLIT,$0-0
 	PUSH_REGS_HOST_TO_ABI0()
 
 	// Make room for arguments to cgocallback.
 	ADJSP	$0x18
+#ifndef GOOS_windows
+	MOVQ	DI, 0x0(SP)	/* fn */
+	MOVQ	SI, 0x8(SP)	/* arg */
+	// Skip n in DX.
+	MOVQ	CX, 0x10(SP)	/* ctxt */
+#else
 	MOVQ	CX, 0x0(SP)	/* fn */
 	MOVQ	DX, 0x8(SP)	/* arg */
 	// Skip n in R8.
 	MOVQ	R9, 0x10(SP)	/* ctxt */
+#endif
 
 	CALL	runtime·cgocallback(SB)
 
 	ADJSP	$-0x18
 	POP_REGS_HOST_TO_ABI0()
 	RET
-#endif

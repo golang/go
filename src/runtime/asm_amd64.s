@@ -6,6 +6,7 @@
 #include "go_tls.h"
 #include "funcdata.h"
 #include "textflag.h"
+#include "cgo/abi_amd64.h"
 
 // _rt0_amd64 is common startup code for most amd64 systems when using
 // internal linking. This is the entry point for the program from the
@@ -28,14 +29,9 @@ TEXT main(SB),NOSPLIT,$-8
 // c-archive) or when the shared library is loaded (for c-shared).
 // We expect argc and argv to be passed in the usual C ABI registers
 // DI and SI.
-TEXT _rt0_amd64_lib(SB),NOSPLIT,$0x40
-	// Save C ABI callee-saved registers, as caller may need them.
-	MOVQ	BX, 0x10(SP)
-	MOVQ	BP, 0x18(SP)
-	MOVQ	R12, 0x20(SP)
-	MOVQ	R13, 0x28(SP)
-	MOVQ	R14, 0x30(SP)
-	MOVQ	R15, 0x38(SP)
+TEXT _rt0_amd64_lib(SB),NOSPLIT,$0
+	// Transition from C ABI to Go ABI.
+	PUSH_REGS_HOST_TO_ABI0()
 
 	MOVQ	DI, _rt0_amd64_lib_argc<>(SB)
 	MOVQ	SI, _rt0_amd64_lib_argv<>(SB)
@@ -59,18 +55,15 @@ TEXT _rt0_amd64_lib(SB),NOSPLIT,$0x40
 	JMP	restore
 
 nocgo:
+	ADJSP	$16
 	MOVQ	$0x800000, 0(SP)		// stacksize
 	MOVQ	$_rt0_amd64_lib_go(SB), AX
 	MOVQ	AX, 8(SP)			// fn
 	CALL	runtime·newosproc0(SB)
+	ADJSP	$-16
 
 restore:
-	MOVQ	0x10(SP), BX
-	MOVQ	0x18(SP), BP
-	MOVQ	0x20(SP), R12
-	MOVQ	0x28(SP), R13
-	MOVQ	0x30(SP), R14
-	MOVQ	0x38(SP), R15
+	POP_REGS_HOST_TO_ABI0()
 	RET
 
 // _rt0_amd64_lib_go initializes the Go runtime.
