@@ -3,6 +3,7 @@ module golang.org/x/tools/gopls
 go 1.12
 
 require (
+	github.com/google/go-cmp v0.5.5
 	github.com/jba/templatecheck v0.5.0
 	github.com/sanity-io/litter v1.5.0
 	github.com/sergi/go-diff v1.1.0
