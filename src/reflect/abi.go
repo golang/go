@@ -366,6 +366,22 @@ func (a *abiDesc) dump() {
 	println("stackCallArgsSize", a.stackCallArgsSize)
 	println("retOffset", a.retOffset)
 	println("spill", a.spill)
+	print("inRegPtrs:")
+	dumpPtrBitMap(a.inRegPtrs)
+	println()
+	print("outRegPtrs:")
+	dumpPtrBitMap(a.outRegPtrs)
+	println()
+}
+
+func dumpPtrBitMap(b abi.IntArgRegBitmap) {
+	for i := 0; i < intArgRegs; i++ {
+		x := 0
+		if b.Get(i) {
+			x = 1
+		}
+		print(" ", x)
+	}
 }
 
 func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
