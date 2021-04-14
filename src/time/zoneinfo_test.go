@@ -7,7 +7,6 @@ package time_test
 import (
 	"errors"
 	"fmt"
-	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -25,8 +24,7 @@ func TestEnvVarUsage(t *testing.T) {
 	const testZoneinfo = "foo.zip"
 	const env = "ZONEINFO"
 
-	defer os.Setenv(env, os.Getenv(env))
-	os.Setenv(env, testZoneinfo)
+	t.Setenv(env, testZoneinfo)
 
 	// Result isn't important, we're testing the side effect of this command
 	time.LoadLocation("Asia/Jerusalem")
@@ -50,8 +48,7 @@ func TestBadLocationErrMsg(t *testing.T) {
 func TestLoadLocationValidatesNames(t *testing.T) {
 	time.ResetZoneinfoForTesting()
 	const env = "ZONEINFO"
-	defer os.Setenv(env, os.Getenv(env))
-	os.Setenv(env, "")
+	t.Setenv(env, "")
 
 	bad := []string{
 		"/usr/foo/Foo",
