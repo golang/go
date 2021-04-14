@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file tests types.Check by using it to
+// This file tests types2.Check by using it to
 // typecheck the standard library and tests.
 
 package types2_test

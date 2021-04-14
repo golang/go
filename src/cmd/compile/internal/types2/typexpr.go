@@ -431,9 +431,9 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 }
 
 // goTypeName returns the Go type name for typ and
-// removes any occurrences of "types." from that name.
+// removes any occurrences of "types2." from that name.
 func goTypeName(typ Type) string {
-	return strings.Replace(fmt.Sprintf("%T", typ), "types.", "", -1) // strings.ReplaceAll is not available in Go 1.4
+	return strings.Replace(fmt.Sprintf("%T", typ), "types2.", "", -1) // strings.ReplaceAll is not available in Go 1.4
 }
 
 // typInternal drives type checking of types.

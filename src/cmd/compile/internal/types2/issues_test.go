@@ -195,7 +195,7 @@ L7 uses var z int`
 	}
 }
 
-// This tests that the package associated with the types.Object.Pkg method
+// This tests that the package associated with the types2.Object.Pkg method
 // is the type's package independent of the order in which the imports are
 // listed in the sources src1, src2 below.
 // The actual issue is in go/internal/gcimporter which has a corresponding
