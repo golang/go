@@ -40,6 +40,16 @@ func (r *intReader) uint64() uint64 {
 	return i
 }
 
+// Keep this in sync with constants in iexport.go.
+const (
+	iexportVersionGo1_11   = 0
+	iexportVersionPosCol   = 1
+	iexportVersionGenerics = 2
+
+	// Start of the unstable series of versions, remove "+ n" before release.
+	iexportVersionCurrent = iexportVersionGenerics + 1
+)
+
 const predeclReserved = 32
 
 type itag uint64
@@ -64,7 +74,7 @@ const (
 // If the export data version is not recognized or the format is otherwise
 // compromised, an error is returned.
 func iImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (_ int, pkg *types.Package, err error) {
-	const currentVersion = 1
+	const currentVersion = iexportVersionCurrent
 	version := int64(-1)
 	defer func() {
 		if e := recover(); e != nil {
@@ -80,9 +90,13 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 
 	version = int64(r.uint64())
 	switch version {
-	case currentVersion, 0:
+	case currentVersion, iexportVersionPosCol, iexportVersionGo1_11:
 	default:
-		errorf("unknown iexport format version %d", version)
+		if version > iexportVersionGenerics {
+			errorf("unstable iexport format version %d, just rebuild compiler and std library", version)
+		} else {
+			errorf("unknown iexport format version %d", version)
+		}
 	}
 
 	sLen := int64(r.uint64())
@@ -94,8 +108,9 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 	r.Seek(sLen+dLen, io.SeekCurrent)
 
 	p := iimporter{
-		ipath:   path,
-		version: int(version),
+		exportVersion: version,
+		ipath:         path,
+		version:       int(version),
 
 		stringData:  stringData,
 		stringCache: make(map[uint64]string),
@@ -173,8 +188,9 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 }
 
 type iimporter struct {
-	ipath   string
-	version int
+	exportVersion int64
+	ipath         string
+	version       int
 
 	stringData  []byte
 	stringCache map[uint64]string
@@ -273,19 +289,22 @@ func (r *importReader) obj(name string) {
 		r.declare(types.NewConst(pos, r.currPkg, name, typ, val))
 
 	case 'F':
-		numTparams := r.uint64()
-		if numTparams > 0 {
-			errorf("unexpected tparam")
-			return
+		if r.p.exportVersion >= iexportVersionGenerics {
+			numTparams := r.uint64()
+			if numTparams > 0 {
+				errorf("unexpected tparam")
+			}
 		}
 		sig := r.signature(nil)
 
 		r.declare(types.NewFunc(pos, r.currPkg, name, sig))
 
 	case 'T':
-		numTparams := r.uint64()
-		if numTparams > 0 {
-			errorf("unexpected tparam")
+		if r.p.exportVersion >= iexportVersionGenerics {
+			numTparams := r.uint64()
+			if numTparams > 0 {
+				errorf("unexpected tparam")
+			}
 		}
 
 		// Types can be recursive. We need to setup a stub
@@ -562,7 +581,7 @@ func (r *importReader) doType(base *types.Named) types.Type {
 		return typ
 
 	case typeParamType:
-		errorf("do not handle tparams yet")
+		errorf("do not handle type param types yet")
 		return nil
 
 	case instType:

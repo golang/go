@@ -139,7 +139,7 @@ func TestVersionHandling(t *testing.T) {
 
 	// This package only handles gc export data.
 	// Disable test until we put in the new export version.
-	if true || runtime.Compiler != "gc" {
+	if runtime.Compiler != "gc" {
 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 	}
 
