@@ -771,6 +771,9 @@ func (l *Loader) SymName(i Sym) string {
 		return pp.name
 	}
 	r, li := l.toLocal(i)
+	if r == nil {
+		return "?"
+	}
 	name := r.Sym(li).Name(r.Reader)
 	if !r.NeedNameExpansion() {
 		return name
