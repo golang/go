@@ -28,10 +28,7 @@ TEXT main(SB),NOSPLIT,$-8
 // c-archive) or when the shared library is loaded (for c-shared).
 // We expect argc and argv to be passed in the usual C ABI registers
 // DI and SI.
-TEXT _rt0_amd64_lib(SB),NOSPLIT,$0x50
-	// Align stack per ELF ABI requirements.
-	MOVQ	SP, AX
-	ANDQ	$~15, SP
+TEXT _rt0_amd64_lib(SB),NOSPLIT,$0x40
 	// Save C ABI callee-saved registers, as caller may need them.
 	MOVQ	BX, 0x10(SP)
 	MOVQ	BP, 0x18(SP)
@@ -39,7 +36,6 @@ TEXT _rt0_amd64_lib(SB),NOSPLIT,$0x50
 	MOVQ	R13, 0x28(SP)
 	MOVQ	R14, 0x30(SP)
 	MOVQ	R15, 0x38(SP)
-	MOVQ	AX, 0x40(SP)
 
 	MOVQ	DI, _rt0_amd64_lib_argc<>(SB)
 	MOVQ	SI, _rt0_amd64_lib_argv<>(SB)
@@ -51,9 +47,15 @@ TEXT _rt0_amd64_lib(SB),NOSPLIT,$0x50
 	MOVQ	_cgo_sys_thread_create(SB), AX
 	TESTQ	AX, AX
 	JZ	nocgo
+
+	// We're calling back to C.
+	// Align stack per ELF ABI requirements.
+	MOVQ	SP, BX  // Callee-save in C ABI
+	ANDQ	$~15, SP
 	MOVQ	$_rt0_amd64_lib_go(SB), DI
 	MOVQ	$0, SI
 	CALL	AX
+	MOVQ	BX, SP
 	JMP	restore
 
 nocgo:
@@ -69,7 +71,6 @@ restore:
 	MOVQ	0x28(SP), R13
 	MOVQ	0x30(SP), R14
 	MOVQ	0x38(SP), R15
-	MOVQ	0x40(SP), SP
 	RET
 
 // _rt0_amd64_lib_go initializes the Go runtime.
