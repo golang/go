@@ -58,6 +58,7 @@ func setMimeTypes(lowerExt, mixExt map[string]string) {
 }
 
 var builtinTypesLower = map[string]string{
+	".avif": "image/avif",
 	".css":  "text/css; charset=utf-8",
 	".gif":  "image/gif",
 	".htm":  "text/html; charset=utf-8",
@@ -72,7 +73,6 @@ var builtinTypesLower = map[string]string{
 	".svg":  "image/svg+xml",
 	".wasm": "application/wasm",
 	".webp": "image/webp",
-	".avif": "image/avif",
 	".xml":  "text/xml; charset=utf-8",
 }
 
