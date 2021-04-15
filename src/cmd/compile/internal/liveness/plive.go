@@ -995,9 +995,11 @@ func (lv *liveness) clobber(b *ssa.Block) {
 // of b.Values.
 func clobber(lv *liveness, b *ssa.Block, live bitvec.BitVec) {
 	for i, n := range lv.vars {
-		if !live.Get(int32(i)) && !n.Addrtaken() {
+		if !live.Get(int32(i)) && !n.Addrtaken() && !n.OpenDeferSlot() && !n.IsOutputParamHeapAddr() {
 			// Don't clobber stack objects (address-taken). They are
 			// tracked dynamically.
+			// Also don't clobber slots that are live for defers (see
+			// the code setting livedefer in epilogue).
 			clobberVar(b, n)
 		}
 	}
