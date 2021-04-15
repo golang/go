@@ -1941,16 +1941,22 @@ func (s *state) exit() *ssa.Block {
 	// Store SSAable and heap-escaped PPARAMOUT variables back to stack locations.
 	for i, f := range resultFields {
 		n := f.Nname.(*ir.Name)
-		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
 		if s.canSSA(n) { // result is in some SSA variable
+			if !n.IsOutputParamInRegisters() {
+				// We are about to store to the result slot.
+				s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
+			}
 			results[i] = s.variable(n, n.Type())
 		} else if !n.OnStack() { // result is actually heap allocated
+			// We are about to copy the in-heap result to the result slot.
+			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
 			ha := s.expr(n.Heapaddr)
 			s.instrumentFields(n.Type(), ha, instrumentRead)
 			results[i] = s.newValue2(ssa.OpDereference, n.Type(), ha, s.mem())
 		} else { // result is not SSA-able; not escaped, so not on heap, but too large for SSA.
 			// Before register ABI this ought to be a self-move, home=dest,
 			// With register ABI, it's still a self-move if parameter is on stack (i.e., too big or overflowed)
+			// No VarDef, as the result slot is already holding live value.
 			results[i] = s.newValue2(ssa.OpDereference, n.Type(), s.addr(n), s.mem())
 		}
 	}
