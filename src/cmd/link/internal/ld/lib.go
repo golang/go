@@ -1431,6 +1431,14 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, fmt.Sprintf("-Wl,-rpath,%s", rpath.val))
 	}
 
+	if *flagInterpreter != "" {
+		// Many linkers support both -I and the --dynamic-linker flags
+		// to set the ELF interpreter, but lld only supports
+		// --dynamic-linker so prefer that (ld on very old Solaris only
+		// supports -I but that seems less important).
+		argv = append(argv, fmt.Sprintf("-Wl,--dynamic-linker,%s", *flagInterpreter))
+	}
+
 	// Force global symbols to be exported for dlopen, etc.
 	if ctxt.IsELF {
 		argv = append(argv, "-rdynamic")
