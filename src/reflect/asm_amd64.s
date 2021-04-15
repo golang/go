@@ -33,9 +33,12 @@ TEXT ·makeFuncStub<ABIInternal>(SB),(NOSPLIT|WRAPPER),$312
 	// frame is specially handled in the runtime. See the comment above LOCAL_RETVALID.
 	LEAQ	LOCAL_REGARGS(SP), R12
 	CALL	runtime·spillArgs<ABIInternal>(SB)
+	MOVQ	DX, 24(SP) // outside of moveMakeFuncArgPtrs's arg area
 	MOVQ	DX, 0(SP)
 	MOVQ	R12, 8(SP)
 	CALL	·moveMakeFuncArgPtrs(SB)
+	MOVQ	24(SP), DX
+	MOVQ	DX, 0(SP)
 	LEAQ	argframe+0(FP), CX
 	MOVQ	CX, 8(SP)
 	MOVB	$0, LOCAL_RETVALID(SP)
@@ -61,9 +64,12 @@ TEXT ·methodValueCall<ABIInternal>(SB),(NOSPLIT|WRAPPER),$312
 	// frame is specially handled in the runtime. See the comment above LOCAL_RETVALID.
 	LEAQ	LOCAL_REGARGS(SP), R12
 	CALL	runtime·spillArgs<ABIInternal>(SB)
+	MOVQ	DX, 24(SP) // outside of moveMakeFuncArgPtrs's arg area
 	MOVQ	DX, 0(SP)
 	MOVQ	R12, 8(SP)
 	CALL	·moveMakeFuncArgPtrs(SB)
+	MOVQ	24(SP), DX
+	MOVQ	DX, 0(SP)
 	LEAQ	argframe+0(FP), CX
 	MOVQ	CX, 8(SP)
 	MOVB	$0, LOCAL_RETVALID(SP)
