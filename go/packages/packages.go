@@ -634,7 +634,7 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 		needsrc := ((ld.Mode&(NeedSyntax|NeedTypesInfo) != 0 && (rootIndex >= 0 || ld.Mode&NeedDeps != 0)) ||
 			// ... or if we need types and the exportData is invalid. We fall back to (incompletely)
 			// typechecking packages from source if they fail to compile.
-			(ld.Mode&NeedTypes|NeedTypesInfo != 0 && exportDataInvalid)) && pkg.PkgPath != "unsafe"
+			(ld.Mode&(NeedTypes|NeedTypesInfo) != 0 && exportDataInvalid)) && pkg.PkgPath != "unsafe"
 		lpkg := &loaderPackage{
 			Package:   pkg,
 			needtypes: needtypes,
