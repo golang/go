@@ -372,7 +372,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	var b Builder
 	b.Init()
 
-	pkgs := load.PackagesAndErrors(ctx, args)
+	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{}, args)
 	load.CheckPackageErrors(pkgs)
 
 	explicitO := len(cfg.BuildO) > 0
@@ -592,7 +592,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	BuildInit()
-	pkgs := load.PackagesAndErrors(ctx, args)
+	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{}, args)
 	if cfg.ModulesEnabled && !modload.HasModRoot() {
 		haveErrors := false
 		allMissingErrors := true
@@ -857,7 +857,7 @@ func installOutsideModule(ctx context.Context, args []string) {
 
 	// TODO(golang.org/issue/40276): don't report errors loading non-main packages
 	// matched by a pattern.
-	pkgs := load.PackagesAndErrors(ctx, patterns)
+	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{}, patterns)
 	load.CheckPackageErrors(pkgs)
 	mainPkgs := make([]*load.Package, 0, len(pkgs))
 	mainCount := make([]int, len(patterns))

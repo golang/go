@@ -276,7 +276,6 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	if *getInsecure {
 		base.Fatalf("go get: -insecure flag is no longer supported; use GOINSECURE instead")
 	}
-	load.ModResolveTests = *getT
 
 	// Do not allow any updating of go.mod until we've applied
 	// all the requested changes and checked that the result matches
@@ -368,8 +367,9 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	if !*getD && len(pkgPatterns) > 0 {
 		work.BuildInit()
 
+		pkgOpts := load.PackageOpts{ModResolveTests: *getT}
 		var pkgs []*load.Package
-		for _, pkg := range load.PackagesAndErrors(ctx, pkgPatterns) {
+		for _, pkg := range load.PackagesAndErrors(ctx, pkgOpts, pkgPatterns) {
 			if pkg.Error != nil {
 				var noGo *load.NoGoError
 				if errors.As(pkg.Error.Err, &noGo) {

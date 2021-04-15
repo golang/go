@@ -53,8 +53,6 @@ See also: go fmt, go fix.
 }
 
 func runVet(ctx context.Context, cmd *base.Command, args []string) {
-	load.ModResolveTests = true
-
 	vetFlags, pkgArgs := vetFlags(args)
 
 	if cfg.DebugTrace != "" {
@@ -87,7 +85,8 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	pkgs := load.PackagesAndErrors(ctx, pkgArgs)
+	pkgOpts := load.PackageOpts{ModResolveTests: true}
+	pkgs := load.PackagesAndErrors(ctx, pkgOpts, pkgArgs)
 	load.CheckPackageErrors(pkgs)
 	if len(pkgs) == 0 {
 		base.Fatalf("no packages to vet")
@@ -98,7 +97,7 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
 
 	root := &work.Action{Mode: "go vet"}
 	for _, p := range pkgs {
-		_, ptest, pxtest, err := load.TestPackagesFor(ctx, p, nil)
+		_, ptest, pxtest, err := load.TestPackagesFor(ctx, pkgOpts, p, nil)
 		if err != nil {
 			base.Errorf("%v", err)
 			continue
