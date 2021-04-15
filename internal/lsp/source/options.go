@@ -680,8 +680,8 @@ func (o *Options) Clone() *Options {
 	return result
 }
 
-func (o *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer) {
-	o.StaticcheckAnalyzers[a.Name] = &Analyzer{Analyzer: a, Enabled: true}
+func (o *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer, enabled bool) {
+	o.StaticcheckAnalyzers[a.Name] = &Analyzer{Analyzer: a, Enabled: enabled}
 }
 
 // enableAllExperiments turns on all of the experimental "off-by-default"

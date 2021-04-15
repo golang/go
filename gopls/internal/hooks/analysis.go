@@ -10,33 +10,31 @@ package hooks
 import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/lsp/source"
+	"honnef.co/go/tools/analysis/lint"
 	"honnef.co/go/tools/simple"
 	"honnef.co/go/tools/staticcheck"
 	"honnef.co/go/tools/stylecheck"
 )
 
 func updateAnalyzers(options *source.Options) {
-	var analyzers []*analysis.Analyzer
-	for _, a := range simple.Analyzers {
-		analyzers = append(analyzers, a)
-	}
-	for _, a := range staticcheck.Analyzers {
-		switch a.Name {
-		case "SA5009":
-			// This check conflicts with the vet printf check (golang/go#34494).
-		case "SA5011":
-			// This check relies on facts from dependencies, which
-			// we don't currently compute.
-		default:
-			analyzers = append(analyzers, a)
+	add := func(analyzers map[string]*analysis.Analyzer, docs map[string]*lint.Documentation, skip map[string]struct{}) {
+		for check, a := range analyzers {
+			if _, ok := skip[check]; ok {
+				continue
+			}
+
+			enabled := !docs[check].NonDefault
+			options.AddStaticcheckAnalyzer(a, enabled)
 		}
 	}
-	for _, a := range stylecheck.Analyzers {
-		analyzers = append(analyzers, a)
-	}
-	// Always add hooks for all available analyzers, but disable them if the
-	// user does not have staticcheck enabled (they may enable it later on).
-	for _, a := range analyzers {
-		options.AddStaticcheckAnalyzer(a)
-	}
+
+	add(simple.Analyzers, simple.Docs, nil)
+	add(staticcheck.Analyzers, staticcheck.Docs, map[string]struct{}{
+		// This check conflicts with the vet printf check (golang/go#34494).
+		"SA5009": {},
+		// This check relies on facts from dependencies, which
+		// we don't currently compute.
+		"SA5011": {},
+	})
+	add(stylecheck.Analyzers, stylecheck.Docs, nil)
 }

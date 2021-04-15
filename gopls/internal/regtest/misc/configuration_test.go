@@ -27,8 +27,10 @@ go 1.12
 -- a/a.go --
 package a
 
-// NotThisVariable should really start with ThisVariable.
-const ThisVariable = 7
+import "errors"
+
+// FooErr should be called ErrFoo (ST1012)
+var FooErr = errors.New("foo")
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
@@ -41,7 +43,7 @@ const ThisVariable = 7
 		cfg.EnableStaticcheck = true
 		env.ChangeConfiguration(t, cfg)
 		env.Await(
-			DiagnosticAt("a/a.go", 2, 0),
+			DiagnosticAt("a/a.go", 5, 4),
 		)
 	})
 }
