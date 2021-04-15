@@ -321,12 +321,12 @@ var optab = []Optab{
 	{ACMP, C_VCON, C_REG, C_NONE, C_NONE, 13, 20, 0, 0, 0},
 	{AADD, C_SHIFT, C_REG, C_NONE, C_REG, 3, 4, 0, 0, 0},
 	{AADD, C_SHIFT, C_NONE, C_NONE, C_REG, 3, 4, 0, 0, 0},
-	{AADD, C_SHIFT, C_RSP, C_NONE, C_RSP, 107, 4, 0, 0, 0},
-	{AADD, C_SHIFT, C_NONE, C_NONE, C_RSP, 107, 4, 0, 0, 0},
+	{AADD, C_SHIFT, C_RSP, C_NONE, C_RSP, 26, 4, 0, 0, 0},
+	{AADD, C_SHIFT, C_NONE, C_NONE, C_RSP, 26, 4, 0, 0, 0},
 	{AMVN, C_SHIFT, C_NONE, C_NONE, C_REG, 3, 4, 0, 0, 0},
 	{ACMP, C_SHIFT, C_REG, C_NONE, C_NONE, 3, 4, 0, 0, 0},
-	{ACMP, C_SHIFT, C_RSP, C_NONE, C_NONE, 107, 4, 0, 0, 0},
-	{ANEG, C_SHIFT, C_NONE, C_NONE, C_REG, 26, 4, 0, 0, 0},
+	{ACMP, C_SHIFT, C_RSP, C_NONE, C_NONE, 26, 4, 0, 0, 0},
+	{ANEG, C_SHIFT, C_NONE, C_NONE, C_REG, 3, 4, 0, 0, 0},
 	{AADD, C_REG, C_RSP, C_NONE, C_RSP, 27, 4, 0, 0, 0},
 	{AADD, C_REG, C_NONE, C_NONE, C_RSP, 27, 4, 0, 0, 0},
 	{ACMP, C_REG, C_RSP, C_NONE, C_NONE, 27, 4, 0, 0, 0},
@@ -1350,6 +1350,14 @@ func isADDWop(op obj.As) bool {
 func isADDSop(op obj.As) bool {
 	switch op {
 	case AADDS, AADDSW, ASUBS, ASUBSW:
+		return true
+	}
+	return false
+}
+
+func isNEGop(op obj.As) bool {
+	switch op {
+	case ANEG, ANEGW, ANEGS, ANEGSW:
 		return true
 	}
 	return false
@@ -3251,13 +3259,17 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if is64bit == 0 && amount >= 32 {
 			c.ctxt.Diag("shift amount out of range 0 to 31: %v", p)
 		}
+		shift := (p.From.Offset >> 22) & 3
+		if (shift > 2 || shift < 0) && (isADDop(p.As) || isADDWop(p.As) || isNEGop(p.As)) {
+			c.ctxt.Diag("unsupported shift operator: %v", p)
+		}
 		o1 |= uint32(p.From.Offset) /* includes reg, op, etc */
 		rt := int(p.To.Reg)
 		if p.To.Type == obj.TYPE_NONE {
 			rt = REGZERO
 		}
 		r := int(p.Reg)
-		if p.As == AMVN || p.As == AMVNW {
+		if p.As == AMVN || p.As == AMVNW || isNEGop(p.As) {
 			r = REGZERO
 		} else if r == 0 {
 			r = rt
@@ -3665,12 +3677,40 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := int(p.To.Reg)
 		o1 |= (uint32(rf&31) << 16) | (REGZERO & 31 << 5) | uint32(rt&31)
 
-	case 26: /* negX Rm<<s, Rd -> subX Rm<<s, ZR, Rd */
-		o1 = c.oprrr(p, p.As)
+	case 26: // op R<<n, RSP, RSP (extended register)
+		// Refer to ARM reference manual, if "Rd" or "Rn" is RSP,
+		// it can be encoded as op(extended regster) instruction.
+		if !(p.To.Reg == REGSP || p.Reg == REGSP) {
+			c.ctxt.Diag("expected SP reference: %v", p)
+			break
+		}
+		if p.To.Reg == REGSP && (p.As == AADDS || p.As == AADDSW || p.As == ASUBS || p.As == ASUBSW) {
+			c.ctxt.Diag("unexpected SP reference: %v", p)
+			break
+		}
+		amount := (p.From.Offset >> 10) & 63
+		shift := (p.From.Offset >> 22) & 3
+		if shift != 0 {
+			c.ctxt.Diag("illegal combination: %v", p)
+			break
+		}
 
-		o1 |= uint32(p.From.Offset) /* includes reg, op, etc */
+		if amount > 4 {
+			c.ctxt.Diag("the left shift amount out of range 0 to 4: %v", p)
+			break
+		}
+		rf := (p.From.Offset >> 16) & 31
 		rt := int(p.To.Reg)
-		o1 |= (REGZERO & 31 << 5) | uint32(rt&31)
+		r := int(p.Reg)
+		if p.To.Type == obj.TYPE_NONE {
+			rt = REGZERO
+		}
+		if r == 0 {
+			r = rt
+		}
+
+		o1 = c.opxrrr(p, p.As, false)
+		o1 |= uint32(rf)<<16 | uint32(amount&7)<<10 | (uint32(r&31) << 5) | uint32(rt&31)
 
 	case 27: /* op Rm<<n[,Rn],Rd (extended register) */
 		if p.To.Reg == REG_RSP && isADDSop(p.As) {
@@ -5492,41 +5532,6 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("illegal destination register: %v\n", p)
 		}
 		o1 |= enc | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
-
-	case 107: // op R<<n, RSP, RSP (extended register)
-		// Refer to ARM reference manual, if "Rd" or "Rn" is RSP,
-		// it can be encoded as op(extended regster) instruction.
-		if !(p.To.Reg == REGSP || p.Reg == REGSP) {
-			c.ctxt.Diag("expected SP reference: %v", p)
-			break
-		}
-		if p.To.Reg == REGSP && (p.As == AADDS || p.As == AADDSW || p.As == ASUBS || p.As == ASUBSW) {
-			c.ctxt.Diag("unexpected SP reference: %v", p)
-			break
-		}
-		amount := (p.From.Offset >> 10) & 63
-		shift := (p.From.Offset >> 22) & 3
-		if shift != 0 {
-			c.ctxt.Diag("illegal combination: %v", p)
-			break
-		}
-
-		if amount > 4 {
-			c.ctxt.Diag("the left shift amount out of range 0 to 4: %v", p)
-			break
-		}
-		rf := (p.From.Offset >> 16) & 31
-		rt := int(p.To.Reg)
-		r := int(p.Reg)
-		if p.To.Type == obj.TYPE_NONE {
-			rt = REGZERO
-		}
-		if r == 0 {
-			r = rt
-		}
-
-		o1 = c.opxrrr(p, p.As, false)
-		o1 |= uint32(rf)<<16 | uint32(amount&7)<<10 | (uint32(r&31) << 5) | uint32(rt&31)
 	}
 	out[0] = o1
 	out[1] = o2
