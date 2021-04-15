@@ -339,7 +339,6 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go list -f cannot be used with -json")
 	}
 
-	load.ModResolveTests = *listTest
 	work.BuildInit()
 	out := newTrackingWriter(os.Stdout)
 	defer out.w.Flush()
@@ -498,8 +497,11 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go list -test cannot be used with -find")
 	}
 
-	load.IgnoreImports = *listFind
-	pkgs := load.PackagesAndErrors(ctx, args)
+	pkgOpts := load.PackageOpts{
+		IgnoreImports:   *listFind,
+		ModResolveTests: *listTest,
+	}
+	pkgs := load.PackagesAndErrors(ctx, pkgOpts, args)
 	if !*listE {
 		w := 0
 		for _, pkg := range pkgs {
@@ -536,9 +538,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 				var pmain, ptest, pxtest *load.Package
 				var err error
 				if *listE {
-					pmain, ptest, pxtest = load.TestPackagesAndErrors(ctx, p, nil)
+					pmain, ptest, pxtest = load.TestPackagesAndErrors(ctx, pkgOpts, p, nil)
 				} else {
-					pmain, ptest, pxtest, err = load.TestPackagesFor(ctx, p, nil)
+					pmain, ptest, pxtest, err = load.TestPackagesFor(ctx, pkgOpts, p, nil)
 					if err != nil {
 						base.Errorf("can't load test package: %s", err)
 					}

@@ -173,7 +173,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// everything.
 	load.ClearPackageCache()
 
-	pkgs := load.PackagesAndErrors(ctx, args)
+	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{}, args)
 	load.CheckPackageErrors(pkgs)
 
 	// Phase 3. Install.
@@ -248,9 +248,9 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 	load1 := func(path string, mode int) *load.Package {
 		if parent == nil {
 			mode := 0 // don't do module or vendor resolution
-			return load.LoadImport(context.TODO(), path, base.Cwd, nil, stk, nil, mode)
+			return load.LoadImport(context.TODO(), load.PackageOpts{}, path, base.Cwd, nil, stk, nil, mode)
 		}
-		return load.LoadImport(context.TODO(), path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
+		return load.LoadImport(context.TODO(), load.PackageOpts{}, path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
 	}
 
 	p := load1(arg, mode)
