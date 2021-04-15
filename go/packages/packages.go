@@ -1237,7 +1237,7 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 		return nil, fmt.Errorf("reading %s: %v", lpkg.ExportFile, err)
 	}
 	if viewLen != len(view) {
-		log.Fatalf("Unexpected package creation during export data loading")
+		log.Panicf("golang.org/x/tools/go/packages: unexpected new packages during load of %s", lpkg.PkgPath)
 	}
 
 	lpkg.Types = tpkg
@@ -1248,17 +1248,8 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 
 // impliedLoadMode returns loadMode with its dependencies.
 func impliedLoadMode(loadMode LoadMode) LoadMode {
-	if loadMode&NeedTypesInfo != 0 && loadMode&NeedImports == 0 {
-		// If NeedTypesInfo, go/packages needs to do typechecking itself so it can
-		// associate type info with the AST. To do so, we need the export data
-		// for dependencies, which means we need to ask for the direct dependencies.
-		// NeedImports is used to ask for the direct dependencies.
-		loadMode |= NeedImports
-	}
-
-	if loadMode&NeedDeps != 0 && loadMode&NeedImports == 0 {
-		// With NeedDeps we need to load at least direct dependencies.
-		// NeedImports is used to ask for the direct dependencies.
+	if loadMode&(NeedDeps|NeedTypes|NeedTypesInfo) != 0 {
+		// All these things require knowing the import graph.
 		loadMode |= NeedImports
 	}
 

@@ -2843,3 +2843,11 @@ func copyAll(srcPath, dstPath string) error {
 		return nil
 	})
 }
+
+func TestExportFile(t *testing.T) {
+	// This used to trigger the log.Fatal in loadFromExportData.
+	// See go.dev/issue/45584.
+	cfg := new(packages.Config)
+	cfg.Mode = packages.NeedTypes
+	packages.Load(cfg, "fmt")
+}
