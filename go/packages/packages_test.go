@@ -2244,8 +2244,8 @@ func TestLoadModeStrings(t *testing.T) {
 			"LoadMode(NeedDeps)",
 		},
 		{
-			packages.NeedExportsFile,
-			"LoadMode(NeedExportsFile)",
+			packages.NeedExportFile,
+			"LoadMode(NeedExportFile)",
 		},
 		{
 			packages.NeedTypes,
@@ -2264,12 +2264,12 @@ func TestLoadModeStrings(t *testing.T) {
 			"LoadMode(NeedTypesSizes)",
 		},
 		{
-			packages.NeedName | packages.NeedExportsFile,
-			"LoadMode(NeedName|NeedExportsFile)",
+			packages.NeedName | packages.NeedExportFile,
+			"LoadMode(NeedName|NeedExportFile)",
 		},
 		{
-			packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedImports | packages.NeedDeps | packages.NeedExportsFile | packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedTypesSizes,
-			"LoadMode(NeedName|NeedFiles|NeedCompiledGoFiles|NeedImports|NeedDeps|NeedExportsFile|NeedTypes|NeedSyntax|NeedTypesInfo|NeedTypesSizes)",
+			packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedImports | packages.NeedDeps | packages.NeedExportFile | packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedTypesSizes,
+			"LoadMode(NeedName|NeedFiles|NeedCompiledGoFiles|NeedImports|NeedDeps|NeedExportFile|NeedTypes|NeedSyntax|NeedTypesInfo|NeedTypesSizes)",
 		},
 		{
 			packages.NeedName | 8192,

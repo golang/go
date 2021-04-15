@@ -39,9 +39,6 @@ import (
 // Load may return more information than requested.
 type LoadMode int
 
-// TODO(matloob): When a V2 of go/packages is released, rename NeedExportsFile to
-// NeedExportFile to make it consistent with the Package field it's adding.
-
 const (
 	// NeedName adds Name and PkgPath.
 	NeedName LoadMode = 1 << iota
@@ -59,8 +56,8 @@ const (
 	// NeedDeps adds the fields requested by the LoadMode in the packages in Imports.
 	NeedDeps
 
-	// NeedExportsFile adds ExportFile.
-	NeedExportsFile
+	// NeedExportFile adds ExportFile.
+	NeedExportFile
 
 	// NeedTypes adds Types, Fset, and IllTyped.
 	NeedTypes
@@ -108,6 +105,9 @@ const (
 	// Deprecated: LoadAllSyntax exists for historical compatibility
 	// and should not be used. Please directly specify the needed fields using the Need values.
 	LoadAllSyntax = LoadSyntax | NeedDeps
+
+	// Deprecated: NeedExportsFile is a historical misspelling of NeedExportFile.
+	NeedExportsFile = NeedExportFile
 )
 
 // A Config specifies details about how packages should be loaded.
@@ -784,7 +784,7 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 		if ld.requestedMode&NeedImports == 0 {
 			ld.pkgs[i].Imports = nil
 		}
-		if ld.requestedMode&NeedExportsFile == 0 {
+		if ld.requestedMode&NeedExportFile == 0 {
 			ld.pkgs[i].ExportFile = ""
 		}
 		if ld.requestedMode&NeedTypes == 0 {
@@ -1266,5 +1266,5 @@ func impliedLoadMode(loadMode LoadMode) LoadMode {
 }
 
 func usesExportData(cfg *Config) bool {
-	return cfg.Mode&NeedExportsFile != 0 || cfg.Mode&NeedTypes != 0 && cfg.Mode&NeedDeps == 0
+	return cfg.Mode&NeedExportFile != 0 || cfg.Mode&NeedTypes != 0 && cfg.Mode&NeedDeps == 0
 }
