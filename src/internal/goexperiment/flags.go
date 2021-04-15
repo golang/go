@@ -60,9 +60,10 @@ type Flags struct {
 	StaticLockRanking bool
 
 	// Regabi is split into several sub-experiments that can be
-	// enabled individually. GOEXPERIMENT=regabi implies the
-	// subset that are currently "working". Not all combinations work.
-	Regabi bool
+	// enabled individually. Not all combinations work.
+	// The "regabi" GOEXPERIMENT is an alias for all "working"
+	// subexperiments.
+
 	// RegabiWrappers enables ABI wrappers for calling between
 	// ABI0 and ABIInternal functions. Without this, the ABIs are
 	// assumed to be identical so cross-ABI calls are direct.
