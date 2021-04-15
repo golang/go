@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build amd64 || arm64 || s390x
-// +build amd64 arm64 s390x
+//go:build amd64 || s390x
+// +build amd64 s390x
 
 package math
 
-const haveArchExp = true
+const haveArchLog = true
 
-func archExp(x float64) float64
+func archLog(x float64) float64

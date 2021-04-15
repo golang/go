@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build amd64 || arm64 || s390x
-// +build amd64 arm64 s390x
+//go:build !386 && !amd64
+// +build !386,!amd64
 
 package math
 
-const haveArchExp = true
+const haveArchHypot = false
 
-func archExp(x float64) float64
+func archHypot(p, q float64) float64 {
+	panic("not implemented")
+}
