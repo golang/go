@@ -554,7 +554,7 @@ func checkModulePathLax(p string) error {
 	// with file systems and subcommands. Disallow file path separators : and \
 	// because path separators other than / will confuse the module cache.
 	// See fileNameOK in golang.org/x/mod/module/module.go.
-	shellChars := "`" + `\"'*<>?|`
+	shellChars := "`" + `"'*<>?|`
 	fsChars := `\:`
 	if i := strings.IndexAny(p, shellChars); i >= 0 {
 		return errorf("contains disallowed shell character %q", p[i])
