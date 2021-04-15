@@ -1469,7 +1469,7 @@ func mergePPC64AndSrwi(m, s int64) int64 {
 	if !isPPC64WordRotateMask(mask) {
 		return 0
 	}
-	return encodePPC64RotateMask(32-s, mask, 32)
+	return encodePPC64RotateMask((32-s)&31, mask, 32)
 }
 
 // Test if a shift right feeding into a CLRLSLDI can be merged into RLWINM.
