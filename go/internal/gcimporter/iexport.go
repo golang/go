@@ -251,7 +251,10 @@ func (p *iexporter) stringOff(s string) uint64 {
 // pushDecl adds n to the declaration work queue, if not already present.
 func (p *iexporter) pushDecl(obj types.Object) {
 	// Package unsafe is known to the compiler and predeclared.
-	assert(obj.Pkg() != types.Unsafe)
+	// Caller should not ask us to do export it.
+	if obj.Pkg() == types.Unsafe {
+		panic("cannot export package unsafe")
+	}
 
 	if _, ok := p.declIndex[obj]; ok {
 		return
