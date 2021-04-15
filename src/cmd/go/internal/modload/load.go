@@ -864,6 +864,18 @@ func (pkg *loadPkg) isTest() bool {
 	return pkg.testOf != nil
 }
 
+// fromExternalModule reports whether pkg was loaded from a module other than
+// the main module.
+func (pkg *loadPkg) fromExternalModule() bool {
+	if pkg.mod.Path == "" {
+		return false // loaded from the standard library, not a module
+	}
+	if pkg.mod.Path == Target.Path {
+		return false // loaded from the main module.
+	}
+	return true
+}
+
 var errMissing = errors.New("cannot find package")
 
 // loadFromRoots attempts to load the build graph needed to process a set of
@@ -1030,7 +1042,7 @@ func (ld *loader) updateRequirements(ctx context.Context) error {
 		}
 	}
 
-	rs, err := updateRoots(ctx, rs.depth, direct, ld.pkgs, rs)
+	rs, err := updateRoots(ctx, direct, rs)
 	if err == nil {
 		ld.requirements = rs
 	}

@@ -691,7 +691,7 @@ func requirementsFromModFile(ctx context.Context, f *modfile.File) *Requirements
 	for _, n := range mPathCount {
 		if n > 1 {
 			var err error
-			rs, err = updateRoots(ctx, rs.depth, rs.direct, nil, rs)
+			rs, err = updateRoots(ctx, rs.direct, rs)
 			if err != nil {
 				base.Fatalf("go: %v", err)
 			}
