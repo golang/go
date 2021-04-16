@@ -148,6 +148,7 @@ The template function "context" returns the build context, defined as:
         UseAllFiles   bool     // use files regardless of +build lines, file names
         Compiler      string   // compiler to assume when computing target paths
         BuildTags     []string // build constraints to match in +build lines
+        ToolTags      []string // toolchain-specific build constraints
         ReleaseTags   []string // releases the current release is compatible with
         InstallSuffix string   // suffix to use in the name of the install dir
     }

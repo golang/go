@@ -14,7 +14,6 @@ import (
 	"cmd/internal/sys"
 	"flag"
 	"fmt"
-	"internal/buildcfg"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -45,15 +44,6 @@ func BuildInit() {
 		if path := cfg.Getenv(key); !filepath.IsAbs(path) && path != "" && path != filepath.Base(path) {
 			base.Fatalf("go %s: %s environment variable is relative; must be absolute path: %s\n", flag.Args()[0], key, path)
 		}
-	}
-
-	// For each experiment that has been enabled in the toolchain, define a
-	// build tag with the same name but prefixed by "goexperiment." which can be
-	// used for compiling alternative files for the experiment. This allows
-	// changes for the experiment, like extra struct fields in the runtime,
-	// without affecting the base non-experiment code at all.
-	for _, expt := range buildcfg.EnabledExperiments() {
-		cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "goexperiment."+expt)
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/build"
 	"hash/fnv"
 	"io"
 	"io/fs"
@@ -376,7 +377,6 @@ type context struct {
 	GOARCH     string
 	cgoEnabled bool
 	noOptEnv   bool
-	expTags    map[string]bool // Set lazily
 }
 
 // shouldTest looks for build tags in a source file and returns
@@ -447,27 +447,12 @@ func (ctxt *context) match(name string) bool {
 	}
 
 	if strings.HasPrefix(name, "goexperiment.") {
-		// Query goexperiment tags from the toolchain.
-		if ctxt.expTags == nil {
-			ctxt.expTags = make(map[string]bool)
-			cmd := exec.Command(goTool(), "tool", "compile", "-V=goexperiment")
-			out, err := cmd.CombinedOutput()
-			if err != nil {
-				log.Fatalf("failed to get GOEXPERIMENT configuration:\n%s", out)
-			}
-			i := bytes.Index(out, []byte("X:"))
-			if i != -1 {
-				for _, exp := range strings.Split(string(out[i+2:]), ",") {
-					v := true
-					if strings.HasPrefix(exp, "no") {
-						v, exp = false, exp[2:]
-					}
-					ctxt.expTags["goexperiment."+exp] = v
-				}
+		for _, tag := range build.Default.ToolTags {
+			if tag == name {
+				return true
 			}
 		}
-
-		return ctxt.expTags[name]
+		return false
 	}
 
 	if name == "cgo" && ctxt.cgoEnabled {
