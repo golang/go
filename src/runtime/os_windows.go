@@ -1084,6 +1084,7 @@ func stdcall0(fn stdFunction) uintptr {
 }
 
 //go:nosplit
+//go:cgo_unsafe_args
 func stdcall1(fn stdFunction, a0 uintptr) uintptr {
 	mp := getg().m
 	mp.libcall.n = 1
@@ -1092,6 +1093,7 @@ func stdcall1(fn stdFunction, a0 uintptr) uintptr {
 }
 
 //go:nosplit
+//go:cgo_unsafe_args
 func stdcall2(fn stdFunction, a0, a1 uintptr) uintptr {
 	mp := getg().m
 	mp.libcall.n = 2
@@ -1100,6 +1102,7 @@ func stdcall2(fn stdFunction, a0, a1 uintptr) uintptr {
 }
 
 //go:nosplit
+//go:cgo_unsafe_args
 func stdcall3(fn stdFunction, a0, a1, a2 uintptr) uintptr {
 	mp := getg().m
 	mp.libcall.n = 3
@@ -1108,6 +1111,7 @@ func stdcall3(fn stdFunction, a0, a1, a2 uintptr) uintptr {
 }
 
 //go:nosplit
+//go:cgo_unsafe_args
 func stdcall4(fn stdFunction, a0, a1, a2, a3 uintptr) uintptr {
 	mp := getg().m
 	mp.libcall.n = 4
@@ -1116,6 +1120,7 @@ func stdcall4(fn stdFunction, a0, a1, a2, a3 uintptr) uintptr {
 }
 
 //go:nosplit
+//go:cgo_unsafe_args
 func stdcall5(fn stdFunction, a0, a1, a2, a3, a4 uintptr) uintptr {
 	mp := getg().m
 	mp.libcall.n = 5
@@ -1124,6 +1129,7 @@ func stdcall5(fn stdFunction, a0, a1, a2, a3, a4 uintptr) uintptr {
 }
 
 //go:nosplit
+//go:cgo_unsafe_args
 func stdcall6(fn stdFunction, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 	mp := getg().m
 	mp.libcall.n = 6
@@ -1132,6 +1138,7 @@ func stdcall6(fn stdFunction, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 }
 
 //go:nosplit
+//go:cgo_unsafe_args
 func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 	mp := getg().m
 	mp.libcall.n = 7
