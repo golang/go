@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 
 	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 // capVersionSlice returns s with its cap reduced to its length.
@@ -89,6 +90,7 @@ var requirements *Requirements
 // The dependencies of the roots will be loaded lazily at the first call to the
 // Graph method.
 //
+// The rootModules slice must be sorted according to module.Sort.
 // The caller must not modify the rootModules slice or direct map after passing
 // them to newRequirements.
 //
@@ -102,15 +104,20 @@ func newRequirements(depth modDepth, rootModules []module.Version, direct map[st
 		if m.Path == "" || m.Version == "" {
 			panic(fmt.Sprintf("bad requirement: rootModules[%v] = %v", i, m))
 		}
+		if i > 0 {
+			prev := rootModules[i-1]
+			if prev.Path > m.Path || (prev.Path == m.Path && semver.Compare(prev.Version, m.Version) > 0) {
+				panic(fmt.Sprintf("newRequirements called with unsorted roots: %v", rootModules))
+			}
+		}
 	}
 
 	rs := &Requirements{
 		depth:          depth,
-		rootModules:    rootModules,
+		rootModules:    capVersionSlice(rootModules),
 		maxRootVersion: make(map[string]string, len(rootModules)),
 		direct:         direct,
 	}
-	rootModules = capVersionSlice(rootModules)
 
 	for _, m := range rootModules {
 		if v, ok := rs.maxRootVersion[m.Path]; ok && cmpVersion(v, m.Version) >= 0 {
