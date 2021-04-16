@@ -340,12 +340,12 @@ assignOK:
 	}
 }
 
-// Corresponds to typecheck.typecheckargs.
+// Corresponds to, but slightly more general than, typecheck.typecheckargs.
 func transformArgs(n ir.InitNode) {
 	var list []ir.Node
 	switch n := n.(type) {
 	default:
-		base.Fatalf("typecheckargs %+v", n.Op())
+		base.Fatalf("transformArgs %+v", n.Op())
 	case *ir.CallExpr:
 		list = n.Args
 		if n.IsDDD {
@@ -354,24 +354,30 @@ func transformArgs(n ir.InitNode) {
 	case *ir.ReturnStmt:
 		list = n.Results
 	}
-	if len(list) != 1 {
+
+	// Look to see if we have any multi-return functions as arguments.
+	extra := 0
+	for _, arg := range list {
+		t := arg.Type()
+		if t.IsFuncArgStruct() {
+			num := t.Fields().Len()
+			if num <= 1 {
+				base.Fatalf("multi-return type with only %d parts", num)
+			}
+			extra += num - 1
+		}
+	}
+	// If not, nothing to do.
+	if extra == 0 {
 		return
 	}
 
-	t := list[0].Type()
-	if t == nil || !t.IsFuncArgStruct() {
-		return
-	}
-
-	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
+	// Rewrite f(..., g(), ...) into t1, ..., tN = g(); f(..., t1, ..., tN, ...).
 
 	// Save n as n.Orig for fmt.go.
 	if ir.Orig(n) == n {
 		n.(ir.OrigNode).SetOrig(ir.SepCopy(n))
 	}
-
-	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
-	as.Rhs.Append(list...)
 
 	// If we're outside of function context, then this call will
 	// be executed during the generated init function. However,
@@ -382,27 +388,42 @@ func transformArgs(n ir.InitNode) {
 	if static {
 		ir.CurFunc = typecheck.InitTodoFunc
 	}
-	list = nil
-	for _, f := range t.FieldSlice() {
-		t := typecheck.Temp(f.Type)
-		as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, t))
-		as.Lhs.Append(t)
-		list = append(list, t)
+
+	// Expand multi-return function calls.
+	// The spec only allows a multi-return function as an argument
+	// if it is the only argument. This code must handle calls to
+	// stenciled generic functions which have extra arguments
+	// (like the dictionary) so it must handle a slightly more general
+	// cases, like f(n, g()) where g is multi-return.
+	newList := make([]ir.Node, 0, len(list)+extra)
+	for _, arg := range list {
+		t := arg.Type()
+		if t.IsFuncArgStruct() {
+			as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, []ir.Node{arg})
+			for _, f := range t.FieldSlice() {
+				t := typecheck.Temp(f.Type)
+				as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, t))
+				as.Lhs.Append(t)
+				newList = append(newList, t)
+			}
+			transformAssign(as, as.Lhs, as.Rhs)
+			as.SetTypecheck(1)
+			n.PtrInit().Append(as)
+		} else {
+			newList = append(newList, arg)
+		}
 	}
+
 	if static {
 		ir.CurFunc = nil
 	}
 
 	switch n := n.(type) {
 	case *ir.CallExpr:
-		n.Args = list
+		n.Args = newList
 	case *ir.ReturnStmt:
-		n.Results = list
+		n.Results = newList
 	}
-
-	transformAssign(as, as.Lhs, as.Rhs)
-	as.SetTypecheck(1)
-	n.PtrInit().Append(as)
 }
 
 // assignconvfn converts node n for assignment to type t. Corresponds to
@@ -562,6 +583,11 @@ func transformDot(n *ir.SelectorExpr, isCall bool) ir.Node {
 
 	if (n.Op() == ir.ODOTINTER || n.Op() == ir.ODOTMETH) && !isCall {
 		n.SetOp(ir.OCALLPART)
+		if len(n.X.Type().RParams()) > 0 || n.X.Type().IsPtr() && len(n.X.Type().Elem().RParams()) > 0 {
+			// TODO: MethodValueWrapper needed for generics?
+			// Or did we successfully desugar all that at stencil time?
+			return n
+		}
 		n.SetType(typecheck.MethodValueWrapper(n).Type())
 	}
 	return n

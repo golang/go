@@ -10,9 +10,11 @@ package noder
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"fmt"
+	"go/constant"
 	"strings"
 )
 
@@ -70,72 +72,89 @@ func (g *irgen) stencil() {
 		// instantiated function if it hasn't been created yet, and change
 		// to calling that function directly.
 		modified := false
-		foundFuncInst := false
+		closureRequired := false
 		ir.Visit(decl, func(n ir.Node) {
 			if n.Op() == ir.OFUNCINST {
-				// We found a function instantiation that is not
-				// immediately called.
-				foundFuncInst = true
+				// generic F, not immediately called
+				closureRequired = true
 			}
-			if n.Op() != ir.OCALL || n.(*ir.CallExpr).X.Op() != ir.OFUNCINST {
-				return
+			if n.Op() == ir.OMETHEXPR && len(n.(*ir.SelectorExpr).X.Type().RParams()) > 0 {
+				// T.M, T a type which is generic, not immediately called
+				closureRequired = true
 			}
-			// We have found a function call using a generic function
-			// instantiation.
-			call := n.(*ir.CallExpr)
-			inst := call.X.(*ir.InstExpr)
-			// Replace the OFUNCINST with a direct reference to the
-			// new stenciled function
-			st := g.getInstantiationForNode(inst)
-			call.X = st.Nname
-			if inst.X.Op() == ir.OCALLPART {
-				// When we create an instantiation of a method
-				// call, we make it a function. So, move the
-				// receiver to be the first arg of the function
-				// call.
-				withRecv := make([]ir.Node, len(call.Args)+1)
-				dot := inst.X.(*ir.SelectorExpr)
-				withRecv[0] = dot.X
-				copy(withRecv[1:], call.Args)
-				call.Args = withRecv
+			if n.Op() == ir.OCALL && n.(*ir.CallExpr).X.Op() == ir.OFUNCINST {
+				// We have found a function call using a generic function
+				// instantiation.
+				call := n.(*ir.CallExpr)
+				inst := call.X.(*ir.InstExpr)
+				st := g.getInstantiationForNode(inst)
+				// Replace the OFUNCINST with a direct reference to the
+				// new stenciled function
+				call.X = st.Nname
+				if inst.X.Op() == ir.OCALLPART {
+					// When we create an instantiation of a method
+					// call, we make it a function. So, move the
+					// receiver to be the first arg of the function
+					// call.
+					call.Args.Prepend(inst.X.(*ir.SelectorExpr).X)
+				}
+				// Add dictionary to argument list.
+				dict := reflectdata.GetDictionaryForInstantiation(inst)
+				call.Args.Prepend(dict)
+				// Transform the Call now, which changes OCALL
+				// to OCALLFUNC and does typecheckaste/assignconvfn.
+				transformCall(call)
+				modified = true
 			}
-			// Transform the Call now, which changes OCALL
-			// to OCALLFUNC and does typecheckaste/assignconvfn.
-			transformCall(call)
-			modified = true
+			if n.Op() == ir.OCALLMETH && n.(*ir.CallExpr).X.Op() == ir.ODOTMETH && len(deref(n.(*ir.CallExpr).X.Type().Recv().Type).RParams()) > 0 {
+				// Method call on a generic type, which was instantiated by stenciling.
+				// Method calls on explicitly instantiated types will have an OFUNCINST
+				// and are handled above.
+				call := n.(*ir.CallExpr)
+				meth := call.X.(*ir.SelectorExpr)
+				targs := deref(meth.Type().Recv().Type).RParams()
+
+				t := meth.X.Type()
+				baseSym := deref(t).OrigSym
+				baseType := baseSym.Def.(*ir.Name).Type()
+				var gf *ir.Name
+				for _, m := range baseType.Methods().Slice() {
+					if meth.Sel == m.Sym {
+						gf = m.Nname.(*ir.Name)
+						break
+					}
+				}
+
+				st := g.getInstantiation(gf, targs, true)
+				call.SetOp(ir.OCALL)
+				call.X = st.Nname
+				dict := reflectdata.GetDictionaryForMethod(gf, targs)
+				call.Args.Prepend(dict, meth.X)
+				// Transform the Call now, which changes OCALL
+				// to OCALLFUNC and does typecheckaste/assignconvfn.
+				transformCall(call)
+				modified = true
+			}
 		})
 
-		// If we found an OFUNCINST without a corresponding call in the
-		// above decl, then traverse the nodes of decl again (with
+		// If we found a reference to a generic instantiation that wasn't an
+		// immediate call, then traverse the nodes of decl again (with
 		// EditChildren rather than Visit), where we actually change the
-		// OFUNCINST node to an ONAME for the instantiated function.
+		// reference to the instantiation to a closure that captures the
+		// dictionary, then does a direct call.
 		// EditChildren is more expensive than Visit, so we only do this
 		// in the infrequent case of an OFUNCINST without a corresponding
 		// call.
-		if foundFuncInst {
+		if closureRequired {
 			var edit func(ir.Node) ir.Node
 			edit = func(x ir.Node) ir.Node {
-				if x.Op() == ir.OFUNCINST {
-					// inst.X is either a function name node
-					// or a selector expression for a method.
-					inst := x.(*ir.InstExpr)
-					st := g.getInstantiationForNode(inst)
-					modified = true
-					if inst.X.Op() == ir.ONAME {
-						return st.Nname
-					}
-					assert(inst.X.Op() == ir.OCALLPART)
-
-					// Return a new selector expression referring
-					// to the newly stenciled function.
-					oldse := inst.X.(*ir.SelectorExpr)
-					newse := ir.NewSelectorExpr(oldse.Pos(), ir.OCALLPART, oldse.X, oldse.Sel)
-					newse.Selection = types.NewField(oldse.Pos(), st.Sym(), st.Type())
-					newse.Selection.Nname = st
-					typed(inst.Type(), newse)
-					return newse
-				}
 				ir.EditChildren(x, edit)
+				switch {
+				case x.Op() == ir.OFUNCINST:
+					return g.buildClosure(decl.(*ir.Func), x)
+				case x.Op() == ir.OMETHEXPR && len(deref(x.(*ir.SelectorExpr).X.Type()).RParams()) > 0: // TODO: test for ptr-to-method case
+					return g.buildClosure(decl.(*ir.Func), x)
+				}
 				return x
 			}
 			edit(decl)
@@ -153,6 +172,228 @@ func (g *irgen) stencil() {
 
 }
 
+// buildClosure makes a closure to implement x, a OFUNCINST or OMETHEXPR
+// of generic type. outer is the containing function.
+func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+	pos := x.Pos()
+	var target *ir.Func   // target instantiated function/method
+	var dictValue ir.Node // dictionary to use
+	var rcvrValue ir.Node // receiver, if a method value
+	typ := x.Type()       // type of the closure
+	if x.Op() == ir.OFUNCINST {
+		inst := x.(*ir.InstExpr)
+
+		// Type arguments we're instantiating with.
+		targs := typecheck.TypesOf(inst.Targs)
+
+		// Find the generic function/method.
+		var gf *ir.Name
+		if inst.X.Op() == ir.ONAME {
+			// Instantiating a generic function call.
+			gf = inst.X.(*ir.Name)
+		} else if inst.X.Op() == ir.OCALLPART {
+			// Instantiating a method value x.M.
+			se := inst.X.(*ir.SelectorExpr)
+			rcvrValue = se.X
+			gf = se.Selection.Nname.(*ir.Name)
+		} else {
+			panic("unhandled")
+		}
+
+		// target is the instantiated function we're trying to call.
+		// For functions, the target expects a dictionary as its first argument.
+		// For method values, the target expects a dictionary and the receiver
+		// as its first two arguments.
+		target = g.getInstantiation(gf, targs, rcvrValue != nil)
+
+		// The value to use for the dictionary argument.
+		if rcvrValue == nil {
+			dictValue = reflectdata.GetDictionaryForFunc(gf, targs)
+		} else {
+			dictValue = reflectdata.GetDictionaryForMethod(gf, targs)
+		}
+	} else { // ir.OMETHEXPR
+		// Method expression T.M where T is a generic type.
+		// TODO: Is (*T).M right?
+		se := x.(*ir.SelectorExpr)
+		targs := se.X.Type().RParams()
+		if len(targs) == 0 {
+			if se.X.Type().IsPtr() {
+				targs = se.X.Type().Elem().RParams()
+				if len(targs) == 0 {
+					panic("bad")
+				}
+			}
+		}
+		t := se.X.Type()
+		baseSym := t.OrigSym
+		baseType := baseSym.Def.(*ir.Name).Type()
+		var gf *ir.Name
+		for _, m := range baseType.Methods().Slice() {
+			if se.Sel == m.Sym {
+				gf = m.Nname.(*ir.Name)
+				break
+			}
+		}
+		target = g.getInstantiation(gf, targs, true)
+		dictValue = reflectdata.GetDictionaryForMethod(gf, targs)
+	}
+
+	// Build a closure to implement a function instantiation.
+	//
+	//   func f[T any] (int, int) (int, int) { ...whatever... }
+	//
+	// Then any reference to f[int] not directly called gets rewritten to
+	//
+	//   .dictN := ... dictionary to use ...
+	//   func(a0, a1 int) (r0, r1 int) {
+	//     return .inst.f[int](.dictN, a0, a1)
+	//   }
+	//
+	// Similarly for method expressions,
+	//
+	//   type g[T any] ....
+	//   func (rcvr g[T]) f(a0, a1 int) (r0, r1 int) { ... }
+	//
+	// Any reference to g[int].f not directly called gets rewritten to
+	//
+	//   .dictN := ... dictionary to use ...
+	//   func(rcvr g[int], a0, a1 int) (r0, r1 int) {
+	//     return .inst.g[int].f(.dictN, rcvr, a0, a1)
+	//   }
+	//
+	// Also method values
+	//
+	//   var x g[int]
+	//
+	// Any reference to x.f not directly called gets rewritten to
+	//
+	//   .dictN := ... dictionary to use ...
+	//   x2 := x
+	//   func(a0, a1 int) (r0, r1 int) {
+	//     return .inst.g[int].f(.dictN, x2, a0, a1)
+	//   }
+
+	// Make a new internal function.
+	fn := ir.NewFunc(pos)
+	fn.SetIsHiddenClosure(true)
+
+	// This is the dictionary we want to use.
+	// Note: for now this is a compile-time constant, so we don't really need a closure
+	// to capture it (a wrapper function would work just as well). But eventually it
+	// will be a read of a subdictionary from the parent dictionary.
+	dictVar := ir.NewNameAt(pos, typecheck.LookupNum(".dict", g.dnum))
+	g.dnum++
+	dictVar.Class = ir.PAUTO
+	typed(types.Types[types.TUINTPTR], dictVar)
+	dictVar.Curfn = outer
+	dictAssign := ir.NewAssignStmt(pos, dictVar, dictValue)
+	dictAssign.SetTypecheck(1)
+	dictVar.Defn = dictAssign
+	outer.Dcl = append(outer.Dcl, dictVar)
+
+	// assign the receiver to a temporary.
+	var rcvrVar *ir.Name
+	var rcvrAssign ir.Node
+	if rcvrValue != nil {
+		rcvrVar = ir.NewNameAt(pos, typecheck.LookupNum(".rcvr", g.dnum))
+		g.dnum++
+		rcvrVar.Class = ir.PAUTO
+		typed(rcvrValue.Type(), rcvrVar)
+		rcvrVar.Curfn = outer
+		rcvrAssign = ir.NewAssignStmt(pos, rcvrVar, rcvrValue)
+		rcvrAssign.SetTypecheck(1)
+		rcvrVar.Defn = rcvrAssign
+		outer.Dcl = append(outer.Dcl, rcvrVar)
+	}
+
+	// Build formal argument and return lists.
+	var formalParams []*types.Field  // arguments of closure
+	var formalResults []*types.Field // returns of closure
+	for i := 0; i < typ.NumParams(); i++ {
+		t := typ.Params().Field(i).Type
+		arg := ir.NewNameAt(pos, typecheck.LookupNum("a", i))
+		arg.Class = ir.PPARAM
+		typed(t, arg)
+		arg.Curfn = fn
+		fn.Dcl = append(fn.Dcl, arg)
+		f := types.NewField(pos, arg.Sym(), t)
+		f.Nname = arg
+		formalParams = append(formalParams, f)
+	}
+	for i := 0; i < typ.NumResults(); i++ {
+		t := typ.Results().Field(i).Type
+		result := ir.NewNameAt(pos, typecheck.LookupNum("r", i)) // TODO: names not needed?
+		result.Class = ir.PPARAMOUT
+		typed(t, result)
+		result.Curfn = fn
+		fn.Dcl = append(fn.Dcl, result)
+		f := types.NewField(pos, result.Sym(), t)
+		f.Nname = result
+		formalResults = append(formalResults, f)
+	}
+
+	// Build an internal function with the right signature.
+	closureType := types.NewSignature(x.Type().Pkg(), nil, nil, formalParams, formalResults)
+	sym := typecheck.ClosureName(outer)
+	sym.SetFunc(true)
+	fn.Nname = ir.NewNameAt(pos, sym)
+	fn.Nname.Func = fn
+	fn.Nname.Defn = fn
+	typed(closureType, fn.Nname)
+	fn.SetTypecheck(1)
+
+	// Build body of closure. This involves just calling the wrapped function directly
+	// with the additional dictionary argument.
+
+	// First, capture the dictionary variable for use in the closure.
+	dict2Var := ir.CaptureName(pos, fn, dictVar)
+	// Also capture the receiver variable.
+	var rcvr2Var *ir.Name
+	if rcvrValue != nil {
+		rcvr2Var = ir.CaptureName(pos, fn, rcvrVar)
+	}
+
+	// Build arguments to call inside the closure.
+	var args []ir.Node
+
+	// First the dictionary argument.
+	args = append(args, dict2Var)
+	// Then the receiver.
+	if rcvrValue != nil {
+		args = append(args, rcvr2Var)
+	}
+	// Then all the other arguments (including receiver for method expressions).
+	for i := 0; i < typ.NumParams(); i++ {
+		args = append(args, formalParams[i].Nname.(*ir.Name))
+	}
+
+	// Build call itself.
+	var innerCall ir.Node = ir.NewCallExpr(pos, ir.OCALL, target.Nname, args)
+	if len(formalResults) > 0 {
+		innerCall = ir.NewReturnStmt(pos, []ir.Node{innerCall})
+	}
+	// Finish building body of closure.
+	ir.CurFunc = fn
+	// TODO: set types directly here instead of using typecheck.Stmt
+	typecheck.Stmt(innerCall)
+	ir.CurFunc = nil
+	fn.Body = []ir.Node{innerCall}
+
+	// We're all done with the captured dictionary (and receiver, for method values).
+	ir.FinishCaptureNames(pos, outer, fn)
+
+	// Make a closure referencing our new internal function.
+	c := ir.NewClosureExpr(pos, fn)
+	init := []ir.Node{dictAssign}
+	if rcvrValue != nil {
+		init = append(init, rcvrAssign)
+	}
+	c.SetInit(init)
+	typed(x.Type(), c)
+	return c
+}
+
 // instantiateMethods instantiates all the methods of all fully-instantiated
 // generic types that have been added to g.instTypeList.
 func (g *irgen) instantiateMethods() {
@@ -167,14 +408,17 @@ func (g *irgen) instantiateMethods() {
 		// not be set on imported instantiated types.
 		baseSym := typ.OrigSym
 		baseType := baseSym.Def.(*ir.Name).Type()
-		for j, m := range typ.Methods().Slice() {
-			name := m.Nname.(*ir.Name)
+		for j, _ := range typ.Methods().Slice() {
 			baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
-			// Note: we are breaking an invariant here:
-			// m.Nname is now not equal m.Nname.Func.Nname.
-			// m.Nname has the type of a method, whereas m.Nname.Func.Nname has
-			// the type of a function, since it is an function instantiation.
-			name.Func = g.getInstantiation(baseNname, typ.RParams(), true)
+			// Eagerly generate the instantiations that implement these methods.
+			// We don't use the instantiations here, just generate them (and any
+			// further instantiations those generate, etc.).
+			// Note that we don't set the Func for any methods on instantiated
+			// types. Their signatures don't match so that would be confusing.
+			// Direct method calls go directly to the instantiations, implemented above.
+			// Indirect method calls use wrappers generated in reflectcall. Those wrappers
+			// will use these instantiations if they are needed (for interface tables or reflection).
+			_ = g.getInstantiation(baseNname, typ.RParams(), true)
 		}
 	}
 	g.instTypeList = nil
@@ -287,10 +531,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []*type
 		vars:     make(map[*ir.Name]*ir.Name),
 	}
 
-	newf.Dcl = make([]*ir.Name, len(gf.Dcl))
-	for i, n := range gf.Dcl {
-		newf.Dcl[i] = subst.localvar(n)
-	}
+	newf.Dcl = make([]*ir.Name, 0, len(gf.Dcl)+1)
 
 	// Replace the types in the function signature.
 	// Ugly: also, we have to insert the Name nodes of the parameters/results into
@@ -298,18 +539,40 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []*type
 	// because it came via conversion from the types2 type.
 	oldt := nameNode.Type()
 	// We also transform a generic method type to the corresponding
-	// instantiated function type where the receiver is the first parameter.
+	// instantiated function type where the dictionary is the first parameter.
+	dictionarySym := types.LocalPkg.Lookup(".dict")
+	dictionaryType := types.Types[types.TUINTPTR]
+	dictionaryName := ir.NewNameAt(gf.Pos(), dictionarySym)
+	typed(dictionaryType, dictionaryName)
+	dictionaryName.Class = ir.PPARAM
+	dictionaryName.Curfn = newf
+	newf.Dcl = append(newf.Dcl, dictionaryName)
+	for _, n := range gf.Dcl {
+		if n.Sym().Name == ".dict" {
+			panic("already has dictionary")
+		}
+		newf.Dcl = append(newf.Dcl, subst.localvar(n))
+	}
+	dictionaryArg := types.NewField(gf.Pos(), dictionarySym, dictionaryType)
+	dictionaryArg.Nname = dictionaryName
+	var args []*types.Field
+	args = append(args, dictionaryArg)
+	args = append(args, oldt.Recvs().FieldSlice()...)
+	args = append(args, oldt.Params().FieldSlice()...)
 	newt := types.NewSignature(oldt.Pkg(), nil, nil,
-		subst.fields(ir.PPARAM, append(oldt.Recvs().FieldSlice(), oldt.Params().FieldSlice()...), newf.Dcl),
+		subst.fields(ir.PPARAM, args, newf.Dcl),
 		subst.fields(ir.PPARAMOUT, oldt.Results().FieldSlice(), newf.Dcl))
 
-	newf.Nname.SetType(newt)
+	typed(newt, newf.Nname)
 	ir.MarkFunc(newf.Nname)
 	newf.SetTypecheck(1)
-	newf.Nname.SetTypecheck(1)
 
 	// Make sure name/type of newf is set before substituting the body.
 	newf.Body = subst.list(gf.Body)
+
+	// Add code to check that the dictionary is correct.
+	newf.Body.Prepend(g.checkDictionary(dictionaryName, targs)...)
+
 	ir.CurFunc = savef
 
 	return newf
@@ -332,6 +595,44 @@ func (subst *subster) localvar(name *ir.Name) *ir.Name {
 	subst.vars[name] = m
 	m.SetTypecheck(1)
 	return m
+}
+
+// checkDictionary returns code that does runtime consistency checks
+// between the dictionary and the types it should contain.
+func (g *irgen) checkDictionary(name *ir.Name, targs []*types.Type) (code []ir.Node) {
+	if false {
+		return // checking turned off
+	}
+	// TODO: when moving to GCshape, this test will become harder. Call into
+	// runtime to check the expected shape is correct?
+	pos := name.Pos()
+	// Convert dictionary to *[N]uintptr
+	d := ir.NewConvExpr(pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], name)
+	d.SetTypecheck(1)
+	d = ir.NewConvExpr(pos, ir.OCONVNOP, types.NewArray(types.Types[types.TUINTPTR], int64(len(targs))).PtrTo(), d)
+	d.SetTypecheck(1)
+
+	// Check that each type entry in the dictionary is correct.
+	for i, t := range targs {
+		want := reflectdata.TypePtr(t)
+		typed(types.Types[types.TUINTPTR], want)
+		deref := ir.NewStarExpr(pos, d)
+		typed(d.Type().Elem(), deref)
+		idx := ir.NewConstExpr(constant.MakeUint64(uint64(i)), name) // TODO: what to set orig to?
+		typed(types.Types[types.TUINTPTR], idx)
+		got := ir.NewIndexExpr(pos, deref, idx)
+		typed(types.Types[types.TUINTPTR], got)
+		cond := ir.NewBinaryExpr(pos, ir.ONE, want, got)
+		typed(types.Types[types.TBOOL], cond)
+		panicArg := ir.NewNilExpr(pos)
+		typed(types.NewInterface(types.LocalPkg, nil), panicArg)
+		then := ir.NewUnaryExpr(pos, ir.OPANIC, panicArg)
+		then.SetTypecheck(1)
+		x := ir.NewIfStmt(pos, cond, []ir.Node{then}, nil)
+		x.SetTypecheck(1)
+		code = append(code, x)
+	}
+	return
 }
 
 // node is like DeepCopy(), but substitutes ONAME nodes based on subst.vars, and
@@ -837,13 +1138,14 @@ func (subst *subster) typ(t *types.Type) *types.Type {
 			t2 := subst.typ(f.Type)
 			oldsym := f.Nname.Sym()
 			newsym := typecheck.MakeInstName(oldsym, subst.targs, true)
+			// TODO: use newsym?
 			var nname *ir.Name
 			if newsym.Def != nil {
 				nname = newsym.Def.(*ir.Name)
 			} else {
-				nname = ir.NewNameAt(f.Pos, newsym)
+				nname = ir.NewNameAt(f.Pos, oldsym)
 				nname.SetType(t2)
-				newsym.Def = nname
+				oldsym.Def = nname
 			}
 			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
 			newfields[i].Nname = nname

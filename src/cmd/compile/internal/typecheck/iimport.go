@@ -1467,6 +1467,13 @@ func (r *importReader) node() ir.Node {
 		n.Args.Append(r.exprList()...)
 		return n
 
+	case ir.OLINKSYMOFFSET:
+		pos := r.pos()
+		name := r.string()
+		off := r.uint64()
+		typ := r.typ()
+		return ir.NewLinksymOffsetExpr(pos, Lookup(name).Linksym(), int64(off), typ)
+
 	// unary expressions
 	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.ORECV:
 		n := ir.NewUnaryExpr(r.pos(), op, r.expr())

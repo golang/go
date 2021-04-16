@@ -958,7 +958,7 @@ func (t *Type) FuncArgs() *Type {
 	return t.Extra.(FuncArgs).T
 }
 
-// IsFuncArgStruct reports whether t is a struct representing function parameters.
+// IsFuncArgStruct reports whether t is a struct representing function parameters or results.
 func (t *Type) IsFuncArgStruct() bool {
 	return t.kind == TSTRUCT && t.Extra.(*Struct).Funarg != FunargNone
 }

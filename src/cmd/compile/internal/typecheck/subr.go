@@ -901,6 +901,14 @@ func TypesOf(x []ir.Node) []*types.Type {
 // '(*genType[int,bool]).methodName' for methods
 func MakeInstName(fnsym *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
 	b := bytes.NewBufferString("")
+
+	// marker to distinguish generic instantiations from fully stenciled wrapper functions.
+	// Once we move to GC shape implementations, this prefix will not be necessary as the
+	// GC shape naming will distinguish them.
+	// e.g. f[8bytenonpointer] vs. f[int].
+	// For now, we use .inst.f[int] vs. f[int].
+	b.WriteString(".inst.")
+
 	name := fnsym.Name
 	i := strings.Index(name, "[")
 	assert(hasBrackets == (i >= 0))
@@ -924,9 +932,12 @@ func MakeInstName(fnsym *types.Sym, targs []*types.Type, hasBrackets bool) *type
 	}
 	b.WriteString("]")
 	if i >= 0 {
-		i2 := strings.Index(name[i:], "]")
+		i2 := strings.LastIndex(name[i:], "]")
 		assert(i2 >= 0)
 		b.WriteString(name[i+i2+1:])
+	}
+	if strings.HasPrefix(b.String(), ".inst..inst.") {
+		panic(fmt.Sprintf("multiple .inst. prefix in %s", b.String()))
 	}
 	return fnsym.Pkg.Lookup(b.String())
 }
