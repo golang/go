@@ -325,11 +325,9 @@ var work struct {
 	nwait  uint32
 
 	// Number of roots of various root types. Set by gcMarkRootPrepare.
-	nFlushCacheRoots                               int
 	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
 
 	// Base indexes of each root type. Set by gcMarkRootPrepare.
-	baseFlushCache                                    uint32
 	baseData, baseBSS, baseSpans, baseStacks, baseEnd uint32
 
 	// Each type of GC state transition is protected by a lock.

@@ -56,8 +56,6 @@ const (
 func gcMarkRootPrepare() {
 	assertWorldStopped()
 
-	work.nFlushCacheRoots = 0
-
 	// Compute how many data and BSS root blocks there are.
 	nBlocks := func(bytes uintptr) int {
 		return int(divRoundUp(bytes, rootBlockBytes))
@@ -105,11 +103,10 @@ func gcMarkRootPrepare() {
 	work.nStackRoots = int(atomic.Loaduintptr(&allglen))
 
 	work.markrootNext = 0
-	work.markrootJobs = uint32(fixedRootCount + work.nFlushCacheRoots + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots)
+	work.markrootJobs = uint32(fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots)
 
 	// Calculate base indexes of each root type
-	work.baseFlushCache = uint32(fixedRootCount)
-	work.baseData = work.baseFlushCache + uint32(work.nFlushCacheRoots)
+	work.baseData = uint32(fixedRootCount)
 	work.baseBSS = work.baseData + uint32(work.nDataRoots)
 	work.baseSpans = work.baseBSS + uint32(work.nBSSRoots)
 	work.baseStacks = work.baseSpans + uint32(work.nSpanRoots)
@@ -159,9 +156,6 @@ var oneptrmask = [...]uint8{1}
 func markroot(gcw *gcWork, i uint32) {
 	// Note: if you add a case here, please also update heapdump.go:dumproots.
 	switch {
-	case work.baseFlushCache <= i && i < work.baseData:
-		flushmcache(int(i - work.baseFlushCache))
-
 	case work.baseData <= i && i < work.baseBSS:
 		for _, datap := range activeModules() {
 			markrootBlock(datap.data, datap.edata-datap.data, datap.gcdatamask.bytedata, gcw, int(i-work.baseData))
