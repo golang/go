@@ -321,13 +321,6 @@ func methods(t *types.Type) []*typeSig {
 	}
 	typecheck.CalcMethods(mt)
 
-	// type stored in interface word
-	it := t
-
-	if !types.IsDirectIface(it) {
-		it = types.NewPtr(t)
-	}
-
 	// make list of methods for t,
 	// generating code if necessary.
 	var ms []*typeSig
@@ -355,8 +348,8 @@ func methods(t *types.Type) []*typeSig {
 
 		sig := &typeSig{
 			name:  f.Sym,
-			isym:  methodWrapper(it, f),
-			tsym:  methodWrapper(t, f),
+			isym:  methodWrapper(t, f, true),
+			tsym:  methodWrapper(t, f, false),
 			type_: typecheck.NewMethodType(f.Type, t),
 			mtype: typecheck.NewMethodType(f.Type, nil),
 		}
@@ -394,7 +387,7 @@ func imethods(t *types.Type) []*typeSig {
 		// IfaceType.Method is not in the reflect data.
 		// Generate the method body, so that compiled
 		// code can refer to it.
-		methodWrapper(t, f)
+		methodWrapper(t, f, false)
 	}
 
 	return methods
@@ -1765,7 +1758,28 @@ func CollectPTabs() {
 //
 //	rcvr - U
 //	method - M func (t T)(), a TFIELD type struct
-func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
+//
+// Also wraps methods on instantiated generic types for use in itab entries.
+// For an instantiated generic type G[int], we generate wrappers like:
+// G[int] pointer shaped:
+//	func (x G[int]) f(arg) {
+//		.inst.G[int].f(dictionary, x, arg)
+// 	}
+// G[int] not pointer shaped:
+//	func (x *G[int]) f(arg) {
+//		.inst.G[int].f(dictionary, *x, arg)
+// 	}
+// These wrappers are always fully stenciled.
+func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSym {
+	orig := rcvr
+	if forItab && !types.IsDirectIface(rcvr) {
+		rcvr = rcvr.PtrTo()
+	}
+	generic := false
+	if !rcvr.IsInterface() && len(rcvr.RParams()) > 0 || rcvr.IsPtr() && len(rcvr.Elem().RParams()) > 0 { // TODO: right detection?
+		// TODO: check that we do the right thing when rcvr.IsInterface().
+		generic = true
+	}
 	newnam := ir.MethodSym(rcvr, method.Sym)
 	lsym := newnam.Linksym()
 	if newnam.Siggen() {
@@ -1773,7 +1787,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 	}
 	newnam.SetSiggen(true)
 
-	if types.Identical(rcvr, method.Type.Recv().Type) {
+	if !generic && types.Identical(rcvr, method.Type.Recv().Type) {
 		return lsym
 	}
 
@@ -1808,9 +1822,10 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 	nthis := ir.AsNode(tfn.Type().Recv().Nname)
 
 	methodrcvr := method.Type.Recv().Type
+	indirect := rcvr.IsPtr() && rcvr.Elem() == methodrcvr
 
 	// generate nil pointer check for better error
-	if rcvr.IsPtr() && rcvr.Elem() == methodrcvr {
+	if indirect {
 		// generating wrapper from *T to T.
 		n := ir.NewIfStmt(base.Pos, nil, nil, nil)
 		n.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, nthis, typecheck.NodNil())
@@ -1832,7 +1847,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 	// Disable tailcall for RegabiArgs for now. The IR does not connect the
 	// arguments with the OTAILCALL node, and the arguments are not marshaled
 	// correctly.
-	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) && !buildcfg.Experiment.RegabiArgs {
+	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) && !buildcfg.Experiment.RegabiArgs && !generic {
 		// generate tail call: adjust pointer receiver and jump to embedded method.
 		left := dot.X // skip final .M
 		if !left.Type().IsPtr() {
@@ -1843,8 +1858,44 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 		fn.Body.Append(ir.NewTailCallStmt(base.Pos, method.Nname.(*ir.Name)))
 	} else {
 		fn.SetWrapper(true) // ignore frame for panic+recover matching
-		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
-		call.Args = ir.ParamNames(tfn.Type())
+		var call *ir.CallExpr
+		if generic {
+			var args []ir.Node
+			var targs []*types.Type
+			if rcvr.IsPtr() { // TODO: correct condition?
+				targs = rcvr.Elem().RParams()
+			} else {
+				targs = rcvr.RParams()
+			}
+			if strings.HasPrefix(ir.MethodSym(orig, method.Sym).Name, ".inst.") {
+				fmt.Printf("%s\n", ir.MethodSym(orig, method.Sym).Name)
+				panic("multiple .inst.")
+			}
+			args = append(args, getDictionary(".inst."+ir.MethodSym(orig, method.Sym).Name, targs)) // TODO: remove .inst.
+			if indirect {
+				args = append(args, ir.NewStarExpr(base.Pos, nthis))
+			} else {
+				args = append(args, nthis)
+			}
+			args = append(args, ir.ParamNames(tfn.Type())...)
+
+			// TODO: Once we enter the gcshape world, we'll need a way to look up
+			// the stenciled implementation to use for this concrete type. Essentially,
+			// erase the concrete types and replace them with gc shape representatives.
+			sym := typecheck.MakeInstName(ir.MethodSym(methodrcvr, method.Sym), targs, true)
+			if sym.Def == nil {
+				// Currently we make sure that we have all the instantiations
+				// we need by generating them all in ../noder/stencil.go:instantiateMethods
+				// TODO: maybe there's a better, more incremental way to generate
+				// only the instantiations we need?
+				base.Fatalf("instantiation %s not found", sym.Name)
+			}
+			target := ir.AsNode(sym.Def)
+			call = ir.NewCallExpr(base.Pos, ir.OCALL, target, args)
+		} else {
+			call = ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
+			call.Args = ir.ParamNames(tfn.Type())
+		}
 		call.IsDDD = tfn.Type().IsVariadic()
 		if method.Type.NumResults() > 0 {
 			ret := ir.NewReturnStmt(base.Pos, nil)
@@ -1908,4 +1959,72 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 	midx := dot.Offset() / int64(types.PtrSize)
 	r.Add = InterfaceMethodOffset(ityp, midx)
 	r.Type = objabi.R_USEIFACEMETHOD
+}
+
+// getDictionaryForInstantiation returns the dictionary that should be used for invoking
+// the concrete instantiation described by inst.
+func GetDictionaryForInstantiation(inst *ir.InstExpr) ir.Node {
+	targs := typecheck.TypesOf(inst.Targs)
+	if meth, ok := inst.X.(*ir.SelectorExpr); ok {
+		return GetDictionaryForMethod(meth.Selection.Nname.(*ir.Name), targs)
+	}
+	return GetDictionaryForFunc(inst.X.(*ir.Name), targs)
+}
+
+func GetDictionaryForFunc(fn *ir.Name, targs []*types.Type) ir.Node {
+	return getDictionary(typecheck.MakeInstName(fn.Sym(), targs, false).Name, targs)
+}
+func GetDictionaryForMethod(meth *ir.Name, targs []*types.Type) ir.Node {
+	return getDictionary(typecheck.MakeInstName(meth.Sym(), targs, true).Name, targs)
+}
+
+// getDictionary returns the dictionary for the given named generic function
+// or method, with the given type arguments.
+// TODO: pass a reference to the generic function instead? We might need
+// that to look up protodictionaries.
+func getDictionary(name string, targs []*types.Type) ir.Node {
+	if len(targs) == 0 {
+		base.Fatalf("%s should have type arguments", name)
+	}
+
+	// The dictionary for this instantiation is named after the function
+	// and concrete types it is instantiated with.
+	// TODO: decouple this naming from the instantiation naming. The instantiation
+	// naming will be based on GC shapes, this naming must be fully stenciled.
+	if !strings.HasPrefix(name, ".inst.") {
+		base.Fatalf("%s should start in .inst.", name)
+	}
+	name = ".dict." + name[6:]
+
+	// Get a symbol representing the dictionary.
+	sym := typecheck.Lookup(name)
+
+	// Initialize the dictionary, if we haven't yet already.
+	if lsym := sym.Linksym(); len(lsym.P) == 0 {
+		off := 0
+		// Emit an entry for each concrete type.
+		for _, t := range targs {
+			s := TypeLinksym(t)
+			off = objw.SymPtr(lsym, off, s, 0)
+		}
+		// TODO: subdictionaries
+		objw.Global(lsym, int32(off), obj.DUPOK|obj.RODATA)
+	}
+
+	// Make a node referencing the dictionary symbol.
+	n := typecheck.NewName(sym)
+	n.SetType(types.Types[types.TUINTPTR]) // should probably be [...]uintptr, but doesn't really matter
+	n.SetTypecheck(1)
+	n.Class = ir.PEXTERN
+	sym.Def = n
+
+	// Return the address of the dictionary.
+	np := typecheck.NodAddr(n)
+	// Note: treat dictionary pointers as uintptrs, so they aren't pointers
+	// with respect to GC. That saves on stack scanning work, write barriers, etc.
+	// We can get away with it because dictionaries are global variables.
+	// TODO: use a cast, or is typing directly ok?
+	np.SetType(types.Types[types.TUINTPTR])
+	np.SetTypecheck(1)
+	return np
 }

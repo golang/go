@@ -105,6 +105,8 @@ type irgen struct {
 
 	// Fully-instantiated generic types whose methods should be instantiated
 	instTypeList []*types.Type
+
+	dnum int // for generating unique dictionary variables
 }
 
 func (g *irgen) generate(noders []*noder) {

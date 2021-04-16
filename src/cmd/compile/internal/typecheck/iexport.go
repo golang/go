@@ -1904,6 +1904,14 @@ func (w *exportWriter) expr(n ir.Node) {
 			w.op(ir.OEND)
 		}
 
+	case ir.OLINKSYMOFFSET:
+		n := n.(*ir.LinksymOffsetExpr)
+		w.op(ir.OLINKSYMOFFSET)
+		w.pos(n.Pos())
+		w.string(n.Linksym.Name)
+		w.uint64(uint64(n.Offset_))
+		w.typ(n.Type())
+
 	// unary expressions
 	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.ORECV:
 		n := n.(*ir.UnaryExpr)
@@ -2068,7 +2076,7 @@ func (w *exportWriter) localIdent(s *types.Sym) {
 	}
 
 	// TODO(mdempsky): Fix autotmp hack.
-	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, ".autotmp_") {
+	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, ".autotmp_") && !strings.HasPrefix(name, ".dict") { // TODO: just use autotmp names for dictionaries?
 		base.Fatalf("unexpected dot in identifier: %v", name)
 	}
 
