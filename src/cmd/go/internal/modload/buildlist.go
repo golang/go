@@ -11,7 +11,7 @@ import (
 	"cmd/go/internal/par"
 	"context"
 	"fmt"
-	"os"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -479,9 +479,9 @@ type Conflict struct {
 	Constraint module.Version
 }
 
-// tidyBuildList trims the build list to the minimal requirements needed to
+// tidyRoots trims the root requirements to the minimal roots needed to
 // retain the same versions of all packages loaded by ld.
-func tidyBuildList(ctx context.Context, ld *loader, initialRS *Requirements) *Requirements {
+func tidyRoots(ctx context.Context, rs *Requirements, pkgs []*loadPkg) (*Requirements, error) {
 	if go117LazyTODO {
 		// Tidy needs to maintain the lazy-loading invariants for lazy modules.
 		// The implementation for eager modules should be factored out into a function.
@@ -493,33 +493,10 @@ func tidyBuildList(ctx context.Context, ld *loader, initialRS *Requirements) *Re
 		// changed after loading packages.
 	}
 
-	var (
-		tidy *Requirements
-		err  error
-	)
-	if depth == lazy {
-		panic("internal error: 'go mod tidy' for lazy modules is not yet implemented")
-	} else {
-		tidy, err = tidyEagerRoots(ctx, ld.requirements, ld.pkgs)
+	if depth == eager {
+		return tidyEagerRoots(ctx, rs, pkgs)
 	}
-	if err != nil {
-		base.Fatalf("go: %v", err)
-	}
-
-	if cfg.BuildV {
-		mg, _ := tidy.Graph(ctx)
-
-		for _, m := range initialRS.rootModules {
-			if mg.Selected(m.Path) == "none" {
-				fmt.Fprintf(os.Stderr, "unused %s\n", m.Path)
-			} else if go117LazyTODO {
-				// If the main module is lazy and we demote a root to a non-root
-				// (because it is not actually relevant), should we log that too?
-			}
-		}
-	}
-
-	return tidy
+	panic("internal error: 'go mod tidy' for lazy modules is not yet implemented")
 }
 
 // tidyEagerRoots returns a minimal set of root requirements that maintains the
@@ -550,7 +527,11 @@ func tidyEagerRoots(ctx context.Context, rs *Requirements, pkgs []*loadPkg) (*Re
 
 	min, err := mvs.Req(Target, rootPaths, &mvsReqs{roots: keep})
 	if err != nil {
-		return nil, err
+		return rs, err
+	}
+	if reflect.DeepEqual(min, rs.rootModules) {
+		// rs is already tidy, so preserve its cached graph.
+		return rs, nil
 	}
 	return newRequirements(eager, min, rs.direct), nil
 }
@@ -659,28 +640,4 @@ func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements, 
 	// module graph and build list, if they have already been loaded.
 
 	return newRequirements(rs.depth, min, direct), nil
-}
-
-// checkMultiplePaths verifies that a given module path is used as itself
-// or as a replacement for another module, but not both at the same time.
-//
-// (See https://golang.org/issue/26607 and https://golang.org/issue/34650.)
-func checkMultiplePaths(rs *Requirements) {
-	mods := rs.rootModules
-	if cached := rs.graph.Load(); cached != nil {
-		if mg := cached.(cachedGraph).mg; mg != nil {
-			mods = mg.BuildList()
-		}
-	}
-
-	firstPath := map[module.Version]string{}
-	for _, mod := range mods {
-		src := resolveReplacement(mod)
-		if prev, ok := firstPath[src]; !ok {
-			firstPath[src] = mod.Path
-		} else if prev != mod.Path {
-			base.Errorf("go: %s@%s used for two different module paths (%s and %s)", src.Path, src.Version, prev, mod.Path)
-		}
-	}
-	base.ExitIfErrors()
 }

@@ -180,9 +180,16 @@ type PackageOpts struct {
 	// an error occurs.
 	AllowErrors bool
 
-	// SilenceErrors indicates that LoadPackages should not print errors
-	// that occur while loading packages. SilenceErrors implies AllowErrors.
-	SilenceErrors bool
+	// SilencePackageErrors indicates that LoadPackages should not print errors
+	// that occur while matching or loading packages, and should not terminate the
+	// process if such an error occurs.
+	//
+	// Errors encountered in the module graph will still be reported.
+	//
+	// The caller may retrieve the silenced package errors using the Lookup
+	// function, and matching errors are still populated in the Errs field of the
+	// associated search.Match.)
+	SilencePackageErrors bool
 
 	// SilenceMissingStdImports indicates that LoadPackages should not print
 	// errors or terminate the process if an imported package is missing, and the
@@ -317,50 +324,12 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 	// One last pass to finalize wildcards.
 	updateMatches(ld.requirements, ld)
 
-	// Report errors, if any.
-	checkMultiplePaths(ld.requirements)
-	for _, pkg := range ld.pkgs {
-		if !pkg.isTest() {
-			loadedPackages = append(loadedPackages, pkg.path)
-		}
-
-		if pkg.err != nil {
-			if sumErr := (*ImportMissingSumError)(nil); errors.As(pkg.err, &sumErr) {
-				if importer := pkg.stack; importer != nil {
-					sumErr.importer = importer.path
-					sumErr.importerVersion = importer.mod.Version
-					sumErr.importerIsTest = importer.testOf != nil
-				}
-			}
-
-			if opts.SilenceErrors {
-				continue
-			}
-			if stdErr := (*ImportMissingError)(nil); errors.As(pkg.err, &stdErr) &&
-				stdErr.isStd && opts.SilenceMissingStdImports {
-				continue
-			}
-			if opts.SilenceNoGoErrors && errors.Is(pkg.err, imports.ErrNoGo) {
-				continue
-			}
-
-			if opts.AllowErrors {
-				fmt.Fprintf(os.Stderr, "%s: %v\n", pkg.stackText(), pkg.err)
-			} else {
-				base.Errorf("%s: %v", pkg.stackText(), pkg.err)
-			}
-		}
-	}
-	if !opts.SilenceErrors {
-		// Also list errors in matching patterns (such as directory permission
-		// errors for wildcard patterns).
+	// List errors in matching patterns (such as directory permission
+	// errors for wildcard patterns).
+	if !ld.SilencePackageErrors {
 		for _, match := range matches {
 			for _, err := range match.Errs {
-				if opts.AllowErrors {
-					fmt.Fprintf(os.Stderr, "%v\n", err)
-				} else {
-					base.Errorf("%v", err)
-				}
+				ld.errorf("%v\n", err)
 			}
 		}
 	}
@@ -370,14 +339,42 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		search.WarnUnmatched(matches)
 	}
 
-	if ld.Tidy {
-		ld.requirements = tidyBuildList(ctx, ld, initialRS)
+	if opts.Tidy {
+		if cfg.BuildV {
+			mg, _ := ld.requirements.Graph(ctx)
+
+			for _, m := range initialRS.rootModules {
+				var unused bool
+				if ld.requirements.depth == eager {
+					// m is unused if it was dropped from the module graph entirely. If it
+					// was only demoted from direct to indirect, it may still be in use via
+					// a transitive import.
+					unused = mg.Selected(m.Path) == "none"
+				} else {
+					// m is unused if it was dropped from the roots. If it is still present
+					// as a transitive dependency, that transitive dependency is not needed
+					// by any package or test in the main module.
+					_, ok := ld.requirements.rootSelected(m.Path)
+					unused = !ok
+				}
+				if unused {
+					fmt.Fprintf(os.Stderr, "unused %s\n", m.Path)
+				}
+			}
+		}
+
 		modfetch.TrimGoSum(keepSums(ctx, ld, ld.requirements, loadedZipSumsOnly))
 	}
 
-	// Success! Update go.mod (if needed) and return the results.
+	// Success! Update go.mod and go.sum (if needed) and return the results.
 	loaded = ld
 	commitRequirements(ctx, loaded.requirements)
+
+	for _, pkg := range ld.pkgs {
+		if !pkg.isTest() {
+			loadedPackages = append(loadedPackages, pkg.path)
+		}
+	}
 	sort.Strings(loadedPackages)
 	return matches, loadedPackages
 }
@@ -582,6 +579,11 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
 
 // ImportFromFiles adds modules to the build list as needed
 // to satisfy the imports in the named Go source files.
+//
+// Errors in missing dependencies are silenced.
+//
+// TODO(bcmills): Silencing errors seems off. Take a closer look at this and
+// figure out what the error-reporting actually ought to be.
 func ImportFromFiles(ctx context.Context, gofiles []string) {
 	rs := LoadModFile(ctx)
 
@@ -595,6 +597,7 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
 		PackageOpts: PackageOpts{
 			Tags:                  tags,
 			ResolveMissingImports: true,
+			SilencePackageErrors:  true,
 		},
 		requirements:       rs,
 		allClosesOverTests: index.allPatternClosesOverTests(),
@@ -772,6 +775,16 @@ func (ld *loader) reset() {
 	ld.pkgs = nil
 }
 
+// errorf reports an error via either os.Stderr or base.Errorf,
+// according to whether ld.AllowErrors is set.
+func (ld *loader) errorf(format string, args ...interface{}) {
+	if ld.AllowErrors {
+		fmt.Fprintf(os.Stderr, format, args...)
+	} else {
+		base.Errorf(format, args...)
+	}
+}
+
 // A loadPkg records information about a single loaded package.
 type loadPkg struct {
 	// Populated at construction time:
@@ -890,6 +903,14 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		work:         par.NewQueue(runtime.GOMAXPROCS(0)),
 	}
 
+	if ld.requirements.depth == eager {
+		var err error
+		ld.requirements, _, err = expandGraph(ctx, ld.requirements)
+		if err != nil {
+			ld.errorf("go: %v\n", err)
+		}
+	}
+
 	for {
 		ld.reset()
 
@@ -971,6 +992,46 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		// changing the build list. Iterate until the roots are stable.
 	}
 
+	// Tidy the build list, if applicable, before we report errors.
+	// (The process of tidying may remove errors from irrelevant dependencies.)
+	if ld.Tidy {
+		var err error
+		ld.requirements, err = tidyRoots(ctx, ld.requirements, ld.pkgs)
+		if err != nil {
+			ld.errorf("go: %v\n", err)
+		}
+	}
+
+	// Report errors, if any.
+	for _, pkg := range ld.pkgs {
+		if pkg.err == nil {
+			continue
+		}
+
+		// Add importer information to checksum errors.
+		if sumErr := (*ImportMissingSumError)(nil); errors.As(pkg.err, &sumErr) {
+			if importer := pkg.stack; importer != nil {
+				sumErr.importer = importer.path
+				sumErr.importerVersion = importer.mod.Version
+				sumErr.importerIsTest = importer.testOf != nil
+			}
+		}
+
+		if ld.SilencePackageErrors {
+			continue
+		}
+		if stdErr := (*ImportMissingError)(nil); errors.As(pkg.err, &stdErr) &&
+			stdErr.isStd && ld.SilenceMissingStdImports {
+			continue
+		}
+		if ld.SilenceNoGoErrors && errors.Is(pkg.err, imports.ErrNoGo) {
+			continue
+		}
+
+		ld.errorf("%s: %v\n", pkg.stackText(), pkg.err)
+	}
+
+	ld.checkMultiplePaths()
 	return ld
 }
 
@@ -1044,10 +1105,18 @@ func (ld *loader) updateRequirements(ctx context.Context, add []module.Version) 
 	}
 
 	rs, err := updateRoots(ctx, direct, rs, add)
-	if err == nil {
+	if err != nil {
+		// We don't actually know what even the root requirements are supposed to be,
+		// so we can't proceed with loading. Return the error to the caller
+		return err
+	}
+	if rs != ld.requirements {
+		if _, err := rs.Graph(ctx); err != nil {
+			ld.errorf("go: %v\n", err)
+		}
 		ld.requirements = rs
 	}
-	return err
+	return nil
 }
 
 // resolveMissingImports returns a set of modules that could be added as
@@ -1385,6 +1454,29 @@ func (ld *loader) computePatternAll() (all []string) {
 	}
 	sort.Strings(all)
 	return all
+}
+
+// checkMultiplePaths verifies that a given module path is used as itself
+// or as a replacement for another module, but not both at the same time.
+//
+// (See https://golang.org/issue/26607 and https://golang.org/issue/34650.)
+func (ld *loader) checkMultiplePaths() {
+	mods := ld.requirements.rootModules
+	if cached := ld.requirements.graph.Load(); cached != nil {
+		if mg := cached.(cachedGraph).mg; mg != nil {
+			mods = mg.BuildList()
+		}
+	}
+
+	firstPath := map[module.Version]string{}
+	for _, mod := range mods {
+		src := resolveReplacement(mod)
+		if prev, ok := firstPath[src]; !ok {
+			firstPath[src] = mod.Path
+		} else if prev != mod.Path {
+			ld.errorf("go: %s@%s used for two different module paths (%s and %s)", src.Path, src.Version, prev, mod.Path)
+		}
+	}
 }
 
 // scanDir is like imports.ScanDir but elides known magic imports from the list,

@@ -1152,7 +1152,7 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
 		Tags:                     imports.AnyTags(),
 		VendorModulesInGOROOTSrc: true,
 		LoadTests:                *getT,
-		SilenceErrors:            true, // May be fixed by subsequent upgrades or downgrades.
+		SilencePackageErrors:     true, // May be fixed by subsequent upgrades or downgrades.
 	}
 
 	opts.AllowPackage = func(ctx context.Context, path string, m module.Version) error {
