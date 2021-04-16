@@ -90,7 +90,7 @@ func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
 // Vanstone as well as NIST SP 800-56A Section 5.6.2.3.
 func (pub *PublicKey) IsValid() bool {
 
-	// IsOnCurve will return false if The public Key:
+	// IsOnCurve will return false if the public Key:
 	// - is an infinity point, O
 	// - is on the curve
 	// If either is false then the Public Key is invalid
@@ -99,19 +99,19 @@ func (pub *PublicKey) IsValid() bool {
 	}
 
 	// is each coordinate in pub
-	// >0 and <P?
+	// >0 and <P-1?
 	// else invalid
 	params := pub.Curve.Params()
 	if pub.X.Sign() < 0 ||
 		pub.Y.Sign() < 0 ||
-		pub.X.Cmp(params.P) > 0 ||
-		pub.Y.Cmp(params.P) > 0 {
+		pub.X.Cmp(params.P) >= 0 ||
+		pub.Y.Cmp(params.P) >= 0 {
 		return false
 	}
 
 	// The fourth condition only applies to
 	// curves with cofactors > 1 like Curve25519
-	// right now there is no interface to determine that
+	// currently not handling
 
 	return true
 }
