@@ -36,6 +36,11 @@ stderr '^go: found rsc.io/quote in rsc.io/quote v1.5.2$'
 stderr '^Hello, world.$'
 
 
+# 'go run pkg@version' should report an error if pkg is not a main package.
+! go run example.com/cmd/err@v1.0.0
+stderr '^package example.com/cmd/err is not a main package$'
+
+
 # 'go run pkg@version' should report errors if the module contains
 # replace or exclude directives.
 go mod download example.com/cmd@v1.0.0-replace

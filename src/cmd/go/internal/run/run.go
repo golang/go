@@ -92,6 +92,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	for i < len(args) && strings.HasSuffix(args[i], ".go") {
 		i++
 	}
+	pkgOpts := load.PackageOpts{MainOnly: true}
 	var p *load.Package
 	if i > 0 {
 		files := args[:i]
@@ -102,10 +103,9 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 				base.Fatalf("go run: cannot run *_test.go files (%s)", file)
 			}
 		}
-		p = load.GoFilesPackage(ctx, load.PackageOpts{}, files)
+		p = load.GoFilesPackage(ctx, pkgOpts, files)
 	} else if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		arg := args[0]
-		pkgOpts := load.PackageOpts{MainOnly: true}
 		var pkgs []*load.Package
 		if strings.Contains(arg, "@") && !build.IsLocalImport(arg) && !filepath.IsAbs(arg) {
 			var err error
@@ -133,9 +133,6 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go run: no go files listed")
 	}
 	cmdArgs := args[i:]
-	if p.Name != "main" {
-		base.Fatalf("go run: cannot run non-main package")
-	}
 	load.CheckPackageErrors([]*load.Package{p})
 
 	p.Internal.OmitDebug = true
