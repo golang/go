@@ -62,8 +62,7 @@ func parseExperiments() goexperiment.Flags {
 			flags.RegabiG = v
 			flags.RegabiReflect = v
 			flags.RegabiDefer = v
-			// Not ready yet:
-			//flags.RegabiArgs = v
+			flags.RegabiArgs = v
 		}
 
 		// Parse names.
