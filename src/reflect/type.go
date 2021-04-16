@@ -1679,7 +1679,7 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 			if tf.name.name() != vf.name.name() {
 				return false
 			}
-			if tf.typ.str != vf.typ.str {
+			if tf.typ.Kind() != Struct && tf.typ.str != vf.typ.str {
 				return false
 			}
 			if !haveIdenticalType(tf.typ, vf.typ, cmpTags) {
