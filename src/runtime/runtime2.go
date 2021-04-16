@@ -1123,5 +1123,5 @@ var (
 	isarchive bool // -buildmode=c-archive
 )
 
-// Must agree with cmd/internal/objabi.Experiment.FramePointer.
+// Must agree with internal/buildcfg.Experiment.FramePointer.
 const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64"
