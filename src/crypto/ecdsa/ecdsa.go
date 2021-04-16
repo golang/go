@@ -83,7 +83,7 @@ func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
 		pub.Curve == xx.Curve
 }
 
-// IsValid reports where pub is a valid public key on the curve
+// IsValid reports whether pub is a valid public key
 //
 // Valid Elliptic Curve Public Keys have the properties according to
 // 'Validation of Elliptic Curve Public Keys' 2003 by Antipa, Brown, Menezes, and
@@ -93,13 +93,13 @@ func (pub *PublicKey) IsValid() bool {
 	// IsOnCurve will return false if The public Key:
 	// - is an infinity point, O
 	// - is on the curve
-	// If either is false the Public key is invalid
+	// If either is false then the Public Key is invalid
 	if !pub.Curve.IsOnCurve(pub.X, pub.Y) {
 		return false
 	}
 
 	// is each coordinate in pub
-	// >0 and <P
+	// >0 and <P?
 	// else invalid
 	params := pub.Curve.Params()
 	if pub.X.Sign() < 0 ||
