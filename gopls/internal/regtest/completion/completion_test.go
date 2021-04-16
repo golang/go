@@ -393,21 +393,45 @@ func _() {
 	var bbbb1, bbbb2 b
 	var _ b = bbbb
 }
+
+type (
+	c *d
+	d *e
+	e **c
+)
+
+func _() {
+	var (
+		xxxxc c
+		xxxxd d
+		xxxxe e
+	)
+
+	var _ c = xxxx
+	var _ d = xxxx
+	var _ e = xxxx
+}
 `
 
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 
-		completions := env.Completion("main.go", env.RegexpSearch("main.go", `var _ a = aaaa()`))
-		diff := compareCompletionResults([]string{"aaaa1", "aaaa2"}, completions.Items)
-		if diff != "" {
-			t.Fatal(diff)
+		tests := []struct {
+			re   string
+			want []string
+		}{
+			{`var _ a = aaaa()`, []string{"aaaa1", "aaaa2"}},
+			{`var _ b = bbbb()`, []string{"bbbb1", "bbbb2"}},
+			{`var _ c = xxxx()`, []string{"***xxxxd", "**xxxxe", "xxxxc"}},
+			{`var _ d = xxxx()`, []string{"***xxxxe", "*xxxxc", "xxxxd"}},
+			{`var _ e = xxxx()`, []string{"**xxxxc", "*xxxxd", "xxxxe"}},
 		}
-
-		completions = env.Completion("main.go", env.RegexpSearch("main.go", `var _ b = bbbb()`))
-		diff = compareCompletionResults([]string{"bbbb1", "bbbb2"}, completions.Items)
-		if diff != "" {
-			t.Fatal(diff)
+		for _, tt := range tests {
+			completions := env.Completion("main.go", env.RegexpSearch("main.go", tt.re))
+			diff := compareCompletionResults(tt.want, completions.Items)
+			if diff != "" {
+				t.Errorf("%s: %s", tt.re, diff)
+			}
 		}
 	})
 }
