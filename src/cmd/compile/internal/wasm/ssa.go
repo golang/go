@@ -14,7 +14,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/wasm"
-	"cmd/internal/objabi"
+	"internal/buildcfg"
 )
 
 func Init(arch *ssagen.ArchInfo) {
@@ -325,7 +325,7 @@ func ssaGenValueOnStack(s *ssagen.State, v *ssa.Value, extend bool) {
 
 	case ssa.OpWasmI64TruncSatF32S, ssa.OpWasmI64TruncSatF64S:
 		getValue64(s, v.Args[0])
-		if objabi.GOWASM.SatConv {
+		if buildcfg.GOWASM.SatConv {
 			s.Prog(v.Op.Asm())
 		} else {
 			if v.Op == ssa.OpWasmI64TruncSatF32S {
@@ -337,7 +337,7 @@ func ssaGenValueOnStack(s *ssagen.State, v *ssa.Value, extend bool) {
 
 	case ssa.OpWasmI64TruncSatF32U, ssa.OpWasmI64TruncSatF64U:
 		getValue64(s, v.Args[0])
-		if objabi.GOWASM.SatConv {
+		if buildcfg.GOWASM.SatConv {
 			s.Prog(v.Op.Asm())
 		} else {
 			if v.Op == ssa.OpWasmI64TruncSatF32U {

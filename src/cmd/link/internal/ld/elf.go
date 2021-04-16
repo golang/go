@@ -14,6 +14,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"internal/buildcfg"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -584,7 +585,7 @@ func elfWriteMipsAbiFlags(ctxt *Link) int {
 	ctxt.Out.Write8(1)  // gprSize
 	ctxt.Out.Write8(1)  // cpr1Size
 	ctxt.Out.Write8(0)  // cpr2Size
-	if objabi.GOMIPS == "softfloat" {
+	if buildcfg.GOMIPS == "softfloat" {
 		ctxt.Out.Write8(MIPS_FPABI_SOFT) // fpAbi
 	} else {
 		// Go cannot make sure non odd-number-fpr is used (ie, in load a double from memory).
@@ -1557,7 +1558,7 @@ func (ctxt *Link) doelf() {
 		gnuattributes.AddUint8(1)                 // 1:file, 2: section, 3: symbol, 1 here
 		gnuattributes.AddUint32(ctxt.Arch, 7)     // tag length, including tag, 7 here
 		gnuattributes.AddUint8(4)                 // 4 for FP, 8 for MSA
-		if objabi.GOMIPS == "softfloat" {
+		if buildcfg.GOMIPS == "softfloat" {
 			gnuattributes.AddUint8(MIPS_FPABI_SOFT)
 		} else {
 			// Note: MIPS_FPABI_ANY is bad naming: in fact it is MIPS I style FPR usage.
@@ -1743,14 +1744,14 @@ func asmbElf(ctxt *Link) {
 		sh.Flags = uint64(elf.SHF_ALLOC)
 		sh.Addralign = 1
 
-		if interpreter == "" && objabi.GO_LDSO != "" {
-			interpreter = objabi.GO_LDSO
+		if interpreter == "" && buildcfg.GO_LDSO != "" {
+			interpreter = buildcfg.GO_LDSO
 		}
 
 		if interpreter == "" {
 			switch ctxt.HeadType {
 			case objabi.Hlinux:
-				if objabi.GOOS == "android" {
+				if buildcfg.GOOS == "android" {
 					interpreter = thearch.Androiddynld
 					if interpreter == "" {
 						Exitf("ELF interpreter not set")

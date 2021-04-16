@@ -49,6 +49,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
+	"internal/buildcfg"
 	exec "internal/execabs"
 	"io"
 	"io/ioutil"
@@ -379,7 +380,7 @@ func libinit(ctxt *Link) {
 		suffix = "msan"
 	}
 
-	Lflag(ctxt, filepath.Join(objabi.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", objabi.GOOS, objabi.GOARCH, suffixsep, suffix)))
+	Lflag(ctxt, filepath.Join(buildcfg.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", buildcfg.GOOS, buildcfg.GOARCH, suffixsep, suffix)))
 
 	mayberemoveoutfile()
 
@@ -390,9 +391,9 @@ func libinit(ctxt *Link) {
 	if *flagEntrySymbol == "" {
 		switch ctxt.BuildMode {
 		case BuildModeCShared, BuildModeCArchive:
-			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s_lib", objabi.GOARCH, objabi.GOOS)
+			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s_lib", buildcfg.GOARCH, buildcfg.GOOS)
 		case BuildModeExe, BuildModePIE:
-			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s", objabi.GOARCH, objabi.GOOS)
+			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s", buildcfg.GOARCH, buildcfg.GOOS)
 		case BuildModeShared, BuildModePlugin:
 			// No *flagEntrySymbol for -buildmode=shared and plugin
 		default:
@@ -495,7 +496,7 @@ func (ctxt *Link) loadlib() {
 	default:
 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
 	}
-	if !objabi.Experiment.RegabiWrappers || ctxt.linkShared {
+	if !buildcfg.Experiment.RegabiWrappers || ctxt.linkShared {
 		// Use ABI aliases if ABI wrappers are not used.
 		// TODO: for now we still use ABI aliases in shared linkage, even if
 		// the wrapper is enabled.
@@ -543,7 +544,7 @@ func (ctxt *Link) loadlib() {
 	// We now have enough information to determine the link mode.
 	determineLinkMode(ctxt)
 
-	if ctxt.LinkMode == LinkExternal && !iscgo && !(objabi.GOOS == "darwin" && ctxt.BuildMode != BuildModePlugin && ctxt.Arch.Family == sys.AMD64) {
+	if ctxt.LinkMode == LinkExternal && !iscgo && !(buildcfg.GOOS == "darwin" && ctxt.BuildMode != BuildModePlugin && ctxt.Arch.Family == sys.AMD64) {
 		// This indicates a user requested -linkmode=external.
 		// The startup code uses an import of runtime/cgo to decide
 		// whether to initialize the TLS.  So give it one. This could
@@ -705,7 +706,7 @@ func (ctxt *Link) linksetup() {
 		}
 	}
 
-	if ctxt.LinkMode == LinkExternal && ctxt.Arch.Family == sys.PPC64 && objabi.GOOS != "aix" {
+	if ctxt.LinkMode == LinkExternal && ctxt.Arch.Family == sys.PPC64 && buildcfg.GOOS != "aix" {
 		toc := ctxt.loader.LookupOrCreateSym(".TOC.", 0)
 		sb := ctxt.loader.MakeSymbolUpdater(toc)
 		sb.SetType(sym.SDYNIMPORT)
@@ -714,7 +715,7 @@ func (ctxt *Link) linksetup() {
 	// The Android Q linker started to complain about underalignment of the our TLS
 	// section. We don't actually use the section on android, so don't
 	// generate it.
-	if objabi.GOOS != "android" {
+	if buildcfg.GOOS != "android" {
 		tlsg := ctxt.loader.LookupOrCreateSym("runtime.tlsg", 0)
 		sb := ctxt.loader.MakeSymbolUpdater(tlsg)
 
@@ -755,7 +756,7 @@ func (ctxt *Link) linksetup() {
 			sb := ctxt.loader.MakeSymbolUpdater(goarm)
 			sb.SetType(sym.SDATA)
 			sb.SetSize(0)
-			sb.AddUint8(uint8(objabi.GOARM))
+			sb.AddUint8(uint8(buildcfg.GOARM))
 		}
 
 		// Set runtime.disableMemoryProfiling bool if
@@ -1248,7 +1249,7 @@ func (ctxt *Link) hostlink() {
 			// -headerpad is incompatible with -fembed-bitcode.
 			argv = append(argv, "-Wl,-headerpad,1144")
 		}
-		if ctxt.DynlinkingGo() && objabi.GOOS != "ios" {
+		if ctxt.DynlinkingGo() && buildcfg.GOOS != "ios" {
 			// -flat_namespace is deprecated on iOS.
 			// It is useful for supporting plugins. We don't support plugins on iOS.
 			argv = append(argv, "-Wl,-flat_namespace")
@@ -1366,12 +1367,12 @@ func (ctxt *Link) hostlink() {
 		// from the beginning of the section (like sym.STYPE).
 		argv = append(argv, "-Wl,-znocopyreloc")
 
-		if objabi.GOOS == "android" {
+		if buildcfg.GOOS == "android" {
 			// Use lld to avoid errors from default linker (issue #38838)
 			altLinker = "lld"
 		}
 
-		if ctxt.Arch.InFamily(sys.ARM, sys.ARM64) && objabi.GOOS == "linux" {
+		if ctxt.Arch.InFamily(sys.ARM, sys.ARM64) && buildcfg.GOOS == "linux" {
 			// On ARM, the GNU linker will generate COPY relocations
 			// even with -znocopyreloc set.
 			// https://sourceware.org/bugzilla/show_bug.cgi?id=19962
@@ -1393,7 +1394,7 @@ func (ctxt *Link) hostlink() {
 			}
 		}
 	}
-	if ctxt.Arch.Family == sys.ARM64 && objabi.GOOS == "freebsd" {
+	if ctxt.Arch.Family == sys.ARM64 && buildcfg.GOOS == "freebsd" {
 		// Switch to ld.bfd on freebsd/arm64.
 		altLinker = "bfd"
 
@@ -1420,7 +1421,7 @@ func (ctxt *Link) hostlink() {
 	// only want to do this when producing a Windows output file
 	// on a Windows host.
 	outopt := *flagOutfile
-	if objabi.GOOS == "windows" && runtime.GOOS == "windows" && filepath.Ext(outopt) == "" {
+	if buildcfg.GOOS == "windows" && runtime.GOOS == "windows" && filepath.Ext(outopt) == "" {
 		outopt += "."
 	}
 	argv = append(argv, "-o")
@@ -1737,7 +1738,7 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
 	case sys.I386:
 		return []string{"-m32"}
 	case sys.AMD64:
-		if objabi.GOOS == "darwin" {
+		if buildcfg.GOOS == "darwin" {
 			return []string{"-arch", "x86_64", "-m64"}
 		}
 		return []string{"-m64"}
@@ -1746,7 +1747,7 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
 	case sys.ARM:
 		return []string{"-marm"}
 	case sys.ARM64:
-		if objabi.GOOS == "darwin" {
+		if buildcfg.GOOS == "darwin" {
 			return []string{"-arch", "arm64"}
 		}
 	case sys.MIPS64:
@@ -1754,7 +1755,7 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
 	case sys.MIPS:
 		return []string{"-mabi=32"}
 	case sys.PPC64:
-		if objabi.GOOS == "aix" {
+		if buildcfg.GOOS == "aix" {
 			return []string{"-maix64"}
 		} else {
 			return []string{"-m64"}
@@ -1862,7 +1863,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	}
 
 	// First, check that the basic GOOS, GOARCH, and Version match.
-	t := fmt.Sprintf("%s %s %s ", objabi.GOOS, objabi.GOARCH, objabi.Version)
+	t := fmt.Sprintf("%s %s %s ", buildcfg.GOOS, buildcfg.GOARCH, buildcfg.Version)
 
 	line = strings.TrimRight(line, "\n")
 	if !strings.HasPrefix(line[10:]+" ", t) && !*flagF {
@@ -2084,7 +2085,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 
 	// collect text symbol ABI versions.
 	symabi := make(map[string]int) // map (unmangled) symbol name to version
-	if objabi.Experiment.RegabiWrappers {
+	if buildcfg.Experiment.RegabiWrappers {
 		for _, elfsym := range syms {
 			if elf.ST_TYPE(elfsym.Info) != elf.STT_FUNC {
 				continue
@@ -2112,7 +2113,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		symname := elfsym.Name // (unmangled) symbol name
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type.") {
 			ver = sym.SymVerABIInternal
-		} else if objabi.Experiment.RegabiWrappers && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
+		} else if buildcfg.Experiment.RegabiWrappers && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
 			if strings.HasSuffix(elfsym.Name, ".abiinternal") {
 				ver = sym.SymVerABIInternal
 				symname = strings.TrimSuffix(elfsym.Name, ".abiinternal")
@@ -2162,7 +2163,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		// mangle Go function names in the .so to include the
 		// ABI.
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
-			if objabi.Experiment.RegabiWrappers {
+			if buildcfg.Experiment.RegabiWrappers {
 				if _, ok := symabi[symname]; ok {
 					continue // only use alias for functions w/o ABI wrappers
 				}
@@ -2234,7 +2235,7 @@ func (ctxt *Link) dostkcheck() {
 	// of non-splitting functions.
 	var ch chain
 	ch.limit = objabi.StackLimit - callsize(ctxt)
-	if objabi.GOARCH == "arm64" {
+	if buildcfg.GOARCH == "arm64" {
 		// need extra 8 bytes below SP to save FP
 		ch.limit -= 8
 	}

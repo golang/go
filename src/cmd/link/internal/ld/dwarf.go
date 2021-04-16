@@ -22,6 +22,7 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"fmt"
+	"internal/buildcfg"
 	"log"
 	"path"
 	"runtime"
@@ -1843,7 +1844,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 			if producerExtra := d.ldr.Lookup(dwarf.CUInfoPrefix+"producer."+unit.Lib.Pkg, 0); producerExtra != 0 {
 				peData = d.ldr.Data(producerExtra)
 			}
-			producer := "Go cmd/compile " + objabi.Version
+			producer := "Go cmd/compile " + buildcfg.Version
 			if len(peData) > 0 {
 				// We put a semicolon before the flags to clearly
 				// separate them from the version, which can be long

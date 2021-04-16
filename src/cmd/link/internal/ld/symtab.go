@@ -37,6 +37,7 @@ import (
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
+	"internal/buildcfg"
 	"path/filepath"
 	"strings"
 )
@@ -844,7 +845,7 @@ func mangleABIName(ldr *loader.Loader, x loader.Sym, name string) string {
 	// TODO: avoid the ldr.Lookup calls below by instead using an aux
 	// sym or marker relocation to associate the wrapper with the
 	// wrapped function.
-	if !objabi.Experiment.RegabiWrappers {
+	if !buildcfg.Experiment.RegabiWrappers {
 		return name
 	}
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package objabi
+package buildcfg
 
 import (
 	"fmt"
@@ -23,7 +23,7 @@ var Experiment goexperiment.Flags = parseExperiments()
 // experimentBaseline specifies the experiment flags that are enabled by
 // default in the current toolchain. This is, in effect, the "control"
 // configuration and any variation from this is an experiment.
-var experimentBaseline goexperiment.Flags
+var experimentBaseline = goexperiment.Flags{}
 
 // FramePointerEnabled enables the use of platform conventions for
 // saving frame pointers.
@@ -148,4 +148,10 @@ func GOEXPERIMENT() string {
 // lower-cased experiment names.
 func EnabledExperiments() []string {
 	return expList(&Experiment, nil, false)
+}
+
+// AllExperiments returns a list of all experiment settings.
+// Disabled experiments appear in the list prefixed by "no".
+func AllExperiments() []string {
+	return expList(&Experiment, nil, true)
 }

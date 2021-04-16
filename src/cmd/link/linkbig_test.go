@@ -10,8 +10,8 @@ package main
 
 import (
 	"bytes"
-	"cmd/internal/objabi"
 	"fmt"
+	"internal/buildcfg"
 	"internal/testenv"
 	"io/ioutil"
 	"os/exec"
@@ -19,8 +19,8 @@ import (
 )
 
 func TestLargeText(t *testing.T) {
-	if testing.Short() || (objabi.GOARCH != "ppc64le" && objabi.GOARCH != "ppc64" && objabi.GOARCH != "arm") {
-		t.Skipf("Skipping large text section test in short mode or on %s", objabi.GOARCH)
+	if testing.Short() || (buildcfg.GOARCH != "ppc64le" && buildcfg.GOARCH != "ppc64" && buildcfg.GOARCH != "arm") {
+		t.Skipf("Skipping large text section test in short mode or on %s", buildcfg.GOARCH)
 	}
 	testenv.MustHaveGoBuild(t)
 
@@ -42,7 +42,7 @@ func TestLargeText(t *testing.T) {
 		"ppc64le": "\tMOVD\tR0,R3\n",
 		"arm":     "\tMOVW\tR0,R1\n",
 	}
-	inst := instOnArch[objabi.GOARCH]
+	inst := instOnArch[buildcfg.GOARCH]
 	for j := 0; j < FN; j++ {
 		testname := fmt.Sprintf("bigfn%d", j)
 		fmt.Fprintf(&w, "TEXT ·%s(SB),$0\n", testname)

@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"internal/buildcfg"
 	exec "internal/execabs"
 	"internal/lazyregexp"
 	"io"
@@ -35,7 +36,6 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
-	"cmd/internal/objabi"
 )
 
 // actionList returns the list of actions in the dag rooted at root
@@ -277,7 +277,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		key, val := cfg.GetArchEnv()
 		fmt.Fprintf(h, "%s=%s\n", key, val)
 
-		if goexperiment := objabi.GOEXPERIMENT(); goexperiment != "" {
+		if goexperiment := buildcfg.GOEXPERIMENT(); goexperiment != "" {
 			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", goexperiment)
 		}
 
@@ -1251,7 +1251,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 		key, val := cfg.GetArchEnv()
 		fmt.Fprintf(h, "%s=%s\n", key, val)
 
-		if goexperiment := objabi.GOEXPERIMENT(); goexperiment != "" {
+		if goexperiment := buildcfg.GOEXPERIMENT(); goexperiment != "" {
 			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", goexperiment)
 		}
 

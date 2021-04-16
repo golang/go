@@ -6,6 +6,7 @@ package ssagen
 
 import (
 	"fmt"
+	"internal/buildcfg"
 	"io/ioutil"
 	"log"
 	"os"
@@ -213,7 +214,7 @@ func (s *SymABIs) GenABIWrappers() {
 			base.Fatalf("cgo exported function %s cannot have ABI wrappers", fn)
 		}
 
-		if !objabi.Experiment.RegabiWrappers {
+		if !buildcfg.Experiment.RegabiWrappers {
 			// We'll generate ABI aliases instead of
 			// wrappers once we have LSyms in InitLSym.
 			continue
@@ -241,7 +242,7 @@ func InitLSym(f *ir.Func, hasBody bool) {
 		if f.Pragma&ir.Systemstack != 0 {
 			f.LSym.Set(obj.AttrCFunc, true)
 		}
-		if f.ABI == obj.ABIInternal || !objabi.Experiment.RegabiWrappers {
+		if f.ABI == obj.ABIInternal || !buildcfg.Experiment.RegabiWrappers {
 			// Function values can only point to
 			// ABIInternal entry points. This will create
 			// the funcsym for either the defining
@@ -253,7 +254,7 @@ func InitLSym(f *ir.Func, hasBody bool) {
 			// when we see that.
 			staticdata.NeedFuncSym(f)
 		}
-		if !objabi.Experiment.RegabiWrappers {
+		if !buildcfg.Experiment.RegabiWrappers {
 			// Create ABI aliases instead of wrappers.
 			forEachWrapperABI(f, makeABIAlias)
 		}

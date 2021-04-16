@@ -35,6 +35,7 @@ import (
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"fmt"
+	"internal/buildcfg"
 	"log"
 	"math"
 	"sort"
@@ -49,8 +50,8 @@ func Linknew(arch *LinkArch) *Link {
 	ctxt.Arch = arch
 	ctxt.Pathname = objabi.WorkingDir()
 
-	if err := ctxt.Headtype.Set(objabi.GOOS); err != nil {
-		log.Fatalf("unknown goos %s", objabi.GOOS)
+	if err := ctxt.Headtype.Set(buildcfg.GOOS); err != nil {
+		log.Fatalf("unknown goos %s", buildcfg.GOOS)
 	}
 
 	ctxt.Flag_optimize = true
