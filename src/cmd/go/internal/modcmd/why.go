@@ -71,7 +71,7 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 		Tags:                     imports.AnyTags(),
 		VendorModulesInGOROOTSrc: true,
 		LoadTests:                !*whyVendor,
-		SilenceErrors:            true,
+		SilencePackageErrors:     true,
 		UseVendorAll:             *whyVendor,
 	}
 
