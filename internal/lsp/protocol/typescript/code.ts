@@ -916,18 +916,20 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
       if (nm == 'textDocument/documentSymbol') {
         return `[]interface{} ${help}`;
       }
-      if (aa == 'TypeReference' && bb == 'ArrayType' && cc == 'NullKeyword') {
+      if (aa == 'TypeReference' && bb == 'ArrayType' && (cc == 'NullKeyword' || cc === 'LiteralType')) {
         return `${goType(n.types[0], 'd')} ${help}`;
       }
       if (aa == 'TypeReference' && bb == aa && cc == 'ArrayType') {
         // should check that this is Hover.Contents
         return `${goType(n.types[0], 'e')} ${help}`;
       }
-      if (aa == 'ArrayType' && bb == 'TypeReference' && cc == 'NullKeyword') {
+      if (aa == 'ArrayType' && bb == 'TypeReference' && (cc == 'NullKeyword' || cc === 'LiteralType')) {
         // check this is nm == 'textDocument/completion'
         return `${goType(n.types[1], 'f')} ${help}`;
       }
       if (aa == 'LiteralType' && bb == aa && cc == aa) return `string ${help}`;
+      // keep this for diagnosing unexpected interface{} results
+      // console.log(`931, interface{} for ${aa}/${goType(n.types[0], 'g')},${bb}/${goType(n.types[1], 'h')},${cc}/${goType(n.types[2], 'i')} ${nm}`);
       break;
     }
     case 4:
@@ -1206,6 +1208,14 @@ function goReq(side: side, m: string) {
     if err := json.Unmarshal(r.Params(), &params); err != nil {
       return true, sendParseError(ctx, reply, err)
     }`;
+    if (a === 'ParamInitialize') {
+      case1 = `var params ${a}
+    if err := json.Unmarshal(r.Params(), &params); err != nil {
+      if _, ok := err.(*json.UnmarshalTypeError); !ok {
+        return true, sendParseError(ctx, reply, err)
+      }
+    }`;
+    }
   }
   const arg2 = a == '' ? '' : ', &params';
   // if case2 is not explicitly typed string, typescript makes it a union of strings

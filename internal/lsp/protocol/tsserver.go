@@ -7,7 +7,7 @@ package protocol
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
 // commit: dae62de921d25964e8732411ca09e532dde992f5
-// last fetched Thu Feb 04 2021 11:11:02 GMT-0500 (Eastern Standard Time)
+// last fetched Fri Apr 16 2021 08:46:13 GMT-0400 (Eastern Daylight Time)
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
 
@@ -47,7 +47,7 @@ type Server interface {
 	IncomingCalls(context.Context, *CallHierarchyIncomingCallsParams) ([]CallHierarchyIncomingCall /*CallHierarchyIncomingCall[] | null*/, error)
 	OutgoingCalls(context.Context, *CallHierarchyOutgoingCallsParams) ([]CallHierarchyOutgoingCall /*CallHierarchyOutgoingCall[] | null*/, error)
 	SemanticTokensFull(context.Context, *SemanticTokensParams) (*SemanticTokens /*SemanticTokens | null*/, error)
-	SemanticTokensFullDelta(context.Context, *SemanticTokensDeltaParams) (interface{} /* SemanticTokens | SemanticTokensDelta | nil*/, error)
+	SemanticTokensFullDelta(context.Context, *SemanticTokensDeltaParams) (interface{} /* SemanticTokens | SemanticTokensDelta | float64*/, error)
 	SemanticTokensRange(context.Context, *SemanticTokensRangeParams) (*SemanticTokens /*SemanticTokens | null*/, error)
 	SemanticTokensRefresh(context.Context) error
 	ShowDocument(context.Context, *ShowDocumentParams) (*ShowDocumentResult, error)
@@ -336,7 +336,9 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 	case "initialize": // req
 		var params ParamInitialize
 		if err := json.Unmarshal(r.Params(), &params); err != nil {
-			return true, sendParseError(ctx, reply, err)
+			if _, ok := err.(*json.UnmarshalTypeError); !ok {
+				return true, sendParseError(ctx, reply, err)
+			}
 		}
 		resp, err := server.Initialize(ctx, &params)
 		return true, reply(ctx, resp, err)
@@ -663,8 +665,8 @@ func (s *serverDispatcher) SemanticTokensFull(ctx context.Context, params *Seman
 	return result, nil
 }
 
-func (s *serverDispatcher) SemanticTokensFullDelta(ctx context.Context, params *SemanticTokensDeltaParams) (interface{} /* SemanticTokens | SemanticTokensDelta | nil*/, error) {
-	var result interface{} /* SemanticTokens | SemanticTokensDelta | nil*/
+func (s *serverDispatcher) SemanticTokensFullDelta(ctx context.Context, params *SemanticTokensDeltaParams) (interface{} /* SemanticTokens | SemanticTokensDelta | float64*/, error) {
+	var result interface{} /* SemanticTokens | SemanticTokensDelta | float64*/
 	if err := Call(ctx, s.Conn, "textDocument/semanticTokens/full/delta", params, &result); err != nil {
 		return nil, err
 	}

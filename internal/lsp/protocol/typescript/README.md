@@ -3,14 +3,15 @@
 ## Setup
 
 Make sure `node` and `tsc` are installed and in your PATH. There are detailed instructions below.
+(`tsc -v` should be at least `4.2.4`.)
 Get the typescript code for the jsonrpc protocol with
 
 `git clone git@github.com:microsoft vscode-languageserver-node.git` or
 `git clone https://github.com/microsoft/vscode-languageserver-node.git`
 
-`util.ts`` expects it to be in your HOME directory
+`util.ts` expects it to be in your HOME directory
 
-If you want to reproduce the existing files you need to be on a branch with the same git hash, for instance, `git checkout 7b90c29`
+If you want to reproduce the existing files you need to be on a branch with the same git hash that `util.ts` expects, for instance, `git checkout 7b90c29`
 
 ## Usage
 
@@ -50,5 +51,5 @@ the generated files and stored in the variable `gitHash` in `go.ts`. It is check
     1. This will likely give warning messages that indicate you've failed to set up a project. Ignore them.
     2. Your home directory will now have new directories `.npm` and `node_modules` (and a `package_lock.json` file)
     3. The typescript executable `tsc` will be in `node_modules/.bin`, so put that directory in your path.
-    4. `tsc -v` should print "Version 3.7.2" (or later). If not you may (as I did) have an obsolete tsc earlier in your path.
+    4. `tsc -v` should print "Version 4.2.4" (or later). If not you may (as I did) have an obsolete tsc earlier in your path.
 6. `npm install @types/node` (Without this there will be many incomprehensible typescript error messages.)
