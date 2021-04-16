@@ -146,7 +146,8 @@ type liveness struct {
 	// a part of it is used, but we may not initialize all parts.
 	partLiveArgs map[*ir.Name]bool
 
-	doClobber bool // Whether to clobber dead stack slots in this function.
+	doClobber     bool // Whether to clobber dead stack slots in this function.
+	noClobberArgs bool // Do not clobber function arguments
 }
 
 // Map maps from *ssa.Value to LivenessIndex.
@@ -930,16 +931,27 @@ func (lv *liveness) enableClobber() {
 		// Otherwise, giant functions make this experiment generate too much code.
 		return
 	}
-	if lv.f.Name == "forkAndExecInChild" || lv.f.Name == "wbBufFlush" {
+	if lv.f.Name == "forkAndExecInChild" {
 		// forkAndExecInChild calls vfork on some platforms.
 		// The code we add here clobbers parts of the stack in the child.
 		// When the parent resumes, it is using the same stack frame. But the
 		// child has clobbered stack variables that the parent needs. Boom!
 		// In particular, the sys argument gets clobbered.
-		//
+		return
+	}
+	if lv.f.Name == "wbBufFlush" ||
+		((lv.f.Name == "callReflect" || lv.f.Name == "callMethod") && lv.fn.ABIWrapper()) {
 		// runtime.wbBufFlush must not modify its arguments. See the comments
 		// in runtime/mwbbuf.go:wbBufFlush.
-		return
+		//
+		// reflect.callReflect and reflect.callMethod are called from special
+		// functions makeFuncStub and methodValueCall. The runtime expects
+		// that it can find the first argument (ctxt) at 0(SP) in makeFuncStub
+		// and methodValueCall's frame (see runtime/traceback.go:getArgInfo).
+		// Normally callReflect and callMethod already do not modify the
+		// argument, and keep it alive. But the compiler-generated ABI wrappers
+		// don't do that. Special case the wrappers to not clobber its arguments.
+		lv.noClobberArgs = true
 	}
 	if h := os.Getenv("GOCLOBBERDEADHASH"); h != "" {
 		// Clobber only functions where the hash of the function name matches a pattern.
@@ -1000,6 +1012,9 @@ func clobber(lv *liveness, b *ssa.Block, live bitvec.BitVec) {
 			// tracked dynamically.
 			// Also don't clobber slots that are live for defers (see
 			// the code setting livedefer in epilogue).
+			if lv.noClobberArgs && n.Class == ir.PPARAM {
+				continue
+			}
 			clobberVar(b, n)
 		}
 	}
