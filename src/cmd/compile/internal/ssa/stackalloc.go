@@ -165,15 +165,6 @@ func (s *stackAllocState) stackalloc() {
 			f.setHome(v, loc)
 			continue
 		}
-
-		nameOff := v.Aux.(*AuxNameOffset)
-		loc := LocalSlot{N: nameOff.Name, Type: v.Type, Off: nameOff.Offset}
-		if f.pass.debug > stackDebug {
-			fmt.Printf("stackalloc Op%s %s to %s\n", v.Op, v, loc)
-		}
-		// register args already allocated to registers, but need to know the stack allocation for later
-		reg := f.getHome(v.ID).(*Register)
-		f.RegArgs = append(f.RegArgs, ArgPair{reg: reg, mem: loc})
 	}
 
 	// For each type, we keep track of all the stack slots we

@@ -989,9 +989,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// The loop only runs once.
 		for _, ap := range v.Block.Func.RegArgs {
 			// Pass the spill/unspill information along to the assembler, offset by size of return PC pushed on stack.
-			addr := ssagen.SpillSlotAddr(ap.Mem(), x86.REG_SP, v.Block.Func.Config.PtrSize)
+			addr := ssagen.SpillSlotAddr(ap, x86.REG_SP, v.Block.Func.Config.PtrSize)
 			s.FuncInfo().AddSpill(
-				obj.RegSpill{Reg: ap.Reg(), Addr: addr, Unspill: loadByType(ap.Type()), Spill: storeByType(ap.Type())})
+				obj.RegSpill{Reg: ap.Reg, Addr: addr, Unspill: loadByType(ap.Type), Spill: storeByType(ap.Type)})
 		}
 		v.Block.Func.RegArgs = nil
 		ssagen.CheckArgReg(v)
