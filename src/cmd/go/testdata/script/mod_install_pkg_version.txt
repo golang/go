@@ -118,7 +118,7 @@ stderr '^package rsc.io/fortune provided by module rsc.io/fortune@v1.0.0\n\tAll 
 # 'go install pkg@version' should report an error if an argument is not
 # a main package.
 ! go install example.com/cmd/a@v1.0.0 example.com/cmd/err@v1.0.0
-stderr '^go: package example.com/cmd/err is not a main package$'
+stderr '^package example.com/cmd/err is not a main package$'
 
 # Wildcards should match only main packages. This module has a non-main package
 # with an error, so we'll know if that gets built.

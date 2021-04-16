@@ -207,10 +207,6 @@ stderr 'needmod[/\\]needmod.go:10:2: no required module provides package example
 go install cmd/addr2line
 ! stderr .
 
-# 'go run' with a version should fail due to syntax.
-! go run example.com/printversion@v1.0.0
-stderr 'can only use path@version syntax with'
-
 # 'go run' should fail if a package argument must be resolved to a module.
 ! go run example.com/printversion
 stderr '^no required module provides package example.com/printversion: go.mod file not found in current directory or any parent directory; see ''go help modules''$'

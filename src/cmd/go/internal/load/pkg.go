@@ -480,6 +480,7 @@ type ImportPathError interface {
 
 var (
 	_ ImportPathError = (*importError)(nil)
+	_ ImportPathError = (*mainPackageError)(nil)
 	_ ImportPathError = (*modload.ImportMissingError)(nil)
 	_ ImportPathError = (*modload.ImportMissingSumError)(nil)
 	_ ImportPathError = (*modload.DirectImportFromImplicitDependencyError)(nil)
@@ -2545,7 +2546,8 @@ func CheckPackageErrors(pkgs []*Package) {
 // mainPackagesOnly filters out non-main packages matched only by arguments
 // containing "..." and returns the remaining main packages.
 //
-// mainPackagesOnly sets a package's error if it is named by a literal argument.
+// mainPackagesOnly sets a non-main package's Error field and returns it if it
+// is named by a literal argument.
 //
 // mainPackagesOnly prints warnings for non-literal arguments that only match
 // non-main packages.
@@ -2557,12 +2559,12 @@ func mainPackagesOnly(pkgs []*Package, patterns []string) []*Package {
 		}
 	}
 
-	mainPkgs := make([]*Package, 0, len(pkgs))
+	matchedPkgs := make([]*Package, 0, len(pkgs))
 	mainCount := make([]int, len(patterns))
 	nonMainCount := make([]int, len(patterns))
 	for _, pkg := range pkgs {
 		if pkg.Name == "main" {
-			mainPkgs = append(mainPkgs, pkg)
+			matchedPkgs = append(matchedPkgs, pkg)
 			for i := range patterns {
 				if matchers[i] != nil && matchers[i](pkg.ImportPath) {
 					mainCount[i]++
@@ -2570,8 +2572,11 @@ func mainPackagesOnly(pkgs []*Package, patterns []string) []*Package {
 			}
 		} else {
 			for i := range patterns {
-				if matchers[i] == nil && patterns[i] == pkg.ImportPath && pkg.Error == nil {
-					pkg.Error = &PackageError{Err: ImportErrorf(pkg.ImportPath, "package %s is not a main package", pkg.ImportPath)}
+				if matchers[i] == nil && patterns[i] == pkg.ImportPath {
+					if pkg.Error == nil {
+						pkg.Error = &PackageError{Err: &mainPackageError{importPath: pkg.ImportPath}}
+					}
+					matchedPkgs = append(matchedPkgs, pkg)
 				} else if matchers[i] != nil && matchers[i](pkg.ImportPath) {
 					nonMainCount[i]++
 				}
@@ -2584,7 +2589,19 @@ func mainPackagesOnly(pkgs []*Package, patterns []string) []*Package {
 		}
 	}
 
-	return mainPkgs
+	return matchedPkgs
+}
+
+type mainPackageError struct {
+	importPath string
+}
+
+func (e *mainPackageError) Error() string {
+	return fmt.Sprintf("package %s is not a main package", e.importPath)
+}
+
+func (e *mainPackageError) ImportPath() string {
+	return e.importPath
 }
 
 func setToolFlags(pkgs ...*Package) {
@@ -2679,6 +2696,9 @@ func GoFilesPackage(ctx context.Context, opts PackageOpts, gofiles []string) *Pa
 		}
 	}
 
+	if opts.MainOnly && pkg.Name != "main" && pkg.Error == nil {
+		pkg.Error = &PackageError{Err: &mainPackageError{importPath: pkg.ImportPath}}
+	}
 	setToolFlags(pkg)
 
 	return pkg
