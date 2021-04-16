@@ -416,7 +416,7 @@ func expandGraph(ctx context.Context, rs *Requirements) (*Requirements, *ModuleG
 		// roots — but in a lazy module it may pull in previously-irrelevant
 		// transitive dependencies.
 
-		newRS, rsErr := updateRoots(ctx, rs.direct, rs)
+		newRS, rsErr := updateRoots(ctx, rs.direct, rs, nil)
 		if rsErr != nil {
 			// Failed to update roots, perhaps because of an error in a transitive
 			// dependency needed for the update. Return the original Requirements
@@ -631,8 +631,11 @@ func tidyEagerRoots(ctx context.Context, rs *Requirements, pkgs []*loadPkg) (*Re
 // 	   (if it is not "none").
 // 	2. Each root is the selected version of its path. (We say that such a root
 // 	   set is “consistent”.)
-// 	3. Every version selected in the graph of rs remains selected.
-func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements) (*Requirements, error) {
+// 	3. Every version selected in the graph of rs remains selected unless upgraded
+// 	   by a dependency in add.
+// 	4. Every version in add is selected at its given version unless upgraded by
+// 	   an existing root or another module in add.
+func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements, add []module.Version) (*Requirements, error) {
 	mg, err := rs.Graph(ctx)
 	if err != nil {
 		// We can't ignore errors in the module graph even if the user passed the -e
@@ -652,6 +655,11 @@ func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements) 
 		for _, m := range rs.rootModules {
 			if m.Version != mg.Selected(m.Path) {
 				// The root version v is misleading: the actual selected version is higher.
+				return rs, errGoModDirty
+			}
+		}
+		for _, m := range add {
+			if m.Version != mg.Selected(m.Path) {
 				return rs, errGoModDirty
 			}
 		}
@@ -698,7 +706,7 @@ func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements) 
 	if go117LazyTODO {
 		// Update the above comment to reflect lazy loading once implemented.
 	}
-	keep := mg.BuildList()[1:]
+	keep := append(mg.BuildList()[1:], add...)
 	for _, m := range keep {
 		if direct[m.Path] && !inRootPaths[m.Path] {
 			rootPaths = append(rootPaths, m.Path)

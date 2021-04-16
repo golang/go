@@ -942,8 +942,8 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		}
 		module.Sort(toAdd) // to make errors deterministic
 
-		rs, changed, err := editRequirements(ctx, ld.requirements, toAdd, nil)
-		if err != nil {
+		prevRS := ld.requirements
+		if err := ld.updateRequirements(ctx, toAdd); err != nil {
 			// If an error was found in a newly added module, report the package
 			// import stack instead of the module requirement stack. Packages
 			// are more descriptive.
@@ -954,15 +954,16 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			}
 			base.Fatalf("go: %v", err)
 		}
-		ld.requirements = rs
-
-		if !changed {
-			break
+		if reflect.DeepEqual(prevRS.rootModules, ld.requirements.rootModules) {
+			// Something is deeply wrong. resolveMissingImports gave us a non-empty
+			// set of modules to add, but adding those modules to the graph had no
+			// effect.
+			panic(fmt.Sprintf("internal error: adding %v to module graph had no effect on root requirements (%v)", toAdd, prevRS.rootModules))
 		}
 	}
 	base.ExitIfErrors() // TODO(bcmills): Is this actually needed?
 
-	if err := ld.updateRequirements(ctx); err != nil {
+	if err := ld.updateRequirements(ctx, nil); err != nil {
 		base.Fatalf("go: %v", err)
 	}
 
@@ -974,8 +975,9 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 	return ld
 }
 
-// updateRequirements ensures that ld.requirements is consistent with
-// the information gained from ld.pkgs.
+// updateRequirements ensures that ld.requirements is consistent with the
+// information gained from ld.pkgs and includes the modules in add as roots at
+// at least the given versions.
 //
 // In particular:
 //
@@ -989,7 +991,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 // 	  not provide any directly-imported package are then marked as indirect.
 //
 // 	- Root dependencies are updated to their selected versions.
-func (ld *loader) updateRequirements(ctx context.Context) error {
+func (ld *loader) updateRequirements(ctx context.Context, add []module.Version) error {
 	rs := ld.requirements
 
 	// Compute directly referenced dependency modules.
@@ -1042,7 +1044,7 @@ func (ld *loader) updateRequirements(ctx context.Context) error {
 		}
 	}
 
-	rs, err := updateRoots(ctx, direct, rs)
+	rs, err := updateRoots(ctx, direct, rs, add)
 	if err == nil {
 		ld.requirements = rs
 	}
