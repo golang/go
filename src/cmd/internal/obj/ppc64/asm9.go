@@ -1987,6 +1987,11 @@ func OPCC(o uint32, xo uint32, rc uint32) uint32 {
 	return OPVCC(o, xo, 0, rc)
 }
 
+/* Generate MD-form opcode */
+func OPMD(o, xo, rc uint32) uint32 {
+	return o<<26 | xo<<2 | rc&1
+}
+
 /* the order is dest, a/s, b/imm for both arithmetic and logical operations */
 func AOP_RRR(op uint32, d uint32, a uint32, b uint32) uint32 {
 	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11
@@ -4230,14 +4235,14 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 	case ARLDICLCC:
 		return OPVCC(30, 0, 0, 1)
 	case ARLDICR:
-		return OPVCC(30, 0, 0, 0) | 2<<1 // rldicr
+		return OPMD(30, 1, 0) // rldicr
 	case ARLDICRCC:
-		return OPVCC(30, 0, 0, 1) | 2<<1 // rldicr.
+		return OPMD(30, 1, 1) // rldicr.
 
 	case ARLDIC:
-		return OPVCC(30, 0, 0, 0) | 4<<1 // rldic
+		return OPMD(30, 2, 0) // rldic
 	case ARLDICCC:
-		return OPVCC(30, 0, 0, 1) | 4<<1 // rldic.
+		return OPMD(30, 2, 1) // rldic.
 
 	case ASYSCALL:
 		return OPVCC(17, 1, 0, 0)
@@ -4895,30 +4900,30 @@ func (c *ctxt9) opirr(a obj.As) uint32 {
 	case ARLWMICC:
 		return OPVCC(20, 0, 0, 1)
 	case ARLDMI:
-		return OPVCC(30, 0, 0, 0) | 3<<2 /* rldimi */
+		return OPMD(30, 3, 0) /* rldimi */
 	case ARLDMICC:
-		return OPVCC(30, 0, 0, 1) | 3<<2
+		return OPMD(30, 3, 1) /* rldimi. */
 	case ARLDIMI:
-		return OPVCC(30, 0, 0, 0) | 3<<2 /* rldimi */
+		return OPMD(30, 3, 0) /* rldimi */
 	case ARLDIMICC:
-		return OPVCC(30, 0, 0, 1) | 3<<2
+		return OPMD(30, 3, 1) /* rldimi. */
 	case ARLWNM:
 		return OPVCC(21, 0, 0, 0) /* rlwinm */
 	case ARLWNMCC:
 		return OPVCC(21, 0, 0, 1)
 
 	case ARLDCL:
-		return OPVCC(30, 0, 0, 0) /* rldicl */
+		return OPMD(30, 0, 0) /* rldicl */
 	case ARLDCLCC:
-		return OPVCC(30, 0, 0, 1)
+		return OPMD(30, 0, 1) /* rldicl. */
 	case ARLDCR:
-		return OPVCC(30, 1, 0, 0) /* rldicr */
+		return OPMD(30, 1, 0) /* rldicr */
 	case ARLDCRCC:
-		return OPVCC(30, 1, 0, 1)
+		return OPMD(30, 1, 1) /* rldicr. */
 	case ARLDC:
-		return OPVCC(30, 0, 0, 0) | 2<<2
+		return OPMD(30, 2, 0) /* rldic */
 	case ARLDCCC:
-		return OPVCC(30, 0, 0, 1) | 2<<2
+		return OPMD(30, 2, 1) /* rldic. */
 
 	case ASRAW:
 		return OPVCC(31, 824, 0, 0)
