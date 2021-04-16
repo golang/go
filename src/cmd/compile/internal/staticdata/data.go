@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"go/constant"
+	"internal/buildcfg"
 	"io"
 	"io/ioutil"
 	"os"
@@ -269,7 +270,7 @@ func NeedFuncSym(fn *ir.Func) {
 		// funcsymsmu, like in FuncSym.
 		base.Fatalf("NeedFuncSym must be called in serial")
 	}
-	if fn.ABI != obj.ABIInternal && objabi.Experiment.RegabiWrappers {
+	if fn.ABI != obj.ABIInternal && buildcfg.Experiment.RegabiWrappers {
 		// Function values must always reference ABIInternal
 		// entry points, so it doesn't make sense to create a
 		// funcsym for other ABIs.

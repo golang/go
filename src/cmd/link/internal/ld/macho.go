@@ -15,6 +15,7 @@ import (
 	"debug/macho"
 	"encoding/binary"
 	"fmt"
+	"internal/buildcfg"
 	"io"
 	"os"
 	"sort"
@@ -945,12 +946,12 @@ func collectmachosyms(ctxt *Link) {
 			if machoPlatform == PLATFORM_MACOS {
 				switch n := ldr.SymExtname(s); n {
 				case "fdopendir":
-					switch objabi.GOARCH {
+					switch buildcfg.GOARCH {
 					case "amd64":
 						ldr.SetSymExtname(s, n+"$INODE64")
 					}
 				case "readdir_r", "getfsstat":
-					switch objabi.GOARCH {
+					switch buildcfg.GOARCH {
 					case "amd64":
 						ldr.SetSymExtname(s, n+"$INODE64")
 					}

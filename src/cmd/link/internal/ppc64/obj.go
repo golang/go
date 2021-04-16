@@ -34,11 +34,12 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
+	"internal/buildcfg"
 )
 
 func Init() (*sys.Arch, ld.Arch) {
 	arch := sys.ArchPPC64
-	if objabi.GOARCH == "ppc64le" {
+	if buildcfg.GOARCH == "ppc64le" {
 		arch = sys.ArchPPC64LE
 	}
 

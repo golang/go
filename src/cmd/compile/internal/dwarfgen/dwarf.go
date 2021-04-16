@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"internal/buildcfg"
 	"sort"
 
 	"cmd/compile/internal/base"
@@ -278,7 +279,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 		if base.Ctxt.FixedFrameSize() == 0 {
 			offs -= int64(types.PtrSize)
 		}
-		if objabi.FramePointerEnabled {
+		if buildcfg.FramePointerEnabled {
 			offs -= int64(types.PtrSize)
 		}
 

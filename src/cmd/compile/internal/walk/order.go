@@ -7,6 +7,7 @@ package walk
 import (
 	"fmt"
 	"go/constant"
+	"internal/buildcfg"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/escape"
@@ -15,7 +16,6 @@ import (
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -780,7 +780,7 @@ func (o *orderState) stmt(n ir.Node) {
 			n.Call = walkRecover(n.Call.(*ir.CallExpr), &init)
 			o.stmtList(init)
 		}
-		if objabi.Experiment.RegabiDefer {
+		if buildcfg.Experiment.RegabiDefer {
 			o.wrapGoDefer(n)
 		}
 		o.out = append(o.out, n)

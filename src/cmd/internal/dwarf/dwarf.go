@@ -9,13 +9,15 @@ package dwarf
 
 import (
 	"bytes"
-	"cmd/internal/objabi"
 	"errors"
 	"fmt"
+	"internal/buildcfg"
 	exec "internal/execabs"
 	"sort"
 	"strconv"
 	"strings"
+
+	"cmd/internal/objabi"
 )
 
 // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
@@ -381,7 +383,7 @@ func expandPseudoForm(form uint8) uint8 {
 		return form
 	}
 	expandedForm := DW_FORM_udata
-	if objabi.GOOS == "darwin" || objabi.GOOS == "ios" {
+	if buildcfg.GOOS == "darwin" || buildcfg.GOOS == "ios" {
 		expandedForm = DW_FORM_data4
 	}
 	return uint8(expandedForm)

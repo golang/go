@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/build"
+	"internal/buildcfg"
 	"internal/cfg"
 	"io"
 	"os"
@@ -19,8 +20,6 @@ import (
 	"sync"
 
 	"cmd/go/internal/fsys"
-
-	"cmd/internal/objabi"
 )
 
 // These are general "build flags" used by build and other commands.
@@ -252,12 +251,12 @@ var (
 	GOMODCACHE   = envOr("GOMODCACHE", gopathDir("pkg/mod"))
 
 	// Used in envcmd.MkEnv and build ID computations.
-	GOARM    = envOr("GOARM", fmt.Sprint(objabi.GOARM))
-	GO386    = envOr("GO386", objabi.GO386)
-	GOMIPS   = envOr("GOMIPS", objabi.GOMIPS)
-	GOMIPS64 = envOr("GOMIPS64", objabi.GOMIPS64)
-	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", objabi.GOPPC64))
-	GOWASM   = envOr("GOWASM", fmt.Sprint(objabi.GOWASM))
+	GOARM    = envOr("GOARM", fmt.Sprint(buildcfg.GOARM))
+	GO386    = envOr("GO386", buildcfg.GO386)
+	GOMIPS   = envOr("GOMIPS", buildcfg.GOMIPS)
+	GOMIPS64 = envOr("GOMIPS64", buildcfg.GOMIPS64)
+	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", buildcfg.GOPPC64))
+	GOWASM   = envOr("GOWASM", fmt.Sprint(buildcfg.GOWASM))
 
 	GOPROXY    = envOr("GOPROXY", "https://proxy.golang.org,direct")
 	GOSUMDB    = envOr("GOSUMDB", "sum.golang.org")

@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
+	"internal/buildcfg"
 	"internal/testenv"
 	"io/fs"
 	"os"
@@ -32,7 +33,6 @@ import (
 	"cmd/go/internal/robustio"
 	"cmd/go/internal/txtar"
 	"cmd/go/internal/work"
-	"cmd/internal/objabi"
 	"cmd/internal/sys"
 )
 
@@ -165,7 +165,7 @@ func (ts *testScript) setup() {
 		"GOCACHE=" + testGOCACHE,
 		"GODEBUG=" + os.Getenv("GODEBUG"),
 		"GOEXE=" + cfg.ExeSuffix,
-		"GOEXPERIMENT=" + objabi.GOEXPERIMENT(),
+		"GOEXPERIMENT=" + buildcfg.GOEXPERIMENT(),
 		"GOOS=" + runtime.GOOS,
 		"GOPATH=" + filepath.Join(ts.workdir, "gopath"),
 		"GOPROXY=" + proxyURL,

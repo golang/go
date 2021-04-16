@@ -6,6 +6,7 @@ package lex
 
 import (
 	"fmt"
+	"internal/buildcfg"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -49,7 +50,7 @@ func predefine(defines flags.MultiFlag) map[string]*Macro {
 	// Set macros for GOEXPERIMENTs so we can easily switch
 	// runtime assembly code based on them.
 	if *flags.CompilingRuntime {
-		for _, exp := range objabi.EnabledExperiments() {
+		for _, exp := range buildcfg.EnabledExperiments() {
 			// Define macro.
 			name := "GOEXPERIMENT_" + exp
 			macros[name] = &Macro{

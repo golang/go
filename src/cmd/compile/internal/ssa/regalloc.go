@@ -117,10 +117,10 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
+	"internal/buildcfg"
 	"math/bits"
 	"unsafe"
 )
@@ -609,7 +609,7 @@ func (s *regAllocState) init(f *Func) {
 	if s.f.Config.hasGReg {
 		s.allocatable &^= 1 << s.GReg
 	}
-	if objabi.FramePointerEnabled && s.f.Config.FPReg >= 0 {
+	if buildcfg.FramePointerEnabled && s.f.Config.FPReg >= 0 {
 		s.allocatable &^= 1 << uint(s.f.Config.FPReg)
 	}
 	if s.f.Config.LinkReg != -1 {

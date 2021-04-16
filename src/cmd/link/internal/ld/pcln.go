@@ -11,6 +11,7 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"fmt"
+	"internal/buildcfg"
 	"os"
 	"path/filepath"
 )
@@ -879,7 +880,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 }
 
 func gorootFinal() string {
-	root := objabi.GOROOT
+	root := buildcfg.GOROOT
 	if final := os.Getenv("GOROOT_FINAL"); final != "" {
 		root = final
 	}

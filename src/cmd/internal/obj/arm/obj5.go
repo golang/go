@@ -34,6 +34,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"internal/buildcfg"
 	"log"
 )
 
@@ -64,7 +65,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				ctxt.Diag("%v: TLS MRC instruction must write to R0 as it might get translated into a BL instruction", p.Line())
 			}
 
-			if objabi.GOARM < 7 {
+			if buildcfg.GOARM < 7 {
 				// Replace it with BL runtime.read_tls_fallback(SB) for ARM CPUs that lack the tls extension.
 				if progedit_tlsfallback == nil {
 					progedit_tlsfallback = ctxt.Lookup("runtime.read_tls_fallback")

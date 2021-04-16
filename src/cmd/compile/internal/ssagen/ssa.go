@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"go/constant"
 	"html"
+	"internal/buildcfg"
 	"os"
 	"path/filepath"
 	"sort"
@@ -227,7 +228,7 @@ const magicLastTypeName = "MagicLastTypeNameForTestingRegisterABI"
 // abiForFunc implements ABI policy for a function, but does not return a copy of the ABI.
 // Passing a nil function returns the default ABI based on experiment configuration.
 func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
-	if objabi.Experiment.RegabiArgs {
+	if buildcfg.Experiment.RegabiArgs {
 		// Select the ABI based on the function's defining ABI.
 		if fn == nil {
 			return abi1
@@ -4646,7 +4647,7 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
 	var args []*ssa.Value
 	var argNodes []*ir.Name
 
-	if objabi.Experiment.RegabiDefer && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
+	if buildcfg.Experiment.RegabiDefer && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
 		s.Fatalf("defer call with arguments or results: %v", n)
 	}
 
@@ -4883,7 +4884,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 
 	callABI := s.f.ABIDefault
 
-	if !objabi.Experiment.RegabiArgs {
+	if !buildcfg.Experiment.RegabiArgs {
 		var magicFnNameSym *types.Sym
 		if fn.Name() != nil {
 			magicFnNameSym = fn.Name().Sym()
@@ -4901,7 +4902,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		}
 	}
 
-	if objabi.Experiment.RegabiDefer && k != callNormal && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
+	if buildcfg.Experiment.RegabiDefer && k != callNormal && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
 		s.Fatalf("go/defer call with arguments: %v", n)
 	}
 
@@ -4910,7 +4911,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		if k == callNormal && fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC {
 			fn := fn.(*ir.Name)
 			callee = fn
-			if objabi.Experiment.RegabiArgs {
+			if buildcfg.Experiment.RegabiArgs {
 				// This is a static call, so it may be
 				// a direct call to a non-ABIInternal
 				// function. fn.Func may be nil for
@@ -4951,7 +4952,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		}
 	}
 
-	if !objabi.Experiment.RegabiArgs {
+	if !buildcfg.Experiment.RegabiArgs {
 		if regAbiForFuncType(n.X.Type().FuncType()) {
 			// Magic last type in input args to call
 			callABI = s.f.ABI1
@@ -5135,7 +5136,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 // maybeNilCheckClosure checks if a nil check of a closure is needed in some
 // architecture-dependent situations and, if so, emits the nil check.
 func (s *state) maybeNilCheckClosure(closure *ssa.Value, k callKind) {
-	if Arch.LinkArch.Family == sys.Wasm || objabi.GOOS == "aix" && k != callGo {
+	if Arch.LinkArch.Family == sys.Wasm || buildcfg.GOOS == "aix" && k != callGo {
 		// On AIX, the closure needs to be verified as fn can be nil, except if it's a call go. This needs to be handled by the runtime to have the "go of nil func value" error.
 		// TODO(neelance): On other architectures this should be eliminated by the optimization steps
 		s.nilCheck(closure)
@@ -6881,7 +6882,7 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
 	// and not address-taken (for non-SSA-able or address-taken arguments we always
 	// spill upfront).
 	// TODO(register args) Make liveness more fine-grained to that partial spilling is okay.
-	if objabi.Experiment.RegabiArgs {
+	if buildcfg.Experiment.RegabiArgs {
 		// First, see if it is already spilled before it may be live. Look for a spill
 		// in the entry block up to the first safepoint.
 		type nameOff struct {

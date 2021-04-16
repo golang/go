@@ -297,7 +297,10 @@ var depsRules = `
 	container/heap, go/constant, go/parser, regexp
 	< go/types;
 
-	go/build/constraint, go/doc, go/parser, internal/goroot, internal/goversion
+	FMT, internal/goexperiment
+	< internal/buildcfg;
+
+	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion
 	< go/build;
 
 	DEBUG, go/build, go/types, text/scanner

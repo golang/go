@@ -3,9 +3,11 @@
 
 package ssa
 
-import "math"
-import "cmd/internal/objabi"
-import "cmd/compile/internal/types"
+import (
+	"cmd/compile/internal/types"
+	"internal/buildcfg"
+	"math"
+)
 
 func rewriteValuePPC64(v *Value) bool {
 	switch v.Op {
@@ -1290,11 +1292,11 @@ func rewriteValuePPC64_OpCtz32(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Ctz32 x)
-	// cond: objabi.GOPPC64<=8
+	// cond: buildcfg.GOPPC64<=8
 	// result: (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
 	for {
 		x := v_0
-		if !(objabi.GOPPC64 <= 8) {
+		if !(buildcfg.GOPPC64 <= 8) {
 			break
 		}
 		v.reset(OpPPC64POPCNTW)
@@ -1324,11 +1326,11 @@ func rewriteValuePPC64_OpCtz64(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Ctz64 x)
-	// cond: objabi.GOPPC64<=8
+	// cond: buildcfg.GOPPC64<=8
 	// result: (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
 	for {
 		x := v_0
-		if !(objabi.GOPPC64 <= 8) {
+		if !(buildcfg.GOPPC64 <= 8) {
 			break
 		}
 		v.reset(OpPPC64POPCNTD)
@@ -3286,12 +3288,12 @@ func rewriteValuePPC64_OpMod32(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Mod32 x y)
-	// cond: objabi.GOPPC64 >= 9
+	// cond: buildcfg.GOPPC64 >= 9
 	// result: (MODSW x y)
 	for {
 		x := v_0
 		y := v_1
-		if !(objabi.GOPPC64 >= 9) {
+		if !(buildcfg.GOPPC64 >= 9) {
 			break
 		}
 		v.reset(OpPPC64MODSW)
@@ -3299,12 +3301,12 @@ func rewriteValuePPC64_OpMod32(v *Value) bool {
 		return true
 	}
 	// match: (Mod32 x y)
-	// cond: objabi.GOPPC64 <= 8
+	// cond: buildcfg.GOPPC64 <= 8
 	// result: (SUB x (MULLW y (DIVW x y)))
 	for {
 		x := v_0
 		y := v_1
-		if !(objabi.GOPPC64 <= 8) {
+		if !(buildcfg.GOPPC64 <= 8) {
 			break
 		}
 		v.reset(OpPPC64SUB)
@@ -3323,12 +3325,12 @@ func rewriteValuePPC64_OpMod32u(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Mod32u x y)
-	// cond: objabi.GOPPC64 >= 9
+	// cond: buildcfg.GOPPC64 >= 9
 	// result: (MODUW x y)
 	for {
 		x := v_0
 		y := v_1
-		if !(objabi.GOPPC64 >= 9) {
+		if !(buildcfg.GOPPC64 >= 9) {
 			break
 		}
 		v.reset(OpPPC64MODUW)
@@ -3336,12 +3338,12 @@ func rewriteValuePPC64_OpMod32u(v *Value) bool {
 		return true
 	}
 	// match: (Mod32u x y)
-	// cond: objabi.GOPPC64 <= 8
+	// cond: buildcfg.GOPPC64 <= 8
 	// result: (SUB x (MULLW y (DIVWU x y)))
 	for {
 		x := v_0
 		y := v_1
-		if !(objabi.GOPPC64 <= 8) {
+		if !(buildcfg.GOPPC64 <= 8) {
 			break
 		}
 		v.reset(OpPPC64SUB)
@@ -3360,12 +3362,12 @@ func rewriteValuePPC64_OpMod64(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Mod64 x y)
-	// cond: objabi.GOPPC64 >=9
+	// cond: buildcfg.GOPPC64 >=9
 	// result: (MODSD x y)
 	for {
 		x := v_0
 		y := v_1
-		if !(objabi.GOPPC64 >= 9) {
+		if !(buildcfg.GOPPC64 >= 9) {
 			break
 		}
 		v.reset(OpPPC64MODSD)
@@ -3373,12 +3375,12 @@ func rewriteValuePPC64_OpMod64(v *Value) bool {
 		return true
 	}
 	// match: (Mod64 x y)
-	// cond: objabi.GOPPC64 <=8
+	// cond: buildcfg.GOPPC64 <=8
 	// result: (SUB x (MULLD y (DIVD x y)))
 	for {
 		x := v_0
 		y := v_1
-		if !(objabi.GOPPC64 <= 8) {
+		if !(buildcfg.GOPPC64 <= 8) {
 			break
 		}
 		v.reset(OpPPC64SUB)
@@ -3397,12 +3399,12 @@ func rewriteValuePPC64_OpMod64u(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Mod64u x y)
-	// cond: objabi.GOPPC64 >= 9
+	// cond: buildcfg.GOPPC64 >= 9
 	// result: (MODUD x y)
 	for {
 		x := v_0
 		y := v_1
-		if !(objabi.GOPPC64 >= 9) {
+		if !(buildcfg.GOPPC64 >= 9) {
 			break
 		}
 		v.reset(OpPPC64MODUD)
@@ -3410,12 +3412,12 @@ func rewriteValuePPC64_OpMod64u(v *Value) bool {
 		return true
 	}
 	// match: (Mod64u x y)
-	// cond: objabi.GOPPC64 <= 8
+	// cond: buildcfg.GOPPC64 <= 8
 	// result: (SUB x (MULLD y (DIVDU x y)))
 	for {
 		x := v_0
 		y := v_1
-		if !(objabi.GOPPC64 <= 8) {
+		if !(buildcfg.GOPPC64 <= 8) {
 			break
 		}
 		v.reset(OpPPC64SUB)
@@ -3633,14 +3635,14 @@ func rewriteValuePPC64_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s > 8 && objabi.GOPPC64 <= 8 && logLargeCopy(v, s)
+	// cond: s > 8 && buildcfg.GOPPC64 <= 8 && logLargeCopy(v, s)
 	// result: (LoweredMove [s] dst src mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 8 && objabi.GOPPC64 <= 8 && logLargeCopy(v, s)) {
+		if !(s > 8 && buildcfg.GOPPC64 <= 8 && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpPPC64LoweredMove)
@@ -3649,14 +3651,14 @@ func rewriteValuePPC64_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s > 8 && s <= 64 && objabi.GOPPC64 >= 9
+	// cond: s > 8 && s <= 64 && buildcfg.GOPPC64 >= 9
 	// result: (LoweredQuadMoveShort [s] dst src mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 8 && s <= 64 && objabi.GOPPC64 >= 9) {
+		if !(s > 8 && s <= 64 && buildcfg.GOPPC64 >= 9) {
 			break
 		}
 		v.reset(OpPPC64LoweredQuadMoveShort)
@@ -3665,14 +3667,14 @@ func rewriteValuePPC64_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s > 8 && objabi.GOPPC64 >= 9 && logLargeCopy(v, s)
+	// cond: s > 8 && buildcfg.GOPPC64 >= 9 && logLargeCopy(v, s)
 	// result: (LoweredQuadMove [s] dst src mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 8 && objabi.GOPPC64 >= 9 && logLargeCopy(v, s)) {
+		if !(s > 8 && buildcfg.GOPPC64 >= 9 && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpPPC64LoweredQuadMove)
@@ -3882,7 +3884,7 @@ func rewriteValuePPC64_OpPPC64ADD(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (ADD l:(MULLD x y) z)
-	// cond: objabi.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)
+	// cond: buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)
 	// result: (MADDLD x y z)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -3893,7 +3895,7 @@ func rewriteValuePPC64_OpPPC64ADD(v *Value) bool {
 			y := l.Args[1]
 			x := l.Args[0]
 			z := v_1
-			if !(objabi.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)) {
+			if !(buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)) {
 				continue
 			}
 			v.reset(OpPPC64MADDLD)
@@ -13241,7 +13243,7 @@ func rewriteValuePPC64_OpPPC64SLDconst(v *Value) bool {
 		break
 	}
 	// match: (SLDconst [c] z:(MOVWreg x))
-	// cond: c < 32 && objabi.GOPPC64 >= 9
+	// cond: c < 32 && buildcfg.GOPPC64 >= 9
 	// result: (EXTSWSLconst [c] x)
 	for {
 		c := auxIntToInt64(v.AuxInt)
@@ -13250,7 +13252,7 @@ func rewriteValuePPC64_OpPPC64SLDconst(v *Value) bool {
 			break
 		}
 		x := z.Args[0]
-		if !(c < 32 && objabi.GOPPC64 >= 9) {
+		if !(c < 32 && buildcfg.GOPPC64 >= 9) {
 			break
 		}
 		v.reset(OpPPC64EXTSWSLconst)
@@ -13364,7 +13366,7 @@ func rewriteValuePPC64_OpPPC64SLWconst(v *Value) bool {
 		break
 	}
 	// match: (SLWconst [c] z:(MOVWreg x))
-	// cond: c < 32 && objabi.GOPPC64 >= 9
+	// cond: c < 32 && buildcfg.GOPPC64 >= 9
 	// result: (EXTSWSLconst [c] x)
 	for {
 		c := auxIntToInt64(v.AuxInt)
@@ -13373,7 +13375,7 @@ func rewriteValuePPC64_OpPPC64SLWconst(v *Value) bool {
 			break
 		}
 		x := z.Args[0]
-		if !(c < 32 && objabi.GOPPC64 >= 9) {
+		if !(c < 32 && buildcfg.GOPPC64 >= 9) {
 			break
 		}
 		v.reset(OpPPC64EXTSWSLconst)
@@ -16906,13 +16908,13 @@ func rewriteValuePPC64_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero [s] ptr mem)
-	// cond: objabi.GOPPC64 <= 8 && s < 64
+	// cond: buildcfg.GOPPC64 <= 8 && s < 64
 	// result: (LoweredZeroShort [s] ptr mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		ptr := v_0
 		mem := v_1
-		if !(objabi.GOPPC64 <= 8 && s < 64) {
+		if !(buildcfg.GOPPC64 <= 8 && s < 64) {
 			break
 		}
 		v.reset(OpPPC64LoweredZeroShort)
@@ -16921,13 +16923,13 @@ func rewriteValuePPC64_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero [s] ptr mem)
-	// cond: objabi.GOPPC64 <= 8
+	// cond: buildcfg.GOPPC64 <= 8
 	// result: (LoweredZero [s] ptr mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		ptr := v_0
 		mem := v_1
-		if !(objabi.GOPPC64 <= 8) {
+		if !(buildcfg.GOPPC64 <= 8) {
 			break
 		}
 		v.reset(OpPPC64LoweredZero)
@@ -16936,13 +16938,13 @@ func rewriteValuePPC64_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero [s] ptr mem)
-	// cond: s < 128 && objabi.GOPPC64 >= 9
+	// cond: s < 128 && buildcfg.GOPPC64 >= 9
 	// result: (LoweredQuadZeroShort [s] ptr mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		ptr := v_0
 		mem := v_1
-		if !(s < 128 && objabi.GOPPC64 >= 9) {
+		if !(s < 128 && buildcfg.GOPPC64 >= 9) {
 			break
 		}
 		v.reset(OpPPC64LoweredQuadZeroShort)
@@ -16951,13 +16953,13 @@ func rewriteValuePPC64_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero [s] ptr mem)
-	// cond: objabi.GOPPC64 >= 9
+	// cond: buildcfg.GOPPC64 >= 9
 	// result: (LoweredQuadZero [s] ptr mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		ptr := v_0
 		mem := v_1
-		if !(objabi.GOPPC64 >= 9) {
+		if !(buildcfg.GOPPC64 >= 9) {
 			break
 		}
 		v.reset(OpPPC64LoweredQuadZero)

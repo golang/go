@@ -6,6 +6,7 @@ package arm
 
 import (
 	"fmt"
+	"internal/buildcfg"
 	"math"
 	"math/bits"
 
@@ -17,7 +18,6 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm"
-	"cmd/internal/objabi"
 )
 
 // loadByType returns the load instruction of the given type.
@@ -286,7 +286,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpARMANDconst, ssa.OpARMBICconst:
 		// try to optimize ANDconst and BICconst to BFC, which saves bytes and ticks
 		// BFC is only available on ARMv7, and its result and source are in the same register
-		if objabi.GOARM == 7 && v.Reg() == v.Args[0].Reg() {
+		if buildcfg.GOARM == 7 && v.Reg() == v.Args[0].Reg() {
 			var val uint32
 			if v.Op == ssa.OpARMANDconst {
 				val = ^uint32(v.AuxInt)
@@ -643,7 +643,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			default:
 			}
 		}
-		if objabi.GOARM >= 6 {
+		if buildcfg.GOARM >= 6 {
 			// generate more efficient "MOVB/MOVBU/MOVH/MOVHU Reg@>0, Reg" on ARMv6 & ARMv7
 			genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_RR, 0)
 			return

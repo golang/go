@@ -6,11 +6,11 @@ package noder
 
 import (
 	"fmt"
+	"internal/buildcfg"
 	"strings"
 
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
-	"cmd/internal/objabi"
 )
 
 func isSpace(c rune) bool {
@@ -44,7 +44,7 @@ func pragmaFlag(verb string) ir.PragmaFlag {
 	case "go:build":
 		return ir.GoBuildPragma
 	case "go:nointerface":
-		if objabi.Experiment.FieldTrack {
+		if buildcfg.Experiment.FieldTrack {
 			return ir.Nointerface
 		}
 	case "go:noescape":
@@ -110,7 +110,7 @@ func (p *noder) pragcgo(pos syntax.Pos, text string) {
 		case len(f) == 3 && !isQuoted(f[1]) && !isQuoted(f[2]):
 		case len(f) == 4 && !isQuoted(f[1]) && !isQuoted(f[2]) && isQuoted(f[3]):
 			f[3] = strings.Trim(f[3], `"`)
-			if objabi.GOOS == "aix" && f[3] != "" {
+			if buildcfg.GOOS == "aix" && f[3] != "" {
 				// On Aix, library pattern must be "lib.a/object.o"
 				// or "lib.a/libname.so.X"
 				n := strings.Split(f[3], "/")

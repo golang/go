@@ -15,6 +15,7 @@ import (
 	"debug/pe"
 	"encoding/binary"
 	"fmt"
+	"internal/buildcfg"
 	"sort"
 	"strconv"
 	"strings"
@@ -481,9 +482,9 @@ func (f *peFile) addInitArray(ctxt *Link) *peSection {
 	// that this will need to grow in the future.
 	var size int
 	var alignment uint32
-	switch objabi.GOARCH {
+	switch buildcfg.GOARCH {
 	default:
-		Exitf("peFile.addInitArray: unsupported GOARCH=%q\n", objabi.GOARCH)
+		Exitf("peFile.addInitArray: unsupported GOARCH=%q\n", buildcfg.GOARCH)
 	case "386", "arm":
 		size = 4
 		alignment = IMAGE_SCN_ALIGN_4BYTES
@@ -499,7 +500,7 @@ func (f *peFile) addInitArray(ctxt *Link) *peSection {
 
 	init_entry := ctxt.loader.Lookup(*flagEntrySymbol, 0)
 	addr := uint64(ctxt.loader.SymValue(init_entry)) - ctxt.loader.SymSect(init_entry).Vaddr
-	switch objabi.GOARCH {
+	switch buildcfg.GOARCH {
 	case "386", "arm":
 		ctxt.Out.Write32(uint32(addr))
 	case "amd64", "arm64":
@@ -610,9 +611,9 @@ dwarfLoop:
 		dottext := ldr.Lookup(".text", 0)
 		ctxt.Out.Write32(0)
 		ctxt.Out.Write32(uint32(ldr.SymDynid(dottext)))
-		switch objabi.GOARCH {
+		switch buildcfg.GOARCH {
 		default:
-			ctxt.Errorf(dottext, "unknown architecture for PE: %q\n", objabi.GOARCH)
+			ctxt.Errorf(dottext, "unknown architecture for PE: %q\n", buildcfg.GOARCH)
 		case "386":
 			ctxt.Out.Write16(IMAGE_REL_I386_DIR32)
 		case "amd64":

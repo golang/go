@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/buildcfg"
 	"io"
 	"log"
 	"os"
@@ -231,7 +232,7 @@ CheckFlags:
 	}
 
 	// TODO: Test and delete these conditions.
-	if objabi.Experiment.FieldTrack || objabi.Experiment.PreemptibleLoops {
+	if buildcfg.Experiment.FieldTrack || buildcfg.Experiment.PreemptibleLoops {
 		canDashC = false
 	}
 
