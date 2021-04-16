@@ -617,7 +617,13 @@ func fixVersion(ctx context.Context, fixed *bool) modfile.VersionFixer {
 // when there is no module root. Normally, this is forbidden because it's slow
 // and there's no way to make the result reproducible, but some commands
 // like 'go get' are expected to do this.
+//
+// This function affects the default cfg.BuildMod when outside of a module,
+// so it can only be called prior to Init.
 func AllowMissingModuleImports() {
+	if initialized {
+		panic("AllowMissingModuleImports after Init")
+	}
 	allowMissingModuleImports = true
 }
 
@@ -699,7 +705,11 @@ func setDefaultBuildMod() {
 		return
 	}
 	if modRoot == "" {
-		cfg.BuildMod = "readonly"
+		if allowMissingModuleImports {
+			cfg.BuildMod = "mod"
+		} else {
+			cfg.BuildMod = "readonly"
+		}
 		return
 	}
 
