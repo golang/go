@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "go_asm.h"
 #include "textflag.h"
 
 TEXT ·Casint32(SB), NOSPLIT, $0-17
@@ -127,10 +128,15 @@ TEXT ·Store64(SB), NOSPLIT, $0-16
 TEXT ·Xchg(SB), NOSPLIT, $0-20
 	MOVD	ptr+0(FP), R0
 	MOVW	new+8(FP), R1
-again:
+	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
+	CBZ 	R4, load_store_loop
+	SWPALW	R1, (R0), R2
+	MOVW	R2, ret+16(FP)
+	RET
+load_store_loop:
 	LDAXRW	(R0), R2
 	STLXRW	R1, (R0), R3
-	CBNZ	R3, again
+	CBNZ	R3, load_store_loop
 	MOVW	R2, ret+16(FP)
 	RET
 
@@ -142,10 +148,15 @@ again:
 TEXT ·Xchg64(SB), NOSPLIT, $0-24
 	MOVD	ptr+0(FP), R0
 	MOVD	new+8(FP), R1
-again:
+	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
+	CBZ 	R4, load_store_loop
+	SWPALD	R1, (R0), R2
+	MOVD	R2, ret+16(FP)
+	RET
+load_store_loop:
 	LDAXR	(R0), R2
 	STLXR	R1, (R0), R3
-	CBNZ	R3, again
+	CBNZ	R3, load_store_loop
 	MOVD	R2, ret+16(FP)
 	RET
 
@@ -160,12 +171,20 @@ TEXT ·Cas(SB), NOSPLIT, $0-17
 	MOVD	ptr+0(FP), R0
 	MOVW	old+8(FP), R1
 	MOVW	new+12(FP), R2
-again:
+	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
+	CBZ 	R4, load_store_loop
+	MOVD	R1, R3
+	CASALW	R3, (R0), R2
+	CMP 	R1, R3
+	CSET	EQ, R0
+	MOVB	R0, ret+16(FP)
+	RET
+load_store_loop:
 	LDAXRW	(R0), R3
 	CMPW	R1, R3
 	BNE	ok
 	STLXRW	R2, (R0), R3
-	CBNZ	R3, again
+	CBNZ	R3, load_store_loop
 ok:
 	CSET	EQ, R0
 	MOVB	R0, ret+16(FP)
@@ -183,12 +202,20 @@ TEXT ·Cas64(SB), NOSPLIT, $0-25
 	MOVD	ptr+0(FP), R0
 	MOVD	old+8(FP), R1
 	MOVD	new+16(FP), R2
-again:
+	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
+	CBZ 	R4, load_store_loop
+	MOVD	R1, R3
+	CASALD	R3, (R0), R2
+	CMP 	R1, R3
+	CSET	EQ, R0
+	MOVB	R0, ret+24(FP)
+	RET
+load_store_loop:
 	LDAXR	(R0), R3
 	CMP	R1, R3
 	BNE	ok
 	STLXR	R2, (R0), R3
-	CBNZ	R3, again
+	CBNZ	R3, load_store_loop
 ok:
 	CSET	EQ, R0
 	MOVB	R0, ret+24(FP)
@@ -201,11 +228,17 @@ ok:
 TEXT ·Xadd(SB), NOSPLIT, $0-20
 	MOVD	ptr+0(FP), R0
 	MOVW	delta+8(FP), R1
-again:
+	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
+	CBZ 	R4, load_store_loop
+	LDADDALW	R1, (R0), R2
+	ADD 	R1, R2
+	MOVW	R2, ret+16(FP)
+	RET
+load_store_loop:
 	LDAXRW	(R0), R2
 	ADDW	R2, R1, R2
 	STLXRW	R2, (R0), R3
-	CBNZ	R3, again
+	CBNZ	R3, load_store_loop
 	MOVW	R2, ret+16(FP)
 	RET
 
@@ -216,11 +249,17 @@ again:
 TEXT ·Xadd64(SB), NOSPLIT, $0-24
 	MOVD	ptr+0(FP), R0
 	MOVD	delta+8(FP), R1
-again:
+	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
+	CBZ 	R4, load_store_loop
+	LDADDALD	R1, (R0), R2
+	ADD 	R1, R2
+	MOVD	R2, ret+16(FP)
+	RET
+load_store_loop:
 	LDAXR	(R0), R2
 	ADD	R2, R1, R2
 	STLXR	R2, (R0), R3
-	CBNZ	R3, again
+	CBNZ	R3, load_store_loop
 	MOVD	R2, ret+16(FP)
 	RET
 
@@ -236,37 +275,59 @@ TEXT ·Xchguintptr(SB), NOSPLIT, $0-24
 TEXT ·And8(SB), NOSPLIT, $0-9
 	MOVD	ptr+0(FP), R0
 	MOVB	val+8(FP), R1
+	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
+	CBZ 	R4, load_store_loop
+	MVN 	R1, R2
+	LDCLRALB	R2, (R0), R3
+	RET
+load_store_loop:
 	LDAXRB	(R0), R2
 	AND	R1, R2
 	STLXRB	R2, (R0), R3
-	CBNZ	R3, -3(PC)
+	CBNZ	R3, load_store_loop
 	RET
 
 TEXT ·Or8(SB), NOSPLIT, $0-9
 	MOVD	ptr+0(FP), R0
 	MOVB	val+8(FP), R1
+	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
+	CBZ 	R4, load_store_loop
+	LDORALB	R1, (R0), R2
+	RET
+load_store_loop:
 	LDAXRB	(R0), R2
 	ORR	R1, R2
 	STLXRB	R2, (R0), R3
-	CBNZ	R3, -3(PC)
+	CBNZ	R3, load_store_loop
 	RET
 
 // func And(addr *uint32, v uint32)
 TEXT ·And(SB), NOSPLIT, $0-12
 	MOVD	ptr+0(FP), R0
 	MOVW	val+8(FP), R1
+	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
+	CBZ 	R4, load_store_loop
+	MVN 	R1, R2
+	LDCLRALW	R2, (R0), R3
+	RET
+load_store_loop:
 	LDAXRW	(R0), R2
 	AND	R1, R2
 	STLXRW	R2, (R0), R3
-	CBNZ	R3, -3(PC)
+	CBNZ	R3, load_store_loop
 	RET
 
 // func Or(addr *uint32, v uint32)
 TEXT ·Or(SB), NOSPLIT, $0-12
 	MOVD	ptr+0(FP), R0
 	MOVW	val+8(FP), R1
+	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
+	CBZ 	R4, load_store_loop
+	LDORALW	R1, (R0), R2
+	RET
+load_store_loop:
 	LDAXRW	(R0), R2
 	ORR	R1, R2
 	STLXRW	R2, (R0), R3
-	CBNZ	R3, -3(PC)
+	CBNZ	R3, load_store_loop
 	RET
