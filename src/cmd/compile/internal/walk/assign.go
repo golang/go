@@ -558,7 +558,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	return s
 }
 
-// isAppendOfMake reports whether n is of the form append(x , make([]T, y)...).
+// isAppendOfMake reports whether n is of the form append(x, make([]T, y)...).
 // isAppendOfMake assumes n has already been typechecked.
 func isAppendOfMake(n ir.Node) bool {
 	if base.Flag.N != 0 || base.Flag.Cfg.Instrumenting {
