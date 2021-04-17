@@ -1,10 +1,5 @@
 // errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
-// +build !ppc64,!ppc64le,!goexperiment.regabi,!goexperiment.regabidefer
-
-// ppc64 needs a better tighten pass to make f18 pass
-// rescheduling checks need to be turned off because there are some live variables across the inserted check call
-//
-// For register ABI, liveness info changes slightly. See live_regabi.go.
+// +build amd64,goexperiment.regabidefer,goexperiment.regabiargs
 
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -424,7 +419,7 @@ func f27defer(b bool) {
 	}
 	defer call27(func() { x++ }) // ERROR "stack object .autotmp_[0-9]+ struct \{"
 	printnl()                    // ERROR "live at call to printnl: .autotmp_[0-9]+ .autotmp_[0-9]+"
-	return                       // ERROR "live at call to call27: .autotmp_[0-9]+"
+	return                       // ERROR "live at indirect call: .autotmp_[0-9]+"
 }
 
 // and newproc (go) escapes to the heap
@@ -432,9 +427,9 @@ func f27defer(b bool) {
 func f27go(b bool) {
 	x := 0
 	if b {
-		go call27(func() { x++ }) // ERROR "live at call to newobject: &x$" "live at call to newproc: &x$"
+		go call27(func() { x++ }) // ERROR "live at call to newobject: &x$" "live at call to newobject: &x .autotmp_[0-9]+$" "live at call to newproc: &x$" // allocate two closures, the func literal, and the wrapper for go
 	}
-	go call27(func() { x++ }) // ERROR "live at call to newobject: &x$"
+	go call27(func() { x++ }) // ERROR "live at call to newobject: &x$" "live at call to newobject: .autotmp_[0-9]+$" // allocate two closures, the func literal, and the wrapper for go
 	printnl()
 }
 
@@ -697,9 +692,9 @@ func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
 	defer func() {
 		recover()
 	}()
-	printint(0) // ERROR "live at call to printint: q r .autotmp_[0-9]+$"
+	printint(0) // ERROR "live at call to printint: q .autotmp_[0-9]+ r$"
 	r = q
-	return // ERROR "live at call to f41.func1: r .autotmp_[0-9]+$"
+	return // ERROR "live at call to f41.func1: .autotmp_[0-9]+ r$"
 }
 
 func f42() {
