@@ -108,10 +108,10 @@ func parseExperiments() goexperiment.Flags {
 	}
 	// Check regabi dependencies.
 	if flags.RegabiG && !flags.RegabiWrappers {
-		panic("GOEXPERIMENT regabig requires regabiwrappers")
+		Error = fmt.Errorf("GOEXPERIMENT regabig requires regabiwrappers")
 	}
 	if flags.RegabiArgs && !(flags.RegabiWrappers && flags.RegabiG && flags.RegabiReflect && flags.RegabiDefer) {
-		panic("GOEXPERIMENT regabiargs requires regabiwrappers,regabig,regabireflect,regabidefer")
+		Error = fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers,regabig,regabireflect,regabidefer")
 	}
 	return flags
 }
