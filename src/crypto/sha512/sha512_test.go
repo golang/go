@@ -788,7 +788,7 @@ func TestMarshalMismatch(t *testing.T) {
 			}
 
 			if err := h2.(encoding.BinaryUnmarshaler).UnmarshalBinary(state); err == nil {
-				t.Errorf("i=%d, j=%d: got no error , expected one: %v", i, j, err)
+				t.Errorf("i=%d, j=%d: got no error, expected one: %v", i, j, err)
 			}
 		}
 	}
