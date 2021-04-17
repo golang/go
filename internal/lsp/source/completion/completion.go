@@ -1424,6 +1424,13 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 	if c.surrounding != nil {
 		prefix = c.surrounding.Prefix()
 	}
+
+	// Don't suggest unimported packages if we have absolutely nothing
+	// to go on.
+	if prefix == "" {
+		return nil
+	}
+
 	count := 0
 
 	known, err := c.snapshot.CachedImportPaths(ctx)
@@ -1448,8 +1455,15 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 			return err
 		}
 	}
+
 	sort.Slice(paths, func(i, j int) bool {
-		return relevances[paths[i]] > relevances[paths[j]]
+		if relevances[paths[i]] != relevances[paths[j]] {
+			return relevances[paths[i]] > relevances[paths[j]]
+		}
+
+		// Fall back to lexical sort to keep truncated set of candidates
+		// in a consistent order.
+		return paths[i] < paths[j]
 	})
 
 	for _, path := range paths {
@@ -1468,7 +1482,8 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 			return nil
 		}
 		c.deepState.enqueue(candidate{
-			obj:   types.NewPkgName(0, nil, pkg.GetTypes().Name(), pkg.GetTypes()),
+			// Pass an empty *types.Package to disable deep completions.
+			obj:   types.NewPkgName(0, nil, pkg.GetTypes().Name(), types.NewPackage(path, pkg.Name())),
 			score: unimportedScore(relevances[path]),
 			imp:   imp,
 		})
