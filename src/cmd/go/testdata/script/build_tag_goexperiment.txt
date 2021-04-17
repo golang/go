@@ -1,83 +1,20 @@
-# compile_ext will fail if the buildtags that are enabled (or not enabled) for the
-# framepointer and fieldtrack experiments are not consistent with the value of
-# objabi.GOEXPERIMENT.
-
 [short] skip
+# Reset all experiments so fieldtrack is definitely off.
+env GOEXPERIMENT=none
 go run m
-
--- expt_main.go --
-package main
-
-import (
-	"os"
-	"strings"
-)
-
-func main() {
-  fp()
-  ft()
-}
-
-func hasExpEntry(s string) bool {
-	// script_test.go defines GOEXPERIMENT to be the enabled experiments.
-	g := os.Getenv("GOEXPERIMENT")
-	for _, f := range strings.Split(g, ",") {
-		if f == s {
-			return true
-		}
-	}
-	return false
-}
-
--- fp_off.go --
-// +build !goexperiment.framepointer
-
-package main
-
-import (
-	"fmt"
-	"os"
-)
-
-func fp() {
-	if hasExpEntry("framepointer") {
-		fmt.Println("in !framepointer build, but objabi.GOEXPERIMENT has 'framepointer'")
-		os.Exit(1)
-	}
-}
-
--- fp_on.go --
-// +build goexperiment.framepointer
-
-package main
-
-import (
-	"fmt"
-	"os"
-)
-
-func fp() {
-	if !hasExpEntry("framepointer") {
-		fmt.Println("in framepointer build, but objabi.GOEXPERIMENT does not have 'framepointer', is", os.Getenv("GOEXPERIMENT"))
-		os.Exit(1)
-	}
-}
+stderr 'fieldtrack off'
+# Turn fieldtrack on.
+env GOEXPERIMENT=none,fieldtrack
+go run m
+stderr 'fieldtrack on'
 
 -- ft_off.go --
 // +build !goexperiment.fieldtrack
 
 package main
 
-import (
-	"fmt"
-	"os"
-)
-
-func ft() {
-	if hasExpEntry("fieldtrack") {
-		fmt.Println("in !fieldtrack build, but objabi.GOEXPERIMENT has 'fieldtrack'")
-		os.Exit(1)
-	}
+func main() {
+	println("fieldtrack off")
 }
 
 -- ft_on.go --
@@ -85,16 +22,8 @@ func ft() {
 
 package main
 
-import (
-	"fmt"
-	"os"
-)
-
-func ft() {
-	if !hasExpEntry("fieldtrack") {
-		fmt.Println("in fieldtrack build, but objabi.GOEXPERIMENT does not have 'fieldtrack', is", os.Getenv("GOEXPERIMENT"))
-		os.Exit(1)
-	}
+func main() {
+	println("fieldtrack on")
 }
 
 -- go.mod --
