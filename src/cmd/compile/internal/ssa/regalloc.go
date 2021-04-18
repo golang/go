@@ -1377,12 +1377,58 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 			}
 
-			// Move arguments to registers. Process in an ordering defined
-			// by the register specification (most constrained first).
-			args = append(args[:0], v.Args...)
+			// Move arguments to registers.
+			// First, if an arg must be in a specific register and it is already
+			// in place, keep it.
+			args = append(args[:0], make([]*Value, len(v.Args))...)
+			for i, a := range v.Args {
+				if !s.values[a.ID].needReg {
+					args[i] = a
+				}
+			}
 			for _, i := range regspec.inputs {
 				mask := i.regs
-				if mask&s.values[args[i.idx].ID].regs == 0 {
+				if countRegs(mask) == 1 && mask&s.values[v.Args[i.idx].ID].regs != 0 {
+					args[i.idx] = s.allocValToReg(v.Args[i.idx], mask, true, v.Pos)
+				}
+			}
+			// Then, if an arg must be in a specific register and that
+			// register is free, allocate that one. Otherwise when processing
+			// another input we may kick a value into the free register, which
+			// then will be kicked out again.
+			// This is a common case for passing-in-register arguments for
+			// function calls.
+			for {
+				freed := false
+				for _, i := range regspec.inputs {
+					if args[i.idx] != nil {
+						continue // already allocated
+					}
+					mask := i.regs
+					if countRegs(mask) == 1 && mask&^s.used != 0 {
+						args[i.idx] = s.allocValToReg(v.Args[i.idx], mask, true, v.Pos)
+						// If the input is in other registers that will be clobbered by v,
+						// or the input is dead, free the registers. This may make room
+						// for other inputs.
+						oldregs := s.values[v.Args[i.idx].ID].regs
+						if oldregs&^regspec.clobbers == 0 || !s.liveAfterCurrentInstruction(v.Args[i.idx]) {
+							s.freeRegs(oldregs &^ mask &^ s.nospill)
+							freed = true
+						}
+					}
+				}
+				if !freed {
+					break
+				}
+			}
+			// Last, allocate remaining ones, in an ordering defined
+			// by the register specification (most constrained first).
+			for _, i := range regspec.inputs {
+				if args[i.idx] != nil {
+					continue // already allocated
+				}
+				mask := i.regs
+				if mask&s.values[v.Args[i.idx].ID].regs == 0 {
 					// Need a new register for the input.
 					mask &= s.allocatable
 					mask &^= s.nospill
@@ -1401,7 +1447,7 @@ func (s *regAllocState) regalloc(f *Func) {
 						mask &^= desired.avoid
 					}
 				}
-				args[i.idx] = s.allocValToReg(args[i.idx], mask, true, v.Pos)
+				args[i.idx] = s.allocValToReg(v.Args[i.idx], mask, true, v.Pos)
 			}
 
 			// If the output clobbers the input register, make sure we have
