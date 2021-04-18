@@ -693,6 +693,19 @@ func Foo() bool {
   </dd>
 </dl><!-- go/format -->
 
+<dl id="image"><dt><a href="/pkg/image/">image</a></dt>
+  <dd>
+    <p><!-- CL 311129 -->
+      The concrete image types (<code>RGBA</code>, <code>Gray16</code> and so on)
+      now implement a new <a href="/pkg/image/#RGBA64Image"><code>RGBA64Image</code></a>
+      interface. Those concrete types, other than the chroma-subsampling
+      related <code>YCbCr</code> and <code>NYCbCrA</code>, also now implement
+      <a href="/pkg/image/draw/#RGBA64Image"><code>draw.RGBA64Image</code></a>, a
+      new interface in the <code>image/draw</code> package.
+    </p>
+  </dd>
+</dl><!-- image -->
+
 <dl id="io/fs"><dt><a href="/pkg/io/fs/">io/fs</a></dt>
   <dd>
     <p><!-- CL 293649 -->
