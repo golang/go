@@ -41,3 +41,8 @@ func _() {
 	var ds [][]myInt
 	ds = [][]m //@complete(" //", atMyInt)
 }
+
+func _() {
+	var b [0]byte //@item(atByte, "b", "[0]byte", "var")
+	var _ []byte = b //@snippet(" //", atByte, "b[:]", "b[:]")
+}

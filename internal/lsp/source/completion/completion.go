@@ -386,6 +386,9 @@ type candidate struct {
 	// For example, dereference=2 turns "foo" into "**foo" when formatting.
 	dereference int
 
+	// takeSlice is true if obj is an array that should be converted to a slice.
+	takeSlice bool
+
 	// variadic is true if this candidate fills a variadic param and
 	// needs "..." appended.
 	variadic bool
@@ -2462,6 +2465,13 @@ func (c *candidate) anyCandType(f func(t types.Type, addressable bool) bool) boo
 		// Mark the candidate so we know to prepend "&" when formatting.
 		c.takeAddress = true
 		return true
+	}
+
+	if array, ok := objType.Underlying().(*types.Array); ok {
+		if f(types.NewSlice(array.Elem()), false) {
+			c.takeSlice = true
+			return true
+		}
 	}
 
 	return false
