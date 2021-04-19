@@ -110,18 +110,12 @@ import (
 )
 
 const (
-	debugMalloc = false
-
 	maxTinySize   = _TinySize
 	tinySizeClass = _TinySizeClass
 	maxSmallSize  = _MaxSmallSize
 
 	pageShift = _PageShift
 	pageSize  = _PageSize
-	pageMask  = _PageMask
-	// By construction, single page spans of the smallest object class
-	// have the most objects per span.
-	maxObjsPerSpan = pageSize / 8
 
 	concurrentSweep = _ConcurrentSweep
 
