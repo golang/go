@@ -142,6 +142,8 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 
 				// continue with underlying type, but only if it's not a type parameter
 				// TODO(gri) is this what we want to do for type parameters? (spec question)
+				// TODO(#45639) the error message produced as a result of skipping an
+				//              underlying type parameter should be improved.
 				typ = named.under()
 				if asTypeParam(typ) != nil {
 					continue
