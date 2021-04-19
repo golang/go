@@ -502,6 +502,45 @@ func TestSyntax(t *testing.T) {
 	}
 }
 
+func TestInputLinePos(t *testing.T) {
+	testInput := `<root>
+<?pi
+ ?>  <elt
+att
+=
+"val">
+<![CDATA[
+]]><!--
+
+--></elt>
+</root>`
+	linePos := [][]int{
+		{1, 7},
+		{2, 1},
+		{3, 4},
+		{3, 6},
+		{6, 7},
+		{7, 1},
+		{8, 4},
+		{10, 4},
+		{10, 10},
+		{11, 1},
+		{11, 8},
+	}
+	dec := NewDecoder(strings.NewReader(testInput))
+	for _, want := range linePos {
+		if _, err := dec.Token(); err != nil {
+			t.Errorf("Unexpected error: %v", err)
+			continue
+		}
+
+		gotLine, gotCol := dec.InputPos()
+		if gotLine != want[0] || gotCol != want[1] {
+			t.Errorf("dec.InputPos() = %d,%d, want %d,%d", gotLine, gotCol, want[0], want[1])
+		}
+	}
+}
+
 type allScalars struct {
 	True1     bool
 	True2     bool
