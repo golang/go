@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/internal/typeparams"
 	"go/token"
 	"math"
 )
@@ -1435,7 +1436,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 	case *ast.IndexExpr:
 		check.exprOrType(x, e.X)
 		if x.mode == invalid {
-			check.use(e.Index)
+			check.use(typeparams.UnpackExpr(e.Index)...)
 			goto Error
 		}
 
