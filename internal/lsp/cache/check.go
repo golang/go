@@ -454,7 +454,11 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 		return nil, ctx.Err()
 	}
 
-	trimTypesInfo(files, pkg.typesInfo)
+	// staticcheck requires full type information. Reduce memory usage for
+	// everyone else.
+	if !snapshot.view.Options().Staticcheck {
+		trimTypesInfo(files, pkg.typesInfo)
+	}
 
 	// We don't care about a package's errors unless we have parsed it in full.
 	if mode != source.ParseFull {
