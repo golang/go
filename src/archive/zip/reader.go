@@ -628,10 +628,11 @@ func (b *readBuf) sub(n int) readBuf {
 }
 
 // A fileListEntry is a File and its ename.
-// If file == nil, the fileListEntry describes a directory, without metadata.
+// If file == nil, the fileListEntry describes a directory without metadata.
 type fileListEntry struct {
-	name string
-	file *File // nil for directories
+	name  string
+	file  *File
+	isDir bool
 }
 
 type fileInfoDirEntry interface {
@@ -640,20 +641,26 @@ type fileInfoDirEntry interface {
 }
 
 func (e *fileListEntry) stat() fileInfoDirEntry {
-	if e.file != nil {
+	if !e.isDir {
 		return headerFileInfo{&e.file.FileHeader}
 	}
 	return e
 }
 
 // Only used for directories.
-func (f *fileListEntry) Name() string       { _, elem, _ := split(f.name); return elem }
-func (f *fileListEntry) Size() int64        { return 0 }
-func (f *fileListEntry) ModTime() time.Time { return time.Time{} }
-func (f *fileListEntry) Mode() fs.FileMode  { return fs.ModeDir | 0555 }
-func (f *fileListEntry) Type() fs.FileMode  { return fs.ModeDir }
-func (f *fileListEntry) IsDir() bool        { return true }
-func (f *fileListEntry) Sys() interface{}   { return nil }
+func (f *fileListEntry) Name() string      { _, elem, _ := split(f.name); return elem }
+func (f *fileListEntry) Size() int64       { return 0 }
+func (f *fileListEntry) Mode() fs.FileMode { return fs.ModeDir | 0555 }
+func (f *fileListEntry) Type() fs.FileMode { return fs.ModeDir }
+func (f *fileListEntry) IsDir() bool       { return true }
+func (f *fileListEntry) Sys() interface{}  { return nil }
+
+func (f *fileListEntry) ModTime() time.Time {
+	if f.file == nil {
+		return time.Time{}
+	}
+	return f.file.FileHeader.Modified.UTC()
+}
 
 func (f *fileListEntry) Info() (fs.FileInfo, error) { return f, nil }
 
@@ -673,15 +680,32 @@ func toValidName(name string) string {
 func (r *Reader) initFileList() {
 	r.fileListOnce.Do(func() {
 		dirs := make(map[string]bool)
+		knownDirs := make(map[string]bool)
 		for _, file := range r.File {
+			isDir := len(file.Name) > 0 && file.Name[len(file.Name)-1] == '/'
 			name := toValidName(file.Name)
 			for dir := path.Dir(name); dir != "."; dir = path.Dir(dir) {
 				dirs[dir] = true
 			}
-			r.fileList = append(r.fileList, fileListEntry{name, file})
+			entry := fileListEntry{
+				name:  name,
+				file:  file,
+				isDir: isDir,
+			}
+			r.fileList = append(r.fileList, entry)
+			if isDir {
+				knownDirs[name] = true
+			}
 		}
 		for dir := range dirs {
-			r.fileList = append(r.fileList, fileListEntry{dir + "/", nil})
+			if !knownDirs[dir] {
+				entry := fileListEntry{
+					name:  dir,
+					file:  nil,
+					isDir: true,
+				}
+				r.fileList = append(r.fileList, entry)
+			}
 		}
 
 		sort.Slice(r.fileList, func(i, j int) bool { return fileEntryLess(r.fileList[i].name, r.fileList[j].name) })
@@ -705,7 +729,7 @@ func (r *Reader) Open(name string) (fs.File, error) {
 	if e == nil || !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
 	}
-	if e.file == nil || strings.HasSuffix(e.file.Name, "/") {
+	if e.isDir {
 		return &openDir{e, r.openReadDir(name), 0}, nil
 	}
 	rc, err := e.file.Open()
@@ -730,7 +754,7 @@ func split(name string) (dir, elem string, isDir bool) {
 	return name[:i], name[i+1:], isDir
 }
 
-var dotFile = &fileListEntry{name: "./"}
+var dotFile = &fileListEntry{name: "./", isDir: true}
 
 func (r *Reader) openLookup(name string) *fileListEntry {
 	if name == "." {
