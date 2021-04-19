@@ -107,6 +107,9 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 	// Turn functions into machine code images.
 	for _, s := range text {
 		mkfwd(s)
+		if ctxt.Arch.ErrorCheck != nil {
+			ctxt.Arch.ErrorCheck(ctxt, s)
+		}
 		linkpatch(ctxt, s, newprog)
 		ctxt.Arch.Preprocess(ctxt, s, newprog)
 		ctxt.Arch.Assemble(ctxt, s, newprog)

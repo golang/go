@@ -5,6 +5,7 @@
 package tls
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -23,6 +24,7 @@ import (
 // It's discarded once the handshake has completed.
 type serverHandshakeState struct {
 	c            *Conn
+	ctx          context.Context
 	clientHello  *clientHelloMsg
 	hello        *serverHelloMsg
 	suite        *cipherSuite
@@ -37,8 +39,8 @@ type serverHandshakeState struct {
 }
 
 // serverHandshake performs a TLS handshake as a server.
-func (c *Conn) serverHandshake() error {
-	clientHello, err := c.readClientHello()
+func (c *Conn) serverHandshake(ctx context.Context) error {
+	clientHello, err := c.readClientHello(ctx)
 	if err != nil {
 		return err
 	}
@@ -46,6 +48,7 @@ func (c *Conn) serverHandshake() error {
 	if c.vers == VersionTLS13 {
 		hs := serverHandshakeStateTLS13{
 			c:           c,
+			ctx:         ctx,
 			clientHello: clientHello,
 		}
 		return hs.handshake()
@@ -53,6 +56,7 @@ func (c *Conn) serverHandshake() error {
 
 	hs := serverHandshakeState{
 		c:           c,
+		ctx:         ctx,
 		clientHello: clientHello,
 	}
 	return hs.handshake()
@@ -124,7 +128,7 @@ func (hs *serverHandshakeState) handshake() error {
 }
 
 // readClientHello reads a ClientHello message and selects the protocol version.
-func (c *Conn) readClientHello() (*clientHelloMsg, error) {
+func (c *Conn) readClientHello(ctx context.Context) (*clientHelloMsg, error) {
 	msg, err := c.readHandshake()
 	if err != nil {
 		return nil, err
@@ -138,7 +142,7 @@ func (c *Conn) readClientHello() (*clientHelloMsg, error) {
 	var configForClient *Config
 	originalConfig := c.config
 	if c.config.GetConfigForClient != nil {
-		chi := clientHelloInfo(c, clientHello)
+		chi := clientHelloInfo(ctx, c, clientHello)
 		if configForClient, err = c.config.GetConfigForClient(chi); err != nil {
 			c.sendAlert(alertInternalError)
 			return nil, err
@@ -220,7 +224,7 @@ func (hs *serverHandshakeState) processClientHello() error {
 		}
 	}
 
-	hs.cert, err = c.config.getCertificate(clientHelloInfo(c, hs.clientHello))
+	hs.cert, err = c.config.getCertificate(clientHelloInfo(hs.ctx, c, hs.clientHello))
 	if err != nil {
 		if err == errNoCertificates {
 			c.sendAlert(alertUnrecognizedName)
@@ -313,7 +317,8 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
 
 		// If we don't have hardware support for AES-GCM, prefer other AEAD
 		// ciphers even if the client prioritized AES-GCM.
-		if !hasAESGCMHardwareSupport {
+		// If BoringCrypto is enabled, always prioritize AES-GCM.
+		if !hasAESGCMHardwareSupport && !boringEnabled {
 			preferenceList = deprioritizeAES(preferenceList)
 		}
 	}
@@ -515,7 +520,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		}
 		if c.vers >= VersionTLS12 {
 			certReq.hasSignatureAlgorithm = true
-			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
 		}
 
 		// An empty list of certificateAuthorities signals to
@@ -786,6 +791,8 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 
 	if c.config.ClientAuth >= VerifyClientCertIfGiven && len(certs) > 0 {
 		opts := x509.VerifyOptions{
+			IsBoring: isBoringCertificate,
+
 			Roots:         c.config.ClientCAs,
 			CurrentTime:   c.config.time(),
 			Intermediates: x509.NewCertPool(),
@@ -828,7 +835,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	return nil
 }
 
-func clientHelloInfo(c *Conn, clientHello *clientHelloMsg) *ClientHelloInfo {
+func clientHelloInfo(ctx context.Context, c *Conn, clientHello *clientHelloMsg) *ClientHelloInfo {
 	supportedVersions := clientHello.supportedVersions
 	if len(clientHello.supportedVersions) == 0 {
 		supportedVersions = supportedVersionsFromMax(clientHello.vers)
@@ -844,5 +851,6 @@ func clientHelloInfo(c *Conn, clientHello *clientHelloMsg) *ClientHelloInfo {
 		SupportedVersions: supportedVersions,
 		Conn:              c.conn,
 		config:            c.config,
+		ctx:               ctx,
 	}
 }

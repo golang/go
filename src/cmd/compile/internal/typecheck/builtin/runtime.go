@@ -6,6 +6,7 @@
 // to update builtin.go. This is not done automatically
 // to avoid depending on having a working compiler binary.
 
+//go:build ignore
 // +build ignore
 
 package runtime
@@ -101,10 +102,10 @@ func convT2I(tab *byte, elem *any) (ret any)
 func convT2Inoptr(tab *byte, elem *any) (ret any)
 
 // interface type assertions x.(T)
-func assertE2I(typ *byte, iface any) (ret any)
-func assertE2I2(typ *byte, iface any) (ret any, b bool)
-func assertI2I(typ *byte, iface any) (ret any)
-func assertI2I2(typ *byte, iface any) (ret any, b bool)
+func assertE2I(inter *byte, typ *byte) *byte
+func assertE2I2(inter *byte, eface any) (ret any)
+func assertI2I(inter *byte, tab *byte) *byte
+func assertI2I2(inter *byte, iface any) (ret any)
 func panicdottypeE(have, want, iface *byte)
 func panicdottypeI(have, want, iface *byte)
 func panicnildottype(want *byte)
@@ -166,8 +167,7 @@ func typedmemclr(typ *byte, dst *any)
 func typedslicecopy(typ *byte, dstPtr *any, dstLen int, srcPtr *any, srcLen int) int
 
 func selectnbsend(hchan chan<- any, elem *any) bool
-func selectnbrecv(elem *any, hchan <-chan any) bool
-func selectnbrecv2(elem *any, received *bool, hchan <-chan any) bool
+func selectnbrecv(elem *any, hchan <-chan any) (bool, bool)
 
 func selectsetpc(pc *uintptr)
 func selectgo(cas0 *byte, order0 *byte, pc0 *uintptr, nsends int, nrecvs int, block bool) (int, bool)
@@ -225,9 +225,11 @@ func uint32tofloat64(uint32) float64
 
 func complex128div(num complex128, den complex128) (quo complex128)
 
+func getcallerpc() uintptr
+func getcallersp() uintptr
+
 // race detection
 func racefuncenter(uintptr)
-func racefuncenterfp()
 func racefuncexit()
 func raceread(uintptr)
 func racewrite(uintptr)

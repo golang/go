@@ -901,10 +901,10 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 
 			if opcodeTable[v.Op].zeroWidth {
 				if changed {
-					if v.Op == OpArg || v.Op == OpPhi || v.Op.isLoweredGetClosurePtr() {
+					if hasAnyArgOp(v) || v.Op == OpPhi || v.Op.isLoweredGetClosurePtr() {
 						// These ranges begin at true beginning of block, not after first instruction
 						if zeroWidthPending {
-							b.Func.Fatalf("Unexpected op mixed with OpArg/OpPhi/OpLoweredGetClosurePtr at beginning of block %s in %s\n%s", b, b.Func.Name, b.Func)
+							panic(fmt.Errorf("Unexpected op '%s' mixed with OpArg/OpPhi/OpLoweredGetClosurePtr at beginning of block %s in %s\n%s", v.LongString(), b, b.Func.Name, b.Func))
 						}
 						apcChangedSize = len(state.changedVars.contents())
 						continue

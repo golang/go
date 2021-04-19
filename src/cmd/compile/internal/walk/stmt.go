@@ -233,6 +233,24 @@ func walkIf(n *ir.IfStmt) ir.Node {
 	return n
 }
 
+// Rewrite
+//	go builtin(x, y, z)
+// into
+//	go func(a1, a2, a3) {
+//		builtin(a1, a2, a3)
+//	}(x, y, z)
+// for print, println, and delete.
+//
+// Rewrite
+//	go f(x, y, uintptr(unsafe.Pointer(z)))
+// into
+//	go func(a1, a2, a3) {
+//		f(a1, a2, uintptr(a3))
+//	}(x, y, unsafe.Pointer(z))
+// for function contains unsafe-uintptr arguments.
+
+var wrapCall_prgen int
+
 // The result of wrapCall MUST be assigned back to n, e.g.
 // 	n.Left = wrapCall(n.Left, init)
 func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
@@ -253,15 +271,22 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		}
 	}
 
+	wrapArgs := n.Args
+	// If there's a receiver argument, it needs to be passed through the wrapper too.
+	if n.Op() == ir.OCALLMETH || n.Op() == ir.OCALLINTER {
+		recv := n.X.(*ir.SelectorExpr).X
+		wrapArgs = append([]ir.Node{recv}, wrapArgs...)
+	}
+
 	// origArgs keeps track of what argument is uintptr-unsafe/unsafe-uintptr conversion.
-	origArgs := make([]ir.Node, len(n.Args))
+	origArgs := make([]ir.Node, len(wrapArgs))
 	var funcArgs []*ir.Field
-	for i, arg := range n.Args {
+	for i, arg := range wrapArgs {
 		s := typecheck.LookupNum("a", i)
 		if !isBuiltinCall && arg.Op() == ir.OCONVNOP && arg.Type().IsUintptr() && arg.(*ir.ConvExpr).X.Type().IsUnsafePtr() {
 			origArgs[i] = arg
 			arg = arg.(*ir.ConvExpr).X
-			n.Args[i] = arg
+			wrapArgs[i] = arg
 		}
 		funcArgs = append(funcArgs, ir.NewField(base.Pos, s, nil, arg.Type()))
 	}
@@ -278,6 +303,12 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		}
 		args[i] = ir.NewConvExpr(base.Pos, origArg.Op(), origArg.Type(), args[i])
 	}
+	if n.Op() == ir.OCALLMETH || n.Op() == ir.OCALLINTER {
+		// Move wrapped receiver argument back to its appropriate place.
+		recv := typecheck.Expr(args[0])
+		n.X.(*ir.SelectorExpr).X = recv
+		args = args[1:]
+	}
 	call := ir.NewCallExpr(base.Pos, n.Op(), n.X, args)
 	if !isBuiltinCall {
 		call.SetOp(ir.OCALL)
@@ -291,6 +322,6 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	typecheck.Stmts(fn.Body)
 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
 
-	call = ir.NewCallExpr(base.Pos, ir.OCALL, fn.Nname, n.Args)
+	call = ir.NewCallExpr(base.Pos, ir.OCALL, fn.Nname, wrapArgs)
 	return walkExpr(typecheck.Stmt(call), init)
 }

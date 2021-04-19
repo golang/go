@@ -7,6 +7,7 @@
 package syscall
 
 import (
+	"internal/itoa"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -320,7 +321,7 @@ func cexecPipe(p []int) error {
 		return e
 	}
 
-	fd, e := Open("#d/"+itoa(p[1]), O_RDWR|O_CLOEXEC)
+	fd, e := Open("#d/"+itoa.Itoa(p[1]), O_RDWR|O_CLOEXEC)
 	if e != nil {
 		Close(p[0])
 		Close(p[1])

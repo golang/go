@@ -22,10 +22,10 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	exec "internal/execabs"
 	"io/fs"
 	"log"
 	"os"
-	exec "internal/execabs"
 	"path/filepath"
 	"strings"
 

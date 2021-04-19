@@ -246,6 +246,11 @@ const (
 	interfaceType
 )
 
+const (
+	debug = false
+	magic = 0x6742937dc293105
+)
+
 func WriteExports(out *bufio.Writer) {
 	p := iexporter{
 		allPkgs:     map[*types.Pkg]bool{},
@@ -612,6 +617,11 @@ func (w *exportWriter) selector(s *types.Sym) {
 		base.Fatalf("missing currPkg")
 	}
 
+	// If the selector being written is unexported, it comes with a package qualifier.
+	// If the selector being written is exported, it is not package-qualified.
+	// See the spec: https://golang.org/ref/spec#Uniqueness_of_identifiers
+	// As an optimization, we don't actually write the package every time - instead we
+	// call setPkg before a group of selectors (all of which must have the same package qualifier).
 	pkg := w.currPkg
 	if types.IsExported(s.Name) {
 		pkg = types.LocalPkg
@@ -621,6 +631,26 @@ func (w *exportWriter) selector(s *types.Sym) {
 	}
 
 	w.string(s.Name)
+}
+
+// Export a selector, but one whose package may not match
+// the package being compiled. This is a separate function
+// because the standard selector() serialization format is fixed
+// by the go/types reader. This one can only be used during
+// inline/generic body exporting.
+func (w *exportWriter) exoticSelector(s *types.Sym) {
+	pkg := w.currPkg
+	if types.IsExported(s.Name) {
+		pkg = types.LocalPkg
+	}
+
+	w.string(s.Name)
+	if s.Pkg == pkg {
+		w.uint64(0)
+	} else {
+		w.uint64(1)
+		w.pkg(s.Pkg)
+	}
 }
 
 func (w *exportWriter) typ(t *types.Type) {
@@ -1025,7 +1055,7 @@ func (w *exportWriter) funcExt(n *ir.Name) {
 	w.linkname(n.Sym())
 	w.symIdx(n.Sym())
 
-	// TODO remove after register abi is working.
+	// TODO(register args) remove after register abi is working.
 	w.uint64(uint64(n.Func.Pragma))
 
 	// Escape analysis.
@@ -1294,21 +1324,6 @@ func simplifyForExport(n ir.Node) ir.Node {
 	case ir.OPAREN:
 		n := n.(*ir.ParenExpr)
 		return simplifyForExport(n.X)
-	case ir.ODEREF:
-		n := n.(*ir.StarExpr)
-		if n.Implicit() {
-			return simplifyForExport(n.X)
-		}
-	case ir.OADDR:
-		n := n.(*ir.AddrExpr)
-		if n.Implicit() {
-			return simplifyForExport(n.X)
-		}
-	case ir.ODOT, ir.ODOTPTR:
-		n := n.(*ir.SelectorExpr)
-		if n.Implicit() {
-			return simplifyForExport(n.X)
-		}
 	}
 	return n
 }
@@ -1432,7 +1447,7 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.op(ir.OXDOT)
 		w.pos(n.Pos())
 		w.expr(n.X)
-		w.selector(n.Sel)
+		w.exoticSelector(n.Sel)
 
 	case ir.ODOTTYPE, ir.ODOTTYPE2:
 		n := n.(*ir.TypeAssertExpr)
@@ -1584,6 +1599,9 @@ func (w *exportWriter) expr(n ir.Node) {
 }
 
 func (w *exportWriter) op(op ir.Op) {
+	if debug {
+		w.uint64(magic)
+	}
 	w.uint64(uint64(op))
 }
 

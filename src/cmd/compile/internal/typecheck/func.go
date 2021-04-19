@@ -108,6 +108,9 @@ var inTypeCheckInl bool
 // Lazy typechecking of imported bodies. For local functions, CanInline will set ->typecheck
 // because they're a copy of an already checked body.
 func ImportedBody(fn *ir.Func) {
+	if fn.Inl.Body != nil {
+		return
+	}
 	lno := ir.SetPos(fn.Nname)
 
 	// When we load an inlined body, we need to allow OADDR
@@ -150,14 +153,6 @@ func ImportedBody(fn *ir.Func) {
 	Stmts(fn.Inl.Body)
 	inTypeCheckInl = false
 	ir.CurFunc = savefn
-
-	// During ImportBody (which imports fn.Func.Inl.Body),
-	// declarations are added to fn.Func.Dcl by funcBody(). Move them
-	// to fn.Func.Inl.Dcl for consistency with how local functions
-	// behave. (Append because ImportedBody may be called multiple
-	// times on same fn.)
-	fn.Inl.Dcl = append(fn.Inl.Dcl, fn.Dcl...)
-	fn.Dcl = nil
 
 	base.Pos = lno
 }
@@ -313,7 +308,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 		return
 	}
 
-	// Don't give a name and add to xtop if we are typechecking an inlined
+	// Don't give a name and add to Target.Decls if we are typechecking an inlined
 	// body in ImportedBody(), since we only want to create the named function
 	// when the closure is actually inlined (and then we force a typecheck
 	// explicitly in (*inlsubst).node()).
@@ -359,7 +354,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 		ir.Dump(s, fn)
 	}
 	if !inTypeCheckInl {
-		// Add function to xtop once only when we give it a name
+		// Add function to Target.Decls once only when we give it a name
 		Target.Decls = append(Target.Decls, fn)
 	}
 }

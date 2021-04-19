@@ -458,12 +458,6 @@ func newmemberoffsetattr(die *dwarf.DWDie, offs int32) {
 	newattr(die, dwarf.DW_AT_data_member_location, dwarf.DW_CLS_CONSTANT, int64(offs), nil)
 }
 
-// GDB doesn't like FORM_addr for AT_location, so emit a
-// location expression that evals to a const.
-func (d *dwctxt) newabslocexprattr(die *dwarf.DWDie, addr int64, symIdx loader.Sym) {
-	newattr(die, dwarf.DW_AT_location, dwarf.DW_CLS_ADDRESS, addr, dwSym(symIdx))
-}
-
 func (d *dwctxt) lookupOrDiag(n string) loader.Sym {
 	symIdx := d.ldr.Lookup(n, 0)
 	if symIdx == 0 {
@@ -1020,25 +1014,6 @@ func (d *dwctxt) synthesizechantypes(ctxt *Link, die *dwarf.DWDie) {
 	}
 }
 
-func (d *dwctxt) dwarfDefineGlobal(ctxt *Link, symIdx loader.Sym, str string, v int64, gotype loader.Sym) {
-	// Find a suitable CU DIE to include the global.
-	// One would think it's as simple as just looking at the unit, but that might
-	// not have any reachable code. So, we go to the runtime's CU if our unit
-	// isn't otherwise reachable.
-	unit := d.ldr.SymUnit(symIdx)
-	if unit == nil {
-		unit = ctxt.runtimeCU
-	}
-	ver := d.ldr.SymVersion(symIdx)
-	dv := d.newdie(unit.DWInfo, dwarf.DW_ABRV_VARIABLE, str, int(ver))
-	d.newabslocexprattr(dv, v, symIdx)
-	if d.ldr.SymVersion(symIdx) < sym.SymVerStatic {
-		newattr(dv, dwarf.DW_AT_external, dwarf.DW_CLS_FLAG, 1, 0)
-	}
-	dt := d.defgotype(gotype)
-	d.newrefattr(dv, dwarf.DW_AT_type, dt)
-}
-
 // createUnitLength creates the initial length field with value v and update
 // offset of unit_length if needed.
 func (d *dwctxt) createUnitLength(su *loader.SymbolBuilder, v uint64) {
@@ -1552,7 +1527,7 @@ func appendSyms(syms []loader.Sym, src []sym.LoaderSym) []loader.Sym {
 
 func (d *dwctxt) writeUnitInfo(u *sym.CompilationUnit, abbrevsym loader.Sym, infoEpilog loader.Sym) []loader.Sym {
 	syms := []loader.Sym{}
-	if len(u.Textp) == 0 && u.DWInfo.Child == nil {
+	if len(u.Textp) == 0 && u.DWInfo.Child == nil && len(u.VarDIEs) == 0 {
 		return syms
 	}
 
@@ -1583,6 +1558,7 @@ func (d *dwctxt) writeUnitInfo(u *sym.CompilationUnit, abbrevsym loader.Sym, inf
 	if u.Consts != 0 {
 		cu = append(cu, loader.Sym(u.Consts))
 	}
+	cu = appendSyms(cu, u.VarDIEs)
 	var cusize int64
 	for _, child := range cu {
 		cusize += int64(len(d.ldr.Data(child)))
@@ -1907,10 +1883,11 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		checkStrictDups = 1
 	}
 
-	// Create DIEs for global variables and the types they use.
-	// FIXME: ideally this should be done in the compiler, since
-	// for globals there isn't any abiguity about which package
-	// a global belongs to.
+	// Make a pass through all data symbols, looking for those
+	// corresponding to reachable, Go-generated, user-visible
+	// global variables. For each global of this sort, locate
+	// the corresponding compiler-generated DIE symbol and tack
+	// it onto the list associated with the unit.
 	for idx := loader.Sym(1); idx < loader.Sym(d.ldr.NDef()); idx++ {
 		if !d.ldr.AttrReachable(idx) ||
 			d.ldr.AttrNotInSymbolTable(idx) ||
@@ -1925,7 +1902,8 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 			continue
 		}
 		// Skip things with no type
-		if d.ldr.SymGoType(idx) == 0 {
+		gt := d.ldr.SymGoType(idx)
+		if gt == 0 {
 			continue
 		}
 		// Skip file local symbols (this includes static tmps, stack
@@ -1939,10 +1917,20 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 			continue
 		}
 
-		// Create DIE for global.
-		sv := d.ldr.SymValue(idx)
-		gt := d.ldr.SymGoType(idx)
-		d.dwarfDefineGlobal(ctxt, idx, sn, sv, gt)
+		// Find compiler-generated DWARF info sym for global in question,
+		// and tack it onto the appropriate unit.  Note that there are
+		// circumstances under which we can't find the compiler-generated
+		// symbol-- this typically happens as a result of compiler options
+		// (e.g. compile package X with "-dwarf=0").
+
+		// FIXME: use an aux sym or a relocation here instead of a
+		// name lookup.
+		varDIE := d.ldr.Lookup(dwarf.InfoPrefix+sn, 0)
+		if varDIE != 0 {
+			unit := d.ldr.SymUnit(idx)
+			d.defgotype(gt)
+			unit.VarDIEs = append(unit.VarDIEs, sym.LoaderSym(varDIE))
+		}
 	}
 
 	d.synthesizestringtypes(ctxt, dwtypes.Child)

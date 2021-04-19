@@ -46,6 +46,14 @@ var NetpollGenericInit = netpollGenericInit
 var Memmove = memmove
 var MemclrNoHeapPointers = memclrNoHeapPointers
 
+var LockPartialOrder = lockPartialOrder
+
+type LockRank lockRank
+
+func (l LockRank) String() string {
+	return lockRank(l).String()
+}
+
 const PreemptMSupported = preemptMSupported
 
 type LFNode struct {
@@ -395,9 +403,6 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			pg := sys.OnesCount64(p.pcache.scav)
 			slow.HeapReleased += uint64(pg) * pageSize
 		}
-
-		// Unused space in the current arena also counts as released space.
-		slow.HeapReleased += uint64(mheap_.curArena.end - mheap_.curArena.base)
 
 		getg().m.mallocing--
 	})
@@ -1211,4 +1216,19 @@ func (th *TimeHistogram) Count(bucket, subBucket uint) (uint64, bool) {
 
 func (th *TimeHistogram) Record(duration int64) {
 	(*timeHistogram)(th).record(duration)
+}
+
+func SetIntArgRegs(a int) int {
+	lock(&finlock)
+	old := intArgRegs
+	intArgRegs = a
+	unlock(&finlock)
+	return old
+}
+
+func FinalizerGAsleep() bool {
+	lock(&finlock)
+	result := fingwait
+	unlock(&finlock)
+	return result
 }

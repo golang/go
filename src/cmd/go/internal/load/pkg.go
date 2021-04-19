@@ -378,6 +378,12 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.SwigFiles = pp.SwigFiles
 	p.SwigCXXFiles = pp.SwigCXXFiles
 	p.SysoFiles = pp.SysoFiles
+	if cfg.BuildMSan {
+		// There's no way for .syso files to be built both with and without
+		// support for memory sanitizer. Assume they are built without,
+		// and drop them.
+		p.SysoFiles = nil
+	}
 	p.CgoCFLAGS = pp.CgoCFLAGS
 	p.CgoCPPFLAGS = pp.CgoCPPFLAGS
 	p.CgoCXXFLAGS = pp.CgoCXXFLAGS
@@ -1323,6 +1329,11 @@ func reusePackage(p *Package, stk *ImportStack) *Package {
 				Err:           errors.New("import cycle not allowed"),
 				IsImportCycle: true,
 			}
+		} else if !p.Error.IsImportCycle {
+			// If the error is already set, but it does not indicate that
+			// we are in an import cycle, set IsImportCycle so that we don't
+			// end up stuck in a loop down the road.
+			p.Error.IsImportCycle = true
 		}
 		p.Incomplete = true
 	}

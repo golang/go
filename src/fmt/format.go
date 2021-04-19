@@ -320,7 +320,7 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, verb rune, digits st
 	f.zero = oldZero
 }
 
-// truncate truncates the string s to the specified precision, if present.
+// truncateString truncates the string s to the specified precision, if present.
 func (f *fmt) truncateString(s string) string {
 	if f.precPresent {
 		n := f.prec

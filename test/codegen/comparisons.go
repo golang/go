@@ -426,7 +426,7 @@ func UintGeqZero(a uint8, b uint16, c uint32, d uint64) int {
 }
 
 func UintGtZero(a uint8, b uint16, c uint32, d uint64) int {
-	// arm64: `CBZW`, `CBNZW`, `CBNZ`, -`(CMPW|CMP|BLS|BHI)`
+	// arm64: `(CBN?ZW)`, `(CBN?Z[^W])`, -`(CMPW|CMP|BLS|BHI)`
 	if a > 0 || b > 0 || c > 0 || d > 0 {
 		return 1
 	}
@@ -434,7 +434,7 @@ func UintGtZero(a uint8, b uint16, c uint32, d uint64) int {
 }
 
 func UintLeqZero(a uint8, b uint16, c uint32, d uint64) int {
-	// arm64: `CBNZW`, `CBZW`, `CBZ`, -`(CMPW|CMP|BHI|BLS)`
+	// arm64: `(CBN?ZW)`, `(CBN?Z[^W])`, -`(CMPW|CMP|BHI|BLS)`
 	if a <= 0 || b <= 0 || c <= 0 || d <= 0 {
 		return 1
 	}
@@ -442,7 +442,7 @@ func UintLeqZero(a uint8, b uint16, c uint32, d uint64) int {
 }
 
 func UintLtOne(a uint8, b uint16, c uint32, d uint64) int {
-	// arm64: `CBNZW`, `CBZW`, `CBZW`, `CBZ`, -`(CMPW|CMP|BHS|BLO)`
+	// arm64: `(CBN?ZW)`, `(CBN?Z[^W])`, -`(CMPW|CMP|BHS|BLO)`
 	if a < 1 || b < 1 || c < 1 || d < 1 {
 		return 1
 	}
@@ -450,7 +450,7 @@ func UintLtOne(a uint8, b uint16, c uint32, d uint64) int {
 }
 
 func UintGeqOne(a uint8, b uint16, c uint32, d uint64) int {
-	// arm64: `CBZW`, `CBNZW`, `CBNZ`, -`(CMPW|CMP|BLO|BHS)`
+	// arm64: `(CBN?ZW)`, `(CBN?Z[^W])`, -`(CMPW|CMP|BLO|BHS)`
 	if a >= 1 || b >= 1 || c >= 1 || d >= 1 {
 		return 1
 	}

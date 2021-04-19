@@ -6,6 +6,7 @@ package net
 
 import (
 	"errors"
+	"internal/itoa"
 	"sync"
 	"time"
 )
@@ -230,7 +231,7 @@ func (zc *ipv6ZoneCache) name(index int) string {
 		zoneCache.RUnlock()
 	}
 	if !ok { // last resort
-		name = uitoa(uint(index))
+		name = itoa.Uitoa(uint(index))
 	}
 	return name
 }

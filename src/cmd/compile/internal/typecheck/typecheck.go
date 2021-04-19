@@ -433,8 +433,8 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	case top&ctxType == 0 && n.Op() == ir.OTYPE && t != nil:
 		if !n.Type().Broke() {
 			base.Errorf("type %v is not an expression", n.Type())
+			n.SetDiag(true)
 		}
-		n.SetType(nil)
 
 	case top&(ctxStmt|ctxExpr) == ctxStmt && !isStmt && t != nil:
 		if !n.Diag() {
@@ -446,7 +446,11 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	case top&(ctxType|ctxExpr) == ctxType && n.Op() != ir.OTYPE && n.Op() != ir.ONONAME && (t != nil || n.Op() == ir.ONAME):
 		base.Errorf("%v is not a type", n)
 		if t != nil {
-			n.SetType(nil)
+			if n.Op() == ir.ONAME {
+				t.SetBroke(true)
+			} else {
+				n.SetType(nil)
+			}
 		}
 
 	}
@@ -482,7 +486,9 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.OLITERAL:
 		if n.Sym() == nil && n.Type() == nil {
-			base.Fatalf("literal missing type: %v", n)
+			if !n.Diag() {
+				base.Fatalf("literal missing type: %v", n)
+			}
 		}
 		return n
 
@@ -528,7 +534,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OPACK:
 		n := n.(*ir.PkgName)
 		base.Errorf("use of package %v without selector", n.Sym())
-		n.SetType(nil)
+		n.SetDiag(true)
 		return n
 
 	// types (ODEREF is with exprs)
@@ -876,7 +882,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OTYPESW:
 		n := n.(*ir.TypeSwitchGuard)
 		base.Errorf("use of .(type) outside type switch")
-		n.SetType(nil)
+		n.SetDiag(true)
 		return n
 
 	case ir.ODCLFUNC:
@@ -1175,7 +1181,7 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 			base.Errorf("%v is both field and method", n.Sel)
 		}
 		if f1.Offset == types.BADWIDTH {
-			base.Fatalf("lookdot badwidth %v %p", f1, f1)
+			base.Fatalf("lookdot badwidth t=%v, f1=%v@%p", t, f1, f1)
 		}
 		n.Selection = f1
 		n.SetType(f1.Type)
@@ -1612,6 +1618,10 @@ func checkassign(stmt ir.Node, n ir.Node) {
 		return
 	}
 
+	defer n.SetType(nil)
+	if n.Diag() {
+		return
+	}
 	switch {
 	case n.Op() == ir.ODOT && n.(*ir.SelectorExpr).X.Op() == ir.OINDEXMAP:
 		base.Errorf("cannot assign to struct field %v in map", n)
@@ -1621,13 +1631,6 @@ func checkassign(stmt ir.Node, n ir.Node) {
 		base.Errorf("cannot assign to %v (declared const)", n)
 	default:
 		base.Errorf("cannot assign to %v", n)
-	}
-	n.SetType(nil)
-}
-
-func checkassignlist(stmt ir.Node, l ir.Nodes) {
-	for _, n := range l {
-		checkassign(stmt, n)
 	}
 }
 
@@ -2107,7 +2110,7 @@ func CheckUnused(fn *ir.Func) {
 
 // CheckReturn makes sure that fn terminates appropriately.
 func CheckReturn(fn *ir.Func) {
-	if fn.Type().NumResults() != 0 && len(fn.Body) != 0 {
+	if fn.Type() != nil && fn.Type().NumResults() != 0 && len(fn.Body) != 0 {
 		markBreak(fn)
 		if !isTermNodes(fn.Body) {
 			base.ErrorfAt(fn.Endlineno, "missing return at end of function")

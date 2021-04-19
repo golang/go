@@ -11,12 +11,12 @@ import (
 	"go/constant"
 )
 
-func (check *Checker) reportAltDecl(obj Object) {
+func (err *error_) recordAltDecl(obj Object) {
 	if pos := obj.Pos(); pos.IsKnown() {
 		// We use "other" rather than "previous" here because
 		// the first declaration seen may not be textually
 		// earlier in the source.
-		check.errorf(pos, "\tother declaration of %s", obj.Name()) // secondary error, \t indented
+		err.errorf(pos, "other declaration of %s", obj.Name())
 	}
 }
 
@@ -27,8 +27,10 @@ func (check *Checker) declare(scope *Scope, id *syntax.Name, obj Object, pos syn
 	// binding."
 	if obj.Name() != "_" {
 		if alt := scope.Insert(obj); alt != nil {
-			check.errorf(obj.Pos(), "%s redeclared in this block", obj.Name())
-			check.reportAltDecl(alt)
+			var err error_
+			err.errorf(obj, "%s redeclared in this block", obj.Name())
+			err.recordAltDecl(alt)
+			check.report(&err)
 			return
 		}
 		obj.setScopePos(pos)
@@ -364,20 +366,22 @@ func (check *Checker) cycleError(cycle []Object) {
 	//           cycle? That would be more consistent with other error messages.
 	i := firstInSrc(cycle)
 	obj := cycle[i]
+	var err error_
 	if check.conf.CompilerErrorMessages {
-		check.errorf(obj.Pos(), "invalid recursive type %s", obj.Name())
+		err.errorf(obj, "invalid recursive type %s", obj.Name())
 	} else {
-		check.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name())
+		err.errorf(obj, "illegal cycle in declaration of %s", obj.Name())
 	}
 	for range cycle {
-		check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
+		err.errorf(obj, "%s refers to", obj.Name())
 		i++
 		if i >= len(cycle) {
 			i = 0
 		}
 		obj = cycle[i]
 	}
-	check.errorf(obj.Pos(), "\t%s", obj.Name())
+	err.errorf(obj, "%s", obj.Name())
+	check.report(&err)
 }
 
 // TODO(gri) This functionality should probably be with the Pos implementation.
@@ -625,14 +629,14 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 	if alias && tdecl.TParamList != nil {
 		// The parser will ensure this but we may still get an invalid AST.
 		// Complain and continue as regular type definition.
-		check.errorf(tdecl, "generic type cannot be alias")
+		check.error(tdecl, "generic type cannot be alias")
 		alias = false
 	}
 
 	if alias {
 		// type alias declaration
 		if !check.allowVersion(obj.pkg, 1, 9) {
-			check.errorf(tdecl, "type aliases requires go1.9 or later")
+			check.error(tdecl, "type aliases requires go1.9 or later")
 		}
 
 		obj.typ = Typ[Invalid]
@@ -707,7 +711,7 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeNa
 		// The predeclared identifier "any" is visible only as a constraint
 		// in a type parameter list. Look for it before general constraint
 		// resolution.
-		if tident, _ := f.Type.(*syntax.Name); tident != nil && tident.Value == "any" && check.lookup("any") == nil {
+		if tident, _ := unparen(f.Type).(*syntax.Name); tident != nil && tident.Value == "any" && check.lookup("any") == nil {
 			bound = universeAny
 		} else {
 			bound = check.typ(f.Type)
@@ -787,19 +791,21 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		// to it must be unique."
 		assert(m.name != "_")
 		if alt := mset.insert(m); alt != nil {
+			var err error_
 			switch alt.(type) {
 			case *Var:
-				check.errorf(m.pos, "field and method with the same name %s", m.name)
+				err.errorf(m.pos, "field and method with the same name %s", m.name)
 			case *Func:
 				if check.conf.CompilerErrorMessages {
-					check.errorf(m.pos, "%s.%s redeclared in this block", obj.Name(), m.name)
+					err.errorf(m.pos, "%s.%s redeclared in this block", obj.Name(), m.name)
 				} else {
-					check.errorf(m.pos, "method %s already declared for %s", m.name, obj)
+					err.errorf(m.pos, "method %s already declared for %s", m.name, obj)
 				}
 			default:
 				unreachable()
 			}
-			check.reportAltDecl(alt)
+			err.recordAltDecl(alt)
+			check.report(&err)
 			continue
 		}
 
@@ -972,7 +978,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			check.pop().setColor(black)
 
 		default:
-			check.invalidASTf(s, "unknown syntax.Decl node %T", s)
+			check.errorf(s, invalidAST+"unknown syntax.Decl node %T", s)
 		}
 	}
 }

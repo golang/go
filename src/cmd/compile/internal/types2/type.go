@@ -243,6 +243,9 @@ func (s *Signature) Recv() *Var { return s.recv }
 // TParams returns the type parameters of signature s, or nil.
 func (s *Signature) TParams() []*TypeName { return s.tparams }
 
+// RParams returns the receiver type params of signature s, or nil.
+func (s *Signature) RParams() []*TypeName { return s.rparams }
+
 // SetTParams sets the type parameters of signature s.
 func (s *Signature) SetTParams(tparams []*TypeName) { s.tparams = tparams }
 
@@ -519,7 +522,7 @@ func (t *Interface) iterate(f func(*Interface) bool, seen map[*Interface]bool) b
 }
 
 // isSatisfiedBy reports whether interface t's type list is satisfied by the type typ.
-// If the the type list is empty (absent), typ trivially satisfies the interface.
+// If the type list is empty (absent), typ trivially satisfies the interface.
 // TODO(gri) This is not a great name. Eventually, we should have a more comprehensive
 //           "implements" predicate.
 func (t *Interface) isSatisfiedBy(typ Type) bool {
@@ -965,5 +968,7 @@ func asTypeParam(t Type) *TypeParam {
 
 // Exported for the compiler.
 
-func AsPointer(t Type) *Pointer { return asPointer(t) }
-func AsNamed(t Type) *Named     { return asNamed(t) }
+func AsPointer(t Type) *Pointer     { return asPointer(t) }
+func AsNamed(t Type) *Named         { return asNamed(t) }
+func AsSignature(t Type) *Signature { return asSignature(t) }
+func AsInterface(t Type) *Interface { return asInterface(t) }

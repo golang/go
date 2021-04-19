@@ -17,7 +17,7 @@
 //   [Coron]
 //     https://cs.nyu.edu/~dodis/ps/merkle.pdf
 //   [Larsson]
-//     https://www.nada.kth.se/kurser/kth/2D1441/semteo03/lecturenotes/assump.pdf
+//     https://web.archive.org/web/20040719170906/https://www.nada.kth.se/kurser/kth/2D1441/semteo03/lecturenotes/assump.pdf
 package ecdsa
 
 // Further references:
@@ -41,6 +41,11 @@ import (
 	"golang.org/x/crypto/cryptobyte/asn1"
 )
 
+import (
+	"crypto/internal/boring"
+	"unsafe"
+)
+
 // A invertible implements fast inverse mod Curve.Params().N
 type invertible interface {
 	// Inverse returns the inverse of k in GF(P)
@@ -60,6 +65,8 @@ const (
 type PublicKey struct {
 	elliptic.Curve
 	X, Y *big.Int
+
+	boring unsafe.Pointer
 }
 
 // Any methods implemented on PublicKey might need to also be implemented on
@@ -87,6 +94,8 @@ func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
 type PrivateKey struct {
 	PublicKey
 	D *big.Int
+
+	boring unsafe.Pointer
 }
 
 // Public returns the public key corresponding to priv.
@@ -113,6 +122,15 @@ func (priv *PrivateKey) Equal(x crypto.PrivateKey) bool {
 // where the private part is kept in, for example, a hardware module. Common
 // uses should use the Sign function in this package directly.
 func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+	if boring.Enabled && rand == boring.RandReader {
+		b, err := boringPrivateKey(priv)
+		if err != nil {
+			return nil, err
+		}
+		return boring.SignMarshalECDSA(b, digest)
+	}
+	boring.UnreachableExceptTests()
+
 	r, s, err := Sign(rand, priv, digest)
 	if err != nil {
 		return nil, err
@@ -147,6 +165,15 @@ func randFieldElement(c elliptic.Curve, rand io.Reader) (k *big.Int, err error) 
 
 // GenerateKey generates a public and private key pair.
 func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
+	if boring.Enabled && rand == boring.RandReader {
+		x, y, d, err := boring.GenerateKeyECDSA(c.Params().Name)
+		if err != nil {
+			return nil, err
+		}
+		return &PrivateKey{PublicKey: PublicKey{Curve: c, X: x, Y: y}, D: d}, nil
+	}
+	boring.UnreachableExceptTests()
+
 	k, err := randFieldElement(c, rand)
 	if err != nil {
 		return nil, err
@@ -199,6 +226,15 @@ var errZeroParam = errors.New("zero parameter")
 // depends on the entropy of rand.
 func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
 	randutil.MaybeReadByte(rand)
+
+	if boring.Enabled && rand == boring.RandReader {
+		b, err := boringPrivateKey(priv)
+		if err != nil {
+			return nil, nil, err
+		}
+		return boring.SignECDSA(b, hash)
+	}
+	boring.UnreachableExceptTests()
 
 	// Get min(log2(q) / 2, 256) bits of entropy from rand.
 	entropylen := (priv.Curve.Params().BitSize + 7) / 16
@@ -289,6 +325,15 @@ func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
 // Verify verifies the signature in r, s of hash using the public key, pub. Its
 // return value records whether the signature is valid.
 func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
+	if boring.Enabled {
+		b, err := boringPublicKey(pub)
+		if err != nil {
+			return false
+		}
+		return boring.VerifyECDSA(b, hash, r, s)
+	}
+	boring.UnreachableExceptTests()
+
 	// See [NSA] 3.4.2
 	c := pub.Curve
 	N := c.Params().N

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris || windows
 // +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris windows
 
 package net
@@ -42,14 +43,13 @@ func (a *UDPAddr) toLocal(net string) sockaddr {
 	return &UDPAddr{loopbackIP(net), a.Port, a.Zone}
 }
 
-func (c *UDPConn) readFrom(b []byte) (int, *UDPAddr, error) {
-	var addr *UDPAddr
+func (c *UDPConn) readFrom(b []byte, addr *UDPAddr) (int, *UDPAddr, error) {
 	n, sa, err := c.fd.readFrom(b)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
+		*addr = UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
 	case *syscall.SockaddrInet6:
-		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneCache.name(int(sa.ZoneId))}
+		*addr = UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneCache.name(int(sa.ZoneId))}
 	}
 	return n, addr, err
 }

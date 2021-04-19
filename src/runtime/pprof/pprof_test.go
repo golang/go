@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !js
 // +build !js
 
 package pprof
@@ -590,6 +591,11 @@ func TestMorestack(t *testing.T) {
 		// Not worth worrying about.
 		// https://build.golang.org/log/280d387327806e17c8aabeb38b9503dbbd942ed1
 		t.Skip("skipping on darwin race detector")
+	}
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+		// For whatever reason, darwin/arm64 also doesn't work.
+		// https://build.golang.org/log/c45e82cc25f152642e6fb90d882ef5a8cd130ce5
+		t.Skip("skipping on darwin/arm64")
 	}
 	testCPUProfile(t, stackContainsAll, []string{"runtime.newstack,runtime/pprof.growstack"}, avoidFunctions(), func(duration time.Duration) {
 		t := time.After(duration)

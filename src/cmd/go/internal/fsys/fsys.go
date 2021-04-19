@@ -100,7 +100,7 @@ func Init(wd string) error {
 }
 
 func initFromJSON(overlayJSON OverlayJSON) error {
-	// Canonicalize the paths in in the overlay map.
+	// Canonicalize the paths in the overlay map.
 	// Use reverseCanonicalized to check for collisions:
 	// no two 'from' paths should canonicalize to the same path.
 	overlay = make(map[string]*node)

@@ -10,7 +10,6 @@ import (
 	"cmd/internal/objfile"
 	"debug/dwarf"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -59,11 +58,7 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 		t.Run(prog, func(t *testing.T) {
 			t.Parallel()
 
-			tmpDir, err := ioutil.TempDir("", "go-link-TestDWARF")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := t.TempDir()
 
 			exe := filepath.Join(tmpDir, prog+".exe")
 			dir := "../../runtime/testdata/" + prog
@@ -91,7 +86,8 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 				exe = filepath.Join(tmpDir, "go.o")
 			}
 
-			if runtime.GOOS == "darwin" {
+			darwinSymbolTestIsTooFlaky := true // Turn this off, it is too flaky -- See #32218
+			if runtime.GOOS == "darwin" && !darwinSymbolTestIsTooFlaky {
 				if _, err = exec.LookPath("symbols"); err == nil {
 					// Ensure Apple's tooling can parse our object for symbols.
 					out, err = exec.Command("symbols", exe).CombinedOutput()

@@ -157,7 +157,7 @@ backwardlargeloop:
 
 backward32setup:
 	MOVD	QWORDS, CTR			// set up loop ctr
-	MOVD	$16, IDX16			// 32 bytes at at time
+	MOVD	$16, IDX16			// 32 bytes at a time
 
 backward32loop:
 	SUB	$32, TGT

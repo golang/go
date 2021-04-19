@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build amd64 || arm64
 // +build amd64 arm64
 
 package aes
@@ -11,6 +12,8 @@ import (
 	"crypto/internal/subtle"
 	"internal/cpu"
 )
+
+import "crypto/internal/boring"
 
 // defined in asm_*.s
 
@@ -56,6 +59,7 @@ func newCipher(key []byte) (cipher.Block, error) {
 func (c *aesCipherAsm) BlockSize() int { return BlockSize }
 
 func (c *aesCipherAsm) Encrypt(dst, src []byte) {
+	boring.Unreachable()
 	if len(src) < BlockSize {
 		panic("crypto/aes: input not full block")
 	}
@@ -69,6 +73,7 @@ func (c *aesCipherAsm) Encrypt(dst, src []byte) {
 }
 
 func (c *aesCipherAsm) Decrypt(dst, src []byte) {
+	boring.Unreachable()
 	if len(src) < BlockSize {
 		panic("crypto/aes: input not full block")
 	}

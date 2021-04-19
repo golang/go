@@ -26,13 +26,14 @@ import "errors"
 // compatibility with fixed-width Unix time formats.
 //
 // A decimal point followed by one or more zeros represents a fractional
-// second, printed to the given number of decimal places. A decimal point
-// followed by one or more nines represents a fractional second, printed to
-// the given number of decimal places, with trailing zeros removed.
+// second, printed to the given number of decimal places.
+// Either a comma or decimal point followed by one or more nines represents
+// a fractional second, printed to the given number of decimal places, with
+// trailing zeros removed.
 // When parsing (only), the input may contain a fractional second
 // field immediately after the seconds field, even if the layout does not
-// signify its presence. In that case a decimal point followed by a maximal
-// series of digits is parsed as a fractional second.
+// signify its presence. In that case either a comma or a decimal point
+// followed by a maximal series of digits is parsed as a fractional second.
 //
 // Numeric time zone offsets format as follows:
 //	-0700  ±hhmm
@@ -261,7 +262,7 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
 				return layout[0:i], stdISO8601ShortTZ, layout[i+3:]
 			}
 
-		case '.': // .000 or .999 - repeated digits for fractional seconds.
+		case '.', ',': // ,000, or .000, or ,999, or .999 - repeated digits for fractional seconds.
 			if i+1 < len(layout) && (layout[i+1] == '0' || layout[i+1] == '9') {
 				ch := layout[i+1]
 				j := i + 1
@@ -484,9 +485,10 @@ func (t Time) String() string {
 // desired output. The same display rules will then be applied to the time
 // value.
 //
-// A fractional second is represented by adding a period and zeros
-// to the end of the seconds section of layout string, as in "15:04:05.000"
-// to format a time stamp with millisecond precision.
+// A fractional second is represented by adding either a comma or a
+// period and zeros to the end of the seconds section of layout string,
+// as in "15:04:05,000" or "15:04:05.000" to format a time stamp with
+// millisecond precision.
 //
 // Predefined layouts ANSIC, UnixDate, RFC3339 and others describe standard
 // and convenient representations of the reference time. For more information
@@ -940,7 +942,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			}
 			// Special case: do we have a fractional second but no
 			// fractional second in the format?
-			if len(value) >= 2 && value[0] == '.' && isDigit(value, 1) {
+			if len(value) >= 2 && commaOrPeriod(value[0]) && isDigit(value, 1) {
 				_, std, _ = nextStdChunk(layout)
 				std &= stdMask
 				if std == stdFracSecond0 || std == stdFracSecond9 {
@@ -1070,7 +1072,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			value = value[ndigit:]
 
 		case stdFracSecond9:
-			if len(value) < 2 || value[0] != '.' || value[1] < '0' || '9' < value[1] {
+			if len(value) < 2 || !commaOrPeriod(value[0]) || value[1] < '0' || '9' < value[1] {
 				// Fractional second omitted.
 				break
 			}
@@ -1152,7 +1154,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		name, offset, _, _ := local.lookup(t.unixSec())
+		name, offset, _, _, _ := local.lookup(t.unixSec())
 		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
 			t.setLoc(local)
 			return t, nil
@@ -1279,8 +1281,12 @@ func parseSignedOffset(value string) int {
 	return len(value) - len(rem)
 }
 
+func commaOrPeriod(b byte) bool {
+	return b == '.' || b == ','
+}
+
 func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string, err error) {
-	if value[0] != '.' {
+	if !commaOrPeriod(value[0]) {
 		err = errBad
 		return
 	}

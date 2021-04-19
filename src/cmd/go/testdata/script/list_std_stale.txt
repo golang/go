@@ -1,0 +1,31 @@
+# https://golang.org/issue/44725: packages in std should not be reported as stale,
+# regardless of whether they are listed from within or outside GOROOT/src.
+
+# Control case: net should not be stale at the start of the test,
+# and should depend on vendor/golang.org/… instead of golang.org/….
+
+! stale net
+
+go list -deps net
+stdout '^vendor/golang.org/x/net'
+! stdout '^golang.org/x/net'
+
+# Net should also not be stale when viewed from within GOROOT/src,
+# and should still report the same package dependencies.
+
+cd $GOROOT/src
+! stale net
+
+go list -deps net
+stdout '^vendor/golang.org/x/net'
+! stdout '^golang.org/x/net'
+
+
+# However, 'go mod' and 'go get' subcommands should report the original module
+# dependencies, not the vendored packages.
+
+[!net] stop
+
+env GOPROXY=
+go mod why -m golang.org/x/net
+stdout '^# golang.org/x/net\nnet\ngolang.org/x/net'

@@ -4,6 +4,8 @@
 
 package tls
 
+import "crypto/internal/boring"
+
 import (
 	"crypto"
 	"crypto/aes"
@@ -249,7 +251,13 @@ func cipherAES(key, iv []byte, isRead bool) interface{} {
 
 // macSHA1 returns a SHA-1 based constant time MAC.
 func macSHA1(key []byte) hash.Hash {
-	return hmac.New(newConstantTimeHash(sha1.New), key)
+	h := sha1.New
+	// The BoringCrypto SHA1 does not have a constant-time
+	// checksum function, so don't try to use it.
+	if !boring.Enabled {
+		h = newConstantTimeHash(h)
+	}
+	return hmac.New(h, key)
 }
 
 // macSHA256 returns a SHA-256 based MAC. This is only supported in TLS 1.2 and
@@ -329,6 +337,10 @@ func (f *xorNonceAEAD) Open(out, nonce, ciphertext, additionalData []byte) ([]by
 	return result, err
 }
 
+type gcmtls interface {
+	NewGCMTLS() (cipher.AEAD, error)
+}
+
 func aeadAESGCM(key, noncePrefix []byte) aead {
 	if len(noncePrefix) != noncePrefixLength {
 		panic("tls: internal error: wrong nonce length")
@@ -337,7 +349,13 @@ func aeadAESGCM(key, noncePrefix []byte) aead {
 	if err != nil {
 		panic(err)
 	}
-	aead, err := cipher.NewGCM(aes)
+	var aead cipher.AEAD
+	if aesTLS, ok := aes.(gcmtls); ok {
+		aead, err = aesTLS.NewGCMTLS()
+	} else {
+		boring.Unreachable()
+		aead, err = cipher.NewGCM(aes)
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -397,6 +415,7 @@ func (c *cthWrapper) Write(p []byte) (int, error) { return c.h.Write(p) }
 func (c *cthWrapper) Sum(b []byte) []byte         { return c.h.ConstantTimeSum(b) }
 
 func newConstantTimeHash(h func() hash.Hash) func() hash.Hash {
+	boring.Unreachable()
 	return func() hash.Hash {
 		return &cthWrapper{h().(constantTimeHash)}
 	}

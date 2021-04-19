@@ -48,10 +48,13 @@ go mod tidy
 grep '^rsc.io/quote v1.1.0/go.mod ' go.sum
 grep '^rsc.io/quote v1.1.0 ' go.sum
 
-# sync should ignore missing ziphash; verify should not
+# verify should fail on a missing ziphash. tidy should restore it.
 rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.1.0.ziphash
-go mod tidy
 ! go mod verify
+stderr '^rsc.io/quote v1.1.0: missing ziphash: open '$GOPATH'[/\\]pkg[/\\]mod[/\\]cache[/\\]download[/\\]rsc.io[/\\]quote[/\\]@v[/\\]v1.1.0.ziphash'
+go mod tidy
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.1.0.ziphash
+go mod verify
 
 # Packages below module root should not be mentioned in go.sum.
 rm go.sum

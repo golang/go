@@ -908,6 +908,19 @@ type SECURITY_DESCRIPTOR struct {
 	dacl     *ACL
 }
 
+type SECURITY_QUALITY_OF_SERVICE struct {
+	Length              uint32
+	ImpersonationLevel  uint32
+	ContextTrackingMode byte
+	EffectiveOnly       byte
+}
+
+// Constants for the ContextTrackingMode field of SECURITY_QUALITY_OF_SERVICE.
+const (
+	SECURITY_STATIC_TRACKING  = 0
+	SECURITY_DYNAMIC_TRACKING = 1
+)
+
 type SecurityAttributes struct {
 	Length             uint32
 	SecurityDescriptor *SECURITY_DESCRIPTOR

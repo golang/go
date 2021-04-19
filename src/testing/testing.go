@@ -388,7 +388,7 @@ type common struct {
 	w           io.Writer            // For flushToParent.
 	ran         bool                 // Test or benchmark (or one of its subtests) was executed.
 	failed      bool                 // Test or benchmark has failed.
-	skipped     bool                 // Test of benchmark has been skipped.
+	skipped     bool                 // Test or benchmark has been skipped.
 	done        bool                 // Test is finished and all subtests have completed.
 	helperPCs   map[uintptr]struct{} // functions to be skipped when writing file/line info
 	helperNames map[string]struct{}  // helperPCs converted to function names
@@ -509,6 +509,13 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 			}
 			return prevFrame
 		}
+		// If more helper PCs have been added since we last did the conversion
+		if c.helperNames == nil {
+			c.helperNames = make(map[string]struct{})
+			for pc := range c.helperPCs {
+				c.helperNames[pcToName(pc)] = struct{}{}
+			}
+		}
 		if _, ok := c.helperNames[frame.Function]; !ok {
 			// Found a frame that wasn't inside a helper function.
 			return frame
@@ -521,14 +528,6 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 // and inserts the final newline if needed and indentation spaces for formatting.
 // This function must be called with c.mu held.
 func (c *common) decorate(s string, skip int) string {
-	// If more helper PCs have been added since we last did the conversion
-	if c.helperNames == nil {
-		c.helperNames = make(map[string]struct{})
-		for pc := range c.helperPCs {
-			c.helperNames[pcToName(pc)] = struct{}{}
-		}
-	}
-
 	frame := c.frameSkip(skip)
 	file := frame.File
 	line := frame.Line
@@ -667,6 +666,7 @@ var _ TB = (*B)(nil)
 type T struct {
 	common
 	isParallel bool
+	isEnvSet   bool
 	context    *testContext // For running tests and subtests.
 }
 
@@ -762,7 +762,7 @@ func (c *common) logDepth(s string, depth int) {
 				return
 			}
 		}
-		panic("Log in goroutine after " + c.name + " has completed")
+		panic("Log in goroutine after " + c.name + " has completed: " + s)
 	} else {
 		if c.chatty != nil {
 			if c.bench {
@@ -964,6 +964,29 @@ func (c *common) TempDir() string {
 	return dir
 }
 
+// Setenv calls os.Setenv(key, value) and uses Cleanup to
+// restore the environment variable to its original value
+// after the test.
+//
+// This cannot be used in parallel tests.
+func (c *common) Setenv(key, value string) {
+	prevValue, ok := os.LookupEnv(key)
+
+	if err := os.Setenv(key, value); err != nil {
+		c.Fatalf("cannot set environment variable: %v", err)
+	}
+
+	if ok {
+		c.Cleanup(func() {
+			os.Setenv(key, prevValue)
+		})
+	} else {
+		c.Cleanup(func() {
+			os.Unsetenv(key)
+		})
+	}
+}
+
 // panicHanding is an argument to runCleanup.
 type panicHandling int
 
@@ -1035,6 +1058,9 @@ func (t *T) Parallel() {
 	if t.isParallel {
 		panic("testing: t.Parallel called multiple times")
 	}
+	if t.isEnvSet {
+		panic("testing: t.Parallel called after t.Setenv; cannot set environment variables in parallel tests")
+	}
 	t.isParallel = true
 
 	// We don't want to include the time we spend waiting for serial tests
@@ -1066,6 +1092,21 @@ func (t *T) Parallel() {
 
 	t.start = time.Now()
 	t.raceErrors += -race.Errors()
+}
+
+// Setenv calls os.Setenv(key, value) and uses Cleanup to
+// restore the environment variable to its original value
+// after the test.
+//
+// This cannot be used in parallel tests.
+func (t *T) Setenv(key, value string) {
+	if t.isParallel {
+		panic("testing: t.Setenv called after t.Parallel; cannot set environment variables in parallel tests")
+	}
+
+	t.isEnvSet = true
+
+	t.common.Setenv(key, value)
 }
 
 // InternalTest is an internal type but exported because it is cross-package;
@@ -1217,7 +1258,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	t = &T{
 		common: common{
 			barrier: make(chan bool),
-			signal:  make(chan bool),
+			signal:  make(chan bool, 1),
 			name:    testName,
 			parent:  &t.common,
 			level:   t.level + 1,
@@ -1498,7 +1539,7 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
 			ctx.deadline = deadline
 			t := &T{
 				common: common{
-					signal:  make(chan bool),
+					signal:  make(chan bool, 1),
 					barrier: make(chan bool),
 					w:       os.Stdout,
 				},
@@ -1511,11 +1552,12 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
 				for _, test := range tests {
 					t.Run(test.Name, test.F)
 				}
-				// Run catching the signal rather than the tRunner as a separate
-				// goroutine to avoid adding a goroutine during the sequential
-				// phase as this pollutes the stacktrace output when aborting.
-				go func() { <-t.signal }()
 			})
+			select {
+			case <-t.signal:
+			default:
+				panic("internal error: tRunner exited without sending on t.signal")
+			}
 			ok = ok && !t.Failed()
 			ran = ran || t.ran
 		}

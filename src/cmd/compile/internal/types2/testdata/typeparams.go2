@@ -19,6 +19,10 @@ func _[_ any](x int) int
 func _[T any](T /* ERROR redeclared */ T)()
 func _[T, T /* ERROR redeclared */ any]()
 
+// Constraints (incl. any) may be parenthesized.
+func _[_ (any)]() {}
+func _[_ (interface{})]() {}
+
 func reverse[T any](list []T) []T {
         rlist := make([]T, len(list))
         i := len(list)

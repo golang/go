@@ -66,6 +66,8 @@ const (
 	IMAGE_SCN_MEM_WRITE              = 0x80000000
 	IMAGE_SCN_MEM_DISCARDABLE        = 0x2000000
 	IMAGE_SCN_LNK_NRELOC_OVFL        = 0x1000000
+	IMAGE_SCN_ALIGN_4BYTES           = 0x300000
+	IMAGE_SCN_ALIGN_8BYTES           = 0x400000
 	IMAGE_SCN_ALIGN_32BYTES          = 0x600000
 )
 
@@ -418,14 +420,16 @@ func (f *peFile) addSection(name string, sectsize int, filesize int) *peSection 
 		name:             name,
 		shortName:        name,
 		index:            len(f.sections) + 1,
-		virtualSize:      uint32(sectsize),
 		virtualAddress:   f.nextSectOffset,
 		pointerToRawData: f.nextFileOffset,
 	}
 	f.nextSectOffset = uint32(Rnd(int64(f.nextSectOffset)+int64(sectsize), PESECTALIGN))
 	if filesize > 0 {
+		sect.virtualSize = uint32(sectsize)
 		sect.sizeOfRawData = uint32(Rnd(int64(filesize), PEFILEALIGN))
 		f.nextFileOffset += sect.sizeOfRawData
+	} else {
+		sect.sizeOfRawData = uint32(sectsize)
 	}
 	f.sections = append(f.sections, sect)
 	return sect
@@ -476,20 +480,19 @@ func (f *peFile) addInitArray(ctxt *Link) *peSection {
 	// However, the entire Go runtime is initialized from just one function, so it is unlikely
 	// that this will need to grow in the future.
 	var size int
+	var alignment uint32
 	switch objabi.GOARCH {
 	default:
 		Exitf("peFile.addInitArray: unsupported GOARCH=%q\n", objabi.GOARCH)
-	case "386":
+	case "386", "arm":
 		size = 4
-	case "amd64":
+		alignment = IMAGE_SCN_ALIGN_4BYTES
+	case "amd64", "arm64":
 		size = 8
-	case "arm":
-		size = 4
-	case "arm64":
-		size = 8
+		alignment = IMAGE_SCN_ALIGN_8BYTES
 	}
 	sect := f.addSection(".ctors", size, size)
-	sect.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
+	sect.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | alignment
 	sect.sizeOfRawData = uint32(size)
 	ctxt.Out.SeekSet(int64(sect.pointerToRawData))
 	sect.checkOffset(ctxt.Out.Offset())

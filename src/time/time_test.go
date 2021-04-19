@@ -1465,3 +1465,64 @@ func TestConcurrentTimerResetStop(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestTimeIsDST(t *testing.T) {
+	ForceZipFileForTesting(true)
+	defer ForceZipFileForTesting(false)
+
+	tzWithDST, err := LoadLocation("Australia/Sydney")
+	if err != nil {
+		t.Fatalf("could not load tz 'Australia/Sydney': %v", err)
+	}
+	tzWithoutDST, err := LoadLocation("Australia/Brisbane")
+	if err != nil {
+		t.Fatalf("could not load tz 'Australia/Brisbane': %v", err)
+	}
+	tzFixed := FixedZone("FIXED_TIME", 12345)
+
+	tests := [...]struct {
+		time Time
+		want bool
+	}{
+		0: {Date(2009, 1, 1, 12, 0, 0, 0, UTC), false},
+		1: {Date(2009, 6, 1, 12, 0, 0, 0, UTC), false},
+		2: {Date(2009, 1, 1, 12, 0, 0, 0, tzWithDST), true},
+		3: {Date(2009, 6, 1, 12, 0, 0, 0, tzWithDST), false},
+		4: {Date(2009, 1, 1, 12, 0, 0, 0, tzWithoutDST), false},
+		5: {Date(2009, 6, 1, 12, 0, 0, 0, tzWithoutDST), false},
+		6: {Date(2009, 1, 1, 12, 0, 0, 0, tzFixed), false},
+		7: {Date(2009, 6, 1, 12, 0, 0, 0, tzFixed), false},
+	}
+
+	for i, tt := range tests {
+		got := tt.time.IsDST()
+		if got != tt.want {
+			t.Errorf("#%d:: (%#v).IsDST()=%t, want %t", i, tt.time.Format(RFC3339), got, tt.want)
+		}
+	}
+}
+
+func TestTimeAddSecOverflow(t *testing.T) {
+	// Test it with positive delta.
+	var maxInt64 int64 = 1<<63 - 1
+	timeExt := maxInt64 - UnixToInternal - 50
+	notMonoTime := Unix(timeExt, 0)
+	for i := int64(0); i < 100; i++ {
+		sec := notMonoTime.Unix()
+		notMonoTime = notMonoTime.Add(Duration(i * 1e9))
+		if newSec := notMonoTime.Unix(); newSec != sec+i && newSec+UnixToInternal != maxInt64 {
+			t.Fatalf("time ext: %d overflows with positive delta, overflow threshold: %d", newSec, maxInt64)
+		}
+	}
+
+	// Test it with negative delta.
+	maxInt64 = -maxInt64
+	notMonoTime = NotMonoNegativeTime
+	for i := int64(0); i > -100; i-- {
+		sec := notMonoTime.Unix()
+		notMonoTime = notMonoTime.Add(Duration(i * 1e9))
+		if newSec := notMonoTime.Unix(); newSec != sec+i && newSec+UnixToInternal != maxInt64 {
+			t.Fatalf("time ext: %d overflows with positive delta, overflow threshold: %d", newSec, maxInt64)
+		}
+	}
+}

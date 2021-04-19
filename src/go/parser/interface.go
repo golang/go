@@ -55,8 +55,14 @@ const (
 	Trace                                          // print a trace of parsed productions
 	DeclarationErrors                              // report declaration errors
 	SpuriousErrors                                 // same as AllErrors, for backward-compatibility
-	ParseTypeParams                                // Placeholder. Will control the parsing of type parameters.
 	AllErrors         = SpuriousErrors             // report all errors (not just the first 10 on different lines)
+
+	// parseTypeParams controls the parsing of type parameters. Must be
+	// kept in sync with:
+	//  go/printer/printer_test.go
+	//  go/types/check_test.go
+	//  cmd/gofmt/gofmt.go
+	parseTypeParams = 1 << 30
 )
 
 // ParseFile parses the source code of a single Go source file and returns

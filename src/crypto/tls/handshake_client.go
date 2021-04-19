@@ -6,6 +6,7 @@ package tls
 
 import (
 	"bytes"
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -24,6 +25,7 @@ import (
 
 type clientHandshakeState struct {
 	c            *Conn
+	ctx          context.Context
 	serverHello  *serverHelloMsg
 	hello        *clientHelloMsg
 	suite        *cipherSuite
@@ -113,7 +115,10 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 	}
 
 	if hello.vers >= VersionTLS12 {
-		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+	}
+	if testingOnlyForceClientHelloSignatureAlgorithms != nil {
+		hello.supportedSignatureAlgorithms = testingOnlyForceClientHelloSignatureAlgorithms
 	}
 
 	var params ecdheParameters
@@ -134,7 +139,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 	return hello, params, nil
 }
 
-func (c *Conn) clientHandshake() (err error) {
+func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 	if c.config == nil {
 		c.config = defaultConfig()
 	}
@@ -198,6 +203,7 @@ func (c *Conn) clientHandshake() (err error) {
 	if c.vers == VersionTLS13 {
 		hs := &clientHandshakeStateTLS13{
 			c:           c,
+			ctx:         ctx,
 			serverHello: serverHello,
 			hello:       hello,
 			ecdheParams: ecdheParams,
@@ -212,6 +218,7 @@ func (c *Conn) clientHandshake() (err error) {
 
 	hs := &clientHandshakeState{
 		c:           c,
+		ctx:         ctx,
 		serverHello: serverHello,
 		hello:       hello,
 		session:     session,
@@ -540,7 +547,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		certRequested = true
 		hs.finishedHash.Write(certReq.marshal())
 
-		cri := certificateRequestInfoFromMsg(c.vers, certReq)
+		cri := certificateRequestInfoFromMsg(hs.ctx, c.vers, certReq)
 		if chainToSend, err = c.getClientCertificate(cri); err != nil {
 			c.sendAlert(alertInternalError)
 			return err
@@ -835,6 +842,8 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 
 	if !c.config.InsecureSkipVerify {
 		opts := x509.VerifyOptions{
+			IsBoring: isBoringCertificate,
+
 			Roots:         c.config.RootCAs,
 			CurrentTime:   c.config.time(),
 			DNSName:       c.config.ServerName,
@@ -880,10 +889,11 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 
 // certificateRequestInfoFromMsg generates a CertificateRequestInfo from a TLS
 // <= 1.2 CertificateRequest, making an effort to fill in missing information.
-func certificateRequestInfoFromMsg(vers uint16, certReq *certificateRequestMsg) *CertificateRequestInfo {
+func certificateRequestInfoFromMsg(ctx context.Context, vers uint16, certReq *certificateRequestMsg) *CertificateRequestInfo {
 	cri := &CertificateRequestInfo{
 		AcceptableCAs: certReq.certificateAuthorities,
 		Version:       vers,
+		ctx:           ctx,
 	}
 
 	var rsaAvail, ecAvail bool

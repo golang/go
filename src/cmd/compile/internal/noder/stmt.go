@@ -28,7 +28,11 @@ func (g *irgen) stmts(stmts []syntax.Stmt) []ir.Node {
 
 func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 	// TODO(mdempsky): Remove dependency on typecheck.
-	return typecheck.Stmt(g.stmt0(stmt))
+	n := g.stmt0(stmt)
+	if n != nil {
+		n.SetTypecheck(1)
+	}
+	return n
 }
 
 func (g *irgen) stmt0(stmt syntax.Stmt) ir.Node {
@@ -46,17 +50,20 @@ func (g *irgen) stmt0(stmt syntax.Stmt) ir.Node {
 		}
 		return x
 	case *syntax.SendStmt:
-		return ir.NewSendStmt(g.pos(stmt), g.expr(stmt.Chan), g.expr(stmt.Value))
+		n := ir.NewSendStmt(g.pos(stmt), g.expr(stmt.Chan), g.expr(stmt.Value))
+		// Need to do the AssignConv() in tcSend().
+		return typecheck.Stmt(n)
 	case *syntax.DeclStmt:
 		return ir.NewBlockStmt(g.pos(stmt), g.decls(stmt.DeclList))
 
 	case *syntax.AssignStmt:
 		if stmt.Op != 0 && stmt.Op != syntax.Def {
 			op := g.op(stmt.Op, binOps[:])
+			// May need to insert ConvExpr nodes on the args in tcArith
 			if stmt.Rhs == nil {
-				return IncDec(g.pos(stmt), op, g.expr(stmt.Lhs))
+				return typecheck.Stmt(IncDec(g.pos(stmt), op, g.expr(stmt.Lhs)))
 			}
-			return ir.NewAssignOpStmt(g.pos(stmt), op, g.expr(stmt.Lhs), g.expr(stmt.Rhs))
+			return typecheck.Stmt(ir.NewAssignOpStmt(g.pos(stmt), op, g.expr(stmt.Lhs), g.expr(stmt.Rhs)))
 		}
 
 		names, lhs := g.assignList(stmt.Lhs, stmt.Op == syntax.Def)
@@ -65,25 +72,31 @@ func (g *irgen) stmt0(stmt syntax.Stmt) ir.Node {
 		if len(lhs) == 1 && len(rhs) == 1 {
 			n := ir.NewAssignStmt(g.pos(stmt), lhs[0], rhs[0])
 			n.Def = initDefn(n, names)
-			return n
+			// Need to set Assigned in checkassign for maps
+			return typecheck.Stmt(n)
 		}
 
 		n := ir.NewAssignListStmt(g.pos(stmt), ir.OAS2, lhs, rhs)
 		n.Def = initDefn(n, names)
-		return n
+		// Need to do tcAssignList().
+		return typecheck.Stmt(n)
 
 	case *syntax.BranchStmt:
 		return ir.NewBranchStmt(g.pos(stmt), g.tokOp(int(stmt.Tok), branchOps[:]), g.name(stmt.Label))
 	case *syntax.CallStmt:
 		return ir.NewGoDeferStmt(g.pos(stmt), g.tokOp(int(stmt.Tok), callOps[:]), g.expr(stmt.Call))
 	case *syntax.ReturnStmt:
-		return ir.NewReturnStmt(g.pos(stmt), g.exprList(stmt.Results))
+		n := ir.NewReturnStmt(g.pos(stmt), g.exprList(stmt.Results))
+		// Need to do typecheckaste() for multiple return values
+		return typecheck.Stmt(n)
 	case *syntax.IfStmt:
 		return g.ifStmt(stmt)
 	case *syntax.ForStmt:
 		return g.forStmt(stmt)
 	case *syntax.SelectStmt:
-		return g.selectStmt(stmt)
+		n := g.selectStmt(stmt)
+		// Need to convert assignments to OSELRECV2 in tcSelect()
+		return typecheck.Stmt(n)
 	case *syntax.SwitchStmt:
 		return g.switchStmt(stmt)
 

@@ -111,6 +111,13 @@ const unexportedTypedConstant ExportedType = 1 // In a separate section to test 
 // Comment about exported interface.
 type ExportedInterface interface {
 	// Comment before exported method.
+	//
+	//	// Code block showing how to use ExportedMethod
+	//	func DoSomething() error {
+	//		ExportedMethod()
+	//		return nil
+	//	}
+	//
 	ExportedMethod()   // Comment on line with exported method.
 	unexportedMethod() // Comment on line with unexported method.
 	io.Reader          // Comment on line with embedded Reader.

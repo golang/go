@@ -631,7 +631,7 @@ func TestNoShrinkStackWhileParking(t *testing.T) {
 	// channel. See issue 40641 for more details on the problem.
 	//
 	// The way we try to induce this failure is to set up two
-	// goroutines: a sender and a reciever that communicate across
+	// goroutines: a sender and a receiver that communicate across
 	// a channel. We try to set up a situation where the sender
 	// grows its stack temporarily then *fully* blocks on a channel
 	// often. Meanwhile a GC is triggered so that we try to get a
@@ -671,7 +671,7 @@ func TestNoShrinkStackWhileParking(t *testing.T) {
 		go send(c, done)
 		// Wait a little bit before triggering
 		// the GC to make sure the sender and
-		// reciever have gotten into their groove.
+		// receiver have gotten into their groove.
 		time.Sleep(50 * time.Microsecond)
 		runtime.GC()
 		<-done

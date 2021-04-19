@@ -128,8 +128,11 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 			if name := s.Label.Value; name != "_" {
 				lbl := NewLabel(s.Label.Pos(), check.pkg, name)
 				if alt := all.Insert(lbl); alt != nil {
-					check.softErrorf(lbl.pos, "label %s already declared", name)
-					check.reportAltDecl(alt)
+					var err error_
+					err.soft = true
+					err.errorf(lbl.pos, "label %s already declared", name)
+					err.recordAltDecl(alt)
+					check.report(&err)
 					// ok to continue
 				} else {
 					b.insert(s)
@@ -209,7 +212,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 				}
 
 			default:
-				check.invalidASTf(s, "branch statement: %s %s", s.Tok, name)
+				check.errorf(s, invalidAST+"branch statement: %s %s", s.Tok, name)
 				return
 			}
 

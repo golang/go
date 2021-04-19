@@ -186,7 +186,7 @@ func (q *query) validate() error {
 	if q.pattern == "all" {
 		// If there is no main module, "all" is not meaningful.
 		if !modload.HasModRoot() {
-			return fmt.Errorf(`cannot match "all": working directory is not part of a module`)
+			return fmt.Errorf(`cannot match "all": %v`, modload.ErrNoModRoot)
 		}
 		if !versionOkForMainModule(q.version) {
 			// TODO(bcmills): "all@none" seems like a totally reasonable way to

@@ -151,6 +151,15 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	case ASBREAK:
 		// SBREAK is the old name for EBREAK.
 		p.As = AEBREAK
+
+	case AMOV:
+		// Put >32-bit constants in memory and load them.
+		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == 0 && int64(int32(p.From.Offset)) != p.From.Offset {
+			p.From.Type = obj.TYPE_MEM
+			p.From.Sym = ctxt.Int64Sym(p.From.Offset)
+			p.From.Name = obj.NAME_EXTERN
+			p.From.Offset = 0
+		}
 	}
 }
 
@@ -302,7 +311,10 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 		//   LUI top20bits(c), R
 		//   ADD bottom12bits(c), R, R
 		if p.As != AMOV {
-			ctxt.Diag("unsupported constant load at %v", p)
+			ctxt.Diag("%v: unsupported constant load", p)
+		}
+		if p.To.Type != obj.TYPE_REG {
+			ctxt.Diag("%v: constant load must target register", p)
 		}
 		off := p.From.Offset
 		to := p.To

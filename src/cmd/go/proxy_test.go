@@ -362,7 +362,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 			var buf bytes.Buffer
 			z := zip.NewWriter(&buf)
 			for _, f := range a.Files {
-				if strings.HasPrefix(f.Name, ".") {
+				if f.Name == ".info" || f.Name == ".mod" || f.Name == ".zip" {
 					continue
 				}
 				var zipName string

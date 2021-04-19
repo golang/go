@@ -129,9 +129,7 @@ If the non-Go code installs any signal handlers, it must use the
 SA_ONSTACK flag with sigaction. Failing to do so is likely to cause
 the program to crash if the signal is received. Go programs routinely
 run with a limited stack, and therefore set up an alternate signal
-stack. Also, the Go standard library expects that any signal handlers
-will use the SA_RESTART flag. Failing to do so may cause some library
-calls to return "interrupted system call" errors.
+stack.
 
 If the non-Go code installs a signal handler for any of the
 synchronous signals (SIGBUS, SIGFPE, SIGSEGV), then it should record

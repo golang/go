@@ -188,7 +188,7 @@ func TestErrors(t *testing.T) {
 		if !d.IsDir() && !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".src") || strings.HasSuffix(name, ".go2")) {
 			mode := DeclarationErrors | AllErrors
 			if strings.HasSuffix(name, ".go2") {
-				mode |= ParseTypeParams
+				mode |= parseTypeParams
 			}
 			checkErrors(t, filepath.Join(testdata, name), nil, mode, true)
 		}

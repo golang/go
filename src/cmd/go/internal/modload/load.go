@@ -134,6 +134,11 @@ type PackageOpts struct {
 	// If nil, treated as equivalent to imports.Tags().
 	Tags map[string]bool
 
+	// VendorModulesInGOROOTSrc indicates that if we are within a module in
+	// GOROOT/src, packages in the module's vendor directory should be resolved as
+	// actual module dependencies (instead of standard-library packages).
+	VendorModulesInGOROOTSrc bool
+
 	// ResolveMissingImports indicates that we should attempt to add module
 	// dependencies as needed to resolve imports of packages that are not found.
 	//
@@ -169,6 +174,21 @@ type PackageOpts struct {
 	// SilenceErrors indicates that LoadPackages should not print errors
 	// that occur while loading packages. SilenceErrors implies AllowErrors.
 	SilenceErrors bool
+
+	// SilenceMissingStdImports indicates that LoadPackages should not print
+	// errors or terminate the process if an imported package is missing, and the
+	// import path looks like it might be in the standard library (perhaps in a
+	// future version).
+	SilenceMissingStdImports bool
+
+	// SilenceNoGoErrors indicates that LoadPackages should not print
+	// imports.ErrNoGo errors.
+	// This allows the caller to invoke LoadPackages (and report other errors)
+	// without knowing whether the requested packages exist for the given tags.
+	//
+	// Note that if a requested package does not exist *at all*, it will fail
+	// during module resolution and the error will not be suppressed.
+	SilenceNoGoErrors bool
 
 	// SilenceUnmatchedWarnings suppresses the warnings normally emitted for
 	// patterns that did not match any packages.
@@ -279,6 +299,10 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 	// Report errors, if any.
 	checkMultiplePaths()
 	for _, pkg := range loaded.pkgs {
+		if !pkg.isTest() {
+			loadedPackages = append(loadedPackages, pkg.path)
+		}
+
 		if pkg.err != nil {
 			if sumErr := (*ImportMissingSumError)(nil); errors.As(pkg.err, &sumErr) {
 				if importer := pkg.stack; importer != nil {
@@ -288,16 +312,22 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 				}
 			}
 
-			if !opts.SilenceErrors {
-				if opts.AllowErrors {
-					fmt.Fprintf(os.Stderr, "%s: %v\n", pkg.stackText(), pkg.err)
-				} else {
-					base.Errorf("%s: %v", pkg.stackText(), pkg.err)
-				}
+			if opts.SilenceErrors {
+				continue
 			}
-		}
-		if !pkg.isTest() {
-			loadedPackages = append(loadedPackages, pkg.path)
+			if stdErr := (*ImportMissingError)(nil); errors.As(pkg.err, &stdErr) &&
+				stdErr.isStd && opts.SilenceMissingStdImports {
+				continue
+			}
+			if opts.SilenceNoGoErrors && errors.Is(pkg.err, imports.ErrNoGo) {
+				continue
+			}
+
+			if opts.AllowErrors {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", pkg.stackText(), pkg.err)
+			} else {
+				base.Errorf("%s: %v", pkg.stackText(), pkg.err)
+			}
 		}
 	}
 	if !opts.SilenceErrors {
@@ -1170,13 +1200,13 @@ func (ld *loader) stdVendor(parentPath, path string) string {
 	}
 
 	if str.HasPathPrefix(parentPath, "cmd") {
-		if Target.Path != "cmd" {
+		if !ld.VendorModulesInGOROOTSrc || Target.Path != "cmd" {
 			vendorPath := pathpkg.Join("cmd", "vendor", path)
 			if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
 				return vendorPath
 			}
 		}
-	} else if Target.Path != "std" || str.HasPathPrefix(parentPath, "vendor") {
+	} else if !ld.VendorModulesInGOROOTSrc || Target.Path != "std" || str.HasPathPrefix(parentPath, "vendor") {
 		// If we are outside of the 'std' module, resolve imports from within 'std'
 		// to the vendor directory.
 		//

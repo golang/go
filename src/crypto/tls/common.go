@@ -7,6 +7,7 @@ package tls
 import (
 	"bytes"
 	"container/list"
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -173,11 +174,11 @@ const (
 // hash function associated with the Ed25519 signature scheme.
 var directSigning crypto.Hash = 0
 
-// supportedSignatureAlgorithms contains the signature and hash algorithms that
+// defaultSupportedSignatureAlgorithms contains the signature and hash algorithms that
 // the code advertises as supported in a TLS 1.2+ ClientHello and in a TLS 1.2+
 // CertificateRequest. The two fields are merged to match with TLS 1.3.
 // Note that in TLS 1.2, the ECDSA algorithms are not constrained to P-256, etc.
-var supportedSignatureAlgorithms = []SignatureScheme{
+var defaultSupportedSignatureAlgorithms = []SignatureScheme{
 	PSSWithSHA256,
 	ECDSAWithP256AndSHA256,
 	Ed25519,
@@ -443,6 +444,16 @@ type ClientHelloInfo struct {
 	// config is embedded by the GetCertificate or GetConfigForClient caller,
 	// for use with SupportsCertificate.
 	config *Config
+
+	// ctx is the context of the handshake that is in progress.
+	ctx context.Context
+}
+
+// Context returns the context of the handshake that is in progress.
+// This context is a child of the context passed to HandshakeContext,
+// if any, and is canceled when the handshake concludes.
+func (c *ClientHelloInfo) Context() context.Context {
+	return c.ctx
 }
 
 // CertificateRequestInfo contains information from a server's
@@ -461,6 +472,16 @@ type CertificateRequestInfo struct {
 
 	// Version is the TLS version that was negotiated for this connection.
 	Version uint16
+
+	// ctx is the context of the handshake that is in progress.
+	ctx context.Context
+}
+
+// Context returns the context of the handshake that is in progress.
+// This context is a child of the context passed to HandshakeContext,
+// if any, and is canceled when the handshake concludes.
+func (c *CertificateRequestInfo) Context() context.Context {
+	return c.ctx
 }
 
 // RenegotiationSupport enumerates the different levels of support for TLS
@@ -925,6 +946,9 @@ func (c *Config) time() time.Time {
 }
 
 func (c *Config) cipherSuites() []uint16 {
+	if needFIPS() {
+		return fipsCipherSuites(c)
+	}
 	s := c.CipherSuites
 	if s == nil {
 		s = defaultCipherSuites()
@@ -942,6 +966,9 @@ var supportedVersions = []uint16{
 func (c *Config) supportedVersions() []uint16 {
 	versions := make([]uint16, 0, len(supportedVersions))
 	for _, v := range supportedVersions {
+		if needFIPS() && (v < fipsMinVersion(c) || v > fipsMaxVersion(c)) {
+			continue
+		}
 		if c != nil && c.MinVersion != 0 && v < c.MinVersion {
 			continue
 		}
@@ -978,6 +1005,9 @@ func supportedVersionsFromMax(maxVersion uint16) []uint16 {
 var defaultCurvePreferences = []CurveID{X25519, CurveP256, CurveP384, CurveP521}
 
 func (c *Config) curvePreferences() []CurveID {
+	if needFIPS() {
+		return fipsCurvePreferences(c)
+	}
 	if c == nil || len(c.CurvePreferences) == 0 {
 		return defaultCurvePreferences
 	}
@@ -1449,7 +1479,8 @@ var (
 func initDefaultCipherSuites() {
 	var topCipherSuites []uint16
 
-	if hasAESGCMHardwareSupport {
+	if hasAESGCMHardwareSupport || boringEnabled {
+		// If BoringCrypto is enabled, always prioritize AES-GCM.
 		// If AES-GCM hardware is provided then prioritise AES-GCM
 		// cipher suites.
 		topCipherSuites = []uint16{

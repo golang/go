@@ -82,7 +82,6 @@ type CmdFlags struct {
 	CompilingRuntime bool "flag:\"+\" help:\"compiling runtime\""
 
 	// Longer names
-	ABIWrap            bool         "help:\"enable generation of ABI wrappers\""
 	ABIWrapLimit       int          "help:\"emit at most N ABI wrappers (for debugging)\""
 	AsmHdr             string       "help:\"write assembly header to `file`\""
 	Bench              string       "help:\"append benchmark times to `file`\""
@@ -90,6 +89,8 @@ type CmdFlags struct {
 	BuildID            string       "help:\"record `id` as the build id in the export metadata\""
 	CPUProfile         string       "help:\"write cpu profile to `file`\""
 	Complete           bool         "help:\"compiling complete package (no C or assembly)\""
+	ClobberDead        bool         "help:\"clobber dead stack slots (for debugging)\""
+	ClobberDeadReg     bool         "help:\"clobber dead registers (for debugging)\""
 	Dwarf              bool         "help:\"generate DWARF symbols\""
 	DwarfBASEntries    *bool        "help:\"use base address selection entries in DWARF\""                        // &Ctxt.UseBASEntries, set below
 	DwarfLocationLists *bool        "help:\"add location lists to DWARF in optimized mode\""                      // &Ctxt.Flag_locationlists, set below
@@ -146,7 +147,6 @@ func ParseFlags() {
 	Flag.LowerP = &Ctxt.Pkgpath
 	Flag.LowerV = &Ctxt.Debugvlog
 
-	Flag.ABIWrap = objabi.Regabi_enabled != 0
 	Flag.Dwarf = objabi.GOARCH != "wasm"
 	Flag.DwarfBASEntries = &Ctxt.UseBASEntries
 	Flag.DwarfLocationLists = &Ctxt.Flag_locationlists
@@ -159,6 +159,7 @@ func ParseFlags() {
 	Flag.LinkShared = &Ctxt.Flag_linkshared
 	Flag.Shared = &Ctxt.Flag_shared
 	Flag.WB = true
+	Debug.InlFuncsWithClosures = 1
 
 	Flag.Cfg.ImportMap = make(map[string]string)
 
@@ -339,7 +340,7 @@ func concurrentBackendAllowed() bool {
 		return false
 	}
 	// TODO: Test and delete this condition.
-	if objabi.Fieldtrack_enabled != 0 {
+	if objabi.Experiment.FieldTrack {
 		return false
 	}
 	// TODO: fix races and enable the following flags
