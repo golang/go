@@ -206,8 +206,8 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 				}
 				if obj == nil {
 					// At this point we're not (yet) looking into methods
-					// that any underlyng type of the types in the type list
-					// migth have.
+					// that any underlying type of the types in the type list
+					// might have.
 					// TODO(gri) Do we want to specify the language that way?
 				}
 			}
