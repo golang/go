@@ -1073,12 +1073,62 @@ func TestIssue12449(t *testing.T) {
 }
 
 func TestFS(t *testing.T) {
-	z, err := OpenReader("testdata/unix.zip")
+	for _, test := range []struct {
+		file string
+		want []string
+	}{
+		{
+			"testdata/unix.zip",
+			[]string{"hello", "dir/bar", "readonly"},
+		},
+		{
+			"testdata/subdir.zip",
+			[]string{"a/b/c"},
+		},
+	} {
+		t.Run(test.file, func(t *testing.T) {
+			t.Parallel()
+			z, err := OpenReader(test.file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer z.Close()
+			if err := fstest.TestFS(z, test.want...); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+}
+
+func TestFSModTime(t *testing.T) {
+	t.Parallel()
+	z, err := OpenReader("testdata/subdir.zip")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := fstest.TestFS(z, "hello", "dir/bar", "dir/empty", "readonly"); err != nil {
-		t.Fatal(err)
+	defer z.Close()
+
+	for _, test := range []struct {
+		name string
+		want time.Time
+	}{
+		{
+			"a",
+			time.Date(2021, 4, 19, 12, 29, 56, 0, timeZone(-7*time.Hour)).UTC(),
+		},
+		{
+			"a/b/c",
+			time.Date(2021, 4, 19, 12, 29, 59, 0, timeZone(-7*time.Hour)).UTC(),
+		},
+	} {
+		fi, err := fs.Stat(z, test.name)
+		if err != nil {
+			t.Errorf("%s: %v", test.name, err)
+			continue
+		}
+		if got := fi.ModTime(); !got.Equal(test.want) {
+			t.Errorf("%s: got modtime %v, want %v", test.name, got, test.want)
+		}
 	}
 }
 
