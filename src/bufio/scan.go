@@ -199,7 +199,6 @@ func (s *Scanner) Scan() bool {
 			s.buf = newBuf
 			s.end -= s.start
 			s.start = 0
-			continue
 		}
 		// Finally we can read some input. Make sure we don't get stuck with
 		// a misbehaving Reader. Officially we don't need to do this, but let's

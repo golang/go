@@ -23,7 +23,7 @@
 
 		func (t *T) MethodName(argType T1, replyType *T2) error
 
-	where T, T1 and T2 can be marshaled by encoding/gob.
+	where T1 and T2 can be marshaled by encoding/gob.
 	These requirements apply even if a different codec is used.
 	(In the future, these requirements may soften for custom codecs.)
 
@@ -54,6 +54,8 @@
 	Here is a simple example.  A server wishes to export an object of type Arith:
 
 		package server
+
+		import "errors"
 
 		type Args struct {
 			A, B int
@@ -119,6 +121,8 @@
 
 	A server implementation will often provide a simple, type-safe wrapper for the
 	client.
+
+	The net/rpc package is frozen and is not accepting new features.
 */
 package rpc
 

@@ -14,8 +14,8 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	MOVQ addr+0(FP), DI
 	MOVL mode+8(FP), SI
 	MOVL val+12(FP), DX
-	MOVQ ptr2+16(FP), R10
-	MOVQ ts+24(FP), R8
+	MOVQ uaddr1+16(FP), R10
+	MOVQ ut+24(FP), R8
 	MOVL $454, AX
 	SYSCALL
 	MOVL	AX, ret+32(FP)
@@ -144,7 +144,7 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-8
 
 // func now() (sec int64, nsec int32)
 TEXT time·now(SB), NOSPLIT, $32
-	MOVL	$232, AX
+	MOVL	$232, AX // clock_gettime
 	MOVQ	$0, DI		// CLOCK_REALTIME
 	LEAQ	8(SP), SI
 	SYSCALL
@@ -184,18 +184,40 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
 	RET
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
-	MOVL	sig+8(FP), DI
+	MOVQ	fn+0(FP),    AX
+	MOVL	sig+8(FP),   DI
 	MOVQ	info+16(FP), SI
-	MOVQ	ctx+24(FP), DX
-	MOVQ	fn+0(FP), AX
+	MOVQ	ctx+24(FP),  DX
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP     // alignment for x86_64 ABI
 	CALL	AX
+	MOVQ	BP, SP
+	POPQ	BP
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$24
-	MOVQ	DI, 0(SP)
-	MOVQ	SI, 8(SP)
-	MOVQ	DX, 16(SP)
+TEXT runtime·sigtramp(SB),NOSPLIT,$72
+	// Save callee-saved C registers, since the caller may be a C signal handler.
+	MOVQ	BX, bx-8(SP)
+	MOVQ	BP, bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
+	MOVQ	R12, r12-24(SP)
+	MOVQ	R13, r13-32(SP)
+	MOVQ	R14, r14-40(SP)
+	MOVQ	R15, r15-48(SP)
+	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
+	// modify them.
+
+	MOVQ	DX, ctx-56(SP)
+	MOVQ	SI, info-64(SP)
+	MOVQ	DI, signum-72(SP)
 	CALL	runtime·sigtrampgo(SB)
+
+	MOVQ	r15-48(SP), R15
+	MOVQ	r14-40(SP), R14
+	MOVQ	r13-32(SP), R13
+	MOVQ	r12-24(SP), R12
+	MOVQ	bp-16(SP),  BP
+	MOVQ	bx-8(SP),   BX
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
@@ -229,8 +251,8 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	RET
 	
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
-	MOVQ	new+8(SP), DI
-	MOVQ	old+16(SP), SI
+	MOVQ	new+0(FP), DI
+	MOVQ	old+8(FP), SI
 	MOVQ	$53, AX
 	SYSCALL
 	JCC	2(PC)
@@ -311,11 +333,11 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
 TEXT runtime·kevent(SB),NOSPLIT,$0
-	MOVL	fd+0(FP), DI
-	MOVQ	ev1+8(FP), SI
-	MOVL	nev1+16(FP), DX
-	MOVQ	ev2+24(FP), R10
-	MOVL	nev2+32(FP), R8
+	MOVL	kq+0(FP), DI
+	MOVQ	ch+8(FP), SI
+	MOVL	nch+16(FP), DX
+	MOVQ	ev+24(FP), R10
+	MOVL	nev+32(FP), R8
 	MOVQ	ts+40(FP), R9
 	MOVL	$363, AX
 	SYSCALL

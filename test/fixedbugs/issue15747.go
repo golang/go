@@ -17,23 +17,24 @@ type T struct{ M string }
 
 var b bool
 
-func f1(q *Q, xx []byte) interface{} { // ERROR "live at entry to f1: q xx" "live at call to newobject: q xx" "live at call to writebarrierptr: q &xx"
+func f1(q *Q, xx []byte) interface{} { // ERROR "live at call to newobject: xx$" "live at call to writebarrierptr: &xx$" "live at entry to f1: xx$"
 	// xx was copied from the stack to the heap on the previous line:
 	// xx was live for the first two prints but then it switched to &xx
 	// being live. We should not see plain xx again.
 	if b {
-		global = &xx // ERROR "live at call to writebarrierptr: q &xx$"
+		global = &xx // ERROR "live at call to writebarrierptr: &xx$"
 	}
-	xx, _, err := f2(xx, 5) // ERROR "live at call to newobject: q( d)? &xx( odata.ptr)?" "live at call to writebarrierptr: q (e|err.data err.type)$"
+	xx, _, err := f2(xx, 5) // ERROR "live at call to f2: &xx$" "live at call to writebarrierptr: err.data err.type$"
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func f2(d []byte, n int) (odata, res []byte, e interface{}) { // ERROR "live at entry to f2: d"
+//go:noinline
+func f2(d []byte, n int) (odata, res []byte, e interface{}) { // ERROR "live at entry to f2: d$"
 	if n > len(d) {
-		return d, nil, &T{M: "hello"} // ERROR "live at call to newobject: d"
+		return d, nil, &T{M: "hello"} // ERROR "live at call to newobject: d" "live at call to writebarrierptr: d"
 	}
 	res = d[:n]
 	odata = d[n:]

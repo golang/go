@@ -91,6 +91,9 @@ func getproccount() int32 {
 	const maxCPUs = 64 * 1024
 	var buf [maxCPUs / (sys.PtrSize * 8)]uintptr
 	r := sched_getaffinity(0, unsafe.Sizeof(buf), &buf[0])
+	if r < 0 {
+		return 1
+	}
 	n := int32(0)
 	for _, v := range buf[:r/sys.PtrSize] {
 		for v != 0 {
@@ -133,7 +136,7 @@ const (
 )
 
 //go:noescape
-func clone(flags int32, stk, mm, gg, fn unsafe.Pointer) int32
+func clone(flags int32, stk, mp, gp, fn unsafe.Pointer) int32
 
 // May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
@@ -148,9 +151,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	// Disable signals during clone, so that the new thread starts
 	// with signals disabled. It will enable them in minit.
 	var oset sigset
-	rtsigprocmask(_SIG_SETMASK, &sigset_all, &oset, int32(unsafe.Sizeof(oset)))
+	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
 	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(funcPC(mstart)))
-	rtsigprocmask(_SIG_SETMASK, &oset, nil, int32(unsafe.Sizeof(oset)))
+	sigprocmask(_SIG_SETMASK, &oset, nil)
 
 	if ret < 0 {
 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
@@ -182,8 +185,12 @@ var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
 const (
 	_AT_NULL   = 0  // End of vector
 	_AT_PAGESZ = 6  // System physical page size
+	_AT_HWCAP  = 16 // hardware capability bit vector
 	_AT_RANDOM = 25 // introduced in 2.6.29
+	_AT_HWCAP2 = 26 // hardware capability bit vector 2
 )
+
+var procAuxv = []byte("/proc/self/auxv\x00")
 
 func sysargs(argc int32, argv **byte) {
 	n := argc + 1
@@ -198,7 +205,50 @@ func sysargs(argc int32, argv **byte) {
 
 	// now argv+n is auxv
 	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
-	for i := 0; auxv[i] != _AT_NULL; i += 2 {
+	if sysauxv(auxv[:]) == 0 {
+		// In some situations we don't get a loader-provided
+		// auxv, such as when loaded as a library on Android.
+		// Fall back to /proc/self/auxv.
+		fd := open(&procAuxv[0], 0 /* O_RDONLY */, 0)
+		if fd < 0 {
+			// On Android, /proc/self/auxv might be unreadable (issue 9229), so we fallback to
+			// try using mincore to detect the physical page size.
+			// mincore should return EINVAL when address is not a multiple of system page size.
+			const size = 256 << 10 // size of memory region to allocate
+			p := mmap(nil, size, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+			if uintptr(p) < 4096 {
+				return
+			}
+			var n uintptr
+			for n = 4 << 10; n < size; n <<= 1 {
+				err := mincore(unsafe.Pointer(uintptr(p)+n), 1, &addrspace_vec[0])
+				if err == 0 {
+					physPageSize = n
+					break
+				}
+			}
+			if physPageSize == 0 {
+				physPageSize = size
+			}
+			munmap(p, size)
+			return
+		}
+		var buf [128]uintptr
+		n := read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
+		closefd(fd)
+		if n < 0 {
+			return
+		}
+		// Make sure buf is terminated, even if we didn't read
+		// the whole file.
+		buf[len(buf)-2] = _AT_NULL
+		sysauxv(buf[:])
+	}
+}
+
+func sysauxv(auxv []uintptr) int {
+	var i int
+	for ; auxv[i] != _AT_NULL; i += 2 {
 		tag, val := auxv[i], auxv[i+1]
 		switch tag {
 		case _AT_RANDOM:
@@ -207,21 +257,12 @@ func sysargs(argc int32, argv **byte) {
 			startupRandomData = (*[16]byte)(unsafe.Pointer(val))[:]
 
 		case _AT_PAGESZ:
-			// Check that the true physical page size is
-			// compatible with the runtime's assumed
-			// physical page size.
-			if sys.PhysPageSize < val {
-				print("runtime: kernel page size (", val, ") is larger than runtime page size (", sys.PhysPageSize, ")\n")
-				exit(1)
-			}
-			if sys.PhysPageSize%val != 0 {
-				print("runtime: runtime page size (", sys.PhysPageSize, ") is not a multiple of kernel page size (", val, ")\n")
-				exit(1)
-			}
+			physPageSize = val
 		}
 
 		archauxv(tag, val)
 	}
+	return i / 2
 }
 
 func osinit() {
@@ -262,65 +303,21 @@ func mpreinit(mp *m) {
 	mp.gsignal.m = mp
 }
 
-//go:nosplit
-func msigsave(mp *m) {
-	smask := &mp.sigmask
-	rtsigprocmask(_SIG_SETMASK, nil, smask, int32(unsafe.Sizeof(*smask)))
-}
-
-//go:nosplit
-func msigrestore(sigmask sigset) {
-	rtsigprocmask(_SIG_SETMASK, &sigmask, nil, int32(unsafe.Sizeof(sigmask)))
-}
-
-//go:nosplit
-func sigblock() {
-	rtsigprocmask(_SIG_SETMASK, &sigset_all, nil, int32(unsafe.Sizeof(sigset_all)))
-}
-
 func gettid() uint32
 
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
-	// Initialize signal handling.
-	_g_ := getg()
-
-	var st sigaltstackt
-	sigaltstack(nil, &st)
-	if st.ss_flags&_SS_DISABLE != 0 {
-		signalstack(&_g_.m.gsignal.stack)
-		_g_.m.newSigstack = true
-	} else {
-		// Use existing signal stack.
-		stsp := uintptr(unsafe.Pointer(st.ss_sp))
-		_g_.m.gsignal.stack.lo = stsp
-		_g_.m.gsignal.stack.hi = stsp + st.ss_size
-		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
-		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
-		_g_.m.gsignal.stackAlloc = st.ss_size
-		_g_.m.newSigstack = false
-	}
+	minitSignals()
 
 	// for debuggers, in case cgo created the thread
-	_g_.m.procid = uint64(gettid())
-
-	// restore signal mask from m.sigmask and unblock essential signals
-	nmask := _g_.m.sigmask
-	for i := range sigtable {
-		if sigtable[i].flags&_SigUnblock != 0 {
-			sigdelset(&nmask, i)
-		}
-	}
-	rtsigprocmask(_SIG_SETMASK, &nmask, nil, int32(unsafe.Sizeof(nmask)))
+	getg().m.procid = uint64(gettid())
 }
 
 // Called from dropm to undo the effect of an minit.
 //go:nosplit
 func unminit() {
-	if getg().m.newSigstack {
-		signalstack(nil)
-	}
+	unminitSignals()
 }
 
 func memlimit() uintptr {
@@ -360,25 +357,28 @@ func memlimit() uintptr {
 //#endif
 
 func sigreturn()
-func sigtramp()
+func sigtramp(sig uint32, info *siginfo, ctx unsafe.Pointer)
 func cgoSigtramp()
 
 //go:noescape
-func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
-
-//go:noescape
-func sigaltstack(new, old *sigaltstackt)
+func sigaltstack(new, old *stackt)
 
 //go:noescape
 func setitimer(mode int32, new, old *itimerval)
 
 //go:noescape
-func rtsigprocmask(sig uint32, new, old *sigset, size int32)
+func rtsigprocmask(how int32, new, old *sigset, size int32)
+
+//go:nosplit
+//go:nowritebarrierrec
+func sigprocmask(how int32, new, old *sigset) {
+	rtsigprocmask(how, new, old, int32(unsafe.Sizeof(*new)))
+}
 
 //go:noescape
 func getrlimit(kind int32, limit unsafe.Pointer) int32
-func raise(sig int32)
-func raiseproc(sig int32)
+func raise(sig uint32)
+func raiseproc(sig uint32)
 
 //go:noescape
 func sched_getaffinity(pid, len uintptr, buf *uintptr) int32
@@ -386,13 +386,9 @@ func osyield()
 
 //go:nosplit
 //go:nowritebarrierrec
-func setsig(i int32, fn uintptr, restart bool) {
+func setsig(i uint32, fn uintptr) {
 	var sa sigactiont
-	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))
-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTORER
-	if restart {
-		sa.sa_flags |= _SA_RESTART
-	}
+	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTORER | _SA_RESTART
 	sigfillset(&sa.sa_mask)
 	// Although Linux manpage says "sa_restorer element is obsolete and
 	// should not be used". x86_64 kernel requires it. Only use it on
@@ -413,58 +409,31 @@ func setsig(i int32, fn uintptr, restart bool) {
 
 //go:nosplit
 //go:nowritebarrierrec
-func setsigstack(i int32) {
+func setsigstack(i uint32) {
 	var sa sigactiont
-	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
-		throw("rt_sigaction failure")
-	}
-	if sa.sa_handler == 0 || sa.sa_handler == _SIG_DFL || sa.sa_handler == _SIG_IGN || sa.sa_flags&_SA_ONSTACK != 0 {
+	rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask))
+	if sa.sa_flags&_SA_ONSTACK != 0 {
 		return
 	}
 	sa.sa_flags |= _SA_ONSTACK
-	if rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask)) != 0 {
-		throw("rt_sigaction failure")
-	}
+	rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask))
 }
 
 //go:nosplit
 //go:nowritebarrierrec
-func getsig(i int32) uintptr {
+func getsig(i uint32) uintptr {
 	var sa sigactiont
-
-	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))
 	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
 		throw("rt_sigaction read failure")
-	}
-	if sa.sa_handler == funcPC(sigtramp) || sa.sa_handler == funcPC(cgoSigtramp) {
-		return funcPC(sighandler)
 	}
 	return sa.sa_handler
 }
 
+// setSignaltstackSP sets the ss_sp field of a stackt.
 //go:nosplit
-func signalstack(s *stack) {
-	var st sigaltstackt
-	if s == nil {
-		st.ss_flags = _SS_DISABLE
-	} else {
-		st.ss_sp = (*byte)(unsafe.Pointer(s.lo))
-		st.ss_size = s.hi - s.lo
-		st.ss_flags = 0
-	}
-	sigaltstack(&st, nil)
+func setSignalstackSP(s *stackt, sp uintptr) {
+	*(*uintptr)(unsafe.Pointer(&s.ss_sp)) = sp
 }
 
-//go:nosplit
-//go:nowritebarrierrec
-func updatesigmask(m sigmask) {
-	var mask sigset
-	sigcopyset(&mask, m)
-	rtsigprocmask(_SIG_SETMASK, &mask, nil, int32(unsafe.Sizeof(mask)))
-}
-
-func unblocksig(sig int32) {
-	var mask sigset
-	sigaddset(&mask, int(sig))
-	rtsigprocmask(_SIG_UNBLOCK, &mask, nil, int32(unsafe.Sizeof(mask)))
+func (c *sigctxt) fixsigcode(sig uint32) {
 }

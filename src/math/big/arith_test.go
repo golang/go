@@ -6,9 +6,13 @@ package big
 
 import (
 	"fmt"
+	"internal/testenv"
 	"math/rand"
+	"strings"
 	"testing"
 )
+
+var isRaceBuilder = strings.HasSuffix(testenv.Builder(), "-race")
 
 type funWW func(x, y, c Word) (z1, z0 Word)
 type argWW struct {
@@ -123,6 +127,9 @@ var benchSizes = []int{1, 2, 3, 4, 5, 1e1, 1e2, 1e3, 1e4, 1e5}
 
 func BenchmarkAddVV(b *testing.B) {
 	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
 		x := rndV(n)
 		y := rndV(n)
 		z := make([]Word, n)
@@ -233,6 +240,9 @@ func TestFunVW(t *testing.T) {
 
 func BenchmarkAddVW(b *testing.B) {
 	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
 		x := rndV(n)
 		y := rndW()
 		z := make([]Word, n)
@@ -371,6 +381,9 @@ func TestMulAddWWW(t *testing.T) {
 
 func BenchmarkAddMulVVW(b *testing.B) {
 	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
 		x := rndV(n)
 		y := rndW()
 		z := make([]Word, n)

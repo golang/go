@@ -25,7 +25,7 @@ type Magic struct {
 
 // magic number for signed division
 // see hacker's delight chapter 10
-func Smagic(m *Magic) {
+func smagic(m *Magic) {
 	var mask uint64
 
 	m.Bad = 0
@@ -120,7 +120,7 @@ func Smagic(m *Magic) {
 
 // magic number for unsigned division
 // see hacker's delight chapter 10
-func Umagic(m *Magic) {
+func umagic(m *Magic) {
 	var mask uint64
 
 	m.Bad = 0

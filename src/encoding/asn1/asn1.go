@@ -841,6 +841,13 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	case reflect.Struct:
 		structType := fieldType
 
+		for i := 0; i < structType.NumField(); i++ {
+			if structType.Field(i).PkgPath != "" {
+				err = StructuralError{"struct contains unexported fields"}
+				return
+			}
+		}
+
 		if structType.NumField() > 0 &&
 			structType.Field(0).Type == rawContentsType {
 			bytes := bytes[initOffset:offset]
@@ -969,7 +976,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 // The following tags on struct fields have special meaning to Unmarshal:
 //
 //	application	specifies that a APPLICATION tag is used
-//	default:x	sets the default value for optional integer fields
+//	default:x	sets the default value for optional integer fields (only used if optional is also present)
 //	explicit	specifies that an additional, explicit tag wraps the implicit one
 //	optional	marks the field as ASN.1 OPTIONAL
 //	set		causes a SET, rather than a SEQUENCE type to be expected

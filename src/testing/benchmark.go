@@ -7,6 +7,7 @@ package testing
 import (
 	"flag"
 	"fmt"
+	"internal/race"
 	"os"
 	"runtime"
 	"sync"
@@ -14,8 +15,8 @@ import (
 	"time"
 )
 
-var matchBenchmarks = flag.String("test.bench", "", "regular expression per path component to select benchmarks to run")
-var benchTime = flag.Duration("test.benchtime", 1*time.Second, "approximate run time for each benchmark")
+var matchBenchmarks = flag.String("test.bench", "", "run only benchmarks matching `regexp`")
+var benchTime = flag.Duration("test.benchtime", 1*time.Second, "run each benchmark for duration `d`")
 var benchmarkMemory = flag.Bool("test.benchmem", false, "print memory allocations for benchmarks")
 
 // Global lock to ensure only one benchmark runs at a time.
@@ -56,7 +57,6 @@ type B struct {
 	missingBytes     bool // one of the subbenchmarks does not have bytes set.
 	timerOn          bool
 	showAllocResult  bool
-	hasSub           bool
 	result           BenchmarkResult
 	parallelism      int // RunParallel creates parallelism*GOMAXPROCS goroutines
 	// The initial states of memStats.Mallocs and memStats.TotalAlloc.
@@ -132,6 +132,7 @@ func (b *B) runN(n int) {
 	// Try to get a comparable environment for each run
 	// by clearing garbage from previous runs.
 	runtime.GC()
+	b.raceErrors = -race.Errors()
 	b.N = n
 	b.parallelism = 1
 	b.ResetTimer()
@@ -140,6 +141,10 @@ func (b *B) runN(n int) {
 	b.StopTimer()
 	b.previousN = n
 	b.previousDuration = b.duration
+	b.raceErrors += race.Errors()
+	if b.raceErrors > 0 {
+		b.Errorf("race detected during execution of benchmark")
+	}
 }
 
 func min(x, y int) int {
@@ -214,7 +219,7 @@ func (b *B) run1() bool {
 	}
 	// Only print the output if we know we are not going to proceed.
 	// Otherwise it is printed in processBench.
-	if b.hasSub || b.finished {
+	if atomic.LoadInt32(&b.hasSub) != 0 || b.finished {
 		tag := "BENCH"
 		if b.skipped {
 			tag = "SKIP"
@@ -263,10 +268,9 @@ func (b *B) launch() {
 	for n := 1; !b.failed && b.duration < d && n < 1e9; {
 		last := n
 		// Predict required iterations.
-		if b.nsPerOp() == 0 {
-			n = 1e9
-		} else {
-			n = int(d.Nanoseconds() / b.nsPerOp())
+		n = int(d.Nanoseconds())
+		if nsop := b.nsPerOp(); nsop != 0 {
+			n /= int(nsop)
 		}
 		// Run more iterations than we think we'll need (1.2x).
 		// Don't grow too fast in case we had timing errors previously.
@@ -359,10 +363,10 @@ type benchContext struct {
 // An internal function but exported because it is cross-package; part of the implementation
 // of the "go test" command.
 func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
-	runBenchmarksInternal(matchString, benchmarks)
+	runBenchmarks(matchString, benchmarks)
 }
 
-func runBenchmarksInternal(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) bool {
+func runBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) bool {
 	// If no flag was specified, don't run benchmarks.
 	if len(*matchBenchmarks) == 0 {
 		return true
@@ -456,10 +460,13 @@ func (ctx *benchContext) processBench(b *B) {
 //
 // A subbenchmark is like any other benchmark. A benchmark that calls Run at
 // least once will not be measured itself and will be called once with N=1.
+//
+// Run may be called simultaneously from multiple goroutines, but all such
+// calls must happen before the outer benchmark function for b returns.
 func (b *B) Run(name string, f func(b *B)) bool {
 	// Since b has subbenchmarks, we will no longer run it as a benchmark itself.
 	// Release the lock and acquire it on exit to ensure locks stay paired.
-	b.hasSub = true
+	atomic.StoreInt32(&b.hasSub, 1)
 	benchmarkLock.Unlock()
 	defer benchmarkLock.Lock()
 

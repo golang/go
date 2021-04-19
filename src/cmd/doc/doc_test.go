@@ -55,16 +55,22 @@ var tests = []test{
 		[]string{p},
 		[]string{
 			`Package comment`,
-			`const ExportedConstant = 1`,                            // Simple constant.
-			`const ConstOne = 1`,                                    // First entry in constant block.
-			`const ConstFive ...`,                                   // From block starting with unexported constant.
-			`var ExportedVariable = 1`,                              // Simple variable.
-			`var VarOne = 1`,                                        // First entry in variable block.
-			`func ExportedFunc\(a int\) bool`,                       // Function.
-			`func ReturnUnexported\(\) unexportedType`,              // Function with unexported return type.
-			`type ExportedType struct { ... }`,                      // Exported type.
-			`const ExportedTypedConstant ExportedType = iota`,       // Typed constant.
-			`const ExportedTypedConstant_unexported unexportedType`, // Typed constant, exported for unexported type.
+			`const ExportedConstant = 1`,                                   // Simple constant.
+			`const ConstOne = 1`,                                           // First entry in constant block.
+			`const ConstFive ...`,                                          // From block starting with unexported constant.
+			`var ExportedVariable = 1`,                                     // Simple variable.
+			`var VarOne = 1`,                                               // First entry in variable block.
+			`func ExportedFunc\(a int\) bool`,                              // Function.
+			`func ReturnUnexported\(\) unexportedType`,                     // Function with unexported return type.
+			`type ExportedType struct{ ... }`,                              // Exported type.
+			`const ExportedTypedConstant ExportedType = iota`,              // Typed constant.
+			`const ExportedTypedConstant_unexported unexportedType`,        // Typed constant, exported for unexported type.
+			`const ConstLeft2 uint64 ...`,                                  // Typed constant using unexported iota.
+			`const ConstGroup1 unexportedType = iota ...`,                  // Typed constant using unexported type.
+			`const ConstGroup4 ExportedType = ExportedType{}`,              // Typed constant using exported type.
+			`const MultiLineConst = ...`,                                   // Multi line constant.
+			`var MultiLineVar = map\[struct{ ... }\]struct{ ... }{ ... }`,  // Multi line variable.
+			`func MultiLineFunc\(x interface{ ... }\) \(r struct{ ... }\)`, // Multi line function.
 		},
 		[]string{
 			`const internalConstant = 2`,        // No internal constants.
@@ -99,6 +105,7 @@ var tests = []test{
 			`Comment about exported constant`,  // No comment for simple constant.
 			`Comment about block of constants`, // No comment for constant block.
 			`Comment about internal function`,  // No comment for internal function.
+			`MultiLine(String|Method|Field)`,   // No data from multi line portions.
 		},
 	},
 
@@ -141,6 +148,30 @@ var tests = []test{
 		[]string{"-u", p, `constThree`},
 		[]string{
 			`constThree = 3.*Comment on line with constThree`,
+		},
+		nil,
+	},
+	// Block of constants with carryover type from unexported field.
+	{
+		"block of constants with carryover type",
+		[]string{p, `ConstLeft2`},
+		[]string{
+			`ConstLeft2, constRight2 uint64`,
+			`constLeft3, ConstRight3`,
+			`ConstLeft4, ConstRight4`,
+		},
+		nil,
+	},
+	// Block of constants -u with carryover type from unexported field.
+	{
+		"block of constants with carryover type",
+		[]string{"-u", p, `ConstLeft2`},
+		[]string{
+			`_, _ uint64 = 2 \* iota, 1 << iota`,
+			`constLeft1, constRight1`,
+			`ConstLeft2, constRight2`,
+			`constLeft3, ConstRight3`,
+			`ConstLeft4, ConstRight4`,
 		},
 		nil,
 	},
@@ -273,7 +304,7 @@ var tests = []test{
 
 	// Interface.
 	{
-		"type",
+		"interface type",
 		[]string{p, `ExportedInterface`},
 		[]string{
 			`Comment about exported interface`, // Include comment.
@@ -293,7 +324,7 @@ var tests = []test{
 	},
 	// Interface -u with unexported methods.
 	{
-		"type with unexported methods and -u",
+		"interface type with unexported methods and -u",
 		[]string{"-u", p, `ExportedInterface`},
 		[]string{
 			`Comment about exported interface`, // Include comment.
@@ -306,6 +337,19 @@ var tests = []test{
 		},
 		[]string{
 			`Has unexported methods`,
+		},
+	},
+
+	// Interface method.
+	{
+		"interface method",
+		[]string{p, `ExportedInterface.ExportedMethod`},
+		[]string{
+			`Comment before exported method.*\n.*ExportedMethod\(\)` +
+				`.*Comment on line with exported method`,
+		},
+		[]string{
+			`Comment about exported interface.`,
 		},
 	},
 

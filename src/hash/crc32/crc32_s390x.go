@@ -4,14 +4,9 @@
 
 package crc32
 
-import (
-	"unsafe"
-)
-
 const (
 	vxMinLen    = 64
-	vxAlignment = 16
-	vxAlignMask = vxAlignment - 1
+	vxAlignMask = 15 // align to 16 bytes
 )
 
 // hasVectorFacility reports whether the machine has the z/Architecture
@@ -30,72 +25,65 @@ func vectorizedCastagnoli(crc uint32, p []byte) uint32
 //go:noescape
 func vectorizedIEEE(crc uint32, p []byte) uint32
 
-func genericCastagnoli(crc uint32, p []byte) uint32 {
-	// Use slicing-by-8 on larger inputs.
-	if len(p) >= sliceBy8Cutoff {
-		return updateSlicingBy8(crc, castagnoliTable8, p)
-	}
-	return update(crc, castagnoliTable, p)
+func archAvailableCastagnoli() bool {
+	return hasVX
 }
 
-func genericIEEE(crc uint32, p []byte) uint32 {
-	// Use slicing-by-8 on larger inputs.
-	if len(p) >= sliceBy8Cutoff {
-		ieeeTable8Once.Do(func() {
-			ieeeTable8 = makeTable8(IEEE)
-		})
-		return updateSlicingBy8(crc, ieeeTable8, p)
+var archCastagnoliTable8 *slicing8Table
+
+func archInitCastagnoli() {
+	if !hasVX {
+		panic("not available")
 	}
-	return update(crc, IEEETable, p)
+	// We still use slicing-by-8 for small buffers.
+	archCastagnoliTable8 = slicingMakeTable(Castagnoli)
 }
 
-// updateCastagnoli calculates the checksum of p using genericCastagnoli to
-// align the data appropriately for vectorCastagnoli. It avoids using
-// vectorCastagnoli entirely if the length of p is less than or equal to
-// vxMinLen.
-func updateCastagnoli(crc uint32, p []byte) uint32 {
-	// Use vectorized function if vector facility is available and
-	// data length is above threshold.
-	if hasVX && len(p) > vxMinLen {
-		pAddr := uintptr(unsafe.Pointer(&p[0]))
-		if pAddr&vxAlignMask != 0 {
-			prealign := vxAlignment - int(pAddr&vxAlignMask)
-			crc = genericCastagnoli(crc, p[:prealign])
-			p = p[prealign:]
-		}
+// archUpdateCastagnoli calculates the checksum of p using
+// vectorizedCastagnoli.
+func archUpdateCastagnoli(crc uint32, p []byte) uint32 {
+	if !hasVX {
+		panic("not available")
+	}
+	// Use vectorized function if data length is above threshold.
+	if len(p) >= vxMinLen {
 		aligned := len(p) & ^vxAlignMask
 		crc = vectorizedCastagnoli(crc, p[:aligned])
 		p = p[aligned:]
-		// process remaining data
-		if len(p) > 0 {
-			crc = genericCastagnoli(crc, p)
-		}
+	}
+	if len(p) == 0 {
 		return crc
 	}
-	return genericCastagnoli(crc, p)
+	return slicingUpdate(crc, archCastagnoliTable8, p)
 }
 
-// updateIEEE calculates the checksum of p using genericIEEE to align the data
-// appropriately for vectorIEEE. It avoids using vectorIEEE entirely if the length
-// of p is less than or equal to vxMinLen.
-func updateIEEE(crc uint32, p []byte) uint32 {
-	// Use vectorized function if vector facility is available and
-	// data length is above threshold.
-	if hasVX && len(p) > vxMinLen {
-		pAddr := uintptr(unsafe.Pointer(&p[0]))
-		if pAddr&vxAlignMask != 0 {
-			prealign := vxAlignment - int(pAddr&vxAlignMask)
-			crc = genericIEEE(crc, p[:prealign])
-			p = p[prealign:]
-		}
+func archAvailableIEEE() bool {
+	return hasVX
+}
+
+var archIeeeTable8 *slicing8Table
+
+func archInitIEEE() {
+	if !hasVX {
+		panic("not available")
+	}
+	// We still use slicing-by-8 for small buffers.
+	archIeeeTable8 = slicingMakeTable(IEEE)
+}
+
+// archUpdateIEEE calculates the checksum of p using vectorizedIEEE.
+func archUpdateIEEE(crc uint32, p []byte) uint32 {
+	if !hasVX {
+		panic("not available")
+	}
+	// Use vectorized function if data length is above threshold.
+	if len(p) >= vxMinLen {
 		aligned := len(p) & ^vxAlignMask
 		crc = vectorizedIEEE(crc, p[:aligned])
 		p = p[aligned:]
-		// process remaining data
-		if len(p) > 0 {
-			crc = genericIEEE(crc, p)
-		}
+	}
+	if len(p) == 0 {
 		return crc
 	}
-	return genericIEEE(crc, p)
+	return slicingUpdate(crc, archIeeeTable8, p)
 }

@@ -105,7 +105,7 @@ status=0
 
 # test0: exported symbols in shared lib are accessible.
 # TODO(iant): using _shared here shouldn't really be necessary.
-$(go env CC) ${GOGCCFLAGS} -I ${installdir} -o testp main0.c libgo.$libext
+$(go env CC) ${GOGCCFLAGS} -I ${installdir} -o testp main0.c ./libgo.$libext
 binpush testp
 
 output=$(run LD_LIBRARY_PATH=. ./testp)
@@ -177,6 +177,13 @@ if test "$output" != "PASS"; then
 	./testp5 ./libgo5.$libext verbose
     fi
     status=1
+fi
+
+if test "$libext" = "dylib"; then
+	# make sure dylibs are well-formed
+	if ! otool -l libgo*.dylib >/dev/null; then
+		status=1
+	fi
 fi
 
 if test $status = 0; then

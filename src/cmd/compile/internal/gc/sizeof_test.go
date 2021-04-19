@@ -22,12 +22,12 @@ func TestSizeof(t *testing.T) {
 		_32bit uintptr     // size on 32bit platforms
 		_64bit uintptr     // size on 64bit platforms
 	}{
-		{Flow{}, 52, 88},
 		{Func{}, 92, 160},
-		{Name{}, 52, 80},
+		{Name{}, 44, 72},
+		{Param{}, 24, 48},
 		{Node{}, 92, 144},
 		{Sym{}, 60, 112},
-		{Type{}, 52, 80},
+		{Type{}, 60, 96},
 		{MapType{}, 20, 40},
 		{ForwardType{}, 16, 32},
 		{FuncType{}, 28, 48},

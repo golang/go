@@ -6,6 +6,7 @@ package carchive_test
 
 import (
 	"bufio"
+	"debug/elf"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -34,13 +35,9 @@ var GOOS, GOARCH string
 var libgodir string
 
 func init() {
-	bin = []string{"./testp"}
 	GOOS = goEnv("GOOS")
 	GOARCH = goEnv("GOARCH")
-	execScript := "go_" + GOOS + "_" + GOARCH + "_exec"
-	if executor, err := exec.LookPath(execScript); err == nil {
-		bin = []string{executor, "./testp"}
-	}
+	bin = cmdToRun("./testp")
 
 	ccOut := goEnv("CC")
 	cc = []string{string(ccOut)}
@@ -84,8 +81,13 @@ func init() {
 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
 	}
 	libgodir = GOOS + "_" + GOARCH
-	if GOOS == "darwin" && (GOARCH == "arm" || GOARCH == "arm64") {
-		libgodir = GOOS + "_" + GOARCH + "_shared"
+	switch GOOS {
+	case "darwin":
+		if GOARCH == "arm" || GOARCH == "arm64" {
+			libgodir += "_shared"
+		}
+	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+		libgodir += "_shared"
 	}
 	cc = append(cc, "-I", filepath.Join("pkg", libgodir))
 
@@ -120,81 +122,62 @@ func goEnv(key string) string {
 	return strings.TrimSpace(string(out))
 }
 
-func compilemain(t *testing.T, libgo string) {
-	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main.c")
+func cmdToRun(name string) []string {
+	execScript := "go_" + goEnv("GOOS") + "_" + goEnv("GOARCH") + "_exec"
+	executor, err := exec.LookPath(execScript)
+	if err != nil {
+		return []string{name}
+	}
+	return []string{executor, name}
+}
+
+func testInstall(t *testing.T, exe, libgoa, libgoh string, buildcmd ...string) {
+	cmd := exec.Command(buildcmd[0], buildcmd[1:]...)
+	cmd.Env = gopathEnv
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+	defer func() {
+		os.Remove(libgoa)
+		os.Remove(libgoh)
+	}()
+
+	ccArgs := append(cc, "-o", exe, "main.c")
 	if GOOS == "windows" {
-		ccArgs = append(ccArgs, "main_windows.c", libgo, "-lntdll", "-lws2_32", "-lwinmm")
+		ccArgs = append(ccArgs, "main_windows.c", libgoa, "-lntdll", "-lws2_32", "-lwinmm")
 	} else {
-		ccArgs = append(ccArgs, "main_unix.c", libgo)
+		ccArgs = append(ccArgs, "main_unix.c", libgoa)
 	}
 	t.Log(ccArgs)
-
 	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+	defer os.Remove(exe)
+
+	binArgs := append(cmdToRun(exe), "arg1", "arg2")
+	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
 	}
 }
 
 func TestInstall(t *testing.T) {
-	defer func() {
-		os.Remove("libgo.a")
-		os.Remove("libgo.h")
-		os.Remove("testp")
-		os.RemoveAll("pkg")
-	}()
+	defer os.RemoveAll("pkg")
 
-	cmd := exec.Command("go", "install", "-buildmode=c-archive", "libgo")
-	cmd.Env = gopathEnv
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Logf("%s", out)
-		t.Fatal(err)
-	}
-
-	compilemain(t, filepath.Join("pkg", libgodir, "libgo.a"))
-
-	binArgs := append(bin, "arg1", "arg2")
-	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {
-		t.Logf("%s", out)
-		t.Fatal(err)
-	}
-
-	os.Remove("libgo.a")
-	os.Remove("libgo.h")
-	os.Remove("testp")
+	testInstall(t, "./testp1"+exeSuffix,
+		filepath.Join("pkg", libgodir, "libgo.a"),
+		filepath.Join("pkg", libgodir, "libgo.h"),
+		"go", "install", "-buildmode=c-archive", "libgo")
 
 	// Test building libgo other than installing it.
 	// Header files are now present.
-	cmd = exec.Command("go", "build", "-buildmode=c-archive", filepath.Join("src", "libgo", "libgo.go"))
-	cmd.Env = gopathEnv
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Logf("%s", out)
-		t.Fatal(err)
-	}
+	testInstall(t, "./testp2"+exeSuffix, "libgo.a", "libgo.h",
+		"go", "build", "-buildmode=c-archive", filepath.Join("src", "libgo", "libgo.go"))
 
-	compilemain(t, "libgo.a")
-
-	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {
-		t.Logf("%s", out)
-		t.Fatal(err)
-	}
-
-	os.Remove("libgo.a")
-	os.Remove("libgo.h")
-	os.Remove("testp")
-
-	cmd = exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo.a", "libgo")
-	cmd.Env = gopathEnv
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Logf("%s", out)
-		t.Fatal(err)
-	}
-
-	compilemain(t, "libgo.a")
-
-	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {
-		t.Logf("%s", out)
-		t.Fatal(err)
-	}
+	testInstall(t, "./testp3"+exeSuffix, "libgo.a", "libgo.h",
+		"go", "build", "-buildmode=c-archive", "-o", "libgo.a", "libgo")
 }
 
 func TestEarlySignalHandler(t *testing.T) {
@@ -486,4 +469,72 @@ func TestExtar(t *testing.T) {
 			t.Errorf("error checking testar: %v", err)
 		}
 	}
+}
+
+func TestPIE(t *testing.T) {
+	switch GOOS {
+	case "windows", "darwin", "plan9":
+		t.Skipf("skipping PIE test on %s", GOOS)
+	}
+
+	defer func() {
+		os.Remove("testp" + exeSuffix)
+		os.RemoveAll("pkg")
+	}()
+
+	cmd := exec.Command("go", "install", "-buildmode=c-archive", "libgo")
+	cmd.Env = gopathEnv
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	ccArgs := append(cc, "-fPIE", "-pie", "-o", "testp"+exeSuffix, "main.c", "main_unix.c", filepath.Join("pkg", libgodir, "libgo.a"))
+	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	binArgs := append(bin, "arg1", "arg2")
+	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	f, err := elf.Open("testp" + exeSuffix)
+	if err != nil {
+		t.Fatal("elf.Open failed: ", err)
+	}
+	defer f.Close()
+	if hasDynTag(t, f, elf.DT_TEXTREL) {
+		t.Errorf("%s has DT_TEXTREL flag", "testp"+exeSuffix)
+	}
+}
+
+func hasDynTag(t *testing.T, f *elf.File, tag elf.DynTag) bool {
+	ds := f.SectionByType(elf.SHT_DYNAMIC)
+	if ds == nil {
+		t.Error("no SHT_DYNAMIC section")
+		return false
+	}
+	d, err := ds.Data()
+	if err != nil {
+		t.Errorf("can't read SHT_DYNAMIC contents: %v", err)
+		return false
+	}
+	for len(d) > 0 {
+		var t elf.DynTag
+		switch f.Class {
+		case elf.ELFCLASS32:
+			t = elf.DynTag(f.ByteOrder.Uint32(d[:4]))
+			d = d[8:]
+		case elf.ELFCLASS64:
+			t = elf.DynTag(f.ByteOrder.Uint64(d[:8]))
+			d = d[16:]
+		}
+		if t == tag {
+			return true
+		}
+	}
+	return false
 }

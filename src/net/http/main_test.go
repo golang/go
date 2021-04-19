@@ -6,6 +6,8 @@ package http_test
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"runtime"
@@ -14,6 +16,8 @@ import (
 	"testing"
 	"time"
 )
+
+var quietLog = log.New(ioutil.Discard, "", 0)
 
 func TestMain(m *testing.M) {
 	v := m.Run()
@@ -133,4 +137,21 @@ func waitCondition(waitFor, checkEvery time.Duration, fn func() bool) bool {
 		time.Sleep(checkEvery)
 	}
 	return false
+}
+
+// waitErrCondition is like waitCondition but with errors instead of bools.
+func waitErrCondition(waitFor, checkEvery time.Duration, fn func() error) error {
+	deadline := time.Now().Add(waitFor)
+	var err error
+	for time.Now().Before(deadline) {
+		if err = fn(); err == nil {
+			return nil
+		}
+		time.Sleep(checkEvery)
+	}
+	return err
+}
+
+func closeClient(c *http.Client) {
+	c.Transport.(*http.Transport).CloseIdleConnections()
 }

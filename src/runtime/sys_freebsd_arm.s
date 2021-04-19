@@ -45,7 +45,7 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	MOVW addr+0(FP), R0
 	MOVW mode+4(FP), R1
 	MOVW val+8(FP), R2
-	MOVW ptr2+12(FP), R3
+	MOVW uaddr1+12(FP), R3
 	ADD $20, R13 // arg 5 is passed on stack
 	MOVW $SYS__umtx_op, R7
 	SWI $0

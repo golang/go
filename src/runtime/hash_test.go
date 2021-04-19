@@ -683,6 +683,9 @@ func BenchmarkUnalignedLoad(b *testing.B) {
 }
 
 func TestCollisions(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
 	for i := 0; i < 16; i++ {
 		for j := 0; j < 16; j++ {
 			if j == i {

@@ -322,6 +322,27 @@ var ptrTests = []ptrTest{
 		body: `p := &C.s{}; defer C.f(p); p.p = new(C.int)`,
 		fail: true,
 	},
+	{
+		// Check a pointer to a union if the union has any
+		// pointer fields.
+		name:    "union1",
+		c:       `typedef union { char **p; unsigned long i; } u; void f(u *pu) {}`,
+		imports: []string{"unsafe"},
+		body:    `var b C.char; p := &b; C.f((*C.u)(unsafe.Pointer(&p)))`,
+		fail:    true,
+	},
+	{
+		// Don't check a pointer to a union if the union does
+		// not have any pointer fields.
+		// Like ptrdata1 above, the uintptr represents an
+		// integer that happens to have the same
+		// representation as a pointer.
+		name:    "union2",
+		c:       `typedef union { unsigned long i; } u; void f(u *pu) {}`,
+		imports: []string{"unsafe"},
+		body:    `var b C.char; p := &b; C.f((*C.u)(unsafe.Pointer(&p)))`,
+		fail:    false,
+	},
 }
 
 func main() {

@@ -28,8 +28,8 @@ const (
 	traceEvProcStop       = 6  // stop of P [timestamp]
 	traceEvGCStart        = 7  // GC start [timestamp, seq, stack id]
 	traceEvGCDone         = 8  // GC done [timestamp]
-	traceEvGCScanStart    = 9  // GC scan start [timestamp]
-	traceEvGCScanDone     = 10 // GC scan done [timestamp]
+	traceEvGCScanStart    = 9  // GC mark termination start [timestamp]
+	traceEvGCScanDone     = 10 // GC mark termination done [timestamp]
 	traceEvGCSweepStart   = 11 // GC sweep start [timestamp, stack id]
 	traceEvGCSweepDone    = 12 // GC sweep done [timestamp]
 	traceEvGoCreate       = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
@@ -60,7 +60,9 @@ const (
 	traceEvGoStartLocal   = 38 // goroutine starts running on the same P as the last event [timestamp, goroutine id]
 	traceEvGoUnblockLocal = 39 // goroutine is unblocked on the same P as the last event [timestamp, goroutine id, stack]
 	traceEvGoSysExitLocal = 40 // syscall exit on the same P as the last event [timestamp, goroutine id, real timestamp]
-	traceEvCount          = 41
+	traceEvGoStartLabel   = 41 // goroutine starts running with label [timestamp, goroutine id, seq, label string id]
+	traceEvGoBlockGC      = 42 // goroutine blocks on GC assist [timestamp, stack]
+	traceEvCount          = 43
 )
 
 const (
@@ -112,14 +114,19 @@ var trace struct {
 	empty         traceBufPtr // stack of empty buffers
 	fullHead      traceBufPtr // queue of full buffers
 	fullTail      traceBufPtr
-	reader        *g              // goroutine that called ReadTrace, or nil
+	reader        guintptr        // goroutine that called ReadTrace, or nil
 	stackTab      traceStackTable // maps stack traces to unique ids
 
 	// Dictionary for traceEvString.
-	// Currently this is used only for func/file:line info after tracing session,
-	// so we assume single-threaded access.
+	//
+	// Currently this is used only at trace setup and for
+	// func/file:line info after tracing session, so we assume
+	// single-threaded access.
 	strings   map[string]uint64
 	stringSeq uint64
+
+	// markWorkerLabels maps gcMarkWorkerMode to string ID.
+	markWorkerLabels [len(gcMarkWorkerModeStrings)]uint64
 
 	bufLock mutex       // protects buf
 	buf     traceBufPtr // global trace buffer, used when running without a p
@@ -134,6 +141,8 @@ type traceBufHeader struct {
 }
 
 // traceBuf is per-P tracing buffer.
+//
+//go:notinheap
 type traceBuf struct {
 	traceBufHeader
 	arr [64<<10 - unsafe.Sizeof(traceBufHeader{})]byte // underlying buffer for traceBufHeader.buf
@@ -144,6 +153,8 @@ type traceBuf struct {
 // allocated from the GC'd heap, so this is safe, and are often
 // manipulated in contexts where write barriers are not allowed, so
 // this is necessary.
+//
+// TODO: Since traceBuf is now go:notinheap, this isn't necessary.
 type traceBufPtr uintptr
 
 func (tp traceBufPtr) ptr() *traceBuf   { return (*traceBuf)(unsafe.Pointer(tp)) }
@@ -184,10 +195,21 @@ func StartTrace() error {
 	// trace.enabled is set afterwards once we have emitted all preliminary events.
 	_g_ := getg()
 	_g_.m.startingtrace = true
+
+	// Obtain current stack ID to use in all traceEvGoCreate events below.
+	mp := acquirem()
+	stkBuf := make([]uintptr, traceStackSize)
+	stackID := traceStackID(mp, stkBuf, 2)
+	releasem(mp)
+
 	for _, gp := range allgs {
 		status := readgstatus(gp)
 		if status != _Gdead {
-			traceGoCreate(gp, gp.startpc) // also resets gp.traceseq/tracelastp
+			gp.traceseq = 0
+			gp.tracelastp = getg().m.p
+			// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
+			id := trace.stackTab.put([]uintptr{gp.startpc + sys.PCQuantum})
+			traceEvent(traceEvGoCreate, -1, uint64(gp.goid), uint64(id), stackID)
 		}
 		if status == _Gwaiting {
 			// traceEvGoWaiting is implied to have seq=1.
@@ -216,6 +238,18 @@ func StartTrace() error {
 	trace.seqGC = 0
 	_g_.m.startingtrace = false
 	trace.enabled = true
+
+	// Register runtime goroutine labels.
+	_, pid, bufp := traceAcquireBuffer()
+	buf := (*bufp).ptr()
+	if buf == nil {
+		buf = traceFlush(0).ptr()
+		(*bufp).set(buf)
+	}
+	for i, label := range gcMarkWorkerModeStrings[:] {
+		trace.markWorkerLabels[i], buf = traceString(buf, label)
+	}
+	traceReleaseBuffer(pid)
 
 	unlock(&trace.bufLock)
 
@@ -251,10 +285,12 @@ func StopTrace() {
 			p.tracebuf = 0
 		}
 	}
-	if trace.buf != 0 && trace.buf.ptr().pos != 0 {
+	if trace.buf != 0 {
 		buf := trace.buf
 		trace.buf = 0
-		traceFullQueue(buf)
+		if buf.ptr().pos != 0 {
+			traceFullQueue(buf)
+		}
 	}
 
 	for {
@@ -275,7 +311,7 @@ func StopTrace() {
 
 	// The world is started but we've set trace.shutdown, so new tracing can't start.
 	// Wait for the trace reader to flush pending buffers and stop.
-	semacquire(&trace.shutdownSema, false)
+	semacquire(&trace.shutdownSema, 0)
 	if raceenabled {
 		raceacquire(unsafe.Pointer(&trace.shutdownSema))
 	}
@@ -296,7 +332,7 @@ func StopTrace() {
 	if trace.fullHead != 0 || trace.fullTail != 0 {
 		throw("trace: non-empty full trace buffer")
 	}
-	if trace.reading != 0 || trace.reader != nil {
+	if trace.reading != 0 || trace.reader != 0 {
 		throw("trace: reading after shutdown")
 	}
 	for trace.empty != 0 {
@@ -324,7 +360,7 @@ func ReadTrace() []byte {
 	lock(&trace.lock)
 	trace.lockOwner = getg()
 
-	if trace.reader != nil {
+	if trace.reader != 0 {
 		// More than one goroutine reads trace. This is bad.
 		// But we rather do not crash the program because of tracing,
 		// because tracing can be enabled at runtime on prod servers.
@@ -344,11 +380,11 @@ func ReadTrace() []byte {
 		trace.headerWritten = true
 		trace.lockOwner = nil
 		unlock(&trace.lock)
-		return []byte("go 1.7 trace\x00\x00\x00\x00")
+		return []byte("go 1.8 trace\x00\x00\x00\x00")
 	}
 	// Wait for new data.
 	if trace.fullHead == 0 && !trace.shutdown {
-		trace.reader = getg()
+		trace.reader.set(getg())
 		goparkunlock(&trace.lock, "trace reader (blocked)", traceEvGoBlock, 2)
 		lock(&trace.lock)
 	}
@@ -402,16 +438,16 @@ func ReadTrace() []byte {
 
 // traceReader returns the trace reader that should be woken up, if any.
 func traceReader() *g {
-	if trace.reader == nil || (trace.fullHead == 0 && !trace.shutdown) {
+	if trace.reader == 0 || (trace.fullHead == 0 && !trace.shutdown) {
 		return nil
 	}
 	lock(&trace.lock)
-	if trace.reader == nil || (trace.fullHead == 0 && !trace.shutdown) {
+	if trace.reader == 0 || (trace.fullHead == 0 && !trace.shutdown) {
 		unlock(&trace.lock)
 		return nil
 	}
-	gp := trace.reader
-	trace.reader = nil
+	gp := trace.reader.ptr()
+	trace.reader.set(nil)
 	unlock(&trace.lock)
 	return gp
 }
@@ -513,28 +549,7 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 	if skip == 0 {
 		buf.varint(0)
 	} else if skip > 0 {
-		_g_ := getg()
-		gp := mp.curg
-		var nstk int
-		if gp == _g_ {
-			nstk = callers(skip, buf.stk[:])
-		} else if gp != nil {
-			gp = mp.curg
-			// This may happen when tracing a system call,
-			// so we must lock the stack.
-			if gcTryLockStackBarriers(gp) {
-				nstk = gcallers(gp, skip, buf.stk[:])
-				gcUnlockStackBarriers(gp)
-			}
-		}
-		if nstk > 0 {
-			nstk-- // skip runtime.goexit
-		}
-		if nstk > 0 && gp.goid == 1 {
-			nstk-- // skip runtime.main
-		}
-		id := trace.stackTab.put(buf.stk[:nstk])
-		buf.varint(uint64(id))
+		buf.varint(traceStackID(mp, buf.stk[:], skip))
 	}
 	evSize := buf.pos - startPos
 	if evSize > maxSize {
@@ -545,6 +560,31 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 		*lenp = byte(evSize - 2)
 	}
 	traceReleaseBuffer(pid)
+}
+
+func traceStackID(mp *m, buf []uintptr, skip int) uint64 {
+	_g_ := getg()
+	gp := mp.curg
+	var nstk int
+	if gp == _g_ {
+		nstk = callers(skip+1, buf[:])
+	} else if gp != nil {
+		gp = mp.curg
+		// This may happen when tracing a system call,
+		// so we must lock the stack.
+		if gcTryLockStackBarriers(gp) {
+			nstk = gcallers(gp, skip, buf[:])
+			gcUnlockStackBarriers(gp)
+		}
+	}
+	if nstk > 0 {
+		nstk-- // skip runtime.goexit
+	}
+	if nstk > 0 && gp.goid == 1 {
+		nstk-- // skip runtime.main
+	}
+	id := trace.stackTab.put(buf[:nstk])
+	return uint64(id)
 }
 
 // traceAcquireBuffer returns trace buffer to use and, if necessary, locks it.
@@ -811,11 +851,14 @@ type traceAlloc struct {
 // traceAllocBlock is allocated from non-GC'd memory, so it must not
 // contain heap pointers. Writes to pointers to traceAllocBlocks do
 // not need write barriers.
+//
+//go:notinheap
 type traceAllocBlock struct {
 	next traceAllocBlockPtr
 	data [64<<10 - sys.PtrSize]byte
 }
 
+// TODO: Since traceAllocBlock is now go:notinheap, this isn't necessary.
 type traceAllocBlockPtr uintptr
 
 func (p traceAllocBlockPtr) ptr() *traceAllocBlock   { return (*traceAllocBlock)(unsafe.Pointer(p)) }
@@ -908,7 +951,9 @@ func traceGoStart() {
 	_g_ := getg().m.curg
 	_p_ := _g_.m.p
 	_g_.traceseq++
-	if _g_.tracelastp == _p_ {
+	if _g_ == _p_.ptr().gcBgMarkWorker.ptr() {
+		traceEvent(traceEvGoStartLabel, -1, uint64(_g_.goid), _g_.traceseq, trace.markWorkerLabels[_p_.ptr().gcMarkWorkerMode])
+	} else if _g_.tracelastp == _p_ {
 		traceEvent(traceEvGoStartLocal, -1, uint64(_g_.goid))
 	} else {
 		_g_.tracelastp = _p_
@@ -989,5 +1034,10 @@ func traceHeapAlloc() {
 }
 
 func traceNextGC() {
-	traceEvent(traceEvNextGC, -1, memstats.next_gc)
+	if memstats.next_gc == ^uint64(0) {
+		// Heap-based triggering is disabled.
+		traceEvent(traceEvNextGC, -1, 0)
+	} else {
+		traceEvent(traceEvNextGC, -1, memstats.next_gc)
+	}
 }

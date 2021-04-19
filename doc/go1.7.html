@@ -1,5 +1,5 @@
 <!--{
-	"Title": "Go 1.7 Release Notes DRAFT",
+	"Title": "Go 1.7 Release Notes",
 	"Path":  "/doc/go1.7",
 	"Template": true
 }-->
@@ -25,15 +25,6 @@ Do not send CLs removing the interior tags from such phrases.
 ul li { margin: 0.5em 0; }
 </style>
 
-<p>
-<!-- TODO: REMOVE THIS COMMENT -->
-<!-- TODO: Also remove "DRAFT" in the "Title" at the top of this file. -->
-<i>NOTE: This is a DRAFT of the Go 1.7 release notes, prepared for the Go 1.7 beta.
-Go 1.7 has NOT yet been released.
-By our regular schedule, it is expected some time in August 2016.
-</i>
-</p>
-
 <h2 id="introduction">Introduction to Go 1.7</h2>
 
 <p>
@@ -52,7 +43,7 @@ includes the <a href="#context">context package</a>, promoted from the
 and now used in the standard library;
 and <a href="#testing">adds support in the testing package</a> for
 creating hierarchies of tests and benchmarks.
-The release also <a href="#cmd/go">finalizes the vendoring support</a>
+The release also <a href="#cmd_go">finalizes the vendoring support</a>
 started in Go 1.5, making it a standard feature.
 </p>
 
@@ -76,8 +67,7 @@ This change has no effect on the correctness of existing programs.
 
 <p>
 Go 1.7 adds support for macOS 10.12 Sierra.
-This support was backported to Go 1.6.3.
-Binaries built with versions of Go before 1.6.3 will not work
+Binaries built with versions of Go before 1.7 will not work
 correctly on Sierra.
 </p>
 
@@ -367,7 +357,7 @@ the code generation changes alone typically reduce program CPU time by 5-35%.
 </p>
 
 <p>
-<!-- git log &#45&#45grep '-[0-9][0-9]\.[0-9][0-9]%' go1.6.. -->
+<!-- git log -''-grep '-[0-9][0-9]\.[0-9][0-9]%' go1.6.. -->
 There have been significant optimizations bringing more than 10% improvements
 to implementations in the
 <a href="/pkg/crypto/sha1/"><code>crypto/sha1</code></a>,
@@ -404,9 +394,9 @@ This allows the use of contexts for cancelation, timeouts, and passing
 request-scoped data in other standard library packages,
 including
 <a href="#net">net</a>,
-<a href="#net/http">net/http</a>,
+<a href="#net_http">net/http</a>,
 and
-<a href="#os/exec">os/exec</a>,
+<a href="#os_exec">os/exec</a>,
 as noted below.
 </p>
 
@@ -562,10 +552,9 @@ The
 
 <dd>
 <p>
-As noted above,
-there are significant performance optimizations throughout the package.
+There are many performance optimizations throughout the package.
 Decompression speed is improved by about 10%,
-while compression speed for <code>DefaultCompression</code> is roughly doubled.
+while compression for <code>DefaultCompression</code> is twice as fast.
 </p>
 
 <p>
@@ -919,7 +908,7 @@ For example, the address on which a request received is
 <p>
 The server's <a href="/pkg/net/http/#Server.Serve"><code>Serve</code></a> method
 now only enables HTTP/2 support if the <code>Server.TLSConfig</code> field is <code>nil</code>
-or includes <code>"h2"</code> in its <code>TLSConfig.NextProto</code>.
+or includes <code>"h2"</code> in its <code>TLSConfig.NextProtos</code>.
 </p>
 
 <p>

@@ -26,6 +26,8 @@ import (
 	"unsafe"
 )
 
+var sink interface{}
+
 func TestBool(t *testing.T) {
 	v := ValueOf(true)
 	if v.Bool() != true {
@@ -648,6 +650,20 @@ var (
 
 type self struct{}
 
+type Loop *Loop
+type Loopy interface{}
+
+var loop1, loop2 Loop
+var loopy1, loopy2 Loopy
+
+func init() {
+	loop1 = &loop2
+	loop2 = &loop1
+
+	loopy1 = &loopy2
+	loopy2 = &loopy1
+}
+
 var deepEqualTests = []DeepEqualTest{
 	// Equalities
 	{nil, nil, true},
@@ -706,6 +722,12 @@ var deepEqualTests = []DeepEqualTest{
 	{&[3]interface{}{1, 2, 4}, &[3]interface{}{1, 2, "s"}, false},
 	{Basic{1, 0.5}, NotBasic{1, 0.5}, false},
 	{map[uint]string{1: "one", 2: "two"}, map[int]string{2: "two", 1: "one"}, false},
+
+	// Possible loops.
+	{&loop1, &loop1, true},
+	{&loop1, &loop2, true},
+	{&loopy1, &loopy1, true},
+	{&loopy1, &loopy2, true},
 }
 
 func TestDeepEqual(t *testing.T) {
@@ -1535,6 +1557,34 @@ func BenchmarkCall(b *testing.B) {
 	})
 }
 
+func BenchmarkCallArgCopy(b *testing.B) {
+	byteArray := func(n int) Value {
+		return Zero(ArrayOf(n, TypeOf(byte(0))))
+	}
+	sizes := [...]struct {
+		fv  Value
+		arg Value
+	}{
+		{ValueOf(func(a [128]byte) {}), byteArray(128)},
+		{ValueOf(func(a [256]byte) {}), byteArray(256)},
+		{ValueOf(func(a [1024]byte) {}), byteArray(1024)},
+		{ValueOf(func(a [4096]byte) {}), byteArray(4096)},
+		{ValueOf(func(a [65536]byte) {}), byteArray(65536)},
+	}
+	for _, size := range sizes {
+		bench := func(b *testing.B) {
+			args := []Value{size.arg}
+			b.SetBytes(int64(size.arg.Len()))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				size.fv.Call(args)
+			}
+		}
+		name := fmt.Sprintf("size=%v", size.arg.Len())
+		b.Run(name, bench)
+	}
+}
+
 func TestMakeFunc(t *testing.T) {
 	f := dummy
 	fv := MakeFunc(TypeOf(f), func(in []Value) []Value { return in })
@@ -1631,6 +1681,11 @@ func (p Point) GCMethod(k int) int {
 }
 
 // This will be index 3.
+func (p Point) NoArgs() {
+	// Exercise no-argument/no-result paths.
+}
+
+// This will be index 4.
 func (p Point) TotalDist(points ...Point) int {
 	tot := 0
 	for _, q := range points {
@@ -1659,6 +1714,15 @@ func TestMethod(t *testing.T) {
 		t.Errorf("Type MethodByName returned %d; want 275", i)
 	}
 
+	m, ok = TypeOf(p).MethodByName("NoArgs")
+	if !ok {
+		t.Fatalf("method by name failed")
+	}
+	n := len(m.Func.Call([]Value{ValueOf(p)}))
+	if n != 0 {
+		t.Errorf("NoArgs returned %d values; want 0", n)
+	}
+
 	i = TypeOf(&p).Method(1).Func.Call([]Value{ValueOf(&p), ValueOf(12)})[0].Int()
 	if i != 300 {
 		t.Errorf("Pointer Type Method returned %d; want 300", i)
@@ -1671,6 +1735,15 @@ func TestMethod(t *testing.T) {
 	i = m.Func.Call([]Value{ValueOf(&p), ValueOf(13)})[0].Int()
 	if i != 325 {
 		t.Errorf("Pointer Type MethodByName returned %d; want 325", i)
+	}
+
+	m, ok = TypeOf(&p).MethodByName("NoArgs")
+	if !ok {
+		t.Fatalf("method by name failed")
+	}
+	n = len(m.Func.Call([]Value{ValueOf(&p)}))
+	if n != 0 {
+		t.Errorf("NoArgs returned %d values; want 0", n)
 	}
 
 	// Curried method of value.
@@ -1691,6 +1764,8 @@ func TestMethod(t *testing.T) {
 	if i != 375 {
 		t.Errorf("Value MethodByName returned %d; want 375", i)
 	}
+	v = ValueOf(p).MethodByName("NoArgs")
+	v.Call(nil)
 
 	// Curried method of pointer.
 	v = ValueOf(&p).Method(1)
@@ -1709,6 +1784,8 @@ func TestMethod(t *testing.T) {
 	if i != 425 {
 		t.Errorf("Pointer Value MethodByName returned %d; want 425", i)
 	}
+	v = ValueOf(&p).MethodByName("NoArgs")
+	v.Call(nil)
 
 	// Curried method of interface value.
 	// Have to wrap interface value in a struct to get at it.
@@ -1758,6 +1835,9 @@ func TestMethodValue(t *testing.T) {
 	if i != 275 {
 		t.Errorf("Value MethodByName returned %d; want 275", i)
 	}
+	v = ValueOf(p).MethodByName("NoArgs")
+	ValueOf(v.Interface()).Call(nil)
+	v.Interface().(func())()
 
 	// Curried method of pointer.
 	v = ValueOf(&p).Method(1)
@@ -1776,6 +1856,9 @@ func TestMethodValue(t *testing.T) {
 	if i != 325 {
 		t.Errorf("Pointer Value MethodByName returned %d; want 325", i)
 	}
+	v = ValueOf(&p).MethodByName("NoArgs")
+	ValueOf(v.Interface()).Call(nil)
+	v.Interface().(func())()
 
 	// Curried method of pointer to pointer.
 	pp := &p
@@ -1831,7 +1914,7 @@ func TestVariadicMethodValue(t *testing.T) {
 
 	// Curried method of value.
 	tfunc := TypeOf((func(...Point) int)(nil))
-	v := ValueOf(p).Method(3)
+	v := ValueOf(p).Method(4)
 	if tt := v.Type(); tt != tfunc {
 		t.Errorf("Variadic Method Type is %s; want %s", tt, tfunc)
 	}
@@ -2277,25 +2360,39 @@ func TestFieldPkgPath(t *testing.T) {
 		unexported string
 		OtherPkgFields
 	}{})
-	for _, test := range []struct {
+
+	type pkgpathTest struct {
 		index     []int
 		pkgPath   string
 		anonymous bool
-	}{
+	}
+
+	checkPkgPath := func(name string, s []pkgpathTest) {
+		for _, test := range s {
+			f := typ.FieldByIndex(test.index)
+			if got, want := f.PkgPath, test.pkgPath; got != want {
+				t.Errorf("%s: Field(%d).PkgPath = %q, want %q", name, test.index, got, want)
+			}
+			if got, want := f.Anonymous, test.anonymous; got != want {
+				t.Errorf("%s: Field(%d).Anonymous = %v, want %v", name, test.index, got, want)
+			}
+		}
+	}
+
+	checkPkgPath("testStruct", []pkgpathTest{
 		{[]int{0}, "", false},             // Exported
 		{[]int{1}, "reflect_test", false}, // unexported
 		{[]int{2}, "", true},              // OtherPkgFields
 		{[]int{2, 0}, "", false},          // OtherExported
 		{[]int{2, 1}, "reflect", false},   // otherUnexported
-	} {
-		f := typ.FieldByIndex(test.index)
-		if got, want := f.PkgPath, test.pkgPath; got != want {
-			t.Errorf("Field(%d).PkgPath = %q, want %q", test.index, got, want)
-		}
-		if got, want := f.Anonymous, test.anonymous; got != want {
-			t.Errorf("Field(%d).Anonymous = %v, want %v", test.index, got, want)
-		}
-	}
+	})
+
+	type localOtherPkgFields OtherPkgFields
+	typ = TypeOf(localOtherPkgFields{})
+	checkPkgPath("localOtherPkgFields", []pkgpathTest{
+		{[]int{0}, "", false},        // OtherExported
+		{[]int{1}, "reflect", false}, // otherUnexported
+	})
 }
 
 func TestVariadicType(t *testing.T) {
@@ -2414,17 +2511,24 @@ func TestNumMethodOnDDD(t *testing.T) {
 }
 
 func TestPtrTo(t *testing.T) {
+	// This block of code means that the ptrToThis field of the
+	// reflect data for *unsafe.Pointer is non zero, see
+	// https://golang.org/issue/19003
+	var x unsafe.Pointer
+	var y = &x
+	var z = &y
+
 	var i int
 
-	typ := TypeOf(i)
+	typ := TypeOf(z)
 	for i = 0; i < 100; i++ {
 		typ = PtrTo(typ)
 	}
 	for i = 0; i < 100; i++ {
 		typ = typ.Elem()
 	}
-	if typ != TypeOf(i) {
-		t.Errorf("after 100 PtrTo and Elem, have %s, want %s", typ, TypeOf(i))
+	if typ != TypeOf(z) {
+		t.Errorf("after 100 PtrTo and Elem, have %s, want %s", typ, TypeOf(z))
 	}
 }
 
@@ -3070,6 +3174,9 @@ func ReadWriterV(x io.ReadWriter) Value {
 }
 
 type Empty struct{}
+type MyStruct struct {
+	x int `some:"tag"`
+}
 type MyString string
 type MyBytes []byte
 type MyRunes []int32
@@ -3380,6 +3487,35 @@ var convertTests = []struct {
 	{V([]byte{}), V(MyBytes{})},
 	{V((func())(nil)), V(MyFunc(nil))},
 	{V((MyFunc)(nil)), V((func())(nil))},
+
+	// structs with different tags
+	{V(struct {
+		x int `some:"foo"`
+	}{}), V(struct {
+		x int `some:"bar"`
+	}{})},
+
+	{V(struct {
+		x int `some:"bar"`
+	}{}), V(struct {
+		x int `some:"foo"`
+	}{})},
+
+	{V(MyStruct{}), V(struct {
+		x int `some:"foo"`
+	}{})},
+
+	{V(struct {
+		x int `some:"foo"`
+	}{}), V(MyStruct{})},
+
+	{V(MyStruct{}), V(struct {
+		x int `some:"bar"`
+	}{})},
+
+	{V(struct {
+		x int `some:"bar"`
+	}{}), V(MyStruct{})},
 
 	// can convert *byte and *MyByte
 	{V((*byte)(nil)), V((*MyByte)(nil))},
@@ -3962,6 +4098,38 @@ func TestStructOf(t *testing.T) {
 		o2 := stt.Field(i).Offset
 		if o1 != o2 {
 			t.Errorf("constructed struct field %v offset = %v, want %v", i, o1, o2)
+		}
+	}
+
+	// Check size and alignment with a trailing zero-sized field.
+	st = StructOf([]StructField{
+		{
+			Name: "F1",
+			Type: TypeOf(byte(0)),
+		},
+		{
+			Name: "F2",
+			Type: TypeOf([0]*byte{}),
+		},
+	})
+	stt = TypeOf(struct {
+		G1 byte
+		G2 [0]*byte
+	}{})
+	if st.Size() != stt.Size() {
+		t.Errorf("constructed zero-padded struct size = %v, want %v", st.Size(), stt.Size())
+	}
+	if st.Align() != stt.Align() {
+		t.Errorf("constructed zero-padded struct align = %v, want %v", st.Align(), stt.Align())
+	}
+	if st.FieldAlign() != stt.FieldAlign() {
+		t.Errorf("constructed zero-padded struct field align = %v, want %v", st.FieldAlign(), stt.FieldAlign())
+	}
+	for i := 0; i < st.NumField(); i++ {
+		o1 := st.Field(i).Offset
+		o2 := stt.Field(i).Offset
+		if o1 != o2 {
+			t.Errorf("constructed zero-padded struct field %v offset = %v, want %v", i, o1, o2)
 		}
 	}
 
@@ -5205,6 +5373,72 @@ func TestCallGC(t *testing.T) {
 	f2("four", "five5", "six666", "seven77", "eight888")
 }
 
+// Issue 18635 (function version).
+func TestKeepFuncLive(t *testing.T) {
+	// Test that we keep makeFuncImpl live as long as it is
+	// referenced on the stack.
+	typ := TypeOf(func(i int) {})
+	var f, g func(in []Value) []Value
+	f = func(in []Value) []Value {
+		clobber()
+		i := int(in[0].Int())
+		if i > 0 {
+			// We can't use Value.Call here because
+			// runtime.call* will keep the makeFuncImpl
+			// alive. However, by converting it to an
+			// interface value and calling that,
+			// reflect.callReflect is the only thing that
+			// can keep the makeFuncImpl live.
+			//
+			// Alternate between f and g so that if we do
+			// reuse the memory prematurely it's more
+			// likely to get obviously corrupted.
+			MakeFunc(typ, g).Interface().(func(i int))(i - 1)
+		}
+		return nil
+	}
+	g = func(in []Value) []Value {
+		clobber()
+		i := int(in[0].Int())
+		MakeFunc(typ, f).Interface().(func(i int))(i)
+		return nil
+	}
+	MakeFunc(typ, f).Call([]Value{ValueOf(10)})
+}
+
+// Issue 18635 (method version).
+type KeepMethodLive struct{}
+
+func (k KeepMethodLive) Method1(i int) {
+	clobber()
+	if i > 0 {
+		ValueOf(k).MethodByName("Method2").Interface().(func(i int))(i - 1)
+	}
+}
+
+func (k KeepMethodLive) Method2(i int) {
+	clobber()
+	ValueOf(k).MethodByName("Method1").Interface().(func(i int))(i)
+}
+
+func TestKeepMethodLive(t *testing.T) {
+	// Test that we keep methodValue live as long as it is
+	// referenced on the stack.
+	KeepMethodLive{}.Method1(10)
+}
+
+// clobber tries to clobber unreachable memory.
+func clobber() {
+	runtime.GC()
+	for i := 1; i < 32; i++ {
+		for j := 0; j < 10; j++ {
+			obj := make([]*byte, i)
+			sink = obj
+		}
+	}
+	runtime.GC()
+}
+
 type funcLayoutTest struct {
 	rcvr, t                  Type
 	size, argsize, retOffset uintptr
@@ -5720,6 +5954,8 @@ func TestTypeStrings(t *testing.T) {
 		{TypeOf(new(XM)), "*reflect_test.XM"},
 		{TypeOf(new(XM).String), "func() string"},
 		{TypeOf(new(XM)).Method(0).Type, "func(*reflect_test.XM) string"},
+		{ChanOf(3, TypeOf(XM{})), "chan reflect_test.XM"},
+		{MapOf(TypeOf(int(0)), TypeOf(XM{})), "map[int]reflect_test.XM"},
 	}
 
 	for i, test := range stringTests {
@@ -5749,4 +5985,102 @@ func BenchmarkNew(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		New(v)
 	}
+}
+
+func TestSwapper(t *testing.T) {
+	type I int
+	var a, b, c I
+	type pair struct {
+		x, y int
+	}
+	type pairPtr struct {
+		x, y int
+		p    *I
+	}
+	type S string
+
+	tests := []struct {
+		in   interface{}
+		i, j int
+		want interface{}
+	}{
+		{
+			in:   []int{1, 20, 300},
+			i:    0,
+			j:    2,
+			want: []int{300, 20, 1},
+		},
+		{
+			in:   []uintptr{1, 20, 300},
+			i:    0,
+			j:    2,
+			want: []uintptr{300, 20, 1},
+		},
+		{
+			in:   []int16{1, 20, 300},
+			i:    0,
+			j:    2,
+			want: []int16{300, 20, 1},
+		},
+		{
+			in:   []int8{1, 20, 100},
+			i:    0,
+			j:    2,
+			want: []int8{100, 20, 1},
+		},
+		{
+			in:   []*I{&a, &b, &c},
+			i:    0,
+			j:    2,
+			want: []*I{&c, &b, &a},
+		},
+		{
+			in:   []string{"eric", "sergey", "larry"},
+			i:    0,
+			j:    2,
+			want: []string{"larry", "sergey", "eric"},
+		},
+		{
+			in:   []S{"eric", "sergey", "larry"},
+			i:    0,
+			j:    2,
+			want: []S{"larry", "sergey", "eric"},
+		},
+		{
+			in:   []pair{{1, 2}, {3, 4}, {5, 6}},
+			i:    0,
+			j:    2,
+			want: []pair{{5, 6}, {3, 4}, {1, 2}},
+		},
+		{
+			in:   []pairPtr{{1, 2, &a}, {3, 4, &b}, {5, 6, &c}},
+			i:    0,
+			j:    2,
+			want: []pairPtr{{5, 6, &c}, {3, 4, &b}, {1, 2, &a}},
+		},
+	}
+	for i, tt := range tests {
+		inStr := fmt.Sprint(tt.in)
+		Swapper(tt.in)(tt.i, tt.j)
+		if !DeepEqual(tt.in, tt.want) {
+			t.Errorf("%d. swapping %v and %v of %v = %v; want %v", i, tt.i, tt.j, inStr, tt.in, tt.want)
+		}
+	}
+}
+
+// TestUnaddressableField tests that the reflect package will not allow
+// a type from another package to be used as a named type with an
+// unexported field.
+//
+// This ensures that unexported fields cannot be modified by other packages.
+func TestUnaddressableField(t *testing.T) {
+	var b Buffer // type defined in reflect, a different package
+	var localBuffer struct {
+		buf []byte
+	}
+	lv := ValueOf(&localBuffer).Elem()
+	rv := ValueOf(b)
+	shouldPanic(func() {
+		lv.Set(rv)
+	})
 }

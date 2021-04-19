@@ -117,7 +117,7 @@ func TestDNSParseSRVReply(t *testing.T) {
 	if !ok {
 		t.Fatal("unpacking packet failed")
 	}
-	msg.String() // exercise this code path
+	_ = msg.String() // exercise this code path
 	if g, e := len(msg.answer), 5; g != e {
 		t.Errorf("len(msg.answer) = %d; want %d", g, e)
 	}
@@ -165,7 +165,7 @@ func TestDNSParseCorruptSRVReply(t *testing.T) {
 	if !ok {
 		t.Fatal("unpacking packet failed")
 	}
-	msg.String() // exercise this code path
+	_ = msg.String() // exercise this code path
 	if g, e := len(msg.answer), 5; g != e {
 		t.Errorf("len(msg.answer) = %d; want %d", g, e)
 	}
@@ -393,7 +393,7 @@ func TestIsResponseTo(t *testing.T) {
 
 	for i := range badResponses {
 		if badResponses[i].IsResponseTo(&query) {
-			t.Error("%v: got true, want false", i)
+			t.Errorf("%v: got true, want false", i)
 		}
 	}
 }

@@ -1,5 +1,5 @@
 // Inferno utils/5l/asm.c
-// http://code.google.com/p/inferno-os/source/browse/utils/5l/asm.c
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/asm.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -62,13 +62,13 @@ package s390x
 // THE SOFTWARE.
 
 const (
-	MaxAlign  = 32 // max data alignment
-	MinAlign  = 2  // min data alignment
-	FuncAlign = 16
+	maxAlign  = 32 // max data alignment
+	minAlign  = 2  // min data alignment
+	funcAlign = 16
 )
 
 /* Used by ../internal/ld/dwarf.go */
 const (
-	DWARFREGSP = 15
-	DWARFREGLR = 14
+	dwarfRegSP = 15
+	dwarfRegLR = 14
 )

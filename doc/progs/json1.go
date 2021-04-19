@@ -28,7 +28,7 @@ func Encode() {
 
 	expected := []byte(`{"Name":"Alice","Body":"Hello","Time":1294706395881547000}`)
 	if !reflect.DeepEqual(b, expected) {
-		log.Panicf("Error marshalling %q, expected %q, got %q.", m, expected, b)
+		log.Panicf("Error marshaling %q, expected %q, got %q.", m, expected, b)
 	}
 
 }
@@ -49,7 +49,7 @@ func Decode() {
 	}
 
 	if !reflect.DeepEqual(m, expected) {
-		log.Panicf("Error unmarshalling %q, expected %q, got %q.", b, expected, m)
+		log.Panicf("Error unmarshaling %q, expected %q, got %q.", b, expected, m)
 	}
 
 	m = Message{
@@ -77,7 +77,7 @@ func PartialDecode() {
 	}
 
 	if !reflect.DeepEqual(expected, m) {
-		log.Panicf("Error unmarshalling %q, expected %q, got %q.", b, expected, m)
+		log.Panicf("Error unmarshaling %q, expected %q, got %q.", b, expected, m)
 	}
 }
 

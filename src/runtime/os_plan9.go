@@ -13,6 +13,7 @@ type mOS struct {
 	waitsemacount uint32
 	notesig       *int8
 	errstr        *byte
+	ignoreHangup  bool
 }
 
 func closefd(fd int32) int32
@@ -56,7 +57,7 @@ func noted(mode int32) int32
 func nsec(*int64) int64
 
 //go:noescape
-func sigtramp(ureg, msg unsafe.Pointer)
+func sigtramp(ureg, note unsafe.Pointer)
 
 func setfpmasks()
 
@@ -217,6 +218,55 @@ func getproccount() int32 {
 	return ncpu
 }
 
+var devswap = []byte("/dev/swap\x00")
+var pagesize = []byte(" pagesize\n")
+
+func getPageSize() uintptr {
+	var buf [2048]byte
+	var pos int
+	fd := open(&devswap[0], _OREAD, 0)
+	if fd < 0 {
+		// There's not much we can do if /dev/swap doesn't
+		// exist. However, nothing in the memory manager uses
+		// this on Plan 9, so it also doesn't really matter.
+		return minPhysPageSize
+	}
+	for pos < len(buf) {
+		n := read(fd, unsafe.Pointer(&buf[pos]), int32(len(buf)-pos))
+		if n <= 0 {
+			break
+		}
+		pos += int(n)
+	}
+	closefd(fd)
+	text := buf[:pos]
+	// Find "<n> pagesize" line.
+	bol := 0
+	for i, c := range text {
+		if c == '\n' {
+			bol = i + 1
+		}
+		if bytesHasPrefix(text[i:], pagesize) {
+			// Parse number at the beginning of this line.
+			return uintptr(_atoi(text[bol:]))
+		}
+	}
+	// Again, the page size doesn't really matter, so use a fallback.
+	return minPhysPageSize
+}
+
+func bytesHasPrefix(s, prefix []byte) bool {
+	if len(s) < len(prefix) {
+		return false
+	}
+	for i, p := range prefix {
+		if s[i] != p {
+			return false
+		}
+	}
+	return true
+}
+
 var pid = []byte("#c/pid\x00")
 
 func getpid() uint64 {
@@ -236,6 +286,7 @@ func getpid() uint64 {
 func osinit() {
 	initBloc()
 	ncpu = getproccount()
+	physPageSize = getPageSize()
 	getg().m.procid = getpid()
 	notify(unsafe.Pointer(funcPC(sigtramp)))
 }
@@ -417,7 +468,7 @@ func badsignal2() {
 	exits(&_badsignal[0])
 }
 
-func raisebadsignal(sig int32) {
+func raisebadsignal(sig uint32) {
 	badsignal2()
 }
 

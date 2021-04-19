@@ -209,24 +209,27 @@ const (
 	// integer arithmetic
 	AADD = obj.ABaseS390X + obj.A_ARCHSPECIFIC + iota
 	AADDC
-	AADDME
 	AADDE
-	AADDZE
+	AADDW
 	ADIVW
 	ADIVWU
 	ADIVD
 	ADIVDU
+	AMODW
+	AMODWU
+	AMODD
+	AMODDU
 	AMULLW
 	AMULLD
 	AMULHD
 	AMULHDU
 	ASUB
 	ASUBC
-	ASUBME
 	ASUBV
 	ASUBE
-	ASUBZE
+	ASUBW
 	ANEG
+	ANEGW
 
 	// integer moves
 	AMOVWBR
@@ -240,14 +243,24 @@ const (
 	AMOVD
 	AMOVDBR
 
+	// conditional moves
+	AMOVDEQ
+	AMOVDGE
+	AMOVDGT
+	AMOVDLE
+	AMOVDLT
+	AMOVDNE
+
+	// find leftmost one
+	AFLOGR
+
 	// integer bitwise
 	AAND
-	AANDN
-	ANAND
-	ANOR
+	AANDW
 	AOR
-	AORN
+	AORW
 	AXOR
+	AXORW
 	ASLW
 	ASLD
 	ASRW
@@ -276,6 +289,7 @@ const (
 	AFMULS
 	AFNABS
 	AFNEG
+	AFNEGS
 	AFNMADD
 	AFNMADDS
 	AFNMSUB
@@ -286,6 +300,8 @@ const (
 	AFSUBS
 	AFSQRT
 	AFSQRTS
+	AFIEBR
+	AFIDBR
 
 	// convert from int32/int64 to float/float64
 	ACEFBRA
@@ -332,6 +348,8 @@ const (
 	ABGT
 	ABLE
 	ABLT
+	ABLEU
+	ABLTU
 	ABNE
 	ABVC
 	ABVS
@@ -363,6 +381,18 @@ const (
 	ALARL
 	ALA
 	ALAY
+
+	// interlocked load and op
+	ALAA
+	ALAAG
+	ALAAL
+	ALAALG
+	ALAN
+	ALANG
+	ALAX
+	ALAXG
+	ALAO
+	ALAOG
 
 	// load/store multiple
 	ALMY

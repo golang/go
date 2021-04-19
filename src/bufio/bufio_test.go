@@ -1236,6 +1236,27 @@ func TestWriterReadFromErrNoProgress(t *testing.T) {
 	}
 }
 
+func TestReadZero(t *testing.T) {
+	for _, size := range []int{100, 2} {
+		t.Run(fmt.Sprintf("bufsize=%d", size), func(t *testing.T) {
+			r := io.MultiReader(strings.NewReader("abc"), &emptyThenNonEmptyReader{r: strings.NewReader("def"), n: 1})
+			br := NewReaderSize(r, size)
+			want := func(s string, wantErr error) {
+				p := make([]byte, 50)
+				n, err := br.Read(p)
+				if err != wantErr || n != len(s) || string(p[:n]) != s {
+					t.Fatalf("read(%d) = %q, %v, want %q, %v", len(p), string(p[:n]), err, s, wantErr)
+				}
+				t.Logf("read(%d) = %q, %v", len(p), string(p[:n]), err)
+			}
+			want("abc", nil)
+			want("", nil)
+			want("def", nil)
+			want("", io.EOF)
+		})
+	}
+}
+
 func TestReaderReset(t *testing.T) {
 	r := NewReader(strings.NewReader("foo foo"))
 	buf := make([]byte, 3)

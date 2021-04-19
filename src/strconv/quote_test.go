@@ -274,6 +274,7 @@ var unquotetests = []unQuoteTest{
 	{"`\n`", "\n"},
 	{"`	`", `	`},
 	{"` `", ` `},
+	{"`a\rb`", "ab"},
 }
 
 var misquoted = []string{
@@ -306,7 +307,7 @@ var misquoted = []string{
 
 func TestUnquote(t *testing.T) {
 	for _, tt := range unquotetests {
-		if out, err := Unquote(tt.in); err != nil && out != tt.out {
+		if out, err := Unquote(tt.in); err != nil || out != tt.out {
 			t.Errorf("Unquote(%#q) = %q, %v want %q, nil", tt.in, out, err, tt.out)
 		}
 	}

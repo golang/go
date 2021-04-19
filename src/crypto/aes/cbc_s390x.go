@@ -48,7 +48,9 @@ func (x *cbc) CryptBlocks(dst, src []byte) {
 	if len(dst) < len(src) {
 		panic("crypto/cipher: output smaller than input")
 	}
-	cryptBlocksChain(x.c, &x.iv[0], &x.b.key[0], &dst[0], &src[0], len(src))
+	if len(src) > 0 {
+		cryptBlocksChain(x.c, &x.iv[0], &x.b.key[0], &dst[0], &src[0], len(src))
+	}
 }
 
 func (x *cbc) SetIV(iv []byte) {

@@ -4,8 +4,6 @@
 
 package gc
 
-import "fmt"
-
 const (
 	WORDBITS  = 32
 	WORDMASK  = WORDBITS - 1
@@ -44,14 +42,7 @@ func (b *bulkBvec) next() bvec {
 	return out
 }
 
-// difference
-func bvandnot(dst bvec, src1 bvec, src2 bvec) {
-	for i, x := range src1.b {
-		dst.b[i] = x &^ src2.b[i]
-	}
-}
-
-func bveq(bv1 bvec, bv2 bvec) bool {
+func (bv1 bvec) Eq(bv2 bvec) bool {
 	if bv1.n != bv2.n {
 		Fatalf("bvequal: lengths %d and %d are not equal", bv1.n, bv2.n)
 	}
@@ -63,22 +54,31 @@ func bveq(bv1 bvec, bv2 bvec) bool {
 	return true
 }
 
-func bvcopy(dst bvec, src bvec) {
+func (dst bvec) Copy(src bvec) {
 	for i, x := range src.b {
 		dst.b[i] = x
 	}
 }
 
-func bvget(bv bvec, i int32) int {
+func (bv bvec) Get(i int32) bool {
 	if i < 0 || i >= bv.n {
 		Fatalf("bvget: index %d is out of bounds with length %d\n", i, bv.n)
 	}
-	return int((bv.b[i>>WORDSHIFT] >> uint(i&WORDMASK)) & 1)
+	mask := uint32(1 << uint(i%WORDBITS))
+	return bv.b[i>>WORDSHIFT]&mask != 0
+}
+
+func (bv bvec) Set(i int32) {
+	if i < 0 || i >= bv.n {
+		Fatalf("bvset: index %d is out of bounds with length %d\n", i, bv.n)
+	}
+	mask := uint32(1 << uint(i%WORDBITS))
+	bv.b[i/WORDBITS] |= mask
 }
 
 // bvnext returns the smallest index >= i for which bvget(bv, i) == 1.
 // If there is no such index, bvnext returns -1.
-func bvnext(bv bvec, i int32) int32 {
+func (bv bvec) Next(i int32) int32 {
 	if i >= bv.n {
 		return -1
 	}
@@ -107,7 +107,7 @@ func bvnext(bv bvec, i int32) int32 {
 	return i
 }
 
-func bvisempty(bv bvec) bool {
+func (bv bvec) IsEmpty() bool {
 	for i := int32(0); i < bv.n; i += WORDBITS {
 		if bv.b[i>>WORDSHIFT] != 0 {
 			return false
@@ -116,7 +116,7 @@ func bvisempty(bv bvec) bool {
 	return true
 }
 
-func bvnot(bv bvec) {
+func (bv bvec) Not() {
 	i := int32(0)
 	w := int32(0)
 	for ; i < bv.n; i, w = i+WORDBITS, w+1 {
@@ -125,36 +125,41 @@ func bvnot(bv bvec) {
 }
 
 // union
-func bvor(dst bvec, src1 bvec, src2 bvec) {
+func (dst bvec) Or(src1, src2 bvec) {
 	for i, x := range src1.b {
 		dst.b[i] = x | src2.b[i]
 	}
 }
 
 // intersection
-func bvand(dst bvec, src1 bvec, src2 bvec) {
+func (dst bvec) And(src1, src2 bvec) {
 	for i, x := range src1.b {
 		dst.b[i] = x & src2.b[i]
 	}
 }
 
-func bvprint(bv bvec) {
-	fmt.Printf("#*")
-	for i := int32(0); i < bv.n; i++ {
-		fmt.Printf("%d", bvget(bv, i))
+// difference
+func (dst bvec) AndNot(src1, src2 bvec) {
+	for i, x := range src1.b {
+		dst.b[i] = x &^ src2.b[i]
 	}
 }
 
-func bvresetall(bv bvec) {
+func (bv bvec) String() string {
+	s := make([]byte, 2+bv.n)
+	copy(s, "#*")
+	for i := int32(0); i < bv.n; i++ {
+		ch := byte('0')
+		if bv.Get(i) {
+			ch = '1'
+		}
+		s[2+i] = ch
+	}
+	return string(s)
+}
+
+func (bv bvec) Clear() {
 	for i := range bv.b {
 		bv.b[i] = 0
 	}
-}
-
-func bvset(bv bvec, i int32) {
-	if i < 0 || i >= bv.n {
-		Fatalf("bvset: index %d is out of bounds with length %d\n", i, bv.n)
-	}
-	mask := uint32(1 << uint(i%WORDBITS))
-	bv.b[i/WORDBITS] |= mask
 }

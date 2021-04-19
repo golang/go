@@ -36,3 +36,6 @@ func httpsOrHTTP(importPath string, security securityMode) (string, io.ReadClose
 func parseMetaGoImports(r io.Reader) ([]metaImport, error) {
 	panic("unreachable")
 }
+
+func queryEscape(s string) string { panic("unreachable") }
+func openBrowser(url string) bool { panic("unreachable") }

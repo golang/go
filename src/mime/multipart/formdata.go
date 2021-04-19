@@ -79,8 +79,10 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 			if err != nil {
 				return nil, err
 			}
-			defer file.Close()
 			_, err = io.Copy(file, io.MultiReader(&b, p))
+			if cerr := file.Close(); err == nil {
+				err = cerr
+			}
 			if err != nil {
 				os.Remove(file.Name())
 				return nil, err

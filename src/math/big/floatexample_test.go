@@ -11,7 +11,7 @@ import (
 )
 
 func ExampleFloat_Add() {
-	// Operating on numbers of different precision.
+	// Operate on numbers of different precision.
 	var x, y, z big.Float
 	x.SetInt64(1000)          // x is automatically set to 64bit precision
 	y.SetFloat64(2.718281828) // y is automatically set to 53bit precision
@@ -26,8 +26,8 @@ func ExampleFloat_Add() {
 	// z = 1002.718282 (0x.faadf854p+10, prec = 32, acc = Below)
 }
 
-func Example_Shift() {
-	// Implementing Float "shift" by modifying the (binary) exponents directly.
+func ExampleFloat_shift() {
+	// Implement Float "shift" by modifying the (binary) exponents directly.
 	for s := -5; s <= 5; s++ {
 		x := big.NewFloat(0.5)
 		x.SetMantExp(x, x.MantExp(nil)+s) // shift x by s

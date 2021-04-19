@@ -8,36 +8,46 @@
 // func crosscall2(fn func(a unsafe.Pointer, n int32, ctxt uintptr), a unsafe.Pointer, n int32, ctxt uintptr)
 // Saves C callee-saved registers and calls fn with three arguments.
 TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
-	// Start with standard C stack frame layout and linkage
+	// Start with standard C stack frame layout and linkage.
 
-	// Save R6-R15, F0, F2, F4 and F6 in the
-	// register save area of the calling function
+	// Save R6-R15 in the register save area of the calling function.
 	STMG	R6, R15, 48(R15)
-	FMOVD	F0, 128(R15)
-	FMOVD	F2, 136(R15)
-	FMOVD	F4, 144(R15)
-	FMOVD	F6, 152(R15)
 
-	// Initialize Go ABI environment
-	XOR	R0, R0
+	// Allocate 96 bytes on the stack.
+	MOVD	$-96(R15), R15
+
+	// Save F8-F15 in our stack frame.
+	FMOVD	F8, 32(R15)
+	FMOVD	F9, 40(R15)
+	FMOVD	F10, 48(R15)
+	FMOVD	F11, 56(R15)
+	FMOVD	F12, 64(R15)
+	FMOVD	F13, 72(R15)
+	FMOVD	F14, 80(R15)
+	FMOVD	F15, 88(R15)
+
+	// Initialize Go ABI environment.
 	BL	runtime·load_g(SB)
-
-	// Allocate 32 bytes on the stack
-	SUB	$32, R15
 
 	MOVD	R3, 8(R15)  // arg1
 	MOVW	R4, 16(R15) // arg2
 	MOVD	R5, 24(R15) // arg3
 	BL	(R2)        // fn(arg1, arg2, arg3)
 
-	ADD	$32, R15
+	FMOVD	32(R15), F8
+	FMOVD	40(R15), F9
+	FMOVD	48(R15), F10
+	FMOVD	56(R15), F11
+	FMOVD	64(R15), F12
+	FMOVD	72(R15), F13
+	FMOVD	80(R15), F14
+	FMOVD	88(R15), F15
 
-	// Restore R6-R15, F0, F2, F4 and F6
+	// De-allocate stack frame.
+	MOVD	$96(R15), R15
+
+	// Restore R6-R15.
 	LMG	48(R15), R6, R15
-	FMOVD	F0, 128(R15)
-	FMOVD	F2, 136(R15)
-	FMOVD	F4, 144(R15)
-	FMOVD	F6, 152(R15)
 
 	RET
 

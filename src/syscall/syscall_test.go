@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"os"
+	"runtime"
 	"syscall"
 	"testing"
 )
@@ -57,5 +58,18 @@ func TestExecErrPermutedFds(t *testing.T) {
 	_, err := os.StartProcess("/", []string{"/"}, attr)
 	if err == nil {
 		t.Fatalf("StartProcess of invalid program returned err = nil")
+	}
+}
+
+func TestGettimeofday(t *testing.T) {
+	if runtime.GOOS == "nacl" {
+		t.Skip("not implemented on nacl")
+	}
+	tv := &syscall.Timeval{}
+	if err := syscall.Gettimeofday(tv); err != nil {
+		t.Fatal(err)
+	}
+	if tv.Sec == 0 && tv.Usec == 0 {
+		t.Fatal("Sec and Usec both zero")
 	}
 }

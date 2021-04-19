@@ -119,6 +119,7 @@ func TestCompactBig(t *testing.T) {
 }
 
 func TestIndentBig(t *testing.T) {
+	t.Parallel()
 	initBig()
 	var buf bytes.Buffer
 	if err := Indent(&buf, jsonBig, "", "\t"); err != nil {

@@ -171,3 +171,16 @@ func TestCRLF(t *testing.T) {
 		t.Errorf("%s contains CR's", golden)
 	}
 }
+
+func TestBackupFile(t *testing.T) {
+	dir, err := ioutil.TempDir("", "gofmt_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	name, err := backupFile(filepath.Join(dir, "foo.go"), []byte("  package main"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("Created: %s", name)
+}

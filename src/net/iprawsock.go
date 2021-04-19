@@ -9,6 +9,24 @@ import (
 	"syscall"
 )
 
+// BUG(mikio): On every POSIX platform, reads from the "ip4" network
+// using the ReadFrom or ReadFromIP method might not return a complete
+// IPv4 packet, including its header, even if there is space
+// available. This can occur even in cases where Read or ReadMsgIP
+// could return a complete packet. For this reason, it is recommended
+// that you do not use these methods if it is important to receive a
+// full packet.
+//
+// The Go 1 compatibility guidelines make it impossible for us to
+// change the behavior of these methods; use Read or ReadMsgIP
+// instead.
+
+// BUG(mikio): On NaCl, Plan 9 and Windows, the ReadMsgIP and
+// WriteMsgIP methods of IPConn are not implemented.
+
+// BUG(mikio): On Windows, the File method of IPConn is not
+// implemented.
+
 // IPAddr represents the address of an IP end point.
 type IPAddr struct {
 	IP   IP
@@ -46,6 +64,9 @@ func (a *IPAddr) opAddr() Addr {
 // ResolveIPAddr parses addr as an IP address of the form "host" or
 // "ipv6-host%zone" and resolves the domain name on the network net,
 // which must be "ip", "ip4" or "ip6".
+//
+// Resolving a hostname is not recommended because this returns at most
+// one of its IP addresses.
 func ResolveIPAddr(net, addr string) (*IPAddr, error) {
 	if net == "" { // a hint wildcard for Go 1.0 undocumented behavior
 		net = "ip"
@@ -59,7 +80,7 @@ func ResolveIPAddr(net, addr string) (*IPAddr, error) {
 	default:
 		return nil, UnknownNetworkError(net)
 	}
-	addrs, err := internetAddrList(context.Background(), afnet, addr)
+	addrs, err := DefaultResolver.internetAddrList(context.Background(), afnet, addr)
 	if err != nil {
 		return nil, err
 	}

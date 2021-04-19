@@ -420,8 +420,11 @@ func writeImage(w io.Writer, m image.Image, cb int, level int) error {
 		}
 
 		// Apply the filter.
+		// Skip filter for NoCompression and paletted images (cbP8) as
+		// "filters are rarely useful on palette images" and will result
+		// in larger files (see http://www.libpng.org/pub/png/book/chapter09.html).
 		f := ftNone
-		if level != zlib.NoCompression {
+		if level != zlib.NoCompression && cb != cbP8 {
 			f = filter(&cr, pr, bpp)
 		}
 

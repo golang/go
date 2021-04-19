@@ -5,6 +5,7 @@
 package big
 
 import (
+	"flag"
 	"fmt"
 	"math"
 	"strconv"
@@ -1495,12 +1496,14 @@ func TestFloatQuo(t *testing.T) {
 	}
 }
 
+var long = flag.Bool("long", false, "run very long tests")
+
 // TestFloatQuoSmoke tests all divisions x/y for values x, y in the range [-n, +n];
 // it serves as a smoke test for basic correctness of division.
 func TestFloatQuoSmoke(t *testing.T) {
-	n := 1000
-	if testing.Short() {
-		n = 10
+	n := 10
+	if *long {
+		n = 1000
 	}
 
 	const dprec = 3         // max. precision variation
@@ -1760,5 +1763,43 @@ func TestFloatCmpSpecialValues(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func BenchmarkFloatAdd(b *testing.B) {
+	x := new(Float)
+	y := new(Float)
+	z := new(Float)
+
+	for _, prec := range []uint{10, 1e2, 1e3, 1e4, 1e5} {
+		x.SetPrec(prec).SetRat(NewRat(1, 3))
+		y.SetPrec(prec).SetRat(NewRat(1, 6))
+		z.SetPrec(prec)
+
+		b.Run(fmt.Sprintf("%v", prec), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				z.Add(x, y)
+			}
+		})
+	}
+}
+
+func BenchmarkFloatSub(b *testing.B) {
+	x := new(Float)
+	y := new(Float)
+	z := new(Float)
+
+	for _, prec := range []uint{10, 1e2, 1e3, 1e4, 1e5} {
+		x.SetPrec(prec).SetRat(NewRat(1, 3))
+		y.SetPrec(prec).SetRat(NewRat(1, 6))
+		z.SetPrec(prec)
+
+		b.Run(fmt.Sprintf("%v", prec), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				z.Sub(x, y)
+			}
+		})
 	}
 }

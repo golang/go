@@ -1,0 +1,5 @@
+// linux/arm64-specific vet whitelist. See readme.txt for details.
+
+runtime/sys_linux_arm64.s: [arm64] access: function access missing Go declaration
+runtime/sys_linux_arm64.s: [arm64] connect: function connect missing Go declaration
+runtime/sys_linux_arm64.s: [arm64] socket: function socket missing Go declaration

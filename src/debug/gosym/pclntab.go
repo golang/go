@@ -295,9 +295,6 @@ func (t *LineTable) step(p *[]byte, pc *uint64, val *int32, first bool) bool {
 // off is the offset to the beginning of the pc-value table,
 // and entry is the start PC for the corresponding function.
 func (t *LineTable) pcvalue(off uint32, entry, targetpc uint64) int32 {
-	if off == 0 {
-		return -1
-	}
 	p := t.Data[off:]
 
 	val := int32(-1)

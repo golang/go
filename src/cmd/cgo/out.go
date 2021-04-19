@@ -19,7 +19,10 @@ import (
 	"strings"
 )
 
-var conf = printer.Config{Mode: printer.SourcePos, Tabwidth: 8}
+var (
+	conf         = printer.Config{Mode: printer.SourcePos, Tabwidth: 8}
+	noSourceConf = printer.Config{Tabwidth: 8}
+)
 
 // writeDefs creates output files to be compiled by gc and gcc.
 func (p *Package) writeDefs() {
@@ -95,7 +98,19 @@ func (p *Package) writeDefs() {
 	for _, name := range typedefNames {
 		def := typedef[name]
 		fmt.Fprintf(fgo2, "type %s ", name)
-		conf.Fprint(fgo2, fset, def.Go)
+		// We don't have source info for these types, so write them out without source info.
+		// Otherwise types would look like:
+		//
+		// type _Ctype_struct_cb struct {
+		// //line :1
+		//        on_test *[0]byte
+		// //line :1
+		// }
+		//
+		// Which is not useful. Moreover we never override source info,
+		// so subsequent source code uses the same source info.
+		// Moreover, empty file name makes compile emit no source debug info at all.
+		noSourceConf.Fprint(fgo2, fset, def.Go)
 		fmt.Fprintf(fgo2, "\n\n")
 	}
 	if *gccgo {
@@ -111,17 +126,11 @@ func (p *Package) writeDefs() {
 		fmt.Fprint(fgo2, goProlog)
 	}
 
-	for i, t := range p.CgoChecks {
-		n := p.unsafeCheckPointerNameIndex(i, false)
-		fmt.Fprintf(fgo2, "\nfunc %s(p %s, args ...interface{}) %s {\n", n, t, t)
-		fmt.Fprintf(fgo2, "\treturn _cgoCheckPointer(p, args...).(%s)\n", t)
-		fmt.Fprintf(fgo2, "}\n")
+	if fc != nil {
+		fmt.Fprintf(fc, "#line 1 \"cgo-generated-wrappers\"\n")
 	}
-	for i, t := range p.DeferredCgoChecks {
-		n := p.unsafeCheckPointerNameIndex(i, true)
-		fmt.Fprintf(fgo2, "\nfunc %s(p interface{}, args ...interface{}) %s {\n", n, t)
-		fmt.Fprintf(fgo2, "\treturn _cgoCheckPointer(p, args...).(%s)\n", t)
-		fmt.Fprintf(fgo2, "}\n")
+	if fm != nil {
+		fmt.Fprintf(fm, "#line 1 \"cgo-generated-wrappers\"\n")
 	}
 
 	gccgoSymbolPrefix := p.gccgoSymbolPrefix()
@@ -346,11 +355,7 @@ func (p *Package) structType(n *Name) (string, int64) {
 			fmt.Fprintf(&buf, "\t\tchar __pad%d[%d];\n", off, pad)
 			off += pad
 		}
-		qual := ""
-		if c := t.C.String(); c[len(c)-1] == '*' {
-			qual = "const "
-		}
-		fmt.Fprintf(&buf, "\t\t%s%s r;\n", qual, t.C)
+		fmt.Fprintf(&buf, "\t\t%s r;\n", t.C)
 		off += t.Size
 	}
 	if off%p.PtrSize != 0 {
@@ -611,19 +616,9 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 		}
 	}
 	fmt.Fprintf(fgcc, "%s(", n.C)
-	for i, t := range n.FuncType.Params {
+	for i := range n.FuncType.Params {
 		if i > 0 {
 			fmt.Fprintf(fgcc, ", ")
-		}
-		// We know the type params are correct, because
-		// the Go equivalents had good type params.
-		// However, our version of the type omits the magic
-		// words const and volatile, which can provoke
-		// C compiler warnings. Silence them by casting
-		// all pointers to void*.  (Eventually that will produce
-		// other warnings.)
-		if c := t.C.String(); c[len(c)-1] == '*' {
-			fmt.Fprintf(fgcc, "(void*)")
 		}
 		fmt.Fprintf(fgcc, "a->p%d", i)
 	}
@@ -684,13 +679,9 @@ func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
 		}
 	}
 	fmt.Fprintf(fgcc, "%s(", n.C)
-	for i, t := range n.FuncType.Params {
+	for i := range n.FuncType.Params {
 		if i > 0 {
 			fmt.Fprintf(fgcc, ", ")
-		}
-		// Cast to void* to avoid warnings due to omitted qualifiers.
-		if c := t.C.String(); c[len(c)-1] == '*' {
-			fmt.Fprintf(fgcc, "(void*)")
 		}
 		fmt.Fprintf(fgcc, "p%d", i)
 	}
@@ -1217,8 +1208,8 @@ var goTypes = map[string]*Type{
 	"uint64":     {Size: 8, Align: 8, C: c("GoUint64")},
 	"float32":    {Size: 4, Align: 4, C: c("GoFloat32")},
 	"float64":    {Size: 8, Align: 8, C: c("GoFloat64")},
-	"complex64":  {Size: 8, Align: 8, C: c("GoComplex64")},
-	"complex128": {Size: 16, Align: 16, C: c("GoComplex128")},
+	"complex64":  {Size: 8, Align: 4, C: c("GoComplex64")},
+	"complex128": {Size: 16, Align: 8, C: c("GoComplex128")},
 }
 
 // Map an ast type to a Type.
@@ -1299,6 +1290,7 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 }
 
 const gccProlog = `
+#line 1 "cgo-gcc-prolog"
 /*
   If x and y are not equal, the type will be invalid
   (have a negative array count) and an inscrutable error will come
@@ -1332,6 +1324,7 @@ const noTsanProlog = `
 
 // This must match the TSAN code in runtime/cgo/libcgo.h.
 const yesTsanProlog = `
+#line 1 "cgo-tsan-prolog"
 #define CGO_NO_SANITIZE_THREAD __attribute__ ((no_sanitize_thread))
 
 long long _cgo_sync __attribute__ ((common));
@@ -1354,6 +1347,7 @@ static void _cgo_tsan_release() {
 var tsanProlog = noTsanProlog
 
 const builtinProlog = `
+#line 1 "cgo-builtin-prolog"
 #include <stddef.h> /* for ptrdiff_t and size_t below */
 
 /* Define intgo when compiling with GCC.  */
@@ -1377,14 +1371,14 @@ func _cgo_runtime_cgocall(unsafe.Pointer, uintptr) int32
 func _cgo_runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr, uintptr)
 
 //go:linkname _cgoCheckPointer runtime.cgoCheckPointer
-func _cgoCheckPointer(interface{}, ...interface{}) interface{}
+func _cgoCheckPointer(interface{}, ...interface{})
 
 //go:linkname _cgoCheckResult runtime.cgoCheckResult
 func _cgoCheckResult(interface{})
 `
 
 const gccgoGoProlog = `
-func _cgoCheckPointer(interface{}, ...interface{}) interface{}
+func _cgoCheckPointer(interface{}, ...interface{})
 
 func _cgoCheckResult(interface{})
 `
@@ -1461,9 +1455,15 @@ const cMallocDefGo = `
 var __cgofn__cgoPREFIX_Cfunc__Cmalloc byte
 var _cgoPREFIX_Cfunc__Cmalloc = unsafe.Pointer(&__cgofn__cgoPREFIX_Cfunc__Cmalloc)
 
+//go:linkname runtime_throw runtime.throw
+func runtime_throw(string)
+
 //go:cgo_unsafe_args
 func _cgo_cmalloc(p0 uint64) (r1 unsafe.Pointer) {
 	_cgo_runtime_cgocall(_cgoPREFIX_Cfunc__Cmalloc, uintptr(unsafe.Pointer(&p0)))
+	if r1 == nil {
+		runtime_throw("runtime: C malloc failed")
+	}
 	return
 }
 `
@@ -1500,6 +1500,7 @@ func (p *Package) cPrologGccgo() string {
 }
 
 const cPrologGccgo = `
+#line 1 "cgo-c-prolog-gccgo"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1564,18 +1565,17 @@ typedef struct __go_empty_interface {
 	void *__object;
 } Eface;
 
-extern Eface runtimeCgoCheckPointer(Eface, Slice)
+extern void runtimeCgoCheckPointer(Eface, Slice)
 	__asm__("runtime.cgoCheckPointer")
 	__attribute__((weak));
 
-extern Eface localCgoCheckPointer(Eface, Slice)
+extern void localCgoCheckPointer(Eface, Slice)
 	__asm__("GCCGOSYMBOLPREF._cgoCheckPointer");
 
-Eface localCgoCheckPointer(Eface ptr, Slice args) {
+void localCgoCheckPointer(Eface ptr, Slice args) {
 	if(runtimeCgoCheckPointer) {
-		return runtimeCgoCheckPointer(ptr, args);
+		runtimeCgoCheckPointer(ptr, args);
 	}
-	return ptr;
 }
 
 extern void runtimeCgoCheckResult(Eface)
@@ -1598,6 +1598,7 @@ func (p *Package) gccExportHeaderProlog() string {
 
 const gccExportHeaderProlog = `
 /* Start of boilerplate cgo prologue.  */
+#line 1 "cgo-gcc-export-header-prolog"
 
 #ifndef GO_CGO_PROLOGUE_H
 #define GO_CGO_PROLOGUE_H
@@ -1651,6 +1652,7 @@ const gccExportHeaderEpilog = `
 // We use weak declarations, and test the addresses, so that this code
 // works with older versions of gccgo.
 const gccgoExportFileProlog = `
+#line 1 "cgo-gccgo-export-file-prolog"
 extern _Bool runtime_iscgo __attribute__ ((weak));
 
 static void GoInit(void) __attribute__ ((constructor));

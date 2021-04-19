@@ -328,13 +328,26 @@ func TestExpTables(t *testing.T) {
 	}
 }
 
+func hasSlowFloatingPoint() bool {
+	switch runtime.GOARCH {
+	case "arm":
+		return os.Getenv("GOARM") == "5"
+	case "mips", "mipsle", "mips64", "mips64le":
+		// Be conservative and assume that all mips boards
+		// have emulated floating point.
+		// TODO: detect what it actually has.
+		return true
+	}
+	return false
+}
+
 func TestFloat32(t *testing.T) {
 	// For issue 6721, the problem came after 7533753 calls, so check 10e6.
 	num := int(10e6)
 	// But do the full amount only on builders (not locally).
 	// But ARM5 floating point emulation is slow (Issue 10749), so
 	// do less for that builder:
-	if testing.Short() && (testenv.Builder() == "" || runtime.GOARCH == "arm" && os.Getenv("GOARM") == "5") {
+	if testing.Short() && (testenv.Builder() == "" || hasSlowFloatingPoint()) {
 		num /= 100 // 1.72 seconds instead of 172 seconds
 	}
 

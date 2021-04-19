@@ -32,6 +32,7 @@ func init() {
 	register("PanicTraceback", PanicTraceback)
 	register("GoschedInPanic", GoschedInPanic)
 	register("SyscallInPanic", SyscallInPanic)
+	register("PanicLoop", PanicLoop)
 }
 
 func SimpleDeadlock() {
@@ -213,4 +214,14 @@ func pt2() {
 		panic("panic pt2")
 	}()
 	panic("hello")
+}
+
+type panicError struct{}
+
+func (*panicError) Error() string {
+	panic("double error")
+}
+
+func PanicLoop() {
+	panic(&panicError{})
 }

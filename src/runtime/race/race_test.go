@@ -15,6 +15,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"log"
 	"math/rand"
@@ -43,7 +44,7 @@ const (
 )
 
 func TestRace(t *testing.T) {
-	testOutput, err := runTests()
+	testOutput, err := runTests(t)
 	if err != nil {
 		t.Fatalf("Failed to run tests: %v\n%v", err, string(testOutput))
 	}
@@ -141,19 +142,21 @@ func processLog(testName string, tsanLog []string) string {
 // runTests assures that the package and its dependencies is
 // built with instrumentation enabled and returns the output of 'go test'
 // which includes possible data race reports from ThreadSanitizer.
-func runTests() ([]byte, error) {
+func runTests(t *testing.T) ([]byte, error) {
 	tests, err := filepath.Glob("./testdata/*_test.go")
 	if err != nil {
 		return nil, err
 	}
 	args := []string{"test", "-race", "-v"}
 	args = append(args, tests...)
-	cmd := exec.Command("go", args...)
+	cmd := exec.Command(testenv.GoToolPath(t), args...)
 	// The following flags turn off heuristics that suppress seemingly identical reports.
 	// It is required because the tests contain a lot of data races on the same addresses
 	// (the tests are simple and the memory is constantly reused).
 	for _, env := range os.Environ() {
-		if strings.HasPrefix(env, "GOMAXPROCS=") || strings.HasPrefix(env, "GODEBUG=") {
+		if strings.HasPrefix(env, "GOMAXPROCS=") ||
+			strings.HasPrefix(env, "GODEBUG=") ||
+			strings.HasPrefix(env, "GORACE=") {
 			continue
 		}
 		cmd.Env = append(cmd.Env, env)
@@ -170,9 +173,11 @@ func runTests() ([]byte, error) {
 	// (that's what is done for C++ ThreadSanitizer tests). This is issue #14119.
 	cmd.Env = append(cmd.Env,
 		"GOMAXPROCS=1",
-		"GORACE=suppress_equal_stacks=0 suppress_equal_addresses=0 exitcode=0",
+		"GORACE=suppress_equal_stacks=0 suppress_equal_addresses=0",
 	)
-	return cmd.CombinedOutput()
+	// There are races: we expect tests to fail and the exit code to be non-zero.
+	out, _ := cmd.CombinedOutput()
+	return out, nil
 }
 
 func TestIssue8102(t *testing.T) {

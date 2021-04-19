@@ -22,7 +22,9 @@ func jumpS390x(word string) bool {
 		"BGT",
 		"BL",
 		"BLE",
+		"BLEU",
 		"BLT",
+		"BLTU",
 		"BNE",
 		"BR",
 		"BVC",
@@ -78,11 +80,7 @@ func IsS390xCMP(op obj.As) bool {
 // one of the NEG-like instructions that require special handling.
 func IsS390xNEG(op obj.As) bool {
 	switch op {
-	case s390x.AADDME,
-		s390x.AADDZE,
-		s390x.ANEG,
-		s390x.ASUBME,
-		s390x.ASUBZE:
+	case s390x.ANEG, s390x.ANEGW:
 		return true
 	}
 	return false
@@ -109,6 +107,10 @@ func IsS390xWithIndex(op obj.As) bool {
 	case s390x.AVGMG, s390x.AVGMF, s390x.AVGMH, s390x.AVGMB:
 		return true
 	case s390x.AVLEIG, s390x.AVLEIF, s390x.AVLEIH, s390x.AVLEIB:
+		return true
+	case s390x.AVLEG, s390x.AVLEF, s390x.AVLEH, s390x.AVLEB:
+		return true
+	case s390x.AVSTEG, s390x.AVSTEF, s390x.AVSTEH, s390x.AVSTEB:
 		return true
 	case s390x.AVPDI:
 		return true

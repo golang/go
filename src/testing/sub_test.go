@@ -6,6 +6,7 @@ package testing
 
 import (
 	"bytes"
+	"fmt"
 	"regexp"
 	"strings"
 	"sync/atomic"
@@ -357,7 +358,7 @@ func TestTRun(t *T) {
 		want := strings.TrimSpace(tc.output)
 		re := makeRegexp(want)
 		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
-			t.Errorf("%s:ouput:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
+			t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
 		}
 	}
 }
@@ -498,7 +499,7 @@ func TestBRun(t *T) {
 		want := strings.TrimSpace(tc.output)
 		re := makeRegexp(want)
 		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
-			t.Errorf("%s:ouput:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
+			t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
 		}
 	}
 }
@@ -514,4 +515,20 @@ func TestBenchmarkOutput(t *T) {
 	// normal case.
 	Benchmark(func(b *B) { b.Error("do not print this output") })
 	Benchmark(func(b *B) {})
+}
+
+func TestParallelSub(t *T) {
+	c := make(chan int)
+	block := make(chan int)
+	for i := 0; i < 10; i++ {
+		go func(i int) {
+			<-block
+			t.Run(fmt.Sprint(i), func(t *T) {})
+			c <- 1
+		}(i)
+	}
+	close(block)
+	for i := 0; i < 10; i++ {
+		<-c
+	}
 }

@@ -47,6 +47,8 @@
 # FC: Command line to run to compile Fortran code for GOARCH.
 # This is used by cgo. Default is "gfortran".
 #
+# PKG_CONFIG: Path to pkg-config tool. Default is "pkg-config".
+#
 # GO_DISTFLAGS: extra flags to provide to "dist bootstrap".
 
 set -e

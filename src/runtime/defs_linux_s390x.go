@@ -143,7 +143,7 @@ const (
 	_SA_RESTORER = 0
 )
 
-type sigaltstackt struct {
+type stackt struct {
 	ss_sp    *byte
 	ss_flags int32
 	ss_size  uintptr
@@ -161,7 +161,7 @@ type sigcontext struct {
 type ucontext struct {
 	uc_flags    uint64
 	uc_link     *ucontext
-	uc_stack    sigaltstackt
+	uc_stack    stackt
 	uc_mcontext sigcontext
 	uc_sigmask  uint64
 }

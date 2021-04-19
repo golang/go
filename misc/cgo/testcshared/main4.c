@@ -77,6 +77,7 @@ int main(int argc, char** argv) {
 	void (*fn)(void);
 	sigset_t mask;
 	int i;
+	struct timespec ts;
 
 	verbose = argc > 2;
 	setvbuf(stdout, NULL, _IONBF, 0);
@@ -166,11 +167,11 @@ int main(int argc, char** argv) {
 	// Wait until the signal has been delivered.
 	i = 0;
 	while (!sigioSeen) {
-		if (sched_yield() < 0) {
-			perror("sched_yield");
-		}
+		ts.tv_sec = 0;
+		ts.tv_nsec = 1000000;
+		nanosleep(&ts, NULL);
 		i++;
-		if (i > 100000) {
+		if (i > 5000) {
 			fprintf(stderr, "looping too long waiting for signal\n");
 			exit(EXIT_FAILURE);
 		}

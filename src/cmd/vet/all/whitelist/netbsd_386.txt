@@ -1,0 +1,23 @@
+// netbsd/386-specific vet whitelist. See readme.txt for details.
+
+runtime/sys_netbsd_ARCHSUFF.s: [GOARCH] settls: function settls missing Go declaration
+
+runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 140(SP) points beyond argument frame
+runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 4(SP) points beyond argument frame
+runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 4(SP) points beyond argument frame
+runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable signo
+runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable info
+runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable context
+runtime/sys_netbsd_386.s: [386] setldt: function setldt missing Go declaration
+runtime/sys_netbsd_386.s: [386] setldt: use of 16(SP) points beyond argument frame
+
+syscall/asm_unix_386.s: [386] Syscall: 8(SP) should be a1+4(FP)
+syscall/asm_unix_386.s: [386] Syscall: 4(SP) should be trap+0(FP)
+syscall/asm_unix_386.s: [386] Syscall6: 8(SP) should be a1+4(FP)
+syscall/asm_unix_386.s: [386] Syscall6: 4(SP) should be trap+0(FP)
+syscall/asm_unix_386.s: [386] Syscall9: 8(SP) should be a1+4(FP)
+syscall/asm_unix_386.s: [386] Syscall9: 4(SP) should be num+0(FP)
+syscall/asm_unix_386.s: [386] RawSyscall: 8(SP) should be a1+4(FP)
+syscall/asm_unix_386.s: [386] RawSyscall: 4(SP) should be trap+0(FP)
+syscall/asm_unix_386.s: [386] RawSyscall6: 8(SP) should be a1+4(FP)
+syscall/asm_unix_386.s: [386] RawSyscall6: 4(SP) should be trap+0(FP)

@@ -6,6 +6,7 @@ package hex
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 )
 
@@ -151,3 +152,18 @@ var expectedHexDump = []byte(`00000000  1e 1f 20 21 22 23 24 25  26 27 28 29 2a 
 00000010  2e 2f 30 31 32 33 34 35  36 37 38 39 3a 3b 3c 3d  |./0123456789:;<=|
 00000020  3e 3f 40 41 42 43 44 45                           |>?@ABCDE|
 `)
+
+var sink []byte
+
+func BenchmarkEncode(b *testing.B) {
+	for _, size := range []int{256, 1024, 4096, 16384} {
+		src := bytes.Repeat([]byte{2, 3, 5, 7, 9, 11, 13, 17}, size/8)
+		sink = make([]byte, 2*size)
+
+		b.Run(fmt.Sprintf("%v", size), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				Encode(sink, src)
+			}
+		})
+	}
+}

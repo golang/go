@@ -16,21 +16,28 @@ package syscall
 const(
 EOF
 
+my $offset = 0;
+
 sub fmt {
 	my ($name, $num) = @_;
 	if($num > 999){
-		# ignore depricated syscalls that are no longer implemented
+		# ignore deprecated syscalls that are no longer implemented
 		# https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/include/uapi/asm-generic/unistd.h?id=refs/heads/master#n716
 		return;
 	}
 	$name =~ y/a-z/A-Z/;
+	$num = $num + $offset;
 	print "	SYS_$name = $num;\n";
 }
 
 my $prev;
 open(GCC, "gcc -E -dD $ARGV[0] |") || die "can't run gcc";
 while(<GCC>){
-	if(/^#define __NR_syscalls\s+/) {
+	if(/^#define __NR_Linux\s+([0-9]+)/){
+		# mips/mips64: extract offset
+		$offset = $1;
+	}
+	elsif(/^#define __NR_syscalls\s+/) {
 		# ignore redefinitions of __NR_syscalls
 	}
 	elsif(/^#define __NR_(\w+)\s+([0-9]+)/){
@@ -43,6 +50,9 @@ while(<GCC>){
 	}
 	elsif(/^#define __NR_(\w+)\s+\(\w+\+\s*([0-9]+)\)/){
 		fmt($1, $prev+$2)
+	}
+	elsif(/^#define __NR_(\w+)\s+\(__NR_Linux \+ ([0-9]+)/){
+		fmt($1, $2);
 	}
 }
 

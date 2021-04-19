@@ -432,6 +432,10 @@ func TestSimpleFold(t *testing.T) {
 			r = out
 		}
 	}
+
+	if r := SimpleFold(-42); r != -42 {
+		t.Errorf("SimpleFold(-42) = %v, want -42", r)
+	}
 }
 
 // Running 'go test -calibrate' runs the calibration to find a plausible

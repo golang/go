@@ -260,6 +260,12 @@ func check() {
 		throw("atomicor8")
 	}
 
+	m = [4]byte{0xff, 0xff, 0xff, 0xff}
+	atomic.And8(&m[1], 0x1)
+	if m[0] != 0xff || m[1] != 0x1 || m[2] != 0xff || m[3] != 0xff {
+		throw("atomicand8")
+	}
+
 	*(*uint64)(unsafe.Pointer(&j)) = ^uint64(0)
 	if j == j {
 		throw("float64nan")
@@ -321,6 +327,7 @@ var debug struct {
 	gcshrinkstackoff  int32
 	gcstackbarrieroff int32
 	gcstackbarrierall int32
+	gcrescanstacks    int32
 	gcstoptheworld    int32
 	gctrace           int32
 	invalidptr        int32
@@ -340,6 +347,7 @@ var dbgvars = []dbgVar{
 	{"gcshrinkstackoff", &debug.gcshrinkstackoff},
 	{"gcstackbarrieroff", &debug.gcstackbarrieroff},
 	{"gcstackbarrierall", &debug.gcstackbarrierall},
+	{"gcrescanstacks", &debug.gcrescanstacks},
 	{"gcstoptheworld", &debug.gcstoptheworld},
 	{"gctrace", &debug.gctrace},
 	{"invalidptr", &debug.invalidptr},
@@ -373,11 +381,15 @@ func parsedebugvars() {
 		// is int, not int32, and should only be updated
 		// if specified in GODEBUG.
 		if key == "memprofilerate" {
-			MemProfileRate = atoi(value)
+			if n, ok := atoi(value); ok {
+				MemProfileRate = n
+			}
 		} else {
 			for _, v := range dbgvars {
 				if v.name == key {
-					*v.value = int32(atoi(value))
+					if n, ok := atoi32(value); ok {
+						*v.value = n
+					}
 				}
 			}
 		}
@@ -385,6 +397,13 @@ func parsedebugvars() {
 
 	setTraceback(gogetenv("GOTRACEBACK"))
 	traceback_env = traceback_cache
+
+	if debug.gcrescanstacks == 0 {
+		// Without rescanning, there's no need for stack
+		// barriers.
+		debug.gcstackbarrieroff = 1
+		debug.gcstackbarrierall = 0
+	}
 
 	if debug.gcstackbarrierall > 0 {
 		firstStackBarrierOffset = 0
@@ -413,7 +432,10 @@ func setTraceback(level string) {
 	case "crash":
 		t = 2<<tracebackShift | tracebackAll | tracebackCrash
 	default:
-		t = uint32(atoi(level))<<tracebackShift | tracebackAll
+		t = tracebackAll
+		if n, ok := atoi(level); ok && n == int(uint32(n)) {
+			t |= uint32(n) << tracebackShift
+		}
 	}
 	// when C owns the process, simply exit'ing the process on fatal errors
 	// and panics is surprising. Be louder and abort instead.
@@ -477,11 +499,12 @@ func gomcache() *mcache {
 
 //go:linkname reflect_typelinks reflect.typelinks
 func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
-	sections := []unsafe.Pointer{unsafe.Pointer(firstmoduledata.types)}
-	ret := [][]int32{firstmoduledata.typelinks}
-	for datap := firstmoduledata.next; datap != nil; datap = datap.next {
-		sections = append(sections, unsafe.Pointer(datap.types))
-		ret = append(ret, datap.typelinks)
+	modules := activeModules()
+	sections := []unsafe.Pointer{unsafe.Pointer(modules[0].types)}
+	ret := [][]int32{modules[0].typelinks}
+	for _, md := range modules[1:] {
+		sections = append(sections, unsafe.Pointer(md.types))
+		ret = append(ret, md.typelinks)
 	}
 	return sections, ret
 }

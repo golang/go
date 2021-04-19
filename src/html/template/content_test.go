@@ -162,6 +162,47 @@ func TestTypedContent(t *testing.T) {
 			},
 		},
 		{
+			`<script type="text/javascript">alert("{{.}}")</script>`,
+			[]string{
+				`\x3cb\x3e \x22foo%\x22 O\x27Reilly \x26bar;`,
+				`a[href =~ \x22\/\/example.com\x22]#foo`,
+				`Hello, \x3cb\x3eWorld\x3c\/b\x3e \x26amp;tc!`,
+				` dir=\x22ltr\x22`,
+				`c \x26\x26 alert(\x22Hello, World!\x22);`,
+				// Escape sequence not over-escaped.
+				`Hello, World \x26 O\x27Reilly\x21`,
+				`greeting=H%69\x26addressee=(World)`,
+			},
+		},
+		{
+			`<script type="text/javascript">alert({{.}})</script>`,
+			[]string{
+				`"\u003cb\u003e \"foo%\" O'Reilly \u0026bar;"`,
+				`"a[href =~ \"//example.com\"]#foo"`,
+				`"Hello, \u003cb\u003eWorld\u003c/b\u003e \u0026amp;tc!"`,
+				`" dir=\"ltr\""`,
+				// Not escaped.
+				`c && alert("Hello, World!");`,
+				// Escape sequence not over-escaped.
+				`"Hello, World & O'Reilly\x21"`,
+				`"greeting=H%69\u0026addressee=(World)"`,
+			},
+		},
+		{
+			// Not treated as JS. The output is same as for <div>{{.}}</div>
+			`<script type="text/template">{{.}}</script>`,
+			[]string{
+				`&lt;b&gt; &#34;foo%&#34; O&#39;Reilly &amp;bar;`,
+				`a[href =~ &#34;//example.com&#34;]#foo`,
+				// Not escaped.
+				`Hello, <b>World</b> &amp;tc!`,
+				` dir=&#34;ltr&#34;`,
+				`c &amp;&amp; alert(&#34;Hello, World!&#34;);`,
+				`Hello, World &amp; O&#39;Reilly\x21`,
+				`greeting=H%69&amp;addressee=(World)`,
+			},
+		},
+		{
 			`<button onclick='alert("{{.}}")'>`,
 			[]string{
 				`\x3cb\x3e \x22foo%\x22 O\x27Reilly \x26bar;`,

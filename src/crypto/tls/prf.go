@@ -319,7 +319,7 @@ func (h finishedHash) selectClientCertSignatureAlgorithm(serverList []signatureA
 	}
 
 	for _, v := range serverList {
-		if v.signature == sigType && isSupportedSignatureAndHash(v, supportedSignatureAlgorithms) {
+		if v.signature == sigType && isSupportedSignatureAndHash(v, supportedSignatureAlgorithms()) {
 			return v, nil
 		}
 	}

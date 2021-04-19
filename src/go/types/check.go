@@ -345,7 +345,6 @@ func (check *Checker) recordImplicit(node ast.Node, obj Object) {
 func (check *Checker) recordSelection(x *ast.SelectorExpr, kind SelectionKind, recv Type, obj Object, index []int, indirect bool) {
 	assert(obj != nil && (recv == nil || len(index) > 0))
 	check.recordUse(x.Sel, obj)
-	// TODO(gri) Should we also call recordTypeAndValue?
 	if m := check.Selections; m != nil {
 		m[x] = &Selection{kind, recv, obj, index, indirect}
 	}

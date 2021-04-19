@@ -35,11 +35,11 @@ casloop:
 	BNE	casloop
 	MOVW	$1, R0
 	DMB_ISH_7
-	MOVBU	R0, ret+12(FP)
+	MOVBU	R0, swapped+12(FP)
 	RET
 casfail:
 	MOVW	$0, R0
-	MOVBU	R0, ret+12(FP)
+	MOVBU	R0, swapped+12(FP)
 	RET
 
 TEXT ·armCompareAndSwapUint64(SB),NOSPLIT,$0-21
@@ -49,10 +49,10 @@ TEXT ·armCompareAndSwapUint64(SB),NOSPLIT,$0-21
 	AND.S	$7, R1, R2
 	BEQ 	2(PC)
 	MOVW	R2, (R2)
-	MOVW	oldlo+4(FP), R2
-	MOVW	oldhi+8(FP), R3
-	MOVW	newlo+12(FP), R4
-	MOVW	newhi+16(FP), R5
+	MOVW	old_lo+4(FP), R2
+	MOVW	old_hi+8(FP), R3
+	MOVW	new_lo+12(FP), R4
+	MOVW	new_hi+16(FP), R5
 cas64loop:
 	// LDREXD and STREXD were introduced in ARMv6k.
 	LDREXD	(R1), R6  // loads R6 and R7
@@ -66,11 +66,11 @@ cas64loop:
 	BNE	cas64loop
 	MOVW	$1, R0
 	DMB_ISH_7
-	MOVBU	R0, ret+20(FP)
+	MOVBU	R0, swapped+20(FP)
 	RET
 cas64fail:
 	MOVW	$0, R0
-	MOVBU	R0, ret+20(FP)
+	MOVBU	R0, swapped+20(FP)
 	RET
 
 TEXT ·armAddUint32(SB),NOSPLIT,$0-12
@@ -85,7 +85,7 @@ addloop:
 	CMP	$0, R0
 	BNE	addloop
 	DMB_ISH_7
-	MOVW	R3, ret+8(FP)
+	MOVW	R3, new+8(FP)
 	RET
 
 TEXT ·armAddUint64(SB),NOSPLIT,$0-20
@@ -95,8 +95,8 @@ TEXT ·armAddUint64(SB),NOSPLIT,$0-20
 	AND.S	$7, R1, R2
 	BEQ 	2(PC)
 	MOVW	R2, (R2)
-	MOVW	deltalo+4(FP), R2
-	MOVW	deltahi+8(FP), R3
+	MOVW	delta_lo+4(FP), R2
+	MOVW	delta_hi+8(FP), R3
 add64loop:
 	// LDREXD and STREXD were introduced in ARMv6k.
 	LDREXD	(R1), R4	// loads R4 and R5
@@ -107,8 +107,8 @@ add64loop:
 	CMP	$0, R0
 	BNE	add64loop
 	DMB_ISH_7
-	MOVW	R4, retlo+12(FP)
-	MOVW	R5, rethi+16(FP)
+	MOVW	R4, new_lo+12(FP)
+	MOVW	R5, new_hi+16(FP)
 	RET
 
 TEXT ·armSwapUint32(SB),NOSPLIT,$0-12
@@ -132,8 +132,8 @@ TEXT ·armSwapUint64(SB),NOSPLIT,$0-20
 	AND.S	$7, R1, R2
 	BEQ 	2(PC)
 	MOVW	R2, (R2)
-	MOVW	newlo+4(FP), R2
-	MOVW	newhi+8(FP), R3
+	MOVW	new_lo+4(FP), R2
+	MOVW	new_hi+8(FP), R3
 swap64loop:
 	// LDREXD and STREXD were introduced in ARMv6k.
 	LDREXD	(R1), R4	// loads R4 and R5
@@ -142,8 +142,8 @@ swap64loop:
 	CMP	$0, R0
 	BNE	swap64loop
 	DMB_ISH_7
-	MOVW	R4, oldlo+12(FP)
-	MOVW	R5, oldhi+16(FP)
+	MOVW	R4, old_lo+12(FP)
+	MOVW	R5, old_hi+16(FP)
 	RET
 
 TEXT ·armLoadUint64(SB),NOSPLIT,$0-12
@@ -160,8 +160,8 @@ load64loop:
 	CMP	$0, R0
 	BNE	load64loop
 	DMB_ISH_7
-	MOVW	R2, vallo+4(FP)
-	MOVW	R3, valhi+8(FP)
+	MOVW	R2, val_lo+4(FP)
+	MOVW	R3, val_hi+8(FP)
 	RET
 
 TEXT ·armStoreUint64(SB),NOSPLIT,$0-12
@@ -171,8 +171,8 @@ TEXT ·armStoreUint64(SB),NOSPLIT,$0-12
 	AND.S	$7, R1, R2
 	BEQ 	2(PC)
 	MOVW	R2, (R2)
-	MOVW	vallo+4(FP), R2
-	MOVW	valhi+8(FP), R3
+	MOVW	val_lo+4(FP), R2
+	MOVW	val_hi+8(FP), R3
 store64loop:
 	LDREXD	(R1), R4	// loads R4 and R5
 	DMB_ISHST_7

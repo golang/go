@@ -93,37 +93,6 @@ func ContainsRune(b []byte, r rune) bool {
 	return IndexRune(b, r) >= 0
 }
 
-// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
-func Index(s, sep []byte) int {
-	n := len(sep)
-	if n == 0 {
-		return 0
-	}
-	if n > len(s) {
-		return -1
-	}
-	c := sep[0]
-	if n == 1 {
-		return IndexByte(s, c)
-	}
-	i := 0
-	t := s[:len(s)-n+1]
-	for i < len(t) {
-		if t[i] != c {
-			o := IndexByte(t[i:], c)
-			if o < 0 {
-				break
-			}
-			i += o
-		}
-		if Equal(s[i:i+n], sep) {
-			return i
-		}
-		i++
-	}
-	return -1
-}
-
 func indexBytePortable(s []byte, c byte) int {
 	for i, b := range s {
 		if b == c {
@@ -161,15 +130,28 @@ func LastIndexByte(s []byte, c byte) int {
 // IndexRune interprets s as a sequence of UTF-8-encoded Unicode code points.
 // It returns the byte index of the first occurrence in s of the given rune.
 // It returns -1 if rune is not present in s.
+// If r is utf8.RuneError, it returns the first instance of any
+// invalid UTF-8 byte sequence.
 func IndexRune(s []byte, r rune) int {
-	for i := 0; i < len(s); {
-		r1, size := utf8.DecodeRune(s[i:])
-		if r == r1 {
-			return i
+	switch {
+	case 0 <= r && r < utf8.RuneSelf:
+		return IndexByte(s, byte(r))
+	case r == utf8.RuneError:
+		for i := 0; i < len(s); {
+			r1, n := utf8.DecodeRune(s[i:])
+			if r1 == utf8.RuneError {
+				return i
+			}
+			i += n
 		}
-		i += size
+		return -1
+	case !utf8.ValidRune(r):
+		return -1
+	default:
+		var b [utf8.UTFMax]byte
+		n := utf8.EncodeRune(b[:], r)
+		return Index(s, b[:n])
 	}
-	return -1
 }
 
 // IndexAny interprets s as a sequence of UTF-8-encoded Unicode code points.
@@ -178,10 +160,19 @@ func IndexRune(s []byte, r rune) int {
 // point in common.
 func IndexAny(s []byte, chars string) int {
 	if len(chars) > 0 {
-		var r rune
+		if len(s) > 8 {
+			if as, isASCII := makeASCIISet(chars); isASCII {
+				for i, c := range s {
+					if as.contains(c) {
+						return i
+					}
+				}
+				return -1
+			}
+		}
 		var width int
 		for i := 0; i < len(s); i += width {
-			r = rune(s[i])
+			r := rune(s[i])
 			if r < utf8.RuneSelf {
 				width = 1
 			} else {
@@ -203,11 +194,21 @@ func IndexAny(s []byte, chars string) int {
 // there is no code point in common.
 func LastIndexAny(s []byte, chars string) int {
 	if len(chars) > 0 {
+		if len(s) > 8 {
+			if as, isASCII := makeASCIISet(chars); isASCII {
+				for i := len(s) - 1; i >= 0; i-- {
+					if as.contains(s[i]) {
+						return i
+					}
+				}
+				return -1
+			}
+		}
 		for i := len(s); i > 0; {
-			r, size := utf8.DecodeLastRune(s[0:i])
+			r, size := utf8.DecodeLastRune(s[:i])
 			i -= size
-			for _, ch := range chars {
-				if r == ch {
+			for _, c := range chars {
+				if r == c {
 					return i
 				}
 			}
@@ -398,7 +399,20 @@ func Map(mapping func(r rune) rune, s []byte) []byte {
 }
 
 // Repeat returns a new byte slice consisting of count copies of b.
+//
+// It panics if count is negative or if
+// the result of (len(b) * count) overflows.
 func Repeat(b []byte, count int) []byte {
+	// Since we cannot return an error on overflow,
+	// we should panic if the repeat will generate
+	// an overflow.
+	// See Issue golang.org/issue/16237.
+	if count < 0 {
+		panic("bytes: negative Repeat count")
+	} else if count > 0 && len(b)*count/count != len(b) {
+		panic("bytes: Repeat count causes overflow")
+	}
+
 	nb := make([]byte, len(b)*count)
 	bp := copy(nb, b)
 	for bp < len(nb) {
@@ -419,20 +433,20 @@ func ToTitle(s []byte) []byte { return Map(unicode.ToTitle, s) }
 
 // ToUpperSpecial returns a copy of the byte slice s with all Unicode letters mapped to their
 // upper case, giving priority to the special casing rules.
-func ToUpperSpecial(_case unicode.SpecialCase, s []byte) []byte {
-	return Map(func(r rune) rune { return _case.ToUpper(r) }, s)
+func ToUpperSpecial(c unicode.SpecialCase, s []byte) []byte {
+	return Map(func(r rune) rune { return c.ToUpper(r) }, s)
 }
 
 // ToLowerSpecial returns a copy of the byte slice s with all Unicode letters mapped to their
 // lower case, giving priority to the special casing rules.
-func ToLowerSpecial(_case unicode.SpecialCase, s []byte) []byte {
-	return Map(func(r rune) rune { return _case.ToLower(r) }, s)
+func ToLowerSpecial(c unicode.SpecialCase, s []byte) []byte {
+	return Map(func(r rune) rune { return c.ToLower(r) }, s)
 }
 
 // ToTitleSpecial returns a copy of the byte slice s with all Unicode letters mapped to their
 // title case, giving priority to the special casing rules.
-func ToTitleSpecial(_case unicode.SpecialCase, s []byte) []byte {
-	return Map(func(r rune) rune { return _case.ToTitle(r) }, s)
+func ToTitleSpecial(c unicode.SpecialCase, s []byte) []byte {
+	return Map(func(r rune) rune { return c.ToTitle(r) }, s)
 }
 
 // isSeparator reports whether the rune could mark a word boundary.
@@ -578,7 +592,43 @@ func lastIndexFunc(s []byte, f func(r rune) bool, truth bool) int {
 	return -1
 }
 
+// asciiSet is a 32-byte value, where each bit represents the presence of a
+// given ASCII character in the set. The 128-bits of the lower 16 bytes,
+// starting with the least-significant bit of the lowest word to the
+// most-significant bit of the highest word, map to the full range of all
+// 128 ASCII characters. The 128-bits of the upper 16 bytes will be zeroed,
+// ensuring that any non-ASCII character will be reported as not in the set.
+type asciiSet [8]uint32
+
+// makeASCIISet creates a set of ASCII characters and reports whether all
+// characters in chars are ASCII.
+func makeASCIISet(chars string) (as asciiSet, ok bool) {
+	for i := 0; i < len(chars); i++ {
+		c := chars[i]
+		if c >= utf8.RuneSelf {
+			return as, false
+		}
+		as[c>>5] |= 1 << uint(c&31)
+	}
+	return as, true
+}
+
+// contains reports whether c is inside the set.
+func (as *asciiSet) contains(c byte) bool {
+	return (as[c>>5] & (1 << uint(c&31))) != 0
+}
+
 func makeCutsetFunc(cutset string) func(r rune) bool {
+	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
+		return func(r rune) bool {
+			return r == rune(cutset[0])
+		}
+	}
+	if as, isASCII := makeASCIISet(cutset); isASCII {
+		return func(r rune) bool {
+			return r < utf8.RuneSelf && as.contains(byte(r))
+		}
+	}
 	return func(r rune) bool {
 		for _, c := range cutset {
 			if c == r {

@@ -36,22 +36,6 @@ TEXT runtime∕internal∕sys·Ctz32(SB), NOSPLIT, $0-8
 	MOVL	AX, ret+4(FP)
 	RET
 
-TEXT runtime∕internal∕sys·Ctz16(SB), NOSPLIT, $0-6
-	MOVW	x+0(FP), AX
-	BSFW	AX, AX
-	JNZ	2(PC)
-	MOVW	$16, AX
-	MOVW	AX, ret+4(FP)
-	RET
-
-TEXT runtime∕internal∕sys·Ctz8(SB), NOSPLIT, $0-5
-	MOVBLZX	x+0(FP), AX
-	BSFL	AX, AX
-	JNZ	2(PC)
-	MOVB	$8, AX
-	MOVB	AX, ret+4(FP)
-	RET
-
 TEXT runtime∕internal∕sys·Bswap64(SB), NOSPLIT, $0-16
 	MOVL	x_lo+0(FP), AX
 	MOVL	x_hi+4(FP), BX

@@ -50,11 +50,19 @@ func osinit() {
 	// can look at the environment first.
 
 	ncpu = getncpu()
+
+	physPageSize = getPageSize()
 }
+
+const (
+	_CTL_HW      = 6
+	_HW_NCPU     = 3
+	_HW_PAGESIZE = 7
+)
 
 func getncpu() int32 {
 	// Use sysctl to fetch hw.ncpu.
-	mib := [2]uint32{6, 3}
+	mib := [2]uint32{_CTL_HW, _HW_NCPU}
 	out := uint32(0)
 	nout := unsafe.Sizeof(out)
 	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
@@ -62,6 +70,18 @@ func getncpu() int32 {
 		return int32(out)
 	}
 	return 1
+}
+
+func getPageSize() uintptr {
+	// Use sysctl to fetch hw.pagesize.
+	mib := [2]uint32{_CTL_HW, _HW_PAGESIZE}
+	out := uint32(0)
+	nout := unsafe.Sizeof(out)
+	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
+	if ret >= 0 && int32(out) > 0 {
+		return uintptr(out)
+	}
+	return 0
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
@@ -153,64 +173,22 @@ func mpreinit(mp *m) {
 	mp.gsignal.m = mp
 }
 
-//go:nosplit
-func msigsave(mp *m) {
-	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
-}
-
-//go:nosplit
-func msigrestore(sigmask sigset) {
-	sigprocmask(_SIG_SETMASK, &sigmask, nil)
-}
-
-//go:nosplit
-func sigblock() {
-	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
-}
-
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
-	// Initialize signal handling.
-	_g_ := getg()
-
 	// The alternate signal stack is buggy on arm and arm64.
 	// The signal handler handles it directly.
 	// The sigaltstack assembly function does nothing.
 	if GOARCH != "arm" && GOARCH != "arm64" {
-		var st stackt
-		sigaltstack(nil, &st)
-		if st.ss_flags&_SS_DISABLE != 0 {
-			signalstack(&_g_.m.gsignal.stack)
-			_g_.m.newSigstack = true
-		} else {
-			// Use existing signal stack.
-			stsp := uintptr(unsafe.Pointer(st.ss_sp))
-			_g_.m.gsignal.stack.lo = stsp
-			_g_.m.gsignal.stack.hi = stsp + st.ss_size
-			_g_.m.gsignal.stackguard0 = stsp + _StackGuard
-			_g_.m.gsignal.stackguard1 = stsp + _StackGuard
-			_g_.m.gsignal.stackAlloc = st.ss_size
-			_g_.m.newSigstack = false
-		}
+		minitSignalStack()
 	}
-
-	// restore signal mask from m.sigmask and unblock essential signals
-	nmask := _g_.m.sigmask
-	for i := range sigtable {
-		if sigtable[i].flags&_SigUnblock != 0 {
-			nmask &^= 1 << (uint32(i) - 1)
-		}
-	}
-	sigprocmask(_SIG_SETMASK, &nmask, nil)
+	minitSignalMask()
 }
 
 // Called from dropm to undo the effect of an minit.
 //go:nosplit
 func unminit() {
-	if getg().m.newSigstack {
-		signalstack(nil)
-	}
+	unminitSignals()
 }
 
 // Mach IPC, to get at semaphores
@@ -436,7 +414,10 @@ func semasleep1(ns int64) int32 {
 		if r == 0 {
 			break
 		}
-		if r == _KERN_ABORTED { // interrupted
+		// Note: We don't know how this call (with no timeout) can get _KERN_OPERATION_TIMED_OUT,
+		// but it does reliably, though at a very low rate, on OS X 10.8, 10.9, 10.10, and 10.11.
+		// See golang.org/issue/17161.
+		if r == _KERN_ABORTED || r == _KERN_OPERATION_TIMED_OUT { // interrupted
 			continue
 		}
 		macherror(r, "semaphore_wait")
@@ -495,7 +476,7 @@ const (
 )
 
 //go:noescape
-func sigprocmask(how uint32, new, old *sigset)
+func sigprocmask(how int32, new, old *sigset)
 
 //go:noescape
 func sigaction(mode uint32, new *sigactiont, old *usigactiont)
@@ -503,13 +484,15 @@ func sigaction(mode uint32, new *sigactiont, old *usigactiont)
 //go:noescape
 func sigaltstack(new, old *stackt)
 
-func sigtramp()
+// darwin/arm64 uses registers instead of stack-based arguments.
+// TODO: does this matter?
+func sigtramp(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Pointer)
 
 //go:noescape
 func setitimer(mode int32, new, old *itimerval)
 
-func raise(sig int32)
-func raiseproc(int32)
+func raise(sig uint32)
+func raiseproc(sig uint32)
 
 //extern SigTabTT runtime·sigtab[];
 
@@ -519,25 +502,22 @@ var sigset_all = ^sigset(0)
 
 //go:nosplit
 //go:nowritebarrierrec
-func setsig(i int32, fn uintptr, restart bool) {
+func setsig(i uint32, fn uintptr) {
 	var sa sigactiont
-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
-	if restart {
-		sa.sa_flags |= _SA_RESTART
-	}
+	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = ^uint32(0)
 	sa.sa_tramp = unsafe.Pointer(funcPC(sigtramp)) // runtime·sigtramp's job is to call into real handler
 	*(*uintptr)(unsafe.Pointer(&sa.__sigaction_u)) = fn
-	sigaction(uint32(i), &sa, nil)
+	sigaction(i, &sa, nil)
 }
 
 //go:nosplit
 //go:nowritebarrierrec
-func setsigstack(i int32) {
+func setsigstack(i uint32) {
 	var osa usigactiont
-	sigaction(uint32(i), nil, &osa)
+	sigaction(i, nil, &osa)
 	handler := *(*uintptr)(unsafe.Pointer(&osa.__sigaction_u))
-	if handler == 0 || handler == _SIG_DFL || handler == _SIG_IGN || osa.sa_flags&_SA_ONSTACK != 0 {
+	if osa.sa_flags&_SA_ONSTACK != 0 {
 		return
 	}
 	var sa sigactiont
@@ -545,38 +525,47 @@ func setsigstack(i int32) {
 	sa.sa_tramp = unsafe.Pointer(funcPC(sigtramp))
 	sa.sa_mask = osa.sa_mask
 	sa.sa_flags = osa.sa_flags | _SA_ONSTACK
-	sigaction(uint32(i), &sa, nil)
+	sigaction(i, &sa, nil)
 }
 
 //go:nosplit
 //go:nowritebarrierrec
-func getsig(i int32) uintptr {
+func getsig(i uint32) uintptr {
 	var sa usigactiont
-	sigaction(uint32(i), nil, &sa)
+	sigaction(i, nil, &sa)
 	return *(*uintptr)(unsafe.Pointer(&sa.__sigaction_u))
 }
 
+// setSignaltstackSP sets the ss_sp field of a stackt.
 //go:nosplit
-func signalstack(s *stack) {
-	var st stackt
-	if s == nil {
-		st.ss_flags = _SS_DISABLE
-	} else {
-		st.ss_sp = (*byte)(unsafe.Pointer(s.lo))
-		st.ss_size = s.hi - s.lo
-		st.ss_flags = 0
-	}
-	sigaltstack(&st, nil)
+func setSignalstackSP(s *stackt, sp uintptr) {
+	*(*uintptr)(unsafe.Pointer(&s.ss_sp)) = sp
 }
 
 //go:nosplit
 //go:nowritebarrierrec
-func updatesigmask(m sigmask) {
-	s := sigset(m[0])
-	sigprocmask(_SIG_SETMASK, &s, nil)
+func sigaddset(mask *sigset, i int) {
+	*mask |= 1 << (uint32(i) - 1)
 }
 
-func unblocksig(sig int32) {
-	mask := sigset(1) << (uint32(sig) - 1)
-	sigprocmask(_SIG_UNBLOCK, &mask, nil)
+func sigdelset(mask *sigset, i int) {
+	*mask &^= 1 << (uint32(i) - 1)
+}
+
+//go:linkname executablePath os.executablePath
+var executablePath string
+
+func sysargs(argc int32, argv **byte) {
+	// skip over argv, envv and the first string will be the path
+	n := argc + 1
+	for argv_index(argv, n) != nil {
+		n++
+	}
+	executablePath = gostringnocopy(argv_index(argv, n+1))
+
+	// strip "executable_path=" prefix if available, it's added after OS X 10.11.
+	const prefix = "executable_path="
+	if len(executablePath) > len(prefix) && executablePath[:len(prefix)] == prefix {
+		executablePath = executablePath[len(prefix):]
+	}
 }

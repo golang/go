@@ -30,6 +30,9 @@ type sockaddr interface {
 	// interface. It returns a nil interface when the address is
 	// nil.
 	sockaddr(family int) (syscall.Sockaddr, error)
+
+	// toLocal maps the zero address to a local system address (127.0.0.1 or ::1)
+	toLocal(net string) sockaddr
 }
 
 // socket returns a network file descriptor that is ready for

@@ -120,9 +120,9 @@ func tanSeries(z complex128) float64 {
 	rn := 0.0
 	d := 0.0
 	for {
-		rn += 1
+		rn++
 		f *= rn
-		rn += 1
+		rn++
 		f *= rn
 		x2 *= x
 		y2 *= y
@@ -130,16 +130,18 @@ func tanSeries(z complex128) float64 {
 		t /= f
 		d += t
 
-		rn += 1
+		rn++
 		f *= rn
-		rn += 1
+		rn++
 		f *= rn
 		x2 *= x
 		y2 *= y
 		t = y2 - x2
 		t /= f
 		d += t
-		if math.Abs(t/d) <= MACHEP {
+		if !(math.Abs(t/d) > MACHEP) {
+			// Caution: Use ! and > instead of <= for correct behavior if t/d is NaN.
+			// See issue 17577.
 			break
 		}
 	}

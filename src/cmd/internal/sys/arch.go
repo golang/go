@@ -16,6 +16,7 @@ const (
 	ARM
 	ARM64
 	I386
+	MIPS
 	MIPS64
 	PPC64
 	S390X
@@ -97,6 +98,26 @@ var ArchARM64 = &Arch{
 	MinLC:     4,
 }
 
+var ArchMIPS = &Arch{
+	Name:      "mips",
+	Family:    MIPS,
+	ByteOrder: binary.BigEndian,
+	IntSize:   4,
+	PtrSize:   4,
+	RegSize:   4,
+	MinLC:     4,
+}
+
+var ArchMIPSLE = &Arch{
+	Name:      "mipsle",
+	Family:    MIPS,
+	ByteOrder: binary.LittleEndian,
+	IntSize:   4,
+	PtrSize:   4,
+	RegSize:   4,
+	MinLC:     4,
+}
+
 var ArchMIPS64 = &Arch{
 	Name:      "mips64",
 	Family:    MIPS64,
@@ -145,4 +166,19 @@ var ArchS390X = &Arch{
 	PtrSize:   8,
 	RegSize:   8,
 	MinLC:     2,
+}
+
+var Archs = [...]*Arch{
+	Arch386,
+	ArchAMD64,
+	ArchAMD64P32,
+	ArchARM,
+	ArchARM64,
+	ArchMIPS,
+	ArchMIPSLE,
+	ArchMIPS64,
+	ArchMIPS64LE,
+	ArchPPC64,
+	ArchPPC64LE,
+	ArchS390X,
 }

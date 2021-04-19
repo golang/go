@@ -274,6 +274,8 @@ func Dial(network, address string) (*Client, error) {
 	return NewClient(conn), nil
 }
 
+// Close calls the underlying codec's Close method. If the connection is already
+// shutting down, ErrShutdown is returned.
 func (client *Client) Close() error {
 	client.mutex.Lock()
 	if client.closing {

@@ -536,7 +536,7 @@ func switches1() {
 	default:
 		fallthrough; ;
 	case 4:
-		fallthrough /* ERROR "fallthrough statement out of place" */
+		fallthrough /* ERROR "cannot fallthrough final case in switch" */
 	}
 
 	var y interface{}
@@ -573,7 +573,7 @@ func switches1() {
 		goto L6
 		goto L7
 		goto L8
-		L6: L7: L8: fallthrough /* ERROR "fallthrough statement out of place" */
+		L6: L7: L8: fallthrough /* ERROR "cannot fallthrough final case in switch" */
 	}
 
 	switch x {
@@ -589,6 +589,14 @@ func switches1() {
 		fallthrough /* ERROR "fallthrough statement out of place" */
 		{ /* empty block is not an empty statement */ }; ;
 	default:
+		fallthrough /* ERROR "cannot fallthrough final case in switch" */
+	}
+
+	switch x {
+	case 0:
+		{
+			fallthrough /* ERROR "fallthrough statement out of place" */
+		}
 	}
 }
 

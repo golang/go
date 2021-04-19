@@ -17,7 +17,7 @@
 <p>
 <a href="https://golang.org/dl/" target="_blank">Official binary
 distributions</a> are available for the FreeBSD (release 8-STABLE and above),
-Linux, Mac OS X (10.7 and above), and Windows operating systems and
+Linux, Mac OS X (10.8 and above), and Windows operating systems and
 the 32-bit (<code>386</code>) and 64-bit (<code>amd64</code>) x86 processor
 architectures.
 </p>
@@ -47,14 +47,14 @@ If your OS or architecture is not on the list, you may be able to
 <th align="center">Notes</th>
 </tr>
 <tr><td colspan="3"><hr></td></tr>
-<tr><td>FreeBSD 8-STABLE or later</td> <td>amd64</td> <td>Debian GNU/kFreeBSD not supported</td></tr>
-<tr><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm</td> <td>CentOS/RHEL 5.x not supported</td></tr>
-<tr><td>Mac OS X 10.7 or later</td> <td>amd64</td> <td>use the clang or gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup></td></tr>
+<tr><td>FreeBSD 8-STABLE or later</td> <td>amd64, 386</td> <td>Debian GNU/kFreeBSD not supported</td></tr>
+<tr><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm, s390x, ppc64le</td> <td>CentOS/RHEL 5.x not supported</td></tr>
+<tr><td>Mac OS X 10.8 or later</td> <td>amd64</td> <td>use the clang or gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup> for <code>cgo</code> support</td></tr>
 <tr><td>Windows XP or later</td> <td>amd64, 386</td> <td>use MinGW gcc<sup>&#8224;</sup>. No need for cygwin or msys.</td></tr>
 </table>
 
 <p>
-<sup>&#8224;</sup><code>gcc</code> is required only if you plan to use
+<sup>&#8224;</sup>A C compiler is required only if you plan to use
 <a href="/cmd/cgo">cgo</a>.<br/>
 <sup>&#8225;</sup>You only need to install the command line tools for
 <a href="http://developer.apple.com/Xcode/">Xcode</a>. If you have already
@@ -117,12 +117,12 @@ to point to the directory in which it was installed.
 </p>
 
 <p>
-For example, if you installed Go to your home directory you should add the
-following commands to <code>$HOME/.profile</code>:
+For example, if you installed Go to your home directory you should add
+commands like the following to <code>$HOME/.profile</code>:
 </p>
 
 <pre>
-export GOROOT=$HOME/go
+export GOROOT=$HOME/go1.X
 export PATH=$PATH:$GOROOT/bin
 </pre>
 
@@ -219,37 +219,16 @@ and building a simple program, as follows.
 </p>
 
 <p>
-Create a directory to contain your <a href="code.html#Workspaces">workspace</a>,
-<code class="testUnix">$HOME/work</code>
-<code class="testWindows" style="display: none">C:\work</code>
-for example, and set the <code>GOPATH</code> environment
-variable to point to that location.
-</p>
-
-<pre class="testUnix">
-$ <b>export GOPATH=$HOME/work</b>
-</pre>
-
-<pre class="testWindows" style="display: none">
-C:\&gt; <b>set GOPATH=C:\work</b>
-</pre>
-
-<p>
-<span class="testUnix">
-You should put the above command in your shell startup script
-(<code>$HOME/.profile</code> for example).
-</span>
-<span class="testWindows">
-On Windows, follow the <a href="#windows_env">instructions above</a> to set the
-<code>GOPATH</code> environment variable on your system.
-</span>
+Create your <a href="code.html#Workspaces">workspace</a> directory,
+<code class="testUnix">$HOME/go</code><code class="testWindows">%USERPROFILE%\go</code>.
+(If you'd like to use a different directory,
+you will need to set the <code>GOPATH</code> environment variable;
+see <a href="code.html#Workspaces">How to Write Go Code</a> for details.)
 </p>
 
 <p>
-Next, make the directories <code>src/github.com/user/hello</code> inside your
-workspace (if you use GitHub, substitute your user name for <code>user</code>),
-and inside the <code>hello</code> directory create a file named <code>hello.go</code>
-with the following contents:
+Next, make the directory <code>src/hello</code> inside your workspace,
+and in that directory create a file named <code>hello.go</code> that looks like:
 </p>
 
 <pre>
@@ -263,35 +242,44 @@ func main() {
 </pre>
 
 <p>
-Then compile it with the <code>go</code> tool:
+Then build it with the <code>go</code> tool:
 </p>
 
 <pre class="testUnix">
-$ <b>go install github.com/user/hello</b>
+$ <b>cd $HOME/go/src/hello</b>
+$ <b>go build</b>
 </pre>
 
-<pre class="testWindows" style="display: none">
-C:\&gt; <b>go install github.com/user/hello</b>
+<pre class="testWindows">
+C:\&gt; <b>cd %USERPROFILE%\go\src\hello</b>
+C:\Users\Gopher\go\src\hello&gt; <b>go build</b>
 </pre>
 
 <p>
-The command above will put an executable command named <code>hello</code> 
-(or <code>hello.exe</code>) inside the <code>bin</code> directory of your workspace.
-Execute the command to see the greeting:
+The command above will build an executable named
+<code class="testUnix">hello</code><code class="testWindows">hello.exe</code>
+in the directory alongside your source code.
+Execute it to see the greeting:
 </p>
 
 <pre class="testUnix">
-$ <b>$GOPATH/bin/hello</b>
+$ <b>./hello</b>
 hello, world
 </pre>
 
-<pre class="testWindows" style="display: none">
-C:\&gt; <b>%GOPATH%\bin\hello</b>
+<pre class="testWindows">
+C:\Users\Gopher\go\src\hello&gt; <b>hello</b>
 hello, world
 </pre>
 
 <p>
 If you see the "hello, world" message then your Go installation is working.
+</p>
+
+<p>
+You can run <code>go</code> <code>install</code> to install the binary into
+your workspace's <code>bin</code> directory
+or <code>go</code> <code>clean</code> to remove it.
 </p>
 
 <p>
@@ -325,16 +313,10 @@ environment variables under Windows</a>.
 <h2 id="help">Getting help</h2>
 
 <p>
-For real-time help, ask the helpful gophers in <code>#go-nuts</code> on the
-<a href="http://freenode.net/">Freenode</a> IRC server.
+  For help, see the <a href="/help/">list of Go mailing lists, forums, and places to chat</a>.
 </p>
 
 <p>
-The official mailing list for discussion of the Go language is
-<a href="//groups.google.com/group/golang-nuts">Go Nuts</a>.
-</p>
-
-<p>
-Report bugs using the
-<a href="//golang.org/issue">Go issue tracker</a>.
+  Report bugs either by running “<b><code>go</code> <code>bug</code></b>”, or
+  manually at the <a href="https://golang.org/issue">Go issue tracker</a>.
 </p>

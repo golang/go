@@ -11,14 +11,13 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
+	"io/ioutil"
 	"math"
-	"math/rand"
 	"net"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
-	"testing/quick"
 	"time"
 )
 
@@ -98,6 +97,7 @@ var keyPairTests = []struct {
 }
 
 func TestX509KeyPair(t *testing.T) {
+	t.Parallel()
 	var pem []byte
 	for _, test := range keyPairTests {
 		pem = []byte(test.cert + test.key)
@@ -241,7 +241,7 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 			srvCh <- nil
 			return
 		}
-		serverConfig := testConfig.clone()
+		serverConfig := testConfig.Clone()
 		srv := Server(sconn, serverConfig)
 		if err := srv.Handshake(); err != nil {
 			serr = fmt.Errorf("handshake: %v", err)
@@ -251,7 +251,7 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 		srvCh <- srv
 	}()
 
-	clientConfig := testConfig.clone()
+	clientConfig := testConfig.Clone()
 	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
 		t.Fatal(err)
@@ -293,18 +293,20 @@ func TestTLSUniqueMatches(t *testing.T) {
 		for i := 0; i < 2; i++ {
 			sconn, err := ln.Accept()
 			if err != nil {
-				t.Fatal(err)
+				t.Error(err)
+				return
 			}
-			serverConfig := testConfig.clone()
+			serverConfig := testConfig.Clone()
 			srv := Server(sconn, serverConfig)
 			if err := srv.Handshake(); err != nil {
-				t.Fatal(err)
+				t.Error(err)
+				return
 			}
 			serverTLSUniques <- srv.ConnectionState().TLSUnique
 		}
 	}()
 
-	clientConfig := testConfig.clone()
+	clientConfig := testConfig.Clone()
 	clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
 	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
@@ -394,7 +396,7 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 			srvCh <- nil
 			return
 		}
-		serverConfig := testConfig.clone()
+		serverConfig := testConfig.Clone()
 		srv := Server(sconn, serverConfig)
 		if err := srv.Handshake(); err != nil {
 			serr = fmt.Errorf("handshake: %v", err)
@@ -414,7 +416,7 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 		Conn: cconn,
 	}
 
-	clientConfig := testConfig.clone()
+	clientConfig := testConfig.Clone()
 	tconn := Client(conn, clientConfig)
 	if err := tconn.Handshake(); err != nil {
 		t.Fatal(err)
@@ -458,11 +460,156 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 	}
 }
 
-func TestClone(t *testing.T) {
+func TestConnCloseWrite(t *testing.T) {
+	ln := newLocalListener(t)
+	defer ln.Close()
+
+	clientDoneChan := make(chan struct{})
+
+	serverCloseWrite := func() error {
+		sconn, err := ln.Accept()
+		if err != nil {
+			return fmt.Errorf("accept: %v", err)
+		}
+		defer sconn.Close()
+
+		serverConfig := testConfig.Clone()
+		srv := Server(sconn, serverConfig)
+		if err := srv.Handshake(); err != nil {
+			return fmt.Errorf("handshake: %v", err)
+		}
+		defer srv.Close()
+
+		data, err := ioutil.ReadAll(srv)
+		if err != nil {
+			return err
+		}
+		if len(data) > 0 {
+			return fmt.Errorf("Read data = %q; want nothing", data)
+		}
+
+		if err := srv.CloseWrite(); err != nil {
+			return fmt.Errorf("server CloseWrite: %v", err)
+		}
+
+		// Wait for clientCloseWrite to finish, so we know we
+		// tested the CloseWrite before we defer the
+		// sconn.Close above, which would also cause the
+		// client to unblock like CloseWrite.
+		<-clientDoneChan
+		return nil
+	}
+
+	clientCloseWrite := func() error {
+		defer close(clientDoneChan)
+
+		clientConfig := testConfig.Clone()
+		conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
+		if err != nil {
+			return err
+		}
+		if err := conn.Handshake(); err != nil {
+			return err
+		}
+		defer conn.Close()
+
+		if err := conn.CloseWrite(); err != nil {
+			return fmt.Errorf("client CloseWrite: %v", err)
+		}
+
+		if _, err := conn.Write([]byte{0}); err != errShutdown {
+			return fmt.Errorf("CloseWrite error = %v; want errShutdown", err)
+		}
+
+		data, err := ioutil.ReadAll(conn)
+		if err != nil {
+			return err
+		}
+		if len(data) > 0 {
+			return fmt.Errorf("Read data = %q; want nothing", data)
+		}
+		return nil
+	}
+
+	errChan := make(chan error, 2)
+
+	go func() { errChan <- serverCloseWrite() }()
+	go func() { errChan <- clientCloseWrite() }()
+
+	for i := 0; i < 2; i++ {
+		select {
+		case err := <-errChan:
+			if err != nil {
+				t.Fatal(err)
+			}
+		case <-time.After(10 * time.Second):
+			t.Fatal("deadlock")
+		}
+	}
+
+	// Also test CloseWrite being called before the handshake is
+	// finished:
+	{
+		ln2 := newLocalListener(t)
+		defer ln2.Close()
+
+		netConn, err := net.Dial("tcp", ln2.Addr().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer netConn.Close()
+		conn := Client(netConn, testConfig.Clone())
+
+		if err := conn.CloseWrite(); err != errEarlyCloseWrite {
+			t.Errorf("CloseWrite error = %v; want errEarlyCloseWrite", err)
+		}
+	}
+}
+
+func TestCloneFuncFields(t *testing.T) {
+	const expectedCount = 5
+	called := 0
+
+	c1 := Config{
+		Time: func() time.Time {
+			called |= 1 << 0
+			return time.Time{}
+		},
+		GetCertificate: func(*ClientHelloInfo) (*Certificate, error) {
+			called |= 1 << 1
+			return nil, nil
+		},
+		GetClientCertificate: func(*CertificateRequestInfo) (*Certificate, error) {
+			called |= 1 << 2
+			return nil, nil
+		},
+		GetConfigForClient: func(*ClientHelloInfo) (*Config, error) {
+			called |= 1 << 3
+			return nil, nil
+		},
+		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			called |= 1 << 4
+			return nil
+		},
+	}
+
+	c2 := c1.Clone()
+
+	c2.Time()
+	c2.GetCertificate(nil)
+	c2.GetClientCertificate(nil)
+	c2.GetConfigForClient(nil)
+	c2.VerifyPeerCertificate(nil, nil)
+
+	if called != (1<<expectedCount)-1 {
+		t.Fatalf("expected %d calls but saw calls %b", expectedCount, called)
+	}
+}
+
+func TestCloneNonFuncFields(t *testing.T) {
 	var c1 Config
 	v := reflect.ValueOf(&c1).Elem()
 
-	rnd := rand.New(rand.NewSource(time.Now().Unix()))
 	typ := v.Type()
 	for i := 0; i < typ.NumField(); i++ {
 		f := v.Field(i)
@@ -471,39 +618,56 @@ func TestClone(t *testing.T) {
 			continue
 		}
 
-		// testing/quick can't handle functions or interfaces.
-		fn := typ.Field(i).Name
-		switch fn {
+		// testing/quick can't handle functions or interfaces and so
+		// isn't used here.
+		switch fn := typ.Field(i).Name; fn {
 		case "Rand":
 			f.Set(reflect.ValueOf(io.Reader(os.Stdin)))
-			continue
-		case "Time", "GetCertificate":
-			// DeepEqual can't compare functions.
-			continue
+		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "GetClientCertificate":
+			// DeepEqual can't compare functions. If you add a
+			// function field to this list, you must also change
+			// TestCloneFuncFields to ensure that the func field is
+			// cloned.
 		case "Certificates":
 			f.Set(reflect.ValueOf([]Certificate{
-				{Certificate: [][]byte{[]byte{'b'}}},
+				{Certificate: [][]byte{{'b'}}},
 			}))
-			continue
 		case "NameToCertificate":
 			f.Set(reflect.ValueOf(map[string]*Certificate{"a": nil}))
-			continue
 		case "RootCAs", "ClientCAs":
 			f.Set(reflect.ValueOf(x509.NewCertPool()))
-			continue
 		case "ClientSessionCache":
 			f.Set(reflect.ValueOf(NewLRUClientSessionCache(10)))
-			continue
+		case "KeyLogWriter":
+			f.Set(reflect.ValueOf(io.Writer(os.Stdout)))
+		case "NextProtos":
+			f.Set(reflect.ValueOf([]string{"a", "b"}))
+		case "ServerName":
+			f.Set(reflect.ValueOf("b"))
+		case "ClientAuth":
+			f.Set(reflect.ValueOf(VerifyClientCertIfGiven))
+		case "InsecureSkipVerify", "SessionTicketsDisabled", "DynamicRecordSizingDisabled", "PreferServerCipherSuites":
+			f.Set(reflect.ValueOf(true))
+		case "MinVersion", "MaxVersion":
+			f.Set(reflect.ValueOf(uint16(VersionTLS12)))
+		case "SessionTicketKey":
+			f.Set(reflect.ValueOf([32]byte{}))
+		case "CipherSuites":
+			f.Set(reflect.ValueOf([]uint16{1, 2}))
+		case "CurvePreferences":
+			f.Set(reflect.ValueOf([]CurveID{CurveP256}))
+		case "Renegotiation":
+			f.Set(reflect.ValueOf(RenegotiateOnceAsClient))
+		default:
+			t.Errorf("all fields must be accounted for, but saw unknown field %q", fn)
 		}
-
-		q, ok := quick.Value(f.Type(), rnd)
-		if !ok {
-			t.Fatalf("quick.Value failed on field %s", fn)
-		}
-		f.Set(q)
 	}
 
-	c2 := c1.clone()
+	c2 := c1.Clone()
+	// DeepEqual also compares unexported fields, thus c2 needs to have run
+	// serverInit in order to be DeepEqual to c1. Cloning it and discarding
+	// the result is sufficient.
+	c2.Clone()
 
 	if !reflect.DeepEqual(&c1, c2) {
 		t.Errorf("clone failed to copy a field")
@@ -551,7 +715,8 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 				// (cannot call b.Fatal in goroutine)
 				panic(fmt.Errorf("accept: %v", err))
 			}
-			serverConfig := testConfig.clone()
+			serverConfig := testConfig.Clone()
+			serverConfig.CipherSuites = nil // the defaults may prefer faster ciphers
 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 			srv := Server(sconn, serverConfig)
 			if err := srv.Handshake(); err != nil {
@@ -564,7 +729,8 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 	}()
 
 	b.SetBytes(totalBytes)
-	clientConfig := testConfig.clone()
+	clientConfig := testConfig.Clone()
+	clientConfig.CipherSuites = nil // the defaults may prefer faster ciphers
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 
 	buf := make([]byte, bufsize)
@@ -641,7 +807,7 @@ func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
 				// (cannot call b.Fatal in goroutine)
 				panic(fmt.Errorf("accept: %v", err))
 			}
-			serverConfig := testConfig.clone()
+			serverConfig := testConfig.Clone()
 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 			srv := Server(&slowConn{sconn, bps}, serverConfig)
 			if err := srv.Handshake(); err != nil {
@@ -651,7 +817,7 @@ func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
 		}
 	}()
 
-	clientConfig := testConfig.clone()
+	clientConfig := testConfig.Clone()
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 
 	buf := make([]byte, 16384)

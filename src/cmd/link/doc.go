@@ -85,6 +85,8 @@ Flags:
 		Link with C/C++ memory sanitizer support.
 	-o file
 		Write output to file (default a.out, or a.out.exe on Windows).
+	-pluginpath path
+		The path name used to prefix exported plugin symbols.
 	-r dir1:dir2:...
 		Set the ELF dynamic linker search path.
 	-race

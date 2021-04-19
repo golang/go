@@ -41,6 +41,12 @@ func checkShift(f *File, node ast.Node) {
 // checkLongShift checks if shift or shift-assign operations shift by more than
 // the length of the underlying variable.
 func checkLongShift(f *File, node ast.Node, x, y ast.Expr) {
+	if f.pkg.types[x].Value != nil {
+		// Ignore shifts of constants.
+		// These are frequently used for bit-twiddling tricks
+		// like ^uint(0) >> 63 for 32/64 bit detection and compatibility.
+		return
+	}
 	v := f.pkg.types[y].Value
 	if v == nil {
 		return

@@ -1,0 +1,6 @@
+// freebsd/amd64-specific vet whitelist. See readme.txt for details.
+
+runtime/sys_freebsd_amd64.s: [amd64] settls: function settls missing Go declaration
+syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 8(SP) should be num+0(FP)
+syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 16(SP) should be a1+8(FP)
+syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 24(SP) should be a2+16(FP)

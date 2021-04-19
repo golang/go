@@ -20,6 +20,9 @@ func randInt(r *rand.Rand, size uint) *Int {
 }
 
 func runGCD(b *testing.B, aSize, bSize uint) {
+	if isRaceBuilder && (aSize > 1000 || bSize > 1000) {
+		b.Skip("skipping on race builder")
+	}
 	b.Run("WithoutXY", func(b *testing.B) {
 		runGCDExt(b, aSize, bSize, false)
 	})

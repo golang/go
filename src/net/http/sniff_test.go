@@ -66,6 +66,7 @@ func TestServerContentType_h1(t *testing.T) { testServerContentType(t, h1Mode) }
 func TestServerContentType_h2(t *testing.T) { testServerContentType(t, h2Mode) }
 
 func testServerContentType(t *testing.T, h2 bool) {
+	setParallel(t)
 	defer afterTest(t)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		i, _ := strconv.Atoi(r.FormValue("i"))
@@ -160,6 +161,7 @@ func testContentTypeWithCopy(t *testing.T, h2 bool) {
 func TestSniffWriteSize_h1(t *testing.T) { testSniffWriteSize(t, h1Mode) }
 func TestSniffWriteSize_h2(t *testing.T) { testSniffWriteSize(t, h2Mode) }
 func testSniffWriteSize(t *testing.T, h2 bool) {
+	setParallel(t)
 	defer afterTest(t)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		size, _ := strconv.Atoi(r.FormValue("size"))

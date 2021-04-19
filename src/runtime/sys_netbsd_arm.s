@@ -181,7 +181,7 @@ TEXT runtime·getcontext(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVW mode+0(FP), R0	// arg 1 - how
+	MOVW how+0(FP), R0	// arg 1 - how
 	MOVW new+4(FP), R1	// arg 2 - set
 	MOVW old+8(FP), R2	// arg 3 - oset
 	SWI $0xa00125	// sys_sigprocmask

@@ -123,39 +123,27 @@ func getFields(s string) []string { return splitAtBytes(s, " \r\t\n") }
 // Bigger than we need, not too big to worry about overflow
 const big = 0xFFFFFF
 
-// Decimal to integer starting at &s[i0].
-// Returns number, new offset, success.
-func dtoi(s string, i0 int) (n int, i int, ok bool) {
+// Decimal to integer.
+// Returns number, characters consumed, success.
+func dtoi(s string) (n int, i int, ok bool) {
 	n = 0
-	neg := false
-	if len(s) > 0 && s[0] == '-' {
-		neg = true
-		s = s[1:]
-	}
-	for i = i0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+	for i = 0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
 		n = n*10 + int(s[i]-'0')
 		if n >= big {
-			if neg {
-				return -big, i + 1, false
-			}
 			return big, i, false
 		}
 	}
-	if i == i0 {
-		return 0, i, false
-	}
-	if neg {
-		n = -n
-		i++
+	if i == 0 {
+		return 0, 0, false
 	}
 	return n, i, true
 }
 
-// Hexadecimal to integer starting at &s[i0].
-// Returns number, new offset, success.
-func xtoi(s string, i0 int) (n int, i int, ok bool) {
+// Hexadecimal to integer.
+// Returns number, characters consumed, success.
+func xtoi(s string) (n int, i int, ok bool) {
 	n = 0
-	for i = i0; i < len(s); i++ {
+	for i = 0; i < len(s); i++ {
 		if '0' <= s[i] && s[i] <= '9' {
 			n *= 16
 			n += int(s[i] - '0')
@@ -172,7 +160,7 @@ func xtoi(s string, i0 int) (n int, i int, ok bool) {
 			return 0, i, false
 		}
 	}
-	if i == i0 {
+	if i == 0 {
 		return 0, i, false
 	}
 	return n, i, true
@@ -186,7 +174,7 @@ func xtoi2(s string, e byte) (byte, bool) {
 	if len(s) > 2 && s[2] != e {
 		return 0, false
 	}
-	n, ei, ok := xtoi(s[:2], 0)
+	n, ei, ok := xtoi(s[:2])
 	return byte(n), ok && ei == 2
 }
 
@@ -346,20 +334,26 @@ func stringsHasSuffix(s, suffix string) bool {
 // stringsHasSuffixFold reports whether s ends in suffix,
 // ASCII-case-insensitively.
 func stringsHasSuffixFold(s, suffix string) bool {
-	if len(suffix) > len(s) {
-		return false
-	}
-	for i := 0; i < len(suffix); i++ {
-		if lowerASCII(suffix[i]) != lowerASCII(s[len(s)-len(suffix)+i]) {
-			return false
-		}
-	}
-	return true
+	return len(s) >= len(suffix) && stringsEqualFold(s[len(s)-len(suffix):], suffix)
 }
 
 // stringsHasPrefix is strings.HasPrefix. It reports whether s begins with prefix.
 func stringsHasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+}
+
+// stringsEqualFold is strings.EqualFold, ASCII only. It reports whether s and t
+// are equal, ASCII-case-insensitively.
+func stringsEqualFold(s, t string) bool {
+	if len(s) != len(t) {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if lowerASCII(s[i]) != lowerASCII(t[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func readFull(r io.Reader) (all []byte, err error) {

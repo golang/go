@@ -14,6 +14,6 @@ package main
 type T struct{}
 
 func main() {
-	t := T{X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1} // ERROR "unknown T field"
+	t := T{X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1} // ERROR "unknown field 'X' in struct literal of type T"
 	var s string = 1 // ERROR "cannot use 1"
 }

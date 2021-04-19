@@ -830,6 +830,20 @@ func TestPtrToMapOfMap(t *testing.T) {
 	}
 }
 
+// Test that untyped nils generate an error, not a panic.
+// See Issue 16204.
+func TestCatchInvalidNilValue(t *testing.T) {
+	encodeErr, panicErr := encodeAndRecover(nil)
+	if panicErr != nil {
+		t.Fatalf("panicErr=%v, should not panic encoding untyped nil", panicErr)
+	}
+	if encodeErr == nil {
+		t.Errorf("got err=nil, want non-nil error when encoding untyped nil value")
+	} else if !strings.Contains(encodeErr.Error(), "nil value") {
+		t.Errorf("expected 'nil value' error; got err=%v", encodeErr)
+	}
+}
+
 // A top-level nil pointer generates a panic with a helpful string-valued message.
 func TestTopLevelNilPointer(t *testing.T) {
 	var ip *int

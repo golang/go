@@ -42,7 +42,7 @@ denotes the package in that directory.
 
 Otherwise, the import path P denotes the package found in
 the directory DIR/src/P for some DIR listed in the GOPATH
-environment variable (see 'go help gopath').
+environment variable (For more details see: 'go help gopath').
 
 If no import paths are given, the action applies to the
 package in the current directory.
@@ -61,6 +61,9 @@ Go library.
 
 - "cmd" expands to the Go repository's commands and their
 internal libraries.
+
+Import paths beginning with "cmd/" only match source code in
+the Go repository.
 
 An import path is a pattern if it includes one or more "..." wildcards,
 each of which can match any string, including the empty string and
@@ -102,10 +105,10 @@ var helpImportPath = &Command{
 	Short:     "import path syntax",
 	Long: `
 
-An import path (see 'go help packages') denotes a package
-stored in the local file system.  In general, an import path denotes
-either a standard package (such as "unicode/utf8") or a package
-found in one of the work spaces (see 'go help gopath').
+An import path (see 'go help packages') denotes a package stored in the local
+file system.  In general, an import path denotes either a standard package (such
+as "unicode/utf8") or a package found in one of the work spaces (For more
+details see: 'go help gopath').
 
 Relative import paths
 
@@ -197,6 +200,11 @@ When a version control system supports multiple protocols,
 each is tried in turn when downloading.  For example, a Git
 download tries https://, then git+ssh://.
 
+By default, downloads are restricted to known secure protocols
+(e.g. https, ssh). To override this setting for Git downloads, the
+GIT_ALLOW_PROTOCOL environment variable can be set (For more details see:
+'go help environment').
+
 If the import path is not a known code hosting site and also lacks a
 version control qualifier, the go tool attempts to fetch the import
 over https/http and looks for a <meta> tag in the document's HTML
@@ -237,8 +245,8 @@ the go tool will verify that https://example.org/?go-get=1 contains the
 same meta tag and then git clone https://code.org/r/p/exproj into
 GOPATH/src/example.org.
 
-New downloaded packages are written to the first directory
-listed in the GOPATH environment variable (see 'go help gopath').
+New downloaded packages are written to the first directory listed in the GOPATH
+environment variable (For more details see: 'go help gopath').
 
 The go command attempts to download the version of the
 package appropriate for the Go release being used.
@@ -281,8 +289,13 @@ On Unix, the value is a colon-separated string.
 On Windows, the value is a semicolon-separated string.
 On Plan 9, the value is a list.
 
-GOPATH must be set to get, build and install packages outside the
-standard Go tree.
+If the environment variable is unset, GOPATH defaults
+to a subdirectory named "go" in the user's home directory
+($HOME/go on Unix, %USERPROFILE%\go on Windows),
+unless that directory holds a Go distribution.
+Run "go env GOPATH" to see the current GOPATH.
+
+See https://golang.org/wiki/SettingGOPATH to set a custom GOPATH.
 
 Each directory listed in GOPATH must have a prescribed structure:
 
@@ -310,9 +323,9 @@ of DIR/bin. GOBIN must be an absolute path.
 
 Here's an example directory layout:
 
-    GOPATH=/home/user/gocode
+    GOPATH=/home/user/go
 
-    /home/user/gocode/
+    /home/user/go/
         src/
             foo/
                 bar/               (go code in package bar)
@@ -338,7 +351,7 @@ Code in or below a directory named "internal" is importable only
 by code in the directory tree rooted at the parent of "internal".
 Here's an extended version of the directory layout above:
 
-    /home/user/gocode/
+    /home/user/go/
         src/
             crash/
                 bang/              (go code in package bang)
@@ -376,7 +389,7 @@ Here's the example from the previous section,
 but with the "internal" directory renamed to "vendor"
 and a new foo/vendor/crash/bang directory added:
 
-    /home/user/gocode/
+    /home/user/go/
         src/
             crash/
                 bang/              (go code in package bang)
@@ -439,7 +452,7 @@ General-purpose environment variables:
 		The operating system for which to compile code.
 		Examples are linux, darwin, windows, netbsd.
 	GOPATH
-		See 'go help gopath'.
+		For more details see: 'go help gopath'.
 	GORACE
 		Options for the race detector.
 		See https://golang.org/doc/articles/race_detector.html.
@@ -461,10 +474,15 @@ Environment variables for use with cgo:
 	CGO_CXXFLAGS
 		Flags that cgo will pass to the compiler when compiling
 		C++ code.
+	CGO_FFLAGS
+		Flags that cgo will pass to the compiler when compiling
+		Fortran code.
 	CGO_LDFLAGS
 		Flags that cgo will pass to the compiler when linking.
 	CXX
 		The command to use to compile C++ code.
+	PKG_CONFIG
+		Path to pkg-config tool.
 
 Architecture-specific environment variables:
 
@@ -486,6 +504,10 @@ Special-purpose environment variables:
 		Whether the linker should use external linking mode
 		when using -linkmode=auto with code that uses cgo.
 		Set to 0 to disable external linking mode, 1 to enable it.
+	GIT_ALLOW_PROTOCOL
+		Defined by Git. A colon-separated list of schemes that are allowed to be used
+		with git fetch/clone. If set, any scheme not explicitly mentioned will be
+		considered insecure by 'go get'.
 	`,
 }
 
@@ -577,5 +599,9 @@ are:
 		Build the listed main packages and everything they import into
 		position independent executables (PIE). Packages not named
 		main are ignored.
+
+	-buildmode=plugin
+		Build the listed main packages, plus all packages that they
+		import, into a Go plugin. Packages not named main are ignored.
 `,
 }

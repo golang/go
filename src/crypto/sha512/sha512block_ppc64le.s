@@ -1,0 +1,293 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+#include "textflag.h"
+
+// SHA512 block routine. See sha512block.go for Go equivalent.
+//
+// The algorithm is detailed in FIPS 180-4:
+//
+//  http://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
+//
+// Wt = Mt; for 0 <= t <= 15
+// Wt = SIGMA1(Wt-2) + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 79
+//
+// a = H0
+// b = H1
+// c = H2
+// d = H3
+// e = H4
+// f = H5
+// g = H6
+// h = H7
+//
+// for t = 0 to 79 {
+//    T1 = h + BIGSIGMA1(e) + Ch(e,f,g) + Kt + Wt
+//    T2 = BIGSIGMA0(a) + Maj(a,b,c)
+//    h = g
+//    g = f
+//    f = e
+//    e = d + T1
+//    d = c
+//    c = b
+//    b = a
+//    a = T1 + T2
+// }
+//
+// H0 = a + H0
+// H1 = b + H1
+// H2 = c + H2
+// H3 = d + H3
+// H4 = e + H4
+// H5 = f + H5
+// H6 = g + H6
+// H7 = h + H7
+
+// Wt = Mt; for 0 <= t <= 15
+#define MSGSCHEDULE0(index) \
+	MOVD	(index*8)(R6), R14; \
+	RLWNM	$24, R14, $-1, R21; \
+	RLWMI	$8, R14, $0x00FF0000, R21; \
+	RLWMI	$8, R14, $0x000000FF, R21; \
+	SLD	$32, R21; \
+	SRD	$32, R14, R20; \
+	RLWNM	$24, R20, $-1, R14; \
+	RLWMI	$8, R20, $0x00FF0000, R14; \
+	RLWMI	$8, R20, $0x000000FF, R14; \
+	OR	R21, R14; \
+	MOVD	R14, (index*8)(R9)
+
+// Wt = SIGMA1(Wt-2) + Wt-7 + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 79
+//   SIGMA0(x) = ROTR(1,x) XOR ROTR(8,x) XOR SHR(7,x)
+//   SIGMA1(x) = ROTR(19,x) XOR ROTR(61,x) XOR SHR(6,x)
+#define MSGSCHEDULE1(index) \
+	MOVD	((index-2)*8)(R9), R14; \
+	MOVD	R14, R16; \
+	RLDCL	$64-19, R14, $-1, R14; \
+	MOVD	R16, R17; \
+	RLDCL	$64-61, R16, $-1, R16; \
+	SRD	$6, R17; \
+	MOVD	((index-15)*8)(R9), R15; \
+	XOR	R16, R14; \
+	MOVD	R15, R16; \
+	XOR	R17, R14; \
+	RLDCL	$64-1, R15, $-1, R15; \
+	MOVD	R16, R17; \
+	SRD	$7, R17; \
+	RLDCL	$64-8, R16, $-1, R16; \
+	MOVD	((index-7)*8)(R9), R21; \
+	ADD	R21, R14; \
+	XOR	R16, R15; \
+	XOR	R17, R15; \
+	MOVD	((index-16)*8)(R9), R21; \
+	ADD	R21, R15; \
+	ADD	R15, R14; \
+	MOVD	R14, ((index)*8)(R9)
+
+// Calculate T1 in R14 - uses R14, R16 and R17 registers.
+// h is also used as an accumulator. Wt is passed in R14.
+//   T1 = h + BIGSIGMA1(e) + Ch(e, f, g) + Kt + Wt
+//     BIGSIGMA1(x) = ROTR(14,x) XOR ROTR(18,x) XOR ROTR(41,x)
+//     Ch(x, y, z) = (x AND y) XOR (NOT x AND z)
+#define SHA512T1(const, e, f, g, h) \
+	MOVD	$const, R17; \
+	ADD	R14, h; \
+	MOVD	e, R14; \
+	ADD	R17, h; \
+	MOVD	e, R16; \
+	RLDCL	$64-14, R14, $-1, R14; \
+	MOVD	e, R17; \
+	RLDCL	$64-18, R16, $-1, R16; \
+	XOR	R16, R14; \
+	MOVD	e, R16; \
+	RLDCL	$64-41, R17, $-1, R17; \
+	AND	f, R16; \
+	XOR	R14, R17; \
+	MOVD	e, R14; \
+	NOR	R14, R14, R14; \
+	ADD	R17, h; \
+	AND	g, R14; \
+	XOR	R16, R14; \
+	ADD	h, R14
+
+// Calculate T2 in R15 - uses R15, R16, R17 and R8 registers.
+//   T2 = BIGSIGMA0(a) + Maj(a, b, c)
+//     BIGSIGMA0(x) = ROTR(28,x) XOR ROTR(34,x) XOR ROTR(39,x)
+//     Maj(x, y, z) = (x AND y) XOR (x AND z) XOR (y AND z)
+#define SHA512T2(a, b, c) \
+	MOVD	a, R8; \
+	MOVD	c, R15; \
+	RLDCL	$64-28, R8, $-1, R8; \
+	MOVD	a, R17; \
+	AND	b, R15; \
+	RLDCL	$64-34, R17, $-1, R17; \
+	MOVD	a, R16; \
+	AND	c, R16; \
+	XOR	R17, R8; \
+	XOR	R16, R15; \
+	MOVD	a, R17; \
+	MOVD	b, R16; \
+	RLDCL	$64-39, R17, $-1, R17; \
+	AND	a, R16; \
+	XOR	R16, R15; \
+	XOR	R17, R8; \
+	ADD	R8, R15
+
+// Calculate T1 and T2, then e = d + T1 and a = T1 + T2.
+// The values for e and a are stored in d and h, ready for rotation.
+#define SHA512ROUND(index, const, a, b, c, d, e, f, g, h) \
+	SHA512T1(const, e, f, g, h); \
+	SHA512T2(a, b, c); \
+	MOVD	R15, h; \
+	ADD	R14, d; \
+	ADD	R14, h
+
+#define SHA512ROUND0(index, const, a, b, c, d, e, f, g, h) \
+	MSGSCHEDULE0(index); \
+	SHA512ROUND(index, const, a, b, c, d, e, f, g, h)
+
+#define SHA512ROUND1(index, const, a, b, c, d, e, f, g, h) \
+	MSGSCHEDULE1(index); \
+	SHA512ROUND(index, const, a, b, c, d, e, f, g, h)
+
+// func block(dig *digest, p []byte)
+TEXT ·block(SB),0,$680-32
+	MOVD	p_base+8(FP), R6
+	MOVD	p_len+16(FP), R7
+	SRD	$7, R7
+	SLD	$7, R7
+
+	ADD	R6, R7, R8
+	MOVD	R8, 640(R1)
+	CMP	R6, R8
+	BEQ	end
+
+	MOVD	dig+0(FP), R9
+	MOVD	(0*8)(R9), R22		// a = H0
+	MOVD	(1*8)(R9), R23		// b = H1
+	MOVD	(2*8)(R9), R24		// c = H2
+	MOVD	(3*8)(R9), R25		// d = H3
+	MOVD	(4*8)(R9), R26		// e = H4
+	MOVD	(5*8)(R9), R27		// f = H5
+	MOVD	(6*8)(R9), R28		// g = H6
+	MOVD	(7*8)(R9), R29		// h = H7
+
+loop:
+	MOVD	R1, R9			// R9: message schedule
+
+	SHA512ROUND0(0, 0x428a2f98d728ae22, R22, R23, R24, R25, R26, R27, R28, R29)
+	SHA512ROUND0(1, 0x7137449123ef65cd, R29, R22, R23, R24, R25, R26, R27, R28)
+	SHA512ROUND0(2, 0xb5c0fbcfec4d3b2f, R28, R29, R22, R23, R24, R25, R26, R27)
+	SHA512ROUND0(3, 0xe9b5dba58189dbbc, R27, R28, R29, R22, R23, R24, R25, R26)
+	SHA512ROUND0(4, 0x3956c25bf348b538, R26, R27, R28, R29, R22, R23, R24, R25)
+	SHA512ROUND0(5, 0x59f111f1b605d019, R25, R26, R27, R28, R29, R22, R23, R24)
+	SHA512ROUND0(6, 0x923f82a4af194f9b, R24, R25, R26, R27, R28, R29, R22, R23)
+	SHA512ROUND0(7, 0xab1c5ed5da6d8118, R23, R24, R25, R26, R27, R28, R29, R22)
+	SHA512ROUND0(8, 0xd807aa98a3030242, R22, R23, R24, R25, R26, R27, R28, R29)
+	SHA512ROUND0(9, 0x12835b0145706fbe, R29, R22, R23, R24, R25, R26, R27, R28)
+	SHA512ROUND0(10, 0x243185be4ee4b28c, R28, R29, R22, R23, R24, R25, R26, R27)
+	SHA512ROUND0(11, 0x550c7dc3d5ffb4e2, R27, R28, R29, R22, R23, R24, R25, R26)
+	SHA512ROUND0(12, 0x72be5d74f27b896f, R26, R27, R28, R29, R22, R23, R24, R25)
+	SHA512ROUND0(13, 0x80deb1fe3b1696b1, R25, R26, R27, R28, R29, R22, R23, R24)
+	SHA512ROUND0(14, 0x9bdc06a725c71235, R24, R25, R26, R27, R28, R29, R22, R23)
+	SHA512ROUND0(15, 0xc19bf174cf692694, R23, R24, R25, R26, R27, R28, R29, R22)
+
+	SHA512ROUND1(16, 0xe49b69c19ef14ad2, R22, R23, R24, R25, R26, R27, R28, R29)
+	SHA512ROUND1(17, 0xefbe4786384f25e3, R29, R22, R23, R24, R25, R26, R27, R28)
+	SHA512ROUND1(18, 0x0fc19dc68b8cd5b5, R28, R29, R22, R23, R24, R25, R26, R27)
+	SHA512ROUND1(19, 0x240ca1cc77ac9c65, R27, R28, R29, R22, R23, R24, R25, R26)
+	SHA512ROUND1(20, 0x2de92c6f592b0275, R26, R27, R28, R29, R22, R23, R24, R25)
+	SHA512ROUND1(21, 0x4a7484aa6ea6e483, R25, R26, R27, R28, R29, R22, R23, R24)
+	SHA512ROUND1(22, 0x5cb0a9dcbd41fbd4, R24, R25, R26, R27, R28, R29, R22, R23)
+	SHA512ROUND1(23, 0x76f988da831153b5, R23, R24, R25, R26, R27, R28, R29, R22)
+	SHA512ROUND1(24, 0x983e5152ee66dfab, R22, R23, R24, R25, R26, R27, R28, R29)
+	SHA512ROUND1(25, 0xa831c66d2db43210, R29, R22, R23, R24, R25, R26, R27, R28)
+	SHA512ROUND1(26, 0xb00327c898fb213f, R28, R29, R22, R23, R24, R25, R26, R27)
+	SHA512ROUND1(27, 0xbf597fc7beef0ee4, R27, R28, R29, R22, R23, R24, R25, R26)
+	SHA512ROUND1(28, 0xc6e00bf33da88fc2, R26, R27, R28, R29, R22, R23, R24, R25)
+	SHA512ROUND1(29, 0xd5a79147930aa725, R25, R26, R27, R28, R29, R22, R23, R24)
+	SHA512ROUND1(30, 0x06ca6351e003826f, R24, R25, R26, R27, R28, R29, R22, R23)
+	SHA512ROUND1(31, 0x142929670a0e6e70, R23, R24, R25, R26, R27, R28, R29, R22)
+	SHA512ROUND1(32, 0x27b70a8546d22ffc, R22, R23, R24, R25, R26, R27, R28, R29)
+	SHA512ROUND1(33, 0x2e1b21385c26c926, R29, R22, R23, R24, R25, R26, R27, R28)
+	SHA512ROUND1(34, 0x4d2c6dfc5ac42aed, R28, R29, R22, R23, R24, R25, R26, R27)
+	SHA512ROUND1(35, 0x53380d139d95b3df, R27, R28, R29, R22, R23, R24, R25, R26)
+	SHA512ROUND1(36, 0x650a73548baf63de, R26, R27, R28, R29, R22, R23, R24, R25)
+	SHA512ROUND1(37, 0x766a0abb3c77b2a8, R25, R26, R27, R28, R29, R22, R23, R24)
+	SHA512ROUND1(38, 0x81c2c92e47edaee6, R24, R25, R26, R27, R28, R29, R22, R23)
+	SHA512ROUND1(39, 0x92722c851482353b, R23, R24, R25, R26, R27, R28, R29, R22)
+	SHA512ROUND1(40, 0xa2bfe8a14cf10364, R22, R23, R24, R25, R26, R27, R28, R29)
+	SHA512ROUND1(41, 0xa81a664bbc423001, R29, R22, R23, R24, R25, R26, R27, R28)
+	SHA512ROUND1(42, 0xc24b8b70d0f89791, R28, R29, R22, R23, R24, R25, R26, R27)
+	SHA512ROUND1(43, 0xc76c51a30654be30, R27, R28, R29, R22, R23, R24, R25, R26)
+	SHA512ROUND1(44, 0xd192e819d6ef5218, R26, R27, R28, R29, R22, R23, R24, R25)
+	SHA512ROUND1(45, 0xd69906245565a910, R25, R26, R27, R28, R29, R22, R23, R24)
+	SHA512ROUND1(46, 0xf40e35855771202a, R24, R25, R26, R27, R28, R29, R22, R23)
+	SHA512ROUND1(47, 0x106aa07032bbd1b8, R23, R24, R25, R26, R27, R28, R29, R22)
+	SHA512ROUND1(48, 0x19a4c116b8d2d0c8, R22, R23, R24, R25, R26, R27, R28, R29)
+	SHA512ROUND1(49, 0x1e376c085141ab53, R29, R22, R23, R24, R25, R26, R27, R28)
+	SHA512ROUND1(50, 0x2748774cdf8eeb99, R28, R29, R22, R23, R24, R25, R26, R27)
+	SHA512ROUND1(51, 0x34b0bcb5e19b48a8, R27, R28, R29, R22, R23, R24, R25, R26)
+	SHA512ROUND1(52, 0x391c0cb3c5c95a63, R26, R27, R28, R29, R22, R23, R24, R25)
+	SHA512ROUND1(53, 0x4ed8aa4ae3418acb, R25, R26, R27, R28, R29, R22, R23, R24)
+	SHA512ROUND1(54, 0x5b9cca4f7763e373, R24, R25, R26, R27, R28, R29, R22, R23)
+	SHA512ROUND1(55, 0x682e6ff3d6b2b8a3, R23, R24, R25, R26, R27, R28, R29, R22)
+	SHA512ROUND1(56, 0x748f82ee5defb2fc, R22, R23, R24, R25, R26, R27, R28, R29)
+	SHA512ROUND1(57, 0x78a5636f43172f60, R29, R22, R23, R24, R25, R26, R27, R28)
+	SHA512ROUND1(58, 0x84c87814a1f0ab72, R28, R29, R22, R23, R24, R25, R26, R27)
+	SHA512ROUND1(59, 0x8cc702081a6439ec, R27, R28, R29, R22, R23, R24, R25, R26)
+	SHA512ROUND1(60, 0x90befffa23631e28, R26, R27, R28, R29, R22, R23, R24, R25)
+	SHA512ROUND1(61, 0xa4506cebde82bde9, R25, R26, R27, R28, R29, R22, R23, R24)
+	SHA512ROUND1(62, 0xbef9a3f7b2c67915, R24, R25, R26, R27, R28, R29, R22, R23)
+	SHA512ROUND1(63, 0xc67178f2e372532b, R23, R24, R25, R26, R27, R28, R29, R22)
+	SHA512ROUND1(64, 0xca273eceea26619c, R22, R23, R24, R25, R26, R27, R28, R29)
+	SHA512ROUND1(65, 0xd186b8c721c0c207, R29, R22, R23, R24, R25, R26, R27, R28)
+	SHA512ROUND1(66, 0xeada7dd6cde0eb1e, R28, R29, R22, R23, R24, R25, R26, R27)
+	SHA512ROUND1(67, 0xf57d4f7fee6ed178, R27, R28, R29, R22, R23, R24, R25, R26)
+	SHA512ROUND1(68, 0x06f067aa72176fba, R26, R27, R28, R29, R22, R23, R24, R25)
+	SHA512ROUND1(69, 0x0a637dc5a2c898a6, R25, R26, R27, R28, R29, R22, R23, R24)
+	SHA512ROUND1(70, 0x113f9804bef90dae, R24, R25, R26, R27, R28, R29, R22, R23)
+	SHA512ROUND1(71, 0x1b710b35131c471b, R23, R24, R25, R26, R27, R28, R29, R22)
+	SHA512ROUND1(72, 0x28db77f523047d84, R22, R23, R24, R25, R26, R27, R28, R29)
+	SHA512ROUND1(73, 0x32caab7b40c72493, R29, R22, R23, R24, R25, R26, R27, R28)
+	SHA512ROUND1(74, 0x3c9ebe0a15c9bebc, R28, R29, R22, R23, R24, R25, R26, R27)
+	SHA512ROUND1(75, 0x431d67c49c100d4c, R27, R28, R29, R22, R23, R24, R25, R26)
+	SHA512ROUND1(76, 0x4cc5d4becb3e42b6, R26, R27, R28, R29, R22, R23, R24, R25)
+	SHA512ROUND1(77, 0x597f299cfc657e2a, R25, R26, R27, R28, R29, R22, R23, R24)
+	SHA512ROUND1(78, 0x5fcb6fab3ad6faec, R24, R25, R26, R27, R28, R29, R22, R23)
+	SHA512ROUND1(79, 0x6c44198c4a475817, R23, R24, R25, R26, R27, R28, R29, R22)
+
+	MOVD	dig+0(FP), R9
+	MOVD	(0*8)(R9), R21
+	ADD	R21, R22	// H0 = a + H0
+	MOVD	R22, (0*8)(R9)
+	MOVD	(1*8)(R9), R21
+	ADD	R21, R23	// H1 = b + H1
+	MOVD	R23, (1*8)(R9)
+	MOVD	(2*8)(R9), R21
+	ADD	R21, R24	// H2 = c + H2
+	MOVD	R24, (2*8)(R9)
+	MOVD	(3*8)(R9), R21
+	ADD	R21, R25	// H3 = d + H3
+	MOVD	R25, (3*8)(R9)
+	MOVD	(4*8)(R9), R21
+	ADD	R21, R26	// H4 = e + H4
+	MOVD	R26, (4*8)(R9)
+	MOVD	(5*8)(R9), R21
+	ADD	R21, R27	// H5 = f + H5
+	MOVD	R27, (5*8)(R9)
+	MOVD	(6*8)(R9), R21
+	ADD	R21, R28	// H6 = g + H6
+	MOVD	R28, (6*8)(R9)
+	MOVD	(7*8)(R9), R21
+	ADD	R21, R29	// H7 = h + H7
+	MOVD	R29, (7*8)(R9)
+
+	ADD	$128, R6
+	MOVD	640(R1), R21
+	CMPU	R6, R21
+	BLT	loop
+
+end:
+	RET

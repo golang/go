@@ -16,7 +16,7 @@ func (n *Node) Line() string {
 
 var atExitFuncs []func()
 
-func AtExit(f func()) {
+func atExit(f func()) {
 	atExitFuncs = append(atExitFuncs, f)
 }
 
@@ -33,6 +33,8 @@ var (
 	cpuprofile     string
 	memprofile     string
 	memprofilerate int64
+	traceprofile   string
+	traceHandler   func(string)
 )
 
 func startProfile() {
@@ -44,7 +46,7 @@ func startProfile() {
 		if err := pprof.StartCPUProfile(f); err != nil {
 			Fatalf("%v", err)
 		}
-		AtExit(pprof.StopCPUProfile)
+		atExit(pprof.StopCPUProfile)
 	}
 	if memprofile != "" {
 		if memprofilerate != 0 {
@@ -54,11 +56,19 @@ func startProfile() {
 		if err != nil {
 			Fatalf("%v", err)
 		}
-		AtExit(func() {
-			runtime.GC() // profile all outstanding allocations
-			if err := pprof.WriteHeapProfile(f); err != nil {
+		atExit(func() {
+			// Profile all outstanding allocations.
+			runtime.GC()
+			// compilebench parses the memory profile to extract memstats,
+			// which are only written in the legacy pprof format.
+			// See golang.org/issue/18641 and runtime/pprof/pprof.go:writeHeap.
+			const writeLegacyFormat = 1
+			if err := pprof.Lookup("heap").WriteTo(f, writeLegacyFormat); err != nil {
 				Fatalf("%v", err)
 			}
 		})
+	}
+	if traceprofile != "" && traceHandler != nil {
+		traceHandler(traceprofile)
 	}
 }

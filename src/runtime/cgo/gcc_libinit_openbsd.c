@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include <sys/types.h>
+#include <errno.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "libcgo.h"
@@ -47,4 +50,25 @@ void x_cgo_set_context_function(void (*context)(struct context_arg*)) {
 // Gets the context function.
 void (*(_cgo_get_context_function(void)))(struct context_arg*) {
 	return cgo_context_function;
+}
+
+// _cgo_try_pthread_create retries sys_pthread_create if it fails with
+// EAGAIN.
+int
+_cgo_openbsd_try_pthread_create(int (*sys_pthread_create)(pthread_t*, const pthread_attr_t*, void* (*)(void*), void*),
+	pthread_t* thread, const pthread_attr_t* attr, void* (*pfn)(void*), void* arg) {
+	int tries;
+	int err;
+	struct timespec ts;
+
+	for (tries = 0; tries < 100; tries++) {
+		err = sys_pthread_create(thread, attr, pfn, arg);
+		if (err != EAGAIN) {
+			return err;
+		}
+		ts.tv_sec = 0;
+		ts.tv_nsec = (tries + 1) * 1000 * 1000; // Milliseconds.
+		nanosleep(&ts, nil);
+	}
+	return EAGAIN;
 }

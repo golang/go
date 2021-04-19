@@ -104,7 +104,7 @@ TEXT ·AddUint32(SB),NOSPLIT,$0-20
 	MOVV	R4, R1
 	SC(2, 4)	// *R2 = R4
 	BEQ	R4, -4(PC)
-	MOVW	R1, ret+16(FP)
+	MOVW	R1, new+16(FP)
 	SYNC
 	RET
 
@@ -123,7 +123,7 @@ TEXT ·AddUint64(SB),NOSPLIT,$0-24
 	MOVV	R4, R1
 	SCV(2, 4)	// *R2 = R4
 	BEQ	R4, -4(PC)
-	MOVV	R1, ret+16(FP)
+	MOVV	R1, new+16(FP)
 	SYNC
 	RET
 

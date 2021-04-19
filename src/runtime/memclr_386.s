@@ -8,8 +8,8 @@
 
 // NOTE: Windows externalthreadhandler expects memclr to preserve DX.
 
-// void runtime·memclr(void*, uintptr)
-TEXT runtime·memclr(SB), NOSPLIT, $0-8
+// void runtime·memclrNoHeapPointers(void*, uintptr)
+TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-8
 	MOVL	ptr+0(FP), DI
 	MOVL	n+4(FP), BX
 	XORL	AX, AX

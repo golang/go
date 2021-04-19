@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Note: some of these functions are semantically inlined
+// by the compiler (in src/cmd/compile/internal/gc/ssa.go).
+
 #include "textflag.h"
 
 TEXT ·SwapInt32(SB),NOSPLIT,$0-12
@@ -50,9 +53,6 @@ TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-25
 
 TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-25
 	MOVL	addr+0(FP), BX
-	TESTL	$7, BX
-	JZ	2(PC)
-	MOVL	0, BX // crash with nil ptr deref
 	MOVQ	old+8(FP), AX
 	MOVQ	new+16(FP), CX
 	LOCK
@@ -81,9 +81,6 @@ TEXT ·AddInt64(SB),NOSPLIT,$0-24
 
 TEXT ·AddUint64(SB),NOSPLIT,$0-24
 	MOVL	addr+0(FP), BX
-	TESTL	$7, BX
-	JZ	2(PC)
-	MOVL	0, BX // crash with nil ptr deref
 	MOVQ	delta+8(FP), AX
 	MOVQ	AX, CX
 	LOCK
@@ -106,9 +103,6 @@ TEXT ·LoadInt64(SB),NOSPLIT,$0-16
 
 TEXT ·LoadUint64(SB),NOSPLIT,$0-16
 	MOVL	addr+0(FP), AX
-	TESTL	$7, AX
-	JZ	2(PC)
-	MOVL	0, AX // crash with nil ptr deref
 	MOVQ	0(AX), AX
 	MOVQ	AX, val+8(FP)
 	RET
@@ -136,9 +130,6 @@ TEXT ·StoreInt64(SB),NOSPLIT,$0-16
 
 TEXT ·StoreUint64(SB),NOSPLIT,$0-16
 	MOVL	addr+0(FP), BX
-	TESTL	$7, BX
-	JZ	2(PC)
-	MOVL	0, BX // crash with nil ptr deref
 	MOVQ	val+8(FP), AX
 	XCHGQ	AX, 0(BX)
 	RET

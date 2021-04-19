@@ -89,7 +89,7 @@ func (f *File) isSafeUintptr(x ast.Expr) bool {
 
 	case *ast.BinaryExpr:
 		switch x.Op {
-		case token.ADD, token.SUB:
+		case token.ADD, token.SUB, token.AND_NOT:
 			return f.isSafeUintptr(x.X) && !f.isSafeUintptr(x.Y)
 		}
 	}

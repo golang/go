@@ -349,3 +349,72 @@ func TestParse(t *testing.T) {
 		t.Fatalf("parsing test: %s", err)
 	}
 }
+
+func TestEmptyTemplate(t *testing.T) {
+	cases := []struct {
+		defn []string
+		in   string
+		want string
+	}{
+		{[]string{""}, "once", ""},
+		{[]string{"", ""}, "twice", ""},
+		{[]string{"{{.}}", "{{.}}"}, "twice", "twice"},
+		{[]string{"{{/* a comment */}}", "{{/* a comment */}}"}, "comment", ""},
+		{[]string{"{{.}}", ""}, "twice", ""},
+	}
+
+	for i, c := range cases {
+		root := New("root")
+
+		var (
+			m   *Template
+			err error
+		)
+		for _, d := range c.defn {
+			m, err = root.New(c.in).Parse(d)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		buf := &bytes.Buffer{}
+		if err := m.Execute(buf, c.in); err != nil {
+			t.Error(i, err)
+			continue
+		}
+		if buf.String() != c.want {
+			t.Errorf("expected string %q: got %q", c.want, buf.String())
+		}
+	}
+}
+
+// Issue 19249 was a regression in 1.8 caused by the handling of empty
+// templates added in that release, which got different answers depending
+// on the order templates appeared in the internal map.
+func TestIssue19294(t *testing.T) {
+	// The empty block in "xhtml" should be replaced during execution
+	// by the contents of "stylesheet", but if the internal map associating
+	// names with templates is built in the wrong order, the empty block
+	// looks non-empty and this doesn't happen.
+	var inlined = map[string]string{
+		"stylesheet": `{{define "stylesheet"}}stylesheet{{end}}`,
+		"xhtml":      `{{block "stylesheet" .}}{{end}}`,
+	}
+	all := []string{"stylesheet", "xhtml"}
+	for i := 0; i < 100; i++ {
+		res, err := New("title.xhtml").Parse(`{{template "xhtml" .}}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range all {
+			_, err := res.New(name).Parse(inlined[name])
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		var buf bytes.Buffer
+		res.Execute(&buf, 0)
+		if buf.String() != "stylesheet" {
+			t.Fatalf("iteration %d: got %q; expected %q", i, buf.String(), "stylesheet")
+		}
+	}
+}

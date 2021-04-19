@@ -1,0 +1,8 @@
+// darwin/386-specific vet whitelist. See readme.txt for details.
+
+// Ok
+
+runtime/sys_darwin_386.s: [386] now: function now missing Go declaration
+runtime/sys_darwin_386.s: [386] bsdthread_start: function bsdthread_start missing Go declaration
+runtime/sys_darwin_386.s: [386] sysenter: function sysenter missing Go declaration
+runtime/sys_darwin_386.s: [386] setldt: function setldt missing Go declaration

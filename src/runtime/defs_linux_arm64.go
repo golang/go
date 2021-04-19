@@ -153,7 +153,7 @@ type usigset struct {
 	__val [16]uint64
 }
 
-type sigaltstackt struct {
+type stackt struct {
 	ss_sp     *byte
 	ss_flags  int32
 	pad_cgo_0 [4]byte
@@ -179,7 +179,7 @@ type sockaddr_un struct {
 type ucontext struct {
 	uc_flags    uint64
 	uc_link     *ucontext
-	uc_stack    sigaltstackt
+	uc_stack    stackt
 	uc_sigmask  uint64
 	_pad        [(1024 - 64) / 8]byte
 	_pad2       [8]byte // sigcontext must be aligned to 16-byte

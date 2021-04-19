@@ -59,6 +59,14 @@ func Set(GOARCH string) *Arch {
 		return archArm()
 	case "arm64":
 		return archArm64()
+	case "mips":
+		a := archMips()
+		a.LinkArch = &mips.Linkmips
+		return a
+	case "mipsle":
+		a := archMips()
+		a.LinkArch = &mips.Linkmipsle
+		return a
 	case "mips64":
 		a := archMips64()
 		a.LinkArch = &mips.Linkmips64
@@ -319,6 +327,12 @@ func archPPC64() *Arch {
 	for i := ppc64.REG_F0; i <= ppc64.REG_F31; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
+	for i := ppc64.REG_V0; i <= ppc64.REG_V31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := ppc64.REG_VS0; i <= ppc64.REG_VS63; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
 	for i := ppc64.REG_CR0; i <= ppc64.REG_CR7; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
@@ -368,6 +382,62 @@ func archPPC64() *Arch {
 	}
 }
 
+func archMips() *Arch {
+	register := make(map[string]int16)
+	// Create maps for easy lookup of instruction names etc.
+	// Note that there is no list of names as there is for x86.
+	for i := mips.REG_R0; i <= mips.REG_R31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+
+	for i := mips.REG_F0; i <= mips.REG_F31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := mips.REG_M0; i <= mips.REG_M31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := mips.REG_FCR0; i <= mips.REG_FCR31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	register["HI"] = mips.REG_HI
+	register["LO"] = mips.REG_LO
+	// Pseudo-registers.
+	register["SB"] = RSB
+	register["FP"] = RFP
+	register["PC"] = RPC
+	// Avoid unintentionally clobbering g using R30.
+	delete(register, "R30")
+	register["g"] = mips.REG_R30
+
+	registerPrefix := map[string]bool{
+		"F":   true,
+		"FCR": true,
+		"M":   true,
+		"R":   true,
+	}
+
+	instructions := make(map[string]obj.As)
+	for i, s := range obj.Anames {
+		instructions[s] = obj.As(i)
+	}
+	for i, s := range mips.Anames {
+		if obj.As(i) >= obj.A_ARCHSPECIFIC {
+			instructions[s] = obj.As(i) + obj.ABaseMIPS
+		}
+	}
+	// Annoying alias.
+	instructions["JAL"] = mips.AJAL
+
+	return &Arch{
+		LinkArch:       &mips.Linkmipsle,
+		Instructions:   instructions,
+		Register:       register,
+		RegisterPrefix: registerPrefix,
+		RegisterNumber: mipsRegisterNumber,
+		IsJump:         jumpMIPS,
+	}
+}
+
 func archMips64() *Arch {
 	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
@@ -409,7 +479,7 @@ func archMips64() *Arch {
 	}
 	for i, s := range mips.Anames {
 		if obj.As(i) >= obj.A_ARCHSPECIFIC {
-			instructions[s] = obj.As(i) + obj.ABaseMIPS64
+			instructions[s] = obj.As(i) + obj.ABaseMIPS
 		}
 	}
 	// Annoying alias.
@@ -421,7 +491,7 @@ func archMips64() *Arch {
 		Register:       register,
 		RegisterPrefix: registerPrefix,
 		RegisterNumber: mipsRegisterNumber,
-		IsJump:         jumpMIPS64,
+		IsJump:         jumpMIPS,
 	}
 }
 

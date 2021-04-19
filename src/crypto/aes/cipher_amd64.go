@@ -6,10 +6,11 @@ package aes
 
 import (
 	"crypto/cipher"
+	"crypto/internal/boring"
+	"crypto/internal/cipherhw"
 )
 
 // defined in asm_amd64.s
-func hasAsm() bool
 func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
@@ -18,7 +19,7 @@ type aesCipherAsm struct {
 	aesCipher
 }
 
-var useAsm = hasAsm()
+var useAsm = cipherhw.AESGCMSupport()
 
 func newCipher(key []byte) (cipher.Block, error) {
 	if !useAsm {
@@ -46,6 +47,7 @@ func newCipher(key []byte) (cipher.Block, error) {
 func (c *aesCipherAsm) BlockSize() int { return BlockSize }
 
 func (c *aesCipherAsm) Encrypt(dst, src []byte) {
+	boring.Unreachable()
 	if len(src) < BlockSize {
 		panic("crypto/aes: input not full block")
 	}
@@ -56,6 +58,7 @@ func (c *aesCipherAsm) Encrypt(dst, src []byte) {
 }
 
 func (c *aesCipherAsm) Decrypt(dst, src []byte) {
+	boring.Unreachable()
 	if len(src) < BlockSize {
 		panic("crypto/aes: input not full block")
 	}

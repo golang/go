@@ -13,8 +13,8 @@ import (
 	"cmd/internal/obj/x86"
 )
 
-// IsAMD4OP reports whether the op (as defined by an ppc64.A* constant) is
-// The FMADD-like instructions behave similarly.
+// IsAMD4OP reports whether the op (as defined by an amd64.A* constant) is
+// a 4-operand instruction.
 func IsAMD4OP(op obj.As) bool {
 	switch op {
 	case x86.AVPERM2F128,

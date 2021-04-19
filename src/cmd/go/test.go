@@ -135,27 +135,10 @@ const testFlag2 = `
 	    By default, no benchmarks run. To run all benchmarks,
 	    use '-bench .' or '-bench=.'.
 
-	-benchmem
-	    Print memory allocation statistics for benchmarks.
-
 	-benchtime t
 	    Run enough iterations of each benchmark to take t, specified
 	    as a time.Duration (for example, -benchtime 1h30s).
 	    The default is 1 second (1s).
-
-	-blockprofile block.out
-	    Write a goroutine blocking profile to the specified file
-	    when all tests are complete.
-	    Writes test binary as -c would.
-
-	-blockprofilerate n
-	    Control the detail provided in goroutine blocking profiles by
-	    calling runtime.SetBlockProfileRate with n.
-	    See 'go doc runtime.SetBlockProfileRate'.
-	    The profiler aims to sample, on average, one blocking event every
-	    n nanoseconds the program spends blocked.  By default,
-	    if -test.blockprofile is set without this flag, all blocking events
-	    are recorded, equivalent to -test.blockprofilerate=1.
 
 	-count n
 	    Run each test and benchmark n times (default 1).
@@ -182,32 +165,10 @@ const testFlag2 = `
 	    Packages are specified as import paths.
 	    Sets -cover.
 
-	-coverprofile cover.out
-	    Write a coverage profile to the file after all tests have passed.
-	    Sets -cover.
-
 	-cpu 1,2,4
 	    Specify a list of GOMAXPROCS values for which the tests or
 	    benchmarks should be executed.  The default is the current value
 	    of GOMAXPROCS.
-
-	-cpuprofile cpu.out
-	    Write a CPU profile to the specified file before exiting.
-	    Writes test binary as -c would.
-
-	-memprofile mem.out
-	    Write a memory profile to the file after all tests have passed.
-	    Writes test binary as -c would.
-
-	-memprofilerate n
-	    Enable more precise (and expensive) memory profiles by setting
-	    runtime.MemProfileRate.  See 'go doc runtime.MemProfileRate'.
-	    To profile all memory allocations, use -test.memprofilerate=1
-	    and pass --alloc_space flag to the pprof tool.
-
-	-outputdir directory
-	    Place output files from profiling in the specified directory,
-	    by default the directory in which "go test" is running.
 
 	-parallel n
 	    Allow parallel execution of test functions that call t.Parallel.
@@ -234,12 +195,63 @@ const testFlag2 = `
 	    If a test runs longer than t, panic.
 	    The default is 10 minutes (10m).
 
-	-trace trace.out
-	    Write an execution trace to the specified file before exiting.
-
 	-v
 	    Verbose output: log all tests as they are run. Also print all
 	    text from Log and Logf calls even if the test succeeds.
+
+The following flags are also recognized by 'go test' and can be used to
+profile the tests during execution:
+
+	-benchmem
+	    Print memory allocation statistics for benchmarks.
+
+	-blockprofile block.out
+	    Write a goroutine blocking profile to the specified file
+	    when all tests are complete.
+	    Writes test binary as -c would.
+
+	-blockprofilerate n
+	    Control the detail provided in goroutine blocking profiles by
+	    calling runtime.SetBlockProfileRate with n.
+	    See 'go doc runtime.SetBlockProfileRate'.
+	    The profiler aims to sample, on average, one blocking event every
+	    n nanoseconds the program spends blocked.  By default,
+	    if -test.blockprofile is set without this flag, all blocking events
+	    are recorded, equivalent to -test.blockprofilerate=1.
+
+	-coverprofile cover.out
+	    Write a coverage profile to the file after all tests have passed.
+	    Sets -cover.
+
+	-cpuprofile cpu.out
+	    Write a CPU profile to the specified file before exiting.
+	    Writes test binary as -c would.
+
+	-memprofile mem.out
+	    Write a memory profile to the file after all tests have passed.
+	    Writes test binary as -c would.
+
+	-memprofilerate n
+	    Enable more precise (and expensive) memory profiles by setting
+	    runtime.MemProfileRate.  See 'go doc runtime.MemProfileRate'.
+	    To profile all memory allocations, use -test.memprofilerate=1
+	    and pass --alloc_space flag to the pprof tool.
+
+	-mutexprofile mutex.out
+	    Write a mutex contention profile to the specified file
+	    when all tests are complete.
+	    Writes test binary as -c would.
+
+	-mutexprofilefraction n
+	    Sample 1 in n stack traces of goroutines holding a
+	    contended mutex.
+
+	-outputdir directory
+	    Place output files from profiling in the specified directory,
+	    by default the directory in which "go test" is running.
+
+	-trace trace.out
+	    Write an execution trace to the specified file before exiting.
 
 Each of these flags is also recognized with an optional 'test.' prefix,
 as in -test.v. When invoking the generated test binary (the result of
@@ -322,7 +334,8 @@ If the last comment in the function starts with "Output:" then the output
 is compared exactly against the comment (see examples below). If the last
 comment begins with "Unordered output:" then the output is compared to the
 comment, however the order of the lines is ignored. An example with no such
-comment, or with no text after "Output:" is compiled but not executed.
+comment is compiled but not executed. An example with no text after
+"Output:" is compiled, executed, and expected to produce no output.
 
 Godoc displays the body of ExampleXXX to demonstrate the use
 of the function, constant, or variable XXX.  An example of a method M with
@@ -381,9 +394,9 @@ var (
 
 var testMainDeps = map[string]bool{
 	// Dependencies for testmain.
-	"testing": true,
-	"regexp":  true,
-	"os":      true,
+	"testing":                   true,
+	"testing/internal/testdeps": true,
+	"os": true,
 }
 
 func runTest(cmd *Command, args []string) {
@@ -431,6 +444,11 @@ func runTest(cmd *Command, args []string) {
 	// as not streaming, just more immediately.
 	testStreamOutput = len(pkgArgs) == 0 || testBench ||
 		(testShowPass && (len(pkgs) == 1 || buildP == 1))
+
+	// For 'go test -i -o x.test', we want to build x.test. Imply -c to make the logic easier.
+	if buildI && testO != "" {
+		testC = true
+	}
 
 	var b builder
 	b.init()
@@ -527,6 +545,10 @@ func runTest(cmd *Command, args []string) {
 
 	// Prepare build + run + print actions for all packages being tested.
 	for _, p := range pkgs {
+		// sync/atomic import is inserted by the cover tool. See #18486
+		if testCover && testCoverMode == "atomic" {
+			ensureImport(p, "sync/atomic")
+		}
 		buildTest, runTest, printTest, err := b.test(p)
 		if err != nil {
 			str := err.Error()
@@ -616,6 +638,23 @@ func runTest(cmd *Command, args []string) {
 	}
 
 	b.do(root)
+}
+
+// ensures that package p imports the named package.
+func ensureImport(p *Package, pkg string) {
+	for _, d := range p.deps {
+		if d.Name == pkg {
+			return
+		}
+	}
+
+	a := loadPackage(pkg, &importStack{})
+	if a.Error != nil {
+		fatalf("load %s: %v", pkg, a.Error)
+	}
+	computeStale(a)
+
+	p.imports = append(p.imports, a)
 }
 
 func contains(x []string, s string) bool {
@@ -849,7 +888,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	if len(ptest.GoFiles) > 0 {
+	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
 		pmain.imports = append(pmain.imports, ptest)
 		t.ImportTest = true
 	}
@@ -876,8 +915,12 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 
 	if buildContext.GOOS == "darwin" {
 		if buildContext.GOARCH == "arm" || buildContext.GOARCH == "arm64" {
-			t.NeedCgo = true
+			t.IsIOS = true
+			t.NeedOS = true
 		}
+	}
+	if t.TestMain == nil {
+		t.NeedOS = true
 	}
 
 	for _, cp := range pmain.imports {
@@ -1077,6 +1120,8 @@ func declareCoverVars(importPath string, files ...string) map[string]*CoverVar {
 	return coverVars
 }
 
+var noTestsToRun = []byte("\ntesting: warning: no tests to run\n")
+
 // runTest is the action for running a test binary.
 func (b *builder) runTest(a *action) error {
 	args := stringList(findExecCmd(), a.deps[0].target, testArgs)
@@ -1167,10 +1212,14 @@ func (b *builder) runTest(a *action) error {
 	out := buf.Bytes()
 	t := fmt.Sprintf("%.3fs", time.Since(t0).Seconds())
 	if err == nil {
+		norun := ""
 		if testShowPass {
 			a.testOutput.Write(out)
 		}
-		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s%s\n", a.p.ImportPath, t, coveragePercentage(out))
+		if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
+			norun = " [no tests to run]"
+		}
+		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s%s%s\n", a.p.ImportPath, t, coveragePercentage(out), norun)
 		return nil
 	}
 
@@ -1319,7 +1368,8 @@ type testFuncs struct {
 	NeedTest    bool
 	ImportXtest bool
 	NeedXtest   bool
-	NeedCgo     bool
+	NeedOS      bool
+	IsIOS       bool
 	Cover       []coverInfo
 }
 
@@ -1394,7 +1444,7 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 		}
 	}
 	ex := doc.Examples(f)
-	sort.Sort(byOrder(ex))
+	sort.Slice(ex, func(i, j int) bool { return ex[i].Order < ex[j].Order })
 	for _, e := range ex {
 		*doImport = true // import test file whether executed or not
 		if e.Output == "" && !e.EmptyOutput {
@@ -1416,21 +1466,15 @@ func checkTestFunc(fn *ast.FuncDecl, arg string) error {
 	return nil
 }
 
-type byOrder []*doc.Example
-
-func (x byOrder) Len() int           { return len(x) }
-func (x byOrder) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x byOrder) Less(i, j int) bool { return x[i].Order < x[j].Order }
-
 var testmainTmpl = template.Must(template.New("main").Parse(`
 package main
 
 import (
-{{if not .TestMain}}
+{{if .NeedOS}}
 	"os"
 {{end}}
-	"regexp"
 	"testing"
+	"testing/internal/testdeps"
 
 {{if .ImportTest}}
 	{{if .NeedTest}}_test{{else}}_{{end}} {{.Package.ImportPath | printf "%q"}}
@@ -1442,8 +1486,10 @@ import (
 	_cover{{$i}} {{$p.Package.ImportPath | printf "%q"}}
 {{end}}
 
-{{if .NeedCgo}}
+{{if .IsIOS}}
+	"os/signal"
 	_ "runtime/cgo"
+	"syscall"
 {{end}}
 )
 
@@ -1463,20 +1509,6 @@ var examples = []testing.InternalExample{
 {{range .Examples}}
 	{"{{.Name}}", {{.Package}}.{{.Name}}, {{.Output | printf "%q"}}, {{.Unordered}}},
 {{end}}
-}
-
-var matchPat string
-var matchRe *regexp.Regexp
-
-func matchString(pat, str string) (result bool, err error) {
-	if matchRe == nil || matchPat != pat {
-		matchPat = pat
-		matchRe, err = regexp.Compile(matchPat)
-		if err != nil {
-			return
-		}
-	}
-	return matchRe.MatchString(str), nil
 }
 
 {{if .CoverEnabled}}
@@ -1519,6 +1551,32 @@ func coverRegisterFile(fileName string, counter []uint32, pos []uint32, numStmts
 {{end}}
 
 func main() {
+{{if .IsIOS}}
+	// Send a SIGUSR2, which will be intercepted by LLDB to
+	// tell the test harness that installation was successful.
+	// See misc/ios/go_darwin_arm_exec.go.
+	signal.Notify(make(chan os.Signal), syscall.SIGUSR2)
+	syscall.Kill(0, syscall.SIGUSR2)
+	signal.Reset(syscall.SIGUSR2)
+
+	// The first argument supplied to an iOS test is an offset
+	// suffix for the current working directory.
+	// Process it here, and remove it from os.Args.
+	const hdr = "cwdSuffix="
+	if len(os.Args) < 2 || len(os.Args[1]) <= len(hdr) || os.Args[1][:len(hdr)] != hdr {
+		panic("iOS test not passed a working directory suffix")
+	}
+	suffix := os.Args[1][len(hdr):]
+	dir, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	if err := os.Chdir(dir + "/" + suffix); err != nil {
+		panic(err)
+	}
+	os.Args = append([]string{os.Args[0]}, os.Args[2:]...)
+{{end}}
+
 {{if .CoverEnabled}}
 	testing.RegisterCover(testing.Cover{
 		Mode: {{printf "%q" .CoverMode}},
@@ -1527,7 +1585,7 @@ func main() {
 		CoveredPackages: {{printf "%q" .Covered}},
 	})
 {{end}}
-	m := testing.MainStart(matchString, tests, benchmarks, examples)
+	m := testing.MainStart(testdeps.TestDeps{}, tests, benchmarks, examples)
 {{with .TestMain}}
 	{{.Package}}.{{.Name}}(m)
 {{else}}

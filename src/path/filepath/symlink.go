@@ -105,8 +105,9 @@ func walkSymlinks(path string) (string, error) {
 			// directory is a symlink. Stop the walk, if symlink
 			// target is not absolute path, and return "."
 			// to the caller (just like unix does).
-			if path == "." && !IsAbs(newpath) {
-				return ".", nil
+			// Same for "C:.".
+			if path[volumeNameLen(path):] == "." && !IsAbs(newpath) {
+				return path, nil
 			}
 		}
 		if i == linksWalked {

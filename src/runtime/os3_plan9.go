@@ -100,6 +100,9 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 		return _NCONT
 	}
 	if flags&_SigNotify != 0 {
+		if ignoredNote(note) {
+			return _NCONT
+		}
 		if sendNote(note) {
 			return _NCONT
 		}

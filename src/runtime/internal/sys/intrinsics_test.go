@@ -21,22 +21,6 @@ func TestCtz32(t *testing.T) {
 		}
 	}
 }
-func TestCtz16(t *testing.T) {
-	for i := uint(0); i <= 16; i++ {
-		x := uint16(5) << i
-		if got := sys.Ctz16(x); got != uint16(i) {
-			t.Errorf("Ctz16(%d)=%d, want %d", x, got, i)
-		}
-	}
-}
-func TestCtz8(t *testing.T) {
-	for i := uint(0); i <= 8; i++ {
-		x := uint8(5) << i
-		if got := sys.Ctz8(x); got != uint8(i) {
-			t.Errorf("Ctz8(%d)=%d, want %d", x, got, i)
-		}
-	}
-}
 
 func TestBswap64(t *testing.T) {
 	x := uint64(0x1122334455667788)

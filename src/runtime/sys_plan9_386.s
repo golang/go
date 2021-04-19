@@ -178,8 +178,8 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	RET
 
 	// save args
-	MOVL	ureg+4(SP), CX
-	MOVL	note+8(SP), DX
+	MOVL	ureg+0(FP), CX
+	MOVL	note+4(FP), DX
 
 	// change stack
 	MOVL	g_m(BX), BX

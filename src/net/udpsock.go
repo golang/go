@@ -9,6 +9,15 @@ import (
 	"syscall"
 )
 
+// BUG(mikio): On NaCl, Plan 9 and Windows, the ReadMsgUDP and
+// WriteMsgUDP methods of UDPConn are not implemented.
+
+// BUG(mikio): On Windows, the File method of UDPConn is not
+// implemented.
+
+// BUG(mikio): On NaCl, the ListenMulticastUDP function is not
+// implemented.
+
 // UDPAddr represents the address of a UDP end point.
 type UDPAddr struct {
 	IP   IP
@@ -50,6 +59,9 @@ func (a *UDPAddr) opAddr() Addr {
 // "udp6".  A literal address or host name for IPv6 must be enclosed
 // in square brackets, as in "[::1]:80", "[ipv6-host]:http" or
 // "[ipv6-host%zone]:80".
+//
+// Resolving a hostname is not recommended because this returns at most
+// one of its IP addresses.
 func ResolveUDPAddr(net, addr string) (*UDPAddr, error) {
 	switch net {
 	case "udp", "udp4", "udp6":
@@ -58,7 +70,7 @@ func ResolveUDPAddr(net, addr string) (*UDPAddr, error) {
 	default:
 		return nil, UnknownNetworkError(net)
 	}
-	addrs, err := internetAddrList(context.Background(), net, addr)
+	addrs, err := DefaultResolver.internetAddrList(context.Background(), net, addr)
 	if err != nil {
 		return nil, err
 	}

@@ -7,17 +7,26 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"time"
 )
 
-// Per golang.org/issue/14937, check that every .gz file
-// in the tree has a zero mtime.
+// TestGZIPFilesHaveZeroMTimes checks that every .gz file in the tree
+// has a zero MTIME. This is a requirement for the Debian maintainers
+// to be able to have deterministic packages.
+//
+// See https://golang.org/issue/14937.
 func TestGZIPFilesHaveZeroMTimes(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" {
-		t.Skip("skipping in short mode")
+	// To avoid spurious false positives due to untracked GZIP files that
+	// may be in the user's GOROOT (Issue 18604), we only run this test on
+	// the builders, which should have a clean checkout of the tree.
+	if testenv.Builder() == "" {
+		t.Skip("skipping test on non-builder")
+	}
+	goroot, err := filepath.EvalSymlinks(runtime.GOROOT())
+	if err != nil {
+		t.Fatal("error evaluating GOROOT: ", err)
 	}
 	var files []string
-	err := filepath.Walk(runtime.GOROOT(), func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(goroot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -53,7 +62,7 @@ func checkZeroMTime(t *testing.T, path string) {
 		return
 	}
 	defer gz.Close()
-	if !gz.ModTime.Equal(time.Unix(0, 0)) {
+	if !gz.ModTime.IsZero() {
 		t.Errorf("gzip file %s has non-zero mtime (%s)", path, gz.ModTime)
 	}
 }

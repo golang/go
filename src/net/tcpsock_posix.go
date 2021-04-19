@@ -40,6 +40,10 @@ func (a *TCPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
 	return ipToSockaddr(family, a.IP, a.Port, a.Zone)
 }
 
+func (a *TCPAddr) toLocal(net string) sockaddr {
+	return &TCPAddr{loopbackIP(net), a.Port, a.Zone}
+}
+
 func (c *TCPConn) readFrom(r io.Reader) (int64, error) {
 	if n, err, handled := sendFile(c.fd, r); handled {
 		return n, err

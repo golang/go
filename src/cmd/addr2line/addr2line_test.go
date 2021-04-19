@@ -18,7 +18,7 @@ import (
 )
 
 func loadSyms(t *testing.T) map[string]string {
-	cmd := exec.Command("go", "tool", "nm", os.Args[0])
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "nm", os.Args[0])
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool nm %v: %v\n%s", os.Args[0], err, string(out))
@@ -98,7 +98,7 @@ func TestAddr2Line(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	exepath := filepath.Join(tmpDir, "testaddr2line.exe")
-	out, err := exec.Command("go", "build", "-o", exepath, "cmd/addr2line").CombinedOutput()
+	out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", exepath, "cmd/addr2line").CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build -o %v cmd/addr2line: %v\n%s", exepath, err, string(out))
 	}

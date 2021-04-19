@@ -24,6 +24,8 @@ import (
 	"unicode"
 )
 
+var ignoreImports bool // control whether we ignore imports in packages
+
 // A Package describes a single package found in a directory.
 type Package struct {
 	// Note: These fields are part of the go command's public API.
@@ -171,16 +173,29 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.SwigFiles = pp.SwigFiles
 	p.SwigCXXFiles = pp.SwigCXXFiles
 	p.SysoFiles = pp.SysoFiles
+	if buildMSan {
+		// There's no way for .syso files to be built both with and without
+		// support for memory sanitizer. Assume they are built without,
+		// and drop them.
+		p.SysoFiles = nil
+	}
 	p.CgoCFLAGS = pp.CgoCFLAGS
 	p.CgoCPPFLAGS = pp.CgoCPPFLAGS
 	p.CgoCXXFLAGS = pp.CgoCXXFLAGS
 	p.CgoLDFLAGS = pp.CgoLDFLAGS
 	p.CgoPkgConfig = pp.CgoPkgConfig
-	p.Imports = pp.Imports
+	// We modify p.Imports in place, so make copy now.
+	p.Imports = make([]string, len(pp.Imports))
+	copy(p.Imports, pp.Imports)
 	p.TestGoFiles = pp.TestGoFiles
 	p.TestImports = pp.TestImports
 	p.XTestGoFiles = pp.XTestGoFiles
 	p.XTestImports = pp.XTestImports
+	if ignoreImports {
+		p.Imports = nil
+		p.TestImports = nil
+		p.XTestImports = nil
+	}
 }
 
 // isStandardImportPath reports whether $GOROOT/src/path should be considered
@@ -334,60 +349,96 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
 		importPath = path
 	}
 
-	if p := packageCache[importPath]; p != nil {
-		if perr := disallowInternal(srcDir, p, stk); perr != p {
-			return perr
+	p := packageCache[importPath]
+	if p != nil {
+		p = reusePackage(p, stk)
+	} else {
+		p = new(Package)
+		p.local = isLocal
+		p.ImportPath = importPath
+		packageCache[importPath] = p
+
+		// Load package.
+		// Import always returns bp != nil, even if an error occurs,
+		// in order to return partial information.
+		//
+		// TODO: After Go 1, decide when to pass build.AllowBinary here.
+		// See issue 3268 for mistakes to avoid.
+		buildMode := build.ImportComment
+		if mode&useVendor == 0 || path != origPath {
+			// Not vendoring, or we already found the vendored path.
+			buildMode |= build.IgnoreVendor
 		}
-		if mode&useVendor != 0 {
-			if perr := disallowVendor(srcDir, origPath, p, stk); perr != p {
-				return perr
+		bp, err := buildContext.Import(path, srcDir, buildMode)
+		bp.ImportPath = importPath
+		if gobin != "" {
+			bp.BinDir = gobin
+		}
+		if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
+			!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
+			err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
+		}
+		p.load(stk, bp, err)
+		if p.Error != nil && p.Error.Pos == "" {
+			p = setErrorPos(p, importPos)
+		}
+
+		if origPath != cleanImport(origPath) {
+			p.Error = &PackageError{
+				ImportStack: stk.copy(),
+				Err:         fmt.Sprintf("non-canonical import path: %q should be %q", origPath, pathpkg.Clean(origPath)),
 			}
+			p.Incomplete = true
 		}
-		return reusePackage(p, stk)
 	}
 
-	p := new(Package)
-	p.local = isLocal
-	p.ImportPath = importPath
-	packageCache[importPath] = p
+	// Checked on every import because the rules depend on the code doing the importing.
+	if perr := disallowInternal(srcDir, p, stk); perr != p {
+		return setErrorPos(perr, importPos)
+	}
+	if mode&useVendor != 0 {
+		if perr := disallowVendor(srcDir, origPath, p, stk); perr != p {
+			return setErrorPos(perr, importPos)
+		}
+	}
 
-	// Load package.
-	// Import always returns bp != nil, even if an error occurs,
-	// in order to return partial information.
-	//
-	// TODO: After Go 1, decide when to pass build.AllowBinary here.
-	// See issue 3268 for mistakes to avoid.
-	buildMode := build.ImportComment
-	if mode&useVendor == 0 || path != origPath {
-		// Not vendoring, or we already found the vendored path.
-		buildMode |= build.IgnoreVendor
+	if p.Name == "main" && parent != nil && parent.Dir != p.Dir {
+		perr := *p
+		perr.Error = &PackageError{
+			ImportStack: stk.copy(),
+			Err:         fmt.Sprintf("import %q is a program, not an importable package", path),
+		}
+		return setErrorPos(&perr, importPos)
 	}
-	bp, err := buildContext.Import(path, srcDir, buildMode)
-	bp.ImportPath = importPath
-	if gobin != "" {
-		bp.BinDir = gobin
+
+	if p.local && parent != nil && !parent.local {
+		perr := *p
+		perr.Error = &PackageError{
+			ImportStack: stk.copy(),
+			Err:         fmt.Sprintf("local import %q in non-local package", path),
+		}
+		return setErrorPos(&perr, importPos)
 	}
-	if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
-		!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
-		err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
-	}
-	p.load(stk, bp, err)
-	if p.Error != nil && p.Error.Pos == "" && len(importPos) > 0 {
+
+	return p
+}
+
+func setErrorPos(p *Package, importPos []token.Position) *Package {
+	if len(importPos) > 0 {
 		pos := importPos[0]
 		pos.Filename = shortPath(pos.Filename)
 		p.Error.Pos = pos.String()
 	}
-
-	if perr := disallowInternal(srcDir, p, stk); perr != p {
-		return perr
-	}
-	if mode&useVendor != 0 {
-		if perr := disallowVendor(srcDir, origPath, p, stk); perr != p {
-			return perr
-		}
-	}
-
 	return p
+}
+
+func cleanImport(path string) string {
+	orig := path
+	path = pathpkg.Clean(path)
+	if strings.HasPrefix(orig, "./") && path != ".." && !strings.HasPrefix(path, "../") {
+		path = "./" + path
+	}
+	return path
 }
 
 var isDirCache = map[string]bool{}
@@ -415,13 +466,26 @@ func vendoredImportPath(parent *Package, path string) (found string) {
 
 	dir := filepath.Clean(parent.Dir)
 	root := filepath.Join(parent.Root, "src")
-	if !hasFilePathPrefix(dir, root) {
+	if !hasFilePathPrefix(dir, root) || parent.ImportPath != "command-line-arguments" && filepath.Join(root, parent.ImportPath) != dir {
 		// Look for symlinks before reporting error.
 		dir = expandPath(dir)
 		root = expandPath(root)
 	}
-	if !hasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator {
-		fatalf("invalid vendoredImportPath: dir=%q root=%q separator=%q", dir, root, string(filepath.Separator))
+
+	if !hasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator || parent.ImportPath != "command-line-arguments" && !parent.local && filepath.Join(root, parent.ImportPath) != dir {
+		fatalf("unexpected directory layout:\n"+
+			"	import path: %s\n"+
+			"	root: %s\n"+
+			"	dir: %s\n"+
+			"	expand root: %s\n"+
+			"	expand dir: %s\n"+
+			"	separator: %s",
+			parent.ImportPath,
+			filepath.Join(parent.Root, "src"),
+			filepath.Clean(parent.Dir),
+			root,
+			dir,
+			string(filepath.Separator))
 	}
 
 	vpath := "vendor/" + path
@@ -516,6 +580,19 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
 
 	// There was an error loading the package; stop here.
 	if p.Error != nil {
+		return p
+	}
+
+	// The generated 'testmain' package is allowed to access testing/internal/...,
+	// as if it were generated into the testing directory tree
+	// (it's actually in a temporary directory outside any Go tree).
+	// This cleans up a former kludge in passing functionality to the testing package.
+	if strings.HasPrefix(p.ImportPath, "testing/internal") && len(*stk) >= 2 && (*stk)[len(*stk)-2] == "testmain" {
+		return p
+	}
+
+	// We can't check standard packages with gccgo.
+	if buildContext.Compiler == "gccgo" && p.Standard {
 		return p
 	}
 
@@ -691,24 +768,23 @@ const (
 
 // goTools is a map of Go program import path to install target directory.
 var goTools = map[string]targetDir{
-	"cmd/addr2line":                        toTool,
-	"cmd/api":                              toTool,
-	"cmd/asm":                              toTool,
-	"cmd/compile":                          toTool,
-	"cmd/cgo":                              toTool,
-	"cmd/cover":                            toTool,
-	"cmd/dist":                             toTool,
-	"cmd/doc":                              toTool,
-	"cmd/fix":                              toTool,
-	"cmd/link":                             toTool,
-	"cmd/newlink":                          toTool,
-	"cmd/nm":                               toTool,
-	"cmd/objdump":                          toTool,
-	"cmd/pack":                             toTool,
-	"cmd/pprof":                            toTool,
-	"cmd/trace":                            toTool,
-	"cmd/vet":                              toTool,
-	"cmd/yacc":                             toTool,
+	"cmd/addr2line": toTool,
+	"cmd/api":       toTool,
+	"cmd/asm":       toTool,
+	"cmd/compile":   toTool,
+	"cmd/cgo":       toTool,
+	"cmd/cover":     toTool,
+	"cmd/dist":      toTool,
+	"cmd/doc":       toTool,
+	"cmd/fix":       toTool,
+	"cmd/link":      toTool,
+	"cmd/newlink":   toTool,
+	"cmd/nm":        toTool,
+	"cmd/objdump":   toTool,
+	"cmd/pack":      toTool,
+	"cmd/pprof":     toTool,
+	"cmd/trace":     toTool,
+	"cmd/vet":       toTool,
 	"code.google.com/p/go.tools/cmd/cover": stalePath,
 	"code.google.com/p/go.tools/cmd/godoc": stalePath,
 	"code.google.com/p/go.tools/cmd/vet":   stalePath,
@@ -776,7 +852,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	useBindir := p.Name == "main"
 	if !p.Standard {
 		switch buildBuildmode {
-		case "c-archive", "c-shared":
+		case "c-archive", "c-shared", "plugin":
 			useBindir = false
 		}
 	}
@@ -847,11 +923,25 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		importPaths = append(importPaths, "syscall")
 	}
 
-	// Currently build modes c-shared, pie, and -linkshared force
-	// external linking mode, and external linking mode forces an
-	// import of runtime/cgo.
-	if p.Name == "main" && !p.Goroot && (buildBuildmode == "c-shared" || buildBuildmode == "pie" || buildLinkshared) {
-		importPaths = append(importPaths, "runtime/cgo")
+	if buildContext.CgoEnabled && p.Name == "main" && !p.Goroot {
+		// Currently build modes c-shared, pie (on systems that do not
+		// support PIE with internal linking mode), plugin, and
+		// -linkshared force external linking mode, as of course does
+		// -ldflags=-linkmode=external. External linking mode forces
+		// an import of runtime/cgo.
+		pieCgo := buildBuildmode == "pie" && (buildContext.GOOS != "linux" || buildContext.GOARCH != "amd64")
+		linkmodeExternal := false
+		for i, a := range buildLdflags {
+			if a == "-linkmode=external" {
+				linkmodeExternal = true
+			}
+			if a == "-linkmode" && i+1 < len(buildLdflags) && buildLdflags[i+1] == "external" {
+				linkmodeExternal = true
+			}
+		}
+		if buildBuildmode == "c-shared" || buildBuildmode == "plugin" || pieCgo || buildLinkshared || linkmodeExternal {
+			importPaths = append(importPaths, "runtime/cgo")
+		}
 	}
 
 	// Everything depends on runtime, except runtime, its internal
@@ -933,33 +1023,21 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	// Build list of imported packages and full dependency list.
 	imports := make([]*Package, 0, len(p.Imports))
 	deps := make(map[string]*Package)
+	save := func(path string, p1 *Package) {
+		// The same import path could produce an error or not,
+		// depending on what tries to import it.
+		// Prefer to record entries with errors, so we can report them.
+		p0 := deps[path]
+		if p0 == nil || p1.Error != nil && (p0.Error == nil || len(p0.Error.ImportStack) > len(p1.Error.ImportStack)) {
+			deps[path] = p1
+		}
+	}
+
 	for i, path := range importPaths {
 		if path == "C" {
 			continue
 		}
 		p1 := loadImport(path, p.Dir, p, stk, p.build.ImportPos[path], useVendor)
-		if p1.Name == "main" {
-			p.Error = &PackageError{
-				ImportStack: stk.copy(),
-				Err:         fmt.Sprintf("import %q is a program, not an importable package", path),
-			}
-			pos := p.build.ImportPos[path]
-			if len(pos) > 0 {
-				p.Error.Pos = pos[0].String()
-			}
-		}
-		if p1.local {
-			if !p.local && p.Error == nil {
-				p.Error = &PackageError{
-					ImportStack: stk.copy(),
-					Err:         fmt.Sprintf("local import %q in non-local package", path),
-				}
-				pos := p.build.ImportPos[path]
-				if len(pos) > 0 {
-					p.Error.Pos = pos[0].String()
-				}
-			}
-		}
 		if p.Standard && p.Error == nil && !p1.Standard && p1.Error == nil {
 			p.Error = &PackageError{
 				ImportStack: stk.copy(),
@@ -976,15 +1054,11 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		if i < len(p.Imports) {
 			p.Imports[i] = path
 		}
-		deps[path] = p1
+
+		save(path, p1)
 		imports = append(imports, p1)
 		for _, dep := range p1.deps {
-			// The same import path could produce an error or not,
-			// depending on what tries to import it.
-			// Prefer to record entries with errors, so we can report them.
-			if deps[dep.ImportPath] == nil || dep.Error != nil {
-				deps[dep.ImportPath] = dep
-			}
+			save(dep.ImportPath, dep)
 		}
 		if p1.Incomplete {
 			p.Incomplete = true
@@ -1570,7 +1644,7 @@ func computeBuildID(p *Package) {
 	// Include the content of runtime/internal/sys/zversion.go in the hash
 	// for package runtime. This will give package runtime a
 	// different build ID in each Go release.
-	if p.Standard && p.ImportPath == "runtime/internal/sys" {
+	if p.Standard && p.ImportPath == "runtime/internal/sys" && buildContext.Compiler != "gccgo" {
 		data, err := ioutil.ReadFile(filepath.Join(p.Dir, "zversion.go"))
 		if err != nil {
 			fatalf("go: %s", err)

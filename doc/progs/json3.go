@@ -33,7 +33,7 @@ func Decode() {
 	}
 
 	if !reflect.DeepEqual(f, expected) {
-		log.Panicf("Error unmarshalling %q, expected %q, got %q", b, expected, f)
+		log.Panicf("Error unmarshaling %q, expected %q, got %q", b, expected, f)
 	}
 
 	f = map[string]interface{}{

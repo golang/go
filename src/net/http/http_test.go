@@ -12,7 +12,12 @@ import (
 	"os/exec"
 	"reflect"
 	"testing"
+	"time"
 )
+
+func init() {
+	shutdownPollInterval = 5 * time.Millisecond
+}
 
 func TestForeachHeaderElement(t *testing.T) {
 	tests := []struct {
@@ -51,6 +56,18 @@ func TestCleanHost(t *testing.T) {
 		{"www.google.com foo", "www.google.com"},
 		{"www.google.com/foo", "www.google.com"},
 		{" first character is a space", ""},
+		{"[1::6]:8080", "[1::6]:8080"},
+
+		// Punycode:
+		{"гофер.рф/foo", "xn--c1ae0ajs.xn--p1ai"},
+		{"bücher.de", "xn--bcher-kva.de"},
+		{"bücher.de:8080", "xn--bcher-kva.de:8080"},
+		// Verify we convert to lowercase before punycode:
+		{"BÜCHER.de", "xn--bcher-kva.de"},
+		{"BÜCHER.de:8080", "xn--bcher-kva.de:8080"},
+		// Verify we normalize to NFC before punycode:
+		{"gophér.nfc", "xn--gophr-esa.nfc"},            // NFC input; no work needed
+		{"goph\u0065\u0301r.nfd", "xn--gophr-esa.nfd"}, // NFD input
 	}
 	for _, tt := range tests {
 		got := cleanHost(tt.in)
@@ -65,8 +82,9 @@ func TestCleanHost(t *testing.T) {
 // This catches accidental dependencies between the HTTP transport and
 // server code.
 func TestCmdGoNoHTTPServer(t *testing.T) {
+	t.Parallel()
 	goBin := testenv.GoToolPath(t)
-	out, err := exec.Command("go", "tool", "nm", goBin).CombinedOutput()
+	out, err := exec.Command(goBin, "tool", "nm", goBin).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool nm: %v: %s", err, out)
 	}

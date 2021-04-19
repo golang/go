@@ -13,8 +13,9 @@ import (
 // go-specific code shared across loaders (5l, 6l, 8l).
 
 var (
-	framepointer_enabled int
-	Fieldtrack_enabled   int
+	framepointer_enabled     int
+	Fieldtrack_enabled       int
+	Preemptibleloops_enabled int
 )
 
 // Toolchain experiments.
@@ -27,6 +28,7 @@ var exper = []struct {
 }{
 	{"fieldtrack", &Fieldtrack_enabled},
 	{"framepointer", &framepointer_enabled},
+	{"preemptibleloops", &Preemptibleloops_enabled},
 }
 
 func addexp(s string) {

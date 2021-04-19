@@ -393,6 +393,14 @@ func errprintf(format string, args ...interface{}) {
 func main() {
 	os.Setenv("TERM", "dumb") // disable escape codes in clang errors
 
+	// provide -check-armv6k first, before checking for $GOROOT so that
+	// it is possible to run this check without having $GOROOT available.
+	if len(os.Args) > 1 && os.Args[1] == "-check-armv6k" {
+		useARMv6K() // might fail with SIGILL
+		println("ARMv6K supported.")
+		os.Exit(0)
+	}
+
 	slash = string(filepath.Separator)
 
 	gohostos = runtime.GOOS
@@ -444,6 +452,11 @@ func main() {
 			gohostarch = "mips64"
 			if elfIsLittleEndian(os.Args[0]) {
 				gohostarch = "mips64le"
+			}
+		case strings.Contains(out, "mips"):
+			gohostarch = "mips"
+			if elfIsLittleEndian(os.Args[0]) {
+				gohostarch = "mipsle"
 			}
 		case strings.Contains(out, "s390x"):
 			gohostarch = "s390x"

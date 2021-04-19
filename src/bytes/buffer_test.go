@@ -514,6 +514,19 @@ func TestBufferGrowth(t *testing.T) {
 	}
 }
 
+func BenchmarkWriteRune(b *testing.B) {
+	const n = 4 << 10
+	const r = '☺'
+	b.SetBytes(int64(n * utf8.RuneLen(r)))
+	buf := NewBuffer(make([]byte, n*utf8.UTFMax))
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		for i := 0; i < n; i++ {
+			buf.WriteRune(r)
+		}
+	}
+}
+
 // From Issue 5154.
 func BenchmarkBufferNotEmptyWriteRead(b *testing.B) {
 	buf := make([]byte, 1024)

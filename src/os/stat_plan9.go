@@ -11,12 +11,6 @@ import (
 
 const _BIT16SZ = 2
 
-func sameFile(fs1, fs2 *fileStat) bool {
-	a := fs1.sys.(*syscall.Dir)
-	b := fs2.sys.(*syscall.Dir)
-	return a.Qid.Path == b.Qid.Path && a.Type == b.Type && a.Dev == b.Dev
-}
-
 func fileInfoFromStat(d *syscall.Dir) FileInfo {
 	fs := &fileStat{
 		name:    d.Name,
@@ -36,6 +30,10 @@ func fileInfoFromStat(d *syscall.Dir) FileInfo {
 	}
 	if d.Mode&syscall.DMTMP != 0 {
 		fs.mode |= ModeTemporary
+	}
+	// Consider all files not served by #M as device files.
+	if d.Type != 'M' {
+		fs.mode |= ModeDevice
 	}
 	return fs
 }

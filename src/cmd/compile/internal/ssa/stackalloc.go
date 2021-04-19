@@ -273,7 +273,7 @@ func (s *stackAllocState) computeLive(spillLive [][]ID) {
 	// Instead of iterating over f.Blocks, iterate over their postordering.
 	// Liveness information flows backward, so starting at the end
 	// increases the probability that we will stabilize quickly.
-	po := postorder(s.f)
+	po := s.f.postorder()
 	for {
 		changed := false
 		for _, b := range po {

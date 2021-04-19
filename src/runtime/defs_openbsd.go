@@ -106,7 +106,6 @@ const (
 
 type TforkT C.struct___tfork
 
-type SigaltstackT C.struct_sigaltstack
 type Sigcontext C.struct_sigcontext
 type Siginfo C.siginfo_t
 type Sigset C.sigset_t

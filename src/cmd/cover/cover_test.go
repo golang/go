@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"testing"
 )
 
@@ -62,14 +63,14 @@ func TestCover(t *testing.T) {
 	}
 
 	// go build -o testcover
-	cmd := exec.Command("go", "build", "-o", testcover)
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", testcover)
 	run(cmd, t)
 
 	// defer removal of testcover
 	defer os.Remove(testcover)
 
-	// ./testcover -mode=count -var=coverTest -o ./testdata/test_cover.go testdata/test_line.go
-	cmd = exec.Command(testcover, "-mode=count", "-var=coverTest", "-o", coverOutput, coverInput)
+	// ./testcover -mode=count -var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest -o ./testdata/test_cover.go testdata/test_line.go
+	cmd = exec.Command(testcover, "-mode=count", "-var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest", "-o", coverOutput, coverInput)
 	run(cmd, t)
 
 	// defer removal of ./testdata/test_cover.go
@@ -78,8 +79,27 @@ func TestCover(t *testing.T) {
 	}
 
 	// go run ./testdata/main.go ./testdata/test.go
-	cmd = exec.Command("go", "run", testMain, coverOutput)
+	cmd = exec.Command(testenv.GoToolPath(t), "run", testMain, coverOutput)
 	run(cmd, t)
+
+	file, err = ioutil.ReadFile(coverOutput)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// compiler directive must appear right next to function declaration.
+	if got, err := regexp.MatchString(".*\n//go:nosplit\nfunc someFunction().*", string(file)); err != nil || !got {
+		t.Errorf("misplaced compiler directive: got=(%v, %v); want=(true; nil)", got, err)
+	}
+	// "go:linkname" compiler directive should be present.
+	if got, err := regexp.MatchString(`.*go\:linkname some\_name some\_name.*`, string(file)); err != nil || !got {
+		t.Errorf("'go:linkname' compiler directive not found: got=(%v, %v); want=(true; nil)", got, err)
+	}
+
+	// No other comments should be present in generated code.
+	c := ".*// This comment shouldn't appear in generated go code.*"
+	if got, err := regexp.MatchString(c, string(file)); err != nil || got {
+		t.Errorf("non compiler directive comment %q found. got=(%v, %v); want=(false; nil)", c, got, err)
+	}
 }
 
 func run(c *exec.Cmd, t *testing.T) {

@@ -74,6 +74,10 @@ type gcm struct {
 
 // NewGCM returns the given 128-bit, block cipher wrapped in Galois Counter Mode
 // with the standard nonce length.
+//
+// In general, the GHASH operation performed by this implementation of GCM is not constant-time.
+// An exception is when the underlying Block was created by aes.NewCipher
+// on systems with hardware support for AES. See the crypto/aes package documentation for details.
 func NewGCM(cipher Block) (AEAD, error) {
 	return NewGCMWithNonceSize(cipher, gcmStandardNonceSize)
 }
@@ -135,6 +139,10 @@ func (g *gcm) Seal(dst, nonce, plaintext, data []byte) []byte {
 	if len(nonce) != g.nonceSize {
 		panic("cipher: incorrect nonce length given to GCM")
 	}
+	if uint64(len(plaintext)) > ((1<<32)-2)*uint64(g.cipher.BlockSize()) {
+		panic("cipher: message too large for GCM")
+	}
+
 	ret, out := sliceForAppend(dst, len(plaintext)+gcmTagSize)
 
 	var counter, tagMask [gcmBlockSize]byte
@@ -159,6 +167,10 @@ func (g *gcm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	if len(ciphertext) < gcmTagSize {
 		return nil, errOpen
 	}
+	if uint64(len(ciphertext)) > ((1<<32)-2)*uint64(g.cipher.BlockSize())+gcmTagSize {
+		return nil, errOpen
+	}
+
 	tag := ciphertext[len(ciphertext)-gcmTagSize:]
 	ciphertext = ciphertext[:len(ciphertext)-gcmTagSize]
 
@@ -176,7 +188,7 @@ func (g *gcm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	if subtle.ConstantTimeCompare(expectedTag[:], tag) != 1 {
 		// The AESNI code decrypts and authenticates concurrently, and
 		// so overwrites dst in the event of a tag mismatch. That
-		// behaviour is mimicked here in order to be consistent across
+		// behavior is mimicked here in order to be consistent across
 		// platforms.
 		for i := range out {
 			out[i] = 0

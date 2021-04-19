@@ -155,9 +155,14 @@ TEXT time·now(SB),NOSPLIT,$40-12
 	MOVD	RSP, R0	// timeval
 	MOVD	R0, R9	// this is how dyld calls gettimeofday
 	MOVW	$0, R1	// zone
+	MOVD	$0, R2	// see issue 16570
 	MOVW	$SYS_gettimeofday, R16
 	SVC	$0x80	// Note: x0 is tv_sec, w1 is tv_usec
-
+	CMP	$0, R0
+	BNE	inreg
+	MOVD	0(RSP), R0
+	MOVW	8(RSP), R1
+inreg:
 	MOVD	R0, sec+0(FP)
 	MOVW	$1000, R3
 	MUL	R3, R1
@@ -168,9 +173,14 @@ TEXT runtime·nanotime(SB),NOSPLIT,$40
 	MOVD	RSP, R0	// timeval
 	MOVD	R0, R9	// this is how dyld calls gettimeofday
 	MOVW	$0, R1	// zone
+	MOVD	$0, R2	// see issue 16570
 	MOVW	$SYS_gettimeofday, R16
 	SVC	$0x80	// Note: x0 is tv_sec, w1 is tv_usec
-
+	CMP	$0, R0
+	BNE	inreg
+	MOVD	0(RSP), R0
+	MOVW	8(RSP), R1
+inreg:
 	MOVW	$1000000000, R3
 	MUL	R3, R0
 	MOVW	$1000, R3
@@ -261,7 +271,7 @@ ret:
 	B	runtime·exit(SB)
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVW	sig+0(FP), R0
+	MOVW	how+0(FP), R0
 	MOVD	new+8(FP), R1
 	MOVD	old+16(FP), R2
 	MOVW	$SYS_pthread_sigmask, R16

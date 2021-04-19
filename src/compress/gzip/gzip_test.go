@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"io/ioutil"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -23,6 +24,9 @@ func TestEmpty(t *testing.T) {
 	r, err := NewReader(buf)
 	if err != nil {
 		t.Fatalf("NewReader: %v", err)
+	}
+	if want := (Header{OS: 255}); !reflect.DeepEqual(r.Header, want) {
+		t.Errorf("Header mismatch:\ngot  %#v\nwant %#v", r.Header, want)
 	}
 	b, err := ioutil.ReadAll(r)
 	if err != nil {
