@@ -332,6 +332,8 @@
 (Abs ...) => (F64Abs ...)
 (Copysign ...) => (F64Copysign ...)
 
+(Sqrt32 ...) => (F32Sqrt ...)
+
 (Ctz64 ...) => (I64Ctz ...)
 (Ctz32 x) => (I64Ctz (I64Or x (I64Const [0x100000000])))
 (Ctz16 x) => (I64Ctz (I64Or x (I64Const [0x10000])))

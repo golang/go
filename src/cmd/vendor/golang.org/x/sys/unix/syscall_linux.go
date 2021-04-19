@@ -137,12 +137,61 @@ func IoctlFileClone(destFd, srcFd int) error {
 	return ioctl(destFd, FICLONE, uintptr(srcFd))
 }
 
+type FileDedupeRange struct {
+	Src_offset uint64
+	Src_length uint64
+	Reserved1  uint16
+	Reserved2  uint32
+	Info       []FileDedupeRangeInfo
+}
+
+type FileDedupeRangeInfo struct {
+	Dest_fd       int64
+	Dest_offset   uint64
+	Bytes_deduped uint64
+	Status        int32
+	Reserved      uint32
+}
+
 // IoctlFileDedupeRange performs an FIDEDUPERANGE ioctl operation to share the
-// range of data conveyed in value with the file associated with the file
-// descriptor destFd. See the ioctl_fideduperange(2) man page for details.
-func IoctlFileDedupeRange(destFd int, value *FileDedupeRange) error {
-	err := ioctl(destFd, FIDEDUPERANGE, uintptr(unsafe.Pointer(value)))
-	runtime.KeepAlive(value)
+// range of data conveyed in value from the file associated with the file
+// descriptor srcFd to the value.Info destinations. See the
+// ioctl_fideduperange(2) man page for details.
+func IoctlFileDedupeRange(srcFd int, value *FileDedupeRange) error {
+	buf := make([]byte, SizeofRawFileDedupeRange+
+		len(value.Info)*SizeofRawFileDedupeRangeInfo)
+	rawrange := (*RawFileDedupeRange)(unsafe.Pointer(&buf[0]))
+	rawrange.Src_offset = value.Src_offset
+	rawrange.Src_length = value.Src_length
+	rawrange.Dest_count = uint16(len(value.Info))
+	rawrange.Reserved1 = value.Reserved1
+	rawrange.Reserved2 = value.Reserved2
+
+	for i := range value.Info {
+		rawinfo := (*RawFileDedupeRangeInfo)(unsafe.Pointer(
+			uintptr(unsafe.Pointer(&buf[0])) + uintptr(SizeofRawFileDedupeRange) +
+				uintptr(i*SizeofRawFileDedupeRangeInfo)))
+		rawinfo.Dest_fd = value.Info[i].Dest_fd
+		rawinfo.Dest_offset = value.Info[i].Dest_offset
+		rawinfo.Bytes_deduped = value.Info[i].Bytes_deduped
+		rawinfo.Status = value.Info[i].Status
+		rawinfo.Reserved = value.Info[i].Reserved
+	}
+
+	err := ioctl(srcFd, FIDEDUPERANGE, uintptr(unsafe.Pointer(&buf[0])))
+
+	// Output
+	for i := range value.Info {
+		rawinfo := (*RawFileDedupeRangeInfo)(unsafe.Pointer(
+			uintptr(unsafe.Pointer(&buf[0])) + uintptr(SizeofRawFileDedupeRange) +
+				uintptr(i*SizeofRawFileDedupeRangeInfo)))
+		value.Info[i].Dest_fd = rawinfo.Dest_fd
+		value.Info[i].Dest_offset = rawinfo.Dest_offset
+		value.Info[i].Bytes_deduped = rawinfo.Bytes_deduped
+		value.Info[i].Status = rawinfo.Status
+		value.Info[i].Reserved = rawinfo.Reserved
+	}
+
 	return err
 }
 
@@ -151,6 +200,36 @@ func IoctlFileDedupeRange(destFd int, value *FileDedupeRange) error {
 // https://www.kernel.org/doc/html/latest/watchdog/watchdog-api.html.
 func IoctlWatchdogKeepalive(fd int) error {
 	return ioctl(fd, WDIOC_KEEPALIVE, 0)
+}
+
+func IoctlHIDGetDesc(fd int, value *HIDRawReportDescriptor) error {
+	err := ioctl(fd, HIDIOCGRDESC, uintptr(unsafe.Pointer(value)))
+	runtime.KeepAlive(value)
+	return err
+}
+
+func IoctlHIDGetRawInfo(fd int) (*HIDRawDevInfo, error) {
+	var value HIDRawDevInfo
+	err := ioctl(fd, HIDIOCGRAWINFO, uintptr(unsafe.Pointer(&value)))
+	return &value, err
+}
+
+func IoctlHIDGetRawName(fd int) (string, error) {
+	var value [_HIDIOCGRAWNAME_LEN]byte
+	err := ioctl(fd, _HIDIOCGRAWNAME, uintptr(unsafe.Pointer(&value[0])))
+	return ByteSliceToString(value[:]), err
+}
+
+func IoctlHIDGetRawPhys(fd int) (string, error) {
+	var value [_HIDIOCGRAWPHYS_LEN]byte
+	err := ioctl(fd, _HIDIOCGRAWPHYS, uintptr(unsafe.Pointer(&value[0])))
+	return ByteSliceToString(value[:]), err
+}
+
+func IoctlHIDGetRawUniq(fd int) (string, error) {
+	var value [_HIDIOCGRAWUNIQ_LEN]byte
+	err := ioctl(fd, _HIDIOCGRAWUNIQ, uintptr(unsafe.Pointer(&value[0])))
+	return ByteSliceToString(value[:]), err
 }
 
 //sys	Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flags int) (err error)

@@ -55,6 +55,17 @@ func sqrt(x float64) float64 {
 	return math.Sqrt(x)
 }
 
+func sqrt32(x float32) float32 {
+	// amd64:"SQRTSS"
+	// 386/sse2:"SQRTSS" 386/softfloat:-"SQRTS"
+	// arm64:"FSQRTS"
+	// arm/7:"SQRTF"
+	// mips/hardfloat:"SQRTF" mips/softfloat:-"SQRTF"
+	// mips64/hardfloat:"SQRTF" mips64/softfloat:-"SQRTF"
+	// wasm:"F32Sqrt"
+	return float32(math.Sqrt(float64(x)))
+}
+
 // Check that it's using integer registers
 func abs(x, y float64) {
 	// amd64:"BTRQ\t[$]63"

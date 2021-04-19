@@ -27,12 +27,7 @@ func TestLargeText(t *testing.T) {
 
 	var w bytes.Buffer
 	const FN = 4
-	tmpdir, err := ioutil.TempDir("", "bigtext")
-	if err != nil {
-		t.Fatalf("can't create temp directory: %v\n", err)
-	}
-
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	// Generate the scenario where the total amount of text exceeds the
 	// limit for the jmp/call instruction, on RISC architectures like ppc64le,
@@ -79,7 +74,7 @@ func TestLargeText(t *testing.T) {
 	fmt.Fprintf(&w, "\t}\n")
 	fmt.Fprintf(&w, "\tfmt.Printf(\"PASS\\n\")\n")
 	fmt.Fprintf(&w, "}")
-	err = ioutil.WriteFile(tmpdir+"/bigfn.go", w.Bytes(), 0666)
+	err := ioutil.WriteFile(tmpdir+"/bigfn.go", w.Bytes(), 0666)
 	if err != nil {
 		t.Fatalf("can't write output: %v\n", err)
 	}

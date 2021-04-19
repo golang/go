@@ -16,6 +16,8 @@ import (
 	"testing"
 )
 
+import "crypto/internal/boring"
+
 type sha1Test struct {
 	out       string
 	in        string
@@ -77,6 +79,9 @@ func TestGolden(t *testing.T) {
 				io.WriteString(c, g.in[len(g.in)/2:])
 				sum = c.Sum(nil)
 			case 3:
+				if boring.Enabled {
+					continue
+				}
 				io.WriteString(c, g.in[0:len(g.in)/2])
 				c.(*digest).ConstantTimeSum(nil)
 				io.WriteString(c, g.in[len(g.in)/2:])
@@ -141,6 +146,9 @@ func TestBlockSize(t *testing.T) {
 
 // Tests that blockGeneric (pure Go) and block (in assembly for some architectures) match.
 func TestBlockGeneric(t *testing.T) {
+	if boring.Enabled {
+		t.Skip("BoringCrypto doesn't expose digest")
+	}
 	for i := 1; i < 30; i++ { // arbitrary factor
 		gen, asm := New().(*digest), New().(*digest)
 		buf := make([]byte, BlockSize*i)
@@ -156,7 +164,7 @@ func TestBlockGeneric(t *testing.T) {
 // Tests for unmarshaling hashes that have hashed a large amount of data
 // The initial hash generation is omitted from the test, because it takes a long time.
 // The test contains some already-generated states, and their expected sums
-// Tests a problem that is outlined in Github issue #29543
+// Tests a problem that is outlined in GitHub issue #29543
 // The problem is triggered when an amount of data has been hashed for which
 // the data length has a 1 in the 32nd bit. When casted to int, this changes
 // the sign of the value, and causes the modulus operation to return a

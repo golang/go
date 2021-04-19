@@ -28,7 +28,7 @@ const (
 		ir.Nosplit |
 		ir.Noinline |
 		ir.NoCheckPtr |
-		ir.RegisterParams | // TODO remove after register abi is working
+		ir.RegisterParams | // TODO(register args) remove after register abi is working
 		ir.CgoUnsafeArgs |
 		ir.UintptrEscapes |
 		ir.Systemstack |
@@ -44,7 +44,7 @@ func pragmaFlag(verb string) ir.PragmaFlag {
 	case "go:build":
 		return ir.GoBuildPragma
 	case "go:nointerface":
-		if objabi.Fieldtrack_enabled != 0 {
+		if objabi.Experiment.FieldTrack {
 			return ir.Nointerface
 		}
 	case "go:noescape":
@@ -80,7 +80,7 @@ func pragmaFlag(verb string) ir.PragmaFlag {
 		// in the argument list.
 		// Used in syscall/dll_windows.go.
 		return ir.UintptrEscapes
-	case "go:registerparams": // TODO remove after register abi is working
+	case "go:registerparams": // TODO(register args) remove after register abi is working
 		return ir.RegisterParams
 	case "go:notinheap":
 		return ir.NotInHeap

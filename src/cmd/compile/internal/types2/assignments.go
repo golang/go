@@ -194,7 +194,7 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
 	case variable, mapindex:
 		// ok
 	case nilvalue:
-		check.errorf(&z, "cannot assign to nil") // default would print "untyped nil"
+		check.error(&z, "cannot assign to nil") // default would print "untyped nil"
 		return nil
 	default:
 		if sel, ok := z.expr.(*syntax.SelectorExpr); ok {

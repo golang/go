@@ -547,7 +547,7 @@ func TestNumbers(t *testing.T) {
 				t.Errorf("%q: got error but bad not set", test.src)
 			}
 
-			// compute lit where where s.lit is not defined
+			// compute lit where s.lit is not defined
 			var lit string
 			switch s.tok {
 			case _Name, _Literal:

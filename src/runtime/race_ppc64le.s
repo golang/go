@@ -163,23 +163,13 @@ call:
 ret:
 	RET
 
-// func runtime·racefuncenterfp()
-// Called from instrumented Go code.
-// Like racefuncenter but doesn't pass an arg, uses the caller pc
-// from the first slot on the stack.
-TEXT	runtime·racefuncenterfp(SB), NOSPLIT, $0-0
-	MOVD	0(R1), R8
-	BR	racefuncenter<>(SB)
-
 // func runtime·racefuncenter(pc uintptr)
 // Called from instrumented Go code.
-// Not used now since gc/racewalk.go doesn't pass the
-// correct caller pc and racefuncenterfp can do it.
 TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
 	MOVD	callpc+0(FP), R8
 	BR	racefuncenter<>(SB)
 
-// Common code for racefuncenter/racefuncenterfp
+// Common code for racefuncenter
 // R11 = caller's return address
 TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 	MOVD    runtime·tls_g(SB), R10

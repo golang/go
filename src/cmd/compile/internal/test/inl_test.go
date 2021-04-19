@@ -16,7 +16,7 @@ import (
 	"testing"
 )
 
-// TestIntendedInlining tests that specific runtime functions are inlined.
+// TestIntendedInlining tests that specific functions are inlined.
 // This allows refactoring for code clarity and re-use without fear that
 // changes to the compiler will cause silent performance regressions.
 func TestIntendedInlining(t *testing.T) {
@@ -154,6 +154,9 @@ func TestIntendedInlining(t *testing.T) {
 		"math/rand": {
 			"(*rngSource).Int63",
 			"(*rngSource).Uint64",
+		},
+		"net": {
+			"(*UDPConn).ReadFromUDP",
 		},
 	}
 

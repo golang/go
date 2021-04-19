@@ -322,6 +322,9 @@ func NoFix64A(divr int64) (int64, int64) {
 	if divr > 5 {
 		d /= divr // amd64:-"JMP"
 		e %= divr // amd64:-"JMP"
+		// The following statement is to avoid conflict between the above check
+		// and the normal JMP generated at the end of the block.
+		d += e
 	}
 	return d, e
 }
@@ -333,6 +336,7 @@ func NoFix64B(divd int64) (int64, int64) {
 	if divd > -9223372036854775808 {
 		d = divd / divr // amd64:-"JMP"
 		e = divd % divr // amd64:-"JMP"
+		d += e
 	}
 	return d, e
 }
@@ -347,6 +351,7 @@ func NoFix32A(divr int32) (int32, int32) {
 		// amd64:-"JMP"
 		// 386:-"JMP"
 		e %= divr
+		d += e
 	}
 	return d, e
 }
@@ -362,6 +367,7 @@ func NoFix32B(divd int32) (int32, int32) {
 		// amd64:-"JMP"
 		// 386:-"JMP"
 		e = divd % divr
+		d += e
 	}
 	return d, e
 }
@@ -376,6 +382,7 @@ func NoFix16A(divr int16) (int16, int16) {
 		// amd64:-"JMP"
 		// 386:-"JMP"
 		e %= divr
+		d += e
 	}
 	return d, e
 }
@@ -391,6 +398,7 @@ func NoFix16B(divd int16) (int16, int16) {
 		// amd64:-"JMP"
 		// 386:-"JMP"
 		e = divd % divr
+		d += e
 	}
 	return d, e
 }

@@ -409,7 +409,5 @@ func rewriteValuedec_OpStringPtr(v *Value) bool {
 	return false
 }
 func rewriteBlockdec(b *Block) bool {
-	switch b.Kind {
-	}
 	return false
 }

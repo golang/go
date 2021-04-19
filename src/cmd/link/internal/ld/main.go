@@ -95,7 +95,6 @@ var (
 	cpuprofile        = flag.String("cpuprofile", "", "write cpu profile to `file`")
 	memprofile        = flag.String("memprofile", "", "write memory profile to `file`")
 	memprofilerate    = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
-	flagAbiWrap       = flag.Bool("abiwrap", objabi.Regabi_enabled != 0, "support ABI wrapper functions")
 	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
 	benchmarkFileFlag = flag.String("benchmarkprofile", "", "emit phase profiles to `base`_phase.{cpu,mem}prof")
 )
@@ -118,6 +117,8 @@ func Main(arch *sys.Arch, theArch Arch) {
 	final := gorootFinal()
 	addstrdata1(ctxt, "runtime.defaultGOROOT="+final)
 	addstrdata1(ctxt, "cmd/internal/objabi.defaultGOROOT="+final)
+
+	addstrdata1(ctxt, "runtime/internal/sys.GOEXPERIMENT="+objabi.GOEXPERIMENT)
 
 	// TODO(matloob): define these above and then check flag values here
 	if ctxt.Arch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
@@ -250,7 +251,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	bench.Start("dostrdata")
 	ctxt.dostrdata()
-	if objabi.Fieldtrack_enabled != 0 {
+	if objabi.Experiment.FieldTrack {
 		bench.Start("fieldtrack")
 		fieldtrack(ctxt.Arch, ctxt.loader)
 	}

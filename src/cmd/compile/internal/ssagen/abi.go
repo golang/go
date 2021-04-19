@@ -24,7 +24,7 @@ import (
 // useNewABIWrapGen returns TRUE if the compiler should generate an
 // ABI wrapper for the function 'f'.
 func useABIWrapGen(f *ir.Func) bool {
-	if !base.Flag.ABIWrap {
+	if !objabi.Experiment.RegabiWrappers {
 		return false
 	}
 
@@ -140,7 +140,7 @@ func ReadSymABIs(file, myimportpath string) {
 func InitLSym(f *ir.Func, hasBody bool) {
 	// FIXME: for new-style ABI wrappers, we set up the lsym at the
 	// point the wrapper is created.
-	if f.LSym != nil && base.Flag.ABIWrap {
+	if f.LSym != nil && objabi.Experiment.RegabiWrappers {
 		return
 	}
 	staticdata.NeedFuncSym(f.Sym())
@@ -279,7 +279,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	// things in registers and pushing them onto the stack prior to
 	// the ABI0 call, meaning that they will always need to allocate
 	// stack space. If the compiler marks them as NOSPLIT this seems
-	// as though it could lead to situations where the the linker's
+	// as though it could lead to situations where the linker's
 	// nosplit-overflow analysis would trigger a link failure. On the
 	// other hand if they not tagged NOSPLIT then this could cause
 	// problems when building the runtime (since there may be calls to

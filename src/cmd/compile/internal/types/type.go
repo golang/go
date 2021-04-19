@@ -177,10 +177,16 @@ type Type struct {
 
 	flags bitset8
 
-	// Type params (in order) of this named type that need to be instantiated.
+	// For defined (named) generic types, the list of type params (in order)
+	// of this type that need to be instantiated. For fully-instantiated
+	// generic types, this is the targs used to instantiate them (which are
+	// used when generating the corresponding instantiated methods). rparams
+	// is only set for named types that are generic or are fully-instantiated
+	// from a generic type.
+
 	// TODO(danscales): for space reasons, should probably be a pointer to a
 	// slice, possibly change the name of this field.
-	RParams []*Type
+	rparams []*Type
 }
 
 func (*Type) CanBeAnSSAAux() {}
@@ -234,6 +240,26 @@ func (t *Type) Pos() src.XPos {
 		return t.nod.Pos()
 	}
 	return src.NoXPos
+}
+
+func (t *Type) RParams() []*Type {
+	return t.rparams
+}
+
+func (t *Type) SetRParams(rparams []*Type) {
+	t.rparams = rparams
+	if t.HasTParam() {
+		return
+	}
+	// HasTParam should be set if any rparam is or has a type param. This is
+	// to handle the case of a generic type which doesn't reference any of its
+	// type params (e.g. most commonly, an empty struct).
+	for _, rparam := range rparams {
+		if rparam.HasTParam() {
+			t.SetHasTParam(true)
+			break
+		}
+	}
 }
 
 // NoPkg is a nil *Pkg value for clarity.
@@ -411,7 +437,8 @@ type Field struct {
 	Nname Object
 
 	// Offset in bytes of this field or method within its enclosing struct
-	// or interface Type.
+	// or interface Type.  Exception: if field is function receiver, arg or
+	// result, then this is BOGUS_FUNARG_OFFSET; types does not know the Abi.
 	Offset int64
 }
 
@@ -581,10 +608,17 @@ func NewTuple(t1, t2 *Type) *Type {
 	return t
 }
 
-func NewResults(types []*Type) *Type {
+func newResults(types []*Type) *Type {
 	t := New(TRESULTS)
 	t.Extra.(*Results).Types = types
 	return t
+}
+
+func NewResults(types []*Type) *Type {
+	if len(types) == 1 && types[0] == TypeMem {
+		return TypeResultMem
+	}
+	return newResults(types)
 }
 
 func newSSA(name string) *Type {
@@ -1407,6 +1441,9 @@ func (t *Type) PtrTo() *Type {
 }
 
 func (t *Type) NumFields() int {
+	if t.kind == TRESULTS {
+		return len(t.Extra.(*Results).Types)
+	}
 	return t.Fields().Len()
 }
 func (t *Type) FieldType(i int) *Type {
@@ -1597,11 +1634,12 @@ func FakeRecvType() *Type {
 
 var (
 	// TSSA types. HasPointers assumes these are pointer-free.
-	TypeInvalid = newSSA("invalid")
-	TypeMem     = newSSA("mem")
-	TypeFlags   = newSSA("flags")
-	TypeVoid    = newSSA("void")
-	TypeInt128  = newSSA("int128")
+	TypeInvalid   = newSSA("invalid")
+	TypeMem       = newSSA("mem")
+	TypeFlags     = newSSA("flags")
+	TypeVoid      = newSSA("void")
+	TypeInt128    = newSSA("int128")
+	TypeResultMem = newResults([]*Type{TypeMem})
 )
 
 // NewNamed returns a new named type for the given type name.
@@ -1690,6 +1728,13 @@ func NewBasic(kind Kind, obj Object) *Type {
 func NewInterface(pkg *Pkg, methods []*Field) *Type {
 	t := New(TINTER)
 	t.SetInterface(methods)
+	for _, f := range methods {
+		// f.Type could be nil for a broken interface declaration
+		if f.Type != nil && f.Type.HasTParam() {
+			t.SetHasTParam(true)
+			break
+		}
+	}
 	if anyBroke(methods) {
 		t.SetBroke(true)
 	}
@@ -1697,19 +1742,24 @@ func NewInterface(pkg *Pkg, methods []*Field) *Type {
 	return t
 }
 
-// NewTypeParam returns a new type param with the given constraint (which may
-// not really be needed except for the type checker).
-func NewTypeParam(pkg *Pkg, constraint *Type) *Type {
+// NewTypeParam returns a new type param.
+func NewTypeParam(pkg *Pkg) *Type {
 	t := New(TTYPEPARAM)
-	constraint.wantEtype(TINTER)
-	t.methods = constraint.methods
 	t.Extra.(*Interface).pkg = pkg
 	t.SetHasTParam(true)
 	return t
 }
 
+const BOGUS_FUNARG_OFFSET = -1000000000
+
+func unzeroFieldOffsets(f []*Field) {
+	for i := range f {
+		f[i].Offset = BOGUS_FUNARG_OFFSET // This will cause an explosion if it is not corrected
+	}
+}
+
 // NewSignature returns a new function type for the given receiver,
-// parametes, results, and type parameters, any of which may be nil.
+// parameters, results, and type parameters, any of which may be nil.
 func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Type {
 	var recvs []*Field
 	if recv != nil {
@@ -1728,7 +1778,13 @@ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Typ
 		return s
 	}
 
+	if recv != nil {
+		recv.Offset = BOGUS_FUNARG_OFFSET
+	}
+	unzeroFieldOffsets(params)
+	unzeroFieldOffsets(results)
 	ft.Receiver = funargs(recvs, FunargRcvr)
+	// TODO(danscales): just use nil here (save memory) if no tparams
 	ft.TParams = funargs(tparams, FunargTparams)
 	ft.Params = funargs(params, FunargParams)
 	ft.Results = funargs(results, FunargResults)

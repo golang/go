@@ -51,6 +51,7 @@ const (
 	RuleJulian       = RuleKind(ruleJulian)
 	RuleDOY          = RuleKind(ruleDOY)
 	RuleMonthWeekDay = RuleKind(ruleMonthWeekDay)
+	UnixToInternal   = unixToInternal
 )
 
 type Rule struct {

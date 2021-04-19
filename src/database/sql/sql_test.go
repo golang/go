@@ -431,25 +431,24 @@ func TestTxContextWait(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Millisecond)
-	defer cancel()
+	ctx, cancel := context.WithCancel(context.Background())
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		// Guard against the context being canceled before BeginTx completes.
-		if err == context.DeadlineExceeded {
-			t.Skip("tx context canceled prior to first use")
-		}
 		t.Fatal(err)
 	}
 	tx.keepConnOnRollback = false
 
+	go func() {
+		time.Sleep(15 * time.Millisecond)
+		cancel()
+	}()
 	// This will trigger the *fakeConn.Prepare method which will take time
 	// performing the query. The ctxDriverPrepare func will check the context
 	// after this and close the rows and return an error.
 	_, err = tx.QueryContext(ctx, "WAIT|1s|SELECT|people|age,name|")
-	if err != context.DeadlineExceeded {
-		t.Fatalf("expected QueryContext to error with context deadline exceeded but returned %v", err)
+	if err != context.Canceled {
+		t.Fatalf("expected QueryContext to error with context canceled but returned %v", err)
 	}
 
 	waitForFree(t, db, 5*time.Second, 0)
@@ -4060,8 +4059,17 @@ func TestOpenConnector(t *testing.T) {
 	}
 	defer db.Close()
 
-	if _, is := db.connector.(*fakeConnector); !is {
+	c, ok := db.connector.(*fakeConnector)
+	if !ok {
 		t.Fatal("not using *fakeConnector")
+	}
+
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	if !c.closed {
+		t.Fatal("connector is not closed")
 	}
 }
 

@@ -534,6 +534,20 @@ func TestReadWriteRune(t *testing.T) {
 	}
 }
 
+func TestWriteInvalidRune(t *testing.T) {
+	// Invalid runes, including negative ones, should be written as the
+	// replacement character.
+	for _, r := range []rune{-1, utf8.MaxRune + 1} {
+		var buf bytes.Buffer
+		w := NewWriter(&buf)
+		w.WriteRune(r)
+		w.Flush()
+		if s := buf.String(); s != "\uFFFD" {
+			t.Errorf("WriteRune(%d) wrote %q, not replacement character", r, s)
+		}
+	}
+}
+
 func TestReadStringAllocs(t *testing.T) {
 	r := strings.NewReader("       foo       foo        42        42        42        42        42        42        42        42       4.2       4.2       4.2       4.2\n")
 	buf := NewReader(r)

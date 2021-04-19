@@ -5,6 +5,7 @@
 // This file contains a driver.UI implementation
 // that provides the readline functionality if possible.
 
+//go:build (darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || windows) && !appengine && !android
 // +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
 // +build !appengine
 // +build !android

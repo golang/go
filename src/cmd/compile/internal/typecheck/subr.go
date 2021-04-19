@@ -106,7 +106,8 @@ var DirtyAddrtaken = false
 
 func ComputeAddrtaken(top []ir.Node) {
 	for _, n := range top {
-		ir.Visit(n, func(n ir.Node) {
+		var doVisit func(n ir.Node)
+		doVisit = func(n ir.Node) {
 			if n.Op() == ir.OADDR {
 				if x := ir.OuterValue(n.(*ir.AddrExpr).X); x.Op() == ir.ONAME {
 					x.Name().SetAddrtaken(true)
@@ -117,7 +118,11 @@ func ComputeAddrtaken(top []ir.Node) {
 					}
 				}
 			}
-		})
+			if n.Op() == ir.OCLOSURE {
+				ir.VisitList(n.(*ir.ClosureExpr).Func.Body, doVisit)
+			}
+		}
+		ir.Visit(n, doVisit)
 	}
 }
 

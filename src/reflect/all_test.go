@@ -2900,6 +2900,7 @@ func TestFieldPkgPath(t *testing.T) {
 		index    []int
 		pkgPath  string
 		embedded bool
+		exported bool
 	}
 
 	checkPkgPath := func(name string, s []pkgpathTest) {
@@ -2911,25 +2912,61 @@ func TestFieldPkgPath(t *testing.T) {
 			if got, want := f.Anonymous, test.embedded; got != want {
 				t.Errorf("%s: Field(%d).Anonymous = %v, want %v", name, test.index, got, want)
 			}
+			if got, want := f.IsExported(), test.exported; got != want {
+				t.Errorf("%s: Field(%d).IsExported = %v, want %v", name, test.index, got, want)
+			}
 		}
 	}
 
 	checkPkgPath("testStruct", []pkgpathTest{
-		{[]int{0}, "", false},             // Exported
-		{[]int{1}, "reflect_test", false}, // unexported
-		{[]int{2}, "", true},              // OtherPkgFields
-		{[]int{2, 0}, "", false},          // OtherExported
-		{[]int{2, 1}, "reflect", false},   // otherUnexported
-		{[]int{3}, "reflect_test", true},  // int
-		{[]int{4}, "reflect_test", true},  // *x
+		{[]int{0}, "", false, true},              // Exported
+		{[]int{1}, "reflect_test", false, false}, // unexported
+		{[]int{2}, "", true, true},               // OtherPkgFields
+		{[]int{2, 0}, "", false, true},           // OtherExported
+		{[]int{2, 1}, "reflect", false, false},   // otherUnexported
+		{[]int{3}, "reflect_test", true, false},  // int
+		{[]int{4}, "reflect_test", true, false},  // *x
 	})
 
 	type localOtherPkgFields OtherPkgFields
 	typ = TypeOf(localOtherPkgFields{})
 	checkPkgPath("localOtherPkgFields", []pkgpathTest{
-		{[]int{0}, "", false},        // OtherExported
-		{[]int{1}, "reflect", false}, // otherUnexported
+		{[]int{0}, "", false, true},         // OtherExported
+		{[]int{1}, "reflect", false, false}, // otherUnexported
 	})
+}
+
+func TestMethodPkgPath(t *testing.T) {
+	type I interface {
+		x()
+		X()
+	}
+	typ := TypeOf((*interface {
+		I
+		y()
+		Y()
+	})(nil)).Elem()
+
+	tests := []struct {
+		name     string
+		pkgPath  string
+		exported bool
+	}{
+		{"X", "", true},
+		{"Y", "", true},
+		{"x", "reflect_test", false},
+		{"y", "reflect_test", false},
+	}
+
+	for _, test := range tests {
+		m, _ := typ.MethodByName(test.name)
+		if got, want := m.PkgPath, test.pkgPath; got != want {
+			t.Errorf("MethodByName(%q).PkgPath = %q, want %q", test.name, got, want)
+		}
+		if got, want := m.IsExported(), test.exported; got != want {
+			t.Errorf("MethodByName(%q).IsExported = %v, want %v", test.name, got, want)
+		}
+	}
 }
 
 func TestVariadicType(t *testing.T) {
@@ -4597,6 +4634,14 @@ func TestArrayOfDirectIface(t *testing.T) {
 			t.Errorf("got p2=%v. want=not-%v", p2, nil)
 		}
 	}
+}
+
+// Ensure passing in negative lengths panics.
+// See https://golang.org/issue/43603
+func TestArrayOfPanicOnNegativeLength(t *testing.T) {
+	shouldPanic("reflect: negative length passed to ArrayOf", func() {
+		ArrayOf(-1, TypeOf(byte(0)))
+	})
 }
 
 func TestSliceOf(t *testing.T) {

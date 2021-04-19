@@ -63,8 +63,26 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 
 	pkgpath := pkgPath(a)
 	gcargs := []string{"-p", pkgpath}
-	if p.Module != nil && p.Module.GoVersion != "" && allowedVersion(p.Module.GoVersion) {
-		gcargs = append(gcargs, "-lang=go"+p.Module.GoVersion)
+	if p.Module != nil {
+		v := p.Module.GoVersion
+		if v == "" {
+			// We started adding a 'go' directive to the go.mod file unconditionally
+			// as of Go 1.12, so any module that still lacks such a directive must
+			// either have been authored before then, or have a hand-edited go.mod
+			// file that hasn't been updated by cmd/go since that edit.
+			//
+			// Unfortunately, through at least Go 1.16 we didn't add versions to
+			// vendor/modules.txt. So this could also be a vendored 1.16 dependency.
+			//
+			// Fortunately, there were no breaking changes to the language between Go
+			// 1.11 and 1.16, so if we assume Go 1.16 semantics we will not introduce
+			// any spurious errors — we will only mask errors, and not particularly
+			// important ones at that.
+			v = "1.16"
+		}
+		if allowedVersion(v) {
+			gcargs = append(gcargs, "-lang=go"+v)
+		}
 	}
 	if p.Standard {
 		gcargs = append(gcargs, "-std")
@@ -213,7 +231,7 @@ CheckFlags:
 	}
 
 	// TODO: Test and delete these conditions.
-	if objabi.Fieldtrack_enabled != 0 || objabi.Preemptibleloops_enabled != 0 {
+	if objabi.Experiment.FieldTrack || objabi.Experiment.PreemptibleLoops {
 		canDashC = false
 	}
 
@@ -343,18 +361,6 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
 	}
 	if objabi.IsRuntimePackagePath(pkgpath) {
 		args = append(args, "-compiling-runtime")
-		if objabi.Regabi_enabled != 0 {
-			// In order to make it easier to port runtime assembly
-			// to the register ABI, we introduce a macro
-			// indicating the experiment is enabled.
-			//
-			// Note: a similar change also appears in
-			// cmd/dist/build.go.
-			//
-			// TODO(austin): Remove this once we commit to the
-			// register ABI (#40724).
-			args = append(args, "-D=GOEXPERIMENT_REGABI=1")
-		}
 	}
 
 	if cfg.Goarch == "mips" || cfg.Goarch == "mipsle" {

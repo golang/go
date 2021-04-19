@@ -1,0 +1,36 @@
+# Regression test for https://golang.org/issue/45109:
+# Dependencies that use post-1.11 Go features should build
+# when compiled as vendored dependencies of Go 1.16 modules.
+
+[short] skip
+
+go mod init example.com/foo
+go mod edit -replace=example.com/use113@v0.1.0=./use113
+
+go mod vendor
+! grep 1.13 vendor/modules.txt  # TODO(#36876): record dependency versions.
+go build .
+
+
+# In Go 1.16 and earlier, 'go mod vendor' did not record dependency versions.
+# That still should not cause a build failure.
+
+go mod edit -go=1.16
+go mod vendor
+! grep 1.13 vendor/modules.txt
+go build .
+
+
+-- foo.go --
+package foo
+
+import _ "example.com/use113"
+
+-- use113/go.mod --
+module example.com/use113
+
+go 1.13
+-- use113/use113.go --
+package use113
+
+const x = 1_000

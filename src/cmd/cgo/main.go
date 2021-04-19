@@ -20,6 +20,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -245,7 +246,7 @@ var importRuntimeCgo = flag.Bool("import_runtime_cgo", true, "import runtime/cgo
 var importSyscall = flag.Bool("import_syscall", true, "import syscall in generated code")
 var trimpath = flag.String("trimpath", "", "applies supplied rewrites or trims prefixes to recorded source file paths")
 
-var goarch, goos string
+var goarch, goos, gomips, gomips64 string
 
 func main() {
 	objabi.AddVersionFlag() // -V
@@ -301,6 +302,14 @@ func main() {
 	}
 
 	p := newPackage(args[:i])
+
+	// We need a C compiler to be available. Check this.
+	gccName := p.gccBaseCmd()[0]
+	_, err := exec.LookPath(gccName)
+	if err != nil {
+		fatalf("C compiler %q not found: %v", gccName, err)
+		os.Exit(2)
+	}
 
 	// Record CGO_LDFLAGS from the environment for external linking.
 	if ldflags := os.Getenv("CGO_LDFLAGS"); ldflags != "" {
@@ -405,6 +414,8 @@ func newPackage(args []string) *Package {
 	if s := os.Getenv("GOOS"); s != "" {
 		goos = s
 	}
+	gomips = objabi.GOMIPS
+	gomips64 = objabi.GOMIPS64
 	ptrSize := ptrSizeMap[goarch]
 	if ptrSize == 0 {
 		fatalf("unknown ptrSize for $GOARCH %q", goarch)

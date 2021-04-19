@@ -96,9 +96,7 @@ func (g *irgen) unsafeExpr(name string, arg syntax.Expr) int64 {
 	selection := g.info.Selections[sel]
 
 	typ := g.typ(g.info.Types[sel.X].Type)
-	if typ.IsPtr() {
-		typ = typ.Elem()
-	}
+	typ = deref(typ)
 
 	var offset int64
 	for _, i := range selection.Index() {

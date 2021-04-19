@@ -105,7 +105,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// Record flags that affect the build result. (And don't
 	// record flags that don't, since that would cause spurious
 	// changes in the binary.)
-	dwarfgen.RecordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
+	dwarfgen.RecordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarf", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
 
 	if !base.EnableTrace && base.Flag.LowerT {
 		log.Fatalf("compiler not built with support for -t")

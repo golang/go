@@ -29,6 +29,7 @@ type CompilationUnit struct {
 
 	Consts    LoaderSym   // Package constants DIEs
 	FuncDIEs  []LoaderSym // Function DIE subtrees
+	VarDIEs   []LoaderSym // Global variable DIEs
 	AbsFnDIEs []LoaderSym // Abstract function DIE subtrees
 	RangeSyms []LoaderSym // Symbols for debug_range
 	Textp     []LoaderSym // Text symbols in this CU

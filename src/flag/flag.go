@@ -857,17 +857,23 @@ func Func(name, usage string, fn func(string) error) {
 // of strings by giving the slice the methods of Value; in particular, Set would
 // decompose the comma-separated string into the slice.
 func (f *FlagSet) Var(value Value, name string, usage string) {
+	// Flag must not begin "-" or contain "=".
+	if strings.HasPrefix(name, "-") {
+		panic(f.sprintf("flag %q begins with -", name))
+	} else if strings.Contains(name, "=") {
+		panic(f.sprintf("flag %q contains =", name))
+	}
+
 	// Remember the default value as a string; it won't change.
 	flag := &Flag{name, usage, value, value.String()}
 	_, alreadythere := f.formal[name]
 	if alreadythere {
 		var msg string
 		if f.name == "" {
-			msg = fmt.Sprintf("flag redefined: %s", name)
+			msg = f.sprintf("flag redefined: %s", name)
 		} else {
-			msg = fmt.Sprintf("%s flag redefined: %s", f.name, name)
+			msg = f.sprintf("%s flag redefined: %s", f.name, name)
 		}
-		fmt.Fprintln(f.Output(), msg)
 		panic(msg) // Happens only if flags are declared with identical names
 	}
 	if f.formal == nil {
@@ -886,13 +892,19 @@ func Var(value Value, name string, usage string) {
 	CommandLine.Var(value, name, usage)
 }
 
+// sprintf formats the message, prints it to output, and returns it.
+func (f *FlagSet) sprintf(format string, a ...interface{}) string {
+	msg := fmt.Sprintf(format, a...)
+	fmt.Fprintln(f.Output(), msg)
+	return msg
+}
+
 // failf prints to standard error a formatted error and usage message and
 // returns the error.
 func (f *FlagSet) failf(format string, a ...interface{}) error {
-	err := fmt.Errorf(format, a...)
-	fmt.Fprintln(f.Output(), err)
+	msg := f.sprintf(format, a...)
 	f.usage()
-	return err
+	return errors.New(msg)
 }
 
 // usage calls the Usage method for the flag set if one is specified,

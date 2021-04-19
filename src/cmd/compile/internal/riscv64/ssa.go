@@ -211,9 +211,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = rd
 	case ssa.OpRISCV64MOVDnop:
-		if v.Reg() != v.Args[0].Reg() {
-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
-		}
 		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
@@ -304,7 +301,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpRISCV64MOVBconst, ssa.OpRISCV64MOVHconst, ssa.OpRISCV64MOVWconst, ssa.OpRISCV64MOVDconst:
+	case ssa.OpRISCV64MOVDconst:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
@@ -513,6 +510,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p6 := s.Prog(obj.ANOP)
 		p2.To.SetTarget(p6)
 
+	case ssa.OpRISCV64LoweredAtomicAnd32, ssa.OpRISCV64LoweredAtomicOr32:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		p.RegTo2 = riscv.REG_ZERO
+
 	case ssa.OpRISCV64LoweredZero:
 		mov, sz := largestMove(v.AuxInt)
 
@@ -623,6 +628,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = ir.Syms.Duffcopy
 		p.To.Offset = v.AuxInt
+
+	case ssa.OpClobber, ssa.OpClobberReg:
+		// TODO: implement for clobberdead experiment. Nop is ok for now.
 
 	default:
 		v.Fatalf("Unhandled op %v", v.Op)

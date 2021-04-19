@@ -68,10 +68,11 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 	modload.RootMode = modload.NeedRoot
 
 	loadOpts := modload.PackageOpts{
-		Tags:          imports.AnyTags(),
-		LoadTests:     !*whyVendor,
-		SilenceErrors: true,
-		UseVendorAll:  *whyVendor,
+		Tags:                     imports.AnyTags(),
+		VendorModulesInGOROOTSrc: true,
+		LoadTests:                !*whyVendor,
+		SilenceErrors:            true,
+		UseVendorAll:             *whyVendor,
 	}
 
 	if *whyM {

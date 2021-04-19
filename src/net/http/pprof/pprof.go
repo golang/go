@@ -431,7 +431,7 @@ Types of profiles available:
 
 	b.WriteString(`</table>
 <a href="goroutine?debug=2">full goroutine stack dump</a>
-<br/>
+<br>
 <p>
 Profile Descriptions:
 <ul>

@@ -456,7 +456,7 @@ const (
 	// Go command pragmas
 	GoBuildPragma
 
-	RegisterParams // TODO remove after register abi is working
+	RegisterParams // TODO(register args) remove after register abi is working
 
 )
 

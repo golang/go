@@ -50,11 +50,6 @@ const (
 	// R_ADDROFF resolves to a 32-bit offset from the beginning of the section
 	// holding the data being relocated to the referenced symbol.
 	R_ADDROFF
-	// R_WEAKADDROFF resolves just like R_ADDROFF but is a weak relocation.
-	// A weak relocation does not make the symbol it refers to reachable,
-	// and is only honored by the linker if the symbol is in some other way
-	// reachable.
-	R_WEAKADDROFF
 	R_SIZE
 	R_CALL
 	R_CALLARM
@@ -256,6 +251,14 @@ const (
 	// of a symbol. This isn't a real relocation, it can be placed in anywhere
 	// in a symbol and target any symbols.
 	R_XCOFFREF
+
+	// R_WEAK marks the relocation as a weak reference.
+	// A weak relocation does not make the symbol it refers to reachable,
+	// and is only honored by the linker if the symbol is in some other way
+	// reachable.
+	R_WEAK = -1 << 15
+
+	R_WEAKADDROFF = R_WEAK | R_ADDROFF
 )
 
 // IsDirectCall reports whether r is a relocation for a direct call.

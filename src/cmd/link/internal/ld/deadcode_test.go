@@ -7,8 +7,6 @@ package ld
 import (
 	"bytes"
 	"internal/testenv"
-	"io/ioutil"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -18,11 +16,7 @@ func TestDeadcode(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "TestDeadcode")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	tests := []struct {
 		src      string

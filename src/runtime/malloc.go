@@ -568,7 +568,7 @@ func mallocinit() {
 		const arenaMetaSize = (1 << arenaBits) * unsafe.Sizeof(heapArena{})
 		meta := uintptr(sysReserve(nil, arenaMetaSize))
 		if meta != 0 {
-			mheap_.heapArenaAlloc.init(meta, arenaMetaSize)
+			mheap_.heapArenaAlloc.init(meta, arenaMetaSize, true)
 		}
 
 		// We want to start the arena low, but if we're linked
@@ -605,7 +605,7 @@ func mallocinit() {
 		for _, arenaSize := range arenaSizes {
 			a, size := sysReserveAligned(unsafe.Pointer(p), arenaSize, heapArenaBytes)
 			if a != nil {
-				mheap_.arena.init(uintptr(a), size)
+				mheap_.arena.init(uintptr(a), size, false)
 				p = mheap_.arena.end // For hint below
 				break
 			}
@@ -622,8 +622,8 @@ func mallocinit() {
 // heapArenaBytes. sysAlloc returns nil on failure.
 // There is no corresponding free function.
 //
-// sysAlloc returns a memory region in the Prepared state. This region must
-// be transitioned to Ready before use.
+// sysAlloc returns a memory region in the Reserved state. This region must
+// be transitioned to Prepared and then Ready before use.
 //
 // h must be locked.
 func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
@@ -724,9 +724,6 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 	if uintptr(v)&(heapArenaBytes-1) != 0 {
 		throw("misrounded allocation in sysAlloc")
 	}
-
-	// Transition from Reserved to Prepared.
-	sysMap(v, size, &memstats.heap_sys)
 
 mapped:
 	// Create arena metadata.
@@ -1400,15 +1397,19 @@ func inPersistentAlloc(p uintptr) bool {
 }
 
 // linearAlloc is a simple linear allocator that pre-reserves a region
-// of memory and then maps that region into the Ready state as needed. The
-// caller is responsible for locking.
+// of memory and then optionally maps that region into the Ready state
+// as needed.
+//
+// The caller is responsible for locking.
 type linearAlloc struct {
 	next   uintptr // next free byte
 	mapped uintptr // one byte past end of mapped space
 	end    uintptr // end of reserved space
+
+	mapMemory bool // transition memory from Reserved to Ready if true
 }
 
-func (l *linearAlloc) init(base, size uintptr) {
+func (l *linearAlloc) init(base, size uintptr, mapMemory bool) {
 	if base+size < base {
 		// Chop off the last byte. The runtime isn't prepared
 		// to deal with situations where the bounds could overflow.
@@ -1418,6 +1419,7 @@ func (l *linearAlloc) init(base, size uintptr) {
 	}
 	l.next, l.mapped = base, base
 	l.end = base + size
+	l.mapMemory = mapMemory
 }
 
 func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat) unsafe.Pointer {
@@ -1427,9 +1429,11 @@ func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat) unsafe.Poi
 	}
 	l.next = p + size
 	if pEnd := alignUp(l.next-1, physPageSize); pEnd > l.mapped {
-		// Transition from Reserved to Prepared to Ready.
-		sysMap(unsafe.Pointer(l.mapped), pEnd-l.mapped, sysStat)
-		sysUsed(unsafe.Pointer(l.mapped), pEnd-l.mapped)
+		if l.mapMemory {
+			// Transition from Reserved to Prepared to Ready.
+			sysMap(unsafe.Pointer(l.mapped), pEnd-l.mapped, sysStat)
+			sysUsed(unsafe.Pointer(l.mapped), pEnd-l.mapped)
+		}
 		l.mapped = pEnd
 	}
 	return unsafe.Pointer(p)

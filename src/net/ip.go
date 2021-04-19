@@ -12,7 +12,10 @@
 
 package net
 
-import "internal/bytealg"
+import (
+	"internal/bytealg"
+	"internal/itoa"
+)
 
 // IP address lengths (bytes).
 const (
@@ -123,6 +126,27 @@ func (ip IP) IsLoopback() bool {
 		return ip4[0] == 127
 	}
 	return ip.Equal(IPv6loopback)
+}
+
+// IsPrivate reports whether ip is a private address, according to
+// RFC 1918 (IPv4 addresses) and RFC 4193 (IPv6 addresses).
+func (ip IP) IsPrivate() bool {
+	if ip4 := ip.To4(); ip4 != nil {
+		// Following RFC 4193, Section 3. Local IPv6 Unicast Addresses which says:
+		//   The Internet Assigned Numbers Authority (IANA) has reserved the
+		//   following three blocks of the IPv4 address space for private internets:
+		//     10.0.0.0        -   10.255.255.255  (10/8 prefix)
+		//     172.16.0.0      -   172.31.255.255  (172.16/12 prefix)
+		//     192.168.0.0     -   192.168.255.255 (192.168/16 prefix)
+		return ip4[0] == 10 ||
+			(ip4[0] == 172 && ip4[1]&0xf0 == 16) ||
+			(ip4[0] == 192 && ip4[1] == 168)
+	}
+	// Following RFC 4193, Section 3. Private Address Space which says:
+	//   The Internet Assigned Numbers Authority (IANA) has reserved the
+	//   following block of the IPv6 address space for local internets:
+	//     FC00::  -  FDFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF (FC00::/7 prefix)
+	return len(ip) == IPv6len && ip[0]&0xfe == 0xfc
 }
 
 // IsMulticast reports whether ip is a multicast address.
@@ -531,7 +555,7 @@ func (n *IPNet) String() string {
 	if l == -1 {
 		return nn.String() + "/" + m.String()
 	}
-	return nn.String() + "/" + uitoa(uint(l))
+	return nn.String() + "/" + itoa.Uitoa(uint(l))
 }
 
 // Parse IPv4 address (d.d.d.d).

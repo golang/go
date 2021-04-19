@@ -146,7 +146,7 @@ TEXT	runtime·racewriterangepc1(SB), NOSPLIT, $0-24
 // If addr (RARG1) is out of range, do nothing.
 // Otherwise, setup goroutine context and invoke racecall. Other arguments already set.
 TEXT	racecalladdr<>(SB), NOSPLIT, $0-0
-#ifndef GOEXPERIMENT_REGABI
+#ifndef GOEXPERIMENT_REGABI_G
 	get_tls(R12)
 	MOVQ	g(R12), R14
 #endif
@@ -167,25 +167,17 @@ call:
 ret:
 	RET
 
-// func runtime·racefuncenterfp(fp uintptr)
-// Called from instrumented code.
-// Like racefuncenter but passes FP, not PC
-TEXT	runtime·racefuncenterfp(SB), NOSPLIT, $0-8
-	MOVQ	fp+0(FP), R11
-	MOVQ	-8(R11), R11
-	JMP	racefuncenter<>(SB)
-
 // func runtime·racefuncenter(pc uintptr)
 // Called from instrumented code.
 TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
 	MOVQ	callpc+0(FP), R11
 	JMP	racefuncenter<>(SB)
 
-// Common code for racefuncenter/racefuncenterfp
+// Common code for racefuncenter
 // R11 = caller's return address
 TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
-	MOVQ	DX, R15		// save function entry context (for closures)
-#ifndef GOEXPERIMENT_REGABI
+	MOVQ	DX, BX		// save function entry context (for closures)
+#ifndef GOEXPERIMENT_REGABI_G
 	get_tls(R12)
 	MOVQ	g(R12), R14
 #endif
@@ -193,15 +185,15 @@ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 	MOVQ	R11, RARG1
 	// void __tsan_func_enter(ThreadState *thr, void *pc);
 	MOVQ	$__tsan_func_enter(SB), AX
-	// racecall<> preserves R15
+	// racecall<> preserves BX
 	CALL	racecall<>(SB)
-	MOVQ	R15, DX	// restore function entry context
+	MOVQ	BX, DX	// restore function entry context
 	RET
 
 // func runtime·racefuncexit()
 // Called from instrumented code.
 TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
-#ifndef GOEXPERIMENT_REGABI
+#ifndef GOEXPERIMENT_REGABI_G
 	get_tls(R12)
 	MOVQ	g(R12), R14
 #endif
@@ -363,7 +355,7 @@ racecallatomic_data:
 	JAE	racecallatomic_ignore
 racecallatomic_ok:
 	// Addr is within the good range, call the atomic function.
-#ifndef GOEXPERIMENT_REGABI
+#ifndef GOEXPERIMENT_REGABI_G
 	get_tls(R12)
 	MOVQ	g(R12), R14
 #endif
@@ -376,15 +368,15 @@ racecallatomic_ignore:
 	// Addr is outside the good range.
 	// Call __tsan_go_ignore_sync_begin to ignore synchronization during the atomic op.
 	// An attempt to synchronize on the address would cause crash.
-	MOVQ	AX, R15	// remember the original function
+	MOVQ	AX, BX	// remember the original function
 	MOVQ	$__tsan_go_ignore_sync_begin(SB), AX
-#ifndef GOEXPERIMENT_REGABI
+#ifndef GOEXPERIMENT_REGABI_G
 	get_tls(R12)
 	MOVQ	g(R12), R14
 #endif
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	CALL	racecall<>(SB)
-	MOVQ	R15, AX	// restore the original function
+	MOVQ	BX, AX	// restore the original function
 	// Call the atomic function.
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	MOVQ	8(SP), RARG1	// caller pc
@@ -409,7 +401,7 @@ TEXT	runtime·racecall(SB), NOSPLIT, $0-0
 
 // Switches SP to g0 stack and calls (AX). Arguments already set.
 TEXT	racecall<>(SB), NOSPLIT, $0-0
-#ifndef GOEXPERIMENT_REGABI
+#ifndef GOEXPERIMENT_REGABI_G
 	get_tls(R12)
 	MOVQ	g(R12), R14
 #endif

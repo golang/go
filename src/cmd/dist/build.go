@@ -39,6 +39,7 @@ var (
 	goextlinkenabled string
 	gogcflags        string // For running built compiler
 	goldflags        string
+	goexperiment     string
 	workdir          string
 	tooldir          string
 	oldgoos          string
@@ -111,9 +112,6 @@ func xinit() {
 		fatalf("$GOROOT must be set")
 	}
 	goroot = filepath.Clean(b)
-	if modRoot := findModuleRoot(goroot); modRoot != "" {
-		fatalf("found go.mod file in %s: $GOROOT must not be inside a module", modRoot)
-	}
 
 	b = os.Getenv("GOROOT_FINAL")
 	if b == "" {
@@ -197,6 +195,9 @@ func xinit() {
 		goextlinkenabled = b
 	}
 
+	goexperiment = os.Getenv("GOEXPERIMENT")
+	// TODO(mdempsky): Validate known experiments?
+
 	gogcflags = os.Getenv("BOOT_GO_GCFLAGS")
 	goldflags = os.Getenv("BOOT_GO_LDFLAGS")
 
@@ -241,6 +242,9 @@ func xinit() {
 	os.Setenv("LANGUAGE", "en_US.UTF8")
 
 	workdir = xworkdir()
+	if err := ioutil.WriteFile(pathf("%s/go.mod", workdir), []byte("module bootstrap"), 0666); err != nil {
+		fatalf("cannot write stub go.mod: %s", err)
+	}
 	xatexit(rmworkdir)
 
 	tooldir = pathf("%s/pkg/tool/%s_%s", goroot, gohostos, gohostarch)
@@ -834,18 +838,6 @@ func runInstall(pkg string, ch chan struct{}) {
 	goasmh := pathf("%s/go_asm.h", workdir)
 	if IsRuntimePackagePath(pkg) {
 		asmArgs = append(asmArgs, "-compiling-runtime")
-		if os.Getenv("GOEXPERIMENT") == "regabi" {
-			// In order to make it easier to port runtime assembly
-			// to the register ABI, we introduce a macro
-			// indicating the experiment is enabled.
-			//
-			// Note: a similar change also appears in
-			// cmd/go/internal/work/gc.go.
-			//
-			// TODO(austin): Remove this once we commit to the
-			// register ABI (#40724).
-			asmArgs = append(asmArgs, "-D=GOEXPERIMENT_REGABI=1")
-		}
 	}
 
 	// Collect symabis from assembly code.
@@ -1271,6 +1263,20 @@ func cmdbootstrap() {
 	// go tool may complain.
 	os.Setenv("GOPATH", pathf("%s/pkg/obj/gopath", goroot))
 
+	// Disable GOEXPERIMENT when building toolchain1 and
+	// go_bootstrap. We don't need any experiments for the
+	// bootstrap toolchain, and this lets us avoid duplicating the
+	// GOEXPERIMENT-related build logic from cmd/go here. If the
+	// bootstrap toolchain is < Go 1.17, it will ignore this
+	// anyway since GOEXPERIMENT is baked in; otherwise it will
+	// pick it up from the environment we set here. Once we're
+	// using toolchain1 with dist as the build system, we need to
+	// override this to keep the experiments assumed by the
+	// toolchain and by dist consistent. Once go_bootstrap takes
+	// over the build process, we'll set this back to the original
+	// GOEXPERIMENT.
+	os.Setenv("GOEXPERIMENT", "none")
+
 	if debug {
 		// cmd/buildid is used in debug mode.
 		toolchain = append(toolchain, "cmd/buildid")
@@ -1348,6 +1354,8 @@ func cmdbootstrap() {
 	}
 	xprintf("Building Go toolchain2 using go_bootstrap and Go toolchain1.\n")
 	os.Setenv("CC", compilerEnvLookup(defaultcc, goos, goarch))
+	// Now that cmd/go is in charge of the build process, enable GOEXPERIMENT.
+	os.Setenv("GOEXPERIMENT", goexperiment)
 	goInstall(goBootstrap, append([]string{"-i"}, toolchain...)...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
@@ -1500,11 +1508,11 @@ func goCmd(goBinary string, cmd string, args ...string) {
 		goCmd = append(goCmd, "-p=1")
 	}
 
-	run(goroot, ShowOutput|CheckExit, append(goCmd, args...)...)
+	run(workdir, ShowOutput|CheckExit, append(goCmd, args...)...)
 }
 
 func checkNotStale(goBinary string, targets ...string) {
-	out := run(goroot, CheckExit,
+	out := run(workdir, CheckExit,
 		append([]string{
 			goBinary,
 			"list", "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags,
@@ -1514,7 +1522,7 @@ func checkNotStale(goBinary string, targets ...string) {
 		os.Setenv("GODEBUG", "gocachehash=1")
 		for _, target := range []string{"runtime/internal/sys", "cmd/dist", "cmd/link"} {
 			if strings.Contains(out, "STALE "+target) {
-				run(goroot, ShowOutput|CheckExit, goBinary, "list", "-f={{.ImportPath}} {{.Stale}}", target)
+				run(workdir, ShowOutput|CheckExit, goBinary, "list", "-f={{.ImportPath}} {{.Stale}}", target)
 				break
 			}
 		}
@@ -1608,20 +1616,6 @@ func checkCC() {
 			"To set a C compiler, set CC=the-compiler.\n"+
 			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc[""], err, outputHdr, output)
 	}
-}
-
-func findModuleRoot(dir string) (root string) {
-	for {
-		if fi, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
-			return dir
-		}
-		d := filepath.Dir(dir)
-		if d == dir {
-			break
-		}
-		dir = d
-	}
-	return ""
 }
 
 func defaulttarg() string {

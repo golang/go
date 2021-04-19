@@ -4,6 +4,7 @@
 
 // Declarations for operating systems implementing time.now directly in assembly.
 
+//go:build windows
 // +build windows
 
 package runtime

@@ -146,11 +146,7 @@ func checkFiles(t *testing.T, sources []string, goVersion string, colDelta uint,
 			t.Error(err)
 			return
 		}
-		// Ignore secondary error messages starting with "\t";
-		// they are clarifying messages for a primary error.
-		if !strings.Contains(err.Error(), ": \t") {
-			errlist = append(errlist, err)
-		}
+		errlist = append(errlist, err)
 	}
 	conf.Check(pkgName, files, nil)
 

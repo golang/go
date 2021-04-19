@@ -1,0 +1,142 @@
+<!--{
+	"Title": "Go 1.17 Release Notes",
+	"Path":  "/doc/go1.17"
+}-->
+
+<!--
+NOTE: In this document and others in this directory, the convention is to
+set fixed-width phrases with non-fixed-width spaces, as in
+<code>hello</code> <code>world</code>.
+Do not send CLs removing the interior tags from such phrases.
+-->
+
+<style>
+  main ul li { margin: 0.5em 0; }
+</style>
+
+<h2 id="introduction">DRAFT RELEASE NOTES — Introduction to Go 1.17</h2>
+
+<p>
+  <strong>
+    Go 1.17 is not yet released. These are work-in-progress
+    release notes. Go 1.17 is expected to be released in August 2021.
+  </strong>
+</p>
+
+<h2 id="language">Changes to the language</h2>
+
+<p>
+  TODO: complete this section
+</p>
+
+<h2 id="ports">Ports</h2>
+
+<p>
+  TODO: complete this section, or delete if not needed
+</p>
+
+<h2 id="tools">Tools</h2>
+
+<p>
+  TODO: complete this section, or delete if not needed
+</p>
+
+<h3 id="go-command">Go command</h3>
+
+<h4 id="go-get"><code>go</code> <code>get</code></h4>
+
+<p><!-- golang.org/issue/37519 -->
+  The <code>go</code> <code>get</code> <code>-insecure</code> flag is
+  deprecated and has been removed. To permit the use of insecure schemes
+  when fetching dependencies, please use the <code>GOINSECURE</code>
+  environment variable. The <code>-insecure</code> flag also bypassed module
+  sum validation, use <code>GOPRIVATE</code> or <code>GONOSUMDB</code> if
+  you need that functionality. See <code>go</code> <code>help</code>
+  <code>environment</code> for details.
+</p>
+
+<h4 id="missing-go-directive"><code>go.mod</code> files missing <code>go</code> directives</h4>
+
+<p><!-- golang.org/issue/44976 -->
+  If the main module's <code>go.mod</code> file does not contain
+  a <a href="/doc/modules/gomod-ref#go"><code>go</code> directive</a> and
+  the <code>go</code> command cannot update the <code>go.mod</code> file, the
+  <code>go</code> command now assumes <code>go 1.11</code> instead of the
+  current release. (<code>go</code> <code>mod</code> <code>init</code> has added
+  <code>go</code> directives automatically <a href="/doc/go1.12#modules">since
+  Go 1.12</a>.)
+</p>
+
+<p><!-- golang.org/issue/44976 -->
+  If a module dependency lacks an explicit <code>go.mod</code> file, or
+  its <code>go.mod</code> file does not contain
+  a <a href="/doc/modules/gomod-ref#go"><code>go</code> directive</a>,
+  the <code>go</code> command now assumes <code>go 1.16</code> for that
+  dependency instead of the current release. (Dependencies developed in GOPATH
+  mode may lack a <code>go.mod</code> file, and
+  the <code>vendor/modules.txt</code> has to date never recorded
+  the <code>go</code> versions indicated by dependencies' <code>go.mod</code>
+  files.)
+</p>
+
+<h2 id="runtime">Runtime</h2>
+
+<p>
+  TODO: complete this section, or delete if not needed
+</p>
+
+<h2 id="compiler">Compiler</h2>
+
+<p>
+  TODO: complete this section, or delete if not needed
+</p>
+
+<h2 id="linker">Linker</h2>
+
+<p>
+  TODO: complete this section, or delete if not needed
+</p>
+
+<h2 id="library">Core library</h2>
+
+<p>
+  TODO: complete this section
+</p>
+
+<h3 id="crypto/tls"><a href="/pkg/crypto/tls">crypto/tls</a></h3>
+
+<p><!-- CL 295370 -->
+  <a href="/pkg/crypto/tls#Conn.HandshakeContext">(*Conn).HandshakeContext</a> was added to
+  allow the user to control cancellation of an in-progress TLS Handshake.
+  The context provided is propagated into the
+  <a href="/pkg/crypto/tls#ClientHelloInfo">ClientHelloInfo</a>
+  and <a href="/pkg/crypto/tls#CertificateRequestInfo">CertificateRequestInfo</a>
+  structs and accessible through the new
+  <a href="/pkg/crypto/tls#ClientHelloInfo.Context">(*ClientHelloInfo).Context</a>
+  and
+  <a href="/pkg/crypto/tls#CertificateRequestInfo.Context">
+      (*CertificateRequestInfo).Context
+  </a> methods respectively. Canceling the context after the handshake has finished
+  has no effect.
+</p>
+
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<p>
+  As always, there are various minor changes and updates to the library,
+  made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
+  in mind.
+</p>
+
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <p>
+    The <a href="/pkg/net/http/"><code>net/http</code></a> package now uses the new
+    <a href="/pkg/crypto/tls#Conn.HandshakeContext"><code>(*tls.Conn).HandshakeContext</code></a>
+    with the <a href="/pkg/net/http/#Request"><code>Request</code></a> context
+    when performing TLS handshakes in the client or server.
+  </p>
+</dl><!-- net/http -->
+
+<p>
+  TODO: complete this section
+</p>

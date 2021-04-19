@@ -55,11 +55,12 @@ func (c initContext) String() string {
 	return "inNonInitFunction"
 }
 
-// readonlystaticname returns a name backed by a (writable) static data symbol.
+// readonlystaticname returns a name backed by a read-only static data symbol.
 func readonlystaticname(t *types.Type) *ir.Name {
 	n := staticinit.StaticName(t)
 	n.MarkReadonly()
 	n.Linksym().Set(obj.AttrContentAddressable, true)
+	n.Linksym().Set(obj.AttrLocal, true)
 	return n
 }
 

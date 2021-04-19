@@ -56,6 +56,7 @@ type fakeConnector struct {
 	name string
 
 	waiter func(context.Context)
+	closed bool
 }
 
 func (c *fakeConnector) Connect(context.Context) (driver.Conn, error) {
@@ -66,6 +67,14 @@ func (c *fakeConnector) Connect(context.Context) (driver.Conn, error) {
 
 func (c *fakeConnector) Driver() driver.Driver {
 	return fdriver
+}
+
+func (c *fakeConnector) Close() error {
+	if c.closed {
+		return errors.New("fakedb: connector is closed")
+	}
+	c.closed = true
+	return nil
 }
 
 type fakeDriverCtx struct {

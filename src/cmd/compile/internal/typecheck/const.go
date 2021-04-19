@@ -794,7 +794,7 @@ func (s *constSet) add(pos src.XPos, n ir.Node, what, where string) {
 		}
 	}
 
-	if !ir.IsConstNode(n) {
+	if !ir.IsConstNode(n) || n.Type() == nil {
 		return
 	}
 	if n.Type().IsUntyped() {

@@ -265,19 +265,23 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 	var offs int64
 
 	switch n.Class {
+	case ir.PPARAM, ir.PPARAMOUT:
+		if !n.IsOutputParamInRegisters() {
+			abbrev = dwarf.DW_ABRV_PARAM
+			offs = n.FrameOffset() + base.Ctxt.FixedFrameSize()
+			break
+		}
+		fallthrough
 	case ir.PAUTO:
 		offs = n.FrameOffset()
 		abbrev = dwarf.DW_ABRV_AUTO
 		if base.Ctxt.FixedFrameSize() == 0 {
 			offs -= int64(types.PtrSize)
 		}
-		if objabi.Framepointer_enabled {
+		if objabi.FramePointerEnabled {
 			offs -= int64(types.PtrSize)
 		}
 
-	case ir.PPARAM, ir.PPARAMOUT:
-		abbrev = dwarf.DW_ABRV_PARAM
-		offs = n.FrameOffset() + base.Ctxt.FixedFrameSize()
 	default:
 		base.Fatalf("createSimpleVar unexpected class %v for node %v", n.Class, n)
 	}

@@ -170,12 +170,16 @@ func shrVU_g(z, x []Word, s uint) (c Word) {
 	if len(z) == 0 {
 		return
 	}
+	if len(x) != len(z) {
+		// This is an invariant guaranteed by the caller.
+		panic("len(x) != len(z)")
+	}
 	s &= _W - 1 // hint to the compiler that shifts by s don't need guard code
 	ŝ := _W - s
 	ŝ &= _W - 1 // ditto
 	c = x[0] << ŝ
-	for i := 0; i < len(z)-1; i++ {
-		z[i] = x[i]>>s | x[i+1]<<ŝ
+	for i := 1; i < len(z); i++ {
+		z[i-1] = x[i-1]>>s | x[i]<<ŝ
 	}
 	z[len(z)-1] = x[len(z)-1] >> s
 	return

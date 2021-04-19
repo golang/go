@@ -30,14 +30,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"sort"
 	"strings"
 	"sync"
 
 	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
@@ -53,7 +51,7 @@ import (
 var CmdGet = &base.Command{
 	// Note: -d -u are listed explicitly because they are the most common get flags.
 	// Do not send CLs removing them because they're covered by [get flags].
-	UsageLine: "go get [-d] [-t] [-u] [-v] [-insecure] [build flags] [packages]",
+	UsageLine: "go get [-d] [-t] [-u] [-v] [build flags] [packages]",
 	Short:     "add dependencies to current module and install them",
 	Long: `
 Get resolves its command-line arguments to packages at specific module versions,
@@ -98,14 +96,6 @@ but changes the default to select patch releases.
 
 When the -t and -u flags are used together, get will update
 test dependencies as well.
-
-The -insecure flag permits fetching from repositories and resolving
-custom domains using insecure schemes such as HTTP, and also bypassess
-module sum validation using the checksum database. Use with caution.
-This flag is deprecated and will be removed in a future version of go.
-To permit the use of insecure schemes, use the GOINSECURE environment
-variable instead. To bypass module sum validation, use GOPRIVATE or
-GONOSUMDB. See 'go help environment' for details.
 
 The -d flag instructs get not to build or install packages. get will only
 update go.mod and download source code needed to build packages.
@@ -227,13 +217,13 @@ variable for future go command invocations.
 }
 
 var (
-	getD   = CmdGet.Flag.Bool("d", false, "")
-	getF   = CmdGet.Flag.Bool("f", false, "")
-	getFix = CmdGet.Flag.Bool("fix", false, "")
-	getM   = CmdGet.Flag.Bool("m", false, "")
-	getT   = CmdGet.Flag.Bool("t", false, "")
-	getU   upgradeFlag
-	// -insecure is cfg.Insecure
+	getD        = CmdGet.Flag.Bool("d", false, "")
+	getF        = CmdGet.Flag.Bool("f", false, "")
+	getFix      = CmdGet.Flag.Bool("fix", false, "")
+	getM        = CmdGet.Flag.Bool("m", false, "")
+	getT        = CmdGet.Flag.Bool("t", false, "")
+	getU        upgradeFlag
+	getInsecure = CmdGet.Flag.Bool("insecure", false, "")
 	// -v is cfg.BuildV
 )
 
@@ -264,7 +254,6 @@ func (v *upgradeFlag) String() string { return "" }
 func init() {
 	work.AddBuildFlags(CmdGet, work.OmitModFlag)
 	CmdGet.Run = runGet // break init loop
-	CmdGet.Flag.BoolVar(&cfg.Insecure, "insecure", cfg.Insecure, "")
 	CmdGet.Flag.Var(&getU, "u", "")
 }
 
@@ -284,8 +273,8 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	if *getM {
 		base.Fatalf("go get: -m flag is no longer supported; consider -d to skip building packages")
 	}
-	if cfg.Insecure {
-		fmt.Fprintf(os.Stderr, "go get: -insecure flag is deprecated; see 'go help get' for details\n")
+	if *getInsecure {
+		base.Fatalf("go get: -insecure flag is no longer supported; use GOINSECURE instead")
 	}
 	load.ModResolveTests = *getT
 
@@ -380,7 +369,23 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// directory.
 	if !*getD && len(pkgPatterns) > 0 {
 		work.BuildInit()
-		pkgs := load.PackagesAndErrors(ctx, pkgPatterns)
+
+		var pkgs []*load.Package
+		for _, pkg := range load.PackagesAndErrors(ctx, pkgPatterns) {
+			if pkg.Error != nil {
+				var noGo *load.NoGoError
+				if errors.As(pkg.Error.Err, &noGo) {
+					if m := modload.PackageModule(pkg.ImportPath); m.Path == pkg.ImportPath {
+						// pkg is at the root of a module, and doesn't exist with the current
+						// build tags. Probably the user just wanted to change the version of
+						// that module — not also build the package — so suppress the error.
+						// (See https://golang.org/issue/33526.)
+						continue
+					}
+				}
+			}
+			pkgs = append(pkgs, pkg)
+		}
 		load.CheckPackageErrors(pkgs)
 		work.InstallPackages(ctx, pkgPatterns, pkgs)
 		// TODO(#40276): After Go 1.16, print a deprecation notice when building and
@@ -1120,9 +1125,10 @@ func (r *resolver) findAndUpgradeImports(ctx context.Context, queries []*query) 
 // build list.
 func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPackage func(ctx context.Context, path string, m module.Version) (versionOk bool)) {
 	opts := modload.PackageOpts{
-		Tags:          imports.AnyTags(),
-		LoadTests:     *getT,
-		SilenceErrors: true, // May be fixed by subsequent upgrades or downgrades.
+		Tags:                     imports.AnyTags(),
+		VendorModulesInGOROOTSrc: true,
+		LoadTests:                *getT,
+		SilenceErrors:            true, // May be fixed by subsequent upgrades or downgrades.
 	}
 
 	opts.AllowPackage = func(ctx context.Context, path string, m module.Version) error {
@@ -1459,9 +1465,11 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns 
 		// LoadPackages will print errors (since it has more context) but will not
 		// exit, since we need to load retractions later.
 		pkgOpts := modload.PackageOpts{
-			LoadTests:             *getT,
-			ResolveMissingImports: false,
-			AllowErrors:           true,
+			VendorModulesInGOROOTSrc: true,
+			LoadTests:                *getT,
+			ResolveMissingImports:    false,
+			AllowErrors:              true,
+			SilenceNoGoErrors:        true,
 		}
 		matches, pkgs := modload.LoadPackages(ctx, pkgOpts, pkgPatterns...)
 		for _, m := range matches {
@@ -1477,9 +1485,9 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns 
 					// associated with either the package or its test — ErrNoGo must
 					// indicate that none of those source files happen to apply in this
 					// configuration. If we are actually building the package (no -d
-					// flag), the compiler will report the problem; otherwise, assume that
-					// the user is going to build or test it in some other configuration
-					// and suppress the error.
+					// flag), we will report the problem then; otherwise, assume that the
+					// user is going to build or test this package in some other
+					// configuration and suppress the error.
 					continue
 				}
 
@@ -1530,7 +1538,7 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns 
 		}
 	}
 	if retractPath != "" {
-		fmt.Fprintf(os.Stderr, "go: to switch to the latest unretracted version, run:\n\tgo get %s@latest", retractPath)
+		fmt.Fprintf(os.Stderr, "go: to switch to the latest unretracted version, run:\n\tgo get %s@latest\n", retractPath)
 	}
 }
 
@@ -1643,7 +1651,8 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 		}
 	}
 
-	if err := modload.EditBuildList(ctx, additions, resolved); err != nil {
+	changed, err := modload.EditBuildList(ctx, additions, resolved)
+	if err != nil {
 		var constraint *modload.ConstraintError
 		if !errors.As(err, &constraint) {
 			base.Errorf("go get: %v", err)
@@ -1662,12 +1671,11 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 		}
 		return false
 	}
-
-	buildList := modload.LoadAllModules(ctx)
-	if reflect.DeepEqual(r.buildList, buildList) {
+	if !changed {
 		return false
 	}
-	r.buildList = buildList
+
+	r.buildList = modload.LoadAllModules(ctx)
 	r.buildListVersion = make(map[string]string, len(r.buildList))
 	for _, m := range r.buildList {
 		r.buildListVersion[m.Path] = m.Version

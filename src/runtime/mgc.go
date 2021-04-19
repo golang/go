@@ -302,9 +302,11 @@ const (
 	// gcMarkWorkerFractionalMode indicates that a P is currently
 	// running the "fractional" mark worker. The fractional worker
 	// is necessary when GOMAXPROCS*gcBackgroundUtilization is not
-	// an integer. The fractional worker should run until it is
-	// preempted and will be scheduled to pick up the fractional
-	// part of GOMAXPROCS*gcBackgroundUtilization.
+	// an integer and using only dedicated workers would result in
+	// utilization too far from the target of gcBackgroundUtilization.
+	// The fractional worker should run until it is preempted and
+	// will be scheduled to pick up the fractional part of
+	// GOMAXPROCS*gcBackgroundUtilization.
 	gcMarkWorkerFractionalMode
 
 	// gcMarkWorkerIdleMode indicates that a P is running the mark
@@ -2227,14 +2229,12 @@ func gcSweep(mode gcMode) {
 //
 //go:systemstack
 func gcResetMarkState() {
-	// This may be called during a concurrent phase, so make sure
+	// This may be called during a concurrent phase, so lock to make sure
 	// allgs doesn't change.
-	lock(&allglock)
-	for _, gp := range allgs {
+	forEachG(func(gp *g) {
 		gp.gcscandone = false // set to true in gcphasework
 		gp.gcAssistBytes = 0
-	}
-	unlock(&allglock)
+	})
 
 	// Clear page marks. This is just 1MB per 64GB of heap, so the
 	// time here is pretty trivial.

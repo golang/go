@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !js
 // +build !js
 
 package net
@@ -690,6 +691,28 @@ var ipAddrScopeTests = []struct {
 	{IP.IsGlobalUnicast, IP{0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
 	{IP.IsGlobalUnicast, IP{0xff, 0x05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
 	{IP.IsGlobalUnicast, nil, false},
+	{IP.IsPrivate, nil, false},
+	{IP.IsPrivate, IPv4(1, 1, 1, 1), false},
+	{IP.IsPrivate, IPv4(9, 255, 255, 255), false},
+	{IP.IsPrivate, IPv4(10, 0, 0, 0), true},
+	{IP.IsPrivate, IPv4(10, 255, 255, 255), true},
+	{IP.IsPrivate, IPv4(11, 0, 0, 0), false},
+	{IP.IsPrivate, IPv4(172, 15, 255, 255), false},
+	{IP.IsPrivate, IPv4(172, 16, 0, 0), true},
+	{IP.IsPrivate, IPv4(172, 16, 255, 255), true},
+	{IP.IsPrivate, IPv4(172, 23, 18, 255), true},
+	{IP.IsPrivate, IPv4(172, 31, 255, 255), true},
+	{IP.IsPrivate, IPv4(172, 31, 0, 0), true},
+	{IP.IsPrivate, IPv4(172, 32, 0, 0), false},
+	{IP.IsPrivate, IPv4(192, 167, 255, 255), false},
+	{IP.IsPrivate, IPv4(192, 168, 0, 0), true},
+	{IP.IsPrivate, IPv4(192, 168, 255, 255), true},
+	{IP.IsPrivate, IPv4(192, 169, 0, 0), false},
+	{IP.IsPrivate, IP{0xfb, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, false},
+	{IP.IsPrivate, IP{0xfc, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, true},
+	{IP.IsPrivate, IP{0xfc, 0xff, 0x12, 0, 0, 0, 0, 0x44, 0, 0, 0, 0, 0, 0, 0, 0}, true},
+	{IP.IsPrivate, IP{0xfd, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, true},
+	{IP.IsPrivate, IP{0xfe, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
 }
 
 func name(f interface{}) string {
