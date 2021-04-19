@@ -669,6 +669,29 @@ func walkIndex(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 	return n
 }
 
+// mapKeyArg returns an expression for key that is suitable to be passed
+// as the key argument for mapaccess and mapdelete functions.
+// n is is the map indexing or delete Node (to provide Pos).
+// Note: this is not used for mapassign, which does distinguish pointer vs.
+// integer key.
+func mapKeyArg(fast int, n, key ir.Node) ir.Node {
+	switch fast {
+	case mapslow:
+		// standard version takes key by reference.
+		// order.expr made sure key is addressable.
+		return typecheck.NodAddr(key)
+	case mapfast32ptr:
+		// mapaccess and mapdelete don't distinguish pointer vs. integer key.
+		return ir.NewConvExpr(n.Pos(), ir.OCONVNOP, types.Types[types.TUINT32], key)
+	case mapfast64ptr:
+		// mapaccess and mapdelete don't distinguish pointer vs. integer key.
+		return ir.NewConvExpr(n.Pos(), ir.OCONVNOP, types.Types[types.TUINT64], key)
+	default:
+		// fast version takes key by value.
+		return key
+	}
+}
+
 // walkIndexMap walks an OINDEXMAP node.
 func walkIndexMap(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 	// Replace m[k] with *map{access1,assign}(maptype, m, &k)
@@ -681,25 +704,16 @@ func walkIndexMap(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 	if n.Assigned {
 		// This m[k] expression is on the left-hand side of an assignment.
 		fast := mapfast(t)
-		switch fast {
-		case mapslow:
-			// standard version takes key by reference.
-			// order.expr made sure key is addressable.
-			key = typecheck.NodAddr(key)
-		case mapfast32ptr, mapfast64ptr:
-			// pointer version takes pointer key.
-			key = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, types.Types[types.TUNSAFEPTR], key)
-		}
-		call = mkcall1(mapfn(mapassign[fast], t, false), nil, init, reflectdata.TypePtr(t), map_, key)
-	} else {
-		// m[k] is not the target of an assignment.
-		fast := mapfast(t)
 		if fast == mapslow {
 			// standard version takes key by reference.
 			// order.expr made sure key is addressable.
 			key = typecheck.NodAddr(key)
 		}
-
+		call = mkcall1(mapfn(mapassign[fast], t, false), nil, init, reflectdata.TypePtr(t), map_, key)
+	} else {
+		// m[k] is not the target of an assignment.
+		fast := mapfast(t)
+		key = mapKeyArg(fast, n, key)
 		if w := t.Elem().Width; w <= zeroValSize {
 			call = mkcall1(mapfn(mapaccess1[fast], t, false), types.NewPtr(t.Elem()), init, reflectdata.TypePtr(t), map_, key)
 		} else {
