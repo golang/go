@@ -176,7 +176,6 @@ func (p *Proc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
 	default:
 		panic("Call " + p.Name + " with too many arguments " + itoa(len(a)) + ".")
 	}
-	return
 }
 
 // A LazyDLL implements access to a single DLL.

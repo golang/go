@@ -21,12 +21,12 @@ func f0(e error) {
 
 // Verify that the compiler rejects multiple default cases.
 func f1(e interface{}) {
-	switch e { // ERROR "multiple defaults in switch"
+	switch e {
 	default:
-	default:
+	default: // ERROR "multiple defaults in switch"
 	}
-	switch e.(type) { // ERROR "multiple defaults in switch"
+	switch e.(type) {
 	default:
-	default:
+	default: // ERROR "multiple defaults in switch"
 	}
 }

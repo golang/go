@@ -12,6 +12,7 @@
 package main
 
 import (
+	"cmd/internal/browser"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -32,6 +33,7 @@ var httpClient = http.DefaultClient
 var impatientInsecureHTTPClient = &http.Client{
 	Timeout: 5 * time.Second,
 	Transport: &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
 		},
@@ -113,3 +115,6 @@ func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body 
 	}
 	return urlStr, res.Body, nil
 }
+
+func queryEscape(s string) string { return url.QueryEscape(s) }
+func openBrowser(url string) bool { return browser.Open(url) }

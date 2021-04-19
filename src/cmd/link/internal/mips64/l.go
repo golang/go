@@ -1,5 +1,5 @@
 // Inferno utils/5l/asm.c
-// http://code.google.com/p/inferno-os/source/browse/utils/5l/asm.c
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/asm.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -62,13 +62,13 @@ package mips64
 // THE SOFTWARE.
 
 const (
-	MaxAlign  = 32 // max data alignment
-	MinAlign  = 1  // min data alignment
-	FuncAlign = 8
+	maxAlign  = 32 // max data alignment
+	minAlign  = 1  // min data alignment
+	funcAlign = 8
 )
 
 /* Used by ../internal/ld/dwarf.go */
 const (
-	DWARFREGSP = 29
-	DWARFREGLR = 31
+	dwarfRegSP = 29
+	dwarfRegLR = 31
 )

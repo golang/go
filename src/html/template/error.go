@@ -44,7 +44,7 @@ const (
 	// OK indicates the lack of an error.
 	OK ErrorCode = iota
 
-	// ErrAmbigContext: "... appears in an ambiguous URL context"
+	// ErrAmbigContext: "... appears in an ambiguous context within a URL"
 	// Example:
 	//   <a href="
 	//      {{if .C}}

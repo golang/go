@@ -121,6 +121,24 @@ var zlibTests = []zlibTest{
 		},
 		ErrDictionary,
 	},
+	{
+		"truncated zlib stream amid raw-block",
+		"hello",
+		[]byte{
+			0x78, 0x9c, 0x00, 0x0c, 0x00, 0xf3, 0xff, 0x68, 0x65, 0x6c, 0x6c, 0x6f,
+		},
+		nil,
+		io.ErrUnexpectedEOF,
+	},
+	{
+		"truncated zlib stream amid fixed-block",
+		"He",
+		[]byte{
+			0x78, 0x9c, 0xf2, 0x48, 0xcd,
+		},
+		nil,
+		io.ErrUnexpectedEOF,
+	},
 }
 
 func TestDecompressor(t *testing.T) {

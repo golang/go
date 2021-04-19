@@ -90,6 +90,11 @@ func TempDir(dir, prefix string) (name string, err error) {
 			}
 			continue
 		}
+		if os.IsNotExist(err) {
+			if _, err := os.Stat(dir); os.IsNotExist(err) {
+				return "", err
+			}
+		}
 		if err == nil {
 			name = try
 		}

@@ -90,7 +90,7 @@ const (
 
 	// The stack guard is a pointer this many bytes above the
 	// bottom of the stack.
-	_StackGuard = 720*sys.StackGuardMultiplier + _StackSystem
+	_StackGuard = 880*sys.StackGuardMultiplier + _StackSystem
 
 	// After a stack split check the SP is allowed to be this
 	// many bytes below the stack guard. This saves an instruction
@@ -123,6 +123,9 @@ const (
 	stackPoisonCopy  = 0 // fill stack that should not be accessed with garbage, to detect bad dereferences during copy
 
 	stackCache = 1
+
+	// check the BP links during traceback.
+	debugCheckBP = false
 )
 
 const (
@@ -335,6 +338,7 @@ func stackalloc(n uint32) (stack, []stkbar) {
 	// Compute the size of stack barrier array.
 	maxstkbar := gcMaxStackBarriers(int(n))
 	nstkbar := unsafe.Sizeof(stkbar{}) * uintptr(maxstkbar)
+	var stkbarSlice slice
 
 	if debug.efence != 0 || stackFromSystem != 0 {
 		v := sysAlloc(round(uintptr(n), _PageSize), &memstats.stacks_sys)
@@ -342,7 +346,9 @@ func stackalloc(n uint32) (stack, []stkbar) {
 			throw("out of memory (stackalloc)")
 		}
 		top := uintptr(n) - nstkbar
-		stkbarSlice := slice{add(v, top), 0, maxstkbar}
+		if maxstkbar != 0 {
+			stkbarSlice = slice{add(v, top), 0, maxstkbar}
+		}
 		return stack{uintptr(v), uintptr(v) + top}, *(*[]stkbar)(unsafe.Pointer(&stkbarSlice))
 	}
 
@@ -410,7 +416,9 @@ func stackalloc(n uint32) (stack, []stkbar) {
 		print("  allocated ", v, "\n")
 	}
 	top := uintptr(n) - nstkbar
-	stkbarSlice := slice{add(v, top), 0, maxstkbar}
+	if maxstkbar != 0 {
+		stkbarSlice = slice{add(v, top), 0, maxstkbar}
+	}
 	return stack{uintptr(v), uintptr(v) + top}, *(*[]stkbar)(unsafe.Pointer(&stkbarSlice))
 }
 
@@ -431,7 +439,7 @@ func stackfree(stk stack, n uintptr) {
 	}
 	if stackDebug >= 1 {
 		println("stackfree", v, n)
-		memclr(v, n) // for testing, clobber stack data
+		memclrNoHeapPointers(v, n) // for testing, clobber stack data
 	}
 	if debug.efence != 0 || stackFromSystem != 0 {
 		if debug.efence != 0 || stackFaultOnFree != 0 {
@@ -593,16 +601,16 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
 			pp := (*uintptr)(add(scanp, i*sys.PtrSize))
 		retry:
 			p := *pp
-			if f != nil && 0 < p && p < _PageSize && debug.invalidptr != 0 {
+			if f != nil && 0 < p && p < minLegalPointer && debug.invalidptr != 0 {
 				// Looks like a junk value in a pointer slot.
 				// Live analysis wrong?
 				getg().m.traceback = 2
 				print("runtime: bad pointer in frame ", funcname(f), " at ", pp, ": ", hex(p), "\n")
-				throw("invalid stack pointer")
+				throw("invalid pointer found on stack")
 			}
 			if minp <= p && p < maxp {
 				if stackDebug >= 3 {
-					print("adjust ptr ", p, " ", funcname(f), "\n")
+					print("adjust ptr ", hex(p), " ", funcname(f), "\n")
 				}
 				if useCAS {
 					ppu := (*unsafe.Pointer)(unsafe.Pointer(pp))
@@ -683,6 +691,16 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 		if stackDebug >= 3 {
 			print("      saved bp\n")
 		}
+		if debugCheckBP {
+			// Frame pointers should always point to the next higher frame on
+			// the Go stack (or be nil, for the top frame on the stack).
+			bp := *(*uintptr)(unsafe.Pointer(frame.varp))
+			if bp != 0 && (bp < adjinfo.old.lo || bp >= adjinfo.old.hi) {
+				println("runtime: found invalid frame pointer")
+				print("bp=", hex(bp), " min=", hex(adjinfo.old.lo), " max=", hex(adjinfo.old.hi), "\n")
+				throw("bad frame pointer")
+			}
+		}
 		adjustpointer(adjinfo, unsafe.Pointer(frame.varp))
 	}
 
@@ -714,6 +732,18 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 
 func adjustctxt(gp *g, adjinfo *adjustinfo) {
 	adjustpointer(adjinfo, unsafe.Pointer(&gp.sched.ctxt))
+	if !framepointer_enabled {
+		return
+	}
+	if debugCheckBP {
+		bp := gp.sched.bp
+		if bp != 0 && (bp < adjinfo.old.lo || bp >= adjinfo.old.hi) {
+			println("runtime: found invalid top frame pointer")
+			print("bp=", hex(bp), " min=", hex(adjinfo.old.lo), " max=", hex(adjinfo.old.hi), "\n")
+			throw("bad top frame pointer")
+		}
+	}
+	adjustpointer(adjinfo, unsafe.Pointer(&gp.sched.bp))
 }
 
 func adjustdefers(gp *g, adjinfo *adjustinfo) {
@@ -925,7 +955,10 @@ func round2(x int32) int32 {
 //
 // g->atomicstatus will be Grunning or Gscanrunning upon entry.
 // If the GC is trying to stop this g then it will set preemptscan to true.
-func newstack() {
+//
+// ctxt is the value of the context register on morestack. newstack
+// will write it to g.sched.ctxt.
+func newstack(ctxt unsafe.Pointer) {
 	thisg := getg()
 	// TODO: double check all gp. shouldn't be getg().
 	if thisg.m.morebuf.g.ptr().stackguard0 == stackFork {
@@ -937,8 +970,13 @@ func newstack() {
 		traceback(morebuf.pc, morebuf.sp, morebuf.lr, morebuf.g.ptr())
 		throw("runtime: wrong goroutine in newstack")
 	}
+
+	gp := thisg.m.curg
+	// Write ctxt to gp.sched. We do this here instead of in
+	// morestack so it has the necessary write barrier.
+	gp.sched.ctxt = ctxt
+
 	if thisg.m.curg.throwsplit {
-		gp := thisg.m.curg
 		// Update syscallsp, syscallpc in case traceback uses them.
 		morebuf := thisg.m.morebuf
 		gp.syscallsp = morebuf.sp
@@ -951,13 +989,11 @@ func newstack() {
 		throw("runtime: stack split at bad time")
 	}
 
-	gp := thisg.m.curg
 	morebuf := thisg.m.morebuf
 	thisg.m.morebuf.pc = 0
 	thisg.m.morebuf.lr = 0
 	thisg.m.morebuf.sp = 0
 	thisg.m.morebuf.g = 0
-	rewindmorestack(&gp.sched)
 
 	// NOTE: stackguard0 may change underfoot, if another thread
 	// is about to try to preempt gp. Read it just once and use that same
@@ -1002,14 +1038,6 @@ func newstack() {
 		print("runtime: gp=", gp, ", gp->status=", hex(readgstatus(gp)), "\n ")
 		print("runtime: split stack overflow: ", hex(sp), " < ", hex(gp.stack.lo), "\n")
 		throw("runtime: split stack overflow")
-	}
-
-	if gp.sched.ctxt != nil {
-		// morestack wrote sched.ctxt on its way in here,
-		// without a write barrier. Run the write barrier now.
-		// It is not possible to be preempted between then
-		// and now, so it's okay.
-		writebarrierptr_nostore((*uintptr)(unsafe.Pointer(&gp.sched.ctxt)), uintptr(gp.sched.ctxt))
 	}
 
 	if preempt {
@@ -1117,6 +1145,11 @@ func shrinkstack(gp *g) {
 	}
 
 	if debug.gcshrinkstackoff > 0 {
+		return
+	}
+	if gp.startpc == gcBgMarkWorkerPC {
+		// We're not allowed to shrink the gcBgMarkWorker
+		// stack (see gcBgMarkWorker for explanation).
 		return
 	}
 

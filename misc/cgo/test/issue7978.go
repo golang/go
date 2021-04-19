@@ -88,7 +88,18 @@ func issue7978wait(store uint32, wait uint32) {
 
 //export issue7978cb
 func issue7978cb() {
+	// Force a stack growth from the callback to put extra
+	// pressure on the runtime. See issue #17785.
+	growStack(64)
 	issue7978wait(3, 4)
+}
+
+func growStack(n int) int {
+	var buf [128]int
+	if n == 0 {
+		return 0
+	}
+	return buf[growStack(n-1)]
 }
 
 func issue7978go() {

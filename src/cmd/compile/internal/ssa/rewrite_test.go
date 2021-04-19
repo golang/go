@@ -92,6 +92,9 @@ func TestLog2(t *testing.T) {
 		{1, 0},
 		{2, 1},
 		{4, 2},
+		{7, 2},
+		{8, 3},
+		{9, 3},
 		{1024, 10}}
 
 	for _, tc := range log2Tests {

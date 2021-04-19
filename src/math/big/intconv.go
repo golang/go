@@ -52,6 +52,8 @@ func writeMultiple(s fmt.State, text string, count int) {
 	}
 }
 
+var _ fmt.Formatter = intOne // *Int must implement fmt.Formatter
+
 // Format implements fmt.Formatter. It accepts the formats
 // 'b' (binary), 'o' (octal), 'd' (decimal), 'x' (lowercase
 // hexadecimal), and 'X' (uppercase hexadecimal).
@@ -222,6 +224,8 @@ func (r byteReader) ReadByte() (byte, error) {
 func (r byteReader) UnreadByte() error {
 	return r.UnreadRune()
 }
+
+var _ fmt.Scanner = intOne // *Int must implement fmt.Scanner
 
 // Scan is a support routine for fmt.Scanner; it sets z to the value of
 // the scanned number. It accepts the formats 'b' (binary), 'o' (octal),

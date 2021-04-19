@@ -90,52 +90,13 @@ func TestParseVersion(t *testing.T) {
 
 func TestTimestampOverflow(t *testing.T) {
 	// Test that parser correctly handles large timestamps (long tracing).
-	w := newWriter()
-	w.emit(EvBatch, 0, 0)
-	w.emit(EvFrequency, 1e9)
+	w := NewWriter()
+	w.Emit(EvBatch, 0, 0)
+	w.Emit(EvFrequency, 1e9)
 	for ts := uint64(1); ts < 1e16; ts *= 2 {
-		w.emit(EvGoCreate, ts, ts, 0, 0)
+		w.Emit(EvGoCreate, ts, ts, 0, 0)
 	}
 	if _, err := Parse(w, ""); err != nil {
 		t.Fatalf("failed to parse: %v", err)
 	}
-}
-
-type writer struct {
-	bytes.Buffer
-}
-
-func newWriter() *writer {
-	w := new(writer)
-	w.Write([]byte("go 1.7 trace\x00\x00\x00\x00"))
-	return w
-}
-
-func (w *writer) emit(typ byte, args ...uint64) {
-	nargs := byte(len(args)) - 1
-	if nargs > 3 {
-		nargs = 3
-	}
-	buf := []byte{typ | nargs<<6}
-	if nargs == 3 {
-		buf = append(buf, 0)
-	}
-	for _, a := range args {
-		buf = appendVarint(buf, a)
-	}
-	if nargs == 3 {
-		buf[1] = byte(len(buf) - 2)
-	}
-	n, err := w.Write(buf)
-	if n != len(buf) || err != nil {
-		panic("failed to write")
-	}
-}
-
-func appendVarint(buf []byte, v uint64) []byte {
-	for ; v >= 0x80; v >>= 7 {
-		buf = append(buf, 0x80|byte(v))
-	}
-	buf = append(buf, byte(v))
-	return buf
 }

@@ -24,6 +24,8 @@ var (
 )
 
 var (
+	testTCPBig = flag.Bool("tcpbig", false, "whether to test massive size of data per read or write call on TCP connection")
+
 	testDNSFlood = flag.Bool("dnsflood", false, "whether to test DNS query flooding")
 
 	// If external IPv4 connectivity exists, we can try dialing

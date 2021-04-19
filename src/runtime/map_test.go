@@ -235,6 +235,7 @@ func TestIterGrowWithGC(t *testing.T) {
 }
 
 func testConcurrentReadsAfterGrowth(t *testing.T, useReflect bool) {
+	t.Parallel()
 	if runtime.GOMAXPROCS(-1) == 1 {
 		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(16))
 	}

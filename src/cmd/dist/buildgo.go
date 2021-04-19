@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"sort"
 )
 
@@ -19,6 +20,7 @@ import (
 //	package main
 //	const defaultCC = <defaultcc>
 //	const defaultCXX = <defaultcxx>
+//	const defaultPkgConfig = <defaultpkgconfig>
 //
 // It is invoked to write cmd/go/zdefaultcc.go
 // but we also write cmd/cgo/zdefaultcc.go
@@ -29,8 +31,9 @@ func mkzdefaultcc(dir, file string) {
 			"package main\n"+
 			"\n"+
 			"const defaultCC = `%s`\n"+
-			"const defaultCXX = `%s`\n",
-		defaultcctarget, defaultcxxtarget)
+			"const defaultCXX = `%s`\n"+
+			"const defaultPkgConfig = `%s`\n",
+		defaultcctarget, defaultcxxtarget, defaultpkgconfigtarget)
 
 	writefile(out, file, writeSkipSame)
 
@@ -83,7 +86,8 @@ func mkzcgo(dir, file string) {
 			"\n"+
 			"package build\n"+
 			"\n"+
-			"var cgoEnabled = map[string]bool{\n")
+			"const defaultCGO_ENABLED = %q\n\n"+
+			"var cgoEnabled = map[string]bool{\n", os.Getenv("CGO_ENABLED"))
 	for _, plat := range list {
 		fmt.Fprintf(&buf, "\t%q: true,\n", plat)
 	}

@@ -241,7 +241,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	return pid, 0, err
 }
 
-// Ordinary exec.
+// Exec invokes the execve(2) system call.
 func Exec(argv0 string, argv []string, envv []string) (err error) {
 	argv0p, err := BytePtrFromString(argv0)
 	if err != nil {

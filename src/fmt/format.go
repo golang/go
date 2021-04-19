@@ -46,7 +46,7 @@ type fmt struct {
 	wid  int // width
 	prec int // precision
 
-	// intbuf is large enought to store %b of an int64 with a sign and
+	// intbuf is large enough to store %b of an int64 with a sign and
 	// avoids padding at the end of the struct on 32 bit architectures.
 	intbuf [68]byte
 }

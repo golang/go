@@ -24,6 +24,8 @@ const (
 	_SA_RESTART = 0x2
 	_SA_ONSTACK = 0x1
 
+	_CLOCK_MONOTONIC = 0x4
+
 	_UMTX_OP_WAIT_UINT         = 0xb
 	_UMTX_OP_WAIT_UINT_PRIVATE = 0xf
 	_UMTX_OP_WAKE              = 0x3
@@ -109,12 +111,6 @@ type thrparam struct {
 	spare      [3]uintptr
 }
 
-type sigaltstackt struct {
-	ss_sp    *uint8
-	ss_size  uint32
-	ss_flags int32
-}
-
 type sigset struct {
 	__bits [4]uint32
 }
@@ -174,6 +170,12 @@ func (tv *timeval) set_usec(x int32) {
 type itimerval struct {
 	it_interval timeval
 	it_value    timeval
+}
+
+type umtx_time struct {
+	_timeout timespec
+	_flags   uint32
+	_clockid uint32
 }
 
 type keventt struct {

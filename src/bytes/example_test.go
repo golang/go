@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"unicode"
 )
 
 func ExampleBuffer() {
@@ -82,4 +83,206 @@ func ExampleTrimPrefix() {
 	b = bytes.TrimPrefix(b, []byte("See ya,"))
 	fmt.Printf("Hello%s", b)
 	// Output: Hello, world!
+}
+
+func ExampleFields() {
+	fmt.Printf("Fields are: %q", bytes.Fields([]byte("  foo bar  baz   ")))
+	// Output: Fields are: ["foo" "bar" "baz"]
+}
+
+func ExampleFieldsFunc() {
+	f := func(c rune) bool {
+		return !unicode.IsLetter(c) && !unicode.IsNumber(c)
+	}
+	fmt.Printf("Fields are: %q", bytes.FieldsFunc([]byte("  foo1;bar2,baz3..."), f))
+	// Output: Fields are: ["foo1" "bar2" "baz3"]
+}
+
+func ExampleContains() {
+	fmt.Println(bytes.Contains([]byte("seafood"), []byte("foo")))
+	fmt.Println(bytes.Contains([]byte("seafood"), []byte("bar")))
+	fmt.Println(bytes.Contains([]byte("seafood"), []byte("")))
+	fmt.Println(bytes.Contains([]byte(""), []byte("")))
+	// Output:
+	// true
+	// false
+	// true
+	// true
+}
+
+func ExampleCount() {
+	fmt.Println(bytes.Count([]byte("cheese"), []byte("e")))
+	fmt.Println(bytes.Count([]byte("five"), []byte(""))) // before & after each rune
+	// Output:
+	// 3
+	// 5
+}
+
+func ExampleEqualFold() {
+	fmt.Println(bytes.EqualFold([]byte("Go"), []byte("go")))
+	// Output: true
+}
+
+func ExampleHasPrefix() {
+	fmt.Println(bytes.HasPrefix([]byte("Gopher"), []byte("Go")))
+	fmt.Println(bytes.HasPrefix([]byte("Gopher"), []byte("C")))
+	fmt.Println(bytes.HasPrefix([]byte("Gopher"), []byte("")))
+	// Output:
+	// true
+	// false
+	// true
+}
+
+func ExampleHasSuffix() {
+	fmt.Println(bytes.HasSuffix([]byte("Amigo"), []byte("go")))
+	fmt.Println(bytes.HasSuffix([]byte("Amigo"), []byte("O")))
+	fmt.Println(bytes.HasSuffix([]byte("Amigo"), []byte("Ami")))
+	fmt.Println(bytes.HasSuffix([]byte("Amigo"), []byte("")))
+	// Output:
+	// true
+	// false
+	// false
+	// true
+}
+
+func ExampleIndex() {
+	fmt.Println(bytes.Index([]byte("chicken"), []byte("ken")))
+	fmt.Println(bytes.Index([]byte("chicken"), []byte("dmr")))
+	// Output:
+	// 4
+	// -1
+}
+
+func ExampleIndexFunc() {
+	f := func(c rune) bool {
+		return unicode.Is(unicode.Han, c)
+	}
+	fmt.Println(bytes.IndexFunc([]byte("Hello, 世界"), f))
+	fmt.Println(bytes.IndexFunc([]byte("Hello, world"), f))
+	// Output:
+	// 7
+	// -1
+}
+
+func ExampleIndexAny() {
+	fmt.Println(bytes.IndexAny([]byte("chicken"), "aeiouy"))
+	fmt.Println(bytes.IndexAny([]byte("crwth"), "aeiouy"))
+	// Output:
+	// 2
+	// -1
+}
+
+func ExampleIndexRune() {
+	fmt.Println(bytes.IndexRune([]byte("chicken"), 'k'))
+	fmt.Println(bytes.IndexRune([]byte("chicken"), 'd'))
+	// Output:
+	// 4
+	// -1
+}
+
+func ExampleLastIndex() {
+	fmt.Println(bytes.Index([]byte("go gopher"), []byte("go")))
+	fmt.Println(bytes.LastIndex([]byte("go gopher"), []byte("go")))
+	fmt.Println(bytes.LastIndex([]byte("go gopher"), []byte("rodent")))
+	// Output:
+	// 0
+	// 3
+	// -1
+}
+
+func ExampleJoin() {
+	s := [][]byte{[]byte("foo"), []byte("bar"), []byte("baz")}
+	fmt.Printf("%s", bytes.Join(s, []byte(", ")))
+	// Output: foo, bar, baz
+}
+
+func ExampleRepeat() {
+	fmt.Printf("ba%s", bytes.Repeat([]byte("na"), 2))
+	// Output: banana
+}
+
+func ExampleReplace() {
+	fmt.Printf("%s\n", bytes.Replace([]byte("oink oink oink"), []byte("k"), []byte("ky"), 2))
+	fmt.Printf("%s\n", bytes.Replace([]byte("oink oink oink"), []byte("oink"), []byte("moo"), -1))
+	// Output:
+	// oinky oinky oink
+	// moo moo moo
+}
+
+func ExampleSplit() {
+	fmt.Printf("%q\n", bytes.Split([]byte("a,b,c"), []byte(",")))
+	fmt.Printf("%q\n", bytes.Split([]byte("a man a plan a canal panama"), []byte("a ")))
+	fmt.Printf("%q\n", bytes.Split([]byte(" xyz "), []byte("")))
+	fmt.Printf("%q\n", bytes.Split([]byte(""), []byte("Bernardo O'Higgins")))
+	// Output:
+	// ["a" "b" "c"]
+	// ["" "man " "plan " "canal panama"]
+	// [" " "x" "y" "z" " "]
+	// [""]
+}
+
+func ExampleSplitN() {
+	fmt.Printf("%q\n", bytes.SplitN([]byte("a,b,c"), []byte(","), 2))
+	z := bytes.SplitN([]byte("a,b,c"), []byte(","), 0)
+	fmt.Printf("%q (nil = %v)\n", z, z == nil)
+	// Output:
+	// ["a" "b,c"]
+	// [] (nil = true)
+}
+
+func ExampleSplitAfter() {
+	fmt.Printf("%q\n", bytes.SplitAfter([]byte("a,b,c"), []byte(",")))
+	// Output: ["a," "b," "c"]
+}
+
+func ExampleSplitAfterN() {
+	fmt.Printf("%q\n", bytes.SplitAfterN([]byte("a,b,c"), []byte(","), 2))
+	// Output: ["a," "b,c"]
+}
+
+func ExampleTitle() {
+	fmt.Printf("%s", bytes.Title([]byte("her royal highness")))
+	// Output: Her Royal Highness
+}
+
+func ExampleToTitle() {
+	fmt.Printf("%s\n", bytes.ToTitle([]byte("loud noises")))
+	fmt.Printf("%s\n", bytes.ToTitle([]byte("хлеб")))
+	// Output:
+	// LOUD NOISES
+	// ХЛЕБ
+}
+
+func ExampleTrim() {
+	fmt.Printf("[%q]", bytes.Trim([]byte(" !!! Achtung! Achtung! !!! "), "! "))
+	// Output: ["Achtung! Achtung"]
+}
+
+func ExampleMap() {
+	rot13 := func(r rune) rune {
+		switch {
+		case r >= 'A' && r <= 'Z':
+			return 'A' + (r-'A'+13)%26
+		case r >= 'a' && r <= 'z':
+			return 'a' + (r-'a'+13)%26
+		}
+		return r
+	}
+	fmt.Printf("%s", bytes.Map(rot13, []byte("'Twas brillig and the slithy gopher...")))
+	// Output: 'Gjnf oevyyvt naq gur fyvgul tbcure...
+}
+
+func ExampleTrimSpace() {
+	fmt.Printf("%s", bytes.TrimSpace([]byte(" \t\n a lone gopher \n\t\r\n")))
+	// Output: a lone gopher
+}
+
+func ExampleToUpper() {
+	fmt.Printf("%s", bytes.ToUpper([]byte("Gopher")))
+	// Output: GOPHER
+}
+
+func ExampleToLower() {
+	fmt.Printf("%s", bytes.ToLower([]byte("Gopher")))
+	// Output: gopher
 }

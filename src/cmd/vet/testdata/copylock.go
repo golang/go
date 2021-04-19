@@ -67,7 +67,39 @@ func BadFunc() {
 
 	// override 'new' keyword
 	new := func(interface{}) {}
-	new(t) // ERROR "function call copies lock value: testdata.Tlock contains sync.Once contains sync.Mutex"
+	new(t) // ERROR "call of new copies lock value: testdata.Tlock contains sync.Once contains sync.Mutex"
+
+	// copy of array of locks
+	var muA [5]sync.Mutex
+	muB := muA        // ERROR "assignment copies lock value to muB: sync.Mutex"
+	muA = muB         // ERROR "assignment copies lock value to muA: sync.Mutex"
+	muSlice := muA[:] // OK
+
+	// multidimensional array
+	var mmuA [5][5]sync.Mutex
+	mmuB := mmuA        // ERROR "assignment copies lock value to mmuB: sync.Mutex"
+	mmuA = mmuB         // ERROR "assignment copies lock value to mmuA: sync.Mutex"
+	mmuSlice := mmuA[:] // OK
+
+	// slice copy is ok
+	var fmuA [5][][5]sync.Mutex
+	fmuB := fmuA        // OK
+	fmuA = fmuB         // OK
+	fmuSlice := fmuA[:] // OK
+}
+
+func LenAndCapOnLockArrays() {
+	var a [5]sync.Mutex
+	aLen := len(a) // OK
+	aCap := cap(a) // OK
+
+	// override 'len' and 'cap' keywords
+
+	len := func(interface{}) {}
+	len(a) // ERROR "call of len copies lock value: sync.Mutex"
+
+	cap := func(interface{}) {}
+	cap(a) // ERROR "call of cap copies lock value: sync.Mutex"
 }
 
 // SyncTypesCheck checks copying of sync.* types except sync.Mutex

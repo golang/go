@@ -14,10 +14,10 @@ func init() {
 }
 
 var gotypesFix = fix{
-	"gotypes",
-	"2015-07-16",
-	gotypes,
-	`Change imports of golang.org/x/tools/go/{exact,types} to go/{constant,types}`,
+	name: "gotypes",
+	date: "2015-07-16",
+	f:    gotypes,
+	desc: `Change imports of golang.org/x/tools/go/{exact,types} to go/{constant,types}`,
 }
 
 func gotypes(f *ast.File) bool {

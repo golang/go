@@ -1,5 +1,5 @@
 // Inferno utils/5l/asm.c
-// http://code.google.com/p/inferno-os/source/browse/utils/5l/asm.c
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/asm.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -33,7 +33,7 @@ package arm
 // Writing object files.
 
 // Inferno utils/5l/l.h
-// http://code.google.com/p/inferno-os/source/browse/utils/5l/l.h
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/l.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -63,13 +63,13 @@ package arm
 // THE SOFTWARE.
 
 const (
-	MaxAlign  = 8 // max data alignment
-	MinAlign  = 1 // min data alignment
-	FuncAlign = 4 // single-instruction alignment
+	maxAlign  = 8 // max data alignment
+	minAlign  = 1 // min data alignment
+	funcAlign = 4 // single-instruction alignment
 )
 
 /* Used by ../internal/ld/dwarf.go */
 const (
-	DWARFREGSP = 13
-	DWARFREGLR = 14
+	dwarfRegSP = 13
+	dwarfRegLR = 14
 )

@@ -19,7 +19,7 @@
 //		B	runtime∕internal∕atomic·armcas(SB)
 //
 TEXT runtime∕internal∕atomic·armcas(SB),NOSPLIT,$0-13
-	MOVW	valptr+0(FP), R1
+	MOVW	ptr+0(FP), R1
 	MOVW	old+4(FP), R2
 	MOVW	new+8(FP), R3
 casl:

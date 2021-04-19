@@ -28,12 +28,13 @@ type Event struct {
 	StkID uint64    // unique stack ID
 	Stk   []*Frame  // stack trace (can be empty)
 	Args  [3]uint64 // event-type-specific arguments
+	SArgs []string  // event-type-specific string args
 	// linked event (can be nil), depends on event type:
 	// for GCStart: the GCStop
 	// for GCScanStart: the GCScanDone
 	// for GCSweepStart: the GCSweepDone
 	// for GoCreate: first GoStart of the created goroutine
-	// for GoStart: the associated GoEnd, GoBlock or other blocking event
+	// for GoStart/GoStartLabel: the associated GoEnd, GoBlock or other blocking event
 	// for GoSched/GoPreempt: the next GoStart
 	// for GoBlock and other blocking events: the unblock event
 	// for GoUnblock: the associated GoStart
@@ -56,6 +57,7 @@ const (
 	TimerP   // depicts timer unblocks
 	NetpollP // depicts network unblocks
 	SyscallP // depicts returns from syscalls
+	GCP      // depicts GC state
 )
 
 // Parse parses, post-processes and verifies the trace.
@@ -125,7 +127,9 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
 		return
 	}
 	switch ver {
-	case 1005, 1007:
+	case 1005, 1007, 1008:
+		// Note: When adding a new version, add canned traces
+		// from the old version to the test suite using mkcanned.bash.
 		break
 	default:
 		err = fmt.Errorf("unsupported trace file version %v.%v (update Go toolchain) %v", ver/1000, ver%1000, ver)
@@ -362,15 +366,18 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
 				}
 			}
 			switch raw.typ {
-			case EvGoStart, EvGoStartLocal:
+			case EvGoStart, EvGoStartLocal, EvGoStartLabel:
 				lastG = e.Args[0]
 				e.G = lastG
+				if raw.typ == EvGoStartLabel {
+					e.SArgs = []string{strings[e.Args[2]]}
+				}
 			case EvGCStart, EvGCDone, EvGCScanStart, EvGCScanDone:
 				e.G = 0
 			case EvGoEnd, EvGoStop, EvGoSched, EvGoPreempt,
 				EvGoSleep, EvGoBlock, EvGoBlockSend, EvGoBlockRecv,
 				EvGoBlockSelect, EvGoBlockSync, EvGoBlockCond, EvGoBlockNet,
-				EvGoSysBlock:
+				EvGoSysBlock, EvGoBlockGC:
 				lastG = 0
 			case EvGoSysExit, EvGoWaiting, EvGoInSyscall:
 				e.G = e.Args[0]
@@ -548,6 +555,8 @@ func postProcessTrace(ver int, events []*Event) error {
 				return fmt.Errorf("previous GC is not ended before a new one (offset %v, time %v)", ev.Off, ev.Ts)
 			}
 			evGC = ev
+			// Attribute this to the global GC state.
+			ev.P = GCP
 		case EvGCDone:
 			if evGC == nil {
 				return fmt.Errorf("bogus GC end (offset %v, time %v)", ev.Off, ev.Ts)
@@ -581,11 +590,13 @@ func postProcessTrace(ver int, events []*Event) error {
 				return fmt.Errorf("g %v is not runnable before EvGoWaiting (offset %v, time %v)", ev.G, ev.Off, ev.Ts)
 			}
 			g.state = gWaiting
+			g.ev = ev
 		case EvGoInSyscall:
 			if g.state != gRunnable {
 				return fmt.Errorf("g %v is not runnable before EvGoInSyscall (offset %v, time %v)", ev.G, ev.Off, ev.Ts)
 			}
 			g.state = gWaiting
+			g.ev = ev
 		case EvGoCreate:
 			if err := checkRunning(p, g, ev, true); err != nil {
 				return err
@@ -594,7 +605,7 @@ func postProcessTrace(ver int, events []*Event) error {
 				return fmt.Errorf("g %v already exists (offset %v, time %v)", ev.Args[0], ev.Off, ev.Ts)
 			}
 			gs[ev.Args[0]] = gdesc{state: gRunnable, ev: ev, evCreate: ev}
-		case EvGoStart:
+		case EvGoStart, EvGoStartLabel:
 			if g.state != gRunnable {
 				return fmt.Errorf("g %v is not runnable before start (offset %v, time %v)", ev.G, ev.Off, ev.Ts)
 			}
@@ -678,7 +689,7 @@ func postProcessTrace(ver int, events []*Event) error {
 			g.state = gRunnable
 			g.ev = ev
 		case EvGoSleep, EvGoBlock, EvGoBlockSend, EvGoBlockRecv,
-			EvGoBlockSelect, EvGoBlockSync, EvGoBlockCond, EvGoBlockNet:
+			EvGoBlockSelect, EvGoBlockSync, EvGoBlockCond, EvGoBlockNet, EvGoBlockGC:
 			if err := checkRunning(p, g, ev, false); err != nil {
 				return err
 			}
@@ -853,8 +864,8 @@ const (
 	EvProcStop       = 6  // stop of P [timestamp]
 	EvGCStart        = 7  // GC start [timestamp, seq, stack id]
 	EvGCDone         = 8  // GC done [timestamp]
-	EvGCScanStart    = 9  // GC scan start [timestamp]
-	EvGCScanDone     = 10 // GC scan done [timestamp]
+	EvGCScanStart    = 9  // GC mark termination start [timestamp]
+	EvGCScanDone     = 10 // GC mark termination done [timestamp]
 	EvGCSweepStart   = 11 // GC sweep start [timestamp, stack id]
 	EvGCSweepDone    = 12 // GC sweep done [timestamp]
 	EvGoCreate       = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
@@ -885,7 +896,9 @@ const (
 	EvGoStartLocal   = 38 // goroutine starts running on the same P as the last event [timestamp, goroutine id]
 	EvGoUnblockLocal = 39 // goroutine is unblocked on the same P as the last event [timestamp, goroutine id, stack]
 	EvGoSysExitLocal = 40 // syscall exit on the same P as the last event [timestamp, goroutine id, real timestamp]
-	EvCount          = 41
+	EvGoStartLabel   = 41 // goroutine starts running with label [timestamp, goroutine id, seq, label string id]
+	EvGoBlockGC      = 42 // goroutine blocks on GC assist [timestamp, stack]
+	EvCount          = 43
 )
 
 var EventDescriptions = [EvCount]struct {
@@ -935,4 +948,6 @@ var EventDescriptions = [EvCount]struct {
 	EvGoStartLocal:   {"GoStartLocal", 1007, false, []string{"g"}},
 	EvGoUnblockLocal: {"GoUnblockLocal", 1007, true, []string{"g"}},
 	EvGoSysExitLocal: {"GoSysExitLocal", 1007, false, []string{"g", "ts"}},
+	EvGoStartLabel:   {"GoStartLabel", 1008, false, []string{"g", "seq", "label"}},
+	EvGoBlockGC:      {"GoBlockGC", 1008, true, []string{}},
 }

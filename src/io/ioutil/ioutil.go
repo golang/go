@@ -88,13 +88,6 @@ func WriteFile(filename string, data []byte, perm os.FileMode) error {
 	return err
 }
 
-// byName implements sort.Interface.
-type byName []os.FileInfo
-
-func (f byName) Len() int           { return len(f) }
-func (f byName) Less(i, j int) bool { return f[i].Name() < f[j].Name() }
-func (f byName) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
-
 // ReadDir reads the directory named by dirname and returns
 // a list of directory entries sorted by filename.
 func ReadDir(dirname string) ([]os.FileInfo, error) {
@@ -107,7 +100,7 @@ func ReadDir(dirname string) ([]os.FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Sort(byName(list))
+	sort.Slice(list, func(i, j int) bool { return list[i].Name() < list[j].Name() })
 	return list, nil
 }
 

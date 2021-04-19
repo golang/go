@@ -37,6 +37,7 @@
 #include <mach/thread_status.h>
 
 #include "libcgo.h"
+#include "libcgo_unix.h"
 
 uintptr_t x_cgo_panicmem;
 
@@ -201,7 +202,7 @@ darwin_arm_init_mach_exception_handler()
 	uintptr_t port_set = (uintptr_t)mach_exception_handler_port_set;
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	ret = pthread_create(&thr, &attr, mach_exception_handler, (void*)port_set);
+	ret = _cgo_try_pthread_create(&thr, &attr, mach_exception_handler, (void*)port_set);
 
 	pthread_sigmask(SIG_SETMASK, &oset, nil);
 

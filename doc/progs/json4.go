@@ -36,7 +36,7 @@ func Decode() {
 	}
 
 	if !reflect.DeepEqual(expected, m) {
-		log.Panicf("Error unmarshalling %q, expected %q, got %q", b, expected, m)
+		log.Panicf("Error unmarshaling %q, expected %q, got %q", b, expected, m)
 	}
 }
 

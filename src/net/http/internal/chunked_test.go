@@ -185,3 +185,30 @@ func TestChunkReadingIgnoresExtensions(t *testing.T) {
 		t.Errorf("read %q; want %q", g, e)
 	}
 }
+
+// Issue 17355: ChunkedReader shouldn't block waiting for more data
+// if it can return something.
+func TestChunkReadPartial(t *testing.T) {
+	pr, pw := io.Pipe()
+	go func() {
+		pw.Write([]byte("7\r\n1234567"))
+	}()
+	cr := NewChunkedReader(pr)
+	readBuf := make([]byte, 7)
+	n, err := cr.Read(readBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "1234567"
+	if n != 7 || string(readBuf) != want {
+		t.Fatalf("Read: %v %q; want %d, %q", n, readBuf[:n], len(want), want)
+	}
+	go func() {
+		pw.Write([]byte("xx"))
+	}()
+	_, err = cr.Read(readBuf)
+	if got := fmt.Sprint(err); !strings.Contains(got, "malformed") {
+		t.Fatalf("second read = %v; want malformed error", err)
+	}
+
+}

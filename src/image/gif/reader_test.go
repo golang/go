@@ -10,6 +10,7 @@ import (
 	"image"
 	"image/color"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -290,5 +291,21 @@ func TestLoopCount(t *testing.T) {
 	}
 	if img.LoopCount != img1.LoopCount {
 		t.Errorf("loop count mismatch: %d vs %d", img.LoopCount, img1.LoopCount)
+	}
+}
+
+func TestUnexpectedEOF(t *testing.T) {
+	for i := len(testGIF) - 1; i >= 0; i-- {
+		_, err := Decode(bytes.NewReader(testGIF[:i]))
+		if err == errNotEnough {
+			continue
+		}
+		text := ""
+		if err != nil {
+			text = err.Error()
+		}
+		if !strings.HasPrefix(text, "gif:") || !strings.HasSuffix(text, ": unexpected EOF") {
+			t.Errorf("Decode(testGIF[:%d]) = %v, want gif: ...: unexpected EOF", i, err)
+		}
 	}
 }

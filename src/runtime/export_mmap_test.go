@@ -9,7 +9,13 @@
 package runtime
 
 var Mmap = mmap
+var Munmap = munmap
 
 const ENOMEM = _ENOMEM
 const MAP_ANON = _MAP_ANON
 const MAP_PRIVATE = _MAP_PRIVATE
+const MAP_FIXED = _MAP_FIXED
+
+func GetPhysPageSize() uintptr {
+	return physPageSize
+}

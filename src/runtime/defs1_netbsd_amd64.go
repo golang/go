@@ -83,13 +83,6 @@ const (
 	_EVFILT_WRITE = 0x1
 )
 
-type sigaltstackt struct {
-	ss_sp     uintptr
-	ss_size   uintptr
-	ss_flags  int32
-	pad_cgo_0 [4]byte
-}
-
 type sigset struct {
 	__bits [4]uint32
 }

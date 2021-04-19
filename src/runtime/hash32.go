@@ -6,7 +6,7 @@
 //   xxhash: https://code.google.com/p/xxhash/
 // cityhash: https://code.google.com/p/cityhash/
 
-// +build 386 arm
+// +build 386 arm mips mipsle
 
 package runtime
 

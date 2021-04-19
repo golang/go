@@ -91,7 +91,7 @@
 	FUNC4(a, b, c, d, e); \
 	MIX(a, b, c, d, e, 0xCA62C1D6)
 
-TEXT ·block(SB),NOSPLIT,$64-32
+TEXT ·block(SB),NOSPLIT,$64-16
 	MOVL	dig+0(FP),	R14
 	MOVL	p_base+4(FP),	SI
 	MOVL	p_len+8(FP),	DX

@@ -71,7 +71,7 @@ func ReadGCStats(stats *GCStats) {
 			// See the allocation at the top of the function.
 			sorted := stats.Pause[n : n+n]
 			copy(sorted, stats.Pause)
-			sort.Sort(byDuration(sorted))
+			sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
 			nq := len(stats.PauseQuantiles) - 1
 			for i := 0; i < nq; i++ {
 				stats.PauseQuantiles[i] = sorted[len(sorted)*i/nq]
@@ -80,12 +80,6 @@ func ReadGCStats(stats *GCStats) {
 		}
 	}
 }
-
-type byDuration []time.Duration
-
-func (x byDuration) Len() int           { return len(x) }
-func (x byDuration) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x byDuration) Less(i, j int) bool { return x[i] < x[j] }
 
 // SetGCPercent sets the garbage collection target percentage:
 // a collection is triggered when the ratio of freshly allocated data

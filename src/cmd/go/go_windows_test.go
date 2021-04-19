@@ -5,6 +5,7 @@
 package main
 
 import (
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -45,7 +46,7 @@ func TestAbsolutePath(t *testing.T) {
 
 	noVolume := file[len(filepath.VolumeName(file)):]
 	wrongPath := filepath.Join(dir, noVolume)
-	output, err := exec.Command("go", "build", noVolume).CombinedOutput()
+	output, err := exec.Command(testenv.GoToolPath(t), "build", noVolume).CombinedOutput()
 	if err == nil {
 		t.Fatal("build should fail")
 	}

@@ -147,6 +147,7 @@ func TestWriter(t *testing.T) {
 		tag := fmt.Sprintf("#%d", i)
 		testLevelDict(t, tag, b, DefaultCompression, "")
 		testLevelDict(t, tag, b, NoCompression, "")
+		testLevelDict(t, tag, b, HuffmanOnly, "")
 		for level := BestSpeed; level <= BestCompression; level++ {
 			testLevelDict(t, tag, b, level, "")
 		}
@@ -157,6 +158,7 @@ func TestWriterBig(t *testing.T) {
 	for i, fn := range filenames {
 		testFileLevelDict(t, fn, DefaultCompression, "")
 		testFileLevelDict(t, fn, NoCompression, "")
+		testFileLevelDict(t, fn, HuffmanOnly, "")
 		for level := BestSpeed; level <= BestCompression; level++ {
 			testFileLevelDict(t, fn, level, "")
 			if level >= 1 && testing.Short() && testenv.Builder() == "" {
@@ -174,6 +176,7 @@ func TestWriterDict(t *testing.T) {
 	for i, fn := range filenames {
 		testFileLevelDict(t, fn, DefaultCompression, dictionary)
 		testFileLevelDict(t, fn, NoCompression, dictionary)
+		testFileLevelDict(t, fn, HuffmanOnly, dictionary)
 		for level := BestSpeed; level <= BestCompression; level++ {
 			testFileLevelDict(t, fn, level, dictionary)
 			if level >= 1 && testing.Short() && testenv.Builder() == "" {
@@ -191,8 +194,10 @@ func TestWriterReset(t *testing.T) {
 	for _, fn := range filenames {
 		testFileLevelDictReset(t, fn, NoCompression, nil)
 		testFileLevelDictReset(t, fn, DefaultCompression, nil)
+		testFileLevelDictReset(t, fn, HuffmanOnly, nil)
 		testFileLevelDictReset(t, fn, NoCompression, []byte(dictionary))
 		testFileLevelDictReset(t, fn, DefaultCompression, []byte(dictionary))
+		testFileLevelDictReset(t, fn, HuffmanOnly, []byte(dictionary))
 		if testing.Short() {
 			break
 		}

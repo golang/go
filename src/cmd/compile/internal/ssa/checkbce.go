@@ -6,7 +6,7 @@ package ssa
 
 // checkbce prints all bounds checks that are present in the function.
 // Useful to find regressions. checkbce is only activated when with
-// corresponsing debug options, so it's off by default.
+// corresponding debug options, so it's off by default.
 // See test/checkbce.go
 func checkbce(f *Func) {
 	if f.pass.debug <= 0 {

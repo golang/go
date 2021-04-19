@@ -45,7 +45,11 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "\nAvailable rewrites are:\n")
 	sort.Sort(byName(fixes))
 	for _, f := range fixes {
-		fmt.Fprintf(os.Stderr, "\n%s\n", f.name)
+		if f.disabled {
+			fmt.Fprintf(os.Stderr, "\n%s (disabled)\n", f.name)
+		} else {
+			fmt.Fprintf(os.Stderr, "\n%s\n", f.name)
+		}
 		desc := strings.TrimSpace(f.desc)
 		desc = strings.Replace(desc, "\n", "\n\t", -1)
 		fmt.Fprintf(os.Stderr, "\t%s\n", desc)
@@ -137,6 +141,9 @@ func processFile(filename string, useStdin bool) error {
 	fixed := false
 	for _, fix := range fixes {
 		if allowed != nil && !allowed[fix.name] {
+			continue
+		}
+		if fix.disabled && !force[fix.name] {
 			continue
 		}
 		if fix.f(newFile) {

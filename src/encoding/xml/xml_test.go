@@ -797,3 +797,37 @@ func TestIssue12417(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue19333(t *testing.T) {
+	type X struct {
+		XMLName Name `xml:"X"`
+		A       int  `xml:",attr"`
+		C       int
+	}
+
+	var tests = []struct {
+		input string
+		ok    bool
+	}{
+		{`<X></X>`, true},
+		{`<X A=""></X>`, true},
+		{`<X A="bad"></X>`, true},
+		{`<X></X>`, true},
+		{`<X><C></C></X>`, false},
+		{`<X><C/></X>`, false},
+		{`<X><C>bad</C></X>`, false},
+	}
+
+	for _, tt := range tests {
+		err := Unmarshal([]byte(tt.input), new(X))
+		if tt.ok {
+			if err != nil {
+				t.Errorf("%s: unexpected error: %v", tt.input, err)
+			}
+		} else {
+			if err == nil {
+				t.Errorf("%s: unexpected success", tt.input)
+			}
+		}
+	}
+}

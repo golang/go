@@ -7,8 +7,11 @@ package json
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"math"
 	"reflect"
+	"regexp"
+	"strconv"
 	"testing"
 	"unicode"
 )
@@ -290,6 +293,44 @@ type BugX struct {
 	BugB
 }
 
+// Issue 16042. Even if a nil interface value is passed in
+// as long as it implements MarshalJSON, it should be marshaled.
+type nilMarshaler string
+
+func (nm *nilMarshaler) MarshalJSON() ([]byte, error) {
+	if nm == nil {
+		return Marshal("0zenil0")
+	}
+	return Marshal("zenil:" + string(*nm))
+}
+
+// Issue 16042.
+func TestNilMarshal(t *testing.T) {
+	testCases := []struct {
+		v    interface{}
+		want string
+	}{
+		{v: nil, want: `null`},
+		{v: new(float64), want: `0`},
+		{v: []interface{}(nil), want: `null`},
+		{v: []string(nil), want: `null`},
+		{v: map[string]string(nil), want: `null`},
+		{v: []byte(nil), want: `null`},
+		{v: struct{ M string }{"gopher"}, want: `{"M":"gopher"}`},
+		{v: struct{ M Marshaler }{}, want: `{"M":null}`},
+		{v: struct{ M Marshaler }{(*nilMarshaler)(nil)}, want: `{"M":"0zenil0"}`},
+		{v: struct{ M interface{} }{(*nilMarshaler)(nil)}, want: `{"M":null}`},
+	}
+
+	for _, tt := range testCases {
+		out, err := Marshal(tt.v)
+		if err != nil || string(out) != tt.want {
+			t.Errorf("Marshal(%#v) = %#q, %#v, want %#q, nil", tt.v, out, err, tt.want)
+			continue
+		}
+	}
+}
+
 // Issue 5245.
 func TestEmbeddedBug(t *testing.T) {
 	v := BugB{
@@ -375,6 +416,7 @@ func TestDuplicatedFieldDisappears(t *testing.T) {
 }
 
 func TestStringBytes(t *testing.T) {
+	t.Parallel()
 	// Test that encodeState.stringBytes and encodeState.string use the same encoding.
 	var r []rune
 	for i := '\u0000'; i <= unicode.MaxRune; i++ {
@@ -415,30 +457,6 @@ func TestStringBytes(t *testing.T) {
 			t.Errorf("with escapeHTML=%t, encodings differ at %#q vs %#q",
 				escapeHTML, enc, encBytes)
 		}
-	}
-}
-
-func TestIssue6458(t *testing.T) {
-	type Foo struct {
-		M RawMessage
-	}
-	x := Foo{RawMessage(`"foo"`)}
-
-	b, err := Marshal(&x)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := `{"M":"foo"}`; string(b) != want {
-		t.Errorf("Marshal(&x) = %#q; want %#q", b, want)
-	}
-
-	b, err = Marshal(x)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if want := `{"M":"ImZvbyI="}`; string(b) != want {
-		t.Errorf("Marshal(x) = %#q; want %#q", b, want)
 	}
 }
 
@@ -483,7 +501,7 @@ func TestEncodePointerString(t *testing.T) {
 		t.Fatalf("Unmarshal: %v", err)
 	}
 	if back.N == nil {
-		t.Fatalf("Unmarshalled nil N field")
+		t.Fatalf("Unmarshaled nil N field")
 	}
 	if *back.N != 42 {
 		t.Fatalf("*N = %d; want 42", *back.N)
@@ -609,5 +627,210 @@ func TestTextMarshalerMapKeysAreSorted(t *testing.T) {
 	const want = `{"a:z":3,"x:y":1,"y:x":2,"z:a":4}`
 	if string(b) != want {
 		t.Errorf("Marshal map with text.Marshaler keys: got %#q, want %#q", b, want)
+	}
+}
+
+var re = regexp.MustCompile
+
+// syntactic checks on form of marshaled floating point numbers.
+var badFloatREs = []*regexp.Regexp{
+	re(`p`),                     // no binary exponential notation
+	re(`^\+`),                   // no leading + sign
+	re(`^-?0[^.]`),              // no unnecessary leading zeros
+	re(`^-?\.`),                 // leading zero required before decimal point
+	re(`\.(e|$)`),               // no trailing decimal
+	re(`\.[0-9]+0(e|$)`),        // no trailing zero in fraction
+	re(`^-?(0|[0-9]{2,})\..*e`), // exponential notation must have normalized mantissa
+	re(`e[0-9]`),                // positive exponent must be signed
+	re(`e[+-]0`),                // exponent must not have leading zeros
+	re(`e-[1-6]$`),              // not tiny enough for exponential notation
+	re(`e+(.|1.|20)$`),          // not big enough for exponential notation
+	re(`^-?0\.0000000`),         // too tiny, should use exponential notation
+	re(`^-?[0-9]{22}`),          // too big, should use exponential notation
+	re(`[1-9][0-9]{16}[1-9]`),   // too many significant digits in integer
+	re(`[1-9][0-9.]{17}[1-9]`),  // too many significant digits in decimal
+	// below here for float32 only
+	re(`[1-9][0-9]{8}[1-9]`),  // too many significant digits in integer
+	re(`[1-9][0-9.]{9}[1-9]`), // too many significant digits in decimal
+}
+
+func TestMarshalFloat(t *testing.T) {
+	t.Parallel()
+	nfail := 0
+	test := func(f float64, bits int) {
+		vf := interface{}(f)
+		if bits == 32 {
+			f = float64(float32(f)) // round
+			vf = float32(f)
+		}
+		bout, err := Marshal(vf)
+		if err != nil {
+			t.Errorf("Marshal(%T(%g)): %v", vf, vf, err)
+			nfail++
+			return
+		}
+		out := string(bout)
+
+		// result must convert back to the same float
+		g, err := strconv.ParseFloat(out, bits)
+		if err != nil {
+			t.Errorf("Marshal(%T(%g)) = %q, cannot parse back: %v", vf, vf, out, err)
+			nfail++
+			return
+		}
+		if f != g || fmt.Sprint(f) != fmt.Sprint(g) { // fmt.Sprint handles ±0
+			t.Errorf("Marshal(%T(%g)) = %q (is %g, not %g)", vf, vf, out, float32(g), vf)
+			nfail++
+			return
+		}
+
+		bad := badFloatREs
+		if bits == 64 {
+			bad = bad[:len(bad)-2]
+		}
+		for _, re := range bad {
+			if re.MatchString(out) {
+				t.Errorf("Marshal(%T(%g)) = %q, must not match /%s/", vf, vf, out, re)
+				nfail++
+				return
+			}
+		}
+	}
+
+	var (
+		bigger  = math.Inf(+1)
+		smaller = math.Inf(-1)
+	)
+
+	var digits = "1.2345678901234567890123"
+	for i := len(digits); i >= 2; i-- {
+		for exp := -30; exp <= 30; exp++ {
+			for _, sign := range "+-" {
+				for bits := 32; bits <= 64; bits += 32 {
+					s := fmt.Sprintf("%c%se%d", sign, digits[:i], exp)
+					f, err := strconv.ParseFloat(s, bits)
+					if err != nil {
+						log.Fatal(err)
+					}
+					next := math.Nextafter
+					if bits == 32 {
+						next = func(g, h float64) float64 {
+							return float64(math.Nextafter32(float32(g), float32(h)))
+						}
+					}
+					test(f, bits)
+					test(next(f, bigger), bits)
+					test(next(f, smaller), bits)
+					if nfail > 50 {
+						t.Fatalf("stopping test early")
+					}
+				}
+			}
+		}
+	}
+	test(0, 64)
+	test(math.Copysign(0, -1), 64)
+	test(0, 32)
+	test(math.Copysign(0, -1), 32)
+}
+
+func TestMarshalRawMessageValue(t *testing.T) {
+	type (
+		T1 struct {
+			M RawMessage `json:",omitempty"`
+		}
+		T2 struct {
+			M *RawMessage `json:",omitempty"`
+		}
+	)
+
+	var (
+		rawNil   = RawMessage(nil)
+		rawEmpty = RawMessage([]byte{})
+		rawText  = RawMessage([]byte(`"foo"`))
+	)
+
+	tests := []struct {
+		in   interface{}
+		want string
+		ok   bool
+	}{
+		// Test with nil RawMessage.
+		{rawNil, "null", true},
+		{&rawNil, "null", true},
+		{[]interface{}{rawNil}, "[null]", true},
+		{&[]interface{}{rawNil}, "[null]", true},
+		{[]interface{}{&rawNil}, "[null]", true},
+		{&[]interface{}{&rawNil}, "[null]", true},
+		{struct{ M RawMessage }{rawNil}, `{"M":null}`, true},
+		{&struct{ M RawMessage }{rawNil}, `{"M":null}`, true},
+		{struct{ M *RawMessage }{&rawNil}, `{"M":null}`, true},
+		{&struct{ M *RawMessage }{&rawNil}, `{"M":null}`, true},
+		{map[string]interface{}{"M": rawNil}, `{"M":null}`, true},
+		{&map[string]interface{}{"M": rawNil}, `{"M":null}`, true},
+		{map[string]interface{}{"M": &rawNil}, `{"M":null}`, true},
+		{&map[string]interface{}{"M": &rawNil}, `{"M":null}`, true},
+		{T1{rawNil}, "{}", true},
+		{T2{&rawNil}, `{"M":null}`, true},
+		{&T1{rawNil}, "{}", true},
+		{&T2{&rawNil}, `{"M":null}`, true},
+
+		// Test with empty, but non-nil, RawMessage.
+		{rawEmpty, "", false},
+		{&rawEmpty, "", false},
+		{[]interface{}{rawEmpty}, "", false},
+		{&[]interface{}{rawEmpty}, "", false},
+		{[]interface{}{&rawEmpty}, "", false},
+		{&[]interface{}{&rawEmpty}, "", false},
+		{struct{ X RawMessage }{rawEmpty}, "", false},
+		{&struct{ X RawMessage }{rawEmpty}, "", false},
+		{struct{ X *RawMessage }{&rawEmpty}, "", false},
+		{&struct{ X *RawMessage }{&rawEmpty}, "", false},
+		{map[string]interface{}{"nil": rawEmpty}, "", false},
+		{&map[string]interface{}{"nil": rawEmpty}, "", false},
+		{map[string]interface{}{"nil": &rawEmpty}, "", false},
+		{&map[string]interface{}{"nil": &rawEmpty}, "", false},
+		{T1{rawEmpty}, "{}", true},
+		{T2{&rawEmpty}, "", false},
+		{&T1{rawEmpty}, "{}", true},
+		{&T2{&rawEmpty}, "", false},
+
+		// Test with RawMessage with some text.
+		//
+		// The tests below marked with Issue6458 used to generate "ImZvbyI=" instead "foo".
+		// This behavior was intentionally changed in Go 1.8.
+		// See https://github.com/golang/go/issues/14493#issuecomment-255857318
+		{rawText, `"foo"`, true}, // Issue6458
+		{&rawText, `"foo"`, true},
+		{[]interface{}{rawText}, `["foo"]`, true},  // Issue6458
+		{&[]interface{}{rawText}, `["foo"]`, true}, // Issue6458
+		{[]interface{}{&rawText}, `["foo"]`, true},
+		{&[]interface{}{&rawText}, `["foo"]`, true},
+		{struct{ M RawMessage }{rawText}, `{"M":"foo"}`, true}, // Issue6458
+		{&struct{ M RawMessage }{rawText}, `{"M":"foo"}`, true},
+		{struct{ M *RawMessage }{&rawText}, `{"M":"foo"}`, true},
+		{&struct{ M *RawMessage }{&rawText}, `{"M":"foo"}`, true},
+		{map[string]interface{}{"M": rawText}, `{"M":"foo"}`, true},  // Issue6458
+		{&map[string]interface{}{"M": rawText}, `{"M":"foo"}`, true}, // Issue6458
+		{map[string]interface{}{"M": &rawText}, `{"M":"foo"}`, true},
+		{&map[string]interface{}{"M": &rawText}, `{"M":"foo"}`, true},
+		{T1{rawText}, `{"M":"foo"}`, true}, // Issue6458
+		{T2{&rawText}, `{"M":"foo"}`, true},
+		{&T1{rawText}, `{"M":"foo"}`, true},
+		{&T2{&rawText}, `{"M":"foo"}`, true},
+	}
+
+	for i, tt := range tests {
+		b, err := Marshal(tt.in)
+		if ok := (err == nil); ok != tt.ok {
+			if err != nil {
+				t.Errorf("test %d, unexpected failure: %v", i, err)
+			} else {
+				t.Errorf("test %d, unexpected success", i)
+			}
+		}
+		if got := string(b); got != tt.want {
+			t.Errorf("test %d, Marshal(%#v) = %q, want %q", i, tt.in, got, tt.want)
+		}
 	}
 }

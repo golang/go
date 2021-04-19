@@ -26,6 +26,10 @@ func init() {
 		isExistTest{err: &os.PathError{Err: syscall.ERROR_PATH_NOT_FOUND}, is: false, isnot: true},
 		isExistTest{err: &os.LinkError{Err: syscall.ERROR_PATH_NOT_FOUND}, is: false, isnot: true},
 		isExistTest{err: &os.SyscallError{Err: syscall.ERROR_PATH_NOT_FOUND}, is: false, isnot: true},
+
+		isExistTest{err: &os.PathError{Err: syscall.ERROR_DIR_NOT_EMPTY}, is: true, isnot: false},
+		isExistTest{err: &os.LinkError{Err: syscall.ERROR_DIR_NOT_EMPTY}, is: true, isnot: false},
+		isExistTest{err: &os.SyscallError{Err: syscall.ERROR_DIR_NOT_EMPTY}, is: true, isnot: false},
 	)
 	isPermissionTests = append(isPermissionTests,
 		isPermissionTest{err: &os.PathError{Err: syscall.ERROR_ACCESS_DENIED}, want: true},

@@ -6,6 +6,7 @@ package aes
 
 import (
 	"crypto/cipher"
+	"crypto/internal/cipherhw"
 )
 
 type code int
@@ -23,18 +24,13 @@ type aesCipherAsm struct {
 	storage  [256]byte // array backing key slice
 }
 
-// hasAsm reports whether the AES-128, AES-192 and AES-256
-// cipher message (KM) function codes are supported.
-// Note: this function call is expensive.
-func hasAsm() bool
-
 // cryptBlocks invokes the cipher message (KM) instruction with
 // the given function code. This is equivalent to AES in ECB
 // mode. The length must be a multiple of BlockSize (16).
-//go:noesape
+//go:noescape
 func cryptBlocks(c code, key, dst, src *byte, length int)
 
-var useAsm = hasAsm()
+var useAsm = cipherhw.AESGCMSupport()
 
 func newCipher(key []byte) (cipher.Block, error) {
 	if !useAsm {

@@ -5,12 +5,16 @@
 package runtime_test
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"fmt"
+	"internal/race"
 	. "runtime"
 	"testing"
 )
 
 func TestMemmove(t *testing.T) {
+	t.Parallel()
 	size := 256
 	if testing.Short() {
 		size = 128 + 16
@@ -49,6 +53,7 @@ func TestMemmove(t *testing.T) {
 }
 
 func TestMemmoveAlias(t *testing.T) {
+	t.Parallel()
 	size := 256
 	if testing.Short() {
 		size = 128 + 16
@@ -80,6 +85,110 @@ func TestMemmoveAlias(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestMemmoveLarge0x180000(t *testing.T) {
+	t.Parallel()
+	if race.Enabled {
+		t.Skip("skipping large memmove test under race detector")
+	}
+	testSize(t, 0x180000)
+}
+
+func TestMemmoveOverlapLarge0x120000(t *testing.T) {
+	t.Parallel()
+	if race.Enabled {
+		t.Skip("skipping large memmove test under race detector")
+	}
+	testOverlap(t, 0x120000)
+}
+
+func testSize(t *testing.T, size int) {
+	src := make([]byte, size)
+	dst := make([]byte, size)
+	_, _ = rand.Read(src)
+	_, _ = rand.Read(dst)
+
+	ref := make([]byte, size)
+	copyref(ref, dst)
+
+	for n := size - 50; n > 1; n >>= 1 {
+		for x := 0; x <= size-n; x = x*7 + 1 { // offset in src
+			for y := 0; y <= size-n; y = y*9 + 1 { // offset in dst
+				copy(dst[y:y+n], src[x:x+n])
+				copyref(ref[y:y+n], src[x:x+n])
+				p := cmpb(dst, ref)
+				if p >= 0 {
+					t.Fatalf("Copy failed, copying from src[%d:%d] to dst[%d:%d].\nOffset %d is different, %v != %v", x, x+n, y, y+n, p, dst[p], ref[p])
+				}
+			}
+		}
+	}
+}
+
+func testOverlap(t *testing.T, size int) {
+	src := make([]byte, size)
+	test := make([]byte, size)
+	ref := make([]byte, size)
+	_, _ = rand.Read(src)
+
+	for n := size - 50; n > 1; n >>= 1 {
+		for x := 0; x <= size-n; x = x*7 + 1 { // offset in src
+			for y := 0; y <= size-n; y = y*9 + 1 { // offset in dst
+				// Reset input
+				copyref(test, src)
+				copyref(ref, src)
+				copy(test[y:y+n], test[x:x+n])
+				if y <= x {
+					copyref(ref[y:y+n], ref[x:x+n])
+				} else {
+					copybw(ref[y:y+n], ref[x:x+n])
+				}
+				p := cmpb(test, ref)
+				if p >= 0 {
+					t.Fatalf("Copy failed, copying from src[%d:%d] to dst[%d:%d].\nOffset %d is different, %v != %v", x, x+n, y, y+n, p, test[p], ref[p])
+				}
+			}
+		}
+	}
+
+}
+
+// Forward copy.
+func copyref(dst, src []byte) {
+	for i, v := range src {
+		dst[i] = v
+	}
+}
+
+// Backwards copy
+func copybw(dst, src []byte) {
+	if len(src) == 0 {
+		return
+	}
+	for i := len(src) - 1; i >= 0; i-- {
+		dst[i] = src[i]
+	}
+}
+
+// Returns offset of difference
+func matchLen(a, b []byte, max int) int {
+	a = a[:max]
+	b = b[:max]
+	for i, av := range a {
+		if b[i] != av {
+			return i
+		}
+	}
+	return max
+}
+
+func cmpb(a, b []byte) int {
+	l := matchLen(a, b, len(a))
+	if l == len(a) {
+		return -1
+	}
+	return l
 }
 
 func benchmarkSizes(b *testing.B, sizes []int, fn func(b *testing.B, n int)) {
@@ -339,3 +448,22 @@ func BenchmarkCopyFat1024(b *testing.B) {
 		_ = y
 	}
 }
+
+func BenchmarkIssue18740(b *testing.B) {
+	// This tests that memmove uses one 4-byte load/store to move 4 bytes.
+	// It used to do 2 2-byte load/stores, which leads to a pipeline stall
+	// when we try to read the result with one 4-byte load.
+	var buf [4]byte
+	for j := 0; j < b.N; j++ {
+		s := uint32(0)
+		for i := 0; i < 4096; i += 4 {
+			copy(buf[:], g[i:])
+			s += binary.LittleEndian.Uint32(buf[:])
+		}
+		sink = uint64(s)
+	}
+}
+
+// TODO: 2 byte and 8 byte benchmarks also.
+
+var g [4096]byte

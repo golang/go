@@ -106,7 +106,7 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$24
 	MOVW	$SYS_getpid, R12
 	SWI	$0x80
 	// arg 1 pid already in R0 from getpid
-	MOVW	unnamed+0(FP), R1	// arg 2 - signal
+	MOVW	sig+0(FP), R1	// arg 2 - signal
 	MOVW	$1, R2	// arg 3 - posix
 	MOVW	$SYS_kill, R12
 	SWI $0x80
@@ -162,11 +162,15 @@ TEXT runtime·mincore(SB),NOSPLIT,$0
 TEXT time·now(SB), 7, $32
 	MOVW	$8(R13), R0  // timeval
 	MOVW	$0, R1  // zone
+	MOVW	$0, R2	// see issue 16570
 	MOVW	$SYS_gettimeofday, R12
 	SWI	$0x80 // Note: R0 is tv_sec, R1 is tv_usec
-
+	CMP	$0, R0
+	BNE	inreg
+	MOVW	8(R13), R0
+	MOVW	12(R13), R1
+inreg:
 	MOVW    R1, R2  // usec
-
 	MOVW	R0, sec+0(FP)
 	MOVW	$0, R1
 	MOVW	R1, loc+4(FP)
@@ -178,9 +182,14 @@ TEXT time·now(SB), 7, $32
 TEXT runtime·nanotime(SB),NOSPLIT,$32
 	MOVW	$8(R13), R0  // timeval
 	MOVW	$0, R1  // zone
+	MOVW	$0, R2	// see issue 16570
 	MOVW	$SYS_gettimeofday, R12
 	SWI	$0x80 // Note: R0 is tv_sec, R1 is tv_usec
-
+	CMP	$0, R0
+	BNE	inreg
+	MOVW	8(R13), R0
+	MOVW	12(R13), R1
+inreg:
 	MOVW    R1, R2
 	MOVW	$1000000000, R3
 	MULLU	R0, R3, (R1, R0)
@@ -277,7 +286,7 @@ ret:
 	B	runtime·exit(SB)
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVW	sig+0(FP), R0
+	MOVW	how+0(FP), R0
 	MOVW	new+4(FP), R1
 	MOVW	old+8(FP), R2
 	MOVW	$SYS_pthread_sigmask, R12

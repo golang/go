@@ -28,7 +28,10 @@ type sigctxt struct {
 	u *ureg
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func (c *sigctxt) pc() uintptr { return uintptr(c.u.pc) }
+
 func (c *sigctxt) sp() uintptr { return uintptr(c.u.sp) }
 func (c *sigctxt) lr() uintptr { return uintptr(0) }
 

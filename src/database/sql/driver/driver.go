@@ -8,7 +8,11 @@
 // Most code should use package sql.
 package driver
 
-import "errors"
+import (
+	"context"
+	"errors"
+	"reflect"
+)
 
 // Value is a value that drivers must be able to handle.
 // It is either nil or an instance of one of these types:
@@ -20,6 +24,21 @@ import "errors"
 //   string
 //   time.Time
 type Value interface{}
+
+// NamedValue holds both the value name and value.
+type NamedValue struct {
+	// If the Name is not empty it should be used for the parameter identifier and
+	// not the ordinal position.
+	//
+	// Name will not have a symbol prefix.
+	Name string
+
+	// Ordinal position of the parameter starting from one and is always set.
+	Ordinal int
+
+	// Value is the parameter value.
+	Value Value
+}
 
 // Driver is the interface that must be implemented by a database
 // driver.
@@ -54,6 +73,17 @@ var ErrSkip = errors.New("driver: skip fast-path; continue as if unimplemented")
 // you shouldn't return ErrBadConn.
 var ErrBadConn = errors.New("driver: bad connection")
 
+// Pinger is an optional interface that may be implemented by a Conn.
+//
+// If a Conn does not implement Pinger, the sql package's DB.Ping and
+// DB.PingContext will check if there is at least one Conn available.
+//
+// If Conn.Ping returns ErrBadConn, DB.Ping and DB.PingContext will remove
+// the Conn from pool.
+type Pinger interface {
+	Ping(ctx context.Context) error
+}
+
 // Execer is an optional interface that may be implemented by a Conn.
 //
 // If a Conn does not implement Execer, the sql package's DB.Exec will
@@ -61,8 +91,23 @@ var ErrBadConn = errors.New("driver: bad connection")
 // statement.
 //
 // Exec may return ErrSkip.
+//
+// Deprecated: Drivers should implement ExecerContext instead (or additionally).
 type Execer interface {
 	Exec(query string, args []Value) (Result, error)
+}
+
+// ExecerContext is an optional interface that may be implemented by a Conn.
+//
+// If a Conn does not implement ExecerContext, the sql package's DB.Exec will
+// first prepare a query, execute the statement, and then close the
+// statement.
+//
+// ExecerContext may return ErrSkip.
+//
+// ExecerContext must honor the context timeout and return when the context is canceled.
+type ExecerContext interface {
+	ExecContext(ctx context.Context, query string, args []NamedValue) (Result, error)
 }
 
 // Queryer is an optional interface that may be implemented by a Conn.
@@ -72,8 +117,23 @@ type Execer interface {
 // statement.
 //
 // Query may return ErrSkip.
+//
+// Deprecated: Drivers should implement QueryerContext instead (or additionally).
 type Queryer interface {
 	Query(query string, args []Value) (Rows, error)
+}
+
+// QueryerContext is an optional interface that may be implemented by a Conn.
+//
+// If a Conn does not implement QueryerContext, the sql package's DB.Query will
+// first prepare a query, execute the statement, and then close the
+// statement.
+//
+// QueryerContext may return ErrSkip.
+//
+// QueryerContext must honor the context timeout and return when the context is canceled.
+type QueryerContext interface {
+	QueryContext(ctx context.Context, query string, args []NamedValue) (Rows, error)
 }
 
 // Conn is a connection to a database. It is not used concurrently
@@ -95,7 +155,48 @@ type Conn interface {
 	Close() error
 
 	// Begin starts and returns a new transaction.
+	//
+	// Deprecated: Drivers should implement ConnBeginTx instead (or additionally).
 	Begin() (Tx, error)
+}
+
+// ConnPrepareContext enhances the Conn interface with context.
+type ConnPrepareContext interface {
+	// PrepareContext returns a prepared statement, bound to this connection.
+	// context is for the preparation of the statement,
+	// it must not store the context within the statement itself.
+	PrepareContext(ctx context.Context, query string) (Stmt, error)
+}
+
+// IsolationLevel is the transaction isolation level stored in TxOptions.
+//
+// This type should be considered identical to sql.IsolationLevel along
+// with any values defined on it.
+type IsolationLevel int
+
+// TxOptions holds the transaction options.
+//
+// This type should be considered identical to sql.TxOptions.
+type TxOptions struct {
+	Isolation IsolationLevel
+	ReadOnly  bool
+}
+
+// ConnBeginTx enhances the Conn interface with context and TxOptions.
+type ConnBeginTx interface {
+	// BeginTx starts and returns a new transaction.
+	// If the context is canceled by the user the sql package will
+	// call Tx.Rollback before discarding and closing the connection.
+	//
+	// This must check opts.Isolation to determine if there is a set
+	// isolation level. If the driver does not support a non-default
+	// level and one is set or if there is a non-default isolation level
+	// that is not supported, an error must be returned.
+	//
+	// This must also check opts.ReadOnly to determine if the read-only
+	// value is true to either set the read-only transaction property if supported
+	// or return an error if it is not supported.
+	BeginTx(ctx context.Context, opts TxOptions) (Tx, error)
 }
 
 // Result is the result of a query execution.
@@ -132,11 +233,33 @@ type Stmt interface {
 
 	// Exec executes a query that doesn't return rows, such
 	// as an INSERT or UPDATE.
+	//
+	// Deprecated: Drivers should implement StmtExecContext instead (or additionally).
 	Exec(args []Value) (Result, error)
 
 	// Query executes a query that may return rows, such as a
 	// SELECT.
+	//
+	// Deprecated: Drivers should implement StmtQueryContext instead (or additionally).
 	Query(args []Value) (Rows, error)
+}
+
+// StmtExecContext enhances the Stmt interface by providing Exec with context.
+type StmtExecContext interface {
+	// ExecContext executes a query that doesn't return rows, such
+	// as an INSERT or UPDATE.
+	//
+	// ExecContext must honor the context timeout and return when it is canceled.
+	ExecContext(ctx context.Context, args []NamedValue) (Result, error)
+}
+
+// StmtQueryContext enhances the Stmt interface by providing Query with context.
+type StmtQueryContext interface {
+	// QueryContext executes a query that may return rows, such as a
+	// SELECT.
+	//
+	// QueryContext must honor the context timeout and return when it is canceled.
+	QueryContext(ctx context.Context, args []NamedValue) (Rows, error)
 }
 
 // ColumnConverter may be optionally implemented by Stmt if the
@@ -167,6 +290,76 @@ type Rows interface {
 	//
 	// Next should return io.EOF when there are no more rows.
 	Next(dest []Value) error
+}
+
+// RowsNextResultSet extends the Rows interface by providing a way to signal
+// the driver to advance to the next result set.
+type RowsNextResultSet interface {
+	Rows
+
+	// HasNextResultSet is called at the end of the current result set and
+	// reports whether there is another result set after the current one.
+	HasNextResultSet() bool
+
+	// NextResultSet advances the driver to the next result set even
+	// if there are remaining rows in the current result set.
+	//
+	// NextResultSet should return io.EOF when there are no more result sets.
+	NextResultSet() error
+}
+
+// RowsColumnTypeScanType may be implemented by Rows. It should return
+// the value type that can be used to scan types into. For example, the database
+// column type "bigint" this should return "reflect.TypeOf(int64(0))".
+type RowsColumnTypeScanType interface {
+	Rows
+	ColumnTypeScanType(index int) reflect.Type
+}
+
+// RowsColumnTypeDatabaseTypeName may be implemented by Rows. It should return the
+// database system type name without the length. Type names should be uppercase.
+// Examples of returned types: "VARCHAR", "NVARCHAR", "VARCHAR2", "CHAR", "TEXT",
+// "DECIMAL", "SMALLINT", "INT", "BIGINT", "BOOL", "[]BIGINT", "JSONB", "XML",
+// "TIMESTAMP".
+type RowsColumnTypeDatabaseTypeName interface {
+	Rows
+	ColumnTypeDatabaseTypeName(index int) string
+}
+
+// RowsColumnTypeLength may be implemented by Rows. It should return the length
+// of the column type if the column is a variable length type. If the column is
+// not a variable length type ok should return false.
+// If length is not limited other than system limits, it should return math.MaxInt64.
+// The following are examples of returned values for various types:
+//   TEXT          (math.MaxInt64, true)
+//   varchar(10)   (10, true)
+//   nvarchar(10)  (10, true)
+//   decimal       (0, false)
+//   int           (0, false)
+//   bytea(30)     (30, true)
+type RowsColumnTypeLength interface {
+	Rows
+	ColumnTypeLength(index int) (length int64, ok bool)
+}
+
+// RowsColumnTypeNullable may be implemented by Rows. The nullable value should
+// be true if it is known the column may be null, or false if the column is known
+// to be not nullable.
+// If the column nullability is unknown, ok should be false.
+type RowsColumnTypeNullable interface {
+	Rows
+	ColumnTypeNullable(index int) (nullable, ok bool)
+}
+
+// RowsColumnTypePrecisionScale may be implemented by Rows. It should return
+// the precision and scale for decimal types. If not applicable, ok should be false.
+// The following are examples of returned values for various types:
+//   decimal(38, 4)    (38, 4, true)
+//   int               (0, 0, false)
+//   decimal           (math.MaxInt64, math.MaxInt64, true)
+type RowsColumnTypePrecisionScale interface {
+	Rows
+	ColumnTypePrecisionScale(index int) (precision, scale int64, ok bool)
 }
 
 // Tx is a transaction.

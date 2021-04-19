@@ -22,6 +22,10 @@ type Writer struct {
 	last        *fileWriter
 	closed      bool
 	compressors map[uint16]Compressor
+
+	// testHookCloseSizeOffset if non-nil is called with the size
+	// of offset of the central directory at Close.
+	testHookCloseSizeOffset func(size, offset uint64)
 }
 
 type header struct {
@@ -98,6 +102,7 @@ func (w *Writer) Close() error {
 			b.uint32(h.CompressedSize)
 			b.uint32(h.UncompressedSize)
 		}
+
 		b.uint16(uint16(len(h.Name)))
 		b.uint16(uint16(len(h.Extra)))
 		b.uint16(uint16(len(h.Comment)))
@@ -127,7 +132,11 @@ func (w *Writer) Close() error {
 	size := uint64(end - start)
 	offset := uint64(start)
 
-	if records > uint16max || size > uint32max || offset > uint32max {
+	if f := w.testHookCloseSizeOffset; f != nil {
+		f(size, offset)
+	}
+
+	if records >= uint16max || size >= uint32max || offset >= uint32max {
 		var buf [directory64EndLen + directory64LocLen]byte
 		b := writeBuf(buf[:])
 

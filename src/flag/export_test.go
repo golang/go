@@ -13,5 +13,6 @@ import "os"
 // exit the program.
 func ResetForTesting(usage func()) {
 	CommandLine = NewFlagSet(os.Args[0], ContinueOnError)
+	CommandLine.Usage = commandLineUsage
 	Usage = usage
 }

@@ -145,7 +145,7 @@ type Section32 struct {
 	Reserve2 uint32
 }
 
-// A Section32 is a 64-bit Mach-O section header.
+// A Section64 is a 64-bit Mach-O section header.
 type Section64 struct {
 	Name     [16]byte
 	Seg      [16]byte

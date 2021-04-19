@@ -32,7 +32,7 @@ func urlEscaper(args ...interface{}) string {
 	return urlProcessor(false, args...)
 }
 
-// urlEscaper normalizes URL content so it can be embedded in a quote-delimited
+// urlNormalizer normalizes URL content so it can be embedded in a quote-delimited
 // string or parenthesis delimited url(...).
 // The normalizer does not encode all HTML specials. Specifically, it does not
 // encode '&' so correct embedding in an HTML attribute requires escaping of

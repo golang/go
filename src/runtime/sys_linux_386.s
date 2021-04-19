@@ -98,15 +98,18 @@ TEXT runtime·usleep(SB),NOSPLIT,$8
 	MOVL	$1000000, CX
 	DIVL	CX
 	MOVL	AX, 0(SP)
+	MOVL	$1000, AX	// usec to nsec
+	MULL	DX
 	MOVL	DX, 4(SP)
 
-	// select(0, 0, 0, 0, &tv)
-	MOVL	$142, AX
+	// pselect6(0, 0, 0, 0, &ts, 0)
+	MOVL	$308, AX
 	MOVL	$0, BX
 	MOVL	$0, CX
 	MOVL	$0, DX
 	MOVL	$0, SI
 	LEAL	0(SP), DI
+	MOVL	$0, BP
 	INVOKE_SYSCALL
 	RET
 
@@ -191,7 +194,7 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
 	MOVL	$175, AX		// syscall entry
-	MOVL	sig+0(FP), BX
+	MOVL	how+0(FP), BX
 	MOVL	new+4(FP), CX
 	MOVL	old+8(FP), DX
 	MOVL	size+12(FP), SI
@@ -212,24 +215,43 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
-	MOVL	sig+4(FP), AX
-	MOVL	AX, 0(SP)
-	MOVL	info+8(FP), AX
-	MOVL	AX, 4(SP)
-	MOVL	ctx+12(FP), AX
-	MOVL	AX, 8(SP)
 	MOVL	fn+0(FP), AX
+	MOVL	sig+4(FP), BX
+	MOVL	info+8(FP), CX
+	MOVL	ctx+12(FP), DX
+	MOVL	SP, SI
+	SUBL	$32, SP
+	ANDL	$-15, SP	// align stack: handler might be a C function
+	MOVL	BX, 0(SP)
+	MOVL	CX, 4(SP)
+	MOVL	DX, 8(SP)
+	MOVL	SI, 12(SP)	// save SI: handler might be a Go function
 	CALL	AX
+	MOVL	12(SP), AX
+	MOVL	AX, SP
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$12
+TEXT runtime·sigtramp(SB),NOSPLIT,$28
+	// Save callee-saved C registers, since the caller may be a C signal handler.
+	MOVL	BX, bx-4(SP)
+	MOVL	BP, bp-8(SP)
+	MOVL	SI, si-12(SP)
+	MOVL	DI, di-16(SP)
+	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
+	// modify them.
+
 	MOVL	sig+0(FP), BX
 	MOVL	BX, 0(SP)
 	MOVL	info+4(FP), BX
 	MOVL	BX, 4(SP)
-	MOVL	context+8(FP), BX
+	MOVL	ctx+8(FP), BX
 	MOVL	BX, 8(SP)
 	CALL	runtime·sigtrampgo(SB)
+
+	MOVL	di-16(SP), DI
+	MOVL	si-12(SP), SI
+	MOVL	bp-8(SP),  BP
+	MOVL	bx-4(SP),  BX
 	RET
 
 TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
@@ -297,15 +319,15 @@ TEXT runtime·futex(SB),NOSPLIT,$0
 TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVL	$120, AX	// clone
 	MOVL	flags+0(FP), BX
-	MOVL	stack+4(FP), CX
+	MOVL	stk+4(FP), CX
 	MOVL	$0, DX	// parent tid ptr
 	MOVL	$0, DI	// child tid ptr
 
 	// Copy mp, gp, fn off parent stack for use by child.
 	SUBL	$16, CX
-	MOVL	mm+8(FP), SI
+	MOVL	mp+8(FP), SI
 	MOVL	SI, 0(CX)
-	MOVL	gg+12(FP), SI
+	MOVL	gp+12(FP), SI
 	MOVL	SI, 4(CX)
 	MOVL	fn+16(FP), SI
 	MOVL	SI, 8(CX)
@@ -379,8 +401,8 @@ nog:
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVL	$186, AX	// sigaltstack
-	MOVL	new+4(SP), BX
-	MOVL	old+8(SP), CX
+	MOVL	new+0(FP), BX
+	MOVL	old+4(FP), CX
 	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
 	JLS	2(PC)

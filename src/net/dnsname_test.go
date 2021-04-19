@@ -32,14 +32,12 @@ var dnsNameTests = []dnsNameTest{
 
 func emitDNSNameTest(ch chan<- dnsNameTest) {
 	defer close(ch)
-	var char59 = ""
 	var char63 = ""
-	var char64 = ""
-	for i := 0; i < 59; i++ {
-		char59 += "a"
+	for i := 0; i < 63; i++ {
+		char63 += "a"
 	}
-	char63 = char59 + "aaaa"
-	char64 = char63 + "a"
+	char64 := char63 + "a"
+	longDomain := strings.Repeat(char63+".", 5) + "example"
 
 	for _, tc := range dnsNameTests {
 		ch <- tc
@@ -47,14 +45,15 @@ func emitDNSNameTest(ch chan<- dnsNameTest) {
 
 	ch <- dnsNameTest{char63 + ".com", true}
 	ch <- dnsNameTest{char64 + ".com", false}
-	// 255 char name is fine:
-	ch <- dnsNameTest{char59 + "." + char63 + "." + char63 + "." +
-		char63 + ".com",
-		true}
-	// 256 char name is bad:
-	ch <- dnsNameTest{char59 + "a." + char63 + "." + char63 + "." +
-		char63 + ".com",
-		false}
+
+	// Remember: wire format is two octets longer than presentation
+	// (length octets for the first and [root] last labels).
+	// 253 is fine:
+	ch <- dnsNameTest{longDomain[len(longDomain)-253:], true}
+	// A terminal dot doesn't contribute to length:
+	ch <- dnsNameTest{longDomain[len(longDomain)-253:] + ".", true}
+	// 254 is bad:
+	ch <- dnsNameTest{longDomain[len(longDomain)-254:], false}
 }
 
 func TestDNSName(t *testing.T) {

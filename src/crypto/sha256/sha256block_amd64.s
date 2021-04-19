@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -302,7 +302,7 @@
 	ADDL    y0, y2;                      \ // y2 = S1 + CH					// --
 	;                                    \
 	VPXOR   XTMP4, XTMP3, XTMP1;         \ // XTMP1 = s0
-	VPSHUFD $-6, XDWORD3, XTMP2;         \ // XTMP2 = W[-2] {BBAA}
+	VPSHUFD $0xFA, XDWORD3, XTMP2;       \ // XTMP2 = W[-2] {BBAA}
 	ORL     T1, y3;                      \ // y3 = MAJ = (a|c)&b)|(a&c)             // MAJ
 	ADDL    y1, h;                       \ // h = k + w + h + S0                    // --
 	;                                    \
@@ -559,8 +559,11 @@
 	ADDL  y3, h                        // h = t1 + S0 + MAJ					// --
 
 TEXT ·block(SB), 0, $536-32
-	CMPB runtime·support_avx2(SB), $1
+	CMPB runtime·support_avx2(SB), $0
+	JE   noavx2bmi2
+	CMPB runtime·support_bmi2(SB), $1  // check for RORXL instruction
 	JE   avx2
+noavx2bmi2:
 
 	MOVQ p_base+8(FP), SI
 	MOVQ p_len+16(FP), DX

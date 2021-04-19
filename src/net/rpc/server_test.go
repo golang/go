@@ -693,7 +693,8 @@ func benchmarkEndToEndAsync(dial func() (*Client, error), b *testing.B) {
 				B := call.Args.(*Args).B
 				C := call.Reply.(*Reply).C
 				if A+B != C {
-					b.Fatalf("incorrect reply: Add: expected %d got %d", A+B, C)
+					b.Errorf("incorrect reply: Add: expected %d got %d", A+B, C)
+					return
 				}
 				<-gate
 				if atomic.AddInt32(&recv, -1) == 0 {

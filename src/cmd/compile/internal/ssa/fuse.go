@@ -135,9 +135,11 @@ func fuseBlockPlain(b *Block) bool {
 		p := e.b
 		p.Succs[e.i] = Edge{c, i}
 	}
-	if f := b.Func; f.Entry == b {
+	f := b.Func
+	if f.Entry == b {
 		f.Entry = c
 	}
+	f.invalidateCFG()
 
 	// trash b, just in case
 	b.Kind = BlockInvalid

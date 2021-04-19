@@ -144,7 +144,7 @@ func main() {
 					fmt.Fprintf(w, "\tr = x %s y\n", o.symbol)
 					want := ansU(c, d, s.name, o.symbol)
 					fmt.Fprintf(w, "\tif r != %s {\n", want)
-					fmt.Fprintf(w, "\t\tt.Errorf(\"%d %s %d = %%d, want %s\", r)\n", c, o.symbol, d, want)
+					fmt.Fprintf(w, "\t\tt.Errorf(\"%d %%s %d = %%d, want %s\", %q, r)\n", c, d, want, o.symbol)
 					fmt.Fprintf(w, "\t}\n")
 				}
 			}
@@ -159,7 +159,7 @@ func main() {
 					fmt.Fprintf(w, "\tr = x %s y\n", o.symbol)
 					want := ansS(c, d, s.name, o.symbol)
 					fmt.Fprintf(w, "\tif r != %s {\n", want)
-					fmt.Fprintf(w, "\t\tt.Errorf(\"%d %s %d = %%d, want %s\", r)\n", c, o.symbol, d, want)
+					fmt.Fprintf(w, "\t\tt.Errorf(\"%d %%s %d = %%d, want %s\", %q, r)\n", c, d, want, o.symbol)
 					fmt.Fprintf(w, "\t}\n")
 				}
 			}
@@ -188,7 +188,7 @@ func main() {
 						fmt.Fprintf(w, "\tr = x %s y\n", o.symbol)
 						want := ansU(c, d, ls.name, o.symbol)
 						fmt.Fprintf(w, "\tif r != %s {\n", want)
-						fmt.Fprintf(w, "\t\tt.Errorf(\"%d %s %d = %%d, want %s\", r)\n", c, o.symbol, d, want)
+						fmt.Fprintf(w, "\t\tt.Errorf(\"%d %%s %d = %%d, want %s\", %q, r)\n", c, d, want, o.symbol)
 						fmt.Fprintf(w, "\t}\n")
 					}
 				}
@@ -200,7 +200,7 @@ func main() {
 						fmt.Fprintf(w, "\tr = x %s y\n", o.symbol)
 						want := ansS(c, int64(d), ls.name, o.symbol)
 						fmt.Fprintf(w, "\tif r != %s {\n", want)
-						fmt.Fprintf(w, "\t\tt.Errorf(\"%d %s %d = %%d, want %s\", r)\n", c, o.symbol, d, want)
+						fmt.Fprintf(w, "\t\tt.Errorf(\"%d %%s %d = %%d, want %s\", %q, r)\n", c, d, want, o.symbol)
 						fmt.Fprintf(w, "\t}\n")
 					}
 				}

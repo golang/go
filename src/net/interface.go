@@ -10,6 +10,12 @@ import (
 	"time"
 )
 
+// BUG(mikio): On NaCl, methods and functions related to
+// Interface are not implemented.
+
+// BUG(mikio): On DragonFly BSD, NetBSD, OpenBSD, Plan 9 and Solaris,
+// the MulticastAddrs method of Interface is not implemented.
+
 var (
 	errInvalidInterface         = errors.New("invalid network interface")
 	errInvalidInterfaceIndex    = errors.New("invalid network interface index")
@@ -63,7 +69,8 @@ func (f Flags) String() string {
 	return s
 }
 
-// Addrs returns interface addresses for a specific interface.
+// Addrs returns a list of unicast interface addresses for a specific
+// interface.
 func (ifi *Interface) Addrs() ([]Addr, error) {
 	if ifi == nil {
 		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: errInvalidInterface}
@@ -75,8 +82,8 @@ func (ifi *Interface) Addrs() ([]Addr, error) {
 	return ifat, err
 }
 
-// MulticastAddrs returns multicast, joined group addresses for
-// a specific interface.
+// MulticastAddrs returns a list of multicast, joined group addresses
+// for a specific interface.
 func (ifi *Interface) MulticastAddrs() ([]Addr, error) {
 	if ifi == nil {
 		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: errInvalidInterface}
@@ -100,8 +107,11 @@ func Interfaces() ([]Interface, error) {
 	return ift, nil
 }
 
-// InterfaceAddrs returns a list of the system's network interface
+// InterfaceAddrs returns a list of the system's unicast interface
 // addresses.
+//
+// The returned list does not identify the associated interface; use
+// Interfaces and Interface.Addrs for more detail.
 func InterfaceAddrs() ([]Addr, error) {
 	ifat, err := interfaceAddrTable(nil)
 	if err != nil {
@@ -111,6 +121,10 @@ func InterfaceAddrs() ([]Addr, error) {
 }
 
 // InterfaceByIndex returns the interface specified by index.
+//
+// On Solaris, it returns one of the logical network interfaces
+// sharing the logical data link; for more precision use
+// InterfaceByName.
 func InterfaceByIndex(index int) (*Interface, error) {
 	if index <= 0 {
 		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: errInvalidInterfaceIndex}
@@ -158,6 +172,9 @@ func InterfaceByName(name string) (*Interface, error) {
 // An ipv6ZoneCache represents a cache holding partial network
 // interface information. It is used for reducing the cost of IPv6
 // addressing scope zone resolution.
+//
+// Multiple names sharing the index are managed by first-come
+// first-served basis for consistency.
 type ipv6ZoneCache struct {
 	sync.RWMutex                // guard the following
 	lastFetched  time.Time      // last time routing information was fetched
@@ -188,7 +205,9 @@ func (zc *ipv6ZoneCache) update(ift []Interface) {
 	zc.toName = make(map[int]string, len(ift))
 	for _, ifi := range ift {
 		zc.toIndex[ifi.Name] = ifi.Index
-		zc.toName[ifi.Index] = ifi.Name
+		if _, ok := zc.toName[ifi.Index]; !ok {
+			zc.toName[ifi.Index] = ifi.Name
+		}
 	}
 }
 
@@ -215,7 +234,7 @@ func zoneToInt(zone string) int {
 	defer zoneCache.RUnlock()
 	index, ok := zoneCache.toIndex[zone]
 	if !ok {
-		index, _, _ = dtoi(zone, 0)
+		index, _, _ = dtoi(zone)
 	}
 	return index
 }

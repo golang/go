@@ -33,7 +33,7 @@ var sigtable = [...]sigTabT{
 	/* 20 */ {_SigNotify, "SIGWINCH: window size change"},
 	/* 21 */ {_SigNotify, "SIGURG: urgent socket condition"},
 	/* 22 */ {_SigNotify, "SIGPOLL: pollable event occurred"},
-	/* 23 */ {_SigNotify + _SigDefault, "SIGSTOP: stop (cannot be caught or ignored)"},
+	/* 23 */ {0, "SIGSTOP: stop (cannot be caught or ignored)"},
 	/* 24 */ {_SigNotify + _SigDefault, "SIGTSTP: user stop requested from tty"},
 	/* 25 */ {_SigNotify + _SigDefault, "SIGCONT: stopped process has been continued"},
 	/* 26 */ {_SigNotify + _SigDefault, "SIGTTIN: background tty read attempted"},

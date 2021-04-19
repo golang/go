@@ -5,6 +5,7 @@
 package net
 
 import (
+	"runtime"
 	"syscall"
 	"time"
 )
@@ -22,6 +23,7 @@ func (pd *pollDesc) evict() {
 	pd.closing = true
 	if pd.fd != nil {
 		syscall.StopIO(pd.fd.sysfd)
+		runtime.KeepAlive(pd.fd)
 	}
 }
 

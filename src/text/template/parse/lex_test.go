@@ -58,39 +58,46 @@ type lexTest struct {
 	items []item
 }
 
+func mkItem(typ itemType, text string) item {
+	return item{
+		typ: typ,
+		val: text,
+	}
+}
+
 var (
-	tDot        = item{itemDot, 0, "."}
-	tBlock      = item{itemBlock, 0, "block"}
-	tEOF        = item{itemEOF, 0, ""}
-	tFor        = item{itemIdentifier, 0, "for"}
-	tLeft       = item{itemLeftDelim, 0, "{{"}
-	tLpar       = item{itemLeftParen, 0, "("}
-	tPipe       = item{itemPipe, 0, "|"}
-	tQuote      = item{itemString, 0, `"abc \n\t\" "`}
-	tRange      = item{itemRange, 0, "range"}
-	tRight      = item{itemRightDelim, 0, "}}"}
-	tRpar       = item{itemRightParen, 0, ")"}
-	tSpace      = item{itemSpace, 0, " "}
+	tDot        = mkItem(itemDot, ".")
+	tBlock      = mkItem(itemBlock, "block")
+	tEOF        = mkItem(itemEOF, "")
+	tFor        = mkItem(itemIdentifier, "for")
+	tLeft       = mkItem(itemLeftDelim, "{{")
+	tLpar       = mkItem(itemLeftParen, "(")
+	tPipe       = mkItem(itemPipe, "|")
+	tQuote      = mkItem(itemString, `"abc \n\t\" "`)
+	tRange      = mkItem(itemRange, "range")
+	tRight      = mkItem(itemRightDelim, "}}")
+	tRpar       = mkItem(itemRightParen, ")")
+	tSpace      = mkItem(itemSpace, " ")
 	raw         = "`" + `abc\n\t\" ` + "`"
 	rawNL       = "`now is{{\n}}the time`" // Contains newline inside raw quote.
-	tRawQuote   = item{itemRawString, 0, raw}
-	tRawQuoteNL = item{itemRawString, 0, rawNL}
+	tRawQuote   = mkItem(itemRawString, raw)
+	tRawQuoteNL = mkItem(itemRawString, rawNL)
 )
 
 var lexTests = []lexTest{
 	{"empty", "", []item{tEOF}},
-	{"spaces", " \t\n", []item{{itemText, 0, " \t\n"}, tEOF}},
-	{"text", `now is the time`, []item{{itemText, 0, "now is the time"}, tEOF}},
+	{"spaces", " \t\n", []item{mkItem(itemText, " \t\n"), tEOF}},
+	{"text", `now is the time`, []item{mkItem(itemText, "now is the time"), tEOF}},
 	{"text with comment", "hello-{{/* this is a comment */}}-world", []item{
-		{itemText, 0, "hello-"},
-		{itemText, 0, "-world"},
+		mkItem(itemText, "hello-"),
+		mkItem(itemText, "-world"),
 		tEOF,
 	}},
 	{"punctuation", "{{,@% }}", []item{
 		tLeft,
-		{itemChar, 0, ","},
-		{itemChar, 0, "@"},
-		{itemChar, 0, "%"},
+		mkItem(itemChar, ","),
+		mkItem(itemChar, "@"),
+		mkItem(itemChar, "%"),
 		tSpace,
 		tRight,
 		tEOF,
@@ -99,7 +106,7 @@ var lexTests = []lexTest{
 		tLeft,
 		tLpar,
 		tLpar,
-		{itemNumber, 0, "3"},
+		mkItem(itemNumber, "3"),
 		tRpar,
 		tRpar,
 		tRight,
@@ -108,54 +115,54 @@ var lexTests = []lexTest{
 	{"empty action", `{{}}`, []item{tLeft, tRight, tEOF}},
 	{"for", `{{for}}`, []item{tLeft, tFor, tRight, tEOF}},
 	{"block", `{{block "foo" .}}`, []item{
-		tLeft, tBlock, tSpace, {itemString, 0, `"foo"`}, tSpace, tDot, tRight, tEOF,
+		tLeft, tBlock, tSpace, mkItem(itemString, `"foo"`), tSpace, tDot, tRight, tEOF,
 	}},
 	{"quote", `{{"abc \n\t\" "}}`, []item{tLeft, tQuote, tRight, tEOF}},
 	{"raw quote", "{{" + raw + "}}", []item{tLeft, tRawQuote, tRight, tEOF}},
 	{"raw quote with newline", "{{" + rawNL + "}}", []item{tLeft, tRawQuoteNL, tRight, tEOF}},
 	{"numbers", "{{1 02 0x14 -7.2i 1e3 +1.2e-4 4.2i 1+2i}}", []item{
 		tLeft,
-		{itemNumber, 0, "1"},
+		mkItem(itemNumber, "1"),
 		tSpace,
-		{itemNumber, 0, "02"},
+		mkItem(itemNumber, "02"),
 		tSpace,
-		{itemNumber, 0, "0x14"},
+		mkItem(itemNumber, "0x14"),
 		tSpace,
-		{itemNumber, 0, "-7.2i"},
+		mkItem(itemNumber, "-7.2i"),
 		tSpace,
-		{itemNumber, 0, "1e3"},
+		mkItem(itemNumber, "1e3"),
 		tSpace,
-		{itemNumber, 0, "+1.2e-4"},
+		mkItem(itemNumber, "+1.2e-4"),
 		tSpace,
-		{itemNumber, 0, "4.2i"},
+		mkItem(itemNumber, "4.2i"),
 		tSpace,
-		{itemComplex, 0, "1+2i"},
+		mkItem(itemComplex, "1+2i"),
 		tRight,
 		tEOF,
 	}},
 	{"characters", `{{'a' '\n' '\'' '\\' '\u00FF' '\xFF' '本'}}`, []item{
 		tLeft,
-		{itemCharConstant, 0, `'a'`},
+		mkItem(itemCharConstant, `'a'`),
 		tSpace,
-		{itemCharConstant, 0, `'\n'`},
+		mkItem(itemCharConstant, `'\n'`),
 		tSpace,
-		{itemCharConstant, 0, `'\''`},
+		mkItem(itemCharConstant, `'\''`),
 		tSpace,
-		{itemCharConstant, 0, `'\\'`},
+		mkItem(itemCharConstant, `'\\'`),
 		tSpace,
-		{itemCharConstant, 0, `'\u00FF'`},
+		mkItem(itemCharConstant, `'\u00FF'`),
 		tSpace,
-		{itemCharConstant, 0, `'\xFF'`},
+		mkItem(itemCharConstant, `'\xFF'`),
 		tSpace,
-		{itemCharConstant, 0, `'本'`},
+		mkItem(itemCharConstant, `'本'`),
 		tRight,
 		tEOF,
 	}},
 	{"bools", "{{true false}}", []item{
 		tLeft,
-		{itemBool, 0, "true"},
+		mkItem(itemBool, "true"),
 		tSpace,
-		{itemBool, 0, "false"},
+		mkItem(itemBool, "false"),
 		tRight,
 		tEOF,
 	}},
@@ -167,178 +174,178 @@ var lexTests = []lexTest{
 	}},
 	{"nil", "{{nil}}", []item{
 		tLeft,
-		{itemNil, 0, "nil"},
+		mkItem(itemNil, "nil"),
 		tRight,
 		tEOF,
 	}},
 	{"dots", "{{.x . .2 .x.y.z}}", []item{
 		tLeft,
-		{itemField, 0, ".x"},
+		mkItem(itemField, ".x"),
 		tSpace,
 		tDot,
 		tSpace,
-		{itemNumber, 0, ".2"},
+		mkItem(itemNumber, ".2"),
 		tSpace,
-		{itemField, 0, ".x"},
-		{itemField, 0, ".y"},
-		{itemField, 0, ".z"},
+		mkItem(itemField, ".x"),
+		mkItem(itemField, ".y"),
+		mkItem(itemField, ".z"),
 		tRight,
 		tEOF,
 	}},
 	{"keywords", "{{range if else end with}}", []item{
 		tLeft,
-		{itemRange, 0, "range"},
+		mkItem(itemRange, "range"),
 		tSpace,
-		{itemIf, 0, "if"},
+		mkItem(itemIf, "if"),
 		tSpace,
-		{itemElse, 0, "else"},
+		mkItem(itemElse, "else"),
 		tSpace,
-		{itemEnd, 0, "end"},
+		mkItem(itemEnd, "end"),
 		tSpace,
-		{itemWith, 0, "with"},
+		mkItem(itemWith, "with"),
 		tRight,
 		tEOF,
 	}},
 	{"variables", "{{$c := printf $ $hello $23 $ $var.Field .Method}}", []item{
 		tLeft,
-		{itemVariable, 0, "$c"},
+		mkItem(itemVariable, "$c"),
 		tSpace,
-		{itemColonEquals, 0, ":="},
+		mkItem(itemColonEquals, ":="),
 		tSpace,
-		{itemIdentifier, 0, "printf"},
+		mkItem(itemIdentifier, "printf"),
 		tSpace,
-		{itemVariable, 0, "$"},
+		mkItem(itemVariable, "$"),
 		tSpace,
-		{itemVariable, 0, "$hello"},
+		mkItem(itemVariable, "$hello"),
 		tSpace,
-		{itemVariable, 0, "$23"},
+		mkItem(itemVariable, "$23"),
 		tSpace,
-		{itemVariable, 0, "$"},
+		mkItem(itemVariable, "$"),
 		tSpace,
-		{itemVariable, 0, "$var"},
-		{itemField, 0, ".Field"},
+		mkItem(itemVariable, "$var"),
+		mkItem(itemField, ".Field"),
 		tSpace,
-		{itemField, 0, ".Method"},
+		mkItem(itemField, ".Method"),
 		tRight,
 		tEOF,
 	}},
 	{"variable invocation", "{{$x 23}}", []item{
 		tLeft,
-		{itemVariable, 0, "$x"},
+		mkItem(itemVariable, "$x"),
 		tSpace,
-		{itemNumber, 0, "23"},
+		mkItem(itemNumber, "23"),
 		tRight,
 		tEOF,
 	}},
 	{"pipeline", `intro {{echo hi 1.2 |noargs|args 1 "hi"}} outro`, []item{
-		{itemText, 0, "intro "},
+		mkItem(itemText, "intro "),
 		tLeft,
-		{itemIdentifier, 0, "echo"},
+		mkItem(itemIdentifier, "echo"),
 		tSpace,
-		{itemIdentifier, 0, "hi"},
+		mkItem(itemIdentifier, "hi"),
 		tSpace,
-		{itemNumber, 0, "1.2"},
+		mkItem(itemNumber, "1.2"),
 		tSpace,
 		tPipe,
-		{itemIdentifier, 0, "noargs"},
+		mkItem(itemIdentifier, "noargs"),
 		tPipe,
-		{itemIdentifier, 0, "args"},
+		mkItem(itemIdentifier, "args"),
 		tSpace,
-		{itemNumber, 0, "1"},
+		mkItem(itemNumber, "1"),
 		tSpace,
-		{itemString, 0, `"hi"`},
+		mkItem(itemString, `"hi"`),
 		tRight,
-		{itemText, 0, " outro"},
+		mkItem(itemText, " outro"),
 		tEOF,
 	}},
 	{"declaration", "{{$v := 3}}", []item{
 		tLeft,
-		{itemVariable, 0, "$v"},
+		mkItem(itemVariable, "$v"),
 		tSpace,
-		{itemColonEquals, 0, ":="},
+		mkItem(itemColonEquals, ":="),
 		tSpace,
-		{itemNumber, 0, "3"},
+		mkItem(itemNumber, "3"),
 		tRight,
 		tEOF,
 	}},
 	{"2 declarations", "{{$v , $w := 3}}", []item{
 		tLeft,
-		{itemVariable, 0, "$v"},
+		mkItem(itemVariable, "$v"),
 		tSpace,
-		{itemChar, 0, ","},
+		mkItem(itemChar, ","),
 		tSpace,
-		{itemVariable, 0, "$w"},
+		mkItem(itemVariable, "$w"),
 		tSpace,
-		{itemColonEquals, 0, ":="},
+		mkItem(itemColonEquals, ":="),
 		tSpace,
-		{itemNumber, 0, "3"},
+		mkItem(itemNumber, "3"),
 		tRight,
 		tEOF,
 	}},
 	{"field of parenthesized expression", "{{(.X).Y}}", []item{
 		tLeft,
 		tLpar,
-		{itemField, 0, ".X"},
+		mkItem(itemField, ".X"),
 		tRpar,
-		{itemField, 0, ".Y"},
+		mkItem(itemField, ".Y"),
 		tRight,
 		tEOF,
 	}},
 	{"trimming spaces before and after", "hello- {{- 3 -}} -world", []item{
-		{itemText, 0, "hello-"},
+		mkItem(itemText, "hello-"),
 		tLeft,
-		{itemNumber, 0, "3"},
+		mkItem(itemNumber, "3"),
 		tRight,
-		{itemText, 0, "-world"},
+		mkItem(itemText, "-world"),
 		tEOF,
 	}},
 	{"trimming spaces before and after comment", "hello- {{- /* hello */ -}} -world", []item{
-		{itemText, 0, "hello-"},
-		{itemText, 0, "-world"},
+		mkItem(itemText, "hello-"),
+		mkItem(itemText, "-world"),
 		tEOF,
 	}},
 	// errors
 	{"badchar", "#{{\x01}}", []item{
-		{itemText, 0, "#"},
+		mkItem(itemText, "#"),
 		tLeft,
-		{itemError, 0, "unrecognized character in action: U+0001"},
+		mkItem(itemError, "unrecognized character in action: U+0001"),
 	}},
 	{"unclosed action", "{{\n}}", []item{
 		tLeft,
-		{itemError, 0, "unclosed action"},
+		mkItem(itemError, "unclosed action"),
 	}},
 	{"EOF in action", "{{range", []item{
 		tLeft,
 		tRange,
-		{itemError, 0, "unclosed action"},
+		mkItem(itemError, "unclosed action"),
 	}},
 	{"unclosed quote", "{{\"\n\"}}", []item{
 		tLeft,
-		{itemError, 0, "unterminated quoted string"},
+		mkItem(itemError, "unterminated quoted string"),
 	}},
 	{"unclosed raw quote", "{{`xx}}", []item{
 		tLeft,
-		{itemError, 0, "unterminated raw quoted string"},
+		mkItem(itemError, "unterminated raw quoted string"),
 	}},
 	{"unclosed char constant", "{{'\n}}", []item{
 		tLeft,
-		{itemError, 0, "unterminated character constant"},
+		mkItem(itemError, "unterminated character constant"),
 	}},
 	{"bad number", "{{3k}}", []item{
 		tLeft,
-		{itemError, 0, `bad number syntax: "3k"`},
+		mkItem(itemError, `bad number syntax: "3k"`),
 	}},
 	{"unclosed paren", "{{(3}}", []item{
 		tLeft,
 		tLpar,
-		{itemNumber, 0, "3"},
-		{itemError, 0, `unclosed left paren`},
+		mkItem(itemNumber, "3"),
+		mkItem(itemError, `unclosed left paren`),
 	}},
 	{"extra right paren", "{{3)}}", []item{
 		tLeft,
-		{itemNumber, 0, "3"},
+		mkItem(itemNumber, "3"),
 		tRpar,
-		{itemError, 0, `unexpected right paren U+0029 ')'`},
+		mkItem(itemError, `unexpected right paren U+0029 ')'`),
 	}},
 
 	// Fixed bugs
@@ -355,17 +362,17 @@ var lexTests = []lexTest{
 		tEOF,
 	}},
 	{"text with bad comment", "hello-{{/*/}}-world", []item{
-		{itemText, 0, "hello-"},
-		{itemError, 0, `unclosed comment`},
+		mkItem(itemText, "hello-"),
+		mkItem(itemError, `unclosed comment`),
 	}},
 	{"text with comment close separated from delim", "hello-{{/* */ }}-world", []item{
-		{itemText, 0, "hello-"},
-		{itemError, 0, `comment ends before closing delimiter`},
+		mkItem(itemText, "hello-"),
+		mkItem(itemError, `comment ends before closing delimiter`),
 	}},
 	// This one is an error that we can't catch because it breaks templates with
 	// minimized JavaScript. Should have fixed it before Go 1.1.
 	{"unmatched right delimiter", "hello-{.}}-world", []item{
-		{itemText, 0, "hello-{.}}-world"},
+		mkItem(itemText, "hello-{.}}-world"),
 		tEOF,
 	}},
 }
@@ -414,13 +421,13 @@ func TestLex(t *testing.T) {
 var lexDelimTests = []lexTest{
 	{"punctuation", "$$,@%{{}}@@", []item{
 		tLeftDelim,
-		{itemChar, 0, ","},
-		{itemChar, 0, "@"},
-		{itemChar, 0, "%"},
-		{itemChar, 0, "{"},
-		{itemChar, 0, "{"},
-		{itemChar, 0, "}"},
-		{itemChar, 0, "}"},
+		mkItem(itemChar, ","),
+		mkItem(itemChar, "@"),
+		mkItem(itemChar, "%"),
+		mkItem(itemChar, "{"),
+		mkItem(itemChar, "{"),
+		mkItem(itemChar, "}"),
+		mkItem(itemChar, "}"),
 		tRightDelim,
 		tEOF,
 	}},
@@ -431,8 +438,8 @@ var lexDelimTests = []lexTest{
 }
 
 var (
-	tLeftDelim  = item{itemLeftDelim, 0, "$$"}
-	tRightDelim = item{itemRightDelim, 0, "@@"}
+	tLeftDelim  = mkItem(itemLeftDelim, "$$")
+	tRightDelim = mkItem(itemRightDelim, "@@")
 )
 
 func TestDelims(t *testing.T) {
@@ -447,21 +454,21 @@ func TestDelims(t *testing.T) {
 var lexPosTests = []lexTest{
 	{"empty", "", []item{tEOF}},
 	{"punctuation", "{{,@%#}}", []item{
-		{itemLeftDelim, 0, "{{"},
-		{itemChar, 2, ","},
-		{itemChar, 3, "@"},
-		{itemChar, 4, "%"},
-		{itemChar, 5, "#"},
-		{itemRightDelim, 6, "}}"},
-		{itemEOF, 8, ""},
+		{itemLeftDelim, 0, "{{", 1},
+		{itemChar, 2, ",", 1},
+		{itemChar, 3, "@", 1},
+		{itemChar, 4, "%", 1},
+		{itemChar, 5, "#", 1},
+		{itemRightDelim, 6, "}}", 1},
+		{itemEOF, 8, "", 1},
 	}},
 	{"sample", "0123{{hello}}xyz", []item{
-		{itemText, 0, "0123"},
-		{itemLeftDelim, 4, "{{"},
-		{itemIdentifier, 6, "hello"},
-		{itemRightDelim, 11, "}}"},
-		{itemText, 13, "xyz"},
-		{itemEOF, 16, ""},
+		{itemText, 0, "0123", 1},
+		{itemLeftDelim, 4, "{{", 1},
+		{itemIdentifier, 6, "hello", 1},
+		{itemRightDelim, 11, "}}", 1},
+		{itemText, 13, "xyz", 1},
+		{itemEOF, 16, "", 1},
 	}},
 }
 

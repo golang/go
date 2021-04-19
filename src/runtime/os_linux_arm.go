@@ -8,7 +8,6 @@ import "unsafe"
 
 const (
 	_AT_PLATFORM = 15 //  introduced in at least 2.6.11
-	_AT_HWCAP    = 16 // introduced in at least 2.6.11
 
 	_HWCAP_VFP   = 1 << 6  // introduced in at least 2.6.11
 	_HWCAP_VFPv3 = 1 << 13 // introduced in 2.6.30
@@ -19,6 +18,12 @@ var armArch uint8 = 6 // we default to ARMv6
 var hwcap uint32      // set by setup_auxv
 
 func checkgoarm() {
+	// On Android, /proc/self/auxv might be unreadable and hwcap won't
+	// reflect the CPU capabilities. Assume that every Android arm device
+	// has the necessary floating point hardware available.
+	if GOOS == "android" {
+		return
+	}
 	if goarm > 5 && hwcap&_HWCAP_VFP == 0 {
 		print("runtime: this CPU has no floating point hardware, so it cannot run\n")
 		print("this GOARM=", goarm, " binary. Recompile using GOARM=5.\n")
@@ -53,8 +58,8 @@ func archauxv(tag, val uintptr) {
 
 //go:nosplit
 func cputicks() int64 {
-	// Currently cputicks() is used in blocking profiler and to seed fastrand1().
+	// Currently cputicks() is used in blocking profiler and to seed fastrand().
 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
-	// randomNumber provides better seeding of fastrand1.
+	// randomNumber provides better seeding of fastrand.
 	return nanotime() + int64(randomNumber)
 }

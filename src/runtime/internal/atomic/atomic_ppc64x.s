@@ -6,9 +6,9 @@
 
 #include "textflag.h"
 
-// uint32 runtime∕internal∕atomic·Load(uint32 volatile* addr)
+// uint32 runtime∕internal∕atomic·Load(uint32 volatile* ptr)
 TEXT ·Load(SB),NOSPLIT|NOFRAME,$-8-12
-	MOVD	addr+0(FP), R3
+	MOVD	ptr+0(FP), R3
 	SYNC
 	MOVWZ	0(R3), R3
 	CMPW	R3, R3, CR7
@@ -17,9 +17,9 @@ TEXT ·Load(SB),NOSPLIT|NOFRAME,$-8-12
 	MOVW	R3, ret+8(FP)
 	RET
 
-// uint64 runtime∕internal∕atomic·Load64(uint64 volatile* addr)
+// uint64 runtime∕internal∕atomic·Load64(uint64 volatile* ptr)
 TEXT ·Load64(SB),NOSPLIT|NOFRAME,$-8-16
-	MOVD	addr+0(FP), R3
+	MOVD	ptr+0(FP), R3
 	SYNC
 	MOVD	0(R3), R3
 	CMP	R3, R3, CR7
@@ -28,9 +28,9 @@ TEXT ·Load64(SB),NOSPLIT|NOFRAME,$-8-16
 	MOVD	R3, ret+8(FP)
 	RET
 
-// void *runtime∕internal∕atomic·Loadp(void *volatile *addr)
+// void *runtime∕internal∕atomic·Loadp(void *volatile *ptr)
 TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$-8-16
-	MOVD	addr+0(FP), R3
+	MOVD	ptr+0(FP), R3
 	SYNC
 	MOVD	0(R3), R3
 	CMP	R3, R3, CR7

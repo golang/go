@@ -28,6 +28,10 @@ var parseIPTests = []struct {
 	{"2001:4860:0:2001::68", IP{0x20, 0x01, 0x48, 0x60, 0, 0, 0x20, 0x01, 0, 0, 0, 0, 0, 0, 0x00, 0x68}},
 	{"2001:4860:0000:2001:0000:0000:0000:0068", IP{0x20, 0x01, 0x48, 0x60, 0, 0, 0x20, 0x01, 0, 0, 0, 0, 0, 0, 0x00, 0x68}},
 
+	{"-0.0.0.0", nil},
+	{"0.-1.0.0", nil},
+	{"0.0.-2.0", nil},
+	{"0.0.0.-3", nil},
 	{"127.0.0.256", nil},
 	{"abc", nil},
 	{"123:", nil},
@@ -242,13 +246,15 @@ func TestIPString(t *testing.T) {
 	}
 }
 
+var sink string
+
 func BenchmarkIPString(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 
 	for i := 0; i < b.N; i++ {
 		for _, tt := range ipStringTests {
 			if tt.in != nil {
-				tt.in.String()
+				sink = tt.in.String()
 			}
 		}
 	}
@@ -299,7 +305,7 @@ func BenchmarkIPMaskString(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		for _, tt := range ipMaskStringTests {
-			tt.in.String()
+			sink = tt.in.String()
 		}
 	}
 }
@@ -330,6 +336,12 @@ var parseCIDRTests = []struct {
 	{"192.168.1.1/255.255.255.0", nil, nil, &ParseError{Type: "CIDR address", Text: "192.168.1.1/255.255.255.0"}},
 	{"192.168.1.1/35", nil, nil, &ParseError{Type: "CIDR address", Text: "192.168.1.1/35"}},
 	{"2001:db8::1/-1", nil, nil, &ParseError{Type: "CIDR address", Text: "2001:db8::1/-1"}},
+	{"2001:db8::1/-0", nil, nil, &ParseError{Type: "CIDR address", Text: "2001:db8::1/-0"}},
+	{"-0.0.0.0/32", nil, nil, &ParseError{Type: "CIDR address", Text: "-0.0.0.0/32"}},
+	{"0.-1.0.0/32", nil, nil, &ParseError{Type: "CIDR address", Text: "0.-1.0.0/32"}},
+	{"0.0.-2.0/32", nil, nil, &ParseError{Type: "CIDR address", Text: "0.0.-2.0/32"}},
+	{"0.0.0.-3/32", nil, nil, &ParseError{Type: "CIDR address", Text: "0.0.0.-3/32"}},
+	{"0.0.0.0/-0", nil, nil, &ParseError{Type: "CIDR address", Text: "0.0.0.0/-0"}},
 	{"", nil, nil, &ParseError{Type: "CIDR address", Text: ""}},
 }
 

@@ -414,8 +414,8 @@ MOVL $1, DI; NACL_SYSCALL(SYS_exit)
 
 // func getRandomData([]byte)
 TEXT runtime·getRandomData(SB),NOSPLIT,$0-12
-	MOVL buf+0(FP), DI
-	MOVL len+4(FP), SI
+	MOVL arg_base+0(FP), DI
+	MOVL arg_len+4(FP), SI
 	NACL_SYSCALL(SYS_get_random_bytes)
 	RET
 

@@ -4,10 +4,7 @@
 
 package runtime
 
-import (
-	"runtime/internal/atomic"
-	"unsafe"
-)
+import "unsafe"
 
 // The constant is known to the compiler.
 // There is no fundamental theory behind this number.
@@ -47,10 +44,9 @@ func concatstrings(buf *tmpBuf, a []string) string {
 		return a[idx]
 	}
 	s, b := rawstringtmp(buf, l)
-	l = 0
 	for _, x := range a {
-		copy(b[l:], x)
-		l += len(x)
+		copy(b, x)
+		b = b[len(x):]
 	}
 	return s
 }
@@ -113,17 +109,20 @@ func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
 	return
 }
 
+// slicebytetostringtmp returns a "string" referring to the actual []byte bytes.
+//
+// Callers need to ensure that the returned string will not be used after
+// the calling goroutine modifies the original slice or synchronizes with
+// another goroutine.
+//
+// The function is only called when instrumenting
+// and otherwise intrinsified by the compiler.
+//
+// Some internal compiler optimizations use this function.
+// - Used for m[string(k)] lookup where m is a string-keyed map and k is a []byte.
+// - Used for "<"+string(b)+">" concatenation where b is []byte.
+// - Used for string(b)=="foo" comparison where b is []byte.
 func slicebytetostringtmp(b []byte) string {
-	// Return a "string" referring to the actual []byte bytes.
-	// This is only for use by internal compiler optimizations
-	// that know that the string form will be discarded before
-	// the calling goroutine could possibly modify the original
-	// slice or synchronize with another goroutine.
-	// First such case is a m[string(k)] lookup where
-	// m is a string-keyed map and k is a []byte.
-	// Second such case is "<"+string(b)+">" concatenation where b is []byte.
-	// Third such case is string(b)=="foo" comparison where b is []byte.
-
 	if raceenabled && len(b) > 0 {
 		racereadrangepc(unsafe.Pointer(&b[0]),
 			uintptr(len(b)),
@@ -148,28 +147,14 @@ func stringtoslicebyte(buf *tmpBuf, s string) []byte {
 	return b
 }
 
-func stringtoslicebytetmp(s string) []byte {
-	// Return a slice referring to the actual string bytes.
-	// This is only for use by internal compiler optimizations
-	// that know that the slice won't be mutated.
-	// The only such case today is:
-	// for i, c := range []byte(str)
-
-	str := stringStructOf(&s)
-	ret := slice{array: str.str, len: str.len, cap: str.len}
-	return *(*[]byte)(unsafe.Pointer(&ret))
-}
-
 func stringtoslicerune(buf *[tmpStringBufSize]rune, s string) []rune {
 	// two passes.
 	// unlike slicerunetostring, no race because strings are immutable.
 	n := 0
-	t := s
-	for len(s) > 0 {
-		_, k := charntorune(s)
-		s = s[k:]
+	for range s {
 		n++
 	}
+
 	var a []rune
 	if buf != nil && n <= len(buf) {
 		*buf = [tmpStringBufSize]rune{}
@@ -177,10 +162,9 @@ func stringtoslicerune(buf *[tmpStringBufSize]rune, s string) []rune {
 	} else {
 		a = rawruneslice(n)
 	}
+
 	n = 0
-	for len(t) > 0 {
-		r, k := charntorune(t)
-		t = t[k:]
+	for _, r := range s {
 		a[n] = r
 		n++
 	}
@@ -200,7 +184,7 @@ func slicerunetostring(buf *tmpBuf, a []rune) string {
 	var dum [4]byte
 	size1 := 0
 	for _, r := range a {
-		size1 += runetochar(dum[:], r)
+		size1 += encoderune(dum[:], r)
 	}
 	s, b := rawstringtmp(buf, size1+3)
 	size2 := 0
@@ -209,7 +193,7 @@ func slicerunetostring(buf *tmpBuf, a []rune) string {
 		if size2 >= size1 {
 			break
 		}
-		size2 += runetochar(b[size2:], r)
+		size2 += encoderune(b[size2:], r)
 	}
 	return s[:size2]
 }
@@ -239,46 +223,10 @@ func intstring(buf *[4]byte, v int64) string {
 		s, b = rawstring(4)
 	}
 	if int64(rune(v)) != v {
-		v = runeerror
+		v = runeError
 	}
-	n := runetochar(b, rune(v))
+	n := encoderune(b, rune(v))
 	return s[:n]
-}
-
-// stringiter returns the index of the next
-// rune after the rune that starts at s[k].
-func stringiter(s string, k int) int {
-	if k >= len(s) {
-		// 0 is end of iteration
-		return 0
-	}
-
-	c := s[k]
-	if c < runeself {
-		return k + 1
-	}
-
-	// multi-char rune
-	_, n := charntorune(s[k:])
-	return k + n
-}
-
-// stringiter2 returns the rune that starts at s[k]
-// and the index where the next rune starts.
-func stringiter2(s string, k int) (int, rune) {
-	if k >= len(s) {
-		// 0 is end of iteration
-		return 0, 0
-	}
-
-	c := s[k]
-	if c < runeself {
-		return k + 1, rune(c)
-	}
-
-	// multi-char rune
-	r, n := charntorune(s[k:])
-	return k + n, r
 }
 
 // rawstring allocates storage for a new string. The returned
@@ -293,12 +241,7 @@ func rawstring(size int) (s string, b []byte) {
 
 	*(*slice)(unsafe.Pointer(&b)) = slice{p, size, size}
 
-	for {
-		ms := maxstring
-		if uintptr(size) <= ms || atomic.Casuintptr((*uintptr)(unsafe.Pointer(&maxstring)), ms, uintptr(size)) {
-			return
-		}
-	}
+	return
 }
 
 // rawbyteslice allocates a new byte slice. The byte slice is not zeroed.
@@ -306,7 +249,7 @@ func rawbyteslice(size int) (b []byte) {
 	cap := roundupsize(uintptr(size))
 	p := mallocgc(cap, nil, false)
 	if cap != uintptr(size) {
-		memclr(add(p, uintptr(size)), cap-uintptr(size))
+		memclrNoHeapPointers(add(p, uintptr(size)), cap-uintptr(size))
 	}
 
 	*(*slice)(unsafe.Pointer(&b)) = slice{p, size, int(cap)}
@@ -321,7 +264,7 @@ func rawruneslice(size int) (b []rune) {
 	mem := roundupsize(uintptr(size) * 4)
 	p := mallocgc(mem, nil, false)
 	if mem != uintptr(size)*4 {
-		memclr(add(p, uintptr(size)*4), mem-uintptr(size)*4)
+		memclrNoHeapPointers(add(p, uintptr(size)*4), mem-uintptr(size)*4)
 	}
 
 	*(*slice)(unsafe.Pointer(&b)) = slice{p, size, int(mem / 4)}
@@ -377,13 +320,66 @@ func hasprefix(s, t string) bool {
 	return len(s) >= len(t) && s[:len(t)] == t
 }
 
-func atoi(s string) int {
-	n := 0
-	for len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
-		n = n*10 + int(s[0]) - '0'
+const (
+	maxUint = ^uint(0)
+	maxInt  = int(maxUint >> 1)
+)
+
+// atoi parses an int from a string s.
+// The bool result reports whether s is a number
+// representable by a value of type int.
+func atoi(s string) (int, bool) {
+	if s == "" {
+		return 0, false
+	}
+
+	neg := false
+	if s[0] == '-' {
+		neg = true
 		s = s[1:]
 	}
-	return n
+
+	un := uint(0)
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c < '0' || c > '9' {
+			return 0, false
+		}
+		if un > maxUint/10 {
+			// overflow
+			return 0, false
+		}
+		un *= 10
+		un1 := un + uint(c) - '0'
+		if un1 < un {
+			// overflow
+			return 0, false
+		}
+		un = un1
+	}
+
+	if !neg && un > uint(maxInt) {
+		return 0, false
+	}
+	if neg && un > uint(maxInt)+1 {
+		return 0, false
+	}
+
+	n := int(un)
+	if neg {
+		n = -n
+	}
+
+	return n, true
+}
+
+// atoi32 is like atoi but for integers
+// that fit into an int32.
+func atoi32(s string) (int32, bool) {
+	if n, ok := atoi(s); n == int(int32(n)) {
+		return int32(n), ok
+	}
+	return 0, false
 }
 
 //go:nosplit
@@ -411,18 +407,10 @@ func findnullw(s *uint16) int {
 	return l
 }
 
-var maxstring uintptr = 256 // a hint for print
-
 //go:nosplit
 func gostringnocopy(str *byte) string {
 	ss := stringStruct{str: unsafe.Pointer(str), len: findnull(str)}
 	s := *(*string)(unsafe.Pointer(&ss))
-	for {
-		ms := maxstring
-		if uintptr(len(s)) <= ms || atomic.Casuintptr(&maxstring, ms, uintptr(len(s))) {
-			break
-		}
-	}
 	return s
 }
 
@@ -431,7 +419,7 @@ func gostringw(strw *uint16) string {
 	str := (*[_MaxMem/2/2 - 1]uint16)(unsafe.Pointer(strw))
 	n1 := 0
 	for i := 0; str[i] != 0; i++ {
-		n1 += runetochar(buf[:], rune(str[i]))
+		n1 += encoderune(buf[:], rune(str[i]))
 	}
 	s, b := rawstring(n1 + 4)
 	n2 := 0
@@ -440,7 +428,7 @@ func gostringw(strw *uint16) string {
 		if n2 >= n1 {
 			break
 		}
-		n2 += runetochar(b[n2:], rune(str[i]))
+		n2 += encoderune(b[n2:], rune(str[i]))
 	}
 	b[n2] = 0 // for luck
 	return s[:n2]

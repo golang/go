@@ -1075,6 +1075,58 @@ func (s *ss) doScan(a []interface{}) (numProcessed int, err error) {
 func (s *ss) advance(format string) (i int) {
 	for i < len(format) {
 		fmtc, w := utf8.DecodeRuneInString(format[i:])
+
+		// Space processing.
+		// In the rest of this comment "space" means spaces other than newline.
+		// Newline in the format matches input of zero or more spaces and then newline or end-of-input.
+		// Spaces in the format before the newline are collapsed into the newline.
+		// Spaces in the format after the newline match zero or more spaces after the corresponding input newline.
+		// Other spaces in the format match input of one or more spaces or end-of-input.
+		if isSpace(fmtc) {
+			newlines := 0
+			trailingSpace := false
+			for isSpace(fmtc) && i < len(format) {
+				if fmtc == '\n' {
+					newlines++
+					trailingSpace = false
+				} else {
+					trailingSpace = true
+				}
+				i += w
+				fmtc, w = utf8.DecodeRuneInString(format[i:])
+			}
+			for j := 0; j < newlines; j++ {
+				inputc := s.getRune()
+				for isSpace(inputc) && inputc != '\n' {
+					inputc = s.getRune()
+				}
+				if inputc != '\n' && inputc != eof {
+					s.errorString("newline in format does not match input")
+				}
+			}
+			if trailingSpace {
+				inputc := s.getRune()
+				if newlines == 0 {
+					// If the trailing space stood alone (did not follow a newline),
+					// it must find at least one space to consume.
+					if !isSpace(inputc) && inputc != eof {
+						s.errorString("expected space in input to match format")
+					}
+					if inputc == '\n' {
+						s.errorString("newline in input does not match format")
+					}
+				}
+				for isSpace(inputc) && inputc != '\n' {
+					inputc = s.getRune()
+				}
+				if inputc != eof {
+					s.UnreadRune()
+				}
+			}
+			continue
+		}
+
+		// Verbs.
 		if fmtc == '%' {
 			// % at end of string is an error.
 			if i+w == len(format) {
@@ -1087,48 +1139,8 @@ func (s *ss) advance(format string) (i int) {
 			}
 			i += w // skip the first %
 		}
-		sawSpace := false
-		wasNewline := false
-		// Skip spaces in format but absorb at most one newline.
-		for isSpace(fmtc) && i < len(format) {
-			if fmtc == '\n' {
-				if wasNewline { // Already saw one; stop here.
-					break
-				}
-				wasNewline = true
-			}
-			sawSpace = true
-			i += w
-			fmtc, w = utf8.DecodeRuneInString(format[i:])
-		}
-		if sawSpace {
-			// There was space in the format, so there should be space
-			// in the input.
-			inputc := s.getRune()
-			if inputc == eof {
-				return
-			}
-			if !isSpace(inputc) {
-				// Space in format but not in input.
-				s.errorString("expected space in input to match format")
-			}
-			// Skip spaces but stop at newline.
-			for inputc != '\n' && isSpace(inputc) {
-				inputc = s.getRune()
-			}
-			if inputc == '\n' {
-				if !wasNewline {
-					s.errorString("newline in input does not match format")
-				}
-				// We've reached a newline, stop now; don't read further.
-				return
-			}
-			s.UnreadRune()
-			if wasNewline {
-				s.errorString("newline in format does not match input")
-			}
-			continue
-		}
+
+		// Literals.
 		inputc := s.mustReadRune()
 		if fmtc != inputc {
 			s.UnreadRune()

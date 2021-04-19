@@ -95,6 +95,34 @@ func TestUnsetenv(t *testing.T) {
 	}
 }
 
+func TestClearenv(t *testing.T) {
+	const testKey = "GO_TEST_CLEARENV"
+	const testValue = "1"
+
+	// reset env
+	defer func(origEnv []string) {
+		for _, pair := range origEnv {
+			// Environment variables on Windows can begin with =
+			// http://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
+			i := strings.Index(pair[1:], "=") + 1
+			if err := Setenv(pair[:i], pair[i+1:]); err != nil {
+				t.Errorf("Setenv(%q, %q) failed during reset: %v", pair[:i], pair[i+1:], err)
+			}
+		}
+	}(Environ())
+
+	if err := Setenv(testKey, testValue); err != nil {
+		t.Fatalf("Setenv(%q, %q) failed: %v", testKey, testValue, err)
+	}
+	if _, ok := LookupEnv(testKey); !ok {
+		t.Errorf("Setenv(%q, %q) didn't set $%s", testKey, testValue, testKey)
+	}
+	Clearenv()
+	if val, ok := LookupEnv(testKey); ok {
+		t.Errorf("Clearenv() didn't clear $%s, remained with value %q", testKey, val)
+	}
+}
+
 func TestLookupEnv(t *testing.T) {
 	const smallpox = "SMALLPOX"      // No one has smallpox.
 	value, ok := LookupEnv(smallpox) // Should not exist.

@@ -125,6 +125,7 @@ func TestMultipartSlowInput(t *testing.T) {
 }
 
 func testMultipart(t *testing.T, r io.Reader, onlyNewlines bool) {
+	t.Parallel()
 	reader := NewReader(r, "MyBoundary")
 	buf := new(bytes.Buffer)
 
@@ -321,6 +322,73 @@ func (s *slowReader) Read(p []byte) (int, error) {
 		return s.r.Read(p)
 	}
 	return s.r.Read(p[:1])
+}
+
+type sentinelReader struct {
+	// done is closed when this reader is read from.
+	done chan struct{}
+}
+
+func (s *sentinelReader) Read([]byte) (int, error) {
+	if s.done != nil {
+		close(s.done)
+		s.done = nil
+	}
+	return 0, io.EOF
+}
+
+// TestMultipartStreamReadahead tests that PartReader does not block
+// on reading past the end of a part, ensuring that it can be used on
+// a stream like multipart/x-mixed-replace. See golang.org/issue/15431
+func TestMultipartStreamReadahead(t *testing.T) {
+	testBody1 := `
+This is a multi-part message.  This line is ignored.
+--MyBoundary
+foo-bar: baz
+
+Body
+--MyBoundary
+`
+	testBody2 := `foo-bar: bop
+
+Body 2
+--MyBoundary--
+`
+	done1 := make(chan struct{})
+	reader := NewReader(
+		io.MultiReader(
+			strings.NewReader(testBody1),
+			&sentinelReader{done1},
+			strings.NewReader(testBody2)),
+		"MyBoundary")
+
+	var i int
+	readPart := func(hdr textproto.MIMEHeader, body string) {
+		part, err := reader.NextPart()
+		if part == nil || err != nil {
+			t.Fatalf("Part %d: NextPart failed: %v", i, err)
+		}
+
+		if !reflect.DeepEqual(part.Header, hdr) {
+			t.Errorf("Part %d: part.Header = %v, want %v", i, part.Header, hdr)
+		}
+		data, err := ioutil.ReadAll(part)
+		expectEq(t, body, string(data), fmt.Sprintf("Part %d body", i))
+		if err != nil {
+			t.Fatalf("Part %d: ReadAll failed: %v", i, err)
+		}
+		i++
+	}
+
+	readPart(textproto.MIMEHeader{"Foo-Bar": {"baz"}}, "Body")
+
+	select {
+	case <-done1:
+		t.Errorf("Reader read past second boundary")
+	default:
+	}
+
+	readPart(textproto.MIMEHeader{"Foo-Bar": {"bop"}}, "Body 2")
 }
 
 func TestLineContinuation(t *testing.T) {
@@ -755,6 +823,7 @@ func partsFromReader(r *Reader) ([]headerBody, error) {
 }
 
 func TestParseAllSizes(t *testing.T) {
+	t.Parallel()
 	const maxSize = 5 << 10
 	var buf bytes.Buffer
 	body := strings.Repeat("a", maxSize)

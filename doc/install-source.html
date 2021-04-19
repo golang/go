@@ -33,7 +33,7 @@ compiler using the GCC back end, see
 </p>
 
 <p>
-The Go compilers support seven instruction sets.
+The Go compilers support eight instruction sets.
 There are important differences in the quality of the compilers for the different
 architectures.
 </p>
@@ -43,23 +43,19 @@ architectures.
 	<code>amd64</code> (also known as <code>x86-64</code>)
 </dt>
 <dd>
-	A mature implementation. New in 1.7 is its SSA-based back end
-	that generates compact, efficient code.
+	A mature implementation.
 </dd>
 <dt>
 	<code>386</code> (<code>x86</code> or <code>x86-32</code>)
 </dt>
 <dd>
-	Comparable to the <code>amd64</code> port, but does
-	not yet use the SSA-based back end. It has an effective
-	optimizer (registerizer) and generates good code (although
-	<code>gccgo</code> can do noticeably better sometimes).
+	Comparable to the <code>amd64</code> port.
 </dd>
 <dt>
 	<code>arm</code> (<code>ARM</code>)
 </dt>
 <dd>
-	Supports Linux, FreeBSD, NetBSD and Darwin binaries. Less widely used than the other ports.
+	Supports Linux, FreeBSD, NetBSD, OpenBSD and Darwin binaries. Less widely used than the other ports.
 </dd>
 <dt>
 	<code>arm64</code> (<code>AArch64</code>)
@@ -72,6 +68,12 @@ architectures.
 </dt>
 <dd>
 	Supports Linux binaries. New in 1.5 and not as well exercised as other ports.
+</dd>
+<dt>
+	<code>mips, mipsle</code> (32-bit MIPS big- and little-endian)
+</dt>
+<dd>
+	Supports Linux binaries. New in 1.8 and not as well exercised as other ports.
 </dd>
 <dt>
 	<code>mips64, mips64le</code> (64-bit MIPS big- and little-endian)
@@ -119,27 +121,42 @@ Go does not support CentOS 6 on these systems.
 <p>
 The Go tool chain is written in Go. To build it, you need a Go compiler installed.
 The scripts that do the initial build of the tools look for an existing Go tool
-chain in <code>$HOME/go1.4</code>.
-(This path may be overridden by setting the <code>GOROOT_BOOTSTRAP</code>
-environment variable.)
+chain in <code>$GOROOT_BOOTSTRAP</code>.
+If unset, the default value of <code>GOROOT_BOOTSTRAP</code>
+is <code>$HOME/go1.4</code>.
 </p>
 
 <p>
-Build the tools with Go version 1.4 or a point release (1.4.1, 1.4.2 etc.).
-Go 1.4 binaries can be found at <a href="/dl/">the downloads page</a>.
+There are many options for the bootstrap tool chain.
+After obtaining one, set <code>GOROOT_BOOTSTRAP</code> to the
+directory containing the unpacked tree.
+For example, <code>$GOROOT_BOOTSTRAP/bin/go</code> should be
+the <code>go</code> command binary for the bootstrap tool chain.
 </p>
 
 <p>
-Download the zip or tarball of Go 1.4 for your platform and extract it to
-<code>$HOME/go1.4</code> (or your nominated <code>GOROOT_BOOTSTRAP</code>
-location).
+To use a binary release as a bootstrap tool chain, see
+<a href="/dl/">the downloads page</a> or use any other
+packaged Go distribution.
 </p>
 
 <p>
-If you want to install Go 1.5 on a system that is not supported by Go 1.4 (such
-as <code>linux/ppc64</code> and <code>linux/mips64le</code>) you can either use
-<a href="/src/bootstrap.bash">bootstrap.bash</a> on a system that can bootstrap Go
-1.5 normally, or bootstrap with gccgo 5.
+To build a bootstrap tool chain from source, use
+either the git branch <code>release-branch.go1.4</code> or
+<a href="https://storage.googleapis.com/golang/go1.4-bootstrap-20170531.tar.gz">go1.4-bootstrap-20170531.tar.gz</a>,
+which contains the Go 1.4 source code plus accumulated fixes
+to keep the tools running on newer operating systems.
+(Go 1.4 was the last distribution in which the tool chain was written in C.)
+After unpacking the Go 1.4 source, <code>cd</code> to
+the <code>src</code> subdirectory and run <code>make.bash</code> (or,
+on Windows, <code>make.bat</code>).
+</p>
+
+<p>
+To cross-compile a bootstrap tool chain from source, which is
+necessary on systems Go 1.4 did not target (for
+example, <code>linux/ppc64le</code>), install Go on a different system
+and run <a href="/src/bootstrap.bash">bootstrap.bash</a>.
 </p>
 
 <p>
@@ -158,8 +175,9 @@ and used as <code>GOROOT_BOOTSTRAP</code> to bootstrap a local build.
 </p>
 
 <p>
-To use gccgo, you need to arrange for <code>$GOROOT_BOOTSTRAP/bin/go</code> to be
-the go tool that comes as part of gccgo 5. For example on Ubuntu Vivid:
+To use gccgo as the bootstrap toolchain, you need to arrange
+for <code>$GOROOT_BOOTSTRAP/bin/go</code> to be the go tool that comes
+as part of gccgo 5. For example on Ubuntu Vivid:
 </p>
 
 <pre>
@@ -203,7 +221,7 @@ To build without <code>cgo</code>, set the environment variable
 Change to the directory that will be its parent
 and make sure the <code>go</code> directory does not exist.
 Then clone the repository and check out the latest release tag
-(<code class="versionTag">go1.6</code>, for example):</p>
+(<code class="versionTag">go1.8.1</code>, for example):</p>
 
 <pre>
 $ git clone https://go.googlesource.com/go
@@ -320,7 +338,7 @@ You just need to do a little more setup.
 </p>
 
 <p>
-The <a href="/doc/code.html">How to Write Go Code</a> document 
+The <a href="/doc/code.html">How to Write Go Code</a> document
 provides <b>essential setup instructions</b> for using the Go tools.
 </p>
 
@@ -346,7 +364,7 @@ $ go get golang.org/x/tools/cmd/godoc
 </pre>
 
 <p>
-To install these tools, the <code>go</code> <code>get</code> command requires 
+To install these tools, the <code>go</code> <code>get</code> command requires
 that <a href="#git">Git</a> be installed locally.
 </p>
 
@@ -391,7 +409,7 @@ New releases are announced on the
 <a href="//groups.google.com/group/golang-announce">golang-announce</a>
 mailing list.
 Each announcement mentions the latest release tag, for instance,
-<code class="versionTag">go1.6</code>.
+<code class="versionTag">go1.8.1</code>.
 </p>
 
 <p>
@@ -421,7 +439,7 @@ to override the defaults.
 <ul>
 <li><code>$GOROOT</code>
 <p>
-The root of the Go tree, often <code>$HOME/go</code>.
+The root of the Go tree, often <code>$HOME/go1.X</code>.
 Its value is built into the tree when it is compiled, and
 defaults to the parent of the directory where <code>all.bash</code> was run.
 There is no need to set this unless you want to switch between multiple
@@ -434,7 +452,7 @@ The value assumed by installed binaries and scripts when
 <code>$GOROOT</code> is not set explicitly.
 It defaults to the value of <code>$GOROOT</code>.
 If you want to build the Go tree in one location
-but move it elsewhere after the build, set 
+but move it elsewhere after the build, set
 <code>$GOROOT_FINAL</code> to the eventual location.
 </p>
 
@@ -446,7 +464,7 @@ These default to the values of <code>$GOHOSTOS</code> and
 
 <p>
 Choices for <code>$GOOS</code> are
-<code>darwin</code> (Mac OS X 10.7 and above and iOS), <code>dragonfly</code>, <code>freebsd</code>,
+<code>darwin</code> (Mac OS X 10.8 and above and iOS), <code>dragonfly</code>, <code>freebsd</code>,
 <code>linux</code>, <code>netbsd</code>, <code>openbsd</code>,
 <code>plan9</code>, <code>solaris</code> and <code>windows</code>.
 Choices for <code>$GOARCH</code> are
@@ -454,6 +472,7 @@ Choices for <code>$GOARCH</code> are
 <code>386</code> (32-bit x86), <code>arm</code> (32-bit ARM), <code>arm64</code> (64-bit ARM),
 <code>ppc64le</code> (PowerPC 64-bit, little-endian), <code>ppc64</code> (PowerPC 64-bit, big-endian),
 <code>mips64le</code> (MIPS 64-bit, little-endian), and <code>mips64</code> (MIPS 64-bit, big-endian).
+<code>mipsle</code> (MIPS 32-bit, little-endian), and <code>mips</code> (MIPS 32-bit, big-endian).
 The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 <table cellpadding="0">
 <tr>
@@ -503,6 +522,12 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 </tr>
 <tr>
 <td></td><td><code>linux</code></td> <td><code>ppc64le</code></td>
+</tr>
+<tr>
+<td></td><td><code>linux</code></td> <td><code>mips</code></td>
+</tr>
+<tr>
+<td></td><td><code>linux</code></td> <td><code>mipsle</code></td>
 </tr>
 <tr>
 <td></td><td><code>linux</code></td> <td><code>mips64</code></td>
@@ -557,7 +582,7 @@ architecture.
 Valid choices are the same as for <code>$GOOS</code> and
 <code>$GOARCH</code>, listed above.
 The specified values must be compatible with the local system.
-For example, you should not set <code>$GOHOSTARCH</code> to 
+For example, you should not set <code>$GOHOSTARCH</code> to
 <code>arm</code> on an x86 system.
 </p>
 
@@ -618,12 +643,12 @@ not <code>amd64</code>.
 <p>
 If you choose to override the defaults,
 set these variables in your shell profile (<code>$HOME/.bashrc</code>,
-<code>$HOME/.profile</code>, or equivalent). The settings might look 
+<code>$HOME/.profile</code>, or equivalent). The settings might look
 something like this:
 </p>
 
 <pre>
-export GOROOT=$HOME/go
+export GOROOT=$HOME/go1.X
 export GOARCH=amd64
 export GOOS=linux
 </pre>

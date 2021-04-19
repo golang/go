@@ -10,9 +10,25 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"testing"
 	"time"
 )
+
+type testingT interface {
+	Error(args ...interface{})
+	Errorf(format string, args ...interface{})
+	Fail()
+	FailNow()
+	Failed() bool
+	Fatal(args ...interface{})
+	Fatalf(format string, args ...interface{})
+	Log(args ...interface{})
+	Logf(format string, args ...interface{})
+	Name() string
+	Skip(args ...interface{})
+	SkipNow()
+	Skipf(format string, args ...interface{})
+	Skipped() bool
+}
 
 // otherContext is a Context that's not one of the types defined in context.go.
 // This lets us test code paths that differ based on the underlying type of the
@@ -21,7 +37,7 @@ type otherContext struct {
 	Context
 }
 
-func TestBackground(t *testing.T) {
+func XTestBackground(t testingT) {
 	c := Background()
 	if c == nil {
 		t.Fatalf("Background returned nil")
@@ -36,7 +52,7 @@ func TestBackground(t *testing.T) {
 	}
 }
 
-func TestTODO(t *testing.T) {
+func XTestTODO(t testingT) {
 	c := TODO()
 	if c == nil {
 		t.Fatalf("TODO returned nil")
@@ -51,7 +67,7 @@ func TestTODO(t *testing.T) {
 	}
 }
 
-func TestWithCancel(t *testing.T) {
+func XTestWithCancel(t testingT) {
 	c1, cancel := WithCancel(Background())
 
 	if got, want := fmt.Sprint(c1), "context.Background.WithCancel"; got != want {
@@ -92,7 +108,12 @@ func TestWithCancel(t *testing.T) {
 	}
 }
 
-func TestParentFinishesChild(t *testing.T) {
+func contains(m map[canceler]struct{}, key canceler) bool {
+	_, ret := m[key]
+	return ret
+}
+
+func XTestParentFinishesChild(t testingT) {
 	// Context tree:
 	// parent -> cancelChild
 	// parent -> valueChild -> timerChild
@@ -120,7 +141,7 @@ func TestParentFinishesChild(t *testing.T) {
 	cc := cancelChild.(*cancelCtx)
 	tc := timerChild.(*timerCtx)
 	pc.mu.Lock()
-	if len(pc.children) != 2 || !pc.children[cc] || !pc.children[tc] {
+	if len(pc.children) != 2 || !contains(pc.children, cc) || !contains(pc.children, tc) {
 		t.Errorf("bad linkage: pc.children = %v, want %v and %v",
 			pc.children, cc, tc)
 	}
@@ -169,7 +190,7 @@ func TestParentFinishesChild(t *testing.T) {
 	}
 }
 
-func TestChildFinishesFirst(t *testing.T) {
+func XTestChildFinishesFirst(t testingT) {
 	cancelable, stop := WithCancel(Background())
 	defer stop()
 	for _, parent := range []Context{Background(), cancelable} {
@@ -191,7 +212,7 @@ func TestChildFinishesFirst(t *testing.T) {
 
 		if pcok {
 			pc.mu.Lock()
-			if len(pc.children) != 1 || !pc.children[cc] {
+			if len(pc.children) != 1 || !contains(pc.children, cc) {
 				t.Errorf("bad linkage: pc.children = %v, cc = %v", pc.children, cc)
 			}
 			pc.mu.Unlock()
@@ -229,7 +250,7 @@ func TestChildFinishesFirst(t *testing.T) {
 	}
 }
 
-func testDeadline(c Context, name string, failAfter time.Duration, t *testing.T) {
+func testDeadline(c Context, name string, failAfter time.Duration, t testingT) {
 	select {
 	case <-time.After(failAfter):
 		t.Fatalf("%s: context should have timed out", name)
@@ -240,7 +261,7 @@ func testDeadline(c Context, name string, failAfter time.Duration, t *testing.T)
 	}
 }
 
-func TestDeadline(t *testing.T) {
+func XTestDeadline(t testingT) {
 	c, _ := WithDeadline(Background(), time.Now().Add(50*time.Millisecond))
 	if got, prefix := fmt.Sprint(c), "context.Background.WithDeadline("; !strings.HasPrefix(got, prefix) {
 		t.Errorf("c.String() = %q want prefix %q", got, prefix)
@@ -263,7 +284,7 @@ func TestDeadline(t *testing.T) {
 	testDeadline(c, "WithDeadline+now", time.Second, t)
 }
 
-func TestTimeout(t *testing.T) {
+func XTestTimeout(t testingT) {
 	c, _ := WithTimeout(Background(), 50*time.Millisecond)
 	if got, prefix := fmt.Sprint(c), "context.Background.WithDeadline("; !strings.HasPrefix(got, prefix) {
 		t.Errorf("c.String() = %q want prefix %q", got, prefix)
@@ -280,7 +301,7 @@ func TestTimeout(t *testing.T) {
 	testDeadline(c, "WithTimeout+otherContext+WithTimeout", 2*time.Second, t)
 }
 
-func TestCanceledTimeout(t *testing.T) {
+func XTestCanceledTimeout(t testingT) {
 	c, _ := WithTimeout(Background(), time.Second)
 	o := otherContext{c}
 	c, cancel := WithTimeout(o, 2*time.Second)
@@ -303,7 +324,7 @@ var k1 = key1(1)
 var k2 = key2(1) // same int as k1, different type
 var k3 = key2(3) // same type as k2, different int
 
-func TestValues(t *testing.T) {
+func XTestValues(t testingT) {
 	check := func(c Context, nm, v1, v2, v3 string) {
 		if v, ok := c.Value(k1).(string); ok == (len(v1) == 0) || v != v1 {
 			t.Errorf(`%s.Value(k1).(string) = %q, %t want %q, %t`, nm, v, ok, v1, len(v1) != 0)
@@ -351,7 +372,7 @@ func TestValues(t *testing.T) {
 	check(o4, "o4", "", "c2k2", "")
 }
 
-func TestAllocs(t *testing.T) {
+func XTestAllocs(t testingT, testingShort func() bool, testingAllocsPerRun func(int, func()) float64) {
 	bg := Background()
 	for _, test := range []struct {
 		desc       string
@@ -411,16 +432,16 @@ func TestAllocs(t *testing.T) {
 			limit = test.gccgoLimit
 		}
 		numRuns := 100
-		if testing.Short() {
+		if testingShort() {
 			numRuns = 10
 		}
-		if n := testing.AllocsPerRun(numRuns, test.f); n > limit {
+		if n := testingAllocsPerRun(numRuns, test.f); n > limit {
 			t.Errorf("%s allocs = %f want %d", test.desc, n, int(limit))
 		}
 	}
 }
 
-func TestSimultaneousCancels(t *testing.T) {
+func XTestSimultaneousCancels(t testingT) {
 	root, cancel := WithCancel(Background())
 	m := map[Context]CancelFunc{root: cancel}
 	q := []Context{root}
@@ -468,7 +489,7 @@ func TestSimultaneousCancels(t *testing.T) {
 	}
 }
 
-func TestInterlockedCancels(t *testing.T) {
+func XTestInterlockedCancels(t testingT) {
 	parent, cancelParent := WithCancel(Background())
 	child, cancelChild := WithCancel(parent)
 	go func() {
@@ -485,15 +506,15 @@ func TestInterlockedCancels(t *testing.T) {
 	}
 }
 
-func TestLayersCancel(t *testing.T) {
+func XTestLayersCancel(t testingT) {
 	testLayers(t, time.Now().UnixNano(), false)
 }
 
-func TestLayersTimeout(t *testing.T) {
+func XTestLayersTimeout(t testingT) {
 	testLayers(t, time.Now().UnixNano(), true)
 }
 
-func testLayers(t *testing.T, seed int64, testTimeout bool) {
+func testLayers(t testingT, seed int64, testTimeout bool) {
 	rand.Seed(seed)
 	errorf := func(format string, a ...interface{}) {
 		t.Errorf(fmt.Sprintf("seed=%d: %s", seed, format), a...)
@@ -562,7 +583,7 @@ func testLayers(t *testing.T, seed int64, testTimeout bool) {
 	}
 }
 
-func TestCancelRemoves(t *testing.T) {
+func XTestCancelRemoves(t testingT) {
 	checkChildren := func(when string, ctx Context, want int) {
 		if got := len(ctx.(*cancelCtx).children); got != want {
 			t.Errorf("%s: context has %d children, want %d", when, got, want)
@@ -574,17 +595,32 @@ func TestCancelRemoves(t *testing.T) {
 	_, cancel := WithCancel(ctx)
 	checkChildren("with WithCancel child ", ctx, 1)
 	cancel()
-	checkChildren("after cancelling WithCancel child", ctx, 0)
+	checkChildren("after canceling WithCancel child", ctx, 0)
 
 	ctx, _ = WithCancel(Background())
 	checkChildren("after creation", ctx, 0)
 	_, cancel = WithTimeout(ctx, 60*time.Minute)
 	checkChildren("with WithTimeout child ", ctx, 1)
 	cancel()
-	checkChildren("after cancelling WithTimeout child", ctx, 0)
+	checkChildren("after canceling WithTimeout child", ctx, 0)
 }
 
-func TestWithValueChecksKey(t *testing.T) {
+func XTestWithCancelCanceledParent(t testingT) {
+	parent, pcancel := WithCancel(Background())
+	pcancel()
+
+	c, _ := WithCancel(parent)
+	select {
+	case <-c.Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for Done")
+	}
+	if got, want := c.Err(), Canceled; got != want {
+		t.Errorf("child not cancelled; got = %v, want = %v", got, want)
+	}
+}
+
+func XTestWithValueChecksKey(t testingT) {
 	panicVal := recoveredValue(func() { WithValue(Background(), []byte("foo"), "bar") })
 	if panicVal == nil {
 		t.Error("expected panic")
@@ -601,7 +637,7 @@ func recoveredValue(fn func()) (v interface{}) {
 	return
 }
 
-func TestDeadlineExceededSupportsTimeout(t *testing.T) {
+func XTestDeadlineExceededSupportsTimeout(t testingT) {
 	i, ok := DeadlineExceeded.(interface {
 		Timeout() bool
 	})

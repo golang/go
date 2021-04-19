@@ -605,7 +605,10 @@ var fmtTests = []struct {
 	{"%x", I(23), `3c32333e`},
 	{"%#x", I(23), `0x3c32333e`},
 	{"%# x", I(23), `0x3c 0x32 0x33 0x3e`},
-	{"%d", I(23), `23`}, // Stringer applies only to string formats.
+	// Stringer applies only to string formats.
+	{"%d", I(23), `23`},
+	// Stringer applies to the extracted value.
+	{"%s", reflect.ValueOf(I(23)), `<23>`},
 
 	// go syntax
 	{"%#v", A{1, 2, "a", []int{1, 2}}, `fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}`},
@@ -1558,18 +1561,23 @@ func TestWidthAndPrecision(t *testing.T) {
 	}
 }
 
-// Panic is a type that panics in String.
-type Panic struct {
+// PanicS is a type that panics in String.
+type PanicS struct {
 	message interface{}
 }
 
 // Value receiver.
-func (p Panic) GoString() string {
+func (p PanicS) String() string {
 	panic(p.message)
 }
 
+// PanicGo is a type that panics in GoString.
+type PanicGo struct {
+	message interface{}
+}
+
 // Value receiver.
-func (p Panic) String() string {
+func (p PanicGo) GoString() string {
 	panic(p.message)
 }
 
@@ -1589,13 +1597,15 @@ var panictests = []struct {
 	out string
 }{
 	// String
-	{"%s", (*Panic)(nil), "<nil>"}, // nil pointer special case
-	{"%s", Panic{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
-	{"%s", Panic{3}, "%!s(PANIC=3)"},
+	{"%s", (*PanicS)(nil), "<nil>"}, // nil pointer special case
+	{"%s", PanicS{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
+	{"%s", PanicS{3}, "%!s(PANIC=3)"},
 	// GoString
-	{"%#v", (*Panic)(nil), "<nil>"}, // nil pointer special case
-	{"%#v", Panic{io.ErrUnexpectedEOF}, "%!v(PANIC=unexpected EOF)"},
-	{"%#v", Panic{3}, "%!v(PANIC=3)"},
+	{"%#v", (*PanicGo)(nil), "<nil>"}, // nil pointer special case
+	{"%#v", PanicGo{io.ErrUnexpectedEOF}, "%!v(PANIC=unexpected EOF)"},
+	{"%#v", PanicGo{3}, "%!v(PANIC=3)"},
+	// Issue 18282. catchPanic should not clear fmtFlags permanently.
+	{"%#v", []interface{}{PanicGo{3}, PanicGo{3}}, "[]interface {}{%!v(PANIC=3), %!v(PANIC=3)}"},
 	// Format
 	{"%s", (*PanicF)(nil), "<nil>"}, // nil pointer special case
 	{"%s", PanicF{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
@@ -1734,6 +1744,29 @@ func TestFormatterFlags(t *testing.T) {
 		s := Sprintf(tt.in, tt.val)
 		if s != tt.out {
 			t.Errorf("Sprintf(%q, %T) = %q, want %q", tt.in, tt.val, s, tt.out)
+		}
+	}
+}
+
+func TestParsenum(t *testing.T) {
+	testCases := []struct {
+		s          string
+		start, end int
+		num        int
+		isnum      bool
+		newi       int
+	}{
+		{"a123", 0, 4, 0, false, 0},
+		{"1234", 1, 1, 0, false, 1},
+		{"123a", 0, 4, 123, true, 3},
+		{"12a3", 0, 4, 12, true, 2},
+		{"1234", 0, 4, 1234, true, 4},
+		{"1a234", 1, 3, 0, false, 1},
+	}
+	for _, tt := range testCases {
+		num, isnum, newi := Parsenum(tt.s, tt.start, tt.end)
+		if num != tt.num || isnum != tt.isnum || newi != tt.newi {
+			t.Errorf("parsenum(%q, %d, %d) = %d, %v, %d, want %d, %v, %d", tt.s, tt.start, tt.end, num, isnum, newi, tt.num, tt.isnum, tt.newi)
 		}
 	}
 }

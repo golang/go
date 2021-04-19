@@ -38,6 +38,10 @@ func (a *UDPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
 	return ipToSockaddr(family, a.IP, a.Port, a.Zone)
 }
 
+func (a *UDPAddr) toLocal(net string) sockaddr {
+	return &UDPAddr{loopbackIP(net), a.Port, a.Zone}
+}
+
 func (c *UDPConn) readFrom(b []byte) (int, *UDPAddr, error) {
 	var addr *UDPAddr
 	n, sa, err := c.fd.readFrom(b)

@@ -35,7 +35,6 @@ func benchFnPass(b *testing.B, fn passFunc, size int, bg blockGen) {
 	b.ReportAllocs()
 	c := NewConfig("amd64", DummyFrontend{b}, nil, true)
 	fun := Fun(c, "entry", bg(size)...)
-	domTree(fun.f)
 	CheckFunc(fun.f)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -51,7 +50,6 @@ func benchFnBlock(b *testing.B, fn passFunc, bg blockGen) {
 	b.ReportAllocs()
 	c := NewConfig("amd64", DummyFrontend{b}, nil, true)
 	fun := Fun(c, "entry", bg(b.N)...)
-	domTree(fun.f)
 	CheckFunc(fun.f)
 	b.ResetTimer()
 	for i := 0; i < passCount; i++ {

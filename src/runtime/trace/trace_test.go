@@ -6,8 +6,10 @@ package trace_test
 
 import (
 	"bytes"
+	"flag"
 	"internal/trace"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"runtime"
@@ -15,6 +17,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+)
+
+var (
+	saveTraces = flag.Bool("savetraces", false, "save traces collected by tests")
 )
 
 func TestTraceStartStop(t *testing.T) {
@@ -31,6 +37,7 @@ func TestTraceStartStop(t *testing.T) {
 	if size != buf.Len() {
 		t.Fatalf("trace writes after stop: %v -> %v", size, buf.Len())
 	}
+	saveTrace(t, buf, "TestTraceStartStop")
 }
 
 func TestTraceDoubleStart(t *testing.T) {
@@ -52,6 +59,7 @@ func TestTrace(t *testing.T) {
 		t.Fatalf("failed to start tracing: %v", err)
 	}
 	Stop()
+	saveTrace(t, buf, "TestTrace")
 	_, err := trace.Parse(buf, "")
 	if err == trace.ErrTimeOrder {
 		t.Skipf("skipping trace: %v", err)
@@ -233,6 +241,7 @@ func TestTraceStress(t *testing.T) {
 	runtime.GOMAXPROCS(procs)
 
 	Stop()
+	saveTrace(t, buf, "TestTraceStress")
 	trace := buf.Bytes()
 	parseTrace(t, buf)
 	testBrokenTimestamps(t, trace)
@@ -260,7 +269,8 @@ func TestTraceStressStartStop(t *testing.T) {
 
 		rp, wp, err := os.Pipe()
 		if err != nil {
-			t.Fatalf("failed to create pipe: %v", err)
+			t.Errorf("failed to create pipe: %v", err)
+			return
 		}
 		defer func() {
 			rp.Close()
@@ -336,7 +346,8 @@ func TestTraceStressStartStop(t *testing.T) {
 		// A bit of network.
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
-			t.Fatalf("listen failed: %v", err)
+			t.Errorf("listen failed: %v", err)
+			return
 		}
 		defer ln.Close()
 		go func() {
@@ -351,7 +362,8 @@ func TestTraceStressStartStop(t *testing.T) {
 		}()
 		c, err := net.Dial("tcp", ln.Addr().String())
 		if err != nil {
-			t.Fatalf("dial failed: %v", err)
+			t.Errorf("dial failed: %v", err)
+			return
 		}
 		var tmp [1]byte
 		c.Read(tmp[:])
@@ -376,6 +388,7 @@ func TestTraceStressStartStop(t *testing.T) {
 		}
 		time.Sleep(time.Millisecond)
 		Stop()
+		saveTrace(t, buf, "TestTraceStressStartStop")
 		trace := buf.Bytes()
 		parseTrace(t, buf)
 		testBrokenTimestamps(t, trace)
@@ -436,6 +449,7 @@ func TestTraceFutileWakeup(t *testing.T) {
 	done.Wait()
 
 	Stop()
+	saveTrace(t, buf, "TestTraceFutileWakeup")
 	events, _ := parseTrace(t, buf)
 	// Check that (1) trace does not contain EvFutileWakeup events and
 	// (2) there are no consecutive EvGoBlock/EvGCStart/EvGoBlock events
@@ -462,5 +476,14 @@ func TestTraceFutileWakeup(t *testing.T) {
 		default:
 			delete(gs, ev.G)
 		}
+	}
+}
+
+func saveTrace(t *testing.T, buf *bytes.Buffer, name string) {
+	if !*saveTraces {
+		return
+	}
+	if err := ioutil.WriteFile(name+".trace", buf.Bytes(), 0600); err != nil {
+		t.Errorf("failed to write trace file: %s", err)
 	}
 }

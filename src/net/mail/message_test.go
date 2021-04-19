@@ -110,11 +110,16 @@ func TestDateParsing(t *testing.T) {
 		}
 		date, err := hdr.Date()
 		if err != nil {
-			t.Errorf("Failed parsing %q: %v", test.dateStr, err)
-			continue
+			t.Errorf("Header(Date: %s).Date(): %v", test.dateStr, err)
+		} else if !date.Equal(test.exp) {
+			t.Errorf("Header(Date: %s).Date() = %+v, want %+v", test.dateStr, date, test.exp)
 		}
-		if !date.Equal(test.exp) {
-			t.Errorf("Parse of %q: got %+v, want %+v", test.dateStr, date, test.exp)
+
+		date, err = ParseDate(test.dateStr)
+		if err != nil {
+			t.Errorf("ParseDate(%s): %v", test.dateStr, err)
+		} else if !date.Equal(test.exp) {
+			t.Errorf("ParseDate(%s) = %+v, want %+v", test.dateStr, date, test.exp)
 		}
 	}
 }
@@ -307,6 +312,16 @@ func TestAddressParsing(t *testing.T) {
 				{
 					Name:    `Micro`,
 					Address: "micro@µ.example.com",
+				},
+			},
+		},
+		// Issue 14866
+		{
+			`"" <emptystring@example.com>`,
+			[]*Address{
+				{
+					Name:    "",
+					Address: "emptystring@example.com",
 				},
 			},
 		},

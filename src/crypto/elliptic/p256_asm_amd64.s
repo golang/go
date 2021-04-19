@@ -1314,12 +1314,12 @@ TEXT p256SubInternal(SB),NOSPLIT,$0
 	ADCQ p256const0<>(SB), acc5
 	ADCQ $0, acc6
 	ADCQ p256const1<>(SB), acc7
-	ADCQ $0, mul0
+	ANDQ $1, mul0
 
-	CMOVQNE acc0, acc4
-	CMOVQNE acc1, acc5
-	CMOVQNE acc2, acc6
-	CMOVQNE acc3, acc7
+	CMOVQEQ acc0, acc4
+	CMOVQEQ acc1, acc5
+	CMOVQEQ acc2, acc6
+	CMOVQEQ acc3, acc7
 
 	RET
 /* ---------------------------------------*/

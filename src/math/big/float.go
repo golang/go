@@ -1210,20 +1210,30 @@ func (z *Float) uadd(x, y *Float) {
 	ex := int64(x.exp) - int64(len(x.mant))*_W
 	ey := int64(y.exp) - int64(len(y.mant))*_W
 
+	al := alias(z.mant, x.mant) || alias(z.mant, y.mant)
+
 	// TODO(gri) having a combined add-and-shift primitive
 	//           could make this code significantly faster
 	switch {
 	case ex < ey:
-		// cannot re-use z.mant w/o testing for aliasing
-		t := nat(nil).shl(y.mant, uint(ey-ex))
-		z.mant = z.mant.add(x.mant, t)
+		if al {
+			t := nat(nil).shl(y.mant, uint(ey-ex))
+			z.mant = z.mant.add(x.mant, t)
+		} else {
+			z.mant = z.mant.shl(y.mant, uint(ey-ex))
+			z.mant = z.mant.add(x.mant, z.mant)
+		}
 	default:
 		// ex == ey, no shift needed
 		z.mant = z.mant.add(x.mant, y.mant)
 	case ex > ey:
-		// cannot re-use z.mant w/o testing for aliasing
-		t := nat(nil).shl(x.mant, uint(ex-ey))
-		z.mant = z.mant.add(t, y.mant)
+		if al {
+			t := nat(nil).shl(x.mant, uint(ex-ey))
+			z.mant = z.mant.add(t, y.mant)
+		} else {
+			z.mant = z.mant.shl(x.mant, uint(ex-ey))
+			z.mant = z.mant.add(z.mant, y.mant)
+		}
 		ex = ey
 	}
 	// len(z.mant) > 0
@@ -1247,18 +1257,28 @@ func (z *Float) usub(x, y *Float) {
 	ex := int64(x.exp) - int64(len(x.mant))*_W
 	ey := int64(y.exp) - int64(len(y.mant))*_W
 
+	al := alias(z.mant, x.mant) || alias(z.mant, y.mant)
+
 	switch {
 	case ex < ey:
-		// cannot re-use z.mant w/o testing for aliasing
-		t := nat(nil).shl(y.mant, uint(ey-ex))
-		z.mant = t.sub(x.mant, t)
+		if al {
+			t := nat(nil).shl(y.mant, uint(ey-ex))
+			z.mant = t.sub(x.mant, t)
+		} else {
+			z.mant = z.mant.shl(y.mant, uint(ey-ex))
+			z.mant = z.mant.sub(x.mant, z.mant)
+		}
 	default:
 		// ex == ey, no shift needed
 		z.mant = z.mant.sub(x.mant, y.mant)
 	case ex > ey:
-		// cannot re-use z.mant w/o testing for aliasing
-		t := nat(nil).shl(x.mant, uint(ex-ey))
-		z.mant = t.sub(t, y.mant)
+		if al {
+			t := nat(nil).shl(x.mant, uint(ex-ey))
+			z.mant = t.sub(t, y.mant)
+		} else {
+			z.mant = z.mant.shl(x.mant, uint(ex-ey))
+			z.mant = z.mant.sub(z.mant, y.mant)
+		}
 		ex = ey
 	}
 

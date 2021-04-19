@@ -16,7 +16,7 @@ const floatGobVersion byte = 1
 
 // GobEncode implements the gob.GobEncoder interface.
 // The Float value and all its attributes (precision,
-// rounding mode, accuracy) are marshalled.
+// rounding mode, accuracy) are marshaled.
 func (x *Float) GobEncode() ([]byte, error) {
 	if x == nil {
 		return nil, nil

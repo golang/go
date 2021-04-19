@@ -7,6 +7,7 @@
 package sha1
 
 import (
+	"crypto/internal/boring"
 	"crypto/rand"
 	"fmt"
 	"io"
@@ -61,15 +62,27 @@ func TestGolden(t *testing.T) {
 			t.Fatalf("Sum function: sha1(%s) = %s want %s", g.in, s, g.out)
 		}
 		c := New()
-		for j := 0; j < 3; j++ {
-			if j < 2 {
+		for j := 0; j < 4; j++ {
+			var sum []byte
+			switch j {
+			case 0, 1:
 				io.WriteString(c, g.in)
-			} else {
+				sum = c.Sum(nil)
+			case 2:
 				io.WriteString(c, g.in[0:len(g.in)/2])
 				c.Sum(nil)
 				io.WriteString(c, g.in[len(g.in)/2:])
+				sum = c.Sum(nil)
+			case 3:
+				if boring.Enabled {
+					continue
+				}
+				io.WriteString(c, g.in[0:len(g.in)/2])
+				c.(*digest).ConstantTimeSum(nil)
+				io.WriteString(c, g.in[len(g.in)/2:])
+				sum = c.(*digest).ConstantTimeSum(nil)
 			}
-			s := fmt.Sprintf("%x", c.Sum(nil))
+			s := fmt.Sprintf("%x", sum)
 			if s != g.out {
 				t.Fatalf("sha1[%d](%s) = %s want %s", j, g.in, s, g.out)
 			}
@@ -94,6 +107,9 @@ func TestBlockSize(t *testing.T) {
 
 // Tests that blockGeneric (pure Go) and block (in assembly for some architectures) match.
 func TestBlockGeneric(t *testing.T) {
+	if boring.Enabled {
+		t.Skip("BoringCrypto doesn't expose digest")
+	}
 	for i := 1; i < 30; i++ { // arbitrary factor
 		gen, asm := New().(*digest), New().(*digest)
 		buf := make([]byte, BlockSize*i)

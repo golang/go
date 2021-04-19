@@ -58,8 +58,15 @@ func TestInterfaces(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !reflect.DeepEqual(ifxi, &ifi) {
-			t.Errorf("got %v; want %v", ifxi, ifi)
+		switch runtime.GOOS {
+		case "solaris":
+			if ifxi.Index != ifi.Index {
+				t.Errorf("got %v; want %v", ifxi, ifi)
+			}
+		default:
+			if !reflect.DeepEqual(ifxi, &ifi) {
+				t.Errorf("got %v; want %v", ifxi, ifi)
+			}
 		}
 		ifxn, err := InterfaceByName(ifi.Name)
 		if err != nil {

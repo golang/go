@@ -25,6 +25,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang_org/x/net/lex/httplex"
@@ -40,6 +41,7 @@ var DefaultTransport RoundTripper = &Transport{
 	DialContext: (&net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
+		DualStack: true,
 	}).DialContext,
 	MaxIdleConns:          100,
 	IdleConnTimeout:       90 * time.Second,
@@ -66,8 +68,10 @@ const DefaultMaxIdleConnsPerHost = 2
 // For high-level functionality, such as cookies and redirects, see Client.
 //
 // Transport uses HTTP/1.1 for HTTP URLs and either HTTP/1.1 or HTTP/2
-// for HTTPS URLs, depending on whether the server supports HTTP/2.
-// See the package docs for more about HTTP/2.
+// for HTTPS URLs, depending on whether the server supports HTTP/2,
+// and how the Transport is configured. The DefaultTransport supports HTTP/2.
+// To explicitly enable HTTP/2 on a transport, use golang.org/x/net/http2
+// and call ConfigureTransport. See the package docs for more about HTTP/2.
 type Transport struct {
 	idleMu     sync.Mutex
 	wantIdle   bool                                // user has requested to close all idle conns
@@ -76,10 +80,10 @@ type Transport struct {
 	idleLRU    connLRU
 
 	reqMu       sync.Mutex
-	reqCanceler map[*Request]func()
+	reqCanceler map[*Request]func(error)
 
-	altMu    sync.RWMutex
-	altProto map[string]RoundTripper // nil or map of URI scheme => RoundTripper
+	altMu    sync.Mutex   // guards changing altProto only
+	altProto atomic.Value // of nil or map[string]RoundTripper, key is URI scheme
 
 	// Proxy specifies a function to return a proxy for a given
 	// Request. If the function returns a non-nil error, the
@@ -111,7 +115,9 @@ type Transport struct {
 	DialTLS func(network, addr string) (net.Conn, error)
 
 	// TLSClientConfig specifies the TLS configuration to use with
-	// tls.Client. If nil, the default configuration is used.
+	// tls.Client.
+	// If nil, the default configuration is used.
+	// If non-nil, HTTP/2 support may not be enabled by default.
 	TLSClientConfig *tls.Config
 
 	// TLSHandshakeTimeout specifies the maximum amount of time waiting to
@@ -156,7 +162,9 @@ type Transport struct {
 	// ExpectContinueTimeout, if non-zero, specifies the amount of
 	// time to wait for a server's first response headers after fully
 	// writing the request headers if the request has an
-	// "Expect: 100-continue" header. Zero means no timeout.
+	// "Expect: 100-continue" header. Zero means no timeout and
+	// causes the body to be sent immediately, without
+	// waiting for the server to approve.
 	// This time does not include the time to send the request header.
 	ExpectContinueTimeout time.Duration
 
@@ -168,8 +176,13 @@ type Transport struct {
 	// called with the request's authority (such as "example.com"
 	// or "example.com:1234") and the TLS connection. The function
 	// must return a RoundTripper that then handles the request.
-	// If TLSNextProto is nil, HTTP/2 support is enabled automatically.
+	// If TLSNextProto is not nil, HTTP/2 support is not enabled
+	// automatically.
 	TLSNextProto map[string]func(authority string, c *tls.Conn) RoundTripper
+
+	// ProxyConnectHeader optionally specifies headers to send to
+	// proxies during CONNECT requests.
+	ProxyConnectHeader Header
 
 	// MaxResponseHeaderBytes specifies a limit on how many
 	// response bytes are allowed in the server's response
@@ -330,11 +343,9 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 			}
 		}
 	}
-	// TODO(bradfitz): switch to atomic.Value for this map instead of RWMutex
-	t.altMu.RLock()
-	altRT := t.altProto[scheme]
-	t.altMu.RUnlock()
-	if altRT != nil {
+
+	altProto, _ := t.altProto.Load().(map[string]RoundTripper)
+	if altRT := altProto[scheme]; altRT != nil {
 		if resp, err := altRT.RoundTrip(req); err != ErrSkipAltProtocol {
 			return resp, err
 		}
@@ -398,6 +409,15 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 // HTTP request on a new connection. The non-nil input error is the
 // error from roundTrip.
 func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
+	if err == http2ErrNoCachedConn {
+		// Issue 16582: if the user started a bunch of
+		// requests at once, they can all pick the same conn
+		// and violate the server's max concurrent streams.
+		// Instead, match the HTTP/1 behavior for now and dial
+		// again to get a new TCP connection, rather than failing
+		// this request.
+		return true
+	}
 	if err == errMissingHost {
 		// User error.
 		return false
@@ -412,19 +432,15 @@ func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
 		// our request (as opposed to sending an error).
 		return false
 	}
-	if !req.isReplayable() {
-		// Don't retry non-idempotent requests.
-
-		// TODO: swap the nothingWrittenError and isReplayable checks,
-		// putting the "if nothingWrittenError => return true" case
-		// first, per golang.org/issue/15723
-		return false
-	}
-	switch err.(type) {
-	case nothingWrittenError:
+	if _, ok := err.(nothingWrittenError); ok {
 		// We never wrote anything, so it's safe to retry.
 		return true
-	case transportReadFromServerError:
+	}
+	if !req.isReplayable() {
+		// Don't retry non-idempotent requests.
+		return false
+	}
+	if _, ok := err.(transportReadFromServerError); ok {
 		// We got some non-EOF net.Conn.Read failure reading
 		// the 1st response byte from the server.
 		return true
@@ -454,13 +470,16 @@ var ErrSkipAltProtocol = errors.New("net/http: skip alternate protocol")
 func (t *Transport) RegisterProtocol(scheme string, rt RoundTripper) {
 	t.altMu.Lock()
 	defer t.altMu.Unlock()
-	if t.altProto == nil {
-		t.altProto = make(map[string]RoundTripper)
-	}
-	if _, exists := t.altProto[scheme]; exists {
+	oldMap, _ := t.altProto.Load().(map[string]RoundTripper)
+	if _, exists := oldMap[scheme]; exists {
 		panic("protocol " + scheme + " already registered")
 	}
-	t.altProto[scheme] = rt
+	newMap := make(map[string]RoundTripper)
+	for k, v := range oldMap {
+		newMap[k] = v
+	}
+	newMap[scheme] = rt
+	t.altProto.Store(newMap)
 }
 
 // CloseIdleConnections closes any connections which were previously
@@ -489,15 +508,21 @@ func (t *Transport) CloseIdleConnections() {
 // CancelRequest cancels an in-flight request by closing its connection.
 // CancelRequest should only be called after RoundTrip has returned.
 //
-// Deprecated: Use Request.Cancel instead. CancelRequest cannot cancel
-// HTTP/2 requests.
+// Deprecated: Use Request.WithContext to create a request with a
+// cancelable context instead. CancelRequest cannot cancel HTTP/2
+// requests.
 func (t *Transport) CancelRequest(req *Request) {
+	t.cancelRequest(req, errRequestCanceled)
+}
+
+// Cancel an in-flight request, recording the error value.
+func (t *Transport) cancelRequest(req *Request, err error) {
 	t.reqMu.Lock()
 	cancel := t.reqCanceler[req]
 	delete(t.reqCanceler, req)
 	t.reqMu.Unlock()
 	if cancel != nil {
-		cancel()
+		cancel(err)
 	}
 }
 
@@ -547,10 +572,18 @@ func (e *envOnce) reset() {
 }
 
 func (t *Transport) connectMethodForRequest(treq *transportRequest) (cm connectMethod, err error) {
+	if port := treq.URL.Port(); !validPort(port) {
+		return cm, fmt.Errorf("invalid URL port %q", port)
+	}
 	cm.targetScheme = treq.URL.Scheme
 	cm.targetAddr = canonicalAddr(treq.URL)
 	if t.Proxy != nil {
 		cm.proxyURL, err = t.Proxy(treq.Request)
+		if err == nil && cm.proxyURL != nil {
+			if port := cm.proxyURL.Port(); !validPort(port) {
+				return cm, fmt.Errorf("invalid proxy URL port %q", port)
+			}
+		}
 	}
 	return cm, err
 }
@@ -580,6 +613,7 @@ var (
 	errReadLoopExiting    = errors.New("http: persistConn.readLoop exiting")
 	errServerClosedIdle   = errors.New("http: server closed idle connection")
 	errIdleConnTimeout    = errors.New("http: idle connection timeout")
+	errNotCachingH2Conn   = errors.New("http: not caching alternate protocol's connections")
 )
 
 // transportReadFromServerError is used by Transport.readLoop when the
@@ -622,6 +656,9 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 	}
 	if pconn.isBroken() {
 		return errConnBroken
+	}
+	if pconn.alt != nil {
+		return errNotCachingH2Conn
 	}
 	pconn.markReused()
 	key := pconn.cacheKey
@@ -773,11 +810,11 @@ func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
 	}
 }
 
-func (t *Transport) setReqCanceler(r *Request, fn func()) {
+func (t *Transport) setReqCanceler(r *Request, fn func(error)) {
 	t.reqMu.Lock()
 	defer t.reqMu.Unlock()
 	if t.reqCanceler == nil {
-		t.reqCanceler = make(map[*Request]func())
+		t.reqCanceler = make(map[*Request]func(error))
 	}
 	if fn != nil {
 		t.reqCanceler[r] = fn
@@ -790,7 +827,7 @@ func (t *Transport) setReqCanceler(r *Request, fn func()) {
 // for the request, we don't set the function and return false.
 // Since CancelRequest will clear the canceler, we can use the return value to detect if
 // the request was canceled since the last setReqCancel call.
-func (t *Transport) replaceReqCanceler(r *Request, fn func()) bool {
+func (t *Transport) replaceReqCanceler(r *Request, fn func(error)) bool {
 	t.reqMu.Lock()
 	defer t.reqMu.Unlock()
 	_, ok := t.reqCanceler[r]
@@ -839,7 +876,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 		// set request canceler to some non-nil function so we
 		// can detect whether it was cleared between now and when
 		// we enter roundTrip
-		t.setReqCanceler(req, func() {})
+		t.setReqCanceler(req, func(error) {})
 		return pc, nil
 	}
 
@@ -864,8 +901,8 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 		}()
 	}
 
-	cancelc := make(chan struct{})
-	t.setReqCanceler(req, func() { close(cancelc) })
+	cancelc := make(chan error, 1)
+	t.setReqCanceler(req, func(err error) { cancelc <- err })
 
 	go func() {
 		pc, err := t.dialConn(ctx, cm)
@@ -886,16 +923,21 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 		// value.
 		select {
 		case <-req.Cancel:
+			// It was an error due to cancelation, so prioritize that
+			// error value. (Issue 16049)
+			return nil, errRequestCanceledConn
 		case <-req.Context().Done():
-		case <-cancelc:
+			return nil, req.Context().Err()
+		case err := <-cancelc:
+			if err == errRequestCanceled {
+				err = errRequestCanceledConn
+			}
+			return nil, err
 		default:
 			// It wasn't an error due to cancelation, so
 			// return the original error message:
 			return nil, v.err
 		}
-		// It was an error due to cancelation, so prioritize that
-		// error value. (Issue 16049)
-		return nil, errRequestCanceledConn
 	case pc := <-idleConnCh:
 		// Another request finished first and its net.Conn
 		// became available before our dial. Or somebody
@@ -912,10 +954,13 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 		return nil, errRequestCanceledConn
 	case <-req.Context().Done():
 		handlePendingDial()
-		return nil, errRequestCanceledConn
-	case <-cancelc:
+		return nil, req.Context().Err()
+	case err := <-cancelc:
 		handlePendingDial()
-		return nil, errRequestCanceledConn
+		if err == errRequestCanceled {
+			err = errRequestCanceledConn
+		}
+		return nil, err
 	}
 }
 
@@ -929,6 +974,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 		writeErrCh:    make(chan error, 1),
 		writeLoopDone: make(chan struct{}),
 	}
+	trace := httptrace.ContextClientTrace(ctx)
 	tlsDial := t.DialTLS != nil && cm.targetScheme == "https" && cm.proxyURL == nil
 	if tlsDial {
 		var err error
@@ -942,18 +988,28 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 		if tc, ok := pconn.conn.(*tls.Conn); ok {
 			// Handshake here, in case DialTLS didn't. TLSNextProto below
 			// depends on it for knowing the connection state.
+			if trace != nil && trace.TLSHandshakeStart != nil {
+				trace.TLSHandshakeStart()
+			}
 			if err := tc.Handshake(); err != nil {
 				go pconn.conn.Close()
+				if trace != nil && trace.TLSHandshakeDone != nil {
+					trace.TLSHandshakeDone(tls.ConnectionState{}, err)
+				}
 				return nil, err
 			}
 			cs := tc.ConnectionState()
+			if trace != nil && trace.TLSHandshakeDone != nil {
+				trace.TLSHandshakeDone(cs, nil)
+			}
 			pconn.tlsState = &cs
 		}
 	} else {
 		conn, err := t.dial(ctx, "tcp", cm.addr())
 		if err != nil {
 			if cm.proxyURL != nil {
-				err = fmt.Errorf("http: error connecting to proxy %s: %v", cm.proxyURL, err)
+				// Return a typed error, per Issue 16997:
+				err = &net.OpError{Op: "proxyconnect", Net: "tcp", Err: err}
 			}
 			return nil, err
 		}
@@ -973,11 +1029,15 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 		}
 	case cm.targetScheme == "https":
 		conn := pconn.conn
+		hdr := t.ProxyConnectHeader
+		if hdr == nil {
+			hdr = make(Header)
+		}
 		connectReq := &Request{
 			Method: "CONNECT",
 			URL:    &url.URL{Opaque: cm.targetAddr},
 			Host:   cm.targetAddr,
-			Header: make(Header),
+			Header: hdr,
 		}
 		if pa := cm.proxyAuth(); pa != "" {
 			connectReq.Header.Set("Proxy-Authorization", pa)
@@ -1002,7 +1062,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 
 	if cm.targetScheme == "https" && !tlsDial {
 		// Initiate TLS and check remote host name against certificate.
-		cfg := cloneTLSClientConfig(t.TLSClientConfig)
+		cfg := cloneTLSConfig(t.TLSClientConfig)
 		if cfg.ServerName == "" {
 			cfg.ServerName = cm.tlsHost()
 		}
@@ -1016,6 +1076,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 			})
 		}
 		go func() {
+			if trace != nil && trace.TLSHandshakeStart != nil {
+				trace.TLSHandshakeStart()
+			}
 			err := tlsConn.Handshake()
 			if timer != nil {
 				timer.Stop()
@@ -1024,6 +1087,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 		}()
 		if err := <-errc; err != nil {
 			plainConn.Close()
+			if trace != nil && trace.TLSHandshakeDone != nil {
+				trace.TLSHandshakeDone(tls.ConnectionState{}, err)
+			}
 			return nil, err
 		}
 		if !cfg.InsecureSkipVerify {
@@ -1033,6 +1099,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 			}
 		}
 		cs := tlsConn.ConnectionState()
+		if trace != nil && trace.TLSHandshakeDone != nil {
+			trace.TLSHandshakeDone(cs, nil)
+		}
 		pconn.tlsState = &cs
 		pconn.conn = tlsConn
 	}
@@ -1221,8 +1290,8 @@ type persistConn struct {
 	mu                   sync.Mutex // guards following fields
 	numExpectedResponses int
 	closed               error // set non-nil when conn is closed, before closech is closed
+	canceledErr          error // set non-nil if conn is canceled
 	broken               bool  // an error has happened on this connection; marked broken so it's not reused.
-	canceled             bool  // whether this conn was broken due a CancelRequest
 	reused               bool  // whether conn has had successful request/response and is being reused.
 	// mutateHeaderFunc is an optional func to modify extra
 	// headers on each outbound request before it's written. (the
@@ -1260,11 +1329,12 @@ func (pc *persistConn) isBroken() bool {
 	return b
 }
 
-// isCanceled reports whether this connection was closed due to CancelRequest.
-func (pc *persistConn) isCanceled() bool {
+// canceled returns non-nil if the connection was closed due to
+// CancelRequest or due to context cancelation.
+func (pc *persistConn) canceled() error {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
-	return pc.canceled
+	return pc.canceledErr
 }
 
 // isReused reports whether this connection is in a known broken state.
@@ -1287,10 +1357,10 @@ func (pc *persistConn) gotIdleConnTrace(idleAt time.Time) (t httptrace.GotConnIn
 	return
 }
 
-func (pc *persistConn) cancelRequest() {
+func (pc *persistConn) cancelRequest(err error) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
-	pc.canceled = true
+	pc.canceledErr = err
 	pc.closeLocked(errRequestCanceled)
 }
 
@@ -1314,12 +1384,12 @@ func (pc *persistConn) closeConnIfStillIdle() {
 //
 // The startBytesWritten value should be the value of pc.nwrite before the roundTrip
 // started writing the request.
-func (pc *persistConn) mapRoundTripErrorFromReadLoop(startBytesWritten int64, err error) (out error) {
+func (pc *persistConn) mapRoundTripErrorFromReadLoop(req *Request, startBytesWritten int64, err error) (out error) {
 	if err == nil {
 		return nil
 	}
-	if pc.isCanceled() {
-		return errRequestCanceled
+	if err := pc.canceled(); err != nil {
+		return err
 	}
 	if err == errServerClosedIdle {
 		return err
@@ -1329,7 +1399,7 @@ func (pc *persistConn) mapRoundTripErrorFromReadLoop(startBytesWritten int64, er
 	}
 	if pc.isBroken() {
 		<-pc.writeLoopDone
-		if pc.nwrite == startBytesWritten {
+		if pc.nwrite == startBytesWritten && req.outgoingLength() == 0 {
 			return nothingWrittenError{err}
 		}
 	}
@@ -1340,9 +1410,9 @@ func (pc *persistConn) mapRoundTripErrorFromReadLoop(startBytesWritten int64, er
 // up to Transport.RoundTrip method when persistConn.roundTrip sees
 // its pc.closech channel close, indicating the persistConn is dead.
 // (after closech is closed, pc.closed is valid).
-func (pc *persistConn) mapRoundTripErrorAfterClosed(startBytesWritten int64) error {
-	if pc.isCanceled() {
-		return errRequestCanceled
+func (pc *persistConn) mapRoundTripErrorAfterClosed(req *Request, startBytesWritten int64) error {
+	if err := pc.canceled(); err != nil {
+		return err
 	}
 	err := pc.closed
 	if err == errServerClosedIdle {
@@ -1358,7 +1428,7 @@ func (pc *persistConn) mapRoundTripErrorAfterClosed(startBytesWritten int64) err
 	// see if we actually managed to write anything. If not, we
 	// can retry the request.
 	<-pc.writeLoopDone
-	if pc.nwrite == startBytesWritten {
+	if pc.nwrite == startBytesWritten && req.outgoingLength() == 0 {
 		return nothingWrittenError{err}
 	}
 
@@ -1499,8 +1569,10 @@ func (pc *persistConn) readLoop() {
 				waitForBodyRead <- isEOF
 				if isEOF {
 					<-eofc // see comment above eofc declaration
-				} else if err != nil && pc.isCanceled() {
-					return errRequestCanceled
+				} else if err != nil {
+					if cerr := pc.canceled(); cerr != nil {
+						return cerr
+					}
 				}
 				return err
 			},
@@ -1540,7 +1612,7 @@ func (pc *persistConn) readLoop() {
 			pc.t.CancelRequest(rc.req)
 		case <-rc.req.Context().Done():
 			alive = false
-			pc.t.CancelRequest(rc.req)
+			pc.t.cancelRequest(rc.req, rc.req.Context().Err())
 		case <-pc.closech:
 			alive = false
 		}
@@ -1638,7 +1710,7 @@ func (pc *persistConn) writeLoop() {
 			}
 			if err != nil {
 				wr.req.Request.closeBody()
-				if pc.nwrite == startBytesWritten {
+				if pc.nwrite == startBytesWritten && wr.req.outgoingLength() == 0 {
 					err = nothingWrittenError{err}
 				}
 			}
@@ -1826,8 +1898,8 @@ WaitResponse:
 		select {
 		case err := <-writeErrCh:
 			if err != nil {
-				if pc.isCanceled() {
-					err = errRequestCanceled
+				if cerr := pc.canceled(); cerr != nil {
+					err = cerr
 				}
 				re = responseAndError{err: err}
 				pc.close(fmt.Errorf("write error: %v", err))
@@ -1839,21 +1911,20 @@ WaitResponse:
 				respHeaderTimer = timer.C
 			}
 		case <-pc.closech:
-			re = responseAndError{err: pc.mapRoundTripErrorAfterClosed(startBytesWritten)}
+			re = responseAndError{err: pc.mapRoundTripErrorAfterClosed(req.Request, startBytesWritten)}
 			break WaitResponse
 		case <-respHeaderTimer:
 			pc.close(errTimeout)
 			re = responseAndError{err: errTimeout}
 			break WaitResponse
 		case re = <-resc:
-			re.err = pc.mapRoundTripErrorFromReadLoop(startBytesWritten, re.err)
+			re.err = pc.mapRoundTripErrorFromReadLoop(req.Request, startBytesWritten, re.err)
 			break WaitResponse
 		case <-cancelChan:
 			pc.t.CancelRequest(req.Request)
 			cancelChan = nil
-			ctxDoneChan = nil
 		case <-ctxDoneChan:
-			pc.t.CancelRequest(req.Request)
+			pc.t.cancelRequest(req.Request, req.Context().Err())
 			cancelChan = nil
 			ctxDoneChan = nil
 		}
@@ -1917,11 +1988,15 @@ var portMap = map[string]string{
 
 // canonicalAddr returns url.Host but always with a ":port" suffix
 func canonicalAddr(url *url.URL) string {
-	addr := url.Host
-	if !hasPort(addr) {
-		return addr + ":" + portMap[url.Scheme]
+	addr := url.Hostname()
+	if v, err := idnaASCII(addr); err == nil {
+		addr = v
 	}
-	return addr
+	port := url.Port()
+	if port == "" {
+		port = portMap[url.Scheme]
+	}
+	return net.JoinHostPort(addr, port)
 }
 
 // bodyEOFSignal is used by the HTTP/1 transport when reading response
@@ -2046,75 +2121,14 @@ type fakeLocker struct{}
 func (fakeLocker) Lock()   {}
 func (fakeLocker) Unlock() {}
 
-// cloneTLSConfig returns a shallow clone of the exported
-// fields of cfg, ignoring the unexported sync.Once, which
-// contains a mutex and must not be copied.
-//
-// The cfg must not be in active use by tls.Server, or else
-// there can still be a race with tls.Server updating SessionTicketKey
-// and our copying it, and also a race with the server setting
-// SessionTicketsDisabled=false on failure to set the random
-// ticket key.
-//
-// If cfg is nil, a new zero tls.Config is returned.
+// clneTLSConfig returns a shallow clone of cfg, or a new zero tls.Config if
+// cfg is nil. This is safe to call even if cfg is in active use by a TLS
+// client or server.
 func cloneTLSConfig(cfg *tls.Config) *tls.Config {
 	if cfg == nil {
 		return &tls.Config{}
 	}
-	return &tls.Config{
-		Rand:                        cfg.Rand,
-		Time:                        cfg.Time,
-		Certificates:                cfg.Certificates,
-		NameToCertificate:           cfg.NameToCertificate,
-		GetCertificate:              cfg.GetCertificate,
-		RootCAs:                     cfg.RootCAs,
-		NextProtos:                  cfg.NextProtos,
-		ServerName:                  cfg.ServerName,
-		ClientAuth:                  cfg.ClientAuth,
-		ClientCAs:                   cfg.ClientCAs,
-		InsecureSkipVerify:          cfg.InsecureSkipVerify,
-		CipherSuites:                cfg.CipherSuites,
-		PreferServerCipherSuites:    cfg.PreferServerCipherSuites,
-		SessionTicketsDisabled:      cfg.SessionTicketsDisabled,
-		SessionTicketKey:            cfg.SessionTicketKey,
-		ClientSessionCache:          cfg.ClientSessionCache,
-		MinVersion:                  cfg.MinVersion,
-		MaxVersion:                  cfg.MaxVersion,
-		CurvePreferences:            cfg.CurvePreferences,
-		DynamicRecordSizingDisabled: cfg.DynamicRecordSizingDisabled,
-		Renegotiation:               cfg.Renegotiation,
-	}
-}
-
-// cloneTLSClientConfig is like cloneTLSConfig but omits
-// the fields SessionTicketsDisabled and SessionTicketKey.
-// This makes it safe to call cloneTLSClientConfig on a config
-// in active use by a server.
-func cloneTLSClientConfig(cfg *tls.Config) *tls.Config {
-	if cfg == nil {
-		return &tls.Config{}
-	}
-	return &tls.Config{
-		Rand:                        cfg.Rand,
-		Time:                        cfg.Time,
-		Certificates:                cfg.Certificates,
-		NameToCertificate:           cfg.NameToCertificate,
-		GetCertificate:              cfg.GetCertificate,
-		RootCAs:                     cfg.RootCAs,
-		NextProtos:                  cfg.NextProtos,
-		ServerName:                  cfg.ServerName,
-		ClientAuth:                  cfg.ClientAuth,
-		ClientCAs:                   cfg.ClientCAs,
-		InsecureSkipVerify:          cfg.InsecureSkipVerify,
-		CipherSuites:                cfg.CipherSuites,
-		PreferServerCipherSuites:    cfg.PreferServerCipherSuites,
-		ClientSessionCache:          cfg.ClientSessionCache,
-		MinVersion:                  cfg.MinVersion,
-		MaxVersion:                  cfg.MaxVersion,
-		CurvePreferences:            cfg.CurvePreferences,
-		DynamicRecordSizingDisabled: cfg.DynamicRecordSizingDisabled,
-		Renegotiation:               cfg.Renegotiation,
-	}
+	return cfg.Clone()
 }
 
 type connLRU struct {
@@ -2154,4 +2168,16 @@ func (cl *connLRU) remove(pc *persistConn) {
 // len returns the number of items in the cache.
 func (cl *connLRU) len() int {
 	return len(cl.m)
+}
+
+// validPort reports whether p (without the colon) is a valid port in
+// a URL, per RFC 3986 Section 3.2.3, which says the port may be
+// empty, or only contain digits.
+func validPort(p string) bool {
+	for _, r := range []byte(p) {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }

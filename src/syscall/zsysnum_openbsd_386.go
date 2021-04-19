@@ -41,7 +41,6 @@ const (
 	SYS_CHFLAGS        = 34  // { int sys_chflags(const char *path, u_int flags); }
 	SYS_FCHFLAGS       = 35  // { int sys_fchflags(int fd, u_int flags); }
 	SYS_SYNC           = 36  // { void sys_sync(void); }
-	SYS_KILL           = 37  // { int sys_kill(int pid, int signum); }
 	SYS_STAT           = 38  // { int sys_stat(const char *path, struct stat *ub); }
 	SYS_GETPPID        = 39  // { pid_t sys_getppid(void); }
 	SYS_LSTAT          = 40  // { int sys_lstat(const char *path, struct stat *ub); }
@@ -113,6 +112,7 @@ const (
 	SYS_READV          = 120 // { ssize_t sys_readv(int fd, \
 	SYS_WRITEV         = 121 // { ssize_t sys_writev(int fd, \
 	SYS_FCHOWN         = 123 // { int sys_fchown(int fd, uid_t uid, gid_t gid); }
+	SYS_KILL           = 122 // { int sys_kill(int pid, int signum); }
 	SYS_FCHMOD         = 124 // { int sys_fchmod(int fd, mode_t mode); }
 	SYS_SETREUID       = 126 // { int sys_setreuid(uid_t ruid, uid_t euid); }
 	SYS_SETREGID       = 127 // { int sys_setregid(gid_t rgid, gid_t egid); }

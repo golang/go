@@ -199,6 +199,10 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
 
 // Atoi returns the result of ParseInt(s, 10, 0) converted to type int.
 func Atoi(s string) (int, error) {
+	const fnAtoi = "Atoi"
 	i64, err := ParseInt(s, 10, 0)
+	if nerr, ok := err.(*NumError); ok {
+		nerr.Func = fnAtoi
+	}
 	return int(i64), err
 }

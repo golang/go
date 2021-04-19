@@ -205,13 +205,13 @@ var addrListTests = []struct {
 		nil,
 	},
 
-	{nil, nil, testInetaddr, nil, nil, nil, errNoSuitableAddress},
+	{nil, nil, testInetaddr, nil, nil, nil, &AddrError{errNoSuitableAddress.Error(), "ADDR"}},
 
-	{ipv4only, nil, testInetaddr, nil, nil, nil, errNoSuitableAddress},
-	{ipv4only, []IPAddr{{IP: IPv6loopback}}, testInetaddr, nil, nil, nil, errNoSuitableAddress},
+	{ipv4only, nil, testInetaddr, nil, nil, nil, &AddrError{errNoSuitableAddress.Error(), "ADDR"}},
+	{ipv4only, []IPAddr{{IP: IPv6loopback}}, testInetaddr, nil, nil, nil, &AddrError{errNoSuitableAddress.Error(), "ADDR"}},
 
-	{ipv6only, nil, testInetaddr, nil, nil, nil, errNoSuitableAddress},
-	{ipv6only, []IPAddr{{IP: IPv4(127, 0, 0, 1)}}, testInetaddr, nil, nil, nil, errNoSuitableAddress},
+	{ipv6only, nil, testInetaddr, nil, nil, nil, &AddrError{errNoSuitableAddress.Error(), "ADDR"}},
+	{ipv6only, []IPAddr{{IP: IPv4(127, 0, 0, 1)}}, testInetaddr, nil, nil, nil, &AddrError{errNoSuitableAddress.Error(), "ADDR"}},
 }
 
 func TestAddrList(t *testing.T) {
@@ -220,8 +220,8 @@ func TestAddrList(t *testing.T) {
 	}
 
 	for i, tt := range addrListTests {
-		addrs, err := filterAddrList(tt.filter, tt.ips, tt.inetaddr)
-		if err != tt.err {
+		addrs, err := filterAddrList(tt.filter, tt.ips, tt.inetaddr, "ADDR")
+		if !reflect.DeepEqual(err, tt.err) {
 			t.Errorf("#%v: got %v; want %v", i, err, tt.err)
 		}
 		if tt.err != nil {

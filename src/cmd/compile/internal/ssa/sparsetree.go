@@ -4,7 +4,10 @@
 
 package ssa
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type SparseTreeNode struct {
 	child   *Block
@@ -65,6 +68,34 @@ func newSparseTree(f *Func, parentOf []*Block) SparseTree {
 	}
 	t.numberBlock(f.Entry, 1)
 	return t
+}
+
+// treestructure provides a string description of the dominator
+// tree and flow structure of block b and all blocks that it
+// dominates.
+func (t SparseTree) treestructure(b *Block) string {
+	return t.treestructure1(b, 0)
+}
+func (t SparseTree) treestructure1(b *Block, i int) string {
+	s := "\n" + strings.Repeat("\t", i) + b.String() + "->["
+	for i, e := range b.Succs {
+		if i > 0 {
+			s = s + ","
+		}
+		s = s + e.b.String()
+	}
+	s += "]"
+	if c0 := t[b.ID].child; c0 != nil {
+		s += "("
+		for c := c0; c != nil; c = t[c.ID].sibling {
+			if c != c0 {
+				s += " "
+			}
+			s += t.treestructure1(c, i+1)
+		}
+		s += ")"
+	}
+	return s
 }
 
 // numberBlock assigns entry and exit numbers for b and b's

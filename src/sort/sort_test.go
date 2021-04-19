@@ -6,10 +6,12 @@ package sort_test
 
 import (
 	"fmt"
+	"internal/testenv"
 	"math"
 	"math/rand"
 	. "sort"
 	"strconv"
+	stringspkg "strings"
 	"testing"
 )
 
@@ -69,6 +71,17 @@ func TestStrings(t *testing.T) {
 	data := strings
 	Strings(data[0:])
 	if !StringsAreSorted(data[0:]) {
+		t.Errorf("sorted %v", strings)
+		t.Errorf("   got %v", data)
+	}
+}
+
+func TestSlice(t *testing.T) {
+	data := strings
+	Slice(data[:], func(i, j int) bool {
+		return data[i] < data[j]
+	})
+	if !SliceIsSorted(data[:], func(i, j int) bool { return data[i] < data[j] }) {
 		t.Errorf("sorted %v", strings)
 		t.Errorf("   got %v", data)
 	}
@@ -148,24 +161,46 @@ func TestNonDeterministicComparison(t *testing.T) {
 
 func BenchmarkSortString1K(b *testing.B) {
 	b.StopTimer()
+	unsorted := make([]string, 1<<10)
+	for i := range unsorted {
+		unsorted[i] = strconv.Itoa(i ^ 0x2cc)
+	}
+	data := make([]string, len(unsorted))
+
 	for i := 0; i < b.N; i++ {
-		data := make([]string, 1<<10)
-		for i := 0; i < len(data); i++ {
-			data[i] = strconv.Itoa(i ^ 0x2cc)
-		}
+		copy(data, unsorted)
 		b.StartTimer()
 		Strings(data)
 		b.StopTimer()
 	}
 }
 
+func BenchmarkSortString1K_Slice(b *testing.B) {
+	b.StopTimer()
+	unsorted := make([]string, 1<<10)
+	for i := range unsorted {
+		unsorted[i] = strconv.Itoa(i ^ 0x2cc)
+	}
+	data := make([]string, len(unsorted))
+
+	for i := 0; i < b.N; i++ {
+		copy(data, unsorted)
+		b.StartTimer()
+		Slice(data, func(i, j int) bool { return data[i] < data[j] })
+		b.StopTimer()
+	}
+}
+
 func BenchmarkStableString1K(b *testing.B) {
 	b.StopTimer()
+	unsorted := make([]string, 1<<10)
+	for i := 0; i < len(data); i++ {
+		unsorted[i] = strconv.Itoa(i ^ 0x2cc)
+	}
+	data := make([]string, len(unsorted))
+
 	for i := 0; i < b.N; i++ {
-		data := make([]string, 1<<10)
-		for i := 0; i < len(data); i++ {
-			data[i] = strconv.Itoa(i ^ 0x2cc)
-		}
+		copy(data, unsorted)
 		b.StartTimer()
 		Stable(StringSlice(data))
 		b.StopTimer()
@@ -187,13 +222,30 @@ func BenchmarkSortInt1K(b *testing.B) {
 
 func BenchmarkStableInt1K(b *testing.B) {
 	b.StopTimer()
+	unsorted := make([]int, 1<<10)
+	for i := range unsorted {
+		unsorted[i] = i ^ 0x2cc
+	}
+	data := make([]int, len(unsorted))
 	for i := 0; i < b.N; i++ {
-		data := make([]int, 1<<10)
-		for i := 0; i < len(data); i++ {
-			data[i] = i ^ 0x2cc
-		}
+		copy(data, unsorted)
 		b.StartTimer()
 		Stable(IntSlice(data))
+		b.StopTimer()
+	}
+}
+
+func BenchmarkStableInt1K_Slice(b *testing.B) {
+	b.StopTimer()
+	unsorted := make([]int, 1<<10)
+	for i := range unsorted {
+		unsorted[i] = i ^ 0x2cc
+	}
+	data := make([]int, len(unsorted))
+	for i := 0; i < b.N; i++ {
+		copy(data, unsorted)
+		b.StartTimer()
+		SliceStable(data, func(i, j int) bool { return data[i] < data[j] })
 		b.StopTimer()
 	}
 }
@@ -207,6 +259,19 @@ func BenchmarkSortInt64K(b *testing.B) {
 		}
 		b.StartTimer()
 		Ints(data)
+		b.StopTimer()
+	}
+}
+
+func BenchmarkSortInt64K_Slice(b *testing.B) {
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		data := make([]int, 1<<16)
+		for i := 0; i < len(data); i++ {
+			data[i] = i ^ 0xcccc
+		}
+		b.StartTimer()
+		Slice(data, func(i, j int) bool { return data[i] < data[j] })
 		b.StopTimer()
 	}
 }
@@ -555,6 +620,9 @@ func TestCountStableOps(t *testing.T) { countOps(t, Stable, "Stable") }
 func TestCountSortOps(t *testing.T)   { countOps(t, Sort, "Sort  ") }
 
 func bench(b *testing.B, size int, algo func(Interface), name string) {
+	if stringspkg.HasSuffix(testenv.Builder(), "-race") && size > 1e4 {
+		b.Skip("skipping slow benchmark on race builder")
+	}
 	b.StopTimer()
 	data := make(intPairs, size)
 	x := ^uint32(0)

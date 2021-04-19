@@ -1,0 +1,13 @@
+// 64-bit-specific vet whitelist. See readme.txt for details.
+
+// False positives.
+
+// Clever const tricks outwit the "large shift" check.
+runtime/hashmap.go: hash might be too small for shift of 56
+runtime/hashmap.go: hash might be too small for shift of 56
+runtime/hashmap.go: hash might be too small for shift of 56
+runtime/hashmap.go: hash might be too small for shift of 56
+runtime/hashmap.go: hash might be too small for shift of 56
+runtime/hashmap.go: hash might be too small for shift of 56
+runtime/hashmap_fast.go: hash might be too small for shift of 56
+runtime/hashmap_fast.go: hash might be too small for shift of 56

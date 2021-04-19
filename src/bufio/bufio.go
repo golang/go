@@ -206,10 +206,18 @@ func (b *Reader) Read(p []byte) (n int, err error) {
 			}
 			return n, b.readErr()
 		}
-		b.fill() // buffer is empty
-		if b.r == b.w {
+		// One read.
+		// Do not use b.fill, which will loop.
+		b.r = 0
+		b.w = 0
+		n, b.err = b.rd.Read(b.buf)
+		if n < 0 {
+			panic(errNegativeRead)
+		}
+		if n == 0 {
 			return 0, b.readErr()
 		}
+		b.w += n
 	}
 
 	// copy as much as we can
@@ -549,11 +557,6 @@ func (b *Writer) Reset(w io.Writer) {
 
 // Flush writes any buffered data to the underlying io.Writer.
 func (b *Writer) Flush() error {
-	err := b.flush()
-	return err
-}
-
-func (b *Writer) flush() error {
 	if b.err != nil {
 		return b.err
 	}
@@ -596,7 +599,7 @@ func (b *Writer) Write(p []byte) (nn int, err error) {
 		} else {
 			n = copy(b.buf[b.n:], p)
 			b.n += n
-			b.flush()
+			b.Flush()
 		}
 		nn += n
 		p = p[n:]
@@ -615,7 +618,7 @@ func (b *Writer) WriteByte(c byte) error {
 	if b.err != nil {
 		return b.err
 	}
-	if b.Available() <= 0 && b.flush() != nil {
+	if b.Available() <= 0 && b.Flush() != nil {
 		return b.err
 	}
 	b.buf[b.n] = c
@@ -638,7 +641,7 @@ func (b *Writer) WriteRune(r rune) (size int, err error) {
 	}
 	n := b.Available()
 	if n < utf8.UTFMax {
-		if b.flush(); b.err != nil {
+		if b.Flush(); b.err != nil {
 			return 0, b.err
 		}
 		n = b.Available()
@@ -663,7 +666,7 @@ func (b *Writer) WriteString(s string) (int, error) {
 		b.n += n
 		nn += n
 		s = s[n:]
-		b.flush()
+		b.Flush()
 	}
 	if b.err != nil {
 		return nn, b.err
@@ -684,7 +687,7 @@ func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
 	var m int
 	for {
 		if b.Available() == 0 {
-			if err1 := b.flush(); err1 != nil {
+			if err1 := b.Flush(); err1 != nil {
 				return n, err1
 			}
 		}
@@ -708,7 +711,7 @@ func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
 	if err == io.EOF {
 		// If we filled the buffer exactly, flush preemptively.
 		if b.Available() == 0 {
-			err = b.flush()
+			err = b.Flush()
 		} else {
 			err = nil
 		}

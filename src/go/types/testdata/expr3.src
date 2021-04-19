@@ -324,6 +324,22 @@ func slice_literals() {
 
 	// recursively so
 	_ = [][]T{{}, []T{{}}, {{1, 2, 3}}}
+
+	// issue 17954
+	type T0 *struct { s string }
+	_ = []T0{{}}
+	_ = []T0{{"foo"}}
+
+	type T1 *struct{ int }
+	_ = []T1{}
+	_ = []T1{{0}, {1}, {2}}
+
+	type T2 T1
+	_ = []T2{}
+	_ = []T2{{0}, {1}, {2}}
+
+	_ = map[T0]T2{}
+	_ = map[T0]T2{{}: {}}
 }
 
 const index2 int = 2
@@ -393,6 +409,14 @@ func map_literals() {
 	type Point struct { x, y float32 }
 	_ = map[string]Point{"orig": {0, 0}}
 	_ = map[*Point]string{{0, 0}: "orig"}
+
+	// issue 17954
+	type T0 *struct{ s string }
+	type T1 *struct{ int }
+	type T2 T1
+
+	_ = map[T0]T2{}
+	_ = map[T0]T2{{}: {}}
 }
 
 var key2 string = "bar"

@@ -12,8 +12,8 @@
 
 #include "libcgo.h"
 
-static volatile long runtime_init_once_gate = 0;
-static volatile long runtime_init_once_done = 0;
+static volatile LONG runtime_init_once_gate = 0;
+static volatile LONG runtime_init_once_done = 0;
 
 static CRITICAL_SECTION runtime_init_cs;
 

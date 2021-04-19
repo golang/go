@@ -17,7 +17,7 @@ func maxListenerBacklog() int {
 		return syscall.SOMAXCONN
 	}
 	f := getFields(l)
-	n, _, ok := dtoi(f[0], 0)
+	n, _, ok := dtoi(f[0])
 	if n == 0 || !ok {
 		return syscall.SOMAXCONN
 	}

@@ -25,8 +25,8 @@ TEXT ·xorKeyStream(SB),NOSPLIT,$0
 	MOVW src+4(FP), Rsrc
 	MOVW n+8(FP), Rn
 	MOVW state+12(FP), Rstate
-	MOVW pi+16(FP), Rpi
-	MOVW pj+20(FP), Rpj
+	MOVW i+16(FP), Rpi
+	MOVW j+20(FP), Rpj
 	MOVBU (Rpi), Ri
 	MOVBU (Rpj), Rj
 	MOVW $0, Rk

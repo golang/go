@@ -19,17 +19,10 @@ TEXT _rt0_arm_android_lib(SB),NOSPLIT,$0
 	RET
 
 DATA _rt0_arm_android_argv+0x00(SB)/4,$_rt0_arm_android_argv0(SB)
-DATA _rt0_arm_android_argv+0x04(SB)/4,$0
-DATA _rt0_arm_android_argv+0x08(SB)/4,$0
-DATA _rt0_arm_android_argv+0x0C(SB)/4,$15      // AT_PLATFORM
-DATA _rt0_arm_android_argv+0x10(SB)/4,$_rt0_arm_android_auxv0(SB)
-DATA _rt0_arm_android_argv+0x14(SB)/4,$16      // AT_HWCAP
-DATA _rt0_arm_android_argv+0x18(SB)/4,$0x2040  // HWCAP_VFP | HWCAP_VFPv3
-DATA _rt0_arm_android_argv+0x1C(SB)/4,$0
-GLOBL _rt0_arm_android_argv(SB),NOPTR,$0x20
+DATA _rt0_arm_android_argv+0x04(SB)/4,$0 // end argv
+DATA _rt0_arm_android_argv+0x08(SB)/4,$0 // end envv
+DATA _rt0_arm_android_argv+0x0c(SB)/4,$0 // end auxv
+GLOBL _rt0_arm_android_argv(SB),NOPTR,$0x10
 
 DATA _rt0_arm_android_argv0(SB)/8, $"gojni"
 GLOBL _rt0_arm_android_argv0(SB),RODATA,$8
-
-DATA _rt0_arm_android_auxv0(SB)/4, $"v7l"
-GLOBL _rt0_arm_android_auxv0(SB),RODATA,$4

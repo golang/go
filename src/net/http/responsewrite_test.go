@@ -241,7 +241,8 @@ func TestResponseWrite(t *testing.T) {
 			"HTTP/1.0 007 license to violate specs\r\nContent-Length: 0\r\n\r\n",
 		},
 
-		// No stutter.
+		// No stutter.  Status code in 1xx range response should
+		// not include a Content-Length header.  See issue #16942.
 		{
 			Response{
 				StatusCode: 123,
@@ -253,7 +254,23 @@ func TestResponseWrite(t *testing.T) {
 				Body:       nil,
 			},
 
-			"HTTP/1.0 123 Sesame Street\r\nContent-Length: 0\r\n\r\n",
+			"HTTP/1.0 123 Sesame Street\r\n\r\n",
+		},
+
+		// Status code 204 (No content) response should not include a
+		// Content-Length header.  See issue #16942.
+		{
+			Response{
+				StatusCode: 204,
+				Status:     "No Content",
+				ProtoMajor: 1,
+				ProtoMinor: 0,
+				Request:    dummyReq("GET"),
+				Header:     Header{},
+				Body:       nil,
+			},
+
+			"HTTP/1.0 204 No Content\r\n\r\n",
 		},
 	}
 

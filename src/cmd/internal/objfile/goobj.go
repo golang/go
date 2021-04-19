@@ -8,7 +8,9 @@ package objfile
 
 import (
 	"cmd/internal/goobj"
+	"cmd/internal/sys"
 	"debug/dwarf"
+	"debug/gosym"
 	"errors"
 	"fmt"
 	"os"
@@ -16,6 +18,7 @@ import (
 
 type goobjFile struct {
 	goobj *goobj.Package
+	f     *os.File // the underlying .o or .a file
 }
 
 func openGoobj(r *os.File) (rawFile, error) {
@@ -23,7 +26,7 @@ func openGoobj(r *os.File) (rawFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &goobjFile{f}, nil
+	return &goobjFile{goobj: f, f: r}, nil
 }
 
 func goobjName(id goobj.SymID) string {
@@ -55,6 +58,9 @@ func (f *goobjFile) symbols() ([]Sym, error) {
 		if s.Version != 0 {
 			sym.Code += 'a' - 'A'
 		}
+		for i, r := range s.Reloc {
+			sym.Relocs = append(sym.Relocs, Reloc{Addr: uint64(s.Data.Offset) + uint64(r.Offset), Size: uint64(r.Size), Stringer: &s.Reloc[i]})
+		}
 		syms = append(syms, sym)
 	}
 
@@ -75,23 +81,115 @@ func (f *goobjFile) symbols() ([]Sym, error) {
 	return syms, nil
 }
 
-// pcln does not make sense for Go object files, because each
-// symbol has its own individual pcln table, so there is no global
-// space of addresses to map.
 func (f *goobjFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+	// Should never be called.  We implement Liner below, callers
+	// should use that instead.
 	return 0, nil, nil, fmt.Errorf("pcln not available in go object file")
 }
 
-// text does not make sense for Go object files, because
-// each function has a separate section.
-func (f *goobjFile) text() (textStart uint64, text []byte, err error) {
-	return 0, nil, fmt.Errorf("text not available in go object file")
+// Find returns the file name, line, and function data for the given pc.
+// Returns "",0,nil if unknown.
+// This function implements the Liner interface in preference to pcln() above.
+func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
+	// TODO: this is really inefficient.  Binary search?  Memoize last result?
+	var arch *sys.Arch
+	for _, a := range sys.Archs {
+		if a.Name == f.goobj.Arch {
+			arch = a
+			break
+		}
+	}
+	if arch == nil {
+		return "", 0, nil
+	}
+	for _, s := range f.goobj.Syms {
+		if pc < uint64(s.Data.Offset) || pc >= uint64(s.Data.Offset+s.Data.Size) {
+			continue
+		}
+		if s.Func == nil {
+			return "", 0, nil
+		}
+		pcfile := make([]byte, s.Func.PCFile.Size)
+		_, err := f.f.ReadAt(pcfile, s.Func.PCFile.Offset)
+		if err != nil {
+			return "", 0, nil
+		}
+		fileID := int(pcValue(pcfile, pc-uint64(s.Data.Offset), arch))
+		fileName := s.Func.File[fileID]
+		pcline := make([]byte, s.Func.PCLine.Size)
+		_, err = f.f.ReadAt(pcline, s.Func.PCLine.Offset)
+		if err != nil {
+			return "", 0, nil
+		}
+		line := int(pcValue(pcline, pc-uint64(s.Data.Offset), arch))
+		// Note: we provide only the name in the Func structure.
+		// We could provide more if needed.
+		return fileName, line, &gosym.Func{Sym: &gosym.Sym{Name: s.Name}}
+	}
+	return "", 0, nil
 }
 
-// goarch makes sense but is not exposed in debug/goobj's API,
-// and we don't need it yet for any users of internal/objfile.
+// pcValue looks up the given PC in a pc value table. target is the
+// offset of the pc from the entry point.
+func pcValue(tab []byte, target uint64, arch *sys.Arch) int32 {
+	val := int32(-1)
+	var pc uint64
+	for step(&tab, &pc, &val, pc == 0, arch) {
+		if target < pc {
+			return val
+		}
+	}
+	return -1
+}
+
+// step advances to the next pc, value pair in the encoded table.
+func step(p *[]byte, pc *uint64, val *int32, first bool, arch *sys.Arch) bool {
+	uvdelta := readvarint(p)
+	if uvdelta == 0 && !first {
+		return false
+	}
+	if uvdelta&1 != 0 {
+		uvdelta = ^(uvdelta >> 1)
+	} else {
+		uvdelta >>= 1
+	}
+	vdelta := int32(uvdelta)
+	pcdelta := readvarint(p) * uint32(arch.MinLC)
+	*pc += uint64(pcdelta)
+	*val += vdelta
+	return true
+}
+
+// readvarint reads, removes, and returns a varint from *p.
+func readvarint(p *[]byte) uint32 {
+	var v, shift uint32
+	s := *p
+	for shift = 0; ; shift += 7 {
+		b := s[0]
+		s = s[1:]
+		v |= (uint32(b) & 0x7F) << shift
+		if b&0x80 == 0 {
+			break
+		}
+	}
+	*p = s
+	return v
+}
+
+// We treat the whole object file as the text section.
+func (f *goobjFile) text() (textStart uint64, text []byte, err error) {
+	var info os.FileInfo
+	info, err = f.f.Stat()
+	if err != nil {
+		return
+	}
+	text = make([]byte, info.Size())
+	_, err = f.f.ReadAt(text, 0)
+	return
+}
+
 func (f *goobjFile) goarch() string {
-	return "GOARCH unimplemented for debug/goobj files"
+	return f.goobj.Arch
 }
 
 func (f *goobjFile) loadAddress() (uint64, error) {

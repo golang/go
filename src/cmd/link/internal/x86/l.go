@@ -1,5 +1,5 @@
 // Inferno utils/8l/l.h
-// http://code.google.com/p/inferno-os/source/browse/utils/8l/l.h
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/8l/l.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -31,13 +31,13 @@
 package x86
 
 const (
-	MaxAlign  = 32 // max data alignment
-	MinAlign  = 1  // min data alignment
-	FuncAlign = 16
+	maxAlign  = 32 // max data alignment
+	minAlign  = 1  // min data alignment
+	funcAlign = 16
 )
 
 /* Used by ../internal/ld/dwarf.go */
 const (
-	DWARFREGSP = 4
-	DWARFREGLR = 8
+	dwarfRegSP = 4
+	dwarfRegLR = 8
 )

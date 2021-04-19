@@ -109,7 +109,7 @@ func f32hash(p unsafe.Pointer, h uintptr) uintptr {
 	case f == 0:
 		return c1 * (c0 ^ h) // +0, -0
 	case f != f:
-		return c1 * (c0 ^ h ^ uintptr(fastrand1())) // any kind of NaN
+		return c1 * (c0 ^ h ^ uintptr(fastrand())) // any kind of NaN
 	default:
 		return memhash(p, h, 4)
 	}
@@ -121,7 +121,7 @@ func f64hash(p unsafe.Pointer, h uintptr) uintptr {
 	case f == 0:
 		return c1 * (c0 ^ h) // +0, -0
 	case f != f:
-		return c1 * (c0 ^ h ^ uintptr(fastrand1())) // any kind of NaN
+		return c1 * (c0 ^ h ^ uintptr(fastrand())) // any kind of NaN
 	default:
 		return memhash(p, h, 8)
 	}
@@ -273,12 +273,6 @@ func ifaceHash(i interface {
 	F()
 }, seed uintptr) uintptr {
 	return algarray[alg_INTER].hash(noescape(unsafe.Pointer(&i)), seed)
-}
-
-// Testing adapter for memclr
-func memclrBytes(b []byte) {
-	s := (*slice)(unsafe.Pointer(&b))
-	memclr(s.array, uintptr(s.len))
 }
 
 const hashRandomBytes = sys.PtrSize / 4 * 64

@@ -199,6 +199,17 @@ type AttrTest struct {
 	Bytes []byte  `xml:",attr"`
 }
 
+type AttrsTest struct {
+	Attrs []Attr  `xml:",any,attr"`
+	Int   int     `xml:",attr"`
+	Named int     `xml:"int,attr"`
+	Float float64 `xml:",attr"`
+	Uint8 uint8   `xml:",attr"`
+	Bool  bool    `xml:",attr"`
+	Str   string  `xml:",attr"`
+	Bytes []byte  `xml:",attr"`
+}
+
 type OmitAttrTest struct {
 	Int   int     `xml:",attr,omitempty"`
 	Named int     `xml:"int,attr,omitempty"`
@@ -207,6 +218,7 @@ type OmitAttrTest struct {
 	Bool  bool    `xml:",attr,omitempty"`
 	Str   string  `xml:",attr,omitempty"`
 	Bytes []byte  `xml:",attr,omitempty"`
+	PStr  *string `xml:",attr,omitempty"`
 }
 
 type OmitFieldTest struct {
@@ -217,6 +229,7 @@ type OmitFieldTest struct {
 	Bool  bool          `xml:",omitempty"`
 	Str   string        `xml:",omitempty"`
 	Bytes []byte        `xml:",omitempty"`
+	PStr  *string       `xml:",omitempty"`
 	Ptr   *PresenceTest `xml:",omitempty"`
 }
 
@@ -317,6 +330,10 @@ func (m *MyMarshalerAttrTest) MarshalXMLAttr(name Name) (Attr, error) {
 	return Attr{name, "hello world"}, nil
 }
 
+func (m *MyMarshalerAttrTest) UnmarshalXMLAttr(attr Attr) error {
+	return nil
+}
+
 type MarshalerStruct struct {
 	Foo MyMarshalerAttrTest `xml:",attr"`
 }
@@ -369,21 +386,158 @@ func ifaceptr(x interface{}) interface{} {
 	return &x
 }
 
+func stringptr(x string) *string {
+	return &x
+}
+
+type T1 struct{}
+type T2 struct{}
+type T3 struct{}
+
+type IndirComment struct {
+	T1      T1
+	Comment *string `xml:",comment"`
+	T2      T2
+}
+
+type DirectComment struct {
+	T1      T1
+	Comment string `xml:",comment"`
+	T2      T2
+}
+
+type IfaceComment struct {
+	T1      T1
+	Comment interface{} `xml:",comment"`
+	T2      T2
+}
+
+type IndirChardata struct {
+	T1       T1
+	Chardata *string `xml:",chardata"`
+	T2       T2
+}
+
+type DirectChardata struct {
+	T1       T1
+	Chardata string `xml:",chardata"`
+	T2       T2
+}
+
+type IfaceChardata struct {
+	T1       T1
+	Chardata interface{} `xml:",chardata"`
+	T2       T2
+}
+
+type IndirCDATA struct {
+	T1    T1
+	CDATA *string `xml:",cdata"`
+	T2    T2
+}
+
+type DirectCDATA struct {
+	T1    T1
+	CDATA string `xml:",cdata"`
+	T2    T2
+}
+
+type IfaceCDATA struct {
+	T1    T1
+	CDATA interface{} `xml:",cdata"`
+	T2    T2
+}
+
+type IndirInnerXML struct {
+	T1       T1
+	InnerXML *string `xml:",innerxml"`
+	T2       T2
+}
+
+type DirectInnerXML struct {
+	T1       T1
+	InnerXML string `xml:",innerxml"`
+	T2       T2
+}
+
+type IfaceInnerXML struct {
+	T1       T1
+	InnerXML interface{} `xml:",innerxml"`
+	T2       T2
+}
+
+type IndirElement struct {
+	T1      T1
+	Element *string
+	T2      T2
+}
+
+type DirectElement struct {
+	T1      T1
+	Element string
+	T2      T2
+}
+
+type IfaceElement struct {
+	T1      T1
+	Element interface{}
+	T2      T2
+}
+
+type IndirOmitEmpty struct {
+	T1        T1
+	OmitEmpty *string `xml:",omitempty"`
+	T2        T2
+}
+
+type DirectOmitEmpty struct {
+	T1        T1
+	OmitEmpty string `xml:",omitempty"`
+	T2        T2
+}
+
+type IfaceOmitEmpty struct {
+	T1        T1
+	OmitEmpty interface{} `xml:",omitempty"`
+	T2        T2
+}
+
+type IndirAny struct {
+	T1  T1
+	Any *string `xml:",any"`
+	T2  T2
+}
+
+type DirectAny struct {
+	T1  T1
+	Any string `xml:",any"`
+	T2  T2
+}
+
+type IfaceAny struct {
+	T1  T1
+	Any interface{} `xml:",any"`
+	T2  T2
+}
+
 var (
 	nameAttr     = "Sarah"
 	ageAttr      = uint(12)
 	contentsAttr = "lorem ipsum"
+	empty        = ""
 )
 
 // Unless explicitly stated as such (or *Plain), all of the
 // tests below are two-way tests. When introducing new tests,
 // please try to make them two-way as well to ensure that
-// marshalling and unmarshalling are as symmetrical as feasible.
+// marshaling and unmarshaling are as symmetrical as feasible.
 var marshalTests = []struct {
-	Value         interface{}
-	ExpectXML     string
-	MarshalOnly   bool
-	UnmarshalOnly bool
+	Value          interface{}
+	ExpectXML      string
+	MarshalOnly    bool
+	MarshalError   string
+	UnmarshalOnly  bool
+	UnmarshalError string
 }{
 	// Test nil marshals to nothing
 	{Value: nil, ExpectXML: ``, MarshalOnly: true},
@@ -823,7 +977,26 @@ var marshalTests = []struct {
 			` Bool="false" Str="" Bytes=""></AttrTest>`,
 	},
 	{
-		Value: &OmitAttrTest{
+		Value: &AttrsTest{
+			Attrs: []Attr{
+				{Name: Name{Local: "Answer"}, Value: "42"},
+				{Name: Name{Local: "Int"}, Value: "8"},
+				{Name: Name{Local: "int"}, Value: "9"},
+				{Name: Name{Local: "Float"}, Value: "23.5"},
+				{Name: Name{Local: "Uint8"}, Value: "255"},
+				{Name: Name{Local: "Bool"}, Value: "true"},
+				{Name: Name{Local: "Str"}, Value: "str"},
+				{Name: Name{Local: "Bytes"}, Value: "byt"},
+			},
+		},
+		ExpectXML:   `<AttrsTest Answer="42" Int="8" int="9" Float="23.5" Uint8="255" Bool="true" Str="str" Bytes="byt" Int="0" int="0" Float="0" Uint8="0" Bool="false" Str="" Bytes=""></AttrsTest>`,
+		MarshalOnly: true,
+	},
+	{
+		Value: &AttrsTest{
+			Attrs: []Attr{
+				{Name: Name{Local: "Answer"}, Value: "42"},
+			},
 			Int:   8,
 			Named: 9,
 			Float: 23.5,
@@ -832,8 +1005,37 @@ var marshalTests = []struct {
 			Str:   "str",
 			Bytes: []byte("byt"),
 		},
+		ExpectXML: `<AttrsTest Answer="42" Int="8" int="9" Float="23.5" Uint8="255" Bool="true" Str="str" Bytes="byt"></AttrsTest>`,
+	},
+	{
+		Value: &AttrsTest{
+			Attrs: []Attr{
+				{Name: Name{Local: "Int"}, Value: "0"},
+				{Name: Name{Local: "int"}, Value: "0"},
+				{Name: Name{Local: "Float"}, Value: "0"},
+				{Name: Name{Local: "Uint8"}, Value: "0"},
+				{Name: Name{Local: "Bool"}, Value: "false"},
+				{Name: Name{Local: "Str"}},
+				{Name: Name{Local: "Bytes"}},
+			},
+			Bytes: []byte{},
+		},
+		ExpectXML:   `<AttrsTest Int="0" int="0" Float="0" Uint8="0" Bool="false" Str="" Bytes="" Int="0" int="0" Float="0" Uint8="0" Bool="false" Str="" Bytes=""></AttrsTest>`,
+		MarshalOnly: true,
+	},
+	{
+		Value: &OmitAttrTest{
+			Int:   8,
+			Named: 9,
+			Float: 23.5,
+			Uint8: 255,
+			Bool:  true,
+			Str:   "str",
+			Bytes: []byte("byt"),
+			PStr:  &empty,
+		},
 		ExpectXML: `<OmitAttrTest Int="8" int="9" Float="23.5" Uint8="255"` +
-			` Bool="true" Str="str" Bytes="byt"></OmitAttrTest>`,
+			` Bool="true" Str="str" Bytes="byt" PStr=""></OmitAttrTest>`,
 	},
 	{
 		Value:     &OmitAttrTest{},
@@ -864,6 +1066,7 @@ var marshalTests = []struct {
 			Bool:  true,
 			Str:   "str",
 			Bytes: []byte("byt"),
+			PStr:  &empty,
 			Ptr:   &PresenceTest{},
 		},
 		ExpectXML: `<OmitFieldTest>` +
@@ -874,6 +1077,7 @@ var marshalTests = []struct {
 			`<Bool>true</Bool>` +
 			`<Str>str</Str>` +
 			`<Bytes>byt</Bytes>` +
+			`<PStr></PStr>` +
 			`<Ptr></Ptr>` +
 			`</OmitFieldTest>`,
 	},
@@ -1065,6 +1269,382 @@ var marshalTests = []struct {
 		ExpectXML: `<NestedAndCData><A><B></B><B></B></A><![CDATA[test]]></NestedAndCData>`,
 		Value:     &NestedAndCData{AB: make([]string, 2), CDATA: "test"},
 	},
+	// Test pointer indirection in various kinds of fields.
+	// https://golang.org/issue/19063
+	{
+		ExpectXML:   `<IndirComment><T1></T1><!--hi--><T2></T2></IndirComment>`,
+		Value:       &IndirComment{Comment: stringptr("hi")},
+		MarshalOnly: true,
+	},
+	{
+		ExpectXML:   `<IndirComment><T1></T1><T2></T2></IndirComment>`,
+		Value:       &IndirComment{Comment: stringptr("")},
+		MarshalOnly: true,
+	},
+	{
+		ExpectXML:    `<IndirComment><T1></T1><T2></T2></IndirComment>`,
+		Value:        &IndirComment{Comment: nil},
+		MarshalError: "xml: bad type for comment field of xml.IndirComment",
+	},
+	{
+		ExpectXML:     `<IndirComment><T1></T1><!--hi--><T2></T2></IndirComment>`,
+		Value:         &IndirComment{Comment: nil},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML:   `<IfaceComment><T1></T1><!--hi--><T2></T2></IfaceComment>`,
+		Value:       &IfaceComment{Comment: "hi"},
+		MarshalOnly: true,
+	},
+	{
+		ExpectXML:     `<IfaceComment><T1></T1><!--hi--><T2></T2></IfaceComment>`,
+		Value:         &IfaceComment{Comment: nil},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML:    `<IfaceComment><T1></T1><T2></T2></IfaceComment>`,
+		Value:        &IfaceComment{Comment: nil},
+		MarshalError: "xml: bad type for comment field of xml.IfaceComment",
+	},
+	{
+		ExpectXML:     `<IfaceComment><T1></T1><T2></T2></IfaceComment>`,
+		Value:         &IfaceComment{Comment: nil},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML: `<DirectComment><T1></T1><!--hi--><T2></T2></DirectComment>`,
+		Value:     &DirectComment{Comment: string("hi")},
+	},
+	{
+		ExpectXML: `<DirectComment><T1></T1><T2></T2></DirectComment>`,
+		Value:     &DirectComment{Comment: string("")},
+	},
+	{
+		ExpectXML: `<IndirChardata><T1></T1>hi<T2></T2></IndirChardata>`,
+		Value:     &IndirChardata{Chardata: stringptr("hi")},
+	},
+	{
+		ExpectXML:     `<IndirChardata><T1></T1><![CDATA[hi]]><T2></T2></IndirChardata>`,
+		Value:         &IndirChardata{Chardata: stringptr("hi")},
+		UnmarshalOnly: true, // marshals without CDATA
+	},
+	{
+		ExpectXML: `<IndirChardata><T1></T1><T2></T2></IndirChardata>`,
+		Value:     &IndirChardata{Chardata: stringptr("")},
+	},
+	{
+		ExpectXML:   `<IndirChardata><T1></T1><T2></T2></IndirChardata>`,
+		Value:       &IndirChardata{Chardata: nil},
+		MarshalOnly: true, // unmarshal leaves Chardata=stringptr("")
+	},
+	{
+		ExpectXML:      `<IfaceChardata><T1></T1>hi<T2></T2></IfaceChardata>`,
+		Value:          &IfaceChardata{Chardata: string("hi")},
+		UnmarshalError: "cannot unmarshal into interface {}",
+	},
+	{
+		ExpectXML:      `<IfaceChardata><T1></T1><![CDATA[hi]]><T2></T2></IfaceChardata>`,
+		Value:          &IfaceChardata{Chardata: string("hi")},
+		UnmarshalOnly:  true, // marshals without CDATA
+		UnmarshalError: "cannot unmarshal into interface {}",
+	},
+	{
+		ExpectXML:      `<IfaceChardata><T1></T1><T2></T2></IfaceChardata>`,
+		Value:          &IfaceChardata{Chardata: string("")},
+		UnmarshalError: "cannot unmarshal into interface {}",
+	},
+	{
+		ExpectXML:      `<IfaceChardata><T1></T1><T2></T2></IfaceChardata>`,
+		Value:          &IfaceChardata{Chardata: nil},
+		UnmarshalError: "cannot unmarshal into interface {}",
+	},
+	{
+		ExpectXML: `<DirectChardata><T1></T1>hi<T2></T2></DirectChardata>`,
+		Value:     &DirectChardata{Chardata: string("hi")},
+	},
+	{
+		ExpectXML:     `<DirectChardata><T1></T1><![CDATA[hi]]><T2></T2></DirectChardata>`,
+		Value:         &DirectChardata{Chardata: string("hi")},
+		UnmarshalOnly: true, // marshals without CDATA
+	},
+	{
+		ExpectXML: `<DirectChardata><T1></T1><T2></T2></DirectChardata>`,
+		Value:     &DirectChardata{Chardata: string("")},
+	},
+	{
+		ExpectXML: `<IndirCDATA><T1></T1><![CDATA[hi]]><T2></T2></IndirCDATA>`,
+		Value:     &IndirCDATA{CDATA: stringptr("hi")},
+	},
+	{
+		ExpectXML:     `<IndirCDATA><T1></T1>hi<T2></T2></IndirCDATA>`,
+		Value:         &IndirCDATA{CDATA: stringptr("hi")},
+		UnmarshalOnly: true, // marshals with CDATA
+	},
+	{
+		ExpectXML: `<IndirCDATA><T1></T1><T2></T2></IndirCDATA>`,
+		Value:     &IndirCDATA{CDATA: stringptr("")},
+	},
+	{
+		ExpectXML:   `<IndirCDATA><T1></T1><T2></T2></IndirCDATA>`,
+		Value:       &IndirCDATA{CDATA: nil},
+		MarshalOnly: true, // unmarshal leaves CDATA=stringptr("")
+	},
+	{
+		ExpectXML:      `<IfaceCDATA><T1></T1><![CDATA[hi]]><T2></T2></IfaceCDATA>`,
+		Value:          &IfaceCDATA{CDATA: string("hi")},
+		UnmarshalError: "cannot unmarshal into interface {}",
+	},
+	{
+		ExpectXML:      `<IfaceCDATA><T1></T1>hi<T2></T2></IfaceCDATA>`,
+		Value:          &IfaceCDATA{CDATA: string("hi")},
+		UnmarshalOnly:  true, // marshals with CDATA
+		UnmarshalError: "cannot unmarshal into interface {}",
+	},
+	{
+		ExpectXML:      `<IfaceCDATA><T1></T1><T2></T2></IfaceCDATA>`,
+		Value:          &IfaceCDATA{CDATA: string("")},
+		UnmarshalError: "cannot unmarshal into interface {}",
+	},
+	{
+		ExpectXML:      `<IfaceCDATA><T1></T1><T2></T2></IfaceCDATA>`,
+		Value:          &IfaceCDATA{CDATA: nil},
+		UnmarshalError: "cannot unmarshal into interface {}",
+	},
+	{
+		ExpectXML: `<DirectCDATA><T1></T1><![CDATA[hi]]><T2></T2></DirectCDATA>`,
+		Value:     &DirectCDATA{CDATA: string("hi")},
+	},
+	{
+		ExpectXML:     `<DirectCDATA><T1></T1>hi<T2></T2></DirectCDATA>`,
+		Value:         &DirectCDATA{CDATA: string("hi")},
+		UnmarshalOnly: true, // marshals with CDATA
+	},
+	{
+		ExpectXML: `<DirectCDATA><T1></T1><T2></T2></DirectCDATA>`,
+		Value:     &DirectCDATA{CDATA: string("")},
+	},
+	{
+		ExpectXML:   `<IndirInnerXML><T1></T1><hi/><T2></T2></IndirInnerXML>`,
+		Value:       &IndirInnerXML{InnerXML: stringptr("<hi/>")},
+		MarshalOnly: true,
+	},
+	{
+		ExpectXML:   `<IndirInnerXML><T1></T1><T2></T2></IndirInnerXML>`,
+		Value:       &IndirInnerXML{InnerXML: stringptr("")},
+		MarshalOnly: true,
+	},
+	{
+		ExpectXML: `<IndirInnerXML><T1></T1><T2></T2></IndirInnerXML>`,
+		Value:     &IndirInnerXML{InnerXML: nil},
+	},
+	{
+		ExpectXML:     `<IndirInnerXML><T1></T1><hi/><T2></T2></IndirInnerXML>`,
+		Value:         &IndirInnerXML{InnerXML: nil},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML:   `<IfaceInnerXML><T1></T1><hi/><T2></T2></IfaceInnerXML>`,
+		Value:       &IfaceInnerXML{InnerXML: "<hi/>"},
+		MarshalOnly: true,
+	},
+	{
+		ExpectXML:     `<IfaceInnerXML><T1></T1><hi/><T2></T2></IfaceInnerXML>`,
+		Value:         &IfaceInnerXML{InnerXML: nil},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML: `<IfaceInnerXML><T1></T1><T2></T2></IfaceInnerXML>`,
+		Value:     &IfaceInnerXML{InnerXML: nil},
+	},
+	{
+		ExpectXML:     `<IfaceInnerXML><T1></T1><T2></T2></IfaceInnerXML>`,
+		Value:         &IfaceInnerXML{InnerXML: nil},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML:   `<DirectInnerXML><T1></T1><hi/><T2></T2></DirectInnerXML>`,
+		Value:       &DirectInnerXML{InnerXML: string("<hi/>")},
+		MarshalOnly: true,
+	},
+	{
+		ExpectXML:     `<DirectInnerXML><T1></T1><hi/><T2></T2></DirectInnerXML>`,
+		Value:         &DirectInnerXML{InnerXML: string("<T1></T1><hi/><T2></T2>")},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML:   `<DirectInnerXML><T1></T1><T2></T2></DirectInnerXML>`,
+		Value:       &DirectInnerXML{InnerXML: string("")},
+		MarshalOnly: true,
+	},
+	{
+		ExpectXML:     `<DirectInnerXML><T1></T1><T2></T2></DirectInnerXML>`,
+		Value:         &DirectInnerXML{InnerXML: string("<T1></T1><T2></T2>")},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML: `<IndirElement><T1></T1><Element>hi</Element><T2></T2></IndirElement>`,
+		Value:     &IndirElement{Element: stringptr("hi")},
+	},
+	{
+		ExpectXML: `<IndirElement><T1></T1><Element></Element><T2></T2></IndirElement>`,
+		Value:     &IndirElement{Element: stringptr("")},
+	},
+	{
+		ExpectXML: `<IndirElement><T1></T1><T2></T2></IndirElement>`,
+		Value:     &IndirElement{Element: nil},
+	},
+	{
+		ExpectXML:   `<IfaceElement><T1></T1><Element>hi</Element><T2></T2></IfaceElement>`,
+		Value:       &IfaceElement{Element: "hi"},
+		MarshalOnly: true,
+	},
+	{
+		ExpectXML:     `<IfaceElement><T1></T1><Element>hi</Element><T2></T2></IfaceElement>`,
+		Value:         &IfaceElement{Element: nil},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML: `<IfaceElement><T1></T1><T2></T2></IfaceElement>`,
+		Value:     &IfaceElement{Element: nil},
+	},
+	{
+		ExpectXML:     `<IfaceElement><T1></T1><T2></T2></IfaceElement>`,
+		Value:         &IfaceElement{Element: nil},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML: `<DirectElement><T1></T1><Element>hi</Element><T2></T2></DirectElement>`,
+		Value:     &DirectElement{Element: string("hi")},
+	},
+	{
+		ExpectXML: `<DirectElement><T1></T1><Element></Element><T2></T2></DirectElement>`,
+		Value:     &DirectElement{Element: string("")},
+	},
+	{
+		ExpectXML: `<IndirOmitEmpty><T1></T1><OmitEmpty>hi</OmitEmpty><T2></T2></IndirOmitEmpty>`,
+		Value:     &IndirOmitEmpty{OmitEmpty: stringptr("hi")},
+	},
+	{
+		// Note: Changed in Go 1.8 to include <OmitEmpty> element (because x.OmitEmpty != nil).
+		ExpectXML:   `<IndirOmitEmpty><T1></T1><OmitEmpty></OmitEmpty><T2></T2></IndirOmitEmpty>`,
+		Value:       &IndirOmitEmpty{OmitEmpty: stringptr("")},
+		MarshalOnly: true,
+	},
+	{
+		ExpectXML:     `<IndirOmitEmpty><T1></T1><OmitEmpty></OmitEmpty><T2></T2></IndirOmitEmpty>`,
+		Value:         &IndirOmitEmpty{OmitEmpty: stringptr("")},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML: `<IndirOmitEmpty><T1></T1><T2></T2></IndirOmitEmpty>`,
+		Value:     &IndirOmitEmpty{OmitEmpty: nil},
+	},
+	{
+		ExpectXML:   `<IfaceOmitEmpty><T1></T1><OmitEmpty>hi</OmitEmpty><T2></T2></IfaceOmitEmpty>`,
+		Value:       &IfaceOmitEmpty{OmitEmpty: "hi"},
+		MarshalOnly: true,
+	},
+	{
+		ExpectXML:     `<IfaceOmitEmpty><T1></T1><OmitEmpty>hi</OmitEmpty><T2></T2></IfaceOmitEmpty>`,
+		Value:         &IfaceOmitEmpty{OmitEmpty: nil},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML: `<IfaceOmitEmpty><T1></T1><T2></T2></IfaceOmitEmpty>`,
+		Value:     &IfaceOmitEmpty{OmitEmpty: nil},
+	},
+	{
+		ExpectXML:     `<IfaceOmitEmpty><T1></T1><T2></T2></IfaceOmitEmpty>`,
+		Value:         &IfaceOmitEmpty{OmitEmpty: nil},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML: `<DirectOmitEmpty><T1></T1><OmitEmpty>hi</OmitEmpty><T2></T2></DirectOmitEmpty>`,
+		Value:     &DirectOmitEmpty{OmitEmpty: string("hi")},
+	},
+	{
+		ExpectXML: `<DirectOmitEmpty><T1></T1><T2></T2></DirectOmitEmpty>`,
+		Value:     &DirectOmitEmpty{OmitEmpty: string("")},
+	},
+	{
+		ExpectXML: `<IndirAny><T1></T1><Any>hi</Any><T2></T2></IndirAny>`,
+		Value:     &IndirAny{Any: stringptr("hi")},
+	},
+	{
+		ExpectXML: `<IndirAny><T1></T1><Any></Any><T2></T2></IndirAny>`,
+		Value:     &IndirAny{Any: stringptr("")},
+	},
+	{
+		ExpectXML: `<IndirAny><T1></T1><T2></T2></IndirAny>`,
+		Value:     &IndirAny{Any: nil},
+	},
+	{
+		ExpectXML:   `<IfaceAny><T1></T1><Any>hi</Any><T2></T2></IfaceAny>`,
+		Value:       &IfaceAny{Any: "hi"},
+		MarshalOnly: true,
+	},
+	{
+		ExpectXML:     `<IfaceAny><T1></T1><Any>hi</Any><T2></T2></IfaceAny>`,
+		Value:         &IfaceAny{Any: nil},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML: `<IfaceAny><T1></T1><T2></T2></IfaceAny>`,
+		Value:     &IfaceAny{Any: nil},
+	},
+	{
+		ExpectXML:     `<IfaceAny><T1></T1><T2></T2></IfaceAny>`,
+		Value:         &IfaceAny{Any: nil},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML: `<DirectAny><T1></T1><Any>hi</Any><T2></T2></DirectAny>`,
+		Value:     &DirectAny{Any: string("hi")},
+	},
+	{
+		ExpectXML: `<DirectAny><T1></T1><Any></Any><T2></T2></DirectAny>`,
+		Value:     &DirectAny{Any: string("")},
+	},
+	{
+		ExpectXML:     `<IndirFoo><T1></T1><Foo>hi</Foo><T2></T2></IndirFoo>`,
+		Value:         &IndirAny{Any: stringptr("hi")},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML:     `<IndirFoo><T1></T1><Foo></Foo><T2></T2></IndirFoo>`,
+		Value:         &IndirAny{Any: stringptr("")},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML:     `<IndirFoo><T1></T1><T2></T2></IndirFoo>`,
+		Value:         &IndirAny{Any: nil},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML:     `<IfaceFoo><T1></T1><Foo>hi</Foo><T2></T2></IfaceFoo>`,
+		Value:         &IfaceAny{Any: nil},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML:     `<IfaceFoo><T1></T1><T2></T2></IfaceFoo>`,
+		Value:         &IfaceAny{Any: nil},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML:     `<IfaceFoo><T1></T1><T2></T2></IfaceFoo>`,
+		Value:         &IfaceAny{Any: nil},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML:     `<DirectFoo><T1></T1><Foo>hi</Foo><T2></T2></DirectFoo>`,
+		Value:         &DirectAny{Any: string("hi")},
+		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML:     `<DirectFoo><T1></T1><Foo></Foo><T2></T2></DirectFoo>`,
+		Value:         &DirectAny{Any: string("")},
+		UnmarshalOnly: true,
+	},
 }
 
 func TestMarshal(t *testing.T) {
@@ -1074,7 +1654,17 @@ func TestMarshal(t *testing.T) {
 		}
 		data, err := Marshal(test.Value)
 		if err != nil {
-			t.Errorf("#%d: marshal(%#v): %s", idx, test.Value, err)
+			if test.MarshalError == "" {
+				t.Errorf("#%d: marshal(%#v): %s", idx, test.Value, err)
+				continue
+			}
+			if !strings.Contains(err.Error(), test.MarshalError) {
+				t.Errorf("#%d: marshal(%#v): %s, want %q", idx, test.Value, err, test.MarshalError)
+			}
+			continue
+		}
+		if test.MarshalError != "" {
+			t.Errorf("#%d: Marshal succeeded, want error %q", idx, test.MarshalError)
 			continue
 		}
 		if got, want := string(data), test.ExpectXML; got != want {
@@ -1092,7 +1682,7 @@ type AttrParent struct {
 }
 
 type BadAttr struct {
-	Name []string `xml:"name,attr"`
+	Name map[string]string `xml:"name,attr"`
 }
 
 var marshalErrorTests = []struct {
@@ -1128,8 +1718,8 @@ var marshalErrorTests = []struct {
 		Err:   `xml: X>Y chain not valid with attr flag`,
 	},
 	{
-		Value: BadAttr{[]string{"X", "Y"}},
-		Err:   `xml: unsupported type: []string`,
+		Value: BadAttr{map[string]string{"X": "Y"}},
+		Err:   `xml: unsupported type: map[string]string`,
 	},
 }
 
@@ -1200,8 +1790,16 @@ func TestUnmarshal(t *testing.T) {
 		}
 
 		if err != nil {
-			t.Errorf("#%d: unexpected error: %#v", i, err)
-		} else if got, want := dest, test.Value; !reflect.DeepEqual(got, want) {
+			if test.UnmarshalError == "" {
+				t.Errorf("#%d: unmarshal(%#v): %s", i, test.ExpectXML, err)
+				continue
+			}
+			if !strings.Contains(err.Error(), test.UnmarshalError) {
+				t.Errorf("#%d: unmarshal(%#v): %s, want %q", i, test.ExpectXML, err, test.UnmarshalError)
+			}
+			continue
+		}
+		if got, want := dest, test.Value; !reflect.DeepEqual(got, want) {
 			t.Errorf("#%d: unmarshal(%q):\nhave %#v\nwant %#v", i, test.ExpectXML, got, want)
 		}
 	}
@@ -1732,7 +2330,7 @@ func TestDecodeEncode(t *testing.T) {
 	in.WriteString(`<?xml version="1.0" encoding="UTF-8"?>
 <?Target Instruction?>
 <root>
-</root>	
+</root>
 `)
 	dec := NewDecoder(&in)
 	enc := NewEncoder(&out)
@@ -1821,5 +2419,19 @@ func TestSimpleUseOfEncodeToken(t *testing.T) {
 	want := "<object2></object2>"
 	if buf.String() != want {
 		t.Errorf("enc.EncodeToken: expected %q; got %q", want, buf.String())
+	}
+}
+
+// Issue 16158. Decoder.unmarshalAttr ignores the return value of copyValue.
+func TestIssue16158(t *testing.T) {
+	const data = `<foo b="HELLOWORLD"></foo>`
+	err := Unmarshal([]byte(data), &struct {
+		B byte `xml:"b,attr,omitempty"`
+	}{})
+
+	// For Go 1.8.1 we've restored the old "no errors reported" behavior.
+	// We'll try again in Go 1.9 to report errors.
+	if err != nil {
+		t.Errorf("Unmarshal: expected nil, got error")
 	}
 }

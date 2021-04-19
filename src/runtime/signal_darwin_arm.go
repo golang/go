@@ -11,23 +11,30 @@ type sigctxt struct {
 	ctxt unsafe.Pointer
 }
 
-func (c *sigctxt) regs() *regs32   { return &(*ucontext)(c.ctxt).uc_mcontext.ss }
-func (c *sigctxt) r0() uint32      { return c.regs().r[0] }
-func (c *sigctxt) r1() uint32      { return c.regs().r[1] }
-func (c *sigctxt) r2() uint32      { return c.regs().r[2] }
-func (c *sigctxt) r3() uint32      { return c.regs().r[3] }
-func (c *sigctxt) r4() uint32      { return c.regs().r[4] }
-func (c *sigctxt) r5() uint32      { return c.regs().r[5] }
-func (c *sigctxt) r6() uint32      { return c.regs().r[6] }
-func (c *sigctxt) r7() uint32      { return c.regs().r[7] }
-func (c *sigctxt) r8() uint32      { return c.regs().r[8] }
-func (c *sigctxt) r9() uint32      { return c.regs().r[9] }
-func (c *sigctxt) r10() uint32     { return c.regs().r[10] }
-func (c *sigctxt) fp() uint32      { return c.regs().r[11] }
-func (c *sigctxt) ip() uint32      { return c.regs().r[12] }
-func (c *sigctxt) sp() uint32      { return c.regs().sp }
-func (c *sigctxt) lr() uint32      { return c.regs().lr }
-func (c *sigctxt) pc() uint32      { return c.regs().pc }
+//go:nosplit
+//go:nowritebarrierrec
+func (c *sigctxt) regs() *regs32 { return &(*ucontext)(c.ctxt).uc_mcontext.ss }
+
+func (c *sigctxt) r0() uint32  { return c.regs().r[0] }
+func (c *sigctxt) r1() uint32  { return c.regs().r[1] }
+func (c *sigctxt) r2() uint32  { return c.regs().r[2] }
+func (c *sigctxt) r3() uint32  { return c.regs().r[3] }
+func (c *sigctxt) r4() uint32  { return c.regs().r[4] }
+func (c *sigctxt) r5() uint32  { return c.regs().r[5] }
+func (c *sigctxt) r6() uint32  { return c.regs().r[6] }
+func (c *sigctxt) r7() uint32  { return c.regs().r[7] }
+func (c *sigctxt) r8() uint32  { return c.regs().r[8] }
+func (c *sigctxt) r9() uint32  { return c.regs().r[9] }
+func (c *sigctxt) r10() uint32 { return c.regs().r[10] }
+func (c *sigctxt) fp() uint32  { return c.regs().r[11] }
+func (c *sigctxt) ip() uint32  { return c.regs().r[12] }
+func (c *sigctxt) sp() uint32  { return c.regs().sp }
+func (c *sigctxt) lr() uint32  { return c.regs().lr }
+
+//go:nosplit
+//go:nowritebarrierrec
+func (c *sigctxt) pc() uint32 { return c.regs().pc }
+
 func (c *sigctxt) cpsr() uint32    { return c.regs().cpsr }
 func (c *sigctxt) fault() uint32   { return c.info.si_addr }
 func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }

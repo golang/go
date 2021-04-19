@@ -2551,14 +2551,14 @@ TEXT asmtest(SB),7,$0
 	MOVQ (R11), X11                         // 66450f6e1b or 664d0f6e1b or f3450f7e1b
 	MOVQ DX, X11                            // 66440f6eda or 664c0f6eda
 	MOVQ R11, X11                           // 66450f6edb or 664d0f6edb
-	//TODO: MOVDDUP (BX), X2                // f20f1213
-	//TODO: MOVDDUP (R11), X2               // f2410f1213
-	//TODO: MOVDDUP X2, X2                  // f20f12d2
-	//TODO: MOVDDUP X11, X2                 // f2410f12d3
-	//TODO: MOVDDUP (BX), X11               // f2440f121b
-	//TODO: MOVDDUP (R11), X11              // f2450f121b
-	//TODO: MOVDDUP X2, X11                 // f2440f12da
-	//TODO: MOVDDUP X11, X11                // f2450f12db
+	MOVDDUP (BX), X2                        // f20f1213
+	MOVDDUP (R11), X2                       // f2410f1213
+	MOVDDUP X2, X2                          // f20f12d2
+	MOVDDUP X11, X2                         // f2410f12d3
+	MOVDDUP (BX), X11                       // f2440f121b
+	MOVDDUP (R11), X11                      // f2450f121b
+	MOVDDUP X2, X11                         // f2440f12da
+	MOVDDUP X11, X11                        // f2450f12db
 	MOVQ X2, M2                             // f20fd6d2
 	MOVQ X11, M2                            // f2410fd6d3
 	MOVQ X2, M3                             // f20fd6da
@@ -2697,22 +2697,22 @@ TEXT asmtest(SB),7,$0
 	//TODO: MOVSD X11, (BX)                 // f2440f111b
 	//TODO: MOVSD X2, (R11)                 // f2410f1113
 	//TODO: MOVSD X11, (R11)                // f2450f111b
-	//TODO: MOVSHDUP (BX), X2               // f30f1613
-	//TODO: MOVSHDUP (R11), X2              // f3410f1613
-	//TODO: MOVSHDUP X2, X2                 // f30f16d2
-	//TODO: MOVSHDUP X11, X2                // f3410f16d3
-	//TODO: MOVSHDUP (BX), X11              // f3440f161b
-	//TODO: MOVSHDUP (R11), X11             // f3450f161b
-	//TODO: MOVSHDUP X2, X11                // f3440f16da
-	//TODO: MOVSHDUP X11, X11               // f3450f16db
-	//TODO: MOVSLDUP (BX), X2               // f30f1213
-	//TODO: MOVSLDUP (R11), X2              // f3410f1213
-	//TODO: MOVSLDUP X2, X2                 // f30f12d2
-	//TODO: MOVSLDUP X11, X2                // f3410f12d3
-	//TODO: MOVSLDUP (BX), X11              // f3440f121b
-	//TODO: MOVSLDUP (R11), X11             // f3450f121b
-	//TODO: MOVSLDUP X2, X11                // f3440f12da
-	//TODO: MOVSLDUP X11, X11               // f3450f12db
+	MOVSHDUP (BX), X2                       // f30f1613
+	MOVSHDUP (R11), X2                      // f3410f1613
+	MOVSHDUP X2, X2                         // f30f16d2
+	MOVSHDUP X11, X2                        // f3410f16d3
+	MOVSHDUP (BX), X11                      // f3440f161b
+	MOVSHDUP (R11), X11                     // f3450f161b
+	MOVSHDUP X2, X11                        // f3440f16da
+	MOVSHDUP X11, X11                       // f3450f16db
+	MOVSLDUP (BX), X2                       // f30f1213
+	MOVSLDUP (R11), X2                      // f3410f1213
+	MOVSLDUP X2, X2                         // f30f12d2
+	MOVSLDUP X11, X2                        // f3410f12d3
+	MOVSLDUP (BX), X11                      // f3440f121b
+	MOVSLDUP (R11), X11                     // f3450f121b
+	MOVSLDUP X2, X11                        // f3440f12da
+	MOVSLDUP X11, X11                       // f3450f12db
 	MOVSQ                                   // 48a5
 	MOVSS (BX), X2                          // f30f1013
 	MOVSS (R11), X2                         // f3410f1013
@@ -6116,30 +6116,30 @@ TEXT asmtest(SB),7,$0
 	//TODO: VBROADCASTI128 (R11), Y2        // c4c27d5a13
 	//TODO: VBROADCASTI128 (BX), Y11        // c4627d5a1b
 	//TODO: VBROADCASTI128 (R11), Y11       // c4427d5a1b
-	//TODO: VBROADCASTSD (BX), Y2           // c4e27d1913
-	//TODO: VBROADCASTSD (R11), Y2          // c4c27d1913
-	//TODO: VBROADCASTSD (BX), Y11          // c4627d191b
-	//TODO: VBROADCASTSD (R11), Y11         // c4427d191b
-	//TODO: VBROADCASTSD X2, Y2             // c4e27d19d2
-	//TODO: VBROADCASTSD X11, Y2            // c4c27d19d3
-	//TODO: VBROADCASTSD X2, Y11            // c4627d19da
-	//TODO: VBROADCASTSD X11, Y11           // c4427d19db
-	//TODO: VBROADCASTSS (BX), X2           // c4e2791813
-	//TODO: VBROADCASTSS (R11), X2          // c4c2791813
-	//TODO: VBROADCASTSS (BX), X11          // c46279181b
-	//TODO: VBROADCASTSS (R11), X11         // c44279181b
-	//TODO: VBROADCASTSS X2, X2             // c4e27918d2
-	//TODO: VBROADCASTSS X11, X2            // c4c27918d3
-	//TODO: VBROADCASTSS X2, X11            // c4627918da
-	//TODO: VBROADCASTSS X11, X11           // c4427918db
-	//TODO: VBROADCASTSS (BX), Y2           // c4e27d1813
-	//TODO: VBROADCASTSS (R11), Y2          // c4c27d1813
-	//TODO: VBROADCASTSS (BX), Y11          // c4627d181b
-	//TODO: VBROADCASTSS (R11), Y11         // c4427d181b
-	//TODO: VBROADCASTSS X2, Y2             // c4e27d18d2
-	//TODO: VBROADCASTSS X11, Y2            // c4c27d18d3
-	//TODO: VBROADCASTSS X2, Y11            // c4627d18da
-	//TODO: VBROADCASTSS X11, Y11           // c4427d18db
+	VBROADCASTSD (BX), Y2                   // c4e27d1913
+	VBROADCASTSD (R11), Y2                  // c4c27d1913
+	VBROADCASTSD (BX), Y11                  // c4627d191b
+	VBROADCASTSD (R11), Y11                 // c4427d191b
+	VBROADCASTSD X2, Y2                     // c4e27d19d2
+	VBROADCASTSD X11, Y2                    // c4c27d19d3
+	VBROADCASTSD X2, Y11                    // c4627d19da
+	VBROADCASTSD X11, Y11                   // c4427d19db
+	VBROADCASTSS (BX), X2                   // c4e2791813
+	VBROADCASTSS (R11), X2                  // c4c2791813
+	VBROADCASTSS (BX), X11                  // c46279181b
+	VBROADCASTSS (R11), X11                 // c44279181b
+	VBROADCASTSS X2, X2                     // c4e27918d2
+	VBROADCASTSS X11, X2                    // c4c27918d3
+	VBROADCASTSS X2, X11                    // c4627918da
+	VBROADCASTSS X11, X11                   // c4427918db
+	VBROADCASTSS (BX), Y2                   // c4e27d1813
+	VBROADCASTSS (R11), Y2                  // c4c27d1813
+	VBROADCASTSS (BX), Y11                  // c4627d181b
+	VBROADCASTSS (R11), Y11                 // c4427d181b
+	VBROADCASTSS X2, Y2                     // c4e27d18d2
+	VBROADCASTSS X11, Y2                    // c4c27d18d3
+	VBROADCASTSS X2, Y11                    // c4627d18da
+	VBROADCASTSS X11, Y11                   // c4427d18db
 	//TODO: VCMPPD $7, (BX), X9, X2         // c4e131c21307 or c5b1c21307
 	//TODO: VCMPPD $7, (R11), X9, X2        // c4c131c21307
 	//TODO: VCMPPD $7, X2, X9, X2           // c4e131c2d207 or c5b1c2d207
@@ -7642,22 +7642,22 @@ TEXT asmtest(SB),7,$0
 	//TODO: VMOVD (R11), X11                // c441796e1b
 	//TODO: VMOVD DX, X11                   // c461796eda or c5796eda
 	//TODO: VMOVD R11, X11                  // c441796edb
-	//TODO: VMOVDDUP (BX), X2               // c4e17b1213 or c5fb1213
-	//TODO: VMOVDDUP (R11), X2              // c4c17b1213
-	//TODO: VMOVDDUP X2, X2                 // c4e17b12d2 or c5fb12d2
-	//TODO: VMOVDDUP X11, X2                // c4c17b12d3
-	//TODO: VMOVDDUP (BX), X11              // c4617b121b or c57b121b
-	//TODO: VMOVDDUP (R11), X11             // c4417b121b
-	//TODO: VMOVDDUP X2, X11                // c4617b12da or c57b12da
-	//TODO: VMOVDDUP X11, X11               // c4417b12db
-	//TODO: VMOVDDUP (BX), Y2               // c4e17f1213 or c5ff1213
-	//TODO: VMOVDDUP (R11), Y2              // c4c17f1213
-	//TODO: VMOVDDUP Y2, Y2                 // c4e17f12d2 or c5ff12d2
-	//TODO: VMOVDDUP Y11, Y2                // c4c17f12d3
-	//TODO: VMOVDDUP (BX), Y11              // c4617f121b or c57f121b
-	//TODO: VMOVDDUP (R11), Y11             // c4417f121b
-	//TODO: VMOVDDUP Y2, Y11                // c4617f12da or c57f12da
-	//TODO: VMOVDDUP Y11, Y11               // c4417f12db
+	VMOVDDUP (BX), X2                       // c4e17b1213 or c5fb1213
+	VMOVDDUP (R11), X2                      // c4c17b1213
+	VMOVDDUP X2, X2                         // c4e17b12d2 or c5fb12d2
+	VMOVDDUP X11, X2                        // c4c17b12d3
+	VMOVDDUP (BX), X11                      // c4617b121b or c57b121b
+	VMOVDDUP (R11), X11                     // c4417b121b
+	VMOVDDUP X2, X11                        // c4617b12da or c57b12da
+	VMOVDDUP X11, X11                       // c4417b12db
+	VMOVDDUP (BX), Y2                       // c4e17f1213 or c5ff1213
+	VMOVDDUP (R11), Y2                      // c4c17f1213
+	VMOVDDUP Y2, Y2                         // c4e17f12d2 or c5ff12d2
+	VMOVDDUP Y11, Y2                        // c4c17f12d3
+	VMOVDDUP (BX), Y11                      // c4617f121b or c57f121b
+	VMOVDDUP (R11), Y11                     // c4417f121b
+	VMOVDDUP Y2, Y11                        // c4617f12da or c57f12da
+	VMOVDDUP Y11, Y11                       // c4417f12db
 	VMOVDQA (BX), X2                        // c4e1796f13 or c5f96f13
 	VMOVDQA (R11), X2                       // c4c1796f13
 	VMOVDQA X2, X2                          // c4e1796fd2 or c5f96fd2 or c4e1797fd2 or c5f97fd2
@@ -7826,38 +7826,38 @@ TEXT asmtest(SB),7,$0
 	//TODO: VMOVSD X11, X9, X2              // c4c13310d3 or c4613311da or c53311da
 	//TODO: VMOVSD X2, X9, X11              // c4613310da or c53310da or c4c13311d3
 	//TODO: VMOVSD X11, X9, X11             // c4413310db or c4413311db
-	//TODO: VMOVSHDUP (BX), X2              // c4e17a1613 or c5fa1613
-	//TODO: VMOVSHDUP (R11), X2             // c4c17a1613
-	//TODO: VMOVSHDUP X2, X2                // c4e17a16d2 or c5fa16d2
-	//TODO: VMOVSHDUP X11, X2               // c4c17a16d3
-	//TODO: VMOVSHDUP (BX), X11             // c4617a161b or c57a161b
-	//TODO: VMOVSHDUP (R11), X11            // c4417a161b
-	//TODO: VMOVSHDUP X2, X11               // c4617a16da or c57a16da
-	//TODO: VMOVSHDUP X11, X11              // c4417a16db
-	//TODO: VMOVSHDUP (BX), Y2              // c4e17e1613 or c5fe1613
-	//TODO: VMOVSHDUP (R11), Y2             // c4c17e1613
-	//TODO: VMOVSHDUP Y2, Y2                // c4e17e16d2 or c5fe16d2
-	//TODO: VMOVSHDUP Y11, Y2               // c4c17e16d3
-	//TODO: VMOVSHDUP (BX), Y11             // c4617e161b or c57e161b
-	//TODO: VMOVSHDUP (R11), Y11            // c4417e161b
-	//TODO: VMOVSHDUP Y2, Y11               // c4617e16da or c57e16da
-	//TODO: VMOVSHDUP Y11, Y11              // c4417e16db
-	//TODO: VMOVSLDUP (BX), X2              // c4e17a1213 or c5fa1213
-	//TODO: VMOVSLDUP (R11), X2             // c4c17a1213
-	//TODO: VMOVSLDUP X2, X2                // c4e17a12d2 or c5fa12d2
-	//TODO: VMOVSLDUP X11, X2               // c4c17a12d3
-	//TODO: VMOVSLDUP (BX), X11             // c4617a121b or c57a121b
-	//TODO: VMOVSLDUP (R11), X11            // c4417a121b
-	//TODO: VMOVSLDUP X2, X11               // c4617a12da or c57a12da
-	//TODO: VMOVSLDUP X11, X11              // c4417a12db
-	//TODO: VMOVSLDUP (BX), Y2              // c4e17e1213 or c5fe1213
-	//TODO: VMOVSLDUP (R11), Y2             // c4c17e1213
-	//TODO: VMOVSLDUP Y2, Y2                // c4e17e12d2 or c5fe12d2
-	//TODO: VMOVSLDUP Y11, Y2               // c4c17e12d3
-	//TODO: VMOVSLDUP (BX), Y11             // c4617e121b or c57e121b
-	//TODO: VMOVSLDUP (R11), Y11            // c4417e121b
-	//TODO: VMOVSLDUP Y2, Y11               // c4617e12da or c57e12da
-	//TODO: VMOVSLDUP Y11, Y11              // c4417e12db
+	VMOVSHDUP (BX), X2                      // c4e17a1613 or c5fa1613
+	VMOVSHDUP (R11), X2                     // c4c17a1613
+	VMOVSHDUP X2, X2                        // c4e17a16d2 or c5fa16d2
+	VMOVSHDUP X11, X2                       // c4c17a16d3
+	VMOVSHDUP (BX), X11                     // c4617a161b or c57a161b
+	VMOVSHDUP (R11), X11                    // c4417a161b
+	VMOVSHDUP X2, X11                       // c4617a16da or c57a16da
+	VMOVSHDUP X11, X11                      // c4417a16db
+	VMOVSHDUP (BX), Y2                      // c4e17e1613 or c5fe1613
+	VMOVSHDUP (R11), Y2                     // c4c17e1613
+	VMOVSHDUP Y2, Y2                        // c4e17e16d2 or c5fe16d2
+	VMOVSHDUP Y11, Y2                       // c4c17e16d3
+	VMOVSHDUP (BX), Y11                     // c4617e161b or c57e161b
+	VMOVSHDUP (R11), Y11                    // c4417e161b
+	VMOVSHDUP Y2, Y11                       // c4617e16da or c57e16da
+	VMOVSHDUP Y11, Y11                      // c4417e16db
+	VMOVSLDUP (BX), X2                      // c4e17a1213 or c5fa1213
+	VMOVSLDUP (R11), X2                     // c4c17a1213
+	VMOVSLDUP X2, X2                        // c4e17a12d2 or c5fa12d2
+	VMOVSLDUP X11, X2                       // c4c17a12d3
+	VMOVSLDUP (BX), X11                     // c4617a121b or c57a121b
+	VMOVSLDUP (R11), X11                    // c4417a121b
+	VMOVSLDUP X2, X11                       // c4617a12da or c57a12da
+	VMOVSLDUP X11, X11                      // c4417a12db
+	VMOVSLDUP (BX), Y2                      // c4e17e1213 or c5fe1213
+	VMOVSLDUP (R11), Y2                     // c4c17e1213
+	VMOVSLDUP Y2, Y2                        // c4e17e12d2 or c5fe12d2
+	VMOVSLDUP Y11, Y2                       // c4c17e12d3
+	VMOVSLDUP (BX), Y11                     // c4617e121b or c57e121b
+	VMOVSLDUP (R11), Y11                    // c4417e121b
+	VMOVSLDUP Y2, Y11                       // c4617e12da or c57e12da
+	VMOVSLDUP Y11, Y11                      // c4417e12db
 	//TODO: VMOVSS X2, (BX)                 // c4e17a1113 or c5fa1113
 	//TODO: VMOVSS X11, (BX)                // c4617a111b or c57a111b
 	//TODO: VMOVSS X2, (R11)                // c4c17a1113

@@ -31,8 +31,10 @@ func NewCertPool() *CertPool {
 // not affect any other pool.
 func SystemCertPool() (*CertPool, error) {
 	if runtime.GOOS == "windows" {
+		// Issue 16736, 18609:
 		return nil, errors.New("crypto/x509: system root pool is not available on Windows")
 	}
+
 	return loadSystemRoots()
 }
 
@@ -64,6 +66,21 @@ func (s *CertPool) findVerifiedParents(cert *Certificate) (parents []int, errCer
 	return
 }
 
+func (s *CertPool) contains(cert *Certificate) bool {
+	if s == nil {
+		return false
+	}
+
+	candidates := s.byName[string(cert.RawSubject)]
+	for _, c := range candidates {
+		if s.certs[c].Equal(cert) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // AddCert adds a certificate to a pool.
 func (s *CertPool) AddCert(cert *Certificate) {
 	if cert == nil {
@@ -71,10 +88,8 @@ func (s *CertPool) AddCert(cert *Certificate) {
 	}
 
 	// Check that the certificate isn't being added twice.
-	for _, c := range s.certs {
-		if c.Equal(cert) {
-			return
-		}
+	if s.contains(cert) {
+		return
 	}
 
 	n := len(s.certs)

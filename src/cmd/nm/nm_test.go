@@ -65,7 +65,7 @@ func TestNM(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	testnmpath := filepath.Join(tmpDir, "testnm.exe")
-	out, err := exec.Command("go", "build", "-o", testnmpath, "cmd/nm").CombinedOutput()
+	out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", testnmpath, "cmd/nm").CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build -o %v cmd/nm: %v\n%s", testnmpath, err, string(out))
 	}

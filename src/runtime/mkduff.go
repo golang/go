@@ -8,14 +8,14 @@
 // The compiler jumps to computed addresses within
 // the routine to zero chunks of memory.
 // Do not change duffzero without also
-// changing clearfat in cmd/?g/ggen.go.
+// changing the uses in cmd/compile/internal/*/*.go.
 
 // runtime·duffcopy is a Duff's device for copying memory.
 // The compiler jumps to computed addresses within
 // the routine to copy chunks of memory.
 // Source and destination must not overlap.
 // Do not change duffcopy without also
-// changing blockcopy in cmd/?g/cgen.go.
+// changing the uses in cmd/compile/internal/*/*.go.
 
 // See the zero* and copy* generators below
 // for architecture-specific comments.
@@ -161,7 +161,17 @@ func zeroARM64(w io.Writer) {
 }
 
 func copyARM64(w io.Writer) {
-	fmt.Fprintln(w, "// TODO: Implement runtime·duffcopy.")
+	// R16 (aka REGRT1): ptr to source memory
+	// R17 (aka REGRT2): ptr to destination memory
+	// R27 (aka REGTMP): scratch space
+	// R16 and R17 are updated as a side effect
+	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT, $0-0")
+	for i := 0; i < 128; i++ {
+		fmt.Fprintln(w, "\tMOVD.P\t8(R16), R27")
+		fmt.Fprintln(w, "\tMOVD.P\tR27, 8(R17)")
+		fmt.Fprintln(w)
+	}
+	fmt.Fprintln(w, "\tRET")
 }
 
 func tagsPPC64x(w io.Writer) {

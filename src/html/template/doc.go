@@ -129,7 +129,7 @@ then the template output is
 
   <script>var pair = {"A": "foo", "B": "bar"};</script>
 
-See package json to understand how non-string content is marshalled for
+See package json to understand how non-string content is marshaled for
 embedding in JavaScript contexts.
 
 

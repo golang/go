@@ -10,27 +10,17 @@ package syscall
 import "unsafe"
 
 const (
-	_SYS_dup      = SYS_DUP2
-	_SYS_getdents = SYS_GETDENTS64
+	_SYS_dup       = SYS_DUP2
+	_SYS_getdents  = SYS_GETDENTS64
+	_SYS_setgroups = SYS_SETGROUPS32
 )
 
-func Getpagesize() int { return 4096 }
-
-func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
-
-func NsecToTimespec(nsec int64) (ts Timespec) {
-	ts.Sec = int32(nsec / 1e9)
-	ts.Nsec = int32(nsec % 1e9)
-	return
+func setTimespec(sec, nsec int64) Timespec {
+	return Timespec{Sec: int32(sec), Nsec: int32(nsec)}
 }
 
-func TimevalToNsec(tv Timeval) int64 { return int64(tv.Sec)*1e9 + int64(tv.Usec)*1e3 }
-
-func NsecToTimeval(nsec int64) (tv Timeval) {
-	nsec += 999 // round up to microsecond
-	tv.Sec = int32(nsec / 1e9)
-	tv.Usec = int32(nsec % 1e9 / 1e3)
-	return
+func setTimeval(sec, usec int64) Timeval {
+	return Timeval{Sec: int32(sec), Usec: int32(usec)}
 }
 
 //sysnb	pipe(p *[2]_C_int) (err error)

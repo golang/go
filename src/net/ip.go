@@ -90,7 +90,7 @@ func CIDRMask(ones, bits int) IPMask {
 
 // Well-known IPv4 addresses
 var (
-	IPv4bcast     = IPv4(255, 255, 255, 255) // broadcast
+	IPv4bcast     = IPv4(255, 255, 255, 255) // limited broadcast
 	IPv4allsys    = IPv4(224, 0, 0, 1)       // all systems
 	IPv4allrouter = IPv4(224, 0, 0, 2)       // all routers
 	IPv4zero      = IPv4(0, 0, 0, 0)         // all zeros
@@ -153,6 +153,12 @@ func (ip IP) IsLinkLocalUnicast() bool {
 
 // IsGlobalUnicast reports whether ip is a global unicast
 // address.
+//
+// The identification of global unicast addresses uses address type
+// identification as defined in RFC 1122, RFC 4632 and RFC 4291 with
+// the exception of IPv4 directed broadcast addresses.
+// It returns true even if ip is in IPv4 private address space or
+// local IPv6 unicast address space.
 func (ip IP) IsGlobalUnicast() bool {
 	return (len(ip) == IPv4len || len(ip) == IPv6len) &&
 		!ip.Equal(IPv4bcast) &&
@@ -504,29 +510,25 @@ func (n *IPNet) String() string {
 // Parse IPv4 address (d.d.d.d).
 func parseIPv4(s string) IP {
 	var p [IPv4len]byte
-	i := 0
-	for j := 0; j < IPv4len; j++ {
-		if i >= len(s) {
+	for i := 0; i < IPv4len; i++ {
+		if len(s) == 0 {
 			// Missing octets.
 			return nil
 		}
-		if j > 0 {
-			if s[i] != '.' {
+		if i > 0 {
+			if s[0] != '.' {
 				return nil
 			}
-			i++
+			s = s[1:]
 		}
-		var (
-			n  int
-			ok bool
-		)
-		n, i, ok = dtoi(s, i)
+		n, c, ok := dtoi(s)
 		if !ok || n > 0xFF {
 			return nil
 		}
-		p[j] = byte(n)
+		s = s[c:]
+		p[i] = byte(n)
 	}
-	if i != len(s) {
+	if len(s) != 0 {
 		return nil
 	}
 	return IPv4(p[0], p[1], p[2], p[3])
@@ -538,8 +540,7 @@ func parseIPv4(s string) IP {
 // true.
 func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
 	ip = make(IP, IPv6len)
-	ellipsis := -1 // position of ellipsis in p
-	i := 0         // index in string s
+	ellipsis := -1 // position of ellipsis in ip
 
 	if zoneAllowed {
 		s, zone = splitHostZone(s)
@@ -548,90 +549,91 @@ func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
 	// Might have leading ellipsis
 	if len(s) >= 2 && s[0] == ':' && s[1] == ':' {
 		ellipsis = 0
-		i = 2
+		s = s[2:]
 		// Might be only ellipsis
-		if i == len(s) {
+		if len(s) == 0 {
 			return ip, zone
 		}
 	}
 
 	// Loop, parsing hex numbers followed by colon.
-	j := 0
-	for j < IPv6len {
+	i := 0
+	for i < IPv6len {
 		// Hex number.
-		n, i1, ok := xtoi(s, i)
+		n, c, ok := xtoi(s)
 		if !ok || n > 0xFFFF {
 			return nil, zone
 		}
 
 		// If followed by dot, might be in trailing IPv4.
-		if i1 < len(s) && s[i1] == '.' {
-			if ellipsis < 0 && j != IPv6len-IPv4len {
+		if c < len(s) && s[c] == '.' {
+			if ellipsis < 0 && i != IPv6len-IPv4len {
 				// Not the right place.
 				return nil, zone
 			}
-			if j+IPv4len > IPv6len {
+			if i+IPv4len > IPv6len {
 				// Not enough room.
 				return nil, zone
 			}
-			ip4 := parseIPv4(s[i:])
+			ip4 := parseIPv4(s)
 			if ip4 == nil {
 				return nil, zone
 			}
-			ip[j] = ip4[12]
-			ip[j+1] = ip4[13]
-			ip[j+2] = ip4[14]
-			ip[j+3] = ip4[15]
-			i = len(s)
-			j += IPv4len
+			ip[i] = ip4[12]
+			ip[i+1] = ip4[13]
+			ip[i+2] = ip4[14]
+			ip[i+3] = ip4[15]
+			s = ""
+			i += IPv4len
 			break
 		}
 
 		// Save this 16-bit chunk.
-		ip[j] = byte(n >> 8)
-		ip[j+1] = byte(n)
-		j += 2
+		ip[i] = byte(n >> 8)
+		ip[i+1] = byte(n)
+		i += 2
 
 		// Stop at end of string.
-		i = i1
-		if i == len(s) {
+		s = s[c:]
+		if len(s) == 0 {
 			break
 		}
 
 		// Otherwise must be followed by colon and more.
-		if s[i] != ':' || i+1 == len(s) {
+		if s[0] != ':' || len(s) == 1 {
 			return nil, zone
 		}
-		i++
+		s = s[1:]
 
 		// Look for ellipsis.
-		if s[i] == ':' {
+		if s[0] == ':' {
 			if ellipsis >= 0 { // already have one
 				return nil, zone
 			}
-			ellipsis = j
-			if i++; i == len(s) { // can be at end
+			ellipsis = i
+			s = s[1:]
+			if len(s) == 0 { // can be at end
 				break
 			}
 		}
 	}
 
 	// Must have used entire string.
-	if i != len(s) {
+	if len(s) != 0 {
 		return nil, zone
 	}
 
 	// If didn't parse enough, expand ellipsis.
-	if j < IPv6len {
+	if i < IPv6len {
 		if ellipsis < 0 {
 			return nil, zone
 		}
-		n := IPv6len - j
-		for k := j - 1; k >= ellipsis; k-- {
-			ip[k+n] = ip[k]
+		n := IPv6len - i
+		for j := i - 1; j >= ellipsis; j-- {
+			ip[j+n] = ip[j]
 		}
-		for k := ellipsis + n - 1; k >= ellipsis; k-- {
-			ip[k] = 0
+		for j := ellipsis + n - 1; j >= ellipsis; j-- {
+			ip[j] = 0
 		}
 	} else if ellipsis >= 0 {
 		// Ellipsis must represent at least one 0 group.
@@ -658,13 +660,14 @@ func ParseIP(s string) IP {
 	return nil
 }
 
-// ParseCIDR parses s as a CIDR notation IP address and mask,
+// ParseCIDR parses s as a CIDR notation IP address and prefix length,
 // like "192.0.2.0/24" or "2001:db8::/32", as defined in
 // RFC 4632 and RFC 4291.
 //
-// It returns the IP address and the network implied by the IP
-// and mask. For example, ParseCIDR("198.51.100.1/24") returns
-// the IP address 198.51.100.1 and the network 198.51.100.0/24.
+// It returns the IP address and the network implied by the IP and
+// prefix length.
+// For example, ParseCIDR("192.0.2.1/24") returns the IP address
+// 198.0.2.1 and the network 198.0.2.0/24.
 func ParseCIDR(s string) (IP, *IPNet, error) {
 	i := byteIndex(s, '/')
 	if i < 0 {
@@ -677,7 +680,7 @@ func ParseCIDR(s string) (IP, *IPNet, error) {
 		iplen = IPv6len
 		ip, _ = parseIPv6(addr, false)
 	}
-	n, i, ok := dtoi(mask, 0)
+	n, i, ok := dtoi(mask)
 	if ip == nil || !ok || i != len(mask) || n < 0 || n > 8*iplen {
 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
 	}

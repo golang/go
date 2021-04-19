@@ -218,10 +218,11 @@ func TestHello(t *testing.T) {
 		return doRun(t, dir, args...)
 	}
 
-	run("go", "build", "cmd/pack") // writes pack binary to dir
-	run("go", "tool", "compile", "hello.go")
+	goBin := testenv.GoToolPath(t)
+	run(goBin, "build", "cmd/pack") // writes pack binary to dir
+	run(goBin, "tool", "compile", "hello.go")
 	run("./pack", "grc", "hello.a", "hello.o")
-	run("go", "tool", "link", "-o", "a.out", "hello.a")
+	run(goBin, "tool", "link", "-o", "a.out", "hello.a")
 	out := run("./a.out")
 	if out != "hello world\n" {
 		t.Fatalf("incorrect output: %q, want %q", out, "hello world\n")
@@ -282,11 +283,12 @@ func TestLargeDefs(t *testing.T) {
 		return doRun(t, dir, args...)
 	}
 
-	run("go", "build", "cmd/pack") // writes pack binary to dir
-	run("go", "tool", "compile", "large.go")
+	goBin := testenv.GoToolPath(t)
+	run(goBin, "build", "cmd/pack") // writes pack binary to dir
+	run(goBin, "tool", "compile", "large.go")
 	run("./pack", "grc", "large.a", "large.o")
-	run("go", "tool", "compile", "-I", ".", "main.go")
-	run("go", "tool", "link", "-L", ".", "-o", "a.out", "main.o")
+	run(goBin, "tool", "compile", "-I", ".", "main.go")
+	run(goBin, "tool", "link", "-L", ".", "-o", "a.out", "main.o")
 	out := run("./a.out")
 	if out != "ok\n" {
 		t.Fatalf("incorrect output: %q, want %q", out, "ok\n")

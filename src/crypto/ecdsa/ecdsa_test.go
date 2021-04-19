@@ -54,6 +54,18 @@ func BenchmarkSignP256(b *testing.B) {
 	}
 }
 
+func BenchmarkSignP384(b *testing.B) {
+	b.ResetTimer()
+	p384 := elliptic.P384()
+	hashed := []byte("testing")
+	priv, _ := GenerateKey(p384, rand.Reader)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = Sign(rand.Reader, priv, hashed)
+	}
+}
+
 func BenchmarkVerifyP256(b *testing.B) {
 	b.ResetTimer()
 	p256 := elliptic.P256()

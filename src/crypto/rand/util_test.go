@@ -7,7 +7,9 @@ package rand_test
 import (
 	"crypto/rand"
 	"math/big"
+	mathrand "math/rand"
 	"testing"
+	"time"
 )
 
 // https://golang.org/issue/6849.
@@ -62,4 +64,11 @@ func TestIntEmptyMaxPanics(t *testing.T) {
 func TestIntNegativeMaxPanics(t *testing.T) {
 	b := new(big.Int).SetInt64(int64(-1))
 	testIntPanics(t, b)
+}
+
+func BenchmarkPrime(b *testing.B) {
+	r := mathrand.New(mathrand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < b.N; i++ {
+		rand.Prime(r, 1024)
+	}
 }

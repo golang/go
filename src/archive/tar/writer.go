@@ -42,10 +42,6 @@ type Writer struct {
 	paxHdrBuff block // buffer to use in writeHeader when writing a PAX header
 }
 
-type formatter struct {
-	err error // Last error seen
-}
-
 // NewWriter creates a new Writer writing to w.
 func NewWriter(w io.Writer) *Writer { return &Writer{w: w} }
 
@@ -69,56 +65,6 @@ func (tw *Writer) Flush() error {
 	tw.nb = 0
 	tw.pad = 0
 	return tw.err
-}
-
-// Write s into b, terminating it with a NUL if there is room.
-func (f *formatter) formatString(b []byte, s string) {
-	if len(s) > len(b) {
-		f.err = ErrFieldTooLong
-		return
-	}
-	ascii := toASCII(s)
-	copy(b, ascii)
-	if len(ascii) < len(b) {
-		b[len(ascii)] = 0
-	}
-}
-
-// Encode x as an octal ASCII string and write it into b with leading zeros.
-func (f *formatter) formatOctal(b []byte, x int64) {
-	s := strconv.FormatInt(x, 8)
-	// leading zeros, but leave room for a NUL.
-	for len(s)+1 < len(b) {
-		s = "0" + s
-	}
-	f.formatString(b, s)
-}
-
-// fitsInBase256 reports whether x can be encoded into n bytes using base-256
-// encoding. Unlike octal encoding, base-256 encoding does not require that the
-// string ends with a NUL character. Thus, all n bytes are available for output.
-//
-// If operating in binary mode, this assumes strict GNU binary mode; which means
-// that the first byte can only be either 0x80 or 0xff. Thus, the first byte is
-// equivalent to the sign bit in two's complement form.
-func fitsInBase256(n int, x int64) bool {
-	var binBits = uint(n-1) * 8
-	return n >= 9 || (x >= -1<<binBits && x < 1<<binBits)
-}
-
-// Write x into b, as binary (GNUtar/star extension).
-func (f *formatter) formatNumeric(b []byte, x int64) {
-	if fitsInBase256(len(b), x) {
-		for i := len(b) - 1; i >= 0; i-- {
-			b[i] = byte(x)
-			x >>= 8
-		}
-		b[0] |= 0x80 // Highest bit indicates binary format
-		return
-	}
-
-	f.formatOctal(b, 0) // Last resort, just write zero
-	f.err = ErrFieldTooLong
 }
 
 var (
@@ -224,9 +170,41 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 	formatNumeric(ustar.DevMajor(), hdr.Devmajor, paxNone)
 	formatNumeric(ustar.DevMinor(), hdr.Devminor, paxNone)
 
+	// TODO(dsnet): The logic surrounding the prefix field is broken when trying
+	// to encode the header as GNU format. The challenge with the current logic
+	// is that we are unsure what format we are using at any given moment until
+	// we have processed *all* of the fields. The problem is that by the time
+	// all fields have been processed, some work has already been done to handle
+	// each field under the assumption that it is for one given format or
+	// another. In some situations, this causes the Writer to be confused and
+	// encode a prefix field when the format being used is GNU. Thus, producing
+	// an invalid tar file.
+	//
+	// As a short-term fix, we disable the logic to use the prefix field, which
+	// will force the badly generated GNU files to become encoded as being
+	// the PAX format.
+	//
+	// As an alternative fix, we could hard-code preferPax to be true. However,
+	// this is problematic for the following reasons:
+	//	* The preferPax functionality is not tested at all.
+	//	* This can result in headers that try to use both the GNU and PAX
+	//	features at the same time, which is also wrong.
+	//
+	// The proper fix for this is to use a two-pass method:
+	//	* The first pass simply determines what set of formats can possibly
+	//	encode the given header.
+	//	* The second pass actually encodes the header as that given format
+	//	without worrying about violating the format.
+	//
+	// See the following:
+	//	https://golang.org/issue/12594
+	//	https://golang.org/issue/17630
+	//	https://golang.org/issue/9683
+	const usePrefix = false
+
 	// try to use a ustar header when only the name is too long
 	_, paxPathUsed := paxHeaders[paxPath]
-	if !tw.preferPax && len(paxHeaders) == 1 && paxPathUsed {
+	if usePrefix && !tw.preferPax && len(paxHeaders) == 1 && paxPathUsed {
 		prefix, suffix, ok := splitUSTARPath(hdr.Name)
 		if ok {
 			// Since we can encode in USTAR format, disable PAX header.
@@ -317,7 +295,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) erro
 	var buf bytes.Buffer
 
 	// Keys are sorted before writing to body to allow deterministic output.
-	var keys []string
+	keys := make([]string, 0, len(paxHeaders))
 	for k := range paxHeaders {
 		keys = append(keys, k)
 	}
@@ -338,22 +316,6 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) erro
 		return err
 	}
 	return nil
-}
-
-// formatPAXRecord formats a single PAX record, prefixing it with the
-// appropriate length.
-func formatPAXRecord(k, v string) string {
-	const padding = 3 // Extra padding for ' ', '=', and '\n'
-	size := len(k) + len(v) + padding
-	size += len(strconv.Itoa(size))
-	record := fmt.Sprintf("%d %s=%s\n", size, k, v)
-
-	// Final adjustment if adding size field increased the record size.
-	if len(record) != size {
-		size = len(record)
-		record = fmt.Sprintf("%d %s=%s\n", size, k, v)
-	}
-	return record
 }
 
 // Write writes to the current entry in the tar archive.

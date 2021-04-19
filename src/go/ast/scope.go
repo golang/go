@@ -70,10 +70,8 @@ func (s *Scope) String() string {
 // The Data fields contains object-specific data:
 //
 //	Kind    Data type         Data value
-//	Pkg	*types.Package    package scope
+//	Pkg     *Scope            package scope
 //	Con     int               iota for the respective declaration
-//	Con     != nil            constant value
-//	Typ     *Scope            (used as method scope during type checking - transient)
 //
 type Object struct {
 	Kind ObjKind

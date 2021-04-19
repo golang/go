@@ -1,0 +1,35 @@
+// amd64-specific vet whitelist. See readme.txt for details.
+
+
+// False positives.
+
+
+// reflect trampolines intentionally omit arg size. Same for morestack.
+reflect/asm_amd64.s: [amd64] makeFuncStub: use of 8(SP) points beyond argument frame
+reflect/asm_amd64.s: [amd64] methodValueCall: use of 8(SP) points beyond argument frame
+runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument frame
+runtime/asm_amd64.s: [amd64] morestack: use of 16(SP) points beyond argument frame
+runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument frame
+
+// Nothing much to do about cross-package assembly. Unfortunate.
+runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: indexShortStr is in package strings
+runtime/asm_amd64.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
+runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: indexShortStr is in package bytes
+runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: supportAVX2 is in package strings
+runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: supportAVX2 is in package bytes
+
+// Intentionally missing declarations. These are special assembly routines.
+// Some are jumped into from other routines, with values in specific registers.
+// duff* have direct calls from the compiler.
+// Others use the platform ABI.
+// There is no sensible corresponding Go prototype.
+runtime/asm_amd64.s: [amd64] aeshashbody: function aeshashbody missing Go declaration
+runtime/asm_amd64.s: [amd64] memeqbody: function memeqbody missing Go declaration
+runtime/asm_amd64.s: [amd64] cmpbody: function cmpbody missing Go declaration
+runtime/asm_amd64.s: [amd64] indexbytebody: function indexbytebody missing Go declaration
+runtime/asm_amd64.s: [amd64] addmoduledata: function addmoduledata missing Go declaration
+runtime/duff_amd64.s: [amd64] duffzero: function duffzero missing Go declaration
+runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration
+runtime/asm_amd64.s: [amd64] stackcheck: function stackcheck missing Go declaration
+runtime/asm_amd64.s: [amd64] indexShortStr: function indexShortStr missing Go declaration
+

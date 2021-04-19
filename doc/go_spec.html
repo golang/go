@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 31, 2016",
+	"Subtitle": "Version of November 18, 2016",
 	"Path": "/ref/spec"
 }-->
 
@@ -605,7 +605,7 @@ implementation must:
 
 	<li>Represent floating-point constants, including the parts of
 	    a complex constant, with a mantissa of at least 256 bits
-	    and a signed exponent of at least 32 bits.</li>
+	    and a signed binary exponent of at least 16 bits.</li>
 
 	<li>Give an error if unable to represent an integer constant
 	    precisely.</li>
@@ -2006,7 +2006,7 @@ _, y, _ := coord(p)  // coord() returns three values; only interested in y coord
 <p>
 Unlike regular variable declarations, a short variable declaration may <i>redeclare</i>
 variables provided they were originally declared earlier in the same block
-(or the parameter lists if the block is the function body) with the same type, 
+(or the parameter lists if the block is the function body) with the same type,
 and at least one of the non-<a href="#Blank_identifier">blank</a> variables is new.
 As a consequence, redeclaration can only appear in a multi-variable short declaration.
 Redeclaration does not introduce a new variable; it just assigns a new value to the original.
@@ -2286,8 +2286,10 @@ For array and slice literals the following rules apply:
 	<li>Each element has an associated integer index marking
 	    its position in the array.
 	</li>
-	<li>An element with a key uses the key as its index; the
-	    key must be a constant integer expression.
+	<li>An element with a key uses the key as its index. The
+	    key must be a non-negative constant representable by
+	    a value of type <code>int</code>; and if it is typed
+	    it must be of integer type.
 	</li>
 	<li>An element without a key uses the previous element's index plus one.
 	    If the first element has no key, its index is zero.
@@ -2320,7 +2322,7 @@ days := [...]string{"Sat", "Sun"}  // len(days) == 2
 
 <p>
 A slice literal describes the entire underlying array literal.
-Thus, the length and capacity of a slice literal are the maximum
+Thus the length and capacity of a slice literal are the maximum
 element index plus one. A slice literal has the form
 </p>
 
@@ -2350,10 +2352,11 @@ the <code>&amp;T</code> when the element or key type is <code>*T</code>.
 [][]int{{1, 2, 3}, {4, 5}}          // same as [][]int{[]int{1, 2, 3}, []int{4, 5}}
 [][]Point{{{0, 1}, {1, 2}}}         // same as [][]Point{[]Point{Point{0, 1}, Point{1, 2}}}
 map[string]Point{"orig": {0, 0}}    // same as map[string]Point{"orig": Point{0, 0}}
-
-[...]*Point{{1.5, -3.5}, {0, 0}}    // same as [...]*Point{&amp;Point{1.5, -3.5}, &amp;Point{0, 0}}
-
 map[Point]string{{0, 0}: "orig"}    // same as map[Point]string{Point{0, 0}: "orig"}
+
+type PPoint *Point
+[2]*Point{{1.5, -3.5}, {}}          // same as [2]*Point{&amp;Point{1.5, -3.5}, &amp;Point{}}
+[2]PPoint{{1.5, -3.5}, {}}          // same as [2]PPoint{PPoint(&amp;Point{1.5, -3.5}), PPoint(&amp;Point{})}
 </pre>
 
 <p>
@@ -2933,6 +2936,7 @@ used in an <a href="#Assignments">assignment</a> or initialization of the specia
 v, ok = a[x]
 v, ok := a[x]
 var v, ok = a[x]
+var v, ok T = a[x]
 </pre>
 
 <p>
@@ -3113,13 +3117,16 @@ known to be <code>T</code> in a correct program.
 </p>
 
 <pre>
-var x interface{} = 7  // x has dynamic type int and value 7
-i := x.(int)           // i has type int and value 7
+var x interface{} = 7          // x has dynamic type int and value 7
+i := x.(int)                   // i has type int and value 7
 
 type I interface { m() }
-var y I
-s := y.(string)        // illegal: string does not implement I (missing method m)
-r := y.(io.Reader)     // r has type io.Reader and y must implement both I and io.Reader
+
+func f(y I) {
+	s := y.(string)        // illegal: string does not implement I (missing method m)
+	r := y.(io.Reader)     // r has type io.Reader and the dynamic type of y must implement both I and io.Reader
+	…
+}
 </pre>
 
 <p>
@@ -3130,6 +3137,7 @@ A type assertion used in an <a href="#Assignments">assignment</a> or initializat
 v, ok = x.(T)
 v, ok := x.(T)
 var v, ok = x.(T)
+var v, ok T1 = x.(T)
 </pre>
 
 <p>
@@ -3737,6 +3745,7 @@ A receive expression used in an <a href="#Assignments">assignment</a> or initial
 x, ok = &lt;-ch
 x, ok := &lt;-ch
 var x, ok = &lt;-ch
+var x, ok T = &lt;-ch
 </pre>
 
 <p>
@@ -3834,10 +3843,12 @@ in any of these cases:
 	to <code>T</code>.
 	</li>
 	<li>
-	<code>x</code>'s type and <code>T</code> have identical
+	ignoring struct tags (see below),
+	<code>x</code>'s type and <code>T</code> have <a href="#Type_identity">identical</a>
 	<a href="#Types">underlying types</a>.
 	</li>
 	<li>
+	ignoring struct tags (see below),
 	<code>x</code>'s type and <code>T</code> are unnamed pointer types
 	and their pointer base types have identical underlying types.
 	</li>
@@ -3856,6 +3867,31 @@ in any of these cases:
 	<code>x</code> is a string and <code>T</code> is a slice of bytes or runes.
 	</li>
 </ul>
+
+<p>
+<a href="#Struct_types">Struct tags</a> are ignored when comparing struct types
+for identity for the purpose of conversion:
+</p>
+
+<pre>
+type Person struct {
+	Name    string
+	Address *struct {
+		Street string
+		City   string
+	}
+}
+
+var data *struct {
+	Name    string `json:"name"`
+	Address *struct {
+		Street string `json:"street"`
+		City   string `json:"city"`
+	} `json:"address"`
+}
+
+var person = (*Person)(data)  // ignoring tags, the underlying types are identical
+</pre>
 
 <p>
 Specific rules apply to (non-constant) conversions between numeric types or
@@ -4687,8 +4723,8 @@ TypeList        = Type { "," Type } .
 <p>
 The TypeSwitchGuard may include a
 <a href="#Short_variable_declarations">short variable declaration</a>.
-When that form is used, the variable is declared at the beginning of
-the <a href="#Blocks">implicit block</a> in each clause.
+When that form is used, the variable is declared at the end of the
+TypeSwitchCase in the <a href="#Blocks">implicit block</a> of each clause.
 In clauses with a case listing exactly one type, the variable
 has that type; otherwise, the variable has the type of the expression
 in the TypeSwitchGuard.
@@ -4763,14 +4799,16 @@ The "fallthrough" statement is not permitted in a type switch.
 <h3 id="For_statements">For statements</h3>
 
 <p>
-A "for" statement specifies repeated execution of a block. The iteration is
-controlled by a condition, a "for" clause, or a "range" clause.
+A "for" statement specifies repeated execution of a block. There are three forms:
+The iteration may be controlled by a single condition, a "for" clause, or a "range" clause.
 </p>
 
 <pre class="ebnf">
 ForStmt = "for" [ Condition | ForClause | RangeClause ] Block .
 Condition = Expression .
 </pre>
+
+<h4 id="For_condition">For statements with single condition</h4>
 
 <p>
 In its simplest form, a "for" statement specifies the repeated execution of
@@ -4785,6 +4823,8 @@ for a &lt; b {
 	a *= 2
 }
 </pre>
+
+<h4 id="For_clause">For statements with <code>for</code> clause</h4>
 
 <p>
 A "for" statement with a ForClause is also controlled by its condition, but
@@ -4823,6 +4863,8 @@ If the condition is absent, it is equivalent to the boolean value
 for cond { S() }    is the same as    for ; cond ; { S() }
 for      { S() }    is the same as    for true     { S() }
 </pre>
+
+<h4 id="For_range">For statements with <code>range</code> clause</h4>
 
 <p>
 A "for" statement with a "range" clause
@@ -5723,12 +5765,12 @@ var a = complex(2, -2)             // complex128
 const b = complex(1.0, -1.4)       // untyped complex constant 1 - 1.4i
 x := float32(math.Cos(math.Pi/2))  // float32
 var c64 = complex(5, -x)           // complex64
-const s uint = complex(1, 0)       // untyped complex constant 1 + 0i can be converted to uint
-_ = complex(1, 2&lt;&lt;s)               // illegal: 2 has floating-point type, cannot shift
+var s uint = complex(1, 0)         // untyped complex constant 1 + 0i can be converted to uint
+_ = complex(1, 2&lt;&lt;s)               // illegal: 2 assumes floating-point type, cannot shift
 var rl = real(c64)                 // float32
 var im = imag(a)                   // float64
 const c = imag(b)                  // untyped constant -1.4
-_ = imag(3 &lt;&lt; s)                   // illegal: 3 has complex type, cannot shift
+_ = imag(3 &lt;&lt; s)                   // illegal: 3 assumes complex type, cannot shift
 </pre>
 
 <h3 id="Handling_panics">Handling panics</h3>
@@ -6159,9 +6201,10 @@ func init() { … }
 </pre>
 
 <p>
-Multiple such functions may be defined, even within a single
-source file. The <code>init</code> identifier is not
-<a href="#Declarations_and_scope">declared</a> and thus
+Multiple such functions may be defined per package, even within a single
+source file. In the package block, the <code>init</code> identifier can
+be used only to declare <code>init</code> functions, yet the identifier
+itself is not <a href="#Declarations_and_scope">declared</a>. Thus
 <code>init</code> functions cannot be referred to from anywhere
 in a program.
 </p>

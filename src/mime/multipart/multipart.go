@@ -42,9 +42,7 @@ type Part struct {
 	// during Read calls.
 	Header textproto.MIMEHeader
 
-	buffer    *bytes.Buffer
-	mr        *Reader
-	bytesRead int
+	mr *Reader
 
 	disposition       string
 	dispositionParams map[string]string
@@ -53,6 +51,11 @@ type Part struct {
 	// wrapper around such a reader, decoding the
 	// Content-Transfer-Encoding
 	r io.Reader
+
+	n       int   // known data bytes waiting in mr.bufReader
+	total   int64 // total data bytes read already
+	err     error // error to return when n == 0
+	readErr error // read error observed from mr.bufReader
 }
 
 // FormName returns the name parameter if p has a Content-Disposition
@@ -126,7 +129,6 @@ func newPart(mr *Reader) (*Part, error) {
 	bp := &Part{
 		Header: make(map[string][]string),
 		mr:     mr,
-		buffer: new(bytes.Buffer),
 	}
 	if err := bp.populateHeaders(); err != nil {
 		return nil, err
@@ -161,65 +163,118 @@ type partReader struct {
 	p *Part
 }
 
-func (pr partReader) Read(d []byte) (n int, err error) {
+func (pr partReader) Read(d []byte) (int, error) {
 	p := pr.p
-	defer func() {
-		p.bytesRead += n
-	}()
-	if p.buffer.Len() >= len(d) {
-		// Internal buffer of unconsumed data is large enough for
-		// the read request. No need to parse more at the moment.
-		return p.buffer.Read(d)
-	}
-	peek, err := p.mr.bufReader.Peek(peekBufferSize) // TODO(bradfitz): add buffer size accessor
+	br := p.mr.bufReader
 
-	// Look for an immediate empty part without a leading \r\n
-	// before the boundary separator. Some MIME code makes empty
-	// parts like this. Most browsers, however, write the \r\n
-	// before the subsequent boundary even for empty parts and
-	// won't hit this path.
-	if p.bytesRead == 0 && p.mr.peekBufferIsEmptyPart(peek) {
-		return 0, io.EOF
-	}
-	unexpectedEOF := err == io.EOF
-	if err != nil && !unexpectedEOF {
-		return 0, fmt.Errorf("multipart: Part Read: %v", err)
-	}
-	if peek == nil {
-		panic("nil peek buf")
-	}
-	// Search the peek buffer for "\r\n--boundary". If found,
-	// consume everything up to the boundary. If not, consume only
-	// as much of the peek buffer as cannot hold the boundary
-	// string.
-	nCopy := 0
-	foundBoundary := false
-	if idx, isEnd := p.mr.peekBufferSeparatorIndex(peek); idx != -1 {
-		nCopy = idx
-		foundBoundary = isEnd
-		if !isEnd && nCopy == 0 {
-			nCopy = 1 // make some progress.
-		}
-	} else if safeCount := len(peek) - len(p.mr.nlDashBoundary); safeCount > 0 {
-		nCopy = safeCount
-	} else if unexpectedEOF {
-		// If we've run out of peek buffer and the boundary
-		// wasn't found (and can't possibly fit), we must have
-		// hit the end of the file unexpectedly.
-		return 0, io.ErrUnexpectedEOF
-	}
-	if nCopy > 0 {
-		if _, err := io.CopyN(p.buffer, p.mr.bufReader, int64(nCopy)); err != nil {
-			return 0, err
+	// Read into buffer until we identify some data to return,
+	// or we find a reason to stop (boundary or read error).
+	for p.n == 0 && p.err == nil {
+		peek, _ := br.Peek(br.Buffered())
+		p.n, p.err = scanUntilBoundary(peek, p.mr.dashBoundary, p.mr.nlDashBoundary, p.total, p.readErr)
+		if p.n == 0 && p.err == nil {
+			// Force buffered I/O to read more into buffer.
+			_, p.readErr = br.Peek(len(peek) + 1)
+			if p.readErr == io.EOF {
+				p.readErr = io.ErrUnexpectedEOF
+			}
 		}
 	}
-	n, err = p.buffer.Read(d)
-	if err == io.EOF && !foundBoundary {
-		// If the boundary hasn't been reached there's more to
-		// read, so don't pass through an EOF from the buffer
-		err = nil
+
+	// Read out from "data to return" part of buffer.
+	if p.n == 0 {
+		return 0, p.err
 	}
-	return
+	n := len(d)
+	if n > p.n {
+		n = p.n
+	}
+	n, _ = br.Read(d[:n])
+	p.total += int64(n)
+	p.n -= n
+	if p.n == 0 {
+		return n, p.err
+	}
+	return n, nil
+}
+
+// scanUntilBoundary scans buf to identify how much of it can be safely
+// returned as part of the Part body.
+// dashBoundary is "--boundary".
+// nlDashBoundary is "\r\n--boundary" or "\n--boundary", depending on what mode we are in.
+// The comments below (and the name) assume "\n--boundary", but either is accepted.
+// total is the number of bytes read out so far. If total == 0, then a leading "--boundary" is recognized.
+// readErr is the read error, if any, that followed reading the bytes in buf.
+// scanUntilBoundary returns the number of data bytes from buf that can be
+// returned as part of the Part body and also the error to return (if any)
+// once those data bytes are done.
+func scanUntilBoundary(buf, dashBoundary, nlDashBoundary []byte, total int64, readErr error) (int, error) {
+	if total == 0 {
+		// At beginning of body, allow dashBoundary.
+		if bytes.HasPrefix(buf, dashBoundary) {
+			switch matchAfterPrefix(buf, dashBoundary, readErr) {
+			case -1:
+				return len(dashBoundary), nil
+			case 0:
+				return 0, nil
+			case +1:
+				return 0, io.EOF
+			}
+		}
+		if bytes.HasPrefix(dashBoundary, buf) {
+			return 0, readErr
+		}
+	}
+
+	// Search for "\n--boundary".
+	if i := bytes.Index(buf, nlDashBoundary); i >= 0 {
+		switch matchAfterPrefix(buf[i:], nlDashBoundary, readErr) {
+		case -1:
+			return i + len(nlDashBoundary), nil
+		case 0:
+			return i, nil
+		case +1:
+			return i, io.EOF
+		}
+	}
+	if bytes.HasPrefix(nlDashBoundary, buf) {
+		return 0, readErr
+	}
+
+	// Otherwise, anything up to the final \n is not part of the boundary
+	// and so must be part of the body.
+	// Also if the section from the final \n onward is not a prefix of the boundary,
+	// it too must be part of the body.
+	i := bytes.LastIndexByte(buf, nlDashBoundary[0])
+	if i >= 0 && bytes.HasPrefix(nlDashBoundary, buf[i:]) {
+		return i, nil
+	}
+	return len(buf), readErr
+}
+
+// matchAfterPrefix checks whether buf should be considered to match the boundary.
+// The prefix is "--boundary" or "\r\n--boundary" or "\n--boundary",
+// and the caller has verified already that bytes.HasPrefix(buf, prefix) is true.
+//
+// matchAfterPrefix returns +1 if the buffer does match the boundary,
+// meaning the prefix is followed by a dash, space, tab, cr, nl, or end of input.
+// It returns -1 if the buffer definitely does NOT match the boundary,
+// meaning the prefix is followed by some other character.
+// For example, "--foobar" does not match "--foo".
+// It returns 0 more input needs to be read to make the decision,
+// meaning that len(buf) == len(prefix) and readErr == nil.
+func matchAfterPrefix(buf, prefix []byte, readErr error) int {
+	if len(buf) == len(prefix) {
+		if readErr != nil {
+			return +1
+		}
+		return 0
+	}
+	c := buf[len(prefix)]
+	if c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '-' {
+		return +1
+	}
+	return -1
 }
 
 func (p *Part) Close() error {
@@ -335,64 +390,6 @@ func (mr *Reader) isBoundaryDelimiterLine(line []byte) (ret bool) {
 		mr.nlDashBoundary = mr.nlDashBoundary[1:]
 	}
 	return bytes.Equal(rest, mr.nl)
-}
-
-// peekBufferIsEmptyPart reports whether the provided peek-ahead
-// buffer represents an empty part. It is called only if we've not
-// already read any bytes in this part and checks for the case of MIME
-// software not writing the \r\n on empty parts. Some does, some
-// doesn't.
-//
-// This checks that what follows the "--boundary" is actually the end
-// ("--boundary--" with optional whitespace) or optional whitespace
-// and then a newline, so we don't catch "--boundaryFAKE", in which
-// case the whole line is part of the data.
-func (mr *Reader) peekBufferIsEmptyPart(peek []byte) bool {
-	// End of parts case.
-	// Test whether peek matches `^--boundary--[ \t]*(?:\r\n|$)`
-	if bytes.HasPrefix(peek, mr.dashBoundaryDash) {
-		rest := peek[len(mr.dashBoundaryDash):]
-		rest = skipLWSPChar(rest)
-		return bytes.HasPrefix(rest, mr.nl) || len(rest) == 0
-	}
-	if !bytes.HasPrefix(peek, mr.dashBoundary) {
-		return false
-	}
-	// Test whether rest matches `^[ \t]*\r\n`)
-	rest := peek[len(mr.dashBoundary):]
-	rest = skipLWSPChar(rest)
-	return bytes.HasPrefix(rest, mr.nl)
-}
-
-// peekBufferSeparatorIndex returns the index of mr.nlDashBoundary in
-// peek and whether it is a real boundary (and not a prefix of an
-// unrelated separator). To be the end, the peek buffer must contain a
-// newline after the boundary or contain the ending boundary (--separator--).
-func (mr *Reader) peekBufferSeparatorIndex(peek []byte) (idx int, isEnd bool) {
-	idx = bytes.Index(peek, mr.nlDashBoundary)
-	if idx == -1 {
-		return
-	}
-
-	peek = peek[idx+len(mr.nlDashBoundary):]
-	if len(peek) == 0 || len(peek) == 1 && peek[0] == '-' {
-		return idx, false
-	}
-	if len(peek) > 1 && peek[0] == '-' && peek[1] == '-' {
-		return idx, true
-	}
-	peek = skipLWSPChar(peek)
-	// Don't have a complete line after the peek.
-	if bytes.IndexByte(peek, '\n') == -1 {
-		return idx, false
-	}
-	if len(peek) > 0 && peek[0] == '\n' {
-		return idx, true
-	}
-	if len(peek) > 1 && peek[0] == '\r' && peek[1] == '\n' {
-		return idx, true
-	}
-	return idx, false
 }
 
 // skipLWSPChar returns b with leading spaces and tabs removed.

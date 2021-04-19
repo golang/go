@@ -941,14 +941,6 @@ func (p *Parser) atof(str string) float64 {
 	return value
 }
 
-func (p *Parser) atos(str string) string {
-	value, err := strconv.Unquote(str)
-	if err != nil {
-		p.errorf("%s", err)
-	}
-	return value
-}
-
 // EOF represents the end of input.
 var EOF = lex.Make(scanner.EOF, "EOF")
 

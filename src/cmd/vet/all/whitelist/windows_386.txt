@@ -1,0 +1,9 @@
+// windows/386-specific vet whitelist. See readme.txt for details.
+
+runtime/sys_windows_386.s: [386] profileloop: use of 4(SP) points beyond argument frame
+runtime/sys_windows_386.s: [386] ctrlhandler: 4(SP) should be _type+0(FP)
+runtime/sys_windows_386.s: [386] setldt: function setldt missing Go declaration
+runtime/zcallback_windows.s: [386] callbackasm: function callbackasm missing Go declaration
+runtime/sys_windows_386.s: [386] callbackasm1+0: function callbackasm1+0 missing Go declaration
+runtime/sys_windows_386.s: [386] tstart: function tstart missing Go declaration
+runtime/sys_windows_386.s: [386] tstart_stdcall: RET without writing to 4-byte ret+4(FP)

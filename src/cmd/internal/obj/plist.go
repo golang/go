@@ -11,10 +11,7 @@ import (
 )
 
 type Plist struct {
-	Name    *LSym
 	Firstpc *Prog
-	Recur   int
-	Link    *Plist
 }
 
 /*
@@ -22,12 +19,7 @@ type Plist struct {
  */
 func Linknewplist(ctxt *Link) *Plist {
 	pl := new(Plist)
-	if ctxt.Plist == nil {
-		ctxt.Plist = pl
-	} else {
-		ctxt.Plast.Link = pl
-	}
-	ctxt.Plast = pl
+	ctxt.Plists = append(ctxt.Plists, pl)
 	return pl
 }
 
@@ -45,7 +37,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
 	var etext *Prog
 	var text []*LSym
 
-	for pl := ctxt.Plist; pl != nil; pl = pl.Link {
+	for _, pl := range ctxt.Plists {
 		var plink *Prog
 		for p := pl.Firstpc; p != nil; p = plink {
 			if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {
@@ -77,37 +69,9 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				a.Asym = p.From.Sym
 				a.Aoffset = int32(p.From.Offset)
 				a.Name = int16(p.From.Name)
-				a.Gotype = p.From.Gotype
+				a.Gotype = p.To.Sym
 				a.Link = curtext.Autom
 				curtext.Autom = a
-				continue
-
-			case AGLOBL:
-				s := p.From.Sym
-				if s.Seenglobl {
-					fmt.Printf("duplicate %v\n", p)
-				}
-				s.Seenglobl = true
-				if s.Onlist {
-					log.Fatalf("symbol %s listed multiple times", s.Name)
-				}
-				s.Onlist = true
-				ctxt.Data = append(ctxt.Data, s)
-				s.Size = p.To.Offset
-				if s.Type == 0 || s.Type == SXREF {
-					s.Type = SBSS
-				}
-				flag := int(p.From3.Offset)
-				if flag&DUPOK != 0 {
-					s.Dupok = true
-				}
-				if flag&RODATA != 0 {
-					s.Type = SRODATA
-				} else if flag&NOPTR != 0 {
-					s.Type = SNOPTRBSS
-				} else if flag&TLSBSS != 0 {
-					s.Type = STLSBSS
-				}
 				continue
 
 			case ATEXT:
@@ -122,20 +86,20 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				if s.Text != nil {
 					log.Fatalf("duplicate TEXT for %s", s.Name)
 				}
-				if s.Onlist {
+				if s.OnList() {
 					log.Fatalf("symbol %s listed multiple times", s.Name)
 				}
-				s.Onlist = true
+				s.Set(AttrOnList, true)
 				text = append(text, s)
 				flag := int(p.From3Offset())
 				if flag&DUPOK != 0 {
-					s.Dupok = true
+					s.Set(AttrDuplicateOK, true)
 				}
 				if flag&NOSPLIT != 0 {
-					s.Nosplit = true
+					s.Set(AttrNoSplit, true)
 				}
 				if flag&REFLECTMETHOD != 0 {
-					s.ReflectMethod = true
+					s.Set(AttrReflectMethod, true)
 				}
 				s.Type = STEXT
 				s.Text = p
@@ -209,10 +173,36 @@ func flushplist(ctxt *Link, freeProgs bool) {
 
 	// Add to running list in ctxt.
 	ctxt.Text = append(ctxt.Text, text...)
-	ctxt.Plist = nil
-	ctxt.Plast = nil
+	ctxt.Data = append(ctxt.Data, gendwarf(ctxt, text)...)
+	ctxt.Plists = nil
 	ctxt.Curp = nil
 	if freeProgs {
 		ctxt.freeProgs()
+	}
+}
+
+func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
+	if s.SeenGlobl() {
+		fmt.Printf("duplicate %v\n", s)
+	}
+	s.Set(AttrSeenGlobl, true)
+	if s.OnList() {
+		log.Fatalf("symbol %s listed multiple times", s.Name)
+	}
+	s.Set(AttrOnList, true)
+	ctxt.Data = append(ctxt.Data, s)
+	s.Size = size
+	if s.Type == 0 || s.Type == SXREF {
+		s.Type = SBSS
+	}
+	if flag&DUPOK != 0 {
+		s.Set(AttrDuplicateOK, true)
+	}
+	if flag&RODATA != 0 {
+		s.Type = SRODATA
+	} else if flag&NOPTR != 0 {
+		s.Type = SNOPTRBSS
+	} else if flag&TLSBSS != 0 {
+		s.Type = STLSBSS
 	}
 }

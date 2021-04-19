@@ -111,17 +111,20 @@ func lookupProtocol(ctx context.Context, name string) (proto int, err error) {
 		return 0, UnknownNetworkError(name)
 	}
 	s := f[1]
-	if n, _, ok := dtoi(s, byteIndex(s, '=')+1); ok {
+	if n, _, ok := dtoi(s[byteIndex(s, '=')+1:]); ok {
 		return n, nil
 	}
 	return 0, UnknownNetworkError(name)
 }
 
-func lookupHost(ctx context.Context, host string) (addrs []string, err error) {
+func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	// Use netdir/cs instead of netdir/dns because cs knows about
 	// host names in local network (e.g. from /lib/ndb/local)
 	lines, err := queryCS(ctx, "net", host, "1")
 	if err != nil {
+		if stringsHasSuffix(err.Error(), "dns failure") {
+			err = errNoSuchHost
+		}
 		return
 	}
 loop:
@@ -148,8 +151,8 @@ loop:
 	return
 }
 
-func lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
-	lits, err := lookupHost(ctx, host)
+func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+	lits, err := r.lookupHost(ctx, host)
 	if err != nil {
 		return
 	}
@@ -163,14 +166,14 @@ func lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
 	return
 }
 
-func lookupPort(ctx context.Context, network, service string) (port int, err error) {
+func (*Resolver) lookupPort(ctx context.Context, network, service string) (port int, err error) {
 	switch network {
 	case "tcp4", "tcp6":
 		network = "tcp"
 	case "udp4", "udp6":
 		network = "udp"
 	}
-	lines, err := queryCS(ctx, network, "127.0.0.1", service)
+	lines, err := queryCS(ctx, network, "127.0.0.1", toLower(service))
 	if err != nil {
 		return
 	}
@@ -186,15 +189,19 @@ func lookupPort(ctx context.Context, network, service string) (port int, err err
 	if i := byteIndex(s, '!'); i >= 0 {
 		s = s[i+1:] // remove address
 	}
-	if n, _, ok := dtoi(s, 0); ok {
+	if n, _, ok := dtoi(s); ok {
 		return n, nil
 	}
 	return 0, unknownPortError
 }
 
-func lookupCNAME(ctx context.Context, name string) (cname string, err error) {
+func (*Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {
 	lines, err := queryDNS(ctx, name, "cname")
 	if err != nil {
+		if stringsHasSuffix(err.Error(), "dns failure") {
+			cname = name + "."
+			err = nil
+		}
 		return
 	}
 	if len(lines) > 0 {
@@ -205,7 +212,7 @@ func lookupCNAME(ctx context.Context, name string) (cname string, err error) {
 	return "", errors.New("bad response from ndb/dns")
 }
 
-func lookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
+func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
 	var target string
 	if service == "" && proto == "" {
 		target = name
@@ -221,9 +228,9 @@ func lookupSRV(ctx context.Context, service, proto, name string) (cname string, 
 		if len(f) < 6 {
 			continue
 		}
-		port, _, portOk := dtoi(f[4], 0)
-		priority, _, priorityOk := dtoi(f[3], 0)
-		weight, _, weightOk := dtoi(f[2], 0)
+		port, _, portOk := dtoi(f[4])
+		priority, _, priorityOk := dtoi(f[3])
+		weight, _, weightOk := dtoi(f[2])
 		if !(portOk && priorityOk && weightOk) {
 			continue
 		}
@@ -234,7 +241,7 @@ func lookupSRV(ctx context.Context, service, proto, name string) (cname string, 
 	return
 }
 
-func lookupMX(ctx context.Context, name string) (mx []*MX, err error) {
+func (*Resolver) lookupMX(ctx context.Context, name string) (mx []*MX, err error) {
 	lines, err := queryDNS(ctx, name, "mx")
 	if err != nil {
 		return
@@ -244,7 +251,7 @@ func lookupMX(ctx context.Context, name string) (mx []*MX, err error) {
 		if len(f) < 4 {
 			continue
 		}
-		if pref, _, ok := dtoi(f[2], 0); ok {
+		if pref, _, ok := dtoi(f[2]); ok {
 			mx = append(mx, &MX{absDomainName([]byte(f[3])), uint16(pref)})
 		}
 	}
@@ -252,7 +259,7 @@ func lookupMX(ctx context.Context, name string) (mx []*MX, err error) {
 	return
 }
 
-func lookupNS(ctx context.Context, name string) (ns []*NS, err error) {
+func (*Resolver) lookupNS(ctx context.Context, name string) (ns []*NS, err error) {
 	lines, err := queryDNS(ctx, name, "ns")
 	if err != nil {
 		return
@@ -267,7 +274,7 @@ func lookupNS(ctx context.Context, name string) (ns []*NS, err error) {
 	return
 }
 
-func lookupTXT(ctx context.Context, name string) (txt []string, err error) {
+func (*Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err error) {
 	lines, err := queryDNS(ctx, name, "txt")
 	if err != nil {
 		return
@@ -280,7 +287,7 @@ func lookupTXT(ctx context.Context, name string) (txt []string, err error) {
 	return
 }
 
-func lookupAddr(ctx context.Context, addr string) (name []string, err error) {
+func (*Resolver) lookupAddr(ctx context.Context, addr string) (name []string, err error) {
 	arpa, err := reverseaddr(addr)
 	if err != nil {
 		return

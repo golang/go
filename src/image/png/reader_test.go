@@ -39,6 +39,21 @@ var filenames = []string{
 	"basn4a16",
 	"basn6a08",
 	"basn6a16",
+	"ftbbn0g01",
+	"ftbbn0g02",
+	"ftbbn0g04",
+	"ftbbn2c16",
+	"ftbbn3p08",
+	"ftbgn2c16",
+	"ftbgn3p08",
+	"ftbrn2c08",
+	"ftbwn0g16",
+	"ftbwn3p08",
+	"ftbyn3p08",
+	"ftp0n0g08",
+	"ftp0n2c08",
+	"ftp0n3p08",
+	"ftp1n3p08",
 }
 
 var filenamesPaletted = []string{
@@ -62,6 +77,50 @@ func readPNG(filename string) (image.Image, error) {
 	}
 	defer f.Close()
 	return Decode(f)
+}
+
+// fakebKGDs maps from filenames to fake bKGD chunks for our approximation to
+// the sng command-line tool. Package png doesn't keep that metadata when
+// png.Decode returns an image.Image.
+var fakebKGDs = map[string]string{
+	"ftbbn0g01": "bKGD {gray: 0;}\n",
+	"ftbbn0g02": "bKGD {gray: 0;}\n",
+	"ftbbn0g04": "bKGD {gray: 0;}\n",
+	"ftbbn2c16": "bKGD {red: 0;  green: 0;  blue: 65535;}\n",
+	"ftbbn3p08": "bKGD {index: 245}\n",
+	"ftbgn2c16": "bKGD {red: 0;  green: 65535;  blue: 0;}\n",
+	"ftbgn3p08": "bKGD {index: 245}\n",
+	"ftbrn2c08": "bKGD {red: 255;  green: 0;  blue: 0;}\n",
+	"ftbwn0g16": "bKGD {gray: 65535;}\n",
+	"ftbwn3p08": "bKGD {index: 0}\n",
+	"ftbyn3p08": "bKGD {index: 245}\n",
+}
+
+// fakegAMAs maps from filenames to fake gAMA chunks for our approximation to
+// the sng command-line tool. Package png doesn't keep that metadata when
+// png.Decode returns an image.Image.
+var fakegAMAs = map[string]string{
+	"ftbbn0g01": "",
+	"ftbbn0g02": "gAMA {0.45455}\n",
+}
+
+// fakeIHDRUsings maps from filenames to fake IHDR "using" lines for our
+// approximation to the sng command-line tool. The PNG model is that
+// transparency (in the tRNS chunk) is separate to the color/grayscale/palette
+// color model (in the IHDR chunk). The Go model is that the concrete
+// image.Image type returned by png.Decode, such as image.RGBA (with all pixels
+// having 100% alpha) or image.NRGBA, encapsulates whether or not the image has
+// transparency. This map is a hack to work around the fact that the Go model
+// can't otherwise discriminate PNG's "IHDR says color (with no alpha) but tRNS
+// says alpha" and "IHDR says color with alpha".
+var fakeIHDRUsings = map[string]string{
+	"ftbbn0g01": "    using grayscale;\n",
+	"ftbbn0g02": "    using grayscale;\n",
+	"ftbbn0g04": "    using grayscale;\n",
+	"ftbbn2c16": "    using color;\n",
+	"ftbgn2c16": "    using color;\n",
+	"ftbrn2c08": "    using color;\n",
+	"ftbwn0g16": "    using grayscale;\n",
 }
 
 // An approximation of the sng command-line tool.
@@ -95,25 +154,35 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 	// Write the filename and IHDR.
 	io.WriteString(w, "#SNG: from "+filename+".png\nIHDR {\n")
 	fmt.Fprintf(w, "    width: %d; height: %d; bitdepth: %d;\n", bounds.Dx(), bounds.Dy(), bitdepth)
-	switch {
-	case cm == color.RGBAModel, cm == color.RGBA64Model:
-		io.WriteString(w, "    using color;\n")
-	case cm == color.NRGBAModel, cm == color.NRGBA64Model:
-		io.WriteString(w, "    using color alpha;\n")
-	case cm == color.GrayModel, cm == color.Gray16Model:
-		io.WriteString(w, "    using grayscale;\n")
-	case cpm != nil:
-		io.WriteString(w, "    using color palette;\n")
-	default:
-		io.WriteString(w, "unknown PNG decoder color model\n")
+	if s, ok := fakeIHDRUsings[filename]; ok {
+		io.WriteString(w, s)
+	} else {
+		switch {
+		case cm == color.RGBAModel, cm == color.RGBA64Model:
+			io.WriteString(w, "    using color;\n")
+		case cm == color.NRGBAModel, cm == color.NRGBA64Model:
+			io.WriteString(w, "    using color alpha;\n")
+		case cm == color.GrayModel, cm == color.Gray16Model:
+			io.WriteString(w, "    using grayscale;\n")
+		case cpm != nil:
+			io.WriteString(w, "    using color palette;\n")
+		default:
+			io.WriteString(w, "unknown PNG decoder color model\n")
+		}
 	}
 	io.WriteString(w, "}\n")
 
-	// We fake a gAMA output. The test files have a gAMA chunk but the go PNG parser ignores it
-	// (the PNG spec section 11.3 says "Ancillary chunks may be ignored by a decoder").
-	io.WriteString(w, "gAMA {1.0000}\n")
+	// We fake a gAMA chunk. The test files have a gAMA chunk but the go PNG
+	// parser ignores it (the PNG spec section 11.3 says "Ancillary chunks may
+	// be ignored by a decoder").
+	if s, ok := fakegAMAs[filename]; ok {
+		io.WriteString(w, s)
+	} else {
+		io.WriteString(w, "gAMA {1.0000}\n")
+	}
 
 	// Write the PLTE and tRNS (if applicable).
+	useTransparent := false
 	if cpm != nil {
 		lastAlpha := -1
 		io.WriteString(w, "PLTE {\n")
@@ -133,6 +202,9 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 			fmt.Fprintf(w, "    (%3d,%3d,%3d)     # rgb = (0x%02x,0x%02x,0x%02x)\n", r, g, b, r, g, b)
 		}
 		io.WriteString(w, "}\n")
+		if s, ok := fakebKGDs[filename]; ok {
+			io.WriteString(w, s)
+		}
 		if lastAlpha != -1 {
 			io.WriteString(w, "tRNS {\n")
 			for i := 0; i <= lastAlpha; i++ {
@@ -141,6 +213,42 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 				fmt.Fprintf(w, " %d", a)
 			}
 			io.WriteString(w, "}\n")
+		}
+	} else if strings.HasPrefix(filename, "ft") {
+		if s, ok := fakebKGDs[filename]; ok {
+			io.WriteString(w, s)
+		}
+		// We fake a tRNS chunk. The test files' grayscale and truecolor
+		// transparent images all have their top left corner transparent.
+		switch c := png.At(0, 0).(type) {
+		case color.NRGBA:
+			if c.A == 0 {
+				useTransparent = true
+				io.WriteString(w, "tRNS {\n")
+				switch filename {
+				case "ftbbn0g01", "ftbbn0g02", "ftbbn0g04":
+					// The standard image package doesn't have a "gray with
+					// alpha" type. Instead, we use an image.NRGBA.
+					fmt.Fprintf(w, "    gray: %d;\n", c.R)
+				default:
+					fmt.Fprintf(w, "    red: %d; green: %d; blue: %d;\n", c.R, c.G, c.B)
+				}
+				io.WriteString(w, "}\n")
+			}
+		case color.NRGBA64:
+			if c.A == 0 {
+				useTransparent = true
+				io.WriteString(w, "tRNS {\n")
+				switch filename {
+				case "ftbwn0g16":
+					// The standard image package doesn't have a "gray16 with
+					// alpha" type. Instead, we use an image.NRGBA64.
+					fmt.Fprintf(w, "    gray: %d;\n", c.R)
+				default:
+					fmt.Fprintf(w, "    red: %d; green: %d; blue: %d;\n", c.R, c.G, c.B)
+				}
+				io.WriteString(w, "}\n")
+			}
 		}
 	}
 
@@ -171,12 +279,30 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 		case cm == color.NRGBAModel:
 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
 				nrgba := png.At(x, y).(color.NRGBA)
-				fmt.Fprintf(w, "%02x%02x%02x%02x ", nrgba.R, nrgba.G, nrgba.B, nrgba.A)
+				switch filename {
+				case "ftbbn0g01", "ftbbn0g02", "ftbbn0g04":
+					fmt.Fprintf(w, "%02x", nrgba.R)
+				default:
+					if useTransparent {
+						fmt.Fprintf(w, "%02x%02x%02x ", nrgba.R, nrgba.G, nrgba.B)
+					} else {
+						fmt.Fprintf(w, "%02x%02x%02x%02x ", nrgba.R, nrgba.G, nrgba.B, nrgba.A)
+					}
+				}
 			}
 		case cm == color.NRGBA64Model:
 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
 				nrgba64 := png.At(x, y).(color.NRGBA64)
-				fmt.Fprintf(w, "%04x%04x%04x%04x ", nrgba64.R, nrgba64.G, nrgba64.B, nrgba64.A)
+				switch filename {
+				case "ftbwn0g16":
+					fmt.Fprintf(w, "%04x ", nrgba64.R)
+				default:
+					if useTransparent {
+						fmt.Fprintf(w, "%04x%04x%04x ", nrgba64.R, nrgba64.G, nrgba64.B)
+					} else {
+						fmt.Fprintf(w, "%04x%04x%04x%04x ", nrgba64.R, nrgba64.G, nrgba64.B, nrgba64.A)
+					}
+				}
 			}
 		case cpm != nil:
 			var b, c int
@@ -256,8 +382,23 @@ func TestReader(t *testing.T) {
 			}
 			ps := pb.Text()
 			ss := sb.Text()
+
+			// Newer versions of the sng command line tool append an optional
+			// color name to the RGB tuple. For example:
+			//	# rgb = (0xff,0xff,0xff) grey100
+			//	# rgb = (0x00,0x00,0xff) blue1
+			// instead of the older version's plainer:
+			//	# rgb = (0xff,0xff,0xff)
+			//	# rgb = (0x00,0x00,0xff)
+			// We strip any such name.
+			if strings.Contains(ss, "# rgb = (") && !strings.HasSuffix(ss, ")") {
+				if i := strings.LastIndex(ss, ") "); i >= 0 {
+					ss = ss[:i+1]
+				}
+			}
+
 			if ps != ss {
-				t.Errorf("%s: Mismatch\n%sversus\n%s\n", fn, ps, ss)
+				t.Errorf("%s: Mismatch\n%s\nversus\n%s\n", fn, ps, ss)
 				break
 			}
 		}
@@ -487,4 +628,14 @@ func BenchmarkDecodeRGB(b *testing.B) {
 
 func BenchmarkDecodeInterlacing(b *testing.B) {
 	benchmarkDecode(b, "testdata/benchRGB-interlace.png", 4)
+}
+
+func TestIssue19553(t *testing.T) {
+	var buf = []byte{
+		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x00, 0x0b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x85, 0x2c, 0x88, 0x80, 0x00, 0x00, 0x00, 0x02, 0x74, 0x52, 0x4e, 0x53, 0x00, 0xff, 0x5b, 0x91, 0x22, 0xb5, 0x00, 0x00, 0x00, 0x02, 0x62, 0x4b, 0x47, 0x44, 0x00, 0xff, 0x87, 0x8f, 0xcc, 0xbf, 0x00, 0x00, 0x00, 0x09, 0x70, 0x48, 0x59, 0x73, 0x00, 0x00, 0x0a, 0xf0, 0x00, 0x00, 0x0a, 0xf0, 0x01, 0x42, 0xac, 0x34, 0x98, 0x00, 0x00, 0x00, 0x07, 0x74, 0x49, 0x4d, 0x45, 0x07, 0xd5, 0x04, 0x02, 0x12, 0x11, 0x11, 0xf7, 0x65, 0x3d, 0x8b, 0x00, 0x00, 0x00, 0x4f, 0x49, 0x44, 0x41, 0x54, 0x08, 0xd7, 0x63, 0xf8, 0xff, 0xff, 0xff, 0xb9, 0xbd, 0x70, 0xf0, 0x8c, 0x01, 0xc8, 0xaf, 0x6e, 0x99, 0x02, 0x05, 0xd9, 0x7b, 0xc1, 0xfc, 0x6b, 0xff, 0xa1, 0xa0, 0x87, 0x30, 0xff, 0xd9, 0xde, 0xbd, 0xd5, 0x4b, 0xf7, 0xee, 0xfd, 0x0e, 0xe3, 0xef, 0xcd, 0x06, 0x19, 0x14, 0xf5, 0x1e, 0xce, 0xef, 0x01, 0x31, 0x92, 0xd7, 0x82, 0x41, 0x31, 0x9c, 0x3f, 0x07, 0x02, 0xee, 0xa1, 0xaa, 0xff, 0xff, 0x9f, 0xe1, 0xd9, 0x56, 0x30, 0xf8, 0x0e, 0xe5, 0x03, 0x00, 0xa9, 0x42, 0x84, 0x3d, 0xdf, 0x8f, 0xa6, 0x8f, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+	}
+	_, err := Decode(bytes.NewReader(buf))
+	if err != chunkOrderError {
+		t.Errorf("Decode: expected chunkOrderError for transparent gray8, got %v", err)
+	}
 }

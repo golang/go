@@ -4,4 +4,7 @@
 
 package filepath
 
-var ToNorm = toNorm
+var (
+	ToNorm   = toNorm
+	NormBase = normBase
+)

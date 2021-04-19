@@ -52,7 +52,7 @@ var (
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "bugs"}
+	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs"}
 
 	// ratec controls the max number of tests running at a time.
 	ratec chan bool
@@ -242,8 +242,7 @@ type test struct {
 	donec       chan bool // closed when done
 	dt          time.Duration
 
-	src    string
-	action string // "compile", "build", etc.
+	src string
 
 	tempDir string
 	err     error
@@ -457,15 +456,16 @@ func (t *test) run() {
 		pkgPos = pos // some files are intentionally malformed
 	}
 	if ok, why := shouldTest(t.src[:pkgPos], goos, goarch); !ok {
-		t.action = "skip"
 		if *showSkips {
-			fmt.Printf("%-20s %-20s: %s\n", t.action, t.goFileName(), why)
+			fmt.Printf("%-20s %-20s: %s\n", "skip", t.goFileName(), why)
 		}
 		return
 	}
 
 	var args, flags []string
+	var tim int
 	wantError := false
+	wantAuto := false
 	singlefilepkgs := false
 	f := strings.Fields(action)
 	if len(f) > 0 {
@@ -477,27 +477,25 @@ func (t *test) run() {
 	switch action {
 	case "rundircmpout":
 		action = "rundir"
-		t.action = "rundir"
 	case "cmpout":
 		action = "run" // the run case already looks for <dir>/<test>.out files
-		fallthrough
-	case "compile", "compiledir", "build", "run", "runoutput", "rundir":
-		t.action = action
+	case "compile", "compiledir", "build", "run", "buildrun", "runoutput", "rundir":
+		// nothing to do
 	case "errorcheckandrundir":
 		wantError = false // should be no error if also will run
-		fallthrough
+	case "errorcheckwithauto":
+		action = "errorcheck"
+		wantAuto = true
+		wantError = true
 	case "errorcheck", "errorcheckdir", "errorcheckoutput":
-		t.action = action
 		wantError = true
 	case "skip":
 		if *runSkips {
 			break
 		}
-		t.action = "skip"
 		return
 	default:
 		t.err = skipError("skipped; unknown pattern: " + action)
-		t.action = "??"
 		return
 	}
 
@@ -508,6 +506,14 @@ func (t *test) run() {
 			wantError = false
 		case "-s":
 			singlefilepkgs = true
+		case "-t": // timeout in seconds
+			args = args[1:]
+			var err error
+			tim, err = strconv.Atoi(args[0])
+			if err != nil {
+				t.err = fmt.Errorf("need number of seconds for -t timeout, got %s instead", args[0])
+			}
+
 		default:
 			flags = append(flags, args[0])
 		}
@@ -531,7 +537,6 @@ func (t *test) run() {
 	}
 
 	useTmp := true
-	ssaMain := false
 	runcmd := func(args ...string) ([]byte, error) {
 		cmd := exec.Command(args[0], args[1:]...)
 		var buf bytes.Buffer
@@ -543,10 +548,31 @@ func (t *test) run() {
 		} else {
 			cmd.Env = os.Environ()
 		}
-		if ssaMain && os.Getenv("GOARCH") == "amd64" {
-			cmd.Env = append(cmd.Env, "GOSSAPKG=main")
+
+		var err error
+
+		if tim != 0 {
+			err = cmd.Start()
+			// This command-timeout code adapted from cmd/go/test.go
+			if err == nil {
+				tick := time.NewTimer(time.Duration(tim) * time.Second)
+				done := make(chan error)
+				go func() {
+					done <- cmd.Wait()
+				}()
+				select {
+				case err = <-done:
+					// ok
+				case <-tick.C:
+					cmd.Process.Kill()
+					err = <-done
+					// err = errors.New("Test timeout")
+				}
+				tick.Stop()
+			}
+		} else {
+			err = cmd.Run()
 		}
-		err := cmd.Run()
 		if err != nil {
 			err = fmt.Errorf("%s\n%s", err, buf.Bytes())
 		}
@@ -578,7 +604,7 @@ func (t *test) run() {
 		if *updateErrors {
 			t.updateErrors(string(out), long)
 		}
-		t.err = t.errorCheck(string(out), long, t.gofile)
+		t.err = t.errorCheck(string(out), wantAuto, long, t.gofile)
 		return
 
 	case "compile":
@@ -626,7 +652,7 @@ func (t *test) run() {
 			for _, name := range gofiles {
 				fullshort = append(fullshort, filepath.Join(longdir, name), name)
 			}
-			t.err = t.errorCheck(string(out), fullshort...)
+			t.err = t.errorCheck(string(out), wantAuto, fullshort...)
 			if t.err != nil {
 				break
 			}
@@ -678,9 +704,34 @@ func (t *test) run() {
 			t.err = err
 		}
 
+	case "buildrun": // build binary, then run binary, instead of go run. Useful for timeout tests where failure mode is infinite loop.
+		// TODO: not supported on NaCl
+		useTmp = true
+		cmd := []string{"go", "build", "-o", "a.exe"}
+		if *linkshared {
+			cmd = append(cmd, "-linkshared")
+		}
+		longdirgofile := filepath.Join(filepath.Join(cwd, t.dir), t.gofile)
+		cmd = append(cmd, flags...)
+		cmd = append(cmd, longdirgofile)
+		out, err := runcmd(cmd...)
+		if err != nil {
+			t.err = err
+			return
+		}
+		cmd = []string{"./a.exe"}
+		out, err = runcmd(append(cmd, args...)...)
+		if err != nil {
+			t.err = err
+			return
+		}
+
+		if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
+			t.err = fmt.Errorf("incorrect output\n%s", out)
+		}
+
 	case "run":
 		useTmp = false
-		ssaMain = true
 		cmd := []string{"go", "run"}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
@@ -716,7 +767,6 @@ func (t *test) run() {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
-		ssaMain = true
 		cmd = []string{"go", "run"}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
@@ -764,7 +814,7 @@ func (t *test) run() {
 				return
 			}
 		}
-		t.err = t.errorCheck(string(out), tfile, "tmp__.go")
+		t.err = t.errorCheck(string(out), false, tfile, "tmp__.go")
 		return
 	}
 }
@@ -807,7 +857,7 @@ func (t *test) expectedOutput() string {
 	return string(b)
 }
 
-func splitOutput(out string) []string {
+func splitOutput(out string, wantAuto bool) []string {
 	// gc error messages continue onto additional lines with leading tabs.
 	// Split the output at the beginning of each line that doesn't begin with a tab.
 	// <autogenerated> lines are impossible to match so those are filtered out.
@@ -818,7 +868,7 @@ func splitOutput(out string) []string {
 		}
 		if strings.HasPrefix(line, "\t") {
 			res[len(res)-1] += "\n" + line
-		} else if strings.HasPrefix(line, "go tool") || strings.HasPrefix(line, "<autogenerated>") || strings.HasPrefix(line, "#") {
+		} else if strings.HasPrefix(line, "go tool") || strings.HasPrefix(line, "#") || !wantAuto && strings.HasPrefix(line, "<autogenerated>") {
 			continue
 		} else if strings.TrimSpace(line) != "" {
 			res = append(res, line)
@@ -827,14 +877,14 @@ func splitOutput(out string) []string {
 	return res
 }
 
-func (t *test) errorCheck(outStr string, fullshort ...string) (err error) {
+func (t *test) errorCheck(outStr string, wantAuto bool, fullshort ...string) (err error) {
 	defer func() {
 		if *verbose && err != nil {
 			log.Printf("%s gc output:\n%s", t, outStr)
 		}
 	}()
 	var errs []error
-	out := splitOutput(outStr)
+	out := splitOutput(outStr, wantAuto)
 
 	// Cut directory name.
 	for i := range out {
@@ -852,7 +902,11 @@ func (t *test) errorCheck(outStr string, fullshort ...string) (err error) {
 
 	for _, we := range want {
 		var errmsgs []string
-		errmsgs, out = partitionStrings(we.prefix, out)
+		if we.auto {
+			errmsgs, out = partitionStrings("<autogenerated>", out)
+		} else {
+			errmsgs, out = partitionStrings(we.prefix, out)
+		}
 		if len(errmsgs) == 0 {
 			errs = append(errs, fmt.Errorf("%s:%d: missing error %q", we.file, we.lineNum, we.reStr))
 			continue
@@ -860,7 +914,13 @@ func (t *test) errorCheck(outStr string, fullshort ...string) (err error) {
 		matched := false
 		n := len(out)
 		for _, errmsg := range errmsgs {
-			if we.re.MatchString(errmsg) {
+			// Assume errmsg says "file:line: foo".
+			// Cut leading "file:line: " to avoid accidental matching of file name instead of message.
+			text := errmsg
+			if i := strings.Index(text, " "); i >= 0 {
+				text = text[i+1:]
+			}
+			if we.re.MatchString(text) {
 				matched = true
 			} else {
 				out = append(out, errmsg)
@@ -912,7 +972,7 @@ func (t *test) updateErrors(out, file string) {
 	// Parse new errors.
 	errors := make(map[int]map[string]bool)
 	tmpRe := regexp.MustCompile(`autotmp_[0-9]+`)
-	for _, errStr := range splitOutput(out) {
+	for _, errStr := range splitOutput(out, false) {
 		colon1 := strings.Index(errStr, ":")
 		if colon1 < 0 || errStr[:colon1] != file {
 			continue
@@ -997,12 +1057,14 @@ type wantedError struct {
 	reStr   string
 	re      *regexp.Regexp
 	lineNum int
+	auto    bool // match <autogenerated> line
 	file    string
 	prefix  string
 }
 
 var (
 	errRx       = regexp.MustCompile(`// (?:GC_)?ERROR (.*)`)
+	errAutoRx   = regexp.MustCompile(`// (?:GC_)?ERRORAUTO (.*)`)
 	errQuotesRx = regexp.MustCompile(`"([^"]*)"`)
 	lineRx      = regexp.MustCompile(`LINE(([+-])([0-9]+))?`)
 )
@@ -1017,7 +1079,13 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
 			// double comment disables ERROR
 			continue
 		}
-		m := errRx.FindStringSubmatch(line)
+		var auto bool
+		m := errAutoRx.FindStringSubmatch(line)
+		if m != nil {
+			auto = true
+		} else {
+			m = errRx.FindStringSubmatch(line)
+		}
 		if m == nil {
 			continue
 		}
@@ -1052,6 +1120,7 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
 				reStr:   rx,
 				re:      re,
 				prefix:  prefix,
+				auto:    auto,
 				lineNum: lineNum,
 				file:    short,
 			})

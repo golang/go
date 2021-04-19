@@ -92,7 +92,8 @@ func init() {
 	}
 }
 
-func parseDate(date string) (time.Time, error) {
+// ParseDate parses an RFC 5322 date string.
+func ParseDate(date string) (time.Time, error) {
 	for _, layout := range dateLayouts {
 		t, err := time.Parse(layout, date)
 		if err == nil {
@@ -106,7 +107,11 @@ func parseDate(date string) (time.Time, error) {
 type Header map[string][]string
 
 // Get gets the first value associated with the given key.
+// It is case insensitive; CanonicalMIMEHeaderKey is used
+// to canonicalize the provided key.
 // If there are no values associated with the key, Get returns "".
+// To access multiple values of a key, or to use non-canonical keys,
+// access the map directly.
 func (h Header) Get(key string) string {
 	return textproto.MIMEHeader(h).Get(key)
 }
@@ -119,7 +124,7 @@ func (h Header) Date() (time.Time, error) {
 	if hdr == "" {
 		return time.Time{}, ErrHeaderNotPresent
 	}
-	return parseDate(hdr)
+	return ParseDate(hdr)
 }
 
 // AddressList parses the named header field as a list of addresses.
@@ -345,6 +350,9 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
 		// quoted-string
 		debug.Printf("consumeAddrSpec: parsing quoted-string")
 		localPart, err = p.consumeQuotedString()
+		if localPart == "" {
+			err = errors.New("mail: empty quoted string in addr-spec")
+		}
 	} else {
 		// dot-atom
 		debug.Printf("consumeAddrSpec: parsing dot-atom")
@@ -462,9 +470,6 @@ Loop:
 		i += size
 	}
 	p.s = p.s[i+1:]
-	if len(qsb) == 0 {
-		return "", errors.New("mail: empty quoted-string")
-	}
 	return string(qsb), nil
 }
 

@@ -18,7 +18,7 @@ func makeT() T {
 
 var g T
 
-var sink []byte
+var sink interface{}
 
 func TestIssue15854(t *testing.T) {
 	for i := 0; i < 10000; i++ {

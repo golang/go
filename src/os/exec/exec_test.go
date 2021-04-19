@@ -101,6 +101,26 @@ func TestCatStdin(t *testing.T) {
 	}
 }
 
+func TestEchoFileRace(t *testing.T) {
+	cmd := helperCommand(t, "echo")
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatalf("StdinPipe: %v", err)
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	wrote := make(chan bool)
+	go func() {
+		defer close(wrote)
+		fmt.Fprint(stdin, "echo\n")
+	}()
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("Wait: %v", err)
+	}
+	<-wrote
+}
+
 func TestCatGoodAndBadFile(t *testing.T) {
 	// Testing combined output and error values.
 	bs, err := helperCommand(t, "cat", "/bogus/file.foo", "exec_test.go").CombinedOutput()
@@ -224,6 +244,46 @@ func TestStdinClose(t *testing.T) {
 		check("Close", stdin.Close())
 	}()
 	check("Wait", cmd.Wait())
+}
+
+// Issue 17647.
+// It used to be the case that TestStdinClose, above, would fail when
+// run under the race detector. This test is a variant of TestStdinClose
+// that also used to fail when run under the race detector.
+// This test is run by cmd/dist under the race detector to verify that
+// the race detector no longer reports any problems.
+func TestStdinCloseRace(t *testing.T) {
+	cmd := helperCommand(t, "stdinClose")
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatalf("StdinPipe: %v", err)
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	go func() {
+		// We don't check the error return of Kill. It is
+		// possible that the process has already exited, in
+		// which case Kill will return an error "process
+		// already finished". The purpose of this test is to
+		// see whether the race detector reports an error; it
+		// doesn't matter whether this Kill succeeds or not.
+		cmd.Process.Kill()
+	}()
+	go func() {
+		// Send the wrong string, so that the child fails even
+		// if the other goroutine doesn't manage to kill it first.
+		// This test is to check that the race detector does not
+		// falsely report an error, so it doesn't matter how the
+		// child process fails.
+		io.Copy(stdin, strings.NewReader("unexpected string"))
+		if err := stdin.Close(); err != nil {
+			t.Errorf("stdin.Close: %v", err)
+		}
+	}()
+	if err := cmd.Wait(); err == nil {
+		t.Fatalf("Wait: succeeded unexpectedly")
+	}
 }
 
 // Issue 5071
@@ -412,7 +472,7 @@ func TestExtraFilesFDShuffle(t *testing.T) {
 		buf := make([]byte, 512)
 		n, err := stderr.Read(buf)
 		if err != nil {
-			t.Fatalf("Read: %s", err)
+			t.Errorf("Read: %s", err)
 			ch <- err.Error()
 		} else {
 			ch <- string(buf[:n])
@@ -932,13 +992,13 @@ func TestContextCancel(t *testing.T) {
 			break
 		}
 		if time.Since(start) > time.Second {
-			t.Fatal("cancelling context did not stop program")
+			t.Fatal("canceling context did not stop program")
 		}
 		time.Sleep(time.Millisecond)
 	}
 
 	if err := w.Close(); err != nil {
-		t.Error("error closing write end of pipe: %v", err)
+		t.Errorf("error closing write end of pipe: %v", err)
 	}
 	<-readDone
 
