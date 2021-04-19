@@ -21,6 +21,11 @@ import (
 	. "go/types"
 )
 
+// pkgFor parses and type checks the package specified by path and source,
+// populating info if provided.
+//
+// If source begins with "package generic_" and type parameters are enabled,
+// generic code is permitted.
 func pkgFor(path, source string, info *Info) (*Package, error) {
 	fset := token.NewFileSet()
 	mode := modeForSource(source)
@@ -1213,6 +1218,8 @@ func TestLookupFieldOrMethod(t *testing.T) {
 	// Test cases assume a lookup of the form a.f or x.f, where a stands for an
 	// addressable value, and x for a non-addressable value (even though a variable
 	// for ease of test case writing).
+	//
+	// Should be kept in sync with TestMethodSet.
 	var tests = []struct {
 		src      string
 		found    bool
