@@ -8,7 +8,11 @@
 
 package bytealg
 
+import "internal/cpu"
+
 const MaxBruteForce = 16
+
+var SupportsPower9 = cpu.PPC64.IsPOWER9
 
 func init() {
 	MaxLen = 32
