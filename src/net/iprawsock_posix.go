@@ -75,7 +75,7 @@ func stripIPv4Header(n int, b []byte) int {
 
 func (c *IPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err error) {
 	var sa syscall.Sockaddr
-	n, oobn, flags, sa, err = c.fd.readMsg(b, oob)
+	n, oobn, flags, sa, err = c.fd.readMsg(b, oob, 0)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
 		addr = &IPAddr{IP: sa.Addr[0:]}
