@@ -157,15 +157,7 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 	t := r.X.Type()
 
 	fast := mapfast(t)
-	var key ir.Node
-	if fast != mapslow {
-		// fast versions take key by value
-		key = r.Index
-	} else {
-		// standard version takes key by reference
-		// order.expr made sure key is addressable.
-		key = typecheck.NodAddr(r.Index)
-	}
+	key := mapKeyArg(fast, r, r.Index)
 
 	// from:
 	//   a,b = m[i]

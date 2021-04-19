@@ -276,10 +276,12 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
 	}
 	var kt *types.Type
 	switch alg {
-	case mapfast32, mapfast32ptr:
+	case mapfast32:
 		kt = types.Types[types.TUINT32]
-	case mapfast64, mapfast64ptr:
+	case mapfast64:
 		kt = types.Types[types.TUINT64]
+	case mapfast32ptr, mapfast64ptr:
+		kt = types.Types[types.TUNSAFEPTR]
 	case mapfaststr:
 		kt = types.Types[types.TSTRING]
 	}
@@ -287,8 +289,8 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
 	switch {
 	case nt == kt:
 		return n
-	case nt.Kind() == kt.Kind():
-		// can directly convert (e.g. named type to underlying type)
+	case nt.Kind() == kt.Kind(), nt.IsPtrShaped() && kt.IsPtrShaped():
+		// can directly convert (e.g. named type to underlying type, or one pointer to another)
 		return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONVNOP, kt, n))
 	case nt.IsInteger() && kt.IsInteger():
 		// can directly convert (e.g. int32 to uint32)
