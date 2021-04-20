@@ -206,6 +206,7 @@ type PackageInternal struct {
 	BuildInfo         string               // add this info to package main
 	TestmainGo        *[]byte              // content for _testmain.go
 	Embed             map[string][]string  // //go:embed comment mapping
+	FlagsSet          bool                 // whether the flags have been set
 
 	Asmflags   []string // -asmflags for this package
 	Gcflags    []string // -gcflags for this package
@@ -2493,6 +2494,14 @@ func CheckPackageErrors(pkgs []*Package) {
 
 func setToolFlags(pkgs ...*Package) {
 	for _, p := range PackageList(pkgs) {
+		// TODO(jayconrod,katiehockman): See if there's a better way to do this.
+		if p.Internal.FlagsSet {
+			// The flags have already been set, so don't re-run this and
+			// potentially clear existing flags.
+			continue
+		} else {
+			p.Internal.FlagsSet = true
+		}
 		p.Internal.Asmflags = BuildAsmflags.For(p)
 		p.Internal.Gcflags = BuildGcflags.For(p)
 		p.Internal.Ldflags = BuildLdflags.For(p)

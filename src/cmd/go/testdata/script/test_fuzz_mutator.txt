@@ -20,27 +20,27 @@ stdout FAIL
 stdout 'mutator found enough unique mutations'
 
 # Test that minimization is working for recoverable errors.
-! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10s minimizer_test.go
+! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=1000x minimizer_test.go
 ! stdout '^ok'
 stdout 'got the minimum size!'
 stdout 'contains a letter'
 stdout FAIL
 
-# Check that the bytes written to testdata are of length 100 (the minimum size)
-go run check_testdata.go FuzzMinimizerRecoverable 100
+# Check that the bytes written to testdata are of length 50 (the minimum size)
+go run check_testdata.go FuzzMinimizerRecoverable 50
 
 # Test that re-running the minimized value causes a crash.
 ! go test -run=FuzzMinimizerRecoverable minimizer_test.go
 
 # Test that minimization is working for non-recoverable errors.
-! go test -fuzz=FuzzMinimizerNonrecoverable -run=FuzzMinimizerNonrecoverable -fuzztime=10s minimizer_test.go
+! go test -fuzz=FuzzMinimizerNonrecoverable -run=FuzzMinimizerNonrecoverable -fuzztime=1000x minimizer_test.go
 ! stdout '^ok'
 stdout 'got the minimum size!'
 stdout 'contains a letter'
 stdout FAIL
 
-# Check that the bytes written to testdata are of length 100 (the minimum size)
-go run check_testdata.go FuzzMinimizerNonrecoverable 100
+# Check that the bytes written to testdata are of length 50 (the minimum size)
+go run check_testdata.go FuzzMinimizerNonrecoverable 50
 
 # Test that minimization can be cancelled by fuzztime and the latest crash will
 # still be logged and written to testdata.
@@ -48,7 +48,7 @@ go run check_testdata.go FuzzMinimizerNonrecoverable 100
 ! stdout '^ok'
 stdout 'testdata[/\\]corpus[/\\]FuzzNonMinimizable[/\\]'
 ! stdout 'got the minimum size!'  # it shouldn't have had enough time to minimize it
-stdout 'at least 100 bytes'
+stdout 'at least 20 bytes'
 stdout FAIL
 
 # TODO(jayconrod,katiehockman): add a test which verifies that the right bytes
@@ -113,32 +113,32 @@ import (
 
 func FuzzMinimizerRecoverable(f *testing.F) {
 	f.Fuzz(func(t *testing.T, b []byte) {
-		if len(b) < 100 {
+		if len(b) < 50 {
 			// Make sure that b is large enough that it can be minimized
 			return
 		}
 		// Given the randomness of the mutations, this should allow the
 		// minimizer to trim down the value a bit.
 		if bytes.ContainsAny(b, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") {
-			if len(b) == 100 {
-				t.Logf("got the minimum size!")
+			if len(b) == 50 {
+				t.Log("got the minimum size!")
 			}
-			t.Errorf("contains a letter")
+			t.Error("contains a letter")
 		}
 	})
 }
 
 func FuzzMinimizerNonrecoverable(f *testing.F) {
 	f.Fuzz(func(t *testing.T, b []byte) {
-		if len(b) < 100 {
+		if len(b) < 50 {
 			// Make sure that b is large enough that it can be minimized
 			return
 		}
 		// Given the randomness of the mutations, this should allow the
 		// minimizer to trim down the value quite a bit.
 		if bytes.ContainsAny(b, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") {
-			if len(b) == 100 {
-				t.Logf("got the minimum size!")
+			if len(b) == 50 {
+				t.Log("got the minimum size!")
 			}
 			panic("contains a letter")
 		}
@@ -147,15 +147,15 @@ func FuzzMinimizerNonrecoverable(f *testing.F) {
 
 func FuzzNonMinimizable(f *testing.F) {
 	f.Fuzz(func(t *testing.T, b []byte) {
-		if len(b) < 10 {
+		if len(b) < 20 {
 			// Make sure that b is large enough that minimization will try to run.
 			return
 		}
-		time.Sleep(3 * time.Second)
-		if len(b) == 10 {
-			t.Logf("got the minimum size!")
+		panic("at least 20 bytes")
+		if len(b) == 20 {
+			t.Log("got the minimum size!")
 		}
-		panic("at least 100 bytes")
+		time.Sleep(4 * time.Second)
 	})
 }
 

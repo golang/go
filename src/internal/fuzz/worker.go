@@ -98,6 +98,10 @@ func (w *worker) coordinate(ctx context.Context) error {
 		// TODO(jayconrod,katiehockman): record and return stderr.
 	}
 
+	// interestingCount starts at -1, like the coordinator does, so that the
+	// worker client's coverage data is updated after a coverage-only run.
+	interestingCount := int64(-1)
+
 	// Main event loop.
 	for {
 		select {
@@ -134,13 +138,19 @@ func (w *worker) coordinate(ctx context.Context) error {
 				return fmt.Errorf("fuzzing process exited unexpectedly due to an internal failure: %w", err)
 			}
 			// Worker exited non-zero or was terminated by a non-interrupt signal
-			// (for example, SIGSEGV).
+			// (for example, SIGSEGV) while fuzzing.
 			return fmt.Errorf("fuzzing process terminated unexpectedly: %w", err)
+			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
 			// TODO(jayconrod,katiehockman): record and return stderr.
 
 		case input := <-w.coordinator.inputC:
 			// Received input from coordinator.
-			args := fuzzArgs{Count: input.countRequested, Duration: workerFuzzDuration}
+			args := fuzzArgs{Count: input.countRequested, Duration: workerFuzzDuration, CoverageOnly: input.coverageOnly}
+			if interestingCount < input.interestingCount {
+				// The coordinator's coverage data has changed, so send the data
+				// to the client.
+				args.CoverageData = input.coverageData
+			}
 			value, resp, err := w.client.fuzz(ctx, input.entry.Data, args)
 			if err != nil {
 				// Error communicating with worker.
@@ -162,7 +172,6 @@ func (w *worker) coordinate(ctx context.Context) error {
 					// Since we expect I/O errors around interrupts, ignore this error.
 					return nil
 				}
-
 				// Unexpected termination. Attempt to minimize, then inform the
 				// coordinator about the crash.
 				// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
@@ -191,12 +200,12 @@ func (w *worker) coordinate(ctx context.Context) error {
 				count:          resp.Count,
 				duration:       resp.Duration,
 			}
-			if resp.Crashed {
+			if resp.Err != "" {
 				result.entry = CorpusEntry{Data: value}
 				result.crasherMsg = resp.Err
-			} else if resp.Interesting {
+			} else if resp.CoverageData != nil {
 				result.entry = CorpusEntry{Data: value}
-				result.isInteresting = true
+				result.coverageData = resp.CoverageData
 			}
 			w.coordinator.resultC <- result
 		}
@@ -454,6 +463,14 @@ type fuzzArgs struct {
 	// Count is the number of values to test, without spending more time
 	// than Duration.
 	Count int64
+
+	// CoverageOnly indicates whether this is a coverage-only run (ie. fuzzing
+	// should not occur).
+	CoverageOnly bool
+
+	// CoverageData is the coverage data. If set, the worker should update its
+	// local coverage data prior to fuzzing.
+	CoverageData []byte
 }
 
 // fuzzResponse contains results from workerServer.fuzz.
@@ -464,16 +481,12 @@ type fuzzResponse struct {
 	// Count is the number of values tested.
 	Count int64
 
-	// Interesting indicates the value in shared memory may be interesting to
-	// the coordinator (for example, because it expanded coverage).
-	Interesting bool
+	// CoverageData is set if the value in shared memory expands coverage
+	// and therefore may be interesting to the coordinator.
+	CoverageData []byte
 
-	// Crashed indicates the value in shared memory caused a crash.
-	Crashed bool
-
-	// Err is the error string caused by the value in shared memory. This alone
-	// cannot be used to determine whether this value caused a crash, since a
-	// crash can occur without any output (e.g. with t.Fail()).
+	// Err is the error string caused by the value in shared memory, which is
+	// non-empty if the value in shared memory caused a crash.
 	Err string
 }
 
@@ -505,6 +518,11 @@ type workerComm struct {
 type workerServer struct {
 	workerComm
 	m *mutator
+
+	// coverageData is the local coverage data for the worker. It is
+	// periodically updated to reflect the data in the coordinator when new
+	// edges are hit.
+	coverageData []byte
 
 	// fuzzFn runs the worker's fuzz function on the given input and returns
 	// an error if it finds a crasher (the process may also exit or crash).
@@ -580,6 +598,9 @@ func (ws *workerServer) serve(ctx context.Context) error {
 // a given amount of time. fuzz returns early if it finds an input that crashes
 // the fuzz function or an input that expands coverage.
 func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzResponse) {
+	if args.CoverageData != nil {
+		ws.coverageData = args.CoverageData
+	}
 	start := time.Now()
 	defer func() { resp.Duration = time.Since(start) }()
 
@@ -593,42 +614,55 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 		panic(err)
 	}
 
+	if args.CoverageOnly {
+		// Reset the coverage each time before running the fuzzFn.
+		resetCoverage()
+		ws.fuzzFn(CorpusEntry{Values: vals})
+		resp.CoverageData = coverageCopy()
+		return resp
+	}
+
+	cov := coverage()
+	if len(cov) != len(ws.coverageData) {
+		panic(fmt.Sprintf("num edges changed at runtime: %d, expected %d", len(cov), len(ws.coverageData)))
+	}
 	for {
 		select {
 		case <-fuzzCtx.Done():
-			// TODO(jayconrod,katiehockman): this value is not interesting. Use a
-			// real heuristic once we have one.
-			resp.Interesting = true
 			return resp
 
 		default:
 			resp.Count++
 			ws.m.mutate(vals, cap(mem.valueRef()))
 			writeToMem(vals, mem)
+			resetCoverage()
 			if err := ws.fuzzFn(CorpusEntry{Values: vals}); err != nil {
-				// TODO(jayconrod,katiehockman): consider making the maximum minimization
-				// time customizable with a go command flag.
+				// TODO(jayconrod,katiehockman): consider making the maximum
+				// minimization time customizable with a go command flag.
 				minCtx, minCancel := context.WithTimeout(ctx, time.Minute)
 				defer minCancel()
 				if minErr := ws.minimizeInput(minCtx, vals, mem); minErr != nil {
 					// Minimization found a different error, so use that one.
 					err = minErr
 				}
-				resp.Crashed = true
 				resp.Err = err.Error()
 				if resp.Err == "" {
 					resp.Err = "fuzz function failed with no output"
 				}
 				return resp
 			}
+			for i := range cov {
+				if ws.coverageData[i] == 0 && cov[i] > ws.coverageData[i] {
+					// TODO(jayconrod,katie): minimize this.
+					// This run hit a new edge. Only allocate a new slice as a
+					// copy of cov if we are returning, since it is expensive.
+					resp.CoverageData = coverageCopy()
+					return resp
+				}
+			}
 			if args.Count > 0 && resp.Count == args.Count {
-				// TODO(jayconrod,katiehockman): this value is not interesting. Use a
-				// real heuristic once we have one.
-				resp.Interesting = true
 				return resp
 			}
-			// TODO(jayconrod,katiehockman): return early if we find an
-			// interesting value.
 		}
 	}
 }

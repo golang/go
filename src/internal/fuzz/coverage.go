@@ -26,6 +26,25 @@ func coverage() []byte {
 	return res
 }
 
+// coverageCopy returns a copy of the current bytes provided by coverage().
+// TODO(jayconrod,katiehockman): consider using a shared buffer instead, to
+// make fewer costly allocations.
+func coverageCopy() []byte {
+	cov := coverage()
+	ret := make([]byte, len(cov))
+	copy(ret, cov)
+	return ret
+}
+
+// resetCovereage sets all of the counters for each edge of the instrumented
+// source code to 0.
+func resetCoverage() {
+	cov := coverage()
+	for i := range cov {
+		cov[i] = 0
+	}
+}
+
 // _counters and _ecounters mark the start and end, respectively, of where
 // the 8-bit coverage counters reside in memory. They're known to cmd/link,
 // which specially assigns their addresses for this purpose.
