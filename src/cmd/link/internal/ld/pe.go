@@ -452,7 +452,7 @@ func (f *peFile) addDWARFSection(name string, size int) *peSection {
 	off := f.stringTable.add(name)
 	h := f.addSection(name, size, size)
 	h.shortName = fmt.Sprintf("/%d", off)
-	h.characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
+	h.characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE | IMAGE_SCN_CNT_INITIALIZED_DATA
 	return h
 }
 
@@ -1593,7 +1593,7 @@ func addpersrc(ctxt *Link) {
 
 func asmbPe(ctxt *Link) {
 	t := pefile.addSection(".text", int(Segtext.Length), int(Segtext.Length))
-	t.characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
+	t.characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
 	if ctxt.LinkMode == LinkExternal {
 		// some data symbols (e.g. masks) end up in the .text section, and they normally
 		// expect larger alignment requirement than the default text section alignment.
