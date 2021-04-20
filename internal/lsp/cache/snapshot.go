@@ -351,22 +351,25 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 		return "", nil, cleanup, err
 	}
 
-	mutableModFlag := ""
-	if s.view.goversion >= 16 {
-		mutableModFlag = "mod"
-	}
+	// If the mod flag isn't set, populate it based on the mode and workspace.
+	if inv.ModFlag == "" {
+		mutableModFlag := ""
+		if s.view.goversion >= 16 {
+			mutableModFlag = "mod"
+		}
 
-	switch mode {
-	case source.LoadWorkspace, source.Normal:
-		if vendorEnabled {
-			inv.ModFlag = "vendor"
-		} else if !allowModfileModificationOption {
-			inv.ModFlag = "readonly"
-		} else {
+		switch mode {
+		case source.LoadWorkspace, source.Normal:
+			if vendorEnabled {
+				inv.ModFlag = "vendor"
+			} else if !allowModfileModificationOption {
+				inv.ModFlag = "readonly"
+			} else {
+				inv.ModFlag = mutableModFlag
+			}
+		case source.UpdateUserModFile, source.WriteTemporaryModFile:
 			inv.ModFlag = mutableModFlag
 		}
-	case source.UpdateUserModFile, source.WriteTemporaryModFile:
-		inv.ModFlag = mutableModFlag
 	}
 
 	wantTempMod := mode != source.UpdateUserModFile

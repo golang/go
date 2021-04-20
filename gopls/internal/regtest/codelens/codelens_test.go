@@ -5,6 +5,7 @@
 package codelens
 
 import (
+	"fmt"
 	"runtime"
 	"strings"
 	"testing"
@@ -103,7 +104,7 @@ var Goodbye error
 -- go.mod --
 module mod.com
 
-go 1.12
+go 1.14
 
 require golang.org/x/hello v1.2.3
 -- go.sum --
@@ -121,7 +122,7 @@ func main() {
 
 	const wantGoMod = `module mod.com
 
-go 1.12
+go 1.14
 
 require golang.org/x/hello v1.3.3
 `
@@ -159,20 +160,25 @@ require golang.org/x/hello v1.3.3
 			})
 		})
 	}
-	t.Run("Upgrade individual dependency", func(t *testing.T) {
-		WithOptions(ProxyFiles(proxyWithLatest)).Run(t, shouldUpdateDep, func(t *testing.T, env *Env) {
-			env.OpenFile("go.mod")
-			env.ExecuteCodeLensCommand("go.mod", command.CheckUpgrades)
-			d := &protocol.PublishDiagnosticsParams{}
-			env.Await(OnceMet(env.DiagnosticAtRegexpWithMessage("go.mod", `require`, "can be upgraded"),
-				ReadDiagnostics("go.mod", d)))
-			env.ApplyQuickFixes("go.mod", d.Diagnostics)
-			env.Await(env.DoneWithChangeWatchedFiles())
-			if got := env.Editor.BufferText("go.mod"); got != wantGoMod {
-				t.Fatalf("go.mod upgrade failed:\n%s", tests.Diff(t, wantGoMod, got))
-			}
+	for _, vendoring := range []bool{false, true} {
+		t.Run(fmt.Sprintf("Upgrade individual dependency vendoring=%v", vendoring), func(t *testing.T) {
+			WithOptions(ProxyFiles(proxyWithLatest)).Run(t, shouldUpdateDep, func(t *testing.T, env *Env) {
+				if vendoring {
+					env.RunGoCommand("mod", "vendor")
+				}
+				env.OpenFile("go.mod")
+				env.ExecuteCodeLensCommand("go.mod", command.CheckUpgrades)
+				d := &protocol.PublishDiagnosticsParams{}
+				env.Await(OnceMet(env.DiagnosticAtRegexpWithMessage("go.mod", `require`, "can be upgraded"),
+					ReadDiagnostics("go.mod", d)))
+				env.ApplyQuickFixes("go.mod", d.Diagnostics)
+				env.Await(env.DoneWithChangeWatchedFiles())
+				if got := env.Editor.BufferText("go.mod"); got != wantGoMod {
+					t.Fatalf("go.mod upgrade failed:\n%s", tests.Diff(t, wantGoMod, got))
+				}
+			})
 		})
-	})
+	}
 }
 
 func TestUnusedDependenciesCodelens(t *testing.T) {
