@@ -248,7 +248,6 @@ const (
 	OOFFSETOF    // unsafe.Offsetof(X)
 	OSIZEOF      // unsafe.Sizeof(X)
 	OMETHEXPR    // method expression
-	OSTMTEXPR    // statement expression (Init; X)
 
 	// statements
 	OBLOCK // { List } (block of code)
