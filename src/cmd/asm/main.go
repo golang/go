@@ -19,6 +19,7 @@ import (
 
 	"cmd/internal/bio"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 )
 
 func main() {
@@ -69,7 +70,7 @@ func main() {
 	defer buf.Close()
 
 	if !*flags.SymABIs {
-		fmt.Fprintf(buf, "go object %s %s %s\n", buildcfg.GOOS, buildcfg.GOARCH, buildcfg.Version)
+		buf.WriteString(objabi.HeaderString())
 		fmt.Fprintf(buf, "!\n")
 	}
 
