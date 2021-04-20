@@ -518,7 +518,10 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 			typ.len = -1
 		}
 		typ.elem = check.varType(e.Elem)
-		return typ
+		if typ.len >= 0 {
+			return typ
+		}
+		// report error if we encountered [...]
 
 	case *syntax.SliceType:
 		typ := new(Slice)
