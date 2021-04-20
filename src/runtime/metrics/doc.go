@@ -61,10 +61,30 @@ Below is the full list of supported metrics, ordered lexicographically.
 		Count of all completed GC cycles.
 
 	/gc/heap/allocs-by-size:bytes
-		Distribution of all objects allocated by approximate size.
+		Distribution of heap allocations by approximate size.
+		Note that this does not include tiny objects as defined by /gc/heap/tiny/allocs:objects,
+		only tiny blocks.
+
+	/gc/heap/allocs:bytes
+		Cumulative sum of memory allocated to the heap by the application.
+
+	/gc/heap/allocs:objects
+		Cumulative count of heap allocations triggered by the application.
+		Note that this does not include tiny objects as defined by /gc/heap/tiny/allocs:objects,
+		only tiny blocks.
 
 	/gc/heap/frees-by-size:bytes
-		Distribution of all objects freed by approximate size.
+		Distribution of freed heap allocations by approximate size.
+		Note that this does not include tiny objects as defined by /gc/heap/tiny/allocs:objects,
+		only tiny blocks.
+
+	/gc/heap/frees:bytes
+		Cumulative sum of heap memory freed by the garbage collector.
+
+	/gc/heap/frees:objects
+		Cumulative count of heap allocations whose storage was freed by the garbage collector.
+		Note that this does not include tiny objects as defined by /gc/heap/tiny/allocs:objects,
+		only tiny blocks.
 
 	/gc/heap/goal:bytes
 		Heap size target for the end of the GC cycle.
