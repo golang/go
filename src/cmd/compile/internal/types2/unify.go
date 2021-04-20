@@ -6,6 +6,8 @@
 
 package types2
 
+import "bytes"
+
 // The unifier maintains two separate sets of type parameters x and y
 // which are used to resolve type parameters in the x and y arguments
 // provided to the unify call. For unidirectional unification, only
@@ -67,6 +69,22 @@ type tparamsList struct {
 	// By using a negative index for nil types we don't need to check unifier.types
 	// to see if we have a type or not.
 	indices []int // len(d.indices) == len(d.tparams)
+}
+
+// String returns a string representation for a tparamsList. For debugging.
+func (d *tparamsList) String() string {
+	var buf bytes.Buffer
+	buf.WriteByte('[')
+	for i, tname := range d.tparams {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		writeType(&buf, tname.typ, nil, nil)
+		buf.WriteString(": ")
+		writeType(&buf, d.at(i), nil, nil)
+	}
+	buf.WriteByte(']')
+	return buf.String()
 }
 
 // init initializes d with the given type parameters.
