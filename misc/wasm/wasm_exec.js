@@ -604,6 +604,7 @@
 		}
 	}
 	class GoRuntimeError extends Error {}
+	global.Go.RuntimeError = GoRuntimeError;
 
 	if (
 		typeof module !== "undefined" &&
