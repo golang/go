@@ -850,6 +850,7 @@ const (
 	MAP_VPAGETABLE                    = 0x2000
 	MCL_CURRENT                       = 0x1
 	MCL_FUTURE                        = 0x2
+	MSG_CMSG_CLOEXEC                  = 0x1000
 	MSG_CTRUNC                        = 0x20
 	MSG_DONTROUTE                     = 0x4
 	MSG_DONTWAIT                      = 0x80
