@@ -311,7 +311,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 
 	// At the moment we don't support wrapping a method, we'd need machinery
 	// below to handle the receiver. Panic if we see this scenario.
-	ft := f.Nname.Ntype.Type()
+	ft := f.Nname.Type()
 	if ft.NumRecvs() != 0 {
 		panic("makeABIWrapper support for wrapping methods not implemented")
 	}
