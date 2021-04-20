@@ -464,8 +464,9 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	return true
 }
 
-// sign-extends from 24-bit.
-func signext24(x int64) int64 { return x << 40 >> 40 }
+// sign-extends from 21, 24-bit.
+func signext21(x int64) int64 { return x << (64 - 21) >> (64 - 21) }
+func signext24(x int64) int64 { return x << (64 - 24) >> (64 - 24) }
 
 func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, sectoff int64) bool {
 	var v uint32
@@ -478,7 +479,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 	if xadd != signext24(xadd) {
 		// If the relocation target would overflow the addend, then target
 		// a linker-manufactured label symbol with a smaller addend instead.
-		label := ldr.Lookup(machoLabelName(ldr, rs, xadd), ldr.SymVersion(rs))
+		label := ldr.Lookup(offsetLabelName(ldr, rs, xadd/machoRelocLimit*machoRelocLimit), ldr.SymVersion(rs))
 		if label != 0 {
 			xadd = ldr.SymValue(rs) + xadd - ldr.SymValue(label)
 			rs = label
@@ -569,35 +570,67 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 }
 
 func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, sectoff int64) bool {
-	var v uint32
-
 	rs := r.Xsym
 	rt := r.Type
 
-	if ldr.SymDynid(rs) < 0 {
+	if r.Xadd != signext21(r.Xadd) {
+		// If the relocation target would overflow the addend, then target
+		// a linker-manufactured label symbol with a smaller addend instead.
+		label := ldr.Lookup(offsetLabelName(ldr, rs, r.Xadd/peRelocLimit*peRelocLimit), ldr.SymVersion(rs))
+		if label == 0 {
+			ldr.Errorf(s, "invalid relocation: %v %s+0x%x", rt, ldr.SymName(rs), r.Xadd)
+			return false
+		}
+		rs = label
+	}
+	if rt == objabi.R_CALLARM64 && r.Xadd != 0 {
+		label := ldr.Lookup(offsetLabelName(ldr, rs, r.Xadd), ldr.SymVersion(rs))
+		if label == 0 {
+			ldr.Errorf(s, "invalid relocation: %v %s+0x%x", rt, ldr.SymName(rs), r.Xadd)
+			return false
+		}
+		rs = label
+	}
+	symdynid := ldr.SymDynid(rs)
+	if symdynid < 0 {
 		ldr.Errorf(s, "reloc %d (%s) to non-coff symbol %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymType(rs), ldr.SymType(rs))
 		return false
 	}
-
-	out.Write32(uint32(sectoff))
-	out.Write32(uint32(ldr.SymDynid(rs)))
 
 	switch rt {
 	default:
 		return false
 
 	case objabi.R_DWARFSECREF:
-		v = ld.IMAGE_REL_ARM64_SECREL
+		out.Write32(uint32(sectoff))
+		out.Write32(uint32(symdynid))
+		out.Write16(ld.IMAGE_REL_ARM64_SECREL)
 
 	case objabi.R_ADDR:
+		out.Write32(uint32(sectoff))
+		out.Write32(uint32(symdynid))
 		if r.Size == 8 {
-			v = ld.IMAGE_REL_ARM64_ADDR64
+			out.Write16(ld.IMAGE_REL_ARM64_ADDR64)
 		} else {
-			v = ld.IMAGE_REL_ARM64_ADDR32
+			out.Write16(ld.IMAGE_REL_ARM64_ADDR32)
 		}
-	}
 
-	out.Write16(uint16(v))
+	case objabi.R_ADDRARM64:
+		// Note: r.Xadd has been taken care of below, in archreloc.
+		out.Write32(uint32(sectoff))
+		out.Write32(uint32(symdynid))
+		out.Write16(ld.IMAGE_REL_ARM64_PAGEBASE_REL21)
+
+		out.Write32(uint32(sectoff + 4))
+		out.Write32(uint32(symdynid))
+		out.Write16(ld.IMAGE_REL_ARM64_PAGEOFFSET_12A)
+
+	case objabi.R_CALLARM64:
+		// Note: r.Xadd has been taken care of above, by using a label pointing into the middle of the function.
+		out.Write32(uint32(sectoff))
+		out.Write32(uint32(symdynid))
+		out.Write16(ld.IMAGE_REL_ARM64_BRANCH26)
+	}
 
 	return true
 }
@@ -628,14 +661,8 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 				nExtReloc = 4 // need another two relocations for non-zero addend
 			}
 
-			// Note: ld64 currently has a bug that any non-zero addend for BR26 relocation
-			// will make the linking fail because it thinks the code is not PIC even though
-			// the BR26 relocation should be fully resolved at link time.
-			// That is the reason why the next if block is disabled. When the bug in ld64
-			// is fixed, we can enable this block and also enable duff's device in cmd/7g.
-			if false && target.IsDarwin() {
+			if target.IsWindows() {
 				var o0, o1 uint32
-
 				if target.IsBigEndian() {
 					o0 = uint32(val >> 32)
 					o1 = uint32(val)
@@ -643,15 +670,20 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 					o0 = uint32(val)
 					o1 = uint32(val >> 32)
 				}
-				// Mach-O wants the addend to be encoded in the instruction
-				// Note that although Mach-O supports ARM64_RELOC_ADDEND, it
-				// can only encode 24-bit of signed addend, but the instructions
-				// supports 33-bit of signed addend, so we always encode the
-				// addend in place.
-				o0 |= (uint32((xadd>>12)&3) << 29) | (uint32((xadd>>12>>2)&0x7ffff) << 5)
-				o1 |= uint32(xadd&0xfff) << 10
 
-				// when laid out, the instruction order must always be o1, o2.
+				// The first instruction (ADRP) has a 21-bit immediate field,
+				// and the second (ADD) has a 12-bit immediate field.
+				// The first instruction is only for high bits, but to get the carry bits right we have
+				// to put the full addend, including the bottom 12 bits again.
+				// That limits the distance of any addend to only 21 bits.
+				// But we assume that LDRP's top bit will be interpreted as a sign bit,
+				// so we only use 20 bits.
+				// pereloc takes care of introducing new symbol labels
+				// every megabyte for longer relocations.
+				xadd := uint32(xadd)
+				o0 |= (xadd&3)<<29 | (xadd&0xffffc)<<3
+				o1 |= (xadd & 0xfff) << 10
+
 				if target.IsBigEndian() {
 					val = int64(o0)<<32 | int64(o1)
 				} else {
@@ -668,6 +700,18 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 				nExtReloc = 2 // need two ELF relocations. see elfreloc1
 			}
 			return val, nExtReloc, isOk
+
+		case objabi.R_ADDR:
+			if target.IsWindows() && r.Add() != 0 {
+				if r.Siz() == 8 {
+					val = r.Add()
+				} else if target.IsBigEndian() {
+					val = int64(uint32(val)) | int64(r.Add())<<32
+				} else {
+					val = val>>32<<32 | int64(uint32(r.Add()))
+				}
+				return val, 1, true
+			}
 		}
 	}
 
@@ -1018,37 +1062,54 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	}
 }
 
-const machoRelocLimit = 1 << 23
+const (
+	machoRelocLimit = 1 << 23
+	peRelocLimit    = 1 << 20
+)
 
 func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 	// When external linking on darwin, Mach-O relocation has only signed 24-bit
 	// addend. For large symbols, we generate "label" symbols in the middle, so
 	// that relocations can target them with smaller addends.
-	if !ctxt.IsDarwin() || !ctxt.IsExternal() {
+	// On Windows, we only get 21 bits, again (presumably) signed.
+	if !ctxt.IsDarwin() && !ctxt.IsWindows() || !ctxt.IsExternal() {
 		return
 	}
 
-	big := false
-	for _, seg := range ld.Segments {
-		if seg.Length >= machoRelocLimit {
-			big = true
-			break
-		}
-	}
-	if !big {
-		return // skip work if nothing big
+	limit := int64(machoRelocLimit)
+	if ctxt.IsWindows() {
+		limit = peRelocLimit
 	}
 
-	// addLabelSyms adds "label" symbols at s+machoRelocLimit, s+2*machoRelocLimit, etc.
-	addLabelSyms := func(s loader.Sym, sz int64) {
+	if ctxt.IsDarwin() {
+		big := false
+		for _, seg := range ld.Segments {
+			if seg.Length >= machoRelocLimit {
+				big = true
+				break
+			}
+		}
+		if !big {
+			return // skip work if nothing big
+		}
+	}
+
+	// addLabelSyms adds "label" symbols at s+limit, s+2*limit, etc.
+	addLabelSyms := func(s loader.Sym, limit, sz int64) {
 		v := ldr.SymValue(s)
-		for off := int64(machoRelocLimit); off < sz; off += machoRelocLimit {
-			p := ldr.LookupOrCreateSym(machoLabelName(ldr, s, off), ldr.SymVersion(s))
+		for off := limit; off < sz; off += limit {
+			p := ldr.LookupOrCreateSym(offsetLabelName(ldr, s, off), ldr.SymVersion(s))
 			ldr.SetAttrReachable(p, true)
 			ldr.SetSymValue(p, v+off)
 			ldr.SetSymSect(p, ldr.SymSect(s))
-			ld.AddMachoSym(ldr, p)
-			//fmt.Printf("gensymlate %s %x\n", ldr.SymName(p), ldr.SymValue(p))
+			if ctxt.IsDarwin() {
+				ld.AddMachoSym(ldr, p)
+			} else if ctxt.IsWindows() {
+				ld.AddPELabelSym(ldr, p)
+			} else {
+				panic("missing case in gensymlate")
+			}
+			// fmt.Printf("gensymlate %s %x\n", ldr.SymName(p), ldr.SymValue(p))
 		}
 	}
 
@@ -1057,26 +1118,39 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 			continue
 		}
 		if ldr.SymType(s) == sym.STEXT {
-			continue // we don't target the middle of a function
+			if ctxt.IsDarwin() || ctxt.IsWindows() {
+				// Cannot relocate into middle of function.
+				// Generate symbol names for every offset we need in duffcopy/duffzero (only 64 each).
+				switch ldr.SymName(s) {
+				case "runtime.duffcopy":
+					addLabelSyms(s, 8, 8*64)
+				case "runtime.duffzero":
+					addLabelSyms(s, 4, 4*64)
+				}
+			}
+			continue // we don't target the middle of other functions
 		}
 		sz := ldr.SymSize(s)
-		if sz <= machoRelocLimit {
+		if sz <= limit {
 			continue
 		}
-		addLabelSyms(s, sz)
+		addLabelSyms(s, limit, sz)
 	}
 
 	// Also for carrier symbols (for which SymSize is 0)
 	for _, ss := range ld.CarrierSymByType {
-		if ss.Sym != 0 && ss.Size > machoRelocLimit {
-			addLabelSyms(ss.Sym, ss.Size)
+		if ss.Sym != 0 && ss.Size > limit {
+			addLabelSyms(ss.Sym, limit, ss.Size)
 		}
 	}
 }
 
-// machoLabelName returns the name of the "label" symbol used for a
-// relocation targeting s+off. The label symbols is used on darwin
-// when external linking, so that the addend fits in a Mach-O relocation.
-func machoLabelName(ldr *loader.Loader, s loader.Sym, off int64) string {
-	return fmt.Sprintf("%s.%d", ldr.SymExtname(s), off/machoRelocLimit)
+// offsetLabelName returns the name of the "label" symbol used for a
+// relocation targeting s+off. The label symbols is used on Darwin/Windows
+// when external linking, so that the addend fits in a Mach-O/PE relocation.
+func offsetLabelName(ldr *loader.Loader, s loader.Sym, off int64) string {
+	if off>>20<<20 == off {
+		return fmt.Sprintf("%s+%dMB", ldr.SymExtname(s), off>>20)
+	}
+	return fmt.Sprintf("%s+%d", ldr.SymExtname(s), off)
 }

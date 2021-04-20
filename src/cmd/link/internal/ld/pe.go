@@ -704,6 +704,12 @@ func (f *peFile) mapToPESection(ldr *loader.Loader, s loader.Sym, linkmode LinkM
 	return f.bssSect.index, int64(v - Segdata.Filelen), nil
 }
 
+var isLabel = make(map[loader.Sym]bool)
+
+func AddPELabelSym(ldr *loader.Loader, s loader.Sym) {
+	isLabel[s] = true
+}
+
 // writeSymbols writes all COFF symbol table records.
 func (f *peFile) writeSymbols(ctxt *Link) {
 	ldr := ctxt.loader
@@ -800,6 +806,10 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 		switch t {
 		case sym.SDYNIMPORT, sym.SHOSTOBJ, sym.SUNDEFEXT:
 			addsym(s)
+		default:
+			if len(isLabel) > 0 && isLabel[s] {
+				addsym(s)
+			}
 		}
 	}
 }
