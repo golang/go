@@ -330,40 +330,59 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
 	scope := check.scope
 
 	// collect lhs variables
-	var newVars []*Var
-	var lhsVars = make([]*Var, len(lhs))
+	seen := make(map[string]bool, len(lhs))
+	lhsVars := make([]*Var, len(lhs))
+	newVars := make([]*Var, 0, len(lhs))
+	hasErr := false
 	for i, lhs := range lhs {
-		var obj *Var
-		if ident, _ := lhs.(*syntax.Name); ident != nil {
-			// Use the correct obj if the ident is redeclared. The
-			// variable's scope starts after the declaration; so we
-			// must use Scope.Lookup here and call Scope.Insert
-			// (via check.declare) later.
-			name := ident.Value
-			if alt := scope.Lookup(name); alt != nil {
-				// redeclared object must be a variable
-				if alt, _ := alt.(*Var); alt != nil {
-					obj = alt
-				} else {
-					check.errorf(lhs, "cannot assign to %s", lhs)
-				}
-				check.recordUse(ident, alt)
-			} else {
-				// declare new variable, possibly a blank (_) variable
-				obj = NewVar(ident.Pos(), check.pkg, name, nil)
-				if name != "_" {
-					newVars = append(newVars, obj)
-				}
-				check.recordDef(ident, obj)
-			}
-		} else {
+		ident, _ := lhs.(*syntax.Name)
+		if ident == nil {
 			check.useLHS(lhs)
-			check.errorf(lhs, "cannot declare %s", lhs)
+			check.errorf(lhs, "non-name %s on left side of :=", lhs)
+			hasErr = true
+			continue
 		}
-		if obj == nil {
-			obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
+
+		name := ident.Value
+		if name == "_" {
+			continue
 		}
+
+		if seen[name] {
+			check.errorf(lhs, "%s repeated on left side of :=", lhs)
+			hasErr = true
+			continue
+		}
+		seen[name] = true
+
+		// Use the correct obj if the ident is redeclared. The
+		// variable's scope starts after the declaration; so we
+		// must use Scope.Lookup here and call Scope.Insert
+		// (via check.declare) later.
+		if alt := scope.Lookup(name); alt != nil {
+			check.recordUse(ident, alt)
+			// redeclared object must be a variable
+			if obj, _ := alt.(*Var); obj != nil {
+				lhsVars[i] = obj
+			} else {
+				check.errorf(lhs, "cannot assign to %s", lhs)
+				hasErr = true
+			}
+			continue
+		}
+
+		// declare new variable
+		obj := NewVar(ident.Pos(), check.pkg, name, nil)
 		lhsVars[i] = obj
+		newVars = append(newVars, obj)
+		check.recordDef(ident, obj)
+	}
+
+	// create dummy variables where the lhs is invalid
+	for i, obj := range lhsVars {
+		if obj == nil {
+			lhsVars[i] = NewVar(lhs[i].Pos(), check.pkg, "_", nil)
+		}
 	}
 
 	check.initVars(lhsVars, rhs, nopos)
@@ -371,17 +390,18 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
 	// process function literals in rhs expressions before scope changes
 	check.processDelayed(top)
 
-	// declare new variables
-	if len(newVars) > 0 {
-		// spec: "The scope of a constant or variable identifier declared inside
-		// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
-		// for short variable declarations) and ends at the end of the innermost
-		// containing block."
-		scopePos := syntax.EndPos(rhs[len(rhs)-1])
-		for _, obj := range newVars {
-			check.declare(scope, nil, obj, scopePos) // recordObject already called
-		}
-	} else {
+	if len(newVars) == 0 && !hasErr {
 		check.softErrorf(pos, "no new variables on left side of :=")
+		return
+	}
+
+	// declare new variables
+	// spec: "The scope of a constant or variable identifier declared inside
+	// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
+	// for short variable declarations) and ends at the end of the innermost
+	// containing block."
+	scopePos := syntax.EndPos(rhs[len(rhs)-1])
+	for _, obj := range newVars {
+		check.declare(scope, nil, obj, scopePos) // id = nil: recordDef already called
 	}
 }
