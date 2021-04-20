@@ -33,6 +33,11 @@ func canInternalLink() bool {
 		case "arm64":
 			return false
 		}
+	case "windows":
+		switch runtime.GOARCH {
+		case "arm64":
+			return false
+		}
 	}
 	return true
 }
