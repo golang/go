@@ -592,7 +592,21 @@ func (r *importReader) exoticParam() *types.Field {
 		f.Nname = ir.NewNameAt(pos, sym)
 	}
 	f.SetIsDDD(ddd)
-	f.Note = r.string()
+	return f
+}
+
+func (r *importReader) exoticField() *types.Field {
+	pos := r.pos()
+	sym := r.exoticSym()
+	off := r.uint64()
+	typ := r.exoticType()
+	note := r.string()
+	f := types.NewField(pos, sym, typ)
+	f.Offset = int64(off)
+	if sym != nil {
+		f.Nname = ir.NewNameAt(pos, sym)
+	}
+	f.Note = note
 	return f
 }
 
@@ -1202,7 +1216,7 @@ func (r *importReader) node() ir.Node {
 		n.SetType(r.exoticType())
 		switch op {
 		case ir.ODOT, ir.ODOTPTR, ir.ODOTINTER:
-			n.Selection = r.exoticParam()
+			n.Selection = r.exoticField()
 		case ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
 			// These require a Lookup to link to the correct declaration.
 			rcvrType := expr.Type()
