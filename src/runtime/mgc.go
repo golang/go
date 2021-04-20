@@ -1273,11 +1273,15 @@ func gcBgMarkWorker() {
 					// everything out of the run
 					// queue so it can run
 					// somewhere else.
-					if drainQ, n := runqdrain(pp); n > 0 {
-						lock(&sched.lock)
-						globrunqputbatch(&drainQ, int32(n))
-						unlock(&sched.lock)
+					lock(&sched.lock)
+					for {
+						gp, _ := runqget(pp)
+						if gp == nil {
+							break
+						}
+						globrunqput(gp)
 					}
+					unlock(&sched.lock)
 				}
 				// Go back to draining, this time
 				// without preemption.
