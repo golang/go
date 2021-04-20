@@ -1186,9 +1186,11 @@ func converterForType(typ string) driver.ValueConverter {
 		return driver.Bool
 	case "nullbool":
 		return driver.Null{Converter: driver.Bool}
+	case "byte", "int16":
+		return driver.NotNull{Converter: driver.DefaultParameterConverter}
 	case "int32":
 		return driver.Int32
-	case "nullint32":
+	case "nullbyte", "nullint32", "nullint16":
 		return driver.Null{Converter: driver.DefaultParameterConverter}
 	case "string":
 		return driver.NotNull{Converter: fakeDriverString{}}
@@ -1222,6 +1224,10 @@ func colTypeToReflectType(typ string) reflect.Type {
 		return reflect.TypeOf(false)
 	case "nullbool":
 		return reflect.TypeOf(NullBool{})
+	case "int16":
+		return reflect.TypeOf(int16(0))
+	case "nullint16":
+		return reflect.TypeOf(NullInt16{})
 	case "int32":
 		return reflect.TypeOf(int32(0))
 	case "nullint32":
