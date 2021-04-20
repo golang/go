@@ -15,6 +15,8 @@ import (
 	"math/rand"
 	"os"
 	. "reflect"
+	"reflect/internal/example1"
+	"reflect/internal/example2"
 	"runtime"
 	"sort"
 	"strconv"
@@ -3808,6 +3810,16 @@ type Empty struct{}
 type MyStruct struct {
 	x int `some:"tag"`
 }
+type MyStruct1 struct {
+	x struct {
+		int `some:"bar"`
+	}
+}
+type MyStruct2 struct {
+	x struct {
+		int `some:"foo"`
+	}
+}
 type MyString string
 type MyBytes []byte
 type MyRunes []int32
@@ -4157,6 +4169,9 @@ var convertTests = []struct {
 	{V(struct {
 		x int `some:"bar"`
 	}{}), V(MyStruct{})},
+
+	{V(MyStruct1{}), V(MyStruct2{})},
+	{V(MyStruct2{}), V(MyStruct1{})},
 
 	// can convert *byte and *MyByte
 	{V((*byte)(nil)), V((*MyByte)(nil))},
@@ -7230,4 +7245,14 @@ func iterateToString(it *MapIter) string {
 	}
 	sort.Strings(got)
 	return "[" + strings.Join(got, ", ") + "]"
+}
+
+func TestConvertibleTo(t *testing.T) {
+	t1 := ValueOf(example1.MyStruct{}).Type()
+	t2 := ValueOf(example2.MyStruct{}).Type()
+
+	// Shouldn't raise stack overflow
+	if t1.ConvertibleTo(t2) {
+		t.Fatalf("(%s).ConvertibleTo(%s) = true, want false", t1, t2)
+	}
 }

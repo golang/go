@@ -1599,7 +1599,7 @@ func haveIdenticalType(T, V Type, cmpTags bool) bool {
 		return T == V
 	}
 
-	if T.Name() != V.Name() || T.Kind() != V.Kind() {
+	if T.Name() != V.Name() || T.Kind() != V.Kind() || T.PkgPath() != V.PkgPath() {
 		return false
 	}
 
