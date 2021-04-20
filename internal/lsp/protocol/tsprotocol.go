@@ -4,8 +4,8 @@
 
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: dae62de921d25964e8732411ca09e532dde992f5
-// last fetched Fri Apr 16 2021 08:46:13 GMT-0400 (Eastern Daylight Time)
+// commit: d58c00bbf8837b9fd0144924db5e7b1c543d839e
+// last fetched Sat Apr 17 2021 08:26:29 GMT-0400 (Eastern Daylight Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -219,19 +219,19 @@ type CancelParams struct {
  */
 type ChangeAnnotation struct {
 	/**
-	           * A human-readable string describing the actual change. The string
-	  		 * is rendered prominent in the user interface.
+	       * A human-readable string describing the actual change. The string
+	  	 * is rendered prominent in the user interface.
 	*/
 	Label string `json:"label"`
 	/**
-	           * A flag which indicates that user confirmation is needed
-	  		 * before applying the change.
+	       * A flag which indicates that user confirmation is needed
+	  	 * before applying the change.
 	*/
 	NeedsConfirmation bool `json:"needsConfirmation,omitempty"`
 	/**
-	           * A human-readable string which is rendered less prominent in
-	  		 * the user interface.
-	*/
+	 * A human-readable string which is rendered less prominent in
+	 * the user interface.
+	 */
 	Description string `json:"description,omitempty"`
 }
 
@@ -772,6 +772,13 @@ type CompletionClientCapabilities struct {
 		InsertTextModeSupport struct {
 			ValueSet []InsertTextMode `json:"valueSet"`
 		} `json:"insertTextModeSupport,omitempty"`
+		/**
+		 * The client has support for completion item label
+		 * details (see also `CompletionItemLabelDetails`).
+		 *
+		 * @since 3.17.0 - proposed state
+		 */
+		LabelDetailsSupport bool `json:"labelDetailsSupport,omitempty"`
 	} `json:"completionItem,omitempty"`
 	CompletionItemKind struct {
 		/**
@@ -822,11 +829,21 @@ type CompletionContext struct {
  */
 type CompletionItem struct {
 	/**
-	 * The label of this completion item. By default
-	 * also the text that is inserted when selecting
-	 * this completion.
+	 * The label of this completion item.
+	 *
+	 * The label property is also by default the text that
+	 * is inserted when selecting this completion.
+	 *
+	 * If label details are provided the label itself should
+	 * be an unqualified name of the completion item.
 	 */
 	Label string `json:"label"`
+	/**
+	 * Additional details for the label
+	 *
+	 * @since 3.17.0 - proposed state
+	 */
+	LabelDetails CompletionItemLabelDetails `json:"labelDetails,omitempty"`
 	/**
 	 * The kind of this completion item. Based of the kind
 	 * an icon is chosen by the editor.
@@ -941,9 +958,8 @@ type CompletionItem struct {
 	 */
 	Command *Command `json:"command,omitempty"`
 	/**
-	 * A data entry field that is preserved on a completion item between
-	 * a [CompletionRequest](#CompletionRequest) and a [CompletionResolveRequest]
-	 * (#CompletionResolveRequest)
+	 * A data entry field that is preserved on a completion item between a
+	 * [CompletionRequest](#CompletionRequest) and a [CompletionResolveRequest](#CompletionResolveRequest).
 	 */
 	Data interface{} `json:"data,omitempty"`
 }
@@ -952,6 +968,26 @@ type CompletionItem struct {
  * The kind of a completion entry.
  */
 type CompletionItemKind float64
+
+/**
+ * Additional details for a completion item label.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type CompletionItemLabelDetails struct {
+	/**
+	 * The parameters without the return type.
+	 */
+	Parameters string `json:"parameters,omitempty"`
+	/**
+	 * The fully qualified name, like package name or file path.
+	 */
+	Qualifier string `json:"qualifier,omitempty"`
+	/**
+	 * The return-type of a function or type of a property/variable.
+	 */
+	Type string `json:"type,omitempty"`
+}
 
 /**
  * Completion item tags are extra annotations that tweak the rendering of a completion
@@ -1007,6 +1043,22 @@ type CompletionOptions struct {
 	 * information for a completion item.
 	 */
 	ResolveProvider bool `json:"resolveProvider,omitempty"`
+	/**
+	 * The server supports the following `CompletionItem` specific
+	 * capabilities.
+	 *
+	 * @since 3.17.0 - proposed state
+	 */
+	CompletionItem struct {
+		/**
+		 * The server has support for completion item label
+		 * details (see also `CompletionItemLabelDetails`) when
+		 * receiving a completion item in a resolve call.
+		 *
+		 * @since 3.17.0 - proposed state
+		 */
+		LabelDetailsSupport bool `json:"labelDetailsSupport,omitempty"`
+	} `json:"completionItem,omitempty"`
 	WorkDoneProgressOptions
 }
 
@@ -1482,6 +1534,52 @@ type DocumentColorRegistrationOptions struct {
 }
 
 /**
+ * @since 3.17.0 - proposed state
+ */
+type DocumentDiagnosticParams struct {
+	/**
+	 * The text document.
+	 */
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	/**
+	 * The additional identifier  provided during registration.
+	 */
+	Identifier string `json:"identifier,omitempty"`
+	/**
+	 * The result id of a previous response if provided.
+	 */
+	PreviousResultID string `json:"previousResultId,omitempty"`
+	WorkDoneProgressParams
+	PartialResultParams
+}
+
+/**
+ * The result of a document diagnostic pull request. A report can
+ * either be a new report containing all diagnostics for the
+ * requested document or a unchanged report indicating that nothing
+ * has changed in terms of diagnostics in comparison to the last
+ * pull request.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type DocumentDiagnosticReport = struct {
+	/**
+	 * A new document diagnostic report.
+	 */
+	Kind string `json:"kind"`
+	/**
+	 * An optional result id. If provided it will
+	 * be sent on the next diagnostic request for the
+	 * same document.
+	 */
+	ResultID string `json:"resultId,omitempty"`
+	/**
+	 * The actual items.
+	 */
+	Items []Diagnostic `json:"items"`
+}
+
+/**
  * A document filter denotes a document by different properties like
  * the [language](#TextDocument.languageId), the [scheme](#Uri.scheme) of
  * its resource, or a glob-pattern that is applied to the [path](#TextDocument.fileName).
@@ -1490,7 +1588,7 @@ type DocumentColorRegistrationOptions struct {
  * - `*` to match one or more characters in a path segment
  * - `?` to match on one character in a path segment
  * - `**` to match any number of path segments, including none
- * - `{}` to group conditions (e.g. `**​/*.{ts,js}` matches all TypeScript and JavaScript files)
+ * - `{}` to group sub patterns into an OR expression. (e.g. `**​/*.{ts,js}` matches all TypeScript and JavaScript files)
  * - `[]` to declare a range of characters to match in a path segment (e.g., `example.[0-9]` to match on `example.0`, `example.1`, …)
  * - `[!...]` to negate a range of characters to match in a path segment (e.g., `example.[!0-9]` to match on `example.a`, `example.b`, but not `example.0`)
  *
@@ -2056,7 +2154,7 @@ type FileOperationPattern struct {
 	 * - `*` to match one or more characters in a path segment
 	 * - `?` to match on one character in a path segment
 	 * - `**` to match any number of path segments, including none
-	 * - `{}` to group conditions (e.g. `**​/*.{ts,js}` matches all TypeScript and JavaScript files)
+	 * - `{}` to group sub patterns into an OR expression. (e.g. `**​/*.{ts,js}` matches all TypeScript and JavaScript files)
 	 * - `[]` to declare a range of characters to match in a path segment (e.g., `example.[0-9]` to match on `example.0`, `example.1`, …)
 	 * - `[!...]` to negate a range of characters to match in a path segment (e.g., `example.[!0-9]` to match on `example.a`, `example.b`, but not `example.0`)
 	 */
@@ -3389,6 +3487,9 @@ type SemanticTokensRegistrationOptions struct {
 	StaticRegistrationOptions
 }
 
+/**
+ * @since 3.16.0
+ */
 type SemanticTokensWorkspaceClientCapabilities struct {
 	/**
 	 * Whether the client implementation supports a refresh request sent from
@@ -3396,7 +3497,7 @@ type SemanticTokensWorkspaceClientCapabilities struct {
 	 *
 	 * Note that this event is global and will force the client to refresh all
 	 * semantic tokens currently shown. It should be used with absolute care
-	 * and is useful for situation where a server for example detect a project
+	 * and is useful for situation where a server for example detects a project
 	 * wide change that requires such a calculation.
 	 */
 	RefreshSupport bool `json:"refreshSupport,omitempty"`
@@ -4463,10 +4564,59 @@ type WorkspaceClientCapabilities struct {
 	FileOperations FileOperationClientCapabilities `json:"fileOperations,omitempty"`
 }
 
+type WorkspaceDiagnosticParams struct {
+	/**
+	 * The additional identifier provided during registration.
+	 */
+	Identifier string `json:"identifier,omitempty"`
+	/**
+	 * The currently known diagnostic reports with their
+	 * previous result ids.
+	 */
+	PreviousResultIds []struct {
+		/**
+		 * The URI for which the client knowns a
+		 * result id.
+		 */
+		URI DocumentURI `json:"uri"`
+		/**
+		 * The value of the previous result id.
+		 */
+		Value string `json:"value"`
+	} `json:"previousResultIds"`
+	WorkDoneProgressParams
+	PartialResultParams
+}
+
+type WorkspaceDiagnosticReport struct {
+	Items []WorkspaceDocumentDiagnosticReport `json:"items"`
+}
+
+type WorkspaceDocumentDiagnosticReport struct {
+	/**
+	 * The URI for which diagnostic information is reported.
+	 */
+	URI DocumentURI `json:"uri"`
+	/**
+	 * The version number for which the diagnostics are reported.
+	 * If the document is not marked as open `null` can be provided.
+	 */
+	Version int32/*integer | null*/ `json:"version"`
+}
+
 /**
  * A workspace edit represents changes to many resources managed in the workspace. The edit
  * should either provide `changes` or `documentChanges`. If documentChanges are present
  * they are preferred over `changes` if the client can handle versioned document edits.
+ *
+ * Since version 3.13.0 a workspace edit can contain resource operations as well. If resource
+ * operations are present clients need to execute the operations in the order in which they
+ * are provided. So a workspace edit for example can consist of the following two changes:
+ * (1) a create file a.txt and (2) a text document edit which insert text into file a.txt.
+ *
+ * An invalid sequence (e.g. (1) delete file a.txt and (2) insert text into file a.txt) will
+ * cause failure of the operation. How the client recovers from the failure is described by
+ * the client capability: `workspace.workspaceEdit.failureHandling`
  */
 type WorkspaceEdit struct {
 	/**

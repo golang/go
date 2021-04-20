@@ -806,6 +806,8 @@ function goType(n: ts.TypeNode | undefined, nm: string): string {
   if (!n) throw new Error(`goType undefined for ${nm}`);
   if (n.getText() == 'T') return 'interface{}';  // should check it's generic
   if (ts.isTypeReferenceNode(n)) {
+    // DocumentDiagnosticReportKind.unChanged (or .new) value is "new" or "unChanged"
+    if (n.getText().startsWith('DocumentDiagnostic')) return 'string';
     switch (n.getText()) {
       case 'integer': return 'int32';
       case 'uinteger': return 'uint32';
@@ -901,8 +903,12 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
       if (a == 'TypeLiteral' && nm == 'TextDocumentContentChangeEvent') {
         return `${goType(n.types[0], nm)}`;
       }
-      console.log(`911 ${n.types[1].getText()} ${loc(n.types[1])}`);
-      throw new Error(`912 ${nm}: a:${a} b:${b} ${n.getText()} ${loc(n)}`);
+      if (a == 'TypeLiteral' && b === 'TypeLiteral') {
+        // DocumentDiagnosticReport
+        // the first one includes the second one
+        return `${goType(n.types[0], '9d')}`;
+      }
+      throw new Error(`911 ${nm}: a:${a}/${goType(n.types[0], '9a')} b:${b}/${goType(n.types[1], '9b')} ${loc(n)}`);
     }
     case 3: {
       const aa = strKind(n.types[0]);
@@ -1041,6 +1047,7 @@ function isStructType(te: ts.TypeNode): boolean {
     case 'TypeReference': {
       if (!ts.isTypeReferenceNode(te)) throw new Error(`1047 impossible ${strKind(te)}`);
       const d = seenTypes.get(goName(te.typeName.getText()));
+      if (d === undefined) return false;
       if (d.properties.length > 1) return true;
       // alias or interface with a single property (The alias is Uinteger, which we ignore later)
       if (d.alias) return false;
@@ -1263,8 +1270,7 @@ function methodName(m: string): string {
     x = prefix + suffix;
   }
   if (seenNames.has(x)) {
-    // Resolve, ResolveCodeLens, ResolveDocumentLink
-    if (!x.startsWith('Resolve')) throw new Error(`expected Resolve, not ${x}`);
+    // various Resolve and Diagnostic
     x += m[0].toUpperCase() + m.substring(1, i);
   }
   seenNames.add(x);

@@ -1,4 +1,4 @@
-// Copyright 2020 The Go Authors. All rights reserved.
+// Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -38,6 +38,18 @@ func (s *Server) Declaration(context.Context, *protocol.DeclarationParams) (prot
 
 func (s *Server) Definition(ctx context.Context, params *protocol.DefinitionParams) (protocol.Definition, error) {
 	return s.definition(ctx, params)
+}
+
+func (s *Server) Diagnostic(context.Context, *string) (*string, error) {
+	return nil, notImplemented("Diagnostic")
+}
+
+func (s *Server) DiagnosticRefresh(context.Context) error {
+	return notImplemented("DiagnosticRefresh")
+}
+
+func (s *Server) DiagnosticWorkspace(context.Context, *protocol.WorkspaceDiagnosticParams) (*protocol.WorkspaceDiagnosticReport, error) {
+	return nil, notImplemented("DiagnosticWorkspace")
 }
 
 func (s *Server) DidChange(ctx context.Context, params *protocol.DidChangeTextDocumentParams) error {
