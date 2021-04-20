@@ -309,14 +309,19 @@ TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$208-0
 
 	// Save callback register arguments R0-R7.
 	// We do this at the top of the frame so they're contiguous with stack arguments.
-	MOVD	R0, arg0-(8*8)(SP)
-	MOVD	R1, arg1-(7*8)(SP)
-	MOVD	R2, arg2-(6*8)(SP)
-	MOVD	R3, arg3-(5*8)(SP)
-	MOVD	R4, arg4-(4*8)(SP)
-	MOVD	R5, arg5-(3*8)(SP)
-	MOVD	R6, arg6-(2*8)(SP)
-	MOVD	R7, arg7-(1*8)(SP)
+	// The 7*8 setting up R14 looks like a bug but is not: the eighth word
+	// is the space the assembler reserved for our caller's frame pointer,
+	// but we are not called from Go so that space is ours to use,
+	// and we must to be contiguous with the stack arguments.
+	MOVD	$arg0-(7*8)(SP), R14
+	MOVD	R0, (0*8)(R14)
+	MOVD	R1, (1*8)(R14)
+	MOVD	R2, (2*8)(R14)
+	MOVD	R3, (3*8)(R14)
+	MOVD	R4, (4*8)(R14)
+	MOVD	R5, (5*8)(R14)
+	MOVD	R6, (6*8)(R14)
+	MOVD	R7, (7*8)(R14)
 
 	// Push C callee-save registers R19-R28.
 	// LR, FP already saved.
@@ -325,7 +330,7 @@ TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$208-0
 	// Create a struct callbackArgs on our stack.
 	MOVD	$cbargs-(18*8+callbackArgs__size)(SP), R13
 	MOVD	R12, callbackArgs_index(R13)	// callback index
-	MOVD	$arg0-(8*8)(SP), R0
+	MOVD	R14, R0
 	MOVD	R0, callbackArgs_args(R13)		// address of args vector
 	MOVD	$0, R0
 	MOVD	R0, callbackArgs_result(R13)	// result
