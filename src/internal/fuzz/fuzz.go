@@ -210,23 +210,36 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 				// TODO(jayconrod,katiehockman): if -keepfuzzing, report the error to
 				// the user and restart the crashed worker.
 				stop(err)
-			} else if result.isInteresting {
-				// Found an interesting value that expanded coverage.
-				// This is not a crasher, but we should minimize it, add it to the
-				// on-disk corpus, and prioritize it for future fuzzing.
-				// TODO(jayconrod, katiehockman): Prioritize fuzzing these values which
-				// expanded coverage.
-				// TODO(jayconrod, katiehockman): Don't write a value that's already
-				// in the corpus.
-				c.corpus.entries = append(c.corpus.entries, result.entry)
-				if opts.CacheDir != "" {
-					if _, err := writeToCorpus(result.entry.Data, opts.CacheDir); err != nil {
-						stop(err)
+			} else if result.coverageData != nil {
+				foundNew := c.updateCoverage(result.coverageData)
+				if foundNew && !c.coverageOnlyRun() {
+					// Found an interesting value that expanded coverage.
+					// This is not a crasher, but we should add it to the
+					// on-disk corpus, and prioritize it for future fuzzing.
+					// TODO(jayconrod, katiehockman): Prioritize fuzzing these
+					// values which expanded coverage, perhaps based on the
+					// number of new edges that this result expanded.
+					// TODO(jayconrod, katiehockman): Don't write a value that's already
+					// in the corpus.
+					c.interestingCount++
+					c.corpus.entries = append(c.corpus.entries, result.entry)
+					if opts.CacheDir != "" {
+						if _, err := writeToCorpus(result.entry.Data, opts.CacheDir); err != nil {
+							stop(err)
+						}
+					}
+				} else if c.coverageOnlyRun() {
+					c.covOnlyInputs--
+					if c.covOnlyInputs == 0 {
+						// The coordinator has finished getting a baseline for
+						// coverage. Tell all of the workers to inialize their
+						// baseline coverage data (by setting interestingCount
+						// to 0).
+						c.interestingCount = 0
 					}
 				}
 			}
-
-			if inputC == nil && !stopping {
+			if inputC == nil && !stopping && !c.coverageOnlyRun() {
 				// inputC was disabled earlier because we hit the limit on the number
 				// of inputs to fuzz (nextInput returned false).
 				// Workers can do less work than requested though, so we might be
@@ -246,7 +259,13 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 
 		case inputC <- input:
 			// Send the next input to any worker.
-			if input, ok = c.nextInput(); !ok {
+			if c.corpusIndex == 0 && c.coverageOnlyRun() {
+				// The coordinator is currently trying to run all of the corpus
+				// entries to gather baseline coverage data, and all of the
+				// inputs have been passed to inputC. Block any more inputs from
+				// being passed to the workers for now.
+				inputC = nil
+			} else if input, ok = c.nextInput(); !ok {
 				inputC = nil
 			}
 
@@ -310,6 +329,17 @@ type fuzzInput struct {
 	// countRequested is the number of values to test. If non-zero, the worker
 	// will stop after testing this many values, if it hasn't already stopped.
 	countRequested int64
+
+	// coverageOnly indicates whether this input is for a coverage-only run. If
+	// true, the input should not be fuzzed.
+	coverageOnly bool
+
+	// interestingCount reflects the coordinator's current interestingCount
+	// value.
+	interestingCount int64
+
+	// coverageData reflects the coordinator's current coverageData.
+	coverageData []byte
 }
 
 type fuzzResult struct {
@@ -319,9 +349,8 @@ type fuzzResult struct {
 	// crasherMsg is an error message from a crash. It's "" if no crash was found.
 	crasherMsg string
 
-	// isInteresting is true if the worker found new coverage. We should minimize
-	// the value, cache it, and prioritize it for further fuzzing.
-	isInteresting bool
+	// coverageData is set if the worker found new coverage.
+	coverageData []byte
 
 	// countRequested is the number of values the coordinator asked the worker
 	// to test. 0 if there was no limit.
@@ -354,6 +383,14 @@ type coordinator struct {
 	// count is the number of values fuzzed so far.
 	count int64
 
+	// interestingCount is the number of unique interesting values which have
+	// been found this execution.
+	interestingCount int64
+
+	// covOnlyInputs is the number of entries in the corpus which still need to
+	// be sent to a worker to gather baseline coverage data.
+	covOnlyInputs int
+
 	// duration is the time spent fuzzing inside workers, not counting time
 	// starting up or tearing down.
 	duration time.Duration
@@ -370,6 +407,8 @@ type coordinator struct {
 	// TODO(jayconrod,katiehockman): need a scheduling algorithm that chooses
 	// which corpus value to send next (or generates something new).
 	corpusIndex int
+
+	coverageData []byte
 }
 
 func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
@@ -383,6 +422,7 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
 	if err != nil {
 		return nil, err
 	}
+	covOnlyInputs := len(corpus.entries)
 	if len(corpus.entries) == 0 {
 		var vals []interface{}
 		for _, t := range opts.Types {
@@ -391,11 +431,27 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
 		corpus.entries = append(corpus.entries, CorpusEntry{Data: marshalCorpusFile(vals...), Values: vals})
 	}
 	c := &coordinator{
-		opts:      opts,
-		startTime: time.Now(),
-		inputC:    make(chan fuzzInput),
-		resultC:   make(chan fuzzResult),
-		corpus:    corpus,
+		opts:          opts,
+		startTime:     time.Now(),
+		inputC:        make(chan fuzzInput),
+		resultC:       make(chan fuzzResult),
+		corpus:        corpus,
+		covOnlyInputs: covOnlyInputs,
+	}
+
+	cov := coverageCopy()
+	if len(cov) == 0 {
+		fmt.Fprintf(c.opts.Log, "warning: coverage-guided fuzzing is not supported on this platform\n")
+		c.covOnlyInputs = 0
+	} else {
+		// Set c.coverageData to a clean []byte full of zeros.
+		c.coverageData = make([]byte, len(cov))
+	}
+
+	if c.covOnlyInputs > 0 {
+		// Set c.interestingCount to -1 so the workers know when the coverage
+		// run is finished and can update their local coverage data.
+		c.interestingCount = -1
 	}
 
 	return c, nil
@@ -409,9 +465,15 @@ func (c *coordinator) updateStats(result fuzzResult) {
 }
 
 func (c *coordinator) logStats() {
+	// TODO(jayconrod,katiehockman): consider printing the amount of coverage
+	// that has been reached so far (perhaps a percentage of edges?)
 	elapsed := time.Since(c.startTime)
-	rate := float64(c.count) / elapsed.Seconds()
-	fmt.Fprintf(c.opts.Log, "elapsed: %.1fs, execs: %d (%.0f/sec), workers: %d\n", elapsed.Seconds(), c.count, rate, c.opts.Parallel)
+	if c.coverageOnlyRun() {
+		fmt.Fprintf(c.opts.Log, "gathering baseline coverage, elapsed: %.1fs, workers: %d, left: %d\n", elapsed.Seconds(), c.opts.Parallel, c.covOnlyInputs)
+	} else {
+		rate := float64(c.count) / elapsed.Seconds()
+		fmt.Fprintf(c.opts.Log, "fuzzing, elapsed: %.1fs, execs: %d (%.0f/sec), workers: %d, interesting: %d\n", elapsed.Seconds(), c.count, rate, c.opts.Parallel, c.interestingCount)
+	}
 }
 
 // nextInput returns the next value that should be sent to workers.
@@ -423,22 +485,54 @@ func (c *coordinator) nextInput() (fuzzInput, bool) {
 		// Workers already testing all requested inputs.
 		return fuzzInput{}, false
 	}
-
-	e := c.corpus.entries[c.corpusIndex]
+	input := fuzzInput{
+		entry:            c.corpus.entries[c.corpusIndex],
+		interestingCount: c.interestingCount,
+		coverageData:     c.coverageData,
+	}
 	c.corpusIndex = (c.corpusIndex + 1) % (len(c.corpus.entries))
-	var n int64
+
+	if c.coverageOnlyRun() {
+		// This is a coverage-only run, so this input shouldn't be fuzzed,
+		// and shouldn't be included in the count of generated values.
+		input.coverageOnly = true
+		return input, true
+	}
+
 	if c.opts.Count > 0 {
-		n = c.opts.Count / int64(c.opts.Parallel)
+		input.countRequested = c.opts.Count / int64(c.opts.Parallel)
 		if c.opts.Count%int64(c.opts.Parallel) > 0 {
-			n++
+			input.countRequested++
 		}
 		remaining := c.opts.Count - c.count - c.countWaiting
-		if n > remaining {
-			n = remaining
+		if input.countRequested > remaining {
+			input.countRequested = remaining
 		}
-		c.countWaiting += n
+		c.countWaiting += input.countRequested
 	}
-	return fuzzInput{entry: e, countRequested: n}, true
+	return input, true
+}
+
+func (c *coordinator) coverageOnlyRun() bool {
+	return c.covOnlyInputs > 0
+}
+
+// updateCoverage updates c.coverageData for all edges that have a higher
+// counter value in newCoverage. It return true if a new edge was hit.
+func (c *coordinator) updateCoverage(newCoverage []byte) bool {
+	if len(newCoverage) != len(c.coverageData) {
+		panic(fmt.Sprintf("num edges changed at runtime: %d, expected %d", len(newCoverage), len(c.coverageData)))
+	}
+	newEdge := false
+	for i := range newCoverage {
+		if newCoverage[i] > c.coverageData[i] {
+			if c.coverageData[i] == 0 {
+				newEdge = true
+			}
+			c.coverageData[i] = newCoverage[i]
+		}
+	}
+	return newEdge
 }
 
 // readCache creates a combined corpus from seed values and values in the cache

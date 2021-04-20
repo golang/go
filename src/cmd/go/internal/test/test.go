@@ -764,6 +764,15 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
+	fuzzFlags := work.FuzzInstrumentFlags()
+	if testFuzz != "" && fuzzFlags != nil {
+		// Inform the compiler that it should instrument the binary at
+		// build-time when fuzzing is enabled.
+		for _, p := range load.PackageList(pkgs) {
+			p.Internal.Gcflags = append(p.Internal.Gcflags, fuzzFlags...)
+		}
+	}
+
 	// Prepare build + run + print actions for all packages being tested.
 	for _, p := range pkgs {
 		// sync/atomic import is inserted by the cover tool. See #18486

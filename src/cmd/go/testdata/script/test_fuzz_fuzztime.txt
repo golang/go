@@ -20,6 +20,7 @@ exec ./fuzz.test$GOEXE -test.timeout=10ms -test.fuzz=FuzzFast -test.fuzztime=5s 
 # This fuzz function creates a file with a unique name ($pid.$count) on each run.
 # We count the files to find the number of runs.
 mkdir count
+env GOCACHE=$WORK/tmp
 go test -fuzz=FuzzCount -fuzztime=1000x
 go run count_files.go
 stdout '^1000$'
