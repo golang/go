@@ -9,5 +9,4 @@ package net
 
 const readMsgFlags = 0
 
-func setReadMsgCloseOnExec(oob []byte) {
-}
+func setReadMsgCloseOnExec(oob []byte) {}

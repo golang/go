@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || netbsd || openbsd || solaris
-// +build aix darwin dragonfly freebsd netbsd openbsd solaris
+//go:build aix || darwin || freebsd || solaris
+// +build aix darwin freebsd solaris
 
 package net
 
-import (
-	"syscall"
-)
+import "syscall"
 
 const readMsgFlags = 0
 
