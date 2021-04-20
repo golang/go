@@ -36,3 +36,19 @@ func j() {
 	f := signal.Notify
 	f(c, os.Interrupt) // want "misuse of unbuffered os.Signal channel as argument to signal.Notify"
 }
+
+func k() {
+	signal.Notify(make(chan os.Signal), os.Interrupt) // ok
+}
+
+func l() {
+	signal.Notify(make(chan os.Signal, 1), os.Interrupt) // ok
+}
+
+func m() {
+	signal.Notify(make(chan ao.Signal, 1), os.Interrupt) // ok
+}
+
+func n() {
+	signal.Notify(make(chan ao.Signal), os.Interrupt) // ok
+}
