@@ -155,7 +155,7 @@ func (m *Match) MatchPackages() {
 			}
 
 			if !fi.IsDir() {
-				if fi.Mode()&fs.ModeSymlink != 0 && want {
+				if fi.Mode()&fs.ModeSymlink != 0 && want && strings.Contains(m.pattern, "...") {
 					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
 					}
