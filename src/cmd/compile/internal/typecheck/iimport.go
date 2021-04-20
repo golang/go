@@ -592,6 +592,7 @@ func (r *importReader) exoticParam() *types.Field {
 		f.Nname = ir.NewNameAt(pos, sym)
 	}
 	f.SetIsDDD(ddd)
+	f.Note = r.string()
 	return f
 }
 

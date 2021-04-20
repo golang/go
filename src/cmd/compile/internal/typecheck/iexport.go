@@ -749,6 +749,7 @@ func (w *exportWriter) exoticParam(f *types.Field) {
 	w.uint64(uint64(f.Offset))
 	w.exoticType(f.Type)
 	w.bool(f.IsDDD())
+	w.string(f.Note)
 }
 func (w *exportWriter) exoticSym(s *types.Sym) {
 	if s == nil {
