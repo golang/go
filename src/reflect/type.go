@@ -1599,7 +1599,7 @@ func haveIdenticalType(T, V Type, cmpTags bool) bool {
 		return T == V
 	}
 
-	if T.Name() != V.Name() || T.Kind() != V.Kind() {
+	if T.Name() != V.Name() || T.Kind() != V.Kind() || T.PkgPath() != V.PkgPath() {
 		return false
 	}
 
@@ -1677,9 +1677,6 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 			tf := &t.fields[i]
 			vf := &v.fields[i]
 			if tf.name.name() != vf.name.name() {
-				return false
-			}
-			if tf.typ.Kind() != Struct && tf.typ.str != vf.typ.str {
 				return false
 			}
 			if !haveIdenticalType(tf.typ, vf.typ, cmpTags) {
