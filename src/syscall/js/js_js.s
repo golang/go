@@ -44,6 +44,10 @@ TEXT ·valueNew(SB), NOSPLIT, $0
   CallImport
   RET
 
+TEXT ·runtimeError(SB), NOSPLIT, $0
+  CallImport
+  RET
+
 TEXT ·valueLength(SB), NOSPLIT, $0
   CallImport
   RET

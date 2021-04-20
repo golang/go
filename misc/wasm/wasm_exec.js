@@ -438,6 +438,14 @@
 						}
 					},
 
+					// func runtimeError(m ref) ref
+					"syscall/js.runtimeError": (sp) => {
+					  sp >>>= 0;
+					  const message = loadValue(sp + 8);
+					  const result = new GoRuntimeError(message);
+					  storeValue(sp + 16, result);
+					},
+
 					// func valueLength(v ref) int
 					"syscall/js.valueLength": (sp) => {
 						sp >>>= 0;
@@ -587,10 +595,15 @@
 				const event = { id: id, this: this, args: arguments };
 				go._pendingEvent = event;
 				go._resume();
-				return event.result;
+				const result = event.result;
+				if (result instanceof GoRuntimeError) {
+					throw result;
+				}
+				return result;
 			};
 		}
 	}
+	class GoRuntimeError extends Error {}
 
 	if (
 		typeof module !== "undefined" &&

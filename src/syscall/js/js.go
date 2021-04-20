@@ -442,6 +442,14 @@ func (v Value) New(args ...interface{}) Value {
 
 func valueNew(v ref, args []ref) (ref, bool)
 
+// Return RuntimeError, will be throw in javascript-function.
+func RuntimeError(message string) Value {
+	m := makeValue(stringVal(message))
+	res := runtimeError(m.ref)
+	return makeValue(res)
+}
+func runtimeError(m ref) ref
+
 func (v Value) isNumber() bool {
 	return v.ref == valueZero.ref ||
 		v.ref == valueNaN.ref ||
