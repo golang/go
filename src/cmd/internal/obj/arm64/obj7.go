@@ -1089,6 +1089,24 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 		}
+		if p.From.Type == obj.TYPE_SHIFT && (p.To.Reg == REG_RSP || p.Reg == REG_RSP) {
+			offset := p.From.Offset
+			op := offset & (3 << 22)
+			if op != SHIFT_LL {
+				ctxt.Diag("illegal combination: %v", p)
+			}
+			r := (offset >> 16) & 31
+			shift := (offset >> 10) & 63
+			if shift > 4 {
+				// the shift amount is out of range, in order to avoid repeated error
+				// reportings, don't call ctxt.Diag, because asmout case 27 has the
+				// same check.
+				shift = 7
+			}
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = int16(REG_LSL + r + (shift&7)<<5)
+			p.From.Offset = 0
+		}
 	}
 }
 
