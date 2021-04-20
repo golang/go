@@ -6898,7 +6898,7 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
 	// and not address-taken (for non-SSA-able or address-taken arguments we always
 	// spill upfront).
 	// TODO(register args) Make liveness more fine-grained to that partial spilling is okay.
-	if buildcfg.Experiment.RegabiArgs {
+	if f.OwnAux.ABIInfo().InRegistersUsed() != 0 {
 		// First, see if it is already spilled before it may be live. Look for a spill
 		// in the entry block up to the first safepoint.
 		type nameOff struct {
