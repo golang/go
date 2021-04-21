@@ -124,6 +124,13 @@ func initMetrics() {
 				out.scalar = in.heapStats.numObjects
 			},
 		},
+		"/gc/heap/tiny/allocs:objects": {
+			deps: makeStatDepSet(heapStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(in.heapStats.tinyAllocCount)
+			},
+		},
 		"/gc/pauses:seconds": {
 			compute: func(_ *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(timeHistBuckets)

@@ -393,7 +393,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			bySize[i].Mallocs += uint64(m.smallFreeCount[i])
 			smallFree += uint64(m.smallFreeCount[i]) * uint64(class_to_size[i])
 		}
-		slow.Frees += memstats.tinyallocs + uint64(m.largeFreeCount)
+		slow.Frees += uint64(m.tinyAllocCount) + uint64(m.largeFreeCount)
 		slow.Mallocs += slow.Frees
 
 		slow.TotalAlloc = slow.Alloc + uint64(m.largeFree) + smallFree

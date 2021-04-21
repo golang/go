@@ -72,6 +72,13 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/gc/heap/objects:objects
 		Number of objects, live or unswept, occupying heap memory.
 
+	/gc/heap/tiny/allocs:objects
+		Count of small allocations that are packed together into blocks.
+		These allocations are counted separately from other allocations
+		because each individual allocation is not tracked by the runtime,
+		only their block. Each block is already accounted for in
+		allocs-by-size and frees-by-size.
+
 	/gc/pauses:seconds
 		Distribution individual GC-related stop-the-world pause latencies.
 

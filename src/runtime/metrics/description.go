@@ -92,6 +92,16 @@ var allDesc = []Description{
 		Kind:        KindUint64,
 	},
 	{
+		Name: "/gc/heap/tiny/allocs:objects",
+		Description: "Count of small allocations that are packed together into blocks. " +
+			"These allocations are counted separately from other allocations " +
+			"because each individual allocation is not tracked by the runtime, " +
+			"only their block. Each block is already accounted for in " +
+			"allocs-by-size and frees-by-size.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
 		Name:        "/gc/pauses:seconds",
 		Description: "Distribution individual GC-related stop-the-world pause latencies.",
 		Kind:        KindFloat64Histogram,
