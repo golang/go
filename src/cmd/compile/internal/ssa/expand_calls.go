@@ -1450,17 +1450,15 @@ func expandCalls(f *Func) {
 
 	// Step 6: elide any copies introduced.
 	// Update named values.
-	if false { // TODO: reeanable. It caused compiler OOMing on large input.
-		for _, name := range f.Names {
-			values := f.NamedValues[name]
-			for i, v := range values {
-				if v.Op == OpCopy {
-					a := v.Args[0]
-					for a.Op == OpCopy {
-						a = a.Args[0]
-					}
-					values[i] = a
+	for _, name := range f.Names {
+		values := f.NamedValues[name]
+		for i, v := range values {
+			if v.Op == OpCopy {
+				a := v.Args[0]
+				for a.Op == OpCopy {
+					a = a.Args[0]
 				}
+				values[i] = a
 			}
 		}
 	}
