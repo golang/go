@@ -883,6 +883,45 @@ const (
 	//  var _ = real(int(1))
 	_InvalidReal
 
+	// _InvalidUnsafeAdd occurs when unsafe.Add is called with a
+	// length argument that is not of integer type.
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var p unsafe.Pointer
+	//  var _ = unsafe.Add(p, float64(1))
+	_InvalidUnsafeAdd
+
+	// _InvalidUnsafeSlice occurs when unsafe.Slice is called with a
+	// pointer argument that is not of pointer type or a length argument
+	// that is not of integer type, negative, or out of bounds.
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var x int
+	//  var _ = unsafe.Slice(x, 1)
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var x int
+	//  var _ = unsafe.Slice(&x, float64(1))
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var x int
+	//  var _ = unsafe.Slice(&x, -1)
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var x int
+	//  var _ = unsafe.Slice(&x, uint64(1) << 63)
+	_InvalidUnsafeSlice
+
 	/* exprs > assertion */
 
 	// _InvalidAssert occurs when a type assertion is applied to a
