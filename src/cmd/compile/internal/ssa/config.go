@@ -147,13 +147,6 @@ type Frontend interface {
 
 	// Given the name for a compound type, returns the name we should use
 	// for the parts of that compound type.
-	SplitString(LocalSlot) (LocalSlot, LocalSlot)
-	SplitInterface(LocalSlot) (LocalSlot, LocalSlot)
-	SplitSlice(LocalSlot) (LocalSlot, LocalSlot, LocalSlot)
-	SplitComplex(LocalSlot) (LocalSlot, LocalSlot)
-	SplitStruct(LocalSlot, int) LocalSlot
-	SplitArray(LocalSlot) LocalSlot              // array must be length 1
-	SplitInt64(LocalSlot) (LocalSlot, LocalSlot) // returns (hi, lo)
 	SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot
 
 	// DerefItab dereferences an itab function

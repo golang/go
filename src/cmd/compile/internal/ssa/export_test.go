@@ -73,36 +73,6 @@ func (TestFrontend) Auto(pos src.XPos, t *types.Type) *ir.Name {
 	n.Class = ir.PAUTO
 	return n
 }
-func (d TestFrontend) SplitString(s LocalSlot) (LocalSlot, LocalSlot) {
-	return LocalSlot{N: s.N, Type: testTypes.BytePtr, Off: s.Off}, LocalSlot{N: s.N, Type: testTypes.Int, Off: s.Off + 8}
-}
-func (d TestFrontend) SplitInterface(s LocalSlot) (LocalSlot, LocalSlot) {
-	return LocalSlot{N: s.N, Type: testTypes.BytePtr, Off: s.Off}, LocalSlot{N: s.N, Type: testTypes.BytePtr, Off: s.Off + 8}
-}
-func (d TestFrontend) SplitSlice(s LocalSlot) (LocalSlot, LocalSlot, LocalSlot) {
-	return LocalSlot{N: s.N, Type: s.Type.Elem().PtrTo(), Off: s.Off},
-		LocalSlot{N: s.N, Type: testTypes.Int, Off: s.Off + 8},
-		LocalSlot{N: s.N, Type: testTypes.Int, Off: s.Off + 16}
-}
-func (d TestFrontend) SplitComplex(s LocalSlot) (LocalSlot, LocalSlot) {
-	if s.Type.Size() == 16 {
-		return LocalSlot{N: s.N, Type: testTypes.Float64, Off: s.Off}, LocalSlot{N: s.N, Type: testTypes.Float64, Off: s.Off + 8}
-	}
-	return LocalSlot{N: s.N, Type: testTypes.Float32, Off: s.Off}, LocalSlot{N: s.N, Type: testTypes.Float32, Off: s.Off + 4}
-}
-func (d TestFrontend) SplitInt64(s LocalSlot) (LocalSlot, LocalSlot) {
-	if s.Type.IsSigned() {
-		return LocalSlot{N: s.N, Type: testTypes.Int32, Off: s.Off + 4}, LocalSlot{N: s.N, Type: testTypes.UInt32, Off: s.Off}
-	}
-	return LocalSlot{N: s.N, Type: testTypes.UInt32, Off: s.Off + 4}, LocalSlot{N: s.N, Type: testTypes.UInt32, Off: s.Off}
-}
-func (d TestFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
-	return LocalSlot{N: s.N, Type: s.Type.FieldType(i), Off: s.Off + s.Type.FieldOff(i)}
-}
-func (d TestFrontend) SplitArray(s LocalSlot) LocalSlot {
-	return LocalSlot{N: s.N, Type: s.Type.Elem(), Off: s.Off}
-}
-
 func (d TestFrontend) SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot {
 	return LocalSlot{N: parent.N, Type: t, Off: offset}
 }
