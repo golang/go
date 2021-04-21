@@ -1262,7 +1262,7 @@ func (r *importReader) node() ir.Node {
 		}
 		return n
 
-	case ir.OCONV, ir.OCONVIFACE, ir.OCONVNOP, ir.OBYTES2STR, ir.ORUNES2STR, ir.OSTR2BYTES, ir.OSTR2RUNES, ir.ORUNESTR:
+	case ir.OCONV, ir.OCONVIFACE, ir.OCONVNOP, ir.OBYTES2STR, ir.ORUNES2STR, ir.OSTR2BYTES, ir.OSTR2RUNES, ir.ORUNESTR, ir.OSLICE2ARRPTR:
 		if !go117ExportTypes && op != ir.OCONV {
 			// 	unreachable - mapped to OCONV case by exporter
 			goto error
