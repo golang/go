@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Apr 20, 2021",
+	"Subtitle": "Version of Apr 21, 2021",
 	"Path": "/ref/spec"
 }-->
 
@@ -6711,6 +6711,10 @@ type Pointer *ArbitraryType
 func Alignof(variable ArbitraryType) uintptr
 func Offsetof(selector ArbitraryType) uintptr
 func Sizeof(variable ArbitraryType) uintptr
+
+type IntegerType int  // shorthand for an integer type; it is not a real type
+func Add(ptr Pointer, len IntegerType) Pointer
+func Slice(ptr *ArbitraryType, len IntegerType) []ArbitraryType
 </pre>
 
 <p>
@@ -6765,6 +6769,32 @@ uintptr(unsafe.Pointer(&amp;x)) % unsafe.Alignof(x) == 0
 <p>
 Calls to <code>Alignof</code>, <code>Offsetof</code>, and
 <code>Sizeof</code> are compile-time constant expressions of type <code>uintptr</code>.
+</p>
+
+<p>
+The function <code>Add</code> adds <code>len</code> to <code>ptr</code>
+and returns the updated pointer <code>unsafe.Pointer(uintptr(ptr) + uintptr(len))</code>.
+The <code>len</code> argument must be of integer type or an untyped <a href="#Constants">constant</a>.
+A constant <code>len</code> argument must be <a href="#Representability">representable</a> by a value of type <code>int</code>;
+if it is an untyped constant it is given type <code>int</code>.
+The rules for <a href="/pkg/unsafe#Pointer">valid uses</a> of <code>Pointer</code> still apply.
+</p>
+
+<p>
+The function <code>Slice</code> returns a slice whose underlying array starts at <code>ptr</code>
+and whose length and capacity are <code>len</code>:
+</p>
+
+<pre>
+(*[len]ArbitraryType)(unsafe.Pointer(ptr))[:]
+</pre>
+
+<p>
+The <code>len</code> argument must be of integer type or an untyped <a href="#Constants">constant</a>.
+A constant <code>len</code> argument must be non-negative and <a href="#Representability">representable</a> by a value of type <code>int</code>;
+if it is an untyped constant it is given type <code>int</code>.
+If <code>ptr</code> is <code>nil</code> or <code>len</code> is negative at run time,
+a <a href="#Run_time_panics">run-time panic</a> occurs.
 </p>
 
 <h3 id="Size_and_alignment_guarantees">Size and alignment guarantees</h3>
