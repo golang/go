@@ -3196,6 +3196,12 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		n := n.(*ir.UnaryExpr)
 		return s.newObject(n.Type().Elem())
 
+	case ir.OUNSAFEADD:
+		n := n.(*ir.BinaryExpr)
+		ptr := s.expr(n.X)
+		len := s.expr(n.Y)
+		return s.newValue2(ssa.OpAddPtr, n.Type(), ptr, len)
+
 	default:
 		s.Fatalf("unhandled expr %v", n.Op())
 		return nil

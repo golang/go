@@ -136,7 +136,7 @@ func (n *BinaryExpr) SetOp(op Op) {
 		panic(n.no("SetOp " + op.String()))
 	case OADD, OADDSTR, OAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
 		OLSH, OLT, OMOD, OMUL, ONE, OOR, ORSH, OSUB, OXOR,
-		OCOPY, OCOMPLEX,
+		OCOPY, OCOMPLEX, OUNSAFEADD, OUNSAFESLICE,
 		OEFACE:
 		n.op = op
 	}

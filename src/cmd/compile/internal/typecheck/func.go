@@ -430,7 +430,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 			u := ir.NewUnaryExpr(n.Pos(), l.BuiltinOp, arg)
 			return typecheck(ir.InitExpr(n.Init(), u), top) // typecheckargs can add to old.Init
 
-		case ir.OCOMPLEX, ir.OCOPY:
+		case ir.OCOMPLEX, ir.OCOPY, ir.OUNSAFEADD, ir.OUNSAFESLICE:
 			typecheckargs(n)
 			arg1, arg2, ok := needTwoArgs(n)
 			if !ok {
@@ -975,5 +975,41 @@ func tcRecover(n *ir.CallExpr) ir.Node {
 	}
 
 	n.SetType(types.Types[types.TINTER])
+	return n
+}
+
+// tcUnsafeAdd typechecks an OUNSAFEADD node.
+func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
+	n.X = AssignConv(Expr(n.X), types.Types[types.TUNSAFEPTR], "argument to unsafe.Add")
+	n.Y = DefaultLit(Expr(n.Y), types.Types[types.TINT])
+	if n.X.Type() == nil || n.Y.Type() == nil {
+		n.SetType(nil)
+		return n
+	}
+	if !n.Y.Type().IsInteger() {
+		n.SetType(nil)
+		return n
+	}
+	n.SetType(n.X.Type())
+	return n
+}
+
+// tcUnsafeSlice typechecks an OUNSAFESLICE node.
+func tcUnsafeSlice(n *ir.BinaryExpr) *ir.BinaryExpr {
+	n.X = Expr(n.X)
+	n.Y = Expr(n.Y)
+	if n.X.Type() == nil || n.Y.Type() == nil {
+		n.SetType(nil)
+		return n
+	}
+	t := n.X.Type()
+	if !t.IsPtr() {
+		base.Errorf("first argument to unsafe.Slice must be pointer; have %L", t)
+	}
+	if !checkunsafeslice(&n.Y) {
+		n.SetType(nil)
+		return n
+	}
+	n.SetType(types.NewSlice(t.Elem()))
 	return n
 }

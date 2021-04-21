@@ -760,7 +760,9 @@ func anyCallOrChan(n ir.Node) bool {
 			ir.OPRINTN,
 			ir.OREAL,
 			ir.ORECOVER,
-			ir.ORECV:
+			ir.ORECV,
+			ir.OUNSAFEADD,
+			ir.OUNSAFESLICE:
 			return true
 		}
 		return false

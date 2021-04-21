@@ -1269,10 +1269,10 @@ func (r *importReader) node() ir.Node {
 		}
 		return ir.NewConvExpr(r.pos(), op, r.typ(), r.expr())
 
-	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
+	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN, ir.OUNSAFEADD, ir.OUNSAFESLICE:
 		if go117ExportTypes {
 			switch op {
-			case ir.OCOPY, ir.OCOMPLEX:
+			case ir.OCOPY, ir.OCOMPLEX, ir.OUNSAFEADD, ir.OUNSAFESLICE:
 				n := ir.NewBinaryExpr(r.pos(), op, r.expr(), r.expr())
 				n.SetType(r.typ())
 				return n

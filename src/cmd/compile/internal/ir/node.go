@@ -247,6 +247,8 @@ const (
 	OALIGNOF     // unsafe.Alignof(X)
 	OOFFSETOF    // unsafe.Offsetof(X)
 	OSIZEOF      // unsafe.Sizeof(X)
+	OUNSAFEADD   // unsafe.Add(X, Y)
+	OUNSAFESLICE // unsafe.Slice(X, Y)
 	OMETHEXPR    // method expression
 
 	// statements

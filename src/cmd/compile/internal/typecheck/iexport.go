@@ -1664,7 +1664,7 @@ func (w *exportWriter) expr(n ir.Node) {
 			w.typ(n.Type())
 		}
 
-	case ir.OCOPY, ir.OCOMPLEX:
+	case ir.OCOPY, ir.OCOMPLEX, ir.OUNSAFEADD, ir.OUNSAFESLICE:
 		// treated like other builtin calls (see e.g., OREAL)
 		n := n.(*ir.BinaryExpr)
 		w.op(n.Op())

@@ -29,6 +29,14 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
 	}
 	switch {
 	case tv.IsBuiltin():
+		// Qualified builtins, such as unsafe.Add and unsafe.Slice.
+		if expr, ok := expr.(*syntax.SelectorExpr); ok {
+			if name, ok := expr.X.(*syntax.Name); ok {
+				if _, ok := g.info.Uses[name].(*types2.PkgName); ok {
+					return g.use(expr.Sel)
+				}
+			}
+		}
 		return g.use(expr.(*syntax.Name))
 	case tv.IsType():
 		return ir.TypeNode(g.typ(tv.Type))
