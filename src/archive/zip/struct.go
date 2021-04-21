@@ -42,7 +42,7 @@ const (
 	directoryHeaderLen       = 46         // + filename + extra + comment
 	directoryEndLen          = 22         // + comment
 	dataDescriptorLen        = 16         // four uint32: descriptor signature, crc32, compressed size, size
-	dataDescriptor64Len      = 24         // descriptor with 8 byte sizes
+	dataDescriptor64Len      = 24         // two uint32: signature, crc32 | two uint64: compressed size, size
 	directory64LocLen        = 20         //
 	directory64EndLen        = 56         // + extra
 
@@ -315,6 +315,10 @@ func (h *FileHeader) isZip64() bool {
 	return h.CompressedSize64 >= uint32max || h.UncompressedSize64 >= uint32max
 }
 
+func (f *FileHeader) hasDataDescriptor() bool {
+	return f.Flags&0x8 != 0
+}
+
 func msdosModeToFileMode(m uint32) (mode fs.FileMode) {
 	if m&msdosDir != 0 {
 		mode = fs.ModeDir | 0777
@@ -385,4 +389,12 @@ func unixModeToFileMode(m uint32) fs.FileMode {
 		mode |= fs.ModeSticky
 	}
 	return mode
+}
+
+// dataDescriptor holds the data descriptor that optionally follows the file
+// contents in the zip file.
+type dataDescriptor struct {
+	crc32            uint32
+	compressedSize   uint64
+	uncompressedSize uint64
 }

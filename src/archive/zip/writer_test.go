@@ -6,8 +6,10 @@ package zip
 
 import (
 	"bytes"
+	"compress/flate"
 	"encoding/binary"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"io/fs"
 	"math/rand"
@@ -365,6 +367,171 @@ func TestWriterDirAttributes(t *testing.T) {
 	}
 }
 
+func TestWriterCopy(t *testing.T) {
+	// make a zip file
+	buf := new(bytes.Buffer)
+	w := NewWriter(buf)
+	for _, wt := range writeTests {
+		testCreate(t, w, &wt)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// read it back
+	src, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, wt := range writeTests {
+		testReadFile(t, src.File[i], &wt)
+	}
+
+	// make a new zip file copying the old compressed data.
+	buf2 := new(bytes.Buffer)
+	dst := NewWriter(buf2)
+	for _, f := range src.File {
+		if err := dst.Copy(f); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := dst.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// read the new one back
+	r, err := NewReader(bytes.NewReader(buf2.Bytes()), int64(buf2.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, wt := range writeTests {
+		testReadFile(t, r.File[i], &wt)
+	}
+}
+
+func TestWriterCreateRaw(t *testing.T) {
+	files := []struct {
+		name             string
+		content          []byte
+		method           uint16
+		flags            uint16
+		crc32            uint32
+		uncompressedSize uint64
+		compressedSize   uint64
+	}{
+		{
+			name:    "small store w desc",
+			content: []byte("gophers"),
+			method:  Store,
+			flags:   0x8,
+		},
+		{
+			name:    "small deflate wo desc",
+			content: bytes.Repeat([]byte("abcdefg"), 2048),
+			method:  Deflate,
+		},
+	}
+
+	// write a zip file
+	archive := new(bytes.Buffer)
+	w := NewWriter(archive)
+
+	for i := range files {
+		f := &files[i]
+		f.crc32 = crc32.ChecksumIEEE(f.content)
+		size := uint64(len(f.content))
+		f.uncompressedSize = size
+		f.compressedSize = size
+
+		var compressedContent []byte
+		if f.method == Deflate {
+			var buf bytes.Buffer
+			w, err := flate.NewWriter(&buf, flate.BestSpeed)
+			if err != nil {
+				t.Fatalf("flate.NewWriter err = %v", err)
+			}
+			_, err = w.Write(f.content)
+			if err != nil {
+				t.Fatalf("flate Write err = %v", err)
+			}
+			err = w.Close()
+			if err != nil {
+				t.Fatalf("flate Writer.Close err = %v", err)
+			}
+			compressedContent = buf.Bytes()
+			f.compressedSize = uint64(len(compressedContent))
+		}
+
+		h := &FileHeader{
+			Name:               f.name,
+			Method:             f.method,
+			Flags:              f.flags,
+			CRC32:              f.crc32,
+			CompressedSize64:   f.compressedSize,
+			UncompressedSize64: f.uncompressedSize,
+		}
+		w, err := w.CreateRaw(h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if compressedContent != nil {
+			_, err = w.Write(compressedContent)
+		} else {
+			_, err = w.Write(f.content)
+		}
+		if err != nil {
+			t.Fatalf("%s Write got %v; want nil", f.name, err)
+		}
+	}
+
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// read it back
+	r, err := NewReader(bytes.NewReader(archive.Bytes()), int64(archive.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, want := range files {
+		got := r.File[i]
+		if got.Name != want.name {
+			t.Errorf("got Name %s; want %s", got.Name, want.name)
+		}
+		if got.Method != want.method {
+			t.Errorf("%s: got Method %#x; want %#x", want.name, got.Method, want.method)
+		}
+		if got.Flags != want.flags {
+			t.Errorf("%s: got Flags %#x; want %#x", want.name, got.Flags, want.flags)
+		}
+		if got.CRC32 != want.crc32 {
+			t.Errorf("%s: got CRC32 %#x; want %#x", want.name, got.CRC32, want.crc32)
+		}
+		if got.CompressedSize64 != want.compressedSize {
+			t.Errorf("%s: got CompressedSize64 %d; want %d", want.name, got.CompressedSize64, want.compressedSize)
+		}
+		if got.UncompressedSize64 != want.uncompressedSize {
+			t.Errorf("%s: got UncompressedSize64 %d; want %d", want.name, got.UncompressedSize64, want.uncompressedSize)
+		}
+
+		r, err := got.Open()
+		if err != nil {
+			t.Errorf("%s: Open err = %v", got.Name, err)
+			continue
+		}
+
+		buf, err := io.ReadAll(r)
+		if err != nil {
+			t.Errorf("%s: ReadAll err = %v", got.Name, err)
+			continue
+		}
+
+		if !bytes.Equal(buf, want.content) {
+			t.Errorf("%v: ReadAll returned unexpected bytes", got.Name)
+		}
+	}
+}
+
 func testCreate(t *testing.T, w *Writer, wt *WriteTest) {
 	header := &FileHeader{
 		Name:   wt.Name,
@@ -390,15 +557,15 @@ func testReadFile(t *testing.T, f *File, wt *WriteTest) {
 	testFileMode(t, f, wt.Mode)
 	rc, err := f.Open()
 	if err != nil {
-		t.Fatal("opening:", err)
+		t.Fatalf("opening %s: %v", f.Name, err)
 	}
 	b, err := io.ReadAll(rc)
 	if err != nil {
-		t.Fatal("reading:", err)
+		t.Fatalf("reading %s: %v", f.Name, err)
 	}
 	err = rc.Close()
 	if err != nil {
-		t.Fatal("closing:", err)
+		t.Fatalf("closing %s: %v", f.Name, err)
 	}
 	if !bytes.Equal(b, wt.Data) {
 		t.Errorf("File contents %q, want %q", b, wt.Data)
