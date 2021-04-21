@@ -367,12 +367,12 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
 	state.slots = state.slots[:0]
 	state.vars = state.vars[:0]
 	for i, slot := range f.Names {
-		state.slots = append(state.slots, slot)
+		state.slots = append(state.slots, *slot)
 		if ir.IsSynthetic(slot.N) {
 			continue
 		}
 
-		topSlot := &slot
+		topSlot := slot
 		for topSlot.SplitOf != nil {
 			topSlot = topSlot.SplitOf
 		}
@@ -436,7 +436,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
 		if ir.IsSynthetic(slot.N) {
 			continue
 		}
-		for _, value := range f.NamedValues[slot] {
+		for _, value := range f.NamedValues[*slot] {
 			state.valueNames[value.ID] = append(state.valueNames[value.ID], SlotID(i))
 		}
 	}

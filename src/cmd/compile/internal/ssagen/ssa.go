@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/abi"
-	"encoding/binary"
 	"fmt"
 	"go/constant"
 	"html"
@@ -6463,7 +6462,8 @@ func (s *state) addNamedValue(n *ir.Name, v *ssa.Value) {
 	loc := ssa.LocalSlot{N: n, Type: n.Type(), Off: 0}
 	values, ok := s.f.NamedValues[loc]
 	if !ok {
-		s.f.Names = append(s.f.Names, loc)
+		s.f.Names = append(s.f.Names, &loc)
+		s.f.CanonicalLocalSlots[loc] = &loc
 	}
 	s.f.NamedValues[loc] = append(values, v)
 }
@@ -7550,82 +7550,6 @@ func (e *ssafn) StringData(s string) *obj.LSym {
 
 func (e *ssafn) Auto(pos src.XPos, t *types.Type) *ir.Name {
 	return typecheck.TempAt(pos, e.curfn, t) // Note: adds new auto to e.curfn.Func.Dcl list
-}
-
-func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
-	ptrType := types.NewPtr(types.Types[types.TUINT8])
-	lenType := types.Types[types.TINT]
-	// Split this string up into two separate variables.
-	p := e.SplitSlot(&name, ".ptr", 0, ptrType)
-	l := e.SplitSlot(&name, ".len", ptrType.Size(), lenType)
-	return p, l
-}
-
-func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
-	n := name.N
-	u := types.Types[types.TUINTPTR]
-	t := types.NewPtr(types.Types[types.TUINT8])
-	// Split this interface up into two separate variables.
-	f := ".itab"
-	if n.Type().IsEmptyInterface() {
-		f = ".type"
-	}
-	c := e.SplitSlot(&name, f, 0, u) // see comment in typebits.Set
-	d := e.SplitSlot(&name, ".data", u.Size(), t)
-	return c, d
-}
-
-func (e *ssafn) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
-	ptrType := types.NewPtr(name.Type.Elem())
-	lenType := types.Types[types.TINT]
-	p := e.SplitSlot(&name, ".ptr", 0, ptrType)
-	l := e.SplitSlot(&name, ".len", ptrType.Size(), lenType)
-	c := e.SplitSlot(&name, ".cap", ptrType.Size()+lenType.Size(), lenType)
-	return p, l, c
-}
-
-func (e *ssafn) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
-	s := name.Type.Size() / 2
-	var t *types.Type
-	if s == 8 {
-		t = types.Types[types.TFLOAT64]
-	} else {
-		t = types.Types[types.TFLOAT32]
-	}
-	r := e.SplitSlot(&name, ".real", 0, t)
-	i := e.SplitSlot(&name, ".imag", t.Size(), t)
-	return r, i
-}
-
-func (e *ssafn) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
-	var t *types.Type
-	if name.Type.IsSigned() {
-		t = types.Types[types.TINT32]
-	} else {
-		t = types.Types[types.TUINT32]
-	}
-	if Arch.LinkArch.ByteOrder == binary.BigEndian {
-		return e.SplitSlot(&name, ".hi", 0, t), e.SplitSlot(&name, ".lo", t.Size(), types.Types[types.TUINT32])
-	}
-	return e.SplitSlot(&name, ".hi", t.Size(), t), e.SplitSlot(&name, ".lo", 0, types.Types[types.TUINT32])
-}
-
-func (e *ssafn) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
-	st := name.Type
-	// Note: the _ field may appear several times.  But
-	// have no fear, identically-named but distinct Autos are
-	// ok, albeit maybe confusing for a debugger.
-	return e.SplitSlot(&name, "."+st.FieldName(i), st.FieldOff(i), st.FieldType(i))
-}
-
-func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
-	n := name.N
-	at := name.Type
-	if at.NumElem() != 1 {
-		e.Fatalf(n.Pos(), "bad array size")
-	}
-	et := at.Elem()
-	return e.SplitSlot(&name, "[0]", 0, et)
 }
 
 func (e *ssafn) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
