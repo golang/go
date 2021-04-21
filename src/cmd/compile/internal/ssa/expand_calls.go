@@ -1378,9 +1378,11 @@ func expandCalls(f *Func) {
 		// Leaf types may have debug locations
 		if !x.isAlreadyExpandedAggregateType(v.Type) {
 			for _, l := range locs {
+				if _, ok := f.NamedValues[l]; !ok {
+					f.Names = append(f.Names, l)
+				}
 				f.NamedValues[l] = append(f.NamedValues[l], v)
 			}
-			f.Names = append(f.Names, locs...)
 			continue
 		}
 		// Not-leaf types that had debug locations need to lose them.
