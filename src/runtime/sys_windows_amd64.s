@@ -367,13 +367,7 @@ loop:
 	MOVQ	CX, ret+0(FP)
 	RET
 useQPC:
-	// Call with ABIInternal because we could be
-	// very deep in a nosplit context and the wrapper
-	// adds stack space.
-	// TODO(#40724): The result from nanotimeQPC will
-	// be passed in a register, so store that to the
-	// stack so we can return through a wrapper.
-	JMP	runtime·nanotimeQPC<ABIInternal>(SB)
+	JMP	runtime·nanotimeQPC(SB)
 	RET
 
 TEXT time·now(SB),NOSPLIT,$0-24
