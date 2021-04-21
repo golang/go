@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include "libcgo.h"
+#include "libcgo_windows.h"
 
 static void threadentry(void*);
 

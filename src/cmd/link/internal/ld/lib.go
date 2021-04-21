@@ -1424,9 +1424,6 @@ func (ctxt *Link) hostlink() {
 			if ctxt.Arch.PtrSize >= 8 {
 				argv = append(argv, "-Wl,--high-entropy-va")
 			}
-			// Work around binutils limitation that strips relocation table for dynamicbase.
-			// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
-			argv = append(argv, "-Wl,--export-all-symbols")
 		default:
 			// ELF.
 			if ctxt.UseRelro() {
