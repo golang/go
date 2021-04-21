@@ -775,6 +775,14 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.CallExpr)
 		return tcRecover(n)
 
+	case ir.OUNSAFEADD:
+		n := n.(*ir.BinaryExpr)
+		return tcUnsafeAdd(n)
+
+	case ir.OUNSAFESLICE:
+		n := n.(*ir.BinaryExpr)
+		return tcUnsafeSlice(n)
+
 	case ir.OCLOSURE:
 		n := n.(*ir.ClosureExpr)
 		tcClosure(n, top)
@@ -1928,6 +1936,35 @@ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
 	// are the same as for index expressions. Factor the code better;
 	// for instance, indexlit might be called here and incorporate some
 	// of the bounds checks done for make.
+	n = DefaultLit(n, types.Types[types.TINT])
+	*np = n
+
+	return true
+}
+
+// checkunsafeslice is like checkmake but for unsafe.Slice.
+func checkunsafeslice(np *ir.Node) bool {
+	n := *np
+	if !n.Type().IsInteger() && n.Type().Kind() != types.TIDEAL {
+		base.Errorf("non-integer len argument in unsafe.Slice - %v", n.Type())
+		return false
+	}
+
+	// Do range checks for constants before DefaultLit
+	// to avoid redundant "constant NNN overflows int" errors.
+	if n.Op() == ir.OLITERAL {
+		v := toint(n.Val())
+		if constant.Sign(v) < 0 {
+			base.Errorf("negative len argument in unsafe.Slice")
+			return false
+		}
+		if ir.ConstOverflow(v, types.Types[types.TINT]) {
+			base.Errorf("len argument too large in unsafe.Slice")
+			return false
+		}
+	}
+
+	// DefaultLit is necessary for non-constants too: n might be 1.1<<k.
 	n = DefaultLit(n, types.Types[types.TINT])
 	*np = n
 

@@ -653,6 +653,45 @@ func walkRecover(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 	return mkcall("gorecover", nn.Type(), init, fp)
 }
 
+func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+	len := safeExpr(n.Y, init)
+
+	fnname := "unsafeslice64"
+	argtype := types.Types[types.TINT64]
+
+	// Type checking guarantees that TIDEAL len/cap are positive and fit in an int.
+	// The case of len or cap overflow when converting TUINT or TUINTPTR to TINT
+	// will be handled by the negative range checks in unsafeslice during runtime.
+	if len.Type().IsKind(types.TIDEAL) || len.Type().Size() <= types.Types[types.TUINT].Size() {
+		fnname = "unsafeslice"
+		argtype = types.Types[types.TINT]
+	}
+
+	t := n.Type()
+
+	// Call runtime.unsafeslice[64] to check that the length argument is
+	// non-negative and smaller than the max length allowed for the
+	// element type.
+	fn := typecheck.LookupRuntime(fnname)
+	init.Append(mkcall1(fn, nil, init, reflectdata.TypePtr(t.Elem()), typecheck.Conv(len, argtype)))
+
+	ptr := walkExpr(n.X, init)
+
+	c := ir.NewUnaryExpr(n.Pos(), ir.OCHECKNIL, ptr)
+	c.SetTypecheck(1)
+	init.Append(c)
+
+	// TODO(mdempsky): checkptr instrumentation. Maybe merge into length
+	// check above, along with nil check? Need to be careful about
+	// notinheap pointers though: can't pass them as unsafe.Pointer.
+
+	h := ir.NewSliceHeaderExpr(n.Pos(), t,
+		typecheck.Conv(ptr, types.Types[types.TUNSAFEPTR]),
+		typecheck.Conv(len, types.Types[types.TINT]),
+		typecheck.Conv(len, types.Types[types.TINT]))
+	return walkExpr(typecheck.Expr(h), init)
+}
+
 func badtype(op ir.Op, tl, tr *types.Type) {
 	var s string
 	if tl != nil {

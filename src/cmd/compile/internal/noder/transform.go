@@ -795,11 +795,11 @@ func transformBuiltin(n *ir.CallExpr) ir.Node {
 			return u1
 		}
 
-	case ir.OCOMPLEX, ir.OCOPY:
+	case ir.OCOMPLEX, ir.OCOPY, ir.OUNSAFEADD, ir.OUNSAFESLICE:
 		transformArgs(n)
 		b := ir.NewBinaryExpr(n.Pos(), op, n.Args[0], n.Args[1])
 		n1 := typed(n.Type(), ir.InitExpr(n.Init(), b))
-		if op == ir.OCOPY {
+		if op != ir.OCOMPLEX {
 			// nothing more to do
 			return n1
 		}
