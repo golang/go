@@ -349,15 +349,15 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64) 
 	v, valid := constant.Int64Val(constant.ToInt(x.val))
 	if !valid || max >= 0 && v >= max {
 		if check.conf.CompilerErrorMessages {
-			check.errorf(&x, "array index %s out of bounds [0:%d]", x.val.String(), max)
+			check.errorf(&x, invalidArg+"array index %s out of bounds [0:%d]", x.val.String(), max)
 		} else {
-			check.errorf(&x, "index %s is out of bounds", &x)
+			check.errorf(&x, invalidArg+"index %s is out of bounds", &x)
 		}
 		return
 	}
 
 	// 0 <= v [ && v < max ]
-	return Typ[Int], v
+	return x.typ, v
 }
 
 // indexElts checks the elements (elts) of an array or slice composite literal
