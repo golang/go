@@ -1,0 +1,32 @@
+# https://golang.org/issue/44776
+# The '+' character should be disallowed in module paths, but allowed in package
+# paths within valid modules.
+
+go get -d example.net/cmd
+go list example.net/cmd/x++
+
+! go list -versions -m 'example.net/bad++'
+stderr '^go list -m: module example.net/bad\+\+: malformed module path "example.net/bad\+\+": invalid char ''\+''$'
+
+# TODO(bcmills): 'go get -d example.net/cmd/x++' should also work, but currently
+# it does not. This might be fixed by https://golang.org/cl/297891.
+! go get -d example.net/cmd/x++
+stderr '^go get: malformed module path "example.net/cmd/x\+\+": invalid char ''\+''$'
+
+-- go.mod --
+module example.com/m
+
+go 1.16
+
+replace (
+	example.net/cmd => ./cmd
+)
+
+-- cmd/go.mod --
+module example.net/cmd
+
+go 1.16
+-- cmd/x++/main.go --
+package main
+
+func main() {}

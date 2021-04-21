@@ -170,13 +170,16 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
 		if err != nil {
 			return cached{"", err}
 		}
+		ziphashfile := zipfile + "hash"
 
-		// Skip locking if the zipfile already exists.
+		// Return without locking if the zip and ziphash files exist.
 		if _, err := os.Stat(zipfile); err == nil {
-			return cached{zipfile, nil}
+			if _, err := os.Stat(ziphashfile); err == nil {
+				return cached{zipfile, nil}
+			}
 		}
 
-		// The zip file does not exist. Acquire the lock and create it.
+		// The zip or ziphash file does not exist. Acquire the lock and create them.
 		if cfg.CmdName != "mod download" {
 			fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, mod.Version)
 		}
@@ -186,14 +189,6 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
 		}
 		defer unlock()
 
-		// Double-check that the zipfile was not created while we were waiting for
-		// the lock.
-		if _, err := os.Stat(zipfile); err == nil {
-			return cached{zipfile, nil}
-		}
-		if err := os.MkdirAll(filepath.Dir(zipfile), 0777); err != nil {
-			return cached{"", err}
-		}
 		if err := downloadZip(ctx, mod, zipfile); err != nil {
 			return cached{"", err}
 		}
@@ -206,6 +201,25 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	ctx, span := trace.StartSpan(ctx, "modfetch.downloadZip "+zipfile)
 	defer span.Done()
 
+	// Double-check that the zipfile was not created while we were waiting for
+	// the lock in DownloadZip.
+	ziphashfile := zipfile + "hash"
+	var zipExists, ziphashExists bool
+	if _, err := os.Stat(zipfile); err == nil {
+		zipExists = true
+	}
+	if _, err := os.Stat(ziphashfile); err == nil {
+		ziphashExists = true
+	}
+	if zipExists && ziphashExists {
+		return nil
+	}
+
+	// Create parent directories.
+	if err := os.MkdirAll(filepath.Dir(zipfile), 0777); err != nil {
+		return err
+	}
+
 	// Clean up any remaining tempfiles from previous runs.
 	// This is only safe to do because the lock file ensures that their
 	// writers are no longer active.
@@ -215,6 +229,12 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 				os.Remove(path) // best effort
 			}
 		}
+	}
+
+	// If the zip file exists, the ziphash file must have been deleted
+	// or lost after a file system crash. Re-hash the zip without downloading.
+	if zipExists {
+		return hashZip(mod, zipfile, ziphashfile)
 	}
 
 	// From here to the os.Rename call below is functionally almost equivalent to
@@ -289,15 +309,7 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	}
 
 	// Hash the zip file and check the sum before renaming to the final location.
-	hash, err := dirhash.HashZip(f.Name(), dirhash.DefaultHash)
-	if err != nil {
-		return err
-	}
-	if err := checkModSum(mod, hash); err != nil {
-		return err
-	}
-
-	if err := renameio.WriteFile(zipfile+"hash", []byte(hash), 0666); err != nil {
+	if err := hashZip(mod, f.Name(), ziphashfile); err != nil {
 		return err
 	}
 	if err := os.Rename(f.Name(), zipfile); err != nil {
@@ -307,6 +319,22 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	// TODO(bcmills): Should we make the .zip and .ziphash files read-only to discourage tampering?
 
 	return nil
+}
+
+// hashZip reads the zip file opened in f, then writes the hash to ziphashfile,
+// overwriting that file if it exists.
+//
+// If the hash does not match go.sum (or the sumdb if enabled), hashZip returns
+// an error and does not write ziphashfile.
+func hashZip(mod module.Version, zipfile, ziphashfile string) error {
+	hash, err := dirhash.HashZip(zipfile, dirhash.DefaultHash)
+	if err != nil {
+		return err
+	}
+	if err := checkModSum(mod, hash); err != nil {
+		return err
+	}
+	return renameio.WriteFile(ziphashfile, []byte(hash), 0666)
 }
 
 // makeDirsReadOnly makes a best-effort attempt to remove write permissions for dir
@@ -452,11 +480,6 @@ func HaveSum(mod module.Version) bool {
 
 // checkMod checks the given module's checksum.
 func checkMod(mod module.Version) {
-	if cfg.GOMODCACHE == "" {
-		// Do not use current directory.
-		return
-	}
-
 	// Do the file I/O before acquiring the go.sum lock.
 	ziphash, err := CachePath(mod, "ziphash")
 	if err != nil {
@@ -464,10 +487,6 @@ func checkMod(mod module.Version) {
 	}
 	data, err := renameio.ReadFile(ziphash)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			// This can happen if someone does rm -rf GOPATH/src/cache/download. So it goes.
-			return
-		}
 		base.Fatalf("verifying %v", module.VersionError(mod, err))
 	}
 	h := strings.TrimSpace(string(data))

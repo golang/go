@@ -509,6 +509,13 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 			}
 			return prevFrame
 		}
+		// If more helper PCs have been added since we last did the conversion
+		if c.helperNames == nil {
+			c.helperNames = make(map[string]struct{})
+			for pc := range c.helperPCs {
+				c.helperNames[pcToName(pc)] = struct{}{}
+			}
+		}
 		if _, ok := c.helperNames[frame.Function]; !ok {
 			// Found a frame that wasn't inside a helper function.
 			return frame
@@ -521,14 +528,6 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 // and inserts the final newline if needed and indentation spaces for formatting.
 // This function must be called with c.mu held.
 func (c *common) decorate(s string, skip int) string {
-	// If more helper PCs have been added since we last did the conversion
-	if c.helperNames == nil {
-		c.helperNames = make(map[string]struct{})
-		for pc := range c.helperPCs {
-			c.helperNames[pcToName(pc)] = struct{}{}
-		}
-	}
-
 	frame := c.frameSkip(skip)
 	file := frame.File
 	line := frame.Line

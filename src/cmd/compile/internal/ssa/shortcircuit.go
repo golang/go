@@ -138,6 +138,24 @@ func shortcircuitBlock(b *Block) bool {
 	if len(b.Values) != nval+nOtherPhi {
 		return false
 	}
+	if nOtherPhi > 0 {
+		// Check for any phi which is the argument of another phi.
+		// These cases are tricky, as substitutions done by replaceUses
+		// are no longer trivial to do in any ordering. See issue 45175.
+		m := make(map[*Value]bool, 1+nOtherPhi)
+		for _, v := range b.Values {
+			if v.Op == OpPhi {
+				m[v] = true
+			}
+		}
+		for v := range m {
+			for _, a := range v.Args {
+				if a != v && m[a] {
+					return false
+				}
+			}
+		}
+	}
 
 	// Locate index of first const phi arg.
 	cidx := -1

@@ -363,15 +363,15 @@ func staticname(t *types.Type) *Node {
 	n := newname(lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen)))
 	statuniqgen++
 	addvar(n, t, PEXTERN)
-	n.Sym.Linksym().Set(obj.AttrLocal, true)
 	return n
 }
 
-// readonlystaticname returns a name backed by a (writable) static data symbol.
+// readonlystaticname returns a name backed by a read-only static data symbol.
 func readonlystaticname(t *types.Type) *Node {
 	n := staticname(t)
 	n.MarkReadonly()
 	n.Sym.Linksym().Set(obj.AttrContentAddressable, true)
+	n.Sym.Linksym().Set(obj.AttrLocal, true)
 	return n
 }
 

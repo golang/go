@@ -18,9 +18,7 @@ setlocal
 
 set GOBUILDFAIL=0
 
-:: we disallow local import for non-local packages, if %GOROOT% happens
-:: to be under %GOPATH%, then some tests below will fail
-set GOPATH=
+set GOPATH=c:\nonexist-gopath
 :: Issue 14340: ignore GOBIN during all.bat.
 set GOBIN=
 set GOFLAGS=
