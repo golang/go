@@ -159,7 +159,7 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 				f.freeValue(v)
 				continue
 			}
-			if v.Pos.IsStmt() != src.PosNotStmt && pendingLines.get(vl) == int32(b.ID) {
+			if v.Pos.IsStmt() != src.PosNotStmt && !notStmtBoundary(v.Op) && pendingLines.get(vl) == int32(b.ID) {
 				pendingLines.remove(vl)
 				v.Pos = v.Pos.WithIsStmt()
 			}

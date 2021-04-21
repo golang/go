@@ -1370,5 +1370,6 @@ func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg in
 	p = pp.Append(p, storeByType(t), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
 	p.To.Name = obj.NAME_PARAM
 	p.To.Sym = n.Linksym()
+	p.Pos = p.Pos.WithNotStmt()
 	return p
 }
