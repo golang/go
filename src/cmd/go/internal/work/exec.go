@@ -289,7 +289,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		magic := []string{
 			"GOCLOBBERDEADHASH",
 			"GOSSAFUNC",
-			"GO_SSA_PHI_LOC_CUTOFF",
+			"GOSSADIR",
 			"GOSSAHASH",
 		}
 		for _, env := range magic {
