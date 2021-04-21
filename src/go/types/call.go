@@ -17,42 +17,31 @@ import (
 // funcInst type-checks a function instantiaton inst and returns the result in x.
 // The operand x must be the evaluation of inst.X and its type must be a signature.
 func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
-	exprs := typeparams.UnpackExpr(inst.Index)
-	args, ok := check.exprOrTypeList(exprs)
-	if !ok {
+	xlist := typeparams.UnpackExpr(inst.Index)
+	targs := check.typeList(xlist)
+	if targs == nil {
 		x.mode = invalid
 		x.expr = inst
 		return
 	}
-	if len(args) > 0 && args[0].mode != typexpr {
-		check.errorf(args[0], _NotAType, "%s is not a type", args[0])
-		ok = false
-	}
+	assert(len(targs) == len(xlist))
 
 	// check number of type arguments
-	n := len(args)
+	n := len(targs)
 	sig := x.typ.(*Signature)
 	if n > len(sig.tparams) {
-		check.errorf(args[n-1], _Todo, "got %d type arguments but want %d", n, len(sig.tparams))
+		check.errorf(xlist[n-1], _Todo, "got %d type arguments but want %d", n, len(sig.tparams))
 		x.mode = invalid
 		x.expr = inst
 		return
 	}
 
-	// collect types
-	targs := make([]Type, n)
+	// determine argument positions (for error reporting)
 	// TODO(rFindley) use a positioner here? instantiate would need to be
 	//                updated accordingly.
 	poslist := make([]token.Pos, n)
-	for i, a := range args {
-		if a.mode != typexpr {
-			// error was reported earlier
-			x.mode = invalid
-			x.expr = inst
-			return
-		}
-		targs[i] = a.typ
-		poslist[i] = a.Pos()
+	for i, x := range xlist {
+		poslist[i] = x.Pos()
 	}
 
 	// if we don't have enough type arguments, use constraint type inference
@@ -87,14 +76,6 @@ func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
 	assert(n == len(sig.tparams))
 
 	// instantiate function signature
-	for i, typ := range targs {
-		// some positions may be missing if types are inferred
-		var pos token.Pos
-		if i < len(poslist) {
-			pos = poslist[i]
-		}
-		check.ordinaryType(atPos(pos), typ)
-	}
 	res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
 	assert(res.tparams == nil) // signature is not generic anymore
 	if inferred {
