@@ -70,7 +70,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			fieldList, body = f.Type.Params, f.Body
 		}
 		// If there are no arguments or the function is empty, then return.
-		if fieldList.NumFields() == 0 || len(body.List) == 0 {
+		if fieldList.NumFields() == 0 || body == nil || len(body.List) == 0 {
 			return
 		}
 

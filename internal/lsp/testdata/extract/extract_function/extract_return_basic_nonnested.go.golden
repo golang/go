@@ -1,0 +1,16 @@
+-- functionextraction_extract_return_basic_nonnested_4_2 --
+package extract
+
+func _() bool {
+	return fn0() //@mark(exEn13, "false")
+	//@extractfunc(exSt13, exEn13)
+}
+
+func fn0() bool {
+	x := 1
+	if x == 0 {
+		return true
+	}
+	return false
+}
+

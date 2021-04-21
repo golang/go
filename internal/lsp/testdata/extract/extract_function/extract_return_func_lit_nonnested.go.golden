@@ -1,0 +1,19 @@
+-- functionextraction_extract_return_func_lit_nonnested_7_3 --
+package extract
+
+import "go/ast"
+
+func _() {
+	ast.Inspect(ast.NewIdent("a"), func(n ast.Node) bool {
+		return fn0(n) //@mark(exEn11, "false")
+	})
+	//@extractfunc(exSt11, exEn11)
+}
+
+func fn0(n ast.Node) bool {
+	if n == nil {
+		return true
+	}
+	return false
+}
+

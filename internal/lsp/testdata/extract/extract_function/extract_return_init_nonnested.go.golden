@@ -1,0 +1,18 @@
+-- functionextraction_extract_return_init_nonnested_5_2 --
+package extract
+
+func _() string {
+	x := 1
+	return fn0(x) //@mark(exEn12, "\"b\"")
+	//@extractfunc(exSt12, exEn12)
+}
+
+func fn0(x int) string {
+	if x == 0 {
+		x = 3
+		return "a"
+	}
+	x = 2
+	return "b"
+}
+

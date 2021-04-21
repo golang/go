@@ -195,11 +195,9 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 		return nil, fmt.Errorf("extractFunction: package scope is empty")
 	}
 
-	// TODO: Support non-nested return statements.
 	// A return statement is non-nested if its parent node is equal to the parent node
 	// of the first node in the selection. These cases must be handled separately because
-	// non-nested return statements are guaranteed to execute. Our control flow does not
-	// properly consider these situations yet.
+	// non-nested return statements are guaranteed to execute.
 	var retStmts []*ast.ReturnStmt
 	var hasNonNestedReturn bool
 	startParent := findParent(outer, start)
@@ -216,14 +214,10 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 		}
 		if findParent(outer, n) == startParent {
 			hasNonNestedReturn = true
-			return false
 		}
 		retStmts = append(retStmts, ret)
 		return false
 	})
-	if hasNonNestedReturn {
-		return nil, fmt.Errorf("extractFunction: selected block contains non-nested return")
-	}
 	containsReturnStatement := len(retStmts) > 0
 
 	// Now that we have determined the correct range for the selection block,
@@ -396,23 +390,54 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 	// in the original function. If the condition is met, the original function should
 	// return a value, mimicking the functionality of the original return statement(s)
 	// in the selection.
+	//
+	// If there is a return that is guaranteed to execute (hasNonNestedReturns=true), then
+	// we don't need to include this additional condition check and can simply return.
+	//
+	// Before:
+	//
+	// func _() int {
+	//     a := 1
+	//     b := 2
+	//     **if a == b {
+	//         return a
+	//     }
+	//	   return b**
+	// }
+	//
+	// After:
+	//
+	// func _() int {
+	//     a := 1
+	//     b := 2
+	//     return x0(a, b)
+	// }
+	//
+	// func x0(a int, b int) int {
+	//     if a == b {
+	//         return a
+	//     }
+	//     return b
+	// }
 
 	var retVars []*returnVariable
 	var ifReturn *ast.IfStmt
 	if containsReturnStatement {
-		// The selected block contained return statements, so we have to modify the
-		// signature of the extracted function as described above. Adjust all of
-		// the return statements in the extracted function to reflect this change in
-		// signature.
-		if err := adjustReturnStatements(returnTypes, seenVars, fset, file,
-			pkg, extractedBlock); err != nil {
-			return nil, err
+		if !hasNonNestedReturn {
+			// The selected block contained return statements, so we have to modify the
+			// signature of the extracted function as described above. Adjust all of
+			// the return statements in the extracted function to reflect this change in
+			// signature.
+			if err := adjustReturnStatements(returnTypes, seenVars, fset, file,
+				pkg, extractedBlock); err != nil {
+				return nil, err
+			}
 		}
 		// Collect the additional return values and types needed to accommodate return
 		// statements in the selection. Update the type signature of the extracted
 		// function and construct the if statement that will be inserted in the enclosing
 		// function.
-		retVars, ifReturn, err = generateReturnInfo(enclosing, pkg, path, file, info, fset, rng.Start)
+		retVars, ifReturn, err = generateReturnInfo(enclosing, pkg, path, file, info, fset, rng.Start, hasNonNestedReturn)
 		if err != nil {
 			return nil, err
 		}
@@ -421,8 +446,10 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 	// Add a return statement to the end of the new function. This return statement must include
 	// the values for the types of the original extracted function signature and (if a return
 	// statement is present in the selection) enclosing function signature.
+	// This only needs to be done if the selections does not have a non-nested return, otherwise
+	// it already terminates with a return statement.
 	hasReturnValues := len(returns)+len(retVars) > 0
-	if hasReturnValues {
+	if hasReturnValues && !hasNonNestedReturn {
 		extractedBlock.List = append(extractedBlock.List, &ast.ReturnStmt{
 			Results: append(returns, getZeroVals(retVars)...),
 		})
@@ -439,7 +466,7 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 		sym = token.DEFINE
 	}
 	funName := generateAvailableIdentifier(rng.Start, file, path, info, "fn", 0)
-	extractedFunCall := generateFuncCall(hasReturnValues, params,
+	extractedFunCall := generateFuncCall(hasNonNestedReturn, hasReturnValues, params,
 		append(returns, getNames(retVars)...), funName, sym)
 
 	// Build the extracted function.
@@ -951,15 +978,17 @@ func parseBlockStmt(fset *token.FileSet, src []byte) (*ast.BlockStmt, error) {
 // signature of the extracted function. We prepare names, signatures, and "zero values" that
 // represent the new variables. We also use this information to construct the if statement that
 // is inserted below the call to the extracted function.
-func generateReturnInfo(enclosing *ast.FuncType, pkg *types.Package, path []ast.Node, file *ast.File, info *types.Info, fset *token.FileSet, pos token.Pos) ([]*returnVariable, *ast.IfStmt, error) {
-	// Generate information for the added bool value.
-	cond := &ast.Ident{Name: generateAvailableIdentifier(pos, file, path, info, "cond", 0)}
-	retVars := []*returnVariable{
-		{
+func generateReturnInfo(enclosing *ast.FuncType, pkg *types.Package, path []ast.Node, file *ast.File, info *types.Info, fset *token.FileSet, pos token.Pos, hasNonNestedReturns bool) ([]*returnVariable, *ast.IfStmt, error) {
+	var retVars []*returnVariable
+	var cond *ast.Ident
+	if !hasNonNestedReturns {
+		// Generate information for the added bool value.
+		cond = &ast.Ident{Name: generateAvailableIdentifier(pos, file, path, info, "cond", 0)}
+		retVars = append(retVars, &returnVariable{
 			name:    cond,
 			decl:    &ast.Field{Type: ast.NewIdent("bool")},
 			zeroVal: ast.NewIdent("false"),
-		},
+		})
 	}
 	// Generate information for the values in the return signature of the enclosing function.
 	if enclosing.Results != nil {
@@ -982,13 +1011,16 @@ func generateReturnInfo(enclosing *ast.FuncType, pkg *types.Package, path []ast.
 			})
 		}
 	}
-	// Create the return statement for the enclosing function. We must exclude the variable
-	// for the condition of the if statement (cond) from the return statement.
-	ifReturn := &ast.IfStmt{
-		Cond: cond,
-		Body: &ast.BlockStmt{
-			List: []ast.Stmt{&ast.ReturnStmt{Results: getNames(retVars)[1:]}},
-		},
+	var ifReturn *ast.IfStmt
+	if !hasNonNestedReturns {
+		// Create the return statement for the enclosing function. We must exclude the variable
+		// for the condition of the if statement (cond) from the return statement.
+		ifReturn = &ast.IfStmt{
+			Cond: cond,
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{&ast.ReturnStmt{Results: getNames(retVars)[1:]}},
+			},
+		}
 	}
 	return retVars, ifReturn, nil
 }
@@ -1034,17 +1066,26 @@ func adjustReturnStatements(returnTypes []*ast.Field, seenVars map[types.Object]
 
 // generateFuncCall constructs a call expression for the extracted function, described by the
 // given parameters and return variables.
-func generateFuncCall(hasReturnVals bool, params, returns []ast.Expr, name string, token token.Token) ast.Node {
+func generateFuncCall(hasNonNestedReturn, hasReturnVals bool, params, returns []ast.Expr, name string, token token.Token) ast.Node {
 	var replace ast.Node
 	if hasReturnVals {
 		callExpr := &ast.CallExpr{
 			Fun:  ast.NewIdent(name),
 			Args: params,
 		}
-		replace = &ast.AssignStmt{
-			Lhs: returns,
-			Tok: token,
-			Rhs: []ast.Expr{callExpr},
+		if hasNonNestedReturn {
+			// Create a return statement that returns the result of the function call.
+			replace = &ast.ReturnStmt{
+				Return:  0,
+				Results: []ast.Expr{callExpr},
+			}
+		} else {
+			// Assign the result of the function call.
+			replace = &ast.AssignStmt{
+				Lhs: returns,
+				Tok: token,
+				Rhs: []ast.Expr{callExpr},
+			}
 		}
 	} else {
 		replace = &ast.CallExpr{
