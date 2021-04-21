@@ -689,7 +689,11 @@ func (p *Parser) registerShift(name string, prefix rune) int64 {
 		p.errorf("unexpected %s in register shift", tok.String())
 	}
 	if p.arch.Family == sys.ARM64 {
-		return int64(r1&31)<<16 | int64(op)<<22 | int64(uint16(count))
+		off, err := arch.ARM64RegisterShift(r1, op, count)
+		if err != nil {
+			p.errorf(err.Error())
+		}
+		return off
 	} else {
 		return int64((r1 & 15) | op<<5 | count)
 	}
