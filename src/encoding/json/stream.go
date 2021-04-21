@@ -48,7 +48,12 @@ func (dec *Decoder) DisallowUnknownFields() { dec.d.disallowUnknownFields = true
 // the conversion of JSON into a Go value.
 func (dec *Decoder) Decode(v interface{}) error {
 	if dec.err != nil {
-		return dec.err
+		// if can refill, like by buf.write(newDate), then can keep going to Decode
+		if dec.err == io.EOF && dec.refill() == nil {
+			dec.err = nil
+		} else {
+			return dec.err
+		}
 	}
 
 	if err := dec.tokenPrepareForDecode(); err != nil {

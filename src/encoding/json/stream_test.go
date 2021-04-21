@@ -201,6 +201,44 @@ func TestDecoder(t *testing.T) {
 	}
 }
 
+func TestDecoderAutoRefill(t *testing.T) {
+	var buf bytes.Buffer
+	dec := NewDecoder(&buf)
+	buf.Write([]byte("[1,"))
+	out := 0
+
+	// read '['
+	if _, err := dec.Token(); err != nil {
+		t.Errorf("Unexpected error '%#v' in Token", err)
+	}
+	// read 1
+	if err := dec.Decode(&out); err != nil {
+		t.Errorf("Unexpected error '%#v' in Decode", err)
+	}
+	if out != 1 {
+		t.Errorf("Unexpected Decode output '%v', should be 1", out)
+	}
+
+	// read eof
+	if err := dec.Decode(&out); err == nil {
+		t.Errorf("Unexpected success '%#v' in Decode", out)
+	}
+	// write
+	buf.Write([]byte("2]"))
+	// read 2
+	if err := dec.Decode(&out); err != nil {
+		t.Errorf("Unexpected error '%#v' in Decode", err)
+	}
+	if out != 2 {
+		t.Errorf("Unexpected Decode output '%v', should be 2", out)
+	}
+
+	// read ']'
+	if _, err := dec.Token(); err != nil {
+		t.Errorf("Unexpected error '%#v' in Token", err)
+	}
+}
+
 func TestDecoderBuffered(t *testing.T) {
 	r := strings.NewReader(`{"Name": "Gopher"} extra `)
 	var m struct {
