@@ -40,6 +40,8 @@ func TestReadMetrics(t *testing.T) {
 	}
 
 	// Check to make sure the values we read line up with other values we read.
+	var allocsBySize *metrics.Float64Histogram
+	var tinyAllocs uint64
 	for i := range samples {
 		switch name := samples[i].Name; name {
 		case "/memory/classes/heap/free:bytes":
@@ -84,6 +86,7 @@ func TestReadMetrics(t *testing.T) {
 					t.Errorf("histogram counts do not much BySize for class %d: got %d, want %d", i, c, m)
 				}
 			}
+			allocsBySize = hist
 		case "/gc/heap/frees-by-size:bytes":
 			hist := samples[i].Value.Float64Histogram()
 			// Skip size class 0 in BySize, because it's always empty and not represented
@@ -95,9 +98,20 @@ func TestReadMetrics(t *testing.T) {
 					continue
 				}
 				if c, f := hist.Counts[i], sc.Frees; c != f {
-					t.Errorf("histogram counts do not much BySize for class %d: got %d, want %d", i, c, f)
+					t.Errorf("histogram counts do not match BySize for class %d: got %d, want %d", i, c, f)
 				}
 			}
+		case "/gc/heap/tiny/allocs:objects":
+			// Currently, MemStats adds tiny alloc count to both Mallocs AND Frees.
+			// The reason for this is because MemStats couldn't be extended at the time
+			// but there was a desire to have Mallocs at least be a little more representative,
+			// while having Mallocs - Frees still represent a live object count.
+			// Unfortunately, MemStats doesn't actually export a large allocation count,
+			// so it's impossible to pull this number out directly.
+			//
+			// Check tiny allocation count outside of this loop, by using the allocs-by-size
+			// histogram in order to figure out how many large objects there are.
+			tinyAllocs = samples[i].Value.Uint64()
 		case "/gc/heap/objects:objects":
 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.HeapObjects)
 		case "/gc/heap/goal:bytes":
@@ -110,6 +124,13 @@ func TestReadMetrics(t *testing.T) {
 			checkUint64(t, name, samples[i].Value.Uint64(), uint64(mstats.NumGC))
 		}
 	}
+
+	// Check tinyAllocs.
+	nonTinyAllocs := uint64(0)
+	for _, c := range allocsBySize.Counts {
+		nonTinyAllocs += c
+	}
+	checkUint64(t, "/gc/heap/tiny/allocs:objects", tinyAllocs, mstats.Mallocs-nonTinyAllocs)
 }
 
 func TestReadMetricsConsistency(t *testing.T) {
