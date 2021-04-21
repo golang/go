@@ -333,12 +333,12 @@ func TestXFlag(t *testing.T) {
 	}
 }
 
-var testMacOSVersionSrc = `
+var testMachOBuildVersionSrc = `
 package main
 func main() { }
 `
 
-func TestMacOSVersion(t *testing.T) {
+func TestMachOBuildVersion(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	t.Parallel()
@@ -346,7 +346,7 @@ func TestMacOSVersion(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "main.go")
-	err := ioutil.WriteFile(src, []byte(testMacOSVersionSrc), 0666)
+	err := ioutil.WriteFile(src, []byte(testMachOBuildVersionSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -371,28 +371,28 @@ func TestMacOSVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	found := false
-	const LC_VERSION_MIN_MACOSX = 0x24
+	const LC_BUILD_VERSION = 0x32
 	checkMin := func(ver uint32) {
 		major, minor := (ver>>16)&0xff, (ver>>8)&0xff
 		if major != 10 || minor < 9 {
-			t.Errorf("LC_VERSION_MIN_MACOSX version %d.%d < 10.9", major, minor)
+			t.Errorf("LC_BUILD_VERSION version %d.%d < 10.9", major, minor)
 		}
 	}
 	for _, cmd := range exem.Loads {
 		raw := cmd.Raw()
 		type_ := exem.ByteOrder.Uint32(raw)
-		if type_ != LC_VERSION_MIN_MACOSX {
+		if type_ != LC_BUILD_VERSION {
 			continue
 		}
-		osVer := exem.ByteOrder.Uint32(raw[8:])
+		osVer := exem.ByteOrder.Uint32(raw[12:])
 		checkMin(osVer)
-		sdkVer := exem.ByteOrder.Uint32(raw[12:])
+		sdkVer := exem.ByteOrder.Uint32(raw[16:])
 		checkMin(sdkVer)
 		found = true
 		break
 	}
 	if !found {
-		t.Errorf("no LC_VERSION_MIN_MACOSX load command found")
+		t.Errorf("no LC_BUILD_VERSION load command found")
 	}
 }
 
