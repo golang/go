@@ -26,54 +26,39 @@ func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
 	}
 	assert(len(targs) == len(xlist))
 
-	// check number of type arguments
-	n := len(targs)
+	// check number of type arguments (got) vs number of type parameters (want)
 	sig := x.typ.(*Signature)
-	if n > len(sig.tparams) {
-		check.errorf(xlist[n-1], _Todo, "got %d type arguments but want %d", n, len(sig.tparams))
+	got, want := len(targs), len(sig.tparams)
+	if got > want {
+		check.errorf(xlist[got-1], _Todo, "got %d type arguments but want %d", got, want)
 		x.mode = invalid
 		x.expr = inst
 		return
 	}
 
-	// determine argument positions (for error reporting)
-	// TODO(rFindley) use a positioner here? instantiate would need to be
-	//                updated accordingly.
-	poslist := make([]token.Pos, n)
-	for i, x := range xlist {
-		poslist[i] = x.Pos()
-	}
+	// if we don't have enough type arguments, try type inference
+	inferred := false
 
-	// if we don't have enough type arguments, use constraint type inference
-	var inferred bool
-	if n < len(sig.tparams) {
-		var failed int
-		targs, failed = check.inferB(sig.tparams, targs)
+	if got < want {
+		targs = check.infer(inst, sig.tparams, targs, nil, nil, true)
 		if targs == nil {
 			// error was already reported
 			x.mode = invalid
 			x.expr = inst
 			return
 		}
-		if failed >= 0 {
-			// at least one type argument couldn't be inferred
-			assert(targs[failed] == nil)
-			tpar := sig.tparams[failed]
-			check.errorf(inNode(inst, inst.Rbrack), 0, "cannot infer %s (%v) (%s)", tpar.name, tpar.pos, targs)
-			x.mode = invalid
-			x.expr = inst
-			return
-		}
-		// all type arguments were inferred successfully
-		if debug {
-			for _, targ := range targs {
-				assert(targ != nil)
-			}
-		}
-		n = len(targs)
+		got = len(targs)
 		inferred = true
 	}
-	assert(n == len(sig.tparams))
+	assert(got == want)
+
+	// determine argument positions (for error reporting)
+	// TODO(rFindley) use a positioner here? instantiate would need to be
+	//                updated accordingly.
+	poslist := make([]token.Pos, len(xlist))
+	for i, x := range xlist {
+		poslist[i] = x.Pos()
+	}
 
 	// instantiate function signature
 	res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
@@ -307,31 +292,9 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 	if len(sig.tparams) > 0 {
 		// TODO(gri) provide position information for targs so we can feed
 		//           it to the instantiate call for better error reporting
-		targs, failed := check.infer(sig.tparams, sigParams, args)
+		targs := check.infer(call, sig.tparams, nil, sigParams, args, true)
 		if targs == nil {
 			return // error already reported
-		}
-		if failed >= 0 {
-			// Some type arguments couldn't be inferred. Use
-			// bounds type inference to try to make progress.
-			targs, failed = check.inferB(sig.tparams, targs)
-			if targs == nil {
-				return // error already reported
-			}
-			if failed >= 0 {
-				// at least one type argument couldn't be inferred
-				assert(targs[failed] == nil)
-				tpar := sig.tparams[failed]
-				ppos := check.fset.Position(tpar.pos).String()
-				check.errorf(inNode(call, call.Rparen), _Todo, "cannot infer %s (%s) (%s)", tpar.name, ppos, targs)
-				return
-			}
-		}
-		// all type arguments were inferred successfully
-		if debug {
-			for _, targ := range targs {
-				assert(targ != nil)
-			}
 		}
 
 		// compute result signature
@@ -544,13 +507,13 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 					recv = recv.(*Pointer).base
 				}
 			}
+			// Disable reporting of errors during inference below. If we're unable to infer
+			// the receiver type arguments here, the receiver must be be otherwise invalid
+			// and an error has been reported elsewhere.
 			arg := operand{mode: variable, expr: x.expr, typ: recv}
-			targs, failed := check.infer(sig.rparams, NewTuple(sig.recv), []*operand{&arg})
-			if failed >= 0 {
+			targs := check.infer(m, sig.rparams, nil, NewTuple(sig.recv), []*operand{&arg}, false /* no error reporting */)
+			if targs == nil {
 				// We may reach here if there were other errors (see issue #40056).
-				// check.infer will report a follow-up error.
-				// TODO(gri) avoid the follow-up error as it is confusing
-				//           (there's no inference in the source code)
 				goto Error
 			}
 			// Don't modify m. Instead - for now - make a copy of m and use that instead.

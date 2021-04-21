@@ -178,17 +178,17 @@ func _[T interface{ type string, chan<-int }](x T) {
 
 // type inference checks
 
-var _ = new() /* ERROR cannot infer T */
+var _ = new /* ERROR cannot infer T */ ()
 
 func f4[A, B, C any](A, B) C
 
-var _ = f4(1, 2) /* ERROR cannot infer C */
+var _ = f4 /* ERROR cannot infer C */ (1, 2)
 var _ = f4[int, float32, complex128](1, 2)
 
 func f5[A, B, C any](A, []*B, struct{f []C}) int
 
 var _ = f5[int, float32, complex128](0, nil, struct{f []complex128}{})
-var _ = f5(0, nil, struct{f []complex128}{}) // ERROR cannot infer
+var _ = f5 /* ERROR cannot infer */ (0, nil, struct{f []complex128}{})
 var _ = f5(0, []*float32{new[float32]()}, struct{f []complex128}{})
 
 func f6[A any](A, []A) int
@@ -197,13 +197,13 @@ var _ = f6(0, nil)
 
 func f6nil[A any](A) int
 
-var _ = f6nil(nil) // ERROR cannot infer
+var _ = f6nil /* ERROR cannot infer */ (nil)
 
 // type inference with variadic functions
 
 func f7[T any](...T) T
 
-var _ int = f7() /* ERROR cannot infer T */
+var _ int = f7 /* ERROR cannot infer T */ ()
 var _ int = f7(1)
 var _ int = f7(1, 2)
 var _ int = f7([]int{}...)
