@@ -7071,8 +7071,10 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
 	// slot. This can only happen with aggregate-typed arguments that are SSA-able
 	// and not address-taken (for non-SSA-able or address-taken arguments we always
 	// spill upfront).
+	// Note: spilling is unnecessary in the -N/no-optimize case, since all values
+	// will be considered non-SSAable and spilled up front.
 	// TODO(register args) Make liveness more fine-grained to that partial spilling is okay.
-	if f.OwnAux.ABIInfo().InRegistersUsed() != 0 {
+	if f.OwnAux.ABIInfo().InRegistersUsed() != 0 && base.Flag.N == 0 {
 		// First, see if it is already spilled before it may be live. Look for a spill
 		// in the entry block up to the first safepoint.
 		type nameOff struct {

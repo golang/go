@@ -16,7 +16,8 @@ func isPoorStatementOp(op Op) bool {
 	// so that a debugger-user sees the stop before the panic, and can examine the value.
 	case OpAddr, OpLocalAddr, OpOffPtr, OpStructSelect, OpPhi, OpITab, OpIData,
 		OpIMake, OpStringMake, OpSliceMake, OpStructMake0, OpStructMake1, OpStructMake2, OpStructMake3, OpStructMake4,
-		OpConstBool, OpConst8, OpConst16, OpConst32, OpConst64, OpConst32F, OpConst64F, OpSB, OpSP:
+		OpConstBool, OpConst8, OpConst16, OpConst32, OpConst64, OpConst32F, OpConst64F, OpSB, OpSP,
+		OpArgIntReg, OpArgFloatReg:
 		return true
 	}
 	return false
@@ -61,7 +62,7 @@ func nextGoodStatementIndex(v *Value, i int, b *Block) int {
 // statement boundary.
 func notStmtBoundary(op Op) bool {
 	switch op {
-	case OpCopy, OpPhi, OpVarKill, OpVarDef, OpVarLive, OpUnknown, OpFwdRef, OpArg:
+	case OpCopy, OpPhi, OpVarKill, OpVarDef, OpVarLive, OpUnknown, OpFwdRef, OpArg, OpArgIntReg, OpArgFloatReg:
 		return true
 	}
 	return false
