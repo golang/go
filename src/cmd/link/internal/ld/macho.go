@@ -468,9 +468,12 @@ func (ctxt *Link) domacho() {
 		}
 	}
 	if machoPlatform == 0 {
+		machoPlatform = PLATFORM_MACOS
+		if buildcfg.GOOS == "ios" {
+			machoPlatform = PLATFORM_IOS
+		}
 		switch ctxt.Arch.Family {
 		default:
-			machoPlatform = PLATFORM_MACOS
 			if ctxt.LinkMode == LinkInternal {
 				// For lldb, must say LC_VERSION_MIN_MACOSX or else
 				// it won't know that this Mach-O binary is from OS X
@@ -486,8 +489,7 @@ func (ctxt *Link) domacho() {
 				ml.data[0] = 10<<16 | 9<<8 | 0<<0 // OS X version 10.9.0
 				ml.data[1] = 10<<16 | 9<<8 | 0<<0 // SDK 10.9.0
 			}
-		case sys.ARM, sys.ARM64:
-			machoPlatform = PLATFORM_IOS
+		case sys.ARM64:
 		}
 	}
 
