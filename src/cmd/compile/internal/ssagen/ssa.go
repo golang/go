@@ -399,8 +399,10 @@ func okOffset(offset int64) int64 {
 func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	name := ir.FuncName(fn)
 	printssa := false
-	if ssaDump != "" { // match either a simple name e.g. "(*Reader).Reset", or a package.name e.g. "compress/gzip.(*Reader).Reset"
-		printssa = name == ssaDump || base.Ctxt.Pkgpath+"."+name == ssaDump
+	if ssaDump != "" { // match either a simple name e.g. "(*Reader).Reset", package.name e.g. "compress/gzip.(*Reader).Reset", or subpackage name "gzip.(*Reader).Reset"
+		pkgDotName := base.Ctxt.Pkgpath+"."+name
+		printssa = name == ssaDump ||
+			strings.HasSuffix(pkgDotName, ssaDump) && (pkgDotName == ssaDump || strings.HasSuffix(pkgDotName, "/"+ssaDump))
 	}
 	var astBuf *bytes.Buffer
 	if printssa {
