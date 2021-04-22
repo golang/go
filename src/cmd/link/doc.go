@@ -87,8 +87,8 @@ Flags:
 		instead of $GOROOT/pkg/$GOOS_$GOARCH.
 	-k symbol
 		Set field tracking symbol. Use this flag when GOEXPERIMENT=fieldtrack is set.
-	-l
-		Disable Full RELRO.
+	-relro
+		Enable RELRO (default true).
 	-libgcc file
 		Set name of compiler support library.
 		This is only used in internal link mode.

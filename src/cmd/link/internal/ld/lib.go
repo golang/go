@@ -1408,7 +1408,7 @@ func (ctxt *Link) hostlink() {
 	addRELROargs := func(argv []string) []string {
 		relro := "-Wl,-z,relro"
 		// Enable Full RELRO
-		if !*FlagL {
+		if *FlagRelro {
 			relro += ",-z,now"
 		}
 		argv = append(argv, relro)
