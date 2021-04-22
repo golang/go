@@ -1002,6 +1002,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		retvars:      retvars,
 		delayretvars: delayretvars,
 		inlvars:      inlvars,
+		defnMarker:   ir.NilExpr{},
 		bases:        make(map[*src.PosBase]*src.PosBase),
 		newInlIndex:  newIndex,
 		fn:           fn,
@@ -1103,6 +1104,10 @@ type inlsubst struct {
 	delayretvars bool
 
 	inlvars map[*ir.Name]*ir.Name
+	// defnMarker is used to mark a Node for reassignment.
+	// inlsubst.clovar set this during creating new ONAME.
+	// inlsubst.node will set the correct Defn for inlvar.
+	defnMarker ir.NilExpr
 
 	// bases maps from original PosBase to PosBase with an extra
 	// inlined call frame.
@@ -1160,7 +1165,11 @@ func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
 	m := &ir.Name{}
 	*m = *n
 	m.Curfn = subst.newclofn
-	if n.Defn != nil && n.Defn.Op() == ir.ONAME {
+
+	switch defn := n.Defn.(type) {
+	case nil:
+		// ok
+	case *ir.Name:
 		if !n.IsClosureVar() {
 			base.FatalfAt(n.Pos(), "want closure variable, got: %+v", n)
 		}
@@ -1182,7 +1191,13 @@ func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
 		if subst.inlvars[n.Defn.(*ir.Name)] != nil {
 			m.Defn = subst.node(n.Defn)
 		}
+	case *ir.AssignStmt, *ir.AssignListStmt:
+		// Mark node for reassignment at the end of inlsubst.node.
+		m.Defn = &subst.defnMarker
+	default:
+		base.FatalfAt(n.Pos(), "unexpected Defn: %+v", defn)
 	}
+
 	if n.Outer != nil {
 		// Either the outer variable is defined in function being inlined,
 		// and we will replace it with the substituted variable, or it is
@@ -1406,6 +1421,20 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 	m := ir.Copy(n)
 	m.SetPos(subst.updatedPos(m.Pos()))
 	ir.EditChildren(m, subst.edit)
+
+	switch m := m.(type) {
+	case *ir.AssignStmt:
+		if lhs, ok := m.X.(*ir.Name); ok && lhs.Defn == &subst.defnMarker {
+			lhs.Defn = m
+		}
+	case *ir.AssignListStmt:
+		for _, lhs := range m.Lhs {
+			if lhs, ok := lhs.(*ir.Name); ok && lhs.Defn == &subst.defnMarker {
+				lhs.Defn = m
+			}
+		}
+	}
+
 	return m
 }
 
