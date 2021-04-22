@@ -203,7 +203,7 @@ func asGoVersion(s string) string {
 	return ""
 }
 
-func checkFiles(t *testing.T, goVersion string, filenames []string, srcs [][]byte) {
+func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string, srcs [][]byte) {
 	if len(filenames) == 0 {
 		t.Fatal("no source files")
 	}
@@ -239,6 +239,7 @@ func checkFiles(t *testing.T, goVersion string, filenames []string, srcs [][]byt
 
 	// typecheck and collect typechecker errors
 	var conf Config
+	conf.Sizes = sizes
 	conf.GoVersion = goVersion
 
 	// special case for importC.src
@@ -310,7 +311,15 @@ func TestCheck(t *testing.T) {
 func TestLongConstants(t *testing.T) {
 	format := "package longconst\n\nconst _ = %s\nconst _ = %s // ERROR excessively long constant"
 	src := fmt.Sprintf(format, strings.Repeat("1", 9999), strings.Repeat("1", 10001))
-	checkFiles(t, "", []string{"longconst.go"}, [][]byte{[]byte(src)})
+	checkFiles(t, nil, "", []string{"longconst.go"}, [][]byte{[]byte(src)})
+}
+
+// TestIndexRepresentability tests that constant index operands must
+// be representable as int even if they already have a type that can
+// represent larger values.
+func TestIndexRepresentability(t *testing.T) {
+	const src = "package index\n\nvar s []byte\nvar _ = s[int64 /* ERROR \"int64\\(1\\) << 40 \\(.*\\) overflows int\" */ (1) << 40]"
+	checkFiles(t, &StdSizes{4, 4}, "", []string{"index.go"}, [][]byte{[]byte(src)})
 }
 
 func TestTestdata(t *testing.T)  { DefPredeclaredTestFuncs(); testDir(t, "testdata") }
@@ -358,5 +367,5 @@ func testPkg(t *testing.T, filenames []string, goVersion string) {
 		}
 		srcs[i] = src
 	}
-	checkFiles(t, goVersion, filenames, srcs)
+	checkFiles(t, nil, goVersion, filenames, srcs)
 }
