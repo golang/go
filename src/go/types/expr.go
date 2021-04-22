@@ -1020,9 +1020,14 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
 		return x.typ, -1
 	}
 
-	v, valid := constant.Int64Val(constant.ToInt(x.val))
-	if !valid || max >= 0 && v >= max {
-		check.errorf(&x, _InvalidIndex, "index %s is out of bounds", &x)
+	if x.val.Kind() == constant.Unknown {
+		return
+	}
+
+	v, ok := constant.Int64Val(x.val)
+	assert(ok)
+	if max >= 0 && v >= max {
+		check.invalidArg(&x, _InvalidIndex, "index %s is out of bounds", &x)
 		return
 	}
 
