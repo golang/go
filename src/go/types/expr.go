@@ -1012,30 +1012,12 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
 
 	var x operand
 	check.expr(&x, index)
-	if x.mode == invalid {
-		return
-	}
-
-	// an untyped constant must be representable as Int
-	check.convertUntyped(&x, Typ[Int])
-	if x.mode == invalid {
-		return
-	}
-
-	// the index must be of integer type
-	if !isInteger(x.typ) {
-		check.invalidArg(&x, _InvalidIndex, "index %s must be integer", &x)
+	if !check.isValidIndex(&x, _InvalidIndex, "index", false) {
 		return
 	}
 
 	if x.mode != constant_ {
 		return x.typ, -1
-	}
-
-	// a constant index i must be in bounds
-	if constant.Sign(x.val) < 0 {
-		check.invalidArg(&x, _InvalidIndex, "index %s must not be negative", &x)
-		return
 	}
 
 	v, valid := constant.Int64Val(constant.ToInt(x.val))
@@ -1045,7 +1027,41 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
 	}
 
 	// 0 <= v [ && v < max ]
-	return Typ[Int], v
+	return x.typ, v
+}
+
+func (check *Checker) isValidIndex(x *operand, code errorCode, what string, allowNegative bool) bool {
+	if x.mode == invalid {
+		return false
+	}
+
+	// spec: "a constant index that is untyped is given type int"
+	check.convertUntyped(x, Typ[Int])
+	if x.mode == invalid {
+		return false
+	}
+
+	// spec: "the index x must be of integer type or an untyped constant"
+	if !isInteger(x.typ) {
+		check.invalidArg(x, code, "%s %s must be integer", what, x)
+		return false
+	}
+
+	if x.mode == constant_ {
+		// spec: "a constant index must be non-negative ..."
+		if !allowNegative && constant.Sign(x.val) < 0 {
+			check.invalidArg(x, code, "%s %s must not be negative", what, x)
+			return false
+		}
+
+		// spec: "... and representable by a value of type int"
+		if !representableConst(x.val, check, Typ[Int], &x.val) {
+			check.invalidArg(x, code, "%s %s overflows int", what, x)
+			return false
+		}
+	}
+
+	return true
 }
 
 // indexElts checks the elements (elts) of an array or slice composite literal

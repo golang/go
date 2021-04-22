@@ -87,6 +87,9 @@ var builtinCalls = []struct {
 	{"make", `var    c int32; _ = make([]float64   , 0, c)`, `func([]float64, int, int32) []float64`},
 	{"make", `var l, c uint ; _ = make([]complex128, l, c)`, `func([]complex128, uint, uint) []complex128`},
 
+	// issue #45667
+	{"make", `const l uint = 1; _ = make([]int, l)`, `func([]int, uint) []int`},
+
 	{"new", `_ = new(int)`, `func(int) *int`},
 	{"new", `type T struct{}; _ = new(T)`, `func(p.T) *p.T`},
 
