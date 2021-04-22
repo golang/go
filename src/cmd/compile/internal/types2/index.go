@@ -320,19 +320,7 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64) 
 
 	var x operand
 	check.expr(&x, index)
-	if x.mode == invalid {
-		return
-	}
-
-	// an untyped constant must be representable as Int
-	check.convertUntyped(&x, Typ[Int])
-	if x.mode == invalid {
-		return
-	}
-
-	// the index must be of integer type
-	if !isInteger(x.typ) {
-		check.errorf(&x, invalidArg+"index %s must be integer", &x)
+	if !check.isValidIndex(&x, "index", false) {
 		return
 	}
 
@@ -340,14 +328,13 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64) 
 		return x.typ, -1
 	}
 
-	// a constant index i must be in bounds
-	if constant.Sign(x.val) < 0 {
-		check.errorf(&x, invalidArg+"index %s must not be negative", &x)
+	if x.val.Kind() == constant.Unknown {
 		return
 	}
 
-	v, valid := constant.Int64Val(constant.ToInt(x.val))
-	if !valid || max >= 0 && v >= max {
+	v, ok := constant.Int64Val(x.val)
+	assert(ok)
+	if max >= 0 && v >= max {
 		if check.conf.CompilerErrorMessages {
 			check.errorf(&x, invalidArg+"array index %s out of bounds [0:%d]", x.val.String(), max)
 		} else {
@@ -358,6 +345,40 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64) 
 
 	// 0 <= v [ && v < max ]
 	return x.typ, v
+}
+
+func (check *Checker) isValidIndex(x *operand, what string, allowNegative bool) bool {
+	if x.mode == invalid {
+		return false
+	}
+
+	// spec: "a constant index that is untyped is given type int"
+	check.convertUntyped(x, Typ[Int])
+	if x.mode == invalid {
+		return false
+	}
+
+	// spec: "the index x must be of integer type or an untyped constant"
+	if !isInteger(x.typ) {
+		check.errorf(x, invalidArg+"%s %s must be integer", what, x)
+		return false
+	}
+
+	if x.mode == constant_ {
+		// spec: "a constant index must be non-negative ..."
+		if !allowNegative && constant.Sign(x.val) < 0 {
+			check.errorf(x, invalidArg+"%s %s must not be negative", what, x)
+			return false
+		}
+
+		// spec: "... and representable by a value of type int"
+		if !representableConst(x.val, check, Typ[Int], &x.val) {
+			check.errorf(x, invalidArg+"%s %s overflows int", what, x)
+			return false
+		}
+	}
+
+	return true
 }
 
 // indexElts checks the elements (elts) of an array or slice composite literal

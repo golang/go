@@ -250,7 +250,7 @@ func TestCheck(t *testing.T) {
 	checkFiles(t, strings.Split(*testFiles, ","), *goVersion, 0, testing.Verbose())
 }
 
-// TODO(gri) go/types has an extra TestLongConstants test
+// TODO(gri) go/types has extra TestLongConstants and TestIndexRepresentability tests
 
 func TestTestdata(t *testing.T)  { DefPredeclaredTestFuncs(); testDir(t, "testdata", 75) } // TODO(gri) narrow column tolerance
 func TestExamples(t *testing.T)  { testDir(t, "examples", 0) }
