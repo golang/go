@@ -9,6 +9,5 @@ import (
 
 func _() {
 	x := struct{}{}
-	_ = unsafe.Sizeof(x) //@complete("i", Sizeof)
+	_ = unsafe.Sizeof(x) //@complete("z", Sizeof)
 }
-
