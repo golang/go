@@ -1592,12 +1592,26 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 		return n.Esc() != ir.EscNever
 	}()
 
-	// A helper for making a copy of an argument.
+	// A helper for making a copy of an argument. Note that it is
+	// not safe to use o.copyExpr(arg) if we're putting a
+	// reference to the temp into the closure (as opposed to
+	// copying it in by value), since in the by-reference case we
+	// need a temporary whose lifetime extends to the end of the
+	// function (as opposed to being local to the current block or
+	// statement being ordered).
 	mkArgCopy := func(arg ir.Node) *ir.Name {
-		argCopy := o.copyExpr(arg)
+		t := arg.Type()
+		byval := t.Size() <= 128 || cloEscapes
+		var argCopy *ir.Name
+		if byval {
+			argCopy = o.copyExpr(arg)
+		} else {
+			argCopy = typecheck.Temp(t)
+			o.append(ir.NewAssignStmt(base.Pos, argCopy, arg))
+		}
 		// The value of 128 below is meant to be consistent with code
 		// in escape analysis that picks byval/byaddr based on size.
-		argCopy.SetByval(argCopy.Type().Size() <= 128 || cloEscapes)
+		argCopy.SetByval(byval)
 		return argCopy
 	}
 
