@@ -5,8 +5,10 @@
 go get -d
 
 # The latest version, v1.9.0, is not available on the proxy.
-! go list -m -retracted example.com/retract/missingmod
-stderr '^go list -m: loading module retractions for example.com/retract/missingmod@v1.0.0: .*404 Not Found$'
+go list -m -retracted example.com/retract/missingmod
+stdout '^example.com/retract/missingmod v1.0.0$'
+exists $GOPATH/pkg/mod/cache/download/example.com/retract/missingmod/@v/v1.9.0.info
+! exists $GOPATH/pkg/mod/cache/download/example.com/retract/missingmod/@v/v1.9.0.mod
 
 # If we replace that version, we should see retractions.
 go mod edit -replace=example.com/retract/missingmod@v1.9.0=./missingmod-v1.9.0

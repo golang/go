@@ -3,7 +3,8 @@
 
 // ppc64 needs a better tighten pass to make f18 pass
 // rescheduling checks need to be turned off because there are some live variables across the inserted check call
-// TODO(register args): temporarily disabled when GOEXPERIMENT=regabi due to additional temporaries live at "go" statements when regabi is in effect.
+//
+// For register ABI, liveness info changes slightly. See live_regabi.go.
 
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

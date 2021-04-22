@@ -25,15 +25,29 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-// narrowAllVersionV is the Go version (plus leading "v") at which the
-// module-module "all" pattern no longer closes over the dependencies of
-// tests outside of the main module.
-const narrowAllVersionV = "v1.16"
+const (
+	// narrowAllVersionV is the Go version (plus leading "v") at which the
+	// module-module "all" pattern no longer closes over the dependencies of
+	// tests outside of the main module.
+	narrowAllVersionV = "v1.16"
 
-// go1117LazyTODO is a constant that exists only until lazy loading is
-// implemented. Its use indicates a condition that will need to change if the
-// main module is lazy.
-const go117LazyTODO = false
+	// lazyLoadingVersionV is the Go version (plus leading "v") at which a
+	// module's go.mod file is expected to list explicit requirements on every
+	// module that provides any package transitively imported by that module.
+	lazyLoadingVersionV = "v1.17"
+)
+
+const (
+	// go117EnableLazyLoading toggles whether lazy-loading code paths should be
+	// active. It will be removed once the lazy loading implementation is stable
+	// and well-tested.
+	go117EnableLazyLoading = false
+
+	// go1117LazyTODO is a constant that exists only until lazy loading is
+	// implemented. Its use indicates a condition that will need to change if the
+	// main module is lazy.
+	go117LazyTODO = false
+)
 
 var modFile *modfile.File
 
@@ -56,6 +70,14 @@ var index *modFileIndex
 type requireMeta struct {
 	indirect bool
 }
+
+// A modDepth indicates which dependencies should be loaded for a go.mod file.
+type modDepth uint8
+
+const (
+	lazy  modDepth = iota // load dependencies only as needed
+	eager                 // load all transitive dependencies eagerly
+)
 
 // CheckAllowed returns an error equivalent to ErrDisallowed if m is excluded by
 // the main module's go.mod or retracted by its author. Most version queries use
@@ -210,6 +232,42 @@ func ShortMessage(message, emptyDefault string) string {
 	return message
 }
 
+// CheckDeprecation returns a deprecation message from the go.mod file of the
+// latest version of the given module. Deprecation messages are comments
+// before or on the same line as the module directives that start with
+// "Deprecated:" and run until the end of the paragraph.
+//
+// CheckDeprecation returns an error if the message can't be loaded.
+// CheckDeprecation returns "", nil if there is no deprecation message.
+func CheckDeprecation(ctx context.Context, m module.Version) (deprecation string, err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("loading deprecation for %s: %w", m.Path, err)
+		}
+	}()
+
+	if m.Version == "" {
+		// Main module, standard library, or file replacement module.
+		// Don't look up deprecation.
+		return "", nil
+	}
+	if repl := Replacement(module.Version{Path: m.Path}); repl.Path != "" {
+		// All versions of the module were replaced.
+		// We'll look up deprecation separately for the replacement.
+		return "", nil
+	}
+
+	latest, err := queryLatestVersionIgnoringRetractions(ctx, m.Path)
+	if err != nil {
+		return "", err
+	}
+	summary, err := rawGoModSummary(latest)
+	if err != nil {
+		return "", err
+	}
+	return summary.deprecated, nil
+}
+
 // Replacement returns the replacement for mod, if any, from go.mod.
 // If there is no replacement for mod, Replacement returns
 // a module.Version with Path == "".
@@ -291,13 +349,25 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
 // (Otherwise — as in Go 1.16+ — the "all" pattern includes only the packages
 // transitively *imported by* the packages and tests in the main module.)
 func (i *modFileIndex) allPatternClosesOverTests() bool {
-	if i != nil && semver.Compare(i.goVersionV, narrowAllVersionV) < 0 {
+	if i != nil && i.goVersionV != "" && semver.Compare(i.goVersionV, narrowAllVersionV) < 0 {
 		// The module explicitly predates the change in "all" for lazy loading, so
 		// continue to use the older interpretation. (If i == nil, we not in any
 		// module at all and should use the latest semantics.)
 		return true
 	}
 	return false
+}
+
+// depth reports the modDepth indicated by the indexed go.mod file,
+// or lazy if the go.mod file has not been indexed.
+func (i *modFileIndex) depth() modDepth {
+	if !go117EnableLazyLoading {
+		return eager
+	}
+	if i != nil && semver.Compare(i.goVersionV, lazyLoadingVersionV) < 0 {
+		return eager
+	}
+	return lazy
 }
 
 // modFileIsDirty reports whether the go.mod file differs meaningfully
@@ -385,6 +455,7 @@ type modFileSummary struct {
 	goVersionV string // GoVersion with "v" prefix
 	require    []module.Version
 	retract    []retraction
+	deprecated string
 }
 
 // A retraction consists of a retracted version interval and rationale.
@@ -392,6 +463,20 @@ type modFileSummary struct {
 type retraction struct {
 	modfile.VersionInterval
 	Rationale string
+}
+
+func (s *modFileSummary) depth() modDepth {
+	if !go117EnableLazyLoading {
+		return eager
+	}
+	// The 'go' command fills in the 'go' directive automatically, so an empty
+	// goVersionV in a dependency implies either Go 1.11 (eager loading) or no
+	// explicit go.mod file at all (no difference between eager and lazy because
+	// the module doesn't specify any requirements at all).
+	if s.goVersionV == "" || semver.Compare(s.goVersionV, lazyLoadingVersionV) < 0 {
+		return eager
+	}
+	return lazy
 }
 
 // goModSummary returns a summary of the go.mod file for module m,
@@ -549,6 +634,7 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 
 		if f.Module != nil {
 			summary.module = f.Module.Mod
+			summary.deprecated = f.Module.Deprecated
 		}
 		if f.Go != nil && f.Go.Version != "" {
 			rawGoVersion.LoadOrStore(m, f.Go.Version)

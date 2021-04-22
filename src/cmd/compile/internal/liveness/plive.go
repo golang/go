@@ -141,7 +141,13 @@ type liveness struct {
 
 	cache progeffectscache
 
-	doClobber bool // Whether to clobber dead stack slots in this function.
+	// partLiveArgs includes input arguments (PPARAM) that may
+	// be partially live. That is, it is considered live because
+	// a part of it is used, but we may not initialize all parts.
+	partLiveArgs map[*ir.Name]bool
+
+	doClobber     bool // Whether to clobber dead stack slots in this function.
+	noClobberArgs bool // Do not clobber function arguments
 }
 
 // Map maps from *ssa.Value to LivenessIndex.
@@ -266,6 +272,12 @@ func (lv *liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 		if !n.Used() {
 			return -1, 0
 		}
+	}
+
+	if n.Class == ir.PPARAM && !n.Addrtaken() && n.Type().Width > int64(types.PtrSize) {
+		// Only aggregate-typed arguments that are not address-taken can be
+		// partially live.
+		lv.partLiveArgs[n] = true
 	}
 
 	var effect liveEffect
@@ -393,6 +405,8 @@ func newliveness(fn *ir.Func, f *ssa.Func, vars []*ir.Name, idx map[*ir.Name]int
 	lv.livenessMap.reset()
 
 	lv.markUnsafePoints()
+
+	lv.partLiveArgs = make(map[*ir.Name]bool)
 
 	lv.enableClobber()
 
@@ -917,16 +931,27 @@ func (lv *liveness) enableClobber() {
 		// Otherwise, giant functions make this experiment generate too much code.
 		return
 	}
-	if lv.f.Name == "forkAndExecInChild" || lv.f.Name == "wbBufFlush" {
+	if lv.f.Name == "forkAndExecInChild" {
 		// forkAndExecInChild calls vfork on some platforms.
 		// The code we add here clobbers parts of the stack in the child.
 		// When the parent resumes, it is using the same stack frame. But the
 		// child has clobbered stack variables that the parent needs. Boom!
 		// In particular, the sys argument gets clobbered.
-		//
+		return
+	}
+	if lv.f.Name == "wbBufFlush" ||
+		((lv.f.Name == "callReflect" || lv.f.Name == "callMethod") && lv.fn.ABIWrapper()) {
 		// runtime.wbBufFlush must not modify its arguments. See the comments
 		// in runtime/mwbbuf.go:wbBufFlush.
-		return
+		//
+		// reflect.callReflect and reflect.callMethod are called from special
+		// functions makeFuncStub and methodValueCall. The runtime expects
+		// that it can find the first argument (ctxt) at 0(SP) in makeFuncStub
+		// and methodValueCall's frame (see runtime/traceback.go:getArgInfo).
+		// Normally callReflect and callMethod already do not modify the
+		// argument, and keep it alive. But the compiler-generated ABI wrappers
+		// don't do that. Special case the wrappers to not clobber its arguments.
+		lv.noClobberArgs = true
 	}
 	if h := os.Getenv("GOCLOBBERDEADHASH"); h != "" {
 		// Clobber only functions where the hash of the function name matches a pattern.
@@ -982,9 +1007,14 @@ func (lv *liveness) clobber(b *ssa.Block) {
 // of b.Values.
 func clobber(lv *liveness, b *ssa.Block, live bitvec.BitVec) {
 	for i, n := range lv.vars {
-		if !live.Get(int32(i)) && !n.Addrtaken() {
+		if !live.Get(int32(i)) && !n.Addrtaken() && !n.OpenDeferSlot() && !n.IsOutputParamHeapAddr() {
 			// Don't clobber stack objects (address-taken). They are
 			// tracked dynamically.
+			// Also don't clobber slots that are live for defers (see
+			// the code setting livedefer in epilogue).
+			if lv.noClobberArgs && n.Class == ir.PPARAM {
+				continue
+			}
 			clobberVar(b, n)
 		}
 	}
@@ -1310,8 +1340,9 @@ func (lv *liveness) emit() (argsSym, liveSym *obj.LSym) {
 // Entry pointer for Compute analysis. Solves for the Compute of
 // pointer variables in the function and emits a runtime data
 // structure read by the garbage collector.
-// Returns a map from GC safe points to their corresponding stack map index.
-func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs) Map {
+// Returns a map from GC safe points to their corresponding stack map index,
+// and a map that contains all input parameters that may be partially live.
+func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs) (Map, map[*ir.Name]bool) {
 	// Construct the global liveness state.
 	vars, idx := getvariables(curfn)
 	lv := newliveness(curfn, f, vars, idx, stkptrsize)
@@ -1373,7 +1404,7 @@ func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs) Map 
 		p.To.Sym = x
 	}
 
-	return lv.livenessMap
+	return lv.livenessMap, lv.partLiveArgs
 }
 
 func (lv *liveness) emitStackObjects() *obj.LSym {
@@ -1457,7 +1488,6 @@ func WriteFuncMap(fn *ir.Func, abiInfo *abi.ABIParamResultInfo) {
 	if ir.FuncName(fn) == "_" || fn.Sym().Linkname != "" {
 		return
 	}
-	types.CalcSize(fn.Type())
 	nptr := int(abiInfo.ArgWidth() / int64(types.PtrSize))
 	bv := bitvec.New(int32(nptr) * 2)
 

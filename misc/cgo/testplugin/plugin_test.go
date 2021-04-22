@@ -30,6 +30,18 @@ func TestMain(m *testing.M) {
 	os.Exit(testMain(m))
 }
 
+// tmpDir is used to cleanup logged commands -- s/tmpDir/$TMPDIR/
+var tmpDir string
+
+// prettyPrintf prints lines with tmpDir sanitized.
+func prettyPrintf(format string, args ...interface{}) {
+	s := fmt.Sprintf(format, args...)
+	if tmpDir != "" {
+		s = strings.ReplaceAll(s, tmpDir, "$TMPDIR")
+	}
+	fmt.Print(s)
+}
+
 func testMain(m *testing.M) int {
 	// Copy testdata into GOPATH/src/testplugin, along with a go.mod file
 	// declaring the same path.
@@ -39,6 +51,7 @@ func testMain(m *testing.M) int {
 		log.Panic(err)
 	}
 	defer os.RemoveAll(GOPATH)
+	tmpDir = GOPATH
 
 	modRoot := filepath.Join(GOPATH, "src", "testplugin")
 	altRoot := filepath.Join(GOPATH, "alt", "src", "testplugin")
@@ -49,14 +62,20 @@ func testMain(m *testing.M) int {
 		if err := overlayDir(dstRoot, srcRoot); err != nil {
 			log.Panic(err)
 		}
+		prettyPrintf("mkdir -p %s\n", dstRoot)
+		prettyPrintf("rsync -a %s/ %s\n", srcRoot, dstRoot)
+
 		if err := os.WriteFile(filepath.Join(dstRoot, "go.mod"), []byte("module testplugin\n"), 0666); err != nil {
 			log.Panic(err)
 		}
+		prettyPrintf("echo 'module testplugin' > %s/go.mod\n", dstRoot)
 	}
 
 	os.Setenv("GOPATH", filepath.Join(GOPATH, "alt"))
 	if err := os.Chdir(altRoot); err != nil {
 		log.Panic(err)
+	} else {
+		prettyPrintf("cd %s\n", altRoot)
 	}
 	os.Setenv("PWD", altRoot)
 	goCmd(nil, "build", "-buildmode=plugin", "-o", filepath.Join(modRoot, "plugin-mismatch.so"), "./plugin-mismatch")
@@ -64,6 +83,8 @@ func testMain(m *testing.M) int {
 	os.Setenv("GOPATH", GOPATH)
 	if err := os.Chdir(modRoot); err != nil {
 		log.Panic(err)
+	} else {
+		prettyPrintf("cd %s\n", modRoot)
 	}
 	os.Setenv("PWD", modRoot)
 
@@ -78,6 +99,7 @@ func testMain(m *testing.M) int {
 	if err := os.WriteFile("plugin2-dup.so", so, 0444); err != nil {
 		log.Panic(err)
 	}
+	prettyPrintf("cp plugin2.so plugin2-dup.so\n")
 
 	goCmd(nil, "build", "-buildmode=plugin", "-o=sub/plugin1.so", "./sub/plugin1")
 	goCmd(nil, "build", "-buildmode=plugin", "-o=unnamed1.so", "./unnamed1/main.go")
@@ -94,8 +116,53 @@ func goCmd(t *testing.T, op string, args ...string) {
 	run(t, "go", append([]string{op, "-gcflags", gcflags}, args...)...)
 }
 
+// escape converts a string to something suitable for a shell command line.
+func escape(s string) string {
+	s = strings.Replace(s, "\\", "\\\\", -1)
+	s = strings.Replace(s, "'", "\\'", -1)
+	// Conservative guess at characters that will force quoting
+	if s == "" || strings.ContainsAny(s, "\\ ;#*&$~?!|[]()<>{}`") {
+		s = "'" + s + "'"
+	}
+	return s
+}
+
+// asCommandLine renders cmd as something that could be copy-and-pasted into a command line
+func asCommandLine(cwd string, cmd *exec.Cmd) string {
+	s := "("
+	if cmd.Dir != "" && cmd.Dir != cwd {
+		s += "cd" + escape(cmd.Dir) + ";"
+	}
+	for _, e := range cmd.Env {
+		if !strings.HasPrefix(e, "PATH=") &&
+			!strings.HasPrefix(e, "HOME=") &&
+			!strings.HasPrefix(e, "USER=") &&
+			!strings.HasPrefix(e, "SHELL=") {
+			s += " "
+			s += escape(e)
+		}
+	}
+	// These EVs are relevant to this test.
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, "PWD=") ||
+			strings.HasPrefix(e, "GOPATH=") ||
+			strings.HasPrefix(e, "LD_LIBRARY_PATH=") {
+			s += " "
+			s += escape(e)
+		}
+	}
+	for _, a := range cmd.Args {
+		s += " "
+		s += escape(a)
+	}
+	s += " )"
+	return s
+}
+
 func run(t *testing.T, bin string, args ...string) string {
 	cmd := exec.Command(bin, args...)
+	cmdLine := asCommandLine(".", cmd)
+	prettyPrintf("%s\n", cmdLine)
 	cmd.Stderr = new(strings.Builder)
 	out, err := cmd.Output()
 	if err != nil {

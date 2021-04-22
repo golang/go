@@ -37,6 +37,7 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/benchmark"
 	"flag"
+	"internal/buildcfg"
 	"log"
 	"os"
 	"runtime"
@@ -116,12 +117,16 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	final := gorootFinal()
 	addstrdata1(ctxt, "runtime.defaultGOROOT="+final)
-	addstrdata1(ctxt, "cmd/internal/objabi.defaultGOROOT="+final)
+	addstrdata1(ctxt, "internal/buildcfg.defaultGOROOT="+final)
 
-	addstrdata1(ctxt, "runtime/internal/sys.GOEXPERIMENT="+objabi.GOEXPERIMENT)
+	buildVersion := buildcfg.Version
+	if goexperiment := buildcfg.GOEXPERIMENT(); goexperiment != "" {
+		buildVersion += " X:" + goexperiment
+	}
+	addstrdata1(ctxt, "runtime.buildVersion="+buildVersion)
 
 	// TODO(matloob): define these above and then check flag values here
-	if ctxt.Arch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
+	if ctxt.Arch.Family == sys.AMD64 && buildcfg.GOOS == "plan9" {
 		flag.BoolVar(&flag8, "8", false, "use 64-bit addresses in symbol table")
 	}
 	flagHeadType := flag.String("H", "", "set header `type`")
@@ -155,7 +160,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 		}
 	}
 	if ctxt.HeadType == objabi.Hunknown {
-		ctxt.HeadType.Set(objabi.GOOS)
+		ctxt.HeadType.Set(buildcfg.GOOS)
 	}
 
 	if !*flagAslr && ctxt.BuildMode != BuildModeCShared {
@@ -251,7 +256,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	bench.Start("dostrdata")
 	ctxt.dostrdata()
-	if objabi.Experiment.FieldTrack {
+	if buildcfg.Experiment.FieldTrack {
 		bench.Start("fieldtrack")
 		fieldtrack(ctxt.Arch, ctxt.loader)
 	}
@@ -290,7 +295,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("textbuildid")
 	ctxt.textbuildid()
 	bench.Start("addexport")
-	setupdynexp(ctxt)
 	ctxt.setArchSyms()
 	ctxt.addexport()
 	bench.Start("Gentext")

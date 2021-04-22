@@ -6,10 +6,10 @@ package ssa
 
 import (
 	"bytes"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
 	"hash/crc32"
+	"internal/buildcfg"
 	"log"
 	"math/rand"
 	"os"
@@ -454,7 +454,7 @@ var passes = [...]pass{
 	{name: "dse", fn: dse},
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
-		disabled: !objabi.Experiment.PreemptibleLoops}, // insert resched checks in loops.
+		disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.
 	{name: "lower", fn: lower, required: true},
 	{name: "addressing modes", fn: addressingModes, required: false},
 	{name: "lowered deadcode for cse", fn: deadcode}, // deadcode immediately before CSE avoids CSE making dead values live again

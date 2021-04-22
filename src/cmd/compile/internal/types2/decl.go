@@ -333,7 +333,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 		switch t.info {
 		case unknown:
 			t.info = marked
-			t.info = check.validType(t.orig, append(path, t.obj)) // only types of current package added to path
+			t.info = check.validType(t.fromRHS, append(path, t.obj)) // only types of current package added to path
 		case marked:
 			// cycle detected
 			for i, tn := range path {
@@ -383,45 +383,12 @@ func (check *Checker) cycleError(cycle []Object) {
 	check.report(&err)
 }
 
-// TODO(gri) This functionality should probably be with the Pos implementation.
-func cmpPos(p, q syntax.Pos) int {
-	// TODO(gri) is RelFilename correct here?
-	pname := p.RelFilename()
-	qname := q.RelFilename()
-	switch {
-	case pname < qname:
-		return -1
-	case pname > qname:
-		return +1
-	}
-
-	pline := p.Line()
-	qline := q.Line()
-	switch {
-	case pline < qline:
-		return -1
-	case pline > qline:
-		return +1
-	}
-
-	pcol := p.Col()
-	qcol := q.Col()
-	switch {
-	case pcol < qcol:
-		return -1
-	case pcol > qcol:
-		return +1
-	}
-
-	return 0
-}
-
 // firstInSrc reports the index of the object with the "smallest"
 // source position in path. path must not be empty.
 func firstInSrc(path []Object) int {
 	fst, pos := 0, path[0].Pos()
 	for i, t := range path[1:] {
-		if cmpPos(t.Pos(), pos) < 0 {
+		if t.Pos().Cmp(pos) < 0 {
 			fst, pos = i+1, t.Pos()
 		}
 	}
@@ -644,9 +611,8 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 	} else {
 		// defined type declaration
 
-		named := &Named{check: check, obj: obj}
+		named := check.newNamed(obj, nil, nil, nil, nil)
 		def.setUnderlying(named)
-		obj.typ = named // make sure recursive type declarations terminate
 
 		if tdecl.TParamList != nil {
 			check.openScope(tdecl, "type parameters")
@@ -655,7 +621,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 		}
 
 		// determine underlying type of named
-		named.orig = check.definedType(tdecl.Type, named)
+		named.fromRHS = check.definedType(tdecl.Type, named)
 
 		// The underlying type of named may be itself a named type that is
 		// incomplete:
@@ -670,7 +636,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 		// and which has as its underlying type the named type B.
 		// Determine the (final, unnamed) underlying type by resolving
 		// any forward chain.
-		// TODO(gri) Investigate if we can just use named.origin here
+		// TODO(gri) Investigate if we can just use named.fromRHS here
 		//           and rely on lazy computation of the underlying type.
 		named.underlying = under(named)
 	}

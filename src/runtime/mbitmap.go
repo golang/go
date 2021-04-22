@@ -333,6 +333,10 @@ func heapBitsForAddr(addr uintptr) (h heapBits) {
 	return
 }
 
+// clobberdeadPtr is a special value that is used by the compiler to
+// clobber dead stack slots, when -clobberdead flag is set.
+const clobberdeadPtr = uintptr(0xdeaddead | 0xdeaddead<<((^uintptr(0)>>63)*32))
+
 // badPointer throws bad pointer in heap panic.
 func badPointer(s *mspan, p, refBase, refOff uintptr) {
 	// Typically this indicates an incorrect use
@@ -345,13 +349,16 @@ func badPointer(s *mspan, p, refBase, refOff uintptr) {
 	// in allocated spans.
 	printlock()
 	print("runtime: pointer ", hex(p))
-	state := s.state.get()
-	if state != mSpanInUse {
-		print(" to unallocated span")
-	} else {
-		print(" to unused region of span")
+	if s != nil {
+		state := s.state.get()
+		if state != mSpanInUse {
+			print(" to unallocated span")
+		} else {
+			print(" to unused region of span")
+		}
+		print(" span.base()=", hex(s.base()), " span.limit=", hex(s.limit), " span.state=", state)
 	}
-	print(" span.base()=", hex(s.base()), " span.limit=", hex(s.limit), " span.state=", state, "\n")
+	print("\n")
 	if refBase != 0 {
 		print("runtime: found in object at *(", hex(refBase), "+", hex(refOff), ")\n")
 		gcDumpObject("object", refBase, refOff)
@@ -379,6 +386,12 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
 	// If s is nil, the virtual address has never been part of the heap.
 	// This pointer may be to some mmap'd region, so we allow it.
 	if s == nil {
+		if GOARCH == "amd64" && p == clobberdeadPtr && debug.invalidptr != 0 {
+			// Crash if clobberdeadPtr is seen. Only on AMD64 for now, as
+			// it is the only platform where compiler's clobberdead mode is
+			// implemented. On AMD64 clobberdeadPtr cannot be a valid address.
+			badPointer(s, p, refBase, refOff)
+		}
 		return
 	}
 	// If p is a bad pointer, it may not be in s's bounds.

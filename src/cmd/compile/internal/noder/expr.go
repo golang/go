@@ -346,8 +346,9 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
 		}
 	}
 
-	// TODO(mdempsky): Remove dependency on typecheck.Expr.
-	return typecheck.Expr(ir.NewCompLitExpr(g.pos(lit), ir.OCOMPLIT, ir.TypeNode(g.typ(typ)), exprs))
+	n := ir.NewCompLitExpr(g.pos(lit), ir.OCOMPLIT, nil, exprs)
+	typed(g.typ(typ), n)
+	return transformCompLit(n)
 }
 
 func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {
@@ -359,8 +360,6 @@ func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {
 	typ := g.typ(typ2)
 	fn.Nname.Func = fn
 	fn.Nname.Defn = fn
-	// Set Ntype for now to be compatible with later parts of compile, remove later.
-	fn.Nname.Ntype = ir.TypeNode(typ)
 	typed(typ, fn.Nname)
 	fn.SetTypecheck(1)
 

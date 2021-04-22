@@ -149,9 +149,6 @@ var (
 // to start new os thread.
 func tstart_stdcall(newm *m)
 
-// Called by OS using stdcall ABI.
-func ctrlhandler()
-
 // Init-time helper
 func wintls()
 
@@ -389,7 +386,6 @@ const (
 )
 
 // in sys_windows_386.s and sys_windows_amd64.s:
-func externalthreadhandler()
 func getlasterror() uint32
 
 // When loading DLLs, we prefer to use LoadLibraryEx with
@@ -557,8 +553,6 @@ func osinit() {
 
 	initExceptionHandler()
 
-	stdcall2(_SetConsoleCtrlHandler, funcPC(ctrlhandler), 1)
-
 	initHighResTimer()
 	timeBeginPeriodRetValue = osRelax(false)
 
@@ -685,8 +679,12 @@ func goenvs() {
 
 	stdcall1(_FreeEnvironmentStringsW, uintptr(strings))
 
-	// We call this all the way here, late in init, so that malloc works
-	// for the callback function this generates.
+	// We call these all the way here, late in init, so that malloc works
+	// for the callback functions these generate.
+	var fn interface{} = ctrlHandler
+	ctrlHandlerPC := compileCallback(*efaceOf(&fn), true)
+	stdcall2(_SetConsoleCtrlHandler, ctrlHandlerPC, 1)
+
 	monitorSuspendResume()
 }
 
@@ -1086,6 +1084,7 @@ func stdcall0(fn stdFunction) uintptr {
 }
 
 //go:nosplit
+//go:cgo_unsafe_args
 func stdcall1(fn stdFunction, a0 uintptr) uintptr {
 	mp := getg().m
 	mp.libcall.n = 1
@@ -1094,6 +1093,7 @@ func stdcall1(fn stdFunction, a0 uintptr) uintptr {
 }
 
 //go:nosplit
+//go:cgo_unsafe_args
 func stdcall2(fn stdFunction, a0, a1 uintptr) uintptr {
 	mp := getg().m
 	mp.libcall.n = 2
@@ -1102,6 +1102,7 @@ func stdcall2(fn stdFunction, a0, a1 uintptr) uintptr {
 }
 
 //go:nosplit
+//go:cgo_unsafe_args
 func stdcall3(fn stdFunction, a0, a1, a2 uintptr) uintptr {
 	mp := getg().m
 	mp.libcall.n = 3
@@ -1110,6 +1111,7 @@ func stdcall3(fn stdFunction, a0, a1, a2 uintptr) uintptr {
 }
 
 //go:nosplit
+//go:cgo_unsafe_args
 func stdcall4(fn stdFunction, a0, a1, a2, a3 uintptr) uintptr {
 	mp := getg().m
 	mp.libcall.n = 4
@@ -1118,6 +1120,7 @@ func stdcall4(fn stdFunction, a0, a1, a2, a3 uintptr) uintptr {
 }
 
 //go:nosplit
+//go:cgo_unsafe_args
 func stdcall5(fn stdFunction, a0, a1, a2, a3, a4 uintptr) uintptr {
 	mp := getg().m
 	mp.libcall.n = 5
@@ -1126,6 +1129,7 @@ func stdcall5(fn stdFunction, a0, a1, a2, a3, a4 uintptr) uintptr {
 }
 
 //go:nosplit
+//go:cgo_unsafe_args
 func stdcall6(fn stdFunction, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 	mp := getg().m
 	mp.libcall.n = 6
@@ -1134,6 +1138,7 @@ func stdcall6(fn stdFunction, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 }
 
 //go:nosplit
+//go:cgo_unsafe_args
 func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 	mp := getg().m
 	mp.libcall.n = 7
@@ -1176,7 +1181,7 @@ func usleep(us uint32) {
 	})
 }
 
-func ctrlhandler1(_type uint32) uint32 {
+func ctrlHandler(_type uint32) uintptr {
 	var s uint32
 
 	switch _type {
@@ -1198,9 +1203,6 @@ func ctrlhandler1(_type uint32) uint32 {
 	}
 	return 0
 }
-
-// in sys_windows_386.s and sys_windows_amd64.s
-func profileloop()
 
 // called from zcallback_windows_*.s to sys_windows_*.s
 func callbackasm1()
@@ -1234,13 +1236,18 @@ func gFromSP(mp *m, sp uintptr) *g {
 	return nil
 }
 
-func profileloop1(param uintptr) uint32 {
+func profileLoop() {
 	stdcall2(_SetThreadPriority, currentThread, _THREAD_PRIORITY_HIGHEST)
 
 	for {
 		stdcall2(_WaitForSingleObject, profiletimer, _INFINITE)
 		first := (*m)(atomic.Loadp(unsafe.Pointer(&allm)))
 		for mp := first; mp != nil; mp = mp.alllink {
+			if mp == getg().m {
+				// Don't profile ourselves.
+				continue
+			}
+
 			lock(&mp.threadLock)
 			// Do not profile threads blocked on Notes,
 			// this includes idle worker threads,
@@ -1252,8 +1259,8 @@ func profileloop1(param uintptr) uint32 {
 			// Acquire our own handle to the thread.
 			var thread uintptr
 			if stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS) == 0 {
-				print("runtime.profileloop1: duplicatehandle failed; errno=", getlasterror(), "\n")
-				throw("runtime.profileloop1: duplicatehandle failed")
+				print("runtime: duplicatehandle failed; errno=", getlasterror(), "\n")
+				throw("duplicatehandle failed")
 			}
 			unlock(&mp.threadLock)
 
@@ -1281,9 +1288,7 @@ func setProcessCPUProfiler(hz int32) {
 	if profiletimer == 0 {
 		timer := stdcall3(_CreateWaitableTimerA, 0, 0, 0)
 		atomic.Storeuintptr(&profiletimer, timer)
-		thread := stdcall6(_CreateThread, 0, 0, funcPC(profileloop), 0, 0, 0)
-		stdcall2(_SetThreadPriority, thread, _THREAD_PRIORITY_HIGHEST)
-		stdcall1(_CloseHandle, thread)
+		newm(profileLoop, nil, -1)
 	}
 }
 
@@ -1380,7 +1385,7 @@ func preemptM(mp *m) {
 
 	// Does it want a preemption and is it safe to preempt?
 	gp := gFromSP(mp, c.sp())
-	if wantAsyncPreempt(gp) {
+	if gp != nil && wantAsyncPreempt(gp) {
 		if ok, newpc := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()); ok {
 			// Inject call to asyncPreempt
 			targetPC := funcPC(asyncPreempt)

@@ -8,17 +8,17 @@ import (
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj/mips"
-	"cmd/internal/objabi"
+	"internal/buildcfg"
 )
 
 func Init(arch *ssagen.ArchInfo) {
 	arch.LinkArch = &mips.Linkmips
-	if objabi.GOARCH == "mipsle" {
+	if buildcfg.GOARCH == "mipsle" {
 		arch.LinkArch = &mips.Linkmipsle
 	}
 	arch.REGSP = mips.REGSP
 	arch.MAXWIDTH = (1 << 31) - 1
-	arch.SoftFloat = (objabi.GOMIPS == "softfloat")
+	arch.SoftFloat = (buildcfg.GOMIPS == "softfloat")
 	arch.ZeroRange = zerorange
 	arch.Ginsnop = ginsnop
 	arch.Ginsnopdefer = ginsnop

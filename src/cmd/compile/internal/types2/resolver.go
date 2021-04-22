@@ -426,7 +426,7 @@ func (check *Checker) collectObjects() {
 				} else {
 					// method
 					// d.Recv != nil
-					if !methodTypeParamsOk && len(d.TParamList) != 0 {
+					if !acceptMethodTypeParams && len(d.TParamList) != 0 {
 						//check.error(d.TParamList.Pos(), invalidAST + "method must have no type parameters")
 						check.error(d, invalidAST+"method must have no type parameters")
 					}

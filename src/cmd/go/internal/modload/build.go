@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"internal/goroot"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -79,7 +80,7 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 		v  string
 		ok bool
 	)
-	if go117LazyTODO {
+	if rs.depth == lazy {
 		v, ok = rs.rootSelected(path)
 	}
 	if !ok {
@@ -108,7 +109,26 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 		return
 	}
 
-	if info, err := Query(ctx, m.Path, "upgrade", m.Version, CheckAllowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
+	info, err := Query(ctx, m.Path, "upgrade", m.Version, CheckAllowed)
+	var noVersionErr *NoMatchingVersionError
+	if errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
+		// Ignore "not found" and "no matching version" errors.
+		// This means the proxy has no matching version or no versions at all.
+		//
+		// We should report other errors though. An attacker that controls the
+		// network shouldn't be able to hide versions by interfering with
+		// the HTTPS connection. An attacker that controls the proxy may still
+		// hide versions, since the "list" and "latest" endpoints are not
+		// authenticated.
+		return
+	} else if err != nil {
+		if m.Error == nil {
+			m.Error = &modinfo.ModuleError{Err: err.Error()}
+		}
+		return
+	}
+
+	if semver.Compare(info.Version, m.Version) > 0 {
 		m.Update = &modinfo.ModulePublic{
 			Path:    m.Path,
 			Version: info.Version,
@@ -140,16 +160,52 @@ func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
 	}
 
 	err := CheckRetractions(ctx, module.Version{Path: m.Path, Version: m.Version})
-	var rerr *ModuleRetractedError
-	if errors.As(err, &rerr) {
-		if len(rerr.Rationale) == 0 {
+	var noVersionErr *NoMatchingVersionError
+	var retractErr *ModuleRetractedError
+	if err == nil || errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
+		// Ignore "not found" and "no matching version" errors.
+		// This means the proxy has no matching version or no versions at all.
+		//
+		// We should report other errors though. An attacker that controls the
+		// network shouldn't be able to hide versions by interfering with
+		// the HTTPS connection. An attacker that controls the proxy may still
+		// hide versions, since the "list" and "latest" endpoints are not
+		// authenticated.
+		return
+	} else if errors.As(err, &retractErr) {
+		if len(retractErr.Rationale) == 0 {
 			m.Retracted = []string{"retracted by module author"}
 		} else {
-			m.Retracted = rerr.Rationale
+			m.Retracted = retractErr.Rationale
 		}
-	} else if err != nil && m.Error == nil {
+	} else if m.Error == nil {
 		m.Error = &modinfo.ModuleError{Err: err.Error()}
 	}
+}
+
+// addDeprecation fills in m.Deprecated if the module was deprecated by its
+// author. m.Error is set if there's an error loading deprecation information.
+func addDeprecation(ctx context.Context, m *modinfo.ModulePublic) {
+	deprecation, err := CheckDeprecation(ctx, module.Version{Path: m.Path, Version: m.Version})
+	var noVersionErr *NoMatchingVersionError
+	if errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
+		// Ignore "not found" and "no matching version" errors.
+		// This means the proxy has no matching version or no versions at all.
+		//
+		// We should report other errors though. An attacker that controls the
+		// network shouldn't be able to hide versions by interfering with
+		// the HTTPS connection. An attacker that controls the proxy may still
+		// hide versions, since the "list" and "latest" endpoints are not
+		// authenticated.
+		return
+	}
+	if err != nil {
+		if m.Error == nil {
+			m.Error = &modinfo.ModuleError{Err: err.Error()}
+		}
+		return
+	}
+	m.Deprecated = deprecation
 }
 
 // moduleInfo returns information about module m, loaded from the requirements

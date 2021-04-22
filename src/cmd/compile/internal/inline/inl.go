@@ -506,7 +506,10 @@ func inlcopy(n ir.Node) ir.Node {
 			newfn.Nname = ir.NewNameAt(oldfn.Nname.Pos(), oldfn.Nname.Sym())
 			// XXX OK to share fn.Type() ??
 			newfn.Nname.SetType(oldfn.Nname.Type())
-			newfn.Nname.Ntype = inlcopy(oldfn.Nname.Ntype).(ir.Ntype)
+			// Ntype can be nil for -G=3 mode.
+			if oldfn.Nname.Ntype != nil {
+				newfn.Nname.Ntype = inlcopy(oldfn.Nname.Ntype).(ir.Ntype)
+			}
 			newfn.Body = inlcopylist(oldfn.Body)
 			// Make shallow copy of the Dcl and ClosureVar slices
 			newfn.Dcl = append([]*ir.Name(nil), oldfn.Dcl...)
@@ -1010,7 +1013,9 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	lab := ir.NewLabelStmt(base.Pos, retlabel)
 	body = append(body, lab)
 
-	typecheck.Stmts(body)
+	if !typecheck.Go117ExportTypes {
+		typecheck.Stmts(body)
+	}
 
 	if base.Flag.GenDwarfInl > 0 {
 		for _, v := range inlfvars {
@@ -1213,7 +1218,10 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
 	newfn.SetIsHiddenClosure(true)
 	newfn.Nname = ir.NewNameAt(n.Pos(), ir.BlankNode.Sym())
 	newfn.Nname.Func = newfn
-	newfn.Nname.Ntype = subst.node(oldfn.Nname.Ntype).(ir.Ntype)
+	// Ntype can be nil for -G=3 mode.
+	if oldfn.Nname.Ntype != nil {
+		newfn.Nname.Ntype = subst.node(oldfn.Nname.Ntype).(ir.Ntype)
+	}
 	newfn.Nname.Defn = newfn
 
 	m.(*ir.ClosureExpr).Func = newfn

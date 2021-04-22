@@ -12,10 +12,7 @@ import (
 	"runtime"
 )
 
-// We query the executable path at init time to avoid the problem of
-// readlink returns a path appended with " (deleted)" when the original
-// binary gets deleted.
-var executablePath, executablePathErr = func() (string, error) {
+func executable() (string, error) {
 	var procfn string
 	switch runtime.GOOS {
 	default:
@@ -25,9 +22,17 @@ var executablePath, executablePathErr = func() (string, error) {
 	case "netbsd":
 		procfn = "/proc/curproc/exe"
 	}
-	return Readlink(procfn)
-}()
+	path, err := Readlink(procfn)
 
-func executable() (string, error) {
-	return executablePath, executablePathErr
+	// When the executable has been deleted then Readlink returns a
+	// path appended with " (deleted)".
+	return stringsTrimSuffix(path, " (deleted)"), err
+}
+
+// stringsTrimSuffix is the same as strings.TrimSuffix.
+func stringsTrimSuffix(s, suffix string) string {
+	if len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix {
+		return s[:len(s)-len(suffix)]
+	}
+	return s
 }

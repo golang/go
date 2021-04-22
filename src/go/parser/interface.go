@@ -49,20 +49,14 @@ func readSource(filename string, src interface{}) ([]byte, error) {
 type Mode uint
 
 const (
-	PackageClauseOnly Mode             = 1 << iota // stop parsing after package clause
-	ImportsOnly                                    // stop parsing after import declarations
-	ParseComments                                  // parse comments and add them to AST
-	Trace                                          // print a trace of parsed productions
-	DeclarationErrors                              // report declaration errors
-	SpuriousErrors                                 // same as AllErrors, for backward-compatibility
-	AllErrors         = SpuriousErrors             // report all errors (not just the first 10 on different lines)
-
-	// parseTypeParams controls the parsing of type parameters. Must be
-	// kept in sync with:
-	//  go/printer/printer_test.go
-	//  go/types/check_test.go
-	//  cmd/gofmt/gofmt.go
-	parseTypeParams = 1 << 30
+	PackageClauseOnly    Mode             = 1 << iota // stop parsing after package clause
+	ImportsOnly                                       // stop parsing after import declarations
+	ParseComments                                     // parse comments and add them to AST
+	Trace                                             // print a trace of parsed productions
+	DeclarationErrors                                 // report declaration errors
+	SpuriousErrors                                    // same as AllErrors, for backward-compatibility
+	SkipObjectResolution                              // don't resolve identifiers to objects - see ParseFile
+	AllErrors            = SpuriousErrors             // report all errors (not just the first 10 on different lines)
 )
 
 // ParseFile parses the source code of a single Go source file and returns
@@ -75,8 +69,12 @@ const (
 // If src == nil, ParseFile parses the file specified by filename.
 //
 // The mode parameter controls the amount of source text parsed and other
-// optional parser functionality. Position information is recorded in the
-// file set fset, which must not be nil.
+// optional parser functionality. If the SkipObjectResolution mode bit is set,
+// the object resolution phase of parsing will be skipped, causing File.Scope,
+// File.Unresolved, and all Ident.Obj fields to be nil.
+//
+// Position information is recorded in the file set fset, which must not be
+// nil.
 //
 // If the source couldn't be read, the returned AST is nil and the error
 // indicates the specific failure. If the source was read but syntax

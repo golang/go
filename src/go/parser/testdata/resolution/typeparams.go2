@@ -9,16 +9,35 @@ type List /* =@List */ [E /* =@E */ any] []E // @E
 type Pair /* =@Pair */ [L /* =@L */, R /* =@R */ any] struct {
 	Left /* =@Left */ L // @L
 	Right /* =@Right */ R // @R
+	L /* =@Lfield */ int
 }
 
-var _ /* =@blank */ = Pair /* @Pair */ [int, string]{}
+var _ = Pair /* @Pair */ [int, string]{}
 
 type Addable /* =@Addable */ interface {
 	type int64, float64
 }
 
-// TODO (#45221): resolve references to T in the signature below.
-func Add /* =@AddDecl */[T /* =@T */ Addable /* @Addable */](l /* =@l */, r /* =@r */ T) T {
+func Add /* =@AddDecl */[T /* =@T */ Addable /* @Addable */](l /* =@l */, r /* =@r */ T /* @T */) T /* @T */ {
 	var t /* =@t */ T /* @T */
 	return l /* @l */ + r /* @r */ + t /* @t */
+}
+
+type Receiver /* =@Receiver */[P /* =@P */ any] struct {}
+
+// TODO(rFindley): make a decision on how/whether to resolve identifiers that
+// refer to receiver type parameters, as is the case for the 'P' result
+// parameter below.
+func (r /* =@recv */ Receiver /* @Receiver */ [P]) m() P {}
+
+func f /* =@f */[T1 /* =@T1 */ interface{type []T2 /* @T2 */}, T2 /* =@T2 */ any](
+  x /* =@x */ T1 /* @T1 */, T1 /* =@T1_duplicate */ y,  // Note that this is a bug:
+                                                        // the duplicate T1 should
+							// not be allowed.
+  ){
+  // Note that duplicate short var declarations resolve to their alt declaration.
+  x /* @x */ := 0
+  y /* =@y */ := 0
+  T1 /* @T1 */ := 0
+  var t1var /* =@t1var */ T1 /* @T1 */
 }

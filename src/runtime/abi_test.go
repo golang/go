@@ -21,17 +21,17 @@ import (
 	"time"
 )
 
-var regConfirmRun int
+var regConfirmRun chan int
 
 //go:registerparams
 func regFinalizerPointer(v *Tint) (int, float32, [10]byte) {
-	regConfirmRun = *(*int)(v)
+	regConfirmRun <- *(*int)(v)
 	return 5151, 4.0, [10]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 }
 
 //go:registerparams
 func regFinalizerIface(v Tinter) (int, float32, [10]byte) {
-	regConfirmRun = *(*int)(v.(*Tint))
+	regConfirmRun <- *(*int)(v.(*Tint))
 	return 5151, 4.0, [10]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 }
 
@@ -88,7 +88,7 @@ func TestFinalizerRegisterABI(t *testing.T) {
 	for i := range tests {
 		test := &tests[i]
 		t.Run(test.name, func(t *testing.T) {
-			regConfirmRun = 0
+			regConfirmRun = make(chan int)
 
 			x := new(Tint)
 			*x = (Tint)(test.confirmValue)
@@ -100,16 +100,13 @@ func TestFinalizerRegisterABI(t *testing.T) {
 			runtime.GC()
 			runtime.GC()
 
-			for i := 0; i < 100; i++ {
-				time.Sleep(10 * time.Millisecond)
-				if regConfirmRun != 0 {
-					break
-				}
-			}
-			if regConfirmRun == 0 {
+			select {
+			case <-time.After(time.Second):
 				t.Fatal("finalizer failed to execute")
-			} else if regConfirmRun != test.confirmValue {
-				t.Fatalf("wrong finalizer executed? regConfirmRun = %d", regConfirmRun)
+			case gotVal := <-regConfirmRun:
+				if gotVal != test.confirmValue {
+					t.Fatalf("wrong finalizer executed? got %d, want %d", gotVal, test.confirmValue)
+				}
 			}
 		})
 	}

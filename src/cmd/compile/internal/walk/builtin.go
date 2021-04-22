@@ -214,10 +214,7 @@ func walkDelete(init *ir.Nodes, n *ir.CallExpr) ir.Node {
 
 	t := map_.Type()
 	fast := mapfast(t)
-	if fast == mapslow {
-		// order.stmt made sure key is addressable.
-		key = typecheck.NodAddr(key)
-	}
+	key = mapKeyArg(fast, n, key)
 	return mkcall1(mapfndel(mapdelete[fast], t), nil, init, reflectdata.TypePtr(t), map_, key)
 }
 

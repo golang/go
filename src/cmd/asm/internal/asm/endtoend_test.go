@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/buildcfg"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -19,7 +20,6 @@ import (
 
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
-	"cmd/internal/objabi"
 )
 
 // An end-to-end test for the assembler: Do we print what we parse?
@@ -368,10 +368,10 @@ func Test386EndToEnd(t *testing.T) {
 }
 
 func TestARMEndToEnd(t *testing.T) {
-	defer func(old int) { objabi.GOARM = old }(objabi.GOARM)
+	defer func(old int) { buildcfg.GOARM = old }(buildcfg.GOARM)
 	for _, goarm := range []int{5, 6, 7} {
 		t.Logf("GOARM=%d", goarm)
-		objabi.GOARM = goarm
+		buildcfg.GOARM = goarm
 		testEndToEnd(t, "arm", "arm")
 		if goarm == 6 {
 			testEndToEnd(t, "arm", "armv6")

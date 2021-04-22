@@ -299,74 +299,6 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$runtime·lastcontinuehandler<ABIInternal>(SB), R1
 	B	sigtramp<>(SB)
 
-TEXT runtime·ctrlhandler<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$runtime·ctrlhandler1(SB), R1
-	B	runtime·externalthreadhandler<ABIInternal>(SB)
-
-TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$runtime·profileloop1(SB), R1
-	B	runtime·externalthreadhandler<ABIInternal>(SB)
-
-// externalthreadhander called with R0 = uint32 arg, R1 = Go function f.
-// Need to call f(arg), which returns a uint32, and return it in R0.
-TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|TOPFRAME,$96-0
-	NO_LOCAL_POINTERS
-
-	// Push C callee-save registers R19-R28. LR, FP already saved.
-	SAVE_R19_TO_R28(-10*8)
-
-	// Allocate space for args, saved R0+R1, g, and m structures.
-	// Hide from nosplit check.
-	#define extra ((64+g__size+m__size+15)&~15)
-	SUB	$extra, RSP, R2	// hide from nosplit overflow check
-	MOVD	R2, RSP
-
-	// Save R0 and R1 (our args).
-	MOVD	R0, 32(RSP)
-	MOVD	R1, 40(RSP)
-
-	// Zero out m and g structures.
-	MOVD	$64(RSP), R0
-	MOVD	R0, 8(RSP)
-	MOVD	$(m__size + g__size), R0
-	MOVD	R0, 16(RSP)
-	MOVD	$0, 0(RSP)	// not-saved LR
-	BL	runtime·memclrNoHeapPointers(SB)
-
-	// Initialize m and g structures.
-	MOVD	$64(RSP), g
-	MOVD	$g__size(g), R3		// m
-	MOVD	R3, g_m(g)		// g->m = m
-	MOVD	g, m_g0(R3)		// m->g0 = g
-	MOVD	g, m_curg(R3)		// m->curg = g
-	MOVD	RSP, R0
-	MOVD	R0, g_stack+stack_hi(g)
-	SUB	$(32*1024), R0
-	MOVD	R0, (g_stack+stack_lo)(g)
-	MOVD	R0, g_stackguard0(g)
-	MOVD	R0, g_stackguard1(g)
-	BL	runtime·save_g(SB)
-
-	// Call function.
-	MOVD	32(RSP), R0
-	MOVD	40(RSP), R1
-	MOVW	R0, 8(RSP)
-	BL	(R1)
-
-	// Clear g.
-	MOVD	$0, g
-	BL	runtime·save_g(SB)
-
-	// Load return value (save_g would have smashed)
-	MOVW	(2*8)(RSP), R0
-
-	ADD	$extra, RSP, R2
-	MOVD	R2, RSP
-	#undef extra
-
-	RESTORE_R19_TO_R28(-10*8)
-	RET
-
 GLOBL runtime·cbctxts(SB), NOPTR, $4
 
 TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$208-0
@@ -470,7 +402,9 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$16-0
 	ADD	$16, RSP
 	RET
 
-// See http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
+// See https://wrkhpi.wordpress.com/2007/08/09/getting-os-information-the-kuser_shared_data-structure/
+// Archived copy at:
+// http://web.archive.org/web/20210411000829/https://wrkhpi.wordpress.com/2007/08/09/getting-os-information-the-kuser_shared_data-structure/
 // Must read hi1, then lo, then hi2. The snapshot is valid if hi1 == hi2.
 #define _INTERRUPT_TIME 0x7ffe0008
 #define _SYSTEM_TIME 0x7ffe0014

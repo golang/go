@@ -143,11 +143,11 @@ func issue6487() {
 }
 
 func issue6766a() {
-	a, a /* ERROR redeclared */ := 1, 2
+	a, a /* ERROR a repeated on left side of := */ := 1, 2
 	_ = a
-	a, b, b /* ERROR redeclared */ := 1, 2, 3
+	a, b, b /* ERROR b repeated on left side of := */ := 1, 2, 3
 	_ = b
-	c, c /* ERROR redeclared */, b := 1, 2, 3
+	c, c /* ERROR c repeated on left side of := */, b := 1, 2, 3
 	_ = c
 	a, b := /* ERROR no new variables */ 1, 2
 }

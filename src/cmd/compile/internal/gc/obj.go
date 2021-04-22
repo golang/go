@@ -70,7 +70,7 @@ func dumpobj1(outfile string, mode int) {
 }
 
 func printObjHeader(bout *bio.Writer) {
-	fmt.Fprintf(bout, "go object %s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
+	bout.WriteString(objabi.HeaderString())
 	if base.Flag.BuildID != "" {
 		fmt.Fprintf(bout, "build id %q\n", base.Flag.BuildID)
 	}
@@ -256,6 +256,11 @@ func addGCLocals() {
 		}
 		if x := fn.OpenCodedDeferInfo; x != nil {
 			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
+		}
+		if x := fn.ArgInfo; x != nil {
+			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
+			x.Set(obj.AttrStatic, true)
+			x.Set(obj.AttrContentAddressable, true)
 		}
 	}
 }

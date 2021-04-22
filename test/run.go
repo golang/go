@@ -12,6 +12,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/build"
 	"hash/fnv"
 	"io"
 	"io/fs"
@@ -445,14 +446,13 @@ func (ctxt *context) match(name string) bool {
 		}
 	}
 
-	exp := os.Getenv("GOEXPERIMENT")
-	if exp != "" {
-		experiments := strings.Split(exp, ",")
-		for _, e := range experiments {
-			if name == "goexperiment."+e {
+	if strings.HasPrefix(name, "goexperiment.") {
+		for _, tag := range build.Default.ToolTags {
+			if tag == name {
 				return true
 			}
 		}
+		return false
 	}
 
 	if name == "cgo" && ctxt.cgoEnabled {

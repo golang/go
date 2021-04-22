@@ -1945,7 +1945,7 @@ func TestClientDoCanceledVsTimeout_h2(t *testing.T) {
 }
 
 // Issue 33545: lock-in the behavior promised by Client.Do's
-// docs about request cancelation vs timing out.
+// docs about request cancellation vs timing out.
 func testClientDoCanceledVsTimeout(t *testing.T, h2 bool) {
 	defer afterTest(t)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {

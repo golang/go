@@ -28,6 +28,7 @@ import (
 	"cmd/internal/src"
 	"flag"
 	"fmt"
+	"internal/buildcfg"
 	"log"
 	"os"
 	"runtime"
@@ -158,6 +159,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		dwarf.EnableLogging(base.Debug.DwarfInl != 0)
 	}
 	if base.Debug.SoftFloat != 0 {
+		if buildcfg.Experiment.RegabiArgs {
+			log.Fatalf("softfloat mode with GOEXPERIMENT=regabiargs not implemented ")
+		}
 		ssagen.Arch.SoftFloat = true
 	}
 
@@ -332,7 +336,7 @@ func writebench(filename string) error {
 	}
 
 	var buf bytes.Buffer
-	fmt.Fprintln(&buf, "commit:", objabi.Version)
+	fmt.Fprintln(&buf, "commit:", buildcfg.Version)
 	fmt.Fprintln(&buf, "goos:", runtime.GOOS)
 	fmt.Fprintln(&buf, "goarch:", runtime.GOARCH)
 	base.Timer.Write(&buf, "BenchmarkCompile:"+base.Ctxt.Pkgpath+":")

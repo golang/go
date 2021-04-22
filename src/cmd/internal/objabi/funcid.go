@@ -28,8 +28,7 @@ const (
 	FuncID_asmcgocall
 	FuncID_asyncPreempt
 	FuncID_cgocallback
-	FuncID_debugCallV1
-	FuncID_externalthreadhandler
+	FuncID_debugCallV2
 	FuncID_gcBgMarkWorker
 	FuncID_goexit
 	FuncID_gogo
@@ -50,28 +49,27 @@ const (
 )
 
 var funcIDs = map[string]FuncID{
-	"abort":                 FuncID_abort,
-	"asmcgocall":            FuncID_asmcgocall,
-	"asyncPreempt":          FuncID_asyncPreempt,
-	"cgocallback":           FuncID_cgocallback,
-	"debugCallV1":           FuncID_debugCallV1,
-	"externalthreadhandler": FuncID_externalthreadhandler,
-	"gcBgMarkWorker":        FuncID_gcBgMarkWorker,
-	"go":                    FuncID_rt0_go,
-	"goexit":                FuncID_goexit,
-	"gogo":                  FuncID_gogo,
-	"gopanic":               FuncID_gopanic,
-	"handleAsyncEvent":      FuncID_handleAsyncEvent,
-	"jmpdefer":              FuncID_jmpdefer,
-	"main":                  FuncID_runtime_main,
-	"mcall":                 FuncID_mcall,
-	"morestack":             FuncID_morestack,
-	"mstart":                FuncID_mstart,
-	"panicwrap":             FuncID_panicwrap,
-	"runfinq":               FuncID_runfinq,
-	"sigpanic":              FuncID_sigpanic,
-	"switch":                FuncID_systemstack_switch,
-	"systemstack":           FuncID_systemstack,
+	"abort":            FuncID_abort,
+	"asmcgocall":       FuncID_asmcgocall,
+	"asyncPreempt":     FuncID_asyncPreempt,
+	"cgocallback":      FuncID_cgocallback,
+	"debugCallV2":      FuncID_debugCallV2,
+	"gcBgMarkWorker":   FuncID_gcBgMarkWorker,
+	"go":               FuncID_rt0_go,
+	"goexit":           FuncID_goexit,
+	"gogo":             FuncID_gogo,
+	"gopanic":          FuncID_gopanic,
+	"handleAsyncEvent": FuncID_handleAsyncEvent,
+	"jmpdefer":         FuncID_jmpdefer,
+	"main":             FuncID_runtime_main,
+	"mcall":            FuncID_mcall,
+	"morestack":        FuncID_morestack,
+	"mstart":           FuncID_mstart,
+	"panicwrap":        FuncID_panicwrap,
+	"runfinq":          FuncID_runfinq,
+	"sigpanic":         FuncID_sigpanic,
+	"switch":           FuncID_systemstack_switch,
+	"systemstack":      FuncID_systemstack,
 
 	// Don't show in call stack but otherwise not special.
 	"deferreturn":       FuncID_wrapper,

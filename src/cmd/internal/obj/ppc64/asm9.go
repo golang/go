@@ -209,7 +209,7 @@ var optab = []Optab{
 	{as: AMOVB, a1: C_REG, a6: C_ADDR, type_: 74, size: 8},
 	{as: AMOVB, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
 	{as: AMOVB, a1: C_REG, a6: C_LOREG, type_: 35, size: 8},
-	{as: AMOVB, a1: C_REG, a6: C_REG, type_: 12, size: 4},
+	{as: AMOVB, a1: C_REG, a6: C_REG, type_: 13, size: 4},
 
 	{as: AMOVBZ, a1: C_ADDR, a6: C_REG, type_: 75, size: 8},
 	{as: AMOVBZ, a1: C_LOREG, a6: C_REG, type_: 36, size: 8},
@@ -229,17 +229,15 @@ var optab = []Optab{
 	{as: AMOVD, a1: C_LACON, a6: C_REG, type_: 26, size: 8},
 	{as: AMOVD, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},
 	{as: AMOVD, a1: C_LOREG, a6: C_REG, type_: 36, size: 8},
-	{as: AMOVD, a1: C_TLS_LE, a6: C_REG, type_: 79, size: 4},
-	{as: AMOVD, a1: C_TLS_IE, a6: C_REG, type_: 80, size: 8},
+	{as: AMOVD, a1: C_TLS_LE, a6: C_REG, type_: 79, size: 8},
+	{as: AMOVD, a1: C_TLS_IE, a6: C_REG, type_: 80, size: 12},
 	{as: AMOVD, a1: C_TOCADDR, a6: C_REG, type_: 95, size: 8},
 	{as: AMOVD, a1: C_SPR, a6: C_REG, type_: 66, size: 4},
-	{as: AMOVD, a1: C_MSR, a6: C_REG, type_: 54, size: 4}, /* mfmsr */
 	{as: AMOVD, a1: C_REG, a6: C_ADDR, type_: 74, size: 8},
 	{as: AMOVD, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
 	{as: AMOVD, a1: C_REG, a6: C_LOREG, type_: 35, size: 8},
-	{as: AMOVD, a1: C_REG, a6: C_MSR, type_: 54, size: 4}, /* mtmsrd */
 	{as: AMOVD, a1: C_REG, a6: C_SPR, type_: 66, size: 4},
-	{as: AMOVD, a1: C_REG, a6: C_REG, type_: 1, size: 4},
+	{as: AMOVD, a1: C_REG, a6: C_REG, type_: 13, size: 4},
 
 	{as: AMOVW, a1: C_ADDCON, a6: C_REG, type_: 3, size: 4},
 	{as: AMOVW, a1: C_ANDCON, a6: C_REG, type_: 3, size: 4},
@@ -257,26 +255,7 @@ var optab = []Optab{
 	{as: AMOVW, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
 	{as: AMOVW, a1: C_REG, a6: C_LOREG, type_: 35, size: 8},
 	{as: AMOVW, a1: C_REG, a6: C_SPR, type_: 66, size: 4},
-	{as: AMOVW, a1: C_REG, a6: C_REG, type_: 12, size: 4},
-
-	{as: AMOVWZ, a1: C_ADDCON, a6: C_REG, type_: 3, size: 4},
-	{as: AMOVWZ, a1: C_ANDCON, a6: C_REG, type_: 3, size: 4},
-	{as: AMOVWZ, a1: C_UCON, a6: C_REG, type_: 3, size: 4},
-	{as: AMOVWZ, a1: C_SACON, a6: C_REG, type_: 3, size: 4},
-	{as: AMOVWZ, a1: C_ADDR, a6: C_REG, type_: 75, size: 8},
-	{as: AMOVWZ, a1: C_LCON, a6: C_REG, type_: 19, size: 8},
-	{as: AMOVWZ, a1: C_CREG, a6: C_REG, type_: 68, size: 4},
-	{as: AMOVWZ, a1: C_LACON, a6: C_REG, type_: 26, size: 8},
-	{as: AMOVWZ, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},
-	{as: AMOVWZ, a1: C_LOREG, a6: C_REG, type_: 36, size: 8},
-	{as: AMOVWZ, a1: C_SPR, a6: C_REG, type_: 66, size: 4},
-	{as: AMOVWZ, a1: C_REG, a6: C_ADDR, type_: 74, size: 8},
-	{as: AMOVWZ, a1: C_REG, a6: C_CREG, type_: 69, size: 4},
-	{as: AMOVWZ, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
-	{as: AMOVWZ, a1: C_REG, a6: C_LOREG, type_: 35, size: 8},
-	{as: AMOVWZ, a1: C_REG, a6: C_MSR, type_: 54, size: 4}, /* mtmsr */
-	{as: AMOVWZ, a1: C_REG, a6: C_SPR, type_: 66, size: 4},
-	{as: AMOVWZ, a1: C_REG, a6: C_REG, type_: 13, size: 4},
+	{as: AMOVW, a1: C_REG, a6: C_REG, type_: 13, size: 4},
 
 	{as: AFMOVD, a1: C_ADDCON, a6: C_FREG, type_: 24, size: 8},
 	{as: AFMOVD, a1: C_SOREG, a6: C_FREG, type_: 8, size: 4},
@@ -806,9 +785,6 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 		}
 		if a.Reg == REG_FPSCR {
 			return C_FPSCR
-		}
-		if a.Reg == REG_MSR {
-			return C_MSR
 		}
 		return C_GOK
 
@@ -1931,6 +1907,9 @@ func buildop(ctxt *obj.Link) {
 		case AFTSQRT:
 			opset(AFTSQRT, r0)
 
+		case AMOVW: /* load/store/move word with sign extension; move 32-bit literals  */
+			opset(AMOVWZ, r0) /* Same as above, but zero extended */
+
 		case AADD,
 			AADDIS,
 			AANDCC, /* and. Rb,Rs,Ra; andi. $uimm,Rs,Ra */
@@ -1938,9 +1917,6 @@ func buildop(ctxt *obj.Link) {
 			AFMOVSX,
 			AFMOVSZ,
 			ALSW,
-			AMOVW,
-			/* load/store/move word with sign extension; special 32-bit move; move 32-bit literals */
-			AMOVWZ, /* load/store/move word with zero extension; move 32-bit literals  */
 			AMOVD,  /* load/store/move 64-bit values, including 32-bit literals with/without sign-extension */
 			AMOVB,  /* macro: move byte with sign extension */
 			AMOVBU, /* macro: move byte with sign extension & update */
@@ -2009,6 +1985,11 @@ func OPVCC(o uint32, xo uint32, oe uint32, rc uint32) uint32 {
 
 func OPCC(o uint32, xo uint32, rc uint32) uint32 {
 	return OPVCC(o, xo, 0, rc)
+}
+
+/* Generate MD-form opcode */
+func OPMD(o, xo, rc uint32) uint32 {
+	return o<<26 | xo<<2 | rc&1
 }
 
 /* the order is dest, a/s, b/imm for both arithmetic and logical operations */
@@ -2166,15 +2147,12 @@ const (
 	OP_MCRXR    = 31<<26 | 512<<1 | 0<<10 | 0
 	OP_MFCR     = 31<<26 | 19<<1 | 0<<10 | 0
 	OP_MFFS     = 63<<26 | 583<<1 | 0<<10 | 0
-	OP_MFMSR    = 31<<26 | 83<<1 | 0<<10 | 0
 	OP_MFSPR    = 31<<26 | 339<<1 | 0<<10 | 0
 	OP_MFSR     = 31<<26 | 595<<1 | 0<<10 | 0
 	OP_MFSRIN   = 31<<26 | 659<<1 | 0<<10 | 0
 	OP_MTCRF    = 31<<26 | 144<<1 | 0<<10 | 0
 	OP_MTFSF    = 63<<26 | 711<<1 | 0<<10 | 0
 	OP_MTFSFI   = 63<<26 | 134<<1 | 0<<10 | 0
-	OP_MTMSR    = 31<<26 | 146<<1 | 0<<10 | 0
-	OP_MTMSRD   = 31<<26 | 178<<1 | 0<<10 | 0
 	OP_MTSPR    = 31<<26 | 467<<1 | 0<<10 | 0
 	OP_MTSR     = 31<<26 | 210<<1 | 0<<10 | 0
 	OP_MTSRIN   = 31<<26 | 242<<1 | 0<<10 | 0
@@ -2401,20 +2379,6 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 0: /* pseudo ops */
 		break
 
-	case 1: /* mov r1,r2 ==> OR Rs,Rs,Ra */
-		if p.To.Reg == REGZERO && p.From.Type == obj.TYPE_CONST {
-			v := c.regoff(&p.From)
-			if r0iszero != 0 /*TypeKind(100016)*/ && v != 0 {
-				//nerrors--;
-				c.ctxt.Diag("literal operation on R0\n%v", p)
-			}
-
-			o1 = LOP_IRR(OP_ADDI, REGZERO, REGZERO, uint32(v))
-			break
-		}
-
-		o1 = LOP_RRR(OP_OR, uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.From.Reg))
-
 	case 2: /* int/cr/fp op Rb,[Ra],Rd */
 		r := int(p.Reg)
 
@@ -2509,18 +2473,6 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			if v != 0 {
 				c.ctxt.Diag("illegal indexed instruction\n%v", p)
 			}
-			if c.ctxt.Flag_shared && r == REG_R13 {
-				rel := obj.Addrel(c.cursym)
-				rel.Off = int32(c.pc)
-				rel.Siz = 4
-				// This (and the matching part in the load case
-				// below) are the only places in the ppc64 toolchain
-				// that knows the name of the tls variable. Possibly
-				// we could add some assembly syntax so that the name
-				// of the variable does not have to be assumed.
-				rel.Sym = c.ctxt.Lookup("runtime.tls_g")
-				rel.Type = objabi.R_POWER_TLS
-			}
 			o1 = AOP_RRR(c.opstorex(p.As), uint32(p.From.Reg), uint32(p.To.Index), uint32(r))
 		} else {
 			if int32(int16(v)) != v {
@@ -2544,13 +2496,6 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.From.Type == obj.TYPE_MEM && p.From.Index != 0 {
 			if v != 0 {
 				c.ctxt.Diag("illegal indexed instruction\n%v", p)
-			}
-			if c.ctxt.Flag_shared && r == REG_R13 {
-				rel := obj.Addrel(c.cursym)
-				rel.Off = int32(c.pc)
-				rel.Siz = 4
-				rel.Sym = c.ctxt.Lookup("runtime.tls_g")
-				rel.Type = objabi.R_POWER_TLS
 			}
 			o1 = AOP_RRR(c.oploadx(p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(r))
 		} else {
@@ -2622,34 +2567,35 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o2 = 0x60000000 // nop, sometimes overwritten by ld r2, 24(r1) when dynamic linking
 
-	case 12: /* movb r,r (extsb); movw r,r (extsw) */
-		if p.To.Reg == REGZERO && p.From.Type == obj.TYPE_CONST {
-			v := c.regoff(&p.From)
-			if r0iszero != 0 /*TypeKind(100016)*/ && v != 0 {
-				c.ctxt.Diag("literal operation on R0\n%v", p)
-			}
-
-			o1 = LOP_IRR(OP_ADDI, REGZERO, REGZERO, uint32(v))
+	case 13: /* mov[bhwd]{z,} r,r */
+		// This needs to handle "MOV* $0, Rx".  This shows up because $0 also
+		// matches C_REG if r0iszero. This happens because C_REG sorts before C_ANDCON
+		// TODO: fix the above behavior and cleanup this exception.
+		if p.From.Type == obj.TYPE_CONST {
+			o1 = LOP_IRR(OP_ADDI, REGZERO, uint32(p.To.Reg), 0)
 			break
 		}
-
-		if p.As == AMOVW {
-			o1 = LOP_RRR(OP_EXTSW, uint32(p.To.Reg), uint32(p.From.Reg), 0)
-		} else {
-			o1 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.From.Reg), 0)
+		if p.To.Type == obj.TYPE_CONST {
+			c.ctxt.Diag("cannot move into constant 0\n%v", p)
 		}
 
-	case 13: /* mov[bhw]z r,r; uses rlwinm not andi. to avoid changing CC */
-		if p.As == AMOVBZ {
+		switch p.As {
+		case AMOVB:
+			o1 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.From.Reg), 0)
+		case AMOVBZ:
 			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.From.Reg), 0, 24, 31)
-		} else if p.As == AMOVH {
+		case AMOVH:
 			o1 = LOP_RRR(OP_EXTSH, uint32(p.To.Reg), uint32(p.From.Reg), 0)
-		} else if p.As == AMOVHZ {
+		case AMOVHZ:
 			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.From.Reg), 0, 16, 31)
-		} else if p.As == AMOVWZ {
+		case AMOVW:
+			o1 = LOP_RRR(OP_EXTSW, uint32(p.To.Reg), uint32(p.From.Reg), 0)
+		case AMOVWZ:
 			o1 = OP_RLW(OP_RLDIC, uint32(p.To.Reg), uint32(p.From.Reg), 0, 0, 0) | 1<<5 /* MB=32 */
-		} else {
-			c.ctxt.Diag("internal: bad mov[bhw]z\n%v", p)
+		case AMOVD:
+			o1 = LOP_RRR(OP_OR, uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.From.Reg))
+		default:
+			c.ctxt.Diag("internal: bad register move/truncation\n%v", p)
 		}
 
 	case 14: /* rldc[lr] Rb,Rs,$mask,Ra -- left, right give different masks */
@@ -3251,17 +3197,6 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 53: /* mffsX ,fr1 */
 		o1 = AOP_RRR(OP_MFFS, uint32(p.To.Reg), 0, 0)
 
-	case 54: /* mov msr,r1; mov r1, msr*/
-		if oclass(&p.From) == C_REG {
-			if p.As == AMOVD {
-				o1 = AOP_RRR(OP_MTMSRD, uint32(p.From.Reg), 0, 0)
-			} else {
-				o1 = AOP_RRR(OP_MTMSR, uint32(p.From.Reg), 0, 0)
-			}
-		} else {
-			o1 = AOP_RRR(OP_MFMSR, uint32(p.To.Reg), 0, 0)
-		}
-
 	case 55: /* op Rb, Rd */
 		o1 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), 0, uint32(p.From.Reg))
 
@@ -3531,10 +3466,11 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.From.Offset != 0 {
 			c.ctxt.Diag("invalid offset against tls var %v", p)
 		}
-		o1 = AOP_IRR(OP_ADDI, uint32(p.To.Reg), REGZERO, 0)
+		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R13, 0)
+		o2 = AOP_IRR(OP_ADDI, uint32(p.To.Reg), uint32(p.To.Reg), 0)
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
-		rel.Siz = 4
+		rel.Siz = 8
 		rel.Sym = p.From.Sym
 		rel.Type = objabi.R_POWER_TLS_LE
 
@@ -3544,11 +3480,17 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
 		o2 = AOP_IRR(c.opload(AMOVD), uint32(p.To.Reg), uint32(p.To.Reg), 0)
+		o3 = AOP_RRR(OP_ADD, uint32(p.To.Reg), uint32(p.To.Reg), REG_R13)
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 8
 		rel.Sym = p.From.Sym
 		rel.Type = objabi.R_POWER_TLS_IE
+		rel = obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc) + 8
+		rel.Siz = 4
+		rel.Sym = p.From.Sym
+		rel.Type = objabi.R_POWER_TLS
 
 	case 81:
 		v := c.vregoff(&p.To)
@@ -4293,14 +4235,14 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 	case ARLDICLCC:
 		return OPVCC(30, 0, 0, 1)
 	case ARLDICR:
-		return OPVCC(30, 0, 0, 0) | 2<<1 // rldicr
+		return OPMD(30, 1, 0) // rldicr
 	case ARLDICRCC:
-		return OPVCC(30, 0, 0, 1) | 2<<1 // rldicr.
+		return OPMD(30, 1, 1) // rldicr.
 
 	case ARLDIC:
-		return OPVCC(30, 0, 0, 0) | 4<<1 // rldic
+		return OPMD(30, 2, 0) // rldic
 	case ARLDICCC:
-		return OPVCC(30, 0, 0, 1) | 4<<1 // rldic.
+		return OPMD(30, 2, 1) // rldic.
 
 	case ASYSCALL:
 		return OPVCC(17, 1, 0, 0)
@@ -4958,30 +4900,30 @@ func (c *ctxt9) opirr(a obj.As) uint32 {
 	case ARLWMICC:
 		return OPVCC(20, 0, 0, 1)
 	case ARLDMI:
-		return OPVCC(30, 0, 0, 0) | 3<<2 /* rldimi */
+		return OPMD(30, 3, 0) /* rldimi */
 	case ARLDMICC:
-		return OPVCC(30, 0, 0, 1) | 3<<2
+		return OPMD(30, 3, 1) /* rldimi. */
 	case ARLDIMI:
-		return OPVCC(30, 0, 0, 0) | 3<<2 /* rldimi */
+		return OPMD(30, 3, 0) /* rldimi */
 	case ARLDIMICC:
-		return OPVCC(30, 0, 0, 1) | 3<<2
+		return OPMD(30, 3, 1) /* rldimi. */
 	case ARLWNM:
 		return OPVCC(21, 0, 0, 0) /* rlwinm */
 	case ARLWNMCC:
 		return OPVCC(21, 0, 0, 1)
 
 	case ARLDCL:
-		return OPVCC(30, 0, 0, 0) /* rldicl */
+		return OPMD(30, 0, 0) /* rldicl */
 	case ARLDCLCC:
-		return OPVCC(30, 0, 0, 1)
+		return OPMD(30, 0, 1) /* rldicl. */
 	case ARLDCR:
-		return OPVCC(30, 1, 0, 0) /* rldicr */
+		return OPMD(30, 1, 0) /* rldicr */
 	case ARLDCRCC:
-		return OPVCC(30, 1, 0, 1)
+		return OPMD(30, 1, 1) /* rldicr. */
 	case ARLDC:
-		return OPVCC(30, 0, 0, 0) | 2<<2
+		return OPMD(30, 2, 0) /* rldic */
 	case ARLDCCC:
-		return OPVCC(30, 0, 0, 1) | 2<<2
+		return OPMD(30, 2, 1) /* rldic. */
 
 	case ASRAW:
 		return OPVCC(31, 824, 0, 0)

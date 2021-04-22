@@ -16,6 +16,9 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/abi"
+	"internal/goexperiment"
+	"math"
 	"os"
 	"regexp"
 	"runtime"
@@ -115,21 +118,49 @@ func TestDebugCall(t *testing.T) {
 	g, after := startDebugCallWorker(t)
 	defer after()
 
+	type stackArgs struct {
+		x0    int
+		x1    float64
+		y0Ret int
+		y1Ret float64
+	}
+
 	// Inject a call into the debugCallWorker goroutine and test
 	// basic argument and result passing.
-	var args struct {
-		x    int
-		yRet int
+	fn := func(x int, y float64) (y0Ret int, y1Ret float64) {
+		return x + 1, y + 1.0
 	}
-	fn := func(x int) (yRet int) {
-		return x + 1
+	var args *stackArgs
+	var regs abi.RegArgs
+	intRegs := regs.Ints[:]
+	floatRegs := regs.Floats[:]
+	fval := float64(42.0)
+	if goexperiment.RegabiArgs {
+		intRegs[0] = 42
+		floatRegs[0] = math.Float64bits(fval)
+	} else {
+		args = &stackArgs{
+			x0: 42,
+			x1: 42.0,
+		}
 	}
-	args.x = 42
-	if _, err := runtime.InjectDebugCall(g, fn, &args, debugCallTKill, false); err != nil {
+	if _, err := runtime.InjectDebugCall(g, fn, &regs, args, debugCallTKill, false); err != nil {
 		t.Fatal(err)
 	}
-	if args.yRet != 43 {
-		t.Fatalf("want 43, got %d", args.yRet)
+	var result0 int
+	var result1 float64
+	if goexperiment.RegabiArgs {
+		result0 = int(intRegs[0])
+		result1 = math.Float64frombits(floatRegs[0])
+	} else {
+		result0 = args.y0Ret
+		result1 = args.y1Ret
+	}
+	if result0 != 43 {
+		t.Errorf("want 43, got %d", result0)
+	}
+	if result1 != fval+1 {
+		t.Errorf("want 43, got %f", result1)
 	}
 }
 
@@ -154,7 +185,7 @@ func TestDebugCallLarge(t *testing.T) {
 		args.in[i] = i
 		want[i] = i + 1
 	}
-	if _, err := runtime.InjectDebugCall(g, fn, &args, debugCallTKill, false); err != nil {
+	if _, err := runtime.InjectDebugCall(g, fn, nil, &args, debugCallTKill, false); err != nil {
 		t.Fatal(err)
 	}
 	if want != args.out {
@@ -167,7 +198,7 @@ func TestDebugCallGC(t *testing.T) {
 	defer after()
 
 	// Inject a call that performs a GC.
-	if _, err := runtime.InjectDebugCall(g, runtime.GC, nil, debugCallTKill, false); err != nil {
+	if _, err := runtime.InjectDebugCall(g, runtime.GC, nil, nil, debugCallTKill, false); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -178,7 +209,7 @@ func TestDebugCallGrowStack(t *testing.T) {
 
 	// Inject a call that grows the stack. debugCallWorker checks
 	// for stack pointer breakage.
-	if _, err := runtime.InjectDebugCall(g, func() { growStack(nil) }, nil, debugCallTKill, false); err != nil {
+	if _, err := runtime.InjectDebugCall(g, func() { growStack(nil) }, nil, nil, debugCallTKill, false); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -214,7 +245,7 @@ func TestDebugCallUnsafePoint(t *testing.T) {
 		runtime.Gosched()
 	}
 
-	_, err := runtime.InjectDebugCall(g, func() {}, nil, debugCallTKill, true)
+	_, err := runtime.InjectDebugCall(g, func() {}, nil, nil, debugCallTKill, true)
 	if msg := "call not at safe point"; err == nil || err.Error() != msg {
 		t.Fatalf("want %q, got %s", msg, err)
 	}
@@ -238,7 +269,7 @@ func TestDebugCallPanic(t *testing.T) {
 	}()
 	g := <-ready
 
-	p, err := runtime.InjectDebugCall(g, func() { panic("test") }, nil, debugCallTKill, false)
+	p, err := runtime.InjectDebugCall(g, func() { panic("test") }, nil, nil, debugCallTKill, false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"internal/buildcfg"
 	"io"
 	"io/ioutil"
 	"log"
@@ -91,16 +92,18 @@ func (versionFlag) Set(s string) error {
 	name = name[strings.LastIndex(name, `\`)+1:]
 	name = strings.TrimSuffix(name, ".exe")
 
-	// If there's an active experiment, include that,
-	// to distinguish go1.10.2 with an experiment
-	// from go1.10.2 without an experiment.
-	p := Expstring()
-	if p == defaultExpstring {
-		p = ""
-	}
-	sep := ""
-	if p != "" {
-		sep = " "
+	p := ""
+
+	if s == "goexperiment" {
+		// test/run.go uses this to discover the full set of
+		// experiment tags. Report everything.
+		p = " X:" + strings.Join(buildcfg.AllExperiments(), ",")
+	} else {
+		// If the enabled experiments differ from the defaults,
+		// include that difference.
+		if goexperiment := buildcfg.GOEXPERIMENT(); goexperiment != "" {
+			p = " X:" + goexperiment
+		}
 	}
 
 	// The go command invokes -V=full to get a unique identifier
@@ -109,12 +112,12 @@ func (versionFlag) Set(s string) error {
 	// build ID of the binary, so that if the compiler is changed and
 	// rebuilt, we notice and rebuild all packages.
 	if s == "full" {
-		if strings.HasPrefix(Version, "devel") {
+		if strings.HasPrefix(buildcfg.Version, "devel") {
 			p += " buildID=" + buildID
 		}
 	}
 
-	fmt.Printf("%s version %s%s%s\n", name, Version, sep, p)
+	fmt.Printf("%s version %s%s\n", name, buildcfg.Version, p)
 	os.Exit(0)
 	return nil
 }

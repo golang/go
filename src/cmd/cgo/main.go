@@ -17,6 +17,7 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"internal/buildcfg"
 	"io"
 	"io/ioutil"
 	"os"
@@ -414,8 +415,9 @@ func newPackage(args []string) *Package {
 	if s := os.Getenv("GOOS"); s != "" {
 		goos = s
 	}
-	gomips = objabi.GOMIPS
-	gomips64 = objabi.GOMIPS64
+	buildcfg.Check()
+	gomips = buildcfg.GOMIPS
+	gomips64 = buildcfg.GOMIPS64
 	ptrSize := ptrSizeMap[goarch]
 	if ptrSize == 0 {
 		fatalf("unknown ptrSize for $GOARCH %q", goarch)

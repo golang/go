@@ -16,8 +16,6 @@ func rot64(x uint64) uint64 {
 	var a uint64
 
 	// amd64:"ROLQ\t[$]7"
-	// arm64:"ROR\t[$]57"
-	// s390x:"RISBGZ\t[$]0, [$]63, [$]7, "
 	// ppc64:"ROTL\t[$]7"
 	// ppc64le:"ROTL\t[$]7"
 	a += x<<7 | x>>57
@@ -36,6 +34,8 @@ func rot64(x uint64) uint64 {
 	// ppc64le:"ROTL\t[$]9"
 	a += x<<9 ^ x>>55
 
+	// s390x:"RISBGZ\t[$]0, [$]63, [$]7, "
+	// arm64:"ROR\t[$]57" // TODO this is not great line numbering, but then again, the instruction did appear
 	return a
 }
 
@@ -44,8 +44,6 @@ func rot32(x uint32) uint32 {
 
 	// amd64:"ROLL\t[$]7"
 	// arm:"MOVW\tR\\d+@>25"
-	// arm64:"RORW\t[$]25"
-	// s390x:"RLL\t[$]7"
 	// ppc64:"ROTLW\t[$]7"
 	// ppc64le:"ROTLW\t[$]7"
 	a += x<<7 | x>>25
@@ -66,6 +64,8 @@ func rot32(x uint32) uint32 {
 	// ppc64le:"ROTLW\t[$]9"
 	a += x<<9 ^ x>>23
 
+	// s390x:"RLL\t[$]7"
+	// arm64:"RORW\t[$]25" // TODO this is not great line numbering, but then again, the instruction did appear
 	return a
 }
 

@@ -6,6 +6,7 @@ package reflect
 
 import (
 	"internal/abi"
+	"internal/goexperiment"
 	"unsafe"
 )
 
@@ -28,9 +29,9 @@ import (
 // commented out there should be the actual values once
 // we're ready to use the register ABI everywhere.
 var (
-	intArgRegs   = abi.IntArgRegs * experimentRegabiArgs
-	floatArgRegs = abi.FloatArgRegs * experimentRegabiArgs
-	floatRegSize = uintptr(abi.EffectiveFloatRegSize * experimentRegabiArgs)
+	intArgRegs   = abi.IntArgRegs * goexperiment.RegabiArgsInt
+	floatArgRegs = abi.FloatArgRegs * goexperiment.RegabiArgsInt
+	floatRegSize = uintptr(abi.EffectiveFloatRegSize * goexperiment.RegabiArgsInt)
 )
 
 // abiStep represents an ABI "instruction." Each instruction
@@ -365,6 +366,22 @@ func (a *abiDesc) dump() {
 	println("stackCallArgsSize", a.stackCallArgsSize)
 	println("retOffset", a.retOffset)
 	println("spill", a.spill)
+	print("inRegPtrs:")
+	dumpPtrBitMap(a.inRegPtrs)
+	println()
+	print("outRegPtrs:")
+	dumpPtrBitMap(a.outRegPtrs)
+	println()
+}
+
+func dumpPtrBitMap(b abi.IntArgRegBitmap) {
+	for i := 0; i < intArgRegs; i++ {
+		x := 0
+		if b.Get(i) {
+			x = 1
+		}
+		print(" ", x)
+	}
 }
 
 func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {

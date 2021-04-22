@@ -43,6 +43,21 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="go-command">Go command</h3>
 
+<h4 id="modules">Modules</h4>
+
+<p><!-- golang.org/issue/40357 -->
+  Module authors may deprecate a module by adding a
+  <a href="/ref/mod#go-mod-file-module-deprecation"><code>// Deprecated:</code>
+  comment</a> to <code>go.mod</code>, then tagging a new version.
+  <code>go</code> <code>get</code> now prints a warning if a module needed to
+  build packages named on the command line is deprecated. <code>go</code>
+  <code>list</code> <code>-m</code> <code>-u</code> prints deprecations for all
+  dependencies (use <code>-f</code> or <code>-json</code> to show the full
+  message). The <code>go</code> command considers different major versions to
+  be distinct modules, so this mechanism may be used, for example, to provide
+  users with migration instructions for a new major version.
+</p>
+
 <h4 id="go-get"><code>go</code> <code>get</code></h4>
 
 <p><!-- golang.org/issue/37519 -->

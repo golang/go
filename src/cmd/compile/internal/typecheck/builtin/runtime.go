@@ -46,6 +46,7 @@ func goPanicSlice3B(x int, y int)
 func goPanicSlice3BU(x uint, y int)
 func goPanicSlice3C(x int, y int)
 func goPanicSlice3CU(x uint, y int)
+func goPanicSliceConvert(x int, y int)
 
 func printbool(bool)
 func printfloat(float64)
@@ -87,13 +88,16 @@ func convI2I(typ *byte, elem any) (ret any)
 
 // Specialized type-to-interface conversion.
 // These return only a data pointer.
-func convT16(val any) unsafe.Pointer     // val must be uint16-like (same size and alignment as a uint16)
-func convT32(val any) unsafe.Pointer     // val must be uint32-like (same size and alignment as a uint32)
-func convT32F(val any) unsafe.Pointer    // val must be float32-like
-func convT64(val any) unsafe.Pointer     // val must be uint64-like (same size and alignment as a uint64 and contains no pointers)
-func convT64F(val any) unsafe.Pointer    // val must be float64-like
-func convTstring(val any) unsafe.Pointer // val must be a string
-func convTslice(val any) unsafe.Pointer  // val must be a slice
+// These functions take concrete types in the runtime. But they may
+// be used for a wider range of types, which have the same memory
+// layout as the parameter type. The compiler converts the
+// to-be-converted type to the parameter type before calling the
+// runtime function. This way, the call is ABI-insensitive.
+func convT16(val uint16) unsafe.Pointer
+func convT32(val uint32) unsafe.Pointer
+func convT64(val uint64) unsafe.Pointer
+func convTstring(val string) unsafe.Pointer
+func convTslice(val []uint8) unsafe.Pointer
 
 // Type to empty-interface conversion.
 func convT2E(typ *byte, elem *any) (ret any)
@@ -124,26 +128,26 @@ func makemap64(mapType *byte, hint int64, mapbuf *any) (hmap map[any]any)
 func makemap(mapType *byte, hint int, mapbuf *any) (hmap map[any]any)
 func makemap_small() (hmap map[any]any)
 func mapaccess1(mapType *byte, hmap map[any]any, key *any) (val *any)
-func mapaccess1_fast32(mapType *byte, hmap map[any]any, key any) (val *any)
-func mapaccess1_fast64(mapType *byte, hmap map[any]any, key any) (val *any)
-func mapaccess1_faststr(mapType *byte, hmap map[any]any, key any) (val *any)
+func mapaccess1_fast32(mapType *byte, hmap map[any]any, key uint32) (val *any)
+func mapaccess1_fast64(mapType *byte, hmap map[any]any, key uint64) (val *any)
+func mapaccess1_faststr(mapType *byte, hmap map[any]any, key string) (val *any)
 func mapaccess1_fat(mapType *byte, hmap map[any]any, key *any, zero *byte) (val *any)
 func mapaccess2(mapType *byte, hmap map[any]any, key *any) (val *any, pres bool)
-func mapaccess2_fast32(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
-func mapaccess2_fast64(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
-func mapaccess2_faststr(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
+func mapaccess2_fast32(mapType *byte, hmap map[any]any, key uint32) (val *any, pres bool)
+func mapaccess2_fast64(mapType *byte, hmap map[any]any, key uint64) (val *any, pres bool)
+func mapaccess2_faststr(mapType *byte, hmap map[any]any, key string) (val *any, pres bool)
 func mapaccess2_fat(mapType *byte, hmap map[any]any, key *any, zero *byte) (val *any, pres bool)
 func mapassign(mapType *byte, hmap map[any]any, key *any) (val *any)
-func mapassign_fast32(mapType *byte, hmap map[any]any, key any) (val *any)
-func mapassign_fast32ptr(mapType *byte, hmap map[any]any, key any) (val *any)
-func mapassign_fast64(mapType *byte, hmap map[any]any, key any) (val *any)
-func mapassign_fast64ptr(mapType *byte, hmap map[any]any, key any) (val *any)
-func mapassign_faststr(mapType *byte, hmap map[any]any, key any) (val *any)
+func mapassign_fast32(mapType *byte, hmap map[any]any, key uint32) (val *any)
+func mapassign_fast32ptr(mapType *byte, hmap map[any]any, key unsafe.Pointer) (val *any)
+func mapassign_fast64(mapType *byte, hmap map[any]any, key uint64) (val *any)
+func mapassign_fast64ptr(mapType *byte, hmap map[any]any, key unsafe.Pointer) (val *any)
+func mapassign_faststr(mapType *byte, hmap map[any]any, key string) (val *any)
 func mapiterinit(mapType *byte, hmap map[any]any, hiter *any)
 func mapdelete(mapType *byte, hmap map[any]any, key *any)
-func mapdelete_fast32(mapType *byte, hmap map[any]any, key any)
-func mapdelete_fast64(mapType *byte, hmap map[any]any, key any)
-func mapdelete_faststr(mapType *byte, hmap map[any]any, key any)
+func mapdelete_fast32(mapType *byte, hmap map[any]any, key uint32)
+func mapdelete_fast64(mapType *byte, hmap map[any]any, key uint64)
+func mapdelete_faststr(mapType *byte, hmap map[any]any, key string)
 func mapiternext(hiter *any)
 func mapclear(mapType *byte, hmap map[any]any)
 

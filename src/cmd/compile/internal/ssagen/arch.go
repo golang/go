@@ -5,8 +5,10 @@
 package ssagen
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 )
 
@@ -44,4 +46,7 @@ type ArchInfo struct {
 	// into registers. They are already in memory (PPARAMOUT nodes).
 	// Used in open-coded defer return path.
 	LoadRegResults func(s *State, f *ssa.Func)
+
+	// SpillArgReg emits instructions that spill reg to n+off.
+	SpillArgReg func(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog
 }

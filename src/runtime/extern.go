@@ -240,11 +240,21 @@ func GOROOT() string {
 	return defaultGOROOT
 }
 
+// buildVersion is the Go tree's version string at build time.
+//
+// If any GOEXPERIMENTs are set to non-default values, it will include
+// "X:<GOEXPERIMENT>".
+//
+// This is set by the linker.
+//
+// This is accessed by "go version <binary>".
+var buildVersion string
+
 // Version returns the Go tree's version string.
 // It is either the commit hash and date at the time of the build or,
 // when possible, a release tag like "go1.3".
 func Version() string {
-	return sys.TheVersion
+	return buildVersion
 }
 
 // GOOS is the running program's operating system target:

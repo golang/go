@@ -65,7 +65,7 @@ func runFmt(ctx context.Context, cmd *base.Command, args []string) {
 			}
 		}()
 	}
-	for _, pkg := range load.PackagesAndErrors(ctx, args) {
+	for _, pkg := range load.PackagesAndErrors(ctx, load.PackageOpts{}, args) {
 		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
 			if !printed {
 				fmt.Fprintf(os.Stderr, "go: not formatting packages in dependency modules\n")

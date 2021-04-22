@@ -245,9 +245,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 	newSym := func(name string, version int) loader.Sym {
 		return l.CreateStaticSym(name)
 	}
-	lookup := func(name string, version int) loader.Sym {
-		return l.LookupOrCreateSym(name, version)
-	}
+	lookup := l.LookupOrCreateCgoExport
 	errorf := func(str string, args ...interface{}) ([]loader.Sym, uint32, error) {
 		return nil, 0, fmt.Errorf("loadelf: %s: %v", pn, fmt.Sprintf(str, args...))
 	}

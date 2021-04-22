@@ -156,75 +156,6 @@ TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT,$0-0
 	MOVL	$runtime·lastcontinuehandler(SB), AX
 	JMP	sigtramp<>(SB)
 
-// Called by OS using stdcall ABI: bool ctrlhandler(uint32).
-TEXT runtime·ctrlhandler<ABIInternal>(SB),NOSPLIT,$0
-	PUSHL	$runtime·ctrlhandler1(SB)
-	NOP	SP	// tell vet SP changed - stop checking offsets
-	CALL	runtime·externalthreadhandler<ABIInternal>(SB)
-	MOVL	4(SP), CX
-	ADDL	$12, SP
-	JMP	CX
-
-// Called by OS using stdcall ABI: uint32 profileloop(void*).
-TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT,$0
-	PUSHL	$runtime·profileloop1(SB)
-	NOP	SP	// tell vet SP changed - stop checking offsets
-	CALL	runtime·externalthreadhandler(SB)
-	MOVL	4(SP), CX
-	ADDL	$12, SP
-	JMP	CX
-
-TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|TOPFRAME,$0
-	PUSHL	BP
-	MOVL	SP, BP
-	PUSHL	BX
-	PUSHL	SI
-	PUSHL	DI
-	PUSHL	0x14(FS)
-	MOVL	SP, DX
-
-	// setup dummy m, g
-	SUBL	$m__size, SP		// space for M
-	MOVL	SP, 0(SP)
-	MOVL	$m__size, 4(SP)
-	CALL	runtime·memclrNoHeapPointers(SB)	// smashes AX,BX,CX
-
-	LEAL	m_tls(SP), CX
-	MOVL	CX, 0x14(FS)
-	MOVL	SP, BX
-	SUBL	$g__size, SP		// space for G
-	MOVL	SP, g(CX)
-	MOVL	SP, m_g0(BX)
-
-	MOVL	SP, 0(SP)
-	MOVL	$g__size, 4(SP)
-	CALL	runtime·memclrNoHeapPointers(SB)	// smashes AX,BX,CX
-	LEAL	g__size(SP), BX
-	MOVL	BX, g_m(SP)
-
-	LEAL	-32768(SP), CX		// must be less than SizeOfStackReserve set by linker
-	MOVL	CX, (g_stack+stack_lo)(SP)
-	ADDL	$const__StackGuard, CX
-	MOVL	CX, g_stackguard0(SP)
-	MOVL	CX, g_stackguard1(SP)
-	MOVL	DX, (g_stack+stack_hi)(SP)
-
-	PUSHL	AX			// room for return value
-	PUSHL	16(BP)			// arg for handler
-	CALL	8(BP)
-	POPL	CX
-	POPL	AX			// pass return value to Windows in AX
-
-	get_tls(CX)
-	MOVL	g(CX), CX
-	MOVL	(g_stack+stack_hi)(CX), SP
-	POPL	0x14(FS)
-	POPL	DI
-	POPL	SI
-	POPL	BX
-	POPL	BP
-	RET
-
 GLOBL runtime·cbctxts(SB), NOPTR, $4
 
 TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$0
@@ -400,7 +331,9 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$0
 	MOVL	BP, SP
 	RET
 
-// See https://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
+// See https://wrkhpi.wordpress.com/2007/08/09/getting-os-information-the-kuser_shared_data-structure/
+// Archived copy at:
+// http://web.archive.org/web/20210411000829/https://wrkhpi.wordpress.com/2007/08/09/getting-os-information-the-kuser_shared_data-structure/
 // Must read hi1, then lo, then hi2. The snapshot is valid if hi1 == hi2.
 #define _INTERRUPT_TIME 0x7ffe0008
 #define _SYSTEM_TIME 0x7ffe0014

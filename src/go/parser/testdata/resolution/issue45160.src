@@ -6,7 +6,7 @@ package issue45160
 
 func mklink1 /* =@mklink1func */() {}
 
-func _ /* =@blank */ () {
+func _() {
 	var tests /* =@tests */ = []dirLinkTest /* @dirLinkTest */ {
 		{
 			mklink1 /* @mklink1func */: func() {},

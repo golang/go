@@ -53,8 +53,8 @@ const (
 	traceEvGoSysBlock        = 30 // syscall blocks [timestamp]
 	traceEvGoWaiting         = 31 // denotes that goroutine is blocked when tracing starts [timestamp, goroutine id]
 	traceEvGoInSyscall       = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
-	traceEvHeapAlloc         = 33 // memstats.heap_live change [timestamp, heap_alloc]
-	traceEvNextGC            = 34 // memstats.next_gc change [timestamp, next_gc]
+	traceEvHeapAlloc         = 33 // gcController.heapLive change [timestamp, heap_alloc]
+	traceEvHeapGoal          = 34 // gcController.heapGoal (formerly next_gc) change [timestamp, heap goal in bytes]
 	traceEvTimerGoroutine    = 35 // not currently used; previously denoted timer goroutine [timer goroutine id]
 	traceEvFutileWakeup      = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
 	traceEvString            = 37 // string dictionary entry [ID, length, string]
@@ -1144,15 +1144,15 @@ func traceGoSysBlock(pp *p) {
 }
 
 func traceHeapAlloc() {
-	traceEvent(traceEvHeapAlloc, -1, memstats.heap_live)
+	traceEvent(traceEvHeapAlloc, -1, gcController.heapLive)
 }
 
-func traceNextGC() {
-	if nextGC := atomic.Load64(&memstats.next_gc); nextGC == ^uint64(0) {
+func traceHeapGoal() {
+	if heapGoal := atomic.Load64(&gcController.heapGoal); heapGoal == ^uint64(0) {
 		// Heap-based triggering is disabled.
-		traceEvent(traceEvNextGC, -1, 0)
+		traceEvent(traceEvHeapGoal, -1, 0)
 	} else {
-		traceEvent(traceEvNextGC, -1, nextGC)
+		traceEvent(traceEvHeapGoal, -1, heapGoal)
 	}
 }
 

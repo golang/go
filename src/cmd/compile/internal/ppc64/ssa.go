@@ -13,7 +13,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/ppc64"
-	"cmd/internal/objabi"
+	"internal/buildcfg"
 	"math"
 	"strings"
 )
@@ -1873,7 +1873,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		s.UseArgs(16) // space used in callee args area by assembly stubs
 
 	case ssa.OpPPC64LoweredNilCheck:
-		if objabi.GOOS == "aix" {
+		if buildcfg.GOOS == "aix" {
 			// CMP Rarg0, R0
 			// BNE 2(PC)
 			// STW R0, 0(R0)

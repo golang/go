@@ -5,20 +5,20 @@
 package asm
 
 import (
+	"internal/buildcfg"
 	"strings"
 	"testing"
 
 	"cmd/asm/internal/arch"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
-	"cmd/internal/objabi"
 )
 
 // A simple in-out test: Do we print what we parse?
 
 func setArch(goarch string) (*arch.Arch, *obj.Link) {
-	objabi.GOOS = "linux" // obj can handle this OS for all architectures.
-	objabi.GOARCH = goarch
+	buildcfg.GOOS = "linux" // obj can handle this OS for all architectures.
+	buildcfg.GOARCH = goarch
 	architecture := arch.Set(goarch)
 	if architecture == nil {
 		panic("asm: unrecognized architecture " + goarch)

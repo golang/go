@@ -7,6 +7,7 @@ package walk
 import (
 	"fmt"
 	"go/constant"
+	"internal/buildcfg"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -16,7 +17,6 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
-	"cmd/internal/objabi"
 )
 
 // The result of walkExpr MUST be assigned back to n, e.g.
@@ -204,6 +204,11 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 	case ir.OCONV, ir.OCONVNOP:
 		n := n.(*ir.ConvExpr)
 		return walkConv(n, init)
+
+	case ir.OSLICE2ARRPTR:
+		n := n.(*ir.ConvExpr)
+		n.X = walkExpr(n.X, init)
+		return n
 
 	case ir.ODIV, ir.OMOD:
 		n := n.(*ir.BinaryExpr)
@@ -669,6 +674,29 @@ func walkIndex(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 	return n
 }
 
+// mapKeyArg returns an expression for key that is suitable to be passed
+// as the key argument for mapaccess and mapdelete functions.
+// n is is the map indexing or delete Node (to provide Pos).
+// Note: this is not used for mapassign, which does distinguish pointer vs.
+// integer key.
+func mapKeyArg(fast int, n, key ir.Node) ir.Node {
+	switch fast {
+	case mapslow:
+		// standard version takes key by reference.
+		// order.expr made sure key is addressable.
+		return typecheck.NodAddr(key)
+	case mapfast32ptr:
+		// mapaccess and mapdelete don't distinguish pointer vs. integer key.
+		return ir.NewConvExpr(n.Pos(), ir.OCONVNOP, types.Types[types.TUINT32], key)
+	case mapfast64ptr:
+		// mapaccess and mapdelete don't distinguish pointer vs. integer key.
+		return ir.NewConvExpr(n.Pos(), ir.OCONVNOP, types.Types[types.TUINT64], key)
+	default:
+		// fast version takes key by value.
+		return key
+	}
+}
+
 // walkIndexMap walks an OINDEXMAP node.
 func walkIndexMap(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 	// Replace m[k] with *map{access1,assign}(maptype, m, &k)
@@ -686,21 +714,16 @@ func walkIndexMap(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 			// order.expr made sure key is addressable.
 			key = typecheck.NodAddr(key)
 		}
-		call = mkcall1(mapfn(mapassign[fast], t), nil, init, reflectdata.TypePtr(t), map_, key)
+		call = mkcall1(mapfn(mapassign[fast], t, false), nil, init, reflectdata.TypePtr(t), map_, key)
 	} else {
 		// m[k] is not the target of an assignment.
 		fast := mapfast(t)
-		if fast == mapslow {
-			// standard version takes key by reference.
-			// order.expr made sure key is addressable.
-			key = typecheck.NodAddr(key)
-		}
-
+		key = mapKeyArg(fast, n, key)
 		if w := t.Elem().Width; w <= zeroValSize {
-			call = mkcall1(mapfn(mapaccess1[fast], t), types.NewPtr(t.Elem()), init, reflectdata.TypePtr(t), map_, key)
+			call = mkcall1(mapfn(mapaccess1[fast], t, false), types.NewPtr(t.Elem()), init, reflectdata.TypePtr(t), map_, key)
 		} else {
 			z := reflectdata.ZeroAddr(w)
-			call = mkcall1(mapfn("mapaccess1_fat", t), types.NewPtr(t.Elem()), init, reflectdata.TypePtr(t), map_, key, z)
+			call = mkcall1(mapfn("mapaccess1_fat", t, true), types.NewPtr(t.Elem()), init, reflectdata.TypePtr(t), map_, key, z)
 		}
 	}
 	call.SetType(types.NewPtr(t.Elem()))
@@ -923,7 +946,7 @@ func usemethod(n *ir.CallExpr) {
 }
 
 func usefield(n *ir.SelectorExpr) {
-	if !objabi.Experiment.FieldTrack {
+	if !buildcfg.Experiment.FieldTrack {
 		return
 	}
 

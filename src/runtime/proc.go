@@ -5,14 +5,12 @@
 package runtime
 
 import (
-	"internal/bytealg"
 	"internal/cpu"
+	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
-
-var buildVersion = sys.TheVersion
 
 // set using cmd/go/internal/modload.ModInfoProg
 var modinfo string
@@ -52,33 +50,64 @@ var modinfo string
 //    any work to do.
 //
 // The current approach:
-// We unpark an additional thread when we ready a goroutine if (1) there is an
-// idle P and there are no "spinning" worker threads. A worker thread is considered
-// spinning if it is out of local work and did not find work in global run queue/
-// netpoller; the spinning state is denoted in m.spinning and in sched.nmspinning.
-// Threads unparked this way are also considered spinning; we don't do goroutine
-// handoff so such threads are out of work initially. Spinning threads do some
-// spinning looking for work in per-P run queues before parking. If a spinning
-// thread finds work it takes itself out of the spinning state and proceeds to
-// execution. If it does not find work it takes itself out of the spinning state
-// and then parks.
-// If there is at least one spinning thread (sched.nmspinning>1), we don't unpark
-// new threads when readying goroutines. To compensate for that, if the last spinning
-// thread finds work and stops spinning, it must unpark a new spinning thread.
-// This approach smooths out unjustified spikes of thread unparking,
-// but at the same time guarantees eventual maximal CPU parallelism utilization.
 //
-// The main implementation complication is that we need to be very careful during
-// spinning->non-spinning thread transition. This transition can race with submission
-// of a new goroutine, and either one part or another needs to unpark another worker
-// thread. If they both fail to do that, we can end up with semi-persistent CPU
-// underutilization. The general pattern for goroutine readying is: submit a goroutine
-// to local work queue, #StoreLoad-style memory barrier, check sched.nmspinning.
-// The general pattern for spinning->non-spinning transition is: decrement nmspinning,
-// #StoreLoad-style memory barrier, check all per-P work queues for new work.
-// Note that all this complexity does not apply to global run queue as we are not
-// sloppy about thread unparking when submitting to global queue. Also see comments
-// for nmspinning manipulation.
+// This approach applies to three primary sources of potential work: readying a
+// goroutine, new/modified-earlier timers, and idle-priority GC. See below for
+// additional details.
+//
+// We unpark an additional thread when we submit work if (this is wakep()):
+// 1. There is an idle P, and
+// 2. There are no "spinning" worker threads.
+//
+// A worker thread is considered spinning if it is out of local work and did
+// not find work in the global run queue or netpoller; the spinning state is
+// denoted in m.spinning and in sched.nmspinning. Threads unparked this way are
+// also considered spinning; we don't do goroutine handoff so such threads are
+// out of work initially. Spinning threads spin on looking for work in per-P
+// run queues and timer heaps or from the GC before parking. If a spinning
+// thread finds work it takes itself out of the spinning state and proceeds to
+// execution. If it does not find work it takes itself out of the spinning
+// state and then parks.
+//
+// If there is at least one spinning thread (sched.nmspinning>1), we don't
+// unpark new threads when submitting work. To compensate for that, if the last
+// spinning thread finds work and stops spinning, it must unpark a new spinning
+// thread.  This approach smooths out unjustified spikes of thread unparking,
+// but at the same time guarantees eventual maximal CPU parallelism
+// utilization.
+//
+// The main implementation complication is that we need to be very careful
+// during spinning->non-spinning thread transition. This transition can race
+// with submission of new work, and either one part or another needs to unpark
+// another worker thread. If they both fail to do that, we can end up with
+// semi-persistent CPU underutilization.
+//
+// The general pattern for submission is:
+// 1. Submit work to the local run queue, timer heap, or GC state.
+// 2. #StoreLoad-style memory barrier.
+// 3. Check sched.nmspinning.
+//
+// The general pattern for spinning->non-spinning transition is:
+// 1. Decrement nmspinning.
+// 2. #StoreLoad-style memory barrier.
+// 3. Check all per-P work queues and GC for new work.
+//
+// Note that all this complexity does not apply to global run queue as we are
+// not sloppy about thread unparking when submitting to global queue. Also see
+// comments for nmspinning manipulation.
+//
+// How these different sources of work behave varies, though it doesn't affect
+// the synchronization approach:
+// * Ready goroutine: this is an obvious source of work; the goroutine is
+//   immediately ready and must run on some thread eventually.
+// * New/modified-earlier timer: The current timer implementation (see time.go)
+//   uses netpoll in a thread with no work available to wait for the soonest
+//   timer. If there is no thread waiting, we want a new spinning thread to go
+//   wait.
+// * Idle-priority GC: The GC wakes a stopped idle thread to contribute to
+//   background GC work (note: currently disabled per golang.org/issue/19112).
+//   Also see golang.org/issue/44313, as this should be extended to all GC
+//   workers.
 
 var (
 	m0           m
@@ -1373,6 +1402,9 @@ func mPark() {
 	g := getg()
 	for {
 		notesleep(&g.m.park)
+		// Note, because of signal handling by this parked m,
+		// a preemptive mDoFixup() may actually occur via
+		// mDoFixupAndOSYield(). (See golang.org/issue/44193)
 		noteclear(&g.m.park)
 		if !mDoFixup() {
 			return
@@ -1606,6 +1638,22 @@ func syscall_runtime_doAllThreadsSyscall(fn func(bool) bool) {
 	for atomic.Load(&sched.sysmonStarting) != 0 {
 		osyield()
 	}
+
+	// We don't want this thread to handle signals for the
+	// duration of this critical section. The underlying issue
+	// being that this locked coordinating m is the one monitoring
+	// for fn() execution by all the other m's of the runtime,
+	// while no regular go code execution is permitted (the world
+	// is stopped). If this present m were to get distracted to
+	// run signal handling code, and find itself waiting for a
+	// second thread to execute go code before being able to
+	// return from that signal handling, a deadlock will result.
+	// (See golang.org/issue/44193.)
+	lockOSThread()
+	var sigmask sigset
+	sigsave(&sigmask)
+	sigblock(false)
+
 	stopTheWorldGC("doAllThreadsSyscall")
 	if atomic.Load(&newmHandoff.haveTemplateThread) != 0 {
 		// Ensure that there are no in-flight thread
@@ -1657,6 +1705,7 @@ func syscall_runtime_doAllThreadsSyscall(fn func(bool) bool) {
 			// the possibility of racing with mp.
 			lock(&mp.mFixup.lock)
 			mp.mFixup.fn = fn
+			atomic.Store(&mp.mFixup.used, 1)
 			if mp.doesPark {
 				// For non-service threads this will
 				// cause the wakeup to be short lived
@@ -1673,9 +1722,7 @@ func syscall_runtime_doAllThreadsSyscall(fn func(bool) bool) {
 				if mp.procid == tid {
 					continue
 				}
-				lock(&mp.mFixup.lock)
-				done = done && (mp.mFixup.fn == nil)
-				unlock(&mp.mFixup.lock)
+				done = atomic.Load(&mp.mFixup.used) == 0
 			}
 			if done {
 				break
@@ -1702,6 +1749,8 @@ func syscall_runtime_doAllThreadsSyscall(fn func(bool) bool) {
 		unlock(&mFixupRace.lock)
 	}
 	startTheWorldGC()
+	msigrestore(sigmask)
+	unlockOSThread()
 }
 
 // runSafePointFn runs the safe point function, if any, for this P.
@@ -2196,9 +2245,21 @@ var mFixupRace struct {
 // mDoFixup runs any outstanding fixup function for the running m.
 // Returns true if a fixup was outstanding and actually executed.
 //
+// Note: to avoid deadlocks, and the need for the fixup function
+// itself to be async safe, signals are blocked for the working m
+// while it holds the mFixup lock. (See golang.org/issue/44193)
+//
 //go:nosplit
 func mDoFixup() bool {
 	_g_ := getg()
+	if used := atomic.Load(&_g_.m.mFixup.used); used == 0 {
+		return false
+	}
+
+	// slow path - if fixup fn is used, block signals and lock.
+	var sigmask sigset
+	sigsave(&sigmask)
+	sigblock(false)
 	lock(&_g_.m.mFixup.lock)
 	fn := _g_.m.mFixup.fn
 	if fn != nil {
@@ -2215,7 +2276,6 @@ func mDoFixup() bool {
 			// is more obviously safe.
 			throw("GC must be disabled to protect validity of fn value")
 		}
-		*(*uintptr)(unsafe.Pointer(&_g_.m.mFixup.fn)) = 0
 		if _g_.racectx != 0 || !raceenabled {
 			fn(false)
 		} else {
@@ -2230,9 +2290,22 @@ func mDoFixup() bool {
 			_g_.racectx = 0
 			unlock(&mFixupRace.lock)
 		}
+		*(*uintptr)(unsafe.Pointer(&_g_.m.mFixup.fn)) = 0
+		atomic.Store(&_g_.m.mFixup.used, 0)
 	}
 	unlock(&_g_.m.mFixup.lock)
+	msigrestore(sigmask)
 	return fn != nil
+}
+
+// mDoFixupAndOSYield is called when an m is unable to send a signal
+// because the allThreadsSyscall mechanism is in progress. That is, an
+// mPark() has been interrupted with this signal handler so we need to
+// ensure the fixup is executed from this context.
+//go:nosplit
+func mDoFixupAndOSYield() {
+	mDoFixup()
+	osyield()
 }
 
 // templateThread is a thread in a known-good state that exists solely
@@ -2652,85 +2725,40 @@ top:
 		}
 	}
 
-	// Steal work from other P's.
+	// Spinning Ms: steal work from other Ps.
+	//
+	// Limit the number of spinning Ms to half the number of busy Ps.
+	// This is necessary to prevent excessive CPU consumption when
+	// GOMAXPROCS>>1 but the program parallelism is low.
 	procs := uint32(gomaxprocs)
-	ranTimer := false
-	// If number of spinning M's >= number of busy P's, block.
-	// This is necessary to prevent excessive CPU consumption
-	// when GOMAXPROCS>>1 but the program parallelism is low.
-	if !_g_.m.spinning && 2*atomic.Load(&sched.nmspinning) >= procs-atomic.Load(&sched.npidle) {
-		goto stop
-	}
-	if !_g_.m.spinning {
-		_g_.m.spinning = true
-		atomic.Xadd(&sched.nmspinning, 1)
-	}
-	const stealTries = 4
-	for i := 0; i < stealTries; i++ {
-		stealTimersOrRunNextG := i == stealTries-1
+	if _g_.m.spinning || 2*atomic.Load(&sched.nmspinning) < procs-atomic.Load(&sched.npidle) {
+		if !_g_.m.spinning {
+			_g_.m.spinning = true
+			atomic.Xadd(&sched.nmspinning, 1)
+		}
 
-		for enum := stealOrder.start(fastrand()); !enum.done(); enum.next() {
-			if sched.gcwaiting != 0 {
-				goto top
-			}
-			p2 := allp[enum.position()]
-			if _p_ == p2 {
-				continue
-			}
-
-			// Steal timers from p2. This call to checkTimers is the only place
-			// where we might hold a lock on a different P's timers. We do this
-			// once on the last pass before checking runnext because stealing
-			// from the other P's runnext should be the last resort, so if there
-			// are timers to steal do that first.
-			//
-			// We only check timers on one of the stealing iterations because
-			// the time stored in now doesn't change in this loop and checking
-			// the timers for each P more than once with the same value of now
-			// is probably a waste of time.
-			//
-			// timerpMask tells us whether the P may have timers at all. If it
-			// can't, no need to check at all.
-			if stealTimersOrRunNextG && timerpMask.read(enum.position()) {
-				tnow, w, ran := checkTimers(p2, now)
-				now = tnow
-				if w != 0 && (pollUntil == 0 || w < pollUntil) {
-					pollUntil = w
-				}
-				if ran {
-					// Running the timers may have
-					// made an arbitrary number of G's
-					// ready and added them to this P's
-					// local run queue. That invalidates
-					// the assumption of runqsteal
-					// that is always has room to add
-					// stolen G's. So check now if there
-					// is a local G to run.
-					if gp, inheritTime := runqget(_p_); gp != nil {
-						return gp, inheritTime
-					}
-					ranTimer = true
-				}
-			}
-
-			// Don't bother to attempt to steal if p2 is idle.
-			if !idlepMask.read(enum.position()) {
-				if gp := runqsteal(_p_, p2, stealTimersOrRunNextG); gp != nil {
-					return gp, false
-				}
-			}
+		gp, inheritTime, tnow, w, newWork := stealWork(now)
+		now = tnow
+		if gp != nil {
+			// Successfully stole.
+			return gp, inheritTime
+		}
+		if newWork {
+			// There may be new timer or GC work; restart to
+			// discover.
+			goto top
+		}
+		if w != 0 && (pollUntil == 0 || w < pollUntil) {
+			// Earlier timer to wait for.
+			pollUntil = w
 		}
 	}
-	if ranTimer {
-		// Running a timer may have made some goroutine ready.
-		goto top
-	}
 
-stop:
-
-	// We have nothing to do. If we're in the GC mark phase, can
-	// safely scan and blacken objects, and have work to do, run
-	// idle-time marking rather than give up the P.
+	// We have nothing to do.
+	//
+	// If we're in the GC mark phase, can safely scan and blacken objects,
+	// and have work to do, run idle-time marking rather than give up the
+	// P.
 	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(_p_) {
 		node := (*gcBgMarkWorkerNode)(gcBgMarkWorkerPool.pop())
 		if node != nil {
@@ -2744,17 +2772,11 @@ stop:
 		}
 	}
 
-	delta := int64(-1)
-	if pollUntil != 0 {
-		// checkTimers ensures that polluntil > now.
-		delta = pollUntil - now
-	}
-
 	// wasm only:
 	// If a callback returned and no other goroutine is awake,
 	// then wake event handler goroutine which pauses execution
 	// until a callback was triggered.
-	gp, otherReady := beforeIdle(delta)
+	gp, otherReady := beforeIdle(now, pollUntil)
 	if gp != nil {
 		casgstatus(gp, _Gwaiting, _Grunnable)
 		if trace.enabled {
@@ -2793,18 +2815,25 @@ stop:
 	pidleput(_p_)
 	unlock(&sched.lock)
 
-	// Delicate dance: thread transitions from spinning to non-spinning state,
-	// potentially concurrently with submission of new goroutines. We must
-	// drop nmspinning first and then check all per-P queues again (with
-	// #StoreLoad memory barrier in between). If we do it the other way around,
-	// another thread can submit a goroutine after we've checked all run queues
-	// but before we drop nmspinning; as a result nobody will unpark a thread
-	// to run the goroutine.
+	// Delicate dance: thread transitions from spinning to non-spinning
+	// state, potentially concurrently with submission of new work. We must
+	// drop nmspinning first and then check all sources again (with
+	// #StoreLoad memory barrier in between). If we do it the other way
+	// around, another thread can submit work after we've checked all
+	// sources but before we drop nmspinning; as a result nobody will
+	// unpark a thread to run the work.
+	//
+	// This applies to the following sources of work:
+	//
+	// * Goroutines added to a per-P run queue.
+	// * New/modified-earlier timers on a per-P timer heap.
+	// * Idle-priority GC work (barring golang.org/issue/19112).
+	//
 	// If we discover new work below, we need to restore m.spinning as a signal
 	// for resetspinning to unpark a new worker thread (because there can be more
 	// than one starving goroutine). However, if after discovering new work
-	// we also observe no idle Ps, it is OK to just park the current thread:
-	// the system is fully loaded so no spinning threads are required.
+	// we also observe no idle Ps it is OK to skip unparking a new worker
+	// thread: the system is fully loaded so no spinning threads are required.
 	// Also see "Worker thread parking/unparking" comment at the top of the file.
 	wasSpinning := _g_.m.spinning
 	if _g_.m.spinning {
@@ -2812,97 +2841,48 @@ stop:
 		if int32(atomic.Xadd(&sched.nmspinning, -1)) < 0 {
 			throw("findrunnable: negative nmspinning")
 		}
-	}
 
-	// check all runqueues once again
-	for id, _p_ := range allpSnapshot {
-		if !idlepMaskSnapshot.read(uint32(id)) && !runqempty(_p_) {
-			lock(&sched.lock)
-			_p_ = pidleget()
-			unlock(&sched.lock)
-			if _p_ != nil {
-				acquirep(_p_)
-				if wasSpinning {
-					_g_.m.spinning = true
-					atomic.Xadd(&sched.nmspinning, 1)
-				}
-				goto top
-			}
-			break
-		}
-	}
+		// Note the for correctness, only the last M transitioning from
+		// spinning to non-spinning must perform these rechecks to
+		// ensure no missed work. We are performing it on every M that
+		// transitions as a conservative change to monitor effects on
+		// latency. See golang.org/issue/43997.
 
-	// Similar to above, check for timer creation or expiry concurrently with
-	// transitioning from spinning to non-spinning. Note that we cannot use
-	// checkTimers here because it calls adjusttimers which may need to allocate
-	// memory, and that isn't allowed when we don't have an active P.
-	for id, _p_ := range allpSnapshot {
-		if timerpMaskSnapshot.read(uint32(id)) {
-			w := nobarrierWakeTime(_p_)
-			if w != 0 && (pollUntil == 0 || w < pollUntil) {
-				pollUntil = w
-			}
-		}
-	}
-	if pollUntil != 0 {
-		if now == 0 {
-			now = nanotime()
-		}
-		delta = pollUntil - now
-		if delta < 0 {
-			delta = 0
-		}
-	}
-
-	// Check for idle-priority GC work again.
-	//
-	// N.B. Since we have no P, gcBlackenEnabled may change at any time; we
-	// must check again after acquiring a P.
-	if atomic.Load(&gcBlackenEnabled) != 0 && gcMarkWorkAvailable(nil) {
-		// Work is available; we can start an idle GC worker only if
-		// there is an available P and available worker G.
-		//
-		// We can attempt to acquire these in either order. Workers are
-		// almost always available (see comment in findRunnableGCWorker
-		// for the one case there may be none). Since we're slightly
-		// less likely to find a P, check for that first.
-		lock(&sched.lock)
-		var node *gcBgMarkWorkerNode
-		_p_ = pidleget()
-		if _p_ != nil {
-			// Now that we own a P, gcBlackenEnabled can't change
-			// (as it requires STW).
-			if gcBlackenEnabled != 0 {
-				node = (*gcBgMarkWorkerNode)(gcBgMarkWorkerPool.pop())
-				if node == nil {
-					pidleput(_p_)
-					_p_ = nil
-				}
-			} else {
-				pidleput(_p_)
-				_p_ = nil
-			}
-		}
-		unlock(&sched.lock)
+		// Check all runqueues once again.
+		_p_ = checkRunqsNoP(allpSnapshot, idlepMaskSnapshot)
 		if _p_ != nil {
 			acquirep(_p_)
-			if wasSpinning {
-				_g_.m.spinning = true
-				atomic.Xadd(&sched.nmspinning, 1)
-			}
+			_g_.m.spinning = true
+			atomic.Xadd(&sched.nmspinning, 1)
+			goto top
+		}
+
+		// Check for idle-priority GC work again.
+		_p_, gp = checkIdleGCNoP()
+		if _p_ != nil {
+			acquirep(_p_)
+			_g_.m.spinning = true
+			atomic.Xadd(&sched.nmspinning, 1)
 
 			// Run the idle worker.
 			_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
-			gp := node.gp.ptr()
 			casgstatus(gp, _Gwaiting, _Grunnable)
 			if trace.enabled {
 				traceGoUnpark(gp, 0)
 			}
 			return gp, false
 		}
+
+		// Finally, check for timer creation or expiry concurrently with
+		// transitioning from spinning to non-spinning.
+		//
+		// Note that we cannot use checkTimers here because it calls
+		// adjusttimers which may need to allocate memory, and that isn't
+		// allowed when we don't have an active P.
+		pollUntil = checkTimersNoP(allpSnapshot, timerpMaskSnapshot, pollUntil)
 	}
 
-	// poll network
+	// Poll network until next timer.
 	if netpollinited() && (atomic.Load(&netpollWaiters) > 0 || pollUntil != 0) && atomic.Xchg64(&sched.lastpoll, 0) != 0 {
 		atomic.Store64(&sched.pollUntil, uint64(pollUntil))
 		if _g_.m.p != 0 {
@@ -2911,11 +2891,21 @@ stop:
 		if _g_.m.spinning {
 			throw("findrunnable: netpoll with spinning")
 		}
+		delay := int64(-1)
+		if pollUntil != 0 {
+			if now == 0 {
+				now = nanotime()
+			}
+			delay = pollUntil - now
+			if delay < 0 {
+				delay = 0
+			}
+		}
 		if faketime != 0 {
 			// When using fake time, just poll.
-			delta = 0
+			delay = 0
 		}
-		list := netpoll(delta) // block until new work is available
+		list := netpoll(delay) // block until new work is available
 		atomic.Store64(&sched.pollUntil, 0)
 		atomic.Store64(&sched.lastpoll, uint64(nanotime()))
 		if faketime != 0 && list.empty() {
@@ -2975,6 +2965,168 @@ func pollWork() bool {
 		}
 	}
 	return false
+}
+
+// stealWork attempts to steal a runnable goroutine or timer from any P.
+//
+// If newWork is true, new work may have been readied.
+//
+// If now is not 0 it is the current time. stealWork returns the passed time or
+// the current time if now was passed as 0.
+func stealWork(now int64) (gp *g, inheritTime bool, rnow, pollUntil int64, newWork bool) {
+	pp := getg().m.p.ptr()
+
+	ranTimer := false
+
+	const stealTries = 4
+	for i := 0; i < stealTries; i++ {
+		stealTimersOrRunNextG := i == stealTries-1
+
+		for enum := stealOrder.start(fastrand()); !enum.done(); enum.next() {
+			if sched.gcwaiting != 0 {
+				// GC work may be available.
+				return nil, false, now, pollUntil, true
+			}
+			p2 := allp[enum.position()]
+			if pp == p2 {
+				continue
+			}
+
+			// Steal timers from p2. This call to checkTimers is the only place
+			// where we might hold a lock on a different P's timers. We do this
+			// once on the last pass before checking runnext because stealing
+			// from the other P's runnext should be the last resort, so if there
+			// are timers to steal do that first.
+			//
+			// We only check timers on one of the stealing iterations because
+			// the time stored in now doesn't change in this loop and checking
+			// the timers for each P more than once with the same value of now
+			// is probably a waste of time.
+			//
+			// timerpMask tells us whether the P may have timers at all. If it
+			// can't, no need to check at all.
+			if stealTimersOrRunNextG && timerpMask.read(enum.position()) {
+				tnow, w, ran := checkTimers(p2, now)
+				now = tnow
+				if w != 0 && (pollUntil == 0 || w < pollUntil) {
+					pollUntil = w
+				}
+				if ran {
+					// Running the timers may have
+					// made an arbitrary number of G's
+					// ready and added them to this P's
+					// local run queue. That invalidates
+					// the assumption of runqsteal
+					// that it always has room to add
+					// stolen G's. So check now if there
+					// is a local G to run.
+					if gp, inheritTime := runqget(pp); gp != nil {
+						return gp, inheritTime, now, pollUntil, ranTimer
+					}
+					ranTimer = true
+				}
+			}
+
+			// Don't bother to attempt to steal if p2 is idle.
+			if !idlepMask.read(enum.position()) {
+				if gp := runqsteal(pp, p2, stealTimersOrRunNextG); gp != nil {
+					return gp, false, now, pollUntil, ranTimer
+				}
+			}
+		}
+	}
+
+	// No goroutines found to steal. Regardless, running a timer may have
+	// made some goroutine ready that we missed. Indicate the next timer to
+	// wait for.
+	return nil, false, now, pollUntil, ranTimer
+}
+
+// Check all Ps for a runnable G to steal.
+//
+// On entry we have no P. If a G is available to steal and a P is available,
+// the P is returned which the caller should acquire and attempt to steal the
+// work to.
+func checkRunqsNoP(allpSnapshot []*p, idlepMaskSnapshot pMask) *p {
+	for id, p2 := range allpSnapshot {
+		if !idlepMaskSnapshot.read(uint32(id)) && !runqempty(p2) {
+			lock(&sched.lock)
+			pp := pidleget()
+			unlock(&sched.lock)
+			if pp != nil {
+				return pp
+			}
+
+			// Can't get a P, don't bother checking remaining Ps.
+			break
+		}
+	}
+
+	return nil
+}
+
+// Check all Ps for a timer expiring sooner than pollUntil.
+//
+// Returns updated pollUntil value.
+func checkTimersNoP(allpSnapshot []*p, timerpMaskSnapshot pMask, pollUntil int64) int64 {
+	for id, p2 := range allpSnapshot {
+		if timerpMaskSnapshot.read(uint32(id)) {
+			w := nobarrierWakeTime(p2)
+			if w != 0 && (pollUntil == 0 || w < pollUntil) {
+				pollUntil = w
+			}
+		}
+	}
+
+	return pollUntil
+}
+
+// Check for idle-priority GC, without a P on entry.
+//
+// If some GC work, a P, and a worker G are all available, the P and G will be
+// returned. The returned P has not been wired yet.
+func checkIdleGCNoP() (*p, *g) {
+	// N.B. Since we have no P, gcBlackenEnabled may change at any time; we
+	// must check again after acquiring a P.
+	if atomic.Load(&gcBlackenEnabled) == 0 {
+		return nil, nil
+	}
+	if !gcMarkWorkAvailable(nil) {
+		return nil, nil
+	}
+
+	// Work is available; we can start an idle GC worker only if
+	// there is an available P and available worker G.
+	//
+	// We can attempt to acquire these in either order. Workers are
+	// almost always available (see comment in findRunnableGCWorker
+	// for the one case there may be none). Since we're slightly
+	// less likely to find a P, check for that first.
+	lock(&sched.lock)
+	pp := pidleget()
+	unlock(&sched.lock)
+	if pp == nil {
+		return nil, nil
+	}
+
+	// Now that we own a P, gcBlackenEnabled can't change
+	// (as it requires STW).
+	if gcBlackenEnabled == 0 {
+		lock(&sched.lock)
+		pidleput(pp)
+		unlock(&sched.lock)
+		return nil, nil
+	}
+
+	node := (*gcBgMarkWorkerNode)(gcBgMarkWorkerPool.pop())
+	if node == nil {
+		lock(&sched.lock)
+		pidleput(pp)
+		unlock(&sched.lock)
+		return nil, nil
+	}
+
+	return pp, node.gp.ptr()
 }
 
 // wakeNetPoller wakes up the thread sleeping in the network poller if it isn't
@@ -3143,7 +3295,9 @@ top:
 	}
 	if gp == nil && gcBlackenEnabled != 0 {
 		gp = gcController.findRunnableGCWorker(_g_.m.p.ptr())
-		tryWakeP = tryWakeP || gp != nil
+		if gp != nil {
+			tryWakeP = true
+		}
 	}
 	if gp == nil {
 		// Check the global runnable queue once in a while to ensure fairness.
@@ -3219,7 +3373,7 @@ func dropg() {
 
 // checkTimers runs any timers for the P that are ready.
 // If now is not 0 it is the current time.
-// It returns the current time or 0 if it is not known,
+// It returns the passed time or the current time if now was passed as 0.
 // and the time when the next timer should run or 0 if there is no next timer,
 // and reports whether it ran any timers.
 // If the time when the next timer should run is not 0,
@@ -4022,12 +4176,6 @@ func malg(stacksize int32) *g {
 //
 //go:nosplit
 func newproc(siz int32, fn *funcval) {
-	if experimentRegabiDefer && siz != 0 {
-		// TODO: When we commit to experimentRegabiDefer,
-		// rewrite newproc's comment, since it will no longer
-		// have a funny stack layout or need to be nosplit.
-		throw("go with non-empty frame")
-	}
 	argp := add(unsafe.Pointer(&fn), sys.PtrSize)
 	gp := getg()
 	pc := getcallerpc()
@@ -4053,6 +4201,14 @@ func newproc(siz int32, fn *funcval) {
 //
 //go:systemstack
 func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerpc uintptr) *g {
+	if goexperiment.RegabiDefer && narg != 0 {
+		// TODO: When we commit to GOEXPERIMENT=regabidefer,
+		// rewrite the comments for newproc and newproc1.
+		// newproc will no longer have a funny stack layout or
+		// need to be nosplit.
+		throw("go with non-empty frame")
+	}
+
 	_g_ := getg()
 
 	if fn == nil {
@@ -6037,26 +6193,6 @@ func setMaxThreads(in int) (out int) {
 	checkmcount()
 	unlock(&sched.lock)
 	return
-}
-
-func haveexperiment(name string) bool {
-	// GOEXPERIMENT is a comma-separated list of enabled
-	// experiments. It's not the raw environment variable, but a
-	// pre-processed list from cmd/internal/objabi.
-	x := sys.GOEXPERIMENT
-	for x != "" {
-		xname := ""
-		i := bytealg.IndexByteString(x, ',')
-		if i < 0 {
-			xname, x = x, ""
-		} else {
-			xname, x = x[:i], x[i+1:]
-		}
-		if xname == name {
-			return true
-		}
-	}
-	return false
 }
 
 //go:nosplit

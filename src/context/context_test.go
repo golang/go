@@ -661,7 +661,7 @@ func XTestWithCancelCanceledParent(t testingT) {
 		t.Errorf("child not done immediately upon construction")
 	}
 	if got, want := c.Err(), Canceled; got != want {
-		t.Errorf("child not cancelled; got = %v, want = %v", got, want)
+		t.Errorf("child not canceled; got = %v, want = %v", got, want)
 	}
 }
 
@@ -779,7 +779,7 @@ func XTestCustomContextGoroutines(t testingT) {
 	defer cancel6()
 	checkNoGoroutine()
 
-	// Check applied to cancelled context.
+	// Check applied to canceled context.
 	cancel6()
 	cancel1()
 	_, cancel7 := WithCancel(ctx5)

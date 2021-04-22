@@ -36,7 +36,6 @@ func check2(noders []*noder) {
 	// typechecking
 	conf := types2.Config{
 		GoVersion:             base.Flag.Lang,
-		InferFromConstraints:  true,
 		IgnoreLabels:          true, // parser already checked via syntax.CheckBranches mode
 		CompilerErrorMessages: true, // use error strings matching existing compiler errors
 		Error: func(err error) {

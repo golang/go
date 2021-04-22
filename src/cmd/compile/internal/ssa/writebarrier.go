@@ -38,9 +38,11 @@ func needwb(v *Value, zeroes map[ID]ZeroRegion) bool {
 	if IsStackAddr(v.Args[0]) {
 		return false // write on stack doesn't need write barrier
 	}
-	if v.Op == OpMove && IsReadOnlyGlobalAddr(v.Args[1]) && IsNewObject(v.Args[0], v.MemoryArg()) {
-		// Copying data from readonly memory into a fresh object doesn't need a write barrier.
-		return false
+	if v.Op == OpMove && IsReadOnlyGlobalAddr(v.Args[1]) {
+		if mem, ok := IsNewObject(v.Args[0]); ok && mem == v.MemoryArg() {
+			// Copying data from readonly memory into a fresh object doesn't need a write barrier.
+			return false
+		}
 	}
 	if v.Op == OpStore && IsGlobalAddr(v.Args[1]) {
 		// Storing pointers to non-heap locations into zeroed memory doesn't need a write barrier.
@@ -389,11 +391,7 @@ func (f *Func) computeZeroMap() map[ID]ZeroRegion {
 	// Find new objects.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if v.Op != OpLoad {
-				continue
-			}
-			mem := v.MemoryArg()
-			if IsNewObject(v, mem) {
+			if mem, ok := IsNewObject(v); ok {
 				nptr := v.Type.Elem().Size() / ptrSize
 				if nptr > 64 {
 					nptr = 64
@@ -494,36 +492,36 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 	if typ != nil { // for typedmemmove
 		taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
 		argTypes = append(argTypes, b.Func.Config.Types.Uintptr)
+		off = round(off, taddr.Type.Alignment())
 		if inRegs {
 			wbargs = append(wbargs, taddr)
 		} else {
-			off = round(off, taddr.Type.Alignment())
 			arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
 			mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, taddr, mem)
-			off += taddr.Type.Size()
 		}
+		off += taddr.Type.Size()
 	}
 
 	argTypes = append(argTypes, ptr.Type)
+	off = round(off, ptr.Type.Alignment())
 	if inRegs {
 		wbargs = append(wbargs, ptr)
 	} else {
-		off = round(off, ptr.Type.Alignment())
 		arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
 		mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, ptr, mem)
-		off += ptr.Type.Size()
 	}
+	off += ptr.Type.Size()
 
 	if val != nil {
 		argTypes = append(argTypes, val.Type)
+		off = round(off, val.Type.Alignment())
 		if inRegs {
 			wbargs = append(wbargs, val)
 		} else {
-			off = round(off, val.Type.Alignment())
 			arg := b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
 			mem = b.NewValue3A(pos, OpStore, types.TypeMem, val.Type, arg, val, mem)
-			off += val.Type.Size()
 		}
+		off += val.Type.Size()
 	}
 	off = round(off, config.PtrSize)
 	wbargs = append(wbargs, mem)
@@ -578,39 +576,60 @@ func IsReadOnlyGlobalAddr(v *Value) bool {
 	return false
 }
 
-// IsNewObject reports whether v is a pointer to a freshly allocated & zeroed object at memory state mem.
-func IsNewObject(v *Value, mem *Value) bool {
-	// TODO this will need updating for register args; the OpLoad is wrong.
-	if v.Op != OpLoad {
-		return false
+// IsNewObject reports whether v is a pointer to a freshly allocated & zeroed object,
+// if so, also returns the memory state mem at which v is zero.
+func IsNewObject(v *Value) (mem *Value, ok bool) {
+	f := v.Block.Func
+	c := f.Config
+	if f.ABIDefault == f.ABI1 && len(c.intParamRegs) >= 1 {
+		if v.Op != OpSelectN || v.AuxInt != 0 {
+			return nil, false
+		}
+		// Find the memory
+		for _, w := range v.Block.Values {
+			if w.Op == OpSelectN && w.AuxInt == 1 && w.Args[0] == v.Args[0] {
+				mem = w
+				break
+			}
+		}
+		if mem == nil {
+			return nil, false
+		}
+	} else {
+		if v.Op != OpLoad {
+			return nil, false
+		}
+		mem = v.MemoryArg()
+		if mem.Op != OpSelectN {
+			return nil, false
+		}
+		if mem.Type != types.TypeMem {
+			return nil, false
+		} // assume it is the right selection if true
 	}
-	if v.MemoryArg() != mem {
-		return false
+	call := mem.Args[0]
+	if call.Op != OpStaticCall {
+		return nil, false
 	}
-	if mem.Op != OpSelectN {
-		return false
+	if !isSameCall(call.Aux, "runtime.newobject") {
+		return nil, false
 	}
-	if mem.Type != types.TypeMem {
-		return false
-	} // assume it is the right selection if true
-	mem = mem.Args[0]
-	if mem.Op != OpStaticCall {
-		return false
-	}
-	if !isSameCall(mem.Aux, "runtime.newobject") {
-		return false
+	if f.ABIDefault == f.ABI1 && len(c.intParamRegs) >= 1 {
+		if v.Args[0] == call {
+			return mem, true
+		}
+		return nil, false
 	}
 	if v.Args[0].Op != OpOffPtr {
-		return false
+		return nil, false
 	}
 	if v.Args[0].Args[0].Op != OpSP {
-		return false
+		return nil, false
 	}
-	c := v.Block.Func.Config
 	if v.Args[0].AuxInt != c.ctxt.FixedFrameSize()+c.RegSize { // offset of return value
-		return false
+		return nil, false
 	}
-	return true
+	return mem, true
 }
 
 // IsSanitizerSafeAddr reports whether v is known to be an address

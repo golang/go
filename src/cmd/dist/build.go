@@ -1541,7 +1541,7 @@ func checkNotStale(goBinary string, targets ...string) {
 				break
 			}
 		}
-		fatalf("unexpected stale targets reported by %s list -gcflags=\"%s\" -ldflags=\"%s\" for %v:\n%s", goBinary, gogcflags, goldflags, targets, out)
+		fatalf("unexpected stale targets reported by %s list -gcflags=\"%s\" -ldflags=\"%s\" for %v (consider rerunning with GOMAXPROCS=1 GODEBUG=gocachehash=1):\n%s", goBinary, gogcflags, goldflags, targets, out)
 	}
 }
 
@@ -1764,8 +1764,9 @@ func cmdlist() {
 // IsRuntimePackagePath examines 'pkgpath' and returns TRUE if it
 // belongs to the collection of "runtime-related" packages, including
 // "runtime" itself, "reflect", "syscall", and the
-// "runtime/internal/*" packages. See also the function of the same
-// name in cmd/internal/objabi/path.go.
+// "runtime/internal/*" packages.
+//
+// Keep in sync with cmd/internal/objabi/path.go:IsRuntimePackagePath.
 func IsRuntimePackagePath(pkgpath string) bool {
 	rval := false
 	switch pkgpath {
@@ -1776,6 +1777,8 @@ func IsRuntimePackagePath(pkgpath string) bool {
 	case "syscall":
 		rval = true
 	case "crypto/x509/internal/macos": // libc function wrappers need to be ABIInternal
+		rval = true
+	case "internal/bytealg":
 		rval = true
 	default:
 		rval = strings.HasPrefix(pkgpath, "runtime/internal")

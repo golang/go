@@ -6,6 +6,7 @@ package reflect
 
 import (
 	"internal/abi"
+	"internal/itoa"
 	"internal/unsafeheader"
 	"math"
 	"runtime"
@@ -592,7 +593,7 @@ func (v Value) call(op string, in []Value) []Value {
 					print("kind=", steps[0].kind, ", type=", tv.String(), "\n")
 					panic("mismatch between ABI description and types")
 				}
-				ret[i] = Value{tv.common(), regArgs.Ptrs[steps[0].ireg], flag(t.Kind())}
+				ret[i] = Value{tv.common(), regArgs.Ptrs[steps[0].ireg], flag(tv.Kind())}
 				continue
 			}
 
@@ -1023,6 +1024,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 	methodFrameSize = align(methodFrameSize, ptrSize)
 	methodFrameSize += methodABI.spill
 
+	// Mark pointers in registers for the return path.
+	methodRegs.ReturnIsPtr = methodABI.outRegPtrs
+
 	// Call.
 	// Call copies the arguments from scratch to the stack, calls fn,
 	// and then copies the results back into scratch.
@@ -1059,6 +1063,11 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 
 	// See the comment in callReflect.
 	runtime.KeepAlive(ctxt)
+
+	// Keep valueRegs alive because it may hold live pointer results.
+	// The caller (methodValueCall) has it as a stack object, which is only
+	// scanned when there is a reference to it.
+	runtime.KeepAlive(valueRegs)
 }
 
 // funcName returns the name of f, for use in error messages.
@@ -2702,9 +2711,14 @@ func New(typ Type) Value {
 		panic("reflect: New(nil)")
 	}
 	t := typ.(*rtype)
+	pt := t.ptrTo()
+	if ifaceIndir(pt) {
+		// This is a pointer to a go:notinheap type.
+		panic("reflect: New of type that may not be allocated in heap (possibly undefined cgo C type)")
+	}
 	ptr := unsafe_New(t)
 	fl := flag(Ptr)
-	return Value{t.ptrTo(), ptr, fl}
+	return Value{pt, ptr, fl}
 }
 
 // NewAt returns a Value representing a pointer to a value of the
@@ -2757,7 +2771,7 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
 
 // Convert returns the value v converted to type t.
 // If the usual Go conversion rules do not allow conversion
-// of the value v to type t, Convert panics.
+// of the value v to type t, or if converting v to type t panics, Convert panics.
 func (v Value) Convert(t Type) Value {
 	if v.flag&flagMethod != 0 {
 		v = makeMethodValue("Convert", v)
@@ -2827,6 +2841,11 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 			case Int32:
 				return cvtRunesString
 			}
+		}
+		// "x is a slice, T is a pointer-to-array type,
+		// and the slice and array types have identical element types."
+		if dst.Kind() == Ptr && dst.Elem().Kind() == Array && src.Elem() == dst.Elem().Elem() {
+			return cvtSliceArrayPtr
 		}
 
 	case Chan:
@@ -3019,6 +3038,16 @@ func cvtRunesString(v Value, t Type) Value {
 // convertOp: string -> []rune
 func cvtStringRunes(v Value, t Type) Value {
 	return makeRunes(v.flag.ro(), []rune(v.String()), t)
+}
+
+// convertOp: []T -> *[N]T
+func cvtSliceArrayPtr(v Value, t Type) Value {
+	n := t.Elem().Len()
+	h := (*unsafeheader.Slice)(v.ptr)
+	if n > h.Len {
+		panic("reflect: cannot convert slice with length " + itoa.Itoa(h.Len) + " to array pointer with length " + itoa.Itoa(n))
+	}
+	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Ptr)}
 }
 
 // convertOp: direct copy

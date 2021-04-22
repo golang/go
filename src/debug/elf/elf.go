@@ -123,8 +123,8 @@ const (
 	ELFOSABI_NONE       OSABI = 0   /* UNIX System V ABI */
 	ELFOSABI_HPUX       OSABI = 1   /* HP-UX operating system */
 	ELFOSABI_NETBSD     OSABI = 2   /* NetBSD */
-	ELFOSABI_LINUX      OSABI = 3   /* GNU/Linux */
-	ELFOSABI_HURD       OSABI = 4   /* GNU/Hurd */
+	ELFOSABI_LINUX      OSABI = 3   /* Linux */
+	ELFOSABI_HURD       OSABI = 4   /* Hurd */
 	ELFOSABI_86OPEN     OSABI = 5   /* 86Open common IA32 ABI */
 	ELFOSABI_SOLARIS    OSABI = 6   /* Solaris */
 	ELFOSABI_AIX        OSABI = 7   /* AIX */

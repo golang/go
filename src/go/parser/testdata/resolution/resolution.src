@@ -21,7 +21,7 @@ const (
 
 type T /* =@T */ int
 
-func _ /* =@blankFunc */ (count /* =@count */ T /* @T */) {
+func _(count /* =@count */ T /* @T */) {
 	x /* =@x1 */ := c /* @cdecl */{}
 	switch x /* =@x2 */ := x /* @x1 */; x /* =@x3 */ := x /* @x2 */.(type) {
 	case c /* @cdecl */:
@@ -39,7 +39,18 @@ loop /* =@loop */:
 	case err /* =@err2 */ := <-_:
 		return err /* @err2 */
 	}
+
+	_ = func(p1 /* =@p1 */ int, p2 /* =@p2 */ p1) {
+		closed /* =@closed */ := p1 // @p1
+		shadowed /* =@shadowed1 */ := p2 // @p2
+		_ = func(shadowed /* =@shadowed2 */ p2 /* @p2 */) {
+			closed /* @closed */ = 1
+			shadowed /* @shadowed2 */ = 2
+		}
+	}
 }
+
+func (r /* =@r */ c /* @cdecl */) m(_ r) c /* @cdecl */ { return r /* @r */ }
 
 var cycle /* =@cycle */ = cycle /* @cycle */ + 1
 

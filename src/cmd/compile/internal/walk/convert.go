@@ -135,7 +135,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		return e
 	}
 
-	fnname, needsaddr := convFuncName(fromType, toType)
+	fnname, argType, needsaddr := convFuncName(fromType, toType)
 
 	if !needsaddr && !fromType.IsInterface() {
 		// Use a specialized conversion routine that only returns a data pointer.
@@ -143,10 +143,29 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		// e = iface{typ/tab, ptr}
 		fn := typecheck.LookupRuntime(fnname)
 		types.CalcSize(fromType)
-		fn = typecheck.SubstArgTypes(fn, fromType)
-		types.CalcSize(fn.Type())
+
+		arg := n.X
+		switch {
+		case fromType == argType:
+			// already in the right type, nothing to do
+		case fromType.Kind() == argType.Kind(),
+			fromType.IsPtrShaped() && argType.IsPtrShaped():
+			// can directly convert (e.g. named type to underlying type, or one pointer to another)
+			arg = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, argType, arg)
+		case fromType.IsInteger() && argType.IsInteger():
+			// can directly convert (e.g. int32 to uint32)
+			arg = ir.NewConvExpr(n.Pos(), ir.OCONV, argType, arg)
+		default:
+			// unsafe cast through memory
+			arg = copyExpr(arg, arg.Type(), init)
+			var addr ir.Node = typecheck.NodAddr(arg)
+			addr = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, argType.PtrTo(), addr)
+			arg = ir.NewStarExpr(n.Pos(), addr)
+			arg.SetType(argType)
+		}
+
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
-		call.Args = []ir.Node{n.X}
+		call.Args = []ir.Node{arg}
 		e := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeword(), safeExpr(walkExpr(typecheck.Expr(call), init), init))
 		e.SetType(toType)
 		e.SetTypecheck(1)
@@ -294,67 +313,45 @@ func walkStringToRunes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 }
 
 // convFuncName builds the runtime function name for interface conversion.
-// It also reports whether the function expects the data by address.
+// It also returns the argument type that the runtime function takes, and
+// whether the function expects the data by address.
 // Not all names are possible. For example, we never generate convE2E or convE2I.
-func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
-	// With register-based ABI, float32 and uint32 are passed in different
-	// registers, so we cannot use convT32 for float32.
-	// isFloatLike returns whether t is a float-like type (float32, float64,
-	// single-element array/struct with a float-like element), for which
-	// the argument is passed in a floating point register under register-
-	// based ABI.
-	var isFloatLike func(t *types.Type) bool
-	isFloatLike = func(t *types.Type) bool {
-		switch t.Kind() {
-		case types.TFLOAT32, types.TFLOAT64:
-			return true
-		case types.TARRAY:
-			return t.NumElem() == 1 && isFloatLike(t.Elem())
-		case types.TSTRUCT:
-			return t.NumFields() == 1 && isFloatLike(t.Field(0).Type)
-		}
-		return false
-	}
-
+func convFuncName(from, to *types.Type) (fnname string, argType *types.Type, needsaddr bool) {
 	tkind := to.Tie()
 	switch from.Tie() {
 	case 'I':
 		if tkind == 'I' {
-			return "convI2I", false
+			return "convI2I", types.Types[types.TINTER], false
 		}
 	case 'T':
 		switch {
 		case from.Size() == 2 && from.Align == 2:
-			return "convT16", false
-		case from.Size() == 4 && isFloatLike(from):
-			return "convT32F", false
+			return "convT16", types.Types[types.TUINT16], false
 		case from.Size() == 4 && from.Align == 4 && !from.HasPointers():
-			return "convT32", false
-		case from.Size() == 8 && isFloatLike(from):
-			return "convT64F", false
+			return "convT32", types.Types[types.TUINT32], false
 		case from.Size() == 8 && from.Align == types.Types[types.TUINT64].Align && !from.HasPointers():
-			return "convT64", false
+			return "convT64", types.Types[types.TUINT64], false
 		}
 		if sc := from.SoleComponent(); sc != nil {
 			switch {
 			case sc.IsString():
-				return "convTstring", false
+				return "convTstring", types.Types[types.TSTRING], false
 			case sc.IsSlice():
-				return "convTslice", false
+				return "convTslice", types.NewSlice(types.Types[types.TUINT8]), false // the element type doesn't matter
 			}
 		}
 
 		switch tkind {
 		case 'E':
 			if !from.HasPointers() {
-				return "convT2Enoptr", true
+				return "convT2Enoptr", types.Types[types.TUNSAFEPTR], true
 			}
-			return "convT2E", true
+			return "convT2E", types.Types[types.TUNSAFEPTR], true
 		case 'I':
 			if !from.HasPointers() {
-				return "convT2Inoptr", true
+				return "convT2Inoptr", types.Types[types.TUNSAFEPTR], true
 			}
-			return "convT2I", true
+			return "convT2I", types.Types[types.TUNSAFEPTR], true
 		}
 	}
 	base.Fatalf("unknown conv func %c2%c", from.Tie(), to.Tie())

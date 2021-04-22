@@ -64,7 +64,7 @@ type Func struct {
 	Names []LocalSlot
 
 	// RegArgs is a slice of register-memory pairs that must be spilled and unspilled in the uncommon path of function entry.
-	RegArgs []ArgPair
+	RegArgs []Spill
 	// AuxCall describing parameters and results for this function.
 	OwnAux *AuxCall
 

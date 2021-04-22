@@ -10,6 +10,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"fmt"
+	"internal/buildcfg"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -91,8 +92,8 @@ func main() {
 `
 
 func TestIssue41621LargeNumberOfRelocations(t *testing.T) {
-	if testing.Short() || (objabi.GOARCH != "amd64") {
-		t.Skipf("Skipping large number of relocations test in short mode or on %s", objabi.GOARCH)
+	if testing.Short() || (buildcfg.GOARCH != "amd64") {
+		t.Skipf("Skipping large number of relocations test in short mode or on %s", buildcfg.GOARCH)
 	}
 	testenv.MustHaveGoBuild(t)
 

@@ -1022,3 +1022,7 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
 	MOVD	R3, x+0(FP)
 	MOVD	R4, y+8(FP)
 	JMP	runtime·goPanicSlice3CU(SB)
+TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-16
+	MOVD	R5, x+0(FP)
+	MOVD	R6, y+8(FP)
+	JMP	runtime·goPanicSliceConvert(SB)

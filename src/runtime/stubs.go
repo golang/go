@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/goexperiment"
 	"unsafe"
 )
 
@@ -107,6 +108,9 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
 //
 //go:noescape
 func memmove(to, from unsafe.Pointer, n uintptr)
+
+// Outside assembly calls memmove. Make sure it has ABI wrappers.
+//go:linkname memmove
 
 //go:linkname reflect_memmove reflect.memmove
 func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
@@ -393,8 +397,10 @@ func duffcopy()
 // Called from linker-generated .initarray; declared for go vet; do NOT call from Go.
 func addmoduledata()
 
-// Injected by the signal handler for panicking signals. On many platforms it just
-// jumps to sigpanic.
+// Injected by the signal handler for panicking signals.
+// Initializes any registers that have fixed meaning at calls but
+// are scratch in bodies and calls sigpanic.
+// On many platforms it just jumps to sigpanic.
 func sigpanic0()
 
 // intArgRegs is used by the various register assignment
@@ -423,4 +429,4 @@ func sigpanic0()
 // everywhere.
 //
 // Protected by finlock.
-var intArgRegs = abi.IntArgRegs * experimentRegabiArgs
+var intArgRegs = abi.IntArgRegs * goexperiment.RegabiArgsInt

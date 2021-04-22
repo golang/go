@@ -814,6 +814,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 		"src/internal/abi",
 		"src/internal/bytealg",
 		"src/internal/cpu",
+		"src/internal/goexperiment",
 		"src/math/bits",
 		"src/unsafe",
 		filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH),

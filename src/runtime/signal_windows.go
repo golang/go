@@ -145,7 +145,7 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
 			*((*uintptr)(sp)) = r.ip()
 		}
 	}
-	r.set_ip(funcPC(sigpanic))
+	r.set_ip(funcPC(sigpanic0))
 	return _EXCEPTION_CONTINUE_EXECUTION
 }
 

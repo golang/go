@@ -8,8 +8,8 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj/x86"
-	"cmd/internal/objabi"
 	"fmt"
+	"internal/buildcfg"
 	"os"
 )
 
@@ -19,7 +19,7 @@ func Init(arch *ssagen.ArchInfo) {
 	arch.SSAGenValue = ssaGenValue
 	arch.SSAGenBlock = ssaGenBlock
 	arch.MAXWIDTH = (1 << 32) - 1
-	switch v := objabi.GO386; v {
+	switch v := buildcfg.GO386; v {
 	case "sse2":
 	case "softfloat":
 		arch.SoftFloat = true

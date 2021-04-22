@@ -56,8 +56,6 @@ const (
 func gcMarkRootPrepare() {
 	assertWorldStopped()
 
-	work.nFlushCacheRoots = 0
-
 	// Compute how many data and BSS root blocks there are.
 	nBlocks := func(bytes uintptr) int {
 		return int(divRoundUp(bytes, rootBlockBytes))
@@ -105,7 +103,14 @@ func gcMarkRootPrepare() {
 	work.nStackRoots = int(atomic.Loaduintptr(&allglen))
 
 	work.markrootNext = 0
-	work.markrootJobs = uint32(fixedRootCount + work.nFlushCacheRoots + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots)
+	work.markrootJobs = uint32(fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots)
+
+	// Calculate base indexes of each root type
+	work.baseData = uint32(fixedRootCount)
+	work.baseBSS = work.baseData + uint32(work.nDataRoots)
+	work.baseSpans = work.baseBSS + uint32(work.nBSSRoots)
+	work.baseStacks = work.baseSpans + uint32(work.nSpanRoots)
+	work.baseEnd = work.baseStacks + uint32(work.nStackRoots)
 }
 
 // gcMarkRootCheck checks that all roots have been scanned. It is
@@ -149,28 +154,16 @@ var oneptrmask = [...]uint8{1}
 //
 //go:nowritebarrier
 func markroot(gcw *gcWork, i uint32) {
-	// TODO(austin): This is a bit ridiculous. Compute and store
-	// the bases in gcMarkRootPrepare instead of the counts.
-	baseFlushCache := uint32(fixedRootCount)
-	baseData := baseFlushCache + uint32(work.nFlushCacheRoots)
-	baseBSS := baseData + uint32(work.nDataRoots)
-	baseSpans := baseBSS + uint32(work.nBSSRoots)
-	baseStacks := baseSpans + uint32(work.nSpanRoots)
-	end := baseStacks + uint32(work.nStackRoots)
-
 	// Note: if you add a case here, please also update heapdump.go:dumproots.
 	switch {
-	case baseFlushCache <= i && i < baseData:
-		flushmcache(int(i - baseFlushCache))
-
-	case baseData <= i && i < baseBSS:
+	case work.baseData <= i && i < work.baseBSS:
 		for _, datap := range activeModules() {
-			markrootBlock(datap.data, datap.edata-datap.data, datap.gcdatamask.bytedata, gcw, int(i-baseData))
+			markrootBlock(datap.data, datap.edata-datap.data, datap.gcdatamask.bytedata, gcw, int(i-work.baseData))
 		}
 
-	case baseBSS <= i && i < baseSpans:
+	case work.baseBSS <= i && i < work.baseSpans:
 		for _, datap := range activeModules() {
-			markrootBlock(datap.bss, datap.ebss-datap.bss, datap.gcbssmask.bytedata, gcw, int(i-baseBSS))
+			markrootBlock(datap.bss, datap.ebss-datap.bss, datap.gcbssmask.bytedata, gcw, int(i-work.baseBSS))
 		}
 
 	case i == fixedRootFinalizers:
@@ -184,18 +177,18 @@ func markroot(gcw *gcWork, i uint32) {
 		// stackfree.
 		systemstack(markrootFreeGStacks)
 
-	case baseSpans <= i && i < baseStacks:
+	case work.baseSpans <= i && i < work.baseStacks:
 		// mark mspan.specials
-		markrootSpans(gcw, int(i-baseSpans))
+		markrootSpans(gcw, int(i-work.baseSpans))
 
 	default:
 		// the rest is scanning goroutine stacks
 		var gp *g
-		if baseStacks <= i && i < end {
+		if work.baseStacks <= i && i < work.baseEnd {
 			// N.B. Atomic read of allglen in gcMarkRootPrepare
 			// acts as a barrier to ensure that allgs must be large
 			// enough to contain all relevant Gs.
-			gp = allgs[i-baseStacks]
+			gp = allgs[i-work.baseStacks]
 		} else {
 			throw("markroot: bad index")
 		}
@@ -873,7 +866,7 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 	}
 
 	isAsyncPreempt := frame.fn.valid() && frame.fn.funcID == funcID_asyncPreempt
-	isDebugCall := frame.fn.valid() && frame.fn.funcID == funcID_debugCallV1
+	isDebugCall := frame.fn.valid() && frame.fn.funcID == funcID_debugCallV2
 	if state.conservative || isAsyncPreempt || isDebugCall {
 		if debugScanConservative {
 			println("conservatively scanning function", funcname(frame.fn), "at PC", hex(frame.continpc))
@@ -1258,12 +1251,7 @@ func scanobject(b uintptr, gcw *gcWork) {
 	}
 
 	var i uintptr
-	for i = 0; i < n; i += sys.PtrSize {
-		// Find bits for this word.
-		if i != 0 {
-			// Avoid needless hbits.next() on last iteration.
-			hbits = hbits.next()
-		}
+	for i = 0; i < n; i, hbits = i+sys.PtrSize, hbits.next() {
 		// Load bits once. See CL 22712 and issue 16973 for discussion.
 		bits := hbits.bits()
 		if bits&bitScan == 0 {

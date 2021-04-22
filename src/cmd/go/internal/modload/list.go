@@ -25,6 +25,7 @@ type ListMode int
 const (
 	ListU ListMode = 1 << iota
 	ListRetracted
+	ListDeprecated
 	ListVersions
 	ListRetractedVersions
 )
@@ -51,6 +52,9 @@ func ListModules(ctx context.Context, args []string, mode ListMode) ([]*modinfo.
 					}
 					if mode&ListRetracted != 0 {
 						addRetraction(ctx, m)
+					}
+					if mode&ListDeprecated != 0 {
+						addDeprecation(ctx, m)
 					}
 					<-sem
 				}()

@@ -126,8 +126,8 @@ func (s sanitizer) typ(typ Type) Type {
 		}
 
 	case *Named:
-		if orig := s.typ(t.orig); orig != t.orig {
-			t.orig = orig
+		if orig := s.typ(t.fromRHS); orig != t.fromRHS {
+			t.fromRHS = orig
 		}
 		if under := s.typ(t.underlying); under != t.underlying {
 			t.underlying = under

@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/buildcfg"
 	"io"
 	"log"
 	"os"
@@ -231,7 +232,7 @@ CheckFlags:
 	}
 
 	// TODO: Test and delete these conditions.
-	if objabi.Experiment.FieldTrack || objabi.Experiment.PreemptibleLoops {
+	if buildcfg.Experiment.FieldTrack || buildcfg.Experiment.PreemptibleLoops {
 		canDashC = false
 	}
 
@@ -290,10 +291,11 @@ func (a *Action) trimpath() string {
 
 	rewriteDir := a.Package.Dir
 	if cfg.BuildTrimpath {
+		importPath := a.Package.Internal.OrigImportPath
 		if m := a.Package.Module; m != nil && m.Version != "" {
-			rewriteDir = m.Path + "@" + m.Version + strings.TrimPrefix(a.Package.ImportPath, m.Path)
+			rewriteDir = m.Path + "@" + m.Version + strings.TrimPrefix(importPath, m.Path)
 		} else {
-			rewriteDir = a.Package.ImportPath
+			rewriteDir = importPath
 		}
 		rewrite += a.Package.Dir + "=>" + rewriteDir + ";"
 	}

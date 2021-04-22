@@ -3619,6 +3619,32 @@ func rewriteValueARM64_OpARM64CSETM(v *Value) bool {
 		v.AddArg(cmp)
 		return true
 	}
+	// match: (CSETM [cc] flag)
+	// cond: ccARM64Eval(cc, flag) > 0
+	// result: (MOVDconst [-1])
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		flag := v_0
+		if !(ccARM64Eval(cc, flag) > 0) {
+			break
+		}
+		v.reset(OpARM64MOVDconst)
+		v.AuxInt = int64ToAuxInt(-1)
+		return true
+	}
+	// match: (CSETM [cc] flag)
+	// cond: ccARM64Eval(cc, flag) < 0
+	// result: (MOVDconst [0])
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		flag := v_0
+		if !(ccARM64Eval(cc, flag) < 0) {
+			break
+		}
+		v.reset(OpARM64MOVDconst)
+		v.AuxInt = int64ToAuxInt(0)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64CSINC(v *Value) bool {
@@ -3638,6 +3664,34 @@ func rewriteValueARM64_OpARM64CSINC(v *Value) bool {
 		v.reset(OpARM64CSINC)
 		v.AuxInt = opToAuxInt(arm64Invert(cc))
 		v.AddArg3(x, y, cmp)
+		return true
+	}
+	// match: (CSINC [cc] x _ flag)
+	// cond: ccARM64Eval(cc, flag) > 0
+	// result: x
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		x := v_0
+		flag := v_2
+		if !(ccARM64Eval(cc, flag) > 0) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (CSINC [cc] _ y flag)
+	// cond: ccARM64Eval(cc, flag) < 0
+	// result: (ADDconst [1] y)
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		y := v_1
+		flag := v_2
+		if !(ccARM64Eval(cc, flag) < 0) {
+			break
+		}
+		v.reset(OpARM64ADDconst)
+		v.AuxInt = int64ToAuxInt(1)
+		v.AddArg(y)
 		return true
 	}
 	return false
@@ -3661,6 +3715,33 @@ func rewriteValueARM64_OpARM64CSINV(v *Value) bool {
 		v.AddArg3(x, y, cmp)
 		return true
 	}
+	// match: (CSINV [cc] x _ flag)
+	// cond: ccARM64Eval(cc, flag) > 0
+	// result: x
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		x := v_0
+		flag := v_2
+		if !(ccARM64Eval(cc, flag) > 0) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (CSINV [cc] _ y flag)
+	// cond: ccARM64Eval(cc, flag) < 0
+	// result: (Not y)
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		y := v_1
+		flag := v_2
+		if !(ccARM64Eval(cc, flag) < 0) {
+			break
+		}
+		v.reset(OpNot)
+		v.AddArg(y)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64CSNEG(v *Value) bool {
@@ -3680,6 +3761,33 @@ func rewriteValueARM64_OpARM64CSNEG(v *Value) bool {
 		v.reset(OpARM64CSNEG)
 		v.AuxInt = opToAuxInt(arm64Invert(cc))
 		v.AddArg3(x, y, cmp)
+		return true
+	}
+	// match: (CSNEG [cc] x _ flag)
+	// cond: ccARM64Eval(cc, flag) > 0
+	// result: x
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		x := v_0
+		flag := v_2
+		if !(ccARM64Eval(cc, flag) > 0) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (CSNEG [cc] _ y flag)
+	// cond: ccARM64Eval(cc, flag) < 0
+	// result: (NEG y)
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		y := v_1
+		flag := v_2
+		if !(ccARM64Eval(cc, flag) < 0) {
+			break
+		}
+		v.reset(OpARM64NEG)
+		v.AddArg(y)
 		return true
 	}
 	return false

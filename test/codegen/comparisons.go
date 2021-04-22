@@ -90,9 +90,11 @@ func CompareArray6(a, b unsafe.Pointer) bool {
 
 // Test that LEAQ/ADDQconst are folded into SETx ops
 
-func CmpFold(x uint32) bool {
-	// amd64:`SETHI\t.*\(SP\)`
-	return x > 4
+var r bool
+
+func CmpFold(x uint32) {
+	// amd64:`SETHI\t.*\(SB\)`
+	r = x > 4
 }
 
 // Test that direct comparisons with memory are generated when

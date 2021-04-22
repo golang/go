@@ -138,6 +138,11 @@ type PackageOpts struct {
 	// If nil, treated as equivalent to imports.Tags().
 	Tags map[string]bool
 
+	// Tidy, if true, requests that the build list and go.sum file be reduced to
+	// the minimial dependencies needed to reproducibly reload the requested
+	// packages.
+	Tidy bool
+
 	// VendorModulesInGOROOTSrc indicates that if we are within a module in
 	// GOROOT/src, packages in the module's vendor directory should be resolved as
 	// actual module dependencies (instead of standard-library packages).
@@ -202,8 +207,6 @@ type PackageOpts struct {
 // LoadPackages identifies the set of packages matching the given patterns and
 // loads the packages in the import graph rooted at that set.
 func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (matches []*search.Match, loadedPackages []string) {
-	rs := LoadModFile(ctx)
-
 	if opts.Tags == nil {
 		opts.Tags = imports.Tags()
 	}
@@ -218,7 +221,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		}
 	}
 
-	updateMatches := func(ld *loader) {
+	updateMatches := func(rs *Requirements, ld *loader) {
 		for _, m := range matches {
 			switch {
 			case m.IsLocal():
@@ -293,15 +296,17 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		}
 	}
 
+	initialRS, _ := loadModFile(ctx) // Ignore needCommit — we're going to commit at the end regardless.
+
 	ld := loadFromRoots(ctx, loaderParams{
 		PackageOpts:  opts,
-		requirements: rs,
+		requirements: initialRS,
 
 		allClosesOverTests: index.allPatternClosesOverTests() && !opts.UseVendorAll,
 		allPatternIsRoot:   allPatternIsRoot,
 
-		listRoots: func() (roots []string) {
-			updateMatches(nil)
+		listRoots: func(rs *Requirements) (roots []string) {
+			updateMatches(rs, nil)
 			for _, m := range matches {
 				roots = append(roots, m.Pkgs...)
 			}
@@ -310,7 +315,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 	})
 
 	// One last pass to finalize wildcards.
-	updateMatches(ld)
+	updateMatches(ld.requirements, ld)
 
 	// Report errors, if any.
 	checkMultiplePaths(ld.requirements)
@@ -363,6 +368,11 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 
 	if !opts.SilenceUnmatchedWarnings {
 		search.WarnUnmatched(matches)
+	}
+
+	if ld.Tidy {
+		ld.requirements = tidyBuildList(ctx, ld, initialRS)
+		modfetch.TrimGoSum(keepSums(ctx, ld, ld.requirements, loadedZipSumsOnly))
 	}
 
 	// Success! Update go.mod (if needed) and return the results.
@@ -537,7 +547,7 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
 		return path.Join(m.Path, filepath.ToSlash(sub)), true
 	}
 
-	if go117LazyTODO {
+	if rs.depth == lazy {
 		for _, m := range rs.rootModules {
 			if v, _ := rs.rootSelected(m.Path); v != m.Version {
 				continue // m is a root, but we have a higher root for the same path.
@@ -550,9 +560,9 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
 		}
 	}
 
-	// None of the roots contained dir, or we're in eager mode and have already
-	// loaded the full module graph. Either way, check the full graph to see if
-	// the directory is a non-root dependency.
+	// None of the roots contained dir, or we're in eager mode and want to load
+	// the full module graph more aggressively. Either way, check the full graph
+	// to see if the directory is a non-root dependency.
 	//
 	// If the roots are not consistent with the full module graph, the selected
 	// versions of root modules may differ from what we already checked above.
@@ -588,7 +598,7 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
 		},
 		requirements:       rs,
 		allClosesOverTests: index.allPatternClosesOverTests(),
-		listRoots: func() (roots []string) {
+		listRoots: func(*Requirements) (roots []string) {
 			roots = append(roots, imports...)
 			roots = append(roots, testImports...)
 			return roots
@@ -747,7 +757,7 @@ type loaderParams struct {
 	allClosesOverTests bool // Does the "all" pattern include the transitive closure of tests of packages in "all"?
 	allPatternIsRoot   bool // Is the "all" pattern an additional root?
 
-	listRoots func() []string
+	listRoots func(rs *Requirements) []string
 }
 
 func (ld *loader) reset() {
@@ -854,6 +864,18 @@ func (pkg *loadPkg) isTest() bool {
 	return pkg.testOf != nil
 }
 
+// fromExternalModule reports whether pkg was loaded from a module other than
+// the main module.
+func (pkg *loadPkg) fromExternalModule() bool {
+	if pkg.mod.Path == "" {
+		return false // loaded from the standard library, not a module
+	}
+	if pkg.mod.Path == Target.Path {
+		return false // loaded from the main module.
+	}
+	return true
+}
+
 var errMissing = errors.New("cannot find package")
 
 // loadFromRoots attempts to load the build graph needed to process a set of
@@ -876,7 +898,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		// Note: the returned roots can change on each iteration,
 		// since the expansion of package patterns depends on the
 		// build list we're using.
-		rootPkgs := ld.listRoots()
+		rootPkgs := ld.listRoots(ld.requirements)
 
 		if go117LazyTODO {
 			// Before we start loading transitive imports of packages, locate all of
@@ -920,8 +942,8 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		}
 		module.Sort(toAdd) // to make errors deterministic
 
-		rs, changed, err := editRequirements(ctx, ld.requirements, toAdd, nil)
-		if err != nil {
+		prevRS := ld.requirements
+		if err := ld.updateRequirements(ctx, toAdd); err != nil {
 			// If an error was found in a newly added module, report the package
 			// import stack instead of the module requirement stack. Packages
 			// are more descriptive.
@@ -932,15 +954,16 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			}
 			base.Fatalf("go: %v", err)
 		}
-		ld.requirements = rs
-
-		if !changed {
-			break
+		if reflect.DeepEqual(prevRS.rootModules, ld.requirements.rootModules) {
+			// Something is deeply wrong. resolveMissingImports gave us a non-empty
+			// set of modules to add, but adding those modules to the graph had no
+			// effect.
+			panic(fmt.Sprintf("internal error: adding %v to module graph had no effect on root requirements (%v)", toAdd, prevRS.rootModules))
 		}
 	}
 	base.ExitIfErrors() // TODO(bcmills): Is this actually needed?
 
-	if err := ld.updateRequirements(ctx); err != nil {
+	if err := ld.updateRequirements(ctx, nil); err != nil {
 		base.Fatalf("go: %v", err)
 	}
 
@@ -952,8 +975,9 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 	return ld
 }
 
-// updateRequirements ensures that ld.requirements is consistent with
-// the information gained from ld.pkgs.
+// updateRequirements ensures that ld.requirements is consistent with the
+// information gained from ld.pkgs and includes the modules in add as roots at
+// at least the given versions.
 //
 // In particular:
 //
@@ -967,7 +991,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 // 	  not provide any directly-imported package are then marked as indirect.
 //
 // 	- Root dependencies are updated to their selected versions.
-func (ld *loader) updateRequirements(ctx context.Context) error {
+func (ld *loader) updateRequirements(ctx context.Context, add []module.Version) error {
 	rs := ld.requirements
 
 	// Compute directly referenced dependency modules.
@@ -1020,7 +1044,7 @@ func (ld *loader) updateRequirements(ctx context.Context) error {
 		}
 	}
 
-	rs, err := updateRoots(ctx, direct, ld.pkgs, rs)
+	rs, err := updateRoots(ctx, direct, rs, add)
 	if err == nil {
 		ld.requirements = rs
 	}

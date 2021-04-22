@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/internal/typeparams"
 	"go/token"
 	"math"
 )
@@ -1011,19 +1012,7 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
 
 	var x operand
 	check.expr(&x, index)
-	if x.mode == invalid {
-		return
-	}
-
-	// an untyped constant must be representable as Int
-	check.convertUntyped(&x, Typ[Int])
-	if x.mode == invalid {
-		return
-	}
-
-	// the index must be of integer type
-	if !isInteger(x.typ) {
-		check.invalidArg(&x, _InvalidIndex, "index %s must be integer", &x)
+	if !check.isValidIndex(&x, _InvalidIndex, "index", false) {
 		return
 	}
 
@@ -1031,20 +1020,53 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
 		return x.typ, -1
 	}
 
-	// a constant index i must be in bounds
-	if constant.Sign(x.val) < 0 {
-		check.invalidArg(&x, _InvalidIndex, "index %s must not be negative", &x)
+	if x.val.Kind() == constant.Unknown {
 		return
 	}
 
-	v, valid := constant.Int64Val(constant.ToInt(x.val))
-	if !valid || max >= 0 && v >= max {
-		check.errorf(&x, _InvalidIndex, "index %s is out of bounds", &x)
+	v, ok := constant.Int64Val(x.val)
+	assert(ok)
+	if max >= 0 && v >= max {
+		check.invalidArg(&x, _InvalidIndex, "index %s is out of bounds", &x)
 		return
 	}
 
 	// 0 <= v [ && v < max ]
-	return Typ[Int], v
+	return x.typ, v
+}
+
+func (check *Checker) isValidIndex(x *operand, code errorCode, what string, allowNegative bool) bool {
+	if x.mode == invalid {
+		return false
+	}
+
+	// spec: "a constant index that is untyped is given type int"
+	check.convertUntyped(x, Typ[Int])
+	if x.mode == invalid {
+		return false
+	}
+
+	// spec: "the index x must be of integer type or an untyped constant"
+	if !isInteger(x.typ) {
+		check.invalidArg(x, code, "%s %s must be integer", what, x)
+		return false
+	}
+
+	if x.mode == constant_ {
+		// spec: "a constant index must be non-negative ..."
+		if !allowNegative && constant.Sign(x.val) < 0 {
+			check.invalidArg(x, code, "%s %s must not be negative", what, x)
+			return false
+		}
+
+		// spec: "... and representable by a value of type int"
+		if !representableConst(x.val, check, Typ[Int], &x.val) {
+			check.invalidArg(x, code, "%s %s overflows int", what, x)
+			return false
+		}
+	}
+
+	return true
 }
 
 // indexElts checks the elements (elts) of an array or slice composite literal
@@ -1435,7 +1457,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 	case *ast.IndexExpr:
 		check.exprOrType(x, e.X)
 		if x.mode == invalid {
-			check.use(e.Index)
+			check.use(typeparams.UnpackExpr(e.Index)...)
 			goto Error
 		}
 
@@ -1853,12 +1875,6 @@ func (check *Checker) expr(x *operand, e ast.Expr) {
 func (check *Checker) multiExpr(x *operand, e ast.Expr) {
 	check.rawExpr(x, e, nil)
 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
-}
-
-// multiExprOrType is like multiExpr but the result may also be a type.
-func (check *Checker) multiExprOrType(x *operand, e ast.Expr) {
-	check.rawExpr(x, e, nil)
-	check.exclude(x, 1<<novalue|1<<builtin)
 }
 
 // exprWithHint typechecks expression e and initializes x with the expression value;

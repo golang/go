@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/internal/typeparams"
 	"go/parser"
 	"go/token"
 	"io"
@@ -18,10 +19,6 @@ import (
 	"testing"
 	"time"
 )
-
-// parseTypeParams tells go/parser to parse type parameters. Must be kept in
-// sync with go/parser/interface.go.
-const parseTypeParams parser.Mode = 1 << 30
 
 const (
 	dataDir  = "testdata"
@@ -47,11 +44,7 @@ const (
 // if any.
 func format(src []byte, mode checkMode) ([]byte, error) {
 	// parse src
-	parseMode := parser.ParseComments
-	if mode&allowTypeParams != 0 {
-		parseMode |= parseTypeParams
-	}
-	f, err := parser.ParseFile(fset, "", src, parseMode)
+	f, err := parser.ParseFile(fset, "", src, parser.ParseComments)
 	if err != nil {
 		return nil, fmt.Errorf("parse: %s\n%s", err, src)
 	}
@@ -79,7 +72,7 @@ func format(src []byte, mode checkMode) ([]byte, error) {
 
 	// make sure formatted output is syntactically correct
 	res := buf.Bytes()
-	if _, err := parser.ParseFile(fset, "", res, parseTypeParams); err != nil {
+	if _, err := parser.ParseFile(fset, "", res, parser.ParseComments); err != nil {
 		return nil, fmt.Errorf("re-parse: %s\n%s", err, buf.Bytes())
 	}
 
@@ -210,7 +203,7 @@ var data = []entry{
 	{"linebreaks.input", "linebreaks.golden", idempotent},
 	{"expressions.input", "expressions.golden", idempotent},
 	{"expressions.input", "expressions.raw", rawFormat | idempotent},
-	{"declarations.input", "declarations.golden", allowTypeParams},
+	{"declarations.input", "declarations.golden", 0},
 	{"statements.input", "statements.golden", 0},
 	{"slow.input", "slow.golden", idempotent},
 	{"complit.input", "complit.x", export},
@@ -229,6 +222,9 @@ var data = []entry{
 func TestFiles(t *testing.T) {
 	t.Parallel()
 	for _, e := range data {
+		if !typeparams.Enabled && e.mode&allowTypeParams != 0 {
+			continue
+		}
 		source := filepath.Join(dataDir, e.source)
 		golden := filepath.Join(dataDir, e.golden)
 		mode := e.mode

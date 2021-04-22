@@ -584,9 +584,9 @@ func fprint(w io.Writer, n Node) {
 		fmt.Fprintf(w, "\npackage ssa\n")
 		for _, path := range append([]string{
 			"fmt",
+			"internal/buildcfg",
 			"math",
 			"cmd/internal/obj",
-			"cmd/internal/objabi",
 			"cmd/compile/internal/base",
 			"cmd/compile/internal/types",
 		}, n.Arch.imports...) {

@@ -8,7 +8,7 @@ type obj /* =@obj */ struct {
 	name /*=@name */ string
 }
 
-func _ /* =@blank */ () {
+func _() {
 	var foo /* =@foo */ = "foo"
 	obj /* @obj */ ["foo"]
 	obj /* @obj */ .run()
@@ -19,8 +19,8 @@ func _ /* =@blank */ () {
 		name: "bar",
 	}.run()
 
-	var _ /* @=blank4 */ = File{key: obj /* @obj */ {}}
-	var _ /* @=blank3 */ = File{obj /* @obj */ {}}
+	var _ = File{key: obj /* @obj */ {}}
+	var _ = File{obj /* @obj */ {}}
 
 	[]obj /* @obj */ {foo /* @foo */}
 	x /* =@x1 */ := obj /* @obj */{}

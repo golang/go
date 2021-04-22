@@ -277,7 +277,7 @@ func (n *ConvExpr) SetOp(op Op) {
 	switch op {
 	default:
 		panic(n.no("SetOp " + op.String()))
-	case OCONV, OCONVIFACE, OCONVNOP, OBYTES2STR, OBYTES2STRTMP, ORUNES2STR, OSTR2BYTES, OSTR2BYTESTMP, OSTR2RUNES, ORUNESTR:
+	case OCONV, OCONVIFACE, OCONVNOP, OBYTES2STR, OBYTES2STRTMP, ORUNES2STR, OSTR2BYTES, OSTR2BYTESTMP, OSTR2RUNES, ORUNESTR, OSLICE2ARRPTR:
 		n.op = op
 	}
 }
@@ -748,13 +748,6 @@ func IsAddressable(n Node) bool {
 	case ODEREF, ODOTPTR:
 		return true
 
-	case OXDOT:
-		// TODO(danscales): remove this case as we remove calls to the old
-		// typechecker in (*irgen).funcBody().
-		if base.Flag.G == 0 {
-			return false
-		}
-		fallthrough
 	case ODOT:
 		n := n.(*SelectorExpr)
 		return IsAddressable(n.X)

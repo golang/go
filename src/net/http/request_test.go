@@ -469,6 +469,10 @@ var readRequestErrorTests = []struct {
 		in:     "HEAD / HTTP/1.1\r\nContent-Length:0\r\nContent-Length: 0\r\n\r\n",
 		header: Header{"Content-Length": {"0"}},
 	},
+	11: {
+		in:  "HEAD / HTTP/1.1\r\nHost: foo\r\nHost: bar\r\n\r\n\r\n\r\n",
+		err: "too many Host headers",
+	},
 }
 
 func TestReadRequestErrors(t *testing.T) {

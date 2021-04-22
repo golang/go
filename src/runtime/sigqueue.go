@@ -72,7 +72,7 @@ const (
 // It runs from the signal handler, so it's limited in what it can do.
 func sigsend(s uint32) bool {
 	bit := uint32(1) << uint(s&31)
-	if !sig.inuse || s >= uint32(32*len(sig.wanted)) {
+	if s >= uint32(32*len(sig.wanted)) {
 		return false
 	}
 
@@ -120,7 +120,7 @@ Send:
 			}
 		case sigFixup:
 			// nothing to do - we need to wait for sigIdle.
-			osyield()
+			mDoFixupAndOSYield()
 		}
 	}
 

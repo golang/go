@@ -11,30 +11,31 @@ func _() {
 	_ = x[Def-1]
 	_ = x[Not-2]
 	_ = x[Recv-3]
-	_ = x[OrOr-4]
-	_ = x[AndAnd-5]
-	_ = x[Eql-6]
-	_ = x[Neq-7]
-	_ = x[Lss-8]
-	_ = x[Leq-9]
-	_ = x[Gtr-10]
-	_ = x[Geq-11]
-	_ = x[Add-12]
-	_ = x[Sub-13]
-	_ = x[Or-14]
-	_ = x[Xor-15]
-	_ = x[Mul-16]
-	_ = x[Div-17]
-	_ = x[Rem-18]
-	_ = x[And-19]
-	_ = x[AndNot-20]
-	_ = x[Shl-21]
-	_ = x[Shr-22]
+	_ = x[Tilde-4]
+	_ = x[OrOr-5]
+	_ = x[AndAnd-6]
+	_ = x[Eql-7]
+	_ = x[Neq-8]
+	_ = x[Lss-9]
+	_ = x[Leq-10]
+	_ = x[Gtr-11]
+	_ = x[Geq-12]
+	_ = x[Add-13]
+	_ = x[Sub-14]
+	_ = x[Or-15]
+	_ = x[Xor-16]
+	_ = x[Mul-17]
+	_ = x[Div-18]
+	_ = x[Rem-19]
+	_ = x[And-20]
+	_ = x[AndNot-21]
+	_ = x[Shl-22]
+	_ = x[Shr-23]
 }
 
-const _Operator_name = ":!<-||&&==!=<<=>>=+-|^*/%&&^<<>>"
+const _Operator_name = ":!<-~||&&==!=<<=>>=+-|^*/%&&^<<>>"
 
-var _Operator_index = [...]uint8{0, 1, 2, 4, 6, 8, 10, 12, 13, 15, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 28, 30, 32}
+var _Operator_index = [...]uint8{0, 1, 2, 4, 5, 7, 9, 11, 13, 14, 16, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 31, 33}
 
 func (i Operator) String() string {
 	i -= 1

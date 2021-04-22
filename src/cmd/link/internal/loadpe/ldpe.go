@@ -178,11 +178,7 @@ func makeUpdater(l *loader.Loader, bld *loader.SymbolBuilder, s loader.Sym) *loa
 // If an .rsrc section or set of .rsrc$xx sections is found, its symbols are
 // returned as rsrc.
 func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []loader.Sym, rsrc []loader.Sym, err error) {
-	lookup := func(name string, version int) (*loader.SymbolBuilder, loader.Sym) {
-		s := l.LookupOrCreateSym(name, version)
-		sb := l.MakeSymbolUpdater(s)
-		return sb, s
-	}
+	lookup := l.LookupOrCreateCgoExport
 	sectsyms := make(map[*pe.Section]loader.Sym)
 	sectdata := make(map[*pe.Section][]byte)
 
@@ -214,7 +210,8 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		}
 
 		name := fmt.Sprintf("%s(%s)", pkg, sect.Name)
-		bld, s := lookup(name, localSymVersion)
+		s := lookup(name, localSymVersion)
+		bld := l.MakeSymbolUpdater(s)
 
 		switch sect.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
@@ -272,7 +269,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 				return nil, nil, fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
 			}
 			pesym := &f.COFFSymbols[r.SymbolTableIndex]
-			_, gosym, err := readpesym(l, arch, l.LookupOrCreateSym, f, pesym, sectsyms, localSymVersion)
+			_, gosym, err := readpesym(l, arch, lookup, f, pesym, sectsyms, localSymVersion)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -414,7 +411,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			}
 		}
 
-		bld, s, err := readpesym(l, arch, l.LookupOrCreateSym, f, pesym, sectsyms, localSymVersion)
+		bld, s, err := readpesym(l, arch, lookup, f, pesym, sectsyms, localSymVersion)
 		if err != nil {
 			return nil, nil, err
 		}

@@ -71,7 +71,7 @@ var depsRules = `
 	# No dependencies allowed for any of these packages.
 	NONE
 	< container/list, container/ring,
-	  internal/cfg, internal/cpu,
+	  internal/cfg, internal/cpu, internal/goexperiment,
 	  internal/goversion, internal/nettrace,
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
@@ -81,7 +81,7 @@ var depsRules = `
 	< internal/abi;
 
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
-	internal/abi, internal/cpu, unsafe
+	internal/abi, internal/cpu, internal/goexperiment, unsafe
 	< internal/bytealg
 	< internal/itoa
 	< internal/unsafeheader
@@ -278,6 +278,7 @@ var depsRules = `
 	< go/token
 	< go/scanner
 	< go/ast
+	< go/internal/typeparams
 	< go/parser;
 
 	FMT
@@ -296,7 +297,10 @@ var depsRules = `
 	container/heap, go/constant, go/parser, regexp
 	< go/types;
 
-	go/build/constraint, go/doc, go/parser, internal/goroot, internal/goversion
+	FMT, internal/goexperiment
+	< internal/buildcfg;
+
+	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion
 	< go/build;
 
 	DEBUG, go/build, go/types, text/scanner

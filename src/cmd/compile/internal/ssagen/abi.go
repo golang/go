@@ -6,6 +6,7 @@ package ssagen
 
 import (
 	"fmt"
+	"internal/buildcfg"
 	"io/ioutil"
 	"log"
 	"os"
@@ -108,12 +109,20 @@ func (s *SymABIs) ReadSymABIs(file string) {
 // GenABIWrappers applies ABI information to Funcs and generates ABI
 // wrapper functions where necessary.
 func (s *SymABIs) GenABIWrappers() {
-	// The linker expects an ABI0 wrapper for all cgo-exported
-	// functions.
-	for _, prag := range typecheck.Target.CgoPragmas {
+	// For cgo exported symbols, we tell the linker to export the
+	// definition ABI to C. That also means that we don't want to
+	// create ABI wrappers even if there's a linkname.
+	//
+	// TODO(austin): Maybe we want to create the ABI wrappers, but
+	// ensure the linker exports the right ABI definition under
+	// the unmangled name?
+	cgoExports := make(map[string][]*[]string)
+	for i, prag := range typecheck.Target.CgoPragmas {
 		switch prag[0] {
 		case "cgo_export_static", "cgo_export_dynamic":
-			s.refs[s.canonicalize(prag[1])] |= obj.ABISetOf(obj.ABI0)
+			symName := s.canonicalize(prag[1])
+			pprag := &typecheck.Target.CgoPragmas[i]
+			cgoExports[symName] = append(cgoExports[symName], pprag)
 		}
 	}
 
@@ -153,6 +162,27 @@ func (s *SymABIs) GenABIWrappers() {
 			fn.ABI = obj.ABI0
 		}
 
+		// If cgo-exported, add the definition ABI to the cgo
+		// pragmas.
+		cgoExport := cgoExports[symName]
+		for _, pprag := range cgoExport {
+			// The export pragmas have the form:
+			//
+			//   cgo_export_* <local> [<remote>]
+			//
+			// If <remote> is omitted, it's the same as
+			// <local>.
+			//
+			// Expand to
+			//
+			//   cgo_export_* <local> <remote> <ABI>
+			if len(*pprag) == 2 {
+				*pprag = append(*pprag, (*pprag)[1])
+			}
+			// Add the ABI argument.
+			*pprag = append(*pprag, fn.ABI.String())
+		}
+
 		// Apply references.
 		if abis, ok := s.refs[symName]; ok {
 			fn.ABIRefs |= abis
@@ -169,12 +199,22 @@ func (s *SymABIs) GenABIWrappers() {
 		// it's defined in this package since other packages
 		// may "pull" symbols using linkname and we don't want
 		// to create duplicate ABI wrappers.
+		//
+		// However, if it's given a linkname for exporting to
+		// C, then we don't make ABI wrappers because the cgo
+		// tool wants the original definition.
 		hasBody := len(fn.Body) != 0
-		if sym.Linkname != "" && (hasBody || hasDefABI) {
+		if sym.Linkname != "" && (hasBody || hasDefABI) && len(cgoExport) == 0 {
 			fn.ABIRefs |= obj.ABISetCallable
 		}
 
-		if !objabi.Experiment.RegabiWrappers {
+		// Double check that cgo-exported symbols don't get
+		// any wrappers.
+		if len(cgoExport) > 0 && fn.ABIRefs&^obj.ABISetOf(fn.ABI) != 0 {
+			base.Fatalf("cgo exported function %s cannot have ABI wrappers", fn)
+		}
+
+		if !buildcfg.Experiment.RegabiWrappers {
 			// We'll generate ABI aliases instead of
 			// wrappers once we have LSyms in InitLSym.
 			continue
@@ -202,7 +242,7 @@ func InitLSym(f *ir.Func, hasBody bool) {
 		if f.Pragma&ir.Systemstack != 0 {
 			f.LSym.Set(obj.AttrCFunc, true)
 		}
-		if f.ABI == obj.ABIInternal || !objabi.Experiment.RegabiWrappers {
+		if f.ABI == obj.ABIInternal || !buildcfg.Experiment.RegabiWrappers {
 			// Function values can only point to
 			// ABIInternal entry points. This will create
 			// the funcsym for either the defining
@@ -214,7 +254,7 @@ func InitLSym(f *ir.Func, hasBody bool) {
 			// when we see that.
 			staticdata.NeedFuncSym(f)
 		}
-		if !objabi.Experiment.RegabiWrappers {
+		if !buildcfg.Experiment.RegabiWrappers {
 			// Create ABI aliases instead of wrappers.
 			forEachWrapperABI(f, makeABIAlias)
 		}
@@ -271,7 +311,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 
 	// At the moment we don't support wrapping a method, we'd need machinery
 	// below to handle the receiver. Panic if we see this scenario.
-	ft := f.Nname.Ntype.Type()
+	ft := f.Nname.Type()
 	if ft.NumRecvs() != 0 {
 		panic("makeABIWrapper support for wrapping methods not implemented")
 	}

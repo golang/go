@@ -8,6 +8,7 @@ package types
 
 import (
 	"go/ast"
+	"go/internal/typeparams"
 	"go/token"
 	"strings"
 	"unicode"
@@ -16,83 +17,50 @@ import (
 // funcInst type-checks a function instantiaton inst and returns the result in x.
 // The operand x must be the evaluation of inst.X and its type must be a signature.
 func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
-	args, ok := check.exprOrTypeList(unpackExpr(inst.Index))
-	if !ok {
+	xlist := typeparams.UnpackExpr(inst.Index)
+	targs := check.typeList(xlist)
+	if targs == nil {
 		x.mode = invalid
 		x.expr = inst
 		return
 	}
-	if len(args) > 0 && args[0].mode != typexpr {
-		check.errorf(args[0], _NotAType, "%s is not a type", args[0])
-		ok = false
-	}
+	assert(len(targs) == len(xlist))
 
-	// check number of type arguments
-	n := len(args)
+	// check number of type arguments (got) vs number of type parameters (want)
 	sig := x.typ.(*Signature)
-	if n > len(sig.tparams) {
-		check.errorf(args[n-1], _Todo, "got %d type arguments but want %d", n, len(sig.tparams))
+	got, want := len(targs), len(sig.tparams)
+	if got > want {
+		check.errorf(xlist[got-1], _Todo, "got %d type arguments but want %d", got, want)
 		x.mode = invalid
 		x.expr = inst
 		return
 	}
 
-	// collect types
-	targs := make([]Type, n)
-	// TODO(rFindley) use a positioner here? instantiate would need to be
-	//                updated accordingly.
-	poslist := make([]token.Pos, n)
-	for i, a := range args {
-		if a.mode != typexpr {
-			// error was reported earlier
-			x.mode = invalid
-			x.expr = inst
-			return
-		}
-		targs[i] = a.typ
-		poslist[i] = a.Pos()
-	}
+	// if we don't have enough type arguments, try type inference
+	inferred := false
 
-	// if we don't have enough type arguments, use constraint type inference
-	var inferred bool
-	if n < len(sig.tparams) {
-		var failed int
-		targs, failed = check.inferB(sig.tparams, targs)
+	if got < want {
+		targs = check.infer(inst, sig.tparams, targs, nil, nil, true)
 		if targs == nil {
 			// error was already reported
 			x.mode = invalid
 			x.expr = inst
 			return
 		}
-		if failed >= 0 {
-			// at least one type argument couldn't be inferred
-			assert(targs[failed] == nil)
-			tpar := sig.tparams[failed]
-			check.errorf(inNode(inst, inst.Rbrack), 0, "cannot infer %s (%v) (%s)", tpar.name, tpar.pos, targs)
-			x.mode = invalid
-			x.expr = inst
-			return
-		}
-		// all type arguments were inferred successfully
-		if debug {
-			for _, targ := range targs {
-				assert(targ != nil)
-			}
-		}
-		n = len(targs)
+		got = len(targs)
 		inferred = true
 	}
-	assert(n == len(sig.tparams))
+	assert(got == want)
+
+	// determine argument positions (for error reporting)
+	// TODO(rFindley) use a positioner here? instantiate would need to be
+	//                updated accordingly.
+	poslist := make([]token.Pos, len(xlist))
+	for i, x := range xlist {
+		poslist[i] = x.Pos()
+	}
 
 	// instantiate function signature
-	for i, typ := range targs {
-		// some positions may be missing if types are inferred
-		var pos token.Pos
-		if i < len(poslist) {
-			pos = poslist[i]
-		}
-		check.ordinaryType(atPos(pos), typ)
-	}
 	res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
 	assert(res.tparams == nil) // signature is not generic anymore
 	if inferred {
@@ -167,13 +135,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
 		}
 
 		// evaluate arguments
-		args, ok := check.exprOrTypeList(call.Args)
-		if !ok {
-			x.mode = invalid
-			x.expr = call
-			return expression
-		}
-
+		args, _ := check.exprList(call.Args, false)
 		sig = check.arguments(call, sig, args)
 
 		// determine result
@@ -202,60 +164,6 @@ func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
 
 		return statement
 	}
-}
-
-// exprOrTypeList returns a list of operands and reports an error if the
-// list contains a mix of values and types (ignoring invalid operands).
-// TODO(rFindley) Now we can split this into exprList and typeList.
-func (check *Checker) exprOrTypeList(elist []ast.Expr) (xlist []*operand, ok bool) {
-	ok = true
-
-	switch len(elist) {
-	case 0:
-		// nothing to do
-
-	case 1:
-		// single (possibly comma-ok) value or type, or function returning multiple values
-		e := elist[0]
-		var x operand
-		check.multiExprOrType(&x, e)
-		if t, ok := x.typ.(*Tuple); ok && x.mode != invalid && x.mode != typexpr {
-			// multiple values
-			xlist = make([]*operand, t.Len())
-			for i, v := range t.vars {
-				xlist[i] = &operand{mode: value, expr: e, typ: v.typ}
-			}
-			break
-		}
-
-		check.instantiatedOperand(&x)
-
-		// exactly one (possibly invalid or comma-ok) value or type
-		xlist = []*operand{&x}
-
-	default:
-		// multiple (possibly invalid) values or types
-		xlist = make([]*operand, len(elist))
-		ntypes := 0
-		for i, e := range elist {
-			var x operand
-			check.exprOrType(&x, e)
-			xlist[i] = &x
-			switch x.mode {
-			case invalid:
-				ntypes = len(xlist) // make 'if' condition fail below (no additional error in this case)
-			case typexpr:
-				ntypes++
-				check.instantiatedOperand(&x)
-			}
-		}
-		if 0 < ntypes && ntypes < len(xlist) {
-			check.errorf(xlist[0], 0, "mix of value and type expressions")
-			ok = false
-		}
-	}
-
-	return
 }
 
 func (check *Checker) exprList(elist []ast.Expr, allowCommaOk bool) (xlist []*operand, commaOk bool) {
@@ -384,31 +292,9 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 	if len(sig.tparams) > 0 {
 		// TODO(gri) provide position information for targs so we can feed
 		//           it to the instantiate call for better error reporting
-		targs, failed := check.infer(sig.tparams, sigParams, args)
+		targs := check.infer(call, sig.tparams, nil, sigParams, args, true)
 		if targs == nil {
 			return // error already reported
-		}
-		if failed >= 0 {
-			// Some type arguments couldn't be inferred. Use
-			// bounds type inference to try to make progress.
-			targs, failed = check.inferB(sig.tparams, targs)
-			if targs == nil {
-				return // error already reported
-			}
-			if failed >= 0 {
-				// at least one type argument couldn't be inferred
-				assert(targs[failed] == nil)
-				tpar := sig.tparams[failed]
-				ppos := check.fset.Position(tpar.pos).String()
-				check.errorf(inNode(call, call.Rparen), _Todo, "cannot infer %s (%s) (%s)", tpar.name, ppos, targs)
-				return
-			}
-		}
-		// all type arguments were inferred successfully
-		if debug {
-			for _, targ := range targs {
-				assert(targ != nil)
-			}
 		}
 
 		// compute result signature
@@ -621,13 +507,13 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 					recv = recv.(*Pointer).base
 				}
 			}
+			// Disable reporting of errors during inference below. If we're unable to infer
+			// the receiver type arguments here, the receiver must be be otherwise invalid
+			// and an error has been reported elsewhere.
 			arg := operand{mode: variable, expr: x.expr, typ: recv}
-			targs, failed := check.infer(sig.rparams, NewTuple(sig.recv), []*operand{&arg})
-			if failed >= 0 {
+			targs := check.infer(m, sig.rparams, nil, NewTuple(sig.recv), []*operand{&arg}, false /* no error reporting */)
+			if targs == nil {
 				// We may reach here if there were other errors (see issue #40056).
-				// check.infer will report a follow-up error.
-				// TODO(gri) avoid the follow-up error as it is confusing
-				//           (there's no inference in the source code)
 				goto Error
 			}
 			// Don't modify m. Instead - for now - make a copy of m and use that instead.

@@ -825,7 +825,7 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x loader.Sym) []xcoffSym {
 		Nnumaux: 2,
 	}
 
-	if ldr.SymVersion(x) != 0 || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
+	if ldr.IsFileLocal(x) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
 		s.Nsclass = C_HIDEXT
 	}
 
@@ -914,7 +914,7 @@ func putaixsym(ctxt *Link, x loader.Sym, t SymbolType) {
 			Nnumaux: 1,
 		}
 
-		if ldr.SymVersion(x) != 0 || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
+		if ldr.IsFileLocal(x) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
 			// There is more symbols in the case of a global data
 			// which are related to the assembly generated
 			// to access such symbols.
@@ -1318,19 +1318,14 @@ func (ctxt *Link) doxcoff() {
 			if !ldr.AttrCgoExport(s) {
 				continue
 			}
-			if ldr.SymVersion(s) != 0 { // sanity check
-				panic("cgo_export on non-version 0 symbol")
+			if ldr.IsFileLocal(s) {
+				panic("cgo_export on static symbol")
 			}
 
 			if ldr.SymType(s) == sym.STEXT || ldr.SymType(s) == sym.SABIALIAS {
 				// On AIX, a exported function must have two symbols:
 				// - a .text symbol which must start with a ".".
 				// - a .data symbol which is a function descriptor.
-				//
-				// CgoExport attribute should only be set on a version 0
-				// symbol, which can be TEXT or ABIALIAS.
-				// (before, setupdynexp copies the attribute from the
-				// alias to the aliased. Now we are before setupdynexp.)
 				name := ldr.SymExtname(s)
 				ldr.SetSymExtname(s, "."+name)
 
@@ -1787,8 +1782,8 @@ func xcoffCreateExportFile(ctxt *Link) (fname string) {
 		if !strings.HasPrefix(extname, "._cgoexp_") {
 			continue
 		}
-		if ldr.SymVersion(s) != 0 {
-			continue // Only export version 0 symbols. See the comment in doxcoff.
+		if ldr.IsFileLocal(s) {
+			continue // Only export non-static symbols
 		}
 
 		// Retrieve the name of the initial symbol

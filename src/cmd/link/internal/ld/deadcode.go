@@ -11,6 +11,7 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"fmt"
+	"internal/buildcfg"
 	"unicode"
 )
 
@@ -32,7 +33,7 @@ type deadcodePass struct {
 func (d *deadcodePass) init() {
 	d.ldr.InitReachable()
 	d.ifaceMethod = make(map[methodsig]bool)
-	if objabi.Experiment.FieldTrack {
+	if buildcfg.Experiment.FieldTrack {
 		d.ldr.Reachparent = make([]loader.Sym, d.ldr.NSym())
 	}
 	d.dynlink = d.ctxt.DynlinkingGo()
@@ -88,14 +89,6 @@ func (d *deadcodePass) init() {
 		}
 	}
 
-	dynexpMap := d.ctxt.cgo_export_dynamic
-	if d.ctxt.LinkMode == LinkExternal {
-		dynexpMap = d.ctxt.cgo_export_static
-	}
-	for exp := range dynexpMap {
-		names = append(names, exp)
-	}
-
 	if d.ctxt.Debugvlog > 1 {
 		d.ctxt.Logf("deadcode start names: %v\n", names)
 	}
@@ -105,6 +98,14 @@ func (d *deadcodePass) init() {
 		d.mark(d.ldr.Lookup(name, 0), 0)
 		// Also mark any Go functions (internal ABI).
 		d.mark(d.ldr.Lookup(name, sym.SymVerABIInternal), 0)
+	}
+
+	// All dynamic exports are roots.
+	for _, s := range d.ctxt.dynexp {
+		if d.ctxt.Debugvlog > 1 {
+			d.ctxt.Logf("deadcode start dynexp: %s<%d>\n", d.ldr.SymName(s), d.ldr.SymVersion(s))
+		}
+		d.mark(s, 0)
 	}
 }
 
@@ -258,7 +259,7 @@ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
 	if symIdx != 0 && !d.ldr.AttrReachable(symIdx) {
 		d.wq.push(symIdx)
 		d.ldr.SetAttrReachable(symIdx, true)
-		if objabi.Experiment.FieldTrack && d.ldr.Reachparent[symIdx] == 0 {
+		if buildcfg.Experiment.FieldTrack && d.ldr.Reachparent[symIdx] == 0 {
 			d.ldr.Reachparent[symIdx] = parent
 		}
 		if *flagDumpDep {

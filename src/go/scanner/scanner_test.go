@@ -628,7 +628,7 @@ func TestInvalidLineDirectives(t *testing.T) {
 	}
 
 	if S.ErrorCount != len(invalidSegments) {
-		t.Errorf("go %d errors; want %d", S.ErrorCount, len(invalidSegments))
+		t.Errorf("got %d errors; want %d", S.ErrorCount, len(invalidSegments))
 	}
 }
 

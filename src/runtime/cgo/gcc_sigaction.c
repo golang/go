@@ -23,7 +23,7 @@ typedef struct {
 } go_sigaction_t;
 
 // SA_RESTORER is part of the kernel interface.
-// This is GNU/Linux i386/amd64 specific.
+// This is Linux i386/amd64 specific.
 #ifndef SA_RESTORER
 #define SA_RESTORER 0x4000000
 #endif

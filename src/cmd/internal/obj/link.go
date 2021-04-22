@@ -485,6 +485,7 @@ type FuncInfo struct {
 	GCLocals           *LSym
 	StackObjects       *LSym
 	OpenCodedDeferInfo *LSym
+	ArgInfo            *LSym // argument info for traceback
 
 	FuncInfoSym *LSym
 }

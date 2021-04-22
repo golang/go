@@ -31,12 +31,7 @@ func TestFifoEOF(t *testing.T) {
 		t.Skip("skipping on OpenBSD; issue 25877")
 	}
 
-	dir, err := os.MkdirTemp("", "TestFifoEOF")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-
+	dir := t.TempDir()
 	fifoName := filepath.Join(dir, "fifo")
 	if err := syscall.Mkfifo(fifoName, 0600); err != nil {
 		t.Fatal(err)

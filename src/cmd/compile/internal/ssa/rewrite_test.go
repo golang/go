@@ -205,6 +205,7 @@ func TestMergePPC64AndSrwi(t *testing.T) {
 		{0x00000000, 4, false, 0, 0},
 		{0xF0000000, 4, false, 0, 0},
 		{0xF0000000, 32, false, 0, 0},
+		{0xFFFFFFFF, 0, true, 0, 0xFFFFFFFF},
 	}
 	for i, v := range tests {
 		result := mergePPC64AndSrwi(v.and, v.srw)

@@ -35,6 +35,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
+	"internal/buildcfg"
 	"log"
 	"math"
 	"path"
@@ -646,13 +647,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	var regg int16
 	if !p.From.Sym.NoSplit() || p.From.Sym.Wrapper() {
-		if ctxt.Arch.Family == sys.AMD64 && objabi.Experiment.RegabiG && cursym.ABI() == obj.ABIInternal {
+		if ctxt.Arch.Family == sys.AMD64 && buildcfg.Experiment.RegabiG && cursym.ABI() == obj.ABIInternal {
 			regg = REGG // use the g register directly in ABIInternal
 		} else {
 			p = obj.Appendp(p, newprog)
 			regg = REG_CX
 			if ctxt.Arch.Family == sys.AMD64 {
-				// Using this register means that stacksplit works w/ //go:registerparams even when !objabi.Experiment.RegabiG
+				// Using this register means that stacksplit works w/ //go:registerparams even when !buildcfg.Experiment.RegabiG
 				regg = REGG // == REG_R14
 			}
 			p = load_g(ctxt, p, newprog, regg) // load g into regg
@@ -912,7 +913,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		if autoffset != deltasp {
-			ctxt.Diag("unbalanced PUSH/POP")
+			ctxt.Diag("%s: unbalanced PUSH/POP", cursym)
 		}
 
 		if autoffset != 0 {

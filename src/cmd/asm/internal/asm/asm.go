@@ -134,6 +134,14 @@ func (p *Parser) asmText(operands [][]lex.Token) {
 		next++
 	}
 
+	// Issue an error if we see a function defined as ABIInternal
+	// without NOSPLIT. In ABIInternal, obj needs to know the function
+	// signature in order to construct the morestack path, so this
+	// currently isn't supported for asm functions.
+	if nameAddr.Sym.ABI() == obj.ABIInternal && flag&obj.NOSPLIT == 0 {
+		p.errorf("TEXT %q: ABIInternal requires NOSPLIT", name)
+	}
+
 	// Next operand is the frame and arg size.
 	// Bizarre syntax: $frameSize-argSize is two words, not subtraction.
 	// Both frameSize and argSize must be simple integers; only frameSize

@@ -173,24 +173,25 @@ func (c *registerCursor) hasRegs() bool {
 }
 
 type expandState struct {
-	f               *Func
-	abi1            *abi.ABIConfig
-	debug           bool
-	canSSAType      func(*types.Type) bool
-	regSize         int64
-	sp              *Value
-	typs            *Types
-	ptrSize         int64
-	hiOffset        int64
-	lowOffset       int64
-	hiRo            Abi1RO
-	loRo            Abi1RO
-	namedSelects    map[*Value][]namedVal
-	sdom            SparseTree
-	commonSelectors map[selKey]*Value // used to de-dupe selectors
-	commonArgs      map[selKey]*Value // used to de-dupe OpArg/OpArgIntReg/OpArgFloatReg
-	memForCall      map[ID]*Value     // For a call, need to know the unique selector that gets the mem.
-	indentLevel     int               // Indentation for debugging recursion
+	f                  *Func
+	abi1               *abi.ABIConfig
+	debug              bool
+	canSSAType         func(*types.Type) bool
+	regSize            int64
+	sp                 *Value
+	typs               *Types
+	ptrSize            int64
+	hiOffset           int64
+	lowOffset          int64
+	hiRo               Abi1RO
+	loRo               Abi1RO
+	namedSelects       map[*Value][]namedVal
+	sdom               SparseTree
+	commonSelectors    map[selKey]*Value // used to de-dupe selectors
+	commonArgs         map[selKey]*Value // used to de-dupe OpArg/OpArgIntReg/OpArgFloatReg
+	memForCall         map[ID]*Value     // For a call, need to know the unique selector that gets the mem.
+	transformedSelects map[ID]bool       // OpSelectN after rewriting, either created or renumbered.
+	indentLevel        int               // Indentation for debugging recursion
 }
 
 // intPairTypes returns the pair of 32-bit int types needed to encode a 64-bit integer type on a target
@@ -393,10 +394,17 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 		call0 := call
 		aux := call.Aux.(*AuxCall)
 		which := selector.AuxInt
+		if x.transformedSelects[selector.ID] {
+			// This is a minor hack.  Either this select has had its operand adjusted (mem) or
+			// it is some other intermediate node that was rewritten to reference a register (not a generic arg).
+			// This can occur with chains of selection/indexing from single field/element aggregates.
+			leaf.copyOf(selector)
+			break
+		}
 		if which == aux.NResults() { // mem is after the results.
 			// rewrite v as a Copy of call -- the replacement call will produce a mem.
 			if leaf != selector {
-				panic("Unexpected selector of memory")
+				panic(fmt.Errorf("Unexpected selector of memory, selector=%s, call=%s, leaf=%s", selector.LongString(), call.LongString(), leaf.LongString()))
 			}
 			if aux.abiInfo == nil {
 				panic(badVal("aux.abiInfo nil for call", call))
@@ -404,6 +412,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 			if existing := x.memForCall[call.ID]; existing == nil {
 				selector.AuxInt = int64(aux.abiInfo.OutRegistersUsed())
 				x.memForCall[call.ID] = selector
+				x.transformedSelects[selector.ID] = true // operand adjusted
 			} else {
 				selector.copyOf(existing)
 			}
@@ -421,6 +430,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 					call = mem
 				} else {
 					mem = call.Block.NewValue1I(call.Pos.WithNotStmt(), OpSelectN, types.TypeMem, int64(aux.abiInfo.OutRegistersUsed()), call)
+					x.transformedSelects[mem.ID] = true // select uses post-expansion indexing
 					x.memForCall[call.ID] = mem
 					call = mem
 				}
@@ -436,8 +446,10 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 						leaf.SetArgs1(call0)
 						leaf.Type = leafType
 						leaf.AuxInt = reg
+						x.transformedSelects[leaf.ID] = true // leaf, rewritten to use post-expansion indexing.
 					} else {
 						w := call.Block.NewValue1I(leaf.Pos, OpSelectN, leafType, reg, call0)
+						x.transformedSelects[w.ID] = true // select, using post-expansion indexing.
 						leaf.copyOf(w)
 					}
 				} else {
@@ -496,7 +508,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 		ls := x.rewriteSelect(leaf, selector.Args[0], offset, regOffset)
 		locs = x.splitSlots(ls, ".ptr", 0, x.typs.BytePtr)
 
-	case OpSlicePtr:
+	case OpSlicePtr, OpSlicePtrUnchecked:
 		w := selector.Args[0]
 		ls := x.rewriteSelect(leaf, w, offset, regOffset)
 		locs = x.splitSlots(ls, ".ptr", 0, types.NewPtr(w.Type.Elem()))
@@ -1003,7 +1015,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
 			if x.debug {
 				x.Printf("...marking %v unused\n", a.LongString())
 			}
-			a.reset(OpInvalid)
+			a.invalidateRecursively()
 		}
 	}
 
@@ -1026,18 +1038,19 @@ func expandCalls(f *Func) {
 	// memory output as their input.
 	sp, _ := f.spSb()
 	x := &expandState{
-		f:            f,
-		abi1:         f.ABI1,
-		debug:        f.pass.debug > 0,
-		canSSAType:   f.fe.CanSSA,
-		regSize:      f.Config.RegSize,
-		sp:           sp,
-		typs:         &f.Config.Types,
-		ptrSize:      f.Config.PtrSize,
-		namedSelects: make(map[*Value][]namedVal),
-		sdom:         f.Sdom(),
-		commonArgs:   make(map[selKey]*Value),
-		memForCall:   make(map[ID]*Value),
+		f:                  f,
+		abi1:               f.ABI1,
+		debug:              f.pass.debug > 0,
+		canSSAType:         f.fe.CanSSA,
+		regSize:            f.Config.RegSize,
+		sp:                 sp,
+		typs:               &f.Config.Types,
+		ptrSize:            f.Config.PtrSize,
+		namedSelects:       make(map[*Value][]namedVal),
+		sdom:               f.Sdom(),
+		commonArgs:         make(map[selKey]*Value),
+		memForCall:         make(map[ID]*Value),
+		transformedSelects: make(map[ID]bool),
 	}
 
 	// For 32-bit, need to deal with decomposition of 64-bit integers, which depends on endianness.
@@ -1127,7 +1140,7 @@ func expandCalls(f *Func) {
 					if x.debug {
 						x.Printf("...marking %v unused\n", a.LongString())
 					}
-					a.reset(OpInvalid)
+					a.invalidateRecursively()
 				}
 			}
 			if x.debug {
@@ -1189,7 +1202,7 @@ func expandCalls(f *Func) {
 			case OpStructSelect, OpArraySelect,
 				OpIData, OpITab,
 				OpStringPtr, OpStringLen,
-				OpSlicePtr, OpSliceLen, OpSliceCap,
+				OpSlicePtr, OpSliceLen, OpSliceCap, OpSlicePtrUnchecked,
 				OpComplexReal, OpComplexImag,
 				OpInt64Hi, OpInt64Lo:
 				w := v.Args[0]
@@ -1330,6 +1343,9 @@ func expandCalls(f *Func) {
 		if dupe == nil {
 			x.commonSelectors[sk] = v
 		} else if x.sdom.IsAncestorEq(dupe.Block, v.Block) {
+			if x.debug {
+				x.Printf("Duplicate, make %s copy of %s\n", v, dupe)
+			}
 			v.copyOf(dupe)
 		} else {
 			// Because values are processed in dominator order, the old common[s] will never dominate after a miss is seen.
@@ -1348,7 +1364,7 @@ func expandCalls(f *Func) {
 			x.Printf("allOrdered[%d] = b%d, %s, uses=%d\n", i, b.ID, v.LongString(), v.Uses)
 		}
 		if v.Uses == 0 {
-			v.reset(OpInvalid)
+			v.invalidateRecursively()
 			continue
 		}
 		if v.Op == OpCopy {
@@ -1362,9 +1378,11 @@ func expandCalls(f *Func) {
 		// Leaf types may have debug locations
 		if !x.isAlreadyExpandedAggregateType(v.Type) {
 			for _, l := range locs {
+				if _, ok := f.NamedValues[l]; !ok {
+					f.Names = append(f.Names, l)
+				}
 				f.NamedValues[l] = append(f.NamedValues[l], v)
 			}
-			f.Names = append(f.Names, locs...)
 			continue
 		}
 		// Not-leaf types that had debug locations need to lose them.
@@ -1433,6 +1451,19 @@ func expandCalls(f *Func) {
 	}
 
 	// Step 6: elide any copies introduced.
+	// Update named values.
+	for _, name := range f.Names {
+		values := f.NamedValues[name]
+		for i, v := range values {
+			if v.Op == OpCopy {
+				a := v.Args[0]
+				for a.Op == OpCopy {
+					a = a.Args[0]
+				}
+				values[i] = a
+			}
+		}
+	}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			for i, a := range v.Args {
@@ -1443,8 +1474,33 @@ func expandCalls(f *Func) {
 				v.SetArg(i, aa)
 				for a.Uses == 0 {
 					b := a.Args[0]
-					a.reset(OpInvalid)
+					a.invalidateRecursively()
 					a = b
+				}
+			}
+		}
+	}
+
+	// Rewriting can attach lines to values that are unlikely to survive code generation, so move them to a use.
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			for _, a := range v.Args {
+				if a.Pos.IsStmt() != src.PosIsStmt {
+					continue
+				}
+				if a.Type.IsMemory() {
+					continue
+				}
+				if a.Pos.Line() != v.Pos.Line() {
+					continue
+				}
+				if !a.Pos.SameFile(v.Pos) {
+					continue
+				}
+				switch a.Op {
+				case OpArgIntReg, OpArgFloatReg, OpSelectN:
+					v.Pos = v.Pos.WithIsStmt()
+					a.Pos = a.Pos.WithDefaultStmt()
 				}
 			}
 		}

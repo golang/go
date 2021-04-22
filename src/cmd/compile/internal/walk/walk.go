@@ -157,12 +157,16 @@ func chanfn(name string, n int, t *types.Type) ir.Node {
 	return fn
 }
 
-func mapfn(name string, t *types.Type) ir.Node {
+func mapfn(name string, t *types.Type, isfat bool) ir.Node {
 	if !t.IsMap() {
 		base.Fatalf("mapfn %v", t)
 	}
 	fn := typecheck.LookupRuntime(name)
-	fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key(), t.Elem())
+	if mapfast(t) == mapslow || isfat {
+		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key(), t.Elem())
+	} else {
+		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Elem())
+	}
 	return fn
 }
 
@@ -171,7 +175,11 @@ func mapfndel(name string, t *types.Type) ir.Node {
 		base.Fatalf("mapfn %v", t)
 	}
 	fn := typecheck.LookupRuntime(name)
-	fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key())
+	if mapfast(t) == mapslow {
+		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key())
+	} else {
+		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
+	}
 	return fn
 }
 

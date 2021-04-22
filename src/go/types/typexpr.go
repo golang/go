@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/internal/typeparams"
 	"go/token"
 	"sort"
 	"strconv"
@@ -139,7 +140,7 @@ func (check *Checker) ordinaryType(pos positioner, typ Type) {
 	// while we are in the middle of type-checking parameter declarations that
 	// might belong to interface methods. Delay this check to the end of
 	// type-checking.
-	check.atEnd(func() {
+	check.later(func() {
 		if t := asInterface(typ); t != nil {
 			check.completeInterface(pos.Pos(), t) // TODO(gri) is this the correct position?
 			if t.allTypes != nil {
@@ -209,27 +210,22 @@ func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
 			return &new
 		}
 	case *ast.IndexExpr:
-		index := isubst(n.Index, smap)
-		if index != n.Index {
-			new := *n
-			new.Index = index
-			return &new
-		}
-	case *ast.ListExpr:
-		var elems []ast.Expr
-		for i, elem := range n.ElemList {
+		elems := typeparams.UnpackExpr(n.Index)
+		var newElems []ast.Expr
+		for i, elem := range elems {
 			new := isubst(elem, smap)
 			if new != elem {
-				if elems == nil {
-					elems = make([]ast.Expr, len(n.ElemList))
-					copy(elems, n.ElemList)
+				if newElems == nil {
+					newElems = make([]ast.Expr, len(elems))
+					copy(newElems, elems)
 				}
-				elems[i] = new
+				newElems[i] = new
 			}
 		}
-		if elems != nil {
+		if newElems != nil {
+			index := typeparams.PackExpr(newElems)
 			new := *n
-			new.ElemList = elems
+			new.Index = index
 			return &new
 		}
 	case *ast.ParenExpr:
@@ -316,13 +312,13 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		}
 	}
 
-	if ftyp.TParams != nil {
-		sig.tparams = check.collectTypeParams(ftyp.TParams)
+	if tparams := typeparams.Get(ftyp); tparams != nil {
+		sig.tparams = check.collectTypeParams(tparams)
 		// Always type-check method type parameters but complain that they are not allowed.
 		// (A separate check is needed when type-checking interface method signatures because
 		// they don't have a receiver specification.)
 		if recvPar != nil {
-			check.errorf(ftyp.TParams, _Todo, "methods cannot have type parameters")
+			check.errorf(tparams, _Todo, "methods cannot have type parameters")
 		}
 	}
 
@@ -467,7 +463,8 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		}
 
 	case *ast.IndexExpr:
-		return check.instantiatedType(e.X, unpackExpr(e.Index), def)
+		exprs := typeparams.UnpackExpr(e.Index)
+		return check.instantiatedType(e.X, exprs, def)
 
 	case *ast.ParenExpr:
 		// Generic types must be instantiated before they can be used in any form.
@@ -534,7 +531,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		//
 		// Delay this check because it requires fully setup types;
 		// it is safe to continue in any case (was issue 6667).
-		check.atEnd(func() {
+		check.later(func() {
 			if !Comparable(typ.key) {
 				var why string
 				if asTypeParam(typ.key) != nil {
@@ -638,7 +635,7 @@ func (check *Checker) instantiatedType(x ast.Expr, targs []ast.Expr, def *Named)
 
 	// make sure we check instantiation works at least once
 	// and that the resulting type is valid
-	check.atEnd(func() {
+	check.later(func() {
 		t := typ.expand()
 		check.validType(t, nil)
 	})
@@ -801,7 +798,11 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			// (This extra check is needed here because interface method signatures don't have
 			// a receiver specification.)
 			if sig.tparams != nil {
-				check.errorf(f.Type.(*ast.FuncType).TParams, _Todo, "methods cannot have type parameters")
+				var at positioner = f.Type
+				if tparams := typeparams.Get(f.Type); tparams != nil {
+					at = tparams
+				}
+				check.errorf(at, _Todo, "methods cannot have type parameters")
 			}
 
 			// use named receiver type if available (for better error messages)
@@ -904,7 +905,7 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 			// If we're pre-go1.14 (overlapping embeddings are not permitted), report that
 			// error here as well (even though we could do it eagerly) because it's the same
 			// error message.
-			check.atEnd(func() {
+			check.later(func() {
 				if !check.allowVersion(m.pkg, 1, 14) || !check.identical(m.typ, other.Type()) {
 					check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
 					check.errorf(atPos(mpos[other.(*Func)]), _DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
@@ -1118,7 +1119,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 			embeddedTyp := typ
 			embeddedPos := f.Type
 
-			check.atEnd(func() {
+			check.later(func() {
 				t, isPtr := deref(embeddedTyp)
 				switch t := optype(t).(type) {
 				case *Basic:
@@ -1176,7 +1177,7 @@ func (check *Checker) collectTypeConstraints(pos token.Pos, types []ast.Expr) []
 	// interfaces, which may not be complete yet. It's ok to do this check at the
 	// end because it's not a requirement for correctness of the code.
 	// Note: This is a quadratic algorithm, but type lists tend to be short.
-	check.atEnd(func() {
+	check.later(func() {
 		for i, t := range list {
 			if t := asInterface(t); t != nil {
 				check.completeInterface(types[i].Pos(), t)

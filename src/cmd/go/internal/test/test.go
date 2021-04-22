@@ -569,8 +569,6 @@ var defaultVetFlags = []string{
 }
 
 func runTest(ctx context.Context, cmd *base.Command, args []string) {
-	load.ModResolveTests = true
-
 	pkgArgs, testArgs = testFlags(args)
 
 	if cfg.DebugTrace != "" {
@@ -596,7 +594,8 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	work.VetFlags = testVet.flags
 	work.VetExplicit = testVet.explicit
 
-	pkgs = load.PackagesAndErrors(ctx, pkgArgs)
+	pkgOpts := load.PackageOpts{ModResolveTests: true}
+	pkgs = load.PackagesAndErrors(ctx, pkgOpts, pkgArgs)
 	load.CheckPackageErrors(pkgs)
 	if len(pkgs) == 0 {
 		base.Fatalf("no packages to test")
@@ -680,7 +679,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		sort.Strings(all)
 
 		a := &work.Action{Mode: "go test -i"}
-		pkgs := load.PackagesAndErrors(ctx, all)
+		pkgs := load.PackagesAndErrors(ctx, pkgOpts, all)
 		load.CheckPackageErrors(pkgs)
 		for _, p := range pkgs {
 			if cfg.BuildToolchainName == "gccgo" && p.Standard {
@@ -707,7 +706,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		}
 
 		// Select for coverage all dependencies matching the testCoverPaths patterns.
-		for _, p := range load.TestPackageList(ctx, pkgs) {
+		for _, p := range load.TestPackageList(ctx, pkgOpts, pkgs) {
 			haveMatch := false
 			for i := range testCoverPaths {
 				if match[i](p) {
@@ -775,7 +774,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			ensureImport(p, "sync/atomic")
 		}
 
-		buildTest, runTest, printTest, err := builderTest(&b, ctx, p)
+		buildTest, runTest, printTest, err := builderTest(&b, ctx, pkgOpts, p)
 		if err != nil {
 			str := err.Error()
 			str = strings.TrimPrefix(str, "\n")
@@ -842,7 +841,7 @@ var windowsBadWords = []string{
 	"update",
 }
 
-func builderTest(b *work.Builder, ctx context.Context, p *load.Package) (buildAction, runAction, printAction *work.Action, err error) {
+func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package) (buildAction, runAction, printAction *work.Action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
 		run := &work.Action{Mode: "test run", Package: p, Deps: []*work.Action{build}}
@@ -865,7 +864,7 @@ func builderTest(b *work.Builder, ctx context.Context, p *load.Package) (buildAc
 			DeclVars: declareCoverVars,
 		}
 	}
-	pmain, ptest, pxtest, err := load.TestPackagesFor(ctx, p, cover)
+	pmain, ptest, pxtest, err := load.TestPackagesFor(ctx, pkgOpts, p, cover)
 	if err != nil {
 		return nil, nil, nil, err
 	}

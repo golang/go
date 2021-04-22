@@ -395,10 +395,10 @@ type common struct {
 	cleanups    []func()             // optional functions to be called at the end of the test
 	cleanupName string               // Name of the cleanup function.
 	cleanupPc   []uintptr            // The stack trace at the point where Cleanup was called.
+	finished    bool                 // Test function has completed.
 
 	chatty     *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
 	bench      bool           // Whether the current test is a benchmark.
-	finished   bool           // Test function has completed.
 	hasSub     int32          // Written atomically.
 	raceErrors int            // Number of races detected during test.
 	runner     string         // Function name of tRunner running the test.
@@ -738,7 +738,9 @@ func (c *common) FailNow() {
 	// it would run on a test failure. Because we send on c.signal during
 	// a top-of-stack deferred function now, we know that the send
 	// only happens after any other stacked defers have completed.
+	c.mu.Lock()
 	c.finished = true
+	c.mu.Unlock()
 	runtime.Goexit()
 }
 
@@ -837,15 +839,11 @@ func (c *common) Skipf(format string, args ...interface{}) {
 // other goroutines created during the test. Calling SkipNow does not stop
 // those other goroutines.
 func (c *common) SkipNow() {
-	c.skip()
-	c.finished = true
-	runtime.Goexit()
-}
-
-func (c *common) skip() {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	c.skipped = true
+	c.finished = true
+	c.mu.Unlock()
+	runtime.Goexit()
 }
 
 // Skipped reports whether the test was skipped.
@@ -1138,10 +1136,16 @@ func tRunner(t *T, fn func(t *T)) {
 		err := recover()
 		signal := true
 
-		if !t.finished && err == nil {
+		t.mu.RLock()
+		finished := t.finished
+		t.mu.RUnlock()
+		if !finished && err == nil {
 			err = errNilPanicOrGoexit
 			for p := t.parent; p != nil; p = p.parent {
-				if p.finished {
+				p.mu.RLock()
+				finished = p.finished
+				p.mu.RUnlock()
+				if finished {
 					t.Errorf("%v: subtest may have called FailNow on a parent test", err)
 					err = nil
 					signal = false
@@ -1235,7 +1239,9 @@ func tRunner(t *T, fn func(t *T)) {
 	fn(t)
 
 	// code beyond here will not be executed when FailNow is invoked
+	t.mu.Lock()
 	t.finished = true
+	t.mu.Unlock()
 }
 
 // Run runs f as a subtest of t called name. It runs f in a separate goroutine

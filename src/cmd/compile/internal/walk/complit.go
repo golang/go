@@ -475,7 +475,10 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		zero := ir.NewAssignStmt(base.Pos, i, ir.NewInt(0))
 		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(tk.NumElem()))
 		incr := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, ir.NewInt(1)))
-		body := ir.NewAssignStmt(base.Pos, lhs, rhs)
+
+		var body ir.Node = ir.NewAssignStmt(base.Pos, lhs, rhs)
+		body = typecheck.Stmt(body) // typechecker rewrites OINDEX to OINDEXMAP
+		body = orderStmtInPlace(body, map[string][]*ir.Name{})
 
 		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil)
 		loop.Body = []ir.Node{body}
@@ -503,7 +506,10 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, tmpelem, elem))
 
 		ir.SetPos(tmpelem)
-		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ir.NewIndexExpr(base.Pos, m, tmpkey), tmpelem))
+		var a ir.Node = ir.NewAssignStmt(base.Pos, ir.NewIndexExpr(base.Pos, m, tmpkey), tmpelem)
+		a = typecheck.Stmt(a) // typechecker rewrites OINDEX to OINDEXMAP
+		a = orderStmtInPlace(a, map[string][]*ir.Name{})
+		appendWalkStmt(init, a)
 	}
 
 	appendWalkStmt(init, ir.NewUnaryExpr(base.Pos, ir.OVARKILL, tmpkey))

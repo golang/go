@@ -77,6 +77,15 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVBU R4, 1(R3)                 // 9c830001
 	MOVBU R5, (R3)(R4)              // 7ca419ee
 
+	MOVB $0, R4			// 38800000
+	MOVBZ $0, R4			// 38800000
+	MOVH $0, R4			// 38800000
+	MOVHZ $0, R4			// 38800000
+	MOVW $0, R4			// 38800000
+	MOVWZ $0, R4			// 38800000
+	MOVD $0, R4			// 38800000
+	MOVD $0, R0			// 38000000
+
 	ADD $1, R3                      // 38630001
 	ADD $1, R3, R4                  // 38830001
 	ADD $-1, R4                     // 3884ffff
@@ -309,6 +318,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	RLDICCC $0, R4, $15, R6         // 788603c9
 	CLRLSLWI $16, R5, $8, R4        // 54a4422e
 	CLRLSLDI $24, R4, $2, R3        // 78831588
+	RLDCR	$1, R1, $-16, R1        // 78210ee4
+	RLDCRCC	$1, R1, $-16, R1        // 78210ee5
 
 	BEQ 0(PC)                       // 41820000
 	BEQ CR1,0(PC)                   // 41860000
