@@ -911,7 +911,8 @@ havem:
 	MOVQ	BX, 0(SP)
 	MOVQ	CX, 8(SP)
 	MOVQ	DX, 16(SP)
-	CALL	runtime·cgocallbackg(SB)
+	MOVQ	$runtime·cgocallbackg(SB), AX
+	CALL	AX	// indirect call to bypass nosplit check. We're on a different stack now.
 
 	// Compute the size of the frame again. FP and SP have
 	// completely different values here than they did above,
