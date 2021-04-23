@@ -92,7 +92,7 @@ func TestExecutableDeleted(t *testing.T) {
 	switch runtime.GOOS {
 	case "windows":
 		t.Skip("windows does not support deleting running binary")
-	case "openbsd", "freebsd":
+	case "openbsd", "freebsd", "aix":
 		t.Skipf("%v does not support reading deleted binary name", runtime.GOOS)
 	}
 
