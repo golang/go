@@ -1057,7 +1057,11 @@ func (ld *loader) updateRequirements(ctx context.Context, add []module.Version) 
 // resolveMissingImports returns a map from each new module version to
 // the first missing package that module would resolve.
 func (ld *loader) resolveMissingImports(ctx context.Context) (modAddedBy map[module.Version]*loadPkg) {
-	var needPkgs []*loadPkg
+	type pkgMod struct {
+		pkg *loadPkg
+		mod *module.Version
+	}
+	var pkgMods []pkgMod
 	for _, pkg := range ld.pkgs {
 		if pkg.err == nil {
 			continue
@@ -1072,24 +1076,47 @@ func (ld *loader) resolveMissingImports(ctx context.Context) (modAddedBy map[mod
 			continue
 		}
 
-		needPkgs = append(needPkgs, pkg)
-
 		pkg := pkg
+		var mod module.Version
 		ld.work.Add(func() {
-			pkg.mod, pkg.err = queryImport(ctx, pkg.path, ld.requirements)
+			var err error
+			mod, err = queryImport(ctx, pkg.path, ld.requirements)
+			if err != nil {
+				// pkg.err was already non-nil, so we can reasonably attribute the error
+				// for pkg to either the original error or the one returned by
+				// queryImport. The existing error indicates only that we couldn't find
+				// the package, whereas the query error also explains why we didn't fix
+				// the problem — so we prefer the latter.
+				pkg.err = err
+			}
+
+			// err is nil, but we intentionally leave pkg.err non-nil and pkg.mod
+			// unset: we still haven't satisfied other invariants of a
+			// successfully-loaded package, such as scanning and loading the imports
+			// of that package. If we succeed in resolving the new dependency graph,
+			// the caller can reload pkg and update the error at that point.
+			//
+			// Even then, the package might not be loaded from the version we've
+			// identified here. The module may be upgraded by some other dependency,
+			// or by a transitive dependency of mod itself, or — less likely — the
+			// package may be rejected by an AllowPackage hook or rendered ambiguous
+			// by some other newly-added or newly-upgraded dependency.
 		})
+
+		pkgMods = append(pkgMods, pkgMod{pkg: pkg, mod: &mod})
 	}
 	<-ld.work.Idle()
 
 	modAddedBy = map[module.Version]*loadPkg{}
-	for _, pkg := range needPkgs {
-		if pkg.err != nil {
+	for _, pm := range pkgMods {
+		pkg, mod := pm.pkg, *pm.mod
+		if mod.Path == "" {
 			continue
 		}
 
-		fmt.Fprintf(os.Stderr, "go: found %s in %s %s\n", pkg.path, pkg.mod.Path, pkg.mod.Version)
-		if modAddedBy[pkg.mod] == nil {
-			modAddedBy[pkg.mod] = pkg
+		fmt.Fprintf(os.Stderr, "go: found %s in %s %s\n", pkg.path, mod.Path, mod.Version)
+		if modAddedBy[mod] == nil {
+			modAddedBy[mod] = pkg
 		}
 	}
 
