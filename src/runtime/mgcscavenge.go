@@ -372,7 +372,7 @@ func bgscavenge() {
 		// Due to OS-related anomalies we may "sleep" for an inordinate amount
 		// of time. Let's avoid letting the ratio get out of hand by bounding
 		// the sleep time we use in our EWMA.
-		const minFraction = 1 / 1000
+		const minFraction = 1.0 / 1000.0
 		if fraction < minFraction {
 			fraction = minFraction
 		}
