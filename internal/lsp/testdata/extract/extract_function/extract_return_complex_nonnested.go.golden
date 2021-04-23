@@ -6,6 +6,7 @@ import "fmt"
 func _() (int, string, error) {
 	x := 1
 	y := "hello"
+	//@mark(exSt10, "z")
 	return fn0(y, x) //@mark(exEn10, "nil")
 	//@extractfunc(exSt10, exEn10)
 }

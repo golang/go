@@ -487,7 +487,7 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 		declarations = initializeVars(uninitialized, retVars, seenUninitialized, seenVars)
 	}
 
-	var declBuf, replaceBuf, newFuncBuf, ifBuf bytes.Buffer
+	var declBuf, replaceBuf, newFuncBuf, ifBuf, commentBuf bytes.Buffer
 	if err := format.Node(&declBuf, fset, declarations); err != nil {
 		return nil, err
 	}
@@ -502,6 +502,15 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 	if err := format.Node(&newFuncBuf, fset, newFunc); err != nil {
 		return nil, err
 	}
+	// Find all the comments within the range and print them to be put somewhere.
+	// TODO(suzmue): print these in the extracted function at the correct place.
+	for _, cg := range file.Comments {
+		if cg.Pos().IsValid() && cg.Pos() < rng.End && cg.Pos() >= rng.Start {
+			for _, c := range cg.List {
+				fmt.Fprintln(&commentBuf, c.Text)
+			}
+		}
+	}
 
 	// We're going to replace the whole enclosing function,
 	// so preserve the text before and after the selected block.
@@ -513,6 +522,10 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 
 	var fullReplacement strings.Builder
 	fullReplacement.Write(before)
+	if commentBuf.Len() > 0 {
+		comments := strings.ReplaceAll(commentBuf.String(), "\n", newLineIndent)
+		fullReplacement.WriteString(comments)
+	}
 	if declBuf.Len() > 0 { // add any initializations, if needed
 		initializations := strings.ReplaceAll(declBuf.String(), "\n", newLineIndent) +
 			newLineIndent

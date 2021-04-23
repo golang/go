@@ -6,6 +6,7 @@ import "fmt"
 func _() (int, string, error) {
 	x := 1
 	y := "hello"
+	//@mark(exSt3, "z")
 	z, cond0, ret0, ret1, ret2 := fn0(y, x)
 	if cond0 {
 		return ret0, ret1, ret2

@@ -3,6 +3,7 @@ package extract
 
 func _() string {
 	x := 1
+	//@mark(exSt5, "if")
 	cond0, ret0 := fn0(x)
 	if cond0 {
 		return ret0

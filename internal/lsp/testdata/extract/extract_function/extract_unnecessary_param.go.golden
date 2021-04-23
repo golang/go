@@ -4,6 +4,7 @@ package extract
 func _() {
 	var b []int
 	var a int
+	//@mark(exSt8, "a")
 	a, b = fn0(b) //@mark(exEn8, ")")
 	b[0] = 1
 	if a == 2 {

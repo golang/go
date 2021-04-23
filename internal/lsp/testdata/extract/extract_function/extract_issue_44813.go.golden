@@ -4,6 +4,7 @@ package extract
 import "fmt"
 
 func main() {
+	//@mark(exSt9, "x")
 	x := fn0() //@mark(exEn9, "}")
 	//@extractfunc(exSt9, exEn9)
 	fmt.Printf("%x\n", x)

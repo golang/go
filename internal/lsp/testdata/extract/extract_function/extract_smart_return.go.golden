@@ -4,6 +4,7 @@ package extract
 func _() {
 	var b []int
 	var a int
+	//@mark(exSt7, "a")
 	b = fn0(a, b) //@mark(exEn7, ")")
 	b[0] = 1
 	//@extractfunc(exSt7, exEn7)
