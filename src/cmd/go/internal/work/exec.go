@@ -246,11 +246,11 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	if p.Internal.ForceLibrary {
 		fmt.Fprintf(h, "forcelibrary\n")
 	}
-	if len(p.CgoFiles)+len(p.SwigFiles) > 0 {
+	if len(p.CgoFiles)+len(p.SwigFiles)+len(p.SwigCXXFiles) > 0 {
 		fmt.Fprintf(h, "cgo %q\n", b.toolID("cgo"))
 		cppflags, cflags, cxxflags, fflags, ldflags, _ := b.CFlags(p)
 		fmt.Fprintf(h, "CC=%q %q %q %q\n", b.ccExe(), cppflags, cflags, ldflags)
-		if len(p.CXXFiles)+len(p.SwigFiles) > 0 {
+		if len(p.CXXFiles)+len(p.SwigCXXFiles) > 0 {
 			fmt.Fprintf(h, "CXX=%q %q\n", b.cxxExe(), cxxflags)
 		}
 		if len(p.FFiles) > 0 {
@@ -654,6 +654,10 @@ OverlayLoop:
 		}
 
 		outGo, outObj, err := b.cgo(a, base.Tool("cgo"), objdir, pcCFLAGS, pcLDFLAGS, mkAbsFiles(a.Package.Dir, cgofiles), gccfiles, cxxfiles, a.Package.MFiles, a.Package.FFiles)
+
+		// The files in cxxfiles have now been handled by b.cgo.
+		cxxfiles = nil
+
 		if err != nil {
 			return err
 		}
