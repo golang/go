@@ -618,7 +618,9 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	// to that timeout plus one minute. This is a backup alarm in case
 	// the test wedges with a goroutine spinning and its background
 	// timer does not get a chance to fire.
-	if testTimeout > 0 {
+	// Don't set this if fuzzing, since it should be able to run
+	// indefinitely.
+	if testTimeout > 0 && testFuzz == "" {
 		testKillTimeout = testTimeout + 1*time.Minute
 	}
 
