@@ -708,8 +708,6 @@ func TestSelectDuplicateChannel(t *testing.T) {
 	c <- 8 // wake up B.  This operation used to fail because c.recvq was corrupted (it tries to wake up an already running G instead of B)
 }
 
-var selectSink interface{}
-
 func TestSelectStackAdjust(t *testing.T) {
 	// Test that channel receive slots that contain local stack
 	// pointers are adjusted correctly by stack shrinking.
@@ -766,20 +764,8 @@ func TestSelectStackAdjust(t *testing.T) {
 	<-ready2
 	time.Sleep(10 * time.Millisecond)
 
-	// Force concurrent GC a few times.
-	var before, after runtime.MemStats
-	runtime.ReadMemStats(&before)
-	for i := 0; i < 100; i++ {
-		selectSink = new([1 << 20]byte)
-		runtime.ReadMemStats(&after)
-		if after.NumGC-before.NumGC >= 2 {
-			goto done
-		}
-		runtime.Gosched()
-	}
-	t.Fatal("failed to trigger concurrent GC")
-done:
-	selectSink = nil
+	// Force concurrent GC to shrink the stacks.
+	runtime.GC()
 
 	// Wake selects.
 	close(d)
