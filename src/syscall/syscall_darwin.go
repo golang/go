@@ -12,7 +12,10 @@
 
 package syscall
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 type SockaddrDatalink struct {
 	Len    uint8
@@ -105,7 +108,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 		_p0 = unsafe.Pointer(&buf[0])
 		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
 	}
-	r0, _, e1 := syscall(funcPC(libc_getfsstat_trampoline), uintptr(_p0), bufsize, uintptr(flags))
+	r0, _, e1 := syscall(abi.FuncPCABI0(libc_getfsstat_trampoline), uintptr(_p0), bufsize, uintptr(flags))
 	n = int(r0)
 	if e1 != 0 {
 		err = e1
@@ -131,7 +134,7 @@ func setattrlistTimes(path string, times []Timespec) error {
 	attributes := [2]Timespec{times[1], times[0]}
 	const options = 0
 	_, _, e1 := syscall6(
-		funcPC(libc_setattrlist_trampoline),
+		abi.FuncPCABI0(libc_setattrlist_trampoline),
 		uintptr(unsafe.Pointer(_p0)),
 		uintptr(unsafe.Pointer(&attrList)),
 		uintptr(unsafe.Pointer(&attributes)),
@@ -264,7 +267,7 @@ func init() {
 }
 
 func fdopendir(fd int) (dir uintptr, err error) {
-	r0, _, e1 := syscallPtr(funcPC(libc_fdopendir_trampoline), uintptr(fd), 0, 0)
+	r0, _, e1 := syscallPtr(abi.FuncPCABI0(libc_fdopendir_trampoline), uintptr(fd), 0, 0)
 	dir = uintptr(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -277,7 +280,7 @@ func libc_fdopendir_trampoline()
 //go:cgo_import_dynamic libc_fdopendir fdopendir "/usr/lib/libSystem.B.dylib"
 
 func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
-	r0, _, e1 := syscall(funcPC(libc_read_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+	r0, _, e1 := syscall(abi.FuncPCABI0(libc_read_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -286,7 +289,7 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
 }
 
 func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
-	r0, _, e1 := syscall(funcPC(libc_write_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+	r0, _, e1 := syscall(abi.FuncPCABI0(libc_write_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -376,10 +379,3 @@ func syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 func rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 func syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
-
-// Find the entry point for f. See comments in runtime/proc.go for the
-// function of the same name.
-//go:nosplit
-func funcPC(f func()) uintptr {
-	return **(**uintptr)(unsafe.Pointer(&f))
-}
