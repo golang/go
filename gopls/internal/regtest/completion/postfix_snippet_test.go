@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	. "golang.org/x/tools/gopls/internal/regtest"
+	. "golang.org/x/tools/internal/lsp/regtest"
 	"golang.org/x/tools/internal/lsp/source"
 )
 

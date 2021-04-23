@@ -7,7 +7,7 @@ package misc
 import (
 	"testing"
 
-	. "golang.org/x/tools/gopls/internal/regtest"
+	. "golang.org/x/tools/internal/lsp/regtest"
 )
 
 func TestStdlibReferences(t *testing.T) {

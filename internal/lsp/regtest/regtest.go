@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/internal/lsp/cmd"
+	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/internal/tool"
 )
@@ -83,7 +84,7 @@ func DefaultModes() Mode {
 }
 
 // Main sets up and tears down the shared regtest state.
-func Main(m *testing.M) {
+func Main(m *testing.M, hook func(*source.Options)) {
 	testenv.ExitIfSmallMachine()
 
 	flag.Parse()
@@ -97,6 +98,7 @@ func Main(m *testing.M) {
 		Timeout:                  *regtestTimeout,
 		PrintGoroutinesOnFailure: *printGoroutinesOnFailure,
 		SkipCleanup:              *skipCleanup,
+		OptionsHook:              hook,
 	}
 	if *runSubprocessTests {
 		goplsPath := *goplsBinaryPath

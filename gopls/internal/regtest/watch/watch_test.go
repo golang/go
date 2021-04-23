@@ -7,7 +7,8 @@ package regtest
 import (
 	"testing"
 
-	. "golang.org/x/tools/gopls/internal/regtest"
+	"golang.org/x/tools/gopls/internal/hooks"
+	. "golang.org/x/tools/internal/lsp/regtest"
 
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -15,7 +16,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	Main(m)
+	Main(m, hooks.Options)
 }
 
 func TestEditFile(t *testing.T) {

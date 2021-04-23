@@ -10,7 +10,8 @@ import (
 	"log"
 	"testing"
 
-	. "golang.org/x/tools/gopls/internal/regtest"
+	"golang.org/x/tools/gopls/internal/hooks"
+	. "golang.org/x/tools/internal/lsp/regtest"
 
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
@@ -19,7 +20,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	Main(m)
+	Main(m, hooks.Options)
 }
 
 // Use mod.com for all go.mod files due to golang/go#35230.

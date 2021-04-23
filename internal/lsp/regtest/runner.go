@@ -21,7 +21,6 @@ import (
 
 	exec "golang.org/x/sys/execabs"
 
-	"golang.org/x/tools/gopls/internal/hooks"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/internal/lsp/cache"
@@ -60,6 +59,7 @@ type Runner struct {
 	PrintGoroutinesOnFailure bool
 	TempDir                  string
 	SkipCleanup              bool
+	OptionsHook              func(*source.Options)
 
 	mu        sync.Mutex
 	ts        *servertest.TCPServer
@@ -84,7 +84,7 @@ func (r *Runner) defaultConfig() *runConfig {
 	return &runConfig{
 		modes:       r.DefaultModes,
 		timeout:     r.Timeout,
-		optionsHook: hooks.Options,
+		optionsHook: r.OptionsHook,
 	}
 }
 

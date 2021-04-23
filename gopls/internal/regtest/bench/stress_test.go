@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	. "golang.org/x/tools/gopls/internal/regtest"
+	. "golang.org/x/tools/internal/lsp/regtest"
 )
 
 // Pilosa is a repository that has historically caused significant memory
