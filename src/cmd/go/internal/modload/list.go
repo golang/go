@@ -150,22 +150,45 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 				// specific revision or used 'go list -retracted'.
 				allowed = nil
 			}
-			info, err := Query(ctx, path, vers, current, allowed)
-			if err != nil {
-				mods = append(mods, &modinfo.ModulePublic{
-					Path:    path,
-					Version: vers,
-					Error:   modinfoError(path, vers, err),
-				})
-				continue
+
+			var matches []string
+			if j := strings.Index(path, "..."); j >= 0 {
+				match := search.MatchPattern(path)
+				for _, m := range mg.BuildList() {
+					if match(m.Path) {
+						if !matchedModule[m] {
+							matchedModule[m] = true
+							matches = append(matches, m.Path)
+						}
+					}
+				}
+
+				if len(matches) == 0 {
+					fmt.Fprintf(os.Stderr, "warning: pattern %q matched no module dependencies\n", arg)
+					continue
+				}
+			} else {
+				matches = append(matches, path)
 			}
 
-			// Indicate that m was resolved from outside of rs by passing a nil
-			// *Requirements instead.
-			var noRS *Requirements
+			for _, m := range matches {
+				info, err := Query(ctx, m, vers, current, allowed)
+				if err != nil {
+					mods = append(mods, &modinfo.ModulePublic{
+						Path:    m,
+						Version: vers,
+						Error:   modinfoError(m, vers, err),
+					})
+					continue
+				}
 
-			mod := moduleInfo(ctx, noRS, module.Version{Path: path, Version: info.Version}, mode)
-			mods = append(mods, mod)
+				// Indicate that m was resolved from outside of rs by passing a nil
+				// *Requirements instead.
+				var noRS *Requirements
+
+				mod := moduleInfo(ctx, noRS, module.Version{Path: m, Version: info.Version}, mode)
+				mods = append(mods, mod)
+			}
 			continue
 		}
 
