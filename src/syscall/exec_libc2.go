@@ -8,6 +8,7 @@
 package syscall
 
 import (
+	"internal/abi"
 	"unsafe"
 )
 
@@ -76,7 +77,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.
 	runtime_BeforeFork()
-	r1, _, err1 = rawSyscall(funcPC(libc_fork_trampoline), 0, 0, 0)
+	r1, _, err1 = rawSyscall(abi.FuncPCABI0(libc_fork_trampoline), 0, 0, 0)
 	if err1 != 0 {
 		runtime_AfterFork()
 		return 0, err1
@@ -102,7 +103,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 
 	// Session ID
 	if sys.Setsid {
-		_, _, err1 = rawSyscall(funcPC(libc_setsid_trampoline), 0, 0, 0)
+		_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_setsid_trampoline), 0, 0, 0)
 		if err1 != 0 {
 			goto childerror
 		}
@@ -111,7 +112,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// Set process group
 	if sys.Setpgid || sys.Foreground {
 		// Place child in process group.
-		_, _, err1 = rawSyscall(funcPC(libc_setpgid_trampoline), 0, uintptr(sys.Pgid), 0)
+		_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_setpgid_trampoline), 0, uintptr(sys.Pgid), 0)
 		if err1 != 0 {
 			goto childerror
 		}
@@ -120,7 +121,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	if sys.Foreground {
 		pgrp := sys.Pgid
 		if pgrp == 0 {
-			r1, _, err1 = rawSyscall(funcPC(libc_getpid_trampoline), 0, 0, 0)
+			r1, _, err1 = rawSyscall(abi.FuncPCABI0(libc_getpid_trampoline), 0, 0, 0)
 			if err1 != 0 {
 				goto childerror
 			}
@@ -129,7 +130,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		}
 
 		// Place process group in foreground.
-		_, _, err1 = rawSyscall(funcPC(libc_ioctl_trampoline), uintptr(sys.Ctty), uintptr(TIOCSPGRP), uintptr(unsafe.Pointer(&pgrp)))
+		_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(sys.Ctty), uintptr(TIOCSPGRP), uintptr(unsafe.Pointer(&pgrp)))
 		if err1 != 0 {
 			goto childerror
 		}
@@ -137,7 +138,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 
 	// Chroot
 	if chroot != nil {
-		_, _, err1 = rawSyscall(funcPC(libc_chroot_trampoline), uintptr(unsafe.Pointer(chroot)), 0, 0)
+		_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_chroot_trampoline), uintptr(unsafe.Pointer(chroot)), 0, 0)
 		if err1 != 0 {
 			goto childerror
 		}
@@ -151,16 +152,16 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 			groups = uintptr(unsafe.Pointer(&cred.Groups[0]))
 		}
 		if !cred.NoSetGroups {
-			_, _, err1 = rawSyscall(funcPC(libc_setgroups_trampoline), ngroups, groups, 0)
+			_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_setgroups_trampoline), ngroups, groups, 0)
 			if err1 != 0 {
 				goto childerror
 			}
 		}
-		_, _, err1 = rawSyscall(funcPC(libc_setgid_trampoline), uintptr(cred.Gid), 0, 0)
+		_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_setgid_trampoline), uintptr(cred.Gid), 0, 0)
 		if err1 != 0 {
 			goto childerror
 		}
-		_, _, err1 = rawSyscall(funcPC(libc_setuid_trampoline), uintptr(cred.Uid), 0, 0)
+		_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_setuid_trampoline), uintptr(cred.Uid), 0, 0)
 		if err1 != 0 {
 			goto childerror
 		}
@@ -168,7 +169,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 
 	// Chdir
 	if dir != nil {
-		_, _, err1 = rawSyscall(funcPC(libc_chdir_trampoline), uintptr(unsafe.Pointer(dir)), 0, 0)
+		_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_chdir_trampoline), uintptr(unsafe.Pointer(dir)), 0, 0)
 		if err1 != 0 {
 			goto childerror
 		}
@@ -177,11 +178,11 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// Pass 1: look for fd[i] < i and move those up above len(fd)
 	// so that pass 2 won't stomp on an fd it needs later.
 	if pipe < nextfd {
-		_, _, err1 = rawSyscall(funcPC(libc_dup2_trampoline), uintptr(pipe), uintptr(nextfd), 0)
+		_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_dup2_trampoline), uintptr(pipe), uintptr(nextfd), 0)
 		if err1 != 0 {
 			goto childerror
 		}
-		rawSyscall(funcPC(libc_fcntl_trampoline), uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+		rawSyscall(abi.FuncPCABI0(libc_fcntl_trampoline), uintptr(nextfd), F_SETFD, FD_CLOEXEC)
 		pipe = nextfd
 		nextfd++
 	}
@@ -190,11 +191,11 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 			if nextfd == pipe { // don't stomp on pipe
 				nextfd++
 			}
-			_, _, err1 = rawSyscall(funcPC(libc_dup2_trampoline), uintptr(fd[i]), uintptr(nextfd), 0)
+			_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_dup2_trampoline), uintptr(fd[i]), uintptr(nextfd), 0)
 			if err1 != 0 {
 				goto childerror
 			}
-			rawSyscall(funcPC(libc_fcntl_trampoline), uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+			rawSyscall(abi.FuncPCABI0(libc_fcntl_trampoline), uintptr(nextfd), F_SETFD, FD_CLOEXEC)
 			fd[i] = nextfd
 			nextfd++
 		}
@@ -203,13 +204,13 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// Pass 2: dup fd[i] down onto i.
 	for i = 0; i < len(fd); i++ {
 		if fd[i] == -1 {
-			rawSyscall(funcPC(libc_close_trampoline), uintptr(i), 0, 0)
+			rawSyscall(abi.FuncPCABI0(libc_close_trampoline), uintptr(i), 0, 0)
 			continue
 		}
 		if fd[i] == int(i) {
 			// dup2(i, i) won't clear close-on-exec flag on Linux,
 			// probably not elsewhere either.
-			_, _, err1 = rawSyscall(funcPC(libc_fcntl_trampoline), uintptr(fd[i]), F_SETFD, 0)
+			_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_fcntl_trampoline), uintptr(fd[i]), F_SETFD, 0)
 			if err1 != 0 {
 				goto childerror
 			}
@@ -217,7 +218,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		}
 		// The new fd is created NOT close-on-exec,
 		// which is exactly what we want.
-		_, _, err1 = rawSyscall(funcPC(libc_dup2_trampoline), uintptr(fd[i]), uintptr(i), 0)
+		_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_dup2_trampoline), uintptr(fd[i]), uintptr(i), 0)
 		if err1 != 0 {
 			goto childerror
 		}
@@ -228,12 +229,12 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// Programs that know they inherit fds >= 3 will need
 	// to set them close-on-exec.
 	for i = len(fd); i < 3; i++ {
-		rawSyscall(funcPC(libc_close_trampoline), uintptr(i), 0, 0)
+		rawSyscall(abi.FuncPCABI0(libc_close_trampoline), uintptr(i), 0, 0)
 	}
 
 	// Detach fd 0 from tty
 	if sys.Noctty {
-		_, _, err1 = rawSyscall(funcPC(libc_ioctl_trampoline), 0, uintptr(TIOCNOTTY), 0)
+		_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), 0, uintptr(TIOCNOTTY), 0)
 		if err1 != 0 {
 			goto childerror
 		}
@@ -241,22 +242,22 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 
 	// Set the controlling TTY to Ctty
 	if sys.Setctty {
-		_, _, err1 = rawSyscall(funcPC(libc_ioctl_trampoline), uintptr(sys.Ctty), uintptr(TIOCSCTTY), 0)
+		_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(sys.Ctty), uintptr(TIOCSCTTY), 0)
 		if err1 != 0 {
 			goto childerror
 		}
 	}
 
 	// Time to exec.
-	_, _, err1 = rawSyscall(funcPC(libc_execve_trampoline),
+	_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_execve_trampoline),
 		uintptr(unsafe.Pointer(argv0)),
 		uintptr(unsafe.Pointer(&argv[0])),
 		uintptr(unsafe.Pointer(&envv[0])))
 
 childerror:
 	// send error code on pipe
-	rawSyscall(funcPC(libc_write_trampoline), uintptr(pipe), uintptr(unsafe.Pointer(&err1)), unsafe.Sizeof(err1))
+	rawSyscall(abi.FuncPCABI0(libc_write_trampoline), uintptr(pipe), uintptr(unsafe.Pointer(&err1)), unsafe.Sizeof(err1))
 	for {
-		rawSyscall(funcPC(libc_exit_trampoline), 253, 0, 0)
+		rawSyscall(abi.FuncPCABI0(libc_exit_trampoline), 253, 0, 0)
 	}
 }
