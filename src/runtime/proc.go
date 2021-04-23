@@ -5729,6 +5729,8 @@ func globrunqputhead(gp *g) {
 // Put a batch of runnable goroutines on the global runnable queue.
 // This clears *batch.
 // sched.lock must be held.
+// May run during STW, so write barriers are not allowed.
+//go:nowritebarrierrec
 func globrunqputbatch(batch *gQueue, n int32) {
 	assertLockHeld(&sched.lock)
 
@@ -6042,6 +6044,45 @@ func runqget(_p_ *p) (gp *g, inheritTime bool) {
 			return gp, false
 		}
 	}
+}
+
+// runqdrain drains the local runnable queue of _p_ and returns all goroutines in it.
+// Executed only by the owner P.
+func runqdrain(_p_ *p) (drainQ gQueue, n uint32) {
+	oldNext := _p_.runnext
+	if oldNext != 0 && _p_.runnext.cas(oldNext, 0) {
+		drainQ.pushBack(oldNext.ptr())
+		n++
+	}
+
+retry:
+	h := atomic.LoadAcq(&_p_.runqhead) // load-acquire, synchronize with other consumers
+	t := _p_.runqtail
+	qn := t - h
+	if qn == 0 {
+		return
+	}
+	if qn > uint32(len(_p_.runq)) { // read inconsistent h and t
+		goto retry
+	}
+
+	if !atomic.CasRel(&_p_.runqhead, h, h+qn) { // cas-release, commits consume
+		goto retry
+	}
+
+	// We've inverted the order in which it gets G's from the local P's runnable queue
+	// and then advances the head pointer because we don't want to mess up the statuses of G's
+	// while runqdrain() and runqsteal() are running in parallel.
+	// Thus we should advance the head pointer before draining the local P into a gQueue,
+	// so that we can update any gp.schedlink only after we take the full ownership of G,
+	// meanwhile, other P's can't access to all G's in local P's runnable queue and steal them.
+	// See https://groups.google.com/g/golang-dev/c/0pTKxEKhHSc/m/6Q85QjdVBQAJ for more details.
+	for i := uint32(0); i < qn; i++ {
+		gp := _p_.runq[(h+i)%uint32(len(_p_.runq))].ptr()
+		drainQ.pushBack(gp)
+		n++
+	}
+	return
 }
 
 // Grabs a batch of goroutines from _p_'s runnable queue into batch.
