@@ -1582,10 +1582,8 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	// (needs heap allocation).
 	cloEscapes := func() bool {
 		if n.Op() == ir.OGO {
-			// For "go", assume that all closures escape (with an
-			// exception for the runtime, which doesn't permit
-			// heap-allocated closures).
-			return base.Ctxt.Pkgpath != "runtime"
+			// For "go", assume that all closures escape.
+			return true
 		}
 		// For defer, just use whatever result escape analysis
 		// has determined for the defer.
