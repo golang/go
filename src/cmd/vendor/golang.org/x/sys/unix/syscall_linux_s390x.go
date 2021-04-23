@@ -250,7 +250,7 @@ func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen
 }
 
 func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) error {
-	args := [4]uintptr{uintptr(s), uintptr(level), uintptr(name), uintptr(val)}
+	args := [5]uintptr{uintptr(s), uintptr(level), uintptr(name), uintptr(val), vallen}
 	_, _, err := Syscall(SYS_SOCKETCALL, netSetSockOpt, uintptr(unsafe.Pointer(&args)), 0)
 	if err != 0 {
 		return err

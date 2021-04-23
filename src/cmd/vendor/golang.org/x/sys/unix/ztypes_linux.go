@@ -3709,3 +3709,14 @@ type (
 		Product int16
 	}
 )
+
+const (
+	CLOSE_RANGE_UNSHARE = 0x2
+	CLOSE_RANGE_CLOEXEC = 0x4
+)
+
+const (
+	NLMSGERR_ATTR_MSG    = 0x1
+	NLMSGERR_ATTR_OFFS   = 0x2
+	NLMSGERR_ATTR_COOKIE = 0x3
+)

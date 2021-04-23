@@ -366,6 +366,7 @@ const (
 	HUPCL                         = 0x400
 	IBSHIFT                       = 0x10
 	ICANON                        = 0x2
+	ICMP6_FILTER                  = 0x1
 	ICRNL                         = 0x100
 	IEXTEN                        = 0x8000
 	IFF_ADDRCONF                  = 0x80000
@@ -612,6 +613,7 @@ const (
 	IP_RECVPKTINFO                = 0x1a
 	IP_RECVRETOPTS                = 0x6
 	IP_RECVSLLA                   = 0xa
+	IP_RECVTOS                    = 0xc
 	IP_RECVTTL                    = 0xb
 	IP_RETOPTS                    = 0x8
 	IP_REUSEADDR                  = 0x104
@@ -704,6 +706,7 @@ const (
 	O_APPEND                      = 0x8
 	O_CLOEXEC                     = 0x800000
 	O_CREAT                       = 0x100
+	O_DIRECT                      = 0x2000000
 	O_DIRECTORY                   = 0x1000000
 	O_DSYNC                       = 0x40
 	O_EXCL                        = 0x400

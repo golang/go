@@ -1022,6 +1022,15 @@ const (
 	MAP_RESERVED0100               = 0x100
 	MAP_SHARED                     = 0x1
 	MAP_STACK                      = 0x400
+	MCAST_BLOCK_SOURCE             = 0x54
+	MCAST_EXCLUDE                  = 0x2
+	MCAST_INCLUDE                  = 0x1
+	MCAST_JOIN_GROUP               = 0x50
+	MCAST_JOIN_SOURCE_GROUP        = 0x52
+	MCAST_LEAVE_GROUP              = 0x51
+	MCAST_LEAVE_SOURCE_GROUP       = 0x53
+	MCAST_UNBLOCK_SOURCE           = 0x55
+	MCAST_UNDEFINED                = 0x0
 	MCL_CURRENT                    = 0x1
 	MCL_FUTURE                     = 0x2
 	MNT_ACLS                       = 0x8000000

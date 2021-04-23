@@ -137,6 +137,7 @@ const (
 	IP_TTL                          = 3
 	IP_UNBLOCK_SOURCE               = 11
 	ICANON                          = 0x0010
+	ICMP6_FILTER                    = 0x26
 	ICRNL                           = 0x0002
 	IEXTEN                          = 0x0020
 	IGNBRK                          = 0x0004
