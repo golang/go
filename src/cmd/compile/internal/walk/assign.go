@@ -341,6 +341,9 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
 			break
 		}
 
+		walkStmtList(l.Init())
+		early.Append(ir.TakeInit(l)...)
+
 		var name *ir.Name
 		switch l.Op() {
 		default:
