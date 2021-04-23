@@ -303,11 +303,25 @@ func (c *completer) addPostfixSnippetCandidates(ctx context.Context, sel *ast.Se
 		return
 	}
 
+	tokFile := c.snapshot.FileSet().File(c.pos)
+
 	// Only replace sel with a statement if sel is already a statement.
 	var stmtOK bool
 	for i, n := range c.path {
 		if n == sel && i < len(c.path)-1 {
-			_, stmtOK = c.path[i+1].(*ast.ExprStmt)
+			switch p := c.path[i+1].(type) {
+			case *ast.ExprStmt:
+				stmtOK = true
+			case *ast.AssignStmt:
+				// In cases like:
+				//
+				//   foo.<>
+				//   bar = 123
+				//
+				// detect that "foo." makes up the entire statement since the
+				// apparent selector spans lines.
+				stmtOK = tokFile.Line(c.pos) < tokFile.Line(p.TokPos)
+			}
 			break
 		}
 	}
@@ -328,7 +342,6 @@ func (c *completer) addPostfixSnippetCandidates(ctx context.Context, sel *ast.Se
 	//
 	// and adjust afterDot so that we don't mistakenly delete the
 	// newline thinking "bar" is part of our selector.
-	tokFile := c.snapshot.FileSet().File(c.pos)
 	if startLine := tokFile.Line(sel.Pos()); startLine != tokFile.Line(afterDot) {
 		if tokFile.Line(c.pos) != startLine {
 			return
