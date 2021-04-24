@@ -52,6 +52,9 @@ var (
 	signatset   = make(map[*types.Type]struct{})
 	signatslice []*types.Type
 
+	gcsymmu  sync.Mutex // protects gcsymset and gcsymslice
+	gcsymset = make(map[*types.Type]struct{})
+
 	itabs []itabEntry
 	ptabs []*ir.Name
 )
@@ -694,7 +697,8 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 		sptr = writeType(tptr)
 	}
 
-	gcsym, useGCProg, ptrdata := dgcsym(t)
+	gcsym, useGCProg, ptrdata := dgcsym(t, true)
+	delete(gcsymset, t)
 
 	// ../../../../reflect/type.go:/^type.rtype
 	// actual type structure
@@ -1321,6 +1325,16 @@ func WriteRuntimeTypes() {
 			}
 		}
 	}
+
+	// Emit GC data symbols.
+	gcsyms := make([]typeAndStr, 0, len(gcsymset))
+	for t := range gcsymset {
+		gcsyms = append(gcsyms, typeAndStr{t: t, short: types.TypeSymName(t), regular: t.String()})
+	}
+	sort.Sort(typesByString(gcsyms))
+	for _, ts := range gcsyms {
+		dgcsym(ts.t, true)
+	}
 }
 
 func WriteTabs() {
@@ -1490,29 +1504,46 @@ func (a typesByString) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 //
 const maxPtrmaskBytes = 2048
 
-// dgcsym emits and returns a data symbol containing GC information for type t,
-// along with a boolean reporting whether the UseGCProg bit should be set in
-// the type kind, and the ptrdata field to record in the reflect type information.
-func dgcsym(t *types.Type) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
+// GCSym returns a data symbol containing GC information for type t, along
+// with a boolean reporting whether the UseGCProg bit should be set in the
+// type kind, and the ptrdata field to record in the reflect type information.
+// GCSym may be called in concurrent backend, so it does not emit the symbol
+// content.
+func GCSym(t *types.Type) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
+	// Record that we need to emit the GC symbol.
+	gcsymmu.Lock()
+	if _, ok := gcsymset[t]; !ok {
+		gcsymset[t] = struct{}{}
+	}
+	gcsymmu.Unlock()
+
+	return dgcsym(t, false)
+}
+
+// dgcsym returns a data symbol containing GC information for type t, along
+// with a boolean reporting whether the UseGCProg bit should be set in the
+// type kind, and the ptrdata field to record in the reflect type information.
+// When write is true, it writes the symbol data.
+func dgcsym(t *types.Type, write bool) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
 	ptrdata = types.PtrDataSize(t)
 	if ptrdata/int64(types.PtrSize) <= maxPtrmaskBytes*8 {
-		lsym = dgcptrmask(t)
+		lsym = dgcptrmask(t, write)
 		return
 	}
 
 	useGCProg = true
-	lsym, ptrdata = dgcprog(t)
+	lsym, ptrdata = dgcprog(t, write)
 	return
 }
 
 // dgcptrmask emits and returns the symbol containing a pointer mask for type t.
-func dgcptrmask(t *types.Type) *obj.LSym {
+func dgcptrmask(t *types.Type, write bool) *obj.LSym {
 	ptrmask := make([]byte, (types.PtrDataSize(t)/int64(types.PtrSize)+7)/8)
 	fillptrmask(t, ptrmask)
 	p := fmt.Sprintf("runtime.gcbits.%x", ptrmask)
 
 	lsym := base.Ctxt.Lookup(p)
-	if !lsym.OnList() {
+	if write && !lsym.OnList() {
 		for i, x := range ptrmask {
 			objw.Uint8(lsym, i, x)
 		}
@@ -1549,14 +1580,14 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
 // [types.PtrDataSize(t), t.Width]).
 // In practice, the size is types.PtrDataSize(t) except for non-trivial arrays.
 // For non-trivial arrays, the program describes the full t.Width size.
-func dgcprog(t *types.Type) (*obj.LSym, int64) {
+func dgcprog(t *types.Type, write bool) (*obj.LSym, int64) {
 	types.CalcSize(t)
 	if t.Width == types.BADWIDTH {
 		base.Fatalf("dgcprog: %v badwidth", t)
 	}
 	lsym := TypeLinksymPrefix(".gcprog", t)
 	var p gcProg
-	p.init(lsym)
+	p.init(lsym, write)
 	p.emit(t, 0)
 	offset := p.w.BitIndex() * int64(types.PtrSize)
 	p.end()
@@ -1570,11 +1601,17 @@ type gcProg struct {
 	lsym   *obj.LSym
 	symoff int
 	w      gcprog.Writer
+	write  bool
 }
 
-func (p *gcProg) init(lsym *obj.LSym) {
+func (p *gcProg) init(lsym *obj.LSym, write bool) {
 	p.lsym = lsym
+	p.write = write && !lsym.OnList()
 	p.symoff = 4 // first 4 bytes hold program length
+	if !write {
+		p.w.Init(func(byte) {})
+		return
+	}
 	p.w.Init(p.writeByte)
 	if base.Debug.GCProg > 0 {
 		fmt.Fprintf(os.Stderr, "compile: start GCProg for %v\n", lsym)
@@ -1588,6 +1625,9 @@ func (p *gcProg) writeByte(x byte) {
 
 func (p *gcProg) end() {
 	p.w.End()
+	if !p.write {
+		return
+	}
 	objw.Uint32(p.lsym, 0, uint32(p.symoff-4))
 	objw.Global(p.lsym, int32(p.symoff), obj.DUPOK|obj.RODATA|obj.LOCAL)
 	p.lsym.Set(obj.AttrContentAddressable, true)

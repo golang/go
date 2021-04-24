@@ -1431,8 +1431,26 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
 		// Note: arguments and return values have non-negative Xoffset,
 		// in which case the offset is relative to argp.
 		// Locals have a negative Xoffset, in which case the offset is relative to varp.
-		off = objw.Uintptr(x, off, uint64(v.FrameOffset()))
-		off = objw.SymPtr(x, off, reflectdata.TypeLinksym(v.Type()), 0)
+		// We already limit the frame size, so the offset and the object size
+		// should not be too big.
+		frameOffset := v.FrameOffset()
+		if frameOffset != int64(int32(frameOffset)) {
+			base.Fatalf("frame offset too big: %v %d", v, frameOffset)
+		}
+		off = objw.Uint32(x, off, uint32(frameOffset))
+
+		t := v.Type()
+		sz := t.Width
+		if sz != int64(int32(sz)) {
+			base.Fatalf("stack object too big: %v of type %v, size %d", v, t, sz)
+		}
+		lsym, useGCProg, ptrdata := reflectdata.GCSym(t)
+		if useGCProg {
+			ptrdata = -ptrdata
+		}
+		off = objw.Uint32(x, off, uint32(sz))
+		off = objw.Uint32(x, off, uint32(ptrdata))
+		off = objw.SymPtr(x, off, lsym, 0)
 	}
 
 	if base.Flag.Live != 0 {
