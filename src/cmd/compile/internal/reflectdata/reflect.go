@@ -1509,12 +1509,10 @@ func dgcsym(t *types.Type) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
 func dgcptrmask(t *types.Type) *obj.LSym {
 	ptrmask := make([]byte, (types.PtrDataSize(t)/int64(types.PtrSize)+7)/8)
 	fillptrmask(t, ptrmask)
-	p := fmt.Sprintf("gcbits.%x", ptrmask)
+	p := fmt.Sprintf("runtime.gcbits.%x", ptrmask)
 
-	sym := ir.Pkgs.Runtime.Lookup(p)
-	lsym := sym.Linksym()
-	if !sym.Uniq() {
-		sym.SetUniq(true)
+	lsym := base.Ctxt.Lookup(p)
+	if !lsym.OnList() {
 		for i, x := range ptrmask {
 			objw.Uint8(lsym, i, x)
 		}
