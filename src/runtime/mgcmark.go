@@ -792,24 +792,24 @@ func scanstack(gp *g, gcw *gcWork) {
 		if obj == nil {
 			continue
 		}
-		t := obj.typ
-		if t == nil {
+		r := obj.r
+		if r == nil {
 			// We've already scanned this object.
 			continue
 		}
-		obj.setType(nil) // Don't scan it again.
+		obj.setRecord(nil) // Don't scan it again.
 		if stackTraceDebug {
 			printlock()
-			print("  live stkobj at", hex(state.stack.lo+uintptr(obj.off)), "of type", t.string())
+			print("  live stkobj at", hex(state.stack.lo+uintptr(obj.off)), "of size", obj.size)
 			if conservative {
 				print(" (conservative)")
 			}
 			println()
 			printunlock()
 		}
-		gcdata := t.gcdata
+		gcdata := r.gcdata
 		var s *mspan
-		if t.kind&kindGCProg != 0 {
+		if r.useGCProg() {
 			// This path is pretty unlikely, an object large enough
 			// to have a GC program allocated on the stack.
 			// We need some space to unpack the program into a straight
@@ -819,15 +819,15 @@ func scanstack(gp *g, gcw *gcWork) {
 			// to change from a Lempel-Ziv style program to something else.
 			// Or we can forbid putting objects on stacks if they require
 			// a gc program (see issue 27447).
-			s = materializeGCProg(t.ptrdata, gcdata)
+			s = materializeGCProg(r.ptrdata(), gcdata)
 			gcdata = (*byte)(unsafe.Pointer(s.startAddr))
 		}
 
 		b := state.stack.lo + uintptr(obj.off)
 		if conservative {
-			scanConservative(b, t.ptrdata, gcdata, gcw, &state)
+			scanConservative(b, r.ptrdata(), gcdata, gcw, &state)
 		} else {
-			scanblock(b, t.ptrdata, gcdata, gcw, &state)
+			scanblock(b, r.ptrdata(), gcdata, gcw, &state)
 		}
 
 		if s != nil {
@@ -843,10 +843,10 @@ func scanstack(gp *g, gcw *gcWork) {
 		if stackTraceDebug {
 			for i := 0; i < x.nobj; i++ {
 				obj := &x.obj[i]
-				if obj.typ == nil { // reachable
+				if obj.r == nil { // reachable
 					continue
 				}
-				println("  dead stkobj at", hex(gp.stack.lo+uintptr(obj.off)), "of type", obj.typ.string())
+				println("  dead stkobj at", hex(gp.stack.lo+uintptr(obj.off)), "of size", obj.r.size)
 				// Note: not necessarily really dead - only reachable-from-ptr dead.
 			}
 		}
@@ -927,7 +927,7 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 		// varp is 0 for defers, where there are no locals.
 		// In that case, there can't be a pointer to its args, either.
 		// (And all args would be scanned above anyway.)
-		for _, obj := range objs {
+		for i, obj := range objs {
 			off := obj.off
 			base := frame.varp // locals base pointer
 			if off >= 0 {
@@ -939,9 +939,9 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 				continue
 			}
 			if stackTraceDebug {
-				println("stkobj at", hex(ptr), "of type", obj.typ.string())
+				println("stkobj at", hex(ptr), "of size", obj.size)
 			}
-			state.addObject(ptr, obj.typ)
+			state.addObject(ptr, &objs[i])
 		}
 	}
 }
