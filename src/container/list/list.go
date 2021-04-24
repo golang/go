@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package list implements a doubly linked list.
+// It inserts/deletes faster than a slice but slower for iteration.
 //
 // To iterate over a list (where l is a *List):
 //	for e := l.Front(); e != nil; e = e.Next() {
