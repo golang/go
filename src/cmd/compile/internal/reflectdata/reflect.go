@@ -1590,6 +1590,7 @@ func (p *gcProg) end() {
 	p.w.End()
 	objw.Uint32(p.lsym, 0, uint32(p.symoff-4))
 	objw.Global(p.lsym, int32(p.symoff), obj.DUPOK|obj.RODATA|obj.LOCAL)
+	p.lsym.Set(obj.AttrContentAddressable, true)
 	if base.Debug.GCProg > 0 {
 		fmt.Fprintf(os.Stderr, "compile: end GCProg for %v\n", p.lsym)
 	}
