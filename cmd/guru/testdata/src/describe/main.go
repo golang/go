@@ -10,7 +10,10 @@ import (
 	"lib"
 	"nosuchpkg"            // @describe badimport1 "nosuchpkg"
 	nosuchpkg2 "nosuchpkg" // @describe badimport2 "nosuchpkg2"
-	_ "unsafe"             // @describe unsafe "unsafe"
+	// The unsafe package changed in Go 1.17 with the addition of
+	// unsafe.Add and unsafe.Slice. While we still support older versions
+	// of Go, the test case below cannot be enabled.
+	// _ "unsafe"             // @describe unsafe "unsafe"
 )
 
 var _ nosuchpkg.T
