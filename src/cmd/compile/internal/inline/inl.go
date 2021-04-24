@@ -1194,6 +1194,8 @@ func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
 	case *ir.AssignStmt, *ir.AssignListStmt:
 		// Mark node for reassignment at the end of inlsubst.node.
 		m.Defn = &subst.defnMarker
+	case *ir.TypeSwitchGuard:
+		// TODO(mdempsky): Set m.Defn properly. See discussion on #45743.
 	default:
 		base.FatalfAt(n.Pos(), "unexpected Defn: %+v", defn)
 	}
