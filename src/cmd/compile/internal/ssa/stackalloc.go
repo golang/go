@@ -145,6 +145,26 @@ func (s *stackAllocState) stackalloc() {
 		// Note: not "range f.NamedValues" above, because
 		// that would be nondeterministic.
 		for _, v := range f.NamedValues[name] {
+			if v.Op == OpArgIntReg || v.Op == OpArgFloatReg {
+				aux := v.Aux.(*AuxNameOffset)
+				// Never let an arg be bound to a differently named thing.
+				if name.N != aux.Name || name.Off != aux.Offset {
+					if f.pass.debug > stackDebug {
+						fmt.Printf("stackalloc register arg %s skipping name %s\n", v, name)
+					}
+					continue
+				}
+			} else if name.N.Class == ir.PPARAM && v.Op != OpArg {
+				// PPARAM's only bind to OpArg
+				if f.pass.debug > stackDebug {
+					fmt.Printf("stackalloc PPARAM name %s skipping non-Arg %s\n", name, v)
+				}
+				continue
+			}
+
+			if f.pass.debug > stackDebug {
+				fmt.Printf("stackalloc value %s to name %s\n", v, name)
+			}
 			names[v.ID] = name
 		}
 	}
@@ -165,6 +185,25 @@ func (s *stackAllocState) stackalloc() {
 			f.setHome(v, loc)
 			continue
 		}
+		// You might think this below would be the right idea, but you would be wrong.
+		// It almost works; as of 105a6e9518 - 2021-04-23,
+		// GOSSAHASH=11011011001011111 == cmd/compile/internal/noder.(*noder).embedded
+		// is compiled incorrectly.  I believe the cause is one of those SSA-to-registers
+		// puzzles that the register allocator untangles; in the event that a register
+		// parameter does not end up bound to a name, "fixing" it is a bad idea.
+		//
+		//if f.DebugTest {
+		//	if v.Op == OpArgIntReg || v.Op == OpArgFloatReg {
+		//		aux := v.Aux.(*AuxNameOffset)
+		//		loc := LocalSlot{N: aux.Name, Type: v.Type, Off: aux.Offset}
+		//		if f.pass.debug > stackDebug {
+		//			fmt.Printf("stackalloc Op%s %s to %s\n", v.Op, v, loc)
+		//		}
+		//		names[v.ID] = loc
+		//		continue
+		//	}
+		//}
+
 	}
 
 	// For each type, we keep track of all the stack slots we

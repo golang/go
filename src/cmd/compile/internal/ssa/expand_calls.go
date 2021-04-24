@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/abi"
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
@@ -1601,7 +1602,10 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 			x.f.OwnAux.abiInfo.String())
 		panic(fmt.Errorf("Op/Type mismatch, op=%s, type=%s", op.String(), t.String()))
 	}
-	aux := &AuxNameOffset{baseArg.Aux.(*ir.Name), baseArg.AuxInt + offset}
+	if baseArg.AuxInt != 0 {
+		base.Fatalf("BaseArg %s bound to registers has non-zero AuxInt", baseArg.LongString())
+	}
+	aux := &AuxNameOffset{baseArg.Aux.(*ir.Name), offset}
 	if toReplace != nil && toReplace.Block == baseArg.Block {
 		toReplace.reset(op)
 		toReplace.Aux = aux
