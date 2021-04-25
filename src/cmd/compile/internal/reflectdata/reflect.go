@@ -595,7 +595,7 @@ func typePkg(t *types.Type) *types.Pkg {
 			}
 		}
 	}
-	if tsym != nil && t != types.Types[t.Kind()] && t != types.ErrorType {
+	if tsym != nil && tsym.Pkg != types.BuiltinPkg {
 		return tsym.Pkg
 	}
 	return nil
