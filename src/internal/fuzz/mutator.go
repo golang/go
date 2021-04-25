@@ -255,7 +255,7 @@ func (m *mutator) mutateBytes(ptrB *[]byte) {
 
 	numIters := 1 + m.r.exp2()
 	for iter := 0; iter < numIters; iter++ {
-		switch m.rand(10) {
+		switch m.rand(18) {
 		case 0:
 			// Remove a range of bytes.
 			if len(b) <= 1 {
@@ -280,7 +280,8 @@ func (m *mutator) mutateBytes(ptrB *[]byte) {
 				b[pos+i] = byte(m.rand(256))
 			}
 		case 2:
-			// Duplicate a range of bytes.
+			// Duplicate a range of bytes and insert it into
+			// a random position
 			if len(b) <= 1 {
 				iter--
 				continue
@@ -301,7 +302,8 @@ func (m *mutator) mutateBytes(ptrB *[]byte) {
 			copy(b[dst+n:], b[dst:])
 			copy(b[dst:], tmp)
 		case 3:
-			// Copy a range of bytes.
+			// Overwrite a range of bytes with a randomly selected
+			// chunk
 			if len(b) <= 1 {
 				iter--
 				continue
@@ -328,7 +330,10 @@ func (m *mutator) mutateBytes(ptrB *[]byte) {
 				continue
 			}
 			pos := m.rand(len(b))
-			b[pos] = byte(m.rand(256))
+			// In order to avoid a no-op (where the random value matches
+			// the existing value), use XOR instead of just setting to
+			// the random value.
+			b[pos] ^= byte(1 + m.rand(255))
 		case 6:
 			// Swap 2 bytes.
 			if len(b) <= 1 {
@@ -419,6 +424,82 @@ func (m *mutator) mutateBytes(ptrB *[]byte) {
 			pos := m.rand(len(b) - 3)
 			v := uint32(interesting32[m.rand(len(interesting32))])
 			m.randByteOrder().PutUint32(b[pos:], v)
+		case 14:
+			// Insert a range of constant bytes.
+			if len(b) <= 1 {
+				iter--
+				continue
+			}
+			dst := m.rand(len(b))
+			// TODO(rolandshoemaker,katiehockman): 4096 was mainly picked
+			// randomly. We may want to either pick a much larger value
+			// (AFL uses 32768, paired with a similar impl to chooseLen
+			// which biases towards smaller lengths that grow over time),
+			// or set the max based on characteristics of the corpus
+			// (libFuzzer sets a min/max based on the min/max size of
+			// entries in the corpus and then picks uniformly from
+			// that range).
+			n := m.chooseLen(4096)
+			if len(b)+n >= cap(b) {
+				iter--
+				continue
+			}
+			b = b[:len(b)+n]
+			copy(b[dst+n:], b[dst:])
+			rb := byte(m.rand(256))
+			for i := dst; i < dst+n; i++ {
+				b[i] = rb
+			}
+		case 15:
+			// Overwrite a range of bytes with a chunk of
+			// constant bytes.
+			if len(b) <= 1 {
+				iter--
+				continue
+			}
+			dst := m.rand(len(b))
+			n := m.chooseLen(len(b) - dst)
+			rb := byte(m.rand(256))
+			for i := dst; i < dst+n; i++ {
+				b[i] = rb
+			}
+		case 16:
+			// Shuffle a range of bytes
+			if len(b) <= 1 {
+				iter--
+				continue
+			}
+			dst := m.rand(len(b))
+			n := m.chooseLen(len(b) - dst)
+			if n <= 2 {
+				iter--
+				continue
+			}
+			// Start at the end of the range, and iterate backwards
+			// to dst, swapping each element with another element in
+			// dst:dst+n (Fisher-Yates shuffle).
+			for i := n - 1; i > 0; i-- {
+				j := m.rand(i + 1)
+				b[dst+i], b[dst+j] = b[dst+j], b[dst+i]
+			}
+		case 17:
+			// Swap two chunks
+			if len(b) <= 1 {
+				iter--
+				continue
+			}
+			src := m.rand(len(b))
+			dst := m.rand(len(b))
+			for dst == src {
+				dst = m.rand(len(b))
+			}
+			n := m.chooseLen(len(b) - src)
+			tmp := make([]byte, n)
+			copy(tmp, b[dst:])
+			copy(b[dst:], b[src:src+n])
+			copy(b[src:], tmp)
+		default:
+			panic("unknown mutator")
 		}
 	}
 }
