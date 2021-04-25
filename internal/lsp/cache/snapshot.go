@@ -1282,13 +1282,12 @@ func contains(views []*View, view *View) bool {
 }
 
 func inVendor(uri span.URI) bool {
-	toSlash := filepath.ToSlash(uri.Filename())
-	if !strings.Contains(toSlash, "/vendor/") {
+	if !strings.Contains(string(uri), "/vendor/") {
 		return false
 	}
 	// Only packages in _subdirectories_ of /vendor/ are considered vendored
 	// (/vendor/a/foo.go is vendored, /vendor/foo.go is not).
-	split := strings.Split(toSlash, "/vendor/")
+	split := strings.Split(string(uri), "/vendor/")
 	if len(split) < 2 {
 		return false
 	}
@@ -1551,7 +1550,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 				// For internal tests, we need _test files, not just the normal
 				// ones. External tests only have _test files, but we can check
 				// them anyway.
-				if m.forTest != "" && !strings.HasSuffix(uri.Filename(), "_test.go") {
+				if m.forTest != "" && !strings.HasSuffix(string(uri), "_test.go") {
 					continue
 				}
 				if _, ok := result.files[uri]; ok {
