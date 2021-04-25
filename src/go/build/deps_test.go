@@ -212,8 +212,7 @@ var depsRules = `
 
 	# Misc packages needing only FMT.
 	FMT
-	< flag,
-	  html,
+	< html,
 	  mime/quotedprintable,
 	  net/internal/socktest,
 	  net/url,
@@ -229,6 +228,8 @@ var depsRules = `
 	encoding, reflect
 	< encoding/binary
 	< encoding/base32, encoding/base64;
+
+	FMT, encoding < flag;
 
 	fmt !< encoding/base32, encoding/base64;
 
