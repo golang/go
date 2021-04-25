@@ -3,5 +3,7 @@ pkg encoding/binary, type AppendByteOrder interface, AppendUint16([]uint8, uint1
 pkg encoding/binary, type AppendByteOrder interface, AppendUint32([]uint8, uint32) []uint8
 pkg encoding/binary, type AppendByteOrder interface, AppendUint64([]uint8, uint64) []uint8
 pkg encoding/binary, type AppendByteOrder interface, String() string
+pkg flag, func TextVar(encoding.TextUnmarshaler, string, encoding.TextMarshaler, string)
+pkg flag, method (*FlagSet) TextVar(encoding.TextUnmarshaler, string, encoding.TextMarshaler, string)
 pkg net/url, func JoinPath(string, ...string) (string, error)
 pkg net/url, method (*URL) JoinPath(...string) *URL
