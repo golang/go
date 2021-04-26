@@ -1,0 +1,189 @@
+// Copyright 2021 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package vta
+
+import (
+	"go/ast"
+	"go/parser"
+	"go/types"
+	"io/ioutil"
+	"reflect"
+	"strings"
+	"testing"
+
+	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/go/ssa/ssautil"
+
+	"golang.org/x/tools/go/loader"
+)
+
+// want extracts the contents of the first comment
+// section starting with "WANT:\n". The returned
+// content is split into lines without // prefix.
+func want(f *ast.File) []string {
+	for _, c := range f.Comments {
+		text := strings.TrimSpace(c.Text())
+		if t := strings.TrimPrefix(text, "WANT:\n"); t != text {
+			return strings.Split(t, "\n")
+		}
+	}
+	return nil
+}
+
+// testProg returns an ssa representation of a program at
+// `path`, assumed to define package "testdata," and the
+// test want result as list of strings.
+func testProg(path string) (*ssa.Program, []string, error) {
+	content, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	conf := loader.Config{
+		ParserMode: parser.ParseComments,
+	}
+
+	f, err := conf.ParseFile(path, content)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	conf.CreateFromFiles("testdata", f)
+	iprog, err := conf.Load()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	prog := ssautil.CreateProgram(iprog, 0)
+	// Set debug mode to exercise DebugRef instructions.
+	prog.Package(iprog.Created[0].Pkg).SetDebugMode(true)
+	prog.Build()
+	return prog, want(f), nil
+}
+
+func firstRegInstr(f *ssa.Function) ssa.Value {
+	for _, b := range f.Blocks {
+		for _, i := range b.Instrs {
+			if v, ok := i.(ssa.Value); ok {
+				return v
+			}
+		}
+	}
+	return nil
+}
+
+func TestNodeInterface(t *testing.T) {
+	// Since ssa package does not allow explicit creation of ssa
+	// values, we use the values from the program testdata/simple.go:
+	//   - basic type int
+	//   - struct X with two int fields a and b
+	//   - global variable "gl"
+	//   - "main" function and its
+	//   - first register instruction t0 := *gl
+	prog, _, err := testProg("testdata/simple.go")
+	if err != nil {
+		t.Fatalf("couldn't load testdata/simple.go program: %v", err)
+	}
+
+	pkg := prog.AllPackages()[0]
+	main := pkg.Func("main")
+	reg := firstRegInstr(main) // t0 := *gl
+	X := pkg.Type("X").Type()
+	gl := pkg.Var("gl")
+	glPtrType, ok := gl.Type().(*types.Pointer)
+	if !ok {
+		t.Fatalf("could not cast gl variable to pointer type")
+	}
+	bint := glPtrType.Elem()
+
+	pint := types.NewPointer(bint)
+	i := types.NewInterface(nil, nil)
+
+	for _, test := range []struct {
+		n node
+		s string
+		t types.Type
+	}{
+		{constant{typ: bint}, "Constant(int)", bint},
+		{pointer{typ: pint}, "Pointer(*int)", pint},
+		{mapKey{typ: bint}, "MapKey(int)", bint},
+		{mapValue{typ: pint}, "MapValue(*int)", pint},
+		{sliceElem{typ: bint}, "Slice([]int)", bint},
+		{channelElem{typ: pint}, "Channel(chan *int)", pint},
+		{field{StructType: X, index: 0}, "Field(testdata.X:a)", bint},
+		{field{StructType: X, index: 1}, "Field(testdata.X:b)", bint},
+		{global{val: gl}, "Global(gl)", gl.Type()},
+		{local{val: reg}, "Local(t0)", bint},
+		{indexedLocal{val: reg, typ: X, index: 0}, "Local(t0[0])", X},
+		{function{f: main}, "Function(main)", main.Signature.Underlying()},
+		{nestedPtrInterface{typ: i}, "PtrInterface(interface{})", i},
+		{panicArg{}, "Panic", nil},
+		{recoverReturn{}, "Recover", nil},
+	} {
+		if test.s != test.n.String() {
+			t.Errorf("want %s; got %s", test.s, test.n.String())
+		}
+		if test.t != test.n.Type() {
+			t.Errorf("want %s; got %s", test.t, test.n.Type())
+		}
+	}
+}
+
+func TestVtaGraph(t *testing.T) {
+	// Get the basic type int from a real program.
+	prog, _, err := testProg("testdata/simple.go")
+	if err != nil {
+		t.Fatalf("couldn't load testdata/simple.go program: %v", err)
+	}
+
+	glPtrType, ok := prog.AllPackages()[0].Var("gl").Type().(*types.Pointer)
+	if !ok {
+		t.Fatalf("could not cast gl variable to pointer type")
+	}
+	bint := glPtrType.Elem()
+
+	n1 := constant{typ: bint}
+	n2 := pointer{typ: types.NewPointer(bint)}
+	n3 := mapKey{typ: types.NewMap(bint, bint)}
+	n4 := mapValue{typ: types.NewMap(bint, bint)}
+
+	// Create graph
+	//   n1   n2
+	//    \  / /
+	//     n3 /
+	//     | /
+	//     n4
+	g := make(vtaGraph)
+	g.addEdge(n1, n3)
+	g.addEdge(n2, n3)
+	g.addEdge(n3, n4)
+	g.addEdge(n2, n4)
+	// for checking duplicates
+	g.addEdge(n1, n3)
+
+	want := vtaGraph{
+		n1: map[node]bool{n3: true},
+		n2: map[node]bool{n3: true, n4: true},
+		n3: map[node]bool{n4: true},
+	}
+
+	if !reflect.DeepEqual(want, g) {
+		t.Errorf("want %v; got %v", want, g)
+	}
+
+	for _, test := range []struct {
+		n node
+		l int
+	}{
+		{n1, 1},
+		{n2, 2},
+		{n3, 1},
+		{n4, 0},
+	} {
+		if sl := len(g.successors(test.n)); sl != test.l {
+			t.Errorf("want %d successors; got %d", test.l, sl)
+		}
+	}
+}
