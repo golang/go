@@ -628,7 +628,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		old := make(map[string]string)
 		for _, p := range all {
 			if p.ForTest != "" {
-				new := p.ImportPath + " [" + p.ForTest + ".test]"
+				new := p.Desc()
 				old[new] = p.ImportPath
 				p.ImportPath = new
 			}
