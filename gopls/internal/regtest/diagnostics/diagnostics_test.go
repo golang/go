@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os/exec"
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/hooks"
@@ -1381,7 +1382,15 @@ func b(c bytes.Buffer) {
 }
 
 func TestSwig(t *testing.T) {
-	t.Skipf("skipped until golang/go#37098 is resolved")
+	// This is fixed in Go 1.17, but not earlier.
+	testenv.NeedsGo1Point(t, 17)
+
+	if _, err := exec.LookPath("swig"); err != nil {
+		t.Skip("skipping test: swig not available")
+	}
+	if _, err := exec.LookPath("g++"); err != nil {
+		t.Skip("skipping test: g++ not available")
+	}
 
 	const mod = `
 -- go.mod --
