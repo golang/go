@@ -66,6 +66,8 @@ func FuncBody(n *ir.Func) {
 
 var importlist []*ir.Func
 
+// AllImportedBodies reads in the bodies of all imported functions and typechecks
+// them, if needed.
 func AllImportedBodies() {
 	for _, n := range importlist {
 		if n.Inl != nil {

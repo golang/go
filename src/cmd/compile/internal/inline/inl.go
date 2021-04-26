@@ -53,8 +53,8 @@ const (
 	inlineBigFunctionMaxCost = 20   // Max cost of inlinee when inlining into a "big" function.
 )
 
+// InlinePackage finds functions that can be inlined and clones them before walk expands them.
 func InlinePackage() {
-	// Find functions that can be inlined and clone them before walk expands them.
 	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
 		numfns := numNonClosures(list)
 		for _, n := range list {
@@ -74,8 +74,8 @@ func InlinePackage() {
 }
 
 // CanInline determines whether fn is inlineable.
-// If so, CanInline saves fn->nbody in fn->inl and substitutes it with a copy.
-// fn and ->nbody will already have been typechecked.
+// If so, CanInline saves copies of fn.Body and fn.Dcl in fn.Inl.
+// fn and fn.Body will already have been typechecked.
 func CanInline(fn *ir.Func) {
 	if fn.Nname == nil {
 		base.Fatalf("CanInline no nname %+v", fn)
@@ -520,7 +520,7 @@ func inlcopy(n ir.Node) ir.Node {
 	return edit(n)
 }
 
-// Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
+// InlineCalls/inlnode walks fn's statements and expressions and substitutes any
 // calls made to inlineable functions. This is the external entry point.
 func InlineCalls(fn *ir.Func) {
 	savefn := ir.CurFunc
