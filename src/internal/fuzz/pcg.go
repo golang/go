@@ -6,6 +6,9 @@ package fuzz
 
 import (
 	"math/bits"
+	"os"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -28,10 +31,27 @@ type pcgRand struct {
 	inc    uint64
 }
 
+func godebugSeed() *int {
+	debug := strings.Split(os.Getenv("GODEBUG"), ",")
+	for _, f := range debug {
+		if strings.HasPrefix(f, "fuzzseed=") {
+			seed, err := strconv.Atoi(strings.TrimPrefix(f, "fuzzseed="))
+			if err != nil {
+				panic("malformed fuzzseed")
+			}
+			return &seed
+		}
+	}
+	return nil
+}
+
 // newPcgRand generates a new, seeded Rand, ready for use.
 func newPcgRand() *pcgRand {
 	r := new(pcgRand)
 	now := uint64(time.Now().UnixNano())
+	if seed := godebugSeed(); seed != nil {
+		now = uint64(*seed)
+	}
 	inc := atomic.AddUint64(&globalInc, 1)
 	r.state = now
 	r.inc = (inc << 1) | 1
