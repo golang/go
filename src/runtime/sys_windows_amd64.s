@@ -148,7 +148,7 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0-0
 	// and re-save old SP for restoring later.
 	// Adjust g0 stack by the space we're using and
 	// save SP at the same place on the g0 stack.
-	// The 32(DI) here must match the 32(SP) above.
+	// The 40(DI) here must match the 40(SP) above.
 	SUBQ	$(REGS_HOST_TO_ABI0_STACK + 48), DI
 	MOVQ	SP, 40(DI)
 	MOVQ	DI, SP
