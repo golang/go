@@ -177,11 +177,18 @@ func (ctxt *Link) setArchSyms() {
 }
 
 type Arch struct {
-	Funcalign      int
-	Maxalign       int
-	Minalign       int
-	Dwarfregsp     int
-	Dwarfreglr     int
+	Funcalign  int
+	Maxalign   int
+	Minalign   int
+	Dwarfregsp int
+	Dwarfreglr int
+
+	// Threshold of total text size, used for trampoline insertion. If the total
+	// text size is smaller than TrampLimit, we won't need to insert trampolines.
+	// It is pretty close to the offset range of a direct CALL machine instruction.
+	// We leave some room for extra stuff like PLT stubs.
+	TrampLimit uint64
+
 	Androiddynld   string
 	Linuxdynld     string
 	Freebsddynld   string
