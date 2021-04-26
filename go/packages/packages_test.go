@@ -2355,7 +2355,16 @@ func testIssue37098(t *testing.T, exporter packagestest.Exporter) {
 	// (*Package).CompiledGoFiles.  This tests #37098, where using SWIG to
 	// causes C++ sources to be inadvertently included in
 	// (*Package).CompiledGoFiles.
-	t.Skip("Issue #37098: SWIG causes generated C++ sources in CompiledGoFiles")
+
+	// This is fixed in Go 1.17, but not earlier.
+	testenv.NeedsGo1Point(t, 17)
+
+	if _, err := exec.LookPath("swig"); err != nil {
+		t.Skip("skipping test: swig not available")
+	}
+	if _, err := exec.LookPath("g++"); err != nil {
+		t.Skip("skipping test: g++ not available")
+	}
 
 	// Create a fake package with an empty Go source, and a SWIG interface
 	// file.
