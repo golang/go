@@ -1498,6 +1498,9 @@ func implements(T, V *rtype) bool {
 	// See also ../runtime/iface.go.
 	if V.Kind() == Interface {
 		v := (*interfaceType)(unsafe.Pointer(V))
+		if len(v.methods) < len(t.methods) {
+			return false
+		}
 		i := 0
 		for j := 0; j < len(v.methods); j++ {
 			tm := &t.methods[i]
