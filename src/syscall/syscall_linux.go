@@ -553,7 +553,11 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	var len _Socklen = SizeofSockaddrAny
-	nfd, err = accept(fd, &rsa, &len)
+	// Try accept4 first for Android, then try accept for kernel older than 2.6.28
+	nfd, err = accept4(fd, &rsa, &len, 0)
+	if err == ENOSYS {
+		nfd, err = accept(fd, &rsa, &len)
+	}
 	if err != nil {
 		return
 	}
