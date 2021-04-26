@@ -49,6 +49,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Minalign:        minAlign,
 		Dwarfregsp:      dwarfRegSP,
 		Dwarfreglr:      dwarfRegLR,
+		TrampLimit:      0x1c00000,
 		WriteTextBlocks: true,
 
 		Adddynrel:        adddynrel,
