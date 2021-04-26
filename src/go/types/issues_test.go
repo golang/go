@@ -477,7 +477,7 @@ func TestIssue34151(t *testing.T) {
 	}
 
 	bast := mustParse(t, bsrc)
-	conf := Config{Importer: importHelper{a}}
+	conf := Config{Importer: importHelper{pkg: a}}
 	b, err := conf.Check(bast.Name.Name, fset, []*ast.File{bast}, nil)
 	if err != nil {
 		t.Errorf("package %s failed to typecheck: %v", b.Name(), err)
@@ -485,14 +485,18 @@ func TestIssue34151(t *testing.T) {
 }
 
 type importHelper struct {
-	pkg *Package
+	pkg      *Package
+	fallback Importer
 }
 
 func (h importHelper) Import(path string) (*Package, error) {
-	if path != h.pkg.Path() {
+	if path == h.pkg.Path() {
+		return h.pkg, nil
+	}
+	if h.fallback == nil {
 		return nil, fmt.Errorf("got package path %q; want %q", path, h.pkg.Path())
 	}
-	return h.pkg, nil
+	return h.fallback.Import(path)
 }
 
 // TestIssue34921 verifies that we don't update an imported type's underlying
@@ -516,7 +520,7 @@ func TestIssue34921(t *testing.T) {
 	var pkg *Package
 	for _, src := range sources {
 		f := mustParse(t, src)
-		conf := Config{Importer: importHelper{pkg}}
+		conf := Config{Importer: importHelper{pkg: pkg}}
 		res, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
 		if err != nil {
 			t.Errorf("%q failed to typecheck: %v", src, err)
@@ -569,5 +573,46 @@ func TestIssue44515(t *testing.T) {
 	want = "foo.Pointer"
 	if got != want {
 		t.Errorf("got %q; want %q", got, want)
+	}
+}
+
+func TestIssue43124(t *testing.T) {
+	// TODO(rFindley) enhance the testdata tests to be able to express this type
+	//                of setup.
+
+	// All involved packages have the same name (template). Error messages should
+	// disambiguate between text/template and html/template by printing the full
+	// path.
+	const (
+		asrc = `package a; import "text/template"; func F(template.Template) {}; func G(int) {}`
+		bsrc = `package b; import ("a"; "html/template"); func _() { a.F(template.Template{}) }`
+		csrc = `package c; import ("a"; "html/template"); func _() { a.G(template.Template{}) }`
+	)
+
+	a, err := pkgFor("a", asrc, nil)
+	if err != nil {
+		t.Fatalf("package a failed to typecheck: %v", err)
+	}
+	conf := Config{Importer: importHelper{pkg: a, fallback: importer.Default()}}
+
+	// Packages should be fully qualified when there is ambiguity within the
+	// error string itself.
+	bast := mustParse(t, bsrc)
+	_, err = conf.Check(bast.Name.Name, fset, []*ast.File{bast}, nil)
+	if err == nil {
+		t.Fatal("package b had no errors")
+	}
+	if !strings.Contains(err.Error(), "text/template") || !strings.Contains(err.Error(), "html/template") {
+		t.Errorf("type checking error for b does not disambiguate package template: %q", err)
+	}
+
+	// ...and also when there is any ambiguity in reachable packages.
+	cast := mustParse(t, csrc)
+	_, err = conf.Check(cast.Name.Name, fset, []*ast.File{cast}, nil)
+	if err == nil {
+		t.Fatal("package c had no errors")
+	}
+	if !strings.Contains(err.Error(), "html/template") {
+		t.Errorf("type checking error for c does not disambiguate package template: %q", err)
 	}
 }

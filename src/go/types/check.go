@@ -91,7 +91,16 @@ type Checker struct {
 	impMap  map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
 	posMap  map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
 	typMap  map[string]*Named          // maps an instantiated named type hash to a *Named type
-	pkgCnt  map[string]int             // counts number of imported packages with a given name (for better error messages)
+
+	// pkgPathMap maps package names to the set of distinct import paths we've
+	// seen for that name, anywhere in the import graph. It is used for
+	// disambiguating package names in error messages.
+	//
+	// pkgPathMap is allocated lazily, so that we don't pay the price of building
+	// it on the happy path. seenPkgMap tracks the packages that we've already
+	// walked.
+	pkgPathMap map[string]map[string]bool
+	seenPkgMap map[*Package]bool
 
 	// information collected during type-checking of a set of package files
 	// (initialized by Files, valid only for the duration of check.Files;
@@ -187,7 +196,6 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		impMap:  make(map[importKey]*Package),
 		posMap:  make(map[*Interface][]token.Pos),
 		typMap:  make(map[string]*Named),
-		pkgCnt:  make(map[string]int),
 	}
 }
 
@@ -265,9 +273,6 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	if !check.conf.DisableUnusedImportCheck {
 		check.unusedImports()
 	}
-	// no longer needed - release memory
-	check.imports = nil
-	check.dotImportMap = nil
 
 	check.recordUntyped()
 
@@ -276,6 +281,12 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	}
 
 	check.pkg.complete = true
+
+	// no longer needed - release memory
+	check.imports = nil
+	check.dotImportMap = nil
+	check.pkgPathMap = nil
+	check.seenPkgMap = nil
 
 	// TODO(rFindley) There's more memory we should release at this point.
 
