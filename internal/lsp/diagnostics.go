@@ -121,6 +121,7 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.U
 func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snapshot, uris []span.URI, onDisk bool) {
 	ctx, done := event.Start(ctx, "Server.diagnoseChangedFiles", tag.Snapshot.Of(snapshot.ID()))
 	defer done()
+
 	packages := make(map[source.Package]struct{})
 	for _, uri := range uris {
 		// If the change is only on-disk and the file is not open, don't
@@ -131,6 +132,11 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 		// If the file is not known to the snapshot (e.g., if it was deleted),
 		// don't diagnose it.
 		if snapshot.FindFile(uri) == nil {
+			continue
+		}
+		// Don't call PackagesForFile for builtin.go, as it results in a
+		// command-line-arguments load.
+		if snapshot.IsBuiltin(ctx, uri) {
 			continue
 		}
 		pkgs, err := snapshot.PackagesForFile(ctx, uri, source.TypecheckFull)
@@ -391,6 +397,10 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Sn
 // a warning, suggesting that the user check the file for build tags.
 func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snapshot, fh source.VersionedFileHandle) *source.Diagnostic {
 	if fh.Kind() != source.Go {
+		return nil
+	}
+	// builtin files won't have a package, but they are never orphaned.
+	if snapshot.IsBuiltin(ctx, fh.URI()) {
 		return nil
 	}
 	pkgs, err := snapshot.PackagesForFile(ctx, fh.URI(), source.TypecheckWorkspace)

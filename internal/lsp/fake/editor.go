@@ -693,7 +693,7 @@ func (e *Editor) setBufferContentLocked(ctx context.Context, path string, dirty 
 }
 
 // GoToDefinition jumps to the definition of the symbol at the given position
-// in an open buffer.
+// in an open buffer. It returns the path and position of the resulting jump.
 func (e *Editor) GoToDefinition(ctx context.Context, path string, pos Pos) (string, Pos, error) {
 	if err := e.checkBufferPosition(path, pos); err != nil {
 		return "", Pos{}, err

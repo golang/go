@@ -128,6 +128,9 @@ type Snapshot interface {
 	// BuiltinPackage returns information about the special builtin package.
 	BuiltinPackage(ctx context.Context) (*BuiltinPackage, error)
 
+	// IsBuiltin reports whether uri is part of the builtin package.
+	IsBuiltin(ctx context.Context, uri span.URI) bool
+
 	// PackagesForFile returns the packages that this file belongs to, checked
 	// in mode.
 	PackagesForFile(ctx context.Context, uri span.URI, mode TypecheckMode) ([]Package, error)

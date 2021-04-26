@@ -51,7 +51,7 @@ type snapshot struct {
 	generation *memoize.Generation
 
 	// builtin pins the AST and package for builtin.go in memory.
-	builtin *builtinPackageHandle
+	builtin *builtinPackageData
 
 	// The snapshot's initialization state is controlled by the fields below.
 	//
@@ -1361,10 +1361,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		newGen.Inherit(s.workspaceDirHandle)
 	}
 
-	if s.builtin != nil {
-		newGen.Inherit(s.builtin.handle)
-	}
-
 	// Copy all of the FileHandles.
 	for k, v := range s.files {
 		result.files[k] = v
@@ -1755,12 +1751,18 @@ func (s *snapshot) BuiltinPackage(ctx context.Context) (*source.BuiltinPackage, 
 	if s.builtin == nil {
 		return nil, errors.Errorf("no builtin package for view %s", s.view.name)
 	}
-	d, err := s.builtin.handle.Get(ctx, s.generation, s)
+	return s.builtin.parsed, s.builtin.err
+}
+
+func (s *snapshot) IsBuiltin(ctx context.Context, uri span.URI) bool {
+	builtin, err := s.BuiltinPackage(ctx)
 	if err != nil {
-		return nil, err
+		event.Error(ctx, "checking for builtin", err)
+		return false
 	}
-	data := d.(*builtinPackageData)
-	return data.parsed, data.err
+	// We should always get the builtin URI in a canonical form, so use simple
+	// string comparison here. span.CompareURI is too expensive.
+	return builtin.ParsedFile.URI == uri
 }
 
 func (s *snapshot) buildBuiltinPackage(ctx context.Context, goFiles []string) error {
@@ -1775,29 +1777,28 @@ func (s *snapshot) buildBuiltinPackage(ctx context.Context, goFiles []string) er
 	if err != nil {
 		return err
 	}
-	h := s.generation.Bind(fh.FileIdentity(), func(ctx context.Context, arg memoize.Arg) interface{} {
-		snapshot := arg.(*snapshot)
-
-		pgh := snapshot.parseGoHandle(ctx, fh, source.ParseFull)
-		pgf, _, err := snapshot.parseGo(ctx, pgh)
-		if err != nil {
-			return &builtinPackageData{err: err}
-		}
-		pkg, err := ast.NewPackage(snapshot.view.session.cache.fset, map[string]*ast.File{
-			pgf.URI.Filename(): pgf.File,
-		}, nil, nil)
-		if err != nil {
-			return &builtinPackageData{err: err}
-		}
-		return &builtinPackageData{
-			parsed: &source.BuiltinPackage{
-				ParsedFile: pgf,
-				Package:    pkg,
-			},
-		}
-	}, nil)
-	s.builtin = &builtinPackageHandle{handle: h}
+	s.builtin = buildBuiltinPackage(ctx, fh, s)
 	return nil
+}
+
+func buildBuiltinPackage(ctx context.Context, fh *fileHandle, snapshot *snapshot) *builtinPackageData {
+	pgh := snapshot.parseGoHandle(ctx, fh, source.ParseFull)
+	pgf, _, err := snapshot.parseGo(ctx, pgh)
+	if err != nil {
+		return &builtinPackageData{err: err}
+	}
+	pkg, err := ast.NewPackage(snapshot.view.session.cache.fset, map[string]*ast.File{
+		pgf.URI.Filename(): pgf.File,
+	}, nil, nil)
+	if err != nil {
+		return &builtinPackageData{err: err}
+	}
+	return &builtinPackageData{
+		parsed: &source.BuiltinPackage{
+			ParsedFile: pgf,
+			Package:    pkg,
+		},
+	}
 }
 
 // BuildGoplsMod generates a go.mod file for all modules in the workspace. It
