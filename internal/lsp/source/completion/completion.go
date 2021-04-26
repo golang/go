@@ -45,7 +45,9 @@ type CompletionItem struct {
 	// The insert text does not contain snippets.
 	InsertText string
 
-	Kind protocol.CompletionItemKind
+	Kind       protocol.CompletionItemKind
+	Tags       []protocol.CompletionItemTag
+	Deprecated bool // Deprecated, prefer Tags if available
 
 	// An optional array of additional TextEdits that are applied when
 	// selecting this completion.

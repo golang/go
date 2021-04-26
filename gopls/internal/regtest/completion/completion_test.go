@@ -456,3 +456,50 @@ func _() {
 		}
 	})
 }
+
+func TestCompletionDeprecation(t *testing.T) {
+	const files = `
+-- go.mod --
+module test.com
+
+go 1.16
+-- prog.go --
+package waste
+// Deprecated, use newFoof
+func fooFunc() bool {
+	return false
+}
+
+// Deprecated
+const badPi = 3.14
+
+func doit() {
+	if fooF
+	panic()
+	x := badP
+}
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("prog.go")
+		pos := env.RegexpSearch("prog.go", "if fooF")
+		pos.Column += len("if fooF")
+		completions := env.Completion("prog.go", pos)
+		diff := compareCompletionResults([]string{"fooFunc"}, completions.Items)
+		if diff != "" {
+			t.Error(diff)
+		}
+		if completions.Items[0].Tags == nil {
+			t.Errorf("expected Tags to show deprecation %#v", diff[0])
+		}
+		pos = env.RegexpSearch("prog.go", "= badP")
+		pos.Column += len("= badP")
+		completions = env.Completion("prog.go", pos)
+		diff = compareCompletionResults([]string{"badPi"}, completions.Items)
+		if diff != "" {
+			t.Error(diff)
+		}
+		if completions.Items[0].Tags == nil {
+			t.Errorf("expected Tags to show deprecation %#v", diff[0])
+		}
+	})
+}

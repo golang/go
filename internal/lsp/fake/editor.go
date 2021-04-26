@@ -270,6 +270,7 @@ func (e *Editor) initialize(ctx context.Context, workspaceFolders []string) erro
 	params.Capabilities.Workspace.Configuration = true
 	params.Capabilities.Window.WorkDoneProgress = true
 	// TODO: set client capabilities
+	params.Capabilities.TextDocument.Completion.CompletionItem.TagSupport.ValueSet = []protocol.CompletionItemTag{protocol.ComplDeprecated}
 	params.InitializationOptions = e.configuration()
 	if e.Config.SendPID {
 		params.ProcessID = int32(os.Getpid())

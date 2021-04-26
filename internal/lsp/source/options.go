@@ -188,6 +188,8 @@ type ClientOptions struct {
 	SemanticTypes                     []string
 	SemanticMods                      []string
 	RelatedInformationSupported       bool
+	CompletionTags                    bool
+	CompletionDeprecated              bool
 }
 
 // ServerOptions holds LSP-specific configuration that is provided by the
@@ -647,6 +649,12 @@ func (o *Options) ForClientCapabilities(caps protocol.ClientCapabilities) {
 
 	// Check if the client supports diagnostic related information.
 	o.RelatedInformationSupported = caps.TextDocument.PublishDiagnostics.RelatedInformation
+	// Check if the client completion support incliudes tags (preferred) or deprecation
+	if caps.TextDocument.Completion.CompletionItem.TagSupport.ValueSet != nil {
+		o.CompletionTags = true
+	} else if caps.TextDocument.Completion.CompletionItem.DeprecatedSupport {
+		o.CompletionDeprecated = true
+	}
 }
 
 func (o *Options) Clone() *Options {

@@ -243,6 +243,14 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 	if c.opts.fullDocumentation {
 		item.Documentation = hover.FullDocumentation
 	}
+	// The desired pattern is `^// Deprecated`, but the prefix has been removed
+	if strings.HasPrefix(hover.FullDocumentation, "Deprecated") {
+		if c.snapshot.View().Options().CompletionTags {
+			item.Tags = []protocol.CompletionItemTag{protocol.ComplDeprecated}
+		} else if c.snapshot.View().Options().CompletionDeprecated {
+			item.Deprecated = true
+		}
+	}
 
 	return item, nil
 }
