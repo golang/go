@@ -1295,7 +1295,7 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
 		if n.Op() == ir.ONAME {
 			n := n.(*ir.Name)
 			if n.Curfn != e.curfn {
-				base.Fatalf("curfn mismatch: %v != %v", n.Curfn, e.curfn)
+				base.Fatalf("curfn mismatch: %v != %v for %v", n.Curfn, e.curfn, n)
 			}
 
 			if n.Opt != nil {
@@ -1308,6 +1308,9 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
 }
 
 func (b *batch) oldLoc(n *ir.Name) *location {
+	if n.Canonical().Opt == nil {
+		base.Fatalf("%v has no location", n)
+	}
 	return n.Canonical().Opt.(*location)
 }
 

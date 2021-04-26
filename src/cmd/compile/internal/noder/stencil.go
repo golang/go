@@ -667,7 +667,10 @@ func instTypeName(name string, targs []*types.Type) string {
 // result is t; otherwise the result is a new type. It deals with recursive types
 // by using TFORW types and finding partially or fully created types via sym.Def.
 func (subst *subster) typ(t *types.Type) *types.Type {
-	if !t.HasTParam() {
+	if !t.HasTParam() && t.Kind() != types.TFUNC {
+		// Note: function types need to be copied regardless, as the
+		// types of closures may contain declarations that need
+		// to be copied. See #45738.
 		return t
 	}
 
