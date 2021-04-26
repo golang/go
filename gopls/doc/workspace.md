@@ -23,7 +23,7 @@ As of Jan 2021, if you are working with multiple modules or nested modules, you
 will need to create a "workspace folder" for each module. This means that each
 module has its own scope, and features will not work across modules. We are
 currently working on addressing this limitation--see details about
-[experimental workspace module mode](#experimental-workspace-module-mode)
+[experimental workspace module mode](#workspace-module-experimental)
 below.
 
 In VS Code, you can create a workspace folder by setting up a
