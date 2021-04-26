@@ -42,6 +42,9 @@ var (
 	inlineImporter = map[*types.Sym]iimporterAndOffset{}
 )
 
+// expandDecl returns immediately if n is already a Name node. Otherwise, n should
+// be an Ident node, and expandDecl reads in the definition of the specified
+// identifier from the appropriate package.
 func expandDecl(n ir.Node) ir.Node {
 	if n, ok := n.(*ir.Name); ok {
 		return n
@@ -61,6 +64,8 @@ func expandDecl(n ir.Node) ir.Node {
 	return r.doDecl(n.Sym())
 }
 
+// ImportBody reads in the dcls and body of an imported function (which should not
+// yet have been read in).
 func ImportBody(fn *ir.Func) {
 	if fn.Inl.Body != nil {
 		base.Fatalf("%v already has inline body", fn)

@@ -11,9 +11,9 @@ import (
 	"sync"
 )
 
-// IRNode represents an ir.Node, but without needing to import cmd/compile/internal/ir,
+// Object represents an ir.Node, but without needing to import cmd/compile/internal/ir,
 // which would cause an import cycle. The uses in other packages must type assert
-// values of type IRNode to ir.Node or a more specific type.
+// values of type Object to ir.Node or a more specific type.
 type Object interface {
 	Pos() src.XPos
 	Sym() *Sym
@@ -157,12 +157,15 @@ type Type struct {
 	// Width is the width of this Type in bytes.
 	Width int64 // valid if Align > 0
 
-	methods    Fields
+	// list of base methods (excluding embedding)
+	methods Fields
+	// list of all methods (including embedding)
 	allMethods Fields
 
 	// canonical OTYPE node for a named type (should be an ir.Name node with same sym)
-	nod        Object
-	underlying *Type // original type (type literal or predefined type)
+	nod Object
+	// the underlying type (type literal or predeclared type) for a defined type
+	underlying *Type
 
 	// Cache of composite types, with this type being the element type.
 	cache struct {
@@ -423,8 +426,11 @@ type Slice struct {
 	Elem *Type // element type
 }
 
-// A Field represents a field in a struct or a method in an interface or
-// associated with a named type.
+// A Field is a (Sym, Type) pairing along with some other information, and,
+// depending on the context, is used to represent:
+//  - a field in a struct
+//  - a method in an interface or associated with a named type
+//  - a function parameter
 type Field struct {
 	flags bitset8
 
@@ -1656,9 +1662,10 @@ var (
 )
 
 // NewNamed returns a new named type for the given type name. obj should be an
-// ir.Name. The new type is incomplete, and the underlying type should be set
-// later via SetUnderlying(). References to the type are maintained until the type
-// is filled in, so those references can be updated when the type is complete.
+// ir.Name. The new type is incomplete (marked as TFORW kind), and the underlying
+// type should be set later via SetUnderlying(). References to the type are
+// maintained until the type is filled in, so those references can be updated when
+// the type is complete.
 func NewNamed(obj Object) *Type {
 	t := New(TFORW)
 	t.sym = obj.Sym()

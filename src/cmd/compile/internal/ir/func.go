@@ -160,7 +160,10 @@ func (f *Func) LinksymABI(abi obj.ABI) *obj.LSym { return f.Nname.LinksymABI(abi
 type Inline struct {
 	Cost int32 // heuristic cost of inlining this function
 
-	// Copies of Func.Dcl and Nbody for use during inlining.
+	// Copies of Func.Dcl and Func.Body for use during inlining. Copies are
+	// needed because the function's dcl/body may be changed by later compiler
+	// transformations. These fields are also populated when a function from
+	// another package is imported.
 	Dcl  []*Name
 	Body []Node
 }

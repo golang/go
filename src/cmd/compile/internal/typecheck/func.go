@@ -105,8 +105,9 @@ func PartialCallType(n *ir.SelectorExpr) *types.Type {
 // typechecking an inline body, as opposed to the body of a real function.
 var inTypeCheckInl bool
 
-// Lazy typechecking of imported bodies. For local functions, CanInline will set ->typecheck
-// because they're a copy of an already checked body.
+// ImportedBody returns immediately if the inlining information for fn is
+// populated. Otherwise, fn must be an imported function. If so, ImportedBody
+// loads in the dcls and body for fn, and typechecks as needed.
 func ImportedBody(fn *ir.Func) {
 	if fn.Inl.Body != nil {
 		return
@@ -180,7 +181,7 @@ func fnpkg(fn *ir.Name) *types.Pkg {
 	return fn.Sym().Pkg
 }
 
-// closurename generates a new unique name for a closure within
+// ClosureName generates a new unique name for a closure within
 // outerfunc.
 func ClosureName(outerfunc *ir.Func) *types.Sym {
 	outer := "glob."
