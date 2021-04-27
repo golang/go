@@ -30,6 +30,10 @@ func UnpackExpr(expr ast.Expr) []ast.Expr {
 	return []ast.Expr{expr}
 }
 
+func IsListExpr(n ast.Node) bool {
+	return false
+}
+
 func Get(ast.Node) *ast.FieldList {
 	return nil
 }

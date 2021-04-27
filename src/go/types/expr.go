@@ -1805,7 +1805,11 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		// types, which are comparatively rare.
 
 	default:
-		panic(fmt.Sprintf("%s: unknown expression type %T", check.fset.Position(e.Pos()), e))
+		if typeparams.IsListExpr(e) {
+			check.errorf(e, _Todo, "invalid multi-index expression")
+		} else {
+			panic(fmt.Sprintf("%s: unknown expression type %T", check.fset.Position(e.Pos()), e))
+		}
 	}
 
 	// everything went well
