@@ -533,7 +533,10 @@ func (ctxt *Link) loadlib() {
 	// up symbol by name may not get expected result.
 
 	iscgo = ctxt.LibraryByPkg["runtime/cgo"] != nil
-	ctxt.canUsePlugins = ctxt.LibraryByPkg["plugin"] != nil
+
+	// Plugins a require cgo support to function. Similarly, plugins may require additional
+	// internal linker support on some platforms which may not be implemented.
+	ctxt.canUsePlugins = ctxt.LibraryByPkg["plugin"] != nil && iscgo
 
 	// We now have enough information to determine the link mode.
 	determineLinkMode(ctxt)
