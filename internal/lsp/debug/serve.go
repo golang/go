@@ -221,9 +221,14 @@ func (st *State) dropClient(session source.Session) {
 func (st *State) updateServer(server *Server) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	for _, existing := range st.servers {
+	for i, existing := range st.servers {
 		if existing.ID == server.ID {
-			*existing = *server
+			// Replace, rather than mutate, to avoid a race.
+			newServers := make([]*Server, len(st.servers))
+			copy(newServers, st.servers[:i])
+			newServers[i] = server
+			copy(newServers[i+1:], st.servers[i+1:])
+			st.servers = newServers
 			return
 		}
 	}
