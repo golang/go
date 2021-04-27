@@ -38,6 +38,11 @@ func UnpackExpr(x ast.Expr) []ast.Expr {
 	return nil
 }
 
+func IsListExpr(n ast.Node) bool {
+	_, ok := n.(*ast.ListExpr)
+	return ok
+}
+
 func Get(n ast.Node) *ast.FieldList {
 	switch n := n.(type) {
 	case *ast.TypeSpec:

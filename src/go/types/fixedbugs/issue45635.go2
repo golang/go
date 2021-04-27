@@ -7,3 +7,26 @@ package main
 func main() {
 	some /* ERROR "undeclared name" */ [int, int]()
 }
+
+type N[T any] struct{}
+
+var _ N /* ERROR "0 arguments but 1 type parameters" */ []
+
+type I interface {
+	type map[int]int, []int
+}
+
+func _[T I]() {
+	var m map[int]int
+	_ = m[1 /* ERROR "multi-index expression" */, 2 /* ERROR "expected type" */ ]
+
+	var a [3]int
+	_ = a[1 /* ERROR "multi-index expression" */, 2 /* ERROR "expected type" */ ]
+
+	var s []int
+	_ = s[1 /* ERROR "multi-index expression" */, 2 /* ERROR "expected type" */ ]
+
+	var t T
+	// TODO(rFindley) Fix the duplicate error below.
+	_ = t[1 /* ERROR "multi-index expression" */ /* ERROR "multi-index expression" */, 2 /* ERROR "expected type" */ ]
+}
