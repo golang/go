@@ -443,8 +443,8 @@ func gentramp(arch *sys.Arch, linkmode ld.LinkMode, ldr *loader.Loader, tramp *l
 	tramp.SetSize(12) // 3 instructions
 	P := make([]byte, tramp.Size())
 	t := ldr.SymValue(target) + offset
-	o1 := uint32(0xe5900000 | 11<<12 | 15<<16) // MOVW (R15), R11 // R15 is actual pc + 8
-	o2 := uint32(0xe12fff10 | 11)              // JMP  (R11)
+	o1 := uint32(0xe5900000 | 12<<12 | 15<<16) // MOVW (R15), R12 // R15 is actual pc + 8
+	o2 := uint32(0xe12fff10 | 12)              // JMP  (R12)
 	o3 := uint32(t)                            // WORD $target
 	arch.ByteOrder.PutUint32(P, o1)
 	arch.ByteOrder.PutUint32(P[4:], o2)
@@ -464,9 +464,9 @@ func gentramp(arch *sys.Arch, linkmode ld.LinkMode, ldr *loader.Loader, tramp *l
 func gentramppic(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym, offset int64) {
 	tramp.SetSize(16) // 4 instructions
 	P := make([]byte, tramp.Size())
-	o1 := uint32(0xe5900000 | 11<<12 | 15<<16 | 4)  // MOVW 4(R15), R11 // R15 is actual pc + 8
-	o2 := uint32(0xe0800000 | 11<<12 | 15<<16 | 11) // ADD R15, R11, R11
-	o3 := uint32(0xe12fff10 | 11)                   // JMP  (R11)
+	o1 := uint32(0xe5900000 | 12<<12 | 15<<16 | 4)  // MOVW 4(R15), R12 // R15 is actual pc + 8
+	o2 := uint32(0xe0800000 | 12<<12 | 15<<16 | 12) // ADD R15, R12, R12
+	o3 := uint32(0xe12fff10 | 12)                   // JMP  (R12)
 	o4 := uint32(0)                                 // WORD $(target-pc) // filled in with relocation
 	arch.ByteOrder.PutUint32(P, o1)
 	arch.ByteOrder.PutUint32(P[4:], o2)
@@ -484,10 +484,10 @@ func gentramppic(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym,
 // generate a trampoline to target+offset in dynlink mode (using GOT)
 func gentrampdyn(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym, offset int64) {
 	tramp.SetSize(20)                               // 5 instructions
-	o1 := uint32(0xe5900000 | 11<<12 | 15<<16 | 8)  // MOVW 8(R15), R11 // R15 is actual pc + 8
-	o2 := uint32(0xe0800000 | 11<<12 | 15<<16 | 11) // ADD R15, R11, R11
-	o3 := uint32(0xe5900000 | 11<<12 | 11<<16)      // MOVW (R11), R11
-	o4 := uint32(0xe12fff10 | 11)                   // JMP  (R11)
+	o1 := uint32(0xe5900000 | 12<<12 | 15<<16 | 8)  // MOVW 8(R15), R12 // R15 is actual pc + 8
+	o2 := uint32(0xe0800000 | 12<<12 | 15<<16 | 12) // ADD R15, R12, R12
+	o3 := uint32(0xe5900000 | 12<<12 | 12<<16)      // MOVW (R12), R12
+	o4 := uint32(0xe12fff10 | 12)                   // JMP  (R12)
 	o5 := uint32(0)                                 // WORD $target@GOT // filled in with relocation
 	o6 := uint32(0)
 	if offset != 0 {
@@ -495,8 +495,8 @@ func gentrampdyn(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym,
 		tramp.SetSize(24) // 6 instructions
 		o6 = o5
 		o5 = o4
-		o4 = 0xe2800000 | 11<<12 | 11<<16 | immrot(uint32(offset)) // ADD $offset, R11, R11
-		o1 = uint32(0xe5900000 | 11<<12 | 15<<16 | 12)             // MOVW 12(R15), R11
+		o4 = 0xe2800000 | 12<<12 | 12<<16 | immrot(uint32(offset)) // ADD $offset, R12, R12
+		o1 = uint32(0xe5900000 | 12<<12 | 15<<16 | 12)             // MOVW 12(R15), R12
 	}
 	P := make([]byte, tramp.Size())
 	arch.ByteOrder.PutUint32(P, o1)
