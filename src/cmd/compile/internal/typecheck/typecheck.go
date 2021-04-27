@@ -596,6 +596,10 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OANDAND, ir.OOROR:
 		n := n.(*ir.LogicalExpr)
 		n.X, n.Y = Expr(n.X), Expr(n.Y)
+		if n.X.Type() == nil || n.Y.Type() == nil {
+			n.SetType(nil)
+			return n
+		}
 		// For "x == x && len(s)", it's better to report that "len(s)" (type int)
 		// can't be used with "&&" than to report that "x == x" (type untyped bool)
 		// can't be converted to int (see issue #41500).
