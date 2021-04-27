@@ -89,7 +89,7 @@ stderr '^no required module provides package rsc.io/quote; to add it:\n\tgo get 
 -- go.mod --
 module m
 
-go 1.20
+go 1.16
 
 -- x.go --
 package x
@@ -104,7 +104,7 @@ require (
 -- go.mod.redundant --
 module m
 
-go 1.20
+go 1.16
 
 require (
 	rsc.io/quote v1.5.2
@@ -114,7 +114,7 @@ require (
 -- go.mod.indirect --
 module m
 
-go 1.20
+go 1.16
 
 require (
 	rsc.io/quote v1.5.2 // indirect
@@ -124,7 +124,7 @@ require (
 -- go.mod.untidy --
 module m
 
-go 1.20
+go 1.16
 
 require (
 	rsc.io/sampler v1.3.0 // indirect
