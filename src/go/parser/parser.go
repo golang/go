@@ -891,7 +891,7 @@ func (p *parser) parseParameters(acceptTParams bool) (tparams, params *ast.Field
 		rbrack := p.expect(token.RBRACK)
 		tparams = &ast.FieldList{Opening: opening, List: list, Closing: rbrack}
 		// Type parameter lists must not be empty.
-		if tparams != nil && tparams.NumFields() == 0 {
+		if tparams.NumFields() == 0 {
 			p.error(tparams.Closing, "empty type parameter list")
 			tparams = nil // avoid follow-on errors
 		}
