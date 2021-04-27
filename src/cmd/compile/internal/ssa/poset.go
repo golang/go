@@ -12,7 +12,7 @@ import (
 // If true, check poset integrity after every mutation
 var debugPoset = false
 
-const uintSize = 32 << (^uint(0) >> 32 & 1) // 32 or 64
+const uintSize = 32 << (^uint(0) >> 63) // 32 or 64
 
 // bitset is a bit array for dense indexes.
 type bitset []uint
