@@ -5,6 +5,7 @@
 package completion
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
@@ -14,6 +15,7 @@ import (
 	"go/types"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"golang.org/x/tools/internal/lsp/fuzzy"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -207,16 +209,11 @@ func (c *completer) packageNameCompletions(ctx context.Context, fileURI span.URI
 // have the given prefix and are used in the same directory as the given
 // file. This also includes test packages for these packages (<pkg>_test) and
 // the directory name itself.
-func packageSuggestions(ctx context.Context, snapshot source.Snapshot, fileURI span.URI, prefix string) ([]candidate, error) {
+func packageSuggestions(ctx context.Context, snapshot source.Snapshot, fileURI span.URI, prefix string) (packages []candidate, err error) {
 	workspacePackages, err := snapshot.WorkspacePackages(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	dirPath := filepath.Dir(string(fileURI))
-	dirName := filepath.Base(dirPath)
-
-	seenPkgs := make(map[string]struct{})
 
 	toCandidate := func(name string, score float64) candidate {
 		obj := types.NewPkgName(0, nil, name, types.NewPackage("", name))
@@ -225,9 +222,24 @@ func packageSuggestions(ctx context.Context, snapshot source.Snapshot, fileURI s
 
 	matcher := fuzzy.NewMatcher(prefix)
 
+	// Always try to suggest a main package
+	defer func() {
+		if score := float64(matcher.Score("main")); score > 0 {
+			packages = append(packages, toCandidate("main", score*lowScore))
+		}
+	}()
+
+	dirPath := filepath.Dir(fileURI.Filename())
+	dirName := filepath.Base(dirPath)
+	if !isValidDirName(dirName) {
+		return packages, nil
+	}
+	pkgName := convertDirNameToPkgName(dirName)
+
+	seenPkgs := make(map[string]struct{})
+
 	// The `go` command by default only allows one package per directory but we
 	// support multiple package suggestions since gopls is build system agnostic.
-	var packages []candidate
 	for _, pkg := range workspacePackages {
 		if pkg.Name() == "main" || pkg.Name() == "" {
 			continue
@@ -239,7 +251,7 @@ func packageSuggestions(ctx context.Context, snapshot source.Snapshot, fileURI s
 		// Only add packages that are previously used in the current directory.
 		var relevantPkg bool
 		for _, pgf := range pkg.CompiledGoFiles() {
-			if filepath.Dir(string(pgf.URI)) == dirPath {
+			if filepath.Dir(pgf.URI.Filename()) == dirPath {
 				relevantPkg = true
 				break
 			}
@@ -267,20 +279,80 @@ func packageSuggestions(ctx context.Context, snapshot source.Snapshot, fileURI s
 	}
 
 	// Add current directory name as a low relevance suggestion.
-	if _, ok := seenPkgs[dirName]; !ok {
-		if score := float64(matcher.Score(dirName)); score > 0 {
-			packages = append(packages, toCandidate(dirName, score*lowScore))
+	if _, ok := seenPkgs[pkgName]; !ok {
+		if score := float64(matcher.Score(pkgName)); score > 0 {
+			packages = append(packages, toCandidate(pkgName, score*lowScore))
 		}
 
-		testDirName := dirName + "_test"
-		if score := float64(matcher.Score(testDirName)); score > 0 {
-			packages = append(packages, toCandidate(testDirName, score*lowScore))
+		testPkgName := pkgName + "_test"
+		if score := float64(matcher.Score(testPkgName)); score > 0 {
+			packages = append(packages, toCandidate(testPkgName, score*lowScore))
 		}
-	}
-
-	if score := float64(matcher.Score("main")); score > 0 {
-		packages = append(packages, toCandidate("main", score*lowScore))
 	}
 
 	return packages, nil
+}
+
+// isValidDirName checks whether the passed directory name can be used in
+// a package path. Requirements for a package path can be found here:
+// https://golang.org/ref/mod#go-mod-file-ident.
+func isValidDirName(dirName string) bool {
+	if dirName == "" {
+		return false
+	}
+
+	for i, ch := range dirName {
+		if isLetter(ch) || isDigit(ch) {
+			continue
+		}
+		if i == 0 {
+			// Directory name can start only with '_'. '.' is not allowed in module paths.
+			// '-' and '~' are not allowed because elements of package paths must be
+			// safe command-line arguments.
+			if ch == '_' {
+				continue
+			}
+		} else {
+			// Modules path elements can't end with '.'
+			if isAllowedPunctuation(ch) && (i != len(dirName)-1 || ch != '.') {
+				continue
+			}
+		}
+
+		return false
+	}
+	return true
+}
+
+// convertDirNameToPkgName converts a valid directory name to a valid package name.
+// It leaves only letters and digits. All letters are mapped to lower case.
+func convertDirNameToPkgName(dirName string) string {
+	var buf bytes.Buffer
+	for _, ch := range dirName {
+		switch {
+		case isLetter(ch):
+			buf.WriteRune(unicode.ToLower(ch))
+
+		case buf.Len() != 0 && isDigit(ch):
+			buf.WriteRune(ch)
+		}
+	}
+	return buf.String()
+}
+
+// isLetter and isDigit allow only ASCII characters because
+// "Each path element is a non-empty string made of up ASCII letters,
+// ASCII digits, and limited ASCII punctuation"
+// (see https://golang.org/ref/mod#go-mod-file-ident).
+
+func isLetter(ch rune) bool {
+	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z'
+}
+
+func isDigit(ch rune) bool {
+	return '0' <= ch && ch <= '9'
+}
+
+func isAllowedPunctuation(ch rune) bool {
+	return ch == '_' || ch == '-' || ch == '~' || ch == '.'
 }

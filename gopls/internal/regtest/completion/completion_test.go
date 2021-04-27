@@ -70,6 +70,11 @@ package
 
 -- fruits/testfile3.go --
 pac
+-- 123f_r.u~its-123/testfile.go --
+package
+
+-- .invalid-dir@-name/testfile.go --
+package
 `
 	var (
 		testfile4 = ""
@@ -146,6 +151,21 @@ pac
 			content:       &testfile6,
 			want:          []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
 			editRegexp:    `\*\/\n()`,
+		},
+		// Issue golang/go#44680
+		{
+			name:          "package completion for dir name with punctuation",
+			filename:      "123f_r.u~its-123/testfile.go",
+			triggerRegexp: "package()",
+			want:          []string{"package fruits123", "package fruits123_test", "package main"},
+			editRegexp:    "package\n",
+		},
+		{
+			name:          "package completion for invalid dir name",
+			filename:      ".invalid-dir@-name/testfile.go",
+			triggerRegexp: "package()",
+			want:          []string{"package main"},
+			editRegexp:    "package\n",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
