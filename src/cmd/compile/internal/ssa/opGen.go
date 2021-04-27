@@ -13879,7 +13879,7 @@ var opcodeTable = [...]opInfo{
 				{0, 2}, // R1
 				{1, 1}, // R0
 			},
-			clobbers: 16396, // R2 R3 R14
+			clobbers: 20492, // R2 R3 R12 R14
 			outputs: []outputInfo{
 				{0, 1}, // R0
 				{1, 2}, // R1
@@ -17228,7 +17228,7 @@ var opcodeTable = [...]opInfo{
 				{0, 2}, // R1
 				{1, 1}, // R0
 			},
-			clobbers: 16386, // R1 R14
+			clobbers: 20482, // R1 R12 R14
 		},
 	},
 	{
@@ -17242,7 +17242,7 @@ var opcodeTable = [...]opInfo{
 				{0, 4}, // R2
 				{1, 2}, // R1
 			},
-			clobbers: 16391, // R0 R1 R2 R14
+			clobbers: 20487, // R0 R1 R2 R12 R14
 		},
 	},
 	{
@@ -17403,7 +17403,7 @@ var opcodeTable = [...]opInfo{
 				{0, 4}, // R2
 				{1, 8}, // R3
 			},
-			clobbers: 4294918144, // R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			clobbers: 4294922240, // R12 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 		},
 	},
 

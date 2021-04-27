@@ -3,11 +3,9 @@
 
 package ssa
 
-import (
-	"cmd/compile/internal/types"
-	"cmd/internal/obj/s390x"
-	"math"
-)
+import "math"
+import "cmd/compile/internal/types"
+import "cmd/internal/obj/s390x"
 
 func rewriteValueS390X(v *Value) bool {
 	switch v.Op {
