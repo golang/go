@@ -30,7 +30,7 @@ type Importer struct {
 	packages map[string]*types.Package
 }
 
-// NewImporter returns a new Importer for the given context, file set, and map
+// New returns a new Importer for the given context, file set, and map
 // of packages. The context is used to resolve import paths to package paths,
 // and identifying the files belonging to the package. If the context provides
 // non-nil file system functions, they are used instead of the regular package
