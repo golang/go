@@ -154,6 +154,11 @@ stdout ok
 ! stdout FAIL
 ! stdout 'fatal here'
 
+# Test fails with file containing wrong type
+! go test -run FuzzWrongType corpustesting/fuzz_testdata_corpus_test.go
+! stdout ^ok
+stdout FAIL
+
 -- noop_fuzz_test.go --
 package noop_fuzz
 
@@ -384,6 +389,10 @@ func FuzzInNestedDir(f *testing.F) {
     f.Fuzz(func(t *testing.T, b []byte) {})
 }
 
+func FuzzWrongType(f *testing.F) {
+    f.Fuzz(func(t *testing.T, b []byte) {})
+}
+
 -- corpustesting/testdata/corpus/FuzzFail/1 --
 go test fuzz v1
 []byte("12345")
@@ -395,3 +404,6 @@ malformed
 -- corpustesting/testdata/corpus/FuzzInNestedDir/anotherdir/1 --
 go test fuzz v1
 []byte("12345")
+-- corpustesting/testdata/corpus/FuzzWrongType/1 --
+go test fuzz v1
+int("00000")
