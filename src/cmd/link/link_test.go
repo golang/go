@@ -651,6 +651,77 @@ func TestTrampoline(t *testing.T) {
 	}
 }
 
+const testTrampCgoSrc = `
+package main
+
+// #include <stdio.h>
+// void CHello() { printf("hello\n"); fflush(stdout); }
+import "C"
+
+func main() {
+	C.CHello()
+}
+`
+
+func TestTrampolineCgo(t *testing.T) {
+	// Test that trampoline insertion works for cgo code.
+	// For stress test, we set -debugtramp=2 flag, which sets a very low
+	// threshold for trampoline generation, and essentially all cross-package
+	// calls will use trampolines.
+	switch runtime.GOARCH {
+	case "arm", "arm64", "ppc64", "ppc64le":
+	default:
+		t.Skipf("trampoline insertion is not implemented on %s", runtime.GOARCH)
+	}
+
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+
+	src := filepath.Join(tmpdir, "hello.go")
+	err := ioutil.WriteFile(src, []byte(testTrampCgoSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "hello.exe")
+
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-debugtramp=2", "-o", exe, src)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+	cmd = exec.Command(exe)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("executable failed to run: %v\n%s", err, out)
+	}
+	if string(out) != "hello\n" {
+		t.Errorf("unexpected output:\n%s", out)
+	}
+
+	// Test internal linking mode.
+
+	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || (runtime.GOARCH == "arm64" && runtime.GOOS == "windows") || !testenv.CanInternalLink() {
+		return // internal linking cgo is not supported
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-debugtramp=2 -linkmode=internal", "-o", exe, src)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+	cmd = exec.Command(exe)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("executable failed to run: %v\n%s", err, out)
+	}
+	if string(out) != "hello\n" {
+		t.Errorf("unexpected output:\n%s", out)
+	}
+}
+
 func TestIndexMismatch(t *testing.T) {
 	// Test that index mismatch will cause a link-time error (not run-time error).
 	// This shouldn't happen with "go build". We invoke the compiler and the linker
