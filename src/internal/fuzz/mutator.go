@@ -31,7 +31,7 @@ func (m *mutator) randByteOrder() binary.ByteOrder {
 	return binary.BigEndian
 }
 
-// chooseLen chooses length of range mutation in range [0,n]. It gives
+// chooseLen chooses length of range mutation in range [1,n]. It gives
 // preference to shorter ranges.
 func (m *mutator) chooseLen(n int) int {
 	switch x := m.rand(100); {
@@ -292,15 +292,26 @@ func (m *mutator) mutateBytes(ptrB *[]byte) {
 				dst = m.rand(len(b))
 			}
 			n := m.chooseLen(len(b) - src)
-			if len(b)+n >= cap(b) {
+			// Use the end of the slice as scratch space to avoid doing an
+			// allocation. If the slice is too small abort and try something
+			// else.
+			if len(b)+(n*2) >= cap(b) {
 				iter--
 				continue
 			}
-			tmp := make([]byte, n)
-			copy(tmp, b[src:])
-			b = b[:len(b)+n]
-			copy(b[dst+n:], b[dst:])
-			copy(b[dst:], tmp)
+			end := len(b)
+			// Increase the size of b to fit the duplicated block as well as
+			// some extra working space
+			b = b[:end+(n*2)]
+			// Copy the block of bytes we want to duplicate to the end of the
+			// slice
+			copy(b[end+n:], b[src:src+n])
+			// Shift the bytes after the splice point n positions to the right
+			// to make room for the new block
+			copy(b[dst+n:end+n], b[dst:end])
+			// Insert the duplicate block into the splice point
+			copy(b[dst:], b[end+n:])
+			b = b[:end+n]
 		case 3:
 			// Overwrite a range of bytes with a randomly selected
 			// chunk
@@ -494,10 +505,19 @@ func (m *mutator) mutateBytes(ptrB *[]byte) {
 				dst = m.rand(len(b))
 			}
 			n := m.chooseLen(len(b) - src)
-			tmp := make([]byte, n)
-			copy(tmp, b[dst:])
+			// Use the end of the slice as scratch space to avoid doing an
+			// allocation. If the slice is too small abort and try something
+			// else.
+			if len(b)+n >= cap(b) {
+				iter--
+				continue
+			}
+			end := len(b)
+			b = b[:end+n]
+			copy(b[end:], b[dst:dst+n])
 			copy(b[dst:], b[src:src+n])
-			copy(b[src:], tmp)
+			copy(b[src:], b[end:])
+			b = b[:end]
 		default:
 			panic("unknown mutator")
 		}
