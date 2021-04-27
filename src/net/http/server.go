@@ -2404,9 +2404,8 @@ func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
 
 	if path != r.URL.Path {
 		_, pattern = mux.handler(host, path)
-		url := *r.URL
-		url.Path = path
-		return RedirectHandler(url.String(), StatusMovedPermanently), pattern
+		u := &url.URL{Path: path, RawQuery: r.URL.RawQuery}
+		return RedirectHandler(u.String(), StatusMovedPermanently), pattern
 	}
 
 	return mux.handler(host, r.URL.Path)
