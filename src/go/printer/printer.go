@@ -844,7 +844,7 @@ func (p *printer) writeWhitespace(n int) {
 // ----------------------------------------------------------------------------
 // Printing interface
 
-// nlines limits n to maxNewlines.
+// nlimit limits n to maxNewlines.
 func nlimit(n int) int {
 	if n > maxNewlines {
 		n = maxNewlines

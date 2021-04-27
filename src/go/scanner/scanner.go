@@ -383,7 +383,7 @@ func (s *Scanner) digits(base int, invalid *int) (digsep int) {
 			if s.ch == '_' {
 				ds = 2
 			} else if s.ch >= max && *invalid < 0 {
-				*invalid = int(s.offset) // record invalid rune offset
+				*invalid = s.offset // record invalid rune offset
 			}
 			digsep |= ds
 			s.next()

@@ -90,7 +90,7 @@ func expectedErrors(fset *token.FileSet, filename string, src []byte) map[token.
 				if s[1] == "HERE" {
 					pos = here
 				}
-				errors[pos] = string(s[2])
+				errors[pos] = s[2]
 			}
 		case token.SEMICOLON:
 			// don't use the position of auto-inserted (invisible) semicolons
