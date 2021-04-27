@@ -413,6 +413,34 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// (e.g. go version).
 			return true
 		}
+
+	case objabi.R_ARM64_GOTPCREL:
+		if target.IsExternal() {
+			// External linker will do this relocation.
+			return true
+		}
+		if targType != sym.SDYNIMPORT {
+			ldr.Errorf(s, "R_ARM64_GOTPCREL target is not SDYNIMPORT symbol: %v", ldr.SymName(targ))
+		}
+		if r.Add() != 0 {
+			ldr.Errorf(s, "R_ARM64_GOTPCREL with non-zero addend (%v)", r.Add())
+		}
+		if target.IsElf() {
+			ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_AARCH64_GLOB_DAT))
+		} else {
+			ld.AddGotSym(target, ldr, syms, targ, 0)
+		}
+		// turn into two relocations, one for each instruction.
+		su := ldr.MakeSymbolUpdater(s)
+		r.SetType(objabi.R_ARM64_GOT)
+		r.SetSiz(4)
+		r.SetSym(syms.GOT)
+		r.SetAdd(int64(ldr.SymGot(targ)))
+		r2, _ := su.AddRel(objabi.R_ARM64_GOT)
+		r2.SetSiz(4)
+		r2.SetOff(r.Off() + 4)
+		r2.SetSym(syms.GOT)
+		r2.SetAdd(int64(ldr.SymGot(targ)))
 	}
 	return false
 }
@@ -1153,4 +1181,108 @@ func offsetLabelName(ldr *loader.Loader, s loader.Sym, off int64) string {
 		return fmt.Sprintf("%s+%dMB", ldr.SymExtname(s), off>>20)
 	}
 	return fmt.Sprintf("%s+%d", ldr.SymExtname(s), off)
+}
+
+// Convert the direct jump relocation r to refer to a trampoline if the target is too far
+func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
+	relocs := ldr.Relocs(s)
+	r := relocs.At(ri)
+	switch r.Type() {
+	case objabi.R_CALLARM64:
+		var t int64
+		// ldr.SymValue(rs) == 0 indicates a cross-package jump to a function that is not yet
+		// laid out. Conservatively use a trampoline. This should be rare, as we lay out packages
+		// in dependency order.
+		if ldr.SymValue(rs) != 0 {
+			t = ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
+		}
+		if t >= 1<<27 || t < -1<<27 || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
+			// direct call too far, need to insert trampoline.
+			// look up existing trampolines first. if we found one within the range
+			// of direct call, we can reuse it. otherwise create a new one.
+			var tramp loader.Sym
+			for i := 0; ; i++ {
+				oName := ldr.SymName(rs)
+				name := oName + fmt.Sprintf("%+x-tramp%d", r.Add(), i)
+				tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
+				ldr.SetAttrReachable(tramp, true)
+				if ldr.SymType(tramp) == sym.SDYNIMPORT {
+					// don't reuse trampoline defined in other module
+					continue
+				}
+				if oName == "runtime.deferreturn" {
+					ldr.SetIsDeferReturnTramp(tramp, true)
+				}
+				if ldr.SymValue(tramp) == 0 {
+					// either the trampoline does not exist -- we need to create one,
+					// or found one the address which is not assigned -- this will be
+					// laid down immediately after the current function. use this one.
+					break
+				}
+
+				t = ldr.SymValue(tramp) - (ldr.SymValue(s) + int64(r.Off()))
+				if t >= -1<<27 && t < 1<<27 {
+					// found an existing trampoline that is not too far
+					// we can just use it
+					break
+				}
+			}
+			if ldr.SymType(tramp) == 0 {
+				// trampoline does not exist, create one
+				trampb := ldr.MakeSymbolUpdater(tramp)
+				ctxt.AddTramp(trampb)
+				if ldr.SymType(rs) == sym.SDYNIMPORT {
+					if r.Add() != 0 {
+						ctxt.Errorf(s, "nonzero addend for DYNIMPORT call: %v+%d", ldr.SymName(rs), r.Add())
+					}
+					gentrampgot(ctxt, ldr, trampb, rs)
+				} else {
+					gentramp(ctxt, ldr, trampb, rs, r.Add())
+				}
+			}
+			// modify reloc to point to tramp, which will be resolved later
+			sb := ldr.MakeSymbolUpdater(s)
+			relocs := sb.Relocs()
+			r := relocs.At(ri)
+			r.SetSym(tramp)
+			r.SetAdd(0) // clear the offset embedded in the instruction
+		}
+	default:
+		ctxt.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()))
+	}
+}
+
+// generate a trampoline to target+offset.
+func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, target loader.Sym, offset int64) {
+	tramp.SetSize(12) // 3 instructions
+	P := make([]byte, tramp.Size())
+	o1 := uint32(0x90000010) // adrp x16, target
+	o2 := uint32(0x91000210) // add x16, pc-relative-offset
+	o3 := uint32(0xd61f0200) // br x16
+	ctxt.Arch.ByteOrder.PutUint32(P, o1)
+	ctxt.Arch.ByteOrder.PutUint32(P[4:], o2)
+	ctxt.Arch.ByteOrder.PutUint32(P[8:], o3)
+	tramp.SetData(P)
+
+	r, _ := tramp.AddRel(objabi.R_ADDRARM64)
+	r.SetSiz(8)
+	r.SetSym(target)
+	r.SetAdd(offset)
+}
+
+// generate a trampoline to target+offset for a DYNIMPORT symbol via GOT.
+func gentrampgot(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, target loader.Sym) {
+	tramp.SetSize(12) // 3 instructions
+	P := make([]byte, tramp.Size())
+	o1 := uint32(0x90000010) // adrp x16, target@GOT
+	o2 := uint32(0xf9400210) // ldr x16, [x16, offset]
+	o3 := uint32(0xd61f0200) // br x16
+	ctxt.Arch.ByteOrder.PutUint32(P, o1)
+	ctxt.Arch.ByteOrder.PutUint32(P[4:], o2)
+	ctxt.Arch.ByteOrder.PutUint32(P[8:], o3)
+	tramp.SetData(P)
+
+	r, _ := tramp.AddRel(objabi.R_ARM64_GOTPCREL)
+	r.SetSiz(8)
+	r.SetSym(target)
 }

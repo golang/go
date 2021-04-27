@@ -618,7 +618,7 @@ func TestTrampoline(t *testing.T) {
 	// threshold for trampoline generation, and essentially all cross-package
 	// calls will use trampolines.
 	switch runtime.GOARCH {
-	case "arm", "ppc64", "ppc64le":
+	case "arm", "arm64", "ppc64", "ppc64le":
 	default:
 		t.Skipf("trampoline insertion is not implemented on %s", runtime.GOARCH)
 	}
