@@ -208,8 +208,8 @@
 //
 // Main
 //
-// It is sometimes necessary for a test or a benchmark program to do extra setup or teardown
-// before or after it executes. It is also sometimes necessary for those to control
+// It is sometimes necessary for a test or benchmark program to do extra setup or teardown
+// before or after it executes. It is also sometimes necessary to control
 // which code runs on the main thread. To support these and other cases,
 // if a test file contains a function:
 //
