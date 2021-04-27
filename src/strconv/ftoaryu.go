@@ -156,6 +156,11 @@ func ryuFtoaFixed64(d *decimalSlice, mant uint64, exp int, prec int) {
 	d.dp -= q
 }
 
+var uint64pow10 = [...]uint64{
+	1, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9,
+	1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19,
+}
+
 // formatDecimal fills d with at most prec decimal digits
 // of mantissa m. The boolean trunc indicates whether m
 // is truncated compared to the original number being formatted.
