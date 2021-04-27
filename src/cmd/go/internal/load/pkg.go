@@ -2563,7 +2563,7 @@ func mainPackagesOnly(pkgs []*Package, patterns []string) []*Package {
 	mainCount := make([]int, len(patterns))
 	nonMainCount := make([]int, len(patterns))
 	for _, pkg := range pkgs {
-		if pkg.Name == "main" {
+		if pkg.Name == "main" || (pkg.Incomplete && pkg.Name == "") {
 			matchedPkgs = append(matchedPkgs, pkg)
 			for i := range patterns {
 				if matchers[i] != nil && matchers[i](pkg.ImportPath) {
