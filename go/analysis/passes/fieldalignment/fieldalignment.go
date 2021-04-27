@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package fieldalignment defines an Analyzer that detects structs that would take less
+// Package fieldalignment defines an Analyzer that detects structs that would use less
 // memory if their fields were sorted.
 package fieldalignment
 
@@ -20,10 +20,27 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-const Doc = `find structs that would take less memory if their fields were sorted
+const Doc = `find structs that would use less memory if their fields were sorted
 
-This analyzer find structs that can be rearranged to take less memory, and provides
+This analyzer find structs that can be rearranged to use less memory, and provides
 a suggested edit with the optimal order.
+
+Note that there are two different diagnostics reported. One checks struct size,
+and the other reports "pointer bytes" used. Pointer bytes is how many bytes of the
+object that the garbage collector has to potentially scan for pointers, for example:
+
+	struct { uint32; string }
+
+have 16 pointer bytes because the garbage collector has to scan up through the string's
+inner pointer.
+
+	struct { string; *uint32 }
+
+has 24 pointer bytes because it has to scan further through the *uint32.
+
+	struct { string; uint32 }
+
+has 8 because it can stop immediately after the string pointer.
 `
 
 var Analyzer = &analysis.Analyzer{

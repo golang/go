@@ -398,7 +398,7 @@ var GeneratedAPIJSON = &APIJSON{
 						},
 						{
 							Name:    "\"fieldalignment\"",
-							Doc:     "find structs that would take less memory if their fields were sorted\n\nThis analyzer find structs that can be rearranged to take less memory, and provides\na suggested edit with the optimal order.\n",
+							Doc:     "find structs that would use less memory if their fields were sorted\n\nThis analyzer find structs that can be rearranged to use less memory, and provides\na suggested edit with the optimal order.\n\nNote that there are two different diagnostics reported. One checks struct size,\nand the other reports \"pointer bytes\" used. Pointer bytes is how many bytes of the\nobject that the garbage collector has to potentially scan for pointers, for example:\n\n\tstruct { uint32; string }\n\nhave 16 pointer bytes because the garbage collector has to scan up through the string's\ninner pointer.\n\n\tstruct { string; *uint32 }\n\nhas 24 pointer bytes because it has to scan further through the *uint32.\n\n\tstruct { string; uint32 }\n\nhas 8 because it can stop immediately after the string pointer.\n",
 							Default: "false",
 						},
 						{
@@ -933,7 +933,7 @@ var GeneratedAPIJSON = &APIJSON{
 		},
 		{
 			Name:    "fieldalignment",
-			Doc:     "find structs that would take less memory if their fields were sorted\n\nThis analyzer find structs that can be rearranged to take less memory, and provides\na suggested edit with the optimal order.\n",
+			Doc:     "find structs that would use less memory if their fields were sorted\n\nThis analyzer find structs that can be rearranged to use less memory, and provides\na suggested edit with the optimal order.\n\nNote that there are two different diagnostics reported. One checks struct size,\nand the other reports \"pointer bytes\" used. Pointer bytes is how many bytes of the\nobject that the garbage collector has to potentially scan for pointers, for example:\n\n\tstruct { uint32; string }\n\nhave 16 pointer bytes because the garbage collector has to scan up through the string's\ninner pointer.\n\n\tstruct { string; *uint32 }\n\nhas 24 pointer bytes because it has to scan further through the *uint32.\n\n\tstruct { string; uint32 }\n\nhas 8 because it can stop immediately after the string pointer.\n",
 			Default: false,
 		},
 		{
