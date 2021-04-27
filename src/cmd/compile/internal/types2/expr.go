@@ -508,6 +508,7 @@ func (check *Checker) updateExprType(x syntax.Expr, typ Type, final bool) {
 		*syntax.IndexExpr,
 		*syntax.SliceExpr,
 		*syntax.AssertExpr,
+		*syntax.ListExpr,
 		//*syntax.StarExpr,
 		*syntax.KeyValueExpr,
 		*syntax.ArrayType,
@@ -1409,6 +1410,11 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 
 	case *syntax.CallExpr:
 		return check.callExpr(x, e)
+
+	case *syntax.ListExpr:
+		// catch-all for unexpected expression lists
+		check.error(e, "unexpected list of expressions")
+		goto Error
 
 	// case *syntax.UnaryExpr:
 	// 	check.expr(x, e.X)
