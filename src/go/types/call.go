@@ -14,7 +14,7 @@ import (
 	"unicode"
 )
 
-// funcInst type-checks a function instantiaton inst and returns the result in x.
+// funcInst type-checks a function instantiation inst and returns the result in x.
 // The operand x must be the evaluation of inst.X and its type must be a signature.
 func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
 	xlist := typeparams.UnpackExpr(inst.Index)
@@ -71,8 +71,16 @@ func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
 	x.expr = inst
 }
 
-func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
-	check.exprOrType(x, call.Fun)
+func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+	if iexpr, _ := call.Fun.(*ast.IndexExpr); iexpr != nil {
+		if check.indexExpr(x, iexpr) {
+			check.funcInst(x, iexpr)
+		}
+		x.expr = iexpr
+		check.record(x)
+	} else {
+		check.exprOrType(x, call.Fun)
+	}
 
 	switch x.mode {
 	case invalid:
@@ -121,49 +129,48 @@ func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
 			check.hasCallOrRecv = true
 		}
 		return predeclaredFuncs[id].kind
+	}
 
-	default:
-		// function/method call
-		cgocall := x.mode == cgofunc
+	// ordinary function/method call
+	cgocall := x.mode == cgofunc
 
-		sig := asSignature(x.typ)
-		if sig == nil {
-			check.invalidOp(x, _InvalidCall, "cannot call non-function %s", x)
-			x.mode = invalid
-			x.expr = call
-			return statement
-		}
-
-		// evaluate arguments
-		args, _ := check.exprList(call.Args, false)
-		sig = check.arguments(call, sig, args)
-
-		// determine result
-		switch sig.results.Len() {
-		case 0:
-			x.mode = novalue
-		case 1:
-			if cgocall {
-				x.mode = commaerr
-			} else {
-				x.mode = value
-			}
-			x.typ = sig.results.vars[0].typ // unpack tuple
-		default:
-			x.mode = value
-			x.typ = sig.results
-		}
+	sig := asSignature(x.typ)
+	if sig == nil {
+		check.invalidOp(x, _InvalidCall, "cannot call non-function %s", x)
+		x.mode = invalid
 		x.expr = call
-		check.hasCallOrRecv = true
-
-		// if type inference failed, a parametrized result must be invalidated
-		// (operands cannot have a parametrized type)
-		if x.mode == value && len(sig.tparams) > 0 && isParameterized(sig.tparams, x.typ) {
-			x.mode = invalid
-		}
-
 		return statement
 	}
+
+	// evaluate arguments
+	args, _ := check.exprList(call.Args, false)
+	sig = check.arguments(call, sig, args)
+
+	// determine result
+	switch sig.results.Len() {
+	case 0:
+		x.mode = novalue
+	case 1:
+		if cgocall {
+			x.mode = commaerr
+		} else {
+			x.mode = value
+		}
+		x.typ = sig.results.vars[0].typ // unpack tuple
+	default:
+		x.mode = value
+		x.typ = sig.results
+	}
+	x.expr = call
+	check.hasCallOrRecv = true
+
+	// if type inference failed, a parametrized result must be invalidated
+	// (operands cannot have a parametrized type)
+	if x.mode == value && len(sig.tparams) > 0 && isParameterized(sig.tparams, x.typ) {
+		x.mode = invalid
+	}
+
+	return statement
 }
 
 func (check *Checker) exprList(elist []ast.Expr, allowCommaOk bool) (xlist []*operand, commaOk bool) {
