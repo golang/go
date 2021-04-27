@@ -111,7 +111,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			return false
 		}
 
-		// Handle relocations found in ELF object files.
+	// Handle relocations found in ELF object files.
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_PLT32):
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_CALLARM)
@@ -237,6 +237,21 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			su.SetRelocSym(rIdx, 0)
 			return true
 		}
+
+	case objabi.R_GOTPCREL:
+		if target.IsExternal() {
+			// External linker will do this relocation.
+			return true
+		}
+		if targType != sym.SDYNIMPORT {
+			ldr.Errorf(s, "R_GOTPCREL target is not SDYNIMPORT symbol: %v", ldr.SymName(targ))
+		}
+		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_ARM_GLOB_DAT))
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_PCREL)
+		su.SetRelocSym(rIdx, syms.GOT)
+		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
+		return true
 	}
 
 	return false
@@ -369,6 +384,12 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 	relocs := ldr.Relocs(s)
 	r := relocs.At(ri)
 	switch r.Type() {
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_CALL),
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_PC24),
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_JUMP24):
+		// Host object relocations that will be turned into a PLT call.
+		// The PLT may be too far. Insert a trampoline for them.
+		fallthrough
 	case objabi.R_CALLARM:
 		var t int64
 		// ldr.SymValue(rs) == 0 indicates a cross-package jump to a function that is not yet
@@ -415,7 +436,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 				// trampoline does not exist, create one
 				trampb := ldr.MakeSymbolUpdater(tramp)
 				ctxt.AddTramp(trampb)
-				if ctxt.DynlinkingGo() {
+				if ctxt.DynlinkingGo() || ldr.SymType(rs) == sym.SDYNIMPORT {
 					if immrot(uint32(offset)) == 0 {
 						ctxt.Errorf(s, "odd offset in dynlink direct call: %v+%d", ldr.SymName(rs), offset)
 					}

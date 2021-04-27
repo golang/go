@@ -134,6 +134,12 @@ func isPLTCall(rt objabi.RelocType) bool {
 		objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_JUMP26),
 		objabi.MachoRelocOffset + MACHO_ARM64_RELOC_BRANCH26*2 + pcrel:
 		return true
+
+	// ARM
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_CALL),
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_PC24),
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_JUMP24):
+		return true
 	}
 	// TODO: other architectures.
 	return false
