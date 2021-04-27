@@ -3621,7 +3621,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		v := int32(p.From.Offset)
 
 		if v < -256 || v > 255 {
-			c.ctxt.Diag("offset out of range [-255,254]: %v", p)
+			c.ctxt.Diag("offset out of range [-256,255]: %v", p)
 		}
 		o1 = c.opldr(p, p.As)
 		if o.scond == C_XPOST {
@@ -3639,7 +3639,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		v := int32(p.To.Offset)
 
 		if v < -256 || v > 255 {
-			c.ctxt.Diag("offset out of range [-255,254]: %v", p)
+			c.ctxt.Diag("offset out of range [-256,255]: %v", p)
 		}
 		o1 = c.opstr(p, p.As)
 		if o.scond == C_XPOST {
