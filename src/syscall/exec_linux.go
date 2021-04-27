@@ -233,8 +233,6 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 
 	// Fork succeeded, now in child.
 
-	runtime_AfterForkInChild()
-
 	// Enable the "keep capabilities" flag to set ambient capabilities later.
 	if len(sys.AmbientCaps) > 0 {
 		_, _, err1 = RawSyscall6(SYS_PRCTL, PR_SET_KEEPCAPS, 1, 0, 0, 0, 0)
@@ -293,6 +291,10 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 			goto childerror
 		}
 	}
+
+	// Restore the signal mask. We do this after TIOCSPGRP to avoid
+	// having the kernel send a SIGTTOU signal to the process group.
+	runtime_AfterForkInChild()
 
 	// Unshare
 	if sys.Unshareflags != 0 {
