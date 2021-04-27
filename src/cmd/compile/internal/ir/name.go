@@ -49,7 +49,9 @@ type Name struct {
 
 	PkgName *PkgName // real package for import . names
 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
-	// For a closure var, the ONAME node of the outer captured variable
+	// For a closure var, the ONAME node of the outer captured variable.
+	// For the case-local variables of a type switch, the type switch guard (OTYPESW).
+	// For the name of a function, points to corresponding Func node.
 	Defn Node
 
 	// The function, method, or closure in which local variable or param is declared.
