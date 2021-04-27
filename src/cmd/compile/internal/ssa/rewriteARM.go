@@ -3,10 +3,8 @@
 
 package ssa
 
-import (
-	"cmd/compile/internal/types"
-	"internal/buildcfg"
-)
+import "internal/buildcfg"
+import "cmd/compile/internal/types"
 
 func rewriteValueARM(v *Value) bool {
 	switch v.Op {

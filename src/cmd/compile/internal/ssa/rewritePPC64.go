@@ -3,11 +3,9 @@
 
 package ssa
 
-import (
-	"cmd/compile/internal/types"
-	"internal/buildcfg"
-	"math"
-)
+import "internal/buildcfg"
+import "math"
+import "cmd/compile/internal/types"
 
 func rewriteValuePPC64(v *Value) bool {
 	switch v.Op {
