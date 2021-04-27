@@ -506,20 +506,11 @@ func ReadCorpus(dir string, types []reflect.Type) ([]CorpusEntry, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read corpus file: %v", err)
 		}
-		vals, err := unmarshalCorpusFile(data)
+		var vals []interface{}
+		vals, err = readCorpusData(data, types)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to unmarshal %q: %v", filename, err))
+			errs = append(errs, fmt.Errorf("%q: %v", filename, err))
 			continue
-		}
-		if len(vals) != len(types) {
-			errs = append(errs, fmt.Errorf("wrong number of values in corpus file %q: %d, want %d", filename, len(vals), len(types)))
-			continue
-		}
-		for i := range types {
-			if reflect.TypeOf(vals[i]) != types[i] {
-				errs = append(errs, fmt.Errorf("mismatched types in corpus file %q: %v, want %v", filename, vals, types))
-				continue
-			}
 		}
 		corpus = append(corpus, CorpusEntry{Name: file.Name(), Data: data, Values: vals})
 	}
@@ -527,6 +518,22 @@ func ReadCorpus(dir string, types []reflect.Type) ([]CorpusEntry, error) {
 		return corpus, &MalformedCorpusError{errs: errs}
 	}
 	return corpus, nil
+}
+
+func readCorpusData(data []byte, types []reflect.Type) ([]interface{}, error) {
+	vals, err := unmarshalCorpusFile(data)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal: %v", err)
+	}
+	if len(vals) != len(types) {
+		return nil, fmt.Errorf("wrong number of values in corpus file: %d, want %d", len(vals), len(types))
+	}
+	for i := range types {
+		if reflect.TypeOf(vals[i]) != types[i] {
+			return nil, fmt.Errorf("mismatched types in corpus file: %v, want %v", vals, types)
+		}
+	}
+	return vals, nil
 }
 
 // writeToCorpus atomically writes the given bytes to a new file in testdata.
