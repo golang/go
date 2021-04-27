@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/build"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -347,27 +348,32 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		return
 	}
 
+	PrintEnv(os.Stdout, env)
+}
+
+// PrintEnv prints the environment variables to w.
+func PrintEnv(w io.Writer, env []cfg.EnvVar) {
 	for _, e := range env {
 		if e.Name != "TERM" {
 			switch runtime.GOOS {
 			default:
-				fmt.Printf("%s=\"%s\"\n", e.Name, e.Value)
+				fmt.Fprintf(w, "%s=\"%s\"\n", e.Name, e.Value)
 			case "plan9":
 				if strings.IndexByte(e.Value, '\x00') < 0 {
-					fmt.Printf("%s='%s'\n", e.Name, strings.ReplaceAll(e.Value, "'", "''"))
+					fmt.Fprintf(w, "%s='%s'\n", e.Name, strings.ReplaceAll(e.Value, "'", "''"))
 				} else {
 					v := strings.Split(e.Value, "\x00")
-					fmt.Printf("%s=(", e.Name)
+					fmt.Fprintf(w, "%s=(", e.Name)
 					for x, s := range v {
 						if x > 0 {
-							fmt.Printf(" ")
+							fmt.Fprintf(w, " ")
 						}
-						fmt.Printf("%s", s)
+						fmt.Fprintf(w, "%s", s)
 					}
-					fmt.Printf(")\n")
+					fmt.Fprintf(w, ")\n")
 				}
 			case "windows":
-				fmt.Printf("set %s=%s\n", e.Name, e.Value)
+				fmt.Fprintf(w, "set %s=%s\n", e.Name, e.Value)
 			}
 		}
 	}
