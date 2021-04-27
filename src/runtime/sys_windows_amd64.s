@@ -5,6 +5,7 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
+#include "time_windows.h"
 #include "cgo/abi_amd64.h"
 
 // maxargs should be divisible by 2, as Windows stack
@@ -340,16 +341,6 @@ TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
 	CALL	AX
 	MOVQ	32(SP), SP
 	RET
-
-// See https://wrkhpi.wordpress.com/2007/08/09/getting-os-information-the-kuser_shared_data-structure/
-// Archived copy at:
-// http://web.archive.org/web/20210411000829/https://wrkhpi.wordpress.com/2007/08/09/getting-os-information-the-kuser_shared_data-structure/
-// Must read hi1, then lo, then hi2. The snapshot is valid if hi1 == hi2.
-#define _INTERRUPT_TIME 0x7ffe0008
-#define _SYSTEM_TIME 0x7ffe0014
-#define time_lo 0
-#define time_hi1 4
-#define time_hi2 8
 
 TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
 	CMPB	runtime·useQPCTime(SB), $0
