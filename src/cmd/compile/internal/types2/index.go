@@ -20,7 +20,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	switch x.mode {
 	case invalid:
 		check.use(e.Index)
-		return
+		return false
 
 	case typexpr:
 		// type instantiation
@@ -29,7 +29,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		if x.typ != Typ[Invalid] {
 			x.mode = typexpr
 		}
-		return
+		return false
 
 	case value:
 		if sig := asSignature(x.typ); sig != nil && len(sig.tparams) > 0 {
@@ -196,7 +196,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	}
 
 	check.index(index, length)
-	return
+	return false
 }
 
 func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
