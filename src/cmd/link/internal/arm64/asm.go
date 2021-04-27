@@ -441,6 +441,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		r2.SetOff(r.Off() + 4)
 		r2.SetSym(syms.GOT)
 		r2.SetAdd(int64(ldr.SymGot(targ)))
+		return true
 	}
 	return false
 }
@@ -1187,7 +1188,14 @@ func offsetLabelName(ldr *loader.Loader, s loader.Sym, off int64) string {
 func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 	relocs := ldr.Relocs(s)
 	r := relocs.At(ri)
+	const pcrel = 1
 	switch r.Type() {
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_CALL26),
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_JUMP26),
+		objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_BRANCH26*2 + pcrel:
+		// Host object relocations that will be turned into a PLT call.
+		// The PLT may be too far. Insert a trampoline for them.
+		fallthrough
 	case objabi.R_CALLARM64:
 		var t int64
 		// ldr.SymValue(rs) == 0 indicates a cross-package jump to a function that is not yet
@@ -1196,7 +1204,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 		if ldr.SymValue(rs) != 0 {
 			t = ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
 		}
-		if t >= 1<<27 || t < -1<<27 || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
+		if t >= 1<<27 || t < -1<<27 || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && (ldr.SymPkg(s) == "" || ldr.SymPkg(s) != ldr.SymPkg(rs))) {
 			// direct call too far, need to insert trampoline.
 			// look up existing trampolines first. if we found one within the range
 			// of direct call, we can reuse it. otherwise create a new one.

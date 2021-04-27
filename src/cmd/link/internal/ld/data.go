@@ -39,6 +39,7 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"compress/zlib"
+	"debug/elf"
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -98,7 +99,8 @@ func trampoline(ctxt *Link, s loader.Sym) {
 	relocs := ldr.Relocs(s)
 	for ri := 0; ri < relocs.Count(); ri++ {
 		r := relocs.At(ri)
-		if !r.Type().IsDirectCallOrJump() {
+		rt := r.Type()
+		if !rt.IsDirectCallOrJump() && !isPLTCall(rt) {
 			continue
 		}
 		rs := r.Sym()
@@ -107,8 +109,11 @@ func trampoline(ctxt *Link, s loader.Sym) {
 		}
 		rs = ldr.ResolveABIAlias(rs)
 		if ldr.SymValue(rs) == 0 && (ldr.SymType(rs) != sym.SDYNIMPORT && ldr.SymType(rs) != sym.SUNDEFEXT) {
-			if ldr.SymPkg(rs) == ldr.SymPkg(s) {
-				continue // symbols in the same package are laid out together
+			if ldr.SymPkg(s) != "" && ldr.SymPkg(rs) == ldr.SymPkg(s) {
+				// Symbols in the same package are laid out together.
+				// Except that if SymPkg(s) == "", it is a host object symbol
+				// which may call an external symbol via PLT.
+				continue
 			}
 			if isRuntimeDepPkg(ldr.SymPkg(s)) && isRuntimeDepPkg(ldr.SymPkg(rs)) {
 				continue // runtime packages are laid out together
@@ -117,6 +122,21 @@ func trampoline(ctxt *Link, s loader.Sym) {
 
 		thearch.Trampoline(ctxt, ldr, ri, rs, s)
 	}
+}
+
+// whether rt is a (host object) relocation that will be turned into
+// a call to PLT.
+func isPLTCall(rt objabi.RelocType) bool {
+	const pcrel = 1
+	switch rt {
+	// ARM64
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_CALL26),
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_JUMP26),
+		objabi.MachoRelocOffset + MACHO_ARM64_RELOC_BRANCH26*2 + pcrel:
+		return true
+	}
+	// TODO: other architectures.
+	return false
 }
 
 // FoldSubSymbolOffset computes the offset of symbol s to its top-level outer
