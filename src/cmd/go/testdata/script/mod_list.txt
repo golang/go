@@ -29,7 +29,8 @@ stdout 'v1.3.0.*mod[\\/]rsc.io[\\/]sampler@v1.3.1 .*[\\/]v1.3.1.mod => v1.3.1.*s
 go list std
 stdout ^math/big
 
-# rsc.io/quote/buggy should be listable as a package
+# rsc.io/quote/buggy should be listable as a package,
+# even though it is only a test.
 go list -mod=mod rsc.io/quote/buggy
 
 # rsc.io/quote/buggy should not be listable as a module
