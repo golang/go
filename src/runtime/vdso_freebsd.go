@@ -106,7 +106,7 @@ func nanotime1() int64 {
 	return int64((1e9 * uint64(bt.sec)) + ((1e9 * uint64(bt.frac>>32)) >> 32))
 }
 
-func walltime1() (sec int64, nsec int32) {
+func walltime() (sec int64, nsec int32) {
 	bt := vdsoClockGettime(_CLOCK_REALTIME)
 	if bt == zeroBintime {
 		return fallback_walltime()

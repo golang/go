@@ -98,4 +98,4 @@ func sigaltstack(new, old *stackt)
 func closeonexec(fd int32)
 func setNonblock(fd int32)
 
-func walltime1() (sec int64, nsec int32)
+func walltime() (sec int64, nsec int32)
