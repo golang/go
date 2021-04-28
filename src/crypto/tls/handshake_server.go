@@ -302,30 +302,23 @@ func supportsECDHE(c *Config, supportedCurves []CurveID, supportedPoints []uint8
 func (hs *serverHandshakeState) pickCipherSuite() error {
 	c := hs.c
 
-	var preferenceList, supportedList []uint16
-	if c.config.PreferServerCipherSuites {
-		preferenceList = c.config.cipherSuites()
-		supportedList = hs.clientHello.cipherSuites
+	preferenceOrder := cipherSuitesPreferenceOrder
+	if !hasAESGCMHardwareSupport || !aesgcmPreferred(hs.clientHello.cipherSuites) {
+		preferenceOrder = cipherSuitesPreferenceOrderNoAES
+	}
 
-		// If the client does not seem to have hardware support for AES-GCM,
-		// and the application did not specify a cipher suite preference order,
-		// prefer other AEAD ciphers even if we prioritized AES-GCM ciphers
-		// by default.
-		if c.config.CipherSuites == nil && !aesgcmPreferred(hs.clientHello.cipherSuites) {
-			preferenceList = deprioritizeAES(preferenceList)
-		}
-	} else {
-		preferenceList = hs.clientHello.cipherSuites
-		supportedList = c.config.cipherSuites()
-
-		// If we don't have hardware support for AES-GCM, prefer other AEAD
-		// ciphers even if the client prioritized AES-GCM.
-		if !hasAESGCMHardwareSupport {
-			preferenceList = deprioritizeAES(preferenceList)
+	configCipherSuites := c.config.cipherSuites()
+	preferenceList := make([]uint16, 0, len(configCipherSuites))
+	for _, suiteID := range preferenceOrder {
+		for _, id := range configCipherSuites {
+			if id == suiteID {
+				preferenceList = append(preferenceList, id)
+				break
+			}
 		}
 	}
 
-	hs.suite = selectCipherSuite(preferenceList, supportedList, hs.cipherSuiteOk)
+	hs.suite = selectCipherSuite(preferenceList, hs.clientHello.cipherSuites, hs.cipherSuiteOk)
 	if hs.suite == nil {
 		c.sendAlert(alertHandshakeFailure)
 		return errors.New("tls: no cipher suite supported by both client and server")
