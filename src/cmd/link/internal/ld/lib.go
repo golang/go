@@ -1520,12 +1520,13 @@ func (ctxt *Link) hostlink() {
 	// even when linking with -static, causing a linker
 	// error when using GNU ld. So take out -rdynamic if
 	// we added it. We do it in this order, rather than
-	// only adding -rdynamic later, so that -*extldflags
+	// only adding -rdynamic later, so that -extldflags
 	// can override -rdynamic without using -static.
+	// Similarly for -Wl,--dynamic-linker.
 	checkStatic := func(arg string) {
 		if ctxt.IsELF && arg == "-static" {
 			for i := range argv {
-				if argv[i] == "-rdynamic" {
+				if argv[i] == "-rdynamic" || strings.HasPrefix(argv[i], "-Wl,--dynamic-linker,") {
 					argv[i] = "-static"
 				}
 			}
