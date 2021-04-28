@@ -1446,7 +1446,7 @@ func (l *Loader) SetSymLocalElfSym(i Sym, es int32) {
 	}
 }
 
-// SymPlt returns the plt value for pe symbols.
+// SymPlt returns the PLT offset of symbol s.
 func (l *Loader) SymPlt(s Sym) int32 {
 	if v, ok := l.plt[s]; ok {
 		return v
@@ -1454,7 +1454,7 @@ func (l *Loader) SymPlt(s Sym) int32 {
 	return -1
 }
 
-// SetPlt sets the plt value for pe symbols.
+// SetPlt sets the PLT offset of symbol i.
 func (l *Loader) SetPlt(i Sym, v int32) {
 	if i >= Sym(len(l.objSyms)) || i == 0 {
 		panic("bad symbol for SetPlt")
@@ -1466,7 +1466,7 @@ func (l *Loader) SetPlt(i Sym, v int32) {
 	}
 }
 
-// SymGot returns the got value for pe symbols.
+// SymGot returns the GOT offset of symbol s.
 func (l *Loader) SymGot(s Sym) int32 {
 	if v, ok := l.got[s]; ok {
 		return v
@@ -1474,7 +1474,7 @@ func (l *Loader) SymGot(s Sym) int32 {
 	return -1
 }
 
-// SetGot sets the got value for pe symbols.
+// SetGot sets the GOT offset of symbol i.
 func (l *Loader) SetGot(i Sym, v int32) {
 	if i >= Sym(len(l.objSyms)) || i == 0 {
 		panic("bad symbol for SetGot")
