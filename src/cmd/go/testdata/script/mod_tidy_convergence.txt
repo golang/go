@@ -84,8 +84,22 @@ go mod tidy
 cmp go.mod go.mod.postget
 
 
+# The 'tidy' logic for a lazy main module is somewhat different from that for an
+# eager main module, but the overall behavior is the same.
 
-# TODO(#36460): Repeat this test with a lazy main module.
+cp go.mod.orig go.mod
+go mod edit -go=1.17 go.mod
+go mod edit -go=1.17 go.mod.tidye
+go mod edit -go=1.17 go.mod.postget
+
+go mod tidy -e
+cmp go.mod go.mod.tidye
+stderr '^go: found example\.net/y in example\.net/y v0.2.0$'
+stderr '^example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+
+go get -d example.net/x@v0.1.0 example.net/y@v0.1.0
+go mod tidy
+cmp go.mod go.mod.postget
 
 
 -- go.mod --
