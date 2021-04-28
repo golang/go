@@ -17,4 +17,3 @@ func main() {
 	_ = Reduce[int](s, 0, f2)
 	_ = Reduce(s, 0, f2)
 }
-
