@@ -16,17 +16,17 @@ type I interface {
 	type map[int]int, []int
 }
 
-func _[T I]() {
+func _[T I](i, j int) {
 	var m map[int]int
-	_ = m[1 /* ERROR "multi-index expression" */, 2 /* ERROR "expected type" */ ]
+	_ = m[i, j /* ERROR "more than one index" */ ]
 
 	var a [3]int
-	_ = a[1 /* ERROR "multi-index expression" */, 2 /* ERROR "expected type" */ ]
+	_ = a[i, j /* ERROR "more than one index" */ ]
 
 	var s []int
-	_ = s[1 /* ERROR "multi-index expression" */, 2 /* ERROR "expected type" */ ]
+	_ = s[i, j /* ERROR "more than one index" */ ]
 
 	var t T
 	// TODO(rFindley) Fix the duplicate error below.
-	_ = t[1 /* ERROR "multi-index expression" */ /* ERROR "multi-index expression" */, 2 /* ERROR "expected type" */ ]
+	_ = t[i, j /* ERROR "more than one index" */ /* ERROR "more than one index" */ ]
 }

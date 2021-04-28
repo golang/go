@@ -1410,7 +1410,8 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 
 	default:
 		if typeparams.IsListExpr(e) {
-			check.errorf(e, _Todo, "invalid multi-index expression")
+			// catch-all for unexpected expression lists
+			check.errorf(e, _Todo, "unexpected list of expressions")
 		} else {
 			panic(fmt.Sprintf("%s: unknown expression type %T", check.fset.Position(e.Pos()), e))
 		}
