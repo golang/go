@@ -400,7 +400,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	name := ir.FuncName(fn)
 	printssa := false
 	if ssaDump != "" { // match either a simple name e.g. "(*Reader).Reset", package.name e.g. "compress/gzip.(*Reader).Reset", or subpackage name "gzip.(*Reader).Reset"
-		pkgDotName := base.Ctxt.Pkgpath+"."+name
+		pkgDotName := base.Ctxt.Pkgpath + "." + name
 		printssa = name == ssaDump ||
 			strings.HasSuffix(pkgDotName, ssaDump) && (pkgDotName == ssaDump || strings.HasSuffix(pkgDotName, "/"+ssaDump))
 	}
@@ -7776,22 +7776,6 @@ func SpillSlotAddr(spill ssa.Spill, baseReg int16, extraOffset int64) obj.Addr {
 		Type:   obj.TYPE_MEM,
 		Reg:    baseReg,
 		Offset: spill.Offset + extraOffset,
-	}
-}
-
-// AddrForParamSlot fills in an Addr appropriately for a Spill,
-// Restore, or VARLIVE.
-func AddrForParamSlot(slot *ssa.LocalSlot, addr *obj.Addr) {
-	// TODO replace this boilerplate in a couple of places.
-	n, off := slot.N, slot.Off
-	addr.Type = obj.TYPE_MEM
-	addr.Sym = n.Linksym()
-	addr.Offset = off
-	if n.Class == ir.PPARAM || (n.Class == ir.PPARAMOUT && !n.IsOutputParamInRegisters()) {
-		addr.Name = obj.NAME_PARAM
-		addr.Offset += n.FrameOffset()
-	} else { // out parameters in registers allocate stack slots like autos.
-		addr.Name = obj.NAME_AUTO
 	}
 }
 
