@@ -349,6 +349,97 @@ fallback:
 	SYSCALL
 	JMP	ret
 
+// func time_now() (sec int64, nsec int32, mono int64)
+TEXT time·now(SB),NOSPLIT,$16-24
+	// Switch to g0 stack. See comment above in runtime·walltime.
+
+	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
+
+	get_tls(CX)
+	MOVQ	g(CX), AX
+	MOVQ	g_m(AX), BX // BX unchanged by C code.
+
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	// Save the old values on stack and restore them on exit,
+	// so this function is reentrant.
+	MOVQ	m_vdsoPC(BX), CX
+	MOVQ	m_vdsoSP(BX), DX
+	MOVQ	CX, 0(SP)
+	MOVQ	DX, 8(SP)
+
+	LEAQ	ret+0(FP), DX
+	MOVQ	-8(DX), CX
+	MOVQ	CX, m_vdsoPC(BX)
+	MOVQ	DX, m_vdsoSP(BX)
+
+	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
+	JNE	noswitch
+
+	MOVQ	m_g0(BX), DX
+	MOVQ	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
+
+noswitch:
+	SUBQ	$16, SP		// Space for results
+	ANDQ	$~15, SP	// Align for C code
+
+	// Call REALTIME first.
+	MOVL	$0, DI // CLOCK_REALTIME
+	LEAQ	0(SP), SI
+	MOVQ	runtime·vdsoClockgettimeSym(SB), AX
+	CMPQ	AX, $0
+	JEQ	fallback
+	CALL	AX
+	// Save REALTIME ret.
+	MOVQ	0(SP), AX	// sec
+	MOVQ	8(SP), DX	// nsec
+	MOVQ	SP, R11     // Save current SP
+	MOVQ	R12, SP		// Restore real SP
+	MOVQ	AX, sec+0(FP)	// sec
+	MOVL	DX, nsec+8(FP)	// nsec
+	MOVQ	R11, SP     // Restore current SP
+
+	// Call MONOTONIC time.
+	MOVL	$1, DI // CLOCK_MONOTONIC
+	LEAQ	0(SP), SI
+	MOVQ	runtime·vdsoClockgettimeSym(SB), AX
+	CALL	AX
+ret:
+	MOVQ	0(SP), AX	// sec
+	MOVQ	8(SP), DX	// nsec
+	MOVQ	R12, SP		// Restore real SP
+	// Restore vdsoPC, vdsoSP
+	// We don't worry about being signaled between the two stores.
+	// If we are not in a signal handler, we'll restore vdsoSP to 0,
+	// and no one will care about vdsoPC. If we are in a signal handler,
+	// we cannot receive another signal.
+	MOVQ	8(SP), CX
+	MOVQ	CX, m_vdsoSP(BX)
+	MOVQ	0(SP), CX
+	MOVQ	CX, m_vdsoPC(BX)
+	// sec is in AX, nsec in DX
+	// return nsec in AX
+	IMULQ	$1000000000, AX
+	ADDQ	DX, AX
+	MOVQ	AX, mono+16(FP)
+	RET
+fallback:
+	MOVQ	$SYS_clock_gettime, AX
+	SYSCALL
+	// Save REALTIME ret.
+	MOVQ	0(SP), AX	// sec
+	MOVQ	8(SP), DX	// nsec
+	MOVQ	SP, R11     // Save current SP
+	MOVQ	R12, SP		// Restore real SP
+	MOVQ	AX, sec+0(FP)	// sec
+	MOVL	DX, nsec+8(FP)	// nsec
+	MOVQ	R11, SP     // Restore current SP
+
+	MOVL	$1, DI // CLOCK_MONOTONIC
+	LEAQ	0(SP), SI
+	MOVQ	$SYS_clock_gettime, AX
+	SYSCALL
+	JMP	ret
+
 TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0-28
 	MOVL	how+0(FP), DI
 	MOVQ	new+8(FP), SI

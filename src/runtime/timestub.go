@@ -5,8 +5,9 @@
 // Declarations for operating systems implementing time.now
 // indirectly, in terms of walltime and nanotime assembly.
 
-//go:build !windows
+//go:build !windows && (linux && !amd64)
 // +build !windows
+// +build linux,!amd64
 
 package runtime
 
