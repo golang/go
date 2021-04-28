@@ -10,6 +10,8 @@ type errorCode int
 // Collectively, these codes provide an identifier that may be used to
 // implement special handling for certain types of errors.
 //
+// Error code values should not be changed: add new codes at the end.
+//
 // Error codes should be fine-grained enough that the exact nature of the error
 // can be easily determined, but coarse enough that they are not an
 // implementation detail of the type checking algorithm. As a rule-of-thumb,
@@ -34,8 +36,6 @@ const (
 	// _Test is reserved for errors that only apply while in self-test mode.
 	_Test
 
-	/* package names */
-
 	// _BlankPkgName occurs when a package name is the blank identifier "_".
 	//
 	// Per the spec:
@@ -54,8 +54,6 @@ const (
 	//
 	//  var _ = fmt
 	_InvalidPkgUse
-
-	/* imports */
 
 	// _BadImportPath occurs when an import path is not valid.
 	_BadImportPath
@@ -81,8 +79,6 @@ const (
 	//  func main() {}
 	_UnusedImport
 
-	/* initialization */
-
 	// _InvalidInitCycle occurs when an invalid cycle is detected within the
 	// initialization graph.
 	//
@@ -91,8 +87,6 @@ const (
 	//
 	//  func f() int { return x }
 	_InvalidInitCycle
-
-	/* decls */
 
 	// _DuplicateDecl occurs when an identifier is declared multiple times.
 	//
@@ -122,8 +116,6 @@ const (
 	//  type T [unsafe.Sizeof(T{})]int
 	_InvalidTypeCycle
 
-	/* decls > const */
-
 	// _InvalidConstInit occurs when a const declaration has a non-constant
 	// initializer.
 	//
@@ -148,8 +140,6 @@ const (
 	// Example:
 	//  const c *int = 4
 	_InvalidConstType
-
-	/* decls > var (+ other variable assignment codes) */
 
 	// _UntypedNil occurs when the predeclared (untyped) value nil is used to
 	// initialize a variable declared without an explicit type.
@@ -249,8 +239,6 @@ const (
 	//  }
 	_UnaddressableFieldAssign
 
-	/* decls > type (+ other type expression codes) */
-
 	// _NotAType occurs when the identifier used as the underlying type in a type
 	// declaration or the right-hand side of a type alias does not denote a type.
 	//
@@ -320,8 +308,6 @@ const (
 	//  }
 	_InvalidPtrEmbed
 
-	/* decls > func and method */
-
 	// _BadRecv occurs when a method declaration does not have exactly one
 	// receiver parameter.
 	//
@@ -357,8 +343,6 @@ const (
 	//  func (T) m() {}
 	//  func (T) m(i int) int { return i }
 	_DuplicateMethod
-
-	/* decls > special */
 
 	// _InvalidBlank occurs when a blank identifier is used as a value or type.
 	//
@@ -404,8 +388,6 @@ const (
 	// function, in a main package.
 	_InvalidMainDecl
 
-	/* exprs */
-
 	// _TooManyValues occurs when a function returns too many values for the
 	// expression context in which it is used.
 	//
@@ -428,8 +410,6 @@ const (
 	//  }
 	_NotAnExpr
 
-	/* exprs > const */
-
 	// _TruncatedFloat occurs when a float constant is truncated to an integer
 	// value.
 	//
@@ -442,8 +422,6 @@ const (
 	// Example:
 	//  var x int8 = 1000
 	_NumericOverflow
-
-	/* exprs > operation */
 
 	// _UndefinedOp occurs when an operator is not defined for the type(s) used
 	// in an operation.
@@ -479,8 +457,6 @@ const (
 	//  }
 	_NonNumericIncDec
 
-	/* exprs > ptr */
-
 	// _UnaddressableOperand occurs when the & operator is applied to an
 	// unaddressable expression.
 	//
@@ -495,8 +471,6 @@ const (
 	//  var x int
 	//  var y = *x
 	_InvalidIndirection
-
-	/* exprs > [] */
 
 	// _NonIndexableOperand occurs when an index operation is applied to a value
 	// that cannot be indexed.
@@ -530,8 +504,6 @@ const (
 	//  var _ = []int{1,2,3}[2:1]
 	_SwappedSliceIndices
 
-	/* operators > slice */
-
 	// _NonSliceableOperand occurs when a slice operation is applied to a value
 	// whose type is not sliceable, or is unaddressable.
 	//
@@ -551,8 +523,6 @@ const (
 	//  var x = s[1:2:3]
 	_InvalidSliceExpr
 
-	/* exprs > shift */
-
 	// _InvalidShiftCount occurs when the right-hand side of a shift operation is
 	// either non-integer, negative, or too large.
 	//
@@ -569,8 +539,6 @@ const (
 	//  var s = "hello"
 	//  var x = s << 2
 	_InvalidShiftOperand
-
-	/* exprs > chan */
 
 	// _InvalidReceive occurs when there is a channel receive from a value that
 	// is either not a channel, or is a send-only channel.
@@ -591,8 +559,6 @@ const (
 	//  	x <- "hello!"
 	//  }
 	_InvalidSend
-
-	/* exprs > literal */
 
 	// _DuplicateLitKey occurs when an index is duplicated in a slice, array, or
 	// map literal.
@@ -683,8 +649,6 @@ const (
 	//  var _ = P {}
 	_InvalidLit
 
-	/* exprs > selector */
-
 	// _AmbiguousSelector occurs when a selector is ambiguous.
 	//
 	// Example:
@@ -730,8 +694,6 @@ const (
 	//  var x = T{}.f
 	_MissingFieldOrMethod
 
-	/* exprs > ... */
-
 	// _BadDotDotDotSyntax occurs when a "..." occurs in a context where it is
 	// not valid.
 	//
@@ -762,6 +724,8 @@ const (
 	// 	func f(...int, int)
 	_MisplacedDotDotDot
 
+	_ // _InvalidDotDotDotOperand was removed.
+
 	// _InvalidDotDotDot occurs when a "..." is used in a non-variadic built-in
 	// function.
 	//
@@ -769,8 +733,6 @@ const (
 	//  var s = []int{1, 2, 3}
 	//  var l = len(s...)
 	_InvalidDotDotDot
-
-	/* exprs > built-in */
 
 	// _UncalledBuiltin occurs when a built-in function is used as a
 	// function-valued expression, instead of being called.
@@ -883,47 +845,6 @@ const (
 	//  var _ = real(int(1))
 	_InvalidReal
 
-	// _InvalidUnsafeAdd occurs when unsafe.Add is called with a
-	// length argument that is not of integer type.
-	//
-	// Example:
-	//  import "unsafe"
-	//
-	//  var p unsafe.Pointer
-	//  var _ = unsafe.Add(p, float64(1))
-	_InvalidUnsafeAdd
-
-	// _InvalidUnsafeSlice occurs when unsafe.Slice is called with a
-	// pointer argument that is not of pointer type or a length argument
-	// that is not of integer type, negative, or out of bounds.
-	//
-	// Example:
-	//  import "unsafe"
-	//
-	//  var x int
-	//  var _ = unsafe.Slice(x, 1)
-	//
-	// Example:
-	//  import "unsafe"
-	//
-	//  var x int
-	//  var _ = unsafe.Slice(&x, float64(1))
-	//
-	// Example:
-	//  import "unsafe"
-	//
-	//  var x int
-	//  var _ = unsafe.Slice(&x, -1)
-	//
-	// Example:
-	//  import "unsafe"
-	//
-	//  var x int
-	//  var _ = unsafe.Slice(&x, uint64(1) << 63)
-	_InvalidUnsafeSlice
-
-	/* exprs > assertion */
-
 	// _InvalidAssert occurs when a type assertion is applied to a
 	// value that is not of interface type.
 	//
@@ -947,8 +868,6 @@ const (
 	//  var _ = x.(T)
 	_ImpossibleAssert
 
-	/* exprs > conversion */
-
 	// _InvalidConversion occurs when the argument type cannot be converted to the
 	// target.
 	//
@@ -967,8 +886,6 @@ const (
 	// Example:
 	//  var _ = 1 + ""
 	_InvalidUntypedConversion
-
-	/* offsetof */
 
 	// _BadOffsetofSyntax occurs when unsafe.Offsetof is called with an argument
 	// that is not a selector expression.
@@ -1007,8 +924,6 @@ const (
 	//  var s S
 	//  var _ = unsafe.Offsetof(s.m)
 	_InvalidOffsetof
-
-	/* control flow > scope */
 
 	// _UnusedExpr occurs when a side-effect free expression is used as a
 	// statement. Such a statement has no effect.
@@ -1057,8 +972,6 @@ const (
 	//  }
 	_OutOfScopeResult
 
-	/* control flow > if */
-
 	// _InvalidCond occurs when an if condition is not a boolean expression.
 	//
 	// Example:
@@ -1069,8 +982,6 @@ const (
 	//  }
 	_InvalidCond
 
-	/* control flow > for */
-
 	// _InvalidPostDecl occurs when there is a declaration in a for-loop post
 	// statement.
 	//
@@ -1079,6 +990,8 @@ const (
 	//  	for i := 0; i < 10; j := 0 {}
 	//  }
 	_InvalidPostDecl
+
+	_ // _InvalidChanRange was removed.
 
 	// _InvalidIterVar occurs when two iteration variables are used while ranging
 	// over a channel.
@@ -1101,8 +1014,6 @@ const (
 	//  	}
 	//  }
 	_InvalidRangeExpr
-
-	/* control flow > switch */
 
 	// _MisplacedBreak occurs when a break statement is not within a for, switch,
 	// or select statement of the innermost function definition.
@@ -1207,8 +1118,6 @@ const (
 	//  }
 	_InvalidExprSwitch
 
-	/* control flow > select */
-
 	// _InvalidSelectCase occurs when a select case is not a channel send or
 	// receive.
 	//
@@ -1222,8 +1131,6 @@ const (
 	//  	}
 	//  }
 	_InvalidSelectCase
-
-	/* control flow > labels and jumps */
 
 	// _UndeclaredLabel occurs when an undeclared label is jumped to.
 	//
@@ -1292,8 +1199,6 @@ const (
 	// }
 	_JumpIntoBlock
 
-	/* control flow > calls */
-
 	// _InvalidMethodExpr occurs when a pointer method is called but the argument
 	// is not addressable.
 	//
@@ -1320,8 +1225,6 @@ const (
 	//  var x = "x"
 	//  var y = x()
 	_InvalidCall
-
-	/* control flow > suspended */
 
 	// _UnusedResults occurs when a restricted expression-only built-in function
 	// is suspended via go or defer. Such a suspension discards the results of
@@ -1354,6 +1257,8 @@ const (
 	//  }
 	_InvalidGo
 
+	// All codes below were added in Go 1.17.
+
 	// _BadDecl occurs when a declaration has invalid syntax.
 	_BadDecl
 
@@ -1365,6 +1270,45 @@ const (
 	//  	x, y, y := 1, 2, 3
 	//  }
 	_RepeatedDecl
+
+	// _InvalidUnsafeAdd occurs when unsafe.Add is called with a
+	// length argument that is not of integer type.
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var p unsafe.Pointer
+	//  var _ = unsafe.Add(p, float64(1))
+	_InvalidUnsafeAdd
+
+	// _InvalidUnsafeSlice occurs when unsafe.Slice is called with a
+	// pointer argument that is not of pointer type or a length argument
+	// that is not of integer type, negative, or out of bounds.
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var x int
+	//  var _ = unsafe.Slice(x, 1)
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var x int
+	//  var _ = unsafe.Slice(&x, float64(1))
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var x int
+	//  var _ = unsafe.Slice(&x, -1)
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var x int
+	//  var _ = unsafe.Slice(&x, uint64(1) << 63)
+	_InvalidUnsafeSlice
 
 	// _Todo is a placeholder for error codes that have not been decided.
 	// TODO(rFindley) remove this error code after deciding on errors for generics code.
