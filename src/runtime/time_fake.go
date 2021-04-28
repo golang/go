@@ -37,14 +37,9 @@ func nanotime() int64 {
 	return faketime
 }
 
-func walltime() (sec int64, nsec int32) {
-	return faketime / 1000000000, int32(faketime % 1000000000)
-}
-
 //go:linkname time_now time.now
 func time_now() (sec int64, nsec int32, mono int64) {
-	sec, nsec = walltime()
-	return sec, nsec, nanotime()
+	return faketime / 1e9, int32(faketime % 1e9), faketime
 }
 
 func write(fd uintptr, p unsafe.Pointer, n int32) int32 {

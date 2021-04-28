@@ -20,10 +20,6 @@ func nanotime() int64 {
 	return nanotime1()
 }
 
-func walltime() (sec int64, nsec int32) {
-	return walltime1()
-}
-
 // write must be nosplit on Windows (see write1)
 //
 //go:nosplit
