@@ -1493,9 +1493,9 @@ func (s *regAllocState) regalloc(f *Func) {
 					goto ok
 				}
 
-				// Try to move an input to the desired output.
+				// Try to move an input to the desired output, if allowed.
 				for _, r := range dinfo[idx].out {
-					if r != noRegister && m>>r&1 != 0 {
+					if r != noRegister && (m&regspec.outputs[0].regs)>>r&1 != 0 {
 						m = regMask(1) << r
 						args[0] = s.allocValToReg(v.Args[0], m, true, v.Pos)
 						// Note: we update args[0] so the instruction will
@@ -1569,6 +1569,9 @@ func (s *regAllocState) regalloc(f *Func) {
 						if !opcodeTable[v.Op].commutative {
 							// Output must use the same register as input 0.
 							r := register(s.f.getHome(args[0].ID).(*Register).num)
+							if mask>>r&1 == 0 {
+								s.f.Fatalf("resultInArg0 value's input %v cannot be an output of %s", s.f.getHome(args[0].ID).(*Register), v.LongString())
+							}
 							mask = regMask(1) << r
 						} else {
 							// Output must use the same register as input 0 or 1.
