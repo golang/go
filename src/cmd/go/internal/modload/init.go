@@ -1125,6 +1125,22 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
 				continue
 			}
 
+			if rs.depth == lazy && pkg.mod.Path != "" {
+				if v, ok := rs.rootSelected(pkg.mod.Path); ok && v == pkg.mod.Version {
+					// pkg was loaded from a root module, and because the main module is
+					// lazy we do not check non-root modules for conflicts for packages
+					// that can be found in roots. So we only need the checksums for the
+					// root modules that may contain pkg, not all possible modules.
+					for prefix := pkg.path; prefix != "."; prefix = path.Dir(prefix) {
+						if v, ok := rs.rootSelected(prefix); ok && v != "none" {
+							m := module.Version{Path: prefix, Version: v}
+							keep[resolveReplacement(m)] = true
+						}
+					}
+					continue
+				}
+			}
+
 			for prefix := pkg.path; prefix != "."; prefix = path.Dir(prefix) {
 				if v := mg.Selected(prefix); v != "none" {
 					m := module.Version{Path: prefix, Version: v}
