@@ -303,7 +303,11 @@ func importFromModules(ctx context.Context, path string, rs *Requirements) (m mo
 	} else {
 		mg, err = rs.Graph(ctx)
 		if err != nil {
-			return module.Version{}, "", &ImportMissingError{Path: path, QueryErr: err}
+			// We might be missing one or more transitive (implicit) dependencies from
+			// the module graph, so we can't return an ImportMissingError here — one
+			// of the missing modules might actually contain the package in question,
+			// in which case we shouldn't go looking for it in some new dependency.
+			return module.Version{}, "", err
 		}
 	}
 
