@@ -183,8 +183,6 @@ type lookupCacheKey struct {
 // from its origin, and "noproxy" indicates that the patch should be fetched
 // directly only if GONOPROXY matches the given path.
 //
-// For the distinguished proxy "off", Lookup always returns a non-nil error.
-//
 // A successful return does not guarantee that the module
 // has any defined versions.
 func Lookup(proxy, path string) Repo {
