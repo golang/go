@@ -344,16 +344,14 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
 		}
 
 		name := ident.Value
-		if name == "_" {
-			continue
+		if name != "_" {
+			if seen[name] {
+				check.errorf(lhs, "%s repeated on left side of :=", lhs)
+				hasErr = true
+				continue
+			}
+			seen[name] = true
 		}
-
-		if seen[name] {
-			check.errorf(lhs, "%s repeated on left side of :=", lhs)
-			hasErr = true
-			continue
-		}
-		seen[name] = true
 
 		// Use the correct obj if the ident is redeclared. The
 		// variable's scope starts after the declaration; so we
@@ -374,7 +372,9 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
 		// declare new variable
 		obj := NewVar(ident.Pos(), check.pkg, name, nil)
 		lhsVars[i] = obj
-		newVars = append(newVars, obj)
+		if name != "_" {
+			newVars = append(newVars, obj)
+		}
 		check.recordDef(ident, obj)
 	}
 
