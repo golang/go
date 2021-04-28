@@ -397,30 +397,30 @@ func TestVersion(t *testing.T) {
 
 func TestCipherSuitePreference(t *testing.T) {
 	serverConfig := &Config{
-		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_RSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
+		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_AES_128_GCM_SHA256,
+			TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256},
 		Certificates: testConfig.Certificates,
-		MaxVersion:   VersionTLS11,
+		MaxVersion:   VersionTLS12,
+		GetConfigForClient: func(chi *ClientHelloInfo) (*Config, error) {
+			if chi.CipherSuites[0] != TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 {
+				t.Error("the advertised order should not depend on Config.CipherSuites")
+			}
+			if len(chi.CipherSuites) != 2+len(defaultCipherSuitesTLS13) {
+				t.Error("the advertised TLS 1.2 suites should be filtered by Config.CipherSuites")
+			}
+			return nil, nil
+		},
 	}
 	clientConfig := &Config{
-		CipherSuites:       []uint16{TLS_RSA_WITH_AES_128_CBC_SHA, TLS_RSA_WITH_RC4_128_SHA},
+		CipherSuites:       []uint16{TLS_RSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256},
 		InsecureSkipVerify: true,
 	}
 	state, _, err := testHandshake(t, clientConfig, serverConfig)
 	if err != nil {
 		t.Fatalf("handshake failed: %s", err)
 	}
-	if state.CipherSuite != TLS_RSA_WITH_AES_128_CBC_SHA {
-		// By default the server should use the client's preference.
-		t.Fatalf("Client's preference was not used, got %x", state.CipherSuite)
-	}
-
-	serverConfig.PreferServerCipherSuites = true
-	state, _, err = testHandshake(t, clientConfig, serverConfig)
-	if err != nil {
-		t.Fatalf("handshake failed: %s", err)
-	}
-	if state.CipherSuite != TLS_RSA_WITH_RC4_128_SHA {
-		t.Fatalf("Server's preference was not used, got %x", state.CipherSuite)
+	if state.CipherSuite != TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 {
+		t.Error("the preference order should not depend on Config.CipherSuites")
 	}
 }
 
@@ -1050,37 +1050,6 @@ func TestHandshakeServerEmptyCertificates(t *testing.T) {
 	testClientHelloFailure(t, serverConfig, clientHello, "no certificates")
 }
 
-// TestCipherSuiteCertPreferance ensures that we select an RSA ciphersuite with
-// an RSA certificate and an ECDSA ciphersuite with an ECDSA certificate.
-func TestCipherSuiteCertPreferenceECDSA(t *testing.T) {
-	config := testConfig.Clone()
-	config.CipherSuites = []uint16{TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA}
-	config.PreferServerCipherSuites = true
-
-	test := &serverTest{
-		name:   "CipherSuiteCertPreferenceRSA",
-		config: config,
-	}
-	runServerTestTLS12(t, test)
-
-	config = testConfig.Clone()
-	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA}
-	config.Certificates = []Certificate{
-		{
-			Certificate: [][]byte{testECDSACertificate},
-			PrivateKey:  testECDSAPrivateKey,
-		},
-	}
-	config.BuildNameToCertificate()
-	config.PreferServerCipherSuites = true
-
-	test = &serverTest{
-		name:   "CipherSuiteCertPreferenceECDSA",
-		config: config,
-	}
-	runServerTestTLS12(t, test)
-}
-
 func TestServerResumption(t *testing.T) {
 	sessionFilePath := tempFile("")
 	defer os.Remove(sessionFilePath)
@@ -1178,7 +1147,7 @@ func TestFallbackSCSV(t *testing.T) {
 func TestHandshakeServerExportKeyingMaterial(t *testing.T) {
 	test := &serverTest{
 		name:    "ExportKeyingMaterial",
-		command: []string{"openssl", "s_client", "-cipher", "ECDHE-RSA-CHACHA20-POLY1305", "-ciphersuites", "TLS_CHACHA20_POLY1305_SHA256"},
+		command: []string{"openssl", "s_client", "-cipher", "ECDHE-RSA-AES256-SHA", "-ciphersuites", "TLS_CHACHA20_POLY1305_SHA256"},
 		config:  testConfig.Clone(),
 		validate: func(state ConnectionState) error {
 			if km, err := state.ExportKeyingMaterial("test", nil, 42); err != nil {
@@ -1699,15 +1668,14 @@ func TestMultipleCertificates(t *testing.T) {
 
 func TestAESCipherReordering(t *testing.T) {
 	currentAESSupport := hasAESGCMHardwareSupport
-	defer func() { hasAESGCMHardwareSupport = currentAESSupport; initDefaultCipherSuites() }()
+	defer func() { hasAESGCMHardwareSupport = currentAESSupport }()
 
 	tests := []struct {
-		name                     string
-		clientCiphers            []uint16
-		serverHasAESGCM          bool
-		preferServerCipherSuites bool
-		serverCiphers            []uint16
-		expectedCipher           uint16
+		name            string
+		clientCiphers   []uint16
+		serverHasAESGCM bool
+		serverCiphers   []uint16
+		expectedCipher  uint16
 	}{
 		{
 			name: "server has hardware AES, client doesn't (pick ChaCha)",
@@ -1716,25 +1684,8 @@ func TestAESCipherReordering(t *testing.T) {
 				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 				TLS_RSA_WITH_AES_128_CBC_SHA,
 			},
-			serverHasAESGCM:          true,
-			preferServerCipherSuites: true,
-			expectedCipher:           TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-		},
-		{
-			name: "server strongly prefers AES-GCM, client doesn't (pick AES-GCM)",
-			clientCiphers: []uint16{
-				TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-				TLS_RSA_WITH_AES_128_CBC_SHA,
-			},
-			serverHasAESGCM:          true,
-			preferServerCipherSuites: true,
-			serverCiphers: []uint16{
-				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-				TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-				TLS_RSA_WITH_AES_128_CBC_SHA,
-			},
-			expectedCipher: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			serverHasAESGCM: true,
+			expectedCipher:  TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
 		},
 		{
 			name: "client prefers AES-GCM, server doesn't have hardware AES (pick ChaCha)",
@@ -1778,14 +1729,14 @@ func TestAESCipherReordering(t *testing.T) {
 			expectedCipher:  TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 		},
 		{
-			name: "client prefers AES-GCM and AES-CBC over ChaCha, server doesn't have hardware AES (pick AES-GCM)",
+			name: "client prefers AES-GCM and AES-CBC over ChaCha, server doesn't have hardware AES (pick ChaCha)",
 			clientCiphers: []uint16{
 				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 				TLS_RSA_WITH_AES_128_CBC_SHA,
 				TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
 			},
 			serverHasAESGCM: false,
-			expectedCipher:  TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			expectedCipher:  TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
 		},
 		{
 			name: "client prefers AES-GCM over ChaCha and sends GREASE, server doesn't have hardware AES (pick ChaCha)",
@@ -1799,7 +1750,7 @@ func TestAESCipherReordering(t *testing.T) {
 			expectedCipher:  TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
 		},
 		{
-			name: "client supports multiple AES-GCM, server doesn't have hardware AES and doesn't support ChaCha (pick corrent AES-GCM)",
+			name: "client supports multiple AES-GCM, server doesn't have hardware AES and doesn't support ChaCha (AES-GCM)",
 			clientCiphers: []uint16{
 				TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 				TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
@@ -1810,19 +1761,30 @@ func TestAESCipherReordering(t *testing.T) {
 				TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 			},
-			expectedCipher: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			expectedCipher: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+		},
+		{
+			name: "client prefers AES-GCM, server has hardware but doesn't support AES (pick ChaCha)",
+			clientCiphers: []uint16{
+				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+				TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+				TLS_RSA_WITH_AES_128_CBC_SHA,
+			},
+			serverHasAESGCM: true,
+			serverCiphers: []uint16{
+				TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+			},
+			expectedCipher: TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			hasAESGCMHardwareSupport = tc.serverHasAESGCM
-			initDefaultCipherSuites()
 			hs := &serverHandshakeState{
 				c: &Conn{
 					config: &Config{
-						PreferServerCipherSuites: tc.preferServerCipherSuites,
-						CipherSuites:             tc.serverCiphers,
+						CipherSuites: tc.serverCiphers,
 					},
 					vers: VersionTLS12,
 				},
@@ -1847,16 +1809,15 @@ func TestAESCipherReordering(t *testing.T) {
 	}
 }
 
-func TestAESCipherReordering13(t *testing.T) {
+func TestAESCipherReorderingTLS13(t *testing.T) {
 	currentAESSupport := hasAESGCMHardwareSupport
-	defer func() { hasAESGCMHardwareSupport = currentAESSupport; initDefaultCipherSuites() }()
+	defer func() { hasAESGCMHardwareSupport = currentAESSupport }()
 
 	tests := []struct {
-		name                     string
-		clientCiphers            []uint16
-		serverHasAESGCM          bool
-		preferServerCipherSuites bool
-		expectedCipher           uint16
+		name            string
+		clientCiphers   []uint16
+		serverHasAESGCM bool
+		expectedCipher  uint16
 	}{
 		{
 			name: "server has hardware AES, client doesn't (pick ChaCha)",
@@ -1864,9 +1825,8 @@ func TestAESCipherReordering13(t *testing.T) {
 				TLS_CHACHA20_POLY1305_SHA256,
 				TLS_AES_128_GCM_SHA256,
 			},
-			serverHasAESGCM:          true,
-			preferServerCipherSuites: true,
-			expectedCipher:           TLS_CHACHA20_POLY1305_SHA256,
+			serverHasAESGCM: true,
+			expectedCipher:  TLS_CHACHA20_POLY1305_SHA256,
 		},
 		{
 			name: "neither server nor client have hardware AES (pick ChaCha)",
@@ -1874,34 +1834,22 @@ func TestAESCipherReordering13(t *testing.T) {
 				TLS_CHACHA20_POLY1305_SHA256,
 				TLS_AES_128_GCM_SHA256,
 			},
-			serverHasAESGCM:          false,
-			preferServerCipherSuites: true,
-			expectedCipher:           TLS_CHACHA20_POLY1305_SHA256,
+			serverHasAESGCM: false,
+			expectedCipher:  TLS_CHACHA20_POLY1305_SHA256,
 		},
 		{
-			name: "client prefers AES, server doesn't have hardware, prefer server ciphers (pick ChaCha)",
+			name: "client prefers AES, server doesn't have hardware (pick ChaCha)",
 			clientCiphers: []uint16{
 				TLS_AES_128_GCM_SHA256,
 				TLS_CHACHA20_POLY1305_SHA256,
 			},
-			serverHasAESGCM:          false,
-			preferServerCipherSuites: true,
-			expectedCipher:           TLS_CHACHA20_POLY1305_SHA256,
+			serverHasAESGCM: false,
+			expectedCipher:  TLS_CHACHA20_POLY1305_SHA256,
 		},
 		{
-			name: "client prefers AES and sends GREASE, server doesn't have hardware, prefer server ciphers (pick ChaCha)",
+			name: "client prefers AES and sends GREASE, server doesn't have hardware (pick ChaCha)",
 			clientCiphers: []uint16{
 				0x0A0A, // GREASE value
-				TLS_AES_128_GCM_SHA256,
-				TLS_CHACHA20_POLY1305_SHA256,
-			},
-			serverHasAESGCM:          false,
-			preferServerCipherSuites: true,
-			expectedCipher:           TLS_CHACHA20_POLY1305_SHA256,
-		},
-		{
-			name: "client prefers AES, server doesn't (pick ChaCha)",
-			clientCiphers: []uint16{
 				TLS_AES_128_GCM_SHA256,
 				TLS_CHACHA20_POLY1305_SHA256,
 			},
@@ -1932,13 +1880,10 @@ func TestAESCipherReordering13(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			hasAESGCMHardwareSupport = tc.serverHasAESGCM
-			initDefaultCipherSuites()
 			hs := &serverHandshakeStateTLS13{
 				c: &Conn{
-					config: &Config{
-						PreferServerCipherSuites: tc.preferServerCipherSuites,
-					},
-					vers: VersionTLS13,
+					config: &Config{},
+					vers:   VersionTLS13,
 				},
 				clientHello: &clientHelloMsg{
 					cipherSuites:       tc.clientCiphers,
