@@ -47,8 +47,8 @@ import (
 var (
 	haltOnError = flag.Bool("halt", false, "halt on error")
 	listErrors  = flag.Bool("errlist", false, "list errors")
-	testFiles   = flag.String("files", "", "comma-separated list of test files")
-	goVersion   = flag.String("lang", "", "Go language version (e.g. \"go1.12\"")
+	testFiles   = flag.String("files", "", "comma-separated list of test files for TestManual")
+	goVersion   = flag.String("lang", "", "Go language version (e.g. \"go1.12\") for TestManual")
 )
 
 var fset = token.NewFileSet()
@@ -297,9 +297,10 @@ func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string,
 	}
 }
 
-// TestCheck is for manual testing of selected input files, provided with -files.
+// TestManual is for manual testing of selected input files, provided with
+// -files.
 // The accepted Go language version can be controlled with the -lang flag.
-func TestCheck(t *testing.T) {
+func TestManual(t *testing.T) {
 	if *testFiles == "" {
 		return
 	}
@@ -322,13 +323,14 @@ func TestIndexRepresentability(t *testing.T) {
 	checkFiles(t, &StdSizes{4, 4}, "", []string{"index.go"}, [][]byte{[]byte(src)})
 }
 
-func TestTestdata(t *testing.T)  { DefPredeclaredTestFuncs(); testDir(t, "testdata") }
+func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDir(t, "check") }
 func TestExamples(t *testing.T)  { testDir(t, "examples") }
 func TestFixedbugs(t *testing.T) { testDir(t, "fixedbugs") }
 
 func testDir(t *testing.T, dir string) {
 	testenv.MustHaveGoBuild(t)
 
+	dir = filepath.Join("testdata", dir)
 	fis, err := os.ReadDir(dir)
 	if err != nil {
 		t.Error(err)
