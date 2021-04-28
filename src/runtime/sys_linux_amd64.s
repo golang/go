@@ -204,83 +204,14 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-28
 	MOVL	AX, ret+24(FP)
 	RET
 
-// func walltime() (sec int64, nsec int32)
-// non-zero frame-size means bp is saved and restored
-TEXT runtime·walltime(SB),NOSPLIT,$16-12
+// func nanotime1() int64
+TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 	// We don't know how much stack space the VDSO code will need,
 	// so switch to g0.
 	// In particular, a kernel configured with CONFIG_OPTIMIZE_INLINING=n
 	// and hardening can use a full page of stack space in gettime_sym
 	// due to stack probes inserted to avoid stack/heap collisions.
 	// See issue #20427.
-
-	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
-
-#ifdef GOEXPERIMENT_regabig
-	MOVQ	g_m(R14), BX // BX unchanged by C code.
-#else
-	get_tls(CX)
-	MOVQ	g(CX), AX
-	MOVQ	g_m(AX), BX // BX unchanged by C code.
-#endif
-
-	// Set vdsoPC and vdsoSP for SIGPROF traceback.
-	// Save the old values on stack and restore them on exit,
-	// so this function is reentrant.
-	MOVQ	m_vdsoPC(BX), CX
-	MOVQ	m_vdsoSP(BX), DX
-	MOVQ	CX, 0(SP)
-	MOVQ	DX, 8(SP)
-
-	LEAQ	sec+0(FP), DX
-	MOVQ	-8(DX), CX
-	MOVQ	CX, m_vdsoPC(BX)
-	MOVQ	DX, m_vdsoSP(BX)
-
-#ifdef GOEXPERIMENT_regabig
-	CMPQ	R14, m_curg(BX)	// Only switch if on curg.
-#else
-	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
-#endif
-	JNE	noswitch
-
-	MOVQ	m_g0(BX), DX
-	MOVQ	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
-
-noswitch:
-	SUBQ	$16, SP		// Space for results
-	ANDQ	$~15, SP	// Align for C code
-
-	MOVL	$0, DI // CLOCK_REALTIME
-	LEAQ	0(SP), SI
-	MOVQ	runtime·vdsoClockgettimeSym(SB), AX
-	CMPQ	AX, $0
-	JEQ	fallback
-	CALL	AX
-ret:
-	MOVQ	0(SP), AX	// sec
-	MOVQ	8(SP), DX	// nsec
-	MOVQ	R12, SP		// Restore real SP
-	// Restore vdsoPC, vdsoSP
-	// We don't worry about being signaled between the two stores.
-	// If we are not in a signal handler, we'll restore vdsoSP to 0,
-	// and no one will care about vdsoPC. If we are in a signal handler,
-	// we cannot receive another signal.
-	MOVQ	8(SP), CX
-	MOVQ	CX, m_vdsoSP(BX)
-	MOVQ	0(SP), CX
-	MOVQ	CX, m_vdsoPC(BX)
-	MOVQ	AX, sec+0(FP)
-	MOVL	DX, nsec+8(FP)
-	RET
-fallback:
-	MOVQ	$SYS_clock_gettime, AX
-	SYSCALL
-	JMP ret
-
-// func nanotime1() int64
-TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
-	// Switch to g0 stack. See comment above in runtime·walltime.
 
 	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
 
