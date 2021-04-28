@@ -152,6 +152,12 @@ var BlockEnd = &Value{
 	Aux: StringToAux("BlockEnd"),
 }
 
+var FuncEnd = &Value{
+	ID:  -30000,
+	Op:  OpInvalid,
+	Aux: StringToAux("FuncEnd"),
+}
+
 // RegisterSet is a bitmap of registers, indexed by Register.num.
 type RegisterSet uint64
 
@@ -948,7 +954,7 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 
 	// Flush any leftover entries live at the end of the last block.
 	for varID := range state.lists {
-		state.writePendingEntry(VarID(varID), state.f.Blocks[len(state.f.Blocks)-1].ID, BlockEnd.ID)
+		state.writePendingEntry(VarID(varID), state.f.Blocks[len(state.f.Blocks)-1].ID, FuncEnd.ID)
 		list := state.lists[varID]
 		if state.loggingEnabled {
 			if len(list) == 0 {
