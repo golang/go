@@ -204,7 +204,7 @@ func (b *Builder) toolID(name string) string {
 // In order to get reproducible builds for released compilers, we
 // detect a released compiler by the absence of "experimental" in the
 // --version output, and in that case we just use the version string.
-func (b *Builder) gccgoToolID(name, language string) (string, error) {
+func (b *Builder) gccToolID(name, language string) (string, error) {
 	key := name + "." + language
 	b.id.Lock()
 	id := b.toolIDCache[key]

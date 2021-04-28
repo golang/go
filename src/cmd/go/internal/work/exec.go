@@ -249,14 +249,27 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	if len(p.CgoFiles)+len(p.SwigFiles)+len(p.SwigCXXFiles) > 0 {
 		fmt.Fprintf(h, "cgo %q\n", b.toolID("cgo"))
 		cppflags, cflags, cxxflags, fflags, ldflags, _ := b.CFlags(p)
-		fmt.Fprintf(h, "CC=%q %q %q %q\n", b.ccExe(), cppflags, cflags, ldflags)
+
+		ccExe := b.ccExe()
+		fmt.Fprintf(h, "CC=%q %q %q %q\n", ccExe, cppflags, cflags, ldflags)
+		if ccID, err := b.gccToolID(ccExe[0], "c"); err == nil {
+			fmt.Fprintf(h, "CC ID=%q\n", ccID)
+		}
 		if len(p.CXXFiles)+len(p.SwigCXXFiles) > 0 {
-			fmt.Fprintf(h, "CXX=%q %q\n", b.cxxExe(), cxxflags)
+			cxxExe := b.cxxExe()
+			fmt.Fprintf(h, "CXX=%q %q\n", cxxExe, cxxflags)
+			if cxxID, err := b.gccToolID(cxxExe[0], "c++"); err == nil {
+				fmt.Fprintf(h, "CXX ID=%q\n", cxxID)
+			}
 		}
 		if len(p.FFiles) > 0 {
-			fmt.Fprintf(h, "FC=%q %q\n", b.fcExe(), fflags)
+			fcExe := b.fcExe()
+			fmt.Fprintf(h, "FC=%q %q\n", fcExe, fflags)
+			if fcID, err := b.gccToolID(fcExe[0], "f95"); err == nil {
+				fmt.Fprintf(h, "FC ID=%q\n", fcID)
+			}
 		}
-		// TODO(rsc): Should we include the SWIG version or Fortran/GCC/G++/Objective-C compiler versions?
+		// TODO(rsc): Should we include the SWIG version?
 	}
 	if p.Internal.CoverMode != "" {
 		fmt.Fprintf(h, "cover %q %q\n", p.Internal.CoverMode, b.toolID("cover"))
@@ -316,7 +329,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		}
 
 	case "gccgo":
-		id, err := b.gccgoToolID(BuildToolchain.compiler(), "go")
+		id, err := b.gccToolID(BuildToolchain.compiler(), "go")
 		if err != nil {
 			base.Fatalf("%v", err)
 		}
@@ -324,7 +337,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		fmt.Fprintf(h, "pkgpath %s\n", gccgoPkgpath(p))
 		fmt.Fprintf(h, "ar %q\n", BuildToolchain.(gccgoToolchain).ar())
 		if len(p.SFiles) > 0 {
-			id, _ = b.gccgoToolID(BuildToolchain.compiler(), "assembler-with-cpp")
+			id, _ = b.gccToolID(BuildToolchain.compiler(), "assembler-with-cpp")
 			// Ignore error; different assembler versions
 			// are unlikely to make any difference anyhow.
 			fmt.Fprintf(h, "asm %q\n", id)
@@ -1274,7 +1287,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 		// Or external linker settings and flags?
 
 	case "gccgo":
-		id, err := b.gccgoToolID(BuildToolchain.linker(), "go")
+		id, err := b.gccToolID(BuildToolchain.linker(), "go")
 		if err != nil {
 			base.Fatalf("%v", err)
 		}
