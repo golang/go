@@ -77,8 +77,13 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool) 
 		x.typ = typ.elem
 
 	case *Map:
+		index := check.singleIndex(e)
+		if index == nil {
+			x.mode = invalid
+			return
+		}
 		var key operand
-		check.expr(&key, e.Index)
+		check.expr(&key, index)
 		check.assignment(&key, typ.key, "map index")
 		// ok to continue even if indexing failed - map element type is known
 		x.mode = mapindex
@@ -132,8 +137,13 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool) 
 			// If there are maps, the index expression must be assignable
 			// to the map key type (as for simple map index expressions).
 			if nmaps > 0 {
+				index := check.singleIndex(e)
+				if index == nil {
+					x.mode = invalid
+					return
+				}
 				var key operand
-				check.expr(&key, e.Index)
+				check.expr(&key, index)
 				check.assignment(&key, tkey, "map index")
 				// ok to continue even if indexing failed - map element type is known
 
@@ -170,8 +180,8 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool) 
 		return
 	}
 
-	if e.Index == nil {
-		check.invalidAST(e, "missing index for %s", x)
+	index := check.singleIndex(e)
+	if index == nil {
 		x.mode = invalid
 		return
 	}
@@ -183,7 +193,7 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool) 
 		x.typ = Typ[Invalid]
 	}
 
-	check.index(e.Index, length)
+	check.index(index, length)
 	return false
 }
 
@@ -296,6 +306,28 @@ L:
 			}
 		}
 	}
+}
+
+// singleIndex returns the (single) index from the index expression e.
+// If the index is missing, or if there are multiple indices, an error
+// is reported and the result is nil.
+func (check *Checker) singleIndex(e *ast.IndexExpr) ast.Expr {
+	index := e.Index
+	if index == nil {
+		check.invalidAST(e, "missing index for %s", e)
+		return nil
+	}
+
+	indexes := typeparams.UnpackExpr(index)
+	if len(indexes) == 0 {
+		check.invalidAST(index, "index expression %v with 0 indices", index)
+		return nil
+	}
+	if len(indexes) > 1 {
+		// TODO(rFindley) should this get a distinct error code?
+		check.invalidOp(indexes[1], _InvalidIndex, "more than one index")
+	}
+	return indexes[0]
 }
 
 // index checks an index expression for validity.
