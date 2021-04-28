@@ -189,19 +189,22 @@ stdout '^example.com/main/testonly_test \[example.com/main/testonly.test\]$'
 
 rm vendor
 
-# Convert all modules to go 1.16 to enable lazy loading.
-go mod edit -go=1.16 a/go.mod
-go mod edit -go=1.16 b/go.mod
-go mod edit -go=1.16 c/go.mod
-go mod edit -go=1.16 d/go.mod
-go mod edit -go=1.16 q/go.mod
-go mod edit -go=1.16 r/go.mod
-go mod edit -go=1.16 s/go.mod
-go mod edit -go=1.16 t/go.mod
-go mod edit -go=1.16 u/go.mod
-go mod edit -go=1.16 w/go.mod
-go mod edit -go=1.16 x/go.mod
-go mod edit -go=1.16
+# Convert all modules to go 1.17 to enable lazy loading.
+go mod edit -go=1.17 a/go.mod
+go mod edit -go=1.17 b/go.mod
+go mod edit -go=1.17 c/go.mod
+go mod edit -go=1.17 d/go.mod
+go mod edit -go=1.17 q/go.mod
+go mod edit -go=1.17 r/go.mod
+go mod edit -go=1.17 s/go.mod
+go mod edit -go=1.17 t/go.mod
+go mod edit -go=1.17 u/go.mod
+go mod edit -go=1.17 w/go.mod
+go mod edit -go=1.17 x/go.mod
+go mod edit -go=1.17
+cp go.mod go.mod.orig
+go mod tidy
+cmp go.mod go.mod.orig
 
 # With lazy loading, 'go list all' with neither -mod=vendor nor -test should
 # match -mod=vendor without -test in 1.15.
@@ -282,20 +285,41 @@ stdout '^example.com/t_test \[example.com/t.test\]$'
 stdout '^example.com/u.test$'
 stdout '^example.com/u_test \[example.com/u.test\]$'
 
+# 'go list -m all' should cover all of the modules providing packages in
+# 'go list -test -deps all', but should exclude modules d and x,
+# which are not relevant to the main module and are outside of the
+# lazy-loading horizon.
 
-# TODO(#36460):
-# 'go list -m all' should exactly cover the packages in 'go list -test all'.
+go list -m -f $MODFMT all
+stdout -count=10 '^.'
+stdout '^example.com/a$'
+stdout '^example.com/b$'
+stdout '^example.com/c$'
+! stdout '^example.com/d$'
+stdout '^example.com/main$'
+stdout '^example.com/q$'
+stdout '^example.com/r$'
+stdout '^example.com/s$'
+stdout '^example.com/t$'
+stdout '^example.com/u$'
+stdout '^example.com/w$'
+! stdout '^example.com/x$'
 
 -- go.mod --
 module example.com/main
 
+// Note: this go.mod file initially specifies go 1.15,
+// but includes some redundant roots so that it
+// also already obeys the 1.17 lazy loading invariants.
 go 1.15
 
 require (
 	example.com/a v0.1.0
 	example.com/b v0.1.0
 	example.com/q v0.1.0
+	example.com/r v0.1.0 // indirect
 	example.com/t v0.1.0
+	example.com/u v0.1.0 // indirect
 )
 
 replace (

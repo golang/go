@@ -101,7 +101,64 @@ go mod tidy -e
 cmp go.mod go.mod.postget
 
 
-# TODO(#36460): Repeat this test with a lazy main module.
+# The 'tidy' logic for a lazy main module requires more iterations to converge,
+# because it is willing to drop dependencies on non-root modules that do not
+# otherwise provide imported packages.
+#
+# On the first iteration, it adds x.1 as a root, which upgrades z and w,
+# dropping w.1's requirement on y. w.1 was initially a root, so the upgraded
+# w.2-pre is retained as a root.
+#
+# On the second iteration, it adds y.1 as a root, which upgrades w and x,
+# dropping x.1's requirement on z. x.1 was added as a root in the previous step,
+# so the upgraded x.2-pre is retained as a root.
+#
+# On the third iteration, it adds z.1 as a root, which upgrades x and y.
+# x and y were already roots (from the previous steps), so their upgraded versions
+# are retained (not dropped) and the iteration stops.
+#
+# At that point, we have z.1 as a root providing package z,
+# and w, x, and y have all been upgraded to no longer provide any packages.
+# So only z is retained as a new root.
+#
+# (From the above, we can see that in a lazy module we still cycle through the
+# same possible root states, but in a different order from the eager case.)
+#
+# TODO(bcmills): if we retained the upgrades on w, x, and y (since they are
+# lexical prefixes for unresolved packages w, x, and y, respectively), then 'go
+# mod tidy -e' itself would become stable and no longer cycle through states.
+
+cp go.mod.orig go.mod
+go mod edit -go=1.17 go.mod
+cp go.mod go.mod.117
+go mod edit -go=1.17 go.mod.tidye1
+go mod edit -go=1.17 go.mod.tidye2
+go mod edit -go=1.17 go.mod.tidye3
+go mod edit -go=1.17 go.mod.postget
+
+go list -m all
+
+go mod tidy -e
+cmp go.mod go.mod.tidye3
+
+go mod tidy -e
+cmp go.mod go.mod.tidye2
+
+go mod tidy -e
+cmp go.mod go.mod.tidye1
+
+go mod tidy -e
+cmp go.mod go.mod.117
+
+
+# As in the eager case, for the lazy module the fully-upgraded dependency graph
+# becomes empty, and the empty graph is stable.
+
+go get -d example.net/w@v0.2.0-pre example.net/x@v0.2.0-pre example.net/y@v0.2.0-pre example.net/z@v0.2.0-pre
+go mod tidy -e
+cmp go.mod go.mod.postget
+go mod tidy -e
+cmp go.mod go.mod.postget
 
 
 -- m.go --

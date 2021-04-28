@@ -43,7 +43,22 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="go-command">Go command</h3>
 
-<h4 id="modules">Modules</h4>
+<h4 id="lazy-loading">Lazy module loading</h4>
+
+<p><!-- golang.org/issue/36460 -->
+  If a module specifies <code>go</code> <code>1.17</code> or higher in its
+  <code>go.mod</code> file, its transitive requirements are now loaded lazily,
+  avoding the need to download or read <code>go.mod</code> files for
+  otherwise-irrelevant dependencies. To support lazy loading, in Go 1.17 modules
+  the <code>go</code> command maintains <em>explicit</em> requirements in
+  the <code>go.mod</code> file for every dependency that provides any package
+  transitively imported by any package or test within the module.
+  See <a href="https://golang.org/design/36460-lazy-module-loading">the design
+  document</a> for more detail.
+  <!-- TODO(bcmills): replace the design-doc link with proper documentation. -->
+</p>
+
+<h4 id="module-deprecation-comments">Module deprecation comments</h4>
 
 <p><!-- golang.org/issue/40357 -->
   Module authors may deprecate a module by adding a
