@@ -219,8 +219,8 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-16
 	MOVL	AX, ret+12(FP)
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB), NOSPLIT, $8-12
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $8-12
 	// We don't know how much stack space the VDSO code will need,
 	// so switch to g0.
 

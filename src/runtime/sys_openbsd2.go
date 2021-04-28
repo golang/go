@@ -162,7 +162,7 @@ func nanotime1() int64 {
 func clock_gettime_trampoline()
 
 //go:nosplit
-func walltime1() (int64, int32) {
+func walltime() (int64, int32) {
 	var ts timespec
 	args := struct {
 		clock_id int32

@@ -238,8 +238,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8
 	SYSCALL
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB), NOSPLIT, $32
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVQ	$CLOCK_REALTIME, DI	// arg 1 - clock_id
 	LEAQ	8(SP), SI		// arg 2 - tp
 	MOVL	$SYS___clock_gettime50, AX

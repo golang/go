@@ -274,7 +274,7 @@ func nanotime_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func walltime1() (int64, int32) {
+func walltime() (int64, int32) {
 	var t timespec
 	libcCall(unsafe.Pointer(abi.FuncPCABI0(walltime_trampoline)), unsafe.Pointer(&t))
 	return t.tv_sec, int32(t.tv_nsec)

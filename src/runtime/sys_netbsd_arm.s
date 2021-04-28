@@ -216,8 +216,8 @@ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0
 	SWI $SYS___setitimer50
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB), NOSPLIT, $32
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVW $0, R0	// CLOCK_REALTIME
 	MOVW $8(R13), R1
 	SWI $SYS___clock_gettime50

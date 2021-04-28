@@ -804,9 +804,6 @@ func writeConsoleUTF16(handle uintptr, b []uint16) {
 	return
 }
 
-// walltime1 isn't implemented on Windows, but will never be called.
-func walltime1() (sec int64, nsec int32)
-
 //go:nosplit
 func semasleep(ns int64) int32 {
 	const (

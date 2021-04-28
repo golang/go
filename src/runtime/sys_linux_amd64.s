@@ -204,9 +204,9 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-28
 	MOVL	AX, ret+24(FP)
 	RET
 
-// func walltime1() (sec int64, nsec int32)
+// func walltime() (sec int64, nsec int32)
 // non-zero frame-size means bp is saved and restored
-TEXT runtime·walltime1(SB),NOSPLIT,$16-12
+TEXT runtime·walltime(SB),NOSPLIT,$16-12
 	// We don't know how much stack space the VDSO code will need,
 	// so switch to g0.
 	// In particular, a kernel configured with CONFIG_OPTIMIZE_INLINING=n

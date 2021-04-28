@@ -7,4 +7,4 @@
 
 package runtime
 
-func walltime1() (sec int64, nsec int32)
+func walltime() (sec int64, nsec int32)
