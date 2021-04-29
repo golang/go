@@ -642,6 +642,16 @@ func archrelocaddr(ldr *loader.Loader, target *ld.Target, syms *ld.ArchSyms, r l
 	return int64(o2)<<32 | int64(o1)
 }
 
+// Determine if the code was compiled so that the TOC register R2 is initialized and maintained
+func r2Valid(ctxt *ld.Link) bool {
+	switch ctxt.BuildMode {
+	case ld.BuildModeCArchive, ld.BuildModeCShared, ld.BuildModePIE, ld.BuildModeShared, ld.BuildModePlugin:
+		return true
+	}
+	// -linkshared option
+	return ctxt.IsSharedGoLink()
+}
+
 // resolve direct jump relocation r in s, and add trampoline if necessary
 func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 
@@ -649,7 +659,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 	// For internal linking, trampolines are always created for long calls.
 	// For external linking, the linker can insert a call stub to handle a long call, but depends on having the TOC address in
 	// r2.  For those build modes with external linking where the TOC address is not maintained in r2, trampolines must be created.
-	if ctxt.IsExternal() && (ctxt.DynlinkingGo() || ctxt.BuildMode == ld.BuildModeCArchive || ctxt.BuildMode == ld.BuildModeCShared || ctxt.BuildMode == ld.BuildModePIE) {
+	if ctxt.IsExternal() && r2Valid(ctxt) {
 		// No trampolines needed since r2 contains the TOC
 		return
 	}
@@ -703,7 +713,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 				}
 			}
 			if ldr.SymType(tramp) == 0 {
-				if ctxt.DynlinkingGo() || ctxt.BuildMode == ld.BuildModeCArchive || ctxt.BuildMode == ld.BuildModeCShared || ctxt.BuildMode == ld.BuildModePIE {
+				if r2Valid(ctxt) {
 					// Should have returned for above cases
 					ctxt.Errorf(s, "unexpected trampoline for shared or dynamic linking")
 				} else {
