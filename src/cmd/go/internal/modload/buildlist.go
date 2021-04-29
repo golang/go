@@ -140,12 +140,21 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
 			// The roots of a lazy module should already include every module in the
 			// vendor list, because the vendored modules are the same as those
 			// maintained as roots by the lazy loading “import invariant”.
-			if go117LazyTODO {
-				// Double-check here that that invariant holds.
+			//
+			// Just to be sure, we'll double-check that here.
+			inconsistent := false
+			for _, m := range vendorList {
+				if v, ok := rs.rootSelected(m.Path); !ok || v != m.Version {
+					base.Errorf("go: vendored module %v should be required explicitly in go.mod", m)
+					inconsistent = true
+				}
+			}
+			if inconsistent {
+				base.Fatalf("go: %v", errGoModDirty)
 			}
 
-			// So we can just treat the rest of the module graph as effectively
-			// “pruned out”, like a more aggressive version of lazy loading:
+			// Now we can treat the rest of the module graph as effectively “pruned
+			// out”, like a more aggressive version of lazy loading: in vendor mode,
 			// the root requirements *are* the complete module graph.
 			mg.g.Require(Target, rs.rootModules)
 		} else {
