@@ -166,6 +166,7 @@ func (r *Resolver) getLookupGroup() *singleflight.Group {
 
 // LookupHost looks up the given host using the local resolver.
 // It returns a slice of that host's addresses.
+// The returned slice will not be empty if err is nil.
 //
 // LookupHost uses context.Background internally; to specify the context, use
 // Resolver.LookupHost.
@@ -175,6 +176,7 @@ func LookupHost(host string) (addrs []string, err error) {
 
 // LookupHost looks up the given host using the local resolver.
 // It returns a slice of that host's addresses.
+// The returned slice will not be empty if err is nil.
 func (r *Resolver) LookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	// Make sure that no matter what we do later, host=="" is rejected.
 	// parseIP, for example, does accept empty strings.
@@ -189,6 +191,7 @@ func (r *Resolver) LookupHost(ctx context.Context, host string) (addrs []string,
 
 // LookupIP looks up host using the local resolver.
 // It returns a slice of that host's IPv4 and IPv6 addresses.
+// The returned slice will not be empty if err is nil.
 func LookupIP(host string) ([]IP, error) {
 	addrs, err := DefaultResolver.LookupIPAddr(context.Background(), host)
 	if err != nil {
@@ -203,6 +206,7 @@ func LookupIP(host string) ([]IP, error) {
 
 // LookupIPAddr looks up host using the local resolver.
 // It returns a slice of that host's IPv4 and IPv6 addresses.
+// The returned slice will not be empty if err is nil.
 func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, error) {
 	return r.lookupIPAddr(ctx, "ip", host)
 }
@@ -210,6 +214,7 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
 // LookupIP looks up host for the given network using the local resolver.
 // It returns a slice of that host's IP addresses of the type specified by
 // network.
+// The returned slice will not be empty if err is nil.
 // network must be one of "ip", "ip4" or "ip6".
 func (r *Resolver) LookupIP(ctx context.Context, network, host string) ([]IP, error) {
 	afnet, _, err := parseNetwork(ctx, network, false)
@@ -261,6 +266,7 @@ func withUnexpiredValuesPreserved(lookupCtx context.Context) context.Context {
 
 // lookupIPAddr looks up host using the local resolver and particular network.
 // It returns a slice of that host's IPv4 and IPv6 addresses.
+// The returned slice will not be empty if err is nil.
 func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IPAddr, error) {
 	// Make sure that no matter what we do later, host=="" is rejected.
 	// parseIP, for example, does accept empty strings.
@@ -420,6 +426,7 @@ func (r *Resolver) LookupCNAME(ctx context.Context, host string) (cname string, 
 // protocol, and domain name. The proto is "tcp" or "udp".
 // The returned records are sorted by priority and randomized
 // by weight within a priority.
+// The returned slice will not be empty if err is nil.
 //
 // LookupSRV constructs the DNS name to look up following RFC 2782.
 // That is, it looks up _service._proto.name. To accommodate services
@@ -433,6 +440,7 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
 // protocol, and domain name. The proto is "tcp" or "udp".
 // The returned records are sorted by priority and randomized
 // by weight within a priority.
+// The returned slice will not be empty if err is nil.
 //
 // LookupSRV constructs the DNS name to look up following RFC 2782.
 // That is, it looks up _service._proto.name. To accommodate services
@@ -443,6 +451,7 @@ func (r *Resolver) LookupSRV(ctx context.Context, service, proto, name string) (
 }
 
 // LookupMX returns the DNS MX records for the given domain name sorted by preference.
+// The returned slice will not be empty if err is nil.
 //
 // LookupMX uses context.Background internally; to specify the context, use
 // Resolver.LookupMX.
@@ -451,11 +460,13 @@ func LookupMX(name string) ([]*MX, error) {
 }
 
 // LookupMX returns the DNS MX records for the given domain name sorted by preference.
+// The returned slice will not be empty if err is nil.
 func (r *Resolver) LookupMX(ctx context.Context, name string) ([]*MX, error) {
 	return r.lookupMX(ctx, name)
 }
 
 // LookupNS returns the DNS NS records for the given domain name.
+// The returned slice will not be empty if err is nil.
 //
 // LookupNS uses context.Background internally; to specify the context, use
 // Resolver.LookupNS.
@@ -464,11 +475,13 @@ func LookupNS(name string) ([]*NS, error) {
 }
 
 // LookupNS returns the DNS NS records for the given domain name.
+// The returned slice will not be empty if err is nil.
 func (r *Resolver) LookupNS(ctx context.Context, name string) ([]*NS, error) {
 	return r.lookupNS(ctx, name)
 }
 
 // LookupTXT returns the DNS TXT records for the given domain name.
+// The returned slice will not be empty if err is nil.
 //
 // LookupTXT uses context.Background internally; to specify the context, use
 // Resolver.LookupTXT.
@@ -481,8 +494,9 @@ func (r *Resolver) LookupTXT(ctx context.Context, name string) ([]string, error)
 	return r.lookupTXT(ctx, name)
 }
 
-// LookupAddr performs a reverse lookup for the given address, returning a list
-// of names mapping to that address.
+// LookupAddr performs a reverse lookup for the given address, returning the
+// names mapping to that address.
+// The returned slice will not be empty if err is nil.
 //
 // When using the host C library resolver, at most one result will be
 // returned. To bypass the host resolver, use a custom Resolver.
@@ -493,8 +507,9 @@ func LookupAddr(addr string) (names []string, err error) {
 	return DefaultResolver.lookupAddr(context.Background(), addr)
 }
 
-// LookupAddr performs a reverse lookup for the given address, returning a list
-// of names mapping to that address.
+// LookupAddr performs a reverse lookup for the given address, returning
+// the names mapping to that address.
+// The returned slice will not be empty if err is nil.
 func (r *Resolver) LookupAddr(ctx context.Context, addr string) (names []string, err error) {
 	return r.lookupAddr(ctx, addr)
 }
