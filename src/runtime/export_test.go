@@ -1267,3 +1267,5 @@ func GCTestIsReachable(ptrs ...unsafe.Pointer) (mask uint64) {
 func GCTestPointerClass(p unsafe.Pointer) string {
 	return gcTestPointerClass(p)
 }
+
+const Raceenabled = raceenabled

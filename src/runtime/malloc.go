@@ -1047,7 +1047,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			(*[2]uint64)(x)[1] = 0
 			// See if we need to replace the existing tiny block with the new one
 			// based on amount of remaining free space.
-			if size < c.tinyoffset || c.tiny == 0 {
+			if !raceenabled && (size < c.tinyoffset || c.tiny == 0) {
+				// Note: disabled when race detector is on, see comment near end of this function.
 				c.tiny = uintptr(x)
 				c.tinyoffset = size
 			}
@@ -1163,6 +1164,22 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		if t := (gcTrigger{kind: gcTriggerHeap}); t.test() {
 			gcStart(t)
 		}
+	}
+
+	if raceenabled && noscan && dataSize < maxTinySize {
+		// Pad tinysize allocations so they are aligned with the end
+		// of the tinyalloc region. This ensures that any arithmetic
+		// that goes off the top end of the object will be detectable
+		// by checkptr (issue 38872).
+		// Note that we disable tinyalloc when raceenabled for this to work.
+		// TODO: This padding is only performed when the race detector
+		// is enabled. It would be nice to enable it if any package
+		// was compiled with checkptr, but there's no easy way to
+		// detect that (especially at compile time).
+		// TODO: enable this padding for all allocations, not just
+		// tinyalloc ones. It's tricky because of pointer maps.
+		// Maybe just all noscan objects?
+		x = add(x, size-dataSize)
 	}
 
 	return x
