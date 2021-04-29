@@ -297,6 +297,11 @@ enables time reporting for all phases
     -d=ssa/prove/debug=2
 sets debugging level to 2 in the prove pass
 
+Be aware that when "/debug=X" is applied to a pass, some passes
+will emit debug output for all functions, and other passes will
+only emit debug output for functions that match the current
+GOSSAFUNC value.
+
 Multiple flags can be passed at once, by separating them with
 commas. For example:
 
