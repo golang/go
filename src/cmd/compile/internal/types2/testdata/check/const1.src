@@ -6,6 +6,8 @@
 
 package const1
 
+import "math"
+
 const(
 	mi = ^int(0)
 	mu = ^uint(0)
@@ -48,7 +50,7 @@ const (
 	//           without overflow. For now we match the compiler.
 	//           See also issue #44057.
 	// smallestFloat64 = 1.0 / (1<<(1023 - 1 + 52))
-	smallestFloat64 = 4.940656458412465441765687928682213723651e-324
+	smallestFloat64 = math.SmallestNonzeroFloat64
 )
 
 const (
@@ -63,7 +65,7 @@ const (
 	//           without overflow. For now we match the compiler.
 	//           See also issue #44057.
 	// maxFloat64 = 1<<1023 * (1<<53 - 1) / (1.0<<52)
-	maxFloat64 = 1.797693134862315708145274237317043567981e+308
+	maxFloat64 = math.MaxFloat64
 )
 
 const (
@@ -281,9 +283,7 @@ const (
 	_ = assert(float64(smallestFloat32) == smallestFloat32)
 	_ = assert(float64(smallestFloat32/2) == smallestFloat32/2)
 	_ = assert(float64(smallestFloat64) == smallestFloat64)
-	// TODO(gri) With the change to the declaration of smallestFloat64
-	//           this now fails to be true. See issue #44058.
-	// _ = assert(float64(smallestFloat64/2) == 0)
+	_ = assert(float64(smallestFloat64/2) == 0)
 )
 
 const (
