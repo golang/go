@@ -10,16 +10,12 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"os"
 	"reflect"
 	"runtime"
 	"strings"
 	"time"
 	"unicode/utf8"
 )
-
-// ignoreCN disables interpreting Common Name as a hostname. See issue 24151.
-var ignoreCN = !strings.Contains(os.Getenv("GODEBUG"), "x509ignoreCN=0")
 
 type InvalidReason int
 
@@ -43,14 +39,7 @@ const (
 	// NameMismatch results when the subject name of a parent certificate
 	// does not match the issuer name in the child.
 	NameMismatch
-	// NameConstraintsWithoutSANs results when a leaf certificate doesn't
-	// contain a Subject Alternative Name extension, but a CA certificate
-	// contains name constraints, and the Common Name can be interpreted as
-	// a hostname.
-	//
-	// This error is only returned when legacy Common Name matching is enabled
-	// by setting the GODEBUG environment variable to "x509ignoreCN=1". This
-	// setting might be removed in the future.
+	// NameConstraintsWithoutSANs is a legacy error and is no longer returned.
 	NameConstraintsWithoutSANs
 	// UnconstrainedName results when a CA certificate contains permitted
 	// name constraints, but leaf certificate contains a name of an
@@ -110,15 +99,7 @@ func (h HostnameError) Error() string {
 	c := h.Certificate
 
 	if !c.hasSANExtension() && matchHostnames(c.Subject.CommonName, h.Host) {
-		if !ignoreCN && !validHostnamePattern(c.Subject.CommonName) {
-			// This would have validated, if it weren't for the validHostname check on Common Name.
-			return "x509: Common Name is not a valid hostname: " + c.Subject.CommonName
-		}
-		if ignoreCN && validHostnamePattern(c.Subject.CommonName) {
-			// This would have validated if x509ignoreCN=0 were set.
-			return "x509: certificate relies on legacy Common Name field, " +
-				"use SANs or temporarily enable Common Name matching with GODEBUG=x509ignoreCN=0"
-		}
+		return "x509: certificate relies on legacy Common Name field, use SANs instead"
 	}
 
 	var valid string
@@ -134,11 +115,7 @@ func (h HostnameError) Error() string {
 			valid += san.String()
 		}
 	} else {
-		if c.commonNameAsHostname() {
-			valid = c.Subject.CommonName
-		} else {
-			valid = strings.Join(c.DNSNames, ", ")
-		}
+		valid = strings.Join(c.DNSNames, ", ")
 	}
 
 	if len(valid) == 0 {
@@ -620,15 +597,8 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		leaf = currentChain[0]
 	}
 
-	checkNameConstraints := (certType == intermediateCertificate || certType == rootCertificate) && c.hasNameConstraints()
-	if checkNameConstraints && leaf.commonNameAsHostname() {
-		// This is the deprecated, legacy case of depending on the commonName as
-		// a hostname. We don't enforce name constraints against the CN, but
-		// VerifyHostname will look for hostnames in there if there are no SANs.
-		// In order to ensure VerifyHostname will not accept an unchecked name,
-		// return an error here.
-		return CertificateInvalidError{c, NameConstraintsWithoutSANs, ""}
-	} else if checkNameConstraints && leaf.hasSANExtension() {
+	if (certType == intermediateCertificate || certType == rootCertificate) &&
+		c.hasNameConstraints() && leaf.hasSANExtension() {
 		err := forEachSAN(leaf.getSANExtension(), func(tag int, data []byte) error {
 			switch tag {
 			case nameTypeEmail:
@@ -960,18 +930,6 @@ func validHostname(host string, isPattern bool) bool {
 	return true
 }
 
-// commonNameAsHostname reports whether the Common Name field should be
-// considered the hostname that the certificate is valid for. This is a legacy
-// behavior, disabled by default or if the Subject Alt Name extension is present.
-//
-// It applies the strict validHostname check to the Common Name field, so that
-// certificates without SANs can still be validated against CAs with name
-// constraints if there is no risk the CN would be matched as a hostname.
-// See NameConstraintsWithoutSANs and issue 24151.
-func (c *Certificate) commonNameAsHostname() bool {
-	return !ignoreCN && !c.hasSANExtension() && validHostnamePattern(c.Subject.CommonName)
-}
-
 func matchExactly(hostA, hostB string) bool {
 	if hostA == "" || hostA == "." || hostB == "" || hostB == "." {
 		return false
@@ -1046,10 +1004,7 @@ func toLowerCaseASCII(in string) string {
 // against the DNSNames field. If the names are valid hostnames, the certificate
 // fields can have a wildcard as the left-most label.
 //
-// The legacy Common Name field is ignored unless it's a valid hostname, the
-// certificate doesn't have any Subject Alternative Names, and the GODEBUG
-// environment variable is set to "x509ignoreCN=0". Support for Common Name is
-// deprecated will be entirely removed in the future.
+// Note that the legacy Common Name field is ignored.
 func (c *Certificate) VerifyHostname(h string) error {
 	// IP addresses may be written in [ ].
 	candidateIP := h
@@ -1067,15 +1022,10 @@ func (c *Certificate) VerifyHostname(h string) error {
 		return HostnameError{c, candidateIP}
 	}
 
-	names := c.DNSNames
-	if c.commonNameAsHostname() {
-		names = []string{c.Subject.CommonName}
-	}
-
 	candidateName := toLowerCaseASCII(h) // Save allocations inside the loop.
 	validCandidateName := validHostnameInput(candidateName)
 
-	for _, match := range names {
+	for _, match := range c.DNSNames {
 		// Ideally, we'd only match valid hostnames according to RFC 6125 like
 		// browsers (more or less) do, but in practice Go is used in a wider
 		// array of contexts and can't even assume DNS resolution. Instead,
