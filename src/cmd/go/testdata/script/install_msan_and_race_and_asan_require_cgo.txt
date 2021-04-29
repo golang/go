@@ -11,7 +11,7 @@ env CGO_ENABLED=0
 [msan] ! stderr '-race'
 
 [asan] ! go install -asan triv.go
-[asan] stderr '-asan requires cgo'
+[asan] stderr '(-asan: the version of $(go env CC) could not be parsed)|(-asan: C compiler is not gcc or clang)|(-asan is not supported with C compiler (\d+)\.(\d+))|(-asan requires cgo)'
 [asan] ! stderr '-msan'
 
 -- triv.go --

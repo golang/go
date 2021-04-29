@@ -442,7 +442,7 @@ func parseGoEmbed(args string) ([]string, error) {
 // the name, normally "pkg.init", is altered to "pkg.init.0".
 var renameinitgen int
 
-func renameinit() *types.Sym {
+func Renameinit() *types.Sym {
 	s := typecheck.LookupNum("init.", renameinitgen)
 	renameinitgen++
 	return s

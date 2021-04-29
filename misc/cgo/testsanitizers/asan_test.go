@@ -22,6 +22,14 @@ func TestASAN(t *testing.T) {
 	if !aSanSupported(goos, goarch) {
 		t.Skipf("skipping on %s/%s; -asan option is not supported.", goos, goarch)
 	}
+	// The current implementation is only compatible with the ASan library from version
+	// v7 to v9 (See the description in src/runtime/asan/asan.go). Therefore, using the
+	// -asan option must use a compatible version of ASan library, which requires that
+	// the gcc version is not less than 7 and the clang version is not less than 9,
+	// otherwise a segmentation fault will occur.
+	if !compilerRequiredAsanVersion() {
+		t.Skipf("skipping: too old version of compiler")
+	}
 
 	t.Parallel()
 	requireOvercommit(t)
