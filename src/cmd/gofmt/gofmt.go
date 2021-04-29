@@ -214,8 +214,19 @@ func gofmtMain() {
 	}
 
 	for _, arg := range args {
-		if err := filepath.WalkDir(arg, visitFile); err != nil {
+		switch info, err := os.Stat(arg); {
+		case err != nil:
 			report(err)
+		case !info.IsDir():
+			// Non-directory arguments are always formatted.
+			if err := processFile(arg, nil, os.Stdout, false); err != nil {
+				report(err)
+			}
+		default:
+			// Directories are walked, ignoring non-Go files.
+			if err := filepath.WalkDir(arg, visitFile); err != nil {
+				report(err)
+			}
 		}
 	}
 }
