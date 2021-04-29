@@ -421,16 +421,13 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		fnname = "makeslice"
 		argtype = types.Types[types.TINT]
 	}
-
-	m := ir.NewSliceHeaderExpr(base.Pos, nil, nil, nil, nil)
-	m.SetType(t)
-
 	fn := typecheck.LookupRuntime(fnname)
-	m.Ptr = mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.TypePtr(t.Elem()), typecheck.Conv(len, argtype), typecheck.Conv(cap, argtype))
-	m.Ptr.MarkNonNil()
-	m.Len = typecheck.Conv(len, types.Types[types.TINT])
-	m.Cap = typecheck.Conv(cap, types.Types[types.TINT])
-	return walkExpr(typecheck.Expr(m), init)
+	ptr := mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.TypePtr(t.Elem()), typecheck.Conv(len, argtype), typecheck.Conv(cap, argtype))
+	ptr.MarkNonNil()
+	len = typecheck.Conv(len, types.Types[types.TINT])
+	cap = typecheck.Conv(cap, types.Types[types.TINT])
+	sh := ir.NewSliceHeaderExpr(base.Pos, t, ptr, len, cap)
+	return walkExpr(typecheck.Expr(sh), init)
 }
 
 // walkMakeSliceCopy walks an OMAKESLICECOPY node.
@@ -459,12 +456,9 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 
 		// instantiate mallocgc(size uintptr, typ *byte, needszero bool) unsafe.Pointer
 		fn := typecheck.LookupRuntime("mallocgc")
-		sh := ir.NewSliceHeaderExpr(base.Pos, nil, nil, nil, nil)
-		sh.Ptr = mkcall1(fn, types.Types[types.TUNSAFEPTR], init, size, typecheck.NodNil(), ir.NewBool(false))
-		sh.Ptr.MarkNonNil()
-		sh.Len = length
-		sh.Cap = length
-		sh.SetType(t)
+		ptr := mkcall1(fn, types.Types[types.TUNSAFEPTR], init, size, typecheck.NodNil(), ir.NewBool(false))
+		ptr.MarkNonNil()
+		sh := ir.NewSliceHeaderExpr(base.Pos, t, ptr, length, length)
 
 		s := typecheck.Temp(t)
 		r := typecheck.Stmt(ir.NewAssignStmt(base.Pos, s, sh))
@@ -482,13 +476,10 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	// Replace make+copy with runtime.makeslicecopy.
 	// instantiate makeslicecopy(typ *byte, tolen int, fromlen int, from unsafe.Pointer) unsafe.Pointer
 	fn := typecheck.LookupRuntime("makeslicecopy")
-	s := ir.NewSliceHeaderExpr(base.Pos, nil, nil, nil, nil)
-	s.Ptr = mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.TypePtr(t.Elem()), length, copylen, typecheck.Conv(copyptr, types.Types[types.TUNSAFEPTR]))
-	s.Ptr.MarkNonNil()
-	s.Len = length
-	s.Cap = length
-	s.SetType(t)
-	return walkExpr(typecheck.Expr(s), init)
+	ptr := mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.TypePtr(t.Elem()), length, copylen, typecheck.Conv(copyptr, types.Types[types.TUNSAFEPTR]))
+	ptr.MarkNonNil()
+	sh := ir.NewSliceHeaderExpr(base.Pos, t, ptr, length, length)
+	return walkExpr(typecheck.Expr(sh), init)
 }
 
 // walkNew walks an ONEW node.
