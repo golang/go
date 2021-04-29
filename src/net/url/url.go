@@ -909,6 +909,12 @@ func (v Values) Del(key string) {
 	delete(v, key)
 }
 
+// Has checks whether a given key is set.
+func (v Values) Has(key string) bool {
+	_, ok := v[key]
+	return ok
+}
+
 // ParseQuery parses the URL-encoded query string and returns
 // a map listing the values specified for each key.
 // ParseQuery always returns a non-nil map containing all the
