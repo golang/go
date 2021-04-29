@@ -14,9 +14,13 @@ import (
 	"cmd/internal/quoted"
 	"cmd/internal/sys"
 	"fmt"
+	exec "internal/execabs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strconv"
+	"strings"
 )
 
 func BuildInit() {
@@ -107,6 +111,15 @@ func instrumentInit() {
 		base.SetExitStatus(2)
 		base.Exit()
 	}
+	// The current implementation is only compatible with the ASan library from version
+	// v7 to v9 (See the description in src/runtime/asan/asan.go). Therefore, using the
+	// -asan option must use a compatible version of ASan library, which requires that
+	// the gcc version is not less than 7 and the clang version is not less than 4,
+	// otherwise a segmentation fault will occur.
+	if cfg.BuildASan {
+		compilerRequiredAsanVersion()
+	}
+
 	mode := "race"
 	if cfg.BuildMSan {
 		mode = "msan"
@@ -307,6 +320,50 @@ func buildModeInit() {
 		}
 		if cfg.ModFile != "" && !base.InGOFLAGS("-mod") {
 			base.Fatalf("build flag -modfile only valid when using modules")
+		}
+	}
+}
+
+// compilerRequiredAsanVersion checks whether the compiler is the version required by Asan.
+func compilerRequiredAsanVersion() {
+	cc := os.Getenv("CC")
+	isgcc := false
+	if strings.HasPrefix(cc, "gcc") {
+		isgcc = true
+	} else if !strings.HasPrefix(cc, "clang") {
+		fmt.Fprintf(os.Stderr, "-asan requires C compiler is gcc or clang, not %s", cc)
+		base.SetExitStatus(2)
+		base.Exit()
+	}
+	out, err := exec.Command(cc, "-v").CombinedOutput()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "-asan fails to check C compiler %s version: %v", cc, err)
+		base.SetExitStatus(2)
+		base.Exit()
+	}
+	re := regexp.MustCompile(`version ([0-9]+)\.([0-9]+)\.([0-9]+)`)
+	matches := re.FindSubmatch(out)
+	if len(matches) < 3 {
+		fmt.Fprintf(os.Stderr, "-asan fails to check C compiler %s version: %s", cc, out)
+	}
+	major, err1 := strconv.Atoi(string(matches[1]))
+	minor, err2 := strconv.Atoi(string(matches[2]))
+	if err1 != nil || err2 != nil {
+		fmt.Fprintf(os.Stderr, "-asan fails to check C compiler %s version: %v, %v", cc, err1, err2)
+		base.SetExitStatus(2)
+		base.Exit()
+	}
+	if isgcc {
+		if major < 7 {
+			fmt.Fprintf(os.Stderr, "-asan is not supported with gcc %d.%d; requires gcc 7 or later", major, minor)
+			base.SetExitStatus(2)
+			base.Exit()
+		}
+	} else {
+		if major < 4 {
+			fmt.Fprintf(os.Stderr, "-asan is not supported with clang %d.%d; requires clang 4 or later", major, minor)
+			base.SetExitStatus(2)
+			base.Exit()
 		}
 	}
 }
