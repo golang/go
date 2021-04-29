@@ -9,7 +9,7 @@ package strconv
 
 import "internal/bytealg"
 
-// contains reports whether the string contains the byte c.
-func contains(s string, c byte) bool {
-	return bytealg.IndexByteString(s, c) != -1
+// index returns the index of the first instance of c in s, or -1 if missing.
+func index(s string, c byte) int {
+	return bytealg.IndexByteString(s, c)
 }
