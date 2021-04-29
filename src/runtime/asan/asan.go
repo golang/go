@@ -34,5 +34,43 @@ void __asan_poison_go(void *addr, uintptr_t sz) {
 	__asan_poison_memory_region(addr, sz);
 }
 
+// Keep in sync with the defination in compiler-rt
+// https://github.com/llvm/llvm-project/blob/main/compiler-rt/lib/asan/asan_interface_internal.h#L41
+// This structure is used to describe the source location of
+// a place where global was defined.
+struct _asan_global_source_location {
+	const char *filename;
+	int line_no;
+	int column_no;
+};
+
+// Keep in sync with the defination in compiler-rt
+// https://github.com/llvm/llvm-project/blob/main/compiler-rt/lib/asan/asan_interface_internal.h#L48
+// So far, the current implementation is only compatible with the ASan library from version v7 to v9.
+// https://github.com/llvm/llvm-project/blob/main/compiler-rt/lib/asan/asan_init_version.h
+// This structure describes an instrumented global variable.
+//
+// TODO: If a later version of the ASan library changes __asan_global or __asan_global_source_location
+// structure, we need to make the same changes.
+struct _asan_global {
+	uintptr_t beg;
+	uintptr_t size;
+	uintptr_t size_with_redzone;
+	const char *name;
+	const char *module_name;
+	uintptr_t has_dynamic_init;
+	struct _asan_global_source_location *location;
+	uintptr_t odr_indicator;
+};
+
+
+extern void __asan_register_globals(void*, long int);
+
+// Register global variables.
+// The 'globals' is an array of structures describing 'n' globals.
+void __asan_register_globals_go(void *addr, uintptr_t n) {
+	struct _asan_global *globals = (struct _asan_global *)(addr);
+	__asan_register_globals(globals, n);
+}
 */
 import "C"

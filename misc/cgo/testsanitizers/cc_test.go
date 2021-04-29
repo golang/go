@@ -184,17 +184,16 @@ func compilerVersion() (version, error) {
 			var match [][]byte
 			if bytes.HasPrefix(out, []byte("gcc")) {
 				compiler.name = "gcc"
-
-				cmd, err := cc("-dumpversion")
+				cmd, err := cc("-v")
 				if err != nil {
 					return err
 				}
-				out, err := cmd.Output()
+				out, err := cmd.CombinedOutput()
 				if err != nil {
-					// gcc, but does not support gcc's "-dumpversion" flag?!
+					// gcc, but does not support gcc's "-v" flag?!
 					return err
 				}
-				gccRE := regexp.MustCompile(`(\d+)\.(\d+)`)
+				gccRE := regexp.MustCompile(`gcc version (\d+)\.(\d+)`)
 				match = gccRE.FindSubmatch(out)
 			} else {
 				clangRE := regexp.MustCompile(`clang version (\d+)\.(\d+)`)
@@ -230,6 +229,22 @@ func compilerSupportsLocation() bool {
 		return compiler.major >= 10
 	case "clang":
 		return true
+	default:
+		return false
+	}
+}
+
+// compilerRequiredAsanVersion reports whether the compiler is the version required by Asan.
+func compilerRequiredAsanVersion() bool {
+	compiler, err := compilerVersion()
+	if err != nil {
+		return false
+	}
+	switch compiler.name {
+	case "gcc":
+		return compiler.major >= 7
+	case "clang":
+		return compiler.major >= 9
 	default:
 		return false
 	}
