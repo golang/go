@@ -790,3 +790,51 @@ func (state *assignState) assignParamOrReturn(pt *types.Type, n types.Object, is
 		return state.stackAllocate(pt, n)
 	}
 }
+
+// ComputePadding returns a list of "post element" padding values in
+// the case where we have a structure being passed in registers. Give
+// a param assignment corresponding to a struct, it returns a list of
+// contaning padding values for each field, e.g. the Kth element in
+// the list is the amount of padding between field K and the following
+// field. For things that are not struct (or structs without padding)
+// it returns a list of zeros. Example:
+//
+// type small struct {
+//   x uint16
+//   y uint8
+//   z int32
+//   w int32
+// }
+//
+// For this struct we would return a list [0, 1, 0, 0], meaning that
+// we have one byte of padding after the second field, and no bytes of
+// padding after any of the other fields. Input parameter "storage"
+// is with enough capacity to accommodate padding elements for
+// the architected register set in question.
+func (pa *ABIParamAssignment) ComputePadding(storage []uint64) []uint64 {
+	nr := len(pa.Registers)
+	padding := storage[:nr]
+	for i := 0; i < nr; i++ {
+		padding[i] = 0
+	}
+	if pa.Type.Kind() != types.TSTRUCT || nr == 0 {
+		return padding
+	}
+	types := make([]*types.Type, 0, nr)
+	types = appendParamTypes(types, pa.Type)
+	if len(types) != nr {
+		panic("internal error")
+	}
+	off := int64(0)
+	for idx, t := range types {
+		ts := t.Size()
+		off += int64(ts)
+		if idx < len(types)-1 {
+			noff := align(off, types[idx+1])
+			if noff != off {
+				padding[idx] = uint64(noff - off)
+			}
+		}
+	}
+	return padding
+}

@@ -14,6 +14,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
 	"cmd/internal/src"
+	"fmt"
 	"os"
 	"testing"
 )
@@ -358,4 +359,39 @@ func TestABINumParamRegs(t *testing.T) {
 	nrtest(t, s, 4)
 	nrtest(t, a, 12)
 
+}
+
+func TestABIUtilsComputePadding(t *testing.T) {
+	// type s1 { f1 int8; f2 int16; f3 struct{}; f4 int32; f5 int64 }
+	i8 := types.Types[types.TINT8]
+	i16 := types.Types[types.TINT16]
+	i32 := types.Types[types.TINT32]
+	i64 := types.Types[types.TINT64]
+	emptys := mkstruct([]*types.Type{})
+	s1 := mkstruct([]*types.Type{i8, i16, emptys, i32, i64})
+	// func (p1 int32, p2 s1, p3 emptys, p4 [1]int32)
+	a1 := types.NewArray(i32, 1)
+	ft := mkFuncType(nil, []*types.Type{i32, s1, emptys, a1}, []*types.Type{})
+
+	// Run abitest() just to document what we're expected to see.
+	exp := makeExpectedDump(`
+        IN 0: R{ I0 } spilloffset: 0 typ: int32
+        IN 1: R{ I1 I2 I3 I4 } spilloffset: 8 typ: struct { int8; int16; struct {}; int32; int64 }
+        IN 2: R{ } offset: 0 typ: struct {}
+        IN 3: R{ I5 } spilloffset: 24 typ: [1]int32
+        offsetToSpillArea: 0 spillAreaSize: 32
+`)
+	abitest(t, ft, exp)
+
+	// Analyze with full set of registers, then call ComputePadding
+	// on the second param, verifying the results.
+	regRes := configAMD64.ABIAnalyze(ft, false)
+	padding := make([]uint64, 32)
+	parm := regRes.InParams()[1]
+	padding = parm.ComputePadding(padding)
+	want := "[1 1 1 0]"
+	got := fmt.Sprintf("%+v", padding)
+	if got != want {
+		t.Errorf("padding mismatch: wanted %q got %q\n", got, want)
+	}
 }

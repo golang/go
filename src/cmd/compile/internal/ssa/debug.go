@@ -1391,6 +1391,8 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 			continue
 		}
 		rtypes, _ := inp.RegisterTypesAndOffsets()
+		padding := make([]uint64, 0, 32)
+		padding = inp.ComputePadding(padding)
 		for k, r := range inp.Registers {
 			reg := ObjRegForAbiReg(r, f.Config)
 			dwreg := ctxt.Arch.DWARFRegisters[reg]
@@ -1404,6 +1406,10 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 				list = append(list, dwarf.DW_OP_piece)
 				ts := rtypes[k].Width
 				list = dwarf.AppendUleb128(list, uint64(ts))
+				if padding[k] > 0 {
+					list = append(list, dwarf.DW_OP_piece)
+					list = dwarf.AppendUleb128(list, padding[k])
+				}
 			}
 		}
 		// fill in length of location expression element
