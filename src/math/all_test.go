@@ -3196,6 +3196,15 @@ func TestFloatMinMax(t *testing.T) {
 	}
 }
 
+func TestFloatMinima(t *testing.T) {
+	if q := float32(SmallestNonzeroFloat32 / 2); q != 0 {
+		t.Errorf("float32(SmallestNonzeroFloat32 / 2) = %g, want 0", q)
+	}
+	if q := float64(SmallestNonzeroFloat64 / 2); q != 0 {
+		t.Errorf("float64(SmallestNonzeroFloat64 / 2) = %g, want 0", q)
+	}
+}
+
 var indirectSqrt = Sqrt
 
 // TestFloat32Sqrt checks the correctness of the float32 square root optimization result.
