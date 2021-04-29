@@ -49,7 +49,7 @@ package modload
 // Because "go mod vendor" prunes out the tests of vendored packages, the
 // behavior of the "all" pattern with -mod=vendor in Go 1.11–1.15 is the same
 // as the "all" pattern (regardless of the -mod flag) in 1.16+.
-// The allClosesOverTests parameter to the loader indicates whether the "all"
+// The loader uses the GoVersion parameter to determine whether the "all"
 // pattern should close over tests (as in Go 1.11–1.15) or stop at only those
 // packages transitively imported by the packages and tests in the main module
 // ("all" in Go 1.16+ and "go mod vendor" in Go 1.11+).
@@ -121,6 +121,7 @@ import (
 	"cmd/go/internal/str"
 
 	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 // loaded is the most recently-used package loader.
@@ -133,6 +134,14 @@ var loaded *loader
 
 // PackageOpts control the behavior of the LoadPackages function.
 type PackageOpts struct {
+	// GoVersion is the Go version to which the go.mod file should be updated
+	// after packages have been loaded.
+	//
+	// An empty GoVersion means to use the Go version already specified in the
+	// main module's go.mod file, or the latest Go version if there is no main
+	// module.
+	GoVersion string
+
 	// Tags are the build tags in effect (as interpreted by the
 	// cmd/go/internal/imports package).
 	// If nil, treated as equivalent to imports.Tags().
@@ -305,12 +314,15 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 
 	initialRS, _ := loadModFile(ctx) // Ignore needCommit — we're going to commit at the end regardless.
 
+	if opts.GoVersion == "" {
+		opts.GoVersion = modFileGoVersion()
+	}
+
 	ld := loadFromRoots(ctx, loaderParams{
 		PackageOpts:  opts,
 		requirements: initialRS,
 
-		allClosesOverTests: index.allPatternClosesOverTests() && !opts.UseVendorAll,
-		allPatternIsRoot:   allPatternIsRoot,
+		allPatternIsRoot: allPatternIsRoot,
 
 		listRoots: func(rs *Requirements) (roots []string) {
 			updateMatches(rs, nil)
@@ -368,7 +380,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 
 	// Success! Update go.mod and go.sum (if needed) and return the results.
 	loaded = ld
-	commitRequirements(ctx, loaded.requirements)
+	commitRequirements(ctx, opts.GoVersion, loaded.requirements)
 
 	for _, pkg := range ld.pkgs {
 		if !pkg.isTest() {
@@ -593,21 +605,22 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
 		base.Fatalf("go: %v", err)
 	}
 
+	goVersion := modFileGoVersion()
 	loaded = loadFromRoots(ctx, loaderParams{
 		PackageOpts: PackageOpts{
+			GoVersion:             goVersion,
 			Tags:                  tags,
 			ResolveMissingImports: true,
 			SilencePackageErrors:  true,
 		},
-		requirements:       rs,
-		allClosesOverTests: index.allPatternClosesOverTests(),
+		requirements: rs,
 		listRoots: func(*Requirements) (roots []string) {
 			roots = append(roots, imports...)
 			roots = append(roots, testImports...)
 			return roots
 		},
 	})
-	commitRequirements(ctx, loaded.requirements)
+	commitRequirements(ctx, goVersion, loaded.requirements)
 }
 
 // DirImportPath returns the effective import path for dir,
@@ -743,6 +756,12 @@ func Lookup(parentPath string, parentIsStd bool, path string) (dir, realPath str
 type loader struct {
 	loaderParams
 
+	// allClosesOverTests indicates whether the "all" pattern includes
+	// dependencies of tests outside the main module (as in Go 1.11–1.15).
+	// (Otherwise — as in Go 1.16+ — the "all" pattern includes only the packages
+	// transitively *imported by* the packages and tests in the main module.)
+	allClosesOverTests bool
+
 	work *par.Queue
 
 	// reset on each iteration
@@ -757,8 +776,7 @@ type loaderParams struct {
 	PackageOpts
 	requirements *Requirements
 
-	allClosesOverTests bool // Does the "all" pattern include the transitive closure of tests of packages in "all"?
-	allPatternIsRoot   bool // Is the "all" pattern an additional root?
+	allPatternIsRoot bool // Is the "all" pattern an additional root?
 
 	listRoots func(rs *Requirements) []string
 }
@@ -901,6 +919,22 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 	ld := &loader{
 		loaderParams: params,
 		work:         par.NewQueue(runtime.GOMAXPROCS(0)),
+	}
+
+	if params.GoVersion != "" {
+		if semver.Compare("v"+params.GoVersion, narrowAllVersionV) < 0 && !ld.UseVendorAll {
+			// The module's go version explicitly predates the change in "all" for lazy
+			// loading, so continue to use the older interpretation.
+			// (If params.GoVersion is empty, we are probably not in any module at all
+			// and should use the latest semantics.)
+			ld.allClosesOverTests = true
+		}
+
+		var err error
+		ld.requirements, err = convertDepth(ctx, ld.requirements, modDepthFromGoVersion(params.GoVersion))
+		if err != nil {
+			ld.errorf("go: %v\n", err)
+		}
 	}
 
 	if ld.requirements.depth == eager {

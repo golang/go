@@ -259,8 +259,8 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 		if m.GoVersion == "" && checksumOk("/go.mod") {
 			// Load the go.mod file to determine the Go version, since it hasn't
 			// already been populated from rawGoVersion.
-			if summary, err := rawGoModSummary(mod); err == nil && summary.goVersionV != "" {
-				m.GoVersion = summary.goVersionV[1:]
+			if summary, err := rawGoModSummary(mod); err == nil && summary.goVersion != "" {
+				m.GoVersion = summary.goVersion
 			}
 		}
 

@@ -229,7 +229,7 @@ func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, d
 			if err != nil {
 				return err
 			}
-			if summary.depth() == eager {
+			if summary.depth == eager {
 				// For efficiency, we'll load all of the eager upgrades as one big
 				// graph, rather than loading the (potentially-overlapping) subgraph for
 				// each upgrade individually.
@@ -522,7 +522,7 @@ func (l *versionLimiter) check(m module.Version, depth modDepth) dqState {
 		return l.disqualify(m, dqState{err: err})
 	}
 
-	if summary.depth() == eager {
+	if summary.depth == eager {
 		depth = eager
 	}
 	for _, r := range summary.require {

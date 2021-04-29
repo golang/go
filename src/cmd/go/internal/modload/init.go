@@ -381,7 +381,7 @@ var errGoModDirty error = goModDirtyError{}
 func LoadModFile(ctx context.Context) *Requirements {
 	rs, needCommit := loadModFile(ctx)
 	if needCommit {
-		commitRequirements(ctx, rs)
+		commitRequirements(ctx, modFileGoVersion(), rs)
 	}
 	return rs
 }
@@ -401,8 +401,9 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 	if modRoot == "" {
 		Target = module.Version{Path: "command-line-arguments"}
 		targetPrefix = "command-line-arguments"
-		rawGoVersion.Store(Target, latestGoVersion())
-		requirements = newRequirements(index.depth(), nil, nil)
+		goVersion := latestGoVersion()
+		rawGoVersion.Store(Target, goVersion)
+		requirements = newRequirements(modDepthFromGoVersion(goVersion), nil, nil)
 		return requirements, false
 	}
 
@@ -432,7 +433,7 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 	}
 
 	setDefaultBuildMod() // possibly enable automatic vendoring
-	rs = requirementsFromModFile(ctx, f)
+	rs = requirementsFromModFile(ctx)
 
 	if cfg.BuildMod == "vendor" {
 		readVendorList()
@@ -440,27 +441,23 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 		rs.initVendor(vendorList)
 	}
 	if index.goVersionV == "" {
-		// The main module necessarily has a go.mod file, and that file lacks a
-		// 'go' directive. The 'go' command has been adding that directive
-		// automatically since Go 1.12, so this module either dates to Go 1.11 or
-		// has been erroneously hand-edited.
-		//
-		// The semantics of the go.mod file are more-or-less the same from Go 1.11
-		// through Go 1.16, changing at 1.17 for lazy loading. So even though a
-		// go.mod file without a 'go' directive is theoretically a Go 1.11 file,
-		// scripts may assume that it ends up as a Go 1.16 module. We can't go
-		// higher than that, because we don't know which semantics the user intends.
-		//
-		// (Note that 'go mod init' always adds the latest version, so scripts that
-		// use 'go mod init' will result in current-version modules instead of Go
-		// 1.16 modules.)
-		//
-		// If we are able to modify the go.mod file, we will add a 'go' directive
-		// to at least make the situation explicit going forward.
-		if cfg.BuildMod == "mod" {
-			addGoStmt("1.16")
+		// TODO(#45551): Do something more principled instead of checking
+		// cfg.CmdName directly here.
+		if cfg.BuildMod == "mod" && cfg.CmdName != "mod graph" && cfg.CmdName != "mod why" {
+			addGoStmt(latestGoVersion())
+			if go117EnableLazyLoading {
+				// We need to add a 'go' version to the go.mod file, but we must assume
+				// that its existing contents match something between Go 1.11 and 1.16.
+				// Go 1.11 through 1.16 have eager requirements, but the latest Go
+				// version uses lazy requirements instead — so we need to cnvert the
+				// requirements to be lazy.
+				rs, err = convertDepth(ctx, rs, lazy)
+				if err != nil {
+					base.Fatalf("go: %v", err)
+				}
+			}
 		} else {
-			rawGoVersion.Store(Target, "1.16")
+			rawGoVersion.Store(Target, modFileGoVersion())
 		}
 	}
 
@@ -509,7 +506,7 @@ func CreateModFile(ctx context.Context, modPath string) {
 		base.Fatalf("go: %v", err)
 	}
 
-	commitRequirements(ctx, requirementsFromModFile(ctx, modFile))
+	commitRequirements(ctx, modFileGoVersion(), requirementsFromModFile(ctx))
 
 	// Suggest running 'go mod tidy' unless the project is empty. Even if we
 	// imported all the correct requirements above, we're probably missing
@@ -661,12 +658,13 @@ func initTarget(m module.Version) {
 	}
 }
 
-// requirementsFromModFile returns the set of non-excluded requirements from f.
-func requirementsFromModFile(ctx context.Context, f *modfile.File) *Requirements {
-	roots := make([]module.Version, 0, len(f.Require))
+// requirementsFromModFile returns the set of non-excluded requirements from
+// the global modFile.
+func requirementsFromModFile(ctx context.Context) *Requirements {
+	roots := make([]module.Version, 0, len(modFile.Require))
 	mPathCount := map[string]int{Target.Path: 1}
 	direct := map[string]bool{}
-	for _, r := range f.Require {
+	for _, r := range modFile.Require {
 		if index != nil && index.exclude[r.Mod] {
 			if cfg.BuildMod == "mod" {
 				fmt.Fprintf(os.Stderr, "go: dropping requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
@@ -683,7 +681,7 @@ func requirementsFromModFile(ctx context.Context, f *modfile.File) *Requirements
 		}
 	}
 	module.Sort(roots)
-	rs := newRequirements(index.depth(), roots, direct)
+	rs := newRequirements(modDepthFromGoVersion(modFileGoVersion()), roots, direct)
 
 	// If any module path appears more than once in the roots, we know that the
 	// go.mod file needs to be updated even though we have not yet loaded any
@@ -988,12 +986,12 @@ func WriteGoMod(ctx context.Context) {
 	if !allowWriteGoMod {
 		panic("WriteGoMod called while disallowed")
 	}
-	commitRequirements(ctx, LoadModFile(ctx))
+	commitRequirements(ctx, modFileGoVersion(), LoadModFile(ctx))
 }
 
 // commitRequirements writes sets the global requirements variable to rs and
 // writes its contents back to the go.mod file on disk.
-func commitRequirements(ctx context.Context, rs *Requirements) {
+func commitRequirements(ctx context.Context, goVersion string, rs *Requirements) {
 	requirements = rs
 
 	if !allowWriteGoMod {
@@ -1014,6 +1012,9 @@ func commitRequirements(ctx context.Context, rs *Requirements) {
 		})
 	}
 	modFile.SetRequire(list)
+	if goVersion != "" {
+		modFile.AddGoStmt(goVersion)
+	}
 	modFile.Cleanup()
 
 	dirty := index.modFileIsDirty(modFile)
