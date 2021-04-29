@@ -80,7 +80,7 @@ func IsAutoTmp(n Node) bool {
 	return n.Name().AutoTemp()
 }
 
-// mayBeShared reports whether n may occur in multiple places in the AST.
+// MayBeShared reports whether n may occur in multiple places in the AST.
 // Extra care must be taken when mutating such a node.
 func MayBeShared(n Node) bool {
 	switch n.Op() {
@@ -477,7 +477,7 @@ func IsConst(n Node, ct constant.Kind) bool {
 	return ConstType(n) == ct
 }
 
-// isNil reports whether n represents the universal untyped zero value "nil".
+// IsNil reports whether n represents the universal untyped zero value "nil".
 func IsNil(n Node) bool {
 	// Check n.Orig because constant propagation may produce typed nil constants,
 	// which don't exist in the Go spec.
