@@ -1060,7 +1060,7 @@ func MethodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
 	return rpkg.LookupBytes(b.Bytes())
 }
 
-// MethodName returns the ONAME representing the method
+// MethodExprName returns the ONAME representing the method
 // referenced by expression n, which must be a method selector,
 // method expression, or method value.
 func MethodExprName(n Node) *Name {
@@ -1068,7 +1068,7 @@ func MethodExprName(n Node) *Name {
 	return name
 }
 
-// MethodFunc is like MethodName, but returns the types.Field instead.
+// MethodExprFunc is like MethodExprName, but returns the types.Field instead.
 func MethodExprFunc(n Node) *types.Field {
 	switch n.Op() {
 	case ODOTMETH, OMETHEXPR, OCALLPART:
