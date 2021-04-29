@@ -1357,6 +1357,15 @@ const (
 	// _BadDecl occurs when a declaration has invalid syntax.
 	_BadDecl
 
+	// _RepeatedDecl occurs when an identifier occurs more than once on the left
+	// hand side of a short variable declaration.
+	//
+	// Example:
+	//  func _() {
+	//  	x, y, y := 1, 2, 3
+	//  }
+	_RepeatedDecl
+
 	// _Todo is a placeholder for error codes that have not been decided.
 	// TODO(rFindley) remove this error code after deciding on errors for generics code.
 	_Todo

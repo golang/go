@@ -1027,31 +1027,7 @@ func (check *Checker) rawExpr(x *operand, e ast.Expr, hint Type) exprKind {
 	}
 
 	kind := check.exprInternal(x, e, hint)
-
-	// convert x into a user-friendly set of values
-	// TODO(gri) this code can be simplified
-	var typ Type
-	var val constant.Value
-	switch x.mode {
-	case invalid:
-		typ = Typ[Invalid]
-	case novalue:
-		typ = (*Tuple)(nil)
-	case constant_:
-		typ = x.typ
-		val = x.val
-	default:
-		typ = x.typ
-	}
-	assert(x.expr != nil && typ != nil)
-
-	if isUntyped(typ) {
-		// delay type and value recording until we know the type
-		// or until the end of type checking
-		check.rememberUntyped(x.expr, false, x.mode, typ.(*Basic), val)
-	} else {
-		check.recordTypeAndValue(e, x.mode, typ, val)
-	}
+	check.record(x)
 
 	return kind
 }
@@ -1109,18 +1085,20 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 
 	case *ast.FuncLit:
 		if sig, ok := check.typ(e.Type).(*Signature); ok {
-			// Anonymous functions are considered part of the
-			// init expression/func declaration which contains
-			// them: use existing package-level declaration info.
-			decl := check.decl // capture for use in closure below
-			iota := check.iota // capture for use in closure below (#22345)
-			// Don't type-check right away because the function may
-			// be part of a type definition to which the function
-			// body refers. Instead, type-check as soon as possible,
-			// but before the enclosing scope contents changes (#22992).
-			check.later(func() {
-				check.funcBody(decl, "<function literal>", sig, e.Body, iota)
-			})
+			if !check.conf.IgnoreFuncBodies && e.Body != nil {
+				// Anonymous functions are considered part of the
+				// init expression/func declaration which contains
+				// them: use existing package-level declaration info.
+				decl := check.decl // capture for use in closure below
+				iota := check.iota // capture for use in closure below (#22345)
+				// Don't type-check right away because the function may
+				// be part of a type definition to which the function
+				// body refers. Instead, type-check as soon as possible,
+				// but before the enclosing scope contents changes (#22992).
+				check.later(func() {
+					check.funcBody(decl, "<function literal>", sig, e.Body, iota)
+				})
+			}
 			x.mode = value
 			x.typ = sig
 		} else {
@@ -1340,7 +1318,9 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		check.selector(x, e)
 
 	case *ast.IndexExpr:
-		check.indexExpr(x, e)
+		if check.indexExpr(x, e) {
+			check.funcInst(x, e)
+		}
 		if x.mode == invalid {
 			goto Error
 		}
@@ -1378,7 +1358,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		x.typ = T
 
 	case *ast.CallExpr:
-		return check.call(x, e)
+		return check.callExpr(x, e)
 
 	case *ast.StarExpr:
 		check.exprOrType(x, e.X)

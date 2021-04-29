@@ -179,7 +179,11 @@ func (check *Checker) importPackage(pos syntax.Pos, path, dir string) *Package {
 	// package should be complete or marked fake, but be cautious
 	if imp.complete || imp.fake {
 		check.impMap[key] = imp
-		check.pkgCnt[imp.name]++
+		// Once we've formatted an error message once, keep the pkgPathMap
+		// up-to-date on subsequent imports.
+		if check.pkgPathMap != nil {
+			check.markImports(imp)
+		}
 		return imp
 	}
 

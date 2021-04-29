@@ -86,7 +86,6 @@ type Checker struct {
 	pkg  *Package
 	*Info
 	version version                    // accepted language version
-	nextId  uint64                     // unique Id for type parameters (first valid Id is 1)
 	objMap  map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
 	impMap  map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
 	posMap  map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
@@ -191,7 +190,6 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		pkg:     pkg,
 		Info:    info,
 		version: version,
-		nextId:  1,
 		objMap:  make(map[Object]*declInfo),
 		impMap:  make(map[importKey]*Package),
 		posMap:  make(map[*Interface][]token.Pos),
@@ -306,6 +304,33 @@ func (check *Checker) processDelayed(top int) {
 	}
 	assert(top <= len(check.delayed)) // stack must not have shrunk
 	check.delayed = check.delayed[:top]
+}
+
+func (check *Checker) record(x *operand) {
+	// convert x into a user-friendly set of values
+	// TODO(gri) this code can be simplified
+	var typ Type
+	var val constant.Value
+	switch x.mode {
+	case invalid:
+		typ = Typ[Invalid]
+	case novalue:
+		typ = (*Tuple)(nil)
+	case constant_:
+		typ = x.typ
+		val = x.val
+	default:
+		typ = x.typ
+	}
+	assert(x.expr != nil && typ != nil)
+
+	if isUntyped(typ) {
+		// delay type and value recording until we know the type
+		// or until the end of type checking
+		check.rememberUntyped(x.expr, false, x.mode, typ.(*Basic), val)
+	} else {
+		check.recordTypeAndValue(x.expr, x.mode, typ, val)
+	}
 }
 
 func (check *Checker) recordUntyped() {

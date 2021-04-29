@@ -3,10 +3,8 @@
 
 package ssa
 
-import (
-	"cmd/compile/internal/types"
-	"math"
-)
+import "math"
+import "cmd/compile/internal/types"
 
 func rewriteValuegeneric(v *Value) bool {
 	switch v.Op {

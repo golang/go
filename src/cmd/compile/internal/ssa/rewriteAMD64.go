@@ -3,12 +3,10 @@
 
 package ssa
 
-import (
-	"cmd/compile/internal/types"
-	"cmd/internal/obj"
-	"internal/buildcfg"
-	"math"
-)
+import "internal/buildcfg"
+import "math"
+import "cmd/internal/obj"
+import "cmd/compile/internal/types"
 
 func rewriteValueAMD64(v *Value) bool {
 	switch v.Op {

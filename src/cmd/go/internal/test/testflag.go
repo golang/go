@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -68,6 +69,7 @@ func init() {
 	cf.DurationVar(&testTimeout, "timeout", 10*time.Minute, "")
 	cf.StringVar(&testTrace, "trace", "", "")
 	cf.BoolVar(&testV, "v", false, "")
+	cf.Var(&testShuffle, "shuffle", "")
 
 	for name, _ := range passFlagToTest {
 		cf.Var(cf.Lookup(name).Value, "test."+name, "")
@@ -191,6 +193,41 @@ func (f *vetFlag) Set(value string) error {
 		}
 		f.flags = append(f.flags, "-"+arg)
 	}
+	return nil
+}
+
+type shuffleFlag struct {
+	on   bool
+	seed *int64
+}
+
+func (f *shuffleFlag) String() string {
+	if !f.on {
+		return "off"
+	}
+	if f.seed == nil {
+		return "on"
+	}
+	return fmt.Sprintf("%d", *f.seed)
+}
+
+func (f *shuffleFlag) Set(value string) error {
+	if value == "off" {
+		*f = shuffleFlag{on: false}
+		return nil
+	}
+
+	if value == "on" {
+		*f = shuffleFlag{on: true}
+		return nil
+	}
+
+	seed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return fmt.Errorf(`-shuffle argument must be "on", "off", or an int64: %v`, err)
+	}
+
+	*f = shuffleFlag{on: true, seed: &seed}
 	return nil
 }
 

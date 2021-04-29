@@ -1291,16 +1291,15 @@ func (p *parser) typeInstance(typ Expr) Expr {
 
 	pos := p.pos()
 	p.want(_Lbrack)
-	if p.tok == _Rbrack {
-		p.error("expecting type")
-		p.next()
-		return typ
-	}
-
 	x := new(IndexExpr)
 	x.pos = pos
 	x.X = typ
-	x.Index, _ = p.typeList()
+	if p.tok == _Rbrack {
+		p.syntaxError("expecting type")
+		x.Index = p.badExpr()
+	} else {
+		x.Index, _ = p.typeList()
+	}
 	p.want(_Rbrack)
 	return x
 }

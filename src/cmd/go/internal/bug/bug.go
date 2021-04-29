@@ -20,6 +20,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/envcmd"
 	"cmd/go/internal/web"
 )
 
@@ -90,15 +91,18 @@ func printEnvDetails(w io.Writer) {
 	fmt.Fprintf(w, "### What operating system and processor architecture are you using (`go env`)?\n\n")
 	fmt.Fprintf(w, "<details><summary><code>go env</code> Output</summary><br><pre>\n")
 	fmt.Fprintf(w, "$ go env\n")
-	goexe, err := os.Executable()
-	if err != nil {
-		goexe = filepath.Join(runtime.GOROOT(), "bin/go")
-	}
-	printCmdOut(w, "", goexe, "env")
+	printGoEnv(w)
 	printGoDetails(w)
 	printOSDetails(w)
 	printCDetails(w)
 	fmt.Fprintf(w, "</pre></details>\n\n")
+}
+
+func printGoEnv(w io.Writer) {
+	env := envcmd.MkEnv()
+	env = append(env, envcmd.ExtraEnvVars()...)
+	env = append(env, envcmd.ExtraEnvVarsCostly()...)
+	envcmd.PrintEnv(w, env)
 }
 
 func printGoDetails(w io.Writer) {

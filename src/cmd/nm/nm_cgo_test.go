@@ -30,7 +30,7 @@ func canInternalLink() bool {
 		}
 	case "openbsd":
 		switch runtime.GOARCH {
-		case "arm64":
+		case "arm64", "mips64":
 			return false
 		}
 	case "windows":

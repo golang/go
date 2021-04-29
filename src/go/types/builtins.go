@@ -130,7 +130,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			arg(&x, i)
 			xlist = append(xlist, &x)
 		}
-		check.arguments(call, sig, xlist) // discard result (we know the result type)
+		check.arguments(call, sig, nil, xlist) // discard result (we know the result type)
 		// ok to continue even if check.arguments reported errors
 
 		x.mode = value

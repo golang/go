@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Apr 21, 2021",
+	"Subtitle": "Version of Apr 28, 2021",
 	"Path": "/ref/spec"
 }-->
 
@@ -4953,9 +4953,9 @@ ExprSwitchCase = "case" ExpressionList | "default" .
 
 <p>
 If the switch expression evaluates to an untyped constant, it is first implicitly
-<a href="#Conversions">converted</a> to its <a href="#Constants">default type</a>;
-if it is an untyped boolean value, it is first implicitly converted to type <code>bool</code>.
+<a href="#Conversions">converted</a> to its <a href="#Constants">default type</a>.
 The predeclared untyped value <code>nil</code> cannot be used as a switch expression.
+The switch expression type must be <a href="#Comparison_operators">comparable</a>.
 </p>
 
 <p>

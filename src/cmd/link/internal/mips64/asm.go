@@ -52,6 +52,8 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	//		type	uint8
 	//		addend	int64
 
+	addend := r.Xadd
+
 	out.Write64(uint64(sectoff))
 
 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
@@ -77,11 +79,17 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write8(uint8(elf.R_MIPS_HI16))
 	case objabi.R_ADDRMIPSTLS:
 		out.Write8(uint8(elf.R_MIPS_TLS_TPREL_LO16))
+		if ctxt.Target.IsOpenbsd() {
+			// OpenBSD mips64 does not currently offset TLS by 0x7000,
+			// as such we need to add this back to get the correct offset
+			// via the external linker.
+			addend += 0x7000
+		}
 	case objabi.R_CALLMIPS,
 		objabi.R_JMPMIPS:
 		out.Write8(uint8(elf.R_MIPS_26))
 	}
-	out.Write64(uint64(r.Xadd))
+	out.Write64(uint64(addend))
 
 	return true
 }
@@ -124,6 +132,11 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	case objabi.R_ADDRMIPSTLS:
 		// thread pointer is at 0x7000 offset from the start of TLS data area
 		t := ldr.SymValue(rs) + r.Add() - 0x7000
+		if target.IsOpenbsd() {
+			// OpenBSD mips64 does not currently offset TLS by 0x7000,
+			// as such we need to add this back to get the correct offset.
+			t += 0x7000
+		}
 		if t < -32768 || t >= 32678 {
 			ldr.Errorf(s, "TLS offset out of range %d", t)
 		}
