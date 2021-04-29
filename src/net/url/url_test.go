@@ -1295,10 +1295,10 @@ func TestResolveReference(t *testing.T) {
 }
 
 func TestQueryValues(t *testing.T) {
-	u, _ := Parse("http://x.com?foo=bar&bar=1&bar=2")
+	u, _ := Parse("http://x.com?foo=bar&bar=1&bar=2&baz")
 	v := u.Query()
-	if len(v) != 2 {
-		t.Errorf("got %d keys in Query values, want 2", len(v))
+	if len(v) != 3 {
+		t.Errorf("got %d keys in Query values, want 3", len(v))
 	}
 	if g, e := v.Get("foo"), "bar"; g != e {
 		t.Errorf("Get(foo) = %q, want %q", g, e)
@@ -1312,6 +1312,18 @@ func TestQueryValues(t *testing.T) {
 	}
 	if g, e := v.Get("baz"), ""; g != e {
 		t.Errorf("Get(baz) = %q, want %q", g, e)
+	}
+	if h, e := v.Has("foo"), true; h != e {
+		t.Errorf("Has(foo) = %t, want %t", h, e)
+	}
+	if h, e := v.Has("bar"), true; h != e {
+		t.Errorf("Has(bar) = %t, want %t", h, e)
+	}
+	if h, e := v.Has("baz"), true; h != e {
+		t.Errorf("Has(baz) = %t, want %t", h, e)
+	}
+	if h, e := v.Has("noexist"), false; h != e {
+		t.Errorf("Has(noexist) = %t, want %t", h, e)
 	}
 	v.Del("bar")
 	if g, e := v.Get("bar"), ""; g != e {
