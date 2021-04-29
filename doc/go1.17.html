@@ -58,6 +58,17 @@ Do not send CLs removing the interior tags from such phrases.
   <!-- TODO(bcmills): replace the design-doc link with proper documentation. -->
 </p>
 
+<p><!-- golang.org/issue/45094 --> To facilitate the upgrade to lazy loading,
+  the <code>go</code> <code>mod</code> <code>tidy</code> subcommand now supports
+  a <code>-go</code> flag to set or change the <code>go</code> version in
+  the <code>go.mod</code> file. To enable lazy loading for an existing module
+  without changing the selected versions of its dependencies, run:
+</p>
+
+<pre>
+  go mod tidy -go=1.17
+</pre>
+
 <h4 id="module-deprecation-comments">Module deprecation comments</h4>
 
 <p><!-- golang.org/issue/40357 -->

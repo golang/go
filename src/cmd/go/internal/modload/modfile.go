@@ -51,6 +51,27 @@ const (
 
 var modFile *modfile.File
 
+// modFileGoVersion returns the (non-empty) Go version at which the requirements
+// in modFile are intepreted, or the latest Go version if modFile is nil.
+func modFileGoVersion() string {
+	if modFile == nil {
+		return latestGoVersion()
+	}
+	if modFile.Go == nil || modFile.Go.Version == "" {
+		// The main module necessarily has a go.mod file, and that file lacks a
+		// 'go' directive. The 'go' command has been adding that directive
+		// automatically since Go 1.12, so this module either dates to Go 1.11 or
+		// has been erroneously hand-edited.
+		//
+		// The semantics of the go.mod file are more-or-less the same from Go 1.11
+		// through Go 1.16, changing at 1.17 for lazy loading. So even though a
+		// go.mod file without a 'go' directive is theoretically a Go 1.11 file,
+		// scripts may assume that it ends up as a Go 1.16 module.
+		return "1.16"
+	}
+	return modFile.Go.Version
+}
+
 // A modFileIndex is an index of data corresponding to a modFile
 // at a specific point in time.
 type modFileIndex struct {
@@ -78,6 +99,16 @@ const (
 	lazy  modDepth = iota // load dependencies only as needed
 	eager                 // load all transitive dependencies eagerly
 )
+
+func modDepthFromGoVersion(goVersion string) modDepth {
+	if !go117EnableLazyLoading {
+		return eager
+	}
+	if semver.Compare("v"+goVersion, lazyLoadingVersionV) < 0 {
+		return eager
+	}
+	return lazy
+}
 
 // CheckAllowed returns an error equivalent to ErrDisallowed if m is excluded by
 // the main module's go.mod or retracted by its author. Most version queries use
@@ -344,32 +375,6 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
 	return i
 }
 
-// allPatternClosesOverTests reports whether the "all" pattern includes
-// dependencies of tests outside the main module (as in Go 1.11–1.15).
-// (Otherwise — as in Go 1.16+ — the "all" pattern includes only the packages
-// transitively *imported by* the packages and tests in the main module.)
-func (i *modFileIndex) allPatternClosesOverTests() bool {
-	if i != nil && i.goVersionV != "" && semver.Compare(i.goVersionV, narrowAllVersionV) < 0 {
-		// The module explicitly predates the change in "all" for lazy loading, so
-		// continue to use the older interpretation. (If i == nil, we not in any
-		// module at all and should use the latest semantics.)
-		return true
-	}
-	return false
-}
-
-// depth reports the modDepth indicated by the indexed go.mod file,
-// or lazy if the go.mod file has not been indexed.
-func (i *modFileIndex) depth() modDepth {
-	if !go117EnableLazyLoading {
-		return eager
-	}
-	if i != nil && semver.Compare(i.goVersionV, lazyLoadingVersionV) < 0 {
-		return eager
-	}
-	return lazy
-}
-
 // modFileIsDirty reports whether the go.mod file differs meaningfully
 // from what was indexed.
 // If modFile has been changed (even cosmetically) since it was first read,
@@ -396,7 +401,7 @@ func (i *modFileIndex) modFileIsDirty(modFile *modfile.File) bool {
 			return true
 		}
 	} else if "v"+modFile.Go.Version != i.goVersionV {
-		if i.goVersionV == "" && cfg.BuildMod == "readonly" {
+		if i.goVersionV == "" && cfg.BuildMod != "mod" {
 			// go.mod files did not always require a 'go' version, so do not error out
 			// if one is missing — we may be inside an older module in the module
 			// cache, and should bias toward providing useful behavior.
@@ -452,7 +457,8 @@ var rawGoVersion sync.Map // map[module.Version]string
 // module.
 type modFileSummary struct {
 	module     module.Version
-	goVersionV string // GoVersion with "v" prefix
+	goVersion  string
+	depth      modDepth
 	require    []module.Version
 	retract    []retraction
 	deprecated string
@@ -463,20 +469,6 @@ type modFileSummary struct {
 type retraction struct {
 	modfile.VersionInterval
 	Rationale string
-}
-
-func (s *modFileSummary) depth() modDepth {
-	if !go117EnableLazyLoading {
-		return eager
-	}
-	// The 'go' command fills in the 'go' directive automatically, so an empty
-	// goVersionV in a dependency implies either Go 1.11 (eager loading) or no
-	// explicit go.mod file at all (no difference between eager and lazy because
-	// the module doesn't specify any requirements at all).
-	if s.goVersionV == "" || semver.Compare(s.goVersionV, lazyLoadingVersionV) < 0 {
-		return eager
-	}
-	return lazy
 }
 
 // goModSummary returns a summary of the go.mod file for module m,
@@ -638,7 +630,10 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 		}
 		if f.Go != nil && f.Go.Version != "" {
 			rawGoVersion.LoadOrStore(m, f.Go.Version)
-			summary.goVersionV = "v" + f.Go.Version
+			summary.goVersion = f.Go.Version
+			summary.depth = modDepthFromGoVersion(f.Go.Version)
+		} else {
+			summary.depth = eager
 		}
 		if len(f.Require) > 0 {
 			summary.require = make([]module.Version, 0, len(f.Require))

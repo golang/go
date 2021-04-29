@@ -299,7 +299,7 @@ func readModGraph(ctx context.Context, depth modDepth, roots []module.Version) (
 			// sufficient to build the packages it contains. We must load its full
 			// transitive dependency graph to be sure that we see all relevant
 			// dependencies.
-			if depth == eager || summary.depth() == eager {
+			if depth == eager || summary.depth == eager {
 				for _, r := range summary.require {
 					enqueue(r, eager)
 				}
@@ -393,7 +393,7 @@ func LoadModGraph(ctx context.Context) *ModuleGraph {
 		base.Fatalf("go: %v", err)
 	}
 
-	commitRequirements(ctx, rs)
+	commitRequirements(ctx, modFileGoVersion(), rs)
 	return mg
 }
 
@@ -459,7 +459,7 @@ func EditBuildList(ctx context.Context, add, mustSelect []module.Version) (chang
 	if err != nil {
 		return false, err
 	}
-	commitRequirements(ctx, rs)
+	commitRequirements(ctx, modFileGoVersion(), rs)
 	return changed, err
 }
 
@@ -943,10 +943,40 @@ func updateEagerRoots(ctx context.Context, direct map[string]bool, rs *Requireme
 	if err != nil {
 		return rs, err
 	}
-	if reflect.DeepEqual(min, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
-		// The root set is unchanged, so keep rs to preserve its cached ModuleGraph
-		// (if any).
+	if rs.depth == eager && reflect.DeepEqual(min, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
+		// The root set is unchanged and rs was already eager, so keep rs to
+		// preserve its cached ModuleGraph (if any).
 		return rs, nil
 	}
-	return newRequirements(rs.depth, min, direct), nil
+	return newRequirements(eager, min, direct), nil
+}
+
+// convertDepth returns a version of rs with the given depth.
+// If rs already has the given depth, convertDepth returns rs unmodified.
+func convertDepth(ctx context.Context, rs *Requirements, depth modDepth) (*Requirements, error) {
+	if rs.depth == depth {
+		return rs, nil
+	}
+
+	if depth == eager {
+		// We are converting a lazy module to an eager one. The roots of an eager
+		// module graph are a superset of the roots of a lazy graph, so we don't
+		// need to add any new roots — we just need to prune away the ones that are
+		// redundant given eager loading, which is exactly what updateEagerRoots
+		// does.
+		return updateEagerRoots(ctx, rs.direct, rs, nil)
+	}
+
+	// We are converting an eager module to a lazy one. The module graph of an
+	// eager module includes the transitive dependencies of every module in the
+	// build list.
+	//
+	// Hey, we can express that as a lazy root set! “Include the transitive
+	// dependencies of every module in the build list” is exactly what happens in
+	// a lazy module if we promote every module in the build list to a root!
+	mg, err := rs.Graph(ctx)
+	if err != nil {
+		return rs, err
+	}
+	return newRequirements(lazy, mg.BuildList()[1:], rs.direct), nil
 }

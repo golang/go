@@ -30,12 +30,26 @@ cmp go.mod go.mod.orig
 stderr 'cannot find package "\." in:\n\t.*[/\\]vendor[/\\]example.com[/\\]badedit$'
 
 # When we set -mod=mod, the go version should be updated immediately,
-# to Go 1.16 (not the current version).
+# to the current version, converting the requirements from eager to lazy.
+#
+# Since we don't know which requirements are actually relevant to the main
+# module, all requirements are added as roots, making the requirements untidy.
 
 go list -mod=mod all
 ! stdout '^example.com/testdep$'
 cmp stdout list-1.txt
-cmp go.mod go.mod.want
+cmpenv go.mod go.mod.untidy
+
+go mod tidy
+cmpenv go.mod go.mod.tidy
+
+# On the other hand, if we jump straight to 'go mod tidy',
+# the requirements remain tidy from the start.
+
+cp go.mod.orig go.mod
+go mod tidy
+cmpenv go.mod go.mod.tidy
+
 
 # The updated version should have been written back to go.mod, so now the 'go'
 # directive is explicit. -mod=vendor should trigger by default, and the stronger
@@ -54,10 +68,24 @@ replace (
 	example.com/dep v0.1.0 => ./dep
 	example.com/testdep v0.1.0 => ./testdep
 )
--- go.mod.want --
+-- go.mod.untidy --
 module example.com/m
 
-go 1.16
+go $goversion
+
+require (
+	example.com/dep v0.1.0
+	example.com/testdep v0.1.0 // indirect
+)
+
+replace (
+	example.com/dep v0.1.0 => ./dep
+	example.com/testdep v0.1.0 => ./testdep
+)
+-- go.mod.tidy --
+module example.com/m
+
+go $goversion
 
 require example.com/dep v0.1.0
 

@@ -1221,7 +1221,7 @@
 //
 // Usage:
 //
-// 	go mod tidy [-e] [-v]
+// 	go mod tidy [-e] [-v] [-go=version]
 //
 // Tidy makes sure go.mod matches the source code in the module.
 // It adds any missing modules necessary to build the current module's
@@ -1234,6 +1234,12 @@
 //
 // The -e flag causes tidy to attempt to proceed despite errors
 // encountered while loading packages.
+//
+// The -go flag causes tidy to update the 'go' directive in the go.mod
+// file to the given version, which may change which module dependencies
+// are retained as explicit requirements in the go.mod file.
+// (Go versions 1.17 and higher retain more requirements in order to
+// support lazy module loading.)
 //
 // See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 //
