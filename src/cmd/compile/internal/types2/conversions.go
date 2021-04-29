@@ -38,8 +38,10 @@ func (check *Checker) conversion(x *operand, T Type) {
 	}
 
 	if !ok {
-		check.errorf(x, "cannot convert %s to %s", x, T)
-		x.mode = invalid
+		if x.mode != invalid {
+			check.errorf(x, "cannot convert %s to %s", x, T)
+			x.mode = invalid
+		}
 		return
 	}
 
@@ -141,7 +143,16 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
 		if p := asPointer(T); p != nil {
 			if a := asArray(p.Elem()); a != nil {
 				if check.identical(s.Elem(), a.Elem()) {
-					return true
+					if check == nil || check.allowVersion(check.pkg, 1, 17) {
+						return true
+					}
+					// check != nil
+					if check.conf.CompilerErrorMessages {
+						check.error(x, "conversion of slices to array pointers only supported as of -lang=go1.17")
+					} else {
+						check.error(x, "conversion of slices to array pointers requires go1.17 or later")
+					}
+					x.mode = invalid // avoid follow-up error
 				}
 			}
 		}
