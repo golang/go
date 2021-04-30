@@ -15,8 +15,6 @@ const Enabled = false
 
 func PackExpr(list []ast.Expr) ast.Expr {
 	switch len(list) {
-	case 0:
-		return nil
 	case 1:
 		return list[0]
 	default:

@@ -17,7 +17,10 @@ const Enabled = true
 func PackExpr(list []ast.Expr) ast.Expr {
 	switch len(list) {
 	case 0:
-		return nil
+		// Return an empty ListExpr here, rather than nil, as IndexExpr.Index must
+		// never be nil.
+		// TODO(rFindley) would a BadExpr be more appropriate here?
+		return &ast.ListExpr{}
 	case 1:
 		return list[0]
 	default:

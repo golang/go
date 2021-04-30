@@ -1095,6 +1095,7 @@ func (p *parser) parseChanType() *ast.ChanType {
 }
 
 func (p *parser) parseTypeInstance(typ ast.Expr) ast.Expr {
+	assert(p.parseTypeParams(), "parseTypeInstance while not parsing type params")
 	if p.trace {
 		defer un(trace(p, "TypeInstance"))
 	}
