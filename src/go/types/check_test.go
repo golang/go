@@ -47,7 +47,6 @@ import (
 var (
 	haltOnError = flag.Bool("halt", false, "halt on error")
 	listErrors  = flag.Bool("errlist", false, "list errors")
-	testFiles   = flag.String("files", "", "comma-separated list of test files for TestManual")
 	goVersion   = flag.String("lang", "", "Go language version (e.g. \"go1.12\") for TestManual")
 )
 
@@ -297,16 +296,23 @@ func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string,
 	}
 }
 
-// TestManual is for manual testing of selected input files, provided with
-// -files.
+// TestManual is for manual testing of input files, provided as a list
+// of arguments after the test arguments (and a separating "--"). For
+// instance, to check the files foo.go and bar.go, use:
+//
+// 	go test -run Manual -- foo.go bar.go
+//
+// To get an error list rather than having the test check against
+// ERROR comments in the input files, provide the -errlist flag.
 // The accepted Go language version can be controlled with the -lang flag.
 func TestManual(t *testing.T) {
-	if *testFiles == "" {
+	filenames := flag.Args()
+	if len(filenames) == 0 {
 		return
 	}
 	testenv.MustHaveGoBuild(t)
 	DefPredeclaredTestFuncs()
-	testPkg(t, strings.Split(*testFiles, ","), *goVersion)
+	testPkg(t, filenames, *goVersion)
 }
 
 func TestLongConstants(t *testing.T) {
