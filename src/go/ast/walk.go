@@ -112,11 +112,7 @@ func Walk(v Visitor, node Node) {
 
 	case *IndexExpr:
 		Walk(v, n.X)
-		// n.Index may be nil for invalid type instantiation expressions, e.g.
-		// var x T[].
-		if n.Index != nil {
-			Walk(v, n.Index)
-		}
+		Walk(v, n.Index)
 
 	case *SliceExpr:
 		Walk(v, n.X)
