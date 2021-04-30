@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -1640,4 +1641,113 @@ func TestIssue42484(t *testing.T) {
 		rdr.SkipChildren()
 	}
 	f.Close()
+}
+
+func TestOutputParamAbbrevAndAttr(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+	t.Parallel()
+
+	// This test verifies that the compiler is selecting the correct
+	// DWARF abbreviation for output parameters, and that the
+	// variable parameter attribute is correct for in-params and
+	// out-params.
+
+	const prog = `
+package main
+
+//go:noinline
+func ABC(p1, p2, p3 int, f1, f2, f3 float32, b1 [1024]int) (r1 int, r2 int, r3 [1024]int, r4 byte) {
+	b1[0] = 6
+	r1, r2, r3, r4 = p3, p2, b1, 'a'
+	return
+}
+
+func main() {
+	a := [1024]int{}
+	v1, v2, v3, v4 := ABC(1, 2, 3, 1.0, 2.0, 1.0, a)
+	println(v1, v2, v3[0], v4)
+}
+`
+	dir := t.TempDir()
+	f := gobuild(t, dir, prog, NoOpt)
+	defer f.Close()
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	rdr := d.Reader()
+	ex := examiner{}
+	if err := ex.populate(rdr); err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	// Locate the main.ABC DIE
+	abcs := ex.Named("main.ABC")
+	if len(abcs) == 0 {
+		t.Fatalf("unable to locate DIE for main.ABC")
+	}
+	if len(abcs) != 1 {
+		t.Fatalf("more than one main.ABC DIE")
+	}
+	abcdie := abcs[0]
+
+	// Vet the DIE
+	if abcdie.Tag != dwarf.TagSubprogram {
+		t.Fatalf("unexpected tag %v on main.ABC DIE", abcdie.Tag)
+	}
+
+	// A setting of DW_AT_variable_parameter indicates that the
+	// param in question is an output parameter; we want to see this
+	// attribute set to TRUE for all Go return params. It would be
+	// OK to have it missing for input parameters, but for the moment
+	// we verify that the attr is present but set to false.
+
+	// Values in this map:
+	//
+	//   0: <no param of this name>
+	//  -1: varparm attr not found
+	//   1: varparm found with value false
+	//   2: varparm found with value true
+	//
+	foundParams := make(map[string]int)
+
+	// Walk ABCs's children looking for params.
+	abcIdx := ex.idxFromOffset(abcdie.Offset)
+	childDies := ex.Children(abcIdx)
+	for _, child := range childDies {
+		if child.Tag == dwarf.TagFormalParameter {
+			st := -1
+			if vp, ok := child.Val(dwarf.AttrVarParam).(bool); ok {
+				if vp {
+					st = 2
+				} else {
+					st = 1
+				}
+			}
+			if name, ok := child.Val(dwarf.AttrName).(string); ok {
+				foundParams[name] = st
+			}
+		}
+	}
+
+	// Digest the result.
+	found := make([]string, 0, len(foundParams))
+	for k, v := range foundParams {
+		found = append(found, fmt.Sprintf("%s:%d", k, v))
+	}
+	sort.Strings(found)
+
+	// Make sure we see all of the expected params, that they have
+	// the varparam attr, and the varparm is set for the returns.
+	expected := "[b1:1 f1:1 f2:1 f3:1 p1:1 p2:1 p3:1 r1:2 r2:2 r3:2 r4:2]"
+	if fmt.Sprintf("%+v", found) != expected {
+		t.Errorf("param check failed, wanted %s got %s\n",
+			expected, found)
+	}
 }
