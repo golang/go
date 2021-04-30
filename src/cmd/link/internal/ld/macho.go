@@ -1047,7 +1047,7 @@ func machosymtab(ctxt *Link) {
 		// replace "·" as ".", because DTrace cannot handle it.
 		name := strings.Replace(ldr.SymExtname(s), "·", ".", -1)
 
-		name = mangleABIName(ldr, s, name)
+		name = mangleABIName(ctxt, ldr, s, name)
 		symstr.Addstring(name)
 
 		if t := ldr.SymType(s); t == sym.SDYNIMPORT || t == sym.SHOSTOBJ || t == sym.SUNDEFEXT {
