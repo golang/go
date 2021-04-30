@@ -519,6 +519,8 @@ func TestUnknownRevision(t *testing.T) {
 -- a/go.mod --
 module mod.com
 
+go 1.16
+
 require (
 	example.com v1.2.2
 )
@@ -566,6 +568,8 @@ func main() {
 	const known = `
 -- a/go.mod --
 module mod.com
+
+go 1.16
 
 require (
 	example.com v1.2.3
