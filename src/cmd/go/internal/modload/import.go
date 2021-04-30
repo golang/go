@@ -243,8 +243,8 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 	if build.IsLocalImport(path) {
 		return module.Version{}, "", fmt.Errorf("relative import not supported")
 	}
-	if path == "C" || path == "unsafe" {
-		// There's no directory for import "C" or import "unsafe".
+	if path == "C" {
+		// There's no directory for import "C".
 		return module.Version{}, "", nil
 	}
 	// Before any further lookup, check that the path is valid.
