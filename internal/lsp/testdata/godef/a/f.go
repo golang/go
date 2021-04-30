@@ -7,9 +7,9 @@ func TypeStuff() { //@Stuff
 
 	switch y := interface{}(x).(type) { //@mark(switchY, "y"),godef("y", switchY)
 	case int: //@mark(intY, "int")
-		fmt.Printf("%v", y) //@hover("y", intY)
+		fmt.Printf("%v", y) //@hoverdef("y", intY)
 	case string: //@mark(stringY, "string")
-		fmt.Printf("%v", y) //@hover("y", stringY)
+		fmt.Printf("%v", y) //@hoverdef("y", stringY)
 	}
 
 }

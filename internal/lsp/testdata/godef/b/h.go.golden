@@ -1,10 +1,10 @@
--- AStuff-hover --
+-- AStuff-hoverdef --
 ```go
 func AStuff()
 ```
 
 [`a.AStuff` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#AStuff)
--- AVariable-hover --
+-- AVariable-hoverdef --
 ```go
 var _ A
 ```

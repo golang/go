@@ -1,4 +1,4 @@
--- AB-hover --
+-- AB-hoverdef --
 ```go
 func (a.I).B()
 ```
@@ -6,7 +6,7 @@ func (a.I).B()
 [`(a.I).B` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#I.B)
 
 \@mark\(AB, \"B\"\)
--- AField-hover --
+-- AField-hoverdef --
 ```go
 field Field int
 ```
@@ -14,7 +14,7 @@ field Field int
 [`(a.S).Field` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#S.Field)
 
 \@mark\(AField, \"Field\"\)
--- AField2-hover --
+-- AField2-hoverdef --
 ```go
 field Field2 int
 ```
@@ -22,7 +22,7 @@ field Field2 int
 [`(a.R).Field2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#R.Field2)
 
 \@mark\(AField2, \"Field2\"\)
--- AGoodbye-hover --
+-- AGoodbye-hoverdef --
 ```go
 func (a.H).Goodbye()
 ```
@@ -30,7 +30,7 @@ func (a.H).Goodbye()
 [`(a.H).Goodbye` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#H.Goodbye)
 
 \@mark\(AGoodbye, \"Goodbye\"\)
--- AHello-hover --
+-- AHello-hoverdef --
 ```go
 func (a.J).Hello()
 ```
@@ -38,13 +38,13 @@ func (a.J).Hello()
 [`(a.J).Hello` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#J.Hello)
 
 \@mark\(AHello, \"Hello\"\)
--- AHey-hover --
+-- AHey-hoverdef --
 ```go
 func (a.R).Hey()
 ```
 
 [`(a.R).Hey` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#R.Hey)
--- AHi-hover --
+-- AHi-hoverdef --
 ```go
 func (a.A).Hi()
 ```
@@ -74,7 +74,7 @@ package a ("golang.org/x/tools/internal/lsp/godef/a")
 	"description": "```go\npackage a (\"golang.org/x/tools/internal/lsp/godef/a\")\n```\n\n[`a` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls)"
 }
 
--- AImport-hover --
+-- AImport-hoverdef --
 ```go
 package a ("golang.org/x/tools/internal/lsp/godef/a")
 ```
@@ -95,18 +95,18 @@ type A string
 		"start": {
 			"line": 26,
 			"column": 6,
-			"offset": 452
+			"offset": 467
 		},
 		"end": {
 			"line": 26,
 			"column": 7,
-			"offset": 453
+			"offset": 468
 		}
 	},
 	"description": "```go\ntype A string\n```\n\n[`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#A)\n\n\\@mark\\(AString, \\\"A\\\"\\)"
 }
 
--- AString-hover --
+-- AString-hoverdef --
 ```go
 type A string
 ```
@@ -127,18 +127,18 @@ func a.AStuff()
 		"start": {
 			"line": 28,
 			"column": 6,
-			"offset": 489
+			"offset": 504
 		},
 		"end": {
 			"line": 28,
 			"column": 12,
-			"offset": 495
+			"offset": 510
 		}
 	},
 	"description": "```go\nfunc a.AStuff()\n```\n\n[`a.AStuff` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#AStuff)"
 }
 
--- AStuff-hover --
+-- AStuff-hoverdef --
 ```go
 func a.AStuff()
 ```
@@ -162,18 +162,18 @@ type S1 struct {
 		"start": {
 			"line": 27,
 			"column": 6,
-			"offset": 566
+			"offset": 587
 		},
 		"end": {
 			"line": 27,
 			"column": 8,
-			"offset": 568
+			"offset": 589
 		}
 	},
 	"description": "```go\ntype S1 struct {\n\tF1     int //@mark(S1F1, \"F1\")\n\tS2         //@godef(\"S2\", S2),mark(S1S2, \"S2\")\n\ta.A        //@godef(\"A\", AString)\n\taAlias     //@godef(\"a\", aAlias)\n}\n```\n\n[`b.S1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1)"
 }
 
--- S1-hover --
+-- S1-hoverdef --
 ```go
 type S1 struct {
 	F1     int //@mark(S1F1, "F1")
@@ -199,18 +199,18 @@ field F1 int
 		"start": {
 			"line": 28,
 			"column": 2,
-			"offset": 585
+			"offset": 606
 		},
 		"end": {
 			"line": 28,
 			"column": 4,
-			"offset": 587
+			"offset": 608
 		}
 	},
 	"description": "```go\nfield F1 int\n```\n\n[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.F1)\n\n\\@mark\\(S1F1, \\\"F1\\\"\\)"
 }
 
--- S1F1-hover --
+-- S1F1-hoverdef --
 ```go
 field F1 int
 ```
@@ -233,18 +233,18 @@ field S2 S2
 		"start": {
 			"line": 29,
 			"column": 2,
-			"offset": 617
+			"offset": 638
 		},
 		"end": {
 			"line": 29,
 			"column": 4,
-			"offset": 619
+			"offset": 640
 		}
 	},
 	"description": "```go\nfield S2 S2\n```\n\n[`(b.S1).S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.S2)\n\n\\@godef\\(\\\"S2\\\", S2\\),mark\\(S1S2, \\\"S2\\\"\\)"
 }
 
--- S1S2-hover --
+-- S1S2-hoverdef --
 ```go
 field S2 S2
 ```
@@ -269,18 +269,18 @@ type S2 struct {
 		"start": {
 			"line": 34,
 			"column": 6,
-			"offset": 741
+			"offset": 762
 		},
 		"end": {
 			"line": 34,
 			"column": 8,
-			"offset": 743
+			"offset": 764
 		}
 	},
 	"description": "```go\ntype S2 struct {\n\tF1   string //@mark(S2F1, \"F1\")\n\tF2   int    //@mark(S2F2, \"F2\")\n\t*a.A        //@godef(\"A\", AString),godef(\"a\",AImport)\n}\n```\n\n[`b.S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S2)"
 }
 
--- S2-hover --
+-- S2-hoverdef --
 ```go
 type S2 struct {
 	F1   string //@mark(S2F1, "F1")
@@ -305,18 +305,18 @@ field F1 string
 		"start": {
 			"line": 35,
 			"column": 2,
-			"offset": 760
+			"offset": 781
 		},
 		"end": {
 			"line": 35,
 			"column": 4,
-			"offset": 762
+			"offset": 783
 		}
 	},
 	"description": "```go\nfield F1 string\n```\n\n[`(b.S2).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S2.F1)\n\n\\@mark\\(S2F1, \\\"F1\\\"\\)"
 }
 
--- S2F1-hover --
+-- S2F1-hoverdef --
 ```go
 field F1 string
 ```
@@ -339,18 +339,18 @@ field F2 int
 		"start": {
 			"line": 36,
 			"column": 2,
-			"offset": 793
+			"offset": 814
 		},
 		"end": {
 			"line": 36,
 			"column": 4,
-			"offset": 795
+			"offset": 816
 		}
 	},
 	"description": "```go\nfield F2 int\n```\n\n[`(b.S2).F2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S2.F2)\n\n\\@mark\\(S2F2, \\\"F2\\\"\\)"
 }
 
--- S2F2-hover --
+-- S2F2-hoverdef --
 ```go
 field F2 int
 ```
@@ -371,18 +371,18 @@ type aAlias = a.A
 		"start": {
 			"line": 25,
 			"column": 6,
-			"offset": 521
+			"offset": 542
 		},
 		"end": {
 			"line": 25,
 			"column": 12,
-			"offset": 527
+			"offset": 548
 		}
 	},
 	"description": "```go\ntype aAlias = a.A\n```\n\n\\@mark\\(aAlias, \\\"aAlias\\\"\\)"
 }
 
--- aAlias-hover --
+-- aAlias-hoverdef --
 ```go
 type aAlias = a.A
 ```
@@ -403,18 +403,18 @@ const X untyped int = 0
 		"start": {
 			"line": 57,
 			"column": 7,
-			"offset": 1228
+			"offset": 1249
 		},
 		"end": {
 			"line": 57,
 			"column": 8,
-			"offset": 1229
+			"offset": 1250
 		}
 	},
 	"description": "```go\nconst X untyped int = 0\n```\n\n[`b.X` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#X)\n\n\\@mark\\(bX, \\\"X\\\"\\),godef\\(\\\"X\\\", bX\\)"
 }
 
--- bX-hover --
+-- bX-hoverdef --
 ```go
 const X untyped int = 0
 ```
@@ -446,7 +446,7 @@ package myFoo ("golang.org/x/tools/internal/lsp/foo")
 	"description": "```go\npackage myFoo (\"golang.org/x/tools/internal/lsp/foo\")\n```\n\n[`myFoo` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/foo?utm_source=gopls)"
 }
 
--- myFoo-hover --
+-- myFoo-hoverdef --
 ```go
 package myFoo ("golang.org/x/tools/internal/lsp/foo")
 ```

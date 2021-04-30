@@ -20,7 +20,7 @@ func TestA2(t *testing.T)
 	"description": "```go\nfunc TestA2(t *testing.T)\n```"
 }
 
--- TestA2-hover --
+-- TestA2-hoverdef --
 ```go
 func TestA2(t *testing.T)
 ```

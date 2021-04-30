@@ -25,9 +25,9 @@ func _() {
 	}
 
 	var t s
-	_ = t.nested.number  //@hover("number", nestedNumber)
-	_ = t.nested2[0].str //@hover("str", nestedString)
-	_ = t.x.x.x.x.x.m    //@hover("m", nestedMap)
+	_ = t.nested.number  //@hoverdef("number", nestedNumber)
+	_ = t.nested2[0].str //@hoverdef("str", nestedString)
+	_ = t.x.x.x.x.x.m    //@hoverdef("m", nestedMap)
 }
 
 func _() {
@@ -40,9 +40,9 @@ func _() {
 			c int //@mark(structC, "c")
 		}
 	}
-	_ = s.a   //@hover("a", structA)
-	_ = s.b   //@hover("b", structB)
-	_ = s.b.c //@hover("c", structC)
+	_ = s.a   //@hoverdef("a", structA)
+	_ = s.b   //@hoverdef("b", structB)
+	_ = s.b.c //@hoverdef("c", structC)
 
 	var arr []struct {
 		// d field
@@ -53,9 +53,9 @@ func _() {
 			f int //@mark(arrF, "f")
 		}
 	}
-	_ = arr[0].d   //@hover("d", arrD)
-	_ = arr[0].e   //@hover("e", arrE)
-	_ = arr[0].e.f //@hover("f", arrF)
+	_ = arr[0].d   //@hoverdef("d", arrD)
+	_ = arr[0].e   //@hoverdef("e", arrE)
+	_ = arr[0].e.f //@hoverdef("f", arrF)
 
 	var complex []struct {
 		c <-chan map[string][]struct {
@@ -68,16 +68,16 @@ func _() {
 			}
 		}
 	}
-	_ = (<-complex[0].c)["0"][0].h   //@hover("h", complexH)
-	_ = (<-complex[0].c)["0"][0].i   //@hover("i", complexI)
-	_ = (<-complex[0].c)["0"][0].i.j //@hover("j", complexJ)
+	_ = (<-complex[0].c)["0"][0].h   //@hoverdef("h", complexH)
+	_ = (<-complex[0].c)["0"][0].i   //@hoverdef("i", complexI)
+	_ = (<-complex[0].c)["0"][0].i.j //@hoverdef("j", complexJ)
 
 	var mapWithStructKey map[struct {
 		// X key field
 		x []string //@mark(mapStructKeyX, "x")
 	}]int
 	for k := range mapWithStructKey {
-		_ = k.x //@hover("x", mapStructKeyX)
+		_ = k.x //@hoverdef("x", mapStructKeyX)
 	}
 
 	var mapWithStructKeyAndValue map[struct {
@@ -90,15 +90,15 @@ func _() {
 	for k, v := range mapWithStructKeyAndValue {
 		// TODO: we don't show docs for y field because both map key and value
 		// are structs. And in this case, we parse only map value
-		_ = k.y //@hover("y", mapStructKeyY)
-		_ = v.x //@hover("x", mapStructValueX)
+		_ = k.y //@hoverdef("y", mapStructKeyY)
+		_ = v.x //@hoverdef("x", mapStructValueX)
 	}
 
 	var i []map[string]interface {
 		// open method comment
 		open() error //@mark(openMethod, "open")
 	}
-	i[0]["1"].open() //@hover("open", openMethod)
+	i[0]["1"].open() //@hoverdef("open", openMethod)
 }
 
 func _() {
@@ -106,7 +106,7 @@ func _() {
 		// test description
 		desc string //@mark(testDescription, "desc")
 	}{}
-	_ = test.desc //@hover("desc", testDescription)
+	_ = test.desc //@hoverdef("desc", testDescription)
 
 	for _, tt := range []struct {
 		// test input
@@ -123,11 +123,11 @@ func _() {
 			}
 		}
 	}{} {
-		_ = tt.in               //@hover("in", testInput)
-		_ = tt.in["0"][0].key   //@hover("key", testInputKey)
-		_ = tt.in["0"][0].value //@hover("value", testInputValue)
+		_ = tt.in               //@hoverdef("in", testInput)
+		_ = tt.in["0"][0].key   //@hoverdef("key", testInputKey)
+		_ = tt.in["0"][0].value //@hoverdef("value", testInputValue)
 
-		_ = (<-tt.result.v).value //@hover("value", testResultValue)
+		_ = (<-tt.result.v).value //@hoverdef("value", testResultValue)
 	}
 }
 
@@ -142,6 +142,6 @@ func _() {
 	}
 
 	r := getPoints()
-	r[0].x //@hover("x", returnX)
-	r[0].y //@hover("y", returnY)
+	r[0].x //@hoverdef("x", returnX)
+	r[0].y //@hoverdef("y", returnY)
 }

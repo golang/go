@@ -84,6 +84,7 @@ type WorkspaceSymbols map[WorkspaceSymbolsTestType]map[span.URI][]string
 type Signatures map[span.Span]*protocol.SignatureHelp
 type Links map[span.URI][]Link
 type AddImport map[span.URI]string
+type Hovers map[span.Span]string
 
 type Data struct {
 	Config                   packages.Config
@@ -119,6 +120,7 @@ type Data struct {
 	Signatures               Signatures
 	Links                    Links
 	AddImport                AddImport
+	Hovers                   Hovers
 
 	t         testing.TB
 	fragments map[string]string
@@ -161,6 +163,7 @@ type Tests interface {
 	SignatureHelp(*testing.T, span.Span, *protocol.SignatureHelp)
 	Link(*testing.T, span.URI, []Link)
 	AddImport(*testing.T, span.URI, string)
+	Hover(*testing.T, span.Span, string)
 }
 
 type Definition struct {
@@ -309,6 +312,7 @@ func load(t testing.TB, mode string, dir string) *Data {
 		Signatures:               make(Signatures),
 		Links:                    make(Links),
 		AddImport:                make(AddImport),
+		Hovers:                   make(Hovers),
 
 		t:         t,
 		dir:       dir,
@@ -459,7 +463,8 @@ func load(t testing.TB, mode string, dir string) *Data {
 		"godef":           datum.collectDefinitions,
 		"implementations": datum.collectImplementations,
 		"typdef":          datum.collectTypeDefinitions,
-		"hover":           datum.collectHoverDefinitions,
+		"hoverdef":        datum.collectHoverDefinitions,
+		"hover":           datum.collectHovers,
 		"highlight":       datum.collectHighlights,
 		"refs":            datum.collectReferences,
 		"rename":          datum.collectRenames,
@@ -485,7 +490,7 @@ func load(t testing.TB, mode string, dir string) *Data {
 	// Collect names for the entries that require golden files.
 	if err := datum.Exported.Expect(map[string]interface{}{
 		"godef":                        datum.collectDefinitionNames,
-		"hover":                        datum.collectDefinitionNames,
+		"hoverdef":                     datum.collectDefinitionNames,
 		"workspacesymbol":              datum.collectWorkspaceSymbols(WorkspaceSymbolsDefault),
 		"workspacesymbolfuzzy":         datum.collectWorkspaceSymbols(WorkspaceSymbolsFuzzy),
 		"workspacesymbolcasesensitive": datum.collectWorkspaceSymbols(WorkspaceSymbolsCaseSensitive),
@@ -726,6 +731,16 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			t.Run(SpanName(pos), func(t *testing.T) {
 				t.Helper()
 				tests.Highlight(t, pos, locations)
+			})
+		}
+	})
+
+	t.Run("Hover", func(t *testing.T) {
+		t.Helper()
+		for pos, info := range data.Hovers {
+			t.Run(SpanName(pos), func(t *testing.T) {
+				t.Helper()
+				tests.Hover(t, pos, info)
 			})
 		}
 	})
@@ -1220,6 +1235,10 @@ func (data *Data) collectHoverDefinitions(src, target span.Span) {
 		Def:       target,
 		OnlyHover: true,
 	}
+}
+
+func (data *Data) collectHovers(src span.Span, expected string) {
+	data.Hovers[src] = expected
 }
 
 func (data *Data) collectTypeDefinitions(src, target span.Span) {

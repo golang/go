@@ -718,7 +718,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	didSomething := false
 	if hover != nil {
 		didSomething = true
-		tag := fmt.Sprintf("%s-hover", d.Name)
+		tag := fmt.Sprintf("%s-hoverdef", d.Name)
 		expectHover := string(r.data.Golden(tag, d.Src.URI().Filename(), func() ([]byte, error) {
 			return []byte(hover.Contents.Value), nil
 		}))
@@ -836,6 +836,43 @@ func (r *runner) Highlight(t *testing.T, src span.Span, locations []span.Span) {
 	for i := range results {
 		if results[i] != locations[i] {
 			t.Errorf("want %v, got %v\n", locations[i], results[i])
+		}
+	}
+}
+
+func (r *runner) Hover(t *testing.T, src span.Span, text string) {
+	m, err := r.data.Mapper(src.URI())
+	if err != nil {
+		t.Fatal(err)
+	}
+	loc, err := m.Location(src)
+	if err != nil {
+		t.Fatalf("failed for %v", err)
+	}
+	tdpp := protocol.TextDocumentPositionParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
+		Position:     loc.Range.Start,
+	}
+	params := &protocol.HoverParams{
+		TextDocumentPositionParams: tdpp,
+	}
+	hover, err := r.server.Hover(r.ctx, params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if text == "" {
+		if hover != nil {
+			t.Errorf("want nil, got %v\n", hover)
+		}
+	} else {
+		if hover == nil {
+			t.Fatalf("want hover result to include %s, but got nil", text)
+		}
+		if got := hover.Contents.Value; got != text {
+			t.Errorf("want %v, got %v\n", text, got)
+		}
+		if want, got := loc.Range, hover.Range; want != got {
+			t.Errorf("want range %v, got %v instead", want, got)
 		}
 	}
 }

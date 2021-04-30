@@ -14,9 +14,12 @@ import (
 	"go/format"
 	"go/token"
 	"go/types"
+	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
+	"golang.org/x/text/unicode/runenames"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/typeparams"
@@ -66,6 +69,9 @@ type HoverInformation struct {
 func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position protocol.Position) (*protocol.Hover, error) {
 	ident, err := Identifier(ctx, snapshot, fh, position)
 	if err != nil {
+		if hover, innerErr := hoverRune(ctx, snapshot, fh, position); innerErr == nil {
+			return hover, nil
+		}
 		return nil, nil
 	}
 	h, err := HoverIdentifier(ctx, ident)
@@ -91,6 +97,155 @@ func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position proto
 		},
 		Range: rng,
 	}, nil
+}
+
+func hoverRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position protocol.Position) (*protocol.Hover, error) {
+	ctx, done := event.Start(ctx, "source.hoverRune")
+	defer done()
+
+	r, mrng, err := findRune(ctx, snapshot, fh, position)
+	if err != nil {
+		return nil, err
+	}
+	rng, err := mrng.Range()
+	if err != nil {
+		return nil, err
+	}
+
+	var desc string
+	runeName := runenames.Name(r)
+	if len(runeName) > 0 && runeName[0] == '<' {
+		// Check if the rune looks like an HTML tag. If so, trim the surrounding <>
+		// characters to work around https://github.com/microsoft/vscode/issues/124042.
+		runeName = strings.TrimRight(runeName[1:], ">")
+	}
+	if strconv.IsPrint(r) {
+		desc = fmt.Sprintf("'%s', U+%04X, %s", string(r), uint32(r), runeName)
+	} else {
+		desc = fmt.Sprintf("U+%04X, %s", uint32(r), runeName)
+	}
+	return &protocol.Hover{
+		Contents: protocol.MarkupContent{
+			Kind:  snapshot.View().Options().PreferredContentFormat,
+			Value: desc,
+		},
+		Range: rng,
+	}, nil
+}
+
+// ErrNoRuneFound is the error returned when no rune is found at a particular position.
+var ErrNoRuneFound = errors.New("no rune found")
+
+// findRune returns rune information for a position in a file.
+func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) (rune, MappedRange, error) {
+	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
+	if err != nil {
+		return 0, MappedRange{}, err
+	}
+	spn, err := pgf.Mapper.PointSpan(pos)
+	if err != nil {
+		return 0, MappedRange{}, err
+	}
+	rng, err := spn.Range(pgf.Mapper.Converter)
+	if err != nil {
+		return 0, MappedRange{}, err
+	}
+
+	// Find the basic literal enclosing the given position, if there is one.
+	var lit *ast.BasicLit
+	var found bool
+	ast.Inspect(pgf.File, func(n ast.Node) bool {
+		if found {
+			return false
+		}
+		if n, ok := n.(*ast.BasicLit); ok && rng.Start >= n.Pos() && rng.Start <= n.End() {
+			lit = n
+			found = true
+		}
+		return !found
+	})
+	if !found {
+		return 0, MappedRange{}, ErrNoRuneFound
+	}
+
+	var r rune
+	var start, end token.Pos
+	switch lit.Kind {
+	case token.CHAR:
+		s, err := strconv.Unquote(lit.Value)
+		if err != nil {
+			// If the conversion fails, it's because of an invalid syntax, therefore
+			// there is no rune to be found.
+			return 0, MappedRange{}, ErrNoRuneFound
+		}
+		r, _ = utf8.DecodeRuneInString(s)
+		if r == utf8.RuneError {
+			return 0, MappedRange{}, fmt.Errorf("rune error")
+		}
+		start, end = lit.Pos(), lit.End()
+	case token.INT:
+		// It's an integer, scan only if it is a hex litteral whose bitsize in
+		// ranging from 8 to 32.
+		if !(strings.HasPrefix(lit.Value, "0x") && len(lit.Value[2:]) >= 2 && len(lit.Value[2:]) <= 8) {
+			return 0, MappedRange{}, ErrNoRuneFound
+		}
+		v, err := strconv.ParseUint(lit.Value[2:], 16, 32)
+		if err != nil {
+			return 0, MappedRange{}, err
+		}
+		r = rune(v)
+		if r == utf8.RuneError {
+			return 0, MappedRange{}, fmt.Errorf("rune error")
+		}
+		start, end = lit.Pos(), lit.End()
+	case token.STRING:
+		// It's a string, scan only if it contains a unicode escape sequence under or before the
+		// current cursor position.
+		var found bool
+		strMappedRng, err := posToMappedRange(snapshot, pkg, lit.Pos(), lit.End())
+		if err != nil {
+			return 0, MappedRange{}, err
+		}
+		strRng, err := strMappedRng.Range()
+		if err != nil {
+			return 0, MappedRange{}, err
+		}
+		offset := strRng.Start.Character
+		for i := pos.Character - offset; i > 0; i-- {
+			// Start at the cursor position and search backward for the beginning of a rune escape sequence.
+			rr, _ := utf8.DecodeRuneInString(lit.Value[i:])
+			if rr == utf8.RuneError {
+				return 0, MappedRange{}, fmt.Errorf("rune error")
+			}
+			if rr == '\\' {
+				// Got the beginning, decode it.
+				var tail string
+				r, _, tail, err = strconv.UnquoteChar(lit.Value[i:], '"')
+				if err != nil {
+					// If the conversion fails, it's because of an invalid syntax, therefore is no rune to be found.
+					return 0, MappedRange{}, ErrNoRuneFound
+				}
+				// Only the rune escape sequence part of the string has to be highlighted, recompute the range.
+				runeLen := len(lit.Value) - (int(i) + len(tail))
+				start = token.Pos(int(lit.Pos()) + int(i))
+				end = token.Pos(int(start) + runeLen)
+				found = true
+				break
+			}
+		}
+		if !found {
+			// No escape sequence found
+			return 0, MappedRange{}, ErrNoRuneFound
+		}
+	default:
+		return 0, MappedRange{}, ErrNoRuneFound
+	}
+
+	mappedRange, err := posToMappedRange(snapshot, pkg, start, end)
+	if err != nil {
+		return 0, MappedRange{}, err
+	}
+	return r, mappedRange, nil
 }
 
 func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverInformation, error) {

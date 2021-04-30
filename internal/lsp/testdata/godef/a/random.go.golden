@@ -22,7 +22,7 @@ func (*Pos).Sum() int
 	"description": "```go\nfunc (*Pos).Sum() int\n```\n\n[`(a.Pos).Sum` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Pos.Sum)"
 }
 
--- PosSum-hover --
+-- PosSum-hoverdef --
 ```go
 func (*Pos).Sum() int
 ```
@@ -52,7 +52,7 @@ field x int
 	"description": "```go\nfield x int\n```\n\n\\@mark\\(PosX, \\\"x\\\"\\),mark\\(PosY, \\\"y\\\"\\)"
 }
 
--- PosX-hover --
+-- PosX-hoverdef --
 ```go
 field x int
 ```
@@ -80,7 +80,7 @@ var y int
 	"description": "```go\nvar y int\n```"
 }
 
--- RandomParamY-hover --
+-- RandomParamY-hoverdef --
 ```go
 var y int
 ```
@@ -106,7 +106,7 @@ field field string
 	"description": "```go\nfield field string\n```"
 }
 
--- TypField-hover --
+-- TypField-hoverdef --
 ```go
 field field string
 ```

@@ -1,20 +1,20 @@
--- argInfer-hover --
+-- argInfer-hoverdef --
 ```go
 func app(s []int, e int) []int // func[S₁ interface{~[]E₂}, E₂ interface{}](s S₁, e E₂) S₁
 ```
--- constrInf-hover --
+-- constrInf-hoverdef --
 ```go
 func app(s []int, e int) []int // func[S₁ interface{~[]E₂}, E₂ interface{}](s S₁, e E₂) S₁
 ```
--- constrInfer-hover --
+-- constrInfer-hoverdef --
 ```go
 func app(s []int, e int) []int // func[S₁ interface{~[]E₂}, E₂ interface{}](s S₁, e E₂) S₁
 ```
--- instance-hover --
+-- instance-hoverdef --
 ```go
 func app(s []int, e int) []int // func[S₁ interface{~[]E₂}, E₂ interface{}](s S₁, e E₂) S₁
 ```
--- partialInfer-hover --
+-- partialInfer-hoverdef --
 ```go
 func app(s []int, e int) []int // func[S₁ interface{~[]E₂}, E₂ interface{}](s S₁, e E₂) S₁
 ```

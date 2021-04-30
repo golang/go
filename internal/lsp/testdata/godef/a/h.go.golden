@@ -1,134 +1,134 @@
--- arrD-hover --
+-- arrD-hoverdef --
 ```go
 field d int
 ```
 
 d field
--- arrE-hover --
+-- arrE-hoverdef --
 ```go
 field e struct{f int}
 ```
 
 e nested struct
--- arrF-hover --
+-- arrF-hoverdef --
 ```go
 field f int
 ```
 
 f field of nested struct
--- complexH-hover --
+-- complexH-hoverdef --
 ```go
 field h int
 ```
 
 h field
--- complexI-hover --
+-- complexI-hoverdef --
 ```go
 field i struct{j int}
 ```
 
 i nested struct
--- complexJ-hover --
+-- complexJ-hoverdef --
 ```go
 field j int
 ```
 
 j field of nested struct
--- mapStructKeyX-hover --
+-- mapStructKeyX-hoverdef --
 ```go
 field x []string
 ```
 
 X key field
--- mapStructKeyY-hover --
+-- mapStructKeyY-hoverdef --
 ```go
 field y string
 ```
--- mapStructValueX-hover --
+-- mapStructValueX-hoverdef --
 ```go
 field x string
 ```
 
 X value field
--- nestedMap-hover --
+-- nestedMap-hoverdef --
 ```go
 field m map[string]float64
 ```
 
 nested map
--- nestedNumber-hover --
+-- nestedNumber-hoverdef --
 ```go
 field number int64
 ```
 
 nested number
--- nestedString-hover --
+-- nestedString-hoverdef --
 ```go
 field str string
 ```
 
 nested string
--- openMethod-hover --
+-- openMethod-hoverdef --
 ```go
 func (interface).open() error
 ```
 
 open method comment
--- returnX-hover --
+-- returnX-hoverdef --
 ```go
 field x int
 ```
 
 X coord
--- returnY-hover --
+-- returnY-hoverdef --
 ```go
 field y int
 ```
 
 Y coord
--- structA-hover --
+-- structA-hoverdef --
 ```go
 field a int
 ```
 
 a field
--- structB-hover --
+-- structB-hoverdef --
 ```go
 field b struct{c int}
 ```
 
 b nested struct
--- structC-hover --
+-- structC-hoverdef --
 ```go
 field c int
 ```
 
 c field of nested struct
--- testDescription-hover --
+-- testDescription-hoverdef --
 ```go
 field desc string
 ```
 
 test description
--- testInput-hover --
+-- testInput-hoverdef --
 ```go
 field in map[string][]struct{key string; value interface{}}
 ```
 
 test input
--- testInputKey-hover --
+-- testInputKey-hoverdef --
 ```go
 field key string
 ```
 
 test key
--- testInputValue-hover --
+-- testInputValue-hoverdef --
 ```go
 field value interface{}
 ```
 
 test value
--- testResultValue-hover --
+-- testResultValue-hoverdef --
 ```go
 field value int
 ```

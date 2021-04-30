@@ -22,7 +22,7 @@ func cgo.Example()
 	"description": "```go\nfunc cgo.Example()\n```\n\n[`cgo.Example` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/cgo?utm_source=gopls#Example)"
 }
 
--- funccgoexample-hover --
+-- funccgoexample-hoverdef --
 ```go
 func cgo.Example()
 ```

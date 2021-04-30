@@ -13,13 +13,13 @@ type Embed struct {
 
 func _() {
 	e := Embed{}
-	e.Hi()      //@hover("Hi", AHi)
-	e.B()       //@hover("B", AB)
-	e.Field     //@hover("Field", AField)
-	e.Field2    //@hover("Field2", AField2)
-	e.Hello()   //@hover("Hello", AHello)
-	e.Hey()     //@hover("Hey", AHey)
-	e.Goodbye() //@hover("Goodbye", AGoodbye)
+	e.Hi()      //@hoverdef("Hi", AHi)
+	e.B()       //@hoverdef("B", AB)
+	e.Field     //@hoverdef("Field", AField)
+	e.Field2    //@hoverdef("Field2", AField2)
+	e.Hello()   //@hoverdef("Hello", AHello)
+	e.Hey()     //@hoverdef("Hey", AHey)
+	e.Goodbye() //@hoverdef("Goodbye", AGoodbye)
 }
 
 type aAlias = a.A //@mark(aAlias, "aAlias")

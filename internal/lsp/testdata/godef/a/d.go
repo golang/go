@@ -1,4 +1,4 @@
-package a //@mark(a, "a "),hover("a ", a)
+package a //@mark(a, "a "),hoverdef("a ", a)
 
 import "fmt"
 

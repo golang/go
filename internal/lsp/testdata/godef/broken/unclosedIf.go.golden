@@ -22,7 +22,7 @@ var myUnclosedIf string
 	"description": "```go\nvar myUnclosedIf string\n```\n\n\\@myUnclosedIf"
 }
 
--- myUnclosedIf-hover --
+-- myUnclosedIf-hoverdef --
 ```go
 var myUnclosedIf string
 ```

@@ -1,4 +1,4 @@
--- Lock-hover --
+-- Lock-hoverdef --
 ```go
 func (*sync.Mutex).Lock()
 ```
@@ -6,7 +6,7 @@ func (*sync.Mutex).Lock()
 [`(sync.Mutex).Lock` on pkg.go.dev](https://pkg.go.dev/sync?utm_source=gopls#Mutex.Lock)
 
 Lock locks m\.
--- Name-hover --
+-- Name-hoverdef --
 ```go
 func (*types.object).Name() string
 ```
@@ -38,7 +38,7 @@ func Random() int
 	"description": "```go\nfunc Random() int\n```\n\n[`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Random)"
 }
 
--- Random-hover --
+-- Random-hoverdef --
 ```go
 func Random() int
 ```
@@ -68,15 +68,15 @@ func Random2(y int) int
 	"description": "```go\nfunc Random2(y int) int\n```\n\n[`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Random2)"
 }
 
--- Random2-hover --
+-- Random2-hoverdef --
 ```go
 func Random2(y int) int
 ```
 
 [`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Random2)
--- aPackage-hover --
+-- aPackage-hoverdef --
 Package a is a package for testing go to definition\.
--- declBlockA-hover --
+-- declBlockA-hoverdef --
 ```go
 type a struct {
 	x string
@@ -84,13 +84,13 @@ type a struct {
 ```
 
 1st type declaration block
--- declBlockB-hover --
+-- declBlockB-hoverdef --
 ```go
 type b struct{}
 ```
 
 b has a comment
--- declBlockC-hover --
+-- declBlockC-hoverdef --
 ```go
 type c struct {
 	f string
@@ -98,13 +98,13 @@ type c struct {
 ```
 
 c is a struct
--- declBlockD-hover --
+-- declBlockD-hoverdef --
 ```go
 type d string
 ```
 
 3rd type declaration block
--- declBlockE-hover --
+-- declBlockE-hoverdef --
 ```go
 type e struct {
 	f float64
@@ -125,36 +125,36 @@ var err error
 		"start": {
 			"line": 33,
 			"column": 6,
-			"offset": 597
+			"offset": 612
 		},
 		"end": {
 			"line": 33,
 			"column": 9,
-			"offset": 600
+			"offset": 615
 		}
 	},
 	"description": "```go\nvar err error\n```\n\n\\@err"
 }
 
--- err-hover --
+-- err-hoverdef --
 ```go
 var err error
 ```
 
 \@err
--- g-hover --
+-- g-hoverdef --
 ```go
 const g untyped int = 1
 ```
 
 When I hover on g, I should see this comment\.
--- h-hover --
+-- h-hoverdef --
 ```go
 const h untyped int = 2
 ```
 
 Constant block\.
--- make-hover --
+-- make-hoverdef --
 ```go
 func(t Type, size ...IntegerType) Type
 ```
@@ -162,23 +162,23 @@ func(t Type, size ...IntegerType) Type
 [`make` on pkg.go.dev](https://pkg.go.dev/builtin?utm_source=gopls#make)
 
 The make built\-in function allocates and initializes an object of type slice, map, or chan \(only\)\.
--- string-hover --
+-- string-hoverdef --
 ```go
 string
 ```
--- typesImport-hover --
+-- typesImport-hoverdef --
 ```go
 package types ("go/types")
 ```
 
 [`types` on pkg.go.dev](https://pkg.go.dev/go/types?utm_source=gopls)
--- x-hover --
+-- x-hoverdef --
 ```go
 var x string
 ```
 
 x is a variable\.
--- z-hover --
+-- z-hoverdef --
 ```go
 var z string
 ```

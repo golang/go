@@ -576,12 +576,12 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	didSomething := false
 	if hover != "" {
 		didSomething = true
-		tag := fmt.Sprintf("%s-hover", d.Name)
+		tag := fmt.Sprintf("%s-hoverdef", d.Name)
 		expectHover := string(r.data.Golden(tag, d.Src.URI().Filename(), func() ([]byte, error) {
 			return []byte(hover), nil
 		}))
 		if hover != expectHover {
-			t.Errorf("hover for %s failed:\n%s", d.Src, tests.Diff(t, expectHover, hover))
+			t.Errorf("hoverdef for %s failed:\n%s", d.Src, tests.Diff(t, expectHover, hover))
 		}
 	}
 	if !d.OnlyHover {
@@ -678,6 +678,37 @@ func (r *runner) Highlight(t *testing.T, src span.Span, locations []span.Span) {
 	for i := range results {
 		if results[i] != locations[i] {
 			t.Errorf("want %v, got %v\n", locations[i], results[i])
+		}
+	}
+}
+
+func (r *runner) Hover(t *testing.T, src span.Span, text string) {
+	ctx := r.ctx
+	_, srcRng, err := spanToRange(r.data, src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fh, err := r.snapshot.GetFile(r.ctx, src.URI())
+	if err != nil {
+		t.Fatal(err)
+	}
+	hover, err := source.Hover(ctx, r.snapshot, fh, srcRng.Start)
+	if err != nil {
+		t.Errorf("hover failed for %s: %v", src.URI(), err)
+	}
+	if text == "" {
+		if hover != nil {
+			t.Errorf("want nil, got %v\n", hover)
+		}
+	} else {
+		if hover == nil {
+			t.Fatalf("want hover result to not be nil")
+		}
+		if got := hover.Contents.Value; got != text {
+			t.Errorf("want %v, got %v\n", got, text)
+		}
+		if want, got := srcRng, hover.Range; want != got {
+			t.Errorf("want range %v, got %v instead", want, got)
 		}
 	}
 }

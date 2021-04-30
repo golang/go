@@ -1,8 +1,8 @@
--- intY-hover --
+-- intY-hoverdef --
 ```go
 var y int
 ```
--- stringY-hover --
+-- stringY-hoverdef --
 ```go
 var y string
 ```
@@ -28,7 +28,7 @@ var y interface{}
 	"description": "```go\nvar y interface{}\n```"
 }
 
--- switchY-hover --
+-- switchY-hoverdef --
 ```go
 var y interface{}
 ```
