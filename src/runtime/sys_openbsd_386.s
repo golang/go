@@ -22,6 +22,8 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
 // It just does some low-level setup and then calls mstart.
 // Note: called with the C calling convention.
 TEXT runtime·mstart_stub(SB),NOSPLIT,$28
+	NOP	SP	// tell vet SP changed - stop checking offsets
+
 	// We are already on m's g0 stack.
 
 	// Save callee-save registers.
