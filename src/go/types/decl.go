@@ -655,7 +655,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 
 	if alias {
 		// type alias declaration
-		if !check.allowVersion(obj.pkg, 1, 9) {
+		if !check.allowVersion(check.pkg, 1, 9) {
 			check.errorf(atPos(tdecl.Assign), _BadDecl, "type aliases requires go1.9 or later")
 		}
 
