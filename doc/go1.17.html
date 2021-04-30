@@ -120,7 +120,7 @@ Do not send CLs removing the interior tags from such phrases.
   files.)
 </p>
 
-<h4 id="vendor-go-versions"><code>go</code> versions in <code>vendor/modules.txt</code></h4>
+<h4 id="vendor"><code>vendor</code> contents</h4>
 
 <p><!-- golang.org/issue/36876 -->
   If the main module specifies <code>go</code> <code>1.17</code> or higher,
@@ -128,6 +128,14 @@ Do not send CLs removing the interior tags from such phrases.
   <code>vendor/modules.txt</code> with the <code>go</code> version indicated by
   each vendored module in its own <code>go.mod</code> file. The annotated
   version is used when building the module's packages from vendored source code.
+</p>
+
+<p><!-- golang.org/issue/42970 -->
+  If the main module specifies <code>go</code> <code>1.17</code> or higher,
+  <code>go</code> <code>mod</code> <code>vendor</code> now omits <code>go.mod</code>
+  and <code>go.sum</code> files for vendored dependencies, which can otherwise
+  interfere with the ability of the <code>go</code> command to identify the correct
+  module root when invoked within the <code>vendor</code> tree.
 </p>
 
 <h2 id="runtime">Runtime</h2>

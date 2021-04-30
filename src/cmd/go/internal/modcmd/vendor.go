@@ -340,6 +340,15 @@ func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
 	if strings.HasSuffix(info.Name(), "_test.go") {
 		return false
 	}
+	if info.Name() == "go.mod" || info.Name() == "go.sum" {
+		if gv := modload.ModFile().Go; gv != nil && semver.Compare("v"+gv.Version, "v1.17") >= 0 {
+			// As of Go 1.17, we strip go.mod and go.sum files from dependency modules.
+			// Otherwise, 'go' commands invoked within the vendor subtree may misidentify
+			// an arbitrary directory within the vendor tree as a module root.
+			// (See https://golang.org/issue/42970.)
+			return false
+		}
+	}
 	if strings.HasSuffix(info.Name(), ".go") {
 		f, err := fsys.Open(filepath.Join(dir, info.Name()))
 		if err != nil {
