@@ -87,6 +87,9 @@ func DefaultModes() Mode {
 func Main(m *testing.M, hook func(*source.Options)) {
 	testenv.ExitIfSmallMachine()
 
+	// Disable GOPACKAGESDRIVER, as it can cause spurious test failures.
+	os.Setenv("GOPACKAGESDRIVER", "off")
+
 	flag.Parse()
 	if os.Getenv("_GOPLS_TEST_BINARY_RUN_AS_GOPLS") == "true" {
 		tool.Main(context.Background(), cmd.New("gopls", "", nil, nil), os.Args[1:])
