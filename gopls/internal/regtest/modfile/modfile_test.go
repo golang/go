@@ -519,8 +519,6 @@ func TestUnknownRevision(t *testing.T) {
 -- a/go.mod --
 module mod.com
 
-go 1.16
-
 require (
 	example.com v1.2.2
 )
@@ -556,8 +554,12 @@ func main() {
 					ReadDiagnostics("a/go.mod", &d),
 				),
 			)
-			env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
-			env.SaveBuffer("a/go.mod") // Save to trigger diagnostics.
+			qfs := env.GetQuickFixes("a/go.mod", d.Diagnostics)
+			if len(qfs) == 0 {
+				t.Fatalf("got 0 code actions to fix %v, wanted at least 1", d.Diagnostics)
+			}
+			env.ApplyCodeAction(qfs[0]) // Arbitrarily pick a single fix to apply. Applying all of them seems to cause trouble in this particular test.
+			env.SaveBuffer("a/go.mod")  // Save to trigger diagnostics.
 			env.Await(
 				EmptyDiagnostics("a/go.mod"),
 				env.DiagnosticAtRegexp("a/main.go", "x = "),
@@ -568,8 +570,6 @@ func main() {
 	const known = `
 -- a/go.mod --
 module mod.com
-
-go 1.16
 
 require (
 	example.com v1.2.3

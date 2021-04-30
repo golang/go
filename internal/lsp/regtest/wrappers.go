@@ -201,6 +201,14 @@ func (e *Env) ApplyQuickFixes(path string, diagnostics []protocol.Diagnostic) {
 	}
 }
 
+// ApplyCodeAction applies the given code action.
+func (e *Env) ApplyCodeAction(action protocol.CodeAction) {
+	e.T.Helper()
+	if err := e.Editor.ApplyCodeAction(e.Ctx, action); err != nil {
+		e.T.Fatal(err)
+	}
+}
+
 // GetQuickFixes returns the available quick fix code actions.
 func (e *Env) GetQuickFixes(path string, diagnostics []protocol.Diagnostic) []protocol.CodeAction {
 	e.T.Helper()
