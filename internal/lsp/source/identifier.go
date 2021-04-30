@@ -329,6 +329,26 @@ func typeToObject(typ types.Type) types.Object {
 		return typeToObject(typ.Elem())
 	case *types.Chan:
 		return typeToObject(typ.Elem())
+	case *types.Signature:
+		// Try to find a return value of a named type. If there's only one
+		// such value, jump to its type definition.
+		var res types.Object
+
+		results := typ.Results()
+		for i := 0; i < results.Len(); i++ {
+			obj := typeToObject(results.At(i).Type())
+			if obj == nil || hasErrorType(obj) {
+				// Skip builtins.
+				continue
+			}
+			if res != nil {
+				// The function/method must have only one return value of a named type.
+				return nil
+			}
+
+			res = obj
+		}
+		return res
 	default:
 		return nil
 	}

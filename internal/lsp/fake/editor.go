@@ -707,11 +707,35 @@ func (e *Editor) GoToDefinition(ctx context.Context, path string, pos Pos) (stri
 	if err != nil {
 		return "", Pos{}, errors.Errorf("definition: %w", err)
 	}
-	if len(resp) == 0 {
+	return e.extractFirstPathAndPos(ctx, resp)
+}
+
+// GoToTypeDefinition jumps to the type definition of the symbol at the given position
+// in an open buffer.
+func (e *Editor) GoToTypeDefinition(ctx context.Context, path string, pos Pos) (string, Pos, error) {
+	if err := e.checkBufferPosition(path, pos); err != nil {
+		return "", Pos{}, err
+	}
+	params := &protocol.TypeDefinitionParams{}
+	params.TextDocument.URI = e.sandbox.Workdir.URI(path)
+	params.Position = pos.ToProtocolPosition()
+
+	resp, err := e.Server.TypeDefinition(ctx, params)
+	if err != nil {
+		return "", Pos{}, errors.Errorf("type definition: %w", err)
+	}
+	return e.extractFirstPathAndPos(ctx, resp)
+}
+
+// extractFirstPathAndPos returns the path and the position of the first location.
+// It opens the file if needed.
+func (e *Editor) extractFirstPathAndPos(ctx context.Context, locs []protocol.Location) (string, Pos, error) {
+	if len(locs) == 0 {
 		return "", Pos{}, nil
 	}
-	newPath := e.sandbox.Workdir.URIToPath(resp[0].URI)
-	newPos := fromProtocolPosition(resp[0].Range.Start)
+
+	newPath := e.sandbox.Workdir.URIToPath(locs[0].URI)
+	newPos := fromProtocolPosition(locs[0].Range.Start)
 	if !e.HasBuffer(newPath) {
 		if err := e.OpenFile(ctx, newPath); err != nil {
 			return "", Pos{}, errors.Errorf("OpenFile: %w", err)
