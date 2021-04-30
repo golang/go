@@ -81,11 +81,11 @@ func (s *signature) Params() []string {
 // NewBuiltinSignature returns signature for the builtin object with a given
 // name, if a builtin object with the name exists.
 func NewBuiltinSignature(ctx context.Context, s Snapshot, name string) (*signature, error) {
-	builtin, err := s.BuiltinPackage(ctx)
+	builtin, err := s.BuiltinFile(ctx)
 	if err != nil {
 		return nil, err
 	}
-	obj := builtin.Package.Scope.Lookup(name)
+	obj := builtin.File.Scope.Lookup(name)
 	if obj == nil {
 		return nil, fmt.Errorf("no builtin object for %s", name)
 	}

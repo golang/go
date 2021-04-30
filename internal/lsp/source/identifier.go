@@ -179,11 +179,11 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *a
 
 	// Handle builtins separately.
 	if result.Declaration.obj.Parent() == types.Universe {
-		builtin, err := snapshot.BuiltinPackage(ctx)
+		builtin, err := snapshot.BuiltinFile(ctx)
 		if err != nil {
 			return nil, err
 		}
-		builtinObj := builtin.Package.Scope.Lookup(result.Name)
+		builtinObj := builtin.File.Scope.Lookup(result.Name)
 		if builtinObj == nil {
 			return nil, fmt.Errorf("no builtin object for %s", result.Name)
 		}
@@ -195,7 +195,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *a
 
 		// The builtin package isn't in the dependency graph, so the usual
 		// utilities won't work here.
-		rng := NewMappedRange(snapshot.FileSet(), builtin.ParsedFile.Mapper, decl.Pos(), decl.Pos()+token.Pos(len(result.Name)))
+		rng := NewMappedRange(snapshot.FileSet(), builtin.Mapper, decl.Pos(), decl.Pos()+token.Pos(len(result.Name)))
 		result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 		return result, nil
 	}
@@ -204,14 +204,14 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *a
 	// that this is the builtin Error.
 	if obj := result.Declaration.obj; obj.Parent() == nil && obj.Pkg() == nil && obj.Name() == "Error" {
 		if _, ok := obj.Type().(*types.Signature); ok {
-			builtin, err := snapshot.BuiltinPackage(ctx)
+			builtin, err := snapshot.BuiltinFile(ctx)
 			if err != nil {
 				return nil, err
 			}
 			// Look up "error" and then navigate to its only method.
 			// The Error method does not appear in the builtin package's scope.log.Pri
 			const errorName = "error"
-			builtinObj := builtin.Package.Scope.Lookup(errorName)
+			builtinObj := builtin.File.Scope.Lookup(errorName)
 			if builtinObj == nil {
 				return nil, fmt.Errorf("no builtin object for %s", errorName)
 			}
@@ -236,7 +236,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *a
 			}
 			name := method.Names[0].Name
 			result.Declaration.node = method
-			rng := NewMappedRange(snapshot.FileSet(), builtin.ParsedFile.Mapper, method.Pos(), method.Pos()+token.Pos(len(name)))
+			rng := NewMappedRange(snapshot.FileSet(), builtin.Mapper, method.Pos(), method.Pos()+token.Pos(len(name)))
 			result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 			return result, nil
 		}

@@ -125,8 +125,8 @@ type Snapshot interface {
 	// GoModForFile returns the URI of the go.mod file for the given URI.
 	GoModForFile(uri span.URI) span.URI
 
-	// BuiltinPackage returns information about the special builtin package.
-	BuiltinPackage(ctx context.Context) (*BuiltinPackage, error)
+	// BuiltinFile returns information about the special builtin package.
+	BuiltinFile(ctx context.Context) (*ParsedGoFile, error)
 
 	// IsBuiltin reports whether uri is part of the builtin package.
 	IsBuiltin(ctx context.Context, uri span.URI) bool
@@ -257,11 +257,6 @@ type View interface {
 type FileSource interface {
 	// GetFile returns the FileHandle for a given URI.
 	GetFile(ctx context.Context, uri span.URI) (FileHandle, error)
-}
-
-type BuiltinPackage struct {
-	Package    *ast.Package
-	ParsedFile *ParsedGoFile
 }
 
 // A ParsedGoFile contains the results of parsing a Go file.

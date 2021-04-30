@@ -148,9 +148,10 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 		}
 		// Special case for the builtin package, as it has no dependencies.
 		if pkg.PkgPath == "builtin" {
-			if err := s.buildBuiltinPackage(ctx, pkg.GoFiles); err != nil {
-				return err
+			if len(pkg.GoFiles) != 1 {
+				return errors.Errorf("only expected 1 file for builtin, got %v", len(pkg.GoFiles))
 			}
+			s.setBuiltin(pkg.GoFiles[0])
 			continue
 		}
 		// Skip test main packages.
