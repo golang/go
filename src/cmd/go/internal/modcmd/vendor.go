@@ -88,15 +88,23 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	includeAllReplacements := false
+	includeGoVersions := false
 	isExplicit := map[module.Version]bool{}
-	if gv := modload.ModFile().Go; gv != nil && semver.Compare("v"+gv.Version, "v1.14") >= 0 {
-		// If the Go version is at least 1.14, annotate all explicit 'require' and
-		// 'replace' targets found in the go.mod file so that we can perform a
-		// stronger consistency check when -mod=vendor is set.
-		for _, r := range modload.ModFile().Require {
-			isExplicit[r.Mod] = true
+	if gv := modload.ModFile().Go; gv != nil {
+		if semver.Compare("v"+gv.Version, "v1.14") >= 0 {
+			// If the Go version is at least 1.14, annotate all explicit 'require' and
+			// 'replace' targets found in the go.mod file so that we can perform a
+			// stronger consistency check when -mod=vendor is set.
+			for _, r := range modload.ModFile().Require {
+				isExplicit[r.Mod] = true
+			}
+			includeAllReplacements = true
 		}
-		includeAllReplacements = true
+		if semver.Compare("v"+gv.Version, "v1.17") >= 0 {
+			// If the Go version is at least 1.17, annotate all modules with their
+			// 'go' version directives.
+			includeGoVersions = true
+		}
 	}
 
 	var vendorMods []module.Version
@@ -110,26 +118,35 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	module.Sort(vendorMods)
 
-	var buf bytes.Buffer
+	var (
+		buf bytes.Buffer
+		w   io.Writer = &buf
+	)
+	if cfg.BuildV {
+		w = io.MultiWriter(&buf, os.Stderr)
+	}
+
 	for _, m := range vendorMods {
 		line := moduleLine(m, modload.Replacement(m))
-		buf.WriteString(line)
-		if cfg.BuildV {
-			os.Stderr.WriteString(line)
+		io.WriteString(w, line)
+
+		goVersion := ""
+		if includeGoVersions {
+			goVersion = modload.ModuleInfo(ctx, m.Path).GoVersion
 		}
-		if isExplicit[m] {
-			buf.WriteString("## explicit\n")
-			if cfg.BuildV {
-				os.Stderr.WriteString("## explicit\n")
-			}
+		switch {
+		case isExplicit[m] && goVersion != "":
+			fmt.Fprintf(w, "## explicit; go %s\n", goVersion)
+		case isExplicit[m]:
+			io.WriteString(w, "## explicit\n")
+		case goVersion != "":
+			fmt.Fprintf(w, "## go %s\n", goVersion)
 		}
+
 		pkgs := modpkgs[m]
 		sort.Strings(pkgs)
 		for _, pkg := range pkgs {
-			fmt.Fprintf(&buf, "%s\n", pkg)
-			if cfg.BuildV {
-				fmt.Fprintf(os.Stderr, "%s\n", pkg)
-			}
+			fmt.Fprintf(w, "%s\n", pkg)
 			vendorPkg(vdir, pkg)
 		}
 	}
