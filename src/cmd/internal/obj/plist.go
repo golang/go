@@ -75,38 +75,51 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 		newprog = ctxt.NewProg
 	}
 
-	// Add reference to Go arguments for C or assembly functions without them.
-	for _, s := range text {
-		if !strings.HasPrefix(s.Name, "\"\".") {
-			continue
-		}
-		if s.ABIWrapper() {
-			// Don't create an args_stackmap symbol reference for an ABI
-			// wrapper function
-			continue
-		}
-		// The current args_stackmap generation in the compiler assumes
-		// that the function in question is ABI0, so avoid introducing
-		// an args_stackmap reference if the func is not ABI0 (better to
-		// have no stackmap than an incorrect/lying stackmap).
-		if s.ABI() != ABI0 {
-			continue
-		}
-		found := false
-		for p := s.Func().Text; p != nil; p = p.Link {
-			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == objabi.FUNCDATA_ArgsPointerMaps {
-				found = true
-				break
+	// Add reference to Go arguments for assembly functions without them.
+	if ctxt.IsAsm {
+		for _, s := range text {
+			if !strings.HasPrefix(s.Name, "\"\".") {
+				continue
 			}
-		}
-		if !found {
-			p := Appendp(s.Func().Text, newprog)
-			p.As = AFUNCDATA
-			p.From.Type = TYPE_CONST
-			p.From.Offset = objabi.FUNCDATA_ArgsPointerMaps
-			p.To.Type = TYPE_MEM
-			p.To.Name = NAME_EXTERN
-			p.To.Sym = ctxt.LookupDerived(s, s.Name+".args_stackmap")
+			// The current args_stackmap generation in the compiler assumes
+			// that the function in question is ABI0, so avoid introducing
+			// an args_stackmap reference if the func is not ABI0 (better to
+			// have no stackmap than an incorrect/lying stackmap).
+			if s.ABI() != ABI0 {
+				continue
+			}
+			foundArgMap, foundArgInfo := false, false
+			for p := s.Func().Text; p != nil; p = p.Link {
+				if p.As == AFUNCDATA && p.From.Type == TYPE_CONST {
+					if p.From.Offset == objabi.FUNCDATA_ArgsPointerMaps {
+						foundArgMap = true
+					}
+					if p.From.Offset == objabi.FUNCDATA_ArgInfo {
+						foundArgInfo = true
+					}
+					if foundArgMap && foundArgInfo {
+						break
+					}
+				}
+			}
+			if !foundArgMap {
+				p := Appendp(s.Func().Text, newprog)
+				p.As = AFUNCDATA
+				p.From.Type = TYPE_CONST
+				p.From.Offset = objabi.FUNCDATA_ArgsPointerMaps
+				p.To.Type = TYPE_MEM
+				p.To.Name = NAME_EXTERN
+				p.To.Sym = ctxt.LookupDerived(s, s.Name+".args_stackmap")
+			}
+			if !foundArgInfo {
+				p := Appendp(s.Func().Text, newprog)
+				p.As = AFUNCDATA
+				p.From.Type = TYPE_CONST
+				p.From.Offset = objabi.FUNCDATA_ArgInfo
+				p.To.Type = TYPE_MEM
+				p.To.Name = NAME_EXTERN
+				p.To.Sym = ctxt.LookupDerived(s, fmt.Sprintf("%s.arginfo%d", s.Name, s.ABI()))
+			}
 		}
 	}
 
