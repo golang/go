@@ -109,7 +109,7 @@ var (
 type ErrGoObjOtherVersion struct{ magic []byte }
 
 func (e ErrGoObjOtherVersion) Error() string {
-	return fmt.Sprintf("go object of a different version: %s", e.magic)
+	return fmt.Sprintf("go object of a different version: %q", e.magic)
 }
 
 // An objReader is an object file reader.
@@ -425,7 +425,7 @@ func (r *objReader) parseObject(o *GoObj, size int64) error {
 	}
 	if !bytes.Equal(p, []byte(goobj.Magic)) {
 		if bytes.HasPrefix(p, []byte("\x00go1")) && bytes.HasSuffix(p, []byte("ld")) {
-			return r.error(ErrGoObjOtherVersion{p})
+			return r.error(ErrGoObjOtherVersion{p[1:]}) // strip the \x00 byte
 		}
 		return r.error(errCorruptObject)
 	}
