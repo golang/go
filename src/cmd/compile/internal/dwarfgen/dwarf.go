@@ -268,22 +268,27 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 	var abbrev int
 	var offs int64
 
-	switch n.Class {
-	case ir.PPARAM, ir.PPARAMOUT:
-		if !n.IsOutputParamInRegisters() {
-			abbrev = dwarf.DW_ABRV_PARAM
-			offs = n.FrameOffset() + base.Ctxt.FixedFrameSize()
-			break
-		}
-		fallthrough
-	case ir.PAUTO:
+	localAutoOffset := func() int64 {
 		offs = n.FrameOffset()
-		abbrev = dwarf.DW_ABRV_AUTO
 		if base.Ctxt.FixedFrameSize() == 0 {
 			offs -= int64(types.PtrSize)
 		}
 		if buildcfg.FramePointerEnabled {
 			offs -= int64(types.PtrSize)
+		}
+		return offs
+	}
+
+	switch n.Class {
+	case ir.PAUTO:
+		offs = localAutoOffset()
+		abbrev = dwarf.DW_ABRV_AUTO
+	case ir.PPARAM, ir.PPARAMOUT:
+		abbrev = dwarf.DW_ABRV_PARAM
+		if n.IsOutputParamInRegisters() {
+			offs = localAutoOffset()
+		} else {
+			offs = n.FrameOffset() + base.Ctxt.FixedFrameSize()
 		}
 
 	default:
