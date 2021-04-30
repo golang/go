@@ -96,7 +96,7 @@ func asGoVersion(s string) string {
 	return ""
 }
 
-func checkFiles(t *testing.T, filenames []string, goVersion string, colDelta uint, manual bool) {
+func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 	if len(filenames) == 0 {
 		t.Fatal("no source files")
 	}
@@ -114,6 +114,7 @@ func checkFiles(t *testing.T, filenames []string, goVersion string, colDelta uin
 	}
 
 	// if no Go version is given, consider the package name
+	goVersion := *goVersion
 	if goVersion == "" {
 		goVersion = asGoVersion(pkgName)
 	}
@@ -239,35 +240,54 @@ func checkFiles(t *testing.T, filenames []string, goVersion string, colDelta uin
 	}
 }
 
-// TestManual is for manual testing of input files, provided as a list
-// of arguments after the test arguments (and a separating "--"). For
-// instance, to check the files foo.go and bar.go, use:
+// TestManual is for manual testing of a package - either provided
+// as a list of filenames belonging to the package, or a directory
+// name containing the package files - after the test arguments
+// (and a separating "--"). For instance, to test the package made
+// of the files foo.go and bar.go, use:
 //
 // 	go test -run Manual -- foo.go bar.go
 //
-// Provide the -verify flag to verify errors against ERROR comments in
-// the input files rather than having a list of errors reported.
-// The accepted Go language version can be controlled with the -lang flag.
+// If no source arguments are provided, the file testdata/manual.go2
+// is used instead.
+// Provide the -verify flag to verify errors against ERROR comments
+// in the input files rather than having a list of errors reported.
+// The accepted Go language version can be controlled with the -lang
+// flag.
 func TestManual(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
 	filenames := flag.Args()
 	if len(filenames) == 0 {
-		return
+		filenames = []string{filepath.FromSlash("testdata/manual.go2")}
 	}
-	testenv.MustHaveGoBuild(t)
+
+	info, err := os.Stat(filenames[0])
+	if err != nil {
+		t.Fatalf("TestManual: %v", err)
+	}
+
 	DefPredeclaredTestFuncs()
-	checkFiles(t, filenames, *goVersion, 0, true)
+	if info.IsDir() {
+		if len(filenames) > 1 {
+			t.Fatal("TestManual: must have only one directory argument")
+		}
+		testDir(t, filenames[0], 0, true)
+	} else {
+		testFiles(t, filenames, 0, true)
+	}
 }
 
 // TODO(gri) go/types has extra TestLongConstants and TestIndexRepresentability tests
 
-func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDir(t, "check", 75) } // TODO(gri) narrow column tolerance
-func TestExamples(t *testing.T)  { testDir(t, "examples", 0) }
-func TestFixedbugs(t *testing.T) { testDir(t, "fixedbugs", 0) }
+func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", 75, false) } // TODO(gri) narrow column tolerance
+func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", 0, false) }
+func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", 0, false) }
 
-func testDir(t *testing.T, dir string, colDelta uint) {
+func testDirFiles(t *testing.T, dir string, colDelta uint, manual bool) {
 	testenv.MustHaveGoBuild(t)
+	dir = filepath.FromSlash(dir)
 
-	dir = filepath.Join("testdata", dir)
 	fis, err := os.ReadDir(dir)
 	if err != nil {
 		t.Error(err)
@@ -277,23 +297,30 @@ func testDir(t *testing.T, dir string, colDelta uint) {
 	for _, fi := range fis {
 		path := filepath.Join(dir, fi.Name())
 
-		// if fi is a directory, its files make up a single package
-		var filenames []string
+		// If fi is a directory, its files make up a single package.
 		if fi.IsDir() {
-			fis, err := os.ReadDir(path)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
-			for _, fi := range fis {
-				filenames = append(filenames, filepath.Join(path, fi.Name()))
-			}
+			testDir(t, path, colDelta, manual)
 		} else {
-			filenames = []string{path}
+			t.Run(filepath.Base(path), func(t *testing.T) {
+				testFiles(t, []string{path}, colDelta, manual)
+			})
 		}
-
-		t.Run(filepath.Base(path), func(t *testing.T) {
-			checkFiles(t, filenames, *goVersion, colDelta, false)
-		})
 	}
+}
+
+func testDir(t *testing.T, dir string, colDelta uint, manual bool) {
+	fis, err := os.ReadDir(dir)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var filenames []string
+	for _, fi := range fis {
+		filenames = append(filenames, filepath.Join(dir, fi.Name()))
+	}
+
+	t.Run(filepath.Base(dir), func(t *testing.T) {
+		testFiles(t, filenames, colDelta, manual)
+	})
 }
