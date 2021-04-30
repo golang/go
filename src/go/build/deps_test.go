@@ -392,6 +392,7 @@ var depsRules = `
 	< crypto
 	< crypto/subtle
 	< crypto/internal/subtle
+	< crypto/elliptic/internal/fiat
 	< crypto/ed25519/internal/edwards25519/field
 	< crypto/ed25519/internal/edwards25519
 	< crypto/cipher
