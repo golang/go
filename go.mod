@@ -1,6 +1,6 @@
 module golang.org/x/tools
 
-go 1.12
+go 1.16
 
 require (
 	github.com/yuin/goldmark v1.3.3
