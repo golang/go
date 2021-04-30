@@ -6563,14 +6563,26 @@ func (s *State) DebugFriendlySetPosFrom(v *ssa.Value) {
 }
 
 // emit argument info (locations on stack) for traceback.
-func emitArgInfo(e *ssafn, pp *objw.Progs) {
+func emitArgInfo(e *ssafn, f *ssa.Func, pp *objw.Progs) {
 	ft := e.curfn.Type()
 	if ft.NumRecvs() == 0 && ft.NumParams() == 0 {
 		return
 	}
 
-	x := base.Ctxt.Lookup(fmt.Sprintf("%s.arginfo%d", e.curfn.LSym.Name, e.curfn.LSym.ABI()))
+	x := EmitArgInfo(e.curfn, f.OwnAux.ABIInfo())
 	e.curfn.LSym.Func().ArgInfo = x
+
+	// Emit a funcdata pointing at the arg info data.
+	p := pp.Prog(obj.AFUNCDATA)
+	p.From.SetConst(objabi.FUNCDATA_ArgInfo)
+	p.To.Type = obj.TYPE_MEM
+	p.To.Name = obj.NAME_EXTERN
+	p.To.Sym = x
+}
+
+// emit argument info (locations on stack) of f for traceback.
+func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
+	x := base.Ctxt.Lookup(fmt.Sprintf("%s.arginfo%d", f.LSym.Name, f.ABI))
 
 	PtrSize := int64(types.PtrSize)
 
@@ -6696,27 +6708,19 @@ func emitArgInfo(e *ssafn, pp *objw.Progs) {
 	}
 
 	c := true
-outer:
-	for _, fs := range &types.RecvsParams {
-		for _, a := range fs(ft).Fields().Slice() {
-			if !c {
-				writebyte(_dotdotdot)
-				break outer
-			}
-			c = visitType(a.Offset, a.Type, 0)
+	for _, a := range abiInfo.InParams() {
+		if !c {
+			writebyte(_dotdotdot)
+			break
 		}
+		c = visitType(a.FrameOffset(abiInfo), a.Type, 0)
 	}
 	writebyte(_endSeq)
 	if wOff > maxLen {
 		base.Fatalf("ArgInfo too large")
 	}
 
-	// Emit a funcdata pointing at the arg info data.
-	p := pp.Prog(obj.AFUNCDATA)
-	p.From.SetConst(objabi.FUNCDATA_ArgInfo)
-	p.To.Type = obj.TYPE_MEM
-	p.To.Name = obj.NAME_EXTERN
-	p.To.Sym = x
+	return x
 }
 
 // genssa appends entries to pp for each instruction in f.
@@ -6727,7 +6731,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 	e := f.Frontend().(*ssafn)
 
 	s.livenessMap, s.partLiveArgs = liveness.Compute(e.curfn, f, e.stkptrsize, pp)
-	emitArgInfo(e, pp)
+	emitArgInfo(e, f, pp)
 
 	openDeferInfo := e.curfn.LSym.Func().OpenCodedDeferInfo
 	if openDeferInfo != nil {
