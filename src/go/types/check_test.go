@@ -45,9 +45,9 @@ import (
 )
 
 var (
-	haltOnError = flag.Bool("halt", false, "halt on error")
-	listErrors  = flag.Bool("errlist", false, "list errors")
-	goVersion   = flag.String("lang", "", "Go language version (e.g. \"go1.12\") for TestManual")
+	haltOnError  = flag.Bool("halt", false, "halt on error")
+	verifyErrors = flag.Bool("verify", false, "verify errors (rather than list them) in TestManual")
+	goVersion    = flag.String("lang", "", "Go language version (e.g. \"go1.12\") for TestManual")
 )
 
 var fset = token.NewFileSet()
@@ -202,7 +202,7 @@ func asGoVersion(s string) string {
 	return ""
 }
 
-func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string, srcs [][]byte) {
+func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string, srcs [][]byte, manual bool) {
 	if len(filenames) == 0 {
 		t.Fatal("no source files")
 	}
@@ -229,7 +229,8 @@ func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string,
 		goVersion = asGoVersion(pkgName)
 	}
 
-	if *listErrors && len(errlist) > 0 {
+	listErrors := manual && !*verifyErrors
+	if listErrors && len(errlist) > 0 {
 		t.Errorf("--- %s:", pkgName)
 		for _, err := range errlist {
 			t.Error(err)
@@ -253,7 +254,7 @@ func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string,
 		if *haltOnError {
 			defer panic(err)
 		}
-		if *listErrors {
+		if listErrors {
 			t.Error(err)
 			return
 		}
@@ -265,7 +266,7 @@ func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string,
 	}
 	conf.Check(pkgName, fset, files, nil)
 
-	if *listErrors {
+	if listErrors {
 		return
 	}
 
@@ -302,8 +303,8 @@ func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string,
 //
 // 	go test -run Manual -- foo.go bar.go
 //
-// To get an error list rather than having the test check against
-// ERROR comments in the input files, provide the -errlist flag.
+// Provide the -verify flag to verify errors against ERROR comments in
+// the input files rather than having a list of errors reported.
 // The accepted Go language version can be controlled with the -lang flag.
 func TestManual(t *testing.T) {
 	filenames := flag.Args()
@@ -312,13 +313,13 @@ func TestManual(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 	DefPredeclaredTestFuncs()
-	testPkg(t, filenames, *goVersion)
+	testPkg(t, filenames, *goVersion, true)
 }
 
 func TestLongConstants(t *testing.T) {
 	format := "package longconst\n\nconst _ = %s\nconst _ = %s // ERROR excessively long constant"
 	src := fmt.Sprintf(format, strings.Repeat("1", 9999), strings.Repeat("1", 10001))
-	checkFiles(t, nil, "", []string{"longconst.go"}, [][]byte{[]byte(src)})
+	checkFiles(t, nil, "", []string{"longconst.go"}, [][]byte{[]byte(src)}, false)
 }
 
 // TestIndexRepresentability tests that constant index operands must
@@ -326,7 +327,7 @@ func TestLongConstants(t *testing.T) {
 // represent larger values.
 func TestIndexRepresentability(t *testing.T) {
 	const src = "package index\n\nvar s []byte\nvar _ = s[int64 /* ERROR \"int64\\(1\\) << 40 \\(.*\\) overflows int\" */ (1) << 40]"
-	checkFiles(t, &StdSizes{4, 4}, "", []string{"index.go"}, [][]byte{[]byte(src)})
+	checkFiles(t, &StdSizes{4, 4}, "", []string{"index.go"}, [][]byte{[]byte(src)}, false)
 }
 
 func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDir(t, "check") }
@@ -361,12 +362,13 @@ func testDir(t *testing.T, dir string) {
 			filenames = []string{path}
 		}
 		t.Run(filepath.Base(path), func(t *testing.T) {
-			testPkg(t, filenames, "")
+			testPkg(t, filenames, "", false)
 		})
 	}
 }
 
-func testPkg(t *testing.T, filenames []string, goVersion string) {
+// TODO(rFindley) reconcile the different test setup in go/types with types2.
+func testPkg(t *testing.T, filenames []string, goVersion string, manual bool) {
 	srcs := make([][]byte, len(filenames))
 	for i, filename := range filenames {
 		src, err := os.ReadFile(filename)
@@ -375,5 +377,5 @@ func testPkg(t *testing.T, filenames []string, goVersion string) {
 		}
 		srcs[i] = src
 	}
-	checkFiles(t, nil, goVersion, filenames, srcs)
+	checkFiles(t, nil, goVersion, filenames, srcs, manual)
 }
