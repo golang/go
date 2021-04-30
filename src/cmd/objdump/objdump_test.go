@@ -345,3 +345,18 @@ func TestGoobjFileNumber(t *testing.T) {
 		t.Logf("output:\n%s", text)
 	}
 }
+
+func TestGoObjOtherVersion(t *testing.T) {
+	testenv.MustHaveExec(t)
+	t.Parallel()
+
+	obj := filepath.Join("testdata", "go116.o")
+	cmd := exec.Command(exe, obj)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("objdump go116.o succeeded unexpectly")
+	}
+	if !strings.Contains(string(out), "go object of a different version") {
+		t.Errorf("unexpected error message:\n%s", out)
+	}
+}
