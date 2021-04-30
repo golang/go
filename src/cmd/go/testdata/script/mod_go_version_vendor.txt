@@ -4,7 +4,6 @@
 
 [short] skip
 
-go mod init example.com/foo
 go mod edit -replace=example.com/use113@v0.1.0=./use113
 
 go mod vendor
@@ -20,7 +19,10 @@ go mod vendor
 ! grep 1.13 vendor/modules.txt
 go build .
 
+-- go.mod --
+module example.com/foo
 
+go 1.16
 -- foo.go --
 package foo
 
