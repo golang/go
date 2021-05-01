@@ -125,18 +125,8 @@ func (curve p521Curve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 // addJacobian sets q = p1 + p2, and returns q. The points may overlap.
 func (q *p512Point) addJacobian(p1, p2 *p512Point) *p512Point {
 	// https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-2007-bl
-	if p1.z.IsZero() == 1 {
-		q.x.Set(p2.x)
-		q.y.Set(p2.y)
-		q.z.Set(p2.z)
-		return q
-	}
-	if p2.z.IsZero() == 1 {
-		q.x.Set(p1.x)
-		q.y.Set(p1.y)
-		q.z.Set(p1.z)
-		return q
-	}
+	z1IsZero := p1.z.IsZero()
+	z2IsZero := p2.z.IsZero()
 
 	z1z1 := new(fiat.P521Element).Square(p1.z)
 	z2z2 := new(fiat.P521Element).Square(p2.z)
@@ -155,31 +145,41 @@ func (q *p512Point) addJacobian(p1, p2 *p512Point) *p512Point {
 	s2.Mul(s2, z1z1)
 	r := new(fiat.P521Element).Sub(s2, s1)
 	yEqual := r.IsZero() == 1
-	if xEqual && yEqual {
+	if xEqual && yEqual && z1IsZero == 0 && z2IsZero == 0 {
 		return q.doubleJacobian(p1)
 	}
 	r.Add(r, r)
 	v := new(fiat.P521Element).Mul(u1, i)
 
-	q.x.Set(r)
-	q.x.Square(q.x)
-	q.x.Sub(q.x, j)
-	q.x.Sub(q.x, v)
-	q.x.Sub(q.x, v)
+	x := new(fiat.P521Element).Set(r)
+	x.Square(x)
+	x.Sub(x, j)
+	x.Sub(x, v)
+	x.Sub(x, v)
 
-	q.y.Set(r)
-	v.Sub(v, q.x)
-	q.y.Mul(q.y, v)
+	y := new(fiat.P521Element).Set(r)
+	v.Sub(v, x)
+	y.Mul(y, v)
 	s1.Mul(s1, j)
 	s1.Add(s1, s1)
-	q.y.Sub(q.y, s1)
+	y.Sub(y, s1)
 
-	q.z.Add(p1.z, p2.z)
-	q.z.Square(q.z)
-	q.z.Sub(q.z, z1z1)
-	q.z.Sub(q.z, z2z2)
-	q.z.Mul(q.z, h)
+	z := new(fiat.P521Element).Add(p1.z, p2.z)
+	z.Square(z)
+	z.Sub(z, z1z1)
+	z.Sub(z, z2z2)
+	z.Mul(z, h)
 
+	x.Select(p2.x, x, z1IsZero)
+	x.Select(p1.x, x, z2IsZero)
+	y.Select(p2.y, y, z1IsZero)
+	y.Select(p1.y, y, z2IsZero)
+	z.Select(p2.z, z, z1IsZero)
+	z.Select(p1.z, z, z2IsZero)
+
+	q.x.Set(x)
+	q.y.Set(y)
+	q.z.Set(z)
 	return q
 }
 
@@ -228,21 +228,26 @@ func (q *p512Point) doubleJacobian(p *p512Point) *p512Point {
 	return q
 }
 
-func (curve p521Curve) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
+func (curve p521Curve) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, *big.Int) {
 	B := curve.jacobianFromAffine(Bx, By)
-	p := &p512Point{
+	p, t := &p512Point{
+		x: new(fiat.P521Element),
+		y: new(fiat.P521Element),
+		z: new(fiat.P521Element),
+	}, &p512Point{
 		x: new(fiat.P521Element),
 		y: new(fiat.P521Element),
 		z: new(fiat.P521Element),
 	}
 
-	for _, byte := range k {
+	for _, byte := range scalar {
 		for bitNum := 0; bitNum < 8; bitNum++ {
 			p.doubleJacobian(p)
-			if byte&0x80 == 0x80 {
-				p.addJacobian(B, p)
-			}
-			byte <<= 1
+			bit := (byte >> (7 - bitNum)) & 1
+			t.addJacobian(p, B)
+			p.x.Select(t.x, p.x, int(bit))
+			p.y.Select(t.y, p.y, int(bit))
+			p.z.Select(t.z, p.z, int(bit))
 		}
 	}
 
