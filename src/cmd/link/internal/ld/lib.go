@@ -203,9 +203,6 @@ type Arch struct {
 	// are padded with zeros.
 	CodePad []byte
 
-	// Set to true to write all text blocks in with CodeBlkWrite
-	WriteTextBlocks bool
-
 	// Plan 9 variables.
 	Plan9Magic  uint32
 	Plan9_64Bit bool
