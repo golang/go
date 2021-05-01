@@ -1239,8 +1239,10 @@ const (
 	VWERASE                           = 0x4
 	WCONTINUED                        = 0x4
 	WCOREFLAG                         = 0x80
+	WEXITED                           = 0x10
 	WLINUXCLONE                       = 0x80000000
 	WNOHANG                           = 0x1
+	WNOWAIT                           = 0x8
 	WSTOPPED                          = 0x7f
 	WUNTRACED                         = 0x2
 )
