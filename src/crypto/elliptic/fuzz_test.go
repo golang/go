@@ -14,7 +14,6 @@ import (
 )
 
 func TestFuzz(t *testing.T) {
-
 	p256 := P256()
 	p256Generic := p256.Params()
 
