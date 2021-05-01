@@ -471,14 +471,14 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 		// new symbol overwrites old symbol.
 		oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type())]
 		if !(oldtyp.IsData() && oldr.DataSize(oldli) == 0) {
-			log.Fatalf("duplicated definition of symbol " + name)
+			log.Fatalf("duplicated definition of symbol %s, from %s and %s", name, r.unit.Lib.Pkg, oldr.unit.Lib.Pkg)
 		}
 		l.objSyms[oldi] = objSym{r.objidx, li}
 	} else {
 		// old symbol overwrites new symbol.
 		typ := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type())]
 		if !typ.IsData() { // only allow overwriting data symbol
-			log.Fatalf("duplicated definition of symbol " + name)
+			log.Fatalf("duplicated definition of symbol %s, from %s and %s", name, r.unit.Lib.Pkg, oldr.unit.Lib.Pkg)
 		}
 	}
 	return oldi
