@@ -340,7 +340,7 @@ func Rel(basepath, targpath string) (string, error) {
 // as an error by any function.
 var SkipDir error = fs.SkipDir
 
-// WalkFunc is the type of the function called by Walk to visit each each
+// WalkFunc is the type of the function called by Walk to visit each
 // file or directory.
 //
 // The path argument contains the argument to Walk as a prefix.
