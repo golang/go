@@ -135,6 +135,7 @@ function setReceives() {
   receives.set('workspace/applyEdit', 'client');
   receives.set('textDocument/publishDiagnostics', 'client');
   receives.set('window/workDoneProgress/create', 'client');
+  receives.set('window/showDocument', 'client');
   receives.set('$/progress', 'client');
   // a small check
   receives.forEach((_, k) => {

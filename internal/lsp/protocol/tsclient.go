@@ -28,6 +28,7 @@ type Client interface {
 	WorkspaceFolders(context.Context) ([]WorkspaceFolder /*WorkspaceFolder[] | null*/, error)
 	Configuration(context.Context, *ParamConfiguration) ([]interface{}, error)
 	WorkDoneProgressCreate(context.Context, *WorkDoneProgressCreateParams) error
+	ShowDocument(context.Context, *ShowDocumentParams) (*ShowDocumentResult, error)
 	RegisterCapability(context.Context, *RegistrationParams) error
 	UnregisterCapability(context.Context, *UnregistrationParams) error
 	ShowMessageRequest(context.Context, *ShowMessageRequestParams) (*MessageActionItem /*MessageActionItem | null*/, error)
@@ -91,6 +92,13 @@ func clientDispatch(ctx context.Context, client Client, reply jsonrpc2.Replier, 
 		}
 		err := client.WorkDoneProgressCreate(ctx, &params)
 		return true, reply(ctx, nil, err)
+	case "window/showDocument": // req
+		var params ShowDocumentParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := client.ShowDocument(ctx, &params)
+		return true, reply(ctx, resp, err)
 	case "client/registerCapability": // req
 		var params RegistrationParams
 		if err := json.Unmarshal(r.Params(), &params); err != nil {
@@ -162,6 +170,14 @@ func (s *clientDispatcher) Configuration(ctx context.Context, params *ParamConfi
 
 func (s *clientDispatcher) WorkDoneProgressCreate(ctx context.Context, params *WorkDoneProgressCreateParams) error {
 	return Call(ctx, s.Conn, "window/workDoneProgress/create", params, nil) // Call, not Notify
+}
+
+func (s *clientDispatcher) ShowDocument(ctx context.Context, params *ShowDocumentParams) (*ShowDocumentResult, error) {
+	var result *ShowDocumentResult
+	if err := Call(ctx, s.Conn, "window/showDocument", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (s *clientDispatcher) RegisterCapability(ctx context.Context, params *RegistrationParams) error {

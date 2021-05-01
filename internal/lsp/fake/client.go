@@ -111,6 +111,10 @@ func (c *Client) WorkDoneProgressCreate(ctx context.Context, params *protocol.Wo
 	return nil
 }
 
+func (c *Client) ShowDocument(context.Context, *protocol.ShowDocumentParams) (*protocol.ShowDocumentResult, error) {
+	return nil, nil
+}
+
 // ApplyEdit applies edits sent from the server.
 func (c *Client) ApplyEdit(ctx context.Context, params *protocol.ApplyWorkspaceEditParams) (*protocol.ApplyWorkspaceEditResponse, error) {
 	if len(params.Edit.Changes) != 0 {

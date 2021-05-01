@@ -228,10 +228,6 @@ func (s *Server) SetTrace(context.Context, *protocol.SetTraceParams) error {
 	return notImplemented("SetTrace")
 }
 
-func (s *Server) ShowDocument(context.Context, *protocol.ShowDocumentParams) (*protocol.ShowDocumentResult, error) {
-	return nil, notImplemented("ShowDocument")
-}
-
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.shutdown(ctx)
 }

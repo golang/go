@@ -50,7 +50,6 @@ type Server interface {
 	SemanticTokensFullDelta(context.Context, *SemanticTokensDeltaParams) (interface{} /* SemanticTokens | SemanticTokensDelta | float64*/, error)
 	SemanticTokensRange(context.Context, *SemanticTokensRangeParams) (*SemanticTokens /*SemanticTokens | null*/, error)
 	SemanticTokensRefresh(context.Context) error
-	ShowDocument(context.Context, *ShowDocumentParams) (*ShowDocumentResult, error)
 	LinkedEditingRange(context.Context, *LinkedEditingRangeParams) (*LinkedEditingRanges /*LinkedEditingRanges | null*/, error)
 	WillCreateFiles(context.Context, *CreateFilesParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error)
 	WillRenameFiles(context.Context, *RenameFilesParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error)
@@ -294,13 +293,6 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 		}
 		err := server.SemanticTokensRefresh(ctx)
 		return true, reply(ctx, nil, err)
-	case "window/showDocument": // req
-		var params ShowDocumentParams
-		if err := json.Unmarshal(r.Params(), &params); err != nil {
-			return true, sendParseError(ctx, reply, err)
-		}
-		resp, err := server.ShowDocument(ctx, &params)
-		return true, reply(ctx, resp, err)
 	case "textDocument/linkedEditingRange": // req
 		var params LinkedEditingRangeParams
 		if err := json.Unmarshal(r.Params(), &params); err != nil {
@@ -706,14 +698,6 @@ func (s *serverDispatcher) SemanticTokensRange(ctx context.Context, params *Sema
 
 func (s *serverDispatcher) SemanticTokensRefresh(ctx context.Context) error {
 	return Call(ctx, s.Conn, "workspace/semanticTokens/refresh", nil, nil)
-}
-
-func (s *serverDispatcher) ShowDocument(ctx context.Context, params *ShowDocumentParams) (*ShowDocumentResult, error) {
-	var result *ShowDocumentResult
-	if err := Call(ctx, s.Conn, "window/showDocument", params, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
 }
 
 func (s *serverDispatcher) LinkedEditingRange(ctx context.Context, params *LinkedEditingRangeParams) (*LinkedEditingRanges /*LinkedEditingRanges | null*/, error) {

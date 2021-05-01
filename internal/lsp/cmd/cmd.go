@@ -443,6 +443,10 @@ func (c *cmdClient) Progress(context.Context, *protocol.ProgressParams) error {
 	return nil
 }
 
+func (c *cmdClient) ShowDocument(context.Context, *protocol.ShowDocumentParams) (*protocol.ShowDocumentResult, error) {
+	return nil, nil
+}
+
 func (c *cmdClient) WorkDoneProgressCreate(context.Context, *protocol.WorkDoneProgressCreateParams) error {
 	return nil
 }
