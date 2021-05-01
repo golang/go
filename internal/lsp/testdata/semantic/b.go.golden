@@ -1,10 +1,10 @@
 -- semantic --
-/*⇒7,keyword,[]*/package /*⇒14,namespace,[]*/semantictokens //@ semantic("")
+/*⇒7,keyword,[]*/package /*⇒14,namespace,[]*/semantictokens /*⇒16,comment,[]*///@ semantic("")
 
 /*⇒4,keyword,[]*/func /*⇒1,function,[definition]*/f(/*⇒1,parameter,[definition]*/x /*⇒3,operator,[]*/.../*⇒9,keyword,[]*/interface{}) {
 }
 
-/*⇒4,keyword,[]*/func /*⇒6,function,[definition]*/weirⰀd() {
+/*⇒4,keyword,[]*/func /*⇒6,function,[definition]*/weirⰀd() { /*⇒5,comment,[]*//*😀*/ /*⇒10,comment,[]*/// comment
 	/*⇒5,keyword,[]*/const (
 		/*⇒4,variable,[definition readonly]*/snil   = /*⇒3,variable,[readonly defaultLibrary]*/nil
 		/*⇒3,variable,[definition readonly]*/nil    = /*⇒4,variable,[readonly]*/true
@@ -18,4 +18,10 @@
 	)
 	/*⇒1,function,[]*/f(/*⇒3,variable,[readonly]*/cmd, /*⇒3,variable,[readonly]*/nil, /*⇒6,variable,[readonly]*/double, /*⇒4,variable,[readonly]*/iota)
 }
+
+/*⇒2,comment,[]*//*
+/*⇒0,comment,[]*/
+/*⇒12,comment,[]*/multiline */ /*⇒2,comment,[]*//*
+/*⇒9,comment,[]*/multiline
+/*⇒2,comment,[]*/*/
 

@@ -134,6 +134,15 @@ func (e *encoded) semantics() {
 		}
 		ast.Inspect(d, inspect)
 	}
+	for _, cg := range f.Comments {
+		for _, c := range cg.List {
+			if !strings.Contains(c.Text, "\n") {
+				e.token(c.Pos(), len(c.Text), tokComment, nil)
+				continue
+			}
+			e.multiline(c.Pos(), c.End(), c.Text, tokComment)
+		}
+	}
 }
 
 type tokenType string
@@ -245,9 +254,9 @@ func (e *encoded) inspector(n ast.Node) bool {
 	case *ast.AssignStmt:
 		e.token(x.TokPos, len(x.Tok.String()), tokOperator, nil)
 	case *ast.BasicLit:
-		// if it extends across a line, skip it
-		// better would be to mark each line as string TODO(pjw)
 		if strings.Contains(x.Value, "\n") {
+			// has to be a string
+			e.multiline(x.Pos(), x.End(), x.Value, tokString)
 			break
 		}
 		ln := len(x.Value)
@@ -514,6 +523,30 @@ func (e *encoded) definitionFor(x *ast.Ident) (tokenType, []string) {
 	msg := fmt.Sprintf("failed to find the decl for %s", e.pgf.Tok.PositionFor(x.Pos(), false))
 	e.unexpected(msg)
 	return "", []string{""}
+}
+
+func (e *encoded) multiline(start, end token.Pos, val string, tok tokenType) {
+	f := e.fset.File(start)
+	// the hard part is finding the lengths of lines. include the \n
+	leng := func(line int) int {
+		n := f.LineStart(line)
+		if line >= f.LineCount() {
+			return f.Size() - int(n)
+		}
+		return int(f.LineStart(line+1) - n)
+	}
+	spos := e.fset.PositionFor(start, false)
+	epos := e.fset.PositionFor(end, false)
+	sline := spos.Line
+	eline := epos.Line
+	// first line is from spos.Column to end
+	e.token(start, leng(sline)-spos.Column, tok, nil) // leng(sline)-1 - (spos.Column-1)
+	for i := sline + 1; i < eline; i++ {
+		// intermediate lines are from 1 to end
+		e.token(f.LineStart(i), leng(i)-1, tok, nil) // avoid the newline
+	}
+	// last line is from 1 to epos.Column
+	e.token(f.LineStart(eline), epos.Column-1, tok, nil) // columns are 1-based
 }
 
 // findKeyword finds a keyword rather than guessing its location
