@@ -105,7 +105,7 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 	}
 
 	sname := ldr.SymExtname(x)
-	sname = mangleABIName(ldr, x, sname)
+	sname = mangleABIName(ctxt, ldr, x, sname)
 
 	// One pass for each binding: elf.STB_LOCAL, elf.STB_GLOBAL,
 	// maybe one day elf.STB_WEAK.
@@ -834,9 +834,9 @@ func isStaticTmp(name string) bool {
 }
 
 // Mangle function name with ABI information.
-func mangleABIName(ldr *loader.Loader, x loader.Sym, name string) string {
+func mangleABIName(ctxt *Link, ldr *loader.Loader, x loader.Sym, name string) string {
 	// For functions with ABI wrappers, we have to make sure that we
-	// don't wind up with two elf symbol table entries with the same
+	// don't wind up with two symbol table entries with the same
 	// name (since this will generated an error from the external
 	// linker). If we have wrappers, keep the ABIInternal name
 	// unmangled since we want cross-load-module calls to target
@@ -854,5 +854,17 @@ func mangleABIName(ldr *loader.Loader, x loader.Sym, name string) string {
 			name = fmt.Sprintf("%s.abi%d", name, ldr.SymVersion(x))
 		}
 	}
+
+	// When loading a shared library, if a symbol has only one ABI,
+	// and the name is not mangled, we don't know what ABI it is.
+	// So we always mangle ABIInternal function name in shared linkage,
+	// except symbols that are exported to C. Type symbols are always
+	// ABIInternal so they are not mangled.
+	if ctxt.IsShared() {
+		if ldr.SymType(x) == sym.STEXT && ldr.SymVersion(x) == sym.SymVerABIInternal && !ldr.AttrCgoExport(x) && !strings.HasPrefix(name, "type.") {
+			name = fmt.Sprintf("%s.abiinternal", name)
+		}
+	}
+
 	return name
 }
