@@ -44,13 +44,12 @@ func Init() (*sys.Arch, ld.Arch) {
 	}
 
 	theArch := ld.Arch{
-		Funcalign:       funcAlign,
-		Maxalign:        maxAlign,
-		Minalign:        minAlign,
-		Dwarfregsp:      dwarfRegSP,
-		Dwarfreglr:      dwarfRegLR,
-		TrampLimit:      0x1c00000,
-		WriteTextBlocks: true,
+		Funcalign:  funcAlign,
+		Maxalign:   maxAlign,
+		Minalign:   minAlign,
+		Dwarfregsp: dwarfRegSP,
+		Dwarfreglr: dwarfRegLR,
+		TrampLimit: 0x1c00000,
 
 		Adddynrel:        adddynrel,
 		Archinit:         archinit,
