@@ -226,7 +226,7 @@ func (f *F) Add(args ...interface{}) {
 		}
 		values = append(values, args[i])
 	}
-	f.corpus = append(f.corpus, corpusEntry{Values: values})
+	f.corpus = append(f.corpus, corpusEntry{Values: values, Name: fmt.Sprintf("seed#%d", len(f.corpus))})
 }
 
 // supportedTypes represents all of the supported types which can be fuzzed.
@@ -298,20 +298,18 @@ func (f *F) Fuzz(ff interface{}) {
 	// fn is called in its own goroutine.
 	//
 	// TODO(jayconrod,katiehockman): dedupe testdata corpus with entries from f.Add
-	// TODO(jayconrod,katiehockman): improve output when running the subtest.
-	// e.g. instead of
-	//    --- FAIL: FuzzSomethingError/#00 (0.00s)
-	// do
-	//    --- FAIL: FuzzSomethingError/<hash> (0.00s)
 	run := func(e corpusEntry) error {
 		if e.Values == nil {
 			// Every code path should have already unmarshaled Data into Values.
 			// It's our fault if it didn't.
 			panic(fmt.Sprintf("corpus file %q was not unmarshaled", e.Name))
 		}
-		testName, ok, _ := f.testContext.match.fullName(&f.common, e.Name)
-		if !ok || shouldFailFast() {
+		if shouldFailFast() {
 			return nil
+		}
+		testName := f.common.name
+		if e.Name != "" {
+			testName = fmt.Sprintf("%s/%s", testName, e.Name)
 		}
 		// Record the stack trace at the point of this call so that if the subtest
 		// function - which runs in a separate stack - is marked as a helper, we can
