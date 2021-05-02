@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || (js && wasm) || netbsd || openbsd || solaris
-// +build aix darwin js,wasm netbsd openbsd solaris
+//go:build aix || darwin || (js && wasm) || openbsd || solaris
+// +build aix darwin js,wasm openbsd solaris
 
 package os
 
