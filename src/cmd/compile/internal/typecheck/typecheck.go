@@ -1330,6 +1330,9 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
 	n1 := tstruct.NumFields()
 	n2 := len(nl)
 	if !hasddd(tstruct) {
+		if isddd {
+			goto invalidddd
+		}
 		if n2 > n1 {
 			goto toomany
 		}
@@ -1395,6 +1398,8 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
 	if i < len(nl) {
 		goto toomany
 	}
+
+invalidddd:
 	if isddd {
 		if call != nil {
 			base.Errorf("invalid use of ... in call to %v", call)
