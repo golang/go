@@ -126,7 +126,7 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 			op = "VMOV"
 		}
 
-	case LDR:
+	case LDR, LDUR:
 		var rno uint16
 		if r, ok := inst.Args[0].(Reg); ok {
 			rno = uint16(r)
@@ -135,11 +135,20 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 		}
 		if rno <= uint16(WZR) {
 			op = "MOVWU" + suffix
+		} else if rno >= uint16(B0) && rno <= uint16(B31) {
+			op = "FMOVB" + suffix
+			args[0] = fmt.Sprintf("F%d", rno&31)
+		} else if rno >= uint16(H0) && rno <= uint16(H31) {
+			op = "FMOVH" + suffix
+			args[0] = fmt.Sprintf("F%d", rno&31)
 		} else if rno >= uint16(S0) && rno <= uint16(S31) {
 			op = "FMOVS" + suffix
 			args[0] = fmt.Sprintf("F%d", rno&31)
 		} else if rno >= uint16(D0) && rno <= uint16(D31) {
 			op = "FMOVD" + suffix
+			args[0] = fmt.Sprintf("F%d", rno&31)
+		} else if rno >= uint16(Q0) && rno <= uint16(Q31) {
+			op = "FMOVQ" + suffix
 			args[0] = fmt.Sprintf("F%d", rno&31)
 		} else {
 			op = "MOVD" + suffix
@@ -181,11 +190,20 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 		}
 		if rno <= uint16(WZR) {
 			op = "MOVW" + suffix
+		} else if rno >= uint16(B0) && rno <= uint16(B31) {
+			op = "FMOVB" + suffix
+			args[0] = fmt.Sprintf("F%d", rno&31)
+		} else if rno >= uint16(H0) && rno <= uint16(H31) {
+			op = "FMOVH" + suffix
+			args[0] = fmt.Sprintf("F%d", rno&31)
 		} else if rno >= uint16(S0) && rno <= uint16(S31) {
 			op = "FMOVS" + suffix
 			args[0] = fmt.Sprintf("F%d", rno&31)
 		} else if rno >= uint16(D0) && rno <= uint16(D31) {
 			op = "FMOVD" + suffix
+			args[0] = fmt.Sprintf("F%d", rno&31)
+		} else if rno >= uint16(Q0) && rno <= uint16(Q31) {
+			op = "FMOVQ" + suffix
 			args[0] = fmt.Sprintf("F%d", rno&31)
 		} else {
 			op = "MOVD" + suffix
@@ -251,18 +269,31 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 				op += "W"
 			}
 		}
-		fallthrough
+		args[0] = fmt.Sprintf("(%s, %s)", args[0], args[1])
+		args[1] = args[2]
+		return op + " " + args[1] + ", " + args[0]
 
 	case STP, LDP:
 		args[0] = fmt.Sprintf("(%s, %s)", args[0], args[1])
 		args[1] = args[2]
-		if op == "STP" {
-			op = op + suffix
+
+		rno, ok := inst.Args[0].(Reg)
+		if !ok {
+			rno = Reg(inst.Args[0].(RegSP))
+		}
+		if rno <= WZR {
+			op = op + "W"
+		} else if rno >= S0 && rno <= S31 {
+			op = "F" + op + "S"
+		} else if rno >= D0 && rno <= D31 {
+			op = "F" + op + "D"
+		} else if rno >= Q0 && rno <= Q31 {
+			op = "F" + op + "Q"
+		}
+		op = op + suffix
+		if inst.Op.String() == "STP" {
 			return op + " " + args[0] + ", " + args[1]
-		} else if op == "LDP" {
-			op = op + suffix
-			return op + " " + args[1] + ", " + args[0]
-		} else if op == "LDAXP" || op == "LDXP" || op == "LDAXPW" || op == "LDXPW" {
+		} else {
 			return op + " " + args[1] + ", " + args[0]
 		}
 
@@ -469,6 +500,12 @@ SHA256SU0
 SHA256SU1
 `)
 
+// floating point instrcutions without "F" prefix.
+var fOpsWithoutFPrefix = map[Op]bool{
+	LDP: true,
+	STP: true,
+}
+
 func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg Arg) string {
 	switch a := arg.(type) {
 	case Imm:
@@ -494,20 +531,17 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 		regenum := uint16(a)
 		regno := uint16(a) & 31
 
-		if regenum >= uint16(B0) && regenum <= uint16(D31) {
-			if strings.HasPrefix(inst.Op.String(), "F") || strings.HasSuffix(inst.Op.String(), "CVTF") {
+		if regenum >= uint16(B0) && regenum <= uint16(Q31) {
+			if strings.HasPrefix(inst.Op.String(), "F") || strings.HasSuffix(inst.Op.String(), "CVTF") || fOpsWithoutFPrefix[inst.Op] {
 				// FP registers are the same ones as SIMD registers
 				// Print Fn for scalar variant to align with assembler (e.g., FCVT, SCVTF, UCVTF, etc.)
 				return fmt.Sprintf("F%d", regno)
 			} else {
+				// Print Vn to align with assembler (e.g., SHA256H)
 				return fmt.Sprintf("V%d", regno)
 			}
 
-		} else if regenum >= uint16(Q0) && regenum <= uint16(Q31) {
-			// Print Vn to align with assembler (e.g., SHA256H)
-			return fmt.Sprintf("V%d", regno)
 		}
-
 		if regno == 31 {
 			return "ZR"
 		}
