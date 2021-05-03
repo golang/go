@@ -170,7 +170,7 @@ func (ts *testScript) setup() {
 		"GOPRIVATE=",
 		"GOROOT=" + testGOROOT,
 		"GOROOT_FINAL=" + os.Getenv("GOROOT_FINAL"), // causes spurious rebuilds and breaks the "stale" built-in if not propagated
-		"GOTRACEBACK=all",
+		"GOTRACEBACK=system",
 		"TESTGO_GOROOT=" + testGOROOT,
 		"GOSUMDB=" + testSumDBVerifierKey,
 		"GONOPROXY=",

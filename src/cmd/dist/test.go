@@ -42,6 +42,7 @@ func cmdtest() {
 	if noRebuild {
 		t.rebuild = false
 	}
+
 	t.run()
 }
 
@@ -114,6 +115,21 @@ func (t *tester) run() {
 	if t.hasBash() {
 		if _, err := exec.LookPath("time"); err == nil {
 			t.haveTime = true
+		}
+	}
+
+	// Set GOTRACEBACK to system if the user didn't set a level explicitly.
+	// Since we're running tests for Go, we want as much detail as possible
+	// if something goes wrong.
+	//
+	// Set it before running any commands just in case something goes wrong.
+	if ok := isEnvSet("GOTRACEBACK"); !ok {
+		if err := os.Setenv("GOTRACEBACK", "system"); err != nil {
+			if t.keepGoing {
+				log.Printf("Failed to set GOTRACEBACK: %v", err)
+			} else {
+				fatalf("Failed to set GOTRACEBACK: %v", err)
+			}
 		}
 	}
 
@@ -1663,4 +1679,16 @@ func raceDetectorSupported(goos, goarch string) bool {
 func isUnsupportedVMASize(w *work) bool {
 	unsupportedVMA := []byte("unsupported VMA range")
 	return w.dt.name == "race" && bytes.Contains(w.out, unsupportedVMA)
+}
+
+// isEnvSet reports whether the environment variable evar is
+// set in the environment.
+func isEnvSet(evar string) bool {
+	evarEq := evar + "="
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, evarEq) {
+			return true
+		}
+	}
+	return false
 }
