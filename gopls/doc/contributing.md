@@ -97,7 +97,15 @@ Jenkins-like Google infrastructure for running Dockerized tests. This allows us
 to run gopls tests in various environments that would be difficult to add to
 the TryBots. Notably, Kokoro runs tests on
 [older Go versions](../README.md#supported-go-versions) that are no longer supported
-by the TryBots.
+by the TryBots. Per that that policy, support for these older Go versions is
+best-effort, and test failures may be skipped rather than fixed.
+
+Kokoro runs are triggered by the `Run-TryBot=1` label, just like TryBots, but
+unlike TryBots they do not automatically re-run if the "gopls-CI" result is
+removed in Gerrit. In order to force a new run, you must upload a new patch
+set. (Technically, Googlers can force a new run on an existing patch-set via an
+internal Kokoro dashboard, but unfortunately this ability can't be made more
+generally available).
 
 ## Debugging
 

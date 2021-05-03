@@ -72,11 +72,18 @@ If you are having issues with `gopls`, please follow the steps described in the
 
 ## Supported Go versions and build systems
 
-`gopls` follows the
-[Go Release Policy](https://golang.org/doc/devel/release.html#policy),
-meaning that it officially supports the last 2 major Go releases. Though we
-try not to break older versions, we do not prioritize issues only affecting
-legacy Go releases.
+`gopls` follows the [Go Release
+Policy](https://golang.org/doc/devel/release.html#policy), meaning that it
+officially supports the last 2 major Go releases. Per
+[issue #39146](golang.org/issues/39146), we attempt to maintain best-effort
+support for the last 4 major Go releases, but this support extends only to not
+breaking the build and avoiding easily fixable regressions.
+
+Our extended support is enforced via [continuous integration with older Go
+versions](doc/contributing.md#ci). This legacy Go CI may not block releases:
+test failures may be skipped rather than fixed. Furthermore, if a regression in
+an older Go version causes irreconcilable CI failures, we may drop support for
+that Go version in CI if it is 3 or 4 Go versions old.
 
 `gopls` currently only supports the `go` command, so if you are using a
 different build system, `gopls` will not work well. Bazel support is currently
