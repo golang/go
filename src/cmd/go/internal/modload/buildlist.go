@@ -665,6 +665,8 @@ func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requiremen
 	roots := rs.rootModules
 	rootsUpgraded := false
 
+	spotCheckRoot := map[module.Version]bool{}
+
 	// “The selected version of the module providing each package marked with
 	// either pkgInAll or pkgIsRoot is included as a root.”
 	needSort := false
@@ -710,26 +712,36 @@ func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requiremen
 			// relevant to consumers of the main module either), and its dependencies
 			// should already be in the module graph — included in the dependencies of
 			// the package that imported it.
-
-			if go117LazyTODO {
-				// It is possible that one of the packages we just imported came from a
-				// module with an incomplete or erroneous go.mod file — for example,
-				// perhaps the author forgot to 'git add' their updated go.mod file
-				// after adding a new package import. If that happens, ideally we want
-				// to detect the missing requirements and fix them up here.
-				//
-				// However, we should ignore transitive dependencies of external tests:
-				// the go.mod file for the module containing the test itself is expected
-				// to provide all of the relevant dependencies, and we explicitly don't
-				// want to pull in requirements on *irrelevant* requirements that happen
-				// to occur in the go.mod files for these transitive-test-only
-				// dependencies.
-			}
-
 			continue
 		}
 
-		if _, ok := rs.rootSelected(pkg.mod.Path); !ok {
+		if _, ok := rs.rootSelected(pkg.mod.Path); ok {
+			// It is possible that the main module's go.mod file is incomplete or
+			// otherwise erroneous — for example, perhaps the author forgot to 'git
+			// add' their updated go.mod file after adding a new package import, or
+			// perhaps they made an edit to the go.mod file using a third-party tool
+			// ('git merge'?) that doesn't maintain consistency for module
+			// dependencies. If that happens, ideally we want to detect the missing
+			// requirements and fix them up here.
+			//
+			// However, we also need to be careful not to be too aggressive. For
+			// transitive dependencies of external tests, the go.mod file for the
+			// module containing the test itself is expected to provide all of the
+			// relevant dependencies, and we explicitly don't want to pull in
+			// requirements on *irrelevant* requirements that happen to occur in the
+			// go.mod files for these transitive-test-only dependencies. (See the test
+			// in mod_lazy_test_horizon.txt for a concrete example.
+			//
+			// The “goldilocks zone” seems to be to spot-check exactly the same
+			// modules that we promote to explicit roots: namely, those that provide
+			// packages transitively imported by the main module, and those that
+			// provide roots of the package-import graph. That will catch erroneous
+			// edits to the main module's go.mod file and inconsistent requirements in
+			// dependencies that provide imported packages, but will ignore erroneous
+			// or misleading requirements in dependencies that aren't obviously
+			// relevant to the packages in the main module.
+			spotCheckRoot[pkg.mod] = true
+		} else {
 			roots = append(roots, pkg.mod)
 			rootsUpgraded = true
 			// The roots slice was initially sorted because rs.rootModules was sorted,
@@ -774,8 +786,31 @@ func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requiremen
 		} else {
 			// Since none of the roots have been upgraded, we have no reason to
 			// suspect that they are inconsistent with the requirements of any other
-			// roots. Only look at the full module graph if we've already loaded it.
-			mg, _ = rs.graph.Load().(*ModuleGraph) // May be nil.
+			// roots. Only look at the full module graph if we've already loaded it;
+			// otherwise, just spot-check the explicit requirements of the roots from
+			// which we loaded packages.
+			if rs.graph.Load() != nil {
+				// We've already loaded the full module graph, which includes the
+				// requirements of all of the root modules — even the transitive
+				// requirements, if they are eager!
+				mg, _ = rs.Graph(ctx)
+			} else if cfg.BuildMod == "vendor" {
+				// We can't spot-check the requirements of other modules because we
+				// don't in general have their go.mod files available in the vendor
+				// directory. (Fortunately this case is impossible, because mg.graph is
+				// always non-nil in vendor mode!)
+				panic("internal error: rs.graph is unexpectedly nil with -mod=vendor")
+			} else if !spotCheckRoots(ctx, rs, spotCheckRoot) {
+				// We spot-checked the explicit requirements of the roots that are
+				// relevant to the packages we've loaded. Unfortunately, they're
+				// inconsistent in some way; we need to load the full module graph
+				// so that we can fix the roots properly.
+				var err error
+				mg, err = rs.Graph(ctx)
+				if err != nil {
+					return rs, err
+				}
+			}
 		}
 
 		roots = make([]module.Version, 0, len(rs.rootModules))
@@ -833,6 +868,45 @@ func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requiremen
 		return rs, nil
 	}
 	return newRequirements(lazy, roots, direct), nil
+}
+
+// spotCheckRoots reports whether the versions of the roots in rs satisfy the
+// explicit requirements of the modules in mods.
+func spotCheckRoots(ctx context.Context, rs *Requirements, mods map[module.Version]bool) bool {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	work := par.NewQueue(runtime.GOMAXPROCS(0))
+	for m := range mods {
+		m := m
+		work.Add(func() {
+			if ctx.Err() != nil {
+				return
+			}
+
+			summary, err := goModSummary(m)
+			if err != nil {
+				cancel()
+				return
+			}
+
+			for _, r := range summary.require {
+				if v, ok := rs.rootSelected(r.Path); ok && cmpVersion(v, r.Version) < 0 {
+					cancel()
+					return
+				}
+			}
+		})
+	}
+	<-work.Idle()
+
+	if ctx.Err() != nil {
+		// Either we failed a spot-check, or the caller no longer cares about our
+		// answer anyway.
+		return false
+	}
+
+	return true
 }
 
 // tidyEagerRoots returns a minimal set of root requirements that maintains the
