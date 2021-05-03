@@ -45,8 +45,8 @@ golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
-## explicit; go 1.11
+# golang.org/x/term v0.0.0-20210503060354-a79de5458b56
+## explicit; go 1.17
 golang.org/x/term
 # golang.org/x/tools v0.1.1-0.20210422170518-f946a157eefe
 ## explicit; go 1.12
