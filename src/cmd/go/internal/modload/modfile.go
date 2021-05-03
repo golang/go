@@ -501,9 +501,6 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 		// return the full list of modules from modules.txt.
 		readVendorList()
 
-		// TODO(#36876): Load the "go" version from vendor/modules.txt and store it
-		// in rawGoVersion with the appropriate key.
-
 		// We don't know what versions the vendored module actually relies on,
 		// so assume that it requires everything.
 		summary.require = vendorList
