@@ -21,8 +21,8 @@ golang.org/x/net/route
 # golang.org/x/sys v0.0.0-20210423082822-04245dca01da
 ## explicit; go 1.12
 golang.org/x/sys/cpu
-# golang.org/x/text v0.3.6
-## explicit; go 1.11
+# golang.org/x/text v0.3.7-0.20210503195748-5c7c50ebbd4f
+## explicit; go 1.17
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
