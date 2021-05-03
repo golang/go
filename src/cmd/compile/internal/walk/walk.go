@@ -308,7 +308,8 @@ func mayCall(n ir.Node) bool {
 		default:
 			base.FatalfAt(n.Pos(), "mayCall %+v", n)
 
-		case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
+		case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER,
+			ir.OUNSAFEADD, ir.OUNSAFESLICE:
 			return true
 
 		case ir.OINDEX, ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR,
