@@ -7148,7 +7148,8 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
 	// keep track of which helper registers have been zeroed.
 	var state uint32
 
-	// Iterate through declarations. They are sorted in decreasing Xoffset order.
+	// Iterate through declarations. Autos are sorted in decreasing
+	// frame offset order.
 	for _, n := range e.curfn.Dcl {
 		if !n.Needzero() {
 			continue
