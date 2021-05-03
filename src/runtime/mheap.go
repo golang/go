@@ -897,7 +897,8 @@ func (s spanAllocType) manual() bool {
 // spanclass indicates the span's size class and scannability.
 //
 // If needzero is true, the memory for the returned span will be zeroed.
-// The boolean returned indicates whether the returned span is zeroed.
+// The boolean returned indicates whether the returned span contains zeroes,
+// either because this was requested, or because it was already zeroed.
 func (h *mheap) alloc(npages uintptr, spanclass spanClass, needzero bool) (*mspan, bool) {
 	// Don't do any operations that lock the heap on the G stack.
 	// It might trigger stack growth, and the stack growth code needs
@@ -912,14 +913,15 @@ func (h *mheap) alloc(npages uintptr, spanclass spanClass, needzero bool) (*mspa
 		s = h.allocSpan(npages, spanAllocHeap, spanclass)
 	})
 
-	isZeroed := s.needzero == 0
-	if s != nil {
-		if needzero && s.needzero != 0 {
-			memclrNoHeapPointers(unsafe.Pointer(s.base()), s.npages<<_PageShift)
-			isZeroed = true
-		}
-		s.needzero = 0
+	if s == nil {
+		return nil, false
 	}
+	isZeroed := s.needzero == 0
+	if needzero && !isZeroed {
+		memclrNoHeapPointers(unsafe.Pointer(s.base()), s.npages<<_PageShift)
+		isZeroed = true
+	}
+	s.needzero = 0
 	return s, isZeroed
 }
 
