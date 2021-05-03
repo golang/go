@@ -1161,39 +1161,51 @@ func (s *state) newValue4I(op ssa.Op, t *types.Type, aux int64, arg0, arg1, arg2
 	return s.curBlock.NewValue4I(s.peekPos(), op, t, aux, arg0, arg1, arg2, arg3)
 }
 
+func (s *state) entryBlock() *ssa.Block {
+	b := s.f.Entry
+	if base.Flag.N > 0 && s.curBlock != nil {
+		// If optimizations are off, allocate in current block instead. Since with -N
+		// we're not doing the CSE or tighten passes, putting lots of stuff in the
+		// entry block leads to O(n^2) entries in the live value map during regalloc.
+		// See issue 45897.
+		b = s.curBlock
+	}
+	return b
+}
+
 // entryNewValue0 adds a new value with no arguments to the entry block.
 func (s *state) entryNewValue0(op ssa.Op, t *types.Type) *ssa.Value {
-	return s.f.Entry.NewValue0(src.NoXPos, op, t)
+	return s.entryBlock().NewValue0(src.NoXPos, op, t)
 }
 
 // entryNewValue0A adds a new value with no arguments and an aux value to the entry block.
 func (s *state) entryNewValue0A(op ssa.Op, t *types.Type, aux ssa.Aux) *ssa.Value {
-	return s.f.Entry.NewValue0A(src.NoXPos, op, t, aux)
+	return s.entryBlock().NewValue0A(src.NoXPos, op, t, aux)
 }
 
 // entryNewValue1 adds a new value with one argument to the entry block.
 func (s *state) entryNewValue1(op ssa.Op, t *types.Type, arg *ssa.Value) *ssa.Value {
-	return s.f.Entry.NewValue1(src.NoXPos, op, t, arg)
+	return s.entryBlock().NewValue1(src.NoXPos, op, t, arg)
 }
 
 // entryNewValue1 adds a new value with one argument and an auxint value to the entry block.
 func (s *state) entryNewValue1I(op ssa.Op, t *types.Type, auxint int64, arg *ssa.Value) *ssa.Value {
-	return s.f.Entry.NewValue1I(src.NoXPos, op, t, auxint, arg)
+	return s.entryBlock().NewValue1I(src.NoXPos, op, t, auxint, arg)
 }
 
 // entryNewValue1A adds a new value with one argument and an aux value to the entry block.
 func (s *state) entryNewValue1A(op ssa.Op, t *types.Type, aux ssa.Aux, arg *ssa.Value) *ssa.Value {
-	return s.f.Entry.NewValue1A(src.NoXPos, op, t, aux, arg)
+	return s.entryBlock().NewValue1A(src.NoXPos, op, t, aux, arg)
 }
 
 // entryNewValue2 adds a new value with two arguments to the entry block.
 func (s *state) entryNewValue2(op ssa.Op, t *types.Type, arg0, arg1 *ssa.Value) *ssa.Value {
-	return s.f.Entry.NewValue2(src.NoXPos, op, t, arg0, arg1)
+	return s.entryBlock().NewValue2(src.NoXPos, op, t, arg0, arg1)
 }
 
 // entryNewValue2A adds a new value with two arguments and an aux value to the entry block.
 func (s *state) entryNewValue2A(op ssa.Op, t *types.Type, aux ssa.Aux, arg0, arg1 *ssa.Value) *ssa.Value {
-	return s.f.Entry.NewValue2A(src.NoXPos, op, t, aux, arg0, arg1)
+	return s.entryBlock().NewValue2A(src.NoXPos, op, t, aux, arg0, arg1)
 }
 
 // const* routines add a new const value to the entry block.
@@ -4766,9 +4778,9 @@ func (s *state) openDeferSave(n ir.Node, t *types.Type, val *ssa.Value) *ssa.Val
 		// declared in the entry block, so that it will be live for the
 		// defer exit code (which will actually access it only if the
 		// associated defer call has been activated).
-		s.defvars[s.f.Entry.ID][memVar] = s.entryNewValue1A(ssa.OpVarDef, types.TypeMem, argTemp, s.defvars[s.f.Entry.ID][memVar])
-		s.defvars[s.f.Entry.ID][memVar] = s.entryNewValue1A(ssa.OpVarLive, types.TypeMem, argTemp, s.defvars[s.f.Entry.ID][memVar])
-		addrArgTemp = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(argTemp.Type()), argTemp, s.sp, s.defvars[s.f.Entry.ID][memVar])
+		s.defvars[s.f.Entry.ID][memVar] = s.f.Entry.NewValue1A(src.NoXPos, ssa.OpVarDef, types.TypeMem, argTemp, s.defvars[s.f.Entry.ID][memVar])
+		s.defvars[s.f.Entry.ID][memVar] = s.f.Entry.NewValue1A(src.NoXPos, ssa.OpVarLive, types.TypeMem, argTemp, s.defvars[s.f.Entry.ID][memVar])
+		addrArgTemp = s.f.Entry.NewValue2A(src.NoXPos, ssa.OpLocalAddr, types.NewPtr(argTemp.Type()), argTemp, s.sp, s.defvars[s.f.Entry.ID][memVar])
 	} else {
 		// Special case if we're still in the entry block. We can't use
 		// the above code, since s.defvars[s.f.Entry.ID] isn't defined
