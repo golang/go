@@ -233,6 +233,12 @@ type IPMreq struct {
 	Interface [4]byte /* in_addr */
 }
 
+type IPMreqn struct {
+	Multiaddr [4]byte /* in_addr */
+	Address   [4]byte /* in_addr */
+	Ifindex   int32
+}
+
 type IPv6Mreq struct {
 	Multiaddr [16]byte /* in6_addr */
 	Interface uint32
@@ -285,6 +291,7 @@ const (
 	SizeofLinger           = 0x8
 	SizeofIovec            = 0x10
 	SizeofIPMreq           = 0x8
+	SizeofIPMreqn          = 0xc
 	SizeofIPv6Mreq         = 0x14
 	SizeofMsghdr           = 0x30
 	SizeofCmsghdr          = 0xc

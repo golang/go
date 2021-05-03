@@ -164,6 +164,12 @@ const (
 	MAP_PRIVATE                     = 0x1 // changes are private
 	MAP_SHARED                      = 0x2 // changes are shared
 	MAP_FIXED                       = 0x4 // place exactly
+	MCAST_JOIN_GROUP                = 40
+	MCAST_LEAVE_GROUP               = 41
+	MCAST_JOIN_SOURCE_GROUP         = 42
+	MCAST_LEAVE_SOURCE_GROUP        = 43
+	MCAST_BLOCK_SOURCE              = 44
+	MCAST_UNBLOCK_SOURCE            = 45
 	MS_SYNC                         = 0x1 // msync - synchronous writes
 	MS_ASYNC                        = 0x2 // asynchronous writes
 	MS_INVALIDATE                   = 0x4 // invalidate mappings
