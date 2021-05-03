@@ -1,0 +1,18 @@
+# https://golang.org/issue/45827: 'go run .' should report the same package
+# errors as 'go build'.
+
+! go build
+stderr '^found packages m \(m\.go\) and main \(main\.go\) in '$PWD'$'
+
+! go run .
+	# TODO(#45827): This error should match the above.
+stderr '^go run: no packages loaded from \.$'
+
+-- go.mod --
+module m
+
+go 1.17
+-- m.go --
+package m
+-- main.go --
+package main
