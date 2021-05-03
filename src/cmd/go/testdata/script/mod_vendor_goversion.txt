@@ -11,13 +11,25 @@ go build example.net/need117
 stderr '^bad114[/\\]bad114.go:15:2: duplicate method Y$'
 
 
-# With a vendor/modules.txt lacking language versions, the world is topsy-turvy.
-# Things that ought to build shouldn't, and things that shouldn't build do.
+# With a vendor/modules.txt lacking language versions, the world is topsy-turvy,
+# because we have to guess a uniform version for everything.
+#
+# We always guess Go 1.16, because that was the last version for which
+# 'go mod vendor' failed to record dependency versions, and it has most of
+# the language features added since modules were introduced in Go 1.11.
+#
+# Even so, modules that declare 'go 1.17' and use 1.17 features spuriously fail
+# to build, and modules that declare an older version and use features from a
+# newer one spuriously build (instead of failing as they ought to).
 
 go mod vendor
-go build example.net/bad114
+
+! grep 1.17 vendor/modules.txt
 ! go build example.net/need117
 stderr '^vendor[/\\]example\.net[/\\]need117[/\\]need117.go:5:18: .*\n\tconversion of slices to array pointers only supported as of -lang=go1\.17'
+
+! grep 1.13 vendor/modules.txt
+go build example.net/bad114
 
 
 # Upgrading the main module to 1.17 adds version annotations.
@@ -25,10 +37,13 @@ stderr '^vendor[/\\]example\.net[/\\]need117[/\\]need117.go:5:18: .*\n\tconversi
 
 go mod edit -go=1.17
 go mod vendor
+
+grep '^## explicit; go 1.17$' vendor/modules.txt
 go build example.net/need117
+
+grep '^## explicit; go 1.13$' vendor/modules.txt
 ! go build example.net/bad114
 stderr '^vendor[/\\]example\.net[/\\]bad114[/\\]bad114.go:15:2: duplicate method Y$'
-
 
 -- go.mod --
 module example.net/m
