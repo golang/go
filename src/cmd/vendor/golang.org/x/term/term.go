@@ -7,11 +7,11 @@
 //
 // Putting a terminal into raw mode is the most common requirement:
 //
-// 	oldState, err := term.MakeRaw(0)
+// 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 // 	if err != nil {
 // 	        panic(err)
 // 	}
-// 	defer term.Restore(0, oldState)
+// 	defer term.Restore(int(os.Stdin.Fd()), oldState)
 package term
 
 // State contains the state of a terminal.
