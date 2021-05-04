@@ -393,7 +393,7 @@ func checkPath(path string, kind pathKind) error {
 	if path == "" {
 		return fmt.Errorf("empty string")
 	}
-	if path[0] == '-' {
+	if path[0] == '-' && kind != filePath {
 		return fmt.Errorf("leading dash")
 	}
 	if strings.Contains(path, "//") {
