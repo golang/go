@@ -33,7 +33,19 @@ go list -m -e -f '{{.Error.Err}}' rsc.io/quote@>v1.5.3
 stdout 'no matching versions for query ">v1.5.3"'
 
 go list -m rsc.io/...@latest
-stdout 'rsc.io/quote v1.5.2\n'
+stdout 'rsc.io/quote v1.5.2$'
+
+go list -m .../quote@latest rsc.io/...@latest
+stdout 'rsc.io/quote v1.5.2$'
+
+go list -m rsc.io/...@latest rsc.io/...@patch
+stdout 'rsc.io/quote v1.5.2\nrsc.io/quote v1.0.0$'
+
+go list -m rsc.io/...@latest rsc.io/quote rsc.io/...@patch
+stdout 'rsc.io/quote v1.5.2\nrsc.io/quote v1.0.0$'
+
+go list -m rsc.io/...@latest rsc.io/quote rsc.io/...
+stdout 'rsc.io/quote v1.5.2\nrsc.io/quote v1.0.0$'
 
 -- go.mod --
 module x
