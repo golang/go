@@ -12,8 +12,8 @@
 # dependency (or else no new root would be needed). An additional package D
 # in its own module satisfies that condition, reproducing the bug.
 
-! go mod tidy
-stderr 'internal error'
+go mod tidy
+cmp go.mod go.mod.tidy
 
 -- go.mod --
 module example.net/a
@@ -22,6 +22,22 @@ go 1.16
 
 require (
 	example.net/b v0.1.0
+	example.net/d v0.1.0
+)
+
+replace (
+	example.net/b v0.1.0 => ./b
+	example.net/c v0.1.0 => ./c
+	example.net/c v0.2.0 => ./c
+	example.net/d v0.1.0 => ./d
+)
+-- go.mod.tidy --
+module example.net/a
+
+go 1.16
+
+require (
+	example.net/c v0.2.0 // indirect
 	example.net/d v0.1.0
 )
 
