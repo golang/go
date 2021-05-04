@@ -117,7 +117,9 @@ TEXT runtime·badsignal2(SB),NOSPLIT,$16-0
 	MOVD	runtime·_WriteFile(SB), R12
 	SUB	$16, RSP	// skip over saved frame pointer below RSP
 	BL	(R12)
-	ADD	$16, RSP
+
+	// Does not return.
+	B	runtime·abort(SB)
 
 	RET
 

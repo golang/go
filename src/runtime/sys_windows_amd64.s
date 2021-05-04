@@ -96,6 +96,8 @@ TEXT runtime·badsignal2(SB),NOSPLIT|NOFRAME,$48
 	MOVQ	runtime·_WriteFile(SB), AX
 	CALL	AX
 
+	// Does not return.
+	CALL	runtime·abort(SB)
 	RET
 
 // faster get/set last error

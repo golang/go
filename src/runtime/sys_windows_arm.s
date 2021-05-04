@@ -97,8 +97,8 @@ TEXT runtime·badsignal2(SB),NOSPLIT|NOFRAME,$0
 	MOVW	runtime·_WriteFile(SB), R12
 	BL	(R12)
 
-	MOVW	R4, R13			// restore SP
-	MOVM.IA.W (R13), [R4, R15]	// pop {r4, pc}
+	// Does not return.
+	B	runtime·abort(SB)
 
 TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	MRC	15, 0, R0, C13, C0, 2
