@@ -10,9 +10,13 @@ func _() {
 		aString  string   //@item(appendString, "aString", "string", "var")
 	)
 
-	foo(append())           //@rank("))", appendStrings, appendInt),rank("))", appendStrings, appendString)
-	foo(append(nil, a))     //@rank("))", appendStrings, appendInt),rank("))", appendString, appendInt),snippet("))", appendStrings, "aStrings...", "aStrings...")
-	foo(append(nil, "", a)) //@rank("))", appendString, appendInt),rank("))", appendString, appendStrings)
+	append(aStrings, a)                     //@rank(")", appendString, appendInt)
+	var _ interface{} = append(aStrings, a) //@rank(")", appendString, appendInt)
+	var _ []string = append(oops, a)        //@rank(")", appendString, appendInt)
+
+	foo(append())                  //@rank("))", appendStrings, appendInt),rank("))", appendStrings, appendString)
+	foo(append([]string{}, a))     //@rank("))", appendStrings, appendInt),rank("))", appendString, appendInt),snippet("))", appendStrings, "aStrings...", "aStrings...")
+	foo(append([]string{}, "", a)) //@rank("))", appendString, appendInt),rank("))", appendString, appendStrings)
 
 	// Don't add "..." to append() argument.
 	bar(append()) //@snippet("))", appendStrings, "aStrings", "aStrings")
@@ -27,9 +31,9 @@ func _() {
 	b.b                  //@item(appendNestedBaz, "b.b", "[]baz", "field")
 	b.b = append(b.b, b) //@rank(")", appendBazzy, appendBazLiteral, appendNestedBaz)
 
-	var aStringsPtr *[]string //@item(appendStringsPtr, "aStringsPtr", "*[]string", "var")
-	"*aStringsPtr"            //@item(appendStringsDeref, "*aStringsPtr", "*[]string", "var")
-	foo(append(nil, a))       //@snippet("))", appendStringsDeref, "*aStringsPtr...", "*aStringsPtr...")
+	var aStringsPtr *[]string  //@item(appendStringsPtr, "aStringsPtr", "*[]string", "var")
+	"*aStringsPtr"             //@item(appendStringsDeref, "*aStringsPtr", "*[]string", "var")
+	foo(append([]string{}, a)) //@snippet("))", appendStringsDeref, "*aStringsPtr...", "*aStringsPtr...")
 
-	foo(append(nil, *a)) //@snippet("))", appendStringsPtr, "aStringsPtr...", "aStringsPtr...")
+	foo(append([]string{}, *a)) //@snippet("))", appendStringsPtr, "aStringsPtr...", "aStringsPtr...")
 }

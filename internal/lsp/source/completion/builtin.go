@@ -69,13 +69,22 @@ func (c *completer) builtinArgType(obj types.Object, call *ast.CallExpr, parentI
 
 	switch obj.Name() {
 	case "append":
-		if parentInf.objType == nil {
+		if exprIdx <= 0 {
+			// Infer first append() arg type as apparent return type of
+			// append().
+			inf.objType = parentInf.objType
 			break
 		}
 
-		inf.objType = parentInf.objType
-
-		if exprIdx <= 0 {
+		// For non-initial append() args, infer slice type from the first
+		// append() arg, or from parent context.
+		if len(call.Args) > 0 {
+			inf.objType = c.pkg.GetTypesInfo().TypeOf(call.Args[0])
+		}
+		if inf.objType == nil {
+			inf.objType = parentInf.objType
+		}
+		if inf.objType == nil {
 			break
 		}
 
