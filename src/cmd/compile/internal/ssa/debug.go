@@ -1362,9 +1362,6 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 	// Locate the value corresponding to the last spill of
 	// an input register.
 	afterPrologVal := locatePrologEnd(f)
-	if afterPrologVal == ID(-1) {
-		panic(fmt.Sprintf("internal error: f=%s: can't locate after prolog value", f.Name))
-	}
 
 	// Walk the input params again and process the register-resident elements.
 	pidx := 0
@@ -1380,6 +1377,15 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 		fd.Slots = append(fd.Slots, sl)
 		slid := len(fd.VarSlots)
 		fd.VarSlots = append(fd.VarSlots, []SlotID{SlotID(slid)})
+
+		if afterPrologVal == ID(-1) {
+			// This can happen for degenerate functions with infinite
+			// loops such as that in issue 45948. In such cases, leave
+			// the var/slot set up for the param, but don't try to
+			// emit a location list.
+			pidx++
+			continue
+		}
 
 		// Param is arriving in one or more registers. We need a 2-element
 		// location expression for it. First entry in location list
