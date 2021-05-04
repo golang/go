@@ -252,9 +252,6 @@ TEXT runtime·mcall(SB),NOSPLIT|NOFRAME,$0-4
 	CMP	g, R1
 	B.NE	2(PC)
 	B	runtime·badmcall(SB)
-	MOVB	runtime·iscgo(SB), R11
-	CMP	$0, R11
-	BL.NE	runtime·save_g(SB)
 	MOVW	fn+0(FP), R0
 	MOVW	(g_sched+gobuf_sp)(g), R13
 	SUB	$8, R13
