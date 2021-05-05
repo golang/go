@@ -1810,7 +1810,8 @@ func buildWorkspaceModFile(ctx context.Context, modFiles map[span.URI]struct{}, 
 	// Fall back to 1.12 -- old versions insist on having some version.
 	goVersion := "1.12"
 
-	paths := make(map[string]span.URI)
+	paths := map[string]span.URI{}
+	excludes := map[string][]string{}
 	var sortedModURIs []span.URI
 	for uri := range modFiles {
 		sortedModURIs = append(sortedModURIs, uri)
@@ -1853,6 +1854,9 @@ func buildWorkspaceModFile(ctx context.Context, modFiles map[span.URI]struct{}, 
 		if err := file.AddReplace(path, "", dirURI(modURI).Filename(), ""); err != nil {
 			return nil, err
 		}
+		for _, exclude := range parsed.Exclude {
+			excludes[exclude.Mod.Path] = append(excludes[exclude.Mod.Path], exclude.Mod.Version)
+		}
 	}
 	if goVersion != "" {
 		file.AddGoStmt(goVersion)
@@ -1894,6 +1898,11 @@ func buildWorkspaceModFile(ctx context.Context, modFiles map[span.URI]struct{}, 
 			if err := file.AddReplace(rep.Old.Path, rep.Old.Version, newPath, newVersion); err != nil {
 				return nil, err
 			}
+		}
+	}
+	for path, versions := range excludes {
+		for _, version := range versions {
+			file.AddExclude(path, version)
 		}
 	}
 	file.SortBlocks()
