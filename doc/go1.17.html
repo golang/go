@@ -46,7 +46,7 @@ Do not send CLs removing the interior tags from such phrases.
 <h2 id="tools">Tools</h2>
 
 <p>
-  TODO: complete this section, or delete if not needed
+  TODO: complete the Tools section
 </p>
 
 <h3 id="go-command">Go command</h3>
@@ -157,28 +157,46 @@ Do not send CLs removing the interior tags from such phrases.
   password-protected SSH keys.
 </p>
 
-<h2 id="runtime">Runtime</h2>
+<p><!-- CL 249759 -->
+  TODO: <a href="https://golang.org/cl/249759">https://golang.org/cl/249759</a>: cmd/cover: replace code using optimized golang.org/x/tools/cover
+</p>
+
+<h3 id="vet">Vet</h3>
+
+<p><!-- CL 299532 -->
+  TODO: <a href="https://golang.org/cl/299532">https://golang.org/cl/299532</a>: cmd/vet: bring in sigchanyzer to report unbuffered channels to signal.Notify
+</p>
 
 <p>
-  TODO: complete this section, or delete if not needed
+  TODO: complete the Vet section
+</p>
+
+<h2 id="runtime">Runtime</h2>
+
+<p><!-- CL 304470 -->
+  TODO: <a href="https://golang.org/cl/304470">https://golang.org/cl/304470</a>: cmd/compile, runtime: add metadata for argument printing in traceback
+</p>
+
+<p>
+  TODO: complete the Runtime section
 </p>
 
 <h2 id="compiler">Compiler</h2>
 
 <p>
-  TODO: complete this section, or delete if not needed
+  TODO: complete the Compiler section, or delete if not needed
 </p>
 
 <h2 id="linker">Linker</h2>
 
 <p>
-  TODO: complete this section, or delete if not needed
+  TODO: complete the Linker section, or delete if not needed
 </p>
 
 <h2 id="library">Core library</h2>
 
 <p>
-  TODO: complete this section
+  TODO: complete the Core library section
 </p>
 
 <h3 id="crypto/tls"><a href="/pkg/crypto/tls">crypto/tls</a></h3>
@@ -201,10 +219,10 @@ Do not send CLs removing the interior tags from such phrases.
 <h3 id="runtime/cgo"><a href="/pkg/runtime/cgo">Cgo</a></h3>
 
 <p>
-The <a href="/pkg/runtime/cgo">runtime/cgo</a> package now provides a
-new facility that allows to turn any Go values to a safe representation
-that can be used to pass values between C and Go safely. See
-<a href="/pkg/runtime/cgo#Handle">runtime/cgo.Handle</a> for more information.
+  The <a href="/pkg/runtime/cgo">runtime/cgo</a> package now provides a
+  new facility that allows to turn any Go values to a safe representation
+  that can be used to pass values between C and Go safely. See
+  <a href="/pkg/runtime/cgo#Handle">runtime/cgo.Handle</a> for more information.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
@@ -215,24 +233,251 @@ that can be used to pass values between C and Go safely. See
   in mind.
 </p>
 
+<dl id="archive/zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
+  <dd>
+    <p><!-- CL 312310 -->
+      TODO: <a href="https://golang.org/cl/312310">https://golang.org/cl/312310</a>: add File.OpenRaw, Writer.CreateRaw, Writer.Copy
+    </p>
+  </dd>
+</dl><!-- archive/zip -->
+
+<dl id="bufio, bytes, strings"><dt><a href="/pkg/bufio, bytes, strings/">bufio, bytes, strings</a></dt>
+  <dd>
+    <p><!-- CL 280492 -->
+      TODO: <a href="https://golang.org/cl/280492">https://golang.org/cl/280492</a>: handle negative runes in WriteRune
+    </p>
+  </dd>
+</dl><!-- bufio, bytes, strings -->
+
+<dl id="compress/lzw"><dt><a href="/pkg/compress/lzw/">compress/lzw</a></dt>
+  <dd>
+    <p><!-- CL 273667 -->
+      TODO: <a href="https://golang.org/cl/273667">https://golang.org/cl/273667</a>: add Reset method to Reader and Writer
+    </p>
+  </dd>
+</dl><!-- compress/lzw -->
+
+<dl id="crypto/rsa"><dt><a href="/pkg/crypto/rsa/">crypto/rsa</a></dt>
+  <dd>
+    <p><!-- CL 302230 -->
+      TODO: <a href="https://golang.org/cl/302230">https://golang.org/cl/302230</a>: fix salt length calculation with PSSSaltLengthAuto
+    </p>
+  </dd>
+</dl><!-- crypto/rsa -->
+
+<dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
+  <dd>
+    <p><!-- CL 258360 -->
+      TODO: <a href="https://golang.org/cl/258360">https://golang.org/cl/258360</a>: close driver.Connector if it implements io.Closer
+    </p>
+
+    <p><!-- CL 311572 -->
+      TODO: <a href="https://golang.org/cl/311572">https://golang.org/cl/311572</a>: add NullInt16 and NullByte
+    </p>
+  </dd>
+</dl><!-- database/sql -->
+
+<dl id="encoding/binary"><dt><a href="/pkg/encoding/binary/">encoding/binary</a></dt>
+  <dd>
+    <p><!-- CL 299531 -->
+      TODO: <a href="https://golang.org/cl/299531">https://golang.org/cl/299531</a>: limit bytes read by Uvarint to &lt;= 10
+    </p>
+  </dd>
+</dl><!-- encoding/binary -->
+
+<dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
+  <dd>
+    <p><!-- CL 271788 -->
+      TODO: <a href="https://golang.org/cl/271788">https://golang.org/cl/271788</a>: panic if flag name begins with - or contains =
+    </p>
+  </dd>
+</dl><!-- flag -->
+
+<dl id="io/fs"><dt><a href="/pkg/io/fs/">io/fs</a></dt>
+  <dd>
+    <p><!-- CL 293649 -->
+      TODO: <a href="https://golang.org/cl/293649">https://golang.org/cl/293649</a>: implement FileInfoToDirEntry
+    </p>
+  </dd>
+</dl><!-- io/fs -->
+
+<dl id="math"><dt><a href="/pkg/math/">math</a></dt>
+  <dd>
+    <p><!-- CL 247058 -->
+      TODO: <a href="https://golang.org/cl/247058">https://golang.org/cl/247058</a>: add MaxUint, MinInt, MaxInt
+    </p>
+  </dd>
+</dl><!-- math -->
+
+<dl id="mime"><dt><a href="/pkg/mime/">mime</a></dt>
+  <dd>
+    <p><!-- CL 305230 -->
+      TODO: <a href="https://golang.org/cl/305230">https://golang.org/cl/305230</a>: support reading shared mime-info database on unix systems
+    </p>
+  </dd>
+</dl><!-- mime -->
+
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- CL 272668 -->
+      TODO: <a href="https://golang.org/cl/272668">https://golang.org/cl/272668</a>: add IP.IsPrivate
+    </p>
+
+    <p><!-- CL 301709 -->
+      TODO: <a href="https://golang.org/cl/301709">https://golang.org/cl/301709</a>: make go resolver aware of network parameter
+    </p>
+
+    <p><!-- CL 307030 -->
+      TODO: <a href="https://golang.org/cl/307030">https://golang.org/cl/307030</a>: make ErrClosed and ParseError implement net.Error
+    </p>
+  </dd>
+</dl><!-- net -->
+
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
-  <p>
-    The <a href="/pkg/net/http/"><code>net/http</code></a> package now uses the new
-    <a href="/pkg/crypto/tls#Conn.HandshakeContext"><code>(*tls.Conn).HandshakeContext</code></a>
-    with the <a href="/pkg/net/http/#Request"><code>Request</code></a> context
-    when performing TLS handshakes in the client or server.
-  </p>
+  <dd>
+    <p><!-- CL 295370 -->
+      The <a href="/pkg/net/http/"><code>net/http</code></a> package now uses the new
+      <a href="/pkg/crypto/tls#Conn.HandshakeContext"><code>(*tls.Conn).HandshakeContext</code></a>
+      with the <a href="/pkg/net/http/#Request"><code>Request</code></a> context
+      when performing TLS handshakes in the client or server.
+    </p>
+
+    <p><!-- CL 235437 -->
+      TODO: <a href="https://golang.org/cl/235437">https://golang.org/cl/235437</a>: add to deadlines only when positive
+    </p>
+
+    <p><!-- CL 308952 -->
+      TODO: <a href="https://golang.org/cl/308952">https://golang.org/cl/308952</a>: make ReadRequest return an error when requests have multiple Host headers
+    </p>
+  </dd>
 </dl><!-- net/http -->
+
+<dl id="net/http/httptest"><dt><a href="/pkg/net/http/httptest/">net/http/httptest</a></dt>
+  <dd>
+    <p><!-- CL 308950 -->
+      TODO: <a href="https://golang.org/cl/308950">https://golang.org/cl/308950</a>: panic on non-3 digit (XXX) status code in Recorder.WriteHeader
+    </p>
+  </dd>
+</dl><!-- net/http/httptest -->
+
+<dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
+  <dd>
+    <p><!-- CL 314850 -->
+      TODO: <a href="https://golang.org/cl/314850">https://golang.org/cl/314850</a>: add Values.Has
+    </p>
+  </dd>
+</dl><!-- net/url -->
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- CL 268020 -->
+      TODO: <a href="https://golang.org/cl/268020">https://golang.org/cl/268020</a>: avoid allocation in File.WriteString
+    </p>
+  </dd>
+</dl><!-- os -->
+
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- CL 266197 -->
+      TODO: <a href="https://golang.org/cl/266197">https://golang.org/cl/266197</a>: add Method.IsExported and StructField.IsExported methods
+    </p>
+
+    <p><!-- CL 281233 -->
+      TODO: <a href="https://golang.org/cl/281233">https://golang.org/cl/281233</a>: add VisibleFields function
+    </p>
+
+    <p><!-- CL 284136 -->
+      TODO: <a href="https://golang.org/cl/284136">https://golang.org/cl/284136</a>: panic if ArrayOf is called with negative length
+    </p>
+  </dd>
+</dl><!-- reflect -->
+
+<dl id="spec"><dt><a href="/pkg/spec/">spec</a></dt>
+  <dd>
+    <p><!-- CL 216424 -->
+      TODO: <a href="https://golang.org/cl/216424">https://golang.org/cl/216424</a>: allow conversion from slice to array ptr
+    </p>
+  </dd>
+</dl><!-- spec -->
+
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+  <dd>
+    <p><!-- CL 170079 -->
+      TODO: <a href="https://golang.org/cl/170079">https://golang.org/cl/170079</a>: implement Ryū-like algorithm for fixed precision ftoa
+    </p>
+
+    <p><!-- CL 170080 -->
+      TODO: <a href="https://golang.org/cl/170080">https://golang.org/cl/170080</a>: Implement Ryū algorithm for ftoa shortest mode
+    </p>
+
+    <p><!-- CL 314775 -->
+      TODO: <a href="https://golang.org/cl/314775">https://golang.org/cl/314775</a>: add QuotedPrefix
+    </p>
+  </dd>
+</dl><!-- strconv -->
+
+<dl id="sync/atomic"><dt><a href="/pkg/sync/atomic/">sync/atomic</a></dt>
+  <dd>
+    <p><!-- CL 241678 -->
+      TODO: <a href="https://golang.org/cl/241678">https://golang.org/cl/241678</a>: add (*Value).Swap and (*Value).CompareAndSwap
+    </p>
+  </dd>
+</dl><!-- sync/atomic -->
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- CL 295371 -->
+      TODO: <a href="https://golang.org/cl/295371">https://golang.org/cl/295371</a>: do not overflow key memory in GetQueuedCompletionStatus
+    </p>
+
+    <p><!-- CL 313653 -->
+      TODO: <a href="https://golang.org/cl/313653">https://golang.org/cl/313653</a>: restore signal mask after setting foreground process group
+    </p>
+  </dd>
+</dl><!-- syscall -->
+
+<dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+  <dd>
+    <p><!-- CL 310033 -->
+      TODO: <a href="https://golang.org/cl/310033">https://golang.org/cl/310033</a>: add -shuffle=off|on|N to alter the execution order of tests and benchmarks
+    </p>
+  </dd>
+</dl><!-- testing -->
+
+<dl id="text/template/parse"><dt><a href="/pkg/text/template/parse/">text/template/parse</a></dt>
+  <dd>
+    <p><!-- CL 301493 -->
+      TODO: <a href="https://golang.org/cl/301493">https://golang.org/cl/301493</a>: add a mode to skip func-check on parsing
+    </p>
+  </dd>
+</dl><!-- text/template/parse -->
 
 <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
   <dd>
     <p><!-- CL 260858 -->
-    time.Time now has a <a href="/pkg/time/#Time.GoString">GoString</a>
-    method that will return a more useful value for times when printed with
-    the <code>"%#v"</code> format specifier in the fmt package.
+      time.Time now has a <a href="/pkg/time/#Time.GoString">GoString</a>
+      method that will return a more useful value for times when printed with
+      the <code>"%#v"</code> format specifier in the fmt package.
+    </p>
+
+    <p><!-- CL 264077 -->
+      TODO: <a href="https://golang.org/cl/264077">https://golang.org/cl/264077</a>: add Time.IsDST() to check if its Location is in Daylight Savings Time
+    </p>
+
+    <p><!-- CL 293349 -->
+      TODO: <a href="https://golang.org/cl/293349">https://golang.org/cl/293349</a>: add Time.Unix{Milli,Micro} and to-Time helpers UnixMicro, UnixMilli
+    </p>
+
+    <p><!-- CL 300996 -->
+      TODO: <a href="https://golang.org/cl/300996">https://golang.org/cl/300996</a>: support &#34;,&#34; as separator for fractional seconds
     </p>
   </dd>
 </dl><!-- time -->
-<p>
-  TODO: complete this section
-</p>
+
+<dl id="unicode"><dt><a href="/pkg/unicode/">unicode</a></dt>
+  <dd>
+    <p><!-- CL 280493 -->
+      TODO: <a href="https://golang.org/cl/280493">https://golang.org/cl/280493</a>: correctly handle negative runes
+    </p>
+  </dd>
+</dl><!-- unicode -->
