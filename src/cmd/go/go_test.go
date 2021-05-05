@@ -2836,9 +2836,11 @@ func TestCoverpkgTestOnly(t *testing.T) {
 // Regression test for golang.org/issue/34499: version command should not crash
 // when executed in a deleted directory on Linux.
 func TestExecInDeletedDir(t *testing.T) {
-	// The crash has only been reproduced on Linux.
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		t.Skip()
+	switch runtime.GOOS {
+	case "windows", "plan9",
+		"aix",                // Fails with "device busy".
+		"solaris", "illumos": // Fails with "invalid argument".
+		t.Skipf("%v does not support removing the current working directory", runtime.GOOS)
 	}
 	tg := testgo(t)
 	defer tg.cleanup()
