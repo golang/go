@@ -818,8 +818,9 @@ func testInvalidFilesBeforeOverlayContains(t *testing.T, exporter packagestest.E
 				if err != nil {
 					t.Fatal(err)
 				}
-				if len(initial) != 1 {
-					t.Fatalf("expected 1 packages, got %v", len(initial))
+				if len(initial) != 1 &&
+					(len(initial) != 2 || !isTestVariant(initial[0].ID, initial[1].ID)) {
+					t.Fatalf("expected 1 package (perhaps with test variant), got %v", len(initial))
 				}
 				pkg := initial[0]
 				if pkg.ID != tt.wantID {
@@ -847,6 +848,11 @@ func testInvalidFilesBeforeOverlayContains(t *testing.T, exporter packagestest.E
 			}
 		})
 	}
+}
+
+func isTestVariant(libID, testID string) bool {
+	variantID := fmt.Sprintf("%[1]s [%[1]s.test]", libID)
+	return variantID == testID
 }
 
 func TestInvalidXTestInGOPATH(t *testing.T) {
