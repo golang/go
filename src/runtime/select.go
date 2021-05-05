@@ -15,7 +15,7 @@ const debugSelect = false
 
 // Select case descriptor.
 // Known to compiler.
-// Changes here must also be made in src/cmd/internal/gc/select.go's scasetype.
+// Changes here must also be made in src/cmd/compile/internal/walk/select.go's scasetype.
 type scase struct {
 	c    *hchan         // chan
 	elem unsafe.Pointer // data element
