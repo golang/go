@@ -810,6 +810,17 @@ Found:
 	}
 
 	var badGoError error
+	badFiles := make(map[string]bool)
+	badFile := func(name string, err error) {
+		if badGoError == nil {
+			badGoError = err
+		}
+		if !badFiles[name] {
+			p.InvalidGoFiles = append(p.InvalidGoFiles, name)
+			badFiles[name] = true
+		}
+	}
+
 	var Sfiles []string // files with ".S"(capital S)/.sx(capital s equivalent for case insensitive filesystems)
 	var firstFile, firstCommentFile string
 	embedPos := make(map[string][]token.Position)
@@ -834,16 +845,9 @@ Found:
 		name := d.Name()
 		ext := nameExt(name)
 
-		badFile := func(err error) {
-			if badGoError == nil {
-				badGoError = err
-			}
-			p.InvalidGoFiles = append(p.InvalidGoFiles, name)
-		}
-
 		info, err := ctxt.matchFile(p.Dir, name, allTags, &p.BinaryOnly, fset)
 		if err != nil {
-			badFile(err)
+			badFile(name, err)
 			continue
 		}
 		if info == nil {
@@ -874,7 +878,7 @@ Found:
 		}
 
 		if info.parseErr != nil {
-			badFile(info.parseErr)
+			badFile(name, info.parseErr)
 			continue
 		}
 		pf := info.parsed
@@ -896,12 +900,14 @@ Found:
 			p.Name = pkg
 			firstFile = name
 		} else if pkg != p.Name {
-			badFile(&MultiplePackageError{
+			// TODO(#45999): The choice of p.Name is arbitrary based on file iteration
+			// order. Instead of resolving p.Name arbitrarily, we should clear out the
+			// existing name and mark the existing files as also invalid.
+			badFile(name, &MultiplePackageError{
 				Dir:      p.Dir,
 				Packages: []string{p.Name, pkg},
 				Files:    []string{firstFile, name},
 			})
-			p.InvalidGoFiles = append(p.InvalidGoFiles, name)
 		}
 		// Grab the first package comment as docs, provided it is not from a test file.
 		if pf.Doc != nil && p.Doc == "" && !isTest && !isXTest {
@@ -913,12 +919,12 @@ Found:
 			if line != 0 {
 				com, err := strconv.Unquote(qcom)
 				if err != nil {
-					badFile(fmt.Errorf("%s:%d: cannot parse import comment", filename, line))
+					badFile(name, fmt.Errorf("%s:%d: cannot parse import comment", filename, line))
 				} else if p.ImportComment == "" {
 					p.ImportComment = com
 					firstCommentFile = name
 				} else if p.ImportComment != com {
-					badFile(fmt.Errorf("found import comments %q (%s) and %q (%s) in %s", p.ImportComment, firstCommentFile, com, name, p.Dir))
+					badFile(name, fmt.Errorf("found import comments %q (%s) and %q (%s) in %s", p.ImportComment, firstCommentFile, com, name, p.Dir))
 				}
 			}
 		}
@@ -928,13 +934,13 @@ Found:
 		for _, imp := range info.imports {
 			if imp.path == "C" {
 				if isTest {
-					badFile(fmt.Errorf("use of cgo in test %s not supported", filename))
+					badFile(name, fmt.Errorf("use of cgo in test %s not supported", filename))
 					continue
 				}
 				isCgo = true
 				if imp.doc != nil {
 					if err := ctxt.saveCgo(filename, p, imp.doc); err != nil {
-						badFile(err)
+						badFile(name, err)
 					}
 				}
 			}
