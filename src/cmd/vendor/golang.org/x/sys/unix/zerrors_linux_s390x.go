@@ -212,6 +212,8 @@ const (
 	PTRACE_POKE_SYSTEM_CALL          = 0x5008
 	PTRACE_PROT                      = 0x15
 	PTRACE_SINGLEBLOCK               = 0xc
+	PTRACE_SYSEMU                    = 0x1f
+	PTRACE_SYSEMU_SINGLESTEP         = 0x20
 	PTRACE_TE_ABORT_RAND             = 0x5011
 	PT_ACR0                          = 0x90
 	PT_ACR1                          = 0x94

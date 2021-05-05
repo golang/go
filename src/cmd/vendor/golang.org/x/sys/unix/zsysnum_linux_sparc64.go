@@ -381,4 +381,5 @@ const (
 	SYS_FACCESSAT2             = 439
 	SYS_PROCESS_MADVISE        = 440
 	SYS_EPOLL_PWAIT2           = 441
+	SYS_MOUNT_SETATTR          = 442
 )

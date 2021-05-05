@@ -25,3 +25,9 @@ func xgetbv() (eax, edx uint32) {
 	gccgoXgetbv(&a, &d)
 	return a, d
 }
+
+// gccgo doesn't build on Darwin, per:
+// https://github.com/Homebrew/homebrew-core/blob/HEAD/Formula/gcc.rb#L76
+func darwinSupportsAVX512() bool {
+	return false
+}
