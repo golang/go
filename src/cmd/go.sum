@@ -9,8 +9,6 @@ golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e h1:pv3V0NlNSh5Q6AX/StwGLBjc
 golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
 golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e h1:8foAy0aoO5GkqCvAEJ4VC4P3zksTg4X4aJCDpZzmgQI=
 golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e/go.mod h1:P+XmwS30IXTQdn5tA2iutPOUgjI07+tq3H3K9MVA1s8=
-golang.org/x/mod v0.4.3-0.20210503183026-4435ecfe4815 h1:9nyskUepGPcX93addfTsdRqsQ7rSWIdQOdWVcsWAYv0=
-golang.org/x/mod v0.4.3-0.20210503183026-4435ecfe4815/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
 golang.org/x/mod v0.4.3-0.20210504181020-67f1c1edc27a h1:wbpC/7Wbo5WFVox32n+KjhRRLmTLq8YW/wRlL2iVAhk=
 golang.org/x/mod v0.4.3-0.20210504181020-67f1c1edc27a/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
 golang.org/x/sys v0.0.0-20191204072324-ce4227a45e2e/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
