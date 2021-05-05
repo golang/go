@@ -1394,6 +1394,10 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		return ir.NewBlockStmt(base.Pos, init)
 
 	case ir.OGOTO:
+		if subst.newclofn != nil {
+			// Don't do special substitutions if inside a closure
+			break
+		}
 		n := n.(*ir.BranchStmt)
 		m := ir.Copy(n).(*ir.BranchStmt)
 		m.SetPos(subst.updatedPos(m.Pos()))
