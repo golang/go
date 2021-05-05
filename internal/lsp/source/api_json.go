@@ -265,7 +265,7 @@ var GeneratedAPIJSON = &APIJSON{
 					Keys:      nil,
 				},
 				EnumValues: nil,
-				Default:    "false",
+				Default:    "true",
 				Status:     "experimental",
 				Hierarchy:  "ui.completion",
 			},

@@ -133,7 +133,7 @@ func DefaultOptions() *Options {
 					CompletionOptions: CompletionOptions{
 						Matcher:                        Fuzzy,
 						CompletionBudget:               100 * time.Millisecond,
-						ExperimentalPostfixCompletions: false,
+						ExperimentalPostfixCompletions: true,
 					},
 					Codelenses: map[string]bool{
 						string(command.Generate):          true,

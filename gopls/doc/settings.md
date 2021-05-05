@@ -246,7 +246,7 @@ Default: `"Fuzzy"`.
 experimentalPostfixCompletions enables artifical method snippets
 such as "someSlice.sort!".
 
-Default: `false`.
+Default: `true`.
 
 #### Diagnostic
 
