@@ -241,13 +241,25 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- archive/zip -->
 
-<dl id="bufio, bytes, strings"><dt><a href="/pkg/bufio, bytes, strings/">bufio, bytes, strings</a></dt>
+<dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
   <dd>
     <p><!-- CL 280492 -->
-      TODO: <a href="https://golang.org/cl/280492">https://golang.org/cl/280492</a>: handle negative runes in WriteRune
+      The <a href="/pkg/bufio/#Writer.WriteRune"><code>Writer.WriteRune</code></a> method
+      now writes the replacement character U+FFFD for negative rune values,
+      as it does for other invalid runes.
     </p>
   </dd>
-</dl><!-- bufio, bytes, strings -->
+</dl><!-- bufio -->
+
+<dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
+  <dd>
+    <p><!-- CL 280492 -->
+      The <a href="/pkg/bytes/#Buffer.WriteRune"><code>Buffer.WriteRune</code></a> method
+      now writes the replacement character U+FFFD for negative rune values,
+      as it does for other invalid runes.
+    </p>
+  </dd>
+</dl><!-- bytes -->
 
 <dl id="compress/lzw"><dt><a href="/pkg/compress/lzw/">compress/lzw</a></dt>
   <dd>
@@ -416,6 +428,16 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- strconv -->
 
+<dl id="strings"><dt><a href="/pkg/strings/">strings</a></dt>
+  <dd>
+    <p><!-- CL 280492 -->
+      The <a href="/pkg/strings/#Builder.WriteRune"><code>Builder.WriteRune</code></a> method
+      now writes the replacement character U+FFFD for negative rune values,
+      as it does for other invalid runes.
+    </p>
+  </dd>
+</dl><!-- strings -->
+
 <dl id="sync/atomic"><dt><a href="/pkg/sync/atomic/">sync/atomic</a></dt>
   <dd>
     <p><!-- CL 241678 -->
@@ -477,7 +499,18 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="unicode"><dt><a href="/pkg/unicode/">unicode</a></dt>
   <dd>
     <p><!-- CL 280493 -->
-      TODO: <a href="https://golang.org/cl/280493">https://golang.org/cl/280493</a>: correctly handle negative runes
+      The <a href="/pkg/unicode/#Is"><code>Is</code></a>,
+      <a href="/pkg/unicode/#IsGraphic"><code>IsGraphic</code></a>,
+      <a href="/pkg/unicode/#IsLetter"><code>IsLetter</code></a>,
+      <a href="/pkg/unicode/#IsLower"><code>IsLower</code></a>,
+      <a href="/pkg/unicode/#IsMark"><code>IsMark</code></a>,
+      <a href="/pkg/unicode/#IsNumber"><code>IsNumber</code></a>,
+      <a href="/pkg/unicode/#IsPrint"><code>IsPrint</code></a>,
+      <a href="/pkg/unicode/#IsPunct"><code>IsPunct</code></a>,
+      <a href="/pkg/unicode/#IsSpace"><code>IsSpace</code></a>,
+      <a href="/pkg/unicode/#IsSymbol"><code>IsSymbol</code></a>, and
+      <a href="/pkg/unicode/#IsUpper"><code>IsUpper</code></a> functions
+      now return <code>false</code> on negative rune values, as they do for other invalid runes.
     </p>
   </dd>
 </dl><!-- unicode -->
