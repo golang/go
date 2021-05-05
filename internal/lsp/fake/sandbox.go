@@ -221,8 +221,10 @@ func (sb *Sandbox) GoEnv() map[string]string {
 	return vars
 }
 
-// RunGoCommand executes a go command in the sandbox.
-func (sb *Sandbox) RunGoCommand(ctx context.Context, dir, verb string, args []string) error {
+// RunGoCommand executes a go command in the sandbox. If checkForFileChanges is
+// true, the sandbox scans the working directory and emits file change events
+// for any file changes it finds.
+func (sb *Sandbox) RunGoCommand(ctx context.Context, dir, verb string, args []string, checkForFileChanges bool) error {
 	var vars []string
 	for k, v := range sb.GoEnv() {
 		vars = append(vars, fmt.Sprintf("%s=%s", k, v))
@@ -248,7 +250,10 @@ func (sb *Sandbox) RunGoCommand(ctx context.Context, dir, verb string, args []st
 	}
 	// Since running a go command may result in changes to workspace files,
 	// check if we need to send any any "watched" file events.
-	if sb.Workdir != nil {
+	//
+	// TODO(rFindley): this side-effect can impact the usability of the sandbox
+	//                 for benchmarks. Consider refactoring.
+	if sb.Workdir != nil && checkForFileChanges {
 		if err := sb.Workdir.CheckForFileChanges(ctx); err != nil {
 			return errors.Errorf("checking for file changes: %w", err)
 		}
@@ -260,7 +265,7 @@ func (sb *Sandbox) RunGoCommand(ctx context.Context, dir, verb string, args []st
 func (sb *Sandbox) Close() error {
 	var goCleanErr error
 	if sb.gopath != "" {
-		goCleanErr = sb.RunGoCommand(context.Background(), "", "clean", []string{"-modcache"})
+		goCleanErr = sb.RunGoCommand(context.Background(), "", "clean", []string{"-modcache"}, false)
 	}
 	err := os.RemoveAll(sb.rootdir)
 	if err != nil || goCleanErr != nil {

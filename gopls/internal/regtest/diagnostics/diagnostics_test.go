@@ -301,7 +301,7 @@ func Hello() {
 			env.Await(
 				env.DiagnosticAtRegexp("main.go", `"mod.com/bob"`),
 			)
-			if err := env.Sandbox.RunGoCommand(env.Ctx, "", "mod", []string{"init", "mod.com"}); err != nil {
+			if err := env.Sandbox.RunGoCommand(env.Ctx, "", "mod", []string{"init", "mod.com"}, true); err != nil {
 				t.Fatal(err)
 			}
 			env.Await(

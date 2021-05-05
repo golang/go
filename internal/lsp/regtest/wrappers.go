@@ -247,7 +247,7 @@ func (e *Env) DocumentHighlight(name string, pos fake.Pos) []protocol.DocumentHi
 	return highlights
 }
 
-func checkIsFatal(t *testing.T, err error) {
+func checkIsFatal(t testing.TB, err error) {
 	t.Helper()
 	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrClosedPipe) {
 		t.Fatal(err)
@@ -279,7 +279,7 @@ func (e *Env) RunGenerate(dir string) {
 // directory.
 func (e *Env) RunGoCommand(verb string, args ...string) {
 	e.T.Helper()
-	if err := e.Sandbox.RunGoCommand(e.Ctx, "", verb, args); err != nil {
+	if err := e.Sandbox.RunGoCommand(e.Ctx, "", verb, args, true); err != nil {
 		e.T.Fatal(err)
 	}
 }
@@ -288,7 +288,7 @@ func (e *Env) RunGoCommand(verb string, args ...string) {
 // relative directory of the sandbox.
 func (e *Env) RunGoCommandInDir(dir, verb string, args ...string) {
 	e.T.Helper()
-	if err := e.Sandbox.RunGoCommand(e.Ctx, dir, verb, args); err != nil {
+	if err := e.Sandbox.RunGoCommand(e.Ctx, dir, verb, args, true); err != nil {
 		e.T.Fatal(err)
 	}
 }
@@ -298,7 +298,7 @@ func (e *Env) RunGoCommandInDir(dir, verb string, args ...string) {
 func (e *Env) DumpGoSum(dir string) {
 	e.T.Helper()
 
-	if err := e.Sandbox.RunGoCommand(e.Ctx, dir, "list", []string{"-mod=mod", "..."}); err != nil {
+	if err := e.Sandbox.RunGoCommand(e.Ctx, dir, "list", []string{"-mod=mod", "..."}, true); err != nil {
 		e.T.Fatal(err)
 	}
 	sumFile := path.Join(dir, "/go.sum")

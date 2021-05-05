@@ -23,27 +23,9 @@ var pilosaPath = flag.String("pilosa_path", "", "Path to a directory containing 
 	"know what you're doing!")
 
 func stressTestOptions(dir string) []RunOption {
-	return []RunOption{
-		// Run in an existing directory, since we're trying to simulate known cases
-		// that cause gopls memory problems.
-		InExistingDir(dir),
-
-		// Enable live debugging.
-		DebugAddress(":8087"),
-
-		// Skip logs as they buffer up memory unnaturally.
-		SkipLogs(),
-		// Similarly to logs: disable hooks so that they don't affect performance.
-		SkipHooks(true),
-		// The Debug server only makes sense if running in singleton mode.
-		Modes(Singleton),
-		// Set a generous timeout. Individual tests should control their own
-		// graceful termination.
-		Timeout(20 * time.Minute),
-
-		// Use the actual proxy, since we want our builds to succeed.
-		GOPROXY("https://proxy.golang.org"),
-	}
+	opts := benchmarkOptions(dir)
+	opts = append(opts, SkipHooks(true), DebugAddress(":8087"))
+	return opts
 }
 
 func TestPilosaStress(t *testing.T) {
@@ -52,7 +34,7 @@ func TestPilosaStress(t *testing.T) {
 	}
 	opts := stressTestOptions(*pilosaPath)
 
-	WithOptions(opts...).Run(t, "", func(t *testing.T, env *Env) {
+	WithOptions(opts...).Run(t, "", func(_ *testing.T, env *Env) {
 		files := []string{
 			"cmd.go",
 			"internal/private.pb.go",

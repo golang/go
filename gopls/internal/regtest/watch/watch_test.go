@@ -627,7 +627,7 @@ func main() {
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("foo/main.go")
 		env.Await(env.DiagnosticAtRegexp("foo/main.go", `"blah"`))
-		if err := env.Sandbox.RunGoCommand(env.Ctx, "foo", "mod", []string{"init", "mod.com"}); err != nil {
+		if err := env.Sandbox.RunGoCommand(env.Ctx, "foo", "mod", []string{"init", "mod.com"}, true); err != nil {
 			t.Fatal(err)
 		}
 		env.RegexpReplace("foo/main.go", `"blah"`, `"mod.com/blah"`)

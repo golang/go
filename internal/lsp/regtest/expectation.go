@@ -193,6 +193,12 @@ func (e *Env) DoneWithOpen() Expectation {
 	return CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), opens)
 }
 
+// StartedChange expects there to have been i work items started for
+// processing didChange notifications.
+func StartedChange(i uint64) Expectation {
+	return StartedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), i)
+}
+
 // DoneWithChange expects all didChange notifications currently sent by the
 // editor to be completely processed.
 func (e *Env) DoneWithChange() Expectation {
@@ -219,6 +225,22 @@ func (e *Env) DoneWithChangeWatchedFiles() Expectation {
 func (e *Env) DoneWithClose() Expectation {
 	changes := e.Editor.Stats().DidClose
 	return CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidClose), changes)
+}
+
+// StartedWork expect a work item to have been started >= atLeast times.
+//
+// See CompletedWork.
+func StartedWork(title string, atLeast uint64) SimpleExpectation {
+	check := func(s State) Verdict {
+		if s.startedWork[title] >= atLeast {
+			return Met
+		}
+		return Unmet
+	}
+	return SimpleExpectation{
+		check:       check,
+		description: fmt.Sprintf("started work %q at least %d time(s)", title, atLeast),
+	}
 }
 
 // CompletedWork expects a work item to have been completed >= atLeast times.

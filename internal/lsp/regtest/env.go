@@ -21,7 +21,7 @@ import (
 // on any error, so that tests for the happy path may be written without
 // checking errors.
 type Env struct {
-	T   *testing.T
+	T   testing.TB
 	Ctx context.Context
 
 	// Most tests should not need to access the scratch area, editor, server, or
@@ -54,6 +54,7 @@ type State struct {
 	// be string, though the spec allows for numeric tokens as well.  When work
 	// completes, it is deleted from this map.
 	outstandingWork map[protocol.ProgressToken]*workProgress
+	startedWork     map[string]uint64
 	completedWork   map[string]uint64
 }
 
@@ -108,17 +109,18 @@ type condition struct {
 
 // NewEnv creates a new test environment using the given scratch environment
 // and gopls server.
-func NewEnv(ctx context.Context, t *testing.T, sandbox *fake.Sandbox, ts servertest.Connector, editorConfig fake.EditorConfig, withHooks bool) *Env {
-	t.Helper()
+func NewEnv(ctx context.Context, tb testing.TB, sandbox *fake.Sandbox, ts servertest.Connector, editorConfig fake.EditorConfig, withHooks bool) *Env {
+	tb.Helper()
 	conn := ts.Connect(ctx)
 	env := &Env{
-		T:       t,
+		T:       tb,
 		Ctx:     ctx,
 		Sandbox: sandbox,
 		Server:  ts,
 		state: State{
 			diagnostics:     make(map[string]*protocol.PublishDiagnosticsParams),
 			outstandingWork: make(map[protocol.ProgressToken]*workProgress),
+			startedWork:     make(map[string]uint64),
 			completedWork:   make(map[string]uint64),
 		},
 		waiters: make(map[int]*condition),
@@ -138,7 +140,7 @@ func NewEnv(ctx context.Context, t *testing.T, sandbox *fake.Sandbox, ts servert
 	}
 	editor, err := fake.NewEditor(sandbox, editorConfig).Connect(ctx, conn, hooks)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	env.Editor = editor
 	return env
@@ -200,6 +202,7 @@ func (e *Env) onProgress(_ context.Context, m *protocol.ProgressParams) error {
 	switch kind := v["kind"]; kind {
 	case "begin":
 		work.title = v["title"].(string)
+		e.state.startedWork[work.title] = e.state.startedWork[work.title] + 1
 		if msg, ok := v["message"]; ok {
 			work.msg = msg.(string)
 		}

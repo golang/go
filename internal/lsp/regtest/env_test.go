@@ -16,6 +16,7 @@ func TestProgressUpdating(t *testing.T) {
 	e := &Env{
 		state: State{
 			outstandingWork: make(map[protocol.ProgressToken]*workProgress),
+			startedWork:     make(map[string]uint64),
 			completedWork:   make(map[string]uint64),
 		},
 	}
